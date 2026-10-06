@@ -128,6 +128,7 @@ import { botBusy, botObjective, noteRemoteBombAct, prepareSndRound, scoreHill, s
 import { applyInfect, applyInfectionLoadout, botMelee, infectionCounts, infectionStarted, pickFirstInfected, resetInfection, sortInfectionBots, updateInfection } from "./modes/infection.js?v=in1";
 import { adoptRoomMode, cancelSocialReturn, ownerSwitchRoomMode, renderRoomModeRow, returnToSocial, scheduleSocialReturn, initSocial } from "./modes/social.js?v=so1";
 import { cancelIntermission, endGame, endMatch, renderVote, startIntermission, updateIntermission, voteOptions } from "./modes/match-end.js?v=me1";
+import { LOAD_WAIT_MAX, beginMatch, beginStaging, endStaging, enterMatch, followsHostMap, isStaging, loadHold, loadInfo, loadTarget, loadWarm, releaseLoad, startGame, updateStaging, warmNewGuns, warmShaders, initMatchStart } from "./modes/match-start.js?v=mst1";
 /* What the split-out modules reach back into game.js for (see core/state.js).
    Functions go in as they are; everything else as a getter, so nothing is
    read before game.js declares it. game.js only ever gets smaller: an
@@ -160,13 +161,14 @@ linkGame({
   beginStreakHold,
   get blindT() { return blindT; }, set blindT(v) { blindT = v; },
   get bomb() { return bomb; }, set bomb(v) { bomb = v; },
-  get bombSites() { return bombSites; },
+  get bombSites() { return bombSites; }, set bombSites(v) { bombSites = v; },
   boostedXp,
   botBusy,
   botDealDamage,
   botEarn,
   get bots() { return bots; },
   get botSpawn() { return botSpawn; },
+  botTarget,
   botWarshipGunner,
   get builtMap() { return builtMap; },
   get bullets() { return bullets; },
@@ -181,6 +183,7 @@ linkGame({
   clearRangeBots,
   closePauseMenu,
   get colliders() { return colliders; },
+  compileWorld,
   get controls() { return controls; },
   get cooking() { return cooking; },
   currentMode,
@@ -207,7 +210,7 @@ linkGame({
   get droneFields() { return droneFields; },
   dropCarriedWeapon,
   get duoXClaimed() { return duoXClaimed; },
-  get elapsedRun() { return elapsedRun; },
+  get elapsedRun() { return elapsedRun; }, set elapsedRun(v) { elapsedRun = v; },
   get els() { return els; },
   get emoteIsTp() { return emoteIsTp; },
   get emoteWheel() { return emoteWheel; },
@@ -236,12 +239,14 @@ linkGame({
   get hellfire() { return hellfire; },
   get hellfireView() { return hellfireView; },
   heroActive,
-  get hill() { return hill; },
+  get hill() { return hill; }, set hill(v) { hill = v; },
+  get hillAcc() { return hillAcc; }, set hillAcc(v) { hillAcc = v; },
   get hitboxLab() { return hitboxLab; },
   get hitFlashT() { return hitFlashT; }, set hitFlashT(v) { hitFlashT = v; },
   holsterMeleeFor,
   holsterMeleeThen,
   get hudLayout() { return hudLayout; },
+  humanHeadcount,
   get impactFx() { return impactFx; },
   get infectionStarted() { return infectionStarted; },
   get infectionT() { return infectionT; }, set infectionT(v) { infectionT = v; },
@@ -260,6 +265,7 @@ linkGame({
   isStaging,
   get isTouch() { return isTouch; },
   isTrollRunner,
+  isView,
   isZombies,
   get jammedUntil() { return jammedUntil; }, set jammedUntil(v) { jammedUntil = v; },
   k9Stairs,
@@ -274,8 +280,10 @@ linkGame({
   get lightPool() { return lightPool; },
   get loadedMapId() { return loadedMapId; },
   loadInfo,
+  loadMap,
   get loadout() { return loadout; },
   get loadScreen() { return loadScreen; },
+  get loadWaitMax() { return loadWaitMax; },
   get lobbyReady() { return lobbyReady; },
   get localBlockT() { return localBlockT; },
   get localHeld() { return localHeld; },
@@ -286,6 +294,7 @@ linkGame({
   get localThrowT() { return localThrowT; }, set localThrowT(v) { localThrowT = v; },
   get lockEl() { return lockEl; },
   get look() { return look; },
+  get mapPreload() { return mapPreload; },
   mapToMinimap,
   get MARKER_THROW_TIME() { return MARKER_THROW_TIME; },
   get markerThrowT() { return markerThrowT; }, set markerThrowT(v) { markerThrowT = v; },
@@ -313,6 +322,8 @@ linkGame({
   nameFor,
   nearbyPackage,
   get net() { return net; },
+  nextWave,
+  nextZombieRound,
   noteDealt,
   noteLocalDeath,
   notePointDeath,
@@ -331,7 +342,9 @@ linkGame({
   playerUid,
   powerHeld,
   putDownDrink,
-  get rangeSet() { return rangeSet; },
+  get QUICKPLAY_BASE() { return QUICKPLAY_BASE; },
+  get QUICKPLAY_MAX_SHARDS() { return QUICKPLAY_MAX_SHARDS; },
+  get rangeSet() { return rangeSet; }, set rangeSet(v) { rangeSet = v; },
   readyStreaksOrdered,
   refreshLobbyMap,
   registerDeath,
@@ -347,6 +360,8 @@ linkGame({
   renderViewModeRow,
   reportRangeShot,
   resetBar,
+  resetFireShake,
+  resetMatchClock,
   resolveBulletTarget,
   get respawnT() { return respawnT; }, set respawnT(v) { respawnT = v; },
   resumePlay,
@@ -387,14 +402,18 @@ linkGame({
   get socialRoom() { return socialRoom; }, set socialRoom(v) { socialRoom = v; },
   socialUnarmed,
   get SPAWN_GUARD() { return SPAWN_GUARD; },
+  get spawnDeaths() { return spawnDeaths; },
   spawnDragonfire,
-  get spawner() { return spawner; },
+  get spawner() { return spawner; }, set spawner(v) { spawner = v; },
   spawnImpactBurst,
+  get spawnOpening() { return spawnOpening; }, set spawnOpening(v) { spawnOpening = v; },
+  get spawnPoints() { return spawnPoints; },
   spawnRangeBot,
   spawnRecon,
   spawnSam,
   spawnWarship,
-  get stageT() { return stageT; },
+  get stageOwner() { return stageOwner; }, set stageOwner(v) { stageOwner = v; },
+  get stageT() { return stageT; }, set stageT(v) { stageT = v; },
   startCook,
   startGame,
   startInspect,
@@ -416,6 +435,7 @@ linkGame({
   streakSlotIds,
   get strikeTablet() { return strikeTablet; },
   get sumGunKey() { return sumGunKey; }, set sumGunKey(v) { sumGunKey = v; },
+  get suppressT() { return suppressT; }, set suppressT(v) { suppressT = v; },
   get swapHold() { return swapHold; },
   get swarmRuns() { return swarmRuns; },
   swingMelee,
@@ -436,10 +456,12 @@ linkGame({
   trySwivel,
   updateGearHud,
   updatePickupPrompt,
+  updateRangeHud,
   updateSpawnGuardHud,
   useHeroAbility,
   useSelectedStreak,
-  get viewPrevMode() { return viewPrevMode; },
+  viewModeOn,
+  get viewPrevMode() { return viewPrevMode; }, set viewPrevMode(v) { viewPrevMode = v; },
   vsatUp,
   warmNewGuns,
   get warship() { return warship; }, set warship(v) { warship = v; },
@@ -452,7 +474,7 @@ linkGame({
   get weaponScene() { return weaponScene; },
   get WHISTLE_BLOW_AT() { return WHISTLE_BLOW_AT; },
   get WHISTLE_HOLD() { return WHISTLE_HOLD; },
-  get zdir() { return zdir; },
+  get zdir() { return zdir; }, set zdir(v) { zdir = v; },
 });
 
 /* Maps download once (user, 2026-10-04): /sw.js keeps the game's models,
@@ -3390,760 +3412,10 @@ function equipFromLoadout() {
   return def;
 }
 
-/* Put everyone who didn't ask for a private room into the same public
-   server for the mode they picked. Tries the base room first (QTDM, QKOH,
-   ...); only spills into a numbered shard once the base room already has
-   enough real people that MAX_PLAYERS would be exceeded, so a lone player
-   never gets sharded off by themselves. Modes without a quickplay base
-   (none currently) fall back to a private random room, same as before. */
-async function joinQuickplay() {
-  const base = QUICKPLAY_BASE[modeId];
-  if (!base) {
-    const code = makeRoomCode();
-    return { code, kind: await net.start(code, { name: playerName(), mapId: loadout.mapId, uid: playerUid() }) };
-  }
-  for (let shard = 1; shard <= QUICKPLAY_MAX_SHARDS; shard++) {
-    const code = shard === 1 ? base : `${base}${shard}`;
-    setNetStatus(shard === 1 ? "Connecting…" : `Server full, trying another (${shard})…`);
-    const kind = await net.start(code, { name: playerName(), mapId: loadout.mapId, uid: playerUid() });
-    if (!kind) return { code, kind };   // real connectivity failure — retrying won't help
-    // Real people only: a room's bots (mirrored into its peer list) would
-    // otherwise make a busy Royale look full and shard every joiner away.
-    const cap = isRoyale() ? MAX_PLAYERS_ROYALE : MAX_PLAYERS;
-    if (net.humanCount <= cap || shard === QUICKPLAY_MAX_SHARDS) return { code, kind };
-    net.stop();
-  }
-}
-
-/* A stage message whose map this client should take: from a player who
-   joined the room before us (so two newcomers can't swap maps back and
-   forth), same mode, and a mode that lets you pick the map at all. */
-function followsHostMap(m) {
-  if (!m.map || !MAPS[m.map] || m.mode !== modeId || !isPvp()) return false;
-  const mode = currentMode();
-  if (mode.forceMap || mode.mapPool) return false;
-  // The host's map, not just any older player's: a tab stuck on its loading
-  // screen used to drag everyone onto its map (net.hostId).
-  return net.peers.has(m.id) && net.hostId() === m.id;
-}
-
-async function startGame() {
-  audio.resume();   // the click that got us here is the gesture Web Audio needs
-  // View mode: the lobby's map, nobody in it (see isView).
-  if (viewModeOn() && modeId !== "view") { viewPrevMode = modeId; modeId = "view"; }
-  else if (!viewModeOn() && modeId === "view") modeId = viewPrevMode || "ops";
-  // The click is the only gesture we get: take the mouse now, so the match
-  // doesn't open on the pause screen after a long load.
-  if (!isTouch) { try { controls.lock(); } catch { /* the pause screen catches it later */ } }
-  roomMapHint = null;
-  // Socialize is the one public hangout room: never a private code. The
-  // room may already be playing a mode the owner switched it to; the host
-  // says so while we connect (adoptRoomMode) and modeId follows.
-  socialRoom = isSocial();
-  roomModeSeq = net.modeSeq = 0;
-  socialMapId = null;
-  cancelSocialReturn();
-  loadScreen.show(loadInfo(matchMapId()));
-  els.title.hidden = true;
-  if (isPvp()) {
-    els.startBtn.disabled = true;
-    setNetStatus("Connecting…");
-    loadScreen.status(socialRoom ? "Finding the hangout…" : "Finding a match…");
-    const result = els.room.value && roomIsCustom && !socialRoom
-      ? { code: els.room.value, kind: await net.start(els.room.value, { name: playerName(), mapId: loadout.mapId, uid: playerUid() }) }
-      : await joinQuickplay();
-    els.startBtn.disabled = false;
-    if (!result.kind) {
-      loadScreen.hide();
-      els.title.hidden = false;
-      if (controls.isLocked) controls.unlock();
-      socialRoom = false;
-      setNetStatus("Couldn't reach the room. Try another code.", "bad");
-      return;
-    }
-    if (!socialRoom) els.room.value = result.code;
-    // The hangout is one side, so anyone can duo-emote with anyone.
-    if (isSocial()) net.setTeam("phantom");
-    else net.chooseTeam();
-    chat.render();   // it was built before the room connected
-    setNetStatus(`Live · ${result.kind} · room ${result.code} · ${teamName(net.team)}`, "live");
-  } else {
-    net.stop();
-  }
-
-  enterMatch(isPvp() ? roomMapHint : null);
-}
-
-/* -------------------- map loading screen --------------------
-
-   Find Match → this screen (map-load-screen.js) → the countdown. It stays
-   up until the map is built, downloaded and its shaders compiled, so the
-   match runs smooth from its first frame on every device, however long
-   that takes. Online it then waits until everyone in the room has loaded
-   too (user: "game doesn't start until everyone loads in completely"), for
-   up to LOAD_WAIT_MAX seconds once we're ready (see updateLoadScreen).
-
-   The wire: every client sends "ready" (net.publishReady) about once a
-   second while on this screen, ok:0 while loading, ok:1 once done. The
-   host (net.isBotHost) starts the countdown when every player who speaks
-   "ready" has sent ok:1 for its map; its countdown "stage" messages are the
-   go for everyone else. A player arriving once the match is on gets a
-   targeted go (net.publishGo) from the host when they finish. Players on an
-   old cached page never send "ready", so they're not waited on. */
-let loadHold = false;    // match set up under the loading screen; countdown frozen until "go"
-let loadTarget = null;   // the map the screen is loading
-let loadSeq = 0;         // bumped to cancel a superseded load (the room switched maps)
-let loadPing = 0;        // seconds until the next "ready" resend
-
-function loadInfo(id) {
-  return { id, name: MAPS[id]?.name || "", blurb: MAPS[id]?.blurb || "", mode: currentMode().name };
-}
-
-async function enterMatch(mapHint = null) {
-  const seq = ++loadSeq;
-  loadWarm = false;
-  loadHold = false;
-  loadPing = 0;
-  let id = matchMapId(mapHint);
-  if (!loadScreen.isOpen) loadScreen.show(loadInfo(id));
-  // Everyone re-reports for this match; old "done"s were for the last one.
-  for (const p of net.peers.values()) p.readyMap = null;
-  for (;;) {
-    loadTarget = id;
-    loadScreen.setMap(loadInfo(id));
-    if (id !== loadedMapId) {
-      const tick = () => {
-        const st = mapPreload.status(id);
-        loadScreen.progress(st.progress * 0.85);
-        loadScreen.status(st.state === "compiling" ? "Building the map" : "Loading the map");
-      };
-      const off = mapPreload.onChange(tick);
-      tick();
-      try { await mapPreload.preload(id); } catch { /* loadMap builds it plainly */ } finally { off(); }
-      if (seq !== loadSeq) return;
-    }
-    // The room may have told us its map while we loaded ours.
-    const want = matchMapId(isPvp() ? (roomMapHint || mapHint) : mapHint);
-    if (want === id) break;
-    id = want;
-  }
-  loadHold = true;
-  beginMatch(id);
-  // Everything else the match will draw (bots, streak models, the gun),
-  // compiled now rather than on the frame it first appears.
-  loadScreen.progress(0.88);
-  loadScreen.status("Warming up");
-  await warmShaders();
-  if (seq !== loadSeq) return;
-  loadScreen.progress(1);
-  loadScreen.status(isPvp() && net.active ? "Waiting for players" : "Ready");
-  loadWarm = true;
-}
-let loadWarm = false;    // shaders done; only then do we tell the room we're ready
-
-/* The loading screen comes down and the countdown runs. `left` adopts the
-   host's clock; without one we keep the countdown beginMatch set. */
-function releaseLoad(left = 0) {
-  if (!loadHold) return;
-  loadHold = false;
-  loadWarm = false;
-  loadTarget = null;
-  if (left > 0 && isStaging()) { stageT = left; stageShown = -1; }
-  loadScreen.hide();
-  calibratePadRest();   // nobody should be pushing the stick on the loading screen
-  if (!isTouch && gameState === "playing") {
-    try { controls.lock(); } catch { /* refused — the pause screen catches it */ }
-    setTimeout(() => {
-      if (gameState === "playing" && !controls.isLocked && !loadScreen.isOpen) openPauseMenu();
-    }, 260);
-  }
-}
-
-/* Four times a second while the loading screen is up — on a timer rather
-   than the frame loop, so a player who tabs away mid-load (no frames in a
-   background tab) keeps reporting in instead of timing out of the room. */
-let loadClock = performance.now();
-setInterval(() => {
-  const now = performance.now();
-  updateLoadScreen(Math.min(2, (now - loadClock) / 1000));
-  loadClock = now;
-}, 250);
-function updateLoadScreen(dt) {
-  if (!loadScreen.isOpen) return;
-  const online = isPvp() && net.active;
-  const done = loadHold && loadWarm;
-  if (online) {
-    net.prune();
-    loadPing -= dt;
-    if (loadPing <= 0 && loadTarget) { loadPing = 1; net.publishReady(loadTarget, modeId, done); }
-  }
-  if (!done) { loadWaitT = 0; return; }
-  if (!online) { releaseLoad(); return; }
-  const others = [...net.peers.values()].filter((p) => !isBotPeer(p) && p.lr);
-  const n = others.filter((p) => p.readyMap === loadedMapId).length;
-  // A time limit on the wait (user, 2026-10-04: "add a timeout for the
-  // slowest player wait"; it had none). Counted from when we were ready.
-  // The host starts without whoever is still loading once it runs out;
-  // they're let in the moment they finish (onReady's publishGo, the same
-  // way as a latecomer). A slow host is the other half: the rest start on
-  // their own a while later, and adopt its countdown once it arrives.
-  loadWaitT += dt;
-  const host = net.isBotHost();
-  const limit = host ? loadWaitMax : loadWaitMax + LOAD_WAIT_CLIENT_EXTRA;
-  const left = Math.max(0, Math.ceil(limit - loadWaitT));
-  loadScreen.status(others.length ? `Waiting for players ${n + 1}/${others.length + 1} · starting in ${left}s` : "Ready");
-  if (host && n === others.length) releaseLoad();
-  else if (loadWaitT >= limit) releaseLoad();
-}
-const LOAD_WAIT_MAX = 20;          // seconds the host waits on slow loaders once it's ready
-const LOAD_WAIT_CLIENT_EXTRA = 25; // and on top, before a non-host stops waiting for the host
 let loadWaitMax = LOAD_WAIT_MAX;   // (tests shorten it: __trollOps.setLoadWaitMax)
-let loadWaitT = 0;
-
-/* -------------------- pre-match staging --------------------
-
-   A match used to begin the instant the map loaded: you were dropped on your
-   spawn, already live, while the bots that fill the room only appeared a frame
-   later from inside the animate loop. That reads as abrupt, and a room with one
-   or two humans looks empty at exactly the moment it should feel like a match
-   about to kick off.
-
-   Staging is a short countdown *inside* `playing` rather than a sixth game
-   state — the world renders, remote players and bots stream in and are visible,
-   but nobody can move, shoot or take damage until the clock hits zero. Keeping
-   it a flag rather than a state means the ~25 existing `gameState === "playing"`
-   checks all keep working untouched. */
-const STAGE_SECONDS = 6;
-// TDM and S&D open on a cinematic of both teams (match-intro.js), so their
-// first countdown is long enough to hold it plus a couple of beats to GO.
-// Every client uses the same length so the shared clock never shrinks it.
-const INTRO_STAGE_SECONDS = 10;
-const INTRO_TAIL = 1.6;          // seconds of plain countdown left after the cinematic
 let stageT = 0;                  // seconds left; 0 means the match is live
-let introPending = null;         // "full" | "short": starts on the first un-held staging tick
-let introDelay = 0;              // ...a beat in, once respawned bots have been placed
-let stageShown = -1;             // last whole second painted, so we only touch the DOM on a change
 let stageOwner = false;          // are we the client publishing the clock?
-let stagePub = 0;                // throttle on republishing it
-
-function isStaging() { return stageT > 0; }
-
-function introMode() { return modeId === "tdm" || modeId === "snd"; }
-function introOn() { return introMode() && !document.body.classList.contains("tf-anim-off"); }
-
-/* Everyone the cinematic should show, as match-intro.js actors. Bots ride
-   the peer map too (net.publishBot mirrors them in); streak entities don't
-   count as anyone. */
-function introCast() {
-  const mine = [], enemy = [];
-  for (const rp of remotes.byId.values()) {
-    if (String(rp.netId).startsWith("streak-") || !rp.alive) continue;
-    const actor = {
-      id: String(rp.netId),
-      name: rp.peer.name || "operator",
-      pos: rp.pos,   // live: a respawned bot lands a frame after the round resets
-      yaw: rp.yaw,
-      pose: (name) => {
-        const i = name ? EMOTES.findIndex((e) => e.id === name) : -1;
-        rp.cineEmote = i >= 0 ? emoteCode(i) : 0;
-      },
-    };
-    (rp.team === net.team ? mine : enemy).push(actor);
-  }
-  return { mine, enemy };
-}
-
-function startMatchIntro(kind) {
-  const short = kind === "short";
-  // A round restart only has 3 s on the clock: leave it less of a tail.
-  const length = stageT - (short ? 0.9 : INTRO_TAIL);
-  if (length < (short ? 1.4 : 4)) return;
-  const enemyTeam = net.team === "phantom" ? "ghost" : "phantom";
-  const snd = isSnd();
-  const attack = snd && net.team === sndAttackTeam;
-  matchIntro.start({
-    length: short ? Math.min(length, 2.4) : length,
-    short,
-    seed: sndRound,
-    modeName: currentMode().name,
-    mapName: builtMap.map.name,
-    mine: { name: TEAMS[net.team]?.name || "Trolls", ui: TEAMS[net.team]?.ui },
-    enemy: { name: TEAMS[enemyTeam]?.name || "Jeets", ui: TEAMS[enemyTeam]?.ui },
-    roleMine: snd ? (attack ? "Attacking" : "Defending") : "",
-    roleEnemy: snd ? (attack ? "Defending" : "Attacking") : "",
-    cast: introCast,
-    self: () => ({
-      feet: move.pos,
-      eye: player.pos,
-      yaw: look.yaw,
-      pitch: look.pitch,
-      name: playerName(),
-    }),
-  });
-  document.body.classList.add("to-intro-on");
-}
-matchIntro.onEnd = () => document.body.classList.remove("to-intro-on");
-
-/* Compile every shader the match will need while the countdown runs, so the
-   first grenade, the first streak and the first bot in view don't each
-   freeze the frame they appear (a shader compiles on first draw, and on a
-   laptop GPU that is hundreds of ms apiece). The map and the bots are already
-   in the scene; the rest gets one throwaway stand-in each, parked out of
-   sight, compiled, and removed. compileAsync lets the driver compile in
-   parallel where it can, so the countdown keeps ticking meanwhile.
-
-   It runs every match, streak models included: each map brings its own
-   lights, and the light count is part of every shader's key, so last
-   match's shaders don't fit this one.
-
-   The guns get stand-ins too, both copies: the first-person one and the one
-   the third-person body holds. Only the equipped gun is ever built
-   (setActiveWeaponMesh), so the secondary, and the body's gun the first
-   time you go third person, used to compile on the spot. The stand-ins are
-   kept (never drawn) until the next warm-up, because three frees a shader
-   once the last material using it is disposed, and every weapon swap
-   disposes the gun it puts away. */
-const WARM_MODELS = ["care-package", "helicopter", "hunter-drone", "recon-drone", "strike-jet", "k9-dog", "vtol-warship"];
-let warmKeep = [];                 // last warm-up's stand-ins, holding their shaders
-const warmedGuns = new Set();      // gunWarmKey()s those stand-ins cover
-const gunWarmKey = (def) => `${def.id}:${JSON.stringify(def.attachments || {})}`;
-
-/* Every gun this match can put in your hands: the loadout's two, or the
-   whole Gun Game rack. */
-function matchGunDefs() {
-  const mode = currentMode();
-  const defs = Object.values(player.weapons || {}).map((w) => w.def);
-  if (mode.ladder) {
-    for (const id of mode.ladder) {
-      let def = resolveWeapon(id, defaultLoadoutFor(id));
-      if (mode.tuneWeapon) def = mode.tuneWeapon(def);
-      defs.push(def);
-    }
-  }
-  const seen = new Set();
-  return defs.filter((d) => d && !seen.has(gunWarmKey(d)) && seen.add(gunWarmKey(d)));
-}
-
-/* First-person and third-person stand-ins for `defs` (and the melee
-   weapon's third-person copy), not yet attached anywhere. */
-function gunStandIns(defs, melee) {
-  const fp = new THREE.Group(), tp = new THREE.Group();
-  fp.visible = false;
-  for (const def of defs) {
-    fp.add(buildWeaponMesh(def));
-    const g = stripLights(buildWeaponMesh(def));
-    g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-    tp.add(g);
-  }
-  if (melee) tp.add(buildMeleeMesh(melee, false, { held3p: true }));
-  return { fp, tp };
-}
-
-function disposeStandIns(objs) {
-  for (const obj of objs) obj.traverse((o) => {
-    if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
-    if (o.material) for (const m of [].concat(o.material)) m.dispose?.();
-  });
-}
-
-/* compile() doesn't upload textures; do the stand-ins' now too. */
-function uploadStandInTextures(root) {
-  root.traverse((o) => {
-    if (!o.isMesh) return;
-    for (const m of [].concat(o.material)) {
-      if (!m) continue;
-      for (const k of ["map", "normalMap", "roughnessMap", "metalnessMap", "aoMap", "emissiveMap", "alphaMap", "bumpMap"]) {
-        const t = m[k];
-        if (t?.isTexture && t.image) { try { renderer.initTexture(t); } catch { /* uploads on first draw */ } }
-      }
-    }
-  });
-}
-
-/* Guns compiled against the world and the viewmodel scene, keeping them
-   in `keep`. */
-async function warmGuns(defs, melee, keep) {
-  const { fp, tp } = gunStandIns(defs, melee);
-  keep.push(fp, tp);
-  tp.position.set(0, -200, 0);
-  weaponRig.add(fp);
-  try {
-    uploadStandInTextures(fp);
-    uploadStandInTextures(tp);
-    await Promise.all([
-      compileWorld(tp, camera, scene),
-      renderer.compileAsync(fp, weaponCamera, weaponScene),
-    ]);
-    for (const d of defs) warmedGuns.add(gunWarmKey(d));
-  } finally {
-    weaponRig.remove(fp);
-  }
-}
-
-/* A class change on respawn brings guns the countdown never saw. */
-function warmNewGuns() {
-  if (!renderer.compileAsync || gameState !== "playing") return;
-  const fresh = matchGunDefs().filter((d) => !warmedGuns.has(gunWarmKey(d)));
-  if (fresh.length) warmGuns(fresh, null, warmKeep).catch(() => {});
-}
-
-async function warmShaders() {
-  if (!renderer.compileAsync) return;
-  const stand = new THREE.Group();
-  stand.position.set(0, -200, 0);
-  for (const def of Object.values(THROWABLE_DEFS)) {
-    stand.add(new THREE.Mesh(grenades.geo, grenades.matFor(def)));
-  }
-  const kept = [];
-  ensureStrikeTablet();
-  scene.add(stand);
-  try {
-    const models = (await Promise.all(WARM_MODELS.map((m) => loadModel(m).catch(() => null)))).filter(Boolean);
-    // zombies: the blood pool and the neck stump of a headshot kill
-    if (isZombies()) models.push(...goreStandIns());
-    for (const m of models) stand.add(m);
-    kept.push(...models);
-    uploadStandInTextures(stand);
-    warmedGuns.clear();
-    await Promise.all([
-      compileWorld(scene, camera),
-      renderer.compileAsync(weaponScene, weaponCamera),
-      warmGuns(matchGunDefs(), player.melee?.def, kept),
-    ]);
-  } catch (e) {
-    // Only ever a head start; the frame will compile whatever this missed.
-  } finally {
-    scene.remove(stand);
-    for (const m of kept) m.parent?.remove(m);
-    const old = warmKeep;
-    warmKeep = kept;
-    disposeStandIns(old);
-  }
-}
-
-/* Frozen: input is ignored and damage is refused. The camera still moves so
-   the player can look around the room while they wait. */
-function beginStaging(seconds = STAGE_SECONDS) {
-  // Animations off (menu-bo2.js switch): solo skips most of the wait. PvP
-  // keeps the room's clock, since everyone in it shares one countdown.
-  const fast = !isPvp() && document.body.classList.contains("tf-anim-off");
-  if (fast) seconds = Math.min(seconds, 2);
-  // TDM / S&D: the match opener gets the full cinematic (and a longer clock
-  // to hold it), each later S&D round the short squad cut.
-  matchIntro.stop();
-  introPending = null;
-  if (introMode() && !royale) {
-    const opener = seconds === STAGE_SECONDS;
-    if (opener) seconds = INTRO_STAGE_SECONDS;
-    if (introOn()) { introPending = opener ? "full" : "short"; introDelay = 0.15; }
-  }
-  stageT = seconds;
-  stageShown = -1;
-  stagePub = 0;
-  // Solo play always "owns" its own clock; PvP re-derives ownership every
-  // publish tick in updateStaging() rather than latching a one-time guess
-  // here — a peer's `hello` can land a beat after this runs, and a stale
-  // "I'm alone" snapshot would leave two clients both convinced they own it.
-  stageOwner = !isPvp() || !net.active;
-  // A beat in, once the bots that fill the room have streamed in.
-  // (Under the loading screen enterMatch warms everything itself.)
-  if (!loadHold) setTimeout(() => { if (isStaging()) warmShaders(); }, fast ? 0 : 900);
-  // The sky lobby is a place to walk round in, not a frozen countdown card.
-  els.staging.hidden = !!royale?.drop;
-  if (!royale?.drop) document.body.classList.add("to-staging-on");
-  else showWaveBanner("SKY LOBBY — try the guns, the bus leaves soon", 2600);
-  els.stagingMode.textContent = isPvp()
-    ? `${currentMode().name} — ${builtMap.map.name}`
-    : builtMap.map.name;
-  els.stagingSub.textContent = isInfection()
-    ? "Everyone starts clean. Someone won't stay that way."
-    : isPvp() && net.team
-    ? `You are ${TEAMS[net.team].name}`
-    : "Get ready";
-  updateStagingRoster();
-}
-
-function endStaging() {
-  // Already ended. (The sky lobby hides the countdown card, so a hidden card
-  // alone doesn't mean that there.)
-  if (stageT <= 0 && els.staging.hidden && royale?.drop?.phase !== "lobby") return;
-  stageT = 0;
-  spawnOpening = false;
-  introPending = null;
-  matchIntro.stop();
-  els.staging.hidden = true;
-  document.body.classList.remove("to-staging-on");
-  // The opening seconds still deserve the cover a respawn gets.
-  player.spawnGuard = isPvp() ? SPAWN_GUARD : 0;
-  updateSpawnGuardHud();
-  if (royale?.drop) startRoyaleBus();
-  else if (royale) { royale.live = true; royale.t = 0; showWaveBanner("DROP IN — last troll standing wins", 1800); }
-  else if (isPvp() && !isSnd()) showWaveBanner("FIGHT", 1100);
-  audio.stageTick(true);
-  // The horde/zombie clock — and the first wave banner — start now, not when
-  // the map loaded, so nothing was ever ticking behind the countdown.
-  if (isZombies()) nextZombieRound();
-  else if (isSnd()) sndGoLive();
-  else if (!isPvp() && !isRange()) nextWave();
-
-  // Search & Destroy's clock is per-round elsewhere (PLANT_TIME/DEFUSE_TIME);
-  // this is the whole-match clock for score-limited modes like TDM.
-  if (isPvp() && !isSnd()) resetMatchClock();
-}
-
-/* How full the room looks right now — the whole point of staging is that the
-   bots are already standing there when the player counts down. */
-function updateStagingRoster() {
-  if (!isPvp()) { els.stagingRoster.textContent = ""; return; }
-  let humans = 1, botCount = 0;
-  for (const p of net.peers.values()) (isBotPeer(p) ? botCount++ : humans++);
-  const parts = [`${humans} operator${humans === 1 ? "" : "s"}`];
-  if (botCount) parts.push(`${botCount} bot${botCount === 1 ? "" : "s"}`);
-  els.stagingRoster.textContent = parts.join(" · ");
-}
-
-function updateStaging(dt) {
-  // The first tick the clock actually runs (not under the loading screen),
-  // so the cinematic is squeezed into whatever is really left.
-  if (introPending && (introDelay -= dt) <= 0) { const k = introPending; introPending = null; startMatchIntro(k); }
-  stageT -= dt;
-  if (matchIntro.active) matchIntro.setClock(stageT);
-
-  // Only the owner publishes, ~3×/sec, so a client that joins or reloads
-  // mid-countdown adopts the clock already running rather than its own.
-  // Re-checked every tick (not latched once) so a peer whose `hello` arrived
-  // a beat late still hands ownership off the moment it's known about.
-  if (isPvp() && net.active) {
-    stageOwner = net.isBotHost();
-    stagePub -= dt;
-    if (stageOwner && stagePub <= 0) {
-      stagePub = 0.33;
-      net.publishStage(loadedMapId || loadout.mapId, modeId, stageT, royale ? royale.seed : undefined);
-    }
-  }
-
-  const whole = Math.max(0, Math.ceil(stageT));
-  if (whole !== stageShown) {
-    stageShown = whole;
-    els.stagingClock.textContent = whole > 0 ? String(whole) : "GO";
-    // Restarting a CSS animation needs the class off for a reflow first.
-    els.stagingClock.classList.remove("is-tick");
-    void els.stagingClock.offsetWidth;
-    els.stagingClock.classList.add("is-tick");
-    if (whole > 0) audio.stageTick(whole <= 3);
-    updateStagingRoster();
-  }
-
-  if (stageT <= 0) endStaging();
-}
-
-/* Everything a match needs reset, with no connection work — so a rematch can
-   reuse the room the lobby already joined instead of tearing it down and
-   making everyone re-handshake. */
-function beginMatch(mapId = null) {
-  killcam.clear();
-  setFunnyDeaths(!!currentMode().funny);
-  suppressT = 0;
-  clearHitDirs();
-  player.hp = player.maxHp;
-  player.kills = 0;
-  player.deaths = 0;
-  player.wave = 0;
-  player.alive = true;
-  player.assists = 0;
-  player.headshots = 0;
-  player.streak = 0;
-  player.bestStreak = 0;
-  player.matchXp = 0;
-  player.matchT = 0;
-  player.vetBotT = 0;
-  player.shotsFired = 0;
-  player.shotsHit = 0;
-  player.matchScore = 0;
-  player.weaponKills = {};
-  roomSkillSeen = null;
-  player.lastKilledBy = null;
-  // A fresh match starts with nothing earned and nothing banked, and picks up
-  // whatever three streaks the lobby has selected.
-  streaks.reset();
-  streaks.setSelected(streakPicker.selected);
-  uavUntil.phantom = 0;
-  uavUntil.ghost = 0;
-  vsatUntil.phantom = 0;
-  vsatUntil.ghost = 0;
-  clearStreakLocks();
-  killstreakUi.reset();
-  recentTeamKillers.clear();
-  achievements.reset();
-  clearStreakEntities();
-  if (els.ssSlots) els.ssSlots.dataset.sig = "";
-  updateStreakHud();
-  damageLog.clear();
-  dealtLog.clear();
-  lastHitRange.clear();
-  if (els.deathBy) els.deathBy.hidden = true;
-  elapsedRun = 0;
-  respawnT = 0;
-  teamScores.phantom = 0;
-  teamScores.ghost = 0;
-  updateTeamHud();
-
-  gunGameProgress = 0;
-  hillAcc = 0;
-  resetInfection();
-  // After that reset: it reads a 150 max as "was infected" (the Knight's 150 too).
-  applyHeroLoadout();
-
-  spawnDeaths.clear();
-  // Spawn protection starts when the countdown ends, not when the map loads —
-  // burning it during staging would spend it before anyone can shoot.
-  player.spawnGuard = 0;
-  updateSpawnGuardHud();
-
-  loadMap(matchMapId(mapId));
-  // Socialize: the map's townsfolk (town-npcs.js), if it has any.
-  townNpcs?.dispose();
-  townNpcs = isSocial() && builtMap?.map?.rp?.npcs ? new TownNpcs(scene, builtMap.map.rp.npcs(), builtMap.map.rp) : null;
-  player.armor = 0;
-  player.plates = 0;
-  player.heals = 0;
-  if (isRoyale()) setupRoyale(); else teardownRoyale();
-  spawnOpening = true;   // cleared by endStaging — everyone opens on their own side
-  clearDeathVisuals();   // dying as the last match ended left the screen dark
-  const sp = royale?.drop ? royale.drop.lobbySpot(0) : isPvp() ? teamSpawn() : builtMap.playerSpawn;
-  move.reset(sp.x, sp.z, sp.y || 0);
-  look.yaw = yawTowardCentre(sp);
-  look.pitch = 0;
-  bullets.clear();
-  grenades.clear();
-  pickups.clear();
-  swapHold.reset();
-  cooking.def = null;
-  cooking.slot = null;
-  els.cook.hidden = true;
-  blindT = 0;
-  empT = 0;
-  clearDamageNumbers();
-  applyEmpState(false);
-  els.smoke.style.opacity = "0";
-  shakeT = 0;
-  shakeMag = 0;
-  resetFireShake();
-  remotes.clear();
-  bots.clear();
-
-  hill = currentMode().hill
-    ? new Hill(pickHillPoints(builtMap.map.bounds, builtMap.spawnPoints, colliders))
-    : null;
-  setHillMarker(hill);
-
-  if (currentMode().rounds) {
-    bombSites = pickBombSites(builtMap.map.bounds, builtMap.spawnPoints, colliders);
-    bomb = new Bomb(bombSites);
-    setBombSiteMarkers(bombSites);
-    sndRound = 0;
-    sndAttackTeam = "phantom";
-  } else {
-    bomb = null;
-    bombSites = null;
-    setBombSiteMarkers(null);
-  }
-
-  setActiveWeaponMesh(equipFromLoadout());
-
-  if (spawner) {
-    for (const g of spawner.grunts) g.dispose(scene);
-    spawner = null;
-  }
-  els.rangeHud.hidden = true;
-  if (zdir) { zdir.clear(); zdir = null; }
-
-  if (rangeSet) { rangeSet.clear(); rangeSet = null; }
-
-  if (isRange()) {
-    rangeSet = new RangeSet(scene);
-  } else if (isZombies()) {
-    zdir = new ZombieDirector(scene, ARENA, colliders, builtMap.map.zombieLayout());
-  } else if (!isPvp() && !isView()) {
-    spawner = new WaveSpawner(scene, ARENA, spawnPoints, colliders);
-  }
-
-  const pvp = isPvp();
-  const snd = isSnd();
-  els.hudTeams.hidden = !pvp || isRoyale();
-  els.royale.hidden = !isRoyale();
-  updateRoyaleGear();
-  // S&D keeps the wave/hostiles boxes — repurposed as round count and bomb
-  // status — where every other PvP mode hides them.
-  els.hudWaveBox.hidden = (pvp && !snd) || isRange();
-  els.hudHostilesBox.hidden = (pvp && !snd) || isRange();
-  els.bombStatus.hidden = !snd;
-  if (els.touchInteract) els.touchInteract.hidden = !snd;
-  // The Test Range info box is retired (user, 2026-09-28): N still spawns a
-  // bot, and Esc has Spawn a bot / Clear bots and the full settings.
-  els.rangeHud.hidden = true;
-  updateRangeHud();
-  document.getElementById("hud-l-wave").textContent = isZombies() || snd ? "Round" : "Wave";
-  document.getElementById("hud-l-hostiles").textContent = isZombies() ? "Zombies" : (snd ? "Bomb" : "Hostiles");
-  document.getElementById("hud-l-kills").textContent = isZombies() ? "Points" : "Kills";
-  // Only Zombies keeps this box (Points); the kill count is gone (user, 2026-09-28).
-  document.getElementById("hud-score-box").style.display = isZombies() ? "" : "none";
-  els.respawn.hidden = true;
-  els.scoreboard.hidden = true;
-
-  els.title.hidden = true;
-  els.gameover.hidden = true;
-  els.pause.hidden = true;
-  els.hud.hidden = isView();   // View mode: just the map on screen
-  // Socialize: style.css hides the combat HUD and touch buttons off this.
-  document.body.classList.toggle("to-social", isSocial());
-  resetBar();
-  document.body.classList.remove("to-social-drink");
-  setTouchControls(true);
-  gameState = "playing";
-
-  // The range is a sandbox, not a match — there is nothing to count down to.
-  if (isView()) {
-    showWaveBanner("View mode: fly with WASD, Space up, C down, Shift fast", 3200);
-  } else if (isSocial()) {
-    // Nothing to count down to either: no bots, no clock, no score.
-    spawnOpening = false;
-    resetMatchClock();
-    showWaveBanner(isTouch ? "Socialize: tap the face button for emotes" : "Socialize: H for emotes, Enter to chat", 3200);
-  } else if (isRange()) {
-    showWaveBanner("Test range — nothing here shoots back", 2600);
-  } else {
-    // Bots are filled here rather than on the first live frame, so the room is
-    // already populated while the player watches the clock.
-    if (isPvp() && net.isBotHost()) {
-      const { humans, teams } = humanHeadcount();
-      bots.fill(noBotsRoom() ? 0 : botTarget(), humans, botSpawn, !!currentMode().ffa, teams);
-      net.botCount = bots.bots.length;
-      for (const b of bots.bots) net.publishBot(b);
-    }
-    // Troll Royale: the bots wait in the sky lobby too.
-    if (royale?.drop) placeBotsInLobby();
-    // S&D's round 1 is set up like every later round, under this countdown.
-    if (isSnd()) prepareSndRound();
-    // Wave 1 / Round 1 don't spawn until the countdown clears — starting the
-    // spawner immediately would have grunts standing idle mid-countdown and
-    // "WAVE 1" competing on screen with "GET READY".
-    beginStaging(royale?.drop ? DROP.lobbySeconds : undefined);
-    applyRoyaleCatchUp();
-  }
-
-  // Browsers refuse a pointer lock requested too soon after an unlock without
-  // a fresh gesture, which the auto-advance out of an intermission doesn't
-  // have. If it's refused we land on the pause screen instead of in a live
-  // match with dead mouse-look, and clicking resume picks it back up.
-  // (Under the loading screen, releaseLoad does this when it comes down.)
-  if (!isTouch && !loadHold) {
-    try { controls.lock(); } catch { /* refused — the pause screen catches it */ }
-    setTimeout(() => {
-      if (gameState === "playing" && !controls.isLocked) openPauseMenu();
-    }, 260);
-  }
-}
+initMatchStart();
 
 function nextZombieRound() {
   player.wave = zdir.round + 1;
