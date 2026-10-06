@@ -4,7 +4,7 @@
 import { GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1";
 import { streakEntities, streakBusy } from "../streaks/calling.js?v=sk1";
 import { K9Pack } from "../k9-unit.js?v=k9c-bs1-sb2";
-import { damagePlayer, breakSpawnGuard } from "./damage.js?v=dm1";
+import { damagePlayer, breakSpawnGuard } from "./damage.js?v=dm1-kc2";
 import * as THREE from "three";
 import { round2 } from "../streaks/fire.js?v=sk1";
 import { segmentBlocked, raycastWorld } from "../ballistics.js?v=cg1-wst-hf1";

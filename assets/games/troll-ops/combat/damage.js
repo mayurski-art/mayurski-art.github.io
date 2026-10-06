@@ -9,7 +9,7 @@ import { royale, updateRoyaleGear, royaleOnDeath, hideSpectateHud } from "../mod
 import { heroActive, hero, applyHeroLoadout } from "../modes/umb-heroes.js?v=sk1";
 import { streaks } from "../streaks/calling.js?v=sk1";
 import { INFECTION } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69";
-import { killcamSelfId, startKillcamPresentation, endKillcamPresentation } from "./killcam-present.js?v=kp1";
+import { killcamSelfId, startKillcamPresentation, endKillcamPresentation } from "./killcam-present.js?v=kp2";
 import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2";
 import { game } from "../core/state.js?v=st1";
 

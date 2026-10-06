@@ -2,7 +2,7 @@
 // trail, and the Keyboard Warrior's shield.
 
 import { stageFrozen, royaleDropView } from "../modes/royale.js?v=md1";
-import { breakSpawnGuard, killerPosFor } from "./damage.js?v=dm1";
+import { breakSpawnGuard, killerPosFor } from "./damage.js?v=dm1-kc2";
 import * as THREE from "three";
 import { ParryState } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
 import { createKeyboardRepair } from "../keyboard-repair.js?v=kr15";

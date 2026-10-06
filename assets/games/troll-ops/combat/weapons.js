@@ -1,7 +1,7 @@
 // Troll Forces weapons: firing, reloads, what a bullet hit, weapon switching,
 // the pickup prompt and the gear HUD.
 
-import { breakSpawnGuard } from "./damage.js?v=dm1";
+import { breakSpawnGuard } from "./damage.js?v=dm1-kc2";
 import { soulBlazerShot, soulBlazerMouth } from "../soul-blazer.js?v=sb1";
 import * as THREE from "three";
 import { royale, royaleNoise, royalePickupGun, stageFrozen, royaleDropView } from "../modes/royale.js?v=md1";

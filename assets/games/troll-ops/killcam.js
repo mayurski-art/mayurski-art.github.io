@@ -13,6 +13,11 @@
 // our own third-person rig, re-fired tracers) and renders the killer's gun
 // as the viewmodel; this file owns the timeline and the camera.
 //
+// Grenades in flight are recorded the same way (where each one was, and
+// when it went off), so a replay shows a bot's frag arcing in and the
+// blast, and ADS (0..1) rides on every pose so the killer's view zooms in
+// and out as they did.
+//
 // When there is no history for the killer (a scorestreak entity, a zombie,
 // someone who joined a second ago), it falls back to a slow push-in on
 // where you fell from the killer's side — held steady, never spinning.
@@ -46,6 +51,7 @@ export class KillCam {
     this.mode = null;            // "replay" | "fallback"
     this.tracks = new Map();     // actor id -> [{ t, x, y, z, yaw, pitch, lower, alive, wid, moving }]
     this.shots = [];             // { t, id, ox.., dx.., wid, quiet }
+    this.nades = new Map();      // grenade key -> { def, pts: [{ t, x, y, z }], boomT }
     this.killerId = null;
     this.deathT = 0;
     this.rt = 0;                 // replay clock (recorder time)
@@ -74,7 +80,10 @@ export class KillCam {
       // `mid` the melee weapon in the fist (null: the gun), `sw` how far
       // through a swing 0..1 (-1: not swinging), `si` which swing of the
       // pair, `bk` how far into the guard 0..1.
-      mid: s.mid || null, sw: s.sw ?? -1, si: s.si | 0, bk: s.bk || 0 });
+      mid: s.mid || null, sw: s.sw ?? -1, si: s.si | 0, bk: s.bk || 0,
+      // `ads` aiming down sights 0..1, `th` how far through an overhand
+      // throw 0..1 (-1: not throwing).
+      ads: s.ads || 0, th: s.th ?? -1 });
     while (tr.length && tr[0].t < t - HISTORY) tr.shift();
   }
 
@@ -84,10 +93,53 @@ export class KillCam {
     while (this.shots.length && this.shots[0].t < t - HISTORY) this.shots.shift();
   }
 
+  /* Every grenade in the world this frame (GrenadeSystem.live). One that
+  was here last call and isn't now went off: its boom is stamped at `t`. */
+  recordNades(t, live) {
+    if (this.active) return;
+    const seen = this._seen || (this._seen = new Set());
+    seen.clear();
+    for (const g of live) {
+      const key = g.kcKey || (g.kcKey = `n${this._nadeSeq = (this._nadeSeq | 0) + 1}`);
+      seen.add(key);
+      let n = this.nades.get(key);
+      if (!n) { n = { def: g.def.id, pts: [], boomT: null }; this.nades.set(key, n); }
+      const last = n.pts[n.pts.length - 1];
+      if (!last || t - last.t >= SAMPLE_DT) n.pts.push({ t, x: g.pos.x, y: g.pos.y, z: g.pos.z });
+    }
+    for (const [key, n] of this.nades) {
+      if (n.boomT === null && !seen.has(key)) n.boomT = t;
+      const end = n.boomT ?? n.pts[n.pts.length - 1]?.t ?? t;
+      if (end < t - HISTORY) this.nades.delete(key);
+    }
+  }
+
+  /* Where grenade `n` was at replay time `t`, or null when it wasn't in
+  the air (not thrown yet, or already gone off). */
+  nadeAt(n, t, out) {
+    const p = n.pts;
+    if (!p.length || t < p[0].t) return null;
+    if (n.boomT !== null ? t >= n.boomT : t > p[p.length - 1].t + 0.1) return null;
+    let i = p.length - 1;
+    while (i > 0 && p[i].t > t) i--;
+    const a = p[i], b = p[Math.min(i + 1, p.length - 1)];
+    const k = b === a ? 0 : Math.min(1, (t - a.t) / Math.max(1e-6, b.t - a.t));
+    return out.set(a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k, a.z + (b.z - a.z) * k);
+  }
+
+  /* Grenades that went off in (prevRt, rt] of the replay. */
+  boomsSince(out = []) {
+    out.length = 0;
+    if (!this.replaying) return out;
+    for (const n of this.nades.values()) if (n.boomT !== null && n.boomT > this.prevRt && n.boomT <= this.rt && n.pts.length) out.push(n);
+    return out;
+  }
+
   /* Drop everything (new match / map). */
   clear() {
     this.tracks.clear();
     this.shots.length = 0;
+    this.nades.clear();
     this.cancel();
   }
 
@@ -121,6 +173,8 @@ export class KillCam {
     // start or an end it snaps to the nearer one.
     out.sw = a.sw >= 0 && b.sw >= a.sw && a.si === b.si ? a.sw + (b.sw - a.sw) * k : near.sw;
     out.bk = a.bk + (b.bk - a.bk) * k;
+    out.ads = (a.ads || 0) + ((b.ads || 0) - (a.ads || 0)) * k;
+    out.th = a.th >= 0 && b.th >= a.th ? a.th + (b.th - a.th) * k : near.th ?? -1;
     return out;
   }
 

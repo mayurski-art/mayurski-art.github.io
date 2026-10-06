@@ -26,7 +26,7 @@ import {
 import { KillstreakUi } from "./killstreak-ui.js?v=to-medals3";
 import { medalSvg } from "./medals.js?v=to-medals3";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js?v=wu1";
-import { KillCam } from "./killcam.js?v=to-fx3";
+import { KillCam } from "./killcam.js?v=to-fx3-kc2";
 import { Achievements } from "./achievements.js?v=umb1-wst-sb2";
 import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE, prestigeUnlocked, getLevel, getPrestige, isOwner } from "./progression.js?v=p5-wst-sb2";
 import { playerIconSvg } from "./rank-icons.js?v=rk1";
@@ -118,12 +118,12 @@ import { initRadioWidget } from "./menu/radio.js?v=mr1";
 import { initEscapeMenu, renderMenuRoster, initMenuRoster } from "./menu/escape-menu.js?v=em1";
 import { buildModeButtons, renderModes, initModePicker } from "./menu/mode-picker.js?v=mp1";
 import { activeLobbyPanel, charInspector, charInspectorLive, cosmetics, inspector, inspectorLive, menuEmoteWheel, noBotsRoom, playerName, pollMenuEmotePad, renderCallsign, renderLobbyRoster, setNetStatus, showLobbyPanel, showSumGun, sumInspector, initLobby } from "./menu/lobby.js?v=lb1";
-import { endKillcamPresentation, killcamSelfId, skipKillcam, startKillcamPresentation, updateKillcam } from "./combat/killcam-present.js?v=kp1";
-import { ASSIST_MEMORY, ASSIST_MIN_DAMAGE, assistersFor, breakSpawnGuard, clearDeathVisuals, damageLog, damagePlayer, killcamBaseRespawn, killerPosFor, nameFor, noteDamage, onGruntAttack, respawnPlayer, showDeathCard, updateSpawnGuardHud, weaponNameFor, yawTowardCentre } from "./combat/damage.js?v=dm1";
-import { MELEE_DRAW_TIME, MELEE_EQUIP_TIME, POWER_EQUIP_TIME, POWER_HOLSTER_TIME, POWER_IGNITE, POWER_IGNITE_DELAY, POWER_RETRACT, SLOW_IGNITE, _bladeG, _bladeP, _flickQ, _kbFarGrip, _parryPos, _parryQ, _parryW, _viewX, _viewZ, kbRepair, kbShield, meleeConnect, onRemoteDeflect, saberBlock, saberParry, saberTrail, swingMelee, tryDeflect, updateKbShield, updateRemoteSabers, updateSaberBlock, updateSaberFx, initMelee } from "./combat/melee.js?v=ml1";
-import { applyEmpState, applyRemoteNade, areaDamage, blastCandidates, botNadesThrown, botThrow, cancelCook, carriedThrowSlot, empPlayer, explosionFx, flashPlayer, grenadeCtx, grenades, nextNadeId, publishBoom, refillGear, releaseCook, startCook, stunActor, updateBlastLights, initThrowables } from "./combat/throwables.js?v=th1";
-import { currentWeapon, cycleWeapon, fireOnce, frozenPlayer, nearbyPackage, onBulletActorHit, resolveBulletTarget, setHolding, setTouchContext, switchWeapon, tryReload, updateGearHud, updatePickupPrompt } from "./combat/weapons.js?v=wp1";
-import { addMatchXp, awardKillXp, awardScore, checkMatchEnd, creditAssistIfOwed, dealtLog, lastHitRange, noteDealt, recentTeamKillers, registerDeath, updateTeamHud } from "./combat/scoring.js?v=sc1";
+import { endKillcamPresentation, killcamFov, killcamSelfId, killcamWeaponFov, skipKillcam, startKillcamPresentation, updateKillcam } from "./combat/killcam-present.js?v=kp2";
+import { ASSIST_MEMORY, ASSIST_MIN_DAMAGE, assistersFor, breakSpawnGuard, clearDeathVisuals, damageLog, damagePlayer, killcamBaseRespawn, killerPosFor, nameFor, noteDamage, onGruntAttack, respawnPlayer, showDeathCard, updateSpawnGuardHud, weaponNameFor, yawTowardCentre } from "./combat/damage.js?v=dm1-kc2";
+import { MELEE_DRAW_TIME, MELEE_EQUIP_TIME, POWER_EQUIP_TIME, POWER_HOLSTER_TIME, POWER_IGNITE, POWER_IGNITE_DELAY, POWER_RETRACT, SLOW_IGNITE, _bladeG, _bladeP, _flickQ, _kbFarGrip, _parryPos, _parryQ, _parryW, _viewX, _viewZ, kbRepair, kbShield, meleeConnect, onRemoteDeflect, saberBlock, saberParry, saberTrail, swingMelee, tryDeflect, updateKbShield, updateRemoteSabers, updateSaberBlock, updateSaberFx, initMelee } from "./combat/melee.js?v=ml1-kc2";
+import { applyEmpState, applyRemoteNade, areaDamage, blastCandidates, botNadesThrown, botThrow, cancelCook, carriedThrowSlot, empPlayer, explosionFx, flashPlayer, grenadeCtx, grenades, nextNadeId, publishBoom, refillGear, releaseCook, startCook, stunActor, updateBlastLights, initThrowables } from "./combat/throwables.js?v=th1-kc2";
+import { currentWeapon, cycleWeapon, fireOnce, frozenPlayer, nearbyPackage, onBulletActorHit, resolveBulletTarget, setHolding, setTouchContext, switchWeapon, tryReload, updateGearHud, updatePickupPrompt } from "./combat/weapons.js?v=wp1-kc2";
+import { addMatchXp, awardKillXp, awardScore, checkMatchEnd, creditAssistIfOwed, dealtLog, lastHitRange, noteDealt, recentTeamKillers, registerDeath, updateTeamHud } from "./combat/scoring.js?v=sc1-kc2";
 /* What the split-out modules reach back into game.js for (see core/state.js).
    Functions go in as they are; everything else as a getter, so nothing is
    read before game.js declares it. game.js only ever gets smaller: an
@@ -5740,7 +5740,7 @@ function animate() {
     if (swivel.dir) targetFov = baseFov * (1 + 0.1 * Math.sin(Math.PI * swivelK()));
     if (warshipView()) targetFov = warshipFov();
     if (matchIntro.active) targetFov = baseFov * 0.7;   // a longer lens for the cinematic
-    camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 10);
+    camera.fov = killcamFov(baseFov) ?? camera.fov + (targetFov - camera.fov) * Math.min(1, dt * 10);
     camera.updateProjectionMatrix();
 
     // Tube optics narrow the viewmodel lens as well, so the eyepiece fills
@@ -5748,7 +5748,7 @@ function animate() {
     const vm = activeWeaponMesh?.userData;
     const adsWeaponFov = player.holding !== "melee" && player.holding !== "streak" && vm?.adsWeaponFov ? vm.adsWeaponFov : 50;
     const targetWeaponFov = 58 + (adsWeaponFov - 58) * w.adsT;
-    weaponCamera.fov += (targetWeaponFov - weaponCamera.fov) * Math.min(1, dt * 10);
+    weaponCamera.fov = killcamWeaponFov() ?? weaponCamera.fov + (targetWeaponFov - weaponCamera.fov) * Math.min(1, dt * 10);
     weaponCamera.updateProjectionMatrix();
 
     animDebug.update();
