@@ -49,7 +49,7 @@ import {
   OFFER_SECONDS, REACH, BARTENDER_LEAVE_SECONDS,
 } from "./saloon-bar.js?v=sb1";
 import { TownNpcs } from "./town-npcs.js?v=tn4";
-import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES, hideFpEmoteProps } from "./emotes.js?v=hb4-em1-wst-soc1-lc1";
+import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES, hideFpEmoteProps } from "./emotes.js?v=hb4-em1-wst-soc1-lc2";
 import { buildWatch, wristOf } from "./wristwear.js?v=ww1";
 import { MatchIntro } from "./match-intro.js?v=mi5-wst";
 import {
@@ -16803,7 +16803,7 @@ if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && /[?&]hitbox=
    is. Behind ?tohooks=1 so normal play never exposes it. */
 if (/[?&]tohooks=1/.test(location.search)) {
   window.__trollOps = {
-    renderer, scene, colliders,
+    renderer, scene, colliders, streakArms, streakGloves: () => streakGloves, glovesOn,
     els, net, player, move, look, bots, remotes, loadout, djLulz, music, builtMap: () => builtMap, modeId: () => modeId, spawner: () => spawner,
     chat, renderScoreboard, renderLobbyRoster, renderMenuRoster,
     settings, radialStick, padLookTurn, hitboxLab: () => hitboxLab, localRig, toggleThirdPerson, charInspector, inspector, emoteWheel, menuEmoteWheel, lookSensScale, botEarn, botStreakState, botStreakLog, uavActiveFor, vsatActiveFor, findAimAssistTarget, emote: () => emote,

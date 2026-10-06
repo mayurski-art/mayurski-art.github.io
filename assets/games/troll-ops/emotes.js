@@ -19,7 +19,7 @@
 
 import * as THREE from "three";
 import { DANCES, setHandPose, setFace, resetSecondaryJoints, reachHand } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
-import { LeanKit, LEAN, LEAN_SECONDS, leanFp } from "./lean-cup.js?v=lc1";
+import { LeanKit, LEAN, LEAN_SECONDS, leanFp } from "./lean-cup.js?v=lc2";
 
 const PI = Math.PI;
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -375,4 +375,8 @@ export const FP_HAND_POSES = {
   // Calling the K9s: index and middle together, tips bent in toward the
   // lips, ring and pinky folded under the thumb.
   whistle: { curl: [[0.05, 0.12, 0.2], [0.05, 0.12, 0.2], FIST_CURL, FIST_CURL], spread: 0, thumb: [0.35, 0.95, 0.55, 0.35] },
+  // Pour up's round grips (lean-cup.js GRIP), fitted on the glove so the
+  // fingers and thumb lie on the foam cup and the bottle without sinking in.
+  cupgrip: { curl: [[0.45, 0.55, 0.57], [0.448, 0.55, 0.57], [0.446, 0.55, 0.57], [0.444, 0.55, 0.57]], spread: 0.01, thumb: [1.45, 0.105, 0.449, 0.708] },
+  bottlegrip: { curl: [[0.45, 0.583, 0.35], [0.52, 0.583, 0.35], [0.59, 0.583, 0.35], [0.66, 0.583, 0.35]], spread: 0.01, thumb: [1.918, 0.557, 0.809, 0.817] },
 };

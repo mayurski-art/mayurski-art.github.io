@@ -256,14 +256,25 @@ const _hw = new THREE.Vector3(), _mw = new THREE.Vector3(), _a = new THREE.Vecto
 const _off = new THREE.Vector3(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _up = new THREE.Vector3(0, 1, 0);
 const _rootQ = new THREE.Quaternion(), _m = new THREE.Matrix4();
 
-/* A prop held in a hand-model hand (palm -Y, fingers -Z; the arm frames
-   turn it palm-inward so its local ∓X is up), gripped `grip` of the way up
-   its height. Same frame as saloon-bar.js placeDrinkInHand. */
-function placeInHand(obj, hand, side, grip) {
-  const h = obj.userData.height;
-  _off.set(side * h * grip, -0.072, -0.045).applyQuaternion(hand.quaternion);
+/* Round grips, fitted to the glove model (glove-model.js) so the fingers
+   and palm lie on the prop's surface, wrapped about 130-150 degrees round
+   it, with under 1.5 mm of overlap anywhere on the glove, thumb included (user: "make sure theres no obvious
+   collisions ... the items should be held correctly"). In the hand's own
+   frame (palm -Y, fingers -Z, the prop standing along X): the prop's axis
+   passes through (y, z), and the hand sits `h` up the prop, where its
+   radius matches the grip (the cup's outer wall, the bottle's body). `pose` is the matching hand shape (emotes.js
+   FP_HAND_POSES). */
+export const GRIP = {
+  cup: { y: -0.05, z: -0.024, h: 0.072, pose: "cupgrip" },
+  bottle: { y: -0.043, z: -0.018, h: 0.085, pose: "bottlegrip" },
+};
+const _ax = new THREE.Vector3();
+/* A prop in a first-person hand: its axis through the grip, up the hand's
+   ∓X (the arm frames turn the hand palm-inward, so that's up). */
+function gripPlace(obj, hand, side, fit) {
+  _off.set(side * fit.h * obj.scale.x, fit.y, fit.z).applyQuaternion(hand.quaternion);
   obj.position.copy(hand.position).add(_off);
-  _q.setFromEuler(_e.set(0, side > 0 ? 0 : Math.PI, side * Math.PI / 2));
+  _q.setFromUnitVectors(_up, _ax.set(-side, 0, 0));
   obj.quaternion.copy(hand.quaternion).multiply(_q);
 }
 
@@ -298,12 +309,9 @@ export class LeanKit {
     if (this.bottle.parent !== parent) parent.add(this.bottle);
     this.cup.visible = s.cup > 0.02;
     this.cup.scale.setScalar(0.6 + 0.4 * Math.min(1, s.cup * 1.4));
-    placeInHand(this.cup, handR, 1, 0.5);
+    gripPlace(this.cup, handR, 1, GRIP.cup);
     this.bottle.visible = s.bottle;
-    if (s.bottle) {
-      const L = leanFp(t).L;
-      if (L?.bottle != null) bottleFrame(L.pos, L.bottle, this.bottle.position, this.bottle.quaternion);
-    }
+    if (s.bottle) gripPlace(this.bottle, handL, -1, GRIP.bottle);
     this.finish(s, t, handL, null);
   }
 
@@ -353,12 +361,12 @@ export class LeanKit {
       if (ice) {
         _mw.set(rim.x - 0.07 * k, rim.y + 0.05 * k, rim.z).lerp(_a.set(rim.x, rim.y + 0.09 * k, rim.z), span(t, LEAN.iceOver));
       } else {
-        // bottle gripped BOTTLE_GRIP up, the palm PALM_GAP off its side
+        // bottle gripped TP_BOTTLE_GRIP up, the palm TP_PALM_GAP off its side
         const c = Math.cos(theta), sn = Math.sin(theta);
         const side = _a.set(rim.x - 0.16 * k, rim.y + 0.02 * k, rim.z);
         const pour = _mw.set(rim.x + 0.005 * k, rim.y + 0.05 * k, rim.z);   // the mouth's spot
-        pour.x -= (-sn) * BOTTLE.h * bs * (1 - BOTTLE_GRIP) + c * PALM_GAP * bs;
-        pour.y -= c * BOTTLE.h * bs * (1 - BOTTLE_GRIP) + sn * PALM_GAP * bs;
+        pour.x -= (-sn) * BOTTLE.h * bs * (1 - TP_BOTTLE_GRIP) + c * TP_PALM_GAP * bs;
+        pour.y -= c * BOTTLE.h * bs * (1 - TP_BOTTLE_GRIP) + sn * TP_PALM_GAP * bs;
         _mw.copy(side).lerp(pour, s.tilt);
       }
       // root frame -> chest space, minus the mitt's reach past the wrist
@@ -377,8 +385,8 @@ export class LeanKit {
       palmCentre(rig, -1, k, _hw);
       const c = Math.cos(theta), sn = Math.sin(theta);
       this.bottle.position.set(
-        _hw.x + c * PALM_GAP * bs - (-sn) * BOTTLE.h * bs * BOTTLE_GRIP,
-        _hw.y + sn * PALM_GAP * bs - c * BOTTLE.h * bs * BOTTLE_GRIP,
+        _hw.x + c * TP_PALM_GAP * bs - (-sn) * BOTTLE.h * bs * TP_BOTTLE_GRIP,
+        _hw.y + sn * TP_PALM_GAP * bs - c * BOTTLE.h * bs * TP_BOTTLE_GRIP,
         _hw.z);
       this.bottle.rotation.set(0, 0, theta);
     }
@@ -399,8 +407,7 @@ export class LeanKit {
     cup.updateMatrixWorld(true);
     // Where the left hand's ice is, in the cup's frame.
     handL.updateWorldMatrix(true, false);
-    if (below == null) handL.localToWorld(_hw.set(0, -0.022, -0.045));
-    else { handL.getWorldPosition(_hw); _hw.y -= below; }
+    if (below != null) { handL.getWorldPosition(_hw); _hw.y -= below; }
     const released = t >= LEAN.drop[0];
     u.ice.forEach((c, i) => {
       c.visible = cup.visible && t >= LEAN.iceUp[0] + 0.12;
@@ -411,7 +418,10 @@ export class LeanKit {
       const restY = Math.max(u.floor + 0.009 + (i % 2) * 0.012, u.top - 0.006 + Math.sin(t * 3 + i) * 0.0015);
       _b.set(Math.cos(a) * ring, restY, Math.sin(a) * ring);
       // In the fist: just under the hand, bunched together.
-      _mw.copy(_hw).add(_a.set((i - 1.5) * 0.008, -(i % 2) * 0.006, 0));
+      // first person: a 2x2 heap resting on the open palm (measured on the
+      // glove: palm surface 12 mm out, so cube centres 23 mm); a mitt: under it
+      if (below == null) handL.localToWorld(_mw.set(i % 2 ? 0.011 : -0.011, -0.023, i < 2 ? -0.024 : -0.047));
+      else _mw.copy(_hw).add(_a.set((i - 1.5) * 0.008, -(i % 2) * 0.006, 0));
       cup.worldToLocal(_mw);
       // Pops in from nothing.
       const pop = ease((t - LEAN.iceUp[0] - 0.12) / 0.15);
@@ -449,19 +459,10 @@ export class LeanKit {
 const mix = (a, b, k) => a.map((v, i) => v + (b[i] - v) * k);
 const PI = Math.PI;
 
-/* The bottle in a first-person left hand, placed straight in view space:
-   its axis turned `theta` about the view's Z (negative tips the top right,
-   toward the cup), standing just off the palm, gripped `BOTTLE_GRIP` up. */
-const BOTTLE_GRIP = 0.36, PALM_GAP = 0.045;
-function bottleFrame(handPos, theta, outPos, outQ) {
-  const c = Math.cos(theta), s = Math.sin(theta);
-  // palm normal Rz(θ)·(1,0,0), bottle up Rz(θ)·(0,1,0)
-  outPos.set(handPos[0] + c * PALM_GAP - (-s) * BOTTLE.h * BOTTLE_GRIP,
-    handPos[1] + s * PALM_GAP - c * BOTTLE.h * BOTTLE_GRIP, handPos[2] - 0.01);
-  outQ?.setFromAxisAngle(_zAxis, theta);
-  return outPos;
-}
-const _zAxis = new THREE.Vector3(0, 0, 1), _fpHand = new THREE.Object3D(), _fpCup = new THREE.Object3D();
+/* A mitt holds the bottle this far up, its palm this far off the side
+   (bodies only; first-person hands use GRIP). */
+const TP_BOTTLE_GRIP = 0.36, TP_PALM_GAP = 0.045;
+const _fpHand = new THREE.Object3D(), _fpCup = new THREE.Object3D();
 _fpCup.userData.height = CUP.h + CUP.stack;
 /* Where the cup's rim centre is for a right-hand target (same placement as
    LeanKit.fp), so the left hand can find it. */
@@ -469,11 +470,11 @@ function cupRimFp(R, out) {
   _fpHand.position.set(...R.pos);
   _fpHand.rotation.set(R.rot[0], R.rot[1], R.rot[2], "YXZ");
   _fpHand.updateMatrix();
-  placeInHand(_fpCup, _fpHand, 1, 0.5);
+  gripPlace(_fpCup, _fpHand, 1, GRIP.cup);
   return out.set(0, CUP.h + CUP.stack, 0).applyQuaternion(_fpCup.quaternion).add(_fpCup.position);
 }
 const POUR_TILT = 2.05;      // radians the bottle rolls over at full pour
-const _rim = new THREE.Vector3(), _bp = new THREE.Vector3();
+const _rim = new THREE.Vector3(), _mouthL = new THREE.Vector3(), _hq = new THREE.Quaternion();
 
 export function leanFp(t) {
   const s = leanState(t);
@@ -484,7 +485,7 @@ export function leanFp(t) {
   rp = [rp[0] + Math.cos(s.swirlA) * 0.014 * s.swirlK, rp[1], rp[2] + Math.sin(s.swirlA) * 0.014 * s.swirlK];
   rp = mix(rp, [0.03, -0.1, -0.22], s.sip);
   const look = s.look * (1 - s.sip);
-  const R = { pos: rp, rot: [0.55 * look + s.sip * 1.0, 0.08 - s.sip * 0.08, -PI / 2], pose: "grip" };
+  const R = { pos: rp, rot: [0.55 * look + s.sip * 1.0, 0.08 - s.sip * 0.08, -PI / 2], pose: GRIP.cup.pose };
   cupRimFp(R, _rim);
 
   // Left hand: a fist of ice over the cup, then the bottle.
@@ -493,22 +494,23 @@ export function leanFp(t) {
   if (t >= LEAN.iceUp[0] && t < LEAN.iceAway[1]) {
     const up = span(t, LEAN.iceUp) * (1 - span(t, LEAN.iceAway));
     const over = span(t, LEAN.iceOver);
-    const side = [-0.12, -0.12, -0.36], above = [_rim.x - 0.06, _rim.y + 0.035, _rim.z - 0.02];
+    const side = [-0.12, -0.12, -0.36], above = [_rim.x - 0.075, _rim.y + 0.06, _rim.z - 0.02];
     const p = mix(away, mix(side, above, over), up);
     // Palm up with the cubes sitting in it, tipped over the cup to spill them.
     L = { pos: p, rot: [0.3, 0, PI - 1.35 * span(t, [LEAN.drop[0] - 0.1, LEAN.drop[0] + 0.15])], pose: "flat" };
   } else if (t >= LEAN.bottleUp[0] && t < LEAN.bottleAway[1]) {
     const up = span(t, LEAN.bottleUp) * (1 - span(t, LEAN.bottleAway));
-    // Pouring: the hand sits so the mouth ends up just over the rim.
-    const th = -POUR_TILT;
-    const c = Math.cos(th), sn = Math.sin(th);
-    const mouth = [_rim.x - 0.005, _rim.y + 0.035, _rim.z];
-    const pour = [mouth[0] - (-sn) * BOTTLE.h * (1 - BOTTLE_GRIP) - c * PALM_GAP, mouth[1] - c * BOTTLE.h * (1 - BOTTLE_GRIP) - sn * PALM_GAP, mouth[2] + 0.01];
-    const side = [-0.12, -0.14, -0.36];
+    // Pouring: the hand sits so the mouth (in the hand's frame, GRIP.bottle)
+    // ends up just over the rim, with the hand rolled over by POUR_TILT.
+    _hq.setFromEuler(_e.set(0, -0.06, PI / 2 - POUR_TILT, "YXZ"));
+    _mouthL.set(BOTTLE.h - GRIP.bottle.h, GRIP.bottle.y, GRIP.bottle.z).applyQuaternion(_hq);
+    const pour = [_rim.x - 0.005 - _mouthL.x, _rim.y + 0.035 - _mouthL.y, _rim.z - _mouthL.z];
+    // Up beside the cup first, out to the left so the bottle clears it.
+    const side = [-0.17, -0.13, -0.36];
     const p = mix(away, mix(side, pour, s.tilt), up);
     const theta = -POUR_TILT * s.tilt;
     // The hand rolls with the bottle (palm on its side).
-    L = { pos: p, rot: [0, -0.06, PI / 2 + theta], pose: "grip", bottle: theta };
+    L = { pos: p, rot: [0, -0.06, PI / 2 + theta], pose: GRIP.bottle.pose };
   }
   return {
     R, L, gun: false,
