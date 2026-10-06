@@ -118,25 +118,42 @@ import { initRadioWidget } from "./menu/radio.js?v=mr1";
 import { initEscapeMenu, renderMenuRoster, initMenuRoster } from "./menu/escape-menu.js?v=em1";
 import { buildModeButtons, renderModes, initModePicker } from "./menu/mode-picker.js?v=mp1";
 import { activeLobbyPanel, charInspector, charInspectorLive, cosmetics, inspector, inspectorLive, menuEmoteWheel, noBotsRoom, playerName, pollMenuEmotePad, renderCallsign, renderLobbyRoster, setNetStatus, showLobbyPanel, showSumGun, sumInspector, initLobby } from "./menu/lobby.js?v=lb1";
+import { endKillcamPresentation, killcamSelfId, skipKillcam, startKillcamPresentation, updateKillcam } from "./combat/killcam-present.js?v=kp1";
+import { ASSIST_MEMORY, ASSIST_MIN_DAMAGE, assistersFor, breakSpawnGuard, clearDeathVisuals, damageLog, damagePlayer, killcamBaseRespawn, killerPosFor, nameFor, noteDamage, onGruntAttack, respawnPlayer, showDeathCard, updateSpawnGuardHud, weaponNameFor, yawTowardCentre } from "./combat/damage.js?v=dm1";
+import { MELEE_DRAW_TIME, MELEE_EQUIP_TIME, POWER_EQUIP_TIME, POWER_HOLSTER_TIME, POWER_IGNITE, POWER_IGNITE_DELAY, POWER_RETRACT, SLOW_IGNITE, _bladeG, _bladeP, _flickQ, _kbFarGrip, _parryPos, _parryQ, _parryW, _viewX, _viewZ, kbRepair, kbShield, meleeConnect, onRemoteDeflect, saberBlock, saberParry, saberTrail, swingMelee, tryDeflect, updateKbShield, updateRemoteSabers, updateSaberBlock, updateSaberFx, initMelee } from "./combat/melee.js?v=ml1";
+import { applyEmpState, applyRemoteNade, areaDamage, blastCandidates, botNadesThrown, botThrow, cancelCook, carriedThrowSlot, empPlayer, explosionFx, flashPlayer, grenadeCtx, grenades, nextNadeId, publishBoom, refillGear, releaseCook, startCook, stunActor, updateBlastLights, initThrowables } from "./combat/throwables.js?v=th1";
+import { currentWeapon, cycleWeapon, fireOnce, frozenPlayer, nearbyPackage, onBulletActorHit, resolveBulletTarget, setHolding, setTouchContext, switchWeapon, tryReload, updateGearHud, updatePickupPrompt } from "./combat/weapons.js?v=wp1";
+import { addMatchXp, awardKillXp, awardScore, checkMatchEnd, creditAssistIfOwed, dealtLog, lastHitRange, noteDealt, recentTeamKillers, registerDeath, updateTeamHud } from "./combat/scoring.js?v=sc1";
 /* What the split-out modules reach back into game.js for (see core/state.js).
    Functions go in as they are; everything else as a getter, so nothing is
    read before game.js declares it. game.js only ever gets smaller: an
    entry leaves this list when the thing it names moves out. */
 linkGame({
   get _euler() { return _euler; },
+  get _meleeViewE() { return _meleeViewE; },
+  get _meleeViewQ() { return _meleeViewQ; },
+  get _sbDir() { return _sbDir; },
+  get _sbPos() { return _sbPos; },
+  get activeDroneMesh() { return activeDroneMesh; },
   get activeLobbyPanel() { return activeLobbyPanel; },
+  get activeMarkerMesh() { return activeMarkerMesh; },
   get activeMeleeMesh() { return activeMeleeMesh; },
+  get activeStreakMesh() { return activeStreakMesh; },
+  get activeWeaponMesh() { return activeWeaponMesh; },
   addMatchXp,
   get adsHeld() { return adsHeld; },
   get aimAssistSticky() { return aimAssistSticky; }, set aimAssistSticky(v) { aimAssistSticky = v; },
+  get akimboView() { return akimboView; },
   get ambience() { return ambience; },
   applyGraphics,
+  applyInfectionLoadout,
   areaDamage,
   get ARENA() { return ARENA; },
   get audio() { return audio; },
   awardScore,
   get baseFov() { return baseFov; }, set baseFov(v) { baseFov = v; },
   beginStreakHold,
+  get blindT() { return blindT; }, set blindT(v) { blindT = v; },
   botBusy,
   botDealDamage,
   botEarn,
@@ -153,6 +170,7 @@ linkGame({
   closePauseMenu,
   get colliders() { return colliders; },
   get controls() { return controls; },
+  get cooking() { return cooking; },
   currentMode,
   currentWeapon,
   get currentWeaponSlot() { return currentWeaponSlot; }, set currentWeaponSlot(v) { currentWeaponSlot = v; },
@@ -174,9 +192,14 @@ linkGame({
   dragonfireView,
   get DRONE_TOSS_AT() { return DRONE_TOSS_AT; },
   get droneFields() { return droneFields; },
+  dropCarriedWeapon,
   get duoXClaimed() { return duoXClaimed; },
   get els() { return els; },
+  get emoteIsTp() { return emoteIsTp; },
   get emoteWheel() { return emoteWheel; },
+  get empT() { return empT; }, set empT(v) { empT = v; },
+  endCandleCharge,
+  endGame,
   endMatch,
   endStaging,
   endStreakHold,
@@ -194,29 +217,50 @@ linkGame({
   get gpDebugForced() { return gpDebugForced; },
   get gpIndex() { return gpIndex; }, set gpIndex(v) { gpIndex = v; },
   get gpPrev() { return gpPrev; }, set gpPrev(v) { gpPrev = v; },
+  get gunGameProgress() { return gunGameProgress; }, set gunGameProgress(v) { gunGameProgress = v; },
+  get hellfire() { return hellfire; },
+  get hellfireView() { return hellfireView; },
   heroActive,
   get hill() { return hill; },
+  get hitboxLab() { return hitboxLab; },
   get hitFlashT() { return hitFlashT; }, set hitFlashT(v) { hitFlashT = v; },
   holsterMeleeFor,
+  holsterMeleeThen,
   get hudLayout() { return hudLayout; },
   get impactFx() { return impactFx; },
+  get infectionStarted() { return infectionStarted; },
   get inspector() { return inspector; },
+  get inspectT() { return inspectT; }, set inspectT(v) { inspectT = v; },
+  invincibleOn,
   isBotPeer,
+  isInfected,
+  isInfection,
   isPvp,
   isRange,
+  isRoyale,
   isSnd,
+  isSocial,
   isStaging,
   get isTouch() { return isTouch; },
   get jammedUntil() { return jammedUntil; }, set jammedUntil(v) { jammedUntil = v; },
   k9Stairs,
+  get kcClock() { return kcClock; }, set kcClock(v) { kcClock = v; },
   get keys() { return keys; },
+  kickFireShake,
   get killcam() { return killcam; },
+  get killcamBaseRespawn() { return killcamBaseRespawn; },
+  get killcamWasActive() { return killcamWasActive; }, set killcamWasActive(v) { killcamWasActive = v; },
+  get lastHitRange() { return lastHitRange; },
   learnPadRest,
   get lightPool() { return lightPool; },
   get loadout() { return loadout; },
   get lobbyReady() { return lobbyReady; },
+  get localBlockT() { return localBlockT; },
+  get localHeld() { return localHeld; },
+  get localLower() { return localLower; },
   get localPauseOnly() { return localPauseOnly; },
   get localRig() { return localRig; },
+  get localShotAt() { return localShotAt; }, set localShotAt(v) { localShotAt = v; },
   get localThrowT() { return localThrowT; }, set localThrowT(v) { localThrowT = v; },
   get lockEl() { return lockEl; },
   get look() { return look; },
@@ -224,18 +268,30 @@ linkGame({
   get MARKER_THROW_TIME() { return MARKER_THROW_TIME; },
   get markerThrowT() { return markerThrowT; }, set markerThrowT(v) { markerThrowT = v; },
   get markingStreak() { return markingStreak; }, set markingStreak(v) { markingStreak = v; },
+  get matchClockT() { return matchClockT; },
   get matchesPlayed() { return matchesPlayed; },
   get matchIntro() { return matchIntro; },
+  get meleeDrawT() { return meleeDrawT; }, set meleeDrawT(v) { meleeDrawT = v; },
+  get meleeHolster() { return meleeHolster; },
+  get meleeImpactT() { return meleeImpactT; }, set meleeImpactT(v) { meleeImpactT = v; },
   get meleePutAway() { return meleePutAway; },
+  get meleeWhiffT() { return meleeWhiffT; }, set meleeWhiffT(v) { meleeWhiffT = v; },
   minimapJammed,
   get modeId() { return modeId; }, set modeId(v) { modeId = v; },
   get modePicked() { return modePicked; }, set modePicked(v) { modePicked = v; },
   get move() { return move; },
   get music() { return music; },
+  get muzzleFlash() { return muzzleFlash; },
+  get muzzleFlashT() { return muzzleFlashT; }, set muzzleFlashT(v) { muzzleFlashT = v; },
+  get muzzleLight() { return muzzleLight; },
+  get muzzleMat() { return muzzleMat; },
   get myUavUntil() { return myUavUntil; }, set myUavUntil(v) { myUavUntil = v; },
+  nameFor,
   nearbyPackage,
   get net() { return net; },
   noteDealt,
+  noteLocalDeath,
+  notePointDeath,
   occupants,
   onBulletActorHit,
   openPauseMenu,
@@ -245,26 +301,36 @@ linkGame({
   get pendingDroneLaunch() { return pendingDroneLaunch; }, set pendingDroneLaunch(v) { pendingDroneLaunch = v; },
   pickPad,
   get pickups() { return pickups; },
+  get PITCH_LIMIT() { return PITCH_LIMIT; },
   get player() { return player; },
   playerUid,
+  powerHeld,
+  putDownDrink,
   get rangeSet() { return rangeSet; },
   readyStreaksOrdered,
   refreshLobbyMap,
   registerDeath,
   releaseCook,
   get remotes() { return remotes; },
+  remoteShotFx,
   renderBotSkillNote,
   get renderer() { return renderer; },
   renderGpDebug,
   renderLobbyRoster,
   renderScoreboard,
   renderViewModeRow,
+  reportRangeShot,
   resolveBulletTarget,
+  get respawnT() { return respawnT; }, set respawnT(v) { respawnT = v; },
   get roomIsCustom() { return roomIsCustom; }, set roomIsCustom(v) { roomIsCustom = v; },
   get royaleCatchUp() { return royaleCatchUp; }, set royaleCatchUp(v) { royaleCatchUp = v; },
   royaleSpectating,
+  get saberDeflectT() { return saberDeflectT; }, set saberDeflectT(v) { saberDeflectT = v; },
+  get saberFlick() { return saberFlick; },
+  get saberHavePrevTip() { return saberHavePrevTip; }, set saberHavePrevTip(v) { saberHavePrevTip = v; },
   samDeployPoint,
   get samHitCount() { return samHitCount; },
+  scavengeAllowed,
   get scene() { return scene; },
   get selectedStreak() { return selectedStreak; }, set selectedStreak(v) { selectedStreak = v; },
   setActiveMeleeMesh,
@@ -277,6 +343,8 @@ linkGame({
   showWaveBanner,
   skipKillcam,
   get sndCanInteract() { return sndCanInteract; },
+  socialUnarmed,
+  get SPAWN_GUARD() { return SPAWN_GUARD; },
   spawnDragonfire,
   get spawner() { return spawner; },
   spawnImpactBurst,
@@ -291,6 +359,7 @@ linkGame({
   get streakCallGuardUntil() { return streakCallGuardUntil; }, set streakCallGuardUntil(v) { streakCallGuardUntil = v; },
   streakControlActive,
   streakDamage,
+  get streakDeviceKind() { return streakDeviceKind; },
   get streakEnd() { return streakEnd; },
   get streakEntities() { return streakEntities; },
   streakHoldActive,
@@ -302,26 +371,37 @@ linkGame({
   streakSlotIds,
   get strikeTablet() { return strikeTablet; },
   get sumGunKey() { return sumGunKey; }, set sumGunKey(v) { sumGunKey = v; },
+  get swapHold() { return swapHold; },
   get swarmRuns() { return swarmRuns; },
   swingMelee,
+  syncLocalRigHeld,
   syncWarshipView,
   get tabletDive() { return tabletDive; }, set tabletDive(v) { tabletDive = v; },
   get targetMeshes() { return targetMeshes; },
+  get teamScores() { return teamScores; },
+  teamSpawn,
   throwMarker,
   toggleThirdPerson,
   toggleWarshipGun,
   get touchState() { return touchState; },
+  tryDeflect,
   tryReload,
   trySwivel,
+  updateGearHud,
   updatePickupPrompt,
   updateSpawnGuardHud,
   useHeroAbility,
   useSelectedStreak,
   vsatUp,
+  warmNewGuns,
   get warship() { return warship; }, set warship(v) { warship = v; },
   get WARSHIP_BOARD_AT() { return WARSHIP_BOARD_AT; },
   get warshipGun() { return warshipGun; }, set warshipGun(v) { warshipGun = v; },
   warshipView,
+  get weaponCamera() { return weaponCamera; },
+  weaponNameFor,
+  get weaponRig() { return weaponRig; },
+  get weaponScene() { return weaponScene; },
   get WHISTLE_BLOW_AT() { return WHISTLE_BLOW_AT; },
   get WHISTLE_HOLD() { return WHISTLE_HOLD; },
   get zdir() { return zdir; },
@@ -1222,253 +1302,6 @@ let sumGunKey = null;
 let lobbyReady = false;
 initLobby();
 
-
-/* Enemy id -> when they last killed a teammate, for the Avenger medal. */
-const recentTeamKillers = new Map();
-const AVENGER_WINDOW = 5000;   // ms
-
-function registerDeath(victimName, killerId, weaponId, opts = {}) {
-  const mode = currentMode();
-  const iDied = opts.victimIsMe;
-  const killerTeam = killerId === net.id ? net.team : (net.peers.get(killerId)?.team || bots.byId(killerId)?.team);
-  // Your own frag, and the Hunter-Killer's warhead catching a teammate,
-  // both used to pay out as a kill — XP, streak, a point for the team.
-  // Neither earns anything now; the feed still reports them honestly.
-  const suicide = !killerId || (iDied && killerId === net.id) || (opts.victimId && opts.victimId === killerId);
-  const teamkill = !suicide && !mode.ffa && !!killerTeam && killerTeam === opts.victimTeam;
-  const iKilled = killerId === net.id && !suicide && !teamkill;
-  const killer = killerId === net.id ? "You" : nameFor(killerId);
-
-  // U Mad Bro?: the body flies (remote-players.js), a comic word pops over
-  // it, a slide whistle follows it, and your own kills honk.
-  if (mode.funny) {
-    if (opts.victimPos && !opts.victimIsMe) {
-      spawnComicWord(opts.victimPos, !!opts.head);
-      audio.slideWhistle(opts.victimPos);
-    }
-    if (iKilled) { if (opts.head) audio.airhorn(); else audio.bonk(); }
-  }
-
-  // The Soul Blazer feeds on the dead: a kill with it goes up in hellfire.
-  if (!suicide && WEAPON_DEFS[weaponId]?.hellfire && opts.victimPos && !iDied) {
-    hellfire.killBurst(opts.victimPos);
-    audio.soulFeed(opts.victimPos);
-  }
-
-  pushKillfeed({
-    killer: suicide ? victimName : killer,
-    killerIsBot: killerId !== net.id && !!bots.byId(killerId),
-    victim: victimName,
-    victimIsBot: !!opts.victimIsBot,
-    joke: !!mode.funny && !suicide,
-    weapon: suicide ? (weaponNameFor(weaponId) || "self") : mode.funny ? jokeVerb(!!opts.head) : weaponNameFor(weaponId),
-    tag: teamkill ? "teamkill" : null,
-    head: !!opts.head && !suicide,
-    killerTeam: suicide ? opts.victimTeam : killerTeam,
-    victimTeam: opts.victimTeam,
-    mine: killerId === net.id || iDied,
-    suicide,
-  });
-
-  // A bot we host got a kill: its scorestreak meter, like ours.
-  const killerBot = !suicide && !teamkill && killerId !== net.id ? bots.byId(killerId) : null;
-  if (killerBot) botEarn(killerBot, SCORE.kill);
-
-  if (iKilled) {
-    player.kills++;
-    player.streak++;
-    if (mode.funny) hero().onKill();
-    if (opts.head) player.headshots++;
-    if (weaponId) player.weaponKills[weaponId] = (player.weaponKills[weaponId] || 0) + 1;
-    audio.kill();
-    els.hudKills.textContent = String(player.kills);
-
-    // XP lands per kill, not in a lump at the end — the immediate feedback
-    // is most of what makes the grind feel like progress.
-    awardKillXp();
-    announceStreak(player.streak);
-    awardScore(SCORE.kill);
-
-    // Badges are a second layer over announceStreak's banner: that tracks
-    // kills-without-dying, this one tracks kills-close-together, and BO2
-    // calls out both.
-    const called = killstreakUi.onKill({
-      head: !!opts.head, streak: player.streak, distance: opts.distance || 0,
-    });
-    // Ordinary badges stay local; the top of the ladder is a match-wide
-    // moment, so it goes on the wire.
-    if (called.nuclear && net.active) {
-      net.publishStreak({ kind: "callout", label: "NUCLEAR", who: net.name });
-    }
-    // Avenger: the one who just dropped a teammate (Revenge is your own
-    // killer; the achievements layer has that one).
-    const avengedAt = opts.victimId && recentTeamKillers.get(opts.victimId);
-    if (avengedAt && performance.now() - avengedAt <= AVENGER_WINDOW) {
-      recentTeamKillers.delete(opts.victimId);
-      killstreakUi.medal("Avenger");
-    }
-    achievements.onKill({
-      victimId: killerId === net.id ? opts.victimId : null,
-      victimStreak: opts.victimStreak || 0,
-      distance: opts.distance || 0,
-      lastKilledBy: player.lastKilledBy,
-    });
-
-    if (mode.ladder) {
-      gunGameProgress++;
-      if (playerWon(mode, gunGameProgress)) { endMatch("You cleared the rack"); return; }
-      const next = equipFromLoadout();
-      setActiveWeaponMesh(next);
-      showWaveBanner(`${gunGameProgress + 1} / ${mode.ladder.length} — ${next.name}`, 1400);
-    }
-    if (mode.oneShot) {
-      // landing the shot buys the round back
-      const w = currentWeapon();
-      w.ammoInMag = Math.min(w.def.magSize, w.ammoInMag + 1);
-    }
-  }
-
-  // First Blood is a match-wide fact, so a peer's kill closes it for us too.
-  if (!iKilled && !suicide && !teamkill) achievements.noteKillByOther();
-
-  // An enemy just dropped one of ours: killing them soon after is Avenger.
-  if (!mode.ffa && !iDied && !suicide && !teamkill && killerId && killerId !== net.id
-      && opts.victimTeam && opts.victimTeam === net.team) {
-    recentTeamKillers.set(killerId, performance.now());
-  }
-  // BO2 shows it and scores nothing; medals.js pays Suicide 0.
-  if (iDied && suicide && isPvp()) killstreakUi.medal("Suicide");
-
-  // S&D scores round wins, not kills — sndRoundWin() owns teamScores and the
-  // match-end check there instead, once the round itself is decided.
-  if (!isSnd() && !suicide && !teamkill && killerTeam && teamScores[killerTeam] != null) {
-    teamScores[killerTeam]++;
-    updateTeamHud();
-  }
-  if (!isSnd()) checkMatchEnd();
-
-  // Whatever the victim was holding falls where they stood. Our own death
-  // drops from damagePlayer instead, with the exact live WeaponState — this
-  // covers everyone else's (bots we host, peers, bots peers host).
-  if (!opts.victimIsMe && opts.victimPos && opts.victimWeaponId && scavengeAllowed()) {
-    const def = resolveWeapon(opts.victimWeaponId, defaultLoadoutFor(opts.victimWeaponId));
-    if (def) pickups.drop(`${killerId}:${performance.now()}`, def, opts.victimPos);
-  }
-}
-
-/* Bank XP mid-match and show it floating up. Only PvP pays as it goes; Ops
-   still settles once at the end via xpForRun, which its wave curve suits. */
-function addMatchXp(amount, label) {
-  if (!isPvp() || amount <= 0) return;
-  player.matchXp += amount;
-  showXpPopup(amount, label);
-}
-
-function awardKillXp() {
-  // The headshot bonus is the Headshot medal's +50 now (medals.js), so the
-  // total is unchanged; this pop is just the kill.
-  addMatchXp(XP.kill, "KILL");
-}
-
-/* Pay into the scorestreak meter. Separate from XP on purpose: XP is
-   permanent and unlocks weapons, this is per-life and buys streaks. A kill
-   pays into both, which is why every call site here sits next to an
-   addMatchXp call. */
-function awardScore(amount) {
-  player.matchScore += amount;   // combat record SPM, whether streaks are on or not
-  if (!streaksAllowed(currentMode())) return;
-  for (const id of streaks.addScore(amount)) {
-    selectedStreak = id;   // newest earned, like BO2's default pick
-    killstreakUi.banner({
-      title: `${STREAK_DEFS[id].name} ready`,
-      sub: isTouch ? "Tap it to call it in" : `Press ${streakKeyLabel(id)} to call it in`,
-      iconSvg: streakIconSvg(id),
-      tone: STREAK_DEFS[id].badge === "red" ? "red" : "gold",
-    });
-    audio.wave();
-  }
-  updateStreakHud();
-}
-
-const STREAK_RUNGS = new Set([3, 5, 7, 10]);
-
-function announceStreak(n) {
-  player.bestStreak = Math.max(player.bestStreak, n);
-  if (!STREAK_RUNGS.has(n)) return;
-  // A star medal on the splash (medals.js); its sting replaces the old
-  // wave-banner chime.
-  killstreakUi.medal(`${n} Kill Streak`);
-}
-
-function showXpPopup(amount, label) {
-  if (!els.xpPopups) return;
-  const div = document.createElement("div");
-  div.className = "to-xp-pop";
-  div.textContent = label ? `+${amount} · ${label}` : `+${amount}`;
-  els.xpPopups.appendChild(div);
-  while (els.xpPopups.children.length > 4) els.xpPopups.firstChild.remove();
-  setTimeout(() => div.remove(), 1400);
-}
-
-/* Damage we've dealt to each target, so that softening someone up still
-   counts when a teammate lands the last shot. Without this, 90 damage and a
-   stolen kill is indistinguishable from doing nothing at all. */
-const dealtLog = new Map();       // victim id -> { dmg, last }
-
-/* How far away each target was when we last hit it. A peer applies its own
-   damage and announces its own death, so by the time we learn we killed
-   someone the shot is long gone — this is the only place the range survives,
-   and Longshot needs it. */
-const lastHitRange = new Map();   // victim id -> metres
-
-function noteDealt(targetId, amount) {
-  if (!targetId || !isPvp()) return;
-  const e = dealtLog.get(targetId) || { dmg: 0, last: 0 };
-  e.dmg += amount;
-  e.last = performance.now();
-  dealtLog.set(targetId, e);
-}
-
-function creditAssistIfOwed(victimId, victimName) {
-  const e = dealtLog.get(victimId);
-  if (!e) return;
-  dealtLog.delete(victimId);
-  if (performance.now() - e.last > ASSIST_MEMORY * 1000) return;
-  if (e.dmg < ASSIST_MIN_DAMAGE) return;
-
-  player.assists++;
-  addMatchXp(XP.assist, "ASSIST");
-  awardScore(SCORE.assist);
-  pushKillfeed({ killer: "You", victim: victimName, assist: true, mine: true });
-}
-
-function checkMatchEnd() {
-  const mode = currentMode();
-  if (!mode.pvp || gameState !== "playing") return;
-  const args = {
-    teamScores,
-    selfScore: player.kills,
-    selfName: "You",
-    peers: [...net.peers.values()],
-  };
-  const winner = matchWinner(mode, args);
-  if (winner) { endMatch(winner); return; }
-  if (mode.timeLimit && matchClockT !== null && matchClockT <= 0) {
-    endMatch(matchWinnerOnTimeout(mode, args));
-  }
-}
-
-function updateTeamHud() {
-  els.scorePhantom.textContent = String(teamScores.phantom);
-  els.scoreGhost.textContent = String(teamScores.ghost);
-  // How far behind we ever got, for Comeback. Free-for-all has no side to be
-  // behind, so it only tracks in team modes.
-  if (!currentMode().ffa && net.team) {
-    const mine = teamScores[net.team] || 0;
-    const theirs = net.team === "phantom" ? teamScores.ghost : teamScores.phantom;
-    achievements.noteScores(mine, theirs);
-  }
-}
 
 /* Match clock: counts down once a timed PvP mode goes live, independent of
    the staging countdown. `null` means this mode has no clock at all, so the
@@ -2843,1165 +2676,19 @@ let aimAssistSticky = false;   // crosshair is on a target this frame (read by t
 
 let hitFlashT = 0;
 
-// -------------------- weapon actions --------------------
-
-function currentWeapon() {
-  const id = currentWeaponSlot === "secondary" ? player.secondaryId : player.weaponId;
-  return player.weapons[id] || player.weapons[player.weaponId];
-}
-
-function tryReload() {
-  if (socialUnarmed()) return;   // no guns in the hangout
-  if (!controls.isLocked && !isTouch && !gamepadState.connected) return;
-  // audio.reload() now fires from reloadPose() on the first frame w.reloading
-  // is true, so it lands in step with the visual choreography's stages
-  // rather than at the exact instant this input handler runs.
-  currentWeapon().startReload();
-}
-
-/* `shot` (charge weapons, from chargedShotDef): the def this round flies
-   with, the cells it costs, its recoil scale and charge level. */
-function fireOnce(shot = null) {
-  if (socialUnarmed()) return;
-  const w = currentWeapon();
-  const def = shot?.def || w.def;
-  if (!w.canFire()) {
-    if (w.ammoInMag <= 0 && !w.reloading) tryReload();
-    return;
-  }
-  w.fire(shot?.cells ?? 1, shot?.kick ?? 1);
-  if (w.def.akimbo) {
-    // Right, left, right...: each pull fires the other gun.
-    w.akimboSide = (w.akimboSide ?? 1) ^ 1;
-    if (shot?.fan) {
-      w.fireCooldown = 60 / w.def.fanFire.rpm;
-      w.spread = Math.min(w.def.spreadMax + w.def.fanFire.spread, w.spread + w.def.fanFire.spread);
-    }
-    akimboView.onShot(activeWeaponMesh, w, w.akimboSide, !!shot?.fan);
-  }
-  if (w.def.charge) {
-    w.lastShotLevel = shot?.level ?? 0;
-    w.shotFlare = 1;
-  }
-  inspectT = 0;      // shooting always wins over the flourish
-  breakSpawnGuard();
-  audio.shot(def);
-  // Camera shake per shot, shaped by the weapon's shake stats and its
-  // attachments. Shouldering the gun steadies it, as with the recoil.
-  kickFireShake(def, 1 - w.adsT * 0.35);
-  muzzleFlashT = 0.045;
-  muzzleLight.intensity = 0.35;
-  muzzleMat.uniforms.uColor.value.setHex(def.muzzleColor ?? 0xfff2c0);
-  muzzleLight.color.setHex(def.muzzleColor ?? 0xffcf8a);
-  if (def.hellfire && activeWeaponMesh?.userData.sb) {
-    // The jaws snap and spit fire; the last shell's fire coughs out.
-    soulBlazerShot(activeWeaponMesh);
-    soulBlazerMouth(activeWeaponMesh, _sbPos, _sbDir);
-    hellfireView.burst(_sbPos, _sbDir, 1 - 0.45 * w.adsT);   // a little less in your face down the sight
-    if (w.ammoInMag <= 0) {
-      setTimeout(() => {
-        if (!activeWeaponMesh?.userData.sb) return;
-        soulBlazerMouth(activeWeaponMesh, _sbPos, _sbDir);
-        hellfireView.cough(_sbPos, _sbDir);
-        audio.emberCough();
-      }, 260);
-    }
-  }
-
-  // Part of the kick is permanent climb the player has to pull back down —
-  // that's what makes recoil control a skill rather than a wait.
-  look.pitch = Math.min(PITCH_LIMIT, look.pitch + def.recoilKickPitch * 0.35 * (1 - w.adsT * 0.35));
-
-  const pellets = def.pellets || 1;
-  const origin = new THREE.Vector3();
-  camera.getWorldPosition(origin);
-  const forward = new THREE.Vector3();
-  camera.getWorldDirection(forward);
-
-  const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
-  const up = new THREE.Vector3().crossVectors(right, forward).normalize();
-  const muzzle = origin.clone().addScaledVector(forward, 0.35);
-  localShotAt = performance.now();
-  if (isPvp()) net.reportShot(muzzle, forward, def.id, !!def.quiet, shot?.level ?? 0);
-  if (royale && !def.quiet) royaleNoise(move.pos.x, move.pos.z, net.id);
-
-  for (let i = 0; i < pellets; i++) {
-    // A charged bolt holds its line: the charge steadies the cone.
-    const spread = (def.pelletSpread != null ? def.pelletSpread : w.spread) * (1 - 0.7 * (shot?.level ?? 0));
-    // Uniform disc around the aim axis — an even cone, unlike the old
-    // world-axis rotation which skewed badly when looking up or down.
-    const a = Math.random() * Math.PI * 2;
-    const r = Math.sqrt(Math.random()) * spread * 0.5;
-    const dir = forward.clone()
-      .addScaledVector(right, Math.cos(a) * r)
-      .addScaledVector(up, Math.sin(a) * r)
-      .normalize();
-    bullets.spawn({ origin: muzzle.clone(), dir, def, ownerId: "player" });
-    player.shotsFired++;   // combat record accuracy
-  }
-}
-
-/* An enemy Dragonfire's or SAM Turret's hit volume. */
-function resolveStreakKit(object) {
-  const e = object?.userData?.air || object?.userData?.sam;
-  return e ? { isStreakKit: true, entity: e } : null;
-}
-
-function resolveBulletTarget(object) {
-  return hitboxLab?.resolve(object)
-    || resolveStreakKit(object)
-    || resolveK9(object)
-    || rangeSet?.resolve(object)
-    || remotes.resolve(object)
-    || zdir?.resolve(object)
-    || findGruntFromObject(object);
-}
-
-function onBulletActorHit(actor, info) {
-  if (actor.isLabDummy) {
-    // The lab scores the round itself (onTrace); here it's just the feedback.
-    showHitmarker(info.isHead, info.damage, info.point, false);
-    impactFx.hit(info.point, { normal: info.dir.clone().negate(), dir: info.dir, surface: "zombie", scale: info.isHead ? 1.3 : 1 });
-    return;
-  }
-  if (actor.isStreakKit) {
-    damageStreakEntity(actor.entity, info.damage, net.id);
-    showHitmarker(false, info.damage, info.point, false);
-    impactFx.hit(info.point, { normal: info.dir.clone().negate(), dir: info.dir, surface: "metal", scale: 1 });
-    spawnImpactBurst(info.point, 0xffd08a, 5);
-    return;
-  }
-  if (actor.isK9Dog) {
-    // An enemy dog: its owner applies the damage (damageDog forwards it).
-    damageDog(actor.pack, actor.i, info.damage, net.id);
-    showHitmarker(false, info.damage, info.point, false);
-    impactFx.hit(info.point, { normal: info.dir.clone().negate(), dir: info.dir, surface: "zombie", scale: 0.9 });
-    return;
-  }
-
-  if (actor.isRangeTarget) {
-    const { killed } = actor.takeDamage(info.damage, info.isHead);
-    showHitmarker(info.isHead, info.damage, info.point, killed);
-    impactFx.hit(info.point, { normal: info.dir.clone().negate(), dir: info.dir, surface: "wood", scale: info.isHead ? 1.4 : 1 });
-    reportRangeShot(actor, info, killed);
-    return;
-  }
-
-  if (actor.isZombie) {
-    const { killed, points } = actor.takeDamage(info.damage, info.isHead);
-    zdir.award(points);
-    showHitmarker(info.isHead, info.damage, info.point, killed);
-    impactFx.hit(info.point, { normal: info.dir.clone().negate(), dir: info.dir, surface: actor.body ? "blood" : "zombie", scale: info.isHead ? 1.5 : 1.1 });
-    // A headshot kill takes the head off: a burst out the far side and up.
-    const popped = killed && info.isHead ? actor.popHead?.() : null;
-    if (popped) {
-      impactFx.hit(popped, { normal: info.dir, dir: info.dir, surface: "blood", scale: 4 });
-      impactFx.hit(popped, { normal: THREE.Object3D.DEFAULT_UP, surface: "blood", scale: 3 });
-      audio.zombieHeadPop(popped);
-    }
-    if (actor.rig) flinchRigFrom(actor.rig, info.dir, info.isHead ? 1 : 0.5);
-    else actor.flinchFrom?.(info.dir, info.isHead ? 1 : 0.5);
-    if (killed) {
-      zdir.kills++;
-      player.kills++;
-      audio.kill();
-      pushKillfeed(`${info.isHead ? "Headshot — " : ""}+${points}`);
-    }
-    return;
-  }
-
-  // Remote players own their own health: we report the hit and they apply it.
-  if (actor.netId) {
-    player.shotsHit++;   // combat record accuracy: a round on an enemy player or bot
-    noteDealt(actor.netId, info.damage);
-    if (heroActive()) hero().onDealt(info.damage);
-    // Our own bots never hear our broadcasts, so resolve those locally.
-    const shotWith = info.creditAs || currentWeapon().def.id;
-    let killedNow = false;
-    if (bots.byId(actor.netId)) {
-      const { killed, bot } = bots.applyHit(actor.netId, info.damage);
-      killedNow = killed;
-      if (killed) {
-        dealtLog.delete(actor.netId);
-        net.reportDeathAs(actor.netId, net.id, shotWith, info.isHead);
-        registerDeath(bot.name, net.id, shotWith, {
-          head: info.isHead, victimTeam: bot.team, victimIsBot: true,
-          victimPos: bot.pos, victimWeaponId: bot.weaponId,
-          victimId: bot.id, distance: info.distance || 0,
-        });
-      }
-    } else {
-      net.reportHit(actor.netId, info.damage, info.isHead, shotWith);
-      // A peer applies its own damage and reports its own death, so the range
-      // we hit it from is only known here. Remember the last one per target
-      // so the kill that comes back off the wire can still be a Longshot.
-      lastHitRange.set(actor.netId, info.distance || 0);
-    }
-    showHitmarker(info.isHead, info.damage, info.point, killedNow);
-    impactFx.hit(info.point, { normal: info.dir.clone().negate(), dir: info.dir, surface: "ink", scale: info.isHead ? 1.5 : 1.1 });
-    if (actor.rig) flinchRigFrom(actor.rig, info.dir, info.isHead ? 1 : 0.5);
-    return;
-  }
-  onGruntBulletHit(actor, info);
-}
-
-function onGruntBulletHit(grunt, { damage, isHead, point, dir }) {
-  const knockDir = dir.clone(); knockDir.y = 0; knockDir.normalize();
-  const result = grunt.takeDamage(damage, isHead, knockDir);
-  showHitmarker(isHead, damage, point, result.killed);
-  impactFx.hit(point, { normal: dir.clone().negate(), dir, surface: "grunt", scale: isHead ? 1.5 : 1.1 });
-  if (grunt.rig) flinchRigFrom(grunt.rig, dir, isHead ? 1 : 0.5);
-  if (result.killed) {
-    player.kills++;
-    els.hudKills.textContent = String(player.kills);
-    pushKillfeed(`${isHead ? "Headshot — " : ""}Grunt down`);
-  }
-}
-
-function findGruntFromObject(obj) {
-  let o = obj;
-  while (o) {
-    if (o.userData && o.userData.dissolveMat) {
-      const grunt = spawner.grunts.find((g) => g.mesh === o);
-      if (grunt) return grunt;
-    }
-    o = o.parent;
-  }
-  return null;
-}
-
-// -------------------- melee + throwables --------------------
-
-const grenades = new GrenadeSystem(scene, lightPool);
-
 /* Whatever the bullets are allowed to hit this frame. Hoisted out of the
    frame loop because melee and blasts need the same list. */
 let targetMeshes = [];
 let hitboxLab = null;   // localhost ?hitbox=1 only (hitbox-lab.js)
+initThrowables();
 
-/* Everything alive that a blast could reach, as { actor, pos } pairs. The
-   three enemy systems keep their own arrays, so this is the one place that
-   has to know about all of them. */
-function blastCandidates(sparedTeam = net.team) {
-  const out = [];
-  if (zdir) {
-    for (const z of zdir.zombies) {
-      if (z.alive && !z.dying) out.push({ actor: z, pos: z.mesh.position });
-    }
-  }
-  if (spawner) {
-    for (const g of spawner.grunts) {
-      if (g.alive && !g.dying) out.push({ actor: g, pos: g.mesh.position });
-    }
-  }
-  // Teammates are out: bullets already spare them (hitMeshes skips your own
-  // side), and a frag or an airstrike that didn't was a free teamkill that
-  // also scored for your side. `sparedTeam` is the thrower's side — ours,
-  // unless this is someone else's flash going off on our screen.
-  const ffa = !!currentMode().ffa;
-  for (const rp of remotes.byId.values()) {
-    if (!rp.alive) continue;
-    if (!ffa && sparedTeam && rp.team === sparedTeam) continue;
-    out.push({ actor: rp, pos: rp.pos });
-  }
-  if (rangeSet) {
-    for (const t of rangeSet.targets) {
-      if (t.down <= 0) out.push({ actor: t, pos: t.mesh.position });
-    }
-  }
-  // Enemy dogs: a frag or a strike takes them out too. Never our own pack.
-  for (const e of streakEntities.values()) {
-    if (!(e instanceof K9Pack) || e.owned) continue;
-    if (!ffa && sparedTeam && e.team === sparedTeam) continue;
-    for (const d of e.dogs) if (d?.alive) out.push({ actor: d, pos: d.pos });
-  }
-  return out;
-}
-
-/* Radial damage. Torso height is added to each target so a grenade resting
-   on the floor still measures to a standing chest, not a pair of boots. */
-function areaDamage(centre, radius, damage, def, { fire = false, creditAs = null, botId = null } = {}) {
-  const scaled = { ...def, radius, damage, minDamage: fire ? damage * 0.5 : def.minDamage };
-  if (botId) { botAreaDamage(botId, centre, scaled, def); return; }
-  for (const { actor, pos } of blastCandidates()) {
-    const torso = pos.clone();
-    torso.y += 0.9;
-    const dmg = blastDamage(scaled, centre.distanceTo(torso));
-    if (dmg <= 0) continue;
-    const dir = torso.clone().sub(centre);
-    dir.y = 0;
-    dir.normalize();
-    // `creditAs` names the thing that actually did this, for blasts that
-    // aren't the gun in your hands — an airstrike kill credited to whatever
-    // rifle you happened to be holding reads as a bug.
-    onBulletActorHit(actor, { damage: dmg, isHead: false, point: torso, dir, creditAs });
-  }
-
-  // Your own grenade counts. Cooking one too long has to cost you.
-  if (player.alive) {
-    const selfDmg = blastDamage(scaled, centre.distanceTo(player.pos)) * (def.selfMult ?? 1);
-    if (selfDmg > 0) damagePlayer(selfDmg, net.id, def.id);
-  }
-}
-
-/* A bot's grenade (we host the bot). Same falloff as ours, but it's the
-   bot's blast: it spares the bot's own side, not ours, and every hit is
-   reported under the bot's id so the killfeed and scores credit it. */
-function botAreaDamage(botId, centre, scaled, def) {
-  const bot = bots.byId(botId);
-  if (!bot) return;   // the bot left with its grenade in the air
-  const ffa = !!currentMode().ffa;
-  if (player.alive && (ffa || bot.team !== net.team)) {
-    const dmg = blastDamage(scaled, centre.distanceTo(player.pos));
-    if (dmg > 0) botDealDamage(bot, net.id, dmg, false, def.id);
-  }
-  for (const rp of remotes.byId.values()) {
-    if (!rp.alive || rp.netId === bot.id) continue;
-    if (!ffa && rp.team === bot.team) continue;
-    const dmg = blastDamage(scaled, centre.distanceTo(_blastTorso.copy(rp.pos).setY(rp.pos.y + 0.9)));
-    if (dmg > 0) botDealDamage(bot, rp.netId, dmg, false, def.id);
-  }
-}
-const _blastTorso = new THREE.Vector3();
-
-let botNadesThrown = 0;
-
-/* A bot throws. bots.js decided that it should and where it wants the
-   grenade to land; this works out the arc, puts the grenade in the world
-   and tells the room, exactly as releaseCook does for the player. `lob`
-   takes the high arc, for dropping one over cover rather than into it. */
-function botThrow(bot, kind, at, lob = false) {
-  const def = THROWABLE_DEFS[kind];
-  if (!def || !bot.alive) return false;
-  const origin = new THREE.Vector3(bot.pos.x, bot.pos.y + 1.6, bot.pos.z);
-  const dx = at.x - origin.x, dz = at.z - origin.z;
-  const flat = Math.hypot(dx, dz);
-  if (flat < 1) return false;
-  bot.yaw = Math.atan2(-dx, -dz);
-  // Frags skip and roll on after they land: aim a little short.
-  const d = flat * (def.roll > 0.3 ? 0.84 : 0.95);
-  const dy = (at.y ?? bot.pos.y) - origin.y;
-  const v = def.throwSpeed, g = GRENADE_GRAVITY;
-  const disc = v ** 4 - g * (g * d * d + 2 * dy * v * v);
-  const angle = disc < 0 ? Math.PI / 4
-    : Math.atan((v * v + (lob ? 1 : -1) * Math.sqrt(disc)) / (g * d));
-  const dir = new THREE.Vector3(dx / flat * Math.cos(angle), Math.sin(angle), dz / flat * Math.cos(angle));
-  origin.addScaledVector(dir, 0.5);
-
-  // Flight time sets the fuse: a skilled bot cooks a frag so it goes off
-  // about when it lands, with no time to run. A flash always gets to land.
-  const flight = d / Math.max(0.1, v * Math.cos(angle));
-  let fuse = def.fuse;
-  if (def.cookable && def.damage > 0 && bot.diff.nade.cook) fuse = Math.max(flight + 0.35, def.fuse - 1.2);
-  if (def.blind) fuse = Math.max(fuse, flight + 0.1);
-
-  const gid = nextNadeId(bot.id);
-  const gr = grenades.throwGrenade(def, origin, dir, bot.id, { fuseLeft: fuse, gid, team: bot.team });
-  gr.botId = bot.id;
-  noteThrow(bot.id);   // the host never hears its own bots' `nade` messages
-  if (isPvp() && net.active) {
-    net.publishNadeAs(bot.id, bot.team, {
-      action: "throw", gid, def: def.id, fuse: round2(fuse),
-      ox: round2(origin.x), oy: round2(origin.y), oz: round2(origin.z),
-      dx: round2(dir.x), dy: round2(dir.y), dz: round2(dir.z),
-    });
-  }
-  botNadesThrown++;
-  return true;
-}
-
-/* Everything about a blast that isn't damage: light, sparks, sound, shove. */
-function explosionFx(def, pos) {
-  const big = def.kind === "tactical" ? 0.5 : 1;
-  spawnImpactBurst(pos, def.glow, def.kind === "tactical" ? 14 : 26);
-
-  const flash = lightPool.acquire("point", scene, { color: def.glow, intensity: 260 * big, distance: def.radius * 2.6 });
-  if (flash) {
-    flash.position.copy(pos);
-    blastLights.push({ light: flash, life: 0.3, max: 0.3, peak: 260 * big });
-  }
-
-  if (def.smoke) audio.smoke(pos);
-  else if (def.emp) audio.emp(pos);
-  else if (def.kind === "tactical") audio.flashbang(0, pos);
-  else audio.explosion(big, pos);
-
-  const near = Math.max(0, 1 - pos.distanceTo(player.pos) / (def.radius * 2));
-  if (near > 0) { shakeMag = Math.max(shakeMag, near * 0.08); shakeT = 0.45; }
-}
-
-const blastLights = [];
-
-function updateBlastLights(dt) {
-  for (let i = blastLights.length - 1; i >= 0; i--) {
-    const b = blastLights[i];
-    b.life -= dt;
-    b.light.intensity = Math.max(0, (b.life / b.max) * b.peak);
-    if (b.life <= 0) { lightPool.release(b.light); blastLights.splice(i, 1); }
-  }
-}
-
-/* Flashbangs only blind what can see them, so a wall is real cover and
-   turning away actually helps. */
-/* Whether a grenade is a teammate's — which spares us, same as their frags
-   do. Our own still gets us: that's the price of a bad throw. */
-function friendlyNade(g) {
-  return !!(g?.remote || g?.botId) && !currentMode().ffa && !!net.team && g.team === net.team;
-}
-
-/* The side a grenade belongs to: ours, unless someone else threw it (a remote
-   player, or a bot we simulate). */
-function nadeTeam(g) {
-  return g?.remote || g?.botId ? g.team : net.team;
-}
-
-function flashPlayer(pos, def, g = null) {
-  const dist = pos.distanceTo(player.pos);
-  // Smoke eats a flash the same way a wall does.
-  if (!friendlyNade(g) && dist <= def.radius && !segmentBlocked(colliders, player.pos, pos)
-      && !grenades.blocksSight(player.pos, pos)) {
-    const forward = new THREE.Vector3();
-    camera.getWorldDirection(forward);
-    const toBang = pos.clone().sub(player.pos).normalize();
-    const facing = Math.max(0, forward.dot(toBang));   // 1 = staring right at it
-    const strength = (1 - dist / def.radius) * (0.35 + facing * 0.65);
-    blindT = Math.max(blindT, def.blind * strength);
-    audio.flashbang(strength, pos);
-  }
-
-  for (const { actor, pos: apos } of blastCandidates(nadeTeam(g))) {
-    if (pos.distanceTo(apos) > def.radius) continue;
-    if (segmentBlocked(colliders, apos, pos)) continue;
-    if (grenades.blocksSight(apos, pos)) continue;
-    if (g?.botId && actor.netId === g.botId) continue;
-    stunActor(actor, def.stun);
-  }
-}
-
-/* A bot shows up in blastCandidates as its RemotePlayer render proxy, which
-   has no stun() — the real Bot we simulate does. Grunts and zombies take it
-   directly. A remote human's stun happens on their own client. */
-function stunActor(actor, seconds) {
-  const bot = actor.netId ? bots.byId(actor.netId) : null;
-  (bot || actor).stun?.(seconds);
-}
-
-function applyEmpState(on) {
-  els.emp.classList.toggle("is-on", on);
-  els.hud.classList.toggle("to-emp-down", on);
-}
-
-/* EMP: no damage, no blindness — it takes your gear away. Optics go dark,
-   the HUD scrambles, and the radar stops updating, so you have to fight the
-   room on what you can actually see. Walls stop it; smoke doesn't. */
-function empPlayer(pos, def, g = null) {
-  const dist = pos.distanceTo(player.pos);
-  if (!friendlyNade(g) && dist <= def.radius && !segmentBlocked(colliders, player.pos, pos)) {
-    const strength = 1 - dist / def.radius;
-    empT = Math.max(empT, def.emp.scramble * (0.4 + strength * 0.6));
-    audio.empHit();
-  }
-
-  // Bots are scrambled even when we weren't — this used to return early the
-  // moment we were out of range, so an EMP thrown at a bot never reached it.
-  for (const { actor, pos: apos } of blastCandidates(nadeTeam(g))) {
-    if (pos.distanceTo(apos) > def.radius) continue;
-    if (segmentBlocked(colliders, apos, pos)) continue;
-    // Bots run on sight, so scrambling them reads as a short stun.
-    stunActor(actor, def.emp.scramble * 0.35);
-  }
-}
-
-function grenadeCtx() {
-  return {
-    colliders,
-    arena: builtMap ? builtMap.map.bounds : ARENA,
-    onExplode: explosionFx,
-    onAreaDamage: areaDamage,
-    onFlash: flashPlayer,
-    onEmp: empPlayer,
-    onDetonate: (g, pos) => publishBoom(g.gid, g.def, pos, g.botId ? bots.byId(g.botId) : null),
-  };
-}
-
-/* Tell the room where our grenade actually went off. */
-function publishBoom(gid, def, pos, bot = null) {
-  if (!gid || !isPvp() || !net.active) return;
-  const payload = { action: "boom", gid, def: def.id, x: round2(pos.x), y: round2(pos.y), z: round2(pos.z) };
-  if (bot) net.publishNadeAs(bot.id, bot.team, payload);
-  else net.publishNade(payload);
-}
-
-let nadeSeq = 0;
-/* A bot's grenades carry the bot's id, so nobody counting "grenades that
-   client threw" by prefix mistakes the host's bots for the host. */
-function nextNadeId(ownerId = net.id) { return `${ownerId}-${++nadeSeq}`; }
-
-/* Someone else's throwable, from their `throw`/`boom` messages. */
-function applyRemoteNade(m) {
-  if (gameState !== "playing") return;
-  const def = THROWABLE_DEFS[m.def];
-  if (!def) return;
-  if (m.action === "throw") {
-    noteThrow(m.id);
-    const origin = new THREE.Vector3(m.ox, m.oy, m.oz);
-    const dir = new THREE.Vector3(m.dx, m.dy, m.dz).normalize();
-    grenades.throwGrenade(def, origin, dir, m.id, {
-      fuseLeft: Number.isFinite(m.fuse) ? m.fuse : def.fuse, remote: true, gid: m.gid, team: m.team,
-    });
-  } else if (m.action === "boom") {
-    grenades.remoteBoom(m.gid, def, new THREE.Vector3(m.x, m.y, m.z), m.id, m.team, grenadeCtx());
-  }
-}
-
-/* Someone we can see threw something: their rig plays the overhand arm. */
-function noteThrow(id) {
-  const p = net.peers.get(id);
-  if (p) p.throwSeq = (p.throwSeq | 0) + 1;
-}
-
-function refillGear() {
-  player.gear.lethal = loadout.carried("lethal");
-  player.gear.tactical = loadout.carried("tactical");
-}
-
-/* The one throwable slot a loadout carries: lethal or tactical. */
-function carriedThrowSlot() {
-  return loadout.throwKind === "tactical" ? "tactical" : "lethal";
-}
-
-/* Cooking: holding the key starts the fuse while the grenade is still in
-   your hand. Impact throwables ignore it — they go off where they land. */
-function startCook(slot) {
-  if (socialUnarmed()) { putDownDrink(); return; }   // G: the saloon bar's drink goes down
-  if (cooking.def || !player.alive || gameState !== "playing" || isStaging() || isInfected()) return;
-  if (streakBusy()) return;   // no throwables while working a streak (user)
-  if (player.gear[slot] <= 0) return;
-  const def = slot === "lethal" ? loadout.lethal : loadout.tactical;
-  cooking.def = def;
-  cooking.slot = slot;
-  cooking.fuse = def.fuse;
-}
-
-/* Put a cooking throwable back unthrown and unspent. Dying, pausing, a lost
-   pointer lock and a hidden tab all end a cook: the key-up that would have
-   thrown it never arrives (or arrives on the death cam, which used to throw
-   a grenade from wherever the killcam happened to be looking), and a cook
-   left set blocked every later throw until the next match. */
-function cancelCook() {
-  if (!cooking.def) return;
-  cooking.def = null;
-  cooking.slot = null;
-  cooking.fuse = 0;
-  els.cook.hidden = true;
-}
-
-/* `cookedOff`: the fuse ran out in the hand. The grenade is spent but never
-   thrown — this used to throw it anyway with a zero fuse, so it went off a
-   second time a frame after the in-hand blast: two explosions, double damage. */
-function releaseCook({ cookedOff = false } = {}) {
-  if (!cooking.def) return;
-  if (!player.alive || gameState !== "playing" || streakBusy()) { cancelCook(); return; }
-  const def = cooking.def;
-  const slot = cooking.slot;
-  cooking.def = null;
-  cooking.slot = null;
-  els.cook.hidden = true;
-  if (player.gear[slot] <= 0) return;
-  player.gear[slot]--;
-  updateGearHud();
-  if (cookedOff) return;
-
-  const origin = new THREE.Vector3();
-  camera.getWorldPosition(origin);
-  const dir = new THREE.Vector3();
-  camera.getWorldDirection(dir);
-  // Throws arc up a little, so aiming flat still lobs it somewhere useful.
-  dir.y += 0.18;
-  dir.normalize();
-  // Out in front of the face, but never through a wall you're pressed up
-  // against: a grenade spawned on the far side of it goes off over there.
-  const clear = raycastWorld(colliders, origin, dir, 0.85);   // distance to the first solid
-  origin.addScaledVector(dir, Math.max(0, Math.min(0.6, clear - 0.25)));
-
-  const gid = nextNadeId();
-  grenades.throwGrenade(def, origin, dir, "player", { fuseLeft: cooking.fuse, gid });
-  if (isPvp() && net.active) {
-    net.publishNade({
-      action: "throw", gid, def: def.id, fuse: round2(cooking.fuse),
-      ox: round2(origin.x), oy: round2(origin.y), oz: round2(origin.z),
-      dx: round2(dir.x), dy: round2(dir.y), dz: round2(dir.z),
-    });
-  }
-  breakSpawnGuard();
-  audio.throwGear();
-  localThrowT = THROW_TIME;
-}
-
-/* Quick melee swings without putting the gun away; pressing 3 makes the
-   melee weapon the thing in your hands, which swings and moves faster. */
-function swingMelee() {
-  if (socialUnarmed()) return;
-  if (kbRepair.active) return;   // both hands busy fixing the keyboard
-  if (meleeHolster) return;      // being put away for a streak
-  if (!player.alive || move.busy || gameState !== "playing" || stageFrozen() || royaleDropView()) return;
-  if (!player.melee || !player.melee.start()) return;
-  // Everyone else sees the swing; the damage still travels as a normal hit.
-  if (isPvp() && net.active) net.publishMelee(player.melee.swingIndex % 2, player.melee.def.id);
-  breakSpawnGuard();
-  // Swinging mid-ignite (or before it): the blade comes out fast, and the
-  // slow draw gives way to the swing.
-  if (activeMeleeMesh?.userData.igniteDelay > 0) {
-    activeMeleeMesh.userData.igniteDelay = 0;
-    if (activeMeleeMesh.userData.saber) audio.saberIgnite(); else if (activeMeleeMesh.userData.halo) audio.haloIgnite();
-  }
-  for (const m of [activeMeleeMesh, localHeld.mesh]) {
-    const sv = m?.userData.saber || m?.userData.halo;
-    if (sv && sv.frac < 1) sv.ignite();
-  }
-  meleeDrawT = 0;
-  const kind = player.melee.def.model?.kind;
-  if (kind === "saber" || kind === "halo") audio.saberSwing();
-  else if (kind === "chainsaw") audio.chainsawRev();
-  else if (kind === "reaper") audio.reaperSwing();
-  else if (kind === "knuckles") audio.knuckleSwing();
-  else audio.swing();
-}
-
-/* The swing itself: a short fan of rays rather than one, so a swing that is
-   only nearly on target still connects the way a wide arc should. */
-const _meleeAim = new THREE.Euler();
-function meleeConnect() {
-  const def = player.melee.def;
-  // From your own eyes along your aim, not from the camera: in third person
-  // the camera sits ~3 m behind you, so a 2 m swing used to end behind your
-  // own back and never touched anyone (user: "not able to kill enemies with
-  // the trollsaber in third person"). In first person this is the same ray.
-  const origin = player.pos.clone();
-  const forward = new THREE.Vector3(0, 0, -1).applyEuler(_meleeAim.set(look.pitch, look.yaw, 0, "YXZ"));
-  const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
-
-  const ray = new THREE.Raycaster();
-  ray.near = 0;
-  // A cut sweeps the whole arc; a thrust goes a little further down a narrow
-  // line. Rays fan across the sweep at three heights (the aim, the chest of
-  // someone a little below it, the head of someone a little above), centre
-  // first so a square hit wins.
-  const thrust = player.melee.swingIndex % 2 === 1 && def.model?.kind !== "chainsaw";
-  const reach = def.range * (thrust ? 1.1 : 1);
-  const half = (thrust ? def.arc * 0.3 : def.arc) / 2;
-  ray.far = reach;
-  const up = new THREE.Vector3().crossVectors(right, forward).normalize();
-  const fan = [];
-  for (const h of [0, -0.5, 0.5, -1, 1]) for (const v of [0, -0.28, 0.14]) fan.push([h * half, v]);
-
-  for (const [off, tilt] of fan) {
-    const dir = forward.clone().addScaledVector(right, Math.tan(off)).addScaledVector(up, Math.tan(tilt)).normalize();
-    ray.set(origin, dir);
-    const hits = targetMeshes.length ? ray.intersectObjects(targetMeshes, true) : [];
-    for (const h of hits) {
-      const actor = resolveBulletTarget(h.object);
-      if (!actor) continue;
-      // A hit from behind is a backstab, decided by which way they face.
-      let mult = 1;
-      const root = actor.mesh || actor.group;
-      if (root) {
-        // Matches movement.js's forwardVec (-sin(yaw), 0, -cos(yaw)) — this
-        // was the mirror image of that, so backstabs registered when hitting
-        // someone in the front and not the back.
-        const theirs = new THREE.Vector3(-Math.sin(root.rotation.y), 0, -Math.cos(root.rotation.y));
-        const swing = dir.clone();
-        swing.y = 0;
-        swing.normalize();
-        if (theirs.dot(swing) > 0.35) mult = def.backstabMult;
-      }
-      if (def.model?.kind === "saber" || def.model?.kind === "halo") audio.saberHit();
-      else if (def.model?.kind === "chainsaw") audio.chainsawHit();
-      else if (def.model?.kind === "knuckles") audio.knuckleHit();
-      else audio.meleeHit();
-      onBulletActorHit(actor, {
-        damage: def.damage * mult,
-        isHead: mult > 1,
-        point: h.point,
-        dir: dir.clone(),
-      });
-      meleeImpactT = 1;
-      return;
-    }
-  }
-  if (def.model?.kind !== "saber") audio.impact();
-  meleeWhiffT = 1;
-}
-
-/* ---- Trollsaber: block and deflect ----------------------------------
-   With the saber drawn, holding aim raises it across the body; rounds from
-   the front (inside def.deflect.cone) hit the blade instead of you. Each
-   one, and holding the guard, drains a meter; run it dry and the guard
-   breaks for def.deflect.breakTime. Blasts, melee, zombies and the bomb go
-   straight through (only WEAPON_DEFS rounds are deflectable). */
-const saberBlock = { active: false, meter: 1, broken: 0, idle: 0, t: 0 };
 let saberDeflectT = 0;
-const saberParry = new ParryState();   // the last deflect's parry (character.js)
-const _parryV = new THREE.Vector3();
-const _parryW = {};
-const _parryPos = new THREE.Vector3();
-const _parryQ = new THREE.Quaternion();
-const _flickQ = new THREE.Quaternion();
-const _viewZ = new THREE.Vector3(0, 0, 1);
-const _viewX = new THREE.Vector3(1, 0, 0);
-const _bladeG = new THREE.Vector3(), _bladeP = new THREE.Vector3();
 let saberFlick = 0;
 let saberWasShown = false;
-// The draw flourish when an energy blade (saber, halo) comes into the hand.
-const MELEE_DRAW_TIME = 0.5;
-// Equipping one (3, or cycling to it) rather than a quick V swing: a slow,
-// deliberate ignite every time (user, 2026-10-03), and a weightier draw for
-// the Keyboard Warrior and the Chainsaw too.
-const SLOW_IGNITE = 1.1;
-const MELEE_EQUIP_TIME = 1.0;
-// Ignition on and off, where you can see it (user: "I just don't see the
-// ignition when I equip it"): the energy blade's hilt comes up dark and
-// settles, a beat, THEN it ignites; put away, it powers down in the hand
-// first and only then drops out of view.
-const POWER_EQUIP_TIME = 0.7;     // the dark hilt rising into the guard
-const POWER_IGNITE_DELAY = 0.95;  // from the draw starting to the ignite
-const POWER_IGNITE = 1.35;        // the slow, sputtering ignite itself
-const POWER_RETRACT = 0.55;       // powering down in the hand
-const POWER_HOLSTER_TIME = 0.95;  // the whole put-away: retract, then drop
 let meleeDrawT = 0;
 let meleeDrawLen = MELEE_DRAW_TIME;
-let saberTrail = null;
-let saberSwingSpeed = 0;
 let saberHavePrevTip = false;
-const _saberPrevTip = new THREE.Vector3();
-const _saberRoot = new THREE.Vector3();
-const _saberTip = new THREE.Vector3();
-const _deflectTo = new THREE.Vector3();
-const _deflectFwd = new THREE.Vector3();
-const _deflectQ = new THREE.Quaternion();
-
-function heldSaberDeflect() {
-  return player.melee?.def?.deflect || null;
-}
-
-function updateSaberBlock(dt, wantAds) {
-  const d = heldSaberDeflect();
-  const want = !!d && player.holding === "melee" && player.alive && wantAds
-    && !player.melee.busy && saberBlock.broken <= 0 && saberBlock.meter > 0 && !isStaging();
-  saberBlock.active = want;
-  if (saberBlock.broken > 0) saberBlock.broken = Math.max(0, saberBlock.broken - dt);
-  if (!d) {
-    saberBlock.meter = 1;
-  } else if (want) {
-    saberBlock.meter = Math.max(0, saberBlock.meter - d.drainHeld * dt);
-    saberBlock.idle = 0;
-    if (saberBlock.meter <= 0) breakSaberGuard();
-  } else {
-    saberBlock.idle += dt;
-    if (saberBlock.idle > d.regenDelay && saberBlock.broken <= 0) saberBlock.meter = Math.min(1, saberBlock.meter + d.regen * dt);
-  }
-  if (!els.saberMeter) return;
-  const show = !!d && player.holding === "melee" && player.alive
-    && (want || saberBlock.meter < 0.999 || saberBlock.broken > 0);
-  els.saberMeter.hidden = !show;
-  if (!show) return;
-  els.saberMeter.style.setProperty("--p", saberBlock.meter.toFixed(3));
-  els.saberMeter.classList.toggle("is-on", want);
-  els.saberMeter.classList.toggle("is-broken", saberBlock.broken > 0);
-}
-
-function breakSaberGuard() {
-  const d = heldSaberDeflect();
-  if (!d) return;
-  saberBlock.meter = 0;
-  saberBlock.active = false;
-  saberBlock.broken = d.breakTime;
-  audio.saberBreak();
-  activeMeleeMesh?.userData.saber?.flare(1.4);
-}
-
-/* ---- the Keyboard Warrior's shield (gear.js MELEE_DEFS.keyboard.shield)
-   Hold aim and the board goes up flat, keys out (keyboard-repair.js
-   KB_SHIELD). It stops rounds from the front with no meter, but a few in a
-   row break it: keycaps everywhere, and you sit down and fix it. */
-const kbShield = { active: false, t: 0, kick: 0, streak: 0, lastHit: 0 };
-const kbRepair = createKeyboardRepair({ audio });
-const _kbFarGrip = new THREE.Vector3(0, -0.03, -0.86);   // support hand under the far end
-function heldKbShield() { return player.melee?.def?.shield || null; }
-function updateKbShield(wantAds) {
-  kbShield.active = !!heldKbShield() && player.holding === "melee" && player.alive && wantAds
-    && !player.melee.busy && !kbRepair.active && !isStaging();
-  // Lowering the shield ends the streak: the break needs hits in a row.
-  if (!kbShield.active) kbShield.streak = 0;
-}
-function tryKbShield(fromId, weaponId, fromPos) {
-  const d = heldKbShield();
-  if (!kbShield.active || !d || !WEAPON_DEFS[weaponId]) return false;
-  const src = fromPos || killerPosFor(fromId);
-  camera.getWorldDirection(_deflectFwd);
-  _deflectFwd.y = 0;
-  _deflectFwd.normalize();
-  if (src) {
-    _deflectTo.set(src.x - move.pos.x, 0, src.z - move.pos.z);
-    if (_deflectTo.lengthSq() > 1e-6 && _deflectTo.normalize().dot(_deflectFwd) < d.cone) return false;
-  }
-  const at = player.pos.clone().addScaledVector(_deflectFwd, 0.6);
-  at.y -= 0.2;
-  spawnImpactBurst(at, 0x8a8a96, 10);
-  audio.keyboardShieldHit();
-  kbShield.kick = 1;
-  // CONSECUTIVE hits (user, 2026-10-03): each one within hitWindow of the
-  // last, the shield up the whole time. A pause, or lowering it, resets.
-  const now = performance.now() / 1000;
-  kbShield.streak = now - kbShield.lastHit <= d.hitWindow ? kbShield.streak + 1 : 1;
-  kbShield.lastHit = now;
-  if (kbShield.streak >= d.breakHits) {
-    kbShield.streak = 0;
-    kbShield.active = false;
-    kbRepair.start();
-  }
-  return true;
-}
-
-/* damagePlayer asks first: true means the blade took it. */
-function tryDeflect(amount, fromId, weaponId, fromPos) {
-  if (tryKbShield(fromId, weaponId, fromPos)) return true;
-  if (!saberBlock.active) return false;
-  const d = heldSaberDeflect();
-  if (!d || !WEAPON_DEFS[weaponId]) return false;
-  const src = fromPos || killerPosFor(fromId);
-  camera.getWorldDirection(_deflectFwd);
-  _deflectFwd.y = 0;
-  _deflectFwd.normalize();
-  if (src) {
-    _deflectTo.set(src.x - move.pos.x, 0, src.z - move.pos.z);
-    if (_deflectTo.lengthSq() > 1e-6 && _deflectTo.normalize().dot(_deflectFwd) < d.cone) return false;
-  }
-  saberBlock.meter -= d.drainPerHit + amount * d.drainPerDamage;
-  saberBlock.idle = 0;
-  saberDeflectT = 1;
-  // Which parry: where the round came from, in our view. killerPosFor
-  // already puts `src` at the shooter's eye.
-  if (src) {
-    camera.getWorldPosition(_parryV);
-    _parryV.set(src.x - _parryV.x, (src.y ?? _parryV.y) - _parryV.y, src.z - _parryV.z).normalize();
-    _parryV.applyQuaternion(_deflectQ.copy(camera.quaternion).invert());
-    saberParry.start(_parryV.x, _parryV.y);
-  } else saberParry.start(0, 0);
-  activeMeleeMesh?.userData.saber?.flare(0.9);
-  // Sparks where the round met the blade: the blade's middle is in view
-  // space (the weapon camera sits at the origin), so re-aim it through the
-  // world camera's wider lens and put the burst out along that ray.
-  const saberMesh = activeMeleeMesh;
-  const s = saberMesh?.userData.saber;
-  if (s && (settings.thirdPerson || emoteIsTp())) {
-    // Third person: the first-person blade isn't on screen, so burst in
-    // front of the body, where the guard is.
-    const v = player.pos.clone().addScaledVector(_deflectFwd, 0.7);
-    v.y -= 0.25;
-    spawnImpactBurst(v, 0xff6a3a, 14);
-    ricochetRound(v, src, weaponId);
-  } else if (s) {
-    const v = s.tipLocal.clone().lerp(s.rootLocal, 0.45);
-    saberMesh.localToWorld(v);
-    const k = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / Math.tan(THREE.MathUtils.degToRad(weaponCamera.fov / 2));
-    v.x *= k; v.y *= k;
-    v.normalize().multiplyScalar(1.3);
-    camera.localToWorld(v);
-    spawnImpactBurst(v, 0xff6a3a, 14);
-    ricochetRound(v, src, weaponId);
-  }
-  audio.saberClash();
-  net.publishDeflect(fromId, weaponId);
-  if (saberBlock.meter <= 0) breakSaberGuard();
-  return true;
-}
-
-/* A deflected round, batted back the way it came (the way Luke sends bolts
-   back at the troopers): a cosmetic tracer from the blade toward the
-   shooter, thrown wide enough that it reads as redirected, not aimed. */
-const _ricoDir = new THREE.Vector3();
-function ricochetRound(at, towards, weaponId) {
-  const def = WEAPON_DEFS[weaponId];
-  if (!def) return;
-  if (towards) _ricoDir.subVectors(towards, at).normalize();
-  else _ricoDir.set(Math.random() - 0.5, 0.2, Math.random() - 0.5).normalize();
-  _ricoDir.x += (Math.random() - 0.5) * 0.5;
-  _ricoDir.y += (Math.random() - 0.3) * 0.35;
-  _ricoDir.z += (Math.random() - 0.5) * 0.5;
-  _ricoDir.normalize();
-  bullets.spawn({ origin: at.clone().addScaledVector(_ricoDir, 0.15), dir: _ricoDir.clone(), def, ownerId: "remote", cosmetic: true });
-}
-
-/* Everyone else's sabers, once a frame after remotes.update: the sounds
-   their bodies queued (ignite, retract, swing) and one hum on the nearest
-   lit blade, bending up while it swings. */
-const _remoteHumAt = new THREE.Vector3();
-function updateRemoteSabers() {
-  let near = null, nearD = 30 * 30;
-  for (const rp of remotes.byId.values()) {
-    for (const s of rp.sfx) {
-      if (s.kind === "ignite") audio.saberIgnite(s.at);
-      else if (s.kind === "retract") audio.saberRetract(s.at);
-      else if (s.kind === "swing") audio.saberSwing(s.at);
-      else if (s.kind === "haloIgnite") audio.haloIgnite(s.at);
-      else if (s.kind === "haloRetract") audio.haloRetract(s.at);
-    }
-    rp.sfx.length = 0;
-    if (!rp.saberOut || !rp.saber?.lit) continue;
-    const d = rp.pos.distanceToSquared(move.pos);
-    if (d < nearD) { near = rp; nearD = d; }
-  }
-  if (!near) { audio.saberHumAt(-1); return; }
-  audio.saberHumAt(near.swinging ? 0.8 : 0, near.bladeMid(_remoteHumAt) || near.centre(_remoteHumAt));
-}
-
-/* A peer's blade ate a round: sparks on it for everyone; if it was our
-   round, the number that would have printed says DEFLECTED instead. */
-function onRemoteDeflect(p, m) {
-  const rp = remotes.byId.get(p.id);
-  if (!rp) return;
-  // Their parry, by where the shooter stands relative to them.
-  const from = m.by === net.id ? move.pos : killerPosFor(m.by);
-  if (from) {
-    const dx = from.x - rp.pos.x, dz = from.z - rp.pos.z, dy = (from.y ?? rp.pos.y) - rp.pos.y;
-    const c = Math.cos(rp.yaw), sn = Math.sin(rp.yaw);
-    // rig right is (cos, 0, -sin), ahead is (-sin, 0, -cos)
-    const side = dx * c - dz * sn, ahead = -dx * sn - dz * c;
-    const len = Math.max(0.5, Math.hypot(side, ahead));
-    rp.startParry(side / len, Math.atan2(dy, len));
-  } else rp.startParry(0, 0);
-  const at = rp.bladeMid() || rp.centre();
-  spawnImpactBurst(at, 0xff6a3a, 14);
-  // Our own position is the feet; killerPosFor's is already the eye.
-  const lift = from === move.pos ? 1.5 : 0;
-  ricochetRound(at, from ? _parryV.set(from.x, (from.y ?? at.y - lift) + lift, from.z) : null, WEAPON_DEFS[m.w] ? m.w : "problem416");
-  rp.saber?.flare(0.9);
-  audio.saberClash(at);
-  if (m.by === net.id) spawnDamageNumber(0, at, false, "DEFLECTED");
-}
-
-/* Swing trail and the hum, once a frame while the saber is out. The trail
-   lives in weaponRig, the parent of the melee mesh, so its points are the
-   mesh's own matrix applied to the blade root/tip. */
-function updateSaberFx(mesh, saber, swinging, dt) {
-  if (!saberTrail) saberTrail = new SaberTrail(weaponRig);
-  mesh.updateMatrix();
-  _saberRoot.copy(saber.rootLocal).applyMatrix4(mesh.matrix);
-  _saberTip.copy(saber.tipLocal).applyMatrix4(mesh.matrix);
-  const now = performance.now() / 1000;
-  // Only the cut itself leaves a trail, not the wind-up or the recovery.
-  const m = player.melee;
-  const cutting = swinging && m.t >= m.window.open - 0.09 && m.t <= m.window.close + 0.05;
-  // A deflect's flick is a cut too: the blade whips and streaks.
-  if ((cutting || Math.abs(saberFlick) > 0.25) && saber.lit) saberTrail.push(_saberRoot, _saberTip, now);
-  saberTrail.update(now);
-  const speed = saberHavePrevTip ? _saberTip.distanceTo(_saberPrevTip) / Math.max(dt, 1e-3) : 0;
-  _saberPrevTip.copy(_saberTip);
-  saberHavePrevTip = true;
-  saberSwingSpeed = damp(saberSwingSpeed, speed, 12, dt);
-  audio.saberHum(saber.lit ? Math.min(1, saberSwingSpeed / 7) : -1);
-}
-
-function setHolding(what) {
-  if (player.holding === what) return;
-  if (socialUnarmed()) return;   // hands stay empty in the hangout
-  if (isInfected() && what !== "melee") return;   // the sword is all they have
-  if (what === "melee" && !player.melee) return;
-  player.holding = what;
-  if (activeWeaponMesh) activeWeaponMesh.visible = what === "gun";
-  if (activeMeleeMesh) activeMeleeMesh.visible = what === "melee";
-  activeStreakMesh.visible = what === "streak" && streakDeviceKind === "tablet";
-  if (what !== "streak") activeMarkerMesh.visible = activeDroneMesh.visible = false;
-  muzzleFlash.visible = what === "gun";
-  updateGearHud();
-}
-
-/* 1 draws the primary, 2 the secondary - rebuilds the visible gun mesh for
-   whichever def that slot now points at and makes it the active weapon.
-   No-op in modes with no secondary (equipFromLoadout leaves
-   player.secondaryId null there - Gun Game, One in the Chamber) or when
-   already holding that slot's gun. */
-function switchWeapon(slot) {
-  if (socialUnarmed()) return;
-  if (warshipView()) { toggleWarshipGun(); return; }
-  if (isInfected()) return;
-  // Mid-streak the tablet/marker is in your hands; a swap would yank it away
-  // and leave you on the other gun once the streak is done.
-  if (player.holding === "streak") return;
-  const id = slot === "secondary" ? player.secondaryId : player.weaponId;
-  if (!id || !player.weapons[id]) return;
-  // An energy blade powers down in the hand before the gun comes up.
-  if (powerHeld() && !meleePutAway && !player.melee?.busy && player.alive) { holsterMeleeThen(() => switchWeapon(slot)); return; }
-  const w = player.weapons[id];
-  if (player.holding === "gun" && w === currentWeapon()) return;
-  // A shell-by-shell reload is dropped on a swap; shells already in stay in.
-  const prev = currentWeapon();
-  if (prev !== w && prev?.def.shellReload) prev.abortReload();
-  if (prev !== w && prev?.charging) endCandleCharge(prev);
-  currentWeaponSlot = slot;
-  setActiveWeaponMesh(w.def);
-  setHolding("gun");
-}
-
-/* Gamepad-only: keyboard has three dedicated keys (1/2/3) for primary/
-   secondary/melee, but the pad only has one free face button for this, so it
-   cycles through whatever's actually equipped instead. Skips secondary when
-   there isn't one (Gun Game, One in the Chamber, or no sidearm picked up
-   yet) rather than landing on a dead slot. */
-function cycleWeapon() {
-  if (socialUnarmed()) return;
-  if (player.holding === "streak") return;   // same reason as switchWeapon
-  const order = ["primary", ...(player.secondaryId ? ["secondary"] : []), "melee"];
-  const current = player.holding === "melee" ? "melee" : currentWeaponSlot;
-  const at = order.indexOf(current);
-  const next = order[(at + 1) % order.length];
-  if (next === "melee") setHolding("melee");
-  else switchWeapon(next);
-}
-
-/* Hold X: standing over a dropped weapon, picks it up into the secondary
-   slot — replacing the sidearm there if any, same as Call of Duty. Nothing
-   underfoot, the same hold instead instantly swaps primary/secondary.
-
-   A care package underfoot takes priority over both: it is the rarer thing
-   and you are deliberately standing on it. Same key for all three, because
-   "hold X on the thing at your feet" is one idea, not three. */
-let pkgHoldT = 0;
-function updatePickupPrompt(dt) {
-  const pkg = player.alive ? nearbyPackage() : null;
-  // Troll Royale: guns on the ground are loot, picked up the same way.
-  const lootGun = royale && player.alive ? royale.loot.nearest(move.pos.x, move.pos.z, 1.6, (it) => it.k === "gun") : null;
-  const drop = lootGun ? { def: lootGun.def, loot: lootGun, name: gunDisplayName(lootGun) }
-    : (player.alive && !royale ? pickups.nearest(move.pos.x, move.pos.z) : null);
-  // D-pad right only counts as "hold X" with something underfoot. With
-  // nothing there the same press fires a streak, and counting it here too
-  // swapped you onto your secondary every time you called one (Y swaps).
-  const padHold = gamepadState.pickup && !(isSnd() && sndCanInteract) && (!!pkg || !!drop);
-  // While X can accept or send a duo emote, it does that (updateDuo) instead.
-  // In a streak, holding X ends it instead (updateStreakControl).
-  const held = !frozenPlayer() && !duoXClaimed && !streakControlActive() && ((isTouch && touchState.swap) || keys.has("KeyX") || padHold);
-
-  // A package has its own capture clock (BO2: the owner grabs it fast, an
-  // enemy stands there stealing it). `canPickup` keeps the instant-swap
-  // branch from firing while we're on one — holding X must capture it, not
-  // switch guns.
-  if (pkg && held) {
-    pkgHoldT += dt;
-    if (pkgHoldT >= packageCaptureTime(pkg)) {
-      pkgHoldT = 0;
-      claimPackage(pkg);
-      if (els.pickupPrompt) els.pickupPrompt.hidden = true;
-      setTouchContext(null);
-      return;
-    }
-  } else pkgHoldT = 0;
-  const action = swapHold.update(dt, held && !pkg, !!drop || !!pkg);
-  if (action === "swap") {
-    switchWeapon(currentWeaponSlot === "secondary" ? "primary" : "secondary");
-  } else if (action === "pickup" && drop?.loot) {
-    royalePickupGun(drop.loot);
-  } else if (action === "pickup" && drop) {
-    pickups.take(drop);
-    player.secondaryId = drop.def.id;
-    player.weapons[drop.def.id] = new WeaponState(drop.def);
-    // Equip it into your hands immediately, same as CoD - without this,
-    // player.secondaryId/weapons updated but the held mesh (and holding
-    // "melee" at the time) never refreshed, so picking up a weapon looked
-    // like it did nothing unless you happened to already be on the
-    // secondary slot and pressed 2 afterward.
-    currentWeaponSlot = "secondary";
-    setActiveWeaponMesh(drop.def);
-    setHolding("gun");
-    audio.reload();
-    showWaveBanner(`Picked up ${drop.def.name}`, 1200);
-  }
-
-  // Touch: the swap button turns into a labelled CAPTURE / PICK UP button
-  // while there is something to take, so it reads as the thing to hold.
-  setTouchContext(player.alive ? (pkg ? "Capture" : drop ? "Pick up" : null) : null);
-
-  if (els.pickupPrompt) {
-    if ((pkg || drop) && player.alive) {
-      // No key hint in the prompt (user, 2026-09-28): just the action.
-      const steal = pkg && (!pkg.owned || pkg.botId) && (currentMode().ffa || !net.team || pkg.ownerTeam !== net.team);
-      const label = pkg
-        ? (pkgHoldT > 0 ? (steal ? "Stealing the care package…" : "Capturing…") : `${steal ? "Steal" : "Capture"} the care package`)
-        : (swapHold.active ? `Picking up ${drop.name || drop.def.name}…` : `Pick up ${drop.name || drop.def.name}`);
-      els.pickupPrompt.hidden = false;
-      els.pickupPromptText.textContent = label;
-      // Troll Royale is the exception to "no key hints" (user, 2026-09-29):
-      // loot is the whole game there and nobody knew it was a hold. A keycap
-      // that pulses until you start holding it. Touch has its own labelled
-      // PICK UP button, so no cap there.
-      const cap = !!royale && !!drop?.loot && !isTouch;
-      els.pickupPrompt.classList.toggle("is-royale", cap);
-      if (els.pickupKey) {
-        els.pickupKey.hidden = !cap;
-        if (cap) {
-          const k = gamepadState.connected ? "D-pad →" : "X";
-          if (els.pickupKeyCap.textContent !== k) els.pickupKeyCap.textContent = k;
-          els.pickupKey.classList.toggle("is-held", swapHold.active);
-        }
-      }
-      const progress = pkg ? pkgHoldT / packageCaptureTime(pkg) : swapHold.progress;
-      els.pickupBarFill.style.width = `${Math.round(progress * 100)}%`;
-    } else {
-      els.pickupPrompt.hidden = true;
-    }
-  }
-}
-
-function setTouchContext(label) {
-  const b = els.touchSwap;
-  if (!b || !isTouch) return;
-  const on = !!label;
-  if (b.classList.contains("is-context") === on && (!on || b.dataset.ctx === label)) return;
-  b.classList.toggle("is-context", on);
-  b.dataset.ctx = label || "";
-  const span = b.querySelector(".to-touch-ctx");
-  if (span) span.textContent = label || "";
-  b.setAttribute("aria-label", on ? `Hold to ${label.toLowerCase()}` : "Hold to swap weapons, pick up a dropped weapon, or open a care package");
-}
-
-/* The landed, unclaimed package we're standing on, if any. */
-function nearbyPackage() {
-  for (const e of streakEntities.values()) {
-    if (e instanceof CarePackage && e.withinClaim(move.pos.x, move.pos.z)) return e;
-  }
-  return null;
-}
-
-function frozenPlayer() { return !player.alive || stageFrozen() || royaleDropView(); }
-
-function updateGearHud() {
-  const melee = (player.melee && player.melee.def) || loadout.melee;
-  els.gearMeleeName.textContent = melee.name;
-  els.gearMelee.classList.toggle("is-active", player.holding === "melee");
-  els.gearLethalName.textContent = loadout.lethal.name;
-  els.gearLethalN.textContent = String(player.gear.lethal);
-  els.gearLethal.classList.toggle("is-empty", player.gear.lethal <= 0);
-  els.gearTacticalName.textContent = loadout.tactical.name;
-  els.gearTacticalN.textContent = String(player.gear.tactical);
-  els.gearTactical.classList.toggle("is-empty", player.gear.tactical <= 0);
-  // One throwable slot: the kind you didn't bring has no chip and no button.
-  const offKind = loadout.throwKind === "lethal" ? "tactical" : "lethal";
-  els.gearLethal.classList.toggle("is-uncarried", offKind === "lethal");
-  els.gearTactical.classList.toggle("is-uncarried", offKind === "tactical");
-  els.touchNade?.classList.toggle("is-uncarried", offKind === "lethal");
-  els.touchTac?.classList.toggle("is-uncarried", offKind === "tactical");
-  // Touch: the buttons are icons and carry the count (the chips are hidden there).
-  if (els.touchNade) {
-    els.touchNade.setAttribute("aria-label", `Throw ${loadout.lethal.name}`);
-    els.touchNade.dataset.n = String(player.gear.lethal);
-    els.touchNade.classList.toggle("is-empty", player.gear.lethal <= 0);
-  }
-  if (els.touchTac) {
-    els.touchTac.setAttribute("aria-label", `Throw ${loadout.tactical.name}`);
-    els.touchTac.dataset.n = String(player.gear.tactical);
-    els.touchTac.classList.toggle("is-empty", player.gear.tactical <= 0);
-  }
-}
+initMelee();
 
 // -------------------- the test range --------------------
 
@@ -6561,511 +5248,12 @@ document.addEventListener("visibilitychange", () => {
 
 let respawnT = 0;
 
-/* Who has hurt us lately, and how much. The shooter's client already sends
-   dmg / headshot / weapon with every hit — we were throwing all of it away.
-   Keeping a short ledger is what turns "you died" into "who killed you, what
-   with, and how close you got", and it's what assists are computed from. */
-const damageLog = new Map();      // attacker id -> { dmg, last, weaponId, head }
-const ASSIST_MEMORY = 10;         // seconds a contribution still counts
-const ASSIST_MIN_DAMAGE = 25;     // below this it isn't an assist
-
-function noteDamage(fromId, amount, weaponId, isHead) {
-  if (!fromId || fromId === net.id) return;
-  const e = damageLog.get(fromId) || { dmg: 0, last: 0, weaponId: null, head: false };
-  e.dmg += amount;
-  e.last = performance.now();
-  e.weaponId = weaponId || e.weaponId;
-  e.head = !!isHead;
-  damageLog.set(fromId, e);
-}
-
-/* Everyone who contributed inside the memory window, minus the killer. */
-function assistersFor(killerId) {
-  const now = performance.now();
-  const out = [];
-  for (const [id, e] of damageLog) {
-    if (now - e.last > ASSIST_MEMORY * 1000) { damageLog.delete(id); continue; }
-    if (id === killerId || e.dmg < ASSIST_MIN_DAMAGE) continue;
-    out.push({ id, dmg: e.dmg });
-  }
-  return out;
-}
-
-function nameFor(id) {
-  if (id === net.id) return "You";
-  return net.peers.get(id)?.name || bots.byId(id)?.name || "Someone";
-}
-
-/* Scorestreaks report kills with their own ids rather than a weapon's, so
-   the killfeed and death card can say what actually got you. */
-const STREAK_KILL_NAMES = {
-  drone: "Hunter-Killer",
-  heli: "Gunship",
-  airstrike: "Lightning Strike",
-  carepackage: "Care Package",
-  k9: "K9 Unit",
-  warship: "VTOL Warship",
-  swarm: "Swarm",
-  dragonfire: "Dragonfire",
-  bomb: "Bomb",
-  zone: "the Cringe",
-};
-
-function weaponNameFor(id) {
-  return WEAPON_DEFS[id]?.name || MELEE_DEFS[id]?.name || THROWABLE_DEFS[id]?.name || STREAK_KILL_NAMES[id] || null;
-}
-
-/* How much health the player who killed us had left — the single most useful
-   thing a death screen can tell you, because it says whether to change the
-   approach or just the aim. */
-function killerHpFor(id) {
-  // Bots we simulate are checked first: publishBot mirrors them into the peer
-  // map, and that mirror only refreshes at 15Hz, so the peer copy can be a
-  // stale snapshot of a bot whose real health we're holding right here.
-  const b = bots.byId(id);
-  if (b) return Math.max(0, Math.round(b.hp));
-  const p = net.peers.get(id);
-  if (p && Number.isFinite(p.hp)) return Math.max(0, Math.round(p.hp));
-  return null;
-}
-
-/* Where the killer was standing, for the kill cam to orbit toward. Same
-   bots-first order as killerHpFor, but falls through to remotes.byId rather
-   than net.peers directly since RemotePlayer.pos is the interpolated render
-   position — the one that actually matches what was on screen. Null for a
-   scorestreak kill (drone/heli/airstrike) or a killer that's already gone. */
-function killerPosFor(id) {
-  if (!id) return null;
-  const b = bots.byId(id);
-  if (b) return new THREE.Vector3(b.pos.x, b.pos.y + 1.5, b.pos.z);
-  const rp = remotes.byId.get(id);
-  if (rp) return new THREE.Vector3(rp.pos.x, rp.pos.y + 1.5, rp.pos.z);
-  return null;
-}
-
-/* `fromPos` places the hit-direction marker when there's no peer or bot to
-   look up by id — a zombie, a grunt, the bomb. */
-function damagePlayer(amount, fromId, weaponId, isHead = false, fromPos = null) {
-  if (!player.alive) return;
-  // Owner's Invincible toggle: nothing lands, from anyone or anything.
-  if (invincibleOn()) return;
-  // Socialize: nobody can be hurt, whatever arrives off the wire.
-  if (isSocial()) return;
-  // Nothing lands before the match is live, whoever reports it.
-  if (isStaging()) return;
-  // A raised Trollsaber eats rounds from the front.
-  if (tryDeflect(amount, fromId, weaponId, fromPos)) return;
-  // Your own grenade can still sting on the range; it can't end the session.
-  if (isRange()) {
-    player.hp = Math.max(1, player.hp - amount);
-    flashHit();
-    audio.hurt();
-    return;
-  }
-  // Freshly respawned and haven't fired yet — the round passes through.
-  if (player.spawnGuard > 0 && isPvp()) return;
-  // Troll Royale: Cope Plates soak everything but the Cringe itself.
-  if (royale && player.armor > 0 && weaponId !== "zone") {
-    const soak = Math.min(player.armor, amount);
-    player.armor -= soak;
-    amount -= soak;
-    updateRoyaleGear();
-    if (player.armor <= 0) audio.saberBreak();
-    if (amount <= 0) {
-      noteDamage(fromId, soak, weaponId, isHead);
-      noteHitDirection(fromId, fromPos);
-      flinchPeer(net.id, fromId, isHead, fromPos);
-      flashHit();
-      return;
-    }
-  }
-
-  if (heroActive()) amount = hero().incoming(amount, fromPos || remotes.byId.get(fromId)?.pos || null);
-  player.hp = Math.max(0, player.hp - amount);
-  player.lastHurtAt = performance.now();
-  noteDamage(fromId, amount, weaponId, isHead);
-  noteHitDirection(fromId, fromPos);
-  flinchPeer(net.id, fromId, isHead, fromPos);
-  flashHit();
-  audio.hurt();
-  if (player.hp > 0) return;
-  audio.died();
-
-  if (isPvp()) {
-    // In PvP dying is a respawn, not the end of the run.
-    player.alive = false;
-    cancelCook();
-    player.deaths++;
-    // Report the streak we were on before clearing it — it's what lets our
-    // killer know they ended a run (Shutdown).
-    const endedStreak = player.streak;
-    player.streak = 0;
-    // Dying takes the meter but not a streak already earned — BO2's rule,
-    // and the reason this isn't streaks.reset().
-    streaks.onDeath();
-    updateStreakHud();
-    // Who to look for, for Revenge.
-    player.lastKilledBy = fromId || null;
-    // S&D has no respawn timer — updateSnd() owns the "eliminated" HUD text
-    // once this sets player.alive false; every other PvP mode counts this
-    // down and calls respawnPlayer() itself.
-    if (!isSnd() && !isRoyale()) respawnT = 4;
-    if (royale) royaleOnDeath();
-    // Remember where we fell, so the picker stops handing out this corner.
-    notePointDeath(move.pos.x, move.pos.z);
-    dropCarriedWeapon();
-    net.reportDeath(fromId, weaponId, isHead, endedStreak);
-    registerDeath("You", fromId, weaponId, {
-      head: isHead, victimIsMe: true, victimTeam: net.team,
-    });
-    // Infection: a survivor who goes down gets up on the other side.
-    if (isInfection() && infectionStarted) {
-      if (net.team === "phantom") {
-        net.setTeam("ghost");
-        showWaveBanner("INFECTED — go get them", 1800);
-      }
-      respawnT = INFECTION.respawn;
-    }
-    showDeathCard(fromId, weaponId, isHead);
-    noteLocalDeath();
-    els.deathfade.classList.add("is-dead");
-    damageLog.clear();
-    els.respawn.hidden = false;
-    // BO2 killcam: the last few seconds again, from the killer's eyes. The
-    // respawn waits for it (skippable back down to the usual timer).
-    killcamBaseRespawn = respawnT;
-    killcam.start({ deathPos: player.pos, killerId: fromId, killerPos: killerPosFor(fromId), now: kcClock, selfId: killcamSelfId() });
-    if (killcam.replaying && !isSnd()) respawnT = Math.max(respawnT, killcam.duration + 0.35);
-    els.killcamBars.classList.add("is-on");
-    startKillcamPresentation(fromId, weaponId, isHead);
-  } else {
-    endGame("dead");
-  }
-}
-
-/* Who got you, with what, and how close you came. "They had 12 HP left" is
-   the difference between "aim better" and "that fight was unwinnable". */
-function showDeathCard(killerId, weaponId, isHead) {
-  if (!els.deathBy) return;
-  const name = killerId ? nameFor(killerId) : null;
-  if (!name || name === "You") {
-    els.deathBy.hidden = true;
-    return;
-  }
-  const weapon = weaponNameFor(weaponId);
-  const hp = killerHpFor(killerId);
-
-  els.deathByName.textContent = name;
-  const team = net.peers.get(killerId)?.team || bots.byId(killerId)?.team;
-  els.deathByName.style.color = team && TEAMS[team] ? TEAMS[team].ui : "";
-
-  const bits = [];
-  if (weapon) bits.push(weapon);
-  if (isHead) bits.push("headshot");
-  if (hp != null) bits.push(`${hp} HP left`);
-  els.deathByMeta.textContent = bits.join(" · ");
-  els.deathBy.hidden = false;
-}
-
-/* Spawns ring the map edge, so face inward — otherwise you open your eyes
-   looking at the perimeter wall. */
-function yawTowardCentre(sp) {
-  return Math.atan2(sp.x, sp.z);
-}
-
 
 /* Everything death puts on screen, taken back off. Shared by a respawn, a
    new S&D round and a new match — the last two used to skip it, so dying in
    S&D left the 62% death fade over every round after. */
 
-/* ---------------- killcam (killcam.js) ----------------
-   Recording runs every PvP frame while nothing is replaying: every remote
-   actor's rendered pose, and ours. On death, the replay drives the camera
-   (killcam.update in updatePlayer) and this poses the world to match. */
-const killcamSelfId = () => net.id || "self";
-const _kcSample = {};
-const _kcShots = [];
-let kcLocalPhase = 0;
-let killcamGun = null;       // the killer's gun as the viewmodel during a replay
-let killcamKick = 0;
-let killcamHud = null;
 let killcamWasActive = false;
-let killcamBaseRespawn = 4;
-
-function updateKillcam(dt) {
-  kcClock += dt;
-  if (killcamWasActive && !killcam.active) endKillcamPresentation();
-  killcamWasActive = killcam.active;
-  if (!killcam.replaying) {
-    for (const rp of remotes.byId.values()) {
-      if (rp.alive && !rp.rig.root.visible) continue;   // no snapshots yet
-      const snaps = rp.peer.snaps;
-      killcam.record(kcClock, rp.netId, {
-        x: rp.pos.x, y: rp.pos.y, z: rp.pos.z, yaw: rp.yaw, pitch: rp.pitch, lower: rp.lower,
-        alive: rp.alive, wid: rp.weaponId, moving: !!snaps?.[snaps.length - 1]?.moving, bot: !!rp.peer.isBot,
-        ...rp.meleeSample(),
-      });
-    }
-    if (player.alive) {
-      const pm = player.melee;
-      const sword = !!pm && (player.holding === "melee" || pm.busy);
-      killcam.record(kcClock, killcamSelfId(), {
-        x: move.pos.x, y: move.pos.y, z: move.pos.z, yaw: look.yaw, pitch: look.pitch,
-        lower: localLower, alive: true, wid: currentWeapon()?.def?.id, moving: move.moving,
-        mid: sword ? pm.def.id : null, sw: sword && pm.busy ? Math.min(1, pm.t / pm.total) : -1,
-        si: pm ? pm.swingIndex & 1 : 0, bk: sword ? localBlockT : 0,
-      });
-    }
-    return;
-  }
-  poseKillcamWorld(dt);
-}
-
-/* The world at replay time: everyone where they were, the killer hidden
-   (we're in their eyes), us walking into it and dropping, their shots
-   re-fired. */
-function poseKillcamWorld(dt) {
-  const rt = killcam.rt;
-  for (const rp of remotes.byId.values()) {
-    const s = killcam.sampleAt(rp.netId, rt, _kcSample);
-    rp.replayPose(s, dt, rp.netId === killcam.killerId);
-  }
-  const me = killcam.sampleAt(killcamSelfId(), Math.min(rt, killcam.deathT), _kcSample);
-  if (me) {
-    localRig.root.visible = true;
-    localRig.parts.head.visible = true;
-    localRig.root.position.set(me.x, me.y, me.z);
-    if (rt >= killcam.deathT) {
-      if (localHeld.mesh) localHeld.mesh.visible = false;   // goes down empty-handed
-      poseDeath(localRig, Math.min(1, (rt - killcam.deathT) / DEATH_TIME));
-    } else {
-      aimRig(localRig, me.yaw, dt, { moving: me.moving });
-      if (me.moving) kcLocalPhase += dt * gaitPhaseRate(3.6);
-      // Our own swings and guard play back too (the held melee mesh is
-      // already on the rig: syncLocalRigHeld).
-      const sword = !!me.mid && MELEE_DEFS[me.mid];
-      syncLocalRigHeld(sword ? "melee" : "gun", sword ? MELEE_DEFS[me.mid] : WEAPON_DEFS[me.wid] || currentWeapon()?.def);
-      if (localHeld.mesh) localHeld.mesh.visible = true;
-      const sab = sword && localHeld.mesh?.userData.saber;
-      if (sab) { sab.target = 1; sab.frac = Math.max(sab.frac, 0.999); }
-      poseHumanoid(localRig, {
-        phase: kcLocalPhase, moving: me.moving, pitch: me.pitch, lower: me.lower, strafe: 0, forward: 1,
-        speed: me.moving ? 0.85 : 0, mps: me.moving ? 3.6 : 0, dt, hasGun: !sword, hold: sword ? "melee" : "gun",
-        swing: sword && me.sw >= 0 ? { t: me.sw, kind: me.si % 2 === 0 ? "swing" : "thrust" } : null,
-        block: sword && me.sw < 0 ? me.bk : 0,
-      });
-    }
-  }
-  for (const s of killcam.shotsSince(_kcShots)) {
-    remoteShotFx(new THREE.Vector3(s.ox, s.oy, s.oz), new THREE.Vector3(s.dx, s.dy, s.dz), s.wid, s.quiet);
-    if (s.id === killcam.killerId) killcamKick = 1;
-  }
-  updateKillcamGun(dt);
-  if (killcamHud) killcamHud.classList.toggle("is-kill", killcam.atKill);
-}
-
-/* The killer's gun at the hip, bobbing with their walk and kicking on each
-   of their shots. Built from their weapon id; hands stay hidden like ours. */
-function buildKillcamGun(wid) {
-  disposeKillcamGun();
-  const def = WEAPON_DEFS[wid];
-  if (!def) return;
-  killcamGun = stripLights(buildWeaponMesh(def));
-  killcamGun.traverse((o) => { if (o.userData.hand) o.visible = false; });
-  weaponScene.add(killcamGun);
-}
-
-function disposeKillcamGun() {
-  if (!killcamGun) return;
-  weaponScene.remove(killcamGun);
-  killcamGun.traverse((o) => {
-    if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
-    if (o.material) o.material.dispose?.();
-  });
-  killcamGun = null;
-}
-
-/* The killer's melee weapon in front of the camera while it's in their fist
-   in the replay: its swings played off the recorded swing fraction on the
-   same tracks our own sword uses, the saber's guard lerped in the same way. */
-let killcamMelee = null;   // { mesh, state, id }
-function disposeKillcamMelee() {
-  if (!killcamMelee) return;
-  weaponScene.remove(killcamMelee.mesh);
-  killcamMelee.mesh.traverse((o) => {
-    if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
-    if (o.material) o.material.dispose?.();
-  });
-  killcamMelee = null;
-}
-function updateKillcamMelee(s) {
-  const def = s?.mid && MELEE_DEFS[s.mid];
-  if (!def) { if (killcamMelee) killcamMelee.mesh.visible = false; return false; }
-  if (killcamMelee?.id !== def.id) {
-    disposeKillcamMelee();
-    const mesh = stripLights(buildMeleeMesh(def, false, { held3p: true }));
-    const sab = mesh.userData.saber;
-    if (sab) { sab.target = 1; sab.frac = 1; }
-    weaponScene.add(mesh);
-    killcamMelee = { mesh, state: new MeleeState(def), id: def.id };
-  }
-  const { mesh, state } = killcamMelee;
-  mesh.visible = true;
-  state.swingIndex = s.si | 0;
-  state.t = s.sw >= 0 ? Math.max(1e-4, s.sw * state.total) : 0;
-  const { pos, quat } = state.pose();
-  mesh.position.copy(pos);
-  mesh.quaternion.copy(quat);
-  const view = def.model?.view;
-  if (view?.pos) { mesh.position.x += view.pos[0]; mesh.position.y += view.pos[1]; mesh.position.z += view.pos[2]; }
-  if (view?.rot) mesh.quaternion.multiply(_meleeViewQ.setFromEuler(_meleeViewE.set(view.rot[0], view.rot[1], view.rot[2])));
-  mesh.scale.setScalar(view?.scale || 1);
-  if (mesh.userData.saber && s.sw < 0 && s.bk > 0.001) {
-    mesh.position.lerp(SABER_BLOCK.pos, s.bk);
-    mesh.quaternion.slerp(SABER_BLOCK.quat, s.bk);
-  }
-  return true;
-}
-
-function updateKillcamGun(dt) {
-  const sm = killcam.sampleAt(killcam.killerId, killcam.rt, _kcSample);
-  const melee = updateKillcamMelee(sm);
-  if (!killcamGun) return;
-  killcamGun.visible = !melee;
-  killcamKick = Math.max(0, killcamKick - dt * 10);
-  const s = sm;
-  const walk = s?.moving ? killcam.rt * 9 : 0;
-  const k = killcamKick;
-  killcamGun.position.set(
-    0.22 + Math.sin(walk) * 0.006,
-    -0.2 - Math.abs(Math.cos(walk)) * 0.006 - (s?.lower || 0) * 0.02,
-    -0.55 + k * 0.045,
-  );
-  killcamGun.rotation.set(k * 0.07, 0, Math.sin(walk) * 0.01);
-}
-
-/* Title, killer plate and the skip hint. BO2's layout: KILLCAM across the
-   top, who and with what bottom-left, skip bottom-right. */
-function startKillcamPresentation(killerId, weaponId, isHead) {
-  if (!killcamHud) {
-    killcamHud = document.createElement("div");
-    killcamHud.className = "to-kc";
-    killcamHud.innerHTML = `
-      <div class="to-kc-top"><span class="to-kc-title">Killcam</span></div>
-      <div class="to-kc-plate">
-        <span class="to-kc-by">Killed by</span>
-        <span class="to-kc-name"></span>
-        <span class="to-kc-weapon"></span>
-      </div>
-      <button type="button" class="to-kc-skip"></button>`;
-    killcamHud.querySelector(".to-kc-skip").addEventListener("pointerdown", (e) => { e.preventDefault(); skipKillcam(); });
-    els.killcamBars.parentElement.appendChild(killcamHud);
-  }
-  const name = killerId ? nameFor(killerId) : null;
-  const team = killerId && (net.peers.get(killerId)?.team || bots.byId(killerId)?.team);
-  const nameEl = killcamHud.querySelector(".to-kc-name");
-  nameEl.textContent = name && name !== "You" ? name : "Unknown";
-  nameEl.style.color = team && TEAMS[team] ? TEAMS[team].ui : "";
-  const bits = [weaponNameFor(weaponId)].filter(Boolean);
-  if (isHead) bits.push("Headshot");
-  killcamHud.querySelector(".to-kc-weapon").textContent = bits.join(" · ");
-  killcamHud.querySelector(".to-kc-skip").textContent = "Skip";
-  killcamHud.classList.remove("is-kill");
-  killcamHud.hidden = false;
-  if (killcam.replaying) {
-    // Which way we go down: shot from the front knocks us onto our back,
-    // from behind pitches us forward onto our face.
-    const k = killcam.sampleAt(killcam.killerId, killcam.deathT, {});
-    if (k) {
-      let d = Math.atan2(-(k.x - move.pos.x), -(k.z - move.pos.z)) - look.yaw;
-      d = Math.atan2(Math.sin(d), Math.cos(d));
-      localRig.deathHint = { dir: Math.abs(d) < Math.PI / 2 ? 1 : -1 };
-    }
-    localRig.death = null;
-    buildKillcamGun(weaponId && WEAPON_DEFS[weaponId] ? weaponId : killcam.killerWeapon);
-    weaponRig.visible = false;
-  }
-  // The replay is the death screen now: no 62% fade or centre countdown
-  // over it, and none of the live HUD.
-  els.killcamBars.parentElement.classList.add("to-kc-on");
-  els.deathfade.classList.remove("is-dead");
-  els.respawn.style.visibility = "hidden";
-}
-
-function endKillcamPresentation() {
-  if (killcamHud) killcamHud.hidden = true;
-  els.killcamBars.parentElement.classList.remove("to-kc-on");
-  disposeKillcamGun();
-  disposeKillcamMelee();
-  weaponRig.visible = player.alive;
-  els.respawn.style.visibility = "";
-  els.killcamBars.classList.remove("is-on");
-  if (!player.alive) els.deathfade.classList.add("is-dead");
-}
-
-/* Space / A / a tap: straight back to the ordinary respawn timer (BO2's
-   skip) — never faster than dying without a killcam would have been. */
-function skipKillcam() {
-  if (!killcam.active || player.alive) return;
-  const elapsed = killcam.t;
-  killcam.cancel();
-  endKillcamPresentation();
-  if (!isSnd()) respawnT = Math.min(respawnT, Math.max(0.25, killcamBaseRespawn - elapsed));
-}
-
-function clearDeathVisuals() {
-  killcam.cancel();
-  endKillcamPresentation();
-  killcamWasActive = false;
-  els.killcamBars.classList.remove("is-on");
-  els.deathfade.classList.remove("is-dead");
-  if (els.deathBy) els.deathBy.hidden = true;
-  hideSpectateHud();
-  // Every caller is about to put us back up (respawn, new round, new match).
-  weaponRig.visible = true;
-  localRig.death = null;
-}
-
-function respawnPlayer() {
-  clearDeathVisuals();
-  clearHitDirs();
-  const sp = teamSpawn();
-  move.reset(sp.x, sp.z, sp.y || 0);
-  look.yaw = yawTowardCentre(sp);
-  look.pitch = 0;
-  player.hp = player.maxHp;
-  player.alive = true;
-  player.spawnGuard = SPAWN_GUARD;
-  applyHeroLoadout();
-  setActiveWeaponMesh(equipFromLoadout());
-  warmNewGuns();
-  applyInfectionLoadout();
-  els.respawn.hidden = true;
-}
-
-/* Spawn protection is a promise not to be shot, not a licence to shoot, so
-   firing drops it immediately. */
-function breakSpawnGuard() {
-  if (player.spawnGuard > 0) {
-    player.spawnGuard = 0;
-    updateSpawnGuardHud();
-  }
-}
-
-function updateSpawnGuardHud() {
-  const on = player.spawnGuard > 0;
-  if (els.spawnGuard) els.spawnGuard.hidden = !on;
-  document.body.classList.toggle("to-spawn-guarded", on);
-}
-
-function onGruntAttack(grunt, dmg, ranged) {
-  if (ranged) {
-    const dist = grunt.mesh.position.distanceTo(player.pos);
-    if (dist < 14) damagePlayer(dmg * 0.8, null, null, false, grunt.mesh.position);
-  } else {
-    damagePlayer(dmg, null, null, false, grunt.mesh.position);
-  }
-}
 
 // -------------------- main loop --------------------
 

@@ -172,9 +172,15 @@ const stayNames = new Set([...stayStmts].flatMap((st) => st.type === "VariableDe
 const linkUses = topUses.filter((u) => inR(u.node.start) && !inStay(u.node.start) && (!isRangeBinding(u.name) || stayNames.has(u.name)) && top.get(u.name).kind !== "import");
 function inStay(pos) { for (const st of stayStmts) if (pos >= st.start && pos < st.end) return true; return false; }
 // stay declarations' initializers must not use moved range bindings
-for (const st of stayStmts) for (const u of topUses) if (u.node.start >= st.start && u.node.start < st.end && isRangeBinding(u.name) && !stayNames.has(u.name)) die(`kept decl at ${st.loc.start.line} uses moved ${u.name}`);
+// (a moved const, function or class is fine: it comes back as an import, and
+// imports are live before game.js's first line runs; a moved let is not)
+const stayReads = new Set();
+for (const st of stayStmts) for (const u of topUses) if (u.node.start >= st.start && u.node.start < st.end && isRangeBinding(u.name) && !stayNames.has(u.name)) {
+  if (top.get(u.name).kind === "let" || top.get(u.name).kind === "var") die(`kept decl at ${st.loc.start.line} uses moved ${u.name}`);
+  stayReads.add(u.name);
+}
 
-const exportNames = new Set(outsideUses.filter((u) => !stayNames.has(u.name)).map((u) => u.name));
+const exportNames = new Set([...outsideUses.filter((u) => !stayNames.has(u.name)).map((u) => u.name), ...stayReads]);
 const linkNames = new Map(); // name -> {kind, write}
 for (const u of linkUses) {
   const r = linkNames.get(u.name) || { kind: top.get(u.name).kind, write: false };
