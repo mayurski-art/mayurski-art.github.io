@@ -103,6 +103,8 @@ import { game, linkGame } from "./core/state.js?v=st1";
 import { PAD_SENS_MULT, PAD_SENS_NAMES, padLookTurn, pollGamepad, pollGamepadMenu, radialStick } from "./input/gamepad.js?v=in1";
 import { setTouchAds, touchState, initTouch } from "./input/touch.js?v=in1";
 import { ROLL_SPEED, ROYALE_BUS_GONE, _dropTarget, applyRoyaleCatchUp, cancelRoyaleAct, cycleSpectate, drawRoyaleMinimap, hideSpectateHud, inSkyLobby, onRoyaleLoot, ordinal, placeBotsInLobby, placeDropCamera, placeSpectateCamera, royale, royaleAliveList, royaleBotDamage, royaleBotObjective, royaleBotSight, royaleBotVsBot, royaleDropCode, royaleDropView, royaleNoise, royaleOnDeath, royalePickupGun, royaleRollK, royaleRolling, royaleSpectating, royaleWants, setupRoyale, stageFrozen, startRoyaleAct, startRoyaleBus, teardownRoyale, updateDropPlayer, updateRoyale, updateRoyaleGear, updateRoyaleRoll, updateSkyLobby, initRoyale } from "./modes/royale.js?v=md1";
+import { clearDamageNumbers, clearHitDirs, damageNumbers, flashHit, flinchPeer, hitDirs, jokeVerb, noteHitDirection, pushKillfeed, showHitmarker, showWaveBanner, spawnComicWord, spawnDamageNumber, updateDamageNumbers, updateHitDirs, updateStreakHud } from "./core/hud.js?v=cr1";
+import { buildMinimapBase, drawMinimap, mapToMinimap, minimapCanvas, setBombSiteMarkers, setHillMarker, initMinimap } from "./core/minimap.js?v=cr1";
 /* What the split-out modules reach back into game.js for (see core/state.js).
    Functions go in as they are; everything else as a getter, so nothing is
    read before game.js declares it. game.js only ever gets smaller: an
@@ -118,6 +120,7 @@ linkGame({
   get builtMap() { return builtMap; },
   calibratePadRest,
   callReadyStreak,
+  callStreakSlot,
   get camera() { return camera; },
   carriedThrowSlot,
   closePauseMenu,
@@ -130,14 +133,18 @@ linkGame({
   cycleSpectate,
   cycleWeapon,
   damagePlayer,
+  get DF_BLOCK_TEXT() { return DF_BLOCK_TEXT; },
+  dragonfireBlocked,
   dragonfireView,
   get duoXClaimed() { return duoXClaimed; },
   get els() { return els; },
   get emoteWheel() { return emoteWheel; },
   endMatch,
   endStaging,
+  enemiesRevealed,
   equipFromLoadout,
   get fireEdgeTrigger() { return fireEdgeTrigger; }, set fireEdgeTrigger(v) { fireEdgeTrigger = v; },
+  get freshStreak() { return freshStreak; },
   get gamepadState() { return gamepadState; },
   get gameState() { return gameState; },
   get gpDebugEl() { return gpDebugEl; },
@@ -145,6 +152,9 @@ linkGame({
   get gpIndex() { return gpIndex; }, set gpIndex(v) { gpIndex = v; },
   get gpPrev() { return gpPrev; }, set gpPrev(v) { gpPrev = v; },
   heroActive,
+  get hill() { return hill; },
+  get hitFlashT() { return hitFlashT; }, set hitFlashT(v) { hitFlashT = v; },
+  isPvp,
   isSnd,
   isStaging,
   get isTouch() { return isTouch; },
@@ -157,6 +167,7 @@ linkGame({
   get markingStreak() { return markingStreak; },
   get matchesPlayed() { return matchesPlayed; },
   get matchIntro() { return matchIntro; },
+  minimapJammed,
   get move() { return move; },
   nearbyPackage,
   get net() { return net; },
@@ -167,6 +178,7 @@ linkGame({
   get pickups() { return pickups; },
   get player() { return player; },
   get rangeSet() { return rangeSet; },
+  readyStreaksOrdered,
   registerDeath,
   releaseCook,
   get remotes() { return remotes; },
@@ -174,6 +186,7 @@ linkGame({
   get royaleCatchUp() { return royaleCatchUp; }, set royaleCatchUp(v) { royaleCatchUp = v; },
   royaleSpectating,
   get scene() { return scene; },
+  get selectedStreak() { return selectedStreak; },
   setActiveWeaponMesh,
   setHolding,
   get settings() { return settings; },
@@ -187,6 +200,12 @@ linkGame({
   startInspect,
   streakControlActive,
   get streakEnd() { return streakEnd; },
+  get streakEntities() { return streakEntities; },
+  streakKeyLabel,
+  streakLockLeft,
+  get streakLockWhy() { return streakLockWhy; },
+  get streaks() { return streaks; },
+  streakSlotIds,
   get strikeTablet() { return strikeTablet; },
   swingMelee,
   toggleThirdPerson,
@@ -198,6 +217,7 @@ linkGame({
   updateSpawnGuardHud,
   useHeroAbility,
   useSelectedStreak,
+  vsatUp,
   warshipView,
   get zdir() { return zdir; },
 });
@@ -5920,252 +5940,7 @@ function updateLobbyCamera(dt) {
   }
 }
 
-// -------------------- minimap --------------------
-// Static geometry is drawn once per map into an offscreen canvas and blitted
-// each frame, so only the handful of moving dots costs anything.
-
-const minimapCanvas = document.getElementById("to-minimap");
-const minimapCtx = minimapCanvas.getContext("2d");
-const minimapBase = document.createElement("canvas");
-minimapBase.width = minimapCanvas.width;
-minimapBase.height = minimapCanvas.height;
-
-function mapToMinimap(x, z) {
-  const w = ARENA.maxX - ARENA.minX;
-  const d = ARENA.maxZ - ARENA.minZ;
-  const pad = 6;
-  const size = minimapCanvas.width - pad * 2;
-  return [
-    pad + ((x - ARENA.minX) / w) * size,
-    pad + ((z - ARENA.minZ) / d) * size,
-  ];
-}
-
-function buildMinimapBase() {
-  const ctx = minimapBase.getContext("2d");
-  ctx.clearRect(0, 0, minimapBase.width, minimapBase.height);
-  // An island map: its coast and its lake, under the buildings.
-  const outline = (poly, fill, stroke) => {
-    ctx.beginPath();
-    poly.forEach(([x, z], i) => { const [a, b] = mapToMinimap(x, z); i ? ctx.lineTo(a, b) : ctx.moveTo(a, b); });
-    ctx.closePath();
-    ctx.fillStyle = fill; ctx.fill();
-    ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke();
-  };
-  if (ARENA.edge) outline(ARENA.edge, "rgba(110,190,95,.28)", "rgba(200,230,190,.5)");
-  if (ARENA.wade) outline(ARENA.wade, "rgba(70,170,255,.35)", "rgba(140,200,255,.5)");
-  ctx.fillStyle = "rgba(150,170,140,.16)";
-  ctx.strokeStyle = "rgba(190,210,180,.28)";
-  ctx.lineWidth = 1;
-  for (const c of colliders) {
-    if (c.min.y > 1.6) continue;           // overhead structures aren't walls
-    const [x0, z0] = mapToMinimap(c.min.x, c.min.z);
-    const [x1, z1] = mapToMinimap(c.max.x, c.max.z);
-    ctx.fillRect(x0, z0, Math.max(1, x1 - x0), Math.max(1, z1 - z0));
-    ctx.strokeRect(x0, z0, Math.max(1, x1 - x0), Math.max(1, z1 - z0));
-  }
-}
-
-function drawMinimap() {
-  const ctx = minimapCtx;
-  const size = minimapCanvas.width;
-  ctx.clearRect(0, 0, size, size);
-  ctx.drawImage(minimapBase, 0, 0);
-
-  if (hill) {
-    const [hx, hz] = mapToMinimap(hill.position.x, hill.position.z);
-    const r = (hill.radius / (ARENA.maxX - ARENA.minX)) * (size - 12);
-    ctx.strokeStyle = "rgba(127,224,102,.9)";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(hx, hz, Math.max(4, r), 0, Math.PI * 2);
-    ctx.stroke();
-  }
-
-  if (royale) drawRoyaleMinimap(ctx, size);
-
-  if (isPvp()) {
-    // Friendlies always show. Enemies are fogged unless a UAV is up, or
-    // they're close enough to hear/see without a radar's help — scaled to
-    // the current map's size so small maps don't hand out free radar and
-    // huge ones don't demand near-melee range before anything shows.
-    const showEnemies = enemiesRevealed();
-    const vsat = vsatUp();
-    const arenaSpan = Math.max(ARENA.maxX - ARENA.minX, ARENA.maxZ - ARENA.minZ);
-    const proximityRadius = Math.min(28, Math.max(14, arenaSpan * 0.16));
-    for (const rp of remotes.byId.values()) {
-      if (!rp.alive) continue;
-      // No team of our own (free-for-all, or offline before chooseTeam runs)
-      // means nobody is a friendly, so everyone is subject to the fog.
-      const friendly = !currentMode().ffa && !!net.team && rp.team === net.team;
-      const nearby = Math.hypot(rp.pos.x - move.pos.x, rp.pos.z - move.pos.z) <= proximityRadius;
-      if (!friendly && !showEnemies && !nearby) continue;
-      const [x, z] = mapToMinimap(rp.pos.x, rp.pos.z);
-      ctx.fillStyle = friendly ? "#7fd1e0" : "#ff6b5a";
-      ctx.beginPath();
-      if (!friendly && vsat) {
-        // The VSAT's edge over a UAV: which way they're facing, too.
-        ctx.save();
-        ctx.translate(x, z);
-        ctx.rotate(-(rp.yaw || 0));
-        ctx.moveTo(0, -5);
-        ctx.lineTo(3.4, 3.6);
-        ctx.lineTo(-3.4, 3.6);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-      } else {
-        ctx.arc(x, z, 3, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    if (showEnemies) {
-      // A thin sweep ring, so it reads as "the UAV is why you can see this".
-      // The satellite's is doubled and brighter.
-      ctx.strokeStyle = vsat ? "rgba(255,150,110,.85)" : "rgba(255,107,90,.5)";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(1.5, 1.5, size - 3, size - 3);
-      if (vsat) ctx.strokeRect(4.5, 4.5, size - 9, size - 9);
-    }
-
-    // Care packages beacon their own position by radio the moment they
-    // land — that's independent of UAV, so it stays on screen whether or
-    // not a UAV is currently up.
-    for (const e of streakEntities.values()) {
-      if (!(e instanceof CarePackage) || e.claimed) continue;
-      const [x, z] = mapToMinimap(e.x, e.z);
-      ctx.fillStyle = "#f5c542";
-      ctx.beginPath();
-      ctx.moveTo(x, z - 5);
-      ctx.lineTo(x + 5, z + 4);
-      ctx.lineTo(x - 5, z + 4);
-      ctx.closePath();
-      ctx.fill();
-    }
-  } else if (zdir) {
-    for (const z of zdir.zombies) {
-      if (!z.alive || z.dying) continue;
-      const [mx, mz] = mapToMinimap(z.mesh.position.x, z.mesh.position.z);
-      // only the ones sharing our floor, or the map reads as a swarm
-      const sameFloor = Math.abs(z.groundY - move.pos.y) < 2.5;
-      ctx.fillStyle = sameFloor ? "#8fd15a" : "rgba(143,209,90,.25)";
-      ctx.beginPath();
-      ctx.arc(mx, mz, sameFloor ? 2.8 : 1.8, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  } else if (spawner) {
-    ctx.fillStyle = "#ff6b5a";
-    for (const g of spawner.grunts) {
-      if (!g.alive || g.dying) continue;
-      const [x, z] = mapToMinimap(g.mesh.position.x, g.mesh.position.z);
-      ctx.beginPath();
-      ctx.arc(x, z, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  // Jammed by an enemy Counter-UAV: static over everything but ourselves.
-  if (isPvp() && minimapJammed()) drawMinimapStatic(ctx, size);
-
-  // us, as an arrow pointing where we're looking
-  const [px, pz] = mapToMinimap(move.pos.x, move.pos.z);
-  ctx.save();
-  ctx.translate(px, pz);
-  ctx.rotate(-look.yaw);
-  ctx.fillStyle = "#eaf5e4";
-  ctx.beginPath();
-  ctx.moveTo(0, -6);
-  ctx.lineTo(4, 5);
-  ctx.lineTo(0, 2.5);
-  ctx.lineTo(-4, 5);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
-}
-
-function drawMinimapStatic(ctx, size) {
-  ctx.fillStyle = "rgba(8,10,9,.72)";
-  ctx.fillRect(0, 0, size, size);
-  for (let i = 0; i < 260; i++) {
-    const v = 90 + ((Math.random() * 150) | 0);
-    ctx.fillStyle = `rgba(${v},${v},${v},${0.25 + Math.random() * 0.4})`;
-    ctx.fillRect((Math.random() * size) | 0, (Math.random() * size) | 0, 2 + ((Math.random() * 5) | 0), 1 + ((Math.random() * 2) | 0));
-  }
-  // A rolling tear band, like a dead feed.
-  const band = ((performance.now() / 9) % (size + 20)) - 10;
-  ctx.fillStyle = "rgba(255,255,255,.12)";
-  ctx.fillRect(0, band, size, 6);
-  ctx.fillStyle = "#ff6b5a";
-  ctx.font = "bold 12px monospace";
-  ctx.textAlign = "center";
-  ctx.fillText("JAMMED", size / 2, size / 2 + 4);
-  ctx.textAlign = "start";
-}
-
-// King of the Hill's capture ring — an open cylinder so you can see through it.
-let hillMarker = null;
-function setHillMarker(h) {
-  if (!hillMarker) {
-    hillMarker = new THREE.Mesh(
-      new THREE.CylinderGeometry(6, 6, 2.6, 32, 1, true),
-      new THREE.MeshBasicMaterial({
-        color: 0x7fe066, transparent: true, opacity: 0.22,
-        side: THREE.DoubleSide, depthWrite: false,
-      }),
-    );
-    hillMarker.userData.noBulletCollide = true;
-    scene.add(hillMarker);
-  }
-  hillMarker.visible = !!h;
-  if (h) {
-    const p = h.position;
-    hillMarker.position.set(p.x, 1.3, p.z);
-  }
-}
-
-// Bomb site rings — a flat disc plus a floating letter, one pair per map,
-// built once and repositioned/hidden rather than rebuilt every match.
-let bombSiteMarkers = [];
-function makeSiteLabel(letter) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 128; canvas.height = 128;
-  const ctx = canvas.getContext("2d");
-  ctx.font = "bold 84px 'DM Mono', monospace";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.lineWidth = 8;
-  ctx.strokeStyle = "rgba(0,0,0,.85)";
-  ctx.strokeText(letter, 64, 68);
-  ctx.fillStyle = "#ff8a5a";
-  ctx.fillText(letter, 64, 68);
-  const tex = new THREE.CanvasTexture(canvas);
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-  sprite.scale.set(1.6, 1.6, 1);
-  sprite.renderOrder = 20;
-  return sprite;
-}
-
-function setBombSiteMarkers(sites) {
-  for (const m of bombSiteMarkers) scene.remove(m.ring, m.label);
-  bombSiteMarkers = [];
-  if (!sites) return;
-  for (const site of sites) {
-    const ring = new THREE.Mesh(
-      new THREE.CylinderGeometry(5, 5, 0.1, 32),
-      new THREE.MeshBasicMaterial({ color: 0xff8a5a, transparent: true, opacity: 0.28, depthWrite: false }),
-    );
-    ring.userData.noBulletCollide = true;
-    // Ground-level support only: sites sit on open floor, and a ceiling of
-    // 40 used to put the ring on whatever roof or catwalk was overhead.
-    const y = groundHeightAt(colliders, site.x, site.z, 1) ?? 0;
-    ring.position.set(site.x, y + 0.06, site.z);
-    scene.add(ring);
-    const label = makeSiteLabel(site.id);
-    label.position.set(site.x, y + 2.4, site.z);
-    scene.add(label);
-    bombSiteMarkers.push({ ring, label, site });
-  }
-}
+initMinimap();
 
 // -------------------- postprocessing --------------------
 
@@ -6881,348 +6656,7 @@ initTouch();
 let mouseLookAt = -Infinity;
 let aimAssistSticky = false;   // crosshair is on a target this frame (read by the mouse handler)
 
-// -------------------- HUD helpers --------------------
-
-/* Accepts a plain string (joins, leaves, Ops points) or a structured kill.
-   A kill reads "killer — weapon → victim", with the headshot marked and both
-   names in their team colour, so the feed says what happened rather than just
-   that something did. */
-function pushKillfeed(entry) {
-  const div = document.createElement("div");
-  div.className = "to-kf-item";
-
-  if (typeof entry === "string") {
-    div.textContent = entry;
-  } else {
-    if (entry.mine) div.classList.add("is-mine");
-
-    // Bots wanting their own labeled span (rather than reusing `.to-kf-tag`,
-    // which the assist/weapon slot below is also using) keeps a bot kill
-    // from ever being mistaken for a headshot or an assist at a glance.
-    const nameSpan = (text, team, isBot) => {
-      const frag = document.createDocumentFragment();
-      const s = document.createElement("span");
-      s.className = "to-kf-name";
-      // `.ui` is the CSS string; `.color` is a hex number for three.js.
-      if (team && TEAMS[team]) s.style.color = TEAMS[team].ui;
-      s.textContent = text;
-      frag.appendChild(s);
-      if (isBot) {
-        const bot = document.createElement("span");
-        bot.className = "to-kf-bot";
-        bot.textContent = "BOT";
-        frag.appendChild(bot);
-      }
-      return frag;
-    };
-
-    div.appendChild(nameSpan(entry.killer, entry.killerTeam, entry.killerIsBot));
-
-    if (entry.assist) {
-      const tag = document.createElement("span");
-      tag.className = "to-kf-tag";
-      tag.textContent = "assist";
-      div.appendChild(tag);
-    } else {
-      if (entry.weapon) {
-        const w = document.createElement("span");
-        w.className = entry.joke ? "to-kf-weapon is-joke" : "to-kf-weapon";
-        w.textContent = entry.weapon;
-        div.appendChild(w);
-      }
-      if (entry.head) {
-        const h = document.createElement("span");
-        h.className = "to-kf-head";
-        h.textContent = "HS";
-        h.title = "Headshot";
-        div.appendChild(h);
-      }
-      if (entry.tag) {
-        const tag = document.createElement("span");
-        tag.className = "to-kf-tag";
-        tag.textContent = entry.tag;
-        div.appendChild(tag);
-      }
-    }
-
-    // A suicide is one name, not "grinbot → grinbot".
-    if (!entry.suicide) {
-      const arrow = document.createElement("span");
-      arrow.className = "to-kf-arrow";
-      arrow.textContent = "→";
-      div.appendChild(arrow);
-      div.appendChild(nameSpan(entry.victim, entry.victimTeam, entry.victimIsBot));
-    }
-  }
-
-  els.killfeed.appendChild(div);
-  // Keep the feed from growing without bound in a busy match.
-  while (els.killfeed.children.length > 6) els.killfeed.firstChild.remove();
-  setTimeout(() => div.remove(), 2700);
-}
-
-/* `killed` is only ever true when the caller already knows the shot was
-   lethal in the same synchronous step (a bot, a grunt, our own registerDeath)
-   — a peer's death confirmation comes back over the wire later and marks
-   itself there instead, so this never has to guess. */
-function showHitmarker(isCrit, damage = 0, point = null, killed = false) {
-  audio.hitmarker(isCrit);
-  els.hitmarker.classList.remove("pop");
-  els.hitmarker.classList.toggle("is-crit", isCrit);
-  els.hitmarker.classList.toggle("is-kill", killed);
-  void els.hitmarker.offsetWidth;
-  els.hitmarker.classList.add("pop");
-  if (damage > 0 && point) spawnDamageNumber(damage, point, isCrit);
-}
-
-/* Damage numbers that live in the world: they start at the point the round
-   actually landed and drift up from there, so a burst across a moving target
-   leaves a legible trail instead of stacking in the middle of the screen. */
-const damageNumbers = [];
-const DAMAGE_NUMBER_LIFE = 0.9;
-
-function spawnDamageNumber(damage, point, isCrit, text = null) {
-  const el = document.createElement("span");
-  el.className = "to-dmg-num" + (isCrit ? " is-crit" : "") + (text ? " is-word" : "");
-  el.textContent = text || String(Math.round(damage));
-  els.damageNumbers.appendChild(el);
-  damageNumbers.push({
-    el,
-    pos: point.clone(),
-    life: DAMAGE_NUMBER_LIFE,
-    // A little sideways drift keeps rapid hits from printing on top of
-    // each other.
-    drift: (Math.random() - 0.5) * 26,
-  });
-  // A long burst on several targets could otherwise pile up unbounded.
-  while (damageNumbers.length > 24) {
-    damageNumbers.shift().el.remove();
-  }
-}
-
-/* U Mad Bro?: a comic-book word over a body as it goes flying. Rides the
-   damage-number layer, bigger, tilted and slower to fade. */
-const COMIC_WORD_LIFE = 1.4;
-const COMIC_WORDS = ["BONK!", "POW!", "OOF!", "YEET!", "WHAM!", "GG!", "BOING!", "SPLAT!", "KAPOW!", "RIP"];
-const COMIC_HEAD_WORDS = ["NO SCOPE!", "HEADSHOT!", "CRITICAL!", "BOOM!"];
-function spawnComicWord(point, head = false, text = null) {
-  const words = head ? COMIC_HEAD_WORDS : COMIC_WORDS;
-  const el = document.createElement("span");
-  el.className = "to-dmg-num is-comic";
-  el.textContent = text || words[Math.floor(Math.random() * words.length)];
-  els.damageNumbers.appendChild(el);
-  damageNumbers.push({
-    el, pos: point.clone().setY(point.y + 1.5), life: COMIC_WORD_LIFE, max: COMIC_WORD_LIFE,
-    drift: (Math.random() - 0.5) * 40, tilt: (Math.random() - 0.5) * 24,
-  });
-  while (damageNumbers.length > 24) damageNumbers.shift().el.remove();
-}
-
-/* The U Mad Bro? killfeed swaps the weapon for what happened to them. */
-const JOKE_VERBS = ["bonked", "ratio'd", "deleted", "uninstalled", "yeeted", "sent to Brazil", "told to touch grass", "muted", "clapped", "rekt"];
-const jokeVerb = (head) => (head ? "no-scoped" : JOKE_VERBS[Math.floor(Math.random() * JOKE_VERBS.length)]);
-
-const _dmgProject = new THREE.Vector3();
-
-function updateDamageNumbers(dt) {
-  for (let i = damageNumbers.length - 1; i >= 0; i--) {
-    const d = damageNumbers[i];
-    d.life -= dt;
-    if (d.life <= 0) { d.el.remove(); damageNumbers.splice(i, 1); continue; }
-
-    const t = 1 - d.life / (d.max || DAMAGE_NUMBER_LIFE);
-    _dmgProject.copy(d.pos).project(camera);
-    // Behind the camera projects to a mirrored on-screen point, so hide it.
-    if (_dmgProject.z > 1) { d.el.style.opacity = "0"; continue; }
-
-    const x = (_dmgProject.x * 0.5 + 0.5) * window.innerWidth + d.drift * t;
-    const y = (-_dmgProject.y * 0.5 + 0.5) * window.innerHeight - t * 46;
-    // Comic words punch in big, then settle; numbers just shrink a little.
-    const sc = d.tilt != null ? 1 + Math.max(0, 0.6 - t * 4) : 1 + (1 - t) * 0.25;
-    d.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) scale(${sc.toFixed(2)})${d.tilt != null ? ` rotate(${d.tilt.toFixed(1)}deg)` : ""}`;
-    d.el.style.opacity = String(Math.min(1, d.life / 0.35));
-  }
-}
-
-function clearDamageNumbers() {
-  for (const d of damageNumbers) d.el.remove();
-  damageNumbers.length = 0;
-}
-
 let hitFlashT = 0;
-function flashHit() {
-  hitFlashT = 1;
-}
-
-/* Hit-direction markers: one red arc round the crosshair per attacker,
-   pointing where the hit came from. The arc holds the attacker's position
-   at the moment of the hit, not where they go after — it says "from there",
-   it isn't a wallhack — and turns as you turn. A fresh hit from the same
-   source refreshes its arc rather than stacking another. */
-const HITDIR_LIFE = 1.6;
-const HITDIR_MAX = 6;
-const hitDirs = new Map();   // source key -> { el, x, z, t }
-const _hitDirFwd = new THREE.Vector3();
-
-/* Flinch whoever was hit, away from whoever hit them — the local player's
-   own body included. Cosmetic: a peer may never know its rig flinched here. */
-const _flinchDir = new THREE.Vector3();
-function flinchPeer(targetId, fromId, isHead, fromPos = null) {
-  const rig = targetId === net.id ? localRig : remotes.byId.get(targetId)?.rig;
-  if (!rig) return;
-  const from = fromPos || (fromId === net.id ? move.pos : (remotes.byId.get(fromId)?.pos || bots.byId(fromId)?.pos));
-  if (!from) { flinchRigFrom(rig, _flinchDir.set(0, 0, 0), isHead ? 1 : 0.5); return; }
-  _flinchDir.subVectors(rig.root.position, from);
-  _flinchDir.y = 0;
-  if (_flinchDir.lengthSq() < 1e-6) _flinchDir.set(0, 0, 1);
-  flinchRigFrom(rig, _flinchDir.normalize(), isHead ? 1 : 0.5);
-}
-
-function noteHitDirection(fromId, fromPos = null) {
-  if (fromId && fromId === net.id) return;   // your own grenade: you know where it was
-  const pos = fromPos || (fromId ? (remotes.byId.get(fromId)?.pos || bots.byId(fromId)?.pos) : null);
-  if (!pos || !els.hitdir) return;
-  const key = fromId || `${Math.round(pos.x)},${Math.round(pos.z)}`;
-  let h = hitDirs.get(key);
-  if (!h) {
-    if (hitDirs.size >= HITDIR_MAX) {
-      const [oldKey, old] = hitDirs.entries().next().value;
-      old.el.remove();
-      hitDirs.delete(oldKey);
-    }
-    const el = document.createElement("div");
-    el.className = "to-hitdir-mark";
-    els.hitdir.appendChild(el);
-    h = { el };
-    hitDirs.set(key, h);
-  }
-  h.x = pos.x;
-  h.z = pos.z;
-  h.t = HITDIR_LIFE;
-  updateHitDirs(0);
-}
-
-function updateHitDirs(dt) {
-  if (!hitDirs.size) return;
-  camera.getWorldDirection(_hitDirFwd);
-  const fl = Math.hypot(_hitDirFwd.x, _hitDirFwd.z) || 1;
-  const fx = _hitDirFwd.x / fl, fz = _hitDirFwd.z / fl;
-  for (const [key, h] of hitDirs) {
-    h.t -= dt;
-    if (h.t <= 0) { h.el.remove(); hitDirs.delete(key); continue; }
-    const tx = h.x - move.pos.x, tz = h.z - move.pos.z;
-    // Bearing from straight ahead, clockwise: right of you is +90°.
-    const deg = Math.atan2(tx * -fz + tz * fx, tx * fx + tz * fz) * 180 / Math.PI;
-    h.el.style.transform = `rotate(${deg.toFixed(1)}deg)`;
-    h.el.style.opacity = Math.min(1, h.t / 0.5).toFixed(2);
-  }
-}
-
-function clearHitDirs() {
-  for (const h of hitDirs.values()) h.el.remove();
-  hitDirs.clear();
-}
-
-function showWaveBanner(text, ms = 1800) {
-  els.waveBanner.textContent = text;
-  els.waveBanner.classList.add("is-visible");
-  clearTimeout(showWaveBanner._t);
-  showWaveBanner._t = setTimeout(() => els.waveBanner.classList.remove("is-visible"), ms);
-}
-
-/* The scorestreak strip: a meter toward the cheapest streak that isn't ready
-   yet, then one row per selected streak. Rebuilt only when the set of rows
-   changes; the meter itself is just a width. */
-const STREAK_ICON_URL = (id) => new URL(`./streak-icons/${id}.png?v=ss3`, import.meta.url).href;
-
-function updateStreakHud() {
-  if (!els.ssHud) return;
-  const on = streaksAllowed(currentMode()) && (streaks.selected.length > 0 || streaks.readyIds().length > 0);
-  els.ssHud.hidden = !on;
-  // On a phone the button only exists when there's something to call —
-  // an always-on dead button is just lost screen space.
-  if (els.touchStreak) {
-    // Touch calls a streak by tapping its row; this button is only the
-    // big "drop it here" confirm while one is being marked.
-    // U Mad Bro? has no streaks: the button is the hero ability (updateHero).
-    if (!heroActive()) els.touchStreak.hidden = !isTouch || !on || !markingStreak;
-  }
-  if (!on) return;
-
-  const next = streaks.nextProgress();
-  els.ssMeterFill.style.width = next ? `${Math.round(next.frac * 100)}%` : "100%";
-
-  const onPad = gamepadState.connected && !isTouch;
-  const key = onPad ? "→" : "4";
-  const selId = streaks.ready(selectedStreak) ? selectedStreak : readyStreaksOrdered()[0];
-  // On a pad, a ready streak also needs to show WHICH one d-pad right will
-  // fire — d-pad down moved off "call directly" onto "pick", so the ready
-  // key alone no longer says that.
-  // A care package can grant a streak outside the loadout's three picks
-  // (rollPackageReward/grant) — it still needs its own slot or securing the
-  // package looks like it did nothing.
-  const slotIds = streakSlotIds();
-  const freshId = freshStreak && performance.now() < freshStreak.until ? freshStreak.id : "";
-  // A ready Dragonfire says so when you're somewhere it can't launch from.
-  const dfWhy = slotIds.includes("dragonfire") && streaks.ready("dragonfire") ? dragonfireBlocked() : null;
-  const signature = `${key}|${onPad || isTouch ? selId : ""}|${markingStreak || ""}|${freshId}|${dfWhy || ""}|`
-    + slotIds.map((id) => `${id}:${streaks.ready(id) ? 1 : 0}:${Math.ceil(streakLockLeft(id))}`).join("|");
-  if (els.ssSlots.dataset.sig !== signature) {
-    els.ssSlots.dataset.sig = signature;
-    els.ssSlots.innerHTML = "";
-    slotIds.forEach((id, slot) => {
-      const def = STREAK_DEFS[id];
-      const lock = Math.ceil(streakLockLeft(id));
-      const ready = streaks.ready(id) && !lock;
-      const isSelected = (onPad || isTouch) && ready && id === selId;
-      const row = document.createElement("div");
-      const fresh = ready && freshStreak && freshStreak.id === id && performance.now() < freshStreak.until;
-      const skyBlocked = id === "dragonfire" && ready && dfWhy;
-      row.className = `to-ss-slot${ready ? " is-ready" : ""}${skyBlocked ? " is-blocked" : ""}${lock ? " is-locked" : ""}${isSelected ? " is-selected" : ""}${id === markingStreak ? " is-marking" : ""}${fresh ? " is-fresh" : ""}`;
-      // Touch: tap a row to call that streak (the pad and keyboard have keys).
-      if (isTouch && ready) {
-        row.setAttribute("role", "button");
-        row.setAttribute("aria-label", `Call ${def.name}`);
-        row.addEventListener("touchstart", (e) => { e.preventDefault(); e.stopPropagation(); callStreakSlot(slot); }, { passive: false });
-      }
-      // A picture of the streak, not its name (user, 2026-09-28): rendered
-      // from the game's own models (models/render_streak_icons.blender.py).
-      // Ready = lit with a green rim; not yet = dimmed grey.
-      const img = document.createElement("img");
-      img.className = "to-ss-img";
-      img.src = STREAK_ICON_URL(id);
-      img.alt = "";
-      img.draggable = false;
-      row.appendChild(img);
-      // BO2: every streak carries its badge (tier metal + its symbol) and its
-      // name, with the cost under it until it's earned, then how to call it.
-      const badge = document.createElement("i");
-      badge.className = "to-ss-badge";
-      badge.innerHTML = streakBadgeSvg(id, { dim: !ready });
-      row.appendChild(badge);
-      const cap = document.createElement("div");
-      cap.className = "to-ss-cap";
-      const nm = document.createElement("b");
-      nm.textContent = streakShortName(id);
-      const sub = document.createElement("span");
-      sub.textContent = lock ? `${streakLockWhy[id] === "jammed" ? "JAMMED" : "COOLDOWN"} ${lock}s`
-        : skyBlocked ? DF_BLOCK_TEXT[dfWhy]
-        : ready ? (isTouch ? "READY · TAP" : `READY · ${onPad ? "→" : streakKeyLabel(id)}`) : `${def.cost}`;
-      cap.append(nm, sub);
-      row.appendChild(cap);
-      if (skyBlocked) {
-        // A roof over the picture: get outside to fly it.
-        const tag = document.createElement("em");
-        tag.className = "to-ss-sky";
-        tag.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M4 4l16 16"/></svg>`;
-        row.appendChild(tag);
-      }
-      row.title = `${def.name}${skyBlocked ? ` (${dfWhy === "covered" ? "needs open sky overhead" : "too confined here"}: get outside)` : ""}${lock ? ` (${streakLockWhy[id] === "jammed" ? "jammed" : "cooldown"}, ${lock}s)` : ready ? " (ready)" : `: ${def.cost}`}`;
-      if (!row.hasAttribute("aria-label")) row.setAttribute("aria-label", row.title);
-      els.ssSlots.appendChild(row);
-    });
-  }
-}
 
 // -------------------- weapon actions --------------------
 
