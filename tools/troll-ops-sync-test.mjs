@@ -104,7 +104,8 @@ const sides = (await Promise.all([A, B].map((p) => p.evaluate(() => {
   return T.bots.bots.length ? n : null;
 })))).find(Boolean);
 if (sides) { sides[info[0].team]++; sides[info[1].team]++; }
-check("bots pad the room to 4v4", sides && sides.phantom === 4 && sides.ghost === 4, JSON.stringify(sides));
+// A public-size room fills to MAX_PLAYERS (22) with bots, split evenly.
+check("bots pad the room to 11v11", sides && sides.phantom === 11 && sides.ghost === 11, JSON.stringify(sides));
 
 // Put A in the middle of the map, B nearby, both invulnerable to stray bots.
 async function place(page, x, z, yaw = 0) {

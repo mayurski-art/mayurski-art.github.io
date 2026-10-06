@@ -483,6 +483,10 @@ Map rules:
 
 ## 5. Shipped log (one line each; details are in git)
 
+- **2026-10-06**
+  - game.js split, phase 0: `node tools/troll-ops-gate.mjs` (parse, every mode, bot movement, both room tests; ~12 min, `--quick` skips the room tests) is the pre-push gate; `core/state.js` is the home for shared state as systems move out; session rules in CLAUDE.md. Nothing moved yet.
+  - Bot host = the oldest LIVE client (net.hostId: a state message in the last 15 s, not flagged slow); a stuck or hidden tab no longer freezes everyone's bots or sets the room's map.
+
 - **2026-10-05**
   - Gloves removed (setting, model, every glove branch); gun-hold rods start further out so more arm shows; the first-person Rolex sits on the left rod (game.js placeRodWatch).
   - Rolex wristwear cosmetic (Cosmetics > Wrist; face key 4th part; wristwear.js) and the Pour up lean emote (emote 17, lean-cup.js; cup, ice, Sprite bottle, pour, swirl, sip; others see it). Also fixed the BO2 menu option screens (Face, Face colour, Hero never opened). Test: tools/troll-ops-lean-test.mjs.
