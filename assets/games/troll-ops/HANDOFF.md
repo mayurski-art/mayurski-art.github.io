@@ -22,11 +22,12 @@ Turning Dust Bowl into an old bazaar inside a desert city (the user ran the map 
 
 Hold every phase to: bounds, spawns and the perimeter collider unchanged; nothing solid within 3 m of the S&D sites, which must stay at A (14.48, -18.21) and B (14.37, 14.24); all 10 dustbowl walk routes passing; frame rate checked with tools/troll-ops-map-fps.mjs against a worktree of main. Every solid piece is a collider in maps.js plus the matching mesh in models/build_dustbowl.blender.py, sized from the same numbers.
 
-### Troll City roleplay, phase 2 remainder (Socialize, Troll City only)
-Phase 2a has shipped: seats, the pianist, the doctor. Still to build, in this order:
-- **2b:** sheriff + jail: badge, cuff, cells, wanted board. The courthouse geometry for the office and jail is already in.
-- **2c:** merchant + horsekeeper.
-- **2d:** train conductor.
+### Troll City roleplay, phase 2 remainder (Socialize, Troll City only): ON HOLD
+The user put this on hold on 2026-10-05; don't start it unless asked. Phase 2a has shipped: seats, the pianist, the doctor. Still to build, in this order (estimates from 2026-10-05, mostly test time):
+- **2b:** sheriff + jail (3-4 h): badge, cuff, cells, wanted board. The courthouse geometry for the office and jail is already in.
+- **2c:** merchant + horsekeeper (3-4 h). Riding horses is the big piece; saddled horses that are only led around (no riding) would save about 1.5 h.
+- **2d:** train conductor (2-4 h). A real moving train with riders is the riskiest item; a scripted ride (depart, fade out, arrive back) takes about 1 h.
+- **Not yet checked by eye:** 2a's seated bodies and the pianist's hands. The tests pass, but no screenshot was taken (a scratch screenshot script hung while loading). Look in game before building on them.
 
 Follow the 2a pattern:
 - Jobs and their wire letters go in `rp-roles.js` (`ROLES`, `rr`); spots and furniture go in `trollcity.js` (`rp.*`).
