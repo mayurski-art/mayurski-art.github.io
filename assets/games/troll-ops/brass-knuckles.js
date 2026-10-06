@@ -5,7 +5,7 @@
 // First person (buildKnucklePair with hands): a root that stays at the
 // guard, two fists inside it that do the punching, and two hand anchors
 // (userData.hand) that copy the fists every frame so game.js wraps the
-// gloves or the PF rods round them. A swing alternates a left jab and a
+// the PF rods to them. A swing alternates a left jab and a
 // right hook; the inspect brings the fists together, cracks the knuckles
 // and turns them over to flash the trollface plates. pose() runs it all.
 // Menus show the pair side by side; a third-person body wears one.
@@ -182,7 +182,7 @@ export function buildKnucklePair({ hands = true, single = false } = {}) {
     for (let i = 0; i < 2; i++) {
       // the arm's hand: on the palm bar, the grip axis across the fist,
       // signed so both fists close palm down, thumbs toward the middle
-      // (game.js poseMeleeArms builds each glove's frame off this axis)
+      // (the grip's axis in the hand's frame)
       const a = new THREE.Object3D();
       a.userData.hand = true;
       a.userData.gripAxis = new THREE.Vector3(i === 0 ? -1 : 1, 0, 0);

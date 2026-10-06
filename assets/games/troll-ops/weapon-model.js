@@ -161,7 +161,7 @@ function buildDetailed(def, cfg, template) {
   u.magazinePoint = mag.position.clone();
   u.magRestRotationX = mag.rotation.x;
 
-  // Hidden hand meshes: the PF arms / gloves and the third-person rig aim at them.
+  // Hidden hand meshes: the PF arms and the third-person rig aim at them.
   const hand = buildGripHand(1);
   hand.userData.hand = true;
   hand.position.copy(grip);
@@ -306,7 +306,7 @@ function buildGrinmington(def) {
   const irons = [root.getObjectByName("GM_IronRear"), root.getObjectByName("GM_IronFront")];
   shell.visible = false;
 
-  // Hidden hand meshes: the PF arms / gloves and the third-person rig aim
+  // Hidden hand meshes: the PF arms and the third-person rig aim
   // at them. The support hand rides the pump, so the arm follows a rack.
   const hand = buildGripHand(1);
   hand.userData.hand = true;
@@ -702,7 +702,7 @@ function buildGreenCandles() {
   root.userData.supportHandPos = support.clone();
   root.userData.pfAnchors = [hand, supportHand];
   root.userData.pfSupportDrop = 0;     // the anchor already IS the foregrip
-  root.userData.supportStyle = "foregrip";   // gloves fist it (glove-model.js)
+  root.userData.supportStyle = "foregrip";   // the support rod goes to it
   root.userData.magMesh = tank;
   root.userData.magazinePoint = tank.position.clone();
   root.userData.magRestRotationX = 0;

@@ -56,7 +56,6 @@ const TIPS = [
   "Pin your city on the Troll Map and show up on the planet.",
   "Want your friends only? A Private Match code keeps the room to yourselves.",
   "Headshots hit harder. Aim for the grin.",
-  "Settings > Gloves swaps your hands for something tactical.",
   "Max out your rank and you can prestige. Bragging rights included.",
   "Zombies doesn't stop coming. Neither should you.",
   "Bored of guns? The Arcade has more ways to troll.",

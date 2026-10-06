@@ -545,7 +545,7 @@ export function createKeyboardRepair({ audio } = {}) {
       if (support) {
         if (tool) {
           // On the keyboard, not the hand marker: game.js hides the marker
-          // every frame (the glove is drawn there instead), children and all.
+          // every frame (the rod reaches there instead), children and all.
           if (tool.parent !== mesh) mesh.add(tool);
           tool.scale.setScalar(TOOL_SCALE);
           const len = tool.userData.len * TOOL_SCALE;

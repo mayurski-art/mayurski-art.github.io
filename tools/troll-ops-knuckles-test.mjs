@@ -1,7 +1,7 @@
 // Troll Forces Knuckle Grinners check: equips as a pair with a hand anchor on each fist,
 // swings alternate a left jab and a right hook (each fist moves on its own beat),
 // the inspect cracks and shows the plates. Screenshots of the guard, both punches
-// and the inspect beats go to OUT (gloves on, then off).
+// and the inspect beats go to OUT (the rod arms).
 //
 // Usage: NODE_PATH=<main checkout>/node_modules OUT=<dir> node tools/troll-ops-knuckles-test.mjs
 
@@ -67,9 +67,8 @@ const info = await page.evaluate(() => {
 });
 check("Knuckle Grinners in hand, a fist and an anchor each side", info.id === "knuckles" && info.kind === "knuckles" && info.fists === 2 && info.anchors === 2 && info.visible, JSON.stringify(info));
 
-for (const gloves of [true, false]) {
-  const tag = gloves ? "gloves" : "rods";
-  await page.evaluate((g) => { window.__trollOps.settings.gloves = g; }, gloves);
+{
+  const tag = "rods";
   await sleep(400);
   await shot(page, `${tag}-0-guard.png`);
   // two punches: which fist goes out on each
@@ -89,8 +88,8 @@ for (const gloves of [true, false]) {
     }
     return out;
   });
-  if (gloves) check("the first swing is a left jab (left fist goes out)", moved[0][1] < -0.2 && moved[0][0] > -0.08, JSON.stringify(moved));
-  if (gloves) check("the second swing is a right hook (right fist goes out)", moved[1][0] < -0.12, JSON.stringify(moved));
+  check("the first swing is a left jab (left fist goes out)", moved[0][1] < -0.2 && moved[0][0] > -0.08, JSON.stringify(moved));
+  check("the second swing is a right hook (right fist goes out)", moved[1][0] < -0.12, JSON.stringify(moved));
   await sleep(600);
   // frozen beats of each punch
   for (const [idx, t, name] of [[0, 0.13, "jab"], [1, 0.22, "hook"]]) {
@@ -104,7 +103,7 @@ for (const gloves of [true, false]) {
   await sleep(100);
   for (const [t, name] of [[0.18, "together"], [0.3, "crack"], [0.6, "plates"]]) {
     await page.evaluate((v) => window.__trollOps.setInspectFreeze(v), t);
-    await sleep(gloves ? 250 : 120);
+    await sleep(250);
     await shot(page, `${tag}-2-inspect-${Math.round(t * 100)}-${name}.png`);
   }
   await page.evaluate(() => window.__trollOps.setInspectFreeze(null));

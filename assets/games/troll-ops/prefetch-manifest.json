@@ -43,8 +43,8 @@
   "assets/games/troll-ops/models/beast.glb?v=be3",
   "assets/games/troll-ops/models/coltlmg.glb?v=cl2",
   "assets/games/troll-ops/models/soulblazer.glb?v=sb1",
-  "assets/games/troll-ops/models/hunter-drone.glb",
-  "assets/games/troll-ops/models/gloves.glb?v=gl3"
+  "assets/games/troll-ops/models/hunter-drone.glb"
+
  ],
  "grinsite": [
   "assets/games/troll-ops/music/holy-water.mp3",

@@ -5,7 +5,7 @@
 // the face covering, can be empty), so it is saved, sent and cleaned with
 // the face and older clients just ignore it. It shows on your own body
 // (character.js syncWristwear), everyone else's, and your first-person
-// gloves and emote hands (game.js).
+// rod arm, a little way back from the tip (game.js placeRodWatch).
 //
 // buildWatch(id, ringR) makes the watch around a wrist of radius `ringR`:
 // the band wraps the local Z axis (Z runs along the forearm) and the face

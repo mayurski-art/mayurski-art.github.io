@@ -10,7 +10,6 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=p5bm-wst-hf1";
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=p5-em1-wst-hf1";
 import { WeaponInspector } from "./inspector.js?v=hb1-nf-wst-ig1-sb2";
-import { buildGlove, poseGlove, gloveWrist } from "./glove-model.js?v=gl5";
 import { CharacterInspector } from "./char-inspector.js?v=hb4-wst-soc1-sb2";
 import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2";
 import { StreakPicker } from "./streak-picker.js?v=umb1-wst-sb2";
@@ -36,7 +35,7 @@ import { getMyCard, withClan } from "./calling-cards.js?v=p5-wst-sb2";
 import { openProfileCard } from "./profile-card.js?v=pc1-wst-sb2";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2";
 import { createMapPreloader } from "./map-preload.js?v=mp4";
-import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3-wst-tl1";
+import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3-wst-tl1-ng1";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
 import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths, setSeatLookup } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2";
@@ -49,7 +48,7 @@ import {
   OFFER_SECONDS, REACH, BARTENDER_LEAVE_SECONDS,
 } from "./saloon-bar.js?v=sb1";
 import { TownNpcs } from "./town-npcs.js?v=tn4";
-import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES, hideFpEmoteProps, fpEmoteRodTip } from "./emotes.js?v=hb4-em1-wst-soc1-lc3";
+import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES, hideFpEmoteProps, fpEmoteRodTip } from "./emotes.js?v=hb4-em1-wst-soc1-ng1";
 import { buildWatch, wristOf } from "./wristwear.js?v=ww1";
 import { MatchIntro } from "./match-intro.js?v=mi5-wst";
 import {
@@ -3679,7 +3678,7 @@ const animDebug = new AnimDebugLab();
 
 const SETTINGS_KEY = "trollops:settings";
 const settings = {
-  volume: 50, ambience: 60, sens: 100, padSens: 3, fov: 78, invert: false, minimap: true, gloves: true, botSkill: "regular", aimAssist: true, thirdPerson: false,
+  volume: 50, ambience: 60, sens: 100, padSens: 3, fov: 78, invert: false, minimap: true, botSkill: "regular", aimAssist: true, thirdPerson: false,
   gfx: "auto", viewMode: false, invincible: false,
   ...(() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch { return {}; } })(),
 };
@@ -3710,7 +3709,6 @@ function applySettings() {
   set("to-set-fov",settings.fov, "to-set-fov-out", "°");
   set("to-set-invert", settings.invert);
   set("to-set-minimap", settings.minimap);
-  set("to-set-gloves", settings.gloves);
   set("to-set-aimassist", settings.aimAssist);
 
   set("to-set-volume-lobby", settings.volume, "to-set-volume-lobby-out");
@@ -3719,7 +3717,6 @@ function applySettings() {
   set("to-set-fov-lobby", settings.fov, "to-set-fov-lobby-out", "°");
   set("to-set-invert-lobby", settings.invert);
   set("to-set-minimap-lobby", settings.minimap);
-  set("to-set-gloves-lobby", settings.gloves);
   set("to-set-aimassist-lobby", settings.aimAssist);
   set("to-set-viewmode-lobby", settings.viewMode);
   set("to-set-invincible", settings.invincible);
@@ -4038,7 +4035,6 @@ function initEscapeMenu() {
   bindRange("to-set-fov", "fov", "to-set-fov-out", "°");
   bindCheck("to-set-invert", "invert");
   bindCheck("to-set-minimap", "minimap");
-  bindCheck("to-set-gloves", "gloves");
   bindCheck("to-set-aimassist", "aimAssist");
   bindCheck("to-set-invincible", "invincible");
 
@@ -4048,7 +4044,6 @@ function initEscapeMenu() {
   bindRange("to-set-fov-lobby", "fov", "to-set-fov-lobby-out", "°");
   bindCheck("to-set-invert-lobby", "invert");
   bindCheck("to-set-minimap-lobby", "minimap");
-  bindCheck("to-set-gloves-lobby", "gloves");
   bindCheck("to-set-aimassist-lobby", "aimAssist");
   bindCheck("to-set-viewmode-lobby", "viewMode");
   bindSelect("to-set-botskill", "botSkill");
@@ -4567,7 +4562,6 @@ const cosmetics = new CosmeticsPanel(document.getElementById("to-cos-body"), (fa
 function applyOwnFace(face) {
   if (charInspector) charInspector.humanoid.face = face;
   localRig.face = face;   // only ever called on a pick, long after localRig exists
-  syncFpWatches();
 }
 if (charInspector) charInspector.humanoid.face = cosmetics.face;
 let charInspectorLive = false;
@@ -13324,6 +13318,7 @@ function animate() {
   if (gameState === "playing" && !matchIntro.active && ((player.alive && !isView() && !settings.thirdPerson && !emoteIsTp() && !royaleSpectating() && !royaleDropView() && !warshipView() && !dragonfireView()) || killcam.replaying)) {
     renderer.autoClear = false;
     renderer.clearDepth();
+    placeRodWatch();
     renderer.render(weaponScene, weaponCamera);
     renderer.autoClear = true;
   }
@@ -14151,10 +14146,10 @@ function updateMeleeView(dt) {
   // Only while the gun is what we hold: this used to re-show it every frame,
   // so it stayed on screen beside the streak tablet and marker.
   if (activeWeaponMesh) activeWeaponMesh.visible = player.holding === "gun" && !swinging;
-  // Every melee weapon is held by the real arms now (gloves, or the black
-  // rods), not the old white block hands. The saber lets go for its inspect.
+  // Every melee weapon is held by the black rod arms, not the old white
+  // block hands. The saber lets go for its inspect.
   saberArmsOn = mesh.visible && player.alive && (!saber || inspectT <= 0);
-  if (!saberArmsOn && saberArmsWere) { gloveRig.visible = false; pfArms.visible = false; }
+  if (!saberArmsOn && saberArmsWere) pfArms.visible = false;
   saberArmsWere = saberArmsOn;
   if (!mesh.visible) {
     meleeIdleT = 0; saberBlock.t = 0; kbShield.t = 0;
@@ -14584,7 +14579,7 @@ const streakArms = (() => {
     root.add(hand, wrist, cuff, sleeve);
     arms.push({ hand, wrist, cuff, sleeve, free: false, attached: false, vel: new THREE.Vector3() });
   }
-  // Gloves off: the Phantom Forces black rods (see pfArms), tip on the grip.
+  // The Phantom Forces black rods (see pfArms), tip on the grip.
   const rodMat = new THREE.MeshBasicMaterial({ color: 0x050505 });
   for (const arm of arms) {
     const g = new THREE.CylinderGeometry(0.013, 0.034, 1, 10);
@@ -14599,36 +14594,6 @@ const streakArms = (() => {
   return root;
 })();
 weaponRig.add(streakArms);
-
-/* With Settings > Gloves on, the streak devices are held in the same
-   tactical gloves and sleeves as the guns (user: the white hands didn't
-   match). A pair of their own, posed off the placed white hand (the glove
-   rig shares hand-model.js's frame), sleeve run to the streak shoulders. */
-let streakGloves = null;
-Promise.all([buildGlove(1, weaponEnvTex), buildGlove(-1, weaponEnvTex)]).then((g) => {
-  if (!g[0] || !g[1]) return;
-  streakGloves = g;
-  for (const h of g) {
-    h.root.visible = h.sleeve.visible = false;
-    streakArms.add(h.root, h.sleeve);
-  }
-  syncFpWatches();
-});
-
-/* Swap arm i's white hand for its glove when gloves are on. True if the
-   glove took over (the white hand, wrist, cuff and sleeve are hidden). */
-function dressStreakArm(arm, i, show, pose, thumb = 0) {
-  const g = streakGloves?.[i];
-  const on = !!g && glovesOn() && show;
-  if (g) g.root.visible = g.sleeve.visible = on;
-  if (!on) return false;
-  arm.hand.visible = arm.wrist.visible = arm.cuff.visible = arm.sleeve.visible = false;
-  g.root.position.copy(arm.hand.position);
-  g.root.quaternion.copy(arm.hand.quaternion);
-  poseGlove(g, pose, thumb);
-  layGloveSleeve(g, STREAK_SHOULDER[i]);
-  return true;
-}
 
 function hideStreakArms() {
   streakArms.visible = false;
@@ -14677,17 +14642,16 @@ function poseStreakArms(mesh, style, dt, tap) {
     }
     arm.hand.visible = arm.wrist.visible = arm.cuff.visible = arm.sleeve.visible = show;
     arm.rod.visible = false;
-    const pose = arm.free ? "relaxed" : HAND_GRIPS[style]?.pose || "relaxed";
-    if (dressStreakArm(arm, i, show, pose, i === 0 ? tap : 0) || !show) continue;
-    // Gloves off is the PF look everywhere: no hands, the rod's tip holds it.
-    // (The white hand stays posed, invisibly, as the grip point.)
+    if (!show) continue;
+    // The PF look everywhere: no hands, the rod's tip holds it. (The white
+    // hand stays placed, invisibly, as the grip point.)
     arm.hand.visible = arm.wrist.visible = arm.cuff.visible = arm.sleeve.visible = false;
     arm.rod.visible = true;
     stretchBetween(arm.rod, STREAK_SHOULDER[i], streakRodTip(arm, anchor, style, i));
   }
 }
 
-/* Where a gloves-off rod ends. On the tablet the palm centre sits outside
+/* Where a streak arm's rod ends. On the tablet the palm centre sits outside
    the edge, so the rod goes to the edge itself, low on the side; elsewhere
    (and once a hand has let go) the placed hand is the spot. */
 const STREAK_ROD_TIP = { side: new THREE.Vector3(0.006, -0.05, -0.004) };
@@ -15192,7 +15156,7 @@ function syncLocalDrink(show) {
 }
 
 /* Our first-person hand's drink, placed on the right streak-arm hand (its
-   transform, not its child: with gloves on that hand is hidden). */
+   transform, not its child: the hand itself is hidden). */
 function syncFpDrink(show) {
   const kind = show && bar.drink ? bar.drink.kind : null;
   if ((bar.fp?.userData.kind || null) !== kind) {
@@ -15262,7 +15226,6 @@ function socialArmsFrame() {
 
 const _emoteRodTip = new THREE.Vector3();
 function updateFpEmoteView() {
-  syncFpWatches();   // cheap when nothing changed; waits for the gloves' first pose
   const f = fpEmoteFrame() || (socialUnarmed() && player.alive ? socialArmsFrame() : null);
   if (!f) {
     if (fpEmoteArmsOn) { hideStreakArms(); fpEmoteArmsOn = false; }
@@ -15272,11 +15235,11 @@ function updateFpEmoteView() {
   }
   inspectArms.visible = false;
   if (activeMeleeMesh) activeMeleeMesh.visible = false;
-  // The gun is put away: so are the arms that hold it (PF rods or gloves),
-  // or they hang in view as a second pair beside the emote hands.
+  // The gun is put away: so are the rods that hold it, or they hang in view
+  // as a second pair beside the emote's.
   // Socialize has no gun to do a trick with: the hands act it out alone.
   const gun = !socialUnarmed() && f.gun;
-  if (!gun) { pfArms.visible = false; gloveRig.visible = false; }
+  if (!gun) pfArms.visible = false;
   if (activeWeaponMesh) {
     activeWeaponMesh.visible = !!gun && player.holding === "gun";
     if (gun) {
@@ -15290,8 +15253,8 @@ function updateFpEmoteView() {
   const props = emoteKind() === "fp" ? EMOTES[emote.idx].fpProps : null;
   if (props) {
     props(streakArms, streakArms.userData.arms[0].hand, streakArms.userData.arms[1].hand, emote.t);
-    // Gloves off, the rods have no hand to wrap round it: each ends with its
-    // tip just touching the prop, coming in from outside (user: "the end of
+    // The rods have no hand to wrap round it: each ends with its tip just
+    // touching the prop, coming in from outside (user: "the end of
     // the arm should slightly touch the cup but the arm shouldnt be seen
     // being inside of the cup").
     streakArms.userData.arms.forEach((arm, i) => {
@@ -15310,18 +15273,14 @@ function poseFreeArms(f) {
   const arms = streakArms.userData.arms;
   ["R", "L"].forEach((k, i) => {
     const arm = arms[i], h = f[k];
-    arm.rod.visible = false;
-    arm.hand.visible = arm.wrist.visible = arm.cuff.visible = arm.sleeve.visible = !!h;
-    if (!h) { dressStreakArm(arm, i, false); return; }
+    // The black rods act the emote out, no fingers at all (user: "it makes it
+    // even funnier"). The white hand stays placed, unseen, as the point the
+    // rod reaches for and the frame anything held in it hangs off.
+    arm.hand.visible = arm.wrist.visible = arm.cuff.visible = arm.sleeve.visible = false;
+    arm.rod.visible = !!h;
+    if (!h) return;
     arm.hand.position.set(h.pos[0], h.pos[1], h.pos[2]);
     arm.hand.rotation.set(h.rot[0], h.rot[1], h.rot[2], "YXZ");
-    poseHumanHand(arm.hand, h.pose);
-    if (dressStreakArm(arm, i, true, h.pose)) return;
-    // Gloves off: the black rods act the emote out, no fingers at all (user:
-    // "it makes it even funnier"). The white hand stays posed, unseen, as the
-    // point the rod reaches for.
-    arm.hand.visible = arm.wrist.visible = arm.cuff.visible = arm.sleeve.visible = false;
-    arm.rod.visible = true;
     stretchBetween(arm.rod, STREAK_SHOULDER[i], arm.hand.position);
   });
 }
@@ -15543,7 +15502,7 @@ function applyGunInspect(mesh, w) {
   const long = inspectT > 0 && player.holding === "gun" && isLongGunInspect(w);
   const t = long ? inspectProgress() : 0;
   const blend = long ? rise(t, 0, 0.14) * (1 - rise(t, 0.86, 1)) : 0;
-  // Gloves or rods, the arms stay on the gun through the inspect (user:
+  // The rods stay on the gun through the inspect (user:
   // no white hands anywhere; the old showcase arms are retired).
   inspectArms.visible = false;
   if (blend <= 0) return;
@@ -15631,6 +15590,39 @@ const _armFrom = new THREE.Vector3();
 const _armTo = new THREE.Vector3();
 const _armDir = new THREE.Vector3();
 const _armUp = new THREE.Vector3(0, 1, 0);
+/* Your wristwear (a Rolex, wristwear.js) in your own view: round the left
+   rod a little way back from its tip, face up. Placed just before the view
+   model draws, after every arm pose this frame, so it never trails the rod. */
+const ROD_WATCH_BACK = 0.07;       // from the rod's tip
+let rodWatch = null;
+const _rwZ = new THREE.Vector3(), _rwY = new THREE.Vector3(), _rwX = new THREE.Vector3(), _rwM = new THREE.Matrix4();
+function placeRodWatch() {
+  const id = wristOf(cosmetics.face);
+  if ((rodWatch?.userData.wristId || "") !== id) {
+    rodWatch?.parent?.remove(rodWatch);
+    rodWatch = id ? buildWatch(id, 0.0165, { envMap: weaponEnvTex }) : null;
+    rodWatch?.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
+  }
+  if (!rodWatch) return;
+  // The left rod in view: an emote's or a streak device's, else the gun's.
+  const sRod = streakArms.visible ? streakArms.userData.arms[1].rod : null;
+  const gRod = pfArms.visible ? pfArms.userData.rods[1] : null;
+  const rod = sRod?.visible ? sRod : gRod?.visible ? gRod : null;
+  rodWatch.visible = !!rod;
+  if (!rod) return;
+  if (rodWatch.parent !== rod.parent) rod.parent.add(rodWatch);
+  // A rod stands on its shoulder end along its +Y, scale.y long (stretchBetween).
+  _rwZ.set(0, 1, 0).applyQuaternion(rod.quaternion);
+  rodWatch.position.copy(rod.position).addScaledVector(_rwZ, Math.max(0, rod.scale.y - ROD_WATCH_BACK));
+  // The band round the rod (the watch's Z back along it), the face up.
+  _rwZ.negate();
+  _rwY.set(0, 1, 0).addScaledVector(_rwZ, -_rwZ.y);
+  if (_rwY.lengthSq() < 1e-6) _rwY.set(0, 0, 1);
+  _rwY.normalize();
+  _rwX.crossVectors(_rwY, _rwZ);
+  rodWatch.quaternion.setFromRotationMatrix(_rwM.makeBasis(_rwX, _rwY, _rwZ));
+}
+
 function stretchBetween(obj, from, to) {
   _armDir.subVectors(to, from);
   const len = _armDir.length();
@@ -15674,7 +15666,10 @@ function poseInspectArms(mesh, side) {
    under the handguard (or on the magazine while reloading). Unlit black, so
    they read as silhouettes and never sit on the skin art the way the block
    hands did. The built hand meshes stay hidden; they're only the anchors. */
-const PF_ARM_SHOULDER = [new THREE.Vector3(0.36, -0.66, 0.02), new THREE.Vector3(-0.06, -0.7, -0.06)];
+// Out and back toward the real shoulders, so each rod runs in from a
+// bottom corner of the screen and a good length of arm shows (user: "make
+// the rod arms longer").
+const PF_ARM_SHOULDER = [new THREE.Vector3(0.44, -0.74, 0.16), new THREE.Vector3(-0.32, -0.78, 0.12)];
 const PF_SUPPORT_DROP = 0.085;   // from the rail-top support anchor to under the handguard
 const pfArms = (() => {
   const root = new THREE.Group();
@@ -15696,108 +15691,6 @@ const pfArms = (() => {
 })();
 weaponRig.add(pfArms);
 
-/* Tactical gloves (glove-model.js): once they've loaded they replace the
-   black rods: the right glove wraps the pistol grip with the index on the
-   trigger, the left cups the handguard from below (or fists a vertical
-   foregrip: mesh.userData.supportStyle), and each wears a jacket sleeve
-   running off screen to the same shoulder points the rods used. */
-const gloveRig = new THREE.Group();
-gloveRig.visible = false;
-weaponRig.add(gloveRig);
-let gloves = null;
-/* Settings → Gloves. Off is the Phantom Forces look from before: black rod
-   arms, the old hip framing, the white showcase arms on inspect. */
-const glovesOn = () => !!gloves && settings.gloves !== false;
-Promise.all([buildGlove(1, weaponEnvTex), buildGlove(-1, weaponEnvTex)]).then((g) => {
-  if (!g[0] || !g[1]) return;
-  gloves = g;
-  for (const h of g) gloveRig.add(h.root, h.sleeve);
-  syncFpWatches();
-});
-
-/* The glove's wrist: a short forearm in sleeve fabric from the cuff back
-   toward the elbow, filling the gap the sleeve left between itself and the
-   glove (user: "the empty gap between the wrist and arm should be filled
-   and then that's where you wear the rolex"), and your wristwear (a Rolex,
-   wristwear.js) on it, left hand only. Sized to the glove's cuff, measured
-   once in the glove's frame (wrist +Z, back of the hand +Y) after its first
-   pose: before that the baked mesh is still in the export's bind units. */
-const FOREARM_LEN = 0.11, WATCH_Z = 0.05;
-const forearmMat = new THREE.MeshStandardMaterial({ color: 0x0f110e, roughness: 0.92, metalness: 0 });
-const _fwInv = new THREE.Matrix4(), _fwV = new THREE.Vector3();
-function measureCuff(g) {
-  const root = g.root;
-  if (root.userData.cuff) return root.userData.cuff;
-  root.updateMatrixWorld(true);
-  _fwInv.copy(root.matrixWorld).invert();
-  const box = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
-  root.traverse((o) => {
-    if (!o.isMesh || o.isSkinnedMesh || o.userData.wristPart || !o.geometry?.attributes.position) return;
-    const p = o.geometry.attributes.position;
-    for (let i = 0; i < p.count; i++) {
-      _fwV.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld).applyMatrix4(_fwInv);
-      if (_fwV.z < 0.004 || _fwV.z > 0.03) continue;
-      box.x0 = Math.min(box.x0, _fwV.x); box.x1 = Math.max(box.x1, _fwV.x);
-      box.y0 = Math.min(box.y0, _fwV.y); box.y1 = Math.max(box.y1, _fwV.y);
-    }
-  });
-  if (!Number.isFinite(box.x0)) return null;
-  return (root.userData.cuff = { cx: (box.x0 + box.x1) / 2, cy: (box.y0 + box.y1) / 2, rx: (box.x1 - box.x0) / 2, ry: (box.y1 - box.y0) / 2 });
-}
-function dressGloveWrist(g, id) {
-  if (!g.pose) return;   // not posed yet: next frame
-  const root = g.root, c = measureCuff(g);
-  if (!c) return;
-  if (!root.userData.forearm) {
-    // a slightly flared tube, a touch inside the cuff at the wrist end
-    const geo = new THREE.CylinderGeometry(1.1, 0.94, 1, 20, 1, true);
-    geo.rotateX(Math.PI / 2);   // +Y (the flared end) toward +Z, the elbow
-    const arm = new THREE.Mesh(geo, forearmMat);
-    arm.scale.set(c.rx, c.ry, FOREARM_LEN);
-    arm.position.set(c.cx, c.cy, 0.008 + FOREARM_LEN / 2);
-    arm.frustumCulled = false;
-    arm.userData.wristPart = true;
-    root.add(arm);
-    root.userData.forearm = arm;
-  }
-  if (g.side > 0) return;   // the watch is a left-wrist thing
-  if ((root.userData.watch?.userData.wristId || "") === id) return;
-  if (root.userData.watch) { root.remove(root.userData.watch); root.userData.watch = null; }
-  if (!id) return;
-  // the forearm's radius where the watch sits, plus a hair for the band
-  const k = (0.94 + (1.1 - 0.94) * ((WATCH_Z - 0.008) / FOREARM_LEN)) * 1.03;
-  const watch = buildWatch(id, c.rx * k, { ry: c.ry * k, envMap: weaponEnvTex });
-  watch.position.set(c.cx, c.cy, WATCH_Z);
-  watch.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; o.userData.wristPart = true; } });
-  root.add(watch);
-  root.userData.watch = watch;
-}
-function syncFpWatches() {
-  const id = wristOf(cosmetics.face);
-  for (const g of [...(gloves || []), ...(streakGloves || [])]) if (g) dressGloveWrist(g, id);
-}
-const basisQ =(x, y, z) => new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(
-  new THREE.Vector3(...x), new THREE.Vector3(...y), new THREE.Vector3(...z)));
-// Hand frames in the gun's frame (hand: fingers -Z, back +Y, thumb -X on
-// the right hand; the mirrored left hand's thumb is on +X).
-const GLOVE_GRIP_Q = basisQ([0, -1, 0], [1, 0, 0], [0, 0, 1]);      // right: back of hand out right, thumb up the grip
-const GLOVE_SUPPORT_Q = basisQ([0, 0, -1], [0, -1, 0], [-1, 0, 0]); // left: palm up under the handguard, thumb forward
-const GLOVE_FOREGRIP_Q = basisQ([0, 1, 0], [-1, 0, 0], [0, 0, 1]);  // left: fist round a vertical grip, thumb up
-// Left, C-clamp on the handguard's side: back of the hand out toward the
-// camera, fingers forward and a little up, thumb over the top, wrist back
-// and down (a hand cupped underneath is invisible from a first-person eye).
-const GLOVE_CCLAMP_Q = basisQ([0, 0.92, 0.4], [-1, 0, 0], [0, -0.4, 0.92]);
-const GLOVE_CCLAMP_OFF = new THREE.Vector3(-0.034, 0.028, 0.04);
-const GLOVE_GRIP_OFF = new THREE.Vector3(0.03, -0.012, 0.006);      // palm centre from the grip anchor, in its frame
-const GLOVE_SUPPORT_OFF = new THREE.Vector3(0, -0.014, 0.004);
-const GLOVE_FOREGRIP_OFF = new THREE.Vector3(-0.03, 0.0, 0.004);
-const GLOVE_SLEEVE_LEN = 0.37;
-const _gloveQ = new THREE.Quaternion();
-const _gloveOff = new THREE.Vector3();
-const _gloveDir = new THREE.Vector3();
-const _gloveZ = new THREE.Vector3(0, 0, 1);
-const _gloveRigQ = new THREE.Quaternion();
-
 /* A forward grip on the gun (an underbarrel vert or angled grip, tagged
    userData.foregrip in attachment-models.js): the left hand fists it.
    Cached per built mesh. */
@@ -15810,177 +15703,55 @@ function foregripOf(mesh) {
   return mesh.userData._foregrip;
 }
 
-function placeGlove(g, i, mesh, anchor, tip, sidearm, magBlend = 0) {
-  // During a mag swap the left hand holds the mag (palm under it). Else the
-  // left hand is on the foregrip if there is one, or cupped under the
-  // handguard (user: "underneath the gun or on the grip if there is a grip").
-  const style = i === 0 ? "grip" : sidearm || magBlend > 0.35 ? "support"
-    : (mesh.userData.supportStyle || (foregripOf(mesh) ? "foregrip" : "support"));
-  if (style === "grip") {
-    anchor.getWorldQuaternion(_gloveQ);
-    g.root.quaternion.copy(_gloveQ).multiply(GLOVE_GRIP_Q);
-    _gloveOff.copy(GLOVE_GRIP_OFF).applyQuaternion(_gloveQ);
-    poseGlove(g, "trigger");
-  } else if (style === "cclamp") {
-    g.root.quaternion.copy(mesh.quaternion).multiply(GLOVE_CCLAMP_Q);
-    _gloveOff.copy(GLOVE_CCLAMP_OFF).applyQuaternion(mesh.quaternion);
-    poseGlove(g, "support");
-  } else if (style === "foregrip") {
-    g.root.quaternion.copy(mesh.quaternion).multiply(GLOVE_FOREGRIP_Q);
-    _gloveOff.copy(GLOVE_FOREGRIP_OFF).applyQuaternion(mesh.quaternion);
-    poseGlove(g, "foregrip");
-  } else {
-    g.root.quaternion.copy(mesh.quaternion).multiply(GLOVE_SUPPORT_Q);
-    _gloveOff.copy(GLOVE_SUPPORT_OFF).applyQuaternion(mesh.quaternion);
-    poseGlove(g, "support");
-  }
-  finishGlove(g, i, tip);
-}
-
-/* The glove at `tip` + _gloveOff (world space, root quaternion already set
-   in world space), brought into gloveRig's frame, with its sleeve run to
-   the shoulder. */
-function finishGlove(g, i, tip, shoulder = PF_ARM_SHOULDER[i]) {
-  // Anchors are read in world space; the gloves live under gloveRig, so
-  // bring the pose into its frame (identity in play, not in debug shots).
-  g.root.position.copy(tip).add(_gloveOff);
-  gloveRig.updateMatrixWorld();
-  gloveRig.worldToLocal(g.root.position);
-  g.root.quaternion.premultiply(gloveRig.getWorldQuaternion(_gloveRigQ).invert());
-  layGloveSleeve(g, shoulder);
-}
-
-/* Sleeve: from the wrist to the shoulder, stretched only if it has to be. */
-function layGloveSleeve(g, shoulder) {
-  const wrist = gloveWrist(g);
-  _gloveDir.subVectors(shoulder, wrist);
-  const len = _gloveDir.length();
-  g.sleeve.position.copy(wrist);
-  g.sleeve.quaternion.setFromUnitVectors(_gloveZ, _gloveDir.multiplyScalar(1 / Math.max(1e-5, len)));
-  g.sleeve.scale.set(1, 1, Math.max(1, len / GLOVE_SLEEVE_LEN));
-}
-
-/* Trollsaber: held like a saber, two fists round the hilt, right hand up
-   by the clamp, left down by the pommel. Each hand's frame is built from
-   the hilt axis and the way to its shoulder, so the fists stay wrapped on
-   and the forearms run back to the body through every swing and the
-   guard. Gloves off: the black rods run to the same two spots. */
+/* Trollsaber: held like a saber, the rods to two spots on the hilt, the
+   right up by the clamp, the left down by the pommel. */
 let saberArmsOn = false;
 let saberArmsWere = false;
 const SABER_HAND_Z = [0.045, 0.104];                 // along the hilt (gear.js grip at 0)
-const SABER_GLOVE_OFF = [new THREE.Vector3(0.036, -0.010, 0.006), new THREE.Vector3(-0.036, 0.0, 0.006)];
 const _saP = new THREE.Vector3();
-const _saA = new THREE.Vector3();
-const _saT = new THREE.Vector3();
-const _saX = new THREE.Vector3();
-const _saQ = new THREE.Quaternion();
-const _saM = new THREE.Matrix4();
 function poseSaberArms(mesh) {
-  const gl = glovesOn();
-  pfArms.visible = !gl;
-  gloveRig.visible = gl;
-  showBothGloves();
+  pfArms.visible = true;
   mesh.updateMatrixWorld(true);
-  mesh.getWorldQuaternion(_saQ);
-  _saA.set(0, 0, -1).applyQuaternion(_saQ);          // up the blade
   const rods = pfArms.userData.rods;
   for (let i = 0; i < 2; i++) {
     _saP.set(0, 0, SABER_HAND_Z[i]);
     mesh.localToWorld(_saP);
-    if (!gl) {
-      rods[i].visible = true;
-      stretchBetween(rods[i], PF_ARM_SHOULDER[i], _saP);
-      continue;
-    }
-    // wrist side (the gun frame's +Z) toward the shoulder, square to the hilt
-    _saT.subVectors(PF_ARM_SHOULDER[i], _saP);
-    _saT.addScaledVector(_saA, -_saA.dot(_saT)).normalize();
-    _saX.crossVectors(_saA, _saT);
-    _saM.makeBasis(_saX, _saA, _saT);
-    const g = gloves[i];
-    g.root.quaternion.setFromRotationMatrix(_saM);
-    _gloveOff.copy(SABER_GLOVE_OFF[i]).applyQuaternion(g.root.quaternion);
-    g.root.quaternion.multiply(i === 0 ? GLOVE_GRIP_Q : GLOVE_FOREGRIP_Q);
-    poseGlove(g, "foregrip");
-    finishGlove(g, i, _saP);
+    rods[i].visible = true;
+    stretchBetween(rods[i], PF_ARM_SHOULDER[i], _saP);
   }
 }
 
 /* The other melee weapons (Keyboard Warrior, Chainsaw, Reaper's Grin): their
    built block hands stay as invisible grip points (they still get tossed
-   and caught by the keyboard's inspect, so the arms follow), and the gloves
-   or the black rods take them, fists wrapped round each hand's grip axis
-   (userData.gripAxis in the hand's own frame, default its -Z). A one-handed
-   weapon's other arm stays down. */
-const _meleeAxisDefault = new THREE.Vector3(0, 0, -1);
+   and caught by the keyboard's inspect, so the arms follow), and the rods
+   reach them. A one-handed weapon's other arm stays down. */
 function poseMeleeArms(mesh) {
-  const gl = glovesOn();
-  pfArms.visible = !gl;
-  gloveRig.visible = gl;
-  showBothGloves();
+  pfArms.visible = true;
   mesh.updateMatrixWorld(true);
   const hands = meleeHands(mesh);
   const rods = pfArms.userData.rods;
   for (let i = 0; i < 2; i++) {
     const h = hands[i]?.obj;
-    if (h) h.visible = false;
-    if (!h) {
-      rods[i].visible = false;
-      if (gloves) gloves[i].root.visible = gloves[i].sleeve.visible = false;
-      continue;
-    }
+    rods[i].visible = !!h;
+    if (!h) continue;
+    h.visible = false;
     h.updateMatrixWorld(true);
     h.getWorldPosition(_saP);
-    h.getWorldQuaternion(_saQ);
-    _saA.copy(h.userData.gripAxis || _meleeAxisDefault).applyQuaternion(_saQ).normalize();
-    if (!gl) {
-      rods[i].visible = true;
-      stretchBetween(rods[i], PF_ARM_SHOULDER[i], _saP);
-      continue;
-    }
-    _saT.subVectors(PF_ARM_SHOULDER[i], _saP);
-    _saT.addScaledVector(_saA, -_saA.dot(_saT)).normalize();
-    _saX.crossVectors(_saA, _saT);
-    _saM.makeBasis(_saX, _saA, _saT);
-    const g = gloves[i];
-    g.root.quaternion.setFromRotationMatrix(_saM);
-    _gloveOff.copy(SABER_GLOVE_OFF[i]).applyQuaternion(g.root.quaternion);
-    g.root.quaternion.multiply(i === 0 ? GLOVE_GRIP_Q : GLOVE_FOREGRIP_Q);
-    poseGlove(g, "foregrip");
-    finishGlove(g, i, _saP);
+    stretchBetween(rods[i], PF_ARM_SHOULDER[i], _saP);
   }
 }
 
-/* A one-handed melee weapon hides a glove; everything else wants both. */
-function showBothGloves() {
-  if (!gloves) return;
-  for (const g of gloves) g.root.visible = g.sleeve.visible = true;
-}
-
 /* The Peacemakers: a gun in each hand, so each arm comes up from its own
-   shoulder to its own grip, and the left glove holds its gun the mirror of
-   the right (thumb up the grip on the other side). The anchors belong to
-   the hands, not the guns, so a twirl spins the gun and not the arm. */
+   shoulder to its own grip. The anchors belong to the hands, not the guns,
+   so a twirl spins the gun and not the arm. */
 const AKIMBO_SHOULDER = [new THREE.Vector3(0.34, -0.66, 0.04), new THREE.Vector3(-0.34, -0.66, 0.04)];
-const GLOVE_GRIP_L_Q = basisQ([0, 1, 0], [-1, 0, 0], [0, 0, 1]);
-const GLOVE_GRIP_OFF_L = new THREE.Vector3(-0.03, -0.012, 0.006);
-function poseAkimboArms(mesh, gl) {
+function poseAkimboArms(mesh) {
   const rods = pfArms.userData.rods;
   const hands = mesh.userData.akimboHands;
   for (let i = 0; i < 2; i++) {
-    const a = hands[i];
-    a.getWorldPosition(_pfTip);
-    if (!gl) {
-      rods[i].visible = true;
-      stretchBetween(rods[i], AKIMBO_SHOULDER[i], _pfTip);
-      continue;
-    }
-    const g = gloves[i];
-    a.getWorldQuaternion(_gloveQ);
-    g.root.quaternion.copy(_gloveQ).multiply(i ? GLOVE_GRIP_L_Q : GLOVE_GRIP_Q);
-    _gloveOff.copy(i ? GLOVE_GRIP_OFF_L : GLOVE_GRIP_OFF).applyQuaternion(_gloveQ);
-    poseGlove(g, "trigger");
-    finishGlove(g, i, _pfTip, AKIMBO_SHOULDER[i]);
+    hands[i].getWorldPosition(_pfTip);
+    rods[i].visible = true;
+    stretchBetween(rods[i], AKIMBO_SHOULDER[i], _pfTip);
   }
 }
 
@@ -15992,13 +15763,10 @@ const _pfDown = new THREE.Vector3();
 function posePfArms(mesh, magBlend = 0) {
   if (saberArmsOn) return;   // the Trollsaber has the arms (poseSaberArms)
   const show = !!mesh?.visible && !inspectArms.visible && player.holding === "gun";
-  const gl = glovesOn();
-  pfArms.visible = show && !gl;
-  gloveRig.visible = show && gl;
+  pfArms.visible = show;
   if (!show) return;
-  showBothGloves();
   mesh.updateMatrixWorld(true);
-  if (mesh.userData.akimbo) { poseAkimboArms(mesh, gl); return; }
+  if (mesh.userData.akimbo) { poseAkimboArms(mesh); return; }
   // [grip, support]: the support hand is the one parked at supportHandPos
   // (build order differs between weapon-model.js and weapon-416.js).
   let anchors = mesh.userData.pfAnchors;
@@ -16027,10 +15795,8 @@ function posePfArms(mesh, magBlend = 0) {
         _pfTip.lerp(_pfMag, magBlend);
       }
     }
-    if (gl) placeGlove(gloves[i], i, mesh, anchor, _pfTip, !anchors[1], i === 1 ? magBlend : 0);
-    else stretchBetween(rods[i], PF_ARM_SHOULDER[i], _pfTip);
+    stretchBetween(rods[i], PF_ARM_SHOULDER[i], _pfTip);
   }
-  if (gl && !anchors[0]) gloveRig.visible = false;
 }
 
 /* Keyboard Warrior toss. Beats (t):
@@ -16672,8 +16438,8 @@ function updateWeaponView(dt) {
   // don't fight the device pose for ownership of activeWeaponMesh (which is
   // simply hidden, not touched, while holding === "streak").
   if (!saberArmsOn) pfArms.visible = false;   // posePfArms below re-shows them on a held gun
-  // The streak device has its own arms (streakArms): the gun's gloves go.
-  if (player.holding === "streak") { gloveRig.visible = false; pfArms.visible = false; return; }
+  // The streak device has its own arms (streakArms): the gun's rods go.
+  if (player.holding === "streak") { pfArms.visible = false; return; }
   if (!mesh) return;
 
   // Aiming plants the sight: bob and idle sway fall away as the weapon
@@ -16708,9 +16474,9 @@ function updateWeaponView(dt) {
   // and the sprint roll above, not new per-weapon data.
   const adsLambda = w.def.model?.heavy ? 10 : (w.def.inertia ?? 8) * 1.6;
   adsSmoothT = damp(adsSmoothT, adsOffset, adsLambda, dt);
-  // With the gloves on, the gun rides a little higher and closer so the
-  // hands on it are in view (CoD-style framing); the rods sat off screen.
-  const hipPos = glovesOn() ? new THREE.Vector3(0.2, -0.165, -0.5) : new THREE.Vector3(0.22, -0.2, -0.55);
+  // The gun rides high and close enough that the rods holding it are in
+  // view (CoD-style framing).
+  const hipPos = new THREE.Vector3(0.2, -0.165, -0.5);
   if (mesh.userData.hipOffset) hipPos.add(mesh.userData.hipOffset);
   const aimPoint = mesh.userData.aimPoint || new THREE.Vector3(0, 0, -0.4);
   // Where the sight sits in front of the weapon camera. Tube optics ask to
@@ -16832,7 +16598,7 @@ if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && /[?&]hitbox=
    is. Behind ?tohooks=1 so normal play never exposes it. */
 if (/[?&]tohooks=1/.test(location.search)) {
   window.__trollOps = {
-    renderer, scene, colliders, streakArms, streakGloves: () => streakGloves, glovesOn,
+    renderer, scene, colliders, streakArms,
     els, net, player, move, look, bots, remotes, loadout, djLulz, music, builtMap: () => builtMap, modeId: () => modeId, spawner: () => spawner,
     chat, renderScoreboard, renderLobbyRoster, renderMenuRoster,
     settings, radialStick, padLookTurn, hitboxLab: () => hitboxLab, localRig, toggleThirdPerson, charInspector, inspector, emoteWheel, menuEmoteWheel, lookSensScale, botEarn, botStreakState, botStreakLog, uavActiveFor, vsatActiveFor, findAimAssistTarget, emote: () => emote,
@@ -16912,7 +16678,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     }),
     rpSeats: () => rpSeats(), seatTaken, sitDown, standUp, docSpots: () => docSpots(),
     townNpcs: () => townNpcs,
-    gloves: () => gloves, gloveRig: () => gloveRig, weaponRig: () => weaponRig,
+    weaponRig: () => weaponRig,
     candleState: () => { const w = currentWeapon(); return { charging: w.charging, level: w.chargeLevel, ammo: w.ammoInMag, reserve: w.ammoReserve, reloading: w.reloading }; },
     hellfire, hellfireView,
     meleeImpactT: () => meleeImpactT, meleeWhiffT: () => meleeWhiffT, sawShake: () => sawShake, sawInspectRev: () => sawInspectRev,

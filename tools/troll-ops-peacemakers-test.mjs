@@ -2,7 +2,7 @@
 // shots alternate right/left and turn that gun's cylinder, aim fans the
 // hammers (faster, no scope-in), the reload empties both cylinders and
 // refills twelve, and the inspect runs its length. Screenshots of the hip
-// pose, reload beats and inspect beats go to OUT (gloves on, then off).
+// pose, reload beats and inspect beats go to OUT (the rod arms).
 //
 // Usage: NODE_PATH=<main checkout>/node_modules OUT=<dir> node tools/troll-ops-peacemakers-test.mjs
 
@@ -69,9 +69,8 @@ const info = await page.evaluate(() => {
 });
 check("Peacemakers in hand as one akimbo pair", info.id === "peacemakers" && info.akimbo && info.sides === 2 && info.hands === 2 && info.grip && info.gripL, JSON.stringify(info));
 
-for (const gloves of [true, false]) {
-  const tag = gloves ? "gloves" : "rods";
-  await page.evaluate((g) => { window.__trollOps.settings.gloves = g; }, gloves);
+{
+  const tag = "rods";
   await sleep(400);
   await shot(page, `${tag}-0-hip.png`);
 
@@ -87,8 +86,8 @@ for (const gloves of [true, false]) {
     }
     return { sides, ammo: w.ammoInMag, idx: w._ak?.index.slice() };
   });
-  if (gloves) check("shots alternate right then left", fire.sides[0] === 0 && fire.sides[1] === 1, JSON.stringify(fire));
-  if (gloves) check("each shot turns its own cylinder", fire.idx?.[0] === 1 && fire.idx?.[1] === 1, JSON.stringify(fire.idx));
+  check("shots alternate right then left", fire.sides[0] === 0 && fire.sides[1] === 1, JSON.stringify(fire));
+  check("each shot turns its own cylinder", fire.idx?.[0] === 1 && fire.idx?.[1] === 1, JSON.stringify(fire.idx));
   await shot(page, `${tag}-1-fired.png`);
   await sleep(500);
 
@@ -97,7 +96,7 @@ for (const gloves of [true, false]) {
   const total = await page.evaluate(() => window.__trollOps.currentWeapon().reloadTime);
   for (const [t, name] of [[0.15, "out"], [0.3, "eject"], [0.48, "loading"], [0.6, "loaded"], [0.72, "shut"], [0.88, "twirl"]]) {
     await page.evaluate((r) => { const w = window.__trollOps.currentWeapon(); w.reloadT = w.reloadTime * (1 - r); }, t);
-    await sleep(gloves ? 120 : 60);
+    await sleep(120);
     await page.evaluate((r) => { const w = window.__trollOps.currentWeapon(); w.reloadT = w.reloadTime * (1 - r); }, t);
     await sleep(30);
     await shot(page, `${tag}-2-reload-${Math.round(t * 100)}-${name}.png`);
@@ -105,16 +104,16 @@ for (const gloves of [true, false]) {
   await page.evaluate(() => { const w = window.__trollOps.currentWeapon(); w.reloadT = 0.001; });
   await sleep(300);
   const after = await page.evaluate(() => ({ ammo: window.__trollOps.currentWeapon().ammoInMag, reloading: window.__trollOps.currentWeapon().reloading }));
-  if (gloves) check("reload fills both cylinders (12)", after.ammo === 12 && !after.reloading, JSON.stringify(after) + ` reloadTime ${total}`);
+  check("reload fills both cylinders (12)", after.ammo === 12 && !after.reloading, JSON.stringify(after) + ` reloadTime ${total}`);
 
   // the inspect, frozen at its beats
   await page.evaluate(() => window.__trollOps.startInspect());
   await sleep(100);
   const insp = await page.evaluate(() => window.__trollOps.inspectT());
-  if (gloves) check("inspect starts with its own length", insp > 3.2, String(insp));
+  check("inspect starts with its own length", insp > 3.2, String(insp));
   for (const [t, name] of [[0.12, "twirl"], [0.4, "crossed"], [0.5, "blow"], [0.68, "toss"], [0.9, "holster"]]) {
     await page.evaluate((v) => window.__trollOps.setInspectFreeze(v), t);
-    await sleep(gloves ? 250 : 120);
+    await sleep(250);
     await shot(page, `${tag}-3-inspect-${Math.round(t * 100)}-${name}.png`);
   }
   await page.evaluate(() => window.__trollOps.setInspectFreeze(null));

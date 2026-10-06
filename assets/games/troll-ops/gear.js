@@ -203,7 +203,7 @@ const THRUST_TRACK = gripTrack(0.46, [
 const THRUST_WINDOW = { open: 0.20, close: 0.32 };
 
 /* ---- Trollsaber: held like a saber ----------------------------------
-   Two hands on the hilt (game.js puts the gloves on it), hilt low and
+   Two hands on the hilt (game.js runs the rods to it), hilt low and
    central, blade up and across the view to the left: a mid guard. Its
    attacks are two-handed diagonal slashes, alternating a downward cut
    (high right to low left) with a rising backhand, instead of the
@@ -447,7 +447,7 @@ export function buildMeleeMesh(def, includeHands = true, { held3p = false } = {}
   if (m.kind === "saber") {
     // The in-match view model starts dark and ignites when drawn; menus and
     // other players' hands show it lit. No block hands: game.js wraps the
-    // real arms (gloves, or the black rods) round the hilt, two-handed.
+    // black rod arms on the hilt, two-handed.
     return buildTrollsaber({ lit: !includeHands });
   }
 

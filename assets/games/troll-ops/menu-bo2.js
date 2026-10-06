@@ -22,7 +22,7 @@ import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withCl
 import { renderCard, myCardData, openProfileCard } from "./profile-card.js?v=pc1-wst-sb2";
 import { FINISHES } from "./skins.js?v=p5";
 import { MAPS, REWARD_MAPS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2";
-import { setMapShot } from "./map-load-screen.js?v=ml3-wst-tl1";
+import { setMapShot } from "./map-load-screen.js?v=ml3-wst-tl1-ng1";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
    calling cards, the gold gun and the private-match maps. */
@@ -597,7 +597,6 @@ const screens = {
       [
         checkRow("to-set-invert-lobby", "Invert look", "Flip up and down."),
         checkRow("to-set-minimap-lobby", "Minimap", "The radar in the corner."),
-        checkRow("to-set-gloves-lobby", "Gloves", "Off shows the black arms."),
         checkRow("to-set-aimassist-lobby", "Aim assist", "Controller only."),
         selectRow("to-set-botskill", "Bot skill", "Veteran bots give +10% XP."),
         checkRow("to-set-viewmode-lobby", "View mode", "Just look at the maps, no fighting."),

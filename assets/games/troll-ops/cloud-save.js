@@ -25,7 +25,7 @@ const GAME_ID = "troll-forces";
 export const SYNCED_KEYS = [
   "trollops:loadout",              // guns, attachments, finishes, melee, throwables
   "trollops:streaks",              // scorestreak picks
-  "trollops:settings",             // sensitivity, FOV, volume, gloves... (not gfx: see below)
+  "trollops:settings",             // sensitivity, FOV, volume... (not gfx: see below)
   "trollops.hudLayout.touch.v1",   // the phone HUD you dragged about
   "trollops.hudLayout.desk.v1",
   "trollops:padEmote",

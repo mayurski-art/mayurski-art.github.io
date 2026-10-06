@@ -260,17 +260,16 @@ const _hw = new THREE.Vector3(), _mw = new THREE.Vector3(), _a = new THREE.Vecto
 const _off = new THREE.Vector3(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _up = new THREE.Vector3(0, 1, 0);
 const _rootQ = new THREE.Quaternion(), _m = new THREE.Matrix4();
 
-/* Round grips, fitted to the glove model (glove-model.js) so the fingers
-   and palm lie on the prop's surface, wrapped about 130-150 degrees round
-   it, with under 1.5 mm of overlap anywhere on the glove, thumb included (user: "make sure theres no obvious
-   collisions ... the items should be held correctly"). In the hand's own
-   frame (palm -Y, fingers -Z, the prop standing along X): the prop's axis
-   passes through (y, z), and the hand sits `h` up the prop, where its
-   radius matches the grip (the cup's outer wall, the bottle's body). `pose` is the matching hand shape (emotes.js
-   FP_HAND_POSES). */
+/* Where a held prop sits off the (hidden) hand a rod reaches for, in the
+   hand's own frame (palm -Y, fingers -Z, the prop standing along X): the
+   prop's axis passes through (y, z), the hand `h` up the prop, where the
+   prop's radius is `r` (the cup's outer wall, the bottle's body). Fitted
+   on a real hand's grip back when the game had gloves, so a prop sits
+   where a hand would really hold it; the rod's tip touches it there
+   (rodTip). */
 export const GRIP = {
-  cup: { y: -0.05, z: -0.024, h: 0.072, r: 0.0385, pose: "cupgrip" },
-  bottle: { y: -0.043, z: -0.018, h: 0.085, r: 0.0325, pose: "bottlegrip" },
+  cup: { y: -0.05, z: -0.024, h: 0.072, r: 0.0385 },
+  bottle: { y: -0.043, z: -0.018, h: 0.085, r: 0.0325 },
 };
 const _ax = new THREE.Vector3();
 const ROD_TIP = 0.0065;
@@ -286,7 +285,7 @@ function rodCuts(obj, a, b, fit, s) {
     if (r0 > 0 && Math.hypot(_rc.x, _rc.z) < r0) return true;
   }
   return false;
-}   // the gloves-off rod's tip radius (game.js streakArms)
+}   // the rod's tip radius (game.js streakArms)
 /* A prop in a first-person hand: its axis through the grip, up the hand's
    ∓X (the arm frames turn the hand palm-inward, so that's up). */
 function gripPlace(obj, hand, side, fit) {
@@ -333,7 +332,7 @@ export class LeanKit {
     this.finish(s, t, handL, null);
   }
 
-  /* Gloves off, the arms are bare rods with no hand (game.js): where a
+  /* The arms are bare rods with no hand (game.js): where a
      rod from `from` (its shoulder) should end so its tip just touches the
      prop (right: the cup, left: the bottle) at the grip, on the side where
      the hand would be (`hand`: that hand's position) so you see it touch.
@@ -461,8 +460,7 @@ export class LeanKit {
       const restY = Math.max(u.floor + 0.009 + (i % 2) * 0.012, u.top - 0.006 + Math.sin(t * 3 + i) * 0.0015);
       _b.set(Math.cos(a) * ring, restY, Math.sin(a) * ring);
       // In the fist: just under the hand, bunched together.
-      // first person: a 2x2 heap resting on the open palm (measured on the
-      // glove: palm surface 12 mm out, so cube centres 23 mm); a mitt: under it
+      // first person: a 2x2 heap where the open palm is; a mitt: under it
       if (below == null) handL.localToWorld(_mw.set(i % 2 ? 0.011 : -0.011, -0.023, i < 2 ? -0.024 : -0.047));
       else _mw.copy(_hw).add(_a.set((i - 1.5) * 0.008, -(i % 2) * 0.006, 0));
       cup.worldToLocal(_mw);
@@ -528,7 +526,7 @@ export function leanFp(t) {
   rp = [rp[0] + Math.cos(s.swirlA) * 0.014 * s.swirlK, rp[1], rp[2] + Math.sin(s.swirlA) * 0.014 * s.swirlK];
   rp = mix(rp, [0.03, -0.1, -0.22], s.sip);
   const look = s.look * (1 - s.sip);
-  const R = { pos: rp, rot: [0.55 * look + s.sip * 1.0, 0.08 - s.sip * 0.08, -PI / 2], pose: GRIP.cup.pose };
+  const R = { pos: rp, rot: [0.55 * look + s.sip * 1.0, 0.08 - s.sip * 0.08, -PI / 2], pose: "relaxed" };
   cupRimFp(R, _rim);
 
   // Left hand: a fist of ice over the cup, then the bottle.
@@ -553,7 +551,7 @@ export function leanFp(t) {
     const p = mix(away, mix(side, pour, s.tilt), up);
     const theta = -POUR_TILT * s.tilt;
     // The hand rolls with the bottle (palm on its side).
-    L = { pos: p, rot: [0, -0.06, PI / 2 + theta], pose: GRIP.bottle.pose };
+    L = { pos: p, rot: [0, -0.06, PI / 2 + theta], pose: "relaxed" };
   }
   return {
     R, L, gun: false,

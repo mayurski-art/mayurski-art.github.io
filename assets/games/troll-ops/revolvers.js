@@ -12,7 +12,7 @@
 // one gun. Per side the hierarchy is:
 //
 //   side  (S)  where the hand is: the reload moves the whole hand+gun
-//    ├─ hand anchor   the glove / PF rod targets it; it stays put while
+//    ├─ hand anchor   the PF rod targets it; it stays put while
 //    │                the gun twirls round the trigger finger
 //    └─ pivot (P) at the trigger: twirls, flips, recoil
 //        └─ gun (G)  the model (mirrored on the left)
