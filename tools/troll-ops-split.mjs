@@ -300,8 +300,15 @@ if (!g.includes(LINK_OPEN)) {
   const open = g.indexOf(LINK_OPEN) + LINK_OPEN.length;
   const close = g.indexOf(EOL + "});", open);
   const existing = g.slice(open, close).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  const have = new Set(existing.map((l) => (l.match(/^(?:get |set )?([\w$]+)/) || [])[1]));
-  const merged = existing.concat(linkEntries.filter((e) => !have.has(e.match(/^(?:get |set )?([\w$]+)/)[1])))
+  // One entry per name; a new entry with a setter replaces a getter-only one
+  // (an earlier move only read the name, this one writes it).
+  const nameOf = (l) => (l.match(/^(?:get |set )?([\w$]+)/) || [])[1];
+  const byName = new Map(existing.map((l) => [nameOf(l), l]));
+  for (const e of linkEntries) {
+    const old = byName.get(nameOf(e));
+    if (!old || (e.includes(" set ") && !old.includes(" set "))) byName.set(nameOf(e), e);
+  }
+  const merged = [...byName.values()]
     .sort((x, y) => x.match(/^(?:get |set )?([\w$]+)/)[1].localeCompare(y.match(/^(?:get |set )?([\w$]+)/)[1]));
   g = g.slice(0, open) + EOL + merged.map((l) => "  " + l).join(EOL) + g.slice(close);
 }

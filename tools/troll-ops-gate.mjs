@@ -3,7 +3,8 @@
 // two clients still share a room. Any red stops the push (the game.js split
 // plan, 2026-10-06, and every fix after it).
 //
-//   1. parse    every troll-ops module as a strict ES module (node --check
+//   1. parse    every troll-ops module as a strict ES module, and the game.X
+//               link table (troll-ops-linkcheck.mjs); (node --check
 //               misses errors in these files: esm-syntax-check gotcha)
 //   2. modes    one headless page plays a short match in every mode with no
 //               page errors
@@ -60,6 +61,8 @@ if (typeof vm.SourceTextModule !== "function") {
     catch (e) { bad.push(`${path.relative(ROOT, f)}: ${e.message}`); }
   }
   check(`${files.length} modules parse as ES modules`, bad.length === 0, bad.slice(0, 5).join(" | "));
+  const lc = spawnSync(process.execPath, [path.join(ROOT, "tools", "troll-ops-linkcheck.mjs")], { encoding: "utf8" });
+  check("every game.X a module uses is linked (writes have setters)", lc.status === 0, `${lc.stdout}${lc.stderr}`.trim().split("\n").slice(-4).join(" | "));
 }
 
 // ---------------------------------------------------------------- server + page
