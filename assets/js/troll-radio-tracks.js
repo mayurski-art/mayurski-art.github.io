@@ -91,5 +91,6 @@ window.TROLL_RADIO_TRACKS = [
   { uri: 'spotify:track:5QLDWLnjXSuolYK8NC72Fx', title: 'POP MY SHIT', artist: 'NAV, Frost' },
   { uri: 'spotify:track:5j0BjB1XkGorCC7pqRHwup', title: 'tight rope', artist: '24HRSnTOKYO, MadeinTYO, 24hrs' },
   { uri: 'spotify:track:1vf9F2n3KbuMQrTq36QLJH', title: 'Underrated', artist: 'Offset' },
+  { uri: 'spotify:track:6hgUBLlmwBQGmwdUxdrz9H', title: 'MTR', artist: 'Hit-Boy, James Fauntleroy, C3' },
 ];
 // TROLL_RADIO_TRACKS:END
