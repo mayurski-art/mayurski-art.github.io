@@ -60,15 +60,19 @@ const ADS_AT_RANGE = 1.1;         // scoped accuracy past NEAR_RANGE
 const MAG_SIZE = 26;
 const RELOAD_TIME = 2.3;
 
-/* `nade`: how keen a bot is to throw when it has a reason (chance per
+/* `hit`: the ceiling on hitChance below (fully acquired, close, standing
+   still). `missSpread`: how far off the target a missed round goes, in
+   metres [min, max] to one side, so a recruit's misses chew the wall a body
+   width away while a veteran's crack past your ear (combat/bot-fire.js).
+   `nade`: how keen a bot is to throw when it has a reason (chance per
    chance it gets), how far off its throws land (metres of scatter at 20 m),
    and whether it cooks frags so they go off on landing. */
 const DIFFICULTY = {
-  recruit:  { label: "Recruit",  hit: 0.28, damage: 14, interval: 1.0, reaction: 0.45, strafe: 0.55, lead: 0.15, readsGuard: false, adsTime: 0.42,
+  recruit:  { label: "Recruit",  hit: 0.28, missSpread: [0.9, 2.4], damage: 14, interval: 1.0, reaction: 0.45, strafe: 0.55, lead: 0.15, readsGuard: false, adsTime: 0.42,
     nade: { chance: 0.3, scatter: 3.2, cook: false }, jump: 0.05, slide: 0.05 },
-  regular:  { label: "Regular",  hit: 0.45, damage: 17, interval: 0.72, reaction: 0.28, strafe: 0.75, lead: 0.4, readsGuard: true, adsTime: 0.3,
+  regular:  { label: "Regular",  hit: 0.37, missSpread: [0.6, 1.6], damage: 17, interval: 0.72, reaction: 0.28, strafe: 0.75, lead: 0.4, readsGuard: true, adsTime: 0.3,
     nade: { chance: 0.55, scatter: 1.9, cook: false }, jump: 0.12, slide: 0.12 },
-  veteran:  { label: "Veteran",  hit: 0.62, damage: 20, interval: 0.53, reaction: 0.16, strafe: 1.0, lead: 0.75, readsGuard: true, adsTime: 0.22,
+  veteran:  { label: "Veteran",  hit: 0.55, missSpread: [0.4, 1.0], damage: 20, interval: 0.53, reaction: 0.16, strafe: 1.0, lead: 0.75, readsGuard: true, adsTime: 0.22,
     nade: { chance: 0.85, scatter: 1.0, cook: true }, jump: 0.2, slide: 0.2 },
 };
 

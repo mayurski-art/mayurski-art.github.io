@@ -58,8 +58,9 @@ export function botTargets() {
    (it used to be one generic rifle for every weapon in the room), a muzzle
    flash, and a tracer that follows the round's actual path so you can tell
    where fire is coming from. The tracer is cosmetic — hits are decided by
-   whoever fired. */
-export function remoteShotFx(origin, dir, weaponId, quiet = false, charge = 0) {
+   whoever fired. `range`: the tracer ends there without a wall strike of its
+   own (a bot miss we host has already drawn its impact, see onBotShoot). */
+export function remoteShotFx(origin, dir, weaponId, quiet = false, charge = 0, range = 0) {
   let base = WEAPON_DEFS[weaponId] || WEAPON_DEFS.problem416;
   if (charge > 0 && base.charge) base = chargedShotDef(base, charge).def;
   game.audio.shot(quiet ? { ...base, quiet: true } : base, 0.8, origin);
@@ -77,12 +78,30 @@ export function remoteShotFx(origin, dir, weaponId, quiet = false, charge = 0) {
       d.y += (Math.random() - 0.5) * (base.pelletSpread || 0.1);
       d.normalize();
     }
-    game.bullets.spawn({ origin: origin.clone().addScaledVector(d, 0.6), dir: d, def: base, ownerId: "remote", cosmetic: true });
+    game.bullets.spawn({ origin: origin.clone().addScaledVector(d, 0.6), dir: d, def: base, ownerId: "remote", cosmetic: true,
+      range: range > 0 ? Math.max(0.1, range - 0.6) : 0 });
   }
 }
 
 const _botMuzzle = new THREE.Vector3();
 const _botAim = new THREE.Vector3();
+const _botMiss = new THREE.Vector3();
+const _botMissNormal = new THREE.Vector3();
+
+/* A missed round has to land somewhere you can see. A miss used to be a
+   tracer nudged off to one side and nothing more, so a bot that missed read
+   as one that never fired. The round's line from the muzzle is cast against
+   the map and the ground; the dust goes up where it strikes, within this
+   far. */
+const MISS_RAY = 60;
+
+/* Where a round from `origin` along `dir` lands: metres to the first wall
+   (game.colliders) or the ground plane, or MISS_RAY if it hits nothing. */
+export function botMissDistance(origin, dir) {
+  let d = raycastWorld(game.colliders, origin, dir, MISS_RAY);
+  if (dir.y < -1e-4) d = Math.min(d, origin.y / -dir.y);
+  return d;
+}
 
 export function onBotShoot(bot, target, dmg, isHead, hit, range = 30, usingSecondary = false) {
   const wid = (usingSecondary ? bot.secondaryId : bot.weaponId) || "problem416";
@@ -93,19 +112,39 @@ export function onBotShoot(bot, target, dmg, isHead, hit, range = 30, usingSecon
   }
 
   // The round's visible path: at the target's chest on a hit, off to one
-  // side on a miss. Played here (we host the bot) and sent to the room,
-  // which previously neither saw nor heard bots fire at all.
+  // side on a miss, by the tier's missSpread (bots.js DIFFICULTY). Played
+  // here (we host the bot) and sent to the room, which previously neither
+  // saw nor heard bots fire at all.
   const fwdX = -Math.sin(bot.yaw), fwdZ = -Math.cos(bot.yaw);
   _botMuzzle.set(bot.pos.x + fwdX * 0.5, bot.pos.y + 1.45, bot.pos.z + fwdZ * 0.5);
   _botAim.set(target.pos.x, (target.groundY ?? target.pos.y ?? 0) + (isHead ? 1.6 : 1.2), target.pos.z);
   if (!hit) {
-    const side = (0.5 + Math.random() * 1.2) * (Math.random() < 0.5 ? -1 : 1);
+    const [lo, hi] = bot.diff?.missSpread || [0.6, 1.6];
+    const side = (lo + Math.random() * (hi - lo)) * (Math.random() < 0.5 ? -1 : 1);
     _botAim.x += fwdZ * side;
     _botAim.z -= fwdX * side;
-    _botAim.y += (Math.random() - 0.3) * 0.8;
+    _botAim.y += (Math.random() - 0.4) * 0.6;
   }
   const dir = _botAim.clone().sub(_botMuzzle).normalize();
-  remoteShotFx(_botMuzzle, dir, wid);
+  // A miss lands: the same dust a player's round throws off a wall
+  // (game.js onWorldHit), where this round's line meets the map. The
+  // tracer runs to that point and no further. Everyone else gets the same
+  // origin and direction, so their own copy of the tracer strikes the same
+  // spot and draws it there too. Nothing within MISS_RAY: the tracer alone.
+  let landed = 0;
+  if (!hit) {
+    const d = botMissDistance(_botMuzzle, dir);
+    if (d < MISS_RAY) {
+      landed = d;
+      _botMiss.copy(_botMuzzle).addScaledVector(dir, d);
+      const ground = _botMiss.y < 0.02;
+      _botMissNormal.set(0, 1, 0);
+      if (!ground) _botMissNormal.copy(dir).negate();
+      game.impactFx.hit(_botMiss, { normal: _botMissNormal.clone(), dir: dir.clone(), surface: ground ? "ground" : "concrete", scale: 0.6 });
+      game.audio.impact(_botMiss);
+    }
+  }
+  remoteShotFx(_botMuzzle, dir, wid, false, 0, landed);
   game.killcam.noteShot(game.kcClock, bot.id, _botMuzzle, dir, wid);
   noteRigShot(bot.id);
   if (game.net.active) game.net.reportShotAs(bot.id, _botMuzzle, dir, wid);

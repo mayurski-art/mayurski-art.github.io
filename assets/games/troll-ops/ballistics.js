@@ -155,12 +155,15 @@ export class BulletSystem {
     for (let i = 0; i < maxBullets; i++) this.tracers.push(new Tracer(scene, geo));
   }
 
-  /* opts: { origin, dir, def, ownerId, damageScale, cosmetic }
+  /* opts: { origin, dir, def, ownerId, damageScale, cosmetic, range }
      `cosmetic` is someone else's round, drawn so you can see where the fire
      is coming from. It never hits an actor (the shooter's client decides
      hits) and stops at the first wall. It also never evicts a real round:
-     when the pool is full, a cosmetic one is simply not drawn. */
-  spawn({ origin, dir, def, ownerId = "player", damageScale = 1, cosmetic = false }) {
+     when the pool is full, a cosmetic one is simply not drawn.
+     `range` (metres, cosmetic only): the round is gone once it has flown
+     this far, with no wall strike of its own, for a shooter who has already
+     drawn the impact where it lands (a bot's miss, combat/bot-fire.js). */
+  spawn({ origin, dir, def, ownerId = "player", damageScale = 1, cosmetic = false, range = 0 }) {
     if (this.bullets.length >= this.max) {
       if (cosmetic) return;
       const i = this.bullets.findIndex((b) => b.cosmetic);
@@ -178,6 +181,7 @@ export class BulletSystem {
       life: MAX_LIFE,
       acc: 0,
       cosmetic,
+      range: cosmetic && range > 0 ? range : 0,
       trail: def.hellfire ? origin.clone() : null,   // where its fire trail last reached
     });
   }
@@ -230,6 +234,11 @@ export class BulletSystem {
         b.acc -= STEP;
         b.life -= STEP;
         if (b.life <= 0) { dead = true; break; }
+        // Flown as far as its shooter said it would: it has already landed.
+        // A step is ~6 m, so the last one is cut short of the surface rather
+        // than carried through it (which would strike the wall a second time).
+        const left = b.range ? b.range - b.dist - 0.05 : Infinity;
+        if (left <= 0) { dead = true; break; }
 
         // A miss into the sky used to integrate for its full 3s life — 360
         // steps, each tested against every collider — long after it left the
@@ -242,9 +251,10 @@ export class BulletSystem {
         b.vel.y -= DROP * (b.def.gravityScale ?? 1) * STEP;
         to.copy(b.pos).addScaledVector(b.vel, STEP);
         dir.subVectors(to, from);
-        const len = dir.length();
+        let len = dir.length();
         if (len < 1e-6) { b.pos.copy(to); continue; }
         dir.divideScalar(len);
+        if (len > left) { len = left; to.copy(from).addScaledVector(dir, len); }
 
         // --- nearest actor hit along this step
         let actorT = Infinity, actorHit = null, actorObj = null;
