@@ -144,6 +144,8 @@ import { SPAWN_GUARD, botSpawn, clearRangeBots, notePointDeath, occupants, rende
 import { botDealDamage, botTargets, onBotShoot, remoteShotFx, updateBotAntiAir } from "./combat/bot-fire.js?v=bf1";
 import { DIVE_LOOK, DRONE_TOSS_AT, MARKER_THROW_TIME, MELEE_HOLSTER_TIME, beginStreakHold, endStreakHold, finishMeleeHolster, finishStreakHold, holsterMeleeFor, holsterMeleeThen, meleePutAway, powerHeld, startTabletDive, streakDeviceKind, streakHoldActive, streakHoldUntilMark, streakLowering, streakScreen, tabletDiveDip, tabletDiveK, updateTabletDive } from "./streaks/hold.js?v=sh1";
 import { closePauseMenu, openPauseMenu, releaseHeldInputs, resumePlay } from "./menu/pause.js?v=pa1";
+import { paintMatchClock, resetMatchClock, updateMatchClock } from "./modes/match-clock.js?v=mc1";
+import { boostedXp, renderBotSkillNote, roomBotSkill, syncRoomBotSkill, veteranBoostOn } from "./modes/bot-skill.js?v=bsk1";
 /* What the split-out modules reach back into game.js for (see core/state.js).
    Functions go in as they are; everything else as a getter, so nothing is
    read before game.js declares it. game.js only ever gets smaller: an
@@ -1031,7 +1033,8 @@ let suppressT = 0;
 
 const animDebug = new AnimDebugLab();
 
-/* -------------------- room bot skill --------------------
+
+/* Room bot skill (modes/bot-skill.js).
    Bots only ever run on ONE client, the bot host (net.isBotHost: whoever has
    been in the room longest, which is normally whoever started it), and it
    builds them with its own Bot skill setting. So the host's setting is the
@@ -1043,51 +1046,7 @@ const animDebug = new AnimDebugLab();
    keeps the tier the room was playing at for the rest of that match
    (`roomSkillSeen`), instead of swapping to their own setting mid-fight. */
 let roomSkillSeen = null;   // tier read off another host's bots this match
-function roomBotSkill() {
-  if (!net.active || net.isBotHost()) return bots.count ? bots.difficulty : null;
-  const n = {};
-  for (const p of net.peers.values()) if (p.botSkill) n[p.botSkill] = (n[p.botSkill] || 0) + 1;
-  let best = null;
-  for (const k in n) if (!best || n[k] > n[best]) best = k;
-  return best;   // null: no bots in the room
-}
-const VETERAN_XP_BOOST = 0.1;   // +10% XP for a match played against veteran bots
-function syncRoomBotSkill(dt) {
-  if (net.active && !net.isBotHost()) {
-    const seen = roomBotSkill();
-    if (seen) roomSkillSeen = seen;
-  } else if (net.active && roomSkillSeen) {
-    bots.difficulty = roomSkillSeen;   // took the bots over mid-match
-  }
-  // Veteran time, for the XP boost: the boost pays once veteran bots have
-  // been in the match for at least half of it, so a tier flipped in the
-  // last minute doesn't earn it.
-  if (gameState !== "playing" || isStaging()) return;
-  player.matchT += dt;
-  if (roomBotSkill() === "veteran") player.vetBotT += dt;
-  renderBotSkillNote();
-}
-function veteranBoostOn() {
-  return isPvp() && !isRange() && player.matchT > 0 && player.vetBotT >= player.matchT * 0.5;
-}
-/* XP as it's banked on the account: the veteran boost on top. */
-function boostedXp(amount) {
-  return veteranBoostOn() ? Math.round(amount * (1 + VETERAN_XP_BOOST)) : amount;
-}
-/* Lobby: under the Bot skill picker, say whose setting runs the room. */
-let botSkillNoteText = null;
-function renderBotSkillNote() {
-  const el = document.getElementById("to-set-botskill-note");
-  if (!el) return;
-  let text = "Veteran bots: +10% XP";
-  if (net.active && !net.isBotHost()) {
-    const seen = roomBotSkill() || roomSkillSeen;
-    text = seen
-      ? `Host's bots: ${seen[0].toUpperCase() + seen.slice(1)}${seen === "veteran" ? " (+10% XP)" : ""}. Yours applies when you host.`
-      : "The host's setting runs the bots. Yours applies when you host.";
-  }
-  if (text !== botSkillNoteText) { botSkillNoteText = text; el.textContent = text; }
-}
+
 
 function toggleThirdPerson() {
   settings.thirdPerson = !settings.thirdPerson;
@@ -1265,29 +1224,6 @@ initLobby();
 let matchClockT = null;
 let matchClockShown = -1;
 
-function resetMatchClock() {
-  const mode = currentMode();
-  matchClockT = mode.pvp && mode.timeLimit ? mode.timeLimit : null;
-  matchClockShown = -1;
-  els.hudMatchClock.hidden = matchClockT === null;
-  if (matchClockT !== null) paintMatchClock();
-}
-
-function paintMatchClock() {
-  const whole = Math.max(0, Math.ceil(matchClockT));
-  if (whole === matchClockShown) return;
-  matchClockShown = whole;
-  const mins = Math.floor(whole / 60), secs = whole % 60;
-  els.hudMatchClock.textContent = `${mins}:${String(secs).padStart(2, "0")}`;
-}
-
-function updateMatchClock(dt) {
-  if (matchClockT === null) return;
-  if (isInfection() && !infectionStarted) return;   // the clock starts with the first infection
-  matchClockT = Math.max(0, matchClockT - dt);
-  paintMatchClock();
-  if (matchClockT <= 0) checkMatchEnd();
-}
 
 const net = new Net({
   // Bots filling the room isn't news; only announce real people.
