@@ -13,11 +13,23 @@
 //                      device's (applied live via onRestore), unless this
 //                      device has changes made on this account that never
 //                      made it up. No copy on the account yet: this
-//                      device's goes up.
+//                      device's goes up. Keys this device has that the
+//                      account's copy lacks go up once, merged in.
 //   Change something   it goes up a moment later (debounced), and on the
 //                      way out of the tab.
 //   Back to the tab    the account's copy is fetched again, so a change made
 //                      on the phone is there when you come back to the PC.
+//
+// Boot rule: until the first pull after signing in has come back (or failed),
+// nothing written to a synced key counts as your change. The game re-saves
+// what it loaded while it starts up (loadout/streak normalisation, settings,
+// the radio...), and on a device you haven't used in a while that's a stale
+// copy; counting those writes made this device "dirty" and its old setup
+// overwrote the phone's (user, 2026-10-07: picks didn't follow them from
+// phone to PC). Once the pull has been tried, writes count again, so an
+// offline device still pushes real changes later. A write is also only a
+// change when the content differs (same JSON in a new key order isn't), and
+// graphics quality alone never is (it's this machine's, see DEVICE_SETTINGS).
 //
 // One whole-setup blob, last writer wins. Guests keep everything local.
 
@@ -46,6 +58,8 @@ let rawSet = null, rawRemove = null;
 let userId = null;
 let pushT = null;
 let lastPull = 0;
+let settled = false;    // this sign-in's first pull has come back (or failed)
+let bootWrites = 0;     // synced-key writes swallowed before that (tests)
 let busy = Promise.resolve();
 let onRestore = () => {};
 
@@ -66,6 +80,26 @@ function snapshot() {
     if (v != null) keys[k] = v;
   }
   return { v: 1, keys };
+}
+
+/* JSON with object keys in a fixed order, so two writes of the same setup
+   compare equal however a module happened to build its object. */
+function stable(x) {
+  if (Array.isArray(x)) return `[${x.map(stable).join(",")}]`;
+  if (x && typeof x === "object") return `{${Object.keys(x).sort().map((k) => `${JSON.stringify(k)}:${stable(x[k])}`).join(",")}}`;
+  return JSON.stringify(x);
+}
+/* Is a write to `k` the same setup as what was there? Settings compare with
+   the per-device keys (gfx) taken out: a quality change isn't an account change. */
+function sameContent(k, before, after) {
+  if (before === after) return true;
+  try {
+    const a = JSON.parse(before), b = JSON.parse(after);
+    if (k === "trollops:settings" && a && b && typeof a === "object" && typeof b === "object") {
+      for (const d of DEVICE_SETTINGS) { delete a[d]; delete b[d]; }
+    }
+    return stable(a) === stable(b);
+  } catch { return false; }   // not JSON: the strings differ, so it changed
 }
 
 /* Write the account's copy over this device's, without counting it as a
@@ -117,6 +151,11 @@ async function pull(force = false) {
   if (changed.length) {
     try { onRestore(changed); } catch (e) { console.warn("[troll-forces] applying cloud setup failed:", e); }
   }
+  // Keys this device has that the account's copy doesn't (a key that started
+  // syncing after the row was written, say): up once, merged -- the account's
+  // own values were just restored over ours, so nothing of theirs is stomped.
+  const cloudKeys = data.data?.keys || {};
+  if (SYNCED_KEYS.some((k) => cloudKeys[k] == null && localStorage.getItem(k) != null)) await push();
 }
 
 async function push() {
@@ -140,6 +179,7 @@ function queue(fn) { busy = busy.then(fn, fn).catch((e) => console.warn("[troll-
 
 function localChange() {
   if (!userId) return;
+  if (!settled) { bootWrites++; return; }   // the game re-saving what it loaded: not yours
   writeStamp({ user: userId, at: Date.now(), dirty: true });
   clearTimeout(pushT);
   pushT = setTimeout(() => queue(push), PUSH_DELAY);
@@ -148,9 +188,15 @@ function localChange() {
 async function setUser(id) {
   if (id === userId) return;
   userId = id || null;
+  settled = false;
+  bootWrites = 0;
   clearTimeout(pushT);
   pushT = null;
-  if (userId) await queue(() => pull(true));
+  if (!userId) return;
+  const me = userId;
+  // Settled either way (no client, offline, an error): from here on, writes
+  // on this device are changes, and go up when they can.
+  await queue(() => pull(true).finally(() => { if (userId === me) settled = true; }));
 }
 
 /* `apply(changedKeys)`: put a restored setup into the running game. */
@@ -165,7 +211,7 @@ export function initCloudSave({ apply } = {}) {
   Storage.prototype.setItem = function (k, v) {
     const before = this === localStorage && SYNCED.has(k) ? this.getItem(k) : undefined;
     rawSet.call(this, k, v);
-    if (before !== undefined && before !== String(v)) localChange();
+    if (before !== undefined && !sameContent(k, before, String(v))) localChange();
   };
   Storage.prototype.removeItem = function (k) {
     const had = this === localStorage && SYNCED.has(k) && this.getItem(k) != null;
@@ -188,4 +234,4 @@ export function initCloudSave({ apply } = {}) {
 }
 
 /* Tests: the state of play. */
-export function cloudSaveState() { return { userId, stamp: readStamp(), pending: !!pushT }; }
+export function cloudSaveState() { return { userId, stamp: readStamp(), pending: !!pushT, settled, bootWrites }; }
