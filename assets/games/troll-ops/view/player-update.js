@@ -65,6 +65,7 @@ function flyView(dt, ix, iz) {
 /* Seconds a trigger pull keeps you out of a sprint (updatePlayer). */
 const FIRE_SPRINT_HOLD = 0.35;
 let fireSprintHoldT = 0;
+let fireWasDown = false;
 
 export function updatePlayer(dt) {
   const w = currentWeapon();
@@ -145,6 +146,10 @@ export function updatePlayer(dt) {
   const wantAds = game.player.alive && !game.isView() && !game.socialUnarmed() && !game.localPauseOnly && game.empT <= 0 && game.player.holding !== "streak"
     && ((game.isTouch && touchState.ads) || (gp && game.gamepadState.ads) || game.adsHeld || game.keys.has("KeyQ"));
   const wantFire = !frozen && !game.isView() && !game.socialUnarmed() && ((game.isTouch && touchState.firing) || (gp && game.gamepadState.firing) || game.mouseDown);
+  // The frame the trigger went down (the 16 ms fireEdgeTrigger pulse can
+  // fall between two slow frames).
+  const firePressed = wantFire && !fireWasDown;
+  fireWasDown = wantFire;
   // Pulling the trigger at a run ends the run, like BO2 and PF: the gun
   // comes up and shoots. It used to stay dropped and slung across the body
   // while rounds left from the middle of the screen, which read as not
@@ -353,6 +358,12 @@ export function updatePlayer(dt) {
   // interaction-bug call-out): fire is disabled outright rather than
   // silently shooting through a hidden gun mesh while the device is up.
   if (game.player.holding === "streak") return;
+
+  // Fire mid-reload with rounds still in the mag: the reload stops (the mag
+  // keeps what it had) and the gun shoots. Shell-by-shell guns stop their
+  // own way below (interruptReload).
+  if (wantFire && canAct && !swinging && (game.fireEdgeTrigger || firePressed) && w.reloading && !w.def.shellReload
+      && w.ammoInMag > 0 && w.def.fireMode !== "charge") w.abortReload();
 
   if (w.def.fireMode === "charge") {
     updateCandleCharge(w, dt, wantFire && canAct && !swinging);

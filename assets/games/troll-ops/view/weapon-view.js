@@ -733,7 +733,7 @@ function reloadPose(w, mesh) {
       mag.rotation.x = mesh.userData.magRestRotationX ?? mag.userData.restRotX ?? mag.rotation.x;
     }
     if (reloadEventsFiredFor === w) {
-      game.audio.reloadComplete();
+      if (!w.reloadCut) game.audio.reloadComplete();
       reloadEventsFiredFor = null;
     }
     return p;

@@ -467,6 +467,7 @@ export class WeaponState {
     if (this.reloading || this.ammoReserve <= 0 || this.ammoInMag >= this.def.magSize) return false;
     this.cancelCharge();
     this.reloading = true;
+    this.reloadCut = false;
     const sr = this.def.shellReload;
     if (sr) {
       this.reloadWasEmpty = this.ammoInMag <= 0;
@@ -550,11 +551,14 @@ export class WeaponState {
     if (rack) this.events.push("rack");
   }
 
-  /* Swapping away mid-reload drops it: the shells already in stay in. */
+  /* Swapping away mid-reload drops it: the shells already in stay in. A
+     magazine reload cut short (fire with rounds left) keeps the old mag. */
   abortReload() {
     if (!this.reloading) return;
     this.reloading = false;
     this.shellStage = null;
+    this.reloadT = 0;
+    this.reloadCut = true;   // the viewmodel skips the "reload done" sound
   }
 
   cancelReloadIfDone(dt) {
