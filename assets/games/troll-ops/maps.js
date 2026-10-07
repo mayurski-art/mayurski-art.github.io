@@ -688,6 +688,15 @@ export const MAPS = {
         api.ghostWalls(cx, 0, 8, 6, 3, 0.5, { ghost: true, color: MUD, gaps: { n: 2, s: 2 }, pen: 8, surface: "brick", tile: 2.5 });
         api.box(cx, 0, 8.4, 6.4, 0.3, { ghost: true, color: MUD_DK, y: 3, pen: 8 });
       }
+      // carpet-shop roof (west house): the 2nd high spot, up an outside stair
+      // on the west wall from the street to a landing. Its tall north screen
+      // means it watches the market, not the north lane.
+      api.stairs(-20.75, 4.1, 1.5, 10, 0.33, 0.55, "-z", { ghost: true, color: MUD_DK });
+      api.box(-20.75, -2.3, 1.5, 1.8, 3.3, { ghost: true, color: MUD_DK, pen: 8 });          // landing
+      for (const [x, z, w, d, h] of [[-16, -3.05, 8.4, 0.3, 1.9], [-16, 3.05, 8.4, 0.3, 0.9],
+        [-11.95, 0, 0.3, 5.8, 0.9], [-20.05, 0.75, 0.3, 4.3, 0.9]]) {
+        api.box(x, z, w, d, h, { ghost: true, color: MUD, y: 3.3, pen: 6 });                  // parapets, gap at the landing
+      }
       for (const cx of [-22, -7, 8, 22]) {                                          // cut-through houses south of it
         api.ghostWalls(cx, 14, 8, 4, 3, 0.5, { ghost: true, color: MUD, gaps: { n: 2, s: 2 }, pen: 8, surface: "brick", tile: 2.5 });
         api.box(cx, 14, 8.4, 4.4, 0.3, { ghost: true, color: MUD_DK, y: 3, pen: 8 });

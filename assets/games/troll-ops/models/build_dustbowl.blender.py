@@ -333,13 +333,37 @@ def stone_wall(b, P, x, z, w, d, h, seed):
                 b.lump(P["stone"], st, sh, sw, x, y0, z + k, seed=seed * 100 + course * 30 + i, rnd=0.3, jitter=0.07)
 
 
+def carpet_roof(b, P):
+    """West house's roof as a firing spot: outside stair, landing, parapets.
+    maps.js: api.stairs(-20.75, 4.1, 1.5, 10, 0.33, 0.55, "-z"), landing box
+    (-20.75, -2.3) 1.5 x 1.8 x 3.3, parapets at y 3.3 (north 1.9 high, rest 0.9)."""
+    m = P["plaster"]
+    for i in range(10):
+        b.box(P["plaster_dk"], 1.5, 0.33 * (i + 1), 0.55, -20.75, 0, 4.1 - 0.55 * (i + 0.5))
+        b.box(P["timber"], 1.5, 0.04, 0.06, -20.75, 0.33 * (i + 1) - 0.02, 4.1 - 0.55 * i - 0.03)
+    b.box(P["plaster_dk"], 1.5, 3.3, 1.8, -20.75, 0, -2.3)
+    for (x, z, w, d, h) in ((-16, -3.05, 8.4, 0.3, 1.9), (-16, 3.05, 8.4, 0.3, 0.9),
+                            (-11.95, 0, 0.3, 5.8, 0.9), (-20.05, 0.75, 0.3, 4.3, 0.9)):
+        b.box(m, w, h, d, x, 3.3, z)
+        b.box(m, w + 0.06, 0.08, d + 0.06, x, 3.3 + h, z, bevel=0.03)
+    # merlons along the tall north screen, a rug and rolled carpets on the roof
+    for k in range(5):
+        b.box(m, 0.5, 0.3, 0.42, -19.6 + k * 1.8, 5.28, -3.05, bevel=0.05)
+    b.box(P["cloth_blue"], 2.6, 0.01, 1.8, -16.5, 3.3, 0.6)
+    b.box(P["cloth_red"], 2.2, 0.012, 1.4, -16.5, 3.3, 0.6)
+    for (x, z, c) in ((-13.2, -2.3, P["cloth_red"]), (-13.2, -1.8, P["cloth_blue"])):
+        b.cyl(c, 0.2, (x - 1.0, 3.5, z), (x + 1.0, 3.5, z), seg=10)
+
+
 def build_market(P):
     b = Builder()
     rng = random.Random(31)
     for i, cx in enumerate((-16, 16)):
         house(b, P, cx, 0, 8, 6, 3, {"n": 2, "s": 2}, rng, dark=i == 1)
         b.box(P["plaster_dk"], 8.4, 0.3, 6.4, cx, 3, 0)
-        roof_parapet(b, P, cx, 0, 8.4, 6.4, 3.3)
+        if cx > 0:
+            roof_parapet(b, P, cx, 0, 8.4, 6.4, 3.3)
+    carpet_roof(b, P)
     for i, cx in enumerate((-22, -7, 8, 22)):
         house(b, P, cx, 14, 8, 4, 3, {"n": 2, "s": 2}, rng, dark=i % 2 == 0)
         b.box(P["plaster_dk"], 8.4, 0.3, 4.4, cx, 3, 14)

@@ -15,7 +15,7 @@ Design docs live next to this file: `COPS-AND-ROBBERS.md` (approved plan), `ZOMB
 
 ### Dust Bowl bazaar redesign (phases 2-5 of 5)
 Turning Dust Bowl into an old bazaar inside a desert city (the user ran the map brief past ChatGPT). Phase 1, the city beyond the wall, has shipped. Still to build, in this order:
-- **2:** market street: shop identities split west (carpet, tea, turquoise/blue awnings) vs east (repair, produce, red/ochre), sagging awnings and alley tarps, a minaret plaza, and a 2nd elevated spot on the carpet-shop roof at (-16, 0) with an outside stair; its north parapet is tall so it watches the market, not the north lane.
+- **2:** (2a, the carpet-shop roof, has shipped; 2b shop identities and 2c the minaret plaza are next) market street: shop identities split west (carpet, tea, turquoise/blue awnings) vs east (repair, produce, red/ochre), sagging awnings and alley tarps, a minaret plaza, and a 2nd elevated spot on the carpet-shop roof at (-16, 0) with an outside stair; its north parapet is tall so it watches the market, not the north lane.
 - **3:** north bazaar/loading yard: three islands of cover (never a wall), and a 3rd elevated spot, a 1.5 m loading dock on the west at about (-17, -32.6). Keep three 45 m+ east-west sightlines.
 - **4:** the channel as old water works: culverts, pipes, rubble, a plank crossing at x -17.5. Depth stays 1.2 m (the bank stairs are built for it).
 - **5:** wires across the street, rooftop tanks, laundry, distant smoke, new loading-screen renders.
@@ -484,6 +484,7 @@ Map rules:
 ## 5. Shipped log (one line each; details are in git)
 
 - **2026-10-06**
+  - Dust Bowl bazaar 2a: carpet-shop roof at (-16, 0) is the 2nd high spot: outside stair up the west wall to a landing, 1.9 m north screen, 0.9 m parapets on the other sides. Walk routes 11-12 cover it.
   - game.js split, phase 1a: touch, gamepad and aim assist moved to input/ (touch.js, gamepad.js, aim-assist.js) by `tools/troll-ops-split.mjs`; modules reach game.js through `game.X` (core/state.js, filled by game.js's linkGame table, never by importing game.js). New gate step: tools/troll-ops-input-test.mjs (fake pad + touch, every control).
   - game.js split, phase 1b: Troll Royale rules moved to modes/royale.js (royale.js next door still holds zone + loot).
   - game.js split, phase 1c: HUD helpers (killfeed, hitmarkers, damage numbers, streak HUD) to core/hud.js, minimap to core/minimap.js.
