@@ -3,12 +3,12 @@
 // pause menu.
 
 import { addXp } from "../progression.js?v=p5-wst-sb2";
-import { setBombSiteMarkers } from "../core/minimap.js?v=cr1";
-import { setNetStatus, renderLobbyRoster, showLobbyPanel } from "./lobby.js?v=lb1-si1";
+import { setBombSiteMarkers } from "../core/minimap.js?v=cr1-gj1";
+import { setNetStatus, renderLobbyRoster, showLobbyPanel } from "./lobby.js?v=lb1-si1-gj1";
 import { renderModes } from "./mode-picker.js?v=mp1";
 import { setTouchAds } from "../input/touch.js?v=in1";
-import { cancelCook } from "../combat/throwables.js?v=th1-kc2-si1";
-import { returnToSocial, cancelSocialReturn } from "../modes/social.js?v=so1-si1-mb1";
+import { cancelCook } from "../combat/throwables.js?v=th1-kc2-si1-gj1";
+import { returnToSocial, cancelSocialReturn } from "../modes/social.js?v=so1-si1-mb1-gj1";
 import { game } from "../core/state.js?v=st1";
 
 export function initMenuButtons() {
