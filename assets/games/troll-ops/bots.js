@@ -120,6 +120,16 @@ const PERCH_GIVE_UP = 30;          // seconds to get there before it's dropped
 const PERCH_NO_GAIN = 5;           // seconds without getting a metre closer before it's dropped
 
 /* Anything tall standing at body height on this spot? */
+/* A climb up or down a rope floor link (s.rope): the spot it hangs at is
+   half a metre off the rope on the side its foot is. */
+const BOT_ROPE_UP = 3.6, BOT_ROPE_DOWN = 5;
+function ropeClimb(s, entry, exit) {
+  const len = Math.hypot(s.b.x - s.a.x, s.b.z - s.a.z) || 1;
+  const dx = (s.b.x - s.a.x) / len, dz = (s.b.z - s.a.z) / len;
+  return { entry, exit, rope: s, t: 0, limit: Math.abs(exit.y - entry.y) / BOT_ROPE_UP + 6,
+    hx: s.rx - dx * 0.5, hz: s.rz - dz * 0.5, on: false };
+}
+
 function resolveBlocked(colliders, x, z, feetY) {
   for (const c of colliders) {
     if (c.max.y <= feetY + 0.45 || c.min.y >= feetY + 1.7) continue;
@@ -219,13 +229,13 @@ class Bot {
   }
 
   startHop() {
-    if (this.hopY > 0 || this.hopV > 0 || this.slideT > 0) return;
+    if (this.hopY > 0 || this.hopV > 0 || this.slideT > 0 || this.climb?.on) return;
     this.hopV = HOP_SPEED;
     this.moveCd = MOVE_COOLDOWN;
   }
 
   startSlide(dir) {
-    if (this.hopY > 0 || this.slideT > 0 || dir.lengthSq() < 0.01) return;
+    if (this.hopY > 0 || this.slideT > 0 || dir.lengthSq() < 0.01 || this.climb?.on) return;
     this.slideT = SLIDE_TIME;
     this.slideDir.set(dir.x, 0, dir.z).normalize();
     this.moveCd = MOVE_COOLDOWN;
@@ -569,7 +579,7 @@ class Bot {
       desired = this.slideDir.clone();
       if (this.slideT <= 0) this.slideT = 0;
     }
-    this.stance = this.slideT > 0 ? "slide" : "stand";
+    this.stance = this.climb?.on ? "rope" : this.slideT > 0 ? "slide" : "stand";
 
     // Wading (a map's shallow water, arena.wade) slows them like it slows you.
     const wading = arena.wade && this.pos.y < 0.5 && insidePolygon(arena.wade, this.pos.x, this.pos.z);
@@ -639,6 +649,10 @@ class Bot {
       const under = groundHeightAt(colliders, this.pos.x, this.pos.z, feet + 0.3, BOT_RADIUS * 0.8);
       if (this.hopV < 0 && feet <= under) { this.groundY = under; this.hopY = 0; this.hopV = 0; }
       else if (under > this.groundY && feet > under) { this.hopY = feet - under; this.groundY = under; }
+    } else if (this.climb?.on) {
+      // on a rope (ropeStep moves groundY): pinned beside it
+      this.pos.x = this.climb.hx;
+      this.pos.z = this.climb.hz;
     } else {
       const support = groundHeightAt(colliders, this.pos.x, this.pos.z, this.groundY + 0.5, BOT_RADIUS * 0.8);
       this.groundY += (support - this.groundY) * Math.min(1, dt * 9);
@@ -882,10 +896,10 @@ class Bot {
     if (gy != null && stairs.length && Math.abs(gy - here) >= 0.5) {
       const plan = this.planStair(id, goal, gy, ctx, field);
       if (plan) {
-        const { entry, exit, key } = plan;
+        const { entry, exit, key, rope } = plan;
         if (Math.hypot(entry.x - this.pos.x, entry.z - this.pos.z) < 1.1) {
           const len = Math.hypot(exit.x - entry.x, exit.z - entry.z);
-          this.climb = { entry, exit, t: 0, limit: len / 2 + 3 };
+          this.climb = rope ? ropeClimb(rope, entry, exit) : { entry, exit, t: 0, limit: len / 2 + 3 };
           this.stairPlan = null;
           const dir = this.climbStep(ctx);
           if (dir) return dir;
@@ -909,6 +923,7 @@ class Bot {
      Null (and the climb over) once it's at the end, or it's taking far too
      long, or it's been knocked off the side. */
   climbStep(ctx) {
+    if (this.climb.rope) return this.ropeStep(ctx);
     const c = this.climb, e = c.exit, a = c.entry || e;
     c.t += ctx.dtNow || 0.016;
     const dx = e.x - a.x, dz = e.z - a.z, len = Math.hypot(dx, dz) || 1;
@@ -923,9 +938,35 @@ class Bot {
     return v.normalize();
   }
 
+  /* A rope (maps.js api.rope) in this.climb: walk to the spot beside it,
+     then up (or down) it like a player, pinned there (update reads `on`),
+     and step off at the far end. A zero vector while climbing; null once
+     it's done or given up (ground follow then drops it to the floor). */
+  ropeStep(ctx) {
+    const c = this.climb, e = c.exit, dt = ctx.dtNow || 0.016;
+    c.t += dt;
+    if (c.t > c.limit) { this.climb = null; return null; }
+    if (!c.on) {
+      const v = new THREE.Vector3(c.hx - this.pos.x, 0, c.hz - this.pos.z);
+      if (v.length() > 0.7 || this.hopY > 0 || this.hopV > 0) return v.lengthSq() > 1e-6 ? v.normalize() : null;
+      c.on = true;
+      this.slideT = 0;
+    }
+    this.vel.set(0, 0, 0);
+    this.groundY = e.y > this.groundY ? Math.min(e.y, this.groundY + BOT_ROPE_UP * dt) : Math.max(e.y, this.groundY - BOT_ROPE_DOWN * dt);
+    if (Math.abs(this.groundY - e.y) < 1e-3) {
+      this.pos.x = e.x;
+      this.pos.z = e.z;
+      this.climb = null;
+      return null;
+    }
+    return new THREE.Vector3();
+  }
+
   /* The flight this bot is standing on, partway up: { s, t, len }, or null. */
   onStair(stairs) {
     for (const s of stairs) {
+      if (s.rope) continue;
       const dx = s.b.x - s.a.x, dz = s.b.z - s.a.z, len = Math.hypot(dx, dz);
       if (len < 1 || Math.abs(s.b.y - s.a.y) < 1) continue;
       const t = ((this.pos.x - s.a.x) * dx + (this.pos.z - s.a.z) * dz) / len;
@@ -996,7 +1037,7 @@ class Bot {
         onward = next;
       }
       const cost = toFoot + onward;
-      if (cost < bestCost) { bestCost = cost; best = { id, key, entry: c.entry, exit: c.exit }; }
+      if (cost < bestCost) { bestCost = cost; best = { id, key, entry: c.entry, exit: c.exit, rope: stairs[c.i].rope ? stairs[c.i] : null }; }
     }
     this.stairPlan = best ? { ...best, here, until: now + 1.2 } : { id, here, until: now + 0.6, none: true };
     return best;

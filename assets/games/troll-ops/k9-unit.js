@@ -250,6 +250,7 @@ export class K9Pack {
     let best = null, bestS = Infinity;
     for (let i = 0; i < stairs.length; i++) {
       const s = stairs[i];
+      if (s.rope) continue;   // dogs don't climb ropes
       for (const [entry, exit] of [[s.a, s.b], [s.b, s.a]]) {
         if (Math.abs(entry.y - d.pos.y) > 0.9) continue;
         if (Math.sign(exit.y - entry.y) !== Math.sign(dy)) continue;

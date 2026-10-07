@@ -200,12 +200,13 @@ if (!SIM_ONLY) {
         const target = { id: "target", team: "ghost", alive: true, pos: new THREE.Vector3(to.x, to.y, to.z), groundY: to.y };
         const ctx = { colliders, arena, ffa: false, targets: [target], onShoot() {}, spawnFor: () => from,
           sightBlocked: () => true, stairs, noRespawn: true };
-        let maxY = from.y, minY = from.y;
+        let maxY = from.y, minY = from.y, roped = 0;
         for (let t = 0; t < limit; t += DT) {
           mgr.update(DT, ctx);
           maxY = Math.max(maxY, b.groundY); minY = Math.min(minY, b.groundY);
+          if (b.stance === "rope") roped++;
           if (Math.abs(b.groundY - to.y) < 0.6 && Math.hypot(b.pos.x - to.x, b.pos.z - to.z) < 2.5) {
-            return { ok: true, t: +t.toFixed(1) };
+            return { ok: true, t: +t.toFixed(1), roped };
           }
         }
         return { ok: false, from: [from.x, from.y, from.z].map((v) => +v.toFixed(1)), to: [to.x, to.y, to.z].map((v) => +v.toFixed(1)),
@@ -216,12 +217,14 @@ if (!SIM_ONLY) {
       const out = { id, flights: flights.length, results: [] };
       for (const s of flights) {
         const top = topSpot(s);
-        const below = spotNear(s.a, 12);
+        // A rope's bot starts at its foot, so the rope is the way up (12 m
+        // out, another route can be shorter, and is rightly taken).
+        const below = spotNear(s.a, s.rope ? 3 : 12);
         const name = `[${[s.a.x, s.a.y, s.a.z].map((v) => +v.toFixed(1))}] -> [${[s.b.x, s.b.y, s.b.z].map((v) => +v.toFixed(1))}]${s.found ? " (found)" : ""}`;
         if (!below) { out.results.push({ name, skip: "no floor near its foot" }); continue; }
         // Time enough to walk the long way round a big map.
         const limit = 60 + Math.hypot(top.x - below.x, top.z - below.z) * 0.5;
-        out.results.push({ name, up: hunt(below, top, limit), down: hunt(top, below, limit) });
+        out.results.push({ name, rope: !!s.rope, up: hunt(below, top, limit), down: hunt(top, below, limit) });
       }
 
       // On its own: nobody in sight, an enemy away on the ground, and a bot
@@ -265,6 +268,13 @@ if (!SIM_ONLY) {
       if (r.down.ok) pass++; else check(`${id}: a bot up top comes down ${r.name}`, false, JSON.stringify(r.down));
     }
     check(`${id}: bots go up and come back down every flight (${res.flights})`, pass === total && total > 0, `${pass}/${total}`);
+    // Ropes (maps.js api.rope): the bot actually climbed one, both ways.
+    const ropes = res.results.filter((r) => r.rope && !r.skip);
+    if (ropes.length) {
+      const used = ropes.filter((r) => r.up.roped > 0 && r.down.roped > 0);
+      check(`${id}: bots climb the ropes up and down (${ropes.length})`, used.length === ropes.length,
+        JSON.stringify(ropes.map((r) => [r.name, r.up.roped || 0, r.down.roped || 0, r.up.t, r.down.t])));
+    }
     check(`${id}: a bot takes the high ground on its own, then comes back down`, res.perch.up != null && res.perch.down != null, JSON.stringify(res.perch));
   }
   check("sim: no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
