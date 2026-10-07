@@ -138,6 +138,24 @@ const seen = await B.evaluate(({ id, y }) => {
   return r ? { seat: r.peer.seat, rootY: r.rig.root.position.y, hips: r.rig.parts.hips.getWorldPosition(new r.rig.root.position.constructor()).y, y } : null;
 }, { id: ids[0], y: chair.y });
 check("the other tab sees A sat on that chair", seen?.seat === chairI + 1 && Math.abs(seen.hips - (chair.y + 0.08)) < 0.12, JSON.stringify(seen));
+// The ink body is redrawn bent (user, 2026-10-07: "my legs are going through
+// the wooden stool"): the drawn legs stop short of the floor, none of it
+// inside the seat.
+const drawn = await B.evaluate(({ id, s }) => {
+  const r = window.__trollOps.remotes.byId.get(id);
+  const mesh = r?.rig.parts.body;
+  if (!mesh) return null;
+  mesh.updateMatrixWorld(true);
+  const a = mesh.geometry.attributes.position, v = new r.rig.root.position.constructor();
+  let minY = Infinity, inSeat = 0;
+  for (let i = 0; i < a.count; i++) {
+    v.fromBufferAttribute(a, i).applyMatrix4(mesh.matrixWorld);
+    minY = Math.min(minY, v.y);
+    if (Math.hypot(v.x - s.x, v.z - s.z) < 0.2 && v.y < s.y - 0.005 && v.y > s.y - 0.07) inSeat++;
+  }
+  return { aboveFloor: +(minY - s.floor).toFixed(2), inSeat };
+}, { id: ids[0], s: chair });
+check("A's drawn legs are bent on the chair, not through it", drawn && drawn.aboveFloor > 0.04 && drawn.inSeat === 0, JSON.stringify(drawn));
 await A.keyboard.down("w");
 await pump(A, 300);
 await A.keyboard.up("w");

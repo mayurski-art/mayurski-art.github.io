@@ -46,6 +46,9 @@ export function poseSeated(rig, seatY, tuck = 0) {
   rig.root.updateMatrixWorld(true);
   p.hips.getWorldPosition(_hip);
   rig.root.position.y += seatY + 0.08 - _hip.y;
+  // The ink body was drawn by poseHumanoid with the legs standing: redraw
+  // it bent, or the legs hang straight down through the seat.
+  rig.body?.update?.();
 }
 const _hip = new THREE.Vector3();
 
@@ -57,6 +60,7 @@ export function posePianoArms(rig, t, seed = 0, playing = true) {
   p.armL.rotation.set(0.95 + sw(9) * 0.06, 0, 0.18 + sw(2.1) * 0.12); p.elbowL.rotation.set(0.75, 0, 0);
   p.armR.rotation.set(0.95 + sw(11, 1) * 0.06, 0, -0.18 + sw(1.7) * 0.12); p.elbowR.rotation.set(0.75, 0, 0);
   p.chest.rotation.z = sw(1.6) * 0.06;
+  rig.body?.update?.();
 }
 
 /* --------------------------------------------------------------- tunes */

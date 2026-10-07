@@ -118,6 +118,9 @@ export function poseDrinkArm(rig, sip = 0) {
   p.armR.rotation.set(0.35 + s * 1.15, 0, -0.12 - s * 0.25);
   p.elbowR.rotation.set(1.35 + s * 0.75, 0, 0);
   if (p.gripR) p.gripR.rotation.set(-s * 0.6, 0, 0);
+  // Redraw the ink body with the arm up: poseHumanoid drew it hanging, and
+  // the mug (on the real hand) floated off the drawn one.
+  rig.body?.update?.();
 }
 
 /* A drink in a body's right hand (rig.parts.gripR), upright. */
