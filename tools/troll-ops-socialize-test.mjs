@@ -98,14 +98,16 @@ check("the Socialize screen has a map row and Hang out", socLabels.some((l) => l
 await A.evaluate(() => window.__toBo2.menu.go("maps"));
 await sleep(200);
 const socMaps = await A.evaluate(() => [...document.querySelectorAll(".tr-menu-item")].map((b) => b.textContent.trim().toLowerCase()));
-check("its map list leaves out the prestige reward maps", !socMaps.some((l) => /pentagrin|trollface island/.test(l)), socMaps.join(" / "));
+const mapRows = socMaps.filter((l) => !/^(keep this map|back)/.test(l));
+check("its map list is just Troll City and Trolling Loud", mapRows.length === 2 && mapRows.some((l) => /troll city/.test(l)) && mapRows.some((l) => /trolling loud/.test(l)), socMaps.join(" / "));
 await A.evaluate(() => window.__toBo2.menu.back());
 await sleep(200);
 await A.evaluate(() => [...document.querySelectorAll(".tr-menu-item")].find((b) => /^hang out/i.test(b.textContent.trim()))?.click());
 await loaded(A);
 const a1 = await until(A, inHangout, 30000);
 check("Hang out deploys A into the hangout", inHangout(a1) && a1.room, JSON.stringify(a1));
-check("it is the public QSOC room", (await A.evaluate(() => window.__trollOps.net.room)) === "QSOC");
+check("a versus pick of Grinsite still hangs out in Troll City", a1.map === "trollcity", a1.map);
+check("it is the public QSOC room",(await A.evaluate(() => window.__trollOps.net.room)) === "QSOC");
 
 await joinSocial(B, "dustbowl");
 await loaded(B);

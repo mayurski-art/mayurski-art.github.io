@@ -297,7 +297,7 @@ const screens = {
     groups: [
       [
         { id: "public", label: "Public Match", desc: "Drop into a versus room with whoever is online. Bots fill the gaps.", go: "public" },
-        { id: "social", label: "Socialize", desc: "Hang out on any map with whoever is online. No guns, just emotes and chat.", go: "social" },
+        { id: "social", label: "Socialize", desc: "Hang out in Troll City or at Trolling Loud with whoever is online. No guns, just emotes and chat.", go: "social" },
         { id: "solo", label: "Solo Play", desc: "Ops, Zombies or the Test Range. Just you.", go: "solo" },
         { id: "private", label: "Private Match", desc: "Make a room code and send it to your friends.", go: "private" },
       ],

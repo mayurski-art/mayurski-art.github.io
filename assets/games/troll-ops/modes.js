@@ -192,7 +192,11 @@ MODES.social = {
   pvp: true, ffa: false,
   social: true,
   noStreaks: true,
-  blurb: "Hang out on any map with whoever is online. No guns, just emotes and chat.",
+  // Only the maps built for hanging out (user, 2026-10-07); the other maps
+  // stay open to every other mode. Its own list, not a mapPool: the room
+  // still follows its host's map.
+  maps: ["trollcity", "trollingloud"],
+  blurb: "Hang out in Troll City or at Trolling Loud with whoever is online. No guns, just emotes and chat.",
 };
 
 /* Infection tuning. */

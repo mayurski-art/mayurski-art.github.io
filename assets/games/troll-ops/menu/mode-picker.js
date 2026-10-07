@@ -112,6 +112,7 @@ export function renderModes() {
   // Zombies and the range bring their own map, so the card just names it.
   game.loadout.setForcedMap(game.currentMode().forceMap || null);
   game.loadout.setMapPool(game.currentMode().mapPool || null);
+  game.loadout.setMapAllow(game.currentMode().maps || null);
   game.renderLobbyRoster();   // no-ops until the lobby is ready
   if (game.lobbyReady) game.refreshLobbyMap();
 }

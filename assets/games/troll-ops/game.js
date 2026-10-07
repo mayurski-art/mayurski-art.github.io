@@ -1822,6 +1822,7 @@ function matchMapId(roomMapId = null) {
   const m = currentMode();
   if (m.forceMap) return m.forceMap;
   if (m.mapPool) return m.mapPool.includes(loadout.poolMapId) ? loadout.poolMapId : m.mapPool[0];
+  if (m.maps && !m.maps.includes(roomMapId)) return m.maps.includes(loadout.versusMapId) ? loadout.versusMapId : m.maps[0];
   return roomMapId || loadout.versusMapId;   // a prestige map only in a private room
 }
 

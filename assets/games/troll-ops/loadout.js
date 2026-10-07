@@ -210,7 +210,8 @@ export class Loadout {
     wrap.innerHTML = "";
     // The prestige reward maps (The Pentagrin, Trollface Island) sit at the
     // end of the versus list, locked until their prestige and a private room.
-    for (const id of this.mapPool || [...MAP_IDS, ...Object.keys(REWARD_MAPS)]) {
+    const all = this.mapPool || [...MAP_IDS, ...Object.keys(REWARD_MAPS)];
+    for (const id of this.mapAllow ? all.filter((m) => this.mapAllow.includes(m)) : all) {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "to-lo-map";
@@ -276,6 +277,18 @@ export class Loadout {
     this.render();
   }
 
+  /* A mode open on only some maps (Socialize): the drawer shows just those,
+     and a versus pick outside them is kept for the other modes but not
+     played here. */
+  setMapAllow(list) {
+    const same = (list || null) === this.mapAllow
+      || (list && this.mapAllow && list.join() === this.mapAllow.join());
+    if (same) return;
+    this.mapAllow = list ? [...list] : null;
+    this.buildMaps();
+    this.render();
+  }
+
   /* A prestige reward map: its prestige, in a private room. Others always. */
   mapOpen(id) {
     const p = REWARD_MAPS[id];
@@ -285,6 +298,7 @@ export class Loadout {
   /* The versus map you'll get: your pick, unless it's a reward map you
      can't play here (a public room, or signed out), then the first map. */
   get versusMapId() {
+    if (this.mapAllow && !this.mapAllow.includes(this.mapId)) return this.mapAllow[0];
     return this.mapOpen(this.mapId) ? this.mapId : MAP_IDS[0];
   }
 
