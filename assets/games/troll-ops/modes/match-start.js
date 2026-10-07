@@ -671,7 +671,12 @@ export function beginMatch(mapId = null) {
   setHillMarker(game.hill);
 
   if (game.currentMode().rounds) {
-    game.bombSites = pickBombSites(game.builtMap.map.bounds, game.builtMap.spawnPoints, game.colliders);
+    // A map can place its own sites (Grinjuku); otherwise they're worked out
+    // from the spawns. Either way they sit on open ground at y 0.
+    const designed = game.builtMap.map.bombSites;
+    game.bombSites = designed
+      ? designed.map((s) => ({ id: s.id, x: s.x, z: s.z }))
+      : pickBombSites(game.builtMap.map.bounds, game.builtMap.spawnPoints, game.colliders);
     game.bomb = new Bomb(game.bombSites);
     setBombSiteMarkers(game.bombSites);
     game.sndRound = 0;

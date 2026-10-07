@@ -15,6 +15,7 @@ import { GRINLERIA } from "./grinleria.js?v=hg6e-bl1";
 import { TROLLFACE_ISLAND } from "./trollface-island.js?v=hg6e";
 import { TROLLCITY } from "./trollcity.js?v=tc2-wst-sb1-rp1-dj1";
 import { TROLLINGLOUD } from "./trollingloud.js?v=tl4";
+import { GRINJUKU } from "./grinjuku.js?v=gj1";
 import { SURFACES } from "./surface-textures.js?v=hg6e";
 import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } from "./battlefield-props.js";
 import {
@@ -1689,6 +1690,9 @@ MAPS.trollcity.dress = {
 };
 // The neon nightclub: versus, S&D and Zombies, like Troll City.
 MAPS.trollingloud = TROLLINGLOUD;
+// Shinjuku at night (after VALORANT's Split): versus and S&D. `_wip` keeps it
+// out of the picker and the vote until it ships.
+MAPS.grinjuku_wip = GRINJUKU;
 // Troll Royale's own map: 400 m across, far too big for the versus modes, so
 // it stays out of MAP_IDS (the vote pool).
 MAPS.trollface = TROLLFACE_ISLAND;
