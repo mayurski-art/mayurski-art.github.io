@@ -2589,7 +2589,7 @@ function animate() {
         else if (a.e.hitbox && a.e.hp > 0) targetMeshes.push(a.e.hitbox);
       }
 
-      if (isSocial()) { updateBar(dt); townNpcs?.update(dt, camera.position); }   // the hangout: the saloon bar owns hold X; the townsfolk
+      if (isSocial()) { updateBar(dt); townNpcs?.update(dt, camera.position, audio); }   // the hangout: the saloon bar owns hold X; the townsfolk
       else if (scavengeAllowed()) { pickups.update(dt); updatePickupPrompt(dt); }
       else {
         if (pickups.drops.length) pickups.clear();

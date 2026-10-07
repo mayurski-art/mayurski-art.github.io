@@ -97,6 +97,9 @@ function piano(K, M, x, y, z, o = {}) {
    counter and its tables. { x, z, y: the top, floor, r (a round table) or
    x0..x1, z0..z1 (a counter) }. Rebuilt with the map. */
 const SURFACES = [];
+/* The smithy's forge, for the smith (smithy.js) to stoke: its light and the
+   coal and glow materials. Rebuilt with the map. */
+const SMITHY = { light: null, coal: null, glow: null };
 function tableSet(K, M, x, y, z, o = {}) {
   kitTableSet(K, M, x, y, z, o);
   SURFACES.push({ x, z, y: y + 0.77, floor: y, r: o.r || 0.55 });
@@ -972,8 +975,11 @@ function buildShops(K, M, lights) {
     });
     // the forge: a stone hearth, coals, a hood and chimney through the roof
     K.solid(-47.4, 19.8, 2.2, 1.4, 0.9, { y: Y, pen: 10, mat: M.stone });
-    K.box(M.coal, -47.4, Y + 0.9, 19.7, 1.4, 0.06, 0.9, {}, { shadow: false });
-    K.add(M.fireGlow, place(new THREE.PlaneGeometry(3, 3), { x: -47.4, y: Y + 0.95, z: 19.7, rx: -Math.PI / 2 }), { shadow: false });
+    // its own coal and glow materials, so the smith can make them breathe
+    SMITHY.coal = M.coal.clone();
+    SMITHY.glow = M.fireGlow.clone();
+    K.box(SMITHY.coal, -47.4, Y + 0.9, 19.7, 1.4, 0.06, 0.9, {}, { shadow: false });
+    K.add(SMITHY.glow, place(new THREE.PlaneGeometry(3, 3), { x: -47.4, y: Y + 0.95, z: 19.7, rx: -Math.PI / 2 }), { shadow: false });
     K.box(M.stone, -47.4, Y + 2.3, 20.2, 2.0, 1.0, 1.0);
     K.box(M.stone, -47.4, Y + 3.3, 20.6, 0.9, 3.4, 0.7);
     // anvil on a stump, a quench barrel, tools on the wall
@@ -990,6 +996,7 @@ function buildShops(K, M, lights) {
     const l = new THREE.PointLight(0xff7a2a, 9, 10, 1.6);
     l.position.set(-47.4, Y + 1.4, 19.0);
     lights.push(l);
+    SMITHY.light = l;
   }
   // the Grin Inn: two storeys of front (the rooms are let out; only the
   // lobby is open)
@@ -1869,6 +1876,7 @@ function buildTrollCity(api) {
   ZSPAWNS.length = 0;
   SEATS.length = 0;
   SURFACES.length = 0;
+  Object.assign(SMITHY, { light: null, coal: null, glow: null });
   const root = new THREE.Group();
   api.prop(root);
   root.castShadow = false;
@@ -1924,7 +1932,7 @@ export const TROLLCITY = {
   build: buildTrollCity,
   // Socialize roleplay spots (saloon-bar.js / game.js updateBar). Floor
   // heights are the saloon's ground floor.
-  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, doctor: { ...DOC, floorY: FLOOR } },
+  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, doctor: { ...DOC, floorY: FLOOR } },
   // Team spawns: past the railway in the north, out on the plain south.
   spawns: [[-56, -46], [-46, -47.5], [-16, -47.8], [-2, -47.8], [8, -48], [18, -46.5], [50, -46], [58, -40],
     [-56, 46], [-44, 46.5], [-26, 45], [-12, 46], [0, 45.5], [14, 46], [28, 45], [40, 45.5]],
@@ -1990,7 +1998,10 @@ function townNpcs() {
     // the trades
     { name: "Sheriff Grimes", role: "Sheriff", act: "guard", x: 40.2, z: -1.5, y: Y, yaw: Math.PI / 2 },
     { name: "Deputy Doofus", role: "Deputy", act: "sit-read", x: 47.4, z: -7.1, y: Y + 0.47, yaw: Math.PI, sit: true },
-    { name: "Iron Ike", role: "Blacksmith", act: "hammer", x: -45.4, z: 17.25, y: Y, yaw: Math.PI },
+    // the anvil top, the coals, the barrel's water; where he stands at each
+    { name: "Iron Ike", role: "Blacksmith", act: "smith", x: -45.2, z: 17.3, y: Y, yaw: Math.PI,
+      anvil: [-45.4, Y + 0.8, 18.0], forge: [-47.4, Y + 0.96, 19.45], quench: [-43.6, Y + 0.85, 19.8],
+      stand: { anvil: [-45.2, 17.3], forge: [-47.65, 18.6], quench: [-43.85, 19.0] } },
     { name: "Hay Jay", role: "Horsekeeper", act: "brush", x: 18.5, z: 33.7, y: 0, yaw: -0.85 },
     { name: "Mr. Kek", role: "Merchant", act: "count", x: -33.6, z: -18.75, y: Y, yaw: Math.PI },
     { name: "Doc Grin", role: "Doctor", act: "tend", x: 27.0, z: -17.85, y: Y, yaw: 0 },

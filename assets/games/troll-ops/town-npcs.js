@@ -15,7 +15,8 @@
 // (money or goods on a counter), tend (the doctor over the exam table),
 // guard (arms folded, looking round), sit-read (feet up, reading), walk
 // (round a path, stopping to look about; `pace` walks it back and forth),
-// phone (waiting in a line: thumbing a phone, looking up now and then).
+// phone (waiting in a line: thumbing a phone, looking up now and then),
+// smith (anvil, forge and quench barrel, with the tools: smithy.js).
 //
 // Optional per NPC: `height`, `build` (a bouncer's shoulders), `face` (a
 // tint), `dance` (which of DANCES), `zone` (its room, if not where it
@@ -26,6 +27,7 @@
 import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, DANCES } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
 import { buildDrink, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1";
+import { SmithWork } from "./smithy.js?v=sm1";
 
 const TINTS = ["og", "og", "gold", "green", "blue", "pink", "purple", "red", "stone"];
 const WALK_MPS = 1.25;
@@ -79,11 +81,12 @@ export class TownNpcs {
      the crowd is indoors under lights that cast none), and `view`: { zoneOf(x,
      y, z), sees(a, b) }, which rooms can see into which, so a crowd in a room
      the camera can't see into isn't drawn. */
-  constructor(scene, cast, { beat = null, npcShadows = true, view = null } = {}) {
+  constructor(scene, cast, { beat = null, npcShadows = true, view = null, smithy = null } = {}) {
     this.scene = scene;
     this.beat = beat;
     this.shadows = npcShadows;
     this.view = view;
+    this.smithy = smithy?.() ?? null;
     this.material = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.7, metalness: 0.1 });
     this.list = cast.map((c, i) => this.spawn(c, i));
     this.t = 0;
@@ -103,6 +106,7 @@ export class TownNpcs {
       n.drink = buildDrink(c.drink === "whiskey" ? "whiskey" : "beer");
       mountDrink(rig, n.drink);
     }
+    if (c.act === "smith") n.smith = new SmithWork(this.scene, n, this.smithy);
     if (c.path) {
       // Where on the loop they start (`at`, 0..1 of its length).
       n.seg = 0; n.segT = 0; n.dir = 1; n.wait = 0;
@@ -136,8 +140,9 @@ export class TownNpcs {
     return this.list.filter((n) => n.c.sit && !n.off).map((n) => ({ x: n.x, z: n.z, y: n.c.y ?? 0, role: n.c.role }));
   }
 
-  /* `eye`: where the local camera is, for the level of detail. */
-  update(dt, eye) {
+  /* `eye`: where the local camera is, for the level of detail; `audio` for
+     the few that make a sound (the smith's anvil). */
+  update(dt, eye, audio = null) {
     this.t += dt;
     const from = this.view ? this.view.zoneOf(eye.x, eye.y, eye.z) : null;
     for (const n of this.list) {
@@ -148,6 +153,7 @@ export class TownNpcs {
       if (n.tag) n.tag.visible = d < TAG_RANGE;
       n.t += dt;
       if (n.c.act === "walk") this.walk(n, dt);
+      n.smith?.step(dt, hidden ? Infinity : d, audio);
       if (hidden) continue;
       // Far off, pose a few times a second instead of every frame.
       n.poseAcc += dt;
@@ -190,7 +196,7 @@ export class TownNpcs {
     const { rig, c } = n;
     const p = rig.parts;
     const t = n.t;
-    const moving = c.act === "walk" && n.moving;
+    const moving = (c.act === "walk" || c.act === "smith") && n.moving;
     if (moving) n.phase += dt * gaitPhaseRate(WALK_MPS);
     rig.root.position.set(n.x, c.y ?? 0, n.z);
     aimRig(rig, n.yaw, dt, { snap: true, moving });
@@ -249,6 +255,7 @@ export class TownNpcs {
         p.chest.rotation.x += 0.15;
         break;
       }
+      case "smith": n.smith.pose(rig, t); return;
       case "brush": {
         p.armR.rotation.set(0.95 + sw(2.4) * 0.3, 0, -0.1); p.elbowR.rotation.set(0.5 + sw(2.4) * 0.2, 0, 0);
         p.armL.rotation.set(0.7, 0, 0.1); p.elbowL.rotation.set(0.4, 0, 0);
@@ -325,6 +332,7 @@ export class TownNpcs {
   dispose() {
     for (const n of this.list) {
       n.rig.root.parent?.remove(n.rig.root);
+      n.smith?.dispose();
       n.tag?.material.map?.dispose();
       n.tag?.material.dispose();
     }
