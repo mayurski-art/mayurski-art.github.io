@@ -55,7 +55,9 @@ await page.evaluate(async () => {
 // The map loads behind its loading screen first; wait for the match to be live.
 await page.waitForFunction(() => { const s = window.__trollOps.loadState(); return window.__trollOps.state() === "playing" && !s.open && !s.hold; }, null, { timeout: 180000 });
 await page.evaluate(() => { const T = window.__trollOps; if (T.isStaging()) T.endStaging(); T.breakSpawnGuard(); T.setHolding("melee"); T.setAds(true); });
-await sleep(1200);
+// The blade ignites slowly on a draw and the headless sim runs under real
+// time: wait for the guard rather than a fixed second.
+await page.waitForFunction(() => { const s = window.__trollOps.saberState(); return s.active && s.t >= 0.79; }, null, { timeout: 20000 }).catch(() => {});
 let st = await page.evaluate(() => window.__trollOps.saberState());
 check("guard up", st.active && st.t >= 0.79, JSON.stringify(st));
 const hit = (sx, up) => page.evaluate(([sx, up]) => {
