@@ -216,7 +216,72 @@ def build_north(P):
             jx = cx + (2.8 if cx < 0 else -2.8) + i * 0.55 * (1 if cx < 0 else -1)
             b.cyl(P["terracotta"], 0.22, (jx, 0, -32.1), (jx, 0.45, -32.1), seg=10, r2=0.28)
             b.cyl(P["terracotta"], 0.28, (jx, 0.45, -32.1), (jx, 0.75, -32.1), seg=10, r2=0.12)
+    loading_yard(b, P)
     b.finish("db-north.glb")
+
+
+def crate(b, P, x, z, w, h, d, y=0.0, ry=0.0):
+    """Plank crate with darker corner posts and a mid band."""
+    b.box(P["plank"], w, h, d, x, y, z, ry=ry, bevel=0.02)
+    c, s = math.cos(ry), math.sin(ry)
+    for (ox, oz) in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
+        px, pz = ox * (w / 2 - 0.03), oz * (d / 2 - 0.03)
+        b.box(P["timber"], 0.08, h + 0.01, 0.08, x + px * c + pz * s, y, z - px * s + pz * c, ry=ry)
+    b.box(P["timber"], w + 0.02, 0.08, d + 0.02, x, y + h * 0.5 - 0.04, z, ry=ry)
+
+
+def loading_yard(b, P):
+    """Bazaar phase 3. maps.js: dock box (-17, -32.6) 6 x 3.6 x 1.5, stair
+    api.stairs(-19.5, -28.3, 1.5, 5, 0.3, 0.5, "-z"), dock crates at y 1.5,
+    islands round (-14, -21), (0, -23), (22.5, -22), drum (21, -21) r 0.35."""
+    rng = random.Random(41)
+    # the dock: mud-brick body, timber kerb with rubber bumpers along the front
+    b.box(P["plaster_dk"], 6.0, 1.5, 3.6, -17, 0, -32.6)
+    b.box(P["timber"], 6.06, 0.14, 0.2, -17, 1.36, -30.85)
+    b.box(P["plank"], 6.0, 0.04, 3.6, -17, 1.5, -32.6)
+    for x in (-19.4, -17.0, -14.6):
+        b.box(P["rubber"], 0.35, 0.5, 0.14, x, 0.7, -30.75)
+    for i in range(5):
+        b.box(P["plaster_dk"], 1.5, 0.3 * (i + 1), 0.5, -19.5, 0, -28.3 - 0.5 * (i + 0.5))
+        b.box(P["timber"], 1.5, 0.04, 0.06, -19.5, 0.3 * (i + 1) - 0.02, -28.3 - 0.5 * i - 0.03)
+    # a shutter in the wall behind it, and a hoist beam with a hanging hook
+    b.box(P["rust"], 4.0, 3.0, 0.06, -17, 1.5, -34.37)
+    for k in range(12):
+        b.box(P["dark"], 4.0, 0.035, 0.03, -17, 1.6 + k * 0.24, -34.33)
+    b.box(P["timber"], 4.4, 0.25, 0.25, -17, 4.5, -34.3)
+    b.box(P["timber"], 0.22, 0.22, 2.6, -15.6, 4.2, -33.1)
+    b.cyl(P["black"], 0.012, (-15.6, 4.2, -32.1), (-15.6, 2.8, -32.1), seg=4, smooth=False)
+    b.cyl(P["dark"], 0.06, (-15.6, 2.8, -32.1), (-15.6, 2.55, -32.1), seg=6, r2=0.02)
+    # crates on the dock's front corner
+    crate(b, P, -14.7, -31.5, 1.2, 0.9, 1.2, y=1.5, ry=0.05)
+    crate(b, P, -16.1, -31.3, 1.0, 0.6, 0.8, y=1.5, ry=-0.08)
+    # island 1 (-14, -21): a two-crate stack, loose crates, sacks
+    crate(b, P, -14.8, -21.4, 1.2, 1.1, 1.2)
+    crate(b, P, -14.8, -21.4, 1.1, 1.1, 1.1, y=1.1, ry=0.12)
+    crate(b, P, -13.3, -20.7, 1.2, 1.1, 1.0, ry=-0.06)
+    for k in range(3):
+        b.lump(P["cloth_cream"], 0.6, 0.45, 0.75, -13.25 + k * 0.45, 0, -22.1, seed=700 + k)
+    b.lump(P["cloth_cream"], 0.6, 0.4, 0.7, -12.8, 0.38, -22.1, seed=703)
+    # island 2 (0, -23): a handcart of sacks beside a crate stack
+    b.box(P["plank"], 2.0, 0.1, 1.1, 0.8, 0.55, -23.2)
+    for sz in (-0.52, 0.52):
+        b.box(P["timber"], 2.0, 0.35, 0.06, 0.8, 0.65, -23.2 + sz)
+        b.cyl(P["tyre"], 0.32, (0.9, 0.32, -23.2 + sz * 1.12), (0.9, 0.32, -23.2 + sz * 1.3), seg=12)
+        b.cyl(P["timber"], 0.03, (-0.2, 0.62, -23.2 + sz), (-0.9, 0.35, -23.2 + sz), seg=6)
+    for k in range(3):
+        b.lump(P["cloth_cream"], 0.62, 0.42, 0.85, 0.2 + k * 0.6, 0.65, -23.2, seed=710 + k)
+    crate(b, P, -1.2, -22.8, 1.0, 1.0, 1.0)
+    crate(b, P, -1.2, -22.8, 0.95, 1.0, 0.95, y=1.0, ry=-0.1)
+    # island 3 (22.5, -22): crate stack, a loose crate, a rusty drum
+    crate(b, P, 22.0, -22.4, 1.2, 1.1, 1.2, ry=0.04)
+    crate(b, P, 22.0, -22.4, 1.1, 1.1, 1.1, y=1.1, ry=-0.1)
+    crate(b, P, 23.5, -21.6, 1.0, 1.1, 1.0, ry=0.1)
+    b.cyl(P["rust"], 0.35, (21, 0, -21), (21, 1.0, -21), seg=14)
+    for y in (0.3, 0.7):
+        b.cyl(P["dark"], 0.36, (21, y, -21), (21, y + 0.04, -21), seg=14)
+    # a few loose planks and a pallet on the ground for dressing
+    for k in range(3):
+        b.box(P["plank"], 1.6, 0.04, 0.18, -11.6 + rng.uniform(-0.2, 0.2), 0, -31.5 + k * 0.25, ry=rng.uniform(-0.2, 0.2))
 
 
 # ------------------------------------------------------------------ centre

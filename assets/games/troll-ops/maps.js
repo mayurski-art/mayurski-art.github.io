@@ -667,6 +667,20 @@ export const MAPS = {
       for (const [x, z, r, h] of [[-10, -30, 1.2, 1.2], [9, -17, 1.4, 1.3]]) api.cylinder(x, z, r, h, { ghost: true, color: ROCK, pen: 6 });
       api.box(-1, -28, 6, 2.4, 2.2, { ghost: true, color: 0x6a4a3a, pen: 4 });                // wrecked truck bed
       api.box(3.5, -28, 2, 2.4, 2.8, { ghost: true, color: 0x5a3a2a, pen: 4 });               // cab
+      // loading yard (bazaar 3): the 3rd high spot, a 1.5 m dock against the
+      // north wall with a stair up its south face and crates on its front
+      // corner, plus three islands of cover in the rock band. Nothing tall
+      // stands in the wall strip (z < -33) or south of z -19, so the
+      // east-west sightlines there stay 45 m+.
+      api.box(-17, -32.6, 6, 3.6, 1.5, { ghost: true, color: STONE, pen: 10 });
+      api.stairs(-19.5, -28.3, 1.5, 5, 0.3, 0.5, "-z", { ghost: true, color: MUD_DK });
+      for (const [x, z, w, d, h, y] of [[-14.7, -31.5, 1.2, 1.2, 0.9, 1.5], [-16.1, -31.3, 1, 0.8, 0.6, 1.5],
+        [-14.8, -21.4, 1.2, 1.2, 2.2, 0], [-13.3, -20.7, 1.2, 1, 1.1, 0], [-12.8, -22.1, 1.4, 0.8, 0.8, 0],
+        [0.7, -23.2, 2.2, 1.2, 1.1, 0], [-1.2, -22.8, 1, 1, 2, 0],
+        [22, -22.4, 1.2, 1.2, 2.2, 0], [23.5, -21.6, 1, 1, 1.1, 0]]) {
+        api.box(x, z, w, d, h, { ghost: true, color: WOOD, y, pen: 3 });                     // crates, sacks, cart
+      }
+      api.cylinder(21, -21, 0.35, 1, { ghost: true, color: 0x6a4028, pen: 3 });               // drum
       // walled courtyards in the two north corners, gates to the east/west and south
       for (const cx of [-27, 27]) {
         api.ghostWalls(cx, -28, 10, 10, 2.5, 0.6, { ghost: true, color: MUD, gaps: { [cx < 0 ? "e" : "w"]: 3, s: 3 }, pen: 6 });

@@ -44,6 +44,7 @@ const RUNS = {
   [-20.75, 0, 5.2, 0, -1, 4, "carpet-shop stair -> landing", (r) => r.maxY >= 3.25],
   [-20.75, 3.3, -2.2, 1, 0, 2, "landing -> carpet-shop roof", (r) => r.end[0] > -18.5 && r.end[1] > 3.2],
   [2, 0, -8.6, 1, 0, 1.6, "over the minaret plinth", (r) => r.maxY >= 0.29 && r.end[0] > 9],
+  [-19.5, 0, -27, 0, -1, 2.5, "loading dock stair -> dock", (r) => r.maxY >= 1.45 && r.end[2] < -31],
   ],
   depot: [  [-23, 0, 7.6, 0, 1, 4, "west stair -> south catwalk", (r) => r.maxY >= 4.9],
   [23, 0, -7.6, 0, -1, 4, "east stair -> north catwalk", (r) => r.maxY >= 4.9],
