@@ -753,6 +753,20 @@ export const MAPS = {
       api.stairs(30, 17 - 4 * 0.6, 3, 4, 0.3, 0.6, "+z", { ghost: true, color: MUD_DK });                   // street -> north bank
       for (const x of [-10, 12]) api.stairs(x, 30 - 4 * 0.6, 3, 4, 0.3, 0.6, "+z", { ghost: true, color: MUD_DK }); // channel -> south bank
       for (const [x, z] of [[-15, 25], [18, 26]]) api.cylinder(x, z, 1.2, 1.1, { ghost: true, color: ROCK, pen: 6 });
+      // old water works (bazaar 4): a plank crossing at x -17.5 on two pairs of
+      // posts, a culvert pipe section and rubble as low cover in the channel,
+      // a pipe run along the south bank (broken at its stairs), and a sluice
+      // frame whose stone piers stand on the two bank tops at x 27. Nothing in
+      // the channel tops 1.5 m: crouch cover, the standing lines stay open.
+      api.box(-17.5, 25, 1.6, 10, 0.15, { ghost: true, color: WOOD, y: BANK, pen: 2 });
+      for (const z of [22.5, 27.5]) for (const x of [-18.1, -16.9]) api.cylinder(x, z, 0.12, BANK, { ghost: true, color: WOOD, pen: 2 });
+      for (const [x, z, w, d, h] of [[-6, 24, 3, 1.3, 1.3], [8, 22.5, 2.2, 1.6, 0.8], [-23.5, 28.4, 2.4, 1.4, 0.7], [15.6, 28.6, 2, 1.4, 0.75]]) {
+        api.box(x, z, w, d, h, { ghost: true, color: STONE, pen: 6 });                        // culvert pipe, rubble
+      }
+      for (const [x0, x1] of [[-34.4, -12], [-8, 10], [14, 34.4]]) {
+        api.box((x0 + x1) / 2, 29.75, x1 - x0, 0.5, 0.7, { ghost: true, color: 0x6a4028, pen: 4 });   // pipe run
+      }
+      for (const z of [19.4, 30.6]) api.box(27, z, 0.9, 0.9, 2.4, { ghost: true, color: STONE, y: BANK, pen: 10 });  // sluice piers
 
       // Every collider above is the approved blockout's, now invisible; the
       // village is drawn by the db-*.glb zone models (models/build_dustbowl.blender.py).

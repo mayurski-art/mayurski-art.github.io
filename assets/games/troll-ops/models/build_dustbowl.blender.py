@@ -729,7 +729,95 @@ def build_south(P):
     for (x, zb, sgn) in runs:
         for i in range(4):
             b.box(P["stone"], 3.0, 0.3 * (i + 1), 0.6, x, 0, zb + sgn * 0.6 * (i + 0.5))
+    water_works(b, P)
     b.finish("db-south.glb")
+
+
+def water_works(b, P):
+    """Bazaar phase 4, the channel as old water works. maps.js: plank deck
+    (-17.5, 25) 1.6 x 10 x 0.15 at y 1.2 on posts r 0.12 at x -18.1/-16.9,
+    z 22.5/27.5; culvert pipe (-6, 24) 3 x 1.3 x 1.3; rubble (8, 22.5),
+    (-23.5, 28.4), (15.6, 28.6); pipe run z 29.75 (0.5 x 0.7) broken at the
+    stairs; sluice piers 0.9 x 0.9 x 2.4 on the banks at x 27, z 19.4/30.6."""
+    rng = random.Random(53)
+    BANK = 1.2
+    # plank crossing: sagging boards on two stringers, a few boards gone
+    for i in range(37):
+        z = 20.15 + i * 0.27
+        if rng.random() < 0.07:
+            continue
+        t = (z - 20) / 10
+        b.box(P["plank"], 1.6, 0.06, 0.22, -17.5 + rng.uniform(-0.04, 0.04), BANK + 0.08 - 0.05 * 4 * t * (1 - t), z,
+              ry=rng.uniform(-0.04, 0.04))
+    for sx in (-0.7, 0.7):
+        b.box(P["timber"], 0.14, 0.16, 10.0, -17.5 + sx, BANK - 0.06, 25.0)
+    for z in (22.5, 27.5):
+        for x in (-18.1, -16.9):
+            b.cyl(P["timber"], 0.12, (x, 0, z), (x, BANK, z), seg=8)
+    for z in (19.6, 30.4):
+        b.cyl(P["timber"], 0.05, (-18.35, BANK, z), (-18.35, BANK + 1.0, z), seg=6)
+    for i in range(10):
+        t0, t1 = i / 10, (i + 1) / 10
+        y0, y1 = BANK + 0.95 - 0.25 * 4 * t0 * (1 - t0), BANK + 0.95 - 0.25 * 4 * t1 * (1 - t1)
+        b.cyl(P["timber"], 0.02, (-18.35, y0, 19.6 + 10.8 * t0), (-18.35, y1, 19.6 + 10.8 * t1), seg=4, smooth=False)
+
+    # a culvert pipe section lying in the channel, half sanded in at one end
+    b.cyl(P["conc"], 0.65, (-7.5, 0.65, 24), (-4.5, 0.65, 24), seg=18, caps=False)
+    for x in (-7.45, -4.55):
+        b.cyl(P["black"], 0.55, (x, 0.65, 24), (x + (0.02 if x < -6 else -0.02), 0.65, 24), seg=16)
+        b.cyl(P["conc"], 0.7, (x - (0.05 if x < -6 else -0.05), 0.65, 24), (x + (0.1 if x < -6 else -0.1), 0.65, 24), seg=18, caps=False)
+    b.lump(P["rock"], 1.4, 0.55, 1.6, -4.3, 0, 24, seed=801, rnd=0.5)
+
+    # rubble piles: broken masonry and a snapped pipe end
+    for n, (x, z, w, d, h) in enumerate(((8, 22.5, 2.2, 1.6, 0.8), (-23.5, 28.4, 2.4, 1.4, 0.7), (15.6, 28.6, 2.0, 1.4, 0.75))):
+        b.lump(P["plaster_dk"], w * 0.9, h * 0.75, d * 0.9, x, 0, z, seed=810 + n, rnd=0.3, jitter=0.15)
+        for k in range(5):
+            bx = x + rng.uniform(-w / 2.6, w / 2.6)
+            bz = z + rng.uniform(-d / 2.6, d / 2.6)
+            b.box((P["plaster"], P["plaster_dk"], P["rock"])[k % 3], rng.uniform(0.3, 0.55), rng.uniform(0.18, 0.3),
+                  rng.uniform(0.25, 0.4), bx, h * rng.uniform(0.35, 0.7), bz, ry=rng.uniform(0, 3), rx=rng.uniform(-0.3, 0.3))
+        b.cyl(P["rust"], 0.2, (x - w / 2 + 0.2, 0.25, z + 0.2), (x - w / 2 + 0.9, 0.45, z - 0.1), seg=10, caps=False)
+
+    # the pipe run along the south bank, on saddles, flanged, one valve wheel
+    for (x0, x1) in ((-34.4, -12.0), (-8.0, 10.0), (14.0, 34.4)):
+        b.cyl(P["rust"], 0.2, (x0, 0.45, 29.75), (x1, 0.45, 29.75), seg=12)
+        x = x0 + 1.5
+        while x < x1 - 0.5:
+            b.box(P["conc"], 0.3, 0.3, 0.5, x, 0, 29.75)
+            x += 3.0
+        x = x0 + 3.0
+        while x < x1 - 0.5:
+            b.cyl(P["dark"], 0.26, (x - 0.04, 0.45, 29.75), (x + 0.04, 0.45, 29.75), seg=12)
+            x += 6.0
+        for xe in (x0, x1):
+            if abs(xe) < 34:
+                b.cyl(P["dark"], 0.24, (xe, 0.45, 29.75), (xe + (0.06 if xe == x0 else -0.06), 0.45, 29.75), seg=12)
+    b.cyl(P["dark"], 0.04, (2.0, 0.65, 29.75), (2.0, 0.95, 29.75), seg=6)
+    b.cyl(P["sign_red"], 0.22, (2.0, 0.95, 29.75), (2.0, 0.99, 29.75), seg=12, caps=False)
+
+    # culvert outlets in the north bank's channel face, stained below
+    for x in (-27.0, -13.0, 3.5, 15.0, 30.0):
+        b.cyl(P["conc"], 0.5, (x, 0.6, 19.96), (x, 0.6, 20.22), seg=16, caps=False)
+        b.cyl(P["black"], 0.45, (x, 0.6, 20.02), (x, 0.6, 20.04), seg=14)          # bank face is z 20
+        for k in range(5):
+            b.box(P["dark"], 0.04, 0.84, 0.04, x - 0.3 + k * 0.15, 0.18, 20.1)
+        b.box(P["wet"], 0.9, 0.012, 1.4, x, 0, 20.8)
+
+    # sluice frame across the channel at x 27: piers on the bank tops, a beam,
+    # the old gate wound up under it on chains
+    for z in (19.4, 30.6):
+        b.box(P["plaster_dk"], 0.9, 2.4, 0.9, 27, BANK, z, bevel=0.03)
+        b.box(P["plaster_lt"], 1.0, 0.1, 1.0, 27, BANK + 2.4, z, bevel=0.02)
+    b.box(P["timber"], 0.36, 0.36, 12.0, 27, 3.7, 25.0)
+    b.box(P["rust"], 0.12, 0.9, 4.0, 27, 2.6, 25.0)
+    for k in range(4):
+        b.box(P["dark"], 0.14, 0.05, 4.0, 27, 2.68 + k * 0.22, 25.0)
+    for z in (23.3, 26.7):
+        b.cyl(P["black"], 0.015, (27, 3.5, z), (27, 3.7, z), seg=4, smooth=False)
+    b.cyl(P["dark"], 0.35, (26.7, 3.95, 19.4), (27.3, 3.95, 19.4), seg=14)
+    for k in range(6):
+        a = k * math.pi / 3
+        b.box(P["dark"], 0.04, 0.6, 0.04, 26.65, 3.65, 19.4, rx=a)
 
 
 # The city outside the wall and the mountains are built in the game at load
