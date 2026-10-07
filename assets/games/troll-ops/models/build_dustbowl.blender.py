@@ -614,6 +614,57 @@ def shops(b, P):
     tarp(b, P, -2.8, 3.8, 12.3, 15.7, 3.0, 0.45, (oc, cr))
 
 
+def sag_line(b, P, a, e, sag, r=0.012, n=10):
+    """Cord from a to e, sagging `sag` at the middle; returns the points."""
+    pts = []
+    for i in range(n + 1):
+        t = i / n
+        pts.append((a[0] + (e[0] - a[0]) * t, a[1] + (e[1] - a[1]) * t - sag * 4 * t * (1 - t), a[2] + (e[2] - a[2]) * t))
+    for i in range(n):
+        b.cyl(P["black"], r, pts[i], pts[i + 1], seg=4, smooth=False)
+    return pts
+
+
+def street_life(b, P):
+    """Bazaar phase 5: power wires across the street and to the centre house,
+    two more laundry lines, rooftop water tanks (colliders in maps.js:
+    1.1 x 1.1 x 1.4 at y 3.3)."""
+    rng = random.Random(97)
+    # wires roof edge to roof edge across the street, insulators at the ends
+    # (north ends on the north houses' fronts, z 3.2, x -20..-12 / 12..20, or
+    # the centre house's south wall, z 0.2; south ends on the cut-through houses)
+    for (x, z, y, x2) in ((-19.6, 3.2, 3.2, -20.5), (-14.5, 3.2, 3.2, -10.8), (-3.2, 0.2, 3.45, -3.6),
+                          (4.6, 0.2, 3.45, 4.6), (14.5, 3.2, 3.2, 11.5), (19.8, 3.2, 3.2, 20.5)):
+        for dy in (0.0, 0.18):
+            sag_line(b, P, (x, y + dy, z), (x2, 3.2 + dy, 11.8), 0.7 + dy)
+        for (ex, ey, ez) in ((x, y, z + 0.05), (x2, 3.2, 11.75)):
+            b.box(P["white"], 0.07, 0.12, 0.07, ex, ey - 0.1, ez)
+    # feeders along the north house fronts, a junction box with its tails
+    for (x0, x1) in ((-20.0, -12.0), (12.0, 20.0)):
+        sag_line(b, P, (x0, 2.85, 3.06), (x1, 2.85, 3.06), 0.2, n=12)
+    b.box(P["c_grey"], 0.5, 0.6, 0.2, 19.75, 2.1, 3.08)
+    for k in range(3):
+        b.cyl(P["black"], 0.01, (19.65 + k * 0.1, 2.1, 3.12), (19.5 + k * 0.25, 0.0, 3.14), seg=4, smooth=False)
+    # laundry from the north houses to the centre house walls
+    cols = (P["cloth_red"], P["cloth_cream"], P["cloth_blue"], P["white"], P["cloth_turq"], P["cloth_ochre"])
+    for (a, e) in (((-11.8, 2.95, -1.0), (-5.0, 2.95, -1.0)), ((11.8, 2.95, -1.6), (5.0, 2.95, -1.6))):
+        pts = sag_line(b, P, a, e, 0.25)
+        for k in range(1, 9, 1):
+            if rng.random() < 0.25:
+                continue
+            px, py, pz = pts[k]
+            b.box(cols[(k + int(a[0])) % 6], 0.5, rng.uniform(0.45, 0.62), 0.02, px, py - 0.62, pz, ry=rng.uniform(-0.1, 0.1))
+    # rooftop water tanks on timber stands
+    for (x, z) in ((18.6, -1.6), (-24.8, 15.0), (5.2, 15.0), (24.8, 15.0)):
+        for (ox, oz) in ((-0.45, -0.45), (0.45, -0.45), (-0.45, 0.45), (0.45, 0.45)):
+            b.box(P["timber"], 0.09, 0.4, 0.09, x + ox, 3.3, z + oz)
+        b.box(P["plank"], 1.1, 0.06, 1.1, x, 3.7, z)
+        c = (P["dark"], P["c_grey"], P["rust"])[rng.randrange(3)]
+        b.cyl(c, 0.5, (x, 3.76, z), (x, 4.62, z), seg=14)
+        b.cyl(c, 0.5, (x, 4.62, z), (x, 4.7, z), seg=14, r2=0.25)
+        b.cyl(P["black"], 0.03, (x + 0.45, 3.9, z), (x + 0.45, 3.3, z + 0.6), seg=4)
+
+
 def build_market(P):
     b = Builder()
     rng = random.Random(31)
@@ -631,6 +682,7 @@ def build_market(P):
     for i, x in enumerate((-22, -9, 9, 22)):
         stall(b, P, x, 8, cloths[i], rng)
     shops(b, P)
+    street_life(b, P)
     # the well (0, 5.5), r 1, h 0.9: a stone ring, dark water, a winch frame
     for k in range(12):
         a = 2 * math.pi * k / 12

@@ -10,8 +10,8 @@ import { recordMatch } from "../record.js?v=rec1";
 import { setHillMarker, setBombSiteMarkers } from "../core/minimap.js?v=cr1";
 import { scheduleSocialReturn } from "./social.js?v=so1-si1-mb1";
 import { setNetStatus } from "../menu/lobby.js?v=lb1-si1";
-import { MAP_IDS, MAPS } from "../maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4";
-import { mapShotAttrs } from "../map-load-screen.js?v=ml3-wst-tl1-ng1";
+import { MAP_IDS, MAPS } from "../maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5";
+import { mapShotAttrs } from "../map-load-screen.js?v=ml3-wst-tl1-ng1-db5";
 import { game } from "../core/state.js?v=st1";
 
 function finishRun(title, headline, headlineLabel, secondLabel, thirdLabel, opts = {}) {

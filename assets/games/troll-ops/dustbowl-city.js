@@ -319,6 +319,61 @@ export function buildDustbowlCity() {
   const litMat = new THREE.MeshStandardMaterial({ vertexColors: true, emissive: 0xffa848, emissiveIntensity: 1.6, roughness: 0.5 });
   const group = new THREE.Group();
   group.name = "dustbowl-city";
-  group.add(plaster.mesh(plasterMat), paint.mesh(paintMat), lit.mesh(litMat));
+  group.add(plaster.mesh(plasterMat), paint.mesh(paintMat), lit.mesh(litMat), citySmoke());
   return group;
 }
+
+/* Distant smoke (bazaar phase 5): somebody else's war two streets over.
+   Three plumes out in the city, one THREE.Points (one draw call): soft puffs
+   rise, drift downwind, swell and fade, then start again at the base. */
+const PLUMES = [[-96, -118, 1.0], [132, 58, 0.8], [-150, 74, 0.65]];   // x, z, strength
+const PUFFS = 32;
+function citySmoke() {
+  const n = PLUMES.length * PUFFS;
+  const pos = new Float32Array(n * 3), size = new Float32Array(n), alpha = new Float32Array(n);
+  const age = new Float32Array(n), life = new Float32Array(n), seed = new Float32Array(n);
+  const r = rng(91);
+  for (let i = 0; i < n; i++) { life[i] = 11 + r() * 7; age[i] = r() * life[i]; seed[i] = r(); }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute("aSize", new THREE.BufferAttribute(size, 1));
+  geo.setAttribute("aAlpha", new THREE.BufferAttribute(alpha, 1));
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uScale: { value: 400 }, uColor: { value: new THREE.Color(0x3a302c) } },
+    vertexShader: `attribute float aSize; attribute float aAlpha; uniform float uScale; varying float vA;
+      void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vA = aAlpha;
+        gl_PointSize = aSize * uScale / -mv.z; gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `uniform vec3 uColor; varying float vA;
+      void main() { float d = length(gl_PointCoord - 0.5) * 2.0; if (d > 1.0) discard;
+        gl_FragColor = vec4(uColor, vA * (1.0 - d * d)); }`,
+    transparent: true, depthWrite: false,
+  });
+  const points = new THREE.Points(geo, mat);
+  points.name = "dustbowl-smoke";
+  points.frustumCulled = false;
+  let last = performance.now();
+  points.onBeforeRender = (renderer, scene, camera) => {
+    const now = performance.now(), dt = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    mat.uniforms.uScale.value = renderer.getDrawingBufferSize(_buf).y * 0.5 * camera.projectionMatrix.elements[5];
+    for (let p = 0; p < PLUMES.length; p++) {
+      const [px, pz, k] = PLUMES[p];
+      for (let j = 0; j < PUFFS; j++) {
+        const i = p * PUFFS + j;
+        age[i] += dt;
+        if (age[i] > life[i]) { age[i] -= life[i]; seed[i] = Math.random(); }
+        const t = age[i] / life[i], h = t * 48 * k;
+        pos[i * 3] = px + h * 0.55 + (seed[i] - 0.5) * (3 + h * 0.25);   // wind leans it east
+        pos[i * 3 + 1] = 6 + h;
+        pos[i * 3 + 2] = pz + (seed[i] * 7 % 1 - 0.5) * (3 + h * 0.25);
+        size[i] = (7 + t * 26) * k;
+        alpha[i] = 0.8 * Math.min(1, 0.5 + k * 0.5) * Math.min(1, t * 6) * (1 - t);
+      }
+    }
+    geo.attributes.position.needsUpdate = true;
+    geo.attributes.aSize.needsUpdate = true;
+    geo.attributes.aAlpha.needsUpdate = true;
+  };
+  return points;
+}
+const _buf = new THREE.Vector2();

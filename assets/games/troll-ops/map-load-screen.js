@@ -15,7 +15,9 @@
    4K screen the full 3840. */
 export const MAP_SHOTS = new Set(["culdegrin", "depot", "dustbowl", "grinbeach", "grinleria", "grinsite", "hollowgrin", "trollcity", "trollingloud", "undergrin"]);
 const SHOT_WIDTHS = [640, 1280, 1920, 2560, 3840];
-const shotFile = (id, w) => `assets/games/troll-ops/ui/maps/${id}-${w}.webp?v=hq1`;
+// one tag per map, so re-rendering one map only re-downloads that map's shots
+const SHOT_V = { dustbowl: "hq2" };
+const shotFile = (id, w) => `assets/games/troll-ops/ui/maps/${id}-${w}.webp?v=${SHOT_V[id] || "hq1"}`;
 const shotSrcset = (id) => SHOT_WIDTHS.map((w) => `${shotFile(id, w)} ${w}w`).join(", ");
 // The loading screen's shot: object-fit cover at scale(1.04), so it spans the
 // width on a wide screen and the height (times 16/9) on a tall one.

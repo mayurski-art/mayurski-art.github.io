@@ -22,7 +22,7 @@ import {
   toyCar, gardenGnome, trashCan, tireSwing, streetlamp,
 } from "./house-props.js?v=hg6e-sb2";
 import { gsModel, mapModel } from "./map-models.js?v=hg6e";
-import { buildDustbowlCity, CITY_PALMS } from "./dustbowl-city.js?v=db1";
+import { buildDustbowlCity, CITY_PALMS } from "./dustbowl-city.js?v=db5";
 import { dressMap, beachWaterMaterial, palmTrees, shopSignMaterial, beachMural, rangeBoardMaterial } from "./map-dressing.js?v=hg6e";
 
 /* ------------------------------------------------------------ surface PBR */
@@ -715,6 +715,10 @@ export const MAPS = {
       for (const [x, z, w, d, h] of [[-16, -3.05, 8.4, 0.3, 1.9], [-16, 3.05, 8.4, 0.3, 0.9],
         [-11.95, 0, 0.3, 5.8, 0.9], [-20.05, 0.75, 0.3, 4.3, 0.9]]) {
         api.box(x, z, w, d, h, { ghost: true, color: MUD, y: 3.3, pen: 6 });                  // parapets, gap at the landing
+      }
+      // rooftop water tanks (bazaar 5) on roofs nobody can reach, clear of site B
+      for (const [x, z] of [[18.6, -1.6], [-24.8, 15], [5.2, 15], [24.8, 15]]) {
+        api.box(x, z, 1.1, 1.1, 1.4, { ghost: true, color: 0x333333, y: 3.3, pen: 4 });
       }
       for (const cx of [-22, -7, 8, 22]) {                                          // cut-through houses south of it
         api.ghostWalls(cx, 14, 8, 4, 3, 0.5, { ghost: true, color: MUD, gaps: { n: 2, s: 2 }, pen: 8, surface: "brick", tile: 2.5 });
