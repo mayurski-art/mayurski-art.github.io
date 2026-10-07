@@ -278,7 +278,69 @@ def build_centre(P):
         for y in (2.0, 5.0, 7.6):
             b.box(P["black"], 0.3, 0.8, 0.3, mx + math.cos(a) * 1.43, y, mz + math.sin(a) * 1.43, ry=-a)
         b.box(P["black"], 0.3, 0.9, 0.3, mx + math.cos(a) * 0.92, 10.6, mz + math.sin(a) * 0.92, ry=-a)
+    minaret_plaza(b, P)
     b.finish("db-centre.glb")
+
+
+def lantern_string(b, P, a, e, sag, every=1.1):
+    """Cord from a to e sagging `sag` at the middle, lanterns hung along it."""
+    n = 14
+    pts = []
+    for i in range(n + 1):
+        t = i / n
+        pts.append(tuple(a[k] + (e[k] - a[k]) * t for k in range(3)))
+        pts[-1] = (pts[-1][0], pts[-1][1] - sag * 4 * t * (1 - t), pts[-1][2])
+    for i in range(n):
+        b.cyl(P["black"], 0.012, pts[i], pts[i + 1], seg=4, smooth=False)
+    L = math.dist(a, e)
+    k = max(2, int(L / every))
+    for j in range(1, k):
+        t = j / k
+        x = a[0] + (e[0] - a[0]) * t
+        z = a[2] + (e[2] - a[2]) * t
+        y = a[1] + (e[1] - a[1]) * t - sag * 4 * t * (1 - t)
+        b.box(P["lamp"] if j % 2 else P["orange"], 0.13, 0.18, 0.13, x, y - 0.26, z)
+        b.box(P["dark"], 0.17, 0.04, 0.17, x, y - 0.09, z)
+
+
+def minaret_plaza(b, P):
+    """Bazaar 2c, round the minaret (6.5, -10.5). maps.js: plinth box 4.6 x 4.6
+    x 0.3, benches (10.6, -8.8) 0.6 x 1.8 and (3.4, -13.6) 1.8 x 0.6, both
+    0.45 high, poles r 0.1 h 3.4 at (11.8, -7) and (1.6, -15.2)."""
+    rng = random.Random(23)
+    mx, mz = 6.5, -10.5
+    # paving north of the centre house, thin slabs in three stone tones
+    tones = (P["plaster"], P["plaster_lt"], P["rock"])   # not "stone": in game it takes the dark rock texture
+    x = 1.0
+    while x < 12.4:
+        z = -16.0
+        while z < -8.4:
+            cx, cz = x + 0.74, z + 0.74
+            if abs(cx - mx) > 2.6 or abs(cz - mz) > 2.6:
+                b.box(tones[rng.randrange(3)], 1.44, 0.025, 1.44, cx, 0, cz)
+            z += 1.5
+        x += 1.5
+    # the plinth: a step all round, a darker kerb
+    b.box(P["plaster_dk"], 4.6, 0.3, 4.6, mx, 0, mz)
+    b.box(P["plaster_lt"], 4.7, 0.06, 4.7, mx, 0.27, mz, bevel=0.02)
+    # a door at the foot, facing the plaza (west)
+    b.box(P["black"], 0.3, 1.9, 0.9, mx - 1.4, 0.3, mz)
+    b.box(P["timber"], 0.34, 0.12, 1.15, mx - 1.42, 2.2, mz)
+    for dz in (-0.5, 0.5):
+        b.box(P["timber"], 0.34, 1.9, 0.1, mx - 1.42, 0.3, mz + dz)
+    # stone benches with a plank seat
+    for (x, z, w, d) in ((10.6, -8.8, 0.6, 1.8), (3.4, -13.6, 1.8, 0.6)):
+        b.box(P["plaster_dk"], w, 0.38, d, x, 0, z, bevel=0.03)
+        b.box(P["plank"], w + 0.06, 0.07, d + 0.06, x, 0.38, z)
+    # lantern strings from the balcony rail to two poles and the house roof
+    ends = ((11.8, 3.35, -7.0), (1.6, 3.35, -15.2), (4.85, 4.8, -7.85))
+    for (px, pz) in ((11.8, -7.0), (1.6, -15.2)):
+        b.cyl(P["timber"], 0.08, (px, 0, pz), (px, 3.4, pz), seg=8)
+        b.cyl(P["dark"], 0.1, (px, 3.35, pz), (px, 3.45, pz), seg=8)
+    for e in ends:
+        ang = math.atan2(e[2] - mz, e[0] - mx)
+        a = (mx + math.cos(ang) * 1.85, 10.15, mz + math.sin(ang) * 1.85)
+        lantern_string(b, P, a, e, 0.7)
 
 
 # ------------------------------------------------------------------ market

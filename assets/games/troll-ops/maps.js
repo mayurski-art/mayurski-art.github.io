@@ -682,6 +682,11 @@ export const MAPS = {
         api.box(x, z, w, d, 0.9, { ghost: true, color: MUD, y: 3.5, pen: 6 });                  // roof parapet
       }
       api.cylinder(6.5, -10.5, 1.5, 12, { ghost: true, color: 0xd8c8a0, pen: 10 });            // minaret
+      // minaret plaza (bazaar 2c): a 0.3 m plinth (under STEP_UP, walked onto),
+      // two stone benches, two lantern poles
+      api.box(6.5, -10.5, 4.6, 4.6, 0.3, { ghost: true, color: STONE, pen: 10 });
+      for (const [x, z, w, d] of [[10.6, -8.8, 0.6, 1.8], [3.4, -13.6, 1.8, 0.6]]) api.box(x, z, w, d, 0.45, { ghost: true, color: STONE, pen: 6 });
+      for (const [x, z] of [[11.8, -7], [1.6, -15.2]]) api.cylinder(x, z, 0.1, 3.4, { ghost: true, color: WOOD, pen: 2 });
 
       /* ---- middle (close): market street along z 8 */
       for (const cx of [-16, 16]) {                                                 // houses north of the street

@@ -13,14 +13,13 @@ Design docs live next to this file: `COPS-AND-ROBBERS.md` (approved plan), `ZOMB
 
 ## 1. Open work and plans (newest first)
 
-### Dust Bowl bazaar redesign (phases 2-5 of 5)
-Turning Dust Bowl into an old bazaar inside a desert city (the user ran the map brief past ChatGPT). Phase 1, the city beyond the wall, has shipped. Still to build, in this order:
-- **2:** (2a, the carpet-shop roof, and 2b, the shops, have shipped; 2c the minaret plaza is next) market street: shop identities split west (carpet, tea, turquoise/blue awnings) vs east (repair, produce, red/ochre), sagging awnings and alley tarps, a minaret plaza, and a 2nd elevated spot on the carpet-shop roof at (-16, 0) with an outside stair; its north parapet is tall so it watches the market, not the north lane.
+### Dust Bowl bazaar redesign (phases 3-5 of 5)
+Turning Dust Bowl into an old bazaar inside a desert city (the user ran the map brief past ChatGPT). Phases 1 (the city beyond the wall) and 2 (market street: carpet-shop roof, shops, minaret plaza) have shipped. Still to build, in this order:
 - **3:** north bazaar/loading yard: three islands of cover (never a wall), and a 3rd elevated spot, a 1.5 m loading dock on the west at about (-17, -32.6). Keep three 45 m+ east-west sightlines.
 - **4:** the channel as old water works: culverts, pipes, rubble, a plank crossing at x -17.5. Depth stays 1.2 m (the bank stairs are built for it).
 - **5:** wires across the street, rooftop tanks, laundry, distant smoke, new loading-screen renders.
 
-Hold every phase to: bounds, spawns and the perimeter collider unchanged; nothing solid within 3 m of the S&D sites, which must stay at A (14.48, -18.21) and B (14.37, 14.24); all 10 dustbowl walk routes passing; frame rate checked with tools/troll-ops-map-fps.mjs against a worktree of main. Every solid piece is a collider in maps.js plus the matching mesh in models/build_dustbowl.blender.py, sized from the same numbers.
+Hold every phase to: bounds, spawns and the perimeter collider unchanged; nothing solid within 3 m of the S&D sites, which must stay at A (14.48, -18.21) and B (14.37, 14.24); all 13 dustbowl walk routes passing; frame rate checked with tools/troll-ops-map-fps.mjs against a worktree of main. Every solid piece is a collider in maps.js plus the matching mesh in models/build_dustbowl.blender.py, sized from the same numbers.
 
 ### Troll City roleplay, phase 2 remainder (Socialize, Troll City only): ON HOLD
 The user put this on hold on 2026-10-05; don't start it unless asked. Phase 2a has shipped: seats, the pianist, the doctor. Still to build, in this order (estimates from 2026-10-05, mostly test time):
@@ -484,6 +483,7 @@ Map rules:
 ## 5. Shipped log (one line each; details are in git)
 
 - **2026-10-07**
+  - Dust Bowl bazaar 2c: minaret plaza: paving, a 0.3 m plinth (walk route 13), a door at the minaret's foot, two stone benches, lantern strings from the balcony to two poles and the centre roof. Phase 2 done. Paving avoids GS_Stone (it takes the dark rock texture in game).
   - Dust Bowl bazaar 2b: west side carpets + tea under turquoise/blue, east side repair + produce under red/ochre; sagging shop awnings, tarps over the two western alleys (not site B's). Goods that stand on the street are colliders (maps.js, the models' SHOP_GOODS). db-market.glb 0.90 -> 1.23 MB.
 - **2026-10-06**
   - Dust Bowl bazaar 2a: carpet-shop roof at (-16, 0) is the 2nd high spot: outside stair up the west wall to a landing, 1.9 m north screen, 0.9 m parapets on the other sides. Walk routes 11-12 cover it.
