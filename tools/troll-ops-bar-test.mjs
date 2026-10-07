@@ -150,9 +150,28 @@ await pumpBoth(A, B, 1500);
 const seen = await B.evaluate((id) => { const rp = window.__trollOps.remotes.byId.get(id); return rp ? { kind: rp.drinkKind, mesh: !!rp.drinkMesh?.parent } : null; }, ids[0]);
 check("the other tab sees the mug in A's hand", seen?.kind === "beer" && seen.mesh, JSON.stringify(seen));
 
-await A.keyboard.press("g");
-await pump(A, 200);
-check("G puts it down", !(await bar(A)).drink);
+// Set it down on the counter (user, 2026-10-07: "a spot where i can just
+// leave it on the bar table"); B sees it there and picks it up.
+const mugs = (page) => page.evaluate(() => [...window.__trollOps.barState.mugs.values()].map((m) => ({ id: m.id, x: m.x, y: m.y, z: m.z, kind: m.kind, sips: m.sips, shown: !!m.mesh.parent })));
+await at(A, -6.6, -16.6, Math.PI / 2);
+await pump(A, 300);
+check("by the counter, A is offered to set the mug down", /set your mug down/i.test((await bar(A)).prompt || ""), (await bar(A)).prompt);
+s = await holdX(A, (s) => !s.drink, 6000);
+const aMugs = await mugs(A);
+check("holding X sets it down on the counter", !s.drink && aMugs.length === 1 && aMugs[0].sips === 3 && Math.abs(aMugs[0].y - 1.47) < 0.05 && aMugs[0].x > -7.85 && aMugs[0].x < -7.05, JSON.stringify(aMugs));
+await pumpBoth(A, B, 1000);
+const bMugs = await mugs(B);
+check("the other tab sees it on the counter", bMugs.length === 1 && bMugs[0].shown && Math.hypot(bMugs[0].x - aMugs[0].x, bMugs[0].z - aMugs[0].z) < 0.01, JSON.stringify(bMugs));
+await at(B, -6.6, aMugs[0]?.z ?? -16.6, Math.PI / 2);
+await pump(B, 300);
+check("B is offered the beer", /pick up the beer/i.test((await bar(B)).prompt || ""), (await bar(B)).prompt);
+const bPick = await holdX(B, (s) => !!s.drink, 6000);
+await pumpBoth(A, B, 1000);
+check("B picks it up, and it's gone from both counters", bPick.drink?.sips === 3 && (await mugs(A)).length === 0 && (await mugs(B)).length === 0, JSON.stringify(bPick.drink));
+
+await B.keyboard.press("g");
+await pump(B, 200);
+check("G puts it down", !(await bar(B)).drink);
 
 // ── 3. The bartender ──────────────────────────────────────────────────────
 const apron = await spot(A, "apron");

@@ -36,11 +36,13 @@ export const bar = {
   fireWas: false,
   fp: null,         // the drink in our first-person hand
   tp: null,         // ...and on our own body
+  mugs: new Map(),  // set down on the bar or a table: id -> { id, x, y, z, kind, sips, mesh }
 };
 
 export function resetBar() {
   bar.drink = null; bar.sipT = 0; bar.hold = null; bar.holdT = 0; bar.role = null; bar.outT = 0;
   bar.tipsy = 0; bar.tipsyShown = false; bar.offer = null; bar.outgoing = null;
+  for (const id of [...bar.mugs.keys()]) removeMug(id);
   seated = null;
   stopPianos();
   piano.played = false; piano.tune = 0;
@@ -91,6 +93,10 @@ function barAction(B) {
     }
   }
   if (B) {
+    if (bar.drink?.kind === "beer" && !bar.drink.sips && barNear(B, B.rack)) {
+      return { key: "rackback", label: "Put the mug back", ctx: "Mug", time: GRAB_TIME,
+        done: () => { putDownDrink(); } };
+    }
     if (!bar.drink && barNear(B, B.rack)) {
       return { key: "rack", label: "Grab a mug", busy: "Grabbing a mug…", ctx: "Grab", time: GRAB_TIME,
         done: () => { bar.drink = { kind: "beer", sips: 0 }; game.audio.brassTinkle?.(4); showWaveBanner(game.isTouch ? "Fill it at a barrel tap" : "Fill it at a barrel tap · G puts it down", 1800); } };
@@ -135,7 +141,126 @@ function barAction(B) {
         } };
     }
   }
+  // Set it down on the bar or a table; pick one up that's been left there.
+  // (Sat down, the table's in reach too. Stood by a table with chairs round
+  // it, whichever is nearer: the chair or the spot on the table.)
+  if (bar.drink) {
+    const spot = mugSpot();
+    const si = seated ? -1 : nearestSeat();
+    const seatD = si >= 0 ? Math.hypot(rpSeats()[si].x - game.move.pos.x, rpSeats()[si].z - game.move.pos.z) : Infinity;
+    if (spot && spot.d <= seatD) {
+      return { key: "setmug", label: `Set your ${bar.drink.kind === "whiskey" ? "glass" : "mug"} down`, ctx: "Set", time: 0.3,
+        done: () => setMugDown(spot) };
+    }
+  }
+  if (!bar.drink) {
+    const m = nearestMug();
+    if (m) {
+      return { key: `mug:${m.id}`, label: m.sips ? `Pick up the ${drinkName(m.kind)}` : "Pick up the empty mug", ctx: "Take", time: GRAB_TIME,
+        done: () => takeMug(m.id) };
+    }
+  }
   return rpAction();
+}
+
+/* ------------------------------------------------ mugs left on the bar
+
+   User, 2026-10-07: "theres no way for me to put away the empty mug. maybe
+   there should be a spot where i can just leave it on the bar table." The
+   map lists where a mug can stand (rp.surfaces: the counter, the tables).
+   Hold X by one with a drink in hand: it's set down at the nearest free
+   spot, everyone in the room sees it there, and anyone can pick it up again.
+   (Someone joining later doesn't see the ones already down.) */
+const MUG_REACH = 1.3, MUG_GAP = 0.2, MUG_EDGE = 0.1, MUG_MAX = 24;
+let mugSeq = 0;
+const rpSurfaces = () => (game.isSocial() ? game.builtMap?.map?.rp?.surfaces?.() || null : null);
+
+/* The nearest point on surface `s` to (x, z), kept off its edge. */
+function onSurface(s, x, z) {
+  if (s.r) {
+    const dx = x - s.x, dz = z - s.z, d = Math.hypot(dx, dz) || 1, k = Math.min(d, s.r - MUG_EDGE) / d;
+    return { x: s.x + dx * k, z: s.z + dz * k };
+  }
+  return { x: Math.max(s.x0 + MUG_EDGE, Math.min(s.x1 - MUG_EDGE, x)), z: Math.max(s.z0 + MUG_EDGE, Math.min(s.z1 - MUG_EDGE, z)) };
+}
+const mugFree = (x, z, y) => [...bar.mugs.values()].every((m) => Math.abs(m.y - y) > 0.3 || Math.hypot(m.x - x, m.z - z) >= MUG_GAP);
+
+/* Where our drink would go: the nearest free spot on a surface in reach. */
+function mugSpot() {
+  const S = rpSurfaces();
+  if (!S) return null;
+  const px = game.move.pos.x, pz = game.move.pos.z;
+  let best = null, bestD = MUG_REACH;
+  for (const s of S) {
+    if (Math.abs(game.move.pos.y - s.floor) > 0.6) continue;
+    const p = onSurface(s, px, pz);
+    const d = Math.hypot(p.x - px, p.z - pz);
+    if (d >= bestD) continue;
+    // Taken: slide along the surface (round a table, along the counter).
+    let spot = null;
+    for (let k = 0; k <= 12 && !spot; k++) {
+      const step = (k % 2 ? 1 : -1) * Math.ceil(k / 2) * MUG_GAP;
+      let q;
+      if (s.r) {
+        const a = Math.atan2(p.z - s.z, p.x - s.x) + step / Math.max(0.2, s.r - MUG_EDGE);
+        q = { x: s.x + Math.cos(a) * (s.r - MUG_EDGE), z: s.z + Math.sin(a) * (s.r - MUG_EDGE) };
+      } else q = onSurface(s, p.x + (s.x1 - s.x0 > s.z1 - s.z0 ? step : 0), p.z + (s.x1 - s.x0 > s.z1 - s.z0 ? 0 : step));
+      if (mugFree(q.x, q.z, s.y) && Math.hypot(q.x - px, q.z - pz) < MUG_REACH) spot = q;
+    }
+    if (spot) { best = { x: +spot.x.toFixed(2), y: +s.y.toFixed(2), z: +spot.z.toFixed(2), d }; bestD = d; }
+  }
+  return best;
+}
+
+function nearestMug() {
+  let best = null, bestD = MUG_REACH;
+  for (const m of bar.mugs.values()) {
+    if (Math.abs(m.y - (game.move.pos.y + 1.0)) > 0.9) continue;
+    const d = Math.hypot(m.x - game.move.pos.x, m.z - game.move.pos.z);
+    if (d < bestD) { best = m; bestD = d; }
+  }
+  return best;
+}
+
+function addMug(m) {
+  if (bar.mugs.has(m.id)) return;
+  // Too many about: the oldest one is cleared away.
+  if (bar.mugs.size >= MUG_MAX) removeMug(bar.mugs.keys().next().value);
+  const mesh = buildDrink(m.kind);
+  mesh.scale.setScalar(1.25);
+  mesh.userData.setSips(m.sips);
+  mesh.position.set(m.x, m.y, m.z);
+  mesh.rotation.y = (m.x * 7.3 + m.z * 3.1) % (Math.PI * 2);   // handles every which way
+  game.scene.add(mesh);
+  bar.mugs.set(m.id, { ...m, mesh });
+}
+
+function removeMug(id) {
+  const m = bar.mugs.get(id);
+  if (!m) return;
+  bar.mugs.delete(id);
+  m.mesh.parent?.remove(m.mesh);
+  m.mesh.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
+}
+
+function setMugDown(spot) {
+  const d = bar.drink;
+  if (!d) return;
+  const m = { id: `${game.net.id}.${++mugSeq}`, x: spot.x, y: spot.y, z: spot.z, kind: d.kind, sips: d.sips };
+  bar.drink = null; bar.sipT = 0; bar.outgoing = null;
+  addMug(m);
+  game.net.publishRp({ k: "mug", id: m.id, x: m.x, y: m.y, z: m.z, kind: m.kind, sips: m.sips });
+  game.audio.brassTinkle?.(3);
+}
+
+function takeMug(id) {
+  const m = bar.mugs.get(id);
+  if (!m || bar.drink) return;
+  bar.drink = { kind: m.kind, sips: m.sips };
+  removeMug(id);
+  game.net.publishRp({ k: "mugtake", id });
+  game.audio.brassTinkle?.(4);
+  if (!m.sips) showWaveBanner("Fill it at a barrel tap", 1400);
 }
 
 /* One job at a time: taking one puts down whatever we had. */
@@ -345,6 +470,14 @@ export function putDownDrink() {
 export function onBarMessage(p, m) {
   if (!game.isSocial() || game.isBotPeer(p)) return;
   if (m.k === "bell") { lastCall(p.name || "the bartender"); return; }
+  if (m.k === "mug") {
+    const id = String(m.id || "").slice(0, 48), n = (v) => Number.isFinite(+v);
+    if (!id || !n(m.x) || !n(m.y) || !n(m.z)) return;
+    const kind = m.kind === "whiskey" ? "whiskey" : "beer";
+    addMug({ id, x: +m.x, y: +m.y, z: +m.z, kind, sips: Math.max(0, Math.min(drinkMax(kind), m.sips | 0)) });
+    return;
+  }
+  if (m.k === "mugtake") { removeMug(String(m.id || "")); return; }
   if (m.to !== game.net.id) return;
   const now = performance.now();
   if (m.k === "cure") {

@@ -121,14 +121,28 @@ export function poseDrinkArm(rig, sip = 0) {
   // Redraw the ink body with the arm up: poseHumanoid drew it hanging, and
   // the mug (on the real hand) floated off the drawn one.
   rig.body?.update?.();
+  // The drink goes where the fist is now, standing up, tipped to the
+  // mouth on a sip (user, 2026-10-07: "the mug i am holding is floating in
+  // the air"). Hung off the wrist joint it tilted along the forearm and sat
+  // behind the fist.
+  const d = rig.heldDrink;
+  if (!d || d.parent !== rig.root || !p.handR) return;
+  rig.root.updateMatrixWorld(true);
+  p.handR.getWorldPosition(_fist);
+  rig.root.worldToLocal(_fist);
+  const h = (d.userData.height || 0.1) * d.scale.y;
+  // Handle in the fist (it sticks out +X: turned to face the body side),
+  // the glass just in front of the knuckles.
+  d.rotation.set(s * 1.25, -Math.PI / 2, 0);
+  d.position.set(_fist.x, _fist.y - h * 0.5 + s * h * 0.3, _fist.z - 0.055);
 }
+const _fist = new THREE.Vector3();
 
-/* A drink in a body's right hand (rig.parts.gripR), upright. */
+/* A drink in a body's right hand: posed into the fist by poseDrinkArm. */
 export function mountDrink(rig, drink) {
   drink.scale.setScalar(1.25);
-  drink.rotation.set(0, Math.PI / 2, 0);
-  drink.position.set(0, -0.06, 0.02);
-  rig.parts.gripR.add(drink);
+  rig.heldDrink = drink;
+  rig.root.add(drink);
 }
 
 /* ---------------------------------------------------------------- tipsy */

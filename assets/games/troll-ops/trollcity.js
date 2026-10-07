@@ -91,8 +91,13 @@ function piano(K, M, x, y, z, o = {}) {
   const ry = o.ry || 0;
   seatAt(x + Math.sin(ry) * 0.85, z + Math.cos(ry) * 0.85, y + 0.56, y, ry, "piano");
 }
+/* Where a mug can be set down (Socialize, social-rp.js): the saloon bar's
+   counter and its tables. { x, z, y: the top, floor, r (a round table) or
+   x0..x1, z0..z1 (a counter) }. Rebuilt with the map. */
+const SURFACES = [];
 function tableSet(K, M, x, y, z, o = {}) {
   kitTableSet(K, M, x, y, z, o);
+  SURFACES.push({ x, z, y: y + 0.77, floor: y, r: o.r || 0.55 });
   // facing the table, not the chair's own jitter
   for (const s of tableSeats(x, y, z, o)) seatAt(s.x, s.z, s.y, y, Math.atan2(s.x - x, s.z - z), "chair");
 }
@@ -625,6 +630,7 @@ function buildSaloon(K, M, lights) {
   // back-bar against the wall, arched windows of bottles lit from behind
   K.solid(-7.45, -16, 0.7, 7.2, 1.1, { y: Y, pen: 3, mat: M.furniture });
   K.box(M.trimDark, -7.45, Y + 1.1, -16, 0.86, 0.07, 7.3);
+  SURFACES.push({ x: -7.45, z: -16, y: Y + 1.17, floor: Y, x0: -7.82, x1: -7.08, z0: -19.6, z1: -12.4 });
   K.cyl(M.brass, -7.95, Y + 0.2, -16, 0.025, 0.025, 7.0, 6, { rx: Math.PI / 2 });
   for (let z = -19.1; z <= -12.9; z += 1.05) stool(K, M, -8.5, Y, z);
   K.solid(-5.55, -16.2, 0.5, 8.0, 1.0, { y: Y, pen: 3, mat: M.furniture });
@@ -1859,6 +1865,7 @@ function rpFurniture(K, M) {
 function buildTrollCity(api) {
   ZSPAWNS.length = 0;
   SEATS.length = 0;
+  SURFACES.length = 0;
   const root = new THREE.Group();
   api.prop(root);
   root.castShadow = false;
@@ -1914,7 +1921,7 @@ export const TROLLCITY = {
   build: buildTrollCity,
   // Socialize roleplay spots (saloon-bar.js / game.js updateBar). Floor
   // heights are the saloon's ground floor.
-  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, doctor: { ...DOC, floorY: FLOOR } },
+  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, doctor: { ...DOC, floorY: FLOOR } },
   // Team spawns: past the railway in the north, out on the plain south.
   spawns: [[-56, -46], [-46, -47.5], [-16, -47.8], [-2, -47.8], [8, -48], [18, -46.5], [50, -46], [58, -40],
     [-56, 46], [-44, 46.5], [-26, 45], [-12, 46], [0, 45.5], [14, 46], [28, 45], [40, 45.5]],
