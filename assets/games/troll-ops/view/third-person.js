@@ -8,7 +8,7 @@ import { stageFrozen, royaleSpectating, royaleRolling, royale, royaleRollK, roya
 import { STANCE } from "../movement.js?v=umb2-sb2-gj1";
 import { poseDeath, DEATH_TIME, aimRig, gaitPhaseRate, poseHumanoid, poseThrowArm, THROW_TIME, mountHeldWeapon } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
 import { STANCE_LOWER, rollRig, DROP_FALL, DROP_GLIDE, poseDrop, poseRope, ROPE_CLIMB_RATE } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1";
-import { emoteSeconds, poseEmoteCode, emoteCode } from "../emotes.js?v=hb4-em1-wst-soc1-ng1";
+import { emoteSeconds, poseEmoteCode, emoteCode, EMOTES } from "../emotes.js?v=hb4-em1-wst-soc1-ng1";
 import { seated, standUp, syncLocalDrink, piano } from "../modes/social-rp.js?v=rp1-si1-gj1-if1";
 import { damp } from "../anim-curves.js";
 import { saberBlock, kbShield, saberParry, kbRepair, SLOW_IGNITE } from "../combat/melee.js?v=ml1-kc2-si1-gj1";
@@ -247,12 +247,15 @@ export function updateLocalRig(dt) {
     game.emote.t += dt;
     if (game.move.moving || !game.player.alive || game.gameState !== "playing" || game.emote.t > emoteSeconds(game.emote.idx)) game.stopEmote();
   }
-  if (seated && game.emote) standUp();   // an emote is a standing thing: get up for it
+  // Emotes play sat down (the legs stay on the seat); a duo emote moves
+  // you to your partner, so that one gets you up.
+  if (seated && game.emote && EMOTES[game.emote.idx]?.kind === "duo") standUp();
   if (localHeld.mesh) localHeld.mesh.visible = !game.emote;
   game.els.hud.classList.toggle("is-emoting", game.emoteIsTp());
   if (!game.isSocial() || game.emote) syncLocalDrink(false);
   if (game.emote) {
     poseEmoteCode(game.localRig, emoteCode(game.emote.idx, game.emote.role), game.emote.t);
+    if (seated && game.isSocial()) poseSeated(game.localRig, seated.s.y, seated.s.kind === "stool" ? 0.55 : 0);
     return;
   }
 

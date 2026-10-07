@@ -216,6 +216,24 @@ function bottleMat(gone) {
 
 /* ================================================================ helpers */
 
+/* Socialize seats (the map's rp.seats, as in trollcity.js): every booth,
+   sofa, armchair and stool, {x, z, y (the seat's top), floor, yaw, kind,
+   stand}. `yaw` is the way you face sat down; `stand` is where you get up
+   to, `out` metres in front of the seat. */
+const SEATS = [];
+function seatAt(x, z, y, floor, yaw, kind, out = 0) {
+  const sx = yaw == null ? x : x - Math.sin(yaw) * out, sz = yaw == null ? z : z - Math.cos(yaw) * out;
+  SEATS.push({ x, z, y, floor, yaw, kind, stand: { x: sx, z: sz } });
+}
+/* A sofa `len` long along `axis`, a seat every 0.7 m or so. */
+function sofaSeats(x, z, len, axis, floor, yaw) {
+  const n = Math.max(1, Math.floor(len / 0.7));
+  for (let i = 0; i < n; i++) {
+    const u = (i - (n - 1) / 2) * (len / n);
+    seatAt(axis === "x" ? x + u : x, axis === "z" ? z + u : z, floor + 0.42, floor, yaw, "bench", 0.75);
+  }
+}
+
 /* A U-shaped booth: quilted back and arms, a seat, a round table in the
    middle, a glowing plinth. `face` is where its open side looks. Every
    collider is axis-aligned (faces are quarter turns). */
@@ -244,6 +262,12 @@ function booth(K, M, N, cx, cz, { face = "+z", w = 2.8, d = 1.9, y = FL, mat = M
   // under-seat glow strip along the open front of the seat
   const [gx, gz] = L(0, -d / 2 + 1.11);
   N.bar(M.neon, gx, y + 0.02, gz, swap ? 0.03 : w - 0.9, 0.03, swap ? w - 0.9 : 0.03, {}, { color: glow, k: 1.6, beat: 0.3 });
+  // three seats along it; you get up out of the open front
+  for (let i = -1; i <= 1; i++) {
+    const [sx, sz] = L(i * (w - 0.88) / 3, -d / 2 + 0.8);
+    seatAt(sx, sz, y + 0.42, y, FACE_YAW[face], "bench", d - 0.4);
+    SEATS[SEATS.length - 1].reach = 1.7;   // you stand at the table, not at the seat
+  }
 }
 
 /* A cocktail table: gold rim, smoked glass top (image 1). */
@@ -264,6 +288,7 @@ function stool(K, M, x, z, y = FL) {
   K.cyl(M.chrome, x, y, z, 0.2, 0.2, 0.03, 10);
   K.cyl(M.chrome, x, y + 0.03, z, 0.03, 0.03, 0.66, 6);
   K.cyl(M.leather, x, y + 0.68, z, 0.2, 0.2, 0.08, 12);
+  seatAt(x, z, y + 0.78, y, null, "stool");
 }
 
 /* A lounge armchair (black leather), facing `ry`. */
@@ -278,6 +303,7 @@ function armchair(K, M, x, z, y, ry = 0) {
     const [ax, az] = at(sd * 0.36, 0.05);
     K.box(M.leather, ax, y + 0.42, az, 0.14, 0.22, 0.75, { ry });
   }
+  seatAt(x, z, y + 0.42, y, ry + Math.PI, "chair", 0.75);
 }
 
 /* A potted plant. */
@@ -850,6 +876,7 @@ function lobby(K, M, N, S, lights) {
     K.api.ghostBox(x, 16, 1.0, 3.0, 0.8, { y: FL, pen: 2 });
     K.box(M.boothBlack, x, FL, 16, 1.0, 0.42, 3.0);
     K.box(M.boothBlack, x + (x < 0 ? -0.4 : 0.4), FL + 0.42, 16, 0.2, 0.5, 3.0);
+    sofaSeats(x + (x < 0 ? 0.1 : -0.1), 16, 3.0, "z", FL, FACE_YAW[x < 0 ? "+x" : "-x"]);
   }
   for (const x of [-8, 0, 8]) {
     K.box(M.gold, x, CEIL - 0.08, 17.5, 0.04, 0.08, 6, {}, { shadow: false });
@@ -903,6 +930,7 @@ function backOfHouse(K, M, N, S, lights) {
   K.api.ghostBox(-29.2, -19, 1.0, 3.2, 0.8, { y: FL, pen: 2 });
   K.box(M.boothBlack, -29.2, FL, -19, 1.0, 0.42, 3.2);
   K.box(M.boothBlack, -29.6, FL + 0.42, -19, 0.2, 0.5, 3.2);
+  sofaSeats(-29.1, -19, 3.2, "z", FL, FACE_YAW["+x"]);
   K.solid(-27.6, -19, 0.8, 1.6, 0.42, { y: FL, pen: 2, mat: M.tableTop });
   // a vanity mirror ringed with bulbs
   K.solid(-25, -7 - T / 2 - 0.3, 3.2, 0.6, 0.85, { y: FL, pen: 2, mat: M.wood });
@@ -956,6 +984,7 @@ function backOfHouse(K, M, N, S, lights) {
   K.api.ghostBox(-24, -21.2, 3, 1.0, 0.8, { y: UP, pen: 2 });
   K.box(M.leather, -24, UP, -21.2, 3, 0.42, 1.0);
   K.box(M.leather, -24, UP + 0.42, -21.6, 3, 0.5, 0.2);
+  sofaSeats(-24, -21.1, 3, "x", UP, FACE_YAW["+z"]);
   for (let z = -19; z <= -10; z += 4.5) batten(K, M, -21, TOP, z, 1.4, false);
   // the sound booth: racks along the north wall, a desk at the window over the bar
   for (let x = 15.5; x < 25; x += 1.1) {
@@ -1228,6 +1257,7 @@ function facadeRow(K, M, N, S, z, o, R, plain = false) {
 
 function buildTrollingLoud(api) {
   ZSPAWNS.length = 0;
+  SEATS.length = 0;
   const S = newState();
   const root = new THREE.Group();
   api.prop(root);
@@ -1809,7 +1839,7 @@ export const TROLLINGLOUD = {
   },
   // Socialize: the crowd (town-npcs.js), dancing on the club's clock; no
   // shadows (indoors under neon that casts none), drawn room by room
-  rp: { npcs: () => clubNpcs(), beat: () => U.uBeatPos.value, npcShadows: false, view: CLUB_VIEW },
+  rp: { npcs: () => clubNpcs(), seats: () => SEATS, beat: () => U.uBeatPos.value, npcShadows: false, view: CLUB_VIEW },
   // for tools/troll-ops-trollingloud-test.mjs
   debug: () => ({
     active: !!ACTIVE, lights: ACTIVE?.lights.length ?? 0, ballBoost: ACTIVE?.ballBoost ?? 0,

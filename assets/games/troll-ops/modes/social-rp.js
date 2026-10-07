@@ -183,7 +183,10 @@ function nearestSeat(reach = 0.95) {
   for (let i = 0; i < seats.length; i++) {
     const s = seats[i];
     if (Math.abs(game.move.pos.y - s.floor) > 0.6) continue;
-    const d = Math.hypot(s.x - game.move.pos.x, s.z - game.move.pos.z);
+    // a seat may reach further (a booth's, behind its table): `s.reach`,
+    // from in front of it only (never through the wall behind)
+    if (s.reach && (game.move.pos.x - s.x) * -Math.sin(s.yaw) + (game.move.pos.z - s.z) * -Math.cos(s.yaw) < 0) continue;
+    const d =Math.hypot(s.x - game.move.pos.x, s.z - game.move.pos.z) - Math.max(0, (s.reach || reach) - reach);
     if (d < bestD && !seatTaken(i)) { best = i; bestD = d; }
   }
   return best;
