@@ -52,7 +52,14 @@ const VIEWS = {
   trollcity: [-30, 6.2, 0.4, 44, 5.5, 0, 60],   // down Main Street: the saloon, the bank, the courthouse dome
   trollingloud: [0.5, 1.75, 5.5, 0, 3.8, -15, 76],   // the dance floor: the ball, the arches, the crystal wall, the DJ
   grinjuku: [0, 2.6, -37, 0, 3.4, -12, 70],   // up Mid Top through the torii: lantern strings, kanban, the post office
+  trollface: [18, 385, 232, 18, -12, 20, 44],   // Trollface Island (Troll Royale): the whole island from high off the south, the lake its grin
 };
+// Maps that only build in their own mode (the island is a prestige reward map
+// in versus, so tdm falls back to the first map).
+const MODE = { trollface: "royale" };
+// VIEW=x,y,z,lx,ly,lz,fov overrides the camera and TAG=<name> renames the
+// master (no webp), for trying framings.
+const TRY = process.env.VIEW?.split(",").map(Number);
 const ids = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(VIEWS);
 
 // ANGLE=swiftshader on a machine without a d3d11 GPU (Linux containers)
@@ -64,15 +71,16 @@ for (const id of ids) {
   page.on("pageerror", (e) => console.log(`${id}: ${e.message}`));
   await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 90000 });
-  await page.evaluate(async (map) => {
+  await page.evaluate(async ({ map, mode }) => {
     const T = window.__trollOps;
-    T.setMode("tdm");
+    if (mode === "royale") T.DROP.enabled = false;   // no sky lobby, no bus
+    T.setMode(mode);
     if (T.els.noBots) T.els.noBots.checked = true;
     T.loadout.mapId = map;
     await T.startGame();
     if (T.isStaging()) T.endStaging();
-  }, id);
-  await new Promise((r) => setTimeout(r, +(process.env.WAIT || 6000)));   // models + textures stream in
+  }, { map: id, mode: MODE[id] || "tdm" });
+  await new Promise((r) => setTimeout(r, +(process.env.WAIT || (MODE[id] ? 15000 : 6000))));   // models + textures stream in
   const data = await page.evaluate(async (v) => {
     const T = window.__trollOps, R = T.renderer, C = T.composer, cam = T.camera;
     const W = 3840, H = 2160;
@@ -90,12 +98,20 @@ for (const id of ids) {
       C.setPixelRatio?.(1); C.setSize(W, H);
       // A spawn that hurts (Hollowgrin) leaves the low-HP blur on: clear it.
       for (const p of C.passes) for (const k of ["uHitFlash", "uLowHp", "uAberration", "uSuppress"]) if (p.uniforms?.[k]) p.uniforms[k].value = 0;
+      // Troll Royale: no zone wall, next-circle ring or loot beams in the shot.
+      const roy = T.royale?.();
+      if (roy) {
+        if (roy.visual?.group) roy.visual.group.visible = false;
+        for (const m of [roy.loot?.beams, roy.loot?.rings]) if (m) m.visible = false;
+        for (const it of roy.loot?.items?.values?.() || []) if (it.mesh) it.mesh.visible = false;
+      }
       C.render(0.016);
       done(R.domElement.toDataURL("image/png"));
     }));
-  }, VIEWS[id]);
-  const master = path.join(MASTER, `${id}.png`);
+  }, TRY || VIEWS[id]);
+  const master = path.join(MASTER, `${process.env.TAG || id}.png`);
   fs.writeFileSync(master, Buffer.from(data.split(",")[1], "base64"));
+  if (process.env.TAG) { console.log(`${id}: ${master}`); await page.close(); continue; }
   for (const w of WIDTHS) {
     execFileSync(FFMPEG, ["-v", "error", "-y", "-i", master, "-vf", `scale=${w}:-2:flags=lanczos+accurate_rnd+full_chroma_int`,
       "-c:v", "libwebp", "-quality", "92", "-compression_level", "6", "-preset", "picture", path.join(OUT, `${id}-${w}.webp`)]);

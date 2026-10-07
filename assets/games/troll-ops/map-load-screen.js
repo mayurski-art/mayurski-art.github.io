@@ -13,7 +13,7 @@
    all as a srcset and the browser picks the smallest one that still covers
    its slot in real device pixels (DPR included): a phone pulls ~120 KB, a
    4K screen the full 3840. */
-export const MAP_SHOTS = new Set(["culdegrin", "depot", "dustbowl", "grinbeach", "grinjuku", "grinleria", "grinsite", "hollowgrin", "trollcity", "trollingloud", "undergrin"]);
+export const MAP_SHOTS = new Set(["culdegrin", "depot", "dustbowl", "grinbeach", "grinjuku", "grinleria", "grinsite", "hollowgrin", "trollcity", "trollface", "trollingloud", "undergrin"]);
 const SHOT_WIDTHS = [640, 1280, 1920, 2560, 3840];
 // one tag per map, so re-rendering one map only re-downloads that map's shots
 const SHOT_V = { dustbowl: "hq2" };
