@@ -1,6 +1,6 @@
 /* ============================================================================
    ARCADE HUB — sidebar + game-grid landing page
-   Reuses the color/font vars defined in assets/games/troll-dash/style.css
+   Reuses the color/font vars defined in assets/games/hub/base.css
    (loaded before this file), scoped under .hub-shell so it can't collide
    with any leftover TV-hub rules still sitting in that file.
    ============================================================================ */

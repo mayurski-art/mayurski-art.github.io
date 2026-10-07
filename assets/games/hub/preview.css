@@ -1,7 +1,7 @@
 /* ============================================================================
    GAME PREVIEW — Steam-style "store page" modal shown before launch.
    Tokens (--bg/--panel/--ink/--cyan/--green/--line/--shadow) come from
-   troll-dash/style.css's :root, already loaded before this file on games.html.
+   hub/base.css's :root, already loaded before this file on games.html.
    ============================================================================ */
 
 .gp-backdrop {
