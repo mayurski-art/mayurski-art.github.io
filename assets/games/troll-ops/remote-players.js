@@ -119,6 +119,28 @@ export function poseDrop(rig, state, t) {
   rig.body.update();
 }
 
+/* On a rope (movement.js STANCE.ROPE) on any rig: the free (left) hand up
+   on the rope above the head, the gun hand left as poseHumanoid aimed it,
+   one knee drawn up round the rope and the other leg hanging. `t` is the
+   climb phase: it only advances while they climb, so the hand-over-hand and
+   the leg swap stop when they hang still. Call after poseHumanoid. */
+export function poseRope(rig, t) {
+  const p = rig.parts, s = Math.sin(t), c = Math.cos(t);
+  p.torso.rotation.set(0, 0, 0);
+  p.chest.rotation.x = -0.12;   // leaning back off the rope a touch
+  p.armL.rotation.set(2.65 + s * 0.25, 0, 0.2);
+  p.elbowL.rotation.set(0.45 - s * 0.35, 0, 0);
+  const up = 0.5 + 0.5 * c;     // which leg is drawn up, 1 = left
+  p.legL.rotation.set(0.25 + up * 0.85, 0, 0.08);
+  p.legR.rotation.set(1.1 - up * 0.85, 0, -0.08);
+  p.kneeL.rotation.set(-0.35 - up * 1.0, 0, 0);
+  p.kneeR.rotation.set(-1.35 + up * 1.0, 0, 0);
+  p.ankleL.rotation.set(0.3, 0, 0);
+  p.ankleR.rotation.set(0.3, 0, 0);
+  rig.body.update();
+}
+export const ROPE_CLIMB_RATE = 5.5;   // phase per second while climbing
+
 /* A gun in someone else's hands never moves its parts (no pump, no mag
    out, no inspect), so its twenty-odd meshes become one per material: the
    biggest draw-call saving there is with a room full of bots (Troll Royale
@@ -665,6 +687,11 @@ export class RemotePlayer {
       poseSeated(this.rig, seat.y, seat.kind === "stool" ? 0.55 : 0);
     }
     rollRig(this.rig, roll);
+    if (b.stance === "rope" && !em) {
+      if (b.moving) this.ropeT = (this.ropeT || 0) + dt * ROPE_CLIMB_RATE;
+      poseRope(this.rig, this.ropeT || 0);
+      this.bodyPose.gait = false;
+    }
     if (drop || roll > 0) this.bodyPose.gait = false;
     if (drop) {
       this.dropT = (this.dropT || 0) + dt;
