@@ -28,7 +28,6 @@
   const path = window.location.pathname;
 
   const redirects = {
-    'blog.trollrunner.net': '/blog.html',
   };
   const targetPath = redirects[host];
   if (targetPath && (path === '/' || path === '/index.html')) {
@@ -3170,10 +3169,6 @@ setTimeout(function () {
           <img src="assets/images/wallpaper/obj-chat.png" alt="">
           <span class="td-hot-chip">Messages</span>
         </button>
-        <button class="td-hot" type="button" data-td-app="blog" style="--w:8%; --c:#ff2d55; left:77.7%; top:57.5%;">
-          <img src="assets/images/wallpaper/obj-blog.png" alt="">
-          <span class="td-hot-chip">Blog / Nutrition</span>
-        </button>
         <button class="td-hot" type="button" data-td-app="stickers" style="--w:3.5%; --c:#ff9500; left:82%; top:45%;">
           <img src="assets/images/wallpaper/obj-stickers.png" alt="">
           <span class="td-hot-chip">Stickers</span>
@@ -3554,7 +3549,6 @@ window.addEventListener('trollrunner:dm-unread-changed', event => {
 const TD_SITES = [
   { id: 'terminal', label: 'Terminal', icon: '💻', img: 'assets/images/icons/terminal.png', flat: true, href: 'https://trolltruths.com', color: '#30d158', desc: 'Chat with the trollface terminal AI.' },
   { id: 'finance', label: 'Finances', icon: '🪙', img: 'assets/images/icons/finances.png', flat: true, href: 'https://finance.trollrunner.net', color: '#ffd84d', desc: 'Troll, plan and stay financially based.' },
-  { id: 'blog', label: 'Blog / Nutrition', icon: '🍎', img: 'assets/images/icons/blog.png', flat: true, href: 'https://blog.trollrunner.net', color: '#ff2d55', desc: 'Reads, updates and nutrition logs.', adminOnly: true },
 ];
 // Admin-only entries are excluded from the public desktop icons and start
 // menu, but stay in TD_SITES so twOpen() and admin.html can still reach
@@ -3683,12 +3677,6 @@ TD_WINDOWS.world = {
   width: 400, browser: false,
   url: 'trollrunner.net', iframeSrc: 'world.html',
   build: body => tdBuildIframe(body, 'world.html', 'Island (mobile)'),
-};
-TD_WINDOWS.nutrition = {
-  title: 'Nutrition', icon: '🥗', width: 1040, browser: false,
-  url: 'nutrition.trollrunner.net', iframeSrc: 'https://nutrition.trollrunner.net',
-  build: body => tdBuildIframe(body, 'https://nutrition.trollrunner.net', 'Nutrition'),
-  adminOnly: true,
 };
 
 const tdState = { init: false, booted: false, z: 20, cascade: 0, windows: new Map(), syncedFrames: [] };
