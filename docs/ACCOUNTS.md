@@ -222,7 +222,7 @@ From any game (after loading supabase-js + troll-accounts.js):
 ```js
 // Saves the run, updates high score, adds a leaderboard row, awards XP —
 // all in one server-side RPC with rate limiting and score caps.
-await TrollrunnerAccounts.recordGameResult('troll-dash', score, { character: 'muscular' });
+await TrollrunnerAccounts.recordGameResult('troll-kombat', score, { character: 'muscular' });
 ```
 
 - Guests: `recordGameResult` throws "Login required" — catch it and show

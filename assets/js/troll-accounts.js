@@ -50,11 +50,6 @@
   // raw id so a new game never breaks the list.
   const GAME_META = {
     'troll-kombat': { name: 'Troll Kombat', icon: '🥋' },
-    'troll-casino': { name: 'Troll Casino', icon: '🎰' },
-    'troll-pizzeria': { name: "Papa Troll's Pizzeria", icon: '🍕' },
-    'trollrreria': { name: 'Trollrreria', icon: '⛏️' },
-    'meme-metro': { name: 'Meme Metro', icon: '🚇' },
-    'troll-high': { name: 'Troll High', icon: '🏫' },
   };
   function gameMeta(gameId) {
     return GAME_META[gameId] || { name: gameId, icon: '🕹️' };

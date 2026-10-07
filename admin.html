@@ -584,7 +584,6 @@
     .payout-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     .payout-actions input[type="text"] { width: 240px; padding: 10px 12px; font-size: 13px; }
     .payout-actions button { padding: 9px 14px; font-size: 11px; }
-    .payout-readonly-note { margin: 0; font-size: 12.5px; color: var(--fg-dim); }
     .payout-card-status { margin: 0; font-size: 12px; color: var(--fg-dim); }
     .payout-card-status[data-mode="open"] { color: var(--accent); }
     .payout-card-status[data-mode="locked"] { color: var(--danger); }
@@ -941,7 +940,7 @@
             <div class="card-head">
               <div>
                 <h2>Payout requests<span id="payouts-live-dot" class="payouts-live-dot" title="Live updates connected" hidden></span></h2>
-                <p class="card-sub">Every manually-reviewed payout claim across every game, in one place. Troll Kombat (and future arcade) wager claims can be marked paid or rejected right here. Troll Casino redemptions are shown for visibility — use the Troll Casino admin panel to actually pay or reject those (it already knows how to refund a rejected player's in-game balance).</p>
+                <p class="card-sub">Every manually-reviewed payout claim across every game, in one place. Troll Kombat (and future arcade) wager claims can be marked paid or rejected right here.</p>
               </div>
               <div class="pill-row">
                 <span id="payouts-pending-note" class="summary-note">Loading…</span>
@@ -3044,12 +3043,9 @@ Fixed some admin system bugs.`,
       void loadTagDefs().then(() => loadAccounts());
     })();
 
-    /* ---- Payout requests (reads payout_requests + troll_casino_redemptions —
-       both RLS-gated to a real admin session, see assets/supabase/
-       troll_payouts_admin.sql). payout_requests is fully actionable here
-       (mark paid / reject); troll_casino_redemptions is shown read-only with
-       a link out to the Troll Casino admin panel, which already knows how
-       to refund a rejected player's in-game balance correctly. ---- */
+    /* ---- Payout requests (reads payout_requests, RLS-gated to a real admin
+       session, see assets/supabase/troll_payouts_admin.sql). Fully
+       actionable here (mark paid / reject). ---- */
     (function () {
       const summaryEl = document.getElementById('payouts-summary');
       const gamePillsEl = document.getElementById('payouts-game-pills');
@@ -3062,10 +3058,9 @@ Fixed some admin system bugs.`,
       const pendingNote = document.getElementById('payouts-pending-note');
       if (!groupsEl || !statusEl) return;
 
-      const CASINO_URL = 'https://trollrunner.net/troll-casino.html?admin=1';
       // Vivid, hand-picked accents for known games; anything new gets a
       // consistent color hashed out of this same palette automatically.
-      const KNOWN_COLORS = { 'troll-casino': '#ffc94d', 'troll-kombat': '#ff375f' };
+      const KNOWN_COLORS = { 'troll-kombat': '#ff375f' };
       const PALETTE = ['#5856d6', '#34c759', '#ff9500', '#ff2d55', '#007aff', '#30d5c8', '#af52de'];
       function gameColor(game) {
         if (KNOWN_COLORS[game]) return KNOWN_COLORS[game];
@@ -3074,7 +3069,6 @@ Fixed some admin system bugs.`,
         return PALETTE[h % PALETTE.length];
       }
       function gameLabel(game) {
-        if (game === 'troll-casino') return 'Troll Casino';
         return String(game || 'unknown').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
       }
 
@@ -3119,22 +3113,6 @@ Fixed some admin system bugs.`,
         };
       }
 
-      function normalizeCasinoRedemption(r) {
-        return {
-          id: r.id,
-          source: 'casino_redemption',
-          game: 'troll-casino',
-          wallet: r.wallet || '',
-          amount: r.token_amount,
-          token: r.token || '',
-          status: r.status || 'pending',
-          createdAt: r.created_at,
-          note: r.admin_note || '',
-          paidTx: r.paid_tx || '',
-          detail: '',
-        };
-      }
-
       async function fetchTable(path, query) {
         const headers = await adminRpcHeaders();
         if (!headers.Authorization) throw new Error('No admin session token yet — click Refresh in a moment.');
@@ -3152,14 +3130,8 @@ Fixed some admin system bugs.`,
         setStatus('Loading payout requests…');
         if (refreshBtn) refreshBtn.disabled = true;
         try {
-          const [claims, redemptions] = await Promise.all([
-            fetchTable('payout_requests', 'select=*&order=created_at.desc&limit=1000'),
-            fetchTable('troll_casino_redemptions', 'select=*&order=created_at.desc&limit=1000'),
-          ]);
-          rows = [
-            ...claims.map(normalizePayoutRequest),
-            ...redemptions.map(normalizeCasinoRedemption),
-          ];
+          const claims = await fetchTable('payout_requests', 'select=*&order=created_at.desc&limit=1000');
+          rows = claims.map(normalizePayoutRequest);
           renderAll();
           setStatus(`${rows.length} payout request${rows.length === 1 ? '' : 's'} loaded — refreshed ${new Date().toLocaleTimeString()}.`, 'open');
         } catch (err) {
@@ -3249,11 +3221,7 @@ Fixed some admin system bugs.`,
                <button type="button" class="alert" data-reject="${r.id}">Reject</button>
              </div>
              <p class="payout-card-status" data-status-for="${r.id}" aria-live="polite"></p>`
-          : r.source === 'payout_requests'
-            ? `<div class="payout-actions"><button type="button" class="secondary" data-mark-paid="${r.id}" data-relabel="pending">Move back to pending</button></div>`
-            : `<p class="payout-readonly-note">Casino redemptions are paid/rejected from the
-                 <a href="${CASINO_URL}" target="_blank" rel="noopener noreferrer">Troll Casino admin panel</a> —
-                 that flow refunds a rejected player's balance correctly.</p>`;
+          : `<div class="payout-actions"><button type="button" class="secondary" data-mark-paid="${r.id}" data-relabel="pending">Move back to pending</button></div>`;
         return `
           <div class="payout-card${overdue ? ' is-overdue' : ''}" style="--game-c:${gameColor(r.game)}">
             <div class="payout-card-top">
@@ -3380,7 +3348,6 @@ Fixed some admin system bugs.`,
         if (client) {
           const ch = client.channel('trollrunner-admin-payouts')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'payout_requests' }, () => loadPayouts())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'troll_casino_redemptions' }, () => loadPayouts())
             .subscribe(status => { if (liveDot) liveDot.hidden = status !== 'SUBSCRIBED'; });
           window.addEventListener('beforeunload', () => client.removeChannel(ch));
         }

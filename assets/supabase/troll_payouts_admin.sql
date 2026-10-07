@@ -1,34 +1,21 @@
 -- ============================================================================
 -- TROLLRUNNER ADMIN — unified payout requests view (admin.html)
 -- Run ONCE in Supabase → SQL Editor. Idempotent — safe to re-run.
--- Requires assets/supabase/troll_admin_lockdown.sql (troll_is_admin()) and
--- assets/supabase/troll_casino.sql (troll_casino_redemptions) to already exist.
+-- Requires assets/supabase/troll_admin_lockdown.sql (troll_is_admin()) to
+-- already exist.
 --
 -- PROBLEM THIS FIXES
---   Payout requests were scattered across two places with no single admin
---   view: `payout_requests` (generic per-game wager claims, e.g. Troll Kombat)
---   had INSERT-only RLS — nobody but a service-role/table-editor session
---   could even read it. `troll_casino_redemptions` could only be read/managed
---   by an account with troll_profiles.is_admin — a *different* admin identity
---   than the real troll_admins/troll_is_admin() account admin.html already
---   authenticates as.
+--   `payout_requests` (per-game wager claims, e.g. Troll Kombat) had
+--   INSERT-only RLS — nobody but a service-role/table-editor session could
+--   even read it.
 --
 -- THE FIX
---   1. `payout_requests` gets the same admin_note/paid_tx/updated_at bookkeeping
---      columns troll_casino_redemptions already has, a status check
---      constraint, and a troll_is_admin()-gated SELECT policy so admin.html
---      can read it directly.
+--   1. `payout_requests` gets admin_note/paid_tx/updated_at bookkeeping
+--      columns, a status check constraint, and a troll_is_admin()-gated
+--      SELECT policy so admin.html can read it directly.
 --   2. A SECURITY DEFINER RPC (troll_admin_update_payout_request) lets the
 --      admin mark a request paid/rejected/back-to-pending, gated the same way
 --      every other admin.html write already is.
---   3. `troll_casino_redemptions` gets an ADDITIONAL read-only SELECT policy
---      for troll_is_admin() — purely additive, does not touch the existing
---      troll_profiles.is_admin policy or the troll_casino_admin_* RPCs. This
---      is deliberately read-only here: taking action on a casino redemption
---      (Pay via Phantom / mark paid / reject) still happens in the Troll
---      Casino admin panel (troll-casino.html?admin=1), which already has that
---      flow wired up against the correct player-balance refund logic. Admin.html
---      just links out to it.
 -- ============================================================================
 
 -- ============================================================
@@ -125,8 +112,7 @@ $$;
 revoke all on function public.troll_admin_update_payout_request(uuid, text, text, text, text) from public, anon;
 grant execute on function public.troll_admin_update_payout_request(uuid, text, text, text, text) to authenticated;
 
--- Same stale-write class as troll_casino_redemptions.paid_tx below — the same
--- tx signature should never be able to back two different payout claims.
+-- The same tx signature should never be able to back two different payout claims.
 create unique index if not exists payout_requests_paid_tx_uidx
   on public.payout_requests (paid_tx) where paid_tx is not null;
 
@@ -141,12 +127,3 @@ begin
   end if;
 end $$;
 
--- ============================================================
--- 2. troll_casino_redemptions — additive read-only policy for the
---    site-wide troll_admins identity (admin.html), alongside the existing
---    troll_profiles.is_admin policy used by the Troll Casino admin panel.
--- ============================================================
-drop policy if exists troll_casino_redemptions_site_admin_read on public.troll_casino_redemptions;
-create policy troll_casino_redemptions_site_admin_read on public.troll_casino_redemptions
-  for select to authenticated
-  using (troll_is_admin());

@@ -27,7 +27,7 @@
  *   payExact({ toAddress, token, amount, memo?, onProgress? })
  *        -> { ok, txSig } | { ok:false, reason }
  *        (sends an exact native-token amount to an arbitrary address, from the
- *        connected wallet — for admin payouts, e.g. Troll Casino redemptions.
+ *        connected wallet — for admin payouts, e.g. Troll Kombat wager claims.
  *        Not for tips/revives; those always go to the treasury via pay().)
  *   payForRevive(onProgress)         -> { ok, txSig } | { ok:false, reason }
  *        (convenience: uses CONFIG.REVIVE_PRICE_USD + CONFIG.TAX_RATE)
@@ -389,7 +389,7 @@
   }
 
   // ── Public: pay an EXACT native token amount to an arbitrary address ────────────
-  // For admin-initiated payouts (e.g. Troll Casino redemption review), not tips/
+  // For admin-initiated payouts (e.g. Troll Kombat wager claim review), not tips/
   // revives — those always go to the treasury via pay()/payForRevive() above.
   // `amount` is in native token units (e.g. 12.5 USDC), NOT USD-priced like pay().
   // No admin bypass here: this literally IS the admin sending real funds out of
