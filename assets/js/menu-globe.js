@@ -534,9 +534,9 @@ export function mountMenuBackdrop(host) {
     map.setZoom(zoomForRadius(pr));
     root.classList.remove("is-swap");
     // ...then ease it into the open area, big.
-    const left = inset.left || 0, bottom = inset.bottom || 0;
-    const aw = w - left, ah = h - bottom;
-    const cx = left + aw / 2, cy = ah / 2;
+    const left = inset.left || 0, bottom = inset.bottom || 0, top = inset.top || 0;
+    const aw = w - left, ah = h - bottom - top;
+    const cx = left + aw / 2, cy = top + ah / 2;
     const target = Math.min(aw, ah) * 0.44;
     const pad = paddingFor(cx, cy, w, h);
     // Measure the zoom where the camera will end up: the globe's size at a

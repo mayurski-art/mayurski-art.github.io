@@ -5,7 +5,7 @@
    createMapMode({ host, panelClass, getBackdrop, getMenu, getInset })
      host:        element the pin card and city-search panel go into
      panelClass:  the page's own panel class, so the search panel matches
-     getInset():  { left } or { bottom } px of screen the menu covers
+     getInset():  { left }, { top } or { bottom } px of screen the menu covers
    -> { screens: { map, top, search, pin, pinsearch }, onScreen(id, screen), setMapMode(on) }
 
    "Drop my pin" (the pin screen) happens on the planet itself: tap a spot

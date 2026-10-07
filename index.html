@@ -106,28 +106,57 @@ kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgb
 .home-admin .home-field{max-width:220px}
 .is-map .home-acct,.is-map .home-donate{visibility:hidden}
 
-/* Phones and narrow windows: the planet sits up top (menu-globe does that),
-   the list moves down where thumbs are, panels cover the planet. */
-@media (max-width:760px), (max-aspect-ratio:9/10){
-  .home-brand{left:20px;top:calc(18px + env(safe-area-inset-top));font-size:18px}
-  .home-backdrop::after{background:linear-gradient(180deg,rgba(3,1,1,0) 12%,rgba(3,1,1,.5) 34%,rgba(3,1,1,.82) 62%,rgba(3,1,1,.92) 100%)}
-  .home-acct{left:20px;right:20px;width:auto;top:calc(62px + env(safe-area-inset-top))}
-  .home-acct-lbl{display:none}
-  .home-menu{left:6px;right:20px;width:auto;top:auto;bottom:calc(var(--foot-h,58px) + 22px + 12px + env(safe-area-inset-bottom));max-height:calc(100% - var(--foot-h,58px) - 150px - env(safe-area-inset-bottom) - env(safe-area-inset-top))}
-  .home-foot{left:20px;right:20px;bottom:calc(22px + env(safe-area-inset-bottom))}
-  .home-online{font-size:26px}
-  .home-tiles{gap:8px;margin-top:8px}
-  .home-tile{min-height:0;flex-direction:row;align-items:center;gap:8px;padding:8px 10px}
-  .home-tile img{width:30px;height:30px;margin:0;border-radius:8px;flex:none}
-  .home-tile img.is-cutout{padding:2px}
+/* Phones look like the desktop (user, 2026-10-07). Held sideways (a short,
+   wide screen): the desktop layout itself, sized down. Held upright: the
+   desktop's pieces in the desktop's order, stacked: the menu first, then
+   the profile and the tiles, the footer at the bottom. Rows stay desktop
+   size, so the whole menu fits. --menu-h is the list's live height (JS). */
+@media (max-height:520px) and (min-aspect-ratio:9/10){
+  .home-brand{left:max(28px,env(safe-area-inset-left));top:14px;font-size:16px}
+  .home-menu{left:max(30px,calc(env(safe-area-inset-left) + 2px));top:44px;width:min(400px,46vw);max-height:calc(100% - 44px - var(--foot-h,40px) - 18px)}
+  .home .tr-menu-title{font-size:26px;margin-bottom:4px}
+  .home .tr-menu-item{min-height:28px;line-height:28px;font-size:18px}
+  .home .tr-menu-group{padding-bottom:6px}
+  .home .tr-menu-desc{font-size:13px;min-height:0;margin-top:2px}
+  .home-acct{left:auto;right:max(24px,env(safe-area-inset-right));top:40px;width:min(340px,44vw);gap:4px}
+  .home-acct-lbl{font-size:14px}
+  .home-acct-row{min-height:30px}
+  .home-acct-row b{font-size:16px}
+  .home-tiles{gap:8px;margin-top:6px}
+  .home-tile{padding:10px}
+  .home-tile img{width:40px;height:40px;margin-bottom:8px;border-radius:10px}
   .home-tile b{font-size:16px}
-  .home-tile i{display:none}
+  .home-tile i{font-size:11px}
+  .home-foot{left:max(44px,env(safe-area-inset-left));right:max(24px,env(safe-area-inset-right));bottom:10px;gap:14px;align-items:center}
+  .home-online{font-size:24px}
+  .home-donate{padding:5px 14px 5px 5px;gap:8px}
+  .home-donate img{width:32px;height:32px}
+  .home-donate b{font-size:16px}
+  .home-donate i{font-size:10px}
+  .home-panel{left:48vw;top:38px;width:calc(52vw - max(24px,env(safe-area-inset-right)));max-height:calc(100% - 38px - var(--foot-h,40px) - 24px);padding:16px}
+}
+@media (max-aspect-ratio:9/10){
+  .home-brand{left:20px;top:calc(18px + env(safe-area-inset-top));font-size:18px}
+  .home-backdrop::after{background:rgba(3,1,1,.3)}
+  .home-menu{left:6px;right:20px;width:auto;top:calc(60px + env(safe-area-inset-top));
+    max-height:calc(100% - 60px - 200px - var(--foot-h,58px) - 34px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
+  .home .tr-menu-title{font-size:36px;margin-bottom:4px}
+  .home .tr-menu-item{min-height:36px;line-height:36px;font-size:21px}
+  .home .tr-menu-group{padding-bottom:10px}
+  .home .tr-menu-desc{font-size:14px;min-height:40px}
+  .home-acct{left:20px;right:20px;width:auto;top:calc(60px + env(safe-area-inset-top) + var(--menu-h,320px) + 10px)}
+  .home-tiles{gap:8px;margin-top:8px}
+  .home-tile{padding:12px}
+  .home-tile img{width:48px;height:48px;margin-bottom:10px;border-radius:12px}
+  .home-tile b{font-size:18px}
+  .home-tile i{font-size:11px}
+  .home-foot{left:20px;right:20px;bottom:calc(20px + env(safe-area-inset-bottom));gap:12px;align-items:center}
+  .home-online{font-size:28px}
   .home-donate{padding:6px 14px 6px 6px;gap:8px}
   .home-donate img{width:36px;height:36px}
   .home-donate b{font-size:17px}
   .home-donate i{font-size:11px}
-  .home-foot{gap:12px;align-items:center}
-  .home-panel{left:12px;right:12px;width:auto;top:calc(110px + env(safe-area-inset-top));bottom:calc(var(--menu-h,180px) + var(--foot-h,58px) + 42px + env(safe-area-inset-bottom));max-height:none;padding:18px}
+  .home-panel{left:12px;right:12px;width:auto;top:calc(60px + env(safe-area-inset-top) + var(--menu-h,320px) + 10px);bottom:auto;max-height:calc(100% - 60px - env(safe-area-inset-top) - var(--menu-h,320px) - 10px - var(--foot-h,58px) - 34px - env(safe-area-inset-bottom));padding:18px}
 }
 @media (prefers-reduced-motion:reduce){.home-live i,.home-donate{animation:none}.home-tile,.home-tile img{transition:none}}
 </style>
@@ -221,8 +250,8 @@ const mapMode = createMapMode({
   getBackdrop: () => backdrop, getMenu: () => menu,
   getInset() {
     const r = nav.getBoundingClientRect();
-    return matchMedia('(max-width:760px), (max-aspect-ratio:9/10)').matches
-      ? { bottom: Math.max(0, innerHeight - r.top + 8) } : { left: r.right + 24 };
+    // Upright phones have the menu on top; everywhere else it's on the left.
+    return matchMedia('(max-aspect-ratio:9/10)').matches ? { top: r.bottom + 8 } : { left: r.right + 24 };
   },
 });
 
@@ -392,7 +421,7 @@ var backdrop = null;   // var: read by menu callbacks that can run before this l
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 200));
 window.addEventListener('load', () => idle(async () => {
   try {
-    const { mountMenuBackdrop } = await import('./assets/js/menu-globe.js?v=home5');
+    const { mountMenuBackdrop } = await import('./assets/js/menu-globe.js?v=home6');
     backdrop = mountMenuBackdrop($('home-backdrop'));
     document.querySelector('.home-still')?.remove();
     window.__trHome = { backdrop, menu };   // for headless tests
