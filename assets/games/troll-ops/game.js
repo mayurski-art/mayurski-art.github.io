@@ -102,7 +102,7 @@ import { AIM_ASSIST_MOUSE_PULL, AIM_ASSIST_MOUSE_SLOWDOWN, MOUSE_ACTIVE_MS, aimA
 import { game, linkGame } from "./core/state.js?v=st1";
 import { PAD_SENS_MULT, PAD_SENS_NAMES, padLookTurn, pollGamepad, pollGamepadMenu, radialStick } from "./input/gamepad.js?v=in1-fu1";
 import { setTouchAds, touchState, initTouch } from "./input/touch.js?v=in1";
-import { ROLL_SPEED, ROYALE_BUS_GONE, _dropTarget, applyRoyaleCatchUp, cancelRoyaleAct, cycleSpectate, drawRoyaleMinimap, hideSpectateHud, inSkyLobby, onRoyaleLoot, ordinal, placeBotsInLobby, placeDropCamera, placeSpectateCamera, royale, royaleAliveList, royaleBotDamage, royaleBotObjective, royaleBotSight, royaleBotVsBot, royaleDropCode, royaleDropView, royaleNoise, royaleOnDeath, royalePickupGun, royaleRollK, royaleRolling, royaleSpectating, royaleWants, setupRoyale, stageFrozen, startRoyaleAct, startRoyaleBus, teardownRoyale, updateDropPlayer, updateRoyale, updateRoyaleGear, updateRoyaleRoll, updateSkyLobby, initRoyale } from "./modes/royale.js?v=md1-gj1-fu1";
+import { ROLL_SPEED, ROYALE_BOX_GONE, _dropTarget, applyRoyaleCatchUp, cancelRoyaleAct, cycleSpectate, drawRoyaleMinimap, hideSpectateHud, inSkyLobby, onRoyaleLoot, ordinal, placeBotsInLobby, placeDropCamera, placeSpectateCamera, royale, royaleAliveList, royaleBotDamage, royaleBotObjective, royaleBotSight, royaleBotVsBot, royaleDropCode, royaleDropView, royaleNoise, royaleOnDeath, royalePickupGun, royaleRollK, royaleRolling, royaleSpectating, royaleWants, setupRoyale, stageFrozen, startRoyaleAct, openRoyaleBox, teardownRoyale, updateDropPlayer, updateRoyale, updateRoyaleGear, updateRoyaleRoll, updateSkyLobby, initRoyale } from "./modes/royale.js?v=md1-gj1-fu1";
 import { clearDamageNumbers, clearHitDirs, damageNumbers, flashHit, flinchPeer, hitDirs, jokeVerb, noteHitDirection, pushKillfeed, showHitmarker, showWaveBanner, spawnComicWord, spawnDamageNumber, updateDamageNumbers, updateHitDirs, updateStreakHud } from "./core/hud.js?v=cr1-si1-gj1-fu1";
 import { buildMinimapBase, drawMinimap, mapToMinimap, minimapCanvas, setBombSiteMarkers, setHillMarker, initMinimap } from "./core/minimap.js?v=cr1-gj1-fu1";
 import { achievements, blastFx, callReadyStreak, callStreak, callStreakSlot, cancelMark, clearStreakEntities, clearStreakLocks, confirmMark, cycleSelectedStreak, endActiveStreak, enemiesRevealed, flyovers, groundAimPoint, killstreakUi, lockStreak, minimapJammed, pendingStrikes, readyStreaksOrdered, spawnVsatSat, startVsat, streakBlast, streakBusy, streakControlActive, streakEnd, streakEntities, streakKeyLabel, streakLockLeft, streakLockUntil, streakLockWhy, streakPicker, streakSlotIds, streaks, uavActiveFor, uavBucket, uavUntil, updateMarking, updateStreakControl, useSelectedStreak, vsatActiveFor, vsatUntil, vsatUp, initStreakCalling } from "./streaks/calling.js?v=sk1-si1-gj1-fu1";
@@ -1237,7 +1237,7 @@ const net = new Net({
     if ((gameState === "playing" || gameState === "paused") && isPvp() && !isBotPeer(p) && net.isBotHost() && loadedMapId) net.publishRoomMap(p.id, loadedMapId, modeId);
     if (!royale?.drop || gameState !== "playing" || isStaging() || isBotPeer(p) || !net.isBotHost()) return;
     const d = royale.drop;
-    net.publishRoyaleCatchUp(p.id, royale.seed, d.phase === "bus" ? d.busT : ROYALE_BUS_GONE, royale.t, royale.live);
+    net.publishRoyaleCatchUp(p.id, royale.seed, d.phase === "belt" ? d.beltT : ROYALE_BOX_GONE, royale.t, royale.live);
   },
   onLeave: (p) => { if (!isBotPeer(p)) pushKillfeed(`${p.name} left`); },
   // `hd` has always been on the wire; we just never read it.
@@ -2942,7 +2942,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     meleeImpactT: () => meleeImpactT, meleeWhiffT: () => meleeWhiffT, sawShake: () => sawShake, sawInspectRev: () => sawInspectRev,
     targetMeshes: () => targetMeshes, meleeConnect,
     saberState: () => ({ ...saberBlock, trail: !!saberTrail?.mesh.visible, deflectT: saberDeflectT, parry: { ...saberParry.sample(), t: saberParry.t }, flick: saberFlick }),
-    DROP, royaleDropView, inSkyLobby, startRoyaleBus,
+    DROP, royaleDropView, inSkyLobby, openRoyaleBox,
     royale: () => royale, royaleAliveList, startRoyaleAct, royalePickupGun, royaleWants, setupRoyale, cycleSpectate, royaleSpectating,
     royaleBotObjective, royaleBotDamage, royaleNoise, ROYALE,
     activeStreakMesh: () => activeStreakMesh, streakHoldT: () => streakHoldT,

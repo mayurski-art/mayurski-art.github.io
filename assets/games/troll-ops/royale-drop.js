@@ -1,18 +1,22 @@
-// Troll Forces — Troll Royale's opening: the sky lobby, the Troll Bus and the
-// drop.
+// Troll Forces — Troll Royale's opening: the sky lobby, the box opening and
+// the drop.
 //
 //   1. Lobby: a glass box floating high over the island, guns all over its
 //      floor to try out (no damage; nothing carries over). 90 s on the
-//      staging clock game.js already syncs.
-//   2. Bus: everyone rides the Troll Bus along a straight line across the
-//      island. The line comes from the match seed, so every client flies the
-//      same one without it going over the wire.
-//   3. Drop: jump off any time over the island (anyone left is kicked out at
-//      the far edge), freefall, then a trollface paraglider opens near the
-//      ground (or earlier, on a second jump) and you steer it down to land.
+//      staging clock game.js already syncs. Where the box hangs and which
+//      wall opens come from the match seed, so every client agrees without
+//      it going over the wire.
+//   2. Belt: at 0:00 one wall slides away and the floor becomes a treadmill
+//      that carries everyone out over a ramp and off its edge. You can walk
+//      (or run for it); a dozen seconds later the floor goes too, so nobody
+//      stays behind.
+//   3. Drop: pure freefall, steered with the camera (look down to dive),
+//      onto the island. No glider: you land with a roll and no damage.
 //
 // game.js owns the rules (who is where, the clock, damage). This file owns
-// the box, the bus, the glider and the flight physics.
+// the box, the belt and the flight physics. The paraglider build is still
+// here (remote-players.js draws it for the wire's glide code) but nothing
+// opens one any more.
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
@@ -28,18 +32,21 @@ export const DROP = {
   boxH: 7,
   lobbyGuns: 34,
   gunRespawn: 4,        // seconds before a lobby gun is back
-  busY: 215,
-  busSpeed: 32,         // m/s
-  busLead: 80,          // metres flown before and after the island
+  boxOffset: 50,        // the box hangs within this of the island's middle
+  beltSpeed: 6,         // m/s the floor carries you toward the opening
+  beltLen: 14,          // the ramp outside the opening, metres
+  beltW: 10,            // ...and its width (the opening is as wide)
+  floorGoneAfter: 12,   // seconds after opening when the floor and ramp go
   fallSpeed: 42,        // freefall, m/s down
   diveSpeed: 60,        // looking down with W held
   fallSteer: 17,        // m/s sideways in freefall
+  edgePad: 12,          // fallers are kept this far inside the island edge
+  // The glider (unused since the belt: Flight never opens one unless asked).
   glideSink: 6.5,       // m/s down under the glider
   glideSpeed: 15,       // m/s forward under the glider
   glideBrake: 7,        // m/s forward holding S
   autoOpen: 32,         // metres above the ground the glider opens by itself
   openBelow: 150,       // a second jump opens it early below this height
-  edgePad: 12,          // gliders are kept this far inside the island edge
 };
 
 /* ---- shared art ----------------------------------------------------------- */
@@ -202,13 +209,11 @@ export function sharedParaglider() {
   return gliderTemplate.clone();
 }
 
-/* The Troll Bus: tf-bus + the carved grin on its nose, tf-busface
-   (models/build_island.blender.py), loaded when the match starts so they're
-   ready long before the lobby ends. The thruster flames flicker in JS. If the
-   models never arrive, the old grey-box bus stands in. Faces +X. */
-const BUS_MODELS = ["tf-bus", "tf-busface", "tf-skybox"];
+/* The box's frame, tf-skybox (models/build_island.blender.py), loaded when
+   the match starts so it's there before you look round. */
+const BOX_MODELS = ["tf-skybox"];
 function preloadRoyaleModels() {
-  for (const m of BUS_MODELS) loadModel(m).catch(() => {});
+  for (const m of BOX_MODELS) loadModel(m).catch(() => {});
 }
 /* A model in a group that disposal must leave alone (its geometry is the
    loader's cache, shared by every later clone). */
@@ -224,54 +229,44 @@ function disposeOwn(root) {
   root.traverse((o) => { if (!skip.has(o)) { o.geometry?.dispose(); o.material?.dispose?.(); } });
 }
 
-function buildBus() {
-  const g = new THREE.Group();
-  for (const z of [-1, 1]) {
-    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.5, 2.6, 12), new THREE.MeshBasicMaterial({ color: 0x7fd6ff, transparent: true, opacity: 0.85 }));
-    flame.rotation.z = Math.PI / 2;
-    flame.position.set(-9.05, 2.2, z * 1.2);
-    flame.userData.flame = true;
-    g.add(flame);
-  }
-  addModel(g, "tf-bus", () => g.add(buildGreyBus()));
-  addModel(g, "tf-busface");
-  return g;
+/* The belt's stripes: black and hazard-yellow chevrons on a dark deck, one
+   repeat per `BELT_PERIOD` metres along the belt, scrolled by moving the
+   texture offset. Shared by the box floor and the ramp. */
+const BELT_PERIOD = 2;
+let beltTex = null;
+function beltTexture() {
+  if (beltTex) return beltTex;
+  const c = document.createElement("canvas");
+  c.width = 128; c.height = 128;
+  const g = c.getContext("2d");
+  g.fillStyle = "#23262b";
+  g.fillRect(0, 0, 128, 128);
+  g.fillStyle = "#f2c21b";
+  g.beginPath();
+  g.moveTo(0, 0); g.lineTo(28, 0); g.lineTo(64, 64); g.lineTo(28, 128); g.lineTo(0, 128); g.lineTo(36, 64); g.closePath();
+  g.fill();
+  g.fillStyle = "rgba(255,255,255,0.08)";
+  g.fillRect(0, 0, 128, 3);
+  g.fillRect(0, 125, 128, 3);
+  beltTex = new THREE.CanvasTexture(c);
+  beltTex.wrapS = beltTex.wrapT = THREE.RepeatWrapping;
+  beltTex.colorSpace = THREE.SRGBColorSpace;
+  beltTex.anisotropy = 4;
+  return beltTex;
 }
-
-/* The grey-box bus, kept as the fallback. */
-function buildGreyBus() {
-  const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(12, 3.6, 3.6), mat(0xf2cf3a));
-  body.position.y = 1.8;
-  g.add(body);
-  const windows = new THREE.Mesh(new THREE.BoxGeometry(10.4, 1.1, 3.66), mat(0x1c2230, { roughness: 0.2, metalness: 0.4 }));
-  windows.position.set(-0.4, 2.5, 0);
-  g.add(windows);
-  const stripe = new THREE.Mesh(new THREE.BoxGeometry(12.04, 0.35, 3.64), mat(0x222222));
-  stripe.position.y = 1.1;
-  g.add(stripe);
-  const face = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 2.6),
-    new THREE.MeshBasicMaterial({ map: trollfaceTexture(), transparent: true, depthWrite: false }));
-  face.rotation.y = Math.PI / 2;
-  face.position.set(6.03, 1.9, 0);
-  g.add(face);
-  for (const z of [-1, 1]) {
-    const wing = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.25, 3.2), mat(0xd8d8d8));
-    wing.position.set(-0.5, 1.4, z * 3.3);
-    wing.rotation.x = z * 0.12;
-    g.add(wing);
-    const pod = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.85, 2.4, 12), mat(0x555a62, { metalness: 0.5 }));
-    pod.rotation.z = Math.PI / 2;
-    pod.position.set(-6.4, 2.2, z * 1.2);
-    g.add(pod);
-  }
-  for (const [x, z] of [[4, -1.85], [4, 1.85], [-3.6, -1.85], [-3.6, 1.85]]) {
-    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 0.4, 14), mat(0x151515));
-    wheel.rotation.x = Math.PI / 2;
-    wheel.position.set(x, 0.1, z);
-    g.add(wheel);
-  }
-  return g;
+/* A flat strip `len` along local +x, `w` across, its stripes repeating
+   every BELT_PERIOD metres along it. Each strip owns its texture clone so it
+   can scroll on its own. */
+function beltStrip(len, w, opacity = 1) {
+  const tex = beltTexture().clone();
+  // A chevron every ~3 m across, so it reads as hazard chevrons, not bent bars.
+  tex.repeat.set(len / BELT_PERIOD, Math.max(1, Math.round(w / 3)));
+  tex.needsUpdate = true;
+  const m = new THREE.MeshBasicMaterial({ map: tex, transparent: opacity < 1, opacity, fog: false, side: THREE.DoubleSide });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(len, w), m);
+  mesh.rotation.x = -Math.PI / 2;   // flat; local +x stays +x, the plane's +y lies along -z
+  mesh.userData.belt = tex;
+  return mesh;
 }
 
 /* ---- the drop ------------------------------------------------------------- */
@@ -281,35 +276,68 @@ export class RoyaleDrop {
   constructor(ctx, seed) {
     this.ctx = ctx;
     this.seed = seed;
-    this.phase = "lobby";           // lobby -> bus -> done
-    this.busT = 0;
+    this.phase = "lobby";           // lobby -> belt -> done
+    this.beltT = 0;                 // seconds since the wall opened
+    this.floorGone = false;
     this.box = null;
     this.boxColliders = [];
+    this.wallColliders = {};        // by wall key: "-z", "+z", "-x", "+x"
+    this.wallMeshes = {};
+    this.floorMesh = null;
+    this.floorBelt = null;
+    this.ramp = null;
+    this.rampColliders = [];
     this.lobbyTaken = new Map();    // lobby gun id -> seconds until it's back
-    this.path = this.planPath();
-    this.bus = null;
+    this.place();
     preloadRoyaleModels();
     this.buildBox();
   }
 
   /* ---- lobby ---- */
 
-  get boxCentre() { return { x: 0, y: DROP.boxY, z: 0 }; }
+  /* Where the box hangs and which wall opens, from the seed: a point within
+     boxOffset of the island's middle with the box and the whole ramp over
+     land (the coast would stop you walking off the end: movement.js clamps
+     everyone inside the edge). The middle itself if nothing fits. */
+  place() {
+    const rng = seededRng((this.seed ^ 0xb0c) >>> 0);
+    const edge = this.ctx.edge;
+    const dirs = [{ x: 0, z: -1, key: "-z" }, { x: 0, z: 1, key: "+z" }, { x: -1, z: 0, key: "-x" }, { x: 1, z: 0, key: "+x" }];
+    const reach = DROP.boxSize / 2 + DROP.beltLen + 6;
+    let x = 0, z = 0, dir = dirs[Math.floor(rng() * 4)];
+    for (let i = 0; i < 40; i++) {
+      const a = rng() * Math.PI * 2, r = Math.sqrt(rng()) * DROP.boxOffset;
+      const px = Math.cos(a) * r, pz = Math.sin(a) * r;
+      const d = dirs[Math.floor(rng() * 4)];
+      const S = DROP.boxSize / 2;
+      const corners = [[px - S, pz - S], [px + S, pz - S], [px - S, pz + S], [px + S, pz + S], [px + d.x * reach, pz + d.z * reach],
+        [px + d.x * reach - d.z * DROP.beltW / 2, pz + d.z * reach + d.x * DROP.beltW / 2], [px + d.x * reach + d.z * DROP.beltW / 2, pz + d.z * reach - d.x * DROP.beltW / 2]];
+      if (!edge || corners.every(([cx, cz]) => insidePolygon(edge, cx, cz))) { x = px; z = pz; dir = d; break; }
+    }
+    this.boxCentre = { x, y: DROP.boxY, z };
+    this.openDir = dir;
+    this.openYaw = Math.atan2(-dir.x, -dir.z);   // look.yaw facing the opening
+  }
 
   buildBox() {
     const { scene, colliders } = this.ctx;
     const S = DROP.boxSize, H = DROP.boxH, y0 = DROP.boxY, t = 0.4;
+    const { x: cx, z: cz } = this.boxCentre;
     const g = new THREE.Group();
+    g.position.set(cx, 0, cz);
     // Unlit, so the sun can't glare it white: you see straight through it.
     const glass = new THREE.MeshBasicMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false, fog: false });
     const floorGlass = glass.clone();
     floorGlass.opacity = 0.14;
     const add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); g.add(o); return o; };
     // Glass floor, walls and roof.
-    add(new THREE.BoxGeometry(S, t, S), floorGlass, 0, y0 - t / 2, 0).renderOrder = 4;
+    this.floorMesh = add(new THREE.BoxGeometry(S, t, S), floorGlass, 0, y0 - t / 2, 0);
+    this.floorMesh.renderOrder = 4;
     add(new THREE.BoxGeometry(S, t, S), glass, 0, y0 + H + t / 2, 0).renderOrder = 4;
-    for (const [w, d, x, z] of [[S, t, 0, -S / 2], [S, t, 0, S / 2], [t, S, -S / 2, 0], [t, S, S / 2, 0]]) {
-      add(new THREE.BoxGeometry(w, H, d), glass, x, y0 + H / 2, z).renderOrder = 4;
+    for (const [key, w, d, x, z] of [["-z", S, t, 0, -S / 2], ["+z", S, t, 0, S / 2], ["-x", t, S, -S / 2, 0], ["+x", t, S, S / 2, 0]]) {
+      const wall = add(new THREE.BoxGeometry(w, H, d), glass.clone(), x, y0 + H / 2, z);
+      wall.renderOrder = 4;
+      this.wallMeshes[key] = wall;
     }
     // The frame round the glass, the deck rim and the hull under it:
     // tf-skybox (models/build_island.blender.py), origin at the floor's middle.
@@ -323,25 +351,26 @@ export class RoyaleDrop {
     face.rotation.x = Math.PI / 2;
     scene.add(g);
     this.box = g;
-    // Colliders: the floor slab, the walls, the roof.
+    // Colliders: the floor slab, the walls, the roof (world space).
     const push = (x, z, w, d, h, y) => {
-      const c = { min: new THREE.Vector3(x - w / 2, y, z - d / 2), max: new THREE.Vector3(x + w / 2, y + h, z + d / 2), pen: 99 };
+      const c = { min: new THREE.Vector3(cx + x - w / 2, y, cz + z - d / 2), max: new THREE.Vector3(cx + x + w / 2, y + h, cz + z + d / 2), pen: 99 };
       colliders.push(c);
       this.boxColliders.push(c);
+      return c;
     };
-    push(0, 0, S, S, 1, y0 - 1);
+    this.floorCollider = push(0, 0, S, S, 1, y0 - 1);
     push(0, 0, S, S, 1, y0 + H);
-    push(0, -S / 2 - 0.5, S + 2, 1, H, y0);
-    push(0, S / 2 + 0.5, S + 2, 1, H, y0);
-    push(-S / 2 - 0.5, 0, 1, S + 2, H, y0);
-    push(S / 2 + 0.5, 0, 1, S + 2, H, y0);
+    this.wallColliders["-z"] = push(0, -S / 2 - 0.5, S + 2, 1, H, y0);
+    this.wallColliders["+z"] = push(0, S / 2 + 0.5, S + 2, 1, H, y0);
+    this.wallColliders["-x"] = push(-S / 2 - 0.5, 0, 1, S + 2, H, y0);
+    this.wallColliders["+x"] = push(S / 2 + 0.5, 0, 1, S + 2, H, y0);
   }
 
   /* Where the `i`th of `n` trolls stands in the box: a ring round the middle. */
   lobbySpot(i, n = 20) {
     const a = (i / Math.max(1, n)) * Math.PI * 2 + 0.3;
     const r = DROP.boxSize * 0.34;
-    return { x: Math.cos(a) * r, y: DROP.boxY, z: Math.sin(a) * r };
+    return { x: this.boxCentre.x + Math.cos(a) * r, y: DROP.boxY, z: this.boxCentre.z + Math.sin(a) * r };
   }
 
   /* The lobby's guns, as LootField items (ids "lobby.N"): the same on every
@@ -357,7 +386,7 @@ export class RoyaleDrop {
       if (Math.hypot(x, z) < 4) continue;   // the middle stays clear
       const r = Math.floor(rng() * RARITIES.length);
       const { id, att } = rollGun(rng, r);
-      items.push({ id: `lobby.${i}`, k: "gun", w: id, a: att, r, x, y: DROP.boxY, z });
+      items.push({ id: `lobby.${i}`, k: "gun", w: id, a: att, r, x: this.boxCentre.x + x, y: DROP.boxY, z: this.boxCentre.z + z });
     }
     return items;
   }
@@ -374,104 +403,172 @@ export class RoyaleDrop {
     return back;
   }
 
+  dropCollider(c) {
+    const { colliders } = this.ctx;
+    const i = colliders.indexOf(c);
+    if (i >= 0) colliders.splice(i, 1);
+    const j = this.boxColliders.indexOf(c);
+    if (j >= 0) this.boxColliders.splice(j, 1);
+  }
+
   removeBox() {
-    const { scene, colliders } = this.ctx;
-    for (const c of this.boxColliders) {
-      const i = colliders.indexOf(c);
-      if (i >= 0) colliders.splice(i, 1);
-    }
+    const { scene } = this.ctx;
+    for (const c of [...this.boxColliders, ...this.rampColliders]) this.dropCollider(c);
     this.boxColliders = [];
+    this.rampColliders = [];
     if (this.box) {
       scene.remove(this.box);
       disposeOwn(this.box);
       this.box = null;
     }
-  }
-
-  /* ---- bus ---- */
-
-  /* A straight line across the island through near its middle, from the seed.
-     `tIn` / `tOut` are where it crosses the island edge (metres along it). */
-  planPath() {
-    const rng = seededRng((this.seed ^ 0xb05) >>> 0);
-    const a = rng() * Math.PI * 2;
-    const dir = { x: Math.cos(a), z: Math.sin(a) };
-    const off = (rng() - 0.5) * 70;
-    const origin = { x: -dir.z * off, z: dir.x * off };
-    const edge = this.ctx.edge;
-    let tIn = -150, tOut = 150;
-    if (edge) {
-      let first = null, last = null;
-      for (let t = -500; t <= 500; t += 2) {
-        if (insidePolygon(edge, origin.x + dir.x * t, origin.z + dir.z * t)) { if (first === null) first = t; last = t; }
-      }
-      if (first !== null) { tIn = first; tOut = last; }
-    }
-    const t0 = tIn - DROP.busLead, t1 = tOut + DROP.busLead;
-    return { dir, origin, tIn, tOut, t0, t1, duration: (t1 - t0) / DROP.busSpeed, yaw: Math.atan2(-dir.z, dir.x) };
-  }
-
-  /* Metres along the line at bus time `t`. */
-  along(t) { return this.path.t0 + t * DROP.busSpeed; }
-  busPos(t, out = new THREE.Vector3()) {
-    const s = this.along(t), p = this.path;
-    return out.set(p.origin.x + p.dir.x * s, DROP.busY, p.origin.z + p.dir.z * s);
-  }
-  /* Over the island, so jumping is allowed. */
-  overIsland(t) { const s = this.along(t); return s >= this.path.tIn && s <= this.path.tOut; }
-  /* Past the far edge: anyone still aboard gets kicked out. */
-  pastIsland(t) { return this.along(t) > this.path.tOut; }
-  /* Bus time at which it passes nearest to (x, z), clamped to the island part. */
-  timeNearest(x, z) {
-    const p = this.path;
-    const s = (x - p.origin.x) * p.dir.x + (z - p.origin.z) * p.dir.z;
-    return (Math.max(p.tIn, Math.min(p.tOut, s)) - p.t0) / DROP.busSpeed;
-  }
-
-  startBus() {
-    this.phase = "bus";
-    this.busT = 0;
-    this.removeBox();
-    this.bus = buildBus();
-    this.bus.rotation.y = this.path.yaw;
-    this.ctx.scene.add(this.bus);
-    this.busPos(0, this.bus.position);
-  }
-
-  /* Returns true once the bus has flown the whole line (it's then gone). */
-  updateBus(dt) {
-    if (this.phase !== "bus") return false;
-    this.busT += dt;
-    this.busPos(this.busT, this.bus.position);
-    this.bus.position.y += Math.sin(this.busT * 1.7) * 0.4;
-    for (const o of this.bus.children) if (o.userData.flame) o.scale.x = 0.85 + Math.random() * 0.3;
-    if (this.busT >= this.path.duration) { this.endBus(); return true; }
-    return false;
-  }
-
-  endBus() {
-    this.phase = "done";
-    if (this.bus) {
-      this.ctx.scene.remove(this.bus);
-      disposeOwn(this.bus);
-      this.bus = null;
+    if (this.ramp) {
+      scene.remove(this.ramp);
+      disposeOwn(this.ramp);
+      this.ramp = null;
     }
   }
+
+  /* ---- belt ---- */
+
+  /* 0:00: the open side's wall goes (its glass sinks into the deck over a
+     second), the ramp appears outside it, and the floor starts moving. */
+  openBox() {
+    if (this.phase !== "lobby") return;
+    this.phase = "belt";
+    this.beltT = 0;
+    const key = this.openDir.key;
+    this.dropCollider(this.wallColliders[key]);
+    delete this.wallColliders[key];
+    this.openWall = this.wallMeshes[key] || null;
+    this.buildRamp();
+    // The floor's stripes: a belt the size of the deck, a hair over the glass.
+    if (this.box) {
+      const S = DROP.boxSize;
+      this.floorBelt = beltStrip(S, S, 0.85);
+      this.floorBelt.rotation.y = this.openYawFlat();
+      this.floorBelt.rotation.order = "YXZ";
+      this.floorBelt.position.y = DROP.boxY + 0.02;
+      this.floorBelt.renderOrder = 3;
+      this.box.add(this.floorBelt);
+    }
+  }
+
+  /* Group yaw that lays a strip's local +x along openDir. */
+  openYawFlat() { return Math.atan2(-this.openDir.z, this.openDir.x); }
+
+  /* The treadmill ramp outside the opening: a strip at floor level with low
+     rails either side (colliders only; the frame's lip reads as the rail). */
+  buildRamp() {
+    const { scene, colliders } = this.ctx;
+    const S = DROP.boxSize, L = DROP.beltLen, W = DROP.beltW, y0 = DROP.boxY;
+    const d = this.openDir, { x: cx, z: cz } = this.boxCentre;
+    const g = new THREE.Group();
+    const start = S / 2;   // where the wall stood; the ramp starts under it
+    g.position.set(cx + d.x * (start + L / 2), 0, cz + d.z * (start + L / 2));
+    g.rotation.y = this.openYawFlat();
+    const belt = beltStrip(L + 1, W);
+    belt.rotation.order = "YXZ";
+    belt.position.y = y0 + 0.02;
+    g.add(belt);
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(L + 1, 0.6, W + 1.2), mat(0x3a3d44, { roughness: 0.7, metalness: 0.3 }));
+    deck.position.y = y0 - 0.3;
+    g.add(deck);
+    for (const side of [-1, 1]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(L + 1, 0.5, 0.4), mat(0xf2c21b, { roughness: 0.5, metalness: 0.2 }));
+      rail.position.set(0, y0 + 0.25, side * (W / 2 + 0.4));
+      g.add(rail);
+    }
+    scene.add(g);
+    this.ramp = g;
+    this.rampBelt = belt;
+    // Colliders, world-aligned (openDir is one of the four axes).
+    const along = L + 1, across = W + 1.2;
+    const w = d.x ? along : across, dd = d.x ? across : along;
+    const ox = cx + d.x * (start + L / 2), oz = cz + d.z * (start + L / 2);
+    const push = (x, z, bw, bd, h, y) => {
+      const c = { min: new THREE.Vector3(x - bw / 2, y, z - bd / 2), max: new THREE.Vector3(x + bw / 2, y + h, z + bd / 2), pen: 99 };
+      colliders.push(c);
+      this.rampColliders.push(c);
+    };
+    push(ox, oz, w, dd, 1, y0 - 1);
+    for (const side of [-1, 1]) {
+      const rx = ox + (d.x ? 0 : side * (W / 2 + 0.4)), rz = oz + (d.z ? 0 : side * (W / 2 + 0.4));
+      push(rx, rz, d.x ? along : 0.4, d.x ? 0.4 : along, 0.6, y0);
+    }
+  }
+
+  /* Ticks the belt. The wall sinks, the stripes scroll, the floor goes at
+     floorGoneAfter (the colliders; the glass fades) and three seconds on the
+     phase is done. */
+  updateBelt(dt) {
+    if (this.phase !== "belt") return;
+    this.beltT += dt;
+    const k = Math.min(1, this.beltT / 1.2);
+    if (this.openWall) {
+      this.openWall.scale.y = Math.max(0.001, 1 - k);
+      this.openWall.position.y = DROP.boxY + (DROP.boxH * (1 - k)) / 2;
+      if (k >= 1) { this.openWall.visible = false; this.openWall = null; }
+    }
+    const scroll = (mesh) => {
+      const tex = mesh?.userData.belt;
+      if (tex) tex.offset.x = (tex.offset.x - (DROP.beltSpeed * dt) / BELT_PERIOD) % 1;
+    };
+    if (!this.floorGone) { scroll(this.floorBelt); scroll(this.rampBelt); }
+    if (!this.floorGone && this.beltT >= DROP.floorGoneAfter) {
+      this.floorGone = true;
+      this.dropCollider(this.floorCollider);
+      for (const c of this.rampColliders) this.dropCollider(c);
+      this.rampColliders = [];
+    }
+    if (this.floorGone) {
+      const fade = Math.max(0, 1 - (this.beltT - DROP.floorGoneAfter) / 1.5);
+      if (this.floorMesh) this.floorMesh.material.opacity = 0.14 * fade;
+      if (this.floorBelt) this.floorBelt.material.opacity = 0.85 * fade;
+      if (this.rampBelt) this.rampBelt.material.opacity = fade;
+      if (this.rampBelt && !this.rampBelt.material.transparent) { this.rampBelt.material.transparent = true; this.rampBelt.material.needsUpdate = true; }
+      if (this.ramp) for (const o of this.ramp.children) if (o !== this.rampBelt) { o.material.transparent = true; o.material.opacity = fade; }
+    }
+    // Everyone's out: the empty box and ramp go too, rather than hang there.
+    if (this.beltT >= DROP.floorGoneAfter + 3) { this.phase = "done"; this.removeBox(); }
+  }
+
+  /* Standing on the moving floor or the ramp: feet at the deck's height,
+     over the box or the ramp footprint. Nothing to stand on once the floor
+     has gone. */
+  onBelt(pos) {
+    if (this.phase !== "belt" || this.floorGone) return false;
+    if (Math.abs(pos.y - DROP.boxY) > 1.5) return false;
+    const dx = pos.x - this.boxCentre.x, dz = pos.z - this.boxCentre.z, S = DROP.boxSize / 2;
+    if (Math.abs(dx) <= S && Math.abs(dz) <= S) return true;
+    const d = this.openDir;
+    const fwd = dx * d.x + dz * d.z, side = Math.abs(dx * d.z - dz * d.x);
+    // A metre past the ramp's end too: the ground check still finds the
+    // slab's lip under a body half over it, so the belt has to carry you
+    // right off, not stop at the edge.
+    return fwd > S && fwd <= S + DROP.beltLen + 1.5 && side <= DROP.beltW / 2 + 0.6;
+  }
+
+  /* How far the belt has carried something along openDir this frame. */
+  beltStep(dt) { return DROP.beltSpeed * dt; }
 
   dispose() {
     this.removeBox();
-    this.endBus();
+    this.phase = "done";
   }
 }
 
-/* One flier (you, or a bot): freefall, then the glider, then landed. The
-   caller feeds input and moves its own position from `pos`. */
+/* One flier (you, or a bot): freefall to the ground, landed. The caller
+   feeds input and moves its own position from `pos`. `opts.glider` (off by
+   default) brings the old paraglider back: fall -> glide -> landed. `opts.vel`
+   is the speed you left the edge with. */
 export class Flight {
-  constructor(pos, edge) {
+  constructor(pos, edge, opts = {}) {
     this.pos = pos.clone();
-    this.vel = new THREE.Vector3(0, -8, 0);
-    this.state = "fall";   // fall -> glide -> landed
+    this.vel = opts.vel ? opts.vel.clone() : new THREE.Vector3(0, -8, 0);
+    if (this.vel.y > -2) this.vel.y = -2;
+    this.state = "fall";   // fall -> (glide ->) landed
     this.edge = edge;
+    this.glider = !!opts.glider;
     this.heading = 0;      // glide heading (yaw), set on opening
   }
 
@@ -485,7 +582,7 @@ export class Flight {
     const rx = Math.cos(input.yaw), rz = -Math.sin(input.yaw);
 
     if (this.state === "fall") {
-      if (height < DROP.autoOpen || (input.open && height < DROP.openBelow)) {
+      if (this.glider && (height < DROP.autoOpen || (input.open && height < DROP.openBelow))) {
         this.state = "glide";
         this.heading = input.yaw;
         this.vel.y = Math.max(this.vel.y, -DROP.glideSink * 2);
@@ -514,7 +611,7 @@ export class Flight {
     }
 
     this.pos.addScaledVector(this.vel, dt);
-    // Nobody glides off into space: the island edge (with a margin) holds.
+    // Nobody falls off into the sea: the island edge (with a margin) holds.
     if (this.edge && clampInsidePolygon(this.pos, this.edge, DROP.edgePad)) {
       this.vel.x *= 0.5;
       this.vel.z *= 0.5;
