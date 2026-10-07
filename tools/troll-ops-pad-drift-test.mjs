@@ -61,7 +61,9 @@ page.on("pageerror", (e) => errors.push(e.message));
 await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 180000 });
 await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 180000 });
 await page.evaluate(() => { const T = window.__trollOps; T.setMode("ops"); T.loadout.versusMapId = "grinsite"; T.startGame(); });
-for (let t = Date.now(); Date.now() - t < 600000 && await page.evaluate(() => window.__trollOps.loadState().open);) await sleep(500);
+// startGame() isn't awaited, so the loading screen may not be up yet: wait for
+// the match itself to be live (the pad is only read while playing).
+await page.waitForFunction(() => { const T = window.__trollOps, s = T.loadState(); return T.state() === "playing" && !s.open && !s.hold; }, null, { timeout: 600000, polling: 500 });
 
 // Keep the pause screen shut (headless never gets pointer lock) and read the player.
 const read = () => page.evaluate(() => {
