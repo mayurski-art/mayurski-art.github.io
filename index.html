@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://mayurski-art.github.io https://trollrunner.net https://open.spotify.com https://*.spotifycdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co https://open.spotify.com https://*.spotifycdn.com https://nominatim.openstreetmap.org; frame-src 'self' https://open.spotify.com https://*.spotify.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://mayurski-art.github.io https://trollrunner.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co https://nominatim.openstreetmap.org; frame-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#030101">
 <meta name="description" content="Troll Runner: games, the troll world map, the Trollface Terminal, PFPs and more.">
@@ -55,49 +55,59 @@ a{color:var(--hot)}a:hover{color:#ffb870}
 .home-acct-row img{width:24px;height:24px;border-radius:5px;object-fit:cover}
 .home-acct-row b{font:500 18px var(--display);letter-spacing:.03em;color:var(--gold)}
 .home-acct-row i{font:normal 12px var(--mono);color:var(--hot)}
+/* Troll Map + PFP Studio: picture tiles under the profile row, so they read
+   as their own thing next to the text list on the left. */
+.home-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.home-tile{position:relative;display:flex;flex-direction:column;justify-content:flex-end;min-height:118px;padding:12px;border-radius:12px;border:1px solid rgba(255,210,122,.32);
+  background:linear-gradient(160deg,rgba(255,138,31,.2),rgba(10,4,2,.86) 62%);box-shadow:0 10px 30px rgba(0,0,0,.45);color:var(--ink);font:inherit;text-align:left;text-decoration:none;cursor:pointer;overflow:hidden;
+  transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
+.home-tile img{position:absolute;right:-6px;top:-6px;width:74px;height:74px;object-fit:contain;filter:drop-shadow(0 4px 10px rgba(0,0,0,.6));transition:transform .2s ease}
+.home-tile b{font:600 20px/1.05 var(--display);letter-spacing:.05em;text-transform:uppercase}
+.home-tile i{font:normal 12px/1.3 var(--mono);color:var(--dim);margin-top:3px}
+.home-tile:hover,.home-tile:focus-visible{transform:translateY(-2px);border-color:var(--gold);box-shadow:0 14px 34px rgba(255,138,31,.22)}
+.home-tile:hover img,.home-tile:focus-visible img{transform:rotate(-6deg) scale(1.06)}
+.home-tile:hover,.home-tile:focus-visible{color:var(--ink)}
+.home-tile:focus-visible{outline:2px solid var(--hot);outline-offset:2px}
+/* Finances is the donation wallet: its own glowing pill, bottom right. */
+.home-donate{display:flex;white-space:nowrap;flex:none;align-items:center;gap:12px;margin-left:auto;padding:8px 20px 8px 8px;border-radius:999px;border:1px solid rgba(255,210,122,.75);
+  background:linear-gradient(135deg,rgba(255,210,122,.3),rgba(255,138,31,.16) 55%,rgba(10,4,2,.85));color:var(--ink);text-decoration:none;
+  box-shadow:0 0 0 0 rgba(255,210,122,.45),0 10px 30px rgba(0,0,0,.5);animation:home-glow 2.8s ease-in-out infinite}
+.home-donate img{width:46px;height:46px;border-radius:50%;object-fit:contain;background:rgba(0,0,0,.45);padding:4px}
+.home-donate b{display:block;font:700 22px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--gold)}
+.home-donate i{display:block;font:normal 12px/1.3 var(--mono);color:var(--soft);margin-top:3px}
+.home-donate:hover,.home-donate:focus-visible{color:var(--ink);border-color:var(--gold);background:linear-gradient(135deg,rgba(255,210,122,.42),rgba(255,138,31,.26) 55%,rgba(10,4,2,.85))}
+.home-donate:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+@keyframes home-glow{50%{box-shadow:0 0 0 7px rgba(255,210,122,0),0 10px 30px rgba(0,0,0,.5)}}
 
 .home-foot{position:absolute;left:96px;right:64px;bottom:34px;display:flex;align-items:flex-end;gap:26px;color:var(--dim);font-size:15px;pointer-events:none}
 .home-foot > *{pointer-events:auto}
-.home-online{font:600 38px/1 var(--display);letter-spacing:.02em;color:var(--ink);text-shadow:0 2px 10px rgba(0,0,0,.9)}
+.home-online{white-space:nowrap;font:600 38px/1 var(--display);letter-spacing:.02em;color:var(--ink);text-shadow:0 2px 10px rgba(0,0,0,.9)}
 .home-live{display:block;margin-top:8px;font:500 13px var(--mono);letter-spacing:.02em;color:var(--soft)}
 .home-live:empty{display:none}
 .home-live i{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff453a;margin-right:7px;vertical-align:1px;animation:home-pulse 1.6s ease-in-out infinite}
 @keyframes home-pulse{50%{opacity:.35}}
-.home-hints{display:flex;gap:22px;margin-left:auto}
-.home-hint{display:flex;align-items:center;gap:8px}
 kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgba(243,236,228,.35);color:var(--ink)}
 .home-back{display:none;align-items:center;gap:8px;margin-top:10px;padding:0;border:0;background:none;color:var(--soft);font:15px var(--body);cursor:pointer}
 .home-back.is-on{display:flex}
 .has-panel .home-acct{visibility:hidden}
 @media (hover:none){.home-back kbd{display:none}.home-back{min-height:44px;font:600 16px var(--display);letter-spacing:.06em;text-transform:uppercase}}
 
-/* Panels for Latest Updates, Feedback, About and Radio, beside the list. */
+/* The About panel, beside the list. */
 .home-panel{position:absolute;left:min(42vw,560px);top:112px;width:min(520px,calc(100% - min(42vw,560px) - 48px));max-height:calc(100% - 230px);overflow:auto;padding:22px 24px;
   background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.5);backdrop-filter:blur(6px)}
 .home-panel[hidden]{display:none}
 .home-panel h2{margin:0 0 14px;font:600 26px/1.1 var(--display);letter-spacing:.04em;text-transform:uppercase}
-.home-panel h3{margin:0 0 6px;font:600 18px/1.2 var(--display);letter-spacing:.03em;color:var(--gold)}
-.home-panel p,.home-panel li{color:var(--soft);font-size:15px}
-.home-panel p{margin:0 0 10px}
-.home-update{padding:14px 0;border-top:1px solid var(--line)}
-.home-update:first-of-type{border-top:0;padding-top:0}
-.home-update ul,.home-update ol{margin:0 0 8px;padding-left:20px}
+.home-panel p{margin:0 0 10px;color:var(--soft);font-size:15px}
 .home-field{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:rgba(0,0,0,.45);color:var(--ink);font:15px var(--body)}
 .home-field:focus{outline:2px solid var(--hot);outline-offset:1px}
-textarea.home-field{min-height:120px;resize:vertical}
-.home-check{display:flex;align-items:center;gap:8px;margin:0 0 10px;color:var(--soft);font-size:14px}
-.home-row{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:12px}
 .home-btn{min-height:44px;padding:0 18px;border-radius:8px;border:1px solid rgba(255,138,31,.6);background:rgba(255,138,31,.16);color:var(--ink);font:600 15px var(--display);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
 .home-btn:hover{background:rgba(255,138,31,.28)}
 .home-btn:focus-visible{outline:2px solid var(--hot);outline-offset:2px}
 .home-status{font-size:13px;color:var(--dim)}
 .home-socials{display:flex;gap:16px;margin:4px 0 14px}
-.home-credit{font-size:13px;color:var(--dim)}
 .home-admin{display:flex;gap:8px;margin-top:16px}
 .home-admin .home-field{max-width:220px}
-.home-radio-now{font:500 15px var(--mono);color:var(--gold)}
-.is-map .home-acct,.is-map .home-hints{visibility:hidden}
-#spotify-embed{position:fixed;left:-10000px;top:0;width:300px;height:352px;opacity:0;pointer-events:none}
+.is-map .home-acct,.is-map .home-donate{visibility:hidden}
 
 /* Phones and narrow windows: the planet sits up top (menu-globe does that),
    the list moves down where thumbs are, panels cover the planet. */
@@ -109,10 +119,19 @@ textarea.home-field{min-height:120px;resize:vertical}
   .home-menu{left:6px;right:20px;width:auto;top:auto;bottom:calc(var(--foot-h,58px) + 22px + 12px + env(safe-area-inset-bottom));max-height:calc(100% - var(--foot-h,58px) - 150px - env(safe-area-inset-bottom) - env(safe-area-inset-top))}
   .home-foot{left:20px;right:20px;bottom:calc(22px + env(safe-area-inset-bottom))}
   .home-online{font-size:26px}
-  .home-hints{display:none}
+  .home-tiles{gap:8px;margin-top:8px}
+  .home-tile{min-height:0;flex-direction:row;align-items:center;gap:8px;padding:8px 10px}
+  .home-tile img{position:static;width:30px;height:30px;flex:none}
+  .home-tile b{font-size:16px}
+  .home-tile i{display:none}
+  .home-donate{padding:6px 14px 6px 6px;gap:8px}
+  .home-donate img{width:36px;height:36px}
+  .home-donate b{font-size:17px}
+  .home-donate i{font-size:11px}
+  .home-foot{gap:12px;align-items:center}
   .home-panel{left:12px;right:12px;width:auto;top:calc(110px + env(safe-area-inset-top));bottom:calc(var(--menu-h,180px) + var(--foot-h,58px) + 42px + env(safe-area-inset-bottom));max-height:none;padding:18px}
 }
-@media (prefers-reduced-motion:reduce){.home-live i{animation:none}}
+@media (prefers-reduced-motion:reduce){.home-live i,.home-donate{animation:none}.home-tile,.home-tile img{transition:none}}
 </style>
 </head>
 <body>
@@ -123,25 +142,14 @@ textarea.home-field{min-height:120px;resize:vertical}
 
   <nav class="home-menu" id="home-menu" aria-label="Main menu"></nav>
 
-  <aside class="home-acct" aria-label="Account">
+  <aside class="home-acct" aria-label="Profile and shortcuts">
     <span class="home-acct-lbl">1 Runner <span>(you)</span></span>
     <button type="button" class="home-acct-row" id="home-acct-row"><b id="home-acct-name">Guest troll</b><i id="home-acct-note">Log in to save progress</i></button>
+    <div class="home-tiles">
+      <button type="button" class="home-tile" id="home-map-tile"><img src="assets/images/icons/troll-map.png" alt=""><b>Troll Map</b><i>Spin the planet</i></button>
+      <a class="home-tile" href="pfp.html"><img src="assets/images/icons/pfp.png" alt=""><b>PFP Studio</b><i>Build your trollface</i></a>
+    </div>
   </aside>
-
-  <section class="home-panel" id="panel-updates" aria-label="Latest updates" hidden>
-
-    <div id="home-updates"><p>Loading...</p></div>
-  </section>
-
-  <section class="home-panel" id="panel-feedback" aria-label="Feedback" hidden>
-
-    <p>Tell us what you love, what's broken, and what you want next.</p>
-    <label class="home-check" for="fb-allow"><input type="checkbox" id="fb-allow"> Add my username</label>
-    <input class="home-field" id="fb-name" type="text" maxlength="60" placeholder="Username" autocomplete="nickname" hidden aria-label="Username">
-    <label for="fb-text" class="home-check" style="margin-top:10px">Your message</label>
-    <textarea class="home-field" id="fb-text" placeholder="Keyboard troll here..."></textarea>
-    <div class="home-row"><button type="button" class="home-btn" id="fb-send">Send</button><span class="home-status" id="fb-status" aria-live="polite"></span></div>
-  </section>
 
   <section class="home-panel" id="panel-about" aria-label="About" hidden>
 
@@ -150,7 +158,6 @@ textarea.home-field{min-height:120px;resize:vertical}
       <a href="https://x.com/troll_runner" target="_blank" rel="noopener noreferrer">X @troll_runner</a>
       <a href="https://www.tiktok.com/@mayurski" target="_blank" rel="noopener noreferrer">TikTok</a>
     </div>
-    <p class="home-credit">Original art: <a href="https://twitter.com/SwishPng" target="_blank" rel="noreferrer">@SwishPng</a> · Adapted: <a href="https://twitter.com/troll_runner" target="_blank" rel="noreferrer">@troll_runner</a> · Community project</p>
     <div class="home-admin">
       <label for="admin-pass" class="home-status" style="align-self:center">Admin</label>
       <input class="home-field" id="admin-pass" type="password" placeholder="Admin password" autocomplete="current-password">
@@ -159,26 +166,18 @@ textarea.home-field{min-height:120px;resize:vertical}
     <div id="admin-auth-status" class="home-status" aria-live="polite"></div>
   </section>
 
-  <section class="home-panel" id="panel-radio" aria-label="Troll Radio" hidden>
-
-    <p class="home-radio-now" id="radio-now">Not playing</p>
-    <p class="home-status" id="radio-status">Press Play to start. M toggles it from anywhere on this page.</p>
-  </section>
-
   <footer class="home-foot">
     <div>
       <div class="home-online" id="home-online" aria-live="polite">1 Online</div>
       <span class="home-live" id="home-live"></span>
       <button type="button" class="home-back" id="home-back"><kbd>Esc</kbd>Back</button>
     </div>
-    <div class="home-hints" aria-hidden="true">
-      <span class="home-hint"><kbd>Enter</kbd>Select</span>
-      <span class="home-hint"><kbd>&uarr; &darr;</kbd>Move</span>
-      <span class="home-hint"><kbd>M</kbd>Radio</span>
-    </div>
+    <a class="home-donate" href="https://finance.trollrunner.net" aria-label="Donate to the Troll Runner wallet">
+      <img src="assets/images/icons/finances.png" alt="">
+      <span><b>Donate</b><i>Tip the troll wallet</i></span>
+    </a>
   </footer>
 </main>
-<div id="spotify-embed" aria-hidden="true"></div>
 
 <script src="assets/js/site-lock.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
@@ -236,24 +235,14 @@ const screens = {
     title: 'Main Menu',
     groups: [
       [
-        { id: 'forces', label: 'Troll Forces', desc: 'Online PvP, Zombies and a test range. The big one.', href: 'troll-ops.html' },
-        { id: 'arcade', label: 'Arcade', desc: 'Every Troll Runner game, plus the weekly ladder.', go: 'arcade' },
-      ],
-      [
-        { id: 'map', label: 'Troll Map', desc: 'This planet is the troll map. Spin it, find your city, see who is out there.', go: 'map' },
+        { id: 'arcade', label: 'Arcade', desc: 'Troll Forces, Troll Kombat and the weekly ladder.', go: 'arcade' },
         { id: 'terminal', label: 'Terminal', desc: 'The Trollface Terminal. The archive, the riddles, the transmissions.', href: 'https://trolltruths.com', newTab: true },
       ],
       [
-        { id: 'pfp', label: 'PFP Studio', desc: "Build a trollface PFP from Swish's traits and save it to your profile.", href: 'pfp.html' },
         { id: 'stickers', label: 'Stickers', desc: 'Printable troll stickers. Print, cut, slap.', href: 'stickers.html' },
-        { id: 'videos', label: 'Videos', desc: 'Runs, edits and whatever else got filmed.', href: 'videos.html' },
       ],
       [
-        { id: 'profile', label: 'Profile', desc: 'Your level, XP, badges, friends and wallet.', onSelect: openProfile },
-        { id: 'finance', label: 'Finances', desc: 'finance.trollrunner.net. Same login.', href: 'https://finance.trollrunner.net' },
-      ],
-      [
-        { id: 'more', label: 'More', desc: 'Fitness, updates, feedback, about and the radio.', go: 'more' },
+        { id: 'about', label: 'About', desc: 'The runner behind the site, plus the socials.', go: 'about' },
       ],
     ],
   },
@@ -261,47 +250,22 @@ const screens = {
     title: 'Arcade',
     groups: [
       [
-        { id: 'a-forces', label: 'Troll Forces', desc: 'Online PvP and Troll Royale.', href: 'troll-ops.html' },
+        { id: 'a-forces', label: 'Troll Forces', desc: 'Online PvP, Zombies and Troll Royale. The big one.', href: 'troll-ops.html' },
         { id: 'a-kombat', label: 'Troll Kombat', desc: 'Two-player fighting. Pepe, Doge and the gladiator.', href: 'troll-kombat.html' },
       ],
       [
         { id: 'a-all', label: 'All games & leaderboard', desc: "The full arcade page and this week's top trolls.", href: 'games.html' },
       ],
-    ],
-  },
-  more: {
-    title: 'More',
-    groups: [
-      [{ id: 'fitness', label: 'Fitness', desc: 'Runs, lifts and the hybrid coach.', href: 'fitness.html' }],
       [
-        { id: 'updates', label: 'Latest Updates', desc: 'What changed on the site lately.', go: 'updates' },
-        { id: 'feedback', label: 'Feedback', desc: "Tell us what's broken or what you want next.", go: 'feedback' },
-        { id: 'about', label: 'About', desc: 'The runner behind the site, plus the socials.', go: 'about' },
+        { id: 'back', label: 'Back', desc: 'Back to the main menu.', onSelect: (_, m) => m.back() },
       ],
-      [{ id: 'radio', label: 'Troll Radio', desc: 'The Troll Runner playlist. M toggles it from anywhere.', go: 'radio' }],
     ],
   },
-  updates: panel('panel-updates', 'Latest Updates', 'Back to More.'),
-  feedback: panel('panel-feedback', 'Feedback', 'Back to More.'),
-  about: panel('panel-about', 'About', 'Back to More.'),
+  about: panel('panel-about', 'About', 'Back to the main menu.'),
   ...mapMode.screens,
-  radio: () => ({
-    title: 'Troll Radio', panel: 'panel-radio',
-    groups: [
-      [
-        { id: 'r-play', label: radio.playing ? 'Pause' : 'Play', desc: radio.playing ? 'Pause the radio.' : 'Start the Troll Runner playlist.', onSelect: () => radio.toggle() },
-        { id: 'r-next', label: 'Next track', desc: 'Skip ahead.', onSelect: () => radio.step(1) },
-        { id: 'r-prev', label: 'Previous track', desc: 'Go back one.', onSelect: () => radio.step(-1) },
-      ],
-      [
-        { id: 'r-open', label: 'Open in Spotify', desc: 'The whole playlist on Spotify.', href: 'https://open.spotify.com/playlist/0ni59E9HbWpAe8Ydnseh4O', newTab: true },
-        { id: 'back', label: 'Back', desc: 'Back to More. The radio keeps playing.', onSelect: (_, m) => m.back() },
-      ],
-    ],
-  }),
 };
 
-const PANELS = ['panel-updates', 'panel-feedback', 'panel-about', 'panel-radio'];
+const PANELS = ['panel-about'];
 const menu = createBo2Menu(nav, {
   screens, keys: true,
   onScreen(id, s, m) {
@@ -310,12 +274,12 @@ const menu = createBo2Menu(nav, {
     // The footer Back is for screens without their own Back row.
     const ownBack = (s.groups || []).flat().some((it) => it && it.id === 'back');
     $('home-back').classList.toggle('is-on', m.depth() > 0 && !ownBack);
-    if (s.panel === 'panel-updates') loadUpdates();
     mapMode.onScreen(id, s);
     document.documentElement.style.setProperty('--menu-h', `${nav.offsetHeight}px`);
   },
 });
 $('home-back').addEventListener('click', () => menu.back());
+$('home-map-tile').addEventListener('click', () => menu.go('map'));
 
 /* ── Account row ──────────────────────────────────────────────────────── */
 function renderAccount() {
@@ -357,8 +321,7 @@ async function recordView() {
   } catch {}
 }
 
-/* ── Shared state: latest updates + live "running now / coding now" ────── */
-const META_IDS = new Set(['__trollrunner_live_status_meta__', '__trollrunner_feedback_meta__', '__trollrunner_site_lock_meta__', '__trollrunner_live_chat_meta__', '__trollrunner_view_analytics_meta__', '__trollrunner_miles_meta__']);
+/* ── Live "running now / coding now" status ────────────────────────────── */
 let sharedRow = null, sharedAt = 0;
 async function fetchShared() {
   if (sharedRow && Date.now() - sharedAt < 10000) return sharedRow;
@@ -386,89 +349,6 @@ async function refreshLive() {
   }
 }
 
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-function formatBody(body) {
-  const out = [];
-  let list = null, para = [];
-  const flushPara = () => { if (para.length) { out.push(`<p>${para.join('<br>')}</p>`); para = []; } };
-  const flushList = () => { if (list) { out.push(`<${list.tag}>${list.items.map((x) => `<li>${x}</li>`).join('')}</${list.tag}>`); list = null; } };
-  for (const raw of String(body).split('\n')) {
-    const line = raw.trim();
-    const ol = line.match(/^\d+\.\s+(.*)$/), ul = line.match(/^[-*]\s+(.*)$/);
-    if (!line) { flushPara(); flushList(); continue; }
-    if (ol || ul) {
-      flushPara();
-      const tag = ol ? 'ol' : 'ul';
-      if (!list || list.tag !== tag) { flushList(); list = { tag, items: [] }; }
-      list.items.push(esc((ol || ul)[1]));
-    } else { flushList(); para.push(esc(line)); }
-  }
-  flushPara(); flushList();
-  return out.join('');
-}
-async function loadUpdates() {
-  const box = $('home-updates');
-  const [row, file] = await Promise.all([
-    fetchShared(),
-    fetch(`assets/data/latest-updates.json?v=${Date.now()}`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
-  ]);
-  const all = [...(Array.isArray(row.updates) ? row.updates : []), ...((file && file.updates) || [])]
-    .filter((u) => u && !META_IDS.has(u.id) && !u.archived && String(u.title || '').trim() && String(u.body || '').trim());
-  const seen = new Set();
-  const list = all.map((u) => ({ ...u, t: Date.parse(u.updatedAt || u.createdAt) || 0 }))
-    .sort((a, b) => b.t - a.t)
-    .filter((u) => {
-      const key = /^[a-z]+ \d{1,2}, \d{4}$/i.test(u.title.trim()) ? `t:${u.title.trim().toLowerCase()}` : `c:${u.title}::${u.body}`;
-      if (seen.has(key)) return false;
-      seen.add(key); return true;
-    })
-    .slice(0, 5);
-  box.innerHTML = list.length
-    ? list.map((u) => `<article class="home-update"><h3>${esc(u.title)}</h3>${formatBody(u.body)}</article>`).join('')
-    : '<p>Nothing new yet.</p>';
-}
-
-/* ── Feedback (same RPC and topic tags as before) ─────────────────────── */
-function classify(msg) {
-  const m = msg.toLowerCase();
-  const topic = /(bug|broken|error|issue|not work|crash|fix)/.test(m) ? 'bug'
-    : /(feature|add|would like|should have|can you|request)/.test(m) ? 'feature request'
-    : /(love|great|awesome|thanks|good job|nice)/.test(m) ? 'positive' : 'general';
-  const priority = /(urgent|asap|critical|broken|down|immediately)/.test(m) ? 'high' : 'normal';
-  return { topic, priority };
-}
-try {
-  $('fb-allow').checked = localStorage.getItem('trollrunner_feedback_allow_username') === '1';
-  $('fb-name').value = localStorage.getItem('trollrunner_feedback_username') || '';
-} catch {}
-$('fb-name').hidden = !$('fb-allow').checked;
-$('fb-allow').addEventListener('change', () => {
-  $('fb-name').hidden = !$('fb-allow').checked;
-  try { localStorage.setItem('trollrunner_feedback_allow_username', $('fb-allow').checked ? '1' : '0'); } catch {}
-  if ($('fb-allow').checked) $('fb-name').focus();
-});
-$('fb-send').addEventListener('click', async () => {
-  const msg = $('fb-text').value.trim();
-  const status = $('fb-status');
-  if (!msg) { status.textContent = 'Type something first.'; $('fb-text').focus(); return; }
-  const withName = $('fb-allow').checked && $('fb-name').value.trim();
-  try { localStorage.setItem('trollrunner_feedback_username', $('fb-name').value.trim()); } catch {}
-  const ai = classify(msg);
-  status.textContent = 'Sending...';
-  try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/troll_submit_feedback`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
-      body: JSON.stringify({ p_message: msg, p_username: withName || null, p_include_username: Boolean(withName), p_topic: ai.topic, p_priority: ai.priority }),
-    });
-    if (!r.ok) throw new Error(String(r.status));
-    status.textContent = 'Sent. Thanks, troll.';
-    $('fb-text').value = '';
-  } catch {
-    status.textContent = "Couldn't send it right now. Try again in a bit.";
-  }
-});
-
 /* ── Admin entry (About panel) ────────────────────────────────────────── */
 async function goToAdmin() {
   const helper = window.TrollrunnerAdminAuth;
@@ -483,77 +363,16 @@ window.goToAdmin = goToAdmin;
 $('admin-go').addEventListener('click', goToAdmin);
 $('admin-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') goToAdmin(); });
 
-/* ── Troll Radio, loaded on demand ────────────────────────────────────── */
-const radio = {
-  playing: false, idx: -1, ctrl: null, loading: null,
-  tracks() { return window.TROLL_RADIO_TRACKS || []; },
-  load() {
-    if (this.loading) return this.loading;
-    $('radio-status').textContent = 'Loading Spotify...';
-    this.loading = new Promise((resolve, reject) => {
-      const tracksJs = document.createElement('script');
-      tracksJs.src = 'assets/js/troll-radio-tracks.js?v=20260812a';
-      document.head.appendChild(tracksJs);
-      window.onSpotifyIframeApiReady = (API) => {
-        API.createController($('spotify-embed'), { uri: 'spotify:playlist:0ni59E9HbWpAe8Ydnseh4O', width: '100%', height: '352' }, (c) => {
-          this.ctrl = c;
-          c.addListener('playback_update', (e) => {
-            const was = this.playing;
-            this.playing = !!(e && e.data && !e.data.isPaused);
-            if (was !== this.playing) this.render();
-          });
-          resolve(c);
-        });
-      };
-      const api = document.createElement('script');
-      api.src = 'https://open.spotify.com/embed/iframe-api/v1';
-      api.async = true;
-      api.onerror = () => reject(new Error('spotify'));
-      document.head.appendChild(api);
-      setTimeout(() => reject(new Error('timeout')), 12000);
-    }).catch(() => { this.loading = null; $('radio-status').textContent = "Spotify didn't load. Try Open in Spotify."; throw new Error('radio'); });
-    return this.loading;
-  },
-  async playAt(i) {
-    const list = this.tracks();
-    if (!list.length || !this.ctrl) return;
-    this.idx = (i + list.length) % list.length;
-    this.ctrl.loadUri(list[this.idx].uri);
-    setTimeout(() => { try { this.ctrl.play(); } catch { try { this.ctrl.resume(); } catch {} } }, 150);
-    this.playing = true;
-    this.render();
-  },
-  async toggle() {
-    try { await this.load(); } catch { return; }
-    if (this.idx < 0) return this.playAt(Math.floor(Math.random() * Math.max(1, this.tracks().length)));
-    try { this.playing ? this.ctrl.pause() : this.ctrl.resume(); } catch { this.ctrl.togglePlay(); }
-    this.playing = !this.playing;
-    this.render();
-  },
-  async step(d) { try { await this.load(); } catch { return; } this.playAt(this.idx < 0 ? 0 : this.idx + d); },
-  render() {
-    const t = this.tracks()[this.idx];
-    $('radio-now').textContent = t ? `${this.playing ? 'Playing' : 'Paused'}: ${t.title} · ${t.artist}` : 'Not playing';
-    $('radio-status').textContent = this.playing ? 'M pauses it from anywhere on this page.' : 'Press Play to start. M toggles it from anywhere on this page.';
-    if (menu.current() === 'radio') menu.refresh();
-  },
-};
-document.addEventListener('keydown', (e) => {
-  const t = document.activeElement;
-  if (e.altKey || e.ctrlKey || e.metaKey || (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)))) return;
-  if (e.key === 'm' || e.key === 'M') { e.preventDefault(); radio.toggle(); }
-});
-
 /* ── Old deep links (?open=...) from world.html, hub/ and elsewhere ────── */
 (function deepLink() {
   const q = new URLSearchParams(location.search);
   const open = q.get('open');
   if (!q.has('open') && !q.has('desktop') && !q.has('mobile') && !q.has('enter')) return;
   history.replaceState(null, '', location.pathname + location.hash);
-  const go = { updates: 'updates', feedback: 'feedback', about: 'about', games: null };
-  const href = { games: 'games.html', maps: 'maps.html', pfp: 'pfp.html', stickers: 'stickers.html', videos: 'videos.html', fitness: 'fitness.html', finance: 'https://finance.trollrunner.net', terminal: 'https://trolltruths.com' };
+  const go = { about: 'about', map: 'map' };
+  const href = { games: 'games.html', maps: 'maps.html', pfp: 'pfp.html', stickers: 'stickers.html', finance: 'https://finance.trollrunner.net', terminal: 'https://trolltruths.com' };
   if (open === 'account') document.addEventListener('DOMContentLoaded', () => setTimeout(openProfile, 300));
-  else if (go[open]) { menu.go('more'); menu.go(go[open]); }
+  else if (go[open]) menu.go(go[open]);
   else if (href[open]) location.replace(href[open]);
 })();
 

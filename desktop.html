@@ -2072,21 +2072,6 @@ header p {
   }
 }
 
-  /* UPDATES / BLOG-LIKE SECTION */
-#updates {
-  max-width: 860px;
-  margin: 0 auto 40px;
-  padding: 0 24px;
-}
-#feedback {
-  max-width: 860px;
-  margin: 0 auto 40px;
-  padding: 0 24px;
-}
-#feedback:hover,
-#feedback:hover * {
-  cursor: url('https://www.rw-designer.com/cursor-extern.php?id=39756'), auto;
-}
 #found-sticker {
   max-width: 860px;
   margin: 0 auto 40px;
@@ -2107,27 +2092,6 @@ header p {
 }
 
 .found-sticker-row #found-sticker {
-  max-width: none;
-  margin: 0;
-  padding: 0;
-}
-
-.updates-feedback-grid {
-  max-width: 1180px;
-  margin: 0 auto 40px;
-  padding: 0 24px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 24px;
-  align-items: start;
-}
-
-.updates-feedback-grid > section {
-  min-width: 0;
-}
-
-.updates-feedback-grid #updates,
-.updates-feedback-grid #feedback {
   max-width: none;
   margin: 0;
   padding: 0;
@@ -2247,175 +2211,6 @@ header p {
 .found-sticker-copy .found-sticker-handle {
   color: #fff000;
   font-weight: 700;
-}
-
-.feedback-card {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-  padding: 22px 24px;
-  border-radius: 0;
-  border: 1px solid rgba(255,255,255,0.58);
-  background:
-    linear-gradient(100deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.78) 42%, rgba(255,255,255,0.28) 100%),
-    radial-gradient(circle at right center, rgba(255, 133, 184, 0.18), transparent 50%);
-  box-shadow: 0 20px 40px rgba(20, 24, 34, 0.08);
-}
-
-.feedback-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: linear-gradient(90deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.82) 46%, rgba(255,255,255,0.28) 100%);
-  pointer-events: none;
-}
-
-.feedback-card-content {
-  position: relative;
-  z-index: 2;
-  max-width: 100%;
-}
-
-.feedback-card-content p {
-  max-width: 34rem;
-  margin: 0 0 14px;
-}
-
-.feedback-identity {
-  display: grid;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-.feedback-identity-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  width: fit-content;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.32);
-  border: 1px solid rgba(255,255,255,0.64);
-  color: #1c1c1e;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.feedback-identity-toggle input {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-}
-
-.feedback-username-wrap[hidden] {
-  display: none;
-}
-
-.feedback-username-wrap .feedback-field {
-  min-height: 0;
-  padding: 12px 16px;
-}
-
-.feedback-field {
-  width: 100%;
-  border: 1px solid rgba(255,255,255,0.68);
-  border-radius: 16px;
-  background: rgba(255,255,255,0.35);
-  color: #1c1c1e;
-  font-family: var(--font);
-  font-size: 14px;
-  line-height: 1.55;
-  padding: 18px 20px;
-  min-height: 180px;
-  resize: none;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.5);
-  backdrop-filter: blur(10px);
-}
-.feedback-field:hover,
-.feedback-field:focus {
-  cursor: url('https://www.rw-designer.com/cursor-extern.php?id=39756'), auto;
-  outline: none;
-  background: rgba(255,255,255,0.46);
-  border-color: rgba(255,255,255,0.88);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.6),
-    0 0 0 3px rgba(255,255,255,0.22);
-}
-
-.feedback-field::placeholder {
-  color: rgba(28,28,30,0.66);
-}
-
-.feedback-actions {
-  margin-top: 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.feedback-btn {
-  border: 0.5px solid #005ed1;
-  border-radius: 10px;
-  background: #007aff;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  font-family: var(--font);
-  padding: 8px 12px;
-  cursor: pointer;
-}
-
-.feedback-status {
-  font-size: 12px;
-  color: #6e6e73;
-}
-
-.feedback-warrior-frame {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  overflow: hidden;
-  pointer-events: none;
-  opacity: 0.58;
-  mix-blend-mode: multiply;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.15) 34%, #000 58%, #000 100%);
-  mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.15) 34%, #000 58%, #000 100%);
-}
-
-.feedback-warrior-frame::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 17%;
-  background:
-    linear-gradient(
-      180deg,
-      rgba(235, 242, 247, 0) 0%,
-      rgba(235, 242, 247, 0.78) 16%,
-      rgba(235, 242, 247, 0.96) 42%,
-      rgba(232, 238, 247, 0.98) 100%
-    );
-  pointer-events: none;
-}
-
-.feedback-warrior-frame picture,
-.feedback-warrior-frame img {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.feedback-warrior-frame img {
-  object-fit: contain;
-  object-position: 96% 65%;
-  clip-path: inset(0 0 17% 0);
-  filter: contrast(1.2) saturate(1.08);
-  transform: scale(1.16);
 }
 
 /* ── FOOTER ── */
@@ -2595,18 +2390,6 @@ footer a:hover { color: #fff; }
   .header-spacer {
     display: none;
   }
-  .feedback-card-content {
-    max-width: 100%;
-  }
-  .feedback-warrior-frame {
-    inset: 0;
-    opacity: 0.44;
-  }
-  .feedback-warrior-frame img {
-    object-fit: contain;
-    object-position: 96% bottom;
-    transform: scale(1.16);
-  }
   .title-gif-mask { width: 34px; height: 34px; }
   .title-gif { width: 44px; height: 44px; }
   .footer-inner {
@@ -2625,10 +2408,7 @@ footer a:hover { color: #fff; }
 
   #intro-band,
   #biography,
-  .updates-feedback-grid,
   .found-sticker-row,
-  #updates,
-  #feedback,
   #found-sticker,
   #network-sections {
     padding-left: 14px;
@@ -2637,11 +2417,6 @@ footer a:hover { color: #fff; }
 
   #network-grid {
     grid-template-columns: 1fr;
-  }
-
-  .updates-feedback-grid {
-    grid-template-columns: 1fr;
-    gap: 0;
   }
 
   .found-sticker-row {
@@ -2736,47 +2511,6 @@ footer a:hover { color: #fff; }
 }
 
 @media (max-width: 640px), (pointer: coarse) and (max-device-width: 480px) {
-  .feedback-card {
-    width: 92%;
-    min-height: 15.9rem;
-    margin-right: auto;
-    padding: clamp(16px, 4vw, 20px);
-  }
-  .feedback-card-content {
-    padding-bottom: clamp(5.6rem, 22vw, 7.7rem);
-  }
-  .feedback-field {
-    min-height: 7.2rem;
-  }
-  .feedback-warrior-frame {
-    top: 0.6rem;
-    right: 0.6rem;
-    bottom: 0.6rem;
-    left: 0.6rem;
-    opacity: 0.28;
-    mix-blend-mode: multiply;
-    -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.42) 20%, #000 48%, #000 100%);
-    mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.42) 20%, #000 48%, #000 100%);
-  }
-  .feedback-warrior-frame::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: url('assets/animations/troll-typer.gif') center bottom / 100% 100% no-repeat;
-  }
-  .feedback-warrior-frame::after {
-    display: none;
-  }
-  .feedback-warrior-frame picture {
-    display: none;
-  }
-  .feedback-warrior-frame img {
-    object-fit: contain;
-    object-position: center bottom;
-    clip-path: none;
-    transform: none;
-    filter: contrast(1.08) saturate(1.02);
-  }
   .found-sticker-card {
     border-radius: 0;
     min-height: 280px;
@@ -3334,7 +3068,6 @@ body.desktop-mode .troll-desktop { display: block; }
 .tw-body #trollchat { padding: 0; }
 .tw-body #trollchat .live-chat-window { max-width: none; }
 .tw-body #bio-artwork { padding: 0; }
-.tw-body #updates, .tw-body #feedback { padding: 0; }
 .tw-body .footer-inner { display: grid; gap: 14px; }
 
 @media (max-width: 760px) {
@@ -3425,10 +3158,6 @@ setTimeout(function () {
           <img src="assets/images/wallpaper/obj-hub.png" alt="">
           <span class="td-hot-chip">TrollRunner Hub</span>
         </button>
-        <button class="td-hot" type="button" data-td-app="fitness" style="--w:8%; --c:#ff5a1f; left:22.3%; top:57.5%;">
-          <img src="assets/images/wallpaper/obj-fitness.png" alt="">
-          <span class="td-hot-chip">Fitness</span>
-        </button>
         <button class="td-hot" type="button" data-td-app="games" style="--w:5.5%; --c:#a78bfa; left:22.3%; top:32.5%;">
           <img src="assets/images/wallpaper/obj-games.png" alt="">
           <span class="td-hot-chip">Games</span>
@@ -3449,21 +3178,9 @@ setTimeout(function () {
           <img src="assets/images/wallpaper/obj-stickers.png" alt="">
           <span class="td-hot-chip">Stickers</span>
         </button>
-        <button class="td-hot" type="button" data-td-app="videos" data-td-redirect="/videos" style="--w:7.5%; --c:#c084fc; left:77.7%; top:32.5%;">
-          <img src="assets/images/wallpaper/obj-videos.png" alt="">
-          <span class="td-hot-chip">Videos</span>
-        </button>
-        <button class="td-hot" type="button" data-td-app="updates" style="--w:8%; --c:#7aa0c4; left:66%; top:23.4%;">
-          <img src="assets/images/wallpaper/obj-updates.png" alt="">
-          <span class="td-hot-chip">Latest Updates</span>
-        </button>
         <button class="td-hot" type="button" data-td-app="cam" style="--w:4.5%; --c:#4deeff; left:50%; top:20%;">
           <img src="assets/images/wallpaper/obj-livecam.png" alt="">
           <span class="td-hot-chip">Live Cam</span>
-        </button>
-        <button class="td-hot" type="button" data-td-app="feedback" style="--w:4.5%; --c:#e3b579; left:34%; top:66.7%;">
-          <img src="assets/images/wallpaper/obj-feedback.png" alt="">
-          <span class="td-hot-chip">Feedback</span>
         </button>
       </div>
     </div>
@@ -3629,49 +3346,6 @@ setTimeout(function () {
 
 </div>
 
-<div class="updates-feedback-grid">
-  <section id="updates">
-    <h2>Latest Updates</h2>
-    <div id="latest-updates"></div>
-  </section>
-
-  <section id="feedback">
-    <h2>Feedback</h2>
-    <div class="update-card feedback-card">
-      <div class="feedback-card-content">
-        <p>Thank you for using this website. Feel free to tell us what you love, any potential bugs, and improvements!</p>
-        <div class="feedback-identity">
-          <label class="feedback-identity-toggle" for="feedback-allow-username">
-            <input id="feedback-allow-username" type="checkbox" onchange="toggleFeedbackUsername()">
-            <span>Allow username</span>
-          </label>
-          <div id="feedback-username-wrap" class="feedback-username-wrap" hidden>
-            <input
-              id="feedback-username"
-              class="feedback-field"
-              type="text"
-              maxlength="60"
-              placeholder="Username"
-              autocomplete="nickname"
-            >
-          </div>
-        </div>
-        <textarea id="feedback-text" class="feedback-field" placeholder="Keyboard troll here..."></textarea>
-        <div class="feedback-actions">
-          <button class="feedback-btn" onclick="submitFeedback()">Submit feedback</button>
-          <span id="feedback-status" class="feedback-status"></span>
-        </div>
-      </div>
-      <div class="feedback-warrior-frame" aria-hidden="true">
-        <picture>
-          <source media="(max-width: 640px)" srcset="assets/animations/troll-typer.gif">
-          <img src="assets/animations/Keyboard Warrior 2025.gif" alt="">
-        </picture>
-      </div>
-    </div>
-  </section>
-</div>
-
 <footer>
   <div class="footer-inner">
     <div class="footer-left">
@@ -3745,13 +3419,9 @@ setTimeout(function () {
 <script src="assets/js/troll-chat-extras.js?v=20260818a"></script>
 <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
 <script>
-const ADMIN_UPDATES_KEY = 'trollrunner_updates';
-const ADMIN_FEEDBACK_KEY = 'trollrunner_feedback';
 const SHARED_FEEDBACK_META_ID = '__trollrunner_feedback_meta__';
 const LIVE_CHAT_META_ID = '__trollrunner_live_chat_meta__';
 const VIEW_ANALYTICS_META_ID = '__trollrunner_view_analytics_meta__';
-const FEEDBACK_USERNAME_KEY = 'trollrunner_feedback_username';
-const FEEDBACK_ALLOW_USERNAME_KEY = 'trollrunner_feedback_allow_username';
 const LIVE_CHAT_NAME_KEY = 'trollrunner_live_chat_name';
 const LIVE_CHAT_SELECTED_ROOM_KEY = 'trollrunner_live_chat_room';
 const LIVE_CHAT_LOCAL_KEY = 'trollrunner_live_chat_cache_v1';
@@ -3763,7 +3433,6 @@ const LIVE_CHAT_COOLDOWN_MS = 2500;
 const LIVE_CHAT_PRESENCE_TTL_MS = 18000;
 const LIVE_CHAT_TYPING_TTL_MS = 2400;
 const LIVE_CHAT_SYNC_POLL_MS = 2500;
-const MAX_VISIBLE_UPDATES = 3;
 const SUPABASE_URL = 'https://tjsyhfplxjtakdfkpdtg.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ';
 const SUPABASE_ANON_KEY_PLACEHOLDER = 'your_anon_public_key';
@@ -3772,15 +3441,6 @@ const VIEWER_ID_KEY = 'trollrunner_viewer_id_v1';
 const VIEWER_DAILY_TRACK_KEY = 'trollrunner_view_daily_track_v1';
 const VIEWER_PRESENCE_CHANNEL = 'trollrunner-site-presence';
 const SITE_PUBLIC_LOCK_KEY = 'trollrunner_site_public_locked_v1';
-const SEEDED_FEEDBACK_ENTRIES = [
-  {
-    username: '',
-    message: 'I really love the dedication and the determination to play a part in the community and set themselves aside from just a regular community member and actually put forth hard work to show just how dedicated they are',
-    aiTopic: 'positive',
-    aiPriority: 'normal',
-    createdAt: '2026-05-08T08:33:03.000Z',
-  },
-];
 const SUPABASE_ROW_ID = 'main';
 const SUPABASE_SHARED_STATE_REFRESH_MS = 10000;
 const SHARED_UPDATES_JSON_URL = 'assets/data/latest-updates.json';
@@ -3947,8 +3607,6 @@ const TD_WINDOWS = {
   hub: { title: 'TrollRunner Hub', icon: TROLL_ICON, img: 'assets/images/icons/hub.png', flat: true, width: 980, browser: false, url: 'https://www.trollrunner.net', build: tdBuildHub },
   chat: { title: 'Messages', icon: '💌', img: 'assets/images/icons/trollchat.png', flat: true, width: 540, source: '#trollchat', maximizeByDefault: true },
   cam: { title: 'Live Cam', icon: '📹', img: 'assets/images/icons/cam.png', flat: true, width: 620, source: '#bio-artwork' },
-  updates: { title: 'Latest Updates', icon: '📰', img: 'assets/images/icons/updates.png', flat: true, width: 620, source: '#updates' },
-  feedback: { title: 'Feedback', icon: '⌨️', img: 'assets/images/icons/feedback.png', flat: true, width: 660, source: '#feedback' },
   about: { title: 'About TrollRunner', icon: 'ℹ️', width: 720, source: 'footer .footer-inner' },
 };
 
@@ -3996,32 +3654,9 @@ TD_WINDOWS.maps = {
   build: body => tdBuildIframe(body, 'maps.html', 'Maps'),
   maximizeByDefault: true,
 };
-// Videos used to live on its own videos.trollrunner.net subdomain
-// (trollrunner-videos repo); folded into a local same-origin page for the
-// same reason as PFP Studio/Stickers/Maps above — no SSO bridge needed,
-// one less repo. assets/js/videos.js has the app.
-TD_WINDOWS.videos = {
-  title: 'Videos', icon: '📼', img: 'assets/images/icons/videos.png', flat: true,
-  width: 1040, browser: false,
-  url: 'trollrunner.net/videos', iframeSrc: 'videos.html',
-  build: body => tdBuildIframe(body, 'videos.html', 'Videos'),
-  maximizeByDefault: true,
-};
-// Fitness used to live on its own fitness.trollrunner.net subdomain
-// (trollrunner-fitness repo, a Next.js app); ported into a local
-// same-origin page for the same reason as PFP Studio/Stickers/Maps/Videos
-// above — no SSO bridge needed, one less repo, and it can reuse this
-// page's Supabase session directly via troll-accounts.js.
-TD_WINDOWS.fitness = {
-  title: 'Fitness', icon: '🏃', img: 'assets/images/icons/fitness.png', flat: true,
-  width: 1040, browser: false,
-  url: 'trollrunner.net/fitness', iframeSrc: 'fitness.html',
-  build: body => tdBuildIframe(body, 'fitness.html', 'Fitness'),
-  maximizeByDefault: true,
-};
 // Games used to live on its own games.trollrunner.net subdomain
 // (trollrunner-games repo); ported into a local same-origin page for the
-// same reason as PFP Studio/Stickers/Maps/Videos/Fitness above — no SSO
+// same reason as PFP Studio/Stickers/Maps above — no SSO
 // bridge needed, one less repo. Removed from TD_SITES (which auto-builds a
 // cross-origin iframe window off site.href) since games.html is now
 // same-origin; this explicit entry replaces it.
@@ -4674,26 +4309,22 @@ function tdRenderDockIcons() {
   icons.innerHTML = '';
   const entries = [
     { icon: '👤', img: 'assets/images/icons/account.png', flat: true, label: 'Account', onOpen: tdOpenAccount },
-    { icon: TD_WINDOWS.feedback.icon, img: TD_WINDOWS.feedback.img, flat: true, label: 'Feedback', onOpen: () => twOpen('feedback') },
     { icon: TD_WINDOWS.games.icon, img: TD_WINDOWS.games.img, flat: true, label: 'Games', onOpen: () => twOpen('games') },
-    { icon: TD_WINDOWS.fitness.icon, img: TD_WINDOWS.fitness.img, flat: true, label: 'Fitness', onOpen: () => twOpen('fitness') },
-    { icon: TD_WINDOWS.updates.icon, img: TD_WINDOWS.updates.img, flat: true, label: 'Latest Updates', onOpen: () => twOpen('updates') },
     { icon: TD_WINDOWS.terminal.icon, img: TD_WINDOWS.terminal.img, flat: true, label: 'Terminal', onOpen: () => twOpen('terminal') },
     { icon: TD_WINDOWS.chat.icon, img: TD_WINDOWS.chat.img, flat: true, label: 'Messages', feature: 'troll_chat', onOpen: () => twOpen('chat') },
     { icon: TD_WINDOWS.finance.icon, img: TD_WINDOWS.finance.img, flat: true, label: 'Finances', onOpen: () => twOpen('finance') },
     { icon: TD_WINDOWS.stickers.icon, img: TD_WINDOWS.stickers.img, flat: true, label: 'Stickers', onOpen: () => twOpen('stickers') },
     { icon: TD_WINDOWS.maps.icon, img: TD_WINDOWS.maps.img, flat: true, label: 'Maps', onOpen: () => twOpen('maps') },
-    { icon: TD_WINDOWS.videos.icon, img: TD_WINDOWS.videos.img, flat: true, label: 'Videos', onOpen: () => twOpen('videos') },
     { icon: TD_WINDOWS.pfp.icon, img: TD_WINDOWS.pfp.img, flat: true, label: 'PFP Studio', onOpen: () => twOpen('pfp') },
   ];
   entries.sort((a, b) => a.label.localeCompare(b.label));
-  // Games is pinned right after Feedback instead of sorting alphabetically
-  // (it would otherwise land after Finances, two spots away).
+  // Games is pinned right after Account instead of sorting alphabetically
+  // (it would otherwise land after Finances).
   const gamesIdx = entries.findIndex(e => e.label === 'Games');
   if (gamesIdx !== -1) {
     const [gamesEntry] = entries.splice(gamesIdx, 1);
-    const feedbackIdx = entries.findIndex(e => e.label === 'Feedback');
-    entries.splice(feedbackIdx + 1, 0, gamesEntry);
+    const accountIdx = entries.findIndex(e => e.label === 'Account');
+    entries.splice(accountIdx + 1, 0, gamesEntry);
   }
   entries.forEach(({ onOpen, ...cfg }) => tdAddIcon(icons, cfg, onOpen));
   if (typeof tcUpdateUnreadBadge === 'function') tcUpdateUnreadBadge();
@@ -4793,7 +4424,7 @@ function tdBuildStartMenu() {
   };
 
   addLabel('APPS');
-  ['hub', 'chat', 'cam', 'updates', 'feedback', 'about']
+  ['hub', 'chat', 'cam', 'about']
     .filter(id => !TD_WINDOWS[id].adminOnly || tdIsAdmin)
     .forEach(id => {
       addItem(TD_WINDOWS[id].icon, TD_WINDOWS[id].title, () => twOpen(id), null, id === 'chat' ? 'troll_chat' : null);
@@ -5031,10 +4662,8 @@ function initializeTrollDesktop() {
     const id = btn.dataset.tdApp;
     const label = btn.querySelector('.td-hot-chip')?.textContent || id;
     btn.setAttribute('aria-label', label);
-    // Videos' tripod landmark is a real link out to trollrunner.net/videos
-    // rather than the usual windowed in-page browser (twOpen) the other
-    // landmarks use — TD_WINDOWS.videos still exists for the taskbar dock
-    // icon, this hotspot alone bypasses it.
+    // A hotspot with data-td-redirect is a real link out instead of the
+    // usual windowed in-page browser (twOpen).
     const redirect = btn.dataset.tdRedirect;
     btn.addEventListener('click', () => {
       if (redirect) { window.location.href = redirect; return; }
@@ -5117,8 +4746,8 @@ function trollDesktopShow(boot) {
     }
     // Hub no longer auto-opens on boot — click its desktop icon.
 
-    // Handoff from the phone entrance: world.html's Account / Updates /
-    // Feedback icons aren't pages, they're windows in here, so
+    // Handoff from the phone entrance: world.html's Account icon (and
+    // any other window id) isn't a page, they're windows in here, so
     // they arrive as ?open=<id>. twOpen() enforces adminOnly itself, so an
     // unknown or restricted id simply does nothing.
     try {
@@ -6070,90 +5699,6 @@ window.setTimeout(() => {
   }
 }, 8000);
 
-function normalizeUpdate(update) {
-  const safeTitle = String(update?.title || '').trim();
-  const safeBody = String(update?.body || '').trim();
-  if (!safeTitle || !safeBody) return null;
-  const stamp = new Date(update?.createdAt || 0).getTime();
-  const updatedStamp = new Date(update?.updatedAt || update?.createdAt || 0).getTime();
-  return {
-    title: safeTitle,
-    body: safeBody,
-    createdAt: Number.isFinite(stamp) && stamp > 0 ? stamp : 0,
-    updatedAt: Number.isFinite(updatedStamp) && updatedStamp > 0 ? updatedStamp : (Number.isFinite(stamp) && stamp > 0 ? stamp : 0),
-    archived: Boolean(update?.archived),
-  };
-}
-
-function getUpdateSortTime(update) {
-  return Number(update?.updatedAt || update?.createdAt || 0) || 0;
-}
-
-function getUpdateDedupeKey(update) {
-  const title = String(update?.title || '').trim().replace(/\s+/g, ' ').toLowerCase();
-  if (/^[a-z]+ \d{1,2}, \d{4}$/.test(title)) return `title:${title}`;
-  return `content:${title}::${String(update?.body || '').trim().replace(/\s+/g, ' ')}::${update?.createdAt || 0}`;
-}
-
-function escapeUpdateHtml(str) {
-  return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
-}
-
-function formatUpdateBody(body) {
-  const lines = String(body || '').split(/\r?\n/);
-  const blocks = [];
-  let current = null;
-
-  function closeCurrent() {
-    if (!current) return;
-    if (current.type === 'paragraph' && current.lines.length) {
-      blocks.push(`<p>${current.lines.map(escapeUpdateHtml).join('<br>')}</p>`);
-    }
-    if ((current.type === 'ul' || current.type === 'ol') && current.items.length) {
-      const items = current.items.map(item => `<li>${escapeUpdateHtml(item)}</li>`).join('');
-      blocks.push(`<${current.type}>${items}</${current.type}>`);
-    }
-    current = null;
-  }
-
-  lines.forEach(line => {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      closeCurrent();
-      return;
-    }
-
-    const orderedMatch = trimmed.match(/^\d+\.\s+(.+)$/);
-    if (orderedMatch) {
-      if (!current || current.type !== 'ol') {
-        closeCurrent();
-        current = { type: 'ol', items: [] };
-      }
-      current.items.push(orderedMatch[1]);
-      return;
-    }
-
-    const unorderedMatch = trimmed.match(/^[-*]\s+(.+)$/);
-    if (unorderedMatch) {
-      if (!current || current.type !== 'ul') {
-        closeCurrent();
-        current = { type: 'ul', items: [] };
-      }
-      current.items.push(unorderedMatch[1]);
-      return;
-    }
-
-    if (!current || current.type !== 'paragraph') {
-      closeCurrent();
-      current = { type: 'paragraph', lines: [] };
-    }
-    current.lines.push(trimmed);
-  });
-
-  closeCurrent();
-  return `<div class="formatted-update-body">${blocks.join('')}</div>`;
-}
-
 function readCookieValue(name) {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = document.cookie.match(new RegExp(`(?:^|; )${escaped}=([^;]*)`));
@@ -6163,12 +5708,6 @@ function readCookieValue(name) {
 function setCookieValue(name, value) {
   const maxAge = 60 * 60 * 24 * 365;
   document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; samesite=lax`;
-}
-
-function loadStoredUpdates() {
-  const rawLocal = localStorage.getItem(ADMIN_UPDATES_KEY);
-  if (rawLocal) return rawLocal;
-  return readCookieValue(ADMIN_UPDATES_KEY);
 }
 
 function getSharedUpdatesArray(payload) {
@@ -6276,19 +5815,6 @@ function mergeFeedbackItems(...groups) {
     merged.push(normalized);
   });
   return merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-}
-
-function getFeedback() {
-  try {
-    const items = JSON.parse(localStorage.getItem(ADMIN_FEEDBACK_KEY) || '[]');
-    return Array.isArray(items) ? mergeFeedbackItems(items) : [];
-  } catch {
-    return [];
-  }
-}
-
-function setFeedback(items) {
-  localStorage.setItem(ADMIN_FEEDBACK_KEY, JSON.stringify(mergeFeedbackItems(items)));
 }
 
 function getDefaultLiveChatRooms() {
@@ -6445,34 +5971,6 @@ async function parseSupabaseError(response) {
   }
 }
 
-// Submits one feedback item through the troll_submit_feedback RPC (see
-// assets/supabase/troll_admin_lockdown.sql), which merges it into the
-// feedback meta key server-side -- the visitor's anon key can no longer
-// touch site lock / live status / notis / update content in the process.
-async function submitFeedbackToBackend(item) {
-  if (!isSupabaseConfigured()) return false;
-  try {
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/troll_submit_feedback`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({
-        p_message: item.rawMessage || item.message,
-        p_username: item.includeUsername ? item.username : null,
-        p_include_username: Boolean(item.includeUsername),
-        p_topic: item.aiTopic,
-        p_priority: item.aiPriority,
-      }),
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
 async function loadSharedStateFromBackend() {
   if (!isSupabaseConfigured()) return { updates: [], feedback: [], liveStatuses: { running: null, coding: null }, siteLock: normalizeSiteGateLockRecord({}), liveChat: getLocalLiveChatPayload(), viewAnalytics: normalizeViewAnalyticsPayload(cachedViewAnalytics) };
   try {
@@ -6552,11 +6050,8 @@ async function loadSharedState() {
   };
 }
 
-async function loadCustomUpdates(sharedStateOverride = null) {
-  const wrap = document.getElementById('latest-updates');
-  if (!wrap) return;
+async function applySharedState(sharedStateOverride = null) {
   const sharedState = sharedStateOverride || await loadSharedState();
-  const sharedUpdates = sharedState.updates;
   if (typeof sharedState.liveStatuses?.running === 'boolean') {
     writeStoredLiveStatus(LIVE_RUNNING_STATUS_KEY, sharedState.liveStatuses.running, LEGACY_LIVE_STATUS_KEY);
   }
@@ -6574,29 +6069,6 @@ async function loadCustomUpdates(sharedStateOverride = null) {
     applyLiveChatPayload(sharedState.liveChat);
   }
   applyLiveStatusVisibility();
-  const source = Array.isArray(sharedUpdates) ? sharedUpdates : [];
-  const deduped = [];
-  const seen = new Set();
-  source.forEach(item => {
-    const normalized = normalizeUpdate(item);
-    if (!normalized || normalized.archived) return;
-    const key = getUpdateDedupeKey(normalized);
-    if (seen.has(key)) return;
-    seen.add(key);
-    deduped.push(normalized);
-  });
-
-  const latest = deduped
-    .sort((a, b) => getUpdateSortTime(b) - getUpdateSortTime(a));
-  const visible = latest.slice(0, MAX_VISIBLE_UPDATES);
-
-  wrap.innerHTML = '';
-  visible.forEach(u => {
-    const card = document.createElement('div');
-    card.className = 'update-card';
-    card.innerHTML = `<h3>${escapeUpdateHtml(u.title)}</h3>${formatUpdateBody(u.body)}`;
-    wrap.appendChild(card);
-  });
 }
 
 async function refreshSharedStateFromBackend() {
@@ -6618,94 +6090,7 @@ async function refreshSharedStateFromBackend() {
     applyLiveChatPayload(sharedState.liveChat);
   }
   applyLiveStatusVisibility();
-  await loadCustomUpdates(sharedState);
-}
-
-function toggleFeedbackUsername(shouldFocus = true) {
-  const checkbox = document.getElementById('feedback-allow-username');
-  const wrap = document.getElementById('feedback-username-wrap');
-  const input = document.getElementById('feedback-username');
-  if (!checkbox || !wrap || !input) return;
-  const enabled = Boolean(checkbox.checked);
-  wrap.hidden = !enabled;
-  localStorage.setItem(FEEDBACK_ALLOW_USERNAME_KEY, enabled ? '1' : '0');
-  if (!enabled) {
-    input.value = '';
-    localStorage.removeItem(FEEDBACK_USERNAME_KEY);
-  } else if (shouldFocus) {
-    input.focus();
-  }
-}
-
-function initializeFeedbackIdentity() {
-  const checkbox = document.getElementById('feedback-allow-username');
-  const input = document.getElementById('feedback-username');
-  if (!checkbox || !input) return;
-  checkbox.checked = localStorage.getItem(FEEDBACK_ALLOW_USERNAME_KEY) === '1';
-  input.value = localStorage.getItem(FEEDBACK_USERNAME_KEY) || '';
-  toggleFeedbackUsername(false);
-  input.addEventListener('input', () => {
-    const username = input.value.trim();
-    if (username) localStorage.setItem(FEEDBACK_USERNAME_KEY, username);
-    else localStorage.removeItem(FEEDBACK_USERNAME_KEY);
-  });
-}
-
-function classifyFeedback(message) {
-  const text = message.toLowerCase();
-  let topic = 'general';
-  if (/(bug|broken|error|issue|not work|crash|fix)/.test(text)) topic = 'bug';
-  else if (/(feature|add|would like|should have|can you|request)/.test(text)) topic = 'feature request';
-  else if (/(love|great|awesome|thanks|good job|nice)/.test(text)) topic = 'positive';
-
-  const priority = /(urgent|asap|critical|broken|down|immediately)/.test(text) ? 'high' : 'normal';
-  return { topic, priority };
-}
-
-function submitFeedback() {
-  const input = document.getElementById('feedback-text');
-  const status = document.getElementById('feedback-status');
-  const allowUsername = document.getElementById('feedback-allow-username');
-  const usernameInput = document.getElementById('feedback-username');
-  const message = input.value.trim();
-  if (!message) {
-    status.textContent = 'Please enter feedback before submitting.';
-    return;
-  }
-
-  const includeUsername = Boolean(allowUsername?.checked);
-  const username = String(usernameInput?.value || '').trim();
-  if (includeUsername && !username) {
-    status.textContent = 'Add a username or turn off the checkbox before submitting.';
-    return;
-  }
-
-  const ai = classifyFeedback(message);
-  const feedbackItem = normalizeFeedbackItem({
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-    message,
-    username,
-    includeUsername,
-    aiTopic: ai.topic,
-    aiPriority: ai.priority,
-    createdAt: new Date().toISOString()
-  });
-  const localItems = mergeFeedbackItems([feedbackItem], getFeedback());
-  setFeedback(localItems);
-
-  input.value = '';
-  if (includeUsername) {
-    localStorage.setItem(FEEDBACK_USERNAME_KEY, username);
-  }
-  status.textContent = 'Sending feedback...';
-
-  submitFeedbackToBackend(feedbackItem).then(sharedSyncOk => {
-    if (sharedSyncOk) {
-      status.textContent = `Feedback saved to admin system (${ai.topic}, ${ai.priority} priority).`;
-    } else {
-      status.textContent = `Feedback saved on this device (${ai.topic}, ${ai.priority} priority). Shared sync needs attention.`;
-    }
-  });
+  await applySharedState(sharedState);
 }
 
 function getLiveChatTabId() {
@@ -6914,7 +6299,7 @@ async function writeLiveChatPayloadToBackend(payload, options = {}) {
 function handleLiveChatRealtimePayload(payload) {
   const row = payload?.new;
   if (!row) return;
-  void loadCustomUpdates({
+  void applySharedState({
     updates: parseSharedUpdatesPayload(row),
     feedback: parseSharedFeedbackPayload(row),
     liveStatuses: parseSharedLiveStatusesPayload(row),
@@ -8578,7 +7963,7 @@ document.getElementById('admin-pass')?.addEventListener('keydown', event => {
 document.body.classList.remove('site-entry-locked');
 trollDesktopShow(true);
 
-loadCustomUpdates(); setupAnimationShowcase(); setupLivePosterCountdown(); initializeFeedbackIdentity(); initializeViewerPresence(); initializeTrollChat();
+applySharedState(); setupAnimationShowcase(); setupLivePosterCountdown(); initializeViewerPresence(); initializeTrollChat();
 if (isSupabaseConfigured()) {
   window.setInterval(refreshSharedStateFromBackend, SUPABASE_SHARED_STATE_REFRESH_MS);
 }

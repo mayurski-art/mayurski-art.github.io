@@ -136,8 +136,8 @@
       /* Their site swaps the pointer for a troll; ours uses our own face,
          cut from the official logo art in the PFP set. */
       --cursor-troll: url(assets/images/troll-cursor.png) 6 3, pointer;
-      /* Width of the right-side drawer sheets (menu/roster/updates/
-         feedback) — shared so the fixed-position close button can line up
+      /* Width of the right-side drawer sheets (menu/roster/account/
+         hub) — shared so the fixed-position close button can line up
          with the drawer's own edge at any viewport size. */
       --sheet-w: min(340px, 86vw);
 
@@ -432,11 +432,6 @@
       }
     }
     .app-tile img { width: 100%; height: 100%; object-fit: contain; display: block; }
-    /* updates.png's TV art has more empty padding on its right than its left,
-       so it optically sits left-of-center under Finances even though the
-       grid cell itself is aligned. A small nudge, not a crop, since the
-       source art still needs fixing properly at some point. */
-    .app[data-app="updates"] .app-tile img { transform: translateX(9%); }
     .app-name {
       font-size: 12px; font-weight: 500; text-align: center; line-height: 1.2;
       text-shadow: var(--legible); color: var(--fg);
@@ -649,7 +644,7 @@
     .foot a:hover { color: var(--accent); }
 
     /* ================= MENU SHEET (right-side drawer) =================
-       Every sheet (menu/roster/updates/feedback) shares this: a
+       Every sheet (menu/roster/account/hub) shares this: a
        full-screen dim scrim (.sheet) behind a fixed-width panel (.sheet-inner)
        that slides in from the right edge, rather than a centered card. */
     .sheet {
@@ -723,9 +718,7 @@
        lit up every later close button too, so opening the roster put the
        menu's ✕ on top of the roster's ✕ and it swallowed the tap. */
     #sheet.is-open ~ #sheet-close,
-    #roster.is-open ~ #roster-close,
-    #updates.is-open ~ #updates-close,
-    #feedback.is-open ~ #feedback-close { opacity: 1; visibility: visible; transition-delay: 0s; }
+    #roster.is-open ~ #roster-close { opacity: 1; visibility: visible; transition-delay: 0s; }
 
     /* Shared by any sheet whose content runs edge-to-edge (the Hub) instead
        of the padded text-list layout the plain .sheet-close assumes. That
@@ -794,22 +787,6 @@
         height: min(calc(var(--hub-art-h, 100vh) * var(--hub-frame-h-n, .227) + 240px), 68vh);
       }
     }
-
-    /* ---- latest updates ---- */
-    .update-rows { display: flex; flex-direction: column; gap: 14px; }
-    .update-row {
-      border: 1px solid var(--glass-stroke); border-radius: 14px;
-      padding: 14px 16px; background: #ffffff08;
-    }
-    .update-row h3 {
-      margin: 0 0 6px; font-size: 15px; font-weight: 600; letter-spacing: .01em;
-    }
-    .update-row p {
-      margin: 0; color: var(--fg-dim); font-size: 14px; line-height: 1.5;
-      /* Bodies arrive with real newlines and no markup, so keep them. */
-      white-space: pre-wrap;
-    }
-    .update-empty { color: var(--fg-dim); font-size: 14px; margin: 0; }
 
     /* ---- the hub (live chat room) ----
        Opens as this same sheet drawer, so the island stays put behind it
@@ -1986,8 +1963,7 @@
       outline: none; background: #ffffff14;
       border-color: color-mix(in srgb, var(--accent) 60%, transparent);
     }
-    /* Same field chrome as auth's inputs, shared here so the feedback sheet
-       doesn't need its own set of rules. */
+    /* Same field chrome as auth's inputs, for textareas. */
     .auth-field textarea {
       width: 100%; padding: 15px 14px; border-radius: 12px; resize: vertical;
       min-height: 100px; background: #ffffff0d; border: 1px solid var(--glass-stroke);
@@ -1998,8 +1974,6 @@
       outline: none; background: #ffffff14;
       border-color: color-mix(in srgb, var(--accent) 60%, transparent);
     }
-    .feedback-toggle-m { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--fg-dim); margin: 0 0 10px; }
-    .feedback-toggle-m input { width: 16px; height: 16px; accent-color: var(--accent); }
     .auth-hint { font-size: 12px; color: var(--fg-dim); margin: -2px 0 0; }
     .auth-submit {
       width: 100%; padding: 16px; border-radius: 12px; margin-top: 4px;
@@ -2342,44 +2316,6 @@
   </div>
   <button class="sheet-close" id="roster-close" type="button" aria-label="Close">✕</button>
 
-  <!-- ============ LATEST UPDATES ============ -->
-  <!-- Opens in place rather than handing off to the windowed desktop. The
-       updates are not a subdomain, just a JSON file on this origin, so there
-       is nothing to navigate to. -->
-  <div class="sheet" id="updates" role="dialog" aria-modal="true" aria-label="Latest updates">
-    <div class="sheet-inner">
-      <h2>LATEST UPDATES</h2>
-      <p class="sub" id="updates-sub">What just shipped.</p>
-      <div class="update-rows" id="update-rows"></div>
-    </div>
-  </div>
-  <button class="sheet-close" id="updates-close" type="button" aria-label="Close">✕</button>
-
-  <!-- ============ FEEDBACK ============ -->
-  <!-- Opens in place, same reason as Account/Updates above. Submits
-       through the same troll_submit_feedback RPC the desktop's #feedback
-       section uses (see submitFeedbackToBackend() on the desktop), so
-       there's one feedback inbox either way. -->
-  <div class="sheet" id="feedback" role="dialog" aria-modal="true" aria-label="Feedback">
-    <div class="sheet-inner">
-      <h2>FEEDBACK</h2>
-      <p class="sub">Tell me what broke, what you love, or what's missing.</p>
-      <label class="feedback-toggle-m" for="feedback-allow-username-m">
-        <input id="feedback-allow-username-m" type="checkbox">
-        <span>Include a username</span>
-      </label>
-      <div class="auth-field" id="feedback-username-wrap-m" hidden>
-        <input id="feedback-username-m" type="text" maxlength="60" placeholder="Username" autocomplete="nickname">
-      </div>
-      <div class="auth-field">
-        <textarea id="feedback-text-m" placeholder="Keyboard troll here..." rows="5"></textarea>
-      </div>
-      <button class="auth-submit" id="feedback-submit-m" type="button">Submit feedback</button>
-      <p class="auth-msg" id="feedback-status-m"></p>
-    </div>
-  </div>
-  <button class="sheet-close" id="feedback-close" type="button" aria-label="Close">✕</button>
-
   <!-- ============ THE HUB ============ -->
   <!-- Opens in place, same reason as Account/Updates/Feedback above — the
        island stays right where the visitor left it instead of a hard
@@ -2720,9 +2656,6 @@
         to: 'stickers.html', color: '#ff9500',
         icon: 'assets/images/icons/stickers.png', img: 'assets/images/wallpaper/obj-stickers.png',
         l: 86.8, t: 66.5, h: 19.5, rot: 2, hw: 11, hh: 20 },
-      { id: 'fitness',  label: 'Fitness',  sub: 'trollrunner.net/fitness',
-        to: 'fitness', color: '#ff5a1f', alwaysRail: true,
-        icon: 'assets/images/icons/fitness.png' },
       // mid band
       { id: 'pfp',      label: 'PFP Studio', sub: 'Build your troll', to: 'pfp',
         color: '#8fe36a', icon: 'assets/images/icons/pfp.png',
@@ -2744,10 +2677,6 @@
         to: '/maps', color: '#30d158',
         icon: 'assets/images/icons/troll-map.png', img: 'assets/images/world/maps.png',
         l: 82, t: 430, h: 11 },
-      { id: 'videos',   label: 'Videos',    sub: 'trollrunner.net/videos',
-        to: '/videos', color: '#ff2e88',
-        icon: 'assets/images/icons/videos.png', img: 'assets/images/wallpaper/obj-videos.png',
-        l: 63, t: 24, h: 15, rot: -3, hw: 8, hh: 17 },
       // Real landmark art (the swirl ring-gate, user-supplied) replaces the
       // earlier CSS-drawn ring placeholder. href points to trollface.io
       // directly; the warp animation (wireInPageApp below) plays first and
@@ -2766,12 +2695,6 @@
       { id: 'account',  label: 'Account',        sub: 'Profile & login',
         to: '/?desktop=1&open=account',  color: '#4dff73',
         icon: 'assets/images/icons/account.png' },
-      { id: 'updates',  label: 'Latest Updates', sub: 'What just shipped',
-        to: '/?desktop=1&open=updates',  color: '#7aa0c4',
-        icon: 'assets/images/icons/updates.png' },
-      { id: 'feedback', label: 'Feedback',       sub: 'Tell me what broke',
-        to: '/?desktop=1&open=feedback', color: '#e3b579',
-        icon: 'assets/images/icons/feedback.png' },
       { id: 'games',    label: 'Games',           sub: 'trollrunner.net/games',
         to: 'games.html', color: '#a78bfa',
         icon: 'assets/images/icons/games.png' },
@@ -3061,7 +2984,7 @@
     }
 
     /* Wires the apps that open an in-page sheet instead of navigating away
-       (Account/Updates/Feedback/Hub) — shared between the island app grid
+       (Account/Hub) — shared between the island app grid
        and the menu sheet's "Apps" list so both stay in sync. Used to live
        inline in the app-grid loop only, which meant the menu sheet
        (a separate set of <a> elements built from the same APPS array, see
@@ -3077,8 +3000,6 @@
       // where the sheet is already closed.
       const open = fn => e => { e.preventDefault(); setSheet(false); fn(); };
       if (id === 'account') el.addEventListener('click', open(() => authSetOpen(true)));
-      if (id === 'updates') el.addEventListener('click', open(() => updatesSetOpen(true)));
-      if (id === 'feedback') el.addEventListener('click', open(() => feedbackSetOpen(true)));
       if (id === 'hub') el.addEventListener('click', open(() => hubSetOpen(true)));
       // Maps still navigates (it's a real page), but plays the telescope
       // zoom-in first — see launchObservatory() and the matching ?enter=scope
@@ -3163,18 +3084,15 @@
        Landmarks baked into the island (hw/hh set) already get their own
        tappable spot on the art itself — showing them again in the rail
        would be a duplicate launch point for the same app. Only apps with
-       no island art (PFP Studio, Maps, Account, Updates, Feedback) get a
-       rail icon — except on phones, where the land base above has no
-       landmark art at all, so every app needs a rail icon there, and
-       except Fitness (alwaysRail) — per feedback it keeps a rail icon on
-       desktop too, alongside its existing island landmark. */
+       no island art (PFP Studio, Maps, Account) get a rail icon — except
+       on phones, where the land base above has no landmark art at all, so
+       every app needs a rail icon there. An app with alwaysRail keeps a
+       rail icon on desktop too, alongside its island landmark. */
     const apps = $('apps');
     const railIds = new Set();
     for (const a of APPS) {
       if (a.hw && a.hh && !isPhoneLayout && !a.alwaysRail) continue;
-      // APPS has two 'fitness' entries (a landmark one and a rail-only one,
-      // added separately) — on phones the loop above would otherwise hit
-      // both and render "Fitness" twice.
+      // Guards against a duplicate id in APPS rendering the same app twice.
       if (railIds.has(a.id)) continue;
       railIds.add(a.id);
       const el = document.createElement('a');
@@ -3595,8 +3513,8 @@
 
     // Every .sheet is now a scrim behind a right-side drawer (.sheet-inner),
     // so a tap outside the drawer — on the dimmed backdrop — should close it
-    // like a tap on its own close button. One handler covers all five
-    // sheets (menu/roster/updates/feedback) since they all pair an
+    // like a tap on its own close button. One handler covers every
+    // sheet (menu/roster/account/hub) since they all pair an
     // id="X" sheet with an id="X-close" button.
     document.querySelectorAll('.sheet').forEach(sheetEl => {
       sheetEl.addEventListener('click', e => {
@@ -4663,177 +4581,6 @@
     rosterSheet.inert = true;
     $('viewers').addEventListener('click', () => rosterSetOpen(true));
     rosterClose.addEventListener('click', () => rosterSetOpen(false));
-
-    /* ---------- latest updates ---------- */
-    /* Same JSON the desktop section reads, on this origin, so the sheet can
-       open instantly instead of handing off to the windowed desktop. */
-    const updatesSheet = $('updates'), updatesClose = $('updates-close');
-    let updatesLoaded = false;
-
-    // Same Supabase row the desktop's Latest Updates window reads — that JSON
-    // file is only a periodic snapshot, so posting an update from admin.html
-    // showed up on desktop immediately but never reached this sheet until the
-    // snapshot next regenerated. Meta rows (site lock, feedback, live status,
-    // …) share the same `updates` column on that row, tagged with a
-    // `__trollrunner_..._meta__` id, so they're filtered out here the same
-    // way index.html's parseSharedUpdatesPayload does.
-    async function fetchLiveUpdates() {
-      try {
-        const qs = new URLSearchParams({ select: 'updates', id: `eq.${SUPABASE_ROW_ID}`, limit: '1' });
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/site_updates?${qs}`, {
-          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
-        });
-        if (!res.ok) return [];
-        const json = await res.json();
-        const raw = Array.isArray(json?.[0]?.updates) ? json[0].updates : [];
-        return raw.filter(u => !(u && typeof u.id === 'string' && u.id.startsWith('__trollrunner_')));
-      } catch { return []; }
-    }
-
-    async function updatesPaint() {
-      if (updatesLoaded) return;
-      const rows = $('update-rows');
-      try {
-        const [jsonRes, liveList] = await Promise.all([
-          fetch('assets/data/latest-updates.json', { cache: 'no-cache' }),
-          fetchLiveUpdates(),
-        ]);
-        if (!jsonRes.ok) throw new Error(jsonRes.status);
-        const list = [...((await jsonRes.json()).updates || []), ...liveList];
-        list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-        rows.innerHTML = '';
-        if (!list.length) {
-          rows.innerHTML = '<p class="update-empty">Nothing shipped yet.</p>';
-        } else {
-          list.slice(0, 12).forEach(u => {
-            const row = document.createElement('article');
-            row.className = 'update-row';
-            const h = document.createElement('h3');
-            h.textContent = u.title || '';
-            const p = document.createElement('p');
-            p.textContent = u.body || '';
-            row.append(h, p);
-            rows.appendChild(row);
-          });
-        }
-        $('updates-sub').textContent = list.length === 1
-          ? 'The latest thing that shipped.'
-          : `The last ${Math.min(list.length, 12)} things that shipped.`;
-        updatesLoaded = true;
-      } catch {
-        rows.innerHTML = '<p class="update-empty">Could not load updates. Try again in a moment.</p>';
-      }
-    }
-
-    const updatesSetOpen = open => {
-      updatesSheet.classList.toggle('is-open', open);
-      updatesSheet.inert = !open;
-      if (open) { updatesPaint(); updatesClose.focus(); }
-    };
-    updatesSheet.inert = true;
-    updatesClose.addEventListener('click', () => updatesSetOpen(false));
-
-    /* ---------- feedback ----------
-       Same identity keys and RPC as the desktop's #feedback section (see
-       toggleFeedbackUsername / initializeFeedbackIdentity / submitFeedback /
-       submitFeedbackToBackend / classifyFeedback in index.html), so a
-       remembered "include a username" preference and the feedback itself
-       land in the same place regardless of which shell sent it. */
-    const FEEDBACK_USERNAME_KEY = 'trollrunner_feedback_username';
-    const FEEDBACK_ALLOW_USERNAME_KEY = 'trollrunner_feedback_allow_username';
-    const feedbackSheet = $('feedback'), feedbackClose = $('feedback-close');
-    const feedbackAllowUsername = $('feedback-allow-username-m');
-    const feedbackUsernameWrap = $('feedback-username-wrap-m');
-    const feedbackUsernameInput = $('feedback-username-m');
-    const feedbackTextInput = $('feedback-text-m');
-    const feedbackSubmitBtn = $('feedback-submit-m');
-    const feedbackStatus = $('feedback-status-m');
-
-    function feedbackToggleUsername(shouldFocus) {
-      const enabled = Boolean(feedbackAllowUsername.checked);
-      feedbackUsernameWrap.hidden = !enabled;
-      localStorage.setItem(FEEDBACK_ALLOW_USERNAME_KEY, enabled ? '1' : '0');
-      if (!enabled) {
-        feedbackUsernameInput.value = '';
-        localStorage.removeItem(FEEDBACK_USERNAME_KEY);
-      } else if (shouldFocus) {
-        feedbackUsernameInput.focus();
-      }
-    }
-    feedbackAllowUsername.checked = localStorage.getItem(FEEDBACK_ALLOW_USERNAME_KEY) === '1';
-    feedbackUsernameInput.value = localStorage.getItem(FEEDBACK_USERNAME_KEY) || '';
-    feedbackToggleUsername(false);
-    feedbackAllowUsername.addEventListener('change', () => feedbackToggleUsername(true));
-    feedbackUsernameInput.addEventListener('input', () => {
-      const username = feedbackUsernameInput.value.trim();
-      if (username) localStorage.setItem(FEEDBACK_USERNAME_KEY, username);
-      else localStorage.removeItem(FEEDBACK_USERNAME_KEY);
-    });
-
-    function classifyFeedbackMobile(message) {
-      const text = message.toLowerCase();
-      let topic = 'general';
-      if (/(bug|broken|error|issue|not work|crash|fix)/.test(text)) topic = 'bug';
-      else if (/(feature|add|would like|should have|can you|request)/.test(text)) topic = 'feature request';
-      else if (/(love|great|awesome|thanks|good job|nice)/.test(text)) topic = 'positive';
-      const priority = /(urgent|asap|critical|broken|down|immediately)/.test(text) ? 'high' : 'normal';
-      return { topic, priority };
-    }
-
-    // Same troll_submit_feedback RPC the desktop posts through (see
-    // assets/supabase/troll_admin_lockdown.sql) — one shared inbox.
-    async function submitFeedbackToBackendMobile(payload) {
-      try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/troll_submit_feedback`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify(payload),
-        });
-        return response.ok;
-      } catch { return false; }
-    }
-
-    feedbackSubmitBtn.addEventListener('click', async () => {
-      const message = feedbackTextInput.value.trim();
-      if (!message) { feedbackStatus.textContent = 'Please enter feedback before submitting.'; return; }
-      const includeUsername = Boolean(feedbackAllowUsername.checked);
-      const username = feedbackUsernameInput.value.trim();
-      if (includeUsername && !username) {
-        feedbackStatus.textContent = 'Add a username or turn off the checkbox before submitting.';
-        return;
-      }
-      const ai = classifyFeedbackMobile(message);
-      feedbackSubmitBtn.disabled = true;
-      feedbackStatus.textContent = 'Sending feedback...';
-      const ok = await submitFeedbackToBackendMobile({
-        p_message: message,
-        p_username: includeUsername ? username : null,
-        p_include_username: includeUsername,
-        p_topic: ai.topic,
-        p_priority: ai.priority,
-      });
-      feedbackSubmitBtn.disabled = false;
-      feedbackStatus.classList.toggle('is-ok', ok);
-      if (ok) {
-        feedbackTextInput.value = '';
-        if (includeUsername) localStorage.setItem(FEEDBACK_USERNAME_KEY, username);
-        feedbackStatus.textContent = `Feedback sent (${ai.topic}, ${ai.priority} priority). Thanks.`;
-      } else {
-        feedbackStatus.textContent = 'Could not send feedback. Try again in a moment.';
-      }
-    });
-
-    const feedbackSetOpen = open => {
-      feedbackSheet.classList.toggle('is-open', open);
-      feedbackSheet.inert = !open;
-      if (open) { feedbackStatus.textContent = ''; feedbackStatus.classList.remove('is-ok'); feedbackTextInput.focus(); }
-    };
-    feedbackSheet.inert = true;
-    feedbackClose.addEventListener('click', () => feedbackSetOpen(false));
 
     /* ---------- the hub (live chat room) ----------
        Same live room the old standalone chat.html page ran — same Realtime

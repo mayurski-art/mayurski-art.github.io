@@ -3518,7 +3518,7 @@
     section.className = 'ta-section';
     section.innerHTML = `<h4>Forgot your password?</h4>
       <p class="ta-muted">Enter the email on your account and we'll send a reset link.
-      No email on the account? Ping the Troll Runner in TrollChat or Feedback to recover it.</p>`;
+      No email on the account? Ping the Troll Runner in TrollChat to recover it.</p>`;
     const emailInput = document.createElement('input');
     emailInput.type = 'email';
     emailInput.className = 'ta-input';
