@@ -34,7 +34,7 @@ import {
   tableSet as kitTableSet, chair as kitChair, stool as kitStool, piano as kitPiano,
   chandelier, sconce, railFence, picketFence, hayBale, log, coffin, framedPicture, artTexture,
 } from "./trollcity-kit.js?v=tc2-wst";
-import { LoopPath, Train } from "./train.js?v=tr1";
+import { LoopPath, Train } from "./train.js?v=tr1b7";
 
 const BOUNDS = { minX: -62, maxX: 62, minZ: -50, maxZ: 50 };
 const T = 0.3;            // wall thickness

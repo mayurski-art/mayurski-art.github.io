@@ -8,7 +8,7 @@
 
 import * as THREE from "three";
 import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
-import { MovementController } from "./movement.js?v=umb2-sb2-gj1";
+import { MovementController } from "./movement.js?v=umb2-sb2-gj1b7";
 import { buildHumanoid, poseHumanoid, gaitPhaseRate } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
 
 // ---------- renderer / scene ----------

@@ -4,16 +4,16 @@
 // (split phase 1).
 
 import * as THREE from "three";
-import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1";
-import { streaks, cancelMark, streakEntities, readyStreaksOrdered, lockStreak, uavBucket, startVsat, spawnVsatSat, achievements, flyovers, enemiesRevealed, pendingStrikes } from "./calling.js?v=sk1-si1-gj1-fu1";
+import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7";
+import { streaks, cancelMark, streakEntities, readyStreaksOrdered, lockStreak, uavBucket, startVsat, spawnVsatSat, achievements, flyovers, enemiesRevealed, pendingStrikes } from "./calling.js?v=sk1-si1-gj1-fu1b7";
 import { MarkerCanister, CarePackage, HunterDrone, DRONE_SPEED, ReconPlane, AIRSTRIKE_DELAY, AIRSTRIKE_RADIUS, AirstrikeRun, HelicopterGunship } from "../streak-entities.js?v=vsat2-hk1";
 import { THROW_TIME } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
-import { updateStreakHud, showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1";
+import { updateStreakHud, showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7";
 import { STREAK_DEFS, PACKAGE_STREAK_POOL, streakIconSvg } from "../scorestreaks.js?v=umb1-wst-sb2-fu1";
-import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1";
+import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";
 import { FlowField } from "../nav.js?v=ti1-bs1";
 import { StrikeTablet, STRIKE_TARGETS } from "../streak-tablet.js?v=wu1";
-import { K9Pack } from "../k9-unit.js?v=k9c-bs1-sb2-gj1";
+import { K9Pack } from "../k9-unit.js?v=k9c-bs1-sb2-gj1b7";
 import { game } from "../core/state.js?v=st1";
 
 /* ---- Dragonfire needs open sky ----------------------------------------

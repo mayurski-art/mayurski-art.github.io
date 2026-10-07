@@ -13,12 +13,12 @@ import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1-fu1";
 import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1kb3-bk1-wst-ig1";
 import { cleanFaceKey } from "./cosmetics.js?v=hb4-fc1-wst-soc1-ww1";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { sharedParaglider } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1";
+import { sharedParaglider } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7";
 import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3g-nf-wst-ig1-soc1";
 import { applyCopBody, syncCopBody } from "./cop-bodies.js?v=cb2-sb2";
 import { playerIconCanvas } from "./rank-icons.js?v=rk1";
-import { buildDrink, drinkFromCode, drinkMax, FILL_TIME, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1";
-import { poseSeated, posePianoArms, roleLabel } from "./rp-roles.js?v=rp1";
+import { buildDrink, drinkFromCode, drinkMax, FILL_TIME, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7";
+import { poseSeated, posePianoArms, roleLabel } from "./rp-roles.js?v=rp1b7";
 
 /* Socialize seats: game.js hands over the map's seat list (rp.seats), so a
    peer's `seat` (index + 1) can be looked up for its height and kind. */

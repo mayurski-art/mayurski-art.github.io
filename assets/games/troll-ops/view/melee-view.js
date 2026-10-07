@@ -2,13 +2,13 @@
 // whiff kicks, and the chainsaw rev.
 
 import * as THREE from "three";
-import { inspectArms, restoreMeleeHands, pfArms, _meleeViewQ, _meleeViewE, meleeHands, applyReaperInspect, applyMeleeInspect, inspectProgress, poseSaberArms, poseMeleeArms, inspectDur } from "./weapon-view.js?v=wv1-si1-gj1-if1-fu1";
-import { saberTrail, POWER_IGNITE_DELAY, POWER_EQUIP_TIME, MELEE_DRAW_TIME, POWER_IGNITE, MELEE_EQUIP_TIME, saberBlock, kbShield, kbRepair, _kbFarGrip, saberParry, _parryW, _parryPos, _parryQ, _bladeG, _bladeP, _flickQ, _viewZ, _viewX, POWER_RETRACT, updateSaberFx } from "../combat/melee.js?v=ml1-kc2-si1-gj1-fu1";
+import { inspectArms, restoreMeleeHands, pfArms, _meleeViewQ, _meleeViewE, meleeHands, applyReaperInspect, applyMeleeInspect, inspectProgress, poseSaberArms, poseMeleeArms, inspectDur } from "./weapon-view.js?v=wv1-si1-gj1-if1-fu1b7";
+import { saberTrail, POWER_IGNITE_DELAY, POWER_EQUIP_TIME, MELEE_DRAW_TIME, POWER_IGNITE, MELEE_EQUIP_TIME, saberBlock, kbShield, kbRepair, _kbFarGrip, saberParry, _parryW, _parryPos, _parryQ, _bladeG, _bladeP, _flickQ, _viewZ, _viewX, POWER_RETRACT, updateSaberFx } from "../combat/melee.js?v=ml1-kc2-si1-gj1-fu1b7";
 import { damp } from "../anim-curves.js";
 import { KB_SHIELD } from "../keyboard-repair.js?v=kr15";
 import { SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1";
 import { parryWeights, PARRY_ZONES } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
-import { currentWeapon } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1";
+import { currentWeapon } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7";
 import { poseKnuckles } from "../brass-knuckles.js?v=bk1-wst";
 import { game } from "../core/state.js?v=st1";
 

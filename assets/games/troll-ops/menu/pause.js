@@ -1,11 +1,11 @@
 // The pause menu: open and close (a solo pause stops the game; with other
 // people in the match only your own player freezes), and resume.
 
-import { cancelMark } from "../streaks/calling.js?v=sk1-si1-gj1-fu1";
-import { renderPauseRange } from "../modes/spawns.js?v=spw1-gj1-if1-fu1";
-import { renderRoomModeRow } from "../modes/social.js?v=so1-si1-mb1-gj1-if1-fu1";
-import { keys, lockChangedAt, controls } from "../input/keyboard-mouse.js?v=km1-gj1-if1-fu1";
-import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1";
+import { cancelMark } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7";
+import { renderPauseRange } from "../modes/spawns.js?v=spw1-gj1-if1-fu1b7";
+import { renderRoomModeRow } from "../modes/social.js?v=so1-si1-mb1-gj1-if1-fu1b7";
+import { keys, lockChangedAt, controls } from "../input/keyboard-mouse.js?v=km1-gj1-if1-fu1b7";
+import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7";
 import { game } from "../core/state.js?v=st1";
 
 export function openPauseMenu() {

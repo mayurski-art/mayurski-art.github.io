@@ -26,8 +26,8 @@
 
 import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, DANCES } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
-import { buildDrink, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1";
-import { SmithWork } from "./smithy.js?v=sm1";
+import { buildDrink, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7";
+import { SmithWork } from "./smithy.js?v=sm1b7";
 
 const TINTS = ["og", "og", "gold", "green", "blue", "pink", "purple", "red", "stone"];
 const WALK_MPS = 1.25;

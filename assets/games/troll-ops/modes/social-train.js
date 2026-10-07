@@ -9,8 +9,8 @@
    plain. Conductor Choo's "all aboard" before it leaves, a whistle as it
    pulls out, the bell as it pulls in. */
 
-import { Train } from "../train.js?v=tr1";
-import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1";
+import { Train } from "../train.js?v=tr1b7";
+import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7";
 import { game } from "../core/state.js?v=st1";
 
 export const ride = { car: null, deck: null, called: false, moving: false };

@@ -2,11 +2,11 @@
 // damage. Moved out of game.js (split phase 1).
 
 import * as THREE from "three";
-import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1";
-import { streakEntities } from "./calling.js?v=sk1-si1-gj1-fu1";
-import { HUNTER_DOG_BITE, heroFx, HUNTER_PIN } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1";
-import { spawnComicWord, showWaveBanner, pushKillfeed } from "../core/hud.js?v=cr1-si1-gj1-fu1";
-import { K9 } from "../k9-unit.js?v=k9c-bs1-sb2-gj1";
+import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7";
+import { streakEntities } from "./calling.js?v=sk1-si1-gj1-fu1b7";
+import { HUNTER_DOG_BITE, heroFx, HUNTER_PIN } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7";
+import { spawnComicWord, showWaveBanner, pushKillfeed } from "../core/hud.js?v=cr1-si1-gj1-fu1b7";
+import { K9 } from "../k9-unit.js?v=k9c-bs1-sb2-gj1b7";
 import { SCORE } from "../scorestreaks.js?v=umb1-wst-sb2-fu1";
 import { game } from "../core/state.js?v=st1";
 

@@ -1,7 +1,7 @@
 // Troll Forces — grunt (horde enemy) definitions, spawning, and simple steering AI.
 import * as THREE from "three";
 import { makeEnemyDissolveMaterial } from "./shaders.js";
-import { groundHeightAt, resolveCircle } from "./movement.js?v=umb2-sb2-gj1";
+import { groundHeightAt, resolveCircle } from "./movement.js?v=umb2-sb2-gj1b7";
 import { buildHumanoid, poseHumanoid } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
 
 const GRUNT_TYPES = {

@@ -9,7 +9,7 @@
 // beat) or "C4:2" (two). The piano panel (menu/piano-panel.js) plays C3 to
 // G5 off the keyboard, so everything here sits in that range.
 
-import { TUNES, noteMidi } from "./rp-roles.js?v=rp1";
+import { TUNES, noteMidi } from "./rp-roles.js?v=rp1b7";
 
 export const LOW = 48;    // C3
 export const HIGH = 79;   // G5
