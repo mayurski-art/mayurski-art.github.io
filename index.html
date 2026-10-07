@@ -52,14 +52,17 @@ a{color:var(--hot)}a:hover{color:#ffb870}
 /* Troll Map + PFP Studio: picture tiles under the profile row, so they read
    as their own thing next to the text list on the left. */
 .home-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
-.home-tile{position:relative;display:flex;flex-direction:column;justify-content:flex-end;min-height:118px;padding:12px;border-radius:12px;border:1px solid rgba(255,210,122,.32);
+.home-tile{position:relative;display:flex;flex-direction:column;justify-content:flex-start;align-items:flex-start;padding:14px;border-radius:12px;border:1px solid rgba(255,210,122,.32);
   background:linear-gradient(160deg,rgba(255,138,31,.2),rgba(10,4,2,.86) 62%);box-shadow:0 10px 30px rgba(0,0,0,.45);color:var(--ink);font:inherit;text-align:left;text-decoration:none;cursor:pointer;overflow:hidden;
   transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
-.home-tile img{position:absolute;right:-6px;top:-6px;width:74px;height:74px;object-fit:contain;filter:drop-shadow(0 4px 10px rgba(0,0,0,.6));transition:transform .2s ease}
+/* Each icon sits in the same framed badge above its label: the PFP art is a
+   full square (cover), the globe a cutout (contain on a warm glow). */
+.home-tile img{width:64px;height:64px;margin-bottom:12px;border-radius:14px;object-fit:cover;border:1px solid rgba(255,210,122,.4);box-shadow:0 6px 16px rgba(0,0,0,.5);transition:transform .2s ease}
+.home-tile img.is-cutout{object-fit:contain;padding:5px;background:radial-gradient(circle at 50% 42%,rgba(255,210,122,.32),rgba(10,4,2,.7) 72%)}
 .home-tile b{font:600 20px/1.05 var(--display);letter-spacing:.05em;text-transform:uppercase}
 .home-tile i{font:normal 12px/1.3 var(--mono);color:var(--dim);margin-top:3px}
 .home-tile:hover,.home-tile:focus-visible{transform:translateY(-2px);border-color:var(--gold);box-shadow:0 14px 34px rgba(255,138,31,.22)}
-.home-tile:hover img,.home-tile:focus-visible img{transform:rotate(-6deg) scale(1.06)}
+.home-tile:hover img,.home-tile:focus-visible img{transform:rotate(-4deg) scale(1.05)}
 .home-tile:hover,.home-tile:focus-visible{color:var(--ink)}
 .home-tile:focus-visible{outline:2px solid var(--hot);outline-offset:2px}
 /* Finances is the donation wallet: its own glowing pill, bottom right. */
@@ -115,7 +118,8 @@ kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgb
   .home-online{font-size:26px}
   .home-tiles{gap:8px;margin-top:8px}
   .home-tile{min-height:0;flex-direction:row;align-items:center;gap:8px;padding:8px 10px}
-  .home-tile img{position:static;width:30px;height:30px;flex:none}
+  .home-tile img{width:30px;height:30px;margin:0;border-radius:8px;flex:none}
+  .home-tile img.is-cutout{padding:2px}
   .home-tile b{font-size:16px}
   .home-tile i{display:none}
   .home-donate{padding:6px 14px 6px 6px;gap:8px}
@@ -140,7 +144,7 @@ kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgb
     <span class="home-acct-lbl">1 Runner <span>(you)</span></span>
     <button type="button" class="home-acct-row" id="home-acct-row"><b id="home-acct-name">Guest troll</b><i id="home-acct-note">Log in to save progress</i></button>
     <div class="home-tiles">
-      <button type="button" class="home-tile" id="home-map-tile"><img src="assets/images/icons/troll-map.png" alt=""><b>Troll Map</b><i>Spin the planet</i></button>
+      <button type="button" class="home-tile" id="home-map-tile"><img class="is-cutout" src="assets/images/icons/troll-map.png" alt=""><b>Troll Map</b><i>Spin the planet</i></button>
       <a class="home-tile" href="pfp.html"><img src="assets/images/icons/pfp.png" alt=""><b>PFP Studio</b><i>Build your trollface</i></a>
     </div>
   </aside>
