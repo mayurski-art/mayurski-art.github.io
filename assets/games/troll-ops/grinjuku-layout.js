@@ -189,16 +189,17 @@ export function grinjukuLayout() {
     ropes.push({ id: `${side.toLowerCase()}-site`, x: s * 14.4, z: 18, y0: 0, y1: H, dir: s < 0 ? "+x" : "-x", side });
   }
 
-  /* ---- point lights (few: every lit pixel loops over all of them) */
+  /* ---- point lights (few: every lit pixel loops over all of them), each
+     the colour of the neon nearest it: [x, y, z, colour, intensity, reach] */
   const lights = [
-    [-22, 4.5, 12], [22, 4.5, 12],       // the sites
-    [-9, 4.2, 18], [9, 4.2, 18],         // the Heavens
-    [-8, 2.2, 9.8], [8, 2.2, 9.8],       // the rope rooms
-    [0, 3.0, -2],                        // Mid Mail
-    [-15, 2.2, -3], [15, 2.1, -3],       // Sewers, Vents
-    [0, 4.5, -36], [0, 4.5, 36],         // the spawns
-    [0, 4.5, 10],                        // Mid Bottom
-  ].map(([x, y, z]) => ({ x, y, z }));
+    [-22, 4.5, 12, 0xff6ab8, 16, 17], [22, 4.5, 12, 0x6ad8ff, 16, 17],    // the sites
+    [-9, 4.4, 18, 0xffc890, 9, 12], [9, 4.4, 18, 0xffc890, 9, 12],        // the Heavens
+    [-8, 2.4, 9.8, 0xcfe0ff, 6, 7], [8, 2.4, 9.8, 0xcfe0ff, 6, 7],        // the rope rooms
+    [0, 2.8, -2, 0xf2f4ff, 8, 12],                                        // Mid Mail
+    [-15, 2.2, -3, 0x9ad8c0, 10, 13], [15, 2.1, -3, 0xb8c8ff, 10, 13],    // Sewers, Vents
+    [0, 4.5, -36, 0xffd8a0, 16, 22], [0, 4.5, 36, 0xffd8a0, 16, 22],      // the spawns
+    [0, 4.6, 12, 0xff9a6a, 10, 14],                                       // Mid Bottom's lanterns
+  ].map(([x, y, z, color, intensity, distance]) => ({ x, y, z, color, intensity, distance }));
 
   const xs = [-14, -10, -6, -2, 2, 6, 10, 14];
   const spawns = [...xs.map((x) => [x, -37.5]), ...xs.map((x) => [x, 37])];

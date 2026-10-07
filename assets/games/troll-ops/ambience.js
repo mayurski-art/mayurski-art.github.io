@@ -108,6 +108,16 @@ const PRESETS = {
     ],
     events: [["clank", 6, 14, 0.5], ["buzz", 9, 20], ["car", 12, 28]],
   },
+  // Shinjuku after dark: a crowd a street or two away, neon buzzing over
+  // the shopfronts, traffic, and trains over the viaducts at both ends.
+  grinjuku: {
+    beds: [
+      { kind: "murmur", gain: 0.028 },
+      { kind: "hum", freqs: [60, 120, 180], gain: 0.009, lp: 420 },
+      { kind: "noise", type: "lowpass", freq: 180, gain: 0.03 },    // city rumble
+    ],
+    events: [["train", 30, 60, 0.6], ["buzz", 7, 16], ["car", 8, 20], ["clank", 14, 30, 0.5]],
+  },
   // Trollface Island, floating in space: wind off the cliffs, a low drone
   // underneath, a shimmer from the sky.
   trollface: {

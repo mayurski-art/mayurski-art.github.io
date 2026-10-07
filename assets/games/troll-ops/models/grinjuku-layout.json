@@ -1246,62 +1246,98 @@
   {
    "x": -22,
    "y": 4.5,
-   "z": 12
+   "z": 12,
+   "color": 16739000,
+   "intensity": 16,
+   "distance": 17
   },
   {
    "x": 22,
    "y": 4.5,
-   "z": 12
+   "z": 12,
+   "color": 7002367,
+   "intensity": 16,
+   "distance": 17
   },
   {
    "x": -9,
-   "y": 4.2,
-   "z": 18
+   "y": 4.4,
+   "z": 18,
+   "color": 16763024,
+   "intensity": 9,
+   "distance": 12
   },
   {
    "x": 9,
-   "y": 4.2,
-   "z": 18
+   "y": 4.4,
+   "z": 18,
+   "color": 16763024,
+   "intensity": 9,
+   "distance": 12
   },
   {
    "x": -8,
-   "y": 2.2,
-   "z": 9.8
+   "y": 2.4,
+   "z": 9.8,
+   "color": 13623551,
+   "intensity": 6,
+   "distance": 7
   },
   {
    "x": 8,
-   "y": 2.2,
-   "z": 9.8
+   "y": 2.4,
+   "z": 9.8,
+   "color": 13623551,
+   "intensity": 6,
+   "distance": 7
   },
   {
    "x": 0,
-   "y": 3,
-   "z": -2
+   "y": 2.8,
+   "z": -2,
+   "color": 15922431,
+   "intensity": 8,
+   "distance": 12
   },
   {
    "x": -15,
    "y": 2.2,
-   "z": -3
+   "z": -3,
+   "color": 10148032,
+   "intensity": 10,
+   "distance": 13
   },
   {
    "x": 15,
    "y": 2.1,
-   "z": -3
+   "z": -3,
+   "color": 12110079,
+   "intensity": 10,
+   "distance": 13
   },
   {
    "x": 0,
    "y": 4.5,
-   "z": -36
+   "z": -36,
+   "color": 16767136,
+   "intensity": 16,
+   "distance": 22
   },
   {
    "x": 0,
    "y": 4.5,
-   "z": 36
+   "z": 36,
+   "color": 16767136,
+   "intensity": 16,
+   "distance": 22
   },
   {
    "x": 0,
-   "y": 4.5,
-   "z": 10
+   "y": 4.6,
+   "z": 12,
+   "color": 16751210,
+   "intensity": 10,
+   "distance": 14
   }
  ],
  "spawns": [
