@@ -31,6 +31,9 @@ export const K9 = {
   radius: 0.32,
 };
 
+const MAX_FIELDS = 12;   // flow fields a pack keeps (one per target per level)
+const GIVE_UP = 4;       // seconds a dog leaves a troll it can't get to
+
 const HIT_MAT = new THREE.MeshBasicMaterial({ visible: false });
 const _v = new THREE.Vector3();
 const _to = new THREE.Vector3();
@@ -210,16 +213,44 @@ export class K9Pack {
      id, a stair foot), one field per level per key. */
   field(key, tx, tz, y = 0) {
     const { colliders, bounds } = this.world;
+    const base = this.baseFor(y);
+    const fk = `${base.floorY}|${key}`;
+    let f = this.fields.get(fk);
+    if (!f) {
+      // Targets come and go; a field on a big map is ~100k cells, so only
+      // the last dozen are kept.
+      if (this.fields.size >= MAX_FIELDS) this.fields.delete(this.fields.keys().next().value);
+      f = new FlowField(colliders, bounds, base.floorY, { template: base });
+      this.fields.set(fk, f);
+    }
+    return f.compute(tx, tz) ? f : null;
+  }
+
+  /* The blocked grid for the level a dog at height `y` runs on. Cells shut
+     by their centre (nav.js blockBy "centre") with the dog's own radius as
+     the margin, so a door a dog fits through is open in the grid; the
+     padded-footprint rule sealed anything under a cell plus two pads and
+     the dogs ran at the wall beside it. A cell no coarser than a metre. */
+  baseFor(y) {
     const level = Math.max(0, Math.round(y * 2) / 2);
     let base = this.baseFields.get(level);
     if (!base) {
-      base = new FlowField(colliders, bounds, level, { step: 0.5, needSupport: level > 0.5, cell: this.world.navCell || undefined });
+      const { colliders, bounds } = this.world;
+      base = new FlowField(colliders, bounds, level, {
+        step: 0.5, needSupport: level > 0.5, blockBy: "centre", pad: K9.radius, cell: Math.min(this.world.navCell || 0.6, 1.0),
+      });
       this.baseFields.set(level, base);
     }
-    const fk = `${level}|${key}`;
-    let f = this.fields.get(fk);
-    if (!f) { f = new FlowField(colliders, bounds, level, { template: base }); this.fields.set(fk, f); }
-    return f.compute(tx, tz) ? f : null;
+    return base;
+  }
+
+  /* Can a dog walk straight from where it is to (x, z) without meeting a
+     wall on its level? True as well when the grid can't speak for the spot
+     (mid-stair, off a slab's edge): there the dog trusts its own line, as
+     it always did. */
+  straightOk(d, x, z) {
+    const base = this.baseFor(d.pos.y);
+    return !base.knows(d.pos.x, d.pos.z) || base.lineClear(d.pos.x, d.pos.z, x, z);
   }
 
   /* Walking distance from (x, z) along a field, or Infinity if walled off. */
@@ -243,6 +274,19 @@ export class K9Pack {
       else return { x: e.x, y: e.y, z: e.z, field: null };
     }
     const dy = goal.y - d.pos.y;
+    // Caught on the treads with no climb on (retargeted or turned round
+    // halfway up): finish the flight, whichever end is nearer the goal's
+    // level, rather than read a field of a "level" that's only a stair and
+    // take the steps above for walls.
+    if (!d.climb && stairs.length) {
+      const s = this.onStair(d, stairs);
+      if (s) {
+        const lo = s.a.y < s.b.y ? s.a : s.b, hi = lo === s.a ? s.b : s.a;
+        const exit = goal.y > (lo.y + hi.y) / 2 ? hi : lo;
+        d.climb = { exit, t: 0 };
+        return { x: exit.x, y: exit.y, z: exit.z, field: null };
+      }
+    }
     if (Math.abs(dy) < 1.2 || !stairs.length) {
       return { x: goal.x, y: goal.y, z: goal.z, field: this.field(key, goal.x, goal.z, d.pos.y) };
     }
@@ -266,6 +310,22 @@ export class K9Pack {
     }
     const e = best.entry;
     return { x: e.x, y: e.y, z: e.z, field: this.field(`stair${best.i}|${e === this.world.stairs[best.i].a ? "a" : "b"}`, e.x, e.z, d.pos.y) };
+  }
+
+  /* The flight a dog is part-way up, if it's on one: within a metre of the
+     stair's centre line, between its ends, and off both of its floors. */
+  onStair(d, stairs) {
+    for (const s of stairs) {
+      if (s.rope || Math.abs(s.a.y - s.b.y) < 1.2) continue;
+      const lo = s.a.y < s.b.y ? s.a : s.b, hi = lo === s.a ? s.b : s.a;
+      if (d.pos.y < lo.y + 0.3 || d.pos.y > hi.y - 0.3) continue;
+      const dx = s.b.x - s.a.x, dz = s.b.z - s.a.z, len = Math.hypot(dx, dz) || 1;
+      const t = ((d.pos.x - s.a.x) * dx + (d.pos.z - s.a.z) * dz) / len;
+      if (t < -0.3 || t > len + 0.3) continue;
+      const side = Math.abs((d.pos.x - s.a.x) * dz - (d.pos.z - s.a.z) * dx) / len;
+      if (side < 1.0) return s;
+    }
+    return null;
   }
 
   /* Owner frame. ctx:
@@ -350,19 +410,33 @@ export class K9Pack {
               const ahead = Math.min(0.8, dist / K9.speed);
               gx += tr.vx * ahead; gz += tr.vz * ahead;
             }
-            const r = heel || dist <= 2.5 ? null : this.route(d, target.id, _goal.set(gx, goal.y, gz));
+            // The last couple of metres are a straight run, if nothing's in
+            // the way (a troll just the other side of a wall isn't close).
+            const close = dist <= 2.5 && this.straightOk(d, gx, gz);
+            const r = close ? null : this.route(d, heel ? "heel" : target.id, _goal.set(gx, goal.y, gz));
             const steer = r?.field ? r.field.steer(d.pos.x, d.pos.z) : null;
             if (steer) dir = steer;
             else {
               const tx = r ? r.x : gx, tz = r ? r.z : gz;
-              dir = _dir.set(tx - d.pos.x, 0, tz - d.pos.z);
-              const l = dir.length();
-              if (l > 1e-4) dir.divideScalar(l); else dir.set(-Math.sin(d.yaw), 0, -Math.cos(d.yaw));
+              // No route in the grid. Straight at it only if that's clear
+              // (or it's a stair, which the grid doesn't cover); otherwise
+              // the troll is walled off from here, and the dog leaves it
+              // for a while rather than grind at the wall.
+              if (close || d.climb || this.straightOk(d, tx, tz)) {
+                dir = _dir.set(tx - d.pos.x, 0, tz - d.pos.z);
+                const l = dir.length();
+                if (l > 1e-4) dir.divideScalar(l); else dir.set(-Math.sin(d.yaw), 0, -Math.cos(d.yaw));
+              } else {
+                dir = null;
+                if (!heel && target) this.leave(d, target.id, now);
+              }
             }
           }
-          want = heel ? Math.min(K9.speed * 0.6, dist * 1.5) : K9.speed;
-          d.vel.x += (dir.x * want - d.vel.x) * Math.min(1, dt * 6);
-          d.vel.z += (dir.z * want - d.vel.z) * Math.min(1, dt * 6);
+          if (dir) {
+            want = heel ? Math.min(K9.speed * 0.6, dist * 1.5) : K9.speed;
+            d.vel.x += (dir.x * want - d.vel.x) * Math.min(1, dt * 6);
+            d.vel.z += (dir.z * want - d.vel.z) * Math.min(1, dt * 6);
+          }
         }
         if (dist > 0.05) {
           const face = Math.atan2(-(goal.x - d.pos.x), -(goal.z - d.pos.z));
@@ -407,6 +481,9 @@ export class K9Pack {
      can't, and not one it just gave up reaching. Too many dogs on one troll
      and the rest split off. */
   pickTarget(d, hostiles, chasing, ctx, now) {
+    // One it just gave up on is off the list for a while: with nobody else
+    // about, the dog heels rather than going back to grind at the wall.
+    if (d.giveUp && now < d.giveUp.until) hostiles = hostiles.filter((h) => h.id !== d.giveUp.id);
     if (!hostiles.length) return null;
     const rough = hostiles.map((h) => ({ h, s: Math.hypot(h.pos.x - d.pos.x, h.pos.z - d.pos.z) + Math.abs(h.pos.y - d.pos.y) * 4 }))
       .sort((a, b) => a.s - b.s);
@@ -421,7 +498,6 @@ export class K9Pack {
         }
         if (ctx.canSee) cost += ctx.canSee(d.pos, h.pos) ? -6 : 8;
       } else cost += 8;
-      if (d.giveUp?.id === h.id && now < d.giveUp.until) cost += 60;
       const crowd = (chasing.get(h.id) || 0) - (h.id === d.targetId ? 1 : 0);
       cost += Math.max(0, crowd - K9.perTarget + 1) * 18;
       if (h.id === d.targetId) cost -= 4;   // don't flip-flop between two close calls
@@ -435,21 +511,30 @@ export class K9Pack {
      that way for a moment before it picks its route again. Three goes and it
      gives up on that troll for a few seconds and looks for another. */
   checkStuck(d, dt, want, moved, target, now) {
+    // `grindT` / `stuckN`: how long it has pushed at something and got
+    // nowhere, and how often it had to turn round (the doors test reads them).
+    if (want > 2 && moved < want * 0.3) d.grindT = (d.grindT || 0) + dt;
     if (want > 2 && !d.detour && moved < want * 0.3) d.stuckT = (d.stuckT || 0) + dt;
     else d.stuckT = Math.max(0, (d.stuckT || 0) - dt * 2);
     if (d.stuckT < 0.35) return;
     d.stuckT = 0;
     d.stuckN = (d.stuckN || 0) + 1;
+    d.stuckTotal = (d.stuckTotal || 0) + 1;
     d.climb = null;
     const heading = Math.atan2(d.vel.x, d.vel.z);
     const turn = Math.PI * (0.65 + Math.random() * 0.45) * (Math.random() < 0.5 ? -1 : 1);
     d.detour = { x: Math.sin(heading + turn), z: Math.cos(heading + turn), t: 0.45 + Math.random() * 0.35 };
     d.vel.multiplyScalar(0.3);
-    if (d.stuckN >= 3 && target) {
-      d.giveUp = { id: target.id, until: now + 4 };
-      d.stuckN = 0;
-      d.retargetT = 0;
-    }
+    if (d.stuckN >= 3 && target) this.leave(d, target.id, now);
+  }
+
+  /* Leave a troll alone for a few seconds (walled off, or three failed goes
+     at it) and pick again straight away. */
+  leave(d, id, now) {
+    d.giveUp = { id, until: now + GIVE_UP };
+    d.stuckN = 0;
+    d.retargetT = 0;
+    d.climb = null;
   }
 
   move(d, dt) {
