@@ -859,11 +859,11 @@ function buildShops(K, M, lights) {
   }
   // the saloon
   buildSaloon(K, M, lights);
-  // First Bank of Kek: brick, heavier, teal false front (the reference)
+  // Ramirez Bank: brick, heavier, teal false front (the reference)
   {
     const F = shop(K, M, {
       x0: -2, x1: 10, row: "n", h1: 5.2, ff: 7.6, wallMat: M.brick, trim: M.trimCream, lining: M.damaskGreen,
-      signMat: sign("BANK", "First Bank of Kek · Est. 1871", { bg: "#2f6a68", fg: "#e9c46a", edge: "#e9c46a" }),
+      signMat: sign("RAMIREZ BANK", "First Bank of Carlos Ramirez · Est. 2008", { bg: "#2f6a68", fg: "#e9c46a", edge: "#e9c46a" }),
       signH: 1.6, signW: 8,
       front: [{ c: 0.8, w: 1.8, spans: [[1.2, 3.8]] }, { c: 4, w: 1.8, spans: [[0, 3.0]] }, { c: 7.2, w: 1.8, spans: [[1.2, 3.8]] }],
       back: [{ c: 8.6, w: 1.2, spans: [[0, 2.5]] }],
