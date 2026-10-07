@@ -2,9 +2,9 @@
 // pre-match staging countdown and intro, shader warm-up, and beginMatch.
 
 import { makeRoomCode, MAX_PLAYERS_ROYALE, MAX_PLAYERS } from "../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1";
-import { playerName, setNetStatus, noBotsRoom } from "../menu/lobby.js?v=lb1-si1-gj1";
+import { playerName, setNetStatus, noBotsRoom } from "../menu/lobby.js?v=lb1-si1-gj1-if1";
 import { MAPS } from "../maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1";
-import { cancelSocialReturn } from "./social.js?v=so1-si1-mb1-gj1";
+import { cancelSocialReturn } from "./social.js?v=so1-si1-mb1-gj1-if1";
 import { EMOTES } from "../emote-wheel.js?v=hb4-em1-wst-soc1";
 import { emoteCode } from "../emotes.js?v=hb4-em1-wst-soc1-ng1";
 import { TEAMS, setFunnyDeaths } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1";

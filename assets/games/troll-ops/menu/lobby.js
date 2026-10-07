@@ -1,7 +1,7 @@
 // Troll Forces lobby: the Phantom Forces style menu panels, gun and character
 // inspectors, map drawer, roster, callsign, heroes, cloud setup and room code.
 
-import { WeaponInspector } from "../inspector.js?v=hb1-nf-wst-ig1-sb2";
+import { WeaponInspector } from "../inspector.js?v=hb1-nf-wst-ig1-sb2-if1";
 import { CharacterInspector } from "../char-inspector.js?v=hb4-wst-soc1-sb2";
 import { CosmeticsPanel, loadCosmetics } from "../cosmetics.js?v=hb4-fc1-wst-soc1-ww1";
 import { EmoteWheel } from "../emote-wheel.js?v=hb4-em1-wst-soc1";

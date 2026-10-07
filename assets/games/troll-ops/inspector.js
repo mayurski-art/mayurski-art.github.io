@@ -14,7 +14,7 @@ import * as THREE from "three";
 import { buildWeaponMesh } from "./weapon-model.js?v=p5-em1-wst-hf1";
 import { buildMeleeMesh } from "./gear.js?v=to-hb1kb3-bk1-wst-ig1";
 import { loadModel } from "./battlefield-props.js";
-import { buildDragonfireModel } from "./dragonfire.js?v=df2-sb2";
+import { buildDragonfireModel } from "./dragonfire.js?v=df3-sb2";
 import { buildSamTurretModel } from "./sam-turret.js?v=sam1";
 
 /* The glb each scorestreak flies in the match (see streak-entities.js). */

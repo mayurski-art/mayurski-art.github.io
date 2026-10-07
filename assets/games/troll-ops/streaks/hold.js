@@ -3,7 +3,7 @@
 
 import { POWER_HOLSTER_TIME, MELEE_DRAW_TIME } from "../combat/melee.js?v=ml1-kc2-si1-gj1";
 import { cancelCook } from "../combat/throwables.js?v=th1-kc2-si1-gj1";
-import { activeMeleeMesh } from "../view/viewmodels.js?v=vm1-si1-gj1";
+import { activeMeleeMesh } from "../view/viewmodels.js?v=vm1-si1-gj1-if1";
 import { callStreak } from "./calling.js?v=sk1-si1-gj1";
 import { setHolding } from "../combat/weapons.js?v=wp1-kc2-si1-gj1";
 import { launchPendingDrone } from "./fire.js?v=sk1-si1-gj1";

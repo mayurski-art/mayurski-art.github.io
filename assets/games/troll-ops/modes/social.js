@@ -7,7 +7,7 @@ import { addXp } from "../progression.js?v=p5-wst-sb2";
 import { clearStreakEntities } from "../streaks/calling.js?v=sk1-si1-gj1";
 import { setHillMarker, setBombSiteMarkers } from "../core/minimap.js?v=cr1-gj1";
 import { teardownRoyale } from "./royale.js?v=md1-gj1";
-import { setNetStatus } from "../menu/lobby.js?v=lb1-si1-gj1";
+import { setNetStatus } from "../menu/lobby.js?v=lb1-si1-gj1-if1";
 import { game } from "../core/state.js?v=st1";
 
 // A Socialize room (QSOC) is a hangout until the owner, troll_runner,
