@@ -4,7 +4,7 @@
 import { touchState, setTouchAds } from "../input/touch.js?v=in1";
 import { currentWeapon, fireOnce, tryReload } from "../combat/weapons.js?v=wp1-kc2-si1";
 import { MOUSE_ACTIVE_MS, applyAimAssist, AIM_ASSIST_MOUSE_PULL } from "../input/aim-assist.js?v=in1";
-import { isStaging } from "../modes/match-start.js?v=mst1-si1";
+import { isStaging } from "../modes/match-start.js?v=mst1-si1-mb1";
 import { dragonfireView, DF_ASSIST_PULL, DF_ASSIST_CONE_DEG, fireDragonfire } from "../streaks/dragonfire.js?v=sk1-si1";
 import { lookSensScale, warshipView, placeWarshipCamera, fireWarship } from "../streaks/warship.js?v=sk1-si1";
 import { royaleDropView, royaleRolling, stageFrozen, updateRoyaleRoll, royaleRollK, ROLL_SPEED, updateDropPlayer, royale, royaleSpectating, placeSpectateCamera, placeDropCamera, _dropTarget, cancelRoyaleAct } from "../modes/royale.js?v=md1";
