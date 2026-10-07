@@ -3416,23 +3416,61 @@ body.is-map .to-bo2-anim { visibility: hidden; }
   .to-bo2-foot { left: 40px; right: 24px; }
 }
 
-@container cab (max-width: 760px) {
-  .to-bo2 { --bo2-col: 12px; }
-  .to-bo2-brand { left: 20px; top: 16px; font-size: 18px; }
-  .to-bo2-party { left: 20px; right: 20px; width: auto; top: 46px; }
-  .to-bo2-party-lbl, .to-bo2-xp { display: none; }
-  .to-bo2-menu { left: 20px; right: 20px; width: auto; top: auto; bottom: calc(var(--foot-h, 42px) + 18px + 12px); max-height: min(64cqh, calc(100% - var(--foot-h, 42px) - 120px)); }
-  .to-bo2-bg::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(3,1,1,0) 12%, rgba(3,1,1,.5) 34%, rgba(3,1,1,.85) 62%); }
+/* Phones look like the desktop (user, 2026-10-07). Sideways (short and
+   wide) or a narrow window: the desktop layout itself, sized down. Upright:
+   the desktop's pieces in the desktop's order, stacked: the list first with
+   the operator standing beside it, the party row under it; a detail pane
+   (Barracks, a class, the board) takes the room under the list. Rows stay
+   desktop size. --menu-h is the list's live height (menu-bo2.js). */
+@container cab (min-aspect-ratio: 9/10) and ((max-height: 520px) or (max-width: 760px)) {
+  .to-bo2, #to-title.is-bo2 .to-pf { --bo2-col: 50%; }
+  .to-bo2-brand { left: max(28px, env(safe-area-inset-left)); top: 12px; font-size: 16px; }
+  .to-bo2-menu { left: max(30px, calc(env(safe-area-inset-left) + 2px)); top: 40px; width: min(380px, 44%); max-height: calc(100% - 40px - var(--foot-h, 36px) - 16px); }
+  .to-bo2-menu .tr-menu-title { font-size: 24px; margin-bottom: 2px; }
+  .to-bo2-menu .tr-menu-item { min-height: 24px; line-height: 24px; font-size: 16px; }
+  .to-bo2-menu .tr-menu-group { padding-bottom: 4px; }
+  .to-bo2-menu .tr-menu-desc { font-size: 13px; min-height: 0; margin-top: 2px; }
+  .to-bo2-party { top: 44px; width: min(320px, calc(50% - 24px)); gap: 4px; }
+  .to-bo2-party-lbl { font-size: 14px; }
+  .to-bo2-party-row { min-height: 30px; }
+  .to-bo2-party-row b { font-size: 16px; }
+  .to-bo2-detail, .to-bo2-panel { right: max(20px, env(safe-area-inset-right)); top: 54px; max-height: calc(100% - 54px - var(--foot-h, 36px) - 20px); padding: 12px 14px; }
+  .to-bo2.has-gun .to-bo2-detail { top: 54px; }
+  #to-title.is-bo2 .to-pf > .to-gun-view.is-hero { display: none; }
+  #to-title.is-bo2 .to-char-view { left: 50%; top: 96px; bottom: 16px; }
+  .to-bo2-foot { left: max(44px, env(safe-area-inset-left)); right: max(20px, env(safe-area-inset-right)); bottom: 8px; gap: 14px; align-items: center; }
+  .to-bo2-online { font-size: 22px; }
+  .to-bo2-anim { min-height: 30px; font-size: 13px; padding: 0 10px; }
+}
+/* sideways: the radio up in the corner, above the detail pane */
+@media (max-height: 520px) and (min-aspect-ratio: 9/10) {
+  #to-title.is-bo2:not([hidden]) ~ .to-radio { top: 8px; right: max(20px, env(safe-area-inset-right)); }
+  #to-title.is-bo2:not([hidden]) ~ .to-radio .to-radio-panel { top: 44px; }
+}
+@container cab (max-aspect-ratio: 9/10) {
+  .to-bo2, #to-title.is-bo2 .to-pf { --bo2-col: 12px; }
+  .to-bo2-brand { left: 20px; top: calc(16px + env(safe-area-inset-top)); font-size: 18px; }
+  .to-bo2-bg::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: rgba(3,1,1,.3); }
   body.is-map .to-bo2-bg::after { display: none; }
-  .to-bo2-detail, .to-bo2-panel { left: 12px; right: 12px; top: 84px; bottom: calc(var(--menu-h, 300px) + var(--foot-h, 42px) + 42px); max-height: none; padding: 12px; }
+  .to-bo2-menu { left: 20px; right: 20px; width: auto; top: calc(56px + env(safe-area-inset-top));
+    max-height: calc(100% - 56px - 86px - var(--foot-h, 42px) - 40px - env(safe-area-inset-top)); }
+  .to-bo2-menu .tr-menu-title { font-size: 32px; margin-bottom: 2px; }
+  .to-bo2-menu .tr-menu-item { min-height: 29px; line-height: 29px; font-size: 19px; }
+  .to-bo2-menu .tr-menu-group { padding-bottom: 6px; }
+  .to-bo2-menu .tr-menu-desc { font-size: 14px; min-height: 40px; }
+  /* with a detail pane open, the list keeps to the top part and scrolls */
+  .to-bo2.has-detail .to-bo2-menu { max-height: 40%; }
+  .to-bo2-party { left: 20px; right: 20px; width: auto; top: calc(56px + env(safe-area-inset-top) + var(--menu-h, 300px) + 8px); }
+  .to-bo2-detail, .to-bo2-panel { left: 12px; right: 12px; top: calc(56px + env(safe-area-inset-top) + var(--menu-h, 300px) + 8px); bottom: auto; max-height: calc(100% - 56px - env(safe-area-inset-top) - var(--menu-h, 300px) - 8px - var(--foot-h, 42px) - 30px); padding: 12px; }
   #to-title.is-bo2 .to-bo2-detail .to-lo-detail { background: none; border: 0; padding: 0; box-shadow: none; }
   .to-bo2-panel { bottom: auto; }
-  .to-bo2.has-gun .to-bo2-detail { top: 92px; }
+  .to-bo2.has-gun .to-bo2-detail { top: calc(56px + env(safe-area-inset-top) + var(--menu-h, 300px) + 8px); }
   #to-title.is-bo2 .to-pf > .to-gun-view.is-hero { display: none; }
-  #to-title.is-bo2 .to-char-view { left: 0; top: 76px; bottom: calc(var(--menu-h, 300px) + var(--foot-h, 42px) + 38px); }
-  .to-bo2-foot { left: 20px; right: 16px; bottom: 18px; }
-  .to-bo2-online { font-size: 24px; }
-  .to-bo2-anim { min-height: 44px; font-size: 13px; padding: 0 10px; }
+  /* the operator stands to the right of the list, as on the desktop */
+  #to-title.is-bo2 .to-char-view { left: 46%; top: calc(80px + env(safe-area-inset-top)); bottom: calc(100% - 56px - env(safe-area-inset-top) - var(--menu-h, 300px) + 90px); }
+  .to-bo2-foot { left: 20px; right: 16px; bottom: calc(18px + env(safe-area-inset-bottom)); align-items: center; }
+  .to-bo2-online { font-size: 26px; }
+  .to-bo2-anim { min-height: 40px; font-size: 13px; padding: 0 10px; }
 }
 @media (hover: none) { .to-bo2-back kbd { display: none; } .to-bo2-back { min-height: 44px; font: 600 16px Oswald, sans-serif; letter-spacing: .06em; text-transform: uppercase; } }
 

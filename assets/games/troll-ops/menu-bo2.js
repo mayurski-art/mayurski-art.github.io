@@ -285,7 +285,8 @@ const mapMode = createMapMode({
   getBackdrop: () => backdrop, getMenu: () => menu,
   getInset() {
     const r = nav.getBoundingClientRect();
-    return matchMedia("(max-width:760px)").matches ? { bottom: Math.max(0, innerHeight - r.top + 8) } : { left: r.right + 24 };
+    // Upright phones have the list on top; everywhere else it's on the left.
+    return matchMedia("(max-aspect-ratio:9/10)").matches ? { top: r.bottom + 8 } : { left: r.right + 24 };
   },
 });
 const back = (desc = "Back.") => ({ id: "back", label: "Back", desc, onSelect: (_, m) => m.back() });
@@ -812,7 +813,7 @@ const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 300));
 function coverOn(on) { document.body.classList.toggle("to-bo2-cover", on); }
 idle(async () => {
   try {
-    const { mountMenuBackdrop } = await import("../../js/menu-globe.js?v=to-bo2e");
+    const { mountMenuBackdrop } = await import("../../js/menu-globe.js?v=to-bo2f");
     backdrop = mountMenuBackdrop($(".to-bo2-bg", root));
     if (animOff) backdrop.setStill?.(true);
     coverOn(!title.hidden);
