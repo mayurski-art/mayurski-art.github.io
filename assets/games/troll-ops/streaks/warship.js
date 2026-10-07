@@ -3,15 +3,15 @@
 
 import { touchState } from "../input/touch.js?v=in1";
 import { WARSHIP_GUNS, VtolWarship } from "../streak-entities.js?v=vsat2-hk1";
-import { streakBounds, round2 } from "./fire.js?v=sk1-si1-gj1";
-import { STREAK_DEFS } from "../scorestreaks.js?v=umb1-wst-sb2";
-import { streakEntities, streakBlast } from "./calling.js?v=sk1-si1-gj1";
+import { streakBounds, round2 } from "./fire.js?v=sk1-si1-gj1-fu1";
+import { STREAK_DEFS } from "../scorestreaks.js?v=umb1-wst-sb2-fu1";
+import { streakEntities, streakBlast } from "./calling.js?v=sk1-si1-gj1-fu1";
 import * as THREE from "three";
-import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1";
-import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1";
-import { WEAPON_DEFS } from "../weapons.js?v=p5bm-wst-hf1";
+import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1";
+import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1";
+import { WEAPON_DEFS } from "../weapons.js?v=p5bm-wst-hf1-fu1";
 import { K9Pack } from "../k9-unit.js?v=k9c-bs1-sb2-gj1";
-import { k9Hostile } from "./k9.js?v=sk1-si1-gj1";
+import { k9Hostile } from "./k9.js?v=sk1-si1-gj1-fu1";
 import { game } from "../core/state.js?v=st1";
 
 let wsViewOn = false, wsSaved = null, wsStable = false, wsHud = null;

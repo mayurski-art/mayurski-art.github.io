@@ -13,13 +13,13 @@
    What's in your hand, a sip, and the role ride the state packet. */
 
 import { REACH, GRAB_TIME, BEER_SIPS, FILL_TIME_BARTENDER, FILL_TIME, APRON_TIME, POUR_TIME, OFFER_SECONDS, TIPSY, drinkMax, SIP_TIME, tipsyFx, BARTENDER_LEAVE_SECONDS, buildDrink, mountDrink, poseDrinkArm, placeDrinkInHand } from "../saloon-bar.js?v=sb1";
-import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1";
-import { playerName } from "../menu/lobby.js?v=lb1-si1-gj1-if1";
-import { setSeatLookup } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1";
+import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1";
+import { playerName } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1";
+import { setSeatLookup } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1";
 import { ROLES, DOCTOR, TUNES, PianoVoice } from "../rp-roles.js?v=rp1";
 import { damp } from "../anim-curves.js";
 import { touchState } from "../input/touch.js?v=in1";
-import { frozenPlayer, setTouchContext } from "../combat/weapons.js?v=wp1-kc2-si1-gj1";
+import { frozenPlayer, setTouchContext } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1";
 import { game } from "../core/state.js?v=st1";
 
 export const bar = {

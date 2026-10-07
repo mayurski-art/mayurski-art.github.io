@@ -2,12 +2,12 @@
 // the counts on the HUD and how the match ends.
 
 import { INFECTION } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69";
-import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1";
-import { setHolding, updateGearHud } from "../combat/weapons.js?v=wp1-kc2-si1-gj1";
-import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1";
-import { nameFor } from "../combat/damage.js?v=dm1-kc2-si1-gj1";
+import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1";
+import { setHolding, updateGearHud } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1";
+import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1";
+import { nameFor } from "../combat/damage.js?v=dm1-kc2-si1-gj1-fu1";
 import { MELEE_DEFS, MeleeState } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1";
-import { updateTeamHud } from "../combat/scoring.js?v=sc1-kc2-si1-gj1";
+import { updateTeamHud } from "../combat/scoring.js?v=sc1-kc2-si1-gj1-fu1";
 import { game } from "../core/state.js?v=st1";
 
 // Nobody hosts the match: every client turns itself when it dies, and its

@@ -110,9 +110,6 @@ The user said "HOLD OFF" until they say go.
 - **Animated weapon skins** with effects coming off them.
 - **"For You" emote:** only while falling in Royale. The troll reaches out a hand romantically, with face, hand, body and background shots.
 
-### Trolling Loud: make the seats sittable (user asked 2026-10-05)
-The club's booths and couches (downstairs, the mezzanine ones upstairs, VIP, terrace armchairs) are scenery only: trollingloud.js `rp` has no `seats()`, so hold X never offers "Sit down" there. Add them the way Troll City does (`{x, z, y, floor, yaw, kind, stand}`). Note that `if (seated && emote) standUp()` in game.js stands you up for any emote, so Pour up can't be done sitting yet; the 2026-10-05 booth GIF faked a seat in the recording script only.
-
 ### Backlog (needs a design doc / the user's go first)
 - **Audio + dialogue pass.** BO2 cadence (streak callouts, match flow, objectives, medals, chatter, Royale lines) in a troll voice, with original wording. The doc must decide:
   - TTS vs recorded
@@ -481,6 +478,7 @@ Map rules:
 ## 5. Shipped log (one line each; details are in git)
 
 - **2026-10-07**
+  - Follow-ups (-fu1): rope climbing pose (remote-players.js poseRope); Trolling Loud seats (booths/sofas/armchairs/stools; a seat's optional `reach` works from in front only) and emotes play seated (a duo still stands you up); fire cuts a magazine reload short when rounds are left (`reloadCut` skips the done sound); Infection's infected always get the keyboard sword; Troll Royale loading shot (map-previews `MODE` shoots a map in its own mode); Troll City sign boards stood off their frames (they z-fought); no aim assist while cooking a throwable; dragonfire.js imported under one tag.
   - Grinjuku (Shinjuku at night, after VALORANT's Split): versus + S&D with designed sites A (-22, 15) / B (22, 15), Heavens 3 m up, Sewers/Mail/Vents, 4 ropes (new: walk in to grab, look down to descend, jump off; bots climb them, dogs don't). grinjuku-layout.js is the one source of truth for colliders and build_grinjuku.blender.py (gj-*.glb, 5.3 MB). Tests: map-walk (15 routes), troll-ops-rope-test.mjs (20, in the gate), bot-stairs rope check.
   - Dust Bowl bazaar 5 (redesign done): power wires across the street, laundry to the centre house, rooftop tanks (colliders, unreachable roofs), three smoke plumes in the city (dustbowl-city.js citySmoke, one Points draw), new loading-screen renders (map-load-screen.js SHOT_V: per-map shot tags, dustbowl hq2).
   - Dust Bowl bazaar 4: channel water works: plank crossing at x -17.5 (walk route 15), culvert pipe + three rubble piles as sub-1.5 m cover, pipe run on the south bank (broken at its stairs), culvert outlets in the north bank face (z 20), sluice frame at x 27.

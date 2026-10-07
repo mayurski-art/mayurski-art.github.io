@@ -10,7 +10,7 @@
 
 import * as THREE from "three";
 import { groundHeightAt, resolveCircle } from "./movement.js?v=umb2-sb2-gj1";
-import { segmentBlocked } from "./ballistics.js?v=cg1-wst-hf1";
+import { segmentBlocked } from "./ballistics.js?v=cg1-wst-hf1-fu1";
 import { FlowField } from "./nav.js?v=ti1-bs1";
 import { clampInsidePolygon, insidePolygon } from "./edge.js";
 
