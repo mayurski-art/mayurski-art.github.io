@@ -69,6 +69,7 @@ These rules hold for every session that touches the game:
    troll-ops.html whenever an import tag changes.
 5. A fix touches one system. Two systems = two commits, each checked with
    its own targeted test; one full gate before the push covers the batch.
+   This stands until the user says otherwise.
 6. Never `sed -i` over `*.js`: it rewrites every file's line endings.
 7. Keep assets/games/troll-ops/HANDOFF.md short: one shipped-log line per
    landed task.
