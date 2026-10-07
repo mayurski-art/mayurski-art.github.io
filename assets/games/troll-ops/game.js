@@ -2931,7 +2931,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     // Socialize roleplay phase 2 (rp-roles.js): seats, the piano, the jobs.
     rp: () => ({
       seated: seated && { idx: seated.idx, kind: seated.s.kind, eye: move.eyeHeight }, role: bar.role, tipsy: bar.tipsy,
-      piano: { playing: piano.playing, tune: piano.tune, voices: [...piano.voices.keys()] }, yieldKey: npcYieldKey,
+      piano: { playing: piano.playing, tune: piano.tune, voices: [...piano.voices.keys()], keys: piano.panel?.state() ?? null, heard: piano.heard }, yieldKey: npcYieldKey,
       prompt: els.pickupPrompt.hidden ? null : els.pickupPromptText.textContent,
     }),
     rpSeats: () => rpSeats(), seatTaken, sitDown, standUp, docSpots: () => docSpots(),

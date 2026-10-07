@@ -688,7 +688,7 @@ export class RemotePlayer {
     // (an emote plays sat down too: the emote has the arms, the seat the legs)
     const seat = this.peer.seat && this.alive ? seatList()?.[this.peer.seat - 1] : null;
     if (seat) {
-      if (seat.kind === "piano" && !em) posePianoArms(this.rig, this.pianoT = (this.pianoT || 0) + dt, 0.5, !!this.peer.piano);
+      if (seat.kind === "piano" && !em) posePianoArms(this.rig, this.pianoT = (this.pianoT || 0) + dt, 0.5, !!this.peer.piano || performance.now() - (this.peer.keysAt || 0) < 700);
       poseSeated(this.rig, seat.y, seat.kind === "stool" ? 0.55 : 0);
     }
     rollRig(this.rig, roll);

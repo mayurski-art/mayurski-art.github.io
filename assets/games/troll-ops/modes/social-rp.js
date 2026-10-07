@@ -22,6 +22,8 @@ import { damp } from "../anim-curves.js";
 import { touchState } from "../input/touch.js?v=in1";
 import { frozenPlayer, setTouchContext } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1";
 import { game } from "../core/state.js?v=st1";
+import { PianoPanel } from "../menu/piano-panel.js?v=pp1";
+import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1";
 
 export const bar = {
   drink: null,      // { kind: "beer"|"whiskey", sips }
@@ -287,7 +289,11 @@ function setBarRole(role, note) {
    Anyone can take a tonic at his medicine shelf. A townsfolk NPC with the
    job steps off while a player has it. */
 export let seated = null;    // { idx, s } while we're sat down
-export const piano = { playing: false, tune: 0, played: false, voices: new Map(), t: 0 };
+/* `live`: a voice per pianist for keys played by hand (ours is "me");
+   `panel`: the keys and sheets (menu/piano-panel.js) once we've sat down;
+   `heard`: notes from the room's pianists (the test reads it). */
+export const piano = { playing: false, tune: 0, played: false, voices: new Map(), t: 0, live: new Map(), panel: null, heard: 0, sent: [] };
+const KEYS_PER_SECOND = 20;
 export let npcYieldKey = "";
 
 export const rpSeats = () => (game.isSocial() ? game.builtMap?.map?.rp?.seats?.() || null : null);
@@ -335,12 +341,63 @@ export function sitDown(idx) {
   const other = otherWithRole("pianist");
   if (other) showWaveBanner(`${other.name} has the piano`, 1800);
   else if (bar.role && bar.role !== "pianist") showWaveBanner(`You're the ${ROLES[bar.role].label.toLowerCase()}: one job at a time`, 2000);
-  else setBarRole("pianist", game.isTouch ? "You're on the piano. Fire plays a tune, again stops." : "You're on the piano. Click to play a tune, again to stop.");
+  else { setBarRole("pianist", "You're on the piano. Play the keys, or pick a sheet"); pianoKeys().open(); }
+}
+
+/* The piano's keys and sheets, made the first time we sit at one. */
+function pianoKeys() {
+  piano.panel ??= new PianoPanel({
+    mount: game.els.hud,
+    isTouch: game.isTouch,
+    releaseInputs: () => releaseHeldInputs(),
+    lock: () => { if (game.gameState === "playing") game.controls.lock(); },
+    unlock: () => game.controls.unlock(),
+    onNote: (midi) => playKey(midi),
+    onAuto: () => togglePiano(),
+    autoOn: () => piano.playing,
+    onStand: () => standUp(),
+    banner: (text, ms) => showWaveBanner(text, ms),
+  });
+  return piano.panel;
+}
+
+/* A key we played: heard here at once, sent to the room (at most 20 a
+   second, so a mashed keyboard can't flood it). */
+function playKey(midi) {
+  if (!atPiano()) return;
+  const now = performance.now();
+  piano.sent = piano.sent.filter((t) => now - t < 1000);
+  if (piano.sent.length >= KEYS_PER_SECOND) return;
+  piano.sent.push(now);
+  liveVoice("me", seated.s).strike(midi, 0.8, 0.9);
+  game.net.publishRp({ k: "pn", n: midi });
+}
+
+function liveVoice(id, s) {
+  let v = piano.live.get(id);
+  if (!v) { v = new PianoVoice(game.audio, { x: s.x, y: s.y + 0.6, z: s.z }); piano.live.set(id, v); }
+  return v;
+}
+
+/* A key another pianist played: only from whoever's sat at a piano with
+   the job, through that piano, as loud as it is from here. */
+function pianoKeyFrom(p, midi) {
+  const s = p.seat ? rpSeats()?.[p.seat - 1] : null;
+  if (s?.kind !== "piano" || p.role !== "pianist" || !(midi >= 36 && midi <= 96)) return;
+  const now = performance.now();
+  p.pnSent = (p.pnSent || []).filter((t) => now - t < 1000);
+  if (p.pnSent.length >= KEYS_PER_SECOND) return;
+  p.pnSent.push(now);
+  p.keysAt = now;
+  piano.heard++;
+  const d = Math.hypot(s.x - game.camera.position.x, s.z - game.camera.position.z);
+  liveVoice(p.id, s).strike(midi, 0.8, Math.max(0, Math.min(1, 1 - (d - 10) / 28)) * 0.9);
 }
 
 export function standUp() {
   const s = seated?.s;
   seated = null;
+  piano.panel?.close();
   if (!s) return;
   game.move.pos.set(s.stand.x, s.floor, s.stand.z);
   game.move.velocity.set(0, 0, 0);
@@ -361,7 +418,8 @@ export function holdSeat(dt, ix, iz, jump) {
 
 /* Hold X (after the saloon bar's own): the doctor, a seat. */
 function rpAction() {
-  if (seated) return null;
+  // At the piano with its keys put away: get them out again.
+  if (seated) return atPiano() && !piano.panel?.isOpen ? { key: "pianokeys", label: "Play the keys", ctx: "Keys", time: 0.2, done: () => pianoKeys().open() } : null;
   // The doctor: a check-up for whoever's beside us (before the bag:
   // a patient by the desk shouldn't get the bag put down).
   if (bar.role === "doctor") {
@@ -455,6 +513,9 @@ function updateRp(dt) {
 function stopPianos() {
   for (const v of piano.voices.values()) v.stop();
   piano.voices.clear();
+  for (const v of piano.live.values()) v.stop();
+  piano.live.clear();
+  piano.panel?.close(true);
   piano.playing = false;
 }
 
@@ -483,6 +544,7 @@ export function onBarMessage(p, m) {
     return;
   }
   if (m.k === "mugtake") { removeMug(String(m.id || "")); return; }
+  if (m.k === "pn") { pianoKeyFrom(p, m.n | 0); return; }
   if (m.to !== game.net.id) return;
   const now = performance.now();
   if (m.k === "cure") {
@@ -523,7 +585,7 @@ export function updateBar(dt) {
 
   // A sip: fire, one at a time. The drink goes down halfway through it.
   const fireNow = !game.localPauseOnly && !game.emoteWheel.isOpen && (game.mouseDown || (game.isTouch && touchState.firing) || (game.gamepadState.connected && game.gamepadState.firing));
-  if (fireNow && !bar.fireWas && atPiano() && game.player.alive) togglePiano();   // at the piano, fire plays
+  if (fireNow && !bar.fireWas && atPiano() && !piano.panel?.isOpen && game.player.alive) togglePiano();   // at the piano, fire plays
   else if (fireNow && !bar.fireWas && bar.drink?.sips > 0 && bar.sipT <= 0 && game.player.alive) {
     bar.sipT = SIP_TIME; bar.sipDone = false;
     if (game.emote) game.stopEmote();

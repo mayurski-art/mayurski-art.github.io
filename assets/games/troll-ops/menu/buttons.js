@@ -9,6 +9,7 @@ import { renderModes } from "./mode-picker.js?v=mp1-fu1";
 import { setTouchAds } from "../input/touch.js?v=in1";
 import { cancelCook } from "../combat/throwables.js?v=th1-kc2-si1-gj1-fu1";
 import { returnToSocial, cancelSocialReturn } from "../modes/social.js?v=so1-si1-mb1-gj1-if1-fu1";
+import { piano } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1";
 import { game } from "../core/state.js?v=st1";
 
 export function initMenuButtons() {
@@ -80,7 +81,8 @@ export function initMenuButtons() {
   game.controls.addEventListener("unlock", () => {
     game.chat.setInteractive(true);
     cancelCook();
-    if (game.gameState === "playing" && !game.djLulz.isOpen) game.openPauseMenu();
+    // the DJ booth and the piano's keys free the mouse on purpose
+    if (game.gameState === "playing" && !game.djLulz.isOpen && !piano.panel?.isOpen) game.openPauseMenu();
   });
 
   document.addEventListener("visibilitychange", () => {

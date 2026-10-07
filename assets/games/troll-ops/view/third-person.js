@@ -294,7 +294,7 @@ export function updateLocalRig(dt) {
   if (game.isSocial()) syncLocalDrink(true);   // the saloon bar: a drink in hand
   // Sat down (rp-roles.js); at the piano, both hands on the keys.
   if (seated && game.isSocial()) {
-    if (seated.s.kind === "piano") posePianoArms(game.localRig, piano.t += dt, 0.3, piano.playing);
+    if (seated.s.kind === "piano") posePianoArms(game.localRig, piano.t += dt, 0.3, piano.playing || performance.now() - (piano.sent.at(-1) || 0) < 700);
     poseSeated(game.localRig, seated.s.y, seated.s.kind === "stool" ? 0.55 : 0);
   }
   rollRig(game.localRig, royaleRollK());

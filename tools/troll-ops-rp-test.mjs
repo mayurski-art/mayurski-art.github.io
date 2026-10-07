@@ -174,6 +174,44 @@ check("sitting at the piano makes A the pianist", s.seated?.kind === "piano" && 
 await pump(A, 300);
 const pete = await A.evaluate(() => window.__trollOps.townNpcs().list.find((n) => n.c.role === "Pianist")?.rig.root.visible);
 check("Piano Pete steps off", pete === false);
+// the keys and the sheet music (menu/piano-panel.js)
+let k = (await rp(A)).piano.keys;
+check("sitting at the piano opens its keys", k?.open === true, JSON.stringify(k));
+check("not the pause menu (the keys free the mouse on purpose)", await A.evaluate(() => window.__trollOps.els.pause.hidden));
+const heard0 = (await rp(B)).piano.heard;
+await A.keyboard.press("q");
+await pumpBoth(A, B, 800);
+k = (await rp(A)).piano.keys;
+check("a key plays a note", k.hits === 1, JSON.stringify(k));
+check("the other tab hears A's key", (await rp(B)).piano.heard === heard0 + 1, `${heard0} -> ${(await rp(B)).piano.heard}`);
+check("the keys don't move A off the stool", (await rp(A)).seated?.kind === "piano");
+const piece = () => A.evaluate(() => {
+  [...document.querySelectorAll(".to-piano [data-level]")].find((b) => b.dataset.level === "Easy")?.click();
+  [...document.querySelectorAll(".to-piano [data-sheet]")].find((b) => /hot cross buns/i.test(b.textContent))?.click();
+});
+await piece();
+k = (await rp(A)).piano.keys;
+check("an easy sheet opens", k.sheet === "Hot Cross Buns" && k.cursor === 0 && k.length === 17, JSON.stringify(k));
+await A.keyboard.press("w");     // D4: not the first note
+await pump(A, 200);
+k = (await rp(A)).piano.keys;
+check("a wrong key doesn't move the cursor", k.cursor === 0, JSON.stringify(k));
+await A.keyboard.press("e");     // E4: the first note
+await A.keyboard.press("w");     // D4: the second
+await pump(A, 200);
+k = (await rp(A)).piano.keys;
+check("the right keys walk it on", k.cursor === 2, JSON.stringify(k));
+const hard = await A.evaluate(() => {
+  document.querySelector('.to-piano [data-a="sheets"]')?.click();
+  [...document.querySelectorAll(".to-piano [data-level]")].find((b) => b.dataset.level === "Hard")?.click();
+  return [...document.querySelectorAll(".to-piano [data-sheet]")].map((b) => b.textContent);
+});
+check("the hard sheets are there", hard.some((t) => /für elise/i.test(t)) && hard.some((t) => /entertainer/i.test(t)), hard.join(" / "));
+await A.keyboard.press("Escape");
+await pump(A, 300);
+s = await rp(A);
+check("Esc puts the keys away, A still sat", s.piano.keys.open === false && s.seated?.kind === "piano", JSON.stringify(s.piano.keys));
+check("and hold X gets them out again", /play the keys/i.test(s.prompt || ""), s.prompt);
 await fire(A);
 s = await rp(A);
 check("fire plays a tune", s.piano.playing && s.piano.voices.includes("me"), JSON.stringify(s.piano));

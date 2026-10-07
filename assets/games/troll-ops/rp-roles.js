@@ -213,7 +213,18 @@ export class PianoVoice {
     }
   }
 
-  when(i) { return this.t0 + (this.lap * this.loop.beats + this.loop.events[i][0]) * this.spb; }
+  /* One key struck by hand (the piano panel), now, at `gain` (how near). A
+     voice for live keys is never update()d, so no tune plays through it. */
+  strike(midi, vel = 0.8, gain = 1, dur = 0.8) {
+    const a = this.audio;
+    if (!a._ready()) return false;
+    if (!this.out) { this.start(); this.out.gain.value = Math.max(0, gain); }
+    else this.out.gain.setTargetAtTime(Math.max(0, gain), a.ctx.currentTime, 0.02);
+    this.note(midi, a.ctx.currentTime + 0.005, dur, vel);
+    return true;
+  }
+
+  when(i) { return this.t0 +(this.lap * this.loop.beats + this.loop.events[i][0]) * this.spb; }
   step() { if (++this.next >= this.loop.events.length) { this.next = 0; this.lap++; } }
 
   /* A struck string: a bright attack fading fast, a body that rings, and
