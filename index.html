@@ -150,8 +150,6 @@ kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgb
   </aside>
 
   <section class="home-panel" id="panel-about" aria-label="About" hidden>
-
-    <p>A real runner, a trollface and a site full of games and lore. Troll the world. Anonymity. Perseverance. Revenge.</p>
     <div class="home-socials">
       <a href="https://x.com/troll_runner" target="_blank" rel="noopener noreferrer">X @troll_runner</a>
       <a href="https://www.tiktok.com/@mayurski" target="_blank" rel="noopener noreferrer">TikTok</a>
@@ -228,8 +226,12 @@ const mapMode = createMapMode({
   },
 });
 
+// About (the socials and the admin login) is the Troll Runner's own: only
+// shown while troll_runner is signed in.
+const isTrollRunner = () => String(accounts()?.getCachedProfile?.()?.username || '').toLowerCase() === 'troll_runner';
+
 const screens = {
-  main: {
+  main: () => ({
     title: 'Main Menu',
     groups: [
       [
@@ -239,11 +241,11 @@ const screens = {
       [
         { id: 'stickers', label: 'Stickers', desc: 'Printable troll stickers. Print, cut, slap.', href: 'stickers.html' },
       ],
-      [
-        { id: 'about', label: 'About', desc: 'The runner behind the site, plus the socials.', go: 'about' },
-      ],
+      isTrollRunner() ? [
+        { id: 'about', label: 'About', desc: 'The socials and the admin login.', go: 'about' },
+      ] : [],
     ],
-  },
+  }),
   arcade: {
     title: 'Arcade',
     groups: [
@@ -259,7 +261,7 @@ const screens = {
       ],
     ],
   },
-  about: panel('panel-about', 'About', 'Back to the main menu.'),
+  about: () => (isTrollRunner() ? panel('panel-about', 'About', 'Back to the main menu.') : null),
   ...mapMode.screens,
 };
 
@@ -298,6 +300,9 @@ function renderAccount() {
     $('home-acct-note').textContent = 'Log in to save progress';
     row.setAttribute('aria-label', 'Log in');
   }
+  // About comes and goes with the troll_runner sign-in.
+  if (menu.current() === 'about' && !isTrollRunner()) menu.back();
+  else if (menu.current() === 'main') menu.refresh();
 }
 $('home-acct-row').addEventListener('click', openProfile);
 window.addEventListener('trollrunner:auth-changed', renderAccount);
@@ -370,7 +375,7 @@ $('admin-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') goTo
   const go = { about: 'about', map: 'map' };
   const href = { games: 'games.html', maps: 'maps.html', pfp: 'pfp.html', stickers: 'stickers.html', finance: 'https://finance.trollrunner.net', terminal: 'https://trolltruths.com' };
   if (open === 'account') document.addEventListener('DOMContentLoaded', () => setTimeout(openProfile, 300));
-  else if (go[open]) menu.go(go[open]);
+  else if (go[open] && (open !== 'about' || isTrollRunner())) menu.go(go[open]);
   else if (href[open]) location.replace(href[open]);
 })();
 
