@@ -502,7 +502,8 @@ Map rules:
   - game.js split, phase 5a: input/keyboard-mouse.js (pointer lock, mouse look, key bindings), core/scoreboard.js; game.js 4,070 -> 3,843 lines.
   - game.js split, phase 5b: view/local-emotes.js (emote wheel state, duo emotes); game.js 3,843 -> 3,661 lines.
   - game.js split, phase 5c: modes/spawns.js (spawn scoring, sides, spreading, range bots); game.js 3,661 -> 3,422 lines. bot-stairs test is flaky on main too (different flights fail run to run).
-  - game.js split, phase 5d: combat/bot-fire.js (bot targets, shot fx, anti-air, bot damage); game.js 3,422 -> 3,236 lines. Next: 5e streak hold/tablet dive/melee holster -> streaks/hold.js, 5f pause menu + room bot skill + match clock.
+  - game.js split, phase 5d: combat/bot-fire.js (bot targets, shot fx, anti-air, bot damage); game.js 3,422 -> 3,236 lines.
+  - game.js split, phase 5e: streaks/hold.js (streak call window, tablet dive, melee holster); game.js 3,236 -> 3,096 lines. Next: 5f pause menu + room bot skill + match clock.
   - game.js split, phase 0: `node tools/troll-ops-gate.mjs` (parse, every mode, bot movement, both room tests; ~12 min, `--quick` skips the room tests) is the pre-push gate; `core/state.js` is the home for shared state as systems move out; session rules in CLAUDE.md. Nothing moved yet.
   - Bot host = the oldest LIVE client (net.hostId: a state message in the last 15 s, not flagged slow); a stuck or hidden tab no longer freezes everyone's bots or sets the room's map.
 

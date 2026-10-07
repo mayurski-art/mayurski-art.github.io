@@ -142,6 +142,7 @@ import { PITCH_LIMIT, controls, keys, lockChangedAt, look, initKeyboardMouse } f
 import { armDuo, duoArmed, duoIncoming, duoOutgoing, duoTarget, duoXClaimed, emoteIsTp, emoteKind, emoteWheel, fpEmoteFrame, nearestDuoTeammate, onDuoMessage, sendDuoInvite, stopEmote, updateDuo, validEmote, initLocalEmotes } from "./view/local-emotes.js?v=le1";
 import { SPAWN_GUARD, botSpawn, clearRangeBots, notePointDeath, occupants, renderPauseRange, spawnDeaths, spawnForTeam, spawnRangeBot, teamSpawn } from "./modes/spawns.js?v=spw1";
 import { botDealDamage, botTargets, onBotShoot, remoteShotFx, updateBotAntiAir } from "./combat/bot-fire.js?v=bf1";
+import { DIVE_LOOK, DRONE_TOSS_AT, MARKER_THROW_TIME, MELEE_HOLSTER_TIME, beginStreakHold, endStreakHold, finishMeleeHolster, finishStreakHold, holsterMeleeFor, holsterMeleeThen, meleePutAway, powerHeld, startTabletDive, streakDeviceKind, streakHoldActive, streakHoldUntilMark, streakLowering, streakScreen, tabletDiveDip, tabletDiveK, updateTabletDive } from "./streaks/hold.js?v=sh1";
 /* What the split-out modules reach back into game.js for (see core/state.js).
    Functions go in as they are; everything else as a getter, so nothing is
    read before game.js declares it. game.js only ever gets smaller: an
@@ -1984,6 +1985,7 @@ const player = {
 // main gun regardless of what was held when the last one ended.
 let currentWeaponSlot = "primary";
 
+
 /* Streak device call window (DESIGN-ARMS.md Phase 5). `streakHoldT > 0`
    means "stay on the device," ticked down in updatePlayer(); reaching 0
    returns to whatever was held before (streakReturnTo: the gun in either
@@ -1991,23 +1993,8 @@ let currentWeaponSlot = "primary";
    `streakHoldUntilMark` means "don't count down — stay up for the whole
    marking window," cleared explicitly by confirmMark()/cancelMark(). */
 let streakHoldT = 0;
-let streakHoldUntilMark = false;
-
-/* The tablet used to swap with the gun in one frame both ways. Now ending a
-   hold only starts the tablet lowering (updateStreakView); the gun comes
-   back once it's down, rising from the sprint-lowered pose. */
-let streakLowering = false;
-
-/* What's in the hand while holding === "streak": the tablet/remote (UAV,
-   gunship, the strike's targeting), the care package marker, or the
-   hunter-killer itself before it's tossed. */
-let streakDeviceKind = "tablet";
-// Which page the tablet shows: "uav", "gunship", "strike" (drawTabletScreen).
-let streakScreen = "idle";
 let streakHoldElapsed = 0;
-const MARKER_THROW_TIME = 0.5;
 let markerThrowT = 0;
-const DRONE_TOSS_AT = 0.6;          // seconds into the hold that the drone leaves the hand
 let pendingDroneLaunch = null;
 
 /* Tablet dive (user): for the streaks you work from the tablet (Lightning
@@ -2017,135 +2004,8 @@ let pendingDroneLaunch = null;
    drone's camera). `then` runs at the cut. Called streaks that just
    confirm (UAV, gunship, VSAT...) keep the plain hold. */
 let tabletDive = null;        // { t, dur, then }
-let tabletDiveFx = null;
-const DIVE_LOOK = 0.42;       // share of the dive spent looking down at it
-function startTabletDive(dur, then = null) {
-  tabletDive = { t: 0, dur: Math.max(0.5, dur), then };
-}
-function tabletDiveK() { return tabletDive ? Math.min(1, tabletDive.t / tabletDive.dur) : 0; }
-/* How far the view has tipped down onto the tablet (radians). */
-function tabletDiveDip() {
-  if (!tabletDive) return 0;
-  const k = tabletDiveK();
-  const a = Math.min(1, k / DIVE_LOOK);
-  return 0.38 * a * a * (3 - 2 * a);
-}
-function updateTabletDive(dt) {
-  if (!tabletDive) return;
-  if (!player.alive || gameState !== "playing") { tabletDive = null; return; }
-  tabletDive.t += dt;
-  if (tabletDive.t >= tabletDive.dur) {
-    const then = tabletDive.then;
-    tabletDive = null;
-    tabletDiveFlash();
-    then?.();
-  }
-}
-function tabletDiveFlash() {
-  if (!tabletDiveFx) {
-    tabletDiveFx = document.createElement("div");
-    tabletDiveFx.className = "to-tablet-dive";
-    tabletDiveFx.setAttribute("aria-hidden", "true");
-    (els.streakMark?.parentElement || document.body).appendChild(tabletDiveFx);
-  }
-  tabletDiveFx.classList.remove("is-on");
-  void tabletDiveFx.offsetWidth;   // restart the animation
-  tabletDiveFx.classList.add("is-on");
-  audio.reload();
-}
-
-/* Calling a streak with the melee weapon out (user): it's put away first —
-   the draw played backwards, down and off low right, blade powering down —
-   and the streak is called the moment it's gone. A swing in progress
-   finishes first. `id` is the streak waiting on it. */
-const MELEE_HOLSTER_TIME = 0.4;
 let meleeHolster = null;        // { t, id }
-let meleePutAway = false;       // true only while the holstered call runs
-let streakReturnTo = "gun";     // what the hold hands back to: "gun" | "melee"
 
-function holsterMeleeFor(id) {
-  if (meleeHolster) { meleeHolster.id = id; meleeHolster.then = null; return; }
-  meleeHolster = { t: 0, id, started: false, len: powerHeld() ? POWER_HOLSTER_TIME : MELEE_HOLSTER_TIME };
-  cancelCook();
-}
-
-/* Is the melee weapon in hand an energy blade (Trollsaber, Halo Blade)? */
-function powerHeld() {
-  const ud = activeMeleeMesh?.userData;
-  return player.holding === "melee" && !!(ud?.saber || ud?.halo);
-}
-
-/* Put the energy blade away before `then` runs (a weapon swap): it powers
-   down in the hand, then drops out of view. */
-function holsterMeleeThen(then) {
-  if (meleeHolster) { meleeHolster.then = then; return; }
-  meleeHolster = { t: 0, id: null, then, started: false, len: POWER_HOLSTER_TIME };
-  cancelCook();
-}
-
-function finishMeleeHolster() {
-  if (meleeHolster.then) {
-    const then = meleeHolster.then;
-    meleeHolster = null;
-    meleePutAway = true;
-    try { then(); } finally { meleePutAway = false; }
-    return;
-  }
-  const id = meleeHolster.id;
-  meleeHolster = null;
-  meleePutAway = true;
-  try { callStreak(id); } finally { meleePutAway = false; }
-  if (player.holding === "streak") streakReturnTo = "melee";
-  // The call didn't go through after all (spent, jammed...): draw it back.
-  else if (player.holding === "melee") {
-    meleeDrawT = meleeDrawLen = MELEE_DRAW_TIME;
-    const ud = activeMeleeMesh?.userData;
-    (ud?.saber || ud?.halo)?.ignite();
-    if (ud) ud.holstered = false;
-  }
-}
-
-function beginStreakHold(seconds = 0, kind = "tablet", screen = null) {
-  // Never interrupt a mid-swing; a held melee weapon goes through
-  // holsterMeleeFor first.
-  if (player.holding === "melee" && !meleePutAway) return;
-  if (player.holding !== "streak" || streakDeviceKind !== kind) {
-    streakHoldElapsed = 0;
-    streakRaiseT = 0;
-  }
-  streakDeviceKind = kind;
-  if (screen) streakScreen = screen;
-  streakLowering = false;
-  setHolding("streak");
-  streakHoldT = seconds;
-  streakHoldUntilMark = seconds <= 0;
-}
-
-function endStreakHold(immediate = false) {
-  streakHoldT = 0;
-  streakHoldUntilMark = false;
-  if (player.holding !== "streak") { streakLowering = false; return; }
-  if (immediate || !player.alive) { finishStreakHold(); return; }
-  streakLowering = true;
-}
-
-function finishStreakHold() {
-  streakLowering = false;
-  streakRaiseT = 0;
-  markerThrowT = 0;
-  if (player.holding === "streak") {
-    // Back to the melee weapon if that's what it was called off (it draws
-    // itself back up), otherwise the gun - primary or secondary, whichever
-    // slot was up.
-    if (streakReturnTo === "melee") setHolding("melee");
-    if (player.holding === "streak") setHolding("gun");
-  }
-  streakReturnTo = "gun";
-  weaponLowerT = 1;
-  if (pendingDroneLaunch) launchPendingDrone();
-}
-
-function streakHoldActive() { return player.holding === "streak"; }
 
 /* One in the hand: which throwable is cooking, and how much fuse is left. */
 const cooking = { def: null, fuse: 0, slot: null };
