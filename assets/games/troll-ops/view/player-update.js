@@ -7,7 +7,7 @@ import { MOUSE_ACTIVE_MS, applyAimAssist, AIM_ASSIST_MOUSE_PULL } from "../input
 import { isStaging } from "../modes/match-start.js?v=mst1-si1-mb1-gj1-if1-fu1";
 import { dragonfireView, DF_ASSIST_PULL, DF_ASSIST_CONE_DEG, fireDragonfire } from "../streaks/dragonfire.js?v=sk1-si1-gj1-fu1";
 import { lookSensScale, warshipView, placeWarshipCamera, fireWarship } from "../streaks/warship.js?v=sk1-si1-gj1-fu1";
-import { royaleDropView, royaleRolling, stageFrozen, updateRoyaleRoll, royaleRollK, ROLL_SPEED, updateDropPlayer, royale, royaleSpectating, placeSpectateCamera, placeDropCamera, _dropTarget, cancelRoyaleAct } from "../modes/royale.js?v=md1-gj1-fu1";
+import { royaleDropView, royaleOnBelt, royaleRolling, stageFrozen, updateRoyaleRoll, royaleRollK, ROLL_SPEED, updateDropPlayer, updateBeltPlayer, royale, royaleSpectating, placeSpectateCamera, placeDropCamera, _dropTarget, cancelRoyaleAct } from "../modes/royale.js?v=md1-gj1-fu1";
 import { bar, seated, holdSeat } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1";
 import { TIPSY, tipsyFx } from "../saloon-bar.js?v=sb1";
 import { strikeTablet, throwMarker } from "../streaks/fire.js?v=sk1-si1-gj1-fu1";
@@ -120,7 +120,8 @@ export function updatePlayer(dt) {
   // client's own avatar the same way death or staging does, while net
   // updates, bots and remote players keep simulating around it.
   // Heads-down on the strike tablet: you stand still, as in BO2.
-  // On the bus or in the air your stick steers the fall, not your feet.
+  // In the air your stick steers the fall, not your feet. (On the belt you
+  // walk as usual; the floor moving under you is added after, below.)
   const dropping = royaleDropView();
   const dropIx = ix, dropIz = iz;
   const rolling = royaleRolling();
@@ -145,7 +146,8 @@ export function updatePlayer(dt) {
   // Staging doesn't block it: scoping in on the mark is harmless (see canAds).
   const wantAds = game.player.alive && !game.isView() && !game.socialUnarmed() && !game.localPauseOnly && game.empT <= 0 && game.player.holding !== "streak"
     && ((game.isTouch && touchState.ads) || (gp && game.gamepadState.ads) || game.adsHeld || game.keys.has("KeyQ"));
-  const wantFire = !frozen && !game.isView() && !game.socialUnarmed() && ((game.isTouch && touchState.firing) || (gp && game.gamepadState.firing) || game.mouseDown);
+  // On the belt (Troll Royale's opening) the guns stay quiet till you land.
+  const wantFire = !frozen && !royaleOnBelt() && !game.isView() && !game.socialUnarmed() && ((game.isTouch && touchState.firing) || (gp && game.gamepadState.firing) || game.mouseDown);
   // The frame the trigger went down (the 16 ms fireEdgeTrigger pulse can
   // fall between two slow frames).
   const firePressed = wantFire && !fireWasDown;
@@ -165,7 +167,7 @@ export function updatePlayer(dt) {
   // Shallow water (a map's `wade` outline, edge.js): slow, and no sprinting.
   // Only with your feet in it: a jetty, bridge or boat deck over it is dry.
   const wading = !!game.ARENA.wade && game.move.pos.y < 0.5 && insidePolygon(game.ARENA.wade, game.move.pos.x, game.move.pos.z);
-  if (dropping) updateDropPlayer(dt, dropIx, dropIz, (game.isTouch && touchState.jump) || (gp && game.gamepadState.jump) || game.keys.has("Space"));
+  if (dropping) updateDropPlayer(dt, dropIx, dropIz);
   else if (game.isView()) flyView(dt, ix, iz);
   else if (seated && game.isSocial()) holdSeat(dt, ix, iz, !frozen && ((game.isTouch && touchState.jump) || (gp && game.gamepadState.jump) || game.keys.has("Space") || game.keys.has("KeyC")));
   else game.move.update(dt, {
@@ -183,6 +185,9 @@ export function updatePlayer(dt) {
     sprintMult: (w.def.sprintMult || 1.35) * (game.isRoyale() ? 1.25 : 1),
     inertia: w.def.inertia,
   });
+  // Troll Royale's opening: the floor carries you to the edge, and over it
+  // the drop takes over (after the walk, so collisions have resolved).
+  if (royaleOnBelt()) updateBeltPlayer(dt);
 
   updateSwivel(dt);
 
@@ -271,11 +276,10 @@ export function updatePlayer(dt) {
     placeWarshipCamera();
     if ((game.isTouch && touchState.firing) || (gp && game.gamepadState.firing) || game.mouseDown) fireWarship();
   } else if (royaleDropView()) {
-    // Third person on the drop: behind the bus while you ride, then behind
-    // you (and your glider) on the way down. Look orbits the camera.
-    game.localRig.root.visible = royale.me !== "bus";
-    if (royale.me === "bus") placeDropCamera(royale.drop.bus ? royale.drop.bus.position : game.move.pos, 26, 8);
-    else placeDropCamera(_dropTarget.set(game.move.pos.x, game.move.pos.y + (royale.me === "glide" ? 3 : 1.4), game.move.pos.z), royale.me === "glide" ? 10 : 7, 1.5);
+    // Third person on the drop: behind you on the way down. Look orbits
+    // the camera.
+    game.localRig.root.visible = true;
+    placeDropCamera(_dropTarget.set(game.move.pos.x, game.move.pos.y + (royale.me === "glide" ? 3 : 1.4), game.move.pos.z), royale.me === "glide" ? 10 : 7, 1.5);
   } else if (settings.thirdPerson || game.emoteIsTp()) {
     game.localRig.root.visible = true;
     if (game.emoteIsTp()) updateEmoteCamera(game.player.pos, game.look.yaw, game.emoteKind() === "duo" ? EMOTES[game.emote.idx].dist || 1 : 0);

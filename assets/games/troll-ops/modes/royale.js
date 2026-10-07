@@ -1,4 +1,4 @@
-// Troll Royale rules: setup, the bus and drop, the Cringe, gear, bots,
+// Troll Royale rules: setup, the box and drop, the Cringe, gear, bots,
 // spectating and the end. Moved out of game.js (split phase 1); royale.js
 // next door holds the zone and loot it runs on.
 
@@ -6,7 +6,7 @@ import { hashSeed, seededRng, RoyaleZone, ROYALE, LootField, lootSpots, ZoneVisu
 import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1";
 import { insidePolygon } from "../edge.js";
 import { DROP, RoyaleDrop, buildParaglider, Flight } from "../royale-drop.js?v=rp3-wst-bs1-sb2-fu1";
-import { DROP_BUS, DROP_FALL, DROP_GLIDE, ROLL_TIME } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1";
+import { DROP_FALL, DROP_GLIDE, ROLL_TIME } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1";
 import * as THREE from "three";
 import { WEAPON_DEFS, WeaponState } from "../weapons.js?v=p5bm-wst-hf1-fu1";
 import { defaultLoadoutFor } from "../attachments.js?v=cg1-wst-sb2-fu1";
@@ -49,7 +49,7 @@ export function setupRoyale(seed = royaleSeed()) {
     drop: null, me: "ground", flight: null, lobbyItems: null,
   };
   royale.visual.update(zone.state(0), 0);
-  // Trollface Island opens in the sky lobby, then the Troll Bus (royale-drop.js).
+  // Trollface Island opens in the sky lobby, then the box opens (royale-drop.js).
   if (DROP.enabled && map.edge) {
     royale.drop = new RoyaleDrop({ scene: game.scene, colliders: game.colliders, edge: map.edge }, seed);
     royale.me = "lobby";
@@ -62,18 +62,21 @@ export function setupRoyale(seed = royaleSeed()) {
 export function inSkyLobby() { return !!royale?.drop && royale.drop.phase === "lobby" && game.isStaging(); }
 /* The pre-match countdown freezes you, except in the sky lobby. */
 export function stageFrozen() { return game.isStaging() && !inSkyLobby(); }
-/* On the bus or in the air: the drop owns movement and the camera. */
-export function royaleDropView() { return !!royale?.drop && game.player.alive && (royale.me === "bus" || royale.me === "fall" || royale.me === "glide"); }
-/* Where you are in the drop, as the wire's `dr` (0 = not dropping). */
+/* In the air: the drop owns movement and the camera. (On the belt you walk
+   as normal; the floor just moves under you.) */
+export function royaleDropView() { return !!royale?.drop && game.player.alive && (royale.me === "fall" || royale.me === "glide"); }
+/* On the moving floor or the ramp, before the edge. */
+export function royaleOnBelt() { return !!royale?.drop && game.player.alive && royale.me === "belt"; }
+/* Where you are in the drop, as the wire's `dr` (0 = not dropping; the belt is 0 too). */
 export function royaleDropCode() {
   if (!royaleDropView()) return 0;
-  return royale.me === "bus" ? DROP_BUS : royale.me === "fall" ? DROP_FALL : DROP_GLIDE;
+  return royale.me === "fall" ? DROP_FALL : DROP_GLIDE;
 }
 
 export const _dropTarget = new THREE.Vector3();
 const _dropCam = new THREE.Vector3();
-const _busAt = new THREE.Vector3();
-let dropJumpWas = false;
+const _edgeAt = new THREE.Vector3();
+const _edgeVel = new THREE.Vector3();
 let playerGlider = null;
 
 /* Orbit `dist` m behind `target` along the look direction, `height` up. */
@@ -126,29 +129,25 @@ export function updateSkyLobby(dt) {
   if (game.player.alive) game.updatePickupPrompt(dt);
   const secs = Math.max(0, Math.ceil(game.stageT));
   const timer = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
-  if (game.els.royalePhase.textContent !== "Bus leaves in") game.els.royalePhase.textContent = "Bus leaves in";
+  if (game.els.royalePhase.textContent !== "Box opens in") game.els.royalePhase.textContent = "Box opens in";
   if (game.els.royaleTimer.textContent !== timer) game.els.royaleTimer.textContent = timer;
   const n = `${royaleAliveList().length} trolls`;
   if (game.els.royaleAlive.textContent !== n) game.els.royaleAlive.textContent = n;
 }
 
-/* 0:00 in the lobby: the box goes, the lobby guns go (and whatever you
-   picked up), and everyone is on the Troll Bus. */
-export function startRoyaleBus() {
+/* 0:00 in the lobby: the lobby guns go (and whatever you picked up), one
+   wall opens, and the floor starts carrying everyone toward it. */
+export function openRoyaleBox() {
   const r = royale, d = r.drop;
-  d.startBus();
+  d.openBox();
   for (const it of [...r.loot.items.values()]) if ((it.y || 0) > 100) r.loot.take(it.id);
   game.equipFromLoadout();
   game.setActiveWeaponMesh(game.currentWeapon().def);
   if (game.els.pickupPrompt) game.els.pickupPrompt.hidden = true;
   game.setTouchContext(null);
-  r.me = "bus";
-  // Nothing can reach you up here, so no spawn-protection card either.
-  game.player.spawnGuard = 0;
-  game.updateSpawnGuardHud();
-  dropJumpWas = true;   // a key held over from the lobby isn't a jump
-  game.look.yaw = d.path.yaw + Math.PI / 2 + Math.PI;   // looking along the bus's line
-  game.look.pitch = -0.25;
+  r.me = "belt";
+  game.look.yaw = d.openYaw;   // facing the open side
+  game.look.pitch = -0.1;
   if (game.net.isBotHost()) {
     // Where they land: spread over the whole island, on the floor loot (it
     // only lies on dry land), not piled onto the map's handful of spawn
@@ -157,39 +156,56 @@ export function startRoyaleBus() {
     // "within a couple of minutes we went from 100 people to 10").
     const floor = [...r.loot.items.values()].filter((it) => (it.y || 0) < 100);
     const spots = floor.length ? floor : game.builtMap.spawnPoints?.length ? game.builtMap.spawnPoints : [{ x: 0, z: 0 }];
+    const rng = seededRng((r.seed ^ 0xbe17) >>> 0);
     for (const b of game.bots.bots) {
       const target = spots[Math.floor(Math.random() * spots.length)];
       const tx = target.x + (Math.random() - 0.5) * 8, tz = target.z + (Math.random() - 0.5) * 8;
       b.airborne = true;
-      b.drop = { state: "bus", tx, tz, jumpT: d.timeNearest(tx, tz) + (Math.random() - 0.5) * 2, flight: null };
+      b.yaw = d.openYaw;
+      // Each bot wanders a little side to side on the way out, its own way.
+      b.drop = { state: "belt", tx, tz, flight: null, wobble: rng() * Math.PI * 2, wobbleHz: 0.4 + rng() * 0.5 };
     }
   }
-  game.showWaveBanner(game.isTouch ? "ALL ABOARD — tap JUMP to drop" : game.gamepadState.connected ? "ALL ABOARD — A to drop" : "ALL ABOARD — SPACE to drop", 2600);
+  game.showWaveBanner("FLOOR'S MOVING — off the edge, trolls", 2600);
 }
 
-/* The bus flies; the bots aboard ride it, jump near where they want to
-   land and glide there; the zone goes live once the bus has crossed. */
+/* The belt runs; the bots on it are carried to the edge and fall toward
+   where they want to land; the zone goes live once the floor has gone. */
 function updateRoyaleDropWorld(dt) {
   const r = royale, d = r.drop;
   if (!d || d.phase === "lobby") return;
-  if (d.phase === "bus") {
-    d.updateBus(dt);
-    if (!r.live && d.pastIsland(d.busT)) {
+  if (d.phase === "belt") {
+    d.updateBelt(dt);
+    if (!r.live && d.phase === "done") {
       r.live = true;
       r.t = 0;
       game.showWaveBanner("Everyone's out — last troll standing wins", 1800);
     }
   }
   if (!game.net.isBotHost()) return;
+  const dir = d.openDir, S = DROP.boxSize / 2, c = d.boxCentre;
   for (const b of game.bots.bots) {
     const bd = b.drop;
     if (!bd || !b.alive) continue;
-    if (bd.state === "bus") {
-      if (d.phase === "bus") d.busPos(d.busT, b.pos).y -= 1.4;
-      b.groundY = b.pos.y;
-      b.dropCode = DROP_BUS;
-      if (d.phase !== "bus" || d.pastIsland(d.busT) || (d.busT >= bd.jumpT && d.overIsland(d.busT))) {
-        bd.flight = new Flight(_busAt.copy(b.pos).setY(b.pos.y - 3), game.builtMap.map.edge);
+    if (bd.state === "belt") {
+      // Carried along openDir, steering into the opening's width with a
+      // little wobble; held at the wall until it's lined up with the gap.
+      if (d.onBelt(b.pos)) {
+        bd.wobble += dt * bd.wobbleHz * Math.PI * 2;
+        const dx = b.pos.x - c.x, dz = b.pos.z - c.z;
+        const fwd = dx * dir.x + dz * dir.z, side = dx * -dir.z + dz * dir.x;   // side: +ve to the right of openDir
+        const wantSide = Math.sin(bd.wobble) * 2.5;
+        const sideStep = Math.max(-3 * dt, Math.min(3 * dt, wantSide - side));
+        const lined = Math.abs(side + sideStep) < DROP.beltW / 2 - 0.8;
+        const fwdStep = (!lined && fwd + d.beltStep(dt) > S - 0.6) ? Math.max(0, S - 0.6 - fwd) : d.beltStep(dt);
+        b.pos.x += dir.x * fwdStep + -dir.z * sideStep;
+        b.pos.z += dir.z * fwdStep + dir.x * sideStep;
+        b.pos.y = DROP.boxY;
+        b.groundY = b.pos.y;
+        b.yaw = d.openYaw;
+        b.dropCode = 0;
+      } else {
+        bd.flight = new Flight(b.pos, game.builtMap.map.edge, { glider: false, vel: _edgeVel.set(dir.x * DROP.beltSpeed, -2, dir.z * DROP.beltSpeed) });
         bd.state = "fly";
         b.dropCode = DROP_FALL;
       }
@@ -197,11 +213,11 @@ function updateRoyaleDropWorld(dt) {
       const f = bd.flight;
       const dx = bd.tx - f.pos.x, dz = bd.tz - f.pos.z, dist = Math.hypot(dx, dz);
       const yaw = Math.atan2(-dx, -dz);
-      f.update(dt, { forward: dist > 6 ? 1 : 0, strafe: 0, yaw, pitch: dist > 60 ? -0.9 : -0.2, open: false }, dropGround);
+      f.update(dt, { forward: dist > 6 ? 1 : 0, strafe: 0, yaw, pitch: dist > 40 ? -0.9 : -0.3, open: false }, dropGround);
       b.pos.copy(f.pos);
       b.groundY = f.pos.y;
-      b.yaw = f.state === "glide" ? f.heading : yaw;
-      b.dropCode = f.state === "glide" ? DROP_GLIDE : f.state === "fall" ? DROP_FALL : 0;
+      b.yaw = yaw;
+      b.dropCode = f.state === "fall" ? DROP_FALL : 0;
       if (f.state === "landed") { bd.state = "roll"; bd.t = 0; b.roll = 0.001; }
     } else if (bd.state === "roll") {
       // Tuck and roll off the landing, carried a few metres forward, then run.
@@ -217,33 +233,41 @@ function updateRoyaleDropWorld(dt) {
   }
 }
 
-/* You, on the bus or in the air. */
-export function updateDropPlayer(dt, ix, iz, jumpHeld) {
+/* You, on the belt: after your own walking has run (player-update.js), the
+   floor carries you along openDir while you're on it; off the edge (or
+   through where the floor was) you're falling, and the drop takes over. */
+export function updateBeltPlayer(dt) {
   const r = royale, d = r.drop;
-  const pressed = jumpHeld && !dropJumpWas;
-  dropJumpWas = jumpHeld;
-  if (r.me === "bus") {
-    if (d.phase === "bus") d.busPos(d.busT, game.move.pos).y -= 1.4;
-    game.move.velocity.set(0, 0, 0);
-    if (d.phase !== "bus" || d.pastIsland(d.busT) || (pressed && d.overIsland(d.busT))) {
-      r.flight = new Flight(_busAt.copy(game.move.pos).setY(game.move.pos.y - 3), game.builtMap.map.edge);
-      r.me = "fall";
-      game.showWaveBanner(game.isTouch ? "Tap JUMP again to open the glider early" : "The glider opens by itself — jump again to open it early", 1800);
-    } else if (pressed) game.showWaveBanner("Wait till you're over the island", 900);
-    return;
+  if (d.onBelt(game.move.pos)) {
+    const step = d.beltStep(dt);
+    game.move.pos.x += d.openDir.x * step;
+    game.move.pos.z += d.openDir.z * step;
   }
+  if (game.move.pos.y < DROP.boxY - 1.5) {
+    // Off with the speed you had: your run plus the belt under you.
+    _edgeVel.copy(game.move.velocity).addScaledVector(_edgeAt.set(d.openDir.x, 0, d.openDir.z), DROP.beltSpeed);
+    r.flight = new Flight(game.move.pos, game.builtMap.map.edge, { glider: false, vel: _edgeVel });
+    r.me = "fall";
+    game.setHolding("none");
+    game.showWaveBanner("Steer with the camera — look down to dive", 1800);
+  }
+}
+
+/* You, in the air. */
+export function updateDropPlayer(dt, ix, iz) {
+  const r = royale;
   const f = r.flight;
-  f.update(dt, { forward: iz, strafe: ix, yaw: game.look.yaw, pitch: game.look.pitch, open: pressed }, dropGround);
+  f.update(dt, { forward: iz, strafe: ix, yaw: game.look.yaw, pitch: game.look.pitch, open: false }, dropGround);
   game.move.pos.copy(f.pos);
   game.move.velocity.copy(f.vel);
   if (f.state === "glide" && r.me !== "glide") { r.me = "glide"; setPlayerGlider(true); game.audio.reload(); }
   if (f.state === "landed") {
     game.move.reset(f.pos.x, f.pos.z, f.pos.y);
-    // Tuck and roll off the landing (the way the glider was flying), then
-    // the gun comes up and you're off.
+    // Tuck and roll off the landing (the way you were looking), then the
+    // gun comes up and you're off. No damage, however far you fell.
     r.me = "roll";
     r.rollT = 0;
-    r.rollYaw = r.flight.heading ?? game.look.yaw;
+    r.rollYaw = r.me === "glide" ? f.heading : game.look.yaw;
     r.flight = null;
     setPlayerGlider(false);
     game.setHolding("none");
@@ -264,10 +288,10 @@ export function updateRoyaleRoll(dt) {
 }
 
 /* Joined after the sky lobby (onHello / onStage "bt"): skip our own lobby,
-   board the bus where it is now, and run the match clock from where the
-   room's is. Once the bus has crossed the island there's no way in: watch
-   till the next match. */
-export const ROYALE_BUS_GONE = 1e6;
+   step onto the belt where the room's is, and run the match clock from where
+   the room's is. Once the floor has gone there's no way in: watch till the
+   next match. */
+export const ROYALE_BOX_GONE = 1e6;
 export function applyRoyaleCatchUp() {
   const c = game.royaleCatchUp;
   if (!c || !royale?.drop || game.gameState !== "playing" || !game.isStaging()) return;
@@ -277,9 +301,15 @@ export function applyRoyaleCatchUp() {
   if (c.sd && (c.sd >>> 0) !== royale.seed) setupRoyale(c.sd >>> 0);
   game.endStaging();
   const r = royale, d = r.drop;
-  d.busT = Math.min(+c.bt + late, ROYALE_BUS_GONE);
+  d.beltT = Math.min(+c.bt + late, ROYALE_BOX_GONE);
   if (c.lv) { r.live = true; r.t = (+c.rt || 0) + late; }
-  if (!d.overIsland(d.busT) && d.along(d.busT) > d.path.tIn) royaleLateSpectate();
+  if (d.beltT < DROP.floorGoneAfter) {
+    // On the floor near the open side, facing it, with everyone else.
+    const k = DROP.boxSize / 2 - 5;
+    game.move.reset(d.boxCentre.x + d.openDir.x * k, d.boxCentre.z + d.openDir.z * k, DROP.boxY);
+    game.look.yaw = d.openYaw;
+    r.me = "belt";
+  } else royaleLateSpectate();
 }
 
 function royaleLateSpectate() {
@@ -293,7 +323,7 @@ function royaleLateSpectate() {
   game.player.hp = 0;
   game.player.spawnGuard = 0;
   game.updateSpawnGuardHud();
-  game.showWaveBanner("This drop already left — spectating till the next one", 2600);
+  game.showWaveBanner("The floor's already gone — spectating till the next one", 2600);
 }
 
 export function teardownRoyale() {
@@ -348,9 +378,9 @@ export function updateRoyale(dt) {
   const secs = Math.max(0, Math.ceil(s.left));
   const phase = s.stage === "final" ? "Final circle" : s.stage === "closing" ? `Zone ${s.phase} closing` : `Zone ${s.phase}`;
   const timer = s.stage === "final" ? "—" : `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
-  const onBus = r.drop?.phase === "bus" && !r.live;
-  const phaseText = onBus ? "Troll Bus" : phase;
-  const timerText = onBus ? (r.me === "bus" ? "JUMP" : "—") : timer;
+  const onBelt = r.drop?.phase === "belt" && !r.live;
+  const phaseText = onBelt ? "Floor's moving" : phase;
+  const timerText = onBelt ? "—" : timer;
   if (game.els.royalePhase.textContent !== phaseText) game.els.royalePhase.textContent = phaseText;
   if (game.els.royaleTimer.textContent !== timerText) game.els.royaleTimer.textContent = timerText;
   const left = `${alive.length} left`;

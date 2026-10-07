@@ -16,7 +16,7 @@ import { grenades, applyEmpState } from "../combat/throwables.js?v=th1-kc2-si1-g
 import { ensureStrikeTablet } from "../streaks/fire.js?v=sk1-si1-gj1-fu1";
 import { loadModel } from "../battlefield-props.js";
 import { goreStandIns, ZombieDirector } from "../zombies.js?v=zr4c-sb2";
-import { royale, startRoyaleBus, setupRoyale, teardownRoyale, updateRoyaleGear, placeBotsInLobby, applyRoyaleCatchUp } from "./royale.js?v=md1-gj1-fu1";
+import { royale, openRoyaleBox, setupRoyale, teardownRoyale, updateRoyaleGear, placeBotsInLobby, applyRoyaleCatchUp } from "./royale.js?v=md1-gj1-fu1";
 import { showWaveBanner, clearHitDirs, updateStreakHud, clearDamageNumbers } from "../core/hud.js?v=cr1-si1-gj1-fu1";
 import { updateSpawnGuardHud, damageLog, clearDeathVisuals, yawTowardCentre } from "../combat/damage.js?v=dm1-kc2-si1-gj1-fu1";
 import { sndGoLive, prepareSndRound } from "./objectives.js?v=ob1-si1-gj1-fu1";
@@ -509,7 +509,7 @@ export function endStaging() {
   // The opening seconds still deserve the cover a respawn gets.
   game.player.spawnGuard = game.isPvp() ? game.SPAWN_GUARD : 0;
   updateSpawnGuardHud();
-  if (royale?.drop) startRoyaleBus();
+  if (royale?.drop) openRoyaleBox();
   else if (royale) { royale.live = true; royale.t = 0; showWaveBanner("DROP IN — last troll standing wins", 1800); }
   else if (game.isPvp() && !game.isSnd()) showWaveBanner("FIGHT", 1100);
   game.audio.stageTick(true);
