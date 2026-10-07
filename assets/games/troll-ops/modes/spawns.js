@@ -9,6 +9,7 @@ import { groundHeightAt } from "../movement.js?v=umb2-sb2";
 import { segmentBlocked } from "../ballistics.js?v=cg1-wst-hf1";
 import { showWaveBanner } from "../core/hud.js?v=cr1-si1";
 import { game } from "../core/state.js?v=st1";
+import { buildSpawnField } from "./spawn-field.js?v=sf1";
 
 /* Everyone currently standing in the world, us included. Spawn scoring and
    the bot targeting both need this; they just filter it differently.
@@ -36,6 +37,27 @@ export function occupants() {
 /* Spawn points that recently got someone killed, so we can stop feeding
    players back into a camped corner. Keyed by spawn index. */
 export const spawnDeaths = new Map();
+
+/* The map's spawn field (spawn-field.js): its authored points first, in
+   their order, then the generated ones. Built the first time the loaded map
+   needs it and kept with that map; each point knows which half it is on. */
+const fields = new WeakMap();
+export function spawnField() {
+  const bm = game.builtMap;
+  if (!bm?.spawnPoints?.length) return [];
+  let f = fields.get(bm);
+  if (!f) {
+    f = buildSpawnField(game.colliders, game.ARENA, bm.spawnPoints);
+    const sides = game.spawnSides;
+    if (sides) {
+      const mean = (idx) => idx.reduce((a, i) => a + bm.spawnPoints[i][sides.axis], 0) / idx.length;
+      const mid = (mean(sides.lo) + mean(sides.hi)) / 2;
+      for (const p of f) p.side = p[sides.axis] < mid ? "lo" : "hi";
+    }
+    fields.set(bm, f);
+  }
+  return f;
+}
 const SPAWN_DEATH_MEMORY = 20;    // seconds a death keeps counting against a point
 const SPAWN_SAFE_RADIUS = 18;     // an enemy nearer than this is a real threat
 const SPAWN_VIEW_CONE = Math.cos(THREE.MathUtils.degToRad(50));
@@ -52,8 +74,8 @@ const SPAWN_MATE_SWEET_LO = 20;   // reward band: far enough to feel spread...
 const SPAWN_MATE_SWEET_HI = 35;   // ...but still the same fight, not the far side of the map
 
 export function notePointDeath(x, z) {
-  const pts = game.builtMap?.spawnPoints;
-  if (!pts) return;
+  const pts = spawnField();
+  if (!pts.length) return;
   let bestI = -1, bestD = Infinity;
   for (let i = 0; i < pts.length; i++) {
     const d = Math.hypot(pts[i].x - x, pts[i].z - z);
@@ -84,11 +106,15 @@ const SPAWN_SIDE_BONUS = 35;
    miserable. Enemies nearby, enemies looking this way and recent deaths all
    push a point down; nearby friendlies and being on your own side pull it up. */
 export function spawnForTeam(team, forId = game.net.id, { sideOnly = game.spawnOpening || game.isSnd(), groundOnly = false } = {}) {
-  const pts = game.builtMap.spawnPoints;
-  if (!pts?.length) return { x: 0, y: 0, z: 0 };
+  const pts = spawnField();
+  if (!pts.length) return { x: 0, y: 0, z: 0 };
   const ffa = !!game.currentMode().ffa;
-  const own = new Set(!ffa && game.spawnSides ? game.spawnSides[spawnSideFor(team)] : pts.map((_, i) => i));
-  let candidates = sideOnly ? [...own] : pts.map((_, i) => i);
+  // Opening spawns (and every S&D round) come in at the team's authored
+  // start points; a mid-match respawn can use any point in the field.
+  const side = spawnSideFor(team);
+  const starts = !ffa && game.spawnSides ? game.spawnSides[side] : pts.flatMap((p, i) => (p.start ? [i] : []));
+  const own = new Set(ffa ? [] : pts.flatMap((p, i) => (p.side === side ? [i] : [])));
+  let candidates = sideOnly ? [...starts] : pts.map((_, i) => i);
   // Bots spawn on the ground floor: they take the stairs fine now (bots.js
   // planStair), but a bot dropped in an upstairs room (Undergrin's ticket
   // hall) still opens the match far from the fight.

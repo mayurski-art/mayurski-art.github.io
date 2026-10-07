@@ -2,7 +2,7 @@
 // people in the match only your own player freezes), and resume.
 
 import { cancelMark } from "../streaks/calling.js?v=sk1-si1";
-import { renderPauseRange } from "../modes/spawns.js?v=spw1";
+import { renderPauseRange } from "../modes/spawns.js?v=spw2";
 import { renderRoomModeRow } from "../modes/social.js?v=so1-si1-mb1";
 import { keys, lockChangedAt, controls } from "../input/keyboard-mouse.js?v=km1";
 import { showWaveBanner } from "../core/hud.js?v=cr1-si1";

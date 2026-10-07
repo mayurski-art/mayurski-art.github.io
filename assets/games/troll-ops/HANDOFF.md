@@ -13,6 +13,12 @@ Design docs live next to this file: `COPS-AND-ROBBERS.md` (approved plan), `ZOMB
 
 ## 1. Open work and plans (newest first)
 
+### BO2 spawn system (phases S2-S4 of 4)
+User asked 2026-10-07 for Black Ops 2 spawning on every map, now and future; spawns flip like BO2 TDM (user's pick). S1 has shipped: modes/spawn-field.js generates 30-80 respawn points per map from walkable floor (authored points stay the team starts, S&D sites, hill points). Still to build:
+- **S2:** BO2 scoring: real line of sight from enemy eyes (cached), influences for recent gunfire, live grenades/explosives, enemy equipment/streaks, the last spawn used, an enemy just spawned; teammates pull toward the fight; the own-half bonus shrinks so spawns flip; FFA avoids everyone.
+- **S3:** mode rules: team starts for every opening, S&D per round, KOTH weighs the hill, Gun Game/OITC on FFA rules; Royale, Socialize, Zombies keep their own.
+- **S4:** spawn-trap test in the gate (tools/troll-ops-spawn-test.mjs is the start of it), ?spawns=1 score overlay, a rule for future maps.
+
 ### Dust Bowl (bazaar redesign done 2026-10-07)
 Open: watch spawn S3 (0, -33) in playtests; the loading dock sits on the wall-strip sightline 14-17 m from it. A crate stack between them would fix it but closes that line.
 Any later Dust Bowl edit holds to: bounds, spawns and the perimeter collider unchanged; nothing solid within 3 m of the S&D sites, which must stay at A (14.48, -18.21) and B (14.37, 14.24); all 15 dustbowl walk routes passing; the five 45 m+ east-west lines in the north half kept open (z -34.3 to -33, -29.3, -26.7, -18.8 to -15.5, -15 to -12); frame rate checked with tools/troll-ops-map-fps.mjs against a worktree of main. Every solid piece is a collider in maps.js plus the matching mesh in models/build_dustbowl.blender.py, sized from the same numbers.
@@ -479,6 +485,7 @@ Map rules:
 ## 5. Shipped log (one line each; details are in git)
 
 - **2026-10-07**
+  - BO2 spawns S1: spawn field (modes/spawn-field.js, 30-80 points per map from the walk grid, one per floor the starts stand on); mid-match respawns score the field, openings and S&D rounds still use the authored starts. Test: tools/troll-ops-spawn-test.mjs.
   - Dust Bowl bazaar 5 (redesign done): power wires across the street, laundry to the centre house, rooftop tanks (colliders, unreachable roofs), three smoke plumes in the city (dustbowl-city.js citySmoke, one Points draw), new loading-screen renders (map-load-screen.js SHOT_V: per-map shot tags, dustbowl hq2).
   - Dust Bowl bazaar 4: channel water works: plank crossing at x -17.5 (walk route 15), culvert pipe + three rubble piles as sub-1.5 m cover, pipe run on the south bank (broken at its stairs), culvert outlets in the north bank face (z 20), sluice frame at x 27.
   - Dust Bowl bazaar 3: north loading yard: a 1.5 m dock at (-17, -32.6), the 3rd high spot, with a stair (walk route 14), shutter and hoist; three crate/cart islands in the rock band. Watch S3 (0, -33): the dock sits on the wall-strip line 14-17 m from it.

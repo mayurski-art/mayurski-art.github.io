@@ -1,7 +1,7 @@
 // Bots' shooting: who they can target, how their shots look and sound to
 // everyone, firing at enemy aircraft, and the damage a bot we host deals.
 
-import { occupants } from "../modes/spawns.js?v=spw1";
+import { occupants } from "../modes/spawns.js?v=spw2";
 import { saberBlock, kbShield } from "./melee.js?v=ml1-kc2-si1";
 import { MELEE_DEFS } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1";
 import { streakEntities } from "../streaks/calling.js?v=sk1-si1";
