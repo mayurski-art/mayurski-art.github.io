@@ -33,7 +33,7 @@ import { dressMap, beachWaterMaterial, palmTrees, shopSignMaterial, beachMural, 
 
 /* ------------------------------------------------------------ build helpers */
 
-function makeApi(root, colliders, stairLinks = []) {
+function makeApi(root, colliders, stairLinks = [], ropes = []) {
   const matCache = new Map();
   const mat = (color, rough = 0.85, metal = 0.05) => {
     const key = `${color}|${rough}|${metal}`;
@@ -270,6 +270,28 @@ function makeApi(root, colliders, stairLinks = []) {
       const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), new THREE.MeshBasicMaterial({ color }));
       bulb.position.set(x, y, z);
       root.add(bulb);
+    },
+
+    /* A climbing rope (movement.js STANCE.ROPE) from y0 up to the floor at
+       y1. `dir` ("+x"|"-x"|"+z"|"-z") is the side you step off onto at the
+       top; the climber hangs on the other side. It's also a floor link,
+       like a stair's, so bots plan routes up it (bots.js ropeStep) and the
+       dogs know to skip it. No collider. `ghost` leaves the drawing to a
+       model. */
+    rope(x, z, y0, y1, { dir = "+z", ghost = false, color = 0x6a5a44 } = {}) {
+      const dx = dir === "+x" ? 1 : dir === "-x" ? -1 : 0;
+      const dz = dir === "+z" ? 1 : dir === "-z" ? -1 : 0;
+      ropes.push({ x, z, y0, y1, dx, dz });
+      stairLinks.push({ a: { x: x - dx * 0.9, y: y0, z: z - dz * 0.9 }, b: { x: x + dx * 0.9, y: y1, z: z + dz * 0.9 }, rope: true, rx: x, rz: z });
+      if (ghost) return;
+      const len = y1 + 1.6 - y0;
+      const line = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, len, 6), mat(color, 0.95, 0));
+      line.position.set(x, y0 + len / 2, z);
+      line.userData.noBulletCollide = true;
+      root.add(line);
+      const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.5), mat(0x2a2a30, 0.6, 0.2));
+      bracket.position.set(x, y0 + len, z);
+      root.add(bracket);
     },
 
     mat,
@@ -1867,6 +1889,8 @@ export function buildMap(id, { colliders, arena }) {
   arena.edge = map.edge || null;
   arena.wade = map.wade || null;
   arena.navCell = map.navCell || null;
+  // Climbing ropes (api.rope): the movement controller reads them here.
+  arena.ropes = [];
 
   // A floating island draws its own ground; the endless plane would show
   // under it. `noGroundPlane` skips it (the walkable floor is still y = 0).
@@ -1880,20 +1904,21 @@ export function buildMap(id, { colliders, arena }) {
     root.add(ground);
   }
 
-  const stairs = [];
-  map.build(makeApi(root, colliders, stairs));
+  const stairs = [], ropes = arena.ropes;
+  map.build(makeApi(root, colliders, stairs, ropes));
   // Decals and loose clutter (map-dressing.js), laid once every collider is
   // known so the scatter keeps clear of them.
   dressMap(root, colliders, map);
   // Plus every flight the map built by hand (findStairs above).
   stairs.push(...findStairs(colliders, stairs));
-  for (const s of stairs) clearStairEnds(colliders, s);
+  for (const s of stairs) if (!s.rope) clearStairEnds(colliders, s);
 
   return {
     root,
     map,
     spawnPoints: map.spawns.map(([x, z, y]) => new THREE.Vector3(x, y ?? 0, z)),
     stairs,
+    ropes,
     playerSpawn: map.playerSpawn,
   };
 }

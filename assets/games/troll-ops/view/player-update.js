@@ -171,6 +171,7 @@ export function updatePlayer(dt) {
     crouch: !frozen && ((game.isTouch && touchState.crouch) || (gp && game.gamepadState.crouch) || game.keys.has("KeyC")),
     dive: !frozen && ((game.isTouch && touchState.dive) || game.keys.has("ControlLeft") || game.keys.has("ControlRight")),
     yaw: rolling ? royale.rollYaw : game.look.yaw,
+    pitch: game.look.pitch,
     adsHeld: wantAds,
     speedMult: w.moveSpeedMult * (game.isInfected() ? INFECTION.speed : 1) * (wading ? 0.55 : 1) * (heroActive() ? hero().speedMult() : 1),
     // Troll Royale is a 400 m island: sprinting covers it 25% faster.

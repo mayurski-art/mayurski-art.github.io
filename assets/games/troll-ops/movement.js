@@ -12,10 +12,10 @@ import * as THREE from "three";
 import { smoothstep, damp } from "./anim-curves.js";
 import { clampInsidePolygon } from "./edge.js";
 
-export const STANCE = { STAND: "stand", CROUCH: "crouch", SLIDE: "slide", PRONE: "prone", VAULT: "vault" };
+export const STANCE = { STAND: "stand", CROUCH: "crouch", SLIDE: "slide", PRONE: "prone", VAULT: "vault", ROPE: "rope" };
 
-const EYE = { stand: 1.68, crouch: 1.05, slide: 0.82, prone: 0.5, vault: 1.2 };
-const STANCE_SPEED = { stand: 1, crouch: 0.48, slide: 1, prone: 0.22, vault: 0 };
+const EYE = { stand: 1.68, crouch: 1.05, slide: 0.82, prone: 0.5, vault: 1.2, rope: 1.55 };
+const STANCE_SPEED = { stand: 1, crouch: 0.48, slide: 1, prone: 0.22, vault: 0, rope: 0 };
 
 const WALK_SPEED = 5.2;
 const GRAVITY = 22;
@@ -37,6 +37,18 @@ const VAULT_TIME = 0.34;
 const VAULT_MIN = 0.35;      // ledge heights we can mantle, relative to the feet
 const VAULT_MAX = 1.55;
 const VAULT_REACH = 1.05;
+
+// Ropes (a map's api.rope, after VALORANT's Split): walk into one to grab
+// it, W climbs (down instead while looking down), jump lets go, and the
+// top steps you off onto the floor there. Quiet, and you can shoot.
+const ROPE_CLIMB_UP = 3.8;     // m/s: brisk, slower than a sprint
+const ROPE_CLIMB_DOWN = 5.0;
+const ROPE_ATTACH_R = 0.8;     // from the rope's axis
+const ROPE_HANG = 0.5;         // the climber's axis sits this far off the rope
+const ROPE_JUMP_OUT = 3.2;     // m/s away from the rope, jumping off
+const ROPE_JUMP_UP = 4.2;
+const ROPE_COOLDOWN = 0.45;    // s before you can grab again
+const ROPE_LOOK_DOWN = -0.45;  // rad of pitch: below this, W climbs down
 
 /* Highest walkable surface under (x,z) that isn't above `ceiling`.
    Shared with the enemy AI so grunts stand on platforms too. */
@@ -113,6 +125,9 @@ export class MovementController {
     this.slideDir = new THREE.Vector3();
     this.diveT = 0;
     this.vault = null;
+    this.rope = null;          // the rope we're on (arena.ropes)
+    this.ropeCd = 0;
+    this.ropeDown = false;     // grabbed from the top: W goes down until released
 
     this._prevJump = false;
     this._prevCrouch = false;
@@ -140,10 +155,13 @@ export class MovementController {
     this.velocity.set(0, 0, 0);
     this.stance = STANCE.STAND;
     this.eyeHeight = EYE.stand;
-    this.slideT = this.slideCd = this.diveT = this.impulseT = 0;
+    this.slideT = this.slideCd = this.diveT = this.impulseT = this.ropeCd = 0;
     this.vault = null;
+    this.rope = null;
     this.grounded = true;
   }
+
+  get onRope() { return this.stance === STANCE.ROPE; }
 
   get crouched() { return this.stance === STANCE.CROUCH || this.stance === STANCE.SLIDE || this.stance === STANCE.PRONE; }
   get busy() { return this.stance === STANCE.VAULT || this.diveT > 0; }
@@ -191,11 +209,89 @@ export class MovementController {
     return landing;
   }
 
-  /* input: { forward, strafe, sprint, jump, crouch, dive, yaw, adsHeld, speedMult } */
+  /* A rope within reach at this height. `dir` is the way we're moving
+     (null when we're only falling past): it has to point at the rope
+     (within ~30°), so running along a wall past one doesn't grab it. */
+  findRope(dir) {
+    for (const r of this.arena.ropes || []) {
+      if (this.pos.y < r.y0 - 0.3 || this.pos.y > r.y1 + 0.3) continue;
+      const tx = r.x - this.pos.x, tz = r.z - this.pos.z;
+      const d = Math.hypot(tx, tz);
+      if (d > ROPE_ATTACH_R) continue;
+      if (dir && d > 0.05 && (dir.x * tx + dir.z * tz) / d < 0.85) continue;
+      return r;
+    }
+    return null;
+  }
+
+  grabRope(r) {
+    this.rope = r;
+    this.stance = STANCE.ROPE;
+    this.slideT = 0;
+    // From the top you're going down: W keeps going down until you let go
+    // of it, so walking into the rope doesn't climb straight back out.
+    this.ropeDown = this.pos.y > r.y1 - 0.5;
+    this.pos.set(r.x - r.dx * ROPE_HANG, Math.max(r.y0, Math.min(this.pos.y, r.y1 - 0.7)), r.z - r.dz * ROPE_HANG);
+    this.velocity.set(0, 0, 0);
+    this.grounded = false;
+    this.jumping = false;
+  }
+
+  leaveRope() {
+    this.rope = null;
+    this.stance = STANCE.STAND;
+    this.ropeCd = ROPE_COOLDOWN;
+  }
+
+  /* One frame on the rope: pinned beside it, no gravity, no collision (a
+     rope is hung in a clear shaft). Returns nothing; the caller returns. */
+  climbRope(dt, input, jumpEdge) {
+    const r = this.rope;
+    let climb = input.forward;
+    if (this.ropeDown) {
+      if (climb <= 0.1) this.ropeDown = false;
+      else climb = -climb;
+    } else if ((input.pitch ?? 0) < ROPE_LOOK_DOWN) climb = -climb;
+    const vy = climb > 0.1 ? ROPE_CLIMB_UP : climb < -0.1 ? -ROPE_CLIMB_DOWN : 0;
+    this.velocity.set(0, vy, 0);
+    this.moving = vy !== 0;
+    this.sprinting = false;
+    this.strafeInput = 0;
+    this.justLanded = false;
+    this.pos.x = r.x - r.dx * ROPE_HANG;
+    this.pos.z = r.z - r.dz * ROPE_HANG;
+    this.pos.y += vy * dt;
+
+    if (jumpEdge) {
+      // let go, kicking off away from the rope
+      this.leaveRope();
+      this.impulse(-r.dx * ROPE_JUMP_OUT, ROPE_JUMP_UP, -r.dz * ROPE_JUMP_OUT, 0.2);
+    } else if (vy > 0 && this.pos.y >= r.y1 - 0.05) {
+      // the top: step off onto the floor beyond, through the vault's lerp
+      const to = new THREE.Vector3(r.x + r.dx * (ROPE_HANG + RADIUS), 0, r.z + r.dz * (ROPE_HANG + RADIUS));
+      to.y = this.groundHeightAt(to.x, to.z, r.y1 + 0.4);
+      if (to.y > r.y1 - 0.5) {
+        this.leaveRope();
+        this.vault = { from: this.pos.clone(), to, t: 0 };
+        this.stance = STANCE.VAULT;
+        this.velocity.set(0, 0, 0);
+      } else this.pos.y = r.y1 - 0.05;
+    } else if (vy < 0 && this.pos.y <= r.y0) {
+      this.pos.y = r.y0;
+      this.leaveRope();
+      this.velocity.set(0, 0, 0);
+      this.grounded = true;
+    }
+    this.applyEye(dt);
+  }
+
+  /* input: { forward, strafe, sprint, jump, crouch, dive, yaw, pitch, adsHeld, speedMult }
+     (`pitch` only steers a rope climb: looking down, W goes down) */
   update(dt, input) {
     const { yaw, speedMult = 1 } = input;
 
     this.slideCd = Math.max(0, this.slideCd - dt);
+    this.ropeCd = Math.max(0, this.ropeCd - dt);
     if (this.impulseT > 0) this.impulseT = Math.max(0, this.impulseT - dt);
     if (this.diveT > 0) this.diveT = Math.max(0, this.diveT - dt);
 
@@ -214,6 +310,16 @@ export class MovementController {
         this.grounded = true;
       }
       this.applyEye(dt);
+      return;
+    }
+
+    // ---- on a rope, climbing replaces walking
+    if (this.rope) {
+      const jumpEdge = input.jump && !this._prevJump;
+      this._prevJump = input.jump;
+      this._prevCrouch = input.crouch;
+      this._prevDive = input.dive;
+      this.climbRope(dt, input, jumpEdge);
       return;
     }
 
@@ -282,6 +388,18 @@ export class MovementController {
     }
 
     this.sprinting = wantSprint && this.stance === STANCE.STAND && this.grounded;
+
+    // ---- grab a rope: walking into one, or falling past it
+    if (this.arena.ropes?.length && this.ropeCd <= 0 && !this.busy && this.stance !== STANCE.SLIDE && this.stance !== STANCE.PRONE) {
+      const d = new THREE.Vector3().addScaledVector(forwardVec, iz).addScaledVector(rightVec, ix);
+      const dir = this.moving && d.lengthSq() > 1e-4 ? d.normalize() : null;
+      const r = dir || (!this.grounded && this.velocity.y < 3) ? this.findRope(dir) : null;
+      if (r) {
+        this.grabRope(r);
+        this.applyEye(dt);
+        return;
+      }
+    }
 
     // ---- vault or jump
     if (jumpEdge && !this.busy) {

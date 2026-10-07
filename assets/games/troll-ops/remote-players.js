@@ -191,7 +191,7 @@ const FRIENDLY_TAG_COLOR = "#ffffff";
 const ENEMY_TAG_COLOR = "#ff4d3d";
 
 // How far the body is folded down in each stance, 0 = upright.
-export const STANCE_LOWER = { stand: 0, crouch: 0.55, slide: 0.8, prone: 1, vault: 0.3 };
+export const STANCE_LOWER = { stand: 0, crouch: 0.55, slide: 0.8, prone: 1, vault: 0.3, rope: 0 };
 
 /* `rank` ({ level, prestige, owner }) puts the player's rank icon in front
    of the name (prestige phase 2); it draws in once its art has loaded. */
@@ -541,6 +541,7 @@ export class RemotePlayer {
     );
     this.yaw = lerpAngle(a.yaw, b.yaw, k);
     this.pitch = a.pitch + (b.pitch - a.pitch) * k;
+    this.stance = b.stance;
 
     // Troll Royale's drop: nobody's drawn riding the bus (they're inside
     // it); in the air they skydive, then hang under a glider.
@@ -593,7 +594,8 @@ export class RemotePlayer {
     // into a strafe or barely drifting doesn't play a full sprint-speed jog -
     // it used to always report moving:true and always advance at one fixed
     // rate regardless of how fast (or slow) it was actually travelling.
-    const moving = !!b.moving;
+    // On a rope the body rises with pos; the legs hang still.
+    const moving = !!b.moving && b.stance !== "rope";
     // Same 4.2 m/s reference speed used to drive the phase rate above,
     // reused here as the 0..1 intensity that scales stride/arm-swing/lean
     // so a jog and a sprint are visibly different gaits, not just the same

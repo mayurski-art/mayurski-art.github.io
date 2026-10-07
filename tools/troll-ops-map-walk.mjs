@@ -60,6 +60,8 @@ const RUNS = {
   [-12, 3, 15, -1, 0, 2, "A Heaven site parapet holds", (r) => r.end[0] > -13.75 && r.end[1] > 2.9],
   [-8, 3, 15, 1, 0, 2, "A Heaven mid wall holds", (r) => r.end[0] < -6.3 && r.end[1] > 2.9],
   [-12, 3, 9.8, 1, 0, 2, "A shaft rail holds", (r) => r.end[0] < -10.3 && r.end[1] > 2.9],
+  [-9, 0, 9.4, 0, 1, 3, "A mid rope -> A Heaven", (r) => r.end[1] > 2.95],
+  [16.2, 0, 18, -1, 0, 3, "B site rope -> B Heaven", (r) => r.end[1] > 2.95],
   ],
   depot: [  [-23, 0, 7.6, 0, 1, 4, "west stair -> south catwalk", (r) => r.maxY >= 4.9],
   [23, 0, -7.6, 0, -1, 4, "east stair -> north catwalk", (r) => r.maxY >= 4.9],

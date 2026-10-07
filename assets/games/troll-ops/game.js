@@ -1081,10 +1081,10 @@ function updateEnemySteps(dt) {
   const seen = new Set();
   const sources = [];
   for (const rp of remotes.byId.values()) {
-    if (rp.alive) sources.push({ key: `r${rp.netId}`, pos: rp.pos });
+    if (rp.alive) sources.push({ key: `r${rp.netId}`, pos: rp.pos, rope: rp.stance === "rope" });
   }
   for (const b of bots.bots) {
-    if (b.alive) sources.push({ key: `b${b.id}`, pos: b.pos });
+    if (b.alive) sources.push({ key: `b${b.id}`, pos: b.pos, rope: b.stance === "rope" });
   }
 
   for (const s of sources) {
@@ -1095,7 +1095,7 @@ function updateEnemySteps(dt) {
     const moved = s.pos.distanceTo(t.last);
     t.last.copy(s.pos);
     // A teleport (respawn, net correction) shouldn't fire a burst of steps.
-    if (moved > 3) { t.dist = 0; continue; }
+    if (moved > 3 || s.rope) { t.dist = 0; continue; }   // a rope climb is silent
     t.dist += moved;
 
     if (t.dist >= STEP_STRIDE) {
