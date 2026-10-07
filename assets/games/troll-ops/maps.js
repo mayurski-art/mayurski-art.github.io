@@ -702,6 +702,15 @@ export const MAPS = {
         api.box(cx, 14, 8.4, 4.4, 0.3, { ghost: true, color: MUD_DK, y: 3, pen: 8 });
       }
       for (const x of [-22, -9, 9, 22]) api.box(x, 8, 2.6, 1.4, 1.1, { ghost: true, color: WOOD, pen: 2 });   // stalls
+      // shop goods (bazaar 2b, the models' SHOP_GOODS): tea tables, carpet and
+      // produce benches, a crate; tyre stacks and a drum
+      for (const [x, z, w, d, h] of [[-25, 11.35, 1.6, 1.1, 0.5], [-19, 11.35, 1.6, 1.1, 0.5], [-9.9, 11.55, 2, 0.7, 0.55],
+        [-4.1, 11.55, 2, 0.7, 0.55], [5.4, 11.5, 1.8, 0.8, 0.8], [10.6, 11.5, 1.8, 0.8, 0.8], [24.6, 11.5, 1, 0.8, 0.75]]) {
+        api.box(x, z, w, d, h, { ghost: true, color: WOOD, pen: 2 });
+      }
+      for (const [x, z, r] of [[13.4, 3.45, 0.4], [18.6, 3.45, 0.4], [19.4, 11.55, 0.4], [12.5, 3.4, 0.3]]) {
+        api.cylinder(x, z, r, 0.9, { ghost: true, color: 0x222222, pen: 3 });
+      }
       api.cylinder(0, 5.5, 1, 0.9, { ghost: true, color: STONE, pen: 6 });                                    // well
       // stone field walls, uneven, in the open flanks
       for (const [x, z, w, d] of [[-26, -8, 6, 0.6], [26, -6, 0.6, 6], [-10, -12, 0.6, 5], [12, -13, 5, 0.6]]) {

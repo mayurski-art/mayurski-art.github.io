@@ -355,6 +355,138 @@ def carpet_roof(b, P):
         b.cyl(c, 0.2, (x - 1.0, 3.5, z), (x + 1.0, 3.5, z), seg=10)
 
 
+def sag_awning(b, P, x0, x1, zw, out, cols, yw=2.55, yf=2.32, sag=0.2):
+    """Striped awning off a wall at zw, `out` metres toward the street (+/-z),
+    held by timber brackets at its ends, its front edge sagging between them."""
+    s = 1 if out > 0 else -1
+    n = max(4, round((x1 - x0) / 0.46))
+    sw = (x1 - x0) / n
+    for i in range(n):
+        t = (i + 0.5) / n
+        f = yf - sag * 4 * t * (1 - t)
+        drop = yw - f
+        xc = x0 + sw * (i + 0.5)
+        b.box(cols[i % 2], sw + 0.01, 0.02, math.hypot(out, drop), xc, (yw + f) / 2 - 0.01, zw + out / 2,
+              rx=-s * math.atan2(drop, abs(out)))
+        b.box(cols[i % 2], sw * 0.92, 0.22, 0.02, xc, f - 0.22, zw + out)
+    for x in (x0 + 0.06, x1 - 0.06):
+        b.cyl(P["timber"], 0.045, (x, yw + 0.04, zw), (x, yf, zw + out), seg=6)
+        b.cyl(P["timber"], 0.04, (x, yw - 0.6, zw), (x, yf + 0.05, zw + out * 0.65), seg=6)
+
+
+def carpet(b, P, x, zw, s, w, h, ytop, base, border):
+    """Rug hung flat on a wall face at zw (s: which way the face looks)."""
+    y0 = ytop - h
+    b.box(base, w, h, 0.02, x, y0, zw + s * 0.02)
+    b.box(border, w - 0.14, h - 0.14, 0.02, x, y0 + 0.07, zw + s * 0.03)
+    b.box(base, w - 0.3, h - 0.3, 0.02, x, y0 + 0.15, zw + s * 0.04)
+    b.box(border, w * 0.34, w * 0.34, 0.02, x, ytop - h / 2 - w * 0.17, zw + s * 0.05, rz=0.785)
+    b.box(P["cloth_cream"], w, 0.07, 0.025, x, y0 - 0.07, zw + s * 0.02)
+    b.cyl(P["timber"], 0.03, (x - w / 2 - 0.1, ytop + 0.03, zw + s * 0.06), (x + w / 2 + 0.1, ytop + 0.03, zw + s * 0.06), seg=6)
+
+
+def tyre_stack(b, P, x, z, n=4):
+    """Collider: cylinder r 0.4, h 0.9 (maps.js)."""
+    for k in range(n):
+        y = k * 0.22
+        b.cyl(P["rubber"], 0.38, (x, y, z), (x, y + 0.21, z), seg=14)
+        b.cyl(P["dark"], 0.2, (x, y + 0.211, z), (x, y + 0.215, z), seg=10)
+
+
+def tarp(b, P, x0, x1, z0, z1, y, sag, cols):
+    """Cloth slung across an alley from roof edge to roof edge, sagging along x,
+    in stripes along z. Overhead only: no collider."""
+    n = 10
+    pts = [(x0 + (x1 - x0) * i / n, y - sag * 4 * (i / n) * (1 - i / n)) for i in range(n + 1)]
+    k = max(2, round((z1 - z0) / 0.9))
+    bw = (z1 - z0) / k
+    for j in range(k):
+        zc = z0 + bw * (j + 0.5)
+        for i in range(n):
+            (ax, ay), (bx, by) = pts[i], pts[i + 1]
+            b.box(cols[j % 2], math.hypot(bx - ax, by - ay) + 0.02, 0.02, bw + 0.01, (ax + bx) / 2, (ay + by) / 2 - 0.01, zc,
+                  rz=math.atan2(by - ay, bx - ax))
+    for x in (x0, x1):
+        b.cyl(P["timber"], 0.05, (x, y, z0 - 0.1), (x, y, z1 + 0.1), seg=6)
+
+
+# Shop goods that stand on the street, each a collider in maps.js (x, z, w, d, h):
+# tea tables, carpet benches, produce benches, crate; tyre stacks and the drum
+# are cylinders. Jars and sacks keep clear of all of them.
+SHOP_GOODS = [(-25, 11.35, 1.6, 1.1), (-19, 11.35, 1.6, 1.1), (-9.9, 11.55, 2.0, 0.7), (-4.1, 11.55, 2.0, 0.7),
+              (5.4, 11.5, 1.8, 0.8), (10.6, 11.5, 1.8, 0.8), (24.6, 11.5, 1.0, 0.8),
+              (13.4, 3.45, 0.8, 0.8), (18.6, 3.45, 0.8, 0.8), (12.5, 3.4, 0.6, 0.6), (19.4, 11.55, 0.8, 0.8)]
+
+
+def shops(b, P):
+    """Bazaar phase 2b: the west side sells carpets and tea under turquoise and
+    blue, the east side repairs and sells produce under red and ochre."""
+    rng = random.Random(77)
+    tq, bl, rd, oc, cr = P["cloth_turq"], P["cloth_blue"], P["cloth_red"], P["cloth_ochre"], P["cloth_cream"]
+    # awnings over the shop fronts: north houses face the street at z 3, the
+    # cut-through houses at z 12
+    sag_awning(b, P, -19.4, -12.6, 3.0, 1.4, (tq, cr))         # carpet shop
+    sag_awning(b, P, 12.6, 19.4, 3.0, 1.4, (rd, cr))           # repair shop
+    for cx, cols in ((-22, (bl, cr)), (-7, (tq, bl)), (8, (oc, cr)), (22, (rd, oc))):
+        sag_awning(b, P, cx - 3.4, cx + 3.4, 12.0, -1.4, cols)
+
+    # carpet shop (-16): rugs hung either side of the door
+    rugs = ((rd, oc), (bl, cr), (tq, rd), (P["terracotta"], bl))
+    for i, x in enumerate((-18.6, -13.4)):
+        carpet(b, P, x, 3.0, 1, 1.3, 1.9, 2.4, *rugs[i])
+    for i in range(2):
+        b.cyl(rugs[i + 2][0], 0.13, (-19.6 + i * 0.3, 0, 3.5), (-19.7 + i * 0.3, 1.9, 3.17), seg=10)
+    # second carpet shop (-7): benches of folded rugs, rugs on the wall behind
+    for i, x in enumerate((-9.9, -4.1)):
+        carpet(b, P, x, 12.0, -1, 1.4, 1.6, 2.3, *rugs[(i + 1) % 4])
+        b.box(P["timber"], 2.0, 0.35, 0.7, x, 0, 11.55)
+        for k in range(4):
+            c = rugs[(k + i) % 4][k % 2]
+            b.box(c, 1.7 - k * 0.08, 0.05, 0.6 - k * 0.02, x + rng.uniform(-0.05, 0.05), 0.35 + k * 0.05, 11.55, ry=rng.uniform(-0.05, 0.05))
+    # tea house (-22): low tables, cushions, a brass pot and glasses, samovar
+    for i, x in enumerate((-25, -19)):
+        b.box(P["timber"], 0.3, 0.42, 0.3, x, 0, 11.35)
+        b.box(P["timber"], 0.8, 0.05, 0.8, x, 0.42, 11.35, bevel=0.01)
+        for sx in (-0.62, 0.62):
+            b.lump((tq, rd)[i] if sx < 0 else cr, 0.45, 0.22, 0.6, x + sx, 0, 11.35, seed=int(x * 7 + sx * 10))
+        b.cyl(P["brass"], 0.09, (x - 0.1, 0.47, 11.35), (x - 0.1, 0.6, 11.35), seg=10, r2=0.06)
+        b.cyl(P["brass"], 0.015, (x - 0.02, 0.53, 11.35), (x + 0.06, 0.6, 11.35), seg=4)
+        for k in range(3):
+            b.cyl(P["glass"], 0.025, (x + 0.12 + k * 0.08, 0.47, 11.25), (x + 0.12 + k * 0.08, 0.54, 11.25), seg=6)
+    b.cyl(P["brass"], 0.16, (-19.25, 0.47, 11.55), (-19.25, 0.8, 11.55), seg=12, r2=0.12)
+    b.cyl(P["brass"], 0.06, (-19.25, 0.8, 11.55), (-19.25, 0.92, 11.55), seg=8)
+
+    # repair shop (16): tyre stacks, a drum, a tool board
+    for x in (13.4, 18.6):
+        tyre_stack(b, P, x, 3.45)
+    b.cyl(P["rust"], 0.3, (12.5, 0, 3.4), (12.5, 0.9, 3.4), seg=14)
+    b.box(P["ply"], 1.3, 0.8, 0.04, 13.4, 1.15, 3.04)
+    for k in range(5):
+        b.box(P["dark"], 0.06, 0.4 - (k % 2) * 0.12, 0.03, 12.95 + k * 0.22, 1.3, 3.08)
+    # produce (8): sloped benches of crates, oranges, melons, tomatoes
+    for x in (5.4, 10.6):
+        b.box(P["timber"], 1.8, 0.55, 0.8, x, 0, 11.5)
+        for k, (fruit, size) in enumerate(((P["orange"], 0.12), (P["leaf"], 0.24), (P["cloth_red"], 0.1))):
+            cx = x - 0.6 + k * 0.6
+            b.box(P["plank"], 0.55, 0.18, 0.7, cx, 0.55, 11.5, rx=0.18)
+            for m in range(5 if size > 0.2 else 9):
+                fx, fy, fz = cx - 0.18 + (m % 3) * 0.18, 0.68 + (m // 3) * 0.03, 11.35 + (m // 3) * 0.17
+                b.cyl(fruit, size / 2, (fx, fy, fz), (fx, fy + size * 0.5, fz), seg=7, r2=size * 0.4, caps=False)
+                b.cyl(fruit, size * 0.4, (fx, fy + size * 0.5, fz), (fx, fy + size * 0.85, fz), seg=7, r2=size * 0.12)
+    # scrap and repair (22): a tyre stack, a crate of parts, wheels on the wall
+    tyre_stack(b, P, 19.4, 11.55)
+    b.box(P["plank"], 1.0, 0.7, 0.8, 24.6, 0, 11.5, bevel=0.02)
+    for m in range(6):
+        b.cyl(P["steel"], 0.09, (24.3 + (m % 3) * 0.3, 0.7, 11.3 + (m // 3) * 0.35), (24.3 + (m % 3) * 0.3, 0.75, 11.3 + (m // 3) * 0.35), seg=8)
+    for x in (23.6, 24.6):
+        b.cyl(P["black"], 0.33, (x, 1.8, 11.96), (x, 1.8, 11.92), seg=16, caps=False)
+        b.cyl(P["steel"], 0.04, (x, 1.8, 11.97), (x, 1.8, 11.91), seg=6)
+
+    # tarps across the two western alleys between the cut-through houses
+    tarp(b, P, -17.8, -11.2, 12.3, 15.7, 3.0, 0.45, (tq, cr))
+    tarp(b, P, -2.8, 3.8, 12.3, 15.7, 3.0, 0.45, (oc, cr))
+
+
 def build_market(P):
     b = Builder()
     rng = random.Random(31)
@@ -368,9 +500,10 @@ def build_market(P):
         house(b, P, cx, 14, 8, 4, 3, {"n": 2, "s": 2}, rng, dark=i % 2 == 0)
         b.box(P["plaster_dk"], 8.4, 0.3, 4.4, cx, 3, 14)
         roof_parapet(b, P, cx, 14, 8.4, 4.4, 3.3)
-    cloths = (P["cloth_red"], P["cloth_blue"], P["cloth_green"], P["cloth_red"])
+    cloths = (P["cloth_turq"], P["cloth_blue"], P["cloth_red"], P["cloth_ochre"])     # west / east trades
     for i, x in enumerate((-22, -9, 9, 22)):
         stall(b, P, x, 8, cloths[i], rng)
+    shops(b, P)
     # the well (0, 5.5), r 1, h 0.9: a stone ring, dark water, a winch frame
     for k in range(12):
         a = 2 * math.pi * k / 12
@@ -402,6 +535,8 @@ def build_market(P):
         x = rng.uniform(-26, 26)
         z = rng.choice((3.35, 11.65))
         if any(abs(x - s) < 2.0 for s in (-22, -9, 9, 22, -16, 16, -7, 8)):
+            continue
+        if any(abs(x - gx) < gw / 2 + 0.5 and abs(z - gz) < gd / 2 + 0.5 for gx, gz, gw, gd in SHOP_GOODS):
             continue
         if rng.random() < 0.5:
             b.cyl(P["terracotta"], 0.2, (x, 0, z), (x, 0.5, z), seg=10, r2=0.26)

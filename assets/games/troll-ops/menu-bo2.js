@@ -21,7 +21,7 @@ import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1";
 import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withClan } from "./calling-cards.js?v=p5-wst-sb2";
 import { renderCard, myCardData, openProfileCard } from "./profile-card.js?v=pc1-wst-sb2";
 import { FINISHES } from "./skins.js?v=p5";
-import { MAPS, REWARD_MAPS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a";
+import { MAPS, REWARD_MAPS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b";
 import { setMapShot } from "./map-load-screen.js?v=ml3-wst-tl1-ng1";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
