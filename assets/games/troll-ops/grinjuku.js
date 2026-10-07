@@ -3,33 +3,26 @@
 //
 // The shape lives in grinjuku-layout.js (shared with the Blender build);
 // this file turns it into colliders, stairs and ropes, and holds the map's
-// sky and lighting. Until the models land the solids draw as plain boxes.
+// sky and lighting. Everything you see is models/build_grinjuku.blender.py.
 
 import { GJ, grinjukuLayout } from "./grinjuku-layout.js?v=gj1";
+import { mapModel } from "./map-models.js?v=hg6e";
 
 const LAYOUT = grinjukuLayout();
 
-/* Blockout colours by kind: buildings dark, cover warm, the Heavens'
-   decks pale so the high ground reads at a glance. */
-const COLOR = {
-  block: 0x3a3848, _edge: 0x2e2c3a, sewer: 0x46424a, vent: 0x4a4e58, pier: 0x55525c,
-  mailwall: 0xb8463a, _lintel: 0xb8463a, _mailroof: 0x8a3a32,
-  terrace: 0x9a96a4, heavenwall: 0x6a6878, parapet: 0xc8c4d0, _rail: 0xc8c4d0,
-  deck: 0x8a7a5a, stall: 0xd8783a, kiosk: 0x5a7a8a, vending: 0xe0e4ea, crates: 0x9a7a4a,
-  bikes: 0x3a6a9a, truck: 0xe8e8e0, planter: 0x5a7a4a, torii: 0xd8342a, _torii: 0xd8342a,
-  tank: 0x8a9aa8, acunit: 0xb0b4b8, konbini: 0x3a9a6a, koban: 0xe8e4d8, shelter: 0x6a7a8a,
-  counter: 0x8a6a48, sorting: 0x6a5a48, parcels: 0xb08a5a,
-};
-
 function buildGrinjuku(api) {
   const { solids, stairs, ropes } = LAYOUT;
-  for (const s of solids) {
-    api.box(s.x, s.z, s.w, s.d, s.h, { y: s.y, pen: s.pen, color: COLOR[s.k] ?? 0x777777, rough: 0.85 });
-  }
+  for (const s of solids) api.ghostBox(s.x, s.z, s.w, s.d, s.h, { y: s.y, pen: s.pen });
   for (const st of stairs) {
-    api.stairs(st.x, st.z, st.width, st.steps, st.rise, st.run, st.dir, { color: 0x8a8692 });
+    api.stairs(st.x, st.z, st.width, st.steps, st.rise, st.run, st.dir, { ghost: true });
   }
-  if (api.rope) for (const r of ropes) api.rope(r.x, r.z, r.y0, r.y1, { dir: r.dir });
+  for (const r of ropes) api.rope(r.x, r.z, r.y0, r.y1, { dir: r.dir, ghost: true });
+
+  // the models: what glows and the far city cast no shadows
+  mapModel(api, "gj-shell", { x: 0, z: 0 });
+  mapModel(api, "gj-props", { x: 0, z: 0 });
+  mapModel(api, "gj-neon", { x: 0, z: 0, castShadow: false });
+  mapModel(api, "gj-skyline", { x: 0, z: 0, castShadow: false });
 }
 
 export const GRINJUKU = {
