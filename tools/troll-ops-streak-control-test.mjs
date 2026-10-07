@@ -121,7 +121,14 @@ const step = (n, dt = 0.05) => page.evaluate(([n, dt]) => { for (let i = 0; i < 
 await page.evaluate(() => window.__trollOps.keys.add("KeyW"));
 await page.waitForFunction(() => { const d = window.__trollOps.dragonfire(); return d && Math.hypot(d.vel.x, d.vel.z) > 0.5; }, null, { timeout: 60000 }).catch(() => {});
 await page.evaluate(() => { const T = window.__trollOps, d = T.dragonfire(); d.pos.set(0, 5, 0); d.vel.set(0, 0, 0); T.look.yaw = -Math.PI / 2; });   // down the open street
-await step(40);   // 2 s of stick
+// The stick is read off updatePlayer, once a real frame; if the headless
+// window lost focus the pause menu is up and it isn't running. Hold it here.
+await page.evaluate(async () => {
+  const T = window.__trollOps;
+  if (!document.getElementById("to-pause").hidden) T.closePauseMenu();
+  const { game } = await import("/assets/games/troll-ops/core/state.js?v=st1");
+  for (let i = 0; i < 40; i++) { game.dfIx = 0; game.dfIz = 1; T.updateStreakEntities(0.05); }   // 2 s of stick
+});
 const spd = await page.evaluate(() => { const d = window.__trollOps.dragonfire(); return d ? Math.hypot(d.vel.x, d.vel.z) : -1; });
 await page.evaluate(() => window.__trollOps.keys.delete("KeyW"));
 check("Dragonfire flies at full speed (> 12 m/s flat out)", spd > 12, spd.toFixed(1));
