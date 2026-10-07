@@ -174,9 +174,13 @@ export class MovementController {
     // Bounds first, geometry second. A map's bounds can sit outside its
     // perimeter wall, and clamping last would shove us back into that wall
     // with no way out.
+    // Riding a train out past the edge (Socialize, modes/social-train.js),
+    // the train holds us, not the map's bounds.
     const a = this.arena;
-    pos.x = Math.max(a.minX + RADIUS, Math.min(a.maxX - RADIUS, pos.x));
-    pos.z = Math.max(a.minZ + RADIUS, Math.min(a.maxZ - RADIUS, pos.z));
+    if (!this.riding) {
+      pos.x = Math.max(a.minX + RADIUS, Math.min(a.maxX - RADIUS, pos.x));
+      pos.z = Math.max(a.minZ + RADIUS, Math.min(a.maxZ - RADIUS, pos.z));
+    }
     // A coastline instead of a wall (Trollface Island): see edge.js.
     if (a.edge) clampInsidePolygon(pos, a.edge, RADIUS);
     resolveCircle(this.colliders, pos, RADIUS, feetY, this.eyeHeight);

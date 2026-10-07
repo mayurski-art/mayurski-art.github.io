@@ -34,6 +34,7 @@ import {
   tableSet as kitTableSet, chair as kitChair, stool as kitStool, piano as kitPiano,
   chandelier, sconce, railFence, picketFence, hayBale, log, coffin, framedPicture, artTexture,
 } from "./trollcity-kit.js?v=tc2-wst";
+import { LoopPath, Train } from "./train.js?v=tr1";
 
 const BOUNDS = { minX: -62, maxX: 62, minZ: -50, maxZ: 50 };
 const T = 0.3;            // wall thickness
@@ -1255,12 +1256,16 @@ function buildRailway(K, M, lights, R) {
       K.box(M.rail_, 0, 0.22, tz + s, 300, 0.03, 0.14, {}, { shadow: false });
     }
   }
+  // track 0 is also a loop round town (the Grin Express runs it in
+  // Socialize, train.js): an arc each end, a straight across the south plain
+  buildLoopTrack(K, M, R);
   // the platform behind the shops
   K.solid(-6, -26.3, 60, 2.6, FLOOR, { mat: M.deck, pen: 6 });
   K.box(M.trimDark, -6, 0, -27.6, 60, FLOOR + 0.02, 0.1);
-  // the locomotive (the "Grin Express"), its tender, a boxcar
-  locomotive(K, M, 3, TRACKS[0]);
-  boxcar(K, M, 17.2, TRACKS[0], M.boxcar, "KEK RAIL", "#8a3a2a");
+  // the Grin Express (loco, tender, two open cars) standing at the platform,
+  // the goods wagons on the siding
+  TRAIN_STATE.train = buildTrain(K, M);
+  boxcar(K, M, 30, TRACKS[1], M.boxcar, "KEK RAIL", "#8a3a2a");
   boxcar(K, M, -26.5, TRACKS[1], M.boxcarYellow, "TROLL & PACIFIC", "#b88a3a");
   flatcar(K, M, -15.6, TRACKS[1]);
 
@@ -1453,6 +1458,91 @@ function locomotive(K, M, x, tz) {
     K.add(M.stove, place(new THREE.SphereGeometry(0.9, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), { x: tx - 0.4, y: y0 + 2.35, z: tz, sx: 1.6, sy: 0.4, sz: 0.9 }));
     K.box(M.locoBrass, tx, y0 + 2.35, tz, 3.62, 0.08, 1.82);
   }
+}
+
+/* The loop track (train.js LoopPath): the north straight is the station's
+   track 0, already laid; these are the two end arcs and the south straight. */
+const LOOP = { x0: -90, x1: 90, z0: -29.8, z1: 59.8 };
+function buildLoopTrack(K, M, R) {
+  const path = new LoopPath(LOOP);
+  // the south straight
+  K.box(M.ballast, 0, 0, LOOP.z1, LOOP.x1 - LOOP.x0, 0.14, 3.0, {}, { shadow: false });
+  for (let x = LOOP.x0; x <= LOOP.x1; x += 0.62) K.box(M.tie, x, 0.12, LOOP.z1, 0.24, 0.1, 2.5, { ry: (R() - 0.5) * 0.04 }, { shadow: false });
+  for (const s of [-0.72, 0.72]) {
+    K.box(M.rail_, 0, 0.22, LOOP.z1 + s, LOOP.x1 - LOOP.x0, 0.1, 0.07, {}, { shadow: false });
+    K.box(M.rail_, 0, 0.22, LOOP.z1 + s, LOOP.x1 - LOOP.x0, 0.03, 0.14, {}, { shadow: false });
+  }
+  // the arcs, in short straight pieces
+  const p = { x: 0, z: 0, dx: 0, dz: 0 };
+  for (const from of [path.ls, 2 * path.ls + path.la]) {
+    for (let s = 0; s < path.la; s += 0.62) {
+      path.at(from + s, p);
+      const ry = Math.atan2(-p.dz, p.dx);   // a box's long x along the way
+      const nx = -p.dz, nz = p.dx;          // across it
+      if (Math.round(s / 0.62) % 3 === 0) K.box(M.ballast, p.x, 0, p.z, 2.0, 0.14, 3.0, { ry }, { shadow: false });
+      K.box(M.tie, p.x, 0.12, p.z, 0.24, 0.1, 2.5, { ry: ry + (R() - 0.5) * 0.04 }, { shadow: false });
+      for (const o of [-0.72, 0.72]) K.box(M.rail_, p.x + nx * o, 0.22, p.z + nz * o, 0.66, 0.1, 0.07, { ry }, { shadow: false });
+    }
+  }
+}
+
+/* The Grin Express: its loco and tender, two open passenger cars, each its
+   own group with its own colliders, so train.js can run it round the loop. */
+const TRAIN_STATE = { train: null };
+function buildTrain(K, M) {
+  const car = (build, len, back, decks) => {
+    const group = new THREE.Group();
+    K.root.add(group);
+    const boxes = [];
+    const api = {
+      ghostBox: (x, z, w, d, h, { y = 0, pen = 0.9 } = {}) => boxes.push({ c: K.api.ghostBox(x, z, w, d, h, { y, pen }), x, z, w, d, y, h }),
+    };
+    const kit = new Kit(api, group);
+    build(kit);
+    kit.flush();
+    return { group, boxes, len, back, decks };
+  };
+  const cars = [
+    // the cab floor is the loco's deck
+    car((k) => locomotive(k, M, 0, 0), 9.0, 0, [{ x0: 2.3, x1: 4.35, z0: -0.75, z1: 0.75, y: 1.15 }]),
+    car((k) => passengerCar(k, M), 9.0, 13.5, [{ x0: -4.4, x1: 4.4, z0: -1.25, z1: 1.25, y: 0.9 }]),
+    car((k) => passengerCar(k, M), 9.0, 23.1, [{ x0: -4.4, x1: 4.4, z0: -1.25, z1: 1.25, y: 0.9 }]),
+  ];
+  // standing with the loco at x -12, the cars along the platform
+  return new Train(new LoopPath(LOOP), cars, { station: LOOP.x1 + 12 });
+}
+
+/* An open passenger car (local, nose to -x): a deck at 0.9 m with a running
+   board each side to step up from the platform, waist rails with a gap in
+   the middle of each side, benches at the ends, a tin roof on posts. */
+function passengerCar(K, M) {
+  const y0 = 0.25, L = 9.0, W = 2.6, top = 0.9;
+  K.box(M.loco, 0, y0 + 0.2, 0, L - 0.6, 0.3, W - 0.5);
+  for (const bx of [-2.9, -2.1, 2.1, 2.9]) for (const s of [-0.85, 0.85]) wheel(K, M, bx, y0 + 0.4, s, { r: 0.4, spokes: 8 });
+  K.solid(0, 0, L, W, 0.15, { y: top - 0.15, pen: 8, mat: M.deck });
+  K.api.ghostBox(0, 0, L, W - 0.4, top - 0.15, { pen: 8 });
+  K.box(M.locoRed, 0, top - 0.42, 0, L, 0.27, W + 0.02);
+  for (const s of [-1, 1]) {
+    // the running board: a step half way up
+    K.api.ghostBox(0, s * (W / 2 + 0.2), L - 1.0, 0.4, 0.6, { pen: 2 });
+    K.box(M.trimDark, 0, 0.52, s * (W / 2 + 0.2), L - 1.0, 0.08, 0.4);
+    // waist rails either side of the gap, and the posts that hold the roof
+    for (const c of [-2.65, 2.65]) {
+      K.api.ghostBox(c, s * (W / 2 - 0.05), 3.7, 0.1, 1.0, { y: top, pen: 2 });
+      K.box(M.locoBrass, c, top + 0.9, s * (W / 2 - 0.05), 3.7, 0.06, 0.06);
+      K.box(M.locoRed, c, top, s * (W / 2 - 0.05), 3.7, 0.45, 0.05);
+    }
+    for (const px of [-4.35, -0.85, 0.85, 4.35]) K.box(M.post, px, top, s * (W / 2 - 0.05), 0.1, 2.1, 0.1);
+  }
+  for (const e of [-1, 1]) {
+    K.api.ghostBox(e * (L / 2 - 0.05), 0, 0.1, W, 1.0, { y: top, pen: 2 });
+    K.box(M.locoRed, e * (L / 2 - 0.05), top, 0, 0.06, 1.0, W);
+    // a bench at each end, facing in
+    K.solid(e * 3.75, 0, 0.5, W - 0.5, 0.45, { y: top, pen: 2, mat: M.furniture });
+    K.box(M.furniture, e * 4.05, top + 0.45, 0, 0.08, 0.5, W - 0.5);
+  }
+  K.box(M.roofTin, 0, top + 2.1, 0, L + 0.3, 0.1, W + 0.3);
+  for (const e of [-1, 1]) K.box(M.blackIron, e * (L / 2 + 0.25), y0 + 0.45, 0, 0.4, 0.2, 0.3);
 }
 
 /* A boxcar: plank body, a sliding door half open, a catwalk on the roof. */
@@ -1827,7 +1917,8 @@ function buildPlains(K, M, R) {
     [-120, 160, 30, 64, 26, 0.3, false], [120, -150, 24, 70, 22, 0.8, false], [-190, -40, 26, 48, 24, 0.4, false],
   ]) mesa(K, dark ? M.mesaDark : M.mesa, x, z, w, h, d, ry, R);
   // low rolling hills on the plain, nearer
-  for (const [x, z, r, h] of [[-95, -70, 40, 6], [90, 75, 46, 7], [-80, 90, 36, 5], [100, -80, 34, 6], [0, 110, 50, 5], [10, -110, 44, 6]]) {
+  // (clear of the train's loop, which runs out to x ±135 and z 60)
+  for (const [x, z, r, h] of [[-95, -70, 40, 6], [100, 122, 46, 7], [-90, 128, 36, 5], [100, -80, 34, 6], [0, 112, 50, 5], [10, -110, 44, 6]]) {
     const g = new THREE.SphereGeometry(r, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2);
     K.add(M.hill, place(g, { x, y: -1.2, z, sy: (h + 1.2) / r }), { shadow: false });
   }
@@ -1932,7 +2023,7 @@ export const TROLLCITY = {
   build: buildTrollCity,
   // Socialize roleplay spots (saloon-bar.js / game.js updateBar). Floor
   // heights are the saloon's ground floor.
-  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, doctor: { ...DOC, floorY: FLOOR } },
+  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, doctor: { ...DOC, floorY: FLOOR } },
   // Team spawns: past the railway in the north, out on the plain south.
   spawns: [[-56, -46], [-46, -47.5], [-16, -47.8], [-2, -47.8], [8, -48], [18, -46.5], [50, -46], [58, -40],
     [-56, 46], [-44, 46.5], [-26, 45], [-12, 46], [0, 45.5], [14, 46], [28, 45], [40, 45.5]],

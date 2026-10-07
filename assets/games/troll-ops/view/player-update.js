@@ -9,6 +9,7 @@ import { dragonfireView, DF_ASSIST_PULL, DF_ASSIST_CONE_DEG, fireDragonfire } fr
 import { lookSensScale, warshipView, placeWarshipCamera, fireWarship } from "../streaks/warship.js?v=sk1-si1-gj1-fu1";
 import { royaleDropView, royaleRolling, stageFrozen, updateRoyaleRoll, royaleRollK, ROLL_SPEED, updateDropPlayer, royale, royaleSpectating, placeSpectateCamera, placeDropCamera, _dropTarget, cancelRoyaleAct } from "../modes/royale.js?v=md1-gj1-fu1";
 import { bar, seated, holdSeat } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1";
+import { updateTrain } from "../modes/social-train.js?v=st1";
 import { TIPSY, tipsyFx } from "../saloon-bar.js?v=sb1";
 import { strikeTablet, throwMarker } from "../streaks/fire.js?v=sk1-si1-gj1-fu1";
 import { insidePolygon } from "../edge.js";
@@ -165,6 +166,7 @@ export function updatePlayer(dt) {
   // Shallow water (a map's `wade` outline, edge.js): slow, and no sprinting.
   // Only with your feet in it: a jetty, bridge or boat deck over it is dry.
   const wading = !!game.ARENA.wade && game.move.pos.y < 0.5 && insidePolygon(game.ARENA.wade, game.move.pos.x, game.move.pos.z);
+  updateTrain();   // the Grin Express, and us on it, before we move (Socialize)
   if (dropping) updateDropPlayer(dt, dropIx, dropIz, (game.isTouch && touchState.jump) || (gp && game.gamepadState.jump) || game.keys.has("Space"));
   else if (game.isView()) flyView(dt, ix, iz);
   else if (seated && game.isSocial()) holdSeat(dt, ix, iz, !frozen && ((game.isTouch && touchState.jump) || (gp && game.gamepadState.jump) || game.keys.has("Space") || game.keys.has("KeyC")));

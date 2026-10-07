@@ -137,11 +137,13 @@ function makeApi(root, colliders, stairLinks = [], ropes = []) {
     /* Collider only, no mesh — for GLTF-modelled props whose visible shape
        comes from a loaded model rather than a generated box. */
     ghostBox(x, z, w, d, h, { y = 0, pen = 0.9 } = {}) {
-      colliders.push({
+      const c = {
         min: new THREE.Vector3(x - w / 2, y, z - d / 2),
         max: new THREE.Vector3(x + w / 2, y + h, z + d / 2),
         pen,
-      });
+      };
+      colliders.push(c);
+      return c;   // a moving prop keeps it and moves it (the train, train.js)
     },
 
     cylinder(x, z, r, h, { color = 0x3a4530, y = 0, solid = true, pen = 4, surface = null, tile = 1.5, ghost = false } = {}) {
