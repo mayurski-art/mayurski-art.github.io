@@ -101,6 +101,9 @@ const SURFACES = [];
 /* The smithy's forge, for the smith (smithy.js) to stoke: its light and the
    coal and glow materials. Rebuilt with the map. */
 const SMITHY = { light: null, coal: null, glow: null };
+/* The courthouse cells, for a fist fight refused (modes/social-duel.js):
+   where to stand inside, facing the bars, and the door to shut. */
+const JAIL = { cells: [] };
 function tableSet(K, M, x, y, z, o = {}) {
   kitTableSet(K, M, x, y, z, o);
   SURFACES.push({ x, z, y: y + 0.77, floor: y, r: o.r || 0.55 });
@@ -1231,6 +1234,22 @@ function buildCourthouse(K, M, lights) {
       K.api.ghostBox(cx0, (a + b) / 2, 0.08, b - a, 2.8, { y: Y, pen: 0.3 });
     }
     K.add(M.bars, place(new THREE.PlaneGeometry(1.0, 2.8), { x: cx0 + 0.42, y: Y + 1.4, z: door.c + door.w / 2 + 0.25, ry: Math.PI / 2 + 1.1 }), { shadow: false });
+    // the door shut (a fist fight refused, modes/social-duel.js): its bars
+    // and its collider, both put away till then
+    const shut = new THREE.Mesh(new THREE.PlaneGeometry(door.w, 2.8), M.bars);
+    shut.position.set(cx0, Y + 1.4, door.c);
+    shut.rotation.y = Math.PI / 2;
+    shut.visible = false;
+    K.root.add(shut);
+    const c = K.api.ghostBox(cx0, door.c, 0.12, door.w, 2.8, { y: Y, pen: 0.3 });
+    const closed = { min: c.min.clone(), max: c.max.clone() };
+    const setShut = (on) => {
+      shut.visible = on;
+      c.min.copy(closed.min); c.max.copy(closed.max);
+      if (!on) { c.min.y = -60; c.max.y = -59; }
+    };
+    setShut(false);
+    JAIL.cells.push({ x: 53.9, z: door.c, y: Y, yaw: Math.PI / 2, setShut });
     K.box(M.blackIron, cx0, Y + 2.8, zc, 0.1, 0.1, z1 - z0);
     // a cot and a bucket
     K.solid(55.0, zc - 1.2, 0.9, 2.0, 0.5, { y: Y, pen: 1, mat: M.furniture });
@@ -1968,6 +1987,7 @@ function buildTrollCity(api) {
   SEATS.length = 0;
   SURFACES.length = 0;
   Object.assign(SMITHY, { light: null, coal: null, glow: null });
+  JAIL.cells.length = 0;
   const root = new THREE.Group();
   api.prop(root);
   root.castShadow = false;
@@ -2023,7 +2043,7 @@ export const TROLLCITY = {
   build: buildTrollCity,
   // Socialize roleplay spots (saloon-bar.js / game.js updateBar). Floor
   // heights are the saloon's ground floor.
-  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, doctor: { ...DOC, floorY: FLOOR } },
+  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
   // Team spawns: past the railway in the north, out on the plain south.
   spawns: [[-56, -46], [-46, -47.5], [-16, -47.8], [-2, -47.8], [8, -48], [18, -46.5], [50, -46], [58, -40],
     [-56, 46], [-44, 46.5], [-26, 45], [-12, 46], [0, 45.5], [14, 46], [28, 45], [40, 45.5]],

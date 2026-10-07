@@ -87,8 +87,15 @@ function barNearestEmptyHanded(reach = 2.2) {
   return best;
 }
 
+/* Other Socialize systems' hold-X actions, asked first (a fist fight,
+   modes/social-duel.js): each returns an action or null. */
+export const rpExtras = [];
+/* ...and their room messages: each gets every rp message we don't know. */
+export const rpListeners = [];
+
 /* What holding X does where we stand, best first. */
 function barAction(B) {
+  for (const f of rpExtras) { const a = f(); if (a) return a; }
   const now = performance.now();
   // A drink held out to us, its giver beside us.
   if (bar.offer && !bar.drink && now < bar.offer.until) {
@@ -545,6 +552,7 @@ export function onBarMessage(p, m) {
   }
   if (m.k === "mugtake") { removeMug(String(m.id || "")); return; }
   if (m.k === "pn") { pianoKeyFrom(p, m.n | 0); return; }
+  if (m.k === "duel") { for (const f of rpListeners) f(p, m); return; }
   if (m.to !== game.net.id) return;
   const now = performance.now();
   if (m.k === "cure") {
@@ -585,7 +593,8 @@ export function updateBar(dt) {
 
   // A sip: fire, one at a time. The drink goes down halfway through it.
   const fireNow = !game.localPauseOnly && !game.emoteWheel.isOpen && (game.mouseDown || (game.isTouch && touchState.firing) || (game.gamepadState.connected && game.gamepadState.firing));
-  if (fireNow && !bar.fireWas && atPiano() && !piano.panel?.isOpen && game.player.alive) togglePiano();   // at the piano, fire plays
+  if (game.duelBusy) { /* fists up: fire is a punch (social-duel.js) */ }
+  else if (fireNow && !bar.fireWas && atPiano() && !piano.panel?.isOpen && game.player.alive) togglePiano();   // at the piano, fire plays
   else if (fireNow && !bar.fireWas && bar.drink?.sips > 0 && bar.sipT <= 0 && game.player.alive) {
     bar.sipT = SIP_TIME; bar.sipDone = false;
     if (game.emote) game.stopEmote();

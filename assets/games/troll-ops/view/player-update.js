@@ -10,6 +10,7 @@ import { lookSensScale, warshipView, placeWarshipCamera, fireWarship } from "../
 import { royaleDropView, royaleRolling, stageFrozen, updateRoyaleRoll, royaleRollK, ROLL_SPEED, updateDropPlayer, royale, royaleSpectating, placeSpectateCamera, placeDropCamera, _dropTarget, cancelRoyaleAct } from "../modes/royale.js?v=md1-gj1-fu1";
 import { bar, seated, holdSeat } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1";
 import { updateTrain } from "../modes/social-train.js?v=st1";
+import { updateDuel, duelFire } from "../modes/social-duel.js?v=sd1";
 import { TIPSY, tipsyFx } from "../saloon-bar.js?v=sb1";
 import { strikeTablet, throwMarker } from "../streaks/fire.js?v=sk1-si1-gj1-fu1";
 import { insidePolygon } from "../edge.js";
@@ -185,6 +186,10 @@ export function updatePlayer(dt) {
     sprintMult: (w.def.sprintMult || 1.35) * (game.isRoyale() ? 1.25 : 1),
     inertia: w.def.inertia,
   });
+
+  // fist fights with the townsfolk (Socialize): after we've moved, so a
+  // bump reads our speed and a knock-down holds us where we fell
+  if (game.isSocial()) { duelFire(); updateDuel(dt); }
 
   updateSwivel(dt);
 

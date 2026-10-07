@@ -135,6 +135,27 @@ export class TownNpcs {
     for (const n of this.list) n.off = roles.has(n.c.role);
   }
 
+  /* Someone else drives this NPC for a while (a fist fight,
+     modes/social-duel.js): `fn(n, rig, dt)` poses him after the base pose,
+     and his loop (walking, his act) stops until release(). */
+  takeOver(i, fn) {
+    const n = this.list[i];
+    if (!n) return null;
+    n.override = fn;
+    n.home ??= { x: n.x, z: n.z, yaw: n.yaw };
+    return n;
+  }
+
+  /* Back to his loop: a seated or standing NPC goes back to his spot; a
+     walker carries on from wherever the fight left him. */
+  release(i) {
+    const n = this.list[i];
+    if (!n?.override) return;
+    n.override = null;
+    if (!n.c.path && n.home) { n.x = n.home.x; n.z = n.home.z; n.yaw = n.home.yaw; }
+    n.home = null;
+  }
+
   /* Who's sitting where, so a player doesn't sit in their lap. */
   sitters() {
     return this.list.filter((n) => n.c.sit && !n.off).map((n) => ({ x: n.x, z: n.z, y: n.c.y ?? 0, role: n.c.role }));
@@ -152,6 +173,7 @@ export class TownNpcs {
       // Tags only up close, so a full room doesn't turn into a wall of names.
       if (n.tag) n.tag.visible = d < TAG_RANGE;
       n.t += dt;
+      if (n.override) { if (!hidden) this.poseOverride(n, dt); continue; }
       if (n.c.act === "walk") this.walk(n, dt);
       n.smith?.step(dt, hidden ? Infinity : d, audio);
       if (hidden) continue;
@@ -192,8 +214,25 @@ export class TownNpcs {
     n.moving = true;
   }
 
+  /* Driven from outside: stood up where he's put, the base pose, then the
+     driver's. */
+  poseOverride(n, dt) {
+    const { rig } = n;
+    rig.root.position.set(n.x, n.c.y ?? 0, n.z);
+    rig.root.rotation.set(0, 0, 0);
+    aimRig(rig, n.yaw, dt, { snap: true, moving: !!n.moving });
+    if (n.moving) n.phase += dt * gaitPhaseRate(3.5);
+    poseHumanoid(rig, { phase: n.phase, moving: !!n.moving, pitch: 0, lower: 0, strafe: 0, forward: 1, speed: n.moving ? 0.8 : 0, mps: n.moving ? 3.5 : 0, dt, hold: "none" });
+    if (n.drink) n.drink.visible = false;
+    for (const o of n.smith?.tools || []) o.visible = false;
+    n.override(n, rig, dt);
+    rig.body?.update?.();
+  }
+
   pose(n, dt) {
     const { rig, c } = n;
+    if (n.drink) n.drink.visible = true;
+    rig.root.rotation.x = 0; rig.root.rotation.z = 0;   // up again after a fight that floored him
     const p = rig.parts;
     const t = n.t;
     const moving = (c.act === "walk" || c.act === "smith") && n.moving;

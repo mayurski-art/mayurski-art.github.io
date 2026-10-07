@@ -76,6 +76,23 @@ export function rollRig(rig, k) {
   root.position.z += dz * Math.cos(yaw);
 }
 
+/* A peer in a Socialize fist fight (modes/social-duel.js "duel" messages):
+   flat on their back when floored or shot, else a jab just after they threw
+   one. After rollRig, which puts the rig upright. */
+function poseDuelPeer(rig, peer) {
+  if (peer.duelDown) {
+    rig.root.rotation.x = -Math.PI / 2;
+    rig.root.position.y += 0.16;
+    return;
+  }
+  const t = (performance.now() - (peer.punchAt || 0)) / 320;
+  if (!(t >= 0 && t < 1)) return;
+  const k = Math.sin(t * Math.PI), p = rig.parts;
+  p.armR.rotation.set(1.1 + k * 0.5, 0, -0.2); p.elbowR.rotation.set(2.0 - k * 1.9, 0, 0);
+  p.armL.rotation.set(1.25, 0, 0.3); p.elbowL.rotation.set(2.0, 0, 0);
+  rig.body?.update?.();
+}
+
 /* Troll Royale's drop on any rig (you, bots, peers). `state` is the wire's
    `dr`: 2 = freefall, belly down, arms and legs spread, a flutter in the
    wind; 3 = hanging under the glider, hands up on the lines, legs loose.
@@ -692,6 +709,8 @@ export class RemotePlayer {
       poseSeated(this.rig, seat.y, seat.kind === "stool" ? 0.55 : 0);
     }
     rollRig(this.rig, roll);
+    // Socialize fist fights (modes/social-duel.js): their jab, or flat out
+    if (!seat && !em) poseDuelPeer(this.rig, this.peer);
     if (b.stance === "rope" && !em) {
       if (b.moving) this.ropeT = (this.ropeT || 0) + dt * ROPE_CLIMB_RATE;
       poseRope(this.rig, this.ropeT || 0);
