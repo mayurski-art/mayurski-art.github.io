@@ -6,7 +6,7 @@ import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-s
 import { setHolding, updateGearHud } from "../combat/weapons.js?v=wp1-kc2-si1-gj1";
 import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1";
 import { nameFor } from "../combat/damage.js?v=dm1-kc2-si1-gj1";
-import { MELEE_DEFS } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1";
+import { MELEE_DEFS, MeleeState } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1";
 import { updateTeamHud } from "../combat/scoring.js?v=sc1-kc2-si1-gj1";
 import { game } from "../core/state.js?v=st1";
 
@@ -43,7 +43,9 @@ export function resetInfection() {
   if (inf) game.net.setTeam("phantom");
 }
 
-/* Sword only, faster (see move.update), tougher. Survivors keep their kit. */
+/* The keyboard sword only (whatever melee the loadout has; bots swing it
+   too, botMelee), faster (see move.update), tougher. Survivors keep their
+   kit. */
 export function applyInfectionLoadout() {
   if (!game.isInfection()) return;
   game.player.maxHp = game.isInfected() ? INFECTION.hp : 100;
@@ -54,6 +56,10 @@ export function applyInfectionLoadout() {
   game.els.cook.hidden = true;
   game.player.gear.lethal = 0;
   game.player.gear.tactical = 0;
+  if (game.player.melee?.def.id !== MELEE_DEFS.keyboard.id) {
+    game.player.melee = new MeleeState(MELEE_DEFS.keyboard);
+    game.setActiveMeleeMesh(MELEE_DEFS.keyboard);
+  }
   setHolding("melee");
   updateGearHud();
 }
