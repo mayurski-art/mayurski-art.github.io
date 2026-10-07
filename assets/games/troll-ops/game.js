@@ -137,6 +137,8 @@ import { fpEmoteArmsOn, poseFreeArms, socialArms, updateFpEmoteView } from "./vi
 import { STREAK_SHOULDER, WHISTLE_BLOW_AT, WHISTLE_HAND, WHISTLE_HOLD, WHISTLE_ROT, hideStreakArms, streakArms, updateStreakView, initStreakView } from "./view/streak-view.js?v=sv1-si1";
 import { SAW_REV_TIME, sawInspectRev, sawShake, updateMeleeView } from "./view/melee-view.js?v=mv1-si1";
 import { _sbDir, _sbPos, _sbView, activeDroneMesh, activeMarkerMesh, activeMeleeMesh, activeStreakMesh, activeWeaponMesh, akimboView, hellfire, hellfireView, muzzleFlash, muzzleLight, muzzleMat, setActiveMeleeMesh, setActiveWeaponMesh, weaponCamera, weaponEnvTex, weaponRig, weaponScene, initViewmodels } from "./view/viewmodels.js?v=vm1-si1";
+import { renderScoreboard } from "./core/scoreboard.js?v=sb1";
+import { PITCH_LIMIT, controls, keys, lockChangedAt, look, initKeyboardMouse } from "./input/keyboard-mouse.js?v=km1";
 /* What the split-out modules reach back into game.js for (see core/state.js).
    Functions go in as they are; everything else as a getter, so nothing is
    read before game.js declares it. game.js only ever gets smaller: an
@@ -157,7 +159,7 @@ linkGame({
   get activeStreakMesh() { return activeStreakMesh; },
   get activeWeaponMesh() { return activeWeaponMesh; },
   addMatchXp,
-  get adsHeld() { return adsHeld; },
+  get adsHeld() { return adsHeld; }, set adsHeld(v) { adsHeld = v; },
   get aimAssistSticky() { return aimAssistSticky; }, set aimAssistSticky(v) { aimAssistSticky = v; },
   get akimboShown() { return akimboShown; }, set akimboShown(v) { akimboShown = v; },
   get akimboView() { return akimboView; },
@@ -339,8 +341,8 @@ linkGame({
   minimapJammed,
   get modeId() { return modeId; }, set modeId(v) { modeId = v; },
   get modePicked() { return modePicked; }, set modePicked(v) { modePicked = v; },
-  get mouseDown() { return mouseDown; },
-  get mouseLookAt() { return mouseLookAt; },
+  get mouseDown() { return mouseDown; }, set mouseDown(v) { mouseDown = v; },
+  get mouseLookAt() { return mouseLookAt; }, set mouseLookAt(v) { mouseLookAt = v; },
   get move() { return move; },
   get music() { return music; },
   get muzzleFlash() { return muzzleFlash; },
@@ -356,6 +358,7 @@ linkGame({
   noteDealt,
   noteLocalDeath,
   notePointDeath,
+  nudgeSetting,
   occupants,
   onBulletActorHit,
   openPauseMenu,
@@ -2394,240 +2397,10 @@ const remotes = new RemotePlayers(scene);
 const pickups = new PickupSystem(scene);
 const swapHold = new SwapHold();
 
-// Look is composed by hand rather than by PointerLockControls: recoil and the
-// touch stick both need to write into the same orientation, and letting PLC
-// own the camera quaternion made them fight each other.
-const look = { yaw: 0, pitch: 0 };
-const BASE_MOUSE_SENS = 0.0022;
-const PITCH_LIMIT = 1.5;
-
-const controls = new EventTarget();
-controls.isLocked = false;
-// requestPointerLock rejects (not throws) when the document isn't focused,
-// so swallow it rather than surfacing an unhandled rejection.
-controls.lock = () => {
-  try {
-    const p = renderer.domElement.requestPointerLock?.();
-    p?.catch?.(() => {});
-    return p || Promise.resolve();
-  } catch (err) { return Promise.reject(err); }
-};
-controls.unlock = () => { try { document.exitPointerLock?.(); } catch { /* not locked */ } };
-
-/* When the lock last changed. Chrome refuses a re-lock for ~1s after an
-   unlock (resumePlay waits it out), and the first mousemove after a fresh
-   lock can carry a huge bogus delta (dropped below). */
-let lockChangedAt = 0;
-document.addEventListener("pointerlockchange", () => {
-  const locked = document.pointerLockElement === renderer.domElement;
-  controls.isLocked = locked;
-  lockChangedAt = performance.now();
-  controls.dispatchEvent(new Event(locked ? "lock" : "unlock"));
-});
-document.addEventListener("mousemove", (e) => {
-  if (!controls.isLocked) return;
-  // The strike tablet has the mouse: it steers the reticle, not the view.
-  if (strikeTablet?.isOpen) { strikeTablet.moveCursor(e.movementX, e.movementY); return; }
-  // The emote wheel has the mouse while it's open: the view holds still.
-  if (emoteWheel.isOpen) { emoteWheel.move(e.movementX, e.movementY); return; }
-  // Right after a re-lock the browser can report one enormous jump (the
-  // cursor's travel while unlocked): swallow the first moments and cap any
-  // single event, so resuming never snaps the view somewhere else.
-  if (performance.now() - lockChangedAt < 60) return;
-  const mx = Math.max(-300, Math.min(300, e.movementX));
-  const my = Math.max(-300, Math.min(300, e.movementY));
-  mouseLookAt = performance.now();
-  // Near a target, aim assist makes the mouse a little "sticky" (see
-  // applyAimAssist) — the same slowdown the stick gets, just gentler.
-  const sticky = aimAssistSticky ? AIM_ASSIST_MOUSE_SLOWDOWN : 1;
-  const sens = BASE_MOUSE_SENS * (settings.sens / 100) * sticky * lookSensScale();
-  look.yaw -= mx * sens;
-  look.pitch += (settings.invert ? 1 : -1) * my * sens;
-  look.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, look.pitch));
-});
-
 let spawner = null;
 
-const keys = new Set();
-window.addEventListener("keydown", (e) => {
-  if (chat.isTyping) return;
-  // Match chat: Enter for everyone, Y for your team (team modes).
-  if ((e.code === "Enter" || e.code === "NumpadEnter" || e.code === "KeyY") && !e.repeat
-      && gameState === "playing" && isPvp() && net.connected) {
-    e.preventDefault();
-    chat.open(e.code === "KeyY");
-    return;
-  }
-  // The emote wheel (in a match, or on the menu's operator): H opens and
-  // closes it, X plays what's hovered, Esc closes.
-  const wheel = gameState === "menu" ? (charInspectorLive ? menuEmoteWheel : null) : emoteWheel;
-  if (wheel && !e.repeat && !typingField(e.target)) {
-    if (e.code === "KeyH" && !localPauseOnly) {
-      wheel.toggle(gameState === "menu" || (gameState === "playing" && player.alive));
-      return;
-    }
-    if (wheel.isOpen && e.code === "KeyX") { wheel.close(); return; }
-    if (wheel.isOpen && e.code === "Escape") wheel.close(true);
-  }
-  keys.add(e.code);
-  // View mode: the keys only fly the camera (and Esc still pauses).
-  if (isView() && gameState === "playing" && e.code !== "Escape") return;
-  if (e.code === "Space" && !e.repeat && killcam.active && !player.alive) skipKillcam();
-  if ((e.code === "Space" || e.code === "Enter") && !e.repeat && matchIntro.active) matchIntro.skip();
-  if (!e.repeat && !player.alive && royaleSpectating()) {
-    if (e.code === "ArrowLeft" || e.code === "KeyA" || e.code === "KeyQ") cycleSpectate(-1);
-    if (e.code === "ArrowRight" || e.code === "KeyD" || e.code === "KeyE") cycleSpectate(1);
-  }
-  // Pause with other people still live in the match keeps gameState at
-  // "playing" (see openPauseMenu) so their match doesn't stall, so these
-  // action keys need their own guard now instead of relying on gameState.
-  if (!localPauseOnly) {
-    if (e.code === "KeyR") tryReload();
-    if ((e.code === "KeyA" || e.code === "KeyD") && !e.repeat) {
-      const now = performance.now() / 1000;
-      if (now - swivelTaps[e.code] < SWIVEL_TAP) { trySwivel(e.code === "KeyA" ? -1 : 1); swivelTaps[e.code] = 0; }
-      else swivelTaps[e.code] = now;
-    }
-    if (e.code === "KeyT" && !e.repeat) startInspect();
-    if (e.code === "KeyV" && !e.repeat) swingMelee();
-    if (e.code === "KeyE" && !e.repeat) useHeroAbility();
-    if (e.code === "KeyB" && !e.repeat) toggleThirdPerson();
-    if (e.code === "Digit1") switchWeapon("primary");
-    if (e.code === "Digit2") switchWeapon("secondary");
-    // Not mid-streak: it would yank the tablet/marker out of your hands.
-    if (e.code === "Digit3" && player.holding !== "streak") setHolding("melee");
-    // One key per streak row (4 = top). A single "call the priciest" key
-    // fired the hunter-killer whenever you meant the care package.
-    // Troll Royale has no streaks: 4 puts a plate on, 5 uses Hopium.
-    if (royale && (e.code === "Digit4" || e.code === "Digit5") && !e.repeat) startRoyaleAct(e.code === "Digit4" ? "plate" : "heal");
-    else if (/^Digit[4-7]$/.test(e.code) && !e.repeat) callStreakSlot(+e.code.slice(5) - 4);
-    // G throws whatever throwable you brought (one slot: lethal OR tactical).
-    if (e.code === "KeyG" && !e.repeat) startCook(carriedThrowSlot());
-    // F is plant/defuse while you're somewhere you can do either (S&D);
-    // everywhere else it's the tactical.
-    if (e.code === "KeyF" && !e.repeat && !(isSnd() && sndCanInteract)) startCook("tactical");
-  }
-  // Range-only live tuning, so a sensitivity change can be felt immediately.
-  if (isRange() && gameState === "playing" && !localPauseOnly) {
-    if (e.code === "Minus") nudgeSetting("sens", -5, 0, 200);
-    if (e.code === "Equal") nudgeSetting("sens", 5, 0, 200);
-    if (e.code === "BracketLeft") nudgeSetting("fov", -1, 60, 100);
-    if (e.code === "BracketRight") nudgeSetting("fov", 1, 60, 100);
-    if (e.code === "KeyN" && !e.repeat) spawnRangeBot();
-  }
-  if (e.code === "Space" && gameState === "playing" && !localPauseOnly) e.preventDefault();
-  if (e.code === "Tab" && gameState === "playing" && !localPauseOnly && isPvp()) {
-    e.preventDefault();
-    renderScoreboard();
-    els.scoreboard.hidden = false;
-  }
-});
-window.addEventListener("blur", () => { cancelCook(); emoteWheel.close(true); });
-window.addEventListener("keyup", (e) => {
-  keys.delete(e.code);
-  if (e.code === "Tab") els.scoreboard.hidden = true;
-  if ((e.code === "KeyG" && cooking.slot)
-    || (e.code === "KeyF" && cooking.slot === "tactical")) releaseCook();
-});
-
-/* Kills, deaths, assists and K/D per operator. Team modes list each side
-   under its score; free-for-all modes have no sides worth showing, so it's
-   one ranking. Bots don't earn assists, so theirs read as a dash. */
-/* Rank in front of a scoreboard name (prestige phase 2): the owner's badge,
-   else the prestige or rank icon and the Troll Forces level. */
-function rankChip(r) {
-  if (r.owner) return `<span class="to-sb-rank"><i class="is-owner to-sb-owner">Owner</i></span>`;
-  if (!r.level) return "";
-  return `<span class="to-sb-rank">${playerIconSvg(r.level, r.prestige, 18)}<b>${r.level}</b></span>`;
-}
-
-function renderScoreboard() {
-  const rows = [{
-    name: `${withClan(playerName(), getMyCard().clan)} (you)`, team: net.team, you: true, uid: playerUid(),
-    kills: player.kills | 0, deaths: player.deaths | 0, assists: player.assists | 0,
-    level: getLevel(), prestige: getPrestige(), owner: isOwner(),
-  }];
-  for (const p of net.peers.values()) {
-    if (String(p.id).startsWith("streak-")) continue;   // drones and gunships aren't players
-    rows.push({
-      name: withClan(p.name, p.clan), team: p.team, you: false, uid: safeUid(p.uid),
-      kills: p.kills | 0, deaths: p.deaths | 0, assists: isBotPeer(p) ? null : (p.assists | 0),
-      level: p.level, prestige: p.prestige | 0, owner: !!p.owner,
-    });
-  }
-  // Most kills first; fewer deaths breaks a tie.
-  const rank = (a, b) => (b.kills - a.kills) || (a.deaths - b.deaths);
-  const cols = `<span>K</span><span>D</span><span>A</span><span>K/D</span>`;
-  const row = (r, place = null) => `<div class="to-sb-row${r.you ? " is-you" : ""}">`
-    + `<span>${place != null ? `<b>${place}.</b> ` : ""}${rankChip(r)}${r.uid
-      ? `<button type="button" class="to-sb-name" data-uid="${r.uid}" title="View profile">${escapeHtml(r.name)}</button>`
-      : escapeHtml(r.name)}</span>`
-    + `<span>${r.kills}</span><span>${r.deaths}</span><span>${r.assists ?? "–"}</span>`
-    + `<span>${(r.kills / Math.max(1, r.deaths)).toFixed(2)}</span></div>`;
-
-  let html = "";
-  if (currentMode().ffa) {
-    const all = rows.sort(rank);
-    html += `<div class="to-sb-team"><div class="to-sb-head">`
-      + `<span>${escapeHtml(currentMode().name)}</span>${cols}</div>`;
-    html += all.map((r, i) => row(r, i + 1)).join("");
-    html += `</div>`;
-  } else {
-    for (const teamId of ["phantom", "ghost"]) {
-      const team = TEAMS[teamId];
-      const members = rows.filter((r) => r.team === teamId).sort(rank);
-      html += `<div class="to-sb-team"><div class="to-sb-head">`
-        + `<span style="color:${team.ui}">${teamName(teamId)} · ${teamScores[teamId]}</span>${cols}</div>`;
-      html += members.length
-        ? members.map((r) => row(r)).join("")
-        : `<div class="to-sb-row"><span>—</span></div>`;
-      html += `</div>`;
-    }
-  }
-  els.scoreboard.innerHTML = html;
-}
-
-// Peer names come off the wire, so they are never trusted as markup.
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
-
 let mouseDown = false, adsHeld = false;
-renderer.domElement.addEventListener("mousedown", (e) => {
-  if (!controls.isLocked) {
-    // In play without the mouse (a refused re-lock, or resumed on a pad):
-    // a click on the game takes it back instead of doing nothing.
-    if (!isTouch && gameState === "playing" && els.pause.hidden) controls.lock();
-    return;
-  }
-  if (strikeTablet?.isOpen) {
-    if (e.button === 0) strikeTablet.place();
-    else if (e.button === 2) strikeTablet.undo();
-    return;
-  }
-  // Emote wheel open: a click plays what's hovered, a right click closes.
-  if (emoteWheel.isOpen) {
-    if (e.button === 0) emoteWheel.close();
-    else if (e.button === 2) emoteWheel.close(true);
-    return;
-  }
-  // Troll Royale, out: a click is next, a right click the one before.
-  if (!player.alive && royaleSpectating() && (e.button === 0 || e.button === 2)) { cycleSpectate(e.button === 0 ? 1 : -1); return; }
-  if (e.button === 0) mouseDown = true;
-  if (e.button === 2) adsHeld = true;   // PF parity: right mouse aims
-});
-window.addEventListener("mouseup", (e) => {
-  if (e.button === 0) mouseDown = false;
-  if (e.button === 2) adsHeld = false;
-});
-renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
-// Belt and braces for style.css's no-select rule: no drag of any image or
-// link, no selection start or long-press menu outside a typing field.
-const typingField = (t) => !!t?.closest?.("input, textarea, [contenteditable='true']");
-document.addEventListener("dragstart", (e) => e.preventDefault());
-document.addEventListener("selectstart", (e) => { if (!typingField(e.target)) e.preventDefault(); });
-document.addEventListener("contextmenu", (e) => { if (!typingField(e.target)) e.preventDefault(); });
+initKeyboardMouse();
 
 initTouch();
 
