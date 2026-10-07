@@ -139,6 +139,7 @@ import { SAW_REV_TIME, sawInspectRev, sawShake, updateMeleeView } from "./view/m
 import { _sbDir, _sbPos, _sbView, activeDroneMesh, activeMarkerMesh, activeMeleeMesh, activeStreakMesh, activeWeaponMesh, akimboView, hellfire, hellfireView, muzzleFlash, muzzleLight, muzzleMat, setActiveMeleeMesh, setActiveWeaponMesh, weaponCamera, weaponEnvTex, weaponRig, weaponScene, initViewmodels } from "./view/viewmodels.js?v=vm1-si1";
 import { renderScoreboard } from "./core/scoreboard.js?v=sb1";
 import { PITCH_LIMIT, controls, keys, lockChangedAt, look, initKeyboardMouse } from "./input/keyboard-mouse.js?v=km1";
+import { armDuo, duoArmed, duoIncoming, duoOutgoing, duoTarget, duoXClaimed, emoteIsTp, emoteKind, emoteWheel, fpEmoteFrame, nearestDuoTeammate, onDuoMessage, sendDuoInvite, stopEmote, updateDuo, validEmote, initLocalEmotes } from "./view/local-emotes.js?v=le1";
 /* What the split-out modules reach back into game.js for (see core/state.js).
    Functions go in as they are; everything else as a getter, so nothing is
    read before game.js declares it. game.js only ever gets smaller: an
@@ -228,7 +229,7 @@ linkGame({
   get duoXClaimed() { return duoXClaimed; },
   get elapsedRun() { return elapsedRun; }, set elapsedRun(v) { elapsedRun = v; },
   get els() { return els; },
-  get emote() { return emote; },
+  get emote() { return emote; }, set emote(v) { emote = v; },
   get emoteIsTp() { return emoteIsTp; },
   get emoteKind() { return emoteKind; },
   get emoteWheel() { return emoteWheel; },
@@ -1086,196 +1087,13 @@ function toggleThirdPerson() {
   saveSettings();
 }
 
+
 /* Emotes: hold H for the wheel (emote-wheel.js), release on one to play
    it. The camera pulls out to third person for it, like any locker-room
    emote; moving, firing, dying or the clock running out ends it. The index
    rides the state packet (`em`) so everyone else sees it too. */
 let emote = null;   // { idx, t, role } while the local player is emoting (role 1 = second half of a duo)
-Object.assign(HAND_POSES, FP_HAND_POSES);   // point / L / flat, for the first-person emotes
-const emoteWheel = new EmoteWheel(els.hud, (i) => {
-  if (gameState !== "playing" || !player.alive) return;
-  if (EMOTES[i].kind === "duo") { armDuo(i); return; }
-  emote = { idx: i, t: 0, role: 0 };
-});
-function stopEmote() { emote = null; }
-const emoteKind = () => (emote ? EMOTES[emote.idx]?.kind ?? null : null);
-/* Third person and duo emotes pull the camera out; first person ones don't. */
-const emoteIsTp = () => !!emote && emoteKind() !== "fp";
-/* This frame's first-person emote: hand targets, gun, camera motion. */
-const fpEmoteFrame = () => (emoteKind() === "fp" ? EMOTES[emote.idx].fp(emote.t) : null);
-/* Nothing to play (a bad index off a hook or old save): no emote. */
-function validEmote() { if (emote && !EMOTES[emote.idx]) emote = null; return emote; }
-
-/* Duo emotes (user, 2026-10-04: "it shouldn't be aim at the person. it
-   should be a trigger to hold x near a person to send them a emote request.
-   and then they receive that notification. and in order for the duo emote to
-   activate, that other person has to stand near the other person and hold x.
-   also the emote request should have a 30 second limit countdown").
-   Pick a duo emote on the wheel and it's armed. Walk up to a teammate (within
-   DUO_NEAR) and hold X (DUO_HOLD) to send them the request. They get a
-   notification counting down DUO_REQUEST_SECONDS; to accept they come and
-   stand by you and hold X too. The accepter works out where both stand
-   (their midpoint, facing each other the emote's distance apart) and sends
-   it back, so both clients snap to the same spots and start together.
-   Teammates only. While it's yours to use, X belongs to the duo (no weapon
-   swap or pickup). */
-const DUO_NEAR = 3, DUO_REQUEST_SECONDS = 30, DUO_HOLD = 0.6;
-let duoArmed = null;      // { idx, until, hold } picked on the wheel, not sent yet
-let duoOutgoing = null;   // { to, name, idx, until }
-let duoIncoming = null;   // { from, name, idx, until, hold }
-let duoTarget = null;     // the teammate in reach this frame
-let duoXClaimed = false;  // X is the duo's this frame (updatePickupPrompt leaves it alone)
-const _duoFrom = new THREE.Vector3(), _duoTo = new THREE.Vector3();
-const duoAllowed = () => isPvp() && net.connected && !currentMode().ffa && !!net.team && player.alive;
-const duoTeammate = (rp) => !!rp?.peer && !isBotPeer(rp.peer) && rp.alive && rp.peer.team === net.team;
-/* Close enough to share an emote: DUO_NEAR on the ground, about the same
-   floor, nothing solid in between. */
-function duoInReach(rp) {
-  if (!duoTeammate(rp)) return false;
-  const d = Math.hypot(rp.pos.x - move.pos.x, rp.pos.z - move.pos.z);
-  if (d > DUO_NEAR || Math.abs(rp.pos.y - move.pos.y) > 1.5) return false;
-  _duoFrom.set(move.pos.x, move.pos.y + 1.1, move.pos.z);
-  _duoTo.set(rp.pos.x, rp.pos.y + 1.1, rp.pos.z);
-  return !segmentBlocked(colliders, _duoFrom, _duoTo);
-}
-function nearestDuoTeammate() {
-  if (!duoAllowed()) return null;
-  let best = null, bestD = Infinity;
-  for (const rp of remotes.byId.values()) {
-    if (!duoInReach(rp)) continue;
-    const d = Math.hypot(rp.pos.x - move.pos.x, rp.pos.z - move.pos.z);
-    if (d < bestD) { best = rp; bestD = d; }
-  }
-  return best;
-}
-/* Picked on the wheel: ready to send with X. A new pick replaces a request
-   still waiting for an answer. */
-function armDuo(idx) {
-  if (EMOTES[idx]?.kind !== "duo" || !duoAllowed()) return;
-  cancelDuoOutgoing();
-  duoArmed = { idx, until: performance.now() + DUO_REQUEST_SECONDS * 1000, hold: 0 };
-}
-function cancelDuoOutgoing() {
-  if (duoOutgoing && net.connected) net.send({ t: "duo", id: net.id, to: duoOutgoing.to, k: "cancel", e: duoOutgoing.idx });
-  duoOutgoing = null;
-}
-function sendDuoInvite(idx, rp = duoTarget) {
-  if (!rp || !net.connected) return;
-  net.send({ t: "duo", id: net.id, to: rp.netId, k: "invite", e: idx });
-  duoOutgoing = { to: rp.netId, name: rp.peer?.name || "operator", idx, until: performance.now() + DUO_REQUEST_SECONDS * 1000 };
-  duoArmed = null;
-}
-function onDuoMessage(p, m) {
-  const idx = m.e | 0;
-  if (EMOTES[idx]?.kind !== "duo") return;
-  if (m.k === "invite") {
-    if (p.team !== net.team || currentMode().ffa) return;   // teammates only
-    duoIncoming = { from: p.id, name: p.name || "operator", idx, until: performance.now() + DUO_REQUEST_SECONDS * 1000, hold: 0 };
-    audio.stageTick?.();
-  } else if (m.k === "cancel") {
-    if (duoIncoming?.from === p.id) duoIncoming = null;
-  } else if (m.k === "accept") {
-    if (!duoOutgoing || duoOutgoing.to !== p.id || duoOutgoing.idx !== idx) return;
-    duoOutgoing = null;
-    if (!player.alive || gameState !== "playing") return;
-    placeForDuo(m.mx, m.mz, m.dx, m.dz, idx, -1);
-    emote = { idx, t: 0, role: 0 };
-  }
-}
-/* Stand at the duo spot: `side` -1 is the inviter, +1 the accepter, along
-   (dx, dz), which points from the inviter to the accepter. */
-function placeForDuo(mx, mz, dx, dz, idx, side) {
-  if (![mx, mz, dx, dz].every(Number.isFinite)) return;
-  const half = (EMOTES[idx].dist || 1) / 2;
-  const x = mx + dx * side * half, z = mz + dz * side * half;
-  move.pos.x = x; move.pos.z = z;
-  player.pos.x = x; player.pos.z = z;
-  if (move.velocity) move.velocity.set(0, 0, 0);
-  // Face the partner: the inviter looks along (dx, dz), the accepter back.
-  const fx = -side * dx, fz = -side * dz;
-  look.yaw = Math.atan2(-fx, -fz);
-}
-function acceptDuo() {
-  const inv = duoIncoming;
-  duoIncoming = null;
-  const rp = remotes.byId.get(inv.from);
-  if (!rp || !player.alive || gameState !== "playing") return;
-  let dx = move.pos.x - rp.pos.x, dz = move.pos.z - rp.pos.z;
-  const len = Math.hypot(dx, dz) || 1;
-  dx /= len; dz /= len;
-  const mx = (move.pos.x + rp.pos.x) / 2, mz = (move.pos.z + rp.pos.z) / 2;
-  net.send({ t: "duo", id: net.id, to: inv.from, k: "accept", e: inv.idx, mx, mz, dx, dz });
-  placeForDuo(mx, mz, dx, dz, inv.idx, 1);
-  duoArmed = null;
-  cancelDuoOutgoing();
-  emote = { idx: inv.idx, t: 0, role: 1 };
-}
-const duoPromptEl = document.createElement("div");
-duoPromptEl.className = "to-duo-prompt";
-duoPromptEl.hidden = true;
-duoPromptEl.setAttribute("role", "status");
-duoPromptEl.setAttribute("aria-live", "polite");
-duoPromptEl.innerHTML = "<i class=\"to-duo-ring\"></i><span></span><b class=\"to-duo-clock\"></b>";
-els.hud.appendChild(duoPromptEl);
-let duoPromptText = "", duoPromptClock = "";
-const duoSecondsLeft = (until, now) => Math.max(0, Math.ceil((until - now) / 1000));
-/* Per frame: the wheel's duo state, the X hold (accept or send) and the
-   prompt with its countdown. */
-function updateDuo(dt) {
-  const now = performance.now();
-  const live = player.alive && gameState === "playing";
-  if (!live) { duoArmed = null; duoIncoming = null; cancelDuoOutgoing(); }
-  if (duoArmed && now > duoArmed.until) duoArmed = null;
-  if (duoOutgoing && now > duoOutgoing.until) duoOutgoing = null;
-  if (duoIncoming && now > duoIncoming.until) duoIncoming = null;
-  if (emoteWheel.isOpen) emoteWheel.setDuo(duoAllowed(), nearestDuoTeammate()?.peer?.name || null);
-
-  const holdingX = keys.has("KeyX") || (isTouch && touchState.swap) || !!gamepadState.pickup;
-  const inviter = duoIncoming ? remotes.byId.get(duoIncoming.from) : null;
-  const inviterNear = !!inviter && duoInReach(inviter);
-  duoTarget = duoArmed && !inviterNear ? nearestDuoTeammate() : null;
-  duoXClaimed = inviterNear || !!duoTarget;
-  // X accepts a request from someone beside you first, else sends yours.
-  const fill = (o) => { o.hold = holdingX ? o.hold + dt : Math.max(0, o.hold - dt * 2); return o.hold >= DUO_HOLD; };
-  if (duoIncoming) {
-    if (!inviterNear) duoIncoming.hold = 0;
-    else if (fill(duoIncoming)) acceptDuo();
-  }
-  if (duoArmed) {
-    if (!duoTarget) duoArmed.hold = 0;
-    else if (fill(duoArmed)) sendDuoInvite(duoArmed.idx, duoTarget);
-  }
-
-  let text = "", clock = "", ring = 0, cls = "";
-  if (duoIncoming) {
-    const name = EMOTES[duoIncoming.idx].name;
-    text = inviterNear ? `${duoIncoming.name} wants to ${name}: hold X` : `${duoIncoming.name} wants to ${name}: go to them and hold X`;
-    clock = `${duoSecondsLeft(duoIncoming.until, now)}s`;
-    ring = inviterNear ? Math.min(1, duoIncoming.hold / DUO_HOLD) : 0;
-    cls = "is-incoming";
-  } else if (duoArmed) {
-    const name = EMOTES[duoArmed.idx].name;
-    text = duoTarget ? `Hold X: ${name} with ${duoTarget.peer?.name || "operator"}` : `${name}: walk up to a teammate and hold X`;
-    clock = `${duoSecondsLeft(duoArmed.until, now)}s`;
-    ring = duoTarget ? Math.min(1, duoArmed.hold / DUO_HOLD) : 0;
-    cls = "is-armed";
-  } else if (duoOutgoing) {
-    text = `${EMOTES[duoOutgoing.idx].name}: waiting for ${duoOutgoing.name}`;
-    clock = `${duoSecondsLeft(duoOutgoing.until, now)}s`;
-    cls = "is-waiting";
-  }
-  duoPromptEl.hidden = !text;
-  if (!text) return;
-  if (text !== duoPromptText) duoPromptEl.querySelector("span").textContent = duoPromptText = text;
-  if (clock !== duoPromptClock) duoPromptEl.querySelector(".to-duo-clock").textContent = duoPromptClock = clock;
-  duoPromptEl.classList.toggle("is-incoming", cls === "is-incoming");
-  duoPromptEl.classList.toggle("is-armed", cls === "is-armed");
-  duoPromptEl.classList.toggle("is-waiting", cls === "is-waiting");
-  duoPromptEl.style.setProperty("--fill", String(ring));
-}
-
-initMenuRoster();
-
+initLocalEmotes();
 
 /* A round cracking past raises suppression — washes the colour out, tightens
    the vignette and jitters the frame, so being shot at actually costs you. */
