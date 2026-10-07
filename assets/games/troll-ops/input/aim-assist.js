@@ -91,6 +91,9 @@ export function findAimAssistTarget(coneDeg = AIM_ASSIST_CONE_DEG, range = AIM_A
    never overrides a deliberate flick past the target. */
 export function applyAimAssist(dt, strength = 1, coneDeg = AIM_ASSIST_CONE_DEG, range = AIM_ASSIST_RANGE) {
   if (!game.settings.aimAssist) return;
+  // Cooking a grenade or a tactical: you're aiming the throw (an arc, a
+  // corner, the floor), not at anyone, so nothing pulls or sticks the look.
+  if (game.cooking.def) return;
   const target = findAimAssistTarget(coneDeg, range);
   if (!target) return;
 
