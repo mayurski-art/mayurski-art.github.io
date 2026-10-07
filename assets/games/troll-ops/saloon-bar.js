@@ -111,12 +111,14 @@ export function placeDrinkInHand(drink, hand, side = 1) {
 /* -------------------------------------------------- a body holding a drink */
 
 /* After poseHumanoid: the right forearm comes up to hold the drink in front
-   of the chest, and to the mouth for a sip (`sip` 0..1..0). */
-export function poseDrinkArm(rig, sip = 0) {
+   of the chest, and to the mouth for a sip (`sip` 0..1..0). `pour` 0..1:
+   the arm held out under a tap instead. */
+export function poseDrinkArm(rig, sip = 0, pour = 0) {
   const p = rig.parts;
   const s = Math.max(0, Math.min(1, sip));
-  p.armR.rotation.set(0.35 + s * 1.15, 0, -0.12 - s * 0.25);
-  p.elbowR.rotation.set(1.35 + s * 0.75, 0, 0);
+  const o = Math.max(0, Math.min(1, pour)) * (1 - s);
+  p.armR.rotation.set(0.35 + s * 1.15 + o * 0.6, 0, -0.12 - s * 0.25 + o * 0.08);
+  p.elbowR.rotation.set(1.35 + s * 0.75 - o * 0.85, 0, 0);
   if (p.gripR) p.gripR.rotation.set(-s * 0.6, 0, 0);
   // Redraw the ink body with the arm up: poseHumanoid drew it hanging, and
   // the mug (on the real hand) floated off the drawn one.
@@ -137,6 +139,81 @@ export function poseDrinkArm(rig, sip = 0) {
   d.position.set(_fist.x, _fist.y - h * 0.5 + s * h * 0.3, _fist.z - 0.055);
 }
 const _fist = new THREE.Vector3();
+
+/* ------------------------------------------------------------- pouring */
+
+/* User, 2026-10-07: "there should be a cool animation that occurs as you
+   are holding whatever button they need to hold to fill up their mugs."
+   While someone holds X at a tap: a stream of beer from the spout down to
+   their mug, splashes and foam where it lands, a gurgle, and the mug fills
+   as the hold goes (social-rp.js drives it, for us and for the room). */
+const STREAM = new THREE.MeshBasicMaterial({ color: 0xf0a030, transparent: true, opacity: 0.8, depthWrite: false });
+const SPLASH = new THREE.MeshBasicMaterial({ color: 0xfff3d8, transparent: true, opacity: 0.9, depthWrite: false });
+const STREAM_GEO = new THREE.CylinderGeometry(0.008, 0.011, 1, 6, 1, true).translate(0, -0.5, 0);
+const DROP_GEO = new THREE.SphereGeometry(0.009, 5, 4);
+const DROPS = 10;
+
+export class PourFx {
+  constructor(scene) {
+    this.group = new THREE.Group();
+    this.stream = new THREE.Mesh(STREAM_GEO, STREAM);
+    this.stream.renderOrder = 3;
+    this.group.add(this.stream);
+    this.drops = [];
+    for (let i = 0; i < DROPS; i++) {
+      const m = new THREE.Mesh(DROP_GEO, SPLASH);
+      m.visible = false;
+      this.group.add(m);
+      this.drops.push({ m, v: new THREE.Vector3(), life: 0 });
+    }
+    this.group.visible = false;
+    this.t = 0;
+    this.soundT = 0;
+    scene.add(this.group);
+  }
+
+  /* `from` the spout, `toY` where it lands (the mug's rim), `on` pouring. */
+  update(dt, from, toY, on, audio) {
+    this.t += dt;
+    const live = this.drops.some((d) => d.life > 0);
+    this.group.visible = on || live;
+    if (!this.group.visible) return;
+    const fall = Math.max(0.05, from.y - toY);
+    this.stream.visible = on;
+    if (on) {
+      // A wobbling stream, thicker where it leaves the spout.
+      this.stream.position.set(from.x + Math.sin(this.t * 31) * 0.002, from.y, from.z + Math.cos(this.t * 27) * 0.002);
+      this.stream.scale.set(1 + Math.sin(this.t * 40) * 0.15, fall, 1 + Math.cos(this.t * 37) * 0.15);
+      // Splashes off the rim, a few at a time.
+      for (const d of this.drops) {
+        if (d.life > 0 || Math.random() > dt * 22) continue;
+        const a = Math.random() * Math.PI * 2, s = 0.25 + Math.random() * 0.45;
+        d.m.position.set(from.x, toY, from.z);
+        d.v.set(Math.cos(a) * s, 0.5 + Math.random() * 0.6, Math.sin(a) * s);
+        d.life = 0.25 + Math.random() * 0.15;
+        d.m.visible = true;
+        break;
+      }
+      // The gurgle: little bursts of filtered noise, pitched up as it fills.
+      this.soundT -= dt;
+      if (this.soundT <= 0 && audio?._ready?.()) {
+        this.soundT = 0.11 + Math.random() * 0.08;
+        audio._noise({ duration: 0.16, gain: 0.07, type: "bandpass", freq: 380 + Math.random() * 420 + (1 - fall) * 300, q: 4, at: { x: from.x, y: toY, z: from.z } });
+      }
+    }
+    for (const d of this.drops) {
+      if (d.life <= 0) continue;
+      d.life -= dt;
+      d.v.y -= 9.8 * dt;
+      d.m.position.addScaledVector(d.v, dt);
+      if (d.life <= 0) d.m.visible = false;
+    }
+  }
+
+  dispose() {
+    this.group.parent?.remove(this.group);
+  }
+}
 
 /* A drink in a body's right hand: posed into the fist by poseDrinkArm. */
 export function mountDrink(rig, drink) {

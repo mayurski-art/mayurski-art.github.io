@@ -12,7 +12,8 @@
    Fire sips, G puts it down. Sips make you tipsy (saloon-bar.js tipsyFx).
    What's in your hand, a sip, and the role ride the state packet. */
 
-import { REACH, GRAB_TIME, BEER_SIPS, FILL_TIME_BARTENDER, FILL_TIME, APRON_TIME, POUR_TIME, OFFER_SECONDS, TIPSY, drinkMax, SIP_TIME, tipsyFx, BARTENDER_LEAVE_SECONDS, buildDrink, mountDrink, poseDrinkArm, placeDrinkInHand } from "../saloon-bar.js?v=sb1";
+import { REACH, GRAB_TIME, BEER_SIPS, FILL_TIME_BARTENDER, FILL_TIME, APRON_TIME, POUR_TIME, OFFER_SECONDS, TIPSY, drinkMax, SIP_TIME, tipsyFx, BARTENDER_LEAVE_SECONDS, buildDrink, mountDrink, poseDrinkArm, placeDrinkInHand, PourFx } from "../saloon-bar.js?v=sb1";
+import * as THREE from "three";
 import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1";
 import { playerName } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1";
 import { setSeatLookup } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1";
@@ -43,6 +44,9 @@ export function resetBar() {
   bar.drink = null; bar.sipT = 0; bar.hold = null; bar.holdT = 0; bar.role = null; bar.outT = 0;
   bar.tipsy = 0; bar.tipsyShown = false; bar.offer = null; bar.outgoing = null;
   for (const id of [...bar.mugs.keys()]) removeMug(id);
+  for (const fx of pours.values()) fx.dispose();
+  pours.clear();
+  bar.pourK = 0; bar.pourTap = null; bar.pourPose = 0;
   seated = null;
   stopPianos();
   piano.played = false; piano.tune = 0;
@@ -101,8 +105,9 @@ function barAction(B) {
       return { key: "rack", label: "Grab a mug", busy: "Grabbing a mug…", ctx: "Grab", time: GRAB_TIME,
         done: () => { bar.drink = { kind: "beer", sips: 0 }; game.audio.brassTinkle?.(4); showWaveBanner(game.isTouch ? "Fill it at a barrel tap" : "Fill it at a barrel tap · G puts it down", 1800); } };
     }
-    if (bar.drink?.kind === "beer" && bar.drink.sips < BEER_SIPS && B.taps.some((t) => barNear(B, t))) {
-      return { key: "tap", label: bar.drink.sips ? "Top it up" : "Fill your mug", busy: "Pouring…", ctx: "Fill",
+    const tap = bar.drink?.kind === "beer" && bar.drink.sips < BEER_SIPS ? B.taps.find((t) => barNear(B, t)) : null;
+    if (tap) {
+      return { key: "tap", tap, label: bar.drink.sips ? "Top it up" : "Fill your mug", busy: "Pouring…", ctx: "Fill",
         time: bar.role === "bartender" ? FILL_TIME_BARTENDER : FILL_TIME,
         done: () => { bar.drink.sips = BEER_SIPS; game.audio.pump?.(0.4); showWaveBanner(game.isTouch ? "Fire to sip" : "Click to sip", 1400); } };
     }
@@ -565,6 +570,11 @@ export function updateBar(dt) {
       act.done();
     }
   } else { bar.hold = null; bar.holdT = 0; }
+  // Filling at a tap: how far along (the stream, the rising level, the arm).
+  bar.pourK = bar.hold?.key === "tap" ? Math.min(1, bar.holdT / bar.hold.time) : 0;
+  bar.pourTap = bar.pourK > 0 ? bar.hold.tap : null;
+  bar.pourPose = damp(bar.pourPose || 0, bar.pourK > 0 ? 1 : 0, 9, dt);
+  updatePours(dt);
 
   setTouchContext(act && !act.info ? act.ctx : null);
   if (game.els.pickupPrompt) {
@@ -590,6 +600,50 @@ export function updateBar(dt) {
   document.body.classList.toggle("to-social-armed", !game.socialUnarmed());
 }
 
+/* Every pour going on that we can see: ours, and each player filling a mug
+   at a tap (`ds` 2 on the wire). The stream falls from the tap's spout to
+   the mug's rim (or, in first person, to where the mug is held under it). */
+const pours = new Map();   // "me" | peer id -> PourFx
+bar.pours = pours;         // (tests read it)
+const _rim = new THREE.Vector3();
+function rimY(mesh, fallback) {
+  if (!mesh?.parent || !mesh.visible) return fallback;
+  mesh.getWorldPosition(_rim);
+  return _rim.y + (mesh.userData.height || 0.1) * mesh.scale.y;
+}
+function updatePours(dt) {
+  const B = barSpots();
+  const want = new Map();
+  if (bar.pourTap?.spout) {
+    const sp = bar.pourTap.spout;
+    want.set("me", { sp, y: rimY(game.localRig.root.visible ? bar.tp : null, sp.y - 0.3) });
+  }
+  if (B) {
+    for (const rp of game.remotes.byId.values()) {
+      if (!rp.peer?.pouring || !rp.alive) continue;
+      let best = null, bestD = 1.8;
+      for (const t of B.taps) {
+        const d = t.spout ? Math.hypot(t.x - rp.pos.x, t.z - rp.pos.z) : Infinity;
+        if (d < bestD) { best = t; bestD = d; }
+      }
+      if (best) want.set(rp.peer.id, { sp: best.spout, y: rimY(rp.drinkMesh, best.spout.y - 0.3) });
+    }
+  }
+  for (const [id, w] of want) {
+    let fx = pours.get(id);
+    if (!fx) { fx = new PourFx(game.scene); pours.set(id, fx); }
+    fx.update(dt, w.sp, Math.min(w.sp.y - 0.05, w.y), true, game.audio);
+  }
+  for (const [id, fx] of pours) {
+    if (want.has(id)) continue;
+    fx.update(dt, fx.stream.position, 0, false, null);
+    if (!fx.group.visible) { fx.dispose(); pours.delete(id); }
+  }
+}
+
+/* How full the mug in hand looks: rising while we pour. */
+const shownSips = () => (bar.drink ? bar.drink.sips + (drinkMax(bar.drink.kind) - bar.drink.sips) * (bar.pourK || 0) : 0);
+
 /* The sip as a 0..1..0 lift (up to the mouth, back down). */
 export function barSipK() {
   if (bar.sipT <= 0) return 0;
@@ -605,8 +659,8 @@ export function syncLocalDrink(show) {
     if (kind) { bar.tp = buildDrink(kind); mountDrink(game.localRig, bar.tp); }
   }
   if (!bar.tp) return;
-  bar.tp.userData.setSips(bar.drink.sips);
-  poseDrinkArm(game.localRig, barSipK());
+  bar.tp.userData.setSips(shownSips());
+  poseDrinkArm(game.localRig, barSipK(), bar.pourPose || 0);
 }
 
 /* Our first-person hand's drink, placed on the right streak-arm hand (its
@@ -620,7 +674,7 @@ export function syncFpDrink(show) {
   if (!bar.fp) return;
   const hand = game.streakArms.userData.arms[0].hand;
   if (bar.fp.parent !== hand.parent) hand.parent.add(bar.fp);
-  bar.fp.userData.setSips(bar.drink.sips);
+  bar.fp.userData.setSips(shownSips());
   placeDrinkInHand(bar.fp, hand, 1);
 }
 

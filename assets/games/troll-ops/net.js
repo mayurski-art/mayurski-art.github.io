@@ -328,7 +328,8 @@ export class Net {
         // they're in (index + 1 into the map's rp.seats) and the tune
         // they're playing at the piano (index + 1).
         p.drink = m.dk | 0;
-        p.sipping = !!m.ds;
+        p.sipping = (m.ds | 0) === 1;
+        p.pouring = (m.ds | 0) === 2;   // filling a mug at a tap
         p.role = RP_ROLES[m.rr] || null;
         p.seat = m.se | 0;
         p.piano = m.pn | 0;
@@ -501,7 +502,7 @@ export class Net {
         lv: local.level || undefined, pg: local.prestige || undefined, ow: local.owner ? 1 : undefined,   // rank
         cl: local.clan || undefined, cc: local.card && local.card !== "hitman" ? local.card : undefined,   // profile card
         hr: local.hero || undefined,   // U Mad Bro? hero id (+ "!" while the Metamorph is the brute)
-        dk: local.drink || undefined, ds: local.sip ? 1 : undefined, rr: local.role || undefined,   // Socialize roleplay
+        dk: local.drink || undefined, ds: local.sip ? (local.sip === 2 ? 2 : 1) : undefined, rr: local.role || undefined,   // Socialize roleplay
         se: local.seat || undefined, pn: local.piano || undefined,
       });
     }

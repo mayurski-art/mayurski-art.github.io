@@ -2130,7 +2130,7 @@ function netSnapshot() {
   // The saloon bar (Socialize): drink, a sip, the apron.
   const social = isSocial();
   _netSnapshot.drink = social ? drinkCode(bar.drink) : 0;
-  _netSnapshot.sip = social && bar.sipT > 0;
+  _netSnapshot.sip = social ? (bar.sipT > 0 ? 1 : bar.pourK > 0 ? 2 : 0) : 0;   // 2: filling at a tap
   _netSnapshot.role = social ? roleCode(bar.role) : null;
   // Phase 2: the seat we're in, the tune we're playing.
   _netSnapshot.seat = social && seated ? seated.idx + 1 : 0;

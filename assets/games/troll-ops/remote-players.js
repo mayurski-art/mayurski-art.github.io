@@ -17,7 +17,7 @@ import { sharedParaglider } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1";
 import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3g-nf-wst-ig1-soc1";
 import { applyCopBody, syncCopBody } from "./cop-bodies.js?v=cb2-sb2";
 import { playerIconCanvas } from "./rank-icons.js?v=rk1";
-import { buildDrink, drinkFromCode, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1";
+import { buildDrink, drinkFromCode, drinkMax, FILL_TIME, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1";
 import { poseSeated, posePianoArms, roleLabel } from "./rp-roles.js?v=rp1";
 
 /* Socialize seats: game.js hands over the map's seat list (rp.seats), so a
@@ -404,12 +404,16 @@ export class RemotePlayer {
       if (this.drinkMesh) { this.drinkMesh.parent?.remove(this.drinkMesh); this.drinkMesh = null; }
       if (kind) { this.drinkMesh = buildDrink(kind); mountDrink(this.rig, this.drinkMesh); }
     }
-    if (!this.drinkMesh) { this.sipK = 0; return; }
-    this.drinkMesh.userData.setSips(d.sips);
+    if (!this.drinkMesh) { this.sipK = 0; this.pourK = 0; return; }
+    // Filling at a tap (`ds` 2): the level rises as they pour.
+    this.pourFill = this.peer.pouring ? Math.min(1, (this.pourFill || 0) + dt / FILL_TIME) : 0;
+    this.drinkMesh.userData.setSips(d.sips + (drinkMax(kind) - d.sips) * this.pourFill);
     if (this.weaponMesh) this.weaponMesh.visible = false;
-    // Up to the mouth while they're sipping, back down after.
+    // Up to the mouth while they're sipping, back down after; held out
+    // under the tap while they pour.
     this.sipK = (this.sipK || 0) + ((this.peer.sipping ? 1 : 0) - (this.sipK || 0)) * Math.min(1, dt * 7);
-    poseDrinkArm(this.rig, this.sipK);
+    this.pourK = (this.pourK || 0) + ((this.peer.pouring ? 1 : 0) - (this.pourK || 0)) * Math.min(1, dt * 7);
+    poseDrinkArm(this.rig, this.sipK, this.pourK);
   }
 
   setTeam(teamId) {

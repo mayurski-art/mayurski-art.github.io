@@ -136,8 +136,21 @@ check("the mug is in the first-person hand", s.fp);
 const tap = await spot(A, "tap");
 await at(A, tap.x, tap.z + 0.5, 0);
 await pump(A, 300);
+// Halfway through the hold: the pour is on (user, 2026-10-07: "a cool
+// animation ... as you are holding whatever button they need to hold to
+// fill up their mugs"), and B sees A pouring.
+await at(B, tap.x + 1.2, tap.z + 0.8, Math.PI / 2);
+await A.keyboard.down("x");
+await pumpBoth(A, B, 1000);
+const mid = await A.evaluate(() => { const b = window.__trollOps.barState, fx = b.pours.get("me"); return { k: +b.pourK.toFixed(2), sips: b.drink?.sips, stream: !!fx?.stream.visible, fall: fx ? +fx.stream.scale.y.toFixed(2) : null }; });
+check("mid-pour: the stream runs and the hold is part way", mid.k > 0.2 && mid.k < 0.95 && mid.stream && mid.fall > 0.05 && mid.sips === 0, JSON.stringify(mid));
+const bMid = await B.evaluate((id) => { const T = window.__trollOps, p = T.net.peers.get(id), fx = T.barState.pours.get(id); return { pouring: !!p?.pouring, stream: !!fx?.stream.visible }; }, ids[0]);
+check("the other tab sees A pouring, stream and all", bMid.pouring && bMid.stream, JSON.stringify(bMid));
 s = await holdX(A, (s) => s.drink?.sips > 0, 30000);
 check("holding X at a tap fills it", s.drink?.sips === 4, JSON.stringify(s.drink));
+await pumpBoth(A, B, 1200);
+const after = await A.evaluate(() => ({ k: window.__trollOps.barState.pourK, fx: window.__trollOps.barState.pours.size }));
+check("the pour stops when it's full", after.k === 0 && after.fx === 0, JSON.stringify(after));
 
 await A.evaluate(() => window.__trollOps.setTrigger(true));
 await pump(A, 200);

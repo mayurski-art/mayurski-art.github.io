@@ -51,7 +51,9 @@ const UPPER_Y = SALOON.h1 + 0.3;      // the upstairs floor's top
    props stand, and where you hold X. `zone` is the saloon's footprint. */
 const BAR = {
   stand: { x: -6.45, z: -19.75 },
-  taps: [{ x: -6.78, z: -19.75 }, { x: -6.12, z: -19.75 }, { x: -17.1, z: -20.4, keg: true }],
+  // `spout`: where the beer comes out (the pour, saloon-bar.js PourFx)
+  taps: [{ x: -6.78, z: -19.75, spout: { x: -6.78, y: FLOOR + 1.02, z: -19.36 } }, { x: -6.12, z: -19.75, spout: { x: -6.12, y: FLOOR + 1.02, z: -19.36 } },
+    { x: -17.1, z: -20.4, keg: true, spout: { x: -17.1, y: FLOOR + 0.98, z: -19.92 } }],
   rack: { x: -7.45, z: -12.85 },
   apron: { x: -5.5, z: -12.15 },
   bell: { x: -7.45, z: -19.2 },
@@ -723,6 +725,7 @@ function buildSaloon(K, M, lights) {
     K.box(M.steel, -22.3, Y + 0.86, -20.6, 0.6, 0.05, 1.1);
     K.box(M.furniture, -17.1, Y, -20.4, 0.9, 0.7, 0.9);
     barrel(K, M, -17.1, -20.4, { y: Y + 0.7, lie: true, ry: 0, r: 0.38, h: 0.85, collide: false });
+    K.cyl(M.brass, -17.1, Y + 1.0, -19.97, 0.018, 0.018, 0.1, 6, { rx: Math.PI / 2 });   // the keg's spigot
     K.api.ghostBox(-17.1, -20.4, 0.95, 0.95, 1.5, { y: Y, pen: 2 });
     crate(K, M, -16.95, -18.25, { y: Y, s: 0.6 });
     crate(K, M, -16.95, -18.25, { y: Y + 0.6, s: 0.5, collide: false, ry: 0.3 });
