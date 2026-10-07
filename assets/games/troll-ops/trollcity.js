@@ -232,7 +232,9 @@ function gableRoof(K, roof, end, { x0, x1, z0, z1, y, rise, over = 0.35, endT = 
 function signBoard(K, mat, frame, { x, z, y, w, h, o = 1, axis = "x" }) {
   const X = axis === "x";
   const g = new THREE.PlaneGeometry(w, h);
-  K.add(mat, place(g, { x: X ? x : x + o * 0.07, y, z: X ? z + o * 0.07 : z, ry: X ? (o > 0 ? 0 : Math.PI) : (o > 0 ? Math.PI / 2 : -Math.PI / 2) }), { shadow: false });
+  // The board stands 1.5 cm proud of the frame's face (0.07 out): flush,
+  // the two z-fought and the sign flickered.
+  K.add(mat, place(g, { x: X ? x : x + o * 0.085, y, z: X ? z + o * 0.085 : z, ry: X ? (o > 0 ? 0 : Math.PI) : (o > 0 ? Math.PI / 2 : -Math.PI / 2) }), { shadow: false });
   K.box(frame, X ? x : x + o * 0.03, y - h / 2 - 0.06, X ? z + o * 0.03 : z, X ? w + 0.16 : 0.08, h + 0.12, X ? 0.08 : w + 0.16);
 }
 
@@ -240,7 +242,8 @@ function signBoard(K, mat, frame, { x, z, y, w, h, o = 1, axis = "x" }) {
 function wallPic(K, mat, { x, y, z, w, h, o = 1, axis = "x", frame = null }) {
   const X = axis === "x";
   const g = new THREE.PlaneGeometry(w, h);
-  K.add(mat, place(g, { x: X ? x : x + o * 0.03, y, z: X ? z + o * 0.03 : z, ry: X ? (o > 0 ? 0 : Math.PI) : (o > 0 ? Math.PI / 2 : -Math.PI / 2) }), { shadow: false });
+  // 1.3 cm off its frame's face (0.027 out), clear of z-fighting
+  K.add(mat, place(g, { x: X ? x : x + o * 0.04, y, z: X ? z + o * 0.04 : z, ry: X ? (o > 0 ? 0 : Math.PI) : (o > 0 ? Math.PI / 2 : -Math.PI / 2) }), { shadow: false });
   if (frame) K.box(frame, X ? x : x + o * 0.012, y - h / 2 - 0.05, X ? z + o * 0.012 : z, X ? w + 0.1 : 0.03, h + 0.1, X ? 0.03 : w + 0.1);
 }
 
