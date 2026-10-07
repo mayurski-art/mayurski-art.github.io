@@ -478,6 +478,18 @@ Map rules:
 ## 5. Shipped log (one line each; details are in git)
 
 - **2026-10-07**
+  - Batch (11 asks, branch tf-grinjuku):
+    - Bots hit 28/37/55% (recruit/regular/veteran); misses hit the wall behind you (combat/bot-fire.js botMissDistance).
+    - Troll Royale: no bus. At 0:00 a wall of the sky box opens and the floor/treadmill carries everyone off the edge; pure freefall (royale-drop.js, modes/royale.js).
+    - Cloud save: boot writes no longer stomp another device's loadout/streaks (settled after the first pull, content compare, push missing keys). Still whole-blob, last writer wins.
+    - K9 dogs go through doorways (nav.js `blockBy: "centre"`).
+    - Seated legs bent on the seat; set a mug down on the bar/tables; pour animation at the taps.
+    - Iron Ike works the forge (smithy.js).
+    - Playable piano + sheet music (menu/piano-panel.js, piano-sheets.js; rp "pn").
+    - Grin Express loop, Socialize only (train.js, modes/social-train.js; movement `riding`).
+    - Fist fights with townsfolk: jail, a 1:10 side gun, bleed-out to Doc Grin's (modes/social-duel.js; rp "duel").
+    - Socialize is limited to Troll City and Trolling Loud (MODES.social.maps).
+    - Known limits: mugs set down before you joined aren't shown; device clock skew shifts where others see a train rider.
   - Follow-ups (-fu1): rope climbing pose (remote-players.js poseRope); Trolling Loud seats (booths/sofas/armchairs/stools; a seat's optional `reach` works from in front only) and emotes play seated (a duo still stands you up); fire cuts a magazine reload short when rounds are left (`reloadCut` skips the done sound); Infection's infected always get the keyboard sword; Troll Royale loading shot (map-previews `MODE` shoots a map in its own mode); Troll City sign boards stood off their frames (they z-fought); no aim assist while cooking a throwable; dragonfire.js imported under one tag.
   - Grinjuku (Shinjuku at night, after VALORANT's Split): versus + S&D with designed sites A (-22, 15) / B (22, 15), Heavens 3 m up, Sewers/Mail/Vents, 4 ropes (new: walk in to grab, look down to descend, jump off; bots climb them, dogs don't). grinjuku-layout.js is the one source of truth for colliders and build_grinjuku.blender.py (gj-*.glb, 5.3 MB). Tests: map-walk (15 routes), troll-ops-rope-test.mjs (20, in the gate), bot-stairs rope check.
   - Dust Bowl bazaar 5 (redesign done): power wires across the street, laundry to the centre house, rooftop tanks (colliders, unreachable roofs), three smoke plumes in the city (dustbowl-city.js citySmoke, one Points draw), new loading-screen renders (map-load-screen.js SHOT_V: per-map shot tags, dustbowl hq2).
