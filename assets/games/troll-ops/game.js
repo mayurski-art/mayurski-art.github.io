@@ -143,6 +143,7 @@ import { armDuo, duoArmed, duoIncoming, duoOutgoing, duoTarget, duoXClaimed, emo
 import { SPAWN_GUARD, botSpawn, clearRangeBots, notePointDeath, occupants, renderPauseRange, spawnDeaths, spawnForTeam, spawnRangeBot, teamSpawn } from "./modes/spawns.js?v=spw1";
 import { botDealDamage, botTargets, onBotShoot, remoteShotFx, updateBotAntiAir } from "./combat/bot-fire.js?v=bf1";
 import { DIVE_LOOK, DRONE_TOSS_AT, MARKER_THROW_TIME, MELEE_HOLSTER_TIME, beginStreakHold, endStreakHold, finishMeleeHolster, finishStreakHold, holsterMeleeFor, holsterMeleeThen, meleePutAway, powerHeld, startTabletDive, streakDeviceKind, streakHoldActive, streakHoldUntilMark, streakLowering, streakScreen, tabletDiveDip, tabletDiveK, updateTabletDive } from "./streaks/hold.js?v=sh1";
+import { closePauseMenu, openPauseMenu, releaseHeldInputs, resumePlay } from "./menu/pause.js?v=pa1";
 /* What the split-out modules reach back into game.js for (see core/state.js).
    Functions go in as they are; everything else as a getter, so nothing is
    read before game.js declares it. game.js only ever gets smaller: an
@@ -369,6 +370,7 @@ linkGame({
   openPauseMenu,
   openPlayerProfile,
   openStrikeTablet,
+  otherHumansInMatch,
   get padRest() { return padRest; },
   paintMatchClock,
   get pendingDroneLaunch() { return pendingDroneLaunch; }, set pendingDroneLaunch(v) { pendingDroneLaunch = v; },
@@ -2139,6 +2141,7 @@ function nudgeSetting(key, delta, min, max) {
 let gameState = "menu"; // menu | playing | paused | gameover
 let elapsedRun = 0;
 
+
 // True while the pause menu is open in a match that has other real people
 // in it. Unlike a solo `gameState = "paused"` (which stops the whole
 // simulation block below), this leaves gameState at "playing" so net
@@ -2147,74 +2150,7 @@ let elapsedRun = 0;
 // client's own movement/aim/fire freezes, the same way a dead or
 // pre-match player already freezes via the `frozen` flag in updatePlayer.
 let localPauseOnly = false;
-function openPauseMenu() {
-  // Esc out of a half-placed streak instead of opening the menu — the point
-  // isn't committed yet and the charge hasn't been spent.
-  if (markingStreak) { cancelMark(); return; }
-  releaseHeldInputs();
-  renderPauseRange();
-  renderRoomModeRow();
-  if (otherHumansInMatch()) {
-    localPauseOnly = true;
-    els.pause.hidden = false;
-  } else {
-    gameState = "paused";
-    els.pause.hidden = false;
-  }
-}
-function closePauseMenu() {
-  localPauseOnly = false;
-  if (gameState === "paused") gameState = "playing";
-  els.pause.hidden = true;
-  clearTimeout(resumeTimer);
-  setResumeLabel(null);
-  // Whatever was held when the menu opened was released then; anything
-  // pressed while it was up (keys typed into it) must not leak into play.
-  releaseHeldInputs();
-}
 
-/* Everything "held" as of now, let go: movement keys, trigger, ADS. The
-   menu steals keyup/mouseup (they land on the overlay, or the tab lost
-   focus), so without this you'd come back running, firing or scoped. */
-function releaseHeldInputs() {
-  keys.clear();
-  mouseDown = false;
-  adsHeld = false;
-  if (typeof gamepadState !== "undefined") { gamepadState.firing = false; gamepadState.ads = false; gamepadState.jump = false; }
-}
-
-/* Resume (the button, Start on a pad, Enter). Desktop resumes by taking the
-   mouse back; Chrome refuses that for ~1s after Esc released it, which used
-   to make the first Resume click do nothing at all. Now it waits out the
-   cooldown on its own ("Resuming…") and, if the lock is still refused,
-   drops the menu anyway so a click on the game picks the mouse up. */
-let resumeTimer = 0;
-const RELOCK_COOLDOWN = 1150;
-function resumePlay() {
-  if (isTouch) { closePauseMenu(); return; }
-  clearTimeout(resumeTimer);
-  const wait = RELOCK_COOLDOWN - (performance.now() - lockChangedAt);
-  const attempt = () => {
-    controls.lock().then(() => {
-      // Some browsers resolve without locking (no promise support): the
-      // lock event closes the menu when it really happens.
-    }).catch(() => {
-      setResumeLabel(null);
-      closePauseMenu();
-      showWaveBanner("Click to take the mouse back", 1600);
-    });
-  };
-  if (wait > 0) {
-    setResumeLabel("Resuming…");
-    resumeTimer = setTimeout(attempt, wait);
-  } else attempt();
-}
-
-function setResumeLabel(text) {
-  if (!els.resumeBtn) return;
-  els.resumeBtn.textContent = text || "Resume";
-  els.resumeBtn.disabled = !!text;
-}
 
 /* The local player as the wire sees them. Shared by the match loop and the
    intermission, which keeps broadcasting so the room doesn't time us out
