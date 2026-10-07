@@ -3565,7 +3565,15 @@ body.is-map .to-bo2-anim { visibility: hidden; }
 /* Barracks (menu-bo2.js): your card up top, then the calling cards or the
    clan tag box under it. */
 .to-bo2.has-card #to-pf-center { display: none !important; }
-.to-bo2-card[hidden], .to-bo2-clan[hidden] { display: none; }
+.to-bo2-card[hidden], .to-bo2-clan[hidden], .to-bo2-card-share[hidden] { display: none; }
+/* Under your card: Share on X, Save as photo (menu/card-share.js). */
+.to-bo2-card-share { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.to-bo2-card-share button {
+  min-height: 36px; padding: 0 16px; border-radius: 6px; cursor: pointer;
+  font: 600 13px Oswald, sans-serif; letter-spacing: .08em; text-transform: uppercase;
+  color: #f3ece4; background: rgba(255,255,255,.06); border: 1px solid rgba(243,236,228,.2);
+}
+.to-bo2-card-share button:hover, .to-bo2-card-share button:focus-visible { color: #ff8a1f; border-color: #ff8a1f; outline: none; }
 .to-bo2-cardnote { margin: 12px 0 0; font-size: 14px; color: var(--bo2-soft); }
 .to-bo2-clan { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
 .to-bo2-clan label { font: 500 15px Oswald, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--bo2-soft); }

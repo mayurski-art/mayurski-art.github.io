@@ -20,6 +20,7 @@ import { fetchRecord, formatPlayed } from "./record.js?v=rec1";
 import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1-fu1";
 import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withClan } from "./calling-cards.js?v=p5-wst-sb2-fu1";
 import { renderCard, myCardData, openProfileCard } from "./profile-card.js?v=pc1-wst-sb2-fu1";
+import { shareCardOnX, saveCardPhoto } from "./menu/card-share.js?v=cs1";
 import { FINISHES } from "./skins.js?v=p5";
 import { MAPS, REWARD_MAPS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1";
 import { setMapShot } from "./map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1";
@@ -111,6 +112,7 @@ const cardHost = document.createElement("div");
 cardHost.className = "to-bo2-card";
 cardHost.hidden = true;
 cardHost.innerHTML = `<div class="to-bo2-card-slot"></div><p class="to-bo2-cardnote" hidden></p>`
+  + `<div class="to-bo2-card-share" hidden><button type="button" data-act="share">Share on X</button><button type="button" data-act="photo">Save as photo</button></div>`
   + `<form class="to-bo2-clan" hidden><label for="to-bo2-clan-in">Clan tag</label>`
   + `<input id="to-bo2-clan-in" maxlength="4" autocomplete="off" spellcheck="false" aria-describedby="to-bo2-clan-help">`
   + `<button type="submit">Save</button><button type="button" data-act="cancel">Cancel</button>`
@@ -128,11 +130,23 @@ function renderCardHost() {
   if (previewCard) d.card = previewCard;
   if (clanEditing) d.clan = cleanClan(clanIn.value);
   $(".to-bo2-card-slot", cardHost).innerHTML = renderCard(d);
+  shownCard = d;
   const note = $(".to-bo2-cardnote", cardHost);
   note.hidden = !previewCard;
   note.textContent = previewCard ? cardById(previewCard).desc : "";
   clanForm.hidden = !clanEditing;
+  // Share / save: your own card, signed in, in the Barracks proper.
+  $(".to-bo2-card-share", cardHost).hidden = lastScreen !== "barracks" || clanEditing || d.guest;
 }
+let shownCard = null;
+cardHost.addEventListener("click", async (e) => {
+  const act = e.target.closest("[data-act]")?.dataset.act;
+  if (!shownCard || (act !== "share" && act !== "photo")) return;
+  if (act === "share") { shareCardOnX(shownCard); return; }
+  setStatus("Saving your card…");
+  try { await saveCardPhoto(shownCard); setStatus("Card saved as a photo."); }
+  catch { setStatus("Couldn't save the photo."); }
+});
 function stopClan() {
   clanEditing = false;
   renderCardHost();
@@ -383,10 +397,7 @@ const screens = {
           { id: "b-rewards", label: "Prestige Rewards", desc: "What each prestige unlocks.", go: "rewards" },
           { id: "b-record", label: "Combat Record", desc: "Your lifetime K/D, W/L, accuracy and more, across every match.", go: "record" },
         ],
-        [
-          { id: "b-view", label: "View Card", disabled: !signedIn, desc: signedIn ? "Your card the way other players see it." : "Sign in to get a profile card.", onSelect: () => openProfileCard(myUid()) },
-          back("Back to the main menu."),
-        ],
+        [back("Back to the main menu.")],
       ],
     };
   },
