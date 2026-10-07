@@ -1712,9 +1712,9 @@ MAPS.trollcity.dress = {
 };
 // The neon nightclub: versus, S&D and Zombies, like Troll City.
 MAPS.trollingloud = TROLLINGLOUD;
-// Shinjuku at night (after VALORANT's Split): versus and S&D. `_wip` keeps it
-// out of the picker and the vote until it ships.
-MAPS.grinjuku_wip = GRINJUKU;
+// Shinjuku at night (after VALORANT's Split): versus and S&D, ropes up to
+// both Heavens.
+MAPS.grinjuku = GRINJUKU;
 // Troll Royale's own map: 400 m across, far too big for the versus modes, so
 // it stays out of MAP_IDS (the vote pool).
 MAPS.trollface = TROLLFACE_ISLAND;

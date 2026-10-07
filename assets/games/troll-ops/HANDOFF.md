@@ -290,6 +290,8 @@ The club's booths and couches (downstairs, the mezzanine ones upstairs, VIP, ter
 - `rp: {bar, seats(), doctor, npcs()}`
 - `dj: {spot, club, input()}`
 - `debug()`
+- `bombSites: [{id, x, z}]`: S&D plants there instead of at `pickBombSites`' guess. Ground level, open floor, any raised floor more than 5.5 m away (the plant check is 2D).
+- `api.rope(x, z, y0, y1, {dir, ghost})`: a climbing rope (movement.js `STANCE.ROPE`) and a `rope: true` floor link for bots. Hang it in a clear shaft: a climb ignores collision. `dir` is the side you step off at the top.
 
 Map rules:
 - Blockout colliders stay in the map JS; Blender GLBs go over them via `mapModel` / `hgModel`. The numbers in the Blender builders are COPIES of the colliders: change one, change the other.
@@ -479,6 +481,7 @@ Map rules:
 ## 5. Shipped log (one line each; details are in git)
 
 - **2026-10-07**
+  - Grinjuku (Shinjuku at night, after VALORANT's Split): versus + S&D with designed sites A (-22, 15) / B (22, 15), Heavens 3 m up, Sewers/Mail/Vents, 4 ropes (new: walk in to grab, look down to descend, jump off; bots climb them, dogs don't). grinjuku-layout.js is the one source of truth for colliders and build_grinjuku.blender.py (gj-*.glb, 5.3 MB). Tests: map-walk (15 routes), troll-ops-rope-test.mjs (20, in the gate), bot-stairs rope check.
   - Dust Bowl bazaar 5 (redesign done): power wires across the street, laundry to the centre house, rooftop tanks (colliders, unreachable roofs), three smoke plumes in the city (dustbowl-city.js citySmoke, one Points draw), new loading-screen renders (map-load-screen.js SHOT_V: per-map shot tags, dustbowl hq2).
   - Dust Bowl bazaar 4: channel water works: plank crossing at x -17.5 (walk route 15), culvert pipe + three rubble piles as sub-1.5 m cover, pipe run on the south bank (broken at its stairs), culvert outlets in the north bank face (z 20), sluice frame at x 27.
   - Dust Bowl bazaar 3: north loading yard: a 1.5 m dock at (-17, -32.6), the 3rd high spot, with a stair (walk route 14), shutter and hoist; three crate/cart islands in the rock band. Watch S3 (0, -33): the dock sits on the wall-strip line 14-17 m from it.

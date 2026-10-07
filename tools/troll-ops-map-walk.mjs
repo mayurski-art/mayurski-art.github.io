@@ -47,7 +47,7 @@ const RUNS = {
   [-19.5, 0, -27, 0, -1, 2.5, "loading dock stair -> dock", (r) => r.maxY >= 1.45 && r.end[2] < -31],
   [-17.5, 1.2, 18.5, 0, 1, 2.5, "plank crossing bank to bank", (r) => r.end[2] > 30 && r.end[1] > 1.1],
   ],
-  grinjuku_wip: [  [-24.5, 0, -30, 0, 1, 6, "down A Main", (r) => r.end[2] > -2],
+  grinjuku: [  [-24.5, 0, -30, 0, 1, 6, "down A Main", (r) => r.end[2] > -2],
   [0, 0, -33, 0, 1, 3, "under the torii, Mid Top", (r) => r.end[2] > -20],
   [-27, 0, 5.75, 1, 0, 2.5, "A Ramps steps -> deck", (r) => r.maxY >= 0.85],
   [27, 0, 5.75, -1, 0, 2.5, "B Ramps steps -> deck", (r) => r.maxY >= 0.85],

@@ -44,7 +44,6 @@
   "assets/games/troll-ops/models/coltlmg.glb?v=cl2",
   "assets/games/troll-ops/models/soulblazer.glb?v=sb1",
   "assets/games/troll-ops/models/hunter-drone.glb"
-
  ],
  "grinsite": [
   "assets/games/troll-ops/music/holy-water.mp3",
@@ -185,5 +184,30 @@
   "assets/games/troll-ops/models/gl-outside.glb",
   "assets/games/troll-ops/models/gl-falls.glb",
   "assets/games/troll-ops/models/gl-trollhead.glb"
+ ],
+ "grinjuku": [
+  "assets/games/troll-ops/textures/asphalt_color.jpg",
+  "assets/games/troll-ops/textures/asphalt_normal.jpg",
+  "assets/games/troll-ops/textures/asphalt_rough.jpg",
+  "assets/games/troll-ops/textures/cast_color.jpg",
+  "assets/games/troll-ops/textures/cast_normal.jpg",
+  "assets/games/troll-ops/textures/cast_rough.jpg",
+  "assets/games/troll-ops/textures/tile_color.jpg",
+  "assets/games/troll-ops/textures/tile_normal.jpg",
+  "assets/games/troll-ops/textures/tile_rough.jpg",
+  "assets/games/troll-ops/textures/plaster_color.jpg",
+  "assets/games/troll-ops/textures/plaster_normal.jpg",
+  "assets/games/troll-ops/textures/plaster_rough.jpg",
+  "assets/games/troll-ops/textures/brick_color.jpg",
+  "assets/games/troll-ops/textures/brick_normal.jpg",
+  "assets/games/troll-ops/textures/brick_rough.jpg",
+  "assets/games/troll-ops/textures/wood_color.jpg",
+  "assets/games/troll-ops/textures/wood_normal.jpg",
+  "assets/games/troll-ops/textures/wood_rough.jpg",
+  "assets/games/troll-ops/textures/brick_ao.jpg",
+  "assets/games/troll-ops/models/gj-shell.glb",
+  "assets/games/troll-ops/models/gj-props.glb",
+  "assets/games/troll-ops/models/gj-neon.glb",
+  "assets/games/troll-ops/models/gj-skyline.glb"
  ]
 }
