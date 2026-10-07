@@ -259,7 +259,8 @@ function beltTexture() {
    can scroll on its own. */
 function beltStrip(len, w, opacity = 1) {
   const tex = beltTexture().clone();
-  tex.repeat.set(len / BELT_PERIOD, 1);
+  // A chevron every ~3 m across, so it reads as hazard chevrons, not bent bars.
+  tex.repeat.set(len / BELT_PERIOD, Math.max(1, Math.round(w / 3)));
   tex.needsUpdate = true;
   const m = new THREE.MeshBasicMaterial({ map: tex, transparent: opacity < 1, opacity, fog: false, side: THREE.DoubleSide });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(len, w), m);
@@ -527,7 +528,8 @@ export class RoyaleDrop {
       if (this.rampBelt && !this.rampBelt.material.transparent) { this.rampBelt.material.transparent = true; this.rampBelt.material.needsUpdate = true; }
       if (this.ramp) for (const o of this.ramp.children) if (o !== this.rampBelt) { o.material.transparent = true; o.material.opacity = fade; }
     }
-    if (this.beltT >= DROP.floorGoneAfter + 3) this.phase = "done";
+    // Everyone's out: the empty box and ramp go too, rather than hang there.
+    if (this.beltT >= DROP.floorGoneAfter + 3) { this.phase = "done"; this.removeBox(); }
   }
 
   /* Standing on the moving floor or the ramp: feet at the deck's height,

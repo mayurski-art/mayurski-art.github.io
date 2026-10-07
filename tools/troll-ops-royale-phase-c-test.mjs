@@ -40,19 +40,20 @@ const browser = await chromium.launch({ args: ["--use-angle=d3d11", "--autoplay-
   "--disable-background-timer-throttling", "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows"] });
 const errors = [];
 
-async function open(ctx, label, { room = "", lobby = 90, noBots = true } = {}) {
+async function open(ctx, label, { room = "", lobby = 90, noBots = true, floorGone = null } = {}) {
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(`${label}: ${e.message}`));
   await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 90000 });
-  await page.evaluate(async ({ room, lobby, noBots }) => {
+  await page.evaluate(async ({ room, lobby, noBots, floorGone }) => {
     const T = window.__trollOps;
     T.DROP.lobbySeconds = lobby;
+    if (floorGone != null) T.DROP.floorGoneAfter = floorGone;
     T.setMode("royale");
     if (T.els.noBots) T.els.noBots.checked = noBots;
     if (room) { T.els.room.value = room; T.els.room.dispatchEvent(new Event("input")); }
     await T.startGame();
-  }, { room, lobby, noBots });
+  }, { room, lobby, noBots, floorGone });
   await page.waitForFunction(() => window.__trollOps.state() === "playing", null, { timeout: 120000 });
   return page;
 }
@@ -103,11 +104,16 @@ async function open(ctx, label, { room = "", lobby = 90, noBots = true } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 640, height: 400 } });
   await ctx.route(/supabase/, (r) => r.abort());
   const ROOM = "RDC" + Math.floor(Math.random() * 90 + 10);
-  const A = await open(ctx, "A", { room: ROOM, lobby: 6 });
+  // The real belt runs 12 s, about as long as a headless page takes to
+  // load: a longer one here (on both ends: the joiner judges "too late" by
+  // its own DROP) so B lands inside it whatever the machine's speed.
+  const FLOOR_GONE = 40;
+  const A = await open(ctx, "A", { room: ROOM, lobby: 6, floorGone: FLOOR_GONE });
   await A.waitForFunction(() => window.__trollOps.royale()?.me === "belt", null, { timeout: 120000 });
   await sleep(500);
-  const B = await open(ctx, "B", { room: ROOM });
-  await sleep(2500);
+  const B = await open(ctx, "B", { room: ROOM, floorGone: FLOOR_GONE });
+  await B.waitForFunction(() => !window.__trollOps.isStaging(), null, { timeout: 20000 }).catch(() => {});
+  await sleep(500);
   const s = await Promise.all([A, B].map((p) => p.evaluate(() => {
     const T = window.__trollOps, r = T.royale();
     return { me: r.me, phase: r.drop?.phase, beltT: r.drop?.beltT, y: +T.move.pos.y.toFixed(1), staging: T.isStaging(), host: T.net.isBotHost(), peers: T.net.peers.size };
@@ -118,8 +124,9 @@ async function open(ctx, label, { room = "", lobby = 90, noBots = true } = {}) {
 
   // Once the floor has gone there's no way in.
   await A.waitForFunction(() => window.__trollOps.royale()?.drop?.phase === "done", null, { timeout: 120000 });
-  const C = await open(ctx, "C", { room: ROOM });
-  await sleep(2500);
+  const C = await open(ctx, "C", { room: ROOM, floorGone: FLOOR_GONE });
+  await C.waitForFunction(() => !window.__trollOps.isStaging(), null, { timeout: 20000 }).catch(() => {});
+  await sleep(500);
   const c = await C.evaluate(() => {
     const T = window.__trollOps, r = T.royale();
     return { late: !!r.lateJoin, staging: T.isStaging(), live: r.live, spectating: T.royaleSpectating(), host: T.net.isBotHost() };
