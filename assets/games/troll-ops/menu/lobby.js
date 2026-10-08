@@ -2,19 +2,19 @@
 // inspectors, map drawer, roster, callsign, heroes, cloud setup and room code.
 
 import { WeaponInspector } from "../inspector.js?v=hb1-nf-wst-ig1-sb2-if1";
-import { CharacterInspector } from "../char-inspector.js?v=hb4-wst-soc1-sb2c2";
-import { CosmeticsPanel, loadCosmetics } from "../cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2";
-import { EmoteWheel } from "../emote-wheel.js?v=hb4-em1-wst-soc1c2";
+import { CharacterInspector } from "../char-inspector.js?v=hb4-wst-soc1-sb2c2f1";
+import { CosmeticsPanel, loadCosmetics } from "../cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1";
+import { EmoteWheel } from "../emote-wheel.js?v=hb4-em1-wst-soc1c2f1";
 import { padEmotePressed } from "../controller-layout.js?v=cl7";
-import { streakPicker } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2";
+import { streakPicker } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2f1";
 import { withClan, getMyCard } from "../calling-cards.js?v=p5-wst-sb2-fu1";
 import { safeUid } from "../chat.js?v=to-social1";
 import { syncXp } from "../progression.js?v=p5-wst-sb2-fu1";
 import { renderModes, buildModeButtons } from "./mode-picker.js?v=mp1-fu1b7b7d";
 import { HERO_IDS, HEROES, saveHero, savedHero } from "../heroes.js?v=umb2";
-import { heroKit, heroActive } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2";
-import { SETTINGS_KEY, settings, applySettings } from "./settings.js?v=ms1-gj1-fu1b7b7dc2";
-import { BOT_STREAK_KEY } from "../streaks/bot-streaks.js?v=sk1-si1-gj1-fu1b7b7dc2";
+import { heroKit, heroActive } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2f1";
+import { SETTINGS_KEY, settings, applySettings } from "./settings.js?v=ms1-gj1-fu1b7b7dc2f1";
+import { BOT_STREAK_KEY } from "../streaks/bot-streaks.js?v=sk1-si1-gj1-fu1b7b7dc2f1";
 import { initCloudSave } from "../cloud-save.js?v=cs1b7";
 import { makeRoomCode } from "../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7";
 import { game } from "../core/state.js?v=st1";

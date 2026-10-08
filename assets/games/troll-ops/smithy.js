@@ -17,7 +17,7 @@
 // forge, quench: [x, z]} }.
 
 import * as THREE from "three";
-import { reachHand, setHandPose } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2";
+import { reachHand, setHandPose } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1";
 
 const WALK_MPS = 1.25;
 const STRIKE = 1.4;        // one blow, s (up slow, down fast)

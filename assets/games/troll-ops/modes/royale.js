@@ -6,7 +6,7 @@ import { hashSeed, seededRng, RoyaleZone, ROYALE, LootField, lootSpots, ZoneVisu
 import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";
 import { insidePolygon } from "../edge.js";
 import { DROP, RoyaleDrop, buildParaglider, Flight } from "../royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d";
-import { DROP_FALL, DROP_GLIDE, ROLL_TIME } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2";
+import { DROP_FALL, DROP_GLIDE, ROLL_TIME } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2f1";
 import * as THREE from "three";
 import { WEAPON_DEFS, WeaponState } from "../weapons.js?v=p5bm-wst-hf1-fu1";
 import { defaultLoadoutFor } from "../attachments.js?v=cg1-wst-sb2-fu1";

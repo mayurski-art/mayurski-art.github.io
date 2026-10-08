@@ -78,7 +78,8 @@ const cast = await A.evaluate(() => {
   // dressed for the night: the guests, not the staff (outfits.js)
   const GUESTS = ["Clubgoer", "Raver", "VIP", "Barfly"];
   const guests = N.list.filter((n) => GUESTS.includes(n.c.role)), staff = N.list.filter((n) => !GUESTS.includes(n.c.role));
-  const dressed = guests.filter((n) => n.rig.outfit?.length >= 4).length;
+  // (the solid pieces are merged into a skinned mesh per material)
+  const dressed = guests.filter((n) => n.rig.outfit?.some((o) => o.isSkinnedMesh && o.geometry.attributes.position.count > 200)).length;
   const looks = new Set(guests.map((n) => JSON.stringify(n.c.outfit))).size;
   const staffDressed = staff.filter((n) => n.rig.outfit?.length).map((n) => n.c.name);
   const tinted = N.list.filter((n) => n.rig.parts.head.material.color.getHex() !== 0xffffff).map((n) => n.c.name);

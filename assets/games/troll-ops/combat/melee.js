@@ -1,14 +1,14 @@
 // Troll Forces melee: quick swings, the Trollsaber's block, deflect and
 // trail, and the Keyboard Warrior's shield.
 
-import { stageFrozen, royaleDropView } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2";
-import { breakSpawnGuard, killerPosFor } from "./damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2";
+import { stageFrozen, royaleDropView } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2f1";
+import { breakSpawnGuard, killerPosFor } from "./damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2f1";
 import * as THREE from "three";
-import { ParryState } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2";
+import { ParryState } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1";
 import { createKeyboardRepair } from "../keyboard-repair.js?v=kr15";
 import { WEAPON_DEFS } from "../weapons.js?v=p5bm-wst-hf1-fu1";
-import { settings } from "../menu/settings.js?v=ms1-gj1-fu1b7b7dc2";
-import { spawnDamageNumber } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2";
+import { settings } from "../menu/settings.js?v=ms1-gj1-fu1b7b7dc2f1";
+import { spawnDamageNumber } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2f1";
 import { SaberTrail } from "../trollsaber.js?v=ts4-ig1";
 import { damp } from "../anim-curves.js";
 import { game } from "../core/state.js?v=st1";
