@@ -9,6 +9,7 @@ import { handMaterials, inkOutline } from "../hand-model.js?v=to-grip2";
 import { wristOf, buildWatch } from "../wristwear.js?v=ww1";
 import { cosmetics } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7d";
 import { soulBlazerReloadPose, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth, updateSoulBlazerView, soulBlazerInspect, SB_INSPECT_CUES } from "../soul-blazer.js?v=sb1";
+import { placePistolSlide } from "./pistol-action.js?v=ps1";
 import { chargedShotDef } from "../weapons.js?v=p5bm-wst-hf1-fu1";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7";
 import { STANCE } from "../movement.js?v=umb2-sb2-gj1b7";
@@ -67,7 +68,8 @@ const SIDEARM_INSPECT_TIME = 2.2;
 const MELEE_INSPECT_TIME = 3.6;
 export let inspectDur = GUN_INSPECT_TIME;
 
-function isLongGunInspect(w) { return w.def.cls !== "sidearm"; }
+// A sidearm with def.inspectShowcase (the traced pistols) is admired side-on too.
+function isLongGunInspect(w) { return w.def.cls !== "sidearm" || !!w.def.inspectShowcase; }
 
 export function startInspect() {
   if (game.socialUnarmed()) return;
@@ -752,7 +754,9 @@ function reloadPose(w, mesh) {
   }
 
   if (reloadEventsFiredFor !== w) {
-    if (w.def.candleShot) game.audio.tankSwap(w.reloadTime); else game.audio.reload();
+    if (w.def.candleShot) game.audio.tankSwap(w.reloadTime);
+    else if (w.def.pistolSound) game.audio.pistolReload(w.reloadTime);
+    else game.audio.reload();
     reloadEventsFiredFor = w;
   }
 
@@ -1264,6 +1268,15 @@ export function updateWeaponView(dt) {
     game.akimboShown = false;
   }
   placeReloadMag(mesh, rl.magT ?? -1);
+  // A pistol works its slide (pistol-action.js); the empty reload ends on
+  // the slide slamming home, with a little kick.
+  if (mesh.userData.pistolAction) {
+    const admire = game.inspectT > 0 && game.player.holding === "gun" ? inspectProgress() : -1;
+    if (placePistolSlide(mesh, w, rl.magT ?? -1, admire) === "release") {
+      game.audio.slideRelease();
+      w.viewKickPitch += 0.012;
+    }
+  }
   updateGreenCandles(mesh, w, rl.magT ?? -1, dt);
   placeReloadShell(mesh, rl.shellT ?? -1, rl.portShell ?? -1);
   placePump(mesh, w, rl.rack ?? -1, rl.pumpBack ?? null);
