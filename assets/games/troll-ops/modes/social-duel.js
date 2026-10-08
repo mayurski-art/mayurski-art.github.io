@@ -26,7 +26,7 @@
    only where the map has cells (rp.jail: Troll City). */
 
 import * as THREE from "three";
-import { rpExtras, rpListeners, rpSeats, sitDown, seated, standUp } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7d";
+import { rpBusy, rpExtras, rpListeners, rpSeats, sitDown, seated, standUp } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7de";
 import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7d";
 import { touchState } from "../input/touch.js?v=in1";
 import { game } from "../core/state.js?v=st1";
@@ -175,7 +175,7 @@ export function startFight(i) {
     gun: roll ? { at: DUEL.gunAt ?? 2 + Math.random() * 8, who: roll, drawn: false, fired: false, gone: false } : null,
   });
   setAct("square");
-  game.duelBusy = true;
+  rpBusy.fists = true;
   showWaveBanner(`Fist fight with ${nameOf(n)}! Fire to punch`, 2000);
   send({ e: "start", n: i, x: n.x, z: n.z });
 }
@@ -229,7 +229,7 @@ function endFight(quiet = false) {
     if (!quiet || duel.phase) send({ e: "end", n: duel.i });
   }
   Object.assign(duel, { phase: null, i: -1, n: null, gun: null, ko: 0, bleed: null });
-  game.duelBusy = false;
+  rpBusy.fists = false;
   syncFpGun(false);
 }
 

@@ -23,7 +23,7 @@ import { touchState } from "../input/touch.js?v=in1";
 import { frozenPlayer, setTouchContext } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7d";
 import { game } from "../core/state.js?v=st1";
 import { PianoPanel } from "../menu/piano-panel.js?v=pp1b7";
-import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7d";
+import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7de";
 
 export const bar = {
   drink: null,      // { kind: "beer"|"whiskey", sips }
@@ -92,6 +92,9 @@ function barNearestEmptyHanded(reach = 2.2) {
 export const rpExtras = [];
 /* ...and their room messages: each gets every rp message we don't know. */
 export const rpListeners = [];
+/* ...and whether one has fire for itself right now (fists up in a fight:
+   fire is a punch, not a sip or the piano). */
+export const rpBusy = { fists: false };
 
 /* What holding X does where we stand, best first. */
 function barAction(B) {
@@ -593,7 +596,7 @@ export function updateBar(dt) {
 
   // A sip: fire, one at a time. The drink goes down halfway through it.
   const fireNow = !game.localPauseOnly && !game.emoteWheel.isOpen && (game.mouseDown || (game.isTouch && touchState.firing) || (game.gamepadState.connected && game.gamepadState.firing));
-  if (game.duelBusy) { /* fists up: fire is a punch (social-duel.js) */ }
+  if (rpBusy.fists) { /* fists up: fire is a punch (social-duel.js) */ }
   else if (fireNow && !bar.fireWas && atPiano() && !piano.panel?.isOpen && game.player.alive) togglePiano();   // at the piano, fire plays
   else if (fireNow && !bar.fireWas && bar.drink?.sips > 0 && bar.sipT <= 0 && game.player.alive) {
     bar.sipT = SIP_TIME; bar.sipDone = false;
