@@ -1,6 +1,6 @@
 # Trolling Loud: the door (Socialize)
 
-Status: DESIGN, awaiting the user's OK. No code yet. 2026-10-07.
+Status: APPROVED 2026-10-08 (decisions below). Building in phases on tf-grinjuku.
 
 User's ask, short: in Socialize on Trolling Loud you spawn in the line outside, among NPCs. At the front you show your ID (your profile card), say you're 18+, the bouncer unhooks the red rope and you get a wristband. Say you're under 18 and the bouncers throw you out, in a cinematic. The wristband is your pass: in and out of any door, no more line.
 
@@ -14,6 +14,15 @@ Scope: Socialize mode, Trolling Loud only. No weapons step (dropped by the user)
 4. troll_runner skips the whole ritual. He spawns inside wearing an exclusive owner band that opens every door, VIP and backstage included.
 5. The band is the pass: once you have it, any door, any time, no line, no ID.
 6. Band persistence is session-only, for signed-in players and guests alike. It survives the owner switching the room to a match and back, and walking in and out. It's gone when you leave the Socialize room or reload. Never saved to the account. troll_runner is exempt (his band is there from spawn, every time).
+7. (2026-10-08) Step order ID → 18+ → wristband → rope → walk in. No alternative.
+8. Band on the right wrist (the Rolex stays left). Guest band neon pink with a "TL" tab; owner band black and gold.
+9. The line holds 6-7 NPCs, and where you're put in it is random: anywhere from 1 to 7 NPCs ahead of you.
+10. Pinned in line with free look, emotes and chat; hold X to step out (you lose your place).
+11. No line skip. The under-18 kick-out plays EVERY time you answer under 18; it is never skippable.
+12. Side doors: a zone fence and a prompt, no extra door NPCs.
+13. Others see a generic gold ID card in your hand, not your PFP.
+14. Two check lanes: Big Lulz and Tank each have a podium; the front of the line goes to whichever is free.
+15. Band wearers spawn in the lobby (≈ 0, 18).
 
 ## Band tiers
 
@@ -27,9 +36,9 @@ On the wire the tier is one small number (`wb`: 0 none, 1 guest, 2 owner, 3 rese
 
 ## Player flow (guest band)
 
-1. **Spawn in line.** Entering Socialize on Trolling Loud without a band puts you in the queue along the rope (z ≈ 23.35, from x -4.3 going west). You get a random 2-4 NPCs ahead of you out of a line of about 8 (the line gets a few more posts to x ≈ -17 so there's room for several humans). Wait at the back of a full line: roughly 15 s.
+1. **Spawn in line.** Entering Socialize on Trolling Loud without a band puts you in the queue along the rope (z ≈ 23.35, from x -4.3 going west). The line holds 6-7 NPCs and you're dropped in at random with 1-7 of them ahead of you (the line gets a few more posts to x ≈ -17 so there's room for several humans). Two lanes check people, so the wait at the back of a full line is roughly 15 s.
 2. **In line.** Your feet are pinned to your slot (like a seat, `holdSeat` style). Free look, emotes, chat and the radio all work. The line shuffles you forward one slot per tick (about 3.5 s). Hold the leave key to step out and roam the street; you lose your place and rejoin at the back.
-3. **Front of line.** You step up to the podium spot (≈ -3.4, 23.4) facing Big Lulz. From here until you're through the rope, movement is locked.
+3. **Front of line.** You step up to whichever podium is free: Big Lulz's (≈ -3.4, 23.4) or Tank's, the second lane beside it. From here until you're through the rope, movement is locked.
 4. **ID (signed-in only).** Your profile card (profile-card.js `renderCard(myCardData())`) rises from the bottom of the screen as if held up in your hand: tilted, slightly lit, your PFP, name, clan, rank. The camera eases toward Big Lulz, who leans in, looks at the card, up at you, back at the card (about 2.5 s). Guests skip this step.
 5. **The question.** "You 18 or older?" with two buttons: "Yeah" / "No". Big Lulz waits, arms folded.
 6. **Yes:** the order below (see "Step order"). Wristband, rope, walk in. About 7 s, then you're free in the lobby.
@@ -67,7 +76,7 @@ After it:
 - **Locked out for 2 minutes.** A small timer chip: "Bounced · back in line in 1:42". You roam the street freely; the queue won't take you, and the club doors won't either (same fence as below).
 - When it ends, the chip turns into "Get back in line" (hold X), which puts you at the back of the line. You'll be asked again.
 - The answer is never stored. It's a joke dead end, not an age check.
-- The cinematic is skippable after the first time you've seen it this session (Esc / B / tap).
+- The cinematic plays in full every time you answer under 18. It is never skippable (user, 2026-10-08).
 
 Note: a self-declared button is not age verification. The copy should stay playful so nobody reads it as one.
 
@@ -118,7 +127,7 @@ For the session only. The band survives the owner switching the room to a match 
 - Joining the line gives you a ticket (`cq`): the shared clock time you joined (same clock-offset trick as DJ Lulz). Everyone sorts the humans in line by ticket.
 - Your slot is `max(your NPCs-ahead count, slot of the human ahead + 1)`, so humans never share a slot and keep join order.
 - NPCs in the line are local filler (town-npcs are per client, not networked). Each client lays its NPCs into the slots no human holds. Small differences between clients are fine: NPCs have no collision.
-- One podium. Only the front human is checked; the next human waits at slot 1 until the front one's phase is "in", "kicked" or "left".
+- Two podiums (Big Lulz and Tank). The front human goes to whichever is free; with both busy, the next human waits at slot 1 until one frees up (phase "in", "kicked" or "left").
 - AFK: if the front human doesn't answer in 25 s (or their tab goes hidden), they're sent to the back and the next one steps up. Their own client does the move; other clients also skip a front human whose state packets go stale.
 - NPCs between humans still go in on the line's tick, so a human with NPCs ahead keeps moving even while another human is at the podium.
 
@@ -144,7 +153,6 @@ New state packet fields (none named `t`):
 | Answer | 1 / Y = Yeah, 2 / N = No, or click | A = Yeah, B = No | two big buttons |
 | Leave the line | hold X | hold X | "Leave line" button |
 | Rejoin after lockout | hold X | hold X | button |
-| Skip kick-out (after the first) | Esc | B | tap |
 
 Prompts use the existing pad/touch prompt styling. Buttons have aria-labels and the 18+ question is a real dialog with focus on "Yeah".
 
@@ -179,7 +187,7 @@ Cache tags: bump every changed module and cascade importers; game.js's tag in tr
 ## Tests
 
 New `tools/troll-ops-club-entry-test.mjs` (headless, Supabase blocked, BroadcastChannel only, never the live public room):
-- Solo: spawn → queued with 2-4 NPCs ahead; ticks advance; front → card overlay shows your name; "Yeah" → `wb=1`, rope opened, ends in the lobby, movement unlocked.
+- Solo: spawn → queued with 1-7 NPCs ahead (a line of 6-7); ticks advance; front → card overlay shows your name; "Yeah" → `wb=1`, rope opened, ends in the lobby, movement unlocked.
 - Guest: no card, straight to the question.
 - "No" → kick phase, cine runs, ends at the curb, 2 minute lockout (clock sped up), fence holds, then hold X rejoins at the back.
 - Fence: teleport toward every opening in the table with `wb` 0 / 1 / 2 and check where you end up (8 outer openings + VIP/back from inside + the roof stair).
@@ -191,27 +199,16 @@ New `tools/troll-ops-club-entry-test.mjs` (headless, Supabase blocked, Broadcast
 
 ## Phases and estimates
 
-Honest numbers: mostly test and look-at-it time. Cops and Robbers phase 0 ran about 3x its estimate, so read these as "if nothing fights back".
+Re-estimated 2026-10-08 against what comparable Troll City work actually took (fist fights, the blacksmith, the duel sync), not padded.
 
 | Phase | What | Estimate |
 |---|---|---|
-| 1 | solo flow with placeholder poses: line, ticks, podium, card, question, band state, scripted walk, zone fence, owner spawn | 3-4 h |
-| 2 | the look: door posts and rope mesh, bouncer acts (check, band, unhook, nod, block), 1P card and band snap, band meshes (guest, owner) on both wrists' rigs | 4-5 h |
-| 3 | the kick-out cinematic + lockout | 2-3 h |
-| 4 | multiplayer: tickets, one podium, remote phases and poses, AFK | 3-4 h |
-| 5 | pad/touch prompts, test pass, screenshots, gate | 1.5-2 h |
+| 1 | solo flow with placeholder poses: line (6-7 NPCs, random place), ticks, two podiums, card, question, band state, scripted walk, zone fence, owner spawn | 1-1.5 h |
+| 2 | the look: door posts and rope mesh, bouncer acts (check, band, unhook, nod, block), 1P card and band snap, band meshes (guest, owner) on the right wrist | 1.5-2 h |
+| 3 | the kick-out cinematic (every time, never skippable) + lockout | about 1 h |
+| 4 | multiplayer: tickets, two podiums, remote phases and poses, AFK | 1-1.5 h |
+| 5 | pad/touch prompts, test pass, screenshots, gate | 30-45 min |
 
-Total about 14-18 h, 4-5 sessions. Each phase ships on its own; phase 1 is playable (ugly) on its own.
+Total about 5-7 h, 2 sessions. Each phase ships on its own; phase 1 is playable (ugly) on its own.
 
-## Decision points
-
-1. **Step order.** Recommended: ID → 18+ → wristband → rope → walk in (reasons above). Alternative: ID → 18+ → rope → band inside at the host stand (Velvet).
-2. **Which wrist.** Recommended: right, so the Rolex stays on the left and both show.
-3. **Guest band look.** Recommended: neon pink #ff3fb4 fabric with a "TL" tab, a faint beat glow. Owner: black and gold "OWNER".
-4. **NPCs ahead of you.** Recommended: random 2-4 of about 8 (≈ 15 s wait).
-5. **Movement in line.** Recommended: pinned to your slot, free look/emotes/chat, hold X to leave (lose your place).
-6. **Skip the line.** Recommended: none for a first entry (it's ~25 s and it's the content); the kick-out cine is skippable after the first view.
-7. **Side-door enforcement.** Recommended: the zone fence + prompt, no new door NPCs.
-8. **A remote player's ID.** Recommended: a generic gold card mesh, not their real PFP.
-9. **Two check lanes.** Recommended: one podium (Big Lulz) first; open Tank's lane later if playtests show waits.
-10. **Where band wearers spawn.** Recommended: the lobby (≈ 0, 18).
+All decision points were settled by the user on 2026-10-08: see "Settled by the user" items 7-15 at the top.
