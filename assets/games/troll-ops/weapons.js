@@ -219,24 +219,30 @@ export const WEAPON_DEFS = {
     model: { len: 0.47, stock: "folding", mag: "curved", barrel: 0.82 },
   }),
 
-  // ---------------- PDWs
-  smg: mk("pdw", {
-    id: "smg", name: "Grinder SMG", rank: 0, sight: "reddot",
-    rpm: 780, damage: 18,
-    blurb: "Fast fire, red dot, low recoil.",
-    model: { len: 0.44, stock: "folding", mag: "box", barrel: 0.75 },
+  // ---------------- PDWs: Black Ops 2's SMGs (weapon-smgs.js builds each from
+  // its traced side outline, model.build). Iron sights out of the box.
+  // MP7: the all-rounder, forty rounds, fast and tidy.
+  snicker: mk("pdw", {
+    id: "snicker", name: "Snicker MP7", rank: 0, sight: "iron",
+    rpm: 950, damage: 19, magSize: 40, reserveMax: 240, reloadTime: 2.3, tacReloadTime: 1.8,
+    blurb: "Forty rounds of quiet laughter.",
+    model: { len: 0.42, stock: "folding", mag: "box", build: "snicker" },
   }),
-  chuckle: mk("pdw", {
-    id: "chuckle", name: "Chuckle P90", rank: 14, sight: "reddot",
-    magSize: 50, rpm: 900, damage: 16, reloadTime: 2.4, spreadBase: 0.024,
-    blurb: "Fifty rounds of not aiming much.",
-    model: { len: 0.4, stock: "bullpup", mag: "topbox", barrel: 0.6 },
+  // Vector K10: the fastest thing on the rack, barely climbs, drains fast.
+  cope: mk("pdw", {
+    id: "cope", name: "Cope K10", rank: 14, sight: "iron",
+    rpm: 1090, damage: 16, magSize: 36, reserveMax: 216, reloadTime: 2.0, tacReloadTime: 1.6,
+    recoilKickPitch: 0.009, recoilKickYaw: 0.007, falloffEnd: 40,
+    blurb: "Emptied before they could cope.",
+    model: { len: 0.44, stock: "folding", mag: "long", build: "cope" },
   }),
-  smirk: mk("pdw", {
-    id: "smirk", name: "Smirk Vector", rank: 26, sight: "reddot",
-    rpm: 1200, damage: 15, magSize: 25, recoilKickPitch: 0.009,
-    blurb: "Empties itself if you blink.",
-    model: { len: 0.42, stock: "folding", mag: "long", barrel: 0.66 },
+  // PDW-57: fifty rounds on top, steadier and longer-reaching, slower.
+  seethe: mk("pdw", {
+    id: "seethe", name: "Seethe 57", rank: 26, sight: "iron",
+    rpm: 750, damage: 21, magSize: 50, reserveMax: 250, reloadTime: 2.9, tacReloadTime: 2.3,
+    falloffStart: 20, falloffEnd: 56, recoilKickPitch: 0.012, spreadBase: 0.024,
+    blurb: "Fifty rounds. They'll seethe.",
+    model: { len: 0.4, stock: "bullpup", mag: "topbox", build: "seethe" },
   }),
 
   // ---------------- battle rifles / DMRs

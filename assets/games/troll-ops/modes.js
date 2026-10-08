@@ -103,7 +103,7 @@ export const MODES = {
     short: "Gun Game",
     pvp: true, ffa: true,
     ladder: [
-      "sixtynine", "smg", "snubgrin", "chuckle", "problem416",
+      "sixtynine", "snicker", "snubgrin", "seethe", "problem416",
       "sneer", "shotgun", "bellow", "cackle", "deadpan", "true69",
     ],
     noStreaks: true,   // see oitc
