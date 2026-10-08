@@ -1104,6 +1104,80 @@ function roof(K, M, N, S, lights) {
   addLight(S, lights, 0x8a5aff, 70, 52, 0, 14, -4, { amp: 0.12 });
 }
 
+/* The door's dress code (user, 2026-10-08): a bandana under the red
+   circle-and-slash, "NO BANDANAS". Lit from inside like the club's other
+   signs. */
+function noBandanasMat() {
+  const c = document.createElement("canvas");
+  c.width = 576; c.height = 720;
+  const g = c.getContext("2d");
+  const W = c.width, H = c.height;
+  const rr = (x, y, w, h, r) => { g.beginPath(); g.roundRect(x, y, w, h, r); };
+  rr(0, 0, W, H, 34); g.fillStyle = "#120a16"; g.fill();
+  g.shadowColor = "#ff3fb4"; g.shadowBlur = 26;
+  rr(18, 18, W - 36, H - 36, 26); g.lineWidth = 9; g.strokeStyle = "#ff3fb4"; g.stroke();
+  g.shadowBlur = 0;
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = "#ffd080"; g.font = "700 40px 'DM Sans', sans-serif";
+  g.fillText("DRESS CODE", W / 2, 82);
+  // the bandana: a square kerchief, paisley inside a border, folded on the
+  // diagonal and tied, its knot's two tails out to the sides
+  const cx = W / 2, cy = 320;
+  g.lineJoin = "round"; g.lineCap = "round";
+  const cloth = (path) => { g.beginPath(); path(); g.fillStyle = "#c8202a"; g.fill(); g.lineWidth = 8; g.strokeStyle = "#f4ece6"; g.stroke(); };
+  for (const s of [-1, 1]) {
+    // the tails, tied above the fold
+    cloth(() => {
+      g.moveTo(cx + s * 30, cy - 92);
+      g.bezierCurveTo(cx + s * 70, cy - 122, cx + s * 120, cy - 118, cx + s * 168, cy - 96);
+      g.lineTo(cx + s * 150, cy - 76);
+      g.bezierCurveTo(cx + s * 110, cy - 96, cx + s * 70, cy - 98, cx + s * 40, cy - 74);
+      g.closePath();
+    });
+  }
+  cloth(() => {
+    g.moveTo(cx - 150, cy - 78); g.quadraticCurveTo(cx, cy - 104, cx + 150, cy - 78);
+    g.quadraticCurveTo(cx + 40, cy + 30, cx, cy + 125); g.quadraticCurveTo(cx - 40, cy + 30, cx - 150, cy - 78);
+    g.closePath();
+  });
+  // the knot
+  g.beginPath(); g.ellipse(cx, cy - 92, 26, 19, 0, 0, Math.PI * 2);
+  g.fillStyle = "#a8141e"; g.fill(); g.lineWidth = 7; g.strokeStyle = "#f4ece6"; g.stroke();
+  // the printed border, just inside the edge
+  g.lineWidth = 4; g.strokeStyle = "#f4ece6"; g.setLineDash([2, 10]);
+  g.beginPath();
+  g.moveTo(cx - 120, cy - 66); g.quadraticCurveTo(cx, cy - 88, cx + 120, cy - 66);
+  g.quadraticCurveTo(cx + 30, cy + 22, cx, cy + 98); g.quadraticCurveTo(cx - 30, cy + 22, cx - 120, cy - 66);
+  g.stroke(); g.setLineDash([]);
+  // paisley: teardrops with a curled tip, an eye in each
+  const paisley = (x, y, r, a) => {
+    g.save(); g.translate(cx + x, cy + y); g.rotate(a);
+    g.beginPath();
+    g.moveTo(0, r); g.bezierCurveTo(r * 1.1, r, r * 1.1, -r * 0.6, 0, -r * 0.7);
+    g.bezierCurveTo(-r * 0.6, -r * 0.75, -r * 0.4, -r * 1.5, r * 0.25, -r * 1.7);
+    g.bezierCurveTo(-r * 1.0, -r * 1.4, -r * 1.2, r * 0.9, 0, r);
+    g.fillStyle = "#f4ece6"; g.fill();
+    g.beginPath(); g.arc(0, r * 0.1, r * 0.32, 0, Math.PI * 2); g.fillStyle = "#c8202a"; g.fill();
+    g.restore();
+  };
+  paisley(-62, -36, 17, 0.5); paisley(10, -40, 15, -0.4); paisley(70, -38, 16, 0.9);
+  paisley(-20, 12, 16, 2.4); paisley(38, 20, 13, 1.2); paisley(2, 66, 12, 0.2);
+  // the circle and the slash over it
+  g.shadowColor = "#ff2a3a"; g.shadowBlur = 18;
+  g.lineWidth = 30; g.strokeStyle = "#ff2a3a";
+  g.beginPath(); g.arc(cx, cy, 200, 0, Math.PI * 2); g.stroke();
+  g.beginPath(); g.moveTo(cx - 141, cy - 141); g.lineTo(cx + 141, cy + 141); g.stroke();
+  g.shadowBlur = 0;
+  g.fillStyle = "#ffffff"; g.font = "800 66px 'DM Sans', sans-serif";
+  g.fillText("NO BANDANAS", W / 2, 600);
+  g.fillStyle = "#c9b8d4"; g.font = "500 30px 'DM Sans', sans-serif";
+  g.fillText("Leave the colours at home", W / 2, 656);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return new THREE.MeshStandardMaterial({ map: t, emissiveMap: t, emissive: 0xffffff, emissiveIntensity: 0.55, roughness: 0.4 });
+}
+
 /* ============================================================ outside */
 
 function outside(K, M, N, S, lights, R) {
@@ -1145,6 +1219,10 @@ function outside(K, M, N, S, lights, R) {
     K.add(M.gold, place(new THREE.SphereGeometry(0.075, 12, 8), { x, y: 1.0, z }));
     K.add(M.gold, place(new THREE.TorusGeometry(0.035, 0.009, 6, 12), { x, y: DOOR.rope.y, z: z + 0.04 }));
   }
+  // the dress code by the door, where the line reads it: no bandanas
+  K.add(noBandanasMat(), place(new THREE.PlaneGeometry(0.72, 0.9), { x: -3.15, y: 1.62, z: B.z1 + T / 2 + 0.02 }), { shadow: false });
+  K.box(M.chrome, -3.15, 1.62 - 0.47, B.z1 + T / 2 + 0.01, 0.78, 0.04, 0.02);
+  K.box(M.chrome, -3.15, 1.62 + 0.43, B.z1 + T / 2 + 0.01, 0.78, 0.04, 0.02);
   K.solid(4.6, 24.0, 0.8, 0.6, 1.15, { pen: 2, mat: M.blackGloss });
   // the fire escape up to the terrace: steel treads, a landing on posts
   {
