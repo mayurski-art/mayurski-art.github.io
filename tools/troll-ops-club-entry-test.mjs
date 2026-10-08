@@ -1,6 +1,6 @@
 // Troll Forces Socialize: Trolling Loud's door (modes/club-entry.js,
-// CLUB-ENTRY.md), phases 1-2, solo: the flow, and the look (the rope, the
-// bouncers, bands on wrists, security's hand up at VIP).
+// CLUB-ENTRY.md), phases 1-3, solo: the flow, the look (the rope, the
+// bouncers, bands on wrists, security's hand up at VIP), and the kick-out.
 //
 // Three tabs, one at a time, Supabase blocked (never a live room):
 //   1. Signed in: spawn in the line with 1-7 clubgoers ahead (a line of
@@ -8,8 +8,9 @@
 //      18+ question; "Yeah" puts a guest band on and walks you into the
 //      lobby. Before the band the lobby is fenced off; after it the main
 //      floor is open and VIP and back of house aren't.
-//   2. Guest: no card, straight to the question; "No" puts you on the
-//      curb, locked out; once it's up, X puts you back in the line.
+//   2. Guest: no card, straight to the question; "No" plays the kick-out
+//      (carried off, tossed on the curb) and leaves you sat there, locked
+//      out; once it's up, X puts you back in the line.
 //   3. troll_runner: in the lobby with the owner band; VIP and back open.
 // Shots: scratch PNGs in tools/.club-shots (not committed).
 //
@@ -82,13 +83,17 @@ const S = (page) => page.evaluate(() => {
   const d = T.builtMap().map.rp.door;
   return {
     phase: c.phase, band: C.band(), ahead: c.queue.findIndex((e) => e.me), lineNpcs: c.queue.filter((e) => !e.me).length,
-    want: c.want, x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2), zone: d.zoneOf(p.x, p.y + 0.1, p.z),
+    want: c.want, lineish: c.npcs.filter((e) => ["line", "lane", "door", "arrive"].includes(e.state)).length, x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2), zone: d.zoneOf(p.x, p.y + 0.1, p.z),
     card: !!document.querySelector(".club-card:not([hidden]) .tf-card"), cardText: document.querySelector(".club-card")?.textContent || "",
     ask: !!document.querySelector(".club-ask:not([hidden])"), chip: document.querySelector(".club-chip:not([hidden])")?.textContent || "",
     paused: !T.els.pause.hidden,
     rope: C.rope(), rigBand: T.localRig.band || 0, bandMesh: !!T.localRig.bandMesh?.parent,
     bouncers: c.lanes.filter((l) => l.b?.override).length, blocks: c.blocks.length,
     npcBands: c.npcs.filter((e) => e.n.rig.band === 1).length,
+    kick: C.kick(), cine: document.body.classList.contains("club-cine-on"),
+    cap: document.querySelector(".club-cine-cap")?.textContent || "", stamp: !!document.querySelector(".club-cine-stamp.is-on"),
+    lie: +T.localRig.root.rotation.x.toFixed(2), sit: c.sit, eyeY: +T.camera.position.y.toFixed(2),
+    held: c.lanes.filter((l) => l.b && Math.hypot(l.b.x - p.x, l.b.z - p.z) < 0.9).length,
   };
 });
 const until = async (page, pred, ms) => {
@@ -104,9 +109,11 @@ const poke = (page, x, y, z) => page.evaluate(({ x, y, z }) => { window.__trollO
 let A = await open("club_tester");
 let s = await S(A);
 check("signed in: you start in the line", s.phase === "queued" && s.zone === "street", JSON.stringify(s));
-check("with 1-7 clubgoers ahead of you", s.ahead >= 1 && s.ahead <= 7, `${s.ahead} ahead`);
+const spawnAhead = await A.evaluate(() => window.__trollClub.club.spawnAhead);
+check("with 1-7 clubgoers ahead of you", spawnAhead >= 1 && spawnAhead <= 7, `${spawnAhead} ahead at spawn`);
 check("the velvet rope's up across the door, both bouncers working the lanes", s.rope.on && s.rope.k === 0 && s.bouncers === 2, JSON.stringify({ rope: s.rope, bouncers: s.bouncers }));
-check("in a line of 6-7", (s.want === 6 || s.want === 7) && s.lineNpcs + 0 >= s.want - 1, `want ${s.want}, ${s.lineNpcs} in line now`);
+// (with the waits shortened the front ones may already be at a lane)
+check("in a line of 6-7", (s.want === 6 || s.want === 7) && s.lineish >= s.want - 1, `want ${s.want}, ${s.lineish} in line or at a lane now`);
 await A.screenshot({ path: path.join(SHOTS, "1-line.png") });
 // pinned: the keys don't move you out of your place
 const before = { x: s.x, z: s.z };
@@ -157,9 +164,18 @@ await A.evaluate(() => window.__trollClub.join());
 s = await until(A, (s) => s.phase === "id" || s.phase === "ask", 60000);
 check("guest: no card, straight to the question", s.phase === "ask" && !s.card, JSON.stringify(s));
 await A.keyboard.press("Digit2");
-await pump(A, 400);
-s = await S(A);
-check("'No': out on the curb, locked out", s.phase === "lockout" && s.band === 0 && s.zone === "street" && /Bounced/.test(s.chip), JSON.stringify(s));
+// The kick-out plays in full (never shortened, not even here).
+s = await until(A, (s) => s.kick > 0.5, 3000);
+check("'No': the kick-out starts, letterboxed", s.phase === "kick" && s.cine && s.cap === "Nah.", JSON.stringify(s));
+s = await until(A, (s) => s.kick > 3.0, 6000);
+check("both bouncers carry you, off your feet", s.held === 2 && s.y > 0.25, JSON.stringify(s));
+await A.screenshot({ path: path.join(SHOTS, "5a-carried.png") });
+s = await until(A, (s) => s.kick > 5.1, 6000);
+check("tossed on your back by the curb, caption and stamp up", s.lie > 1.3 && s.z > 27 && /18/.test(s.cap) && s.stamp, JSON.stringify(s));
+await A.screenshot({ path: path.join(SHOTS, "5b-tossed.png") });
+s = await until(A, (s) => s.phase !== "kick", 6000);
+check("'No': out on the curb, locked out", s.phase === "lockout" && s.band === 0 && s.zone === "street" && /Bounced/.test(s.chip) && !s.cine, JSON.stringify(s));
+check("sat on the curb, eye low", s.sit > 0.5 && s.eyeY < 1.1 && s.lie === 0, JSON.stringify(s));
 await A.screenshot({ path: path.join(SHOTS, "5-bounced.png") });
 s = await until(A, (s) => /Hold X/.test(s.chip), 6000);
 check("when the lockout's up, X gets you back in line", /Hold X/.test(s.chip), s.chip);

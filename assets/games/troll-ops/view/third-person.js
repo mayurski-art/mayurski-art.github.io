@@ -293,13 +293,15 @@ export function updateLocalRig(dt) {
     poseThrowArm(game.localRig, 1 - game.localThrowT / THROW_TIME);
   }
   if (game.isSocial()) syncLocalDrink(true);   // the saloon bar: a drink in hand
-  if (game.isSocial()) clubPoseLocal(game.localRig);   // Trolling Loud's door: the arm out for the band
   // Sat down (rp-roles.js); at the piano, both hands on the keys.
   if (seated && game.isSocial()) {
     if (seated.s.kind === "piano") posePianoArms(game.localRig, piano.t += dt, 0.3, piano.playing || performance.now() - (piano.sent.at(-1) || 0) < 700);
     poseSeated(game.localRig, seated.s.y, seated.s.kind === "stool" ? 0.55 : 0);
   }
   rollRig(game.localRig, royaleRollK());
+  // Trolling Loud's door: the arm out for the band; carried off and thrown
+  // on your back (after rollRig, which levels the body).
+  if (game.isSocial()) clubPoseLocal(game.localRig);
   if (game.move.onRope) {
     if (game.move.moving) localRopeT += dt * ROPE_CLIMB_RATE;
     poseRope(game.localRig, localRopeT);

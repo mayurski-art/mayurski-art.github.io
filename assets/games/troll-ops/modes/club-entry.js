@@ -8,11 +8,12 @@
    minutes. troll_runner skips all of it: he spawns inside wearing the
    owner band, which opens every door, VIP and back of house included.
 
-   Phases 1-2 of the doc: the whole flow, solo, and the look: the velvet
+   Phases 1-3 of the doc: the whole flow, solo, and the look: the velvet
    rope Big Lulz unhooks for each person, the bouncers' acts (ID, band,
    wave in), the band on your right wrist (first and third person; the
    clubgoers' too), and security's hand up at a door your band doesn't
-   open. The kick-out cinematic (3) and the room seeing it (4) come later.
+   open; the kick-out (the bouncers carry you off and toss you on the curb;
+   view/club-entry-cine.js films it). The room seeing it (4) comes later.
 
    The pass is a zone fence, not doors: after you move, the spot you're in
    (trollingloud.js entryZoneOf: street / main / vip / back) has to be one
@@ -25,7 +26,7 @@ import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2";
 import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2";
 import { renderCard, myCardData } from "../profile-card.js?v=pc1-wst-sb2-fu1";
 import { isOwner } from "../progression.js?v=p5-wst-sb2-fu1";
-import { reachHand } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2";
+import { reachHand, setFace } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2";
 import { clubWear } from "./club-wear.js?v=cw1c2";
 import { game } from "../core/state.js?v=st1";
 
@@ -47,7 +48,7 @@ const OPENS = {            // which zones each band lets you into
 export const club = {
   band: BAND.none,
   room: undefined,         // the room the band was given in (a new room, a new band)
-  phase: "none",           // none queued lane id ask band walk in lockout
+  phase: "none",           // none queued lane id ask band walk in kick lockout
   t: 0,                    // seconds in this phase
   lockUntil: 0,            // performance.now() the lockout ends
   queue: [],               // the line, front first: {me} or an npc entry
@@ -61,6 +62,9 @@ export const club = {
   want: 0,                 // clubgoers kept in the line (6 or 7)
   blocks: [],              // security putting a hand up at you: [{ i, n, t }]
   snapped: false,          // our band's on (the snap's been heard)
+  kick: null,              // the kick-out playing: { tc, ... } (startKick)
+  sit: 0,                  // sat on the curb after it (1), up as you move off
+  cineHide: null,          // view/club-entry-cine.js: take its overlay down
 };
 const ME = { me: true };
 
@@ -106,6 +110,7 @@ export function clubSpawn() {
   // Somewhere in the line: 1-7 ahead of you (as many as there are).
   const ahead = 1 + Math.floor(Math.random() * Math.min(7, club.queue.length));
   club.queue.splice(Math.min(ahead, club.queue.length), 0, ME);
+  club.spawnAhead = club.queue.indexOf(ME);   // (the test reads it: the line may have moved since)
   const slot = slotOf(d, club.queue.indexOf(ME));
   game.move.reset(slot.x, slot.z, 0);
   game.look.yaw = yawTo(slot.x, slot.z, d.mouth.x, d.mouth.z);
@@ -161,8 +166,9 @@ function resetDoor() {
   rope.drop();
   clubWear.band = 0;
   clubWear.glow = 0;
-  if (game.localRig) game.localRig.band = 0;
-  Object.assign(club, { phase: "none", t: 0, queue: [], npcs: [], lanes: [], lane: -1, walkTo: [], live: false });
+  if (game.localRig) { game.localRig.band = 0; game.localRig.root.rotation.x = 0; }
+  Object.assign(club, { phase: "none", t: 0, queue: [], npcs: [], lanes: [], lane: -1, walkTo: [], live: false, kick: null, sit: 0 });
+  club.cineHide?.();
   ui.hideAll();
 }
 
@@ -196,7 +202,7 @@ export function updateClubEntry(dt) {
 /* Is the door moving us (in the line, at a lane, walking in)? Then
    view/player-update.js lets clubHold() move us instead of the keys. */
 export function clubHolds() {
-  return club.live && ["queued", "lane", "id", "ask", "band", "walk"].includes(club.phase);
+  return club.live && ["queued", "lane", "id", "ask", "band", "walk", "kick"].includes(club.phase);
 }
 export function clubHold(dt) {
   const d = door();
@@ -204,6 +210,15 @@ export function clubHold(dt) {
   m.velocity.set(0, 0, 0);
   m.sprinting = false;
   m.grounded = true;
+  if (club.kick) {
+    // Carried, thrown: wherever the bouncers have us.
+    const b = kickBody(club.kick, club.kick.tc);
+    m.pos.set(b.x, b.y, b.z);
+    m.moving = false;
+    game.look.yaw = b.yaw;
+    game.look.pitch = 0;
+    return;
+  }
   let target = null;
   if (club.phase === "queued") target = slotOf(d, club.queue.indexOf(ME));
   else if (club.phase === "lane") target = club.lanes[club.lane];
@@ -245,6 +260,8 @@ function stepNpcs(d, dt) {
       case "lane": {
         const l = club.lanes[e.lane];
         target = l;
+        // His bouncer's off helping throw someone out: he waits.
+        if (l.hold) { e.t -= dt; break; }
         if (near(n, l) && e.t > 0.5) {
           n.yaw = l.yaw;
           if (!e.checkT) e.checkT = e.t;
@@ -279,7 +296,7 @@ function stepNpcs(d, dt) {
   for (const l of club.lanes) {
     l.t += dt;
     const front = club.queue[0];
-    if (l.who || l.t < LANE_GAP || !front) continue;
+    if (l.who || l.hold || l.t < LANE_GAP || !front) continue;
     if (!near(front.me ? game.move.pos : front.n, d.line[0], 0.25)) break;
     club.queue.shift();
     l.who = front;
@@ -339,10 +356,18 @@ function stepMe(d, dt) {
       if (club.walkTo.length && near(p, club.walkTo[0], 0.08)) club.walkTo.shift();
       if (!club.walkTo.length) { go("in"); showWaveBanner("You're in. The band gets you through any door tonight", 2600); }
       break;
+    case "kick": {
+      // The cinematic's own clock: slow round the landing.
+      const K = club.kick;
+      K.tc += dt * (K.tc > KICK.slow0 && K.tc < KICK.slow1 ? KICK.slowRate : 1);
+      kickCues(K);
+      if (K.tc >= KICK.end) endKick();
+      break;
+    }
     case "lockout": {
+      // Stays in lockout till they rejoin; the chip says how.
       const left = club.lockUntil - now();
       ui.chip(left > 0 ? `Bounced · back in line in ${fmt(left)}` : "Hold X to get back in line");
-      if (left <= 0 && club.t > 0) { /* stays in lockout till they rejoin; the chip says how */ }
       break;
     }
     default: break;
@@ -372,18 +397,305 @@ function answer(adult) {
     go("band");
     return;
   }
-  // Phase 3 makes this the cinematic. For now: straight out on the curb.
-  freeLane(false);
-  const d = door();
-  showWaveBanner(`"Nah. Come back when you're 18."`, 3000);
-  game.move.reset(d.curb.x, d.curb.z, 0);
-  game.look.yaw = d.curb.yaw;
-  club.lockUntil = now() + T.lockSecs;
-  club.lastOk.copy(game.move.pos);
-  go("lockout");
+  startKick();
 }
 
 function fmt(s) { const m = Math.floor(s / 60), r = Math.ceil(s % 60); return r === 60 ? `${m + 1}:00` : `${m}:${String(r).padStart(2, "0")}`; }
+
+/* ---------------------------------------------------------- the kick-out */
+
+/* Under 18 (plays in full every time; user, 2026-10-08): your bouncer shakes
+   his head, the other one comes round behind you, they take an arm each and
+   carry you off your feet across the alley, swing you once and toss you on
+   your back by the curb under the scaffold. You come round sat on the curb.
+   Times are on the cinematic's own clock, `tc`, which runs slow round the
+   landing; view/club-entry-cine.js films it. */
+export const KICK = {
+  grab: 1.7, lift: 2.0, carry: 2.3, swing: 4.0, fly: 4.4, land: 4.9,
+  slow0: 4.62, slow1: 5.0, slowRate: 0.35, cut: 5.7, end: 6.3,
+};
+const LIFT = 0.26;   // m off your feet while they carry you
+const HIP = 0.95;    // feet to hips, for the arc you're thrown in
+const LIE_Y = 0.1;   // the hips' height lying on your back
+const SIDE = 0.62;   // a bouncer's step out to your side
+export const CURB_EYE = 0.95;   // eye height sat on the curb
+
+function startKick() {
+  const l = club.lanes[club.lane];
+  const oi = club.lanes.findIndex((x, i) => i !== club.lane && x.b);
+  const K = {
+    tc: 0, li: club.lane, oi, yaw0: game.look.yaw, from: {}, cues: {},
+    B0: { x: l.x, z: l.z },
+    // Thrown from the middle of the alley, a step in from the lane.
+    P1: { x: l.x * 0.35, z: 27.5 },
+    // Your bouncer takes the side of you he's on; the other one comes round.
+    sideS: l.b ? Math.sign(l.b.x - l.x) || 1 : 1,
+  };
+  club.lanes.forEach((ln, i) => { if (ln.b) K.from[i] = { x: ln.b.x, z: ln.b.z }; });
+  if (oi >= 0) club.lanes[oi].hold = true;
+  club.kick = K;
+  go("kick");
+}
+
+function endKick() {
+  const K = club.kick;
+  const l = club.lanes[K.li];
+  if (l) { l.who = null; l.t = 0; }
+  if (K.oi >= 0) club.lanes[K.oi].hold = false;
+  club.lane = -1;
+  club.kick = null;
+  // Sat on the curb where you landed, looking back at the door.
+  game.move.reset(K.P1.x, K.P1.z + 1.1, 0);
+  game.look.yaw = 0;
+  game.look.pitch = 0.06;
+  club.sit = 1;
+  if (game.localRig) game.localRig.root.rotation.x = 0;
+  club.lockUntil = now() + T.lockSecs;
+  club.lastOk.copy(game.move.pos);
+  club.cineHide?.();
+  go("lockout");
+}
+
+/* Where we are at `tc`: feet (the rig's root), facing, and how far over on
+   our back (`lie`, radians about our own x). Before the toss we hang
+   between the bouncers; thrown, our hips fly an arc and we turn over
+   onto our back. */
+const _kb = { x: 0, y: 0, z: 0, yaw: 0, lie: 0 };
+export function kickBody(K, tc, o = _kb) {
+  const { B0, P1 } = K;
+  o.yaw = turn(K.yaw0, Math.PI, smooth((tc - KICK.grab) / 0.4));   // turned round to face the street
+  o.lie = 0;
+  if (tc < KICK.carry) {
+    o.x = B0.x; o.z = B0.z;
+    o.y = LIFT * smooth((tc - KICK.lift) / (KICK.carry - KICK.lift));
+  } else if (tc < KICK.swing) {
+    const u = smooth((tc - KICK.carry) / (KICK.swing - KICK.carry));
+    o.x = B0.x + (P1.x - B0.x) * u; o.z = B0.z + (P1.z - B0.z) * u;
+    o.y = LIFT + Math.abs(Math.sin(tc * 9)) * 0.03;   // their steps
+  } else if (tc < KICK.fly) {
+    // One swing back toward the door, and forward.
+    const s = Math.sin(Math.PI * (tc - KICK.swing) / (KICK.fly - KICK.swing));
+    o.x = P1.x; o.z = P1.z - 0.42 * s; o.y = LIFT - 0.1 * s;
+  } else {
+    const u = Math.min(1, (tc - KICK.fly) / (KICK.land - KICK.fly));
+    const th = (Math.PI / 2 - 0.03) * smooth(u);
+    const hy = LIFT + HIP + (LIE_Y - LIFT - HIP) * u + 0.75 * 4 * u * (1 - u);
+    // Thrown forward and flopping over backwards: the hips sail on, the
+    // head comes back toward the door.
+    const hz = P1.z + 0.9 * u;
+    o.x = P1.x; o.y = hy - HIP * Math.cos(th); o.z = hz + HIP * Math.sin(th);
+    o.lie = th;
+    // A bounce off the pavement.
+    if (tc > KICK.land) o.y += Math.sin(Math.min(1, (tc - KICK.land) / 0.3) * Math.PI) * 0.05;
+  }
+  return o;
+}
+
+/* The sounds, each once as the clock passes it. */
+function kickCues(K) {
+  const a = game.audio;
+  if (!a?._ready?.()) return;
+  const at = { x: game.move.pos.x, y: 1, z: game.move.pos.z };
+  const cue = (name, t, fn) => { if (K.tc >= t && !K.cues[name]) { K.cues[name] = 1; fn(); } };
+  cue("grab", KICK.grab + 0.15, () => {
+    a._noise({ duration: 0.12, gain: 0.35, type: "bandpass", freq: 900, q: 1.5, at });
+    a._noise({ duration: 0.09, gain: 0.25, type: "bandpass", freq: 700, q: 1.5, delay: 0.1, at });
+  });
+  cue("lift", KICK.lift + 0.05, () => a._tone({ freq: 190, to: 120, duration: 0.18, gain: 0.08, type: "triangle", at }));
+  cue("toss", KICK.fly - 0.05, () => a._noise({ duration: 0.5, gain: 0.4, type: "bandpass", freq: 380, q: 1.2, sweepTo: 1700, at }));
+  cue("land", KICK.land, () => {
+    a._tone({ freq: 95, to: 36, duration: 0.42, gain: 0.55, type: "sine", at });
+    a._noise({ duration: 0.3, gain: 0.5, type: "lowpass", freq: 420, at });
+  });
+  // The trollface stamped on the shot.
+  cue("stamp", KICK.land + 0.12, () => {
+    a._tone({ freq: 150, to: 55, duration: 0.2, gain: 0.32, type: "square" });
+    a._noise({ duration: 0.12, gain: 0.35, type: "lowpass", freq: 900 });
+  });
+}
+
+/* Along a path of points at `s` metres in: where, which way, and whether
+   it's the end. */
+const _pp = { x: 0, z: 0, yaw: 0, done: false };
+function alongPath(pts, s, o = _pp) {
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1], len = Math.hypot(b.x - a.x, b.z - a.z);
+    o.yaw = Math.atan2(-(b.x - a.x), -(b.z - a.z));
+    if (s <= len || i === pts.length - 2) {
+      const k = len > 0 ? Math.min(1, s / len) : 1;
+      o.x = a.x + (b.x - a.x) * k; o.z = a.z + (b.z - a.z) * k;
+      o.done = i === pts.length - 2 && k >= 1;
+      return o;
+    }
+    s -= len;
+  }
+  return o;
+}
+
+/* A bouncer back to his post at a walk (after a kick-out). True while he's
+   still on his way. */
+function walkHome(n, dt) {
+  const h = n.home;
+  if (!h) return false;
+  const dx = h.x - n.x, dz = h.z - n.z, dd = Math.hypot(dx, dz);
+  n.moving = dd > 0.05;
+  if (dd > 0.01) { const st = Math.min(dd, 2.2 * dt); n.x += dx / dd * st; n.z += dz / dd * st; }
+  if (dd > 0.3) n.yaw = turn(n.yaw, Math.atan2(-dx, -dz), dt * 8);
+  return dd > 0.3;
+}
+
+/* Big Lulz or Tank throwing you out. */
+const _bk = { x: 0, y: 0, z: 0, yaw: 0, lie: 0 }, _ga = new THREE.Vector3(), _gb = new THREE.Vector3();
+function poseKicker(l, n, rig, dt) {
+  const K = club.kick, tc = K.tc, p = rig.parts;
+  const i = club.lanes.indexOf(l);
+  const shaker = i === K.li;
+  const side = shaker ? K.sideS : -K.sideS;
+  idCard(l, rig, false);
+  foldArms(p);
+  l.w = l.wl = 0;
+  const y0 = n.c.y ?? 0;
+  if (tc >= KICK.cut) {
+    walkHome(n, dt);
+    p.headPivot.rotation.set(0, 0, 0);
+    return;
+  }
+  const from = K.from[i] || n;
+  const b = kickBody(K, Math.min(tc, KICK.fly), _bk);
+  const sx = b.x + side * SIDE, sz = b.z;   // beside you
+  let yaw, moving = false, grip = 0, shake = 0, head = 0;
+  if (tc < KICK.grab) {
+    if (shaker) {
+      // "Nah." A slow shake of the head, arms folded.
+      n.x = from.x; n.z = from.z;
+      yaw = yawTo(n.x, n.z, K.B0.x, K.B0.z);
+      shake = env((tc - 0.2) / 1.35, 0.15, 0.2);
+      head = 0.12;
+    } else {
+      // Round behind you to your other side, at a jog.
+      const r = alongPath([from, { x: K.B0.x, z: K.B0.z + 1.1 }, { x: K.B0.x + side * SIDE, z: K.B0.z }], Math.max(0, tc - 0.1) * 4.6);
+      n.x = r.x; n.z = r.z;
+      moving = !r.done;
+      yaw = r.done ? Math.PI : r.yaw;
+      // His way round passes the camera's shoulder: out of the shot while
+      // he's right on the lens.
+      const cam = game.camera.position;
+      rig.root.visible = Math.hypot(cam.x - n.x, cam.z - n.z) > 2.2;
+    }
+  } else {
+    // At your sides, facing down the alley; an arm each, up you go, and
+    // off across the alley with you.
+    const k = smooth((tc - KICK.grab) / 0.3);
+    if (shaker) { n.x = from.x + (sx - from.x) * k; n.z = from.z + (sz - from.z) * k; }
+    else { n.x = sx; n.z = sz; }
+    yaw = shaker ? turn(yawTo(from.x, from.z, K.B0.x, K.B0.z), Math.PI, k) : Math.PI;
+    moving = (tc > KICK.carry && tc < KICK.swing) || (shaker && k > 0.05 && k < 0.95);
+    grip = tc < KICK.fly ? smooth((tc - KICK.grab - 0.1) / 0.25) : Math.max(0, 1 - (tc - KICK.fly) / 0.2);
+    head = tc > KICK.fly ? 0.3 : 0.1;
+  }
+  n.yaw = turn(n.yaw, yaw, Math.min(1, dt * 12));
+  n.moving = moving;
+  _f.set(-Math.sin(n.yaw), 0, -Math.cos(n.yaw));
+  _x.set(Math.cos(n.yaw), 0, -Math.sin(n.yaw));
+  if (grip > 0) {
+    // His near hand on your upper arm, the other on your forearm; through
+    // the release they follow you a moment.
+    const ub = kickBody(K, Math.min(tc, KICK.fly + 0.12), _bk);
+    const near = side > 0 ? 1 : -1;   // facing down the alley, you're on his right from the +x side
+    reachW(rig, near, _ga.set(ub.x + side * 0.27, ub.y + 1.3, ub.z + 0.03), grip);
+    reachW(rig, -near, _gb.set(ub.x + side * 0.44, ub.y + 1.1, ub.z - 0.06), grip);
+  } else if (tc > KICK.land + 0.25) {
+    // Dusting his hands off.
+    const e = env((tc - KICK.land - 0.25) / 0.9, 0.2, 0.25);
+    const rub = Math.sin(tc * 26) * 0.045;
+    reachW(rig, 1, _ga.set(n.x, y0 + 1.12, n.z).addScaledVector(_f, 0.3).addScaledVector(_x, rub), e);
+    reachW(rig, -1, _gb.set(n.x, y0 + 1.12, n.z).addScaledVector(_f, 0.3).addScaledVector(_x, -rub), e);
+  }
+  p.headPivot.rotation.x = head;
+  p.headPivot.rotation.y = Math.sin(tc * 8.5) * 0.42 * shake;
+}
+
+/* Us, carried and thrown (third person; the cinematic's camera sees it
+   whatever your view setting). Over the idle pose: arms out where they hold
+   them, legs kicking; flailing in the air; flat on our back, splayed. */
+const _kp = { x: 0, y: 0, z: 0, yaw: 0, lie: 0 };
+const mix = (a, b, k) => a + (b - a) * k;
+function poseKicked(rig, tc) {
+  const p = rig.parts;
+  const b = kickBody(club.kick, tc, _kp);
+  rig.root.position.set(b.x, b.y, b.z);
+  rig.root.rotation.set(b.lie, b.yaw, 0, "YXZ");
+  const held = tc < KICK.grab || tc > KICK.fly + 0.1 ? 0 : smooth((tc - KICK.grab - 0.1) / 0.25);
+  const kick = tc < KICK.lift || tc > KICK.fly + 0.1 ? 0 : smooth((tc - KICK.lift) / 0.25);
+  const fly = tc < KICK.fly ? 0 : smooth((tc - KICK.fly) / 0.15) * (1 - smooth((tc - KICK.land) / 0.25));
+  const lie = smooth((tc - KICK.land) / 0.25);
+  const W = Math.min(1, held + fly + lie);
+  if (W > 0.001) {
+    const w = (h, f, l) => (held * h + fly * f + lie * l) / Math.max(1e-3, held + fly + lie);
+    p.armR.rotation.z = mix(p.armR.rotation.z, w(0.75, 1.5 + Math.sin(tc * 17) * 0.35, 1.25), W);
+    p.armL.rotation.z = mix(p.armL.rotation.z, -w(0.75, 1.5 + Math.sin(tc * 15 + 1) * 0.35, 1.1), W);
+    p.armR.rotation.x = mix(p.armR.rotation.x, w(-0.1, -0.5, 0.3), W);
+    p.armL.rotation.x = mix(p.armL.rotation.x, w(-0.1, -0.4, 0.15), W);
+    p.elbowR.rotation.x = mix(p.elbowR.rotation.x, w(0.35, 0.5, 0.3), W);
+    p.elbowL.rotation.x = mix(p.elbowL.rotation.x, w(0.35, 0.6, 0.45), W);
+  }
+  // Legs: kicking while they carry you, tucked in the air, one knee up on
+  // the ground.
+  const s = Math.sin(tc * 12), c = Math.sin(tc * 12 + Math.PI);
+  const LW = Math.min(1, kick + fly + lie);
+  if (LW > 0.001) {
+    const w = (k, f, l) => (kick * k + fly * f + lie * l) / Math.max(1e-3, kick + fly + lie);
+    p.legL.rotation.x = mix(p.legL.rotation.x, w(0.35 + 0.55 * s, 0.75, 0.08), LW);
+    p.legR.rotation.x = mix(p.legR.rotation.x, w(0.35 + 0.55 * c, 1.05, 0.8), LW);
+    p.legL.rotation.z = mix(p.legL.rotation.z, w(0, -0.1, -0.14), LW);
+    p.legR.rotation.z = mix(p.legR.rotation.z, w(0, 0.1, 0.1), LW);
+    p.kneeL.rotation.x = mix(p.kneeL.rotation.x, w(-0.55 - 0.45 * Math.max(0, -s), -0.9, -0.15), LW);
+    p.kneeR.rotation.x = mix(p.kneeR.rotation.x, w(-0.55 - 0.45 * Math.max(0, -c), -1.25, -1.4), LW);
+  }
+  // Head: up at the bouncer, shaking "no no no" as they carry you, rolled
+  // over on the ground.
+  p.headPivot.rotation.x = tc < KICK.grab ? -0.12 : mix(0.05, 0.3, fly) - lie * 0.15;
+  p.headPivot.rotation.y = Math.sin(tc * 7) * 0.35 * kick;
+  p.headPivot.rotation.z = lie * 0.42;
+  if (tc > KICK.fly + 0.2) setFace(rig, "sad");
+  rig.body?.update?.();
+}
+
+/* Sat on the curb: knees up, forearms on them, a sad face. */
+const _hip = new THREE.Vector3(), _knee = new THREE.Vector3();
+function poseCurbSit(rig) {
+  const p = rig.parts;
+  p.legL.rotation.set(2.0, 0, 0.12);
+  p.legR.rotation.set(1.9, 0, -0.12);
+  p.kneeL.rotation.set(-1.85, 0, 0);
+  p.kneeR.rotation.set(-1.7, 0, 0);
+  p.ankleL.rotation.set(0, 0, 0);
+  p.ankleR.rotation.set(0, 0, 0);
+  p.torso.rotation.x = 0.25;
+  p.headPivot.rotation.x = 0.1;
+  rig.root.updateMatrixWorld(true);
+  p.hips.getWorldPosition(_hip);
+  rig.root.position.y += 0.16 - _hip.y;
+  rig.root.updateMatrixWorld(true);
+  for (const side of [1, -1]) {
+    (side > 0 ? p.kneeR : p.kneeL).getWorldPosition(_knee);
+    _knee.y += 0.04;
+    reachW(rig, side, _knee, 1);
+  }
+  setFace(rig, "sad");
+  rig.body?.update?.();
+}
+
+/* First person after the kick-out: the eye sat low on the curb till you
+   move off (view/player-update.js takes this off the eye height). */
+export function clubEyeDrop(dt) {
+  if (club.sit <= 0) return 0;
+  if (!club.live || club.phase !== "lockout") club.sit = 0;
+  else if (game.move.moving || !game.move.grounded) club.sitUp = true;
+  if (club.sitUp) club.sit = Math.max(0, club.sit - dt / 0.4);
+  if (club.sit <= 0) club.sitUp = false;
+  return Math.max(0, game.move.eyeHeight - CURB_EYE) * smooth(club.sit);
+}
 
 /* ------------------------------------------------------ the line, by X */
 
@@ -495,6 +807,7 @@ function npcBandK(e) {
 
 /* What a lane's bouncer is doing right now. */
 function laneAct(l) {
+  if (club.kick && (club.lanes.indexOf(l) === club.kick.li || club.lanes.indexOf(l) === club.kick.oi)) return { act: "kick" };
   const who = l.who;
   if (who === ME) {
     const at = game.move.pos;
@@ -520,17 +833,22 @@ const _pR = new THREE.Vector3(), _pL = new THREE.Vector3(), _f = new THREE.Vecto
 function poseBouncer(l, lulz, n, rig, dt) {
   l.waveT += dt;
   const a = laneAct(l);
+  if (a.act === "kick") { poseKicker(l, n, rig, dt); return; }
   const p = rig.parts;
   const hook = lulz ? rope.hand() : null;
   let yawT = n.home?.yaw ?? Math.PI;
-  // A step over to the hook and back.
-  if (lulz && n.home) {
+  // A step over to the hook and back (and back to his post after a
+  // kick-out).
+  let away = false;
+  if (n.home) {
     const sx = hook ? hook.x + (n.home.x - hook.x) * 0.5 : n.home.x, sz = hook ? hook.z + (n.home.z - hook.z) * 0.5 : n.home.z;
     const dx = sx - n.x, dz = sz - n.z, dd = Math.hypot(dx, dz);
     n.moving = dd > 0.05;
     if (dd > 0.01) { const st = Math.min(dd, 2.2 * dt); n.x += dx / dd * st; n.z += dz / dd * st; }
+    if (dd > 0.4 && !hook) { away = true; yawT = Math.atan2(-dx, -dz); }
   }
-  if (hook) yawT = yawTo(n.x, n.z, hook.x, hook.z);
+  if (away) { /* walking back: eyes where he's going */ }
+  else if (hook) yawT = yawTo(n.x, n.z, hook.x, hook.z);
   else if (a.to) yawT = yawTo(n.x, n.z, a.to.x, a.to.z);
   n.yaw = turn(n.yaw, yawT, dt * 6);
   foldArms(p);
@@ -665,6 +983,9 @@ function poseGoer(e, rig) {
 /* Our own body in third person (view/third-person.js): the arm out at the
    band. */
 export function clubPoseLocal(rig) {
+  if (club.live && club.kick) { poseKicked(rig, club.kick.tc); return; }
+  if (rig.root.rotation.x) rig.root.rotation.x = 0;
+  if (club.live && club.sit > 0.5) { poseCurbSit(rig); return; }
   if (!club.live || club.phase !== "band") return;
   const k = club.t / T.bandSecs;
   reachW(rig, 1, myWrist(_s.clone()), env(k, 0.15, 0.25));
@@ -674,6 +995,8 @@ export function clubPoseLocal(rig) {
    band, and you look down at it as it's snapped on. */
 export function clubArms() {
   if (!club.live) return null;
+  // Thrown out: no hands in front of the cinematic's camera.
+  if (club.kick) return { R: { pos: [0.3, -1.6, -0.45], rot: [0, 0, -Math.PI / 2], pose: "relaxed" }, L: null, gun: false, cam: { pitch: 0, yaw: 0 }, social: true };
   let e = 0;
   if (club.phase === "band") e = env(club.t / T.bandSecs, 0.15, 0.001);
   else if (club.phase === "walk" && club.t < 0.7) e = 1 - club.t / 0.7;
@@ -924,6 +1247,7 @@ if (new URLSearchParams(location.search).has("tohooks")) {
   window.__trollClub = {
     club, T, BAND, answer: (yes) => ui.answer(yes), join: joinLine, leave: leaveLine, band: () => clubBand(),
     rope: () => ({ on: !!rope.mesh?.parent, k: rope.k }),
+    KICK, kick: () => (club.kick ? club.kick.tc : -1),
     // Other tests that need the club's floor: already through the door, banded.
     pass() {
       const i = club.queue.indexOf(ME);

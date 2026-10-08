@@ -11,7 +11,8 @@ import { royaleDropView, royaleOnBelt, royaleRolling, stageFrozen, updateRoyaleR
 import { bar, seated, holdSeat } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2";
 import { updateTrain } from "../modes/social-train.js?v=st1b7b7dc2";
 import { updateDuel, duelFire } from "../modes/social-duel.js?v=sd1b7b7dec1c2";
-import { clubHolds, clubHold, updateClubEntry } from "../modes/club-entry.js?v=ce1c1c2";
+import { clubHolds, clubHold, updateClubEntry, clubEyeDrop } from "../modes/club-entry.js?v=ce1c1c2";
+import { clubCineOn, placeClubCine } from "./club-entry-cine.js?v=cc1";
 import { TIPSY, tipsyFx } from "../saloon-bar.js?v=sb1b7";
 import { strikeTablet, throwMarker } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2";
 import { insidePolygon } from "../edge.js";
@@ -211,6 +212,7 @@ export function updatePlayer(dt) {
   game.updateEnemySteps(dt);
 
   game.move.eyePosition(game.player.pos);
+  if (game.isSocial()) game.player.pos.y -= clubEyeDrop(dt);   // sat on the curb after the club's kick-out
 
   // While it's running, the kill cam owns camera.position/.quaternion in
   // full — skip both the eye-position copy and the aim/recoil composition
@@ -261,7 +263,11 @@ export function updatePlayer(dt) {
   const viewPitch = game.look.pitch - game.tabletDiveDip() + w.recoilPitch + (Math.random() - 0.5) * shake + landKick + meleeKick
     + game.fireShake.p + (Math.random() - 0.5) * buzz + (fpCam?.pitch || 0) + (Math.random() - 0.5) * game.sawShake;
 
-  if (royaleSpectating()) {
+  if (game.isSocial() && clubCineOn()) {
+    // Thrown out of Trolling Loud: the kick-out's own camera (club-entry-cine.js).
+    game.localRig.root.visible = placeClubCine(game.camera);
+    game.localRig.parts.head.visible = true;
+  } else if (royaleSpectating()) {
     game.localRig.root.visible = false;
     placeSpectateCamera(dt);
   } else if (!game.player.alive && game.gameState === "playing") {
