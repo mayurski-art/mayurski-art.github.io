@@ -1,0 +1,937 @@
+/* Socialize, Trolling Loud: the door (CLUB-ENTRY.md; user, 2026-10-07/08).
+   You spawn in the line along the rope with 1-7 clubgoers ahead of you
+   (a line of 6-7). It moves up as the two lanes, Big Lulz's and Tank's,
+   check people in. At the front you show your ID (signed in: your profile
+   card; guests skip it), say whether you're 18, and get a wristband; the
+   wristband is your pass through any door for the rest of the session.
+   Under 18 and you're thrown out onto the curb and locked out for two
+   minutes. troll_runner skips all of it: he spawns inside wearing the
+   owner band, which opens every door, VIP and back of house included.
+
+   Phases 1-2 of the doc: the whole flow, solo, and the look: the velvet
+   rope Big Lulz unhooks for each person, the bouncers' acts (ID, band,
+   wave in), the band on your right wrist (first and third person; the
+   clubgoers' too), and security's hand up at a door your band doesn't
+   open. The kick-out cinematic (3) and the room seeing it (4) come later.
+
+   The pass is a zone fence, not doors: after you move, the spot you're in
+   (trollingloud.js entryZoneOf: street / main / vip / back) has to be one
+   your band opens, or you're put back where you were. Only on a map with
+   `rp.door` (Trolling Loud), only in Socialize. */
+
+import * as THREE from "three";
+import { rpExtras } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2";
+import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2";
+import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2";
+import { renderCard, myCardData } from "../profile-card.js?v=pc1-wst-sb2-fu1";
+import { isOwner } from "../progression.js?v=p5-wst-sb2-fu1";
+import { reachHand } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2";
+import { clubWear } from "./club-wear.js?v=cw1c2";
+import { game } from "../core/state.js?v=st1";
+
+export const BAND = { none: 0, guest: 1, owner: 2, vip: 3 };
+/* The test (?tohooks=1) shortens the waits: window.__trollClub.T. */
+const T = { lockSecs: 120, checkSecs: 3.0, idSecs: 2.6, bandSecs: 1.8 };
+const SNAP_AT = 0.5;       // into the band act: the moment it snaps shut
+const WAVE_SECS = 1.3;     // the bouncer's wave in, after a band
+const ROPE_OPEN = 1.4, ROPE_SHUT = 1.5;   // s
+const WALK = 1.5;          // m/s, people in the line
+const LANE_GAP = 1.2;      // s a lane stays empty between people
+const OPENS = {            // which zones each band lets you into
+  0: ["street"],
+  1: ["street", "main"],
+  2: ["street", "main", "vip", "back"],
+  3: ["street", "main", "vip"],
+};
+
+export const club = {
+  band: BAND.none,
+  room: undefined,         // the room the band was given in (a new room, a new band)
+  phase: "none",           // none queued lane id ask band walk in lockout
+  t: 0,                    // seconds in this phase
+  lockUntil: 0,            // performance.now() the lockout ends
+  queue: [],               // the line, front first: {me} or an npc entry
+  npcs: [],                // every clubgoer the door drives
+  lanes: [],               // [{ who, t, x, z, yaw, bouncer }]
+  lane: -1,                // our lane, checking
+  walkTo: [],              // our scripted walk's remaining points
+  lastOk: new THREE.Vector3(),
+  fenceMsgAt: 0,
+  live: false,
+  want: 0,                 // clubgoers kept in the line (6 or 7)
+  blocks: [],              // security putting a hand up at you: [{ i, n, t }]
+  snapped: false,          // our band's on (the snap's been heard)
+};
+const ME = { me: true };
+
+const door = () => (game.isSocial() ? game.builtMap?.map?.rp?.door : null) || null;
+const now = () => performance.now() / 1000;
+const yawTo = (fx, fz, tx, tz) => Math.atan2(-(tx - fx), -(tz - fz));
+
+/* ------------------------------------------------------------- the band */
+
+function roomKey() { return game.net?.room ?? "solo"; }
+/* The band for the session, in this room (survives the room going to a
+   match and back; a different room or a reload starts over). The owner's
+   is there from the start, every time. */
+function bandNow() {
+  if (isOwner()) return BAND.owner;
+  if (club.room !== roomKey()) { club.band = BAND.none; club.room = roomKey(); }
+  return club.band;
+}
+export function clubBand() { return door() ? bandNow() : BAND.none; }
+
+/* ------------------------------------------------------------- spawning */
+
+/* After the match puts us down (modes/match-start.js): in the line, or in
+   the lobby with a band on. */
+export function clubSpawn() {
+  resetDoor();
+  const d = door();
+  if (!d) return;
+  addActions();
+  club.live = true;
+  club.lanes = d.lanes.map((l, k) => {
+    const list = game.townNpcs?.list || [];
+    const bi = list.findIndex((n) => n.c.name === l.bouncer);
+    const b = list[bi];
+    const lane = { who: null, t: 0, x: l.x, z: l.z, yaw: b ? yawTo(l.x, l.z, b.x, b.z) : 0, b: null, bi, waveT: 99, w: 0, act: "idle" };
+    // Big Lulz (the first lane) also works the rope.
+    if (b) lane.b = game.townNpcs.takeOver(bi, (n, rig, dt) => poseBouncer(lane, k === 0, n, rig, dt));
+    return lane;
+  });
+  takeLine(d);
+  rope.build(d);
+  if (bandNow() > BAND.none) { toLobby(d); return; }
+  // Somewhere in the line: 1-7 ahead of you (as many as there are).
+  const ahead = 1 + Math.floor(Math.random() * Math.min(7, club.queue.length));
+  club.queue.splice(Math.min(ahead, club.queue.length), 0, ME);
+  const slot = slotOf(d, club.queue.indexOf(ME));
+  game.move.reset(slot.x, slot.z, 0);
+  game.look.yaw = yawTo(slot.x, slot.z, d.mouth.x, d.mouth.z);
+  game.look.pitch = 0;
+  go("queued");
+  club.lastOk.copy(game.move.pos);
+}
+
+function toLobby(d) {
+  game.move.reset(d.lobby.x, d.lobby.z, d.lobby.y);
+  game.look.yaw = d.lobby.yaw;
+  go("in");
+  club.lastOk.copy(game.move.pos);
+}
+
+/* The clubgoers along the rope, driven by the door from now on: 6 or 7 of
+   them in the line, the rest inside (out of sight) till there's room. */
+function takeLine(d) {
+  const T_ = game.townNpcs;
+  if (!T_) return;
+  const goers = [];
+  T_.list.forEach((n, i) => {
+    if (n.c.role === "Clubgoer" && Math.abs(n.c.z - d.line[0].z) < 0.5 && n.c.x < d.line[0].x + 0.5) goers.push(i);
+  });
+  goers.sort((a, b) => T_.list[b].c.x - T_.list[a].c.x);   // nearest the door first
+  const inLine = Math.min(goers.length, 6 + (Math.random() < 0.5 ? 1 : 0));
+  club.want = inLine;
+  goers.forEach((i, k) => {
+    const e = { i, n: null, state: k < inLine ? "line" : "inside", t: 0, y0: 0, arm: 0 };
+    const n = T_.takeOver(i, (n_, rig, dt) => poseGoer(e, rig, dt));
+    e.n = n;
+    e.y0 = n.c.y ?? 0;
+    club.npcs.push(e);
+    if (e.state === "line") {
+      club.queue.push(e);
+      const s = d.line[club.queue.length - 1];
+      n.x = s.x; n.z = s.z;
+    } else n.off = true;
+  });
+}
+
+function resetDoor() {
+  for (const e of club.npcs) {
+    if (e.n) { e.n.off = false; e.n.c.y = e.y0; e.n.rig.band = 0; }
+    game.townNpcs?.release(e.i);
+  }
+  for (const l of club.lanes) {
+    if (l.b) game.townNpcs?.release(l.bi);
+    l.card?.parent?.remove(l.card);
+  }
+  for (const b of club.blocks) game.townNpcs?.release(b.i);
+  club.blocks = [];
+  rope.drop();
+  clubWear.band = 0;
+  clubWear.glow = 0;
+  if (game.localRig) game.localRig.band = 0;
+  Object.assign(club, { phase: "none", t: 0, queue: [], npcs: [], lanes: [], lane: -1, walkTo: [], live: false });
+  ui.hideAll();
+}
+
+function go(phase) { club.phase = phase; club.t = 0; }
+
+/* ------------------------------------------------------- each frame */
+
+/* After movement (view/player-update.js): the line and the lanes, our own
+   steps through the door, and the fence. */
+export function updateClubEntry(dt) {
+  const d = door();
+  if (!d) { if (club.live) resetDoor(); return; }
+  if (!club.live) return;   // not spawned here yet
+  club.t += dt;
+  stepNpcs(d, dt);
+  stepMe(d, dt);
+  fence(d);
+  stepBlocks(dt);
+  rope.step(d, dt);
+  // Our band, on our wrist from the snap on.
+  const before = club.phase === "band" && !club.snapped;
+  clubWear.band = before ? BAND.none : bandNow();
+  clubWear.glow = Math.max(0, clubWear.glow - dt * 0.9);
+  const rig = game.localRig;
+  if (rig) {
+    rig.band = clubWear.band;
+    rig.bandMesh?.userData.glow?.(clubWear.glow);
+  }
+}
+
+/* Is the door moving us (in the line, at a lane, walking in)? Then
+   view/player-update.js lets clubHold() move us instead of the keys. */
+export function clubHolds() {
+  return club.live && ["queued", "lane", "id", "ask", "band", "walk"].includes(club.phase);
+}
+export function clubHold(dt) {
+  const d = door();
+  const m = game.move;
+  m.velocity.set(0, 0, 0);
+  m.sprinting = false;
+  m.grounded = true;
+  let target = null;
+  if (club.phase === "queued") target = slotOf(d, club.queue.indexOf(ME));
+  else if (club.phase === "lane") target = club.lanes[club.lane];
+  // Up to the rope, and through only once it's off its hook.
+  else if (club.phase === "walk" && (club.walkTo.length !== 1 || rope.k > 0.85)) target = club.walkTo[0];
+  m.moving = false;
+  if (!target) return;
+  const dx = target.x - m.pos.x, dz = target.z - m.pos.z, dist = Math.hypot(dx, dz);
+  if (dist > 0.03) {
+    const s = Math.min(dist, WALK * (club.phase === "walk" ? 1.3 : 1) * dt);
+    m.pos.x += dx / dist * s;
+    m.pos.z += dz / dist * s;
+    m.moving = dist > 0.1;
+  }
+  m.pos.y = floorAt(d, m.pos.z);
+  // Walking in, look where you're going.
+  if (club.phase === "walk" && dist > 0.2) game.look.yaw = turn(game.look.yaw, Math.atan2(-dx, -dz), dt * 6);
+}
+
+/* A place in the line; past the rope's end the line just bunches up at it. */
+const slotOf = (d, k) => d.line[Math.max(0, Math.min(k, d.line.length - 1))];
+const floorAt = (d, z) => (z < 22.3 ? d.lobby.y : 0);
+function turn(a, b, k) {
+  let diff = ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+  return a + diff * Math.min(1, k);
+}
+
+/* The clubgoers: up the line, to a free lane, checked, in through the
+   door, and (out of sight) back to the end of the alley to queue again. */
+function stepNpcs(d, dt) {
+  const inLine = club.queue.filter((e) => !e.me).length + club.npcs.filter((e) => e.state === "arrive").length;
+  const want = club.want;
+  for (const e of club.npcs) {
+    const n = e.n;
+    e.t += dt;
+    let target = null;
+    switch (e.state) {
+      case "line": target = slotOf(d, club.queue.indexOf(e)); break;
+      case "lane": {
+        const l = club.lanes[e.lane];
+        target = l;
+        if (near(n, l) && e.t > 0.5) {
+          n.yaw = l.yaw;
+          if (!e.checkT) e.checkT = e.t;
+          // The bouncer looks the ID over, then the band: the arm goes out
+          // for it, and it's snapped shut.
+          const bk = npcBandK(e);
+          e.arm = bk > 0 ? Math.min(1, bk / 0.25) * Math.min(1, (1 - bk) / 0.15) : 0;
+          if (bk >= SNAP_AT && !n.rig.band) { n.rig.band = BAND.guest; snapSound({ x: n.x, y: 1.1, z: n.z }, 0.5); }
+          if (e.t - e.checkT > T.checkSecs) { e.state = "door"; e.t = 0; e.arm = 0; e.path = [d.mouth, { x: d.lobby.x + (Math.random() - 0.5) * 2, z: d.lobby.z + 1.5 }]; l.who = null; l.t = 0; l.waveT = 0; l.waved = e; }
+        }
+        break;
+      }
+      case "door":
+        target = e.path[0];
+        if (e.path.length === 1 && rope.k < 0.85) { target = null; n.yaw = turn(n.yaw, 0, dt * 4); }   // the rope's still up
+        else if (near(n, target)) { e.path.shift(); if (!e.path.length) { e.state = "inside"; n.off = true; e.t = 0; } }
+        break;
+      case "inside":
+        if (inLine < want && e.t > 3) { e.state = "arrive"; n.off = false; n.rig.band = 0; n.x = d.arrive.x; n.z = d.arrive.z; e.t = 0; }
+        break;
+      case "arrive":
+        target = d.line[Math.min(club.queue.length, d.line.length - 1)];
+        if (near(n, target, 0.6)) { e.state = "line"; club.queue.push(e); }
+        break;
+    }
+    if (target) walk(n, target, dt, e.state === "lane" && e.checkT ? null : target);
+    else n.moving = false;
+    n.c.y = floorAt(d, n.z);
+    if (game.townNpcs?.view) n.zone = game.townNpcs.view.zoneOf(n.x, n.c.y + 1, n.z);
+  }
+  // The front of the line goes to a free lane.
+  for (const l of club.lanes) {
+    l.t += dt;
+    const front = club.queue[0];
+    if (l.who || l.t < LANE_GAP || !front) continue;
+    if (!near(front.me ? game.move.pos : front.n, d.line[0], 0.25)) break;
+    club.queue.shift();
+    l.who = front;
+    if (front.me) { club.lane = club.lanes.indexOf(l); go("lane"); }
+    else { front.state = "lane"; front.lane = club.lanes.indexOf(l); front.t = 0; front.checkT = 0; }
+  }
+}
+
+function near(a, b, r = 0.12) { return Math.hypot(a.x - b.x, a.z - b.z) < r; }
+function walk(n, target, dt) {
+  const dx = target.x - n.x, dz = target.z - n.z, dist = Math.hypot(dx, dz);
+  n.moving = dist > 0.08;
+  if (dist < 0.02) return;
+  const s = Math.min(dist, WALK * dt);
+  n.x += dx / dist * s;
+  n.z += dz / dist * s;
+  if (dist > 0.15) n.yaw = Math.atan2(-dx, -dz);
+}
+
+/* Our own way through it. */
+function stepMe(d, dt) {
+  const p = game.move.pos;
+  // Up at the bouncer, eyes on his hands.
+  if (["lane", "id", "ask"].includes(club.phase) && club.lane >= 0 && near(p, club.lanes[club.lane], 0.3)) game.look.pitch += (-0.2 - game.look.pitch) * Math.min(1, dt * 3);
+  switch (club.phase) {
+    case "lane": {
+      const l = club.lanes[club.lane];
+      if (!near(p, l, 0.05)) break;
+      game.look.yaw = turn(game.look.yaw, l.yaw, dt * 5);
+      if (club.t > 0.6) {
+        const signed = !!window.TrollrunnerAccounts?.getCachedProfile?.();
+        if (signed) { ui.showCard(); go("id"); }
+        else { ui.ask(answer); go("ask"); }
+      }
+      break;
+    }
+    case "id":
+      game.look.yaw = turn(game.look.yaw, club.lanes[club.lane].yaw, dt * 5);
+      if (club.t > T.idSecs) { ui.hideCard(); ui.ask(answer); go("ask"); }
+      break;
+    case "band":
+      game.look.yaw = turn(game.look.yaw, club.lanes[club.lane].yaw, dt * 5);
+      game.look.pitch += (-0.55 - game.look.pitch) * Math.min(1, dt * 4);   // down at your wrist
+      if (!club.snapped && club.t >= T.bandSecs * SNAP_AT) {
+        club.snapped = true;
+        clubWear.glow = 1;
+        snapSound(null, 1);
+      }
+      if (club.t > T.bandSecs) {
+        freeLane();
+        club.walkTo = [d.mouth, { x: d.lobby.x, z: d.lobby.z }];
+        go("walk");
+      }
+      break;
+    case "walk":
+      if (club.t < 1.2) game.look.pitch += (0 - game.look.pitch) * Math.min(1, dt * 4);
+      if (club.walkTo.length && near(p, club.walkTo[0], 0.08)) club.walkTo.shift();
+      if (!club.walkTo.length) { go("in"); showWaveBanner("You're in. The band gets you through any door tonight", 2600); }
+      break;
+    case "lockout": {
+      const left = club.lockUntil - now();
+      ui.chip(left > 0 ? `Bounced · back in line in ${fmt(left)}` : "Hold X to get back in line");
+      if (left <= 0 && club.t > 0) { /* stays in lockout till they rejoin; the chip says how */ }
+      break;
+    }
+    default: break;
+  }
+  if (club.phase !== "lockout") ui.chip(club.phase === "queued" ? "In line · hold X to step out" : null);
+}
+
+function freeLane(wave = true) {
+  const l = club.lanes[club.lane];
+  if (l) { l.who = null; l.t = 0; if (wave) { l.waveT = 0; l.waved = ME; } }
+  club.lane = -1;
+}
+
+/* The 18+ question is up: the mouse is free for its buttons on purpose
+   (menu/buttons.js doesn't pause for it). */
+export function clubAskOpen() { return !!ui.dialog && !ui.dialog.hidden; }
+
+/* The answer at the door: "Yeah" (18+) or "No". */
+function answer(adult) {
+  if (club.phase !== "ask") return;
+  if (adult) {
+    club.band = BAND.guest;
+    club.room = roomKey();
+    club.snapped = false;
+    const who = door()?.lanes[club.lane]?.bouncer || "The bouncer";
+    showWaveBanner(`${who} snaps a wristband on you`, 2200);
+    go("band");
+    return;
+  }
+  // Phase 3 makes this the cinematic. For now: straight out on the curb.
+  freeLane(false);
+  const d = door();
+  showWaveBanner(`"Nah. Come back when you're 18."`, 3000);
+  game.move.reset(d.curb.x, d.curb.z, 0);
+  game.look.yaw = d.curb.yaw;
+  club.lockUntil = now() + T.lockSecs;
+  club.lastOk.copy(game.move.pos);
+  go("lockout");
+}
+
+function fmt(s) { const m = Math.floor(s / 60), r = Math.ceil(s % 60); return r === 60 ? `${m + 1}:00` : `${m}:${String(r).padStart(2, "0")}`; }
+
+/* ------------------------------------------------------ the line, by X */
+
+function joinLine() {
+  if (club.queue.includes(ME)) return;
+  club.queue.push(ME);
+  go("queued");
+  ui.chip(null);
+}
+function leaveLine() {
+  const i = club.queue.indexOf(ME);
+  if (i >= 0) club.queue.splice(i, 1);
+  go("none");
+  showWaveBanner("You stepped out of the line. Back of it if you want in", 2200);
+}
+
+/* Registered on the first spawn, not at load: the views import this module
+   before social-rp.js has finished loading. */
+let actionsOn = false;
+function addActions() {
+  if (actionsOn) return;
+  actionsOn = true;
+  rpExtras.push(lineAction);
+}
+function lineAction() {
+  const d = door();
+  if (!d || !club.live || !game.player.alive) return null;
+  if (club.phase === "queued") return { key: "club-leave", label: "Step out of the line", ctx: "Leave", time: 0.6, done: leaveLine };
+  if (bandNow() > BAND.none || clubHolds()) return null;
+  if (club.phase === "lockout" && club.lockUntil > now()) return null;
+  const p = game.move.pos;
+  if (d.zoneOf(p.x, p.y + 0.1, p.z) !== "street" || Math.hypot(p.x - d.mouth.x, p.z - d.mouth.z) > 16) return null;
+  return { key: "club-join", label: "Get in line", ctx: "Line", time: 0.4, done: joinLine };
+}
+
+/* ------------------------------------------------------------ the fence */
+
+function fence(d) {
+  const p = game.move.pos;
+  if (clubHolds()) { club.lastOk.copy(p); return; }
+  const zone = d.zoneOf(p.x, p.y + 0.1, p.z);
+  const band = bandNow();
+  if (OPENS[band].includes(zone)) { club.lastOk.copy(p); return; }
+  p.copy(club.lastOk);
+  game.move.velocity.set(0, 0, 0);
+  if (now() - club.fenceMsgAt > 1.6) {
+    club.fenceMsgAt = now();
+    showWaveBanner(band === BAND.none ? "Wristband only. Line's out front" : zone === "vip" ? "VIP only" : "Staff only", 1500);
+    if (band > BAND.none) startBlock();
+  }
+}
+
+/* ------------------------------------------------------------- the look */
+
+const _w = new THREE.Vector3(), _s = new THREE.Vector3(), _pole = new THREE.Vector3(), _v = new THREE.Vector3();
+const _qa = new THREE.Quaternion(), _qe = new THREE.Quaternion(), _qb = new THREE.Quaternion();
+const smooth = (x) => { const k = Math.max(0, Math.min(1, x)); return k * k * (3 - 2 * k); };
+const env = (k, a, b) => Math.min(1, Math.max(0, k / a)) * Math.min(1, Math.max(0, (1 - k) / b));
+
+/* The wrist onto a world point (two-bone IK in chest space, a fist short of
+   it), blended in by `w` over whatever the arm was already doing. `up`
+   lifts the elbow (a hand up high). */
+function reachW(rig, side, pt, w, up = 0) {
+  if (w <= 0.001) return;
+  const p = rig.parts;
+  const arm = side > 0 ? p.armR : p.armL, el = side > 0 ? p.elbowR : p.elbowL;
+  _qa.copy(arm.quaternion);
+  _qe.copy(el.quaternion);
+  rig.root.updateMatrixWorld(true);
+  arm.getWorldPosition(_s);
+  _w.subVectors(pt, _s);
+  const len = _w.length();
+  _w.multiplyScalar(Math.max(0, len - 0.06) / Math.max(1e-6, len)).add(_s);
+  p.chest.worldToLocal(_w);
+  _pole.set(side, -1 + up * 1.2, 0.3 - up * 0.7);
+  reachHand(rig, side, _w, _pole);
+  if (w < 1) {
+    _qb.copy(arm.quaternion); arm.quaternion.slerpQuaternions(_qa, _qb, w);
+    _qb.copy(el.quaternion); el.quaternion.slerpQuaternions(_qe, _qb, w);
+  }
+}
+
+/* A bouncer's arms folded across his chest (town-npcs.js "guard"). */
+function foldArms(p) {
+  p.armL.rotation.set(0.35, 0, 0.05); p.elbowL.rotation.set(0, 0.95, 2.02);
+  p.armR.rotation.set(0.42, 0, -0.05); p.elbowR.rotation.set(0, -0.95, -2.02);
+}
+
+/* Where a person's right wrist is, held out for the band: ours from where we
+   stand (the views draw our arm going there), a clubgoer's off his rig. */
+function myWrist(out) {
+  const p = game.move.pos, y = game.look.yaw;
+  return out.set(p.x - Math.sin(y) * 0.48 + Math.cos(y) * 0.1, p.y + 1.12, p.z - Math.cos(y) * 0.48 - Math.sin(y) * 0.1);
+}
+function goerWrist(e, out) {
+  const n = e.n, l = club.lanes[e.lane];
+  const b = l?.b || n;
+  const a = Math.atan2(b.x - n.x, b.z - n.z);
+  return out.set(n.x + Math.sin(a) * 0.42 + Math.cos(a) * 0.1, (n.c.y ?? 0) + 1.02, n.z + Math.cos(a) * 0.42 - Math.sin(a) * 0.1);
+}
+
+/* How far into the band a clubgoer at a lane is (0..1; below 0 the ID's
+   still being looked at). */
+function npcBandK(e) {
+  if (!e.checkT) return -1;
+  const c = T.checkSecs;
+  return Math.min(1, (e.t - e.checkT - c * 0.45) / (c * 0.55));
+}
+
+/* What a lane's bouncer is doing right now. */
+function laneAct(l) {
+  const who = l.who;
+  if (who === ME) {
+    const at = game.move.pos;
+    if (club.phase === "id") return { act: "check", to: at, k: club.t / T.idSecs };
+    if (club.phase === "ask") return { act: "ask", to: at };
+    if (club.phase === "band") return { act: "band", to: at, k: club.t / T.bandSecs, wrist: myWrist(_v) };
+    return { act: "face", to: at };
+  }
+  if (who) {
+    const bk = npcBandK(who);
+    if (who.state === "lane" && who.checkT) return bk >= 0 ? { act: "band", to: who.n, k: bk, wrist: goerWrist(who, _v) } : { act: "check", to: who.n };
+    return { act: "face", to: who.n };
+  }
+  if (l.waveT < WAVE_SECS) return { act: "wave", to: l.waved === ME ? game.move.pos : l.waved?.n, k: l.waveT / WAVE_SECS };
+  return { act: "idle" };
+}
+
+/* Big Lulz and Tank, driven by their lanes: arms folded, scanning the
+   street; turn to whoever's up; a hand out for the ID; both hands on the
+   wrist, the band snapped shut; an arm swept toward the door. Big Lulz also
+   takes the rope off its hook and puts it back. */
+const _pR = new THREE.Vector3(), _pL = new THREE.Vector3(), _f = new THREE.Vector3(), _x = new THREE.Vector3();
+function poseBouncer(l, lulz, n, rig, dt) {
+  l.waveT += dt;
+  const a = laneAct(l);
+  const p = rig.parts;
+  const hook = lulz ? rope.hand() : null;
+  let yawT = n.home?.yaw ?? Math.PI;
+  // A step over to the hook and back.
+  if (lulz && n.home) {
+    const sx = hook ? hook.x + (n.home.x - hook.x) * 0.5 : n.home.x, sz = hook ? hook.z + (n.home.z - hook.z) * 0.5 : n.home.z;
+    const dx = sx - n.x, dz = sz - n.z, dd = Math.hypot(dx, dz);
+    n.moving = dd > 0.05;
+    if (dd > 0.01) { const st = Math.min(dd, 2.2 * dt); n.x += dx / dd * st; n.z += dz / dd * st; }
+  }
+  if (hook) yawT = yawTo(n.x, n.z, hook.x, hook.z);
+  else if (a.to) yawT = yawTo(n.x, n.z, a.to.x, a.to.z);
+  n.yaw = turn(n.yaw, yawT, dt * 6);
+  foldArms(p);
+  // Facing, and the point straight out in front at chest height.
+  _f.set(-Math.sin(n.yaw), 0, -Math.cos(n.yaw));
+  _x.set(Math.cos(n.yaw), 0, -Math.sin(n.yaw));   // his right
+  const y0 = n.c.y ?? 0;
+  let wantR = 0, wantL = 0, head = 0, up = 0;
+  l.pR ??= new THREE.Vector3(); l.pL ??= new THREE.Vector3();
+  if (hook) {
+    // The arm on the hook's side reaches it.
+    const side = (hook.x - n.x) * _x.x + (hook.z - n.z) * _x.z > 0 ? 1 : -1;
+    (side > 0 ? _pR : _pL).copy(hook);
+    if (side > 0) wantR = 1; else wantL = 1;
+    head = 0.45;
+  } else switch (a.act) {
+    case "check": {
+      // Hand out, palm up, the ID in it; head down reading it.
+      _pR.set(n.x, y0 + 1.18, n.z).addScaledVector(_f, 0.4).addScaledVector(_x, 0.08);
+      wantR = 1; head = 0.38;
+      break;
+    }
+    case "ask":
+      head = -0.05;   // eyes up on yours: well?
+      break;
+    case "band": {
+      // Both hands to the wrist; at the snap they pull the strap tight.
+      const k = a.k;
+      const tug = k > SNAP_AT ? Math.sin(Math.min(1, (k - SNAP_AT) / 0.18) * Math.PI) * 0.05 : 0;
+      _pR.copy(a.wrist).addScaledVector(_x, 0.07 + tug);
+      _pL.copy(a.wrist).addScaledVector(_x, -0.07 - tug);
+      const e = env(k, 0.22, 0.2);
+      wantR = wantL = e; head = 0.42;
+      break;
+    }
+    case "wave": {
+      // An arm swept out toward the door: "go on in".
+      const d = door();
+      const dx = d.mouth.x - n.x, dz = d.mouth.z - n.z, dl = Math.hypot(dx, dz) || 1;
+      const side = dx * _x.x + dz * _x.z > 0 ? 1 : -1;
+      const k = smooth(a.k / 0.6);
+      const pt = side > 0 ? _pR : _pL;
+      pt.set(n.x, y0 + 1.25 - k * 0.12, n.z).addScaledVector(_f, 0.45 * (1 - k)).addScaledVector(_x, side * 0.25 * (1 - k));
+      pt.x += dx / dl * 0.62 * k; pt.z += dz / dl * 0.62 * k;
+      if (side > 0) wantR = env(a.k, 0.15, 0.3); else wantL = env(a.k, 0.15, 0.3);
+      head = 0.05;
+      up = 0.3;
+      break;
+    }
+    default: break;
+  }
+  // Ease the hands in and out, and between targets.
+  const r = Math.min(1, dt * 9);
+  l.w ??= 0; l.wl ??= 0;
+  l.w += (wantR - l.w) * r; l.wl += (wantL - l.wl) * r;
+  if (wantR > 0) l.pR.lerp(_pR, l.w < 0.05 ? 1 : r * 1.4);
+  if (wantL > 0) l.pL.lerp(_pL, l.wl < 0.05 ? 1 : r * 1.4);
+  reachW(rig, 1, l.pR, l.w, up);
+  reachW(rig, -1, l.pL, l.wl, up);
+  l.head = (l.head ?? 0) + (head - (l.head ?? 0)) * r;
+  p.headPivot.rotation.x = l.head;
+  const scan = a.act === "idle" && !hook ? Math.sin(n.t * 0.35) * 0.6 : 0;
+  l.scan = (l.scan ?? 0) + (scan - (l.scan ?? 0)) * r;
+  p.headPivot.rotation.y = l.scan;
+  idCard(l, rig, a.act === "check" && !hook && l.w > 0.55);
+}
+
+/* The ID in his hand while he reads it: a gold card lying in the fist. */
+const _el = new THREE.Vector3(), _wr = new THREE.Vector3();
+function idCard(l, rig, on) {
+  if (!on) { if (l.card) l.card.visible = false; return; }
+  if (!l.card) {
+    const c = document.createElement("canvas");
+    c.width = 128; c.height = 80;
+    const g = c.getContext("2d");
+    const grad = g.createLinearGradient(0, 0, 128, 80);
+    grad.addColorStop(0, "#f6d47a"); grad.addColorStop(1, "#b98a2a");
+    g.fillStyle = grad; g.fillRect(0, 0, 128, 80);
+    g.fillStyle = "#5a4310"; g.fillRect(8, 10, 34, 40);
+    g.fillRect(50, 14, 64, 7); g.fillRect(50, 28, 48, 6); g.fillRect(50, 40, 56, 6);
+    g.fillStyle = "#fff6d8"; g.fillRect(0, 62, 128, 8);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    l.card = new THREE.Mesh(new THREE.BoxGeometry(0.086, 0.003, 0.054),
+      new THREE.MeshStandardMaterial({ map: tex, roughness: 0.35, metalness: 0.3, emissive: 0xffd080, emissiveMap: tex, emissiveIntensity: 0.25 }));
+    game.scene.add(l.card);
+  }
+  // In the fist: a little past the wrist along the forearm, held flat, its
+  // long side across his body.
+  rig.root.updateMatrixWorld(true);
+  rig.parts.wristR.getWorldPosition(_wr);
+  rig.parts.elbowR.getWorldPosition(_el);
+  _el.subVectors(_wr, _el).normalize();
+  l.card.position.copy(_wr).addScaledVector(_el, 0.07);
+  l.card.position.y += 0.025;
+  l.card.rotation.set(0.25, Math.atan2(_el.x, _el.z), 0, "YXZ");
+  l.card.visible = true;
+}
+
+/* A clubgoer: stood in the line he keeps his own act from the map (on his
+   phone, arms folded, dancing on the spot); at the lane his right arm goes
+   out for the band. */
+function poseGoer(e, rig) {
+  const n = e.n, p = rig.parts;
+  if (!n.moving && e.state === "line") {
+    const t = n.t + e.i * 1.7;
+    switch (n.c.act) {
+      case "phone": {
+        const up = Math.max(0, Math.sin(t * 0.45 * Math.PI * 2 * 0.25)) ** 6;
+        p.armR.rotation.set(0.95, 0, -0.25); p.elbowR.rotation.set(1.55, 0, 0);
+        p.armL.rotation.set(0.2, 0, 0.12); p.elbowL.rotation.set(0.3, 0, 0);
+        p.headPivot.rotation.x = 0.45 * (1 - up);
+        p.headPivot.rotation.y = up * 0.6;
+        break;
+      }
+      case "guard":
+        foldArms(p);
+        p.headPivot.rotation.y = Math.sin(t * 0.3) * 0.5;
+        break;
+      case "dance":
+        p.headPivot.rotation.z = Math.sin(t * 4.2) * 0.14;
+        p.armR.rotation.set(0.3 + Math.sin(t * 4.2) * 0.25, 0, -0.2); p.elbowR.rotation.set(1.2, 0, 0);
+        p.armL.rotation.set(0.3 - Math.sin(t * 4.2) * 0.25, 0, 0.2); p.elbowL.rotation.set(1.2, 0, 0);
+        rig.root.position.y += Math.abs(Math.sin(t * 4.2)) * 0.03;
+        break;
+      default: break;
+    }
+  }
+  if (e.arm > 0) reachW(rig, 1, goerWrist(e, _w.clone()), e.arm);
+}
+
+/* Our own body in third person (view/third-person.js): the arm out at the
+   band. */
+export function clubPoseLocal(rig) {
+  if (!club.live || club.phase !== "band") return;
+  const k = club.t / T.bandSecs;
+  reachW(rig, 1, myWrist(_s.clone()), env(k, 0.15, 0.25));
+}
+
+/* First person (view/fp-emote.js): your arm comes up into view for the
+   band, and you look down at it as it's snapped on. */
+export function clubArms() {
+  if (!club.live) return null;
+  let e = 0;
+  if (club.phase === "band") e = env(club.t / T.bandSecs, 0.15, 0.001);
+  else if (club.phase === "walk" && club.t < 0.7) e = 1 - club.t / 0.7;
+  if (e <= 0) return null;
+  const k = smooth(e);
+  // The rod's tip just past where the bouncer's hands are (the world
+  // wrist, seen through the main camera, put at the same spot in the
+  // viewmodel's narrower lens).
+  const ndc = myWrist(_s.clone()).project(game.camera);
+  const D = 0.42, ty = Math.tan((29 * Math.PI) / 180), tx = ty * (game.camera.aspect || 16 / 9);
+  const hx = Math.max(-0.2, Math.min(0.25, ndc.x * D * tx)) + 0.005, hy = Math.max(-0.3, Math.min(0.1, ndc.y * D * ty));
+  return {
+    R: { pos: [0.2 + (hx - 0.2) * k, -0.52 + (hy + 0.52) * k, -0.45 + (0.45 - D) * k], rot: [0.2 + k * 0.6, 0.35, -Math.PI / 2], pose: "relaxed" },
+    L: null, gun: false, cam: { pitch: 0, yaw: 0 }, social: true,
+  };
+}
+
+/* The velvet rope across the front door. Closed, it hangs between its two
+   posts; for each person let in Big Lulz lifts its west end off the hook
+   and it drops and is dragged round the east post to lie along the wall;
+   it's hooked back up
+   once they're through. */
+const rope = {
+  mesh: null, cap: null, k: 0, drawn: -1, d: null,
+  build(d) {
+    this.drop();
+    if (!d.rope || !game.scene) return;
+    this.d = d;
+    this.mat ??= new THREE.MeshStandardMaterial({ color: 0x8a0c1e, roughness: 0.82, metalness: 0, emissive: 0x2a0008, emissiveIntensity: 0.7 });
+    this.capMat ??= new THREE.MeshStandardMaterial({ color: 0xd9a93c, roughness: 0.25, metalness: 0.9, emissive: 0x3a2808, emissiveIntensity: 0.6 });
+    this.mesh = new THREE.Mesh(new THREE.BufferGeometry(), this.mat);
+    this.cap = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.09, 10), this.capMat);
+    this.mesh.frustumCulled = false;
+    game.scene.add(this.mesh, this.cap);
+    this.k = 0;
+    this.drawn = -1;
+    this.draw();
+  },
+  drop() {
+    if (this.mesh) { this.mesh.parent?.remove(this.mesh); this.mesh.geometry.dispose(); }
+    this.cap?.parent?.remove(this.cap);
+    this.mesh = this.cap = null;
+  },
+  /* Someone on the way in (or a band wearer at the door) keeps it open. */
+  wanted() {
+    const d = this.d;
+    if (club.phase === "walk") return true;
+    for (const e of club.npcs) if (e.state === "door") return true;
+    const p = game.move.pos;
+    if (bandNow() > BAND.none && !clubHolds() && Math.abs(p.x - d.mouth.x) < 2.6 && p.z > 21.4 && p.z < 24.6) return true;
+    return false;
+  },
+  step(d, dt) {
+    if (!this.mesh) return;
+    const want = this.wanted();
+    // The hook end only moves in Big Lulz's hand: it waits for him, and he
+    // finishes the ID or band he's on first.
+    const l0 = club.lanes[0];
+    const busy = !!l0 && ["check", "band"].includes(laneAct(l0).act);
+    this.needHand = !busy && this.k < 0.3 && (want ? this.k < 1 : this.k > 0);
+    const lulz = l0?.b;
+    const far = lulz && this.k < 0.22 && (busy || Math.hypot(lulz.x - this.end.x, lulz.z - this.end.z) > 0.6) && (want ? this.k < 1 : this.k > 0);
+    if (!far) this.k = Math.max(0, Math.min(1, this.k + (want ? dt / ROPE_OPEN : -dt / ROPE_SHUT)));
+    if (Math.abs(this.k - this.drawn) > 1e-4) this.draw();
+  },
+  /* Big Lulz's hand on the hook end while it comes off or goes back on. */
+  hand() {
+    return this.mesh && this.needHand ? this.end : null;
+  },
+  end: new THREE.Vector3(),
+  draw() {
+    const { a, b, y } = this.d.rope;
+    const k = this.k;
+    // Off the hook (k < 0.22), down to the pavement, then dragged round the
+    // east post to lie along the wall behind Tank, out of everyone's way.
+    const u = (k - 0.22) / 0.78;
+    const drop = smooth(u / 0.3), sweep = smooth((u - 0.1) / 0.9);
+    const L = Math.hypot(b.x - a.x, b.z - a.z);
+    const th = sweep * Math.PI;
+    const lr = L * (1 - 0.35 * drop);
+    const lift = k < 0.22 ? Math.sin((k / 0.22) * Math.PI) * 0.07 : 0;
+    const E = this.end.set(b.x - Math.cos(th) * lr, y - drop * (y - 0.05) + lift, b.z + Math.sin(th) * lr);
+    const sag = 0.17 + drop * 0.5;
+    const pts = [];
+    const N = 28;
+    for (let i = 0; i <= N; i++) {
+      const t = i / N;
+      const py = Math.max(0.03, E.y + (y - E.y) * t - sag * 4 * t * (1 - t));
+      pts.push(new THREE.Vector3(E.x + (b.x - E.x) * t, py, E.z + (b.z - E.z) * t));
+    }
+    const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 0.03, 8, false);
+    this.mesh.geometry.dispose();
+    this.mesh.geometry = geo;
+    // The brass clip on the free end, along the rope.
+    this.cap.position.copy(E);
+    this.cap.quaternion.setFromUnitVectors(_v.set(0, 1, 0), _x.subVectors(pts[1], pts[0]).normalize());
+    this.drawn = k;
+  },
+};
+
+/* Security puts a hand up when your band doesn't open the door you're at
+   (VIP, staff only): the nearest guard turns on you, palm out. */
+function startBlock() {
+  const T_ = game.townNpcs;
+  if (!T_ || club.blocks.length) return;
+  const p = game.move.pos;
+  let best = -1, bd = 9;
+  T_.list.forEach((n, i) => {
+    if (n.override || n.off || !/Security|Bouncer|VIP door/.test(n.c.role)) return;
+    const dd = Math.hypot(n.x - p.x, n.z - p.z) + Math.abs((n.c.y ?? 0) - p.y) * 3;
+    if (dd < bd) { bd = dd; best = i; }
+  });
+  if (best < 0) return;
+  const b = { i: best, t: 0 };
+  T_.takeOver(best, (n, rig, dt) => poseBlock(b, n, rig, dt));
+  club.blocks.push(b);
+}
+const BLOCK_SECS = 1.9;
+function stepBlocks(dt) {
+  club.blocks = club.blocks.filter((b) => {
+    b.t += dt;
+    if (b.t < BLOCK_SECS) return true;
+    game.townNpcs?.release(b.i);
+    return false;
+  });
+}
+function poseBlock(b, n, rig, dt) {
+  const p = game.move.pos;
+  n.yaw = turn(n.yaw, yawTo(n.x, n.z, p.x, p.z), dt * 10);
+  const e = env(b.t / BLOCK_SECS, 0.12, 0.2);
+  _f.set(-Math.sin(n.yaw), 0, -Math.cos(n.yaw));
+  _pR.set(n.x, (n.c.y ?? 0) + 1.55, n.z).addScaledVector(_f, 0.55);
+  rig.parts.armL.rotation.set(0.35, 0, 0.05); rig.parts.elbowL.rotation.set(0, 0.95, 2.02);
+  reachW(rig, 1, _pR, e, 0.8);
+  rig.parts.headPivot.rotation.y = Math.sin(b.t * 13) * 0.22 * e;
+}
+
+/* The band snapping shut: a plastic click and a strap tug. */
+function snapSound(at, vol = 1) {
+  const a = game.audio;
+  if (!a?._ready?.()) return;
+  a._noise({ duration: 0.04, gain: 0.5 * vol, type: "highpass", freq: 2800, at });
+  a._tone({ freq: 2300, to: 1100, duration: 0.045, gain: 0.1 * vol, type: "square", at });
+  a._noise({ duration: 0.11, gain: 0.22 * vol, type: "bandpass", freq: 1100, q: 2.5, sweepTo: 500, delay: 0.035, at });
+}
+
+/* ------------------------------------------------------------------ UI */
+
+const ui = {
+  root: null, card: null, dialog: null, chipEl: null, onAnswer: null, wasLocked: false,
+  mount() {
+    if (this.root) return;
+    injectCss();
+    this.root = document.createElement("div");
+    this.root.className = "club-entry";
+    this.root.innerHTML = `
+      <div class="club-card" hidden></div>
+      <div class="club-ask" role="dialog" aria-modal="true" aria-labelledby="club-ask-q" hidden>
+        <p id="club-ask-q">You 18 or older?</p>
+        <div class="club-ask-btns">
+          <button type="button" data-a="1" aria-label="Yeah, I'm 18 or older">Yeah <kbd>1</kbd></button>
+          <button type="button" data-a="0" aria-label="No, I'm under 18">No <kbd>2</kbd></button>
+        </div>
+      </div>
+      <div class="club-chip" hidden></div>`;
+    (game.els.hud || document.body).appendChild(this.root);
+    this.card = this.root.querySelector(".club-card");
+    this.dialog = this.root.querySelector(".club-ask");
+    this.chipEl = this.root.querySelector(".club-chip");
+    this.dialog.addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-a]");
+      if (b) this.answer(b.dataset.a === "1");
+    });
+    window.addEventListener("keydown", (e) => {
+      if (this.dialog.hidden) return;
+      const yes = e.code === "Digit1" || e.code === "KeyY" || e.code === "Numpad1";
+      const no = e.code === "Digit2" || e.code === "KeyN" || e.code === "Numpad2";
+      if (!yes && !no) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      this.answer(yes);
+    }, true);
+  },
+  showCard() {
+    this.mount();
+    this.card.innerHTML = renderCard(myCardData());
+    this.card.hidden = false;
+  },
+  hideCard() { if (this.card) this.card.hidden = true; },
+  ask(fn) {
+    this.mount();
+    this.onAnswer = fn;
+    releaseHeldInputs();
+    this.wasLocked = !game.isTouch && !!document.pointerLockElement;
+    if (this.wasLocked) game.controls?.unlock?.();
+    this.dialog.hidden = false;
+    this.dialog.querySelector("button")?.focus();
+  },
+  answer(yes) {
+    if (this.dialog.hidden) return;
+    this.dialog.hidden = true;
+    releaseHeldInputs();
+    if (this.wasLocked && game.gameState === "playing") game.controls?.lock?.();
+    const fn = this.onAnswer;
+    this.onAnswer = null;
+    fn?.(yes);
+  },
+  chip(text) {
+    if (!text) { if (this.chipEl) this.chipEl.hidden = true; return; }
+    this.mount();
+    if (this.chipEl.textContent !== text) this.chipEl.textContent = text;
+    this.chipEl.hidden = false;
+  },
+  hideAll() {
+    if (!this.root) return;
+    this.card.hidden = this.dialog.hidden = this.chipEl.hidden = true;
+    this.onAnswer = null;
+  },
+};
+
+function injectCss() {
+  if (document.getElementById("club-entry-css")) return;
+  const s = document.createElement("style");
+  s.id = "club-entry-css";
+  s.textContent = `
+.club-entry { position: absolute; inset: 0; pointer-events: none; z-index: 30; font-family: inherit; }
+.club-card { position: absolute; left: 50%; bottom: 12%; transform: translateX(-50%) rotate(-4deg); width: min(360px, 86vw);
+  filter: drop-shadow(0 10px 24px rgba(0,0,0,.55)); animation: club-card-up .45s cubic-bezier(.2,.8,.2,1); }
+@keyframes club-card-up { from { transform: translate(-50%, 60%) rotate(-10deg); opacity: 0; } }
+.club-ask { position: absolute; left: 50%; top: 58%; transform: translate(-50%, -50%); pointer-events: auto; text-align: center;
+  background: rgba(14,10,18,.88); border: 1px solid rgba(255,63,180,.55); border-radius: 14px; padding: 16px 22px 18px;
+  box-shadow: 0 0 28px rgba(255,63,180,.25); color: #fff; min-width: min(300px, 86vw); }
+.club-ask p { margin: 0 0 12px; font-size: 20px; font-weight: 700; letter-spacing: .02em; }
+.club-ask-btns { display: flex; gap: 10px; justify-content: center; }
+.club-ask button { font: inherit; font-size: 16px; font-weight: 700; padding: 10px 18px; border-radius: 10px; cursor: pointer; color: #fff;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.25); min-width: 108px; }
+.club-ask button[data-a="1"] { background: #ff3fb4; border-color: #ff3fb4; color: #160612; }
+.club-ask button:focus-visible { outline: 2px solid #ffd080; outline-offset: 2px; }
+.club-ask kbd { font: inherit; font-size: 11px; opacity: .7; margin-left: 6px; padding: 1px 5px; border-radius: 4px; border: 1px solid currentColor; }
+.club-chip { position: absolute; left: 50%; top: 14%; transform: translateX(-50%); padding: 6px 12px; border-radius: 999px;
+  background: rgba(14,10,18,.8); border: 1px solid rgba(255,63,180,.5); color: #fff; font-size: 14px; font-weight: 600; white-space: nowrap; }
+@media (max-width: 760px) { .club-ask p { font-size: 18px; } .club-chip { font-size: 12px; top: 18%; } }
+`;
+  document.head.appendChild(s);
+}
+
+if (new URLSearchParams(location.search).has("tohooks")) {
+  window.__trollClub = {
+    club, T, BAND, answer: (yes) => ui.answer(yes), join: joinLine, leave: leaveLine, band: () => clubBand(),
+    rope: () => ({ on: !!rope.mesh?.parent, k: rope.k }),
+    // Other tests that need the club's floor: already through the door, banded.
+    pass() {
+      const i = club.queue.indexOf(ME);
+      if (i >= 0) club.queue.splice(i, 1);
+      if (bandNow() === BAND.none) { club.band = BAND.guest; club.room = roomKey(); }
+      ui.hideAll();
+      go("in");
+      club.lastOk.copy(game.move.pos);
+    },
+  };
+}

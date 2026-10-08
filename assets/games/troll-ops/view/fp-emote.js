@@ -1,14 +1,15 @@
 // First-person emotes and Socialize's free hands: the streak arms act them
 // out in front of the camera.
 
-import { gaitPhaseRate } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
-import { bar, barSipK, atPiano, piano, syncFpDrink } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7de";
+import { gaitPhaseRate } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2";
+import { bar, barSipK, atPiano, piano, syncFpDrink } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2";
 import * as THREE from "three";
-import { hideFpEmoteProps, fpEmoteRodTip } from "../emotes.js?v=hb4-em1-wst-soc1-ng1";
-import { inspectArms, pfArms, stretchBetween } from "./weapon-view.js?v=wv1-si1-gj1-if1-fu1b7b7d";
-import { EMOTES } from "../emote-wheel.js?v=hb4-em1-wst-soc1";
+import { hideFpEmoteProps, fpEmoteRodTip } from "../emotes.js?v=hb4-em1-wst-soc1-ng1c2";
+import { inspectArms, pfArms, stretchBetween } from "./weapon-view.js?v=wv1-si1-gj1-if1-fu1b7b7dc2";
+import { EMOTES } from "../emote-wheel.js?v=hb4-em1-wst-soc1c2";
 import { game } from "../core/state.js?v=st1";
-import { duelArms } from "../modes/social-duel.js?v=sd1b7b7de";
+import { duelArms } from "../modes/social-duel.js?v=sd1b7b7dec1c2";
+import { clubArms } from "../modes/club-entry.js?v=ce1c1c2";
 
 /* A first-person emote (emotes.js `fp`): the gun goes away (or does the
    trick), and the streak arms' real hands act it out in front of the camera.
@@ -34,6 +35,8 @@ function socialArmsFrame() {
   const k = socialArms.k, run = socialArms.run;
   const fight = duelArms();   // a fist fight: fists up (social-duel.js)
   if (fight) return fight;
+  const band = clubArms();   // Trolling Loud's door: the arm out for the band
+  if (band) return band;
   const hand = (side) => {
     // Right and left swing opposite each other, like the legs.
     const sw = Math.sin(socialArms.phase + (side > 0 ? 0 : Math.PI));

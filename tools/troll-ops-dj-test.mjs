@@ -73,6 +73,8 @@ async function joinClub(page) {
     await T.startGame();
   });
   await page.waitForFunction(() => { const T = window.__trollOps; return !T.loadState().open && T.social().gameState === "playing"; }, null, { timeout: 240000 });
+  // Past the door's line already (modes/club-entry.js), with a band on.
+  await page.evaluate(() => window.__trollClub?.pass());
 }
 const dj = (page) => page.evaluate(() => window.__trollOps.djLulz.debug());
 const lights = (page) => page.evaluate(() => window.__trollOps.builtMap().map.debug());

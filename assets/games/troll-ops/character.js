@@ -16,7 +16,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { buildWatch, wristOf } from "./wristwear.js?v=ww1";
+import { buildWatch, buildWristband, wristOf } from "./wristwear.js?v=ww1c2";
 
 const DARK = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
 
@@ -231,6 +231,28 @@ function syncWristwear(rig) {
   watch.position.copy(_wwZ).multiplyScalar(limb * 2.2);
   hand.add(watch);
   rig.wristMesh = watch;
+}
+
+/* Trolling Loud's door wristband (modes/club-entry.js) on the right
+   forearm, the mirror of the watch: `rig.band` is the tier (0 none, 1 guest,
+   2 owner, 3 VIP), set by whoever drives the rig. */
+function syncWristband(rig) {
+  const hand = rig.parts?.wristR?.parent;
+  const tier = rig.band || 0;
+  if (!hand || (rig.bandShown || 0) === tier) return;
+  rig.bandShown = tier;
+  if (rig.bandMesh) { rig.bandMesh.parent?.remove(rig.bandMesh); rig.bandMesh = null; }
+  if (!tier) return;
+  const s = rig.scale || 1, w = rig.build || 1;
+  const limb = 0.032 * s * w;
+  const band = buildWristband(tier, limb * 1.18);
+  _wwZ.set(-0.30 * w, 0.62, 0).normalize();
+  _wwY.set(_wwZ.y, -_wwZ.x, 0);
+  _wwX.crossVectors(_wwY, _wwZ);
+  band.quaternion.setFromRotationMatrix(_wwM.makeBasis(_wwX, _wwY, _wwZ));
+  band.position.copy(_wwZ).multiplyScalar(limb * 2.0);
+  hand.add(band);
+  rig.bandMesh = band;
 }
 
 /* Put `mood` ("sad") on a rig's face, or with no mood its own pick back.
@@ -1279,6 +1301,7 @@ export function poseHumanoid(rig, arg) {
   if (rig.parts.head.userData.trollface && rig.parts.head.material !== faceMaterial(rig.face)) setFace(rig);
   syncCovering(rig);
   syncWristwear(rig);
+  syncWristband(rig);
   rig.emoteProps?.hide();   // an emote's props (lean-cup.js), once it's over
   _poseHumanoid(rig, arg);
   if ((arg.hold ?? "gun") === "gun" && !arg.zombie) _gripSupport(rig, arg);

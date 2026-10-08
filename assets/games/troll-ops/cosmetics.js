@@ -8,8 +8,8 @@
 // the materials (faceMaterial / setFace); this file is the picks and the
 // panel.
 
-import { FACE_TINTS, FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
-import { WRISTWEAR, watchThumb } from "./wristwear.js?v=ww1";
+import { FACE_TINTS, FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2";
+import { WRISTWEAR, watchThumb } from "./wristwear.js?v=ww1c2";
 
 const KEY = "trollops:cosmetics";
 
