@@ -7,9 +7,10 @@
    is a troll doctor trying to aid you. then you wake up in a bed at the
    doctor's clinic"; the room sees the whole fight).
 
-   - Bump into a townsperson twice inside 12 s (running, not brushing past)
-     and he squares up: hold X to accept, walk off or wait it out and the
-     sheriff puts you in the courthouse cells for a minute.
+   - Run into a townsperson (not brushing past) and you get a warning; run
+     into another one straight after and that one squares up: hold X to
+     accept, walk off or wait it out and the sheriff puts you in the
+     courthouse cells for a minute.
    - Or hold X by one to challenge him; he always accepts.
    - The fight: fire throws a punch (it lands up close, roughly in front);
      he jabs back every second or two. Three clean hits each. He goes down
@@ -46,7 +47,7 @@ export const duel = {
   nextJab: 0, punchT: 0, punchCd: 0, landed: false,
   gun: null,            // { at, who, drawn, fired, until }
   ko: 0, bleed: null, jail: null,
-  bumps: new Map(), pubT: 0, fireWas: false, endT: 0,
+  bumps: new Map(), lastBump: null, pubT: 0, fireWas: false, endT: 0,
 };
 const remote = new Map();   // npc index -> { from, last, x, z, yaw, act, gun }
 
@@ -294,15 +295,22 @@ export function updateDuel(dt) {
   overlay();
 }
 
+/* A bump is a warning; the next one, into somebody else inside
+   BUMP_STREAK s, and that one squares up (user: "should be bump into two
+   citizens consecutively, but bumping into one citizen results a pop up
+   like be careful not to troll the citizens"). Running into the same
+   citizen again is still just a warning. */
+const BUMP_STREAK = 15;
 function bump(i, now) {
-  const list = (duel.bumps.get(i) || []).filter((t) => now - t < 12);
-  if (list.length && now - list[list.length - 1] < 1.5) return;
-  list.push(now);
-  duel.bumps.set(i, list);
+  const last = duel.bumps.get(i);
+  if (last != null && now - last < 1.5) return;   // still brushing past the same one
+  duel.bumps.set(i, now);
   const n = npcs().list[i];
   game.audio.knuckleHit?.({ x: n.x, y: 1.2, z: n.z });
-  if (list.length >= 2) { duel.bumps.delete(i); challengeFrom(i); }
-  else showWaveBanner(`${nameOf(n)}: "Hey! Watch where you're goin'!"`, 1800);
+  const prev = duel.lastBump;
+  duel.lastBump = { i, at: now };
+  if (prev && prev.i !== i && now - prev.at < BUMP_STREAK) { duel.lastBump = null; challengeFrom(i); }
+  else showWaveBanner(`${nameOf(n)}: "Hey!" · Careful, don't troll the citizens. One more and it's a fight`, 2600);
 }
 
 function fightStep(dt, n, p, d) {

@@ -4,7 +4,8 @@
 // Two tabs in one headless browser share the QSOC room on Troll City over
 // BroadcastChannel (Supabase blocked), with the waits shortened
 // (window.__trollDuelTune):
-//   1. A bumps a townsperson twice: he squares up and challenges A.
+//   1. A bumps a townsperson: a warning (again, still a warning); then a
+//      second townsperson: he squares up and challenges A.
 //   2. A doesn't take it: A's put in a courthouse cell, its door shut (B
 //      sees the door shut too), and let out when the time's up.
 //   3. A challenges one and wins with three punches: he's down on A's
@@ -136,15 +137,21 @@ const extras = await A.evaluate(() => window.__trollDuel.extras());
 check("Troll City has townsfolk to fight", extras.length >= 3, `${extras.length}`);
 const e0 = extras[0];
 
-// ── 1. Two bumps and he squares up ────────────────────────────────────────
+// ── 1. A bump is a warning; the next citizen bumped squares up ────────────
+const eW = extras[2];
 await putAt(A, e0.x + 1.5, e0.z, 0);
-await A.evaluate((i) => { window.__trollDuel.bump(i); }, e0.i);
+await A.evaluate((i) => { window.__trollDuel.bump(i); }, eW.i);
 let s = await D(A);
-check("one bump is just a 'hey'", s.phase === null, JSON.stringify(s));
+const warned = await A.evaluate(() => document.body.innerText.includes("don't troll the citizens"));
+check("one bump is a warning", s.phase === null && warned, JSON.stringify(s));
 await pump(A, 1700);
+await A.evaluate((i) => { window.__trollDuel.bump(i); }, eW.i);
+s = await D(A);
+check("the same one again: still only a warning", s.phase === null, JSON.stringify(s));
+await pump(A, 400);
 await A.evaluate((i) => { window.__trollDuel.bump(i); }, e0.i);
 s = await D(A);
-check("the second bump: he challenges A", s.phase === "challenge" && s.i === e0.i, JSON.stringify(s));
+check("a second citizen straight after: he challenges A", s.phase === "challenge" && s.i === e0.i, JSON.stringify(s));
 await pumpBoth(A, B, 500);
 check("B sees him squared up to A", (await bSees(e0.i)).driven === true);
 
