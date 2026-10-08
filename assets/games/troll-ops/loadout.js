@@ -1,7 +1,7 @@
 // Troll Forces — loadout screen: class → weapon → attachments.
 
 import { WEAPON_DEFS, CLASS_ORDER, CLASS_LABELS, weaponsInClass } from "./weapons.js?v=p5bm-wst-hf1-fu1";
-import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, statBars, statDelta } from "./attachments.js?v=cg1-wst-sb2-fu1";
+import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, fits, fitLoadout, statBars, statDelta } from "./attachments.js?v=cg1-wst-sb2-fu1";
 import { iconFor } from "./attachment-icons.js";
 import { SKIN_BY_ID, skinsFor, skinThumbUrl } from "./skins.js?v=p5";
 import { getRank, getLevel, getPrestige, PRESTIGE_MASTER, isUnlocked, rankUnlocked, rankProgress, rankXpText, prestigeUnlocked } from "./progression.js?v=p5-wst-sb2-fu1";
@@ -140,6 +140,10 @@ export class Loadout {
   attachmentsFor(id) {
     if (!this.attachmentsByWeapon[id]) {
       this.attachmentsByWeapon[id] = defaultLoadoutFor(id);
+    } else {
+      // A save from before the class rules (a reflex on a sniper) gets the
+      // part swapped for one that fits, in place, so the screen shows it.
+      Object.assign(this.attachmentsByWeapon[id], fitLoadout(id, this.attachmentsByWeapon[id]));
     }
     return this.attachmentsByWeapon[id];
   }
@@ -520,6 +524,9 @@ export class Loadout {
     for (const slot of SLOTS) {
       for (const [key, entry] of Object.entries(this.slotButtons[slot])) {
         const { btn, delta, att } = entry;
+        // Only parts that fit this class are offered (attachments.js CLASS_FIT).
+        btn.hidden = !fits(this.activeId, slot, key);
+        if (btn.hidden) continue;
         const on = this.attachments[slot] === key;
         btn.classList.toggle("is-active", on);
         btn.setAttribute("aria-pressed", String(on));
