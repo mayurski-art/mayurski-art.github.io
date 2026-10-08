@@ -11,6 +11,7 @@ import { cosmetics } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7d";
 import { soulBlazerReloadPose, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth, updateSoulBlazerView, soulBlazerInspect, SB_INSPECT_CUES } from "../soul-blazer.js?v=sb1";
 import { placePistolSlide } from "./pistol-action.js?v=ps1";
 import { placeBolt } from "./rifle-action.js?v=ra1";
+import { updateSniperScope } from "./sniper-scope.js?v=ss1";
 import { chargedShotDef } from "../weapons.js?v=p5bm-wst-hf1-fu1";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7";
 import { STANCE } from "../movement.js?v=umb2-sb2-gj1b7";
@@ -1161,6 +1162,7 @@ export function updateWeaponView(dt) {
   // simply hidden, not touched, while holding === "streak").
   if (!game.saberArmsOn) pfArms.visible = false;   // posePfArms below re-shows them on a held gun
   // The streak device has its own arms (streakArms): the gun's rods go.
+  if (game.player.holding === "streak" || !mesh) { updateSniperScope(null, null, w, false, false); }
   if (game.player.holding === "streak") { pfArms.visible = false; return; }
   if (!mesh) return;
 
@@ -1291,6 +1293,8 @@ export function updateWeaponView(dt) {
   if (mesh.userData.sight) mesh.userData.sight.visible = true;
   fadeOpticGlass(mesh, adsSmoothT);
   updateLaserBeam(mesh, w);
+  // Scoped all the way in, a sniper scope takes the screen (sniper-scope.js).
+  updateSniperScope(mesh, pfArms, w, game.player.holding === "gun", game.weaponRig.visible);
 
   if (game.muzzleFlashT > 0) {
     game.muzzleFlashT -= dt;
