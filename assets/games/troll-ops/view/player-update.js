@@ -11,6 +11,7 @@ import { royaleDropView, royaleOnBelt, royaleRolling, stageFrozen, updateRoyaleR
 import { bar, seated, holdSeat } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7de";
 import { updateTrain } from "../modes/social-train.js?v=st1b7b7d";
 import { updateDuel, duelFire } from "../modes/social-duel.js?v=sd1b7b7de";
+import { clubHolds, clubHold, updateClubEntry } from "../modes/club-entry.js?v=ce1";
 import { TIPSY, tipsyFx } from "../saloon-bar.js?v=sb1b7";
 import { strikeTablet, throwMarker } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7d";
 import { insidePolygon } from "../edge.js";
@@ -172,6 +173,7 @@ export function updatePlayer(dt) {
   updateTrain();   // the Grin Express, and us on it, before we move (Socialize)
   if (dropping) updateDropPlayer(dt, dropIx, dropIz);
   else if (game.isView()) flyView(dt, ix, iz);
+  else if (game.isSocial() && clubHolds()) clubHold(dt);   // in the club's line, or walked in by the door
   else if (seated && game.isSocial()) holdSeat(dt, ix, iz, !frozen && ((game.isTouch && touchState.jump) || (gp && game.gamepadState.jump) || game.keys.has("Space") || game.keys.has("KeyC")));
   else game.move.update(dt, {
     forward: iz,
@@ -194,7 +196,7 @@ export function updatePlayer(dt) {
 
   // fist fights with the townsfolk (Socialize): after we've moved, so a
   // bump reads our speed and a knock-down holds us where we fell
-  if (game.isSocial()) { duelFire(); updateDuel(dt); }
+  if (game.isSocial()) { duelFire(); updateDuel(dt); updateClubEntry(dt); }
 
   updateSwivel(dt);
 

@@ -1671,6 +1671,31 @@ const CLUB_SEES = {
 };
 const CLUB_VIEW = { zoneOf: clubZone, sees: (a, b) => a === b || CLUB_SEES[a]?.includes(b) };
 
+/* The door (Socialize, modes/club-entry.js; CLUB-ENTRY.md): which pass a
+   spot needs. "street" is outside; "main" is the floor a guest wristband
+   opens (lobby, hall, bar, restrooms, coat check, terrace, the roof's Sky
+   Bar); "vip" and "back" (the VIP lounge, the staff rooms) stay guarded. */
+function entryZoneOf(x, y, z) {
+  const k = clubZone(x, y, z);
+  return k === "street" || k === "vip" || k === "back" ? k : "main";
+}
+/* Where the door's people stand. The line runs west along the rope from the
+   front door; the two lanes check people in front of Big Lulz and Tank
+   (facing him); in through the front door to the lobby; the curb
+   across the alley is where the bounced land; newcomers walk up the alley
+   from the west. */
+const DOOR = {
+  line: Array.from({ length: 9 }, (_, i) => ({ x: -4.3 - i * 0.95, z: 23.35 })),
+  lanes: [
+    { bouncer: "Big Lulz", x: -3.3, z: 24.15 },
+    { bouncer: "Tank", x: 3.3, z: 24.15 },
+  ],
+  mouth: { x: 0, z: 23.4 },
+  lobby: { x: 0, z: 18, y: FL, yaw: 0 },
+  curb: { x: 0, z: 29.2, yaw: 0 },
+  arrive: { x: -30, z: 27.4 },
+};
+
 /* The seat of a booth() (same layout), `n` sitters along it. */
 function boothSeats(cx, cz, face, y, w = 2.8, n = 2) {
   const L = (lx, lz) => face === "+z" ? [cx + lx, cz + lz] : face === "-z" ? [cx - lx, cz - lz] : face === "+x" ? [cx + lz, cz - lx] : [cx - lz, cz + lx];
@@ -1839,7 +1864,7 @@ export const TROLLINGLOUD = {
   },
   // Socialize: the crowd (town-npcs.js), dancing on the club's clock; no
   // shadows (indoors under neon that casts none), drawn room by room
-  rp: { npcs: () => clubNpcs(), seats: () => SEATS, beat: () => U.uBeatPos.value, npcShadows: false, view: CLUB_VIEW },
+  rp: { npcs: () => clubNpcs(), seats: () => SEATS, beat: () => U.uBeatPos.value, npcShadows: false, view: CLUB_VIEW, door: { ...DOOR, zoneOf: entryZoneOf } },
   // for tools/troll-ops-trollingloud-test.mjs
   debug: () => ({
     active: !!ACTIVE, lights: ACTIVE?.lights.length ?? 0, ballBoost: ACTIVE?.ballBoost ?? 0,
