@@ -13,6 +13,11 @@ Design docs live next to this file: `COPS-AND-ROBBERS.md` (approved plan), `ZOMB
 
 ## 1. Open work and plans (newest first)
 
+### Trolling Loud club entry (CLUB-ENTRY.md): phases 1-4 LIVE, phase 5 ON HOLD
+Phases 1-4 are on main (live 2026-10-08, 4add854): the line, ID, 18+, wristbands and zone fence; the look (rope, bouncer acts, bands on wrists); the kick-out cinematic + lockout; multiplayer (tickets, everyone sees your phases, AFK). Code: `modes/club-entry.js`, `view/club-entry-cine.js`; tests `tools/troll-ops-club-entry-test.mjs` (solo) and `troll-ops-club-room-test.mjs` (3 tabs).
+- **Still to do: phase 5**, about 30-45 min: pad and touch prompts for the door (answer A/B on a pad, two big buttons and a "Leave line" button on touch, per the doc's Controls table), a mobile-viewport + pad pass in the tests, screenshots, gate. The user put it ON HOLD on 2026-10-08: don't start until they say go.
+- Rule for this work: send the user a high-quality video of each phase before its gate.
+
 ### Dust Bowl (bazaar redesign done 2026-10-07)
 Open: watch spawn S3 (0, -33) in playtests; the loading dock sits on the wall-strip sightline 14-17 m from it. A crate stack between them would fix it but closes that line.
 Any later Dust Bowl edit holds to: bounds, spawns and the perimeter collider unchanged; nothing solid within 3 m of the S&D sites, which must stay at A (14.48, -18.21) and B (14.37, 14.24); all 15 dustbowl walk routes passing; the five 45 m+ east-west lines in the north half kept open (z -34.3 to -33, -29.3, -26.7, -18.8 to -15.5, -15 to -12); frame rate checked with tools/troll-ops-map-fps.mjs against a worktree of main. Every solid piece is a collider in maps.js plus the matching mesh in models/build_dustbowl.blender.py, sized from the same numbers.
