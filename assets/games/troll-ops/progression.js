@@ -14,7 +14,7 @@
 // Signed in, XP earned is queued in PENDING_KEY before it's sent, so a
 // closed tab or a flaky network never loses any.
 
-import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1";
+import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1";
 
 const KEY = "trollops:xp";                 // the old saved guest total: no longer kept (cleared below)
 const PENDING_KEY = "trollops:xp-pending"; // earned signed in, not yet on the account

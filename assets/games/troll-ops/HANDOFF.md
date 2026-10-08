@@ -477,11 +477,15 @@ Map rules:
 - `troll-ops-beatgrid.mjs`
 - `troll-ops-cop-shots.mjs` (officer pose contact sheets: POSES, YAW, T, CAM, FOCUS, EVAL)
 - `troll-ops-grinleria-layout.mjs`
+- `troll-ops-trace.mjs` + `troll-ops-gun-compare.mjs` (trace a gun off a side-on reference, check the spec against it)
+- `troll-ops-cache-cascade.mjs --suffix <tag>` (the ?v= cascade; reports modules imported under two tags)
 
 ---
 
 ## 5. Shipped log (one line each; details are in git)
 
+- **2026-10-08** (assault rifles, -ar1)
+  - Black Ops 2's nine: MTAR, Type 25, SWAT-556 (3-burst), FAL OSW (semi), M27, SCAR-H, AN-94 (Coalface keeps its name and hyperburst), SMR (semi), M8A1 (4-burst), traced (weapon-ars.js; ids kek/lol/lmao/rofl/heh/mald/coalface/salt/ratio); Grinstock and Bugbear removed; bots carry the MTAR and SCAR-H, Gun Game adds the SCAR-H. Test: troll-ops-ars-test.mjs.
 - **2026-10-08** (weapons batch, -wb1)
   - Sidearms: Sixty-Nine (Five-seveN, rank 0 starter) and TRUE-69 (BO2 KAP-40, auto) replace the M9, Deagle, Chortle and Golden Grin; traced from photos (weapon-pistols.js), slides cycle/lock/release (view/pistol-action.js). Test: troll-ops-pistols-test.mjs.
   - Snipers: BO2's SVU-AS, DSR 50, Ballista, XPR-50 as Snort SVU / Deadpan DSR / Howl Ballista / Smug XPR (weapon-snipers.js); bolts cycle (view/rifle-action.js, audio boltBeat); BO2 full-screen scope (view/sniper-scope.js). Test: troll-ops-snipers-test.mjs.

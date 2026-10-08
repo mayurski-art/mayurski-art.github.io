@@ -3,18 +3,18 @@
 // (split phase 1).
 
 import { Dragonfire, DF_RANGE, DF_SPREAD, DF_DAMAGE, DF_HP } from "../dragonfire.js?v=df3-sb2";
-import { STREAK_DEFS, SCORE } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1";
-import { streakEntities, flyovers, streakBlast, uavBucket, uavUntil } from "./calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4";
+import { STREAK_DEFS, SCORE } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1";
+import { streakEntities, flyovers, streakBlast, uavBucket, uavUntil } from "./calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-ar1";
 import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "../sam-turret.js?v=sam1";
 import * as THREE from "three";
-import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1";
+import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1";
 import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";
 import { HelicopterGunship, VtolWarship, HunterDrone, ReconPlane } from "../streak-entities.js?v=vsat2-hk1";
-import { round2 } from "./fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4";
-import { showWaveBanner, pushKillfeed } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4";
-import { XP } from "../progression.js?v=p5-wst-sb2-fu1-wb1";
-import { findAimAssistTarget } from "../input/aim-assist.js?v=in1-fu1b7-wb1";
-import { WEAPON_DEFS } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1";
+import { round2 } from "./fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-ar1";
+import { showWaveBanner, pushKillfeed } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-ar1";
+import { XP } from "../progression.js?v=p5-wst-sb2-fu1-wb1-ar1";
+import { findAimAssistTarget } from "../input/aim-assist.js?v=in1-fu1b7-wb1-ar1";
+import { WEAPON_DEFS } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1";
 import { game } from "../core/state.js?v=st1";
 
 export const DF_BOARD_AT = 1.2;        // the tablet dive, then you're flying

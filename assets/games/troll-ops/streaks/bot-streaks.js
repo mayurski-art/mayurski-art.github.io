@@ -1,22 +1,22 @@
 // Troll Forces bot scorestreaks: bots earn and call streaks like players.
 // Moved out of game.js (split phase 1).
 
-import { royale } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4";
-import { streaksAllowed, STREAK_DEFS } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1";
-import { streakEntities, startVsat, spawnVsatSat, uavBucket, streakBlast, flyovers, killstreakUi } from "./calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4";
+import { royale } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-ar1";
+import { streaksAllowed, STREAK_DEFS } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1";
+import { streakEntities, startVsat, spawnVsatSat, uavBucket, streakBlast, flyovers, killstreakUi } from "./calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-ar1";
 import { HunterDrone, HelicopterGunship, VtolWarship, MarkerCanister, AIRSTRIKE_RADIUS, CarePackage, DRONE_SPLASH_RADIUS, AIRSTRIKE_DELAY, WARSHIP_GUNS } from "../streak-entities.js?v=vsat2-hk1";
 import { Dragonfire, DF_RANGE, DF_DAMAGE } from "../dragonfire.js?v=df3-sb2";
-import { swarmRuns, startUav, spawnRecon, applyCounterUav, streakOwnerHates, streakDamage } from "./air.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4";
-import { dragonfireSkyCheck, round2, pickDroneTarget, spawnDrone, spawnHelicopter, spawnK9, droneWorld, rollPackageReward, strikeDelay, spawnAirstrike, spawnCarePackage } from "./fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4";
+import { swarmRuns, startUav, spawnRecon, applyCounterUav, streakOwnerHates, streakDamage } from "./air.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-ar1";
+import { dragonfireSkyCheck, round2, pickDroneTarget, spawnDrone, spawnHelicopter, spawnK9, droneWorld, rollPackageReward, strikeDelay, spawnAirstrike, spawnCarePackage } from "./fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-ar1";
 import * as THREE from "three";
-import { samDeployPoint, spawnSam, spawnDragonfire, shootDownAir, airTargetPos, damageStreakEntity } from "./dragonfire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4";
-import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1";
-import { spawnWarship, WARSHIP_BOARD_AT } from "./warship.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4";
-import { WEAPON_DEFS } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1";
+import { samDeployPoint, spawnSam, spawnDragonfire, shootDownAir, airTargetPos, damageStreakEntity } from "./dragonfire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-ar1";
+import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1";
+import { spawnWarship, WARSHIP_BOARD_AT } from "./warship.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-ar1";
+import { WEAPON_DEFS } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1";
 import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";
-import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4";
+import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-ar1";
 import { K9Pack } from "../k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d";
-import { damageDog, dogKilledBy } from "./k9.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4";
+import { damageDog, dogKilledBy } from "./k9.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-ar1";
 import { SamTurret } from "../sam-turret.js?v=sam1";
 import { game } from "../core/state.js?v=st1";
 

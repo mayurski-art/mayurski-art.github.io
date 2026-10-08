@@ -3,7 +3,7 @@
 // phase 1).
 
 import * as THREE from "three";
-import { segmentBlocked } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1";
+import { segmentBlocked } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1";
 import { game } from "../core/state.js?v=st1";
 
 /* Aim assist — a soft rotational pull toward whatever is already near the
