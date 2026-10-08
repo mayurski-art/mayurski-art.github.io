@@ -167,6 +167,26 @@ function mk(cls, o) {
   return { ...COMMON, ...CLASS_BASE[cls], ...o, cls };
 }
 
+/* The Desert Eagle's handling, shared by the Wide Deagle and the Golden
+   Grin (see widedeagle below). `tacReloadTime` replaces the 0.72x rule for
+   a reload with a round chambered; `slideCycle` is how long the slide
+   takes to go back and home after a shot; `slideLock` holds it back on an
+   empty gun until the reload releases it; `magnum` picks the deeper report
+   in audio.js; `inspectShowcase` gives a sidearm the long-gun side-on
+   admire instead of the twirl. */
+const DEAGLE = {
+  damage: 55, falloffStart: 22, falloffEnd: 55, falloffMin: 0.62,
+  rpm: 300, magSize: 7, reserveMax: 42,
+  reloadTime: 2.9, tacReloadTime: 2.3,
+  spreadBase: 0.034, spreadMoving: 0.06, spreadAds: 0.006, spreadPerShot: 0.045, spreadMax: 0.17,
+  recoilKickPitch: 0.068, recoilKickYaw: 0.012, recoilKickYawRand: 0.02, recoilRecover: 8.5, recoilKickKnockback: 0.05,
+  shakeScale: 1.25, shakeVert: 1.4, shakeSide: 0.8, shakeJolt: 1.45, shakeRecover: 0.85,
+  adsTime: 0.19, adsFovMult: 0.86, inertia: 8.5,
+  muzzleFlashScale: 1.4, muzzleVelocity: 470, penetration: 1.15,
+  magnum: true, slideCycle: 0.11, slideLock: true, inspectTime: 3.6, inspectShowcase: true,
+  model: { len: 0.28, stock: "none", mag: "box", barrel: 0.6, heavy: true, deagle: true },
+};
+
 export const WEAPON_DEFS = {
   // ---------------- assault rifles
   problem416: mk("assault", {
@@ -375,11 +395,16 @@ export const WEAPON_DEFS = {
     blurb: "Always there. Never impressive.",
     model: { len: 0.24, stock: "none", mag: "box", barrel: 0.5 },
   }),
+  // Phantom Forces' Desert Eagle XIX (.50 AE): seven rounds, two to the body
+  // up close (three past ~40 m), one to the head, a slow heavy semi-auto
+  // with a big vertical kick. The slide cycles every shot and locks back on
+  // the last round; an empty reload drops the mag and releases the slide
+  // (2.9 s), a tac reload is a plain swap (2.3 s). weapon-deagle.js builds
+  // it (model.deagle); the Golden Grin below is the same gun in gold.
   widedeagle: mk("sidearm", {
     id: "widedeagle", name: "Wide Deagle", rank: 9, sight: "iron",
-    damage: 55, rpm: 260, magSize: 7, recoilKickPitch: 0.06, recoilKickKnockback: 0.045,
+    ...DEAGLE,
     blurb: "Two shots, and everyone heard both.",
-    model: { len: 0.28, stock: "none", mag: "box", barrel: 0.6, heavy: true },
   }),
   chortle: mk("sidearm", {
     id: "chortle", name: "Chortle 18", rank: 20, sight: "iron",
@@ -410,10 +435,9 @@ export const WEAPON_DEFS = {
   // keeps it last in the list (anyone at Prestige 7 is past 69 anyway).
   goldengrin: mk("sidearm", {
     id: "goldengrin", name: "Golden Grin .50", rank: 69, prestige: 7, sight: "iron",
-    damage: 55, rpm: 260, magSize: 7, recoilKickPitch: 0.06, recoilKickKnockback: 0.045,
+    ...DEAGLE,
     ownFinish: "goldgrin",
     blurb: "Prestige 7. The same two shots, but everyone saw them coming.",
-    model: { len: 0.28, stock: "none", mag: "box", barrel: 0.6, heavy: true },
   }),
 };
 
@@ -455,6 +479,13 @@ export class WeaponState {
     this.viewKickYaw = 0;
     this.viewKickKnockback = 0;
     this.viewKickRoll = 0;
+    this.slideT = 0;            // pistol slide cycle after a shot (def.slideCycle), counts down
+  }
+
+  /* The slide is held back: the last round went and the gun has a lock
+     (def.slideLock). The reload's release (weapon-view.js) lets it go. */
+  get slideLocked() {
+    return !!this.def.slideLock && this.ammoInMag <= 0;
   }
 
   get fireInterval() { return 60 / this.def.rpm; }
@@ -490,7 +521,7 @@ export class WeaponState {
     // single highest-impact reload item. `wasEmpty` is read by the
     // viewmodel's reloadPose() to pick which stage timeline to play.
     this.reloadWasEmpty = this.ammoInMag <= 0;
-    this.reloadTime = this.def.reloadTime * (this.reloadWasEmpty ? 1 : 0.72);
+    this.reloadTime = this.reloadWasEmpty ? this.def.reloadTime : (this.def.tacReloadTime ?? this.def.reloadTime * 0.72);
     this.reloadT = this.reloadTime;
     return true;
   }
@@ -603,6 +634,7 @@ export class WeaponState {
       this.pumpT = this.pumpDur = this.def.pumpTime ?? (this.def.fireMode === "bolt" ? 0.55 : 0.4);
       if (this.def.fireMode === "pump" && this.ammoInMag > 0) this.events.push("pump");
     }
+    if (this.def.slideCycle) this.slideT = this.def.slideCycle;
     // Shouldering the weapon steadies it: aimed fire kicks less than hipfire.
     const steady = (1 - this.adsT * 0.35) * kick;
     const yawKick = ((Math.random() * 2 - 1) * this.def.recoilKickYawRand + this.def.recoilKickYaw) * steady;
@@ -623,6 +655,7 @@ export class WeaponState {
     const def = this.def;
     this.fireCooldown = Math.max(0, this.fireCooldown - dt);
     this.pumpT = Math.max(0, this.pumpT - dt);
+    this.slideT = Math.max(0, this.slideT - dt);
     this.cancelReloadIfDone(dt);
 
     // ADS blend
