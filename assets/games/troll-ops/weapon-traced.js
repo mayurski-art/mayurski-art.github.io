@@ -85,12 +85,31 @@ export function buildTraced(def, spec, env, { fallbackOptic = null } = {}) {
     blk.position.set(0, (Y(y0) + Y(y1)) / 2, (Z(x0) + Z(x1)) / 2);
     root.add(blk);
   }
-  // the iron sight posts, their own pieces so glass can fold them
+  // the iron sights, their own pieces so glass can fold them: a slim front
+  // post, and a rear notch (two ears over a lower base) to line it up in
   const irons = (spec.ironParts || []).map(([x0, y0, x1, y1]) => {
-    const p = box(0.012, Math.abs(Y(y0) - Y(y1)), Math.abs(Z(x1) - Z(x0)), dark);
-    p.position.set(0, (Y(y0) + Y(y1)) / 2, (Z(x0) + Z(x1)) / 2);
-    root.add(p);
-    return p;
+    const h = Math.abs(Y(y0) - Y(y1)), d = Math.abs(Z(x1) - Z(x0));
+    const g = new THREE.Group();
+    g.position.set(0, (Y(y0) + Y(y1)) / 2, (Z(x0) + Z(x1)) / 2);
+    const rear = spec.iron && Math.abs((x0 + x1) / 2 - spec.iron.rearX) < Math.abs(x1 - x0);
+    if (rear) {
+      const base = box(0.016, h - 0.004, d, dark);
+      base.position.y = -0.002;
+      g.add(base);
+      for (const side of [-1, 1]) {
+        const ear = box(0.0045, h, d, dark);
+        ear.position.x = side * 0.0055;
+        g.add(ear);
+      }
+    } else {
+      g.add(box(0.0035, h, Math.min(d, 0.008), dark));
+      const guard = box(0.012, h * 0.45, d, dark);
+      guard.position.y = -h * 0.275;
+      g.add(guard);
+    }
+    g.userData.ironSight = rear ? "rear" : "front";
+    root.add(g);
+    return g;
   });
   for (const [x0, x1, color] of spec.bands || []) {
     const band = cylZ(spec.barrel.r * s * 2.6, Math.abs(Z(x1) - Z(x0)), std(color), 18);
