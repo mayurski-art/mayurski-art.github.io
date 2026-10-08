@@ -72,34 +72,17 @@ const SAD_HEAD_MAT = TROLLFACE_HEAD_MAT.clone();
 SAD_HEAD_MAT.map = SAD_TEXTURE;
 SAD_HEAD_MAT.emissiveMap = SAD_TEXTURE;
 
-/* Faces a rig can wear, by key "expression:tint" (cosmetics.js): the
-   expression picks the artwork (the grin, or trolltruths' sad one), the
-   tint colours the skin while the ink stays black. `rig.face` is the
-   rig's own pick; the Sad trollface emote swaps the expression for a
-   moment and keeps the tint. Materials are made on first use and shared. */
+/* Faces a rig can wear, by key "expression:og" (cosmetics.js): the
+   expression picks the artwork (the grin, or trolltruths' sad one). The
+   trollface is always its own white; there are no face colours (user,
+   2026-10-08), and the second part of the key is kept as "og" only so old
+   keys on the wire and in storage still read. `rig.face` is the rig's own
+   pick; the Sad trollface emote swaps the expression for a moment. */
 const FACE_ART = { grin: TROLLFACE_HEAD_MAT, sad: SAD_HEAD_MAT };
-export const FACE_TINTS = {
-  og: 0xffffff, gold: 0xffd54a, green: 0x9dff7a, blue: 0x86ccff,
-  pink: 0xff9fd4, purple: 0xc7a2ff, red: 0xff7f72, stone: 0xbdbdb4,
-};
-const FACE_MATS = new Map();
 export function faceMaterial(key = "grin:og") {
-  // a third part is the face covering (FACE_COVERINGS); the material is
-  // the same with or without one
-  const [expr, tint] = String(key).split(":");
-  key = `${expr}:${tint}`;
-  let m = FACE_MATS.get(key);
-  if (m) return m;
-  const base = FACE_ART[expr] || TROLLFACE_HEAD_MAT;
-  const color = FACE_TINTS[tint] ?? 0xffffff;
-  if (color === 0xffffff) m = base;
-  else {
-    m = base.clone();
-    m.color.setHex(color);
-    m.emissive.setHex(color);
-  }
-  FACE_MATS.set(key, m);
-  return m;
+  // later parts are the face covering and the wrist (cosmetics.js): the
+  // material is the same with or without them
+  return FACE_ART[String(key).split(":")[0]] || TROLLFACE_HEAD_MAT;
 }
 
 /* Face coverings (cosmetics.js): a bandana tied over the lower face, drawn
@@ -261,7 +244,7 @@ export function setFace(rig, mood = null) {
   const head = rig.parts?.head;
   if (!head || !head.userData.trollface) return;
   const own = rig.face || "grin:og";
-  const want = faceMaterial(mood ? `${mood}:${own.split(":")[1] || "og"}` : own);
+  const want = faceMaterial(mood || own);
   if (head.material !== want) head.material = want;
 }
 

@@ -18,9 +18,8 @@
 // phone (waiting in a line: thumbing a phone, looking up now and then),
 // smith (anvil, forge and quench barrel, with the tools: smithy.js).
 //
-// Optional per NPC: `height`, `build` (a bouncer's shoulders), `face` (a
-// tint), `dance` (which of DANCES), `zone` (its room, if not where it
-// stands). A map whose music has a clock passes `beat` (beats since it
+// Optional per NPC: `height`, `build` (a bouncer's shoulders), `dance`
+// (which of DANCES), `zone` (its room, if not where it stands). A map whose music has a clock passes `beat` (beats since it
 // started, trollingloud.js) and its dancers move on that beat instead of
 // their own.
 
@@ -29,7 +28,6 @@ import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, DANCES } from "./ch
 import { buildDrink, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7";
 import { SmithWork } from "./smithy.js?v=sm1b7b7dc2";
 
-const TINTS = ["og", "og", "gold", "green", "blue", "pink", "purple", "red", "stone"];
 const WALK_MPS = 1.25;
 const NEAR = 40;     // full rate inside this
 const FAR = 85;      // hidden past this
@@ -95,7 +93,7 @@ export class TownNpcs {
   spawn(c, i) {
     const seed = hash01(c.name + i);
     const rig = buildHumanoid(this.material, { height: c.height ?? 1.72 + seed * 0.16, build: c.build ?? 1, gun: false });
-    rig.face = `${c.act === "drink" && seed > 0.75 ? "sad" : "grin"}:${c.face || TINTS[Math.floor(seed * TINTS.length) % TINTS.length]}`;
+    rig.face = `${c.act === "drink" && seed > 0.75 ? "sad" : "grin"}:og`;
     const tag = UNTAGGED.has(c.role) ? null : npcTag(`${c.name} · ${c.role}`);
     // Above the head either way: sitting drops the whole body, tag and all.
     if (tag) { tag.position.y = 2.2; rig.root.add(tag); }

@@ -72,22 +72,23 @@ await sleep(400);
 if (SHOT) await page.screenshot({ path: `${SHOT}/fx3-controls.png` });
 await page.evaluate(() => window.__trollOps.showLobbyPanel("deploy"));
 
-// --- cosmetics: face expression + tint on the menu operator, saved
+// --- cosmetics: face expression on the menu operator, saved; no face
+// colours any more (user, 2026-10-08): an old coloured key reads as white
 const cos = await page.evaluate(async () => {
   const T = window.__trollOps;
   T.showLobbyPanel("cosmetics");
   await new Promise((r) => setTimeout(r, 300));
   document.querySelector('.to-cos-face[data-expr="sad"]').click();
-  document.querySelector('.to-cos-tint[data-tint="pink"]').click();
   await new Promise((r) => setTimeout(r, 1200));
   const head = T.charInspector.humanoid.parts.head;
   return { face: T.charInspector.humanoid.face, local: T.localRig.face, color: head.material.color.getHexString(),
     sadMap: !!head.material.map?.image?.getContext, saved: localStorage.getItem("trollops:cosmetics"),
-    live: !document.getElementById("to-char-view").style.display };
+    live: !document.getElementById("to-char-view").style.display, swatches: document.querySelectorAll("#to-cos-body .to-cos-tint").length };
 });
-check("Cosmetics: sad face + pink tint on the menu operator and your body, saved", cos.face === "sad:pink" && cos.local === "sad:pink" && cos.color === "ff9fd4" && cos.sadMap && /sad:pink/.test(cos.saved) && cos.live, cos);
+check("Cosmetics: sad face on the menu operator and your body, saved, white", cos.face === "sad:og" && cos.local === "sad:og" && cos.color === "ffffff" && cos.sadMap && /sad:og/.test(cos.saved) && cos.live, cos);
+check("Cosmetics: no face colour picker", cos.swatches === 0, cos);
 if (SHOT) await page.screenshot({ path: `${SHOT}/fx3-cosmetics.png` });
-await page.evaluate(() => { document.querySelector('.to-cos-face[data-expr="grin"]').click(); document.querySelector('.to-cos-tint[data-tint="og"]').click(); window.__trollOps.showLobbyPanel("deploy"); });
+await page.evaluate(() => { document.querySelector('.to-cos-face[data-expr="grin"]').click(); window.__trollOps.showLobbyPanel("deploy"); });
 
 // --- Sad trollface emote swaps the face, then gives it back
 const sad = await page.evaluate(async () => {

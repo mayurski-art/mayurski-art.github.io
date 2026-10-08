@@ -1731,7 +1731,7 @@ function clubNpcs() {
   const STOOL = 0.78;                   // a bar stool's seat, over the floor
   const cast = [];
   const add = (name, role, act, spot, extra = {}) => cast.push({ name, role, act, ...spot, ...extra });
-  const guard = { height: 1.98, build: 1.4, face: "stone" };
+  const guard = { height: 1.98, build: 1.4 };
   let n = 0;
   const extra = (role, act, spot, more) => add(`${role} ${++n}`, role, act, spot, more);
 

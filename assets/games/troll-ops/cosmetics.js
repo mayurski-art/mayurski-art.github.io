@@ -1,14 +1,14 @@
 // Troll Forces — cosmetics: customise your trollface operator.
 //
 // First slot: the face. An expression (the classic grin, or the sad
-// trollface from trolltruths.com) and a skin tint (the PFP builder's base
-// colours; the ink stays black). Saved per browser, worn on the menu
+// trollface from trolltruths.com); the trollface itself is always white
+// (no face colours: user, 2026-10-08). Saved per browser, worn on the menu
 // operator and your body in matches, and sent to everyone else on the
 // state packet (`fc`), so the room sees what you picked. character.js owns
 // the materials (faceMaterial / setFace); this file is the picks and the
 // panel.
 
-import { FACE_TINTS, FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2";
+import { FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2";
 import { WRISTWEAR, watchThumb } from "./wristwear.js?v=ww1c2";
 
 const KEY = "trollops:cosmetics";
@@ -16,11 +16,6 @@ const KEY = "trollops:cosmetics";
 export const EXPRESSIONS = [
   { id: "grin", name: "Trollface", img: "../../images/wallpaper/trollface%20transparent.png" },
   { id: "sad", name: "Sad trollface", img: "./ui/trollface-sad.png" },
-];
-export const TINTS = [
-  { id: "og", name: "OG" }, { id: "gold", name: "Gold" }, { id: "green", name: "Green" },
-  { id: "blue", name: "Blue" }, { id: "pink", name: "Pink" }, { id: "purple", name: "Purple" },
-  { id: "red", name: "Red" }, { id: "stone", name: "Stone" },
 ];
 // Face coverings (character.js FACE_COVERINGS): worn over the lower face.
 export const COVERINGS = [
@@ -33,18 +28,18 @@ export const COVERINGS = [
 // Wristwear (wristwear.js WRISTWEAR): a watch on the left wrist.
 export const WRISTS = [{ id: "", name: "None" }, ...Object.entries(WRISTWEAR).map(([id, w]) => ({ id, name: w.name }))];
 const EXPR_IDS = new Set(EXPRESSIONS.map((e) => e.id));
-const TINT_IDS = new Set(TINTS.map((t) => t.id));
 
 /* A face key off the wire or storage, or the default when it's not one we
-   know: "expression:tint", plus ":covering" when one's worn, plus
-   ":wrist" when a watch is (the covering part left empty without one:
-   "grin:og::rolex-gold"). */
+   know: "expression:og", plus ":covering" when one's worn, plus ":wrist"
+   when a watch is (the covering part left empty without one:
+   "grin:og::rolex-gold"). The second part was a face colour once; any old
+   one reads as "og". */
 export function cleanFaceKey(key) {
-  const [e, t, c, w] = String(key || "").split(":");
-  if (!EXPR_IDS.has(e) || !TINT_IDS.has(t)) return "grin:og";
+  const [e, , c, w] = String(key || "").split(":");
+  if (!EXPR_IDS.has(e)) return "grin:og";
   const cover = FACE_COVERINGS[c] ? c : "";
   const wrist = WRISTWEAR[w] ? w : "";
-  return `${e}:${t}${cover || wrist ? `:${cover}` : ""}${wrist ? `:${wrist}` : ""}`;
+  return `${e}:og${cover || wrist ? `:${cover}` : ""}${wrist ? `:${wrist}` : ""}`;
 }
 
 export function loadCosmetics() {
@@ -57,9 +52,7 @@ function saveCosmetics(c) {
   try { localStorage.setItem(KEY, JSON.stringify(c)); } catch { /* private mode */ }
 }
 
-const hex = (n) => `#${n.toString(16).padStart(6, "0")}`;
-
-/* The Cosmetics panel: expression cards and tint swatches. `onChange(face)`
+/* The Cosmetics panel: expression, covering and wrist cards. `onChange(face)`
    fires with the new key on every pick. */
 export class CosmeticsPanel {
   constructor(root, onChange) {
@@ -93,8 +86,6 @@ export class CosmeticsPanel {
       b.className = "to-cos-face";
       b.dataset.expr = e.id;
       b.setAttribute("role", "radio");
-      // The art multiplied over a tint-coloured silhouette of itself: the
-      // white skin takes the tint, the black ink stays black.
       const url = new URL(e.img, import.meta.url).href;
       const thumb = document.createElement("span");
       thumb.className = "to-cos-thumb";
@@ -109,25 +100,6 @@ export class CosmeticsPanel {
       b.append(thumb, name);
       b.addEventListener("click", () => this.set({ expr: e.id }));
       this.exprBox.appendChild(b);
-    }
-    this.tintBox = sec("Face colour", "Tints the skin; the ink stays black.");
-    this.tintBox.className = "to-cos-tints";
-    this.tintBox.setAttribute("role", "radiogroup");
-    this.tintBox.setAttribute("aria-label", "Face colour");
-    for (const t of TINTS) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "to-cos-tint";
-      b.dataset.tint = t.id;
-      b.setAttribute("role", "radio");
-      b.setAttribute("aria-label", t.name);
-      b.title = t.name;
-      b.style.setProperty("--tint", hex(FACE_TINTS[t.id] ?? 0xffffff));
-      const name = document.createElement("span");
-      name.textContent = t.name;
-      b.appendChild(name);
-      b.addEventListener("click", () => this.set({ tint: t.id }));
-      this.tintBox.appendChild(b);
     }
     this.coverBox = sec("Face covering", "Tie something over the grin. It still shows through.");
     this.coverBox.className = "to-cos-faces";
@@ -193,10 +165,10 @@ export class CosmeticsPanel {
 
   get face() { return this.state.face; }
 
-  set({ expr, tint, cover, wrist }) {
-    const [e0, t0, c0 = "", w0 = ""] = this.state.face.split(":");
+  set({ expr, cover, wrist }) {
+    const [e0, , c0 = "", w0 = ""] = this.state.face.split(":");
     const c = cover ?? c0, w = wrist ?? w0;
-    this.state.face = cleanFaceKey(`${expr || e0}:${tint || t0}:${c}:${w}`);
+    this.state.face = cleanFaceKey(`${expr || e0}:og:${c}:${w}`);
     saveCosmetics(this.state);
     this.paint();
     this.onChange?.(this.state.face);
@@ -204,15 +176,9 @@ export class CosmeticsPanel {
 
   paint() {
     if (!this.root) return;
-    const [e, t] = this.state.face.split(":");
+    const e = this.state.face.split(":")[0];
     for (const b of this.exprBox.children) {
       const on = b.dataset.expr === e;
-      b.classList.toggle("is-on", on);
-      b.setAttribute("aria-checked", String(on));
-      b.style.setProperty("--tint", hex(FACE_TINTS[t] ?? 0xffffff));
-    }
-    for (const b of this.tintBox.children) {
-      const on = b.dataset.tint === t;
       b.classList.toggle("is-on", on);
       b.setAttribute("aria-checked", String(on));
     }

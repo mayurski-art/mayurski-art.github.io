@@ -230,7 +230,7 @@ const deployRow = (label, desc) => ({
    faces): pick one and go back. */
 // (`valueFor`, not `valueOf`: destructuring `valueOf` off an options object
 // that doesn't set it picks up Object.prototype.valueOf, and calling that
-// threw, so Face and Face colour never opened.)
+// threw, so Face never opened.)
 function optionScreen(titleText, buttons, { valueFor, descOf } = {}) {
   return {
     title: titleText,
@@ -576,14 +576,12 @@ const screens = {
   },
   cosmetics: () => {
     const face = $$("#to-cos-body .to-cos-face:not([data-wrist])").find(isOn);
-    const tint = $$("#to-cos-body .to-cos-tint").find(isOn);
     const wrist = $$("#to-cos-body [data-wrist]").find(isOn);
     return {
       title: "Cosmetics", panel: "cosmetics",
       groups: [
         [
           { id: "face", label: "Face", value: face ? text($("span:last-child", face)) : "", desc: "Your trollface's expression. Everyone in the match sees it.", go: "faces" },
-          { id: "tint", label: "Face colour", value: tint ? tint.title : "", desc: "Tints the skin; the ink stays black.", go: "tints" },
           { id: "wrist", label: "Wrist", value: wrist ? text($("span:last-child", wrist)) : "", desc: "Something on your left wrist. Everyone sees it, and so do you, in your own hands.", go: "wrists" },
         ],
         [back("Back to the main menu.")],
@@ -593,7 +591,6 @@ const screens = {
   heroes: () => optionScreen("Hero", $$("#to-lo-heroes .to-lo-hero")),
   faces: () => optionScreen("Face", $$("#to-cos-body .to-cos-face:not([data-wrist])"), { descOf: () => "Everyone in the match sees it." }),
   wrists: () => optionScreen("Wrist", $$("#to-cos-body [data-wrist]"), { descOf: (b) => (b.dataset.wrist ? "On your left wrist, every match." : "A bare wrist.") }),
-  tints: () => optionScreen("Face colour", $$("#to-cos-body .to-cos-tint"), { descOf: (b) => `${b.title} skin.` }),
   leaders: { title: "Leaderboards", panel: "deploy", detail: true, lb: true, groups: [[back("Back to the main menu.")]] },
   options: () => ({
     title: "Options", panel: "controls", detail: true,
