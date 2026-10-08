@@ -26,8 +26,8 @@
    only where the map has cells (rp.jail: Troll City). */
 
 import * as THREE from "three";
-import { rpBusy, rpExtras, rpListeners, rpSeats, sitDown, seated, standUp } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1";
-import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7d";
+import { rpBusy, rpExtras, rpListeners, rpSeats, sitDown, seated, standUp } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2";
+import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2";
 import { touchState } from "../input/touch.js?v=in1";
 import { game } from "../core/state.js?v=st1";
 

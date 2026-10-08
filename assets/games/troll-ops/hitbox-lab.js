@@ -17,7 +17,7 @@
 // be tuned and then baked into character.js.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
+import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2";
 import { raycastWorld, segmentBlocked } from "./ballistics.js?v=cg1-wst-hf1-fu1b7";
 
 const DISTANCES = [8, 15, 25, 40];

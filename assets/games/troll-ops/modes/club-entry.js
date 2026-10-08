@@ -20,13 +20,13 @@
    `rp.door` (Trolling Loud), only in Socialize. */
 
 import * as THREE from "three";
-import { rpExtras } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1";
-import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7d";
-import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1";
+import { rpExtras } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2";
+import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2";
+import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2";
 import { renderCard, myCardData } from "../profile-card.js?v=pc1-wst-sb2-fu1";
 import { isOwner } from "../progression.js?v=p5-wst-sb2-fu1";
-import { reachHand } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
-import { clubWear } from "./club-wear.js?v=cw1";
+import { reachHand } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2";
+import { clubWear } from "./club-wear.js?v=cw1c2";
 import { game } from "../core/state.js?v=st1";
 
 export const BAND = { none: 0, guest: 1, owner: 2, vip: 3 };

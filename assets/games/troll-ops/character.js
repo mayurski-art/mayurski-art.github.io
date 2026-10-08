@@ -16,7 +16,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { buildWatch, buildWristband, wristOf } from "./wristwear.js?v=ww1";
+import { buildWatch, buildWristband, wristOf } from "./wristwear.js?v=ww1c2";
 
 const DARK = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
 
