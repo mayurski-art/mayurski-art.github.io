@@ -165,6 +165,7 @@ export class GameAudio {
     if (at && this._far(at, SHOT_CULL)) return;
     if (def.candleShot) { this.candleShot(def.chargeLevel || 0, volume, at); return; }
     if (def.revolver) { this.revolverShot(volume, at); return; }
+    if (def.magnum && !def.quiet) { this.magnumShot(volume, at); return; }
     if (def.hellfire && !def.quiet) this.hellfireShot(volume, at);   // and the boom below
     const heavy = Math.min(1, (def.damage * (def.pellets || 1)) / 90);
     const quiet = !!def.quiet;
@@ -319,6 +320,40 @@ export class GameAudio {
       this._tone({ freq: hz, to: hz * 0.985, duration: 0.18, gain: g * volume, type: "sine", delay: 0.004, at });
     }
     this._noise({ duration: 0.16, gain: 0.12 * volume, type: "lowpass", freq: 1500, sweepTo: 300, delay: 0.11, at });
+  }
+
+  /* The Desert Eagle (.50 AE, def.magnum): a hard supersonic crack, a big
+     chest-thump boom well under a pistol's, the blast rolling off for half
+     a second, the slide clacking back mid-report, and a slapback. */
+  magnumShot(volume = 1, at = null) {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.025, gain: 0.5 * volume, type: "highpass", freq: 3200, at });
+    this._noise({ duration: 0.34, gain: 0.55 * volume, type: "lowpass", freq: 3400, sweepTo: 170, at });
+    this._tone({ freq: 118, to: 30, duration: 0.5, gain: 0.46 * volume, type: "sine", at });
+    this._tone({ freq: 240, to: 75, duration: 0.11, gain: 0.2 * volume, type: "triangle", at });
+    this._noise({ duration: 0.03, gain: 0.12 * volume, type: "bandpass", freq: 2700, q: 5, delay: 0.055, at });
+    this._noise({ duration: 0.65, gain: 0.15 * volume, type: "lowpass", freq: 900, sweepTo: 120, delay: 0.07, at });
+    this._noise({ duration: 0.2, gain: 0.09 * volume, type: "lowpass", freq: 1300, sweepTo: 260, delay: 0.17, at });
+  }
+
+  /* The slide stop dropped on a fresh mag: the slide slams home. */
+  slideRelease() {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.025, gain: 0.22, type: "bandpass", freq: 3300, q: 5 });
+    this._noise({ duration: 0.06, gain: 0.15, type: "bandpass", freq: 1300, q: 3, delay: 0.008 });
+    this._tone({ freq: 4300, to: 4150, duration: 0.09, gain: 0.025, type: "sine", delay: 0.006 });
+  }
+
+  /* Deagle reload foley on the view model's beats (fractions of `time`):
+     the mag release and the heavy mag sliding out, the fresh one in and
+     slapped home. An empty one ends on the slide release (weapon-view.js). */
+  magnumReload(time) {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.03, gain: 0.14, type: "bandpass", freq: 2400, q: 5, delay: time * 0.16 });
+    this._noise({ duration: 0.12, gain: 0.09, type: "bandpass", freq: 1500, q: 2, sweepTo: 900, delay: time * 0.2 });
+    this._noise({ duration: 0.1, gain: 0.1, type: "bandpass", freq: 1100, q: 2, sweepTo: 1700, delay: time * 0.5 });
+    this._noise({ duration: 0.05, gain: 0.2, type: "bandpass", freq: 800, q: 3, delay: time * 0.66 });
+    this._noise({ duration: 0.03, gain: 0.12, type: "bandpass", freq: 2200, q: 5, delay: time * 0.665 });
   }
 
   /* The hammer thumbed back: two quick clicks, the second brighter. */
