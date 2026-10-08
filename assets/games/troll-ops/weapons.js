@@ -272,24 +272,45 @@ export const WEAPON_DEFS = {
   }),
 
   // ---------------- snipers
+  // Black Ops 2's four snipers (weapon-snipers.js builds each from its
+  // traced side outline, model.build). All carry the variable-zoom scope by
+  // default; only scopes fit them (attachments.js CLASS_FIT).
+  // SVU-AS: semi-auto, ten rounds, two to the body, quick to the eye.
+  snort: mk("sniper", {
+    id: "snort", name: "Snort SVU", rank: 6, sight: "scope",
+    fireMode: "semi", rpm: 260, damage: 62, falloffMin: 0.8,
+    magSize: 10, reserveMax: 50, reloadTime: 2.4, tacReloadTime: 1.9,
+    recoilKickPitch: 0.05, recoilRecover: 7, adsTime: 0.27, spreadPerShot: 0.04,
+    blurb: "Ten rounds, no patience.",
+    model: { len: 0.9, stock: "fixed", mag: "box", build: "snort" },
+  }),
+  // DSR 50: the bolt-action one-shot, chest up at any range, slow bolt.
   deadpan: mk("sniper", {
-    id: "deadpan", name: "Deadpan 700", rank: 6, sight: "iron",
-    damage: 78, rpm: 55, magSize: 6,
+    id: "deadpan", name: "Deadpan DSR", rank: 16, sight: "scope",
+    damage: 110, falloffMin: 0.92, rpm: 42, pumpTime: 0.8,
+    magSize: 5, reserveMax: 30, reloadTime: 3.2, tacReloadTime: 2.6,
+    recoilKickPitch: 0.085, adsTime: 0.38, penetration: 3.0,
+    blurb: "Chest up, lights out. Takes its time.",
+    model: { len: 1.12, stock: "fixed", mag: "box", build: "deadpan" },
+  }),
+  // Ballista: the fast bolt, seven rounds, one-shots up close.
+  howl: mk("sniper", {
+    id: "howl", name: "Howl Ballista", rank: 28, sight: "scope",
+    damage: 100, falloffMin: 0.85, rpm: 58, pumpTime: 0.5,
+    magSize: 7, reserveMax: 35, reloadTime: 2.6, tacReloadTime: 2.1,
+    recoilKickPitch: 0.07, adsTime: 0.29,
     blurb: "Fast bolt. Bring headshots.",
-    model: { len: 0.74, stock: "fixed", mag: "none", barrel: 1.3, wood: true },
+    model: { len: 1.2, stock: "fixed", mag: "box", build: "howl" },
   }),
-  hush: mk("sniper", {
-    id: "hush", name: "Hush Intervention", rank: 22, sight: "iron",
-    damage: 95, rpm: 45, magSize: 7,
-    blurb: "Chest up, lights out.",
-    model: { len: 0.8, stock: "fixed", mag: "box", barrel: 1.35 },
-  }),
-  marksman: mk("sniper", {
-    id: "marksman", name: "Longsmile .50", rank: 40, sight: "iron",
-    damage: 110, rpm: 40, magSize: 5, muzzleVelocity: 950, penetration: 3.4,
-    recoilKickPitch: 0.09, adsTime: 0.4,
+  // XPR-50: the semi-auto .50, five rounds, punches through anything.
+  smug: mk("sniper", {
+    id: "smug", name: "Smug XPR", rank: 40, sight: "scope",
+    fireMode: "semi", rpm: 150, damage: 100, falloffMin: 0.9,
+    magSize: 5, reserveMax: 30, reloadTime: 3.0, tacReloadTime: 2.4,
+    recoilKickPitch: 0.11, recoilKickKnockback: 0.11, adsTime: 0.36,
+    muzzleVelocity: 950, penetration: 3.4,
     blurb: "One shot. Anywhere. Anything.",
-    model: { len: 0.86, stock: "fixed", mag: "box", barrel: 1.45, heavy: true },
+    model: { len: 1.35, stock: "fixed", mag: "box", build: "smug", heavy: true },
   }),
 
   // ---------------- LMGs

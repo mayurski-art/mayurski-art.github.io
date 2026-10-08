@@ -265,7 +265,7 @@ Phases 1–7 are shipped. What's deferred, and deliberately so:
 ## 5. Weapon roster (22, 8 classes)
 
 Names follow the voice already established by *Grinder SMG* / *Widemouth 12* /
-*Longsmile .50* — descriptive, faintly cheeky, never the troll emoji.
+*Snort SVU* — descriptive, faintly cheeky, never the troll emoji.
 
 | Class | Weapon | Analog | Character |
 |---|---|---|---|
@@ -280,9 +280,10 @@ Names follow the voice already established by *Grinder SMG* / *Widemouth 12* /
 | | Smirk Vector | Vector .45 | Absurd RPM, drains instantly |
 | **Battle / DMR** | Bellow SCAR-H | SCAR-H | Heavy semi-auto punch |
 | | Sneer SKS | SKS | Cheap, fast, 3-shot kill |
-| **Sniper** | Longsmile .50 *(exists)* | BFG-50 | One-shot anywhere |
-| | Hush Intervention | Intervention | Bolt, one-shot chest up |
-| | Deadpan 700 | Remington 700 | Fast bolt, needs headshots |
+| **Sniper** | Snort SVU | SVU-AS (BO2) | Semi-auto, ten rounds, two to the body |
+| | Deadpan DSR | DSR 50 (BO2) | Slow bolt, one-shot chest up |
+| | Howl Ballista | Ballista (BO2) | Fast bolt, needs headshots |
+| | Smug XPR | XPR-50 (BO2) | Semi-auto .50, one-shot, punches through |
 | **LMG** | Bellylaugh M60 | M60 | 100 rounds, brutal recoil |
 | | Cackle RPK | RPK | Controllable, huge mag |
 | **Shotgun** | Widemouth 12 *(exists)* | Remington 870 | Pump, devastating close |
