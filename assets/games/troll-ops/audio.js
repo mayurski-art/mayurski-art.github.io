@@ -878,6 +878,26 @@ export class GameAudio {
     this._noise({ duration: 0.05, gain: 0.2, type: "bandpass", freq: 1400, q: 3, delay: dur * 0.78 });
   }
 
+  /* A bolt rifle's cycle, one beat at a time on the view model's own
+     timeline (view/rifle-action.js): the handle lifts off its lug, the bolt
+     rakes back and spits the case, rides home, and the handle locks down. */
+  boltBeat(beat) {
+    if (!this._ready()) return;
+    if (beat === "lift") {
+      this._noise({ duration: 0.025, gain: 0.14, type: "bandpass", freq: 2100, q: 5 });
+    } else if (beat === "back") {
+      this._noise({ duration: 0.09, gain: 0.17, type: "bandpass", freq: 900, q: 2, sweepTo: 1500 });
+      this._noise({ duration: 0.03, gain: 0.16, type: "bandpass", freq: 2800, q: 5, delay: 0.07 });
+      this._tone({ freq: 2600, to: 2400, duration: 0.1, gain: 0.02, type: "sine", delay: 0.2 });
+    } else if (beat === "home") {
+      this._noise({ duration: 0.08, gain: 0.15, type: "bandpass", freq: 1500, q: 2, sweepTo: 800 });
+      this._noise({ duration: 0.03, gain: 0.18, type: "bandpass", freq: 1200, q: 4, delay: 0.06 });
+    } else if (beat === "lock") {
+      this._noise({ duration: 0.03, gain: 0.2, type: "bandpass", freq: 1700, q: 4 });
+      this._tone({ freq: 340, to: 220, duration: 0.05, gain: 0.08, type: "triangle" });
+    }
+  }
+
   /* One shell thumbed into the tube: a short click-clack. */
   shellIn() {
     if (!this._ready()) return;
