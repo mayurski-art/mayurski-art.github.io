@@ -47,7 +47,15 @@ export class FlowField {
      vault); a zombie only steps about half that, so a hay bale is a wall. */
   /* `template`: another field on the same map: its blocked grid is copied
      instead of being worked out again from every collider. */
-  constructor(colliders, bounds, floorY, { needSupport = false, cell = CELL, pad = 0.35, step = 1.0, template = null } = {}) {
+  /* `blockBy`: which cells a wall shuts. "overlap" (the default): any cell
+     the wall's footprint, padded by `pad`, touches. That seals a doorway
+     narrower than a cell plus two pads (a 1.2 m door at 0.55 m cells), and
+     whatever walks the field runs at the wall beside it instead (user,
+     2026-10-07: "dogs should learn to go through doors"). "centre": only the
+     cells whose CENTRE is within `pad` of the wall, so a door is open as
+     long as a walker's body fits through it. A wall thinner than a cell is
+     widened to one, so it can't slip between two centres and go unnoticed. */
+  constructor(colliders, bounds, floorY, { needSupport = false, cell = CELL, pad = 0.35, step = 1.0, template = null, blockBy = "overlap" } = {}) {
     if (template) {
       this.cell = template.cell;
       this.floorY = template.floorY;
@@ -96,13 +104,29 @@ export class FlowField {
     // (`pad` is that margin, 0.35 m unless a map asks for a finer grid.)
     // The blockers' own footprints (unpadded) are kept too, for openIndex.
     const walls = [];
+    const centre = blockBy === "centre";
     for (const c of colliders) {
       if (!blocks(c, floorY, step)) continue;
       walls.push(c.min.x, c.max.x, c.min.z, c.max.z);
-      const x0 = Math.floor((c.min.x - pad - this.minX) / this.cell);
-      const x1 = Math.ceil((c.max.x + pad - this.minX) / this.cell);
-      const z0 = Math.floor((c.min.z - pad - this.minZ) / this.cell);
-      const z1 = Math.ceil((c.max.z + pad - this.minZ) / this.cell);
+      let x0, x1, z0, z1;
+      if (centre) {
+        // The cells whose centres fall inside the padded footprint; a
+        // footprint thinner than a cell is widened to one so it catches at
+        // least the row of centres it runs between.
+        const span = (lo, hi, origin) => {
+          let a = lo - pad, b = hi + pad;
+          if (b - a < this.cell) { const m = (a + b) / 2; a = m - this.cell / 2; b = m + this.cell / 2; }
+          // centres sit at origin + (i + 0.5) * cell
+          return [Math.ceil((a - origin) / this.cell - 0.5), Math.floor((b - origin) / this.cell - 0.5) + 1];
+        };
+        [x0, x1] = span(c.min.x, c.max.x, this.minX);
+        [z0, z1] = span(c.min.z, c.max.z, this.minZ);
+      } else {
+        x0 = Math.floor((c.min.x - pad - this.minX) / this.cell);
+        x1 = Math.ceil((c.max.x + pad - this.minX) / this.cell);
+        z0 = Math.floor((c.min.z - pad - this.minZ) / this.cell);
+        z1 = Math.ceil((c.max.z + pad - this.minZ) / this.cell);
+      }
       for (let iz = Math.max(0, z0); iz < Math.min(this.h, z1); iz++) {
         for (let ix = Math.max(0, x0); ix < Math.min(this.w, x1); ix++) {
           this.blocked[iz * this.w + ix] = 1;
@@ -111,6 +135,26 @@ export class FlowField {
     }
     this.walls = new Float32Array(walls);
   }
+
+  /* Is the straight walk from (x0,z0) to (x1,z1) free of the walls this
+     field knows about (the blockers on its level)? A walker with no route
+     asks this before it goes straight at a goal, so it never charges a wall
+     it can't get through. */
+  lineClear(x0, z0, x1, z1) {
+    const walls = this.walls;
+    if (!walls?.length) return true;
+    const lx = Math.min(x0, x1), hx = Math.max(x0, x1), lz = Math.min(z0, z1), hz = Math.max(z0, z1);
+    for (let k = 0; k < walls.length; k += 4) {
+      if (walls[k] > hx || walls[k + 1] < lx || walls[k + 2] > hz || walls[k + 3] < lz) continue;
+      if (segmentHitsBox(x0, z0, x1, z1, walls[k], walls[k + 1], walls[k + 2], walls[k + 3])) return false;
+    }
+    return true;
+  }
+
+  /* Is this spot one the grid can speak for: inside it, and on or next to
+     an open cell? Off it (a stair's treads, a slab's edge) a walker is
+     better off trusting its own line than the field's silence. */
+  knows(x, z) { return this.openIndex(x, z) >= 0; }
 
   index(x, z) {
     const ix = Math.floor((x - this.minX) / this.cell);
