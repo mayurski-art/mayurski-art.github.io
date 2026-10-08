@@ -13,7 +13,7 @@ import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1-fu1";
 import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1kb3-bk1-wst-ig1";
 import { cleanFaceKey } from "./cosmetics.js?v=hb4-fc1-wst-soc1-ww1";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { sharedParaglider } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7";
+import { sharedParaglider } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d";
 import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3g-nf-wst-ig1-soc1";
 import { applyCopBody, syncCopBody } from "./cop-bodies.js?v=cb2-sb2";
 import { playerIconCanvas } from "./rank-icons.js?v=rk1";

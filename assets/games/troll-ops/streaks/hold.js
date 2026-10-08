@@ -1,12 +1,12 @@
 // Holding a scorestreak: the device's call window (raise, hold, lower), the
 // tablet dive for map-marked streaks, and putting the melee weapon away first.
 
-import { POWER_HOLSTER_TIME, MELEE_DRAW_TIME } from "../combat/melee.js?v=ml1-kc2-si1-gj1-fu1b7";
-import { cancelCook } from "../combat/throwables.js?v=th1-kc2-si1-gj1-fu1b7";
-import { activeMeleeMesh } from "../view/viewmodels.js?v=vm1-si1-gj1-if1-fu1b7";
-import { callStreak } from "./calling.js?v=sk1-si1-gj1-fu1b7";
-import { setHolding } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7";
-import { launchPendingDrone } from "./fire.js?v=sk1-si1-gj1-fu1b7";
+import { POWER_HOLSTER_TIME, MELEE_DRAW_TIME } from "../combat/melee.js?v=ml1-kc2-si1-gj1-fu1b7b7d";
+import { cancelCook } from "../combat/throwables.js?v=th1-kc2-si1-gj1-fu1b7b7d";
+import { activeMeleeMesh } from "../view/viewmodels.js?v=vm1-si1-gj1-if1-fu1b7b7d";
+import { callStreak } from "./calling.js?v=sk1-si1-gj1-fu1b7b7d";
+import { setHolding } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7d";
+import { launchPendingDrone } from "./fire.js?v=sk1-si1-gj1-fu1b7b7d";
 import { game } from "../core/state.js?v=st1";
 
 export let streakHoldUntilMark = false;

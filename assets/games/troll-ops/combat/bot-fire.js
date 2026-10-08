@@ -1,27 +1,27 @@
 // Bots' shooting: who they can target, how their shots look and sound to
 // everyone, firing at enemy aircraft, and the damage a bot we host deals.
 
-import { occupants } from "../modes/spawns.js?v=spw1-gj1-if1-fu1b7";
-import { saberBlock, kbShield } from "./melee.js?v=ml1-kc2-si1-gj1-fu1b7";
+import { occupants } from "../modes/spawns.js?v=spw1-gj1-if1-fu1b7b7d";
+import { saberBlock, kbShield } from "./melee.js?v=ml1-kc2-si1-gj1-fu1b7b7d";
 import { MELEE_DEFS } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1";
-import { streakEntities } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7";
-import { K9Pack } from "../k9-unit.js?v=k9c-bs1-sb2-gj1b7";
+import { streakEntities } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7d";
+import { K9Pack } from "../k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d";
 import { WEAPON_DEFS, chargedShotDef } from "../weapons.js?v=p5bm-wst-hf1-fu1";
-import { hellfire } from "../view/viewmodels.js?v=vm1-si1-gj1-if1-fu1b7";
+import { hellfire } from "../view/viewmodels.js?v=vm1-si1-gj1-if1-fu1b7b7d";
 import * as THREE from "three";
-import { royale, royaleBotDamage, royaleBotVsBot, royaleNoise } from "../modes/royale.js?v=md1-gj1-fu1b7";
-import { noteRigShot } from "../view/third-person.js?v=tp1-si1-gj1-if1-fu1b7";
-import { enemyAirFor, damageStreakEntity } from "../streaks/dragonfire.js?v=sk1-si1-gj1-fu1b7";
+import { royale, royaleBotDamage, royaleBotVsBot, royaleNoise } from "../modes/royale.js?v=md1-gj1-fu1b7b7d";
+import { noteRigShot } from "../view/third-person.js?v=tp1-si1-gj1-if1-fu1b7b7d";
+import { enemyAirFor, damageStreakEntity } from "../streaks/dragonfire.js?v=sk1-si1-gj1-fu1b7b7d";
 import { VtolWarship, HunterDrone, HelicopterGunship } from "../streak-entities.js?v=vsat2-hk1";
 import { SamTurret } from "../sam-turret.js?v=sam1";
-import { isStaging } from "../modes/match-start.js?v=mst1-si1-mb1-gj1-if1-fu1b7";
-import { botBusy } from "../modes/objectives.js?v=ob1-si1-gj1-fu1b7";
+import { isStaging } from "../modes/match-start.js?v=mst1-si1-mb1-gj1-if1-fu1b7b7d";
+import { botBusy } from "../modes/objectives.js?v=ob1-si1-gj1-fu1b7b7d";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7";
 import { Dragonfire } from "../dragonfire.js?v=df3-sb2";
-import { damagePlayer } from "./damage.js?v=dm1-kc2-si1-gj1-fu1b7";
-import { damageDog } from "../streaks/k9.js?v=sk1-si1-gj1-fu1b7";
-import { flinchPeer } from "../core/hud.js?v=cr1-si1-gj1-fu1b7";
-import { registerDeath } from "./scoring.js?v=sc1-kc2-si1-gj1-fu1b7";
+import { damagePlayer } from "./damage.js?v=dm1-kc2-si1-gj1-fu1b7b7d";
+import { damageDog } from "../streaks/k9.js?v=sk1-si1-gj1-fu1b7b7d";
+import { flinchPeer } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7d";
+import { registerDeath } from "./scoring.js?v=sc1-kc2-si1-gj1-fu1b7b7d";
 import { game } from "../core/state.js?v=st1";
 
 /* Everything a bot could shoot at: us, other humans, and other bots. */

@@ -3,10 +3,10 @@
 
 import { playerIconSvg } from "../rank-icons.js?v=rk1";
 import { withClan, getMyCard } from "../calling-cards.js?v=p5-wst-sb2-fu1";
-import { playerName } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7";
+import { playerName } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7d";
 import { getLevel, getPrestige, isOwner } from "../progression.js?v=p5-wst-sb2-fu1";
 import { safeUid } from "../chat.js?v=to-social1";
-import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7";
+import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7d";
 import { game } from "./state.js?v=st1";
 
 /* Kills, deaths, assists and K/D per operator. Team modes list each side

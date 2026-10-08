@@ -482,7 +482,8 @@ Map rules:
     - Bots hit 28/37/55% (recruit/regular/veteran); misses hit the wall behind you (combat/bot-fire.js botMissDistance).
     - Troll Royale: no bus. At 0:00 a wall of the sky box opens and the floor/treadmill carries everyone off the edge; pure freefall (royale-drop.js, modes/royale.js).
     - Cloud save: boot writes no longer stomp another device's loadout/streaks (settled after the first pull, content compare, push missing keys). Still whole-blob, last writer wins.
-    - K9 dogs go through doorways (nav.js `blockBy: "centre"`).
+    - K9 dogs go through doorways (nav.js `blockBy: "centre"`); so do bots (bots.js ground "doors" grid, 0.4 m cells, `snap` 4.4 m; old grid as a second opinion).
+    - Bump one citizen: a warning; a second one straight after squares up (social-duel.js BUMP_STREAK). Ike holds his hammer and tongs with arm IK.
     - Seated legs bent on the seat; set a mug down on the bar/tables; pour animation at the taps.
     - Iron Ike works the forge (smithy.js).
     - Playable piano + sheet music (menu/piano-panel.js, piano-sheets.js; rp "pn").

@@ -11,10 +11,10 @@ import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=p5bm-ws
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=p5-em1-wst-hf1";
 import { WeaponInspector } from "./inspector.js?v=hb1-nf-wst-ig1-sb2-if1";
 import { CharacterInspector } from "./char-inspector.js?v=hb4-wst-soc1-sb2";
-import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-gj1-fu1b7";
+import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-gj1-fu1b7b7d";
 import { StreakPicker } from "./streak-picker.js?v=umb1-wst-sb2-fu1";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=umb1-wst-sb2-fu1";
-import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=k9c-bs1-sb2-gj1b7";
+import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d";
 import {
   CarePackage, MarkerCanister, HunterDrone, HelicopterGunship, ReconPlane, AirstrikeRun, BlastFx,
   VtolWarship, WARSHIP_GUNS, VsatSatellite,
@@ -33,12 +33,12 @@ import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { recordMatch } from "./record.js?v=rec1";
 import { getMyCard, withClan } from "./calling-cards.js?v=p5-wst-sb2-fu1";
 import { openProfileCard } from "./profile-card.js?v=pc1-wst-sb2-fu1";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7d";
 import { createMapPreloader } from "./map-preload.js?v=mp4";
 import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7";
 import { MatchChat, safeUid } from "./chat.js?v=to-social1";
-import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths, setSeatLookup } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7";
+import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths, setSeatLookup } from "./remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7d";
 import { ROLES, roleCode, DOCTOR, poseSeated, posePianoArms, PianoVoice, TUNES } from "./rp-roles.js?v=rp1b7";
 import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
 import { EmoteWheel, EMOTES } from "./emote-wheel.js?v=hb4-em1-wst-soc1";
@@ -47,28 +47,28 @@ import {
   BEER_SIPS, GRAB_TIME, FILL_TIME, FILL_TIME_BARTENDER, POUR_TIME, SIP_TIME, APRON_TIME,
   OFFER_SECONDS, REACH, BARTENDER_LEAVE_SECONDS,
 } from "./saloon-bar.js?v=sb1b7";
-import { TownNpcs } from "./town-npcs.js?v=tn4b7";
+import { TownNpcs } from "./town-npcs.js?v=tn4b7b7d";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES, hideFpEmoteProps, fpEmoteRodTip } from "./emotes.js?v=hb4-em1-wst-soc1-ng1";
 import { buildWatch, wristOf } from "./wristwear.js?v=ww1";
 import { MatchIntro } from "./match-intro.js?v=mi5-wst";
 import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
-} from "./modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7";
-import { BotManager } from "./bots.js?v=cg5-em1-wst-bs1-p22-bs2-sb2-gj1-fu1b7";
+} from "./modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d";
+import { BotManager } from "./bots.js?v=cg5-em1-wst-bs1-p22-bs2-sb2-gj1-fu1b7b7d";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1-wst-sb2-fu1";
 import { GameAudio } from "./audio.js?v=zr4-hf1";
 import { MapAmbience } from "./ambience.js?v=amb1-wst-tl1-gj1";
 import { insidePolygon } from "./edge.js";
-import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=p5-wst-bs1-sb2-fu1";
+import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=p5-wst-bs1-sb2-fu1b7d";
 import { GameMusic, EQ_BANDS, EQ_RANGE } from "./music.js?v=to-gs1";
 import { DjLulz } from "./dj-lulz.js?v=dj1";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./anim-debug.js";
 import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=to-df1";
 import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./hand-model.js?v=to-grip2";
-import { FlowField } from "./nav.js?v=ti1-bs1";
-import { ZombieDirector, goreStandIns } from "./zombies.js?v=zr4c-sb2b7";
+import { FlowField } from "./nav.js?v=ti1-bs1b7d";
+import { ZombieDirector, goreStandIns } from "./zombies.js?v=zr4c-sb2b7b7d";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
 import { ImpactFx } from "./impact-fx.js?v=zr4";
 import { LightPool } from "./light-pool.js";
@@ -92,7 +92,7 @@ import { ControllerLayout, padEmotePressed } from "./controller-layout.js?v=cl7"
 import { CosmeticsPanel, cleanFaceKey, loadCosmetics } from "./cosmetics.js?v=hb4-fc1-wst-soc1-ww1";
 import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./dragonfire.js?v=df3-sb2";
 import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./sam-turret.js?v=sam1";
-import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7";
+import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d";
 import { preloadHalloweenMelee, setHalloweenEnvMap } from "./melee-models.js?v=hw2";
 import {
   HellfireFx, updateSoulBlazerView, soulBlazerShot, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth,
@@ -102,51 +102,51 @@ import { AIM_ASSIST_MOUSE_PULL, AIM_ASSIST_MOUSE_SLOWDOWN, MOUSE_ACTIVE_MS, aimA
 import { game, linkGame } from "./core/state.js?v=st1";
 import { PAD_SENS_MULT, PAD_SENS_NAMES, padLookTurn, pollGamepad, pollGamepadMenu, radialStick } from "./input/gamepad.js?v=in1-fu1b7";
 import { setTouchAds, touchState, initTouch } from "./input/touch.js?v=in1";
-import { ROLL_SPEED, ROYALE_BOX_GONE, _dropTarget, applyRoyaleCatchUp, cancelRoyaleAct, cycleSpectate, drawRoyaleMinimap, hideSpectateHud, inSkyLobby, onRoyaleLoot, ordinal, placeBotsInLobby, placeDropCamera, placeSpectateCamera, royale, royaleAliveList, royaleBotDamage, royaleBotObjective, royaleBotSight, royaleBotVsBot, royaleDropCode, royaleDropView, royaleNoise, royaleOnDeath, royalePickupGun, royaleRollK, royaleRolling, royaleSpectating, royaleWants, setupRoyale, stageFrozen, startRoyaleAct, openRoyaleBox, teardownRoyale, updateDropPlayer, updateRoyale, updateRoyaleGear, updateRoyaleRoll, updateSkyLobby, initRoyale } from "./modes/royale.js?v=md1-gj1-fu1b7";
-import { clearDamageNumbers, clearHitDirs, damageNumbers, flashHit, flinchPeer, hitDirs, jokeVerb, noteHitDirection, pushKillfeed, showHitmarker, showWaveBanner, spawnComicWord, spawnDamageNumber, updateDamageNumbers, updateHitDirs, updateStreakHud } from "./core/hud.js?v=cr1-si1-gj1-fu1b7";
-import { buildMinimapBase, drawMinimap, mapToMinimap, minimapCanvas, setBombSiteMarkers, setHillMarker, initMinimap } from "./core/minimap.js?v=cr1-gj1-fu1b7";
-import { achievements, blastFx, callReadyStreak, callStreak, callStreakSlot, cancelMark, clearStreakEntities, clearStreakLocks, confirmMark, cycleSelectedStreak, endActiveStreak, enemiesRevealed, flyovers, groundAimPoint, killstreakUi, lockStreak, minimapJammed, pendingStrikes, readyStreaksOrdered, spawnVsatSat, startVsat, streakBlast, streakBusy, streakControlActive, streakEnd, streakEntities, streakKeyLabel, streakLockLeft, streakLockUntil, streakLockWhy, streakPicker, streakSlotIds, streaks, uavActiveFor, uavBucket, uavUntil, updateMarking, updateStreakControl, useSelectedStreak, vsatActiveFor, vsatUntil, vsatUp, initStreakCalling } from "./streaks/calling.js?v=sk1-si1-gj1-fu1b7";
-import { AIR_HP, DF_BLOCK_TEXT, DRONE_AIR_REACH, DRONE_AIR_SPEED, attachAirHitbox, dragonfireBlocked, dragonfireSkyCheck, droneAirTarget, droneFields, droneLeadPoint, droneTargetPos, droneWorld, ensureStrikeTablet, fireStreak, launchPendingDrone, openStrikeTablet, packageCaptureTime, pickDroneTarget, rollPackageReward, round2, spawnAirstrike, spawnCarePackage, spawnDrone, spawnHelicopter, spawnK9, streakBounds, strikeDelay, strikeTablet, throwMarker } from "./streaks/fire.js?v=sk1-si1-gj1-fu1b7";
-import { HUNTER_DOG_BITE, HUNTER_PIN, applyHeroFx, applyHeroLoadout, assignBotHeroes, footprints, hero, heroActive, heroFx, heroHostiles, heroKit, heroMeleeDef, updateHero, useHeroAbility } from "./modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7";
-import { damageDog, dogKilledBy, k9Hostile, k9Stairs, updateK9 } from "./streaks/k9.js?v=sk1-si1-gj1-fu1b7";
-import { DF_ASSIST_CONE_DEG, DF_ASSIST_PULL, DF_BOARD_AT, airTargetPos, damageStreakEntity, dragonfireView, enemyAirFor, fireDragonfire, samDeployPoint, samHitCount, samMissileHit, samTargets, shootDownAir, spawnDragonfire, spawnSam, streakHostileToMe, syncDragonfireView, updateSamAi } from "./streaks/dragonfire.js?v=sk1-si1-gj1-fu1b7";
-import { WARSHIP_BOARD_AT, fireWarship, lookSensScale, placeWarshipCamera, spawnWarship, syncWarshipView, toggleWarshipGun, updateWarshipHud, warshipFov, warshipImpact, warshipView } from "./streaks/warship.js?v=sk1-si1-gj1-fu1b7";
-import { applyCounterUav, claimPackage, lockEl, nearestHostileTo, spawnRecon, startUav, streakDamage, streakOwnerHates, strikeImpact, swarmRuns, updateStreakEntities, updateUavState } from "./streaks/air.js?v=sk1-si1-gj1-fu1b7";
-import { BOT_STREAK_KEY, BOT_STREAK_POOL, applyRemoteStreak, botEarn, botFireStreak, botStreakLog, botStreakMult, botStreakState, botWarshipGunner, flyBotDragonfire, updateBotStreaks, initBotStreaks } from "./streaks/bot-streaks.js?v=sk1-si1-gj1-fu1b7";
-import { SETTINGS_KEY, applySettings, saveSettings, settings } from "./menu/settings.js?v=ms1-gj1-fu1b7";
+import { ROLL_SPEED, ROYALE_BOX_GONE, _dropTarget, applyRoyaleCatchUp, cancelRoyaleAct, cycleSpectate, drawRoyaleMinimap, hideSpectateHud, inSkyLobby, onRoyaleLoot, ordinal, placeBotsInLobby, placeDropCamera, placeSpectateCamera, royale, royaleAliveList, royaleBotDamage, royaleBotObjective, royaleBotSight, royaleBotVsBot, royaleDropCode, royaleDropView, royaleNoise, royaleOnDeath, royalePickupGun, royaleRollK, royaleRolling, royaleSpectating, royaleWants, setupRoyale, stageFrozen, startRoyaleAct, openRoyaleBox, teardownRoyale, updateDropPlayer, updateRoyale, updateRoyaleGear, updateRoyaleRoll, updateSkyLobby, initRoyale } from "./modes/royale.js?v=md1-gj1-fu1b7b7d";
+import { clearDamageNumbers, clearHitDirs, damageNumbers, flashHit, flinchPeer, hitDirs, jokeVerb, noteHitDirection, pushKillfeed, showHitmarker, showWaveBanner, spawnComicWord, spawnDamageNumber, updateDamageNumbers, updateHitDirs, updateStreakHud } from "./core/hud.js?v=cr1-si1-gj1-fu1b7b7d";
+import { buildMinimapBase, drawMinimap, mapToMinimap, minimapCanvas, setBombSiteMarkers, setHillMarker, initMinimap } from "./core/minimap.js?v=cr1-gj1-fu1b7b7d";
+import { achievements, blastFx, callReadyStreak, callStreak, callStreakSlot, cancelMark, clearStreakEntities, clearStreakLocks, confirmMark, cycleSelectedStreak, endActiveStreak, enemiesRevealed, flyovers, groundAimPoint, killstreakUi, lockStreak, minimapJammed, pendingStrikes, readyStreaksOrdered, spawnVsatSat, startVsat, streakBlast, streakBusy, streakControlActive, streakEnd, streakEntities, streakKeyLabel, streakLockLeft, streakLockUntil, streakLockWhy, streakPicker, streakSlotIds, streaks, uavActiveFor, uavBucket, uavUntil, updateMarking, updateStreakControl, useSelectedStreak, vsatActiveFor, vsatUntil, vsatUp, initStreakCalling } from "./streaks/calling.js?v=sk1-si1-gj1-fu1b7b7d";
+import { AIR_HP, DF_BLOCK_TEXT, DRONE_AIR_REACH, DRONE_AIR_SPEED, attachAirHitbox, dragonfireBlocked, dragonfireSkyCheck, droneAirTarget, droneFields, droneLeadPoint, droneTargetPos, droneWorld, ensureStrikeTablet, fireStreak, launchPendingDrone, openStrikeTablet, packageCaptureTime, pickDroneTarget, rollPackageReward, round2, spawnAirstrike, spawnCarePackage, spawnDrone, spawnHelicopter, spawnK9, streakBounds, strikeDelay, strikeTablet, throwMarker } from "./streaks/fire.js?v=sk1-si1-gj1-fu1b7b7d";
+import { HUNTER_DOG_BITE, HUNTER_PIN, applyHeroFx, applyHeroLoadout, assignBotHeroes, footprints, hero, heroActive, heroFx, heroHostiles, heroKit, heroMeleeDef, updateHero, useHeroAbility } from "./modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7d";
+import { damageDog, dogKilledBy, k9Hostile, k9Stairs, updateK9 } from "./streaks/k9.js?v=sk1-si1-gj1-fu1b7b7d";
+import { DF_ASSIST_CONE_DEG, DF_ASSIST_PULL, DF_BOARD_AT, airTargetPos, damageStreakEntity, dragonfireView, enemyAirFor, fireDragonfire, samDeployPoint, samHitCount, samMissileHit, samTargets, shootDownAir, spawnDragonfire, spawnSam, streakHostileToMe, syncDragonfireView, updateSamAi } from "./streaks/dragonfire.js?v=sk1-si1-gj1-fu1b7b7d";
+import { WARSHIP_BOARD_AT, fireWarship, lookSensScale, placeWarshipCamera, spawnWarship, syncWarshipView, toggleWarshipGun, updateWarshipHud, warshipFov, warshipImpact, warshipView } from "./streaks/warship.js?v=sk1-si1-gj1-fu1b7b7d";
+import { applyCounterUav, claimPackage, lockEl, nearestHostileTo, spawnRecon, startUav, streakDamage, streakOwnerHates, strikeImpact, swarmRuns, updateStreakEntities, updateUavState } from "./streaks/air.js?v=sk1-si1-gj1-fu1b7b7d";
+import { BOT_STREAK_KEY, BOT_STREAK_POOL, applyRemoteStreak, botEarn, botFireStreak, botStreakLog, botStreakMult, botStreakState, botWarshipGunner, flyBotDragonfire, updateBotStreaks, initBotStreaks } from "./streaks/bot-streaks.js?v=sk1-si1-gj1-fu1b7b7d";
+import { SETTINGS_KEY, applySettings, saveSettings, settings } from "./menu/settings.js?v=ms1-gj1-fu1b7b7d";
 import { initRadioWidget } from "./menu/radio.js?v=mr1";
-import { initEscapeMenu, renderMenuRoster, initMenuRoster } from "./menu/escape-menu.js?v=em1-gj1-fu1b7";
-import { buildModeButtons, renderModes, initModePicker } from "./menu/mode-picker.js?v=mp1-fu1b7";
-import { activeLobbyPanel, charInspector, charInspectorLive, cosmetics, inspector, inspectorLive, menuEmoteWheel, noBotsRoom, playerName, pollMenuEmotePad, renderCallsign, renderLobbyRoster, setNetStatus, showLobbyPanel, showSumGun, sumInspector, initLobby } from "./menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7";
-import { endKillcamPresentation, killcamFov, killcamSelfId, killcamWeaponFov, skipKillcam, startKillcamPresentation, updateKillcam } from "./combat/killcam-present.js?v=kp2-si1-gj1-fu1b7";
-import { ASSIST_MEMORY, ASSIST_MIN_DAMAGE, assistersFor, breakSpawnGuard, clearDeathVisuals, damageLog, damagePlayer, killcamBaseRespawn, killerPosFor, nameFor, noteDamage, onGruntAttack, respawnPlayer, showDeathCard, updateSpawnGuardHud, weaponNameFor, yawTowardCentre } from "./combat/damage.js?v=dm1-kc2-si1-gj1-fu1b7";
-import { MELEE_DRAW_TIME, MELEE_EQUIP_TIME, POWER_EQUIP_TIME, POWER_HOLSTER_TIME, POWER_IGNITE, POWER_IGNITE_DELAY, POWER_RETRACT, SLOW_IGNITE, _bladeG, _bladeP, _flickQ, _kbFarGrip, _parryPos, _parryQ, _parryW, _viewX, _viewZ, kbRepair, kbShield, meleeConnect, onRemoteDeflect, saberBlock, saberParry, saberTrail, swingMelee, tryDeflect, updateKbShield, updateRemoteSabers, updateSaberBlock, updateSaberFx, initMelee } from "./combat/melee.js?v=ml1-kc2-si1-gj1-fu1b7";
-import { applyEmpState, applyRemoteNade, areaDamage, blastCandidates, botNadesThrown, botThrow, cancelCook, carriedThrowSlot, empPlayer, explosionFx, flashPlayer, grenadeCtx, grenades, nextNadeId, publishBoom, refillGear, releaseCook, startCook, stunActor, updateBlastLights, initThrowables } from "./combat/throwables.js?v=th1-kc2-si1-gj1-fu1b7";
-import { currentWeapon, cycleWeapon, fireOnce, frozenPlayer, nearbyPackage, onBulletActorHit, resolveBulletTarget, setHolding, setTouchContext, switchWeapon, tryReload, updateGearHud, updatePickupPrompt } from "./combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7";
-import { addMatchXp, awardKillXp, awardScore, checkMatchEnd, creditAssistIfOwed, dealtLog, lastHitRange, noteDealt, recentTeamKillers, registerDeath, updateTeamHud } from "./combat/scoring.js?v=sc1-kc2-si1-gj1-fu1b7";
-import { botBusy, botObjective, noteRemoteBombAct, prepareSndRound, scoreHill, siteUnderfoot, sndAliveCounts, sndBotSite, sndDefendTeam, sndGoLive, sndLive, sndRoundWin, updateSnd } from "./modes/objectives.js?v=ob1-si1-gj1-fu1b7";
-import { applyInfect, applyInfectionLoadout, botMelee, infectionCounts, infectionStarted, pickFirstInfected, resetInfection, sortInfectionBots, updateInfection } from "./modes/infection.js?v=in1-si1-gj1-fu1b7";
-import { adoptRoomMode, cancelSocialReturn, ownerSwitchRoomMode, renderRoomModeRow, returnToSocial, scheduleSocialReturn, initSocial } from "./modes/social.js?v=so1-si1-mb1-gj1-if1-fu1b7";
-import { initMenuButtons } from "./menu/buttons.js?v=mb1-mb1-if1-fu1b7";
-import { cancelIntermission, endGame, endMatch, renderVote, startIntermission, updateIntermission, voteOptions } from "./modes/match-end.js?v=me1-si1-mb1-gj1-if1-fu1b7";
-import { LOAD_WAIT_MAX, beginMatch, beginStaging, endStaging, enterMatch, followsHostMap, isStaging, loadHold, loadInfo, loadTarget, loadWarm, releaseLoad, startGame, updateStaging, warmNewGuns, warmShaders, initMatchStart } from "./modes/match-start.js?v=mst1-si1-mb1-gj1-if1-fu1b7";
-import { atPiano, bar, barSipK, docSpots, holdSeat, npcYieldKey, onBarMessage, piano, putDownDrink, resetBar, rpSeats, seatTaken, seated, sitDown, standUp, syncFpDrink, syncLocalDrink, updateBar, initSocialRp } from "./modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7";
-import { SWIVEL_TAP, localBlockT, localHeld, localLower, localReloadK, noteLocalDeath, noteRigShot, placeDeathCamera, swivel, swivelK, swivelTaps, syncLocalRigHeld, trySwivel, updateEmoteCamera, updateLocalRig, updateSwivel, updateThirdPersonCamera } from "./view/third-person.js?v=tp1-si1-gj1-if1-fu1b7";
-import { endCandleCharge, hudCache, regenPlayer, updatePlayer, initPlayerUpdate } from "./view/player-update.js?v=pu1-si1-mb1-gj1-if1-fu1b7";
-import { _armDir, _armFrom, _armTo, _meleeViewE, _meleeViewQ, applyMeleeInspect, applyReaperInspect, inspectArms, inspectDur, inspectPose, inspectProgress, landDipMag, landDipT, meleeHands, pfArms, placeRodWatch, poseMeleeArms, poseSaberArms, restoreMeleeHands, startInspect, stretchBetween, updateWeaponView, initWeaponView } from "./view/weapon-view.js?v=wv1-si1-gj1-if1-fu1b7";
-import { fpEmoteArmsOn, poseFreeArms, socialArms, updateFpEmoteView } from "./view/fp-emote.js?v=fe1-si1-gj1-if1-fu1b7";
-import { STREAK_SHOULDER, WHISTLE_BLOW_AT, WHISTLE_HAND, WHISTLE_HOLD, WHISTLE_ROT, hideStreakArms, streakArms, updateStreakView, initStreakView } from "./view/streak-view.js?v=sv1-si1-if1-fu1b7";
-import { SAW_REV_TIME, sawInspectRev, sawShake, updateMeleeView } from "./view/melee-view.js?v=mv1-si1-if1-fu1b7";
-import { _sbDir, _sbPos, _sbView, activeDroneMesh, activeMarkerMesh, activeMeleeMesh, activeStreakMesh, activeWeaponMesh, akimboView, hellfire, hellfireView, muzzleFlash, muzzleLight, muzzleMat, setActiveMeleeMesh, setActiveWeaponMesh, weaponCamera, weaponEnvTex, weaponRig, weaponScene, initViewmodels } from "./view/viewmodels.js?v=vm1-si1-gj1-if1-fu1b7";
-import { renderScoreboard } from "./core/scoreboard.js?v=sb1-gj1-if1-fu1b7";
-import { PITCH_LIMIT, controls, keys, lockChangedAt, look, initKeyboardMouse } from "./input/keyboard-mouse.js?v=km1-gj1-if1-fu1b7";
-import { armDuo, duoArmed, duoIncoming, duoOutgoing, duoTarget, duoXClaimed, emoteIsTp, emoteKind, emoteWheel, fpEmoteFrame, nearestDuoTeammate, onDuoMessage, sendDuoInvite, stopEmote, updateDuo, validEmote, initLocalEmotes } from "./view/local-emotes.js?v=le1-if1-fu1b7";
-import { SPAWN_GUARD, botSpawn, clearRangeBots, notePointDeath, occupants, renderPauseRange, spawnDeaths, spawnForTeam, spawnRangeBot, teamSpawn } from "./modes/spawns.js?v=spw1-gj1-if1-fu1b7";
-import { botDealDamage, botTargets, onBotShoot, remoteShotFx, updateBotAntiAir } from "./combat/bot-fire.js?v=bf1-mb1-if1-fu1b7";
-import { DIVE_LOOK, DRONE_TOSS_AT, MARKER_THROW_TIME, MELEE_HOLSTER_TIME, beginStreakHold, endStreakHold, finishMeleeHolster, finishStreakHold, holsterMeleeFor, holsterMeleeThen, meleePutAway, powerHeld, startTabletDive, streakDeviceKind, streakHoldActive, streakHoldUntilMark, streakLowering, streakScreen, tabletDiveDip, tabletDiveK, updateTabletDive } from "./streaks/hold.js?v=sh1-if1-fu1b7";
-import { closePauseMenu, openPauseMenu, releaseHeldInputs, resumePlay } from "./menu/pause.js?v=pa1-mb1-if1-fu1b7";
-import { paintMatchClock, resetMatchClock, updateMatchClock } from "./modes/match-clock.js?v=mc1-fu1b7";
-import { boostedXp, renderBotSkillNote, roomBotSkill, syncRoomBotSkill, veteranBoostOn } from "./modes/bot-skill.js?v=bsk1-mb1-if1-fu1b7";
+import { initEscapeMenu, renderMenuRoster, initMenuRoster } from "./menu/escape-menu.js?v=em1-gj1-fu1b7b7d";
+import { buildModeButtons, renderModes, initModePicker } from "./menu/mode-picker.js?v=mp1-fu1b7b7d";
+import { activeLobbyPanel, charInspector, charInspectorLive, cosmetics, inspector, inspectorLive, menuEmoteWheel, noBotsRoom, playerName, pollMenuEmotePad, renderCallsign, renderLobbyRoster, setNetStatus, showLobbyPanel, showSumGun, sumInspector, initLobby } from "./menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7d";
+import { endKillcamPresentation, killcamFov, killcamSelfId, killcamWeaponFov, skipKillcam, startKillcamPresentation, updateKillcam } from "./combat/killcam-present.js?v=kp2-si1-gj1-fu1b7b7d";
+import { ASSIST_MEMORY, ASSIST_MIN_DAMAGE, assistersFor, breakSpawnGuard, clearDeathVisuals, damageLog, damagePlayer, killcamBaseRespawn, killerPosFor, nameFor, noteDamage, onGruntAttack, respawnPlayer, showDeathCard, updateSpawnGuardHud, weaponNameFor, yawTowardCentre } from "./combat/damage.js?v=dm1-kc2-si1-gj1-fu1b7b7d";
+import { MELEE_DRAW_TIME, MELEE_EQUIP_TIME, POWER_EQUIP_TIME, POWER_HOLSTER_TIME, POWER_IGNITE, POWER_IGNITE_DELAY, POWER_RETRACT, SLOW_IGNITE, _bladeG, _bladeP, _flickQ, _kbFarGrip, _parryPos, _parryQ, _parryW, _viewX, _viewZ, kbRepair, kbShield, meleeConnect, onRemoteDeflect, saberBlock, saberParry, saberTrail, swingMelee, tryDeflect, updateKbShield, updateRemoteSabers, updateSaberBlock, updateSaberFx, initMelee } from "./combat/melee.js?v=ml1-kc2-si1-gj1-fu1b7b7d";
+import { applyEmpState, applyRemoteNade, areaDamage, blastCandidates, botNadesThrown, botThrow, cancelCook, carriedThrowSlot, empPlayer, explosionFx, flashPlayer, grenadeCtx, grenades, nextNadeId, publishBoom, refillGear, releaseCook, startCook, stunActor, updateBlastLights, initThrowables } from "./combat/throwables.js?v=th1-kc2-si1-gj1-fu1b7b7d";
+import { currentWeapon, cycleWeapon, fireOnce, frozenPlayer, nearbyPackage, onBulletActorHit, resolveBulletTarget, setHolding, setTouchContext, switchWeapon, tryReload, updateGearHud, updatePickupPrompt } from "./combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7d";
+import { addMatchXp, awardKillXp, awardScore, checkMatchEnd, creditAssistIfOwed, dealtLog, lastHitRange, noteDealt, recentTeamKillers, registerDeath, updateTeamHud } from "./combat/scoring.js?v=sc1-kc2-si1-gj1-fu1b7b7d";
+import { botBusy, botObjective, noteRemoteBombAct, prepareSndRound, scoreHill, siteUnderfoot, sndAliveCounts, sndBotSite, sndDefendTeam, sndGoLive, sndLive, sndRoundWin, updateSnd } from "./modes/objectives.js?v=ob1-si1-gj1-fu1b7b7d";
+import { applyInfect, applyInfectionLoadout, botMelee, infectionCounts, infectionStarted, pickFirstInfected, resetInfection, sortInfectionBots, updateInfection } from "./modes/infection.js?v=in1-si1-gj1-fu1b7b7d";
+import { adoptRoomMode, cancelSocialReturn, ownerSwitchRoomMode, renderRoomModeRow, returnToSocial, scheduleSocialReturn, initSocial } from "./modes/social.js?v=so1-si1-mb1-gj1-if1-fu1b7b7d";
+import { initMenuButtons } from "./menu/buttons.js?v=mb1-mb1-if1-fu1b7b7d";
+import { cancelIntermission, endGame, endMatch, renderVote, startIntermission, updateIntermission, voteOptions } from "./modes/match-end.js?v=me1-si1-mb1-gj1-if1-fu1b7b7d";
+import { LOAD_WAIT_MAX, beginMatch, beginStaging, endStaging, enterMatch, followsHostMap, isStaging, loadHold, loadInfo, loadTarget, loadWarm, releaseLoad, startGame, updateStaging, warmNewGuns, warmShaders, initMatchStart } from "./modes/match-start.js?v=mst1-si1-mb1-gj1-if1-fu1b7b7d";
+import { atPiano, bar, barSipK, docSpots, holdSeat, npcYieldKey, onBarMessage, piano, putDownDrink, resetBar, rpSeats, seatTaken, seated, sitDown, standUp, syncFpDrink, syncLocalDrink, updateBar, initSocialRp } from "./modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7d";
+import { SWIVEL_TAP, localBlockT, localHeld, localLower, localReloadK, noteLocalDeath, noteRigShot, placeDeathCamera, swivel, swivelK, swivelTaps, syncLocalRigHeld, trySwivel, updateEmoteCamera, updateLocalRig, updateSwivel, updateThirdPersonCamera } from "./view/third-person.js?v=tp1-si1-gj1-if1-fu1b7b7d";
+import { endCandleCharge, hudCache, regenPlayer, updatePlayer, initPlayerUpdate } from "./view/player-update.js?v=pu1-si1-mb1-gj1-if1-fu1b7b7d";
+import { _armDir, _armFrom, _armTo, _meleeViewE, _meleeViewQ, applyMeleeInspect, applyReaperInspect, inspectArms, inspectDur, inspectPose, inspectProgress, landDipMag, landDipT, meleeHands, pfArms, placeRodWatch, poseMeleeArms, poseSaberArms, restoreMeleeHands, startInspect, stretchBetween, updateWeaponView, initWeaponView } from "./view/weapon-view.js?v=wv1-si1-gj1-if1-fu1b7b7d";
+import { fpEmoteArmsOn, poseFreeArms, socialArms, updateFpEmoteView } from "./view/fp-emote.js?v=fe1-si1-gj1-if1-fu1b7b7d";
+import { STREAK_SHOULDER, WHISTLE_BLOW_AT, WHISTLE_HAND, WHISTLE_HOLD, WHISTLE_ROT, hideStreakArms, streakArms, updateStreakView, initStreakView } from "./view/streak-view.js?v=sv1-si1-if1-fu1b7b7d";
+import { SAW_REV_TIME, sawInspectRev, sawShake, updateMeleeView } from "./view/melee-view.js?v=mv1-si1-if1-fu1b7b7d";
+import { _sbDir, _sbPos, _sbView, activeDroneMesh, activeMarkerMesh, activeMeleeMesh, activeStreakMesh, activeWeaponMesh, akimboView, hellfire, hellfireView, muzzleFlash, muzzleLight, muzzleMat, setActiveMeleeMesh, setActiveWeaponMesh, weaponCamera, weaponEnvTex, weaponRig, weaponScene, initViewmodels } from "./view/viewmodels.js?v=vm1-si1-gj1-if1-fu1b7b7d";
+import { renderScoreboard } from "./core/scoreboard.js?v=sb1-gj1-if1-fu1b7b7d";
+import { PITCH_LIMIT, controls, keys, lockChangedAt, look, initKeyboardMouse } from "./input/keyboard-mouse.js?v=km1-gj1-if1-fu1b7b7d";
+import { armDuo, duoArmed, duoIncoming, duoOutgoing, duoTarget, duoXClaimed, emoteIsTp, emoteKind, emoteWheel, fpEmoteFrame, nearestDuoTeammate, onDuoMessage, sendDuoInvite, stopEmote, updateDuo, validEmote, initLocalEmotes } from "./view/local-emotes.js?v=le1-if1-fu1b7b7d";
+import { SPAWN_GUARD, botSpawn, clearRangeBots, notePointDeath, occupants, renderPauseRange, spawnDeaths, spawnForTeam, spawnRangeBot, teamSpawn } from "./modes/spawns.js?v=spw1-gj1-if1-fu1b7b7d";
+import { botDealDamage, botTargets, onBotShoot, remoteShotFx, updateBotAntiAir } from "./combat/bot-fire.js?v=bf1-mb1-if1-fu1b7b7d";
+import { DIVE_LOOK, DRONE_TOSS_AT, MARKER_THROW_TIME, MELEE_HOLSTER_TIME, beginStreakHold, endStreakHold, finishMeleeHolster, finishStreakHold, holsterMeleeFor, holsterMeleeThen, meleePutAway, powerHeld, startTabletDive, streakDeviceKind, streakHoldActive, streakHoldUntilMark, streakLowering, streakScreen, tabletDiveDip, tabletDiveK, updateTabletDive } from "./streaks/hold.js?v=sh1-if1-fu1b7b7d";
+import { closePauseMenu, openPauseMenu, releaseHeldInputs, resumePlay } from "./menu/pause.js?v=pa1-mb1-if1-fu1b7b7d";
+import { paintMatchClock, resetMatchClock, updateMatchClock } from "./modes/match-clock.js?v=mc1-fu1b7b7d";
+import { boostedXp, renderBotSkillNote, roomBotSkill, syncRoomBotSkill, veteranBoostOn } from "./modes/bot-skill.js?v=bsk1-mb1-if1-fu1b7b7d";
 /* What the split-out modules reach back into game.js for (see core/state.js).
    Functions go in as they are; everything else as a getter, so nothing is
    read before game.js declares it. game.js only ever gets smaller: an
