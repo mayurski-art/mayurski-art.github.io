@@ -1135,6 +1135,15 @@ function outside(K, M, N, S, lights, R) {
     K.cyl(M.chrome, x, 0, 24.4, 0.03, 0.03, 0.95, 6);
     if (x > -12) N.tube(M.neon, [[x, 0.82, 24.4], [x - 0.85, 0.7, 24.4], [x - 1.7, 0.82, 24.4]], { r: 0.03, color: 0x8a0a1a, k: 0.9, beat: 0 });
   }
+  // the door rope's two posts (DOOR.rope; the rope itself is the door's,
+  // modes/club-entry.js, so it can be unhooked)
+  for (const x of [DOOR.rope.a.x, DOOR.rope.b.x]) {
+    const z = DOOR.rope.a.z;
+    K.cyl(M.gold, x, 0, z, 0.19, 0.2, 0.05, 14);
+    K.cyl(M.gold, x, 0.05, z, 0.035, 0.035, 0.92, 8);
+    K.add(M.gold, place(new THREE.SphereGeometry(0.075, 12, 8), { x, y: 1.0, z }));
+    K.add(M.gold, place(new THREE.TorusGeometry(0.035, 0.009, 6, 12), { x, y: DOOR.rope.y, z: z + 0.04 }));
+  }
   K.solid(4.6, 24.0, 0.8, 0.6, 1.15, { pen: 2, mat: M.blackGloss });
   // the fire escape up to the terrace: steel treads, a landing on posts
   {
@@ -1691,6 +1700,9 @@ const DOOR = {
     { bouncer: "Tank", x: 3.3, z: 24.15 },
   ],
   mouth: { x: 0, z: 23.4 },
+  // The velvet rope across the front door: Big Lulz unhooks the west end
+  // (a) for each person let in; it hangs from the east post (b) meanwhile.
+  rope: { a: { x: -1.95, z: 22.8 }, b: { x: 1.95, z: 22.8 }, y: 0.84 },
   lobby: { x: 0, z: 18, y: FL, yaw: 0 },
   curb: { x: 0, z: 29.2, yaw: 0 },
   arrive: { x: -30, z: 27.4 },
