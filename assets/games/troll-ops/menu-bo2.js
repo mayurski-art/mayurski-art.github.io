@@ -26,7 +26,7 @@ import { MAPS, REWARD_MAPS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-r
 import { setMapShot } from "./map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
-   calling cards, the gold gun and the private-match maps. */
+   calling cards and the private-match maps. */
 function rewardLadder() {
   const at = Array.from({ length: PRESTIGE_MASTER + 1 }, () => []);
   for (const f of FINISHES) if (f.prestige) at[f.prestige].push(`${f.name} finish`);

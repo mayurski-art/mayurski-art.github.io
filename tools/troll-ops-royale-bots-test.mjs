@@ -67,7 +67,7 @@ const botState = () => page.evaluate(() => {
 
 await start("royale_mini");
 let bs = await botState();
-check("bots land with only a pistol", bs.length === 9 && bs.every((b) => b.w === "pocketgrin" && b.r == null), JSON.stringify(bs.map((b) => b.w)));
+check("bots land with only a pistol", bs.length === 9 && bs.every((b) => b.w === "sixtynine" && b.r == null), JSON.stringify(bs.map((b) => b.w)));
 const loot0 = await page.evaluate(() => window.__trollOps.royale().loot.items.size);
 
 // Let them play the opening (zone 1 waits 45 s): loot, plate up.

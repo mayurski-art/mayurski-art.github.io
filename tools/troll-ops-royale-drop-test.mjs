@@ -113,7 +113,7 @@ check("the lobby guns are gone", s.lobbyGuns === 0, `${s.lobbyGuns}`);
 check("with no input the floor carries you toward the opening at belt speed", carried.dtGame > 0.1 && carried.along >= carried.expect * 0.8 && carried.along <= carried.expect * 1.25 && carried.side < 1,
   JSON.stringify({ along: +carried.along.toFixed(2), expect: +carried.expect.toFixed(2), side: +carried.side.toFixed(2), gameSeconds: +carried.dtGame.toFixed(2) }));
 const kit = await page.evaluate(() => [window.__trollOps.player.weaponId, window.__trollOps.player.secondaryId]);
-check("you drop with the pistol, not a lobby gun", kit[0] === "pocketgrin" && !kit[1], JSON.stringify(kit));
+check("you drop with the pistol, not a lobby gun", kit[0] === "sixtynine" && !kit[1], JSON.stringify(kit));
 
 // ---- the drop
 // Falling before the floor goes (12 s on the belt's clock), never gliding,

@@ -288,9 +288,8 @@ Names follow the voice already established by *Grinder SMG* / *Widemouth 12* /
 | **Shotgun** | Widemouth 12 *(exists)* | Remington 870 | Pump, devastating close |
 | | Sawgrin KSG | KSG | Tight pellet spread |
 | | Guffaw Saiga | Saiga-12 | Semi-auto, panic button |
-| **Sidearm** | Pocket Grin M9 | M9 | Reliable backup |
-| | Wide Deagle | Desert Eagle | 2-shot, slow, loud |
-| | Chortle 18 | Glock 18 | Full-auto machine pistol |
+| **Sidearm** | Sixty-Nine | FN Five-seveN | 20-round starter, punches through cover |
+| | TRUE-69 | KAP-40 (BO2) | Full-auto machine pistol |
 
 **Attachments** — each slot carries real stat deltas, not cosmetics:
 - **Optic:** iron / reflex / coyote / ACOG 4× / sniper scope 8× (ADS speed and

@@ -23,7 +23,7 @@ import { FlowField } from "./nav.js?v=ti1-bs1b7d";
 
 export const ROYALE = {
   players: 10,            // the room is padded with bots up to this
-  startWeapon: "pocketgrin",
+  startWeapon: "sixtynine",
   maxArmor: 150,          // 3 plates
   plateHp: 50,
   carryPlates: 3,

@@ -167,26 +167,6 @@ function mk(cls, o) {
   return { ...COMMON, ...CLASS_BASE[cls], ...o, cls };
 }
 
-/* The Desert Eagle's handling, shared by the Wide Deagle and the Golden
-   Grin (see widedeagle below). `tacReloadTime` replaces the 0.72x rule for
-   a reload with a round chambered; `slideCycle` is how long the slide
-   takes to go back and home after a shot; `slideLock` holds it back on an
-   empty gun until the reload releases it; `magnum` picks the deeper report
-   in audio.js; `inspectShowcase` gives a sidearm the long-gun side-on
-   admire instead of the twirl. */
-const DEAGLE = {
-  damage: 55, falloffStart: 22, falloffEnd: 55, falloffMin: 0.62,
-  rpm: 300, magSize: 7, reserveMax: 42,
-  reloadTime: 2.9, tacReloadTime: 2.3,
-  spreadBase: 0.034, spreadMoving: 0.06, spreadAds: 0.006, spreadPerShot: 0.045, spreadMax: 0.17,
-  recoilKickPitch: 0.068, recoilKickYaw: 0.012, recoilKickYawRand: 0.02, recoilRecover: 8.5, recoilKickKnockback: 0.05,
-  shakeScale: 1.25, shakeVert: 1.4, shakeSide: 0.8, shakeJolt: 1.45, shakeRecover: 0.85,
-  adsTime: 0.19, adsFovMult: 0.86, inertia: 8.5,
-  muzzleFlashScale: 1.4, muzzleVelocity: 470, penetration: 1.15,
-  magnum: true, slideCycle: 0.11, slideLock: true, inspectTime: 3.6, inspectShowcase: true,
-  model: { len: 0.28, stock: "none", mag: "box", barrel: 0.6, heavy: true, deagle: true },
-};
-
 export const WEAPON_DEFS = {
   // ---------------- assault rifles
   problem416: mk("assault", {
@@ -390,27 +370,38 @@ export const WEAPON_DEFS = {
   }),
 
   // ---------------- sidearms
-  pocketgrin: mk("sidearm", {
-    id: "pocketgrin", name: "Pocket Grin M9", rank: 0, sight: "iron",
-    blurb: "Always there. Never impressive.",
-    model: { len: 0.24, stock: "none", mag: "box", barrel: 0.5 },
+  // The FN Five-seveN (5.7x28): the starter. Twenty rounds, quick and flat,
+  // four to the body, and the little round goes through cover. The slide
+  // cycles every shot and locks back on the last round; an empty reload
+  // ends on the slide release (weapon-pistols.js builds it, model.build).
+  sixtynine: mk("sidearm", {
+    id: "sixtynine", name: "Sixty-Nine", rank: 0, sight: "iron",
+    damage: 30, falloffStart: 22, falloffEnd: 50, falloffMin: 0.6,
+    rpm: 480, magSize: 20, reserveMax: 100, reloadTime: 1.95, tacReloadTime: 1.5,
+    spreadBase: 0.026, spreadPerShot: 0.018, spreadMax: 0.13,
+    recoilKickPitch: 0.024, recoilKickYaw: 0.009, recoilRecover: 13, recoilKickKnockback: 0.016,
+    adsTime: 0.13, muzzleVelocity: 650, penetration: 1.2,
+    pistolSound: "fiveseven", slideCycle: 0.075, slideLock: true,
+    inspectTime: 3.4, inspectShowcase: true,
+    blurb: "Twenty rounds of nice.",
+    model: { len: 0.21, stock: "none", mag: "box", build: "sixtynine" },
   }),
-  // Phantom Forces' Desert Eagle XIX (.50 AE): seven rounds, two to the body
-  // up close (three past ~40 m), one to the head, a slow heavy semi-auto
-  // with a big vertical kick. The slide cycles every shot and locks back on
-  // the last round; an empty reload drops the mag and releases the slide
-  // (2.9 s), a tac reload is a plain swap (2.3 s). weapon-deagle.js builds
-  // it (model.deagle); the Golden Grin below is the same gun in gold.
-  widedeagle: mk("sidearm", {
-    id: "widedeagle", name: "Wide Deagle", rank: 9, sight: "iron",
-    ...DEAGLE,
-    blurb: "Two shots, and everyone heard both.",
-  }),
-  chortle: mk("sidearm", {
-    id: "chortle", name: "Chortle 18", rank: 20, sight: "iron",
-    fireMode: "auto", rpm: 1100, damage: 18, magSize: 17,
-    blurb: "A pistol with no self-control.",
-    model: { len: 0.25, stock: "none", mag: "long", barrel: 0.5 },
+  // Black Ops 2's KAP-40 (the KRISS KARD, made full auto): a .40 machine
+  // pistol, the Super-V block hanging under the barrel to soak the climb.
+  // Five to the body, gone in a second and a half. Its upper's rear half is
+  // the slide that cycles (weapon-pistols.js).
+  true69: mk("sidearm", {
+    id: "true69", name: "TRUE-69", rank: 15, sight: "iron",
+    fireMode: "auto", rpm: 750, damage: 24, falloffStart: 14, falloffEnd: 34, falloffMin: 0.5,
+    magSize: 20, reserveMax: 100, reloadTime: 2.1, tacReloadTime: 1.7,
+    spreadBase: 0.032, spreadAds: 0.012, spreadPerShot: 0.016, spreadMax: 0.15,
+    recoilKickPitch: 0.022, recoilKickYaw: 0.006, recoilKickYawRand: 0.016, recoilRecover: 11, recoilKickKnockback: 0.012,
+    shakeVert: 0.9, shakeJolt: 0.7,
+    adsTime: 0.15, muzzleVelocity: 400, penetration: 0.8,
+    pistolSound: "kap", slideCycle: 0.06, slideLock: true,
+    inspectTime: 3.4, inspectShowcase: true,
+    blurb: "Full auto. Fully committed.",
+    model: { len: 0.22, stock: "none", mag: "box", build: "true69" },
   }),
   // A pair of single-action revolvers, one in each hand (Troll City). Each
   // pull fires the next gun, right then left; twelve rounds is two
@@ -429,15 +420,6 @@ export const WEAPON_DEFS = {
     muzzleFlashScale: 1.1, muzzleColor: 0xffd890,
     blurb: "Two six-shooters, twelve problems. Aim fans the hammers.",
     model: { len: 0.3, stock: "none", mag: "none", barrel: 0.7 },
-  }),
-  // The Prestige 7 gun (prestige phase 5): a solid gold Wide Deagle with its
-  // own name. Same handling as the Deagle; the gold is the reward. Rank 69
-  // keeps it last in the list (anyone at Prestige 7 is past 69 anyway).
-  goldengrin: mk("sidearm", {
-    id: "goldengrin", name: "Golden Grin .50", rank: 69, prestige: 7, sight: "iron",
-    ...DEAGLE,
-    ownFinish: "goldgrin",
-    blurb: "Prestige 7. The same two shots, but everyone saw them coming.",
   }),
 };
 
@@ -479,7 +461,7 @@ export class WeaponState {
     this.viewKickYaw = 0;
     this.viewKickKnockback = 0;
     this.viewKickRoll = 0;
-    this.slideT = 0;            // pistol slide cycle after a shot (def.slideCycle), counts down
+    this.slideT = 0;            // a pistol's slide cycle after a shot (def.slideCycle), counts down
   }
 
   /* The slide is held back: the last round went and the gun has a lock

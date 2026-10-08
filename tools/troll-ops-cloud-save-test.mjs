@@ -100,7 +100,7 @@ const before = await page.evaluate(() => ({ sens: window.__trollOps.settings.sen
 const signedIn = await page.evaluate(async () => {
   const T = window.__trollOps;
   // This device has a loadout saved; the account's copy has none.
-  localStorage.setItem("trollops:loadout", JSON.stringify({ weaponId: "problem416", secondaryId: "pocketgrin", meleeId: "keyboard", attachments: {} }));
+  localStorage.setItem("trollops:loadout", JSON.stringify({ weaponId: "problem416", secondaryId: "sixtynine", meleeId: "keyboard", attachments: {} }));
   window.__cloud.rows.set("u1|troll-forces", {
     updated_at: new Date().toISOString(),
     data: { v: 1, keys: {
@@ -237,7 +237,7 @@ const page2 = await openGame(() => {
     user: "u2", selectDelay: 1500,
     rows: { "u2|troll-forces": {
       updated_at: new Date(Date.now() - 60000).toISOString(),
-      data: { v: 1, keys: { "trollops:loadout": JSON.stringify({ weaponId: "problem416", secondaryId: "pocketgrin", meleeId: "trollsaber", attachments: {} }) } },
+      data: { v: 1, keys: { "trollops:loadout": JSON.stringify({ weaponId: "problem416", secondaryId: "sixtynine", meleeId: "trollsaber", attachments: {} }) } },
     } },
   };
 });

@@ -95,11 +95,11 @@ export class Loadout {
     this.attachmentsByWeapon = saved.attachments || {};
     this.weaponId = saved.weaponId && WEAPON_DEFS[saved.weaponId] ? saved.weaponId : "problem416";
     if (!isUnlocked(this.weaponId)) this.weaponId = "problem416";
-    // Secondary is always a sidearm - pocketgrin (rank 0) is the one every
+    // Secondary is always a sidearm - sixtynine (rank 0) is the one every
     // account has unlocked, same reasoning as the problem416 primary fallback.
     this.secondaryId = saved.secondaryId && WEAPON_DEFS[saved.secondaryId]?.cls === "sidearm"
-      ? saved.secondaryId : "pocketgrin";
-    if (!isUnlocked(this.secondaryId)) this.secondaryId = "pocketgrin";
+      ? saved.secondaryId : "sixtynine";
+    if (!isUnlocked(this.secondaryId)) this.secondaryId = "sixtynine";
     this.slot = "primary";   // which slot the class/weapon list below is editing
     this.cls = WEAPON_DEFS[this.weaponId].cls;
     this.mapId = MAPS[saved.mapId] ? saved.mapId : MAP_IDS[0];
