@@ -19,7 +19,8 @@
 // smith (anvil, forge and quench barrel, with the tools: smithy.js).
 //
 // Optional per NPC: `height`, `build` (a bouncer's shoulders), `dance`
-// (which of DANCES), `zone` (its room, if not where it stands). A map whose music has a clock passes `beat` (beats since it
+// (which of DANCES), `zone` (its room, if not where it stands), `outfit`
+// (clothes, outfits.js). A map whose music has a clock passes `beat` (beats since it
 // started, trollingloud.js) and its dancers move on that beat instead of
 // their own.
 
@@ -27,6 +28,7 @@ import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, DANCES } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2";
 import { buildDrink, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7";
 import { SmithWork } from "./smithy.js?v=sm1b7b7dc2";
+import { wearOutfit } from "./outfits.js?v=of1";
 
 const WALK_MPS = 1.25;
 const NEAR = 40;     // full rate inside this
@@ -94,6 +96,7 @@ export class TownNpcs {
     const seed = hash01(c.name + i);
     const rig = buildHumanoid(this.material, { height: c.height ?? 1.72 + seed * 0.16, build: c.build ?? 1, gun: false });
     rig.face = `${c.act === "drink" && seed > 0.75 ? "sad" : "grin"}:og`;
+    if (c.outfit) wearOutfit(rig, c.outfit);   // dressed for the night (outfits.js)
     const tag = UNTAGGED.has(c.role) ? null : npcTag(`${c.name} · ${c.role}`);
     // Above the head either way: sitting drops the whole body, tag and all.
     if (tag) { tag.position.y = 2.2; rig.root.add(tag); }

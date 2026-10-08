@@ -44,6 +44,7 @@ import {
   fringeTexture, beamTexture, facetTexture, windowsTexture, speakerTexture, djTexture, flagTexture, busTexture,
 } from "./trollingloud-kit.js?v=tl3";
 import { BEATS } from "./music-beats.js?v=bg1";
+import { pickOutfit } from "./outfits.js?v=of1";
 
 /* ============================================================== the plan */
 
@@ -1838,8 +1839,14 @@ function clubNpcs() {
   const LAP = [[-11, -6], [11, -6], [11, 7], [-11, 7]];
   extra("Clubgoer", "walk", { y: ROOF, path: LAP, at: 0, zone: "sky" });
   extra("Clubgoer", "walk", { y: ROOF, path: LAP, at: 0.5, zone: "sky" });
+
+  /* ---- dressed for the night (user, 2026-10-08): the guests wear outfits
+     (outfits.js), the staff stay as they are */
+  const DR = rng(77);
+  for (const c of cast) if (GUESTS.has(c.role)) c.outfit = pickOutfit(c.role === "Barfly" ? "Clubgoer" : c.role, DR());
   return cast;
 }
+const GUESTS = new Set(["Clubgoer", "Raver", "VIP", "Barfly"]);
 
 /* ================================================================ the map */
 

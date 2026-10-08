@@ -75,12 +75,22 @@ const cast = await A.evaluate(() => {
   const out = N.list.filter((n) => n.x < B.minX || n.x > B.maxX || n.z < B.minZ || n.z > B.maxZ).map((n) => n.c.name);
   let shadows = 0;
   for (const n of N.list) n.rig.root.traverse((o) => { if (o.isMesh && o.castShadow) shadows++; });
-  return { n: N.list.length, roles, out, shadows };
+  // dressed for the night: the guests, not the staff (outfits.js)
+  const GUESTS = ["Clubgoer", "Raver", "VIP", "Barfly"];
+  const guests = N.list.filter((n) => GUESTS.includes(n.c.role)), staff = N.list.filter((n) => !GUESTS.includes(n.c.role));
+  const dressed = guests.filter((n) => n.rig.outfit?.length >= 4).length;
+  const looks = new Set(guests.map((n) => JSON.stringify(n.c.outfit))).size;
+  const staffDressed = staff.filter((n) => n.rig.outfit?.length).map((n) => n.c.name);
+  const tinted = N.list.filter((n) => n.rig.parts.head.material.color.getHex() !== 0xffffff).map((n) => n.c.name);
+  return { n: N.list.length, roles, out, shadows, guests: guests.length, dressed, looks, staffDressed, tinted };
 });
 check("Socialize on Trolling Loud has a crowd", !!cast && cast.n >= 80, cast ? `${cast.n} NPCs` : "no townNpcs");
 check("the club has its staff", cast && cast.roles.Bouncer >= 3 && cast.roles.Bartender >= 3 && cast.roles["Go-go dancer"] === 1 && cast.roles.Raver >= 12, JSON.stringify(cast?.roles));
 check("everyone is inside the map", cast && cast.out.length === 0, cast?.out.join(", "));
 check("the crowd casts no shadows", cast && cast.shadows === 0, `${cast?.shadows} shadow casters`);
+check("every guest wears an outfit, mostly different ones", cast && cast.dressed === cast.guests && cast.looks >= cast.guests * 0.6, `${cast?.dressed}/${cast?.guests} dressed, ${cast?.looks} looks`);
+check("the staff don't", cast && cast.staffDressed.length === 0, cast?.staffDressed.join(", "));
+check("no tinted faces", cast && cast.tinted.length === 0, cast?.tinted.join(", "));
 
 // ── the beat ──────────────────────────────────────────────────────────────
 const b0 = await A.evaluate(() => ({ beat: window.__trollOps.townNpcs().beat(), t: performance.now() }));
