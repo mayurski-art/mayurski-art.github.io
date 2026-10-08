@@ -1294,7 +1294,8 @@ export function updateWeaponView(dt) {
   fadeOpticGlass(mesh, adsSmoothT);
   updateLaserBeam(mesh, w);
   // Scoped all the way in, a sniper scope takes the screen (sniper-scope.js).
-  updateSniperScope(mesh, pfArms, w, game.player.holding === "gun", game.weaponRig.visible);
+  updateSniperScope(mesh, pfArms, w, game.player.holding === "gun",
+    game.weaponRig.visible && !game.settings.thirdPerson && !game.emoteIsTp());
 
   if (game.muzzleFlashT > 0) {
     game.muzzleFlashT -= dt;
