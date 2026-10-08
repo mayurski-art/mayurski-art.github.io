@@ -9,8 +9,8 @@ import { renderModes } from "./mode-picker.js?v=mp1-fu1b7b7d";
 import { setTouchAds } from "../input/touch.js?v=in1";
 import { cancelCook } from "../combat/throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2";
 import { returnToSocial, cancelSocialReturn } from "../modes/social.js?v=so1-si1-mb1-gj1-if1-fu1b7b7dc1c2";
-import { piano } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2";
-import { clubAskOpen } from "../modes/club-entry.js?v=ce1c1c2";
+import { piano } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2c3";
+import { clubAskOpen } from "../modes/club-entry.js?v=ce1c1c2c3";
 import { game } from "../core/state.js?v=st1";
 
 export function initMenuButtons() {

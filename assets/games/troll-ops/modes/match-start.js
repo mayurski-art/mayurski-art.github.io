@@ -25,7 +25,7 @@ import { recentTeamKillers, dealtLog, lastHitRange, updateTeamHud } from "../com
 import { resetInfection } from "./infection.js?v=in1-si1-gj1-fu1b7b7dc2";
 import { applyHeroLoadout } from "./umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2";
 import { TownNpcs } from "../town-npcs.js?v=tn4b7b7dc2";
-import { clubSpawn } from "./club-entry.js?v=ce1c1c2";
+import { clubSpawn } from "./club-entry.js?v=ce1c1c2c3";
 import { Hill, pickHillPoints, pickBombSites, Bomb } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d";
 import { setHillMarker, setBombSiteMarkers } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2";
 import { RangeSet } from "../range.js";

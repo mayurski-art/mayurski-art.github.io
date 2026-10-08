@@ -2,7 +2,7 @@
 // teammates), each side's half, spreading spawns apart, and the range's bots.
 
 import { royaleDropView } from "./royale.js?v=md1-gj1-fu1b7b7dc2";
-import { look } from "../input/keyboard-mouse.js?v=km1-gj1-if1-fu1b7b7dec1c2";
+import { look } from "../input/keyboard-mouse.js?v=km1-gj1-if1-fu1b7b7dec1c2c3";
 import * as THREE from "three";
 import { insidePolygon } from "../edge.js";
 import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";
