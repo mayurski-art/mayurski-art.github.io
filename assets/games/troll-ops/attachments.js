@@ -110,10 +110,51 @@ export function statDelta(weaponId, loadout, slot, key) {
   return out;
 }
 
+/* What fits what, Black Ops 2 style: a sniper takes glass, never a dot;
+   a pistol takes a dot, never a scope; nothing short takes an ACOG.
+   A slot left out of a class takes everything. Akimbo and no-ADS guns
+   (the Peacemakers) take nothing but ammo. */
+export const CLASS_FIT = {
+  assault: { optic: ["iron", "reflex", "coyote", "acog"] },
+  carbine: { optic: ["iron", "reflex", "coyote", "acog"] },
+  battle:  { optic: ["iron", "reflex", "coyote", "acog"] },
+  lmg:     { optic: ["iron", "reflex", "coyote", "acog"] },
+  pdw:     { optic: ["iron", "reflex", "coyote"] },
+  shotgun: { optic: ["iron", "reflex", "coyote"], barrel: ["none", "suppressor", "brake"], underbarrel: ["none", "laser"] },
+  sniper:  { optic: ["scope8", "acog"], barrel: ["none", "suppressor"], underbarrel: ["none", "laser"] },
+  sidearm: { optic: ["iron", "reflex"], barrel: ["none", "suppressor"], underbarrel: ["none", "laser"] },
+};
+const BARE = { optic: ["iron"], barrel: ["none"], underbarrel: ["none"] };
+
+/* The keys `slot` offers on this weapon, in ATTACHMENTS order. */
+export function fitsFor(weaponId, slot) {
+  const def = WEAPON_DEFS[weaponId];
+  const all = Object.keys(ATTACHMENTS[slot] || {});
+  const rule = (def?.akimbo || def?.noAds ? BARE : CLASS_FIT[def?.cls] || {})[slot];
+  return rule ? all.filter((k) => rule.includes(k)) : all;
+}
+
+export function fits(weaponId, slot, key) { return fitsFor(weaponId, slot).includes(key); }
+
 export function defaultLoadoutFor(weaponId) {
   const def = WEAPON_DEFS[weaponId];
-  // Weapons that ship with a dot keep it selected so the gun looks like itself.
-  return { ...DEFAULT_LOADOUT, optic: def?.sight === "reddot" ? "reflex" : "iron" };
+  // Weapons that ship with a dot keep it selected so the gun looks like
+  // itself; a scoped one keeps its scope.
+  const optic = def?.sight === "scope" ? "scope8" : def?.sight === "reddot" ? "reflex" : "iron";
+  return { ...DEFAULT_LOADOUT, optic: fits(weaponId, "optic", optic) ? optic : fitsFor(weaponId, "optic")[0] };
+}
+
+/* `loadout` with every part that doesn't fit this weapon swapped for its
+   default (an old save, a royale roll, a gun that changed class). */
+export function fitLoadout(weaponId, loadout) {
+  const out = { ...DEFAULT_LOADOUT, ...loadout };
+  let base = null;
+  for (const slot of SLOTS) {
+    if (fits(weaponId, slot, out[slot])) continue;
+    base ??= defaultLoadoutFor(weaponId);
+    out[slot] = fits(weaponId, slot, base[slot]) ? base[slot] : fitsFor(weaponId, slot)[0];
+  }
+  return out;
 }
 
 /* Apply a loadout's attachment mods to a base weapon, returning a new def.
@@ -121,7 +162,7 @@ export function defaultLoadoutFor(weaponId) {
 export function resolveWeapon(weaponId, loadout = DEFAULT_LOADOUT) {
   const base = WEAPON_DEFS[weaponId];
   if (!base) return null;
-  const def = { ...base, attachments: { ...DEFAULT_LOADOUT, ...loadout } };
+  const def = { ...base, attachments: fitLoadout(weaponId, loadout) };
 
   for (const slot of SLOTS) {
     const choice = def.attachments[slot];
