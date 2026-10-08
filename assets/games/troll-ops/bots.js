@@ -25,6 +25,17 @@ const BOT_RADIUS = 0.36;
 const BOT_HEIGHT = 1.8;
 const CLIMB_HEADROOM = 1.2;       // on a stair (see update's resolveCircle)
 const UPPER_NAV_CELL = 0.55;      // flow-field cell above the ground floor (BotManager navFor)
+/* The ground floor's chase grid (BotManager baseFor "doors"): cells shut by
+   their centre (nav.js blockBy "centre") with the bot's own radius as the
+   margin, so an open cell is one a bot can stand in. A gap W is open for
+   sure once W - 2 * radius >= the cell: a 1.2 m door at 0.4 m cells. Any
+   less margin and the grid opens gaps a bot can't fit, and it stands
+   pushing into one (Trolling Loud's back lot). A big map with its own
+   coarse cell (arena.navCell >= 1, Troll Royale's island) keeps its one
+   grid, so its fields stay the size they were. */
+const GROUND_NAV_CELL = 0.4;
+const NAV_PAD = BOT_RADIUS;
+const NO_ROUTE_TIME = 4;          // seconds a bot leaves a goal it's walled off from
 const SAME_LEVEL = 0.9;           // a goal this much higher or lower is on another floor: stairs
 const RESPAWN = 5;
 
@@ -275,6 +286,9 @@ class Bot {
     this.perch = null;
     this.perchT = between(PERCH_FIRST);
     this.stairPlan = null;
+    this.noRoute = null;
+    this.navY = null;
+    this.stuckTotal = 0;
     this.flinchT = 0;
     this.stunT = 0;
     this.prevTargetPos = null;
@@ -359,7 +373,9 @@ class Bot {
       if (t.id === this.id) continue;
       if (!ffa && t.team === this.team) continue;
       const d = Math.hypot(t.pos.x - this.pos.x, t.pos.z - this.pos.z);
-      if (d < leadD) { lead = t; leadD = d; }
+      // One it's walled off from (steerTo) isn't worth walking toward for a bit.
+      const walledOff = this.noRoute && this.noRoute.id === t.id && this.clock < this.noRoute.until;
+      if (d < leadD && !walledOff) { lead = t; leadD = d; }
       if (stunned) continue;     // blind: knows roughly where people are, sees nobody
       if (d > sightRange || d >= bestD) continue;
       // Between checks: stay on whoever the last one found.
@@ -543,6 +559,7 @@ class Bot {
       } else {
         desired = this.steerTo(p.id, p, ctx);
         this.yaw = Math.atan2(-desired.x, -desired.z);
+        if (this.noRoute?.id === p.id) this.perch = null;   // can't get there from here
       }
     } else if (lead) {
       // Nobody in sight: walk the flow field toward the nearest enemy rather
@@ -631,6 +648,7 @@ class Bot {
     if (this.stuckT > STUCK_HOP || jammed) {
       this.stuckT = 0;
       this.stuckHops = (this.stuckHops || 0) + 1;
+      this.stuckTotal = (this.stuckTotal || 0) + 1;   // for the life; the doors test reads it
       if (this.stuckHops < UNSTICK_AFTER) this.startHop();
       else {
         // Along the obstacle, alternating sides; a few tries in, back off too.
@@ -854,6 +872,13 @@ class Bot {
   steerTo(id, goal, ctx, orNull = false) {
     const stairs = ctx.stairs || [];
     const here = this.groundY;
+    // The level its chase fields are read on, held through a step of a few
+    // tens of cm: on a shop's 0.3 m threshold groundY flips between 0 and
+    // 0.3, the level between 0 and 0.5, and two fields that disagreed about
+    // the way (one through the door, one round the block) had it dither in
+    // the doorway for good (Trolling Loud's back door).
+    if (this.navY == null || Math.abs(here - this.navY) > 0.4) this.navY = here;
+    const navY = this.navY;
     const gy = goal.groundY ?? goal.y;
     if (this.climb) {
       const dir = this.climbStep(ctx);
@@ -889,11 +914,27 @@ class Bot {
     };
     let step = null, tried = false;
     if (gy == null || !stairs.length || Math.abs(gy - here) < SAME_LEVEL) {
-      const f = field(id, goal.x, goal.z, here, goal.static);
+      const f = field(id, goal.x, goal.z, goal.static ? here : navY, goal.static);
       step = f?.steer(this.pos.x, this.pos.z);
       tried = true;
       if (step) return step;
       if (arrived(f) && (gy == null || Math.abs(gy - here) < 0.6)) return straight();
+      // The doors grid has no way from here: a stair's foot, say, in a
+      // notch the finer grid seals off. A second opinion from the old grid,
+      // whose cells snap out of such corners.
+      const old = navY < 0.75 && !goal.static && !(ctx.arena?.navCell >= 1) ? ctx.navFor?.({ id, pos: { x: goal.x, z: goal.z }, coarse: true }, navY) : null;
+      step = old?.steer(this.pos.x, this.pos.z);
+      if (step) return step;
+      // No route on this level, and a wall between here and there: the goal
+      // is walled off from this spot, so leave it for a while (the lead pick
+      // skips it, a perch is dropped) and drift, rather than grind at the
+      // wall. Off the grid (a stair's treads) the bot trusts its own line,
+      // as it always did; so does a goal on another floor, whose ground
+      // field says nothing about the way there.
+      if (f && f.knows(this.pos.x, this.pos.z) && !f.lineClear(this.pos.x, this.pos.z, goal.x, goal.z)) {
+        this.noRoute = { id, until: this.clock + NO_ROUTE_TIME };
+        return orNull ? null : this.wanderStep(ctx.dtNow || 0.016);
+      }
     }
     // Another floor (or no way there on this one: a landing half a floor
     // short of the goal's): the stair that leads there.
@@ -914,7 +955,7 @@ class Bot {
         if (v.lengthSq() > 1e-6) return v.normalize();
       }
     }
-    if (!tried) step = field(id, goal.x, goal.z, here, goal.static)?.steer(this.pos.x, this.pos.z);
+    if (!tried) step = field(id, goal.x, goal.z, goal.static ? here : navY, goal.static)?.steer(this.pos.x, this.pos.z);
     if (step) return step;
     if (orNull) return null;
     const v = new THREE.Vector3(goal.x - this.pos.x, 0, goal.z - this.pos.z);
@@ -1191,9 +1232,18 @@ export class BotManager {
     let budget = this.bots.length > 24 ? 6 : Infinity;
 
     // Which cells are blocked on a level, worked out once and copied into
-    // every field there.
-    const baseFor = (level) => {
-      let base = this.fieldBases.get(level);
+    // every field there. `doors`: the ground floor's chase grid, cells shut
+    // by their centre so a doorway a bot fits through is open (user,
+    // 2026-10-07: "bots should be smart too and not run into walls"). The
+    // fixed spots (a stair's foot, a perch) keep the old grid: stair feet
+    // sit in notches the finer one opens into sealed pockets, and planStair
+    // read those as no way there.
+    const baseFor = (level, doors = false) => {
+      // A big map's coarse grid (arena.navCell >= 1, Troll Royale's island)
+      // has no doorways to find at that scale: it keeps the one grid.
+      if (this.fieldSrc.arena.navCell >= 1) doors = false;
+      const bk = doors && level <= 0.5 ? `${level}|doors` : level;
+      let base = this.fieldBases.get(bk);
       if (!base) {
         const src = this.fieldSrc;
         if (level > 0.5) {
@@ -1214,10 +1264,15 @@ export class BotManager {
             : { minX: Math.max(a.minX, x0 - 2), maxX: Math.min(a.maxX, x1 + 2), minZ: Math.max(a.minZ, z0 - 2), maxZ: Math.min(a.maxZ, z1 + 2) };
           const cell = a.navCell ? Math.max(UPPER_NAV_CELL, a.navCell / 2) : UPPER_NAV_CELL;
           base = new FlowField(src.colliders, bounds, level, { cell, needSupport: true });
+        } else if (doors) {
+          // Cells shut by their centre, not by any touch of a padded wall:
+          // the old rule sealed every doorway narrower than a cell plus two
+          // pads, and bots ran at the wall beside it.
+          base = new FlowField(src.colliders, src.arena, level || src.floorY, { cell: GROUND_NAV_CELL, blockBy: "centre", pad: NAV_PAD, snap: 4.4 });
         } else {
           base = new FlowField(src.colliders, src.arena, level || src.floorY, { ...(src.arena.navCell ? { cell: src.arena.navCell } : {}) });
         }
-        this.fieldBases.set(level, base);
+        this.fieldBases.set(bk, base);
       }
       return base;
     };
@@ -1226,7 +1281,9 @@ export class BotManager {
       // A field per floor level: an upstairs walker needs the upstairs
       // walls, and only cells with floor under them (not the ground plan).
       const level = Math.max(0, Math.round(levelY * 2) / 2);
-      const key = level ? `${level}|${target.id}` : target.id;
+      // `target.coarse`: a chase on the old grid (steerTo's second opinion
+      // when the doors grid has no way from where the bot stands).
+      const key = (level ? `${level}|${target.id}` : target.id) + (target.coarse ? "|old" : "");
       // A fixed spot (a stair's foot, a perch): swept once and kept for the
       // match, outside the pool, so lots of them can't evict the chases.
       if (target.static) {
@@ -1250,7 +1307,7 @@ export class BotManager {
           if (this.fieldPool.size >= Math.max(12, this.bots.length * 2)) {
             this.fieldPool.delete(this.fieldPool.keys().next().value);
           }
-          f = new FlowField(null, null, 0, { template: baseFor(level) });
+          f = new FlowField(null, null, 0, { template: baseFor(level, !target.coarse) });
           this.fieldPool.set(key, f);
         }
         f.compute(target.pos.x, target.pos.z);

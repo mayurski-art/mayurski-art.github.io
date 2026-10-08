@@ -55,8 +55,14 @@ export class FlowField {
      cells whose CENTRE is within `pad` of the wall, so a door is open as
      long as a walker's body fits through it. A wall thinner than a cell is
      widened to one, so it can't slip between two centres and go unnoticed. */
-  constructor(colliders, bounds, floorY, { needSupport = false, cell = CELL, pad = 0.35, step = 1.0, template = null, blockBy = "overlap" } = {}) {
+  /* `snap`: how far (m) a target inside a blocked patch looks for the open
+     cell it snaps to (openIndex); four cells unless given. A fine grid
+     asks for more, or a target on a roof or a crate in the middle of a
+     wide block finds no cell at all and the walkers chasing it stand at its
+     foot (Grin Beach). */
+  constructor(colliders, bounds, floorY, { needSupport = false, cell = CELL, pad = 0.35, step = 1.0, template = null, blockBy = "overlap", snap = 0 } = {}) {
     if (template) {
+      this.snapR = template.snapR;
       this.cell = template.cell;
       this.floorY = template.floorY;
       this.minX = template.minX;
@@ -71,6 +77,7 @@ export class FlowField {
       return;
     }
     this.cell = cell;
+    this.snapR = snap ? Math.max(4, Math.ceil(snap / cell)) : 4;
     this.floorY = floorY;
     this.minX = bounds.minX;
     this.minZ = bounds.minZ;
@@ -173,7 +180,7 @@ export class FlowField {
     const start = this.index(x, z);
     if (start < 0) return -1;
     if (!this.blocked[start]) return start;
-    const sx = start % this.w, sz = (start / this.w) | 0, R = 4;
+    const sx = start % this.w, sz = (start / this.w) | 0, R = this.snapR || 4;
     const cand = [];
     for (let dz = -R; dz <= R; dz++) {
       for (let dx = -R; dx <= R; dx++) {

@@ -1,6 +1,7 @@
-// Troll Forces — K9 Unit and doors (user, 2026-10-07: "dogs should learn to
-// go through doors instead of continuously running towards the walls").
-// On Troll City, bots off:
+// Troll Forces — K9 dogs, bots and doors (user, 2026-10-07: "dogs should
+// learn to go through doors instead of continuously running towards the
+// walls"; "bots should be smart too and not run into walls").
+// On Troll City, the bots stood down except where a case needs one:
 //   1. You stand in the Rusty Grin Saloon, six metres in from its back wall.
 //      An enemy pack is let loose in the back lot behind that wall. The back
 //      doors are 1.2 m wide, too narrow for the old grid; every dog has to
@@ -8,6 +9,8 @@
 //   2. You stand in a courthouse jail cell with the bars closed (an extra
 //      collider across the open door). The dogs can't get in. They mustn't
 //      spend their time pushing at the bars: they give you up and heel.
+//   3. Case 1 again with an enemy bot in the back lot instead of the pack,
+//      unable to see you: it has to come in through a back door too.
 //
 // Usage: node tools/troll-ops-k9-doors-test.mjs [shot dir]
 
@@ -51,14 +54,19 @@ await page.evaluate(async () => {
   const T = window.__trollOps;
   T.loadout.mapId = "trollcity";
   T.setMode("tdm");
-  if (T.els.noBots) T.els.noBots.checked = true;
+  if (T.els.noBots) T.els.noBots.checked = false;
   await T.startGame();
 });
 await page.waitForFunction(() => window.__trollOps.state() === "playing" && !window.__trollOps.loadState().open, null, { timeout: 120000 });
+await page.waitForFunction(() => window.__trollOps.bots.bots.some((b) => b.alive && b.team !== window.__trollOps.net.team), null, { timeout: 60000 });
 await page.evaluate(() => {
   const T = window.__trollOps;
   T.closePauseMenu(); if (T.isStaging()) T.endStaging();
   setInterval(() => { if (T.player.alive) T.player.hp = T.player.maxHp; T.player.spawnGuard = 0; }, 50);
+  // Every bot stands down; case 3 wakes one. Nobody can see anybody.
+  for (const b of T.bots.bots) { b.alive = false; b.respawnT = 1e9; }
+  const orig = T.bots.update.bind(T.bots);
+  T.bots.update = (dt, ctx) => orig(dt, { ...ctx, sightBlocked: () => true, onThrow: null });
 });
 
 /* Let a pack loose at `at` (facing `yaw`, the dogs fan out behind) with you
@@ -125,6 +133,32 @@ await page.evaluate(() => {
   const i = T.colliders.findIndex((c) => c.k9DoorsTest);
   if (i >= 0) T.colliders.splice(i, 1);
 });
+
+/* ---- 3. the saloon again, a bot this time */
+const bot = await page.evaluate(async ({ me, at, seconds, reach }) => {
+  const T = window.__trollOps;
+  T.move.reset(me.x, me.z, me.y);
+  const b = T.bots.bots.find((x) => x.team !== T.net.team);
+  b.respawn({ x: at.x, z: at.z });
+  b.pos.set(at.x, at.y, at.z); b.groundY = at.y; b.hopY = 0; b.perchT = 1e9;
+  const t0 = performance.now();
+  let closest = Infinity, reached = null;
+  while (performance.now() - t0 < seconds * 1000) {
+    await new Promise((r) => setTimeout(r, 100));
+    T.move.pos.set(me.x, me.y, me.z);
+    if (!b.alive) break;
+    const d = Math.hypot(b.pos.x - me.x, b.pos.z - me.z);
+    closest = Math.min(closest, d);
+    if (d <= reach) { reached = Math.round((performance.now() - t0) / 100) / 10; break; }
+  }
+  const out = { reached, closest: +closest.toFixed(2), stuck: b.stuckTotal || 0, alive: b.alive, at: [+b.pos.x.toFixed(1), +b.groundY.toFixed(2), +b.pos.z.toFixed(1)] };
+  b.alive = false; b.respawnT = 1e9;
+  return out;
+}, { me: { x: -14, y: 0.3, z: -15.6 }, at: { x: -14, y: 0, z: -24.6 }, seconds: 25, reach: 2.5 });
+console.log(JSON.stringify(bot));
+if (OUT) await page.screenshot({ path: path.join(OUT, "k9-doors-bot.png") });
+check("saloon: a bot comes in through a back door and reaches you", bot.reached != null, JSON.stringify(bot));
+check("saloon: the bot got stuck twice at most on the way", bot.stuck <= 2, `stuck ${bot.stuck}`);
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 
