@@ -1,4 +1,4 @@
-// Troll Forces — the SMGs, after three of Black Ops 2's: the MP7, the
+// Troll Forces — the SMGs, three of Black Ops 2's: the MP7, the
 // Vector K10 and the PDW-57 (weapons.js model.build; weapon-model.js routes
 // them here).
 //

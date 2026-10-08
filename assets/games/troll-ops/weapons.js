@@ -223,25 +223,25 @@ export const WEAPON_DEFS = {
   // its traced side outline, model.build). Iron sights out of the box.
   // MP7: the all-rounder, forty rounds, fast and tidy.
   snicker: mk("pdw", {
-    id: "snicker", name: "Snicker MP7", rank: 0, sight: "iron",
+    id: "snicker", name: "MP7", rank: 0, sight: "iron",
     rpm: 950, damage: 19, magSize: 40, reserveMax: 240, reloadTime: 2.3, tacReloadTime: 1.8,
-    blurb: "Forty rounds of quiet laughter.",
+    blurb: "Forty rounds, fast and tidy.",
     model: { len: 0.42, stock: "folding", mag: "box", build: "snicker" },
   }),
   // Vector K10: the fastest thing on the rack, barely climbs, drains fast.
   cope: mk("pdw", {
-    id: "cope", name: "Cope K10", rank: 14, sight: "iron",
+    id: "cope", name: "Vector K10", rank: 14, sight: "iron",
     rpm: 1090, damage: 16, magSize: 36, reserveMax: 216, reloadTime: 2.0, tacReloadTime: 1.6,
     recoilKickPitch: 0.009, recoilKickYaw: 0.007, falloffEnd: 40,
-    blurb: "Emptied before they could cope.",
+    blurb: "Empties before they blink.",
     model: { len: 0.44, stock: "folding", mag: "long", build: "cope" },
   }),
   // PDW-57: fifty rounds on top, steadier and longer-reaching, slower.
   seethe: mk("pdw", {
-    id: "seethe", name: "Seethe 57", rank: 26, sight: "iron",
+    id: "seethe", name: "PDW-57", rank: 26, sight: "iron",
     rpm: 750, damage: 21, magSize: 50, reserveMax: 250, reloadTime: 2.9, tacReloadTime: 2.3,
     falloffStart: 20, falloffEnd: 56, recoilKickPitch: 0.012, spreadBase: 0.024,
-    blurb: "Fifty rounds. They'll seethe.",
+    blurb: "Fifty rounds on top. Take your time.",
     model: { len: 0.4, stock: "bullpup", mag: "topbox", build: "seethe" },
   }),
 

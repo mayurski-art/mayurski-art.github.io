@@ -264,7 +264,7 @@ Phases 1–7 are shipped. What's deferred, and deliberately so:
 
 ## 5. Weapon roster (22, 8 classes)
 
-Names follow the voice already established by *Snicker MP7* / *Widemouth 12* /
+Names follow the voice already established by *Snort SVU* / *Widemouth 12* /
 *Snort SVU* — descriptive, faintly cheeky, never the troll emoji.
 
 | Class | Weapon | Analog | Character |
@@ -275,9 +275,9 @@ Names follow the voice already established by *Snicker MP7* / *Widemouth 12* /
 | | Coalface AN-94 | AN-94 | 2-round hyperburst |
 | **Carbine** | Snubgrin M4 | M4A1 | Fast handling, mild recoil |
 | | Trollboy G36C | G36C | Low recoil, middling damage |
-| **PDW** | Snicker MP7 | MP7 (BO2) | Forty rounds, the all-rounder |
-| | Cope K10 | Vector K10 (BO2) | Absurd RPM, barely climbs |
-| | Seethe 57 | PDW-57 (BO2) | 50 on top, steadier, reaches further |
+| **PDW** | MP7 | MP7 (BO2) | Forty rounds, the all-rounder |
+| | Vector K10 | Vector K10 (BO2) | Absurd RPM, barely climbs |
+| | PDW-57 | PDW-57 (BO2) | 50 on top, steadier, reaches further |
 | **Battle / DMR** | Bellow SCAR-H | SCAR-H | Heavy semi-auto punch |
 | | Sneer SKS | SKS | Cheap, fast, 3-shot kill |
 | **Sniper** | Snort SVU | SVU-AS (BO2) | Semi-auto, ten rounds, two to the body |

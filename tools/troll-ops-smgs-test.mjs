@@ -1,5 +1,5 @@
-// Troll Forces SMGs check (weapon-smgs.js: the Snicker MP7, Cope K10 and
-// Seethe 57): each builds with its anchors and its two iron posts; on irons
+// Troll Forces SMGs check (weapon-smgs.js: the MP7, Vector K10 and
+// PDW-57): each builds with its anchors and its two iron posts; on irons
 // the sight line runs across the post tops; with glass the posts fold away;
 // an ACOG or a sniper scope doesn't fit (back to irons); aimed in,
 // the sight line sits on the screen centre and no sniper overlay shows; it
