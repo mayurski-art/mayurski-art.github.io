@@ -124,6 +124,9 @@ export class Net {
     this.uid = null;     // the signed-in account id, so others can open our profile
     this.mapId = "grinsite";
     this.peers = new Map();   // id -> { team, name, last, ... }
+    // Trolling Loud's door (modes/club-entry.js keeps these current): the
+    // wristband tier, the line ticket, the door phase "phase:lane:seconds".
+    this.club = { wb: 0, cq: 0, ce: null };
     this._acc = 0;
     this._out = [];
     this._flushT = null;
@@ -333,6 +336,10 @@ export class Net {
         p.role = RP_ROLES[m.rr] || null;
         p.seat = m.se | 0;
         p.piano = m.pn | 0;
+        // Trolling Loud's door: band tier, line ticket (room clock ms), phase.
+        p.wb = Math.max(0, Math.min(3, m.wb | 0));
+        p.cq = Number.isFinite(+m.cq) ? +m.cq : 0;
+        p.ce = typeof m.ce === "string" ? m.ce.slice(0, 24) : null;
         p.body = typeof m.bd === "string" ? m.bd.slice(0, 16) : null;   // a realistic body (cop-bodies.js)
         if (m.bs != null) p.botSkill = BOT_SKILLS[m.bs | 0] || null;   // only bots carry it
         // keep a short history so the renderer can interpolate in the past
@@ -504,6 +511,7 @@ export class Net {
         hr: local.hero || undefined,   // U Mad Bro? hero id (+ "!" while the Metamorph is the brute)
         dk: local.drink || undefined, ds: local.sip ? (local.sip === 2 ? 2 : 1) : undefined, rr: local.role || undefined,   // Socialize roleplay
         se: local.seat || undefined, pn: local.piano || undefined,
+        wb: this.club.wb || undefined, cq: this.club.cq || undefined, ce: this.club.ce || undefined,   // the club door
       });
     }
     this.prune();

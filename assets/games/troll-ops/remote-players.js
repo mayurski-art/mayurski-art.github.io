@@ -93,6 +93,11 @@ function poseDuelPeer(rig, peer) {
   rig.body?.update?.();
 }
 
+/* Modes that pose peers their own way (modes/club-entry.js: at the club
+   door) add `fn(remotePlayer, dt)` here; each runs after the peer's pose,
+   every frame. */
+export const peerPosers = [];
+
 /* Troll Royale's drop on any rig (you, bots, peers). `state` is the wire's
    `dr`: 2 = freefall, belly down, arms and legs spread, a flutter in the
    wind; 3 = hanging under the glider, hands up on the lines, legs loose.
@@ -711,6 +716,7 @@ export class RemotePlayer {
     rollRig(this.rig, roll);
     // Socialize fist fights (modes/social-duel.js): their jab, or flat out
     if (!seat && !em) poseDuelPeer(this.rig, this.peer);
+    for (const f of peerPosers) f(this, dt);
     if (b.stance === "rope" && !em) {
       if (b.moving) this.ropeT = (this.ropeT || 0) + dt * ROPE_CLIMB_RATE;
       poseRope(this.rig, this.ropeT || 0);

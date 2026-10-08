@@ -13,7 +13,17 @@
    wave in), the band on your right wrist (first and third person; the
    clubgoers' too), and security's hand up at a door your band doesn't
    open; the kick-out (the bouncers carry you off and toss you on the curb;
-   view/club-entry-cine.js films it). The room seeing it (4) comes later.
+   view/club-entry-cine.js films it).
+
+   Phase 4, the room: every human in the line has a ticket (when they
+   joined, on the room clock) and the line keeps them in ticket order, each
+   behind the human ahead; the local clubgoers fill in round them. Your band,
+   ticket and door phase go out in your state packet (net.js wb, cq, ce),
+   and everyone else's copy of the door plays your part of it: the bouncers
+   check you, band you, wave you in or throw you out on their screens too,
+   and your body holds out the card (a plain gold one), the wrist, gets
+   carried, sits on the curb. Whoever doesn't answer at the front in 25 s
+   while another human waits goes to the back.
 
    The pass is a zone fence, not doors: after you move, the spot you're in
    (trollingloud.js entryZoneOf: street / main / vip / back) has to be one
@@ -28,11 +38,12 @@ import { renderCard, myCardData } from "../profile-card.js?v=pc1-wst-sb2-fu1-wb1
 import { isOwner } from "../progression.js?v=p5-wst-sb2-fu1-wb1";
 import { reachHand, setFace } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
 import { clubWear } from "./club-wear.js?v=cw1c2m1";
+import { peerPosers } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1";
 import { game } from "../core/state.js?v=st1";
 
 export const BAND = { none: 0, guest: 1, owner: 2, vip: 3 };
 /* The test (?tohooks=1) shortens the waits: window.__trollClub.T. */
-const T = { lockSecs: 120, checkSecs: 3.0, idSecs: 2.6, bandSecs: 1.8 };
+const T = { lockSecs: 120, checkSecs: 3.0, idSecs: 2.6, bandSecs: 1.8, afkSecs: 25 };
 const SNAP_AT = 0.5;       // into the band act: the moment it snaps shut
 const WAVE_SECS = 1.3;     // the bouncer's wave in, after a band
 const ROPE_OPEN = 1.4, ROPE_SHUT = 1.5;   // s
@@ -65,6 +76,8 @@ export const club = {
   kick: null,              // the kick-out playing: { tc, ... } (startKick)
   sit: 0,                  // sat on the curb after it (1), up as you move off
   cineHide: null,          // view/club-entry-cine.js: take its overlay down
+  ticket: 0,               // when we joined the line, on the room clock (ms)
+  remotes: new Map(),      // the other humans here: id -> { remote, ph, lane, cq, K, ... }
 };
 const ME = { me: true };
 
@@ -90,6 +103,7 @@ export function clubBand() { return door() ? bandNow() : BAND.none; }
 /* After the match puts us down (modes/match-start.js): in the line, or in
    the lobby with a band on. */
 export function clubSpawn() {
+  club.spawns = (club.spawns || 0) + 1;   // (the tests count them)
   resetDoor();
   const d = door();
   if (!d) return;
@@ -110,6 +124,7 @@ export function clubSpawn() {
   // Somewhere in the line: 1-7 ahead of you (as many as there are).
   const ahead = 1 + Math.floor(Math.random() * Math.min(7, club.queue.length));
   club.queue.splice(Math.min(ahead, club.queue.length), 0, ME);
+  club.ticket = roomNow();
   club.spawnAhead = club.queue.indexOf(ME);   // (the test reads it: the line may have moved since)
   const slot = slotOf(d, club.queue.indexOf(ME));
   game.move.reset(slot.x, slot.z, 0);
@@ -163,6 +178,9 @@ function resetDoor() {
   }
   for (const b of club.blocks) game.townNpcs?.release(b.i);
   club.blocks = [];
+  for (const R of club.remotes.values()) dropRemote(R);
+  club.remotes.clear();
+  club.ticket = 0;
   rope.drop();
   clubWear.band = 0;
   clubWear.glow = 0;
@@ -180,9 +198,10 @@ function go(phase) { club.phase = phase; club.t = 0; }
    steps through the door, and the fence. */
 export function updateClubEntry(dt) {
   const d = door();
-  if (!d) { if (club.live) resetDoor(); return; }
-  if (!club.live) return;   // not spawned here yet
+  if (!d) { if (club.live) resetDoor(); wireOut(); return; }
+  if (!club.live) { wireOut(); return; }   // not spawned here yet
   club.t += dt;
+  syncRemotes(d, dt);
   stepNpcs(d, dt);
   stepMe(d, dt);
   fence(d);
@@ -197,6 +216,7 @@ export function updateClubEntry(dt) {
     rig.band = clubWear.band;
     rig.bandMesh?.userData.glow?.(clubWear.glow);
   }
+  wireOut();
 }
 
 /* Is the door moving us (in the line, at a lane, walking in)? Then
@@ -249,7 +269,7 @@ function turn(a, b, k) {
 /* The clubgoers: up the line, to a free lane, checked, in through the
    door, and (out of sight) back to the end of the alley to queue again. */
 function stepNpcs(d, dt) {
-  const inLine = club.queue.filter((e) => !e.me).length + club.npcs.filter((e) => e.state === "arrive").length;
+  const inLine = club.queue.filter((e) => e.n).length + club.npcs.filter((e) => e.state === "arrive").length;
   const want = club.want;
   for (const e of club.npcs) {
     const n = e.n;
@@ -270,7 +290,7 @@ function stepNpcs(d, dt) {
           const bk = npcBandK(e);
           e.arm = bk > 0 ? Math.min(1, bk / 0.25) * Math.min(1, (1 - bk) / 0.15) : 0;
           if (bk >= SNAP_AT && !n.rig.band) { n.rig.band = BAND.guest; snapSound({ x: n.x, y: 1.1, z: n.z }, 0.5); }
-          if (e.t - e.checkT > T.checkSecs) { e.state = "door"; e.t = 0; e.arm = 0; e.path = [d.mouth, { x: d.lobby.x + (Math.random() - 0.5) * 2, z: d.lobby.z + 1.5 }]; l.who = null; l.t = 0; l.waveT = 0; l.waved = e; }
+          if (e.t - e.checkT > T.checkSecs) { sendIn(e, l, d); l.waveT = 0; l.waved = e; }
         }
         break;
       }
@@ -297,12 +317,23 @@ function stepNpcs(d, dt) {
     l.t += dt;
     const front = club.queue[0];
     if (l.who || l.hold || l.t < LANE_GAP || !front) continue;
+    // Another human at the front: their own client sends them up.
+    if (front.remote) break;
     if (!near(front.me ? game.move.pos : front.n, d.line[0], 0.25)) break;
     club.queue.shift();
     l.who = front;
     if (front.me) { club.lane = club.lanes.indexOf(l); go("lane"); }
     else { front.state = "lane"; front.lane = club.lanes.indexOf(l); front.t = 0; front.checkT = 0; }
   }
+}
+
+/* A clubgoer done at his lane (or bumped off it by another human taking
+   it): banded, through the door and inside. */
+function sendIn(e, l, d) {
+  e.state = "door"; e.t = 0; e.arm = 0;
+  if (!e.n.rig.band) e.n.rig.band = BAND.guest;
+  e.path = [d.mouth, { x: d.lobby.x + (Math.random() - 0.5) * 2, z: d.lobby.z + 1.5 }];
+  l.who = null; l.t = 0;
 }
 
 function near(a, b, r = 0.12) { return Math.hypot(a.x - b.x, a.z - b.z) < r; }
@@ -336,6 +367,10 @@ function stepMe(d, dt) {
     case "id":
       game.look.yaw = turn(game.look.yaw, club.lanes[club.lane].yaw, dt * 5);
       if (club.t > T.idSecs) { ui.hideCard(); ui.ask(answer); go("ask"); }
+      break;
+    case "ask":
+      // Nobody home while another human waits: to the back.
+      if (club.t > T.afkSecs && othersWaiting()) toBack();
       break;
     case "band":
       game.look.yaw = turn(game.look.yaw, club.lanes[club.lane].yaw, dt * 5);
@@ -397,7 +432,8 @@ function answer(adult) {
     go("band");
     return;
   }
-  startKick();
+  club.kick = startKick(club.lane, ME);
+  go("kick");
 }
 
 function fmt(s) { const m = Math.floor(s / 60), r = Math.ceil(s % 60); return r === 60 ? `${m + 1}:00` : `${m}:${String(r).padStart(2, "0")}`; }
@@ -420,28 +456,35 @@ const LIE_Y = 0.1;   // the hips' height lying on your back
 const SIDE = 0.62;   // a bouncer's step out to your side
 export const CURB_EYE = 0.95;   // eye height sat on the curb
 
-function startKick() {
-  const l = club.lanes[club.lane];
-  const oi = club.lanes.findIndex((x, i) => i !== club.lane && x.b);
+/* The throw-out of whoever's at lane `li` (us, ME, or another human). The
+   other lane's bouncer comes to help unless a human's at his podium. */
+function startKick(li, who) {
+  const l = club.lanes[li];
+  const oi = club.lanes.findIndex((x, i) => i !== li && x.b && !x.kick && !(x.who && (x.who.me || x.who.remote)));
   const K = {
-    tc: 0, li: club.lane, oi, yaw0: game.look.yaw, from: {}, cues: {},
+    tc: 0, li, oi, who, me: who === ME, yaw0: who === ME ? game.look.yaw : who.rp.yaw, from: {}, cues: {},
     B0: { x: l.x, z: l.z },
     // Thrown from the middle of the alley, a step in from the lane.
     P1: { x: l.x * 0.35, z: 27.5 },
     // Your bouncer takes the side of you he's on; the other one comes round.
     sideS: l.b ? Math.sign(l.b.x - l.x) || 1 : 1,
   };
-  club.lanes.forEach((ln, i) => { if (ln.b) K.from[i] = { x: ln.b.x, z: ln.b.z }; });
-  if (oi >= 0) club.lanes[oi].hold = true;
-  club.kick = K;
-  go("kick");
+  for (const i of [li, oi]) { const b = club.lanes[i]?.b; if (b) K.from[i] = { x: b.x, z: b.z }; }
+  l.kick = K;
+  if (oi >= 0) { club.lanes[oi].hold = true; club.lanes[oi].kick = K; }
+  return K;
+}
+/* The bouncers let go of it: the lane's free, the helper back to his own. */
+function clearKick(K) {
+  const l = club.lanes[K.li];
+  if (l) { if (l.who === K.who) l.who = null; l.t = 0; l.kick = null; }
+  const o = club.lanes[K.oi];
+  if (o) { o.hold = false; o.kick = null; }
 }
 
 function endKick() {
   const K = club.kick;
-  const l = club.lanes[K.li];
-  if (l) { l.who = null; l.t = 0; }
-  if (K.oi >= 0) club.lanes[K.oi].hold = false;
+  clearKick(K);
   club.lane = -1;
   club.kick = null;
   // Sat on the curb where you landed, looking back at the door.
@@ -491,12 +534,15 @@ export function kickBody(K, tc, o = _kb) {
   return o;
 }
 
-/* The sounds, each once as the clock passes it. */
+/* The sounds, each once as the clock passes it (someone else thrown out:
+   at their body, and no stamp, that's on our cinematic). */
+const _kc = { x: 0, y: 0, z: 0, yaw: 0, lie: 0 };
 function kickCues(K) {
   const a = game.audio;
   if (!a?._ready?.()) return;
-  const at = { x: game.move.pos.x, y: 1, z: game.move.pos.z };
-  const cue = (name, t, fn) => { if (K.tc >= t && !K.cues[name]) { K.cues[name] = 1; fn(); } };
+  const b = K.me ? game.move.pos : kickBody(K, K.tc, _kc);
+  const at = { x: b.x, y: 1, z: b.z };
+  const cue = (name, t, fn) => { if (K.tc >= t && !K.cues[name]) { K.cues[name] = 1; if (K.me || name !== "stamp") fn(); } };
   cue("grab", KICK.grab + 0.15, () => {
     a._noise({ duration: 0.12, gain: 0.35, type: "bandpass", freq: 900, q: 1.5, at });
     a._noise({ duration: 0.09, gain: 0.25, type: "bandpass", freq: 700, q: 1.5, delay: 0.1, at });
@@ -547,7 +593,7 @@ function walkHome(n, dt) {
 /* Big Lulz or Tank throwing you out. */
 const _bk = { x: 0, y: 0, z: 0, yaw: 0, lie: 0 }, _ga = new THREE.Vector3(), _gb = new THREE.Vector3();
 function poseKicker(l, n, rig, dt) {
-  const K = club.kick, tc = K.tc, p = rig.parts;
+  const K = l.kick, tc = K.tc, p = rig.parts;
   const i = club.lanes.indexOf(l);
   const shaker = i === K.li;
   const side = shaker ? K.sideS : -K.sideS;
@@ -580,7 +626,7 @@ function poseKicker(l, n, rig, dt) {
       // His way round passes the camera's shoulder: out of the shot while
       // he's right on the lens.
       const cam = game.camera.position;
-      rig.root.visible = Math.hypot(cam.x - n.x, cam.z - n.z) > 2.2;
+      rig.root.visible = !K.me || Math.hypot(cam.x - n.x, cam.z - n.z) > 2.2;
     }
   } else {
     // At your sides, facing down the alley; an arm each, up you go, and
@@ -620,9 +666,9 @@ function poseKicker(l, n, rig, dt) {
    them, legs kicking; flailing in the air; flat on our back, splayed. */
 const _kp = { x: 0, y: 0, z: 0, yaw: 0, lie: 0 };
 const mix = (a, b, k) => a + (b - a) * k;
-function poseKicked(rig, tc) {
+function poseKicked(rig, K, tc) {
   const p = rig.parts;
-  const b = kickBody(club.kick, tc, _kp);
+  const b = kickBody(K, tc, _kp);
   rig.root.position.set(b.x, b.y, b.z);
   rig.root.rotation.set(b.lie, b.yaw, 0, "YXZ");
   const held = tc < KICK.grab || tc > KICK.fly + 0.1 ? 0 : smooth((tc - KICK.grab - 0.1) / 0.25);
@@ -702,6 +748,7 @@ export function clubEyeDrop(dt) {
 function joinLine() {
   if (club.queue.includes(ME)) return;
   club.queue.push(ME);
+  club.ticket = roomNow();
   go("queued");
   ui.chip(null);
 }
@@ -719,6 +766,11 @@ function addActions() {
   if (actionsOn) return;
   actionsOn = true;
   rpExtras.push(lineAction);
+  peerPosers.push(posePeer);
+  // Gone from the tab at the front while someone waits: to the back.
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && club.live && ["lane", "id", "ask"].includes(club.phase) && othersWaiting()) toBack();
+  });
 }
 function lineAction() {
   const d = door();
@@ -729,6 +781,186 @@ function lineAction() {
   const p = game.move.pos;
   if (d.zoneOf(p.x, p.y + 0.1, p.z) !== "street" || Math.hypot(p.x - d.mouth.x, p.z - d.mouth.z) > 16) return null;
   return { key: "club-join", label: "Get in line", ctx: "Line", time: 0.4, done: joinLine };
+}
+
+/* ------------------------------------------------------------- the room */
+
+const STALE_MS = 2500;     // a human whose packets stop this long is skipped
+const CE = ["lane", "id", "ask", "band", "walk", "kick", "sit"];
+const AT_LANE = ["lane", "id", "ask", "band", "kick"];
+
+/* The room's shared clock (DJ Lulz keeps the offset), for tickets. */
+function roomNow() { return game.djLulz?.roomNow?.() ?? Date.now(); }
+
+/* Ours, into the state packet (net.js). */
+function wireOut() {
+  const w = game.net?.club;
+  if (!w) return;
+  const on = club.live && !!door();
+  w.wb = on ? clubWear.band : 0;
+  w.cq = on && club.phase === "queued" ? Math.round(club.ticket) : 0;
+  let ce = null;
+  if (on) {
+    if (club.kick) ce = `kick:${club.kick.li}:${club.kick.tc.toFixed(2)}`;
+    else if (["lane", "id", "ask", "band", "walk"].includes(club.phase)) ce = `${club.phase}:${Math.max(0, club.lane)}:${club.t.toFixed(2)}`;
+    else if (club.sit > 0.5) ce = "sit:0:0";
+  }
+  w.ce = ce;
+}
+
+function parseCe(s) {
+  if (typeof s !== "string") return null;
+  const [ph, l, t] = s.split(":");
+  if (!CE.includes(ph)) return null;
+  return { ph, lane: Math.max(0, Math.min(club.lanes.length - 1, l | 0)), t: Math.max(0, Math.min(600, +t || 0)) };
+}
+
+/* Everyone else at the door, from their packets: where they are in the
+   line, which lane they're at and how far into it, a throw-out to play. */
+function syncRemotes(d, dt) {
+  const seen = new Set(), ms = performance.now();
+  for (const [id, p] of game.net?.peers || []) {
+    const rp = game.remotes?.byId?.get(id);
+    if (!rp || ms - (p.stateAt || 0) > STALE_MS) continue;
+    seen.add(id);
+    let R = club.remotes.get(id);
+    if (!R) club.remotes.set(id, R = { remote: true, id, p, rp, ph: null, t0: 0, tc: 0, lane: -1, cq: 0, K: null, kicked: false, raw: null });
+    R.p = p; R.rp = rp;
+    const ce = parseCe(p.ce);
+    const ph = ce?.ph || null;
+    const fresh = p.ce !== R.raw;
+    R.raw = p.ce;
+    // Seconds into their phase on our clock, put right when a packet's off.
+    if (ph !== R.ph) { R.ph = ph; R.t0 = now() - (ce?.t || 0); R.kicked = false; }
+    else if (fresh && ce && Math.abs(now() - R.t0 - ce.t) > 0.3) R.t0 = now() - ce.t;
+    R.tc = now() - R.t0;
+    R.cq = !ph && p.cq > 0 ? p.cq : 0;
+    const want = ce && AT_LANE.includes(ph) && !R.kicked ? ce.lane : -1;
+    if (R.lane !== want) {
+      leaveLaneR(R, ph === "walk");
+      if (want >= 0) claimLane(R, want, d);
+    }
+    // Thrown out: the same timeline as theirs, our bouncers doing it.
+    if (ph === "kick" && !R.K && !R.kicked && R.lane >= 0) { R.K = startKick(R.lane, R); R.K.tc = ce.t; }
+    if (R.K) {
+      const K = R.K;
+      if (ph !== "kick") { clearKick(K); R.K = null; }
+      else {
+        K.tc += dt * (K.tc > KICK.slow0 && K.tc < KICK.slow1 ? KICK.slowRate : 1);
+        if (fresh && Math.abs(K.tc - ce.t) > 0.35) K.tc = ce.t;
+        kickCues(K);
+        if (K.tc >= KICK.end) { clearKick(K); R.K = null; R.kicked = true; R.lane = -1; }
+      }
+    }
+  }
+  for (const [id, R] of club.remotes) if (!seen.has(id)) { dropRemote(R); club.remotes.delete(id); }
+  placeRemotes(d);
+}
+
+/* Another human takes lane `li`. A clubgoer there is waved straight in; if
+   it's ours too (we both went for it at once) the lower id keeps it. */
+function claimLane(R, li, d) {
+  const l = club.lanes[li];
+  if (!l || l.kick) return;
+  const w = l.who;
+  if (w === ME) {
+    if (!["lane", "id"].includes(club.phase) || String(R.id) > String(game.net?.id)) return;
+    ui.hideAll();
+    club.lane = -1;
+    club.queue = [ME, ...club.queue.filter((e) => e !== ME)];
+    go("queued");
+  } else if (w?.n) sendIn(w, l, d);
+  else if (w?.remote) leaveLaneR(w, false);
+  l.who = R; l.t = 0;
+  R.lane = li;
+}
+function leaveLaneR(R, waved) {
+  const l = club.lanes[R.lane];
+  if (l && l.who === R) { l.who = null; l.t = 0; if (waved) { l.waveT = 0; l.waved = R; } }
+  R.lane = -1;
+}
+function dropRemote(R) {
+  if (R.K) { clearKick(R.K); R.K = null; }
+  leaveLaneR(R, false);
+  R.card?.parent?.remove(R.card);
+  club.queue = club.queue.filter((e) => e !== R);
+  for (const l of club.lanes) if (l.waved === R) l.waved = null;
+}
+
+/* The humans in the line, in ticket order, each where they're stood (or
+   further back, behind the human ahead). Ourselves too: behind every human
+   with an earlier ticket, ahead of every later one. The clubgoers take the
+   places left. */
+function placeRemotes(d) {
+  const rs = [...club.remotes.values()].filter((R) => R.cq > 0).sort((a, b) => a.cq - b.cq || (String(a.id) < String(b.id) ? -1 : 1));
+  const q = club.queue.filter((e) => !e.remote);
+  let prev = -1;
+  for (const R of rs) {
+    let s = slotNear(d, R.rp.pos, q.length);
+    const mi = q.indexOf(ME);
+    const before = mi >= 0 && (R.cq < club.ticket || (R.cq === club.ticket && String(R.id) < String(game.net?.id)));
+    if (mi >= 0 && !before) s = Math.max(s, mi + 1);
+    s = Math.min(Math.max(s, prev + 1), q.length);
+    q.splice(s, 0, R);
+    prev = s;
+    if (before && q.indexOf(ME) < s) {
+      q.splice(q.indexOf(ME), 1);
+      q.splice(s, 0, ME);   // straight after them (they're at s - 1 now)
+      prev = s - 1;
+    }
+  }
+  club.queue = q;
+}
+/* The place in the line nearest a spot (off the line: the back). */
+function slotNear(d, p, back) {
+  let best = back, bd = 1.6;
+  d.line.forEach((s, i) => { const dd = Math.hypot(s.x - p.x, s.z - p.z); if (dd < bd) { bd = dd; best = i; } });
+  return best;
+}
+
+function othersWaiting() {
+  for (const R of club.remotes.values()) if (R.cq > 0) return true;
+  return false;
+}
+/* Too slow at the front (or the tab's gone) with someone waiting: to the
+   back of the line, with a new ticket. */
+function toBack() {
+  ui.hideAll();
+  ui.hideCard();
+  freeLane(false);
+  club.queue = club.queue.filter((e) => e !== ME);
+  club.queue.push(ME);
+  club.ticket = roomNow();
+  go("queued");
+  showWaveBanner("Took too long. Back of the line", 2400);
+}
+
+/* Another human's body for their door phase: the card held out, the wrist
+   out for the band, carried and thrown, sat on the curb. Their band on
+   their wrist wherever they are. */
+const _pw = new THREE.Vector3();
+function posePeer(rp, dt) {
+  const rig = rp.rig;
+  rig.band = club.live && door() ? rp.peer.wb | 0 : 0;
+  const R = club.live ? club.remotes.get(rp.peer.id) : null;
+  if (!R) return;
+  const ph = R.ph;
+  if (ph === "kick" && R.K) { poseKicked(rig, R.K, R.K.tc); idCard(R, rig, false); return; }
+  if (ph === "sit") { poseCurbSit(rig); idCard(R, rig, false); return; }
+  if (ph === "id") {
+    // The card out in front at chest height, toward the bouncer.
+    const p = rp.pos, y = rp.yaw;
+    const k = env(R.tc / T.idSecs, 0.12, 0.12);
+    reachW(rig, 1, _pw.set(p.x - Math.sin(y) * 0.42 + Math.cos(y) * 0.08, p.y + 1.22, p.z - Math.cos(y) * 0.42 - Math.sin(y) * 0.08), k);
+    idCard(R, rig, k > 0.5);
+    rig.body?.update?.();
+    return;
+  }
+  idCard(R, rig, false);
+  if (ph === "band") {
+    reachW(rig, 1, peerWrist(R, _pw), env(R.tc / T.bandSecs, 0.15, 0.25));
+    rig.body?.update?.();
+  }
 }
 
 /* ------------------------------------------------------------ the fence */
@@ -790,6 +1022,10 @@ function myWrist(out) {
   const p = game.move.pos, y = game.look.yaw;
   return out.set(p.x - Math.sin(y) * 0.48 + Math.cos(y) * 0.1, p.y + 1.12, p.z - Math.cos(y) * 0.48 - Math.sin(y) * 0.1);
 }
+function peerWrist(R, out) {
+  const p = R.rp.pos, y = R.rp.yaw;
+  return out.set(p.x - Math.sin(y) * 0.48 + Math.cos(y) * 0.1, p.y + 1.12, p.z - Math.cos(y) * 0.48 - Math.sin(y) * 0.1);
+}
 function goerWrist(e, out) {
   const n = e.n, l = club.lanes[e.lane];
   const b = l?.b || n;
@@ -807,8 +1043,16 @@ function npcBandK(e) {
 
 /* What a lane's bouncer is doing right now. */
 function laneAct(l) {
-  if (club.kick && (club.lanes.indexOf(l) === club.kick.li || club.lanes.indexOf(l) === club.kick.oi)) return { act: "kick" };
+  if (l.kick) return { act: "kick" };
   const who = l.who;
+  if (who?.remote) {
+    // Another human: their phase, on their clock.
+    const at = who.rp.pos;
+    if (who.ph === "id") return { act: "check", to: at, k: who.tc / T.idSecs };
+    if (who.ph === "ask") return { act: "ask", to: at };
+    if (who.ph === "band") return { act: "band", to: at, k: who.tc / T.bandSecs, wrist: peerWrist(who, _v) };
+    return { act: "face", to: at };
+  }
   if (who === ME) {
     const at = game.move.pos;
     if (club.phase === "id") return { act: "check", to: at, k: club.t / T.idSecs };
@@ -821,7 +1065,7 @@ function laneAct(l) {
     if (who.state === "lane" && who.checkT) return bk >= 0 ? { act: "band", to: who.n, k: bk, wrist: goerWrist(who, _v) } : { act: "check", to: who.n };
     return { act: "face", to: who.n };
   }
-  if (l.waveT < WAVE_SECS) return { act: "wave", to: l.waved === ME ? game.move.pos : l.waved?.n, k: l.waveT / WAVE_SECS };
+  if (l.waveT < WAVE_SECS) return { act: "wave", to: l.waved === ME ? game.move.pos : l.waved?.remote ? l.waved.rp.pos : l.waved?.n, k: l.waveT / WAVE_SECS };
   return { act: "idle" };
 }
 
@@ -983,7 +1227,7 @@ function poseGoer(e, rig) {
 /* Our own body in third person (view/third-person.js): the arm out at the
    band. */
 export function clubPoseLocal(rig) {
-  if (club.live && club.kick) { poseKicked(rig, club.kick.tc); return; }
+  if (club.live && club.kick) { poseKicked(rig, club.kick, club.kick.tc); return; }
   if (rig.root.rotation.x) rig.root.rotation.x = 0;
   if (club.live && club.sit > 0.5) { poseCurbSit(rig); return; }
   if (!club.live || club.phase !== "band") return;
@@ -1045,6 +1289,10 @@ const rope = {
     const d = this.d;
     if (club.phase === "walk") return true;
     for (const e of club.npcs) if (e.state === "door") return true;
+    for (const R of club.remotes.values()) {
+      const q = R.rp.pos;
+      if (R.ph === "walk" || (R.p.wb > 0 && Math.abs(q.x - d.mouth.x) < 2.6 && q.z > 21.4 && q.z < 24.6)) return true;
+    }
     const p = game.move.pos;
     if (bandNow() > BAND.none && !clubHolds() && Math.abs(p.x - d.mouth.x) < 2.6 && p.z > 21.4 && p.z < 24.6) return true;
     return false;
@@ -1247,6 +1495,17 @@ if (new URLSearchParams(location.search).has("tohooks")) {
   window.__trollClub = {
     club, T, BAND, answer: (yes) => ui.answer(yes), join: joinLine, leave: leaveLine, band: () => clubBand(),
     rope: () => ({ on: !!rope.mesh?.parent, k: rope.k }),
+    // The room (phase 4): who's in our line where, the others' phases, the wire.
+    room: () => ({
+      me: game.net?.id, ticket: club.ticket, wire: { ...game.net?.club },
+      line: club.queue.map((e) => (e.me ? "me" : e.remote ? e.id : "npc")),
+      remotes: [...club.remotes.values()].map((R) => ({
+        id: R.id, ph: R.ph, lane: R.lane, cq: R.cq, kick: R.K ? +R.K.tc.toFixed(2) : -1,
+        band: R.rp.rig.band | 0, bandMesh: !!R.rp.rig.bandMesh?.parent, card: !!R.card?.visible,
+        lie: +R.rp.rig.root.rotation.x.toFixed(2), y: +R.rp.rig.root.position.y.toFixed(2),
+      })),
+      lanes: club.lanes.map((l) => ({ who: l.who === ME ? "me" : l.who?.remote ? l.who.id : l.who ? "npc" : null, act: laneAct(l).act })),
+    }),
     KICK, kick: () => (club.kick ? club.kick.tc : -1),
     // Other tests that need the club's floor: already through the door, banded.
     pass() {
