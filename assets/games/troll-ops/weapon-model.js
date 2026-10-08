@@ -13,6 +13,7 @@ import {
 import { build416 } from "./weapon-416.js?v=cg1-wst";
 import { buildRevolverPair } from "./revolvers.js?v=rv2-wst";
 import { PISTOL_BUILDERS } from "./weapon-pistols.js?v=ps1";
+import { SNIPER_BUILDERS } from "./weapon-snipers.js?v=sn1";
 import { finishDef } from "./skins.js?v=p5";
 import { rigSoulBlazer, SB_INSPECT_KEYS } from "./soul-blazer.js?v=sb1";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -1068,6 +1069,8 @@ function buildBaseMesh(def, skin) {
   if (def.akimbo) return buildRevolverPair(def, { env: weaponEnvMap || metalStudio() });
   // the pistols traced from reference photos (weapon-pistols.js)
   if (PISTOL_BUILDERS[def.model?.build]) return PISTOL_BUILDERS[def.model.build](def, { env: weaponEnvMap || metalStudio() });
+  // Black Ops 2's snipers, traced the same way (weapon-snipers.js)
+  if (SNIPER_BUILDERS[def.model?.build]) return SNIPER_BUILDERS[def.model.build](def, { env: weaponEnvMap || metalStudio() });
   const spec = def.model || {};
   if (spec.stock === "tank") return gcTemplate ? buildGreenCandles(def) : buildTankLauncher(def, spec, spec.len || 0.5);
   if (def.id === "grinmington" && gmTemplate) return buildGrinmington(def);
