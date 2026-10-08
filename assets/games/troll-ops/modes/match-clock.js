@@ -1,8 +1,8 @@
 // The match clock: counts down once a timed PvP match goes live, painted
 // on the HUD only when the shown second changes.
 
-import { infectionStarted } from "./infection.js?v=in1-si1-gj1-fu1b7b7dc2-wb1m1";
-import { checkMatchEnd } from "../combat/scoring.js?v=sc1-kc2-si1-gj1-fu1b7b7dc2-wb1m1";
+import { infectionStarted } from "./infection.js?v=in1-si1-gj1-fu1b7b7dc2-wb1m1c4";
+import { checkMatchEnd } from "../combat/scoring.js?v=sc1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4";
 import { game } from "../core/state.js?v=st1";
 
 export function resetMatchClock() {
