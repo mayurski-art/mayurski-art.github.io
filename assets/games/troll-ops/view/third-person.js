@@ -11,6 +11,7 @@ import { STANCE_LOWER, rollRig, DROP_FALL, DROP_GLIDE, poseDrop, poseRope, ROPE_
 import { emoteSeconds, poseEmoteCode, emoteCode, EMOTES } from "../emotes.js?v=hb4-em1-wst-soc1-ng1";
 import { seated, standUp, syncLocalDrink, piano } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1";
 import { damp } from "../anim-curves.js";
+import { clubPoseLocal } from "../modes/club-entry.js?v=ce1c1";
 import { saberBlock, kbShield, saberParry, kbRepair, SLOW_IGNITE } from "../combat/melee.js?v=ml1-kc2-si1-gj1-fu1b7b7d";
 import { posePianoArms, poseSeated } from "../rp-roles.js?v=rp1b7";
 import { stripLights, buildWeaponMesh } from "../weapon-model.js?v=p5-em1-wst-hf1";
@@ -292,6 +293,7 @@ export function updateLocalRig(dt) {
     poseThrowArm(game.localRig, 1 - game.localThrowT / THROW_TIME);
   }
   if (game.isSocial()) syncLocalDrink(true);   // the saloon bar: a drink in hand
+  if (game.isSocial()) clubPoseLocal(game.localRig);   // Trolling Loud's door: the arm out for the band
   // Sat down (rp-roles.js); at the piano, both hands on the keys.
   if (seated && game.isSocial()) {
     if (seated.s.kind === "piano") posePianoArms(game.localRig, piano.t += dt, 0.3, piano.playing || performance.now() - (piano.sent.at(-1) || 0) < 700);

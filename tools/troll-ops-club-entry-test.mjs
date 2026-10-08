@@ -1,5 +1,6 @@
 // Troll Forces Socialize: Trolling Loud's door (modes/club-entry.js,
-// CLUB-ENTRY.md), phase 1, solo.
+// CLUB-ENTRY.md), phases 1-2, solo: the flow, and the look (the rope, the
+// bouncers, bands on wrists, security's hand up at VIP).
 //
 // Three tabs, one at a time, Supabase blocked (never a live room):
 //   1. Signed in: spawn in the line with 1-7 clubgoers ahead (a line of
@@ -85,6 +86,9 @@ const S = (page) => page.evaluate(() => {
     card: !!document.querySelector(".club-card:not([hidden]) .tf-card"), cardText: document.querySelector(".club-card")?.textContent || "",
     ask: !!document.querySelector(".club-ask:not([hidden])"), chip: document.querySelector(".club-chip:not([hidden])")?.textContent || "",
     paused: !T.els.pause.hidden,
+    rope: C.rope(), rigBand: T.localRig.band || 0, bandMesh: !!T.localRig.bandMesh?.parent,
+    bouncers: c.lanes.filter((l) => l.b?.override).length, blocks: c.blocks.length,
+    npcBands: c.npcs.filter((e) => e.n.rig.band === 1).length,
   };
 });
 const until = async (page, pred, ms) => {
@@ -101,6 +105,7 @@ let A = await open("club_tester");
 let s = await S(A);
 check("signed in: you start in the line", s.phase === "queued" && s.zone === "street", JSON.stringify(s));
 check("with 1-7 clubgoers ahead of you", s.ahead >= 1 && s.ahead <= 7, `${s.ahead} ahead`);
+check("the velvet rope's up across the door, both bouncers working the lanes", s.rope.on && s.rope.k === 0 && s.bouncers === 2, JSON.stringify({ rope: s.rope, bouncers: s.bouncers }));
 check("in a line of 6-7", (s.want === 6 || s.want === 7) && s.lineNpcs + 0 >= s.want - 1, `want ${s.want}, ${s.lineNpcs} in line now`);
 await A.screenshot({ path: path.join(SHOTS, "1-line.png") });
 // pinned: the keys don't move you out of your place
@@ -118,11 +123,16 @@ check("the question frees the mouse without pausing", !s.paused);
 await A.screenshot({ path: path.join(SHOTS, "3-ask.png") });
 // fenced off before the band
 await A.keyboard.press("Digit1");
-s = await until(A, (s) => s.phase === "in", 15000);
+let ropeMax = 0;
+s = await until(A, (s) => { ropeMax = Math.max(ropeMax, s.rope.k); return s.phase === "in"; }, 15000);
+check("Big Lulz takes the rope off its hook to let you in", ropeMax > 0.85, `rope k max ${ropeMax.toFixed(2)}`);
+check("the band's on your right wrist", s.rigBand === 1 && s.bandMesh, JSON.stringify({ rigBand: s.rigBand, bandMesh: s.bandMesh }));
+check("clubgoers checked in ahead of you wear theirs", s.npcBands >= 1, `${s.npcBands} banded`);
 check("'Yeah': a guest band, walked into the lobby", s.phase === "in" && s.band === 1 && s.zone === "main", JSON.stringify(s));
 await A.screenshot({ path: path.join(SHOTS, "4-lobby.png") });
 await poke(A, -22, 0.3, 3); await pump(A, 300); s = await S(A);
 check("the guest band doesn't open VIP", s.zone !== "vip", JSON.stringify(s));
+check("and security puts a hand up", s.blocks === 1, JSON.stringify({ blocks: s.blocks }));
 await poke(A, 0, 0.3, -20); await pump(A, 300); s = await S(A);
 check("or back of house", s.zone !== "back", JSON.stringify(s));
 await poke(A, 0, 0, 27); await pump(A, 300); s = await S(A);
@@ -163,6 +173,7 @@ await A.context().close();
 A = await open("troll_runner");
 s = await S(A);
 check("troll_runner: in the lobby with the owner band", s.phase === "in" && s.band === 2 && s.zone === "main", JSON.stringify(s));
+check("the black and gold owner band on his wrist", s.rigBand === 2 && s.bandMesh, JSON.stringify({ rigBand: s.rigBand, bandMesh: s.bandMesh }));
 await poke(A, -22, 0.3, 3); await pump(A, 300); s = await S(A);
 check("VIP's open to him", s.zone === "vip", JSON.stringify(s));
 await poke(A, 0, 0.3, -20); await pump(A, 300); s = await S(A);

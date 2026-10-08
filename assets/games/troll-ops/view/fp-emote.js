@@ -9,6 +9,7 @@ import { inspectArms, pfArms, stretchBetween } from "./weapon-view.js?v=wv1-si1-
 import { EMOTES } from "../emote-wheel.js?v=hb4-em1-wst-soc1";
 import { game } from "../core/state.js?v=st1";
 import { duelArms } from "../modes/social-duel.js?v=sd1b7b7dec1";
+import { clubArms } from "../modes/club-entry.js?v=ce1c1";
 
 /* A first-person emote (emotes.js `fp`): the gun goes away (or does the
    trick), and the streak arms' real hands act it out in front of the camera.
@@ -34,6 +35,8 @@ function socialArmsFrame() {
   const k = socialArms.k, run = socialArms.run;
   const fight = duelArms();   // a fist fight: fists up (social-duel.js)
   if (fight) return fight;
+  const band = clubArms();   // Trolling Loud's door: the arm out for the band
+  if (band) return band;
   const hand = (side) => {
     // Right and left swing opposite each other, like the legs.
     const sw = Math.sin(socialArms.phase + (side > 0 ? 0 : Math.PI));
