@@ -13,10 +13,11 @@
 //
 // The map hands over its forge (`rp.smithy()`: the light, the coal and glow
 // materials) and the NPC entry says where the anvil, forge and barrel are:
-// { anvil: [x, y, z], forge: [x, y, z], quench: [x, y, z], stand: {anvil,
+// { anvil: [x, y, z] (the top of its face), forge: [x, y, z], quench: [x, y, z], stand: {anvil,
 // forge, quench: [x, z]} }.
 
 import * as THREE from "three";
+import { reachHand, setHandPose } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1";
 
 const WALK_MPS = 1.25;
 const STRIKE = 1.4;        // one blow, s (up slow, down fast)
@@ -27,10 +28,18 @@ const QUENCH_EVERY = 3;    // rounds per piece
 const NEAR = 40;           // forge and sparks only drawn inside this
 const HEAR = 32;           // and heard
 const POOL = 120;
+// The tools, m: the hammer's head sits HANDLE up the handle from the fist;
+// the tongs reach TONGS from the fist to the jaws; a fist closes FIST past
+// the wrist; at the blow the handle is IMPACT rad off level, head down.
+const HANDLE = 0.36, HEAD = 0.17, TONGS = 0.5, BILLET = 0.26, FIST = 0.06, IMPACT = -0.12;
+const smooth = (x) => x * x * (3 - 2 * x);
 
 const COLD = new THREE.Color(0x2a2220), HOT = new THREE.Color(0xff8a2a), WHITE = new THREE.Color(0xffd890);
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3();
 const _f = new THREE.Vector3(), _r = new THREE.Vector3(), _m = new THREE.Matrix4();
+const _sR = new THREE.Vector3(), _sL = new THREE.Vector3(), _al = new THREE.Vector3(), _tg = new THREE.Vector3();
+const _jw = new THREE.Vector3(), _gL = new THREE.Vector3(), _gR = new THREE.Vector3(), _hd = new THREE.Vector3();
+const _hu = new THREE.Vector3(), _pole = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
 
 /* A unit stick from its base along +Y, stretched between two points. */
@@ -59,24 +68,22 @@ export class SmithWork {
     this.blow = Math.floor(this.stateT / STRIKE);
     this.log = [];               // the last few states, for the test
     this.flick = n.seed * 10;
-    // the right arm, elbow and the hammer's cock off the forearm as the blow lands
-    // (fitted so the face lands on the billet: smith-test checks the gap)
-    this.reach = [0.7, 0.5, -1.2];
 
-    // the hammer: an ash handle along +Y from the fist, the iron head across
+    // the hammer: an ash handle along +Y out of the fist (a stub below it),
+    // the iron head across its end along Z, the striking face at -Z
     const wood = new THREE.MeshStandardMaterial({ color: 0x6a4a2a, roughness: 0.8 });
     this.iron = new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.45, metalness: 0.7 });
     this.hammer = new THREE.Group();
-    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.019, 0.42, 6).translate(0, 0.15, 0), wood);
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.065, 0.17), this.iron);
-    head.position.y = 0.35;
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.021, HANDLE + 0.1, 6).translate(0, (HANDLE + 0.1) / 2 - 0.06, 0), wood);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.07, HEAD), this.iron);
+    head.position.y = HANDLE;
     this.hammer.add(handle, head);
     // the tongs: two iron rods from the fist to the jaws
-    const rod = new THREE.CylinderGeometry(0.008, 0.008, 1, 4).translate(0, 0.5, 0);
+    const rod = new THREE.CylinderGeometry(0.012, 0.012, 1, 5).translate(0, 0.5, 0);
     this.tongs = [new THREE.Mesh(rod, this.iron), new THREE.Mesh(rod, this.iron)];
     // the billet: a bar of iron that glows with its heat
     this.metal = new THREE.MeshStandardMaterial({ color: 0x2a2220, roughness: 0.5, metalness: 0.6, emissive: 0x000000 });
-    this.billet = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.035, 0.24), this.metal);
+    this.billet = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.035, BILLET), this.metal);
     this.tools = [this.hammer, ...this.tongs, this.billet];
     for (const o of this.tools) { o.traverse((m) => { if (m.isMesh) m.castShadow = true; }); scene.add(o); }
 
@@ -157,84 +164,143 @@ export class SmithWork {
   }
 
   /* The arms, the tools in the hands, the billet's glow; after the body's
-     base pose. `t` is the NPC's clock. */
+     base pose. `t` is the NPC's clock. The work is placed in the world
+     first (where the billet lies, where the hammer's face must land) and the
+     hands are put on the tools with two-bone IK (user: "it needs to make
+     sense. like the way the hammer is held"): the right fist round the end
+     of the hammer's handle, the left round the tongs' handles, the tongs'
+     jaws closed on the billet's end. */
   pose(rig, t) {
     const p = rig.parts, s = this.state, n = this.n;
-    const sw = (rate, off = 0) => Math.sin(t * rate + n.seed * 6 + off);
-    if (s === "strike") {
-      const u = (this.stateT % STRIKE) / STRIKE;
-      // up slow, down fast, a rebound after the blow
-      const lift = u < 0.62 ? (u / 0.62) : u < 0.78 ? 1 - ((u - 0.62) / 0.16) ** 2 : 0.08 * (1 - (u - 0.78) / 0.22);
-      const [arm, elbow] = this.reach;
-      p.armR.rotation.set(arm + lift * (2.4 - arm), 0, -0.12); p.elbowR.rotation.set(elbow + lift * (1.3 - elbow), 0, 0);
-      p.armL.rotation.set(0.7, 0, 0.2); p.elbowL.rotation.set(0.95, 0, 0);
-      p.chest.rotation.x += 0.18 + (1 - lift) * 0.1;
-    } else if (s === "heat") {
-      // the billet in the coals, turned now and then
-      p.armL.rotation.set(1.0 + sw(1.7) * 0.05, 0, 0.12); p.elbowL.rotation.set(0.35, 0, 0);
-      p.armR.rotation.set(0.12, 0, -0.08); p.elbowR.rotation.set(0.35, 0, 0);
-      p.chest.rotation.x += 0.22;
-    } else if (s === "quench") {
-      const dip = Math.min(1, this.stateT / 0.5);
-      p.armL.rotation.set(0.95 - dip * 0.35, 0, 0.1); p.elbowL.rotation.set(0.55, 0, 0);
-      p.armR.rotation.set(0.12, 0, -0.08); p.elbowR.rotation.set(0.35, 0, 0);
-      p.chest.rotation.x += 0.3 * dip;
-    } else {
-      // walking: the hammer down at his side, the work held out in the tongs
-      p.armR.rotation.set(0.12, 0, -0.1); p.elbowR.rotation.set(0.3, 0, 0);
-      p.armL.rotation.set(0.6, 0, 0.1); p.elbowL.rotation.set(0.85, 0, 0);
-    }
-    rig.body?.update?.();
-    rig.root.updateMatrixWorld(true);
-    this.placeTools(rig);
-    if (this.struck) {
-      // how far the hammer's face landed from the work (the test reads it)
-      this.struck = false;
-      this.hammer.updateMatrixWorld(true);
-      this.gap = this.hammer.localToWorld(_a.set(0, 0.35, 0)).distanceTo(_b.set(this.anvil.x - 0.08, this.anvil.y + 0.04, this.anvil.z));
-    }
-  }
-
-  placeTools(rig) {
-    const p = rig.parts, vis = rig.root.visible, n = this.n;
+    const vis = rig.root.visible;
     for (const o of this.tools) o.visible = vis;
     if (!vis) return;
     _f.set(-Math.sin(n.yaw), 0, -Math.cos(n.yaw));          // facing
     _r.set(-_f.z, 0, _f.x);                                   // his right
-    // hammer: the handle leaves the fist turned about his right-hand axis
-    // off the forearm; striking, the wrist cocks it down onto the work, at
-    // his side it hangs nearly along the arm
-    const fistR = (p.handR ?? p.gripR).getWorldPosition(_a);
-    const elbR = p.elbowR.getWorldPosition(_b);
-    const u = _c.subVectors(fistR, elbR).normalize();
-    const w = _d.crossVectors(_r, u);
-    const cock = this.state === "strike" ? this.reach[2] : 0.2;
-    const y = u.multiplyScalar(Math.cos(cock)).addScaledVector(w, Math.sin(cock)).normalize();
-    const zAx = _b.crossVectors(_r, y).normalize();
-    const xAx = _d.crossVectors(y, zAx);
-    _m.makeBasis(xAx, y, zAx);
+    const wob = Math.sin(t * 1.7 + n.seed * 6);
+    // the lean first: it moves the shoulders the arms reach from
+    let lift = 0;
+    if (s === "strike") {
+      const u = (this.stateT % STRIKE) / STRIKE;
+      // up slow, down fast, a little rebound off the iron after the blow
+      lift = u < 0.62 ? smooth(u / 0.62) : u < 0.78 ? 1 - ((u - 0.62) / 0.16) ** 2 : 0.07 * Math.sin(Math.PI * (u - 0.78) / 0.22);
+      p.chest.rotation.x += 0.2 - lift * 0.12;
+    } else if (s === "heat") p.chest.rotation.x += 0.2;
+    else if (s === "quench") p.chest.rotation.x += 0.12 + 0.2 * Math.min(1, this.stateT / 0.5);
+    rig.root.updateMatrixWorld(true);
+    const shR = p.armR.getWorldPosition(_sR), shL = p.armL.getWorldPosition(_sL);
+
+    // --- the billet, lying along `along`, and the tongs that hold its near
+    // end (`tong`: from the left fist to the jaws)
+    const at = this.billet.position, along = _al, tong = _tg;
+    if (s === "strike") {
+      // flat on the anvil's face, across it from his left; the tongs come
+      // in from the left and down onto its end
+      at.set(this.anvil.x, this.anvil.y + 0.018, this.anvil.z);
+      along.copy(_r);
+      tong.copy(_r).multiplyScalar(0.8).addScaledVector(_f, 0.4).addScaledVector(UP, -0.35);
+    } else if (s === "heat") {
+      // pushed into the coals, worked back and forth now and then
+      at.copy(this.forge).addScaledVector(_f, 0.05 * wob);
+      along.copy(_f);
+      tong.copy(_f).addScaledVector(UP, -0.45).addScaledVector(_r, 0.25);
+    } else if (s === "quench") {
+      // plunged end first into the barrel
+      const dip = smooth(Math.min(1, this.stateT / 0.5));
+      at.set(this.quench.x, this.quench.y + 0.25 - dip * 0.45, this.quench.z);
+      along.copy(_f).multiplyScalar(0.4).addScaledVector(UP, -1);
+      tong.copy(_f).multiplyScalar(0.5).addScaledVector(UP, -0.85).addScaledVector(_r, 0.2);
+    } else {
+      // carried out in front, the hot end away from him
+      at.copy(shL).addScaledVector(_f, 0.62).addScaledVector(_r, 0.14).addScaledVector(UP, -0.78);
+      along.copy(_f).addScaledVector(UP, -0.25);
+      tong.copy(_f).addScaledVector(UP, -0.3);
+    }
+    along.normalize(); tong.normalize();
+    _m.lookAt(_a.set(0, 0, 0), along, UP);   // the bar's long (z) axis along `along`
+    this.billet.quaternion.setFromRotationMatrix(_m);
+    const jaw = _jw.copy(at).addScaledVector(along, 0.03 - BILLET / 2);
+    const gripL = _gL.copy(jaw).addScaledVector(tong, -TONGS);
+
+    // --- the hammer: the handle's direction `hd` (fist to head) and the grip
+    const hd = _hd, gripR = _gR;
+    if (s === "strike") {
+      // At impact the handle is nearly level, pointing at the work, the head
+      // upright with its face flat on the billet; at the top the fist is up
+      // past his shoulder and the head cocked back over it. The handle turns
+      // about his right-hand axis between the two, and the fist swings on an
+      // arc about the shoulder.
+      const phi = IMPACT + lift * 2.35;
+      hd.copy(_f).multiplyScalar(Math.cos(phi)).addScaledVector(UP, Math.sin(phi));
+      // the grip at impact: back from the face along the head, then the handle
+      _c.copy(_f).multiplyScalar(Math.cos(IMPACT)).addScaledVector(UP, Math.sin(IMPACT));   // hd at impact
+      _hu.crossVectors(_r, _c).normalize();                                         // the head's axis, up
+      _d.set(this.anvil.x, this.anvil.y + 0.035, this.anvil.z).addScaledVector(_hu, HEAD / 2).addScaledVector(_c, -HANDLE).sub(shR);
+      const side = _d.dot(_r), fwd = _d.dot(_f), upv = _d.dot(UP);
+      const rad0 = Math.hypot(fwd, upv), ang0 = Math.atan2(upv, fwd);
+      const ang = ang0 + (1.3 - ang0) * lift, rad = rad0 + (0.46 - rad0) * lift;
+      gripR.copy(shR).addScaledVector(_r, side + (0.14 - side) * lift)
+        .addScaledVector(_f, Math.cos(ang) * rad).addScaledVector(UP, Math.sin(ang) * rad);
+    } else {
+      // hanging at his side, head down, swinging a little as he walks
+      hd.set(0, -1, 0).addScaledVector(_f, 0.25 + (n.moving ? 0.12 * wob : 0)).normalize();
+      gripR.copy(shR).addScaledVector(_r, 0.12).addScaledVector(_f, 0.06).addScaledVector(UP, -0.62);
+    }
+
+    // --- the arms onto the grips
+    this.reachTo(rig, 1, gripR, lift);
+    this.reachTo(rig, -1, gripL, 0);
+    setHandPose(rig, 1, "fist"); setHandPose(rig, -1, "fist");
+    rig.body?.update?.();
+    rig.root.updateMatrixWorld(true);
+
+    // the tools go where the fists actually got to
+    const fistR = this.fist(p.elbowR, p.handR ?? p.gripR, _gR);
+    _hu.crossVectors(_r, hd).normalize();            // the head's long axis, the face at its -z end
+    _m.makeBasis(_c.crossVectors(hd, _hu), hd, _hu);
     this.hammer.quaternion.setFromRotationMatrix(_m);
     this.hammer.position.copy(fistR);
-    // the billet: on the anvil, in the coals, in the barrel, or out in the tongs
-    const fistL = (p.handL ?? p.gripL).getWorldPosition(_a);
-    const at = this.billet.position;
-    const s = this.state;
-    if (s === "strike") at.set(this.anvil.x - 0.08, this.anvil.y + 0.02, this.anvil.z);
-    else if (s === "heat") at.copy(this.forge);
-    else if (s === "quench") at.lerpVectors(_c.set(this.quench.x, this.quench.y + 0.25, this.quench.z), _d.set(this.quench.x, this.quench.y - 0.2, this.quench.z), Math.min(1, this.stateT / 0.5));
-    else at.copy(fistL).addScaledVector(_f, 0.42).addScaledVector(UP, -0.06);
-    this.billet.rotation.set(0, n.yaw, 0);
-    // the tongs from the left fist to the billet's near end
-    const jaw = _c.copy(at).addScaledVector(_f, -0.1);
+    const fistL = this.fist(p.elbowL, p.handL ?? p.gripL, _gL);
+    _hu.crossVectors(tong, UP).normalize();
     for (let i = 0; i < 2; i++) {
-      _d.copy(fistL).addScaledVector(_r, i ? 0.012 : -0.012);
-      stretch(this.tongs[i], _d, _b.copy(jaw).addScaledVector(_r, i ? 0.006 : -0.006));
+      const sgn = i ? 1 : -1;
+      // the handles a fist's width apart, the jaws closed on the bar
+      _a.copy(fistL).addScaledVector(_hu, sgn * 0.02);
+      _b.copy(jaw).addScaledVector(_hu, sgn * 0.01);
+      stretch(this.tongs[i], _a, _b);
+    }
+    if (this.struck) {
+      // how far the hammer's face landed from the work (the test reads it)
+      this.struck = false;
+      this.hammer.updateMatrixWorld(true);
+      this.gap = this.hammer.localToWorld(_a.set(0, HANDLE, -HEAD / 2)).distanceTo(_b.set(this.anvil.x, this.anvil.y + 0.035, this.anvil.z));
     }
     // its glow: dark iron, then cherry, orange, near white at the hottest
     const h = this.heat;
     const e = h < 0.7 ? HOT.clone().multiplyScalar(Math.max(0, (h - 0.15) / 0.55)) : HOT.clone().lerp(WHITE, (h - 0.7) / 0.3);
     this.metal.emissive.copy(e).multiplyScalar(1.6);
     this.metal.color.copy(COLD).lerp(HOT, h * 0.4);
+  }
+
+  /* The wrist onto a world grip point: two-bone IK in chest space, the elbow
+     down and out (forward and up as the hammer goes up). */
+  reachTo(rig, side, grip, up) {
+    const p = rig.parts;
+    // aim the wrist a fist short of the grip, so the fist closes round it
+    const sh = (side > 0 ? p.armR : p.armL).getWorldPosition(_c);
+    const w = _d.subVectors(grip, sh);
+    const len = w.length();
+    w.multiplyScalar(Math.max(0, len - FIST) / Math.max(1e-6, len)).add(sh);
+    p.chest.worldToLocal(w);
+    _pole.set(side, -1 + up * 1.2, 0.3 - up * 0.7);
+    reachHand(rig, side, w, _pole);
+  }
+
+  /* Where a fist closes: a little past the wrist along the forearm. */
+  fist(elbow, hand, out) {
+    const wr = hand.getWorldPosition(out);
+    const el = elbow.getWorldPosition(_c);
+    return wr.addScaledVector(el.subVectors(wr, el).normalize(), FIST);
   }
 
   /* The forge breathes: the light and the coals flicker, brighter while a
@@ -259,7 +325,7 @@ export class SmithWork {
 
   /* A blow on the anvil: a spray of sparks and a ring of iron. */
   hit() {
-    const at = _c.set(this.anvil.x - 0.08, this.anvil.y + 0.04, this.anvil.z);
+    const at = _c.set(this.anvil.x, this.anvil.y + 0.04, this.anvil.z);
     this.struck = true;   // pose() measures the blow once the arm is down
     if (this.near) {
       const count = Math.round(6 + this.heat * 8);

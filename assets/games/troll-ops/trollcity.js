@@ -2111,7 +2111,7 @@ function townNpcs() {
     { name: "Deputy Doofus", role: "Deputy", act: "sit-read", x: 47.4, z: -7.1, y: Y + 0.47, yaw: Math.PI, sit: true },
     // the anvil top, the coals, the barrel's water; where he stands at each
     { name: "Iron Ike", role: "Blacksmith", act: "smith", x: -45.2, z: 17.3, y: Y, yaw: Math.PI,
-      anvil: [-45.4, Y + 0.8, 18.0], forge: [-47.4, Y + 0.96, 19.45], quench: [-43.6, Y + 0.85, 19.8],
+      anvil: [-45.4, Y + 0.87, 18.0], forge: [-47.4, Y + 0.96, 19.45], quench: [-43.6, Y + 0.85, 19.8],
       stand: { anvil: [-45.2, 17.3], forge: [-47.65, 18.6], quench: [-43.85, 19.0] } },
     { name: "Hay Jay", role: "Horsekeeper", act: "brush", x: 18.5, z: 33.7, y: 0, yaw: -0.85 },
     { name: "Mr. Kek", role: "Merchant", act: "count", x: -33.6, z: -18.75, y: Y, yaw: Math.PI },

@@ -121,7 +121,7 @@ for (let i = 0; i < 60; i++) {
   if (s.state === "strike" && s.stateT >= 3) { heatAtStrikeEnd = s.heat; break; }
 }
 check("he strikes, walks to the forge, heats, walks back and strikes", ["strike", "toForge", "heat", "toAnvil"].every((k) => seen.has(k)), [...seen].join(","));
-check("the hammer comes down on the work", s.gap != null && s.gap < 0.15, s.gap?.toFixed(3));
+check("the hammer comes down on the work", s.gap != null && s.gap < 0.09, s.gap?.toFixed(3));
 check("blows throw sparks", maxSparks >= 6, `${maxSparks}`);
 check("the billet glows hot in the forge", heatInForge > 0.8, heatInForge.toFixed(2));
 check("and cools on the anvil", heatAtStrikeEnd < 0.9, heatAtStrikeEnd.toFixed(2));
