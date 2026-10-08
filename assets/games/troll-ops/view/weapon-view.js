@@ -6,7 +6,8 @@ import { AKIMBO_INSPECT_TIME } from "../akimbo-view.js?v=ak1-wst";
 import * as THREE from "three";
 import { rise, smoothstep, damp } from "../anim-curves.js";
 import { handMaterials, inkOutline } from "../hand-model.js?v=to-grip2";
-import { wristOf, buildWatch } from "../wristwear.js?v=ww1";
+import { wristOf, buildWatch, buildWristband } from "../wristwear.js?v=ww1";
+import { clubWear } from "../modes/club-wear.js?v=cw1";
 import { cosmetics } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7d";
 import { soulBlazerReloadPose, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth, updateSoulBlazerView, soulBlazerInspect, SB_INSPECT_CUES } from "../soul-blazer.js?v=sb1";
 import { chargedShotDef } from "../weapons.js?v=p5bm-wst-hf1-fu1";
@@ -320,6 +321,7 @@ const ROD_WATCH_BACK = 0.07;       // from the rod's tip
 let rodWatch = null;
 const _rwZ = new THREE.Vector3(), _rwY = new THREE.Vector3(), _rwX = new THREE.Vector3(), _rwM = new THREE.Matrix4();
 export function placeRodWatch() {
+  placeRodBand();
   const id = wristOf(cosmetics.face);
   if ((rodWatch?.userData.wristId || "") !== id) {
     rodWatch?.parent?.remove(rodWatch);
@@ -344,6 +346,34 @@ export function placeRodWatch() {
   _rwY.normalize();
   _rwX.crossVectors(_rwY, _rwZ);
   rodWatch.quaternion.setFromRotationMatrix(_rwM.makeBasis(_rwX, _rwY, _rwZ));
+}
+
+/* Trolling Loud's door wristband (modes/club-entry.js) the same way, round
+   the right rod. */
+let rodBand = null;
+function placeRodBand() {
+  const tier = clubWear.band;
+  if ((rodBand?.userData.bandTier || 0) !== tier) {
+    rodBand?.parent?.remove(rodBand);
+    rodBand = tier ? buildWristband(tier, 0.0165) : null;
+    rodBand?.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
+  }
+  if (!rodBand) return;
+  const sRod = game.streakArms.visible ? game.streakArms.userData.arms[0].rod : null;
+  const gRod = pfArms.visible ? pfArms.userData.rods[0] : null;
+  const rod = sRod?.visible ? sRod : gRod?.visible ? gRod : null;
+  rodBand.visible = !!rod;
+  if (!rod) return;
+  if (rodBand.parent !== rod.parent) rod.parent.add(rodBand);
+  _rwZ.set(0, 1, 0).applyQuaternion(rod.quaternion);
+  rodBand.position.copy(rod.position).addScaledVector(_rwZ, Math.max(0, rod.scale.y - ROD_WATCH_BACK));
+  _rwZ.negate();
+  _rwY.set(0, 1, 0).addScaledVector(_rwZ, -_rwZ.y);
+  if (_rwY.lengthSq() < 1e-6) _rwY.set(0, 0, 1);
+  _rwY.normalize();
+  _rwX.crossVectors(_rwY, _rwZ);
+  rodBand.quaternion.setFromRotationMatrix(_rwM.makeBasis(_rwX, _rwY, _rwZ));
+  rodBand.userData.glow(clubWear.glow);
 }
 
 export function stretchBetween(obj, from, to) {

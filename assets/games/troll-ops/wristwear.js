@@ -202,6 +202,108 @@ export function buildWatch(id, ringR, { ry = ringR, envMap = null } = {}) {
   return g;
 }
 
+/* Trolling Loud's door wristbands (modes/club-entry.js; CLUB-ENTRY.md), worn
+   on the right wrist: 1 the guest's neon pink "TL" band, 2 the owner's black
+   and gold "OWNER" band, 3 VIP. Same frame as the watch: the band wraps the
+   local Z axis, the snap sits on top (+Y). `userData.glow(k)` brightens it
+   (the snap at the door). */
+const BANDS = {
+  1: { base: "#ff2fa8", ink: "#7a0848", edge: "#ffd1ec", word: "TROLLING LOUD", tag: "TL", tagBg: "#ffffff", tagInk: "#ff2fa8", glow: 0xff3fb4, k: 0.55 },
+  2: { base: "#0b0b0d", ink: "#d9a93c", edge: "#f0c968", word: "OWNER", tag: "OWNER", tagBg: "#d9a93c", tagInk: "#0b0b0d", glow: 0xffc860, k: 0.35 },
+  3: { base: "#1b1030", ink: "#d9a93c", edge: "#f0c968", word: "VIP", tag: "VIP", tagBg: "#d9a93c", tagInk: "#1b1030", glow: 0xb48cff, k: 0.4 },
+};
+const bandTex = new Map();
+function bandTexture(tier) {
+  if (bandTex.has(tier)) return bandTex.get(tier);
+  const b = BANDS[tier];
+  const c = document.createElement("canvas");
+  c.width = 1024; c.height = 128;
+  const g = c.getContext("2d");
+  g.fillStyle = b.base;
+  g.fillRect(0, 0, 1024, 128);
+  // Tyvek has a faint fibre to it; the owner's is a woven strap.
+  for (let i = 0; i < 900; i++) {
+    g.fillStyle = `rgba(255,255,255,${0.015 + Math.random() * 0.03})`;
+    g.fillRect(Math.random() * 1024, Math.random() * 128, 1 + Math.random() * 6, 1);
+  }
+  g.fillStyle = b.edge;
+  g.fillRect(0, 6, 1024, 6);
+  g.fillRect(0, 116, 1024, 6);
+  g.fillStyle = b.ink;
+  g.font = "900 54px Arial Black, Arial, sans-serif";
+  g.textBaseline = "middle";
+  const text = `${b.word}  ★  `;
+  const w = g.measureText(text).width;
+  for (let x = 0; x < 1024 + w; x += w) g.fillText(text, x, 66);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = THREE.RepeatWrapping;
+  t.anisotropy = 4;
+  bandTex.set(tier, t);
+  return t;
+}
+const tagTex = new Map();
+function tagTexture(tier) {
+  if (tagTex.has(tier)) return tagTex.get(tier);
+  const b = BANDS[tier];
+  const c = document.createElement("canvas");
+  c.width = 256; c.height = 128;
+  const g = c.getContext("2d");
+  g.fillStyle = b.tagBg;
+  g.fillRect(0, 0, 256, 128);
+  g.strokeStyle = b.tagInk;
+  g.lineWidth = 8;
+  g.strokeRect(10, 10, 236, 108);
+  g.fillStyle = b.tagInk;
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.font = `900 ${b.tag.length > 3 ? 54 : 86}px Arial Black, Arial, sans-serif`;
+  g.fillText(b.tag, 128, 68);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  tagTex.set(tier, t);
+  return t;
+}
+
+export function buildWristband(tier, ringR, { ry = ringR } = {}) {
+  const b = BANDS[tier];
+  const g = new THREE.Group();
+  if (!b) return g;
+  g.userData.bandTier = tier;
+  const R = ringR, sy = ry / ringR;
+  const bandW = R * 0.95;                    // along the forearm
+  const tex = bandTexture(tier);
+  tex.repeat.set(2, 1);
+  const mat = new THREE.MeshStandardMaterial({
+    map: tex, emissive: b.glow, emissiveMap: tex, emissiveIntensity: b.k, roughness: tier === 2 ? 0.55 : 0.4, metalness: 0.05,
+    side: THREE.DoubleSide,
+  });
+  // The strap: a short open tube round the wrist (Z), a little loose.
+  const strap = new THREE.Mesh(new THREE.CylinderGeometry(R * 1.12, R * 1.12, bandW, 40, 1, true), mat);
+  strap.rotation.x = Math.PI / 2;
+  strap.scale.z = sy;                        // the tube's local Z is the wrist's Y after the turn
+  g.add(strap);
+  // The snap on top: a little plate with the mark, the strap's ends tucked
+  // under it.
+  const top = ry * 1.12;
+  const plateW = R * (b.tag.length > 3 ? 1.5 : 1.05), plateL = bandW * 1.05, plateH = R * 0.16;
+  const plateMat = new THREE.MeshStandardMaterial({ color: b.tagBg, roughness: 0.3, metalness: tier === 1 ? 0.0 : 0.8, emissive: b.glow, emissiveIntensity: b.k * 0.25 });
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(plateW, plateH, plateL), plateMat);
+  plate.position.y = top + plateH / 2;
+  g.add(plate);
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(plateW * 0.94, plateL * 0.94),
+    new THREE.MeshStandardMaterial({ map: tagTexture(tier), emissive: 0xffffff, emissiveMap: tagTexture(tier), emissiveIntensity: b.k * 0.6, roughness: 0.35 }));
+  face.rotation.x = -Math.PI / 2;            // the mark reads round the wrist (X)
+  face.position.y = top + plateH + 0.0004;
+  g.add(face);
+  const mats = [mat, plateMat, face.material];
+  const base = mats.map((m) => m.emissiveIntensity);
+  g.userData.glow = (k) => mats.forEach((m, i) => { m.emissiveIntensity = base[i] * (1 + k * 4); });
+  g.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+  return g;
+}
+
 /* A flat picture of the watch for the Cosmetics card: band, case, bezel,
    the dial itself. Returns a data URL. */
 export function watchThumb(id) {
