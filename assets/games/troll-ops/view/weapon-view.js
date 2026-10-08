@@ -10,6 +10,7 @@ import { wristOf, buildWatch } from "../wristwear.js?v=ww1";
 import { cosmetics } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7d";
 import { soulBlazerReloadPose, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth, updateSoulBlazerView, soulBlazerInspect, SB_INSPECT_CUES } from "../soul-blazer.js?v=sb1";
 import { placePistolSlide } from "./pistol-action.js?v=ps1";
+import { placeBolt } from "./rifle-action.js?v=ra1";
 import { chargedShotDef } from "../weapons.js?v=p5bm-wst-hf1-fu1";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7";
 import { STANCE } from "../movement.js?v=umb2-sb2-gj1b7";
@@ -1277,6 +1278,9 @@ export function updateWeaponView(dt) {
       w.viewKickPitch += 0.012;
     }
   }
+  // A bolt rifle works its bolt after each shot (rifle-action.js).
+  const boltBeat = placeBolt(mesh, w, rl.magT ?? -1);
+  if (boltBeat) game.audio.boltBeat(boltBeat);
   updateGreenCandles(mesh, w, rl.magT ?? -1, dt);
   placeReloadShell(mesh, rl.shellT ?? -1, rl.portShell ?? -1);
   placePump(mesh, w, rl.rack ?? -1, rl.pumpBack ?? null);
