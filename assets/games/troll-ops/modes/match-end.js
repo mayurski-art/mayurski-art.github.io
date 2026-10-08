@@ -1,15 +1,15 @@
 // Troll Forces match end: the results screen, XP and medals, then the
 // between-match intermission and the map vote.
 
-import { cancelCook } from "../combat/throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2";
-import { xpForMatch, xpForRun, addXp } from "../progression.js?v=p5-wst-sb2-fu1";
-import { killstreakUi, achievements, clearStreakEntities } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2";
+import { cancelCook } from "../combat/throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2-wb1";
+import { xpForMatch, xpForRun, addXp } from "../progression.js?v=p5-wst-sb2-fu1-wb1";
+import { killstreakUi, achievements, clearStreakEntities } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1";
 import { medalSvg } from "../medals.js?v=to-medals3";
-import { royale, ordinal, teardownRoyale, updateRoyaleGear } from "./royale.js?v=md1-gj1-fu1b7b7dc2";
+import { royale, ordinal, teardownRoyale, updateRoyaleGear } from "./royale.js?v=md1-gj1-fu1b7b7dc2-wb1";
 import { recordMatch } from "../record.js?v=rec1";
-import { setHillMarker, setBombSiteMarkers } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2";
-import { scheduleSocialReturn } from "./social.js?v=so1-si1-mb1-gj1-if1-fu1b7b7dc1c2";
-import { setNetStatus } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2";
+import { setHillMarker, setBombSiteMarkers } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2-wb1";
+import { scheduleSocialReturn } from "./social.js?v=so1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1";
+import { setNetStatus } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1";
 import { MAP_IDS, MAPS } from "../maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2";
 import { mapShotAttrs } from "../map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1";
 import { game } from "../core/state.js?v=st1";

@@ -12,7 +12,7 @@
 // the optics in the photos were erased from the trace: those are
 // attachments here.
 
-import { buildTraced } from "./weapon-traced.js?v=tr1";
+import { buildTraced } from "./weapon-traced.js?v=tr1-wb1";
 
 const SPECS = {
   // MP7: the stubby receiver with its rail, the folded foregrip, the grip

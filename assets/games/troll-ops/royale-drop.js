@@ -21,7 +21,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { insidePolygon, clampInsidePolygon } from "./edge.js";
-import { rollGun, RARITIES, seededRng } from "./royale.js?v=p5-wst-bs1-sb2-fu1b7d";
+import { rollGun, RARITIES, seededRng } from "./royale.js?v=p5-wst-bs1-sb2-fu1b7d-wb1";
 import { loadModel } from "./battlefield-props.js";
 
 export const DROP = {

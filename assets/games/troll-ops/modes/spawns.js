@@ -1,13 +1,13 @@
 // Where people come in: spawn scoring (threats, sight lines, recent deaths,
 // teammates), each side's half, spreading spawns apart, and the range's bots.
 
-import { royaleDropView } from "./royale.js?v=md1-gj1-fu1b7b7dc2";
-import { look } from "../input/keyboard-mouse.js?v=km1-gj1-if1-fu1b7b7dec1c2";
+import { royaleDropView } from "./royale.js?v=md1-gj1-fu1b7b7dc2-wb1";
+import { look } from "../input/keyboard-mouse.js?v=km1-gj1-if1-fu1b7b7dec1c2-wb1";
 import * as THREE from "three";
 import { insidePolygon } from "../edge.js";
 import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";
-import { segmentBlocked } from "../ballistics.js?v=cg1-wst-hf1-fu1b7";
-import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2";
+import { segmentBlocked } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1";
+import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1";
 import { game } from "../core/state.js?v=st1";
 
 /* Everyone currently standing in the world, us included. Spawn scoring and

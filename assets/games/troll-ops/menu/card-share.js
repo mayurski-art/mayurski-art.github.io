@@ -5,7 +5,7 @@
 //
 // `d` is the card's data, the same shape renderCard() takes (profile-card.js).
 
-import { cardById, cleanClan } from "../calling-cards.js?v=p5-wst-sb2-fu1";
+import { cardById, cleanClan } from "../calling-cards.js?v=p5-wst-sb2-fu1-wb1";
 import { playerIconCanvas, prestigeName } from "../rank-icons.js?v=rk1";
 
 const GAME_URL = "https://trollrunner.net/troll-ops.html";
