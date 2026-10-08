@@ -470,5 +470,16 @@ function injectCss() {
 }
 
 if (new URLSearchParams(location.search).has("tohooks")) {
-  window.__trollClub = { club, T, BAND, answer: (yes) => ui.answer(yes), join: joinLine, leave: leaveLine, band: () => clubBand() };
+  window.__trollClub = {
+    club, T, BAND, answer: (yes) => ui.answer(yes), join: joinLine, leave: leaveLine, band: () => clubBand(),
+    // Other tests that need the club's floor: already through the door, banded.
+    pass() {
+      const i = club.queue.indexOf(ME);
+      if (i >= 0) club.queue.splice(i, 1);
+      if (bandNow() === BAND.none) { club.band = BAND.guest; club.room = roomKey(); }
+      ui.hideAll();
+      go("in");
+      club.lastOk.copy(game.move.pos);
+    },
+  };
 }
