@@ -2,19 +2,19 @@
 // the double-tap swivel, and posing our own body (updateLocalRig).
 
 import * as THREE from "three";
-import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7";
-import { currentWeapon } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2f1";
-import { stageFrozen, royaleSpectating, royaleRolling, royale, royaleRollK, royaleDropCode } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2f1";
+import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1";
+import { currentWeapon } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1";
+import { stageFrozen, royaleSpectating, royaleRolling, royale, royaleRollK, royaleDropCode } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1";
 import { STANCE } from "../movement.js?v=umb2-sb2-gj1b7";
-import { poseDeath, DEATH_TIME, aimRig, gaitPhaseRate, poseHumanoid, poseThrowArm, THROW_TIME, mountHeldWeapon } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1";
-import { STANCE_LOWER, rollRig, DROP_FALL, DROP_GLIDE, poseDrop, poseRope, ROPE_CLIMB_RATE } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2f1";
-import { emoteSeconds, poseEmoteCode, emoteCode, EMOTES } from "../emotes.js?v=hb4-em1-wst-soc1-ng1c2f1";
-import { seated, standUp, syncLocalDrink, piano } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2c3f1";
+import { poseDeath, DEATH_TIME, aimRig, gaitPhaseRate, poseHumanoid, poseThrowArm, THROW_TIME, mountHeldWeapon } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
+import { STANCE_LOWER, rollRig, DROP_FALL, DROP_GLIDE, poseDrop, poseRope, ROPE_CLIMB_RATE } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1";
+import { emoteSeconds, poseEmoteCode, emoteCode, EMOTES } from "../emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u";
+import { seated, standUp, syncLocalDrink, piano } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1";
 import { damp } from "../anim-curves.js";
-import { clubPoseLocal } from "../modes/club-entry.js?v=ce1c1c2c3f1";
-import { saberBlock, kbShield, saberParry, kbRepair, SLOW_IGNITE } from "../combat/melee.js?v=ml1-kc2-si1-gj1-fu1b7b7dc2f1";
+import { clubPoseLocal } from "../modes/club-entry.js?v=ce1c1c2-wb1m1u";
+import { saberBlock, kbShield, saberParry, kbRepair, SLOW_IGNITE } from "../combat/melee.js?v=ml1-kc2-si1-gj1-fu1b7b7dc2-wb1m1";
 import { posePianoArms, poseSeated } from "../rp-roles.js?v=rp1b7";
-import { stripLights, buildWeaponMesh } from "../weapon-model.js?v=p5-em1-wst-hf1";
+import { stripLights, buildWeaponMesh } from "../weapon-model.js?v=p5-em1-wst-hf1-wb1";
 import { buildMeleeMesh } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1";
 import { game } from "../core/state.js?v=st1";
 

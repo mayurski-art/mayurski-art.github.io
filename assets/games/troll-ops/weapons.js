@@ -219,24 +219,30 @@ export const WEAPON_DEFS = {
     model: { len: 0.47, stock: "folding", mag: "curved", barrel: 0.82 },
   }),
 
-  // ---------------- PDWs
-  smg: mk("pdw", {
-    id: "smg", name: "Grinder SMG", rank: 0, sight: "reddot",
-    rpm: 780, damage: 18,
-    blurb: "Fast fire, red dot, low recoil.",
-    model: { len: 0.44, stock: "folding", mag: "box", barrel: 0.75 },
+  // ---------------- PDWs: Black Ops 2's SMGs (weapon-smgs.js builds each from
+  // its traced side outline, model.build). Iron sights out of the box.
+  // MP7: the all-rounder, forty rounds, fast and tidy.
+  snicker: mk("pdw", {
+    id: "snicker", name: "MP7", rank: 0, sight: "iron",
+    rpm: 950, damage: 19, magSize: 40, reserveMax: 240, reloadTime: 2.3, tacReloadTime: 1.8,
+    blurb: "Forty rounds, fast and tidy.",
+    model: { len: 0.42, stock: "folding", mag: "box", build: "snicker" },
   }),
-  chuckle: mk("pdw", {
-    id: "chuckle", name: "Chuckle P90", rank: 14, sight: "reddot",
-    magSize: 50, rpm: 900, damage: 16, reloadTime: 2.4, spreadBase: 0.024,
-    blurb: "Fifty rounds of not aiming much.",
-    model: { len: 0.4, stock: "bullpup", mag: "topbox", barrel: 0.6 },
+  // Vector K10: the fastest thing on the rack, barely climbs, drains fast.
+  cope: mk("pdw", {
+    id: "cope", name: "Vector K10", rank: 14, sight: "iron",
+    rpm: 1090, damage: 16, magSize: 36, reserveMax: 216, reloadTime: 2.0, tacReloadTime: 1.6,
+    recoilKickPitch: 0.009, recoilKickYaw: 0.007, falloffEnd: 40,
+    blurb: "Empties before they blink.",
+    model: { len: 0.44, stock: "folding", mag: "long", build: "cope" },
   }),
-  smirk: mk("pdw", {
-    id: "smirk", name: "Smirk Vector", rank: 26, sight: "reddot",
-    rpm: 1200, damage: 15, magSize: 25, recoilKickPitch: 0.009,
-    blurb: "Empties itself if you blink.",
-    model: { len: 0.42, stock: "folding", mag: "long", barrel: 0.66 },
+  // PDW-57: fifty rounds on top, steadier and longer-reaching, slower.
+  seethe: mk("pdw", {
+    id: "seethe", name: "PDW-57", rank: 26, sight: "iron",
+    rpm: 750, damage: 21, magSize: 50, reserveMax: 250, reloadTime: 2.9, tacReloadTime: 2.3,
+    falloffStart: 20, falloffEnd: 56, recoilKickPitch: 0.012, spreadBase: 0.024,
+    blurb: "Fifty rounds on top. Take your time.",
+    model: { len: 0.4, stock: "bullpup", mag: "topbox", build: "seethe" },
   }),
 
   // ---------------- battle rifles / DMRs
@@ -272,24 +278,45 @@ export const WEAPON_DEFS = {
   }),
 
   // ---------------- snipers
+  // Black Ops 2's four snipers (weapon-snipers.js builds each from its
+  // traced side outline, model.build). All carry the variable-zoom scope by
+  // default; only scopes fit them (attachments.js CLASS_FIT).
+  // SVU-AS: semi-auto, ten rounds, two to the body, quick to the eye.
+  snort: mk("sniper", {
+    id: "snort", name: "Snort SVU", rank: 6, sight: "scope",
+    fireMode: "semi", rpm: 260, damage: 62, falloffMin: 0.8,
+    magSize: 10, reserveMax: 50, reloadTime: 2.4, tacReloadTime: 1.9,
+    recoilKickPitch: 0.05, recoilRecover: 7, adsTime: 0.27, spreadPerShot: 0.04,
+    blurb: "Ten rounds, no patience.",
+    model: { len: 0.9, stock: "fixed", mag: "box", build: "snort" },
+  }),
+  // DSR 50: the bolt-action one-shot, chest up at any range, slow bolt.
   deadpan: mk("sniper", {
-    id: "deadpan", name: "Deadpan 700", rank: 6, sight: "iron",
-    damage: 78, rpm: 55, magSize: 6,
+    id: "deadpan", name: "Deadpan DSR", rank: 16, sight: "scope",
+    damage: 110, falloffMin: 0.92, rpm: 42, pumpTime: 0.8,
+    magSize: 5, reserveMax: 30, reloadTime: 3.2, tacReloadTime: 2.6,
+    recoilKickPitch: 0.085, adsTime: 0.38, penetration: 3.0,
+    blurb: "Chest up, lights out. Takes its time.",
+    model: { len: 1.12, stock: "fixed", mag: "box", build: "deadpan" },
+  }),
+  // Ballista: the fast bolt, seven rounds, one-shots up close.
+  howl: mk("sniper", {
+    id: "howl", name: "Howl Ballista", rank: 28, sight: "scope",
+    damage: 100, falloffMin: 0.85, rpm: 58, pumpTime: 0.5,
+    magSize: 7, reserveMax: 35, reloadTime: 2.6, tacReloadTime: 2.1,
+    recoilKickPitch: 0.07, adsTime: 0.29,
     blurb: "Fast bolt. Bring headshots.",
-    model: { len: 0.74, stock: "fixed", mag: "none", barrel: 1.3, wood: true },
+    model: { len: 1.2, stock: "fixed", mag: "box", build: "howl" },
   }),
-  hush: mk("sniper", {
-    id: "hush", name: "Hush Intervention", rank: 22, sight: "iron",
-    damage: 95, rpm: 45, magSize: 7,
-    blurb: "Chest up, lights out.",
-    model: { len: 0.8, stock: "fixed", mag: "box", barrel: 1.35 },
-  }),
-  marksman: mk("sniper", {
-    id: "marksman", name: "Longsmile .50", rank: 40, sight: "iron",
-    damage: 110, rpm: 40, magSize: 5, muzzleVelocity: 950, penetration: 3.4,
-    recoilKickPitch: 0.09, adsTime: 0.4,
+  // XPR-50: the semi-auto .50, five rounds, punches through anything.
+  smug: mk("sniper", {
+    id: "smug", name: "Smug XPR", rank: 40, sight: "scope",
+    fireMode: "semi", rpm: 150, damage: 100, falloffMin: 0.9,
+    magSize: 5, reserveMax: 30, reloadTime: 3.0, tacReloadTime: 2.4,
+    recoilKickPitch: 0.11, recoilKickKnockback: 0.11, adsTime: 0.36,
+    muzzleVelocity: 950, penetration: 3.4,
     blurb: "One shot. Anywhere. Anything.",
-    model: { len: 0.86, stock: "fixed", mag: "box", barrel: 1.45, heavy: true },
+    model: { len: 1.35, stock: "fixed", mag: "box", build: "smug", heavy: true },
   }),
 
   // ---------------- LMGs
@@ -370,22 +397,38 @@ export const WEAPON_DEFS = {
   }),
 
   // ---------------- sidearms
-  pocketgrin: mk("sidearm", {
-    id: "pocketgrin", name: "Pocket Grin M9", rank: 0, sight: "iron",
-    blurb: "Always there. Never impressive.",
-    model: { len: 0.24, stock: "none", mag: "box", barrel: 0.5 },
+  // The FN Five-seveN (5.7x28): the starter. Twenty rounds, quick and flat,
+  // four to the body, and the little round goes through cover. The slide
+  // cycles every shot and locks back on the last round; an empty reload
+  // ends on the slide release (weapon-pistols.js builds it, model.build).
+  sixtynine: mk("sidearm", {
+    id: "sixtynine", name: "Sixty-Nine", rank: 0, sight: "iron",
+    damage: 30, falloffStart: 22, falloffEnd: 50, falloffMin: 0.6,
+    rpm: 480, magSize: 20, reserveMax: 100, reloadTime: 1.95, tacReloadTime: 1.5,
+    spreadBase: 0.026, spreadPerShot: 0.018, spreadMax: 0.13,
+    recoilKickPitch: 0.024, recoilKickYaw: 0.009, recoilRecover: 13, recoilKickKnockback: 0.016,
+    adsTime: 0.13, muzzleVelocity: 650, penetration: 1.2,
+    pistolSound: "fiveseven", slideCycle: 0.075, slideLock: true,
+    inspectTime: 3.4, inspectShowcase: true,
+    blurb: "Twenty rounds of nice.",
+    model: { len: 0.21, stock: "none", mag: "box", build: "sixtynine" },
   }),
-  widedeagle: mk("sidearm", {
-    id: "widedeagle", name: "Wide Deagle", rank: 9, sight: "iron",
-    damage: 55, rpm: 260, magSize: 7, recoilKickPitch: 0.06, recoilKickKnockback: 0.045,
-    blurb: "Two shots, and everyone heard both.",
-    model: { len: 0.28, stock: "none", mag: "box", barrel: 0.6, heavy: true },
-  }),
-  chortle: mk("sidearm", {
-    id: "chortle", name: "Chortle 18", rank: 20, sight: "iron",
-    fireMode: "auto", rpm: 1100, damage: 18, magSize: 17,
-    blurb: "A pistol with no self-control.",
-    model: { len: 0.25, stock: "none", mag: "long", barrel: 0.5 },
+  // Black Ops 2's KAP-40 (the KRISS KARD, made full auto): a .40 machine
+  // pistol, the Super-V block hanging under the barrel to soak the climb.
+  // Five to the body, gone in a second and a half. Its upper's rear half is
+  // the slide that cycles (weapon-pistols.js).
+  true69: mk("sidearm", {
+    id: "true69", name: "TRUE-69", rank: 15, sight: "iron",
+    fireMode: "auto", rpm: 750, damage: 24, falloffStart: 14, falloffEnd: 34, falloffMin: 0.5,
+    magSize: 20, reserveMax: 100, reloadTime: 2.1, tacReloadTime: 1.7,
+    spreadBase: 0.032, spreadAds: 0.012, spreadPerShot: 0.016, spreadMax: 0.15,
+    recoilKickPitch: 0.022, recoilKickYaw: 0.006, recoilKickYawRand: 0.016, recoilRecover: 11, recoilKickKnockback: 0.012,
+    shakeVert: 0.9, shakeJolt: 0.7,
+    adsTime: 0.15, muzzleVelocity: 400, penetration: 0.8,
+    pistolSound: "kap", slideCycle: 0.06, slideLock: true,
+    inspectTime: 3.4, inspectShowcase: true,
+    blurb: "Full auto. Fully committed.",
+    model: { len: 0.22, stock: "none", mag: "box", build: "true69" },
   }),
   // A pair of single-action revolvers, one in each hand (Troll City). Each
   // pull fires the next gun, right then left; twelve rounds is two
@@ -404,16 +447,6 @@ export const WEAPON_DEFS = {
     muzzleFlashScale: 1.1, muzzleColor: 0xffd890,
     blurb: "Two six-shooters, twelve problems. Aim fans the hammers.",
     model: { len: 0.3, stock: "none", mag: "none", barrel: 0.7 },
-  }),
-  // The Prestige 7 gun (prestige phase 5): a solid gold Wide Deagle with its
-  // own name. Same handling as the Deagle; the gold is the reward. Rank 69
-  // keeps it last in the list (anyone at Prestige 7 is past 69 anyway).
-  goldengrin: mk("sidearm", {
-    id: "goldengrin", name: "Golden Grin .50", rank: 69, prestige: 7, sight: "iron",
-    damage: 55, rpm: 260, magSize: 7, recoilKickPitch: 0.06, recoilKickKnockback: 0.045,
-    ownFinish: "goldgrin",
-    blurb: "Prestige 7. The same two shots, but everyone saw them coming.",
-    model: { len: 0.28, stock: "none", mag: "box", barrel: 0.6, heavy: true },
   }),
 };
 
@@ -455,6 +488,13 @@ export class WeaponState {
     this.viewKickYaw = 0;
     this.viewKickKnockback = 0;
     this.viewKickRoll = 0;
+    this.slideT = 0;            // a pistol's slide cycle after a shot (def.slideCycle), counts down
+  }
+
+  /* The slide is held back: the last round went and the gun has a lock
+     (def.slideLock). The reload's release (weapon-view.js) lets it go. */
+  get slideLocked() {
+    return !!this.def.slideLock && this.ammoInMag <= 0;
   }
 
   get fireInterval() { return 60 / this.def.rpm; }
@@ -490,7 +530,7 @@ export class WeaponState {
     // single highest-impact reload item. `wasEmpty` is read by the
     // viewmodel's reloadPose() to pick which stage timeline to play.
     this.reloadWasEmpty = this.ammoInMag <= 0;
-    this.reloadTime = this.def.reloadTime * (this.reloadWasEmpty ? 1 : 0.72);
+    this.reloadTime = this.reloadWasEmpty ? this.def.reloadTime : (this.def.tacReloadTime ?? this.def.reloadTime * 0.72);
     this.reloadT = this.reloadTime;
     return true;
   }
@@ -603,6 +643,7 @@ export class WeaponState {
       this.pumpT = this.pumpDur = this.def.pumpTime ?? (this.def.fireMode === "bolt" ? 0.55 : 0.4);
       if (this.def.fireMode === "pump" && this.ammoInMag > 0) this.events.push("pump");
     }
+    if (this.def.slideCycle) this.slideT = this.def.slideCycle;
     // Shouldering the weapon steadies it: aimed fire kicks less than hipfire.
     const steady = (1 - this.adsT * 0.35) * kick;
     const yawKick = ((Math.random() * 2 - 1) * this.def.recoilKickYawRand + this.def.recoilKickYaw) * steady;
@@ -623,6 +664,7 @@ export class WeaponState {
     const def = this.def;
     this.fireCooldown = Math.max(0, this.fireCooldown - dt);
     this.pumpT = Math.max(0, this.pumpT - dt);
+    this.slideT = Math.max(0, this.slideT - dt);
     this.cancelReloadIfDone(dt);
 
     // ADS blend

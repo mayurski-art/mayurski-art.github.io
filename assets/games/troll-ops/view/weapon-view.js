@@ -1,17 +1,20 @@
 // The gun in your hands each frame: sway, bob, landing dip, ADS, inspect,
 // reloads (mags, shells, pumps), the rod arms, the Soul Blazer and the laser.
 
-import { currentWeapon } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2f1";
+import { currentWeapon } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1";
 import { AKIMBO_INSPECT_TIME } from "../akimbo-view.js?v=ak1-wst";
 import * as THREE from "three";
 import { rise, smoothstep, damp } from "../anim-curves.js";
 import { handMaterials, inkOutline } from "../hand-model.js?v=to-grip2";
-import { wristOf, buildWatch, buildWristband } from "../wristwear.js?v=ww1c2";
-import { clubWear } from "../modes/club-wear.js?v=cw1c2";
-import { cosmetics } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2f1";
+import { wristOf, buildWatch, buildWristband } from "../wristwear.js?v=ww1c2m1";
+import { clubWear } from "../modes/club-wear.js?v=cw1c2m1";
+import { cosmetics } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1";
 import { soulBlazerReloadPose, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth, updateSoulBlazerView, soulBlazerInspect, SB_INSPECT_CUES } from "../soul-blazer.js?v=sb1";
-import { chargedShotDef } from "../weapons.js?v=p5bm-wst-hf1-fu1";
-import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7";
+import { placePistolSlide } from "./pistol-action.js?v=ps1-wb1";
+import { placeBolt } from "./rifle-action.js?v=ra1-wb1";
+import { updateSniperScope } from "./sniper-scope.js?v=ss1-wb1";
+import { chargedShotDef } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1";
+import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1";
 import { STANCE } from "../movement.js?v=umb2-sb2-gj1b7";
 import { game } from "../core/state.js?v=st1";
 
@@ -68,7 +71,8 @@ const SIDEARM_INSPECT_TIME = 2.2;
 const MELEE_INSPECT_TIME = 3.6;
 export let inspectDur = GUN_INSPECT_TIME;
 
-function isLongGunInspect(w) { return w.def.cls !== "sidearm"; }
+// A sidearm with def.inspectShowcase (the traced pistols) is admired side-on too.
+function isLongGunInspect(w) { return w.def.cls !== "sidearm" || !!w.def.inspectShowcase; }
 
 export function startInspect() {
   if (game.socialUnarmed()) return;
@@ -782,7 +786,9 @@ function reloadPose(w, mesh) {
   }
 
   if (reloadEventsFiredFor !== w) {
-    if (w.def.candleShot) game.audio.tankSwap(w.reloadTime); else game.audio.reload();
+    if (w.def.candleShot) game.audio.tankSwap(w.reloadTime);
+    else if (w.def.pistolSound) game.audio.pistolReload(w.reloadTime);
+    else game.audio.reload();
     reloadEventsFiredFor = w;
   }
 
@@ -1186,6 +1192,7 @@ export function updateWeaponView(dt) {
   // simply hidden, not touched, while holding === "streak").
   if (!game.saberArmsOn) pfArms.visible = false;   // posePfArms below re-shows them on a held gun
   // The streak device has its own arms (streakArms): the gun's rods go.
+  if (game.player.holding === "streak" || !mesh) { updateSniperScope(null, null, w, false, false); }
   if (game.player.holding === "streak") { pfArms.visible = false; return; }
   if (!mesh) return;
 
@@ -1294,6 +1301,18 @@ export function updateWeaponView(dt) {
     game.akimboShown = false;
   }
   placeReloadMag(mesh, rl.magT ?? -1);
+  // A pistol works its slide (pistol-action.js); the empty reload ends on
+  // the slide slamming home, with a little kick.
+  if (mesh.userData.pistolAction) {
+    const admire = game.inspectT > 0 && game.player.holding === "gun" ? inspectProgress() : -1;
+    if (placePistolSlide(mesh, w, rl.magT ?? -1, admire) === "release") {
+      game.audio.slideRelease();
+      w.viewKickPitch += 0.012;
+    }
+  }
+  // A bolt rifle works its bolt after each shot (rifle-action.js).
+  const boltBeat = placeBolt(mesh, w, rl.magT ?? -1);
+  if (boltBeat) game.audio.boltBeat(boltBeat);
   updateGreenCandles(mesh, w, rl.magT ?? -1, dt);
   placeReloadShell(mesh, rl.shellT ?? -1, rl.portShell ?? -1);
   placePump(mesh, w, rl.rack ?? -1, rl.pumpBack ?? null);
@@ -1304,6 +1323,9 @@ export function updateWeaponView(dt) {
   if (mesh.userData.sight) mesh.userData.sight.visible = true;
   fadeOpticGlass(mesh, adsSmoothT);
   updateLaserBeam(mesh, w);
+  // Scoped all the way in, a sniper scope takes the screen (sniper-scope.js).
+  updateSniperScope(mesh, pfArms, w, game.player.holding === "gun",
+    game.weaponRig.visible && !game.settings.thirdPerson && !game.emoteIsTp());
 
   if (game.muzzleFlashT > 0) {
     game.muzzleFlashT -= dt;

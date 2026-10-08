@@ -74,7 +74,7 @@ export const MODES = {
     short: "One in the Chamber",
     pvp: true, ffa: true,
     scoreLimit: 12,
-    weapon: "widedeagle",
+    weapon: "sixtynine",
     oneShot: true,
     // Both this and Gun Game are decided entirely by the weapon in your
     // hands, so a gunship overhead reads as broken rather than earned.
@@ -103,8 +103,8 @@ export const MODES = {
     short: "Gun Game",
     pvp: true, ffa: true,
     ladder: [
-      "pocketgrin", "smg", "snubgrin", "chuckle", "problem416",
-      "sneer", "shotgun", "bellow", "cackle", "deadpan", "widedeagle",
+      "sixtynine", "snicker", "snubgrin", "seethe", "problem416",
+      "sneer", "shotgun", "bellow", "cackle", "deadpan", "true69",
     ],
     noStreaks: true,   // see oitc
     noBotNades: true,

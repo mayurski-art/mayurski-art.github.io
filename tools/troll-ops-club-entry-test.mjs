@@ -173,7 +173,7 @@ await A.screenshot({ path: path.join(SHOTS, "5a-carried.png") });
 s = await until(A, (s) => s.kick > 5.1, 6000);
 check("tossed on your back by the curb, caption and stamp up", s.lie > 1.3 && s.z > 27 && /18/.test(s.cap) && s.stamp, JSON.stringify(s));
 await A.screenshot({ path: path.join(SHOTS, "5b-tossed.png") });
-s = await until(A, (s) => s.phase !== "kick", 6000);
+s = await until(A, (s) => s.phase !== "kick" && s.chip, 6000);   // (the chip is up the frame after)
 check("'No': out on the curb, locked out", s.phase === "lockout" && s.band === 0 && s.zone === "street" && /Bounced/.test(s.chip) && !s.cine, JSON.stringify(s));
 check("sat on the curb, eye low", s.sit > 0.5 && s.eyeY < 1.1 && s.lie === 0, JSON.stringify(s));
 await A.screenshot({ path: path.join(SHOTS, "5-bounced.png") });

@@ -477,6 +477,12 @@ Map rules:
 
 ## 5. Shipped log (one line each; details are in git)
 
+- **2026-10-08** (weapons batch, -wb1)
+  - Sidearms: Sixty-Nine (Five-seveN, rank 0 starter) and TRUE-69 (BO2 KAP-40, auto) replace the M9, Deagle, Chortle and Golden Grin; traced from photos (weapon-pistols.js), slides cycle/lock/release (view/pistol-action.js). Test: troll-ops-pistols-test.mjs.
+  - Snipers: BO2's SVU-AS, DSR 50, Ballista, XPR-50 as Snort SVU / Deadpan DSR / Howl Ballista / Smug XPR (weapon-snipers.js); bolts cycle (view/rifle-action.js, audio boltBeat); BO2 full-screen scope (view/sniper-scope.js). Test: troll-ops-snipers-test.mjs.
+  - SMGs: BO2's MP7, Vector K10, PDW-57 under their own names (weapon-smgs.js; ids snicker/cope/seethe), irons fold under glass. Test: troll-ops-smgs-test.mjs.
+  - Traced guns share weapon-traced.js (side outline from a reference -> extruded body, mag node, irons, attachments).
+  - Attachments fit by class, BO2 style (attachments.js CLASS_FIT): no dot on a sniper, no scope on a pistol, no ACOG on short guns; loadout and royale only offer what fits.
 - **2026-10-07**
   - Batch (11 asks, branch tf-grinjuku):
     - Bots hit 28/37/55% (recruit/regular/veteran); misses hit the wall behind you (combat/bot-fire.js botMissDistance).

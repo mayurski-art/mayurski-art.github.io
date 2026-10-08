@@ -2,10 +2,10 @@
 // direction arrows, wave banners, comic words and the streak HUD. Moved out
 // of game.js (split phase 1).
 
-import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2f1";
+import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1";
 import * as THREE from "three";
-import { flinchRigFrom } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1";
-import { streaksAllowed, STREAK_DEFS, streakBadgeSvg, streakShortName } from "../scorestreaks.js?v=umb1-wst-sb2-fu1";
+import { flinchRigFrom } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
+import { streaksAllowed, STREAK_DEFS, streakBadgeSvg, streakShortName } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1";
 import { game } from "./state.js?v=st1";
 
 

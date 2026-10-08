@@ -1,8 +1,8 @@
 // Troll Forces escape menu: the settings sliders, checks and selects (lobby
 // and pause copies kept in step) and the pause menu's player roster.
 
-import { settings, applySettings, saveSettings } from "./settings.js?v=ms1-gj1-fu1b7b7dc2f1";
-import { PAD_SENS_MULT, PAD_SENS_NAMES } from "../input/gamepad.js?v=in1-fu1b7";
+import { settings, applySettings, saveSettings } from "./settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1";
+import { PAD_SENS_MULT, PAD_SENS_NAMES } from "../input/gamepad.js?v=in1-fu1b7-wb1";
 import { game } from "../core/state.js?v=st1";
 
 function bindRange(id, key, outId, suffix = "") {

@@ -18,7 +18,7 @@
 // z swings the left arm out (the right arm out is negative z).
 
 import * as THREE from "three";
-import { DANCES, setHandPose, setFace, resetSecondaryJoints, reachHand } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1";
+import { DANCES, setHandPose, setFace, resetSecondaryJoints, reachHand } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
 import { LeanKit, LEAN, LEAN_SECONDS, leanFp } from "./lean-cup.js?v=ng1";
 
 const PI = Math.PI;

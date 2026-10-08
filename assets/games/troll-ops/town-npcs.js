@@ -25,10 +25,10 @@
 // their own.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, DANCES } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1";
+import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, DANCES } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
 import { buildDrink, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7";
-import { SmithWork } from "./smithy.js?v=sm1b7b7dc2f1";
-import { wearOutfit } from "./outfits.js?v=of1";
+import { SmithWork } from "./smithy.js?v=sm1b7b7dc2f1m1";
+import { wearOutfit } from "./outfits.js?v=of1m1";
 
 const WALK_MPS = 1.25;
 const NEAR = 40;     // full rate inside this

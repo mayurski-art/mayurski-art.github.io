@@ -2,13 +2,13 @@
 // emotes (pick one, hold X by a teammate, they hold X to accept).
 
 import { HAND_POSES } from "../hand-model.js?v=to-grip2";
-import { FP_HAND_POSES } from "../emotes.js?v=hb4-em1-wst-soc1-ng1c2f1";
-import { EmoteWheel, EMOTES } from "../emote-wheel.js?v=hb4-em1-wst-soc1c2f1";
+import { FP_HAND_POSES } from "../emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u";
+import { EmoteWheel, EMOTES } from "../emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u";
 import * as THREE from "three";
-import { segmentBlocked } from "../ballistics.js?v=cg1-wst-hf1-fu1b7";
-import { look, keys } from "../input/keyboard-mouse.js?v=km1-gj1-if1-fu1b7b7dec1c2c3f1";
+import { segmentBlocked } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1";
+import { look, keys } from "../input/keyboard-mouse.js?v=km1-gj1-if1-fu1b7b7dec1c2-wb1m1";
 import { touchState } from "../input/touch.js?v=in1";
-import { initMenuRoster } from "../menu/escape-menu.js?v=em1-gj1-fu1b7b7dc2f1";
+import { initMenuRoster } from "../menu/escape-menu.js?v=em1-gj1-fu1b7b7dc2-wb1m1";
 import { game } from "../core/state.js?v=st1";
 
 export let emoteWheel;

@@ -165,6 +165,7 @@ export class GameAudio {
     if (at && this._far(at, SHOT_CULL)) return;
     if (def.candleShot) { this.candleShot(def.chargeLevel || 0, volume, at); return; }
     if (def.revolver) { this.revolverShot(volume, at); return; }
+    if (def.pistolSound && !def.quiet) { this.pistolShot(def.pistolSound, volume, at); return; }
     if (def.hellfire && !def.quiet) this.hellfireShot(volume, at);   // and the boom below
     const heavy = Math.min(1, (def.damage * (def.pellets || 1)) / 90);
     const quiet = !!def.quiet;
@@ -319,6 +320,50 @@ export class GameAudio {
       this._tone({ freq: hz, to: hz * 0.985, duration: 0.18, gain: g * volume, type: "sine", delay: 0.004, at });
     }
     this._noise({ duration: 0.16, gain: 0.12 * volume, type: "lowpass", freq: 1500, sweepTo: 300, delay: 0.11, at });
+  }
+
+  /* The traced pistols (def.pistolSound). "fiveseven": the 5.7 mm's hard,
+     high, snappy supersonic crack with little boom under it and a short
+     ring. "kap": the .40's fuller pop with more chest, cut short, built to
+     sit inside a 750 rpm string without turning to mush. Both carry the
+     slide's clack a beat after the report. */
+  pistolShot(kind, volume = 1, at = null) {
+    if (!this._ready()) return;
+    if (kind === "fiveseven") {
+      this._noise({ duration: 0.022, gain: 0.5 * volume, type: "highpass", freq: 4200, at });
+      this._noise({ duration: 0.16, gain: 0.42 * volume, type: "bandpass", freq: 2600, q: 0.8, sweepTo: 700, at });
+      this._tone({ freq: 175, to: 55, duration: 0.14, gain: 0.2 * volume, type: "sine", at });
+      this._tone({ freq: 3100, to: 2900, duration: 0.07, gain: 0.03 * volume, type: "sine", delay: 0.004, at });
+      this._noise({ duration: 0.025, gain: 0.08 * volume, type: "bandpass", freq: 3000, q: 5, delay: 0.045, at });
+      this._noise({ duration: 0.28, gain: 0.08 * volume, type: "lowpass", freq: 1600, sweepTo: 300, delay: 0.05, at });
+    } else {
+      this._noise({ duration: 0.02, gain: 0.42 * volume, type: "highpass", freq: 3000, at });
+      this._noise({ duration: 0.12, gain: 0.46 * volume, type: "lowpass", freq: 2400, sweepTo: 260, at });
+      this._tone({ freq: 150, to: 48, duration: 0.13, gain: 0.3 * volume, type: "sine", at });
+      this._tone({ freq: 320, to: 110, duration: 0.05, gain: 0.12 * volume, type: "triangle", at });
+      this._noise({ duration: 0.02, gain: 0.07 * volume, type: "bandpass", freq: 2500, q: 5, delay: 0.035, at });
+      this._noise({ duration: 0.18, gain: 0.07 * volume, type: "lowpass", freq: 1100, sweepTo: 200, delay: 0.04, at });
+    }
+  }
+
+  /* The slide stop dropped on a fresh mag: the slide slams home. */
+  slideRelease() {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.025, gain: 0.22, type: "bandpass", freq: 3300, q: 5 });
+    this._noise({ duration: 0.06, gain: 0.15, type: "bandpass", freq: 1300, q: 3, delay: 0.008 });
+    this._tone({ freq: 4300, to: 4150, duration: 0.09, gain: 0.025, type: "sine", delay: 0.006 });
+  }
+
+  /* Pistol reload foley on the view model's beats (fractions of `time`):
+     the mag release and the mag sliding out, the fresh one in and slapped
+     home. An empty one ends on the slide release (weapon-view.js). */
+  pistolReload(time) {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.03, gain: 0.14, type: "bandpass", freq: 2400, q: 5, delay: time * 0.16 });
+    this._noise({ duration: 0.12, gain: 0.09, type: "bandpass", freq: 1500, q: 2, sweepTo: 900, delay: time * 0.2 });
+    this._noise({ duration: 0.1, gain: 0.1, type: "bandpass", freq: 1100, q: 2, sweepTo: 1700, delay: time * 0.5 });
+    this._noise({ duration: 0.05, gain: 0.2, type: "bandpass", freq: 800, q: 3, delay: time * 0.66 });
+    this._noise({ duration: 0.03, gain: 0.12, type: "bandpass", freq: 2200, q: 5, delay: time * 0.665 });
   }
 
   /* The hammer thumbed back: two quick clicks, the second brighter. */
@@ -831,6 +876,26 @@ export class GameAudio {
     if (!this._ready()) return;
     this._noise({ duration: 0.06, gain: 0.2, type: "bandpass", freq: 650, q: 2.5, sweepTo: 420, delay: dur * 0.36 });
     this._noise({ duration: 0.05, gain: 0.2, type: "bandpass", freq: 1400, q: 3, delay: dur * 0.78 });
+  }
+
+  /* A bolt rifle's cycle, one beat at a time on the view model's own
+     timeline (view/rifle-action.js): the handle lifts off its lug, the bolt
+     rakes back and spits the case, rides home, and the handle locks down. */
+  boltBeat(beat) {
+    if (!this._ready()) return;
+    if (beat === "lift") {
+      this._noise({ duration: 0.025, gain: 0.14, type: "bandpass", freq: 2100, q: 5 });
+    } else if (beat === "back") {
+      this._noise({ duration: 0.09, gain: 0.17, type: "bandpass", freq: 900, q: 2, sweepTo: 1500 });
+      this._noise({ duration: 0.03, gain: 0.16, type: "bandpass", freq: 2800, q: 5, delay: 0.07 });
+      this._tone({ freq: 2600, to: 2400, duration: 0.1, gain: 0.02, type: "sine", delay: 0.2 });
+    } else if (beat === "home") {
+      this._noise({ duration: 0.08, gain: 0.15, type: "bandpass", freq: 1500, q: 2, sweepTo: 800 });
+      this._noise({ duration: 0.03, gain: 0.18, type: "bandpass", freq: 1200, q: 4, delay: 0.06 });
+    } else if (beat === "lock") {
+      this._noise({ duration: 0.03, gain: 0.2, type: "bandpass", freq: 1700, q: 4 });
+      this._tone({ freq: 340, to: 220, duration: 0.05, gain: 0.08, type: "triangle" });
+    }
   }
 
   /* One shell thumbed into the tube: a short click-clack. */

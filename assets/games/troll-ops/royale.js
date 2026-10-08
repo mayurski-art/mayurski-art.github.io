@@ -14,16 +14,16 @@
 // zone maths, the loot tables and everything drawn for them.
 
 import * as THREE from "three";
-import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1-fu1";
-import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=p5-em1-wst-hf1";
-import { ATTACHMENTS, SLOTS, defaultLoadoutFor, resolveWeapon } from "./attachments.js?v=cg1-wst-sb2-fu1";
+import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1";
+import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=p5-em1-wst-hf1-wb1";
+import { SLOTS, defaultLoadoutFor, fitsFor, resolveWeapon } from "./attachments.js?v=cg1-wst-sb2-fu1-wb1";
 import { FlowField } from "./nav.js?v=ti1-bs1b7d";
 
 /* ---- tuning ------------------------------------------------------------ */
 
 export const ROYALE = {
   players: 10,            // the room is padded with bots up to this
-  startWeapon: "pocketgrin",
+  startWeapon: "sixtynine",
   maxArmor: 150,          // 3 plates
   plateHp: 50,
   carryPlates: 3,
@@ -210,18 +210,16 @@ export class ZoneVisual {
 /* ---- loot ---------------------------------------------------------------- */
 
 /* A gun def at a rarity: that many random attachments, never two in one
-   slot. Snipers always keep glass. */
+   slot, only parts that fit the gun's class (snipers keep glass). */
 export function rollGun(rng, rarityIdx, weaponId = null) {
   const ids = Object.keys(WEAPON_DEFS).filter((id) => !WEAPON_DEFS[id].hidden && !WEAPON_DEFS[id].prestige);   // prestige guns are earned, never looted
   const id = weaponId || ids[Math.floor(rng() * ids.length)];
   const att = { ...defaultLoadoutFor(id) };
-  if (WEAPON_DEFS[id].cls === "sniper") att.optic = "scope8";
   const slots = [...SLOTS];
   const want = RARITIES[rarityIdx].attachments;
   for (let n = 0; n < want && slots.length; n++) {
     const slot = slots.splice(Math.floor(rng() * slots.length), 1)[0];
-    const choices = Object.keys(ATTACHMENTS[slot]).filter((c) => c !== att[slot] && c !== "none" && c !== "standard" && c !== "iron");
-    if (slot === "optic" && WEAPON_DEFS[id].cls === "sniper") continue;
+    const choices = fitsFor(id, slot).filter((c) => c !== att[slot] && c !== "none" && c !== "standard" && c !== "iron");
     if (choices.length) att[slot] = choices[Math.floor(rng() * choices.length)];
   }
   return { id, att };

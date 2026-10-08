@@ -112,8 +112,9 @@ export const FINISHES = [
   { id: "darkmatter", name: "Dark Matter", finish: "darkmatter", prestige: 10, blurb: "Prestige 10. A slice of the void, still swirling." },
 ];
 
-/* Guns that wear their own finish and nothing else (the Prestige 7 gun). */
-export const OWN_FINISH = new Set(["goldengrin"]);
+/* Guns that wear their own finish and nothing else (none right now; the
+   Prestige 7 gold gun was retired). */
+export const OWN_FINISH = new Set();
 
 export const SKIN_BY_ID = Object.fromEntries([...SKINS, ...FINISHES].map((s) => [s.id, s]));
 

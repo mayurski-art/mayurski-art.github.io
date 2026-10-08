@@ -1,12 +1,12 @@
 // Troll Forces — loadout screen: class → weapon → attachments.
 
-import { WEAPON_DEFS, CLASS_ORDER, CLASS_LABELS, weaponsInClass } from "./weapons.js?v=p5bm-wst-hf1-fu1";
-import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, statBars, statDelta } from "./attachments.js?v=cg1-wst-sb2-fu1";
+import { WEAPON_DEFS, CLASS_ORDER, CLASS_LABELS, weaponsInClass } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1";
+import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, fits, fitLoadout, statBars, statDelta } from "./attachments.js?v=cg1-wst-sb2-fu1-wb1";
 import { iconFor } from "./attachment-icons.js";
-import { SKIN_BY_ID, skinsFor, skinThumbUrl } from "./skins.js?v=p5";
-import { getRank, getLevel, getPrestige, PRESTIGE_MASTER, isUnlocked, rankUnlocked, rankProgress, rankXpText, prestigeUnlocked } from "./progression.js?v=p5-wst-sb2-fu1";
+import { SKIN_BY_ID, skinsFor, skinThumbUrl } from "./skins.js?v=p5-wb1";
+import { getRank, getLevel, getPrestige, PRESTIGE_MASTER, isUnlocked, rankUnlocked, rankProgress, rankXpText, prestigeUnlocked } from "./progression.js?v=p5-wst-sb2-fu1-wb1";
 import { playerIconSvg } from "./rank-icons.js?v=rk1";
-import { MAPS, MAP_IDS, REWARD_MAPS, mapSchematic } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1";
+import { MAPS, MAP_IDS, REWARD_MAPS, mapSchematic } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u";
 import { MELEE_DEFS, MELEE_IDS, THROWABLE_DEFS, LETHAL_IDS, TACTICAL_IDS } from "./gear.js?v=to-hb1kb3-bk1-wst-ig1";
 
 const STORE = "trollops:loadout";
@@ -95,11 +95,11 @@ export class Loadout {
     this.attachmentsByWeapon = saved.attachments || {};
     this.weaponId = saved.weaponId && WEAPON_DEFS[saved.weaponId] ? saved.weaponId : "problem416";
     if (!isUnlocked(this.weaponId)) this.weaponId = "problem416";
-    // Secondary is always a sidearm - pocketgrin (rank 0) is the one every
+    // Secondary is always a sidearm - sixtynine (rank 0) is the one every
     // account has unlocked, same reasoning as the problem416 primary fallback.
     this.secondaryId = saved.secondaryId && WEAPON_DEFS[saved.secondaryId]?.cls === "sidearm"
-      ? saved.secondaryId : "pocketgrin";
-    if (!isUnlocked(this.secondaryId)) this.secondaryId = "pocketgrin";
+      ? saved.secondaryId : "sixtynine";
+    if (!isUnlocked(this.secondaryId)) this.secondaryId = "sixtynine";
     this.slot = "primary";   // which slot the class/weapon list below is editing
     this.cls = WEAPON_DEFS[this.weaponId].cls;
     this.mapId = MAPS[saved.mapId] ? saved.mapId : MAP_IDS[0];
@@ -140,6 +140,10 @@ export class Loadout {
   attachmentsFor(id) {
     if (!this.attachmentsByWeapon[id]) {
       this.attachmentsByWeapon[id] = defaultLoadoutFor(id);
+    } else {
+      // A save from before the class rules (a reflex on a sniper) gets the
+      // part swapped for one that fits, in place, so the screen shows it.
+      Object.assign(this.attachmentsByWeapon[id], fitLoadout(id, this.attachmentsByWeapon[id]));
     }
     return this.attachmentsByWeapon[id];
   }
@@ -520,6 +524,9 @@ export class Loadout {
     for (const slot of SLOTS) {
       for (const [key, entry] of Object.entries(this.slotButtons[slot])) {
         const { btn, delta, att } = entry;
+        // Only parts that fit this class are offered (attachments.js CLASS_FIT).
+        btn.hidden = !fits(this.activeId, slot, key);
+        if (btn.hidden) continue;
         const on = this.attachments[slot] === key;
         btn.classList.toggle("is-active", on);
         btn.setAttribute("aria-pressed", String(on));
