@@ -225,6 +225,8 @@ function bottleMat(gone) {
    stand}. `yaw` is the way you face sat down; `stand` is where you get up
    to, `out` metres in front of the seat. */
 const SEATS = [];
+/* The arm-wrestling table (modes/arm-wrestle.js): { x, z, top, seats: [a, b] }. */
+const ARM_TABLES = [];
 function seatAt(x, z, y, floor, yaw, kind, out = 0) {
   const sx = yaw == null ? x : x - Math.sin(yaw) * out, sz = yaw == null ? z : z - Math.cos(yaw) * out;
   SEATS.push({ x, z, y, floor, yaw, kind, stand: { x: sx, z: sz } });
@@ -830,7 +832,23 @@ function bar(K, M, N, S, lights) {
     K.cyl(M.gold, x, FL, z, 0.25, 0.25, 0.03, 12);
     K.cyl(M.chrome, x, FL, z, 0.04, 0.04, 1.02, 8);
     K.cyl(M.tableTop, x, FL + 1.02, z, 0.36, 0.36, 0.04, 16);
+    const first = SEATS.length;
     for (let k = 0; k < 2; k++) stool(K, M, x + (k ? 0.7 : -0.7), z);
+    if (x === 17.2 && z === 11) {
+      // the empty one by the coat check: arm wrestling. The stools face each other across it.
+      SEATS[first].yaw = -Math.PI / 2; SEATS[first + 1].yaw = Math.PI / 2;
+      ARM_TABLES.push({ x, z, top: FL + 1.06, seats: [first, first + 1] });
+      K.box(M.leather, x, FL + 1.06, z, 0.5, 0.02, 0.28);
+      N.add(M.neon, place(new THREE.TorusGeometry(0.37, 0.012, 4, 28), { x, y: FL + 1.065, z, rx: Math.PI / 2 }), { color: 0x3aff7a, k: 1.6, beat: 0.25 });
+      const card = texMat(canvasTex(256, 128, (g, w, h) => {
+    g.fillStyle = "#0c0b10"; g.fillRect(0, 0, w, h);
+    g.fillStyle = "#3aff7a"; g.textAlign = "center";
+    g.font = "bold 34px sans-serif"; g.fillText("ARM WRESTLE", w / 2, 56, w - 16);
+    g.font = "22px sans-serif"; g.fillText("winner stays", w / 2, 96, w - 16);
+  }), { rough: 0.6, emissive: 0xffffff, bounce: 0 });
+      card.emissiveMap = card.map; card.emissiveIntensity = 0.6;
+      for (const ry of [0, Math.PI]) K.add(card, place(new THREE.PlaneGeometry(0.26, 0.13), { x, y: FL + 1.15, z: z - 0.24 + (ry ? -0.03 : 0.03), ry, rx: ry ? 0.25 : -0.25 }), { shadow: false });
+    }
   }
   sign(S, N, M, "umad", B.x1 - T / 2 - 0.06, 5.7, 2, 1.6, { ry: -Math.PI / 2, group: 5, halo: 0xffa020 });
   sign(S, N, M, "bar", 22, 6.0, -9 + T / 2 + 0.04, 1.2, { group: 8, halo: 0xffa020 });
@@ -1359,6 +1377,7 @@ function facadeRow(K, M, N, S, z, o, R, plain = false) {
 function buildTrollingLoud(api) {
   ZSPAWNS.length = 0;
   SEATS.length = 0;
+  ARM_TABLES.length = 0;
   const S = newState();
   const root = new THREE.Group();
   api.prop(root);
@@ -1992,7 +2011,7 @@ export const TROLLINGLOUD = {
   // shadows (indoors under neon that casts none), drawn room by room
   // the kitchen's swing doors (view/swing-doors.js swings them)
   doors: () => ACTIVE?.doors ?? [],
-  rp: { npcs: () => clubNpcs(), seats: () => SEATS, beat: () => U.uBeatPos.value, npcShadows: false, view: CLUB_VIEW, door: { ...DOOR, zoneOf: entryZoneOf } },
+  rp: { npcs: () => clubNpcs(), seats: () => SEATS, arm: () => ARM_TABLES, beat: () => U.uBeatPos.value, npcShadows: false, view: CLUB_VIEW, door: { ...DOOR, zoneOf: entryZoneOf } },
   // for tools/troll-ops-trollingloud-test.mjs
   debug: () => ({
     active: !!ACTIVE, lights: ACTIVE?.lights.length ?? 0, ballBoost: ACTIVE?.ballBoost ?? 0,

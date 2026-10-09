@@ -75,6 +75,8 @@ const DOC = {
    (the way you face, camera convention; null = any), kind, stand: where
    you get up to }. Rebuilt with the map. */
 const SEATS = [];
+/* The arm-wrestling tables (modes/arm-wrestle.js): { x, z, top, seats: [a, b] }. */
+const ARM = [];
 function seatAt(x, z, y, floor, yaw, kind, out = 0) {
   const sx = yaw == null ? x : x - Math.sin(yaw) * out, sz = yaw == null ? z : z - Math.cos(yaw) * out;
   SEATS.push({ x, z, y, floor, yaw, kind, stand: { x: sx, z: sz } });
@@ -136,6 +138,31 @@ function tableSet(K, M, x, y, z, o = {}) {
   SURFACES.push({ x, z, y: y + 0.77, floor: y, r: o.r || 0.55 });
   // facing the table, not the chair's own jitter
   for (const s of tableSeats(x, y, z, o)) seatAt(s.x, s.z, s.y, y, Math.atan2(s.x - x, s.z - z), "chair");
+}
+
+/* A two-seater for arm wrestling: a chair either side (west and east, so
+   the pair face each other along x), a leather pad and two grip pegs on the
+   top, and a chalk card standing on it so folk find it. */
+function armTable(K, M, x, y, z) {
+  kitTableSet(K, M, x, y, z, { seed: 9, chairs: 0 });
+  SURFACES.push({ x, z, y: y + 0.77, floor: y, r: 0.55 });
+  const seats = [];
+  for (const s of [-1, 1]) {
+    // ry is the way the chair faces (0 = -z): the west one faces +x (-PI/2), the east one -x (PI/2)
+    kitChair(K, M, x + s * 0.74, y, z, { ry: s * Math.PI / 2 });
+    seats.push(SEATS.length);
+    seatAt(x + s * 0.74, z, y + 0.47, y, s * Math.PI / 2, "chair", 0.6);
+  }
+  ARM.push({ x, z, top: y + 0.77, seats });
+  K.box(M.leather, x, y + 0.77, z, 0.62, 0.02, 0.34);
+  for (const s of [-1, 1]) K.cyl(M.iron, x, y + 0.79, z + s * 0.22, 0.018, 0.018, 0.12, 8);   // a peg each side for the free hand
+  const card = texMat(canvasTex(256, 128, (g, w, h) => {
+    g.fillStyle = "#22282a"; g.fillRect(0, 0, w, h);
+    g.fillStyle = "#e8ece6"; g.textAlign = "center";
+    g.font = "bold 34px sans-serif"; g.fillText("ARM WRESTLING", w / 2, 56, w - 16);
+    g.font = "22px sans-serif"; g.fillText("winner stays", w / 2, 96, w - 16);
+  }), { rough: 0.9 });
+  for (const ry of [0, Math.PI]) K.add(card, place(new THREE.PlaneGeometry(0.3, 0.15), { x, y: y + 0.86, z: z - 0.42 + (ry ? -0.035 : 0.035), ry, rx: ry ? 0.25 : -0.25 }), { shadow: false });
 }
 
 const STAIR = { x: -22.1, zFoot: -11.0, w: 1.2, steps: 14, rise: (UPPER_Y - FLOOR) / 14, run: 0.3 };
@@ -756,7 +783,7 @@ function buildSaloon(K, M, lights) {
   tableSet(K, M, -18.5, Y, -12.9, { seed: 3 });
   tableSet(K, M, -12.4, Y, -13.0, { seed: 5, cards: true });
   tableSet(K, M, -17.6, Y, -15.9, { seed: 7, chairs: 3 });
-  tableSet(K, M, -10.3, Y, -15.5, { seed: 9 });   // back from the stage's step
+  armTable(K, M, -10.3, Y, -15.5);   // back from the stage's step: the arm-wrestling table
   // the timber posts holding the upstairs (ref: dark posts and rails)
   for (const [x, z] of [[-16.5, -14.4], [-11.5, -14.4]]) K.solid(x, z, 0.3, 0.3, S.h1 - Y, { y: Y, pen: 4, mat: M.trimDark });
   K.box(M.trimDark, -14, S.h1 - 0.3, -14.4, 13.6, 0.3, 0.3);
@@ -2106,6 +2133,7 @@ function buildTrollCity(api) {
   ZSPAWNS.length = 0;
   SEATS.length = 0;
   SURFACES.length = 0;
+  ARM.length = 0;
   Object.assign(SMITHY, { light: null, coal: null, glow: null });
   JAIL.cells.length = 0;
   const root = new THREE.Group();
@@ -2164,7 +2192,7 @@ export const TROLLCITY = {
   build: buildTrollCity,
   // Socialize roleplay spots (saloon-bar.js / game.js updateBar). Floor
   // heights are the saloon's ground floor.
-  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, conductor: CONDUCTOR, sheriff: SHERIFF, shop: SHOP, horses: () => RIDE, band: BAND, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
+  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, conductor: CONDUCTOR, sheriff: SHERIFF, band: BAND, shop: SHOP, horses: () => RIDE, arm: () => ARM, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
   // Team spawns: past the railway in the north, out on the plain south.
   spawns: [[-56, -46], [-46, -47.5], [-16, -47.8], [-2, -47.8], [8, -48], [18, -46.5], [50, -46], [58, -40],
     [-56, 46], [-44, 46.5], [-26, 45], [-12, 46], [0, 45.5], [14, 46], [28, 45], [40, 45.5]],

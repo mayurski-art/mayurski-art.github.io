@@ -97,7 +97,7 @@ export const rpExtras = [];
 export const rpListeners = [];
 /* ...and whether one has fire for itself right now (fists up in a fight:
    fire is a punch, not a sip or the piano). */
-export const rpBusy = { fists: false };
+export const rpBusy = { fists: false, arm: false };   // arm: at an arm-wrestling table, fire pushes (modes/arm-wrestle.js)
 /* On a horse (modes/social-horses.js sets it): the hands are on the reins. */
 export const rpRide = { on: false };
 /* Jobs that fill both hands (the band's guitar and trumpet: modes/
@@ -625,7 +625,7 @@ export function updateBar(dt) {
 
   // A sip: fire, one at a time. The drink goes down halfway through it.
   const fireNow = !game.localPauseOnly && !game.emoteWheel.isOpen && (game.mouseDown || (game.isTouch && touchState.firing) || (game.gamepadState.connected && game.gamepadState.firing));
-  if (rpBusy.fists) { /* fists up: fire is a punch (social-duel.js) */ }
+  if (rpBusy.fists || rpBusy.arm) { /* fists up: fire is a punch (social-duel.js), or a push (arm-wrestle.js) */ }
   else if (fireNow && !bar.fireWas && atPiano() && !piano.panel?.isOpen && game.player.alive) togglePiano();   // at the piano, fire plays
   else if (fireNow && !bar.fireWas && bar.drink?.sips > 0 && bar.sipT <= 0 && game.player.alive) {
     bar.sipT = SIP_TIME; bar.sipDone = false;

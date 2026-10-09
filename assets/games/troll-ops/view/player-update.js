@@ -56,6 +56,7 @@ import { updateScavenger } from "../combat/scavenger.js?v=sv1-cl1-bp1-fj1-zc1-zc
 import { updateEngineerMarks } from "./engineer-marks.js?v=en1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1";
 import { throwBusy } from "../combat/throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-em2-lh1-fg2";
 import { updateSwingDoors } from "./swing-doors.js?v=sd1";
+import { updateArmWrestle, awHolds, awHold } from "../modes/arm-wrestle.js?v=aw1";
 
 /* Last value written to each per-frame HUD node. The DOM write itself is
    cheap, but it was unconditional — every one of these touched layout/paint
@@ -214,6 +215,7 @@ export function updatePlayer(dt) {
   else if (game.isSocial() && clubHolds()) clubHold(dt);   // in the club's line, or walked in by the door
   else if (game.isSocial() && jailHolds()) jailHold(dt);   // walked into a cell by the sheriff
   else if (game.isSocial() && sheriffHolds()) sheriffHold(dt);   // cuffed on the leash, or the town's arrest
+  else if (game.isSocial() && awHolds()) awHold(dt, !frozen && ((game.isTouch && (touchState.jump || touchState.crouch)) || (gp && (game.gamepadState.jump || game.gamepadState.crouch)) || game.keys.has("Space") || game.keys.has("KeyC")));   // mid-bout at an arm-wrestling table
   else if (seated && game.isSocial()) holdSeat(dt, ix, iz, !frozen && ((game.isTouch && touchState.jump) || (gp && game.gamepadState.jump) || game.keys.has("Space") || game.keys.has("KeyC")));
   else game.move.update(dt, {
     forward: iz,
@@ -240,7 +242,7 @@ export function updatePlayer(dt) {
 
   // fist fights with the townsfolk (Socialize): after we've moved, so a
   // bump reads our speed and a knock-down holds us where we fell
-  if (game.isSocial()) { duelFire(); updateDuel(dt); updateClubEntry(dt); updateConductor(); updateSheriff(dt); updateShop(); updateHorses(dt); updateBand(dt); }
+  if (game.isSocial()) { duelFire(); updateDuel(dt); updateClubEntry(dt); updateConductor(); updateSheriff(dt); updateBand(dt); updateShop(); updateHorses(dt); updateArmWrestle(dt); }
 
   updateSwivel(dt);
   updateSwingDoors(dt);   // a map's swing doors (Trolling Loud's kitchen)
