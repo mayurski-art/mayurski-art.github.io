@@ -26,7 +26,7 @@ Open: watch spawn S3 (0, -33) in playtests; the loading dock sits on the wall-st
 Any later Dust Bowl edit holds to: bounds, spawns and the perimeter collider unchanged; nothing solid within 3 m of the S&D sites, which must stay at A (14.48, -18.21) and B (14.37, 14.24); all 15 dustbowl walk routes passing; the five 45 m+ east-west lines in the north half kept open (z -34.3 to -33, -29.3, -26.7, -18.8 to -15.5, -15 to -12); frame rate checked with tools/troll-ops-map-fps.mjs against a worktree of main. Every solid piece is a collider in maps.js plus the matching mesh in models/build_dustbowl.blender.py, sized from the same numbers.
 
 ### Troll City roleplay, phase 2b-2d (Socialize, Troll City only): IN PROGRESS
-Approved 2026-10-09: **`TROLL-CITY-RP2.md`** (the design: decisions, per-phase plans, tests). Order: 0 groundwork + 2d conductor (synced train) → 2b sheriff + jail → 2c merchant + rideable horses (~28 h, ~8 sessions). Each phase ships alone: targeted test, one gate, push.
+Approved 2026-10-09: **`TROLL-CITY-RP2.md`** (the design: decisions, per-phase plans, tests). Done: 0 groundwork, 2d conductor, 2b sheriff. Next: 2c merchant + rideable horses (~28 h, ~8 sessions). Each phase ships alone: targeted test, one gate, push.
 - **Not yet checked by eye:** 2a's seated bodies and the pianist's hands. Look in game before building on them.
 
 Follow the 2a pattern:
@@ -485,6 +485,7 @@ Map rules:
 ## 5. Shipped log (one line each; details are in git)
 
 - **2026-10-09** RP phase 2d, the conductor (-cd1, TROLL-CITY-RP2.md): `modes/room-clock.js` (the room's oldest player says the time in any Socialize room; the Grin Express runs on it, so skewed devices agree), riders' car-local spot on the wire (`tc`, `peerPlacers` in remote-players.js), `modes/social-conductor.js` (cap stand on the platform, all-aboard hold once a stop, cab whistle, ticket punch, role-gated), the conductor's cap (outfits.js `wearJobHat`). rp messages now reach every rpListener (not only `duel`). Test: conductor-test.
+- **2026-10-09** RP phase 2b, the sheriff (-sh1, TROLL-CITY-RP2.md): `modes/social-sheriff.js` (badge on the courthouse desk, stetson, cuff + leash, lock up at a cell door, wanted board with players' posters; owner immune, 2 min cooldown, 60 s max), `modes/social-jail.js` (doors derived from everyone's `jl`, the back-corner walk-out fixed), the town's arrest for a refused fist fight is now a scene (`view/arrest-cine.js`: cuffs on, fade, wake on the cot). Wire: cf / jl / wl. Job modules are never imported by third-person or buttons (import loop through social-rp). Tests: sheriff-test, duel-test.
 
 - **2026-10-09** Club entry phase 5 (-ce5): the 18+ question answers on a pad (A Yeah, B No; an A/B already down when it opens doesn't count), keycaps read 1/2, A/B or nothing (touch), touch gets two big opaque buttons; the line chips name the right hold (X, D-pad →, or the Leave/Line context button). `T.minAhead` (tests use 3). Test: club-entry-test sections 4 (pad) and 5 (phone).
 

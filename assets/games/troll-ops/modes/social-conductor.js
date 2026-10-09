@@ -11,13 +11,13 @@
 // screen has the train in the same place. Only a conductor's calls count.
 
 import { game } from "../core/state.js?v=st1";
-import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
-import { bar, otherWithRole, rpExtras, rpListeners, setBarRole } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1";
-import { peerPosers } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
+import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
+import { bar, otherWithRole, rpExtras, rpListeners, setBarRole } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1";
+import { peerPosers } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
 import { TRAIN } from "../train.js?v=tr1b7";
-import { bell, ride, trainOf, whistle } from "./social-train.js?v=st1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
-import { applyHold, clock, onClockMessage, roomNow, updateRoomClock } from "./room-clock.js?v=rc1-cd1";
-import { wearJobHat } from "../outfits.js?v=of1m1-nc1-cd1";
+import { bell, ride, trainOf, whistle } from "./social-train.js?v=st1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
+import { applyHold, clock, onClockMessage, roomNow, updateRoomClock } from "./room-clock.js?v=rc1-cd1-sh1";
+import { wearJobHat } from "../outfits.js?v=of1m1-nc1-cd1-sh1";
 
 export const CONDUCTOR = {
   capTime: 0.6,       // hold X at the stand: take the cap, or hang it up

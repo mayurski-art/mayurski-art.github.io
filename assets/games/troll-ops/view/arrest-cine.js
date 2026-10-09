@@ -12,7 +12,7 @@
 
 import * as THREE from "three";
 import { arrestCine, npcName, SHERIFF } from "../modes/social-sheriff.js?v=sh1";
-import { cellsOf } from "../modes/social-jail.js?v=sj1";
+import { cellsOf } from "../modes/social-jail.js?v=sj1-sh1";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2";
 import { game } from "../core/state.js?v=st1";
 

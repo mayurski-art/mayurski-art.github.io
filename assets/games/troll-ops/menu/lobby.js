@@ -6,17 +6,17 @@ import { CharacterInspector } from "../char-inspector.js?v=hb4-wst-soc1-sb2c2-wb
 import { CosmeticsPanel, loadCosmetics } from "../cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u";
 import { EmoteWheel } from "../emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u";
 import { padEmotePressed } from "../controller-layout.js?v=cl7";
-import { streakPicker } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
+import { streakPicker } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
 import { withClan, getMyCard } from "../calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2";
 import { safeUid } from "../chat.js?v=to-social1";
 import { syncXp } from "../progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2";
 import { renderModes, buildModeButtons } from "./mode-picker.js?v=mp1-fu1b7b7d-wb1-ar1-ar2";
 import { HERO_IDS, HEROES, saveHero, savedHero } from "../heroes.js?v=umb2";
-import { heroKit, heroActive } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
-import { SETTINGS_KEY, settings, applySettings } from "./settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
-import { BOT_STREAK_KEY } from "../streaks/bot-streaks.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
+import { heroKit, heroActive } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
+import { SETTINGS_KEY, settings, applySettings } from "./settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
+import { BOT_STREAK_KEY } from "../streaks/bot-streaks.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
 import { initCloudSave } from "../cloud-save.js?v=cs1b7";
-import { makeRoomCode } from "../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1";
+import { makeRoomCode } from "../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1";
 import { game } from "../core/state.js?v=st1";
 
 // The tab bar across the top swaps what's under it. "deploy" is the Play

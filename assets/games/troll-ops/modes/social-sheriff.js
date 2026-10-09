@@ -19,15 +19,15 @@
 
 import * as THREE from "three";
 import { game } from "../core/state.js?v=st1";
-import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
-import { bar, otherWithRole, putDownDrink, seated, standUp, rpExtras, rpListeners, rpNearestPlayer, setBarRole } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1";
-import { peerPosers } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
+import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
+import { bar, otherWithRole, putDownDrink, seated, standUp, rpExtras, rpListeners, rpNearestPlayer, setBarRole } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1";
+import { peerPosers } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
 import { reachHand, setHandPose } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
-import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1";
-import { playerName } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
-import { wantedPoster } from "../trollcity-kit.js?v=tc2-wst-tc3";
-import { localPosers } from "../view/third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1";
-import { cellsOf, freeMe, inJail, jailCooling, jailMe, jailed, updateJail } from "./social-jail.js?v=sj1";
+import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1";
+import { playerName } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
+import { wantedPoster } from "../trollcity-kit.js?v=tc2-wst-tc3-sh1";
+import { localPosers } from "../view/third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1";
+import { cellsOf, freeMe, inJail, jailCooling, jailMe, jailed, updateJail } from "./social-jail.js?v=sj1-sh1";
 
 export const SHERIFF = {
   badgeTime: 0.6, cuffTime: 1.0, uncuffTime: 0.6, lockTime: 0.8, boardTime: 0.5,

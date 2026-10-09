@@ -33,7 +33,7 @@ import {
   wheel, wagon, horse, cactus, steerSkull, rock,
   tableSet as kitTableSet, chair as kitChair, stool as kitStool, piano as kitPiano,
   chandelier, sconce, railFence, picketFence, hayBale, log, coffin, framedPicture, artTexture,
-} from "./trollcity-kit.js?v=tc2-wst-tc3";
+} from "./trollcity-kit.js?v=tc2-wst-tc3-sh1";
 import { LoopPath, Train } from "./train.js?v=tr1b7";
 
 const BOUNDS = { minX: -62, maxX: 62, minZ: -50, maxZ: 50 };
