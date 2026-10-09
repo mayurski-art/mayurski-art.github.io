@@ -15,6 +15,12 @@ import { reachHand, setHandPose } from "./character.js?v=to-hb4-em1-fc1-wst-soc1
 
 export const BEER_SIPS = 4;
 export const WHISKEY_SIPS = 1;
+// Kek & Sons' goods (modes/social-shop.js) ride the drink's hand and wire too
+export const CANTEEN_SIPS = 6;
+export const APPLE_BITES = 3;
+export const DRINK_KINDS = new Set(["beer", "whiskey", "canteen", "apple"]);
+/* Only the saloon's own make you tipsy. */
+export const isLiquor = (kind) => kind === "beer" || kind === "whiskey";
 export const GRAB_TIME = 0.35;            // hold X at the rack for a mug
 export const FILL_TIME = 2.0;             // hold X at a tap, empty to full
 export const FILL_TIME_BARTENDER = 0.8;   // the bartender pours faster
@@ -37,16 +43,17 @@ export const TIPSY = {
 /* The drink on the wire (state `dk`): 0 nothing, otherwise kind * 10 +
    sips left, kind 1 beer, 2 whiskey. Beer with 0 sips left is an empty
    mug (10). */
+const KIND_CODE = { beer: 10, whiskey: 20, canteen: 30, apple: 40 };
 export function drinkCode(d) {
   if (!d) return 0;
-  return (d.kind === "whiskey" ? 20 : 10) + Math.max(0, Math.min(9, d.sips | 0));
+  return (KIND_CODE[d.kind] || 10) + Math.max(0, Math.min(9, d.sips | 0));
 }
 export function drinkFromCode(c) {
   c |= 0;
-  if (c < 10 || c >= 30) return null;
-  return { kind: c >= 20 ? "whiskey" : "beer", sips: c % 10 };
+  if (c < 10 || c >= 50) return null;
+  return { kind: ["beer", "whiskey", "canteen", "apple"][Math.floor(c / 10) - 1], sips: c % 10 };
 }
-export function drinkMax(kind) { return kind === "whiskey" ? WHISKEY_SIPS : BEER_SIPS; }
+export function drinkMax(kind) { return kind === "whiskey" ? WHISKEY_SIPS : kind === "canteen" ? CANTEEN_SIPS : kind === "apple" ? APPLE_BITES : BEER_SIPS; }
 
 /* ------------------------------------------------------------- the models */
 
@@ -58,6 +65,8 @@ const WHISKEY = new THREE.MeshStandardMaterial({ color: 0x9a4a12, roughness: 0.2
 /* A beer mug or a shot glass, base at the origin, standing up +Y. The
    handle sticks out along +X. `setSips(n)` sets how full it looks. */
 export function buildDrink(kind = "beer") {
+  if (kind === "canteen") return buildCanteen();
+  if (kind === "apple") return buildApple();
   const g = new THREE.Group();
   const whiskey = kind === "whiskey";
   const r = whiskey ? 0.024 : 0.042, h = whiskey ? 0.055 : 0.115;
@@ -91,6 +100,57 @@ export function buildDrink(kind = "beer") {
     if (foam) { foam.visible = k > 0; foam.position.y = top + 0.006; }
   };
   g.userData.setSips(max);
+  g.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+  return g;
+}
+
+/* Kek & Sons' tin canteen: a flat round flask on its edge, a cap, a strap
+   loop. Held like a mug (its "radius" is its half-thickness to the palm). */
+const TIN = new THREE.MeshStandardMaterial({ color: 0x9aa3a6, roughness: 0.45, metalness: 0.6 });
+const CANVAS = new THREE.MeshStandardMaterial({ color: 0x8a7350, roughness: 0.95 });
+function buildCanteen() {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, 0.038, 18), TIN);
+  body.rotation.z = Math.PI / 2;
+  body.position.y = 0.07;
+  g.add(body);
+  const cover = new THREE.Mesh(new THREE.CylinderGeometry(0.067, 0.067, 0.03, 18), CANVAS);   // the felt cover round it
+  cover.rotation.z = Math.PI / 2;
+  cover.position.y = 0.07;
+  cover.scale.set(1, 0.6, 1);
+  g.add(cover);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.03, 10), TIN);
+  neck.position.y = 0.145;
+  g.add(neck);
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.014, 10), CANVAS);
+  cap.position.y = 0.165;
+  g.add(cap);
+  g.userData.kind = "canteen";
+  g.userData.height = 0.17;
+  g.userData.radius = 0.03;
+  g.userData.setSips = () => {};
+  g.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+  return g;
+}
+/* An apple off the barrel: it gets smaller a bite at a time. */
+const APPLE = new THREE.MeshStandardMaterial({ color: 0xc0262a, roughness: 0.45 });
+const STEM = new THREE.MeshStandardMaterial({ color: 0x4a2e12, roughness: 0.9 });
+function buildApple() {
+  const g = new THREE.Group();
+  const fruit = new THREE.Mesh(new THREE.SphereGeometry(0.042, 14, 10), APPLE);
+  fruit.position.y = 0.042;
+  fruit.scale.y = 0.9;
+  g.add(fruit);
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.004, 0.022, 5), STEM);
+  stem.position.y = 0.088;
+  g.add(stem);
+  g.userData.kind = "apple";
+  g.userData.height = 0.09;
+  g.userData.radius = 0.042;
+  g.userData.setSips = (bites) => {
+    const k = 0.45 + 0.55 * Math.max(0, Math.min(1, bites / APPLE_BITES));
+    fruit.scale.set(k, 0.9 * (0.6 + 0.4 * k), k);
+  };
   g.traverse((o) => { if (o.isMesh) o.castShadow = false; });
   return g;
 }

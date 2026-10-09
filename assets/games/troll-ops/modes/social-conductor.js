@@ -17,7 +17,7 @@ import { peerPosers } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-
 import { TRAIN } from "../train.js?v=tr1b7";
 import { bell, ride, trainOf, whistle } from "./social-train.js?v=st1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2";
 import { applyHold, clock, onClockMessage, roomNow, updateRoomClock } from "./room-clock.js?v=rc1-cd1-sh1";
-import { wearJobHat } from "../outfits.js?v=of1m1-nc1-cd1-sh1";
+import { hatFor, wearJobHat } from "../outfits.js?v=of1m1-nc1-cd1-sh1";
 
 export const CONDUCTOR = {
   capTime: 0.6,       // hold X at the stand: take the cap, or hang it up
@@ -146,7 +146,7 @@ export function updateConductor() {
   updateRoomClock();
   if (!S) { if (bar.role === "conductor") setBarRole(null, null); return; }
   const mine = bar.role === "conductor";
-  wearJobHat(game.localRig, bar.role);   // a job's hat, whatever the job (outfits.js JOB_HATS)
+  wearJobHat(game.localRig, hatFor(bar.role, bar.stetson));   // a job's hat, whatever the job (outfits.js JOB_HATS), else a bought stetson
   const worn = mine || !!otherWithRole("conductor");
   S.setCap(!worn);
 }
@@ -154,7 +154,7 @@ export function updateConductor() {
 rpExtras.push(conductorAction);
 rpListeners.push(onMessage);
 // Everyone else's job hat (the conductor's cap, the sheriff's hat), on their head.
-peerPosers.push((rp) => wearJobHat(rp.rig, game.isSocial() ? rp.peer?.role : null));
+peerPosers.push((rp) => wearJobHat(rp.rig, game.isSocial() ? hatFor(rp.peer?.role, rp.peer?.stetson) : null));
 
 if (new URLSearchParams(location.search).has("tohooks")) {
   window.__trollConductor = { CONDUCTOR, cond, clock, holdable: () => holdable(trainOf()), roomNow };

@@ -12,7 +12,7 @@
    Fire sips, G puts it down. Sips make you tipsy (saloon-bar.js tipsyFx).
    What's in your hand, a sip, and the role ride the state packet. */
 
-import { REACH, GRAB_TIME, BEER_SIPS, FILL_TIME_BARTENDER, FILL_TIME, APRON_TIME, POUR_TIME, OFFER_SECONDS, TIPSY, drinkMax, SIP_TIME, tipsyFx, BARTENDER_LEAVE_SECONDS, buildDrink, mountDrink, poseDrinkArm, placeDrinkInHand, PourFx } from "../saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10";
+import { REACH, GRAB_TIME, BEER_SIPS, FILL_TIME_BARTENDER, FILL_TIME, APRON_TIME, POUR_TIME, OFFER_SECONDS, TIPSY, drinkMax, DRINK_KINDS, isLiquor, SIP_TIME, tipsyFx, BARTENDER_LEAVE_SECONDS, buildDrink, mountDrink, poseDrinkArm, placeDrinkInHand, PourFx } from "../saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10";
 import * as THREE from "three";
 import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2";
 import { playerName } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2";
@@ -63,7 +63,7 @@ function barInside(B) {
   const z = B.zone;
   return game.move.pos.x > z.x0 && game.move.pos.x < z.x1 && game.move.pos.z > z.z0 && game.move.pos.z < z.z1;
 }
-const drinkName = (kind) => (kind === "whiskey" ? "whiskey" : "beer");
+const drinkName = (kind) => (DRINK_KINDS.has(kind) ? kind : "beer");
 /* Someone else holding a job (the apron, the piano, the doctor's bag), who
    keeps it if we both took it at once: whoever joined the room first
    (lowest id on a tie). */
@@ -168,7 +168,7 @@ function barAction(B) {
     const si = seated ? -1 : nearestSeat();
     const seatD = si >= 0 ? Math.hypot(rpSeats()[si].x - game.move.pos.x, rpSeats()[si].z - game.move.pos.z) : Infinity;
     if (spot && spot.d <= seatD) {
-      return { key: "setmug", label: `Set your ${bar.drink.kind === "whiskey" ? "glass" : "mug"} down`, ctx: "Set", time: 0.3,
+      return { key: "setmug", label: `Set your ${bar.drink.kind === "whiskey" ? "glass" : bar.drink.kind === "beer" ? "mug" : drinkName(bar.drink.kind)} down`, ctx: "Set", time: 0.3,
         done: () => setMugDown(spot) };
     }
   }
@@ -555,7 +555,7 @@ export function onBarMessage(p, m) {
   if (m.k === "mug") {
     const id = String(m.id || "").slice(0, 48), n = (v) => Number.isFinite(+v);
     if (!id || !n(m.x) || !n(m.y) || !n(m.z)) return;
-    const kind = m.kind === "whiskey" ? "whiskey" : "beer";
+    const kind = DRINK_KINDS.has(m.kind) ? m.kind : "beer";
     addMug({ id, x: +m.x, y: +m.y, z: +m.z, kind, sips: Math.max(0, Math.min(drinkMax(kind), m.sips | 0)) });
     return;
   }
@@ -577,7 +577,7 @@ export function onBarMessage(p, m) {
   }
   if (m.k === "offer") {
     if (bar.drink) return;
-    const kind = m.kind === "whiskey" ? "whiskey" : "beer";
+    const kind = DRINK_KINDS.has(m.kind) ? m.kind : "beer";
     bar.offer = { from: p.id, name: p.name || "someone", kind, sips: Math.max(1, Math.min(drinkMax(kind), m.sips | 0)), until: now + OFFER_SECONDS * 1000 };
     showWaveBanner(`${bar.offer.name} offers you a ${drinkName(kind)}: hold X by them`, 2600);
   } else if (m.k === "take") {
@@ -588,7 +588,7 @@ export function onBarMessage(p, m) {
     game.net.publishRp({ k: "give", to: p.id, kind: d.kind, sips: d.sips });
   } else if (m.k === "give") {
     if (!bar.offer || bar.offer.from !== p.id || bar.drink) return;
-    const kind = m.kind === "whiskey" ? "whiskey" : "beer";
+    const kind = DRINK_KINDS.has(m.kind) ? m.kind : "beer";
     bar.drink = { kind, sips: Math.max(0, Math.min(drinkMax(kind), m.sips | 0)) };
     bar.offer = null;
     game.audio.brassTinkle?.(4);
@@ -617,8 +617,10 @@ export function updateBar(dt) {
     if (!bar.sipDone && bar.sipT <= SIP_TIME / 2 && bar.drink) {
       bar.sipDone = true;
       bar.drink.sips = Math.max(0, bar.drink.sips - 1);
-      bar.tipsy = Math.min(TIPSY.max + 1, bar.tipsy + (bar.drink.kind === "whiskey" ? TIPSY.perShot : TIPSY.perBeerSip));
+      if (isLiquor(bar.drink.kind)) bar.tipsy = Math.min(TIPSY.max + 1, bar.tipsy + (bar.drink.kind === "whiskey" ? TIPSY.perShot : TIPSY.perBeerSip));
       if (!bar.drink.sips && bar.drink.kind === "whiskey") bar.drink = null;   // the shot glass goes back
+      else if (!bar.drink.sips && bar.drink.kind === "apple") { bar.drink = null; showWaveBanner("Core and all", 1200); }
+      else if (!bar.drink.sips && bar.drink.kind === "canteen") { bar.drink = null; showWaveBanner("The canteen's dry. Kek's has more", 1600); }
       else if (!bar.drink.sips) showWaveBanner("Empty. Fill it again at a tap", 1400);
     }
   }

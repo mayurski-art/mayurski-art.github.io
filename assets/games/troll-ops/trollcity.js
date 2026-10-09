@@ -104,6 +104,13 @@ const SMITHY = { light: null, coal: null, glow: null };
 /* The courthouse cells, for a fist fight refused (modes/social-duel.js):
    where to stand inside, facing the bars, and the door to shut. */
 const JAIL = { cells: [] };
+/* Kek & Sons (TROLL-CITY-RP2.md 2c, modes/social-shop.js): the till is the
+   merchant's job, the apple barrel by the door is anyone's. */
+const SHOP = {
+  till: { x: -32.4, z: -18.0, floor: FLOOR },
+  apples: { x: -33.5, z: -10.6, floor: FLOOR },
+  zone: { x0: -38, x1: -26, z0: ROW_N.back, z1: ROW_N.front },
+};
 /* The sheriff's job (modes/social-sheriff.js): the badge on his desk, the
    wanted board; the meshes fill in setBadge / posters / setPoster. */
 const SHERIFF = {
@@ -460,6 +467,7 @@ function materials() {
     keysWhite: std(0xf2ecdc, 0.4),
     keysBlack: std(0x101010, 0.4),
     sheetMusic: std(0xe8e0c8, 0.9),
+    apple: std(0xc0262a, 0.45),   // Kek & Sons' barrel
     velvet: std(0x8a1a24, 0.95),
     settee: std(0x9a3a5a, 0.95),
     cards: std(0xf2f0ea, 0.8),
@@ -882,8 +890,14 @@ function buildShops(K, M, lights) {
     shelves(K, M, { axis: "z", at: F.inX1, a: -20.4, b: -12.6, o: -1, goods: M.goods2, rows: 5, h: 3.0 });
     shelves(K, M, { axis: "x", at: ROW_N.back + T, a: -36.6, b: -29.4, o: 1, goods: M.goods1, rows: 5, h: 3.2 });
     counter(K, M, { x: -33.6, z: -18.0, w: 4.0, d: 0.7 });
-    K.box(M.steel, -32.4, Y + 1.11, -18.0, 0.5, 0.1, 0.4);             // the scale
-    K.cyl(M.steel, -32.4, Y + 1.21, -18.0, 0.18, 0.16, 0.03, 10);
+    K.box(M.steel, -34.9, Y + 1.11, -18.0, 0.5, 0.1, 0.4);             // the scale (off the till)
+    K.cyl(M.steel, -34.9, Y + 1.21, -18.0, 0.18, 0.16, 0.03, 10);
+    // the apple barrel by the door: help yourself (modes/social-shop.js)
+    barrel(K, M, SHOP.apples.x, SHOP.apples.z, { y: Y, r: 0.32, h: 0.85 });
+    for (let i = 0; i < 9; i++) {
+      const a = i * 2.4, rr = i ? 0.17 : 0;
+      K.add(M.apple, place(new THREE.SphereGeometry(0.05, 10, 8), { x: SHOP.apples.x + Math.cos(a) * rr, y: Y + 0.88 + (i ? 0 : 0.05), z: SHOP.apples.z + Math.sin(a) * rr }), { shadow: false });
+    }
     // cracker barrels, sacks, crates all over the floor
     for (const [x, z] of [[-30.6, -14.2], [-30.0, -15.0], [-35.2, -13.4]]) barrel(K, M, x, z, { y: Y, r: 0.32, h: 0.85 });
     for (const [x, z] of [[-36.2, -16.4], [-35.6, -16.8], [-36.4, -17.2], [-29.4, -11.4]]) sack(K, M, x, Y, z, 0.9 + R() * 0.3);
@@ -2125,7 +2139,7 @@ export const TROLLCITY = {
   build: buildTrollCity,
   // Socialize roleplay spots (saloon-bar.js / game.js updateBar). Floor
   // heights are the saloon's ground floor.
-  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, conductor: CONDUCTOR, sheriff: SHERIFF, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
+  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, conductor: CONDUCTOR, sheriff: SHERIFF, shop: SHOP, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
   // Team spawns: past the railway in the north, out on the plain south.
   spawns: [[-56, -46], [-46, -47.5], [-16, -47.8], [-2, -47.8], [8, -48], [18, -46.5], [50, -46], [58, -40],
     [-56, 46], [-44, 46.5], [-26, 45], [-12, 46], [0, 45.5], [14, 46], [28, 45], [40, 45.5]],

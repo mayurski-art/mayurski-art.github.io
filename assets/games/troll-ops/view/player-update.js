@@ -13,6 +13,7 @@ import { bar, seated, holdSeat } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-f
 import { updateTrain } from "../modes/social-train.js?v=st1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2";
 import { updateConductor } from "../modes/social-conductor.js?v=cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2";
 import { sheriffHold, sheriffHolds, updateSheriff } from "../modes/social-sheriff.js?v=sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2";
+import { updateShop } from "../modes/social-shop.js?v=sp1";
 import { jailHold, jailHolds } from "../modes/social-jail.js?v=sj1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2";
 import { arrestCineOn, hideArrestCine, placeArrestCine } from "./arrest-cine.js?v=ac1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2";
 import { updateDuel, duelFire } from "../modes/social-duel.js?v=sd1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2";
@@ -215,7 +216,7 @@ export function updatePlayer(dt) {
 
   // fist fights with the townsfolk (Socialize): after we've moved, so a
   // bump reads our speed and a knock-down holds us where we fell
-  if (game.isSocial()) { duelFire(); updateDuel(dt); updateClubEntry(dt); updateConductor(); updateSheriff(dt); }
+  if (game.isSocial()) { duelFire(); updateDuel(dt); updateClubEntry(dt); updateConductor(); updateSheriff(dt); updateShop(); }
 
   updateSwivel(dt);
 
