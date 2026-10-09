@@ -3,14 +3,14 @@
 // pause menu.
 
 import { addXp } from "../progression.js?v=p5-wst-sb2-fu1-wb1";
-import { setBombSiteMarkers } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2-wb1m1c4";
-import { setNetStatus, renderLobbyRoster, showLobbyPanel } from "./lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4";
+import { setBombSiteMarkers } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
+import { setNetStatus, renderLobbyRoster, showLobbyPanel } from "./lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1";
 import { renderModes } from "./mode-picker.js?v=mp1-fu1b7b7d-wb1";
 import { setTouchAds } from "../input/touch.js?v=in1";
-import { cancelCook } from "../combat/throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4";
-import { returnToSocial, cancelSocialReturn } from "../modes/social.js?v=so1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3";
-import { piano } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3";
-import { clubAskOpen } from "../modes/club-entry.js?v=ce1c1c2-wb1m1uc4-tc3";
+import { cancelCook } from "../combat/throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
+import { returnToSocial, cancelSocialReturn } from "../modes/social.js?v=so1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1";
+import { piano } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1";
+import { clubAskOpen } from "../modes/club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1";
 import { game } from "../core/state.js?v=st1";
 
 export function initMenuButtons() {
