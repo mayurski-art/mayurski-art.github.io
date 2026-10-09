@@ -130,6 +130,7 @@ export class Net {
     this.trainAt = null;   // riding the Grin Express (modes/social-train.js)
     this.cuff = 0; this.jail = 0; this.wanted = null;   // Troll City's law (modes/social-sheriff.js)
     this.stetson = 0;   // a hat from Kek & Sons (modes/social-shop.js)
+    this.horse = 0; this.horseGait = 0; this.horseYaw = 0; this.saddles = 0;   // on a horse (modes/social-horses.js)
     this._acc = 0;
     this._out = [];
     this._flushT = null;
@@ -363,6 +364,9 @@ export class Net {
         p.trainAt = typeof m.tc === "string" ? m.tc.slice(0, 24) : null;   // riding the Grin Express (modes/social-train.js)
         p.cuffed = Math.max(0, Math.min(2, m.cf | 0));   // Troll City's law (modes/social-sheriff.js)
         p.stetson = (m.mt | 0) === 1;   // a hat from Kek & Sons (modes/social-shop.js)
+        // on a horse (modes/social-horses.js): which (+1), its gait, its yaw; a horsekeeper's saddles
+        p.horse = Math.max(0, Math.min(32, m.ho | 0)); p.horseGait = Math.max(0, Math.min(3, m.hg | 0));
+        p.horseYaw = Number.isFinite(+m.hy) ? +m.hy : 0; p.saddles = (m.hs | 0) & 0xffff;
         p.jail = Math.max(0, Math.min(9, m.jl | 0));
         p.wanted = typeof m.wl === "string" ? m.wl.slice(0, 80) : null;
         p.body = typeof m.bd === "string" ? m.bd.slice(0, 16) : null;   // a realistic body (cop-bodies.js)
@@ -560,6 +564,7 @@ export class Net {
         pk: this.perks || undefined,   // perks others must know about (perks.js WIRE_PERKS bits; combat/perk-carry.js sets it)
         dn: local.downed || undefined,   // Zombies co-op: 1 down, 2 bled out
         mt: this.stetson || undefined,   // a hat from Kek & Sons (modes/social-shop.js)
+        ho: this.horse || undefined, hg: this.horse ? this.horseGait : undefined, hy: this.horse ? this.horseYaw : undefined, hs: this.saddles || undefined,
       });
     }
     this.prune();

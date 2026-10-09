@@ -97,6 +97,14 @@ export const rpListeners = [];
 /* ...and whether one has fire for itself right now (fists up in a fight:
    fire is a punch, not a sip or the piano). */
 export const rpBusy = { fists: false };
+/* On a horse (modes/social-horses.js sets it): the hands are on the reins. */
+export const rpRide = { on: false };
+/* Both hands busy (a drink, a seat, the reins): the owner's guns go away too
+   (game.js socialUnarmed). */
+export const handsFull = () => !!bar.drink || !!seated || rpRide.on;
+/* ...and the hold-X actions that only show when nothing else here does (the
+   horsekeeper's whistle, wanted anywhere: it mustn't shadow a door or a seat). */
+export const rpLast = [];
 
 /* What holding X does where we stand, best first. */
 function barAction(B) {
@@ -464,6 +472,7 @@ function rpAction() {
     const s = rpSeats()[i];
     return { key: `seat:${i}`, label: s.kind === "piano" ? "Sit at the piano" : "Sit down", ctx: "Sit", time: 0.3, done: () => sitDown(i) };
   }
+  for (const f of rpLast) { const a = f(); if (a) return a; }
   return null;
 }
 

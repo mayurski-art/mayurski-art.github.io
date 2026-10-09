@@ -12,6 +12,7 @@ import { duelArms } from "../modes/social-duel.js?v=sd1b7b7dec1c2-wb1m1c4-tc3-cu
 import { throwFrame, placeThrowInHand } from "../combat/throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2";
 import { cuffArms } from "../modes/social-sheriff.js?v=sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2";
 import { clubArms } from "../modes/club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2";
+import { horseArms } from "../modes/social-horses.js?v=hr1";
 
 /* A first-person emote (emotes.js `fp`): the gun goes away (or does the
    trick), and the streak arms' real hands act it out in front of the camera.
@@ -41,6 +42,8 @@ function socialArmsFrame() {
   if (fight) return fight;
   const band = clubArms();   // Trolling Loud's door: the arm out for the band
   if (band) return band;
+  const reins = horseArms();   // on a horse: both hands on the reins (social-horses.js)
+  if (reins) return reins;
   const hand = (side) => {
     // Right and left swing opposite each other, like the legs.
     const sw = Math.sin(socialArms.phase + (side > 0 ? 0 : Math.PI));

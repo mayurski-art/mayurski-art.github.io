@@ -104,6 +104,12 @@ const SMITHY = { light: null, coal: null, glow: null };
 /* The courthouse cells, for a fist fight refused (modes/social-duel.js):
    where to stand inside, facing the bars, and the door to shut. */
 const JAIL = { cells: [] };
+/* The horses you can ride (TROLL-CITY-RP2.md 2c, modes/social-horses.js):
+   where each stands at home (ry: the kit's facing), its coat, whether it's
+   saddled; and the map's materials to build them with (filled when built).
+   The rest of the town's horses stay standing kit horses. The horsekeeper's
+   saddle peg is in the stable. */
+const RIDE = { list: [], M: null, peg: { x: -11.62, z: 33, floor: 0 } };
 /* Kek & Sons (TROLL-CITY-RP2.md 2c, modes/social-shop.js): the till is the
    merchant's job, the apple barrel by the door is anyone's. */
 const SHOP = {
@@ -1752,8 +1758,7 @@ function buildSouth(K, M, lights, R) {
   railFence(K, M, { axis: "z", at: 8, a: 28, b: 42, gaps: [[32.3, 35.7]] });
   railFence(K, M, { axis: "z", at: 24, a: 28, b: 42 });
   horse(K, M, 13, 36.5, { ry: 0.6, coat: "paint", graze: true });
-  horse(K, M, 19.5, 33.0, { ry: 2.6, coat: "dun", saddle: true });
-  horse(K, M, 20.5, 39.0, { ry: -0.4, coat: "white" });
+  // (the saddled dun and the white are rideable: RIDE, modes/social-horses.js)
   trough(K, M, 16, 30.2, { ry: 0, len: 2.4 });
   for (const [x, z] of [[11, 40.6], [12.3, 40.6]]) hayBale(K, M, x, z);
   hayBale(K, M, 11.6, 40.6, { y: 0.6, collide: false, ry: 0.2 });
@@ -1891,10 +1896,16 @@ function buildStreet(K, M, lights, R) {
   for (const z of [-6, -3, 3, 6]) bollard(K, M, 38.6, z);
   // hitching rails out front, horses tied up at them
   for (const [x, z] of [[-18.2, -5.6], [-9.8, -5.6], [-32, -5.6], [-44, 5.6], [2.6, 5.6]]) hitchRail(K, M, x, z, { len: 2.6 });
-  horse(K, M, -18.8, -4.35, { ry: Math.PI / 2, coat: "black", saddle: true });
-  horse(K, M, -17.4, -4.4, { ry: Math.PI / 2 + 0.1, coat: "bay", saddle: true });
-  horse(K, M, -9.8, -4.4, { ry: Math.PI / 2 - 0.08, coat: "white", saddle: true });
-  horse(K, M, -44.6, 4.4, { ry: -Math.PI / 2, coat: "dun" });
+  // the horses at the rails are rideable: their own models (modes/social-horses.js)
+  RIDE.M = M;
+  RIDE.list = [
+    { id: 0, name: "the black horse", x: -18.8, z: -4.35, ry: Math.PI / 2, coat: "black", saddle: true },
+    { id: 1, name: "the bay horse", x: -17.4, z: -4.4, ry: Math.PI / 2 + 0.1, coat: "bay", saddle: true },
+    { id: 2, name: "the white horse", x: -9.8, z: -4.4, ry: Math.PI / 2 - 0.08, coat: "white", saddle: true },
+    { id: 3, name: "the corral dun", x: 19.5, z: 33.0, ry: 2.6, coat: "dun", saddle: true },
+    { id: 4, name: "the dun by the trough", x: -44.6, z: 4.4, ry: -Math.PI / 2, coat: "dun", saddle: false },
+    { id: 5, name: "the corral white", x: 20.5, z: 39.0, ry: -0.4, coat: "white", saddle: false },
+  ];
   for (const [x, z, ry] of [[-14, -5.2, 0], [-30.2, -5.2, 0], [-41.6, 5.2, 0]]) trough(K, M, x, z, { ry, len: 2.0 });
   // cover in the street: wagons, a stagecoach, barrels and crates
   wagon(K, M, -36.5, 1.6, { ry: 0.12, cover: true });
@@ -2139,7 +2150,7 @@ export const TROLLCITY = {
   build: buildTrollCity,
   // Socialize roleplay spots (saloon-bar.js / game.js updateBar). Floor
   // heights are the saloon's ground floor.
-  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, conductor: CONDUCTOR, sheriff: SHERIFF, shop: SHOP, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
+  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, conductor: CONDUCTOR, sheriff: SHERIFF, shop: SHOP, horses: () => RIDE, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
   // Team spawns: past the railway in the north, out on the plain south.
   spawns: [[-56, -46], [-46, -47.5], [-16, -47.8], [-2, -47.8], [8, -48], [18, -46.5], [50, -46], [58, -40],
     [-56, 46], [-44, 46.5], [-26, 45], [-12, 46], [0, 45.5], [14, 46], [28, 45], [40, 45.5]],

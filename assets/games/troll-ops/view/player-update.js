@@ -14,6 +14,7 @@ import { updateTrain } from "../modes/social-train.js?v=st1b7b7dc2-wb1m1c4-cup1-
 import { updateConductor } from "../modes/social-conductor.js?v=cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2";
 import { sheriffHold, sheriffHolds, updateSheriff } from "../modes/social-sheriff.js?v=sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2";
 import { updateShop } from "../modes/social-shop.js?v=sp1";
+import { riding, rideHorse, updateHorses } from "../modes/social-horses.js?v=hr1";
 import { jailHold, jailHolds } from "../modes/social-jail.js?v=sj1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2";
 import { arrestCineOn, hideArrestCine, placeArrestCine } from "./arrest-cine.js?v=ac1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2";
 import { updateDuel, duelFire } from "../modes/social-duel.js?v=sd1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2";
@@ -187,6 +188,11 @@ export function updatePlayer(dt) {
   updateTrain();   // the Grin Express, and us on it, before we move (Socialize)
   if (dropping) updateDropPlayer(dt, dropIx, dropIz);
   else if (game.isView()) flyView(dt, ix, iz);
+  else if (game.isSocial() && riding()) rideHorse(dt, ix, iz, {   // on a horse (modes/social-horses.js)
+    sprint: (game.isTouch || gp) ? iz > 0.9 : game.keys.has("ShiftLeft"),
+    jump: !frozen && ((game.isTouch && touchState.jump) || (gp && game.gamepadState.jump) || game.keys.has("Space")),
+    off: !frozen && ((game.isTouch && touchState.crouch) || (gp && game.gamepadState.crouch) || game.keys.has("KeyC")),
+  });
   else if (game.isSocial() && clubHolds()) clubHold(dt);   // in the club's line, or walked in by the door
   else if (game.isSocial() && jailHolds()) jailHold(dt);   // walked into a cell by the sheriff
   else if (game.isSocial() && sheriffHolds()) sheriffHold(dt);   // cuffed on the leash, or the town's arrest
@@ -216,7 +222,7 @@ export function updatePlayer(dt) {
 
   // fist fights with the townsfolk (Socialize): after we've moved, so a
   // bump reads our speed and a knock-down holds us where we fell
-  if (game.isSocial()) { duelFire(); updateDuel(dt); updateClubEntry(dt); updateConductor(); updateSheriff(dt); updateShop(); }
+  if (game.isSocial()) { duelFire(); updateDuel(dt); updateClubEntry(dt); updateConductor(); updateSheriff(dt); updateShop(); updateHorses(dt); }
 
   updateSwivel(dt);
 
