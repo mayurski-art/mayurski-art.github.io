@@ -4,7 +4,7 @@
 import * as THREE from "three";
 import { inspectArms, stretchBetween, _armDir, _armFrom, _armTo } from "./weapon-view.js?v=wv1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1";
 import { damp } from "../anim-curves.js";
-import { poseFreeArms } from "./fp-emote.js?v=fe1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1";
+import { poseFreeArms } from "./fp-emote.js?v=fe1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2";
 import { launchPendingDrone } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
 import { drawTabletScreen } from "../streak-device.js?v=to-df1";
 import { handMaterials, buildHumanHand, inkOutline, placeHand, poseHumanHand, handWrist } from "../hand-model.js?v=to-grip2";

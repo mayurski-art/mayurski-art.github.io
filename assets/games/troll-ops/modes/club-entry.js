@@ -31,10 +31,11 @@
    `rp.door` (Trolling Loud), only in Socialize. */
 
 import * as THREE from "three";
-import { rpExtras } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1";
+import { rpExtras } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2";
 import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1";
-import { renderCard, myCardData } from "../profile-card.js?v=pc1-wst-sb2-fu1-wb1";
+import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2";
+import { myCardData } from "../profile-card.js?v=pc1-wst-sb2-fu1-wb1";
+import { renderClubId, drawMiniLicence } from "../view/club-id-card.js?v=cid1-cid2";
 import { isOwner } from "../progression.js?v=p5-wst-sb2-fu1-wb1";
 import { reachHand, setFace } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
 import { clubWear } from "./club-wear.js?v=cw1c2m1";
@@ -1160,24 +1161,22 @@ function poseBouncer(l, lulz, n, rig, dt) {
   idCard(l, rig, a.act === "check" && !hook && l.w > 0.55);
 }
 
-/* The ID in his hand while he reads it: a gold card lying in the fist. */
+/* The ID in his hand while he reads it: the licence lying in the fist (a
+   small painted one, the same for everyone: no one else's picture loads). */
 const _el = new THREE.Vector3(), _wr = new THREE.Vector3();
+let miniLicence = null;
 function idCard(l, rig, on) {
   if (!on) { if (l.card) l.card.visible = false; return; }
   if (!l.card) {
-    const c = document.createElement("canvas");
-    c.width = 128; c.height = 80;
-    const g = c.getContext("2d");
-    const grad = g.createLinearGradient(0, 0, 128, 80);
-    grad.addColorStop(0, "#f6d47a"); grad.addColorStop(1, "#b98a2a");
-    g.fillStyle = grad; g.fillRect(0, 0, 128, 80);
-    g.fillStyle = "#5a4310"; g.fillRect(8, 10, 34, 40);
-    g.fillRect(50, 14, 64, 7); g.fillRect(50, 28, 48, 6); g.fillRect(50, 40, 56, 6);
-    g.fillStyle = "#fff6d8"; g.fillRect(0, 62, 128, 8);
-    const tex = new THREE.CanvasTexture(c);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    l.card = new THREE.Mesh(new THREE.BoxGeometry(0.086, 0.003, 0.054),
-      new THREE.MeshStandardMaterial({ map: tex, roughness: 0.35, metalness: 0.3, emissive: 0xffd080, emissiveMap: tex, emissiveIntensity: 0.25 }));
+    if (!miniLicence) {
+      const c = document.createElement("canvas");
+      c.width = 128; c.height = 80;
+      drawMiniLicence(c.getContext("2d"), 128, 80);
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      miniLicence = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.45, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.18 });
+    }
+    l.card = new THREE.Mesh(new THREE.BoxGeometry(0.086, 0.003, 0.054), miniLicence);
     game.scene.add(l.card);
   }
   // In the fist: a little past the wrist along the forearm, held flat, its
@@ -1430,7 +1429,7 @@ const ui = {
   },
   showCard() {
     this.mount();
-    this.card.innerHTML = renderCard(myCardData());
+    this.card.innerHTML = renderClubId(myCardData());   // the licence (view/club-id-card.js), not the Barracks card
     this.card.hidden = false;
   },
   hideCard() { if (this.card) this.card.hidden = true; },
@@ -1471,7 +1470,7 @@ function injectCss() {
   s.id = "club-entry-css";
   s.textContent = `
 .club-entry { position: absolute; inset: 0; pointer-events: none; z-index: 30; font-family: inherit; }
-.club-card { position: absolute; left: 50%; bottom: 12%; transform: translateX(-50%) rotate(-4deg); width: min(360px, 86vw);
+.club-card { position: absolute; left: 50%; bottom: 10%; transform: translateX(-50%) rotate(-4deg); width: min(460px, 90vw);
   filter: drop-shadow(0 10px 24px rgba(0,0,0,.55)); animation: club-card-up .45s cubic-bezier(.2,.8,.2,1); }
 @keyframes club-card-up { from { transform: translate(-50%, 60%) rotate(-10deg); opacity: 0; } }
 .club-ask { position: absolute; left: 50%; top: 58%; transform: translate(-50%, -50%); pointer-events: auto; text-align: center;

@@ -4,7 +4,7 @@
 //
 // Three tabs, one at a time, Supabase blocked (never a live room):
 //   1. Signed in: spawn in the line with 1-7 clubgoers ahead (a line of
-//      6-7); the line moves up; at a lane your profile card shows, then the
+//      6-7); the line moves up; at a lane your ID (the HAWAII licence, view/club-id-card.js) shows, then the
 //      18+ question; "Yeah" puts a guest band on and walks you into the
 //      lobby. Before the band the lobby is fenced off; after it the main
 //      floor is open and VIP and back of house aren't.
@@ -84,7 +84,7 @@ const S = (page) => page.evaluate(() => {
   return {
     phase: c.phase, band: C.band(), ahead: c.queue.findIndex((e) => e.me), lineNpcs: c.queue.filter((e) => !e.me).length,
     want: c.want, lineish: c.npcs.filter((e) => ["line", "lane", "door", "arrive"].includes(e.state)).length, x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2), zone: d.zoneOf(p.x, p.y + 0.1, p.z),
-    card: !!document.querySelector(".club-card:not([hidden]) .tf-card"), cardText: document.querySelector(".club-card")?.textContent || "",
+    card: !!document.querySelector(".club-card:not([hidden]) .club-id"), cardText: document.querySelector(".club-card")?.textContent || "",
     ask: !!document.querySelector(".club-ask:not([hidden])"), chip: document.querySelector(".club-chip:not([hidden])")?.textContent || "",
     paused: !T.els.pause.hidden,
     rope: C.rope(), rigBand: T.localRig.band || 0, bandMesh: !!T.localRig.bandMesh?.parent,
