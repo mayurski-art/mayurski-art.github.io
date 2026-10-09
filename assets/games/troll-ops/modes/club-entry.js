@@ -35,7 +35,7 @@ import { rpExtras } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4
 import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
 import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2";
 import { myCardData } from "../profile-card.js?v=pc1-wst-sb2-fu1-wb1";
-import { renderClubId, drawMiniLicence } from "../view/club-id-card.js?v=cid1-cid2";
+import { renderClubId, paintMiniLicence } from "../view/club-id-card.js?v=cid1-cid2";
 import { isOwner } from "../progression.js?v=p5-wst-sb2-fu1-wb1";
 import { reachHand, setFace } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
 import { clubWear } from "./club-wear.js?v=cw1c2m1";
@@ -1161,24 +1161,30 @@ function poseBouncer(l, lulz, n, rig, dt) {
   idCard(l, rig, a.act === "check" && !hook && l.w > 0.55);
 }
 
-/* The ID in his hand while he reads it: the licence lying in the fist (a
-   small painted one, the same for everyone: no one else's picture loads). */
+/* The ID in his hand while he reads it: the licence lying in the fist. Yours
+   carries your profile picture; anyone else's (another player, a clubgoer)
+   is the plain painted one: no one else's picture loads. */
 const _el = new THREE.Vector3(), _wr = new THREE.Vector3();
-let miniLicence = null;
+const miniLicence = { plain: null, mine: null };
+function licenceMat(mine) {
+  const key = mine ? "mine" : "plain";
+  if (!miniLicence[key]) {
+    const c = document.createElement("canvas");
+    c.width = 128; c.height = 80;
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    paintMiniLicence(c, mine ? myCardData().avatarUrl : "", () => { tex.needsUpdate = true; });
+    miniLicence[key] = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.45, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.18 });
+  }
+  return miniLicence[key];
+}
 function idCard(l, rig, on) {
   if (!on) { if (l.card) l.card.visible = false; return; }
   if (!l.card) {
-    if (!miniLicence) {
-      const c = document.createElement("canvas");
-      c.width = 128; c.height = 80;
-      drawMiniLicence(c.getContext("2d"), 128, 80);
-      const tex = new THREE.CanvasTexture(c);
-      tex.colorSpace = THREE.SRGBColorSpace;
-      miniLicence = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.45, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.18 });
-    }
-    l.card = new THREE.Mesh(new THREE.BoxGeometry(0.086, 0.003, 0.054), miniLicence);
+    l.card = new THREE.Mesh(new THREE.BoxGeometry(0.086, 0.003, 0.054), licenceMat(false));
     game.scene.add(l.card);
   }
+  l.card.material = licenceMat(l.who === ME);
   // In the fist: a little past the wrist along the forearm, held flat, its
   // long side across his body.
   rig.root.updateMatrixWorld(true);

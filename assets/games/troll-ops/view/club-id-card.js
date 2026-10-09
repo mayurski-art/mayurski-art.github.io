@@ -21,7 +21,13 @@ function hash(s) {
   for (const ch of String(s)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
   return h >>> 0;
 }
-const safeImg = (u) => (/^(https:|data:image\/|blob:|\/|\.\.?\/)/.test(String(u || "")) ? String(u) : "");
+/* Your profile picture (accounts' avatarUrl, as the lobby shows it): an
+   https/data/blob URL or a path on this site; any other scheme is dropped. */
+const safeImg = (u) => {
+  const s = String(u || "").trim();
+  if (!s) return "";
+  return /^(https:|data:image\/|blob:)/i.test(s) || !/^[a-z][a-z0-9+.-]*:/i.test(s) ? s : "";
+};
 
 /* Bars of a barcode as a CSS gradient, the same for the same name. */
 function barcode(seed) {
@@ -142,4 +148,26 @@ export function drawMiniLicence(g, w = 128, h = 80) {
   g.globalCompositeOperation = "destination-in";
   g.beginPath(); g.roundRect ? g.roundRect(0, 0, w, h, 8) : g.rect(0, 0, w, h); g.fill();
   g.globalCompositeOperation = "source-over";
+}
+
+/* The same small card with your own profile picture in the photo square
+   (the one in the bouncer's hand while he checks YOUR ID): painted plain at
+   once, then again when the picture has loaded. `onUpdate` runs after the
+   repaint (a CanvasTexture's needsUpdate). A picture that won't load (or
+   comes without CORS, which would taint the texture) leaves the plain one. */
+export function paintMiniLicence(canvas, avatarUrl, onUpdate = null) {
+  const g = canvas.getContext("2d"), w = canvas.width, h = canvas.height;
+  drawMiniLicence(g, w, h);
+  const src = safeImg(avatarUrl);
+  if (!src) return;
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.onload = () => {
+    drawMiniLicence(g, w, h);
+    const s = Math.min(img.naturalWidth, img.naturalHeight);
+    g.drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, 5, 5, 38, 38);
+    try { g.getImageData(0, 0, 1, 1); } catch { drawMiniLicence(g, w, h); return; }   // tainted: back to plain
+    onUpdate?.();
+  };
+  img.src = src;
 }
