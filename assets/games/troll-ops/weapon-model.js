@@ -112,9 +112,49 @@ const DETAILED = {
   // Black Ops 2's assault rifles, modelled on their traced outlines
   // (models/build_ar_<id>.blender.py); weapon-ars.js's traced versions stand
   // in until the model streams in.
+  kek: {
+    url: new URL("./models/ar-kek.glb?v=ar2", import.meta.url).href,
+    p: "MT", device: "MT_Hider", rake: -0.37, railY: 0.0431, adsDistance: null,
+    glow: [],
+  },
+  lol: {
+    url: new URL("./models/ar-lol.glb?v=ar2", import.meta.url).href,
+    p: "T2", device: "T2_Hider", rake: -0.37, railY: 0.1073, adsDistance: null,
+    glow: [],
+  },
+  lmao: {
+    url: new URL("./models/ar-lmao.glb?v=ar2", import.meta.url).href,
+    p: "SW", device: "SW_Hider", rake: -0.37, railY: 0.0693, adsDistance: null,
+    glow: [],
+  },
+  rofl: {
+    url: new URL("./models/ar-rofl.glb?v=ar2", import.meta.url).href,
+    p: "FA", device: "FA_Hider", rake: -0.37, railY: 0.0783, adsDistance: null,
+    glow: [],
+  },
   heh: {
-    url: new URL("./models/ar-heh.glb?v=ar1", import.meta.url).href,
+    url: new URL("./models/ar-heh.glb?v=ar2", import.meta.url).href,
     p: "M2", device: "M2_Hider", rake: -0.37, railY: 0.0410, adsDistance: null,
+    glow: [],
+  },
+  mald: {
+    url: new URL("./models/ar-mald.glb?v=ar2", import.meta.url).href,
+    p: "SC", device: "SC_Hider", rake: -0.37, railY: 0.0552, adsDistance: null,
+    glow: [],
+  },
+  coalface: {
+    url: new URL("./models/ar-coalface.glb?v=ar2", import.meta.url).href,
+    p: "AN", device: "AN_Hider", rake: -0.37, railY: 0.0283, adsDistance: null,
+    glow: [],
+  },
+  salt: {
+    url: new URL("./models/ar-salt.glb?v=ar2", import.meta.url).href,
+    p: "SM", device: "SM_Hider", rake: -0.37, railY: 0.0672, adsDistance: null,
+    glow: [],
+  },
+  ratio: {
+    url: new URL("./models/ar-ratio.glb?v=ar2", import.meta.url).href,
+    p: "M8", device: "M8_Hider", rake: -0.37, railY: 0.1073, adsDistance: null,
     glow: [],
   },
 };
