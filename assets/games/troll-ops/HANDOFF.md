@@ -482,6 +482,10 @@ Map rules:
 
 ## 5. Shipped log (one line each; details are in git)
 
+- **2026-10-08** (tf-parallel batch; plan: Troll City fixes, cups, club ID, throws, kitchen, arm wrestle, Grin Beach)
+  - Troll City glitches (-tc3): painting off the saloon window, the general under the picture rail, shop signs clear of brackets/cornice/band/roof, trims/linings/kerbs no longer coplanar. Guard: `tools/troll-ops-trollcity-audit.mjs` (Node build of the map; FAIL on pictures over openings, coplanar faces, cut signs). Cache cascade tool: `tools/troll-ops-bump-tags.mjs <suffix> <files> --write`.
+  - Drinks held properly (-cup1): poseDrinkArm is IK to the chest / tap / grin, fist on the handle, glass inside the hand (NPCs and players' bodies). Test: `tools/troll-ops-drink-hold-test.mjs` (SHOTS=dir).
+
 - **2026-10-08** (weapons batch, -wb1)
   - Sidearms: Sixty-Nine (Five-seveN, rank 0 starter) and TRUE-69 (BO2 KAP-40, auto) replace the M9, Deagle, Chortle and Golden Grin; traced from photos (weapon-pistols.js), slides cycle/lock/release (view/pistol-action.js). Test: troll-ops-pistols-test.mjs.
   - Snipers: BO2's SVU-AS, DSR 50, Ballista, XPR-50 as Snort SVU / Deadpan DSR / Howl Ballista / Smug XPR (weapon-snipers.js); bolts cycle (view/rifle-action.js, audio boltBeat); BO2 full-screen scope (view/sniper-scope.js). Test: troll-ops-snipers-test.mjs.
