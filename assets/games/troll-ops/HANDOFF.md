@@ -25,16 +25,13 @@ Club entry (CLUB-ENTRY.md) is DONE, phases 1-5 (shipped log). Code: `modes/club-
 Open: watch spawn S3 (0, -33) in playtests; the loading dock sits on the wall-strip sightline 14-17 m from it. A crate stack between them would fix it but closes that line.
 Any later Dust Bowl edit holds to: bounds, spawns and the perimeter collider unchanged; nothing solid within 3 m of the S&D sites, which must stay at A (14.48, -18.21) and B (14.37, 14.24); all 15 dustbowl walk routes passing; the five 45 m+ east-west lines in the north half kept open (z -34.3 to -33, -29.3, -26.7, -18.8 to -15.5, -15 to -12); frame rate checked with tools/troll-ops-map-fps.mjs against a worktree of main. Every solid piece is a collider in maps.js plus the matching mesh in models/build_dustbowl.blender.py, sized from the same numbers.
 
-### Troll City roleplay, phase 2 remainder (Socialize, Troll City only): ON HOLD
-The user put this on hold on 2026-10-05; don't start it unless asked. Phase 2a has shipped: seats, the pianist, the doctor. Still to build, in this order (estimates from 2026-10-05, mostly test time):
-- **2b:** sheriff + jail (3-4 h): badge, cuff, cells, wanted board. The courthouse geometry for the office and jail is already in.
-- **2c:** merchant + horsekeeper (3-4 h). Riding horses is the big piece; saddled horses that are only led around (no riding) would save about 1.5 h.
-- **2d:** train conductor (2-4 h). A real moving train with riders is the riskiest item; a scripted ride (depart, fade out, arrive back) takes about 1 h.
-- **Not yet checked by eye:** 2a's seated bodies and the pianist's hands. The tests pass, but no screenshot was taken (a scratch screenshot script hung while loading). Look in game before building on them.
+### Troll City roleplay, phase 2b-2d (Socialize, Troll City only): IN PROGRESS
+Approved 2026-10-09: **`TROLL-CITY-RP2.md`** (the design: decisions, per-phase plans, tests). Order: 0 groundwork + 2d conductor (synced train) → 2b sheriff + jail → 2c merchant + rideable horses (~28 h, ~8 sessions). Each phase ships alone: targeted test, one gate, push.
+- **Not yet checked by eye:** 2a's seated bodies and the pianist's hands. Look in game before building on them.
 
 Follow the 2a pattern:
 - Jobs and their wire letters go in `rp-roles.js` (`ROLES`, `rr`); spots and furniture go in `trollcity.js` (`rp.*`).
-- The logic goes in game.js, after the saloon-bar code.
+- The logic goes in its own module under `modes/` (2a's is `modes/social-rp.js`); game.js only gets hooks.
 - One player per job, first come first served. On a tie the older peer keeps it, like the apron.
 - A role-gated `rp` message is only honoured from a peer holding that role, like `cure`.
 - The NPC who normally holds that job hides via `TownNpcs.setYield`.
