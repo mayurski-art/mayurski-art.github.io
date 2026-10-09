@@ -15,7 +15,7 @@ import { buildRevolverPair } from "./revolvers.js?v=rv2-wst";
 import { PISTOL_BUILDERS } from "./weapon-pistols.js?v=ps1-wb1";
 import { SNIPER_BUILDERS } from "./weapon-snipers.js?v=sn2-wb1";
 import { SMG_BUILDERS } from "./weapon-smgs.js?v=sm1-wb1";
-import { AR_BUILDERS } from "./weapon-ars.js?v=ar1";
+import { AR_BUILDERS } from "./weapon-ars.js?v=ar1-ar2";
 import { finishDef } from "./skins.js?v=p5-wb1";
 import { rigSoulBlazer, SB_INSPECT_KEYS } from "./soul-blazer.js?v=sb1";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";

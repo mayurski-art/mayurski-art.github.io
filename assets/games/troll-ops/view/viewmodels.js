@@ -2,12 +2,12 @@
 // the gun, melee and streak meshes in hand, the muzzle flash, akimbo and hellfire.
 
 import * as THREE from "three";
-import { setWeaponEnvMap, preloadWeaponModels, hasDetailedModel, buildWeaponMesh } from "../weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1";
+import { setWeaponEnvMap, preloadWeaponModels, hasDetailedModel, buildWeaponMesh } from "../weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2";
 import { setSaberEnvMap, preloadTrollsaber } from "../trollsaber.js?v=ts4-ig1";
 import { setHalloweenEnvMap, preloadHalloweenMelee } from "../melee-models.js?v=hw2";
 import { setHeroEnvMap } from "../hero-bodies.js?v=umb3g-nf-wst-ig1-soc1c2f1m1u";
-import { showSumGun, charInspector, inspectorLive, inspector } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1";
-import { restoreMeleeHands } from "./weapon-view.js?v=wv1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1";
+import { showSumGun, charInspector, inspectorLive, inspector } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-ar2";
+import { restoreMeleeHands } from "./weapon-view.js?v=wv1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-ar2";
 import { buildMeleeMesh } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1";
 import { buildStreakDevice, buildMarkerDevice } from "../streak-device.js?v=to-df1";
 import { loadModel } from "../battlefield-props.js";

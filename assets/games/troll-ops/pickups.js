@@ -13,7 +13,7 @@
 // died and the position comes from their last state snapshot.
 
 import * as THREE from "three";
-import { buildWeaponMesh } from "./weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1";
+import { buildWeaponMesh } from "./weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2";
 
 const LIFETIME = 6;          // seconds a dropped weapon sits before despawning
 const PICKUP_RADIUS = 1.6;   // how close you have to stand to grab it

@@ -3,7 +3,7 @@
 // of game.js (split phase 1).
 
 import * as THREE from "three";
-import { applyAimAssist } from "./aim-assist.js?v=in1-fu1b7-wb1-ar1";
+import { applyAimAssist } from "./aim-assist.js?v=in1-fu1b7-wb1-ar1-ar2";
 import { padEmotePressed } from "../controller-layout.js?v=cl7";
 import { game } from "../core/state.js?v=st1";
 

@@ -2,32 +2,32 @@
 // firing and melee input, regen, and the per-frame HUD numbers.
 
 import { touchState, setTouchAds } from "../input/touch.js?v=in1";
-import { currentWeapon, fireOnce, tryReload } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { MOUSE_ACTIVE_MS, applyAimAssist, AIM_ASSIST_MOUSE_PULL } from "../input/aim-assist.js?v=in1-fu1b7-wb1";
-import { isStaging } from "../modes/match-start.js?v=mst1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1";
-import { dragonfireView, DF_ASSIST_PULL, DF_ASSIST_CONE_DEG, fireDragonfire } from "../streaks/dragonfire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { lookSensScale, warshipView, placeWarshipCamera, fireWarship } from "../streaks/warship.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { royaleDropView, royaleOnBelt, royaleRolling, stageFrozen, updateRoyaleRoll, royaleRollK, ROLL_SPEED, updateDropPlayer, updateBeltPlayer, royale, royaleSpectating, placeSpectateCamera, placeDropCamera, _dropTarget, cancelRoyaleAct } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { bar, seated, holdSeat } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1";
-import { updateTrain } from "../modes/social-train.js?v=st1b7b7dc2-wb1m1c4-cup1";
-import { updateDuel, duelFire } from "../modes/social-duel.js?v=sd1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1";
-import { clubHolds, clubHold, updateClubEntry, clubEyeDrop } from "../modes/club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1";
-import { clubCineOn, placeClubCine } from "./club-entry-cine.js?v=cc1c3f1m1c4-tc3-cup1-nc1";
+import { currentWeapon, fireOnce, tryReload } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-ar2";
+import { MOUSE_ACTIVE_MS, applyAimAssist, AIM_ASSIST_MOUSE_PULL } from "../input/aim-assist.js?v=in1-fu1b7-wb1-ar1-ar2";
+import { isStaging } from "../modes/match-start.js?v=mst1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1-ar2";
+import { dragonfireView, DF_ASSIST_PULL, DF_ASSIST_CONE_DEG, fireDragonfire } from "../streaks/dragonfire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-ar2";
+import { lookSensScale, warshipView, placeWarshipCamera, fireWarship } from "../streaks/warship.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-ar2";
+import { royaleDropView, royaleOnBelt, royaleRolling, stageFrozen, updateRoyaleRoll, royaleRollK, ROLL_SPEED, updateDropPlayer, updateBeltPlayer, royale, royaleSpectating, placeSpectateCamera, placeDropCamera, _dropTarget, cancelRoyaleAct } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-ar2";
+import { bar, seated, holdSeat } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-ar2";
+import { updateTrain } from "../modes/social-train.js?v=st1b7b7dc2-wb1m1c4-cup1-ar2";
+import { updateDuel, duelFire } from "../modes/social-duel.js?v=sd1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-ar2";
+import { clubHolds, clubHold, updateClubEntry, clubEyeDrop } from "../modes/club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-ar2";
+import { clubCineOn, placeClubCine } from "./club-entry-cine.js?v=cc1c3f1m1c4-tc3-cup1-nc1-ar2";
 import { TIPSY, tipsyFx } from "../saloon-bar.js?v=sb1b7-cup1";
-import { strikeTablet, throwMarker } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
+import { strikeTablet, throwMarker } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-ar2";
 import { insidePolygon } from "../edge.js";
-import { INFECTION } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1";
-import { heroActive, hero } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { updateSwivel, updateLocalRig, placeDeathCamera, updateEmoteCamera, updateThirdPersonCamera, swivel, swivelK } from "./third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1";
+import { INFECTION } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2";
+import { heroActive, hero } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-ar2";
+import { updateSwivel, updateLocalRig, placeDeathCamera, updateEmoteCamera, updateThirdPersonCamera, swivel, swivelK } from "./third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-ar2";
 import { DF_RANGE } from "../dragonfire.js?v=df3-sb2";
-import { settings } from "../menu/settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
+import { settings } from "../menu/settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1c4-cup1-ar2";
 import { EMOTES } from "../emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u";
 import { damp } from "../anim-curves.js";
 import { STANCE } from "../movement.js?v=umb2-sb2-gj1b7";
-import { kbRepair, meleeConnect, updateSaberBlock, updateKbShield, swingMelee } from "../combat/melee.js?v=ml1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
+import { kbRepair, meleeConnect, updateSaberBlock, updateKbShield, swingMelee } from "../combat/melee.js?v=ml1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-ar2";
 import { KB_GLANCE } from "../keyboard-repair.js?v=kr15";
-import { updateDamageNumbers } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { chargedShotDef } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1";
+import { updateDamageNumbers } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-ar2";
+import { chargedShotDef } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2";
 import { game } from "../core/state.js?v=st1";
 
 /* Last value written to each per-frame HUD node. The DOM write itself is

@@ -2,12 +2,12 @@
 // switching the room to a match and coming back, and the owner's mode row.
 
 import { MAP_IDS, MAPS } from "../maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1";
-import { MODES } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1";
-import { addXp } from "../progression.js?v=p5-wst-sb2-fu1-wb1";
-import { clearStreakEntities } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { setHillMarker, setBombSiteMarkers } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { teardownRoyale } from "./royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { setNetStatus } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1";
+import { MODES } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2";
+import { addXp } from "../progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2";
+import { clearStreakEntities } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-ar2";
+import { setHillMarker, setBombSiteMarkers } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2-wb1m1c4-cup1-ar2";
+import { teardownRoyale } from "./royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-ar2";
+import { setNetStatus } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-ar2";
 import { game } from "../core/state.js?v=st1";
 
 // A Socialize room (QSOC) is a hangout until the owner, troll_runner,
