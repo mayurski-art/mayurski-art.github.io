@@ -208,7 +208,37 @@ function wearHat(rig, kind, hex) {
       inkPath(g, lw, fill, () => { g.moveTo(W * 0.24, H * 0.62); g.lineTo(W * 0.3, H * 0.1); g.lineTo(W * 0.7, H * 0.1); g.lineTo(W * 0.76, H * 0.62); g.closePath(); });
       inkPath(g, lw, fill, () => { g.moveTo(W * 0.04, H * 0.9); g.lineTo(W * 0.22, H * 0.58); g.lineTo(W * 0.78, H * 0.58); g.lineTo(W * 0.96, H * 0.9); g.closePath(); });
     }), 0.5, 0.2, HAT_Y + 0.03);
+  } else if (kind === "conductor") {
+    // the Grin Express's cap: a flat-topped pillbox, a brass band and
+    // badge, a black visor
+    onHead(rig, drawn(`conductor${hex}`, 0.42, 0.22, (g, W, H) => {
+      const lw = W * 0.035;
+      inkPath(g, lw, fill, () => { g.moveTo(W * 0.18, H * 0.8); g.lineTo(W * 0.21, H * 0.1); g.lineTo(W * 0.79, H * 0.1); g.lineTo(W * 0.82, H * 0.8); g.closePath(); });
+      inkPath(g, lw * 0.6, "#d4a63a", () => { g.rect(W * 0.2, H * 0.55, W * 0.6, H * 0.14); });
+      inkPath(g, lw * 0.5, "#f0d27a", () => { g.arc(W * 0.5, H * 0.33, W * 0.055, 0, Math.PI * 2); });
+      inkPath(g, lw, "#0c0c10", () => { g.moveTo(W * 0.1, H * 0.8); g.lineTo(W * 0.9, H * 0.8); g.lineTo(W * 0.8, H * 0.96); g.lineTo(W * 0.2, H * 0.96); g.closePath(); });
+    }), 0.42, 0.22, HAT_Y + 0.05);
   }
+}
+
+/* A job's hat (Troll City roleplay: the conductor's cap), on anyone; null
+   takes it off. Kept apart from the outfit, so a job never undresses
+   anyone and their own hat comes back after. Cheap to call every frame. */
+const JOB_HATS = { conductor: 0x1c2a4a };
+export function wearJobHat(rig, kind) {
+  kind = JOB_HATS[kind] != null ? kind : null;
+  if (!rig || (rig.jobHatKind ?? null) === kind) return;
+  rig.jobHat?.parent?.remove(rig.jobHat);
+  rig.jobHat = null;
+  rig.jobHatKind = kind;
+  for (const o of rig.outfit || []) if (o.userData.hat) o.visible = !kind;   // one hat at a time
+  if (!kind) return;
+  const keep = rig.outfit;
+  rig.outfit = [];
+  wearHat(rig, kind, JOB_HATS[kind]);
+  rig.jobHat = rig.outfit[0] || null;
+  rig.outfit = keep;
+  if (rig.jobHat) { rig.jobHat.userData.outfit = true; rig.jobHat.castShadow = false; }
 }
 function wearShades(rig, hex) {
   // across the eyes (the grin's eyes sit about a third of the way down)
@@ -252,7 +282,7 @@ export function wearOutfit(rig, spec) {
   // stays the plain stick figure; only the hats and shades on the face
   // board are worn. (wearTop/wearBottom/wearChain are kept, unused, in
   // case clothes come back in another style.)
-  if (spec.hat) wearHat(rig, spec.hat[0], spec.hat[1]);
+  if (spec.hat) { wearHat(rig, spec.hat[0], spec.hat[1]); rig.outfit[rig.outfit.length - 1].userData.hat = true; }
   if (spec.shades) wearShades(rig, spec.shades);
   bake(rig);
   for (const o of rig.outfit) o.traverse((m) => { if (m.isMesh) { m.castShadow = false; m.userData.outfit = true; } });

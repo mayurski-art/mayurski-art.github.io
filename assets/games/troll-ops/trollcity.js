@@ -1303,6 +1303,29 @@ function buildRailway(K, M, lights, R) {
   // the platform behind the shops
   K.solid(-6, -26.3, 60, 2.6, FLOOR, { mat: M.deck, pen: 6 });
   K.box(M.trimDark, -6, 0, -27.6, 59.98, FLOOR + 0.02, 0.1);
+  // the conductor's cap on its stand, at Choo's end of the platform: take it
+  // and you're the conductor (modes/social-conductor.js); it's off the hook
+  // while somebody wears it
+  {
+    const x = CONDUCTOR.stand.x, z = CONDUCTOR.stand.z;
+    K.cyl(M.blackIron, x, FLOOR, z, 0.035, 0.045, 1.55, 8);
+    K.cyl(M.blackIron, x, FLOOR, z, 0.2, 0.22, 0.05, 12);
+    K.box(M.blackIron, x, FLOOR + 1.5, z - 0.07, 0.03, 0.03, 0.16);
+    const navy = new THREE.MeshStandardMaterial({ color: 0x1c2a4a, roughness: 0.8 });
+    const brass = new THREE.MeshStandardMaterial({ color: 0xc89a3a, roughness: 0.4, metalness: 0.6 });
+    const cap = new THREE.Group();
+    const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.115, 0.1, 16), navy);
+    crown.position.y = 0.05;
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.117, 0.117, 0.03, 16), brass);
+    band.position.y = 0.02;
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.012, 0.2), new THREE.MeshStandardMaterial({ color: 0x0c0c10, roughness: 0.5 }));
+    visor.position.set(-0.13, 0.0, 0);
+    cap.add(crown, band, visor);
+    cap.position.set(x, FLOOR + 1.47, z - 0.15);
+    cap.rotation.z = -0.25;   // hung on the hook by its back, tipped
+    K.root.add(cap);
+    CONDUCTOR.setCap = (on) => { cap.visible = on; CONDUCTOR.capOn = on; };
+  }
   // the Grin Express (loco, tender, two open cars) standing at the platform,
   // the goods wagons on the siding
   TRAIN_STATE.train = buildTrain(K, M);
@@ -1531,6 +1554,14 @@ function buildLoopTrack(K, M, R) {
 /* The Grin Express: its loco and tender, two open passenger cars, each its
    own group with its own colliders, so train.js can run it round the loop. */
 const TRAIN_STATE = { train: null };
+/* The conductor's job (modes/social-conductor.js): the cap's stand on the
+   platform behind the shops, and the platforms you can hold the train from
+   (that one and the station's, across the tracks). */
+const CONDUCTOR = {
+  stand: { x: -21.6, z: -25.35, floor: FLOOR },
+  platforms: [{ x0: -36, x1: 24, z0: -27.6, z1: -25.0 }, { x0: -13, x1: 7, z0: -38.6, z1: -37.1 }],
+  setCap: () => {}, capOn: true,
+};
 function buildTrain(K, M) {
   const car = (build, len, back, decks) => {
     const group = new THREE.Group();
@@ -2066,7 +2097,7 @@ export const TROLLCITY = {
   build: buildTrollCity,
   // Socialize roleplay spots (saloon-bar.js / game.js updateBar). Floor
   // heights are the saloon's ground floor.
-  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
+  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, conductor: CONDUCTOR, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
   // Team spawns: past the railway in the north, out on the plain south.
   spawns: [[-56, -46], [-46, -47.5], [-16, -47.8], [-2, -47.8], [8, -48], [18, -46.5], [50, -46], [58, -40],
     [-56, 46], [-44, 46.5], [-26, 45], [-12, 46], [0, 45.5], [14, 46], [28, 45], [40, 45.5]],
