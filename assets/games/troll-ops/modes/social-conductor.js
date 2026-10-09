@@ -146,15 +146,15 @@ export function updateConductor() {
   updateRoomClock();
   if (!S) { if (bar.role === "conductor") setBarRole(null, null); return; }
   const mine = bar.role === "conductor";
-  wearJobHat(game.localRig, mine ? "conductor" : null);
+  wearJobHat(game.localRig, bar.role);   // a job's hat, whatever the job (outfits.js JOB_HATS)
   const worn = mine || !!otherWithRole("conductor");
   S.setCap(!worn);
 }
 
 rpExtras.push(conductorAction);
 rpListeners.push(onMessage);
-// Everyone else's cap, on their head.
-peerPosers.push((rp) => wearJobHat(rp.rig, game.isSocial() && rp.peer?.role === "conductor" ? "conductor" : null));
+// Everyone else's job hat (the conductor's cap, the sheriff's hat), on their head.
+peerPosers.push((rp) => wearJobHat(rp.rig, game.isSocial() ? rp.peer?.role : null));
 
 if (new URLSearchParams(location.search).has("tohooks")) {
   window.__trollConductor = { CONDUCTOR, cond, clock, holdable: () => holdable(trainOf()), roomNow };

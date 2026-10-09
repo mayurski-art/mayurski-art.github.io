@@ -128,6 +128,7 @@ export class Net {
     // wristband tier, the line ticket, the door phase "phase:lane:seconds".
     this.club = { wb: 0, cq: 0, ce: null };
     this.trainAt = null;   // riding the Grin Express (modes/social-train.js)
+    this.cuff = 0; this.jail = 0; this.wanted = null;   // Troll City's law (modes/social-sheriff.js)
     this._acc = 0;
     this._out = [];
     this._flushT = null;
@@ -343,6 +344,9 @@ export class Net {
         p.ce = typeof m.ce === "string" ? m.ce.slice(0, 24) : null;
         p.throwCk = typeof m.ck === "string" ? m.ck.slice(0, 16) : null;   // a grenade in hand (combat/throw-anim.js)
         p.trainAt = typeof m.tc === "string" ? m.tc.slice(0, 24) : null;   // riding the Grin Express (modes/social-train.js)
+        p.cuffed = Math.max(0, Math.min(2, m.cf | 0));   // Troll City's law (modes/social-sheriff.js)
+        p.jail = Math.max(0, Math.min(9, m.jl | 0));
+        p.wanted = typeof m.wl === "string" ? m.wl.slice(0, 80) : null;
         p.body = typeof m.bd === "string" ? m.bd.slice(0, 16) : null;   // a realistic body (cop-bodies.js)
         if (m.bs != null) p.botSkill = BOT_SKILLS[m.bs | 0] || null;   // only bots carry it
         // keep a short history so the renderer can interpolate in the past
@@ -517,6 +521,10 @@ export class Net {
         wb: this.club.wb || undefined, cq: this.club.cq || undefined, ce: this.club.ce || undefined,   // the club door
         ck: local.throwCk || undefined,   // throw phase:deciseconds:kind
         tc: this.trainAt || undefined,   // on the Grin Express: car:x:z, car-local (modes/social-train.js sets it)
+        // Troll City's law (modes/social-sheriff.js, social-jail.js): cuffed
+        // (1, or 2 being arrested by the town), the cell we're in + 1, the
+        // sheriff's wanted board ("id:crime;...")
+        cf: this.cuff || undefined, jl: this.jail || undefined, wl: this.wanted || undefined,
       });
     }
     this.prune();

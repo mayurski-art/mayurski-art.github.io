@@ -83,8 +83,9 @@ export function initMenuButtons() {
     game.chat.setInteractive(true);
     cancelCook();
     // the DJ booth, the piano's keys and the club door's 18+ question free
-    // the mouse on purpose
-    if (game.gameState === "playing" && !game.djLulz.isOpen && !piano.panel?.isOpen && !clubAskOpen()) game.openPauseMenu();
+    // the mouse on purpose (and so does the sheriff's wanted board,
+    // modes/social-sheriff.js: looked up, not imported, which would loop)
+    if (game.gameState === "playing" && !game.djLulz.isOpen && !piano.panel?.isOpen && !clubAskOpen() && !document.querySelector(".sheriff-board:not([hidden])")) game.openPauseMenu();
   });
 
   document.addEventListener("visibilitychange", () => {

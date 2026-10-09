@@ -29,6 +29,8 @@ import * as THREE from "three";
 import { rpBusy, rpExtras, rpListeners, rpSeats, sitDown, seated, standUp } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1";
 import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
 import { touchState } from "../input/touch.js?v=in1-th2";
+import { inJail } from "./social-jail.js?v=sj1";
+import { sheriffHolds, townArrest } from "./social-sheriff.js?v=sh1";
 import { game } from "../core/state.js?v=st1";
 
 const EXTRAS = new Set(["Townsfolk", "Drifter", "Barfly", "Regular", "Gambler"]);
@@ -46,7 +48,7 @@ export const duel = {
   act: "square", actT: 0,
   nextJab: 0, punchT: 0, punchCd: 0, landed: false,
   gun: null,            // { at, who, drawn, fired, until }
-  ko: 0, bleed: null, jail: null,
+  ko: 0, bleed: null,
   bumps: new Map(), lastBump: null, pubT: 0, fireWas: false, endT: 0,
 };
 const remote = new Map();   // npc index -> { from, last, x, z, yaw, act, gun }
@@ -200,26 +202,11 @@ function shoot() {
   send({ e: "down", n: duel.i });
 }
 
+/* Refused: the town's sheriff comes for you, cuffs on, and you come round
+   in a cell (modes/social-sheriff.js, view/arrest-cine.js). */
 function jailMe(why) {
-  const J = jail();
   endFight(true);
-  if (!J?.cells.length) return;
-  const ci = Math.floor(Math.random() * J.cells.length), c = J.cells[ci];
-  if (seated) standUp();
-  game.move.reset(c.x, c.z, c.y);
-  game.look.yaw = c.yaw;
-  c.setShut(true); c.shut = true;
-  duel.jail = { ci, left: DUEL.jailSecs };
-  showWaveBanner(`Sheriff Grimes: "${why} That's a minute in the cells, partner."`, 3200);
-  send({ e: "jail", c: ci, on: 1 });
-}
-
-function freeMe() {
-  const c = jail()?.cells[duel.jail.ci];
-  if (c) { c.setShut(false); c.shut = false; }
-  send({ e: "jail", c: duel.jail.ci, on: 0 });
-  duel.jail = null;
-  showWaveBanner("You're free to go. Behave yourself.", 2200);
+  if (jail()?.cells.length) townArrest(why, DUEL.jailSecs);
 }
 
 function endFight(quiet = false) {
@@ -238,7 +225,7 @@ function endFight(quiet = false) {
 export function updateDuel(dt) {
   const T = npcs();
   if (!game.isSocial() || !T || !jail()) {
-    if (duel.phase || duel.jail) { endFight(true); duel.jail = null; }
+    if (duel.phase) endFight(true);
     hideOverlay();
     return;
   }
@@ -248,18 +235,8 @@ export function updateDuel(dt) {
   // remote fights time out if their driver went quiet
   for (const [i, r] of remote) if (now - r.last > 3) { dropGun(T.list[i]); T.release(i); remote.delete(i); }
 
-  // the cells
-  if (duel.jail) {
-    duel.jail.left -= dt;
-    const c = jail().cells[duel.jail.ci];
-    // stay inside (a respawn or a teleport out is fine; walking out isn't)
-    if (Math.abs(p.x - c.x) > 3 || Math.abs(p.z - c.z) > 3.4) { /* moved by something else: let it go */ duel.jail.left = Math.min(duel.jail.left, 0); }
-    setChip(`In the cells · ${Math.max(0, Math.ceil(duel.jail.left))}s`);
-    if (duel.jail.left <= 0) freeMe();
-  } else setChip(null);
-
-  // bumping into folk
-  if (!duel.phase && !duel.jail && game.player.alive && !seated) {
+  // bumping into folk (the cells: modes/social-jail.js)
+  if (!duel.phase && !inJail() && !sheriffHolds() && game.player.alive && !seated) {
     const sp = Math.hypot(game.move.velocity.x, game.move.velocity.z);
     if (sp > 2) {
       for (const { n, i } of extras()) {
@@ -479,7 +456,7 @@ function wake() {
 
 /* Hold X: take up a challenge, or start one. */
 rpExtras.push(() => {
-  if (!game.isSocial() || !jail() || duel.jail || !game.player.alive) return null;
+  if (!game.isSocial() || !jail() || inJail() || sheriffHolds() || !game.player.alive) return null;
   if (duel.phase === "challenge") {
     return { key: "duel-accept", label: `Fight ${nameOf(duel.n)}`, ctx: "Fight", time: 0.35, done: () => startFight(duel.i) };
   }
@@ -511,7 +488,6 @@ rpListeners.push((p, m) => {
   if (m.e === "punch") { p.punchAt = performance.now(); return; }
   if (m.e === "down" && m.me) { p.duelDown = true; return; }
   if (m.e === "up") { p.duelDown = false; return; }
-  if (m.e === "jail") { const c = jail()?.cells[m.c | 0]; if (c) { c.setShut(!!m.on); c.shut = !!m.on; } return; }
   if (!T || !T.list[i] || (duel.i === i && duel.phase)) return;
   const n = T.list[i];
   let r = remote.get(i);
@@ -556,11 +532,6 @@ function ensureUi() {
   return ui;
 }
 function flash(k) { if (ensureUi()) ui.flashK = Math.max(ui.flashK, k); }
-function setChip(text) {
-  if (!ensureUi()) return;
-  ui.chip.hidden = !text;
-  if (text) ui.chip.textContent = text;
-}
 function overlay() {
   if (!ensureUi()) return;
   const now = performance.now(), dt = (now - ui.at) / 1000;

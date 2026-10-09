@@ -11,6 +11,9 @@ import { royaleDropView, royaleOnBelt, royaleRolling, stageFrozen, updateRoyaleR
 import { bar, seated, holdSeat } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1";
 import { updateTrain } from "../modes/social-train.js?v=st1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
 import { updateConductor } from "../modes/social-conductor.js?v=cd1";
+import { sheriffHold, sheriffHolds, updateSheriff } from "../modes/social-sheriff.js?v=sh1";
+import { jailHold, jailHolds } from "../modes/social-jail.js?v=sj1";
+import { arrestCineOn, hideArrestCine, placeArrestCine } from "./arrest-cine.js?v=ac1";
 import { updateDuel, duelFire } from "../modes/social-duel.js?v=sd1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1";
 import { clubHolds, clubHold, updateClubEntry, clubEyeDrop } from "../modes/club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1";
 import { clubCineOn, placeClubCine } from "./club-entry-cine.js?v=cc1c3f1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1";
@@ -177,6 +180,8 @@ export function updatePlayer(dt) {
   if (dropping) updateDropPlayer(dt, dropIx, dropIz);
   else if (game.isView()) flyView(dt, ix, iz);
   else if (game.isSocial() && clubHolds()) clubHold(dt);   // in the club's line, or walked in by the door
+  else if (game.isSocial() && jailHolds()) jailHold(dt);   // walked into a cell by the sheriff
+  else if (game.isSocial() && sheriffHolds()) sheriffHold(dt);   // cuffed on the leash, or the town's arrest
   else if (seated && game.isSocial()) holdSeat(dt, ix, iz, !frozen && ((game.isTouch && touchState.jump) || (gp && game.gamepadState.jump) || game.keys.has("Space") || game.keys.has("KeyC")));
   else game.move.update(dt, {
     forward: iz,
@@ -199,7 +204,7 @@ export function updatePlayer(dt) {
 
   // fist fights with the townsfolk (Socialize): after we've moved, so a
   // bump reads our speed and a knock-down holds us where we fell
-  if (game.isSocial()) { duelFire(); updateDuel(dt); updateClubEntry(dt); updateConductor(); }
+  if (game.isSocial()) { duelFire(); updateDuel(dt); updateClubEntry(dt); updateConductor(); updateSheriff(dt); }
 
   updateSwivel(dt);
 
@@ -265,7 +270,12 @@ export function updatePlayer(dt) {
   const viewPitch = game.look.pitch - game.tabletDiveDip() + w.recoilPitch + (Math.random() - 0.5) * shake + landKick + meleeKick
     + game.fireShake.p + (Math.random() - 0.5) * buzz + (fpCam?.pitch || 0) + (Math.random() - 0.5) * game.sawShake;
 
-  if (game.isSocial() && clubCineOn()) {
+  if (!(game.isSocial() && arrestCineOn())) hideArrestCine();
+  if (game.isSocial() && arrestCineOn()) {
+    // Arrested by the town's sheriff: its own camera (arrest-cine.js).
+    game.localRig.root.visible = placeArrestCine(game.camera);
+    game.localRig.parts.head.visible = true;
+  } else if (game.isSocial() && clubCineOn()) {
     // Thrown out of Trolling Loud: the kick-out's own camera (club-entry-cine.js).
     game.localRig.root.visible = placeClubCine(game.camera);
     game.localRig.parts.head.visible = true;

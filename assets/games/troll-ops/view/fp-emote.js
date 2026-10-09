@@ -10,6 +10,7 @@ import { EMOTES } from "../emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u";
 import { game } from "../core/state.js?v=st1";
 import { duelArms } from "../modes/social-duel.js?v=sd1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1";
 import { throwFrame, placeThrowInHand } from "../combat/throw-anim.js?v=ta1-th2";
+import { cuffArms } from "../modes/social-sheriff.js?v=sh1";
 import { clubArms } from "../modes/club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1";
 
 /* A first-person emote (emotes.js `fp`): the gun goes away (or does the
@@ -34,6 +35,8 @@ function socialArmsFrame() {
   socialArms.run += ((game.move.sprinting ? 1 : 0) - socialArms.run) * Math.min(1, dt * 5);
   if (moving) socialArms.phase += dt * gaitPhaseRate(speed);
   const k = socialArms.k, run = socialArms.run;
+  const cuffs = cuffArms();   // cuffed: hands behind your back, out of sight (social-sheriff.js)
+  if (cuffs) return cuffs;
   const fight = duelArms();   // a fist fight: fists up (social-duel.js)
   if (fight) return fight;
   const band = clubArms();   // Trolling Loud's door: the arm out for the band

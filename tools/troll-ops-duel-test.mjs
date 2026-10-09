@@ -26,6 +26,8 @@ const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const SHOTS = path.join(ROOT, "tools", ".sheriff-shots");
+fs.mkdirSync(SHOTS, { recursive: true });
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css",
   ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp",
   ".glb": "model/gltf-binary", ".mp3": "audio/mpeg", ".ogg": "audio/ogg", ".svg": "image/svg+xml", ".gif": "image/gif" };
@@ -68,7 +70,7 @@ async function open(label, username) {
   await page.addInitScript((name) => {
     const fake = { getCachedProfile: () => ({ username: name, tags: [] }) };
     Object.defineProperty(window, "TrollrunnerAccounts", { configurable: true, get: () => fake, set: () => {} });
-    window.__trollDuelTune = { jailSecs: 4, challengeSecs: 2, bleedSecs: 3, gunOdds: 0 };
+    window.__trollDuelTune = { jailSecs: 8, challengeSecs: 2, bleedSecs: 3, gunOdds: 0 };
   }, username);
   await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 420000 });
   await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 420000 });
@@ -117,7 +119,10 @@ const ids = await Promise.all([A, B].map((p) => p.evaluate(() => window.__trollO
 
 const D = (page) => page.evaluate(() => {
   const d = window.__trollDuel.duel;
-  return { phase: d.phase, i: d.i, hp: d.hp, npcHp: d.npcHp, act: d.act, jail: d.jail && { ci: d.jail.ci, left: d.jail.left }, seated: window.__trollOps.rp().seated?.kind || null,
+  const S = window.__trollSheriff, j = S.jailed.me, c = S.sheriff.cine;
+  return { phase: d.phase, i: d.i, hp: d.hp, npcHp: d.npcHp, act: d.act, jail: j && { ci: j.ci, left: j.left }, cine: c ? +c.t.toFixed(2) : -1,
+    letterbox: document.body.classList.contains("arrest-cine-on"), cap: document.querySelector(".arrest-cine-cap")?.textContent || "",
+    seated: window.__trollOps.rp().seated?.kind || null,
     pos: (({ x, y, z }) => ({ x, y, z }))(window.__trollOps.move.pos) };
 });
 const cellShut = (page, ci) => page.evaluate((ci) => !!window.__trollOps.builtMap().map.rp.jail().cells[ci].shut, ci);
@@ -155,21 +160,34 @@ check("a second citizen straight after: he challenges A", s.phase === "challenge
 await pumpBoth(A, B, 500);
 check("B sees him squared up to A", (await bSees(e0.i)).driven === true);
 
-// ── 2. Not taken: the cells ───────────────────────────────────────────────
-s = await until(A, (s) => !!s.jail, 6000);
-check("not taking it puts A in a cell", !!s.jail && s.pos.x > 51.2 && s.phase === null, JSON.stringify(s));
+// ── 2. Not taken: the town's sheriff, cuffs, the cells ───────────────────
+s = await until(A, (s) => s.cine > 0, 6000);
+check("not taking it: the town's sheriff comes for A, letterboxed", s.cine > 0 && s.letterbox && s.phase === null, JSON.stringify(s));
+const grimes = await A.evaluate(() => window.__trollOps.townNpcs().list.findIndex((n) => n.c.role === "Sheriff"));
+await pumpBoth(A, B, 300);
+check("Sheriff Grimes walks up (on both screens)", (await bSees(grimes)).driven === true && (await A.evaluate((i) => !!window.__trollOps.townNpcs().list[i].override, grimes)), "");
+s = await until(A, (s) => s.cine > 2.4, 6000);
+check("cuffs on, his line up", /cells, partner/.test(s.cap), s.cap);
+const arms = await B.evaluate((id) => window.__trollOps.net.peers.get(id)?.cuffed, ids[0]);
+check("B sees A being arrested (cf 2)", arms === 2, String(arms));
+await A.screenshot({ path: path.join(SHOTS, "arrest-cuffs.png") });
+s = await until(A, (s) => s.cine > 4.25, 6000);
+await A.screenshot({ path: path.join(SHOTS, "arrest-cot.png") });
+s = await until(A, (s) => s.cine < 0, 6000);
+check("A comes round in a cell, the scene over", !!s.jail && s.pos.x > 51.2 && !s.letterbox, JSON.stringify(s));
 await pumpBoth(A, B, 500);
 check("its door is shut", await cellShut(A, s.jail.ci));
 check("B sees the door shut", await cellShut(B, s.jail.ci));
-check("he's back to his business", (await bSees(e0.i)).driven === false);
-// walking out through the bars doesn't work
+check("Grimes and the citizen are back to their business", (await bSees(e0.i)).driven === false && (await bSees(grimes)).driven === false);
+// walking out: through the bars, or the back corner (it used to let you out)
 const cell = s.jail.ci;
-await A.keyboard.down("w");
-await pump(A, 800);
-await A.keyboard.up("w");
+await A.keyboard.down("w"); await pump(A, 800); await A.keyboard.up("w");
 s = await D(A);
 check("the bars hold A in", s.pos.x > 51.2, s.pos.x.toFixed(2));
-s = await until(A, (s) => !s.jail, 8000);
+await A.keyboard.down("s"); await A.keyboard.down("d"); await pump(A, 1500); await A.keyboard.up("d"); await A.keyboard.up("s");
+s = await D(A);
+check("the back of the cell doesn't let A out", !!s.jail && s.pos.x > 51.2, JSON.stringify(s));
+s = await until(A, (s) => !s.jail, 12000);
 await pumpBoth(A, B, 500);
 check("let out when the time's up", !s.jail && !(await cellShut(A, cell)) && !(await cellShut(B, cell)));
 

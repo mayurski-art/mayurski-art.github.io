@@ -104,6 +104,13 @@ const SMITHY = { light: null, coal: null, glow: null };
 /* The courthouse cells, for a fist fight refused (modes/social-duel.js):
    where to stand inside, facing the bars, and the door to shut. */
 const JAIL = { cells: [] };
+/* The sheriff's job (modes/social-sheriff.js): the badge on his desk, the
+   wanted board; the meshes fill in setBadge / posters / setPoster. */
+const SHERIFF = {
+  badge: { x: 47.8, z: -6.1, floor: FLOOR }, badgeOn: true,
+  board: { x: 43.45, z: -9.0, floor: FLOOR },
+  setBadge: () => {}, posters: [], setPoster: () => {},
+};
 function tableSet(K, M, x, y, z, o = {}) {
   kitTableSet(K, M, x, y, z, o);
   SURFACES.push({ x, z, y: y + 0.77, floor: y, r: o.r || 0.55 });
@@ -1227,14 +1234,31 @@ function buildCourthouse(K, M, lights) {
   // the sheriff's desk, his chair, the wanted board, a gun rack, a stove
   K.solid(47.4, -6.2, 1.8, 0.9, 0.8, { y: Y, pen: 2, mat: M.furniture });
   chair(K, M, 47.4, Y, -7.1, { ry: Math.PI });
-  K.box(M.brass, 47.8, Y + 0.8, -6.1, 0.18, 0.06, 0.18);   // the badge, set down
+  // the badge, set down: its own pieces, gone while someone wears it
+  // (modes/social-sheriff.js)
+  const badge = new THREE.Group();
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.06, 0.18), M.brass);
+  plate.position.set(47.8, Y + 0.83, -6.1);
+  const star = new THREE.Mesh(new THREE.CircleGeometry(0.11, 5), M.trollGold);
+  star.position.set(47.8, Y + 0.87, -6.1);
+  star.rotation.x = -Math.PI / 2;
+  badge.add(plate, star);
+  K.root.add(badge);
+  SHERIFF.setBadge = (on) => { badge.visible = on; SHERIFF.badgeOn = on; };
   // the general's nameplate, facing whoever's been brought in
   K.box(M.furniture, 47.0, Y + 0.8, -5.82, 0.62, 0.11, 0.06, { rx: 0.35 });
   K.add(sign("THE GENERAL", "", { bg: "#c89a3a", fg: "#2a1a10", edge: "#2a1a10", w: 512, h: 96 }), place(new THREE.PlaneGeometry(0.58, 0.09), { x: 47.0, y: Y + 0.86, z: -5.785, rx: -0.35 }), { shadow: false });
-  K.add(M.trollGold, place(new THREE.CircleGeometry(0.11, 5), { x: 47.8, y: Y + 0.87, z: -6.1, rx: -Math.PI / 2 }), { shadow: false });
-  // the wanted board, between the corner and the side door
+  // the wanted board, between the corner and the side door: three posters
+  // of its own (the sheriff pins players' up over them)
   K.box(M.furniture, 43.45, Y + 1.0, C.z0 + T + 0.03, 2.0, 1.6, 0.04);
-  for (let i = 0; i < 3; i++) wallPic(K, M.wanted[i], { x: 42.85 + i * 0.6, y: Y + 1.8 + (i % 2) * 0.1, z: C.z0 + T + 0.05, w: 0.5, h: 0.74, o: 1 });
+  SHERIFF.posters = [];
+  for (let i = 0; i < 3; i++) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.74), M.wanted[i]);
+    m.position.set(42.85 + i * 0.6, Y + 1.8 + (i % 2) * 0.1, C.z0 + T + 0.075);
+    K.root.add(m);
+    SHERIFF.posters.push({ mesh: m, def: M.wanted[i] });
+  }
+  SHERIFF.setPoster = (i, mat) => { const p = SHERIFF.posters[i]; if (p) p.mesh.material = mat || p.def; };
   rifleRack(K, M, { x: C.x0 + T, z: 6.6, axis: "z", o: 1, n: 5 });
   stove(K, M, 47.8, 7.6, { top: C.h1 });
   K.solid(42.65, -4.2, 0.6, 1.2, 1.4, { y: Y, pen: 4, mat: M.furniture });    // filing cabinet
@@ -1271,7 +1295,12 @@ function buildCourthouse(K, M, lights) {
       if (!on) { c.min.y = -60; c.max.y = -59; }
     };
     setShut(false);
-    JAIL.cells.push({ x: 53.9, z: door.c, y: Y, yaw: Math.PI / 2, setShut });
+    JAIL.cells.push({
+      x: 53.9, z: door.c, y: Y, yaw: Math.PI / 2, setShut,
+      box: { x0: cx0, x1: C.x1 - T, z0, z1 },          // inside (modes/social-jail.js)
+      out: { x: cx0 - 0.9, z: door.c },               // the corridor, at the door
+      cot: { x: 55.0, y: Y + 0.58, z: zc - 1.2 },     // its top
+    });
     K.box(M.blackIron, cx0, Y + 2.8, zc, 0.1, 0.1, z1 - z0);
     // a cot and a bucket
     K.solid(55.0, zc - 1.2, 0.9, 2.0, 0.5, { y: Y, pen: 1, mat: M.furniture });
@@ -2097,7 +2126,7 @@ export const TROLLCITY = {
   build: buildTrollCity,
   // Socialize roleplay spots (saloon-bar.js / game.js updateBar). Floor
   // heights are the saloon's ground floor.
-  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, conductor: CONDUCTOR, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
+  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, conductor: CONDUCTOR, sheriff: SHERIFF, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
   // Team spawns: past the railway in the north, out on the plain south.
   spawns: [[-56, -46], [-46, -47.5], [-16, -47.8], [-2, -47.8], [8, -48], [18, -46.5], [50, -46], [58, -40],
     [-56, 46], [-44, 46.5], [-26, 45], [-12, 46], [0, 45.5], [14, 46], [28, 45], [40, 45.5]],

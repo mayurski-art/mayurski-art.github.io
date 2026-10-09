@@ -104,6 +104,11 @@ export function updateThirdPersonCamera(pivot, yaw, pitch, adsT) {
   head.material.depthWrite = adsT < 0.1;
 }
 
+/* Socialize jobs that pose our own body after everything else (the sheriff's
+   cuffs, modes/social-sheriff.js): they push in here, so this module never
+   imports them (social-rp loads through us, and they need it loaded). */
+export const localPosers = [];
+
 export let localLower = 0;
 export function localReloadK() {
   const w = currentWeapon();
@@ -310,7 +315,7 @@ export function updateLocalRig(dt) {
   rollRig(game.localRig, royaleRollK());
   // Trolling Loud's door: the arm out for the band; carried off and thrown
   // on your back (after rollRig, which levels the body).
-  if (game.isSocial()) clubPoseLocal(game.localRig);
+  if (game.isSocial()) { clubPoseLocal(game.localRig); for (const f of localPosers) f(game.localRig); }
   if (game.move.onRope) {
     if (game.move.moving) localRopeT += dt * ROPE_CLIMB_RATE;
     poseRope(game.localRig, localRopeT);

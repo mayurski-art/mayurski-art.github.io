@@ -218,13 +218,27 @@ function wearHat(rig, kind, hex) {
       inkPath(g, lw * 0.5, "#f0d27a", () => { g.arc(W * 0.5, H * 0.33, W * 0.055, 0, Math.PI * 2); });
       inkPath(g, lw, "#0c0c10", () => { g.moveTo(W * 0.1, H * 0.8); g.lineTo(W * 0.9, H * 0.8); g.lineTo(W * 0.8, H * 0.96); g.lineTo(W * 0.2, H * 0.96); g.closePath(); });
     }), 0.42, 0.22, HAT_Y + 0.05);
+  } else if (kind === "sheriff") {
+    // the sheriff's stetson: a pinched crown, a wide curled brim, a band,
+    // and the star pinned on the front
+    onHead(rig, drawn(`sheriff${hex}`, 0.62, 0.26, (g, W, H) => {
+      const lw = W * 0.025;
+      inkPath(g, lw, fill, () => { g.moveTo(W * 0.3, H * 0.72); g.bezierCurveTo(W * 0.28, H * 0.2, W * 0.38, H * 0.06, W * 0.5, H * 0.2); g.bezierCurveTo(W * 0.62, H * 0.06, W * 0.72, H * 0.2, W * 0.7, H * 0.72); g.closePath(); });
+      inkPath(g, lw * 0.7, "#2a1a10", () => { g.rect(W * 0.3, H * 0.58, W * 0.4, H * 0.1); });
+      inkPath(g, lw, fill, () => { g.moveTo(W * 0.03, H * 0.62); g.quadraticCurveTo(W * 0.12, H * 0.86, W * 0.5, H * 0.84); g.quadraticCurveTo(W * 0.88, H * 0.86, W * 0.97, H * 0.62); g.quadraticCurveTo(W * 0.86, H * 0.97, W * 0.5, H * 0.97); g.quadraticCurveTo(W * 0.14, H * 0.97, W * 0.03, H * 0.62); g.closePath(); });
+      inkPath(g, lw * 0.6, "#f0c43a", () => {
+        const cx = W * 0.5, cy = H * 0.4, R = H * 0.15, r = R * 0.45;
+        for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, q = i % 2 ? r : R; i ? g.lineTo(cx + Math.cos(a) * q, cy + Math.sin(a) * q) : g.moveTo(cx + Math.cos(a) * q, cy + Math.sin(a) * q); }
+        g.closePath();
+      });
+    }), 0.62, 0.26, HAT_Y + 0.06);
   }
 }
 
 /* A job's hat (Troll City roleplay: the conductor's cap), on anyone; null
    takes it off. Kept apart from the outfit, so a job never undresses
    anyone and their own hat comes back after. Cheap to call every frame. */
-const JOB_HATS = { conductor: 0x1c2a4a };
+const JOB_HATS = { conductor: 0x1c2a4a, sheriff: 0x6b4423 };
 export function wearJobHat(rig, kind) {
   kind = JOB_HATS[kind] != null ? kind : null;
   if (!rig || (rig.jobHatKind ?? null) === kind) return;

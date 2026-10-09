@@ -513,6 +513,49 @@ export function wantedTexture(variant = 0) {
   });
 }
 
+/* WANTED, made out for a player (the sheriff's board, modes/social-sheriff.js):
+   the same aged poster, their name over the trollface, the crime and the
+   reward the sheriff's dice picked. */
+export function wantedPoster(name, crime, reward) {
+  return trollCanvas(`wanted-p:${name}|${crime}`, 256, 384, (g, W, H, img) => {
+    const grd = g.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, 260);
+    grd.addColorStop(0, "#efe0b6");
+    grd.addColorStop(1, "#b89a62");
+    g.fillStyle = grd;
+    g.fillRect(0, 0, W, H);
+    g.fillStyle = "#2a1a10";
+    g.textAlign = "center";
+    g.font = "900 58px Rockwell, Georgia, serif";
+    g.fillText("WANTED", W / 2, 62);
+    // the name, the crime and the reward, each shrunk to fit
+    const fit = (text, weight, size, min, y, face = "Rockwell, Georgia, serif") => {
+      let fs = size;
+      g.font = `${weight} ${fs}px ${face}`;
+      while (g.measureText(text).width > W - 34 && fs > min) { fs -= 1; g.font = `${weight} ${fs}px ${face}`; }
+      g.fillText(text, W / 2, y);
+    };
+    fit(name, 800, 30, 14, 96);
+    g.fillStyle = "#f6ecd2";
+    g.fillRect(36, 108, W - 72, 160);
+    g.strokeStyle = "#2a1a10";
+    g.lineWidth = 3;
+    g.strokeRect(36, 108, W - 72, 160);
+    drawTroll(g, img, 44, 114, W - 88, 148);
+    g.fillStyle = "#2a1a10";
+    fit(crime, 800, 20, 11, 298, "Georgia, serif");
+    fit(reward, 900, 30, 14, 338);
+    g.font = "italic 13px Georgia, serif";
+    g.fillText("REWARD · SEE THE SHERIFF", W / 2, 360);
+    const R = rng(name.length * 7 + crime.length);
+    for (let i = 0; i < 10; i++) {
+      g.fillStyle = `rgba(110,70,30,${(0.05 + R() * 0.1).toFixed(3)})`;
+      g.beginPath();
+      g.arc(R() * W, R() * H, 6 + R() * 22, 0, Math.PI * 2);
+      g.fill();
+    }
+  });
+}
+
 /* Rows of bottles on a back-bar shelf, cut out (alpha), with a lit
    window glow behind them. */
 export function bottlesTexture() {
