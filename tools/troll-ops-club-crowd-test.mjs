@@ -75,21 +75,23 @@ const cast = await A.evaluate(() => {
   const out = N.list.filter((n) => n.x < B.minX || n.x > B.maxX || n.z < B.minZ || n.z > B.maxZ).map((n) => n.c.name);
   let shadows = 0;
   for (const n of N.list) n.rig.root.traverse((o) => { if (o.isMesh && o.castShadow) shadows++; });
-  // dressed for the night: the guests, not the staff (outfits.js)
+  // no body clothing (user 2026-10-08: "all clothing except head and facial"):
+  // only hats and shades on the face board, on guests, never on staff (outfits.js)
   const GUESTS = ["Clubgoer", "Raver", "VIP", "Barfly"];
   const guests = N.list.filter((n) => GUESTS.includes(n.c.role)), staff = N.list.filter((n) => !GUESTS.includes(n.c.role));
-  // (the solid pieces are merged into a skinned mesh per material)
-  const dressed = guests.filter((n) => n.rig.outfit?.some((o) => o.isSkinnedMesh && o.geometry.attributes.position.count > 200)).length;
+  const clothed = N.list.filter((n) => n.rig.outfit?.some((o) => o.isSkinnedMesh || (o.isMesh && !o.material.map))).map((n) => n.c.name);
+  const dressed = guests.filter((n) => n.rig.outfit?.length).length;
   const looks = new Set(guests.map((n) => JSON.stringify(n.c.outfit))).size;
   const staffDressed = staff.filter((n) => n.rig.outfit?.length).map((n) => n.c.name);
   const tinted = N.list.filter((n) => n.rig.parts.head.material.color.getHex() !== 0xffffff).map((n) => n.c.name);
-  return { n: N.list.length, roles, out, shadows, guests: guests.length, dressed, looks, staffDressed, tinted };
+  return { n: N.list.length, roles, out, shadows, guests: guests.length, dressed, looks, staffDressed, tinted, clothed };
 });
 check("Socialize on Trolling Loud has a crowd", !!cast && cast.n >= 80, cast ? `${cast.n} NPCs` : "no townNpcs");
 check("the club has its staff", cast && cast.roles.Bouncer >= 3 && cast.roles.Bartender >= 3 && cast.roles["Go-go dancer"] === 1 && cast.roles.Raver >= 12, JSON.stringify(cast?.roles));
 check("everyone is inside the map", cast && cast.out.length === 0, cast?.out.join(", "));
 check("the crowd casts no shadows", cast && cast.shadows === 0, `${cast?.shadows} shadow casters`);
-check("every guest wears an outfit, mostly different ones", cast && cast.dressed === cast.guests && cast.looks >= cast.guests * 0.6, `${cast?.dressed}/${cast?.guests} dressed, ${cast?.looks} looks`);
+check("no one wears body clothing", cast && cast.clothed.length === 0, cast?.clothed.slice(0, 5).join(", "));
+check("some guests wear a hat or shades", cast && cast.dressed >= 8, `${cast?.dressed}/${cast?.guests}`);
 check("the staff don't", cast && cast.staffDressed.length === 0, cast?.staffDressed.join(", "));
 check("no tinted faces", cast && cast.tinted.length === 0, cast?.tinted.join(", "));
 

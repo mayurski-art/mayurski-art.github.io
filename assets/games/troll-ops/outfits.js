@@ -247,13 +247,13 @@ export function wearOutfit(rig, spec) {
   takeOff(rig);
   if (!spec) return;
   rig.outfit = [];
-  const [tk, tc] = spec.top;
-  wearTop(rig, tk, cloth(tc));
-  if (tk === "dress") wearBottom(rig, "dress", cloth(tc));
-  else if (spec.bottom) wearBottom(rig, spec.bottom[0], cloth(spec.bottom[1]));
+  // User, 2026-10-08: "what are these torso outfits people are wearing. i
+  // dont want these" — "all clothing except head and facial". The body
+  // stays the plain stick figure; only the hats and shades on the face
+  // board are worn. (wearTop/wearBottom/wearChain are kept, unused, in
+  // case clothes come back in another style.)
   if (spec.hat) wearHat(rig, spec.hat[0], spec.hat[1]);
   if (spec.shades) wearShades(rig, spec.shades);
-  if (spec.chain) wearChain(rig);
   bake(rig);
   for (const o of rig.outfit) o.traverse((m) => { if (m.isMesh) { m.castShadow = false; m.userData.outfit = true; } });
 }

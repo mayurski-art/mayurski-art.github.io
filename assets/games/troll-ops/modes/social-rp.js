@@ -23,7 +23,7 @@ import { touchState } from "../input/touch.js?v=in1";
 import { frozenPlayer, setTouchContext } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
 import { game } from "../core/state.js?v=st1";
 import { PianoPanel } from "../menu/piano-panel.js?v=pp1b7";
-import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1";
+import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1";
 
 export const bar = {
   drink: null,      // { kind: "beer"|"whiskey", sips }

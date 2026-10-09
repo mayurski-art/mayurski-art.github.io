@@ -22,7 +22,7 @@ import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withCl
 import { renderCard, myCardData, openProfileCard } from "./profile-card.js?v=pc1-wst-sb2-fu1-wb1";
 import { shareCardOnX, saveCardPhoto } from "./menu/card-share.js?v=cs1-wb1";
 import { FINISHES } from "./skins.js?v=p5-wb1";
-import { MAPS, REWARD_MAPS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3";
+import { MAPS, REWARD_MAPS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1";
 import { setMapShot } from "./map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,

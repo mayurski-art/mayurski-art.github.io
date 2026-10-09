@@ -28,7 +28,7 @@ import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, DANCES, reachHand } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
 import { buildDrink, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7-cup1";
 import { SmithWork } from "./smithy.js?v=sm1b7b7dc2f1m1";
-import { wearOutfit } from "./outfits.js?v=of1m1";
+import { wearOutfit } from "./outfits.js?v=of1m1-nc1";
 
 const WALK_MPS = 1.25;
 const _lean = new THREE.Vector3(), _poleL = new THREE.Vector3(-1, -1, 0.3);

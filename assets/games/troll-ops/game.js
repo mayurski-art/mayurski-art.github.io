@@ -11,7 +11,7 @@ import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=p5bm-ws
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=p5-em1-wst-hf1-wb1";
 import { WeaponInspector } from "./inspector.js?v=hb1-nf-wst-ig1-sb2-if1-wb1";
 import { CharacterInspector } from "./char-inspector.js?v=hb4-wst-soc1-sb2c2-wb1m1";
-import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-gj1-fu1b7b7dc1c2-wb1m1-tc3";
+import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-gj1-fu1b7b7dc1c2-wb1m1-tc3-nc1";
 import { StreakPicker } from "./streak-picker.js?v=umb1-wst-sb2-fu1-wb1";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=umb1-wst-sb2-fu1-wb1";
 import { K9Pack, K9, resolveK9 } from "./k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d";
@@ -33,7 +33,7 @@ import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { recordMatch } from "./record.js?v=rec1";
 import { getMyCard, withClan } from "./calling-cards.js?v=p5-wst-sb2-fu1-wb1";
 import { openProfileCard } from "./profile-card.js?v=pc1-wst-sb2-fu1-wb1";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1";
 import { createMapPreloader } from "./map-preload.js?v=mp4";
 import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4";
@@ -47,7 +47,7 @@ import {
   BEER_SIPS, GRAB_TIME, FILL_TIME, FILL_TIME_BARTENDER, POUR_TIME, SIP_TIME, APRON_TIME,
   OFFER_SECONDS, REACH, BARTENDER_LEAVE_SECONDS,
 } from "./saloon-bar.js?v=sb1b7-cup1";
-import { TownNpcs } from "./town-npcs.js?v=tn4b7b7dc2f1m1u-cup1";
+import { TownNpcs } from "./town-npcs.js?v=tn4b7b7dc2f1m1u-cup1-nc1";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES, hideFpEmoteProps, fpEmoteRodTip } from "./emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u";
 import { buildWatch, wristOf } from "./wristwear.js?v=ww1c2m1";
 import { MatchIntro } from "./match-intro.js?v=mi5-wst";
@@ -126,27 +126,27 @@ import { currentWeapon, cycleWeapon, fireOnce, frozenPlayer, nearbyPackage, onBu
 import { addMatchXp, awardKillXp, awardScore, checkMatchEnd, creditAssistIfOwed, dealtLog, lastHitRange, noteDealt, recentTeamKillers, registerDeath, updateTeamHud } from "./combat/scoring.js?v=sc1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
 import { botBusy, botObjective, noteRemoteBombAct, prepareSndRound, scoreHill, siteUnderfoot, sndAliveCounts, sndBotSite, sndDefendTeam, sndGoLive, sndLive, sndRoundWin, updateSnd } from "./modes/objectives.js?v=ob1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
 import { applyInfect, applyInfectionLoadout, botMelee, infectionCounts, infectionStarted, pickFirstInfected, resetInfection, sortInfectionBots, updateInfection } from "./modes/infection.js?v=in1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { adoptRoomMode, cancelSocialReturn, ownerSwitchRoomMode, renderRoomModeRow, returnToSocial, scheduleSocialReturn, initSocial } from "./modes/social.js?v=so1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1";
-import { initMenuButtons } from "./menu/buttons.js?v=mb1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1";
-import { cancelIntermission, endGame, endMatch, renderVote, startIntermission, updateIntermission, voteOptions } from "./modes/match-end.js?v=me1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1";
-import { LOAD_WAIT_MAX, beginMatch, beginStaging, endStaging, enterMatch, followsHostMap, isStaging, loadHold, loadInfo, loadTarget, loadWarm, releaseLoad, startGame, updateStaging, warmNewGuns, warmShaders, initMatchStart } from "./modes/match-start.js?v=mst1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1";
-import { atPiano, bar, barSipK, docSpots, holdSeat, npcYieldKey, onBarMessage, piano, putDownDrink, resetBar, rpSeats, seatTaken, seated, sitDown, standUp, syncFpDrink, syncLocalDrink, updateBar, initSocialRp } from "./modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1";
-import { SWIVEL_TAP, localBlockT, localHeld, localLower, localReloadK, noteLocalDeath, noteRigShot, placeDeathCamera, swivel, swivelK, swivelTaps, syncLocalRigHeld, trySwivel, updateEmoteCamera, updateLocalRig, updateSwivel, updateThirdPersonCamera } from "./view/third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1";
-import { endCandleCharge, hudCache, regenPlayer, updatePlayer, initPlayerUpdate } from "./view/player-update.js?v=pu1-si1-mb1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1";
+import { adoptRoomMode, cancelSocialReturn, ownerSwitchRoomMode, renderRoomModeRow, returnToSocial, scheduleSocialReturn, initSocial } from "./modes/social.js?v=so1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1";
+import { initMenuButtons } from "./menu/buttons.js?v=mb1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1";
+import { cancelIntermission, endGame, endMatch, renderVote, startIntermission, updateIntermission, voteOptions } from "./modes/match-end.js?v=me1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1";
+import { LOAD_WAIT_MAX, beginMatch, beginStaging, endStaging, enterMatch, followsHostMap, isStaging, loadHold, loadInfo, loadTarget, loadWarm, releaseLoad, startGame, updateStaging, warmNewGuns, warmShaders, initMatchStart } from "./modes/match-start.js?v=mst1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1";
+import { atPiano, bar, barSipK, docSpots, holdSeat, npcYieldKey, onBarMessage, piano, putDownDrink, resetBar, rpSeats, seatTaken, seated, sitDown, standUp, syncFpDrink, syncLocalDrink, updateBar, initSocialRp } from "./modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1";
+import { SWIVEL_TAP, localBlockT, localHeld, localLower, localReloadK, noteLocalDeath, noteRigShot, placeDeathCamera, swivel, swivelK, swivelTaps, syncLocalRigHeld, trySwivel, updateEmoteCamera, updateLocalRig, updateSwivel, updateThirdPersonCamera } from "./view/third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1";
+import { endCandleCharge, hudCache, regenPlayer, updatePlayer, initPlayerUpdate } from "./view/player-update.js?v=pu1-si1-mb1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1";
 import { _armDir, _armFrom, _armTo, _meleeViewE, _meleeViewQ, applyMeleeInspect, applyReaperInspect, inspectArms, inspectDur, inspectPose, inspectProgress, landDipMag, landDipT, meleeHands, pfArms, placeRodWatch, poseMeleeArms, poseSaberArms, restoreMeleeHands, startInspect, stretchBetween, updateWeaponView, initWeaponView } from "./view/weapon-view.js?v=wv1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1";
-import { fpEmoteArmsOn, poseFreeArms, socialArms, updateFpEmoteView } from "./view/fp-emote.js?v=fe1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1";
-import { STREAK_SHOULDER, WHISTLE_BLOW_AT, WHISTLE_HAND, WHISTLE_HOLD, WHISTLE_ROT, hideStreakArms, streakArms, updateStreakView, initStreakView } from "./view/streak-view.js?v=sv1-si1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1";
+import { fpEmoteArmsOn, poseFreeArms, socialArms, updateFpEmoteView } from "./view/fp-emote.js?v=fe1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1";
+import { STREAK_SHOULDER, WHISTLE_BLOW_AT, WHISTLE_HAND, WHISTLE_HOLD, WHISTLE_ROT, hideStreakArms, streakArms, updateStreakView, initStreakView } from "./view/streak-view.js?v=sv1-si1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1";
 import { SAW_REV_TIME, sawInspectRev, sawShake, updateMeleeView } from "./view/melee-view.js?v=mv1-si1-if1-fu1b7b7dc2-wb1m1c4-cup1";
 import { _sbDir, _sbPos, _sbView, activeDroneMesh, activeMarkerMesh, activeMeleeMesh, activeStreakMesh, activeWeaponMesh, akimboView, hellfire, hellfireView, muzzleFlash, muzzleLight, muzzleMat, setActiveMeleeMesh, setActiveWeaponMesh, weaponCamera, weaponEnvTex, weaponRig, weaponScene, initViewmodels } from "./view/viewmodels.js?v=vm1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1";
 import { renderScoreboard } from "./core/scoreboard.js?v=sb1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1";
-import { PITCH_LIMIT, controls, keys, lockChangedAt, look, initKeyboardMouse } from "./input/keyboard-mouse.js?v=km1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1";
-import { armDuo, duoArmed, duoIncoming, duoOutgoing, duoTarget, duoXClaimed, emoteIsTp, emoteKind, emoteWheel, fpEmoteFrame, nearestDuoTeammate, onDuoMessage, sendDuoInvite, stopEmote, updateDuo, validEmote, initLocalEmotes } from "./view/local-emotes.js?v=le1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1";
-import { SPAWN_GUARD, botSpawn, clearRangeBots, notePointDeath, occupants, renderPauseRange, spawnDeaths, spawnForTeam, spawnRangeBot, teamSpawn } from "./modes/spawns.js?v=spw1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1";
-import { botDealDamage, botTargets, onBotShoot, remoteShotFx, updateBotAntiAir } from "./combat/bot-fire.js?v=bf1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1";
+import { PITCH_LIMIT, controls, keys, lockChangedAt, look, initKeyboardMouse } from "./input/keyboard-mouse.js?v=km1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1";
+import { armDuo, duoArmed, duoIncoming, duoOutgoing, duoTarget, duoXClaimed, emoteIsTp, emoteKind, emoteWheel, fpEmoteFrame, nearestDuoTeammate, onDuoMessage, sendDuoInvite, stopEmote, updateDuo, validEmote, initLocalEmotes } from "./view/local-emotes.js?v=le1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1";
+import { SPAWN_GUARD, botSpawn, clearRangeBots, notePointDeath, occupants, renderPauseRange, spawnDeaths, spawnForTeam, spawnRangeBot, teamSpawn } from "./modes/spawns.js?v=spw1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1";
+import { botDealDamage, botTargets, onBotShoot, remoteShotFx, updateBotAntiAir } from "./combat/bot-fire.js?v=bf1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1";
 import { DIVE_LOOK, DRONE_TOSS_AT, MARKER_THROW_TIME, MELEE_HOLSTER_TIME, beginStreakHold, endStreakHold, finishMeleeHolster, finishStreakHold, holsterMeleeFor, holsterMeleeThen, meleePutAway, powerHeld, startTabletDive, streakDeviceKind, streakHoldActive, streakHoldUntilMark, streakLowering, streakScreen, tabletDiveDip, tabletDiveK, updateTabletDive } from "./streaks/hold.js?v=sh1-if1-fu1b7b7dc2-wb1m1c4-cup1";
-import { closePauseMenu, openPauseMenu, releaseHeldInputs, resumePlay } from "./menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1";
+import { closePauseMenu, openPauseMenu, releaseHeldInputs, resumePlay } from "./menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1";
 import { paintMatchClock, resetMatchClock, updateMatchClock } from "./modes/match-clock.js?v=mc1-fu1b7b7dc2-wb1m1c4-cup1";
-import { boostedXp, renderBotSkillNote, roomBotSkill, syncRoomBotSkill, veteranBoostOn } from "./modes/bot-skill.js?v=bsk1-mb1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1";
+import { boostedXp, renderBotSkillNote, roomBotSkill, syncRoomBotSkill, veteranBoostOn } from "./modes/bot-skill.js?v=bsk1-mb1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1";
 /* What the split-out modules reach back into game.js for (see core/state.js).
    Functions go in as they are; everything else as a getter, so nothing is
    read before game.js declares it. game.js only ever gets smaller: an

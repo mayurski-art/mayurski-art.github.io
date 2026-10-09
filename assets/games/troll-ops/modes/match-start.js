@@ -3,8 +3,8 @@
 
 import { makeRoomCode, MAX_PLAYERS_ROYALE, MAX_PLAYERS } from "../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4";
 import { playerName, setNetStatus, noBotsRoom } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1";
-import { MAPS } from "../maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3";
-import { cancelSocialReturn } from "./social.js?v=so1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1";
+import { MAPS } from "../maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1";
+import { cancelSocialReturn } from "./social.js?v=so1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1";
 import { EMOTES } from "../emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u";
 import { emoteCode } from "../emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u";
 import { TEAMS, setFunnyDeaths } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1";
@@ -24,8 +24,8 @@ import { streaks, streakPicker, uavUntil, vsatUntil, clearStreakLocks, killstrea
 import { recentTeamKillers, dealtLog, lastHitRange, updateTeamHud } from "../combat/scoring.js?v=sc1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
 import { resetInfection } from "./infection.js?v=in1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
 import { applyHeroLoadout } from "./umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { TownNpcs } from "../town-npcs.js?v=tn4b7b7dc2f1m1u-cup1";
-import { clubSpawn } from "./club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1";
+import { TownNpcs } from "../town-npcs.js?v=tn4b7b7dc2f1m1u-cup1-nc1";
+import { clubSpawn } from "./club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1";
 import { Hill, pickHillPoints, pickBombSites, Bomb } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1";
 import { setHillMarker, setBombSiteMarkers } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
 import { RangeSet } from "../range.js";
