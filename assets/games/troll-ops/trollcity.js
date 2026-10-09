@@ -33,7 +33,7 @@ import {
   wheel, wagon, horse, cactus, steerSkull, rock,
   tableSet as kitTableSet, chair as kitChair, stool as kitStool, piano as kitPiano,
   chandelier, sconce, railFence, picketFence, hayBale, log, coffin, framedPicture, artTexture,
-} from "./trollcity-kit.js?v=tc2-wst";
+} from "./trollcity-kit.js?v=tc2-wst-tc3";
 import { LoopPath, Train } from "./train.js?v=tr1b7";
 
 const BOUNDS = { minX: -62, maxX: 62, minZ: -50, maxZ: 50 };
@@ -129,16 +129,19 @@ export function tcFloorOf(y) { return y >= 2.4 ? "upper" : "ground"; }
    `y`; a span from 0 is a door. Around each opening go a frame (`trim`), a
    glazed pane on windows (`glass`), and a sill step on doors when the room
    has a raised floor (`sill`). `lining` faces the inside (toward -`out`)
-   with a second material: wallpaper on plank walls. */
-function wall(K, M, { axis, at, a, b, y = 0, h, t = T, mat, pen = 8, holes = [], trim = null, out = 0, lining = null, glass = true, sill = 0 }) {
+   with a second material: wallpaper on plank walls. `inset` stops the
+   lining short of both ends (a wall that runs across the side walls' ends:
+   flush to the end, its edge showed as a stripe down every corner). */
+function wall(K, M, { axis, at, a, b, y = 0, h, t = T, mat, pen = 8, holes = [], trim = null, out = 0, lining = null, glass = true, sill = 0, inset = 0 }) {
   const X = axis === "x";
   const piece = (s, e, lo, hi) => {
     if (e - s < 0.02 || hi - lo < 0.02) return;
     const c = (s + e) / 2, len = e - s;
     K.solid(X ? c : at, X ? at : c, X ? len : t, X ? t : len, hi - lo, { y: y + lo, pen, mat });
-    if (lining && out) {
-      const li = at - out * (t / 2 + 0.012);
-      K.box(lining, X ? c : li, y + lo, X ? li : c, X ? len : 0.02, hi - lo, X ? 0.02 : len);
+    const ls = Math.max(s, a + inset), le = Math.min(e, b - inset);
+    if (lining && out && le - ls > 0.02) {
+      const li = at - out * (t / 2 + 0.012), lc = (ls + le) / 2, ll = le - ls;
+      K.box(lining, X ? lc : li, y + lo, X ? li : lc, X ? ll : 0.02, hi - lo, X ? 0.02 : ll);
     }
   };
   const at2 = (along, perp) => (X ? [along, perp] : [perp, along]);
@@ -168,10 +171,12 @@ function wall(K, M, { axis, at, a, b, y = 0, h, t = T, mat, pen = 8, holes = [],
         const [x, z] = at2(hole.c + side * (hole.w / 2 + fw / 2 - 0.02), at);
         K.box(trim, x, y + sLo, z, X ? fw : depth, sHi - sLo + fw, X ? depth : fw);
       }
-      K.box(trim, cx, y + sHi, cz, X ? hole.w + fw * 2 : depth, fw * 1.4, X ? depth : hole.w + fw * 2);
+      // The head and the sill sink 1 cm into the wall: with their faces on
+      // the lintel's underside / the wall's top, the two z-fought.
+      K.box(trim, cx, y + sHi - 0.01, cz, X ? hole.w + fw * 2 : depth, fw * 1.4 + 0.01, X ? depth : hole.w + fw * 2);
       if (!door) {
         const [sx, sz] = at2(hole.c, at + out * 0.05);
-        K.box(trim, sx, y + sLo - 0.08, sz, X ? hole.w + 0.3 : depth + 0.1, 0.08, X ? depth + 0.1 : hole.w + 0.3);
+        K.box(trim, sx, y + sLo - 0.08, sz, X ? hole.w + 0.3 : depth + 0.1, 0.09, X ? depth + 0.1 : hole.w + 0.3);
       }
     }
   }
@@ -183,8 +188,8 @@ function wall(K, M, { axis, at, a, b, y = 0, h, t = T, mat, pen = 8, holes = [],
    `c` absolute (x on n/s, z on w/e). `skip` leaves a side out. */
 function room(K, M, { x0, x1, z0, z1, y = 0, h, t = T, mat, lining = null, trim = null, holes = {}, skip = {}, glass = true, sill = 0, mats = {} }) {
   const common = { y, h, t, trim, lining, glass, sill };
-  if (!skip.n) wall(K, M, { ...common, mat: mats.n || mat, axis: "x", at: z0 + t / 2, a: x0, b: x1, out: -1, holes: holes.n || [] });
-  if (!skip.s) wall(K, M, { ...common, mat: mats.s || mat, axis: "x", at: z1 - t / 2, a: x0, b: x1, out: 1, holes: holes.s || [] });
+  if (!skip.n) wall(K, M, { ...common, mat: mats.n || mat, axis: "x", at: z0 + t / 2, a: x0, b: x1, out: -1, holes: holes.n || [], inset: t });
+  if (!skip.s) wall(K, M, { ...common, mat: mats.s || mat, axis: "x", at: z1 - t / 2, a: x0, b: x1, out: 1, holes: holes.s || [], inset: t });
   if (!skip.w) wall(K, M, { ...common, mat: mats.w || mat, axis: "z", at: x0 + t / 2, a: z0 + t, b: z1 - t, out: -1, holes: holes.w || [] });
   if (!skip.e) wall(K, M, { ...common, mat: mats.e || mat, axis: "z", at: x1 - t / 2, a: z0 + t, b: z1 - t, out: 1, holes: holes.e || [] });
 }
@@ -294,11 +299,14 @@ function shop(K, M, spec) {
   if (spec.upperFloor) spec.upperFloor();
   else K.solid(cx, (z0 + z1) / 2, x1 - x0 - 2 * T, z1 - z0 - 2 * T, 0.25, { y: h1, mat: M.ceiling });
   if (up) K.solid(cx, (z0 + z1) / 2, x1 - x0 - 2 * T, z1 - z0 - 2 * T, 0.25, { y: H, mat: M.ceiling });
-  // the roof: tin, falling to the back behind the false front
+  // the roof: tin, falling to the back behind the false front. It stops
+  // inside the false front (it used to run 30 cm out through the front and
+  // drew a dark stripe across the bottom of the sign); eaves at the back.
   {
-    const d = z1 - z0 + 0.6, rise = 0.5;
+    const fEnd = front - o * 0.2, bEnd = back - o * 0.3;
+    const d = Math.abs(fEnd - bEnd), rise = 0.5;
     const ang = Math.atan2(rise, d) * o;
-    K.box(M.roofTin, cx, H + 0.25 + rise / 2, (z0 + z1) / 2, x1 - x0 + 0.4, 0.12, d, { rx: ang });
+    K.box(M.roofTin, cx, H + 0.25 + rise / 2, (fEnd + bEnd) / 2, x1 - x0 + 0.4, 0.12, d, { rx: ang });
   }
   // false front: the wall carried up past the roof, a cornice on brackets
   const fz = front + o * (T / 2 + 0.0);
@@ -306,16 +314,27 @@ function shop(K, M, spec) {
   K.box(trim, cx, H - 0.05, front + o * 0.2, x1 - x0 + 0.5, 0.18, 0.18);
   K.box(trim, cx, ff - 0.02, front + o * 0.12, x1 - x0 + 0.7, 0.22, 0.55);
   K.box(trim, cx, ff - 0.22, front + o * 0.1, x1 - x0 + 0.5, 0.12, 0.4);
+  // The sign sits between the band and the cornice, and the cornice's
+  // brackets stand either side of it: they used to run through the board
+  // and the cornice and band cut its top and bottom edges (the "glitchy"
+  // signs, user 2026-10-08).
+  const hasSign = !!(sign || signMat);
+  const sw = Math.min(x1 - x0 - 1.0, spec.signW || 99);
   for (let x = x0 + 0.3; x <= x1 - 0.25; x += (x1 - x0 - 0.55) / Math.max(1, Math.round((x1 - x0) / 1.6))) {
+    if (hasSign && Math.abs(x - cx) < sw / 2 + 0.2) continue;
     K.box(trim, x, ff - 0.55, front + o * 0.25, 0.14, 0.34, 0.24);
   }
   // corner boards up the full height
   for (const x of [x0 + 0.08, x1 - 0.08]) K.box(trim, x, 0, front + o * 0.17, 0.2, ff - 0.2, 0.06);
-  // the sign
-  if (sign || signMat) {
-    const sw = Math.min(x1 - x0 - 1.0, spec.signW || 99), sh = spec.signH || Math.min(1.5, (ff - H) * 0.62);
+  // the sign: its frame clears the band (top H + 0.13) and the cornice
+  // board (bottom ff - 0.22) by a few centimetres, and it stands out past
+  // the band's face (0.29 out): behind it, the band hid the sign's bottom
+  // line from the street
+  if (hasSign) {
+    const sh = spec.signH || Math.min(1.5, (ff - H) * 0.62);
     const sy = spec.signY || (H + (ff - H) * 0.46);
-    signBoard(K, signMat || texMat(signTexture(sign.text, sign), { rough: 0.85 }), trim, { x: cx, z: front + o * 0.15, y: sy, w: sw, h: sh, o });
+    const top = Math.min(sy + sh / 2, ff - 0.3), bot = Math.max(sy - sh / 2, H + 0.21);
+    signBoard(K, signMat || texMat(signTexture(sign.text, sign), { rough: 0.85, decal: true }), trim, { x: cx, z: front + o * 0.25, y: (top + bot) / 2, w: sw, h: top - bot, o });
   }
   // porch roof over the boardwalk, on posts at the kerb
   if (spec.porch !== false) {
@@ -343,7 +362,7 @@ function boardwalk(K, M, z0, z1, a, b, gaps = []) {
       K.solid((x + xe) / 2, (z0 + z1) / 2, xe - x, z1 - z0, FLOOR, { mat: M.deck, pen: 6 });
     }
     const kz = Math.abs(z0) < Math.abs(z1) ? z0 : z1;
-    K.box(M.trimDark, (s + e) / 2, 0, kz, e - s, FLOOR + 0.02, 0.1);
+    K.box(M.trimDark, (s + e) / 2, 0, kz, e - s - 0.02, FLOOR + 0.02, 0.1);   // ends 1 cm in from the deck's
   }
 }
 
@@ -493,9 +512,9 @@ function materials() {
       for (let y = -32; y < 320; y += 64) { g.beginPath(); g.moveTo(0, y); g.lineTo(64, y + 32); g.lineTo(64, y + 44); g.lineTo(0, y + 12); g.fill(); }
     })), { rough: 0.4 }),
   };
-  M.wanted = [0, 1, 2, 3].map((v) => texMat(wantedTexture(v), { rough: 0.95 }));
-  M.paintDesert = texMat(paintingTexture("desert"), { rough: 0.7, bounce: 0.15 });
-  M.paintPortrait = texMat(paintingTexture("portrait"), { rough: 0.7, bounce: 0.15 });
+  M.wanted = [0, 1, 2, 3].map((v) => texMat(wantedTexture(v), { rough: 0.95, decal: true }));
+  M.paintDesert = texMat(paintingTexture("desert"), { rough: 0.7, bounce: 0.15, decal: true });
+  M.paintPortrait = texMat(paintingTexture("portrait"), { rough: 0.7, bounce: 0.15, decal: true });
   M.clock = new THREE.MeshStandardMaterial({ map: clockTexture(), roughness: 0.5, emissive: 0x222018, emissiveMap: clockTexture() });
   M.trollPaint = new THREE.MeshStandardMaterial({ map: trollPaintTexture("#f2ead6"), transparent: true, alphaTest: 0.35, roughness: 0.9, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 });
   M.trollGold = new THREE.MeshStandardMaterial({ map: trollPaintTexture("#e8b84a"), alphaTest: 0.35, roughness: 0.35, metalness: 0.6, side: THREE.DoubleSide });
@@ -504,7 +523,7 @@ function materials() {
 
 /* A sign painted in the town's style. */
 function sign(text, sub = "", o = {}) {
-  return texMat(signTexture(text, { sub, ...o }), { rough: 0.85 });
+  return texMat(signTexture(text, { sub, ...o }), { rough: 0.85, decal: true });
 }
 
 /* ================================================================= interiors */
@@ -646,11 +665,11 @@ function buildSaloon(K, M, lights) {
   K.box(M.furniture, -5.5, Y + 1.0, -16.2, 0.4, 2.6, 8.0);
   for (const zc of [-18.8, -16.2, -13.6]) {
     // an arch cut into the back-bar: lit panel, two shelves of bottles
-    K.box(M.backlight, -5.69, Y + 1.25, zc, 0.02, 1.25, 2.0, {}, { shadow: false });
+    K.box(M.backlight, -5.705, Y + 1.25, zc, 0.02, 1.25, 2.0, {}, { shadow: false });   // 1.5 cm proud: flush, it z-fought the back-bar
     K.add(M.trimDark, place(new THREE.TorusGeometry(1.0, 0.07, 6, 16, Math.PI), { x: -5.7, y: Y + 2.5, z: zc, ry: Math.PI / 2 }));
     for (const sy of [Y + 1.25, Y + 1.9]) {
       K.box(M.furniture, -5.82, sy - 0.03, zc, 0.3, 0.04, 2.0);
-      K.add(M.bottles, place(new THREE.PlaneGeometry(1.95, 0.5), { x: -5.82, y: sy + 0.25, z: zc, ry: -Math.PI / 2 }), { shadow: false });
+      K.add(M.bottles, place(new THREE.PlaneGeometry(1.95, 0.5), { x: -5.82, y: sy + 0.26, z: zc, ry: -Math.PI / 2 }), { shadow: false });   // standing on the shelf, not through it
     }
   }
   steerSkull(K, M, -5.62, Y + 3.3, -16.2, { ry: -Math.PI / 2, s: 1.2 });
@@ -675,7 +694,7 @@ function buildSaloon(K, M, lights) {
     K.cyl(M.mugGlass, mx, Y + 1.2, mz, 0.04, 0.038, 0.11, 10, {}, { shadow: false });
   }
   K.cyl(M.brass, BAR.apron.x, Y + 1.72, BAR.apron.z + 0.03, 0.012, 0.012, 0.08, 6, { rx: Math.PI / 2 });   // the hook
-  K.add(M.canvasCloth, place(new THREE.PlaneGeometry(0.42, 0.62), { x: BAR.apron.x, y: Y + 1.42, z: BAR.apron.z + 0.06 }), { shadow: false });
+  K.add(M.canvasCloth, place(new THREE.PlaneGeometry(0.4, 0.62), { x: BAR.apron.x - 0.02, y: Y + 1.42, z: BAR.apron.z + 0.06 }), { shadow: false });   // its edge clear of the wall
   K.cyl(M.brass, BAR.bell.x, Y + 1.14, BAR.bell.z, 0.05, 0.065, 0.08, 10);
   K.cyl(M.brass, BAR.bell.x, Y + 1.22, BAR.bell.z, 0.012, 0.012, 0.05, 6);
 
@@ -747,7 +766,8 @@ function buildSaloon(K, M, lights) {
   for (let i = 0; i < STAIR.steps; i++) {
     const z = STAIR.zFoot - STAIR.run * (i + 0.5);
     const top = FLOOR + STAIR.rise * (i + 1);
-    K.box(M.floor, STAIR.x, top - 0.06, z, STAIR.w, 0.06, STAIR.run + 0.02);
+    // treads overlap each other 2 cm; the top one stops at the landing (onto it, the two z-fought)
+    K.box(M.floor, STAIR.x, top - 0.06, z, STAIR.w, 0.06, STAIR.run + (i === STAIR.steps - 1 ? 0 : 0.02));
     K.box(M.furniture, STAIR.x, top - STAIR.rise, z + 0.14, STAIR.w, STAIR.rise - 0.06, 0.03);
   }
   {
@@ -794,7 +814,9 @@ function buildSaloon(K, M, lights) {
   K.box(M.settee, -11.5, U + 0.85, -16.25, 2.0, 0.5, 0.2);
   K.solid(-7.0, -11.0, 0.8, 0.8, 0.75, { y: U, pen: 1, mat: M.furniture });
   K.cyl(M.lampGlass, -7.0, U + 0.75, -11.0, 0.08, 0.1, 0.3, 8, {}, { shadow: false });
-  wallPic(K, M.paintDesert, { x: S.x1 - T, y: U + 1.8, z: -13.6, w: 1.4, h: 1.0, o: -1, axis: "z", frame: M.trimGold });
+  // on the blank wall between the partition and the window (at z -13.6 it
+  // hung half over the window)
+  wallPic(K, M.paintDesert, { x: S.x1 - T, y: U + 1.8, z: -15.05, w: 1.4, h: 1.0, o: -1, axis: "z", frame: M.trimGold });
   sconce(K, M, -16.2, U + 2.0, ROW_N.front - T, { ry: Math.PI });
   {
     const l = new THREE.PointLight(0xffc27a, 6, 10, 1.8);
@@ -830,7 +852,7 @@ function buildShops(K, M, lights) {
     clothesRail(K, M, -47.4, -17.4, { len: 2.4, seed: 4 });
     shelves(K, M, { axis: "z", at: F.inX0, a: -21.0, b: -16.6, o: 1, goods: M.goods2, rows: 5 });
     counter(K, M, { x: -42.2, z: -18.6, w: 2.4, d: 0.7 });
-    K.add(M.mirror, place(new THREE.PlaneGeometry(0.8, 1.7), { x: F.inX1 - 0.02, y: Y + 1.25, z: -12.4, ry: -Math.PI / 2 }), { shadow: false });
+    K.add(M.mirror, place(new THREE.PlaneGeometry(0.8, 1.7), { x: F.inX1 - 0.05, y: Y + 1.25, z: -12.4, ry: -Math.PI / 2 }), { shadow: false });   // in front of its frame (it was inside it)
     K.box(M.trimGold, F.inX1 - 0.03, Y + 0.35, -12.4, 0.03, 1.8, 0.95);
     for (let i = 0; i < 4; i++) {
       // hats on pegs (they'd suit a trollface)
@@ -886,7 +908,7 @@ function buildShops(K, M, lights) {
       porchY: 4.0,
     });
     // the teal facade boards over the brick, like the reference's bank
-    K.box(M.wallTeal, 4, 5.2, ROW_N.front + 0.17, 12.2, 2.4, 0.06);
+    K.box(M.wallTeal, 4, 5.2, ROW_N.front + 0.185, 12.2, 2.4, 0.06);   // over the corner boards, not flush with them
     for (const x of [-1.85, 9.85, 2.4, 5.6]) K.box(M.wallTeal, x, 0, ROW_N.front + 0.2, 0.36, 5.2, 0.1);
     for (const [x, ry] of [[-2.15, -Math.PI / 2], [10.15, Math.PI / 2]]) steerSkull(K, M, x, 6.3, -12.0, { ry, s: 1.1 });
     // teller line: a counter across the hall with bars above, a gate
@@ -1256,7 +1278,7 @@ function buildCourthouse(K, M, lights) {
     K.box(M.canvasCloth, 55.0, Y + 0.5, zc - 1.2, 0.85, 0.08, 1.95);
     K.cyl(M.steel, 53.0, Y, zc - 2.2, 0.16, 0.14, 0.3, 10);
     // and a trollface scratched on the wall
-    K.add(M.trollPaint, place(new THREE.PlaneGeometry(0.7, 0.7), { x: C.x1 - T - 0.02, y: Y + 1.7, z: zc + 0.4, ry: -Math.PI / 2 }), { shadow: false });
+    K.add(M.trollPaint, place(new THREE.PlaneGeometry(0.7, 0.7), { x: C.x1 - T - 0.04, y: Y + 1.7, z: zc + 0.4, ry: -Math.PI / 2 }), { shadow: false });   // on the wallpaper, not behind it
   }
   for (const z of [-3.4, 3.4]) K.solid(53.5, z, 4.5, 0.25, C.h1 - Y, { y: Y, mat: M.brickPale });
   K.box(M.lampGlass, 50.2, C.h1 - 0.6, 0, 0.2, 0.3, 0.2, {}, { shadow: false });
@@ -1280,7 +1302,7 @@ function buildRailway(K, M, lights, R) {
   buildLoopTrack(K, M, R);
   // the platform behind the shops
   K.solid(-6, -26.3, 60, 2.6, FLOOR, { mat: M.deck, pen: 6 });
-  K.box(M.trimDark, -6, 0, -27.6, 60, FLOOR + 0.02, 0.1);
+  K.box(M.trimDark, -6, 0, -27.6, 59.98, FLOOR + 0.02, 0.1);
   // the Grin Express (loco, tender, two open cars) standing at the platform,
   // the goods wagons on the siding
   TRAIN_STATE.train = buildTrain(K, M);
@@ -1291,8 +1313,9 @@ function buildRailway(K, M, lights, R) {
   // the station, beyond the tracks
   {
     const x0 = -10, x1 = 4, z0 = -45, z1 = -38.6;
-    K.solid((x0 + x1) / 2, -37.9, x1 - x0 + 6, 1.6, FLOOR, { mat: M.deck, pen: 6 });
-    K.box(M.trimDark, (x0 + x1) / 2, 0, -37.1, x1 - x0 + 6, FLOOR + 0.02, 0.1);
+    // the platform stops at the wall's face (under the door sills it z-fought them)
+    K.solid((x0 + x1) / 2, -37.85, x1 - x0 + 6, 1.5, FLOOR, { mat: M.deck, pen: 6 });
+    K.box(M.trimDark, (x0 + x1) / 2, 0, -37.1, x1 - x0 + 5.98, FLOOR + 0.02, 0.1);
     K.solid((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0 - 2 * T, z1 - z0 - 2 * T, FLOOR, { mat: M.floor });
     room(K, M, {
       x0, x1, z0, z1, h: 3.8, mat: M.wallWhite, lining: M.planksIn, trim: M.trimDark, sill: FLOOR,
@@ -1315,7 +1338,7 @@ function buildRailway(K, M, lights, R) {
     K.solid(-6.5, -42.6, 0.6, 3.6, 1.1, { y: FLOOR, pen: 3, mat: M.furniture });
     K.add(M.bars, place(new THREE.PlaneGeometry(3.4, 1.0), { x: -6.5, y: FLOOR + 1.7, z: -42.6, ry: Math.PI / 2 }), { shadow: false });
     for (const x of [-2.5, 0.5]) K.solid(x, -44.2, 2.0, 0.5, 0.48, { y: FLOOR, pen: 1, mat: M.furniture });
-    K.add(M.clock, place(new THREE.CircleGeometry(0.35, 24), { x: -1.0, y: 3.0, z: z0 + T + 0.02 }), { shadow: false });
+    K.add(M.clock, place(new THREE.CircleGeometry(0.35, 24), { x: -1.0, y: 3.0, z: z0 + T + 0.045 }), { shadow: false });   // in front of the wallpaper
     // benches on the platform, a luggage cart, a lamp post each end
     for (const x of [-8.4, 0.2]) {
       K.solid(x, -38.0, 1.8, 0.5, 0.5, { y: FLOOR, pen: 1, mat: M.furniture });
@@ -1368,7 +1391,7 @@ function buildRailway(K, M, lights, R) {
   {
     const x0 = -36, x1 = -20, z0 = -46, z1 = -39;
     K.solid((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, 1.0, { mat: M.deck, pen: 8 });
-    K.box(M.trimDark, (x0 + x1) / 2, 0, z1 + 0.02, x1 - x0, 1.02, 0.08);
+    K.box(M.trimDark, (x0 + x1) / 2, 0, z1 + 0.02, x1 - x0 - 0.02, 1.02, 0.08);
     api_stairs(K, -22, z1 + 1.2, 2.0, 3, 1.0 / 3, 0.4, "-z", 0);
     for (let i = 0; i < 3; i++) K.box(M.deck, -22, 0, z1 + 0.4 * (i + 0.5), 2.0, (1.0 / 3) * (3 - i), 0.4);
     for (let x = x0 + 0.3; x <= x1 - 0.2; x += (x1 - x0 - 0.6) / 4) {
@@ -1378,8 +1401,8 @@ function buildRailway(K, M, lights, R) {
     K.box(M.post, (x0 + x1) / 2, 3.9, z0 + 0.3, x1 - x0, 0.2, 0.2);
     K.box(M.post, (x0 + x1) / 2, 3.9, z1 - 0.3, x1 - x0, 0.2, 0.2);
     // the back wall boards, a sign
-    K.solid((x0 + x1) / 2, z0 + 0.15, x1 - x0, 0.3, 3.0, { y: 1.0, mat: M.wallRed });
-    signBoard(K, sign("FREIGHT", "", { bg: "#efe6d4", fg: "#5a1a12", edge: "#5a1a12", w: 1024, h: 200 }), M.trimDark, { x: (x0 + x1) / 2, z: z1 - 0.3, y: 3.5, w: 3.2, h: 0.6, o: 1 });
+    K.solid((x0 + x1) / 2, z0 + 0.15, x1 - x0 - 0.02, 0.3, 3.02, { y: 1.0, mat: M.wallRed });   // over the posts' tops and ends, not flush with them
+    signBoard(K, sign("FREIGHT", "", { bg: "#efe6d4", fg: "#5a1a12", edge: "#5a1a12", w: 1024, h: 200 }), M.trimDark, { x: (x0 + x1) / 2, z: z1 - 0.12, y: 3.5, w: 3.2, h: 0.6, o: 1 });   // in front of the posts
     for (const [x, z, ry] of [[-34, -43.5, 0.1], [-30.5, -44.6, -0.2], [-25.2, -42.8, 0.3]]) {
       crate(K, M, x, z, { y: 1.0, s: 0.95, ry });
       crate(K, M, x + 1.0, z, { y: 1.0, s: 0.85, ry: ry + 0.1 });
@@ -1621,7 +1644,7 @@ function buildSouth(K, M, lights, R) {
         K.box(M.trimCream, lx + o * 0.05, 1.65, lz, 0.04, 0.12, 1.7);
         K.box(M.trimCream, lx + o * 0.05, 0.1, lz, 0.04, 0.12, 2.2, { rx: s * 1.1 });
       }
-      signBoard(K, sign("LIVERY & FEED", "Horses boarded · No trolls on the hay", { bg: "#efe6d4", fg: "#5a1a12", edge: "#5a1a12" }), M.trimDark, { x: x + o * 0.16, z: 34, y: 4.0, w: 3.6, h: 0.8, o, axis: "z" });
+      signBoard(K, sign("LIVERY & FEED", "Horses boarded · No trolls on the hay", { bg: "#efe6d4", fg: "#5a1a12", edge: "#5a1a12" }), M.trimDark, { x: x + o * 0.16, z: 34, y: 4.08, w: 3.6, h: 0.8, o, axis: "z" });   // clear of the door's head trim
     }
     // stalls: half-height partitions, a horse in some
     for (const [zw, zo] of [[z0 + T, 1], [z1 - T, -1]]) {
@@ -1708,7 +1731,7 @@ function buildSouth(K, M, lights, R) {
     const x0 = 48, x1 = 60, z0 = 40, z1 = 49;
     flat(K, M.grassDry, (x0 + x1) / 2, (z0 + z1) / 2, x1 - x0 + 3, z1 - z0 + 3, { y: 0.026 });
     railFence(K, M, { axis: "x", at: z0 - 0.4, a: x0 - 1, b: x1, gaps: [[52.6, 55]] });
-    signBoard(K, sign("BOOT HILL", "Here lie the ones who got mad", { bg: "#d8c8a8", fg: "#2a1a10", edge: "#2a1a10", w: 1024, h: 220 }), M.trimDark, { x: 53.8, z: z0 - 0.4, y: 2.5, w: 2.6, h: 0.56, o: -1 });
+    signBoard(K, sign("BOOT HILL", "Here lie the ones who got mad", { bg: "#d8c8a8", fg: "#2a1a10", edge: "#2a1a10", w: 1024, h: 220 }), M.trimDark, { x: 53.8, z: z0 - 0.4, y: 2.5, w: 2.0, h: 0.56, o: -1 });   // between the gate posts
     for (const x of [52.6, 55]) K.solid(x, z0 - 0.4, 0.18, 0.18, 2.9, { pen: 3, mat: M.post });
     const G = rng(66);
     for (let i = 0; i < 14; i++) {
@@ -1875,7 +1898,7 @@ function stagecoach(K, M, x, z, ry) {
    barnwood and walnut, old sepia photographs in the hotel and the barber's. */
 function hangPictures(K, M) {
   const art = {};
-  const A = (name, sepia = false) => art[name + sepia] ??= texMat(artTexture(name, { sepia }), { rough: 0.75, bounce: 0.18 });
+  const A = (name, sepia = false) => art[name + sepia] ??= texMat(artTexture(name, { sepia }), { rough: 0.75, bounce: 0.18, decal: true });
   const U = UPPER_Y;
   for (const p of [
     // the saloon: Bach by the piano, the general by the door, the cowboys
@@ -1887,7 +1910,7 @@ function hangPictures(K, M) {
     { x: -13.6, y: U + 2.0, z: ROW_N.back + T, w: 0.7, h: 0.7, o: 1, style: "carved", art: A("cowboy") },
     // the police station: the troll general himself, in gold, on the wall
     // behind his desk; the bank and the office's far wall get cowboys
-    { x: 47.4, y: 3.15, z: COURT.z0 + T, w: 1.15, h: 1.72, o: 1, style: "gilt", art: A("general") },
+    { x: 47.4, y: 2.55, z: COURT.z0 + T, w: 1.15, h: 1.72, o: 1, style: "gilt", art: A("general") },   // under the picture rail (at 3.15 the rail ran through him)
     { x: 10 - T, y: 2.6, z: -12.8, w: 0.85, h: 1.0, o: -1, axis: "z", style: "gilt", art: A("cigar") },
     { x: 43.4, y: 2.6, z: COURT.z1 - T, w: 0.8, h: 0.8, o: -1, style: "carved", art: A("cowboy") },
     { x: 54.0, y: 2.2, z: COURT.z0 + T, w: 0.6, h: 0.82, o: 1, style: "photo", art: A("tanktop", true) },

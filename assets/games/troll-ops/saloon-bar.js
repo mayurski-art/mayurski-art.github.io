@@ -11,6 +11,7 @@
 // and lists the spots on the map as `rp.bar`.
 
 import * as THREE from "three";
+import { reachHand, setHandPose } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
 
 export const BEER_SIPS = 4;
 export const WHISKEY_SIPS = 1;
@@ -80,6 +81,7 @@ export function buildDrink(kind = "beer") {
   const max = drinkMax(kind), floor = h * 0.12;
   g.userData.kind = kind;
   g.userData.height = h;
+  g.userData.radius = r;
   g.userData.setSips = (sips) => {
     const k = Math.max(0, Math.min(1, sips / max));
     liquid.visible = k > 0;
@@ -110,35 +112,64 @@ export function placeDrinkInHand(drink, hand, side = 1) {
 
 /* -------------------------------------------------- a body holding a drink */
 
-/* After poseHumanoid: the right forearm comes up to hold the drink in front
+/* After poseHumanoid: the right hand comes up to hold the drink in front
    of the chest, and to the mouth for a sip (`sip` 0..1..0). `pour` 0..1:
-   the arm held out under a tap instead. */
-export function poseDrinkArm(rig, sip = 0, pour = 0) {
+   the arm held out under a tap instead. `high`: perched at a counter (a bar
+   stool), the hold sits a hand higher so the glass clears the bar top.
+
+   User, 2026-10-08: the NPCs "are holding their cups incorrectly". Fixed
+   arm angles kept the arm's rest splay, so the mug was held out to the side
+   at arm's length, and it hung off the wrist joint, so the open mitt went
+   through the glass. Now the hand is reached to a spot in front of the chest
+   with the same two-bone IK as the Pour up cup (lean-cup.js), closed in a
+   fist through the handle, the glass on the inside of the fist. */
+export function poseDrinkArm(rig, sip = 0, pour = 0, high = false) {
   const p = rig.parts;
   const s = Math.max(0, Math.min(1, sip));
   const o = Math.max(0, Math.min(1, pour)) * (1 - s);
-  p.armR.rotation.set(0.35 + s * 1.15 + o * 0.6, 0, -0.12 - s * 0.25 + o * 0.08);
-  p.elbowR.rotation.set(1.35 + s * 0.75 - o * 0.85, 0, 0);
-  if (p.gripR) p.gripR.rotation.set(-s * 0.6, 0, 0);
-  // Redraw the ink body with the arm up: poseHumanoid drew it hanging, and
-  // the mug (on the real hand) floated off the drawn one.
+  const k = rig.scale || 1, w = rig.build || 1;
+  // chest-space targets (character.js reachHand): +X the right side, -Z forward
+  _tgt.set(0.1 * k * w, (high ? -0.17 : -0.25) * k, -0.3 * k);
+  _tgt.lerp(_a.set(0.1 * k * w, -0.3 * k, -0.5 * k), o);            // out under the tap
+  // up to the mouth: the trollface board's grin is ~0.26 m over the chest
+  // joint (character.js head), so the fist goes a little below and in front
+  // of it and the tipped rim lands on the grin. The glass is on the inside
+  // of the fist and the tipped rim comes back toward the face, so the fist
+  // sits off to the right and forward by however big the glass is.
+  const dr = rig.heldDrink, dsc = dr ? dr.scale.y : 1.25 * k;
+  const inward = ((dr?.userData.radius || 0.042) + 0.022) * dsc;
+  const back = 0.44 * (dr?.userData.height || 0.115) * dsc;
+  _tgt.lerp(_a.set(0.08 * k * w + inward, 0.2 * k, -0.06 * k + (0.063 - back)), s);
+  reachHand(rig, 1, _tgt, _pole);
+  setHandPose(rig, 1, "fist");
+  if (p.gripR) p.gripR.rotation.set(0, 0, 0);
+  // Redraw the ink body with the arm up: poseHumanoid drew it hanging.
   rig.body?.update?.();
-  // The drink goes where the fist is now, standing up, tipped to the
-  // mouth on a sip (user, 2026-10-07: "the mug i am holding is floating in
-  // the air"). Hung off the wrist joint it tilted along the forearm and sat
-  // behind the fist.
   const d = rig.heldDrink;
   if (!d || d.parent !== rig.root || !p.handR) return;
   rig.root.updateMatrixWorld(true);
-  p.handR.getWorldPosition(_fist);
-  rig.root.worldToLocal(_fist);
-  const h = (d.userData.height || 0.1) * d.scale.y;
-  // Handle in the fist (it sticks out +X: turned to face the body side),
-  // the glass just in front of the knuckles.
-  d.rotation.set(s * 1.25, -Math.PI / 2, 0);
-  d.position.set(_fist.x, _fist.y - h * 0.5 + s * h * 0.3, _fist.z - 0.055);
+  palmCentre(rig, k, _palm);
+  // The handle is in the fist (it sticks out +X, to the right), so the
+  // glass stands on the inside of the hand; a sip tips its top back to the
+  // face (+Z) about the fist.
+  const sc = d.scale.y, h = d.userData.height || 0.1, r = d.userData.radius || 0.04;
+  d.rotation.set(s * 1.15, 0, 0);
+  _a.set(r + 0.022, h * 0.52, 0).multiplyScalar(sc).applyEuler(d.rotation);
+  d.position.copy(_palm).sub(_a);
 }
-const _fist = new THREE.Vector3();
+const _tgt = new THREE.Vector3(), _a = new THREE.Vector3(), _palm = new THREE.Vector3(), _hE = new THREE.Vector3();
+const _pole = new THREE.Vector3(1, -1, 0.3), _po = new THREE.Vector3();
+/* The middle of the right mitt's palm in the rig's root frame: out past the
+   wrist along the forearm, a little to the inside (lean-cup.js palmCentre). */
+function palmCentre(rig, k, out) {
+  const p = rig.parts;
+  p.elbowR.getWorldPosition(_hE);
+  p.handR.getWorldPosition(out);
+  rig.root.worldToLocal(_hE);
+  rig.root.worldToLocal(out);
+  _hE.subVectors(out, _hE).normalize();
+  return out.addScaledVector(_hE, 0.075 * k).add(_po.set(-0.035 * k, 0, -0.02 * k));
+}
 
 /* ------------------------------------------------------------- pouring */
 
@@ -217,7 +248,7 @@ export class PourFx {
 
 /* A drink in a body's right hand: posed into the fist by poseDrinkArm. */
 export function mountDrink(rig, drink) {
-  drink.scale.setScalar(1.25);
+  drink.scale.setScalar(1.25 * (rig.scale || 1));   // a big troll's mug is a big mug
   rig.heldDrink = drink;
   rig.root.add(drink);
 }

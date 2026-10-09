@@ -25,12 +25,13 @@
 // their own.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, DANCES } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
-import { buildDrink, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7";
+import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, DANCES, reachHand } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
+import { buildDrink, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7-cup1";
 import { SmithWork } from "./smithy.js?v=sm1b7b7dc2f1m1";
-import { wearOutfit } from "./outfits.js?v=of1m1";
+import { wearOutfit } from "./outfits.js?v=of1m1-nc1";
 
 const WALK_MPS = 1.25;
+const _lean = new THREE.Vector3(), _poleL = new THREE.Vector3(-1, -1, 0.3);
 const NEAR = 40;     // full rate inside this
 const FAR = 85;      // hidden past this
 const TAG_RANGE = 12; // name tags only inside this
@@ -262,8 +263,15 @@ export class TownNpcs {
         // A sip every 6-9 s: up, hold, down.
         const cyc = 6 + n.seed * 3, u = (t % cyc) / cyc;
         const sip = u < 0.08 ? u / 0.08 : u < 0.2 ? 1 : u < 0.28 ? 1 - (u - 0.2) / 0.08 : 0;
-        poseDrinkArm(rig, sip);
-        if (c.sit) { p.armL.rotation.set(0.45, 0, 0.05); p.elbowL.rotation.set(0.9, 0, 0); }   // the other arm on the bar
+        poseDrinkArm(rig, sip, 0, !!c.stool);
+        // the other arm: the forearm on the bar top at a stool, the hand on
+        // the thigh in a seat
+        if (c.stool) {
+          const k = rig.scale || 1;
+          reachHand(rig, -1, _lean.set(-0.14 * k, -0.2 * k, -0.42 * k), _poleL);
+          rig.body?.update?.();
+        }
+        else if (c.sit) { p.armL.rotation.set(0.3, 0, 0.12); p.elbowL.rotation.set(0.75, 0, 0); }
         break;
       }
       case "cards": {

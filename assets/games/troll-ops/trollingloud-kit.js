@@ -9,7 +9,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { rng, canvasTex, tex, place } from "./trollcity-kit.js?v=tc2-wst";
+import { rng, canvasTex, tex, place } from "./trollcity-kit.js?v=tc2-wst-tc3";
 
 export const T = 0.3;   // wall thickness
 

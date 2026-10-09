@@ -5,9 +5,9 @@ import { poseDeath, DEATH_TIME, aimRig, gaitPhaseRate, poseHumanoid, poseThrowAr
 import { MELEE_DEFS, buildMeleeMesh, MeleeState, SABER_BLOCK, THROWABLE_DEFS } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1";
 import { WEAPON_DEFS } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1";
 import * as THREE from "three";
-import { stripLights, buildWeaponMesh } from "../weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1";
-import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-ar1";
-import { grenades, explosionFx } from "./throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-ar1";
+import { stripLights, buildWeaponMesh } from "../weapon-model.js?v=p5-em1-wst-hf1-wb1";
+import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1";
+import { grenades, explosionFx } from "./throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
 import { game } from "../core/state.js?v=st1";
 
 /* ---------------- killcam (killcam.js) ----------------
