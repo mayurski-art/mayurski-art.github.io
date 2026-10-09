@@ -13,10 +13,19 @@ Design docs live next to this file: `COPS-AND-ROBBERS.md` (approved plan), `ZOMB
 
 ## 1. Open work and plans (newest first)
 
+### tf-parallel batch (branch `worktree-tf-parallel`, worktree `.claude/worktrees/tf-parallel`): resume 2026-10-09
+Plan: `C:\Users\mayur\.claude\plans\keen-twirling-chipmunk.md`. Live on main already: Troll City picture/sign/z-fight fixes, the drink hold, no body clothing (c3b1c53).
+- **Committed on the branch, NOT on main yet** (tests pass, gate not run):
+  - Club ID HAWAII licence (`view/club-id-card.js`, ref `refs/club-id-ref.jpg`): your profile picture, tag "UNSTOPPABLE / TROLLS".
+  - Grenade throw animation (`combat/throw-anim.js`, `combat/throwable-models.js`; test `tools/troll-ops-throw-test.mjs`, all passing).
+- **First step tomorrow:** `git merge origin/main`. Main has the other session's assault rifles (-ar1/-ar2), so expect ~20 conflicts in `?v=` tag lines (view/*, troll-ops.html, game.js imports). Keep both suffixes, then run `node tools/troll-ops-cache-cascade.mjs --unify` (new on main) so every importer agrees. Then rerun throw-test + club-entry-test → ONE gate → push → curl the live tag.
+- **Then, in order:** 3 Trolling Loud kitchen (3-4 h), 4 arm wrestling (3-4 h), 5 Grin Beach in four parts (15-18 h). Details are in the plan.
+- Known gate flakes this batch: input-test "look pad turns" and killcam-test (slow load) both pass alone.
+
 ### Trolling Loud club entry (CLUB-ENTRY.md): phases 1-4 LIVE, phase 5 ON HOLD
 Phases 1-4 are on main (live 2026-10-08, 4add854): the line, ID, 18+, wristbands and zone fence; the look (rope, bouncer acts, bands on wrists); the kick-out cinematic + lockout; multiplayer (tickets, everyone sees your phases, AFK). Code: `modes/club-entry.js`, `view/club-entry-cine.js`; tests `tools/troll-ops-club-entry-test.mjs` (solo) and `troll-ops-club-room-test.mjs` (3 tabs).
 - **Still to do: phase 5**, about 30-45 min: pad and touch prompts for the door (answer A/B on a pad, two big buttons and a "Leave line" button on touch, per the doc's Controls table), a mobile-viewport + pad pass in the tests, screenshots, gate. The user put it ON HOLD on 2026-10-08: don't start until they say go.
-- Rule for this work: send the user a high-quality video of each phase before its gate.
+- No phase videos (user 2026-10-08: "I dont need videos"): tests, gate, push.
 
 ### Dust Bowl (bazaar redesign done 2026-10-07)
 Open: watch spawn S3 (0, -33) in playtests; the loading dock sits on the wall-strip sightline 14-17 m from it. A crate stack between them would fix it but closes that line.
@@ -486,8 +495,8 @@ Map rules:
   - Troll City glitches (-tc3): painting off the saloon window, the general under the picture rail, shop signs clear of brackets/cornice/band/roof, trims/linings/kerbs no longer coplanar. Guard: `tools/troll-ops-trollcity-audit.mjs` (Node build of the map; FAIL on pictures over openings, coplanar faces, cut signs). Cache cascade tool: `tools/troll-ops-bump-tags.mjs <suffix> <files> --write`.
   - Drinks held properly (-cup1): poseDrinkArm is IK to the chest / tap / grin, fist on the handle, glass inside the hand (NPCs and players' bodies). Test: `tools/troll-ops-drink-hold-test.mjs` (SHOTS=dir).
   - No body clothing (-nc1): wearOutfit wears only hats and shades (user: "all clothing except head and facial"); wearTop/Bottom/Chain kept unused. Test: club-crowd-test.
-  - Club ID is a HAWAII licence (-cid1/-cid2): view/club-id-card.js after the user's refs/club-id-ref.jpg, your profile picture on it (and on the bouncer's mini card while he checks yours), tag "UNSTOPPABLE / TROLLS" (no venue name). Test: club-entry-test.
-  - Grenade throws you can see (-th2): combat/throw-anim.js + throwable-models.js. Draw, pin pull, hold, whip, spoon, ~0.75 s tap to gun back up; fuse starts at the pin; no fire/ADS/reload/swap/melee in hand. Others see it via state `ck`; bots wind up 0.3 s first; real grenade models in flight. Test: `tools/troll-ops-throw-test.mjs`.
+  - (on the branch, not main yet) Club ID is a HAWAII licence (-cid1/-cid2): view/club-id-card.js after the user's refs/club-id-ref.jpg, your profile picture on it (and on the bouncer's mini card while he checks yours), tag "UNSTOPPABLE / TROLLS" (no venue name). Test: club-entry-test.
+  - (on the branch, not main yet) Grenade throws you can see (-th2): combat/throw-anim.js + throwable-models.js. Draw, pin pull, hold, whip, spoon, ~0.75 s tap to gun back up; fuse starts at the pin; no fire/ADS/reload/swap/melee in hand. Others see it via state `ck`; bots wind up 0.3 s first; real grenade models in flight. Test: `tools/troll-ops-throw-test.mjs`.
 
 - **2026-10-08** (weapons batch, -wb1)
   - Sidearms: Sixty-Nine (Five-seveN, rank 0 starter) and TRUE-69 (BO2 KAP-40, auto) replace the M9, Deagle, Chortle and Golden Grin; traced from photos (weapon-pistols.js), slides cycle/lock/release (view/pistol-action.js). Test: troll-ops-pistols-test.mjs.
