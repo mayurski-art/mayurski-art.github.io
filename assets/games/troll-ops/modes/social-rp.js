@@ -14,16 +14,16 @@
 
 import { REACH, GRAB_TIME, BEER_SIPS, FILL_TIME_BARTENDER, FILL_TIME, APRON_TIME, POUR_TIME, OFFER_SECONDS, TIPSY, drinkMax, SIP_TIME, tipsyFx, BARTENDER_LEAVE_SECONDS, buildDrink, mountDrink, poseDrinkArm, placeDrinkInHand, PourFx } from "../saloon-bar.js?v=sb1b7-cup1";
 import * as THREE from "three";
-import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
-import { playerName } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
-import { setSeatLookup } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
-import { ROLES, DOCTOR, TUNES, PianoVoice } from "../rp-roles.js?v=rp1b7";
+import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
+import { playerName } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
+import { setSeatLookup } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
+import { ROLES, DOCTOR, TUNES, PianoVoice } from "../rp-roles.js?v=rp1b7-cd1";
 import { damp } from "../anim-curves.js";
 import { touchState } from "../input/touch.js?v=in1-th2";
-import { frozenPlayer, setTouchContext } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
+import { frozenPlayer, setTouchContext } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
 import { game } from "../core/state.js?v=st1";
-import { PianoPanel } from "../menu/piano-panel.js?v=pp1b7";
-import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5";
+import { PianoPanel } from "../menu/piano-panel.js?v=pp1b7-cd1";
+import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1";
 
 export const bar = {
   drink: null,      // { kind: "beer"|"whiskey", sips }
@@ -66,7 +66,7 @@ const drinkName = (kind) => (kind === "whiskey" ? "whiskey" : "beer");
 /* Someone else holding a job (the apron, the piano, the doctor's bag), who
    keeps it if we both took it at once: whoever joined the room first
    (lowest id on a tie). */
-function otherWithRole(role, olderOnly = false) {
+export function otherWithRole(role, olderOnly = false) {
   if (!role) return null;
   for (const p of game.net.peers.values()) {
     if (game.isBotPeer(p) || p.role !== role) continue;
@@ -90,7 +90,8 @@ function barNearestEmptyHanded(reach = 2.2) {
 /* Other Socialize systems' hold-X actions, asked first (a fist fight,
    modes/social-duel.js): each returns an action or null. */
 export const rpExtras = [];
-/* ...and their room messages: each gets every rp message we don't know. */
+/* ...and their room messages: each gets every rp message the bar doesn't
+   handle itself (BAR_KINDS), and checks its own `k`. */
 export const rpListeners = [];
 /* ...and whether one has fire for itself right now (fists up in a fight:
    fire is a punch, not a sip or the piano). */
@@ -281,7 +282,7 @@ function takeMug(id) {
 }
 
 /* One job at a time: taking one puts down whatever we had. */
-function setBarRole(role, note) {
+export function setBarRole(role, note) {
   if (bar.role === "pianist" && role !== "pianist") piano.playing = false;
   bar.role = role;
   bar.outT = 0;
@@ -466,7 +467,7 @@ function rpAction() {
 }
 
 /* The nearest real player within reach, whatever's in their hands. */
-function rpNearestPlayer(reach) {
+export function rpNearestPlayer(reach) {
   let best = null, bestD = reach;
   for (const rp of game.remotes.byId.values()) {
     if (!rp.peer || game.isBotPeer(rp.peer) || !rp.alive) continue;
@@ -542,6 +543,10 @@ export function putDownDrink() {
   game.audio.brassTinkle?.(3);
 }
 
+/* The bar's own addressed messages (handled below); every other kind goes
+   to rpListeners. */
+const BAR_KINDS = new Set(["cure", "offer", "take", "give"]);
+
 /* Off the wire (net "rp"). */
 export function onBarMessage(p, m) {
   if (!game.isSocial() || game.isBotPeer(p)) return;
@@ -555,7 +560,10 @@ export function onBarMessage(p, m) {
   }
   if (m.k === "mugtake") { removeMug(String(m.id || "")); return; }
   if (m.k === "pn") { pianoKeyFrom(p, m.n | 0); return; }
-  if (m.k === "duel") { for (const f of rpListeners) f(p, m); return; }
+  // Everything else that isn't the bar's own (a fight, the train, the
+  // sheriff, the horses...) goes to the systems that registered for it;
+  // each checks its own `k` (and `to`, if it's addressed).
+  if (!BAR_KINDS.has(m.k)) { for (const f of rpListeners) f(p, m); return; }
   if (m.to !== game.net.id) return;
   const now = performance.now();
   if (m.k === "cure") {

@@ -16,6 +16,11 @@ export const ROLES = {
   bartender: { code: "b", label: "Bartender", npc: "Barkeep" },
   pianist: { code: "p", label: "Pianist", npc: "Pianist" },
   doctor: { code: "d", label: "Doctor", npc: "Doctor" },
+  // phase 2b-2d (TROLL-CITY-RP2.md); net.js RP_ROLES already maps the letters
+  sheriff: { code: "s", label: "Sheriff", npc: "Sheriff" },
+  merchant: { code: "m", label: "Merchant", npc: "Merchant" },
+  horsekeeper: { code: "h", label: "Horsekeeper", npc: "Horsekeeper" },
+  conductor: { code: "c", label: "Conductor", npc: "Conductor" },
 };
 export function roleCode(role) { return ROLES[role]?.code || null; }
 export function roleLabel(role) { return ROLES[role]?.label || null; }
