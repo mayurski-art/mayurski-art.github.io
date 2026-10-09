@@ -46,15 +46,15 @@ def spec(gun_id):
     return s
 
 
-def setup(prefix, gun_id, recv=0x48433d, rail=0x3a3631, poly=0x2b2722, magm=0x35312c, furn=None, steel=0x9aa0a4):
+def setup(prefix, gun_id, recv=0x5d5747, rail=0x4a4539, poly=0x373227, magm=0x454035, furn=None, steel=0x9aa0a4):
     """Materials (prefix_Receiver ...) and the rifle's Ref, spec and outline."""
     gk.M.update({
-        "recv":  material(prefix + "_Receiver", recv, 0.5, 0.3),
-        "rail":  material(prefix + "_Rail", rail, 0.52, 0.3),
+        "recv":  material(prefix + "_Receiver", recv, 0.5, 0.0),
+        "rail":  material(prefix + "_Rail", rail, 0.52, 0.0),
         "poly":  material(prefix + "_Polymer", poly, 0.8, 0.0),
         "steel": material(prefix + "_Steel", steel, 0.3, 1.0),
-        "dark":  material(prefix + "_Dark", 0x15120f, 0.6, 0.3),
-        "magm":  material(prefix + "_Mag", magm, 0.58, 0.2),
+        "dark":  material(prefix + "_Dark", 0x15120f, 0.6, 0.0),
+        "magm":  material(prefix + "_Mag", magm, 0.58, 0.0),
         "dot":   material(prefix + "_Dot", 0xffffff, 0.4, 0.0, 0xd8f0ff, 1.0),
         "furn":  material(prefix + "_Furniture", furn if furn is not None else poly, 0.74, 0.0),
     })

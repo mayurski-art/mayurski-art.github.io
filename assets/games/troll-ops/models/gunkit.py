@@ -685,3 +685,172 @@ def auto_body(P, ref, polys, px0, px1, hw_fn, key_fn, r=0.004, step=5, smooth=1,
             secs.append(rrect(ref.Z(x), hw_fn(x, yc), ref.Y(ty), ref.Y(by), rr, n=4))
         loft(P, secs, key)
     return tracks
+
+
+# ------------------------------------------------------------------ slab bodies
+# The Green Candles look: flat-sided panels with even rounded edges. The
+# traced outline is cleaned (smoothed along the contour, then simplified to
+# straight runs), filled with its holes open, and extruded region by region (each its own half-width and material), and
+# edge-rounded with a bevel.
+
+def clean_outline(poly, smooth=2, eps=1.6, step=2.0):
+    """Resample a traced contour every `step` px, smooth it along the
+    contour (moving average, k each side) and Douglas-Peucker it (eps px)."""
+    pts = []
+    n = len(poly)
+    for k in range(n):
+        a, b = poly[k], poly[(k + 1) % n]
+        d = math.hypot(b[0] - a[0], b[1] - a[1])
+        m = max(1, int(d / step))
+        for i in range(m):
+            t = i / m
+            pts.append((a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t))
+    if smooth > 0:
+        n = len(pts)
+        sm = []
+        for i in range(n):
+            xs = [pts[(i + j) % n] for j in range(-smooth, smooth + 1)]
+            sm.append((sum(p[0] for p in xs) / len(xs), sum(p[1] for p in xs) / len(xs)))
+        pts = sm
+
+    def dp(seq):
+        if len(seq) < 3:
+            return seq
+        a, b = seq[0], seq[-1]
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        L = math.hypot(dx, dy) or 1e-9
+        far, fi = -1, 0
+        for i in range(1, len(seq) - 1):
+            d = abs((seq[i][0] - a[0]) * dy - (seq[i][1] - a[1]) * dx) / L
+            if d > far:
+                far, fi = d, i
+        if far <= eps:
+            return [a, b]
+        return dp(seq[:fi + 1])[:-1] + dp(seq[fi:])
+
+    # split the closed loop at its two most distant points so DP runs on open runs
+    i0 = 0
+    i1 = max(range(len(pts)), key=lambda i: (pts[i][0] - pts[0][0]) ** 2 + (pts[i][1] - pts[0][1]) ** 2)
+    out = dp(pts[i0:i1 + 1])[:-1] + dp(pts[i1:] + [pts[0]])[:-1]
+    return out
+
+
+def slab_body(P, ref, outer, holes, regions, clip=(), smooth=2, eps=1.6, bevel=0.0022, bevel_segs=2):
+    """The traced outline as edge-rounded slabs. regions = [dict(rect=(px0,
+    px1, py0, py1), hw=half-width m, key=material)]; an earlier region wins
+    where rects overlap. clip = [(px0, px1, py0, py1)] is cut out (a rail's
+    bed). The outline is filled with its holes open, sliced along every
+    rect edge, and each region extruded to its half-width; a wall stands
+    only where a region is wider than its neighbour (or on the outside),
+    so equal neighbours join seamlessly; then the edges are rounded."""
+    loops = [clean_outline(outer, smooth, eps)] + [clean_outline(h, max(1, smooth - 1), eps * 0.8) for h in holes]
+    bm = bmesh.new()
+    edges = []
+    for lp in loops:
+        vs = [bm.verts.new((0.0, ref.Y(py), ref.Z(px))) for (px, py) in lp]
+        for k in range(len(vs)):
+            edges.append(bm.edges.new((vs[k], vs[(k + 1) % len(vs)])))
+    bmesh.ops.triangle_fill(bm, use_beauty=True, use_dissolve=False, edges=edges)
+    for e in [e for e in bm.edges if not e.link_faces]:
+        bm.edges.remove(e)
+    # slice along every finite rect edge
+    lines = set()
+    for rg in list(regions) + [dict(rect=c) for c in clip]:
+        x0, x1, y0, y1 = rg["rect"]
+        for px in (x0, x1):
+            if -900 < px < 1900:
+                lines.add((0, ref.Z(px)))
+        for py in (y0, y1):
+            if -900 < py < 1900:
+                lines.add((1, ref.Y(py)))
+    for axis, v in sorted(lines):
+        geom = list(bm.verts) + list(bm.edges) + list(bm.faces)
+        co, no = (Vector((0, 0, v)), Vector((0, 0, 1))) if axis == 0 else (Vector((0, v, 0)), Vector((0, 1, 0)))
+        bmesh.ops.bisect_plane(bm, geom=geom, plane_co=co, plane_no=no, dist=1e-7)
+    bmesh.ops.triangulate(bm, faces=list(bm.faces))
+
+    def inside(rect, y, z):
+        x0, x1 = sorted((ref.Z(rect[0]), ref.Z(rect[1])))
+        y0, y1 = sorted((ref.Y(rect[2]), ref.Y(rect[3])))
+        return x0 <= z <= x1 and y0 <= y <= y1
+
+    reg = {}
+    for f in list(bm.faces):
+        c = f.calc_center_median()
+        if any(inside(cr, c.y, c.z) for cr in clip):
+            bm.faces.remove(f)
+            continue
+        reg[f] = next((i for i, rg in enumerate(regions) if inside(rg["rect"], c.y, c.z)), None)
+        if reg[f] is None:
+            bm.faces.remove(f)
+            del reg[f]
+    hw = [rg["hw"] for rg in regions]
+
+    out = bmesh.new()
+    cache = {}
+
+    def V(v, x):
+        k = (v.index, round(x, 7))
+        if k not in cache:
+            cache[k] = out.verts.new((x, v.co.y, v.co.z))
+        return cache[k]
+
+    bm.verts.index_update()
+    for f, i in reg.items():
+        h = hw[i]
+        vs = list(f.verts)
+        for s in (1, -1):
+            seq = vs if s > 0 else vs[::-1]
+            nf = out.faces.new([V(v, s * h) for v in seq])
+            nf.material_index = i
+        for e in f.edges:
+            others = [g for g in e.link_faces if g is not f and g in reg]
+            hn = hw[reg[others[0]]] if others else 0.0
+            if hn >= h - 1e-7:
+                continue
+            a, b = e.verts
+            # keep the wall's winding with the face's loop order
+            for lo in f.loops:
+                if lo.edge is e:
+                    a, b = lo.vert, lo.link_loop_next.vert
+            for (x0, x1) in ((hn, h), (-h, -hn)) if hn > 0 else ((-h, h),):
+                q = [V(a, x0), V(b, x0), V(b, x1), V(a, x1)]
+                if len({id(t) for t in q}) == 4:
+                    try:
+                        wf = out.faces.new(q)
+                        wf.material_index = i
+                    except ValueError:
+                        pass
+    bm.free()
+    bmesh.ops.remove_doubles(out, verts=out.verts, dist=1e-7)
+    bmesh.ops.recalc_face_normals(out, faces=out.faces)
+    # round the edges on a temp object, then take the result into the part
+    me = bpy.data.meshes.new("slab")
+    out.to_mesh(me)
+    out.free()
+    for rg in regions:
+        me.materials.append(M[rg["key"]])
+    ob = bpy.data.objects.new("slab", me)
+    scene.collection.objects.link(ob)
+    if bevel > 0:
+        bv = ob.modifiers.new("bevel", "BEVEL")
+        bv.width = bevel
+        bv.segments = bevel_segs
+        bv.limit_method = "ANGLE"
+        bv.angle_limit = math.radians(35)
+        bv.miter_outer = "MITER_ARC"
+        bv.use_clamp_overlap = True
+    dg = bpy.context.evaluated_depsgraph_get()
+    ev = ob.evaluated_get(dg)
+    me2 = bpy.data.meshes.new_from_object(ev)
+    nf = len(P.bm.faces)
+    P.bm.from_mesh(me2)
+    P.bm.faces.ensure_lookup_table()
+    keys = [P.mi(rg["key"]) for rg in regions]
+    for f in P.bm.faces[nf:]:
+        f.material_index = keys[min(f.material_index, len(keys) - 1)]
+        f.smooth = True
+    bpy.data.objects.remove(ob)
+    bpy.data.meshes.remove(me)
+    bpy.data.meshes.remove(me2)
+    return loops

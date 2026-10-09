@@ -32,12 +32,12 @@ gk.M.update({
     # lights are blue, weapon-model.js GC_TUNE; a metal finish just
     # mirrors the blue sky), a step apart so the parts read separately in
     # the hand, matte polymer, and bright steel on the small parts
-    "recv":  material("M2_Receiver", 0x48433d, 0.5, 0.3),
-    "rail":  material("M2_Rail", 0x3a3631, 0.52, 0.3),
-    "poly":  material("M2_Polymer", 0x2b2722, 0.8, 0.0),
+    "recv":  material("M2_Receiver", 0x5d5747, 0.5, 0.0),
+    "rail":  material("M2_Rail", 0x4a4539, 0.52, 0.0),
+    "poly":  material("M2_Polymer", 0x373227, 0.8, 0.0),
     "steel": material("M2_Steel", 0x9aa0a4, 0.3, 1.0),
-    "dark":  material("M2_Dark", 0x15120f, 0.6, 0.3),
-    "magm":  material("M2_Mag", 0x35312c, 0.58, 0.2),
+    "dark":  material("M2_Dark", 0x15120f, 0.6, 0.0),
+    "magm":  material("M2_Mag", 0x454035, 0.58, 0.0),
     "dot":   material("M2_Dot", 0xffffff, 0.4, 0.0, 0xd8f0ff, 1.0),
 })
 

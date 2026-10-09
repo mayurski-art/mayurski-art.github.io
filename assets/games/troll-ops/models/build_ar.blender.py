@@ -16,7 +16,7 @@ import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import arkit as ak
-from gunkit import Part, box, auto_body, screw, lathe
+from gunkit import Part, box, slab_body, screw, lathe
 
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 GUN = ARGS[0] if ARGS else "lol"
@@ -41,6 +41,9 @@ CONF = {
     "lol": dict(pfx="T2", span=(310, 1118), splits=(1095,),
                 hw=[(590, 885, 120, 230, 0.0100), (560, 830, 352, 700, 0.0125), (300, 600, 0, 700, 0.0240)], hw0=0.0265,
                 key=[(1095, 1130, 0, 700, "dark"), (560, 830, 352, 700, "poly")], key0="recv",
+                regions=[(560, 830, 352, 999, 0.0125, "poly"), (605, 862, -999, 186, 0.0100, "recv"),
+                         (1095, 1999, -999, 999, 0.0265, "dark"), (0, 600, -999, 999, 0.0240, "recv"),
+                         (-999, 1999, -999, 999, 0.0265, "recv")],
                 flat=[(600, 860)], rails=[(602, 858)], ycut=[(560, 830, 352)],
                 barrel=0.0080, collar=None, device=("birdcage", 0.0118),
                 vents=[(380, 560, 250)], pins=[(640, 300), (930, 300)]),
@@ -100,8 +103,15 @@ hw = region(C["hw"], C["hw0"])
 key = region(C["key"], C["key0"])
 
 body = Part(PFX + "_Body")
-auto_body(body, R, [O["outer"]] + O["holes"], C["span"][0], C["span"][1], hw, key, r=0.0055, step=5, smooth=2,
-          splits=C["splits"], flat=[(a, b, RB) for (a, b) in C["flat"]], ycut=C["ycut"])
+# slabs: rects (px0, px1, py0, py1, half-width, material), first wins (by
+# default the half-width rules, then the material rules, then the rest);
+# the rail beds cut flat
+regions = C.get("regions") or (
+    [(a, b_, c, d, v, key((a + b_) / 2, (c + d) / 2)) for (a, b_, c, d, v) in C["hw"]]
+    + [(a, b_, c, d, hw((a + b_) / 2, (c + d) / 2), v) for (a, b_, c, d, v) in C["key"]]
+    + [(-999, 1999, -999, 999, C["hw0"], C["key0"])])
+slab_body(body, R, O["outer"], O["holes"], [dict(rect=rg[:4], hw=rg[4], key=rg[5]) for rg in regions],
+          clip=[(a, b_, -999, RB) for (a, b_) in C["flat"]], smooth=3, eps=2.6, bevel=0.003, bevel_segs=3)
 for (a, b) in C["rails"]:
     ak.rail(body, R, S, a, b)
 for (a, b, py) in C["vents"]:                       # slots along the fore-end, both sides

@@ -13,7 +13,7 @@ import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import arkit as ak
-from gunkit import Part, box, auto_body, screw, vert_loft
+from gunkit import Part, box, slab_body, screw
 
 PFX = "MT"
 OUT_GLB = os.path.join(ak.HERE, "ar-kek.glb")
@@ -23,25 +23,15 @@ Z, Y = R.Z, R.Y
 RB = ak.rail_base(R, S)
 
 
-def hw(px, py):
-    if py > 190 and px < 500:          # the guard and the grip
-        return 0.0125
-    if px < 345:                       # fore-end
-        return 0.0225
-    return 0.0265                      # the action / stock shell
-
-
-def key(px, py):
-    if px > 800:
-        return "dark"                  # butt pad
-    if py > 190 and px < 500:
-        return "poly"
-    return "recv"
-
-
 body = Part(PFX + "_Body")
-auto_body(body, R, [O["outer"]] + O["holes"], 176, 824, hw, key, r=0.006, step=5, smooth=2,
-          splits=(800,), flat=[(318, 592, RB)], ycut=[(300, 520, 200)])
+# the top cut flat to the rail bed all the way back (nothing stands up in
+# the sight line); the guard and grip, the butt pad, the narrower fore-end, the action / stock shell
+slab_body(body, R, O["outer"], O["holes"], [
+    dict(rect=(-999, 500, 190, 999), hw=0.0125, key="poly"),
+    dict(rect=(800, 1999, -999, 999), hw=0.0265, key="dark"),
+    dict(rect=(-999, 345, -999, 999), hw=0.0225, key="recv"),
+    dict(rect=(-999, 1999, -999, 999), hw=0.0265, key="recv"),
+], clip=[(318, 1999, -999, RB)], smooth=3, eps=2.6, bevel=0.003, bevel_segs=3)
 ak.rail(body, R, S, 320, 590)
 for sx in (-1, 1):
     box(body, (sx * 0.0267, Y(150), Z(672)), (0.0012, R.m(22), R.m(70)), "dark")       # ejection ports
