@@ -17,6 +17,10 @@
 // (round a path, stopping to look about; `pace` walks it back and forth),
 // phone (waiting in a line: thumbing a phone, looking up now and then),
 // smith (anvil, forge and quench barrel, with the tools: smithy.js).
+// The kitchen (Trolling Loud): cook (a spatula at the range, the pan
+// shaken now and then), chop (a knife on the board), wash (both hands in the
+// sink, a rack lifted out), expo (at the pass: plates slid along, the bell
+// rung), carry (a runner on a path with a tray of food).
 //
 // Optional per NPC: `height`, `build` (a bouncer's shoulders), `dance`
 // (which of DANCES), `zone` (its room, if not where it stands), `outfit`
@@ -29,7 +33,7 @@ import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, gaitFromVelocity, D
 import { buildDrink, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1-nf2-em2-lh1-fg2";
 import { SmithWork } from "./smithy.js?v=sm1b7b7dc2f1m1-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2";
 import { wearOutfit } from "../characters/outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1-or1";
-import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, DANCES, reachHand } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
+import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, DANCES, reachHand, setHandPose } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
 import { wearOutfit } from "./outfits.js?v=of1m1-nc1-cd1-sh1";
 import { holdInstrument, poseInstrument } from "./instruments.js?v=in1";
 
@@ -46,6 +50,36 @@ const UNTAGGED = new Set(["Townsfolk", "Drifter", "Barfly", "Regular", "Gambler"
    dancer drops, swings or nods on the beat. */
 const DANCE_BEAT = [[1 / 3.6, 0.5], [1 / 4.4, 0], [1 / 2.6, 0.25], [1 / 3.08, 0]];
 const TAG_COLOR = "#ffd28a";   // townsfolk tags read warm, players' white
+const _hand = new THREE.Vector3(), _poleR = new THREE.Vector3(1, -1, 0.3), _poleL2 = new THREE.Vector3(-1, -1, 0.3);
+const WALKERS = new Set(["walk", "carry"]);
+
+/* The kitchen's props: a tool in the right fist (on the grip mount), or a
+   tray of food carried in front (on the chest). Shared materials. */
+const PROP_MATS = new Map();
+const propMat = (c, rough = 0.4, metal = 0.6) => PROP_MATS.get(c) ?? PROP_MATS.set(c, new THREE.MeshStandardMaterial({ color: c, roughness: rough, metalness: metal })).get(c);
+function kitchenProp(act) {
+  const g = new THREE.Group();
+  const box = (c, w, h, d, x, y, z, rough, metal) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), propMat(c, rough, metal)); m.position.set(x, y, z); g.add(m); return m; };
+  if (act === "cook") {   // a spatula
+    box(0x1a1a1a, 0.026, 0.026, 0.13, 0, 0, -0.02, 0.7, 0);
+    box(0xb0b4bc, 0.012, 0.012, 0.12, 0, 0, -0.14);
+    box(0xc8ccd4, 0.09, 0.004, 0.11, 0, -0.012, -0.25);
+  } else if (act === "chop") {   // a chef's knife
+    box(0x1a1a1a, 0.024, 0.03, 0.11, 0, 0, -0.01, 0.7, 0);
+    box(0xd8dce2, 0.005, 0.045, 0.21, 0, -0.01, -0.16, 0.2, 0.9);
+  } else if (act === "carry") {   // a tray: two burger baskets and some wings
+    box(0x26262a, 0.5, 0.02, 0.36, 0, 0, 0, 0.5, 0.3);
+    for (const [x, z] of [[-0.13, -0.07], [0.12, 0.08]]) {
+      box(0xb81e1e, 0.2, 0.05, 0.14, x, 0.035, z, 0.6, 0);
+      const bun = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), propMat(0xd8963e, 0.6, 0));
+      bun.position.set(x - 0.04, 0.06, z); g.add(bun);
+      for (let i = 0; i < 5; i++) box(0xf0c450, 0.01, 0.01, 0.07, x + 0.04 + (i % 3) * 0.015, 0.075, z - 0.02 + i * 0.01, 0.6, 0).rotation.y = i * 0.7;
+    }
+    for (let i = 0; i < 4; i++) { const w = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), propMat(0xb8481a, 0.5, 0)); w.scale.set(1.6, 0.75, 1); w.position.set(0.13 + (i % 2) * 0.05, 0.03, -0.1 + Math.floor(i / 2) * 0.05); g.add(w); }
+  } else return null;
+  g.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+  return g;
+}
 
 /* A small name tag: "Name · Role". */
 function npcTag(text) {
@@ -113,6 +147,14 @@ export class TownNpcs {
     }
     if (c.act === "smith") n.smith = new SmithWork(this.scene, n, this.smithy);
     if (c.act === "guitar" || c.act === "trumpet") holdInstrument(rig, c.act);   // the saloon band (instruments.js)
+    const prop = kitchenProp(c.act);
+    if (prop) {
+      const k = rig.scale || 1;
+      prop.scale.setScalar(k);
+      if (c.act === "carry") { prop.position.set(0, -0.3 * k, -0.42 * k); rig.parts.chest.add(prop); }
+      else rig.parts.gripR.add(prop);
+      n.prop = prop;
+    }
     if (c.path) {
       // Where on the loop they start (`at`, 0..1 of its length).
       n.seg = 0; n.segT = 0; n.dir = 1; n.wait = 0;
@@ -170,6 +212,8 @@ export class TownNpcs {
   /* `eye`: where the local camera is, for the level of detail; `audio` for
      the few that make a sound (the smith's anvil). */
   update(dt, eye, audio = null) {
+    this.audio = audio;
+    this.eye = eye;
     this.t += dt;
     const from = this.view ? this.view.zoneOf(eye.x, eye.y, eye.z) : null;
     for (const n of this.list) {
@@ -180,7 +224,7 @@ export class TownNpcs {
       if (n.tag) n.tag.visible = d < TAG_RANGE;
       n.t += dt;
       if (n.override) { if (!hidden) this.poseOverride(n, dt); continue; }
-      if (n.c.act === "walk") this.walk(n, dt);
+      if (WALKERS.has(n.c.act)) this.walk(n, dt);
       n.smith?.step(dt, hidden ? Infinity : d, audio);
       if (hidden) continue;
       // Far off, pose a few times a second instead of every frame.
@@ -250,7 +294,7 @@ export class TownNpcs {
     rig.root.rotation.x = 0; rig.root.rotation.z = 0;   // up again after a fight that floored him
     const p = rig.parts;
     const t = n.t;
-    const moving = (c.act === "walk" || c.act === "smith") && n.moving;
+    const moving = (WALKERS.has(c.act) || c.act === "smith") && n.moving;
     if (moving) n.phase += dt * gaitPhaseRate(WALK_MPS);
     rig.root.position.set(n.x, c.y ?? 0, n.z);
     aimRig(rig, n.yaw, dt, { snap: true, moving });
@@ -324,6 +368,7 @@ export class TownNpcs {
         break;
       }
       case "smith": n.smith.pose(rig, t); return;
+      case "cook": case "chop": case "wash": case "expo": case "carry": this.kitchen(n, t, sw); break;
       case "brush": {
         p.armR.rotation.set(0.95 + sw(2.4) * 0.3, 0, -0.1); p.elbowR.rotation.set(0.5 + sw(2.4) * 0.2, 0, 0);
         p.armL.rotation.set(0.7, 0, 0.1); p.elbowL.rotation.set(0.4, 0, 0);
@@ -374,6 +419,80 @@ export class TownNpcs {
       }
     }
     rig.body?.update?.();
+  }
+
+  /* The kitchen's acts: hands placed in chest space (+X right, -Z ahead). */
+  kitchen(n, t, sw) {
+    const { rig, c } = n;
+    const p = rig.parts, k = rig.scale || 1;
+    const R = (x, y, z) => reachHand(rig, 1, _hand.set(x * k, y * k, z * k), _poleR);
+    const L = (x, y, z) => reachHand(rig, -1, _hand.set(x * k, y * k, z * k), _poleL2);
+    switch (c.act) {
+      case "cook": {
+        // the spatula working the flat-top; every few seconds a flip, and the pan shaken
+        const cyc = 3 + n.seed * 1.5, u = (t % cyc) / cyc;
+        const flip = u < 0.12 ? Math.sin(u / 0.12 * Math.PI) : 0;
+        R(0.2 + sw(2.2) * 0.04, -0.32 + flip * 0.14, -0.46 + sw(3.1) * 0.03);
+        if (p.gripR) p.gripR.rotation.set(1.7 - flip * 0.9, 0, 0);   // the blade down at the flat-top
+        const shake = u > 0.5 && u < 0.7 ? Math.sin(t * 22) * 0.035 : 0;
+        L(-0.22, -0.33 + Math.abs(shake), -0.42 + shake);
+        p.chest.rotation.x += 0.1;
+        p.headPivot.rotation.x = 0.3;
+        break;
+      }
+      case "chop": {
+        // bursts of quick chops, then a scrape of the board to one side
+        const cyc = 5 + n.seed * 2, u = (t % cyc) / cyc;
+        const chopping = u < 0.7, scrape = u > 0.75 && u < 0.9 ? (u - 0.75) / 0.15 : 0;
+        const dn = chopping ? Math.abs(Math.sin(t * 9)) * 0.07 : 0.03;
+        R(0.1 + (chopping ? u * 0.08 : 0) + scrape * 0.15, -0.37 + dn, -0.44);
+        if (p.gripR) p.gripR.rotation.set(1.6, 0, -0.2);
+        L(-0.1, -0.4, -0.44 + (chopping ? u * 0.05 : 0));
+        p.chest.rotation.x += 0.16;
+        p.headPivot.rotation.x = 0.45;
+        break;
+      }
+      case "wash": {
+        // scrubbing in the sink; now and then a rack lifted and set on the side
+        const cyc = 9 + n.seed * 3, u = (t % cyc) / cyc;
+        const lift = u > 0.8 ? Math.sin((u - 0.8) / 0.2 * Math.PI) : 0;
+        R(0.12 + Math.cos(t * 5) * 0.05, -0.46 + lift * 0.3, -0.46 + Math.sin(t * 5) * 0.04);
+        L(-0.12 - Math.cos(t * 5 + 1) * 0.04, -0.46 + lift * 0.3, -0.44);
+        p.chest.rotation.x += 0.22;
+        p.headPivot.rotation.x = 0.4;
+        break;
+      }
+      case "expo": {
+        // plates slid down the pass; the bell rung now and then ("order up")
+        const cyc = 7 + n.seed * 2, u = (t % cyc) / cyc;
+        const slide = u < 0.5 ? Math.sin(u / 0.5 * Math.PI) : 0;
+        const ring = u > 0.6 && u < 0.68 ? Math.sin((u - 0.6) / 0.08 * Math.PI) : 0;
+        R(0.15 + slide * 0.18 - ring * 0.12, -0.3 + ring * 0.02, -0.44);
+        L(-0.22 + slide * 0.1, -0.32, -0.42);
+        p.headPivot.rotation.y = sw(0.4) * 0.4;
+        const cycN = Math.floor(t / cyc);
+        if (u > 0.64 && n.rang !== cycN) {
+          n.rang = cycN;
+          const e = this.eye;
+          if (cycN % 3 === 0 && this.audio?._ready?.() && e && Math.hypot(e.x - n.x, e.z - n.z) < 14) {
+            const at = { x: n.x, y: (c.y ?? 0) + 1, z: n.z };
+            this.audio._tone({ freq: 2490, duration: 0.7, gain: 0.05, type: "sine", at });
+            this.audio._tone({ freq: 3740, duration: 0.4, gain: 0.02, type: "sine", at });
+          }
+        }
+        break;
+      }
+      case "carry": {
+        // the tray out in front, a hand under each side
+        const bob = n.moving ? Math.abs(Math.sin(n.phase)) * 0.015 : 0;
+        if (n.prop) n.prop.position.y = (-0.3 + bob) * k;
+        R(0.2, -0.33 + bob, -0.42);
+        L(-0.2, -0.33 + bob, -0.42);
+        break;
+      }
+    }
+    setHandPose(rig, 1, c.act === "cook" || c.act === "chop" ? "fist" : "open");
+    setHandPose(rig, -1, c.act === "cook" ? "fist" : "open");
   }
 
   /* Seated: thighs forward, shins down (a stool's are tucked), the body

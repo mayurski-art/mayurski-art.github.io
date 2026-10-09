@@ -45,6 +45,9 @@ import {
 } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1";
 import { BEATS } from "../sound/music-beats.js?v=bg1-sg1-zr10-jb1-nh1-hl1-or1";
 import { pickOutfit } from "../characters/outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1-or1";
+import { BEATS } from "./music-beats.js?v=bg1";
+import { pickOutfit } from "./outfits.js?v=of1m1-nc1-cd1-sh1-hs1";
+import { buildKitchen, kitchenMaterials, hopBackLight, PASS_HATCH } from "./trollingloud-kitchen.js?v=kt1";
 
 /* ============================================================== the plan */
 
@@ -425,7 +428,7 @@ function shell(K, M, N, S) {
   const vipNorth = [door(-25), { c: -19.5, w: 5, spans: [[5.2, 7.2]] }];
   wall(K, { axis: "x", at: -7, a: B.x0 + T / 2, b: -14 - T / 2, y: FL, h: IH, mat: M.wallDark, holes: vipNorth, frame: M.gold });
   // kitchen | bar (the sound booth's window over the bar)
-  const barNorth = [door(22), { c: 18.5, w: 5, spans: [[5.2, 7.2]] }];
+  const barNorth = [door(22), { c: 18.5, w: 5, spans: [[5.2, 7.2]] }, { c: PASS_HATCH.c, w: PASS_HATCH.w, spans: [[PASS_HATCH.lo, PASS_HATCH.hi]] }];
   wall(K, { axis: "x", at: -9, a: 14 + T / 2, b: B.x1 - T / 2, y: FL, h: IH, mat: M.wallDark, holes: barNorth, frame: M.gold });
 
   /* ---- facings */
@@ -956,20 +959,30 @@ function backOfHouse(K, M, N, S, lights) {
   }
   for (let x = -10; x <= 10; x += 5) batten(K, M, x, CEIL, -19.5);
   addLight(S, lights, 0xd8e8ff, 12, 22, 0, 3.5, -19.5, { amp: 0.04 });
+  S.backLight = S.lights[S.lights.length - 1];   // it hops into the kitchen while you are in there (trollingloud-kitchen.js)
+  S.backLight.at = "back";
 
-  /* kitchen: a steel island, shelving, kegs, the walk-in */
+  /* kitchen: the steel island and the walk-in stay; the rest is trollingloud-kitchen.js */
   K.solid(21, -15.5, 4, 1.4, 0.95, { y: FL, pen: 3, mat: M.steel });
   K.box(M.steelTop, 21, FL + 0.95, -15.5, 4.1, 0.04, 1.5);
-  K.solid(17.2, -21.4, 3.6, 0.6, 2.2, { y: FL, pen: 2, mat: M.steel });
   K.solid(27.9, -20, 3.8, 3.8, 2.8, { y: FL, pen: 6, mat: M.fridge });
   K.box(M.steel, 27.9, FL + 0.1, -18.08, 1.2, 2.2, 0.04);
-  for (const [x, z] of [[24.4, -12.4], [24.4, -13.2], [25.2, -12.4]]) {
-    K.cyl(M.steel, x, FL, z, 0.28, 0.28, 0.6, 12);
-    K.api.ghostBox(x, z, 0.56, 0.56, 0.6, { y: FL, pen: 3 });
-  }
-  for (let x = 17; x <= 25; x += 4) batten(K, M, x, CEIL, -12.5);
-  for (let x = 17; x <= 25; x += 4) batten(K, M, x, CEIL, -18.5);
-  sign(S, N, M, "staff", 14 + T / 2 + 0.03, 2.9, -12, 0.3, { ry: Math.PI / 2 });
+  const opening = (c, w, hi) => ({ c, w, spans: [[0, hi]] });
+  const hatch = { c: PASS_HATCH.c, w: PASS_HATCH.w, spans: [[PASS_HATCH.lo, PASS_HATCH.hi]] };
+  S.doors = buildKitchen(K, kitchenMaterials(), {
+    FL, CEIL, T, M, root: K.root,
+    tileWalls: (mat, v1) => {
+      const lin = (o) => lining(K, mat, { y: FL, v1, ...o });
+      lin({ axis: "z", at: 14, side: 1, a: B.z0 + T / 2, b: -9 - T / 2, holes: [opening(-19.5, 2, 2.3), opening(-12, 2, 2.3)] });
+      lin({ axis: "z", at: B.x1, side: -1, a: B.z0 + T / 2, b: -9 - T / 2 });
+      lin({ axis: "x", at: B.z0, side: 1, a: 14 + T / 2, b: B.x1 - T / 2, holes: [opening(22, 3, 2.6)] });
+      lin({ axis: "x", at: -9, side: -1, a: 14 + T / 2, b: B.x1 - T / 2, holes: [opening(22, 2, 2.3), hatch] });
+    },
+    staffSigns: () => {
+      sign(S, N, M, "staff", 14 + T / 2 + 0.03, 2.9, -12, 0.3, { ry: Math.PI / 2 });
+      sign(S, N, M, "staff", 14 - T / 2 - 0.04, 2.9, -12, 0.3, { ry: -Math.PI / 2 });   // and on the hall side, so a guest can read it
+    },
+  });
 
   /* upstairs: the back corridor, the office, the sound booth */
   for (const [x, n] of [[-6, 2], [-2, 1], [2.5, 2], [7, 1]]) {
@@ -1453,6 +1466,7 @@ function tick(S, cam) {
   if (cam.isPerspectiveCamera) {
     U.uPlayer.value.copy(cam.position);
     S.cam.copy(cam.position);
+    hopBackLight(S, cam.position);
   }
   const now = performance.now() / 1000;
   if (now - S.last < 0.004) return;
@@ -1899,7 +1913,14 @@ function clubNpcs() {
   /* ---- back of house */
   add("MC Kek", "Headliner", "tend", { x: -25, z: -8.3, y: FL, yaw: Math.PI });
   extra("Clubgoer", "phone", { x: -29.05, z: -18.5, y: FL + 0.42, yaw: -Math.PI / 2, sit: true });
-  add("Chef Lolz", "Cook", "count", { x: 21, z: -14.3, y: FL, yaw: 0 });
+  // the kitchen (trollingloud-kitchen.js): the line, the island, the dish pit, the pass, two runners
+  add("Chef Lolz", "Cook", "cook", { x: 16.5, z: -20.25, y: FL, yaw: 0 });
+  add("Smash", "Line cook", "cook", { x: 17.9, z: -20.25, y: FL, yaw: 0 });
+  add("Dicey", "Sous chef", "chop", { x: 19.6, z: -14.35, y: FL, yaw: 0 });
+  add("Suds", "Dishwasher", "wash", { x: 15.4, z: -15.4, y: FL, yaw: Math.PI / 2 });
+  add("Order-Up Otis", "Expo", "expo", { x: 25.4, z: -10.35, y: FL, yaw: Math.PI });
+  add("Skillet", "Runner", "carry", { x: 24.3, z: -10.5, y: FL, yaw: 0, path: [[24.3, -10.5], [22, -10.5], [22, -7.8], [19.3, -4.6]], pace: true });
+  add("Saucy", "Runner", "carry", { x: 24, z: -11.2, y: FL, yaw: 0, path: [[24, -11.2], [21, -11.6], [16, -12], [13.2, -12], [12.2, -9.4]], pace: true, at: 0.5 });
   add("Big Boss", "Manager", "count", { x: -19.5, z: -9.4, y: UP, yaw: Math.PI });
   add("Fader", "Sound tech", "count", { x: 18.5, z: -10.95, y: UP, yaw: Math.PI });
 
@@ -1969,6 +1990,8 @@ export const TROLLINGLOUD = {
   },
   // Socialize: the crowd (town-npcs.js), dancing on the club's clock; no
   // shadows (indoors under neon that casts none), drawn room by room
+  // the kitchen's swing doors (view/swing-doors.js swings them)
+  doors: () => ACTIVE?.doors ?? [],
   rp: { npcs: () => clubNpcs(), seats: () => SEATS, beat: () => U.uBeatPos.value, npcShadows: false, view: CLUB_VIEW, door: { ...DOOR, zoneOf: entryZoneOf } },
   // for tools/troll-ops-trollingloud-test.mjs
   debug: () => ({
