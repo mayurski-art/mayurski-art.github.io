@@ -1,7 +1,7 @@
 // Bots' shooting: who they can target, how their shots look and sound to
 // everyone, firing at enemy aircraft, and the damage a bot we host deals.
 
-import { occupants } from "../modes/spawns.js?v=spw1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2";
+import { occupants } from "../modes/spawns.js?v=spw1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5";
 import { saberBlock, kbShield } from "./melee.js?v=ml1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
 import { MELEE_DEFS } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2";
 import { streakEntities } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
@@ -10,11 +10,11 @@ import { WEAPON_DEFS, chargedShotDef } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb
 import { hellfire } from "../view/viewmodels.js?v=vm1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
 import * as THREE from "three";
 import { royale, royaleBotDamage, royaleBotVsBot, royaleNoise } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
-import { noteRigShot } from "../view/third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2";
+import { noteRigShot } from "../view/third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5";
 import { enemyAirFor, damageStreakEntity } from "../streaks/dragonfire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
 import { VtolWarship, HunterDrone, HelicopterGunship } from "../streak-entities.js?v=vsat2-hk1";
 import { SamTurret } from "../sam-turret.js?v=sam1";
-import { isStaging } from "../modes/match-start.js?v=mst1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2";
+import { isStaging } from "../modes/match-start.js?v=mst1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5";
 import { botBusy } from "../modes/objectives.js?v=ob1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2";
 import { Dragonfire } from "../dragonfire.js?v=df3-sb2";

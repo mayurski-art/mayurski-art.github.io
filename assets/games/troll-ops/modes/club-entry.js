@@ -31,9 +31,9 @@
    `rp.door` (Trolling Loud), only in Socialize. */
 
 import * as THREE from "three";
-import { rpExtras } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2";
+import { rpExtras } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5";
 import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
-import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2";
+import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5";
 import { myCardData } from "../profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2";
 import { renderClubId, paintMiniLicence } from "../view/club-id-card.js?v=cid1-cid2-th2";
 import { isOwner } from "../progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2";
@@ -44,7 +44,7 @@ import { game } from "../core/state.js?v=st1";
 
 export const BAND = { none: 0, guest: 1, owner: 2, vip: 3 };
 /* The test (?tohooks=1) shortens the waits: window.__trollClub.T. */
-const T = { lockSecs: 120, checkSecs: 3.0, idSecs: 2.6, bandSecs: 1.8, afkSecs: 25 };
+const T = { lockSecs: 120, checkSecs: 3.0, idSecs: 2.6, bandSecs: 1.8, afkSecs: 25, minAhead: 1 };
 const SNAP_AT = 0.5;       // into the band act: the moment it snaps shut
 const WAVE_SECS = 1.3;     // the bouncer's wave in, after a band
 const ROPE_OPEN = 1.4, ROPE_SHUT = 1.5;   // s
@@ -123,7 +123,7 @@ export function clubSpawn() {
   rope.build(d);
   if (bandNow() > BAND.none) { toLobby(d); return; }
   // Somewhere in the line: 1-7 ahead of you (as many as there are).
-  const ahead = 1 + Math.floor(Math.random() * Math.min(7, club.queue.length));
+  const ahead = Math.max(T.minAhead, 1 + Math.floor(Math.random() * Math.min(7, club.queue.length)));   // (tests raise minAhead)
   club.queue.splice(Math.min(ahead, club.queue.length), 0, ME);
   club.ticket = roomNow();
   club.spawnAhead = club.queue.indexOf(ME);   // (the test reads it: the line may have moved since)
@@ -202,6 +202,7 @@ export function updateClubEntry(dt) {
   if (!d) { if (club.live) resetDoor(); wireOut(); return; }
   if (!club.live) { wireOut(); return; }   // not spawned here yet
   club.t += dt;
+  ui.pollPad();
   syncRemotes(d, dt);
   stepNpcs(d, dt);
   stepMe(d, dt);
@@ -403,13 +404,23 @@ function stepMe(d, dt) {
     case "lockout": {
       // Stays in lockout till they rejoin; the chip says how.
       const left = club.lockUntil - now();
-      ui.chip(left > 0 ? `Bounced · back in line in ${fmt(left)}` : "Hold X to get back in line");
+      ui.chip(left > 0 ? `Bounced · back in line in ${fmt(left)}` : `${cap(holdHint("Line"))} to get back in line`);
       break;
     }
     default: break;
   }
-  if (club.phase !== "lockout") ui.chip(club.phase === "queued" ? "In line · hold X to step out" : null);
+  if (club.phase !== "lockout") ui.chip(club.phase === "queued" ? `In line · ${holdHint("Leave")} to step out` : null);
 }
+
+/* The hold that works the line on this device: X on keys, D-pad right on a
+   pad (X is melee there; every hold-to-use is D-pad right), and the context
+   button on touch, which wears `ctx` (lineAction below). */
+function inputKind() { return game.isTouch ? "touch" : game.gamepadState?.connected ? "pad" : "keys"; }
+function holdHint(ctx) {
+  const k = inputKind();
+  return k === "touch" ? `hold ${ctx}` : k === "pad" ? "hold D-pad →" : "hold X";
+}
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
 
 function freeLane(wave = true) {
   const l = club.lanes[club.lane];
@@ -1410,8 +1421,8 @@ const ui = {
       <div class="club-ask" role="dialog" aria-modal="true" aria-labelledby="club-ask-q" hidden>
         <p id="club-ask-q">You 18 or older?</p>
         <div class="club-ask-btns">
-          <button type="button" data-a="1" aria-label="Yeah, I'm 18 or older">Yeah <kbd>1</kbd></button>
-          <button type="button" data-a="0" aria-label="No, I'm under 18">No <kbd>2</kbd></button>
+          <button type="button" data-a="1" aria-label="Yeah, I'm 18 or older">Yeah <kbd data-k="1" data-p="A">1</kbd></button>
+          <button type="button" data-a="0" aria-label="No, I'm under 18">No <kbd data-k="2" data-p="B">2</kbd></button>
         </div>
       </div>
       <div class="club-chip" hidden></div>`;
@@ -1445,8 +1456,34 @@ const ui = {
     releaseHeldInputs();
     this.wasLocked = !game.isTouch && !!document.pointerLockElement;
     if (this.wasLocked) game.controls?.unlock?.();
+    this.padArmed = false;   // an A/B already down when it opens isn't the answer
+    this.glyphs();
     this.dialog.hidden = false;
     this.dialog.querySelector("button")?.focus();
+  },
+  /* The keycaps say what answers on this device: 1/2, A/B, or nothing on
+     touch, where the buttons themselves are big. */
+  glyphs() {
+    const k = inputKind();
+    if (this.dialog.dataset.input === k) return;
+    this.dialog.dataset.input = k;
+    this.dialog.classList.toggle("is-touch", k === "touch");
+    for (const kb of this.dialog.querySelectorAll("kbd")) {
+      kb.hidden = k === "touch";
+      kb.textContent = k === "pad" ? kb.dataset.p : kb.dataset.k;
+    }
+  },
+  /* A = Yeah, B = No, read straight off the pad while the question's up
+     (you're pinned at the podium, so they can't jump or crouch). */
+  padArmed: false,
+  pollPad() {
+    if (!this.dialog || this.dialog.hidden) return;
+    this.glyphs();   // a pad plugged in mid-question
+    const gp = game.pickPad?.(navigator.getGamepads ? navigator.getGamepads() : [], game.gpIndex);
+    if (!gp) return;
+    const a = !!gp.buttons[0]?.pressed, b = !!gp.buttons[1]?.pressed;
+    if (!this.padArmed) { this.padArmed = !a && !b; return; }
+    if (a !== b) this.answer(a);
   },
   answer(yes) {
     if (this.dialog.hidden) return;
@@ -1491,6 +1528,11 @@ function injectCss() {
 .club-ask kbd { font: inherit; font-size: 11px; opacity: .7; margin-left: 6px; padding: 1px 5px; border-radius: 4px; border: 1px solid currentColor; }
 .club-chip { position: absolute; left: 50%; top: 14%; transform: translateX(-50%); padding: 6px 12px; border-radius: 999px;
   background: rgba(14,10,18,.8); border: 1px solid rgba(255,63,180,.5); color: #fff; font-size: 14px; font-weight: 600; white-space: nowrap; }
+.club-ask.is-touch { top: auto; bottom: 16%; transform: translateX(-50%); width: min(440px, 92vw); padding: 16px 16px 18px;
+  background: rgb(18,13,22); }   /* opaque: the touch buttons under it don't show through */
+.club-ask.is-touch .club-ask-btns { gap: 14px; }
+.club-ask.is-touch button { flex: 1; min-height: 64px; font-size: 22px; touch-action: manipulation; }
+.club-ask.is-touch button[data-a="0"] { background: #2b2431; }
 @media (max-width: 760px) { .club-ask p { font-size: 18px; } .club-chip { font-size: 12px; top: 18%; } }
 `;
   document.head.appendChild(s);

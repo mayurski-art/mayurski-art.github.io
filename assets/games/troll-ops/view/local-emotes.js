@@ -6,7 +6,7 @@ import { FP_HAND_POSES } from "../emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u";
 import { EmoteWheel, EMOTES } from "../emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u";
 import * as THREE from "three";
 import { segmentBlocked } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2";
-import { look, keys } from "../input/keyboard-mouse.js?v=km1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2";
+import { look, keys } from "../input/keyboard-mouse.js?v=km1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5";
 import { touchState } from "../input/touch.js?v=in1-th2";
 import { initMenuRoster } from "../menu/escape-menu.js?v=em1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
 import { game } from "../core/state.js?v=st1";

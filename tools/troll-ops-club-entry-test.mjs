@@ -2,7 +2,7 @@
 // CLUB-ENTRY.md), phases 1-3, solo: the flow, the look (the rope, the
 // bouncers, bands on wrists, security's hand up at VIP), and the kick-out.
 //
-// Three tabs, one at a time, Supabase blocked (never a live room):
+// Five tabs, one at a time, Supabase blocked (never a live room):
 //   1. Signed in: spawn in the line with 1-7 clubgoers ahead (a line of
 //      6-7); the line moves up; at a lane your ID (the HAWAII licence, view/club-id-card.js) shows, then the
 //      18+ question; "Yeah" puts a guest band on and walks you into the
@@ -12,6 +12,10 @@
 //      (carried off, tossed on the curb) and leaves you sat there, locked
 //      out; once it's up, X puts you back in the line.
 //   3. troll_runner: in the lobby with the owner band; VIP and back open.
+//   4. A pad (phase 5): A/B keycaps, B is No, a held A doesn't answer, a
+//      fresh A does; the chips name D-pad right.
+//   5. A landscape phone (phase 5): big touch buttons nothing covers, the
+//      context button reads Leave, a tap answers.
 // Shots: scratch PNGs in tools/.club-shots (not committed).
 //
 // Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-club-entry-test.mjs
@@ -50,9 +54,13 @@ fs.mkdirSync(SHOTS, { recursive: true });
 const browser = await chromium.launch({ args: ["--use-angle=d3d11", "--ignore-gpu-blocklist",
   "--disable-background-timer-throttling", "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows"] });
 
-/* A Socialize tab on Trolling Loud as `user` (null = a guest). */
-async function open(user) {
-  const ctx = await browser.newContext({ viewport: { width: 960, height: 600 } });
+/* A Socialize tab on Trolling Loud as `user` (null = a guest). `phone`: a
+   landscape phone with touch; `pad`: a fake standard gamepad, its buttons
+   set through window.__pad. */
+async function open(user, { phone = false, pad = false } = {}) {
+  const ctx = await browser.newContext(phone
+    ? { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }
+    : { viewport: { width: 960, height: 600 } });
   await ctx.route(/supabase/, (r) => r.abort());
   const page = await ctx.newPage();
   page.errors = [];
@@ -61,11 +69,17 @@ async function open(user) {
     const fake = { getCachedProfile: () => (user ? { username: user, tags: [] } : null) };
     Object.defineProperty(window, "TrollrunnerAccounts", { configurable: true, get: () => fake, set: () => {} });
   }, user);
+  if (pad) await page.addInitScript(() => {
+    window.__pad = { id: "fake pad (STANDARD GAMEPAD)", index: 0, connected: true, mapping: "standard", timestamp: 0,
+      axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0 })) };
+    navigator.getGamepads = () => [window.__pad, null, null, null];
+  });
   await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 420000 });
   await page.waitForFunction(() => !!window.__trollOps && !!window.__trollClub, null, { timeout: 420000 });
   await page.evaluate(() => {
     window.__trollOps.setLoadWaitMax(8);
-    Object.assign(window.__trollClub.T, { checkSecs: 0.5, idSecs: 0.8, bandSecs: 0.4, lockSecs: 3 });
+    // minAhead 3: with the waits this short, 1 ahead had you at a lane before the first look
+    Object.assign(window.__trollClub.T, { checkSecs: 0.5, idSecs: 0.8, bandSecs: 0.4, lockSecs: 3, minAhead: 3 });
   });
   await page.evaluate(async () => {
     const T = window.__trollOps;
@@ -102,15 +116,17 @@ const until = async (page, pred, ms) => {
   while (Date.now() - t0 < ms && !pred(s)) { await pump(page, 250); s = await S(page); }
   return s;
 };
+/* The 18+ dialog's keycaps as shown ("" for a hidden one), e.g. "1|2". */
+const caps = (page) => page.evaluate(() => [...document.querySelectorAll(".club-ask kbd")].map((k) => (k.hidden ? "" : k.textContent)).join("|"));
+const setPad = (page, i, on) => page.evaluate(({ i, on }) => { const b = window.__pad.buttons[i]; b.pressed = b.touched = on; b.value = on ? 1 : 0; }, { i, on });
 /* Try to walk into a spot: put us there for a frame and see where we end up. */
 const poke = (page, x, y, z) => page.evaluate(({ x, y, z }) => { window.__trollOps.move.pos.set(x, y, z); }, { x, y, z });
 
 // ── 1. Signed in ─────────────────────────────────────────────────────────
 let A = await open("club_tester");
 let s = await S(A);
-check("signed in: you start in the line", s.phase === "queued" && s.zone === "street", JSON.stringify(s));
-const spawnAhead = await A.evaluate(() => window.__trollClub.club.spawnAhead);
-check("with 1-7 clubgoers ahead of you", spawnAhead >= 1 && spawnAhead <= 7, `${spawnAhead} ahead at spawn`);
+check("signed in: you start in the line", s.phase === "queued" && s.zone === "street", JSON.stringify(s));const spawnAhead = await A.evaluate(() => window.__trollClub.club.spawnAhead);
+check("with 1-7 clubgoers ahead of you (3+ here)", spawnAhead >= 3 && spawnAhead <= 7, `${spawnAhead} ahead at spawn`);
 check("the velvet rope's up across the door, both bouncers working the lanes", s.rope.on && s.rope.k === 0 && s.bouncers === 2, JSON.stringify({ rope: s.rope, bouncers: s.bouncers }));
 // (with the waits shortened the front ones may already be at a lane)
 check("in a line of 6-7", (s.want === 6 || s.want === 7) && s.lineish >= s.want - 1, `want ${s.want}, ${s.lineish} in line or at a lane now`);
@@ -127,6 +143,7 @@ await A.screenshot({ path: path.join(SHOTS, "2-card.png") });
 s = await until(A, (s) => s.phase === "ask", 5000);
 check("then the 18+ question", s.ask && !s.card, JSON.stringify(s));
 check("the question frees the mouse without pausing", !s.paused);
+check("its keycaps read 1 / 2 on keys", (await caps(A)) === "1|2", await caps(A));
 await A.screenshot({ path: path.join(SHOTS, "3-ask.png") });
 // fenced off before the band
 await A.keyboard.press("Digit1");
@@ -195,6 +212,59 @@ check("VIP's open to him", s.zone === "vip", JSON.stringify(s));
 await poke(A, 0, 0.3, -20); await pump(A, 300); s = await S(A);
 check("so is back of house", s.zone === "back", JSON.stringify(s));
 check("owner: no page errors", A.errors.length === 0, A.errors.slice(0, 3).join(" | "));
+await A.context().close();
+
+// ── 4. A pad (phase 5) ───────────────────────────────────────────────────
+A = await open(null, { pad: true });
+s = await until(A, (s) => s.phase === "queued" || s.phase === "ask", 5000);
+if (s.phase === "queued") check("pad: the chip names D-pad right for stepping out", /hold D-pad →/.test(s.chip), s.chip);
+s = await until(A, (s) => s.phase === "ask", 60000);
+check("pad: the keycaps read A / B", (await caps(A)) === "A|B", await caps(A));
+await A.screenshot({ path: path.join(SHOTS, "6-pad-ask.png") });
+await setPad(A, 1, true); await pump(A, 150); await setPad(A, 1, false);
+s = await until(A, (s) => s.kick > 0.3, 3000);
+check("pad: B is 'No'", s.phase === "kick", JSON.stringify({ phase: s.phase, kick: s.kick }));
+s = await until(A, (s) => s.phase === "lockout" && /D-pad/.test(s.chip), 16000);
+check("pad: once the lockout's up, the chip says hold D-pad right", /^Hold D-pad → to get back in line/.test(s.chip), s.chip);
+await A.evaluate(() => window.__trollClub.join());
+// A held from before the question isn't the answer...
+await setPad(A, 0, true);
+s = await until(A, (s) => s.phase === "ask", 60000);
+await pump(A, 500); s = await S(A);
+check("pad: an A already held when the question comes up doesn't answer it", s.phase === "ask" && s.ask, JSON.stringify({ phase: s.phase }));
+await setPad(A, 0, false); await pump(A, 200);
+await setPad(A, 0, true); await pump(A, 150); await setPad(A, 0, false);
+s = await until(A, (s) => s.phase === "in", 15000);
+check("pad: ...a fresh A is 'Yeah': banded and in", s.phase === "in" && s.band === 1, JSON.stringify({ phase: s.phase, band: s.band }));
+check("pad: no page errors", A.errors.length === 0, A.errors.slice(0, 3).join(" | "));
+await A.context().close();
+
+// ── 5. A phone (phase 5) ─────────────────────────────────────────────────
+A = await open(null, { phone: true });
+s = await until(A, (s) => s.phase === "queued" || s.phase === "ask", 5000);
+if (s.phase === "queued") {
+  check("phone: the chip says hold Leave", /hold Leave to step out/.test(s.chip), s.chip);
+  const ctxBtn = await A.evaluate(() => document.querySelector(".to-touch-swap")?.dataset.ctx || "");
+  check("phone: the context button reads Leave", ctxBtn === "Leave", ctxBtn);
+  await A.screenshot({ path: path.join(SHOTS, "7-phone-line.png") });
+}
+s = await until(A, (s) => s.phase === "ask", 60000);
+const tb = await A.evaluate(() => {
+  const d = document.querySelector(".club-ask");
+  const bs = [...d.querySelectorAll("button")].map((b) => {
+    const r = b.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    return { h: Math.round(r.height), w: Math.round(r.width), inView: r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight,
+      onTop: document.elementFromPoint(cx, cy)?.closest("button") === b, cx, cy };
+  });
+  return { touch: d.classList.contains("is-touch"), bs };
+});
+check("phone: the touch dialog, keycaps hidden", tb.touch && (await caps(A)) === "|", JSON.stringify({ touch: tb.touch, caps: await caps(A) }));
+check("phone: two big buttons, on screen, nothing over them", tb.bs.length === 2 && tb.bs.every((b) => b.h >= 56 && b.w >= 120 && b.inView && b.onTop), JSON.stringify(tb.bs));
+await A.screenshot({ path: path.join(SHOTS, "8-phone-ask.png") });
+await A.touchscreen.tap(tb.bs[0].cx, tb.bs[0].cy);
+s = await until(A, (s) => s.phase === "in", 15000);
+check("phone: tapping Yeah bands you and walks you in", s.phase === "in" && s.band === 1, JSON.stringify({ phase: s.phase, band: s.band }));
+check("phone: no page errors", A.errors.length === 0, A.errors.slice(0, 3).join(" | "));
 await A.context().close();
 
 await browser.close();
