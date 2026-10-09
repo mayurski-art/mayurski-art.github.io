@@ -109,6 +109,14 @@ const DETAILED = {
     p: "CL", device: "CL_Hider", rake: -0.37, railY: 0.0465, adsDistance: null,
     glow: [],
   },
+  // Black Ops 2's assault rifles, modelled on their traced outlines
+  // (models/build_ar_<id>.blender.py); weapon-ars.js's traced versions stand
+  // in until the model streams in.
+  heh: {
+    url: new URL("./models/ar-heh.glb?v=ar1", import.meta.url).href,
+    p: "M2", device: "M2_Hider", rake: -0.37, railY: 0.0410, adsDistance: null,
+    glow: [],
+  },
 };
 const detailedTemplates = new Map();
 
@@ -1075,7 +1083,7 @@ function buildBaseMesh(def, skin) {
   if (SNIPER_BUILDERS[def.model?.build]) return SNIPER_BUILDERS[def.model.build](def, { env: weaponEnvMap || metalStudio() });
   // and its SMGs (weapon-smgs.js)
   if (SMG_BUILDERS[def.model?.build]) return SMG_BUILDERS[def.model.build](def, { env: weaponEnvMap || metalStudio() });
-  if (AR_BUILDERS[def.model?.build]) return AR_BUILDERS[def.model.build](def, { env: weaponEnvMap || metalStudio() });
+  if (AR_BUILDERS[def.model?.build] && !(DETAILED[def.id] && detailedTemplates.has(def.id))) return AR_BUILDERS[def.model.build](def, { env: weaponEnvMap || metalStudio() });
   const spec = def.model || {};
   if (spec.stock === "tank") return gcTemplate ? buildGreenCandles(def) : buildTankLauncher(def, spec, spec.len || 0.5);
   if (def.id === "grinmington" && gmTemplate) return buildGrinmington(def);
