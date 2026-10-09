@@ -18,7 +18,7 @@ export const MAX_PLAYERS_ROYALE = 100;
    host built that bot with, so every client knows the room's bot skill. */
 const BOT_SKILLS = ["recruit", "regular", "veteran"];
 // Socialize roleplay jobs by wire letter (rp-roles.js ROLES).
-const RP_ROLES = { b: "bartender", p: "pianist", d: "doctor", s: "sheriff", m: "merchant", h: "horsekeeper", c: "conductor", j: "dj" };
+const RP_ROLES = { b: "bartender", p: "pianist", d: "doctor", s: "sheriff", m: "merchant", h: "horsekeeper", c: "conductor", j: "dj", g: "guitarist", t: "trumpeter" };
 /* A bot's level for the scoreboard: fixed per bot id (1-69), so a bot
    keeps the same rank all match and every client agrees on it. */
 function botLevel(id) {
@@ -131,6 +131,7 @@ export class Net {
     this.cuff = 0; this.jail = 0; this.wanted = null;   // Troll City's law (modes/social-sheriff.js)
     this.stetson = 0;   // a hat from Kek & Sons (modes/social-shop.js)
     this.horse = 0; this.horseGait = 0; this.horseYaw = 0; this.saddles = 0;   // on a horse (modes/social-horses.js)
+    this.bandSong = 0; this.bandAt = 0; this.bandAuto = 0;   // the saloon band (modes/social-band.js)
     this._acc = 0;
     this._out = [];
     this._flushT = null;
@@ -371,6 +372,8 @@ export class Net {
         // on a horse (modes/social-horses.js): which (+1), its gait, its yaw; a horsekeeper's saddles
         p.horse = Math.max(0, Math.min(32, m.ho | 0)); p.horseGait = Math.max(0, Math.min(3, m.hg | 0));
         p.horseYaw = Number.isFinite(+m.hy) ? +m.hy : 0; p.saddles = (m.hs | 0) & 0xffff;
+        // the saloon band (modes/social-band.js): the song they started (+1), when (room ms), their part on auto
+        p.bandSong = Math.max(0, Math.min(999, m.bs | 0)); p.bandAt = Number.isFinite(+m.ba) ? +m.ba : 0; p.bandAuto = !!m.bz;
         p.jail = Math.max(0, Math.min(9, m.jl | 0));
         p.wanted = typeof m.wl === "string" ? m.wl.slice(0, 80) : null;
         p.body = typeof m.bd === "string" ? m.bd.slice(0, 16) : null;   // a realistic body (cop-bodies.js)
@@ -574,6 +577,7 @@ export class Net {
         dn: local.downed || undefined,   // Zombies co-op: 1 down, 2 bled out
         mt: this.stetson || undefined,   // a hat from Kek & Sons (modes/social-shop.js)
         ho: this.horse || undefined, hg: this.horse ? this.horseGait : undefined, hy: this.horse ? this.horseYaw : undefined, hs: this.saddles || undefined,
+        bs: this.bandSong || undefined, ba: this.bandSong ? this.bandAt : undefined, bz: this.bandAuto || undefined,
       });
     }
     this.prune();

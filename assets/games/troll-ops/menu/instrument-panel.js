@@ -9,7 +9,9 @@
 //            written an octave up as guitar music is
 //
 // Sheets come in three levels per instrument; the cursor lights the next
-// note and moves on when you play it. "Hear it" plays the part here only
+// note and moves on when you play it. With the band playing the open song
+// (modes/social-band.js), the playhead runs with the room and each note
+// is judged on time, early/late or missed ("Bravo: 38 / 42 on time"). "Hear it" plays the part here only
 // (never to the room). The panel makes no sound itself: `h.play(ev)` does
 // (modes/social-rp.js for the piano, modes/social-band.js for the others).
 // Esc closes it; keys are caught in the capture phase while it's open.
@@ -38,7 +40,9 @@ export class InstrumentPanel {
      h: { mount, isTouch, releaseInputs(), lock(), unlock(), banner(text, ms),
           play(ev): ev = { type: "note", midi, dur?, preview? } | { type: "off", midi }
                     | { type: "strum", midis, up, chord, dur?, preview? },
-          onStand(), standLabel, onAuto?(), autoOn?() } */
+          onStand(), standLabel, onAuto?(), autoOn?(),
+          band?: { running() -> { song, beat, beats, leader } | null, start(i), stop(),
+                   isLeader(), auto(), setAuto(on) } } */
   constructor(kind, h) {
     this.kind = kind;
     this.h = h;
@@ -50,6 +54,10 @@ export class InstrumentPanel {
     this.demo = null;       // "Hear it": { timers, raf }
     this.hits = 0;          // notes played (the test reads it)
     this.held = new Map();  // trumpet: key code -> midi held
+    this.songIdx = -1;
+    this.along = null;      // playing along with the band: { next, on, close, miss, song }
+    this.lastAlong = null;  // how the last one went (the test reads it)
+    this._raf = 0;
     this._build();
   }
 
@@ -62,6 +70,7 @@ export class InstrumentPanel {
     this._wasLocked = !this.h.isTouch;
     if (!this.h.isTouch) this.h.unlock();
     this._render();
+    this._tick();
   }
 
   close(silent = false) {
@@ -69,6 +78,8 @@ export class InstrumentPanel {
     this.stopDemo();
     this._releaseAll();
     this.ui.panel.hidden = true;
+    cancelAnimationFrame(this._raf);
+    this.along = null;
     this.h.releaseInputs();
     if (!silent && this._wasLocked) this.h.lock();
   }
@@ -109,6 +120,7 @@ export class InstrumentPanel {
 
   /* With a sheet open: the right note moves the cursor on, a wrong one shakes. */
   _judge(ok) {
+    if (this.along) { this._judgeAlong(ok); return; }
     if (!this.song || this.cursor >= this.notes.length) return;
     if (ok(this.notes[this.cursor])) {
       this.cursor++;
@@ -118,6 +130,56 @@ export class InstrumentPanel {
       g?.classList.remove("is-wrong"); void g?.getBoundingClientRect(); g?.classList.add("is-wrong");
     }
     this._cursor();
+  }
+
+  /* With the band: the note due now (within 0.25 s) is the one to hit. */
+  _judgeAlong(ok) {
+    const A = this.along, R = this.h.band.running();
+    if (!R || A.next >= this.notes.length) return;
+    const want = this.notes[A.next];
+    const dt = (R.beat - want.at) * (60 / this.song.bpm);
+    if (ok(want) && Math.abs(dt) <= 0.25) {
+      if (Math.abs(dt) <= 0.12) A.on++; else A.close++;
+      A.next++;
+      this.cursor = A.next;
+      this._cursor();
+      return;
+    }
+    const g = this._noteEl(A.next);
+    g?.classList.remove("is-wrong"); void g?.getBoundingClientRect(); g?.classList.add("is-wrong");
+  }
+
+  /* While open: the band's playhead, the play-along's misses and its end. */
+  _tick() {
+    cancelAnimationFrame(this._raf);
+    if (!this.isOpen) return;
+    const R = this.h.band?.running();
+    const mine = R && this.song && R.song === this.songIdx;
+    if (mine) {
+      if (!this.along || this.along.song !== R.song) {
+        this.along = { song: R.song, next: 0, on: 0, close: 0, miss: 0 };
+        this.cursor = 0;
+        this._cursor();
+        this._renderActs();
+      }
+      const A = this.along, spb = 60 / this.song.bpm;
+      if (!this.demo) this.setPlayhead(Math.max(0, R.beat));
+      let moved = false;
+      while (A.next < this.notes.length && (R.beat - this.notes[A.next].at) * spb > 0.25) { A.miss++; A.next++; moved = true; }
+      if (moved) { this.cursor = A.next; this._cursor(); }
+      if (R.beat > R.beats) this._endAlong();
+    } else if (this.along) this._endAlong();
+    this._raf = requestAnimationFrame(() => this._tick());
+  }
+  _endAlong() {
+    const A = this.along;
+    if (!A) return;
+    this.along = null;
+    this.lastAlong = { ...A, of: this.notes.length };
+    const hit = A.on + A.close;
+    if (this.notes.length) this.h.banner?.(hit >= this.notes.length * 0.8 ? `Bravo: ${A.on} / ${this.notes.length} on time` : `${hit} / ${this.notes.length} notes: again?`, 2600);
+    if (!this.demo) this.setPlayhead(null);
+    this._renderActs();
   }
 
   _flash(el) {
@@ -133,6 +195,7 @@ export class InstrumentPanel {
 
   pick(i) {
     this.stopDemo();
+    this.songIdx = SONGS[i] ? i : -1;
     this.song = SONGS[i] || null;
     this.notes = this.song ? playNotes(this.song, this.kind) : [];
     this.cursor = 0;
@@ -190,7 +253,8 @@ export class InstrumentPanel {
 
   state() {
     return { open: this.isOpen, kind: this.kind, sheet: this.song?.name || null, cursor: this.cursor, length: this.notes.length,
-      hits: this.hits, mode: this.mode, pads: [...this.pads], hearing: !!this.demo };
+      hits: this.hits, mode: this.mode, pads: [...this.pads], hearing: !!this.demo,
+      along: this.along && { ...this.along }, lastAlong: this.lastAlong };
   }
 
   /* ------------------------------------------------------------ the DOM */
@@ -259,9 +323,15 @@ export class InstrumentPanel {
       else if (a === "stand") { this.close(); this.h.onStand(); }
       else if (a === "auto") { this.h.onAuto(); this._renderActs(); }
       else if (a === "mode") { this.mode = this.mode === "strum" ? "pick" : "strum"; this._renderInput(); }
-      else if (a === "sheets") { this.stopDemo(); this.song = null; this.notes = []; this._render(); }
+      else if (a === "sheets") { this.stopDemo(); this.song = null; this.songIdx = -1; this.notes = []; this._render(); }
       else if (a === "hear") this.demo ? (this.stopDemo(), this._renderActs()) : this.hear();
       else if (a === "again") { this.cursor = 0; this._cursor(); }
+      else if (a === "band") {
+        const R = this.h.band?.running();
+        if (R && R.song === this.songIdx) { if (this.h.band.isLeader()) this.h.band.stop(); }
+        else if (this.songIdx >= 0) { this.stopDemo(); this.h.band.start(this.songIdx); }
+        this._renderActs();
+      } else if (a === "bandauto") { this.h.band.setAuto(!this.h.band.auto()); this._renderActs(); }
       const lv = e.target.closest("button[data-level]")?.dataset.level;
       if (lv) { this.level = lv; this._render(); }
       const pc = e.target.closest("button[data-sheet]")?.dataset.sheet;
@@ -329,7 +399,16 @@ export class InstrumentPanel {
   _renderActs() {
     if (this.ui.auto) this.ui.auto.textContent = this.h.autoOn?.() ? "Stop the tune" : "Let it play";
     const acts = this.ui.sheetBox.querySelector(".to-piano-sheet-acts");
-    if (acts) acts.innerHTML = `<button type="button" data-a="hear">${this.demo ? "Stop" : "Hear it"}</button><button type="button" data-a="again">From the top</button>`;
+    if (!acts) return;
+    let bandBtn = "";
+    if (this.h.band) {
+      const R = this.h.band.running(), on = R && R.song === this.songIdx;
+      bandBtn = on
+        ? (this.h.band.isLeader() ? `<button type="button" data-a="band" class="is-on">Stop the band</button>` : `<button type="button" data-a="band" class="is-on" disabled>The band's playing</button>`)
+          + `<button type="button" data-a="bandauto" class="${this.h.band.auto() ? "is-on" : ""}">Auto: ${this.h.band.auto() ? "on" : "off"}</button>`
+        : `<button type="button" data-a="band" title="Everyone hears it together; the townsfolk play the other parts">Band: play it together</button>`;
+    }
+    acts.innerHTML = `<button type="button" data-a="hear">${this.demo ? "Stop" : "Hear it"}</button><button type="button" data-a="again">From the top</button>${bandBtn}`;
   }
 
   /* The guitar's pads (the song's chords, in order, or a starter set) and
@@ -405,7 +484,8 @@ function injectCss() {
   padding: 6px 11px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
   background: rgba(244,232,207,.08); border: 0.5px solid rgba(244,232,207,.22); }
 .to-piano-acts button:hover, .to-piano-sheet-acts button:hover, .to-piano-levels button:hover { background: rgba(244,232,207,.16); }
-.to-piano-levels button.is-on { background: var(--pn-brass); color: #2a170c; border-color: transparent; }
+.to-piano-levels button.is-on, .to-piano-sheet-acts button.is-on { background: var(--pn-brass); color: #2a170c; border-color: transparent; }
+.to-piano-sheet-acts button[disabled] { opacity: .8; cursor: default; }
 .to-piano .to-piano-x { width: 30px; padding: 6px 0; font-size: 16px; line-height: 1; }
 .to-piano-sheet { margin-bottom: 10px; }
 .to-piano-levels { display: flex; gap: 6px; margin-bottom: 8px; }

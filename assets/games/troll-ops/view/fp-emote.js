@@ -13,6 +13,7 @@ import { throwFrame, placeThrowInHand } from "../combat/throw-anim.js?v=ta1-th2-
 import { cuffArms } from "../modes/social-sheriff.js?v=sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1";
 import { clubArms } from "../modes/club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1";
 import { horseArms } from "../modes/social-horses.js?v=hr1-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1";
+import { bandArms, hideFpInstrument } from "../modes/social-band.js?v=bd1";
 
 /* A first-person emote (emotes.js `fp`): the gun goes away (or does the
    trick), and the streak arms' real hands act it out in front of the camera.
@@ -44,6 +45,8 @@ function socialArmsFrame() {
   if (band) return band;
   const reins = horseArms();   // on a horse: both hands on the reins (social-horses.js)
   if (reins) return reins;
+  const playing = bandArms();   // the saloon band's guitar or trumpet (social-band.js)
+  if (playing) return playing;
   const hand = (side) => {
     // Right and left swing opposite each other, like the legs.
     const sw = Math.sin(socialArms.phase + (side > 0 ? 0 : Math.PI));
@@ -91,6 +94,7 @@ const _emoteRodTip = new THREE.Vector3();
 export function updateFpEmoteView() {
   // A grenade in hand outranks an emote: the arm pulls the pin and throws.
   const f = throwFrame() || game.fpEmoteFrame() || (game.socialUnarmed() && game.player.alive ? socialArmsFrame() : null);
+  if (!f?.instrument) hideFpInstrument();   // the guitar / trumpet only while its arms are the ones up
   if (!f) {
     if (fpEmoteArmsOn) { game.hideStreakArms(); fpEmoteArmsOn = false; }
     syncFpDrink(false);

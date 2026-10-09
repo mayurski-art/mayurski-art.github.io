@@ -100,9 +100,12 @@ export const rpListeners = [];
 export const rpBusy = { fists: false };
 /* On a horse (modes/social-horses.js sets it): the hands are on the reins. */
 export const rpRide = { on: false };
-/* Both hands busy (a drink, a seat, the reins): the owner's guns go away too
-   (game.js socialUnarmed). */
-export const handsFull = () => !!bar.drink || !!seated || rpRide.on;
+/* Jobs that fill both hands (the band's guitar and trumpet: modes/
+   social-band.js). */
+export const HAND_JOBS = new Set(["guitarist", "trumpeter"]);
+/* Both hands busy (a drink, a seat, the reins, an instrument): the owner's
+   guns go away too (game.js socialUnarmed). */
+export const handsFull = () => !!bar.drink || !!seated || rpRide.on || HAND_JOBS.has(bar.role);
 /* ...and the hold-X actions that only show when nothing else here does (the
    horsekeeper's whistle, wanted anywhere: it mustn't shadow a door or a seat). */
 export const rpLast = [];
@@ -313,7 +316,9 @@ export let seated = null;    // { idx, s } while we're sat down
 /* `live`: a voice per pianist for keys played by hand (ours is "me");
    `panel`: the keys and sheets (menu/instrument-panel.js) once we've sat down;
    `heard`: notes from the room's pianists (the test reads it). */
-export const piano = { playing: false, tune: 0, played: false, voices: new Map(), t: 0, live: new Map(), panel: null, heard: 0, sent: [] };
+export const piano = { playing: false, tune: 0, played: false, voices: new Map(), t: 0, live: new Map(), panel: null, heard: 0, sent: [],
+  // the saloon band (modes/social-band.js sets these: it imports us, so we can't import it)
+  bandHooks: null, bandBeat: null, bandWhen: null };
 const KEYS_PER_SECOND = 20;
 export let npcYieldKey = "";
 
@@ -376,6 +381,7 @@ function pianoKeys() {
     play: (ev) => { if (ev.type === "note") playKey(ev.midi, ev); },
     onAuto: () => togglePiano(),
     autoOn: () => piano.playing,
+    band: piano.bandHooks,
     onStand: () => standUp(),
     banner: (text, ms) => showWaveBanner(text, ms),
   });
@@ -393,7 +399,9 @@ function playKey(midi, o = {}) {
   if (piano.sent.length >= KEYS_PER_SECOND) return;
   piano.sent.push(now);
   liveVoice("me", seated.s).strike(midi, 0.8, 0.9);
-  game.net.publishRp({ k: "pn", n: midi });
+  // with the band on, stamped with the beat we heard it on (listeners land it there)
+  const b = piano.bandBeat?.();
+  game.net.publishRp(b != null ? { k: "pn", n: midi, b: Math.round(b * 1000) / 1000 } : { k: "pn", n: midi });
 }
 
 function liveVoice(id, s) {
@@ -404,7 +412,7 @@ function liveVoice(id, s) {
 
 /* A key another pianist played: only from whoever's sat at a piano with
    the job, through that piano, as loud as it is from here. */
-function pianoKeyFrom(p, midi) {
+function pianoKeyFrom(p, midi, beat = null) {
   const s = p.seat ? rpSeats()?.[p.seat - 1] : null;
   if (s?.kind !== "piano" || p.role !== "pianist" || !(midi >= 36 && midi <= 96)) return;
   const now = performance.now();
@@ -414,7 +422,7 @@ function pianoKeyFrom(p, midi) {
   p.keysAt = now;
   piano.heard++;
   const d = Math.hypot(s.x - game.camera.position.x, s.z - game.camera.position.z);
-  liveVoice(p.id, s).strike(midi, 0.8, Math.max(0, Math.min(1, 1 - (d - 10) / 28)) * 0.9);
+  liveVoice(p.id, s).strike(midi, 0.8, Math.max(0, Math.min(1, 1 - (d - 10) / 28)) * 0.9, 0.8, piano.bandWhen?.(beat));
 }
 
 export function standUp() {
@@ -572,7 +580,7 @@ export function onBarMessage(p, m) {
     return;
   }
   if (m.k === "mugtake") { removeMug(String(m.id || "")); return; }
-  if (m.k === "pn") { pianoKeyFrom(p, m.n | 0); return; }
+  if (m.k === "pn") { pianoKeyFrom(p, m.n | 0, m.b); return; }
   // Everything else that isn't the bar's own (a fight, the train, the
   // sheriff, the horses...) goes to the systems that registered for it;
   // each checks its own `k` (and `to`, if it's addressed).

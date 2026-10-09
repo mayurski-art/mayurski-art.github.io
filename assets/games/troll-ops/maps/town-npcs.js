@@ -29,6 +29,9 @@ import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, gaitFromVelocity, D
 import { buildDrink, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1-nf2-em2-lh1-fg2";
 import { SmithWork } from "./smithy.js?v=sm1b7b7dc2f1m1-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2";
 import { wearOutfit } from "../characters/outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1-or1";
+import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, DANCES, reachHand } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
+import { wearOutfit } from "./outfits.js?v=of1m1-nc1-cd1-sh1";
+import { holdInstrument, poseInstrument } from "./instruments.js?v=in1";
 
 const WALK_MPS = 1.25;
 const _lean = new THREE.Vector3(), _poleL = new THREE.Vector3(-1, -1, 0.3);
@@ -109,6 +112,7 @@ export class TownNpcs {
       mountDrink(rig, n.drink);
     }
     if (c.act === "smith") n.smith = new SmithWork(this.scene, n, this.smithy);
+    if (c.act === "guitar" || c.act === "trumpet") holdInstrument(rig, c.act);   // the saloon band (instruments.js)
     if (c.path) {
       // Where on the loop they start (`at`, 0..1 of its length).
       n.seg = 0; n.segT = 0; n.dir = 1; n.wait = 0;
@@ -288,6 +292,13 @@ export class TownNpcs {
         const slap = Math.max(0, sw(0.9)) ** 8;
         p.armL.rotation.set(0.85, 0, 0.12); p.elbowL.rotation.set(0.9, 0, 0);
         p.armR.rotation.set(0.85 + slap * 0.5, 0, -0.12); p.elbowR.rotation.set(0.9 - slap * 0.5, 0, 0);
+        break;
+      }
+      case "guitar":
+      case "trumpet": {
+        // the band: busier while a song's on (n.playing, modes/social-band.js), noodling between
+        const busy = n.playing ? 1 : 0.3 + 0.2 * Math.max(0, sw(0.35));
+        poseInstrument(rig, t, busy);
         break;
       }
       case "piano": {

@@ -25,6 +25,9 @@ export const ROLES = {
   conductor: { code: "c", label: "Conductor", npc: "Conductor" },
   // Trolling Loud's decks (dj-lulz.js); DJ Lulz is no townsfolk, so no npc
   dj: { code: "j", label: "DJ", npc: null },
+  // the saloon band (BAND.md, modes/social-band.js)
+  guitarist: { code: "g", label: "Guitarist", npc: "Guitarist" },
+  trumpeter: { code: "t", label: "Trumpeter", npc: "Trumpeter" },
 };
 export function roleCode(role) { return ROLES[role]?.code || null; }
 export function roleLabel(role) { return ROLES[role]?.label || null; }
@@ -181,12 +184,12 @@ export class PianoVoice {
 
   /* One key struck by hand (the piano panel), now, at `gain` (how near). A
      voice for live keys is never update()d, so no tune plays through it. */
-  strike(midi, vel = 0.8, gain = 1, dur = 0.8) {
+  strike(midi, vel = 0.8, gain = 1, dur = 0.8, when = null) {
     const a = this.audio;
     if (!a._ready()) return false;
     if (!this.out) { this.start(); this.out.gain.value = Math.max(0, gain); }
     else this.out.gain.setTargetAtTime(Math.max(0, gain), a.ctx.currentTime, 0.02);
-    this.note(midi, a.ctx.currentTime + 0.005, dur, vel);
+    this.note(midi, Math.max(a.ctx.currentTime + 0.005, when ?? 0), dur, vel);   // `when`: on a band beat (social-band.js)
     return true;
   }
 

@@ -93,7 +93,7 @@ export function initMenuButtons() {
     // the DJ booth, the piano's keys and the club door's 18+ question free
     // the mouse on purpose (and so does the sheriff's wanted board,
     // modes/social-sheriff.js: looked up, not imported, which would loop)
-    if (game.gameState === "playing" && !game.djLulz.isOpen && !kioskOpen() && !piano.panel?.isOpen && !clubAskOpen() && !document.querySelector(".sheriff-board:not([hidden])")) game.openPauseMenu();
+    if (game.gameState === "playing" && !game.djLulz.isOpen && !kioskOpen() && !document.querySelector(".to-piano:not([hidden])") && !clubAskOpen() && !document.querySelector(".sheriff-board:not([hidden])")) game.openPauseMenu();
   });
 
   document.addEventListener("visibilitychange", () => {

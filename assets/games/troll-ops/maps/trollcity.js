@@ -117,6 +117,13 @@ const SHOP = {
   apples: { x: -33.5, z: -10.6, floor: FLOOR },
   zone: { x0: -38, x1: -26, z0: ROW_N.back, z1: ROW_N.front },
 };
+/* The saloon band (BAND.md, modes/social-band.js): where Six-String Cisco
+   and Trumpet Tex stand on the stage, either side of the piano. Their
+   instrument is taken from them there, and handed back there. */
+const BAND = {
+  guitar: { x: -14.75, z: -19.5, floor: FLOOR + 0.35, yaw: Math.PI },
+  trumpet: { x: -11.65, z: -19.7, floor: FLOOR + 0.35, yaw: Math.PI },   // 1.45 m off the piano stool
+};
 /* The sheriff's job (modes/social-sheriff.js): the badge on his desk, the
    wanted board; the meshes fill in setBadge / posters / setPoster. */
 const SHERIFF = {
@@ -719,20 +726,25 @@ function buildSaloon(K, M, lights) {
   K.cyl(M.brass, BAR.bell.x, Y + 1.14, BAR.bell.z, 0.05, 0.065, 0.08, 10);
   K.cyl(M.brass, BAR.bell.x, Y + 1.22, BAR.bell.z, 0.012, 0.012, 0.05, 6);
 
-  // the piano stage in the north-west, under red curtains
+  // the stage in the north-west, under red curtains: big enough for the
+  // band (BAND.md: piano, guitar, trumpet, and Miss Kitty out front; user,
+  // 2026-10-09: "the music stage should be bigger that way the artists are
+  // not hidden by the curtain"). East it stops short of the back door
+  // (x -10.1..-8.9), west of the keg tap (-17.1).
   {
-    const sx0 = -15.6, sx1 = -10.6, sz0 = ROW_N.back + T, sz1 = -18.4;
+    const sx0 = -16.4, sx1 = -10.2, sz0 = ROW_N.back + T, sz1 = -17.9;
     K.solid((sx0 + sx1) / 2, (sz0 + sz1) / 2, sx1 - sx0, sz1 - sz0, 0.35, { y: Y, mat: M.stage });
     K.solid((sx0 + sx1) / 2, sz1 + 0.25, sx1 - sx0 - 1.0, 0.5, 0.17, { y: Y, mat: M.stage });   // the step
     // proscenium: two posts and a header, curtains swagged either side
     for (const x of [sx0 + 0.2, sx1 - 0.2]) K.solid(x, sz1 - 0.2, 0.4, 0.4, 3.4, { y: Y + 0.35, pen: 4, mat: M.stage });
     K.box(M.stage, (sx0 + sx1) / 2, Y + 3.4, sz1 - 0.2, sx1 - sx0, 0.5, 0.4);
-    for (const side of [-1, 1]) {
-      const g = new THREE.PlaneGeometry(1.1, 3.0, 6, 1);
-      K.add(M.redVelvet, place(g, { x: (sx0 + sx1) / 2 + side * 1.7, y: Y + 1.9, z: sz1 - 0.45, rz: side * 0.04 }));
+    // the curtains swagged right back to the posts: the whole stage shows
+    for (const x of [sx0 + 0.7, sx1 - 0.7]) {
+      const g = new THREE.PlaneGeometry(0.9, 3.0, 6, 1);
+      K.add(M.redVelvet, place(g, { x, y: Y + 1.9, z: sz1 - 0.45, rz: (x < (sx0 + sx1) / 2 ? -1 : 1) * 0.04 }));
     }
     K.add(M.redVelvet, place(new THREE.PlaneGeometry(sx1 - sx0 - 0.6, 0.6, 8, 1), { x: (sx0 + sx1) / 2, y: Y + 3.05, z: sz1 - 0.44 }));
-    piano(K, M, (sx0 + sx1) / 2, Y + 0.35, sz0 + 0.55, { ry: 0 });
+    piano(K, M, -13.1, Y + 0.35, sz0 + 0.55, { ry: 0 });   // where it always stood (Pete's seat)
   }
   // settees along the west wall under paintings (ref: piano room)
   for (const z of [-16.4]) {
@@ -744,7 +756,7 @@ function buildSaloon(K, M, lights) {
   tableSet(K, M, -18.5, Y, -12.9, { seed: 3 });
   tableSet(K, M, -12.4, Y, -13.0, { seed: 5, cards: true });
   tableSet(K, M, -17.6, Y, -15.9, { seed: 7, chairs: 3 });
-  tableSet(K, M, -10.3, Y, -16.3, { seed: 9 });
+  tableSet(K, M, -10.3, Y, -15.5, { seed: 9 });   // back from the stage's step
   // the timber posts holding the upstairs (ref: dark posts and rails)
   for (const [x, z] of [[-16.5, -14.4], [-11.5, -14.4]]) K.solid(x, z, 0.3, 0.3, S.h1 - Y, { y: Y, pen: 4, mat: M.trimDark });
   K.box(M.trimDark, -14, S.h1 - 0.3, -14.4, 13.6, 0.3, 0.3);
@@ -2152,7 +2164,7 @@ export const TROLLCITY = {
   build: buildTrollCity,
   // Socialize roleplay spots (saloon-bar.js / game.js updateBar). Floor
   // heights are the saloon's ground floor.
-  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, conductor: CONDUCTOR, sheriff: SHERIFF, shop: SHOP, horses: () => RIDE, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
+  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, conductor: CONDUCTOR, sheriff: SHERIFF, shop: SHOP, horses: () => RIDE, band: BAND, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
   // Team spawns: past the railway in the north, out on the plain south.
   spawns: [[-56, -46], [-46, -47.5], [-16, -47.8], [-2, -47.8], [8, -48], [18, -46.5], [50, -46], [58, -40],
     [-56, 46], [-44, 46.5], [-26, 45], [-12, 46], [0, 45.5], [14, 46], [28, 45], [40, 45.5]],
@@ -2204,7 +2216,10 @@ function townNpcs() {
     seat(corner[0], { name: "Mabel", role: "Regular", act: "drink" }),
     seat(front[1], { name: "Hank", role: "Regular", act: "drink", drink: "whiskey" }),
     { name: "Piano Pete", role: "Pianist", act: "piano", x: -13.1, z: -20.0, y: Y + 0.35 + 0.47, yaw: 0, sit: true },
-    { name: "Miss Kitty", role: "Dancer", act: "dance", x: -12.0, z: -19.05, y: Y + 0.35, yaw: Math.PI },
+    { name: "Miss Kitty", role: "Dancer", act: "dance", x: -13.3, z: -18.4, y: Y + 0.35, yaw: Math.PI },   // out front, the band behind her
+    // the band either side of the piano (BAND.md): they play till a player takes over
+    { name: "Six-String Cisco", role: "Guitarist", act: "guitar", x: BAND.guitar.x, z: BAND.guitar.z, y: BAND.guitar.floor, yaw: BAND.guitar.yaw },
+    { name: "Trumpet Tex", role: "Trumpeter", act: "trumpet", x: BAND.trumpet.x, z: BAND.trumpet.z, y: BAND.trumpet.floor, yaw: BAND.trumpet.yaw },
     // Main Street: strollers round the street, stopping now and then
     // (two clear lanes, z -2.8 and 0.3, miss the horses, troughs, wagons and the well)
     { name: "Jebediah", role: "Townsfolk", act: "walk", y: 0, path: [[-40, -2.8], [30, -2.8], [30, 0.3], [-40, 0.3]], at: 0 },
