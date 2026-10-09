@@ -92,12 +92,35 @@ async function run(gunId, optic, expect = optic) {
   const info = await page.evaluate(() => {
     const T = window.__trollOps, m = T.activeWeaponMesh(), u = m.userData, d = T.currentWeapon().def;
     // the iron posts: boxes the builder added, visible or folded
-    const posts = m.children.filter((o) => o.userData.ironSight);
-    const tops = posts.map((p) => { p.updateMatrix(); const b = new m.position.constructor(); let top = -1; p.children.forEach((c) => { top = Math.max(top, c.position.y + c.geometry.parameters.height / 2); }); return +(p.position.y + top).toFixed(4); });
-    const kinds = posts.map((p) => p.userData.ironSight).sort().join();
+    // (or, on a detailed Blender model, its <P>_IronRear / <P>_IronFront nodes)
+    const named = m.children.filter((o) => /_Iron(Rear|Front)$/.test(o.name));
+    const detailed = named.length > 0;
+    const posts = detailed ? named : m.children.filter((o) => o.userData.ironSight);
+    const V = m.position.constructor;
+    const topOf = (p) => {
+      if (!detailed) { let top = -1; p.children.forEach((c) => { top = Math.max(top, c.position.y + c.geometry.parameters.height / 2); }); return +(p.position.y + top).toFixed(4); }
+      // the highest point of the node; on the front sight, only the blade on the centre line
+      m.updateMatrixWorld(true);
+      const inv = m.matrixWorld.clone().invert();
+      let top = -1;
+      p.traverse((c) => {
+        if (!c.isMesh) return;
+        const pos = c.geometry.attributes.position, mw = inv.clone().multiply(c.matrixWorld), v = new V();
+        for (let i = 0; i < pos.count; i++) {
+          v.fromBufferAttribute(pos, i).applyMatrix4(mw);
+          if (/Front$/.test(p.name) && Math.abs(v.x) > 0.002) continue;
+          top = Math.max(top, v.y);
+        }
+      });
+      return +top.toFixed(4);
+    };
+    const tops = posts.map(topOf);
+    const kindOf = (p) => detailed ? (/Rear$/.test(p.name) ? "rear" : "front") : p.userData.ironSight;
+    const kinds = posts.map(kindOf).sort().join();
+    const frontTop = tops[posts.findIndex((p) => kindOf(p) === "front")];
     return {
       id: d.id, cls: d.cls, mode: d.fireMode, optic: d.attachments.optic, glass: !!u.sight?.children.length,
-      posts: posts.length, kinds, postsShown: posts.filter((p) => p.visible).length, tops, aimY: +u.aimPoint.y.toFixed(4),
+      posts: posts.length, kinds, detailed, frontTop, postsShown: posts.filter((p) => p.visible).length, tops, aimY: +u.aimPoint.y.toFixed(4),
       grip: !!u.gripPos, mag: !!u.magMesh, support: !!u.supportHandPos, muzzle: u.muzzleZ, mag0: T.currentWeapon().ammoInMag, magSize: d.magSize,
     };
   });
@@ -105,7 +128,10 @@ async function run(gunId, optic, expect = optic) {
     && info.support && info.muzzle < -0.3 && info.posts === 2 && info.kinds === "front,rear", JSON.stringify(info));
   if (expect === "iron") {
     check(`${tag}: irons up, no glass, the sight line across the post tops`, !info.glass && info.postsShown === 2
-      && info.tops.every((t) => Math.abs(t - info.aimY) < 0.004), JSON.stringify(info));
+      && (info.detailed
+        // a detailed model: the front blade's tip on the sight line, the rear (aperture ring, ears) standing round it
+        ? Math.abs(info.frontTop - info.aimY) < 0.004 && info.tops.every((t) => t > info.aimY - 0.004)
+        : info.tops.every((t) => Math.abs(t - info.aimY) < 0.004)), JSON.stringify(info));
   } else {
     check(`${tag}: glass on, the irons folded`, info.glass && info.optic === expect && info.postsShown === 0, JSON.stringify(info));
   }
