@@ -210,7 +210,7 @@ export function rideHorse(dt, ix, iz, keys) {
   const grounded = h.y <= groundY(h.x, h.z, h.y) + 0.02 && h.vy <= 0;
   if (grounded && keys.jump && sp > 4) h.vy = HORSE.hop;
   // a gallop jumps a fence by itself
-  if (grounded && sp > 9 && fenceAhead(h)) h.vy = HORSE.hop;
+  if (grounded && sp > 9 && fenceAhead(h, dt)) h.vy = HORSE.hop;
   // move, then push out of what it walked into (three circles along it)
   const f = fwd(h.yaw);
   h.x += f.x * h.v * dt; h.z += f.z * h.v * dt;
@@ -239,12 +239,13 @@ export function rideHorse(dt, ix, iz, keys) {
   m.sprinting = false;
   m.eyeHeight = HORSE.eye;
 }
-/* A rail 0.5-1.4 m high 2.5-4.5 m ahead (a corral fence). A rail is thin
-   (0.14 m): the stretch ahead is tested as a segment against each box, not
-   at points a gallop would step over. */
-function fenceAhead(h) {
-  const f = fwd(h.yaw);
-  const ax = h.x + f.x * 2.5, az = h.z + f.z * 2.5, dx = f.x * 2, dz = f.z * 2;
+/* A rail 0.5-1.4 m high 1.4-4.5 m ahead (a corral fence), plus this frame's
+   stride: a slow frame at a gallop covers 2 m and mustn't step over the
+   window. A rail is thin (0.14 m): the stretch ahead is tested as a segment
+   against each box, not at points a gallop would step over. */
+function fenceAhead(h, dt) {
+  const f = fwd(h.yaw), len = 3.1 + Math.abs(h.v) * dt;
+  const ax = h.x + f.x * 1.4, az = h.z + f.z * 1.4, dx = f.x * len, dz = f.z * len;
   for (const c of game.colliders) {
     if (c.horse != null) continue;
     const top = c.max.y - h.y;

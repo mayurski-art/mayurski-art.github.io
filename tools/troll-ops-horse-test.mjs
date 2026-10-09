@@ -150,12 +150,17 @@ await B.screenshot({ path: path.join(SHOTS, "t-b-sees-rider.png") });
 await A.keyboard.press("KeyC");
 await pumpAll([A, B], 600);
 a = await H(A);
+for (let i = 0; i < 8 && a.eye >= 2; i++) { await pumpAll([A, B], 300); a = await H(A); }   // the eye eases down
 check("C gets off: on foot beside it, the horse parked", a.mine === -1 && a.eye < 2 && a.list[0].parked && a.list[0].rider == null, JSON.stringify({ mine: a.mine, eye: a.eye, h: a.list[0] }));
 check("B sees A off and the horse standing", (await B.evaluate((id) => window.__trollOps.net.peers.get(id)?.horse, idA)) === 0 && (await H(B)).list[0].rider == null);
 const before = dist(a.list[0], h0.home.x, h0.home.z);
-await pumpAll([A, B], 5000);   // home: 2 s (tuned), then it walks back up the street
-a = await H(A);
-const after = dist(a.list[0], h0.home.x, h0.home.z);
+// home: 2 s (tuned), then it walks back up the street (headless frames run slow: poll)
+let after = before;
+for (let i = 0; i < 12 && !(after < before - 5 || after < 0.5); i++) {
+  await pumpAll([A, B], 1000);
+  a = await H(A);
+  after = dist(a.list[0], h0.home.x, h0.home.z);
+}
 check("parked a while, it walks home", after < before - 5 || after < 0.5, `${before.toFixed(1)} -> ${after.toFixed(1)} m from home`);
 
 // ── 4. The corral rail ───────────────────────────────────────────────────
@@ -222,9 +227,13 @@ if (hc) {
   await pumpAll([A], 400);
   s = await rp(A);
   check("by it: brush it down", /brush .* down/i.test(s.prompt || ""), s.prompt);
-  await hold(A, [B], 1500);
-  await pumpAll([A, B], 500);
-  check("brushed, on both tabs", (await H(A)).list[called].brushed && (await H(B)).list[called].brushed);
+  await hold(A, [B], 2600);
+  let both = false;
+  for (let i = 0; i < 8 && !both; i++) {
+    await pumpAll([A, B], 400);
+    both = (await H(A)).list[called].brushed && (await H(B)).list[called].brushed;
+  }
+  check("brushed, on both tabs", both, JSON.stringify({ a: (await H(A)).list[called].brushed, b: (await H(B)).list[called].brushed, heardB: await B.evaluate(() => window.__trollHorses.horses.heard) }));
 }
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
