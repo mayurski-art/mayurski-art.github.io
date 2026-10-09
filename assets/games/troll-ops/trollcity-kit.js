@@ -115,8 +115,11 @@ export function surfMat(surface, color, { mix = 0.45, tile = 2, rough = 1, bounc
 
 /* A material on one of our canvas textures, UVs in world metres when
    `tile` is set. `bump` uses the colour map as a bump map too (planks). */
-export function texMat(map, { color = 0xffffff, tile = 0, rough = 0.9, metal = 0, alphaTest = 0, side = THREE.FrontSide, bump = 0, emissive = 0x000000, emissiveMap = null, bounce = 0 } = {}) {
+/* `decal`: a picture or sign laid just off a surface; a small depth bias
+   keeps it in front of what it hangs on when seen from far off. */
+export function texMat(map, { color = 0xffffff, tile = 0, rough = 0.9, metal = 0, alphaTest = 0, side = THREE.FrontSide, bump = 0, emissive = 0x000000, emissiveMap = null, bounce = 0, decal = false } = {}) {
   const m = new THREE.MeshStandardMaterial({ color, map, roughness: rough, metalness: metal, alphaTest, side, emissive, emissiveMap });
+  if (decal) Object.assign(m, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   if (bump) { m.bumpMap = map; m.bumpScale = bump; }
   if (bounce) {
     m.emissive = new THREE.Color(color).multiplyScalar(bounce);
@@ -1157,7 +1160,7 @@ export function chandelier(K, M, x, y, z, { r = 0.9, lights = null, power = 10, 
    the wall. */
 export function sconce(K, M, x, y, z, { ry = 0 } = {}) {
   const c = Math.cos(ry), s = Math.sin(ry);
-  K.box(M.furniture, x, y - 0.18, z, 0.16, 0.32, 0.04, { ry });
+  K.box(M.furniture, x + s * 0.03, y - 0.18, z + c * 0.03, 0.16, 0.32, 0.04, { ry });   // the plate clear of the wallpaper (flush, they z-fought)
   K.box(M.brass, x + s * 0.1, y - 0.04, z + c * 0.1, 0.04, 0.04, 0.2, { ry });
   K.cyl(M.brass, x + s * 0.18, y, z + c * 0.18, 0.07, 0.05, 0.04, 8);
   K.cyl(M.lampGlass, x + s * 0.18, y + 0.04, z + c * 0.18, 0.045, 0.055, 0.16, 8, {}, { shadow: false });
@@ -1279,7 +1282,12 @@ export function framedPicture(K, M, { x, y, z, w, h, o = 1, axis = "x", style = 
   // everything stands off the wall by the wallpaper lining's thickness
   const put = (mat, geo, opts) => K.add(mat, place(geo.translate(0, 0, 0.026), { x, y, z, ry }), opts);
   const bar = (mat, u, v, n, bw, bh, bd) => put(mat, new THREE.BoxGeometry(bw, bh, bd).translate(u, v, n + bd / 2));
+  // Each ring sits 3 mm further off the wall than the last, so no two
+  // mouldings share a back face (they z-fought).
+  let lift = 0;
   const ring = (mat, b, d, n, inset = 0) => {
+    n += lift;
+    lift += 0.003;
     const W = w + 2 * (b - inset), Hh = h + 2 * (b - inset), off = b / 2 - inset;
     bar(mat, 0, h / 2 + off, n, W, b, d);
     bar(mat, 0, -h / 2 - off, n, W, b, d);
@@ -1288,7 +1296,8 @@ export function framedPicture(K, M, { x, y, z, w, h, o = 1, axis = "x", style = 
   };
   const pic = (n, pw = w, ph = h) => put(art, new THREE.PlaneGeometry(pw, ph).translate(0, 0, n), { shadow: false });
   if (style === "gilt") {
-    ring(M.trimGold, 0.13, 0.05, 0.005);
+    // (the gilt stands 1 cm back from the sight edge: their inner faces met)
+    ring(M.trimGold, 0.13, 0.05, 0.005, -0.01);
     ring(M.trimGold, 0.05, 0.075, 0.005, -0.025);       // the raised outer bead
     ring(M.furniture, 0.025, 0.03, 0.005, 0.0);         // a dark sight edge on the picture
     for (const [su, sv] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
@@ -1299,12 +1308,12 @@ export function framedPicture(K, M, { x, y, z, w, h, o = 1, axis = "x", style = 
     for (const k of [-1, 0, 1]) put(M.trimGold, new THREE.SphereGeometry(0.05 - Math.abs(k) * 0.012, 10, 8).translate(k * 0.07, h / 2 + 0.16 - Math.abs(k) * 0.02, 0.04));
     pic(0.012);
   } else if (style === "carved") {
-    ring(M.furniture, 0.1, 0.045, 0.005);
+    ring(M.furniture, 0.1, 0.045, 0.005, -0.01);
     ring(M.pianoWood, 0.045, 0.065, 0.005, -0.05);
     ring(M.trimGold, 0.02, 0.05, 0.005, 0.0);
     // a carved bead along the top and a keystone
     bar(M.pianoWood, 0, h / 2 + 0.06, 0.06, w * 0.3, 0.05, 0.02);
-    bar(M.trimGold, 0, h / 2 + 0.11, 0.05, 0.08, 0.08, 0.03);
+    bar(M.trimGold, 0, h / 2 + 0.11, 0.054, 0.08, 0.08, 0.03);   // proud of the bead
     pic(0.012);
   } else if (style === "barn") {
     const R = rng(Math.round(x * 13 + z * 7));

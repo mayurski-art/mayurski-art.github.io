@@ -37,12 +37,12 @@
 // here at load; nothing adds one at runtime (light-pool.js).
 
 import * as THREE from "three";
-import { rng, Kit, place, surfMat, texMat, tex, canvasTex, glowTexture, bottlesTexture, boardsTexture } from "./trollcity-kit.js?v=tc2-wst";
+import { rng, Kit, place, surfMat, texMat, tex, canvasTex, glowTexture, bottlesTexture, boardsTexture } from "./trollcity-kit.js?v=tc2-wst-tc3";
 import {
   T, U, neonMat, Neon, skipOverride, ledMat, clubFx, wall, lining, cutRects, deck, glassRail,
   signsTexture, signUV, signAspect, quiltTexture, crocTexture, mosaicTexture, slatTexture, tileGlowTexture,
   fringeTexture, beamTexture, facetTexture, windowsTexture, speakerTexture, djTexture, flagTexture, busTexture,
-} from "./trollingloud-kit.js?v=tl3";
+} from "./trollingloud-kit.js?v=tl3-tc3";
 import { BEATS } from "./music-beats.js?v=bg1";
 import { pickOutfit } from "./outfits.js?v=of1m1";
 
