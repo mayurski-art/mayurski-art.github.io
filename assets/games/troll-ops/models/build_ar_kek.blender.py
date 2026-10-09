@@ -45,6 +45,6 @@ ak.mag(PFX, R, O)
 ak.irons(PFX, R, S)
 ak.anchors(PFX, R, S)
 ak.finish_and_export(PFX, body, OUT_GLB, {
-    "kek-right": ((1.1, 0.0, -0.05), (0, -0.03, -0.05), 50),
-    "kek-34": ((0.5, 0.25, 0.42), (0, -0.03, -0.08), 50),
+    "kek-right": ((1.3, 0.0, Z(500)), (0, -0.03, Z(500)), 50),
+    "kek-34": ((0.55, 0.25, Z(500) + 0.45), (0, -0.03, Z(500)), 50),
 } if RENDER else None)
