@@ -62,7 +62,7 @@ export function renderClubId(d) {
     + `<address class="club-id-addr">${esc(handle)}.TROLL<br>420 BLAZE ST<br>HONOLULU HI&nbsp; 69420</address>`
     + `</div>`
     + `<div class="club-id-right">`
-    + `<header class="club-id-head"><b class="club-id-state">HAWAII</b><span class="club-id-tag">TROLLING<br>LOUD</span></header>`
+    + `<header class="club-id-head"><b class="club-id-state">HAWAII</b><span class="club-id-tag">UNSTOPPABLE<br>TROLLS</span></header>`
     + `<p class="club-id-num"><span>NUMBER</span> ${number}</p>`
     + `<p class="club-id-dates"><span>DOB</span> <b>09/19/2008</b> <span>EXP</span> <b>04/20/2028</b></p>`
     + `<dl class="club-id-stats">${field("HT", "6 - 7")}${field("WT", "260")}${field("HAIR", "BRO")}${field("EYES", "BRO")}${field("SEX", "yes")}${field("CTY", "0")}</dl>`
@@ -99,10 +99,10 @@ function injectIdCss() {
 .club-id-barcode { height: 7cqw; margin: 2.2cqw 0 1.6cqw; }
 .club-id-addr { font-style: normal; font-weight: 800; font-size: 3.05cqw; line-height: 1.32; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .club-id-head { display: flex; align-items: center; gap: 2cqw; }
-.club-id-state { font-family: "Arial Black", Impact, sans-serif; font-weight: 900; font-size: 11.5cqw; line-height: .9; color: #1238c4; letter-spacing: -.02em;
+.club-id-state { font-family: "Arial Black", Impact, sans-serif; font-weight: 900; font-size: 10.6cqw; line-height: .9; color: #1238c4; letter-spacing: -.02em;
   text-shadow: .5cqw .5cqw 0 #0a1440; }
 .club-id.is-owner .club-id-state { color: #d8a52c; text-shadow: .5cqw .5cqw 0 #3a2806; }
-.club-id-tag { font-family: "Arial Narrow", "Roboto Condensed", Arial, sans-serif; font-weight: 700; font-size: 3.6cqw; line-height: 1.05; color: #1238c4; }
+.club-id-tag { font-family: "Arial Narrow", "Roboto Condensed", Arial, sans-serif; font-weight: 700; font-size: 3.15cqw; white-space: nowrap; flex-shrink: 0; transform: scaleX(.92); transform-origin: left; line-height: 1.05; color: #1238c4; }
 .club-id-num { margin: 2.6cqw 0 0; font-size: 4.6cqw; letter-spacing: .02em; white-space: nowrap; }
 .club-id-num span, .club-id-dates span { font-weight: 800; font-size: 2.7cqw; margin-right: 1cqw; }
 .club-id-dates { margin: 2.2cqw 0 0; font-size: 2.7cqw; white-space: nowrap; }
