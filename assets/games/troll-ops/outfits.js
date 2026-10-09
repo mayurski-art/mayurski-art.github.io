@@ -238,7 +238,14 @@ export function wearJobHat(rig, kind) {
   wearHat(rig, kind, JOB_HATS[kind]);
   rig.jobHat = rig.outfit[0] || null;
   rig.outfit = keep;
-  if (rig.jobHat) { rig.jobHat.userData.outfit = true; rig.jobHat.castShadow = false; }
+  if (rig.jobHat) {
+    rig.jobHat.userData.outfit = true;
+    rig.jobHat.castShadow = false;
+    // cached for everyone who wears it: a leaving peer's dispose
+    // (remote-players.js) must leave them be
+    rig.jobHat.geometry.userData.shared = true;
+    rig.jobHat.material.userData.shared = true;
+  }
 }
 function wearShades(rig, hex) {
   // across the eyes (the grin's eyes sit about a third of the way down)
