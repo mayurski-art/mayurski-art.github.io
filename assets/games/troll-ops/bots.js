@@ -10,7 +10,7 @@
 
 import * as THREE from "three";
 import { groundHeightAt, resolveCircle } from "./movement.js?v=umb2-sb2-gj1b7";
-import { segmentBlocked } from "./ballistics.js?v=cg1-wst-hf1-fu1b7-wb1";
+import { segmentBlocked } from "./ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2";
 import { FlowField } from "./nav.js?v=ti1-bs1b7d";
 import { clampInsidePolygon, insidePolygon } from "./edge.js";
 
@@ -168,7 +168,7 @@ function isGuarding(t, from) {
 
 /* Bots carry real guns from the roster rather than all reporting problem416,
    so the killfeed says something true about how you died. */
-const BOT_WEAPONS = ["problem416", "snubgrin", "snicker", "trollboy", "sneer", "cackle"];
+const BOT_WEAPONS = ["problem416", "snubgrin", "snicker", "kek", "trollboy", "sneer", "mald", "cackle"];
 
 // Everyone also carries a sidearm and draws it the instant the primary runs
 // dry rather than standing there reloading in a firefight - the same reason

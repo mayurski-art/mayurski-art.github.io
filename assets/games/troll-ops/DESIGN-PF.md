@@ -269,10 +269,17 @@ Names follow the voice already established by *Snort SVU* / *Widemouth 12* /
 
 | Class | Weapon | Analog | Character |
 |---|---|---|---|
-| **Assault** | Grinstock AR-12 | AK-12 | Hard-hitting, punchy vertical recoil |
-| | Problem 416 | HK416 | The balanced default |
-| | Bugbear AUG | AUG A1 | Bullpup, fast ADS |
-| | Coalface AN-94 | AN-94 | 2-round hyperburst |
+| **Assault** | Problem 416 | HK416 | The balanced default |
+| | MTAR | BO2 MTAR (Tavor) | Bullpup all-rounder, fast ADS |
+| | Type 25 | BO2 Type 25 | Fastest fire rate, climbs |
+| | SWAT-556 | BO2 SWAT-556 (SIG 556) | 3-round burst |
+| | FAL OSW | BO2 FAL OSW | Semi-auto 7.62, 3 to the body |
+| | M27 | BO2 M27 (HK M27 IAR) | Lowest recoil |
+| | THE BEAST | Phantom Forces' modded AK | 50-round mag, heavy |
+| | SCAR-H | BO2 SCAR-H | Hard-hitting auto, 20 rounds |
+| | Coalface AN-94 | BO2 AN-94 | 2-round hyperburst |
+| | SMR | BO2 SMR | Semi-auto, hardest single hit |
+| | M8A1 | BO2 M8A1 (XM8) | 4-round burst |
 | **Carbine** | Snubgrin M4 | M4A1 | Fast handling, mild recoil |
 | | Trollboy G36C | G36C | Low recoil, middling damage |
 | **PDW** | MP7 | MP7 (BO2) | Forty rounds, the all-rounder |

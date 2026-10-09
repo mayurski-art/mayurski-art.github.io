@@ -486,11 +486,16 @@ Map rules:
 - `troll-ops-beatgrid.mjs`
 - `troll-ops-cop-shots.mjs` (officer pose contact sheets: POSES, YAW, T, CAM, FOCUS, EVAL)
 - `troll-ops-grinleria-layout.mjs`
+- `troll-ops-trace.mjs` + `troll-ops-gun-compare.mjs` (trace a gun off a side-on reference, check the spec against it)
+- `troll-ops-cache-cascade.mjs --suffix <tag>` (the ?v= cascade; reports modules imported under two tags)
 
 ---
 
 ## 5. Shipped log (one line each; details are in git)
 
+- **2026-10-08** (assault rifles, -ar1)
+  - Black Ops 2's nine: MTAR, Type 25, SWAT-556 (3-burst), FAL OSW (semi), M27, SCAR-H, AN-94 (Coalface keeps its name and hyperburst), SMR (semi), M8A1 (4-burst), traced (weapon-ars.js; ids kek/lol/lmao/rofl/heh/mald/coalface/salt/ratio); Grinstock and Bugbear removed; bots carry the MTAR and SCAR-H, Gun Game adds the SCAR-H. Test: troll-ops-ars-test.mjs.
+  - Detailed models (-ar2): all nine are Blender GLBs on their traced outlines (models/build_ar*.blender.py; gunkit slab_body = clean bevelled panels), matte warm greys under the blue view-model light; the traced versions stand in until the model streams. Cascade `--unify` fixes tags a merge split.
 - **2026-10-08** (tf-parallel batch; plan: Troll City fixes, cups, club ID, throws, kitchen, arm wrestle, Grin Beach)
   - Troll City glitches (-tc3): painting off the saloon window, the general under the picture rail, shop signs clear of brackets/cornice/band/roof, trims/linings/kerbs no longer coplanar. Guard: `tools/troll-ops-trollcity-audit.mjs` (Node build of the map; FAIL on pictures over openings, coplanar faces, cut signs). Cache cascade tool: `tools/troll-ops-bump-tags.mjs <suffix> <files> --write`.
   - Drinks held properly (-cup1): poseDrinkArm is IK to the chest / tap / grin, fist on the handle, glass inside the hand (NPCs and players' bodies). Test: `tools/troll-ops-drink-hold-test.mjs` (SHOTS=dir).

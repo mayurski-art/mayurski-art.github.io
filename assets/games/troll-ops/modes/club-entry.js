@@ -31,15 +31,15 @@
    `rp.door` (Trolling Loud), only in Socialize. */
 
 import * as THREE from "three";
-import { rpExtras } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2";
-import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
-import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2";
-import { myCardData } from "../profile-card.js?v=pc1-wst-sb2-fu1-wb1";
-import { renderClubId, paintMiniLicence } from "../view/club-id-card.js?v=cid1-cid2";
-import { isOwner } from "../progression.js?v=p5-wst-sb2-fu1-wb1";
+import { rpExtras } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2";
+import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
+import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2";
+import { myCardData } from "../profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2";
+import { renderClubId, paintMiniLicence } from "../view/club-id-card.js?v=cid1-cid2-th2";
+import { isOwner } from "../progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2";
 import { reachHand, setFace } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
 import { clubWear } from "./club-wear.js?v=cw1c2m1";
-import { peerPosers } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { peerPosers } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
 import { game } from "../core/state.js?v=st1";
 
 export const BAND = { none: 0, guest: 1, owner: 2, vip: 3 };

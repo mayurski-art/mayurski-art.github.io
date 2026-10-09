@@ -10,7 +10,7 @@
 // already earned; you pick three streaks before the match and can only call
 // those three.
 
-import { rankUnlocked } from "./progression.js?v=p5-wst-sb2-fu1-wb1";
+import { rankUnlocked } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2";
 
 /* Deliberately not progression.js's XP table. Reaching for the wrong one is
    the likeliest bug in this system, so the shapes stay distinct. */

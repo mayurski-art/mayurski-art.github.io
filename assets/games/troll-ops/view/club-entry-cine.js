@@ -15,7 +15,7 @@
    Never skippable (user, 2026-10-08). */
 
 import * as THREE from "three";
-import { club, KICK, kickBody, CURB_EYE } from "../modes/club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-cid1-cid2-th2";
+import { club, KICK, kickBody, CURB_EYE } from "../modes/club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-cid1-cid2-th2-ar2";
 import { game } from "../core/state.js?v=st1";
 
 const STAMP = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;

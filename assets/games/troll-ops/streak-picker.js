@@ -5,7 +5,7 @@
 // folding it into that class would mean threading unrelated state through a
 // constructor already building five regions.
 
-import { STREAK_DEFS, STREAK_IDS, LOADOUT_SIZE, streakUnlocked, streakIconSvg, streakBadgeSvg } from "./scorestreaks.js?v=umb1-wst-sb2-fu1-wb1";
+import { STREAK_DEFS, STREAK_IDS, LOADOUT_SIZE, streakUnlocked, streakIconSvg, streakBadgeSvg } from "./scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2";
 
 const STORE = "trollops:streaks";
 

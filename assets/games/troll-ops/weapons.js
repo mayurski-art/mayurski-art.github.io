@@ -174,17 +174,45 @@ export const WEAPON_DEFS = {
     blurb: "The balanced default. No excuses left.",
     model: { len: 0.54, stock: "fixed", mag: "box", barrel: 1.0 },
   }),
-  grinstock: mk("assault", {
-    id: "grinstock", name: "Grinstock AR-12", rank: 8, sight: "iron",
-    damage: 31, rpm: 600, recoilKickPitch: 0.028, muzzleVelocity: 715,
-    blurb: "Hits like a brick. Climbs like one too.",
-    model: { len: 0.56, stock: "folding", mag: "curved", barrel: 1.05 },
+  // Black Ops 2's nine (weapon-ars.js builds each from its traced side
+  // outline, model.build), under their own names. Iron sights out of the
+  // box; the AN-94 is the Coalface below, which keeps its name.
+  // MTAR: the all-rounder bullpup, quick to the eye.
+  kek: mk("assault", {
+    id: "kek", name: "MTAR", rank: 3, sight: "iron",
+    rpm: 750, damage: 26, adsTime: 0.21, reloadTime: 2.1,
+    blurb: "Does everything. Brags about none of it.",
+    model: { len: 0.5, stock: "bullpup", mag: "box", build: "kek" },
   }),
-  bugbear: mk("assault", {
-    id: "bugbear", name: "Bugbear AUG", rank: 18, sight: "reddot",
-    rpm: 680, adsTime: 0.19, damage: 25,
-    blurb: "Bullpup. Snaps to the shoulder.",
-    model: { len: 0.5, stock: "bullpup", mag: "box", barrel: 1.1 },
+  // Type 25: the fastest rifle on the rack, and it climbs for it.
+  lol: mk("assault", {
+    id: "lol", name: "Type 25", rank: 8, sight: "iron",
+    rpm: 937, damage: 25, recoilKickPitch: 0.026, recoilKickYaw: 0.011, falloffEnd: 85, reloadTime: 2.2,
+    blurb: "Fast. Faster than your aim, probably.",
+    model: { len: 0.52, stock: "bullpup", mag: "curved", build: "lol" },
+  }),
+  // SWAT-556: three-round bursts, one burst up close, steady at range.
+  lmao: mk("assault", {
+    id: "lmao", name: "SWAT-556", rank: 13, sight: "iron",
+    fireMode: "burst", burst: 3, rpm: 937, damage: 34, falloffMin: 0.75,
+    recoilKickPitch: 0.016, spreadPerShot: 0.009,
+    blurb: "Three knocks. Nobody answers.",
+    model: { len: 0.58, stock: "folding", mag: "box", build: "lmao" },
+  }),
+  // FAL OSW: semi-auto 7.62, three to the body, kicks like it means it.
+  rofl: mk("assault", {
+    id: "rofl", name: "FAL OSW", rank: 18, sight: "iron",
+    fireMode: "semi", rpm: 625, damage: 40, falloffMin: 0.7, magSize: 20, reserveMax: 140,
+    recoilKickPitch: 0.032, recoilKickKnockback: 0.025, adsTime: 0.26, reloadTime: 2.4, penetration: 1.6,
+    blurb: "One trigger pull per regret.",
+    model: { len: 0.56, stock: "folding", mag: "box", build: "rofl" },
+  }),
+  // M27: the 416's long-rail cousin, barely moves under fire.
+  heh: mk("assault", {
+    id: "heh", name: "M27", rank: 22, sight: "iron",
+    rpm: 750, damage: 26, recoilKickPitch: 0.013, recoilKickYaw: 0.007, spreadPerShot: 0.01, adsTime: 0.25,
+    blurb: "Laser beam with a stock on it.",
+    model: { len: 0.6, stock: "fixed", mag: "box", build: "heh" },
   }),
   // THE BEAST (after Phantom Forces' modded custom gun): an AK grown a
   // frill of bone and crystal. Hits like the AR-12, fires like the 416,
@@ -199,11 +227,36 @@ export const WEAPON_DEFS = {
     blurb: "It was a rifle once. Now it's a rifle with opinions.",
     model: { len: 0.6, stock: "fixed", mag: "curved", barrel: 1.0 },
   }),
+  // SCAR-H: hits hardest of the autos, three up close, twenty in the mag.
+  mald: mk("assault", {
+    id: "mald", name: "SCAR-H", rank: 29, sight: "iron",
+    rpm: 625, damage: 34, falloffStart: 35, falloffEnd: 100, falloffMin: 0.75, magSize: 20, reserveMax: 160,
+    recoilKickPitch: 0.028, recoilKickYaw: 0.011, adsTime: 0.28, sprintMult: 1.26, reloadTime: 2.5, penetration: 1.6,
+    blurb: "Heavy rounds, heavy feelings.",
+    model: { len: 0.62, stock: "folding", mag: "box", build: "mald" },
+  }),
+  // AN-94 (Black Ops 2's), traced (weapon-ars.js); the hyperburst stays.
   coalface: mk("assault", {
     id: "coalface", name: "Coalface AN-94", rank: 34, sight: "reddot",
     rpm: 1800, burst: 2, fireMode: "burst", damage: 27, recoilKickPitch: 0.014,
     blurb: "Two rounds land before the recoil does.",
-    model: { len: 0.58, stock: "fixed", mag: "curved", barrel: 1.0 },
+    model: { len: 0.58, stock: "fixed", mag: "curved", build: "coalface" },
+  }),
+  // SMR: semi-auto slab, the hardest single hit in the class, slow to swing.
+  salt: mk("assault", {
+    id: "salt", name: "SMR", rank: 38, sight: "iron",
+    fireMode: "semi", rpm: 500, damage: 45, falloffStart: 55, falloffEnd: 130, falloffMin: 0.75, magSize: 20, reserveMax: 140,
+    recoilKickPitch: 0.036, recoilKickKnockback: 0.03, adsTime: 0.28, sprintMult: 1.22, reloadTime: 2.6, penetration: 1.8,
+    blurb: "Every shot is a statement.",
+    model: { len: 0.56, stock: "bullpup", mag: "box", build: "salt" },
+  }),
+  // M8A1: four-round bursts, a whole fight per trigger pull.
+  ratio: mk("assault", {
+    id: "ratio", name: "M8A1", rank: 44, sight: "iron",
+    fireMode: "burst", burst: 4, rpm: 1000, damage: 27, falloffMin: 0.6, magSize: 32, reserveMax: 224,
+    recoilKickPitch: 0.015, spreadPerShot: 0.008, adsTime: 0.22, reloadTime: 2.2,
+    blurb: "Four in, one out. You're the one.",
+    model: { len: 0.54, stock: "fixed", mag: "box", build: "ratio" },
   }),
 
   // ---------------- carbines

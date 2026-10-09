@@ -15,6 +15,7 @@ import { buildRevolverPair } from "./revolvers.js?v=rv2-wst";
 import { PISTOL_BUILDERS } from "./weapon-pistols.js?v=ps1-wb1";
 import { SNIPER_BUILDERS } from "./weapon-snipers.js?v=sn2-wb1";
 import { SMG_BUILDERS } from "./weapon-smgs.js?v=sm1-wb1";
+import { AR_BUILDERS } from "./weapon-ars.js?v=ar1-ar2";
 import { finishDef } from "./skins.js?v=p5-wb1";
 import { rigSoulBlazer, SB_INSPECT_KEYS } from "./soul-blazer.js?v=sb1";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -106,6 +107,54 @@ const DETAILED = {
   coltlmg: {
     url: new URL("./models/coltlmg.glb?v=cl2", import.meta.url).href,
     p: "CL", device: "CL_Hider", rake: -0.37, railY: 0.0465, adsDistance: null,
+    glow: [],
+  },
+  // Black Ops 2's assault rifles, modelled on their traced outlines
+  // (models/build_ar_<id>.blender.py); weapon-ars.js's traced versions stand
+  // in until the model streams in.
+  kek: {
+    url: new URL("./models/ar-kek.glb?v=ar2", import.meta.url).href,
+    p: "MT", device: "MT_Hider", rake: -0.37, railY: 0.0431, adsDistance: null,
+    glow: [],
+  },
+  lol: {
+    url: new URL("./models/ar-lol.glb?v=ar2", import.meta.url).href,
+    p: "T2", device: "T2_Hider", rake: -0.37, railY: 0.1073, adsDistance: null,
+    glow: [],
+  },
+  lmao: {
+    url: new URL("./models/ar-lmao.glb?v=ar2", import.meta.url).href,
+    p: "SW", device: "SW_Hider", rake: -0.37, railY: 0.0693, adsDistance: null,
+    glow: [],
+  },
+  rofl: {
+    url: new URL("./models/ar-rofl.glb?v=ar2", import.meta.url).href,
+    p: "FA", device: "FA_Hider", rake: -0.37, railY: 0.0783, adsDistance: null,
+    glow: [],
+  },
+  heh: {
+    url: new URL("./models/ar-heh.glb?v=ar2", import.meta.url).href,
+    p: "M2", device: "M2_Hider", rake: -0.37, railY: 0.0410, adsDistance: null,
+    glow: [],
+  },
+  mald: {
+    url: new URL("./models/ar-mald.glb?v=ar2", import.meta.url).href,
+    p: "SC", device: "SC_Hider", rake: -0.37, railY: 0.0552, adsDistance: null,
+    glow: [],
+  },
+  coalface: {
+    url: new URL("./models/ar-coalface.glb?v=ar2", import.meta.url).href,
+    p: "AN", device: "AN_Hider", rake: -0.37, railY: 0.0283, adsDistance: null,
+    glow: [],
+  },
+  salt: {
+    url: new URL("./models/ar-salt.glb?v=ar2", import.meta.url).href,
+    p: "SM", device: "SM_Hider", rake: -0.37, railY: 0.0672, adsDistance: null,
+    glow: [],
+  },
+  ratio: {
+    url: new URL("./models/ar-ratio.glb?v=ar2", import.meta.url).href,
+    p: "M8", device: "M8_Hider", rake: -0.37, railY: 0.1073, adsDistance: null,
     glow: [],
   },
 };
@@ -1074,6 +1123,7 @@ function buildBaseMesh(def, skin) {
   if (SNIPER_BUILDERS[def.model?.build]) return SNIPER_BUILDERS[def.model.build](def, { env: weaponEnvMap || metalStudio() });
   // and its SMGs (weapon-smgs.js)
   if (SMG_BUILDERS[def.model?.build]) return SMG_BUILDERS[def.model.build](def, { env: weaponEnvMap || metalStudio() });
+  if (AR_BUILDERS[def.model?.build] && !(DETAILED[def.id] && detailedTemplates.has(def.id))) return AR_BUILDERS[def.model.build](def, { env: weaponEnvMap || metalStudio() });
   const spec = def.model || {};
   if (spec.stock === "tank") return gcTemplate ? buildGreenCandles(def) : buildTankLauncher(def, spec, spec.len || 0.5);
   if (def.id === "grinmington" && gmTemplate) return buildGrinmington(def);

@@ -3,15 +3,15 @@
 
 import { touchState } from "../input/touch.js?v=in1-th2";
 import { WARSHIP_GUNS, VtolWarship } from "../streak-entities.js?v=vsat2-hk1";
-import { streakBounds, round2 } from "./fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
-import { STREAK_DEFS } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1";
-import { streakEntities, streakBlast } from "./calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { streakBounds, round2 } from "./fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
+import { STREAK_DEFS } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2";
+import { streakEntities, streakBlast } from "./calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
 import * as THREE from "three";
-import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
-import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1";
-import { WEAPON_DEFS } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1";
+import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
+import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2";
+import { WEAPON_DEFS } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2";
 import { K9Pack } from "../k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d";
-import { k9Hostile } from "./k9.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { k9Hostile } from "./k9.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
 import { game } from "../core/state.js?v=st1";
 
 let wsViewOn = false, wsSaved = null, wsStable = false, wsHud = null;

@@ -29,7 +29,7 @@
 
 import * as THREE from "three";
 import { reachHand, setHandPose } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
-import { buildThrowable, buildPin, modelKind } from "./throwable-models.js?v=tm1";
+import { buildThrowable, buildPin, modelKind } from "./throwable-models.js?v=tm1-th2";
 import { game } from "../core/state.js?v=st1";
 
 export const THROW = { DRAW: 0.12, PIN: 0.3, WIND: 0.08, WHIP: 0.14, RAISE: 0.25 };
