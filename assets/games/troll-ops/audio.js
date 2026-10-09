@@ -824,9 +824,30 @@ export class GameAudio {
     this._tone({ freq: 180, to: 40, duration: 0.45, gain: 0.14, type: "sawtooth" });
   }
 
-  throwGear() {
+  throwGear(at = null) {
     if (!this._ready()) return;
-    this._noise({ duration: 0.16, gain: 0.14, type: "bandpass", freq: 600, sweepTo: 1800, q: 1.4 });
+    this._noise({ duration: 0.16, gain: 0.14, type: "bandpass", freq: 600, sweepTo: 1800, q: 1.4, at });
+  }
+
+  /* The grenade's own small sounds (combat/throw-anim.js): the pin yanked
+     out (a click and the ring's jingle), the spoon flying off, a bounce. */
+  pinPull() {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.03, gain: 0.22, type: "bandpass", freq: 3800, q: 3 });
+    this._tone({ freq: 2900, to: 2600, duration: 0.12, gain: 0.035, type: "triangle", delay: 0.02 });
+    this._tone({ freq: 4100, to: 3900, duration: 0.09, gain: 0.025, type: "triangle", delay: 0.05 });
+  }
+
+  spoonPing(at = null) {
+    if (!this._ready()) return;
+    this._tone({ freq: 3300, to: 2500, duration: 0.18, gain: 0.04, type: "triangle", at });
+    this._noise({ duration: 0.02, gain: 0.1, type: "highpass", freq: 4000, at });
+  }
+
+  nadeBounce(k = 1, at = null) {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.06, gain: 0.2 * k, type: "bandpass", freq: 900 + Math.random() * 400, q: 2.2, at });
+    this._tone({ freq: 520, to: 380, duration: 0.07, gain: 0.05 * k, type: "square", at });
   }
 
   /* Blast: low body, long tail, and a crack on top so it reads outdoors. */

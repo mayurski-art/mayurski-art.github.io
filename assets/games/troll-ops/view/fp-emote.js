@@ -2,14 +2,15 @@
 // out in front of the camera.
 
 import { gaitPhaseRate } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
-import { bar, barSipK, atPiano, piano, syncFpDrink } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2";
+import { bar, barSipK, atPiano, piano, syncFpDrink } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2";
 import * as THREE from "three";
 import { hideFpEmoteProps, fpEmoteRodTip } from "../emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u";
-import { inspectArms, pfArms, stretchBetween } from "./weapon-view.js?v=wv1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1";
+import { inspectArms, pfArms, stretchBetween } from "./weapon-view.js?v=wv1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2";
 import { EMOTES } from "../emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u";
 import { game } from "../core/state.js?v=st1";
-import { duelArms } from "../modes/social-duel.js?v=sd1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2";
-import { clubArms } from "../modes/club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-cid1-cid2";
+import { duelArms } from "../modes/social-duel.js?v=sd1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2";
+import { throwFrame, placeThrowInHand } from "../combat/throw-anim.js?v=ta1";
+import { clubArms } from "../modes/club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-cid1-cid2-th2";
 
 /* A first-person emote (emotes.js `fp`): the gun goes away (or does the
    trick), and the streak arms' real hands act it out in front of the camera.
@@ -82,7 +83,8 @@ function socialArmsFrame() {
 
 const _emoteRodTip = new THREE.Vector3();
 export function updateFpEmoteView() {
-  const f = game.fpEmoteFrame() || (game.socialUnarmed() && game.player.alive ? socialArmsFrame() : null);
+  // A grenade in hand outranks an emote: the arm pulls the pin and throws.
+  const f = throwFrame() || game.fpEmoteFrame() || (game.socialUnarmed() && game.player.alive ? socialArmsFrame() : null);
   if (!f) {
     if (fpEmoteArmsOn) { game.hideStreakArms(); fpEmoteArmsOn = false; }
     syncFpDrink(false);
@@ -105,6 +107,7 @@ export function updateFpEmoteView() {
   }
   fpEmoteArmsOn = true;
   poseFreeArms(f);
+  if (f.throwing) placeThrowInHand();
   // An emote's own props in your hands (Pour up's cup and bottle).
   const props = game.emoteKind() === "fp" ? EMOTES[game.emote.idx].fpProps : null;
   if (props) {

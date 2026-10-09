@@ -1,22 +1,22 @@
 // Troll Forces lobby: the Phantom Forces style menu panels, gun and character
 // inspectors, map drawer, roster, callsign, heroes, cloud setup and room code.
 
-import { WeaponInspector } from "../inspector.js?v=hb1-nf-wst-ig1-sb2-if1-wb1";
+import { WeaponInspector } from "../inspector.js?v=hb1-nf-wst-ig1-sb2-if1-wb1-th2";
 import { CharacterInspector } from "../char-inspector.js?v=hb4-wst-soc1-sb2c2-wb1m1";
 import { CosmeticsPanel, loadCosmetics } from "../cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u";
 import { EmoteWheel } from "../emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u";
 import { padEmotePressed } from "../controller-layout.js?v=cl7";
-import { streakPicker } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
+import { streakPicker } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
 import { withClan, getMyCard } from "../calling-cards.js?v=p5-wst-sb2-fu1-wb1";
 import { safeUid } from "../chat.js?v=to-social1";
 import { syncXp } from "../progression.js?v=p5-wst-sb2-fu1-wb1";
 import { renderModes, buildModeButtons } from "./mode-picker.js?v=mp1-fu1b7b7d-wb1";
 import { HERO_IDS, HEROES, saveHero, savedHero } from "../heroes.js?v=umb2";
-import { heroKit, heroActive } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { SETTINGS_KEY, settings, applySettings } from "./settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { BOT_STREAK_KEY } from "../streaks/bot-streaks.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
+import { heroKit, heroActive } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { SETTINGS_KEY, settings, applySettings } from "./settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { BOT_STREAK_KEY } from "../streaks/bot-streaks.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
 import { initCloudSave } from "../cloud-save.js?v=cs1b7";
-import { makeRoomCode } from "../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4";
+import { makeRoomCode } from "../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2";
 import { game } from "../core/state.js?v=st1";
 
 // The tab bar across the top swaps what's under it. "deploy" is the Play

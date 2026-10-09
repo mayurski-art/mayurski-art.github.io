@@ -10,7 +10,7 @@
    pulls out, the bell as it pulls in. */
 
 import { Train } from "../train.js?v=tr1b7";
-import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
+import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
 import { game } from "../core/state.js?v=st1";
 
 export const ride = { car: null, deck: null, called: false, moving: false };

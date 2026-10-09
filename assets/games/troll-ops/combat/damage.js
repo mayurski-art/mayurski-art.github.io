@@ -2,15 +2,15 @@
 // the death card, respawn and spawn protection.
 
 import { WEAPON_DEFS } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1";
-import { MELEE_DEFS, THROWABLE_DEFS } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1";
+import { MELEE_DEFS, THROWABLE_DEFS } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2";
 import * as THREE from "three";
-import { flashHit, noteHitDirection, flinchPeer, updateStreakHud, showWaveBanner, clearHitDirs } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { royale, updateRoyaleGear, royaleOnDeath, hideSpectateHud } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { heroActive, hero, applyHeroLoadout } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { streaks } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
+import { flashHit, noteHitDirection, flinchPeer, updateStreakHud, showWaveBanner, clearHitDirs } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { royale, updateRoyaleGear, royaleOnDeath, hideSpectateHud } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { heroActive, hero, applyHeroLoadout } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { streaks } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
 import { INFECTION } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1";
-import { killcamSelfId, startKillcamPresentation, endKillcamPresentation } from "./killcam-present.js?v=kp2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1";
+import { killcamSelfId, startKillcamPresentation, endKillcamPresentation } from "./killcam-present.js?v=kp2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
 import { game } from "../core/state.js?v=st1";
 
 /* Who has hurt us lately, and how much. The shooter's client already sends

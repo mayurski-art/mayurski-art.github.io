@@ -26,9 +26,9 @@
    only where the map has cells (rp.jail: Troll City). */
 
 import * as THREE from "three";
-import { rpBusy, rpExtras, rpListeners, rpSeats, sitDown, seated, standUp } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2";
-import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { touchState } from "../input/touch.js?v=in1";
+import { rpBusy, rpExtras, rpListeners, rpSeats, sitDown, seated, standUp } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2";
+import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { touchState } from "../input/touch.js?v=in1-th2";
 import { game } from "../core/state.js?v=st1";
 
 const EXTRAS = new Set(["Townsfolk", "Drifter", "Barfly", "Regular", "Gambler"]);

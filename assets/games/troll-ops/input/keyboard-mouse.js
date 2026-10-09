@@ -1,21 +1,21 @@
 // Keyboard and mouse: pointer lock, mouse look, every key binding, fire and
 // aim on the buttons, and no text selection or drag outside typing fields.
 
-import { strikeTablet } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
+import { strikeTablet } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
 import { AIM_ASSIST_MOUSE_SLOWDOWN } from "./aim-assist.js?v=in1-fu1b7-wb1";
-import { settings } from "../menu/settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { lookSensScale } from "../streaks/warship.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { charInspectorLive, menuEmoteWheel } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1";
-import { skipKillcam } from "../combat/killcam-present.js?v=kp2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { royaleSpectating, cycleSpectate, royale, startRoyaleAct } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { tryReload, switchWeapon, setHolding } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { swivelTaps, SWIVEL_TAP, trySwivel } from "../view/third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2";
-import { startInspect } from "../view/weapon-view.js?v=wv1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1";
-import { swingMelee } from "../combat/melee.js?v=ml1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { useHeroAbility } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { callStreakSlot } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { startCook, carriedThrowSlot, cancelCook, releaseCook } from "../combat/throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { renderScoreboard } from "../core/scoreboard.js?v=sb1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1";
+import { settings } from "../menu/settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { lookSensScale } from "../streaks/warship.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { charInspectorLive, menuEmoteWheel } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { skipKillcam } from "../combat/killcam-present.js?v=kp2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { royaleSpectating, cycleSpectate, royale, startRoyaleAct } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { tryReload, switchWeapon, setHolding } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { swivelTaps, SWIVEL_TAP, trySwivel } from "../view/third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2";
+import { startInspect } from "../view/weapon-view.js?v=wv1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { swingMelee } from "../combat/melee.js?v=ml1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { useHeroAbility } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { callStreakSlot } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { startCook, carriedThrowSlot, cancelCook, releaseThrowKey } from "../combat/throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { renderScoreboard } from "../core/scoreboard.js?v=sb1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2";
 import { game } from "../core/state.js?v=st1";
 
 // Look is composed by hand rather than by PointerLockControls: recoil and the
@@ -155,7 +155,7 @@ export function initKeyboardMouse() {
     keys.delete(e.code);
     if (e.code === "Tab") game.els.scoreboard.hidden = true;
     if ((e.code === "KeyG" && game.cooking.slot)
-      || (e.code === "KeyF" && game.cooking.slot === "tactical")) releaseCook();
+      || (e.code === "KeyF" && game.cooking.slot === "tactical")) releaseThrowKey();   // a tap waits for the pin
   });
   game.renderer.domElement.addEventListener("mousedown", (e) => {
     if (!controls.isLocked) {

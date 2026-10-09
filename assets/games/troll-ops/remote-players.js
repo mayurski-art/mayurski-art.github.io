@@ -8,13 +8,14 @@
 import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, ParryState } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
 import { poseEmoteCode } from "./emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u";
+import { THROW, parseThrowWire, poseThrowBody, clearThrowBody } from "./combat/throw-anim.js?v=ta1";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=p5-em1-wst-hf1-wb1";
 import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1";
-import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1kb3-bk1-wst-ig1";
+import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1kb3-bk1-wst-ig1-th2";
 import { cleanFaceKey } from "./cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { sharedParaglider } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1";
-import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3g-nf-wst-ig1-soc1c2f1m1u";
+import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3g-nf-wst-ig1-soc1c2f1m1u-th2";
 import { applyCopBody, syncCopBody } from "./cop-bodies.js?v=cb2-sb2c2m1";
 import { playerIconCanvas } from "./rank-icons.js?v=rk1";
 import { buildDrink, drinkFromCode, drinkMax, FILL_TIME, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7-cup1";
@@ -418,6 +419,27 @@ export class RemotePlayer {
 
   /* Socialize roleplay: the mug or shot glass in their right hand (the
      wire's `dk`), lifted to the mouth while they sip (`ds`). */
+  /* Their throw, from the `ck` field (draw/pin/hold, advanced here between
+     packets) and the `nade` message (throwSeq: the whip). A hold whose `ck`
+     stops coming was put away (died, cancelled) after a short grace. */
+  updateThrowHold(dt) {
+    const raw = this.alive ? this.peer.throwCk : null;
+    if (raw !== this.thrRaw) {
+      this.thrRaw = raw;
+      const ck = parseThrowWire(raw);
+      if (ck && (ck.phase !== "throw" || this.thr?.phase !== "throw")) this.thr = { phase: ck.phase, t: ck.t, kind: ck.kind };
+    }
+    if (this.thrWhip) { this.thrWhip = false; if (this.thr?.phase !== "throw") this.thr = { phase: "throw", t: 0, kind: this.thr?.kind || "frag" }; }   // the `nade` just landed (once)
+    const s = this.thr;
+    if (!s) return;
+    s.t += dt;
+    if (s.phase === "throw") { if (s.t > THROW.WIND + THROW.WHIP + 0.2) this.thr = null; return; }
+    if (s.phase === "draw" && s.t >= THROW.DRAW) s.phase = "pin";
+    if (s.phase === "pin" && s.t >= THROW.PIN) s.phase = "hold";
+    this.thrLost = raw ? 0 : (this.thrLost || 0) + dt;
+    if (this.thrLost > 0.35 || !this.alive) this.thr = null;
+  }
+
   updateDrink(dt, emoting) {
     const d = this.alive && !emoting ? drinkFromCode(this.peer.drink) : null;
     const kind = d?.kind || null;
@@ -495,8 +517,10 @@ export class RemotePlayer {
     if ((this.peer.throwSeq | 0) !== this.throwSeen) {
       this.throwSeen = this.peer.throwSeq | 0;
       this.throwT = THROW_TIME;
+      this.thrWhip = true;   // updateThrowHold: the whip
     }
     if (this.throwT > 0) this.throwT = Math.max(0, this.throwT - dt);
+    this.updateThrowHold(dt);
     if (!this.alive && this.melee) this.melee.t = 0;
     const swinging = this.swinging;
     // Holding the melee weapon outright (switched to it, or infected): the
@@ -704,7 +728,15 @@ export class RemotePlayer {
       parry: this.parry.sample(),
     });
 
-    if (this.throwT > 0) poseThrowArm(this.rig, 1 - this.throwT / THROW_TIME);
+    // A grenade in hand (their `ck`) and the throw: the right arm, pin and all
+    // (combat/throw-anim.js). Without a `ck` (an older client) the old overhand.
+    if (this.thr && this.alive && !em) {
+      poseThrowBody(this.rig, this.thr.phase, this.thr.t, this.thr.kind);
+      if (this.weaponMesh) this.weaponMesh.visible = false;
+    } else {
+      clearThrowBody(this.rig);
+      if (this.throwT > 0) poseThrowArm(this.rig, 1 - this.throwT / THROW_TIME);
+    }
     this.updateDrink(dt, !!em);
     // Socialize: sat down, and at the piano both hands on the keys.
     // (an emote plays sat down too: the emote has the arms, the seat the legs)
@@ -739,6 +771,7 @@ export class RemotePlayer {
      killer, whose eyes the camera is in. */
   replayPose(s, dt, hidden = false) {
     const root = this.rig.root;
+    clearThrowBody(this.rig);
     this.tag.visible = false;
     if (hidden || !s || !s.alive) { root.visible = false; return; }
     root.visible = true;

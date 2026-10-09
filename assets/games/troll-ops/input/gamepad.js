@@ -171,11 +171,11 @@ export function pollGamepad(dt) {
     // so a loadout carrying a flash/smoke/EMP threw nothing on RB (user:
     // "throwable doesn't work on controller").
     if (pressedEdge(5)) game.startCook(game.carriedThrowSlot());
-    if (game.gpPrev[5] && !btn(5)) game.releaseCook();
+    if (game.gpPrev[5] && !btn(5)) game.releaseThrowKey();
     // D-pad left does the same (NOT L1 — L1 is reload above, and one button
     // doing both would reload every time you threw a flash).
     if (pressedEdge(14)) game.startCook(game.carriedThrowSlot());
-    if (game.gpPrev[14] && !btn(14)) game.releaseCook();
+    if (game.gpPrev[14] && !btn(14)) game.releaseThrowKey();
     if (pressedEdge(12)) game.startInspect();      // D-pad up -> admire the weapon
     // Emote wheel open (both sticks, above): the right stick points at a
     // slice instead of turning the view, Cross/A plays it, Circle/B closes.

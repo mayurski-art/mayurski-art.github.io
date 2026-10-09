@@ -13,6 +13,7 @@
 import * as THREE from "three";
 import { buildGripHand, buildSupportHand } from "./hand-model.js";
 import { smoothstep } from "./anim-curves.js";
+import { buildThrowable, modelKind } from "./combat/throwable-models.js?v=tm1";
 import { buildTrollsaber } from "./trollsaber.js?v=ts4-ig1";
 import { buildReaperKnife, buildChainsaw } from "./melee-models.js?v=hw2";
 import { buildHaloBlade } from "./halo-blade.js?v=hb2-ig1";
@@ -22,6 +23,19 @@ export const GRENADE_GRAVITY = 18;   // heavier than real so throws land where y
 const GRAVITY = GRENADE_GRAVITY;
 const REST_SPEED = 0.9;      // below this a grenade stops rolling
 const RADIUS = 0.11;
+const DRAW_IN = 0.2;   // s: a thrown grenade's mesh catching up from the hand
+
+/* A thrown grenade as you see it fly: the kind's model (no pin, no spoon),
+   centred, scaled up so it reads at range; its body takes `mat`, the
+   per-grenade copy the fuse blink drives. */
+function flyingModel(def, mat) {
+  const m = buildThrowable(modelKind(def), { spoon: false, glow: mat });
+  m.position.y = -(m.userData.height || 0.1) / 2;
+  const g = new THREE.Group();
+  g.add(m);
+  g.scale.setScalar(1.5);
+  return g;
+}
 
 /* ------------------------------------------------------------------ melee */
 
@@ -1105,7 +1119,9 @@ export class GrenadeSystem {
      thrower's client already resolved that and reported the hits. Its fuse
      runs a little long so the thrower's `boom` (with the real position)
      normally arrives first; if it never does, it goes off where it lies. */
-  throwGrenade(def, origin, dir, ownerId = "player", { power = 1, fuseLeft = null, remote = false, gid = null, team = null } = {}) {
+  /* `drawFrom`: where the hand was (the thrower's own view): the mesh starts
+     there and catches up with the real path over DRAW_IN seconds. */
+  throwGrenade(def, origin, dir, ownerId = "player", { power = 1, fuseLeft = null, remote = false, gid = null, team = null, drawFrom = null } = {}) {
     const g = new Grenade(def, origin, dir, def.throwSpeed * power, ownerId, fuseLeft ?? def.fuse);
     g.remote = remote;
     g.gid = gid;
@@ -1113,8 +1129,12 @@ export class GrenadeSystem {
     if (remote) g.fuse += 0.8;
     // Its own copy of the material (same shader, no compile) so the fuse
     // blink can drive its glow. This used to be a PointLight per grenade.
-    g.mesh = new THREE.Mesh(this.geo, this.matFor(def).clone());
-    g.mesh.position.copy(g.pos);
+    // The model is the real thing (combat/throwable-models.js): a frag, a
+    // flashbang, a smoke can, the EMP, the pin and spoon gone.
+    g.mat = this.matFor(def).clone();
+    g.mesh = flyingModel(def, g.mat);
+    g.mesh.position.copy(drawFrom || g.pos);
+    if (drawFrom) { g.drawFrom = drawFrom.clone(); g.drawT = 0; }
     this.root.add(g.mesh);
     this.live.push(g);
     return g;
@@ -1135,7 +1155,7 @@ export class GrenadeSystem {
   }
 
   clear() {
-    for (const g of this.live) { this.root.remove(g.mesh); g.mesh.material.dispose(); }
+    for (const g of this.live) { this.root.remove(g.mesh); g.mat.dispose(); }
     for (const c of this.clouds) {
       for (const puff of c.puffs) puff.mesh.material.dispose();
       this.root.remove(c.group);
@@ -1146,7 +1166,7 @@ export class GrenadeSystem {
 
   /* ctx: { colliders, arena, onExplode(def, pos), onAreaDamage(pos, radius, damage, def) } */
   update(dt, ctx) {
-    const { colliders = [], arena, onExplode, onAreaDamage } = ctx;
+    const { colliders = [], arena, onExplode, onAreaDamage, onBounce } = ctx;
 
     for (let i = this.live.length - 1; i >= 0; i--) {
       const g = this.live[i];
@@ -1160,6 +1180,7 @@ export class GrenadeSystem {
         if (g.pos.y - RADIUS <= 0) {
           g.pos.y = RADIUS;
           if (def.impact && !g.remote) { this.detonate(i, ctx); continue; }
+          if (g.vel.y < -1.5) onBounce?.(g, -g.vel.y);
           g.vel.y = Math.abs(g.vel.y) * def.bounce;
           g.vel.x *= def.roll;
           g.vel.z *= def.roll;
@@ -1171,6 +1192,7 @@ export class GrenadeSystem {
           // A remote impact grenade waits for the thrower's `boom` instead of
           // guessing — it would otherwise go off twice.
           if (def.impact) { g.vel.set(0, 0, 0); g.resting = true; }
+          if (Math.abs(g.vel[hit.axis]) > 1.5) onBounce?.(g, Math.abs(g.vel[hit.axis]));
           g.vel[hit.axis] = -g.vel[hit.axis] * def.bounce;
           const other = hit.axis === "y" ? ["x", "z"] : ["x", "y", "z"].filter((a) => a !== hit.axis);
           for (const a of other) g.vel[a] *= def.roll;
@@ -1188,13 +1210,19 @@ export class GrenadeSystem {
       }
 
       g.mesh.position.copy(g.pos);
+      if (g.drawFrom) {
+        g.drawT += dt;
+        const k = g.drawT / DRAW_IN;
+        if (k >= 1) g.drawFrom = null;
+        else g.mesh.position.lerpVectors(g.drawFrom, g.pos, k * k * (3 - 2 * k));
+      }
       g.mesh.rotation.x += g.spin.x * dt;
       g.mesh.rotation.y += g.spin.y * dt;
 
       g.fuse -= dt;
       // Blink faster as the fuse runs out — the only warning anyone gets.
       const blink = Math.max(0.08, g.fuse * 0.25);
-      g.mesh.material.emissiveIntensity = (Math.sin(g.fuse / blink * Math.PI * 2) > 0 ? 1.6 : 0.15) * (def.kind === "tactical" ? 0.7 : 1);
+      g.mat.emissiveIntensity = (Math.sin(g.fuse / blink * Math.PI * 2) > 0 ? 1.6 : 0.15) * (def.kind === "tactical" ? 0.7 : 1);
       if (g.fuse <= 0) { this.detonate(i, ctx); continue; }
     }
   }
@@ -1203,7 +1231,7 @@ export class GrenadeSystem {
     const g = this.live[index];
     this.live.splice(index, 1);
     this.root.remove(g.mesh);
-    g.mesh.material.dispose();
+    g.mat.dispose();
     const def = g.def;
     if (g.gid) {
       this.spent.add(g.gid);

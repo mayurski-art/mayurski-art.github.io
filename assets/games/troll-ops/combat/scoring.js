@@ -1,15 +1,15 @@
 // Troll Forces scoring: registerDeath (killfeed, medals, streaks), XP, score,
 // assists, match end and the team score HUD.
 
-import { nameFor, weaponNameFor, ASSIST_MEMORY, ASSIST_MIN_DAMAGE } from "./damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { spawnComicWord, pushKillfeed, jokeVerb, showWaveBanner, updateStreakHud } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
+import { nameFor, weaponNameFor, ASSIST_MEMORY, ASSIST_MIN_DAMAGE } from "./damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { spawnComicWord, pushKillfeed, jokeVerb, showWaveBanner, updateStreakHud } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
 import { WEAPON_DEFS } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1";
-import { botEarn } from "../streaks/bot-streaks.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
+import { botEarn } from "../streaks/bot-streaks.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
 import { SCORE, streaksAllowed, STREAK_DEFS, streakIconSvg } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1";
-import { hero } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
-import { killstreakUi, achievements, streaks, streakKeyLabel } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
+import { hero } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
+import { killstreakUi, achievements, streaks, streakKeyLabel } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
 import { playerWon, matchWinner, matchWinnerOnTimeout } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1";
-import { currentWeapon } from "./weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
+import { currentWeapon } from "./weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
 import { resolveWeapon, defaultLoadoutFor } from "../attachments.js?v=cg1-wst-sb2-fu1-wb1";
 import { XP } from "../progression.js?v=p5-wst-sb2-fu1-wb1";
 import { game } from "../core/state.js?v=st1";

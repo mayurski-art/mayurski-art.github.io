@@ -83,7 +83,8 @@ check("bots hop in fights (and over what pins them)", r.hop > 0, `${r.hop} sampl
 check("bots slide", r.slide > 0, `${r.slide} samples`);
 check("a slide shows on the bot's body (stance on the wire)", r.slideWire);
 check("bots scope in", r.ads > 0, `${r.ads} samples`);
-check("bots carry every kind of throwable", r.lethals.length === 2 && r.tacticals.length === 3, JSON.stringify({ l: r.lethals, t: r.tacticals }));
+// the frag is the one lethal now (gear.js THROWABLE_DEFS); flash, smoke and EMP the tacticals
+check("bots carry every kind of throwable", r.lethals.includes("frag") && r.lethals.length === 1 && r.tacticals.length === 3, JSON.stringify({ l: r.lethals, t: r.tacticals }));
 const kinds = Object.keys(r.throws);
 check("bots throw more than frags", kinds.length >= 2 && kinds.some((k) => k !== "frag"), JSON.stringify(r.throws));
 

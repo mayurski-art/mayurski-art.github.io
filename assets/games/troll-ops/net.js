@@ -340,6 +340,7 @@ export class Net {
         p.wb = Math.max(0, Math.min(3, m.wb | 0));
         p.cq = Number.isFinite(+m.cq) ? +m.cq : 0;
         p.ce = typeof m.ce === "string" ? m.ce.slice(0, 24) : null;
+        p.throwCk = typeof m.ck === "string" ? m.ck.slice(0, 16) : null;   // a grenade in hand (combat/throw-anim.js)
         p.body = typeof m.bd === "string" ? m.bd.slice(0, 16) : null;   // a realistic body (cop-bodies.js)
         if (m.bs != null) p.botSkill = BOT_SKILLS[m.bs | 0] || null;   // only bots carry it
         // keep a short history so the renderer can interpolate in the past
@@ -512,6 +513,7 @@ export class Net {
         dk: local.drink || undefined, ds: local.sip ? (local.sip === 2 ? 2 : 1) : undefined, rr: local.role || undefined,   // Socialize roleplay
         se: local.seat || undefined, pn: local.piano || undefined,
         wb: this.club.wb || undefined, cq: this.club.cq || undefined, ce: this.club.ce || undefined,   // the club door
+        ck: local.throwCk || undefined,   // throw phase:deciseconds:kind
       });
     }
     this.prune();
@@ -589,6 +591,7 @@ export class Net {
     p.reloadTime = bot.holdingSecondary ? 1.5 : 2.3;
     p.hero = bot.hero || null;   // U Mad Bro? (the wire carries it as hr below)
     p.body = bot.body || null;   // Cops and Robbers police body (bd below)
+    p.throwCk = bot.throwCk || null;   // winding up a grenade (ck below)
     // The wire "state" message sets this on every OTHER client (case "state"
     // above); the bot-hosting client never routes its own bots' state through
     // onMessage, so without this line the host's own view of its bots never
@@ -624,6 +627,7 @@ export class Net {
       lv: botLevel(bot.id),
       hr: bot.hero || undefined,
       bd: bot.body || undefined,
+      ck: bot.throwCk || undefined,
     });
   }
 

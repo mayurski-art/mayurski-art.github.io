@@ -153,9 +153,9 @@ export function initTouch() {
   game.els.touchReload.addEventListener("touchstart", (e) => { e.preventDefault(); game.tryReload(); });
   game.els.touchMelee.addEventListener("touchstart", (e) => { e.preventDefault(); game.swingMelee(); });
   // Touch cooks for as long as the button is held, same as the key.
-  bindHold(game.els.touchNade, () => game.startCook("lethal"), () => game.releaseCook());
+  bindHold(game.els.touchNade, () => game.startCook("lethal"), () => game.releaseThrowKey());
   dragAims(game.els.touchNade);
-  if (game.els.touchTac) bindHold(game.els.touchTac, () => game.startCook("tactical"), () => game.releaseCook());
+  if (game.els.touchTac) bindHold(game.els.touchTac, () => game.startCook("tactical"), () => game.releaseThrowKey());
   dragAims(game.els.touchTac);
   bindHold(game.els.touchInteract, () => touchState.interact = true, () => touchState.interact = false);
   bindHold(game.els.touchSwap, () => { touchState.swap = true; if (game.warshipView()) game.toggleWarshipGun(); }, () => touchState.swap = false);

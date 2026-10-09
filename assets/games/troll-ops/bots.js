@@ -110,6 +110,7 @@ const BOT_LETHALS = ["frag"];
 const BOT_TACTICALS = ["flash", "smoke", "emp"];
 const NADE_FIRST = [5, 10];       // seconds after spawning before the first throw
 const NADE_COOLDOWN = [9, 15];
+const BOT_WINDUP = 0.3;           // grenade up and the pin out before it goes (throw-anim THROW.PIN)
 const NADE_RECHECK = 0.6;         // how often a bot looks for a reason
 const NADE_MIN = 7;               // no closer: it would be standing in the blast
 const NADE_MAX = 26;
@@ -269,6 +270,8 @@ class Bot {
   respawn(spawn) {
     this.pos.set(spawn.x, 0, spawn.z);
     this.climb = null;
+    this.windup = null;   // a throw cut short by dying
+    this.throwCk = null;
     this.vel.set(0, 0, 0);
     this.hp = this.maxHp || BOT_HP;
     this.alive = true;
@@ -433,7 +436,26 @@ class Bot {
     const respectGuard = guarded && this.diff.readsGuard && this.guardT > this.diff.reaction * 2;
 
     // --- grenades
-    if (ctx.onThrow && !this.meleeOnly && !busy && !stunned && (this.frags > 0 || this.flashes > 0)) {
+    // A throw winds up first: the arm comes up and the pin comes out (its
+    // `ck` on the wire, combat/throw-anim.js), then the grenade goes.
+    if (this.windup) {
+      const w = this.windup;
+      w.t += dt;
+      this.throwCk = `${w.t < 0.12 ? 1 : w.t < BOT_WINDUP ? 2 : 3}:${Math.round(w.t * 10)}:${w.kind}`;
+      this.fireT = Math.max(this.fireT, 0.2);
+      if (w.t >= BOT_WINDUP || !this.alive || stunned) {
+        this.windup = null;
+        this.throwCk = null;
+        if (this.alive && !stunned && ctx.onThrow?.(this, w.kind, w.at, w.lob)) {
+          if (w.kind === this.lethalKind) this.frags--; else this.flashes--;
+          this.nadeT = between(NADE_COOLDOWN);
+          if (w.kind === "smoke") this.retreatT = 3;
+          this.lastThrowAt = performance.now();
+          // A beat with the hand busy: no shot goes off mid-throw.
+          this.fireT = Math.max(this.fireT, 0.45);
+        } else this.nadeT = NADE_RECHECK;
+      }
+    } else if (ctx.onThrow && !this.meleeOnly && !busy && !stunned && (this.frags > 0 || this.flashes > 0)) {
       this.nadeT -= dt;
       if (this.nadeT <= 0) {
         const plan = this.planThrow(targets, ffa, colliders, eye, best, objective);
@@ -443,16 +465,7 @@ class Bot {
           const s = this.diff.nade.scatter * Math.min(1.5, plan.dist / 20);
           const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * s;
           const at = { x: plan.x + Math.cos(a) * r, y: plan.y, z: plan.z + Math.sin(a) * r };
-          if (ctx.onThrow(this, plan.kind, at, plan.lob)) {
-            if (plan.kind === this.lethalKind) this.frags--; else this.flashes--;
-            this.nadeT = between(NADE_COOLDOWN);
-            if (plan.kind === "smoke") this.retreatT = 3;
-            this.lastThrowAt = performance.now();
-            // A beat with the hand busy: no shot goes off mid-throw.
-            this.fireT = Math.max(this.fireT, 0.45);
-          } else {
-            this.nadeT = NADE_RECHECK;
-          }
+          this.windup = { t: 0, kind: plan.kind, at, lob: plan.lob };
         }
       }
     }

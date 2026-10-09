@@ -1,15 +1,16 @@
 // Troll Forces throwables: grenades, blast damage, flash/stun/EMP, bot throws,
 // cooking and the networked nades.
 
-import { GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1";
-import { streakEntities, streakBusy } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
+import { GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2";
+import { streakEntities, streakBusy } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
 import { K9Pack } from "../k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d";
-import { damagePlayer, breakSpawnGuard } from "./damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
+import { damagePlayer, breakSpawnGuard } from "./damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
 import * as THREE from "three";
-import { round2 } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
+import { round2 } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
 import { segmentBlocked, raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1";
 import { THROW_TIME } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
 import { game } from "../core/state.js?v=st1";
+import { throwStart, throwReleased, throwCancel, throwRequestRelease, throwArmed, updateThrow, throwHandWorld } from "./throw-anim.js?v=ta1";
 
 export let grenades;
 
@@ -132,6 +133,7 @@ export function botThrow(bot, kind, at, lob = false) {
   const gid = nextNadeId(bot.id);
   const gr = grenades.throwGrenade(def, origin, dir, bot.id, { fuseLeft: fuse, gid, team: bot.team });
   gr.botId = bot.id;
+  game.audio.throwGear(origin);
   noteThrow(bot.id);   // the host never hears its own bots' `nade` messages
   if (game.isPvp() && game.net.active) {
     game.net.publishNadeAs(bot.id, bot.team, {
@@ -254,6 +256,7 @@ export function grenadeCtx() {
     onAreaDamage: areaDamage,
     onFlash: flashPlayer,
     onEmp: empPlayer,
+    onBounce: (g, speed) => game.audio.nadeBounce?.(Math.min(1, speed / 8), g.pos),
     onDetonate: (g, pos) => publishBoom(g.gid, g.def, pos, g.botId ? game.bots.byId(g.botId) : null),
   };
 }
@@ -279,6 +282,7 @@ export function applyRemoteNade(m) {
   if (m.action === "throw") {
     noteThrow(m.id);
     const origin = new THREE.Vector3(m.ox, m.oy, m.oz);
+    game.audio.throwGear(origin);
     const dir = new THREE.Vector3(m.dx, m.dy, m.dz).normalize();
     grenades.throwGrenade(def, origin, dir, m.id, {
       fuseLeft: Number.isFinite(m.fuse) ? m.fuse : def.fuse, remote: true, gid: m.gid, team: m.team,
@@ -315,7 +319,12 @@ export function startCook(slot) {
   game.cooking.def = def;
   game.cooking.slot = slot;
   game.cooking.fuse = def.fuse;
+  throwStart(def);   // the arm brings it up and pulls the pin (throw-anim.js)
 }
+
+/* A player's throw key came up: thrown now if the pin's out, else as soon
+   as it is (a tap). Code that needs it out at once calls releaseCook. */
+export function releaseThrowKey() { throwRequestRelease(); }
 
 /* Put a cooking throwable back unthrown and unspent. Dying, pausing, a lost
    pointer lock and a hidden tab all end a cook: the key-up that would have
@@ -328,6 +337,7 @@ export function cancelCook() {
   game.cooking.slot = null;
   game.cooking.fuse = 0;
   game.els.cook.hidden = true;
+  throwCancel();
 }
 
 /* `cookedOff`: the fuse ran out in the hand. The grenade is spent but never
@@ -341,10 +351,10 @@ export function releaseCook({ cookedOff = false } = {}) {
   game.cooking.def = null;
   game.cooking.slot = null;
   game.els.cook.hidden = true;
-  if (game.player.gear[slot] <= 0) return;
+  if (game.player.gear[slot] <= 0) { throwCancel(); return; }
   game.player.gear[slot]--;
   game.updateGearHud();
-  if (cookedOff) return;
+  if (cookedOff) { throwCancel(); return; }
 
   const origin = new THREE.Vector3();
   game.camera.getWorldPosition(origin);
@@ -359,7 +369,8 @@ export function releaseCook({ cookedOff = false } = {}) {
   origin.addScaledVector(dir, Math.max(0, Math.min(0.6, clear - 0.25)));
 
   const gid = nextNadeId();
-  grenades.throwGrenade(def, origin, dir, "player", { fuseLeft: game.cooking.fuse, gid });
+  // drawn leaving the hand, then on its real path (GrenadeSystem drawFrom)
+  grenades.throwGrenade(def, origin, dir, "player", { fuseLeft: game.cooking.fuse, gid, drawFrom: throwHandWorld(new THREE.Vector3()) });
   if (game.isPvp() && game.net.active) {
     game.net.publishNade({
       action: "throw", gid, def: def.id, fuse: round2(game.cooking.fuse),
@@ -370,6 +381,31 @@ export function releaseCook({ cookedOff = false } = {}) {
   breakSpawnGuard();
   game.audio.throwGear();
   game.localThrowT = THROW_TIME;
+  throwReleased();
+}
+
+/* Every frame: the throw's beats, and a cooked grenade ticking in the hand
+   (it can go off in it). The fuse only burns once the pin is out. Only
+   cookable ones: a smoke held down used to burn its fuse in your hand too,
+   with no cook bar to warn you. */
+export function tickCook(dt) {
+  updateThrow(dt);
+  const cooking = game.cooking;
+  if (!cooking.def || !cooking.def.cookable || !throwArmed()) return;
+  cooking.fuse -= dt;
+  game.els.cook.hidden = false;
+  game.els.cookFill.style.width = `${Math.max(0, (cooking.fuse / cooking.def.fuse) * 100)}%`;
+  if (cooking.fuse > 0) return;
+  const held = cooking.def;
+  cooking.fuse = 0;
+  releaseCook({ cookedOff: true });   // spent in the hand…
+  const at = game.player.pos.clone();
+  publishBoom(nextNadeId(), held, at);
+  explosionFx(held, at);       // …and detonates right there
+  if (held.damage > 0) areaDamage(at, held.radius, held.damage, held, {});
+  if (held.blind) flashPlayer(at, held);
+  if (held.emp) empPlayer(at, held);
+  if (held.smoke) grenades.spawnSmoke(held, at);
 }
 
 /* What used to run at load in game.js: called from game.js where this code was. */

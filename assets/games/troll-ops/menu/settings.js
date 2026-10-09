@@ -1,7 +1,7 @@
 // Troll Forces settings: the saved settings object and applySettings, which
 // pushes it into audio, FOV, the minimap, graphics and the bot skill.
 
-import { minimapCanvas } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2-wb1m1c4-cup1";
+import { minimapCanvas } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2";
 import { game } from "../core/state.js?v=st1";
 
 export const SETTINGS_KEY = "trollops:settings";
