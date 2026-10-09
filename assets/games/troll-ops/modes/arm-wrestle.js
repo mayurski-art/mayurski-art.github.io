@@ -88,20 +88,26 @@ function npcAt(tb, side) {
 
 /* ------------------------------------------------------------- the pose */
 
-const _P = new THREE.Vector3(), _L = new THREE.Vector3(), _poleR = new THREE.Vector3(1, -1.4, 0.2), _poleL = new THREE.Vector3(-1, -1, 0.3);
+const _P = new THREE.Vector3(), _L = new THREE.Vector3(), _E = new THREE.Vector3(), _S = new THREE.Vector3();
+const _M = new THREE.Vector3(), _pole = new THREE.Vector3(), _poleL = new THREE.Vector3(-1, -1, 0.3);
+const ELBOW_IN = 0.07;     // each elbow this far from the table's middle: the forearms all but upright
+const SCOOT = 0.1;         // to the front edge of the seat
+const PIN = 1.35;          // how far over the clasped hands go at a pin (radians off upright)
 
-/* Where the clasped hands are: over the table's middle, pushed toward the
-   side that's losing and down as it goes. */
-function clasp(T, m, out) {
+/* The table's axis: the unit way from seat 0 to seat 1. */
+function axisOf(T) {
   const A = seatOf(T.seats[0]), B = seatOf(T.seats[1]);
-  let ux = 1, uz = 0;
-  if (A && B) { ux = B.x - A.x; uz = B.z - A.z; const l = Math.hypot(ux, uz) || 1; ux /= l; uz /= l; }
-  const k = Math.max(-1, Math.min(1, m));
-  return out.set(T.x + ux * k * 0.2, T.top + 0.24 - Math.abs(k) * 0.17, T.z + uz * k * 0.2);
+  if (!A || !B) return [1, 0];
+  const ux = B.x - A.x, uz = B.z - A.z, l = Math.hypot(ux, uz) || 1;
+  return [ux / l, uz / l];
 }
 
-/* Elbow on the table, the right hand at the clasp, the left on the table's
-   edge, leaning in; the winner's fists up after, the loser slumped. */
+/* A real grip: the right elbow planted on the pad just short of the middle,
+   the body leaned in over the table until the upper arm reaches it (solved
+   per rig, so a tall stool or a big troll still gets there), the forearm up
+   from it to the clasped hands. The hands swing over about the middle, down
+   toward the side that's losing. The left hand flat on the table. The
+   winner's fists up after, the loser slumped. */
 function poseWrestler(rig, T, side, m, ph, w, t) {
   const p = rig.parts;
   if (ph === "end" && w === side) {
@@ -113,15 +119,44 @@ function poseWrestler(rig, T, side, m, ph, w, t) {
   }
   const effort = ph === "bout" ? 1 : ph === "end" ? 0 : 0.4;
   const lost = ph === "end" && w === 1 - side;
-  p.chest.rotation.x += 0.38 + effort * 0.12 + (lost ? 0.25 : 0);   // leaning in over the table
-  p.headPivot.rotation.x = lost ? 0.55 : 0.3;
-  rig.root.updateMatrixWorld(true);
-  clasp(T, lost ? (side === 0 ? -1 : 1) : m, _P);
-  if (effort) { _P.x += Math.sin(t * 28) * 0.008 * effort; _P.y += Math.cos(t * 31) * 0.006 * effort; }   // straining
-  p.chest.worldToLocal(_P);
-  reachHand(rig, 1, _P, _poleR);
   const k = rig.scale || 1;
-  reachHand(rig, -1, _L.set(-0.22 * k, -0.36 * k, -0.34 * k), _poleL);
+  const [ux, uz] = axisOf(T), dir = side === 0 ? 1 : -1;   // dir * u: from this seat toward the other
+  const fx = ux * dir, fz = uz * dir;
+  rig.root.position.x += fx * SCOOT * k; rig.root.position.z += fz * SCOOT * k;
+  p.chest.rotation.x -= effort * 0.08 + (lost ? 0.2 : 0);   // forward is negative here too
+  // the elbow's spot on the pad
+  const eIn = ELBOW_IN * k, ua = rig.upperArm, fa = rig.foreArm;
+  _E.set(T.x - fx * eIn, T.top + 0.035 * k, T.z - fz * eIn);
+  // the clasped hands: over the middle at forearm height, going down sideways
+  // the way a real pin goes, toward the loser's right (the winner's left).
+  // They turn about the line through both elbows, so both forearms keep
+  // their length and both elbows stay planted all the way down.
+  const R = Math.sqrt(Math.max(0.01, fa * fa - eIn * eIn));
+  const th = Math.max(-1, Math.min(1, lost ? -dir : m)) * PIN;   // m > 0: seat 1 going down, to (uz, -ux)
+  _P.set(T.x + uz * Math.sin(th) * R, _E.y + Math.cos(th) * R, T.z - ux * Math.sin(th) * R);
+  if (effort) { _P.x += Math.sin(t * 28) * 0.006 * effort; _P.y += Math.cos(t * 31) * 0.005 * effort; }   // straining
+  // lean in until the shoulder is an upper arm from the elbow's spot, and
+  // further if the hands have gone over to the far side out of reach
+  const lean = (L) => { p.torso.rotation.x = -L; rig.root.updateMatrixWorld(true); return p.armR.getWorldPosition(_S); };   // forward is negative on the torso
+  const solve = (lo, hi, tooFar) => { for (let i = 0; i < 7; i++) { const L = (lo + hi) / 2; if (tooFar(lean(L))) lo = L; else hi = L; } return hi; };
+  let L = solve(0, 1.2, (S) => S.distanceTo(_E) > ua * 0.99);
+  const reach = (ua + fa) * 0.97;
+  if (lean(L).distanceTo(_P) > reach) L = solve(L, 1.6, (S) => S.distanceTo(_P) > reach);
+  lean(L);
+  // the head back up against the lean: eyes on the other fellow (the loser's hang)
+  p.headPivot.rotation.x = L * (lost ? 0.3 : 0.85);
+  rig.root.updateMatrixWorld(true);
+  // two-bone reach to the hands, the elbow bent toward its spot on the pad
+  _M.copy(_S).add(_P).multiplyScalar(0.5);
+  p.chest.worldToLocal(_pole.copy(_E));
+  p.chest.worldToLocal(_M);
+  _pole.sub(_M);
+  p.chest.worldToLocal(_P);
+  reachHand(rig, 1, _P, _pole);
+  // the left hand flat on the table, out to the left of the elbow
+  _L.set(T.x - fx * 0.3 * k + fz * 0.22 * k, T.top + 0.02 * k, T.z - fz * 0.3 * k - fx * 0.22 * k);
+  p.chest.worldToLocal(_L);
+  reachHand(rig, -1, _L, _poleL);
   setHandPose(rig, 1, "fist"); setHandPose(rig, -1, "open");
   rig.body?.update?.();
 }
@@ -515,7 +550,7 @@ function ui() {
 // headless tests reach in here (tools/troll-ops-arm-wrestle-test.mjs)
 if (typeof window !== "undefined" && /[?&]tohooks=1/.test(location.search)) {
   window.__trollAw = {
-    aw, AW, tap, callNpc, tables: () => tables().map((t) => ({ ...t })),
+    aw, AW, tap, callNpc, rig: () => game.localRig, tables: () => tables().map((t) => ({ ...t })),
     state: () => ({ phase: aw.phase, tb: aw.tb, side: aw.side, m: aw.m, w: aw.w, driver: aw.driver, foe: aw.foe && { ...aw.foe }, f: [...aw.f],
       npc: aw.npc && { i: aw.npc.i, x: aw.npc.n.x, z: aw.npc.n.z, sat: aw.npc.sat }, seat: seated?.idx ?? -1, hits: { ...aw.hits },
       remote: [...remoteNpc.entries()].map(([i, r]) => ({ i, tb: r.tb, side: r.side, sit: r.sit, ph: r.ph, m: r.m })),
