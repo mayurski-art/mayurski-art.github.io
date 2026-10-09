@@ -44,7 +44,7 @@ import {
   fringeTexture, beamTexture, facetTexture, windowsTexture, speakerTexture, djTexture, flagTexture, busTexture,
 } from "./trollingloud-kit.js?v=tl3-tc3";
 import { BEATS } from "./music-beats.js?v=bg1";
-import { pickOutfit } from "./outfits.js?v=of1m1-nc1";
+import { pickOutfit } from "./outfits.js?v=of1m1-nc1-cd1";
 
 /* ============================================================== the plan */
 

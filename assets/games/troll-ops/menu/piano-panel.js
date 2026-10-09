@@ -10,7 +10,7 @@
 // gets up. Same pattern as the DJ booth (dj-lulz.js): its own DOM and CSS,
 // keys caught in the capture phase while it's open.
 
-import { SHEETS, sheetBars, midiName, LOW, HIGH } from "../piano-sheets.js?v=ps1b7";
+import { SHEETS, sheetBars, midiName, LOW, HIGH } from "../piano-sheets.js?v=ps1b7-cd1";
 
 /* Key code -> midi. Bottom row C3-B3, top row C4-B4, then I 9 O 0 P [ = ]
    up to G5. */

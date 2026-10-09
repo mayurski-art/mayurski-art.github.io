@@ -3,8 +3,8 @@
 // game.js (split phase 1).
 
 import { HeroKit, FootprintTrail, randomHero, botStats } from "../heroes.js?v=umb2";
-import { spawnComicWord, showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
-import { round2, spawnK9 } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
+import { spawnComicWord, showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
+import { round2, spawnK9 } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
 import { preloadHeroBodies, applyHeroBody, syncHeroBody } from "../hero-bodies.js?v=umb3g-nf-wst-ig1-soc1c2f1m1u-th2";
 import { MELEE_DEFS, MeleeState } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2";
 import { game } from "../core/state.js?v=st1";

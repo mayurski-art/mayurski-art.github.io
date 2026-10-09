@@ -3,22 +3,22 @@
 // of every live streak. Moved out of game.js (split phase 1).
 
 import { STREAK_DEFS } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2";
-import { streakEntities, flyovers, streaks, streakKeyLabel, uavBucket, uavUntil, lockStreak, streakLockUntil, enemiesRevealed, updateMarking, updateStreakControl, pendingStrikes, blastFx, streakBlast } from "./calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
+import { streakEntities, flyovers, streaks, streakKeyLabel, uavBucket, uavUntil, lockStreak, streakLockUntil, enemiesRevealed, updateMarking, updateStreakControl, pendingStrikes, blastFx, streakBlast } from "./calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
 import { HunterDrone, ReconPlane, MarkerCanister, CarePackage, VtolWarship, HelicopterGunship, HELI_DAMAGE, PKG_CRUSH_RADIUS, AIRSTRIKE_RADIUS, AIRSTRIKE_DAMAGE, AIRSTRIKE_BOMBS, DRONE_SPLASH_RADIUS, DRONE_DAMAGE, HELI_FIRE_RANGE } from "../streak-entities.js?v=vsat2-hk1";
-import { streakBounds, spawnDrone, round2, attachAirHitbox, AIR_HP, spawnCarePackage, strikeTablet, droneTargetPos, pickDroneTarget, droneAirTarget, droneWorld, DRONE_AIR_SPEED, droneLeadPoint, DRONE_AIR_REACH } from "./fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
+import { streakBounds, spawnDrone, round2, attachAirHitbox, AIR_HP, spawnCarePackage, strikeTablet, droneTargetPos, pickDroneTarget, droneAirTarget, droneWorld, DRONE_AIR_SPEED, droneLeadPoint, DRONE_AIR_REACH } from "./fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
 import * as THREE from "three";
-import { showWaveBanner, updateStreakHud } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
+import { showWaveBanner, updateStreakHud } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
 import { resolveWeapon, defaultLoadoutFor } from "../attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2";
 import { WeaponState, WEAPON_DEFS } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2";
 import { K9Pack } from "../k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d";
-import { updateK9 } from "./k9.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
+import { updateK9 } from "./k9.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
 import { Dragonfire } from "../dragonfire.js?v=df3-sb2";
-import { dragonfireView, updateSamAi, airTargetPos, samMissileHit, syncDragonfireView, shootDownAir } from "./dragonfire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
+import { dragonfireView, updateSamAi, airTargetPos, samMissileHit, syncDragonfireView, shootDownAir } from "./dragonfire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
 import { touchState } from "../input/touch.js?v=in1-th2";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2";
 import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";
 import { SamTurret } from "../sam-turret.js?v=sam1";
-import { warshipImpact, syncWarshipView, updateWarshipHud } from "./warship.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
+import { warshipImpact, syncWarshipView, updateWarshipHud } from "./warship.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
 import { game } from "../core/state.js?v=st1";
 
 /* The Swarm: Hunter-Killers diving in from the map's edge, one after

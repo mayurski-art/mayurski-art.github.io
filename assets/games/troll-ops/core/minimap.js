@@ -2,7 +2,7 @@
 // (team, enemies on UAV, objectives, streaks). Moved out of game.js (split
 // phase 1).
 
-import { royale, drawRoyaleMinimap } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
+import { royale, drawRoyaleMinimap } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
 import { CarePackage } from "../streak-entities.js?v=vsat2-hk1";
 import * as THREE from "three";
 import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";

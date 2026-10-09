@@ -484,6 +484,8 @@ Map rules:
 
 ## 5. Shipped log (one line each; details are in git)
 
+- **2026-10-09** RP phase 2d, the conductor (-cd1, TROLL-CITY-RP2.md): `modes/room-clock.js` (the room's oldest player says the time in any Socialize room; the Grin Express runs on it, so skewed devices agree), riders' car-local spot on the wire (`tc`, `peerPlacers` in remote-players.js), `modes/social-conductor.js` (cap stand on the platform, all-aboard hold once a stop, cab whistle, ticket punch, role-gated), the conductor's cap (outfits.js `wearJobHat`). rp messages now reach every rpListener (not only `duel`). Test: conductor-test.
+
 - **2026-10-09** Club entry phase 5 (-ce5): the 18+ question answers on a pad (A Yeah, B No; an A/B already down when it opens doesn't count), keycaps read 1/2, A/B or nothing (touch), touch gets two big opaque buttons; the line chips name the right hold (X, D-pad →, or the Leave/Line context button). `T.minAhead` (tests use 3). Test: club-entry-test sections 4 (pad) and 5 (phone).
 
 - **2026-10-08** (assault rifles, -ar1)
@@ -521,7 +523,7 @@ Map rules:
     - Club entry phase 4, the room: line tickets keep humans in join order; band/ticket/door phase on the wire (net.js wb, cq, ce); everyone's copy of the door plays your check, band, walk-in or throw-out, your body poses via remote-players.js peerPosers; 25 s AFK at the question (or a hidden tab) with a human waiting = back of the line. Test: tools/troll-ops-club-room-test.mjs. Phase 5 (pad/touch prompts) ON HOLD (user).
     - No more face colours anywhere (user): picker gone, faceMaterial ignores the old tint part (keys keep "og" for compatibility), townsfolk untinted.
     - Trolling Loud guests (Clubgoer/Raver/VIP/Barfly) wear outfits (outfits.js: clothes on the joints, merged into one skinned mesh per material, ~2-3 draw calls a guest); staff stay plain. "No bandanas" sign by the door. Pushed without a full gate at the user's say-so (targeted tests only).
-    - Known limits: mugs set down before you joined aren't shown; device clock skew shifts where others see a train rider.
+    - Known limit: mugs set down before you joined aren't shown. (Train riders and clock skew: fixed 2026-10-09, room clock.)
   - Follow-ups (-fu1): rope climbing pose (remote-players.js poseRope); Trolling Loud seats (booths/sofas/armchairs/stools; a seat's optional `reach` works from in front only) and emotes play seated (a duo still stands you up); fire cuts a magazine reload short when rounds are left (`reloadCut` skips the done sound); Infection's infected always get the keyboard sword; Troll Royale loading shot (map-previews `MODE` shoots a map in its own mode); Troll City sign boards stood off their frames (they z-fought); no aim assist while cooking a throwable; dragonfire.js imported under one tag.
   - Grinjuku (Shinjuku at night, after VALORANT's Split): versus + S&D with designed sites A (-22, 15) / B (22, 15), Heavens 3 m up, Sewers/Mail/Vents, 4 ropes (new: walk in to grab, look down to descend, jump off; bots climb them, dogs don't). grinjuku-layout.js is the one source of truth for colliders and build_grinjuku.blender.py (gj-*.glb, 5.3 MB). Tests: map-walk (15 routes), troll-ops-rope-test.mjs (20, in the gate), bot-stairs rope check.
   - Dust Bowl bazaar 5 (redesign done): power wires across the street, laundry to the centre house, rooftop tanks (colliders, unreachable roofs), three smoke plumes in the city (dustbowl-city.js citySmoke, one Points draw), new loading-screen renders (map-load-screen.js SHOT_V: per-map shot tags, dustbowl hq2).

@@ -1,22 +1,22 @@
 // Troll Forces weapons: firing, reloads, what a bullet hit, weapon switching,
 // the pickup prompt and the gear HUD.
 
-import { breakSpawnGuard } from "./damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
+import { breakSpawnGuard } from "./damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
 import { soulBlazerShot, soulBlazerMouth } from "../soul-blazer.js?v=sb1";
 import * as THREE from "three";
-import { royale, royaleNoise, royalePickupGun, stageFrozen, royaleDropView } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
+import { royale, royaleNoise, royalePickupGun, stageFrozen, royaleDropView } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
 import { resolveK9 } from "../k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d";
-import { showHitmarker, pushKillfeed, showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
-import { damageStreakEntity } from "../streaks/dragonfire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
-import { damageDog } from "../streaks/k9.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
+import { showHitmarker, pushKillfeed, showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
+import { damageStreakEntity } from "../streaks/dragonfire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
+import { damageDog } from "../streaks/k9.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
 import { flinchRigFrom } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
-import { heroActive, hero } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
-import { warshipView, toggleWarshipGun } from "../streaks/warship.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
+import { heroActive, hero } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
+import { warshipView, toggleWarshipGun } from "../streaks/warship.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
 import { gunDisplayName } from "../royale.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2";
-import { streakControlActive, streakEntities } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
+import { streakControlActive, streakEntities } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
 import { touchState } from "../input/touch.js?v=in1-th2";
-import { packageCaptureTime } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
-import { claimPackage } from "../streaks/air.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2";
+import { packageCaptureTime } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
+import { claimPackage } from "../streaks/air.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1";
 import { WeaponState } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2";
 import { CarePackage } from "../streak-entities.js?v=vsat2-hk1";
 import { game } from "../core/state.js?v=st1";
