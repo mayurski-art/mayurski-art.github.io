@@ -9,6 +9,8 @@
 // trollcity.js lists the seats and job spots on the map as `rp`.
 
 import * as THREE from "three";
+import { TUNES } from "./songs.js?v=sg1";
+export { TUNES };
 
 /* The jobs. One player each; `npc` is the townsfolk role that steps off
    when a player takes it. The letter rides the state packet (`rr`). */
@@ -72,50 +74,7 @@ export function posePianoArms(rig, t, seed = 0, playing = true) {
 
 /* --------------------------------------------------------------- tunes */
 
-/* Three originals for the Rusty Grin's upright. Each bar is a chord (two
-   for a split bar) and a melody line of "note beats" pairs; the left hand
-   (a stride bass, or oom-pah-pah in a waltz) is made from the chords. */
-export const TUNES = [
-  {
-    name: "Rusty Grin Rag", bpm: 168, beats: 4,
-    bars: [
-      ["C", "G4 .5 C5 .5 E5 .5 G5 1 E5 .5 C5 1"],
-      ["C", "D5 .5 E5 .5 G5 .5 E5 1 D5 .5 C5 1"],
-      ["F", "A4 .5 C5 .5 F5 .5 A5 1 F5 .5 C5 1"],
-      ["F", "A5 .5 G5 .5 F5 .5 E5 .5 F5 2"],
-      ["C", "E5 .5 G5 .5 C6 1 B5 .5 A5 .5 G5 1"],
-      ["A7", "C#5 .5 E5 .5 A5 1 G5 .5 E5 .5 C#5 1"],
-      ["D7 G7", "D5 .5 F#5 .5 A5 1 G5 .5 F5 .5 D5 1"],
-      ["C", "E5 1 G4 1 C5 2"],
-    ],
-  },
-  {
-    name: "Tumbleweed Waltz", bpm: 150, beats: 3,
-    bars: [
-      ["F", "C5 1 F5 1 A5 1"],
-      ["Bb", "Bb5 2 A5 .5 G5 .5"],
-      ["C7", "G5 1 E5 1 C5 1"],
-      ["F", "F5 2 C5 1"],
-      ["F", "A5 1 C6 1 A5 1"],
-      ["Bb", "D6 1.5 C6 .5 Bb5 1"],
-      ["C7", "A5 1 G5 1 E5 1"],
-      ["F", "F5 3"],
-    ],
-  },
-  {
-    name: "Trollface Two-Step", bpm: 176, beats: 4,
-    bars: [
-      ["G", "B4 .5 D5 .5 G5 .5 D5 .5 B4 .5 D5 .5 G5 1"],
-      ["G", "A5 .5 G5 .5 F#5 .5 G5 .5 B5 2"],
-      ["D7", "A5 .5 F#5 .5 D5 .5 F#5 .5 A5 .5 C6 .5 B5 .5 A5 .5"],
-      ["G", "G5 1 D5 1 G4 2"],
-      ["C", "E5 .5 G5 .5 C6 1 E6 1 C6 1"],
-      ["G", "D6 .5 B5 .5 G5 1 B5 1 D6 1"],
-      ["D7", "C6 .5 A5 .5 F#5 .5 A5 .5 D6 1 C6 1"],
-      ["G", "B5 1 A5 .5 F#5 .5 G5 2"],
-    ],
-  },
-];
+/* The saloon's three originals live in songs.js (the band plays them too). */
 
 const SEMI = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 export function noteMidi(name) {

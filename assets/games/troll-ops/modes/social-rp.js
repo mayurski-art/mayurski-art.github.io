@@ -24,7 +24,7 @@ import { frozenPlayer, setTouchContext } from "../combat/weapons.js?v=wp1-kc2-si
 import { game } from "../core/state.js?v=st1";
 import { padButtonName } from "../menu/controller-layout.js?v=cl7-pd1-or1";
 import { setFireIcon } from "../view/touch-icons.js?v=ti1-zc2";
-import { PianoPanel } from "../menu/piano-panel.js?v=pp1b7-cd1-sh1-dj2-or1";
+import { InstrumentPanel } from "../menu/instrument-panel.js?v=ip1";
 import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1";
 
 export const bar = {
@@ -311,7 +311,7 @@ export function setBarRole(role, note) {
    job steps off while a player has it. */
 export let seated = null;    // { idx, s } while we're sat down
 /* `live`: a voice per pianist for keys played by hand (ours is "me");
-   `panel`: the keys and sheets (menu/piano-panel.js) once we've sat down;
+   `panel`: the keys and sheets (menu/instrument-panel.js) once we've sat down;
    `heard`: notes from the room's pianists (the test reads it). */
 export const piano = { playing: false, tune: 0, played: false, voices: new Map(), t: 0, live: new Map(), panel: null, heard: 0, sent: [] };
 const KEYS_PER_SECOND = 20;
@@ -367,13 +367,13 @@ export function sitDown(idx) {
 
 /* The piano's keys and sheets, made the first time we sit at one. */
 function pianoKeys() {
-  piano.panel ??= new PianoPanel({
+  piano.panel ??= new InstrumentPanel("piano", {
     mount: game.els.hud,
     isTouch: game.isTouch,
     releaseInputs: () => releaseHeldInputs(),
     lock: () => { if (game.gameState === "playing") game.controls.lock(); },
     unlock: () => game.controls.unlock(),
-    onNote: (midi) => playKey(midi),
+    play: (ev) => { if (ev.type === "note") playKey(ev.midi, ev); },
     onAuto: () => togglePiano(),
     autoOn: () => piano.playing,
     onStand: () => standUp(),
@@ -383,9 +383,11 @@ function pianoKeys() {
 }
 
 /* A key we played: heard here at once, sent to the room (at most 20 a
-   second, so a mashed keyboard can't flood it). */
-function playKey(midi) {
+   second, so a mashed keyboard can't flood it). "Hear it" (`preview`)
+   plays here only, at the note's length. */
+function playKey(midi, o = {}) {
   if (!atPiano()) return;
+  if (o.preview) { liveVoice("me", seated.s).strike(midi, o.vel ?? 0.8, 0.9, o.dur ?? 0.8); return; }
   const now = performance.now();
   piano.sent = piano.sent.filter((t) => now - t < 1000);
   if (piano.sent.length >= KEYS_PER_SECOND) return;
