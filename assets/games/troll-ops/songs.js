@@ -48,11 +48,11 @@ export function midiName(m) { return `${NAMES[m % 12]}${Math.floor(m / 12) - 1}`
 
 const QUAL = {
   "": [0, 4, 7], m: [0, 3, 7], 7: [0, 4, 7, 10], m7: [0, 3, 7, 10], maj7: [0, 4, 7, 11],
-  dim: [0, 3, 6], dim7: [0, 3, 6, 9], aug: [0, 4, 8], sus4: [0, 5, 7], 6: [0, 4, 7, 9], m6: [0, 3, 7, 9], 9: [0, 4, 7, 10, 14],
+  dim: [0, 3, 6], dim7: [0, 3, 6, 9], m7b5: [0, 3, 6, 10], aug: [0, 4, 8], sus4: [0, 5, 7], 6: [0, 4, 7, 9], m6: [0, 3, 7, 9], 9: [0, 4, 7, 10, 14],
 };
 /* "Am7", "C/G", "Bb" -> { root (pitch class), bass (pc), tones: [pc...] }, or null. */
 export function chordTones(name) {
-  const m = /^([A-G])(#|b)?(maj7|m7|m6|dim7|dim|aug|sus4|m|7|6|9)?(?:\/([A-G])(#|b)?)?$/.exec(name);
+  const m = /^([A-G])(#|b)?(maj7|m7b5|m7|m6|dim7|dim|aug|sus4|m|7|6|9)?(?:\/([A-G])(#|b)?)?$/.exec(name);
   if (!m) return null;
   const pc = (l, a) => (SEMI[l] + (a === "#" ? 1 : a === "b" ? -1 : 0) + 12) % 12;
   const root = pc(m[1], m[2]);
@@ -279,7 +279,11 @@ export function playNotes(song, kind) {
   const out = [];
   let tied = false;
   staff.bars.forEach((bar, bi) => bar.forEach((ev, ei) => {
-    if (!ev.rest && !tied) out.push({ ev, bar: bi, i: ei, midi: ev.notes[0].midi, at: ev.at, beats: ev.beats, strum: ev.strum || null, chord: ev.chord || null });
+    // a chord in the tune (Clair de Lune's thirds): its top note lights, any of its notes counts
+    if (!ev.rest && !tied) {
+      const midis = ev.notes.map((p) => p.midi);
+      out.push({ ev, bar: bi, i: ei, midi: Math.max(...midis), midis, at: ev.at, beats: ev.beats, strum: ev.strum || null, chord: ev.chord || null });
+    }
     else if (tied && out.length) out[out.length - 1].beats += ev.beats;
     tied = !ev.rest && ev.tie;
   }));
@@ -465,6 +469,180 @@ SONGS.push(
   houseSong(TUNES[0], 0, { piano: "Expert", guitar: "Intermediate", trumpet: "Expert" }),
   houseSong(TUNES[1], 1, { piano: "Intermediate", guitar: "Basic", trumpet: "Intermediate" }),
   houseSong(TUNES[2], 2, { piano: "Expert", guitar: "Intermediate", trumpet: "Expert" }),
+);
+
+/* ======================================================== the library */
+/* BAND.md phase 4 (2026-10-09). Each tune transcribed from a published
+   source (ABC from abcnotation.com / thesession.org, LilyPond from the
+   Mutopia Project, kern-to-ABC of the first editions; noted per song), the
+   opening 8-16 bars, moved into the keys' range where it had to be. Not in
+   (no text source found to check the notes against): Las Mañanitas, La
+   Adelita, La Llorona, Amapola, Malagueña, Reveille, Wabash Blues,
+   Liebestraum No. 3; La Paloma (only a folk variant), Schubert's Ständchen
+   (only a dance setting). Never Havana or Fuerza Regida (copyrighted). */
+const R8 = (chord) => Array(8).fill(`${chord}:.5`).join(" ");
+const R4 = (chord) => Array(4).fill(`${chord}:.5`).join(" ");
+const bachBar = ([a, b, c]) => { const half = `R:.5 ${a}:.25 ${b}:.25 ${c}:.25 ${a}:.25 ${b}:.25 ${c}:.25`; return `${half} ${half}`; };
+SONGS.push(
+  /* ---- the anthem: John Stafford Smith; the opening and "the rockets' red glare" (it.wikipedia score) */
+  { id: "star-spangled-banner", name: "The Star-Spangled Banner", by: "J. S. Smith", bpm: 92, time: "3/4", key: "C", pickup: 1,
+    chords: " | C | C | C:2 D7:1 | G | C | G | C | C | C | C | G | G7 | C | G | C:2 D7:1 | G",
+    melody: "G4:.75 E4:.25 | C4 E4 G4 | C5:2 E5:.75 D5:.25 | C5 E4 F#4 | G4:2 G4:.5 G4:.5 | E5:1.5 D5:.5 C5 | B4:2 A4:.75 B4:.25 | C5 C5 G4 | E4 C4 E5:.5 E5:.5 | E5 F5 G5 | G5:2 F5:.5 E5:.5 | D5 E5 F5 | F5:2 F5 | E5:1.5 D5:.5 C5 | B4:2 A4:.75 B4:.25 | C5 E4 F#4 | G4:3",
+    levels: { piano: "Intermediate", guitar: "Intermediate", trumpet: "Expert" }, lead: "trumpet" },
+
+  /* ---- Latin */
+  // Cielito Lindo (Mendoza y Cortés, 1882), the refrain: trillian.mit.edu/~jc Mexico/Cielito_Lindo
+  { id: "cielito-lindo", name: "Cielito Lindo", by: "Mendoza y Cortés", bpm: 132, time: "3/4", key: "C",
+    chords: "C | C | F | F | F | G7 | C | C | C | C | F | G7 | G7 | G7 | C | C",
+    melody: "E5:3 | D5:2 C5 | A4:3~ | A4:3 | D5:3 | D5:2 C5:.5 C5:.5 | E5 C5:2~ | C5:2 G4 | A4:2 G4 | A4 A4 G4:.5 G4:.5 | F5 F5 D5:1~ | D5 B4 G4 | A4 A4 G4:1~ | G4 F4 G4 | E4:.5 D4:.5 C4:2~ | C4:3",
+    levels: { piano: "Basic", guitar: "Basic", trumpet: "Intermediate" }, lead: "trumpet" },
+  // La Cucaracha (trad.): trillian.mit.edu/~jc mirror of musicaviva, la-cucaracha-1
+  { id: "la-cucaracha", name: "La Cucaracha", by: "trad.", bpm: 168, time: "4/4", key: "D",
+    chords: "D | D | D | A7 | A7 | A7 | A7 | D | D | D | D | A | A7 | A7 | A7 | D",
+    melody: "R:.5 A3 A3:.5 D4:.5 D4:.5 F#4:.5 F#4:.5 | A4:1.5 F#4:1.5 R:1 | R:.5 A4 B4:.5 A4:.5 G4:.5 F#4:.5 A4:.5 | G4:1.5 E4:1.5 R:1 | R:.5 A3 A3:.5 C#4:.5 C#4:.5 E4:.5 E4:.5 | G4:1.5 E4:1.5 R:1 | R:.5 A4 B4:.5 A4:.5 G4:.5 F#4:.5 E4:.5 | D4:2 R:.5 A3:.5 A3:.5 A3:.5 | D4:1.5 F#4:.5 R:.5 A3:.5 A3:.5 A3:.5 | D4:1.5 F#4:1.5 R:1 | R:.5 D4 D4:.5 C#4:.5 C#4:.5 B3:.5 B3:.5 | A3:2 R:.5 A3:.5 A3:.5 A3:.5 | C#4:1.5 E4:.5 R:.5 A3:.5 A3:.5 A3:.5 | C#4:1.5 E4:1.5 R:1 | R:.5 A4 B4:.5 A4:.5 G4:.5 F#4:.5 E4:.5 | D4:2 R:2",
+    levels: { piano: "Basic", guitar: "Basic", trumpet: "Intermediate" }, lead: "trumpet" },
+  // Jarabe Tapatío, the Mexican Hat Dance (trad.): thesession.org tune 25950
+  { id: "jarabe-tapatio", name: "Jarabe Tapatío (the Hat Dance)", by: "trad.", bpm: 112, time: "6/8", key: "G", pickup: 1,
+    chords: " | G | G | D7 | D7 | D7 | D7 | D7 | G",
+    melody: "D5:.5 C#5:.5 | D5:.5 B4:.5 Bb4:.5 B4:.5 G4:.5 F#4:.5 | G4:.5 D4 R:.5 B3:.5 C4:.5 | D4:.5 E4:.5 F#4:.5 G4:.5 A4:.5 B4:.5 | C5:.5 A4 R:.5 C5:.5 B4:.5 | C5:.5 A4:.5 Ab4:.5 A4:.5 F#4:.5 F4:.5 | F#4:.5 D4 R:.5 D5:.5 C5:.5 | D5:.5 E5:.5 D5:.5 C5:.5 B4:.5 A4:.5 | G4 R:1",
+    levels: { piano: "Intermediate", guitar: "Basic", trumpet: "Expert" }, lead: "trumpet" },
+  // La Bamba, the traditional son jarocho (not the 1958 record): Jack Campin, Chalumeau 0300
+  { id: "la-bamba", name: "La Bamba (son jarocho)", by: "trad., Veracruz", bpm: 150, time: "4/4", key: "G",
+    chords: "G:1 C:1 D7:2 | G:1 C:1 D7:2 | G:1 C:1 D7:2 | G:1 C:1 D7:2 | G:1 C:1 D7:2 | G:1 C:1 D7:2 | G:1 C:1 D7:2 | G:1 C:1 D7:2 | G:1 C:1 D7:2 | G:1 C:1 D7:2 | G:1 C:1 D7:2 | G:1 C:1 D7:2 | G:1 C:1 D7:2 | G",
+    melody: "R:.5 C5:.5 C5:.5 C5:.5 C5 C5:.5 B4:.5~ | B4:.5 G4:1.5 R:2 | R:1 C5:.5 C5:.5 C5:.5 C5:.5 C5:.5 C5:.5 | B4:.5 G4 G4:.5 G4 G4:.5 A4:.5~ | A4 F#4:.5 A4:.5 C5:.5 B4:.5 A4:.5 B4:.5~ | B4:.5 G4:.5 R:1 R:2 | R:1 C5:.5 C5:.5 C5:.5 C5:.5 C5:.5 C5:.5 | B4:.5 G4:.5 G4:.5 G4:.5 G4 E4:.5 A4:.5 | A4 F#4:.5 A4:.5 C5:.5 B4:.5 A4:.5 B4:.5~ | B4:.5 G4:.5 R:1 R:2 | R:1 A4:.5 B4:.5 C5:.5 B4:.5 A4:.5 B4:.5~ | B4:.5 G4:.5 R:.5 G4:.5 G4 E4:.5 A4:.5~ | A4 F#4:.5 A4:.5 C5:.5 B4:.5 A4:.5 G4:.5~ | G4 G4 E4 E4:.5 D4:.5",
+    levels: { piano: "Intermediate", guitar: "Intermediate", trumpet: "Intermediate" }, lead: "guitar" },
+  // two originals, in the styles the user asked for (BAND.md: no copyrighted songs)
+  { id: "habanera-del-trollface", name: "Habanera del Trollface", by: "the Rusty Grin (an original)", bpm: 84, time: "2/4", key: "Dm",
+    chords: "Dm | A7 | A7 | Dm | Dm | Gm | A7 | Dm",
+    melody: "A4:.75 Bb4:.25 A4:.5 F4:.5 | E4:.75 F4:.25 G4:.5 A4:.5 | C#5:.75 D5:.25 E5:.5 C#5:.5 | D5:1.5 A4:.5 | A4:.75 Bb4:.25 A4:.5 D5:.5 | Bb4:.75 A4:.25 G4:.5 Bb4:.5 | A4:.5 G4:.25 F4:.25 E4:.5 C#4:.5 | D4:2",
+    lh: "D3:.75 A3:.25 F3:.5 A3:.5 | A2:.75 E3:.25 C#3:.5 G3:.5 | A2:.75 E3:.25 C#3:.5 G3:.5 | D3:.75 A3:.25 F3:.5 A3:.5 | D3:.75 A3:.25 F3:.5 A3:.5 | G2:.75 D3:.25 Bb2:.5 D3:.5 | A2:.75 E3:.25 C#3:.5 G3:.5 | D3:2",
+    levels: { piano: "Intermediate", guitar: "Intermediate", trumpet: "Intermediate" }, lead: "trumpet" },
+  { id: "corrido-del-grin", name: "Corrido del Grin", by: "the Rusty Grin (an original)", bpm: 132, time: "3/4", key: "G",
+    chords: "G | D7 | D7 | G | G | C | D7 | G",
+    melody: "B4:.5 C5:.5 D5 B4 | A4:.5 B4:.5 C5 A4 | F#4:.5 G4:.5 A4 C5 | B4:2 G4 | B4:.5 C5:.5 D5 G5 | E5:.5 D5:.5 C5 E5 | D5:.5 C5:.5 B4 A4 | G4:3",
+    levels: { piano: "Basic", guitar: "Expert", trumpet: "Intermediate" }, lead: "guitar" },
+
+  /* ---- the trumpet's */
+  // Taps: trillian.mit.edu/~jc air/Taps_1 (its two short bars are one here)
+  { id: "taps", name: "Taps", by: "bugle call", bpm: 50, time: "4/4", key: "C", pickup: 1,
+    chords: " | C | C | C | C | C | C | C",
+    melody: "G4:.75 G4:.25 | C5:3 G4:.75 C5:.25 | E5:3 G4:.75 C5:.25 | E5 G4:.75 C5:.25 E5 G4:.75 C5:.25 | E5:3 C5:.75 E5:.25 | G5:3 E5:.75 C5:.25 | G4:3 G4:.75 G4:.25 | C5:3",
+    levels: { piano: "Basic", guitar: "Basic", trumpet: "Basic" }, lead: "trumpet" },
+  // When the Saints: trillian.mit.edu/~jc demo/Tunes/WhenTheSaintsGoMarchingIn
+  { id: "when-the-saints", name: "When the Saints Go Marching In", by: "trad.", bpm: 132, time: "4/4", key: "C", pickup: 3,
+    chords: " | C | C | C | C | C | C | G | G | C | C | F | F | C | F:2 G:2 | C",
+    melody: "C4 E4 F4 | G4:4 | R:1 C4 E4 F4 | G4:4 | R:1 C4 E4 F4 | G4:2 E4:2 | C4:2 E4:2 | D4:4 | R:1 E4 E4 D4 | C4:4 | E4:2 G4:2 | G4 F4:3 | R:2 E4 F4 | G4:2 E4:2 | C4:2 D4:2 | C4:4",
+    levels: { piano: "Basic", guitar: "Basic", trumpet: "Intermediate" }, lead: "trumpet" },
+  // Amazing Grace (New Britain): checked against thesession.org 2749
+  { id: "amazing-grace", name: "Amazing Grace", by: "trad. (New Britain)", bpm: 80, time: "3/4", key: "G", pickup: 1,
+    chords: " | G | G | C | G | G | D | D | D7 | G | G7 | C | G | G | D7 | G",
+    melody: "D4 | G4:2 B4:.5 G4:.5 | B4:2 A4 | G4:2 E4 | D4:2 D4 | G4:2 B4:.5 G4:.5 | B4:2 A4 | D5:3~ | D5:2 B4 | D5:2 B4:.5 G4:.5 | B4:2 A4 | G4:2 E4 | D4:2 D4 | G4:2 B4:.5 G4:.5 | B4:2 A4 | G4:2",
+    levels: { piano: "Basic", guitar: "Basic", trumpet: "Intermediate" }, lead: "trumpet" },
+  // The Carnival of Venice: trillian.mit.edu/~jc Italy/song/Carnival_of_Venice
+  { id: "carnival-of-venice", name: "The Carnival of Venice", by: "trad. (Paganini's theme)", bpm: 120, time: "3/4", key: "F", pickup: 1,
+    chords: " | F | F | C7 | C7 | C7 | C7 | F | F | F | F | C7 | C7 | C7 | C7 | F | F",
+    melody: "C5 | D5:2 C5 | Bb4:2 A4 | Bb4 G4:2~ | G4 G4 A4 | Bb4:2 C5 | D5:2 C5 | A4:3~ | A4:2 C5 | D5:2 C5 | Bb4:2 A4 | Bb4 G4:2~ | G4 G4 A4 | Bb4:2 C5 | D5:2 C5 | F4:3~ | F4:2",
+    levels: { piano: "Intermediate", guitar: "Basic", trumpet: "Expert" }, lead: "trumpet" },
+  // Flight of the Bumblebee (Rimsky-Korsakov), the opening run: thesession.org 8426,
+  // its sixteenths as sixteenths, a tone down onto the keys, its naturals spelt out
+  { id: "bumblebee", name: "Flight of the Bumblebee", by: "Rimsky-Korsakov", bpm: 88, time: "2/4", key: "C", pickup: 1.25,
+    chords: " | D7 | D7 | D7 | D7 | Gm | Gm | Gm | D7",
+    melody: "D#5:.25 D#5:.25 D#5:.25 D#5:.25 D#5:.25 | D5:.25 C#5:.25 C5:.25 B4:.25 A#4:.25 B4:.25 C5:.25 C#5:.25 | D5:.25 C#5:.25 C5:.25 B4:.25 A#4:.25 D#5:.25 D5:.25 C#5:.25 | D5:.25 C#5:.25 C5:.25 B4:.25 A#4:.25 B4:.25 C5:.25 C#5:.25 | D5:.25 C#5:.25 C5:.25 B4:.25 A#4:.25 B4:.25 C5:.25 C#5:.25 | D5:.25 C#5:.25 C5:.25 B4:.25 C5:.25 B4:.25 A#4:.25 A4:.25 | A#4:.25 B4:.25 C5:.25 C#5:.25 D5:.25 D#5:.25 D5:.25 C#5:.25 | D5:.25 C#5:.25 C5:.25 B4:.25 C5:.25 B4:.25 A#4:.25 A4:.25 | A#4:.25 B4:.25 C5:.25 C#5:.25 D5:.25 E5:.25 F5:.25 F#5:.25",
+    levels: { piano: "Expert", guitar: "Intermediate", trumpet: "Expert" }, lead: "trumpet" },
+
+  /* ---- the guitar's */
+  // Red River Valley: trillian.mit.edu/~jc demo/Tunes/RedRiverValley
+  { id: "red-river-valley", name: "Red River Valley", by: "trad.", bpm: 112, time: "4/4", key: "G", pickup: 2,
+    chords: " | G | G | G | G | G | G | D | D | G | G7 | C | C | G | D7 | G | G",
+    melody: "D4 G4 | B4:2 B4 B4 | B4:2 A4 B4 | A4 G4:3~ | G4:2 D4 G4 | B4:2 G4 B4 | D5:2 C5 B4 | A4:4~ | A4:2 D5 C5 | B4:2 B4 A4 | G4:2 A4 B4 | D5 C5:3~ | C5:2 F#4 E4 | D4:2 F#4 G4 | A4:2 B4 A4 | G4:4~ | G4:2",
+    levels: { piano: "Basic", guitar: "Basic", trumpet: "Basic" }, lead: "guitar" },
+  // Oh My Darling, Clementine: trillian.mit.edu/~jc mirror of musicaviva, clementine
+  { id: "clementine", name: "Oh My Darling, Clementine", by: "trad.", bpm: 108, time: "3/4", key: "A", pickup: 1,
+    chords: " | A | A | A | E | E | A | E7 | A",
+    melody: "A4:.75 A4:.25 | A4 E4 C#5:.75 C#5:.25 | C#5 A4 A4:.75 C#5:.25 | E5 E5 D5:.75 C#5:.25 | B4:2 B4:.75 C#5:.25 | D5 D5 C#5:.75 B4:.25 | C#5 A4 A4:.75 C#5:.25 | B4 E4 G#4:.75 B4:.25 | A4:2",
+    levels: { piano: "Basic", guitar: "Basic", trumpet: "Basic" }, lead: "guitar" },
+  // House of the Rising Sun (trad.): trillian.mit.edu/~jc mirror of musicaviva, house-of-the-rising-01
+  { id: "house-of-the-rising-sun", name: "House of the Rising Sun", by: "trad.", bpm: 132, time: "3/4", key: "Dm", pickup: 1,
+    chords: " | Dm | Dm | A7 | Dm | Dm | C7 | F | A7 | Dm | Dm | Dm | Bb7 | Dm | A7 | Dm | Dm",
+    melody: "A4 | D4:2 E4:.5 D4:.5 | F4:2 G4:.5 G#4:.5 | A4:2 F4:.5 E4:.5 | D4:2 A4 | D5:2 A4 | C5:2 A4:.5 G4:.5 | A4:3~ | A4 R:1 A4:.5 A4:.5 | D5:2 D4 | F4:2 G4 | A4:.5 A4:1.5 F4:.5 E4:.5 | D4:2 A4 | A4:2 A4 | A4:.5 A3:1.5 F4:.5 E4:.5 | D4:3~ | D4:2",
+    levels: { piano: "Intermediate", guitar: "Intermediate", trumpet: "Intermediate" }, lead: "guitar" },
+  // Greensleeves: Bruce Olson's B168 (gitlab chrisspen/abc-music, greensleeves_gm)
+  { id: "greensleeves", name: "Greensleeves", by: "trad., 16th c.", bpm: 132, time: "6/4", key: "Gm", pickup: 1,
+    chords: " | Gm | F | Eb | D | Gm | F | Eb:3 D:3 | Gm | Bb | F | Gm | D | Bb | F | Eb:3 D:3 | Gm",
+    melody: "G4 | Bb4:2 C5 D5:1.5 Eb5:.5 D5 | C5:2 A4 F4:1.5 G4:.5 A4 | Bb4:2 G4 G4:1.5 F#4:.5 G4 | A4:2 F#4 D4:2 G4 | Bb4:2 C5 D5:1.5 Eb5:.5 D5 | C5:2 A4 F4:1.5 G4:.5 A4 | Bb4:1.5 A4:.5 G4 F#4:1.5 E4:.5 F#4 | G4:3 D4:3 | F5:3 F5:2 E5:.5 D5:.5 | C5:2 A4 F4:1.5 G4:.5 A4 | Bb4:2 G4 G4:1.5 F#4:.5 G4 | A4:2 F#4 D4:3 | F5:3 F5:2 E5:.5 D5:.5 | C5:2 A4 F4:1.5 G4:.5 A4 | Bb4:2 G4 F#4:1.5 E4:.5 F#4 | G4:3 G4:2",
+    levels: { piano: "Intermediate", guitar: "Intermediate", trumpet: "Intermediate" }, lead: "guitar" },
+  // Romance Anónimo: the melody (the top of each triplet), Mutopia spanish-romance, an octave down
+  { id: "romance-anonimo", name: "Romance Anónimo (Spanish Romance)", by: "anon.", bpm: 72, time: "3/4", key: "Em",
+    chords: "Em | Em | Em | Em | Am | Am | D7 | G | B7 | B7 | Em | Em | B7 | B7 | Em | Em",
+    melody: "B4 B4 B4 | B4 A4 G4 | G4 F#4 E4 | E4 G4 B4 | E5 E5 E5 | E5 D5 C5 | C5 B4 A4 | A4 B4 C5 | B4 C5 B4 | D#5 C5 B4 | B4 A4 G4 | G4 F#4 E4 | F#4 F#4 F#4 | F#4 G4 F#4 | E4 E4 E4 | E4:2 R:1",
+    levels: { piano: "Intermediate", guitar: "Expert", trumpet: "Basic" }, lead: "guitar" },
+
+  /* ---- the piano's */
+  // Minuet in G (Petzold, BWV Anh. 114): spuds.thursdaycontra.com TuneSwap 0470, V:1 and its bass
+  { id: "minuet-in-g", name: "Minuet in G", by: "Petzold", bpm: 112, time: "3/4", key: "G",
+    chords: "G | G | C | G | Am | G | D:1 G:2 | D | G | G | C | G | Am | G | D:1 G:1 D:1 | G",
+    melody: "D5 G4:.5 A4:.5 B4:.5 C5:.5 | D5 G4 G4 | E5 C5:.5 D5:.5 E5:.5 F#5:.5 | G5 G4 G4 | C5 D5:.5 C5:.5 B4:.5 A4:.5 | B4 C5:.5 B4:.5 A4:.5 G4:.5 | F#4 G4:.5 A4:.5 B4:.5 G4:.5 | A4:3 | D5 G4:.5 A4:.5 B4:.5 C5:.5 | D5 G4 G4 | E5 C5:.5 D5:.5 E5:.5 F#5:.5 | G5 G4 G4 | C5 D5:.5 C5:.5 B4:.5 A4:.5 | B4 C5:.5 B4:.5 A4:.5 G4:.5 | A4 B4:.5 A4:.5 G4:.5 F#4:.5 | G4:3",
+    lh: "[B2 D3]:2 A2 | B2:3 | C3:3 | B2:3 | A2:3 | G2:3 | D3 B2 G2 | D3 D2:.5 C3:.5 B2:.5 A2:.5 | [B2 D3]:2 A2 | B2:3 | C3:3 | B2:3 | A2:3 | G2:3 | C3 D3 D2 | G2:3",
+    levels: { piano: "Intermediate", guitar: "Basic", trumpet: "Intermediate" }, lead: "piano" },
+  // Moonlight Sonata, 1st movement, bars 1-9: ifdo.ca kern2abc beethoven_sonatas (the
+  // triplets held as chords: a triplet can't be one line of the keys)
+  { id: "moonlight-sonata", name: "Moonlight Sonata (1st mvt)", by: "Beethoven", bpm: 54, time: "4/4", key: "C#m",
+    chords: "C#m | C#m/B | A:2 D/F#:2 | G#7:2 C#m/G#:1 G#7:1 | C#m | G#7/B# | C#m:2 F#m:2 | E/B:2 B7:2 | E",
+    melody: "R:4 | R:4 | R:4 | R:4 | R:3 G#4:.75 G#4:.25 | G#4:3 G#4:.75 G#4:.25 | G#4:2 A4:2 | G#4:2 F#4 B4 | E4 R:3",
+    lh: "[C#3 G#3 C#4 E4]:4 | [B2 G#3 C#4 E4]:4 | [A2 A3 C#4 E4]:2 [F#2 A3 D4 F#4]:2 | [G#2 G#3 B#3 F#4]:2 [G#2 G#3 C#4 E4]:1 [G#2 F#3 B#3 D#4]:1 | [C#3 G#3 C#4 E4]:4 | [B#2 G#3 D#4 F#4]:4 | [C#3 G#3 C#4 E4]:2 [F#2 A3 C#4 F#4]:2 | [B2 G#3 B3 E4]:2 [B2 A3 B3 D#4]:2 | [E2 G#3 B3 E4]:4",
+    levels: { piano: "Expert", guitar: "Intermediate", trumpet: "Intermediate" }, lead: "piano" },
+  // Maple Leaf Rag, A strain: John Chambers' lead sheet (in G); bars 7-8's climb an octave down onto the keys
+  { id: "maple-leaf-rag", name: "Maple Leaf Rag", by: "Joplin", bpm: 96, time: "4/4", key: "G",
+    chords: "G | D7 | G | D7 | Eb:2 D:2 | Eb:2 D:2 | Gm | Gm | Eb | G | Eb:2 G:2 | D7:2 G:2",
+    melody: "R:.5 G4:.5 D5:.5 G4:.5 B4:.5 D5 G4:.5 | D5:.5 F#4:.5 A4:.5 D5:.5~ D5:2 | R:.5 G4:.5 D5:.5 G4:.5 B4:.5 D5 G4:.5 | D5:.5 F#4:.5 A4:.5 D5:.5~ D5:2 | R:.5 G4:.5 Bb4:.5 Eb5:.5 R:.5 D5 D5:.5 | R:.5 G4:.5 Bb4:.5 Eb5:.5 R:.5 D5:1.5 | G3:.5 Bb3:.5 D4:.5 G4:.5 Bb3:.5 D4:.5 G4:.5 Bb4:.5 | D4:.5 G4:.5 Bb4:.5 D5:.5 G4:.5 Bb4:.5 D5:.5 G5:.5 | G5 G5 G5 G5:.5 G5:.5~ | G5:.5 D5:.5 E5:.5 B4:.5 D5:.5 E5:1.5 | G4:.5 A4:.5 Bb4:.5 G4:.5 A4:.5 B4 G4:.5 | B4:.5 G4:.5 A4 G4 R:1",
+    levels: { piano: "Expert", guitar: "Intermediate", trumpet: "Expert" }, lead: "piano" },
+
+  /* ---- from the user's playlist ("The Most Beautiful Piano Pieces"), the public-domain ones */
+  // Silent Night (Gruber): pghardy.net xmas tunebook 0051
+  { id: "silent-night", name: "Silent Night", by: "Gruber", bpm: 60, time: "6/8", key: "C",
+    chords: "C | C | G | C | F | C | F | C | G7 | C | C:1.5 G7:1.5 | C",
+    melody: "G4:.75 A4:.25 G4:.5 E4:1.5 | G4:.75 A4:.25 G4:.5 E4 R:.5 | D5 D5:.5 B4:1.5 | C5 C5:.5 G4 R:.5 | A4 A4:.5 C5:.75 B4:.25 A4:.5 | G4:.75 A4:.25 G4:.5 E4 R:.5 | A4 A4:.5 C5:.75 B4:.25 A4:.5 | G4:.75 A4:.25 G4:.5 E4 R:.5 | D5 D5:.5 F5:.75 D5:.25 B4:.5 | C5:1.5 E5 R:.5 | C5:.5 G4:.5 E4:.5 G4:.75 F4:.25 D4:.5 | C4:3",
+    levels: { piano: "Basic", guitar: "Basic", trumpet: "Basic" }, lead: "piano" },
+  // Gymnopédie No. 1 (Satie): colinhume.com 0566, an octave down; the left hand his bass-chord-chord
+  { id: "gymnopedie-1", name: "Gymnopédie No. 1", by: "Satie", bpm: 70, time: "3/4", key: "D",
+    chords: "Gmaj7 | Dmaj7 | Gmaj7 | Dmaj7 | Gmaj7 | Dmaj7 | Gmaj7 | Dmaj7 | Gmaj7 | Dmaj7 | Gmaj7 | Dmaj7 | Gmaj7 | Dmaj7 | Gmaj7 | Dmaj7 | Gmaj7",
+    melody: "R:1 F#4 A4 | G4 F#4 C#4 | B3 C#4 D4 | A3:3 | F#3:3~ | F#3:3~ | F#3:3~ | F#3:3 | R:1 F#4 A4 | G4 F#4 C#4 | B3 C#4 D4 | A3:3 | C#4:3 | F#4:3 | E3:3~ | E3:3~ | E3:3",
+    levels: { piano: "Intermediate", guitar: "Intermediate", trumpet: "Basic" }, lead: "piano" },
+  // Gnossienne No. 1 (Satie): colinhume.com 0525 (in E minor)
+  { id: "gnossienne-1", name: "Gnossienne No. 1", by: "Satie", bpm: 100, time: "4/4", key: "Em",
+    chords: "Em | Em | Em | Em | Em | Em | Bm | Em | Em",
+    melody: "R:1 B4:.5 D5:.5 C#5 B4 | A#4:2 A#4:2 | R:1 B4:.5 D5:.5 C#5 B4 | E5:2 E5:2 | R:1 B4:.5 D5:.5 C#5 B4 | A#4:2 F#4:2 | F#4 F#4:2.5 R:.5 | F#4 E4:3~ | E4:4",
+    levels: { piano: "Intermediate", guitar: "Basic", trumpet: "Intermediate" }, lead: "piano" },
+  // Prelude in C, BWV 846 (Bach), bars 1-8: Mutopia wtk1-prelude1 (at the pitch it's played)
+  { id: "bach-prelude-c", name: "Prelude in C (BWV 846)", by: "J. S. Bach", bpm: 66, time: "4/4", key: "C",
+    chords: "C | Dm7/C | G7/B | C | Am/C | D7/C | G/B | Cmaj7/B",
+    melody: [["G3", "C4", "E4"], ["A3", "D4", "F4"], ["G3", "D4", "F4"], ["G3", "C4", "E4"], ["A3", "E4", "A4"], ["F#3", "A3", "D4"], ["G3", "D4", "G4"], ["E3", "G3", "C4"]].map(bachBar).join(" | "),
+    lh: "[C3 E3]:2 [C3 E3]:2 | [C3 D3]:2 [C3 D3]:2 | [B2 D3]:2 [B2 D3]:2 | [C3 E3]:2 [C3 E3]:2 | [C3 E3]:2 [C3 E3]:2 | [C3 D3]:2 [C3 D3]:2 | [B2 D3]:2 [B2 D3]:2 | [B2 C3]:2 [B2 C3]:2",
+    levels: { piano: "Intermediate", guitar: "Expert", trumpet: "Expert" }, lead: "piano" },
+  // Prelude in E minor, Op. 28 No. 4 (Chopin), bars 1-8: ifdo.ca kern2abc, the first edition
+  { id: "chopin-prelude-e-minor", name: "Prelude in E minor (Op. 28 No. 4)", by: "Chopin", bpm: 63, time: "4/4", key: "Em", pickup: 1,
+    chords: " | Em | F#m7b5:2 B7:2 | F7:2 Dm:1 E7/D:1 | E7:2 Em7:1 A7/E:1 | C/E | D7/E:2 B7/D#:2 | D7 | G7/D",
+    melody: "B3:.75 B4:.25 | B4:3 C5 | B4:3 C5 | B4:3 C5 | B4:3 Bb4 | A4:3 B4 | A4:3 B4 | A4:3 B4:.75 A4:.25 | A4:3 G#4",
+    lh: `R:1 | ${R8("[G3 B3 E4]")} | ${R4("[F#3 A3 E4]")} ${R4("[F#3 A3 Eb4]")} | ${R4("[F3 A3 Eb4]")} [F3 A3 D4]:.5 [F3 A3 D4]:.5 [F3 G#3 D4]:.5 [F3 G#3 D4]:.5 | ${R4("[E3 G#3 D4]")} [E3 G3 D4]:.5 [E3 G3 D4]:.5 [E3 G3 C#4]:.5 [E3 G3 C#4]:.5 | ${R4("[E3 G3 C4]")} ${R4("[E3 F#3 C4]")} | ${R4("[E3 F#3 C4]")} ${R4("[D#3 F#3 C4]")} | ${R8("[D3 F#3 C4]")} | ${R4("[D3 F3 C4]")} ${R4("[D3 F3 B3]")}`,
+    levels: { piano: "Intermediate", guitar: "Intermediate", trumpet: "Basic" }, lead: "piano" },
+  // Clair de Lune (Debussy), bars 1-8, the right hand's top line and its thirds:
+  // Mutopia debussy_Ste_Bergamesq_Clair, an octave down onto the keys
+  { id: "clair-de-lune", name: "Clair de Lune", by: "Debussy", bpm: 60, time: "9/8", key: "Db",
+    chords: "Db | Gbm/Db | Db | Ab/C | Db:3 C7:1.5 | Bbm:3 F7/A:1.5 | Ab:3 Gb:1.5 | Fm:3 Eb7:1.5",
+    melody: "R:.5 [F3 Ab3]:.5 [F4 Ab4]:2 [Db4 F4]:1.5~ | [Db4 F4]:.5 [C4 Eb4]:.5 [Db4 F4]:.5 [C4 Eb4]:3~ | [C4 Eb4]:.5 [Bb3 Db4]:.5 [C4 Eb4]:.5 Db4:.75 F4:.75~ F4:.75 Db4:.75~ | Db4:.5 [Ab3 C4]:.5 [Bb3 Db4]:.5 [Ab3 C4]:3~ | C4:.5 Bb3:.5 C4:.5 Bb3:.5 Eb4:.5 Bb3:.5 Ab3:.5 Bb3:.5 Ab3:.5~ | Ab3:.5 Gb3:.5 Ab3:.5 Gb3:1.5 F3:1.5~ | F3:.5 F3:.5 Gb3:.5 F3:.5 Bb3:.5 F3:.5 Eb3:.5 F3:.5 Eb3:.5~ | Eb3:.5 Db3:.5 Eb3:.5 Db3:1.5 C3:1.5",
+    lh: "R:4.5 | R:4.5 | R:4.5 | R:4.5 | Db3:3 C3:1.5 | Bb2:3 A2:1.5 | Ab2:3 Gb2:1.5 | F2:3 Eb2:1.5",
+    levels: { piano: "Expert", guitar: "Intermediate", trumpet: "Intermediate" }, lead: "piano" },
+  // Nocturne Op. 9 No. 2 (Chopin), bars 1-3: ifdo.ca kern2abc, the first edition (its
+  // bar 4 run reads ambiguously in the source, so it stops before it), an octave down
+  { id: "chopin-nocturne-op9-2", name: "Nocturne (Op. 9 No. 2)", by: "Chopin", bpm: 69, time: "12/8", key: "Eb", pickup: 0.5,
+    chords: " | Eb:3 Ab/Eb:3 | C7:3 Fm:3 | Bb7:3 Eb:1.5 Cm:1.5",
+    melody: "Bb3:.5 | G4:2 F4:.5 G4:.5 F4:1.5 Eb4 Bb3:.5 | G4 C4:.5 C5 G4:.5 Bb4:1.5 Ab4 G4:.5 | F4:1.5 G4 D4:.5 Eb4:1.5 C4:1.5",
+    levels: { piano: "Expert", guitar: "Intermediate", trumpet: "Expert" }, lead: "piano" },
+  // Rondo alla Turca (Mozart, K. 331), the opening: ifdo.ca kern2abc mozart_sonatas, an octave down
+  { id: "rondo-alla-turca", name: "Rondo alla Turca", by: "Mozart", bpm: 116, time: "2/4", key: "Am", pickup: 1,
+    chords: " | Am | Am | Am | Am | E | E | E | E",
+    melody: "B3:.25 A3:.25 G#3:.25 A3:.25 | C4:.5 R:.5 D4:.25 C4:.25 B3:.25 C4:.25 | E4:.5 R:.5 F4:.25 E4:.25 D#4:.25 E4:.25 | B4:.25 A4:.25 G#4:.25 A4:.25 B4:.25 A4:.25 G#4:.25 A4:.25 | C5 A4:.5 C5:.5 | B4:.5 [F#4 A4]:.5 [E4 G4]:.5 [F#4 A4]:.5 | B4:.5 [F#4 A4]:.5 [E4 G4]:.5 [F#4 A4]:.5 | B4:.5 [F#4 A4]:.5 [E4 G4]:.5 [D#4 F#4]:.5 | E4",
+    levels: { piano: "Expert", guitar: "Intermediate", trumpet: "Expert" }, lead: "piano" },
 );
 
 /* The songs listed under `level` for `kind` (by that instrument's part). */

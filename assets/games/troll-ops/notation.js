@@ -104,11 +104,18 @@ function restSvg(beats, x, top) {
 /* A staff's events as drawn: long notes that one note can't show become
    tied pieces; `play` is the playNotes() index of a played note's first
    piece (or -1). */
-function displayEvents(staff) {
+function displayEvents(staff, barBeats) {
   const bars = [];
   let idx = 0, tiedPrev = false;
   for (const bar of staff.bars) {
     const out = [];
+    // a bar of nothing: one whole-bar rest, whatever the metre (as scores do)
+    if (bar.length === 1 && bar[0].rest && Math.abs(bar[0].beats - barBeats) < 1e-6) {
+      out.push({ ...bar[0], tie: false, play: -1, cont: false, full: true });
+      bars.push(out);
+      tiedPrev = false;
+      continue;
+    }
     for (const ev of bar) {
       const pieces = [4, 3, 2, 1.5, 1, 0.75, 0.5, 0.25].some((d) => Math.abs(d - ev.beats) < 1e-6) ? [ev.beats] : (splitBeats(ev.beats) || [ev.beats]);
       let at = ev.at;
@@ -134,7 +141,7 @@ export function scoreSvg(song, kind) {
   const P = songParts(song);
   const level = song.levels[kind];
   const staves = kind === "piano" ? [P.parts.piano.rh, P.parts.piano.lh] : [P.parts[kind]];
-  const drawn = staves.map(displayEvents);
+  const drawn = staves.map((st) => displayEvents(st, P.meter.barBeats));
   const m = P.meter;
   const alter = keyAlter(song.key);
   const keyN = Math.abs(KEY_COUNT[song.key] ?? 0);
@@ -308,7 +315,7 @@ function barSvg(evs, clef, top, xs, alter, o) {
 
   evs.forEach((e, i) => {
     const x = xs(e.at);
-    if (e.rest) { s += restSvg(e.beats, x, top); return; }
+    if (e.rest) { s += e.full ? restSvg(4, x + (xs(e.at + e.beats) - x) / 2 - 7, top) : restSvg(e.beats, x, top); return; }
     const I = info[i];
     const hollow = e.beats >= 1.99;
     const dotted = [3, 1.5, 0.75].some((d) => Math.abs(d - e.beats) < 1e-6);

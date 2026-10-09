@@ -59,8 +59,11 @@ for (const s of S.SONGS) {
   }
 }
 check(`every part of every song draws (${drawn} parts)`, problems.length === 0, problems.slice(0, 8).join(" | "));
-check("the anthem, the Latin standards and the asked-for pieces are in", ["star-spangled-banner", "la-paloma", "cielito-lindo", "malaguena", "wabash-blues", "clair-de-lune", "silent-night"].every((id) => S.SONGS.some((s) => s.id === id)) || S.SONGS.length < 20,
-  S.SONGS.length < 20 ? "library not loaded yet (phase 4)" : "");
+const WANT = ["star-spangled-banner", "cielito-lindo", "la-cucaracha", "jarabe-tapatio", "la-bamba", "habanera-del-trollface", "corrido-del-grin",
+  "clair-de-lune", "chopin-nocturne-op9-2", "moonlight-sonata", "gymnopedie-1", "bach-prelude-c", "chopin-prelude-e-minor", "rondo-alla-turca", "gnossienne-1", "silent-night"];
+const missing = WANT.filter((id) => !S.SONGS.some((s) => s.id === id));
+check("the anthem, the Latin songs and the playlist pieces are in", !missing.length, missing.join(", "));
+check("nothing copyrighted by name", !S.SONGS.some((s) => /havana|fuerza|regida|einaudi|yiruma/i.test(s.name + s.by)));
 for (const kind of S.INSTRUMENTS) {
   const per = S.LEVELS.map((l) => S.songsFor(kind, l).length);
   check(`${kind}: songs at every level`, per.every((n) => n > 0), per.join(" / "));

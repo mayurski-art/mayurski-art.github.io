@@ -100,7 +100,7 @@ export class InstrumentPanel {
     this.h.play({ type: "note", midi: sound });
     this.hits++;
     this._flash(this.ui.keys.get(midi));
-    this._judge((want) => !want.strum && want.midi === midi);
+    this._judge((want) => !want.strum && (want.midis || [want.midi]).includes(midi));
   }
   /* The trumpet: the key's up, the note stops (unless another's held). */
   release(midi) {
