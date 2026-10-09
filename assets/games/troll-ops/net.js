@@ -127,6 +127,7 @@ export class Net {
     // Trolling Loud's door (modes/club-entry.js keeps these current): the
     // wristband tier, the line ticket, the door phase "phase:lane:seconds".
     this.club = { wb: 0, cq: 0, ce: null };
+    this.trainAt = null;   // riding the Grin Express (modes/social-train.js)
     this._acc = 0;
     this._out = [];
     this._flushT = null;
@@ -341,6 +342,7 @@ export class Net {
         p.cq = Number.isFinite(+m.cq) ? +m.cq : 0;
         p.ce = typeof m.ce === "string" ? m.ce.slice(0, 24) : null;
         p.throwCk = typeof m.ck === "string" ? m.ck.slice(0, 16) : null;   // a grenade in hand (combat/throw-anim.js)
+        p.trainAt = typeof m.tc === "string" ? m.tc.slice(0, 24) : null;   // riding the Grin Express (modes/social-train.js)
         p.body = typeof m.bd === "string" ? m.bd.slice(0, 16) : null;   // a realistic body (cop-bodies.js)
         if (m.bs != null) p.botSkill = BOT_SKILLS[m.bs | 0] || null;   // only bots carry it
         // keep a short history so the renderer can interpolate in the past
@@ -514,6 +516,7 @@ export class Net {
         se: local.seat || undefined, pn: local.piano || undefined,
         wb: this.club.wb || undefined, cq: this.club.cq || undefined, ce: this.club.ce || undefined,   // the club door
         ck: local.throwCk || undefined,   // throw phase:deciseconds:kind
+        tc: this.trainAt || undefined,   // on the Grin Express: car:x:z, car-local (modes/social-train.js sets it)
       });
     }
     this.prune();

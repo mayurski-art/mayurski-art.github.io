@@ -19,7 +19,7 @@ import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3g-nf-wst-ig1
 import { applyCopBody, syncCopBody } from "./cop-bodies.js?v=cb2-sb2c2m1";
 import { playerIconCanvas } from "./rank-icons.js?v=rk1";
 import { buildDrink, drinkFromCode, drinkMax, FILL_TIME, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7-cup1";
-import { poseSeated, posePianoArms, roleLabel } from "./rp-roles.js?v=rp1b7";
+import { poseSeated, posePianoArms, roleLabel } from "./rp-roles.js?v=rp1b7-cd1";
 
 /* Socialize seats: game.js hands over the map's seat list (rp.seats), so a
    peer's `seat` (index + 1) can be looked up for its height and kind. */
@@ -98,6 +98,11 @@ function poseDuelPeer(rig, peer) {
    door) add `fn(remotePlayer, dt)` here; each runs after the peer's pose,
    every frame. */
 export const peerPosers = [];
+/* ...and modes that know better where a peer is than the 110 ms-old
+   snapshots (modes/social-train.js: a rider stays on their car's deck)
+   add `fn(remotePlayer)`; each runs right after the position is
+   interpolated, before anything is posed there. */
+export const peerPlacers = [];
 
 /* Troll Royale's drop on any rig (you, bots, peers). `state` is the wire's
    `dr`: 2 = freefall, belly down, arms and legs spread, a flutter in the
@@ -614,6 +619,7 @@ export class RemotePlayer {
     this.yaw = lerpAngle(a.yaw, b.yaw, k);
     this.pitch = a.pitch + (b.pitch - a.pitch) * k;
     this.stance = b.stance;
+    for (const f of peerPlacers) f(this);
 
     // Troll Royale's drop: nobody's drawn riding the bus (they're inside
     // it); in the air they skydive, then hang under a glider.
