@@ -7,6 +7,9 @@
 //
 // Usage: node tools/troll-ops-cache-cascade.mjs --suffix ar1 [--base origin/main] [--dry]
 //   [--seed path ...]   (extra changed modules; default: git diff --name-only <base>)
+//   [--unify]           (then put every importer of a split module on its
+//                        longest tag carrying the suffix: after a merge
+//                        took main's side of tag-only conflicts)
 // Run it after merging main, right before the gate.
 
 import fs from "node:fs";
@@ -79,7 +82,24 @@ for (const f of files) for (const m of text.get(f).matchAll(IMPORT)) {
   if (!by.has(t)) by.set(t, []);
   by.get(t).push(rel(f));
 }
-const split = [...tags].filter(([, by]) => by.size > 1);
+let split = [...tags].filter(([, by]) => by.size > 1);
+if (argv.includes("--unify") && !dry) {
+  let fixed = 0;
+  for (const [mod, by] of split) {
+    const ts = [...by.keys()];
+    if (ts.includes("(none)") || !ts.every(tagged)) continue;
+    const want = ts.reduce((x, y) => (y.length > x.length ? y : x));
+    for (const f of [...new Set([...by.values()].flat())]) {
+      const file = path.join(ROOT, f), before = fs.readFileSync(file, "utf8");
+      const after = before.replace(IMPORT, (m, pre, q, spec, tag) =>
+        rel(resolve(file, spec)) === mod && tag && tag.slice(3) !== want ? (fixed++, `${pre}${q}${spec}?v=${want}${q}`) : m);
+      if (after !== before) fs.writeFileSync(file, after);
+    }
+    by.clear(); by.set(want, []);
+  }
+  console.log(`unified ${fixed} import tags`);
+  split = [...tags].filter(([, by]) => by.size > 1);
+}
 console.log(split.length ? `\n${split.length} modules imported under more than one tag:` : "\nevery module has one tag across its importers");
 for (const [mod, by] of split) {
   console.log("  " + mod);
