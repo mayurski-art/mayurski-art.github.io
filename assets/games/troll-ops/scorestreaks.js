@@ -11,6 +11,14 @@
 // those three.
 
 import { rankUnlocked } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2";
+import { hasPerk, PERK_TUNE } from "./perks.js?v=pk1";
+
+/* What a streak costs you this life: Hardline (perks.js) takes 20% off,
+   rounded to 10. Bots pay the list price (streaks/bot-streaks.js). */
+export function costFor(id) {
+  const cost = STREAK_DEFS[id]?.cost ?? Infinity;
+  return hasPerk("hardline") ? Math.round((cost * PERK_TUNE.hardlineCost) / 10) * 10 : cost;
+}
 
 /* Deliberately not progression.js's XP table. Reaching for the wrong one is
    the likeliest bug in this system, so the shapes stay distinct. */
@@ -277,7 +285,7 @@ export class StreakState {
 
     const earned = [];
     for (const id of this.selected) {
-      const cost = STREAK_DEFS[id].cost;
+      const cost = costFor(id);
       // Only fires on the frame the threshold is crossed, and only while
       // nothing is already banked — otherwise holding a call re-announces it
       // on every subsequent kill.
@@ -314,7 +322,7 @@ export class StreakState {
     if (this.charges[id] <= 0) delete this.charges[id];
     // A care package's streak was a gift: calling it doesn't touch the meter.
     if (this.gifted[id] > 0) { this.gifted[id] -= 1; return true; }
-    this.score = Math.max(0, this.score - STREAK_DEFS[id].cost);
+    this.score = Math.max(0, this.score - costFor(id));
     return true;
   }
 
@@ -328,7 +336,7 @@ export class StreakState {
       if (!next || def.cost < STREAK_DEFS[next].cost) next = id;
     }
     if (!next) return null;
-    const cost = STREAK_DEFS[next].cost;
+    const cost = costFor(next);
     return { id: next, cost, frac: Math.min(1, this.score / cost) };
   }
 }

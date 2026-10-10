@@ -5,7 +5,7 @@
 import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
 import * as THREE from "three";
 import { flinchRigFrom } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
-import { streaksAllowed, STREAK_DEFS, streakBadgeSvg, streakShortName } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2";
+import { streaksAllowed, STREAK_DEFS, streakBadgeSvg, streakShortName, costFor } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2";
 import { game } from "./state.js?v=st1";
 
 
@@ -331,7 +331,7 @@ export function updateStreakHud() {
       const sub = document.createElement("span");
       sub.textContent = lock ? `${game.streakLockWhy[id] === "jammed" ? "JAMMED" : "COOLDOWN"} ${lock}s`
         : skyBlocked ? game.DF_BLOCK_TEXT[dfWhy]
-        : ready ? (game.isTouch ? "READY · TAP" : `READY · ${onPad ? "→" : game.streakKeyLabel(id)}`) : `${def.cost}`;
+        : ready ? (game.isTouch ? "READY · TAP" : `READY · ${onPad ? "→" : game.streakKeyLabel(id)}`) : `${costFor(id)}`;
       cap.append(nm, sub);
       row.appendChild(cap);
       if (skyBlocked) {
@@ -341,7 +341,7 @@ export function updateStreakHud() {
         tag.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M4 4l16 16"/></svg>`;
         row.appendChild(tag);
       }
-      row.title = `${def.name}${skyBlocked ? ` (${dfWhy === "covered" ? "needs open sky overhead" : "too confined here"}: get outside)` : ""}${lock ? ` (${game.streakLockWhy[id] === "jammed" ? "jammed" : "cooldown"}, ${lock}s)` : ready ? " (ready)" : `: ${def.cost}`}`;
+      row.title = `${def.name}${skyBlocked ? ` (${dfWhy === "covered" ? "needs open sky overhead" : "too confined here"}: get outside)` : ""}${lock ? ` (${game.streakLockWhy[id] === "jammed" ? "jammed" : "cooldown"}, ${lock}s)` : ready ? " (ready)" : `: ${costFor(id)}`}`;
       if (!row.hasAttribute("aria-label")) row.setAttribute("aria-label", row.title);
       game.els.ssSlots.appendChild(row);
     });
