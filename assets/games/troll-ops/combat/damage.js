@@ -12,6 +12,7 @@ import { INFECTION } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-w
 import { killcamSelfId, startKillcamPresentation, endKillcamPresentation } from "./killcam-present.js?v=kp2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
 import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
 import { game } from "../core/state.js?v=st1";
+import { carryClassPerks } from "./perk-carry.js?v=pk1";
 
 /* Who has hurt us lately, and how much. The shooter's client already sends
    dmg / headshot / weapon with every hit — we were throwing all of it away.
@@ -259,6 +260,7 @@ export function respawnPlayer() {
     streaks.setSelected(streakPicker.selected);
   }
   game.setActiveWeaponMesh(game.equipFromLoadout());
+  carryClassPerks();
   game.warmNewGuns();
   game.applyInfectionLoadout();
   game.els.respawn.hidden = true;

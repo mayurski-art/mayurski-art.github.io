@@ -810,6 +810,27 @@ body.to-social:not(.to-social-armed) #to-touch-interact { display: none !importa
 }
 .to-hud-timer.is-visible { opacity: 1; }
 
+/* BO2's spawn card: the class you're carrying and its perks, 3 s on each
+   spawn (combat/perk-carry.js). */
+.to-perk-card {
+  position: absolute; top: 18%; left: 50%; transform: translate(-50%, -6px);
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  pointer-events: none; opacity: 0; transition: opacity .35s, transform .35s;
+  font-family: "Oswald", sans-serif; text-shadow: 0 2px 8px rgba(0,0,0,.7);
+}
+.to-perk-card.is-visible { opacity: 1; transform: translate(-50%, 0); }
+.to-perk-card b { font-size: 18px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #f3f1e6; }
+.to-perk-card div { display: flex; gap: 14px; }
+.to-perk-card span {
+  display: flex; align-items: center; gap: 6px; font-size: 14px; letter-spacing: .04em;
+  text-transform: uppercase; color: #e6e4d8;
+}
+.to-perk-card svg {
+  width: 26px; height: 26px; padding: 4px; border-radius: 6px; color: #0d1410;
+  background: var(--perk); box-shadow: 0 2px 8px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.35);
+}
+@media (max-width: 760px) { .to-perk-card { top: 14%; } .to-perk-card div { gap: 8px; } .to-perk-card span { font-size: 12px; } }
+
 .to-crosshair {
   position: absolute; top: 50%; left: 50%; width: 26px; height: 26px;
   transform: translate(-50%,-50%);

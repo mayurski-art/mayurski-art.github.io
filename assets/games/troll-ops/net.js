@@ -324,6 +324,7 @@ export class Net {
         p.clan = typeof m.cl === "string" ? m.cl.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4) : "";
         p.card = typeof m.cc === "string" ? m.cc.slice(0, 32) : null;
         p.swivel = m.sv | 0;
+        p.perks = m.pk | 0;
         // Third-person reload: progress and length; the RemotePlayer runs it on.
         p.reload = Math.max(0, Math.min(1, +m.rl || 0));
         p.reloadTime = +m.rt || 2.3;
@@ -525,6 +526,7 @@ export class Net {
         // (1, or 2 being arrested by the town), the cell we're in + 1, the
         // sheriff's wanted board ("id:crime;...")
         cf: this.cuff || undefined, jl: this.jail || undefined, wl: this.wanted || undefined,
+        pk: this.perks || undefined,   // perks others must know about (perks.js WIRE_PERKS bits; combat/perk-carry.js sets it)
       });
     }
     this.prune();

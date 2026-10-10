@@ -12,6 +12,7 @@ import { returnToSocial, cancelSocialReturn } from "../modes/social.js?v=so1-si1
 import { piano } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1";
 import { clubAskOpen } from "../modes/club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1";
 import { game } from "../core/state.js?v=st1";
+import { dropPerks } from "../combat/perk-carry.js?v=pk1";
 
 export function initMenuButtons() {
   game.els.startBtn.addEventListener("click", game.startGame);
@@ -39,6 +40,7 @@ export function initMenuButtons() {
       game.player.matchXp = 0;
     }
     game.gameState = "menu";
+    dropPerks();
     if (game.modeId === "view") game.modeId = game.viewPrevMode || "ops";
     // Left a Socialize room (maybe mid owner-started match): the lobby is
     // back on Socialize, and the room's mode count is forgotten.

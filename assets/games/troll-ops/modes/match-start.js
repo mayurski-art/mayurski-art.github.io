@@ -32,6 +32,7 @@ import { RangeSet } from "../range.js";
 import { WaveSpawner } from "../enemies.js?v=hb4-wst-soc1-sb2b7c2m1";
 import { DROP } from "../royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2";
 import { game } from "../core/state.js?v=st1";
+import { carryClassPerks } from "../combat/perk-carry.js?v=pk1";
 
 /* Put everyone who didn't ask for a private room into the same public
    server for the mode they picked. Tries the base room first (QTDM, QKOH,
@@ -690,6 +691,7 @@ export function beginMatch(mapId = null) {
   }
 
   game.setActiveWeaponMesh(game.equipFromLoadout());
+  carryClassPerks();
 
   if (game.spawner) {
     for (const g of game.spawner.grunts) g.dispose(game.scene);

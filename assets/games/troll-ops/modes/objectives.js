@@ -16,6 +16,7 @@ import { isSyntheticId } from "../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b
 import { royale, royaleBotObjective } from "./royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
 import { CarePackage, VtolWarship } from "../streak-entities.js?v=vsat2-hk1";
 import { game } from "../core/state.js?v=st1";
+import { carryClassPerks } from "../combat/perk-carry.js?v=pk1";
 
 
 let hillHeldT = 0;   // seconds we've personally stood on the hill
@@ -289,6 +290,7 @@ export function prepareSndRound() {
   game.look.yaw = yawTowardCentre(sp);
   game.look.pitch = 0;
   game.setActiveWeaponMesh(game.equipFromLoadout());
+  carryClassPerks();
   game.warmNewGuns();
 
   if (game.isPvp() && game.net.isBotHost()) {
