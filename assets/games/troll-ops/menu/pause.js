@@ -7,6 +7,7 @@ import { renderRoomModeRow } from "../modes/social.js?v=so1-si1-mb1-gj1-if1-fu1b
 import { keys, lockChangedAt, controls } from "../input/keyboard-mouse.js?v=km1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1";
 import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
 import { game } from "../core/state.js?v=st1";
+import { weaponForMode } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2";
 
 export function openPauseMenu() {
   // Esc out of a half-placed streak instead of opening the menu — the point
@@ -15,6 +16,7 @@ export function openPauseMenu() {
   releaseHeldInputs();
   renderPauseRange();
   renderRoomModeRow();
+  renderPauseClasses();
   if (game.otherHumansInMatch()) {
     game.localPauseOnly = true;
     game.els.pause.hidden = false;
@@ -32,6 +34,37 @@ export function closePauseMenu() {
   // Whatever was held when the menu opened was released then; anything
   // pressed while it was up (keys typed into it) must not leak into play.
   releaseHeldInputs();
+}
+
+/* BO2's Change Class: in any mode where you carry your own class (not the
+   ones that hand you the gun: Gun Game, One in the Chamber, Royale, and not
+   Socialize), the five classes. The pick is saved at once and lands on your
+   next respawn (combat/damage.js respawnPlayer), never mid-life. */
+export function renderPauseClasses() {
+  const wrap = document.getElementById("to-pause-classes");
+  if (!wrap) return;
+  const mode = game.currentMode?.();
+  const L = game.loadout;
+  wrap.hidden = !mode || !L || !!mode.royale || !!mode.social || !!weaponForMode(mode) || game.gameState === "menu";
+  if (wrap.hidden) return;
+  wrap.innerHTML = "";
+  const pending = game.classPending ?? L.active;
+  L.classes.forEach((c, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = `to-btn ${i === pending ? "to-btn-primary" : "to-btn-ghost"}`;
+    b.textContent = c.name;
+    b.title = L.classSummary(i);
+    b.setAttribute("aria-pressed", String(i === pending));
+    b.addEventListener("click", () => {
+      L.setActiveClass(i);
+      game.classPending = i;
+      game.classDirty = true;
+      showWaveBanner(`${c.name}: on your next respawn`);
+      renderPauseClasses();
+    });
+    wrap.appendChild(b);
+  });
 }
 
 /* Everything "held" as of now, let go: movement keys, trigger, ADS. The

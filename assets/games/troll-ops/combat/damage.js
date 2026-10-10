@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { flashHit, noteHitDirection, flinchPeer, updateStreakHud, showWaveBanner, clearHitDirs } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
 import { royale, updateRoyaleGear, royaleOnDeath, hideSpectateHud } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
 import { heroActive, hero, applyHeroLoadout } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
-import { streaks } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
+import { streaks, streakPicker } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
 import { INFECTION } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2";
 import { killcamSelfId, startKillcamPresentation, endKillcamPresentation } from "./killcam-present.js?v=kp2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
 import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
@@ -250,6 +250,14 @@ export function respawnPlayer() {
   game.player.alive = true;
   game.player.spawnGuard = game.SPAWN_GUARD;
   applyHeroLoadout();
+  // A class picked from the pause menu since the last life: its three
+  // scorestreaks take over the ladder now (the meter and anything already
+  // earned stay, as in BO2).
+  if (game.classDirty) {
+    game.classDirty = false;
+    game.classPending = null;
+    streaks.setSelected(streakPicker.selected);
+  }
   game.setActiveWeaponMesh(game.equipFromLoadout());
   game.warmNewGuns();
   game.applyInfectionLoadout();

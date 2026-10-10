@@ -126,6 +126,57 @@ const rl = await page.evaluate(() => {
 });
 check("after a reload: the same class, picks, names and streaks", rl.active === 1 && rl.gun === "shotgun" && rl.name === "Sniper Boi!!" && rl.w4 === "snicker" && rl.streaks.includes("swarm"), JSON.stringify(rl));
 
+// 6. The BO2 menu: Create a Class lists the five, opens one, picks a perk, renames.
+const menuRows = async () => page.evaluate(() => [...document.querySelectorAll(".tr-menu-item")].filter((b) => b.offsetParent).map((b) => b.textContent.trim()));
+await page.evaluate(() => { const m = window.__toBo2.menu; while (m.back()); m.go("classlist"); });
+await page.waitForTimeout(200);
+const list = await menuRows();
+check("Create a Class lists the five classes", ["Class 1", "Class 2", "Sniper Boi!!", "Class 4", "Class 5"].every((n) => list.some((r) => r.startsWith(n))), list.join(" | "));
+await page.evaluate(() => [...document.querySelectorAll(".tr-menu-item")].find((b) => b.textContent.trim().startsWith("Sniper Boi!!"))?.click());
+await page.waitForTimeout(200);
+const cls = await page.evaluate(() => ({ active: window.__trollOps.loadout.active, title: document.querySelector(".to-bo2-menu")?.closest("[class]")?.parentElement?.textContent || "" }));
+const rows = await menuRows();
+check("picking a class makes it yours and opens it", cls.active === 2 && ["Primary", "Secondary", "Attachments", "Melee", "Throwable", "Perk 1", "Perk 2", "Perk 3", "Scorestreaks", "Rename"].every((n) => rows.some((r) => r.startsWith(n))), rows.join(" | "));
+await page.evaluate(() => window.__toBo2.menu.go("perk-0"));
+await page.waitForTimeout(150);
+const perkRows = await menuRows();
+await page.evaluate(() => [...document.querySelectorAll(".tr-menu-item")].find((b) => b.textContent.trim().startsWith("Hardline"))?.click());
+await page.waitForTimeout(150);
+const pk = await page.evaluate(() => ({ perks: [...window.__trollOps.loadout.classPerks], saved: JSON.parse(localStorage.getItem("trollops:loadout")).classes[2].perks }));
+check(`Perk 1 lists BO2's tier one (${perkRows.length - 2} perks)`, ["Lightweight", "Flak Jacket", "Hardline", "Blind Eye", "Ghost"].every((n) => perkRows.some((r) => r.startsWith(n))), perkRows.join(" | "));
+check("picking a perk saves it to the class", pk.perks[0] === "hardline" && pk.saved[0] === "hardline", JSON.stringify(pk));
+await page.evaluate(() => [...document.querySelectorAll(".tr-menu-item")].find((b) => b.textContent.trim().startsWith("Rename"))?.click());
+await page.waitForTimeout(100);
+await page.fill("#to-bo2-rename-in", "Run N Gun");
+await page.press("#to-bo2-rename-in", "Enter");
+await page.waitForTimeout(150);
+const rn2 = await page.evaluate(() => ({ name: window.__trollOps.loadout.className, hidden: document.querySelector(".to-bo2-rename").hidden }));
+check("Rename from the menu", rn2.name === "Run N Gun" && rn2.hidden, JSON.stringify(rn2));
+
+// 7. In a match: the pause menu's Change Class lands on the next respawn.
+await page.evaluate(async () => {
+  const T = window.__trollOps;
+  T.setLoadWaitMax?.(8);
+  T.setMode("ops");
+  await T.startGame();
+});
+await page.waitForFunction(() => !window.__trollOps.loadState().open, null, { timeout: 300000 });
+await page.waitForTimeout(800);
+const pz = await page.evaluate(() => {
+  const T = window.__trollOps;
+  const before = T.player.weaponId;
+  T.openPauseMenu();
+  const wrap = document.getElementById("to-pause-classes");
+  const buttons = [...wrap.querySelectorAll("button")].map((b) => b.textContent);
+  wrap.querySelectorAll("button")[1].click();   // Class 2: the Widemouth
+  const midLife = T.player.weaponId;
+  T.respawnPlayer();
+  return { shown: !wrap.hidden, buttons, before, midLife, after: T.player.weaponId, streaks: [...T.streaks.selected] };
+});
+check("the pause menu offers the five classes", pz.shown && pz.buttons.length === 5, pz.buttons.join(", "));
+check("a class change waits for the respawn", pz.before === "snubgrin" || pz.before === pz.midLife, `${pz.before} -> ${pz.midLife}`);
+check("and lands on it: the gun and the three scorestreaks", pz.after === "shotgun" && pz.streaks.includes("swarm"), `${pz.after} ${pz.streaks.join("/")}`);
+
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 await browser.close();
 server.close();

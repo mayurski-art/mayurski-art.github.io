@@ -271,7 +271,7 @@
 
           <aside class="to-pf-right" aria-label="Loadout">
             <div class="to-pf-card-head">
-              <span class="to-pf-label">Loadout</span>
+              <span class="to-pf-label" id="to-pf-sum-class">Loadout</span>
               <button type="button" class="to-pf-link" data-panel="loadout">Edit</button>
             </div>
             <!-- Your primary as it will look in the match: attachments and skin. -->
@@ -289,6 +289,10 @@
               <div><span class="to-pf-dim">Melee</span><b id="to-pf-sum-melee">—</b></div>
               <div><span class="to-pf-dim">Throwable</span><b id="to-pf-sum-lethal">—</b></div>
               <div><span class="to-pf-dim">Tactical</span><b id="to-pf-sum-tactical">—</b></div>
+            </div>
+            <div class="to-pf-secondary">
+              <span class="to-pf-dim">Perks</span>
+              <b id="to-pf-sum-perks">—</b>
             </div>
           </aside>
 
@@ -430,6 +434,8 @@
             <button type="button" class="to-btn to-btn-ghost" id="to-pause-spawnbot">Spawn a bot</button>
             <button type="button" class="to-btn to-btn-ghost" id="to-pause-clearbots">Clear bots</button>
           </div>
+          <!-- BO2's Change Class: the five classes; the pick lands on the next respawn. -->
+          <div class="to-menu-range to-menu-classes" id="to-pause-classes" role="group" aria-label="Change class (on your next respawn)" hidden></div>
           <div class="to-menu-actions">
             <button type="button" class="to-btn to-btn-primary" id="to-resume-btn">Resume</button>
             <label class="to-set-row to-set-check to-menu-god" id="to-set-invincible-row" hidden>

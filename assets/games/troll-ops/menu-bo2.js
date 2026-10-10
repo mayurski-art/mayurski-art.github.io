@@ -25,6 +25,9 @@ import { FINISHES } from "./skins.js?v=p5-wb1";
 import { MAPS, REWARD_MAPS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1";
 import { setMapShot } from "./map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1";
 import { leaveToArcade, initExitLinks } from "./menu/exit-links.js?v=ex1";
+import { game } from "./core/state.js?v=st1";
+import { PERK_DEFS, PERK_TIER_NAMES, perksInTier, perkUnlocked } from "./perks.js?v=pk1";
+import { STREAK_DEFS } from "./scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
    calling cards and the private-match maps. */
@@ -246,6 +249,29 @@ function optionScreen(titleText, buttons, { valueFor, descOf, preview = false } 
   };
 }
 
+/* A perk tier: its perks (locked ones say the level), or none. */
+function perkScreen(tier) {
+  const L = game.loadout;
+  const cur = L.classPerks[tier];
+  return {
+    title: PERK_TIER_NAMES[tier],
+    groups: [
+      perksInTier(tier).map((id) => {
+        const def = PERK_DEFS[id], open = perkUnlocked(id);
+        return {
+          id: `pk-${id}`, label: def.name, on: cur === id, disabled: !open,
+          value: open ? "" : `LV ${def.rank}`, desc: open ? def.blurb : `${def.blurb} Unlocks at level ${def.rank}.`,
+          onSelect: (_, m) => { L.setClassPerk(tier, id); m.back(); },
+        };
+      }),
+      [
+        { id: "pk-none", label: "None", on: !cur, desc: "No perk in this slot.", onSelect: (_, m) => { L.setClassPerk(tier, null); m.back(); } },
+        { id: "back", label: "Back", desc: "Keep what you have.", onSelect: (_, m) => m.back() },
+      ],
+    ],
+  };
+}
+
 /* ── Options rows drive the existing settings inputs ──────────────────── */
 function rangeRow(id, label, step, desc, suffix = "") {
   const el = document.getElementById(id);
@@ -303,9 +329,7 @@ const screens = {
         { id: "private", label: "Private Match", desc: "Make a room code and send it to your friends.", go: "private" },
       ],
       [
-        { id: "class", label: "Create a Class", desc: "Primary, secondary and every attachment.", go: "class" },
-        { id: "gear", label: "Gear", desc: "Melee and the one throwable you carry.", go: "gear" },
-        { id: "streaks", label: "Scorestreaks", desc: "Pick three. Kills, assists and objectives build the meter.", go: "streaks" },
+        { id: "class", label: "Create a Class", value: () => game.loadout?.className || "", desc: "Five classes: guns, attachments, melee, a throwable, three scorestreaks and three perks.", go: "classlist" },
         { id: "cosmetics", label: "Cosmetics", desc: "Your trollface: expression, colour and wrist.", go: "cosmetics" },
         // BO2: at the level cap the Prestige option appears.
         canPrestige() && { id: "prestige", label: "Prestige", value: nextPrestigeName(), desc: "You're at level 69. Go back to level 1 for a new prestige.", go: "prestige" },
@@ -499,19 +523,48 @@ const screens = {
       [back("Keep this map.")],
     ],
   }),
+  /* BO2's Create a Class: five classes; the ticked one is what you drop in
+     with. Picking one makes it yours and opens it. */
+  classlist: () => {
+    const L = game.loadout;
+    return {
+      title: "Create a Class", panel: "loadout", detail: true, gun: true,
+      groups: [
+        L.classes.map((c, i) => ({
+          id: `cl-${i}`, label: c.name, on: i === L.active, desc: L.classSummary(i),
+          onSelect: (_, m) => { L.setActiveClass(i); m.go("class"); },
+        })),
+        [back("Back to the main menu.")],
+      ],
+    };
+  },
   class: () => {
+    const L = game.loadout;
     const slot = (s) => { $(`#to-lo-slot-toggle [data-slot="${s}"]`)?.click(); return strongOf(activeIn("#to-lo-list .to-lo-weapon") || document.createElement("b")); };
     const primary = text($("#to-pf-sum-name"));
     const secondary = text($("#to-pf-sum-secondary"));
+    const gearRow = (i) => $$("#to-lo-gear .to-lo-gearrow")[i];
+    const gearVal = (i) => { const cur = gearRow(i) && $$(".to-lo-gear", gearRow(i)).find(isOn); return cur ? strongOf(cur) : ""; };
+    const streaks = [...L.classStreaks].filter((id) => STREAK_DEFS[id]).map((id) => STREAK_DEFS[id].short || STREAK_DEFS[id].name);
     return {
-      title: "Create a Class", panel: "loadout", detail: true, gun: true,
+      title: L.className, panel: "loadout", detail: true, gun: true,
       groups: [
         [
           { id: "primary", label: "Primary", value: primary, desc: "Your main weapon.", onSelect: (_, m) => { slot("primary"); m.go("classes"); } },
           { id: "secondary", label: "Secondary", value: secondary, desc: "Your sidearm.", onSelect: (_, m) => { slot("secondary"); m.go("weapons"); } },
           { id: "atts", label: "Attachments", value: $$("#to-pf-sum-atts > *").length ? `${$$("#to-pf-sum-atts > *").length} on` : "", desc: "Optic, barrel, underbarrel, ammo and skin for your primary.", onSelect: (_, m) => { $('#to-lo-slot-toggle [data-slot="primary"]')?.click(); m.go("atts"); } },
+          { id: "melee", label: "Melee", value: gearVal(0), desc: "What you swing.", go: "gear-0" },
+          { id: "throwable", label: "Throwable", value: gearVal(1), desc: "The one lethal or tactical you carry.", go: "gear-1" },
         ],
-        [back("Back to the main menu.")],
+        [0, 1, 2].map((t) => {
+          const id = L.classPerks[t];
+          return { id: `perk-${t}`, label: PERK_TIER_NAMES[t], value: PERK_DEFS[id]?.short || PERK_DEFS[id]?.name || "None", desc: PERK_DEFS[id]?.blurb || "Pick a perk.", go: `perk-${t}` };
+        }),
+        [
+          { id: "streaks", label: "Scorestreaks", value: streaks.length ? `${streaks.length}/3` : "", desc: streaks.join(" · ") || "Pick three. Kills, assists and objectives build the meter.", go: "streaks" },
+          { id: "rename", label: "Rename", value: L.className, desc: "Up to 16 letters. Enter saves, Esc cancels.", onSelect: () => renameClass() },
+        ],
+        [back("Back to your classes.")],
       ],
     };
   },
@@ -522,7 +575,7 @@ const screens = {
         id: `cls-${b.dataset.cls}`, label: text(b), on: isOn(b), desc: `Pick a weapon from ${text(b).toLowerCase()}.`,
         onSelect: (_, m) => { b.click(); m.go("weapons"); },
       })),
-      [back("Back to Create a Class.")],
+      [back("Back to the class.")],
     ],
   }),
   weapons: () => ({
@@ -547,7 +600,7 @@ const screens = {
         const cur = $$(".to-lo-att, button", slotEl).find(isOn);
         return { id: `slot-${i}`, label: text($(".to-lo-slot-label", slotEl)), value: cur ? strongOf(cur) : "", desc: "Change it.", go: `att-${i}` };
       }),
-      [back("Back to Create a Class.")],
+      [back("Back to the class.")],
     ],
   }),
   gear: () => ({
@@ -571,7 +624,7 @@ const screens = {
           value: text($("span", b)), desc: text($("em", b)),
           onSelect: (_, m) => { b.click(); m.refresh(); },
         })),
-        [back("Back to the main menu.")],
+        [back("Back to the class.")],
       ],
     };
   },
@@ -623,7 +676,8 @@ const screens = {
 const optionScreens = new Proxy(screens, {
   get(t, id) {
     if (id in t) return t[id];
-    const a = /^att-(\d+)$/.exec(id), g = /^gear-(\d+)$/.exec(id);
+    const a = /^att-(\d+)$/.exec(id), g = /^gear-(\d+)$/.exec(id), p = /^perk-([012])$/.exec(id);
+    if (p) return () => perkScreen(+p[1]);
     if (a) {
       const slotEl = $$("#to-lo-atts .to-lo-slot")[+a[1]];
       if (slotEl) return () => optionScreen(text($(".to-lo-slot-label", slotEl)), $$(".to-lo-att, button", slotEl), {
@@ -637,7 +691,7 @@ const optionScreens = new Proxy(screens, {
     }
     return undefined;
   },
-  has(t, id) { return id in t || /^(att|gear)-\d+$/.test(id); },
+  has(t, id) { return id in t || /^(att|gear|perk)-\d+$/.test(id); },
 });
 
 /* U Mad Bro? teaser: while its mode row is hot (locked or not), the detail
@@ -712,6 +766,38 @@ const menu = createBo2Menu(nav, {
 });
 $(".to-bo2-back", root).addEventListener("click", () => menu.back());
 initExitLinks();
+
+/* Rename a class: a one-line form over the detail pane, like the clan tag. */
+const renameForm = document.createElement("form");
+renameForm.className = "to-bo2-clan to-bo2-rename";
+renameForm.hidden = true;
+renameForm.innerHTML = `<label for="to-bo2-rename-in">Class name</label>`
+  + `<input id="to-bo2-rename-in" maxlength="16" autocomplete="off" spellcheck="false" aria-describedby="to-bo2-rename-help">`
+  + `<button type="submit">Save</button><button type="button" data-act="cancel">Cancel</button>`
+  + `<small id="to-bo2-rename-help">Up to 16 letters. Enter saves, Esc cancels.</small>`;
+detail.prepend(renameForm);
+const renameIn = $("input", renameForm);
+function stopRename() {
+  renameForm.hidden = true;
+  $(".to-bo2-menu .is-hot", root)?.focus();
+}
+function renameClass() {
+  renameIn.value = game.loadout.className;
+  renameForm.hidden = false;
+  renameIn.focus();
+  renameIn.select();
+}
+renameIn.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); stopRename(); }
+});
+$('[data-act="cancel"]', renameForm).addEventListener("click", stopRename);
+renameForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const L = game.loadout;
+  if (L.renameClass(L.active, renameIn.value)) { setStatus(`Class renamed: ${L.className}.`); L.render(); }
+  stopRename();
+  menu.refresh();
+});
 
 /* ── Party, status, presence ──────────────────────────────────────────── */
 function renderParty() {
