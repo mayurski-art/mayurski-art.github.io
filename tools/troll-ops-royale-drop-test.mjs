@@ -128,6 +128,14 @@ check("the planes never come within 18 m of each other (each flies its own heigh
 check("they come in from all round the compass", sq.maxGapDeg < 100, `largest gap ${sq.maxGapDeg.toFixed(0)}°`);
 check("every drop run crosses the island", sq.over, "");
 check("the hold has its nine seats", sq.seats === 9, `${sq.seats}`);
+await new Promise((r) => setTimeout(r, 2500));   // past the room's peer-map reset
+const mates = await page.evaluate(() => {
+  const T = window.__trollOps, sq = T.planes(), M = sq.planeM[sq.ridden].clone().invert();
+  const shown = [...T.remotes.byId.values()].filter((rp) => rp.rig.root.visible);
+  const at = shown.map((rp) => rp.rig.root.position.clone().applyMatrix4(M));
+  return { shown: shown.length, inHold: at.filter((l) => Math.abs(l.x) < 1.7 && l.y > -1 && l.y < 2 && l.z > -6.4 && l.z < 6.4).length };
+});
+check("your eight planemates sit in your plane; nobody else aboard is drawn", mates.shown === 8 && mates.inHold === 8, JSON.stringify(mates));
 let c0 = await camLocal();
 check("the camera is inside the plane's hold", inHold(c0.local), JSON.stringify(Object.fromEntries(Object.entries(c0.local).map(([k, v]) => [k, +v.toFixed(2)]))));
 await new Promise((r) => setTimeout(r, 700));

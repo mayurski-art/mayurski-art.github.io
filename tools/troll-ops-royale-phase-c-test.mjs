@@ -85,7 +85,7 @@ async function open(ctx, label, { room = "", lobby = 90, noBots = true } = {}) {
     if (s.airborne === 0 && seen.fall) break;
     await sleep(400);
   }
-  check("trolls aboard the planes are not drawn (they're inside)", seen.aboard > 50 && seen.aboardShown === 0, JSON.stringify({ aboard: seen.aboard, shown: seen.aboardShown }));
+  check("trolls aboard: only your planemates are drawn (the rest are inside their planes)", seen.aboard > 50 && seen.aboardShown <= 8,JSON.stringify({ aboard: seen.aboard, shown: seen.aboardShown }));
   check("fallers skydive belly down", seen.fall > 0 && seen.fallFlat === seen.fall, JSON.stringify({ fall: seen.fall, flat: seen.fallFlat }));
   check("nobody opens a glider", seen.glide === 0 && seen.landedWing === 0, JSON.stringify({ glide: seen.glide, wings: seen.landedWing }));
   const after = await P.evaluate(() => {

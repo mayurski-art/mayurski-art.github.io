@@ -106,6 +106,11 @@ export const peerPosers = [];
    add `fn(remotePlayer)`; each runs right after the position is
    interpolated, before anything is posed there. */
 export const peerPlacers = [];
+/* ...and Troll Royale's planes (modes/royale.js): a rider aboard (`dr` 1)
+   is drawn only if they're in your plane. Each `fn(remotePlayer, snap)`
+   returns null, or `{ m, seatY }` after setting rp.pos (and rp.yaw) in the
+   plane's own frame: m the plane's matrix, seatY set when they're sat down. */
+export const busPlacers = [];
 
 /* Troll Royale's drop on any rig (you, bots, peers). `state` is the wire's
    `dr`: 2 = freefall, belly down, arms and legs spread, a flutter in the
@@ -113,6 +118,7 @@ export const peerPlacers = [];
    `t` is seconds, for the flutter. Call after poseHumanoid and rollRig. */
 export const DROP_BUS = 1, DROP_FALL = 2, DROP_GLIDE = 3;
 const FALL_PIVOT = 1.0;   // tip over about the belly, not the feet
+const _planeQ = new THREE.Quaternion();
 export function poseDrop(rig, state, t) {
   const p = rig.parts, root = rig.root;
   if (root.rotation.order !== "YXZ") root.rotation.order = "YXZ";
@@ -632,15 +638,20 @@ export class RemotePlayer {
     this.stance = b.stance;
     for (const f of peerPlacers) f(this);
 
-    // Troll Royale's drop: nobody's drawn riding the bus (they're inside
-    // it); in the air they skydive, then hang under a glider.
-    const drop = b.drop | 0;
+    // Troll Royale's drop: aboard, only your planemates are drawn (in your
+    // plane, posed in its frame); in the air they skydive.
+    let drop = b.drop | 0;
     this.drop = drop;
     this.setGlider(drop === DROP_GLIDE);
+    let aboard = null;
     if (drop === DROP_BUS) {
-      this.rig.root.visible = false;
-      this.tag.visible = false;
-      return;
+      for (const f of busPlacers) if ((aboard = f(this, b))) break;
+      if (!aboard) {
+        this.rig.root.visible = false;
+        this.tag.visible = false;
+        return;
+      }
+      drop = 0;
     }
 
     // A landing roll: tucked all the way down while it lasts.
@@ -711,7 +722,7 @@ export class RemotePlayer {
     // "the heads of the troll bots seem to be flopping up and down"), so a
     // stop only counts once it has held for STOP_HOLD.
     if (b.moving) this.stopT = 0; else this.stopT = (this.stopT || 0) + dt;
-    const moving = (!!b.moving || this.stopT < STOP_HOLD) && b.stance !== "rope";
+    const moving = (!!b.moving || this.stopT < STOP_HOLD) && b.stance !== "rope" && aboard?.seatY == null;
     // Same 4.2 m/s reference speed used to drive the phase rate above,
     // reused here as the 0..1 intensity that scales stride/arm-swing/lean
     // so a jog and a sprint are visibly different gaits, not just the same
@@ -724,6 +735,8 @@ export class RemotePlayer {
     if (moving) this.phase += dt * gaitPhaseRate(this.gaitMps, this.rig.legScale);
 
     this.rig.root.position.copy(this.pos);
+    // Off the plane's bank: upright again before the yaw goes on.
+    if (this.tilted) { this.rig.root.rotation.x = this.rig.root.rotation.z = 0; this.tilted = false; }
     // Their head leads toward where they aim; the body turns after it.
     aimRig(this.rig, this.yaw, dt, { moving });
     // A swivel they started: the body spins the full turn over SWIVEL_TIME.
@@ -742,7 +755,7 @@ export class RemotePlayer {
     // swing) for anything but a sidearm — matches weapon-model.js's own
     // !isPistol gate for whether a weapon actually has a support hand mesh.
     // Nothing on the wire (Socialize: empty hands): arms hang free, no carry.
-    const unarmed = !sword && !this.peer.weapon;
+    const unarmed = !sword && (!this.peer.weapon || !!aboard);   // aboard: guns slung
     const hasGun = !sword && !unarmed && WEAPON_DEFS[this.weaponId]?.cls !== "sidearm";
     const swing = swinging ? {
       t: Math.min(1, this.melee.t / this.melee.total),
@@ -792,6 +805,7 @@ export class RemotePlayer {
       if (seat.kind === "piano" && !em) posePianoArms(this.rig, this.pianoT = (this.pianoT || 0) + dt, 0.5, !!this.peer.piano || performance.now() - (this.peer.keysAt || 0) < 700);
       poseSeated(this.rig, seat.y, seat.kind === "stool" ? 0.55 : 0);
     }
+    if (aboard?.seatY != null) poseSeated(this.rig, aboard.seatY, 0.1);
     rollRig(this.rig, roll);
     // Socialize fist fights (modes/social-duel.js): their jab, or flat out
     if (!seat && !em) poseDuelPeer(this.rig, this.peer);
@@ -810,6 +824,16 @@ export class RemotePlayer {
     }
 
     this.tag.position.y = 2.15 - this.lower * 0.75;
+    if (aboard) {
+      // Posed in the plane's frame; now out where the plane is, banked with it.
+      const root = this.rig.root;
+      root.position.applyMatrix4(aboard.m);
+      root.quaternion.premultiply(_planeQ.setFromRotationMatrix(aboard.m));
+      this.tilted = true;
+      this.pos.copy(root.position);   // where they are, for the far-hide and the minimap
+      if (this.peer.isBot || this.peer.botSkill) this.tag.visible = false;   // nine tags in a hold is noise; players keep theirs
+      if (this.weaponMesh) this.weaponMesh.visible = false;
+    }
   }
 
   /* Killcam playback (killcam.js): pose from a recorded sample instead of

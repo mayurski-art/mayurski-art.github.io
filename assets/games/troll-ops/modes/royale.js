@@ -8,7 +8,7 @@ import { insidePolygon } from "../edge.js";
 import { DROP, RoyaleDrop, buildParaglider, Flight } from "../royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2";
 import { Squadron, PLANES, flightPos, flightVel } from "../royale-planes.js?v=pl1";
 import { SEAT_SPOTS, RAMP_END } from "../royale-hold.js?v=pl1";
-import { DROP_BUS, DROP_FALL, DROP_GLIDE, ROLL_TIME } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-bd1-hs1";
+import { DROP_BUS, DROP_FALL, DROP_GLIDE, ROLL_TIME, busPlacers } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-bd1-hs1";
 import * as THREE from "three";
 import { WEAPON_DEFS, WeaponState } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import { defaultLoadoutFor } from "../attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
@@ -69,9 +69,10 @@ export function royaleDropView() { return !!royale?.drop && game.player.alive &&
    out): you walk as normal in the ghost hold, the guns stay quiet. */
 export function royaleAboard() { return !!royale?.drop && game.player.alive && royale.me === "aboard"; }
 /* Where you are in the drop, as the wire's `dr` (0 = not dropping). Aboard
-   is DROP_BUS: nobody draws you, you're inside the plane. */
+   is DROP_BUS with your seat (slot + 1) above it: your planemates draw you,
+   nobody else does. */
 export function royaleDropCode() {
-  if (royaleAboard()) return DROP_BUS;
+  if (royaleAboard()) return DROP_BUS | ((royale.plane * PLANES.seats + royale.seat + 1) << 2);
   if (!royaleDropView()) return 0;
   return royale.me === "fall" ? DROP_FALL : DROP_GLIDE;
 }
@@ -83,6 +84,28 @@ const _v = new THREE.Vector3();
 const _q = new THREE.Quaternion();
 const _qy = new THREE.Quaternion();
 const _Y = new THREE.Vector3(0, 1, 0);
+const _aboard = { m: null, seatY: null };
+
+/* Your planemates, drawn in your plane (remote-players.js busPlacers): a bot
+   sat in its seat, a player where they stand in the ghost hold (the same
+   frame as the plane's). Riders in the other planes stay hidden in theirs. */
+busPlacers.push((rp, snap) => {
+  const r = royale, d = r?.drop, sq = d?.squadron;
+  if (!snap.slot || !royaleAboard() || !d.hold) return null;
+  const { plane, seat } = Squadron.seatOf(snap.slot - 1);
+  if (plane !== sq.ridden) return null;
+  if (rp.pos.y > d.origin.y - 50) {
+    rp.pos.sub(d.origin);
+    _aboard.seatY = null;
+  } else {
+    const s = SEAT_SPOTS[seat % SEAT_SPOTS.length];
+    rp.pos.set(Math.sign(s.x) * 1.36, 0, s.z);
+    rp.yaw = s.x < 0 ? -Math.PI / 2 : Math.PI / 2;
+    _aboard.seatY = 0.44;
+  }
+  _aboard.m = sq.planeM[plane];
+  return _aboard;
+});
 let playerGlider = null;
 
 /* Orbit `dist` m behind `target` along the look direction, `height` up. */
@@ -158,6 +181,7 @@ export function placeBotsInLobby() {
     b.airborne = true;   // parked: the bot AI leaves it be until it lands
     b.drop = { state: "aboard", plane, seat, jumpT };
     b.dropCode = DROP_BUS;
+    b.dropSlot = humans + i + 1;   // its seat, for the wire
     botSeatPos(b);
     game.net.publishBot(b);
   });
@@ -187,6 +211,15 @@ export function royaleTickDrop(dt) {
 export function updateSkyLobby(dt) {
   const r = royale, t = r.planeT;
   r.loot.update(dt, game.camera, game.move.pos);
+  // The host keeps its bots in their seats and on the wire: the room
+  // connecting can reset the peer map they're mirrored into, and nothing
+  // else re-publishes them before the green.
+  if (game.net.isBotHost()) {
+    for (const b of game.bots.bots) {
+      if (b.drop?.state === "aboard") botSeatPos(b);
+      game.net.publishBot(b);
+    }
+  }
   const phase = t < PLANES.doorAt ? "Wheels up" : t < PLANES.breakAt ? "Holding over the island" : "RED LIGHT — stand by";
   const secs = Math.max(0, Math.ceil(game.stageT));
   const timer = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
