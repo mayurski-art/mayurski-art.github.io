@@ -13,6 +13,12 @@ import { killcamSelfId, startKillcamPresentation, endKillcamPresentation } from 
 import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
 import { game } from "../core/state.js?v=st1";
 import { carryClassPerks } from "./perk-carry.js?v=pk1";
+import { hasPerk, PERK_TUNE } from "../perks.js?v=pk1";
+
+/* What Flak Jacket (perks.js) shrugs off: thrown lethals and the streaks
+   that blow up (not gunship rounds, dogs, a crate on the head or the bomb). */
+const EXPLOSIVE = new Set(["airstrike", "drone", "swarm", "dragonfire", "samturret"]);
+const explosive = (weaponId) => EXPLOSIVE.has(weaponId) || (THROWABLE_DEFS[weaponId]?.damage > 0);
 
 /* Who has hurt us lately, and how much. The shooter's client already sends
    dmg / headshot / weapon with every hit — we were throwing all of it away.
@@ -134,7 +140,12 @@ export function damagePlayer(amount, fromId, weaponId, isHead = false, fromPos =
   }
 
   if (heroActive()) amount = hero().incoming(amount, fromPos || game.remotes.byId.get(fromId)?.pos || null);
+  if (hasPerk("flakjacket") && explosive(weaponId)) amount *= PERK_TUNE.flakJacket;
   game.player.hp = Math.max(0, game.player.hp - amount);
+  // A hit knocks the view (BO2's flinch); Toughness all but cancels it.
+  const kick = Math.min(0.05, 0.008 + amount * 0.0006) * (hasPerk("toughness") ? PERK_TUNE.toughnessKick : 1);
+  game.shakeMag = Math.max(game.shakeMag, kick);
+  game.shakeT = Math.max(game.shakeT, 0.16);
   game.player.lastHurtAt = performance.now();
   noteDamage(fromId, amount, weaponId, isHead);
   noteHitDirection(fromId, fromPos);

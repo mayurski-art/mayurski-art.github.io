@@ -14,6 +14,7 @@ import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2";
 import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";
 import { touchState } from "../input/touch.js?v=in1-th2";
 import { game } from "../core/state.js?v=st1";
+import { hasPerk, PERK_TUNE } from "../perks.js?v=pk1";
 
 
 export let streakPicker;
@@ -78,7 +79,8 @@ export function enemiesRevealed() {
   const team = uavBucket();
   return (uavActiveFor(team) || vsatActiveFor(team)) && !minimapJammed();
 }
-export function minimapJammed() { return game.jammedUntil > performance.now(); }
+// Hard Wired (perks.js): an enemy Counter-UAV doesn't reach your radar.
+export function minimapJammed() { return game.jammedUntil > performance.now() && !hasPerk("hardwired"); }
 
 /* Per-streak lockouts, ms timestamps: the gunship/K9/Swarm cooldown after a call,
    and the UAV lockout an enemy Counter-UAV hands whoever's UAV it downed.

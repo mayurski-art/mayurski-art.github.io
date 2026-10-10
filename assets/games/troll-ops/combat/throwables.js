@@ -10,6 +10,7 @@ import { round2 } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1
 import { segmentBlocked, raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2";
 import { THROW_TIME } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
 import { game } from "../core/state.js?v=st1";
+import { hasPerk, PERK_TUNE } from "../perks.js?v=pk1";
 import { throwStart, throwReleased, throwCancel, throwRequestRelease, throwArmed, updateThrow, throwHandWorld } from "./throw-anim.js?v=ta1-th2";
 
 export let grenades;
@@ -200,7 +201,7 @@ export function flashPlayer(pos, def, g = null) {
     game.camera.getWorldDirection(forward);
     const toBang = pos.clone().sub(game.player.pos).normalize();
     const facing = Math.max(0, forward.dot(toBang));   // 1 = staring right at it
-    const strength = (1 - dist / def.radius) * (0.35 + facing * 0.65);
+    const strength = (1 - dist / def.radius) * (0.35 + facing * 0.65) * (hasPerk("tacticalmask") ? PERK_TUNE.tacticalMask : 1);
     game.blindT = Math.max(game.blindT, def.blind * strength);
     game.audio.flashbang(strength, pos);
   }
@@ -232,9 +233,10 @@ export function applyEmpState(on) {
    room on what you can actually see. Walls stop it; smoke doesn't. */
 export function empPlayer(pos, def, g = null) {
   const dist = pos.distanceTo(game.player.pos);
-  if (!friendlyNade(g) && dist <= def.radius && !segmentBlocked(game.colliders, game.player.pos, pos)) {
+  // Hard Wired: an EMP doesn't touch your gear; Tactical Mask takes most of it.
+  if (!friendlyNade(g) && dist <= def.radius && !segmentBlocked(game.colliders, game.player.pos, pos) && !hasPerk("hardwired")) {
     const strength = 1 - dist / def.radius;
-    game.empT = Math.max(game.empT, def.emp.scramble * (0.4 + strength * 0.6));
+    game.empT = Math.max(game.empT, def.emp.scramble * (0.4 + strength * 0.6) * (hasPerk("tacticalmask") ? PERK_TUNE.tacticalMask : 1));
     game.audio.empHit();
   }
 
