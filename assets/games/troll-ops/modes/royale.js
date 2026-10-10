@@ -205,7 +205,35 @@ export function royaleTickDrop(dt) {
   r.planeT = d.update(dt, game.stageT);
   const hold = d.hold;
   if (hold && d.phase === "run" && d.squadron.rampOpen(r.planeT) && hold.lip) hold.setRampOpen(true);
+  planeSounds();
 }
+
+/* The engines from inside (aboard), the nearest other plane going over,
+   and the hold's cues: the door's and the ramp's hydraulics, the buzzer. */
+function planeSounds() {
+  const r = royale, d = r.drop, sq = d.squadron, hold = d.hold, a = game.audio;
+  if (!sq) return;
+  const aboard = royaleAboard() && hold;
+  if (aboard) {
+    a.turboprop(hold.doorK, hold.rampK);
+    if (hold.doorK > 0.02 && !r.heardDoor) { r.heardDoor = true; a.rampWhine(2.6); }
+    if (hold.rampK > 0.02 && !r.heardRamp) { r.heardRamp = true; a.rampWhine(PLANES.rampTime); }
+    if (hold.light !== r.heardLight) {
+      if (hold.light === "green" || (hold.light === "red" && r.heardLight)) a.jumpBuzzer(hold.light === "green");
+      r.heardLight = hold.light;
+    }
+  }
+  // Out of the hold, the planes are heard going over; aboard, the others.
+  const cam = game.camera.position;
+  let best = null, bestD = 500 * 500;
+  for (let i = 0; i < sq.planeM.length; i++) {
+    if (aboard && i === sq.ridden) continue;
+    const e = sq.planeM[i].elements, d2 = (e[12] - cam.x) ** 2 + (e[13] - cam.y) ** 2 + (e[14] - cam.z) ** 2;
+    if (d2 < bestD) { bestD = d2; best = _sndAt.set(e[12], e[13], e[14]); }
+  }
+  a.turbopropAt(best);
+}
+const _sndAt = new THREE.Vector3();
 
 /* Aboard, during the countdown: the HUD's pill. */
 export function updateSkyLobby(dt) {
