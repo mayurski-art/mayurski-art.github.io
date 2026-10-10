@@ -138,7 +138,7 @@ export function showLobbyPanel(name) {
     inspector?.show(game.loadout.resolvedActive);
   } else if (name === "gear") {
     mountGunView(name);
-    inspector?.show(game.loadout.melee);
+    inspector?.show(game.loadout.gearPreview);
   } else if (name === "streaks") {
     mountGunView(name);
     inspector?.showStreak(streakPicker.selected.at(-1) || "uav");
@@ -325,7 +325,25 @@ function syncPrivateRoom() { game.loadout.setPrivateRoom(game.roomIsCustom && !!
 export function noBotsRoom() { return !!game.els.noBots?.checked; }
 
 /* What used to run at load in game.js: called from game.js where this code was. */
+/* Hover previews (menu-bo2.js): a weapon, melee or throwable row shows its
+   model; moving off the rows puts your pick back. */
+let previewDef = null;
+function previewGear(def) {
+  if (!inspectorLive || !inspector || def === previewDef) return;
+  previewDef = def;
+  inspector.show(def);
+}
+function endPreview() {
+  if (!previewDef) return;
+  previewDef = null;
+  if (!inspectorLive) return;
+  const l = game.loadout;
+  inspector?.show(activeLobbyPanel === "gear" ? l.gearPreview : l.resolvedActive);
+}
+
 export function initLobby() {
+  game.loadout.onPreview = (def) => previewGear(def);
+  window.addEventListener("trollforces:preview-end", endPreview);
   showSumGun();
   if (charInspector) charInspector.humanoid.face = cosmetics.face;
   // The operator on the main menu carries your equipped primary.

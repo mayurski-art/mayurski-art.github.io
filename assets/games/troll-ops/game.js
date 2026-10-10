@@ -944,7 +944,7 @@ const loadout = new Loadout({
   showSumGun();
   if (inspectorLive) {
     const gearPanel = document.getElementById("to-pfp-gear");
-    inspector?.show(gearPanel && !gearPanel.hidden ? loadout.melee : activeWeapon);
+    inspector?.show(gearPanel && !gearPanel.hidden ? loadout.gearPreview : activeWeapon);
   }
 });
 

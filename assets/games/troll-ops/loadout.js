@@ -90,6 +90,10 @@ export class Loadout {
   constructor(els, onChange) {
     this.els = els;
     this.onChange = onChange || (() => {});
+    // Hovering a weapon, melee or throwable in the menu previews it (set by
+    // menu/lobby.js); the row's focus event carries it.
+    this.onPreview = null;
+    this.gearShown = null;
 
     const saved = load();
     this.attachmentsByWeapon = saved.attachments || {};
@@ -158,6 +162,8 @@ export class Loadout {
   get resolvedActive() { return resolveWeapon(this.activeId, wearable(this.attachments)); }
 
   get melee() { return MELEE_DEFS[this.meleeId]; }
+  /* What the Gear panel's preview shows: the last melee or throwable picked. */
+  get gearPreview() { return this.gearShown || this.melee; }
   get lethal() { return THROWABLE_DEFS[this.lethalId]; }
   get tactical() { return THROWABLE_DEFS[this.tacticalId]; }
   /* The one throwable you carry. */
@@ -597,7 +603,9 @@ export class Loadout {
         b.querySelector("strong").textContent = def.name;
         b.title = def.blurb;
         paintGearLock(b, slot, label, def);
+        b.addEventListener("focus", () => this.onPreview?.(def));
         b.addEventListener("click", () => {
+          this.gearShown = def;
           if (prop) this[prop] = id;
           else {
             this.throwKind = def.kind;
@@ -682,6 +690,7 @@ export class Loadout {
       b.setAttribute("aria-pressed", String(id === this.activeId));
       b.innerHTML = `<strong>${w.name}</strong><span>${unlocked ? `${w.damage} dmg · ${w.rpm} rpm` : lockText}</span>`;
       if (!unlocked) b.setAttribute("aria-label", `${w.name}, locked, ${lockText.toLowerCase()}`);
+      b.addEventListener("focus", () => this.onPreview?.(resolveWeapon(id, wearable(this.attachmentsFor(id)))));
       b.addEventListener("click", () => {
         this.activeId = id;
         this.persist();

@@ -78,6 +78,46 @@ check("bot skill select saves", r.skillEl && r.saved?.botSkill === "veteran");
 check(`hero buttons built (${r.heroes})`, r.heroes >= 1);
 check("room code box cleans input", r.room === undefined || r.room === "AB1X9", r.room);
 check("radio widget present", r.radio);
+
+// Hover previews: moving the mouse over a weapon, melee or throwable row in
+// the BO2 menu shows that model; moving off them puts your pick back.
+const shown = [];
+await page.evaluate(() => {
+  const l = window.__trollOps.loadout, orig = l.onPreview;
+  window.__shown = [];
+  l.onPreview = (def) => { window.__shown.push(def.name); orig(def); };
+  window.addEventListener("trollforces:preview-end", () => window.__shown.push("<end>"));
+});
+const hoverRows = async (screen, n) => {
+  await page.evaluate((s) => { const m = window.__toBo2.menu; m.go(s); }, screen);
+  await page.waitForTimeout(300);
+  const rows = page.locator(".tr-menu-item:visible");
+  const count = Math.min(n, await rows.count());
+  for (let i = 0; i < count; i++) { await rows.nth(i).hover(); await page.waitForTimeout(120); }
+  return count;
+};
+await page.evaluate(() => document.querySelector('#to-pf [data-panel="loadout"]')?.click());
+await page.evaluate(() => { const m = window.__toBo2.menu; while (m.back()); m.go("class"); m.go("classes"); });
+await page.waitForTimeout(200);
+await page.evaluate(() => document.querySelector("#to-lo-classes .to-lo-class")?.click());
+await hoverRows("weapons", 4);
+await page.screenshot({ path: path.join(ROOT, ".claude/run/hover-weapon.png") });
+const weapons = await page.evaluate(() => window.__shown.splice(0));
+check(`hovering weapon rows previews each (${weapons.join(", ")})`, weapons.filter((w) => w !== "<end>").length >= 3);
+await page.evaluate(() => document.querySelector('#to-pf [data-panel="gear"]')?.click());
+await page.evaluate(() => { const m = window.__toBo2.menu; while (m.back()); m.go("gear"); });
+await hoverRows("gear-0", 4);
+const melee = await page.evaluate(() => window.__shown.splice(0));
+await page.evaluate(() => window.__toBo2.menu.back());
+await hoverRows("gear-1", 4);
+await page.screenshot({ path: path.join(ROOT, ".claude/run/hover-throwable.png") });
+const thr = await page.evaluate(() => window.__shown.splice(0));
+await page.locator(".tr-menu-item:visible").last().hover();
+await page.waitForTimeout(150);
+const after = await page.evaluate(() => window.__shown.splice(0));
+check(`hovering melee rows previews each (${melee.join(", ")})`, melee.filter((w) => w !== "<end>").length >= 2);
+check(`hovering throwable rows previews each (${thr.join(", ")})`, thr.filter((w) => w !== "<end>").length >= 3);
+check("moving off the rows puts your pick back", after.includes("<end>"), after.join(", "));
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 await browser.close();
 server.close();

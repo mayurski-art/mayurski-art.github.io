@@ -231,13 +231,13 @@ const deployRow = (label, desc) => ({
 // (`valueFor`, not `valueOf`: destructuring `valueOf` off an options object
 // that doesn't set it picks up Object.prototype.valueOf, and calling that
 // threw, so Face never opened.)
-function optionScreen(titleText, buttons, { valueFor, descOf } = {}) {
+function optionScreen(titleText, buttons, { valueFor, descOf, preview = false } = {}) {
   return {
     title: titleText,
     groups: [
       buttons.map((b, i) => ({
         id: `o-${i}`, label: strongOf(b), on: isOn(b), disabled: isLocked(b),
-        value: valueFor ? valueFor(b) : "", desc: descOf ? descOf(b) : (b.title || ""),
+        value: valueFor ? valueFor(b) : "", desc: descOf ? descOf(b) : (b.title || ""), card: preview ? b : undefined,
         onSelect: (_, m) => { b.click(); m.back(); },
       })),
       [{ id: "back", label: "Back", desc: "Keep what you have.", onSelect: (_, m) => m.back() }],
@@ -531,7 +531,7 @@ const screens = {
         const sub = text($("span", b));
         const lv = sub.match(/level (\d+)/i);
         return {
-          id: `w-${i}`, label: strongOf(b), on: isOn(b), disabled: isLocked(b),
+          id: `w-${i}`, label: strongOf(b), on: isOn(b), disabled: isLocked(b), card: b,
           value: lv ? `LV ${lv[1]}` : sub, desc: lv ? `Unlocks at level ${lv[1]}.` : sub,
           onSelect: (_, m) => { b.click(); m.backTo("class"); },
         };
@@ -632,7 +632,7 @@ const optionScreens = new Proxy(screens, {
     }
     if (g) {
       const row = $$("#to-lo-gear .to-lo-gearrow")[+g[1]];
-      if (row) return () => optionScreen(text($(".to-lo-slot-label", row)), $$(".to-lo-gear", row), { valueFor: (b) => text($("span", b)) });
+      if (row) return () => optionScreen(text($(".to-lo-slot-label", row)), $$(".to-lo-gear", row), { valueFor: (b) => text($("span", b)), preview: true });
     }
     return undefined;
   },
@@ -643,7 +643,7 @@ const optionScreens = new Proxy(screens, {
    pane shows the hero banners, the two album-cover parodies taking turns.
    onHot fires before onScreen on a re-render, so onScreen re-applies it. */
 const UMB_BANNERS = ["umb-agents", "umb-highway"].map((n) => `assets/games/troll-ops/ui/${n}.jpg?v=umb1`);
-let lastHot = null, screenDetail = false, umbTimer = 0, umbIdx = 0;
+let lastHot = null, previewing = false, screenDetail = false, umbTimer = 0, umbIdx = 0;
 function umbBanner(it) {
   const on = it?.id === "mode-umb";
   const img = $("img", shot);
@@ -703,8 +703,10 @@ const menu = createBo2Menu(nav, {
       setMapShot(img, it.mapId, `${Math.ceil(shot.parentElement?.clientWidth || 640)}px`);
       $("figcaption", shot).textContent = it.desc || "";
     }
-    // Streak previews: the old picker shows the model on hover/focus.
-    if (it.card) { it.card.dispatchEvent(new MouseEvent("mouseenter")); it.card.dispatchEvent(new FocusEvent("focus")); }
+    // Previews: the old picker cards (streaks, weapons, melee, throwables)
+    // show their model on focus; off them, the preview goes back to your pick.
+    if (it.card) { it.card.dispatchEvent(new MouseEvent("mouseenter")); it.card.dispatchEvent(new FocusEvent("focus")); previewing = true; }
+    else if (previewing) { previewing = false; window.dispatchEvent(new Event("trollforces:preview-end")); }
   },
 });
 $(".to-bo2-back", root).addEventListener("click", () => menu.back());

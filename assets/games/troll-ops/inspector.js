@@ -13,6 +13,7 @@
 import * as THREE from "three";
 import { buildWeaponMesh } from "./weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2";
 import { buildMeleeMesh } from "./gear.js?v=to-hb1kb3-bk1-wst-ig1-th2";
+import { buildThrowable, modelKind } from "./combat/throwable-models.js?v=tm1-th2";
 import { loadModel } from "./battlefield-props.js";
 import { buildDragonfireModel } from "./dragonfire.js?v=df3-sb2";
 import { buildSamTurretModel } from "./sam-turret.js?v=sam1";
@@ -180,10 +181,11 @@ export class WeaponInspector {
     this.zoomTarget = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
   }
 
-  /* Swap in a weapon and frame it. */
+  /* Swap in a weapon (or a melee weapon, or a throwable) and frame it. */
   show(def) {
     this.pending = null;
-    const mesh = def.model?.kind ? buildMeleeMesh(def, false) : buildWeaponMesh(def);
+    const throwable = def.kind === "lethal" || def.kind === "tactical";
+    const mesh = throwable ? buildThrowable(modelKind(def), { pin: true }) : def.model?.kind ? buildMeleeMesh(def, false) : buildWeaponMesh(def);
     // The first-person hands built onto a gun belong to the viewmodel.
     mesh.traverse((o) => { if (o.userData.hand) o.visible = false; });
     this.setMesh(mesh);
