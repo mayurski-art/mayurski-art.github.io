@@ -722,7 +722,7 @@ export class WeaponState {
 
     // ADS blend
     const wantAds = adsHeld && canAds && !this.reloading;
-    const adsSpeed = 1 / Math.max(0.05, def.adsTime);
+    const adsSpeed = (this.adsMult || 1) / Math.max(0.05, def.adsTime);   // adsMult: Dexterity (view/player-update.js)
     this.adsT += (wantAds ? 1 : -1) * adsSpeed * dt;
     this.adsT = Math.max(0, Math.min(1, this.adsT));
     this.ads = this.adsT > 0.5;

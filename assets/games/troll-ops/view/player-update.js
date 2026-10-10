@@ -33,6 +33,10 @@ import { KB_GLANCE } from "../keyboard-repair.js?v=kr15";
 import { updateDamageNumbers } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
 import { chargedShotDef } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2";
 import { game } from "../core/state.js?v=st1";
+import { hasPerk, PERK_TUNE } from "../perks.js?v=pk1";
+import { updateEnemySteps } from "./enemy-steps.js?v=es1";
+import { updateScavenger } from "../combat/scavenger.js?v=sv1";
+import { updateEngineerMarks } from "./engineer-marks.js?v=en1";
 import { throwBusy } from "../combat/throw-anim.js?v=ta1-th2";
 
 /* Last value written to each per-frame HUD node. The DOM write itself is
@@ -167,7 +171,8 @@ export function updatePlayer(dt) {
   // being able to shoot at all. A short hold keeps a semi-auto's taps from
   // dropping the gun between shots. Reloading or empty, you keep running.
   const triggerUp = wantFire && game.player.holding === "gun" && !w.reloading && w.ammoInMag > 0;
-  fireSprintHoldT = triggerUp ? FIRE_SPRINT_HOLD : Math.max(0, fireSprintHoldT - dt);
+  // Dexterity (perks.js): the gun comes up out of a sprint in half the time.
+  fireSprintHoldT = triggerUp ? FIRE_SPRINT_HOLD * (hasPerk("dexterity") ? PERK_TUNE.dexteritySprintOut : 1) : Math.max(0, fireSprintHoldT - dt);
   if (game.isSnd()) {
     game.sndInteractHeld = !frozen && ((game.isTouch && touchState.interact) || (game.keys.has("KeyF") && game.cooking.slot !== "tactical")
       || (gp && game.gamepadState.pickup && game.sndCanInteract));
@@ -193,9 +198,12 @@ export function updatePlayer(dt) {
     yaw: rolling ? royale.rollYaw : game.look.yaw,
     pitch: game.look.pitch,
     adsHeld: wantAds,
-    speedMult: w.moveSpeedMult * (game.isInfected() ? INFECTION.speed : 1) * (wading ? 0.55 : 1) * (heroActive() ? hero().speedMult() : 1),
+    speedMult: w.moveSpeedMult * (game.isInfected() ? INFECTION.speed : 1) * (wading ? 0.55 : 1) * (heroActive() ? hero().speedMult() : 1)
+      * (hasPerk("lightweight") ? PERK_TUNE.lightweightSpeed : 1),
     // Troll Royale is a 400 m island: sprinting covers it 25% faster.
-    sprintMult: (w.def.sprintMult || 1.35) * (game.isRoyale() ? 1.25 : 1),
+    // Extreme Conditioning (perks.js): the game has no sprint limit to lift,
+    // so it's a faster sprint.
+    sprintMult: (w.def.sprintMult || 1.35) * (game.isRoyale() ? 1.25 : 1) * (hasPerk("extremeconditioning") ? PERK_TUNE.extremeSprint : 1),
     inertia: w.def.inertia,
   });
   // Troll Royale's opening: the floor carries you to the edge, and over it
@@ -216,7 +224,9 @@ export function updatePlayer(dt) {
   }
   if (game.move.justLanded && game.player.alive) game.audio.land(game.move.landSpeed);
 
-  game.updateEnemySteps(dt);
+  updateEnemySteps();
+  updateScavenger(dt);
+  updateEngineerMarks();
 
   game.move.eyePosition(game.player.pos);
   if (game.isSocial()) game.player.pos.y -= clubEyeDrop(dt);   // sat on the curb after the club's kick-out
@@ -361,6 +371,7 @@ export function updatePlayer(dt) {
   // no movement change beyond what ADS already slows — so it gets its own,
   // looser gate instead of inheriting the staging freeze from canAct.
   const canAds = !game.move.busy && game.player.alive && !throwing;
+  w.adsMult = hasPerk("dexterity") ? 1 / PERK_TUNE.dexterityAds : 1;   // Dexterity: ADS twice as fast
   w.update(dt, {
     moving: game.move.moving,
     sprinting: game.move.sprinting,

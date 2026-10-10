@@ -71,7 +71,6 @@ const s1 = await perks(A, () => { const P = window.__P, T = window.__trollOps; r
   carried: P.carriedPerks(), light: P.hasPerk("lightweight"), ghost: P.hasPerk("ghost"),
   card: document.querySelector(".to-perk-card")?.classList.contains("is-visible"),
   cardText: document.querySelector(".to-perk-card")?.textContent || "", wire: T.net.perks | 0,
-  dbg: [T.state(), T.isStaging?.(), T.stageT(), document.querySelector(".to-perk-card")?.outerHTML.slice(0, 80)].join("/"),
 }); });
 check("the class's three perks are carried from the spawn", s1.carried.join(",") === "lightweight,hardwired,dexterity" && s1.light && !s1.ghost, s1.carried.join(","));
 check("the spawn card shows the class and its perks", s1.card && /Class 1/.test(s1.cardText) && /Lightweight/.test(s1.cardText) && /Dexterity/.test(s1.cardText), s1.cardText);
@@ -84,6 +83,7 @@ const s2 = await perks(A, () => { const P = window.__P, T = window.__trollOps; r
   document.querySelectorAll("#to-pause-classes button")[1].click();
   const mid = P.carriedPerks().join(",");
   T.respawnPlayer();
+  T.closePauseMenu();
   return { mid, after: P.carriedPerks().join(","), wire: T.net.perks | 0, ghostBit: P.WIRE_PERKS.ghost, dsBit: P.WIRE_PERKS.deadsilence };
 })(); });
 check("a class change waits for the respawn", s2.mid === "lightweight,hardwired,dexterity", s2.mid);
@@ -95,7 +95,173 @@ const s3 = await perks(A, () => { const P = window.__P; return ({ valid: P.valid
 check("each slot only takes its own tier's perk", s3.valid[0] === "ghost" && s3.valid[1] === null && s3.valid[2] === null, JSON.stringify(s3.valid));
 check("BO2's sixteen perks: 5, 5 and 6 a tier", s3.tiers.join(",") === "5,5,6", s3.tiers.join(","));
 
-// PERK EFFECTS (appended per system)
+// ---- 4. Each perk's effect, solo (perks set directly, then put back).
+// The game's own module instances, by the tags their importers use.
+const tagOf = (importer, mod) => fs.readFileSync(path.join(ROOT, "assets/games/troll-ops", importer), "utf8").match(new RegExp(`${mod.replace(/\./g, "\\.")}\\?v=([\\w-]+)`))[1];
+const TAGS = {
+  calling: tagOf("view/engineer-marks.js", "calling.js"),
+  throwables: tagOf("game.js", "combat/throwables.js"),
+  throwAnim: tagOf("game.js", "combat/throw-anim.js"),
+  scavenger: tagOf("combat/scoring.js", "scavenger.js"),
+  gear: tagOf("combat/damage.js", "gear.js"),
+};
+await A.evaluate(async (tags) => {
+  const base = "/assets/games/troll-ops/";
+  window.__M = {
+    G: (await import(`${base}core/state.js?v=st1`)).game,
+    C: await import(`${base}streaks/calling.js?v=${tags.calling}`),
+    TH: await import(`${base}combat/throwables.js?v=${tags.throwables}`),
+    TA: await import(`${base}combat/throw-anim.js?v=${tags.throwAnim}`),
+    SV: await import(`${base}combat/scavenger.js?v=${tags.scavenger}`),
+    GEAR: await import(`${base}gear.js?v=${tags.gear}`),
+  };
+}, TAGS);
+const fx = await A.evaluate(async () => {
+  const P = window.__P, T = window.__trollOps, { G, C, TH, TA, SV, GEAR } = window.__M;
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const out = {};
+  const keep = P.carriedPerks();
+  const set = (...ids) => P.setCarriedPerks(ids);
+  T.player.spawnGuard = 0;
+
+  // Hardline: the UAV's 200 is 160.
+  T.streaks.setSelected(["uav"]);
+  set(); out.uav = T.streaks.nextProgress()?.cost;
+  set("hardline"); out.uavHard = T.streaks.nextProgress()?.cost;
+
+  // Flak Jacket: a frag lands at 35%; bullets don't change.
+  const hit = (dmg, w) => { T.player.hp = 100; T.damagePlayer(dmg, null, w); return T.player.hp; };
+  set(); out.frag = hit(50, "frag");
+  set("flakjacket"); out.fragFlak = hit(50, "frag"); out.bulletFlak = hit(50, "problem416");
+
+  // Toughness: the hit kick at a quarter.
+  const kick = () => { G.shakeMag = 0; G.shakeT = 0; T.player.hp = 100; T.damagePlayer(20, null, "problem416"); return G.shakeMag; };
+  set(); out.kick = kick();
+  set("toughness"); out.kickTough = kick();
+  T.player.hp = 100;
+
+  // Hard Wired: an enemy Counter-UAV doesn't jam the radar.
+  G.jammedUntil = performance.now() + 5000;
+  set(); out.jammed = C.minimapJammed();
+  set("hardwired"); out.jammedHw = C.minimapJammed();
+  G.jammedUntil = 0;
+
+  // Tactical Mask: a flash in your face at a fifth.
+  const fwd = G.move.pos.clone().set(0, 0, 0); G.camera.getWorldDirection(fwd);
+  const at = G.player.pos.clone().addScaledVector(fwd, 2); at.y += 1.4;
+  const flash = () => { G.blindT = 0; TH.flashPlayer(at, GEAR.THROWABLE_DEFS.flash); return G.blindT; };
+  set(); out.blind = flash();
+  set("tacticalmask"); out.blindMask = flash();
+  G.blindT = 0;
+
+  // Fast Hands: the draw (0.12 s) is done in 0.08 s.
+  const draw = () => { TA.throwStart(GEAR.THROWABLE_DEFS.frag); TA.updateThrow(0.08); const ph = TA.throwState.phase; TA.throwCancel(); return ph; };
+  set(); out.draw = draw();
+  set("fasthands"); out.drawFast = draw();
+
+  // Dexterity: the gun's ADS speed doubles on the next frame.
+  const w = () => T.player.weapons[T.player.weaponId];
+  set(); await wait(150); out.ads = w().adsMult;
+  set("dexterity"); await wait(150); out.adsDex = w().adsMult;
+
+  // Scavenger: a pack at your feet refills a mag and a throwable.
+  set("scavenger");
+  const kind = T.loadout.throwKind;
+  w().ammoReserve = 0; T.player.gear[kind] = 0;
+  SV.scavengerDrop(G.player.pos.clone());
+  await wait(300);
+  out.scavReserve = w().ammoReserve; out.scavMag = w().def.magSize; out.scavGear = T.player.gear[kind];
+
+  // Engineer: an enemy streak in front of you gets a mark.
+  set("engineer");
+  const ePos = G.player.pos.clone().addScaledVector(fwd, 12); ePos.y += 4;
+  C.streakEntities.set("test-enemy", { team: "enemy-side", owned: false, pos: ePos });
+  await wait(200);
+  out.marks = [...document.querySelectorAll(".to-engineer-marks i")].filter((i) => !i.hidden).length;
+  C.streakEntities.delete("test-enemy");
+  set(); await wait(150);
+  out.marksOff = document.querySelector(".to-engineer-marks")?.hidden;
+
+  set(...keep);
+  return out;
+});
+check("Hardline: the UAV costs 160, not 200", fx.uav === 200 && fx.uavHard === 160, `${fx.uav} -> ${fx.uavHard}`);
+check("Flak Jacket: a frag hurts 35%, bullets the same", fx.frag === 50 && Math.abs(fx.fragFlak - 82.5) < 0.01 && fx.bulletFlak === 50, `${fx.frag} / ${fx.fragFlak} / ${fx.bulletFlak}`);
+check("Toughness: a quarter of the hit kick", fx.kick > 0 && Math.abs(fx.kickTough - fx.kick * 0.25) < 1e-6, `${fx.kick} -> ${fx.kickTough}`);
+check("Hard Wired: a Counter-UAV doesn't jam you", fx.jammed === true && fx.jammedHw === false);
+check("Tactical Mask: a flash at a fifth", fx.blind > 0 && Math.abs(fx.blindMask - fx.blind * 0.2) < 1e-6, `${fx.blind} -> ${fx.blindMask}`);
+check("Fast Hands: the throw comes out twice as fast", fx.draw === "draw" && fx.drawFast === "pin", `${fx.draw} -> ${fx.drawFast}`);
+check("Dexterity: ADS twice as fast", fx.ads === 1 && fx.adsDex === 2, `${fx.ads} -> ${fx.adsDex}`);
+check("Scavenger: a pack refills a mag and a throwable", fx.scavReserve === fx.scavMag && fx.scavGear === 1, `reserve ${fx.scavReserve}/${fx.scavMag}, throwable ${fx.scavGear}`);
+check("Engineer: an enemy streak is marked; off without it", fx.marks === 1 && fx.marksOff === true, `${fx.marks} marks, hidden after ${fx.marksOff}`);
+
+// Lightweight and Extreme Conditioning: faster on foot (speed after a second's walk/sprint).
+const pace = async (ids, sprint) => A.evaluate(async ({ ids, sprint }) => {
+  const P = window.__P, { G } = window.__M;
+  P.setCarriedPerks(ids);
+  G.keys.add("KeyW"); if (sprint) G.keys.add("ShiftLeft");
+  await new Promise((r) => setTimeout(r, 1300));
+  const v = Math.hypot(G.move.velocity.x, G.move.velocity.z);
+  G.keys.delete("KeyW"); G.keys.delete("ShiftLeft");
+  await new Promise((r) => setTimeout(r, 600));
+  return v;
+}, { ids, sprint });
+const walk = await pace([], false), walkLight = await pace(["lightweight"], false);
+const run = await pace([], true), runExtreme = await pace(["extremeconditioning"], true);
+check("Lightweight: 7% faster", walk > 0 && Math.abs(walkLight / walk - 1.07) < 0.03, `${walk.toFixed(2)} -> ${walkLight.toFixed(2)} m/s`);
+check("Extreme Conditioning: 8% faster sprint", run > walk && Math.abs(runExtreme / run - 1.08) < 0.03, `${run.toFixed(2)} -> ${runExtreme.toFixed(2)} m/s`);
+await A.close();
+
+// ---- 5. Two players in a private room: what the other side sees.
+const ROOM = "PK" + Math.floor(Math.random() * 900 + 100);
+async function join(label, perks) {
+  const page = await open(label);
+  await page.evaluate(async ({ room, perks }) => {
+    const T = window.__trollOps;
+    perks.forEach((id, t) => T.loadout.setClassPerk(t, id));
+    T.setMode("tdm");
+    if (T.els.noBots) T.els.noBots.checked = true;
+    T.els.room.value = room;
+    T.els.room.dispatchEvent(new Event("input"));
+    await T.startGame();
+  }, { room: ROOM, perks });
+  return page;
+}
+const X = await join("X", [null, null, "awareness"]);
+const Y = await join("Y", ["ghost", "coldblooded", "deadsilence"]);
+await Promise.all([X, Y].map((p) => p.waitForFunction(() => window.__trollOps.state() === "playing" && !window.__trollOps.isStaging(), null, { timeout: 300000 })));
+await X.waitForTimeout(1500);
+const teamX = await X.evaluate(() => window.__trollOps.net.team);
+await Y.evaluate((t) => window.__trollOps.net.setTeam(t === "phantom" ? "ghost" : "phantom"), teamX);
+const yId = await Y.evaluate(() => window.__trollOps.net.id);
+await X.waitForTimeout(1500);
+const seen = await X.evaluate((yId) => {
+  const rp = window.__trollOps.remotes.byId.get(yId);
+  return { perks: rp?.peer.perks ?? null, tag: rp?.tagColor ?? null };
+}, yId);
+check("the other side learns Ghost, Cold Blooded and Dead Silence", seen.perks === (1 | 2 | 4), String(seen.perks));
+check("Cold Blooded: their name isn't red", !!seen.tag && seen.tag !== "#ff4d3d", String(seen.tag));
+
+// Dead Silence: Y walks past X and X hears nothing; without it, X does.
+await X.evaluate(() => {
+  const a = window.__trollOps.audio;
+  const f = a.step.bind(a);
+  a.step = (at, v) => { if (at) window.__steps = (window.__steps || 0) + 1; return f(at, v); };
+});
+async function stepsHeard() {
+  await X.evaluate(() => { window.__steps = 0; });
+  const near = await X.evaluate(() => { const p = window.__trollOps.move.pos; return { x: p.x, z: p.z }; });
+  for (let i = 0; i < 16; i++) {
+    await Y.evaluate(({ x, z }) => { const T = window.__trollOps; T.move.pos.x = x; T.move.pos.z = z; T.player.pos.x = x; T.player.pos.z = z; }, { x: near.x + 4 + (i % 2) * 2.4, z: near.z + 2 });
+    await Y.waitForTimeout(140);
+  }
+  return X.evaluate(() => window.__steps);
+}
+const silentSteps = await stepsHeard();
+await Y.evaluate(() => { window.__trollOps.net.perks = 0; });
+await Y.waitForTimeout(400);
+const loudSteps = await stepsHeard();
+check("Dead Silence: their footsteps are silent", silentSteps === 0 && loudSteps > 0, `${silentSteps} with, ${loudSteps} without`);
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 await browser.close();

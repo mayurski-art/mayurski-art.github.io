@@ -829,6 +829,14 @@ body.to-social:not(.to-social-armed) #to-touch-interact { display: none !importa
   width: 26px; height: 26px; padding: 4px; border-radius: 6px; color: #0d1410;
   background: var(--perk); box-shadow: 0 2px 8px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.35);
 }
+/* Engineer (view/engineer-marks.js): enemy streaks through walls. */
+.to-engineer-marks { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.to-engineer-marks[hidden] { display: none; }
+.to-engineer-marks i {
+  position: absolute; left: -6px; top: -6px; width: 12px; height: 12px;
+  border: 2px solid #e5b234; background: rgba(229,178,52,.25); box-shadow: 0 0 6px rgba(0,0,0,.6);
+}
+.to-engineer-marks i[hidden] { display: none; }
 @media (max-width: 760px) { .to-perk-card { top: 14%; } .to-perk-card div { gap: 8px; } .to-perk-card span { font-size: 12px; } }
 
 .to-crosshair {

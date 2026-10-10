@@ -13,6 +13,7 @@ import { currentWeapon } from "./weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4
 import { resolveWeapon, defaultLoadoutFor } from "../attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2";
 import { XP } from "../progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2";
 import { game } from "../core/state.js?v=st1";
+import { scavengerDrop } from "./scavenger.js?v=sv1";
 
 /* Enemy id -> when they last killed a teammate, for the Avenger medal. */
 export const recentTeamKillers = new Map();
@@ -137,6 +138,9 @@ export function registerDeath(victimName, killerId, weaponId, opts = {}) {
     updateTeamHud();
   }
   if (!game.isSnd()) checkMatchEnd();
+
+  // Scavenger (perks.js): our kill drops an ammo pack where they fell.
+  if (iKilled && !opts.victimIsMe) scavengerDrop(opts.victimPos);
 
   // Whatever the victim was holding falls where they stood. Our own death
   // drops from damagePlayer instead, with the exact live WeaponState — this

@@ -520,7 +520,6 @@ linkGame({
   tryReload,
   trySwivel,
   updateDuo,
-  updateEnemySteps,
   updateFireShake,
   updateGearHud,
   updateMeleeView,
@@ -1071,48 +1070,6 @@ function nearMiss(strength, at = null) {
   audio.whiz(at);
 }
 
-/* Footsteps for everyone who isn't you. Panned, so the direction of the
-   sound is real information — the thing you actually listen for in a PF
-   fight. Tracked per-actor by distance travelled rather than a timer, so
-   someone walking slowly is quieter and rarer than someone sprinting. */
-const stepTrack = new Map();
-const STEP_STRIDE = 1.9;     // metres between footfalls
-const STEP_HEARING = 34;     // beyond this we don't bother emitting
-
-function updateEnemySteps(dt) {
-  const seen = new Set();
-  const sources = [];
-  for (const rp of remotes.byId.values()) {
-    if (rp.alive) sources.push({ key: `r${rp.netId}`, pos: rp.pos, rope: rp.stance === "rope" });
-  }
-  for (const b of bots.bots) {
-    if (b.alive) sources.push({ key: `b${b.id}`, pos: b.pos, rope: b.stance === "rope" });
-  }
-
-  for (const s of sources) {
-    seen.add(s.key);
-    let t = stepTrack.get(s.key);
-    if (!t) { stepTrack.set(s.key, { last: s.pos.clone(), dist: 0 }); continue; }
-
-    const moved = s.pos.distanceTo(t.last);
-    t.last.copy(s.pos);
-    // A teleport (respawn, net correction) shouldn't fire a burst of steps.
-    if (moved > 3 || s.rope) { t.dist = 0; continue; }   // a rope climb is silent
-    t.dist += moved;
-
-    if (t.dist >= STEP_STRIDE) {
-      t.dist -= STEP_STRIDE;
-      if (heroActive() && hero().id === "hunter" && player.alive) footprints().drop(s.pos, look.yaw);
-      const range = s.pos.distanceTo(player.pos);
-      if (range < STEP_HEARING) {
-        // Louder than your own steps: these are the ones worth hearing.
-        audio.step(s.pos, 0.16);
-      }
-    }
-  }
-
-  for (const key of stepTrack.keys()) if (!seen.has(key)) stepTrack.delete(key);
-}
 
 /* Closest approach of a ray to a point; used to tell a near miss from a
    shot that was never coming near us. */

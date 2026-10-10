@@ -31,6 +31,7 @@ import * as THREE from "three";
 import { reachHand, setHandPose } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
 import { buildThrowable, buildPin, modelKind } from "./throwable-models.js?v=tm1-th2";
 import { game } from "../core/state.js?v=st1";
+import { hasPerk, PERK_TUNE } from "../perks.js?v=pk1";
 
 export const THROW = { DRAW: 0.12, PIN: 0.3, WIND: 0.08, WHIP: 0.14, RAISE: 0.25 };
 const THROW_END = THROW.WIND + THROW.WHIP;
@@ -76,6 +77,8 @@ export function throwBusy() { return throwState.phase === "draw" || throwState.p
 export function updateThrow(dt) {
   const s = throwState;
   if (!s.phase) return;
+  // Fast Hands (perks.js): the whole draw, pin and throw run twice as fast.
+  if (hasPerk("fasthands")) dt *= PERK_TUNE.fastHands;
   s.t += dt;
   if (s.phase === "draw" && s.t >= THROW.DRAW) s.phase = "pin";
   if (s.phase === "pin" && s.t >= THROW.PIN) {
