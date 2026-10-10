@@ -1,7 +1,7 @@
 // Troll Forces melee: quick swings, the Trollsaber's block, deflect and
 // trail, and the Keyboard Warrior's shield.
 
-import { stageFrozen, royaleDropView } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
+import { stageFrozen, royaleDropView, royaleAboard } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
 import { breakSpawnGuard, killerPosFor } from "./damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1-pd1";
 import * as THREE from "three";
 import { ParryState } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1";
@@ -21,7 +21,7 @@ export function swingMelee() {
   if (kbRepair.active) return;   // both hands busy fixing the keyboard
   if (game.meleeHolster) return;      // being put away for a streak
   if (throwBusy()) return;            // a grenade in hand
-  if (!game.player.alive || game.move.busy || game.gameState !== "playing" || stageFrozen() || royaleDropView()) return;
+  if (!game.player.alive || game.move.busy || game.gameState !== "playing" || stageFrozen() || royaleDropView() || royaleAboard()) return;
   if (!game.player.melee || !game.player.melee.start()) return;
   // Everyone else sees the swing; the damage still travels as a normal hit.
   if (game.isPvp() && game.net.active) game.net.publishMelee(game.player.melee.swingIndex % 2, game.player.melee.def.id);

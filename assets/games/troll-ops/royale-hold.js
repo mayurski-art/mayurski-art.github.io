@@ -28,6 +28,11 @@ export const HOLD = {
   seats: 9,
 };
 export const RAMP_END = HOLD.hinge + HOLD.rampLen;
+/* The nine seats' pans (plane-local x, z): build_c130_hold.blender.py
+   SEATS, five down the port wall, four down the starboard. The glb's
+   Hold_Seat_N empties say the same; this copy is for before it loads. */
+export const SEAT_SPOTS = [[-1, 4.3], [1, 3.4], [-1, 2.5], [1, 1.6], [-1, 0.7], [1, -0.2], [-1, -1.1], [1, -2.0], [-1, -2.9]]
+  .map(([side, y]) => ({ x: side * 1.3, z: -y }));
 
 /* Both models (loadModel fetches once and hands out clones). */
 export function preloadPlane() {

@@ -17,7 +17,7 @@ import { grenades, applyEmpState } from "../combat/throwables.js?v=th1-kc2-si1-g
 import { ensureStrikeTablet } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1";
 import { loadModel } from "../battlefield-props.js";
 import { goreStandIns, ZombieDirector } from "../zombies.js?v=zr4c-sb2b7b7dc2f1m1u-gt1-gt2-zr5-zr6-zr7-zr8-zr9-zr10-zc2-zp1-bf1";
-import { royale, openRoyaleBox, setupRoyale, teardownRoyale, updateRoyaleGear, placeBotsInLobby, applyRoyaleCatchUp } from "./royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
+import { royale, greenLight, boardRoyale, setupRoyale, teardownRoyale, updateRoyaleGear, placeBotsInLobby, applyRoyaleCatchUp } from "./royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
 import { showWaveBanner, clearHitDirs, updateStreakHud, clearDamageNumbers } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
 import { updateSpawnGuardHud, damageLog, clearDeathVisuals, yawTowardCentre } from "../combat/damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1-pd1";
 import { sndGoLive, prepareSndRound } from "./objectives.js?v=ob1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-rs1-kc1-dj2-bf1-pd1";
@@ -529,7 +529,7 @@ export function beginStaging(seconds = STAGE_SECONDS) {
   // The sky lobby is a place to walk round in, not a frozen countdown card.
   game.els.staging.hidden = !!royale?.drop;
   if (!royale?.drop) document.body.classList.add("to-staging-on");
-  else showWaveBanner("SKY LOBBY — try the guns, the bus leaves soon", 2600);
+  else showWaveBanner(`YOUR STICK: plane ${royale.plane + 1} of 12 — the ramp opens at 0:00`, 3000);
   game.els.stagingMode.textContent = game.isPvp()
     ? `${game.currentMode().name} — ${game.builtMap.map.name}`
     : game.builtMap.map.name;
@@ -554,7 +554,7 @@ export function endStaging() {
   // The opening seconds still deserve the cover a respawn gets.
   game.player.spawnGuard = game.isPvp() ? game.SPAWN_GUARD : 0;
   updateSpawnGuardHud();
-  if (royale?.drop) openRoyaleBox();
+  if (royale?.drop) greenLight();
   else if (royale) { royale.live = true; royale.t = 0; showWaveBanner("DROP IN — last troll standing wins", 1800); }
   else if (game.isPvp() && !game.isSnd()) showWaveBanner("FIGHT", 1100);
   game.audio.stageTick(true);
@@ -691,9 +691,9 @@ export function beginMatch(mapId = null) {
   if (game.isRoyale()) setupRoyale(); else teardownRoyale();
   game.spawnOpening = true;   // cleared by endStaging — everyone opens on their own side
   clearDeathVisuals();   // dying as the last match ended left the screen dark
-  const sp = royale?.drop ? royale.drop.lobbySpot(0) : game.isPvp() ? game.teamSpawn() : game.builtMap.playerSpawn;
+  const sp = royale?.drop ? boardRoyale() : game.isPvp() ? game.teamSpawn() : game.builtMap.playerSpawn;
   game.move.reset(sp.x, sp.z, sp.y || 0);
-  game.look.yaw = yawTowardCentre(sp);
+  game.look.yaw = sp.yaw ?? yawTowardCentre(sp);
   game.look.pitch = 0;
   clubSpawn();   // Trolling Loud's door (Socialize): in the line, or in the lobby with a band
   game.bullets.clear();
@@ -813,7 +813,7 @@ export function beginMatch(mapId = null) {
       game.net.botCount = game.bots.bots.length;
       for (const b of game.bots.bots) game.net.publishBot(b);
     }
-    // Troll Royale: the bots wait in the sky lobby too.
+    // Troll Royale: the bots take the seats after the humans'.
     if (royale?.drop) placeBotsInLobby();
     // S&D's round 1 is set up like every later round, under this countdown.
     if (game.isSnd()) prepareSndRound();

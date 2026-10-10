@@ -223,10 +223,10 @@ def build_windows():
             out.append(o)
             # the frame ring
             rings = []
-            for r, x in ((0.21, s * 1.64), (0.36, s * 1.66), (0.36, s * 1.73), (0.21, s * 1.70)):
+            for r, x in ((0.21, s * 1.635), (0.3, s * 1.625), (0.44, s * 1.66), (0.44, s * 1.75)):
                 rings.append([(x, y + r * math.cos(2 * math.pi * k / 24), C.WINDOW_Z + r * math.sin(2 * math.pi * k / 24)) for k in range(24)])
-            o = C.loft("wframe", rings[:3], M["frame"], lambda q, s=s: (s * 1.8, y, C.WINDOW_Z))
-            C.paint(o, C.flat(RUBBER))
+            o = C.loft("wframe", rings, M["frame"], lambda q, s=s: (s * 1.8, y, C.WINDOW_Z))
+            C.paint(o, lambda p, n: RUBBER if math.hypot(p.y - y, p.z - C.WINDOW_Z) < 0.26 else FRAME)
             out.append(o)
     return out
 

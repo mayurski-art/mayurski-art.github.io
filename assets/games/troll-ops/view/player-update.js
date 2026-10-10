@@ -8,7 +8,7 @@ import { MOUSE_ACTIVE_MS, applyAimAssist } from "../input/aim-assist.js?v=in1-fu
 import { isStaging } from "../modes/match-start.js?v=mst1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-ob1-kc1-dj2-bf1-pd1";
 import { dragonfireView, DF_ASSIST_PULL, DF_ASSIST_CONE_DEG, fireDragonfire } from "../streaks/dragonfire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0-dj2-bf1-pd1";
 import { lookSensScale, warshipView, placeWarshipCamera, fireWarship } from "../streaks/warship.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1";
-import { royaleDropView, royaleOnBelt, royaleRolling, stageFrozen, updateRoyaleRoll, royaleRollK, ROLL_SPEED, updateDropPlayer, updateBeltPlayer, royale, royaleSpectating, placeSpectateCamera, placeDropCamera, _dropTarget, cancelRoyaleAct } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
+import { royaleDropView, royaleAboard, royaleRolling, stageFrozen, updateRoyaleRoll, royaleRollK, ROLL_SPEED, updateDropPlayer, updateAboardPlayer, royaleTickDrop, placeAboardView, placeAboardRig, royale, royaleSpectating, placeSpectateCamera, placeDropCamera, _dropTarget, cancelRoyaleAct } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
 import { bar, seated, holdSeat } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1";
 import { updateTrain } from "../modes/social-train.js?v=st1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
 import { updateConductor } from "../modes/social-conductor.js?v=cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1";
@@ -136,8 +136,9 @@ export function updatePlayer(dt) {
   // client's own avatar the same way death or staging does, while net
   // updates, bots and remote players keep simulating around it.
   // Heads-down on the strike tablet: you stand still, as in BO2.
-  // In the air your stick steers the fall, not your feet. (On the belt you
-  // walk as usual; the floor moving under you is added after, below.)
+  // In the air your stick steers the fall, not your feet. (Aboard you walk
+  // as usual, in the ghost hold.)
+  if (royale?.drop) royaleTickDrop(dt);   // the C-130s fly first: the camera's mapped off this frame's matrix
   const dropping = royaleDropView();
   const dropIx = ix, dropIz = iz;
   const rolling = royaleRolling();
@@ -162,8 +163,8 @@ export function updatePlayer(dt) {
   // Staging doesn't block it: scoping in on the mark is harmless (see canAds).
   const wantAds = game.player.alive && !game.isView() && !game.socialUnarmed() && !game.localPauseOnly && game.empT <= 0 && game.player.holding !== "streak"
     && ((game.isTouch && touchState.ads) || (gp && game.gamepadState.ads) || game.adsHeld || game.keys.has("KeyQ"));
-  // On the belt (Troll Royale's opening) the guns stay quiet till you land.
-  const wantFire = !frozen && !royaleOnBelt() && !game.isView() && !game.socialUnarmed() && ((game.isTouch && touchState.firing) || (gp && game.gamepadState.firing) || game.mouseDown);
+  // Aboard the C-130 (Troll Royale's opening) the guns stay quiet till you land.
+  const wantFire = !frozen && !royaleAboard() && !game.isView() && !game.socialUnarmed() && ((game.isTouch && touchState.firing) || (gp && game.gamepadState.firing) || game.mouseDown);
   // The frame the trigger went down (the 16 ms fireEdgeTrigger pulse can
   // fall between two slow frames).
   const firePressed = wantFire && !fireWasDown;
@@ -216,9 +217,9 @@ export function updatePlayer(dt) {
     sprintMult: (w.def.sprintMult || 1.35) * (game.isRoyale() ? 1.25 : 1) * (hasPerk("extremeconditioning") ? PERK_TUNE.extremeSprint : 1),
     inertia: w.def.inertia,
   });
-  // Troll Royale's opening: the floor carries you to the edge, and over it
-  // the drop takes over (after the walk, so collisions have resolved).
-  if (royaleOnBelt()) updateBeltPlayer(dt);
+  // Troll Royale's opening: aboard the C-130, off the ramp and the drop
+  // takes over (after the walk, so collisions have resolved).
+  if (royaleAboard()) updateAboardPlayer(dt, !frozen && ((game.isTouch && touchState.jump) || (gp && game.gamepadState.jump) || game.keys.has("Space")));
 
   // fist fights with the townsfolk (Socialize): after we've moved, so a
   // bump reads our speed and a knock-down holds us where we fell
@@ -255,6 +256,7 @@ export function updatePlayer(dt) {
   // person is toggled on, and so OTHER systems that might reasonably poke
   // at it (screenshots, a future killcam angle) see a live pose.
   updateLocalRig(dt);
+  placeAboardRig(game.localRig);   // aboard: the body rides in the plane, not the ghost hold
 
   // The match intro owns the camera outright while it plays (staging, so
   // nobody can move or shoot anyway). Your own body is in the shot until
@@ -365,6 +367,7 @@ export function updatePlayer(dt) {
     }
   }
 
+  placeAboardView();   // aboard: the camera's carried from the ghost hold up into the plane
   // Panned sounds resolve against wherever the camera now is and faces.
   game._listenFwd.set(0, 0, -1).applyQuaternion(game.camera.quaternion);
   game._listenUp.set(0, 1, 0).applyQuaternion(game.camera.quaternion);

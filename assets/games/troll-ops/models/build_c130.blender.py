@@ -38,7 +38,7 @@ DOOR_Y = -12.6           # the upper door's hinge
 SLOT_X = 1.6             # half width of the opening under the tail
 RAMP_LEN = 3.1
 RAMP_SHUT = math.radians(-25)
-WINDOWS_Y = (3.0, -2.0)  # the round windows, both sides (royale-hold.js cuts its walls here)
+WINDOWS_Y = (3.385, -1.823)  # the round windows, both sides: mid-bay between the hold's frames (build_c130_hold cuts its lining here)
 WINDOW_Z = 1.55
 
 OLIVE = (0x62, 0x6b, 0x48)
