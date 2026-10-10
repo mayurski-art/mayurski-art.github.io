@@ -22,6 +22,9 @@ export class StreakPicker {
     this.onChange = onChange || (() => {});
     // Hover/focus/click on a card: the lobby shows that streak's model.
     this.onFocus = onFocus || (() => {});
+    // Where the three come from: the active class (menu/lobby.js sets it to
+    // the loadout's), else this picker's own key.
+    this.source = null;
 
     this.restore();
   }
@@ -31,7 +34,7 @@ export class StreakPicker {
      is this device's guest total, which can lock streaks the account has --
      so this runs again once the profile arrives and those picks come back. */
   restore() {
-    const saved = load();
+    const saved = this.source ? { selected: this.source() } : load();
     const wanted = Array.isArray(saved.selected) ? saved.selected : [];
     this.selected = wanted.filter((id) => STREAK_DEFS[id] && streakUnlocked(id)).slice(0, LOADOUT_SIZE);
     if (!this.selected.length) this.selected = this.defaults();

@@ -10,6 +10,51 @@ import { MAPS, MAP_IDS, REWARD_MAPS, mapSchematic } from "./maps.js?v=p5tc-k9-em
 import { MELEE_DEFS, MELEE_IDS, THROWABLE_DEFS, LETHAL_IDS, TACTICAL_IDS } from "./gear.js?v=to-hb1kb3-bk1-wst-ig1-th2";
 
 const STORE = "trollops:loadout";
+// The scorestreak picker's own key (streak-picker.js). The active class's
+// three are mirrored into it, so whatever reads it keeps working.
+const STREAK_STORE = "trollops:streaks";
+
+/* Five saved classes, BO2's Create a Class (user, 2026-10-10). Each holds a
+   primary, a secondary, a melee, the one throwable, three scorestreaks and a
+   perk per tier. Attachments stay per gun, shared by every class that
+   carries it (one tuning per gun). */
+export const CLASS_COUNT = 5;
+const CLASS_FIELDS = ["weaponId", "secondaryId", "meleeId", "lethalId", "tacticalId", "throwKind"];
+export function cleanClassName(s) {
+  return String(s || "").replace(/[^\w .'!?&-]/g, "").replace(/\s+/g, " ").trim().slice(0, 16);
+}
+const clampClass = (i) => (Number.isInteger(i) && i >= 0 && i < CLASS_COUNT ? i : 0);
+
+/* The save as v2. A v1 save (one flat loadout, the streaks in their own
+   key) becomes Class 1, and Classes 2-5 start as copies of it. */
+function migrate(saved) {
+  let classes = saved.v === 2 && Array.isArray(saved.classes) ? saved.classes : null;
+  if (!classes) {
+    let streaks = [];
+    try { streaks = JSON.parse(localStorage.getItem(STREAK_STORE))?.selected || []; } catch { /* none */ }
+    const base = { streaks, perks: [] };
+    for (const k of CLASS_FIELDS) base[k] = saved[k];
+    classes = [base];
+  }
+  const active = clampClass(saved.active);
+  const out = [];
+  for (let i = 0; i < CLASS_COUNT; i++) {
+    let c = classes[i] || classes[0] || {};
+    // The flat v1 fields are the active class's (writeSave keeps them in
+    // step); if something else changed them, they win for that class.
+    if (i === active) {
+      c = { ...c };
+      for (const k of CLASS_FIELDS) if (saved[k] !== undefined) c[k] = saved[k];
+    }
+    out.push({
+      ...c,
+      name: cleanClassName(c.name) || `Class ${i + 1}`,
+      streaks: Array.isArray(c.streaks) ? c.streaks.slice(0, 3) : [],
+      perks: [0, 1, 2].map((t) => (Array.isArray(c.perks) && c.perks[t]) || null),
+    });
+  }
+  return { ...saved, v: 2, active, classes: out };
+}
 
 /* Prestige finishes (skins.js) open at their prestige. A saved pick you can't
    wear right now (signed out, say) is kept, but the gun goes out in factory. */
@@ -95,15 +140,14 @@ export class Loadout {
     this.onPreview = null;
     this.gearShown = null;
 
-    const saved = load();
+    // Called when the active class changes (menu/lobby.js points the
+    // scorestreak picker at the new class's three).
+    this.onClassChange = null;
+
+    const saved = migrate(load());
     this.attachmentsByWeapon = saved.attachments || {};
-    this.weaponId = saved.weaponId && WEAPON_DEFS[saved.weaponId] ? saved.weaponId : "problem416";
-    if (!isUnlocked(this.weaponId)) this.weaponId = "problem416";
-    // Secondary is always a sidearm - sixtynine (rank 0) is the one every
-    // account has unlocked, same reasoning as the problem416 primary fallback.
-    this.secondaryId = saved.secondaryId && WEAPON_DEFS[saved.secondaryId]?.cls === "sidearm"
-      ? saved.secondaryId : "sixtynine";
-    if (!isUnlocked(this.secondaryId)) this.secondaryId = "sixtynine";
+    this.classes = saved.classes.map((c) => this.validClass(c));
+    this.active = saved.active;
     this.slot = "primary";   // which slot the class/weapon list below is editing
     this.cls = WEAPON_DEFS[this.weaponId].cls;
     this.mapId = MAPS[saved.mapId] ? saved.mapId : MAP_IDS[0];
@@ -113,17 +157,100 @@ export class Loadout {
     this.mapPool = null;
     this.privateRoom = false;   // game.js: a room code is set (prestige maps play only there)
 
-    // Gear falls back to the rank-0 option whenever a saved pick is unknown
-    // or has been locked again (the rank track is local and can be reset).
-    this.meleeId = this.validGear(saved.meleeId, MELEE_DEFS, MELEE_IDS);
-    this.lethalId = this.validGear(saved.lethalId, THROWABLE_DEFS, LETHAL_IDS);
-    this.tacticalId = this.validGear(saved.tacticalId, THROWABLE_DEFS, TACTICAL_IDS);
-    // One throwable slot (user, 2026-09-29): a lethal OR a tactical, never
-    // both. Both picks are remembered; `throwKind` says which one you carry.
-    this.throwKind = saved.throwKind === "tactical" ? "tactical" : "lethal";
-
     this.buildMaps();
     this.buildSlotToggle();
+    this.buildClasses();
+    this.buildSlots();
+    this.buildGear();
+    this.render();
+  }
+
+  /* A saved class with every pick checked against the level right now. The
+     account level lands after the page loads, so a pick that fails here is
+     only swapped in memory: the save keeps it until the player changes
+     something, and restoreSaved() puts it back once the profile is in. */
+  validClass(c) {
+    let weaponId = WEAPON_DEFS[c.weaponId] ? c.weaponId : "problem416";
+    if (!isUnlocked(weaponId)) weaponId = "problem416";
+    // Secondary is always a sidearm - sixtynine (rank 0) is the one every
+    // account has unlocked, same reasoning as the problem416 primary fallback.
+    let secondaryId = WEAPON_DEFS[c.secondaryId]?.cls === "sidearm" ? c.secondaryId : "sixtynine";
+    if (!isUnlocked(secondaryId)) secondaryId = "sixtynine";
+    return {
+      name: c.name, weaponId, secondaryId,
+      // Gear falls back to the rank-0 option whenever a saved pick is unknown
+      // or has been locked again (the rank track is local and can be reset).
+      meleeId: this.validGear(c.meleeId, MELEE_DEFS, MELEE_IDS),
+      lethalId: this.validGear(c.lethalId, THROWABLE_DEFS, LETHAL_IDS),
+      tacticalId: this.validGear(c.tacticalId, THROWABLE_DEFS, TACTICAL_IDS),
+      // One throwable slot (user, 2026-09-29): a lethal OR a tactical, never
+      // both. Both picks are remembered; `throwKind` says which one you carry.
+      throwKind: c.throwKind === "tactical" ? "tactical" : "lethal",
+      streaks: [...c.streaks],
+      perks: [...c.perks],
+    };
+  }
+
+  /* The class being edited and carried. Every per-class pick reads and
+     writes through it, so the rest of the game never sees the classes. */
+  get cur() { return this.classes[this.active]; }
+  get weaponId() { return this.cur.weaponId; }
+  set weaponId(v) { this.cur.weaponId = v; }
+  get secondaryId() { return this.cur.secondaryId; }
+  set secondaryId(v) { this.cur.secondaryId = v; }
+  get meleeId() { return this.cur.meleeId; }
+  set meleeId(v) { this.cur.meleeId = v; }
+  get lethalId() { return this.cur.lethalId; }
+  set lethalId(v) { this.cur.lethalId = v; }
+  get tacticalId() { return this.cur.tacticalId; }
+  set tacticalId(v) { this.cur.tacticalId = v; }
+  get throwKind() { return this.cur.throwKind; }
+  set throwKind(v) { this.cur.throwKind = v; }
+  get className() { return this.cur.name; }
+  get classStreaks() { return this.cur.streaks; }
+  get classPerks() { return this.cur.perks; }
+
+  /* Make class i the one you edit and carry. */
+  setActiveClass(i) {
+    if (i === this.active || !this.classes[i]) return;
+    this.active = i;
+    this.slot = "primary";
+    this.gearShown = null;
+    this.cls = WEAPON_DEFS[this.weaponId].cls;
+    this.rebuild();
+    this.persist();
+    this.onClassChange?.();
+  }
+
+  renameClass(i, name) {
+    const n = cleanClassName(name);
+    if (!n || !this.classes[i]) return false;
+    this.classes[i].name = n;
+    this.writeSave();
+    return true;
+  }
+
+  /* The scorestreak picker's three, for the active class (no onChange: the
+     preview is showing the streak, not the gun). */
+  setClassStreaks(ids) {
+    this.cur.streaks = ids.slice(0, 3);
+    this.writeSave();
+  }
+
+  setClassPerk(tier, id) {
+    this.cur.perks[tier] = id || null;
+    this.writeSave();
+  }
+
+  /* One line for a class row: primary, secondary, melee, throwable. */
+  classSummary(i) {
+    const c = this.classes[i];
+    if (!c) return "";
+    const t = THROWABLE_DEFS[c.throwKind === "tactical" ? c.tacticalId : c.lethalId];
+    return [WEAPON_DEFS[c.weaponId]?.name, WEAPON_DEFS[c.secondaryId]?.name, MELEE_DEFS[c.meleeId]?.name, t?.name].filter(Boolean).join(" · ");
+  }
+
+  rebuild() {
     this.buildClasses();
     this.buildSlots();
     this.buildGear();
@@ -171,30 +298,25 @@ export class Loadout {
   /* How many of this kind you drop in with: the carried kind's count, 0 for the other. */
   carried(kind) { return kind === this.throwKind ? this[kind].carried : 0; }
 
-  /* The account level lands after the page loads (slowest on phones); until
-     then the level is this device's guest total and the constructor may have
-     swapped saved picks for rank-0 fallbacks. Once the profile arrives, put
-     back any saved pick that's unlocked now. Nothing is persisted until the
-     player changes something, so the saved picks are still the real ones. */
+  /* Reload the whole save: the classes, which one is active and every
+     gun's attachments. Runs when the account level lands after the page
+     loads (slowest on phones: until then the level is this device's guest
+     total and validClass may have swapped saved picks for rank-0 fallbacks;
+     nothing is persisted until the player changes something, so the saved
+     picks are still the real ones), and when the cloud copy arrives. It used
+     to re-read only the five ids, so the next persist() wrote this device's
+     stale attachments back over the cloud's. */
   restoreSaved() {
-    const saved = load();
-    let changed = false;
-    const take = (key, id) => { if (id && this[key] !== id) { this[key] = id; changed = true; } };
-    if (WEAPON_DEFS[saved.weaponId] && isUnlocked(saved.weaponId)) take("weaponId", saved.weaponId);
-    if (WEAPON_DEFS[saved.secondaryId]?.cls === "sidearm" && isUnlocked(saved.secondaryId)) {
-      take("secondaryId", saved.secondaryId);
-    }
-    if (MELEE_DEFS[saved.meleeId] && rankUnlocked(MELEE_DEFS[saved.meleeId].rank)) take("meleeId", saved.meleeId);
-    for (const key of ["lethalId", "tacticalId"]) {
-      if (THROWABLE_DEFS[saved[key]] && rankUnlocked(THROWABLE_DEFS[saved[key]].rank)) take(key, saved[key]);
-    }
-    if (!changed) return false;
-    this.cls = WEAPON_DEFS[this.weaponId].cls;
-    this.buildClasses();
-    this.buildSlots();
-    this.buildGear();
-    this.render();
+    const saved = migrate(load());
+    const before = JSON.stringify([this.active, this.classes, this.attachmentsByWeapon]);
+    this.attachmentsByWeapon = saved.attachments || {};
+    this.classes = saved.classes.map((c) => this.validClass(c));
+    this.active = saved.active;
+    if (JSON.stringify([this.active, this.classes, this.attachmentsByWeapon]) === before) return false;
+    this.cls = WEAPON_DEFS[this.activeId].cls;
+    this.rebuild();
     this.onChange(this.resolvedActive);
+    this.onClassChange?.();
     return true;
   }
 
@@ -204,14 +326,25 @@ export class Loadout {
   }
 
   persist() {
-    save({
-      weaponId: this.weaponId, secondaryId: this.secondaryId, mapId: this.mapId,
-      poolMapId: this.poolMapId,
-      attachments: this.attachmentsByWeapon,
-      meleeId: this.meleeId, lethalId: this.lethalId, tacticalId: this.tacticalId,
-      throwKind: this.throwKind,
-    });
+    this.writeSave();
     this.onChange(this.resolvedActive);
+  }
+
+  /* v2: the five classes. The active class's picks are also written flat at
+     the top level, the v1 shape, so a device still on an older build reads
+     the class you're carrying. */
+  writeSave() {
+    const flat = {};
+    for (const k of CLASS_FIELDS) flat[k] = this.cur[k];
+    save({
+      ...flat,
+      v: 2, active: this.active, classes: this.classes,
+      mapId: this.mapId, poolMapId: this.poolMapId,
+      attachments: this.attachmentsByWeapon,
+    });
+    if (this.cur.streaks.length) {
+      try { localStorage.setItem(STREAK_STORE, JSON.stringify({ selected: this.cur.streaks })); } catch { /* private mode */ }
+    }
   }
 
   buildMaps() {

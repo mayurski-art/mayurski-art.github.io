@@ -343,6 +343,12 @@ function endPreview() {
 
 export function initLobby() {
   game.loadout.onPreview = (def) => previewGear(def);
+  // The three scorestreaks belong to the active class: the picker reads them
+  // from it and writes picks back into it; changing class re-reads them.
+  streakPicker.source = () => game.loadout.classStreaks;
+  streakPicker.onChange = (ids) => game.loadout.setClassStreaks(ids);
+  game.loadout.onClassChange = () => streakPicker.restore();
+  streakPicker.restore();
   window.addEventListener("trollforces:preview-end", endPreview);
   showSumGun();
   if (charInspector) charInspector.humanoid.face = cosmetics.face;

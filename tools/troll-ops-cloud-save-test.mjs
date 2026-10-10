@@ -241,9 +241,12 @@ const page2 = await openGame(() => {
     } },
   };
 });
-const booted = await page2.evaluate(async () => {
+// The game's own copy of the module (its ?v= tag, as menu/lobby.js imports
+// it): any other tag is a second instance that never started.
+const CLOUD_TAG = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/menu/lobby.js"), "utf8").match(/cloud-save\.js\?v=([\w-]+)/)[1];
+const booted = await page2.evaluate(async (tag) => {
   await new Promise((r) => setTimeout(r, 4000));
-  const mod = await import("/assets/games/troll-ops/cloud-save.js?v=cs1");
+  const mod = await import(`/assets/games/troll-ops/cloud-save.js?v=${tag}`);
   const st = mod.cloudSaveState();
   return {
     bootWrites: st.bootWrites, settled: st.settled,
@@ -251,7 +254,7 @@ const booted = await page2.evaluate(async () => {
     cloud: JSON.parse(window.__cloud.rows.get("u2|troll-forces").data.keys["trollops:loadout"]).meleeId,
     uploads: window.__cloud.log.filter((l) => l.op === "upsert").map((u) => u.melee),
   };
-});
+}, CLOUD_TAG);
 console.log(`      boot: ${booted.bootWrites} synced-key write(s) before the first pull came back; uploads ${JSON.stringify(booted.uploads)}`);
 check("booting signed in with a stale loadout takes the account's, never the other way", booted.device === "trollsaber" && booted.cloud === "trollsaber" && booted.settled === true, JSON.stringify(booted));
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
