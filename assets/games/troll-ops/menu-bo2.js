@@ -24,6 +24,7 @@ import { shareCardOnX, saveCardPhoto } from "./menu/card-share.js?v=cs1-wb1-ar1-
 import { FINISHES } from "./skins.js?v=p5-wb1";
 import { MAPS, REWARD_MAPS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1";
 import { setMapShot } from "./map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1";
+import { leaveToArcade, initExitLinks } from "./menu/exit-links.js?v=ex1";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
    calling cards and the private-match maps. */
@@ -316,7 +317,7 @@ const screens = {
       ],
       [
         { id: "options", label: "Options", desc: "Sensitivity, FOV, graphics, controls and the HUD.", go: "options" },
-        { id: "arcade", label: "Arcade", desc: "Back to the Troll Runner arcade.", href: "games.html" },
+        { id: "arcade", label: "Arcade", desc: "Back to the Troll Runner arcade.", onSelect: () => { if (!leaveToArcade()) window.location.href = "games.html"; } },
       ],
     ],
   }),
@@ -710,6 +711,7 @@ const menu = createBo2Menu(nav, {
   },
 });
 $(".to-bo2-back", root).addEventListener("click", () => menu.back());
+initExitLinks();
 
 /* ── Party, status, presence ──────────────────────────────────────────── */
 function renderParty() {

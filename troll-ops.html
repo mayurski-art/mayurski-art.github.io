@@ -5,6 +5,16 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://mayurski-art.github.io https://trollrunner.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' blob: https://nominatim.openstreetmap.org https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co https://solana-rpc.publicnode.com https://api.devnet.solana.com https://lite-api.jup.ag; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0a0c0a">
+  <script>
+    // trollrunner.net/tf is the game's short link (tf/index.html bounces
+    // here). Show it in the address bar too: /tf has no trailing slash, so
+    // every page-relative URL still resolves from the site root. Not inside
+    // the arcade's full-screen frame, and not on a local test server (no /tf).
+    if (window.top === window && location.pathname.endsWith("/troll-ops.html") &&
+        ["localhost", "127.0.0.1", "[::1]"].indexOf(location.hostname) < 0) {
+      try { history.replaceState(history.state, "", "/tf" + location.search + location.hash); } catch (e) { /* file:// */ }
+    }
+  </script>
   <meta name="description" content="Troll Forces: a Phantom Forces-style shooter in the Troll Runner Arcade. Twenty-plus weapons with attachments, projectile ballistics, sliding, vaulting and weapon pickups, and waves of trollface grunts that keep coming.">
   <title>Troll Forces | Troll Runner Arcade</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23161a14'/%3E%3Ctext x='8' y='44' font-size='34'%3E%F0%9F%8E%AF%3C/text%3E%3C/svg%3E">
@@ -433,7 +443,7 @@
               <button type="button" class="to-set-btn" id="to-set-roommode-go">Start</button>
             </div>
             <button type="button" class="to-btn to-btn-ghost" id="to-quit-btn">Leave match</button>
-            <a class="to-btn to-btn-danger" href="games.html" id="to-exit-btn">Exit to arcade</a>
+            <a class="to-btn to-btn-danger" href="troll-ops.html" id="to-exit-btn">Troll Forces home</a>
           </div>
         </div>
       </div>
@@ -459,7 +469,7 @@
             <div class="to-vote-list" id="to-vote-list" role="group" aria-label="Vote for the next map"></div>
           </div>
           <button type="button" class="to-btn to-btn-primary" id="to-retry-btn">Drop in again</button>
-          <a class="to-btn to-btn-ghost" href="games.html">Back to arcade</a>
+          <a class="to-btn to-btn-ghost" href="troll-ops.html" id="to-go-home-btn">Troll Forces home</a>
         </div>
       </div>
 

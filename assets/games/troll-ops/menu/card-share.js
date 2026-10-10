@@ -8,7 +8,7 @@
 import { cardById, cleanClan } from "../calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2";
 import { playerIconCanvas, prestigeName } from "../rank-icons.js?v=rk1";
 
-const GAME_URL = "https://trollrunner.net/troll-ops.html";
+const GAME_URL = "https://trollrunner.net/tf";
 const FALLBACK_EMBLEM = new URL("../../../images/wallpaper/trollface transparent.png", import.meta.url).href;
 const OWNER_ICON = new URL("../../../images/icons/pfp.png", import.meta.url).href;
 
