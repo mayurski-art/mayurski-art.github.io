@@ -7,6 +7,7 @@ import { CarePackage } from "../streak-entities.js?v=vsat2-hk1";
 import * as THREE from "three";
 import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";
 import { game } from "./state.js?v=st1";
+import { peerHas } from "../perks.js?v=pk1";
 
 // Static geometry is drawn once per map into an offscreen canvas and blitted
 // each frame, so only the handful of moving dots costs anything.
@@ -84,7 +85,9 @@ export function drawMinimap() {
       // means nobody is a friendly, so everyone is subject to the fog.
       const friendly = !game.currentMode().ffa && !!game.net.team && rp.team === game.net.team;
       const nearby = Math.hypot(rp.pos.x - game.move.pos.x, rp.pos.z - game.move.pos.z) <= proximityRadius;
-      if (!friendly && !showEnemies && !nearby) continue;
+      // Ghost (perks.js): off the UAV while they move; a VSAT still shows them.
+      const ghosted = peerHas(rp.peer, "ghost") && rp.peer.snaps?.at(-1)?.moving && !vsat;
+      if (!friendly && !nearby && (!showEnemies || ghosted)) continue;
       const [x, z] = mapToMinimap(rp.pos.x, rp.pos.z);
       ctx.fillStyle = friendly ? "#7fd1e0" : "#ff6b5a";
       ctx.beginPath();

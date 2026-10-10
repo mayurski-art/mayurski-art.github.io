@@ -20,6 +20,7 @@ import { applyCopBody, syncCopBody } from "./cop-bodies.js?v=cb2-sb2c2m1";
 import { playerIconCanvas } from "./rank-icons.js?v=rk1";
 import { buildDrink, drinkFromCode, drinkMax, FILL_TIME, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7-cup1";
 import { poseSeated, posePianoArms, roleLabel } from "./rp-roles.js?v=rp1b7-cd1-sh1";
+import { peerHas } from "./perks.js?v=pk1";
 
 /* Socialize seats: game.js hands over the map's seat list (rp.seats), so a
    peer's `seat` (index + 1) can be looked up for its height and kind. */
@@ -239,6 +240,7 @@ export const TEAMS = {
 // instead of requiring the player to remember which color is their team.
 const FRIENDLY_TAG_COLOR = "#ffffff";
 const ENEMY_TAG_COLOR = "#ff4d3d";
+const COLD_TAG_COLOR = "#e6e4d8";
 
 // How far the body is folded down in each stance, 0 = upright.
 export const STANCE_LOWER = { stand: 0, crouch: 0.55, slide: 0.8, prone: 1, vault: 0.3, rope: 0 };
@@ -473,7 +475,8 @@ export class RemotePlayer {
      whoever's looking. ffa/no local team means everyone reads as an enemy. */
   setLocalTeam(myTeam, ffa) {
     const friendly = !ffa && !!myTeam && this.team === myTeam;
-    const color = friendly ? FRIENDLY_TAG_COLOR : ENEMY_TAG_COLOR;
+    // Cold Blooded (perks.js): an enemy whose name never shows red.
+    const color = friendly ? FRIENDLY_TAG_COLOR : peerHas(this.peer, "coldblooded") ? COLD_TAG_COLOR : ENEMY_TAG_COLOR;
     // Rank arrives with their state messages, so the tag redraws when it
     // lands or changes, not only on a team colour change.
     const p = this.peer;

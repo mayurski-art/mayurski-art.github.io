@@ -5,7 +5,7 @@
 
 import * as THREE from "three";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2";
-import { streaks, cancelMark, streakEntities, readyStreaksOrdered, lockStreak, uavBucket, startVsat, spawnVsatSat, achievements, flyovers, enemiesRevealed, pendingStrikes } from "./calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
+import { streaks, cancelMark, streakEntities, readyStreaksOrdered, lockStreak, uavBucket, startVsat, spawnVsatSat, achievements, flyovers, enemiesRevealed, vsatUp, pendingStrikes } from "./calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
 import { MarkerCanister, CarePackage, HunterDrone, DRONE_SPEED, ReconPlane, AIRSTRIKE_DELAY, AIRSTRIKE_RADIUS, AirstrikeRun, HelicopterGunship } from "../streak-entities.js?v=vsat2-hk1";
 import { THROW_TIME } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
 import { updateStreakHud, showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
@@ -15,6 +15,7 @@ import { FlowField } from "../nav.js?v=ti1-bs1b7d";
 import { StrikeTablet, STRIKE_TARGETS } from "../streak-tablet.js?v=wu1";
 import { K9Pack } from "../k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d";
 import { game } from "../core/state.js?v=st1";
+import { hasPerk, peerHas } from "../perks.js?v=pk1";
 
 /* ---- Dragonfire needs open sky ----------------------------------------
    A quadrotor can't launch from inside a house or a tunnel (user): it
@@ -499,12 +500,13 @@ export function pickDroneTarget(from, eyeUp = 1.6, { team = game.net.team, botId
     const score = d + (seen ? 0 : 25);
     if (score < bestScore) { bestScore = score; best = who; }
   };
+  // Blind Eye (perks.js): air support looks straight past.
   for (const rp of game.remotes.byId.values()) {
-    if (!rp.alive || rp.netId === botId) continue;
+    if (!rp.alive || rp.netId === botId || peerHas(rp.peer, "blindeye")) continue;
     if (!ffa && team && rp.team === team) continue;
     consider(rp.pos, rp);
   }
-  if (game.streakOwnerHates(team, botId)) consider(game.move.pos, { netId: game.net.id, pos: game.move.pos, peer: { name: "you" } });
+  if (!hasPerk("blindeye") && game.streakOwnerHates(team, botId)) consider(game.move.pos, { netId: game.net.id, pos: game.move.pos, peer: { name: "you" } });
   // Enemy UAVs and Counter-UAVs: in open sky, and worth going after, so
   // they count at DRONE_AIR_PRIORITY of their distance (an enemy in sight
   // within ~30 m still comes first).
@@ -545,7 +547,9 @@ export function openStrikeTablet() {
       for (const rp of game.remotes.byId.values()) {
         if (!rp.alive) continue;
         const friendly = !ffa && !!game.net.team && rp.team === game.net.team;
-        if (friendly || enemiesRevealed()) out.push({ x: rp.pos.x, z: rp.pos.z, friendly });
+        // Ghost (perks.js): off a UAV while moving; a VSAT still shows them.
+        const ghosted = peerHas(rp.peer, "ghost") && rp.peer.snaps?.at(-1)?.moving && !vsatUp();
+        if (friendly || (enemiesRevealed() && !ghosted)) out.push({ x: rp.pos.x, z: rp.pos.z, friendly });
       }
       return out;
     },

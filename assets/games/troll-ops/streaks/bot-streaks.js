@@ -19,6 +19,7 @@ import { K9Pack } from "../k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d";
 import { damageDog, dogKilledBy } from "./k9.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
 import { SamTurret } from "../sam-turret.js?v=sam1";
 import { game } from "../core/state.js?v=st1";
+import { hasPerk, peerHas } from "../perks.js?v=pk1";
 
 // Every bot rolls three streaks a match and earns them on the same meter a
 // player does (kills; the meter empties on death, an earned streak stays).
@@ -361,11 +362,12 @@ export function botWarshipGunner(ws, dt) {
       bestD = d;
       ws.aiTarget = { id, pos };
     };
+    // Blind Eye (perks.js): the gunner looks straight past.
     for (const rp of game.remotes.byId.values()) {
-      if (!rp.alive || rp.netId === bot.id || (!ffa && rp.team === bot.team)) continue;
+      if (!rp.alive || rp.netId === bot.id || (!ffa && rp.team === bot.team) || peerHas(rp.peer, "blindeye")) continue;
       consider(rp.netId, rp.pos);
     }
-    if (game.player.alive && (ffa || game.net.team !== bot.team)) consider(game.net.id, game.move.pos);
+    if (game.player.alive && !hasPerk("blindeye") && (ffa || game.net.team !== bot.team)) consider(game.net.id, game.move.pos);
   }
   const tgt = ws.aiTarget;
   if (!tgt) return;
@@ -414,10 +416,10 @@ export function flyBotDragonfire(e, dt) {
       if (d < bestD) { bestD = d; best = { id, pos }; }
     };
     for (const rp of game.remotes.byId.values()) {
-      if (!rp.alive || rp.netId === bot.id || (!ffa && rp.team === bot.team)) continue;
+      if (!rp.alive || rp.netId === bot.id || (!ffa && rp.team === bot.team) || peerHas(rp.peer, "blindeye")) continue;   // Blind Eye
       consider(rp.netId, rp.pos);
     }
-    if (game.player.alive && streakOwnerHates(bot.team, bot.id)) consider(game.net.id, game.move.pos);
+    if (game.player.alive && !hasPerk("blindeye") && streakOwnerHates(bot.team, bot.id)) consider(game.net.id, game.move.pos);
     e.aiTarget = best;
   }
   const t = e.aiTarget;

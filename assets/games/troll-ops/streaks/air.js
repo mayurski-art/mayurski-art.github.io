@@ -20,6 +20,7 @@ import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";
 import { SamTurret } from "../sam-turret.js?v=sam1";
 import { warshipImpact, syncWarshipView, updateWarshipHud } from "./warship.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
 import { game } from "../core/state.js?v=st1";
+import { hasPerk, peerHas } from "../perks.js?v=pk1";
 
 /* The Swarm: Hunter-Killers diving in from the map's edge, one after
    another, each after its own enemy, until the count or the clock runs out. */
@@ -48,12 +49,12 @@ function updateSwarms(dt) {
     const ffa = game.currentMode().ffa;
     let victim = null, best = Infinity;
     for (const rp of game.remotes.byId.values()) {
-      if (!rp.alive || rp.netId === s.botId) continue;
+      if (!rp.alive || rp.netId === s.botId || peerHas(rp.peer, "blindeye")) continue;   // Blind Eye
       if (!ffa && team && rp.team === team) continue;
       const score = (onTarget.get(rp.netId) || 0) + Math.random() * 0.5;
       if (score < best) { best = score; victim = rp; }
     }
-    if (streakOwnerHates(team, s.botId)) {
+    if (!hasPerk("blindeye") && streakOwnerHates(team, s.botId)) {
       const score = (onTarget.get(game.net.id) || 0) + Math.random() * 0.5;
       if (score < best) { best = score; victim = { netId: game.net.id, pos: game.move.pos }; }
     }
@@ -520,12 +521,12 @@ function gunshipTarget(e) {
     best = { chest, rp };
   };
   for (const rp of game.remotes.byId.values()) {
-    if (!rp.alive || rp.netId === e.botId) continue;
+    if (!rp.alive || rp.netId === e.botId || peerHas(rp.peer, "blindeye")) continue;   // Blind Eye
     if (!ffa && e.team && rp.team === e.team) continue;
     consider(rp.pos, rp);
   }
   // Someone else's, or one of our bots' on the other side: we're a target.
-  if ((!e.owned || e.botId) && game.player.alive && (ffa || !e.team || e.team !== game.net.team)) consider(game.move.pos, null);
+  if ((!e.owned || e.botId) && game.player.alive && !hasPerk("blindeye") && (ffa || !e.team || e.team !== game.net.team)) consider(game.move.pos, null);
   return best;
 }
 

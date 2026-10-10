@@ -9,6 +9,7 @@ import { spawnComicWord, showWaveBanner, pushKillfeed } from "../core/hud.js?v=c
 import { K9 } from "../k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d";
 import { SCORE } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2";
 import { game } from "../core/state.js?v=st1";
+import { hasPerk, peerHas } from "../perks.js?v=pk1";
 
 /* A pack that's hostile to us: shootable, and on our radar as a threat. */
 export function k9Hostile(pack) {
@@ -48,12 +49,13 @@ function k9CanSee(from, to) {
 function k9Hostiles(pack) {
   const ffa = game.currentMode().ffa;
   const out = [];
+  // Cold Blooded (perks.js): the dogs don't pick you.
   for (const rp of game.remotes.byId.values()) {
-    if (!rp.alive || rp.netId === pack.ownerId) continue;
+    if (!rp.alive || rp.netId === pack.ownerId || peerHas(rp.peer, "coldblooded")) continue;
     if (!ffa && pack.team && rp.team === pack.team) continue;
     out.push({ id: rp.netId, pos: rp.pos, alive: true });
   }
-  if (game.streakOwnerHates(pack.team, pack.botId)) out.push({ id: game.net.id, pos: game.move.pos, alive: true });
+  if (!hasPerk("coldblooded") && game.streakOwnerHates(pack.team, pack.botId)) out.push({ id: game.net.id, pos: game.move.pos, alive: true });
   return out;
 }
 
