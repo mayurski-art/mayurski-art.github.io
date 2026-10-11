@@ -12,7 +12,7 @@ import { INFECTION } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-w
 import { killcamSelfId, startKillcamPresentation, endKillcamPresentation } from "./killcam-present.js?v=kp2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
 import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
 import { game } from "../core/state.js?v=st1";
-import { carryClassPerks } from "./perk-carry.js?v=pk1-cl1";
+import { carryClassPerks, classSwitch } from "./perk-carry.js?v=pk1-cl1";
 import { hasPerk, PERK_TUNE } from "../perks.js?v=pk1-cl1";
 
 /* What Flak Jacket (perks.js) shrugs off: thrown lethals and the streaks
@@ -265,9 +265,8 @@ export function respawnPlayer() {
   // A class picked from the pause menu since the last life: its three
   // scorestreaks take over the ladder now (the meter and anything already
   // earned stay, as in BO2).
-  if (game.classDirty) {
-    game.classDirty = false;
-    game.classPending = null;
+  if (classSwitch.pending != null) {
+    classSwitch.pending = null;
     streaks.setSelected(streakPicker.selected);
   }
   game.setActiveWeaponMesh(game.equipFromLoadout());

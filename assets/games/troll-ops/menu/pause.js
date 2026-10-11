@@ -7,7 +7,7 @@ import { renderRoomModeRow } from "../modes/social.js?v=so1-si1-mb1-gj1-if1-fu1b
 import { keys, lockChangedAt, controls } from "../input/keyboard-mouse.js?v=km1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1";
 import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
 import { game } from "../core/state.js?v=st1";
-import { classAllowed } from "../combat/perk-carry.js?v=pk1-cl1";
+import { classAllowed, classSwitch } from "../combat/perk-carry.js?v=pk1-cl1";
 
 export function openPauseMenu() {
   // Esc out of a half-placed streak instead of opening the menu — the point
@@ -48,7 +48,7 @@ export function renderPauseClasses() {
   wrap.hidden = !L || !classAllowed(mode) || game.gameState === "menu";
   if (wrap.hidden) return;
   wrap.innerHTML = "";
-  const pending = game.classPending ?? L.active;
+  const pending = classSwitch.pending ?? L.active;
   L.classes.forEach((c, i) => {
     const b = document.createElement("button");
     b.type = "button";
@@ -58,8 +58,7 @@ export function renderPauseClasses() {
     b.setAttribute("aria-pressed", String(i === pending));
     b.addEventListener("click", () => {
       L.setActiveClass(i);
-      game.classPending = i;
-      game.classDirty = true;
+      classSwitch.pending = i;
       showWaveBanner(`${c.name}: on your next respawn`);
       renderPauseClasses();
     });
