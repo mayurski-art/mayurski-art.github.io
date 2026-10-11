@@ -6,7 +6,7 @@
 
 import { game } from "../core/state.js?v=st1";
 import { weaponForMode } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2";
-import { PERK_DEFS, PERK_TIER_COLORS, setCarriedPerks, carriedPerks, perkBits, perkIconSvg } from "../perks.js?v=pk1";
+import { PERK_DEFS, PERK_TIER_COLORS, setCarriedPerks, carriedPerks, perkBits, perkIconSvg } from "../perks.js?v=pk1-cl1";
 
 /* Modes where you carry your own class: not the ones that hand you the gun
    (Gun Game, One in the Chamber), Royale (loot only) or Socialize. */

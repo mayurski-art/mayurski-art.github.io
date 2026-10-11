@@ -2,12 +2,12 @@
 // (team, enemies on UAV, objectives, streaks). Moved out of game.js (split
 // phase 1).
 
-import { royale, drawRoyaleMinimap } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
+import { royale, drawRoyaleMinimap } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
 import { CarePackage } from "../streak-entities.js?v=vsat2-hk1";
 import * as THREE from "three";
 import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";
 import { game } from "./state.js?v=st1";
-import { peerHas } from "../perks.js?v=pk1";
+import { peerHas } from "../perks.js?v=pk1-cl1";
 
 // Static geometry is drawn once per map into an offscreen canvas and blitted
 // each frame, so only the handful of moving dots costs anything.
