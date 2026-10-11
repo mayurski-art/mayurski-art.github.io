@@ -25,9 +25,9 @@
 // their own.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, DANCES, reachHand } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1";
-import { buildDrink, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7-cup1-gt1";
-import { SmithWork } from "./smithy.js?v=sm1b7b7dc2f1m1-gt1";
+import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, gaitFromVelocity, DANCES, reachHand } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2";
+import { buildDrink, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7-cup1-gt1-gt2";
+import { SmithWork } from "./smithy.js?v=sm1b7b7dc2f1m1-gt1-gt2";
 import { wearOutfit } from "./outfits.js?v=of1m1-nc1-cd1-sh1";
 
 const WALK_MPS = 1.25;
@@ -223,8 +223,17 @@ export class TownNpcs {
     rig.root.position.set(n.x, n.c.y ?? 0, n.z);
     rig.root.rotation.set(0, 0, 0);
     aimRig(rig, n.yaw, dt, { snap: true, moving: !!n.moving });
-    if (n.moving) n.phase += dt * gaitPhaseRate(3.5);
-    poseHumanoid(rig, { phase: n.phase, moving: !!n.moving, pitch: 0, lower: 0, strafe: 0, forward: 1, speed: n.moving ? 0.8 : 0, mps: n.moving ? 3.5 : 0, dt, hold: "none" });
+    // The driver walks him at its own pace: the legs go at the speed he
+    // actually covers ground (smoothed), not a fixed 3.5 m/s.
+    if (n.drvX != null && dt > 0 && Math.hypot(n.x - n.drvX, n.z - n.drvZ) < 3) {
+      const k = Math.min(1, dt * 8);
+      n.drvVx += ((n.x - n.drvX) / dt - n.drvVx) * k;
+      n.drvVz += ((n.z - n.drvZ) / dt - n.drvVz) * k;
+    } else n.drvVx = n.drvVz = 0;
+    n.drvX = n.x; n.drvZ = n.z;
+    const g = gaitFromVelocity(n.yaw, n.drvVx, n.drvVz, n.drvGait || (n.drvGait = {}));
+    if (n.moving) n.phase += dt * gaitPhaseRate(g.speed);
+    poseHumanoid(rig, { phase: n.phase, moving: !!n.moving, pitch: 0, lower: 0, strafe: g.strafe, forward: g.forward, speed: n.moving ? Math.min(1, g.speed / 4.2) : 0, mps: n.moving ? g.speed : 0, dt, hold: "none" });
     if (n.drink) n.drink.visible = false;
     for (const o of n.smith?.tools || []) o.visible = false;
     n.override(n, rig, dt);

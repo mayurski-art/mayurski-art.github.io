@@ -25,7 +25,7 @@
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { buildHumanoid } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1";
+import { buildHumanoid } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2";
 
 export const COP_BODIES = {
   patrol: "cop-patrol.glb?v=cb2",

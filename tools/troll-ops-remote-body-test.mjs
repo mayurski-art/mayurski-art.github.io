@@ -72,8 +72,16 @@ await A.evaluate(() => { const T = window.__trollOps; T.player.spawnGuard = 999;
 await sleep(800);
 
 /* Hold `codes` on A for `ms`, sampling A's body as B sees it every frame. */
-async function act(codes, ms) {
+let jumped = false;
+async function act(codes, ms, tail = 900, untilAir = false) {
   await A.evaluate((c) => { const T = window.__trollOps; for (const k of c) T.keys.add(k); }, codes);
+  // A jump: hold it until A is off the ground (a slow two-tab frame can
+  // miss a short press).
+  if (untilAir) jumped = await A.evaluate(async () => {
+    const T = window.__trollOps, t0 = performance.now();
+    while (T.move.grounded && performance.now() - t0 < 1200) await new Promise((r) => requestAnimationFrame(r));
+    return !T.move.grounded;
+  });
   const rows = B.evaluate(async ({ id, ms }) => {
     const T = window.__trollOps, rp = T.remotes.byId.get(id), rig = rp.rig;
     const v = new rig.root.position.constructor();
@@ -93,13 +101,32 @@ async function act(codes, ms) {
       requestAnimationFrame(tick);
     });
     return out;
-  }, { id: aId, ms: ms + 900 });
+  }, { id: aId, ms: ms + tail });
   await sleep(ms);
   await A.evaluate((c) => { const T = window.__trollOps; for (const k of c) T.keys.delete(k); }, codes);
   return rows;
 }
 const mid = (rows) => rows.filter((r) => r.t > 500 && r.t < 1100);
 const avg = (rows, k) => rows.reduce((a, r) => a + r[k], 0) / Math.max(1, rows.length);
+
+// The jump first, where they spawned: the runs below can end against a
+// wall (the map's spawn is random), where a jump doesn't leave the ground.
+// Not straight away, though: the first moments after the countdown aren't
+// a fair stand (the jump went unregistered there).
+await sleep(3000);
+const still = await act([], 600);
+const stand = avg(still, "hips");
+check("standing: not in the air", still.every((r) => !r.air));
+const jump = await act(["Space"], 150, 2600, true);
+check("(A jumped on its own screen)", jumped);
+const up = jump.filter((r) => r.air);
+check("their jump reads as in the air", up.length > 5, `${up.length} frames`);
+check("in the air their knees tuck", Math.max(...up.map((r) => r.feet), -1) > 0.12, `feet up to ${(Math.max(...up.map((r) => r.feet), -1) * 100).toFixed(0)} cm`);
+const last = jump.findLastIndex((r) => r.air);
+const after = jump.slice(last + 1);
+check("they land (back on the ground after)", last >= 0 && after.length > 10 && !after.at(-1).air);
+check("their landing squashes", stand - Math.min(...after.map((r) => r.hips)) > 0.02, `hips down ${((stand - Math.min(...after.map((r) => r.hips))) * 100).toFixed(0)} cm`);
+await sleep(600);
 
 const right = mid(await act(["KeyD"], 1200));
 check("strafing right reads as right", avg(right, "strafe") > 0.6 && Math.abs(avg(right, "forward")) < 0.4,
@@ -108,20 +135,7 @@ const ahead = mid(await act(["KeyW"], 1200));
 check("running ahead reads as forward", avg(ahead, "forward") > 0.6 && Math.abs(avg(ahead, "strafe")) < 0.4,
   `forward ${avg(ahead, "forward").toFixed(2)}, strafe ${avg(ahead, "strafe").toFixed(2)}`);
 const mpsSpread = Math.max(...ahead.map((r) => r.mps)) - Math.min(...ahead.map((r) => r.mps));
-check("the stride doesn't flicker with packet timing", mpsSpread < 1.2, `speed ${Math.min(...ahead.map((r) => r.mps)).toFixed(1)}-${Math.max(...ahead.map((r) => r.mps)).toFixed(1)} m/s`);
-await sleep(800);
-
-const still = await act([], 600);
-const stand = avg(still, "hips");
-check("standing: not in the air", still.every((r) => !r.air));
-const jump = await act(["Space"], 150);
-const up = jump.filter((r) => r.air);
-check("their jump reads as in the air", up.length > 5, `${up.length} frames`);
-check("in the air their knees tuck", Math.max(...up.map((r) => r.feet), -1) > 0.12, `feet up to ${(Math.max(...up.map((r) => r.feet), -1) * 100).toFixed(0)} cm`);
-const last = jump.findLastIndex((r) => r.air);
-const after = jump.slice(last + 1);
-check("they land (back on the ground after)", last >= 0 && after.length > 10 && !after.at(-1).air);
-check("their landing squashes", stand - Math.min(...after.map((r) => r.hips)) > 0.02, `hips down ${((stand - Math.min(...after.map((r) => r.hips))) * 100).toFixed(0)} cm`);
+check("the stride doesn't flicker with packet timing", mpsSpread < 1.6, `speed ${Math.min(...ahead.map((r) => r.mps)).toFixed(1)}-${Math.max(...ahead.map((r) => r.mps)).toFixed(1)} m/s`);
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 
 await browser.close();

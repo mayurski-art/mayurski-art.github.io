@@ -328,6 +328,10 @@ const res = await page.evaluate(async () => {
     out.xfade = { ...first, later, back };
   }
 
+  // A replay's or an NPC's legs from its velocity: ahead, right, backpedal
+  // at yaw 0, and ahead after a quarter turn left (yaw + is to the left).
+  out.vel = [C.gaitFromVelocity(0, 0, -4), C.gaitFromVelocity(0, 3, 0), C.gaitFromVelocity(0, 0, 2), C.gaitFromVelocity(Math.PI / 2, -4, 0)];
+
   // Two trolls run differently; the same seed runs the same.
   {
     const swing = (seed) => {
@@ -387,6 +391,9 @@ check("stop: the head carries on into a nod", res.follow.nod > 0.05, `${res.foll
 check("stop: then it settles", res.follow.settled < 0.015, `${res.follow.settled.toFixed(3)} rad off at 1.6 s`);
 check("hit from the front: the body rocks back", res.hit.back > 0.08 && res.hit.dip > 0.01, `${res.hit.back.toFixed(2)} rad, knees ${(res.hit.dip * 100).toFixed(1)} cm`);
 check("hit: it recovers", res.hit.after < 0.01, `${res.hit.after.toFixed(3)} rad off after 1.2 s`);
+const V = res.vel;
+check("legs read off a velocity: ahead, right, backpedal, turned", V[0].forward === 1 && V[0].strafe === 0 && V[0].speed === 4
+  && V[1].strafe === 1 && Math.abs(V[1].forward) < 1e-9 && V[2].forward === -1 && V[3].forward === 1 && Math.abs(V[3].strafe) < 1e-9, JSON.stringify(V));
 const X = res.xfade;
 check("an emote eases in (no snap on its first frame)", X.gap > 0.2 && X.fromStand < X.gap * 0.2, `arm ${X.fromStand.toFixed(2)} rad from the stand, the dance is ${X.gap.toFixed(2)} away`);
 check("...and lands on its own pose", X.later < 1e-3, `${X.later.toFixed(4)} rad off`);

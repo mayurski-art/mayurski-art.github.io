@@ -1,13 +1,13 @@
 // Troll Forces killcam presentation: poses the world, the killer's gun or
 // melee and the HUD around a killcam.js replay, and ends or skips it.
 
-import { poseDeath, DEATH_TIME, aimRig, gaitPhaseRate, poseHumanoid, poseThrowArm, THROW_TIME } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1";
+import { poseDeath, DEATH_TIME, aimRig, gaitPhaseRate, gaitFromVelocity, poseHumanoid, poseThrowArm, THROW_TIME } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2";
 import { MELEE_DEFS, buildMeleeMesh, MeleeState, SABER_BLOCK, THROWABLE_DEFS } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2";
 import { WEAPON_DEFS } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1";
 import * as THREE from "three";
 import { stripLights, buildWeaponMesh } from "../weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2";
-import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1";
-import { grenades, explosionFx } from "./throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1";
+import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2";
+import { grenades, explosionFx } from "./throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2";
 import { game } from "../core/state.js?v=st1";
 
 /* ---------------- killcam (killcam.js) ----------------
@@ -20,6 +20,9 @@ export const killcamSelfId = () => game.net.id || "self";
 const _kcSample = {};
 const _kcShots = [];
 let kcLocalPhase = 0;
+// Our replayed body's ground velocity, read off the recording (smoothed).
+let kcPrev = null, kcVx = 0, kcVz = 0;
+const kcGait = {};
 let killcamGun = null;       // the killer's gun as the viewmodel during a replay
 let killcamKick = 0;
 let killcamHud = null;
@@ -78,7 +81,15 @@ function poseKillcamWorld(dt) {
       poseDeath(game.localRig, Math.min(1, (rt - game.killcam.deathT) / DEATH_TIME));
     } else {
       aimRig(game.localRig, me.yaw, dt, { moving: me.moving });
-      if (me.moving) kcLocalPhase += dt * gaitPhaseRate(3.6);
+      // Our real speed and direction then, not a fixed 3.6 m/s ahead.
+      if (kcPrev && dt > 0 && Math.hypot(me.x - kcPrev.x, me.z - kcPrev.z) < 3) {
+        const k = Math.min(1, dt * 10);
+        kcVx += ((me.x - kcPrev.x) / dt - kcVx) * k;
+        kcVz += ((me.z - kcPrev.z) / dt - kcVz) * k;
+      } else kcVx = kcVz = 0;
+      kcPrev = { x: me.x, z: me.z };
+      gaitFromVelocity(me.yaw, kcVx, kcVz, kcGait);
+      if (me.moving) kcLocalPhase += dt * gaitPhaseRate(kcGait.speed);
       // Our own swings and guard play back too (the held melee mesh is
       // already on the rig: syncLocalRigHeld).
       const sword = !!me.mid && MELEE_DEFS[me.mid];
@@ -87,8 +98,8 @@ function poseKillcamWorld(dt) {
       const sab = sword && game.localHeld.mesh?.userData.saber;
       if (sab) { sab.target = 1; sab.frac = Math.max(sab.frac, 0.999); }
       poseHumanoid(game.localRig, {
-        phase: kcLocalPhase, moving: me.moving, pitch: me.pitch, lower: me.lower, strafe: 0, forward: 1,
-        speed: me.moving ? 0.85 : 0, mps: me.moving ? 3.6 : 0, dt, hasGun: !sword, hold: sword ? "melee" : "gun",
+        phase: kcLocalPhase, moving: me.moving, pitch: me.pitch, lower: me.lower, strafe: kcGait.strafe, forward: kcGait.forward,
+        speed: me.moving ? Math.min(1, kcGait.speed / 4.2) : 0, mps: me.moving ? kcGait.speed : 0, dt, hasGun: !sword, hold: sword ? "melee" : "gun",
         swing: sword && me.sw >= 0 ? { t: me.sw, kind: me.si % 2 === 0 ? "swing" : "thrust" } : null,
         block: sword && me.sw < 0 ? me.bk : 0, ads: sword ? 0 : me.ads || 0,
       });

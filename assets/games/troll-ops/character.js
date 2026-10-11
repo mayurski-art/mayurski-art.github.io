@@ -885,6 +885,22 @@ export function gaitStepLength(mps) {
   return Math.max(0.34, Math.min(2.1, 0.45 + 0.22 * mps));
 }
 
+/* The gait's inputs from a body's ground velocity (world m/s) and facing
+   (the game's yaw): its speed, and its strafe (+ right) and forward (+
+   ahead, - backpedal) on its own axes, scaled like the local body's. For
+   anything that only knows where it was (a replay, an NPC being walked).
+   Smooth the velocity first: position steps are jittery. */
+export function gaitFromVelocity(yaw, vx, vz, out = {}) {
+  const sin = Math.sin(yaw), cos = Math.cos(yaw);
+  out.speed = Math.hypot(vx, vz);
+  out.strafe = 0; out.forward = 1;
+  if (out.speed > 0.05) {
+    out.strafe = Math.max(-1, Math.min(1, (vx * cos - vz * sin) * 6));
+    out.forward = Math.max(-1, Math.min(1, (-vx * sin - vz * cos) * 6));
+  }
+  return out;
+}
+
 /* Radians of `phase` per second at `mps`: one full cycle is two steps. */
 export function gaitPhaseRate(mps) {
   if (!(mps > 0.05)) return 0;

@@ -6,19 +6,19 @@
 // buys smooth motion at the cost of aiming very slightly behind live.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, ParryState } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1";
-import { poseEmoteCode } from "./emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1";
-import { THROW, parseThrowWire, poseThrowBody, clearThrowBody } from "./combat/throw-anim.js?v=ta1-th2-cl1-bp1-gt1";
+import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, gaitFromVelocity, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, ParryState } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2";
+import { poseEmoteCode } from "./emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2";
+import { THROW, parseThrowWire, poseThrowBody, clearThrowBody } from "./combat/throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2";
 import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1";
 import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1kb3-bk1-wst-ig1-th2";
-import { cleanFaceKey } from "./cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1";
+import { cleanFaceKey } from "./cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { sharedParaglider } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1";
-import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3g-nf-wst-ig1-soc1c2f1m1u-th2-gt1";
-import { applyCopBody, syncCopBody } from "./cop-bodies.js?v=cb2-sb2c2m1-gt1";
+import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3g-nf-wst-ig1-soc1c2f1m1u-th2-gt1-gt2";
+import { applyCopBody, syncCopBody } from "./cop-bodies.js?v=cb2-sb2c2m1-gt1-gt2";
 import { playerIconCanvas } from "./rank-icons.js?v=rk1";
-import { buildDrink, drinkFromCode, drinkMax, FILL_TIME, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7-cup1-gt1";
+import { buildDrink, drinkFromCode, drinkMax, FILL_TIME, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7-cup1-gt1-gt2";
 import { poseSeated, posePianoArms, roleLabel } from "./rp-roles.js?v=rp1b7-cd1-sh1";
 import { peerHas } from "./perks.js?v=pk1-cl1-bp1";
 
@@ -817,16 +817,27 @@ export class RemotePlayer {
     if (this.meleeMesh) this.meleeMesh.visible = sword;
     if (sword && this.saber) { this.saber.target = 1; this.saber.frac = Math.max(this.saber.frac, 0.999); }
     root.position.set(s.x, s.y, s.z);
-    if (s.moving) this.replayPhase = (this.replayPhase || 0) + dt * gaitPhaseRate(3.6);
+    // How fast and which way they really moved, from the recording (the
+    // old fixed 3.6 m/s straight ahead ran every replayed body the same,
+    // strafing or walking). A jump of a few metres is a cut, not a speed.
+    const kp = this.kcPrev;
+    if (kp && dt > 0 && Math.hypot(s.x - kp.x, s.z - kp.z) < 3) {
+      const k = Math.min(1, dt * 10);
+      this.kcVx += ((s.x - kp.x) / dt - this.kcVx) * k;
+      this.kcVz += ((s.z - kp.z) / dt - this.kcVz) * k;
+    } else this.kcVx = this.kcVz = 0;
+    this.kcPrev = { x: s.x, z: s.z };
+    const kg = gaitFromVelocity(s.yaw, this.kcVx, this.kcVz, this.kcGait || (this.kcGait = {}));
+    if (s.moving) this.replayPhase = (this.replayPhase || 0) + dt * gaitPhaseRate(kg.speed);
     aimRig(this.rig, s.yaw, dt, { moving: s.moving });
     poseHumanoid(this.rig, {
-      phase: this.replayPhase || 0, moving: s.moving, pitch: s.pitch, lower: s.lower, strafe: 0, forward: 1,
-      speed: s.moving ? 0.85 : 0, mps: s.moving ? 3.6 : 0, dt,
+      phase: this.replayPhase || 0, moving: s.moving, pitch: s.pitch, lower: s.lower, strafe: kg.strafe, forward: kg.forward,
+      speed: s.moving ? Math.min(1, kg.speed / 4.2) : 0, mps: s.moving ? kg.speed : 0, dt,
       hasGun: !sword && WEAPON_DEFS[this.weaponId]?.cls !== "sidearm", hold: sword ? "melee" : "gun",
       swing: sword && s.sw >= 0 ? { t: s.sw, kind: s.si % 2 === 0 ? "swing" : "thrust" } : null,
       block: sword && s.sw < 0 ? s.bk : 0,
     });
-    this.bodyPose = { gait: true, lower: s.lower || 0, mps: s.moving ? 3.6 : 0, moving: !!s.moving };
+    this.bodyPose = { gait: true, lower: s.lower || 0, mps: s.moving ? kg.speed : 0, moving: !!s.moving, forward: kg.forward, strafe: kg.strafe };
     this.syncBody(s.pitch || 0);
   }
 

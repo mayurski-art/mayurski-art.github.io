@@ -2,7 +2,7 @@
 import * as THREE from "three";
 import { makeEnemyDissolveMaterial } from "./shaders.js";
 import { groundHeightAt, resolveCircle } from "./movement.js?v=umb2-sb2-gj1b7";
-import { buildHumanoid, poseHumanoid } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1";
+import { buildHumanoid, poseHumanoid, gaitFromVelocity, gaitPhaseRate } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2";
 
 const GRUNT_TYPES = {
   runner: { hp: 40, speed: 4.4, radius: 0.42, height: 1.7, build: 1.0, color: 0x6bd15a, scoreValue: 100, damage: 8, attackRange: 1.3, attackCd: 0.7 },
@@ -99,7 +99,8 @@ export class Grunt {
       const speed = this.type.speed;
       this.velocity.x += (toPlayer.x * speed - this.velocity.x) * Math.min(1, dt * 4);
       this.velocity.z += (toPlayer.z * speed - this.velocity.z) * Math.min(1, dt * 4);
-      const angle = Math.atan2(toPlayer.x, toPlayer.z);
+      // The rig faces -Z at yaw 0 (atan2(x, z) turned its back to you).
+      const angle = Math.atan2(-toPlayer.x, -toPlayer.z);
       this.mesh.rotation.y += (angle - this.mesh.rotation.y + Math.PI * 3) % (Math.PI * 2) - Math.PI;
       this.mesh.rotation.y = angle;
     } else {
@@ -123,10 +124,13 @@ export class Grunt {
     const support = groundHeightAt(colliders, this.mesh.position.x, this.mesh.position.z, this.groundY + 0.5, r * 0.8);
     this.groundY += (support - this.groundY) * Math.min(1, dt * 9);
 
-    const chasing = dist > this.type.attackRange;
-    this.bobPhase += dt * (chasing ? 9 : 3);
+    // Legs at the grunt's real speed and heading (they ran a fixed 4.2 m/s
+    // cycle, sliding at any other speed).
+    const g = gaitFromVelocity(this.mesh.rotation.y, this.velocity.x, this.velocity.z, this.gaitIn || (this.gaitIn = {}));
+    const moving = g.speed > 0.25;
+    this.bobPhase += dt * gaitPhaseRate(g.speed);
     this.mesh.position.y = this.groundY;
-    poseHumanoid(this.rig, { phase: this.bobPhase, moving: chasing, pitch: 0, lower: 0, dt });
+    poseHumanoid(this.rig, { phase: this.bobPhase, moving, mps: g.speed, speed: Math.min(1, g.speed / 4.2), strafe: g.strafe, forward: g.forward, pitch: 0, lower: 0, dt });
   }
 
   dispose(scene) {
