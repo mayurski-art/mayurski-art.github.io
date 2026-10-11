@@ -304,6 +304,7 @@ export class Net {
         const p = this.peer(m.id);
         p.stateAt = performance.now();
         p.slow = !!m.sl;
+        if (+m.js > 0) p.since = +m.js;   // their join time, so host election never runs without it
         p.team = m.tm || p.team;
         p.name = m.n || p.name;
         p.hp = m.hp;
@@ -498,7 +499,7 @@ export class Net {
       this._stateAt = now;
       this.send({
         t: "state", id: this.id,
-        sl: this.isSlow() ? 1 : undefined,
+        sl: this.isSlow() ? 1 : undefined, js: this.since || undefined,
         x: round2(local.x), y: round2(local.y), z: round2(local.z),
         ry: round2(local.yaw), rp: round2(local.pitch),
         st: local.stance, mv: local.moving ? 1 : 0,
@@ -538,8 +539,29 @@ export class Net {
      map loading screen calls it on its own, since it sends no state. */
   prune() {
     const now = performance.now();
+    // A heavy map's build (Cul-de-Grin, Grin Beach, Hollowgrin) can stall
+    // this tab for several seconds. Their messages are queued behind it, not
+    // missing, so the stall doesn't count against them. Dropping everyone
+    // here lost their join times (state messages didn't carry one), and two
+    // clients that each thought the other the older one both left the bots
+    // to the other: frozen bots on just those maps (user, 2026-10-11).
+    const stall = this._pruneAt ? now - this._pruneAt : 0;
+    this._pruneAt = now;
+    if (stall > 1000) for (const p of this.peers.values()) p.last += stall;
     for (const [id, p] of this.peers) {
       if (now - p.last > PEER_TIMEOUT) { this.h.onLeave?.(p); this.peers.delete(id); }
+    }
+    this.retireBots();
+  }
+
+  /* Our own bots that we've stopped publishing while still publishing the
+     rest: bots.fill trimmed them (a player came back, a team evened out).
+     Without a bye everyone kept a frozen copy until it timed out. */
+  retireBots() {
+    const at = this._botPubAt;
+    if (!at) return;
+    for (const p of [...this.peers.values()]) {
+      if (p.pubAt != null && at - p.pubAt > 1000) this.dropBot(p.id);
     }
   }
 
@@ -598,6 +620,7 @@ export class Net {
     p.alive = bot.alive;
     p.kills = bot.kills;
     p.deaths = bot.deaths;
+    if (/^bot-/.test(bot.id)) { p.pubAt = snap.t; this._botPubAt = snap.t; }   // retireBots
     p.botSkill = bot.skill || null;
     p.level = botLevel(bot.id);
     p.perks = bot.perkBits | 0;   // what other clients honour (perks.js WIRE_PERKS)
