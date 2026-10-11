@@ -5,7 +5,7 @@
 import { STREAK_DEFS } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1";
 import { streakEntities, flyovers, streaks, streakKeyLabel, uavBucket, uavUntil, lockStreak, streakLockUntil, enemiesRevealed, updateMarking, updateStreakControl, pendingStrikes, blastFx, streakBlast } from "./calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
 import { HunterDrone, ReconPlane, MarkerCanister, CarePackage, VtolWarship, HelicopterGunship, HELI_DAMAGE, PKG_CRUSH_RADIUS, AIRSTRIKE_RADIUS, AIRSTRIKE_DAMAGE, AIRSTRIKE_BOMBS, DRONE_SPLASH_RADIUS, DRONE_DAMAGE, HELI_FIRE_RANGE } from "../streak-entities.js?v=vsat2-hk1";
-import { streakBounds, spawnDrone, round2, attachAirHitbox, AIR_HP, spawnCarePackage, strikeTablet, droneTargetPos, pickDroneTarget, droneAirTarget, droneWorld, DRONE_AIR_SPEED, droneLeadPoint, DRONE_AIR_REACH } from "./fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
+import { streakBounds, spawnDrone, round2, attachAirHitbox, AIR_HP, spawnCarePackage, setPackageReward, rollPackageReward, strikeTablet, droneTargetPos, pickDroneTarget, droneAirTarget, droneWorld, DRONE_AIR_SPEED, droneLeadPoint, DRONE_AIR_REACH } from "./fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
 import * as THREE from "three";
 import { showWaveBanner, updateStreakHud } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
 import { resolveWeapon, defaultLoadoutFor } from "../attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1";
@@ -116,6 +116,25 @@ export function nearestHostileTo(from) {
 }
 
 /* Open a landed package: apply the reward it was created with. */
+/* Engineer (BO2): your own crate, once it's down, can be re-rolled once.
+   Never a bot's crate we host, never someone else's. */
+export function canReroll(pkg) {
+  return !!pkg && pkg.owned && !pkg.botId && !pkg.rerolled && !pkg.claimed && pkg.landed && hasPerk("engineer");
+}
+
+export function rerollPackage(pkg) {
+  if (!canReroll(pkg)) return false;
+  let reward = pkg.reward;
+  for (let i = 0; i < 8 && reward === pkg.reward; i++) reward = rollPackageReward();
+  pkg.rerolled = true;
+  setPackageReward(pkg, reward);
+  game.audio.reload();
+  const id = String(reward).split(":")[1];
+  showWaveBanner(`RE-ROLLED: ${STREAK_DEFS[id]?.name.toUpperCase() || "STREAK"}`, 1600);
+  if (game.net.active) game.net.publishStreak({ kind: "carepackage", action: "reroll", eid: pkg.id, reward });
+  return true;
+}
+
 export function claimPackage(pkg) {
   pkg.claimed = true;
   const [kind, arg] = String(pkg.reward).split(":");

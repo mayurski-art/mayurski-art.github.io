@@ -150,7 +150,7 @@ export function initTouch() {
   game.els.touchAds.addEventListener("touchstart", (e) => { e.preventDefault(); setTouchAds(!touchState.ads); }, { passive: false });
   bindHold(game.els.touchJump, () => touchState.jump = true, () => touchState.jump = false);
   bindHold(game.els.touchSlide, () => touchState.crouch = true, () => touchState.crouch = false);
-  game.els.touchReload.addEventListener("touchstart", (e) => { e.preventDefault(); game.tryReload(); });
+  game.els.touchReload.addEventListener("touchstart", (e) => { e.preventDefault(); game.tryReload(true); });
   game.els.touchMelee.addEventListener("touchstart", (e) => { e.preventDefault(); game.swingMelee(); });
   // Touch cooks for as long as the button is held, same as the key.
   bindHold(game.els.touchNade, () => game.startCook("lethal"), () => game.releaseThrowKey());

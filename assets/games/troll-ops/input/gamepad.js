@@ -144,7 +144,7 @@ export function pollGamepad(dt) {
   // keeps this function running so the Start button can still resume, but
   // every other action button must stop reaching the player's weapon/gear.
   if (!game.localPauseOnly) {
-    if (pressedEdge(4)) game.tryReload();          // L1 -> reload (kept off fire face buttons)
+    if (pressedEdge(4)) game.tryReload(true);          // L1 -> reload (kept off fire face buttons)
     if (pressedEdge(2)) game.swingMelee();         // X / square -> melee
     // Stick clicks (user): both sticks together open the emote wheel; one
     // alone is the swivel to that side. Decided STICK_CHORD s after the

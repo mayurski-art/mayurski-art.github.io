@@ -16,7 +16,7 @@ import { gunDisplayName } from "../royale.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2
 import { streakControlActive, streakEntities } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
 import { touchState } from "../input/touch.js?v=in1-th2";
 import { packageCaptureTime } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
-import { claimPackage } from "../streaks/air.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
+import { claimPackage, canReroll, rerollPackage } from "../streaks/air.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
 import { WeaponState } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1";
 import { CarePackage } from "../streak-entities.js?v=vsat2-hk1";
 import { game } from "../core/state.js?v=st1";
@@ -27,7 +27,10 @@ export function currentWeapon() {
   return game.player.weapons[id] || game.player.weapons[game.player.weaponId];
 }
 
-export function tryReload() {
+/* `pressed`: the reload button itself (not the empty-mag auto reload).
+   On your own landed care package with Engineer it re-rolls the crate. */
+export function tryReload(pressed = false) {
+  if (pressed && game.player.alive && rerollPackage(nearbyPackage())) return;
   if (game.socialUnarmed()) return;   // no guns in the hangout
   if (throwBusy()) return;   // a grenade in hand: no reload (BO2)
   if (!game.controls.isLocked && !game.isTouch && !game.gamepadState.connected) return;
@@ -372,7 +375,7 @@ export function updatePickupPrompt(dt) {
       // No key hint in the prompt (user, 2026-09-28): just the action.
       const steal = pkg && (!pkg.owned || pkg.botId) && (game.currentMode().ffa || !game.net.team || pkg.ownerTeam !== game.net.team);
       const label = pkg
-        ? (pkgHoldT > 0 ? (steal ? "Stealing the care package…" : "Capturing…") : `${steal ? "Steal" : "Capture"} the care package`)
+        ? (pkgHoldT > 0 ? (steal ? "Stealing the care package…" : "Capturing…") : `${steal ? "Steal" : "Capture"} the care package${canReroll(pkg) ? " · reload re-rolls" : ""}`)
         : (game.swapHold.active ? `Picking up ${drop.name || drop.def.name}…` : `Pick up ${drop.name || drop.def.name}`);
       game.els.pickupPrompt.hidden = false;
       game.els.pickupPromptText.textContent = label;

@@ -29,8 +29,8 @@ BO2's sixteen, one per tier, level-gated (two free per tier). Numbers in `PERK_T
 | Tactical Mask | flash, EMP ×0.2 | combat/throwables.js |
 | Dead Silence | your steps silent to others | view/enemy-steps.js |
 | Awareness | enemy steps ×2 | view/enemy-steps.js |
-| Engineer | enemy streaks marked through walls | view/engineer-marks.js |
+| Engineer | enemy streaks marked through walls; reload on your own landed care package re-rolls it once (sent as `reroll`) | view/engineer-marks.js, streaks/air.js `rerollPackage` |
 
 - Carried from each spawn (`combat/perk-carry.js`), shown on BO2's spawn card. Ghost, Dead Silence, Cold Blooded and Blind Eye go out as bits in the state message (`pk`), so other clients honour them.
-- Bots carry no perks. Not done from BO2: Engineer's care-package re-roll, Blind Eye vs. the SAM turret's missiles.
+- Bots carry no perks. Not done from BO2: Blind Eye vs. the SAM turret's missiles.
 - Tests: `troll-ops-classes-test.mjs`, `troll-ops-perks-test.mjs` (solo and two tabs).

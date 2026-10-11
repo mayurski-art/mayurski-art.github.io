@@ -271,6 +271,16 @@ export function rollPackageReward() {
   return `streak:${pick}`;
 }
 
+/* A new reward in a landed crate (Engineer's re-roll, ours or someone
+   else's on the wire): the floating icon swaps to match. */
+export function setPackageReward(pkg, reward) {
+  pkg.reward = reward;
+  streakIconTexture(String(reward).split(":")[1]).then((tex) => {
+    if (!tex || pkg.dead || pkg.reward !== reward) return;
+    if (pkg.holo) { pkg.holo.material.map = tex; pkg.holo.material.needsUpdate = true; } else pkg.setIcon(tex);
+  });
+}
+
 export function spawnCarePackage({ id, x, z, reward, owned, ownerTeam, groundY = null }) {
   // A marker copy with the same id (someone else's throw, as seen here) is
   // replaced by the drop.

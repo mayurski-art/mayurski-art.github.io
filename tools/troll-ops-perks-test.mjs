@@ -104,6 +104,8 @@ const TAGS = {
   throwAnim: tagOf("game.js", "combat/throw-anim.js"),
   scavenger: tagOf("combat/scoring.js", "scavenger.js"),
   gear: tagOf("combat/damage.js", "gear.js"),
+  fire: tagOf("game.js", "streaks/fire.js"),
+  weapons: tagOf("game.js", "combat/weapons.js"),
 };
 await A.evaluate(async (tags) => {
   const base = "/assets/games/troll-ops/";
@@ -114,10 +116,12 @@ await A.evaluate(async (tags) => {
     TA: await import(`${base}combat/throw-anim.js?v=${tags.throwAnim}`),
     SV: await import(`${base}combat/scavenger.js?v=${tags.scavenger}`),
     GEAR: await import(`${base}gear.js?v=${tags.gear}`),
+    FI: await import(`${base}streaks/fire.js?v=${tags.fire}`),
+    WP: await import(`${base}combat/weapons.js?v=${tags.weapons}`),
   };
 }, TAGS);
 const fx = await A.evaluate(async () => {
-  const P = window.__P, T = window.__trollOps, { G, C, TH, TA, SV, GEAR } = window.__M;
+  const P = window.__P, T = window.__trollOps, { G, C, TH, TA, SV, GEAR, FI, WP } = window.__M;
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const out = {};
   const keep = P.carriedPerks();
@@ -182,6 +186,24 @@ const fx = await A.evaluate(async () => {
   set(); await wait(150);
   out.marksOff = document.querySelector(".to-engineer-marks")?.hidden;
 
+  // Engineer: your own landed crate re-rolls once on the reload button.
+  const pp = G.move.pos;
+  const pkg = FI.spawnCarePackage({ id: "test-pkg", x: pp.x, z: pp.z, groundY: 0, reward: "streak:uav", owned: true, ownerTeam: G.net.team });
+  pkg.landed = true; pkg.phase = "rest"; pkg.landT = 5;
+  WP.tryReload(true);
+  out.rrNoPerk = pkg.reward;
+  set("engineer");
+  WP.updatePickupPrompt(0.016);
+  out.rrPrompt = G.els.pickupPromptText?.textContent || "";
+  WP.tryReload(false);
+  out.rrAuto = pkg.reward;
+  WP.tryReload(true);
+  out.rrOnce = pkg.reward;
+  WP.tryReload(true);
+  out.rrTwice = pkg.reward;
+  pkg.dispose(); C.streakEntities.delete("test-pkg");
+  set(); await wait(100);
+
   set(...keep);
   return out;
 });
@@ -193,6 +215,8 @@ check("Tactical Mask: a flash at a fifth", fx.blind > 0 && Math.abs(fx.blindMask
 check("Fast Hands: the throw comes out twice as fast", fx.draw === "draw" && fx.drawFast === "pin", `${fx.draw} -> ${fx.drawFast}`);
 check("Dexterity: ADS twice as fast", fx.ads === 1 && fx.adsDex === 2, `${fx.ads} -> ${fx.adsDex}`);
 check("Scavenger: a pack refills a mag and a throwable", fx.scavReserve === fx.scavMag && fx.scavGear === 1, `reserve ${fx.scavReserve}/${fx.scavMag}, throwable ${fx.scavGear}`);
+check("Engineer: the crate re-rolls once, on the reload button only", fx.rrNoPerk === "streak:uav" && fx.rrAuto === "streak:uav" && /^streak:/.test(fx.rrOnce) && fx.rrOnce !== "streak:uav" && fx.rrTwice === fx.rrOnce, `${fx.rrNoPerk} -> ${fx.rrOnce} -> ${fx.rrTwice}`);
+check("Engineer: the prompt says reload re-rolls", /re-rolls/.test(fx.rrPrompt), fx.rrPrompt);
 check("Engineer: an enemy streak is marked; off without it", fx.marks === 1 && fx.marksOff === true, `${fx.marks} marks, hidden after ${fx.marksOff}`);
 
 // Lightweight and Extreme Conditioning: faster on foot (speed after a second's walk/sprint).

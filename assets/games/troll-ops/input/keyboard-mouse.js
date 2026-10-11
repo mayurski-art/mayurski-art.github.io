@@ -110,7 +110,7 @@ export function initKeyboardMouse() {
     // "playing" (see openPauseMenu) so their match doesn't stall, so these
     // action keys need their own guard now instead of relying on gameState.
     if (!game.localPauseOnly) {
-      if (e.code === "KeyR") tryReload();
+      if (e.code === "KeyR") tryReload(true);
       if ((e.code === "KeyA" || e.code === "KeyD") && !e.repeat) {
         const now = performance.now() / 1000;
         if (now - swivelTaps[e.code] < SWIVEL_TAP) { trySwivel(e.code === "KeyA" ? -1 : 1); swivelTaps[e.code] = 0; }

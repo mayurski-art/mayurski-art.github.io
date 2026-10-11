@@ -7,7 +7,7 @@ import { streakEntities, startVsat, spawnVsatSat, uavBucket, streakBlast, flyove
 import { HunterDrone, HelicopterGunship, VtolWarship, MarkerCanister, AIRSTRIKE_RADIUS, CarePackage, DRONE_SPLASH_RADIUS, AIRSTRIKE_DELAY, WARSHIP_GUNS } from "../streak-entities.js?v=vsat2-hk1";
 import { Dragonfire, DF_RANGE, DF_DAMAGE } from "../dragonfire.js?v=df3-sb2";
 import { swarmRuns, startUav, spawnRecon, applyCounterUav, streakOwnerHates, streakDamage } from "./air.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
-import { dragonfireSkyCheck, round2, pickDroneTarget, spawnDrone, spawnHelicopter, spawnK9, droneWorld, rollPackageReward, strikeDelay, spawnAirstrike, spawnCarePackage } from "./fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
+import { dragonfireSkyCheck, round2, pickDroneTarget, spawnDrone, spawnHelicopter, spawnK9, droneWorld, rollPackageReward, strikeDelay, spawnAirstrike, spawnCarePackage, setPackageReward } from "./fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
 import * as THREE from "three";
 import { samDeployPoint, spawnSam, spawnDragonfire, shootDownAir, airTargetPos, damageStreakEntity } from "./dragonfire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1";
@@ -506,6 +506,10 @@ export function applyRemoteStreak(m) {
           id: m.eid, x: m.x, z: m.z, groundY: typeof m.y === "number" ? m.y : null,
           reward: m.reward, owned: false, ownerTeam: m.team,
         });
+      } else if (m.action === "reroll") {
+        // Their Engineer re-rolled it: the new reward is the one to steal.
+        const pkg = streakEntities.get(m.eid);
+        if (pkg instanceof CarePackage && !pkg.claimed && m.reward) setPackageReward(pkg, m.reward);
       } else if (m.action === "claimed") {
         // Plays the same pop the opener saw; removed on "gone".
         streakEntities.get(m.eid)?.open();
