@@ -26,7 +26,7 @@ import { MAPS, REWARD_MAPS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-r
 import { setMapShot } from "./map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1";
 import { leaveToArcade, initExitLinks } from "./menu/exit-links.js?v=ex1";
 import { game } from "./core/state.js?v=st1";
-import { PERK_DEFS, PERK_TIER_NAMES, perksInTier, perkUnlocked } from "./perks.js?v=pk1";
+import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perksInTier, perkUnlocked, perkIconSvg } from "./perks.js?v=pk1";
 import { STREAK_DEFS } from "./scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
@@ -254,12 +254,12 @@ function perkScreen(tier) {
   const L = game.loadout;
   const cur = L.classPerks[tier];
   return {
-    title: PERK_TIER_NAMES[tier],
+    title: PERK_TIER_NAMES[tier], panel: "loadout", detail: true, gun: true, perk: tier,
     groups: [
       perksInTier(tier).map((id) => {
         const def = PERK_DEFS[id], open = perkUnlocked(id);
         return {
-          id: `pk-${id}`, label: def.name, on: cur === id, disabled: !open,
+          id: `pk-${id}`, perkId: id, label: def.name, on: cur === id, disabled: !open,
           value: open ? "" : `LV ${def.rank}`, desc: open ? def.blurb : `${def.blurb} Unlocks at level ${def.rank}.`,
           onSelect: (_, m) => { L.setClassPerk(tier, id); m.back(); },
         };
@@ -270,6 +270,19 @@ function perkScreen(tier) {
       ],
     ],
   };
+}
+
+/* The perk you're on, big, in the detail pane (BO2's perk card). */
+const perkHost = document.createElement("div");
+perkHost.className = "to-bo2-perk";
+perkHost.hidden = true;
+function renderPerk(id, tier) {
+  const def = PERK_DEFS[id];
+  perkHost.style.setProperty("--perk", PERK_TIER_COLORS[tier]);
+  perkHost.innerHTML = def
+    ? `<span class="to-bo2-perk-icon">${perkIconSvg(id)}</span><div><small>${PERK_TIER_NAMES[tier]}</small><b></b><p></p>${perkUnlocked(id) ? "" : `<em>Unlocks at level ${def.rank}</em>`}</div>`
+    : `<span class="to-bo2-perk-icon is-empty"></span><div><small>${PERK_TIER_NAMES[tier]}</small><b>None</b><p>No perk in this slot.</p></div>`;
+  if (def) { $("b", perkHost).textContent = def.name; $("p", perkHost).textContent = def.blurb; }
 }
 
 /* ── Options rows drive the existing settings inputs ──────────────────── */
@@ -741,6 +754,9 @@ const menu = createBo2Menu(nav, {
     if (id !== "barracks") clanEditing = false;
     cardHost.hidden = !s.card;
     root.classList.toggle("has-card", !!s.card);
+    perkHost.hidden = s.perk == null;
+    root.classList.toggle("has-perk", s.perk != null);
+    if (s.perk != null) renderPerk(game.loadout.classPerks[s.perk], s.perk);
     renderCardHost();
     const ownBack = (s.groups || []).flat().some((it) => it && it.id === "back");
     $(".to-bo2-back", root).classList.toggle("is-on", m.depth() > 0 && !ownBack);
@@ -752,6 +768,9 @@ const menu = createBo2Menu(nav, {
     umbBanner(it);
     // Calling cards: the card you're on shows on your profile card.
     if (lastScreen === "cards") { previewCard = it?.cardId || null; renderCardHost(); }
+    // A perk tier: the perk you're on (None shows the slot empty).
+    const pt = /^perk-(\d)$/.exec(lastScreen || "");
+    if (pt && it && (it.perkId || it.id === "pk-none")) renderPerk(it.perkId || null, +pt[1]);
     if (!it) return;
     if (it.mapId) {
       const img = $("img", shot);
@@ -776,6 +795,7 @@ renameForm.innerHTML = `<label for="to-bo2-rename-in">Class name</label>`
   + `<button type="submit">Save</button><button type="button" data-act="cancel">Cancel</button>`
   + `<small id="to-bo2-rename-help">Up to 16 letters. Enter saves, Esc cancels.</small>`;
 detail.prepend(renameForm);
+detail.prepend(perkHost);
 const renameIn = $("input", renameForm);
 function stopRename() {
   renameForm.hidden = true;

@@ -3622,6 +3622,22 @@ body.is-map .to-bo2-anim { visibility: hidden; }
 /* Barracks (menu-bo2.js): your card up top, then the calling cards or the
    clan tag box under it. */
 .to-bo2.has-card #to-pf-center { display: none !important; }
+/* A perk tier (menu-bo2.js perkScreen): the perk, big, in BO2's tier colour. */
+.to-bo2.has-perk #to-pf-center { display: none !important; }
+.to-bo2-perk[hidden] { display: none; }
+.to-bo2-perk { display: flex; align-items: center; gap: 18px; }
+.to-bo2-perk-icon {
+  flex: none; width: 86px; height: 86px; padding: 14px; box-sizing: border-box; border-radius: 14px;
+  color: #0d1410; background: var(--perk);
+  box-shadow: 0 8px 24px rgba(0,0,0,.5), inset 0 2px 0 rgba(255,255,255,.35), inset 0 -3px 0 rgba(0,0,0,.25);
+}
+.to-bo2-perk-icon.is-empty { background: rgba(255,255,255,.06); border: 1px dashed rgba(243,236,228,.3); }
+.to-bo2-perk-icon svg { width: 100%; height: 100%; display: block; }
+.to-bo2-perk small { display: block; font: 12px "DM Mono", monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--perk); }
+.to-bo2-perk b { display: block; font: 600 26px Oswald, sans-serif; letter-spacing: .04em; text-transform: uppercase; color: #f3ece4; }
+.to-bo2-perk p { margin: 4px 0 0; font: 14px "DM Sans", sans-serif; color: #d8cbbd; line-height: 1.4; }
+.to-bo2-perk em { display: block; margin-top: 6px; font: normal 12px "DM Mono", monospace; color: #ff8a1f; }
+@media (max-width: 760px) { .to-bo2-perk-icon { width: 64px; height: 64px; padding: 10px; } .to-bo2-perk b { font-size: 21px; } }
 .to-bo2-card[hidden], .to-bo2-clan[hidden], .to-bo2-card-share[hidden] { display: none; }
 /* Under your card: Share on X, Save as photo (menu/card-share.js). */
 .to-bo2-card-share { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
