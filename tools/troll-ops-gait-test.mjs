@@ -169,6 +169,80 @@ const res = await page.evaluate(async () => {
     }
     out.jump = { apexTuck, fallExt, squash: stand - minHip, settled, stairLift };
   }
+
+  // Feet on the ground in the world: [x, z, planted] per foot (ankle down,
+  // within 4 mm: a foot still coming in to land isn't planted yet).
+  const feetNow = (rig) => {
+    rig.root.updateMatrixWorld(true);
+    return ["ankleL", "ankleR"].map((k) => { const a = ankle(rig, k); return [a.x, a.z, a.y < rig.limbRadius + 0.004]; });
+  };
+  // Worst slide of a foot that stayed planted between two frames (m/s).
+  const slideOf = (a, b) => Math.max(...a.map((f, i) => (f[2] && b[i][2] ? Math.hypot(f[0] - b[i][0], f[1] - b[i][1]) / DT : 0)));
+  // Times a foot leaves the ground.
+  const lifts = (rows) => rows.reduce((n, r, j) => n + (j ? r.filter((f, i) => !f[2] && rows[j - 1][i][2]).length : 0), 0);
+
+  // A hard stop from the bot run: the planted foot holds through it, the
+  // feet step in under the hips and settle square.
+  {
+    const rig = C.buildHumanoid(new THREE.MeshBasicMaterial(), { height: 1.8, gun: false });
+    let phase = 0, z = 0;
+    for (let i = 0; i < 2 / DT; i++) {
+      phase += DT * C.gaitPhaseRate(4.2); z -= 4.2 * DT; rig.root.position.z = z;
+      C.poseHumanoid(rig, { phase, moving: true, mps: 4.2, speed: 1, forward: 1, dt: DT, hold: "none" });
+    }
+    let prev = feetNow(rig), slide = 0;
+    const rows = [];
+    for (let i = 0; i < 1.6 / DT; i++) {
+      C.poseHumanoid(rig, { phase, moving: false, dt: DT, hold: "none" });
+      const f = feetNow(rig);
+      if (i > 20) slide = Math.max(slide, slideOf(prev, f));
+      rows.push(f); prev = f;
+    }
+    const end = feetNow(rig);
+    const off = Math.max(...end.map((f) => Math.abs(f[1] - z)));
+    out.stop = { slide, steps: lifts(rows), off };
+  }
+
+  // A cut: running ahead, then straight off to the right. The planted foot
+  // doesn't skate sideways with the turn.
+  {
+    const rig = C.buildHumanoid(new THREE.MeshBasicMaterial(), { height: 1.8, gun: false });
+    let phase = 0, x = 0, z = 0, prev = null, slide = 0;
+    for (let i = 0; i < 3 / DT; i++) {
+      const cut = i * DT > 2;
+      phase += DT * C.gaitPhaseRate(4.2);
+      if (cut) x += 4.2 * DT; else z -= 4.2 * DT;
+      rig.root.position.set(x, 0, z);
+      C.poseHumanoid(rig, { phase, moving: true, mps: 4.2, speed: 1, forward: cut ? 0 : 1, strafe: cut ? 1 : 0, dt: DT, hold: "none" });
+      const f = feetNow(rig);
+      if (cut && prev && i * DT < 2.4) slide = Math.max(slide, slideOf(prev, f));
+      prev = f;
+    }
+    out.cut = { slide };
+  }
+
+  // Turning on the spot: the body swings 90 degrees; the planted feet don't
+  // pivot under it, they step round after it and end pointing the new way.
+  {
+    const rig = C.buildHumanoid(new THREE.MeshBasicMaterial(), { height: 1.8, gun: false });
+    for (let i = 0; i < 60; i++) { C.aimRig(rig, 0, DT); C.poseHumanoid(rig, { moving: false, dt: DT, hold: "none" }); }
+    let prev = feetNow(rig), slide = 0;
+    const rows = [];
+    const q = new THREE.Quaternion(), fwd = new THREE.Vector3();
+    for (let i = 0; i < 2 / DT; i++) {
+      C.aimRig(rig, Math.min(1, i * DT / 0.5) * Math.PI / 2, DT);
+      C.poseHumanoid(rig, { moving: false, dt: DT, hold: "none" });
+      const f = feetNow(rig);
+      slide = Math.max(slide, slideOf(prev, f));
+      rows.push(f); prev = f;
+    }
+    // The way each foot points (its ball ahead of its ankle), against the body.
+    const yaws = [["ankleL", "ballL"], ["ankleR", "ballR"]].map(([a, b]) => {
+      const d = ankle(rig, b).sub(ankle(rig, a));
+      return Math.atan2(-d.x, -d.z);
+    });
+    out.turn = { slide, steps: lifts(rows), footOff: Math.max(...yaws.map((y) => Math.abs(Math.atan2(Math.sin(y - Math.PI / 2), Math.cos(y - Math.PI / 2))))) };
+  }
   return out;
 });
 
@@ -200,6 +274,12 @@ check("jump: the legs reach down falling", J.fallExt < J.apexTuck - 0.08, `${(J.
 check("landing: the knees take it", J.squash > 0.06 && J.squash < 0.2, `hips down ${(J.squash * 100).toFixed(0)} cm`);
 check("landing: springs back up", J.settled < 0.012, `${(J.settled * 100).toFixed(1)} cm off after 0.8 s`);
 check("a stair-sized drop doesn't tuck", J.stairLift < 0.03, `feet ${(J.stairLift * 100).toFixed(1)} cm up`);
+
+check("stop: the planted feet hold", res.stop.slide < 0.3, `peak ${res.stop.slide.toFixed(2)} m/s`);
+check("stop: the feet step in under the hips", res.stop.steps >= 1 && res.stop.off < 0.12, `${res.stop.steps} steps, ${(res.stop.off * 100).toFixed(0)} cm off`);
+check("cut: the planted foot doesn't skate", res.cut.slide < 0.3, `peak ${res.cut.slide.toFixed(2)} m/s`);
+check("turn on the spot: the feet don't pivot", res.turn.slide < 0.3, `peak ${res.turn.slide.toFixed(2)} m/s`);
+check("turn on the spot: they step round", res.turn.steps >= 2 && res.turn.footOff < 0.4, `${res.turn.steps} steps, feet ${res.turn.footOff.toFixed(2)} rad off the body`);
 
 await browser.close();
 server.close();

@@ -862,7 +862,7 @@ const _lF = new THREE.Vector3(), _lN = new THREE.Vector3(), _lT = new THREE.Vect
 const _lX = new THREE.Vector3(), _lY = new THREE.Vector3(), _lZ = new THREE.Vector3();
 const _lM = new THREE.Matrix4(), _lQ = new THREE.Quaternion(), _lS = new THREE.Quaternion(), _lK = new THREE.Quaternion();
 const _AX = new THREE.Vector3(1, 0, 0), _AZ = new THREE.Vector3(0, 0, 1);
-function _solveLeg(rig, side, pivot, knee, ankle, target, footPitch) {
+function _solveLeg(rig, side, pivot, knee, ankle, target, footPitch, footYaw = 0) {
   const p = rig.parts;
   // Hip joint in root space, then the foot in the hips' own frame.
   _hipJoint.copy(pivot.position).applyEuler(p.hips.rotation).add(p.hips.position);
@@ -893,16 +893,122 @@ function _solveLeg(rig, side, pivot, knee, ankle, target, footPitch) {
   _lS.setFromAxisAngle(_AZ, side * LEG_SPLAY).invert();
   pivot.quaternion.copy(_lQ).multiply(_lS);
   knee.rotation.set(-(Math.PI - atKnee), 0, 0);
-  // Keep the foot level with the ground and pointing ahead, plus whatever
-  // pitch the step wants: the wanted turn in the hips' frame, less the
-  // thigh's and shin's.
+  // Keep the foot level with the ground and pointing ahead (or the way a
+  // planted foot was put down, `footYaw` off the body), plus whatever pitch
+  // the step wants: the wanted turn in the hips' frame, less the thigh's and
+  // shin's.
   _lK.setFromEuler(knee.rotation);
-  _lS.setFromAxisAngle(_AX, footPitch).premultiply(_q);
+  _lS.setFromEuler(_e.set(footPitch, footYaw, 0, "YXZ")).premultiply(_q);
   ankle.quaternion.copy(_lQ).multiply(_lK).invert().multiply(_lS);
 }
 
 const _smooth = (t) => t * t * (3 - 2 * t);
 const LEG_SPLAY = 0.09;
+
+/* Feet stay where they're put. A planted foot is pinned to its spot on the
+   ground, and to the way it pointed, in the world: a sudden stop, a cut to
+   the side, the body turning over it or a remote player's jittery position
+   can't drag it along. On the move it lets go as it lifts, and the swing
+   eases the difference out on its way to the next footfall. Standing, a
+   foot the body has moved or turned off steps: one foot at a time lifts and
+   puts itself back under the hips, pointing the new way. That's the stop
+   too: the feet stay where the last stride left them and step in. A foot
+   that's suddenly far off (a respawn, a teleport, the 360 swivel) is just
+   put back. `feet[i].target` is in the root's frame and becomes the pinned
+   spot; `feet[i].yaw` the foot's turn off the body. */
+const STEP_TIME = 0.26;
+const _lkM = new THREE.Matrix4(), _lkI = new THREE.Matrix4(), _lkV = new THREE.Vector3();
+function _footLock(rig, feet, dt, { walking, s, weight, off }) {
+  const g = rig.gait;
+  const L = g.lock || (g.lock = feet.map(() => ({ on: false, x: 0, y: 0, z: 0, yaw: 0, ox: 0, oz: 0, oyaw: 0, step: -1, sx: 0, sz: 0, syaw: 0 })));
+  if (off) {
+    for (const k of L) { k.on = false; k.step = -1; k.ox = k.oz = k.oyaw = 0; }
+    return;
+  }
+  // The root's frame in the world (its parent may move it: a grunt's mesh).
+  const root = rig.root;
+  _lkM.compose(root.position, root.quaternion, root.scale);
+  if (root.parent) _lkM.premultiply(root.parent.matrixWorld);
+  _lkI.copy(_lkM).invert();
+  const e = _lkM.elements;
+  const yaw = Math.atan2(e[8], e[10]);
+  const toWorld = (k, x, z) => { _lkV.set(x, 0, z).applyMatrix4(_lkM); k.x = _lkV.x; k.y = _lkV.y; k.z = _lkV.z; };
+  const toRoot = (x, y, z) => _lkV.set(x, y, z).applyMatrix4(_lkI);
+  const lockAt = (k, x, z, footYaw) => { toWorld(k, x, z); k.yaw = footYaw; k.on = true; k.ox = k.oz = k.oyaw = 0; };
+  const decay = Math.exp(-dt * 9);
+  const errs = [0, 0];
+  feet.forEach((f, i) => {
+    const k = L[i];
+    // The pinned spot is where the heel or ball meets the ground; the ankle
+    // rolling forward over the ball as the heel peels is the stride's own.
+    const bx = f.target.x - f.rollX, bz = f.target.z - f.rollZ;
+    if (k.step >= 0 && walking) {
+      // Moving off mid-step: the stride takes the foot from where it is.
+      toRoot(k.sx, k.y, k.sz);
+      const w = _smooth(k.step);
+      k.ox = (_lkV.x - bx) * (1 - w); k.oz = (_lkV.z - bz) * (1 - w); k.oyaw = wrapAngle(k.syaw - yaw) * (1 - w);
+      k.step = -1;
+    }
+    if (k.step >= 0) {
+      // A standing step: up, across to the foot's place under the hips, down.
+      k.step = Math.min(1, k.step + dt / STEP_TIME);
+      const w = _smooth(k.step), arc = Math.sin(Math.PI * k.step);
+      toRoot(k.sx, k.y, k.sz);
+      f.target.x = _lkV.x + (bx - _lkV.x) * w + f.rollX;
+      f.target.z = _lkV.z + (bz - _lkV.z) * w + f.rollZ;
+      f.target.y += arc * 0.055 * s;
+      f.pitch += arc * 0.25;
+      f.yaw = wrapAngle(k.syaw - yaw) * (1 - w);
+      f.hold = 1 - arc;
+      if (k.step >= 1) { k.step = -1; lockAt(k, bx, bz, yaw); }
+      return;
+    }
+    if (walking && !f.planted) {
+      // In the swing: let go, and fade out where it was pinned.
+      if (k.on) {
+        toRoot(k.x, k.y, k.z);
+        k.ox = _lkV.x - bx; k.oz = _lkV.z - bz; k.oyaw = wrapAngle(k.yaw - yaw);
+        k.on = false;
+      }
+      k.ox *= decay; k.oz *= decay; k.oyaw *= decay;
+      f.target.x += k.ox; f.target.z += k.oz; f.yaw = k.oyaw;
+      return;
+    }
+    if (!k.on) lockAt(k, bx + k.ox, bz + k.oz, yaw + k.oyaw);
+    toRoot(k.x, k.y, k.z);
+    let ex = _lkV.x - bx, ez = _lkV.z - bz;
+    const eyaw = wrapAngle(k.yaw - yaw);
+    const dist = Math.hypot(ex, ez);
+    if (dist > 0.75 * s || Math.abs(eyaw) > 1.4) { lockAt(k, bx, bz, yaw); return; }
+    const hx = _lkV.x - rig.parts.hips.position.x, hz = _lkV.z - rig.parts.hips.position.z;
+    const out = Math.hypot(hx, hz), reach = 0.55 * s;
+    if (walking && out > reach) {
+      // Run off from its foot (a hard cut at speed): it slides rather than
+      // tear the leg out of the hip.
+      const c = reach / out;
+      ex = hx * c + rig.parts.hips.position.x - bx; ez = hz * c + rig.parts.hips.position.z - bz;
+      toWorld(k, bx + ex, bz + ez);
+    } else if (!walking && weight * f.side < -0.3 && dist < 0.06 * s) {
+      // Standing, the foot without the weight on it shuffles the last bit
+      // to its place.
+      const c = Math.max(0, 1 - dt * 0.12 * s / Math.max(1e-4, dist));
+      ex *= c; ez *= c;
+      toWorld(k, bx + ex, bz + ez);
+    }
+    f.target.x = bx + ex + f.rollX;
+    f.target.z = bz + ez + f.rollZ;
+    f.yaw = eyaw;
+    if (!walking) errs[i] = Math.max(Math.hypot(ex, ez) / (0.11 * s), Math.abs(eyaw) / 0.5);
+  });
+  // Standing: the foot furthest off its place steps, one at a time.
+  if (!walking && L.every((k) => k.step < 0)) {
+    const i = errs[0] >= errs[1] ? 0 : 1;
+    if (errs[i] > 1) {
+      const k = L[i];
+      k.step = 0; k.sx = k.x; k.sz = k.z; k.syaw = k.yaw; k.on = false;
+    }
+  }
+}
 
 /* Melee arm, as keyframes of [t, arm raise (x), arm out/across (z), elbow,
    wrist, chest twist]. The blade leaves the fist square to the forearm, so
@@ -1058,7 +1164,7 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   for (const [side, legPhase] of [[-1, cyc], [1, cyc + Math.PI]]) {
     let u = (legPhase / (Math.PI * 2)) % 1;
     if (u < 0) u += 1;
-    let along, up, pitchFoot, flex = 0;
+    let along, up, pitchFoot, flex = 0, rollOn = 0;
     if (u < duty) {
       // Planted: slides from ahead to behind at the body's own speed. Late
       // in the stance the heel peels up (lifting the ankle) and the toe
@@ -1070,7 +1176,8 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
       // toe bends back the same so it stays flat.
       const peel = t > 0.62 ? Math.pow((t - 0.62) / 0.38, 1.5) * 0.8 : 0;
       up = Math.sin(peel) * 0.05 * s;
-      along += (1 - Math.cos(peel)) * 0.05 * s;   // the ankle rolls over the ball
+      rollOn = (1 - Math.cos(peel)) * 0.05 * s;   // the ankle rolls over the ball
+      along += rollOn;
       flex = peel / 0.8;
       pitchFoot = -peel;
     } else {
@@ -1088,7 +1195,8 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
       // ...picking up from the push-off: heel up, foot tipped, toe bent,
       // which all ease out as the foot clears the ground.
       const off = t < 0.3 ? 1 - t / 0.3 : 0;
-      along += off * (1 - Math.cos(0.8)) * 0.05 * s;
+      rollOn = off * (1 - Math.cos(0.8)) * 0.05 * s;
+      along += rollOn;
       up = Math.max(Math.sin(Math.PI * Math.pow(t, 0.8)) * lift, off * Math.sin(0.8) * 0.05 * s);
       pitchFoot = -Math.sin(Math.PI * t) * 0.22 + (t > 0.8 ? (t - 0.8) * 1.2 : 0) - off * 0.8;
       flex = off;
@@ -1108,8 +1216,9 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
     // swinging one only as it comes in to land (so the hips meet it there
     // rather than dropping on contact), not while it's out in the air.
     const hold = u < duty ? 1 : _smooth(Math.max(0, ((u - duty) / (1 - duty) - 0.75) / 0.25));
-    feet.push({ side, along, target: _foot.clone(), pitch: pitchFoot, flex, hold });
+    feet.push({ side, along, target: _foot.clone(), pitch: pitchFoot, flex, hold, planted: u < duty, rollX: tx * rollOn * blend, rollZ: tz * rollOn * blend, yaw: 0 });
   }
+  _footLock(rig, feet, dt, { walking: blend > 0.5, s, weight, off: zombie || !(dt > 0) || (g.air || 0) > 0.3 });
 
   // Pelvis height. A walk vaults over a straight leg: the hips are as high
   // as the planted feet let them be, lowest as one foot lands with the other
@@ -1164,8 +1273,8 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   const bob = p.hips.position.y - standY;
   p.ballL.rotation.set(feet[0].flex, 0, 0);
   p.ballR.rotation.set(feet[1].flex, 0, 0);
-  _solveLeg(rig, -1, p.legL, p.kneeL, p.ankleL, feet[0].target, feet[0].pitch);
-  _solveLeg(rig, 1, p.legR, p.kneeR, p.ankleR, feet[1].target, feet[1].pitch);
+  _solveLeg(rig, -1, p.legL, p.kneeL, p.ankleL, feet[0].target, feet[0].pitch, feet[0].yaw * (1 - airK));
+  _solveLeg(rig, 1, p.legR, p.kneeR, p.ankleR, feet[1].target, feet[1].pitch, feet[1].yaw * (1 - airK));
   // -1 = that foot trails behind, 1 = it's out ahead: drives the arms.
   const legSwingL = (feet[0].along / Math.max(1e-3, duty * stride)) * Math.sign(-tz || 1);
 
