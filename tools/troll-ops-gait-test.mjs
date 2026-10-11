@@ -134,6 +134,41 @@ const res = await page.evaluate(async () => {
     }
     out.takeoff = { peak, steady };
   }
+
+  // A jump (7 m/s up, gravity 22) and its landing; then a stair-sized drop.
+  {
+    const rig = C.buildHumanoid(new THREE.MeshBasicMaterial(), { height: 1.8, gun: false });
+    const R = rig.limbRadius;
+    for (let i = 0; i < 60; i++) C.poseHumanoid(rig, { moving: false, dt: DT, hold: "none" });
+    const footUp = () => {   // the lower ankle's height above the hips' feet line, in the root
+      rig.root.updateMatrixWorld(true);
+      return Math.min(rig.parts.ankleL.getWorldPosition(new THREE.Vector3()).y, rig.parts.ankleR.getWorldPosition(new THREE.Vector3()).y) - R;
+    };
+    let vy = 7, apexTuck = 0, fallExt = 1, minHip = Infinity, settled = 0;
+    const stand = rig.parts.hips.position.y;
+    for (let t = 0; t < 2.5; t += DT) {
+      const inAir = t < 2 * 7 / 22;
+      const land = !inAir && t - DT < 2 * 7 / 22 ? 0.6 : 0;
+      C.poseHumanoid(rig, { moving: false, dt: DT, hold: "none", air: inAir, vy: inAir ? vy : 0, land });
+      if (inAir) vy -= 22 * DT;
+      if (Math.abs(t - 7 / 22) < DT) apexTuck = footUp();
+      if (inAir && vy < -5) fallExt = Math.min(fallExt, footUp());
+      if (!inAir) {
+        minHip = Math.min(minHip, rig.parts.hips.position.y);
+        if (t > 2 * 7 / 22 + 0.8) settled = Math.max(settled, Math.abs(rig.parts.hips.position.y - stand));
+      }
+    }
+    // A stair: 0.06 s in the air, falling slowly.
+    const rig2 = C.buildHumanoid(new THREE.MeshBasicMaterial(), { height: 1.8, gun: false });
+    for (let i = 0; i < 60; i++) C.poseHumanoid(rig2, { moving: false, dt: DT, hold: "none" });
+    let stairLift = 0;
+    for (let t = 0; t < 0.06; t += DT) {
+      C.poseHumanoid(rig2, { moving: false, dt: DT, hold: "none", air: true, vy: -1.3 });
+      rig2.root.updateMatrixWorld(true);
+      stairLift = Math.max(stairLift, Math.min(rig2.parts.ankleL.getWorldPosition(new THREE.Vector3()).y, rig2.parts.ankleR.getWorldPosition(new THREE.Vector3()).y) - R);
+    }
+    out.jump = { apexTuck, fallExt, squash: stand - minHip, settled, stairLift };
+  }
   return out;
 });
 
@@ -158,6 +193,13 @@ for (const v of [1.4, 4.2, 5.2, 7]) {
 check("standing: the weight moves to both legs", res.idle.minX < -0.015 && res.idle.maxX > 0.015, `hips x ${res.idle.minX.toFixed(3)}..${res.idle.maxX.toFixed(3)}`);
 check("standing: the feet stay put", res.idle.drift < 0.07, `drift ${(res.idle.drift * 100).toFixed(1)} cm`);
 check("take-off leans forward more than the steady run", res.takeoff.peak > res.takeoff.steady + 0.04, `peak ${res.takeoff.peak.toFixed(2)} vs ${res.takeoff.steady.toFixed(2)} rad`);
+
+const J = res.jump;
+check("jump: the knees tuck at the top", J.apexTuck > 0.15, `feet ${(J.apexTuck * 100).toFixed(0)} cm up`);
+check("jump: the legs reach down falling", J.fallExt < J.apexTuck - 0.08, `${(J.fallExt * 100).toFixed(0)} vs ${(J.apexTuck * 100).toFixed(0)} cm`);
+check("landing: the knees take it", J.squash > 0.06 && J.squash < 0.2, `hips down ${(J.squash * 100).toFixed(0)} cm`);
+check("landing: springs back up", J.settled < 0.012, `${(J.settled * 100).toFixed(1)} cm off after 0.8 s`);
+check("a stair-sized drop doesn't tuck", J.stairLift < 0.03, `feet ${(J.stairLift * 100).toFixed(1)} cm up`);
 
 await browser.close();
 server.close();

@@ -982,7 +982,9 @@ function inferGrip(mesh) {
    "swing" | "thrust" } while a melee attack plays. `recoil`: 0..1, the gun's
    current kick. `block`: 0..1 into the saber guard (melee hold, no swing).
    `ads`: 0..1 aiming down sights — the gun comes up to the eye, on the aim. */
-function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, forward = 1, speed = 1, mps = null, dt = 0.016, zombie = false, hasGun = false, hold = "gun", swing = null, recoil = 0, block = 0, ads = 0 }) {
+/* `air`: off the ground; `vy`: vertical speed (m/s, + up); `land`: 0..1, a
+   landing's force on the frame it lands (0.5 for a jump's, 1 for a big drop). */
+function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, forward = 1, speed = 1, mps = null, dt = 0.016, zombie = false, hasGun = false, hold = "gun", swing = null, recoil = 0, block = 0, ads = 0, air = false, vy = 0, land = 0 }) {
   const p = rig.parts;
   const s = rig.scale;
   const str = Math.max(-1, Math.min(1, strafe));
@@ -1126,6 +1128,39 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   const spring = stepU < sf ? -Math.sin(Math.PI * stepU / sf) * 0.034 : Math.sin(Math.PI * (stepU - sf) / (1 - sf)) * 0.03;
   const level = standY - (run * 0.06 * s + (zombie ? 0.06 * s : 0) - spring * s * run) * blend - Math.abs(weight) * 0.006 * s;
   p.hips.position.y = Math.max(level - 0.07 * s, Math.min(level, reach));
+
+  // In the air: knees tuck on the way up and the legs reach for the ground
+  // on the way down, the free arm lifts out for balance. Only for a real
+  // jump or a drop of more than a tenth of a second, so running down stairs
+  // doesn't flicker into it. Landing: the knees take it (the hips drop over
+  // the planted feet, more for a harder landing) and spring back.
+  if (dt > 0) {
+    g.airT = air ? (g.airT || 0) + dt : 0;
+    const inAir = air && (g.airT > 0.1 || vy > 2);
+    g.air = (g.air || 0) + ((inAir ? 1 : 0) - (g.air || 0)) * Math.min(1, dt * (inAir ? 12 : 18));
+    // A landing kicks a spring (under-damped: down, a small rebound, settled
+    // in ~0.4 s); `land` 1 sinks it about the full squash.
+    if (land > 0) g.landV = Math.max(g.landV || 0, land * 20);
+    const lw = 13, lz = 0.55;
+    g.landV = (g.landV || 0) + (-lw * lw * (g.landX || 0) - 2 * lz * lw * (g.landV || 0)) * dt;
+    g.landX = (g.landX || 0) + g.landV * dt;
+  }
+  const airK = g.air || 0, squash = Math.max(0, g.landX || 0);
+  if (airK > 0.001) {
+    const ext = Math.max(0, Math.min(1, -vy / 6));          // 0 rising .. 1 falling fast
+    const L = rig.thigh + rig.shin;
+    const hipAir = standY - 0.02 * s;
+    for (const f of feet) {
+      const lead = f.side < 0 ? 1 : -1;                     // the left knee comes up first
+      const ay = hipAir - L * (0.66 + 0.28 * ext) + (lead > 0 ? 0.05 * s * (1 - ext) : 0);
+      const az = (lead > 0 ? -0.16 : 0.08) * s * (1 - ext * 0.6);
+      f.target.set(f.target.x + (f.side * 0.1 * s - f.target.x) * airK, f.target.y + (ay - f.target.y) * airK, f.target.z + (az - f.target.z) * airK);
+      f.pitch += (0.35 * (1 - ext) - f.pitch) * airK;
+      f.flex *= 1 - airK;
+    }
+    p.hips.position.y += (hipAir - p.hips.position.y) * airK;
+  }
+  p.hips.position.y -= squash * 0.17 * s;
   const bob = p.hips.position.y - standY;
   p.ballL.rotation.set(feet[0].flex, 0, 0);
   p.ballR.rotation.set(feet[1].flex, 0, 0);
@@ -1140,7 +1175,7 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   // the counter-twist against the hips runs up the spine the same way.
   const accLean = Math.max(-0.14, Math.min(0.16, (g.acc ?? 0) * 0.012)) * (fwd < 0 ? -1 : 1) * (1 - sideways * 0.7);
   const moveLean = (0.04 + run * 0.16) * blend * (fwd < 0 ? -0.6 : 1) * (1 - sideways * 0.7) + accLean;
-  p.torso.rotation.set(crouch * 0.25 + moveLean * 0.7, 0, str * -0.1 * blend - weight * 0.04);
+  p.torso.rotation.set(crouch * 0.25 + moveLean * 0.7 + squash * 0.3 + airK * 0.06, 0, str * -0.1 * blend - weight * 0.04);
   p.spine.rotation.set(crouch * 0.05 + moveLean * 0.15, -p.hips.rotation.y * 0.55, str * -0.03 * blend);
   p.chest.rotation.set(crouch * 0.07 + moveLean * 0.15, -p.hips.rotation.y * 0.85, str * -0.03 * blend);
   const lean = p.torso.rotation.x + p.spine.rotation.x + p.chest.rotation.x;
@@ -1211,6 +1246,15 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
     const swingAmp = (0.35 + run * 0.55) * blend;
     p.armL.rotation.set(-legSwingL * swingAmp - lean * 0.8 - 0.05 - run * 0.25 * blend, 0, 0.06 + run * 0.04);
     p.elbowL.rotation.set(0.2 + (run * 1.1 + Math.max(0, legSwingL) * 0.25) * blend, 0, 0);
+    // Balance in the air: the free arm lifts out and a little forward.
+    p.armL.rotation.x += 0.35 * airK;
+    p.armL.rotation.z += 0.55 * airK;
+    p.elbowL.rotation.x += 0.4 * airK;
+  }
+  if (hold === "none" && airK > 0.001) {
+    p.armR.rotation.x += 0.35 * airK;
+    p.armR.rotation.z -= 0.55 * airK;
+    p.elbowR.rotation.x += 0.4 * airK;
   }
 
   // Shoulder sockets: each rolls forward with its own arm's swing, both
