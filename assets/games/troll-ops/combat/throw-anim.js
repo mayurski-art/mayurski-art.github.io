@@ -28,7 +28,7 @@
    the existing `nade` message still marks the release. */
 
 import * as THREE from "three";
-import { reachHand, setHandPose } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u";
+import { reachHand, setHandPose } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1";
 import { buildThrowable, buildPin, modelKind } from "./throwable-models.js?v=tm1-th2";
 import { game } from "../core/state.js?v=st1";
 import { hasPerk, PERK_TUNE } from "../perks.js?v=pk1-cl1-bp1";

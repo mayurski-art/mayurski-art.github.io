@@ -11,8 +11,8 @@
             facing the bars. Control back. */
 
 import * as THREE from "three";
-import { arrestCine, npcName, SHERIFF } from "../modes/social-sheriff.js?v=sh1-cl1-bp1-sg1-bw1";
-import { cellsOf } from "../modes/social-jail.js?v=sj1-sh1-cl1-bp1-sg1-bw1";
+import { arrestCine, npcName, SHERIFF } from "../modes/social-sheriff.js?v=sh1-cl1-bp1-sg1-bw1-gt1";
+import { cellsOf } from "../modes/social-jail.js?v=sj1-sh1-cl1-bp1-sg1-bw1-gt1";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1";
 import { game } from "../core/state.js?v=st1";
 
