@@ -6,7 +6,7 @@
 // for everyone else, Awareness turns everyone else's up for you.)
 
 import { game } from "../core/state.js?v=st1";
-import { footprints, hero, heroActive } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-bd1-hs1-pl1";
+import { footprints, hero, heroActive } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1";
 import { hasPerk, peerHas, PERK_TUNE } from "../perks.js?v=pk1";
 
 const stepTrack = new Map();
