@@ -3,7 +3,7 @@
 
 import { MODES, MODE_IDS } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2";
 import { prestigeUnlocked } from "../progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1";
-import { streaksAllowed } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1";
+import { streaksAllowed } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1";
 import { game } from "../core/state.js?v=st1";
 
 /* The Play tab's mode list: versus modes first, then the solo ones, each a

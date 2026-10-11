@@ -8,7 +8,7 @@ import { getRank, getLevel, getPrestige, PRESTIGE_MASTER, isUnlocked, rankUnlock
 import { playerIconSvg } from "./rank-icons.js?v=rk1";
 import { MAPS, MAP_IDS, REWARD_MAPS, mapSchematic } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1";
 import { MELEE_DEFS, MELEE_IDS, THROWABLE_DEFS, LETHAL_IDS, TACTICAL_IDS } from "./gear.js?v=to-hb1kb3-bk1-wst-ig1-th2";
-import { PERK_DEFS, validPerks } from "./perks.js?v=pk1-cl1";
+import { PERK_DEFS, validPerks } from "./perks.js?v=pk1-cl1-bp1";
 
 const STORE = "trollops:loadout";
 // The scorestreak picker's own key (streak-picker.js). The active class's

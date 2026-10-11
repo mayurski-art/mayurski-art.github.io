@@ -485,6 +485,8 @@ Map rules:
 
 ## 5. Shipped log (one line each; details are in git)
 
+- **2026-10-10** Bots carry perks (-bp1, CLASSES.md): one a tier per bot (perks.js botPerks), host-simulated, `pk` on the wire like a player's. Test: perks-test.
+- **2026-10-10** Engineer re-rolls your own landed care package once, on reload (-bp1, streaks/air.js rerollPackage, sent as `reroll`). Test: perks-test.
 - **2026-10-10** Five classes and BO2's perks (-cl1, CLASSES.md): Create a Class lists five (guns, melee, throwable, three streaks, a perk per tier, rename), pause → Change Class lands on the respawn; sixteen perks with real effects, a spawn card, `pk` bits for the ones others must honour. Enemy footsteps moved out of game.js (view/enemy-steps.js). Tests: classes-test, perks-test; cloud-save-test fixed (it imported a stale module tag).
 - **2026-10-10** Menu hover previews (-cl1): a weapon, melee or throwable row shows its model as you move over it (the inspector builds throwables now). trollrunner.net/tf (tf/index.html) opens the game and shows /tf; the pause and game-over arcade buttons are "Troll Forces home"; the menu's Arcade closes the arcade's full-screen frame instead of nesting the arcade in it. Test: exit-links-test.
 
