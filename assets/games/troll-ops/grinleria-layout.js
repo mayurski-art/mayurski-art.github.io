@@ -225,6 +225,13 @@ export function grinleriaLayout() {
     escalators.push({ x0: s * E.x0, z, dir: s, width: E.width, steps: E.steps, rise: E.rise, run: E.run, moving: zs * s < 0 ? "up" : "down" });
     for (let i = 0; i < E.steps; i++) {
       S(solids, "_step", s * (E.x0 + E.run * (i + 0.5)), z, E.run, E.width, E.rise * (i + 1), { pen: 6 });
+      // The glass balustrades (grinleria.js buildGlass) were only drawn:
+      // bots crowding up a flight shoved each other off its side, fell to
+      // the floor and walked back round to try again (user, 2026-10-11).
+      // A rail each side of every tread, a metre over it, follows the slope.
+      for (const side of [-1, 1]) {
+        S(solids, "_escrail", s * (E.x0 + E.run * (i + 0.5)), z + side * (E.width / 2 + 0.05), E.run, 0.1, E.rise * (i + 1) + 1.0, { pen: 2 });
+      }
     }
   }
 

@@ -103,6 +103,9 @@ if (!SIM_ONLY) {
       T.move.pos.set(me.x, me.y, me.z);
       if (!b.alive) break;
       maxY = Math.max(maxY, b.groundY); minY = Math.min(minY, b.groundY);
+          // Sinking off a flight on the way up: the feet dropping faster than walking down any stair.
+          if (to.y > from.y + 1 && prevY - b.groundY > 0.35 && !(b.hopY > 0)) sinks++;
+          prevY = b.groundY;
       const d = Math.hypot(b.pos.x - me.x, b.pos.z - me.z);
       if (Math.abs(b.groundY - me.y) < 0.6) best = Math.min(best, d);
       if (best < 3) { reached = Math.round((performance.now() - t0) / 100) / 10; break; }
@@ -191,12 +194,14 @@ if (!SIM_ONLY) {
       const mgr = new BotManager();
       mgr.rebuildNav(colliders, arena, 0);
       const DT = 0.05;
-      const hunt = (from, to, limit) => {
+      const hunt = (from, to, limit, speedMult = 1) => {
         mgr.clear();
         mgr.fill(1, 0, () => ({ x: from.x, z: from.z }), true);
         const b = mgr.bots[0];
         b.team = "phantom";
         b.pos.set(from.x, from.y, from.z); b.groundY = from.y; b.perchT = 1e9;
+        b.speedMult = speedMult; b.perkSpeed = 1;
+        let sinks = 0, prevY = from.y;
         const target = { id: "target", team: "ghost", alive: true, pos: new THREE.Vector3(to.x, to.y, to.z), groundY: to.y };
         const ctx = { colliders, arena, ffa: false, targets: [target], onShoot() {}, spawnFor: () => from,
           sightBlocked: () => true, stairs, noRespawn: true };
@@ -206,12 +211,12 @@ if (!SIM_ONLY) {
           maxY = Math.max(maxY, b.groundY); minY = Math.min(minY, b.groundY);
           if (b.stance === "rope") roped++;
           if (Math.abs(b.groundY - to.y) < 0.6 && Math.hypot(b.pos.x - to.x, b.pos.z - to.z) < 2.5) {
-            return { ok: true, t: +t.toFixed(1), roped };
+            return sinks ? { ok: false, sinks, t: +t.toFixed(1) } : { ok: true, t: +t.toFixed(1), roped };
           }
         }
         return { ok: false, from: [from.x, from.y, from.z].map((v) => +v.toFixed(1)), to: [to.x, to.y, to.z].map((v) => +v.toFixed(1)),
           at: [b.pos.x, b.groundY, b.pos.z].map((v) => +v.toFixed(1)), maxY: +maxY.toFixed(2), minY: +minY.toFixed(2),
-          climb: !!b.climb, plan: b.stairPlan?.key || null };
+          climb: !!b.climb, plan: b.stairPlan?.key || null, sinks };
       };
 
       const out = { id, flights: flights.length, results: [] };
@@ -224,7 +229,9 @@ if (!SIM_ONLY) {
         if (!below) { out.results.push({ name, skip: "no floor near its foot" }); continue; }
         // Time enough to walk the long way round a big map.
         const limit = 60 + Math.hypot(top.x - below.x, top.z - below.z) * 0.5;
-        out.results.push({ name, rope: !!s.rope, up: hunt(below, top, limit), down: hunt(top, below, limit) });
+        out.results.push({ name, rope: !!s.rope, up: hunt(below, top, limit), down: hunt(top, below, limit),
+          // An infected bot (modes.js INFECTION.speed) climbs too, without sinking off it (user, 2026-10-11).
+          upFast: hunt(below, top, limit, 1.2) });
       }
 
       // On its own: nobody in sight, an enemy away on the ground, and a bot
@@ -263,8 +270,9 @@ if (!SIM_ONLY) {
     let pass = 0, total = 0;
     for (const r of res.results) {
       if (r.skip) { console.log(`--    ${id} ${r.name}: skipped, ${r.skip}`); continue; }
-      total += 2;
+      total += 3;
       if (r.up.ok) pass++; else check(`${id}: a bot below goes up ${r.name}`, false, JSON.stringify(r.up));
+      if (r.upFast.ok) pass++; else check(`${id}: an infected bot (1.2x) goes up ${r.name} without sinking off it`, false, JSON.stringify(r.upFast));
       if (r.down.ok) pass++; else check(`${id}: a bot up top comes down ${r.name}`, false, JSON.stringify(r.down));
     }
     check(`${id}: bots go up and come back down every flight (${res.flights})`, pass === total && total > 0, `${pass}/${total}`);
