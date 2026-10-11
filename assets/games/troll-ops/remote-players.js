@@ -297,6 +297,9 @@ export class RemotePlayer {
     // changes, so bots and other operators visibly hold what they're
     // shooting rather than a fixed generic rifle shape.
     this.rig = buildHumanoid(this.material, { height: 1.8, gun: false });
+    // Their way of moving (character.js gaitStyle) from their id, so every
+    // screen shows them the same.
+    this.rig.styleSeed = [...String(peer.id)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
     this.group = this.rig.root;
 
     this.weaponMesh = null;

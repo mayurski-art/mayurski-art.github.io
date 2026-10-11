@@ -916,6 +916,23 @@ const LEG_SPLAY = 0.09;
    that's suddenly far off (a respawn, a teleport, the 360 swivel) is just
    put back. `feet[i].target` is in the root's frame and becomes the pinned
    spot; `feet[i].yaw` the foot's turn off the body. */
+/* Nobody moves quite like anybody else: each troll gets its own arm swing,
+   elbow bend, hip twist, stance width, posture, bounce, head carriage and
+   fidget, a little either side of the norm, from `rig.styleSeed` (a remote
+   player's is their id, so everyone sees them move the same way) or at
+   random. Nothing here touches the stride itself, so the feet still plant
+   exactly. */
+export function gaitStyle(rig) {
+  if (rig.style) return rig.style;
+  let seed = (Math.floor(rig.styleSeed ?? Math.random() * 2147483646) % 2147483646) + 1;
+  const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 3; i++) r();
+  return (rig.style = {
+    arm: 0.8 + r() * 0.4, elbow: 0.75 + r() * 0.5, twist: 0.8 + r() * 0.45, width: 0.88 + r() * 0.26,
+    lean: (r() - 0.5) * 0.07, bounce: 0.8 + r() * 0.4, head: (r() - 0.5) * 0.1, sway: 0.6 + r() * 0.8, fidget: 0.7 + r() * 0.6,
+  });
+}
+
 const STEP_TIME = 0.26;
 const _lkM = new THREE.Matrix4(), _lkI = new THREE.Matrix4(), _lkV = new THREE.Vector3();
 function _footLock(rig, feet, dt, { walking, s, weight, off }) {
@@ -1104,6 +1121,7 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   // Ease in and out of the cycle, so starting and stopping blend rather
   // than snapping the legs between the gait and the stand.
   const g = rig.gait;
+  const st = gaitStyle(rig);
   g.blend += ((moving ? 1 : 0) - g.blend) * Math.min(1, dt * 9);
   const blend = g.blend;
   // Acceleration, smoothed: a take-off pitches the body forward, a stop sits
@@ -1134,7 +1152,7 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   if (dt > 0) {
     g.wT = (g.wT ?? 1.5 + Math.random() * 3) - dt;
     if (g.wSide == null) g.wSide = Math.random() < 0.5 ? -1 : 1;
-    if (g.wT <= 0) { g.wSide = -g.wSide; g.wT = 3.5 + Math.random() * 4.5; }
+    if (g.wT <= 0) { g.wSide = -g.wSide; g.wT = (3.5 + Math.random() * 4.5) / st.fidget; }
     g.w = (g.w ?? 0) + (g.wSide - (g.w ?? 0)) * Math.min(1, dt * 1.4);
     g.swayT = (g.swayT ?? Math.random() * 20) + dt;
   }
@@ -1152,10 +1170,10 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   const cyc = phase;
   const standY = rig.hipY * (0.985 - crouch * 0.52);
   // Hips twist with the stride and roll over the standing leg.
-  p.hips.rotation.y = Math.sin(cyc) * (0.07 + run * 0.08) * blend * -tz * (1 - sideways);
-  p.hips.rotation.z = Math.cos(cyc) * 0.035 * blend + weight * 0.05;
+  p.hips.rotation.y = Math.sin(cyc) * (0.07 + run * 0.08) * st.twist * blend * -tz * (1 - sideways);
+  p.hips.rotation.z = Math.cos(cyc) * 0.035 * st.twist * blend + weight * 0.05;
   p.hips.position.x = weight * 0.026 * s;
-  p.hips.position.z = Math.sin(g.swayT * 0.7) * 0.006 * s * idleK;
+  p.hips.position.z = Math.sin(g.swayT * 0.7) * 0.006 * st.sway * s * idleK;
 
   // A walking stance starts a little nearer the hips than it ends: the heel
   // lands just ahead, the toe pushes off well behind (with the heel up).
@@ -1206,7 +1224,7 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
     up *= blend;
     pitchFoot *= blend;
     // Feet sit a hand's width apart; a crouch spreads them a little.
-    const baseX = side * (0.085 + crouch * 0.06) * s;
+    const baseX = side * (0.085 * st.width + crouch * 0.06) * s;
     _foot.set(baseX + tx * along, rig.limbRadius + up, tz * along);
     // Crouched feet land a touch behind the hips, prone ones further.
     _foot.z += crouch * 0.12 * s;
@@ -1235,7 +1253,7 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   const stepU = ((cyc / Math.PI) % 1 + 1) % 1;            // through each step
   const sf = Math.min(0.999, 2 * duty);                   // ...the share with a foot down
   const spring = stepU < sf ? -Math.sin(Math.PI * stepU / sf) * 0.034 : Math.sin(Math.PI * (stepU - sf) / (1 - sf)) * 0.03;
-  const level = standY - (run * 0.06 * s + (zombie ? 0.06 * s : 0) - spring * s * run) * blend - Math.abs(weight) * 0.006 * s;
+  const level = standY - (run * 0.06 * s + (zombie ? 0.06 * s : 0) - spring * st.bounce * s * run) * blend - Math.abs(weight) * 0.006 * s;
   p.hips.position.y = Math.max(level - 0.07 * s, Math.min(level, reach));
 
   // In the air: knees tuck on the way up and the legs reach for the ground
@@ -1283,7 +1301,7 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   // share is split over two joints and the back curves instead of kinking;
   // the counter-twist against the hips runs up the spine the same way.
   const accLean = Math.max(-0.14, Math.min(0.16, (g.acc ?? 0) * 0.012)) * (fwd < 0 ? -1 : 1) * (1 - sideways * 0.7);
-  const moveLean = (0.04 + run * 0.16) * blend * (fwd < 0 ? -0.6 : 1) * (1 - sideways * 0.7) + accLean;
+  const moveLean = (0.04 + run * 0.16 + st.lean) * blend * (fwd < 0 ? -0.6 : 1) * (1 - sideways * 0.7) + accLean + (zombie ? 0 : st.lean * 0.4 * (1 - blend));
   p.torso.rotation.set(crouch * 0.25 + moveLean * 0.7 + squash * 0.3 + airK * 0.06, 0, str * -0.1 * blend - weight * 0.04);
   p.spine.rotation.set(crouch * 0.05 + moveLean * 0.15, -p.hips.rotation.y * 0.55, str * -0.03 * blend);
   p.chest.rotation.set(crouch * 0.07 + moveLean * 0.15, -p.hips.rotation.y * 0.85, str * -0.03 * blend);
@@ -1333,9 +1351,9 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   } else if (hold === "none") {
     // Empty hands (Socialize): the right arm swings too, against the left,
     // the same way the free left arm does below.
-    const swingAmp = (0.35 + run * 0.55) * blend;
+    const swingAmp = (0.35 + run * 0.55) * st.arm * blend;
     p.armR.rotation.set(legSwingL * swingAmp - lean * 0.8 - 0.05 - run * 0.25 * blend, 0, -0.06 - run * 0.04);
-    p.elbowR.rotation.set(0.2 + (run * 1.1 + Math.max(0, -legSwingL) * 0.25) * blend, 0, 0);
+    p.elbowR.rotation.set(0.2 * st.elbow + (run * 1.1 * st.elbow + Math.max(0, -legSwingL) * 0.25) * blend, 0, 0);
   } else {
     p.armR.rotation.set(0, 0, -0.06);
     p.elbowR.rotation.set(0.2, 0, 0);
@@ -1352,9 +1370,9 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
     // Free arm: swings against its own leg, from the shoulder, with an elbow
     // that bends more the faster you go — hanging loose at a walk, pumping
     // at ninety degrees in a sprint.
-    const swingAmp = (0.35 + run * 0.55) * blend;
+    const swingAmp = (0.35 + run * 0.55) * st.arm * blend;
     p.armL.rotation.set(-legSwingL * swingAmp - lean * 0.8 - 0.05 - run * 0.25 * blend, 0, 0.06 + run * 0.04);
-    p.elbowL.rotation.set(0.2 + (run * 1.1 + Math.max(0, legSwingL) * 0.25) * blend, 0, 0);
+    p.elbowL.rotation.set(0.2 * st.elbow + (run * 1.1 * st.elbow + Math.max(0, legSwingL) * 0.25) * blend, 0, 0);
     // Balance in the air: the free arm lifts out and a little forward.
     p.armL.rotation.x += 0.35 * airK;
     p.armL.rotation.z += 0.55 * airK;
@@ -2288,8 +2306,10 @@ function _poseNeckAndHead(rig, { pitch, sway, dt, lead, lean = 0, bob = 0, run =
 
   p.chest.rotation.y += cy + fy * 0.15;
   p.neckPivot.position.y = -bob * 0.45;
+  // How this troll carries its head (gaitStyle), on the move or standing.
+  const carry = useState ? rig.style?.head || 0 : 0;
   p.neckPivot.rotation.set(
-    -pitch * 0.25 + sway * 0.4 - lean * stab * 0.4 + nod * 0.4 + fp * 0.4 + idlePitch * 0.4,
+    -pitch * 0.25 + sway * 0.4 - lean * stab * 0.4 + nod * 0.4 + fp * 0.4 + idlePitch * 0.4 + carry,
     ny + idleYaw * 0.4 + fy * 0.4,
     lead * 0.10 - rollBelow * 0.35 + fr * 0.4,
   );

@@ -243,6 +243,22 @@ const res = await page.evaluate(async () => {
     });
     out.turn = { slide, steps: lifts(rows), footOff: Math.max(...yaws.map((y) => Math.abs(Math.atan2(Math.sin(y - Math.PI / 2), Math.cos(y - Math.PI / 2))))) };
   }
+  // Two trolls run differently; the same seed runs the same.
+  {
+    const swing = (seed) => {
+      const rig = C.buildHumanoid(new THREE.MeshBasicMaterial(), { height: 1.8, gun: false });
+      rig.styleSeed = seed;
+      let phase = 0, lo = Infinity, hi = -Infinity;
+      for (let i = 0; i < 3 / DT; i++) {
+        phase += DT * C.gaitPhaseRate(4.2);
+        C.poseHumanoid(rig, { phase, moving: true, mps: 4.2, speed: 1, forward: 1, dt: DT, hold: "none" });
+        if (i > 1 / DT) { lo = Math.min(lo, rig.parts.armL.rotation.x); hi = Math.max(hi, rig.parts.armL.rotation.x); }
+      }
+      return hi - lo;
+    };
+    const arms = [11, 12, 13, 14, 15, 16].map(swing);
+    out.style = { arms, again: swing(11) };
+  }
   return out;
 });
 
@@ -279,6 +295,9 @@ check("stop: the planted feet hold", res.stop.slide < 0.3, `peak ${res.stop.slid
 check("stop: the feet step in under the hips", res.stop.steps >= 1 && res.stop.off < 0.12, `${res.stop.steps} steps, ${(res.stop.off * 100).toFixed(0)} cm off`);
 check("cut: the planted foot doesn't skate", res.cut.slide < 0.3, `peak ${res.cut.slide.toFixed(2)} m/s`);
 check("turn on the spot: the feet don't pivot", res.turn.slide < 0.3, `peak ${res.turn.slide.toFixed(2)} m/s`);
+const A = res.style.arms;
+check("each troll swings its arms its own way", Math.max(...A) / Math.min(...A) > 1.15, A.map((a) => a.toFixed(2)).join(" "));
+check("the same troll moves the same on every screen", Math.abs(res.style.again - A[0]) < 1e-9);
 check("turn on the spot: they step round", res.turn.steps >= 2 && res.turn.footOff < 0.4, `${res.turn.steps} steps, feet ${res.turn.footOff.toFixed(2)} rad off the body`);
 
 await browser.close();
