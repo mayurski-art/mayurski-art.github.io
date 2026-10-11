@@ -485,6 +485,7 @@ Map rules:
 
 ## 5. Shipped log (one line each; details are in git)
 
+- **2026-10-10** Radio: nine more songs (-sg1), 13 tracks in music.js TRACKS, beat grids regenerated (tools/troll-ops-beatgrid.mjs) so Trolling Loud and DJ Lulz run on them too.
 - **2026-10-10** Bots carry perks (-bp1, CLASSES.md): one a tier per bot (perks.js botPerks), host-simulated, `pk` on the wire like a player's. Test: perks-test.
 - **2026-10-10** Engineer re-rolls your own landed care package once, on reload (-bp1, streaks/air.js rerollPackage, sent as `reroll`). Test: perks-test.
 - **2026-10-10** Five classes and BO2's perks (-cl1, CLASSES.md): Create a Class lists five (guns, melee, throwable, three streaks, a perk per tier, rename), pause → Change Class lands on the respawn; sixteen perks with real effects, a spawn card, `pk` bits for the ones others must honour. Enemy footsteps moved out of game.js (view/enemy-steps.js). Tests: classes-test, perks-test; cloud-save-test fixed (it imported a stale module tag).

@@ -11,6 +11,15 @@ const TRACKS = [
   { title: "Sexy Magic", artist: "CA7RIEL & Paco Amoroso, PinkPantheress, Fred again..", src: "assets/games/troll-ops/music/sexy-magic.mp3" },
   { title: "Mermaid", artist: "Train", src: "assets/games/troll-ops/music/mermaid.mp3" },
   { title: "RHYNO", artist: "Travis Scott", src: "assets/games/troll-ops/music/rhyno.mp3" },
+  { title: "Werewolf (feat. Bring Me The Horizon)", artist: "Lil Uzi Vert", src: "assets/games/troll-ops/music/werewolf.mp3" },
+  { title: "soooo high", artist: "Destroy Lonely", src: "assets/games/troll-ops/music/soooo-high.mp3" },
+  { title: "Start Wit Me (feat. Gunna)", artist: "Roddy Ricch", src: "assets/games/troll-ops/music/start-wit-me.mp3" },
+  { title: "São Paulo (feat. Anitta)", artist: "The Weeknd", src: "assets/games/troll-ops/music/sao-paulo.mp3" },
+  { title: "Fell In Love", artist: "Lil Tecca, Ken Carson", src: "assets/games/troll-ops/music/fell-in-love.mp3" },
+  { title: "Life Is Good (feat. Drake)", artist: "Future", src: "assets/games/troll-ops/music/life-is-good.mp3" },
+  { title: "i need meds", artist: "Lil Yachty", src: "assets/games/troll-ops/music/i-need-meds.mp3" },
+  { title: "Mob Guys", artist: "Young Stoner Life, Young Thug", src: "assets/games/troll-ops/music/mob-guys.mp3" },
+  { title: "bloody mary (feat. Ken Carson)", artist: "lil Shordie Scott", src: "assets/games/troll-ops/music/bloody-mary.mp3" },
 ];
 
 // v2 made shuffle the default. The old key saved `shuffle: false` for everyone

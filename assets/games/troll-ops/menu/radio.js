@@ -1,7 +1,7 @@
 // Troll Forces in-game radio: the Grinspace widget (play, seek, EQ, shuffle),
 // usable from the lobby and carried into the match (music.js).
 
-import { EQ_BANDS, EQ_RANGE } from "../music.js?v=to-gs1";
+import { EQ_BANDS, EQ_RANGE } from "../music.js?v=to-gs1-sg1";
 import { game } from "../core/state.js?v=st1";
 
 // In-game radio — the "Grinspace" skin (old Media Player Headspace, but the
