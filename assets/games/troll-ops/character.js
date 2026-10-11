@@ -806,6 +806,9 @@ export const RIG_JOINTS = [
    dances and the death pose were written against. Walking leaves them bent. */
 function _resetJoints(rig) {
   const p = rig.parts;
+  // The gait aims the hip joints in full 3D: clear its twist too.
+  p.legL.rotation.set(0, 0, 0);
+  p.legR.rotation.set(0, 0, 0);
   p.kneeL.rotation.set(0, 0, 0);
   p.kneeR.rotation.set(0, 0, 0);
   p.ankleL.rotation.set(0, 0, 0);
@@ -828,10 +831,15 @@ function _resetJoints(rig) {
    both come from the real speed, so a walk and a sprint are different gaits
    and the feet stay put under both.
 
-   Step length grows with speed and is capped by what the legs can reach;
-   the rest of the speed comes from cadence, as it does for people. */
+   Step length grows with speed, and the rest of the speed comes from
+   cadence, as it does for people: a 1.4 m/s walk is ~0.76 m steps at ~110 a
+   minute, the 4.2 m/s bot run ~1.37 m at ~185, the 5.2 m/s player run
+   ~1.6 m at ~195, the 7 m/s sprint ~2 m at ~210 (a real runner's numbers;
+   the old 0.34 + 0.16 v, capped at 1.45 m, spun the legs at 250-290 a
+   minute). Long run steps are mostly flight, so the foot still lands within
+   the leg's reach (see the duty factor in _poseHumanoid). */
 export function gaitStepLength(mps) {
-  return Math.max(0.34, Math.min(1.45, 0.34 + 0.16 * mps));
+  return Math.max(0.34, Math.min(2.1, 0.45 + 0.22 * mps));
 }
 
 /* Radians of `phase` per second at `mps`: one full cycle is two steps. */
@@ -846,27 +854,51 @@ const _q = new THREE.Quaternion();
 const _e = new THREE.Euler();
 
 /* Point a hip-knee-ankle chain at `target` (root space). Knees bend toward
-   the body's front (-Z). */
+   the body's front (-Z). Exact: the thigh is aimed in the plane of the
+   hip-to-foot line and the knee's forward direction, and the hip joint
+   turned to match (the old pitch-then-roll split drifted off the target
+   when the hips twisted and rolled in a run, which slid planted feet). */
+const _lF = new THREE.Vector3(), _lN = new THREE.Vector3(), _lT = new THREE.Vector3();
+const _lX = new THREE.Vector3(), _lY = new THREE.Vector3(), _lZ = new THREE.Vector3();
+const _lM = new THREE.Matrix4(), _lQ = new THREE.Quaternion(), _lS = new THREE.Quaternion(), _lK = new THREE.Quaternion();
+const _AX = new THREE.Vector3(1, 0, 0), _AZ = new THREE.Vector3(0, 0, 1);
 function _solveLeg(rig, side, pivot, knee, ankle, target, footPitch) {
   const p = rig.parts;
-  // Hip joint in root space. Hips only yaw/roll a little while walking.
+  // Hip joint in root space, then the foot in the hips' own frame.
   _hipJoint.copy(pivot.position).applyEuler(p.hips.rotation).add(p.hips.position);
   _foot.subVectors(target, _hipJoint);
   _q.setFromEuler(p.hips.rotation).invert();
   _foot.applyQuaternion(_q);
 
   const a = rig.thigh, b = rig.shin;
-  const d = Math.min(a + b - 1e-4, Math.max(0.05, _foot.length()));
-  const lateral = Math.asin(Math.max(-1, Math.min(1, _foot.x / Math.max(1e-4, _foot.length()))));
-  const reach = Math.atan2(-_foot.z, -_foot.y);            // + swings the foot forward
+  const len = Math.max(1e-4, _foot.length());
+  const d = Math.min(a + b - 1e-4, Math.max(0.05, len));
   const atHip = Math.acos(Math.max(-1, Math.min(1, (a * a + d * d - b * b) / (2 * a * d))));
   const atKnee = Math.acos(Math.max(-1, Math.min(1, (a * a + b * b - d * d) / (2 * a * b))));
 
-  // The rest splay (a child rotation about the same axis) adds to `lateral`.
-  pivot.rotation.set(reach + atHip, 0, lateral - side * LEG_SPLAY);
+  // f: toward the foot. n: the knee's way (forward, square to f).
+  _lF.copy(_foot).divideScalar(len);
+  _lN.set(0, 0, -1).addScaledVector(_lF, _lF.z);
+  if (_lN.lengthSq() < 1e-6) _lN.set(0, 1, 0).addScaledVector(_lF, -_lF.y);
+  _lN.normalize();
+  // The thigh, out of f toward n by the hip angle.
+  _lT.copy(_lF).multiplyScalar(Math.cos(atHip)).addScaledVector(_lN, Math.sin(atHip));
+  // Its frame: bones run down -Y, the knee hinges on X and folds the shin
+  // back (+Z), away from the knee's forward.
+  _lY.copy(_lT).negate();
+  _lZ.copy(_lN).negate().addScaledVector(_lY, _lN.dot(_lY)).normalize();
+  _lX.crossVectors(_lY, _lZ);
+  _lQ.setFromRotationMatrix(_lM.makeBasis(_lX, _lY, _lZ));
+  // The hip joint carries the rest splay (a fixed child turn): take it out.
+  _lS.setFromAxisAngle(_AZ, side * LEG_SPLAY).invert();
+  pivot.quaternion.copy(_lQ).multiply(_lS);
   knee.rotation.set(-(Math.PI - atKnee), 0, 0);
-  // Keep the foot level with the ground, plus whatever pitch the step wants.
-  ankle.rotation.set(-(pivot.rotation.x + knee.rotation.x) + footPitch - p.hips.rotation.x, 0, 0);
+  // Keep the foot level with the ground and pointing ahead, plus whatever
+  // pitch the step wants: the wanted turn in the hips' frame, less the
+  // thigh's and shin's.
+  _lK.setFromEuler(knee.rotation);
+  _lS.setFromAxisAngle(_AX, footPitch).premultiply(_q);
+  ankle.quaternion.copy(_lQ).multiply(_lK).invert().multiply(_lS);
 }
 
 const _smooth = (t) => t * t * (3 - 2 * t);
@@ -958,7 +990,7 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   const spd = moving ? Math.max(0.28, Math.min(1, speed)) : 0;
   const v = moving ? (mps ?? (zombie ? 1.3 : spd * 4.2)) : 0;
 
-  // 0 = walk, 1 = run: duty factor, bob, knee lift and lean all follow it.
+  // 0 = walk, 1 = run: duty factor, bounce, knee lift and lean all follow it.
   const run = Math.max(0, Math.min(1, (v - 1.8) / 2.8));
 
   // Ease in and out of the cycle, so starting and stopping blend rather
@@ -966,6 +998,13 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   const g = rig.gait;
   g.blend += ((moving ? 1 : 0) - g.blend) * Math.min(1, dt * 9);
   const blend = g.blend;
+  // Acceleration, smoothed: a take-off pitches the body forward, a stop sits
+  // it back against the brakes (the lean below), on top of the speed lean.
+  if (dt > 0) {
+    const acc = Math.max(-40, Math.min(40, (v - (g.v ?? v)) / Math.max(dt, 1e-3)));
+    g.acc = (g.acc ?? 0) + (acc - (g.acc ?? 0)) * Math.min(1, dt * 6);
+    g.v = v;
+  }
 
   p.hips.rotation.set(0, 0, 0);
   p.hips.position.x = 0;
@@ -973,8 +1012,26 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
 
   const crouch = Math.max(0, Math.min(1, lower));
   const stepLen = gaitStepLength(v || 1) * (zombie ? 0.55 : 1);
-  const duty = zombie ? 0.66 : 0.62 - run * 0.28;   // share of the cycle a foot is down
+  // Share of the cycle a foot is down: 62% at a walk (both feet down between
+  // steps), about a third at a jog, less the faster the run (both feet up in
+  // between), so a planted foot never lands further than the leg reaches:
+  // ~0.42 m ahead of the hips.
+  const runDuty = Math.min(0.34, 0.34 * s / Math.max(0.1, stepLen));
+  const duty = zombie ? 0.66 : 0.62 + (runDuty - 0.62) * run;
   const lift = (zombie ? 0.05 : 0.09 + run * 0.13) * s;
+
+  // Standing still, the weight rests on one leg at a time: that hip rides
+  // up and over it, the other drops and its knee goes slack, and every few
+  // seconds the weight moves across; a slow sway on top. Gone on the move.
+  if (dt > 0) {
+    g.wT = (g.wT ?? 1.5 + Math.random() * 3) - dt;
+    if (g.wSide == null) g.wSide = Math.random() < 0.5 ? -1 : 1;
+    if (g.wT <= 0) { g.wSide = -g.wSide; g.wT = 3.5 + Math.random() * 4.5; }
+    g.w = (g.w ?? 0) + (g.wSide - (g.w ?? 0)) * Math.min(1, dt * 1.4);
+    g.swayT = (g.swayT ?? Math.random() * 20) + dt;
+  }
+  const idleK = zombie ? 0 : (1 - blend) * (1 - crouch);
+  const weight = (g.w ?? 0) * idleK;   // +1: on the right leg
 
   // Direction of travel in the rig's local ground plane (+x right, -z ahead).
   let tx = str, tz = -fwd;
@@ -984,16 +1041,17 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   const sideways = Math.abs(tx);
   const stride = stepLen * (1 - sideways * 0.45);
 
-  // Pelvis: sits a little lower the faster you go (bent, springy knees),
-  // bobs twice per cycle — low as a foot lands, high over the planted one.
   const cyc = phase;
-  const bob = (0.012 + run * 0.02) * s * -Math.cos(2 * cyc) * blend;
   const standY = rig.hipY * (0.985 - crouch * 0.52);
-  p.hips.position.y = standY - (run * 0.085 * s + (zombie ? 0.06 * s : 0)) * blend + bob;
   // Hips twist with the stride and roll over the standing leg.
   p.hips.rotation.y = Math.sin(cyc) * (0.07 + run * 0.08) * blend * -tz * (1 - sideways);
-  p.hips.rotation.z = Math.cos(cyc) * 0.035 * blend;
+  p.hips.rotation.z = Math.cos(cyc) * 0.035 * blend + weight * 0.05;
+  p.hips.position.x = weight * 0.026 * s;
+  p.hips.position.z = Math.sin(g.swayT * 0.7) * 0.006 * s * idleK;
 
+  // A walking stance starts a little nearer the hips than it ends: the heel
+  // lands just ahead, the toe pushes off well behind (with the heel up).
+  const back = 0.075 * (1 - run);
   const feet = [];
   for (const [side, legPhase] of [[-1, cyc], [1, cyc + Math.PI]]) {
     let u = (legPhase / (Math.PI * 2)) % 1;
@@ -1001,22 +1059,39 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
     let along, up, pitchFoot, flex = 0;
     if (u < duty) {
       // Planted: slides from ahead to behind at the body's own speed. Late
-      // in the stance the heel peels up and the toe bends at the ball.
+      // in the stance the heel peels up (lifting the ankle) and the toe
+      // bends at the ball.
       const t = u / duty;
-      along = (0.5 - t) * duty * 2 * stride;
-      up = 0;
-      flex = t > 0.7 ? (t - 0.7) / 0.3 : 0;
-      pitchFoot = -flex * 0.3;
+      along = (0.5 - t - back) * duty * 2 * stride;
+      // The heel rises about the ball (5 cm ahead of the ankle), which stays
+      // on the ground: the foot tips toe-down by the angle that takes, and the
+      // toe bends back the same so it stays flat.
+      const peel = t > 0.62 ? Math.pow((t - 0.62) / 0.38, 1.5) * 0.8 : 0;
+      up = Math.sin(peel) * 0.05 * s;
+      along += (1 - Math.cos(peel)) * 0.05 * s;   // the ankle rolls over the ball
+      flex = peel / 0.8;
+      pitchFoot = -peel;
     } else {
       // Swing: peel off behind, arc forward, reach for the next footfall.
+      // The foot leaves and meets the ground moving back under the body at
+      // its speed (still, to the ground), not stopped under the hips (which
+      // skidded it in at full speed): a Hermite curve with the stance's own
+      // slope at both ends, so it kicks up behind and reaches out and paws
+      // back before landing. A little gentler in a long run step.
       const t = (u - duty) / (1 - duty);
-      along = (-0.5 + _smooth(t)) * duty * 2 * stride;
-      up = Math.sin(Math.PI * Math.pow(t, 0.8)) * lift;
-      pitchFoot = -Math.sin(Math.PI * t) * 0.22 + (t > 0.8 ? (t - 0.8) * 1.2 : 0);
-      // ...and springs straight again as the foot leaves the ground.
-      flex = t < 0.3 ? 1 - t / 0.3 : 0;
+      const p0 = (-0.5 - back) * duty * 2 * stride, p1 = (0.5 - back) * duty * 2 * stride;
+      const m = -2 * stride * (1 - duty);
+      const t2 = t * t, t3 = t2 * t;
+      along = (2 * t3 - 3 * t2 + 1) * p0 + (t3 - 2 * t2 + t) * m + (3 * t2 - 2 * t3) * p1 + (t3 - t2) * m;
+      // ...picking up from the push-off: heel up, foot tipped, toe bent,
+      // which all ease out as the foot clears the ground.
+      const off = t < 0.3 ? 1 - t / 0.3 : 0;
+      along += off * (1 - Math.cos(0.8)) * 0.05 * s;
+      up = Math.max(Math.sin(Math.PI * Math.pow(t, 0.8)) * lift, off * Math.sin(0.8) * 0.05 * s);
+      pitchFoot = -Math.sin(Math.PI * t) * 0.22 + (t > 0.8 ? (t - 0.8) * 1.2 : 0) - off * 0.8;
+      flex = off;
     }
-    flex *= (0.45 + run * 0.25) * blend;
+    flex *= 0.8 * blend;
     along *= blend;
     up *= blend;
     pitchFoot *= blend;
@@ -1025,8 +1100,33 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
     _foot.set(baseX + tx * along, rig.limbRadius + up, tz * along);
     // Crouched feet land a touch behind the hips, prone ones further.
     _foot.z += crouch * 0.12 * s;
-    feet.push({ side, along, target: _foot.clone(), pitch: pitchFoot, flex });
+    // Standing: the resting foot steps a little forward and out.
+    if (weight * side < 0) { _foot.z -= Math.abs(weight) * 0.05 * s; _foot.x += side * Math.abs(weight) * 0.015 * s; }
+    // How much this foot holds the hips down: a planted one fully, the
+    // swinging one only as it comes in to land (so the hips meet it there
+    // rather than dropping on contact), not while it's out in the air.
+    const hold = u < duty ? 1 : _smooth(Math.max(0, ((u - duty) / (1 - duty) - 0.75) / 0.25));
+    feet.push({ side, along, target: _foot.clone(), pitch: pitchFoot, flex, hold });
   }
+
+  // Pelvis height. A walk vaults over a straight leg: the hips are as high
+  // as the planted feet let them be, lowest as one foot lands with the other
+  // still behind, highest over the standing leg. A run is a spring: the
+  // hips sink into each footfall, rise off it and fly until the next one,
+  // and sit a little lower on bent, ready knees.
+  const legR = (rig.thigh + rig.shin) * 0.995;
+  let reach = Infinity;
+  for (const f of feet) {
+    const dx = f.target.x - p.hips.position.x, dz = f.target.z - p.hips.position.z;
+    const h2 = legR * legR - dx * dx - dz * dz;
+    reach = Math.min(reach, (h2 > 0 ? Math.sqrt(h2) : 0) + f.target.y + (1 - f.hold) * 0.2 * s);
+  }
+  const stepU = ((cyc / Math.PI) % 1 + 1) % 1;            // through each step
+  const sf = Math.min(0.999, 2 * duty);                   // ...the share with a foot down
+  const spring = stepU < sf ? -Math.sin(Math.PI * stepU / sf) * 0.034 : Math.sin(Math.PI * (stepU - sf) / (1 - sf)) * 0.03;
+  const level = standY - (run * 0.06 * s + (zombie ? 0.06 * s : 0) - spring * s * run) * blend - Math.abs(weight) * 0.006 * s;
+  p.hips.position.y = Math.max(level - 0.07 * s, Math.min(level, reach));
+  const bob = p.hips.position.y - standY;
   p.ballL.rotation.set(feet[0].flex, 0, 0);
   p.ballR.rotation.set(feet[1].flex, 0, 0);
   _solveLeg(rig, -1, p.legL, p.kneeL, p.ankleL, feet[0].target, feet[0].pitch);
@@ -1038,8 +1138,9 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   // chest rides the mid-back, which rides the torso, so the upper body's
   // share is split over two joints and the back curves instead of kinking;
   // the counter-twist against the hips runs up the spine the same way.
-  const moveLean = (0.04 + run * 0.16) * blend * (fwd < 0 ? -0.6 : 1) * (1 - sideways * 0.7);
-  p.torso.rotation.set(crouch * 0.25 + moveLean * 0.7, 0, str * -0.1 * blend);
+  const accLean = Math.max(-0.14, Math.min(0.16, (g.acc ?? 0) * 0.012)) * (fwd < 0 ? -1 : 1) * (1 - sideways * 0.7);
+  const moveLean = (0.04 + run * 0.16) * blend * (fwd < 0 ? -0.6 : 1) * (1 - sideways * 0.7) + accLean;
+  p.torso.rotation.set(crouch * 0.25 + moveLean * 0.7, 0, str * -0.1 * blend - weight * 0.04);
   p.spine.rotation.set(crouch * 0.05 + moveLean * 0.15, -p.hips.rotation.y * 0.55, str * -0.03 * blend);
   p.chest.rotation.set(crouch * 0.07 + moveLean * 0.15, -p.hips.rotation.y * 0.85, str * -0.03 * blend);
   const lean = p.torso.rotation.x + p.spine.rotation.x + p.chest.rotation.x;
