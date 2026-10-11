@@ -134,6 +134,10 @@ export class Net {
     this._flushT = null;
     this.botCount = 0;   // bots this client hosts (game.js keeps it current)
     this.since = 0;      // when we joined the room (host election, isBotHost)
+    this._distrust = new Map();   // host id -> until (ms): its bots froze (modes/bot-watch.js)
+    this._dropIds = new Set();    // an old-build host's bots, dropped when we took over
+    this._hoSeen = new Map();     // bot publisher id -> when its last bot state came in
+    this.onStall = null;          // modes/bot-watch.js: someone saw the bots freeze
     // Socialize rooms: how many times the owner (or a match ending) has
     // switched the room's mode. Rides every room note (`ms`) so a newcomer,
     // or anyone who missed the switch, catches up. game.js keeps it current.
@@ -301,6 +305,15 @@ export class Net {
         break;
       }
       case "state": {
+        // A bot (`ho`: the client that runs it) counts only from the client
+        // we take for the host, so two clients that each think they host
+        // never put two sets of bots in front of anyone. An old build sends
+        // no `ho`: its bots stay, unless they're the ones a takeover dropped.
+        if (/^bot-/.test(m.id) && (m.ho != null ? this.otherBotSet(m.ho) : this._dropIds.has(m.id))) {
+          const q = this.peers.get(m.id);
+          if (q && !q.isBot) { this.h.onLeave?.(q); this.peers.delete(m.id); }
+          break;
+        }
         const p = this.peer(m.id);
         p.stateAt = performance.now();
         p.slow = !!m.sl;
@@ -475,6 +488,11 @@ export class Net {
         this.h.onVote?.(p, m.map);
         break;
       }
+      case "stall": {
+        this.peer(m.id);
+        this.onStall?.(m);
+        break;
+      }
       case "bye": {
         const p = this.peers.get(m.id);
         if (p) { this.h.onLeave?.(p); this.peers.delete(m.id); }
@@ -554,6 +572,34 @@ export class Net {
     this.retireBots();
   }
 
+  /* Stop taking `id` for the host for `ms` (modes/bot-watch.js saw its bots
+     stand frozen): the next live client hosts, often us, and fills a fresh
+     set. Its bots go now; an old build's (no `ho`) by id, as they come. */
+  distrust(id, ms = 60000) {
+    this._distrust.set(id, performance.now() + ms);
+    for (const p of [...this.peers.values()]) {
+      if (p.isBot || !/^bot-/.test(p.id)) continue;
+      this._dropIds.add(p.id);
+      this.h.onLeave?.(p);
+      this.peers.delete(p.id);
+    }
+  }
+  distrusted(id) { return (this._distrust.get(id) || 0) > performance.now(); }
+  /* A bot state from `ho` is a second set: `ho` is distrusted, or isn't
+     who we take for the host while the host's own bots are coming in (or
+     we're the host, running ours). Seeing only `ho`'s bots, they're the
+     bots there are: a moment's disagreement over the host never leaves
+     anyone with none. */
+  otherBotSet(ho) {
+    const now = performance.now();
+    this._hoSeen.set(ho, now);
+    if (this.distrusted(ho)) return true;
+    const host = this.hostId();
+    if (ho === host) return false;
+    return host === this.id ? now - (this._botPubAt || -1e9) < 2000 : now - (this._hoSeen.get(host) || -1e9) < 2000;
+  }
+  publishStall(host) { this.send({ t: "stall", id: this.id, host }); }
+
   /* Our own bots that we've stopped publishing while still publishing the
      rest: bots.fill trimmed them (a player came back, a team evened out).
      Without a bye everyone kept a frozen copy until it timed out. */
@@ -593,7 +639,7 @@ export class Net {
       // entities (drones, gunships) ride the same publishBot channel and are
       // simulated by whoever called them, so they are not operators either —
       // miss them here and calling a streak silently flips host election.
-      if (isSyntheticId(id)) continue;
+      if (isSyntheticId(id) || this.distrusted(id)) continue;
       const c = { id, since: p.since || 0, live: now - (p.stateAt || 0) < LIVE_MS && !p.slow };
       if (c.live !== best.live ? c.live : c.since < best.since || (c.since === best.since && id < best.id)) best = c;
     }
@@ -650,7 +696,7 @@ export class Net {
     if (now - (p.lastSent || 0) < 1000 / hz) return;
     p.lastSent = now;
     this.send({
-      t: "state", id: bot.id,
+      t: "state", id: bot.id, ho: this.id,
       x: round2(bot.pos.x), y: round2(bot.pos.y), z: round2(bot.pos.z),
       ry: round2(bot.yaw), rp: 0, st: bot.stance || "stand", mv: 1,
       hp: Math.round(bot.hp), a: bot.alive ? 1 : 0,

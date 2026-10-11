@@ -44,6 +44,9 @@ const browser = await chromium.launch({ args: ["--use-angle=d3d11", "--autoplay-
 async function tab(ctx, label, errors, { map = "culdegrin", start = true } = {}) {
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(`${label}: ${e.message}`));
+  // modes/bot-watch.js says on the console whenever it acts.
+  page.watch = [];
+  page.on("console", (m) => { if (m.text().includes("[bot-watch]")) page.watch.push(m.text()); });
   await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 120000 });
   await page.evaluate(async ({ map, start }) => {
@@ -59,6 +62,9 @@ async function tab(ctx, label, errors, { map = "culdegrin", start = true } = {})
   }, { map, start });
   return page;
 }
+
+// bot-watch.js's ?v= tag as match-clock.js imports it, so a test reaches the game's own copy.
+const WATCH_TAG = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/modes/match-clock.js"), "utf8").match(/\.\/bot-watch\.js(\?v=[^"']*)/)?.[1] || "";
 
 const startOn = (page) => page.evaluate(() => { window.__trollOps.startGame(); });
 
@@ -202,6 +208,41 @@ const SCENARIOS = {
     await sleep(3000);
     return { A, B };
   },
+  /* The host's tab keeps publishing its bots but no longer moves them
+     (bots.update a no-op): B's bot watch takes over (modes/bot-watch.js),
+     runs a fresh set, and never shows A's frozen ones beside them. */
+  async frozenhost(ctx, errors) {
+    const { A, B } = await SCENARIOS.plain(ctx, errors);
+    await A.evaluate(() => { window.__trollOps.bots.update = () => {}; });
+    await sleep(30000);
+    return { A, B };
+  },
+  /* ...from an old build, whose bot states carry no host id (`ho`). */
+  async oldhost(ctx, errors) {
+    const { A, B } = await SCENARIOS.plain(ctx, errors);
+    await A.evaluate(() => {
+      const T = window.__trollOps, send = T.net.send.bind(T.net);
+      T.net.send = (m) => { if (m?.t === "state" && /^bot-/.test(m.id)) delete m.ho; return send(m); };
+      T.bots.update = () => {};
+    });
+    await sleep(30000);
+    return { A, B };
+  },
+  /* The host's own bots freeze: it says why on the console and rebuilds
+     their nav, once. B is there so the room is live. */
+  async selfcheck(ctx, errors) {
+    const { A, B } = await SCENARIOS.plain(ctx, errors);
+    // B would see the same freeze and take over first: its watch sits this one out.
+    await B.evaluate(async (tag) => { (await import(`/assets/games/troll-ops/modes/bot-watch.js${tag}`)).botWatch.grace = 1e9; }, WATCH_TAG);
+    await A.evaluate(() => {
+      const T = window.__trollOps, real = T.bots.update.bind(T.bots), nav = T.bots.rebuildNav.bind(T.bots);
+      window.__rebuilt = 0;
+      T.bots.rebuildNav = (...a) => { window.__rebuilt++; return nav(...a); };
+      T.bots.update = (dt, c) => { if (window.__rebuilt) real(dt, c); };   // frozen until the watch acts
+    });
+    await sleep(30000);
+    return { A, B };
+  },
   /* The host quits to the menu but its tab stays open. */
   async hostquit(ctx, errors) {
     const { A, B } = await SCENARIOS.plain(ctx, errors);
@@ -211,6 +252,7 @@ const SCENARIOS = {
   },
 };
 
+const TAKEOVER = new Set(["frozenhost", "oldhost"]);
 const pick = process.argv.slice(2).filter((s) => SCENARIOS[s]);
 for (const name of pick.length ? pick : Object.keys(SCENARIOS)) {
   const ctx = await browser.newContext({ viewport: { width: 320, height: 200 } });
@@ -221,8 +263,19 @@ for (const name of pick.length ? pick : Object.keys(SCENARIOS)) {
     const [sa, sb] = [await status(A), await status(B)];
     const [m, ma] = await Promise.all([measure(B, 12), A.isClosed() ? null : measure(A, 12)]);
     const detail = `B sees ${m.bots} bots, avg ${m.avg.toFixed(2)} m/s, ${m.still} still${ma ? ` | A sees ${ma.bots}, avg ${ma.avg.toFixed(2)}, ${ma.still} still` : ""} | A ${JSON.stringify(sa)} | B ${JSON.stringify(sb)}${errors.length ? ` | ${errors.slice(0, 2).join(" | ")}` : ""}`;
-    check(`${name}: the bots move for the player who isn't hosting`, m.bots > 0 && m.still === 0 && m.avg > 1, detail);
-    if (!A.isClosed() && name !== "hostquit") {
+    // One bot can hold a perch the whole 12 s; frozen bots are most of them.
+    check(`${name}: the bots move for the player who isn't hosting`, m.bots > 0 && m.still <= 1 && m.avg > 1, detail);
+    const watch = [...A.watch.map((t) => `A ${t}`), ...B.watch.map((t) => `B ${t}`)];
+    if (TAKEOVER.has(name)) {
+      check(`${name}: B stops trusting the frozen host and runs the bots itself`, sb.isHost && B.watch.some((t) => t.includes("not trusting host")), watch.join(" | ") || "no [bot-watch] line");
+      check(`${name}: B never shows two sets of bots`, sb.botPeers <= 22 && m.bots <= 22, `${sb.botPeers} bot peers, ${m.bots} measured`);
+    } else if (name === "selfcheck") {
+      const rebuilt = await A.evaluate(() => window.__rebuilt);
+      check(`${name}: the host says why its bots froze and rebuilds their nav, once`, rebuilt === 1 && A.watch.length === 1 && A.watch[0].includes("hosting"), `rebuilt ${rebuilt} | ${watch.join(" | ")}`);
+    } else {
+      check(`${name}: the bot watch stays quiet`, watch.length === 0, watch.join(" | "));
+    }
+    if (!A.isClosed() && name !== "hostquit" && !TAKEOVER.has(name)) {
       const [ha, hb] = [await status(A), await status(B)];
       check(`${name}: both tabs agree who runs the bots`, ha.host === hb.host, `A says ${ha.host}, B says ${hb.host}`);
     }

@@ -1,8 +1,10 @@
 // The match clock: counts down once a timed PvP match goes live, painted
-// on the HUD only when the shown second changes.
+// on the HUD only when the shown second changes. Its tick also runs the
+// frozen-bot watch.
 
 import { infectionStarted } from "./infection.js?v=in1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1";
 import { checkMatchEnd } from "../combat/scoring.js?v=sc1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1";
+import { watchBots } from "./bot-watch.js?v=bw1";
 import { game } from "../core/state.js?v=st1";
 
 export function resetMatchClock() {
@@ -22,6 +24,7 @@ export function paintMatchClock() {
 }
 
 export function updateMatchClock(dt) {
+  watchBots(dt);   // every frame of a live match, timed or not (modes/bot-watch.js)
   if (game.matchClockT === null) return;
   if (game.isInfection() && !infectionStarted) return;   // the clock starts with the first infection
   game.matchClockT = Math.max(0, game.matchClockT - dt);
