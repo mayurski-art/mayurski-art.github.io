@@ -646,27 +646,48 @@ export class RemotePlayer {
     // derive actual ground speed locally from how far the player moved
     // between the two bracketing snapshots, projected onto their own
     // left/right axis for strafe. Cheap, needs no protocol change.
+    // Measured over ~150 ms of snapshots, not the last gap alone: the
+    // times are when packets arrived, so one gap jitters the speed (and the
+    // stride with it). Strafe/forward are the VELOCITY on their own axes,
+    // scaled like third-person.js does for your body (the old raw
+    // displacement x6 meant different legs at 15 Hz and at the host's
+    // every-frame bot feed for the same speed).
     let strafe = 0;
     let forward = 1;
     let speed = 0;
-    if (b.t > a.t) {
-      const dx = b.x - a.x, dz = b.z - a.z;
+    let vy = 0;
+    let a0 = b;
+    for (let i = snaps.indexOf(b) - 1; i >= 0; i--) { a0 = snaps[i]; if (b.t - a0.t >= 150) break; }
+    if (b.t > a0.t) {
+      const span = (b.t - a0.t) / 1000;
+      const vx = (b.x - a0.x) / span, vz = (b.z - a0.z) / span;
+      vy = (b.y - a0.y) / span;
       const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
       // Local right/forward axes for a yaw-only rotation about Y (forward
       // is -Z at yaw 0, matching movement.js/character.js's convention).
       const rightX = cos, rightZ = -sin;
       const fwdX = -sin, fwdZ = -cos;
-      const lateral = dx * rightX + dz * rightZ;
-      const along = dx * fwdX + dz * fwdZ;
-      speed = Math.hypot(dx, dz) / ((b.t - a.t) / 1000 || 1);
+      speed = Math.hypot(vx, vz);
       if (speed > 0.05) {
-        strafe = Math.max(-1, Math.min(1, lateral * 6));
+        strafe = Math.max(-1, Math.min(1, (vx * rightX + vz * rightZ) * 6));
         // Signed -1 (full backpedal) .. 1 (full forward run); a pure
         // strafe with no fore/aft component lands at 0.
-        forward = Math.max(-1, Math.min(1, along * 6));
-      } else {
-        strafe = 0;
-        forward = 1;
+        forward = Math.max(-1, Math.min(1, (vx * fwdX + vz * fwdZ) * 6));
+      }
+    }
+    // Off the ground? Not on the wire: read it off their height. A jump (or
+    // a bot's hop) rises fast, a fall drops fast; a stair step is too small
+    // and short for either. Once up, they're up until they've come down and
+    // stopped (the apex's pause isn't a landing), and the landing's force is
+    // the fastest fall seen.
+    let land = 0;
+    const grounded = b.stance === "stand" || b.stance === "crouch";
+    if (!this.air && grounded && (vy > 3.5 || vy < -3)) { this.air = true; this.airFall = Math.min(0, vy); }
+    else if (this.air) {
+      this.airFall = Math.min(this.airFall, vy);
+      if (!grounded || (this.airFall < -1.5 && Math.abs(vy) < 0.8)) {
+        if (grounded) land = Math.max(0, Math.min(1, (-this.airFall - 2.5) / 9));
+        this.air = false;
       }
     }
 
@@ -729,6 +750,7 @@ export class RemotePlayer {
     if (em && poseEmoteCode(this.rig, em, this.emoteT)) {
       this.bodyPose.gait = false;
     } else poseHumanoid(this.rig, {
+      air: !!this.air, vy, land,
       phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, forward,
       speed: gaitSpeed, mps: this.gaitMps ?? speed, dt, hasGun,
       hold: sword ? "melee" : unarmed ? "none" : "gun", swing, block: this.blockT, ads: sword || unarmed ? 0 : this.ads,
