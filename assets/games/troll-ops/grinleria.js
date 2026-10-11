@@ -17,7 +17,7 @@
 // load; nothing adds one at runtime (see light-pool.js).
 
 import * as THREE from "three";
-import { GL, STORES, WINGS, STALLS, KIOSKS, grinleriaLayout } from "./grinleria-layout.js";
+import { GL, STORES, WINGS, STALLS, KIOSKS, grinleriaLayout } from "./grinleria-layout.js?v=bw1";
 import { mapModel } from "./map-models.js?v=hg6e";
 import { palmTrees } from "./map-dressing.js?v=hg6e";
 

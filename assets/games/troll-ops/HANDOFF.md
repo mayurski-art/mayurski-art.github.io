@@ -485,6 +485,9 @@ Map rules:
 
 ## 5. Shipped log (one line each; details are in git)
 
+- **2026-10-11** Frozen bots on Cul-de-Grin, Grin Beach, Hollowgrin (-bw1): a heavy map stalled a tab past PEER_TIMEOUT, it dropped everyone and re-learned them without join times, and two clients each left the bots to the other. net.js: prune credits our own stall, state carries `js`, bots the host stops publishing get a bye (retireBots). Test: bot-host-test (stall, slowload, slowjoin).
+- **2026-10-11** Bot watch (-bw1, modes/bot-watch.js, ticked by match-clock.js): a non-host seeing 80% of bots frozen for 2×6 s distrusts the host (net.distrust) and takes over, `stall` tells the room; the host itself logs why and rebuilds nav once. Bot states carry `ho`; a second set is dropped. Gate step 3 covers every MAP_IDS map; rooms step runs bot-host-test + escalator-test. Test: bot-host-test (frozenhost, oldhost, selfcheck, quiet otherwise).
+- **2026-10-11** Grinleria escalators get collider rails (-bw1, grinleria-layout.js `_escrail`): Infection bots shoved each other off the drawn-only glass. Tests: escalator-test, bot-stairs-test (infected-speed climbs, no sinking).
 - **2026-10-10** Radio: nine more songs (-sg1), 13 tracks in music.js TRACKS, beat grids regenerated (tools/troll-ops-beatgrid.mjs) so Trolling Loud and DJ Lulz run on them too.
 - **2026-10-10** Bots carry perks (-bp1, CLASSES.md): one a tier per bot (perks.js botPerks), host-simulated, `pk` on the wire like a player's. Test: perks-test.
 - **2026-10-10** Engineer re-rolls your own landed care package once, on reload (-bp1, streaks/air.js rerollPackage, sent as `reroll`). Test: perks-test.
