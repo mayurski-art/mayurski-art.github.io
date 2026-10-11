@@ -1288,6 +1288,29 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
     p.hips.position.y += (hipAir - p.hips.position.y) * airK;
   }
   p.hips.position.y -= squash * 0.17 * s;
+
+  // Follow-through: the head is carried, not bolted on. It hangs back on a
+  // take-off, carries on into a stop and a landing (a nod forward), and
+  // settles with a little overshoot.
+  // Hit: the round shoves the body too (flinchRig), not just the head: the
+  // torso rocks away from it, the hips give that way and the knees dip,
+  // then it all springs back.
+  const F = headState(rig).flinch;
+  if (dt > 0) {
+    const step = Math.min(0.05, dt);
+    const want = Math.max(-0.12, Math.min(0.14, -(g.acc ?? 0) * 0.009)) + squash * 0.35;
+    const hw = 9, hz = 0.45;
+    g.hfV = (g.hfV || 0) + (-hw * hw * ((g.hf || 0) - want) - 2 * hz * hw * (g.hfV || 0)) * step;
+    g.hf = (g.hf || 0) + g.hfV * step;
+    const bw = 10, bz = 0.5;
+    F.bvp += (-bw * bw * F.bp - 2 * bz * bw * F.bvp) * step;
+    F.bvr += (-bw * bw * F.br - 2 * bz * bw * F.bvr) * step;
+    F.bvd += (-bw * bw * F.bd - 2 * bz * bw * F.bvd) * step;
+    F.bp += F.bvp * step; F.br += F.bvr * step; F.bd += F.bvd * step;
+  }
+  p.hips.position.x -= F.br * 0.06 * s;
+  p.hips.position.z += F.bp * 0.06 * s;
+  p.hips.position.y -= Math.max(0, F.bd) * 0.08 * s;
   const bob = p.hips.position.y - standY;
   p.ballL.rotation.set(feet[0].flex, 0, 0);
   p.ballR.rotation.set(feet[1].flex, 0, 0);
@@ -1300,11 +1323,14 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   // chest rides the mid-back, which rides the torso, so the upper body's
   // share is split over two joints and the back curves instead of kinking;
   // the counter-twist against the hips runs up the spine the same way.
+  // The leans below are written + forward; an upright joint tips forward
+  // on -x (+x tipped the back of the body over: the run and the crouch used
+  // to lean backwards), hence the minus signs.
   const accLean = Math.max(-0.14, Math.min(0.16, (g.acc ?? 0) * 0.012)) * (fwd < 0 ? -1 : 1) * (1 - sideways * 0.7);
   const moveLean = (0.04 + run * 0.16 + st.lean) * blend * (fwd < 0 ? -0.6 : 1) * (1 - sideways * 0.7) + accLean + (zombie ? 0 : st.lean * 0.4 * (1 - blend));
-  p.torso.rotation.set(crouch * 0.25 + moveLean * 0.7 + squash * 0.3 + airK * 0.06, 0, str * -0.1 * blend - weight * 0.04);
-  p.spine.rotation.set(crouch * 0.05 + moveLean * 0.15, -p.hips.rotation.y * 0.55, str * -0.03 * blend);
-  p.chest.rotation.set(crouch * 0.07 + moveLean * 0.15, -p.hips.rotation.y * 0.85, str * -0.03 * blend);
+  p.torso.rotation.set(-(crouch * 0.25 + moveLean * 0.7 + squash * 0.3 + airK * 0.06) + F.bp, 0, str * -0.1 * blend - weight * 0.04 + F.br);
+  p.spine.rotation.set(-(crouch * 0.05 + moveLean * 0.15), -p.hips.rotation.y * 0.55, str * -0.03 * blend);
+  p.chest.rotation.set(-(crouch * 0.07 + moveLean * 0.15), -p.hips.rotation.y * 0.85, str * -0.03 * blend);
   const lean = p.torso.rotation.x + p.spine.rotation.x + p.chest.rotation.x;
 
   if (zombie) {
@@ -1315,9 +1341,9 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
     p.elbowR.rotation.set(0.35, 0, 0);
     setHandPose(rig, -1, "open");
     setHandPose(rig, 1, "open");
-    p.torso.rotation.x += 0.12;
+    p.torso.rotation.x -= 0.12;
     // Hunched: shoulders up and forward, limp wrists.
-    p.spine.rotation.x += 0.08;
+    p.spine.rotation.x -= 0.08;
     p.shoulderL.position.set(0, 0.008 * s, -0.022 * s);
     p.shoulderR.position.set(0, 0.012 * s, -0.018 * s);
     p.wristL.rotation.set(0.6 + Math.sin(phase * 0.5) * 0.12, 0, 0);
@@ -1341,7 +1367,7 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
     const a = Math.max(0, Math.min(1, ads));
     p.armR.rotation.set(GUN_CARRY + a * 0.6 + pitch * (0.32 + a * 0.6) + carrySwing * (1 - a) + kick * 0.18 - lean, 0, -0.15 + a * 0.32);
     p.elbowR.rotation.set(0, 0, 0);
-    p.torso.rotation.x -= kick * 0.05;
+    p.torso.rotation.x += kick * 0.05;   // the kick rocks the shoulders back
   } else if (hold === "melee") {
     const [ax, az, el, wr, twist] = swing ? meleeArm(swing.kind, swing.t) : MELEE_CARRY;
     p.armR.rotation.set(ax + carrySwing - lean, 0, az);
@@ -1399,7 +1425,10 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   p.wristL.rotation.set(gripped ? 0 : -legSwingL * 0.2 * blend, 0, 0);
   p.wristR.rotation.set(hold === "none" ? legSwingL * 0.15 * blend : 0, 0, 0);
 
-  _poseNeckAndHead(rig, { pitch, sway: 0, dt, lead: str * blend, lean, bob, run, phase, moving: blend > 0.3, busy: kick > 0.02 || !!swing });
+  // _poseNeckAndHead's `pitch` is + head down (the zombie's hang, the
+  // dances' nods); the aim's is + up. Passed straight through, an aim up
+  // tipped the head down (and an NPC reading looked at the sky).
+  _poseNeckAndHead(rig, { pitch: -pitch, sway: 0, dt, lead: str * blend, lean, bob, run, phase, moving: blend > 0.3, busy: kick > 0.02 || !!swing, follow: g.hf || 0 });
 }
 
 /* Arm angles: positive x raises an arm FORWARD (see GUN_CARRY). These dances
@@ -2192,7 +2221,7 @@ function headState(rig) {
     neckYaw: 0, headYaw: 0, chestYaw: 0,
     still: 0,                 // seconds the aim has held still
     idle: { yaw: 0, pitch: 0, vy: 0, vp: 0, ty: 0, tp: 0, next: 1 + Math.random() * 2, w: 0 },
-    flinch: { yaw: 0, roll: 0, pitch: 0, vy: 0, vr: 0, vp: 0 },
+    flinch: { yaw: 0, roll: 0, pitch: 0, vy: 0, vr: 0, vp: 0, bp: 0, br: 0, bd: 0, bvp: 0, bvr: 0, bvd: 0 },
   });
 }
 
@@ -2234,6 +2263,11 @@ export function flinchRig(rig, dirX, dirZ, strength = 0.6) {
   f.vy += -dirX * 7 * k;
   f.vr += -dirX * 5 * k;
   f.vp += (dirZ * 6 - 2.5) * k;
+  // ...and the body rocks with it: back from a round in the front, over to
+  // the side it's pushed, the knees giving a little.
+  f.bvp += dirZ * 3.2 * k;   // + tips an upright joint back
+  f.bvr += -dirX * 2.6 * k;
+  f.bvd += 4 * k;
 }
 
 /* The same, from a round's world-space travel direction. */
@@ -2244,7 +2278,7 @@ export function flinchRigFrom(rig, dir, strength = 0.6) {
   flinchRig(rig, dir.x * c - dir.z * s, dir.x * s + dir.z * c, strength);
 }
 
-function _poseNeckAndHead(rig, { pitch, sway, dt, lead, lean = 0, bob = 0, run = 0, phase = 0, moving = false, busy = false }) {
+function _poseNeckAndHead(rig, { pitch, sway, dt, lead, lean = 0, bob = 0, run = 0, phase = 0, moving = false, busy = false, follow = 0 }) {
   const p = rig.parts;
   const h = headState(rig);
   const step = Math.max(0, Math.min(0.05, dt || 0));
@@ -2307,14 +2341,15 @@ function _poseNeckAndHead(rig, { pitch, sway, dt, lead, lean = 0, bob = 0, run =
   p.chest.rotation.y += cy + fy * 0.15;
   p.neckPivot.position.y = -bob * 0.45;
   // How this troll carries its head (gaitStyle), on the move or standing.
-  const carry = useState ? rig.style?.head || 0 : 0;
+  // `follow` is + nodding down (the head is tipped down on -x).
+  const carry = useState ? (rig.style?.head || 0) - follow * 0.4 : 0;
   p.neckPivot.rotation.set(
     -pitch * 0.25 + sway * 0.4 - lean * stab * 0.4 + nod * 0.4 + fp * 0.4 + idlePitch * 0.4 + carry,
     ny + idleYaw * 0.4 + fy * 0.4,
     lead * 0.10 - rollBelow * 0.35 + fr * 0.4,
   );
   p.headPivot.rotation.set(
-    -pitch * 0.6 + sway - lean * stab * 0.6 + nod * 0.6 + fp * 0.6 + idlePitch * 0.6,
+    -pitch * 0.6 + sway - lean * stab * 0.6 + nod * 0.6 + fp * 0.6 + idlePitch * 0.6 - (useState ? follow * 0.6 : 0),
     hy + idleYaw * 0.6 + fy * 0.6,
     lead * 0.05 - rollBelow * 0.45 + fr * 0.6,
   );

@@ -129,7 +129,7 @@ const res = await page.evaluate(async () => {
       const v = Math.min(5.2, i * DT * 30);   // 0 to 5.2 m/s in ~0.17 s
       phase += DT * C.gaitPhaseRate(v);
       C.poseHumanoid(rig, { phase, moving: true, mps: v, speed: 1, forward: 1, dt: DT, hold: "none" });
-      const pitch = rig.parts.torso.rotation.x;
+      const pitch = -rig.parts.torso.rotation.x;   // tipped forward on -x
       if (i * DT < 0.4) peak = Math.max(peak, pitch); else steady = pitch;
     }
     out.takeoff = { peak, steady };
@@ -243,6 +243,70 @@ const res = await page.evaluate(async () => {
     });
     out.turn = { slide, steps: lifts(rows), footOff: Math.max(...yaws.map((y) => Math.abs(Math.atan2(Math.sin(y - Math.PI / 2), Math.cos(y - Math.PI / 2))))) };
   }
+  // The head's forward tilt in the world (+ = nodding down).
+  const headTilt = (rig) => {
+    rig.root.updateMatrixWorld(true);
+    const d = rig.parts.headPivot.getWorldDirection(new THREE.Vector3());   // its +z: the back of the head
+    return Math.asin(Math.max(-1, Math.min(1, d.y)));
+  };
+  // Follow-through: a hard stop from the run nods the head on past level,
+  // then it settles.
+  {
+    const rig = C.buildHumanoid(new THREE.MeshBasicMaterial(), { height: 1.8, gun: false });
+    rig.styleSeed = 5;
+    let phase = 0;
+    for (let i = 0; i < 2 / DT; i++) { phase += DT * C.gaitPhaseRate(5.2); C.poseHumanoid(rig, { phase, moving: true, mps: 5.2, speed: 1, forward: 1, dt: DT, hold: "none" }); }
+    let peak = -Infinity;
+    const tilts = [];
+    for (let i = 0; i < 3 / DT; i++) {
+      const v = Math.max(0, 5.2 - i * DT * 24);   // braking to a stop in ~0.2 s
+      phase += DT * C.gaitPhaseRate(v);
+      C.poseHumanoid(rig, { phase, moving: v > 0.3, mps: v, speed: 1, forward: 1, dt: DT, hold: "none" });
+      tilts.push(headTilt(rig));
+      if (i * DT < 0.6) peak = Math.max(peak, tilts.at(-1));
+    }
+    const rest = tilts.at(-1);
+    out.follow = { nod: peak - rest, settled: Math.abs(tilts[Math.round(1.6 / DT)] - rest) };
+  }
+  // A hit from the front rocks the body back, then it recovers.
+  {
+    const rig = C.buildHumanoid(new THREE.MeshBasicMaterial(), { height: 1.8, gun: false });
+    for (let i = 0; i < 120; i++) C.poseHumanoid(rig, { moving: false, dt: DT, hold: "none" });
+    const base = rig.parts.torso.rotation.x, hip0 = rig.parts.hips.position.y;
+    C.flinchRig(rig, 0, 1, 1);
+    let back = 0, dip = 0, after = 0;
+    for (let i = 0; i < 1.5 / DT; i++) {
+      C.poseHumanoid(rig, { moving: false, dt: DT, hold: "none" });
+      back = Math.max(back, rig.parts.torso.rotation.x - base);   // tipped back on +x
+      dip = Math.max(dip, hip0 - rig.parts.hips.position.y);
+      if (i * DT > 1.2) after = Math.max(after, Math.abs(rig.parts.torso.rotation.x - base));
+    }
+    out.hit = { back, dip, after };
+  }
+
+  // Which way the body and head point: a run and a crouch lean forward (the
+  // neck ahead of the hips; forward is -z), the head looks up when the aim
+  // does.
+  {
+    const lean = (opts) => {
+      const rig = C.buildHumanoid(new THREE.MeshBasicMaterial(), { height: 1.8, gun: false });
+      let phase = 0, sum = 0, n = 0;
+      for (let i = 0; i < 2 / DT; i++) {
+        phase += DT * C.gaitPhaseRate(opts.mps || 0);
+        C.poseHumanoid(rig, { phase, moving: !!opts.mps, speed: 1, forward: 1, dt: DT, hold: "none", ...opts });
+        if (i > 1 / DT) { rig.root.updateMatrixWorld(true); sum += rig.parts.hips.getWorldPosition(new THREE.Vector3()).z - rig.parts.neckPivot.getWorldPosition(new THREE.Vector3()).z; n++; }
+      }
+      return sum / n;
+    };
+    const face = (pitch) => {
+      const rig = C.buildHumanoid(new THREE.MeshBasicMaterial(), { height: 1.8, gun: false });
+      C.poseHumanoid(rig, { moving: false, dt: DT, hold: "none", pitch });
+      rig.root.updateMatrixWorld(true);
+      return new THREE.Vector3(0, 0, 1).transformDirection(rig.parts.head.matrixWorld).y;   // the face's way
+    };
+    out.lean = { sprint: lean({ mps: 7 }), crouch: lean({ lower: 0.5 }), up: face(0.6), down: face(-0.6) };
+  }
+
   // Two trolls run differently; the same seed runs the same.
   {
     const swing = (seed) => {
@@ -295,6 +359,13 @@ check("stop: the planted feet hold", res.stop.slide < 0.3, `peak ${res.stop.slid
 check("stop: the feet step in under the hips", res.stop.steps >= 1 && res.stop.off < 0.12, `${res.stop.steps} steps, ${(res.stop.off * 100).toFixed(0)} cm off`);
 check("cut: the planted foot doesn't skate", res.cut.slide < 0.3, `peak ${res.cut.slide.toFixed(2)} m/s`);
 check("turn on the spot: the feet don't pivot", res.turn.slide < 0.3, `peak ${res.turn.slide.toFixed(2)} m/s`);
+check("a sprint leans forward", res.lean.sprint > 0.03, `neck ${(res.lean.sprint * 100).toFixed(0)} cm ahead of the hips`);
+check("a crouch leans forward", res.lean.crouch > 0.05, `neck ${(res.lean.crouch * 100).toFixed(0)} cm ahead of the hips`);
+check("aiming up, the face looks up (and down, down)", res.lean.up > 0.2 && res.lean.down < -0.2, `face ${res.lean.up.toFixed(2)} / ${res.lean.down.toFixed(2)}`);
+check("stop: the head carries on into a nod", res.follow.nod > 0.05, `${res.follow.nod.toFixed(3)} rad`);
+check("stop: then it settles", res.follow.settled < 0.015, `${res.follow.settled.toFixed(3)} rad off at 1.6 s`);
+check("hit from the front: the body rocks back", res.hit.back > 0.08 && res.hit.dip > 0.01, `${res.hit.back.toFixed(2)} rad, knees ${(res.hit.dip * 100).toFixed(1)} cm`);
+check("hit: it recovers", res.hit.after < 0.01, `${res.hit.after.toFixed(3)} rad off after 1.2 s`);
 const A = res.style.arms;
 check("each troll swings its arms its own way", Math.max(...A) / Math.min(...A) > 1.15, A.map((a) => a.toFixed(2)).join(" "));
 check("the same troll moves the same on every screen", Math.abs(res.style.again - A[0]) < 1e-9);
