@@ -15,7 +15,8 @@ Design docs live next to this file: `COPS-AND-ROBBERS.md` (approved plan), `ZOMB
 
 ### tf-parallel batch (branch `worktree-tf-parallel`, worktree `.claude/worktrees/tf-parallel`)
 Plan: `C:\Users\mayur\.claude\plans\keen-twirling-chipmunk.md`. Phases 1, 2, 6, 7 are on main (club ID and throws landed 2026-10-09, 1a88807).
-- **Next, in order:** 3 Trolling Loud kitchen (3-4 h), 4 arm wrestling (3-4 h), 5 Grin Beach in four parts (15-18 h). Details are in the plan.
+- **Built on that branch, NOT on main yet (user 2026-10-10: later):** the Troll City band, RP 2c (merchant + horses), 3 the kitchen, 4 arm wrestling, the Royale C-130 drop-in, and Grin Beach 5a as an unwired WIP (cc9919e). The branch's own HANDOFF has their notes. The classes/perks/hover/`/tf` work went to main on its own (branch `tf-classes-push`); merge main back into tf-parallel before pushing the rest.
+- **Grin Beach and the plane are on hold** (user 2026-10-10: "hold off on the grin beach stuff and the plane for now").
 - Known gate flakes: input-test "look pad turns", killcam-test (slow load), throw-test's two-tab `ck` checks, club-entry-test's "both bouncers carry you" (one sample at ~3.4 s found one bouncer 0.9 m off). All pass alone.
 - No phase videos (user 2026-10-08: "I dont need videos"): tests, gate, push.
 
@@ -483,6 +484,9 @@ Map rules:
 ---
 
 ## 5. Shipped log (one line each; details are in git)
+
+- **2026-10-10** Five classes and BO2's perks (-cl1, CLASSES.md): Create a Class lists five (guns, melee, throwable, three streaks, a perk per tier, rename), pause → Change Class lands on the respawn; sixteen perks with real effects, a spawn card, `pk` bits for the ones others must honour. Enemy footsteps moved out of game.js (view/enemy-steps.js). Tests: classes-test, perks-test; cloud-save-test fixed (it imported a stale module tag).
+- **2026-10-10** Menu hover previews (-cl1): a weapon, melee or throwable row shows its model as you move over it (the inspector builds throwables now). trollrunner.net/tf (tf/index.html) opens the game and shows /tf; the pause and game-over arcade buttons are "Troll Forces home"; the menu's Arcade closes the arcade's full-screen frame instead of nesting the arcade in it. Test: exit-links-test.
 
 - **2026-10-09** RP phase 2d, the conductor (-cd1, TROLL-CITY-RP2.md): `modes/room-clock.js` (the room's oldest player says the time in any Socialize room; the Grin Express runs on it, so skewed devices agree), riders' car-local spot on the wire (`tc`, `peerPlacers` in remote-players.js), `modes/social-conductor.js` (cap stand on the platform, all-aboard hold once a stop, cab whistle, ticket punch, role-gated), the conductor's cap (outfits.js `wearJobHat`). rp messages now reach every rpListener (not only `duel`). Test: conductor-test.
 - **2026-10-09** RP phase 2b, the sheriff (-sh1, TROLL-CITY-RP2.md): `modes/social-sheriff.js` (badge on the courthouse desk, stetson, cuff + leash, lock up at a cell door, wanted board with players' posters; owner immune, 2 min cooldown, 60 s max), `modes/social-jail.js` (doors derived from everyone's `jl`, the back-corner walk-out fixed), the town's arrest for a refused fist fight is now a scene (`view/arrest-cine.js`: cuffs on, fade, wake on the cot). Wire: cf / jl / wl. Job modules are never imported by third-person or buttons (import loop through social-rp). Tests: sheriff-test, duel-test.
