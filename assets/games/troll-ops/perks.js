@@ -88,10 +88,33 @@ export function carriedPerks() { return [...carried]; }
 
 /* Over the wire: the perks another player's client has to know about. */
 export const WIRE_PERKS = { ghost: 1, deadsilence: 2, coldblooded: 4, blindeye: 8 };
-export function perkBits() {
+export function perkBits(ids = carried) {
   let b = 0;
-  for (const [id, bit] of Object.entries(WIRE_PERKS)) if (carried.has(id)) b |= bit;
+  for (const [id, bit] of Object.entries(WIRE_PERKS)) if (ids.has(id)) b |= bit;
   return b;
+}
+
+/* A bot's level: net.js botLevel's hash (net.js imports nothing, so it
+   keeps its own copy; the two must stay the same). */
+function botLevel(id) {
+  let h = 2166136261;
+  for (const ch of String(id)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  return 1 + ((h >>> 0) % 69);
+}
+
+/* A bot's class perks: one a tier, fixed per bot id, only what its level
+   has unlocked. The host simulates their effects (bots.js); the wire bits
+   (pk) let every client honour Ghost, Dead Silence, Cold Blooded and Blind
+   Eye on a bot exactly as on a player. */
+export function botPerks(id) {
+  const level = botLevel(id);
+  let h = 0x9e3779b9;
+  for (const ch of String(id)) h = Math.imul(h ^ ch.charCodeAt(0), 2654435761);
+  return new Set([0, 1, 2].map((t) => {
+    const open = perksInTier(t).filter((p) => PERK_DEFS[p].rank <= level);
+    h = Math.imul(h ^ (h >>> 15), 2246822519);
+    return open[(h >>> 0) % open.length];
+  }));
 }
 export const peerHas = (peer, id) => !!((peer?.perks | 0) & (WIRE_PERKS[id] || 0));
 

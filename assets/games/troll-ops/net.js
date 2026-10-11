@@ -600,6 +600,7 @@ export class Net {
     p.deaths = bot.deaths;
     p.botSkill = bot.skill || null;
     p.level = botLevel(bot.id);
+    p.perks = bot.perkBits | 0;   // what other clients honour (perks.js WIRE_PERKS)
     p.reload = bot.reloadProgress?.() || 0;
     p.reloadTime = bot.holdingSecondary ? 1.5 : 2.3;
     p.hero = bot.hero || null;   // U Mad Bro? (the wire carries it as hr below)
@@ -638,6 +639,7 @@ export class Net {
       dr: bot.dropCode || undefined,
       bs: Math.max(0, BOT_SKILLS.indexOf(bot.skill)),
       lv: botLevel(bot.id),
+      pk: bot.perkBits || undefined,
       hr: bot.hero || undefined,
       bd: bot.body || undefined,
       ck: bot.throwCk || undefined,

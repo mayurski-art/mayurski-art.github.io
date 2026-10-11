@@ -18,7 +18,8 @@ import { hasPerk, PERK_TUNE } from "../perks.js?v=pk1-cl1";
 /* What Flak Jacket (perks.js) shrugs off: thrown lethals and the streaks
    that blow up (not gunship rounds, dogs, a crate on the head or the bomb). */
 const EXPLOSIVE = new Set(["airstrike", "drone", "swarm", "dragonfire", "samturret"]);
-const explosive = (weaponId) => EXPLOSIVE.has(weaponId) || (THROWABLE_DEFS[weaponId]?.damage > 0);
+export const isExplosive = (weaponId) => EXPLOSIVE.has(weaponId) || (THROWABLE_DEFS[weaponId]?.damage > 0);
+const explosive = isExplosive;
 
 /* Who has hurt us lately, and how much. The shooter's client already sends
    dmg / headshot / weapon with every hit — we were throwing all of it away.

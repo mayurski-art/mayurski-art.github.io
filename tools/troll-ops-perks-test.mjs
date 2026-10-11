@@ -219,6 +219,7 @@ check("Engineer: the crate re-rolls once, on the reload button only", fx.rrNoPer
 check("Engineer: the prompt says reload re-rolls", /re-rolls/.test(fx.rrPrompt), fx.rrPrompt);
 check("Engineer: an enemy streak is marked; off without it", fx.marks === 1 && fx.marksOff === true, `${fx.marks} marks, hidden after ${fx.marksOff}`);
 
+
 // Lightweight and Extreme Conditioning: faster on foot (speed after a second's walk/sprint).
 const pace = async (ids, sprint) => A.evaluate(async ({ ids, sprint }) => {
   const P = window.__P, { G } = window.__M;
@@ -286,6 +287,37 @@ await Y.evaluate(() => { window.__trollOps.net.perks = 0; });
 await Y.waitForTimeout(400);
 const loudSteps = await stepsHeard();
 check("Dead Silence: their footsteps are silent", silentSteps === 0 && loudSteps > 0, `${silentSteps} with, ${loudSteps} without`);
+
+// Bots carry a class too: one perk a tier, fixed per bot, on the wire, and
+// the host simulates theirs (Flak Jacket here). Ops has no bots: a TDM
+// page of its own (offline, Supabase is blocked), last, because it upset
+// page A's per-frame checks when it ran before them.
+const BP = await open("bots");
+await BP.evaluate(async () => { const T = window.__trollOps; T.setMode("tdm"); await T.startGame(); });
+await BP.waitForFunction(() => !window.__trollOps.loadState().open, null, { timeout: 300000 });
+await BP.evaluate(() => window.__trollOps.endStaging?.());
+await BP.waitForFunction(() => window.__trollOps.bots?.bots?.length > 0, null, { timeout: 30000 }).catch(() => {});
+await BP.waitForTimeout(800);
+const bp = await perks(BP, async () => {
+  const P = window.__P, G = (await import("/assets/games/troll-ops/core/state.js?v=st1")).game;
+  const list = G.bots?.bots || [];
+  const tiersOk = list.every((b) => b.perks.size === 3 && [0, 1, 2].every((t) => [...b.perks].some((id) => P.PERK_DEFS[id]?.tier === t)));
+  const wireOk = list.every((b) => (G.net.peers.get(b.id)?.perks | 0) === b.perkBits);
+  const same = list.every((b) => [...P.botPerks(b.id)].join() === [...b.perks].join());
+  const flak = list.find((b) => b.alive && b.perks.has("flakjacket"));
+  const plain = list.find((b) => b.alive && !b.perks.has("flakjacket"));
+  const hit = (b, explosive) => { const hp = b.hp; G.bots.applyHit(b.id, 10, { explosive }); const d = hp - b.hp; b.hp = hp; return d; };
+  return {
+    n: list.length, tiersOk, wireOk, same,
+    flak: flak ? [hit(flak, true), hit(flak, false)] : null,
+    plain: plain ? hit(plain, true) : null,
+    kinds: new Set(list.flatMap((b) => [...b.perks])).size,
+  };
+});
+await BP.close();
+check("bots: one perk a tier each, the same on every client", bp.n > 0 && bp.tiersOk && bp.same, `${bp.n} bots, ${bp.kinds} different perks`);
+check("bots: their wire perks are on their peers", bp.wireOk);
+check("bots: Flak Jacket cuts a bot's blast damage, not bullets", !bp.flak || (Math.abs(bp.flak[0] - 3.5) < 1e-6 && bp.flak[1] === 10 && bp.plain === 10), JSON.stringify(bp));
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 await browser.close();

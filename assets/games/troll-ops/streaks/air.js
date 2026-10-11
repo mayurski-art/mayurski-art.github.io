@@ -21,6 +21,7 @@ import { SamTurret } from "../sam-turret.js?v=sam1";
 import { warshipImpact, syncWarshipView, updateWarshipHud } from "./warship.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
 import { game } from "../core/state.js?v=st1";
 import { hasPerk, peerHas } from "../perks.js?v=pk1-cl1";
+import { isExplosive } from "../combat/damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
 
 /* The Swarm: Hunter-Killers diving in from the map's edge, one after
    another, each after its own enemy, until the count or the clock runs out. */
@@ -592,7 +593,7 @@ function dealDamageToRemote(rp, damage, weaponId) {
   const id = rp.netId;
   const bot = game.bots.byId(id);
   if (bot) {
-    const { killed } = game.bots.applyHit(id, damage);
+    const { killed } = game.bots.applyHit(id, damage, { explosive: isExplosive(weaponId) });
     game.noteDealt(id, damage);
     if (killed) {
       game.dealtLog.delete(id);

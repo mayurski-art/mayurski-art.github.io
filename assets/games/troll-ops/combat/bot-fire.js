@@ -18,7 +18,7 @@ import { isStaging } from "../modes/match-start.js?v=mst1-si1-mb1-gj1-if1-fu1b7b
 import { botBusy } from "../modes/objectives.js?v=ob1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1";
 import { Dragonfire } from "../dragonfire.js?v=df3-sb2";
-import { damagePlayer } from "./damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
+import { damagePlayer, isExplosive } from "./damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
 import { damageDog } from "../streaks/k9.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
 import { flinchPeer } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
 import { registerDeath } from "./scoring.js?v=sc1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
@@ -237,7 +237,7 @@ export function botDealDamage(bot, targetId, dmg, isHead, wid) {
   flinchPeer(targetId, bot.id, isHead);
 
   if (game.bots.byId(targetId)) {
-    const { killed, bot: victim } = game.bots.applyHit(targetId, dmg);
+    const { killed, bot: victim } = game.bots.applyHit(targetId, dmg, { explosive: isExplosive(wid) });
     if (killed) {
       bot.kills++;
       game.net.reportDeathAs(targetId, bot.id, wid, isHead);

@@ -32,5 +32,6 @@ BO2's sixteen, one per tier, level-gated (two free per tier). Numbers in `PERK_T
 | Engineer | enemy streaks marked through walls; reload on your own landed care package re-rolls it once (sent as `reroll`) | view/engineer-marks.js, streaks/air.js `rerollPackage` |
 
 - Carried from each spawn (`combat/perk-carry.js`), shown on BO2's spawn card. Ghost, Dead Silence, Cold Blooded and Blind Eye go out as bits in the state message (`pk`), so other clients honour them.
-- Bots carry no perks. Not done from BO2: Blind Eye vs. the SAM turret's missiles.
+- Bots carry a class too (`perks.js botPerks`): one perk a tier, fixed per bot id and limited by its level, so every client agrees with no wire change beyond `pk`. The host simulates Lightweight, Extreme Conditioning, Dexterity, Tactical Mask and Flak Jacket (bots.js) and Hardline (bot-streaks.js); Ghost, Dead Silence, Cold Blooded and Blind Eye work through the same `pk` bits as a player's. The rest (Toughness, Fast Hands, Scavenger, Hard Wired, Awareness, Engineer) has nothing to act on for a bot.
+- Not done from BO2: Blind Eye vs. the SAM turret's missiles.
 - Tests: `troll-ops-classes-test.mjs`, `troll-ops-perks-test.mjs` (solo and two tabs).

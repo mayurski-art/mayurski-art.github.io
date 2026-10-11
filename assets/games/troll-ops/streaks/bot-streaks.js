@@ -19,7 +19,7 @@ import { K9Pack } from "../k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d";
 import { damageDog, dogKilledBy } from "./k9.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1";
 import { SamTurret } from "../sam-turret.js?v=sam1";
 import { game } from "../core/state.js?v=st1";
-import { hasPerk, peerHas } from "../perks.js?v=pk1-cl1";
+import { hasPerk, peerHas, PERK_TUNE } from "../perks.js?v=pk1-cl1";
 
 // Every bot rolls three streaks a match and earns them on the same meter a
 // player does (kills; the meter empties on death, an earned streak stays).
@@ -63,7 +63,8 @@ export function botEarn(b, pts) {
   const s = botStreakState(b);
   s.pts += pts * botStreakMult(b);
   for (const id of s.picks) {
-    if (!s.earned.has(id) && s.pts >= STREAK_DEFS[id].cost) { s.earned.add(id); s.ready.push(id); }
+    const cost = b.perks?.has("hardline") ? Math.round((STREAK_DEFS[id].cost * PERK_TUNE.hardlineCost) / 10) * 10 : STREAK_DEFS[id].cost;
+    if (!s.earned.has(id) && s.pts >= cost) { s.earned.add(id); s.ready.push(id); }
   }
 }
 

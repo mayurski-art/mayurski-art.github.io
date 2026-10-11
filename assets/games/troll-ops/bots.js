@@ -13,6 +13,7 @@ import { groundHeightAt, resolveCircle } from "./movement.js?v=umb2-sb2-gj1b7";
 import { segmentBlocked } from "./ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1";
 import { FlowField } from "./nav.js?v=ti1-bs1b7d";
 import { clampInsidePolygon, insidePolygon } from "./edge.js";
+import { botPerks, perkBits, PERK_TUNE } from "./perks.js?v=pk1-cl1";
 
 const NAMES = [
   "grinbot", "sneerbot", "chuckles", "smirko", "haha_9000", "kekbot",
@@ -224,6 +225,11 @@ class Bot {
     this.meleeOnly = false;
     this.speedMult = 1;
     this.maxHp = BOT_HP;
+    // Its class perks, for the whole match (perks.js botPerks).
+    this.perks = botPerks(this.id);
+    this.perkBits = perkBits(this.perks);
+    this.perkSpeed = (this.perks.has("lightweight") ? PERK_TUNE.lightweightSpeed : 1)
+      * (this.perks.has("extremeconditioning") ? PERK_TUNE.extremeSprint : 1);
     this.meleeT = 0;
     this.resetMoves();
   }
@@ -315,6 +321,7 @@ class Bot {
      bot's feet did nothing at all. Blinded bots lose their target, can't
      fire, and stumble instead of strafing. */
   stun(seconds) {
+    if (this.perks.has("tacticalmask")) seconds *= PERK_TUNE.tacticalMask;
     this.stunT = Math.max(this.stunT || 0, seconds);
     this.acquireT = 0;
     this.adsLingerT = 0;      // blinded: out of the scope
@@ -618,7 +625,7 @@ class Bot {
     // Wading (a map's shallow water, arena.wade) slows them like it slows you.
     const wading = arena.wade && this.pos.y < 0.5 && insidePolygon(arena.wade, this.pos.x, this.pos.z);
     const slideBoost = this.slideT > 0 ? 1 + (SLIDE_BOOST - 1) * (this.slideT / SLIDE_TIME) : 1;
-    const speed = BOT_SPEED * (this.speedMult || 1) * (wading ? 0.6 : 1) * slideBoost
+    const speed = BOT_SPEED * (this.speedMult || 1) * this.perkSpeed * (wading ? 0.6 : 1) * slideBoost
       * (this.slideT > 0 ? 1 : 1 - (1 - ADS_MOVE) * this.ads);
     const turn = this.slideT > 0 || !grounded ? 1.5 : 5;   // committed in a slide or a hop
     this.vel.x += (desired.x * speed - this.vel.x) * Math.min(1, dt * turn);
@@ -786,7 +793,7 @@ class Bot {
     // An objective that can't wait means running, not scoping.
     const want = !this.meleeOnly && !reloading && !objective?.urgent && !(this.stunT > 0)
       && (engaged || (this.adsLingerT > 0 && !(canShoot && range < ADS_MIN_RANGE)));
-    const rate = want ? 1 / (this.diff.adsTime || 0.3) : 1 / 0.15;
+    const rate = want ? 1 / ((this.diff.adsTime || 0.3) * (this.perks.has("dexterity") ? PERK_TUNE.dexterityAds : 1)) : 1 / 0.15;
     this.ads = want ? Math.min(1, this.ads + dt * rate) : Math.max(0, this.ads - dt * rate);
   }
 
@@ -1365,10 +1372,12 @@ export class BotManager {
 
   /* Returns { killed, bot } so the caller can award the kill. */
   /* `pierce`: ignores armour (Troll Royale's Cringe). Bots only carry
-     armour in Troll Royale (`bot.armor`, set by game.js). */
-  applyHit(botId, dmg, { pierce = false } = {}) {
+     armour in Troll Royale (`bot.armor`, set by game.js). `explosive`:
+     a blast (combat/damage.js isExplosive), cut by Flak Jacket. */
+  applyHit(botId, dmg, { pierce = false, explosive = false } = {}) {
     const bot = this.byId(botId);
     if (!bot || !bot.alive) return { killed: false, bot: null };
+    if (explosive && bot.perks.has("flakjacket")) dmg *= PERK_TUNE.flakJacket;
     if (!pierce && bot.armor > 0) {
       const soak = Math.min(bot.armor, dmg);
       bot.armor -= soak;
