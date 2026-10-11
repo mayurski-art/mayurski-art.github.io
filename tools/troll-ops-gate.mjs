@@ -8,14 +8,18 @@
 //               misses errors in these files: esm-syntax-check gotcha)
 //   2. modes    one headless page plays a short match in every mode with no
 //               page errors
-//   3. bots     on three maps, every bot covers ground (the frozen-bot class)
+//   3. bots     on every map in the vote pool, every bot covers ground (the
+//               frozen-bot class)
 //   4. input    tools/troll-ops-input-test.mjs: a fake pad and touch screen
 //               press every control once; troll-ops-menu-test.mjs clicks
 //               every lobby panel and saves a few settings;
 //               troll-ops-killcam-test.mjs dies to a scoped bot's frag and
 //               watches the replay; troll-ops-objectives-test.mjs holds a
 //               KOTH hill and wins an S&D round
-//   5. rooms    tools/troll-ops-sync-test.mjs and troll-ops-load-sync-test.mjs
+//   5. rooms    tools/troll-ops-sync-test.mjs, troll-ops-load-sync-test.mjs,
+//               troll-ops-bot-host-test.mjs (who runs the bots, two tabs:
+//               stalls, slow loads, a frozen host) and
+//               troll-ops-escalator-test.mjs
 //
 // Supabase is blocked throughout: a test page must never join the live
 // public room (a hidden test tab once became its bot host and froze the
@@ -157,7 +161,12 @@ for (const mode of MODES) {
 
 // ---------------------------------------------------------------- 3. bots
 console.log("\n== bots");
-for (const mapId of ["trollcity", "hollowgrin", "dustbowl", "grinjuku"]) {
+// Every map in the vote pool (maps.js MAP_IDS, the copy game.js imports):
+// three that weren't covered froze for real players (2026-10-11).
+const mapsTag = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/game.js"), "utf8").match(/\.\/maps\.js(\?v=[^"']*)["']/)?.[1] || "";
+const mapIds = await page.evaluate(async (u) => (await import(u)).MAP_IDS, `/assets/games/troll-ops/maps.js${mapsTag}`);
+check(`the vote pool lists its maps (${mapIds.length})`, mapIds.length >= 8, mapIds.join(" "));
+for (const mapId of mapIds) {
   const r = await play("tdm", mapId, 15);
   check(`${mapId}: every bot covers ground`, r.bots > 0 && r.still === 0 && r.avg > 1,
     `${r.bots} bots, avg ${r.avg.toFixed(2)} m/s, ${r.still} under 0.5 m/s over ${r.live}s`);
@@ -178,8 +187,9 @@ for (const t of ["troll-ops-input-test.mjs", "troll-ops-menu-test.mjs", "troll-o
 // ---------------------------------------------------------------- 5. rooms
 if (!QUICK) {
   console.log("\n== rooms");
-  for (const t of ["troll-ops-sync-test.mjs", "troll-ops-load-sync-test.mjs"]) {
-    const r = spawnSync(process.execPath, [path.join(ROOT, "tools", t)], { cwd: ROOT, encoding: "utf8", timeout: 600000 });
+  for (const t of ["troll-ops-sync-test.mjs", "troll-ops-load-sync-test.mjs", "troll-ops-bot-host-test.mjs", "troll-ops-escalator-test.mjs"]) {
+    // The bot-host test plays a dozen two-tab matches: it gets longer.
+    const r = spawnSync(process.execPath, [path.join(ROOT, "tools", t)], { cwd: ROOT, encoding: "utf8", timeout: t === "troll-ops-bot-host-test.mjs" ? 1500000 : 600000 });
     const out = `${r.stdout || ""}${r.stderr || ""}`;
     const fails = out.split("\n").filter((l) => l.startsWith("FAIL"));
     check(`${t}`, r.status === 0 && fails.length === 0, fails.slice(0, 3).join(" | ") || (r.status !== 0 ? `exit ${r.status}` : ""));
