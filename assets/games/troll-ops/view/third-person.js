@@ -120,6 +120,9 @@ export function noteRigShot(id) {
   if (p) p.shotAt = performance.now();
 }
 export let localBlockT = 0;   // the third-person body in the saber guard, 0..1
+// Off the ground, and how fast it was falling: the body's jump, fall and
+// landing (the viewmodel clears move.justLanded, so the body keeps its own).
+let localAirVy = 0, localWasAir = false;
 
 /* Positions and poses the local player's own humanoid rig every frame -
    same buildHumanoid/poseHumanoid contract remote-players.js drives other
@@ -267,7 +270,17 @@ export function updateLocalRig(dt) {
     return;
   }
 
+  // A jump or a fall from standing or crouched (a dive, slide, vault or rope
+  // keeps its own look); a landing's force from the fall speed it ended (a
+  // jump lands at ~7 m/s: ~0.5).
+  const inAir = !game.move.grounded && (game.move.stance === "stand" || game.move.stance === "crouch");
+  const land = !inAir && localWasAir ? Math.max(0, Math.min(1, (-localAirVy - 2.5) / 9)) : 0;
+  if (inAir) localAirVy = game.move.velocity.y;
+  localWasAir = inAir;
   poseHumanoid(game.localRig, {
+    air: inAir,
+    vy: game.move.velocity.y,
+    land,
     phase: game.localPhase,
     moving: game.move.moving && game.move.grounded,
     pitch: game.look.pitch,
