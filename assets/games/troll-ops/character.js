@@ -802,6 +802,49 @@ export const RIG_JOINTS = [
   "hipL", "kneeL", "ankleL", "ballL", "hipR", "kneeR", "ankleR", "ballR",
 ];
 
+/* Whole-body poses blend into each other: starting or ending an emote, a
+   dance, the gait coming back after either, the body moves from where it
+   was to the new pose over a fifth of a second instead of snapping. Each
+   poser brackets its work with beginPose(rig, kind) / endPose(rig); when
+   the kind changes, the joints as they stood (last frame's pose) are kept
+   and the new pose is eased in from them. Posers that call other posers
+   only count at the outside. A death snaps (it has its own fall), and so
+   does a rig nobody posed for a while (it wasn't on screen). Returns true
+   from endPose when it moved anything, so the caller rebuilds the body. */
+const XFADE = 0.22;
+const _xq = new THREE.Quaternion(), _xv = new THREE.Vector3();
+function _xfJoints(rig) {
+  return rig.xfJoints || (rig.xfJoints = [...new Set(RIG_JOINTS.map((n) => rig.parts[n]).filter(Boolean))]);
+}
+export function beginPose(rig, kind) {
+  rig.poseDepth = (rig.poseDepth || 0) + 1;
+  if (rig.poseDepth > 1) return;
+  const now = performance.now();
+  const stale = now - (rig.poseAt ?? -1e9) > 300;
+  rig.poseAt = now;
+  if (rig.poseKind === kind) return;
+  const from = rig.poseKind;
+  rig.poseKind = kind;
+  if (!from || from === "death" || stale) { rig.xfade = null; return; }
+  const js = _xfJoints(rig);
+  rig.xfade = { t0: now, q: js.map((o) => o.quaternion.clone()), p: js.map((o) => o.position.clone()) };
+}
+export function endPose(rig) {
+  rig.poseDepth = Math.max(0, (rig.poseDepth || 1) - 1);
+  const x = rig.xfade;
+  if (rig.poseDepth > 0 || !x) return false;
+  const k = (performance.now() - x.t0) / 1000 / XFADE;
+  if (k >= 1) { rig.xfade = null; return false; }
+  const w = _smooth(Math.max(0, k));
+  _xfJoints(rig).forEach((o, i) => {
+    _xq.copy(o.quaternion);
+    o.quaternion.slerpQuaternions(x.q[i], _xq, w);
+    _xv.copy(o.position);
+    o.position.lerpVectors(x.p[i], _xv, w);
+  });
+  return true;
+}
+
 /* Straight knees and elbows, level feet, square hips — the neutral the
    dances and the death pose were written against. Walking leaves them bent. */
 function _resetJoints(rig) {
@@ -1587,10 +1630,12 @@ export function poseHumanoid(rig, arg) {
   syncWristwear(rig);
   syncWristband(rig);
   rig.emoteProps?.hide();   // an emote's props (lean-cup.js), once it's over
+  beginPose(rig, "gait");
   _poseHumanoid(rig, arg);
   if ((arg.hold ?? "gun") === "gun" && !arg.zombie) _gripSupport(rig, arg);
   if (arg.hold === "melee") _meleeSupport(rig);
   if (arg.hold === "melee" && arg.block > 0 && !arg.swing) _saberGuard(rig, Math.min(1, arg.block), arg.parry);
+  endPose(rig);
   rig.body.update();
 }
 
@@ -2030,11 +2075,11 @@ export function poseThrowArm(rig, t) {
   p.elbowL.rotation.set(0.9 * wind * (1 - whip) * fade, 0, 0);
   rig.body.update();
 }
-export function poseDance(rig, arg) { _poseDance(rig, arg); rig.body.update(); }
-export function poseDanceFloss(rig, arg) { _poseDanceFloss(rig, arg); rig.body.update(); }
-export function poseDanceHeadbang(rig, arg) { _poseDanceHeadbang(rig, arg); rig.body.update(); }
-export function poseDanceWave(rig, arg) { _poseDanceWave(rig, arg); rig.body.update(); }
-export function poseDeath(rig, arg) { _poseDeath(rig, arg); rig.body.update(); }
+export function poseDance(rig, arg) { beginPose(rig, "dance"); _poseDance(rig, arg); endPose(rig); rig.body.update(); }
+export function poseDanceFloss(rig, arg) { beginPose(rig, "floss"); _poseDanceFloss(rig, arg); endPose(rig); rig.body.update(); }
+export function poseDanceHeadbang(rig, arg) { beginPose(rig, "headbang"); _poseDanceHeadbang(rig, arg); endPose(rig); rig.body.update(); }
+export function poseDanceWave(rig, arg) { beginPose(rig, "wave"); _poseDanceWave(rig, arg); endPose(rig); rig.body.update(); }
+export function poseDeath(rig, arg) { rig.poseKind = "death"; rig.xfade = null; _poseDeath(rig, arg); rig.body.update(); }
 
 export const DANCES = [poseDance, poseDanceFloss, poseDanceHeadbang, poseDanceWave];
 

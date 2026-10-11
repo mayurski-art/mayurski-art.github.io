@@ -307,6 +307,27 @@ const res = await page.evaluate(async () => {
     out.lean = { sprint: lean({ mps: 7 }), crouch: lean({ lower: 0.5 }), up: face(0.6), down: face(-0.6) };
   }
 
+  // Into a dance and back: the body eases from the stand into it (the first
+  // frame is still near where it stood), lands on the dance's own pose, and
+  // eases back out into the stand.
+  {
+    const rig = C.buildHumanoid(new THREE.MeshBasicMaterial(), { height: 1.8, gun: false });
+    const ref = C.buildHumanoid(new THREE.MeshBasicMaterial(), { height: 1.8, gun: false });
+    const armOf = (r) => r.parts.armL.quaternion.clone();
+    for (let i = 0; i < 30; i++) C.poseHumanoid(rig, { moving: false, dt: DT, hold: "none" });
+    const stand = armOf(rig);
+    C.poseDanceWave(ref, 0.4);
+    const dance = armOf(ref);
+    C.poseDanceWave(rig, 0.4);
+    const first = { fromStand: armOf(rig).angleTo(stand), toDance: armOf(rig).angleTo(dance), gap: stand.angleTo(dance) };
+    await new Promise((r) => setTimeout(r, 320));
+    C.poseDanceWave(rig, 0.4);
+    const later = armOf(rig).angleTo(dance);
+    C.poseHumanoid(rig, { moving: false, dt: DT, hold: "none" });
+    const back = armOf(rig).angleTo(dance);
+    out.xfade = { ...first, later, back };
+  }
+
   // Two trolls run differently; the same seed runs the same.
   {
     const swing = (seed) => {
@@ -366,6 +387,10 @@ check("stop: the head carries on into a nod", res.follow.nod > 0.05, `${res.foll
 check("stop: then it settles", res.follow.settled < 0.015, `${res.follow.settled.toFixed(3)} rad off at 1.6 s`);
 check("hit from the front: the body rocks back", res.hit.back > 0.08 && res.hit.dip > 0.01, `${res.hit.back.toFixed(2)} rad, knees ${(res.hit.dip * 100).toFixed(1)} cm`);
 check("hit: it recovers", res.hit.after < 0.01, `${res.hit.after.toFixed(3)} rad off after 1.2 s`);
+const X = res.xfade;
+check("an emote eases in (no snap on its first frame)", X.gap > 0.2 && X.fromStand < X.gap * 0.2, `arm ${X.fromStand.toFixed(2)} rad from the stand, the dance is ${X.gap.toFixed(2)} away`);
+check("...and lands on its own pose", X.later < 1e-3, `${X.later.toFixed(4)} rad off`);
+check("...and eases back out into the stand", X.back < 0.2, `${X.back.toFixed(2)} rad from the dance on the first frame back`);
 const A = res.style.arms;
 check("each troll swings its arms its own way", Math.max(...A) / Math.min(...A) > 1.15, A.map((a) => a.toFixed(2)).join(" "));
 check("the same troll moves the same on every screen", Math.abs(res.style.again - A[0]) < 1e-9);

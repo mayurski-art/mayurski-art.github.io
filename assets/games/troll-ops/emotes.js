@@ -18,7 +18,7 @@
 // z swings the left arm out (the right arm out is negative z).
 
 import * as THREE from "three";
-import { DANCES, setHandPose, setFace, resetSecondaryJoints, reachHand } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1";
+import { DANCES, setHandPose, setFace, resetSecondaryJoints, reachHand, beginPose, endPose } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1";
 import { LeanKit, LEAN, LEAN_SECONDS, leanFp } from "./lean-cup.js?v=ng1";
 
 const PI = Math.PI;
@@ -363,7 +363,11 @@ export function poseEmoteCode(rig, code, t) {
   if (!e) return false;
   const fn = Array.isArray(e.pose) ? e.pose[role] : e.pose;
   if (!e.props) rig.emoteProps?.hide();
-  fn(rig, t);
+  // Blended in from whatever the body was doing, and back out again into
+  // the gait (character.js beginPose).
+  beginPose(rig, "emote:" + code);
+  try { fn(rig, t); }
+  finally { if (endPose(rig)) rig.body?.update?.(); }
   return true;
 }
 
