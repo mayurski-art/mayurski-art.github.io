@@ -148,6 +148,22 @@ const CLASS_BASE = {
     shakeScale: 0.9, shakeVert: 1.1, shakeSide: 0.9, shakeRecover: 1.3, shakeJolt: 0.9,
     weight: "light",
   },
+  // A shoulder launcher (FHJ18.md): one round in the tube, fired only with
+  // a lock (combat/launcher.js); the missile does the damage, not a bullet.
+  launcher: {
+    fireMode: "semi", rpm: 30, damage: 0,
+    falloffStart: 1, falloffEnd: 2, falloffMin: 0,
+    magSize: 1, reserveMax: 6, reloadTime: 3.0,
+    spreadBase: 0.04, spreadMoving: 0.06, spreadAds: 0.004, spreadJump: 0.1,
+    spreadPerShot: 0, spreadMax: 0.06,
+    recoilKickPitch: 0.09, recoilKickYaw: 0.01, recoilRecover: 4, recoilKickKnockback: 0.12,
+    adsTime: 0.45, adsFovMult: 0.62, adsMoveMult: 0.45,
+    hipMoveMult: 0.8, sprintMult: 1.05,
+    bobAmp: 0.03, swayAmp: 0.02, inertia: 3.5,
+    muzzleFlashScale: 2.2, muzzleVelocity: 55, penetration: 0,
+    shakeScale: 1.3, shakeVert: 1.4, shakeSide: 0.7, shakeRecover: 0.6, shakeJolt: 1.8,
+    weight: "heavy",
+  },
 };
 
 export const CLASS_LABELS = {
@@ -159,9 +175,12 @@ export const CLASS_LABELS = {
   lmg: "LMGs",
   shotgun: "Shotguns",
   sidearm: "Sidearms",
+  launcher: "Launchers",
 };
 
 export const CLASS_ORDER = ["assault", "carbine", "pdw", "battle", "sniper", "lmg", "shotgun", "sidearm"];
+/* What the Secondary slot offers (the FHJ-18 is a launcher). */
+export const SECONDARY_CLASSES = ["sidearm", "launcher"];
 
 function mk(cls, o) {
   return { ...COMMON, ...CLASS_BASE[cls], ...o, cls };
@@ -500,6 +519,18 @@ export const WEAPON_DEFS = {
     muzzleFlashScale: 1.1, muzzleColor: 0xffd890,
     blurb: "Two six-shooters, twelve problems. Aim fans the hammers.",
     model: { len: 0.3, stock: "none", mag: "none", barrel: 0.7 },
+  }),
+
+  // ---------------- launchers (Secondary slot only)
+  // Black Ops 2's FHJ-18 AA (FHJ18.md; user, 2026-10-10/12): locks onto
+  // aircraft and enemy SAM Turrets only, never fires without a lock, no hip
+  // fire. Open from level 0; six missiles a life (one in the tube, five
+  // spare); a Scavenger pack gives two back. hidden: never Royale loot.
+  fhj18: mk("launcher", {
+    id: "fhj18", name: "FHJ-18 AA", rank: 0, sight: "iron", hidden: true,
+    lockOn: true, noHip: true, scavenge: 2,
+    blurb: "Locks on to anything in the sky. Six missiles; make them count.",
+    model: { len: 1.2, stock: "none", mag: "none", barrel: 1.6 },
   }),
 };
 

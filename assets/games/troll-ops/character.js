@@ -1057,6 +1057,21 @@ function _solveLeg(rig, side, pivot, knee, ankle, target, footPitch, footYaw = 0
   ankle.quaternion.copy(_lQ).multiply(_lK).invert().multiply(_lS);
 }
 
+/* A foot put where a pose wants it (an emote's footwork, emotes.js): the
+   sole at `target` in root space (y 0 is standing on the ground, forward
+   -z), pitched `footPitch` (+ toe down, heel up; - heel down, toe up) and
+   turned `footYaw` off the body. The ankle rides a limb's radius over the
+   sole, as the gait plants it. The leg solves itself from wherever the hips
+   are, so set the hips first. `side` -1 left, 1 right. */
+const _pf = new THREE.Vector3();
+export function placeFoot(rig, side, target, footPitch = 0, footYaw = 0) {
+  const p = rig.parts;
+  _pf.copy(target);
+  _pf.y += rig.limbRadius;
+  if (side < 0) _solveLeg(rig, -1, p.legL, p.kneeL, p.ankleL, _pf, footPitch, footYaw);
+  else _solveLeg(rig, 1, p.legR, p.kneeR, p.ankleR, _pf, footPitch, footYaw);
+}
+
 const _smooth = (t) => t * t * (3 - 2 * t);
 const LEG_SPLAY = 0.09;
 

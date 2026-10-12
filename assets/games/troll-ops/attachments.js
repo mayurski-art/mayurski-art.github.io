@@ -5,7 +5,7 @@
 // use `set` for zoom because the sight decides magnification, so bolting an
 // ACOG onto a sniper shouldn't stack into an absurd fraction.
 
-import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1";
+import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1";
 
 export const SLOTS = ["optic", "barrel", "underbarrel", "ammo"];
 
@@ -123,6 +123,7 @@ export const CLASS_FIT = {
   shotgun: { optic: ["iron", "reflex", "coyote"], barrel: ["none", "suppressor", "brake"], underbarrel: ["none", "laser"] },
   sniper:  { optic: ["scope8", "acog"], barrel: ["none", "suppressor"], underbarrel: ["none", "laser"] },
   sidearm: { optic: ["iron", "reflex"], barrel: ["none", "suppressor"], underbarrel: ["none", "laser"] },
+  launcher: { optic: ["iron"], barrel: ["none"], underbarrel: ["none"] },   // takes nothing (FHJ18.md)
 };
 const BARE = { optic: ["iron"], barrel: ["none"], underbarrel: ["none"] };
 

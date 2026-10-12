@@ -11,7 +11,7 @@
 // and lists the spots on the map as `rp.bar`.
 
 import * as THREE from "three";
-import { reachHand, setHandPose } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1";
+import { reachHand, setHandPose } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1";
 
 export const BEER_SIPS = 4;
 export const WHISKEY_SIPS = 1;

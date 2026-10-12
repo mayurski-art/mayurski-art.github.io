@@ -16,6 +16,10 @@
 //      fresh A does; the chips name D-pad right.
 //   5. A landscape phone (phase 5): big touch buttons nothing covers, the
 //      context button reads Leave, a tap answers.
+//   6. The bandana guy: off till he's due; his schedule is the same for
+//      everyone and has him most slots; sent now, he comes up the alley in
+//      a bandana, takes a lane, gets carried off and thrown on the curb, sits
+//      there, walks off and is gone, and the lane's back to the line.
 // Shots: scratch PNGs in tools/.club-shots (not committed).
 //
 // Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-club-entry-test.mjs
@@ -79,7 +83,8 @@ async function open(user, { phone = false, pad = false } = {}) {
   await page.evaluate(() => {
     window.__trollOps.setLoadWaitMax(8);
     // minAhead 3: with the waits this short, 1 ahead had you at a lane before the first look
-    Object.assign(window.__trollClub.T, { checkSecs: 0.5, idSecs: 0.8, bandSecs: 0.4, lockSecs: 3, minAhead: 3 });
+    // bandanaEvery: the bandana guy never due on his own (case 6 sends him)
+    Object.assign(window.__trollClub.T, { checkSecs: 0.5, idSecs: 0.8, bandSecs: 0.4, lockSecs: 3, minAhead: 3, bandanaEvery: 1e9 });
   });
   await page.evaluate(async () => {
     const T = window.__trollOps;
@@ -265,6 +270,57 @@ await A.touchscreen.tap(tb.bs[0].cx, tb.bs[0].cy);
 s = await until(A, (s) => s.phase === "in", 15000);
 check("phone: tapping Yeah bands you and walks you in", s.phase === "in" && s.band === 1, JSON.stringify({ phase: s.phase, band: s.band }));
 check("phone: no page errors", A.errors.length === 0, A.errors.slice(0, 3).join(" | "));
+await A.context().close();
+
+// ── 6. The bandana guy ───────────────────────────────────────────────────
+A = await open(null);
+const bs = () => A.evaluate(() => window.__trollClub.bandanaState());
+async function untilB(pred, ms) {
+  const t0 = Date.now();
+  let b = await bs();
+  while (Date.now() - t0 < ms && !pred(b)) { await pump(A, 250); b = await bs(); }
+  return b;
+}
+let b = await bs();
+check("bandana: he's in the cast, off till he's due", !!b && b.off && !b.on, JSON.stringify(b));
+const sched = await A.evaluate(() => {
+  const C = window.__trollClub, P = 150 * 1000;
+  C.T.bandanaEvery = 150;
+  const evs = [];
+  for (let k = 0; k < 400; k++) evs.push(C.bandanaEvent(1.7e12 + k * P + 1234));
+  const again = C.bandanaEvent(1.7e12 + 7 * P + 99);
+  C.T.bandanaEvery = 1e9;
+  const on = evs.filter(Boolean);
+  return { share: on.length / evs.length, lanes: [0, 1].map((l) => on.filter((e) => e.lane === l).length),
+    cols: new Set(on.map((e) => e.col)).size, same: JSON.stringify(again) === JSON.stringify(evs[7]),
+    starts: on.every((e) => e.start === e.slot * P + 5000) };
+});
+check("bandana: the schedule has him most slots, both lanes, every colour, the same every time",
+  sched.share > 0.55 && sched.share < 0.85 && sched.lanes.every((n) => n > 40) && sched.cols === 4 && sched.same && sched.starts, JSON.stringify(sched));
+// Sent now, 12 s up the alley already (the walk's long), shorter look and curb.
+await A.evaluate(() => { const C = window.__trollClub; Object.assign(C.T, { bandanaLook: 0.8, bandanaSit: 1.2 }); C.bandana(0, Date.now() - 12000); });
+b = await untilB((b) => b.phase === "up" && b.visible, 5000);
+check("bandana: he comes up the alley in a bandana", b.on && !b.off && b.visible && /:bandana-red$/.test(b.face) && b.z > 25, JSON.stringify({ phase: b.phase, face: b.face, x: b.x, z: b.z, vis: b.visible }));
+b = await untilB((b) => b.phase === "look", 25000);
+check("bandana: he takes lane 0 and the bouncer turns to him", b.phase === "look" && b.lanes[0].who === "bandana" && b.lanes[0].act === "face" && Math.abs(b.x + 3.3) < 0.3,
+  JSON.stringify({ phase: b.phase, x: b.x, z: b.z, lanes: b.lanes }));
+b = await untilB((b) => b.tc > 2.5, 15000);
+check("bandana: the bouncers carry him off (the other one helps unless you're at his lane)",
+  b.phase === "kick" && b.lanes[0].kick && (b.lanes[1].hold || b.lanes[1].who === "me") && b.y > 0.15, JSON.stringify({ phase: b.phase, tc: b.tc, y: b.y, lanes: b.lanes }));
+b = await untilB((b) => b.tc > 5.3 || b.phase === "curb", 15000);
+check("bandana: ...and toss him on his back by the curb", b.rz > 27 && b.lie > 1.3, JSON.stringify({ tc: b.tc, rz: b.rz, lie: b.lie, y: b.y }));
+b = await untilB((b) => b.phase === "curb", 15000);
+check("bandana: he sits on the curb; both lanes are free again",
+  b.phase === "curb" && b.lanes.every((l) => !l.kick && !l.hold && !l.reserved && l.who !== "bandana"), JSON.stringify({ phase: b.phase, x: b.x, z: b.z, lanes: b.lanes }));
+await A.screenshot({ path: path.join(SHOTS, "9-bandana-curb.png") });
+b = await untilB((b) => b.phase === "off" && b.x < -1, 15000);
+check("bandana: then walks off down the alley", b.phase === "off" && b.x < -1, JSON.stringify({ phase: b.phase, x: b.x, z: b.z }));
+await A.evaluate(() => { const C = window.__trollClub; C.club.bandana.ev.start -= 60000; });   // skip the rest of the walk
+b = await untilB((b) => !b.on, 5000);
+check("bandana: gone, and the bandana's off", !b.on && b.off && b.face === "grin:og", JSON.stringify({ on: b.on, off: b.off, face: b.face }));
+b = await untilB((b) => b.lanes[0].who === "npc" || b.lanes[0].who === "me", 20000);
+check("bandana: the line uses his lane again", b.lanes[0].who === "npc" || b.lanes[0].who === "me", JSON.stringify(b.lanes));
+check("bandana: no page errors", A.errors.length === 0, A.errors.slice(0, 3).join(" | "));
 await A.context().close();
 
 await browser.close();

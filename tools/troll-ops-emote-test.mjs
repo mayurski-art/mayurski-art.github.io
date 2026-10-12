@@ -209,6 +209,32 @@ await sleep(600);
 const enemy = await B.evaluate(() => window.__trollOps.duo().incoming);
 check("an invite from the other team is ignored", !enemy, JSON.stringify(enemy));
 
+// Crip walk: the last emote, a third-person dance. A plays it: the feet stay
+// on the ground and move, and B sees its code on the wire.
+const CW = await A.evaluate(() => window.__trollOps.emoteWheel.slices.findIndex((b) => b.textContent.includes("Crip walk")));
+const aId = await A.evaluate(() => window.__trollOps.net.id);
+await A.evaluate((i) => window.__trollOps.setEmote(i), CW);
+const cw = await A.evaluate(async () => {
+  const T = window.__trollOps, rig = T.localRig, v = rig.root.position.clone();
+  const out = [];
+  for (let k = 0; k < 6; k++) {
+    await new Promise((r) => setTimeout(r, 260));
+    rig.root.updateMatrixWorld(true);
+    const ground = rig.root.position.y;
+    out.push([rig.parts.ankleL, rig.parts.ankleR].map((a) => { a.getWorldPosition(v); return [+(v.y - ground).toFixed(3), +v.x.toFixed(3), +v.z.toFixed(3)]; }));
+  }
+  return { emote: T.emote()?.idx, last: T.emoteWheel.slices.length - 1, frames: out };
+});
+const ankleY = cw.frames.flat().map((a) => a[0]);
+const moved = cw.frames.some((f, i) => i && f.some((a, j) => Math.hypot(a[1] - cw.frames[i - 1][j][1], a[2] - cw.frames[i - 1][j][2]) > 0.01));
+check("crip walk is the last emote and plays", CW === cw.last && cw.emote === CW, `slice ${CW} of ${cw.last}, playing ${cw.emote}`);
+check("crip walk: the feet stay on the ground", Math.min(...ankleY) > 0.005 && Math.max(...ankleY) < 0.12, `ankles ${Math.min(...ankleY)}..${Math.max(...ankleY)} m`);
+check("crip walk: the feet move", moved, JSON.stringify(cw.frames.map((f) => f.map((a) => a.slice(1)))));
+await sleep(700);
+const cwWire = await B.evaluate((id) => window.__trollOps.net.peers.get(id)?.emote, aId);
+check("the crip walk goes out on the wire (index+1)", cwWire === CW + 1, `em ${cwWire}`);
+await A.evaluate(() => window.__trollOps.setEmote(-1));
+
 check("no page errors", errors.length === 0, errors.join(" | "));
 await browser.close();
 server.close();

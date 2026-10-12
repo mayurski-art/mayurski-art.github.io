@@ -1,14 +1,14 @@
 // Troll Forces — loadout screen: class → weapon → attachments.
 
-import { WEAPON_DEFS, CLASS_ORDER, CLASS_LABELS, weaponsInClass } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1";
-import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, fits, fitLoadout, statBars, statDelta } from "./attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1";
+import { WEAPON_DEFS, CLASS_ORDER, SECONDARY_CLASSES, CLASS_LABELS, weaponsInClass } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1";
+import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, fits, fitLoadout, statBars, statDelta } from "./attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1";
 import { iconFor } from "./attachment-icons.js";
 import { SKIN_BY_ID, skinsFor, skinThumbUrl } from "./skins.js?v=p5-wb1";
-import { getRank, getLevel, getPrestige, PRESTIGE_MASTER, isUnlocked, rankUnlocked, rankProgress, rankXpText, prestigeUnlocked } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1";
+import { getRank, getLevel, getPrestige, PRESTIGE_MASTER, isUnlocked, rankUnlocked, rankProgress, rankXpText, prestigeUnlocked } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1";
 import { playerIconSvg } from "./rank-icons.js?v=rk1";
-import { MAPS, MAP_IDS, REWARD_MAPS, mapSchematic } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1";
-import { MELEE_DEFS, MELEE_IDS, THROWABLE_DEFS, LETHAL_IDS, TACTICAL_IDS } from "./gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5";
-import { PERK_DEFS, validPerks } from "./perks.js?v=pk1-cl1-bp1";
+import { MAPS, MAP_IDS, REWARD_MAPS, mapSchematic } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1";
+import { MELEE_DEFS, MELEE_IDS, THROWABLE_DEFS, LETHAL_IDS, TACTICAL_IDS } from "./gear.js?v=to-hb1kb3-bk1-wst-ig1-th2";
+import { PERK_DEFS, validPerks } from "./perks.js?v=pk1-cl1-bp1-fj1";
 
 const STORE = "trollops:loadout";
 // The scorestreak picker's own key (streak-picker.js). The active class's
@@ -173,9 +173,10 @@ export class Loadout {
   validClass(c) {
     let weaponId = WEAPON_DEFS[c.weaponId] ? c.weaponId : "problem416";
     if (!isUnlocked(weaponId)) weaponId = "problem416";
-    // Secondary is always a sidearm - sixtynine (rank 0) is the one every
-    // account has unlocked, same reasoning as the problem416 primary fallback.
-    let secondaryId = WEAPON_DEFS[c.secondaryId]?.cls === "sidearm" ? c.secondaryId : "sixtynine";
+    // Secondary is a sidearm or a launcher - sixtynine (rank 0) is the one
+    // every account has unlocked, same reasoning as the problem416 primary
+    // fallback.
+    let secondaryId = SECONDARY_CLASSES.includes(WEAPON_DEFS[c.secondaryId]?.cls) ? c.secondaryId : "sixtynine";
     if (!isUnlocked(secondaryId)) secondaryId = "sixtynine";
     return {
       name: c.name, weaponId, secondaryId,
@@ -515,7 +516,7 @@ export class Loadout {
   buildClasses() {
     const wrap = this.els.classes;
     wrap.innerHTML = "";
-    const classes = this.slot === "secondary" ? ["sidearm"] : CLASS_ORDER;
+    const classes = this.slot === "secondary" ? SECONDARY_CLASSES : CLASS_ORDER;
     for (const cls of classes) {
       const b = document.createElement("button");
       b.type = "button";

@@ -1433,6 +1433,11 @@ body.to-social:not(.to-social-armed) #to-touch-interact { display: none !importa
   color: #ff6a5a; text-shadow: 0 1px 3px rgba(0,0,0,.9);
 }
 .to-hk-lock.is-close { width: 30px; height: 30px; }
+/* The FHJ-18's lock (combat/launcher.js): amber and wide while it locks,
+   closing in (its size set from the lock), red at LOCKED. */
+.to-aa-lock { transition: none; }
+.to-aa-lock.is-locking > i { border-color: #ffc23a; }
+.to-aa-lock.is-locking > span { color: #ffd36a; }
 .to-hk-lock.is-close > i { animation: to-hk-pulse .3s ease-in-out infinite alternate; }
 @keyframes to-hk-spin { to { transform: rotate(90deg); } }
 @keyframes to-hk-pulse { from { opacity: 1; } to { opacity: .35; } }

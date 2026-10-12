@@ -12,6 +12,8 @@
 //   4. B says no: C watches B carried off and thrown (B's body lies back on
 //      C's screen), then sat on the curb.
 //   5. C doesn't answer while B is back in the line: C goes to the back.
+//   6. The bandana guy, on the room clock's schedule (every 30 s here):
+//      every tab plays the same one, at the same point of his kick-out.
 // Shots: scratch PNGs in tools/.club-shots (not committed).
 //
 // Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-club-room-test.mjs
@@ -74,7 +76,8 @@ async function open(label, user) {
   // Long enough at each step to see from the other tabs; the lockout short.
   await page.evaluate(() => {
     window.__trollOps.setLoadWaitMax(8);
-    Object.assign(window.__trollClub.T, { checkSecs: 0.6, idSecs: 2.0, bandSecs: 1.6, lockSecs: 2, afkSecs: 600 });
+    // bandanaEvery: the bandana guy kept out of cases 1-5 (6 brings him in)
+    Object.assign(window.__trollClub.T, { checkSecs: 0.6, idSecs: 2.0, bandSecs: 1.6, lockSecs: 2, afkSecs: 600, bandanaEvery: 1e9 });
   });
   await page.evaluate(async () => {
     const T = window.__trollOps;
@@ -175,6 +178,21 @@ check("C, slow at the front with B waiting, goes to the back of the line", s[2].
 const cLine = order(s[2]).filter((x) => [id.B, id.C].includes(x));
 check("behind B (a new ticket)", cLine.join() === [id.B, id.C].join() && s[2].ticket > s[1].ticket, JSON.stringify({ line: s[2].line, cT: s[2].ticket, bT: s[1].ticket }));
 check("never two humans at one lane", shared === 0, `${shared} frames`);
+
+// 6. The bandana guy on the room's schedule: the same one on every screen.
+for (const p of pages) await p.evaluate(() => { const C = window.__trollClub; C.T.bandanaEvery = 30; C.T.bandanaSit = 1.5; });
+const BS = () => Promise.all(pages.map((p) => p.evaluate(() => window.__trollClub.bandanaState())));
+let bs = await BS();
+const t0 = Date.now();
+while (Date.now() - t0 < 110000 && !bs.every((x) => x?.phase === "kick" && x.tc > 1)) { await pump(400); bs = await BS(); }
+check("every tab has the bandana guy's kick-out going", bs.every((x) => x?.phase === "kick"), JSON.stringify(bs.map((x) => x && { phase: x.phase, slot: x.slot, lane: x.lane, tc: x.tc })));
+check("the same one (the room clock's slot) on every tab", bs.every((x) => x?.slot != null && x.slot === bs[0].slot), bs.map((x) => x?.slot).join());
+const tcs = bs.map((x) => x?.tc ?? -1);
+check("at the same point of it (within half a second)", Math.max(...tcs) - Math.min(...tcs) < 0.5 && Math.min(...tcs) > 0, tcs.join());
+await C.screenshot({ path: path.join(SHOTS, "room-4-bandana-guy.png") });
+bs = await BS();
+while (Date.now() - t0 < 150000 && !bs.every((x) => x?.phase !== "kick")) { await pump(400); bs = await BS(); }
+check("and lets go of the lane on every tab", bs.every((x) => x && x.lanes.every((l) => !l.kick && l.who !== "bandana")), JSON.stringify(bs.map((x) => x?.lanes)));
 
 check("no page errors", errors.length === 0, errors.slice(0, 4).join(" | "));
 await browser.close();

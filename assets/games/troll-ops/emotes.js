@@ -18,7 +18,7 @@
 // z swings the left arm out (the right arm out is negative z).
 
 import * as THREE from "three";
-import { DANCES, setHandPose, setFace, resetSecondaryJoints, reachHand, beginPose, endPose } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1";
+import { DANCES, setHandPose, setFace, resetSecondaryJoints, reachHand, placeFoot, beginPose, endPose } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1";
 import { LeanKit, LEAN, LEAN_SECONDS, leanFp } from "./lean-cup.js?v=ng1";
 
 const PI = Math.PI;
@@ -316,6 +316,84 @@ function chestHalf(rig, t) {
   done(rig);
 }
 
+/* Crip walk: the heel-toe shuffle. Low in the hips, the feet pivot on heel
+   and toe, step across each other and snap back out wide in a V, the arms
+   hang loose and swing against the feet, the head nods the beat. The feet
+   are placed (character.js placeFoot) so they plant and pivot instead of
+   sliding about under the body. Four beats a bar at ~138 BPM, every other
+   bar mirrored; loops till you move. */
+const CW_BPS = 2.3;
+// Each beat, [left, right] foot: x, z (root space, forward -z), pitch
+// (+ toe down / heel up, - heel down / toe up) and yaw (+ toes out, for the
+// left foot; the right foot's keys are written with its own sign).
+const CW_KEYS = [
+  [[-0.16, -0.14, -0.45, 0.55], [0.10, 0.04, 0.5, -0.5]],     // left heel out, right pivots in on its toe
+  [[-0.08, 0.02, 0.5, -0.45], [0.17, -0.13, -0.45, 0.5]],     // and the other way
+  [[0.06, -0.12, -0.2, 0.3], [0.14, 0.06, 0, -0.2]],          // the left steps across in front
+  [[-0.20, 0, 0, 0.1], [-0.02, -0.18, -0.35, -0.6]],          // back out wide, the right heel sweeps across
+];
+const _cwF = new THREE.Vector3();
+function cwKey(beat, foot) {
+  // Odd bars are the mirror image: the other foot's key, flipped across.
+  const k = CW_KEYS[((beat % 4) + 4) % 4];
+  if (Math.floor(beat / 4) % 2 === 0) return k[foot];
+  const m = k[1 - foot];
+  return [-m[0], m[1], m[2], -m[3]];
+}
+/* Beat `n` -> n+1: which foot steps (the one that goes further) and how far each goes. */
+function cwStep(n) {
+  const travel = [0, 1].map((f) => { const a = cwKey(n, f), b = cwKey(n + 1, f); return Math.hypot(b[0] - a[0], b[1] - a[1]); });
+  return { stepper: travel[1] > travel[0] ? 1 : 0, travel };
+}
+function cwLead(n) {
+  const { stepper, travel } = cwStep(n);
+  return (stepper ? 1 : -1) * Math.min(1, travel[stepper] / 0.15);
+}
+function poseCripWalk(rig, t) {
+  const p = rig.parts, s = rig.scale;
+  base(rig);
+  const beat = t * CW_BPS, n = Math.floor(beat);
+  const u = ease((beat - n) / 0.7);                  // the move, then a hold till the next beat
+  const bounce = Math.abs(Math.sin(beat * PI));
+  // The hips sit low and dip into every beat.
+  p.hips.position.y = rig.hipY - (0.15 + 0.035 * bounce) * s;
+  // The foot that goes further this beat steps (it lifts on its way); the
+  // other slides and pivots on the ground, as the shuffle does.
+  const { stepper, travel } = cwStep(n);
+  for (const foot of [0, 1]) {
+    const a = cwKey(n, foot), b = cwKey(n + 1, foot);
+    const x = a[0] + (b[0] - a[0]) * u, z = a[1] + (b[1] - a[1]) * u;
+    const pitch = a[2] + (b[2] - a[2]) * u, yaw = a[3] + (b[3] - a[3]) * u;
+    const lift = foot === stepper ? 0.05 * Math.sin(u * PI) : 0;
+    placeFoot(rig, foot ? 1 : -1, _cwF.set(x * s, lift * s, z * s), pitch, yaw);
+  }
+  // -1 the left foot leads .. 1 the right: the body turns with it, eased
+  // over from last beat's.
+  const lead = cwLead(n - 1) + (cwLead(n) - cwLead(n - 1)) * u;
+  const twist = lead * 0.22;
+  p.hips.rotation.set(0, twist, -lead * 0.06);
+  // Leaning in over the feet (an upright joint tips forward on -x).
+  p.torso.rotation.x = -0.16;
+  p.chest.rotation.set(-0.06, -twist * 0.6, 0);
+  // Arms loose and low, swinging against the feet; the elbows soft.
+  p.armL.rotation.set(0.1 + 0.25 * lead, 0, 0.18);
+  p.armR.rotation.set(0.1 - 0.25 * lead, 0, -0.18);
+  p.elbowL.rotation.x = 0.3 + 0.15 * bounce;
+  p.elbowR.rotation.x = 0.3 + 0.15 * bounce;
+  // Every other bar the right hand comes up to the chest in a loose fist.
+  const inBar = beat - Math.floor(beat / 4) * 4;
+  const flash = Math.floor(beat / 4) % 2 ? env(inBar, 1.7, 2.2, 3.4, 3.9) : 0;
+  if (flash > 0) {
+    p.armR.rotation.x += (1.3 - p.armR.rotation.x) * flash;
+    p.armR.rotation.z += (-0.45 - p.armR.rotation.z) * flash;
+    p.elbowR.rotation.x += (2.0 - p.elbowR.rotation.x) * flash;
+    if (flash > 0.5) setHandPose(rig, 1, "fist");
+  }
+  // A nod on every beat, turned a little to the leading side.
+  head(rig, 0.04 + 0.08 * Math.cos(beat * 2 * PI), lead * 0.25, 0);
+  done(rig);
+}
+
 /* The disco groove, mirrored on the partner so it reads as dancing together. */
 function duoDanceLead(rig, t) { DANCES[0](rig, t); }
 function duoDancePartner(rig, t) {
@@ -346,6 +424,7 @@ export const EMOTES = [
   { id: "sad", name: "Sad trollface", kind: "tp", pose: poseSadTP, seconds: 4.2 },
   { id: "bird", name: "Middle fingers", kind: "tp", pose: poseBirdTP, seconds: BIRD_SECONDS },
   { id: "lean", name: "Pour up", kind: "fp", pose: poseLeanTP, fp: leanFp, fpProps: fpLeanProps, props: true, seconds: LEAN_SECONDS },
+  { id: "cwalk", name: "Crip walk", kind: "tp", pose: poseCripWalk },
 ];
 
 export const DEFAULT_EMOTE_SECONDS = 8;

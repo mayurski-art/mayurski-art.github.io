@@ -12,13 +12,13 @@
 // walk up to a teammate and hold X to send it). Duo slices are greyed out
 // where there's no teammate to share one with (setDuo), e.g. solo or FFA.
 
-import { EMOTES } from "./emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2";
+import { EMOTES } from "./emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2-cw1";
 
 export { EMOTES };
 
 // A little travel before a slice lights up, so a twitch on open doesn't pick.
 const DEADZONE = 22;
-const RADIUS = 166;   // px from the centre to each slice (16 of them)
+const RADIUS = 166;   // px from the centre to each slice (one per emote)
 const KIND_TAG = { fp: "1P", tp: "3P", duo: "DUO" };
 
 export class EmoteWheel {

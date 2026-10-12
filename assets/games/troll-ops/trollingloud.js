@@ -1918,6 +1918,12 @@ function clubNpcs() {
   extra("Clubgoer", "walk", { y: ROOF, path: LAP, at: 0, zone: "sky" });
   extra("Clubgoer", "walk", { y: ROOF, path: LAP, at: 0.5, zone: "sky" });
 
+  /* ---- the guy who didn't read the sign (user, 2026-10-10): now and then
+     he comes up the alley in a bandana and the bouncers throw him out
+     (modes/club-entry.js, "the bandana guy"). Off till then, where the
+     newcomers come from. Last in the cast so no one else's index moves. */
+  add("Bandana Benny", "Clubgoer", "phone", { x: DOOR.arrive.x, z: DOOR.arrive.z, y: 0, yaw: Math.PI / 2 }, { bandana: true });
+
   /* ---- dressed for the night (user, 2026-10-08): the guests wear outfits
      (outfits.js), the staff stay as they are */
   const DR = rng(77);

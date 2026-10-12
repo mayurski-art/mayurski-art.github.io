@@ -3,18 +3,18 @@
 // (split phase 1).
 
 import { Dragonfire, DF_RANGE, DF_SPREAD, DF_DAMAGE, DF_HP } from "../dragonfire.js?v=df3-sb2";
-import { STREAK_DEFS, SCORE } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1";
-import { streakEntities, flyovers, streakBlast, uavBucket, uavUntil } from "./calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-zr5";
-import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "../sam-turret.js?v=sam1";
+import { STREAK_DEFS, SCORE } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1";
+import { streakEntities, flyovers, streakBlast, uavBucket, uavUntil, unlockStreak } from "./calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1";
+import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "../sam-turret.js?v=sam1-fj1";
 import * as THREE from "three";
-import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1";
+import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1";
 import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";
 import { HelicopterGunship, VtolWarship, HunterDrone, ReconPlane } from "../streak-entities.js?v=vsat2-hk1";
-import { round2 } from "./fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-zr5";
-import { showWaveBanner, pushKillfeed } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-zr5";
-import { XP } from "../progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1";
-import { findAimAssistTarget } from "../input/aim-assist.js?v=in1-fu1b7-wb1-ar1-ar2-cl1";
-import { WEAPON_DEFS } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1";
+import { round2 } from "./fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1";
+import { showWaveBanner, pushKillfeed } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1";
+import { XP } from "../progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1";
+import { findAimAssistTarget } from "../input/aim-assist.js?v=in1-fu1b7-wb1-ar1-ar2-cl1-fj1";
+import { WEAPON_DEFS } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1";
 import { game } from "../core/state.js?v=st1";
 
 export const DF_BOARD_AT = 1.2;        // the tablet dive, then you're flying
@@ -202,11 +202,20 @@ export function shootDownAir(eid, byId, announce = false) {
     streakEntities.delete(eid);
   } else {
     if (!plane.counter) {
-      if (plane.team) uavUntil[plane.team] = 0;
-      if (plane.team === uavBucket() && game.myUavUntil > performance.now()) game.myUavUntil = 0;
+      // Only this plane's sweep ends: a teammate's UAV still up keeps the
+      // team's radar for what it has left, and only the caller loses theirs.
+      const now = performance.now();
+      let left = 0;
+      for (const f of flyovers) if (f !== plane && f.team === plane.team && !f.counter) left = Math.max(left, f.duration - f.age);
+      if (plane.team) uavUntil[plane.team] = left > 0 ? Math.min(uavUntil[plane.team] || 0, now + left * 1000) : 0;
+      const minePlane = plane.caller === game.net.id;
+      if (plane.team === uavBucket() && minePlane && game.myUavUntil > now) game.myUavUntil = 0;
       if (mine) showWaveBanner("UAV SHOT DOWN", 1600);
     } else if (game.currentMode().ffa || !game.net.team || plane.team !== game.net.team) {
-      game.jammedUntil = 0;   // their jammer's down: our radar's back
+      // Their jammer's down: our radar's back, and the UAV it shot down can
+      // be called again (unless another of theirs is still up).
+      const still = flyovers.some((f) => f !== plane && f.counter && f.team === plane.team);
+      if (!still) { game.jammedUntil = 0; unlockStreak("uav", "jammed"); }
       showWaveBanner("ENEMY COUNTER-UAV DOWN", 1500);
     }
     plane.dispose();

@@ -1,27 +1,28 @@
 // Bots' shooting: who they can target, how their shots look and sound to
 // everyone, firing at enemy aircraft, and the damage a bot we host deals.
 
-import { occupants } from "../modes/spawns.js?v=spw1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-zr5-zr6-zr8";
-import { saberBlock, kbShield } from "./melee.js?v=ml1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-zr5";
-import { MELEE_DEFS } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5";
-import { streakEntities } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-zr5";
+import { occupants } from "../modes/spawns.js?v=spw1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1";
+import { saberBlock, kbShield } from "./melee.js?v=ml1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1";
+import { MELEE_DEFS } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2";
+import { streakEntities } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1";
 import { K9Pack } from "../k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d";
-import { WEAPON_DEFS, chargedShotDef } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1";
-import { hellfire } from "../view/viewmodels.js?v=vm1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-zr5-zr8";
+import { WEAPON_DEFS, chargedShotDef } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1";
+import { hellfire } from "../view/viewmodels.js?v=vm1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-cw1-fj1";
 import * as THREE from "three";
-import { royale, royaleBotDamage, royaleBotVsBot, royaleNoise } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-zr5";
-import { noteRigShot } from "../view/third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-bk1-zr5-zr6-zr8";
-import { enemyAirFor, damageStreakEntity } from "../streaks/dragonfire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-zr5";
+import { royale, royaleBotDamage, royaleBotVsBot, royaleNoise } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1";
+import { noteRigShot } from "../view/third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-bk1-cw1-fj1";
+import { enemyAirFor, damageStreakEntity } from "../streaks/dragonfire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1";
 import { VtolWarship, HunterDrone, HelicopterGunship } from "../streak-entities.js?v=vsat2-hk1";
-import { SamTurret } from "../sam-turret.js?v=sam1";
-import { isStaging } from "../modes/match-start.js?v=mst1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-zr5-zr6-zr7-zr8";
-import { botBusy } from "../modes/objectives.js?v=ob1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-zr5-zr8";
-import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1";
+import { SamTurret } from "../sam-turret.js?v=sam1-fj1";
+import { isStaging } from "../modes/match-start.js?v=mst1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1";
+import { botBusy } from "../modes/objectives.js?v=ob1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-cw1-fj1";
+import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1";
 import { Dragonfire } from "../dragonfire.js?v=df3-sb2";
-import { damagePlayer, isExplosive } from "./damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-zr5";
-import { damageDog } from "../streaks/k9.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-zr5";
-import { flinchPeer } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-zr5";
-import { registerDeath } from "./scoring.js?v=sc1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-zr5";
+import { damagePlayer, isExplosive } from "./damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1";
+import { damageDog } from "../streaks/k9.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1";
+import { flinchPeer } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1";
+import { registerDeath } from "./scoring.js?v=sc1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1";
+import { aaTargetsFor, launchAa } from "./launcher.js?v=fj1";
 import { game } from "../core/state.js?v=st1";
 
 /* Everything a bot could shoot at: us, other humans, and other bots. */
@@ -179,8 +180,9 @@ function botAirTargets(b) {
 export function updateBotAntiAir(dt) {
   if (isStaging()) return;
   for (const b of game.bots.bots) {
-    if (!b.alive || b.airborne || b.meleeOnly || b.piloting || botBusy(b) || b.reloadT > 0) { b.aa = null; continue; }
-    if (b.lastSeen && b.lastSeen.age < 1.2) { b.aa = null; continue; }   // busy with people
+    if (!b.alive || b.airborne || b.meleeOnly || b.piloting || botBusy(b) || b.reloadT > 0) { b.aa = null; b.aaUp = false; continue; }
+    if (b.lastSeen && b.lastSeen.age < 1.2) { b.aa = null; b.aaUp = false; continue; }   // busy with people
+    if (b.launcher && b.aaMissiles > 0) { botLauncher(b, dt); continue; }
     b.aaT = (b.aaT || 0) - dt;
     _aaEye.set(b.pos.x, (b.groundY ?? b.pos.y) + 1.5, b.pos.z);
     if (!b.aa || b.aaT <= -1.5) {
@@ -222,6 +224,51 @@ export function updateBotAntiAir(dt) {
       damageStreakEntity(a.e, diff.damage ?? 17, b.id);
     }
   }
+}
+
+/* A bot with the FHJ-18 (FHJ18.md): the nearest enemy aircraft or SAM
+   Turret in the clear within BOT_LAUNCHER_RANGE, and nobody on it: up on
+   the shoulder, held on it while it locks (1.2 s for the best, longer for
+   the rest), one missile, and down again while the next goes in. Its
+   missiles fly and count like ours (combat/launcher.js launchAa), the kill
+   is the bot's. */
+const BOT_LAUNCHER_RANGE = 140;
+const BOT_LAUNCHER_RELOAD = 3.2;
+function botLauncher(b, dt) {
+  b.aaT = (b.aaT || 0) - dt;
+  _aaEye.set(b.pos.x, (b.groundY ?? b.pos.y) + 1.5, b.pos.z);
+  const list = aaTargetsFor(b.team, b.id);
+  let a = b.aa ? list.find((x) => x.id === b.aa.id) : null;
+  if (!a && b.aaT <= 0) {
+    let best = null, bestD = BOT_LAUNCHER_RANGE;
+    for (const t of list) {
+      const d = t.pos.distanceTo(_aaEye);
+      if (d > bestD || d < 4) continue;
+      _aaDir.copy(t.pos).sub(_aaEye).divideScalar(d);
+      if (raycastWorld(game.colliders, _aaEye, _aaDir, d) < d - 2) continue;
+      best = t; bestD = d;
+    }
+    a = best;
+    b.aa = best ? { id: best.id, lockT: 0 } : null;
+    b.aaT = best ? 0 : 1;
+  }
+  if (!a) { b.aa = null; b.aaUp = b.aaT > 0.4 && b.aaUp; return; }
+  b.aaUp = true;
+  b.yaw = Math.atan2(-(a.pos.x - b.pos.x), -(a.pos.z - b.pos.z));
+  b.pitch = Math.atan2(a.pos.y - _aaEye.y, Math.hypot(a.pos.x - b.pos.x, a.pos.z - b.pos.z));
+  if (b.aaT > 0) return;   // the next one's still going in
+  // Locking: the best (hit 0.6+) in 1.2 s, a recruit in about 2.
+  const lockSecs = 1.2 + Math.max(0, 0.6 - (b.diff?.hit ?? 0.45)) * 2.5;
+  b.aa.lockT += dt;
+  if (b.aa.lockT < lockSecs) return;
+  _aaDir.copy(a.pos).sub(_aaEye).normalize();
+  _aaDir.y += 0.05;
+  _botMuzzle.copy(_aaEye).addScaledVector(_aaDir, 0.6);
+  launchAa(_botMuzzle, _aaDir.normalize(), a.id, a.need, b.id);
+  noteRigShot(b.id);
+  b.aaMissiles--;
+  b.aa = null;
+  b.aaT = BOT_LAUNCHER_RELOAD;
 }
 
 /* Damage a bot we host deals to anyone: us, another of our bots, or a remote
