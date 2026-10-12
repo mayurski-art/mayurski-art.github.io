@@ -147,6 +147,14 @@ const DETAILED = {
     p: "AN", device: "AN_Hider", rake: -0.37, railY: 0.0283, adsDistance: null,
     glow: [],
   },
+  // The FHJ-18 AA launcher (models/build_fhj18.blender.py, traced off BO2's
+  // side render); FJ_Mag is the battery box the reload swaps. The procedural
+  // tube from weapons.js's `model` stands in till it streams in.
+  fhj18: {
+    url: new URL("./models/fhj18.glb?v=fj1", import.meta.url).href,
+    p: "FJ", device: "FJ_None", rake: -0.36, railY: 0.194, adsDistance: 0.34,
+    glow: [],
+  },
   salt: {
     url: new URL("./models/ar-salt.glb?v=ar2", import.meta.url).href,
     p: "SM", device: "SM_Hider", rake: -0.37, railY: 0.0672, adsDistance: null,
