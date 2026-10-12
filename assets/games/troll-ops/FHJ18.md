@@ -1,6 +1,6 @@
 # FHJ-18 AA: the anti-air launcher (design, awaiting OK)
 
-Status: **design only. Nothing below is built until the user says go.**
+Status: **design; the user answered the open questions 2026-10-12 (below). Build next.**
 
 ## Why
 
@@ -11,12 +11,12 @@ Air streaks are hard to answer. A UAV, a Counter-UAV, a gunship or the warship s
 - **FHJ-18 AA only.** No SMAW and no RPG in this batch. It locks onto air targets only, as in BO2.
 - **Players get it in the Secondary slot** of Create a Class, level-unlocked, with a lock-on reticle.
 - **About 1 in 5 bots carry it as their secondary.** They switch to it when enemy air is up.
+- (2026-10-12) **Unlocked from level 0.** **It locks onto enemy SAM Turrets too.** **Six missiles a life**; **Scavenger gives back two** per pack.
 
 ## What it does (the player)
 
 1. **Pick it.** It sits in the Secondary slot's list next to the pistols, under a new "Launchers" heading.
-   - Unlocks at **level 20** (proposed; the pistols run 0 to 25, the guns 0 to 44).
-   - A locked row shows "Level 20" like any gun.
+   - Unlocked from **level 0** (user, 2026-10-12): everyone has it.
 2. **Raise it** with the weapon switch. It sits on the shoulder in third person and fills the right of the screen in first person.
 3. **ADS to look for air.** There's no hip fire (BO2): firing without ADS does nothing and shows a short "Aim to lock" hint.
 4. **The lock.**
@@ -25,10 +25,10 @@ Air streaks are hard to answer. A UAV, a Counter-UAV, a gunship or the warship s
    - At full lock the bracket turns red, reads **LOCKED**, and the tone goes solid.
    - Drifting off the 6° cone bleeds the lock away at twice the rate it builds.
 5. **Fire.** It can't fire without a lock. A locked shot launches one missile that homes on the target.
-6. **Ammo.** Mag 1, reserve 2 (three missiles a life), reload about 3 s.
-7. **Hits and credit.** One hit downs a UAV, Counter-UAV, Hunter drone or Dragonfire; two down a gunship; three down the warship. Each down pays `SCORE.airKill` 125 (scorestreaks.js:33) with the "Aircraft down" feed line, as SAM and bullet kills already do.
+6. **Ammo.** Mag 1, reserve 5: **six missiles a life** (user). Reload about 3 s. A Scavenger pack gives back **two** (user), never past six (`def.scavenge: 2` in combat/scavenger.js `collect`, which gives other guns a magazine).
+7. **Hits and credit.** One hit downs a UAV, Counter-UAV, Hunter drone or Dragonfire, or destroys an enemy **SAM Turret** (user: it locks onto them; the aim point is the turret's head, 1.1 m up, as bots already target it, combat/bot-fire.js:175); two down a gunship; three down the warship. Each down pays `SCORE.airKill` 125 (scorestreaks.js:33) with the "Aircraft down" feed line, as SAM and bullet kills already do.
 
-**Not targets:** airstrike jets, care-package helis and the VSAT (BO2's satellite is out of reach). On a ground target, a player or a vehicle, it never locks and the bracket never appears.
+**Not targets:** airstrike jets, care-package helis and the VSAT (BO2's satellite is out of reach). Players, dogs and anything else on the ground except a SAM Turret: it never locks and the bracket never appears.
 
 ## Built from what exists
 
@@ -47,7 +47,7 @@ Air streaks are hard to answer. A UAV, a Counter-UAV, a gunship or the warship s
 
 ## The weapon
 
-- **weapons.js:** `fhj18`, `cls: "launcher"`, `hidden: true` (kept out of Royale loot, royale.js:215), `rank: 20`, mag 1, reserve 2, reload 3.0 s, `lockOn: true`, `noHip: true`. Its damage on people is zero, because the missile ignores ground targets.
+- **weapons.js:** `fhj18`, `cls: "launcher"`, `hidden: true` (kept out of Royale loot, royale.js:215), `rank: 0`, mag 1, reserveMax 6 (5 spare), `scavenge: 2`, reload 3.0 s, `lockOn: true`, `noHip: true`. Its damage on people is zero, because the missile ignores ground targets.
 - **CLASS_ORDER** (weapons.js:164) gains `"launcher"` with the label "Launchers". It isn't offered in the Primary slot.
 - **loadout.js:**
   - The Secondary list at :518 changes from `["sidearm"]` to `["sidearm", "launcher"]`.
@@ -89,12 +89,13 @@ Every client spawns the same missile and flies it. Only the owner's client count
 ## Tests (tools/troll-ops-fhj18-test.mjs, new; then into the gate)
 
 1. A player with the launcher, aiming at an enemy UAV: lock in about 1.2 s, LOCKED shown, one missile, the UAV is down, +125.
-2. Hip fire does nothing. Aiming at a ground bot never shows the bracket.
+2. Hip fire does nothing. Aiming at a ground bot never shows the bracket; an enemy SAM Turret locks and one missile destroys it.
 3. A gunship takes two missiles and the warship three.
 4. A launcher bot downs an enemy Counter-UAV, and our radar comes back with no lockout left (fix 2).
 5. Two stacked UAVs, one shot down: the other's time remains (fix 1).
 6. Two tabs: the missile flies on both, and the second tab sees the aircraft go down.
-7. Create a Class: the Secondary list shows Launchers; it's locked below level 20; the Royale loot table never has it.
+7. Create a Class: the Secondary list shows Launchers with the FHJ-18 open at level 0; the Royale loot table never has it.
+8. Ammo: six missiles a life; a Scavenger pack gives back two, never past six.
 
 ## Build order (once approved)
 
@@ -108,8 +109,8 @@ Every client spawns the same missile and flies it. Only the owner's client count
 
 Each step is its own commit with its own targeted test (one system per commit).
 
-## Open questions for the user
+## Answered (user, 2026-10-12)
 
-- **Unlock level:** 20 is proposed.
-- **Should it also take out a SAM Turret?** BO2's couldn't (ground target). Proposed: no.
-- **Three missiles a life.** Is that the right budget, or should Scavenger refill it?
+- Unlock: level 0.
+- SAM Turrets: yes, it locks onto enemy ones (one missile each).
+- Ammo: six a life; Scavenger gives back two.
