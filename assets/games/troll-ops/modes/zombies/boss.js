@@ -6,6 +6,10 @@
 // Their health is a multiple of the wave's own zombie health, so they keep
 // pace with the curve (zombies.js healthForRound), times a share per player.
 //
+// Co-op: only the host runs them (when they come, the slam, the summons);
+// a slam goes out on the wire (bossWire.slam) and lands on every player's
+// own screen through slamAt, which hurts only the local player.
+//
 // The bosses are ordinary zombies to everything else (types "mini" and
 // "boss" in zombies.js: bigger, red, stagger-proof): bullets, turrets and
 // barrels hit them, they count toward the wave, and the wave isn't clear
@@ -27,6 +31,9 @@ const SLAM = {
   boss: { range: 4.4, radius: 5.2, damage: 55, windup: 0.8, cd: 5.5, push: 13 },
 };
 const SUMMON = { every: 14, count: 3, max: 10 };   // the final boss: walkers round him, up to max alive
+
+/* Co-op (coop.js): `slam(zombie, at, kind)` sends one to the room. */
+export const bossWire = { slam: null };
 
 export const bossState = {
   wave: 0,
@@ -88,6 +95,17 @@ function slamRing(at, radius) {
 function slam(z, S) {
   const p = z.mesh.position;
   const at = new THREE.Vector3(p.x, z.groundY, p.z);
+  slamAt(at, z.type.id, true);
+  bossWire.slam?.(z, at, z.type.id);
+}
+
+/* A slam landing at `at` (on the ground): the ring and the dust, the local
+   player hurt and thrown, and (`real`: this client runs the bosses) the
+   deployables in it broken. */
+export function slamAt(at, kind, real = true) {
+  const S = SLAM[kind];
+  if (!S) return;
+  const p = at;
   slamRing(at, S.radius);
   game.spawnImpactBurst(at.clone().setY(at.y + 0.2), 0x9c8a6a, 30);
   game.audio.explosion(0.55, at);
@@ -95,7 +113,7 @@ function slam(z, S) {
   const me = game.move.pos;
   const dx = me.x - p.x, dz = me.z - p.z;
   const d = Math.hypot(dx, dz);
-  if (d < S.radius && Math.abs(me.y - z.groundY) < 1.6 && game.player.alive && !game.player.downed) {
+  if (d < S.radius && Math.abs(me.y - at.y) < 1.6 && game.player.alive && !game.player.downed) {
     const k = 1 - d / S.radius;
     game.damagePlayer(Math.round(S.damage * (0.4 + 0.6 * k)), null, null, false, p);
     const n = d > 0.01 ? 1 / d : 0;
@@ -104,17 +122,23 @@ function slam(z, S) {
   const near = Math.max(0, 1 - d / (S.radius * 2.5));
   if (near > 0) { game.shakeMag = Math.max(game.shakeMag, 0.05 * near); game.shakeT = 0.4; }
   // deployables in the ring take a beating
-  for (const e of dep.list.slice()) {
+  if (real) for (const e of dep.list.slice()) {
     if (e.alive && Math.hypot(e.pos.x - p.x, e.pos.z - p.z) < S.radius) e.hit(S.damage * 4);
   }
 }
 
 /* One boss's moves this frame: the slam (plant, wind up, land), and the
    final boss's summons. */
+/* Who the boss is after: a co-op target's feet, or the local player's. */
+function targetFeet(z) {
+  const t = z.targetId != null ? game.zdir.targets?.find((q) => q.id === z.targetId) : null;
+  return t ? { x: t.pos.x, y: t.feetY, z: t.pos.z } : game.move.pos;
+}
+
 function bossBrain(z, dt) {
   if (!z.alive || z.dying || z.riseT > 0) return;
   const S = SLAM[z.type.id];
-  const me = game.move.pos;
+  const me = targetFeet(z);
   const d = Math.hypot(me.x - z.mesh.position.x, me.z - z.mesh.position.z);
   z.slamCd = Math.max(0, (z.slamCd ?? 0) - dt);
   if (z.slamT > 0) {
@@ -147,12 +171,14 @@ function bossBrain(z, dt) {
   }
 }
 
-/* Every frame of a run. Returns the boss bar's state, or null. */
-export function updateBosses(dt, finalWave, onArrive) {
+/* Every frame of a run. Returns the boss bar's state, or null. `host`:
+   this client runs the horde (always, solo); otherwise the bosses are the
+   host's, mirrored, and only the bar and the rings are ours. */
+export function updateBosses(dt, finalWave, onArrive, host = true) {
   const zd = game.zdir;
   if (!zd) return null;
   const kind = bossKindFor(zd.round, finalWave);
-  if (kind && !bossState.spawned && bossState.wave === zd.round && zd.state !== "between") {
+  if (host && kind && !bossState.spawned && bossState.wave === zd.round && zd.state !== "between") {
     // the final boss opens the wave; a mini comes once half the wave is out
     const out = bossState.waveTotal - zd.toSpawn;
     if (kind === "boss" || out >= bossState.waveTotal * MINI_AT) {
@@ -160,7 +186,7 @@ export function updateBosses(dt, finalWave, onArrive) {
       if (z) onArrive?.(z);
     }
   }
-  for (const z of zd.zombies) if (z.type.boss) bossBrain(z, dt);
+  if (host) for (const z of zd.zombies) if (z.type.boss && !z.proxy) bossBrain(z, dt);
   for (let i = bossState.rings.length - 1; i >= 0; i--) {
     const r = bossState.rings[i];
     r.t += dt;
@@ -169,7 +195,7 @@ export function updateBosses(dt, finalWave, onArrive) {
     r.mesh.material.opacity = 0.75 * (1 - k);
     if (k >= 1) { game.scene.remove(r.mesh); r.mesh.material.dispose(); bossState.rings.splice(i, 1); }
   }
-  const b = bossState.boss;
+  const b = host ? bossState.boss : zd.zombies.find((z) => z.type.boss && z.alive && !z.dying);
   if (!b || !b.alive || b.dying) return null;
   return { name: ZOMBIE_TYPES[b.type.id].name, k: Math.max(0, b.hp / b.maxHp), final: b.type.id === "boss" };
 }
