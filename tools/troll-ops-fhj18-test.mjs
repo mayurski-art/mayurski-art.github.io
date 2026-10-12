@@ -229,6 +229,27 @@ check("an enemy SAM Turret locks", sam.locked, JSON.stringify(sam));
 check("...and one missile destroys it", sam.destroyed, JSON.stringify(sam));
 await page.screenshot({ path: path.join(ROOT, ".claude", "fhj18-lock.png") }).catch(() => {});
 
+// The UAV books: downing one of two enemy UAVs leaves the other's sweep;
+// a teammate's UAV going down doesn't end the one you called.
+const uavBook = await page.evaluate(() => {
+  const T = window.__trollOps, { DF, G } = window.__M, en = window.__enemy, us = T.uavBucket();
+  const now = () => performance.now();
+  const a = T.spawnRecon(T.move.pos.x + 5, T.move.pos.z, 1.1, 30, { team: en, caller: "enemy-a" });
+  const b = T.spawnRecon(T.move.pos.x - 5, T.move.pos.z, 2.2, 30, { team: en, caller: "enemy-b" });
+  T.uavUntil[en] = now() + 30000;
+  DF.shootDownAir(a.eid, null);
+  const afterOne = ((T.uavUntil[en] || 0) - now()) / 1000;
+  DF.shootDownAir(b.eid, null);
+  const afterTwo = T.uavUntil[en] || 0;
+  const mate = T.spawnRecon(T.move.pos.x, T.move.pos.z + 5, 0.7, 30, { team: us, caller: "mate-x" });
+  T.uavUntil[us] = now() + 30000;
+  G.myUavUntil = now() + 30000;
+  DF.shootDownAir(mate.eid, null);
+  return { afterOne: +afterOne.toFixed(1), afterTwo, mine: +((G.myUavUntil - now()) / 1000).toFixed(1) };
+});
+check("downing one of two enemy UAVs leaves the other's sweep up", uavBook.afterOne > 20, JSON.stringify(uavBook));
+check("...and downing the last one ends it", uavBook.afterTwo === 0, JSON.stringify(uavBook));
+check("a teammate's UAV going down leaves the one you called", uavBook.mine > 20, JSON.stringify(uavBook));
 // ---- 4. Bots: about one in five carry it, and one downs an enemy Counter-UAV.
 await page.evaluate(async () => {
   const T = window.__trollOps;

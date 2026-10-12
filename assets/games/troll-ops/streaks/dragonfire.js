@@ -202,8 +202,14 @@ export function shootDownAir(eid, byId, announce = false) {
     streakEntities.delete(eid);
   } else {
     if (!plane.counter) {
-      if (plane.team) uavUntil[plane.team] = 0;
-      if (plane.team === uavBucket() && game.myUavUntil > performance.now()) game.myUavUntil = 0;
+      // Only this plane's sweep ends: a teammate's UAV still up keeps the
+      // team's radar for what it has left, and only the caller loses theirs.
+      const now = performance.now();
+      let left = 0;
+      for (const f of flyovers) if (f !== plane && f.team === plane.team && !f.counter) left = Math.max(left, f.duration - f.age);
+      if (plane.team) uavUntil[plane.team] = left > 0 ? Math.min(uavUntil[plane.team] || 0, now + left * 1000) : 0;
+      const minePlane = plane.caller === game.net.id;
+      if (plane.team === uavBucket() && minePlane && game.myUavUntil > now) game.myUavUntil = 0;
       if (mine) showWaveBanner("UAV SHOT DOWN", 1600);
     } else if (game.currentMode().ffa || !game.net.team || plane.team !== game.net.team) {
       game.jammedUntil = 0;   // their jammer's down: our radar's back
