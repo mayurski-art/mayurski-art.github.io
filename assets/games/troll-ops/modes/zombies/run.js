@@ -16,6 +16,7 @@ import { mountZombiesHud, showZombiesHud, updateZombiesHud, announceWave, zombie
 import { updateZombieBars } from "../../view/zombies-bars.js?v=zr6";
 import { dep, deployOffers, pickDeployable, cancelPlacing, placeDeployable, spawnDeployable, hitBlocker, resetDeployables, clearDeployables, updateDeployables } from "./deployables.js?v=zr6";
 export { deployClick } from "./deployables.js?v=zr6";
+import { bossState, bossWaveStarted, resetBosses, spawnBossNow, updateBosses } from "./boss.js?v=zr7";
 
 export const FINAL_WAVE = 30;
 const BLEED_OUT = 15;           // seconds down before it's over
@@ -41,6 +42,7 @@ export function startZombieRun() {
   resetCash(0);
   resetUpgrades();
   resetDeployables();
+  resetBosses();
   game.player.hp = game.player.maxHp;
   mountZombiesHud({ onBuy: buyUpgrade, onSkip: skipBreak, onDeploy: deploy, onPlace: placeDeployable, onCancel: cancelPlacing });
   showZombiesHud(true);
@@ -51,6 +53,7 @@ export function stopZombieRun() {
   run.live = false;
   game.player.downed = false;
   clearDeployables();
+  resetBosses();
   showZombiesHud(false);
 }
 
@@ -61,6 +64,7 @@ export function nextZombieWave() {
   const n = zdir.round + 1;
   game.player.wave = n;
   zdir.startRound(n);
+  bossWaveStarted(n);
   game.els.hudWave.textContent = String(n);
   announceWave(n, FINAL_WAVE);
   game.audio.wave();
@@ -140,6 +144,8 @@ export function zombieRunDebug() {
     place: () => placeDeployable(),
     cancel: () => cancelPlacing(),
     spawn: (id, x, y, z, yaw = 0) => spawnDeployable(id, x, y, z, yaw),
+    bossState,
+    spawnBoss: (kind) => spawnBossNow(kind),
     /* Jump to wave n with nobody left alive. */
     forceWave(n) {
       const zdir = game.zdir;
@@ -167,6 +173,8 @@ export function updateZombieRun(dt) {
   }
   if (roundOver) nextZombieWave();
   updateDeployables(dt);
+  // a boss walking in gets its name called, in red
+  const boss = updateBosses(dt, FINAL_WAVE, (z) => zombiesBanner(z.type.name, true));
 
   if (run.downed) {
     run.bleedT -= dt;
@@ -188,6 +196,7 @@ export function updateZombieRun(dt) {
     econ,
     offers: offers(),
     deploy: deployOffers(),
+    boss,
     placing: dep.placing ? { id: dep.placing.id, name: dep.placing.stats.name, ok: dep.placing.ok, grid: dep.placing.grid } : null,
     downed: run.downed ? { t: run.bleedT, max: BLEED_OUT, kills: run.standKills, need: LAST_STAND_KILLS } : null,
   });
