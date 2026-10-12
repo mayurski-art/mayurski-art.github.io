@@ -152,7 +152,10 @@ const DETAILED = {
   // tube from weapons.js's `model` stands in till it streams in.
   fhj18: {
     url: new URL("./models/fhj18.glb?v=fj1", import.meta.url).href,
-    p: "FJ", device: "FJ_None", rake: -0.36, railY: 0.194, adsDistance: 0.34,
+    p: "FJ", device: "FJ_None", rake: -0.36, railY: 0.194, adsDistance: 0.16,
+    // On the right shoulder: out to the side and up at the hip, and the
+    // third-person body rests the leather pad (not the tail) on its shoulder.
+    hip: [0.13, 0.06, -0.1], butt: [-0.06, -0.30, 0.307],
     glow: [],
   },
   salt: {
@@ -235,6 +238,8 @@ function buildDetailed(def, cfg, template) {
   u.pfAnchors = [hand, sup];
   u.pfSupportDrop = 0.05;
   u.gripPos = grip;
+  if (cfg.hip) u.hipOffset = new THREE.Vector3(...cfg.hip);
+  if (cfg.butt) u.buttPos = new THREE.Vector3(...cfg.butt);
 
   // Sights: the irons unless glass goes on the rail.
   const irons = [root.getObjectByName(`${P}_IronRear`), root.getObjectByName(`${P}_IronFront`)];

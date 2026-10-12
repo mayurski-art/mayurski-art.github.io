@@ -141,7 +141,7 @@ loft(body, [rrect(Z(270), 0.034, -0.060, -0.072, 0.004), rrect(Z(596), 0.034, -0
 SX = -(R_MID + 0.028)            # its centre, out on the left
 box(body, (SX, Y(800), (Z(470) + Z(790)) / 2), (0.056, Y(708) - Y(892), Z(790) - Z(470)), "box")
 box(body, (SX, Y(800) + 0.002, (Z(470) + Z(790)) / 2), (0.058, Y(708) - Y(892) - 0.016, Z(790) - Z(470) - 0.016), "box")
-box(body, (SX + 0.012, Y(708) + 0.006, Z(560)), (0.026, 0.012, 0.090), "box")          # the housing's top hump
+box(body, (SX + 0.012, Y(708) + 0.004, Z(560)), (0.026, 0.008, 0.090), "box")          # the housing's top hump
 for k in range(9):               # the vent grille, lower rear
     box(body, (SX - 0.0292, Y(860), Z(640) + k * 0.0075), (0.0012, 0.018, 0.0040), "dark")
 box(body, (SX - 0.0292, Y(760), Z(560)), (0.0012, 0.032, 0.050), "dark")                 # the panel
@@ -155,10 +155,14 @@ for px in (480, 838):            # its cross bars
 box(body, (SX, FT + 0.004, Z(650)), (0.050, 0.007, 0.200), "box")                         # the top plate
 for k in range(8):               # its ribs
     box(body, (SX, FT + 0.0085, Z(560) + k * 0.018), (0.040, 0.002, 0.006), "dark")
-box(body, (SX, Y(660), Z(852)), (0.032, 0.036, 0.010), "box")                             # the rear peep
-lathe(body, [(Z(858), 0.0), (Z(858), 0.0055), (Z(845), 0.0055), (Z(845), 0.0)], "dark", segs=14, cx=SX, cy=Y(660))
-box(body, (SX, Y(735), Z(820)), (0.040, 0.046, 0.003), "lens")                            # the reflector glass
-box(body, (SX, Y(708), Z(820)), (0.042, 0.004, 0.006), "box")
+AY = Y(669)                      # the sight line: through the frame's window, over the housing
+for dx, dy, w, h in ((0, 0.0165, 0.040, 0.007), (0, -0.0165, 0.040, 0.007), (-0.0165, 0, 0.007, 0.026), (0.0165, 0, 0.007, 0.026)):
+    box(body, (SX + dx, AY + dy, Z(852)), (w, h, 0.008), "box")                           # the rear peep: a square ring
+box(body, (SX, (Y(708) + AY - 0.020) / 2, Z(852)), (0.012, AY - 0.020 - Y(708), 0.008), "box")   # its post
+box(body, (SX, AY, Z(500)), (0.034, 0.038, 0.003), "lens")                                # the reflector glass, up front
+for dx in (-0.019, 0.019):
+    box(body, (SX + dx, AY, Z(500)), (0.004, 0.042, 0.008), "box")                        # its little frame
+box(body, (SX, AY - 0.021, Z(500)), (0.042, 0.004, 0.008), "box")
 
 body.finish(bevel=0.0010)
 
@@ -180,7 +184,7 @@ mag.finish(bevel=0.0010)
 empty("FJ_Grip", tuple(GRIP_TOP + GRIP_AX * 0.050))
 empty("FJ_Support", (0, -0.020, Z(450)))      # under the front of the tube: the arm code drops the hand 5 cm
 empty("FJ_Muzzle", (0, 0, Z(12)))
-empty("FJ_Aim", (SX, Y(700), Z(830)))         # through the frame, at the glass
+empty("FJ_Aim", (SX, AY, Z(852)))            # through the rear peep and the glass
 empty("FJ_Under", (0, -0.080, Z(420)))
 empty("FJ_Rail", (SX, FT, Z(650)))
 
