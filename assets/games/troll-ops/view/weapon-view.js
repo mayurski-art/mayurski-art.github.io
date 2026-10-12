@@ -325,18 +325,21 @@ const ROD_WATCH_BACK = 0.07;       // from the rod's tip
 let rodWatch = null;
 const _rwZ = new THREE.Vector3(), _rwY = new THREE.Vector3(), _rwX = new THREE.Vector3(), _rwM = new THREE.Matrix4();
 export function placeRodWatch() {
+  placeBlockArms();
   placeRodBand();
   const id = wristOf(cosmetics.face);
-  if ((rodWatch?.userData.wristId || "") !== id) {
-    rodWatch?.parent?.remove(rodWatch);
-    rodWatch = id ? buildWatch(id, 0.0165, { envMap: game.weaponEnvTex }) : null;
-    rodWatch?.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
-  }
-  if (!rodWatch) return;
   // The left rod in view: an emote's or a streak device's, else the gun's.
   const sRod = game.streakArms.visible ? game.streakArms.userData.arms[1].rod : null;
   const gRod = pfArms.visible ? pfArms.userData.rods[1] : null;
   const rod = sRod?.visible ? sRod : gRod?.visible ? gRod : null;
+  const key = id ? `${id}:${wristR(rod)}` : "";
+  if ((rodWatch?.userData.key || "") !== key) {
+    rodWatch?.parent?.remove(rodWatch);
+    rodWatch = id ? buildWatch(id, wristR(rod), { envMap: game.weaponEnvTex }) : null;
+    rodWatch?.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
+    if (rodWatch) rodWatch.userData.key = key;
+  }
+  if (!rodWatch) return;
   rodWatch.visible = !!rod;
   if (!rod) return;
   if (rodWatch.parent !== rod.parent) rod.parent.add(rodWatch);
@@ -357,15 +360,17 @@ export function placeRodWatch() {
 let rodBand = null;
 function placeRodBand() {
   const tier = clubWear.band;
-  if ((rodBand?.userData.bandTier || 0) !== tier) {
-    rodBand?.parent?.remove(rodBand);
-    rodBand = tier ? buildWristband(tier, 0.0165) : null;
-    rodBand?.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
-  }
-  if (!rodBand) return;
   const sRod = game.streakArms.visible ? game.streakArms.userData.arms[0].rod : null;
   const gRod = pfArms.visible ? pfArms.userData.rods[0] : null;
   const rod = sRod?.visible ? sRod : gRod?.visible ? gRod : null;
+  const key = tier ? `${tier}:${wristR(rod)}` : "";
+  if ((rodBand?.userData.key || "") !== key) {
+    rodBand?.parent?.remove(rodBand);
+    rodBand = tier ? buildWristband(tier, wristR(rod)) : null;
+    rodBand?.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
+    if (rodBand) rodBand.userData.key = key;
+  }
+  if (!rodBand) return;
   rodBand.visible = !!rod;
   if (!rod) return;
   if (rodBand.parent !== rod.parent) rod.parent.add(rodBand);
@@ -446,6 +451,58 @@ export const pfArms = (() => {
   root.userData.rods = rods;
   return root;
 })();
+
+/* The TROLLS NFT body (cosmetics.js "trolls-1718") in your own view: the
+   body's own arms, not the stick troll's rods (user, 2026-10-12: "the
+   hands/arms are stick figures"). Each rod gets a blocky twin, a square
+   white forearm with an ink line and a box fist on its tip, laid over the
+   rod's pose every frame (placeBlockArms) while the rods don't draw. Every
+   arm pose (guns, melee, the saber, a pair) keeps posing the rods. */
+const BLOCK_ARM = 0.066;     // metres across the forearm (the body's arms are big)
+const BLOCK_FIST = 0.082;
+/* A watch or a band round a rod: a block arm wants a wider one. */
+const wristR = (rod) => (rod === pfArms.userData.rods[0] || rod === pfArms.userData.rods[1]) && cosmetics.body === "trolls-1718" ? BLOCK_ARM * 0.74 : 0.0165;
+const _baUp = new THREE.Vector3(), _baZ = new THREE.Vector3(), _baN = new THREE.Vector3(), _baQ = new THREE.Quaternion();
+const BLOCK_TURN = 0.55;   // radians a block arm is turned off square to the lens, so two faces show
+const blockArms = (() => {
+  const mat = new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.85, emissive: 0xf2f2ee, emissiveIntensity: 0.12 });
+  return pfArms.userData.rods.map((rod) => {
+    const g = new THREE.BoxGeometry(BLOCK_ARM, 1, BLOCK_ARM);
+    g.translate(0, 0.5, 0);
+    const arm = new THREE.Mesh(g, mat);
+    const fist = new THREE.Mesh(new THREE.BoxGeometry(BLOCK_FIST, BLOCK_FIST * 0.9, BLOCK_FIST), mat);
+    inkOutline(arm, 0.0035);
+    inkOutline(fist, 0.0035);
+    for (const m of [arm, fist]) {
+      m.visible = false;
+      m.renderOrder = -1;
+      m.traverse((o) => { o.frustumCulled = false; });
+      pfArms.add(m);
+    }
+    return { rod, arm, fist };
+  });
+})();
+export function placeBlockArms() {
+  const on = cosmetics.body === "trolls-1718";
+  pfArms.userData.rods[0].material.visible = !on;   // (both rods share it)
+  for (const b of blockArms) {
+    const show = on && b.rod.visible;
+    b.arm.visible = b.fist.visible = show;
+    if (!show) continue;
+    const len = b.rod.scale.y;
+    b.arm.position.copy(b.rod.position);
+    // the rod's turn about its own length is arbitrary: turn the box so a
+    // face looks back at the lens (+Z here), then a little off it
+    _baUp.set(0, 1, 0).applyQuaternion(b.rod.quaternion);
+    _baZ.set(0, 0, 1).applyQuaternion(b.rod.quaternion);
+    _baN.set(0, 0, 1).addScaledVector(_baUp, -_baUp.z).normalize();
+    const twist = Math.atan2(_baZ.clone().cross(_baN).dot(_baUp), _baZ.dot(_baN)) + BLOCK_TURN;
+    b.arm.quaternion.copy(_baQ.setFromAxisAngle(_baUp, twist)).multiply(b.rod.quaternion);
+    b.arm.scale.set(1, Math.max(0.001, len - BLOCK_FIST * 0.45), 1);
+    b.fist.position.copy(b.rod.position).addScaledVector(_baUp, len);
+    b.fist.quaternion.copy(b.arm.quaternion);
+  }
+}
 
 /* A forward grip on the gun (an underbarrel vert or angled grip, tagged
    userData.foregrip in attachment-models.js): the left hand fists it.
