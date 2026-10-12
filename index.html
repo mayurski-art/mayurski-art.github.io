@@ -13,6 +13,7 @@
 <title>Troll Runner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="assets/css/troll-leaderboard.css?v=lb-engine-v1">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 /* trollrunner.net home: one screen, a Black Ops 2 Zombies style menu over
@@ -105,6 +106,12 @@ kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgb
 .home-admin{display:flex;gap:8px;margin-top:16px}
 .home-admin .home-field{max-width:220px}
 .is-map .home-acct,.is-map .home-donate{visibility:hidden}
+/* The weekly leaderboard (assets/js/troll-leaderboard.js) in a panel: wider
+   than About, and the engine's colour names mapped onto this page's. */
+#panel-lb{--muted:var(--dim);--green:#4dff73;--cyan:var(--gold);--red:#ff453a}
+@media (min-height:521px) and (min-aspect-ratio:9/10){#panel-lb{width:min(640px,calc(100% - min(42vw,560px) - 48px))}}
+#panel-lb .lb-root{background:rgba(0,0,0,.35)}
+#panel-lb .lb-table{min-width:0}
 
 /* Phones look like the desktop (user, 2026-10-07). Held sideways (a short,
    wide screen): the desktop layout itself, sized down. Held upright: the
@@ -189,6 +196,11 @@ kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgb
       <button type="button" class="home-btn" id="admin-go">Go</button>
     </div>
     <div id="admin-auth-status" class="home-status" aria-live="polite"></div>
+  </section>
+
+  <section class="home-panel" id="panel-lb" aria-label="Leaderboard" hidden>
+    <h2>Top trolls this week</h2>
+    <div id="arcade-lb-root" class="lb-root"><p class="lb-foot">Loading leaderboard…</p></div>
   </section>
 
   <footer class="home-foot">
@@ -283,7 +295,7 @@ const screens = {
         { id: 'a-kombat', label: 'Troll Kombat', desc: 'Two-player fighting. Pepe, Doge and the gladiator.', href: 'troll-kombat.html' },
       ],
       [
-        { id: 'a-all', label: 'All games & leaderboard', desc: "The full arcade page and this week's top trolls.", href: 'games.html' },
+        { id: 'a-lb', label: 'Leaderboard', desc: "This week's top trolls across the arcade.", go: 'leaderboard' },
       ],
       [
         { id: 'back', label: 'Back', desc: 'Back to the main menu.', onSelect: (_, m) => m.back() },
@@ -291,14 +303,28 @@ const screens = {
     ],
   },
   about: () => (isTrollRunner() ? panel('panel-about', 'About', 'Back to the main menu.') : null),
+  leaderboard: panel('panel-lb', 'Leaderboard', 'Back to the arcade.'),
   ...mapMode.screens,
 };
 
-const PANELS = ['panel-about'];
+const PANELS = ['panel-about', 'panel-lb'];
+
+// The leaderboard engine loads the first time its panel opens.
+let lbLoad = null;
+function mountLeaderboard() {
+  lbLoad = lbLoad || new Promise((resolve, reject) => {
+    const sc = document.createElement('script');
+    sc.src = 'assets/js/troll-leaderboard.js?v=lb-engine-v1';
+    sc.onload = resolve; sc.onerror = reject;
+    document.head.appendChild(sc);
+  }).then(() => window.TrollLeaderboard?.mountArcadeBoard('#arcade-lb-root'))
+    .catch(() => { $('arcade-lb-root').innerHTML = '<p class="lb-foot">Leaderboard unavailable right now.</p>'; lbLoad = null; });
+}
 const menu = createBo2Menu(nav, {
   screens, keys: true,
   onScreen(id, s, m) {
     PANELS.forEach((p) => { $(p).hidden = p !== s.panel; });
+    if (s.panel === 'panel-lb') mountLeaderboard();
     document.body.classList.toggle('has-panel', !!s.panel || id === 'search' || id === 'pinsearch');
     // The footer Back is for screens without their own Back row.
     const ownBack = (s.groups || []).flat().some((it) => it && it.id === 'back');
@@ -401,8 +427,8 @@ $('admin-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') goTo
   const open = q.get('open');
   if (!q.has('open') && !q.has('desktop') && !q.has('mobile') && !q.has('enter')) return;
   history.replaceState(null, '', location.pathname + location.hash);
-  const go = { about: 'about', map: 'map' };
-  const href = { tf: 'troll-ops.html', games: 'games.html', maps: 'maps.html', pfp: 'pfp.html', stickers: 'stickers.html', finance: 'https://finance.trollrunner.net', terminal: 'https://trolltruths.com' };
+  const go = { about: 'about', map: 'map', games: 'leaderboard', leaderboard: 'leaderboard' };
+  const href = { tf: 'troll-ops.html', maps: 'maps.html', pfp: 'pfp.html', stickers: 'stickers.html', finance: 'https://finance.trollrunner.net', terminal: 'https://trolltruths.com' };
   if (open === 'account') document.addEventListener('DOMContentLoaded', () => setTimeout(openProfile, 300));
   else if (go[open] && (open !== 'about' || isTrollRunner())) menu.go(go[open]);
   else if (href[open]) location.replace(href[open]);
