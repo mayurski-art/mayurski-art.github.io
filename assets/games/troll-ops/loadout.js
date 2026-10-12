@@ -1,6 +1,6 @@
 // Troll Forces — loadout screen: class → weapon → attachments.
 
-import { WEAPON_DEFS, CLASS_ORDER, CLASS_LABELS, weaponsInClass } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1";
+import { WEAPON_DEFS, CLASS_ORDER, SECONDARY_CLASSES, CLASS_LABELS, weaponsInClass } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1";
 import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, fits, fitLoadout, statBars, statDelta } from "./attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1";
 import { iconFor } from "./attachment-icons.js";
 import { SKIN_BY_ID, skinsFor, skinThumbUrl } from "./skins.js?v=p5-wb1";
@@ -173,9 +173,10 @@ export class Loadout {
   validClass(c) {
     let weaponId = WEAPON_DEFS[c.weaponId] ? c.weaponId : "problem416";
     if (!isUnlocked(weaponId)) weaponId = "problem416";
-    // Secondary is always a sidearm - sixtynine (rank 0) is the one every
-    // account has unlocked, same reasoning as the problem416 primary fallback.
-    let secondaryId = WEAPON_DEFS[c.secondaryId]?.cls === "sidearm" ? c.secondaryId : "sixtynine";
+    // Secondary is a sidearm or a launcher - sixtynine (rank 0) is the one
+    // every account has unlocked, same reasoning as the problem416 primary
+    // fallback.
+    let secondaryId = SECONDARY_CLASSES.includes(WEAPON_DEFS[c.secondaryId]?.cls) ? c.secondaryId : "sixtynine";
     if (!isUnlocked(secondaryId)) secondaryId = "sixtynine";
     return {
       name: c.name, weaponId, secondaryId,
@@ -515,7 +516,7 @@ export class Loadout {
   buildClasses() {
     const wrap = this.els.classes;
     wrap.innerHTML = "";
-    const classes = this.slot === "secondary" ? ["sidearm"] : CLASS_ORDER;
+    const classes = this.slot === "secondary" ? SECONDARY_CLASSES : CLASS_ORDER;
     for (const cls of classes) {
       const b = document.createElement("button");
       b.type = "button";

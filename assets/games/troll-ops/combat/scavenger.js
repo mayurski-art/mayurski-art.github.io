@@ -1,6 +1,6 @@
 // Scavenger (perks.js): an enemy you kill drops an ammo pack where they
 // fell. Walk over it for a magazine's worth of reserve for each gun you
-// carry and one more of your throwable, as in BO2. Only you see your packs
+// carry (the FHJ-18: two missiles) and one more of your throwable, as in BO2. Only you see your packs
 // (they're yours to collect), they last 30 s, and a dozen at most are out.
 
 import * as THREE from "three";
@@ -69,7 +69,8 @@ export function updateScavenger(dt) {
 function collect() {
   for (const w of Object.values(game.player.weapons || {})) {
     const max = Math.max(0, w.def.reserveMax - w.def.magSize);
-    w.ammoReserve = Math.min(max, (w.ammoReserve || 0) + w.def.magSize);
+    // A magazine's worth, or what the gun says (the FHJ-18: two missiles).
+    w.ammoReserve = Math.min(max, (w.ammoReserve || 0) + (w.def.scavenge ?? w.def.magSize));
   }
   const L = game.loadout, kind = L?.throwKind;
   if (kind && game.player.gear) game.player.gear[kind] = Math.min(L.carried(kind), (game.player.gear[kind] || 0) + 1);

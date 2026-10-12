@@ -123,6 +123,7 @@ export const CLASS_FIT = {
   shotgun: { optic: ["iron", "reflex", "coyote"], barrel: ["none", "suppressor", "brake"], underbarrel: ["none", "laser"] },
   sniper:  { optic: ["scope8", "acog"], barrel: ["none", "suppressor"], underbarrel: ["none", "laser"] },
   sidearm: { optic: ["iron", "reflex"], barrel: ["none", "suppressor"], underbarrel: ["none", "laser"] },
+  launcher: { optic: ["iron"], barrel: ["none"], underbarrel: ["none"] },   // takes nothing (FHJ18.md)
 };
 const BARE = { optic: ["iron"], barrel: ["none"], underbarrel: ["none"] };
 
