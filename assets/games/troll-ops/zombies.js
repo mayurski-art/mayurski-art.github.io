@@ -38,6 +38,24 @@ export const ZOMBIE_TYPES = {
     hpMult: 0.7, speed: 2.9, height: 1.7, build: 0.9,
     damage: 26, attackRange: 1.6, attackCd: 0.9, leaps: true,
   },
+  // big, red and slow, four times the health, and a hit doesn't stop it
+  brute: {
+    id: "brute", gait: "walk", color: 0x9a5a50,
+    hpMult: 4, speed: 1.3, height: 2.2, build: 1.0, scale: 1.25, tint: 0xd36a5c,
+    damage: 40, attackRange: 1.9, attackCd: 1.35, noStagger: true, flinch: 0.35,
+  },
+  // the bosses (modes/zombies/boss.js sets their health): a mini-boss on
+  // waves 10 and 20, the final boss on the last wave; both slam the ground
+  mini: {
+    id: "mini", gait: "walk", color: 0x8a3a30, name: "Meatwagon",
+    hpMult: 1, speed: 1.45, height: 2.6, build: 1.0, scale: 1.5, tint: 0xb8483a,
+    damage: 50, attackRange: 2.3, attackCd: 1.5, noStagger: true, noStun: true, flinch: 0.15, boss: true,
+  },
+  boss: {
+    id: "boss", gait: "walk", color: 0x5a2420, name: "The Grinlord",
+    hpMult: 1, speed: 1.6, height: 3.2, build: 1.0, scale: 1.85, tint: 0x8e3328,
+    damage: 60, attackRange: 2.8, attackCd: 1.6, noStagger: true, noStun: true, flinch: 0.08, boss: true,
+  },
 };
 
 const RUNNERS_FROM = 5;       // round runners start showing up
@@ -45,6 +63,9 @@ const RUNNER_SHARE = 0.25;
 const LEAPERS_FROM = 8;
 const LEAPER_SHARE = 0.12;
 const MAX_LEAPERS = 2;        // alive at once
+const BRUTES_FROM = 12;
+const BRUTE_SHARE = 0.1;
+const MAX_BRUTES = 3;
 
 /* The leap: from LEAP_MIN..LEAP_MAX metres, level with the target and with a
    clear line, a LEAP_WINDUP crouch (the shriek is the tell, so it's fair),
@@ -152,7 +173,7 @@ export function goreStandIns() {
 
 /* A zombie's own throat: pitch and rasp by type, the woman's look higher. */
 function voiceFor(typeId, look) {
-  const base = { walker: [0.82, 1.08, 0.45], runner: [1.02, 1.28, 0.75], leaper: [1.2, 1.45, 0.95] }[typeId] || [0.9, 1.1, 0.5];
+  const base = { walker: [0.82, 1.08, 0.45], runner: [1.02, 1.28, 0.75], leaper: [1.2, 1.45, 0.95], brute: [0.6, 0.72, 0.6], mini: [0.5, 0.58, 0.75], boss: [0.4, 0.46, 0.9] }[typeId] || [0.9, 1.1, 0.5];
   let pitch = base[0] + Math.random() * (base[1] - base[0]);
   if (look === "woman") pitch *= 1.35;
   return { pitch, rasp: Math.min(1, base[2] + (Math.random() - 0.5) * 0.3) };
@@ -161,7 +182,7 @@ const groanGap = (typeId) => (typeId === "walker" ? 4 + Math.random() * 6 : 2.5 
 
 /* Cash a kill pays its killer, by type (Zombie Rush: cash is kill-driven,
    a hit pays nothing). A headshot kill pays half again. */
-export const CASH = { walker: 15, runner: 22, leaper: 30 };
+export const CASH = { walker: 15, runner: 22, leaper: 30, brute: 60, mini: 500, boss: 2500 };
 export const HEADSHOT_CASH = 1.5;
 
 const MAX_ALIVE = 12;
@@ -190,11 +211,11 @@ export function speedForRound(round, base) {
 let idc = 0;
 
 export class Zombie {
-  constructor(typeId, position, scene, round, { rise = false } = {}) {
+  constructor(typeId, position, scene, round, { rise = false, hp = null } = {}) {
     this.type = ZOMBIE_TYPES[typeId];
     this.isZombie = true;
     this.id = ++idc;
-    this.maxHp = Math.round(healthForRound(round) * this.type.hpMult);
+    this.maxHp = hp ?? Math.round(healthForRound(round) * this.type.hpMult);
     this.hp = this.maxHp;
     this.speed = speedForRound(round, this.type.speed);
     this.alive = true;
@@ -217,6 +238,7 @@ export class Zombie {
     this.shrieked = false;   // set on a wind-up; the director turns it into an event
     this.voice = null;       // set once the look is known (voiceFor)
     this.voiceEvent = null;  // "groan" | "snarl" | "death": the director sends it to game.js
+    this.holdT = 0;          // planted (a boss winding up a slam): no walking, no swings
     this.groanT = 0.5 + Math.random() * 4;
     this.pool = null;        // the blood pool once it's down
     this.headless = false;
@@ -225,7 +247,7 @@ export class Zombie {
     this.look = look;
     this.voice = voiceFor(typeId, look);
     this.body = look ? createZombieBody(look, {
-      tint: TINTS[Math.floor(Math.random() * TINTS.length)],
+      tint: this.type.tint ? new THREE.Color(this.type.tint) : TINTS[Math.floor(Math.random() * TINTS.length)],
       build: 0.94 + Math.random() * 0.14,
     }) : null;
     if (this.body) {
@@ -246,6 +268,7 @@ export class Zombie {
       this.hitboxMeshes = this.rig.hitboxMeshes;
     }
     this.mesh.userData.zombie = this;
+    if (this.type.scale) this.mesh.scale.multiplyScalar(this.type.scale);   // a brute, a boss: the whole body bigger
     this.mesh.position.copy(position);
     if (rise) {
       this.mesh.position.y = this.groundY - RISE_DEPTH;
@@ -254,12 +277,12 @@ export class Zombie {
     scene.add(this.mesh);
   }
 
-  get radius() { return 0.38 * this.type.build; }
+  get radius() { return 0.38 * this.type.build * (this.type.scale || 1); }
 
   takeDamage(dmg, isHead) {
     if (!this.alive || this.dying) return { killed: false, cash: 0 };
     this.hp -= dmg;
-    this.staggerT = 0.08;
+    if (!this.type.noStagger) this.staggerT = 0.08;
     if (this.hp > 0) return { killed: false, cash: 0 };
     this.dying = true;
     // a headshot kill pops the head instead (no throat left to gurgle with)
@@ -269,6 +292,7 @@ export class Zombie {
   }
 
   stun(seconds) {
+    if (this.type.noStun) return;
     this.stunT = Math.max(this.stunT || 0, seconds);
   }
 
@@ -291,6 +315,7 @@ export class Zombie {
      Called by game.js for the model bodies (the stick rig flinches itself). */
   flinchFrom(dir, strength = 0.5) {
     if (!this.body || this.dying) return;
+    strength *= this.type.flinch ?? 1;   // a brute barely rocks
     const len = Math.hypot(dir.x, dir.z) || 1;
     // axis up x dir: a turn about it tips the top toward where the shot went
     this.flinch.x += (dir.z / len) * 0.32 * strength;
@@ -510,6 +535,13 @@ export class Zombie {
       return;
     }
 
+    if (this.holdT > 0) {
+      this.holdT -= dt;
+      this.velocity.multiplyScalar(Math.max(0, 1 - 10 * dt));
+      if (this.body) this._animate(dt);
+      return;
+    }
+
     const field = route ? route.field : null;
     const goal = route?.goal || playerPos;
     const chase = route ? route.chase : true;
@@ -589,7 +621,8 @@ export class Zombie {
 
     const moving = !inReach && !wall;
     if (this.body) {
-      this._animate(dt, { moving, speed: Math.hypot(this.velocity.x, this.velocity.z) });
+      // a bigger body takes longer strides: the clip runs slower for the same speed
+      this._animate(dt, { moving, speed: Math.hypot(this.velocity.x, this.velocity.z) / (this.type.scale || 1) });
       return;
     }
     this.phase += dt * (moving ? 5.5 : 2.5);
@@ -806,7 +839,36 @@ export class ZombieDirector {
         && this.zombies.filter((z) => z.alive && !z.dying && z.type.id === "leaper").length < MAX_LEAPERS) {
       return "leaper";
     }
+    if (this.round >= BRUTES_FROM && Math.random() < BRUTE_SHARE
+        && this.zombies.filter((z) => z.alive && !z.dying && z.type.id === "brute").length < MAX_BRUTES) {
+      return "brute";
+    }
     return this.round >= RUNNERS_FROM && Math.random() < RUNNER_SHARE ? "runner" : "walker";
+  }
+
+  /* A boss in now, at an entry point near the player (modes/zombies/boss.js),
+     with its own health. It counts toward the wave like any zombie. */
+  spawnBoss(typeId, hp, feet) {
+    const w = this.spawnPointFor({ x: feet.x, y: feet.y + 0.2, z: feet.z });
+    if (!w) return null;
+    const z = new Zombie(typeId, new THREE.Vector3(w.x, w.y, w.z), this.scene, this.round, { hp });
+    this.zombies.push(z);
+    return z;
+  }
+
+  /* `n` walkers out of the ground round a point (a boss calling the horde). */
+  summonAround(at, n, typeId = "walker") {
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + Math.random() * 0.6;
+      const r = 2.2 + Math.random() * 1.4;
+      const pos = new THREE.Vector3(at.x + Math.cos(a) * r, at.y, at.z + Math.sin(a) * r);
+      pos.y = groundHeightAt(this.colliders, pos.x, pos.z, at.y + 0.6, 0.3);
+      const z = new Zombie(typeId, pos, this.scene, this.round, { rise: true });
+      this.zombies.push(z);
+      out.push(z);
+    }
+    return out;
   }
 
   /* `playerPos` is the eye; `feetY` the player's feet (defaults to a
