@@ -4039,3 +4039,6 @@ body.to-touch-play .zh.is-downed .zh-col { visibility: hidden; }
   .zh-boss-n { font-size: 13px; }
   .zh-boss-bar { height: 8px; }
 }
+
+/* Zombies co-op: the room code box without the bot options. */
+.to-lo-pvp.is-zombies .to-lo-nobots { display: none; }

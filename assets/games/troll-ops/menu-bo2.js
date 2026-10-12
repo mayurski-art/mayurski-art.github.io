@@ -330,6 +330,9 @@ const mapMode = createMapMode({
   },
 });
 const back = (desc = "Back.") => ({ id: "back", label: "Back", desc, onSelect: (_, m) => m.back() });
+/* Empty the room code: public rooms and solo play never take one along. */
+const clearRoom = () => { const r = $("#to-room"); if (r && r.value) { r.value = ""; r.dispatchEvent(new Event("input", { bubbles: true })); } };
+const zombiesPicked = () => currentModeBtn()?.dataset.mode === "zombies";
 
 const screens = {
   main: () => ({
@@ -339,6 +342,7 @@ const screens = {
         { id: "public", label: "Public Match", desc: "Drop into a versus room with whoever is online. Bots fill the gaps.", go: "public" },
         { id: "social", label: "Socialize", desc: "Hang out in Troll City or at Trolling Loud with whoever is online. No guns, just emotes and chat.", go: "social" },
         { id: "solo", label: "Solo Play", desc: "Ops, Zombies or the Test Range. Just you.", go: "solo" },
+        { id: "zcoop", label: "Zombies Co-op", desc: "Up to four of you against the horde. Make a room and send the code, or type a friend's.", go: "zcoop" },
         { id: "private", label: "Private Match", desc: "Make a room code and send it to your friends.", go: "private" },
       ],
       [
@@ -484,14 +488,14 @@ const screens = {
   },
   public: () => ({
     title: "Public Match", panel: "deploy",
-    enter: () => { ensureGroup("versus", "tdm"); const r = $("#to-room"); if (r && r.value) { r.value = ""; r.dispatchEvent(new Event("input", { bubbles: true })); } },
+    enter: () => { ensureGroup("versus", "tdm"); clearRoom(); },
     groups: [modeItems("versus"), [heroRow(), mapRow()].filter(Boolean), [deployRow("Find Match", "Join the public room for this mode."), back("Back to the main menu.")]],
   }),
   /* One public hangout room: pick a map (whoever is already there decides
      the room's map), then walk round it, chat and emote. No fighting. */
   social: () => ({
     title: "Socialize", panel: "deploy",
-    enter: () => { ensureGroup("social", "social"); const r = $("#to-room"); if (r && r.value) { r.value = ""; r.dispatchEvent(new Event("input", { bubbles: true })); } },
+    enter: () => { ensureGroup("social", "social"); clearRoom(); },
     groups: [
       [{ ...mapRow(), desc: "Where you hang out. If people are already in the room, you join them on their map." }],
       [deployRow("Hang out", "Join the hangout. H for emotes, Enter to chat."), back("Back to the main menu.")],
@@ -499,8 +503,19 @@ const screens = {
   }),
   solo: () => ({
     title: "Solo Play", panel: "deploy",
-    enter: () => ensureGroup("solo", "ops"),
+    // a code left over from a private room would make Zombies co-op
+    enter: () => { ensureGroup("solo", "ops"); clearRoom(); },
     groups: [modeItems("solo"), [mapRow()], [deployRow("Start", "Drop in."), back("Back to the main menu.")]],
+  }),
+  /* Zombies with a private code (modes/zombies/coop.js): whoever has the
+     code is in the run with you, up to four. Opens with a fresh code. */
+  zcoop: () => ({
+    title: "Zombies Co-op", panel: "deploy",
+    enter: () => { $(`#to-lo-mode [data-mode="zombies"]`)?.click(); if (!$("#to-room")?.value) $("#to-newroom")?.click(); },
+    groups: [
+      [{ id: "room", label: "Room", value: $("#to-room")?.value || "", desc: "Your room code. Friends type it in here to join you.", go: "room" }, mapRow()],
+      [deployRow("Start", "Open the room. The horde starts once everyone's in."), back("Back to the main menu.")],
+    ],
   }),
   private: () => ({
     title: "Private Match", panel: "deploy",
@@ -517,10 +532,10 @@ const screens = {
       [
         { id: "newroom", label: "New private room", value: $("#to-room")?.value || "", desc: "Makes a fresh code. Share it so friends land in your room.", onSelect: (_, m) => { $("#to-newroom")?.click(); m.refresh(); } },
         { id: "code", label: "Type a code", desc: "Join a friend's room: type their code in the box.", onSelect: () => $("#to-room")?.focus() },
-        checkRow("to-nobots", "No bots", "Just you (and anyone with the code). Good for walking a map."),
-        checkRow("to-botstreaks", "Bot scorestreaks", "Bots earn and call their own streaks."),
+        !zombiesPicked() && checkRow("to-nobots", "No bots", "Just you (and anyone with the code). Good for walking a map."),
+        !zombiesPicked() && checkRow("to-botstreaks", "Bot scorestreaks", "Bots earn and call their own streaks."),
       ].filter(Boolean),
-      [back("Back to Private Match.")],
+      [back(zombiesPicked() ? "Back to Zombies Co-op." : "Back to Private Match.")],
     ],
   }),
   maps: () => ({

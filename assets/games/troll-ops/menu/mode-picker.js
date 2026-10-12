@@ -94,9 +94,19 @@ export function renderModes() {
       game.els.loMode.scrollLeft += r.left - box.left - 16;
     }
   }
-  game.els.loPvp.hidden = !game.modePicked || !game.isPvp();
+  // Zombies has the room code too: blank is solo, a code is co-op with
+  // whoever else types it (modes/zombies/coop.js); no public room, no bots.
+  const zco = game.modePicked && game.isZombies();
+  game.els.loPvp.hidden = !game.modePicked || (!game.isPvp() && !zco);
+  game.els.loPvp.classList.toggle("is-zombies", zco);
+  const netStatus = document.getElementById("to-net-status");
+  if (netStatus && !netStatus.classList.contains("is-live") && !netStatus.classList.contains("is-bad")) {
+    netStatus.textContent = zco
+      ? "Leave blank to play solo. Make a private room and send the code to play with up to 3 friends."
+      : "Leave blank to auto-match into the public server for this mode. Enter a code for a private room instead.";
+  }
   const soloNote = document.getElementById("to-pf-solo-note");
-  if (soloNote) soloNote.hidden = !game.modePicked || game.isPvp();
+  if (soloNote) soloNote.hidden = !game.modePicked || game.isPvp() || zco;
 
   // Scorestreaks are versus-only, and Gun Game / One in the Chamber opt out
   // (see modes.js noStreaks). The picker stays reachable either way so the
