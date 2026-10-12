@@ -354,7 +354,7 @@ const screens = {
       ],
       [
         { id: "options", label: "Options", desc: "Sensitivity, FOV, graphics, controls and the HUD.", go: "options" },
-        { id: "arcade", label: "Arcade", desc: "Back to the Troll Runner arcade.", onSelect: () => { if (!leaveToArcade()) window.location.href = "games.html"; } },
+        { id: "arcade", label: "Arcade", desc: "Back to the Troll Runner arcade.", onSelect: () => { if (!leaveToArcade()) window.location.href = "index.html?open=arcade"; } },
       ],
     ],
   }),
