@@ -1,4 +1,5 @@
-// Troll Forces — Zombies: the round director, the horde AI and the points economy.
+// Troll Forces — Zombies: the wave director and the horde AI. The run around
+// it (cash, upgrades, the final wave) is modes/zombies/run.js.
 //
 // Rounds scale the way the genre expects: health climbs flat early then
 // compounds, counts grow to a cap, and a round only ends when the last one
@@ -158,20 +159,18 @@ function voiceFor(typeId, look) {
 }
 const groanGap = (typeId) => (typeId === "walker" ? 4 + Math.random() * 6 : 2.5 + Math.random() * 3.5);
 
-// points, straight from the genre
-export const POINTS = { hit: 10, kill: 60, headshotKill: 100 };
+/* Cash a kill pays its killer, by type (Zombie Rush: cash is kill-driven,
+   a hit pays nothing). A headshot kill pays half again. */
+export const CASH = { walker: 15, runner: 22, leaper: 30 };
+export const HEADSHOT_CASH = 1.5;
 
 const MAX_ALIVE = 12;
 const SPAWN_INTERVAL = 1.1;
-const ROUND_BREAK = 5;
+const BREAK_SECONDS = 15;     // between waves: time to spend (skippable)
 const RISE_TIME = 1.6;        // a grave spawn clawing up out of the ground
 const RISE_DEPTH = 1.9;
 const ATTACK_REACH_Y = 1.3;   // no swiping at someone on the balcony above
 const CLIMB_GIVE_UP = 9;      // seconds on a stair before re-thinking the route
-
-/* Max Ammo: one drop a round, off a random kill in that round. */
-const DROP_LIFETIME = 25;
-const DROP_PICKUP = 1.5;
 
 /* Classic curve: +100 a round to round 9, then ×1.1 compounding. */
 export function healthForRound(round) {
@@ -257,14 +256,15 @@ export class Zombie {
   get radius() { return 0.38 * this.type.build; }
 
   takeDamage(dmg, isHead) {
-    if (!this.alive || this.dying) return { killed: false, points: 0 };
+    if (!this.alive || this.dying) return { killed: false, cash: 0 };
     this.hp -= dmg;
     this.staggerT = 0.08;
-    if (this.hp > 0) return { killed: false, points: POINTS.hit };
+    if (this.hp > 0) return { killed: false, cash: 0 };
     this.dying = true;
     // a headshot kill pops the head instead (no throat left to gurgle with)
     this.voiceEvent = isHead && this.body ? null : "death";
-    return { killed: true, points: isHead ? POINTS.headshotKill : POINTS.kill, isHead };
+    const cash = Math.round((CASH[this.type.id] || CASH.walker) * (isHead ? HEADSHOT_CASH : 1));
+    return { killed: true, cash, isHead };
   }
 
   stun(seconds) {
@@ -601,82 +601,6 @@ const _qw = new THREE.Quaternion();
 const _qp = new THREE.Quaternion();
 const _ql = new THREE.Quaternion();
 
-/* The Max Ammo drop: an ammo can that bobs, turns and glows until it's
-   walked over or times out (blinking through its last five seconds). The
-   glow is an additive decal, not a light: a new light mid-match recompiles
-   every shader (see light-pool.js). */
-let glowTex = null;
-function dropGlowTexture() {
-  if (glowTex) return glowTex;
-  const c = document.createElement("canvas");
-  c.width = c.height = 64;
-  const x = c.getContext("2d");
-  const grd = x.createRadialGradient(32, 32, 0, 32, 32, 32);
-  grd.addColorStop(0, "rgba(255,255,255,1)");
-  grd.addColorStop(0.35, "rgba(255,255,255,.45)");
-  grd.addColorStop(1, "rgba(255,255,255,0)");
-  x.fillStyle = grd;
-  x.fillRect(0, 0, 64, 64);
-  glowTex = new THREE.CanvasTexture(c);
-  return glowTex;
-}
-
-export class AmmoDrop {
-  constructor(scene, x, y, z) {
-    this.scene = scene;
-    this.t = 0;
-    this.alive = true;
-    this.base = new THREE.Vector3(x, y, z);
-    const can = new THREE.MeshStandardMaterial({ color: 0x55632f, roughness: 0.55, metalness: 0.15, emissive: 0x1c2608 });
-    const band = new THREE.MeshStandardMaterial({ color: 0xffd23a, roughness: 0.4, emissive: 0xffb300, emissiveIntensity: 0.9 });
-    const g = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.4, 0.3), can);
-    const lid = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.07, 0.34), can);
-    lid.position.y = 0.23;
-    const handle = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.02, 6, 14, Math.PI), band);
-    handle.position.y = 0.27;
-    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.09, 0.31), band);
-    stripe.position.y = 0.04;
-    g.add(body, lid, handle, stripe);
-    const glow = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.2, 2.2),
-      new THREE.MeshBasicMaterial({
-        map: dropGlowTexture(), color: 0x9dff5a, transparent: true, opacity: 0.8,
-        blending: THREE.AdditiveBlending, depthWrite: false,
-      }),
-    );
-    glow.rotation.x = -Math.PI / 2;
-    glow.position.y = 0.04;
-    this.glow = glow;
-    this.can = g;
-    this.root = new THREE.Group();
-    this.root.add(g, glow);
-    this.root.position.copy(this.base);
-    scene.add(this.root);
-  }
-
-  /* True when the player (feet position) walks over it. */
-  update(dt, feet) {
-    this.t += dt;
-    this.can.position.y = 0.55 + Math.sin(this.t * 2.6) * 0.12;
-    this.can.rotation.y += dt * 1.6;
-    const left = DROP_LIFETIME - this.t;
-    this.root.visible = left > 5 || Math.floor(this.t * 6) % 2 === 0;
-    this.glow.material.opacity = 0.6 + Math.sin(this.t * 5) * 0.2;
-    if (left <= 0) { this.alive = false; return false; }
-    const d = Math.hypot(feet.x - this.base.x, feet.z - this.base.z);
-    return d < DROP_PICKUP && Math.abs(feet.y - this.base.y) < 1.4;
-  }
-
-  dispose() {
-    this.scene.remove(this.root);
-    this.root.traverse((o) => {
-      if (o.geometry) o.geometry.dispose();
-      if (o.material) o.material.dispose();   // the shared glow texture stays
-    });
-  }
-}
-
 export class ZombieDirector {
   /* `layout`: { windows: [{ x, y, z, rise? }], floorOf(y, x, z) -> floor id,
      floors: { id: y }, links?: [{ from, to, a: {x,z}, b: {x,z} }] (a on
@@ -698,15 +622,12 @@ export class ZombieDirector {
     this.toSpawn = 0;
     this.spawnCd = 0;
     this.breakT = 0;
-    this.points = 0;
+    this.breakLen = BREAK_SECONDS;
     this.kills = 0;
     this.state = "idle";  // idle | spawning | fighting | between
     this.fields = new Map();   // "floor|target" -> FlowField, built on first use
     this.fieldT = 0;
-    this.drop = null;          // the Max Ammo can on the ground, if any
-    this.dropAtKill = -1;      // which of this round's kills drops it
-    this.roundKills = 0;
-    this.events = [];          // drained by game.js: { type: "maxammo" } | { type: "shriek", at } | { type: "groan" | "snarl" | "death", at, voice }
+    this.events = [];          // drained by the run: { type: "cleared", wave } | { type: "shriek", at } | { type: "groan" | "snarl" | "death", at, voice }
     this.groanCd = 0;          // horde-wide gap between moans, so twelve don't drone in unison
     this.snarlCd = 0;          // and between swipe snarls
     this.forceType = null;     // tests: every spawn is this type
@@ -813,18 +734,11 @@ export class ZombieDirector {
     this.toSpawn = countForRound(n);
     this.spawnCd = 0.8;
     this.state = "spawning";
-    this.roundKills = 0;
-    // one Max Ammo a round, off a kill somewhere past the first third
-    this.dropAtKill = Math.max(1, Math.floor(this.toSpawn * (0.35 + Math.random() * 0.5)));
   }
 
-  award(points) { this.points += points; }
-
-  /* Spend, if affordable. Z2's doors, wall buys and perks go through this. */
-  spend(cost) {
-    if (this.points < cost) return false;
-    this.points -= cost;
-    return true;
+  /* The break between waves: over now (the run's Skip). */
+  skipBreak() {
+    if (this.state === "between") this.breakT = 0;
   }
 
   /* Entry points on the player's floor — zombies come in where you are. */
@@ -910,20 +824,6 @@ export class ZombieDirector {
         const p = z.mesh.position;
         this.events.push({ type: "shriek", at: { x: p.x, y: p.y + 1.5, z: p.z } });
       }
-      if (z.dying && !z.counted) {
-        z.counted = true;
-        this.roundKills++;
-        if (this.roundKills === this.dropAtKill && !this.drop) {
-          const p = z.mesh.position;
-          this.drop = new AmmoDrop(this.scene, p.x, Math.max(0, z.groundY), p.z);
-        }
-      }
-    }
-
-    if (this.drop) {
-      const picked = this.drop.update(dt, { x: playerPos.x, y: feetY, z: playerPos.z });
-      if (picked) this.events.push({ type: "maxammo" });
-      if (picked || !this.drop.alive) { this.drop.dispose(); this.drop = null; }
     }
 
     const dead = this.zombies.filter((z) => !z.alive);
@@ -934,7 +834,8 @@ export class ZombieDirector {
 
     if (this.state === "fighting" && this.remaining === 0) {
       this.state = "between";
-      this.breakT = ROUND_BREAK;
+      this.breakT = this.breakLen;
+      this.events.push({ type: "cleared", wave: this.round });
     }
     if (this.state === "between") {
       this.breakT -= dt;
@@ -967,7 +868,6 @@ export class ZombieDirector {
     this.zombies = [];
     this.toSpawn = 0;
     this.state = "idle";
-    if (this.drop) { this.drop.dispose(); this.drop = null; }
     this.events.length = 0;
   }
 }
