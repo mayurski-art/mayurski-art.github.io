@@ -14,6 +14,13 @@
 // with one in its way swings at it (zombies.js Zombie._blockerAhead), and
 // each swing lands here (hitBlocker). The zombies' flow fields leave them
 // out, so the horde goes through a barricade, not round it.
+//
+// Co-op (coop.js): everyone's deployables stand on every screen, each with
+// its owner (`mine` for ours: only those count toward our caps). The host
+// runs them for real; everywhere else they're for show (dep.cosmetic): a
+// turret still turns and fires tracers, but the host says what it hit and
+// when anything breaks. A kill by your turret, spikes or barrel pays you,
+// wherever it was decided.
 
 import * as THREE from "three";
 import { game } from "../../core/state.js?v=st1";
@@ -42,7 +49,14 @@ export const dep = {
   placed: {},
   list: [],
   placing: null,   // { id, grid, ghost, spot, ok } while picking a spot
+  cosmetic: false, // co-op, not the host: the host decides what they do
+  blastBy: null,   // whose barrel is going off (run.js zombieHit credits them)
 };
+
+/* Co-op (coop.js): `add(e)` we put one down, `hp(e)` / `gone(e)` the
+   host's word on one getting hit or broken. */
+export const depWire = { add: null, hp: null, gone: null };
+let didc = 0;
 
 const _v = new THREE.Vector3();
 const _dir = new THREE.Vector3();
@@ -97,7 +111,7 @@ export function clearDeployables() {
   if (game.zdir) game.zdir.blockers.length = 0;
 }
 
-const standing = (id) => dep.list.filter((e) => e.id === id && e.alive).length;
+const standing = (id) => dep.list.filter((e) => e.id === id && e.alive && e.mine).length;
 
 /* The column's cards: what each costs next and whether you can have one. */
 export function deployOffers() {
@@ -153,6 +167,7 @@ export function placeDeployable() {
   const e = spawnDeployable(pl.id, x, y, z, yaw);
   dep.placed[pl.id] = (dep.placed[pl.id] || 0) + 1;
   cancelPlacing();
+  depWire.add?.(e);
   game.audio.deployPlace(e.pos);
   return true;
 }
@@ -231,8 +246,11 @@ function fits(stats, x, y, z, yaw, feet) {
 /* --------------------------------------------------------------- entities */
 
 class Deployable {
-  constructor(id, x, y, z, yaw, level) {
+  constructor(id, x, y, z, yaw, level, { did = null, owner = null } = {}) {
     this.id = id;
+    this.owner = owner;        // co-op: whose it is (null = ours)
+    this.mine = !owner;
+    this.did = did || `${game.net?.id || "me"}.${++didc}`;
     this.stats = statsAt(id, level);
     this.level = level;
     this.kind = this.stats.kind;
@@ -268,14 +286,23 @@ class Deployable {
   get top() { return this.pos.y + this.stats.size.h + 0.25; }
 
   hit(dmg) {
-    if (!this.alive) return;
+    if (!this.alive || dep.cosmetic) return;
     this.hp -= dmg;
     this.hurtT = 0;
     if (this.hp <= 0) this.destroy();
+    else depWire.hp?.(this);
+  }
+
+  /* Co-op: the host's word on its health. */
+  setHp(hp) {
+    if (!this.alive || hp >= this.hp) return;
+    this.hp = hp;
+    this.hurtT = 0;
   }
 
   destroy() {
     if (!this.alive) return;
+    if (!dep.cosmetic) depWire.gone?.(this);
     this.alive = false;
     game.spawnImpactBurst(_v.copy(this.pos).setY(this.pos.y + this.stats.size.h * 0.5), this.kind === "barricade" ? 0x8a5a33 : 0x9aa0a8, 18);
     game.audio.deployBreak(this.pos);
@@ -301,13 +328,14 @@ class Deployable {
 
 /* A zombie the kit hurt: blood, a flinch, and on a kill the cash and the
    count, same as a bullet of yours (no hitmarker: you didn't fire it). */
-function hurtZombie(z, dmg, point, dir) {
+function hurtZombie(z, dmg, point, dir, by = null) {
   if (!z.alive || z.dying) return;
   const res = z.takeDamage(dmg, false);
   game.impactFx.hit(point, { normal: _v.copy(dir).negate(), dir, surface: z.body ? "blood" : "zombie", scale: 0.7 });
   z.flinchFrom?.(dir, 0.2);
   if (res.killed) {
-    game.zombieHit(z, res, point);
+    game.zombieHit(z, res, point, by);
+    if (by) return;   // someone else's: the kill is theirs (coop.js pays them)
     game.zdir.kills++;
     game.player.kills++;
   }
@@ -411,7 +439,7 @@ class Turret extends Deployable {
     _ray.far = this.stats.range + 1;
     const hit = _ray.intersectObjects(z.hitboxMeshes, true)[0];
     const point = hit ? hit.point : p;
-    hurtZombie(z, this.stats.damage, point, dir);
+    if (!dep.cosmetic) hurtZombie(z, this.stats.damage, point, dir, this.owner);
     game.bullets.spawn({ origin: this.muzzle.clone(), dir, def: TURRET_FX_DEF, ownerId: "remote", cosmetic: true, range: this.muzzle.distanceTo(point) });
     game.spawnImpactBurst(this.muzzle, 0xffd166, 3);
     game.audio.shot(TURRET_FX_DEF, 0.32, this.muzzle);
@@ -426,6 +454,7 @@ class Barricade extends Deployable {
 
   update(dt) {
     super.update(dt);
+    if (dep.cosmetic) return;
     this.spikeT -= dt;
     if (this.spikeT > 0) return;
     this.spikeT = SPIKE_TICK;
@@ -438,7 +467,7 @@ class Barricade extends Deployable {
         if (p.x < b.min.x - reach || p.x > b.max.x + reach || p.z < b.min.z - reach || p.z > b.max.z + reach) continue;
         if (z.groundY > b.max.y || z.groundY + 1 < b.min.y) continue;
         _dir.set(p.x - this.pos.x, 0, p.z - this.pos.z).normalize();
-        hurtZombie(z, bite, new THREE.Vector3(p.x, z.groundY + 0.9, p.z), _dir.clone());
+        hurtZombie(z, bite, new THREE.Vector3(p.x, z.groundY + 0.9, p.z), _dir.clone(), this.owner);
         break;
       }
     }
@@ -453,7 +482,7 @@ class Barrel extends Deployable {
 
   update(dt) {
     super.update(dt);
-    if (this.fuseT >= 0) {
+    if (this.fuseT >= 0 && !dep.cosmetic) {
       this.fuseT -= dt;
       if (this.fuseT < 0) this.destroy();
     }
@@ -461,13 +490,16 @@ class Barrel extends Deployable {
 
   destroy() {
     if (!this.alive) return;
+    if (!dep.cosmetic) depWire.gone?.(this);
     this.alive = false;
     const s = this.stats;
     const c = new THREE.Vector3(this.pos.x, this.pos.y + 0.6, this.pos.z);
     const def = { id: "zbarrel", name: "Explosive Barrel", kind: "lethal", glow: 0xff7a2a, radius: s.radius, damage: s.damage, minDamage: s.minDamage, selfMult: 0 };
     this.remove();
     explosionFx(def, c);
-    areaDamage(c, s.radius, s.damage, def, { creditAs: "barrel" });
+    if (dep.cosmetic) return;   // the blast and the chain are the host's
+    dep.blastBy = this.owner;
+    try { areaDamage(c, s.radius, s.damage, def, { creditAs: "barrel" }); } finally { dep.blastBy = null; }
     // the barrels it reaches go up after it, one after another
     for (const e of dep.list) {
       if (e instanceof Barrel && e.alive && e.fuseT < 0 && e.pos.distanceTo(this.pos) <= s.radius) e.fuseT = s.chainDelay;
@@ -477,8 +509,9 @@ class Barrel extends Deployable {
 
 const CLASSES = { turret: Turret, barricade: Barricade, barrel: Barrel };
 
-export function spawnDeployable(id, x, y, z, yaw) {
-  const e = new CLASSES[DEPLOYABLES[id].kind](id, x, y, z, yaw, dep.level);
+/* `opts` (co-op): { level, did, owner } for someone else's. */
+export function spawnDeployable(id, x, y, z, yaw, opts = {}) {
+  const e = new CLASSES[DEPLOYABLES[id].kind](id, x, y, z, yaw, opts.level || dep.level, opts);
   dep.list.push(e);
   return e;
 }
