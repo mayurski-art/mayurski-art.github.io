@@ -20,7 +20,7 @@ import { game } from "../core/state.js?v=st1";
 let root = null;
 let hooks = { onBuy: () => {}, onSkip: () => {}, onDeploy: () => false, onPlace: () => false, onCancel: () => {} };
 const els = {};
-const shown = { wave: -1, left: -1, cash: -1, gain: -1, offers: "", deploy: "", placing: "", boss: "", bossK: -1, between: null, breakS: -1, downed: null, downS: -1, kills: -1 };
+const shown = { wave: -1, left: -1, cash: -1, gain: -1, offers: "", deploy: "", placing: "", boss: "", bossK: -1, between: null, breakS: -1, downed: null, downS: -1, kills: -1, vote: "", revive: "", reviveK: -1 };
 
 const ICONS = {
   health: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 41 8 25a9 9 0 0 1 13-13l3 3 3-3a9 9 0 0 1 13 13Z" fill="#ff3b4a" stroke="#5a0c12" stroke-width="2.5"/><path d="M33 8v8m-4-4h8" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/></svg>',
@@ -91,6 +91,7 @@ export function mountZombiesHud(h) {
   els.skip.setAttribute("aria-label", "Skip the break");
   els.skip.innerHTML = '<span class="zh-skip-t">Skip break</span><span class="zh-skip-s"></span><span class="zh-key">K</span>';
   els.skipS = els.skip.querySelector(".zh-skip-s");
+  els.skipT = els.skip.querySelector(".zh-skip-t");
   els.skip.addEventListener("click", () => hooks.onSkip());
 
   els.up = el("div", "zh-col zh-up");
@@ -141,10 +142,17 @@ export function mountZombiesHud(h) {
   els.down = el("div", "zh-down");
   els.down.hidden = true;
   els.down.innerHTML = '<div class="zh-down-t">Bleeding out</div><div class="zh-down-bar"><i></i></div><div class="zh-down-k"></div>';
+  els.downT = els.down.querySelector(".zh-down-t");
   els.downBar = els.down.querySelector("i");
   els.downK = els.down.querySelector(".zh-down-k");
+  // co-op: holding X by a downed teammate
+  els.revive = el("div", "zh-revive");
+  els.revive.hidden = true;
+  els.revive.innerHTML = '<div class="zh-revive-t"></div><div class="zh-down-bar"><i></i></div>';
+  els.reviveT = els.revive.querySelector(".zh-revive-t");
+  els.reviveBar = els.revive.querySelector("i");
 
-  root.append(els.top, els.skip, els.up, els.dep, els.chip, els.cash, els.feed, els.banner, els.down);
+  root.append(els.top, els.skip, els.up, els.dep, els.chip, els.cash, els.feed, els.banner, els.down, els.revive);
   for (const ev of ["pointerdown", "touchstart", "mousedown"]) root.addEventListener(ev, swallow, { passive: true });
   hud.append(root);
 
@@ -257,7 +265,28 @@ export function updateZombiesHud(dt, s) {
     shown.between = s.between;
     shown.breakS = breakS;
     els.skip.hidden = !s.between;
-    els.skipS.textContent = s.between ? `Next wave in ${breakS}s` : "";
+    shown.vote = null;
+  }
+  // co-op: the skip is a vote, and everyone has to want it
+  const v = s.between && s.vote ? `${s.vote.n}/${s.vote.of}:${s.vote.mine ? 1 : 0}` : "";
+  if (s.between && v !== shown.vote) {
+    shown.vote = v;
+    els.skipS.textContent = s.vote ? `Votes ${s.vote.n}/${s.vote.of} · ${breakS}s` : `Next wave in ${breakS}s`;
+    els.skipT.textContent = s.vote ? (s.vote.mine ? "Voted to skip" : "Vote to skip") : "Skip break";
+    els.skip.classList.toggle("is-voted", !!s.vote?.mine);
+  }
+
+  const rv = s.revive;
+  const rkey = rv ? rv.name : "";
+  if (rkey !== shown.revive) {
+    shown.revive = rkey;
+    els.revive.hidden = !rv;
+    if (rv) els.reviveT.textContent = `Hold ${game.isTouch ? "SWAP" : "X"} to revive ${rv.name}`;
+    shown.reviveK = -1;
+  }
+  if (rv) {
+    const k = Math.round(Math.min(1, rv.k) * 100) / 100;
+    if (k !== shown.reviveK) { shown.reviveK = k; els.reviveBar.style.transform = `scaleX(${k})`; }
   }
 
   const cash = Math.round(s.econ.cash);
@@ -333,10 +362,14 @@ export function updateZombiesHud(dt, s) {
     root.classList.toggle("is-downed", !!d);
   }
   if (d) {
-    els.downBar.style.transform = `scaleX(${Math.max(0, d.t / d.max).toFixed(3)})`;
-    if (d.kills !== shown.kills) {
-      shown.kills = d.kills;
-      els.downK.textContent = `Kills to get up: ${d.kills} / ${d.need}`;
+    els.downBar.style.transform = `scaleX(${d.out ? 0 : Math.max(0, d.t / d.max).toFixed(3)})`;
+    // solo: the last stand's kill count; co-op: wait for a teammate
+    const key = `${d.kills}:${d.need}:${d.out ? 1 : 0}`;
+    if (key !== shown.kills) {
+      shown.kills = key;
+      els.downT.textContent = d.out ? "Out" : "Bleeding out";
+      els.downK.textContent = d.out ? "Back in when the wave is cleared"
+        : d.need ? `Kills to get up: ${d.kills} / ${d.need}` : "Hang on: a teammate can pick you up";
     }
   }
 }

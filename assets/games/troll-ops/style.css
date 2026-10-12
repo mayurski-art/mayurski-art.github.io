@@ -4042,3 +4042,13 @@ body.to-touch-play .zh.is-downed .zh-col { visibility: hidden; }
 
 /* Zombies co-op: the room code box without the bot options. */
 .to-lo-pvp.is-zombies .to-lo-nobots { display: none; }
+
+/* Zombies co-op: the skip vote, and holding X by a downed teammate. */
+.zh-skip.is-voted { filter: saturate(.55) brightness(.9); }
+.zh-revive { position: absolute; left: 50%; top: 60%; transform: translateX(-50%); text-align: center; width: min(300px, 70vw); }
+.zh-revive[hidden] { display: none; }
+.zh-revive-t { font-size: 20px; -webkit-text-stroke: 1px #10141a; paint-order: stroke fill; }
+.zh-revive .zh-down-bar i { background: linear-gradient(90deg, #39d353, #a6f05a); }
+@media (max-width: 900px), (max-height: 520px) {
+  .zh-revive-t { font-size: 15px; }
+}
