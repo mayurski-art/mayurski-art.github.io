@@ -202,7 +202,7 @@ export function updatePlayer(dt) {
     pitch: game.look.pitch,
     adsHeld: wantAds,
     speedMult: w.moveSpeedMult * (game.isInfected() ? INFECTION.speed : 1) * (wading ? 0.55 : 1) * (heroActive() ? hero().speedMult() : 1)
-      * (hasPerk("lightweight") ? PERK_TUNE.lightweightSpeed : 1) * (downed ? DOWNED_SPEED : 1),
+      * (hasPerk("lightweight") ? PERK_TUNE.lightweightSpeed : 1) * (downed ? (game.player.out ? 0 : DOWNED_SPEED) : 1),   // out (co-op, bled out): where you fell
     // Troll Royale is a 400 m island: sprinting covers it 25% faster.
     // Extreme Conditioning (perks.js): the game has no sprint limit to lift,
     // so it's a faster sprint.

@@ -63,9 +63,10 @@ async function joinQuickplay() {
    joined the room before us (so two newcomers can't swap maps back and
    forth), same mode, and a mode that lets you pick the map at all. */
 export function followsHostMap(m) {
-  if (!m.map || !MAPS[m.map] || m.mode !== game.modeId || !game.isPvp()) return false;
+  if (!m.map || !MAPS[m.map] || m.mode !== game.modeId || !game.isNet()) return false;
   const mode = game.currentMode();
-  if (mode.forceMap || mode.mapPool) return false;
+  // Zombies co-op picks from a pool too, but everyone plays the host's pick
+  if (mode.forceMap || (mode.mapPool && !game.zombieCoop)) return false;
   // The host's map, not just any older player's: a tab stuck on its loading
   // screen used to drag everyone onto its map (net.hostId).
   return game.net.peers.has(m.id) && game.net.hostId() === m.id;
@@ -84,12 +85,15 @@ export async function startGame() {
   // room may already be playing a mode the owner switched it to; the host
   // says so while we connect (adoptRoomMode) and modeId follows.
   game.socialRoom = game.isSocial();
+  // Zombies goes online only with a private code: co-op with whoever has it
+  // (modes/zombies/coop.js). No code, solo; never a public room.
+  game.zombieCoop = game.isZombies() && game.roomIsCustom && !!game.els.room.value;
   game.roomModeSeq = game.net.modeSeq = 0;
   game.socialMapId = null;
   cancelSocialReturn();
   game.loadScreen.show(loadInfo(game.matchMapId()));
   game.els.title.hidden = true;
-  if (game.isPvp()) {
+  if (game.isNet()) {
     game.els.startBtn.disabled = true;
     setNetStatus("Connecting…");
     game.loadScreen.status(game.socialRoom ? "Finding the hangout…" : "Finding a match…");
@@ -106,8 +110,9 @@ export async function startGame() {
       return;
     }
     if (!game.socialRoom) game.els.room.value = result.code;
-    // The hangout is one side, so anyone can duo-emote with anyone.
-    if (game.isSocial()) game.net.setTeam("phantom");
+    // The hangout is one side, so anyone can duo-emote with anyone; so is
+    // a Zombies squad.
+    if (game.isSocial() || game.isZombies()) game.net.setTeam("phantom");
     else game.net.chooseTeam();
     game.chat.render();   // it was built before the room connected
     setNetStatus(`Live · ${result.kind} · room ${result.code} · ${game.teamName(game.net.team)}`, "live");
@@ -115,7 +120,7 @@ export async function startGame() {
     game.net.stop();
   }
 
-  enterMatch(game.isPvp() ? game.roomMapHint : null);
+  enterMatch(game.isNet() ? game.roomMapHint : null);
 }
 
 /* -------------------- map loading screen --------------------
@@ -167,7 +172,7 @@ export async function enterMatch(mapHint = null) {
       if (seq !== loadSeq) return;
     }
     // The room may have told us its map while we loaded ours.
-    const want = game.matchMapId(game.isPvp() ? (game.roomMapHint || mapHint) : mapHint);
+    const want = game.matchMapId(game.isNet() ? (game.roomMapHint || mapHint) : mapHint);
     if (want === id) break;
     id = want;
   }
@@ -180,7 +185,7 @@ export async function enterMatch(mapHint = null) {
   await warmShaders();
   if (seq !== loadSeq) return;
   game.loadScreen.progress(1);
-  game.loadScreen.status(game.isPvp() && game.net.active ? "Waiting for players" : "Ready");
+  game.loadScreen.status(game.isNet() && game.net.active ? "Waiting for players" : "Ready");
   loadWarm = true;
 }
 export let loadWarm = false;    // shaders done; only then do we tell the room we're ready
@@ -209,7 +214,7 @@ export function releaseLoad(left = 0) {
 let loadClock = performance.now();
 function updateLoadScreen(dt) {
   if (!game.loadScreen.isOpen) return;
-  const online = game.isPvp() && game.net.active;
+  const online = game.isNet() && game.net.active;
   const done = loadHold && loadWarm;
   if (online) {
     game.net.prune();
@@ -461,7 +466,7 @@ export async function warmShaders() {
 export function beginStaging(seconds = STAGE_SECONDS) {
   // Animations off (menu-bo2.js switch): solo skips most of the wait. PvP
   // keeps the room's clock, since everyone in it shares one countdown.
-  const fast = !game.isPvp() && document.body.classList.contains("tf-anim-off");
+  const fast = !game.isNet() && document.body.classList.contains("tf-anim-off");
   if (fast) seconds = Math.min(seconds, 2);
   // TDM / S&D: the match opener gets the full cinematic (and a longer clock
   // to hold it), each later S&D round the short squad cut.
@@ -479,7 +484,7 @@ export function beginStaging(seconds = STAGE_SECONDS) {
   // publish tick in updateStaging() rather than latching a one-time guess
   // here — a peer's `hello` can land a beat after this runs, and a stale
   // "I'm alone" snapshot would leave two clients both convinced they own it.
-  game.stageOwner = !game.isPvp() || !game.net.active;
+  game.stageOwner = !game.isNet() || !game.net.active;
   // A beat in, once the bots that fill the room have streamed in.
   // (Under the loading screen enterMatch warms everything itself.)
   if (!loadHold) setTimeout(() => { if (isStaging()) warmShaders(); }, fast ? 0 : 900);
@@ -529,7 +534,7 @@ export function endStaging() {
 /* How full the room looks right now — the whole point of staging is that the
    bots are already standing there when the player counts down. */
 function updateStagingRoster() {
-  if (!game.isPvp()) { game.els.stagingRoster.textContent = ""; return; }
+  if (!game.isNet()) { game.els.stagingRoster.textContent = ""; return; }
   let humans = 1, botCount = 0;
   for (const p of game.net.peers.values()) (game.isBotPeer(p) ? botCount++ : humans++);
   const parts = [`${humans} operator${humans === 1 ? "" : "s"}`];
@@ -548,7 +553,7 @@ export function updateStaging(dt) {
   // mid-countdown adopts the clock already running rather than its own.
   // Re-checked every tick (not latched once) so a peer whose `hello` arrived
   // a beat late still hands ownership off the moment it's known about.
-  if (game.isPvp() && game.net.active) {
+  if (game.isNet() && game.net.active) {
     game.stageOwner = game.net.isBotHost();
     stagePub -= dt;
     if (game.stageOwner && stagePub <= 0) {

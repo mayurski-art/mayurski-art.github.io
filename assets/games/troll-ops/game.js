@@ -69,7 +69,7 @@ import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak
 import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./hand-model.js?v=to-grip2";
 import { FlowField } from "./nav.js?v=ti1-bs1b7d";
 import { ZombieDirector, goreStandIns } from "./zombies.js?v=zr4c-sb2b7b7dc2f1m1u-gt1-gt2-zr5-zr6-zr7";
-import { deployClick, nextZombieWave, startZombieRun, stopZombieRun, updateZombieRun, zombieDowned, zombieHit, zombieRunDebug } from "./modes/zombies/run.js?v=zr6-zr7";
+import { deployClick, nextZombieWave, onZombieMessage, startZombieRun, stopZombieRun, updateZombieRun, zombieDowned, zombieHit, zombieRunDebug } from "./modes/zombies/run.js?v=zr6-zr7";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
 import { ImpactFx } from "./impact-fx.js?v=zr4";
 import { LightPool } from "./light-pool.js";
@@ -299,6 +299,7 @@ linkGame({
   isStaging,
   get isTouch() { return isTouch; },
   isTrollRunner,
+  isNet,
   isView,
   isZombies,
   get jammedUntil() { return jammedUntil; }, set jammedUntil(v) { jammedUntil = v; },
@@ -554,6 +555,7 @@ linkGame({
   get WHISTLE_BLOW_AT() { return WHISTLE_BLOW_AT; },
   get WHISTLE_HOLD() { return WHISTLE_HOLD; },
   get zdir() { return zdir; }, set zdir(v) { zdir = v; },
+  get zombieCoop() { return zombieCoop; }, set zombieCoop(v) { zombieCoop = v; },
 });
 
 /* Maps download once (user, 2026-10-04): /sw.js keeps the game's models,
@@ -1089,6 +1091,10 @@ function rayDistanceTo(origin, dir, point) {
 function currentMode() { return MODES[modeId]; }
 function isPvp() { return currentMode().pvp; }
 function isZombies() { return !!currentMode().zombies; }
+/* In a room with other people: versus and Socialize, and Zombies co-op
+   (a private code: modes/match-start.js startGame sets zombieCoop). */
+let zombieCoop = false;
+function isNet() { return isPvp() || (isZombies() && zombieCoop); }
 function isRange() { return !!currentMode().range; }
 function isView() { return !!currentMode().view; }
 /* Socialize (modes.js): a hangout, no combat. `socialRoom` is the room
@@ -1199,7 +1205,7 @@ const net = new Net({
   onHello: (p) => {
     // Everyone in a room plays the host's map: tell the newcomer which.
     // (Paused counts: the host may be sitting in the pause menu.)
-    if ((gameState === "playing" || gameState === "paused") && isPvp() && !isBotPeer(p) && net.isBotHost() && loadedMapId) net.publishRoomMap(p.id, loadedMapId, modeId);
+    if ((gameState === "playing" || gameState === "paused") && isNet() && !isBotPeer(p) && net.isBotHost() && loadedMapId) net.publishRoomMap(p.id, loadedMapId, modeId);
     if (!royale?.drop || gameState !== "playing" || isStaging() || isBotPeer(p) || !net.isBotHost()) return;
     const d = royale.drop;
     net.publishRoyaleCatchUp(p.id, royale.seed, d.phase === "belt" ? d.beltT : ROYALE_BOX_GONE, royale.t, royale.live);
@@ -1235,6 +1241,7 @@ const net = new Net({
   // Socialize: the owner switched the room's mode (see switchRoomMode).
   onMode: (p, m) => { if (p.owner) adoptRoomMode(m); },
   onRp: (p, m) => (String(m.k).startsWith("dj") ? djLulz.onMessage(p, m) : onBarMessage(p, m)),
+  onZombie: (p, m) => onZombieMessage(p, m),   // Zombies co-op (modes/zombies/coop.js)
   /* Map loading screen (see enterMatch). Follow the host's map early, and
      as the host of a match already on, let a finished latecomer in. */
   onReady: (p, m) => {
@@ -1244,7 +1251,7 @@ const net = new Net({
       if (loadTarget && m.map !== loadTarget) enterMatch(m.map);
       return;
     }
-    if (!loadScreen.isOpen && (gameState === "playing" || gameState === "paused") && isPvp() && net.isBotHost() && loadedMapId) {
+    if (!loadScreen.isOpen && (gameState === "playing" || gameState === "paused") && isNet() && net.isBotHost() && loadedMapId) {
       // Loading the wrong map (our room-map note reached them late): correct them.
       if (m.map !== loadedMapId) net.publishRoomMap(p.id, loadedMapId, modeId);
       else if (m.ok) net.publishGo(p.id, loadedMapId, modeId, isStaging() ? stageT : 0);
@@ -1276,7 +1283,7 @@ const net = new Net({
       if (loadWarm && (m.go || left > 0)) releaseLoad(Number.isFinite(left) ? left : 0);
       return;
     }
-    if (gameState !== "playing" || !isPvp()) return;
+    if (gameState !== "playing" || !isNet()) return;
     // Troll Royale: the owner's seed wins, so everyone has the same zone
     // and loot even if their match counts drifted apart.
     if (royale && isStaging() && m.sd && (m.sd >>> 0) !== royale.seed) setupRoyale(m.sd >>> 0);
@@ -1786,6 +1793,7 @@ let lobbyAngle = 0.6;
 function matchMapId(roomMapId = null) {
   const m = currentMode();
   if (m.forceMap) return m.forceMap;
+  if (m.mapPool && zombieCoop && m.mapPool.includes(roomMapId)) return roomMapId;   // co-op: the host's pick
   if (m.mapPool) return m.mapPool.includes(loadout.poolMapId) ? loadout.poolMapId : m.mapPool[0];
   if (m.maps && !m.maps.includes(roomMapId)) return m.maps.includes(loadout.versusMapId) ? loadout.versusMapId : m.maps[0];
   return roomMapId || loadout.versusMapId;   // a prestige map only in a private room
@@ -2073,6 +2081,7 @@ function netSnapshot() {
   _netSnapshot.reloadTime = currentWeapon()?.reloadTime || 2.3;
   _netSnapshot.throwCk = throwWire();   // a grenade in hand (combat/throw-anim.js)
   _netSnapshot.hp = player.hp; _netSnapshot.alive = player.alive;
+  _netSnapshot.downed = player.downed ? (player.out ? 2 : 1) : 0;   // Zombies co-op
   // Socialize: nothing in hand, so everyone else sees empty hands too.
   _netSnapshot.weapon = socialUnarmed() ? null
     : player.holding === "melee" && player.melee
@@ -2407,13 +2416,13 @@ function animate() {
       if (inSkyLobby()) updateSkyLobby(dt);
       // Hostiles hold still, but remote operators and bots still stream in so
       // the room visibly fills while the player waits.
-      if (isPvp()) {
+      if (isNet()) {
         // Bot hosting can only be decided once the room connects, which can
         // land a beat after the countdown starts (and joining resets the peer
         // map the bots are mirrored into): fill and re-publish them here, not
         // only at GO, so the countdown (and the match intro) has somebody in
         // it. publishBot throttles its own network sends.
-        if (!royale && net.isBotHost()) {
+        if (!royale && !isZombies() && net.isBotHost()) {
           if (!bots.bots.length && !noBotsRoom() && !isInfection()) {
             const { humans, teams } = humanHeadcount();
             bots.fill(botTarget(), humans, botSpawn, !!currentMode().ffa, teams);
@@ -2462,6 +2471,7 @@ function animate() {
         updateRemoteSabers();
       }
     } else if (isZombies()) {
+      if (isNet()) { net.update(dt, netSnapshot()); remotes.sync(net.peers); remotes.update(dt, net.team, false, camera.position); }   // co-op: the squad
       targetMeshes = updateZombieRun(dt);   // modes/zombies/run.js
     } else if (isView()) {
       // View mode: an empty map, nothing to simulate.
