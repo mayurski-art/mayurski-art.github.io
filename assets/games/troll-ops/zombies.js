@@ -171,6 +171,7 @@ const RISE_TIME = 1.6;        // a grave spawn clawing up out of the ground
 const RISE_DEPTH = 1.9;
 const ATTACK_REACH_Y = 1.3;   // no swiping at someone on the balcony above
 const CLIMB_GIVE_UP = 9;      // seconds on a stair before re-thinking the route
+const BLOCKER_REACH = 0.2;    // metres from a deployable's box it stops and swings (up against it: on the spikes)
 
 /* Classic curve: +100 a round to round 9, then ×1.1 compounding. */
 export function healthForRound(round) {
@@ -443,8 +444,11 @@ export class Zombie {
   /* `route` says where to go: { field, goal, chase }. `field` steers round
      walls toward `goal` (null = walk straight at it); `chase` is false while
      heading for a stair, when there's nobody in reach to swing at.
-     `playerFeetY` keeps it from swiping at someone a floor above. */
-  update(dt, playerPos, onAttack, arena, colliders, route = null, playerFeetY = null, scene = null) {
+     `playerFeetY` keeps it from swiping at someone a floor above.
+     `blockers`: what the players put down (modes/zombies/deployables.js),
+     { alive, box: { min, max }, pos }: one in its way gets the swings
+     instead, as onAttack(zombie, damage, blocker). */
+  update(dt, playerPos, onAttack, arena, colliders, route = null, playerFeetY = null, scene = null, blockers = null) {
     // a moan every few seconds while it's on its feet
     if (!this.dying) {
       this.groanT -= dt;
@@ -514,6 +518,8 @@ export class Zombie {
     this.attackCdT = Math.max(0, this.attackCdT - dt);
     const feetY = playerFeetY ?? this.groundY;
     const inReach = chase && dist <= this.type.attackRange && Math.abs(feetY - this.groundY) < ATTACK_REACH_Y;
+    // a turret, barricade or barrel in the way: through it, not round it
+    const wall = !inReach && blockers?.length ? this._blockerAhead(blockers, to, dist) : null;
 
     if (this.type.leaps) {
       this.leapCdT = Math.max(0, this.leapCdT - dt);
@@ -540,6 +546,14 @@ export class Zombie {
     if (this.staggerT > 0) {
       this.staggerT -= dt;
       damp(7);
+    } else if (wall) {
+      damp(9);
+      this.mesh.rotation.y = Math.atan2(-(wall.pos.x - this.mesh.position.x), -(wall.pos.z - this.mesh.position.z));
+      if (this.attackCdT <= 0) {
+        this.attackCdT = this.type.attackCd;
+        this._swing();
+        onAttack(this, this.type.damage, wall);
+      }
     } else if (!inReach && dist > 0.05) {
       to.normalize();
       // Indoors the field knows the way round the walls; close in, or when
@@ -573,13 +587,34 @@ export class Zombie {
     this.groundY += (support - this.groundY) * Math.min(1, dt * 8);
     this.mesh.position.y = this.groundY;
 
-    const moving = !inReach;
+    const moving = !inReach && !wall;
     if (this.body) {
       this._animate(dt, { moving, speed: Math.hypot(this.velocity.x, this.velocity.z) });
       return;
     }
     this.phase += dt * (moving ? 5.5 : 2.5);
     poseHumanoid(this.rig, { phase: this.phase, moving, zombie: true, dt });
+  }
+
+  /* A blocker it's pressed up against, between it and where it's going
+     (or where it's trying to walk), or null. */
+  _blockerAhead(blockers, to, dist) {
+    const p = this.mesh.position;
+    const sp = Math.hypot(this.velocity.x, this.velocity.z);
+    for (const b of blockers) {
+      if (!b.alive) continue;
+      const { min, max } = b.box;
+      if (this.groundY > max.y || this.groundY + this.type.height < min.y) continue;
+      const gx = Math.max(min.x - p.x, 0, p.x - max.x);
+      const gz = Math.max(min.z - p.z, 0, p.z - max.z);
+      if (Math.hypot(gx, gz) - this.radius > BLOCKER_REACH) continue;
+      const cx = b.pos.x - p.x, cz = b.pos.z - p.z;
+      const cl = Math.hypot(cx, cz) || 1;
+      const toward = dist > 0.05 ? (cx * to.x + cz * to.z) / (cl * dist) : 0;
+      const walking = sp > 0.2 ? (cx * this.velocity.x + cz * this.velocity.z) / (cl * sp) : 0;
+      if (toward > 0.25 || walking > 0.4) return b;
+    }
+    return null;
   }
 
   dispose(scene) {
@@ -631,6 +666,7 @@ export class ZombieDirector {
     this.groanCd = 0;          // horde-wide gap between moans, so twelve don't drone in unison
     this.snarlCd = 0;          // and between swipe snarls
     this.forceType = null;     // tests: every spawn is this type
+    this.blockers = [];        // the run's deployables (modes/zombies/deployables.js)
     preloadZombieModels();     // the bodies; spawning waits for them (see update)
   }
 
@@ -640,7 +676,9 @@ export class ZombieDirector {
     let f = this.fields.get(k);
     if (!f) {
       const floorY = this.floors[floor] ?? 0;
-      f = new FlowField(this.colliders, this.arena, floorY, {
+      // The map's walls only: a deployable is there to be chewed through
+      // (Zombie.update's blockers), not walked round, and fields are kept.
+      f = new FlowField(this.colliders.filter((c) => !c.deploy), this.arena, floorY, {
         needSupport: !!this.layout.support && floorY > 0.5,
         cell: this.layout.navCell, pad: this.layout.navPad, step: this.layout.navStep,   // undefined = the defaults
       });
@@ -805,7 +843,7 @@ export class ZombieDirector {
     for (const z of this.zombies) {
       if (!z.alive) continue;
       const route = z.dying ? null : this.routeFor(z, playerPos, field, feetY, dt);
-      z.update(dt, playerPos, onAttack, this.arena, this.colliders, route, feetY, this.scene);
+      z.update(dt, playerPos, onAttack, this.arena, this.colliders, route, feetY, this.scene, this.blockers);
       if (z.voiceEvent) {
         const kind = z.voiceEvent;
         z.voiceEvent = null;
