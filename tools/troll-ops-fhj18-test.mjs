@@ -250,6 +250,20 @@ const uavBook = await page.evaluate(() => {
 check("downing one of two enemy UAVs leaves the other's sweep up", uavBook.afterOne > 20, JSON.stringify(uavBook));
 check("...and downing the last one ends it", uavBook.afterTwo === 0, JSON.stringify(uavBook));
 check("a teammate's UAV going down leaves the one you called", uavBook.mine > 20, JSON.stringify(uavBook));
+// An enemy Counter-UAV downs the UAV you called (no UAV for a while);
+// shooting the Counter-UAV down lifts that lockout and the jamming.
+const jam = await page.evaluate(() => {
+  const T = window.__trollOps, { DF, G } = window.__M, en = window.__enemy;
+  G.myUavUntil = performance.now() + 30000;
+  T.applyCounterUav({ team: en, x: T.move.pos.x, z: T.move.pos.z, yaw: 0.9, duration: 30, lockout: 20, id: "enemy-c" });
+  const locked = T.streakLockLeft("uav");
+  const plane = T.flyovers.find((f) => f.counter && f.team === en);
+  DF.shootDownAir(plane?.eid, null);
+  return { locked: +locked.toFixed(1), left: T.streakLockLeft("uav"), jammed: G.jammedUntil > performance.now() };
+});
+check("an enemy Counter-UAV locks your UAV out", jam.locked > 15, JSON.stringify(jam));
+check("...and shooting it down lifts the lockout and the jamming", jam.left === 0 && !jam.jammed, JSON.stringify(jam));
+
 // ---- 4. Bots: about one in five carry it, and one downs an enemy Counter-UAV.
 await page.evaluate(async () => {
   const T = window.__trollOps;

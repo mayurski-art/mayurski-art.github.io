@@ -96,6 +96,14 @@ export function lockStreak(id, seconds, why) {
   streakLockWhy[id] = why;
   updateStreakHud();
 }
+/* Lifts a lockout early (only one set for `why`, when given): the enemy
+   Counter-UAV that jammed our UAV came down. */
+export function unlockStreak(id, why) {
+  if (why && streakLockWhy[id] !== why) return;
+  delete streakLockUntil[id];
+  delete streakLockWhy[id];
+  updateStreakHud();
+}
 export function clearStreakLocks() {
   for (const k of Object.keys(streakLockUntil)) delete streakLockUntil[k];
   game.jammedUntil = 0;

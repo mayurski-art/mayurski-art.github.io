@@ -4,7 +4,7 @@
 
 import { Dragonfire, DF_RANGE, DF_SPREAD, DF_DAMAGE, DF_HP } from "../dragonfire.js?v=df3-sb2";
 import { STREAK_DEFS, SCORE } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1";
-import { streakEntities, flyovers, streakBlast, uavBucket, uavUntil } from "./calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1";
+import { streakEntities, flyovers, streakBlast, uavBucket, uavUntil, unlockStreak } from "./calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1";
 import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "../sam-turret.js?v=sam1";
 import * as THREE from "three";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1";
@@ -212,7 +212,10 @@ export function shootDownAir(eid, byId, announce = false) {
       if (plane.team === uavBucket() && minePlane && game.myUavUntil > now) game.myUavUntil = 0;
       if (mine) showWaveBanner("UAV SHOT DOWN", 1600);
     } else if (game.currentMode().ffa || !game.net.team || plane.team !== game.net.team) {
-      game.jammedUntil = 0;   // their jammer's down: our radar's back
+      // Their jammer's down: our radar's back, and the UAV it shot down can
+      // be called again (unless another of theirs is still up).
+      const still = flyovers.some((f) => f !== plane && f.counter && f.team === plane.team);
+      if (!still) { game.jammedUntil = 0; unlockStreak("uav", "jammed"); }
       showWaveBanner("ENEMY COUNTER-UAV DOWN", 1500);
     }
     plane.dispose();
