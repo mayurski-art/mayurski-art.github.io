@@ -20,7 +20,7 @@ import { game } from "../core/state.js?v=st1";
 let root = null;
 let hooks = { onBuy: () => {}, onSkip: () => {}, onDeploy: () => false, onPlace: () => false, onCancel: () => {} };
 const els = {};
-const shown = { wave: -1, left: -1, cash: -1, gain: -1, offers: "", deploy: "", placing: "", between: null, breakS: -1, downed: null, downS: -1, kills: -1 };
+const shown = { wave: -1, left: -1, cash: -1, gain: -1, offers: "", deploy: "", placing: "", boss: "", bossK: -1, between: null, breakS: -1, downed: null, downS: -1, kills: -1 };
 
 const ICONS = {
   health: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 41 8 25a9 9 0 0 1 13-13l3 3 3-3a9 9 0 0 1 13 13Z" fill="#ff3b4a" stroke="#5a0c12" stroke-width="2.5"/><path d="M33 8v8m-4-4h8" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/></svg>',
@@ -77,7 +77,13 @@ export function mountZombiesHud(h) {
   els.top = el("div", "zh-top");
   els.left = el("span", "zh-left");
   els.wave = el("strong", "zh-wave");
-  els.top.append(els.left, els.wave);
+  // a boss on its feet: its name and health take the place of "in N waves"
+  els.boss = el("span", "zh-boss");
+  els.boss.hidden = true;
+  els.boss.innerHTML = '<span class="zh-boss-n"></span><span class="zh-boss-bar"><i></i></span>';
+  els.bossN = els.boss.querySelector(".zh-boss-n");
+  els.bossBar = els.boss.querySelector("i");
+  els.top.append(els.left, els.boss, els.wave);
 
   els.skip = el("button", "zh-skip");
   els.skip.type = "button";
@@ -304,6 +310,20 @@ export function updateZombiesHud(dt, s) {
       els.chipS.textContent = pl.ok ? (pl.grid ? "Grid mode" : "") : "Won't fit there";
       els.chip.classList.toggle("is-bad", !pl.ok);
     }
+  }
+
+  const b = s.boss;
+  const bkey = b ? `${b.name}:${b.final}` : "";
+  if (bkey !== shown.boss) {
+    shown.boss = bkey;
+    els.boss.hidden = !b;
+    els.left.hidden = !!b;
+    if (b) { els.bossN.textContent = b.name; els.boss.classList.toggle("is-final", !!b.final); }
+    shown.bossK = -1;
+  }
+  if (b) {
+    const k = Math.round(b.k * 200) / 200;
+    if (k !== shown.bossK) { shown.bossK = k; els.bossBar.style.transform = `scaleX(${k})`; }
   }
 
   const d = s.downed;
