@@ -225,8 +225,10 @@ await page.evaluate(() => {
   const zd = T.zdir();
   zd.toSpawn = 0;
   zd.state = "fighting";
+  // the final boss opens wave 30 and calls up walkers: put down all comers
+  setInterval(() => { for (const z of T.zdir()?.zombies || []) if (z.alive && !z.dying) z.takeDamage(1e9, false); }, 200);
 });
-const won = await page.waitForFunction(() => window.__trollOps.state() === "gameover", null, { timeout: 30000 }).then(() => true).catch(() => false);
+const won =await page.waitForFunction(() => window.__trollOps.state() === "gameover", null, { timeout: 30000 }).then(() => true).catch(() => false);
 const title = await page.evaluate(() => document.getElementById("to-go-title")?.textContent || document.querySelector(".to-gameover h2, .to-go-title")?.textContent);
 check(won && /survived/i.test(title || ""), "clearing wave 30 wins", title);
 await page.screenshot({ path: path.join(SHOTS, "zrun-won.png") });
