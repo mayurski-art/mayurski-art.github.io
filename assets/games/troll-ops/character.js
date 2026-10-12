@@ -1999,10 +1999,11 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
     }
   }
   // Cheek on the stock when scoped: the head dips and leans onto the gun.
-  // (+x tips the head BACK; on the block body (rig.gunHold) that read as
-  // leaning away from the gun, so there it dips forward, onto the stock)
+  // (+x tips the head BACK. The stick troll had +0.16 here, its face thrown
+  // back 9 degrees every time it aimed; bots aim in and out all fight, so
+  // their heads nodded up and down: "flopping", user 2026-10-12.)
   if (!pistol && a > 0) {
-    p.headPivot.rotation.x += (hold ? -0.08 : 0.16) * a;
+    p.headPivot.rotation.x -= 0.08 * a;
     p.headPivot.rotation.z -= 0.14 * a;
   }
 }
