@@ -427,7 +427,7 @@ $('admin-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') goTo
   const open = q.get('open');
   if (!q.has('open') && !q.has('desktop') && !q.has('mobile') && !q.has('enter')) return;
   history.replaceState(null, '', location.pathname + location.hash);
-  const go = { about: 'about', map: 'map', games: 'leaderboard', leaderboard: 'leaderboard' };
+  const go = { about: 'about', map: 'map', arcade: 'arcade', games: 'leaderboard', leaderboard: 'leaderboard' };
   const href = { tf: 'troll-ops.html', maps: 'maps.html', pfp: 'pfp.html', stickers: 'stickers.html', finance: 'https://finance.trollrunner.net', terminal: 'https://trolltruths.com' };
   if (open === 'account') document.addEventListener('DOMContentLoaded', () => setTimeout(openProfile, 300));
   else if (go[open] && (open !== 'about' || isTrollRunner())) menu.go(go[open]);
