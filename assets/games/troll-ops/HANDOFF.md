@@ -13,6 +13,13 @@ Design docs live next to this file: `COPS-AND-ROBBERS.md` (approved plan), `ZOMB
 
 ## 1. Open work and plans (newest first)
 
+### TROLLS NFT looks (`TROLLS-TRAITS.md`)
+#1718's blocky body is live (shipped log). **Next: the wallet check** (TROLLS-TRAITS.md phase 3: `ownerOf` on the contract) to replace the stopgap lock to the troll_runner account (cosmetics.js `BODIES` `owner`, `canWearBody`). Honest-client like everything else: `bk` on the wire is drawn only with `ow`.
+- Code: blocky-body.js (`wearBlocky` + `ownBody` for the game, `applyBlocky` the body), character.js `reshapeRig` and the opt-in `rig.gunHold` / `rig.rigidTorso`, traits.js (drawn head traits). Pieces: models/build_blocky_*.blender.py -> models/blocky/*.glb (hero_kit.py). Art: traits/src/*.svg, baked by tools/troll-ops-bake-traits.mjs.
+- Check: tools/trait-preview.html (live stick vs blocky), tools/troll-ops-blocky-ingame.mjs.
+- Gotchas: a preview must MOVE the rig on the run (`_footLock` pins planted feet to the ground; on the spot both feet stay in front). The body is ~30 cm shorter than the stick and its hitboxes follow it.
+- Open (not asked for yet): the moustache is still a flat card, the arms are long for blocky proportions, the right arm partly blocks the over-the-shoulder view.
+
 ### tf-parallel batch (branch `worktree-tf-parallel`, worktree `.claude/worktrees/tf-parallel`)
 Plan: `C:\Users\mayur\.claude\plans\keen-twirling-chipmunk.md`. Phases 1, 2, 6, 7 are on main (club ID and throws landed 2026-10-09, 1a88807).
 - **Built on that branch, NOT on main yet (user 2026-10-10: later):** the Troll City band, RP 2c (merchant + horses), 3 the kitchen, 4 arm wrestling, the Royale C-130 drop-in, and Grin Beach 5a as an unwired WIP (cc9919e). The branch's own HANDOFF has their notes. The classes/perks/hover/`/tf` work went to main on its own (branch `tf-classes-push`); merge main back into tf-parallel before pushing the rest.
@@ -665,4 +672,4 @@ Map rules:
   - Third-person camera.
   - The 6 PvP maps reworked.
   - Pentagrin zombies.
-- **2026-10-11** TROLLS #1718 body cosmetic (-bk1): Cosmetics > Body, locked to troll_runner until the wallet check (cosmetics.js `canWearBody`); the blocky muscular troll from Blender (blocky-body.js `wearBlocky`, reshapes the live rig in place: character.js `reshapeRig`, hit capsules follow), on the wire as `bk` (drawn only with `ow`); runs upright behind the gun (`gunHold.lean`), legs-scaled hip drop and cadence; menu operator's head was tipped back since -gt2 (char-inspector.js). Tests: blocky-ingame, 3p-hold, gait, remote-body, menu, killcam.
+- **2026-10-11** TROLLS #1718 body cosmetic (-bk1): Cosmetics > Body, locked to troll_runner until the wallet check (cosmetics.js `canWearBody`); the blocky muscular troll from Blender (blocky-body.js `wearBlocky`, reshapes the live rig in place: character.js `reshapeRig`, hit capsules follow), on the wire as `bk` (drawn only with `ow`); runs upright behind the gun (`gunHold.lean`), legs-scaled hip drop and cadence; menu operator's head was tipped back since -gt2 (char-inspector.js); rope-test waits for the ropes (its fixed 4 s raced the map load under the gate). Tests: blocky-ingame, 3p-hold, gait, remote-body, menu, killcam.
