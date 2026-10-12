@@ -3972,3 +3972,57 @@ body.to-touch-play .zh-gain { font-size: calc(16px * var(--k)); }
   .zh-banner.is-on, .zh-feed-l, .zh-card.is-no, .zh-card.is-bought, .zh.is-downed::before { animation: none; }
   .zh-banner.is-on { opacity: 1; }
 }
+
+/* Zombies P2: the Deployables column (right), the placing chip, and the
+   health bars in the world (view/zombies-bars.js). */
+.zh-dep { right: 18px; align-items: center; }
+.zh-col-hrow { display: flex; flex-direction: column; align-items: center; }
+.zh-col-s { font-size: 12px; line-height: 1.2; color: #e8eaee; opacity: .85; -webkit-text-stroke: .6px #10141a; paint-order: stroke fill; }
+.zh-card-turret { background-color: #1aa3c9; }
+.zh-card-barricade { background-color: #d9a514; }
+.zh-card-barrel { background-color: #b23ad0; }
+.zh-card.is-placing { border-color: #ffe23a; box-shadow: 0 0 0 3px rgba(255,226,58,.85), 0 3px 0 rgba(0,0,0,.45); }
+.zh-chip {
+  position: absolute; top: 62px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 14px; pointer-events: auto;
+  border-radius: 8px; background: rgba(12,16,22,.72); border: 1.5px solid rgba(61,255,106,.7);
+  font-size: 17px; white-space: nowrap; -webkit-text-stroke: .8px #10141a; paint-order: stroke fill;
+}
+.zh-chip[hidden] { display: none; }
+.zh-chip.is-bad { border-color: rgba(255,59,59,.8); }
+.zh-chip-s { font: 600 12px/1 "DM Sans", sans-serif; -webkit-text-stroke: 0; color: #9fffb4; }
+.zh-chip.is-bad .zh-chip-s { color: #ff9a9a; }
+.zh-chip-s:empty { display: none; }
+.zh-chip-b {
+  font: 700 14px/1 "Oswald", sans-serif; color: #fff; cursor: pointer; padding: 5px 10px; border-radius: 5px;
+  border: 1.5px solid rgba(0,0,0,.5); background: #2a7d3a; box-shadow: 0 2px 0 rgba(0,0,0,.4);
+}
+.zh-chip-b.is-cancel { background: #8c1d1d; }
+.zh-chip-b:active { transform: translateY(1px); }
+/* with a mouse locked to the game a click places: the Place button is for touch */
+body:not(.to-touch-play) .zh-chip-b.is-place { display: none; }
+.zh-bars { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.zh-wbar { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; will-change: transform; }
+.zh-wbar-track { width: 52px; height: 6px; border-radius: 3px; background: rgba(20,20,20,.7); border: 1px solid rgba(0,0,0,.6); overflow: hidden; }
+.zh-wbar-track i { display: block; height: 100%; background: #ff8a1f; transform-origin: left; }
+.zh-wbar.is-deploy .zh-wbar-track { width: 60px; }
+.zh-wbar.is-deploy .zh-wbar-track i { background: #3dff6a; }
+.zh-wtag { font-size: 14px; line-height: 1; color: #ffe23a; -webkit-text-stroke: 1px #10141a; paint-order: stroke fill; }
+@media (max-width: 900px), (max-height: 520px) {
+  .zh-col-s { font-size: 10px; }
+  .zh-chip { top: 48px; font-size: 14px; }
+}
+/* touch: the deployables go in a second row of cards beside the upgrades */
+body.to-touch-play .zh-dep {
+  right: auto; left: calc(var(--sl) + 26px + 3 * 70px * var(--k) + 2 * 6px * var(--k));
+  top: calc(12px + 96px * var(--k));
+  display: grid; grid-template-columns: repeat(3, auto); gap: 0 calc(6px * var(--k)); align-items: start;
+}
+body.to-touch-play .zh-col-hrow { grid-column: 1 / -1; flex-direction: row; align-items: baseline; gap: 6px; }
+body.to-touch-play .zh-col-s { font-size: calc(9px * var(--k)); }
+body.to-touch-play .zh-chip { top: auto; bottom: calc(var(--sb) + 54px); }
+/* touch: the card rows fill the middle band, so the big wave call goes up
+   between the wave count and the rows */
+body.to-touch-play .zh-banner { top: calc(46px + 25px * var(--k)); font-size: calc(36px * var(--k)); }
+/* touch, down: nothing to buy or put down, and the bleed-out needs the room */
+body.to-touch-play .zh.is-downed .zh-col { visibility: hidden; }

@@ -9,21 +9,31 @@
 // The cards are buttons (tap on touch); on a keyboard 4 / 5 / 6 buy them
 // and K skips the break. The numbers sit on the cards like the weapon
 // bar's slot numbers.
+//
+// The Deployables column down the right (P2): 7 / 8 / 9 or a tap picks one
+// to place, held picks it in grid mode. While placing, a chip up top says
+// what and has Place / Cancel (a click places on a keyboard, a right click
+// cancels; a second tap on the card places on touch).
 
 import { game } from "../core/state.js?v=st1";
 
 let root = null;
-let hooks = { onBuy: () => {}, onSkip: () => {} };
+let hooks = { onBuy: () => {}, onSkip: () => {}, onDeploy: () => false, onPlace: () => false, onCancel: () => {} };
 const els = {};
-const shown = { wave: -1, left: -1, cash: -1, gain: -1, offers: "", between: null, breakS: -1, downed: null, downS: -1, kills: -1 };
+const shown = { wave: -1, left: -1, cash: -1, gain: -1, offers: "", deploy: "", placing: "", between: null, breakS: -1, downed: null, downS: -1, kills: -1 };
 
 const ICONS = {
   health: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 41 8 25a9 9 0 0 1 13-13l3 3 3-3a9 9 0 0 1 13 13Z" fill="#ff3b4a" stroke="#5a0c12" stroke-width="2.5"/><path d="M33 8v8m-4-4h8" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/></svg>',
   gun: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M5 18h30l3-3h5v7h-6l-2 3H22l-3 11h-7l2-11H5z" fill="#2b2f36" stroke="#0b0d10" stroke-width="2" stroke-linejoin="round"/><path d="M24 25l-1 5h5" fill="none" stroke="#0b0d10" stroke-width="2"/></svg>',
   melee: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M9 41 31 13c3-4 9-2 8 3L15 44Z" fill="#9b6b3c" stroke="#3a220f" stroke-width="2.5" stroke-linejoin="round"/><path d="M9 41l4 3" stroke="#1d1209" stroke-width="5" stroke-linecap="round"/></svg>',
+  turret: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 30v10M24 40l-9 5M24 40l9 5" stroke="#1d2025" stroke-width="3.5" stroke-linecap="round"/><rect x="13" y="16" width="20" height="14" rx="3" fill="#c9ced6" stroke="#1d2025" stroke-width="2.5"/><rect x="31" y="19" width="14" height="3.5" rx="1" fill="#1d2025"/><rect x="31" y="24" width="14" height="3.5" rx="1" fill="#1d2025"/><rect x="13" y="25" width="20" height="3" fill="#f2c230"/><circle cx="29" cy="20" r="2" fill="#ff2b2b"/></svg>',
+  barricade: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M6 40h36" stroke="#4e2f18" stroke-width="5" stroke-linecap="round"/><g fill="#7a4a26" stroke="#2c1a0c" stroke-width="2" stroke-linejoin="round"><path d="M9 41 12 12l5 29z"/><path d="M17 41l4-33 4 33z"/><path d="M25 41l5-30 4 30z"/><path d="M33 41l5-27 3 27z"/></g><g fill="#e8d5a8"><path d="M11.4 18 12 12l1.2 6z"/><path d="M20.3 14 21 8l.8 6z"/><path d="M29.3 17 30 11l.8 6z"/><path d="M37.4 20 38 14l.6 6z"/></g></svg>',
+  barrel: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M12 9h24l2 4v24l-2 4H12l-2-4V13z" fill="#c4231b" stroke="#4a0a07" stroke-width="2.5" stroke-linejoin="round"/><path d="M10 15h28v7H10z" fill="#f6c218"/><path d="M14 15h4l-3 7h-4zm8 0h4l-3 7h-4zm8 0h4l-3 7h-4z" fill="#16171a"/><path d="M10 31h28" stroke="#8e1812" stroke-width="2.5"/></svg>',
 };
 const KEYS = { hp: "4", gun: "5", melee: "6" };
 const KEY_TO_ID = { Digit4: "hp", Digit5: "gun", Digit6: "melee" };
+const DEPLOY_KEYS = ["Digit7", "Digit8", "Digit9"];
+const HOLD_MS = 350;   // held this long, a deployable card picks grid mode
 
 const money = (n) => `$${Math.round(n).toLocaleString()}`;
 
@@ -98,6 +108,22 @@ export function mountZombiesHud(h) {
     els.up.append(b);
   }
 
+  // the Deployables column: cards made on the first update, from the kit
+  els.dep = el("div", "zh-col zh-dep");
+  const depHead = el("div", "zh-col-hrow");
+  depHead.append(el("div", "zh-col-h", "Deployables"), el("div", "zh-col-s", "(Hold for grid mode)"));
+  els.dep.append(depHead);
+  els.depCards = {};
+  els.depOrder = [];
+
+  els.chip = el("div", "zh-chip");
+  els.chip.hidden = true;
+  els.chip.innerHTML = '<span class="zh-chip-t"></span><span class="zh-chip-s"></span><button type="button" class="zh-chip-b is-place">Place</button><button type="button" class="zh-chip-b is-cancel">Cancel</button>';
+  els.chipT = els.chip.querySelector(".zh-chip-t");
+  els.chipS = els.chip.querySelector(".zh-chip-s");
+  els.chip.querySelector(".is-place").addEventListener("click", () => hooks.onPlace());
+  els.chip.querySelector(".is-cancel").addEventListener("click", () => hooks.onCancel());
+
   els.cash = el("div", "zh-cash");
   els.gain = el("span", "zh-gain");
   els.cashN = el("strong", "zh-cash-n");
@@ -112,7 +138,7 @@ export function mountZombiesHud(h) {
   els.downBar = els.down.querySelector("i");
   els.downK = els.down.querySelector(".zh-down-k");
 
-  root.append(els.top, els.skip, els.up, els.cash, els.feed, els.banner, els.down);
+  root.append(els.top, els.skip, els.up, els.dep, els.chip, els.cash, els.feed, els.banner, els.down);
   for (const ev of ["pointerdown", "touchstart", "mousedown"]) root.addEventListener(ev, swallow, { passive: true });
   hud.append(root);
 
@@ -123,7 +149,53 @@ export function mountZombiesHud(h) {
     const id = KEY_TO_ID[e.code];
     if (id) els.cards[id].b.click();
     else if (e.code === "KeyK") hooks.onSkip();
+    else if (e.code === "Escape") hooks.onCancel();
+    const di = DEPLOY_KEYS.indexOf(e.code);
+    if (di >= 0 && els.depOrder[di]) holdStart(els.depOrder[di], e.code);
   });
+  window.addEventListener("keyup", (e) => {
+    if (DEPLOY_KEYS.includes(e.code)) holdEnd(e.code);
+  });
+}
+
+/* A deployable card pressed (key or finger): let go before HOLD_MS and it's
+   a pick; keep it down and it's a pick in grid mode, as soon as it counts. */
+let hold = null;   // { id, src, timer }
+function holdStart(id, src) {
+  holdCancel();
+  hold = { id, src, timer: setTimeout(() => { const h = hold; hold = null; if (h) pickDeploy(h.id, true); }, HOLD_MS) };
+}
+function holdEnd(src) {
+  if (!hold || hold.src !== src) return;
+  const { id, timer } = hold;
+  clearTimeout(timer);
+  hold = null;
+  pickDeploy(id, false);
+}
+function holdCancel() {
+  if (hold) clearTimeout(hold.timer);
+  hold = null;
+}
+function pickDeploy(id, grid) {
+  const c = els.depCards[id];
+  if (!hooks.onDeploy(id, grid) && c) { c.b.classList.remove("is-no"); void c.b.offsetWidth; c.b.classList.add("is-no"); }
+}
+
+function depCard(o, i) {
+  const b = el("button", `zh-card zh-card-dep zh-card-${o.id}`);
+  b.type = "button";
+  b.innerHTML = `<span class="zh-price"></span><span class="zh-icon">${ICONS[o.id] || ""}</span><span class="zh-sub"></span><span class="zh-title"></span><span class="zh-key">${i + 7}</span>`;
+  const src = `card-${o.id}`;
+  b.addEventListener("pointerdown", (e) => { e.preventDefault(); holdStart(o.id, src); });
+  b.addEventListener("pointerup", () => holdEnd(src));
+  b.addEventListener("pointerleave", () => { if (hold?.src === src) holdCancel(); });
+  b.addEventListener("pointercancel", () => { if (hold?.src === src) holdCancel(); });
+  b.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pickDeploy(o.id, false); } });
+  const c = { b, price: b.querySelector(".zh-price"), sub: b.querySelector(".zh-sub"), title: b.querySelector(".zh-title") };
+  els.depCards[o.id] = c;
+  els.depOrder[i] = o.id;
+  els.dep.append(b);
+  return c;
 }
 
 export function showZombiesHud(on) {
@@ -135,6 +207,8 @@ export function showZombiesHud(on) {
     els.feed.textContent = "";
     els.banner.classList.remove("is-on");
     els.down.hidden = true;
+    els.chip.hidden = true;
+    holdCancel();
   }
 }
 
@@ -202,6 +276,33 @@ export function updateZombiesHud(dt, s) {
       c.b.classList.toggle("is-poor", o.price != null && !o.can);
       c.b.classList.toggle("is-max", o.price == null);
       c.b.setAttribute("aria-label", `${o.sub} ${o.title}${o.price == null ? ", maxed" : `, ${money(o.price)}`}`);
+    }
+  }
+
+  if (s.deploy) {
+    const dkey = s.deploy.map((o) => `${o.id}:${o.price}:${o.count}:${o.can}:${o.placing}`).join("|");
+    if (dkey !== shown.deploy) {
+      shown.deploy = dkey;
+      s.deploy.forEach((o, i) => {
+        const c = els.depCards[o.id] || depCard(o, i);
+        c.price.textContent = money(o.price);
+        fitLabel(c.title, o.short || o.name);   // the full name is on the chip
+        fitLabel(c.sub, `${o.count} / ${o.max}`);
+        c.b.classList.toggle("is-poor", !o.can && !o.placing);
+        c.b.classList.toggle("is-placing", !!o.placing);
+        c.b.setAttribute("aria-label", `${o.name}, ${money(o.price)}, ${o.count} of ${o.max} out`);
+      });
+    }
+  }
+  const pl = s.placing;
+  const pkey = pl ? `${pl.name}:${pl.ok}:${pl.grid}` : "";
+  if (pkey !== shown.placing) {
+    shown.placing = pkey;
+    els.chip.hidden = !pl;
+    if (pl) {
+      els.chipT.textContent = `Placing ${pl.name}`;
+      els.chipS.textContent = pl.ok ? (pl.grid ? "Grid mode" : "") : "Won't fit there";
+      els.chip.classList.toggle("is-bad", !pl.ok);
     }
   }
 
