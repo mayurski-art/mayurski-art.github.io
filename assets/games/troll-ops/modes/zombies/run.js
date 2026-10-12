@@ -12,15 +12,15 @@
 // nobody is left standing. A cleared wave gets everyone back up.
 
 import { game } from "../../core/state.js?v=st1";
-import { econ, earn, resetCash, tickCash, waveBonus } from "./economy.js?v=zr5";
-import { buy, offers, resetUpgrades, upgradeState } from "./upgrades.js?v=zr5";
-import { mountZombiesHud, showZombiesHud, updateZombiesHud, announceWave, zombiesBanner } from "../../view/zombies-hud.js?v=zr6-zr7-zr8";
-import { updateZombieBars } from "../../view/zombies-bars.js?v=zr6";
-import { dep, depWire, deployOffers, pickDeployable, cancelPlacing, placeDeployable, spawnDeployable, hitBlocker, resetDeployables, clearDeployables, updateDeployables } from "./deployables.js?v=zr6-zr8";
-export { deployClick } from "./deployables.js?v=zr6-zr8";
-import { bossState, bossWaveStarted, resetBosses, spawnBossNow, updateBosses } from "./boss.js?v=zr7-zr8";
-import { coop, startCoop, stopCoop, coopPreFrame, coopPostFrame, coopTargets, coopSwing, voteSkip, playerCount, roomPlayers, coopDebug, REVIVE_TIME } from "./coop.js?v=zr8";
-export { onZombieMessage } from "./coop.js?v=zr8";
+import { econ, earn, resetCash, tickCash, waveBonus } from "./economy.js?v=zr5-zr9";
+import { buy, offers, resetUpgrades, upgradeState } from "./upgrades.js?v=zr5-zr9";
+import { mountZombiesHud, showZombiesHud, updateZombiesHud, announceWave, zombiesBanner } from "../../view/zombies-hud.js?v=zr6-zr7-zr8-zr9";
+import { updateZombieBars } from "../../view/zombies-bars.js?v=zr6-zr9";
+import { dep, depWire, deployOffers, pickDeployable, cancelPlacing, placeDeployable, spawnDeployable, hitBlocker, resetDeployables, clearDeployables, updateDeployables } from "./deployables.js?v=zr6-zr8-zr9";
+export { deployClick } from "./deployables.js?v=zr6-zr8-zr9";
+import { bossState, bossWaveStarted, resetBosses, spawnBossNow, updateBosses } from "./boss.js?v=zr7-zr8-zr9";
+import { coop, startCoop, stopCoop, coopPreFrame, coopPostFrame, coopTargets, coopSwing, voteSkip, playerCount, roomPlayers, coopDebug, REVIVE_TIME } from "./coop.js?v=zr8-zr9";
+export { onZombieMessage } from "./coop.js?v=zr8-zr9";
 
 export const FINAL_WAVE = 30;
 const BLEED_OUT = 15;           // seconds down before it's over
