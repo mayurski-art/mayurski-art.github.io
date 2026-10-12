@@ -185,7 +185,17 @@ const groanGap = (typeId) => (typeId === "walker" ? 4 + Math.random() * 6 : 2.5 
 export const CASH = { walker: 15, runner: 22, leaper: 30, brute: 60, mini: 500, boss: 2500 };
 export const HEADSHOT_CASH = 1.5;
 
+/* Co-op (modes/zombies/coop.js): `hit(zombie, dmg, isHead)` takes a hit on
+   a mirrored zombie to the host. */
+export const zombieWire = { hit: null };
+const NOOP = () => {};
+// a mirrored zombie's moves, as the host sends them (zp's anim code)
+export const PROXY_ANIM = { walk: 0, crouch: 1, leap: 2, hold: 3, stun: 4 };
+
 const MAX_ALIVE = 12;
+const PER_PLAYER_COUNT = 0.45;   // co-op: share of a wave each extra player adds
+const PER_PLAYER_ALIVE = 4;      // ...and how many more can be up at once
+const RETARGET = 1;              // seconds between a zombie's "who's nearest" checks
 const SPAWN_INTERVAL = 1.1;
 const BREAK_SECONDS = 15;     // between waves: time to spend (skippable)
 const RISE_TIME = 1.6;        // a grave spawn clawing up out of the ground
@@ -211,10 +221,14 @@ export function speedForRound(round, base) {
 let idc = 0;
 
 export class Zombie {
-  constructor(typeId, position, scene, round, { rise = false, hp = null } = {}) {
+  constructor(typeId, position, scene, round, { rise = false, hp = null, look: lookId = null, proxy = false } = {}) {
     this.type = ZOMBIE_TYPES[typeId];
     this.isZombie = true;
     this.id = ++idc;
+    this.nid = null;         // co-op: its id on the wire (modes/zombies/coop.js)
+    this.proxy = proxy;      // co-op, not the host: the host's zombie, mirrored (driveProxy)
+    this.snap = null;        // ...and where the host last said it was
+    this.targetId = null;    // whose player it's after (null = the local player)
     this.maxHp = hp ?? Math.round(healthForRound(round) * this.type.hpMult);
     this.hp = this.maxHp;
     this.speed = speedForRound(round, this.type.speed);
@@ -243,7 +257,7 @@ export class Zombie {
     this.pool = null;        // the blood pool once it's down
     this.headless = false;
 
-    const look = pickLook(typeId);
+    const look = lookId && lookReady(lookId) ? lookId : pickLook(typeId);
     this.look = look;
     this.voice = voiceFor(typeId, look);
     this.body = look ? createZombieBody(look, {
@@ -281,6 +295,13 @@ export class Zombie {
 
   takeDamage(dmg, isHead) {
     if (!this.alive || this.dying) return { killed: false, cash: 0 };
+    if (this.proxy) {
+      // the host's to decide: the hit goes to it, and the bar drops now
+      this.hp = Math.max(1, this.hp - dmg);
+      if (!this.type.noStagger) this.staggerT = 0.08;
+      zombieWire.hit?.(this, dmg, isHead);
+      return { killed: false, cash: 0 };
+    }
     this.hp -= dmg;
     if (!this.type.noStagger) this.staggerT = 0.08;
     if (this.hp > 0) return { killed: false, cash: 0 };
@@ -629,6 +650,64 @@ export class Zombie {
     poseHumanoid(this.rig, { phase: this.phase, moving, zombie: true, dt });
   }
 
+  /* Co-op, on the host: what it's doing, for the wire (PROXY_ANIM). */
+  get wireAnim() {
+    if (this.leap) return this.leap.phase === "air" ? PROXY_ANIM.leap : PROXY_ANIM.crouch;
+    if (this.holdT > 0) return PROXY_ANIM.hold;
+    if (this.stunT > 0) return PROXY_ANIM.stun;
+    return PROXY_ANIM.walk;
+  }
+
+  /* Co-op, everyone but the host: one frame of a zombie the host runs.
+     It eases toward the host's last word on it (`snap`: x, gy ground,
+     lift off it, z, yaw, a anim) and plays whatever that looks like; the
+     rise and the death still play out here, from their own clocks. */
+  driveProxy(dt, scene) {
+    if (this.dying || this.riseT > 0) {
+      // (both branches return before update needs the arena)
+      this.update(dt, this.mesh.position, NOOP, null, null, null, null, scene);
+      return;
+    }
+    if (!this.snap) { if (this.body) this._animate(dt); return; }
+    this.groanT -= dt;
+    if (this.groanT <= 0) {
+      this.groanT = groanGap(this.type.id);
+      if (!this.voiceEvent) this.voiceEvent = "groan";
+    }
+    const s = this.snap;
+    const p = this.mesh.position;
+    const k = Math.min(1, dt * 9);
+    const ox = p.x, oz = p.z;
+    p.x += (s.x - p.x) * k;
+    p.z += (s.z - p.z) * k;
+    this.groundY += (s.gy - this.groundY) * k;
+    p.y = this.groundY + (s.a === PROXY_ANIM.leap ? s.lift : 0);
+    const dy = Math.atan2(Math.sin(s.yaw - this.mesh.rotation.y), Math.cos(s.yaw - this.mesh.rotation.y));
+    this.mesh.rotation.y += dy * Math.min(1, dt * 12);
+    const sp = dt > 0 ? Math.hypot(p.x - ox, p.z - oz) / dt : 0;
+    this.proxySpeed = (this.proxySpeed || 0) + (sp - (this.proxySpeed || 0)) * Math.min(1, dt * 8);
+    if (this.staggerT > 0) this.staggerT -= dt;
+    if (!this.body) {
+      this.phase += dt * (this.proxySpeed > 0.15 ? 5.5 : 2.5);
+      poseHumanoid(this.rig, { phase: this.phase, moving: this.proxySpeed > 0.15, zombie: true, dt });
+      return;
+    }
+    if (s.a === PROXY_ANIM.crouch) this.play("crouch", 0.12);
+    else if (s.a === PROXY_ANIM.leap) this.play("leap", 0.08);
+    else if (s.a === PROXY_ANIM.hold && this.attackT <= 0) {
+      // a boss winding up its slam: the swing, slowed (boss.js does the same)
+      this.play("attack", 0.1);
+      this.anim.setEffectiveTimeScale(0.55);
+      this.attackT = 1.1;
+    } else if (s.a === PROXY_ANIM.stun) this.mesh.rotation.y += dt * 3;
+    if (s.a === PROXY_ANIM.crouch || s.a === PROXY_ANIM.leap) {
+      this.body.mixer.update(dt);
+      this._flinchPose(dt);
+      return;
+    }
+    this._animate(dt, { moving: this.proxySpeed > 0.15, speed: this.proxySpeed / (this.type.scale || 1) });
+  }
+
   /* A blocker it's pressed up against, between it and where it's going
      (or where it's trying to walk), or null. */
   _blockerAhead(blockers, to, dist) {
@@ -694,12 +773,17 @@ export class ZombieDirector {
     this.kills = 0;
     this.state = "idle";  // idle | spawning | fighting | between
     this.fields = new Map();   // "floor|target" -> FlowField, built on first use
-    this.fieldT = 0;
     this.events = [];          // drained by the run: { type: "cleared", wave } | { type: "shriek", at } | { type: "groan" | "snarl" | "death", at, voice }
     this.groanCd = 0;          // horde-wide gap between moans, so twelve don't drone in unison
     this.snarlCd = 0;          // and between swipe snarls
     this.forceType = null;     // tests: every spawn is this type
     this.blockers = [];        // the run's deployables (modes/zombies/deployables.js)
+    this.maxAlive = MAX_ALIVE;
+    // Co-op, on the host: everyone the horde can go for, as { id, pos (eye),
+    // feetY }, id null for the local player. Unset = just the local player.
+    this.targets = null;
+    this.fieldTs = new Map();  // target key -> seconds to its field's next sweep
+    this.spawnTurn = 0;        // whose floor the next spawn comes in on
     preloadZombieModels();     // the bodies; spawning waits for them (see update)
   }
 
@@ -722,11 +806,12 @@ export class ZombieDirector {
 
   /* The field toward the player on the player's floor, re-swept a few times
      a second rather than every frame. `feet` is the player's feet. */
-  fieldFor(feet, dt) {
-    const field = this.field(this.floorOf(feet.y, feet.x, feet.z), "player");
-    this.fieldT -= dt;
-    if (this.fieldT <= 0 || field.targetIdx < 0) {
-      this.fieldT = 0.3;
+  fieldFor(feet, dt, key = "player") {
+    const field = this.field(this.floorOf(feet.y, feet.x, feet.z), key);
+    const t = (this.fieldTs.get(key) ?? 0) - dt;
+    this.fieldTs.set(key, t);
+    if (t <= 0 || field.targetIdx < 0) {
+      this.fieldTs.set(key, 0.3);
       field.compute(feet.x, feet.z);
     }
     return field;
@@ -800,9 +885,13 @@ export class ZombieDirector {
   get aliveCount() { return this.zombies.filter((z) => z.alive && !z.dying).length; }
   get remaining() { return this.aliveCount + this.toSpawn; }
 
-  startRound(n) {
+  /* `players`: co-op's headcount. Each one past the first brings 45% more
+     of the wave and room for PER_PLAYER_ALIVE more at once. */
+  startRound(n, players = 1) {
+    const extra = Math.max(0, players - 1);
     this.round = n;
-    this.toSpawn = countForRound(n);
+    this.toSpawn = Math.round(countForRound(n) * (1 + PER_PLAYER_COUNT * extra));
+    this.maxAlive = MAX_ALIVE + PER_PLAYER_ALIVE * extra;
     this.spawnCd = 0.8;
     this.state = "spawning";
   }
@@ -874,15 +963,18 @@ export class ZombieDirector {
   /* `playerPos` is the eye; `feetY` the player's feet (defaults to a
      standing eye height below it). Returns true when the next round is due. */
   update(dt, playerPos, onAttack, feetY = playerPos.y - 1.6) {
-    const feet = { x: playerPos.x, y: feetY + 0.2, z: playerPos.z };
+    // who they can go for: co-op's list, or just the local player
+    const tg = this.targets?.length ? this.targets : [{ id: null, pos: playerPos, feetY }];
     if (this.state === "spawning" || this.state === "fighting") {
       if (this.toSpawn > 0) {
         this.spawnCd -= dt;
         // false = the bodies are still downloading (null = they failed: the
         // stick figures stand in rather than nobody ever turning up)
-        if (this.spawnCd <= 0 && this.aliveCount < MAX_ALIVE && zombieModelsReady() !== false) {
+        if (this.spawnCd <= 0 && this.aliveCount < this.maxAlive && zombieModelsReady() !== false) {
           this.spawnCd = SPAWN_INTERVAL;
-          const w = this.spawnPointFor(feet);
+          // in co-op the spawns take turns coming in on each player's floor
+          const t = tg[this.spawnTurn++ % tg.length];
+          const w = this.spawnPointFor({ x: t.pos.x, y: t.feetY + 0.2, z: t.pos.z });
           if (w) {
             const spread = w.rise ? 0.3 : 1.4;   // a grave is a grave
             const pos = new THREE.Vector3(
@@ -899,31 +991,26 @@ export class ZombieDirector {
       }
     }
 
-    const field = this.fieldFor(feet, dt);
+    // a field toward each target, swept only when someone is after them
+    const fields = new Map();
+    const fieldOf = (t) => {
+      let f = fields.get(t);
+      if (!f) {
+        f = this.fieldFor({ x: t.pos.x, y: t.feetY + 0.2, z: t.pos.z }, dt, t.id == null ? "player" : `p:${t.id}`);
+        fields.set(t, f);
+      }
+      return f;
+    };
     this.groanCd -= dt;
     this.snarlCd -= dt;
     for (const z of this.zombies) {
       if (!z.alive) continue;
-      const route = z.dying ? null : this.routeFor(z, playerPos, field, feetY, dt);
-      z.update(dt, playerPos, onAttack, this.arena, this.colliders, route, feetY, this.scene, this.blockers);
-      if (z.voiceEvent) {
-        const kind = z.voiceEvent;
-        z.voiceEvent = null;
-        // moans and snarls take turns (a surrounding horde swipes several
-        // times a second); a death always gets through
-        const ready = kind === "groan" ? this.groanCd <= 0 : kind === "snarl" ? this.snarlCd <= 0 : true;
-        if (ready) {
-          if (kind === "groan") this.groanCd = 0.45 + Math.random() * 0.5;
-          if (kind === "snarl") this.snarlCd = 0.6 + Math.random() * 0.4;
-          const p = z.mesh.position;
-          this.events.push({ type: kind, at: { x: p.x, y: p.y + 1.5, z: p.z }, voice: z.voice });
-        }
-      }
-      if (z.shrieked) {
-        z.shrieked = false;
-        const p = z.mesh.position;
-        this.events.push({ type: "shriek", at: { x: p.x, y: p.y + 1.5, z: p.z } });
-      }
+      if (z.proxy) { this._voice(z); continue; }   // a mirrored one left over (coop drives those)
+      const t = this.targetFor(z, tg, dt);
+      z.targetId = t.id;
+      const route = z.dying ? null : this.routeFor(z, t.pos, fieldOf(t), t.feetY, dt);
+      z.update(dt, t.pos, onAttack, this.arena, this.colliders, route, t.feetY, this.scene, this.blockers);
+      this._voice(z);
     }
 
     const dead = this.zombies.filter((z) => !z.alive);
@@ -942,6 +1029,62 @@ export class ZombieDirector {
       if (this.breakT <= 0) return true;   // caller starts the next round
     }
     return false;
+  }
+
+  /* Who `z` goes for: the nearest of `tg` (a floor apart counts as far),
+     re-checked every RETARGET seconds so it doesn't dither between two. */
+  targetFor(z, tg, dt) {
+    if (tg.length === 1) return tg[0];
+    z.retargetT = (z.retargetT ?? 0) - dt;
+    const cur = tg.find((t) => t.id === z.targetId);
+    if (cur && z.retargetT > 0) return cur;
+    z.retargetT = RETARGET;
+    const p = z.mesh.position;
+    let best = tg[0], bestD = Infinity;
+    for (const t of tg) {
+      const d = Math.hypot(t.pos.x - p.x, t.pos.z - p.z) + Math.abs(t.feetY - z.groundY) * 4;
+      if (d < bestD) { bestD = d; best = t; }
+    }
+    return best;
+  }
+
+  /* Co-op, everyone but the host: the mirrored horde's frame. Same voices
+     and the same clean-up as update, none of the thinking. */
+  updateProxies(dt) {
+    this.groanCd -= dt;
+    this.snarlCd -= dt;
+    for (const z of this.zombies) {
+      if (!z.alive) continue;
+      z.driveProxy(dt, this.scene);
+      this._voice(z);
+    }
+    const dead = this.zombies.filter((z) => !z.alive);
+    if (dead.length) {
+      for (const z of dead) z.dispose(this.scene);
+      this.zombies = this.zombies.filter((z) => z.alive);
+    }
+  }
+
+  /* A zombie's moan, snarl, death or shriek, as a director event. */
+  _voice(z) {
+    if (z.voiceEvent) {
+      const kind = z.voiceEvent;
+      z.voiceEvent = null;
+      // moans and snarls take turns (a surrounding horde swipes several
+      // times a second); a death always gets through
+      const ready = kind === "groan" ? this.groanCd <= 0 : kind === "snarl" ? this.snarlCd <= 0 : true;
+      if (ready) {
+        if (kind === "groan") this.groanCd = 0.45 + Math.random() * 0.5;
+        if (kind === "snarl") this.snarlCd = 0.6 + Math.random() * 0.4;
+        const p = z.mesh.position;
+        this.events.push({ type: kind, at: { x: p.x, y: p.y + 1.5, z: p.z }, voice: z.voice });
+      }
+    }
+    if (z.shrieked) {
+      z.shrieked = false;
+      const p = z.mesh.position;
+      this.events.push({ type: "shriek", at: { x: p.x, y: p.y + 1.5, z: p.z } });
+    }
   }
 
   hitMeshes() {
