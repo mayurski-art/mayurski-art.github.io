@@ -113,9 +113,25 @@ export const MELEE_DEFS = {
     // spread, hilt bar across the fist (tuned in the Test Range).
     model: { kind: "halo", view: { pos: [-0.08, 0.1, 0.0], rot: [-0.45, 0.1, 0.25], scale: 0.85 } },
   },
+  // Zombies only (`zombies: true` keeps them off the loadout's melee list):
+  // the run's melee tiers, bought from the upgrade column (modes/zombies/
+  // upgrades.js). Built from code until their Blender models land.
+  bat: {
+    id: "bat", name: "Bat", rank: 0, zombies: true,
+    damage: 150, backstabMult: 1.5, range: 2.0, arc: 1.05, knock: 7,
+    blurb: "Batter up.",
+    model: { kind: "bat", len: 0.84, wide: 0.042, blade: 0.05, color: 0x8a5a2b, grip: 0x2a1a10 },
+  },
+  shovel: {
+    id: "shovel", name: "Shovel", rank: 0, zombies: true,
+    damage: 230, backstabMult: 2, range: 2.1, arc: 0.95, knock: 7.5,
+    blurb: "Dig in.",
+    model: { kind: "bar", len: 0.95, wide: 0.034, hook: true, color: 0x6d7276, grip: 0x3a2412 },
+  },
 };
 
-export const MELEE_IDS = Object.keys(MELEE_DEFS);
+/* What a loadout can carry (the zombies-only tiers aren't on it). */
+export const MELEE_IDS = Object.keys(MELEE_DEFS).filter((id) => !MELEE_DEFS[id].zombies);
 
 /* Keyboard Warrior rest pose and swing keyframes, ported 1:1 from the Godot
    reference build (troll-melee-1/weapons/keyboard_sword/keyboard_sword.gd)
