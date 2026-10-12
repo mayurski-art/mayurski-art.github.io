@@ -107,6 +107,8 @@ export function killerPosFor(id) {
    look up by id — a zombie, a grunt, the bomb. */
 export function damagePlayer(amount, fromId, weaponId, isHead = false, fromPos = null) {
   if (!game.player.alive) return;
+  // Zombies: down is down; the bleed-out (modes/zombies/run.js) decides the rest.
+  if (game.player.downed) return;
   // Owner's Invincible toggle: nothing lands, from anyone or anything.
   if (game.invincibleOn()) return;
   // Socialize: nobody can be hurt, whatever arrives off the wire.
@@ -203,6 +205,8 @@ export function damagePlayer(amount, fromId, weaponId, isHead = false, fromPos =
     if (game.killcam.replaying && !game.isSnd()) game.respawnT = Math.max(game.respawnT, game.killcam.duration + 0.35);
     game.els.killcamBars.classList.add("is-on");
     startKillcamPresentation(fromId, weaponId, isHead);
+  } else if (game.isZombies()) {
+    game.zombieDowned();
   } else {
     game.endGame("dead");
   }

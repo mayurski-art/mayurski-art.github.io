@@ -517,7 +517,7 @@ export function endStaging() {
   game.audio.stageTick(true);
   // The horde/zombie clock — and the first wave banner — start now, not when
   // the map loaded, so nothing was ever ticking behind the countdown.
-  if (game.isZombies()) game.nextZombieRound();
+  if (game.isZombies()) game.nextZombieWave();
   else if (game.isSnd()) sndGoLive();
   else if (!game.isPvp() && !game.isRange()) game.nextWave();
 
@@ -699,6 +699,7 @@ export function beginMatch(mapId = null) {
   }
   game.els.rangeHud.hidden = true;
   if (game.zdir) { game.zdir.clear(); game.zdir = null; }
+  game.stopZombieRun();
 
   if (game.rangeSet) { game.rangeSet.clear(); game.rangeSet = null; }
 
@@ -706,6 +707,7 @@ export function beginMatch(mapId = null) {
     game.rangeSet = new RangeSet(game.scene);
   } else if (game.isZombies()) {
     game.zdir = new ZombieDirector(game.scene, game.ARENA, game.colliders, game.builtMap.map.zombieLayout());
+    game.startZombieRun();   // cash, upgrades, the HUD (modes/zombies/run.js)
   } else if (!game.isPvp() && !game.isView()) {
     game.spawner = new WaveSpawner(game.scene, game.ARENA, game.spawnPoints, game.colliders);
   }

@@ -51,9 +51,10 @@ export const hudCache = { hpPct: -1, hpLow: null, hpText: -1, ammoCur: -1, ammoR
    what keeps trading meaningful — regen never starts mid-fight. */
 const REGEN_DELAY = 4.5;   // seconds since last hit before regen kicks in
 const REGEN_RATE = 12;     // hp per second once it starts
+const DOWNED_SPEED = 0.35; // Zombies, down: a crawl (on top of the crouch)
 
 export function regenPlayer(dt) {
-  if (!game.player.alive || game.player.hp >= game.player.maxHp) return;
+  if (!game.player.alive || game.player.downed || game.player.hp >= game.player.maxHp) return;
   if (performance.now() - game.player.lastHurtAt < REGEN_DELAY * 1000) return;
   game.player.hp = Math.min(game.player.maxHp, game.player.hp + REGEN_RATE * dt);
 }
@@ -181,6 +182,7 @@ export function updatePlayer(dt) {
   // Shallow water (a map's `wade` outline, edge.js): slow, and no sprinting.
   // Only with your feet in it: a jetty, bridge or boat deck over it is dry.
   const wading = !!game.ARENA.wade && game.move.pos.y < 0.5 && insidePolygon(game.ARENA.wade, game.move.pos.x, game.move.pos.z);
+  const downed = !!game.player.downed;
   updateTrain();   // the Grin Express, and us on it, before we move (Socialize)
   if (dropping) updateDropPlayer(dt, dropIx, dropIz);
   else if (game.isView()) flyView(dt, ix, iz);
@@ -191,15 +193,16 @@ export function updatePlayer(dt) {
   else game.move.update(dt, {
     forward: iz,
     strafe: ix,
-    sprint: !wading && !rolling && fireSprintHoldT <= 0 && ((game.isTouch || gp) ? iz > 0.82 : game.keys.has("ShiftLeft")),
-    jump: !frozen && ((game.isTouch && touchState.jump) || (gp && game.gamepadState.jump) || game.keys.has("Space")),
-    crouch: !frozen && ((game.isTouch && touchState.crouch) || (gp && game.gamepadState.crouch) || game.keys.has("KeyC")),
+    sprint: !downed && !wading && !rolling && fireSprintHoldT <= 0 && ((game.isTouch || gp) ? iz > 0.82 : game.keys.has("ShiftLeft")),
+    jump: !frozen && !downed && ((game.isTouch && touchState.jump) || (gp && game.gamepadState.jump) || game.keys.has("Space")),
+    // Zombies, down: on the floor, crawling (modes/zombies/run.js)
+    crouch: downed || (!frozen && ((game.isTouch && touchState.crouch) || (gp && game.gamepadState.crouch) || game.keys.has("KeyC"))),
     dive: !frozen && ((game.isTouch && touchState.dive) || game.keys.has("ControlLeft") || game.keys.has("ControlRight")),
     yaw: rolling ? royale.rollYaw : game.look.yaw,
     pitch: game.look.pitch,
     adsHeld: wantAds,
     speedMult: w.moveSpeedMult * (game.isInfected() ? INFECTION.speed : 1) * (wading ? 0.55 : 1) * (heroActive() ? hero().speedMult() : 1)
-      * (hasPerk("lightweight") ? PERK_TUNE.lightweightSpeed : 1),
+      * (hasPerk("lightweight") ? PERK_TUNE.lightweightSpeed : 1) * (downed ? DOWNED_SPEED : 1),
     // Troll Royale is a 400 m island: sprinting covers it 25% faster.
     // Extreme Conditioning (perks.js): the game has no sprint limit to lift,
     // so it's a faster sprint.

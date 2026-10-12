@@ -169,8 +169,9 @@ export function onBulletActorHit(actor, info) {
   }
 
   if (actor.isZombie) {
-    const { killed, points } = actor.takeDamage(info.damage, info.isHead);
-    game.zdir.award(points);
+    const res = actor.takeDamage(info.damage, info.isHead);
+    const { killed } = res;
+    game.zombieHit(actor, res, info.point);   // the run pays for kills (modes/zombies/run.js)
     showHitmarker(info.isHead, info.damage, info.point, killed);
     game.impactFx.hit(info.point, { normal: info.dir.clone().negate(), dir: info.dir, surface: actor.body ? "blood" : "zombie", scale: info.isHead ? 1.5 : 1.1 });
     // A headshot kill takes the head off: a burst out the far side and up.
@@ -186,7 +187,6 @@ export function onBulletActorHit(actor, info) {
       game.zdir.kills++;
       game.player.kills++;
       game.audio.kill();
-      pushKillfeed(`${info.isHead ? "Headshot — " : ""}+${points}`);
     }
     return;
   }

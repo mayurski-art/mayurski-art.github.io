@@ -69,6 +69,7 @@ import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak
 import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./hand-model.js?v=to-grip2";
 import { FlowField } from "./nav.js?v=ti1-bs1b7d";
 import { ZombieDirector, goreStandIns } from "./zombies.js?v=zr4c-sb2b7b7dc2f1m1u-gt1-gt2";
+import { nextZombieWave, startZombieRun, stopZombieRun, updateZombieRun, zombieDowned, zombieHit, zombieRunDebug } from "./modes/zombies/run.js?v=zr5";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
 import { ImpactFx } from "./impact-fx.js?v=zr4";
 import { LightPool } from "./light-pool.js";
@@ -364,7 +365,11 @@ linkGame({
   nearMiss,
   get net() { return net; },
   nextWave,
-  nextZombieRound,
+  nextZombieWave,
+  startZombieRun,
+  stopZombieRun,
+  zombieDowned,
+  zombieHit,
   noteDealt,
   noteLocalDeath,
   notePointDeath,
@@ -2168,28 +2173,6 @@ let stageT = 0;                  // seconds left; 0 means the match is live
 let stageOwner = false;          // are we the client publishing the clock?
 initMatchStart();
 
-function nextZombieRound() {
-  player.wave = zdir.round + 1;
-  zdir.startRound(player.wave);
-  els.hudWave.textContent = String(player.wave);
-  showWaveBanner(`ROUND ${player.wave}`);
-  audio.wave();
-}
-
-/* The Max Ammo drop: every gun's reserve full again, plus your grenades.
-   The mag you're holding stays as it is, the way the genre does it. */
-function zombieMaxAmmo() {
-  for (const w of Object.values(player.weapons)) w.ammoReserve = w.def.reserveMax - w.def.magSize;
-  player.gear.lethal = loadout.carried("lethal");
-  player.gear.tactical = loadout.carried("tactical");
-  showWaveBanner("MAX AMMO", 1600);
-  audio.wave();
-}
-
-function onZombieAttack(zombie, dmg) {
-  damagePlayer(dmg, null, null, false, zombie.mesh?.position);
-}
-
 function nextWave() {
   player.wave++;
   els.hudWave.textContent = String(player.wave);
@@ -2478,18 +2461,7 @@ function animate() {
         updateRemoteSabers();
       }
     } else if (isZombies()) {
-      const roundOver = zdir.update(dt, player.pos, onZombieAttack, move.pos.y);
-      if (roundOver) nextZombieRound();
-      for (const ev of zdir.events.splice(0)) {
-        if (ev.type === "maxammo") zombieMaxAmmo();
-        else if (ev.type === "shriek") audio.zombieShriek(ev.at);
-        else if (ev.type === "groan") audio.zombieGroan(ev.at, ev.voice);
-        else if (ev.type === "snarl") audio.zombieSnarl(ev.at, ev.voice);
-        else if (ev.type === "death") audio.zombieDeath(ev.at, ev.voice);
-      }
-      els.hudHostiles.textContent = String(zdir.remaining);
-      els.hudKills.textContent = zdir.points.toLocaleString();
-      targetMeshes = zdir.hitMeshes();
+      targetMeshes = updateZombieRun(dt);   // modes/zombies/run.js
     } else if (isView()) {
       // View mode: an empty map, nothing to simulate.
     } else if (!isPvp() && spawner) {
@@ -2617,7 +2589,7 @@ function animate() {
     const hpText = Math.ceil(player.hp);
     if (hpText !== hudCache.hpText) { hudCache.hpText = hpText; els.hpText.textContent = hpText; }
     if (w.ammoInMag !== hudCache.ammoCur) { hudCache.ammoCur = w.ammoInMag; els.ammoCur.textContent = w.ammoInMag; }
-    if (w.ammoReserve !== hudCache.ammoRes) { hudCache.ammoRes = w.ammoReserve; els.ammoRes.textContent = w.ammoReserve; }
+    if (w.ammoReserve !== hudCache.ammoRes) { hudCache.ammoRes = w.ammoReserve; els.ammoRes.textContent = Number.isFinite(w.ammoReserve) ? w.ammoReserve : "∞"; }
     const reloadHidden = !w.reloading;
     if (reloadHidden !== hudCache.reloadHidden) { hudCache.reloadHidden = reloadHidden; els.reloadTag.hidden = reloadHidden; }
     if (w.ads !== hudCache.ads) {
@@ -2832,6 +2804,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     setMode: (id) => { modeId = id; modePicked = true; },
     hero: () => hero(), heroHostiles, applyHeroFx, useHeroAbility,
     zdir: () => zdir,
+    zrun: zombieRunDebug,
     onBulletActorHit,
     loadedMapId: () => loadedMapId,
     THREE,

@@ -1143,6 +1143,19 @@ export class GameAudio {
     this._tone({ freq: 630, duration: 0.22, gain: 0.13, type: "triangle", delay: 0.14 });
   }
 
+  /* Zombies: a buy from the upgrade column. A till: a clunk, then a bright
+     two-note ding. `ok` false is a dull no (can't afford it). */
+  zombieBuy(ok = true) {
+    if (!this._ready()) return;
+    if (!ok) {
+      this._tone({ freq: 160, duration: 0.12, gain: 0.08, type: "square" });
+      return;
+    }
+    this._noise({ duration: 0.05, gain: 0.08, type: "lowpass", freq: 1800 });
+    this._tone({ freq: 1568, duration: 0.08, gain: 0.07, type: "triangle", delay: 0.05 });
+    this._tone({ freq: 2093, duration: 0.22, gain: 0.07, type: "triangle", delay: 0.12 });
+  }
+
   /* One second off the pre-match clock. Deliberately dry and quiet — it fires
      up to six times in a row, so anything with a tail would smear. */
   /* Match intro (match-intro.js). A low swell under the whole cinematic,

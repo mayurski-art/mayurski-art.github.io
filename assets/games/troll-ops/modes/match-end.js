@@ -90,10 +90,11 @@ function renderMatchMedals() {
 
 export function endGame(reason) {
   const zombies = game.isZombies();
+  if (zombies) game.stopZombieRun();
   finishRun(
-    reason === "quit" ? "Extracted" : (zombies ? "They got you" : "You went down"),
+    reason === "quit" ? "Extracted" : reason === "won" ? "You survived" : (zombies ? "They got you" : "You went down"),
     String(game.player.wave),
-    zombies ? "Round reached" : "Wave reached",
+    zombies ? (reason === "won" ? "Waves cleared" : "Wave reached") : "Wave reached",
     zombies ? "Zombies killed" : "Kills",
     "Time survived",
   );
