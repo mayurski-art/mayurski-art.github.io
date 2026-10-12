@@ -12,7 +12,7 @@
 // identical here and not re-explained.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, aimRig, mountHeldWeapon } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2";
+import { buildHumanoid, poseHumanoid, aimRig, mountHeldWeapon } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1";
 import { buildWeaponMesh } from "./weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2";
 import { poseEmoteCode, emoteCode, emoteSeconds } from "./emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2";
 
@@ -231,8 +231,10 @@ export class CharacterInspector {
         carryYaw: PORT_YAW, carryRoll: PORT_ROLL,
       });
       const p = this.humanoid.parts;
-      p.neckPivot.rotation.x += (LOW_READY + breath) * 0.25;
-      p.headPivot.rotation.x += (LOW_READY + breath) * 0.6;
+      // (the head follows the aim pitch with + up since 9497923, so the
+      // level takes it back down: adding it tipped the face over backwards)
+      p.neckPivot.rotation.x -= (LOW_READY + breath) * 0.25;
+      p.headPivot.rotation.x -= (LOW_READY + breath) * 0.6;
       this.humanoid.body.update();
     }
 
