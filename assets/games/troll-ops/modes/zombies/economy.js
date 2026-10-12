@@ -3,7 +3,7 @@
 // column spends it (upgrades.js). The HUD reads `econ` every frame and
 // drains `econ.feed` into its "+$15 ZOMBIE KILL" lines.
 
-import { spawnDamageNumber } from "../../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2";
+import { spawnDamageNumber } from "../../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-zr5";
 
 export const econ = {
   cash: 0,
