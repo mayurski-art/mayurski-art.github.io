@@ -1,0 +1,506 @@
+// Troll Forces Zombies: deployables, Zombie Rush's Rookie kit. Pick one from
+// the Deployables column and a see-through copy (the ghost) follows where
+// you're looking, green where it fits and red where it doesn't; held, the
+// column snaps it to a 1 m grid and square to the world ("Hold for grid
+// mode"). Put it down and it costs the run's cash; each one you put down
+// makes the next of that kind dearer (kits.js priceOf).
+//
+//   Auto Turret   turns to the nearest zombie in sight and fires on it
+//   Barricade     a spiked wall: blocks the way, and spikes whatever leans on it
+//   Barrel        goes up when the horde breaks it, and sets off its neighbours
+//
+// They stand in the world as colliders (the player and zombies walk into
+// them; bullets pass, pen 0) and as the director's `blockers`: a zombie
+// with one in its way swings at it (zombies.js Zombie._blockerAhead), and
+// each swing lands here (hitBlocker). The zombies' flow fields leave them
+// out, so the horde goes through a barricade, not round it.
+
+import * as THREE from "three";
+import { game } from "../../core/state.js?v=st1";
+import { DEPLOYABLES, KITS, DEFAULT_KIT, statsAt, priceOf } from "./kits.js?v=zr6";
+import { canAfford, spend } from "./economy.js?v=zr5";
+import { raycastWorld } from "../../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1";
+import { groundHeightAt } from "../../movement.js?v=umb2-sb2-gj1b7";
+import { loadModel } from "../../battlefield-props.js";
+import { areaDamage, explosionFx } from "../../combat/throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-zr5";
+import { WEAPON_DEFS } from "../../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1";
+
+const MODEL = { turret: "zk-turret", barricade: "zk-spikewall", barrel: "zk-barrel" };
+const PLACE_DIST = 2.4;       // metres in front of you, past the item's own half-depth
+const PLACE_REACH_Y = 1.2;    // no putting one on a ledge above or below you
+const GRID = 1;               // metres, in grid mode
+const SPIKE_TICK = 0.25;      // seconds between spike bites
+const RETARGET = 0.25;        // seconds between a turret's target checks
+const AIM_OK = 0.12;          // radians off target a turret will still fire at
+const TURRET_FX_DEF = WEAPON_DEFS.mtar || WEAPON_DEFS.problem416;
+
+/* The run's deployables. `placed` counts what's been put down (prices
+   climb with it); `list` is what's standing. */
+export const dep = {
+  kit: DEFAULT_KIT,
+  level: 1,
+  placed: {},
+  list: [],
+  placing: null,   // { id, grid, ghost, spot, ok } while picking a spot
+};
+
+const _v = new THREE.Vector3();
+const _dir = new THREE.Vector3();
+const _ray = new THREE.Raycaster();
+
+/* --------------------------------------------------------------- models */
+
+/* A clone of the kit model, or a plain stand-in box if it won't load. */
+function buildModel(id, stats) {
+  const root = new THREE.Group();
+  loadModel(MODEL[id], {}).then((obj) => {
+    // the kit faces Blender +Y, which lands on +Z here: turn it to face -Z,
+    // the way the root is yawed (the gun downrange, the stakes at the horde)
+    obj.rotation.y = Math.PI;
+    root.add(obj);
+    root.userData.model = obj;
+    root.userData.onModel?.(obj);
+  }).catch(() => {
+    const { w, d, h } = stats.size;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: id === "barrel" ? 0xc4231b : id === "turret" ? 0x8a9099 : 0x7a4a26 }));
+    m.position.y = h / 2;
+    root.add(m);
+    root.userData.model = m;
+    root.userData.onModel?.(m);
+  });
+  return root;
+}
+
+const GHOST_OK = new THREE.MeshBasicMaterial({ color: 0x3dff6a, transparent: true, opacity: 0.42, depthWrite: false });
+const GHOST_BAD = new THREE.MeshBasicMaterial({ color: 0xff3b3b, transparent: true, opacity: 0.42, depthWrite: false });
+
+function paintGhost(root, ok) {
+  const mat = ok ? GHOST_OK : GHOST_BAD;
+  root.traverse((n) => { if (n.isMesh) { n.material = mat; n.castShadow = false; n.renderOrder = 5; } });
+}
+
+/* --------------------------------------------------------------- the kit */
+
+export const kitOf = () => KITS[dep.kit] || KITS[DEFAULT_KIT];
+
+export function resetDeployables() {
+  clearDeployables();
+  dep.placed = {};
+  dep.level = 1;
+}
+
+/* Everything off the map (the run ended). */
+export function clearDeployables() {
+  cancelPlacing();
+  for (const e of dep.list.slice()) e.remove();
+  dep.list.length = 0;
+  if (game.zdir) game.zdir.blockers.length = 0;
+}
+
+const standing = (id) => dep.list.filter((e) => e.id === id && e.alive).length;
+
+/* The column's cards: what each costs next and whether you can have one. */
+export function deployOffers() {
+  return kitOf().deployables.map((id) => {
+    const d = DEPLOYABLES[id];
+    const price = priceOf(id, dep.placed[id] || 0);
+    const count = standing(id);
+    return {
+      id, name: d.name, short: d.short || d.name, price, count, max: d.max,
+      can: canAfford(price) && count < d.max,
+      placing: dep.placing?.id === id,
+    };
+  });
+}
+
+/* --------------------------------------------------------------- placing */
+
+/* The column: pick `id` (grid = it was held). Picking the one you're
+   already placing puts it down (a second tap on touch). */
+export function pickDeployable(id, grid = false) {
+  if (dep.placing?.id === id && !grid) return placeDeployable();
+  const d = DEPLOYABLES[id];
+  if (!d) return false;
+  const price = priceOf(id, dep.placed[id] || 0);
+  if (!canAfford(price) || standing(id) >= d.max) return false;
+  cancelPlacing();
+  const stats = statsAt(id, dep.level);
+  const ghost = buildModel(id, stats);
+  ghost.userData.onModel = () => paintGhost(ghost, dep.placing?.ok ?? true);
+  game.scene.add(ghost);
+  dep.placing = { id, grid, ghost, stats, spot: null, ok: false };
+  updatePlacing();
+  return true;
+}
+
+export function cancelPlacing() {
+  if (!dep.placing) return;
+  game.scene.remove(dep.placing.ghost);
+  dep.placing = null;
+}
+
+/* Put the ghost down for real, if it fits and you can pay. */
+export function placeDeployable() {
+  const pl = dep.placing;
+  if (!pl) return false;
+  updatePlacing();
+  const price = priceOf(pl.id, dep.placed[pl.id] || 0);
+  if (!pl.ok || standing(pl.id) >= DEPLOYABLES[pl.id].max || !spend(price)) {
+    game.audio.zombieBuy(false);
+    return false;
+  }
+  const { x, y, z, yaw } = pl.spot;
+  const e = spawnDeployable(pl.id, x, y, z, yaw);
+  dep.placed[pl.id] = (dep.placed[pl.id] || 0) + 1;
+  cancelPlacing();
+  game.audio.deployPlace(e.pos);
+  return true;
+}
+
+/* The deployable's footprint at a spot, as axis-aligned boxes (a turned
+   barricade is a row of short segments, so its boxes hug it). */
+function footprint(stats, x, y, z, yaw) {
+  const { w, d, h } = stats.size;
+  const cos = Math.cos(yaw), sin = Math.sin(yaw);
+  if (stats.kind !== "barricade") {
+    const hw = (Math.abs(w * cos) + Math.abs(d * sin)) / 2;
+    const hd = (Math.abs(w * sin) + Math.abs(d * cos)) / 2;
+    return [{ cx: x, cz: z, hw, hd, y, h }];
+  }
+  const n = Math.max(1, Math.round(w / d));
+  const seg = w / n;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const t = -w / 2 + seg * (i + 0.5);
+    // the wall runs along its local X; three.js yaw turns X to (cos, -sin)
+    out.push({ cx: x + cos * t, cz: z - sin * t, hw: (Math.abs(seg * cos) + Math.abs(d * sin)) / 2, hd: (Math.abs(seg * sin) + Math.abs(d * cos)) / 2, y, h });
+  }
+  return out;
+}
+
+/* Where the ghost goes this frame, and whether it fits there. */
+export function updatePlacing() {
+  const pl = dep.placing;
+  if (!pl) return;
+  const feet = game.move.pos.y;   // the movement controller keeps the feet
+  const yawLook = game.look.yaw;
+  _dir.set(-Math.sin(yawLook), 0, -Math.cos(yawLook));
+  const want = PLACE_DIST + pl.stats.size.d / 2;
+  _v.set(game.move.pos.x, feet + 0.6, game.move.pos.z);
+  const wall = raycastWorld(game.colliders, _v, _dir, want + 0.6);
+  const reach = Math.max(0.9, Math.min(want, wall - 0.5 - pl.stats.size.d / 2));
+  let x = _v.x + _dir.x * reach;
+  let z = _v.z + _dir.z * reach;
+  // square to whichever way you're facing, so a barricade runs across your view
+  let yaw = yawLook;
+  if (pl.grid) {
+    x = Math.round(x / GRID) * GRID;
+    z = Math.round(z / GRID) * GRID;
+    yaw = Math.round(yaw / (Math.PI / 2)) * (Math.PI / 2);
+  }
+  const y = groundHeightAt(game.colliders, x, z, feet + 0.6, 0.3);
+  pl.spot = { x, y, z, yaw };
+  pl.ok = fits(pl.stats, x, y, z, yaw, feet);
+  pl.ghost.position.set(x, y, z);
+  pl.ghost.rotation.y = yaw;
+  if (pl.ghost.userData.ok !== pl.ok) {
+    pl.ghost.userData.ok = pl.ok;
+    paintGhost(pl.ghost, pl.ok);
+  }
+}
+
+function fits(stats, x, y, z, yaw, feet) {
+  if (Math.abs(y - feet) > PLACE_REACH_Y) return false;
+  const a = game.ARENA;
+  for (const f of footprint(stats, x, y, z, yaw)) {
+    if (f.cx - f.hw < a.minX || f.cx + f.hw > a.maxX || f.cz - f.hd < a.minZ || f.cz + f.hd > a.maxZ) return false;
+    for (const c of game.colliders) {
+      if (c.max.y <= y + 0.12 || c.min.y >= y + f.h) continue;   // the floor it stands on, or overhead
+      if (c.max.x <= f.cx - f.hw || c.min.x >= f.cx + f.hw) continue;
+      if (c.max.z <= f.cz - f.hd || c.min.z >= f.cz + f.hd) continue;
+      return false;
+    }
+    // not on top of yourself
+    const px = Math.max(f.cx - f.hw, Math.min(game.move.pos.x, f.cx + f.hw));
+    const pz = Math.max(f.cz - f.hd, Math.min(game.move.pos.z, f.cz + f.hd));
+    if (Math.hypot(px - game.move.pos.x, pz - game.move.pos.z) < 0.45) return false;
+  }
+  return true;
+}
+
+/* --------------------------------------------------------------- entities */
+
+class Deployable {
+  constructor(id, x, y, z, yaw, level) {
+    this.id = id;
+    this.stats = statsAt(id, level);
+    this.level = level;
+    this.kind = this.stats.kind;
+    this.maxHp = Math.round(this.stats.hp);
+    this.hp = this.maxHp;
+    this.alive = true;
+    this.pos = new THREE.Vector3(x, y, z);
+    this.yaw = yaw;
+    this.hurtT = 0;            // seconds since it was last hit (its bar shows a while)
+    this.root = buildModel(id, this.stats);
+    this.root.position.copy(this.pos);
+    this.root.rotation.y = yaw;
+    this.root.userData.onModel = (m) => this.onModel(m);
+    game.scene.add(this.root);
+    // colliders and blockers: one per footprint box
+    this.boxes = footprint(this.stats, x, y, z, yaw).map((f) => ({
+      min: new THREE.Vector3(f.cx - f.hw, y, f.cz - f.hd),
+      max: new THREE.Vector3(f.cx + f.hw, y + f.h, f.cz + f.hd),
+      pen: 0, deploy: true,
+    }));
+    for (const b of this.boxes) game.colliders.push(b);
+    this.blockers = this.boxes.map((box) => ({
+      box, owner: this,
+      pos: new THREE.Vector3((box.min.x + box.max.x) / 2, y, (box.min.z + box.max.z) / 2),
+      get alive() { return this.owner.alive; },
+    }));
+    game.zdir?.blockers.push(...this.blockers);
+  }
+
+  onModel() {}
+
+  /* Where its health bar sits. */
+  get top() { return this.pos.y + this.stats.size.h + 0.25; }
+
+  hit(dmg) {
+    if (!this.alive) return;
+    this.hp -= dmg;
+    this.hurtT = 0;
+    if (this.hp <= 0) this.destroy();
+  }
+
+  destroy() {
+    if (!this.alive) return;
+    this.alive = false;
+    game.spawnImpactBurst(_v.copy(this.pos).setY(this.pos.y + this.stats.size.h * 0.5), this.kind === "barricade" ? 0x8a5a33 : 0x9aa0a8, 18);
+    game.audio.deployBreak(this.pos);
+    this.remove();
+  }
+
+  /* Off the map: model, colliders, blockers. */
+  remove() {
+    this.alive = false;
+    game.scene.remove(this.root);
+    for (const b of this.boxes) {
+      const i = game.colliders.indexOf(b);
+      if (i >= 0) game.colliders.splice(i, 1);
+    }
+    const bl = game.zdir?.blockers;
+    if (bl) for (const b of this.blockers) { const i = bl.indexOf(b); if (i >= 0) bl.splice(i, 1); }
+    const i = dep.list.indexOf(this);
+    if (i >= 0) dep.list.splice(i, 1);
+  }
+
+  update(dt) { this.hurtT += dt; }
+}
+
+/* A zombie the kit hurt: blood, a flinch, and on a kill the cash and the
+   count, same as a bullet of yours (no hitmarker: you didn't fire it). */
+function hurtZombie(z, dmg, point, dir) {
+  if (!z.alive || z.dying) return;
+  const res = z.takeDamage(dmg, false);
+  game.impactFx.hit(point, { normal: _v.copy(dir).negate(), dir, surface: z.body ? "blood" : "zombie", scale: 0.7 });
+  z.flinchFrom?.(dir, 0.2);
+  if (res.killed) {
+    game.zombieHit(z, res, point);
+    game.zdir.kills++;
+    game.player.kills++;
+  }
+}
+
+/* The map's own walls, for a turret's line of sight (deployables don't block it). */
+let mapWalls = null;
+let mapWallsLen = -1;
+function walls() {
+  if (!mapWalls || mapWallsLen !== game.colliders.length) {
+    mapWalls = game.colliders.filter((c) => !c.deploy);
+    mapWallsLen = game.colliders.length;
+  }
+  return mapWalls;
+}
+
+class Turret extends Deployable {
+  constructor(...a) {
+    super(...a);
+    this.target = null;
+    this.retargetT = 0;
+    this.fireT = 0;
+    this.headYaw = 0;          // relative to the base
+    this.gunPitch = 0;
+    this.kick = 0;
+    this.muzzle = new THREE.Vector3(this.pos.x, this.pos.y + 0.9, this.pos.z);
+  }
+
+  onModel(m) {
+    this.head = m.getObjectByName("turret_head");
+    this.gun = m.getObjectByName("turret_gun");
+    this.muzzleNode = m.getObjectByName("turret_muzzle");
+    this.gunZ = this.gun?.position.z ?? 0;
+  }
+
+  aimPoint(z) {
+    return _v.set(z.mesh.position.x, z.groundY + z.type.height * 0.62, z.mesh.position.z);
+  }
+
+  canSee(z) {
+    if (!z.alive || z.dying || z.riseT > 0) return false;
+    const p = this.aimPoint(z);
+    const dist = p.distanceTo(this.muzzle);
+    if (dist > this.stats.range) return false;
+    _dir.copy(p).sub(this.muzzle).normalize();
+    return raycastWorld(walls(), this.muzzle, _dir, dist) >= dist - 0.3;
+  }
+
+  pick() {
+    let best = null, bestD = Infinity;
+    for (const z of game.zdir?.zombies || []) {
+      const d = Math.hypot(z.mesh.position.x - this.pos.x, z.mesh.position.z - this.pos.z);
+      if (d < bestD && d <= this.stats.range && this.canSee(z)) { best = z; bestD = d; }
+    }
+    return best;
+  }
+
+  update(dt) {
+    super.update(dt);
+    if (this.muzzleNode) this.muzzleNode.getWorldPosition(this.muzzle);
+    this.retargetT -= dt;
+    if (this.retargetT <= 0 || (this.target && (!this.target.alive || this.target.dying))) {
+      this.retargetT = RETARGET;
+      if (!this.target || !this.canSee(this.target)) this.target = this.pick();
+    }
+    this.fireT = Math.max(0, this.fireT - dt);
+    this.kick = Math.max(0, this.kick - dt * 9);
+    let off = Math.PI;
+    if (this.target) {
+      const p = this.aimPoint(this.target);
+      const want = Math.atan2(-(p.x - this.pos.x), -(p.z - this.pos.z)) - this.yaw;
+      let d = Math.atan2(Math.sin(want - this.headYaw), Math.cos(want - this.headYaw));
+      const step = this.stats.turn * dt;
+      this.headYaw += Math.max(-step, Math.min(step, d));
+      const flat = Math.hypot(p.x - this.muzzle.x, p.z - this.muzzle.z);
+      const pitch = Math.atan2(p.y - this.muzzle.y, flat);
+      this.gunPitch += (pitch - this.gunPitch) * Math.min(1, dt * 10);
+      off = Math.abs(Math.atan2(Math.sin(want - this.headYaw), Math.cos(want - this.headYaw)));
+      if (off < AIM_OK && this.fireT <= 0) this.fire();
+    } else {
+      // nothing in sight: a slow sweep
+      this.headYaw += dt * 0.6;
+      this.gunPitch += (0 - this.gunPitch) * Math.min(1, dt * 3);
+    }
+    if (this.head) this.head.rotation.y = this.headYaw;
+    if (this.gun) {
+      // the model is turned half round (buildModel): its barrels run along +Z
+      this.gun.rotation.x = -this.gunPitch;
+      this.gun.position.z = this.gunZ - this.kick * 0.05;   // recoil back along the barrels
+    }
+  }
+
+  fire() {
+    const z = this.target;
+    this.fireT = 1 / this.stats.fireRate;
+    this.kick = 1;
+    const p = this.aimPoint(z).clone();
+    const dir = p.clone().sub(this.muzzle).normalize();
+    // the body under the aim point, for where the blood goes
+    _ray.set(this.muzzle, dir);
+    _ray.far = this.stats.range + 1;
+    const hit = _ray.intersectObjects(z.hitboxMeshes, true)[0];
+    const point = hit ? hit.point : p;
+    hurtZombie(z, this.stats.damage, point, dir);
+    game.bullets.spawn({ origin: this.muzzle.clone(), dir, def: TURRET_FX_DEF, ownerId: "remote", cosmetic: true, range: this.muzzle.distanceTo(point) });
+    game.spawnImpactBurst(this.muzzle, 0xffd166, 3);
+    game.audio.shot(TURRET_FX_DEF, 0.32, this.muzzle);
+  }
+}
+
+class Barricade extends Deployable {
+  constructor(...a) {
+    super(...a);
+    this.spikeT = 0;
+  }
+
+  update(dt) {
+    super.update(dt);
+    this.spikeT -= dt;
+    if (this.spikeT > 0) return;
+    this.spikeT = SPIKE_TICK;
+    const bite = this.stats.spikeDps * SPIKE_TICK;
+    for (const z of game.zdir?.zombies || []) {
+      if (!z.alive || z.dying) continue;
+      const p = z.mesh.position;
+      const reach = z.radius + 0.35;   // pressed up to it (zombies.js BLOCKER_REACH)
+      for (const b of this.boxes) {
+        if (p.x < b.min.x - reach || p.x > b.max.x + reach || p.z < b.min.z - reach || p.z > b.max.z + reach) continue;
+        if (z.groundY > b.max.y || z.groundY + 1 < b.min.y) continue;
+        _dir.set(p.x - this.pos.x, 0, p.z - this.pos.z).normalize();
+        hurtZombie(z, bite, new THREE.Vector3(p.x, z.groundY + 0.9, p.z), _dir.clone());
+        break;
+      }
+    }
+  }
+}
+
+class Barrel extends Deployable {
+  constructor(...a) {
+    super(...a);
+    this.fuseT = -1;           // counting down once a neighbour's blast catches it
+  }
+
+  update(dt) {
+    super.update(dt);
+    if (this.fuseT >= 0) {
+      this.fuseT -= dt;
+      if (this.fuseT < 0) this.destroy();
+    }
+  }
+
+  destroy() {
+    if (!this.alive) return;
+    this.alive = false;
+    const s = this.stats;
+    const c = new THREE.Vector3(this.pos.x, this.pos.y + 0.6, this.pos.z);
+    const def = { id: "zbarrel", name: "Explosive Barrel", kind: "lethal", glow: 0xff7a2a, radius: s.radius, damage: s.damage, minDamage: s.minDamage, selfMult: 0 };
+    this.remove();
+    explosionFx(def, c);
+    areaDamage(c, s.radius, s.damage, def, { creditAs: "barrel" });
+    // the barrels it reaches go up after it, one after another
+    for (const e of dep.list) {
+      if (e instanceof Barrel && e.alive && e.fuseT < 0 && e.pos.distanceTo(this.pos) <= s.radius) e.fuseT = s.chainDelay;
+    }
+  }
+}
+
+const CLASSES = { turret: Turret, barricade: Barricade, barrel: Barrel };
+
+export function spawnDeployable(id, x, y, z, yaw) {
+  const e = new CLASSES[DEPLOYABLES[id].kind](id, x, y, z, yaw, dep.level);
+  dep.list.push(e);
+  return e;
+}
+
+/* A zombie's swing landed on a deployable (run.js onZombieAttack). */
+export function hitBlocker(blocker, dmg) {
+  blocker.owner?.hit(dmg);
+}
+
+/* A click while placing: left puts it down, right lets it go. True = the
+   click was ours (input/keyboard-mouse.js asks before it fires). */
+export function deployClick(button) {
+  if (!dep.placing) return false;
+  if (button === 0) placeDeployable();
+  else if (button === 2) cancelPlacing();
+  return true;
+}
+
+export function updateDeployables(dt) {
+  if (dep.placing) {
+    if (game.player.downed || !game.player.alive) cancelPlacing();
+    else updatePlacing();
+  }
+  for (const e of dep.list.slice()) if (e.alive) e.update(dt);
+}

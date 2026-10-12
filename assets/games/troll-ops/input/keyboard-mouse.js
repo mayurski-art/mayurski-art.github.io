@@ -175,6 +175,8 @@ export function initKeyboardMouse() {
       else if (e.button === 2) game.emoteWheel.close(true);
       return;
     }
+    // Zombies, placing a deployable: a click puts it down, a right click lets it go.
+    if (game.deployClick?.(e.button)) return;
     // Troll Royale, out: a click is next, a right click the one before.
     if (!game.player.alive && royaleSpectating() && (e.button === 0 || e.button === 2)) { cycleSpectate(e.button === 0 ? 1 : -1); return; }
     if (e.button === 0) game.mouseDown = true;

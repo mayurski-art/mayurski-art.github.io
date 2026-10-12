@@ -1156,6 +1156,21 @@ export class GameAudio {
     this._tone({ freq: 2093, duration: 0.22, gain: 0.07, type: "triangle", delay: 0.12 });
   }
 
+  /* Zombies: a deployable put down (a heavy thunk and a ratchet), and one
+     the horde tore apart (splintering crunch). */
+  deployPlace(at = null) {
+    if (!this._ready()) return;
+    this._tone({ freq: 120, to: 60, duration: 0.18, gain: 0.22, type: "sine", at });
+    this._noise({ duration: 0.08, gain: 0.12, type: "lowpass", freq: 900, at });
+    for (let i = 0; i < 3; i++) this._noise({ duration: 0.025, gain: 0.07, type: "bandpass", freq: 3200, delay: 0.12 + i * 0.05, at });
+  }
+
+  deployBreak(at = null) {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.35, gain: 0.25, type: "bandpass", freq: 1400, sweepTo: 400, at });
+    this._tone({ freq: 90, to: 40, duration: 0.25, gain: 0.18, type: "sine", at });
+  }
+
   /* One second off the pre-match clock. Deliberately dry and quiet — it fires
      up to six times in a row, so anything with a tail would smear. */
   /* Match intro (match-intro.js). A low swell under the whole cinematic,

@@ -12,7 +12,10 @@
 import { game } from "../../core/state.js?v=st1";
 import { econ, earn, resetCash, tickCash, waveBonus } from "./economy.js?v=zr5";
 import { buy, offers, resetUpgrades, upgradeState } from "./upgrades.js?v=zr5";
-import { mountZombiesHud, showZombiesHud, updateZombiesHud, announceWave, zombiesBanner } from "../../view/zombies-hud.js?v=zr5";
+import { mountZombiesHud, showZombiesHud, updateZombiesHud, announceWave, zombiesBanner } from "../../view/zombies-hud.js?v=zr6";
+import { updateZombieBars } from "../../view/zombies-bars.js?v=zr6";
+import { dep, deployOffers, pickDeployable, cancelPlacing, placeDeployable, spawnDeployable, hitBlocker, resetDeployables, clearDeployables, updateDeployables } from "./deployables.js?v=zr6";
+export { deployClick } from "./deployables.js?v=zr6";
 
 export const FINAL_WAVE = 30;
 const BLEED_OUT = 15;           // seconds down before it's over
@@ -37,8 +40,9 @@ export function startZombieRun() {
   game.player.downed = false;
   resetCash(0);
   resetUpgrades();
+  resetDeployables();
   game.player.hp = game.player.maxHp;
-  mountZombiesHud({ onBuy: buyUpgrade, onSkip: skipBreak });
+  mountZombiesHud({ onBuy: buyUpgrade, onSkip: skipBreak, onDeploy: deploy, onPlace: placeDeployable, onCancel: cancelPlacing });
   showZombiesHud(true);
 }
 
@@ -46,6 +50,7 @@ export function startZombieRun() {
 export function stopZombieRun() {
   run.live = false;
   game.player.downed = false;
+  clearDeployables();
   showZombiesHud(false);
 }
 
@@ -68,6 +73,14 @@ export function buyUpgrade(id) {
   return ok;
 }
 
+/* The Deployables column: pick one to place (held = grid mode). */
+export function deploy(id, grid = false) {
+  if (!run.live || run.downed || game.gameState !== "playing") return false;
+  const ok = pickDeployable(id, grid);
+  if (!ok) game.audio.zombieBuy(false);
+  return ok;
+}
+
 export function skipBreak() {
   if (!run.live || game.zdir?.state !== "between") return;
   game.zdir.skipBreak();
@@ -83,8 +96,10 @@ export function zombieHit(actor, result, point) {
   }
 }
 
-/* A zombie's swipe landed on the local player. */
-function onZombieAttack(zombie, dmg) {
+/* A zombie's swipe landed: on the local player, or on a deployable in its
+   way (zombies.js passes the blocker). */
+function onZombieAttack(zombie, dmg, blocker = null) {
+  if (blocker) { hitBlocker(blocker, dmg); return; }
   game.damagePlayer(dmg, null, null, false, zombie.mesh?.position);
 }
 
@@ -120,6 +135,11 @@ export function zombieRunDebug() {
     buy: (id) => buyUpgrade(id),
     skip: () => skipBreak(),
     giveCash: (n) => earn(n),
+    dep, deployOffers,
+    deploy: (id, grid) => deploy(id, grid),
+    place: () => placeDeployable(),
+    cancel: () => cancelPlacing(),
+    spawn: (id, x, y, z, yaw = 0) => spawnDeployable(id, x, y, z, yaw),
     /* Jump to wave n with nobody left alive. */
     forceWave(n) {
       const zdir = game.zdir;
@@ -146,6 +166,7 @@ export function updateZombieRun(dt) {
     else if (ev.type === "death") game.audio.zombieDeath(ev.at, ev.voice);
   }
   if (roundOver) nextZombieWave();
+  updateDeployables(dt);
 
   if (run.downed) {
     run.bleedT -= dt;
@@ -166,7 +187,10 @@ export function updateZombieRun(dt) {
     left: zdir.remaining,
     econ,
     offers: offers(),
+    deploy: deployOffers(),
+    placing: dep.placing ? { id: dep.placing.id, name: dep.placing.stats.name, ok: dep.placing.ok, grid: dep.placing.grid } : null,
     downed: run.downed ? { t: run.bleedT, max: BLEED_OUT, kills: run.standKills, need: LAST_STAND_KILLS } : null,
   });
+  updateZombieBars(zdir.zombies, dep.list);
   return zdir.hitMeshes();
 }
