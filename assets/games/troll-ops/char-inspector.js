@@ -18,6 +18,7 @@ import { poseEmoteCode, emoteCode, emoteSeconds } from "./emotes.js?v=hb4-em1-ws
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2.2;
+const LOOK_Y = -0.1;
 // Default view (user): the operator stands straight, square to the camera,
 // face centred. Dragging still orbits; a double-click comes back here.
 const REST_YAW = 0;
@@ -76,7 +77,8 @@ export class CharacterInspector {
     // Close enough that the operator actually reads as a hero shot rather
     // than a small figure lost in a big empty frame, while still leaving
     // clearance above the head and below the feet so nothing clips the top/bottom edges of the free-floating layer.
-    this.baseDist = 5.4;
+    // (closer since 2026-10-12, user: "the size of the troll character needs to increase")
+    this.baseDist = 4.6;
     this.zoom = 1;
     this.zoomTarget = 1;
     this.yaw = REST_YAW;
@@ -193,6 +195,16 @@ export class CharacterInspector {
       this.height = h;
       this.renderer.setSize(w, h, false);
       this.camera.aspect = w / h;
+      // --char-shift (style.css): slide the operator right of the box's
+      // middle, as a share of its width, so a box wide enough not to cut
+      // it still stands it clear of what's on its left (the roster)
+      const css = getComputedStyle(this.canvas);
+      const shift = parseFloat(css.getPropertyValue("--char-shift")) || 0;
+      // --char-dist: how much further back the camera stands in a box too
+      // small for the full-size operator (the portrait phone layout)
+      this.distMult = parseFloat(css.getPropertyValue("--char-dist")) || 1;
+      if (shift) this.camera.setViewOffset(w, h, -shift * w, 0, w, h);
+      else this.camera.clearViewOffset();
       this.camera.updateProjectionMatrix();
     }
 
@@ -238,14 +250,16 @@ export class CharacterInspector {
       this.humanoid.body.update();
     }
 
-    const dist = this.baseDist * this.zoom;
+    const dist = this.baseDist * (this.distMult || 1) * this.zoom;
     const cp = Math.cos(this.pitch);
     this.camera.position.set(
       Math.sin(this.yaw) * cp * dist,
       Math.sin(this.pitch) * dist + 0.15,
       Math.cos(this.yaw) * cp * dist
     );
-    this.camera.lookAt(0, 0, 0);
+    // aimed a touch below the middle, so the feet clear the Emote pill under them
+    this.camera.position.y += LOOK_Y;
+    this.camera.lookAt(0, LOOK_Y, 0);
 
     this.renderer.render(this.scene, this.camera);
   }
