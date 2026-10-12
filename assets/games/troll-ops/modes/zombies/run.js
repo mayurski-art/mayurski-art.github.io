@@ -12,7 +12,7 @@
 import { game } from "../../core/state.js?v=st1";
 import { econ, earn, resetCash, tickCash, waveBonus } from "./economy.js?v=zr5";
 import { buy, offers, resetUpgrades, upgradeState } from "./upgrades.js?v=zr5";
-import { mountZombiesHud, showZombiesHud, updateZombiesHud, announceWave, zombiesBanner } from "../../view/zombies-hud.js?v=zr6";
+import { mountZombiesHud, showZombiesHud, updateZombiesHud, announceWave, zombiesBanner } from "../../view/zombies-hud.js?v=zr6-zr7";
 import { updateZombieBars } from "../../view/zombies-bars.js?v=zr6";
 import { dep, deployOffers, pickDeployable, cancelPlacing, placeDeployable, spawnDeployable, hitBlocker, resetDeployables, clearDeployables, updateDeployables } from "./deployables.js?v=zr6";
 export { deployClick } from "./deployables.js?v=zr6";

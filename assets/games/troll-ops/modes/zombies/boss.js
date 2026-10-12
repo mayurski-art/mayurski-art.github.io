@@ -13,7 +13,7 @@
 
 import * as THREE from "three";
 import { game } from "../../core/state.js?v=st1";
-import { healthForRound, ZOMBIE_TYPES } from "../../zombies.js?v=zr4c-sb2b7b7dc2f1m1u-gt1-gt2-zr5-zr6";
+import { healthForRound, ZOMBIE_TYPES } from "../../zombies.js?v=zr4c-sb2b7b7dc2f1m1u-gt1-gt2-zr5-zr6-zr7";
 import { dep } from "./deployables.js?v=zr6";
 
 export const MINI_WAVES = [10, 20];
