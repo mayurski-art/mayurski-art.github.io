@@ -175,12 +175,19 @@ const BOT_WEAPONS = ["problem416", "snubgrin", "snicker", "kek", "trollboy", "sn
 // dry rather than standing there reloading in a firefight - the same reason
 // a player reaches for 2 instead of holding R with someone shooting at them.
 const BOT_SIDEARMS = ["sixtynine", "true69", "peacemakers"];
+// About one bot in five carries the FHJ-18 AA instead (FHJ18.md): it's for
+// enemy air only (combat/bot-fire.js updateBotAntiAir), six missiles a life,
+// and a dry rifle in a firefight is reloaded, not swapped for it.
+export const BOT_AA_MISSILES = 6;
 const SIDEARM_MAG_SIZE = 12;
 const SIDEARM_RELOAD_TIME = 1.5;
 
 let counter = 0;
 
 class Bot {
+  /* Its secondary is the FHJ-18 (Troll Royale and the like swap it out). */
+  get launcher() { return this.secondaryId === "fhj18"; }
+
   constructor(team, spawn, difficulty = "regular") {
     this.id = `bot-${(counter++).toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
     this.name = NAMES[counter % NAMES.length];
@@ -189,7 +196,8 @@ class Bot {
     this.skill = DIFFICULTY[difficulty] ? difficulty : "regular";
     this.diff = DIFFICULTY[this.skill];
     this.weaponId = BOT_WEAPONS[counter % BOT_WEAPONS.length];
-    this.secondaryId = BOT_SIDEARMS[counter % BOT_SIDEARMS.length];
+    this.secondaryId = counter % 5 === 0 ? "fhj18" : BOT_SIDEARMS[counter % BOT_SIDEARMS.length];
+    this.aaMissiles = BOT_AA_MISSILES;
     this.holdingSecondary = false;
     this.sidearmAmmo = SIDEARM_MAG_SIZE;
     this.sidearmReloadT = 0;
@@ -285,6 +293,8 @@ class Bot {
     this.ammo = MAG_SIZE;
     this.reloadT = 0;
     this.holdingSecondary = false;
+    this.aaMissiles = BOT_AA_MISSILES;
+    this.aaUp = false;
     this.sidearmAmmo = SIDEARM_MAG_SIZE;
     this.sidearmReloadT = 0;
     this.ads = 0;
@@ -738,7 +748,7 @@ class Bot {
     // reloading into a firefight; holstering it again (back to the rifle)
     // waits for a clear moment, same as the primary's own out-of-contact
     // reload just below.
-    if (!this.holdingSecondary && this.ammo <= 0 && canSee) this.holdingSecondary = true;
+    if (!this.holdingSecondary && this.ammo <= 0 && canSee && !this.launcher) this.holdingSecondary = true;
     else if (this.holdingSecondary && !canSee && this.reloadT <= 0) this.holdingSecondary = false;
     this.updateAds(dt, { canShoot, reacted, range: bestD, objective });
     if (this.slideT > 0 || this.hopY > 0) this.ads = Math.max(0, this.ads - dt * 6);   // no scope mid-slide or mid-air

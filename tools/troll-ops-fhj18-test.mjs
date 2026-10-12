@@ -229,6 +229,52 @@ check("an enemy SAM Turret locks", sam.locked, JSON.stringify(sam));
 check("...and one missile destroys it", sam.destroyed, JSON.stringify(sam));
 await page.screenshot({ path: path.join(ROOT, ".claude", "fhj18-lock.png") }).catch(() => {});
 
+// ---- 4. Bots: about one in five carry it, and one downs an enemy Counter-UAV.
+await page.evaluate(async () => {
+  const T = window.__trollOps;
+  T.loadout.secondaryId = "sixtynine";
+  if (T.els.noBots) T.els.noBots.checked = false;
+  T.setMode("tdm");
+  await T.startGame();
+});
+await page.waitForFunction(() => !window.__trollOps.loadState().open, null, { timeout: 300000 });
+await page.evaluate(() => { const T = window.__trollOps; T.endStaging?.(); T.matchIntro?.skip?.(); T.player.spawnGuard = 1e9; T.player.maxHp = T.player.hp = 1e9; });
+await page.waitForTimeout(1500);
+const bots = await page.evaluate(async () => {
+  const T = window.__trollOps, { LA } = window.__M;
+  const all = T.bots.bots;
+  const carriers = all.filter((b) => b.launcher);
+  const b = carriers.find((x) => x.alive) || carriers[0];
+  if (!b) return { n: all.length, carriers: 0 };
+  // Its rifle dry with someone in sight: it reloads, it doesn't draw the launcher.
+  const drawsForPeople = (() => { const keep = [b.ammo, b.holdingSecondary]; b.ammo = 0; const would = !b.holdingSecondary && b.ammo <= 0 && !b.launcher; [b.ammo, b.holdingSecondary] = keep; return would; })();
+  const enemy = b.team === "phantom" ? "ghost" : "phantom";
+  const missiles0 = b.aaMissiles;
+  const plane = T.spawnRecon(b.pos.x, b.pos.z, 0.2, 60, { counter: true, team: enemy, caller: "enemy-x" });
+  const eid = plane.eid;
+  let up = false, pitch = 0;
+  // Nobody on the ground to fight (the bots' own update sees enemies every
+  // frame): keep it free for the sky, right after that update.
+  const orig = T.bots.update;
+  T.bots.update = function (dt, ctx) { orig.call(this, dt, ctx); b.lastSeen = null; if (!b.alive) { b.alive = true; b.hp = 100; } };
+  const t0 = performance.now();
+  const gone = () => !T.flyovers.some((f) => f.eid === eid);
+  await new Promise((res) => {
+    const tick = () => {
+      if (b.aaUp) { up = true; pitch = Math.max(pitch, b.pitch || 0); }
+      if (gone() || performance.now() - t0 > 25000) return res();
+      requestAnimationFrame(tick);
+    };
+    tick();
+  });
+  T.bots.update = orig;
+  return { n: all.length, carriers: carriers.length, ids: carriers.map((x) => x.secondaryId), up, pitch: +pitch.toFixed(2), down: gone(),
+    fired: missiles0 - b.aaMissiles, drawsForPeople, secs: +((performance.now() - t0) / 1000).toFixed(1) };
+});
+check("about one bot in five carries the FHJ-18", bots.carriers >= 1 && bots.carriers <= Math.ceil(bots.n / 4), JSON.stringify(bots));
+check("a launcher bot doesn't draw it on people (a dry rifle is reloaded)", bots.drawsForPeople === false, JSON.stringify(bots));
+check("a launcher bot raises it at an enemy Counter-UAV and shoots it down", bots.up && bots.pitch > 0.1 && bots.fired >= 1 && bots.down, JSON.stringify(bots));
+
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 await browser.close();
 server.close();

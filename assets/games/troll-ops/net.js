@@ -682,7 +682,8 @@ export class Net {
     // onMessage, so without this line the host's own view of its bots never
     // learns their weapon and always falls back to the rig's generic gun.
     // An infected bot carries only its sword.
-    p.weapon = bot.meleeOnly ? "keyboard" : (bot.holdingSecondary ? bot.secondaryId : bot.weaponId) || "problem416";
+    // aaUp: the FHJ-18 on its shoulder, at an aircraft (combat/bot-fire.js).
+    p.weapon = bot.meleeOnly ? "keyboard" : (bot.holdingSecondary || bot.aaUp ? bot.secondaryId : bot.weaponId) || "problem416";
     p.last = performance.now();
     p.snaps.push(snap);
     if (p.snaps.length > 12) p.snaps.shift();
@@ -700,7 +701,8 @@ export class Net {
     this.send({
       t: "state", id: bot.id, ho: this.id,
       x: round2(bot.pos.x), y: round2(bot.pos.y), z: round2(bot.pos.z),
-      ry: round2(bot.yaw), rp: 0, st: bot.stance || "stand", mv: 1,
+      // Looking up only while it's after an aircraft (b.aa): everyone sees the gun or the tube raised.
+      ry: round2(bot.yaw), rp: bot.aa ? round2(bot.pitch || 0) : 0, st: bot.stance || "stand", mv: 1,
       hp: Math.round(bot.hp), a: bot.alive ? 1 : 0,
       w: p.weapon, tm: bot.team, n: bot.name, k: bot.kills | 0, d: bot.deaths | 0,
       ad: bot.ads > 0.01 ? round2(bot.ads) : undefined,
