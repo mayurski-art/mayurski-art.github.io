@@ -8,7 +8,7 @@ import { rise, smoothstep, damp } from "../anim-curves.js";
 import { handMaterials, inkOutline } from "../hand-model.js?v=to-grip2";
 import { wristOf, buildWatch, buildWristband } from "../wristwear.js?v=ww1c2m1";
 import { clubWear } from "../modes/club-wear.js?v=cw1c2m1";
-import { cosmetics } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-zr5";
+import { cosmetics } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-zr5-zr8";
 import { soulBlazerReloadPose, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth, updateSoulBlazerView, soulBlazerInspect, SB_INSPECT_CUES } from "../soul-blazer.js?v=sb1";
 import { placePistolSlide } from "./pistol-action.js?v=ps1-wb1";
 import { placeBolt } from "./rifle-action.js?v=ra1-wb1";
