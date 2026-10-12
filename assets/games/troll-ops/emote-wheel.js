@@ -18,7 +18,7 @@ export { EMOTES };
 
 // A little travel before a slice lights up, so a twitch on open doesn't pick.
 const DEADZONE = 22;
-const RADIUS = 166;   // px from the centre to each slice (16 of them)
+const RADIUS = 166;   // px from the centre to each slice (one per emote)
 const KIND_TAG = { fp: "1P", tp: "3P", duo: "DUO" };
 
 export class EmoteWheel {
