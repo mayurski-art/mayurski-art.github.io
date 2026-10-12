@@ -36,7 +36,10 @@ await page.evaluate(async (map) => {
   await T.startGame(); if (T.isStaging()) T.endStaging();
   T.player.maxHp = T.player.hp = 1e9;
 }, MAP);
-await new Promise((r) => setTimeout(r, 4000));
+// The map's ropes exist once it has loaded (a fixed 4 s wait raced the
+// load under the gate's load: "ropes is not iterable"), then a beat to settle.
+await page.waitForFunction(() => window.__trollOps.state() === "playing" && window.__trollOps.move.arena?.ropes?.length > 0, null, { timeout: 90000, polling: 200 });
+await new Promise((r) => setTimeout(r, 1000));
 
 // Every case runs inside one evaluate, so no game frame lands mid-case.
 const results = await page.evaluate(() => {
