@@ -1,6 +1,7 @@
 // Troll Forces objective modes: King of the Hill scoring and Search &
 // Destroy (sites, plant/defuse, bots on the bomb, rounds, halftime).
 
+import { clearLauncher } from "../combat/launcher.js?v=fj1";
 import { updateTeamHud, checkMatchEnd, awardScore, addMatchXp } from "../combat/scoring.js?v=sc1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1";
 import { SCORE } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1";
 import { XP } from "../progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1";
@@ -268,6 +269,7 @@ export function prepareSndRound() {
   game.myUavUntil = 0;
   // A gunship or a crate has no round to belong to once this one ends.
   clearStreakEntities();
+  clearLauncher();
   updateStreakHud();
   grenades.clear();
   game.bullets.clear();

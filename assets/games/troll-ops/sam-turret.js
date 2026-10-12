@@ -306,7 +306,8 @@ export function spawnMissile(list, parent, from, dir, targetId) {
 }
 
 /* `targetPos(id)` -> the target's world position or null (gone).
-   Returns the missiles that reached their target this frame. */
+   Returns what reached its target (or ran out) this frame: { targetId,
+   at, ms }. */
 export function flyMissiles(list, dt, targetPos) {
   const hits = [];
   for (let i = list.length - 1; i >= 0; i--) {
@@ -316,7 +317,7 @@ export function flyMissiles(list, dt, targetPos) {
     if (tp) {
       _dir.copy(tp).sub(ms.pos);
       const d = _dir.length();
-      if (d < MISSILE_HIT) { hits.push({ targetId: ms.targetId, at: ms.pos.clone() }); ms.done = true; }
+      if (d < MISSILE_HIT) { hits.push({ targetId: ms.targetId, at: ms.pos.clone(), ms }); ms.done = true; }
       else {
         _dir.divideScalar(d);
         const ang = Math.acos(Math.max(-1, Math.min(1, ms.dir.dot(_dir))));
@@ -330,7 +331,7 @@ export function flyMissiles(list, dt, targetPos) {
     ms.mesh.position.copy(ms.pos);
     ms.mesh.lookAt(_to.copy(ms.pos).add(ms.dir));
     ms.mesh.userData.flame.scale.set(1, 0.7 + Math.random() * 0.6, 1);
-    if (ms.t > MISSILE_LIFE) { hits.push({ targetId: null, at: ms.pos.clone() }); ms.done = true; }
+    if (ms.t > MISSILE_LIFE) { hits.push({ targetId: null, at: ms.pos.clone(), ms }); ms.done = true; }
     if (ms.done) {
       ms.mesh.parent?.remove(ms.mesh);
       list.splice(i, 1);

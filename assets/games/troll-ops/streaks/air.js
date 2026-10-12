@@ -19,6 +19,7 @@ import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-c
 import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";
 import { SamTurret } from "../sam-turret.js?v=sam1";
 import { warshipImpact, syncWarshipView, updateWarshipHud } from "./warship.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1";
+import { updateAaMissiles } from "../combat/launcher.js?v=fj1";
 import { game } from "../core/state.js?v=st1";
 import { hasPerk, peerHas } from "../perks.js?v=pk1-cl1-bp1";
 import { isExplosive } from "../combat/damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1";
@@ -228,6 +229,7 @@ export function updateUavState() {
    outcomes; a rendered copy just animates. */
 export function updateStreakEntities(dt) {
   updateMarking();
+  updateAaMissiles(dt);
 
   for (const [id, e] of [...streakEntities]) {
     if (e instanceof MarkerCanister) {

@@ -1,6 +1,7 @@
 // Troll Forces match end: the results screen, XP and medals, then the
 // between-match intermission and the map vote.
 
+import { clearLauncher } from "../combat/launcher.js?v=fj1";
 import { cancelCook } from "../combat/throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1";
 import { xpForMatch, xpForRun, addXp } from "../progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1";
 import { killstreakUi, achievements, clearStreakEntities } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1";
@@ -128,6 +129,7 @@ export function endMatch(title) {
 
   game.bots.clear();
   clearStreakEntities();
+  clearLauncher();
   setHillMarker(null);
   setBombSiteMarkers(null);
   game.els.bombPrompt.hidden = true;

@@ -18,6 +18,7 @@ import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-
 import { K9Pack } from "../k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d";
 import { damageDog, dogKilledBy } from "./k9.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1";
 import { SamTurret } from "../sam-turret.js?v=sam1";
+import { applyRemoteAa } from "../combat/launcher.js?v=fj1";
 import { game } from "../core/state.js?v=st1";
 import { hasPerk, peerHas, PERK_TUNE } from "../perks.js?v=pk1-cl1-bp1";
 
@@ -465,6 +466,9 @@ export function flyBotDragonfire(e, dt) {
    meter is never touched from the wire. */
 export function applyRemoteStreak(m) {
   switch (m.kind) {
+    case "aa":   // an FHJ-18 missile (combat/launcher.js)
+      applyRemoteAa(m);
+      break;
     case "cuav":
       if (m.action === "start") applyCounterUav(m);
       break;

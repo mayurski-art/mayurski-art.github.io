@@ -34,6 +34,9 @@ const TAGS = {
   weapons: tagOf("loadout.js", "weapons.js"),
   scavenger: tagOf("combat/scoring.js", "scavenger.js"),
   perks: tagOf("combat/perk-carry.js", "perks.js"),
+  launcher: tagOf("combat/weapons.js", "launcher.js"),
+  fire: tagOf("game.js", "combat/weapons.js"),
+  dragonfire: tagOf("combat/weapons.js", "streaks/dragonfire.js"),
 };
 
 const browser = await chromium.launch({ args: ["--use-angle=d3d11", "--disable-background-timer-throttling", "--disable-renderer-backgrounding"] });
@@ -52,6 +55,9 @@ await page.evaluate(async (tags) => {
     W: await import(`${base}weapons.js?v=${tags.weapons}`),
     SV: await import(`${base}combat/scavenger.js?v=${tags.scavenger}`),
     P: await import(`${base}perks.js?v=${tags.perks}`),
+    LA: await import(`${base}combat/launcher.js?v=${tags.launcher}`),
+    WP: await import(`${base}combat/weapons.js?v=${tags.fire}`),
+    DF: await import(`${base}streaks/dragonfire.js?v=${tags.dragonfire}`),
   };
   window.__trollOps.setLoadWaitMax(8);
 }, TAGS);
@@ -102,6 +108,126 @@ check("the FHJ-18 is the secondary in the match", ammo.has && ammo.secondaryId =
 check("six missiles a life: one in the tube, five spare", ammo.mag === 1 && ammo.reserve === 5, `${ammo.mag} + ${ammo.reserve}`);
 check("a Scavenger pack gives two missiles back", ammo.afterPack === 2, String(ammo.afterPack));
 check("...never past six", ammo.capped === 5, String(ammo.capped));
+
+// ---- 3. The lock: ADS on an enemy aircraft (or SAM Turret), never hip fire, never the ground.
+// In the page: hold the FHJ-18 up, keep the camera on `at()` and wait for `done()`.
+await page.evaluate(() => {
+  const T = window.__trollOps, { G } = window.__M;
+  T.player.spawnGuard = 1e9; T.player.maxHp = T.player.hp = 1e9;
+  T.switchWeapon("secondary");
+  window.__aim = (at) => {
+    const c = T.camera.position, dx = at.x - c.x, dy = at.y - c.y, dz = at.z - c.z;
+    T.look.yaw = Math.atan2(-dx, -dz);
+    T.look.pitch = Math.atan2(dy, Math.hypot(dx, dz));
+  };
+  window.__until = (at, done, ms) => new Promise((res) => {
+    const t0 = performance.now();
+    const tick = () => {
+      const p = at();
+      if (p) window.__aim(p);
+      if (done() || performance.now() - t0 > ms) return res(done());
+      requestAnimationFrame(tick);
+    };
+    tick();
+  });
+  window.__enemy = T.net.team === "phantom" ? "ghost" : "phantom";
+  G.adsHeld = false;
+});
+await page.waitForTimeout(600);
+const hip = await page.evaluate(() => {
+  const T = window.__trollOps, { WP, LA } = window.__M;
+  const w = T.player.weapons.fhj18;
+  w.ammoInMag = 1; w.reloading = false; w.fireCooldown = 0;
+  WP.fireOnce();
+  return { slot: T.currentWeapon().def.id, mag: w.ammoInMag, missiles: LA.aaState().missiles };
+});
+check("you hold it up as your secondary", hip.slot === "fhj18", hip.slot);
+check("no hip fire: the trigger does nothing without the sight up", hip.mag === 1 && hip.missiles === 0, JSON.stringify(hip));
+
+// The ground: aim at a spot on the floor 20 m off, sight up, 2.5 s: no lock.
+const ground = await page.evaluate(async () => {
+  const T = window.__trollOps, { G, LA } = window.__M;
+  G.adsHeld = true;
+  const p = T.move.pos.clone(); p.x += 20; p.y = 0.5;
+  await window.__until(() => p, () => false, 2500);
+  const w = T.player.weapons.fhj18;
+  return { ads: +w.adsT.toFixed(2), lock: LA.aaState().lock };
+});
+check("the sight comes up", ground.ads > 0.85, String(ground.ads));
+check("nothing on the ground locks", !ground.lock.id && !ground.lock.locked, JSON.stringify(ground.lock));
+
+// An enemy UAV: locks in about 1.2 s, LOCKED shown, one missile downs it, +125.
+const uav = await page.evaluate(async () => {
+  const T = window.__trollOps, { LA } = window.__M;
+  const plane = T.spawnRecon(T.move.pos.x, T.move.pos.z, 0.3, 60, { counter: false, team: window.__enemy, caller: "enemy-x" });
+  const eid = plane.eid;
+  const at = () => plane.root.position;
+  const t0 = performance.now();
+  await window.__until(at, () => LA.aaState().lock.locked, 12000);
+  const lockedIn = (performance.now() - t0) / 1000;
+  const el = document.querySelector(".to-aa-lock");
+  const shown = el && !el.hidden ? el.textContent : "";
+  const score0 = T.player.matchScore || 0;
+  const w = T.player.weapons.fhj18;
+  w.fireCooldown = 0;
+  window.__M.WP.fireOnce();
+  const fired = LA.aaState().missiles;
+  const gone = () => !T.flyovers?.some?.((f) => f.eid === eid) && !window.__M.DF.airTargetPos(eid);
+  await window.__until(at, gone, 8000);
+  return { eid, lockedIn: +lockedIn.toFixed(2), shown, fired, down: gone(), mag: w.ammoInMag, reloading: w.reloading, score: (T.player.matchScore || 0) - score0 };
+});
+check("an enemy UAV locks (LOCKED on the bracket)", uav.lockedIn < 6 && /LOCKED/.test(uav.shown), JSON.stringify(uav));
+check("one missile goes and downs it, +125", uav.fired === 1 && uav.down && uav.score >= 125, JSON.stringify(uav));
+check("the next missile goes in the tube by itself", uav.reloading || uav.mag === 1, JSON.stringify({ mag: uav.mag, reloading: uav.reloading }));
+
+// An enemy gunship takes two.
+const heli = await page.evaluate(async () => {
+  const T = window.__trollOps, { LA, WP } = window.__M;
+  const e = T.spawnHelicopter({ id: "aa-test-heli", seed: 7, owned: false, team: window.__enemy });
+  const at = () => e.root.position;
+  const shots = [];
+  for (let k = 0; k < 2; k++) {
+    const w = T.player.weapons.fhj18;
+    await window.__until(at, () => !w.reloading && w.ammoInMag > 0 && LA.aaState().lock.locked, 15000);
+    w.fireCooldown = 0;
+    WP.fireOnce();
+    await window.__until(at, () => LA.aaState().missiles === 0, 8000);
+    shots.push({ alive: T.streakEntities.has("aa-test-heli"), hits: LA.aaState().hits["aa-test-heli"] || 0 });
+  }
+  return shots;
+});
+check("an enemy gunship takes one missile and stays up", heli[0]?.alive && heli[0].hits === 1, JSON.stringify(heli));
+check("...and comes down with the second", heli[1] && !heli[1].alive, JSON.stringify(heli));
+
+// An enemy SAM Turret: it locks, one missile.
+const sam = await page.evaluate(async () => {
+  const T = window.__trollOps, { LA, WP, DF } = window.__M;
+  const THREE = await import("three");
+  const p = T.move.pos;
+  // On our own floor, 15 m off where nothing's in the way: an enemy's, as
+  // if their bot set it down.
+  const eye = T.camera.position.clone();
+  let spot = null;
+  for (let k = 0; k < 16 && !spot; k++) {
+    const a = (k / 16) * Math.PI * 2, c = new THREE.Vector3(p.x + Math.sin(a) * 15, p.y + 1.1, p.z + Math.cos(a) * 15);
+    const dir = c.clone().sub(eye), d = dir.length();
+    if (T.raycastWorld(T.colliders, eye, dir.normalize(), d) >= d - 0.5) spot = c;
+  }
+  if (!spot) return { noSpot: true };
+  DF.spawnSam({ id: "aa-test-sam", owned: false, team: window.__enemy, x: spot.x, y: p.y, z: spot.z, yaw: 0 });
+  const e = T.streakEntities.get("aa-test-sam");
+  const at = () => e.pos.clone().setY(e.pos.y + 1.1);
+  const w = T.player.weapons.fhj18;
+  await window.__until(at, () => !w.reloading && w.ammoInMag > 0 && LA.aaState().lock.locked, 15000);
+  const locked = LA.aaState().lock.locked;
+  w.fireCooldown = 0;
+  WP.fireOnce();
+  await window.__until(at, () => !T.streakEntities.has("aa-test-sam"), 8000);
+  return { locked, destroyed: !T.streakEntities.has("aa-test-sam"), targets: LA.aaTargetsFor(T.net.team, T.net.id).map((t) => t.id), team: T.net.team, samTeam: e.team, alive: e.alive };
+});
+check("an enemy SAM Turret locks", sam.locked, JSON.stringify(sam));
+check("...and one missile destroys it", sam.destroyed, JSON.stringify(sam));
+await page.screenshot({ path: path.join(ROOT, ".claude", "fhj18-lock.png") }).catch(() => {});
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 await browser.close();

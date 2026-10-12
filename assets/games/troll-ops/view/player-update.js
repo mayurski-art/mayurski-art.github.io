@@ -1,6 +1,7 @@
 // The local player's per-frame update: look, movement, the camera rig,
 // firing and melee input, regen, and the per-frame HUD numbers.
 
+import { updateLauncherLock } from "../combat/launcher.js?v=fj1";
 import { touchState, setTouchAds } from "../input/touch.js?v=in1-th2-bp1";
 import { currentWeapon, fireOnce, tryReload } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1";
 import { MOUSE_ACTIVE_MS, applyAimAssist, AIM_ASSIST_MOUSE_PULL } from "../input/aim-assist.js?v=in1-fu1b7-wb1-ar1-ar2-cl1";
@@ -82,6 +83,7 @@ let fireWasDown = false;
 
 export function updatePlayer(dt) {
   const w = currentWeapon();
+  updateLauncherLock(dt);
 
   if (game.streakHoldT > 0 && !game.streakHoldUntilMark) {
     game.streakHoldT -= dt;

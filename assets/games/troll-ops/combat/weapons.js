@@ -20,6 +20,7 @@ import { claimPackage, canReroll, rerollPackage } from "../streaks/air.js?v=sk1-
 import { WeaponState } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1";
 import { CarePackage } from "../streak-entities.js?v=vsat2-hk1";
 import { game } from "../core/state.js?v=st1";
+import { fireLauncher } from "./launcher.js?v=fj1";
 import { throwBusy } from "./throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1";
 
 export function currentWeapon() {
@@ -45,6 +46,8 @@ export function tryReload(pressed = false) {
 export function fireOnce(shot = null) {
   if (game.socialUnarmed()) return;
   const w = currentWeapon();
+  // The FHJ-18 fires a missile at what it's locked onto, or not at all.
+  if (w.def.lockOn) { fireLauncher(w); return; }
   const def = shot?.def || w.def;
   if (!w.canFire()) {
     if (w.ammoInMag <= 0 && !w.reloading) tryReload();
