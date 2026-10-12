@@ -165,8 +165,10 @@ const fx = await A.evaluate(async () => {
 
   // Dexterity: the gun's ADS speed doubles on the next frame.
   const w = () => T.player.weapons[T.player.weaponId];
-  set(); await wait(150); out.ads = w().adsMult;
-  set("dexterity"); await wait(150); out.adsDex = w().adsMult;
+  // (polled: a fixed 150 ms wasn't always a frame)
+  const settle = async (want) => { for (let t = 0; t < 1500 && w().adsMult !== want; t += 50) await wait(50); return w().adsMult; };
+  set(); out.ads = await settle(1);
+  set("dexterity"); out.adsDex = await settle(2);
 
   // Scavenger: a pack at your feet refills a mag and a throwable.
   set("scavenger");
@@ -220,19 +222,54 @@ check("Engineer: the prompt says reload re-rolls", /re-rolls/.test(fx.rrPrompt),
 check("Engineer: an enemy streak is marked; off without it", fx.marks === 1 && fx.marksOff === true, `${fx.marks} marks, hidden after ${fx.marksOff}`);
 
 
-// Lightweight and Extreme Conditioning: faster on foot (speed after a second's walk/sprint).
+// Lightweight and Extreme Conditioning: faster on foot. Every run starts
+// from the same spot facing the same clear lane (one run walking on from
+// where the last one stopped could end up in a wall), gets up to speed, and
+// takes the median speed over the next 0.6 s, every frame, counting only
+// frames actually sprinting on a sprint run (one instant's velocity varied
+// run to run, and a frame or two out of the sprint dragged a mean down).
 const pace = async (ids, sprint) => A.evaluate(async ({ ids, sprint }) => {
-  const P = window.__P, { G } = window.__M;
+  const P = window.__P, { G } = window.__M, T = window.__trollOps;
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  if (!window.__lane) {
+    // The first direction with 18 m of open floor ahead, at knee and chest height.
+    const p = G.move.pos.clone();
+    for (let k = 0; k < 24 && !window.__lane; k++) {
+      const yaw = (k / 24) * Math.PI * 2, dir = p.clone().set(-Math.sin(yaw), 0, -Math.cos(yaw));
+      const clear = [0.4, 1.2].every((h) => T.raycastWorld(T.colliders, p.clone().setY(p.y + h), dir, 18) >= 18);
+      if (clear) window.__lane = { x: p.x, y: p.y, z: p.z, yaw };
+    }
+    window.__lane ||= { x: p.x, y: p.y, z: p.z, yaw: G.look.yaw };
+  }
+  const L = window.__lane;
   P.setCarriedPerks(ids);
+  // Stood up on the spot, nothing left over (an earlier check could leave us
+  // crouched: a crouch can't sprint, and walks at 70%).
+  G.move.reset(L.x, L.z, L.y);
+  for (const k of ["KeyC", "ControlLeft", "ControlRight"]) G.keys.delete(k);
+  G.look.yaw = L.yaw; G.look.pitch = 0;
+  await wait(200);
   G.keys.add("KeyW"); if (sprint) G.keys.add("ShiftLeft");
-  await new Promise((r) => setTimeout(r, 1300));
-  const v = Math.hypot(G.move.velocity.x, G.move.velocity.z);
+  await wait(1200);   // up to speed (a sprint is still building at 0.9 s)
+  const v = await new Promise((res) => {
+    const vs = [];
+    const t0 = performance.now();
+    const tick = () => {
+      if (!sprint || G.move.sprinting) vs.push(Math.hypot(G.move.velocity.x, G.move.velocity.z));
+      if (performance.now() - t0 >= 600) { vs.sort((a, b) => a - b); return res(vs.length ? vs[vs.length >> 1] : 0); }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
   G.keys.delete("KeyW"); G.keys.delete("ShiftLeft");
-  await new Promise((r) => setTimeout(r, 600));
+  await wait(500);
   return v;
 }, { ids, sprint });
-const walk = await pace([], false), walkLight = await pace(["lightweight"], false);
-const run = await pace([], true), runExtreme = await pace(["extremeconditioning"], true);
+// A run that didn't move at all (no frames, or the page froze) says nothing
+// about the perk: try it once more. A wrong speed still fails.
+const paced = async (ids, sprint) => { const v = await pace(ids, sprint); return v > 1 ? v : pace(ids, sprint); };
+const walk = await paced([], false), walkLight = await paced(["lightweight"], false);
+const run = await paced([], true), runExtreme = await paced(["extremeconditioning"], true);
 check("Lightweight: 7% faster", walk > 0 && Math.abs(walkLight / walk - 1.07) < 0.03, `${walk.toFixed(2)} -> ${walkLight.toFixed(2)} m/s`);
 check("Extreme Conditioning: 8% faster sprint", run > walk && Math.abs(runExtreme / run - 1.08) < 0.03, `${run.toFixed(2)} -> ${runExtreme.toFixed(2)} m/s`);
 await A.close();
@@ -267,25 +304,37 @@ const seen = await X.evaluate((yId) => {
 check("the other side learns Ghost, Cold Blooded and Dead Silence", seen.perks === (1 | 2 | 4), String(seen.perks));
 check("Cold Blooded: their name isn't red", !!seen.tag && seen.tag !== "#ff4d3d", String(seen.tag));
 
-// Dead Silence: Y walks past X and X hears nothing; without it, X does.
-await X.evaluate(() => {
+// Dead Silence: Y's body walks past X on X's screen and X hears nothing;
+// without the perk, X does. Done on X's own copy of Y, a stride at a time,
+// running X's footstep code (view/enemy-steps.js) after each: two tabs in
+// one headless window don't reliably both get frames, and a hop of more than
+// 3 m between X's frames counts as a teleport (no step) - that made X hear
+// nothing either way now and then. That Dead Silence reaches X over the
+// wire is checked just above.
+const ES_TAG = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/view/player-update.js"), "utf8").match(/enemy-steps\.js\?v=([\w-]+)/)[1];
+await X.evaluate(async (tag) => {
+  window.__ES = await import(`/assets/games/troll-ops/view/enemy-steps.js?v=${tag}`);
   const a = window.__trollOps.audio;
   const f = a.step.bind(a);
   a.step = (at, v) => { if (at) window.__steps = (window.__steps || 0) + 1; return f(at, v); };
-});
-async function stepsHeard() {
-  await X.evaluate(() => { window.__steps = 0; });
-  const near = await X.evaluate(() => { const p = window.__trollOps.move.pos; return { x: p.x, z: p.z }; });
-  for (let i = 0; i < 16; i++) {
-    await Y.evaluate(({ x, z }) => { const T = window.__trollOps; T.move.pos.x = x; T.move.pos.z = z; T.player.pos.x = x; T.player.pos.z = z; }, { x: near.x + 4 + (i % 2) * 2.4, z: near.z + 2 });
-    await Y.waitForTimeout(140);
+}, ES_TAG);
+const stepsHeard = (silent) => X.evaluate(({ yId, silent }) => {
+  const T = window.__trollOps, rp = T.remotes.byId.get(yId);
+  if (!rp) return -1;
+  const keepPerks = rp.peer.perks, keepPos = rp.pos.clone(), me = T.move.pos;
+  if (!silent) rp.peer.perks = 0;
+  window.__steps = 0;
+  // 12 m in 0.3 m strides, 6 m off.
+  for (let i = 0; i <= 40; i++) {
+    rp.pos.set(me.x + 4 + i * 0.3, me.y, me.z + 2);
+    window.__ES.updateEnemySteps();
   }
-  return X.evaluate(() => window.__steps);
-}
-const silentSteps = await stepsHeard();
-await Y.evaluate(() => { window.__trollOps.net.perks = 0; });
-await Y.waitForTimeout(400);
-const loudSteps = await stepsHeard();
+  rp.peer.perks = keepPerks;
+  rp.pos.copy(keepPos);
+  return window.__steps;
+}, { yId, silent });
+const silentSteps = await stepsHeard(true);
+const loudSteps = await stepsHeard(false);
 check("Dead Silence: their footsteps are silent", silentSteps === 0 && loudSteps > 0, `${silentSteps} with, ${loudSteps} without`);
 
 // Bots carry a class too: one perk a tier, fixed per bot, on the wire, and
