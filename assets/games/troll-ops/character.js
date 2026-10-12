@@ -2008,11 +2008,19 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
 }
 /* The old placement, kept for the menu's port-arms carry (gun turned across
    the body) and anything without the stock data. */
+const CARRY_CLEAR = 0.08;   // metres further out a broad body carries the gun
 function _gripSupportCarry(rig, { pitch = 0, recoil = 0, ads = 0, carryYaw = 0, carryRoll = 0 } = {}) {
   const mesh = rig.held;
   const p = rig.parts;
   if (!mesh.userData.supportHandPos) return;
   const s = rig.scale, w = rig.build;
+  // A broad body (rig.gunHold: blocky-body.js) draws the gun bigger, holds
+  // it further out from its chest and takes the handguard from underneath,
+  // as the match does: on top, its block forearm swallowed the barrel
+  // (user, 2026-10-12: "the weapon seems to penetrate through the arm").
+  const hold = rig.gunHold, gs = hold?.scale ?? 1;
+  mesh.scale.setScalar(gs);
+  const pt = (v) => _gPt.copy(v).multiplyScalar(gs);
   const kick = Math.max(0, Math.min(1, recoil));
   // Level at the aim, independent of the body's lean (the chest carries it).
   const lean = p.torso.rotation.x + p.spine.rotation.x + p.chest.rotation.x;
@@ -2027,7 +2035,8 @@ function _gripSupportCarry(rig, { pitch = 0, recoil = 0, ads = 0, carryYaw = 0, 
   // sit in front of the face and a scoped troll reads as scoped from across
   // the map (user: bots never looked like they aimed in; it was 13 cm, now 40).
   _gGrip.set((0.12 - a * 0.09) * s * w, (-0.24 + a * 0.4) * s, (-0.30 - a * 0.1 + kick * 0.03) * s);
-  _gP.copy(mesh.userData.gripPos).applyEuler(p.gunMount.rotation);
+  if (hold) _gGrip.z -= CARRY_CLEAR * s;
+  _gP.copy(pt(mesh.userData.gripPos)).applyEuler(p.gunMount.rotation);
   p.gunMount.position.copy(_gGrip).sub(_gP);
 
   _gT.copy(_gGrip).sub(p.armR.position).sub(p.shoulderR.position);
@@ -2035,7 +2044,9 @@ function _gripSupportCarry(rig, { pitch = 0, recoil = 0, ads = 0, carryYaw = 0, 
 
   // Support hand: along grip → handguard, as far as the left arm reaches.
   _gO.copy(_gGrip).sub(p.armL.position).sub(p.shoulderL.position);
-  _gT.copy(mesh.userData.supportHandPos).applyEuler(p.gunMount.rotation).add(p.gunMount.position).sub(p.armL.position).sub(p.shoulderL.position);
+  _gT.copy(pt(mesh.userData.supportHandPos));
+  if (hold?.under) _gT.y -= hold.under * s;
+  _gT.applyEuler(p.gunMount.rotation).add(p.gunMount.position).sub(p.armL.position).sub(p.shoulderL.position);
   const reach = (rig.upperArm + rig.foreArm) * 0.97;
   if (_gT.length() > reach) {
     let lo = 0, hi = 1;
