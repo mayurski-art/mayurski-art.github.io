@@ -290,6 +290,60 @@ function missileMesh() {
 
 const _to = new THREE.Vector3(), _dir = new THREE.Vector3(), _fwd = new THREE.Vector3();
 
+/* The missiles' flight, shared by the SAM Turret and the FHJ-18 launcher
+   (combat/launcher.js): a list of missiles in flight, each homing on an
+   aircraft by id. */
+
+/* One missile out of `from` along `dir` at `targetId`, into `parent`. */
+export function spawnMissile(list, parent, from, dir, targetId) {
+  const mesh = missileMesh();
+  mesh.position.copy(from);
+  mesh.lookAt(_to.copy(from).add(dir));
+  parent?.add(mesh);
+  const ms = { mesh, pos: from.clone(), dir: dir.clone().normalize(), targetId, t: 0, done: false };
+  list.push(ms);
+  return ms;
+}
+
+/* `targetPos(id)` -> the target's world position or null (gone).
+   Returns the missiles that reached their target this frame. */
+export function flyMissiles(list, dt, targetPos) {
+  const hits = [];
+  for (let i = list.length - 1; i >= 0; i--) {
+    const ms = list[i];
+    ms.t += dt;
+    const tp = targetPos(ms.targetId);
+    if (tp) {
+      _dir.copy(tp).sub(ms.pos);
+      const d = _dir.length();
+      if (d < MISSILE_HIT) { hits.push({ targetId: ms.targetId, at: ms.pos.clone() }); ms.done = true; }
+      else {
+        _dir.divideScalar(d);
+        const ang = Math.acos(Math.max(-1, Math.min(1, ms.dir.dot(_dir))));
+        const k = ang > 1e-4 ? Math.min(1, (MISSILE_TURN * dt) / ang) : 1;
+        ms.dir.lerp(_dir, k).normalize();
+      }
+    }
+    // A short boost straight out of the tube, then full speed.
+    const sp = MISSILE_SPEED * Math.min(1, 0.35 + ms.t * 2);
+    ms.pos.addScaledVector(ms.dir, sp * dt);
+    ms.mesh.position.copy(ms.pos);
+    ms.mesh.lookAt(_to.copy(ms.pos).add(ms.dir));
+    ms.mesh.userData.flame.scale.set(1, 0.7 + Math.random() * 0.6, 1);
+    if (ms.t > MISSILE_LIFE) { hits.push({ targetId: null, at: ms.pos.clone() }); ms.done = true; }
+    if (ms.done) {
+      ms.mesh.parent?.remove(ms.mesh);
+      list.splice(i, 1);
+    }
+  }
+  return hits;
+}
+
+export function clearMissiles(list) {
+  for (const ms of list) ms.mesh.parent?.remove(ms.mesh);
+  list.length = 0;
+}
+
 export class SamTurret {
   constructor({ id, owned, team, x, y, z, yaw = 0, duration = SAM_DURATION, botId = null }) {
     this.id = id;
@@ -346,47 +400,13 @@ export class SamTurret {
   }
 
   spawnMissile(from, dir, targetId) {
-    const mesh = missileMesh();
-    mesh.position.copy(from);
-    mesh.lookAt(_to.copy(from).add(dir));
-    this.root.parent?.add(mesh);
-    const ms = { mesh, pos: from.clone(), dir: dir.clone().normalize(), targetId, t: 0, done: false };
-    this.missiles.push(ms);
-    return ms;
+    return spawnMissile(this.missiles, this.root.parent, from, dir, targetId);
   }
 
   /* `targetPos(id)` -> the target's world position or null (gone).
      Returns the missiles that reached their target this frame. */
   updateMissiles(dt, targetPos) {
-    const hits = [];
-    for (let i = this.missiles.length - 1; i >= 0; i--) {
-      const ms = this.missiles[i];
-      ms.t += dt;
-      const tp = targetPos(ms.targetId);
-      if (tp) {
-        _dir.copy(tp).sub(ms.pos);
-        const d = _dir.length();
-        if (d < MISSILE_HIT) { hits.push({ targetId: ms.targetId, at: ms.pos.clone() }); ms.done = true; }
-        else {
-          _dir.divideScalar(d);
-          const ang = Math.acos(Math.max(-1, Math.min(1, ms.dir.dot(_dir))));
-          const k = ang > 1e-4 ? Math.min(1, (MISSILE_TURN * dt) / ang) : 1;
-          ms.dir.lerp(_dir, k).normalize();
-        }
-      }
-      // A short boost straight out of the tube, then full speed.
-      const sp = MISSILE_SPEED * Math.min(1, 0.35 + ms.t * 2);
-      ms.pos.addScaledVector(ms.dir, sp * dt);
-      ms.mesh.position.copy(ms.pos);
-      ms.mesh.lookAt(_to.copy(ms.pos).add(ms.dir));
-      ms.mesh.userData.flame.scale.set(1, 0.7 + Math.random() * 0.6, 1);
-      if (ms.t > MISSILE_LIFE) { hits.push({ targetId: null, at: ms.pos.clone() }); ms.done = true; }
-      if (ms.done) {
-        ms.mesh.parent?.remove(ms.mesh);
-        this.missiles.splice(i, 1);
-      }
-    }
-    return hits;
+    return flyMissiles(this.missiles, dt, targetPos);
   }
 
   update(dt) {
@@ -408,8 +428,7 @@ export class SamTurret {
 
   dispose() {
     this.dead = true;
-    for (const ms of this.missiles) ms.mesh.parent?.remove(ms.mesh);
-    this.missiles.length = 0;
+    clearMissiles(this.missiles);
     this.root.parent?.remove(this.root);
   }
 }
