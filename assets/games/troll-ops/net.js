@@ -364,6 +364,7 @@ export class Net {
         p.jail = Math.max(0, Math.min(9, m.jl | 0));
         p.wanted = typeof m.wl === "string" ? m.wl.slice(0, 80) : null;
         p.body = typeof m.bd === "string" ? m.bd.slice(0, 16) : null;   // a realistic body (cop-bodies.js)
+        p.downed = Math.max(0, Math.min(2, m.dn | 0));   // Zombies co-op: 1 down, 2 bled out (modes/zombies/coop.js)
         if (m.bs != null) p.botSkill = BOT_SKILLS[m.bs | 0] || null;   // only bots carry it
         // keep a short history so the renderer can interpolate in the past
         p.snaps.push({ t: performance.now(), x: m.x, y: m.y, z: m.z, yaw: m.ry, pitch: m.rp, stance: m.st, moving: !!m.mv,
@@ -499,6 +500,13 @@ export class Net {
         if (p) { this.h.onLeave?.(p); this.peers.delete(m.id); }
         break;
       }
+      /* Zombies co-op (modes/zombies/coop.js): the host's horde, waves and
+         deployables, and everyone's hits, votes and revives. All of it is
+         "z" + a letter, and all of it goes to the one handler. */
+      default: {
+        if (typeof m.t === "string" && m.t.length === 2 && m.t[0] === "z") this.h.onZombie?.(this.peer(m.id), m);
+        break;
+      }
     }
   }
 
@@ -548,6 +556,7 @@ export class Net {
         // sheriff's wanted board ("id:crime;...")
         cf: this.cuff || undefined, jl: this.jail || undefined, wl: this.wanted || undefined,
         pk: this.perks || undefined,   // perks others must know about (perks.js WIRE_PERKS bits; combat/perk-carry.js sets it)
+        dn: local.downed || undefined,   // Zombies co-op: 1 down, 2 bled out
       });
     }
     this.prune();
