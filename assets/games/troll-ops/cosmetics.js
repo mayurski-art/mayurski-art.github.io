@@ -36,6 +36,15 @@ export const BODIES = [
   { id: "", name: "Stick troll", img: "../../images/wallpaper/trollface%20transparent.png" },
   { id: "trolls-1718", name: "TROLLS #1718", img: "./ui/trolls-1718.png", owner: true },
 ];
+/* A TROLLS body brings its own head and face (the NFT's art), so the
+   expression and the face covering come off while it's worn and can't go
+   back on (user, 2026-10-12). The wrist isn't the head: it stays. */
+const FACE_FREE = "grin";
+const ownFace = (face) => {
+  const w = String(face).split(":")[3] || "";
+  return cleanFaceKey(`${FACE_FREE}:og::${w}`);
+};
+
 /* May the signed-in account wear body `id`? */
 export function canWearBody(id) {
   const b = BODIES.find((x) => x.id === id);
@@ -77,7 +86,8 @@ export class CosmeticsPanel {
     if (!root) return;
     root.replaceChildren();
     // a locked body unlocks (or locks) as the account signs in (or out)
-    window.addEventListener("trollrunner:auth-changed", () => { this.paint(); this.onBody?.(this.body); });
+    // signing in or out can put a TROLLS body on or take it off, and the face with it
+    window.addEventListener("trollrunner:auth-changed", () => { this.paint(); this.onBody?.(this.body); this.onChange?.(this.face); });
     const sec = (title, hint) => {
       const h = document.createElement("div");
       h.className = "to-pf-sublabel";
@@ -140,7 +150,7 @@ export class CosmeticsPanel {
       const name = document.createElement("span");
       name.textContent = e.name;
       b.append(thumb, name);
-      b.addEventListener("click", () => this.set({ expr: e.id }));
+      b.addEventListener("click", () => { if (!this.body) this.set({ expr: e.id }); });
       this.exprBox.appendChild(b);
     }
     this.coverBox = sec("Face covering", "Tie something over the grin. It still shows through.");
@@ -175,7 +185,7 @@ export class CosmeticsPanel {
       const name = document.createElement("span");
       name.textContent = cv.name;
       b.append(thumb, name);
-      b.addEventListener("click", () => this.set({ cover: cv.id }));
+      b.addEventListener("click", () => { if (!this.body) this.set({ cover: cv.id }); });
       this.coverBox.appendChild(b);
     }
     this.wristBox = sec("Wrist", "Something on the left wrist. Shows in your own hands too.");
@@ -205,18 +215,24 @@ export class CosmeticsPanel {
     this.paint();
   }
 
-  get face() { return this.state.face; }
+  /* The face you wear: the pick, or (a TROLLS body on) the plain face with
+     only the wrist kept, since the body's own head covers the rest. */
+  get face() { return this.body ? ownFace(this.state.face) : this.state.face; }
   /* The body to wear: the pick, if this account may wear it ("" the stick). */
   get body() { return canWearBody(this.state.body) ? this.state.body : ""; }
 
   setBody(id) {
     this.state.body = id;
+    // a TROLLS body takes the face pieces off for good (pick them again after)
+    if (this.body) this.state.face = ownFace(this.state.face);
     saveCosmetics(this.state);
     this.paint();
     this.onBody?.(this.body);
+    this.onChange?.(this.face);
   }
 
   set({ expr, cover, wrist }) {
+    if (this.body) { expr = undefined; cover = undefined; }   // the body's own head
     const [e0, , c0 = "", w0 = ""] = this.state.face.split(":");
     const c = cover ?? c0, w = wrist ?? w0;
     this.state.face = cleanFaceKey(`${expr || e0}:og:${c}:${w}`);
@@ -236,17 +252,27 @@ export class CosmeticsPanel {
       b.setAttribute("aria-disabled", String(locked));
       b.title = locked ? "Locked: for the holder of this TROLLS NFT" : "";
     }
-    const e = this.state.face.split(":")[0];
+    // with a TROLLS body on, the face and covering cards are locked
+    const face = this.face;
+    const headLock = !!body;
+    const lockNote = headLock ? "Off while you wear a TROLLS body: it has its own head" : "";
+    this.exprBox.classList.toggle("is-locked", headLock);
+    this.coverBox.classList.toggle("is-locked", headLock);
+    const e = face.split(":")[0];
     for (const b of this.exprBox.children) {
-      const on = b.dataset.expr === e;
+      const on = !headLock && b.dataset.expr === e;
       b.classList.toggle("is-on", on);
       b.setAttribute("aria-checked", String(on));
+      b.setAttribute("aria-disabled", String(headLock));
+      b.title = lockNote;
     }
-    const cover = this.state.face.split(":")[2] || "";
+    const cover = face.split(":")[2] || "";
     for (const b of this.coverBox.children) {
-      const on = b.dataset.cover === cover;
+      const on = !headLock && b.dataset.cover === cover;
       b.classList.toggle("is-on", on);
       b.setAttribute("aria-checked", String(on));
+      b.setAttribute("aria-disabled", String(headLock));
+      b.title = lockNote;
     }
     const wrist = this.state.face.split(":")[3] || "";
     for (const b of this.wristBox.children) {

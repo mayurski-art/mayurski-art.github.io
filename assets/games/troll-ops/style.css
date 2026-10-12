@@ -4057,3 +4057,7 @@ body.to-touch-play .zh.is-downed .zh-col { visibility: hidden; }
 @media (max-width: 900px), (max-height: 520px) {
   .zh-revive-t { font-size: 15px; }
 }
+
+/* A TROLLS body on: its own head, so the face and covering cards are locked. */
+.to-cos-faces.is-locked .to-cos-face { opacity: .4; cursor: not-allowed; }
+.to-cos-faces.is-locked .to-cos-face:hover { background: rgba(255,255,255,.04); }
