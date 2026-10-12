@@ -22,7 +22,7 @@ import { strikeTablet, throwMarker } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b
 import { insidePolygon } from "../edge.js";
 import { INFECTION } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2";
 import { heroActive, hero } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2";
-import { updateSwivel, updateLocalRig, placeDeathCamera, updateEmoteCamera, updateThirdPersonCamera, swivel, swivelK } from "./third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2";
+import { updateSwivel, updateLocalRig, placeDeathCamera, updateEmoteCamera, updateThirdPersonCamera, swivel, swivelK } from "./third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-bk1";
 import { DF_RANGE } from "../dragonfire.js?v=df3-sb2";
 import { settings } from "../menu/settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2";
 import { EMOTES } from "../emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u-gt1-gt2";

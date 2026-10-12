@@ -8,7 +8,7 @@ import { damagePlayer, breakSpawnGuard } from "./damage.js?v=dm1-kc2-si1-gj1-fu1
 import * as THREE from "three";
 import { round2 } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2";
 import { segmentBlocked, raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1";
-import { THROW_TIME } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2";
+import { THROW_TIME } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1";
 import { game } from "../core/state.js?v=st1";
 import { hasPerk, PERK_TUNE } from "../perks.js?v=pk1-cl1-bp1";
 import { throwStart, throwReleased, throwCancel, throwRequestRelease, throwArmed, updateThrow, throwHandWorld } from "./throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2";

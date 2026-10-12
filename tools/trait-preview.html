@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trait Preview</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: #1d2126; color: #e8ece4; font: 13px/1.4 "DM Mono", ui-monospace, monospace; }
+  canvas { display: block; }
+  #ui { position: fixed; left: 12px; top: 12px; display: flex; flex-wrap: wrap; gap: 6px; max-width: calc(100% - 24px); }
+  #ui button { background: #2b3138; color: inherit; border: 1px solid #444c55; border-radius: 6px; padding: 4px 9px; cursor: pointer; font: inherit; }
+  #ui button.on { border-color: #b6ff3c; color: #b6ff3c; }
+  #ref { position: fixed; right: 12px; bottom: 34px; width: 150px; border-radius: 10px; border: 1px solid #444c55; }
+  #reflabel { position: fixed; right: 12px; bottom: 12px; width: 150px; text-align: center; opacity: .7; }
+</style>
+<script type="importmap">
+  { "imports": { "three": "../assets/vendor/three.module.min.js", "three/addons/": "../assets/vendor/addons/" } }
+</script>
+</head>
+<body>
+<div id="ui" role="toolbar" aria-label="Preview controls"></div>
+<img id="ref" alt="TROLLS NFT reference art" src="../assets/games/troll-ops/refs/trolls-1718.png">
+<div id="reflabel">TROLLS #1718 (ref)</div>
+<script type="module">
+/* The live stick troll next to the blocky one we're building (localhost
+   tool): both the game's own rig, posed by the game's own pose code; the
+   blocky one wears token #1718's look.
+   ?token=1718&pose=idle|walk|aim|shoot|run+shoot|dance|death&gun=<id>&spin=1 */
+import * as THREE from "three";
+import { buildHumanoid, poseHumanoid, poseDeath, DANCES, gaitPhaseRate, mountHeldWeapon } from "../assets/games/troll-ops/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1";
+import { buildWeaponMesh, stripLights, preloadWeaponModels } from "../assets/games/troll-ops/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2";
+import { WEAPON_DEFS } from "../assets/games/troll-ops/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1";
+// Fresh art and code every load (a dev page): traits.js reads TRAITS_BUST.
+globalThis.TRAITS_BUST = String(Date.now());
+const { applyToken } = await import("../assets/games/troll-ops/traits.js?t=" + Date.now());
+
+const q = new URLSearchParams(location.search);
+const token = q.get("token") || "1718";
+let pose = q.get("pose") || "idle";
+let spin = q.get("spin") === "1";
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+renderer.shadowMap.enabled = true;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x8fb4d6);
+const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 100);
+scene.add(new THREE.HemisphereLight(0xdfe9f3, 0x5a4a3a, 1.1));
+const sun = new THREE.DirectionalLight(0xfff1dc, 2.2);
+sun.position.set(3, 6, -4);
+sun.castShadow = true;
+scene.add(sun);
+const ground = new THREE.Mesh(new THREE.CircleGeometry(6, 48), new THREE.MeshStandardMaterial({ color: 0x6d6457, roughness: 0.95 }));
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Always the comparison (user: "in the local host i only want to see the
+// live trollface stick character versus this one that we are working on"):
+// the live stick troll, as it is in the game (no traits), and the blocky
+// one (blocky-body.js) with token #1718's look. (The stick troll wearing
+// the drawn traits, the old "look: stick" view, is gone.)
+const rig = buildHumanoid(new THREE.MeshStandardMaterial({ color: 0x222222 }), { height: 1.8, gun: false, build: 0.25, legs: 0.67 });
+rig.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+scene.add(rig.root);
+const live = buildHumanoid(new THREE.MeshStandardMaterial({ color: 0x222222 }), { height: 1.8, gun: false });
+live.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+live.root.position.x = 0.75;   // the viewer's left from the front: +x
+rig.root.position.x = -0.75;
+scene.add(live.root);
+
+// The blocky troll: the token's drawn head traits (traits.js) on the
+// trollface, the block body (blocky-body.js) dressed in its garment.
+const { applyBlocky } = await import("../assets/games/troll-ops/blocky-body.js?t=" + Date.now());
+const ready = applyToken(rig, token, { headOnly: true }).then(() => applyBlocky(rig, { garment: "clothes-tank-runner" }));
+
+// The game's own guns (weapons.js + weapon-model.js), held the game's way
+// (mountHeldWeapon: both hands, from the shoulder): ?gun=<weapons.js id>,
+// default the Problem 416. Shown in the aim, shoot and run+shoot poses; the
+// shots are the cop lab's (8 a second, aimed down the sights, with recoil)
+// and each one flashes at the muzzle.
+const gunId = WEAPON_DEFS[q.get("gun")] ? q.get("gun") : "problem416";
+try { await preloadWeaponModels(); } catch {}
+const flashTex = (() => {
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d");
+  const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, "rgba(255,250,215,1)"); grad.addColorStop(0.35, "rgba(255,200,80,0.9)"); grad.addColorStop(1, "rgba(255,140,20,0)");
+  g.fillStyle = grad; g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+})();
+const guns = [];
+for (const r of [rig, live]) {
+  const mesh = stripLights(buildWeaponMesh(WEAPON_DEFS[gunId]));
+  mesh.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  mountHeldWeapon(r, mesh);
+  const flash = new THREE.Sprite(new THREE.SpriteMaterial({ map: flashTex, blending: THREE.AdditiveBlending, depthWrite: false }));
+  flash.scale.setScalar(0.22);
+  flash.position.set(0, 0.01, mesh.userData.muzzleZ ?? -0.6);
+  mesh.add(flash);
+  guns.push({ mesh, flash });
+}
+const GUN_POSES = new Set(["aim", "shoot", "run+shoot"]);
+
+let orbit = { yaw: 0, pitch: 0.12, dist: 3.4 }, drag = null;
+addEventListener("pointerdown", (e) => { if (e.target === renderer.domElement) drag = { x: e.clientX, y: e.clientY }; });
+addEventListener("pointerup", () => { drag = null; });
+addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  orbit.yaw -= (e.clientX - drag.x) * 0.008;
+  orbit.pitch = Math.max(-0.3, Math.min(1.2, orbit.pitch + (e.clientY - drag.y) * 0.006));
+  drag = { x: e.clientX, y: e.clientY };
+});
+addEventListener("wheel", (e) => { orbit.dist = Math.max(1, Math.min(9, orbit.dist * (1 + e.deltaY * 0.001))); });
+
+const ui = document.getElementById("ui");
+function buttons() {
+  ui.innerHTML = "";
+  for (const p of ["idle", "walk", "aim", "shoot", "run+shoot", "dance", "death"]) mk(p, pose === p, () => { pose = p; t0 = performance.now(); });
+  mk("spin", spin, () => { spin = !spin; });
+  mk("close-up", orbit.dist < 2, () => { orbit.dist = orbit.dist < 2 ? 3.4 : 1.5; });
+}
+function mk(label, isOn, fn) {
+  const b = document.createElement("button");
+  b.type = "button"; b.textContent = label; b.className = isOn ? "on" : "";
+  b.setAttribute("aria-pressed", String(isOn));
+  b.onclick = () => { fn(); buttons(); };
+  ui.appendChild(b);
+}
+buttons();
+
+let t0 = performance.now(), last = t0, travel = 0;
+function resize() {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+}
+addEventListener("resize", resize);
+resize();
+window.__preview = { rig, orbit, ready, setPose: (p) => { pose = p; t0 = performance.now(); } };
+
+renderer.setAnimationLoop((now) => {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const t = (now - t0) / 1000;
+  if (spin) orbit.yaw += dt * 0.6;
+  const armed = GUN_POSES.has(pose), firing = pose === "shoot" || pose === "run+shoot";
+  const moving = pose === "walk" || pose === "run+shoot";
+  // the cop lab's shooting: 8 shots a second, each kicking and settling
+  const k = (t * 8) % 1;
+  for (const g of guns) {
+    g.mesh.visible = armed;
+    g.flash.visible = firing && k < 0.3;
+    g.flash.material.rotation = Math.floor(t * 8) * 2.1;
+  }
+  // Moving poses really travel, at the gait's own speed (-z, the way the
+  // trolls face), the camera and ground going along: a planted foot is
+  // pinned to the ground (character.js _footLock), so run on the spot it
+  // never came back under the body and both feet stayed out in front (the
+  // "slanted" legs). Wrapped every 30 m (one re-plant).
+  travel = moving ? (travel + dt * 4.2) % 30 : 0;
+  for (const r of [rig, live]) r.root.position.z = -travel;
+  ground.position.z = -travel;
+  sun.position.z = -4 - travel; sun.target.position.z = -travel; sun.target.updateMatrixWorld();
+  for (const r of [rig, live]) {
+    if (pose === "death") poseDeath(r, Math.min(1, t / 1.25));
+    else if (pose === "dance") DANCES[0](r, t);
+    else poseHumanoid(r, {
+      // each rig's own step rate: shorter legs step quicker
+      phase: (r.walkPhase = (r.walkPhase || 0) + dt * gaitPhaseRate(4.2, r.legScale)), moving, mps: moving ? 4.2 : 0, speed: moving ? 1 : 0, dt,
+      hasGun: armed, hold: armed ? "gun" : "none", ads: armed ? 1 : 0,
+      recoil: firing ? Math.max(0, 1 - k * 3) : 0, fired: firing ? k / 8 : Infinity,
+    });
+  }
+  const close = orbit.dist < 2;
+  // orbit.tx / orbit.ty (set from the console) aim the camera somewhere else
+  const c = new THREE.Vector3(orbit.tx ?? 0, orbit.ty ?? (close ? 1.72 : 1.05), -travel);
+  camera.position.set(c.x - Math.sin(orbit.yaw) * Math.cos(orbit.pitch) * orbit.dist, c.y + Math.sin(orbit.pitch) * orbit.dist, c.z - Math.cos(orbit.yaw) * Math.cos(orbit.pitch) * orbit.dist);
+  camera.lookAt(c);
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

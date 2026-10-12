@@ -6,13 +6,13 @@
 // buys smooth motion at the cost of aiming very slightly behind live.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, gaitFromVelocity, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, ParryState } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2";
+import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, gaitFromVelocity, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, ParryState } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1";
 import { poseEmoteCode } from "./emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2";
 import { THROW, parseThrowWire, poseThrowBody, clearThrowBody } from "./combat/throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2";
 import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1";
 import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1kb3-bk1-wst-ig1-th2";
-import { cleanFaceKey } from "./cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2";
+import { cleanFaceKey } from "./cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { sharedParaglider } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1";
 import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3g-nf-wst-ig1-soc1c2f1m1u-th2-gt1-gt2";
@@ -21,6 +21,7 @@ import { playerIconCanvas } from "./rank-icons.js?v=rk1";
 import { buildDrink, drinkFromCode, drinkMax, FILL_TIME, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7-cup1-gt1-gt2";
 import { poseSeated, posePianoArms, roleLabel } from "./rp-roles.js?v=rp1b7-cd1-sh1";
 import { peerHas } from "./perks.js?v=pk1-cl1-bp1";
+import { wearBlocky } from "./blocky-body.js?v=bk1";
 
 /* Socialize seats: game.js hands over the map's seat list (rp.seats), so a
    peer's `seat` (index + 1) can be looked up for its height and kind. */
@@ -519,6 +520,9 @@ export class RemotePlayer {
     // Cops and Robbers: a realistic body (cop-bodies.js) from the wire's body
     // id; a hero's own body wins. It is moved after the pose (syncBody).
     applyCopBody(this.rig, this.peer.hero ? null : this.peer.body || null);
+    // The TROLLS #1718 body (blocky-body.js): its holder's account only, and
+    // never under a hero or cop body.
+    wearBlocky(this.rig, !!(this.peer.look && this.peer.owner && !this.peer.hero && !this.peer.body));
 
     if ((this.peer.meleeSeq | 0) !== this.meleeSeen) {
       this.meleeSeen = this.peer.meleeSeq | 0;
@@ -708,7 +712,7 @@ export class RemotePlayer {
     const gaitSpeed = Math.max(0, Math.min(1, speed / 4.2));
     // Cadence from the real speed, so the planted foot moves exactly as fast
     // as the ground under it.
-    if (moving) this.phase += dt * gaitPhaseRate(this.gaitMps = (this.gaitMps ?? speed) + (speed - (this.gaitMps ?? speed)) * Math.min(1, dt * 6));
+    if (moving) this.phase += dt * gaitPhaseRate(this.gaitMps = (this.gaitMps ?? speed) + (speed - (this.gaitMps ?? speed)) * Math.min(1, dt * 6), this.rig.legScale);
 
     this.rig.root.position.copy(this.pos);
     // Their head leads toward where they aim; the body turns after it.
@@ -828,7 +832,7 @@ export class RemotePlayer {
     } else this.kcVx = this.kcVz = 0;
     this.kcPrev = { x: s.x, z: s.z };
     const kg = gaitFromVelocity(s.yaw, this.kcVx, this.kcVz, this.kcGait || (this.kcGait = {}));
-    if (s.moving) this.replayPhase = (this.replayPhase || 0) + dt * gaitPhaseRate(kg.speed);
+    if (s.moving) this.replayPhase = (this.replayPhase || 0) + dt * gaitPhaseRate(kg.speed, this.rig.legScale);
     aimRig(this.rig, s.yaw, dt, { moving: s.moving });
     poseHumanoid(this.rig, {
       phase: this.replayPhase || 0, moving: s.moving, pitch: s.pitch, lower: s.lower, strafe: kg.strafe, forward: kg.forward,

@@ -6,8 +6,8 @@ import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-c
 import { currentWeapon } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2";
 import { stageFrozen, royaleSpectating, royaleRolling, royale, royaleRollK, royaleDropCode } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2";
 import { STANCE } from "../movement.js?v=umb2-sb2-gj1b7";
-import { poseDeath, DEATH_TIME, aimRig, gaitPhaseRate, poseHumanoid, poseThrowArm, THROW_TIME, mountHeldWeapon } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2";
-import { STANCE_LOWER, rollRig, DROP_FALL, DROP_GLIDE, poseDrop, poseRope, ROPE_CLIMB_RATE } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2";
+import { poseDeath, DEATH_TIME, aimRig, gaitPhaseRate, poseHumanoid, poseThrowArm, THROW_TIME, mountHeldWeapon } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1";
+import { STANCE_LOWER, rollRig, DROP_FALL, DROP_GLIDE, poseDrop, poseRope, ROPE_CLIMB_RATE } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1";
 import { emoteSeconds, poseEmoteCode, emoteCode, EMOTES } from "../emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2";
 import { seated, standUp, syncLocalDrink, piano } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2";
 import { damp } from "../anim-curves.js";
@@ -19,6 +19,7 @@ import { buildMeleeMesh } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2";
 import { game } from "../core/state.js?v=st1";
 import { throwState, poseThrowBody, clearThrowBody } from "../combat/throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2";
 import { modelKind } from "../combat/throwable-models.js?v=tm1-th2";
+import { wearBlocky } from "../blocky-body.js?v=bk1";
 
 // Chase camera behind the player's own rig. Distance/side offset blend
 // in from an over-the-shoulder position as ADS deepens (w.adsT), rather
@@ -216,6 +217,9 @@ export function placeDeathCamera() {
 export function updateLocalRig(dt) {
   if (!game.player.alive && game.gameState === "playing" && !royaleSpectating()) { updateLocalDeadBody(); return; }
   game.localRig.root.position.set(game.move.pos.x, game.move.pos.y, game.move.pos.z);
+  // The TROLLS #1718 body (cosmetics.js, account-locked; menu/lobby.js sets
+  // game.wantBody), never under a hero or cop body.
+  wearBlocky(game.localRig, game.wantBody === "trolls-1718" && !game.localRig.heroBodyId && !game.localRig.copBodyId);
   // The body follows the aim a beat behind; the head leads the turn.
   const rolling = royaleRolling();
   // Under the glider the body hangs the way the wing flies, not where you look.
@@ -241,7 +245,7 @@ export function updateLocalRig(dt) {
   }
   const gaitSpeed = Math.max(0, Math.min(1, speed / 4.2));
 
-  if (game.move.moving) game.localPhase += dt * gaitPhaseRate(speed);
+  if (game.move.moving) game.localPhase += dt * gaitPhaseRate(speed, game.localRig.legScale);
 
   // What's in the hands: the melee weapon while it's held or mid-swing
   // (a quick melee swings it without putting the gun away), else the gun.

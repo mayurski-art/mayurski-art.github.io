@@ -1,0 +1,98 @@
+<!--
+  TROLLS trait: CLOTHES / Tank Runner on the BLOCK body (blocky-body.js):
+  a shirt template, one region per torso face, 1 unit = 1 mm. The torso is
+  400 wide, 200 deep and 520 tall: y 0 its top (0.04 m above the chest
+  joint), y 520 the hips.
+    front  x    0..400  (seen from the front: the troll's right on the left)
+    back   x  400..800  (seen from behind: the troll's left on the left)
+    right  x  800..1000 (the troll's right side: its back on the left)
+    left   x 1000..1200 (its left side: its front on the left)
+  The tank hangs to y 470; below it, the waistband of the shorts.
+-->
+<!--
+  TOP x 0..400, y 560..760: the shoulders seen from above (the troll's right
+  on the left, like the front; its front edge at y 560, its back at 760),
+  for the muscular torso's shoulder tops: skin, the two straps running over
+  from the front to the back. Without it the tops borrowed one stretched row
+  of the front and back and streaked.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" width="1200" height="760">
+  <defs>
+    <!-- the shorts' waistband along the bottom of every face -->
+    <g id="shorts">
+      <rect x="0" y="470" width="1200" height="90" fill="#34363e"/>
+      <rect x="0" y="470" width="1200" height="14" fill="#43464f"/>
+    </g>
+  </defs>
+  <rect width="1200" height="560" fill="#f3f3ef"/>
+  <g stroke-linejoin="round" stroke-linecap="round">
+
+    <!-- FRONT -->
+    <g fill="none" stroke="#0a0a0a" stroke-width="5">
+      <path d="M112 34 C140 30 172 38 196 34"/>
+      <path d="M288 34 C260 30 228 38 204 34"/>
+      <path d="M200 46 L200 98"/>
+      <path d="M150 96 C172 116 190 116 200 104 C210 116 228 116 250 96"/>
+    </g>
+    <!-- armholes cut shallow (to y 100): on the muscular body (blocky-body.js)
+         the arms sit right against the torso and a deep cut showed as white
+         slivers, gaps in the tank -->
+    <path fill="#78ec1c" stroke="#0a0a0a" stroke-width="7"
+      d="M62 0 C62 48 32 84 0 100 L0 470 L400 470 L400 100 C368 84 338 48 338 0
+         L272 0 C276 90 268 150 200 154 C132 150 124 90 128 0 Z"/>
+    <g fill="#5cc21c">
+      <path d="M0 108 C26 92 52 64 62 30 L74 34 C66 72 38 100 14 116 L14 470 L0 470 Z"/>
+      <path d="M400 108 C374 92 348 64 338 30 L326 34 C334 72 362 100 386 116 L386 470 L400 470 Z"/>
+    </g>
+    <g fill="none" stroke="#3f8f12" stroke-width="4" stroke-dasharray="11 8">
+      <path d="M116 6 C112 100 132 168 200 172 C268 168 288 100 284 6"/>
+      <path d="M6 456 L394 456"/>
+    </g>
+    <text x="200" y="266" text-anchor="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-style="italic"
+          font-size="74" textLength="292" lengthAdjust="spacingAndGlyphs" fill="#0a0a0a" transform="skewX(-10) translate(47 0)">RUNNER</text>
+
+    <!-- BACK (the neck strokes that were drawn here are gone: on the
+         muscular torso the traps are real, and the lines read as scratches) -->
+    <path fill="#78ec1c" stroke="#0a0a0a" stroke-width="7"
+      d="M462 0 C462 48 432 84 400 100 L400 470 L800 470 L800 100 C768 84 738 48 738 0
+         L668 0 C672 50 650 92 600 96 C550 92 528 50 532 0 Z"/>
+    <g fill="#5cc21c">
+      <path d="M400 108 C426 92 452 64 462 30 L474 34 C466 72 438 100 414 116 L414 470 L400 470 Z"/>
+      <path d="M800 108 C774 92 748 64 738 30 L726 34 C734 72 762 100 786 116 L786 470 L800 470 Z"/>
+    </g>
+    <g fill="none" stroke="#3f8f12" stroke-width="4" stroke-dasharray="11 8">
+      <path d="M516 6 C512 70 548 112 600 114 C652 112 688 70 684 6"/>
+      <path d="M600 128 L600 450"/>
+      <path d="M406 456 L794 456"/>
+    </g>
+
+    <!-- RIGHT SIDE (back on the left, front on the right) and LEFT SIDE (front on the left) -->
+    <!-- under the arm the side rises to meet the shallow armholes, so what
+         peeks out past a muscular arm is tank, not a sliver of skin -->
+    <path fill="#78ec1c" stroke="#0a0a0a" stroke-width="7" d="M800 100 C840 76 880 64 900 64 C920 64 960 76 1000 100 L1000 470 L800 470 Z"/>
+    <path fill="#78ec1c" stroke="#0a0a0a" stroke-width="7" d="M1000 100 C1040 76 1080 64 1100 64 C1120 64 1160 76 1200 100 L1200 470 L1000 470 Z"/>
+    <!-- (no flat shade patch on the sides: on the sculpted torso the
+         lighting shades them, and its square top edge read as a patch) -->
+    <g fill="none" stroke="#3f8f12" stroke-width="4" stroke-dasharray="11 8">
+      <path d="M900 80 L900 450"/>
+      <path d="M1100 80 L1100 450"/>
+      <path d="M806 456 L994 456"/>
+      <path d="M1006 456 L1194 456"/>
+    </g>
+  </g>
+  <use href="#shorts"/>
+  <!-- TOP: skin, the straps over the shoulders (the front's at x 62..128 and
+       272..338, the back's mirror onto the same), bound in black -->
+  <rect x="0" y="560" width="1200" height="200" fill="#f3f3ef"/>
+  <g fill="#78ec1c" stroke="#0a0a0a" stroke-width="7">
+    <path d="M62 556 L128 556 L132 764 L58 764 Z"/>
+    <path d="M272 556 L338 556 L342 764 L268 764 Z"/>
+  </g>
+  <!-- each face's ink edge -->
+  <g fill="none" stroke="#0a0a0a" stroke-width="10">
+    <rect x="0" y="0" width="400" height="560"/>
+    <rect x="400" y="0" width="400" height="560"/>
+    <rect x="800" y="0" width="200" height="560"/>
+    <rect x="1000" y="0" width="200" height="560"/>
+  </g>
+</svg>

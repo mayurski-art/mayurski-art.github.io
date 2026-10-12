@@ -334,6 +334,7 @@ export class Net {
         p.level = m.lv | 0 || null;
         p.prestige = m.pg | 0;
         p.owner = !!m.ow;
+        p.look = m.bk | 0;   // the TROLLS #1718 body (blocky-body.js), the owner's only
         // Profile card (prestige phase 4): clan tag and calling card.
         p.clan = typeof m.cl === "string" ? m.cl.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4) : "";
         p.card = typeof m.cc === "string" ? m.cc.slice(0, 32) : null;
@@ -534,6 +535,7 @@ export class Net {
         fc: local.face && local.face !== "grin:og" ? local.face : undefined,   // cosmetics.js face
         sv: local.swivel || undefined,   // swivel: side (sign) * count, a new count = a new spin
         lv: local.level || undefined, pg: local.prestige || undefined, ow: local.owner ? 1 : undefined,   // rank
+        bk: local.look && local.owner ? 1 : undefined,   // the TROLLS body (cosmetics.js)
         cl: local.clan || undefined, cc: local.card && local.card !== "hitman" ? local.card : undefined,   // profile card
         hr: local.hero || undefined,   // U Mad Bro? hero id (+ "!" while the Metamorph is the brute)
         dk: local.drink || undefined, ds: local.sip ? (local.sip === 2 ? 2 : 1) : undefined, rr: local.role || undefined,   // Socialize roleplay

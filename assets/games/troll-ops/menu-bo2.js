@@ -642,12 +642,14 @@ const screens = {
     };
   },
   cosmetics: () => {
-    const face = $$("#to-cos-body .to-cos-face:not([data-wrist])").find(isOn);
+    const face = $$("#to-cos-body .to-cos-face:not([data-wrist]):not([data-body])").find(isOn);
     const wrist = $$("#to-cos-body [data-wrist]").find(isOn);
+    const body = $$("#to-cos-body [data-body]").find(isOn);
     return {
       title: "Cosmetics", panel: "cosmetics",
       groups: [
         [
+          { id: "body", label: "Body", value: body ? text($("span:last-child", body)) : "", desc: "Wear a TROLLS NFT's look. Holders only.", go: "bodies" },
           { id: "face", label: "Face", value: face ? text($("span:last-child", face)) : "", desc: "Your trollface's expression. Everyone in the match sees it.", go: "faces" },
           { id: "wrist", label: "Wrist", value: wrist ? text($("span:last-child", wrist)) : "", desc: "Something on your left wrist. Everyone sees it, and so do you, in your own hands.", go: "wrists" },
         ],
@@ -656,7 +658,10 @@ const screens = {
     };
   },
   heroes: () => optionScreen("Hero", $$("#to-lo-heroes .to-lo-hero")),
-  faces: () => optionScreen("Face", $$("#to-cos-body .to-cos-face:not([data-wrist])"), { descOf: () => "Everyone in the match sees it." }),
+  bodies: () => optionScreen("Body", $$("#to-cos-body [data-body]"), {
+    descOf: (b) => (isLocked(b) ? "Locked: for the holder of this TROLLS NFT." : b.dataset.body ? "This TROLLS look, every match. Everyone sees it." : "The classic stick troll."),
+  }),
+  faces: () => optionScreen("Face", $$("#to-cos-body .to-cos-face:not([data-wrist]):not([data-body])"),{ descOf: () => "Everyone in the match sees it." }),
   wrists: () => optionScreen("Wrist", $$("#to-cos-body [data-wrist]"), { descOf: (b) => (b.dataset.wrist ? "On your left wrist, every match." : "A bare wrist.") }),
   leaders: { title: "Leaderboards", panel: "deploy", detail: true, lb: true, groups: [[back("Back to the main menu.")]] },
   options: () => ({

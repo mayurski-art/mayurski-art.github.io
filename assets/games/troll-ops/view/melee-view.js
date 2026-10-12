@@ -7,7 +7,7 @@ import { saberTrail, POWER_IGNITE_DELAY, POWER_EQUIP_TIME, MELEE_DRAW_TIME, POWE
 import { damp } from "../anim-curves.js";
 import { KB_SHIELD } from "../keyboard-repair.js?v=kr15";
 import { SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2";
-import { parryWeights, PARRY_ZONES } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2";
+import { parryWeights, PARRY_ZONES } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1";
 import { currentWeapon } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2";
 import { poseKnuckles } from "../brass-knuckles.js?v=bk1-wst";
 import { game } from "../core/state.js?v=st1";

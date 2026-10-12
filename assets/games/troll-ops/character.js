@@ -535,7 +535,7 @@ function joint(parent, x = 0, y = 0, z = 0) {
    animator needs to pose. The `parts` keys the old rig had are all still
    here with the same meaning, so remote-players.js, enemies.js, zombies.js
    and char-inspector.js need no changes; knees, ankles and elbows are new. */
-export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, face = "grin" } = {}) {
+export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, face = "grin", legs = 1 } = {}) {
   const s = height / 1.8;
   const w = build;
 
@@ -543,7 +543,8 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
 
   // Hip height is exactly the leg chain's reach, so straight legs put the
   // feet on y = 0 and the head crown sits at `height`.
-  const hipY = 0.9 * s;
+  // `legs`: leg length against the stock 0.9 m (the blocky body: shorter).
+  const hipY = 0.9 * s * legs;
   const hips = new THREE.Group();
   hips.position.y = hipY;
   root.add(hips);
@@ -635,7 +636,7 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
 
   // --- legs: knee halfway, ankle, and a short toe so the foot reads as a
   // foot. Both legs split from the one point at the bottom of the spine.
-  const THIGH = 0.45 * s, SHIN = 0.45 * s - limbRadius;
+  const THIGH = 0.45 * s * legs, SHIN = 0.45 * s * legs - limbRadius;
   // Legs rest splayed a little, so a pose that doesn't place the feet (a
   // dance, the death fall) still draws two legs rather than one line. The
   // foot placement takes the splay back out.
@@ -656,10 +657,12 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
     // neck → spine → hips → left leg, one stroke
     [neckTop, chest, torsoMid, hips, LL.knee, LL.ankle, LL.ball, LL.toe],
     [hips, LR.knee, LR.ankle, LR.ball, LR.toe],
-    // Arms are drawn from the shoulder sockets, so a shrug lifts the line.
-    [L.shoulder, L.elbow, L.hand],
-    [R.shoulder, R.elbow, R.hand],
-  ], [neckTop, chest, hips, LL.toe, LR.toe, L.hand, R.hand, L.shoulder, R.shoulder], limbRadius,
+    // Arms are drawn from the arm pivots, which ride the shoulder sockets,
+    // so a shrug lifts the line; a clothed troll's pivots sit out at its
+    // shoulders (setShoulders), a bare one's on the socket.
+    [L.pivot, L.elbow, L.hand],
+    [R.pivot, R.elbow, R.hand],
+  ], [neckTop, chest, hips, LL.toe, LR.toe, L.hand, R.hand, L.pivot, R.pivot], limbRadius,
   // The enemy dissolve is a shader of its own; everything else is ink.
   inkMat);
 
@@ -748,7 +751,7 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
   const rig = {
     root,
     parts: {
-      hips, torso, spine: torsoMid, chest, neckPivot, headPivot, head,
+      hips, torso, spine: torsoMid, chest, neckPivot, headPivot, neckTop, head,
       shoulderL: L.shoulder, shoulderR: R.shoulder,
       armL: L.pivot, armR: R.pivot, elbowL: L.elbow, elbowR: R.elbow,
       wristL: L.wrist, wristR: R.wrist,
@@ -765,6 +768,7 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
     hitboxMeshes,
     scale: s,
     hipY,
+    legScale: legs,
     thigh: THIGH,
     shin: SHIN,
     limbRadius,
@@ -781,6 +785,67 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
   return rig;
 }
 
+/* Give a built rig another `build` and `legs` (buildHumanoid's) in place:
+   the arm and leg joints, the lengths the poses read, and the bone hit
+   capsules laid along the new bones (their thickness kept). For a body
+   cosmetic worn on a live rig (blocky-body.js wearBlocky), so the game's
+   rig isn't rebuilt. Returns a function that puts it all back. */
+export function reshapeRig(rig, { build = 1, legs = 1 } = {}) {
+  const p = rig.parts, s = rig.scale;
+  const keys = ["build", "legScale", "hipY", "thigh", "shin", "limbRadius", "upperArm", "foreArm"];
+  const saved = Object.fromEntries(keys.map((k) => [k, rig[k]]));
+  const restL = rig.armRestL.clone(), restR = rig.armRestR.clone();
+  const joints = [p.elbowL, p.elbowR, p.wristL.parent, p.wristR.parent, p.kneeL, p.kneeR, p.ankleL, p.ankleR, p.hips];
+  const pos = joints.map((j) => j.position.clone());
+  const hb = rig.hitboxMeshes;
+  const hbSaved = hb.map((m) => [m.position.clone(), m.quaternion.clone(), m.scale.clone()]);
+
+  const ARM = new THREE.Vector3(0.30 * s * build, -0.62 * s, 0);
+  for (const side of [-1, 1]) {
+    const k = side < 0 ? "L" : "R";
+    p[`elbow${k}`].position.set(side * ARM.x * 0.48, ARM.y * 0.48, 0);
+    p[`wrist${k}`].parent.position.set(side * ARM.x * 0.52, ARM.y * 0.52, 0);
+  }
+  rig.limbRadius = 0.032 * s * build;
+  rig.hipY = 0.9 * s * legs;
+  rig.thigh = 0.45 * s * legs;
+  rig.shin = 0.45 * s * legs - rig.limbRadius;
+  p.hips.position.y = rig.hipY;
+  for (const k of ["L", "R"]) {
+    p[`knee${k}`].position.y = -rig.thigh;
+    p[`ankle${k}`].position.y = -rig.shin;
+  }
+  rig.build = build;
+  rig.legScale = legs;
+  rig.upperArm = ARM.length() * 0.48;
+  rig.foreArm = ARM.length() * 0.52;
+  rig.armRestL.set(-ARM.x, ARM.y, 0).normalize();
+  rig.armRestR.set(ARM.x, ARM.y, 0).normalize();
+
+  // hitboxMeshes: head, torso, hips, then per arm (L, R) upper, fore, mitt,
+  // then per leg (L, R) thigh, shin, foot. A bone capsule follows its bone.
+  const along = (m, to) => {
+    const g = m.geometry.parameters;
+    m.position.copy(to).multiplyScalar(0.5);
+    m.quaternion.setFromUnitVectors(_rsUp, _rsDir.copy(to).normalize());
+    m.scale.set(1, (to.length() + 2 * g.radius) / (g.length + 2 * g.radius), 1);
+  };
+  if (hb.length >= 15) {
+    along(hb[3], p.elbowL.position); along(hb[4], p.wristL.parent.position);
+    along(hb[6], p.elbowR.position); along(hb[7], p.wristR.parent.position);
+    along(hb[9], p.kneeL.position); along(hb[10], p.ankleL.position);
+    along(hb[12], p.kneeR.position); along(hb[13], p.ankleR.position);
+  }
+  return () => {
+    Object.assign(rig, saved);
+    rig.armRestL.copy(restL);
+    rig.armRestR.copy(restR);
+    joints.forEach((j, i) => j.position.copy(pos[i]));
+    hb.forEach((m, i) => { m.position.copy(hbSaved[i][0]); m.quaternion.copy(hbSaved[i][1]); m.scale.copy(hbSaved[i][2]); });
+  };
+}
+const _rsUp = new THREE.Vector3(0, 1, 0), _rsDir = new THREE.Vector3();
+
 /* The finer joints — mid-back, shoulder sockets, wrists, balls of the feet —
    back to rest. Poses that don't drive them (dances, emotes, the death fall)
    call this so a gait's leftovers don't stick. */
@@ -793,6 +858,34 @@ export function resetSecondaryJoints(rig) {
   p.wristR.rotation.set(0, 0, 0);
   p.ballL.rotation.set(0, 0, 0);
   p.ballR.rotation.set(0, 0, 0);
+}
+
+/* A clothed troll's body (TROLLS-TRAITS.md): its arms start `half` metres
+   (unscaled) either side of the neck's base, at the garment's armholes,
+   instead of both at the one point the bare stick figure has, and the ink
+   neck goes (the garment brings a drawn one). Every arm IK (gun hold,
+   throws, emotes) measures from the pivots' own positions, so they follow.
+   0 puts the bare stick figure back. */
+export function setClothed(rig, half = 0) {
+  const p = rig.parts, s = rig.scale;
+  rig.shoulderHalf = half;
+  p.armL.position.x = -half * s;
+  p.armR.position.x = half * s;
+  // The spine line starts at the chest instead of under the chin (on the
+  // chest itself: hung off the head it swung out of the garment).
+  (half ? p.chest : p.headPivot).add(p.neckTop);
+  p.neckTop.position.set(0, half ? 0 : 0.035 * s, 0);
+}
+
+/* Hips for a body that has them (the blocky body): each leg starts `half`
+   metres (unscaled) either side of the spine's base, and the feet plant
+   under them, instead of both legs leaving the stick figure's one point.
+   The leg IK measures from the hip joints' own positions. 0 puts it back. */
+export function setHips(rig, half = 0) {
+  const p = rig.parts, s = rig.scale;
+  rig.hipHalf = half;
+  p.legL.position.x = -half * s;
+  p.legR.position.x = half * s;
 }
 
 /* Every named joint a pose can turn, for tools (the ?joints=1 rig lab). */
@@ -880,9 +973,11 @@ function _resetJoints(rig) {
    ~1.6 m at ~195, the 7 m/s sprint ~2 m at ~210 (a real runner's numbers;
    the old 0.34 + 0.16 v, capped at 1.45 m, spun the legs at 250-290 a
    minute). Long run steps are mostly flight, so the foot still lands within
-   the leg's reach (see the duty factor in _poseHumanoid). */
-export function gaitStepLength(mps) {
-  return Math.max(0.34, Math.min(2.1, 0.45 + 0.22 * mps));
+   the leg's reach (see the duty factor in _poseHumanoid). `legs` is the
+   rig's leg length against the stock one (rig.legScale): shorter legs take
+   shorter, quicker steps. */
+export function gaitStepLength(mps, legs = 1) {
+  return Math.max(0.34, Math.min(2.1, 0.45 + 0.22 * mps)) * legs;
 }
 
 /* The gait's inputs from a body's ground velocity (world m/s) and facing
@@ -901,10 +996,11 @@ export function gaitFromVelocity(yaw, vx, vz, out = {}) {
   return out;
 }
 
-/* Radians of `phase` per second at `mps`: one full cycle is two steps. */
-export function gaitPhaseRate(mps) {
+/* Radians of `phase` per second at `mps`: one full cycle is two steps.
+   `legs`: rig.legScale, as for gaitStepLength. */
+export function gaitPhaseRate(mps, legs = 1) {
   if (!(mps > 0.05)) return 0;
-  return Math.PI * mps / gaitStepLength(mps);
+  return Math.PI * mps / gaitStepLength(mps, legs);
 }
 
 const _hipJoint = new THREE.Vector3();
@@ -1196,14 +1292,15 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   p.hips.position.z = 0;
 
   const crouch = Math.max(0, Math.min(1, lower));
-  const stepLen = gaitStepLength(v || 1) * (zombie ? 0.55 : 1);
+  const legK = rig.legScale ?? 1;
+  const stepLen = gaitStepLength(v || 1, legK) * (zombie ? 0.55 : 1);
   // Share of the cycle a foot is down: 62% at a walk (both feet down between
   // steps), about a third at a jog, less the faster the run (both feet up in
   // between), so a planted foot never lands further than the leg reaches:
   // ~0.42 m ahead of the hips.
-  const runDuty = Math.min(0.34, 0.34 * s / Math.max(0.1, stepLen));
+  const runDuty = Math.min(0.34, 0.34 * s * legK / Math.max(0.1, stepLen));
   const duty = zombie ? 0.66 : 0.62 + (runDuty - 0.62) * run;
-  const lift = (zombie ? 0.05 : 0.09 + run * 0.13) * s;
+  const lift = (zombie ? 0.05 : 0.09 + run * 0.13) * s * legK;
 
   // Standing still, the weight rests on one leg at a time: that hip rides
   // up and over it, the other drops and its knee goes slack, and every few
@@ -1283,7 +1380,8 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
     up *= blend;
     pitchFoot *= blend;
     // Feet sit a hand's width apart; a crouch spreads them a little.
-    const baseX = side * (0.085 * st.width + crouch * 0.06) * s;
+    // ...or, on a body with hips (setHips), right under its own hip.
+    const baseX = side * (Math.max(0.085 * st.width, rig.hipHalf || 0) + crouch * 0.06) * s;
     _foot.set(baseX + tx * along, rig.limbRadius + up, tz * along);
     // Crouched feet land a touch behind the hips, prone ones further.
     _foot.z += crouch * 0.12 * s;
@@ -1305,15 +1403,17 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   const legR = (rig.thigh + rig.shin) * 0.995;
   let reach = Infinity;
   for (const f of feet) {
-    const dx = f.target.x - p.hips.position.x, dz = f.target.z - p.hips.position.z;
+    const dx = f.target.x - p.hips.position.x - f.side * (rig.hipHalf || 0) * s, dz = f.target.z - p.hips.position.z;
     const h2 = legR * legR - dx * dx - dz * dz;
     reach = Math.min(reach, (h2 > 0 ? Math.sqrt(h2) : 0) + f.target.y + (1 - f.hold) * 0.2 * s);
   }
   const stepU = ((cyc / Math.PI) % 1 + 1) % 1;            // through each step
   const sf = Math.min(0.999, 2 * duty);                   // ...the share with a foot down
   const spring = stepU < sf ? -Math.sin(Math.PI * stepU / sf) * 0.034 : Math.sin(Math.PI * (stepU - sf) / (1 - sf)) * 0.03;
-  const level = standY - (run * 0.06 * s + (zombie ? 0.06 * s : 0) - spring * st.bounce * s * run) * blend - Math.abs(weight) * 0.006 * s;
-  p.hips.position.y = Math.max(level - 0.07 * s, Math.min(level, reach));
+  // (in proportion to the legs: the same centimetres sank a short-legged
+  // body (the blocky one, legs 0.67) into a lunge)
+  const level = standY - (run * 0.06 * s + (zombie ? 0.06 * s : 0) - spring * st.bounce * s * run) * blend * legK - Math.abs(weight) * 0.006 * s;
+  p.hips.position.y = Math.max(level - 0.07 * s * legK, Math.min(level, reach));
 
   // In the air: knees tuck on the way up and the legs reach for the ground
   // on the way down, the free arm lifts out for balance. Only for a real
@@ -1386,7 +1486,11 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   // on -x (+x tipped the back of the body over: the run and the crouch used
   // to lean backwards), hence the minus signs.
   const accLean = Math.max(-0.14, Math.min(0.16, (g.acc ?? 0) * 0.012)) * (fwd < 0 ? -1 : 1) * (1 - sideways * 0.7);
-  const moveLean = (0.04 + run * 0.16 + st.lean) * blend * (fwd < 0 ? -0.6 : 1) * (1 - sideways * 0.7) + accLean + (zombie ? 0 : st.lean * 0.4 * (1 - blend));
+  // A body with its own gun hold (rig.gunHold, blocky-body.js) runs upright
+  // behind the gun: the lean on its big block torso read as a hard slant
+  // (user: "too slanted").
+  const upright = rig.gunHold && hasGun && hold === "gun" ? rig.gunHold.lean ?? 1 : 1;
+  const moveLean = ((0.04 + run * 0.16 + st.lean) * blend * (fwd < 0 ? -0.6 : 1) * (1 - sideways * 0.7) + accLean + (zombie ? 0 : st.lean * 0.4 * (1 - blend))) * upright;
   p.torso.rotation.set(-(crouch * 0.25 + moveLean * 0.7 + squash * 0.3 + airK * 0.06) + F.bp, 0, str * -0.1 * blend - weight * 0.04 + F.br);
   p.spine.rotation.set(-(crouch * 0.05 + moveLean * 0.15), -p.hips.rotation.y * 0.55, str * -0.03 * blend);
   p.chest.rotation.set(-(crouch * 0.07 + moveLean * 0.15), -p.hips.rotation.y * 0.85, str * -0.03 * blend);
@@ -1651,6 +1755,16 @@ export function poseHumanoid(rig, arg) {
   if ((arg.hold ?? "gun") === "gun" && !arg.zombie) _gripSupport(rig, arg);
   if (arg.hold === "melee") _meleeSupport(rig);
   if (arg.hold === "melee" && arg.block > 0 && !arg.swing) _saberGuard(rig, Math.min(1, arg.block), arg.parry);
+  // A body whose torso is one rigid block (rig.rigidTorso, blocky-body.js):
+  // the spine's and chest's turn against the swinging hips goes to the whole
+  // torso instead, so its two halves turn as one (they slid against each
+  // other; user: "lower torso seems to be shifting off while running").
+  if (rig.rigidTorso) {
+    const p = rig.parts;
+    p.torso.rotation.y += p.spine.rotation.y + p.chest.rotation.y;
+    p.spine.rotation.y = 0;
+    p.chest.rotation.y = 0;
+  }
   endPose(rig);
   rig.body.update();
 }
@@ -1701,7 +1815,7 @@ export function reachHand(rig, side, target, pole) {
 const _gM = new THREE.Matrix4(), _gM2 = new THREE.Matrix4(), _gS = new THREE.Vector3();
 const _gW = new THREE.Vector3(), _gB = new THREE.Vector3(), _gSup = new THREE.Vector3(), _gH = new THREE.Vector3();
 const _gPoleL2 = new THREE.Vector3(), _gPoleR2 = new THREE.Vector3(), _gEu = new THREE.Euler(), _gQi = new THREE.Quaternion();
-const _gPistolWrap = new THREE.Vector3(-0.05, -0.025, 0.005), _gPort = new THREE.Vector3(0, 0.03, -0.1);
+const _gPistolWrap = new THREE.Vector3(-0.05, -0.025, 0.005), _gPort = new THREE.Vector3(0, 0.03, -0.1), _gPt = new THREE.Vector3();
 function _gunFrame(mesh) {
   const u = mesh.userData;
   if (u.buttPos) return u;
@@ -1723,7 +1837,7 @@ function _gunFrame(mesh) {
 /* How far into the reload pose (0..1): up fast, held, back at the end. */
 const reloadEnv = (k) => (k <= 0 || k >= 1 ? 0 : Math.min(_smooth(Math.min(1, k / 0.1)), _smooth(Math.min(1, (1 - k) / 0.14))));
 const _lerp3 = (out, a, b, t) => out.lerpVectors(a, b, _smooth(Math.max(0, Math.min(1, t))));
-function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, reload = 0, dt = 0.016, carryYaw = 0, carryRoll = 0 } = {}) {
+function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, reload = 0, dt = 0.016, carryYaw = 0, carryRoll = 0, moving = false } = {}) {
   const mesh = rig.held;
   const p = rig.parts;
   if (!mesh || !mesh.visible || mesh.parent !== p.gunMount) return;
@@ -1733,6 +1847,13 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
   if (carryYaw || carryRoll) return _gripSupportCarry(rig, { pitch, recoil, ads, carryYaw, carryRoll });
   _gunFrame(mesh);
   const s = rig.scale, w = rig.build;
+  // A body can say where its shoulder pocket is and how big it draws the
+  // gun (rig.gunHold, the blocky body: blocky-body.js). The gun's own points
+  // (grip, stock, handguard, mag) are in its model's space, so they scale
+  // with it (gs).
+  const hold = rig.gunHold, gs = hold?.scale ?? 1;
+  if (hold) mesh.scale.setScalar(gs);   // (a stick troll's gun is never touched)
+  const pt = (v) => _gPt.copy(v).multiplyScalar(gs);
   const kick = Math.max(0, Math.min(1, recoil));
   const lean = p.torso.rotation.x + p.spine.rotation.x + p.chest.rotation.x;
   const a = Math.max(0, Math.min(1, ads));
@@ -1742,6 +1863,28 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
   const rk = reload > 0 && reload < 1 ? reload : 0;
   const rl = reloadEnv(rk);
   const up = Math.max(a, rig.fireK) * (1 - rl);
+  // A broad body blades into the gun (hold.blade, radians): the upper body
+  // turns right-side back, half at the hips and half in the chest, and the
+  // left shoulder rolls forward, so the left hand reaches the handguard from
+  // a shoulder that's out at the body's side; the gun and the head turn back
+  // onto the aim.
+  // Only standing: on the move the body runs square to the aim (user:
+  // "running while shooting the body should be not angled like this"),
+  // easing between the two, and the gun comes in toward the middle of the
+  // chest (hold.runX) so the left hand still reaches the handguard.
+  let st = 1;
+  if (hold) {
+    rig.standK = (rig.standK ?? 1) + ((moving ? 0 : 1) - (rig.standK ?? 1)) * Math.min(1, dt * 6);
+    st = rig.standK;
+  }
+  const bl = hold?.blade ? hold.blade * (1 - rl * 0.5) * st : 0;
+  if (bl) {
+    p.torso.rotation.y -= bl * 0.5;
+    p.chest.rotation.y -= bl * 0.5;
+    p.headPivot.rotation.y += bl;
+  }
+  if (hold?.roll) p.shoulderL.position.z -= hold.roll * s;   // standing or running: the left shoulder reaches
+  p.gunMount.rotation.order = bl ? "YXZ" : "XYZ";
 
   // Muzzle on the aim when up, dipped into a low ready when not; a reload
   // tips it up, swings it in and cants the mag well toward the left hand.
@@ -1750,25 +1893,27 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
   const pair = !!u.akimbo;
   p.gunMount.rotation.set(
     pitch * (0.5 + up * 0.5) - (1 - up) * (1 - rl) * 0.3 + kick * 0.12 - lean + rl * (pair ? 0.9 : 0.3),
-    pair ? 0 : rl * 0.3,
+    (pair ? 0 : rl * 0.3) + bl,
     pair ? 0 : -rl * 0.55,
   );
   if (pair) {
     // A gun in each fist, both arms out, the pair centred on the chest.
     _gS.set(0, (-0.24 + up * 0.32 - rl * 0.02) * s, (-0.36 - up * 0.16 + rl * 0.1 + kick * 0.03) * s);
-    _gP.copy(u.gripPos).add(u.gripPosL).multiplyScalar(0.5).applyEuler(p.gunMount.rotation);
+    _gP.copy(pt(u.gripPos)).add(pt(u.gripPosL)).multiplyScalar(0.5).applyEuler(p.gunMount.rotation);
   } else if (pistol) {
     // Both arms out, the gun at the eye line when it's up.
     _gS.set((0.06 - up * 0.055) * s * w, (-0.25 + up * 0.33 - rl * 0.05) * s, (-0.32 - up * 0.2 + rl * 0.08 + kick * 0.03) * s);
-    _gP.copy(u.gripPos).applyEuler(p.gunMount.rotation);
+    if (hold) _gS.z += hold.z * s;   // out past a broad chest
+    _gP.copy(pt(u.gripPos)).applyEuler(p.gunMount.rotation);
   } else {
     // The butt in the right shoulder pocket; scoped, up and in to the cheek.
-    _gS.set((0.085 - a * 0.04 - rl * 0.03) * s * w, (-0.12 + up * 0.09 + a * 0.05 - rl * 0.08) * s, (-0.04 + kick * 0.035) * s);
-    _gP.copy(u.buttPos).applyEuler(p.gunMount.rotation);
+    if (hold) _gS.set((hold.x + ((hold.runX ?? hold.x) - hold.x) * (1 - st) - a * 0.04 - rl * 0.03) * s, (hold.y + up * 0.09 + a * 0.05 - rl * 0.08) * s, (hold.z + kick * 0.035) * s);
+    else _gS.set((0.085 - a * 0.04 - rl * 0.03) * s * w, (-0.12 + up * 0.09 + a * 0.05 - rl * 0.08) * s, (-0.04 + kick * 0.035) * s);
+    _gP.copy(pt(u.buttPos)).applyEuler(p.gunMount.rotation);
   }
   p.gunMount.position.copy(_gS).sub(_gP);
   // Trigger hand to the grip; the elbow winged out, more when shouldered.
-  _gGrip.copy(u.gripPos).applyEuler(p.gunMount.rotation).add(p.gunMount.position);
+  _gGrip.copy(pt(u.gripPos)).applyEuler(p.gunMount.rotation).add(p.gunMount.position);
   _gT.copy(_gGrip).sub(p.armR.position).sub(p.shoulderR.position);
   _gPoleR2.set(1, pistol ? -1 : -0.55 + up * 0.35, 0.25);
   if (pair) _gPoleR2.set(1, -1.2, 0.1);
@@ -1776,16 +1921,21 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
 
   // Support hand: the handguard (wrapped round the grip on a pistol), or
   // the reload's path.
-  if (pair) _gSup.copy(u.gripPosL);
-  else if (pistol) _gSup.copy(u.gripPos).add(_gPistolWrap);
-  else _gSup.copy(u.supportHandPos);
+  if (pair) _gSup.copy(pt(u.gripPosL));
+  else if (pistol) _gSup.copy(pt(u.gripPos)).add(_gPistolWrap);
+  else {
+    _gSup.copy(pt(u.supportHandPos));
+    // A big fist on the handguard's top stands up into the sight line:
+    // such a body holds it from underneath (hold.under, metres below)
+    if (hold?.under) _gSup.y -= hold.under * s;
+  }
   _gSup.applyEuler(p.gunMount.rotation).add(p.gunMount.position);
   let magOut = 0;
   const mag = u.magMesh && u.magMesh.parent === mesh ? u.magMesh : null;
   if (rk && !pair) {
     _gB.set(-0.07 * s * w, -0.5 * s, -0.1 * s);   // the belt pouch
     if (mag) {
-      _gW.copy(u.magazinePoint).applyEuler(p.gunMount.rotation).add(p.gunMount.position);
+      _gW.copy(pt(u.magazinePoint)).applyEuler(p.gunMount.rotation).add(p.gunMount.position);
       if (rk < 0.12) _lerp3(_gH, _gSup, _gW, rk / 0.12);
       else if (rk < 0.32) { _lerp3(_gH, _gW, _gB, (rk - 0.12) / 0.2); magOut = 1; }
       else if (rk < 0.42) { _gH.copy(_gB); _gH.y -= Math.sin(((rk - 0.32) / 0.1) * Math.PI) * 0.04 * s; magOut = 1; }
@@ -1794,7 +1944,7 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
       else _lerp3(_gH, _gW, _gSup, (rk - 0.7) / 0.15);
     } else {
       // Shell by shell: pouch to the loading port, again and again.
-      _gW.copy(u.gripPos).add(_gPort).applyEuler(p.gunMount.rotation).add(p.gunMount.position);
+      _gW.copy(pt(u.gripPos)).add(_gPort).applyEuler(p.gunMount.rotation).add(p.gunMount.position);
       const loop = 0.5 - 0.5 * Math.cos(Math.max(0, Math.min(1, (rk - 0.08) / 0.8)) * Math.PI * 2 * 4);
       _lerp3(_gH, _gW, _gB, loop);
       if (rk < 0.08) _lerp3(_gH, _gSup, _gW, rk / 0.08);
@@ -1824,7 +1974,7 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
   if (mag) {
     if (magOut > 0) {
       _gQi.setFromEuler(p.gunMount.rotation).invert();
-      _gH.sub(p.gunMount.position).applyQuaternion(_gQi);
+      _gH.sub(p.gunMount.position).applyQuaternion(_gQi).divideScalar(gs);
       _gH.y -= 0.05;
       mag.position.lerpVectors(u.magazinePoint, _gH, magOut);
       u.magMoved = true;
@@ -1834,8 +1984,10 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
     }
   }
   // Cheek on the stock when scoped: the head dips and leans onto the gun.
+  // (+x tips the head BACK; on the block body (rig.gunHold) that read as
+  // leaning away from the gun, so there it dips forward, onto the stock)
   if (!pistol && a > 0) {
-    p.headPivot.rotation.x += 0.16 * a;
+    p.headPivot.rotation.x += (hold ? -0.08 : 0.16) * a;
     p.headPivot.rotation.z -= 0.14 * a;
   }
 }

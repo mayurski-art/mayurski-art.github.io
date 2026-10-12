@@ -2,8 +2,8 @@
 // inspectors, map drawer, roster, callsign, heroes, cloud setup and room code.
 
 import { WeaponInspector } from "../inspector.js?v=hb1-nf-wst-ig1-sb2-if1-wb1-th2-ar1-ar2-cl1";
-import { CharacterInspector } from "../char-inspector.js?v=hb4-wst-soc1-sb2c2-wb1m1-ar1-ar2-gt1-gt2";
-import { CosmeticsPanel, loadCosmetics } from "../cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2";
+import { CharacterInspector } from "../char-inspector.js?v=hb4-wst-soc1-sb2c2-wb1m1-ar1-ar2-gt1-gt2-bk1";
+import { CosmeticsPanel, loadCosmetics } from "../cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1";
 import { EmoteWheel } from "../emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u-gt1-gt2";
 import { padEmotePressed } from "../controller-layout.js?v=cl7";
 import { streakPicker } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2";
@@ -16,8 +16,9 @@ import { heroKit, heroActive } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b
 import { SETTINGS_KEY, settings, applySettings } from "./settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2";
 import { BOT_STREAK_KEY } from "../streaks/bot-streaks.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2";
 import { initCloudSave } from "../cloud-save.js?v=cs1b7";
-import { makeRoomCode } from "../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1";
+import { makeRoomCode } from "../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1";
 import { game } from "../core/state.js?v=st1";
+import { wearBlocky } from "../blocky-body.js?v=bk1";
 
 // The tab bar across the top swaps what's under it. "deploy" is the Play
 // tab (mode list, map card, Deploy); the rest open one panel each.
@@ -51,10 +52,17 @@ const charCanvas = document.getElementById("to-char-canvas");
 export const charInspector = charCanvas ? new CharacterInspector(charCanvas) : null;
 /* Cosmetics (cosmetics.js): the face you wear, on the menu operator, your
    own body in matches, and everyone else's view of you (`fc`). */
-export const cosmetics = new CosmeticsPanel(document.getElementById("to-cos-body"), (face) => applyOwnFace(face));
+export const cosmetics = new CosmeticsPanel(document.getElementById("to-cos-body"), (face) => applyOwnFace(face), (body) => applyOwnBody(body));
 function applyOwnFace(face) {
   if (charInspector) charInspector.humanoid.face = face;
   game.localRig.face = face;   // only ever called on a pick, long after localRig exists
+}
+/* The body (a TROLLS look, account-locked: cosmetics.js canWearBody) on the
+   menu operator; your body in matches follows cosmetics.body every frame
+   (view/third-person.js updateLocalRig). */
+function applyOwnBody(body) {
+  game.wantBody = body;
+  if (charInspector) wearBlocky(charInspector.humanoid, body === "trolls-1718");
 }
 export let charInspectorLive = false;
 
@@ -305,6 +313,7 @@ function applyCloudSetup(changed) {
     cosmetics.state = loadCosmetics();
     cosmetics.paint();
     applyOwnFace(cosmetics.face);
+    applyOwnBody(cosmetics.body);
   }
   if (has("trollops:hero")) {
     if (heroKit && !heroActive()) heroKit.setHero(savedHero());
@@ -352,6 +361,7 @@ export function initLobby() {
   window.addEventListener("trollforces:preview-end", endPreview);
   showSumGun();
   if (charInspector) charInspector.humanoid.face = cosmetics.face;
+  applyOwnBody(cosmetics.body);
   // The operator on the main menu carries your equipped primary.
   charInspector?.setWeapon(game.loadout.resolved);
 

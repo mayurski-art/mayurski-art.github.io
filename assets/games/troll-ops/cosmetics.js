@@ -8,8 +8,9 @@
 // the materials (faceMaterial / setFace); this file is the picks and the
 // panel.
 
-import { FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2";
+import { FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1";
 import { WRISTWEAR, watchThumb } from "./wristwear.js?v=ww1c2m1";
+import { isOwner } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1";
 
 const KEY = "trollops:cosmetics";
 
@@ -28,6 +29,18 @@ export const COVERINGS = [
 // Wristwear (wristwear.js WRISTWEAR): a watch on the left wrist.
 export const WRISTS = [{ id: "", name: "None" }, ...Object.entries(WRISTWEAR).map(([id, w]) => ({ id, name: w.name }))];
 const EXPR_IDS = new Set(EXPRESSIONS.map((e) => e.id));
+// Bodies: the stick troll, or a TROLLS NFT's look (blocky-body.js
+// wearBlocky). A token's body is for its holder only; until the wallet check
+// exists (TROLLS-TRAITS.md) #1718 is locked to the troll_runner account.
+export const BODIES = [
+  { id: "", name: "Stick troll", img: "../../images/wallpaper/trollface%20transparent.png" },
+  { id: "trolls-1718", name: "TROLLS #1718", img: "./ui/trolls-1718.png", owner: true },
+];
+/* May the signed-in account wear body `id`? */
+export function canWearBody(id) {
+  const b = BODIES.find((x) => x.id === id);
+  return !!b && (!b.owner || isOwner());
+}
 
 /* A face key off the wire or storage, or the default when it's not one we
    know: "expression:og", plus ":covering" when one's worn, plus ":wrist"
@@ -45,22 +58,26 @@ export function cleanFaceKey(key) {
 export function loadCosmetics() {
   try {
     const c = JSON.parse(localStorage.getItem(KEY) || "{}");
-    return { face: cleanFaceKey(c.face) };
-  } catch { return { face: "grin:og" }; }
+    return { face: cleanFaceKey(c.face), body: BODIES.some((b) => b.id === c.body) ? c.body : "" };
+  } catch { return { face: "grin:og", body: "" }; }
 }
 function saveCosmetics(c) {
   try { localStorage.setItem(KEY, JSON.stringify(c)); } catch { /* private mode */ }
 }
 
-/* The Cosmetics panel: expression, covering and wrist cards. `onChange(face)`
-   fires with the new key on every pick. */
+/* The Cosmetics panel: body, expression, covering and wrist cards.
+   `onChange(face)` fires with the new key on every face pick, `onBody(id)`
+   with the body to wear (see `body`) on a body pick or a sign-in change. */
 export class CosmeticsPanel {
-  constructor(root, onChange) {
+  constructor(root, onChange, onBody) {
     this.root = root;
     this.onChange = onChange;
+    this.onBody = onBody;
     this.state = loadCosmetics();
     if (!root) return;
     root.replaceChildren();
+    // a locked body unlocks (or locks) as the account signs in (or out)
+    window.addEventListener("trollrunner:auth-changed", () => { this.paint(); this.onBody?.(this.body); });
     const sec = (title, hint) => {
       const h = document.createElement("div");
       h.className = "to-pf-sublabel";
@@ -76,6 +93,31 @@ export class CosmeticsPanel {
       root.appendChild(g);
       return g;
     };
+    this.bodyBox = sec("Body", "Wear a TROLLS NFT's look. Holders only.");
+    this.bodyBox.className = "to-cos-faces";
+    this.bodyBox.setAttribute("role", "radiogroup");
+    this.bodyBox.setAttribute("aria-label", "Body");
+    for (const bd of BODIES) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "to-cos-face";
+      b.dataset.body = bd.id;
+      b.setAttribute("role", "radio");
+      const url = new URL(bd.img, import.meta.url).href;
+      const thumb = document.createElement("span");
+      thumb.className = "to-cos-thumb";
+      thumb.style.setProperty("--art", `url("${url}")`);
+      const img = document.createElement("img");
+      img.src = url;
+      img.alt = "";
+      img.draggable = false;
+      thumb.appendChild(img);
+      const name = document.createElement("span");
+      name.textContent = bd.name;
+      b.append(thumb, name);
+      b.addEventListener("click", () => { if (canWearBody(bd.id)) this.setBody(bd.id); });
+      this.bodyBox.appendChild(b);
+    }
     this.exprBox = sec("Face", "Your trollface's expression. Everyone in the match sees it.");
     this.exprBox.className = "to-cos-faces";
     this.exprBox.setAttribute("role", "radiogroup");
@@ -164,6 +206,15 @@ export class CosmeticsPanel {
   }
 
   get face() { return this.state.face; }
+  /* The body to wear: the pick, if this account may wear it ("" the stick). */
+  get body() { return canWearBody(this.state.body) ? this.state.body : ""; }
+
+  setBody(id) {
+    this.state.body = id;
+    saveCosmetics(this.state);
+    this.paint();
+    this.onBody?.(this.body);
+  }
 
   set({ expr, cover, wrist }) {
     const [e0, , c0 = "", w0 = ""] = this.state.face.split(":");
@@ -176,6 +227,15 @@ export class CosmeticsPanel {
 
   paint() {
     if (!this.root) return;
+    const body = this.body;
+    for (const b of this.bodyBox.children) {
+      const on = b.dataset.body === body;
+      const locked = !canWearBody(b.dataset.body);
+      b.classList.toggle("is-on", on);
+      b.setAttribute("aria-checked", String(on));
+      b.setAttribute("aria-disabled", String(locked));
+      b.title = locked ? "Locked: for the holder of this TROLLS NFT" : "";
+    }
     const e = this.state.face.split(":")[0];
     for (const b of this.exprBox.children) {
       const on = b.dataset.expr === e;

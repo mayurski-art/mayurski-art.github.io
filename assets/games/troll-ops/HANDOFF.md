@@ -665,3 +665,4 @@ Map rules:
   - Third-person camera.
   - The 6 PvP maps reworked.
   - Pentagrin zombies.
+- **2026-10-11** TROLLS #1718 body cosmetic (-bk1): Cosmetics > Body, locked to troll_runner until the wallet check (cosmetics.js `canWearBody`); the blocky muscular troll from Blender (blocky-body.js `wearBlocky`, reshapes the live rig in place: character.js `reshapeRig`, hit capsules follow), on the wire as `bk` (drawn only with `ow`); runs upright behind the gun (`gunHold.lean`), legs-scaled hip drop and cadence; menu operator's head was tipped back since -gt2 (char-inspector.js). Tests: blocky-ingame, 3p-hold, gait, remote-body, menu, killcam.

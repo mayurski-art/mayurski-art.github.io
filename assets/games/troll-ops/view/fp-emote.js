@@ -1,7 +1,7 @@
 // First-person emotes and Socialize's free hands: the streak arms act them
 // out in front of the camera.
 
-import { gaitPhaseRate } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2";
+import { gaitPhaseRate } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1";
 import { bar, barSipK, atPiano, piano, syncFpDrink } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2";
 import * as THREE from "three";
 import { hideFpEmoteProps, fpEmoteRodTip } from "../emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2";

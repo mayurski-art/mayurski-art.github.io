@@ -1,0 +1,33 @@
+<!--
+  TROLLS trait: HATS / Goatfarm Hat (black cap, "U MAD BRO?").
+  Frame: the head-trait frame (traits/README.md). 1000 x 1033 units =
+  headPivot x -0.30..0.30 m, y 0.62..0 m; the face board's art sits at
+  (100, 233.3) 800 x 750. Baked to ../hat-goatfarm.png by
+  tools/troll-ops-bake-traits.mjs (Impact is turned into pixels there).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1033" width="1000" height="1033">
+  <g stroke="#060606" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">
+    <!-- crown -->
+    <path fill="#17171a" d="M188 432 C170 300 262 166 470 148 C650 134 772 232 800 396 C610 428 380 448 188 432 Z"/>
+    <!-- light on the left panels -->
+    <path fill="#2c2c31" stroke="none" d="M236 380 C238 270 312 200 420 172 C336 222 290 286 282 386 Z"/>
+    <!-- panel seams -->
+    <path fill="none" stroke="#3a3a40" stroke-width="5" d="M470 158 C380 210 320 300 300 426"/>
+    <path fill="none" stroke="#3a3a40" stroke-width="5" d="M470 158 C560 205 630 300 650 412"/>
+    <!-- sweatband line -->
+    <path fill="none" stroke="#3a3a40" stroke-width="5" d="M200 412 C380 428 600 412 790 380"/>
+    <!-- button -->
+    <ellipse cx="470" cy="148" rx="30" ry="13" fill="#17171a"/>
+  </g>
+  <!-- the print: big white Impact, tilted with the cap -->
+  <text x="488" y="346" text-anchor="middle" font-family="Impact, 'Arial Narrow Bold', sans-serif" font-size="102"
+        fill="#f4f4f1" stroke="#060606" stroke-width="7" paint-order="stroke" transform="rotate(-4 488 346)"
+        letter-spacing="0">U MAD BRO?</text>
+  <g stroke="#060606" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">
+    <!-- the brim, out to the art's right -->
+    <path fill="#17171a" d="M352 418 C520 396 760 368 908 384 C942 392 940 424 908 434 C790 460 560 474 378 452 C344 446 338 424 352 418 Z"/>
+    <path fill="#26262b" stroke="none" d="M380 424 C540 404 760 382 900 394 C760 396 560 414 392 438 Z"/>
+    <!-- brim stitching -->
+    <path fill="none" stroke="#55555c" stroke-width="4" stroke-dasharray="14 10" d="M392 440 C560 452 780 438 896 418"/>
+  </g>
+</svg>

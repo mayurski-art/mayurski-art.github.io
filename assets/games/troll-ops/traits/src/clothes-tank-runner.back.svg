@@ -1,0 +1,35 @@
+<!--
+  TROLLS trait: CLOTHES / Tank Runner, back (seen from behind: the troll's
+  left on the left). Garment frame, same cut as the front.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1167" width="1000" height="1167">
+  <defs>
+    <path id="cut" d="M392 150 L608 150 L704 212 Q792 236 818 298 Q832 342 812 394 L790 452 L770 472 L718 800 L726 1000 Q500 1016 274 1000 L282 800 L230 472 L210 452 L188 394 Q168 342 182 298 Q208 236 296 212 Z"/>
+    <clipPath id="clip"><use href="#cut"/></clipPath>
+  </defs>
+  <g clip-path="url(#clip)" stroke-linejoin="round" stroke-linecap="round">
+    <use href="#cut" fill="#f3f3ef"/>
+    <g fill="none" stroke="#0a0a0a">
+      <!-- the traps and the spine -->
+      <path stroke-width="8" d="M500 214 C420 232 330 246 250 290"/>
+      <path stroke-width="8" d="M500 214 C580 232 670 246 750 290"/>
+      <path stroke-width="7" d="M500 226 L500 330"/>
+      <!-- shoulder blades over the tank's back -->
+      <path stroke-width="7" d="M352 330 C374 366 412 382 440 374"/>
+      <path stroke-width="7" d="M648 330 C626 366 588 382 560 374"/>
+    </g>
+    <path fill="#78ec1c" stroke="#0a0a0a" stroke-width="12"
+      d="M330 150 C326 290 252 380 232 478 L282 800 L274 1000 Q500 1016 726 1000 L718 800 L768 478 C748 380 674 290 670 150
+         L590 150 C596 290 570 392 500 398 C430 392 404 290 410 150 Z"/>
+    <g fill="#5cc21c">
+      <path d="M336 186 C326 292 256 382 240 476 L290 800 L282 996 L320 996 L326 800 L278 484 C298 396 352 316 360 186 Z"/>
+      <path d="M664 186 C674 292 744 382 760 476 L710 800 L718 996 L680 996 L674 800 L722 484 C702 396 648 316 640 186 Z"/>
+    </g>
+    <g fill="none" stroke="#3f8f12" stroke-width="6" stroke-dasharray="16 11">
+      <path d="M390 196 C384 300 430 414 500 418 C570 414 616 300 610 196"/>
+      <path d="M290 976 Q500 994 710 976"/>
+      <path d="M500 432 L500 960"/>
+    </g>
+  </g>
+  <use href="#cut" fill="none" stroke="#0a0a0a" stroke-width="22" clip-path="url(#clip)"/>
+</svg>

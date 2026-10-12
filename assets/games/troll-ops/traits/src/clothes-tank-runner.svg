@@ -1,0 +1,54 @@
+<!--
+  TROLLS trait: CLOTHES / Tank Runner (lime tank, black "RUNNER"), front.
+  Frame: the garment frame (TROLLS-TRAITS.md). 1000 x 1167 units, 1667 a
+  metre, seen from the front: x 500 is the spine, the troll's right on the
+  left; y 0 is 0.14 m above the chest joint, so the chest joint (the neck's
+  base) is y 233, the mid-back joint y 633 (where the board splits in two
+  to bend), the hips y 1033. A clothed troll's arms start at its
+  shoulders, x 500 +- 250 (0.15 m), y 233; its neck is drawn by traits.js
+  behind the face, so the cut stops at the base of it.
+  The cuts are the board's outline (traits.js reads them by id and cuts
+  the slab out); everything is drawn inside them.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1167" width="1000" height="1167">
+  <defs>
+    <path id="cut" d="M392 150 L608 150 L704 212 Q792 236 818 298 Q832 342 812 394 L790 452 L770 472 L718 800 L726 1000 Q500 1016 274 1000 L282 800 L230 472 L210 452 L188 394 Q168 342 182 298 Q208 236 296 212 Z"/>
+    <path id="cut-upper" d="M392 150 L608 150 L704 212 Q792 236 818 298 Q832 342 812 394 L790 452 L770 472 L742 645 L258 645 L230 472 L210 452 L188 394 Q168 342 182 298 Q208 236 296 212 Z"/>
+    <path id="cut-lower" d="M256 633 L744 633 L718 800 L726 1000 Q500 1016 274 1000 L282 800 Z"/>
+    <clipPath id="clip"><use href="#cut"/></clipPath>
+  </defs>
+  <g clip-path="url(#clip)" stroke-linejoin="round" stroke-linecap="round">
+    <!-- skin: the base of the neck, the shoulders, the chest in the scoop -->
+    <use href="#cut" fill="#f3f3ef"/>
+    <g fill="none" stroke="#0a0a0a">
+      <!-- collarbones -->
+      <path stroke-width="8" d="M268 262 C340 254 420 270 488 260"/>
+      <path stroke-width="8" d="M732 262 C660 254 580 270 512 260"/>
+      <!-- deltoid creases -->
+      <path stroke-width="7" d="M226 292 C206 340 212 390 236 436"/>
+      <path stroke-width="7" d="M774 292 C794 340 788 390 764 436"/>
+      <!-- the breastbone, and the pecs' line across the scoop -->
+      <path stroke-width="7" d="M500 288 L500 392"/>
+      <path stroke-width="7" d="M420 388 C452 414 486 414 500 398 C514 414 548 414 580 388"/>
+    </g>
+    <!-- the tank: straps on the shoulders, deep armholes, a scoop neck -->
+    <path fill="#78ec1c" stroke="#0a0a0a" stroke-width="12"
+      d="M330 150 C326 290 252 380 232 478 L282 800 L274 1000 Q500 1016 726 1000 L718 800 L768 478 C748 380 674 290 670 150
+         L586 150 C596 330 604 470 500 476 C396 470 404 330 414 150 Z"/>
+    <!-- one shade down each side and the straps' outer edges -->
+    <g fill="#5cc21c">
+      <path d="M336 186 C326 292 256 382 240 476 L290 800 L282 996 L320 996 L326 800 L278 484 C298 396 352 316 360 186 Z"/>
+      <path d="M664 186 C674 292 744 382 760 476 L710 800 L718 996 L680 996 L674 800 L722 484 C702 396 648 316 640 186 Z"/>
+    </g>
+    <g fill="none" stroke="#3f8f12" stroke-width="6" stroke-dasharray="16 11">
+      <!-- along the scoop, just inside the binding -->
+      <path d="M398 196 C392 330 384 490 500 494 C616 490 608 330 602 196"/>
+      <path d="M290 976 Q500 994 710 976"/>
+    </g>
+    <!-- RUNNER: heavy italic block caps, as on the token -->
+    <text x="500" y="612" text-anchor="middle" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-style="italic"
+          font-size="100" textLength="420" lengthAdjust="spacingAndGlyphs" fill="#0a0a0a" transform="skewX(-10) translate(108 0)">RUNNER</text>
+  </g>
+  <!-- the board's ink edge -->
+  <use href="#cut" fill="none" stroke="#0a0a0a" stroke-width="22" clip-path="url(#clip)"/>
+</svg>

@@ -1,0 +1,26 @@
+<!--
+  TROLLS trait: HATS / Goatfarm Hat, seen from BEHIND (the back of the
+  head-trait frame: drawn as the viewer behind sees it, so the front art's
+  left and right swap). No print; the snapback strap and its opening.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1033" width="1000" height="1033">
+  <g transform="translate(1000 0) scale(-1 1)" stroke="#060606" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">
+    <!-- the brim's tip, peeking past the crown -->
+    <path fill="#17171a" d="M760 392 C820 382 880 378 908 384 C942 392 940 424 908 434 C870 442 820 446 770 446 Z"/>
+    <!-- crown -->
+    <path fill="#17171a" d="M188 432 C170 300 262 166 470 148 C650 134 772 232 800 396 C610 428 380 448 188 432 Z"/>
+    <path fill="#2c2c31" stroke="none" d="M236 380 C238 270 312 200 420 172 C336 222 290 286 282 386 Z"/>
+    <!-- panel seams -->
+    <path fill="none" stroke="#3a3a40" stroke-width="5" d="M470 158 C380 210 320 300 300 426"/>
+    <path fill="none" stroke="#3a3a40" stroke-width="5" d="M470 158 C560 205 630 300 650 412"/>
+    <path fill="none" stroke="#3a3a40" stroke-width="5" d="M470 158 C474 240 482 330 486 438"/>
+    <!-- the snapback opening and strap -->
+    <path fill="#f3f3ef" d="M410 440 C420 390 450 368 488 368 C528 368 556 390 566 434 C520 446 456 448 410 440 Z"/>
+    <path fill="#17171a" d="M402 420 C440 410 530 406 576 414 L578 444 C530 438 446 440 400 448 Z"/>
+    <g stroke-width="4" fill="#26262b">
+      <circle cx="440" cy="428" r="7"/><circle cx="470" cy="426" r="7"/><circle cx="500" cy="425" r="7"/><circle cx="530" cy="425" r="7"/>
+    </g>
+    <!-- button -->
+    <ellipse cx="470" cy="148" rx="30" ry="13" fill="#17171a"/>
+  </g>
+</svg>

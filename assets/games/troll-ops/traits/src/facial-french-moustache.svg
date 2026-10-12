@@ -1,0 +1,32 @@
+<!--
+  TROLLS trait: FACIALS / French Moustache. Two fat combed lobes pinched
+  under the nose, along the grin's upper lip, out past the face's edge
+  into tips that curl up and back (user's ref sheet, 2026-10-11).
+  Frame: the head-trait frame (traits/README.md).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1033" width="1000" height="1033">
+  <!-- knockout: a thin skin-white edge so the face's own lines stop short of it -->
+  <g fill="#f3f3ef" stroke="#f3f3ef" stroke-linejoin="round" stroke-linecap="round">
+    <path stroke-width="24" d="M500 614 C480 588 446 576 404 578 C350 581 300 596 258 612 C290 650 344 690 408 692 C458 694 490 672 500 650 C496 638 496 626 500 614 Z M500 614 C520 586 556 574 600 576 C656 579 708 594 748 608 C716 648 660 688 594 690 C542 692 510 670 500 650 C504 638 504 626 500 614 Z"/>
+    <path fill="none" stroke-width="40" d="M264 612 C238 606 214 596 196 582 M744 608 C770 600 792 590 808 576"/>
+  </g>
+  <!-- lobes: round, pinched to a notch under the nose -->
+  <g fill="#0b0b0c" stroke="#060606" stroke-width="6" stroke-linejoin="round">
+    <path d="M500 614 C480 588 446 576 404 578 C350 581 300 596 258 612 C290 650 344 690 408 692 C458 694 490 672 500 650 C496 638 496 626 500 614 Z"/>
+    <path d="M500 614 C520 586 556 574 600 576 C656 579 708 594 748 608 C716 648 660 688 594 690 C542 692 510 670 500 650 C504 638 504 626 500 614 Z"/>
+  </g>
+  <!-- tails sweep up into curls -->
+  <g fill="none" stroke="#0b0b0c" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke-width="24" d="M264 612 C226 604 196 590 176 566"/>
+    <path stroke-width="14" d="M176 566 C156 542 156 514 178 508 C198 504 204 526 188 534"/>
+    <path stroke-width="24" d="M744 608 C782 598 810 582 828 558"/>
+    <path stroke-width="14" d="M828 558 C846 532 844 506 822 502 C802 500 798 522 814 528"/>
+  </g>
+  <!-- combed strands, bowed with each lobe -->
+  <g fill="none" stroke="#5a5a62" stroke-width="5" stroke-linecap="round" opacity="0.85">
+    <path d="M486 622 C460 600 400 596 320 612"/>
+    <path d="M484 646 C450 668 390 672 330 646"/>
+    <path d="M514 622 C540 600 600 596 680 610"/>
+    <path d="M516 646 C550 668 610 670 670 644"/>
+  </g>
+</svg>

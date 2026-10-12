@@ -481,7 +481,7 @@ def export(path):
 # ------------------------------------------------------------------ the 3D trollface head
 def trollface_head(name="headPivot__head", center=None, w=0.48, h=0.45, depth_front=0.09,
                    depth_back=0.22, jaw=0.0, crown=0.0, lift=0.0, segs=96, lat=12, smooth=1,
-                   p_front=2.4, p_back=2.4, jut=0.25, skull=0.25, rim_band=0.42):
+                   p_front=2.4, p_back=2.4, jut=0.25, skull=0.25, rim_band=0.42, hug=False, uv_clamp=0.0, main_only=0.0):
     """The real trollface art made into a round head (user, 2026-10-03:
     "redesign the head", one per hero). The art's outline, seen from the
     front, is measured as a radius per angle from its centre (smoothed, so
@@ -526,10 +526,18 @@ def trollface_head(name="headPivot__head", center=None, w=0.48, h=0.45, depth_fr
         while r < 0.9:
             if alpha(cu + du * r, cv + dv * r) > 0.5:
                 last = r
+            elif main_only and last > 0.1 and r - last > main_only:
+                break    # past a gap: loose marks outside the face's own outline
             r += 0.002
         radii.append(last)
+    raw = list(radii)
     for _ in range(smooth):
         radii = [(radii[k - 1] + 2 * radii[k] + radii[(k + 1) % segs]) / 4 for k in range(segs)]
+    # hug: smoothing only ever takes the outline in (it trims the tufts),
+    # never out past the drawing, where the art is transparent and the face
+    # showed gaps (the blocky body's head, 2026-10-11)
+    if hug:
+        radii = [min(r, raw[k]) for k, r in enumerate(radii)]
     # A heavily smoothed copy for the skull: the exact outline (spiky tufts
     # and all) only at the rim, easing into a clean round shape inward, so
     # the back never pinches into a star.
@@ -572,6 +580,16 @@ def trollface_head(name="headPivot__head", center=None, w=0.48, h=0.45, depth_fr
         ring = []
         for k in range(segs):
             x, y, u, v = outline(k, k_scale)
+            # uv_clamp: where the smoothed outline reaches out past the
+            # drawing, the texture is held to just inside the drawing's own
+            # edge (its black outline) instead of its transparent surround;
+            # everywhere else it maps exactly as drawn
+            if uv_clamp and side <= 0:
+                th = TAU * k / segs
+                r_uv = math.hypot(u - cu, v - cv)
+                cap = raw[k] - uv_clamp
+                if r_uv > cap:
+                    u, v = cu + math.cos(th) * cap, cv + math.sin(th) * cap
             z = side * depth_at(k, side) * zf
             ring.append(len(verts))
             verts.append(c + V(x, y, z))
