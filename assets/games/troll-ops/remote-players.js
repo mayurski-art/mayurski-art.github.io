@@ -29,6 +29,7 @@ let seatList = () => null;
 export function setSeatLookup(fn) { seatList = fn || (() => null); }
 
 const RENDER_DELAY = 110; // ms
+const STOP_HOLD = 0.25;     // s a `moving: false` must hold before the legs stop
 // The fall itself is DEATH_TIME (character.js); the body then stays down
 // this long before it's cleared, rather than vanishing the moment it lands.
 const BODY_LINGER = 8;
@@ -704,15 +705,23 @@ export class RemotePlayer {
     // it used to always report moving:true and always advance at one fixed
     // rate regardless of how fast (or slow) it was actually travelling.
     // On a rope the body rises with pos; the legs hang still.
-    const moving = !!b.moving && b.stance !== "rope";
+    // A bot's `moving` drops for a frame or two between steering decisions
+    // while it is still under way. Each blip read as a dead stop and a
+    // restart, a speed spike that nodded the head hard (user, 2026-10-12:
+    // "the heads of the troll bots seem to be flopping up and down"), so a
+    // stop only counts once it has held for STOP_HOLD.
+    if (b.moving) this.stopT = 0; else this.stopT = (this.stopT || 0) + dt;
+    const moving = (!!b.moving || this.stopT < STOP_HOLD) && b.stance !== "rope";
     // Same 4.2 m/s reference speed used to drive the phase rate above,
     // reused here as the 0..1 intensity that scales stride/arm-swing/lean
     // so a jog and a sprint are visibly different gaits, not just the same
     // cycle replayed faster.
     const gaitSpeed = Math.max(0, Math.min(1, speed / 4.2));
     // Cadence from the real speed, so the planted foot moves exactly as fast
-    // as the ground under it.
-    if (moving) this.phase += dt * gaitPhaseRate(this.gaitMps = (this.gaitMps ?? speed) + (speed - (this.gaitMps ?? speed)) * Math.min(1, dt * 6), this.rig.legScale);
+    // as the ground under it. Smoothed every frame, stopped or not, so a
+    // restart picks up from the real speed, not one left from the last run.
+    this.gaitMps = (this.gaitMps ?? speed) + (speed - (this.gaitMps ?? speed)) * Math.min(1, dt * 6);
+    if (moving) this.phase += dt * gaitPhaseRate(this.gaitMps, this.rig.legScale);
 
     this.rig.root.position.copy(this.pos);
     // Their head leads toward where they aim; the body turns after it.
