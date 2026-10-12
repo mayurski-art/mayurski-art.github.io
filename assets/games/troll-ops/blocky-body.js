@@ -655,6 +655,9 @@ export function applyBlocky(rig, look = {}) {
    hanging straight, shorter legs) with its hit capsules along the new bones,
    the head traits drawn on (traits.js), then the body (applyBlocky). */
 export const BLOCKY_TOKEN = 1718;
+/* The body your own troll should wear: set from the Cosmetics pick
+   (menu/lobby.js), worn by view/third-person.js every frame. */
+export const ownBody = { want: "" };
 export function wearBlocky(rig, on) {
   on = !!on;
   if (!!rig.blocky === on) return rig.blocky?.ready ?? Promise.resolve();

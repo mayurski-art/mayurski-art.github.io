@@ -19,7 +19,7 @@ import { buildMeleeMesh } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2";
 import { game } from "../core/state.js?v=st1";
 import { throwState, poseThrowBody, clearThrowBody } from "../combat/throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2";
 import { modelKind } from "../combat/throwable-models.js?v=tm1-th2";
-import { wearBlocky } from "../blocky-body.js?v=bk1";
+import { wearBlocky, ownBody } from "../blocky-body.js?v=bk1";
 
 // Chase camera behind the player's own rig. Distance/side offset blend
 // in from an over-the-shoulder position as ADS deepens (w.adsT), rather
@@ -218,8 +218,8 @@ export function updateLocalRig(dt) {
   if (!game.player.alive && game.gameState === "playing" && !royaleSpectating()) { updateLocalDeadBody(); return; }
   game.localRig.root.position.set(game.move.pos.x, game.move.pos.y, game.move.pos.z);
   // The TROLLS #1718 body (cosmetics.js, account-locked; menu/lobby.js sets
-  // game.wantBody), never under a hero or cop body.
-  wearBlocky(game.localRig, game.wantBody === "trolls-1718" && !game.localRig.heroBodyId && !game.localRig.copBodyId);
+  // ownBody), never under a hero or cop body.
+  wearBlocky(game.localRig, ownBody.want === "trolls-1718" && !game.localRig.heroBodyId && !game.localRig.copBodyId);
   // The body follows the aim a beat behind; the head leads the turn.
   const rolling = royaleRolling();
   // Under the glider the body hangs the way the wing flies, not where you look.

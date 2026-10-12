@@ -116,31 +116,35 @@ check("the owner's remote wears it", remoteState.owner);
 // their guns up, the owner's in the body and a stick beside it (the same
 // gait), up and down 16 m at a run (4.2 m/s); the stride is sampled only on
 // the straight, away from the turns
+// past the countdown (bots only update in a live match)
+await page.waitForFunction(() => { const T = window.__trollOps; if (T.isStaging()) T.endStaging(); return !T.isStaging(); }, null, { timeout: 30000 });
 await page.evaluate((id) => {
   const T = window.__trollOps;
-  T.bots.update = () => {};
   const b = T.bots.bots.find((x) => x.id === id);
   const stick = T.bots.bots.find((x) => x.alive && x.id !== id && !T.remotes.byId.get(x.id)?.rig.blocky);
   window.__pair = [b.id, stick.id];
-  // wall-clock, so the speed is real (headless timers run late)
+  // Moved and published from the game's own per-frame bot update (a page
+  // timer stalls in a headless page now and then, and a peer whose updates
+  // stall brakes and sits back, which isn't the run being tested); placed
+  // by the wall clock, so the speed is real.
   const t0 = performance.now();
-  setInterval(() => {
+  T.bots.update = () => {
     const t = (performance.now() - t0) / 1000;
-    const L = 16, s = (t * 4.2) % (2 * L), out = s < L, z = -2 - (out ? s : 2 * L - s);
-    window.__straight = (out ? s : 2 * L - s) > 3 && (out ? s : 2 * L - s) < L - 3;
+    const L = 16, s = (t * 4.2) % (2 * L), out = s < L, d = out ? s : 2 * L - s, z = -2 - d;
+    window.__straight = d > 3 && d < L - 3;
     [b, stick].forEach((x, i) => {
       x.pos.set(i * 1.6, 0, z);
       x.yaw = out ? 0 : Math.PI;
       x.pitch = 0; x.ads = 1; x.stance = "stand"; x.moving = true; x.alive = true; x.hp = 100;
       T.net.publishBot(x);
     });
-  }, 33);
+  };
 }, remoteState.id);
 await wait(2500);
 const rid = remoteState.id;
 const sample = () => page.evaluate(async () => {
   const T = window.__trollOps;
-  const out = {};
+  const out = {}, lastPhase = {};
   for (const id of window.__pair) out[id] = [];
   for (let i = 0; i < 120; i++) {
     await new Promise((d) => requestAnimationFrame(d));
@@ -151,17 +155,20 @@ const sample = () => page.evaluate(async () => {
       const r = T.remotes.byId.get(id), p = r.rig.parts, V = r.rig.root.position.constructor;
       // running frames only (not a death fall or a hit stagger)
       if (r.dying || !r.alive || r.rig.death || !(r.rig.gait.blend > 0.95)) continue;
+      // ...and only frames where its gait really moved on (a headless page
+      // stalls the bots' updates now and then, and the body holds still)
+      const moved = lastPhase[id] !== undefined && r.phase !== lastPhase[id];
+      lastPhase[id] = r.phase;
+      if (!moved) continue;
       const loc = (o) => { const v = o.getWorldPosition(new V()); r.rig.root.worldToLocal(v); return v; };
       const h = loc(p.hips);
-      out[id].push({ tx: +p.torso.rotation.x.toFixed(3), sx: +p.spine.rotation.x.toFixed(3), cx: +p.chest.rotation.x.toFixed(3), w: r.weaponId, held: !!r.rig.held, gh: !!r.rig.gunHold, acc: +(r.rig.gait.acc ?? 0).toFixed(2), air: +(r.rig.gait.air ?? 0).toFixed(2), ra: !!r.air, em: r.peer.emote || 0, mel: !!r.melee, hp: r.peer.hp, y: +r.pos.y.toFixed(2), z: +r.pos.z.toFixed(2), pitch: p.torso.rotation.x + p.spine.rotation.x + p.chest.rotation.x, l: loc(p.ankleL).z - h.z, r: loc(p.ankleR).z - h.z, blocky: !!r.rig.blocky, mps: r.gaitMps });
+      out[id].push({ pitch: p.torso.rotation.x + p.spine.rotation.x + p.chest.rotation.x, l: loc(p.ankleL).z - h.z, r: loc(p.ankleR).z - h.z, blocky: !!r.rig.blocky, mps: r.gaitMps });
     }
   }
   return out;
 });
 const runs = await sample();
-// (frames where a headless page stalled the bots' updates come out frozen,
-// both feet together: left out)
-const stats = (s0) => { const s = s0.filter((x) => Math.abs(x.l - x.r) > 0.02); const ps = s.map((x) => Math.abs(x.pitch)).sort((a, b) => a - b); const zs = s.flatMap((x) => [x.l, x.r]); return { median: ps[ps.length >> 1], n: s.length, mean: zs.reduce((a, b) => a + b, 0) / zs.length, min: Math.min(...zs), max: Math.max(...zs), pitch: Math.max(...s.map((x) => Math.abs(x.pitch))), mps: s.reduce((a, x) => a + x.mps, 0) / s.length, blocky: s.every((x) => x.blocky) }; };
+const stats = (s) => { const ps = s.map((x) => Math.abs(x.pitch)).sort((a, b) => a - b); const zs = s.flatMap((x) => [x.l, x.r]); return { median: ps[ps.length >> 1], n: s.length, mean: zs.reduce((a, b) => a + b, 0) / zs.length, min: Math.min(...zs), max: Math.max(...zs), pitch: Math.max(...s.map((x) => Math.abs(x.pitch))), mps: s.reduce((a, x) => a + x.mps, 0) / s.length, blocky: s.every((x) => x.blocky) }; };
 const [bs, ss] = await page.evaluate(() => window.__pair).then((ids) => ids.map((id) => stats(runs[id])));
 check("still wearing it on the run", bs.blocky && bs.n > 12, `${bs.n} running frames`);
 // A run's swing foot kicks up behind, so the ankles sit a little behind the

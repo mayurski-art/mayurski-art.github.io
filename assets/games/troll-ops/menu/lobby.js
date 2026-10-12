@@ -18,7 +18,7 @@ import { BOT_STREAK_KEY } from "../streaks/bot-streaks.js?v=sk1-si1-gj1-fu1b7b7d
 import { initCloudSave } from "../cloud-save.js?v=cs1b7";
 import { makeRoomCode } from "../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1";
 import { game } from "../core/state.js?v=st1";
-import { wearBlocky } from "../blocky-body.js?v=bk1";
+import { wearBlocky, ownBody } from "../blocky-body.js?v=bk1";
 
 // The tab bar across the top swaps what's under it. "deploy" is the Play
 // tab (mode list, map card, Deploy); the rest open one panel each.
@@ -58,10 +58,10 @@ function applyOwnFace(face) {
   game.localRig.face = face;   // only ever called on a pick, long after localRig exists
 }
 /* The body (a TROLLS look, account-locked: cosmetics.js canWearBody) on the
-   menu operator; your body in matches follows cosmetics.body every frame
-   (view/third-person.js updateLocalRig). */
+   menu operator; your body in matches follows it every frame (blocky-body.js
+   ownBody, worn by view/third-person.js updateLocalRig). */
 function applyOwnBody(body) {
-  game.wantBody = body;
+  ownBody.want = body;
   if (charInspector) wearBlocky(charInspector.humanoid, body === "trolls-1718");
 }
 export let charInspectorLive = false;
