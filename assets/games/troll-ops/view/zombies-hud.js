@@ -35,6 +35,55 @@ const KEY_TO_ID = { Digit4: "hp", Digit5: "gun", Digit6: "melee" };
 const DEPLOY_KEYS = ["Digit7", "Digit8", "Digit9"];
 const HOLD_MS = 350;   // held this long, a deployable card picks grid mode
 
+/* A controller (user, 2026-10-13: "detect if a controller is connected and
+   based off that use the dpad"): the number badges become d-pad prompts.
+   D-pad down walks a highlight through the six cards, d-pad up buys or
+   deploys it (held: grid mode); placing, R2 / A puts it down and B cancels
+   (input/gamepad.js). A number key on the keyboard puts the numbers back
+   until the pad is used again. */
+const pad = { on: false, sel: 0, kb: false };
+function padList() {
+  return [...["hp", "gun", "melee"].map((id) => ({ id, b: els.cards[id].b })),
+    ...els.depOrder.map((id) => ({ id, dep: true, b: els.depCards[id].b }))];
+}
+function paintPad() {
+  padList().forEach((c, i) => {
+    const k = c.b.querySelector(".zh-key");
+    if (k.dataset.k == null) k.dataset.k = k.textContent;
+    const sel = pad.on && i === pad.sel;
+    c.b.classList.toggle("is-sel", sel);
+    k.textContent = pad.on ? (sel ? "▲" : "") : k.dataset.k;
+  });
+}
+function setPad(on) {
+  if (on === pad.on) return;
+  pad.on = on;
+  root.classList.toggle("is-pad", on);
+  paintPad();
+}
+const padUsed = () => { pad.kb = false; setPad(document.body.classList.contains("to-has-pad")); };
+game.zhPad = {
+  active: () => !!root && !root.hidden && game.gameState === "playing" && !game.localPauseOnly,
+  placing: () => !!hooks.isPlacing?.(),
+  next() {
+    padUsed();
+    const n = padList().length;
+    if (n) pad.sel = (pad.sel + 1) % n;
+    paintPad();
+  },
+  useStart() {
+    const was = pad.on;
+    padUsed();
+    if (!was) return;   // the first press only shows the prompts
+    const c = padList()[pad.sel];
+    if (!c) return;
+    if (c.dep) holdStart(c.id, "pad");
+    else c.b.click();
+  },
+  useEnd() { holdEnd("pad"); },
+  state: () => ({ on: pad.on, sel: pad.sel, id: padList()[pad.sel]?.id ?? null }),
+};
+
 const money = (n) => `$${Math.round(n).toLocaleString()}`;
 
 function el(tag, cls, html) {
@@ -95,7 +144,7 @@ export function mountZombiesHud(h) {
   els.skip.addEventListener("click", () => hooks.onSkip());
 
   els.up = el("div", "zh-col zh-up");
-  els.up.append(el("div", "zh-col-h", "Upgrades"));
+  els.up.append(el("div", "zh-col-h", "Upgrades"), el("div", "zh-col-s zh-padhint", "▼ next · ▲ buy"));
   els.cards = {};
   for (const id of ["hp", "gun", "melee"]) {
     const b = el("button", `zh-card zh-card-${id}`);
@@ -160,6 +209,7 @@ export function mountZombiesHud(h) {
   window.addEventListener("resize", () => { shown.offers = ""; });
   window.addEventListener("keydown", (e) => {
     if (e.repeat || root.hidden || game.gameState !== "playing" || game.localPauseOnly) return;
+    if (KEY_TO_ID[e.code] || DEPLOY_KEYS.includes(e.code)) { pad.kb = true; setPad(false); }
     const id = KEY_TO_ID[e.code];
     if (id) els.cards[id].b.click();
     else if (e.code === "KeyK") hooks.onSkip();
@@ -254,6 +304,7 @@ function feedLine(amount, label) {
 /* Every frame of a run; touches the DOM only when something changed. */
 export function updateZombiesHud(dt, s) {
   if (!root || root.hidden) return;
+  setPad(!pad.kb && document.body.classList.contains("to-has-pad"));
   if (s.wave !== shown.wave) {
     shown.wave = s.wave;
     els.wave.textContent = `Wave ${s.wave}`;
@@ -327,6 +378,7 @@ export function updateZombiesHud(dt, s) {
         c.b.classList.toggle("is-placing", !!o.placing);
         c.b.setAttribute("aria-label", `${o.name}, ${money(o.price)}, ${o.count} of ${o.max} out`);
       });
+      if (pad.on) paintPad();   // new cards get their prompt
     }
   }
   const pl = s.placing;

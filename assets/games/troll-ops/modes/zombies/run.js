@@ -64,7 +64,7 @@ export function startZombieRun() {
   coop.onCleared = (n) => game.zdir.events.push({ type: "cleared", wave: n });
   coop.onRevived = (name) => getUp(LAST_STAND_HP, `${name} picked you up`);
   coop.onLost = () => { stopZombieRun(); game.endGame("dead"); };
-  mountZombiesHud({ onBuy: buyUpgrade, onSkip: skipBreak, onDeploy: deploy, onPlace: placeDeployable, onCancel: cancelPlacing });
+  mountZombiesHud({ onBuy: buyUpgrade, onSkip: skipBreak, onDeploy: deploy, onPlace: placeDeployable, onCancel: cancelPlacing, isPlacing: () => !!dep.placing });
   showZombiesHud(true);
 }
 

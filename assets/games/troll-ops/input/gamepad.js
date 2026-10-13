@@ -35,6 +35,7 @@ const PAD_BOOST_DELAY = 0.15;                             // s at the rim before
 const PAD_BOOST_RAMP = 0.35;                              // s to ramp to the full boost
 const PAD_SMOOTH = 0.025;                                 // s, irons out stick jitter only
 let padRimT = 0, padLookX = 0, padLookY = 0;
+let padPlaceHold = false;   // Zombie Rush: a place/cancel press, until let go
 
 /* Round deadzone, rescaled: returns [x, y, magnitude] with magnitude 0..1. */
 export function radialStick(x, y, dz) {
@@ -139,6 +140,18 @@ export function pollGamepad(dt) {
   game.gamepadState.ads = gp.buttons[6]?.value > 0.15 || btn(6);      // L2
   game.gamepadState.jump = btn(0);                                     // A / cross
   game.gamepadState.crouch = btn(1);                                   // B / circle
+  // Zombie Rush, placing a deployable (view/zombies-hud.js): R2 or A puts it
+  // down, B lets it go; none of the three shoots, jumps or crouches until
+  // they're let go.
+  if (!game.localPauseOnly && game.zhPad?.placing()) {
+    if (pressedEdge(7) || pressedEdge(0)) game.deployClick(0);
+    else if (pressedEdge(1)) game.deployClick(2);
+    padPlaceHold = true;
+  }
+  if (padPlaceHold) {
+    if (!firingNow && !btn(0) && !btn(1)) padPlaceHold = false;
+    else { game.gamepadState.firing = false; game.fireEdgeTrigger = false; game.gamepadState.jump = false; game.gamepadState.crouch = false; }
+  }
 
   // The pause menu being open (with other people still live in the match)
   // keeps this function running so the Start button can still resume, but
@@ -176,7 +189,13 @@ export function pollGamepad(dt) {
     // doing both would reload every time you threw a flash).
     if (pressedEdge(14)) game.startCook(game.carriedThrowSlot());
     if (game.gpPrev[14] && !btn(14)) game.releaseThrowKey();
-    if (pressedEdge(12)) game.startInspect();      // D-pad up -> admire the weapon
+    // Zombie Rush: d-pad up buys / deploys the highlighted card, down walks
+    // the highlight (view/zombies-hud.js); everywhere else up admires the gun.
+    const zp = game.zhPad?.active() ? game.zhPad : null;
+    if (zp) {
+      if (pressedEdge(12)) zp.useStart();
+      if (game.gpPrev[12] && !btn(12)) zp.useEnd();
+    } else if (pressedEdge(12)) game.startInspect();      // D-pad up -> admire the weapon
     // Emote wheel open (both sticks, above): the right stick points at a
     // slice instead of turning the view, Cross/A plays it, Circle/B closes.
     // A held A or B doesn't jump or crouch.
@@ -196,7 +215,7 @@ export function pollGamepad(dt) {
     // D-pad down cycles which ready streak d-pad right will fire — a pick,
     // not a use, since the pad has a button to spare for it and keyboard's
     // single-button "4" doesn't need one.
-    if (pressedEdge(13)) { if (game.heroActive()) game.useHeroAbility(); else game.cycleSelectedStreak(); }
+    if (pressedEdge(13)) { if (zp) zp.next(); else if (game.heroActive()) game.useHeroAbility(); else game.cycleSelectedStreak(); }
     // D-pad right is context-dependent, the same way holding X already is:
     // over a dropped weapon or a landed package, hold it to pick up/open —
     // otherwise it fires whichever streak is currently selected. Checked
