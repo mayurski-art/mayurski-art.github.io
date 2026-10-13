@@ -3,6 +3,8 @@
 //   1. The bite: a zombie in reach swings, and the hit lands when the claw
 //      does (at least 0.4 s after the swing starts), not with the swing.
 //   2. Out of reach in time: back off as it swings and the hit misses.
+//   3. Turning: a zombie facing away from where it walks turns round over a
+//      few frames, not in one.
 //
 //   NODE_PATH=<checkout>/node_modules node tools/troll-ops-zanim-test.mjs
 import http from "node:http"; import fs from "node:fs"; import path from "node:path";
@@ -79,6 +81,26 @@ const a = await bite(false);
 check(a.swung && a.hit && a.delay >= 0.38, "the bite lands when the claw does (>= 0.4 s after the swing)", JSON.stringify(a));
 const b = await bite(true);
 check(b.swung && !b.hit, "backing out of a swing dodges it", JSON.stringify(b));
+
+/* 3. turn a walking zombie to face away from its way; watch it come round */
+const turn = await page.evaluate(async () => {
+  const T = window.__trollOps;
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const z = T.zdir().zombies.find((q) => q.alive && !q.dying && q.body && q.riseT <= 0);
+  const p = T.move.pos;
+  z.mesh.position.set(p.x + 9, z.groundY, p.z);
+  z.stunT = 0; z.staggerT = 0; z.bite = null;
+  await wait(400);   // walking at us
+  const way = () => Math.atan2(-z.velocity.x, -z.velocity.z);
+  const off = () => { const d = z.mesh.rotation.y - way(); return Math.abs(Math.atan2(Math.sin(d), Math.cos(d))); };
+  z.mesh.rotation.y = way() + Math.PI;
+  await new Promise(requestAnimationFrame);
+  await new Promise(requestAnimationFrame);
+  const early = off();
+  await wait(1000);
+  return { early, late: off() };
+});
+check(turn.early > 0.6 && turn.late < 0.35, "zombies turn round, they don't snap", JSON.stringify(turn));
 
 check(!errors.length, "no page errors", errors.slice(0, 4).join(" | "));
 await browser.close();

@@ -207,6 +207,9 @@ const ATTACK_REACH_Y = 1.3;   // no swiping at someone on the balcony above
 const BITE_AT = 0.59;
 const BITE_MIN = 0.4;         // s
 const BITE_GRACE = 0.5;       // m
+// Zombies turn toward where they're going instead of snapping to it
+// (P7): this much of the way each second, the short way round.
+const TURN_RATE = 7;
 const CLIMB_GIVE_UP = 9;      // seconds on a stair before re-thinking the route
 const BLOCKER_REACH = 0.2;    // metres from a deployable's box it stops and swings (up against it: on the spikes)
 
@@ -486,6 +489,13 @@ export class Zombie {
     this.pool.material.opacity = this.sinkT > 0 ? Math.max(0, 1 - this.sinkT / SINK_TIME) : 1;
   }
 
+  /* Turn toward `yaw` at TURN_RATE, the short way round. */
+  _face(yaw, dt) {
+    let d = yaw - this.mesh.rotation.y;
+    d = Math.atan2(Math.sin(d), Math.cos(d));
+    this.mesh.rotation.y += d * Math.min(1, dt * TURN_RATE);
+  }
+
   /* Start a swing; the hit comes when the claw lands (_biteStep). `wall`:
      the deployable it's tearing at, else the player it's after. */
   _swing(wall = null) {
@@ -627,7 +637,7 @@ export class Zombie {
       damp(7);
     } else if (wall) {
       damp(9);
-      this.mesh.rotation.y = Math.atan2(-(wall.pos.x - this.mesh.position.x), -(wall.pos.z - this.mesh.position.z));
+      this._face(Math.atan2(-(wall.pos.x - this.mesh.position.x), -(wall.pos.z - this.mesh.position.z)), dt);
       if (this.attackCdT <= 0) {
         this.attackCdT = this.type.attackCd;
         this._swing(wall);
@@ -643,9 +653,11 @@ export class Zombie {
       const dir = steer || to;
       this.velocity.x += (dir.x * this.speed - this.velocity.x) * Math.min(1, dt * 5);
       this.velocity.z += (dir.z * this.speed - this.velocity.z) * Math.min(1, dt * 5);
-      this.mesh.rotation.y = Math.atan2(-dir.x, -dir.z);
+      this._face(Math.atan2(-dir.x, -dir.z), dt);
     } else {
       damp(9);
+      // in reach: square up to whoever it's swinging at
+      if (dist > 0.05) this._face(Math.atan2(-to.x, -to.z), dt);
       if (inReach && this.attackCdT <= 0) {
         this.attackCdT = this.type.attackCd;
         this._swing();
