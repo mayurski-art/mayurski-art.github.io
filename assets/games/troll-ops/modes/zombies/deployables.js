@@ -40,6 +40,15 @@ const GRID = 1;               // metres, in grid mode
 const SPIKE_TICK = 0.25;      // seconds between spike bites
 const RETARGET = 0.25;        // seconds between a turret's target checks
 const AIM_OK = 0.12;          // radians off target a turret will still fire at
+/* Put down (P7): it unfolds up out of the ground with a little overshoot;
+   a turret's head comes up and spins round onto the sweep before it may fire. */
+export const DEPLOY_TIME = 0.5;
+const TURRET_ARM = 0.35;      // the turret's head after the body is up
+function unfold(k) {          // 0..1 -> height scale, overshooting to 1.08
+  if (k >= 1) return 1;
+  const e = 1 - Math.pow(1 - k, 3);
+  return e + Math.sin(k * Math.PI) * 0.08;
+}
 const TURRET_FX_DEF = WEAPON_DEFS.mtar || WEAPON_DEFS.problem416;
 
 /* The run's deployables. `placed` counts what's been put down (prices
@@ -263,9 +272,11 @@ class Deployable {
     this.pos = new THREE.Vector3(x, y, z);
     this.yaw = yaw;
     this.hurtT = 0;            // seconds since it was last hit (its bar shows a while)
+    this.deployT = 0;          // seconds since it was put down (the unfold)
     this.root = buildModel(id, this.stats);
     this.root.position.copy(this.pos);
     this.root.rotation.y = yaw;
+    this.root.scale.set(0.85, 0.05, 0.85);
     this.root.userData.onModel = (m) => this.onModel(m);
     game.scene.add(this.root);
     // colliders and blockers: one per footprint box
@@ -326,7 +337,18 @@ class Deployable {
     if (i >= 0) dep.list.splice(i, 1);
   }
 
-  update(dt) { this.hurtT += dt; }
+  update(dt) {
+    this.hurtT += dt;
+    if (this.deployT < DEPLOY_TIME) {
+      this.deployT = Math.min(DEPLOY_TIME, this.deployT + dt);
+      const k = this.deployT / DEPLOY_TIME;
+      const xz = 0.85 + 0.15 * Math.min(1, k * 1.6);
+      this.root.scale.set(xz, Math.max(0.05, unfold(k)), xz);
+    }
+  }
+
+  /* Still unfolding (a turret: still arming). */
+  get deploying() { return this.deployT < DEPLOY_TIME; }
 }
 
 /* A zombie the kit hurt: blood, a flinch, and on a kill the cash and the
@@ -364,14 +386,19 @@ class Turret extends Deployable {
     this.headYaw = 0;          // relative to the base
     this.gunPitch = 0;
     this.kick = 0;
+    this.armT = 0;             // the head coming up after the unfold
+    this.headY = 0;
     this.muzzle = new THREE.Vector3(this.pos.x, this.pos.y + 0.9, this.pos.z);
   }
+
+  get armed() { return this.armT >= TURRET_ARM; }
 
   onModel(m) {
     this.head = m.getObjectByName("turret_head");
     this.gun = m.getObjectByName("turret_gun");
     this.muzzleNode = m.getObjectByName("turret_muzzle");
     this.gunZ = this.gun?.position.z ?? 0;
+    this.headY = this.head?.position.y ?? 0;
   }
 
   aimPoint(z) {
@@ -398,6 +425,17 @@ class Turret extends Deployable {
 
   update(dt) {
     super.update(dt);
+    if (this.armT < TURRET_ARM) {
+      // up out of the base and a spin onto the sweep; nothing fired yet
+      if (!this.deploying) this.armT = Math.min(TURRET_ARM, this.armT + dt);
+      const k = this.armT / TURRET_ARM;
+      if (this.head) {
+        this.head.position.y = this.headY - (1 - k) * 0.18;
+        this.head.rotation.y = this.headYaw - (1 - k * k) * Math.PI;
+      }
+      if (this.gun) this.gun.rotation.x = (1 - k) * 0.5;
+      return;
+    }
     if (this.muzzleNode) this.muzzleNode.getWorldPosition(this.muzzle);
     this.retargetT -= dt;
     if (this.retargetT <= 0 || (this.target && (!this.target.alive || this.target.dying))) {
