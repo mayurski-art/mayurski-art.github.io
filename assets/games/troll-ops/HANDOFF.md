@@ -452,6 +452,9 @@ Map rules:
 
 ## 5. Shipped log (newest first; one line each, details in git)
 
+- **2026-10-13** (-hr2, branch tf-horses, not pushed yet)
+  - Troll City RP 2c, from tf-parallel without the band: Kek & Sons the merchant (stetson, canteen, apples; social-shop.js) and six horses to ride with the horsekeeper (saddle, whistle, brush; social-horses.js). Riding puts the guns away (handsFull). Tests: shop-test, horse-test (the whistle check can miss under load; solo passes). The saloon band is still only on tf-parallel.
+
 - **2026-10-13** (-zc1/-zc2, main 032863f, live confirmed; gate green 54 min, three tests passed on their solo retry)
   - Zombie Rush P7 so far: the bite lands with the claw (dodgeable), zombies turn instead of snapping, heavy hits stagger them back. Test: zanim-test.
   - Phone buttons show what they do (view/touch-icons.js: mug / shot / keys / fist on fire, an icon on the hold-X button); the TROLLS NFT body's emotes use its block arms (nft-fp-shot).

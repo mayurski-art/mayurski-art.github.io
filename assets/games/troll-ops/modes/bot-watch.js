@@ -13,7 +13,7 @@
 //     rebuilds the bots' nav, as a map load does.
 // Called every frame of a live match (match-clock.js updateMatchClock).
 
-import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2";
+import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2";
 import { game } from "../core/state.js?v=st1";
 
 const WINDOW = 6;      // seconds per measure
