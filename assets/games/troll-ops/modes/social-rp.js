@@ -22,6 +22,7 @@ import { damp } from "../anim-curves.js";
 import { touchState } from "../input/touch.js?v=in1-th2-bp1";
 import { frozenPlayer, setTouchContext } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1";
 import { game } from "../core/state.js?v=st1";
+import { setFireIcon } from "../view/touch-icons.js?v=ti1";
 import { PianoPanel } from "../menu/piano-panel.js?v=pp1b7-cd1-sh1";
 import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1";
 
@@ -680,6 +681,12 @@ export function updateBar(dt) {
   }
   document.body.classList.toggle("to-social-drink", !!bar.drink);
   document.body.classList.toggle("to-social-armed", !game.socialUnarmed());
+  // the fire button shows what fire does here (view/touch-icons.js)
+  if (game.isTouch) {
+    const fire = !game.socialUnarmed() ? "bullet" : rpBusy.fists ? "fist" : atPiano() ? "keys"
+      : bar.drink ? (bar.drink.kind === "whiskey" ? "shot" : "sip") : "bullet";
+    setFireIcon(fire, [game.els.touchFire, game.els.touchFireL]);
+  }
 }
 
 /* Every pour going on that we can see: ours, and each player filling a mug

@@ -33,6 +33,7 @@ import { RangeSet } from "../range.js";
 import { WaveSpawner } from "../enemies.js?v=hb4-wst-soc1-sb2b7c2m1-gt1-gt2-cw1-zr10";
 import { DROP } from "../royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1";
 import { game } from "../core/state.js?v=st1";
+import { setFireIcon } from "../view/touch-icons.js?v=ti1";
 import { carryClassPerks } from "../combat/perk-carry.js?v=pk1-cl1-bp1-fj1-zh1-zc1";
 
 /* Put everyone who didn't ask for a private room into the same public
@@ -701,6 +702,8 @@ export function beginMatch(mapId = null) {
 
   game.setActiveWeaponMesh(game.equipFromLoadout());
   carryClassPerks();
+  // a mug or the piano's keys on the fire button stay in Socialize
+  setFireIcon("bullet", [game.els.touchFire, game.els.touchFireL]);
 
   if (game.spawner) {
     for (const g of game.spawner.grunts) g.dispose(game.scene);

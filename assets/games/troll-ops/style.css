@@ -3057,6 +3057,10 @@ body.to-touch-play .to-touch-swap.is-context {
   box-shadow: 0 0 14px rgba(127,224,102,.6); animation: to-ss-fresh 0.8s ease-in-out infinite alternate;
 }
 body.to-touch-play .to-touch-swap.is-context svg { display: none; }
+/* A Socialize action with its own icon (view/touch-icons.js): the icon over the word. */
+body.to-touch-play .to-touch-swap.is-context.has-icon { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: calc(2px * var(--k)); padding-top: calc(4px * var(--k)); padding-bottom: calc(4px * var(--k)); }
+body.to-touch-play .to-touch-swap.is-context.has-icon svg { display: block; width: calc(24px * var(--k)); height: calc(24px * var(--k)); }
+body.to-touch-play .to-touch-swap.is-context.has-icon .to-touch-ctx { font-size: calc(11px * var(--k)); }
 body.to-touch-play .to-touch-swap.is-context .to-touch-ctx {
   display: block; font: 700 calc(13px * var(--k))/1 "Oswald", sans-serif; letter-spacing: .08em;
   text-transform: uppercase; color: #fff; white-space: nowrap;

@@ -20,6 +20,7 @@ import { claimPackage, canReroll, rerollPackage } from "../streaks/air.js?v=sk1-
 import { WeaponState } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1";
 import { CarePackage } from "../streak-entities.js?v=vsat2-hk1";
 import { game } from "../core/state.js?v=st1";
+import { contextIcon } from "../view/touch-icons.js?v=ti1";
 import { fireLauncher } from "./launcher.js?v=fj1-zr9-zr10-zc1";
 import { throwBusy } from "./throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1";
 
@@ -413,6 +414,14 @@ export function setTouchContext(label) {
   b.dataset.ctx = label || "";
   const span = b.querySelector(".to-touch-ctx");
   if (span) span.textContent = label || "";
+  // the action's icon over its word (view/touch-icons.js); the swap arrows back after
+  const svg = b.querySelector("svg");
+  if (svg) {
+    svg.dataset.swap ||= svg.innerHTML;
+    const icon = on ? contextIcon(label) : null;
+    svg.innerHTML = icon || svg.dataset.swap;
+    b.classList.toggle("has-icon", !!icon);
+  }
   b.setAttribute("aria-label", on ? `Hold to ${label.toLowerCase()}` : "Hold to swap weapons, pick up a dropped weapon, or open a care package");
 }
 
