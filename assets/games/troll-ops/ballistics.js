@@ -273,7 +273,10 @@ export class BulletSystem {
 
         // --- nearest world hit along this step
         let wallT = Infinity, wallExit = 0, wallPen = 1, wallBox = null;
-        for (const c of colliders) {
+        // A drawn round with a range was measured by its shooter, who already
+        // found the wall it stops at: testing every box on the map each step
+        // for it (a 100-bot Royale fires constantly) bought nothing.
+        if (!(b.cosmetic && b.range)) for (const c of colliders) {
           const r = segmentAABB(from, dir, len, c.min, c.max);
           if (!r || r.t0 >= wallT) continue;
           if (r.t1 <= 0) continue;
