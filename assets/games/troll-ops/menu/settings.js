@@ -3,11 +3,12 @@
 
 import { minimapCanvas } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9";
 import { game } from "../core/state.js?v=st1";
+import { showFps } from "../core/fps-meter.js?v=fp1";
 
 export const SETTINGS_KEY = "trollops:settings";
 export const settings = {
   volume: 50, ambience: 60, sens: 100, padSens: 3, fov: 78, invert: false, minimap: true, botSkill: "regular", aimAssist: true, thirdPerson: false,
-  gfx: "auto", viewMode: false, invincible: false,
+  gfx: "auto", viewMode: false, invincible: false, fps: false,
   ...(() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch { return {}; } })(),
 };
 
@@ -38,6 +39,7 @@ export function applySettings() {
   set("to-set-invert", settings.invert);
   set("to-set-minimap", settings.minimap);
   set("to-set-aimassist", settings.aimAssist);
+  set("to-set-fps", settings.fps);
 
   set("to-set-volume-lobby", settings.volume, "to-set-volume-lobby-out");
   set("to-set-ambience-lobby", settings.ambience, "to-set-ambience-lobby-out");
@@ -46,6 +48,7 @@ export function applySettings() {
   set("to-set-invert-lobby", settings.invert);
   set("to-set-minimap-lobby", settings.minimap);
   set("to-set-aimassist-lobby", settings.aimAssist);
+  set("to-set-fps-lobby", settings.fps);
   set("to-set-viewmode-lobby", settings.viewMode);
   set("to-set-invincible", settings.invincible);
   game.renderViewModeRow();
@@ -53,6 +56,7 @@ export function applySettings() {
   set("to-set-gfx", settings.gfx);
   set("to-set-gfx-lobby", settings.gfx);
   game.applyGraphics();
+  showFps(settings.fps);
   // Takes effect for bots created from here on, so a change mid-match applies
   // as they respawn rather than rewriting the ones already in the fight.
   game.bots.difficulty = settings.botSkill;

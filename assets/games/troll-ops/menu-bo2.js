@@ -693,6 +693,7 @@ const screens = {
       [
         checkRow("to-set-invert-lobby", "Invert look", "Flip up and down."),
         checkRow("to-set-minimap-lobby", "Minimap", "The radar in the corner."),
+        checkRow("to-set-fps-lobby", "Show FPS", "Frame rate in the top corner."),
         checkRow("to-set-aimassist-lobby", "Aim assist", "Controller only."),
         selectRow("to-set-botskill", "Bot skill", "Veteran bots give +10% XP."),
         checkRow("to-set-viewmode-lobby", "View mode", "Just look at the maps, no fighting."),

@@ -4066,3 +4066,16 @@ body.to-touch-play .zh.is-downed .zh-col { visibility: hidden; }
 /* A TROLLS body on: its own head, so the face and covering cards are locked. */
 .to-cos-faces.is-locked .to-cos-face { opacity: .4; cursor: not-allowed; }
 .to-cos-faces.is-locked .to-cos-face:hover { background: rgba(255,255,255,.04); }
+
+/* Settings > Show FPS (core/fps-meter.js): top centre, above everything (the
+   corners hold the brand, the music button and the minimap). */
+.to-fps {
+  position: fixed; z-index: 9999; pointer-events: none;
+  top: max(3px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+  padding: 2px 7px; border-radius: 6px; background: rgba(0,0,0,.55);
+  font: 600 11px/1.35 "DM Mono", ui-monospace, monospace; letter-spacing: .02em; color: #e8e8e8; white-space: nowrap;
+}
+.to-fps[hidden] { display: none; }
+.to-fps[data-band="good"] { color: #7fe066; }
+.to-fps[data-band="ok"] { color: #ffc94d; }
+.to-fps[data-band="bad"] { color: #ff6b5e; }

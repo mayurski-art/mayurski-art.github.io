@@ -176,6 +176,7 @@ linkGame({
   get ambience() { return ambience; },
   applyGraphics,
   applyInfectionLoadout,
+  gfxTier,
   areaDamage,
   get ARENA() { return ARENA; },
   get audio() { return audio; },

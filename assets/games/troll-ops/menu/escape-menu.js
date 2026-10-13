@@ -59,6 +59,7 @@ export function initEscapeMenu() {
   bindCheck("to-set-invert", "invert");
   bindCheck("to-set-minimap", "minimap");
   bindCheck("to-set-aimassist", "aimAssist");
+  bindCheck("to-set-fps", "fps");
   bindCheck("to-set-invincible", "invincible");
 
   bindRange("to-set-volume-lobby", "volume", "to-set-volume-lobby-out");
@@ -68,6 +69,7 @@ export function initEscapeMenu() {
   bindCheck("to-set-invert-lobby", "invert");
   bindCheck("to-set-minimap-lobby", "minimap");
   bindCheck("to-set-aimassist-lobby", "aimAssist");
+  bindCheck("to-set-fps-lobby", "fps");
   bindCheck("to-set-viewmode-lobby", "viewMode");
   bindSelect("to-set-botskill", "botSkill");
   bindSelect("to-set-gfx", "gfx");
