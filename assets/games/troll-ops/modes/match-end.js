@@ -14,6 +14,7 @@ import { setNetStatus } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m
 import { MAP_IDS, MAPS } from "../maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1";
 import { mapShotAttrs } from "../map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1";
 import { scheduleHubReturn } from "./zombies/hub.js?v=zh1";
+import { payRun } from "./zombies/credits.js?v=zc1";
 import { game } from "../core/state.js?v=st1";
 
 function finishRun(title, headline, headlineLabel, secondLabel, thirdLabel, opts = {}) {
@@ -40,7 +41,9 @@ function finishRun(title, headline, headlineLabel, secondLabel, thirdLabel, opts
     : xpForRun({ kills: game.player.kills, wave: game.player.wave });
   const gained = game.boostedXp(base);
   const { rankedUp, rank } = addXp(gained);
-  game.els.goXp.textContent = `+${gained.toLocaleString()} XP${gained > base ? " · +10% veteran bots" : ""}`;
+  // Zombies: the Credits the run paid (modes/zombies/credits.js)
+  const cr = opts.credits != null ? ` · +${opts.credits.toLocaleString()} Credits` : "";
+  game.els.goXp.textContent = `+${gained.toLocaleString()} XP${gained > base ? " · +10% veteran bots" : ""}${cr}`;
   game.els.goRank.textContent = rankedUp ? `Level up — now LV ${rank}` : "";
   game.els.goRank.hidden = !rankedUp;
   renderMatchMedals();
@@ -101,13 +104,16 @@ function renderMatchMedals() {
 export function endGame(reason) {
   const zombies = game.isZombies();
   if (zombies) game.stopZombieRun();
+  // Zombies pays Credits for the run, quit or not: kills, waves, the win
+  // (once: a second endGame for the same run pays nothing)
+  const credits = zombies && game.gameState !== "gameover" ? payRun({ kills: game.player.kills, wave: game.player.wave, won: reason === "won" }) : (zombies ? 0 : null);
   finishRun(
     reason === "quit" ? "Extracted" : reason === "won" ? "You survived" : (zombies ? "They got you" : "You went down"),
     String(game.player.wave),
     zombies ? (reason === "won" ? "Waves cleared" : "Wave reached") : "Wave reached",
     zombies ? "Zombies killed" : "Kills",
     "Time survived",
-    { won: reason === "won" },
+    { won: reason === "won", credits },
   );
   // A run from the hub's pads goes back to the hub (modes/zombies/hub.js).
   if (zombies && reason !== "quit") scheduleHubReturn();

@@ -7,12 +7,17 @@
 // quicker reload. Reserve ammo is infinite in Zombies (Zombie Rush's
 // "7 / ∞"), so a rebuilt gun comes back with a full mag and no reserve to
 // track.
+//
+// The primary is the gun you equipped at the hub's Weapons kiosk, at its
+// level (credits.js), not your multiplayer loadout's; the secondary stays.
 
 import { MELEE_DEFS, MeleeState } from "../../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10";
 import { WeaponState } from "../../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1";
 import { updateGearHud } from "../../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1";
 import { game } from "../../core/state.js?v=st1";
 import { canAfford, spend } from "./economy.js?v=zr5-zr9-zr10";
+import { resolveWeapon, defaultLoadoutFor } from "../../attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1";
+import { equippedGun, gunLevel, gunAtLevel } from "./credits.js?v=zc1";
 
 /* +25 max health a buy, up to 250; each buy costs half again. */
 const HP_STEP = 25;
@@ -53,8 +58,24 @@ function primaryDef() {
 
 const hpPrice = () => Math.round(HP_PRICE * Math.pow(HP_PRICE_GROWTH, up.hpBuys) / 5) * 5;
 
+/* Swap the loadout's primary for the kiosk gun, at its level. */
+function equipKioskGun() {
+  const p = game.player;
+  const id = equippedGun();
+  const def = gunAtLevel(resolveWeapon(id, defaultLoadoutFor(id)), gunLevel(id));
+  const old = p.weaponId;
+  if (old) delete p.weapons[old];
+  // the same gun as the secondary: it's the primary now
+  if (p.secondaryId === id) p.secondaryId = null;
+  p.weapons[id] = new WeaponState(def);
+  p.weaponId = id;
+  game.currentWeaponSlot = "primary";
+  if (p.holding === "gun") game.setActiveWeaponMesh(def);
+}
+
 /* Called when the run starts, after the loadout is equipped. */
 export function resetUpgrades() {
+  equipKioskGun();
   up.hpBuys = 0;
   up.gunTier = 0;
   up.meleeTier = 0;

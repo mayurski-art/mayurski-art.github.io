@@ -45,6 +45,7 @@ export const SYNCED_KEYS = [
   "trollops:hero",
   "trollops:botStreaks",
   "trollops:radio-v2",
+  "trollops:zombies",              // Zombies Credits, guns, kit levels (modes/zombies/credits.js)
 ];
 const SYNCED = new Set(SYNCED_KEYS);
 // Graphics quality is about the machine, not the player: a phone shouldn't

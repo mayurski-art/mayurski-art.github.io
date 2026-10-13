@@ -26,6 +26,7 @@ import * as THREE from "three";
 import { game } from "../../core/state.js?v=st1";
 import { DEPLOYABLES, KITS, DEFAULT_KIT, statsAt, priceOf } from "./kits.js?v=zr6-zr9-zr10";
 import { canAfford, spend } from "./economy.js?v=zr5-zr9-zr10";
+import { kitLevels } from "./credits.js?v=zc1";
 import { raycastWorld } from "../../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10";
 import { groundHeightAt } from "../../movement.js?v=umb2-sb2-gj1b7";
 import { loadModel } from "../../battlefield-props.js";
@@ -45,7 +46,7 @@ const TURRET_FX_DEF = WEAPON_DEFS.mtar || WEAPON_DEFS.problem416;
    climb with it); `list` is what's standing. */
 export const dep = {
   kit: DEFAULT_KIT,
-  level: 1,
+  levels: {},      // deployable id -> kit level, from Credits (credits.js)
   placed: {},
   list: [],
   placing: null,   // { id, grid, ghost, spot, ok } while picking a spot
@@ -95,12 +96,14 @@ function paintGhost(root, ok) {
 
 /* --------------------------------------------------------------- the kit */
 
+const levelOf = (id) => dep.levels[id] || 1;
+
 export const kitOf = () => KITS[dep.kit] || KITS[DEFAULT_KIT];
 
 export function resetDeployables() {
   clearDeployables();
   dep.placed = {};
-  dep.level = 1;
+  dep.levels = kitLevels();
 }
 
 /* Everything off the map (the run ended). */
@@ -138,7 +141,7 @@ export function pickDeployable(id, grid = false) {
   const price = priceOf(id, dep.placed[id] || 0);
   if (!canAfford(price) || standing(id) >= d.max) return false;
   cancelPlacing();
-  const stats = statsAt(id, dep.level);
+  const stats = statsAt(id, levelOf(id));
   const ghost = buildModel(id, stats);
   ghost.userData.onModel = () => paintGhost(ghost, dep.placing?.ok ?? true);
   game.scene.add(ghost);
@@ -511,7 +514,7 @@ const CLASSES = { turret: Turret, barricade: Barricade, barrel: Barrel };
 
 /* `opts` (co-op): { level, did, owner } for someone else's. */
 export function spawnDeployable(id, x, y, z, yaw, opts = {}) {
-  const e = new CLASSES[DEPLOYABLES[id].kind](id, x, y, z, yaw, opts.level || dep.level, opts);
+  const e = new CLASSES[DEPLOYABLES[id].kind](id, x, y, z, yaw, opts.level || levelOf(id), opts);
   dep.list.push(e);
   return e;
 }
