@@ -157,16 +157,57 @@ export function openRoyaleBox() {
     const floor = [...r.loot.items.values()].filter((it) => (it.y || 0) < 100);
     const spots = floor.length ? floor : game.builtMap.spawnPoints?.length ? game.builtMap.spawnPoints : [{ x: 0, z: 0 }];
     const rng = seededRng((r.seed ^ 0xbe17) >>> 0);
-    for (const b of game.bots.bots) {
-      const target = spots[Math.floor(Math.random() * spots.length)];
-      const tx = target.x + (Math.random() - 0.5) * 8, tz = target.z + (Math.random() - 0.5) * 8;
+    const landAt = botLandings(spots, game.bots.bots.length, d, game.builtMap.map.edge);
+    for (const [i, b] of game.bots.bots.entries()) {
+      const { x: tx, z: tz } = landAt[i];
       b.airborne = true;
       b.yaw = d.openYaw;
       // Each bot wanders a little side to side on the way out, its own way.
-      b.drop = { state: "belt", tx, tz, flight: null, wobble: rng() * Math.PI * 2, wobbleHz: 0.4 + rng() * 0.5 };
+      b.drop = { state: "belt", tx, tz, ty: dropGround(tx, tz, DROP.boxY - 5) ?? 0, flight: null, wobble: rng() * Math.PI * 2, wobbleHz: 0.4 + rng() * 0.5 };
     }
   }
   game.showWaveBanner("FLOOR'S MOVING — off the edge, trolls", 2600);
+}
+
+/* Where the bots aim to land. Picked at random off the floor loot, half of
+   them aimed within 10 m of another, and most were out of reach: a fall
+   from the box carries a troll about 130 m sideways, so they came down
+   short in a ring round the drop (user, 2026-10-12: "the bots are not
+   killing each other swiftly" — 85 of 99 landed within 10 m of someone,
+   so every landing was a brawl and bot damage had been turned down to
+   20% to slow it). Now: only spots a fall can reach, each one as far from
+   the others as the spots allow. */
+// Bots steer harder in freefall than you do (nobody sees it from 300 m up),
+// so they reach the whole island, not just the 130 m round the box.
+const BOT_FALL_STEER = 28;
+const LAND_REACH = 0.85 * (DROP.boxY / DROP.fallSpeed) * BOT_FALL_STEER;   // metres from the opening
+function botLandings(spots, n, d, edge) {
+  const S = DROP.boxSize / 2;
+  const ex = d.boxCentre.x + d.openDir.x * S, ez = d.boxCentre.z + d.openDir.z * S;
+  const reach = (x, z) => Math.hypot(x - ex, z - ez) < LAND_REACH;
+  let pool = spots.filter((p) => reach(p.x, p.z));
+  if (pool.length < 8) pool = spots;
+  pool = pool.map((p) => ({ x: p.x, z: p.z }));
+  // More ground than the loot alone: points around each spot, on the island.
+  for (const p of pool.slice()) {
+    for (let k = 0; k < 6; k++) {
+      const a = Math.random() * Math.PI * 2, r = 10 + Math.random() * 20;
+      const x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r;
+      if ((!edge || insidePolygon(edge, x, z)) && reach(x, z)) pool.push({ x, z });
+    }
+  }
+  pool.sort(() => Math.random() - 0.5);
+  // Farthest-point picking: each next spot the one furthest from all those
+  // already taken (a spot can be taken twice once they run out).
+  const out = [], near = pool.map(() => Infinity);
+  for (let i = 0; i < n; i++) {
+    let best = 0;
+    for (let j = 1; j < pool.length; j++) if (near[j] > near[best]) best = j;
+    const p = pool[best];
+    out.push({ x: p.x + (Math.random() - 0.5) * 6, z: p.z + (Math.random() - 0.5) * 6 });
+    for (let j = 0; j < pool.length; j++) near[j] = Math.min(near[j], Math.hypot(pool[j].x - p.x, pool[j].z - p.z));
+  }
+  return out;
 }
 
 /* The belt runs; the bots on it are carried to the edge and fall toward
@@ -205,7 +246,7 @@ function updateRoyaleDropWorld(dt) {
         b.yaw = d.openYaw;
         b.dropCode = 0;
       } else {
-        bd.flight = new Flight(b.pos, game.builtMap.map.edge, { glider: false, vel: _edgeVel.set(dir.x * DROP.beltSpeed, -2, dir.z * DROP.beltSpeed) });
+        bd.flight = new Flight(b.pos, game.builtMap.map.edge, { glider: false, steer: BOT_FALL_STEER, vel: _edgeVel.set(dir.x * DROP.beltSpeed, -2, dir.z * DROP.beltSpeed) });
         bd.state = "fly";
         b.dropCode = DROP_FALL;
       }
@@ -213,7 +254,10 @@ function updateRoyaleDropWorld(dt) {
       const f = bd.flight;
       const dx = bd.tx - f.pos.x, dz = bd.tz - f.pos.z, dist = Math.hypot(dx, dz);
       const yaw = Math.atan2(-dx, -dz);
-      f.update(dt, { forward: dist > 6 ? 1 : 0, strafe: 0, yaw, pitch: dist > 40 ? -0.9 : -0.3, open: false }, dropGround);
+      // Dive only once it's over the spot: diving from afar (as it did) cut
+      // the fall short and dropped it far from where it was headed.
+      const dive = (f.pos.y - bd.ty) / DROP.fallSpeed > dist / BOT_FALL_STEER + 1;
+      f.update(dt, { forward: dist > 6 ? 1 : 0, strafe: 0, yaw, pitch: dive ? -0.9 : -0.3, open: false }, dropGround);
       b.pos.copy(f.pos);
       b.groundY = f.pos.y;
       b.yaw = yaw;
@@ -546,7 +590,10 @@ function royaleDropBotGear(b) {
 const BOT_LOOT_REACH = 1.3;      // metres: close enough to grab it
 const BOT_LOOT_SEARCH = 30;      // how far a bot looks for loot it wants
 const BOT_LOOT_SEARCH_ARMED = 10;
-const BOT_NOISE_RANGE = 45;      // gunfire this close draws an armed bot in
+// Gunfire this close draws an armed bot in, by zone phase: short early, so a
+// fight doesn't pull in the whole crowded opening (a chain that emptied the
+// island in three minutes once bots could actually kill each other).
+const BOT_NOISE_RANGE = [15, 25, 35, 45, 45];
 
 /* First sight of a bot this match: a pistol and empty pockets, like us. */
 function initRoyaleBot(b) {
@@ -605,7 +652,7 @@ function royaleNoiseFor(b) {
     const n = royale.noises[i];
     if (royale.t - n.t > 4 || n.by === b.id) continue;
     const d = Math.hypot(n.x - b.pos.x, n.z - b.pos.z);
-    if (d > 6 && d < BOT_NOISE_RANGE) return { id: `noise-${Math.round(n.x / 6)}-${Math.round(n.z / 6)}`, x: n.x, z: n.z };
+    if (d > 6 && d < BOT_NOISE_RANGE[royalePhaseIdx()]) return { id: `noise-${Math.round(n.x / 6)}-${Math.round(n.z / 6)}`, x: n.x, z: n.z };
   }
   return null;
 }
@@ -715,9 +762,15 @@ function updateRoyaleBot(b, dt) {
    out in the first minute. Two dials, both on bots only (what a bot does to
    YOU is untouched): how far off a bot notices someone, and how hard bots
    hit each other, both growing as the zone closes, so the early game is
-   looting and skirmishes and the last circles are a proper fight. */
-const ROYALE_BOT_SIGHT = [16, 20, 26, 34, 45];      // metres, by zone phase
-const ROYALE_BOT_VS_BOT = [0.2, 0.3, 0.45, 0.7, 1];  // damage scale, by zone phase
+   looting and skirmishes and the last circles are a proper fight.
+   2026-10-12 ("the bots are not killing each other swiftly"): at 20% bot
+   damage the first 90 s was 70 bots trading shots and nobody dying, then
+   a collapse. The crowding was the real cause (bots landed in a ring round
+   the drop: botLandings), so damage starts at 60% now and pistol-only bots
+   keep out of fights (UNARMED_SIGHT); tools/troll-ops-royale-pace.mjs. */
+const ROYALE_BOT_SIGHT = [16, 20, 26, 34, 45];
+const UNARMED_SIGHT = 6;      // metres, by zone phase
+const ROYALE_BOT_VS_BOT = [0.6, 0.7, 0.85, 1, 1];  // damage scale, by zone phase
 function royalePhaseIdx() {
   if (!royale?.live) return 0;
   const s = royale.zone.state(royale.t);
@@ -726,6 +779,10 @@ function royalePhaseIdx() {
 export function royaleBotSight(b) {
   // Someone shooting at it gets noticed whatever the range.
   if (b.hurtAt && performance.now() - b.hurtAt < 3000) return 45;
+  // Only the landing pistol: run for a gun, don't pick fights on the way
+  // (unless someone's right there). Bots that have one fight as they find
+  // people, and those fights end fast.
+  if (!botArmed(b)) return UNARMED_SIGHT;
   return ROYALE_BOT_SIGHT[royalePhaseIdx()];
 }
 export function royaleBotVsBot() { return ROYALE_BOT_VS_BOT[royalePhaseIdx()]; }

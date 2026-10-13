@@ -569,6 +569,7 @@ export class Flight {
     this.state = "fall";   // fall -> (glide ->) landed
     this.edge = edge;
     this.glider = !!opts.glider;
+    this.steer = opts.steer || DROP.fallSteer;   // m/s sideways in freefall (bots: royale.js BOT_FALL_STEER)
     this.heading = 0;      // glide heading (yaw), set on opening
   }
 
@@ -591,8 +592,8 @@ export class Flight {
         const dive = input.forward > 0 && input.pitch < -0.6;
         const targetY = -(dive ? DROP.diveSpeed : DROP.fallSpeed);
         this.vel.y += (targetY - this.vel.y) * Math.min(1, dt * 1.6);
-        const hx = (fx * input.forward + rx * input.strafe) * DROP.fallSteer;
-        const hz = (fz * input.forward + rz * input.strafe) * DROP.fallSteer;
+        const hx = (fx * input.forward + rx * input.strafe) * this.steer;
+        const hz = (fz * input.forward + rz * input.strafe) * this.steer;
         this.vel.x += (hx - this.vel.x) * Math.min(1, dt * 2.5);
         this.vel.z += (hz - this.vel.z) * Math.min(1, dt * 2.5);
       }

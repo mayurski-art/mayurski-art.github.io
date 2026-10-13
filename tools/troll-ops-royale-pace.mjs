@@ -1,6 +1,9 @@
 // Troll Royale pacing on Trollface Island: how many trolls are left as the
 // match clock runs, and what killed them (bots vs the Cringe). The player is
-// kept alive and out of it so the curve is the bots' own.
+// kept alive and out of it so the curve is the bots' own. Also: rounds landed,
+// how many bots are under fire right now, the median time and hits from a
+// bot's first wound to its death (ttk), and how bunched up they are
+// (nnMed: median metres to the nearest bot; nn10: bots within 10 m of one).
 //
 // Usage: node tools/troll-ops-royale-pace.mjs [match seconds, default 300]
 
@@ -43,7 +46,10 @@ await page.evaluate(() => {
   window.__pace = { causes: {}, rows: [] };
   const orig = T.bots.applyHit.bind(T.bots);
   T.bots.applyHit = (id, d, o) => {
+    const P = window.__pace; const now = performance.now() / 1000;
+    if (!o?.pierce) { P.hits = (P.hits || 0) + 1; const f = (P.first ||= {}); if (!f[id] || now - f[id].last > 8) f[id] = { t0: now, n: 0 }; f[id].n++; f[id].last = now; }
     const r = orig(id, d, o);
+    if (r?.killed && !o?.pierce && P.first?.[id]) { (P.ttk ||= []).push([+(now - P.first[id].t0).toFixed(1), P.first[id].n]); delete P.first[id]; }
     if (r?.killed) {
       const k = o?.pierce ? "zone" : "fight";
       window.__pace.causes[k] = (window.__pace.causes[k] || 0) + 1;
@@ -65,9 +71,14 @@ for (let i = 0; i < 4000; i++) {
     const T = window.__trollOps, r = T.royale?.();
     if (!r) return null;
     const alive = T.bots.bots.filter((b) => b.alive).length;
-    return { t: Math.round(r.t), live: r.live, alive, causes: window.__pace.causes, me: r.me };
+    const B = T.bots.bots.filter((b) => b.alive), nn = B.map((b) => Math.min(...B.filter((o) => o !== b).map((o) => Math.hypot(o.pos.x - b.pos.x, o.pos.z - b.pos.z)))).sort((a, b) => a - b);
+    const now = performance.now(), seeing = B.filter((b) => b.seenId).length, hurt = B.filter((b) => b.hurtAt && now - b.hurtAt < 3000).length, armed = B.filter((b) => b.gunRarity != null).length;
+    const ex = { nnMed: Math.round(nn[nn.length >> 1]), nn10: nn.filter((d) => d < 10).length, seeing, hurt, armed };
+    const P = window.__pace, ttk = (P.ttk || []).map((x) => x[0]).sort((a, b) => a - b), hn = (P.ttk || []).map((x) => x[1]).sort((a, b) => a - b);
+    const fights = Object.values(P.first || {}).filter((f) => performance.now() / 1000 - f.last < 8).length;
+    return { t: Math.round(r.t), live: r.live, alive, causes: P.causes, me: r.me, hits: P.hits | 0, fights, ttkMed: ttk[ttk.length >> 1], hitsMed: hn[hn.length >> 1], phase: r.zone?.state?.(r.t)?.phase, ex };
   });
-  if (s && s.live && s.t >= lastT + 15) { lastT = s.t; console.log(`t=${String(s.t).padStart(4)}s  bots alive ${String(s.alive).padStart(3)}  kills ${JSON.stringify(s.causes)}`); }
+  if (s && s.live && s.t >= lastT + (s.t < 60 ? 5 : 15)) { lastT = s.t; console.log(`t=${String(s.t).padStart(4)}s  bots alive ${String(s.alive).padStart(3)}  kills ${JSON.stringify(s.causes)}  hits ${s.hits}  under fire now ${s.fights}  ttk med ${s.ttkMed}s/${s.hitsMed} hits  phase ${s.phase}  ${JSON.stringify(s.ex)}`); }
   if (s && s.t >= UNTIL) break;
   if (s && s.live && s.t >= 30 && !printedLog) {
     printedLog = true;
