@@ -12,7 +12,21 @@ Design docs live next to this file: `COPS-AND-ROBBERS.md`, `TROLL-CITY-RP2.md`, 
 
 ## 1. Open work and plans (newest first)
 
-### Zombie Rush (branch `tf-zombies`, worktree `.claude/worktrees/tf-zombies`)
+### Tasks to do, in order (updated 2026-10-12, end of day)
+Everything built so far is on main (92b4470, -zr10). Start each session on a fresh branch or worktree from origin/main.
+1. **Zombie Rush P5, the 3D hub** (section below; plan file below).
+2. **Fix the leaderboard no-op:** match-end.js calls `TrollLeaderboard.report`, which doesn't exist; use `record` (small known gaps). The hub boards need it.
+3. **Zombie Rush P6:** Credits and the Weapons / Classes screens (earn-only for now).
+4. **Zombie Rush P7:** the animation pass, plus the open items (gamepad buy/deploy, boss tint).
+5. **Black Ops 2 assault-rifle reloads,** once the user sends the rest of the details (brief: `refs/pf-reloads/BRIEF.md`).
+6. **Stylised realism graphics,** one map first, with before/after screenshots.
+7. **Then hand the user ONE test checklist** covering everything shipped since 2026-10-12 (Zombie Rush P1-P4, the High-graphics glow and box fixes, the Royale lag and fights, Show FPS, the phone menu, bot heads, Ghostface Killers).
+- Offered, not yet answered: stretch Royale's match length (fewer bots or a post-kill cooldown).
+- Paused or on hold (sections below): tf-parallel leftovers, Troll City RP 2c, Cops and Robbers, U Mad Bro?, the TROLLS wallet check.
+
+**References (local only, git-ignored, in the MAIN checkout's `assets/games/troll-ops/refs/`):** `zombie-rush/` (the user's Roblox screenshots, named, plus `originals/`), `zombies-clips/clip1.mp4, clip2.mp4` (gameplay recordings), `pf-reloads/BRIEF.md` (the BO2 reload brief).
+
+### Zombie Rush (P1-P4 on main; old branch `tf-zombies` is fully merged)
 Zombies rebuilt to play like Roblox's Zombie Rush Survival: a 3D hub, then a co-op 1-4 wave run with cash, upgrades, deployables and bosses, then Credits between runs. Plan: `C:\Users\mayur\.claude\plans\ok-just-switched-buzzing-magpie.md`. P1-P4 shipped (part 5).
 - **Next: P5, the hub.**
   - `MODES.zhub` (social, hidden, `forceMap: "zhub"`), public room `QZHB` in `QUICKPLAY_BASE`. Tests use a private code, never QZHB.
@@ -21,7 +35,7 @@ Zombies rebuilt to play like Roblox's Zombie Rush Survival: a 3D hub, then a co-
   - Unknown `t` messages are dropped by net.js; pad messages need a free `z?` letter (coop.js ignores them unless `coop.on`) or an `rp` kind.
 - **Then:** P6 (Credits, Weapons and Classes screens; earn-only, see the coin idea below), P7 (animation pass).
 - **Open:** gamepad buy/deploy; boss tint only reaches skin.
-- Refs (local only): `refs/zombie-rush/`, `refs/zombies-clips/`.
+- Refs (local only, main checkout): `refs/zombie-rush/` (hub pads, boards, kiosks, Weapons tier screens, Classes / Rookie kit, the in-match HUD), `refs/zombies-clips/`.
 
 ### Weapon animations: Black Ops 2 reloads (waiting on the user)
 Assault-rifle reloads should match Black Ops 2's (our ARs are BO2's): tactical and empty, one rifle at a time, built from footage. Brief: `refs/pf-reloads/BRIEF.md` (local only). The user is sending more details.
