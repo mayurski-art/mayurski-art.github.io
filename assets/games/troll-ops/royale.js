@@ -14,6 +14,7 @@
 // zone maths, the loot tables and everything drawn for them.
 
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1";
 import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1";
 import { SLOTS, defaultLoadoutFor, fitsFor, resolveWeapon } from "./attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1";
@@ -308,6 +309,45 @@ const _tmpC = new THREE.Color(), _upY = new THREE.Vector3(0, 1, 0), _ringQ = new
 
 /* Everything lying on the ground in a Royale match, keyed by id: "s<n>" for
    the seeded floor loot, "<netId>.<n>" for whatever someone dropped. */
+/* A gun on the floor never moves a part on its own, so its dozens of meshes
+   (one per part: ~70 for a rifle) become one per material. The Royale sky
+   lobby's 27 floor guns were 1,939 meshes, more than all 99 trolls in it
+   (user, 2026-10-12: Troll Royale lags from the moment the bots spawn). */
+/* Materials that draw the same (the gun builders make one per part). */
+function matLook(m) {
+  const hex = (c) => (c ? c.getHexString() : "-");
+  return [m.type, hex(m.color), hex(m.emissive), m.emissiveIntensity, m.roughness, m.metalness, m.map?.uuid, m.normalMap?.uuid,
+    m.roughnessMap?.uuid, m.metalnessMap?.uuid, m.emissiveMap?.uuid, m.alphaMap?.uuid, m.transparent, m.opacity, m.side, m.vertexColors, m.flatShading, m.envMapIntensity].join("/");
+}
+export function bakeStatic(root) {
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const groups = new Map(), keep = [];
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    if (!o.visible || o.isSkinnedMesh || o.isInstancedMesh || Array.isArray(o.material) || o.geometry.morphAttributes?.position) { keep.push(o); return; }
+    const g = o.geometry;
+    const sig = matLook(o.material) + "|" + Object.keys(g.attributes).sort().join(",");
+    if (!groups.has(sig)) groups.set(sig, { mat: o.material, list: [] });
+    const c = (g.index ? g.toNonIndexed() : g.clone()).applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
+    groups.get(sig).list.push({ c, o });
+  });
+  const out = new THREE.Group();
+  out.userData = root.userData;
+  for (const { mat, list } of groups.values()) {
+    const merged = list.length > 1 ? mergeGeometries(list.map((x) => x.c)) : list[0].c;
+    if (!merged) { for (const x of list) keep.push(x.o); continue; }   // couldn't merge: keep as is
+    if (list.length > 1) for (const x of list) x.c.dispose();
+    const m = new THREE.Mesh(merged, mat);
+    m.castShadow = false;
+    out.add(m);
+  }
+  // Anything left as it was keeps its place under the new group.
+  for (const o of keep) { const w = o.matrixWorld.clone(); o.removeFromParent(); o.matrix.multiplyMatrices(inv, w); o.matrix.decompose(o.position, o.quaternion, o.scale); out.add(o); }
+  root.traverse((o) => { if (o.isMesh && !keep.includes(o) && !o.geometry.userData.shared) o.geometry.dispose(); });
+  return out;
+}
+
 export class LootField {
   constructor(scene) {
     this.scene = scene;
@@ -432,7 +472,7 @@ export class LootField {
       }
       if (it.k === "gun") {
         if (!it.gun && d2 < near2) {
-          it.gun = stripLights(buildWeaponMesh(it.def));
+          it.gun = bakeStatic(stripLights(buildWeaponMesh(it.def)));
           it.gun.traverse((o) => { if (o.isMesh) o.castShadow = false; });
           it.gun.rotation.set(0, 0, Math.PI / 2 + 0.15);
           it.mesh.add(it.gun);
