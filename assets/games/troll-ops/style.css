@@ -3456,7 +3456,12 @@ body.is-map .to-bo2-anim { visibility: hidden; }
   .to-bo2-menu .tr-menu-title { font-size: 24px; margin-bottom: 2px; }
   .to-bo2-menu .tr-menu-item { min-height: 24px; line-height: 24px; font-size: 16px; }
   .to-bo2-menu .tr-menu-group { padding-bottom: 4px; }
-  .to-bo2-menu .tr-menu-desc { font-size: 13px; min-height: 0; margin-top: 2px; }
+  .to-bo2-menu .tr-menu-desc { font-size: 13px; min-height: 0; margin-top: 6px; }
+  /* A row scrolled half out of the list fades away whole: the 24px rows left
+     a sliver of capitals showing right on top of the description. */
+  .to-bo2-menu .tr-menu-groups.fade-b { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 34px), transparent calc(100% - 8px)); mask-image: linear-gradient(to bottom, #000 calc(100% - 34px), transparent calc(100% - 8px)); }
+  .to-bo2-menu .tr-menu-groups.fade-t.fade-b { -webkit-mask-image: linear-gradient(transparent 8px, #000 34px, #000 calc(100% - 34px), transparent calc(100% - 8px)); mask-image: linear-gradient(transparent 8px, #000 34px, #000 calc(100% - 34px), transparent calc(100% - 8px)); }
+  .to-bo2-menu .tr-menu-groups.fade-t { -webkit-mask-image: linear-gradient(to top, #000 calc(100% - 34px), transparent calc(100% - 8px)); mask-image: linear-gradient(to top, #000 calc(100% - 34px), transparent calc(100% - 8px)); }
   .to-bo2-party { top: 44px; width: min(320px, calc(50% - 24px)); gap: 4px; }
   .to-bo2-party-lbl { font-size: 14px; }
   .to-bo2-party-row { min-height: 30px; }
@@ -3464,7 +3469,8 @@ body.is-map .to-bo2-anim { visibility: hidden; }
   .to-bo2-detail, .to-bo2-panel { right: max(20px, env(safe-area-inset-right)); top: 54px; max-height: calc(100% - 54px - var(--foot-h, 36px) - 20px); padding: 12px 14px; }
   .to-bo2.has-gun .to-bo2-detail { top: 54px; }
   #to-title.is-bo2 .to-pf > .to-gun-view.is-hero { display: none; }
-  #to-title.is-bo2 .to-char-view { left: 50%; top: 96px; bottom: 16px; --char-shift: 0; }
+  /* below the party box: at 96px a narrow phone stood the head on "Log in to keep your XP" */
+  #to-title.is-bo2 .to-char-view { left: 50%; top: 124px; bottom: 16px; --char-shift: 0; }
   /* no room under its feet in this short box: the pill stands to its left */
   #to-title.is-bo2 .to-char-emote { left: 18%; }
   .to-bo2-foot { left: max(44px, env(safe-area-inset-left)); right: max(20px, env(safe-area-inset-right)); bottom: 8px; gap: 14px; align-items: center; }
