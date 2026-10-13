@@ -623,7 +623,10 @@ function botWants(b, it) {
 
 /* The loot a bot is heading for: it keeps its pick while it's still there
    and still wanted, else the nearest wanted item inside the coming circle
-   that no other bot has already called. */
+   that no other bot has already called. A bot that found nothing looks
+   again in half a second, not every frame: each look scans the whole island
+   (99 bots x hundreds of items a frame was a big piece of the bot AI). */
+const LOOT_RETRY = 0.5;
 function royaleBotLoot(b, circle) {
   const items = royale.loot.items;
   if (b.lootId) {
@@ -631,8 +634,14 @@ function royaleBotLoot(b, circle) {
     if (it && botWants(b, it)) return it;
     b.lootId = null;
   }
-  const claimed = new Set();
-  for (const o of game.bots.bots) if (o !== b && o.alive && o.lootId) claimed.add(o.lootId);
+  if (royale.t < (b.lootRetry || 0)) return null;
+  // Who has called what, built once a frame and kept up as bots pick.
+  if (royale.claimedT !== royale.t) {
+    royale.claimedT = royale.t;
+    royale.claimed = new Set();
+    for (const o of game.bots.bots) if (o.alive && o.lootId) royale.claimed.add(o.lootId);
+  }
+  const claimed = royale.claimed;
   const reach = botArmed(b) && (b.plates | 0) > 0 ? BOT_LOOT_SEARCH_ARMED : BOT_LOOT_SEARCH;
   let best = null, bestD = reach;
   for (const it of items.values()) {
@@ -642,6 +651,8 @@ function royaleBotLoot(b, circle) {
     if (d < bestD) { best = it; bestD = d; }
   }
   b.lootId = best?.id || null;
+  if (best) claimed.add(best.id);
+  else b.lootRetry = royale.t + LOOT_RETRY * (0.8 + Math.random() * 0.4);
   return best;
 }
 
