@@ -30,8 +30,8 @@
 import * as THREE from "three";
 import { game } from "../../core/state.js?v=st1";
 import { Zombie, zombieWire } from "../../zombies.js?v=zr4c-sb2b7b7dc2f1m1u-gt1-gt2-zr5-zr6-zr7-zr8-zr9-zr10";
-import { dep, depWire, spawnDeployable } from "./deployables.js?v=zr6-zr8-zr9-zr10";
-import { bossState, bossWire, slamAt } from "./boss.js?v=zr7-zr8-zr9-zr10";
+import { dep, depWire, spawnDeployable } from "./deployables.js?v=zr6-zr8-zr9-zr10-zh1";
+import { bossState, bossWire, slamAt } from "./boss.js?v=zr7-zr8-zr9-zr10-zh1";
 import { earn } from "./economy.js?v=zr5-zr9-zr10";
 
 const POS_EVERY = 0.1;      // seconds between zp

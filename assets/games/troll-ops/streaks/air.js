@@ -22,7 +22,7 @@ import { warshipImpact, syncWarshipView, updateWarshipHud } from "./warship.js?v
 import { updateAaMissiles } from "../combat/launcher.js?v=fj1-zr9-zr10";
 import { game } from "../core/state.js?v=st1";
 import { hasPerk, peerHas } from "../perks.js?v=pk1-cl1-bp1-fj1";
-import { isExplosive } from "../combat/damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10";
+import { isExplosive } from "../combat/damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1";
 
 /* The Swarm: Hunter-Killers diving in from the map's edge, one after
    another, each after its own enemy, until the count or the clock runs out. */

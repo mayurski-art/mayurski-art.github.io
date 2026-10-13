@@ -18,8 +18,9 @@
 //               KOTH hill and wins an S&D round
 //   5. rooms    tools/troll-ops-sync-test.mjs, troll-ops-load-sync-test.mjs,
 //               troll-ops-bot-host-test.mjs (who runs the bots, two tabs:
-//               stalls, slow loads, a frozen host) and
-//               troll-ops-escalator-test.mjs
+//               stalls, slow loads, a frozen host),
+//               troll-ops-escalator-test.mjs and troll-ops-zhub-test.mjs
+//               (the Zombies hub: pads, a run and back, the private pad)
 //
 // Supabase is blocked throughout: a test page must never join the live
 // public room (a hidden test tab once became its bot host and froze the
@@ -149,7 +150,7 @@ async function play(mode, mapId, sim) {
 
 // ---------------------------------------------------------------- 2. modes
 console.log("\n== modes");
-const MODES = ["tdm", "umb", "koth", "oitc", "snd", "gungame", "infection", "royale", "social", "zombies"];
+const MODES = ["tdm", "umb", "koth", "oitc", "snd", "gungame", "infection", "royale", "social", "zombies", "zhub"];
 for (const mode of MODES) {
   const before = errors.length;
   let r;
@@ -187,7 +188,7 @@ for (const t of ["troll-ops-input-test.mjs", "troll-ops-menu-test.mjs", "troll-o
 // ---------------------------------------------------------------- 5. rooms
 if (!QUICK) {
   console.log("\n== rooms");
-  for (const t of ["troll-ops-sync-test.mjs", "troll-ops-load-sync-test.mjs", "troll-ops-bot-host-test.mjs", "troll-ops-escalator-test.mjs"]) {
+  for (const t of ["troll-ops-sync-test.mjs", "troll-ops-load-sync-test.mjs", "troll-ops-bot-host-test.mjs", "troll-ops-escalator-test.mjs", "troll-ops-zhub-test.mjs"]) {
     // The bot-host test plays a dozen two-tab matches: it gets longer.
     const r = spawnSync(process.execPath, [path.join(ROOT, "tools", t)], { cwd: ROOT, encoding: "utf8", timeout: t === "troll-ops-bot-host-test.mjs" ? 1500000 : 600000 });
     const out = `${r.stdout || ""}${r.stderr || ""}`;

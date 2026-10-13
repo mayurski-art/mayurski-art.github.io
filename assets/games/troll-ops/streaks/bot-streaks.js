@@ -6,7 +6,7 @@ import { streaksAllowed, STREAK_DEFS } from "../scorestreaks.js?v=umb1-wst-sb2-f
 import { streakEntities, startVsat, spawnVsatSat, uavBucket, streakBlast, flyovers, killstreakUi } from "./calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10";
 import { HunterDrone, HelicopterGunship, VtolWarship, MarkerCanister, AIRSTRIKE_RADIUS, CarePackage, DRONE_SPLASH_RADIUS, AIRSTRIKE_DELAY, WARSHIP_GUNS } from "../streak-entities.js?v=vsat2-hk1";
 import { Dragonfire, DF_RANGE, DF_DAMAGE } from "../dragonfire.js?v=df3-sb2";
-import { swarmRuns, startUav, spawnRecon, applyCounterUav, streakOwnerHates, streakDamage } from "./air.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10";
+import { swarmRuns, startUav, spawnRecon, applyCounterUav, streakOwnerHates, streakDamage } from "./air.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1";
 import { dragonfireSkyCheck, round2, pickDroneTarget, spawnDrone, spawnHelicopter, spawnK9, droneWorld, rollPackageReward, strikeDelay, spawnAirstrike, spawnCarePackage, setPackageReward } from "./fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10";
 import * as THREE from "three";
 import { samDeployPoint, spawnSam, spawnDragonfire, shootDownAir, airTargetPos, damageStreakEntity } from "./dragonfire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10";

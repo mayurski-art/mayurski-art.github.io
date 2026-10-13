@@ -5,7 +5,7 @@
 // sent as `pk`), and BO2's spawn card shows the class and its perks.
 
 import { game } from "../core/state.js?v=st1";
-import { weaponForMode } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2";
+import { weaponForMode } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1";
 import { PERK_DEFS, PERK_TIER_COLORS, setCarriedPerks, carriedPerks, perkBits, perkIconSvg } from "../perks.js?v=pk1-cl1-bp1-fj1";
 
 /* A class picked from the pause menu, waiting for the next respawn
