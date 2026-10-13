@@ -15,10 +15,10 @@ import * as THREE from "three";
 export const HUB = {
   // a pad's floor area: you're on it while your feet are inside
   pads: [
-    { id: "p1", map: "pentagrin", x: -13.5, z: -6, w: 6, d: 5 },
-    { id: "p2", map: "hollowgrin", x: -4.5, z: -6, w: 6, d: 5 },
-    { id: "p3", map: "trollcity", x: 4.5, z: -6, w: 6, d: 5 },
-    { id: "p4", map: "trollingloud", x: 13.5, z: -6, w: 6, d: 5 },
+    { id: "p1", map: "pentagrin", x: -15, z: -6, w: 6, d: 5 },
+    { id: "p2", map: "hollowgrin", x: -8.4, z: -6, w: 6, d: 5 },
+    { id: "p3", map: "trollcity", x: 8.4, z: -6, w: 6, d: 5 },
+    { id: "p4", map: "trollingloud", x: 15, z: -6, w: 6, d: 5 },
   ],
   private: { id: "priv", x: -15, z: 8, w: 5, d: 5 },
   // the sign over a pad's back edge, facing the room
@@ -27,10 +27,11 @@ export const HUB = {
     { id: "weapons", label: "Weapons", x: 16.6, z: 4, face: -Math.PI / 2 },
     { id: "classes", label: "Classes", x: 16.6, z: 10, face: -Math.PI / 2 },
   ],
-  // the two boards on the north wall: centre, width, height, bottom edge
+  // the two boards on the north wall, at the end of the aisle between the
+  // pads: centre, width, height, bottom edge
   boards: [
-    { id: "wave", title: "Highest Wave", x: -4.2, z: -14.12, w: 7.4, h: 4.6, y: 1.6 },
-    { id: "kills", title: "Total Kills", x: 4.2, z: -14.12, w: 7.4, h: 4.6, y: 1.6 },
+    { id: "wave", title: "Highest Wave", x: -2.65, z: -14.12, w: 5, h: 4.4, y: 1.3 },
+    { id: "kills", title: "Total Kills", x: 2.65, z: -14.12, w: 5, h: 4.4, y: 1.3 },
   ],
 };
 
@@ -135,10 +136,10 @@ function buildHub(api) {
   })();
   const floor = add(new THREE.PlaneGeometry(W - 1.2, D - 1.2), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.42, metalness: 0.05 }), 0, 0.004, 0, { shadow: false });
   floor.rotation.x = -Math.PI / 2;
-  const walk = add(new THREE.PlaneGeometry(4, 15), new THREE.MeshStandardMaterial({ color: 0x5f7bb0, roughness: 0.5 }), 0, 0.008, 6.5, { shadow: false });
+  const walk = add(new THREE.PlaneGeometry(4, 27.6), new THREE.MeshStandardMaterial({ color: 0x5f7bb0, roughness: 0.5 }), 0, 0.008, 0.2, { shadow: false });
   walk.rotation.x = -Math.PI / 2;
   for (const dx of [-2.1, 2.1]) {
-    const edge = add(new THREE.PlaneGeometry(0.18, 15), new THREE.MeshStandardMaterial({ color: 0xf6d23a, roughness: 0.5 }), dx, 0.01, 6.5, { shadow: false });
+    const edge = add(new THREE.PlaneGeometry(0.18, 27.6), new THREE.MeshStandardMaterial({ color: 0xf6d23a, roughness: 0.5 }), dx, 0.01, 0.2, { shadow: false });
     edge.rotation.x = -Math.PI / 2;
   }
 
@@ -148,8 +149,8 @@ function buildHub(api) {
 
   // ---- the board wall: a dark backing either side of a lit window
   const backing = std(0x1a2440);
-  add(new THREE.BoxGeometry(17.6, 5.6, 0.2), backing, 0, 1.1 + 2.8, -14.3, { shadow: false });
-  add(new THREE.BoxGeometry(18.4, 0.25, 0.4), std(0xf08a24), 0, 6.85 - 0.1, -14.25, { shadow: false });
+  add(new THREE.BoxGeometry(11.2, 5.4, 0.2), backing, 0, 0.9 + 2.7, -14.3, { shadow: false });
+  add(new THREE.BoxGeometry(11.8, 0.25, 0.4), std(0xf08a24), 0, 6.3, -14.25, { shadow: false });
 
   // ---- the pads: a dark deck, a glowing rim, glass sides you can't walk through
   const deck = std(0x2c3140, { roughness: 0.4, metalness: 0.3 });
@@ -207,7 +208,8 @@ function buildHub(api) {
     const m = add(new THREE.PlaneGeometry(len, 0.25), new THREE.MeshStandardMaterial({ map: t, roughness: 0.7 }), x, 0.012, z, { shadow: false });
     m.rotation.set(-Math.PI / 2, 0, rotY);
   };
-  stripe(0, -2.8, 33);
+  stripe(-11.7, -3.2, 13.4);
+  stripe(11.7, -3.2, 13.4);
   stripe(HUB.private.x + HUB.private.w / 2 + 0.35, HUB.private.z, HUB.private.d, Math.PI / 2);
 
   // ---- crates: stacks in the corners and between the kiosks
@@ -220,7 +222,7 @@ function buildHub(api) {
   crate(-17.6, -12.6); crate(-17.6, -10.3); crate(-17.6, -12.6, 2.2, 2.2); crate(-15.3, -12.6);
   crate(17.6, -12.6); crate(17.6, -10.3); crate(17.6, -12.6, 2.2, 2.2); crate(15.3, -12.6);
   crate(17.4, 13); crate(-17.4, 13); crate(-17.4, 13, 1.6, 2.2);
-  crate(-9.4, -13.2, 1.6); crate(9.4, -13.2, 1.6);
+  crate(-7.2, -13.2, 1.6); crate(7.2, -13.2, 1.6);
 
   // ---- kiosks: a counter, a tilted screen, a sign overhead
   const counter = std(0x2d3a58, { metalness: 0.3, roughness: 0.45 });

@@ -99,6 +99,18 @@ check(wa.room === HUBROOM && wb.room === HUBROOM, "on the private hub code", `${
 const signs = await R(a, () => Object.keys(window.__trollHub.signs() || {}).length);
 check(signs === 5, "five pad signs", String(signs));
 check(await R(a, () => !document.querySelector(".zhb")?.hidden), "the hub HUD shows");
+// the boards: this week's Zombies rows, best wave and kills summed per player
+await R(a, () => window.__trollHub.setBoardRows([
+  { user_id: "u1", username: "grinlord", meta: { mode: "zombies", wave: 12, kills: 140 } },
+  { user_id: "u1", username: "grinlord", meta: { mode: "zombies", wave: 9, kills: 90 } },
+  { user_id: "u2", username: "pepe_enjoyer", meta: { mode: "zombies", wave: 15, kills: 60 } },
+]));
+const tally = await R(a, () => window.__trollHub.boards());
+check(tally.wave[0][0] === "pepe_enjoyer" && tally.wave[0][1] === 15 && tally.kills[0][0] === "grinlord" && tally.kills[0][1] === 230,
+  "boards: best wave, kills summed", JSON.stringify(tally));
+await R(a, () => { const T = window.__trollOps; T.move.pos.set(0, T.move.pos.y, -2); T.look.yaw = 0; T.look.pitch = 0.12; });
+await sleep(800);
+await a.screenshot({ path: path.join(SHOTS, `zhub-boards${TAG}.png`) });
 await stand(a, "floor"); await stand(b, "floor");
 await sleep(600);
 await a.screenshot({ path: path.join(SHOTS, `zhub-floor${TAG}.png`) });
@@ -126,7 +138,9 @@ const ra = await where(a), rb = await where(b);
 check(ra.mode === "zombies" && rb.mode === "zombies", "both left for Zombies", `${ra.mode} / ${rb.mode}`);
 check(ra.room === rb.room && ra.room !== HUBROOM && /^[A-Z0-9]{5}$/.test(ra.room || ""), "on one fresh code", `${ra.room} / ${rb.room}`);
 check(ra.map === "Hollowgrin" && rb.map === "Hollowgrin", "on Hollowgrin", `${ra.map} / ${rb.map}`);
-const roles = await Promise.all([a, b].map((p) => R(p, () => { const c = window.__trollOps.zrun().coop.coop; return { on: c.on, host: c.host }; })));
+const rolesOf = () => Promise.all([a, b].map((p) => R(p, () => { const c = window.__trollOps.zrun().coop.coop; return { on: c.on, host: c.host }; })));
+let roles = await rolesOf();
+for (let i = 0; i < 40 && roles[0].host === roles[1].host; i++) { await sleep(250); roles = await rolesOf(); }
 check(roles[0].on && roles[1].on && roles[0].host !== roles[1].host, "co-op, one host", JSON.stringify(roles));
 
 // ---- 4. back to the hub

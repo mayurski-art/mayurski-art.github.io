@@ -219,8 +219,17 @@ function buildScene() {
     group.add(s.mesh);
     signs.set(p.id, s);
   }
+  const boards = new Map();
+  for (const b of HUB.boards) {
+    const s = canvasPlane(b.w, b.h, 1024, Math.round(1024 * b.h / b.w));
+    s.mesh.position.set(b.x, b.y + b.h / 2, b.z);
+    group.add(s.mesh);
+    boards.set(b.id, s);
+  }
   mapRoot.add(group);
-  built = { group, signs, mapRoot };
+  built = { group, signs, boards, mapRoot };
+  board.drawn = "";
+  refreshBoards();
 }
 
 function disposeScene() {
@@ -260,6 +269,115 @@ function drawSign(s, lines) {
     });
   });
   s.tex.needsUpdate = true;
+}
+
+/* ------------------------------------------------------------ the boards */
+
+// Highest Wave and Total Kills, this week. Every Zombies run is filed as a
+// troll-ops row (match-end.js finishRun, TrollrunnerAccounts.reportGameResult:
+// meta { mode: "zombies", wave, kills }), so the boards read this week's rows
+// and add them up per player: the best wave, the kills summed. Guests aren't
+// filed, and with no backend the boards just say so.
+const BOARD_EVERY = 60000;   // ms between re-reads
+const BOARD_ROWS = 10;
+const board = { rows: null, at: 0, busy: false, drawn: "", error: false };
+
+async function refreshBoards() {
+  if (board.busy) return;
+  const sb = window.TrollrunnerAccounts?.getClient?.();
+  const LB = window.TrollLeaderboard;
+  if (!sb || !LB?.weekWindow) { board.rows = board.rows || []; board.at = performance.now(); return; }
+  board.busy = true;
+  try {
+    const { start, end } = LB.weekWindow();
+    const { data, error } = await sb.from("troll_leaderboard_view")
+      .select("user_id,username,meta")
+      .eq("game_id", "troll-ops")
+      .eq("meta->>mode", "zombies")
+      .gte("achieved_at", start.toISOString())
+      .lt("achieved_at", end.toISOString())
+      .limit(2000);
+    if (error) throw error;
+    board.rows = data || [];
+    board.error = false;
+  } catch (err) {
+    console.warn("[zombies hub] boards", err);
+    board.error = true;
+    board.rows = board.rows || [];
+  } finally {
+    board.busy = false;
+    board.at = performance.now();
+  }
+}
+
+/* Per player: best wave, kills summed; top ten each way. */
+function tally(rows) {
+  const by = new Map();
+  for (const r of rows || []) {
+    const m = r.meta || {};
+    let u = by.get(r.user_id);
+    if (!u) by.set(r.user_id, u = { name: r.username || "troll", wave: 0, kills: 0 });
+    u.wave = Math.max(u.wave, +m.wave || 0);
+    u.kills += +m.kills || 0;
+  }
+  const all = [...by.values()];
+  return {
+    wave: all.filter((u) => u.wave > 0).sort((a, b) => b.wave - a.wave || b.kills - a.kills).slice(0, BOARD_ROWS).map((u) => [u.name, u.wave]),
+    kills: all.filter((u) => u.kills > 0).sort((a, b) => b.kills - a.kills).slice(0, BOARD_ROWS).map((u) => [u.name, u.kills]),
+  };
+}
+
+/* One board, the reference's: a navy panel, the title, "Weekly · Ends in",
+   then rank, player and the number down the page. */
+function drawBoard(s, title, unit, rows, ends) {
+  const { g, c } = s;
+  const W = c.width, H = c.height;
+  g.clearRect(0, 0, W, H);
+  g.fillStyle = "#0d1733"; g.beginPath(); g.roundRect(6, 6, W - 12, H - 12, 22); g.fill();
+  g.lineWidth = 10; g.strokeStyle = "#1f2f5c"; g.stroke();
+  g.textBaseline = "middle"; g.lineJoin = "round";
+  const text = (t, x, y, size, col, align = "left", weight = 700) => {
+    g.font = `${weight} ${size}px "Oswald", "DM Sans", sans-serif`;
+    g.textAlign = align;
+    g.lineWidth = Math.max(4, size / 7); g.strokeStyle = "#050a18"; g.strokeText(t, x, y);
+    g.fillStyle = col; g.fillText(t, x, y);
+  };
+  text(title, W / 2, 66, 74, "#ffffff", "center");
+  text("Weekly", 48, 136, 40, "#ffffff");
+  text(`Ends: ${ends}`, W - 48, 136, 40, "#7dff4f", "right");
+  g.fillStyle = "rgba(255,255,255,.14)"; g.fillRect(40, 168, W - 80, 3);
+  text("Rank", 48, 198, 28, "#9fb0d8", "left", 600);
+  text("Player", 170, 198, 28, "#9fb0d8", "left", 600);
+  text(unit, W - 48, 198, 28, "#9fb0d8", "right", 600);
+  const top = 250, step = Math.min(62, (H - top - 30) / BOARD_ROWS);
+  if (!rows.length) {
+    text(board.error ? "Board's down. Back soon." : "No runs yet this week.", W / 2, top + step * 3, 40, "#cfd8f0", "center", 600);
+    text("Be the first on it.", W / 2, top + step * 4.2, 34, "#ffd84a", "center", 600);
+  }
+  const RANK = ["#ffd84a", "#d9e2f2", "#e8a35c"];
+  rows.forEach(([name, n], i) => {
+    const y = top + step * i;
+    if (i % 2 === 0) { g.fillStyle = "rgba(255,255,255,.05)"; g.fillRect(40, y - step / 2, W - 80, step); }
+    text(`#${i + 1}`, 48, y, 42, RANK[i] || "#ffffff");
+    let nm = String(name);
+    g.font = `600 42px "Oswald", "DM Sans", sans-serif`;
+    while (nm.length > 3 && g.measureText(nm).width > W - 440) nm = nm.slice(0, -1);
+    text(nm === String(name) ? nm : `${nm.slice(0, -1)}.`, 170, y, 42, "#ffffff", "left", 600);
+    text(Math.round(n).toLocaleString(), W - 48, y, 42, "#ffffff", "right");
+  });
+  s.tex.needsUpdate = true;
+}
+
+function updateBoards() {
+  if (!built) return;
+  if (performance.now() - board.at > BOARD_EVERY) refreshBoards();
+  const ends = window.TrollLeaderboard?.timeLeft?.() || "Monday";
+  const t = tally(board.rows);
+  const key = JSON.stringify([t, ends, board.error]);
+  if (key === board.drawn) return;
+  board.drawn = key;
+  drawBoard(built.boards.get("wave"), "Highest Wave", "Wave", t.wave, ends);
+  drawBoard(built.boards.get("kills"), "Total Kills", "Kills", t.kills, ends);
 }
 
 function updateSigns() {
@@ -414,6 +532,7 @@ export function updateHub(dt) {
     if (hub.holdT >= HUB_T.holdStart || (!isPrivate && (party.members.length >= PARTY_MAX || roomNow() >= party.ends))) go(hub.pad);
   }
   updateSigns();
+  updateBoards();
   updateUi(dt, party || { members: [], owner: null });
 }
 
@@ -454,6 +573,9 @@ export function hubDebug() {
     under: padUnderFoot,
     inviteUrl,
     endRun: (reason = "dead") => game.endGame(reason),
+    // fake this week's rows (no backend in tests)
+    setBoardRows: (rows) => { board.rows = rows; board.at = performance.now(); board.error = false; },
+    boards: () => tally(board.rows),
     state: () => game.gameState,
     input: () => ({ pauseOnly: !!game.localPauseOnly, x: game.keys.has("KeyX") }),
   };
