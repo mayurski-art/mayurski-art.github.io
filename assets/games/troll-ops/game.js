@@ -2432,7 +2432,7 @@ function animate() {
         }
         net.update(dt, netSnapshot());
         remotes.sync(net.peers);
-        remotes.update(dt, net.team, !!currentMode().ffa);
+        remotes.update(dt, net.team, !!currentMode().ffa, camera.position);   // a crowd's LOD, in the sky lobby too
         updateRemoteSabers();
       }
     } else if (isRange()) {
@@ -2691,6 +2691,7 @@ function animate() {
   // The BO2 menu's planet (menu-bo2.js) covers the whole lobby: skip
   // drawing the arena nobody can see behind it.
   // Nor anything under the loading screen until the match is set up there.
+  ssao.enabled = GFX[gfxTier()].ssao && !remotes.crowd;   // a crowd (Troll Royale): SSAO redraws every troll
   if (!(gameState === "menu" && (document.body.classList.contains("to-bo2-cover") || loadScreen.isOpen))) composer.render();
 
   // The FP viewmodel (gun+arms) only makes sense in first person — the gun

@@ -873,6 +873,26 @@ export class RemotePlayer {
     });
   }
 
+  /* Gun detail for a troll in a crowd (RemotePlayers' LOD): past
+     CROWD_DETAIL its gun keeps only its big pieces. A gun is a dozen small
+     meshes, most of a troll's draw calls, and at that range they're a few
+     pixels (user, 2026-10-12: Troll Royale lags from the moment the bots
+     spawn; 99 trolls were ~3,800 draw calls a frame). */
+  setDetail(on) {
+    const m = this.weaponMesh;
+    if (!m || (this.detailOn === on && this.detailMesh === m)) return;
+    this.detailOn = on;
+    this.detailMesh = m;
+    m.traverse((o) => {
+      if (!o.isMesh || o === m) return;
+      const g = o.geometry;
+      const tris = g ? (g.index ? g.index.count : g.attributes.position?.count || 0) / 3 : 0;
+      if (tris >= SMALL_PART) return;
+      if (!on) { o.userData.lodWas ??= o.visible; o.visible = false; }
+      else if (o.userData.lodWas !== undefined) { o.visible = o.userData.lodWas; delete o.userData.lodWas; }
+    });
+  }
+
   /* Where a shot at this player should be reported from. */
   centre(out = new THREE.Vector3()) {
     return out.set(this.pos.x, this.pos.y + 1.1 - this.lower * 0.5, this.pos.z);
@@ -914,6 +934,9 @@ function lerpAngle(a, b, k) {
 
 /* Owns the set of remote players and keeps it in sync with Net's peer map. */
 const FAR_HIDE = 150;   // metres: a crowd's trolls past this aren't drawn
+const CROWD_SHADOW = 15;   // metres: a crowd's trolls past this cast no shadow
+const CROWD_DETAIL = 20;   // metres: past this a crowd's guns lose their small parts
+const SMALL_PART = 60;     // triangles: a gun part this small is "small"
 
 export class RemotePlayers {
   constructor(scene) {
@@ -936,13 +959,16 @@ export class RemotePlayers {
      shadow. Small rooms pose everyone every frame, as before. */
   update(dt = 0.016, myTeam = null, ffa = false, eye = null) {
     const lod = !!eye && this.byId.size > 24;
+    // game.js reads it: SSAO is off in a crowd (it redraws every troll).
+    this.crowd = lod;
     this.frame = (this.frame || 0) + 1;
     let i = 0;
     for (const rp of this.byId.values()) {
       i++;
-      if (!lod) { rp.setShadow(true); rp.update(dt, myTeam, ffa); rp.syncBody(); continue; }
+      if (!lod) { rp.setShadow(true); rp.setDetail(true); rp.update(dt, myTeam, ffa); rp.syncBody(); continue; }
       const d2 = (rp.pos.x - eye.x) ** 2 + (rp.pos.z - eye.z) ** 2;
-      rp.setShadow(d2 < 40 * 40);
+      rp.setShadow(d2 < CROWD_SHADOW * CROWD_SHADOW);
+      rp.setDetail(d2 < CROWD_DETAIL * CROWD_DETAIL);
       const every = d2 > 100 * 100 ? 4 : d2 > 40 * 40 ? 2 : 1;
       rp.lodDt = (rp.lodDt || 0) + dt;
       if ((this.frame + i) % every) continue;
