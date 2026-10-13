@@ -4,7 +4,6 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
-import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1";
@@ -136,6 +135,7 @@ import { atPiano, bar, barSipK, docSpots, holdSeat, npcYieldKey, onBarMessage, p
 import { SWIVEL_TAP, localBlockT, localHeld, localLower, localReloadK, noteLocalDeath, noteRigShot, placeDeathCamera, swivel, swivelK, swivelTaps, syncLocalRigHeld, trySwivel, updateEmoteCamera, updateLocalRig, updateSwivel, updateThirdPersonCamera } from "./view/third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-bk1-cw1-fj1-zr9";
 import { endCandleCharge, hudCache, regenPlayer, updatePlayer, initPlayerUpdate } from "./view/player-update.js?v=pu1-si1-mb1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9";
 import { _armDir, _armFrom, _armTo, _meleeViewE, _meleeViewQ, applyMeleeInspect, applyReaperInspect, inspectArms, inspectDur, inspectPose, inspectProgress, landDipMag, landDipT, meleeHands, pfArms, placeRodWatch, poseMeleeArms, poseSaberArms, restoreMeleeHands, startInspect, stretchBetween, updateWeaponView, initWeaponView } from "./view/weapon-view.js?v=wv1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9";
+import { makeSsao } from "./view/ssao.js?v=ao1";
 import { fpEmoteArmsOn, poseFreeArms, socialArms, updateFpEmoteView } from "./view/fp-emote.js?v=fe1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9";
 import { STREAK_SHOULDER, WHISTLE_BLOW_AT, WHISTLE_HAND, WHISTLE_HOLD, WHISTLE_ROT, hideStreakArms, streakArms, updateStreakView, initStreakView } from "./view/streak-view.js?v=sv1-si1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9";
 import { SAW_REV_TIME, sawInspectRev, sawShake, updateMeleeView } from "./view/melee-view.js?v=mv1-si1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9";
@@ -1837,11 +1837,7 @@ initMinimap();
 // graphics tier (applyGraphics: MSAA_SAMPLES).
 const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }));
 composer.addPass(new RenderPass(scene, camera));
-const ssao = new SSAOPass(scene, camera, 1, 1);
-ssao.kernelRadius = 0.6;
-ssao.minDistance = 0.001;
-ssao.maxDistance = 0.15;
-ssao.output = SSAOPass.OUTPUT.Default;
+const ssao = makeSsao(scene, camera);
 composer.addPass(ssao);
 const BLOOM_DEFAULT = { strength: 0.55, radius: 0.5, threshold: 1.2 };   // 0.82 haloed every sunlit trollface; a map can override (applyEnvironment)
 const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), BLOOM_DEFAULT.strength, BLOOM_DEFAULT.radius, BLOOM_DEFAULT.threshold);
