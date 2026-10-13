@@ -210,6 +210,15 @@ const BITE_GRACE = 0.5;       // m
 // Zombies turn toward where they're going instead of snapping to it
 // (P7): this much of the way each second, the short way round.
 const TURN_RATE = 7;
+// A heavy hit (a headshot, or a quarter of its health in one) staggers it
+// (P7): a longer stop and a shove back along the shot. Brutes and bosses
+// (noStagger) shrug it off.
+const STAGGER = 0.08;          // s, any hit
+const HEAVY_STAGGER = 0.35;    // s
+const HEAVY_SHOVE = 2.2;       // m/s back along the shot
+const HEAVY_EVERY = 1.2;       // s: at most this often, or an SMG's headshots would pin it
+const heavyHit = (z, dmg, isHead) => !z.type.noStagger && (isHead || dmg >= z.maxHp * 0.25)
+  && performance.now() - (z.heavyAt || -Infinity) > HEAVY_EVERY * 1000;
 const CLIMB_GIVE_UP = 9;      // seconds on a stair before re-thinking the route
 const BLOCKER_REACH = 0.2;    // metres from a deployable's box it stops and swings (up against it: on the spikes)
 
@@ -308,12 +317,15 @@ export class Zombie {
     if (this.proxy) {
       // the host's to decide: the hit goes to it, and the bar drops now
       this.hp = Math.max(1, this.hp - dmg);
-      if (!this.type.noStagger) this.staggerT = 0.08;
+      if (!this.type.noStagger) this.staggerT = heavyHit(this, dmg, isHead) ? HEAVY_STAGGER : STAGGER;
       zombieWire.hit?.(this, dmg, isHead);
       return { killed: false, cash: 0 };
     }
+    const heavy = heavyHit(this, dmg, isHead);
+    if (heavy) this.heavyAt = performance.now();
     this.hp -= dmg;
-    if (!this.type.noStagger) this.staggerT = 0.08;
+    if (!this.type.noStagger) this.staggerT = heavy ? HEAVY_STAGGER : STAGGER;
+    this.shove = heavy && this.hp > 0;   // flinchFrom, next, knows which way
     if (this.hp > 0) return { killed: false, cash: 0 };
     this.dying = true;
     // a headshot kill pops the head instead (no throat left to gurgle with)
@@ -348,6 +360,13 @@ export class Zombie {
     if (!this.body || this.dying) return;
     strength *= this.type.flinch ?? 1;   // a brute barely rocks
     const len = Math.hypot(dir.x, dir.z) || 1;
+    if (this.shove) {
+      // a heavy hit: knocked back a step, and it rocks further
+      this.shove = false;
+      this.velocity.x = (dir.x / len) * HEAVY_SHOVE;
+      this.velocity.z = (dir.z / len) * HEAVY_SHOVE;
+      strength *= 1.7;
+    }
     // axis up x dir: a turn about it tips the top toward where the shot went
     this.flinch.x += (dir.z / len) * 0.32 * strength;
     this.flinch.z += (-dir.x / len) * 0.32 * strength;

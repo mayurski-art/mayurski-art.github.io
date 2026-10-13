@@ -5,6 +5,8 @@
 //   2. Out of reach in time: back off as it swings and the hit misses.
 //   3. Turning: a zombie facing away from where it walks turns round over a
 //      few frames, not in one.
+//   4. A heavy hit (a quarter of its health) staggers it back along the
+//      shot; a second one straight after is only a flinch.
 //
 //   NODE_PATH=<checkout>/node_modules node tools/troll-ops-zanim-test.mjs
 import http from "node:http"; import fs from "node:fs"; import path from "node:path";
@@ -101,6 +103,31 @@ const turn = await page.evaluate(async () => {
   return { early, late: off() };
 });
 check(turn.early > 0.6 && turn.late < 0.35, "zombies turn round, they don't snap", JSON.stringify(turn));
+
+/* 4. a heavy hit, the way combat/weapons.js lands one: takeDamage, then the flinch */
+const stag = await page.evaluate(async () => {
+  const T = window.__trollOps;
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const z = T.zdir().zombies.find((q) => q.alive && !q.dying && q.body && q.riseT <= 0 && !q.type.noStagger);
+  const p = T.move.pos;
+  z.mesh.position.set(p.x + 6, z.groundY, p.z);
+  z.stunT = 0; z.bite = null; z.heavyAt = -Infinity;
+  await wait(300);
+  const d0 = Math.hypot(z.mesh.position.x - p.x, z.mesh.position.z - p.z);
+  const dir = { x: z.mesh.position.x - p.x, y: 0, z: z.mesh.position.z - p.z };
+  z.hp = z.maxHp;
+  z.takeDamage(z.maxHp * 0.3, false);
+  z.flinchFrom(dir, 0.5);
+  const first = z.staggerT;
+  await wait(250);
+  const d1 = Math.hypot(z.mesh.position.x - p.x, z.mesh.position.z - p.z);
+  z.hp = z.maxHp;
+  z.takeDamage(z.maxHp * 0.3, false);
+  const second = z.staggerT;
+  return { first, second, d0, d1 };
+});
+check(stag.first > 0.3 && stag.d1 > stag.d0, "a heavy hit staggers it back", JSON.stringify(stag));
+check(stag.second < 0.1, "a second heavy hit straight after is only a flinch", JSON.stringify(stag));
 
 check(!errors.length, "no page errors", errors.slice(0, 4).join(" | "));
 await browser.close();
