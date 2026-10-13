@@ -4,7 +4,8 @@
 // player's hands).
 //   1. pad: left stick walks, right stick turns, then every button once
 //   2. touch: move stick walks, look pad turns, then every on-screen button
-//   3. aim assist: a target finder runs and returns a lock or nothing
+//   3. aim assist: a target finder runs and returns a lock or nothing; a
+//      mouse gets no pull, a thumb does; every gun's recoil is at 70%
 //   4. no page errors anywhere
 //
 // Supabase is blocked: this never joins the live public room.
@@ -149,6 +150,56 @@ const aa = await page.evaluate(() => {
   return { pts: pts.length, ok: t === null || typeof t === "object" };
 });
 check("aim assist: finds points and runs", aa.pts > 0 && aa.ok, `${aa.pts} points`);
+// Mouse vs thumb (user, 2026-10-13: none on a mouse as in Phantom Forces,
+// Call of Duty's on a pad and a thumb): a still plate 3 degrees off the
+// reticle, up in the air where no bot is. The mouse "moving" gets no pull;
+// a thumb on the look pad does.
+const drift = await page.evaluate(async () => {
+  // the game object itself (same URL and tag as the game imports: one instance)
+  const { game: T } = await import("/assets/games/troll-ops/core/state.js?v=st1");
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const saved = T.rangeSet;
+  const setUp = () => {
+    T.look.yaw = 0.4; T.look.pitch = 0.6;
+    T.camera.updateMatrixWorld();
+    const o = T.camera.getWorldPosition(T.camera.position.clone());
+    const yaw = T.look.yaw + 3 * Math.PI / 180, pitch = T.look.pitch, d = 4;
+    const at = { x: o.x - Math.sin(yaw) * Math.cos(pitch) * d, y: o.y + Math.sin(pitch) * d, z: o.z - Math.cos(yaw) * Math.cos(pitch) * d };
+    // aim-assist.js aims a plate at pivot + 0.9 + 1.7 * 0.34
+    T.rangeSet = { targets: [{ down: 0, mesh: { position: { x: at.x, y: at.y - (0.9 + 1.7 * 0.34), z: at.z } } }] };
+  };
+  const run = async (steer, ms = 700) => {
+    setUp();
+    const y0 = T.look.yaw;
+    const t0 = performance.now();
+    while (performance.now() - t0 < ms) { steer(); await wait(16); }
+    return Math.abs(T.look.yaw - y0);
+  };
+  T.settings.aimAssist = true;
+  // assist only runs for a live player (the touch pass above can leave us dead)
+  if (!T.player.alive) { window.__trollOps.respawnPlayer(); await wait(300); }
+  const locked = T.controls.isLocked;
+  T.controls.isLocked = true;
+  const mouse = await run(() => { T.mouseLookAt = performance.now(); });
+  T.controls.isLocked = locked;
+  setUp();
+  const dbg = { alive: T.player.alive, staging: T.isStaging(), lock: !!window.__trollOps.findAimAssistTarget(), pts: window.__trollOps.aimAssistPoints().length };
+  const thumb = await run(() => { T.touchState.looking = true; });
+  T.touchState.looking = false;
+  T.rangeSet = saved;
+  return { mouse, thumb, dbg };
+});
+check("aim assist: none on a mouse", drift.mouse < 0.002, JSON.stringify(drift));
+check("aim assist: a thumb still gets pulled onto the target", drift.thumb > 0.01, JSON.stringify(drift));
+
+// Recoil: every gun's kick is RECOIL_SCALE (0.7) of what it lists
+const rc = await page.evaluate(async () => {
+  const W = await import("/assets/games/troll-ops/weapons.js?probe");
+  // the MTAR lists no kick of its own: it takes the assault class's 0.021
+  return { scale: W.RECOIL_SCALE, mtar: W.WEAPON_DEFS.kek.recoilKickPitch };
+});
+check("recoil: every gun kicks at 70%", rc.scale === 0.7 && Math.abs(rc.mtar - 0.021 * 0.7) < 1e-9, JSON.stringify(rc));
+
 
 await sleep(1000);
 check("still playing, no page errors at all", (await read()).state === "playing" && errors.length === 0, errors.slice(0, 3).join(" | "));

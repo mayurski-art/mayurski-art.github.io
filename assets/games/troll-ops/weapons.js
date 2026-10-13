@@ -182,8 +182,18 @@ export const CLASS_ORDER = ["assault", "carbine", "pdw", "battle", "sniper", "lm
 /* What the Secondary slot offers (the FHJ-18 is a launcher). */
 export const SECONDARY_CLASSES = ["sidearm", "launcher"];
 
+/* Every gun's recoil kick, scaled at once (user, 2026-10-13: a tester
+   found the recoil too much; 1 = as each gun lists it). The climb you pull
+   down, the camera kick and the gun's punch in your hands all follow it;
+   attachments still trim each gun from there. */
+export const RECOIL_SCALE = 0.7;
+
 function mk(cls, o) {
-  return { ...COMMON, ...CLASS_BASE[cls], ...o, cls };
+  const d = { ...COMMON, ...CLASS_BASE[cls], ...o, cls };
+  d.recoilKickPitch *= RECOIL_SCALE;
+  d.recoilKickYaw *= RECOIL_SCALE;
+  d.recoilKickYawRand *= RECOIL_SCALE;
+  return d;
 }
 
 export const WEAPON_DEFS = {
