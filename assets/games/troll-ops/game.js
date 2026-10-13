@@ -69,6 +69,7 @@ import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, ink
 import { FlowField } from "./nav.js?v=ti1-bs1b7d";
 import { ZombieDirector, goreStandIns } from "./zombies.js?v=zr4c-sb2b7b7dc2f1m1u-gt1-gt2-zr5-zr6-zr7-zr8-zr9-zr10";
 import { deployClick, nextZombieWave, onZombieMessage, startZombieRun, stopZombieRun, updateZombieRun, zombieDowned, zombieHit, zombieRunDebug } from "./modes/zombies/run.js?v=zr6-zr7-zr8-zr9-zr10";
+import { updateHub } from "./modes/zombies/hub.js?v=zh1";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
 import { ImpactFx } from "./impact-fx.js?v=zr4";
 import { LightPool } from "./light-pool.js";
@@ -297,6 +298,7 @@ linkGame({
   isRoyale,
   isSnd,
   isSocial,
+  isHub,
   isStaging,
   get isTouch() { return isTouch; },
   isTrollRunner,
@@ -1015,7 +1017,7 @@ const BOT_TARGET = MAX_PLAYERS;   // a PvP room is padded with bots up to 22; ea
 // public server for their mode, instead of each getting their own random
 // room. Only overflow into a numbered shard (QTDM2, QTDM3, ...) once the
 // base room is genuinely full of real people — see joinQuickplay().
-const QUICKPLAY_BASE = { umb: "QUMB", tdm: "QTDM", koth: "QKOH", oitc: "QOTC", gungame: "QGUN", snd: "QSND", infection: "QINF", royale: "QTRR", social: "QSOC" };
+const QUICKPLAY_BASE = { umb: "QUMB", tdm: "QTDM", koth: "QKOH", oitc: "QOTC", gungame: "QGUN", snd: "QSND", infection: "QINF", royale: "QTRR", social: "QSOC", zhub: "QZHB" };
 const QUICKPLAY_MAX_SHARDS = 9;
 let roomIsCustom = false;   // true once the player types a code or asks for a new one
 /* The room's map, as its host told us before our match began (onStage). */
@@ -1102,6 +1104,8 @@ function isView() { return !!currentMode().view; }
    itself, which stays a Socialize room while the owner has it playing a
    real mode (see switchRoomMode). */
 function isSocial() { return !!currentMode().social; }
+/* The Zombies hub (MODES.zhub): a Socialize room that's never switched. */
+function isHub() { return !!currentMode().hub; }
 /* The hangout's empty hands. The owner (user: "troll_runner should not
    have any restriction" in Socialize) keeps the whole loadout there, guns,
    melee and throwables, except while a drink or a seat has the hands. */
@@ -2530,7 +2534,8 @@ function animate() {
         else if (a.e.hitbox && a.e.hp > 0) targetMeshes.push(a.e.hitbox);
       }
 
-      if (isSocial()) { updateBar(dt); townNpcs?.update(dt, camera.position, audio); }   // the hangout: the saloon bar owns hold X; the townsfolk
+      if (isHub()) updateHub(dt);   // the Zombies hub: pads, signs, hold X to start (modes/zombies/hub.js)
+      else if (isSocial()) { updateBar(dt); townNpcs?.update(dt, camera.position, audio); }   // the hangout: the saloon bar owns hold X; the townsfolk
       else if (scavengeAllowed()) { pickups.update(dt); updatePickupPrompt(dt); }
       else {
         if (pickups.drops.length) pickups.clear();

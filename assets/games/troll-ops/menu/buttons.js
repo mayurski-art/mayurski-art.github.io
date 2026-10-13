@@ -11,6 +11,7 @@ import { cancelCook } from "../combat/throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2
 import { returnToSocial, cancelSocialReturn } from "../modes/social.js?v=so1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1-th2-ar2-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10";
 import { piano } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10";
 import { clubAskOpen } from "../modes/club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10";
+import { hubReturnPending, returnToHub, forgetHubReturn, leaveHub } from "../modes/zombies/hub.js?v=zh1";
 import { game } from "../core/state.js?v=st1";
 import { dropPerks } from "../combat/perk-carry.js?v=pk1-cl1-bp1-fj1";
 
@@ -22,6 +23,8 @@ export function initMenuButtons() {
     if (game.intermissionT > 0) { game.intermissionT = 0.0001; return; }
     // Socialize room: same idea, straight back to the hangout.
     if (game.socialReturnSeq != null) { returnToSocial(); return; }
+    // A run from the Zombies hub: back to the hub (modes/zombies/hub.js).
+    if (hubReturnPending()) { returnToHub(); return; }
     game.startGame();
   });
   // Touch has no pointer lock to re-take, so Resume just closes the menu —
@@ -52,6 +55,8 @@ export function initMenuButtons() {
       renderModes();
     }
     cancelSocialReturn();
+    forgetHubReturn();
+    leaveHub();
     document.body.classList.remove("to-social", "to-social-drink");
     game.resetBar();
     game.townNpcs?.dispose();

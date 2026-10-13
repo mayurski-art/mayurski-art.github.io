@@ -85,7 +85,9 @@ export async function startGame() {
   // Socialize is the one public hangout room: never a private code. The
   // room may already be playing a mode the owner switched it to; the host
   // says so while we connect (adoptRoomMode) and modeId follows.
-  game.socialRoom = game.isSocial();
+  // The Zombies hub is a hangout too, but never switched: it takes a code
+  // like any room (a test's, an invite's), else its public room QZHB.
+  game.socialRoom = game.isSocial() && !game.isHub();
   // Zombies goes online only with a private code: co-op with whoever has it
   // (modes/zombies/coop.js). No code, solo; never a public room.
   game.zombieCoop = game.isZombies() && game.roomIsCustom && !!game.els.room.value;
@@ -97,7 +99,7 @@ export async function startGame() {
   if (game.isNet()) {
     game.els.startBtn.disabled = true;
     setNetStatus("Connecting…");
-    game.loadScreen.status(game.socialRoom ? "Finding the hangout…" : "Finding a match…");
+    game.loadScreen.status(game.isHub() ? "Finding the hub…" : game.socialRoom ? "Finding the hangout…" : "Finding a match…");
     const result = game.els.room.value && game.roomIsCustom && !game.socialRoom
       ? { code: game.els.room.value, kind: await game.net.start(game.els.room.value, { name: playerName(), mapId: game.loadout.mapId, uid: game.playerUid() }) }
       : await joinQuickplay();

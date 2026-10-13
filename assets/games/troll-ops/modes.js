@@ -199,6 +199,25 @@ MODES.social = {
   blurb: "Hang out in Troll City or at Trolling Loud with whoever is online. No guns, just emotes and chat.",
 };
 
+/* The Zombies hub (Zombie Rush P5, modes/zombies/hub.js): where Zombies
+   starts. A Socialize room on its own map (no guns, emotes and chat); stand
+   on a map's pad to make a squad of up to four, and the pad sends you all
+   into a co-op run on a fresh private code. Its own public room (QZHB),
+   never switched to a match by the owner (`hub` keeps it out of the
+   Socialize room's mode switching). */
+MODES.zhub = {
+  id: "zhub",
+  name: "Zombies",
+  short: "Zombies hub",
+  pvp: true, ffa: false,
+  social: true,
+  hub: true,
+  hidden: true,
+  noStreaks: true,
+  forceMap: "zhub",
+  blurb: "Walk onto a map's pad. Up to four of you go in together.",
+};
+
 /* Infection tuning. */
 export const INFECTION = {
   firstDelay: 8,          // seconds after GO before anyone is infected

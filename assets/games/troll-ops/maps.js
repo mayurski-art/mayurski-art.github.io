@@ -16,6 +16,7 @@ import { TROLLFACE_ISLAND } from "./trollface-island.js?v=hg6e";
 import { TROLLCITY } from "./trollcity.js?v=tc2-wst-sb1-rp1-dj1-fu1b7b7d-tc3-cd1-sh1-zr10";
 import { TROLLINGLOUD } from "./trollingloud.js?v=tl4-fu1c1c2f1m1-tc3-nc1-cd1-sh1-sg1-cw1-zr10";
 import { GRINJUKU } from "./grinjuku.js?v=gj1";
+import { ZHUB } from "./zhub.js?v=zh1";
 import { SURFACES } from "./surface-textures.js?v=hg6e";
 import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } from "./battlefield-props.js";
 import {
@@ -1720,14 +1721,17 @@ MAPS.grinjuku = GRINJUKU;
 // Troll Royale's own map: 400 m across, far too big for the versus modes, so
 // it stays out of MAP_IDS (the vote pool).
 MAPS.trollface = TROLLFACE_ISLAND;
+// The Zombies hub (modes/zombies/hub.js): only MODES.zhub plays it.
+MAPS.zhub = ZHUB;
 
 // Prestige rewards (prestige phase 5): playable in versus only in a private
 // room you host, from this prestige on (loadout.js mapOpen). Joiners follow
 // the host onto them (game.js onStage).
 export const REWARD_MAPS = { pentagrin: 4, trollface: 8 };
 
-// Neither the zombies map nor the range is a place you pick to fight in.
-export const MAP_IDS = Object.keys(MAPS).filter((id) => id !== "pentagrin" && id !== "range" && id !== "trollface" && !id.endsWith("_wip"));
+// Neither the zombies map, the range nor the Zombies hub is a place you pick
+// to fight in.
+export const MAP_IDS = Object.keys(MAPS).filter((id) => id !== "pentagrin" && id !== "range" && id !== "trollface" && id !== "zhub" && !id.endsWith("_wip"));
 
 /* ------------------------------------------------------------------ builder */
 

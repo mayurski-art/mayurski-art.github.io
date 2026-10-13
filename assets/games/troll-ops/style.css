@@ -4085,3 +4085,49 @@ body.to-touch-play .zh.is-downed .zh-col { visibility: hidden; }
 .to-fps[data-band="good"] { color: #7fe066; }
 .to-fps[data-band="ok"] { color: #ffc94d; }
 .to-fps[data-band="bad"] { color: #ff6b5e; }
+
+/* ── Zombies hub (modes/zombies/hub.js): the chips down the left like Zombie
+   Rush's Credits / Invite Friends, the pad panel over the bottom centre. ── */
+.to-lo-modebtn[data-mode="zhub"], .to-lo-modegroup:has(+ [data-mode="zhub"]) { display: none; }
+.zhb { position: absolute; inset: 0; pointer-events: none; font-family: "Oswald", sans-serif; color: #fff; }
+.zhb[hidden], .zhb [hidden] { display: none !important; }
+.zhb-chips { position: absolute; left: 18px; top: 46%; display: flex; flex-direction: column; gap: 10px; }
+.zhb-chip {
+  display: flex; align-items: center; gap: 8px; min-width: 190px; padding: 8px 16px;
+  border-radius: 10px; border: 2px solid #3b1f05; font: 700 21px/1.1 "Oswald", sans-serif; letter-spacing: .01em;
+  color: #fff; -webkit-text-stroke: 1px #3b1f05; paint-order: stroke fill;
+  box-shadow: 0 3px 0 #3b1f05, 0 8px 18px rgba(0,0,0,.3);
+}
+.zhb-online { background: linear-gradient(#2a3a5c, #18233c); border-color: #0b1224; -webkit-text-stroke-color: #0b1224; box-shadow: 0 3px 0 #0b1224, 0 8px 18px rgba(0,0,0,.3); }
+.zhb-online-n { color: #7dff4f; }
+.zhb-dot { width: 10px; height: 10px; border-radius: 50%; background: #7dff4f; box-shadow: 0 0 8px #7dff4f; }
+.zhb-invite { pointer-events: auto; cursor: pointer; background: linear-gradient(#ffb02e, #f07a12); }
+.zhb-invite:active { transform: translateY(2px); box-shadow: 0 1px 0 #3b1f05; }
+.zhb-invite:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.zhb-pad {
+  position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); min-width: 320px; max-width: min(560px, calc(100vw - 32px));
+  padding: 10px 22px 12px; border-radius: 12px; text-align: center;
+  background: linear-gradient(rgba(27,47,110,.92), rgba(15,26,62,.92)); border: 2px solid #7fa8ff;
+  box-shadow: 0 8px 22px rgba(0,0,0,.35);
+}
+.zhb-pad-h { font-size: 28px; line-height: 1.1; color: #ffd84a; -webkit-text-stroke: 1px #060b1c; paint-order: stroke fill; }
+.zhb-pad-s { margin-top: 4px; font: 600 15px/1.3 "DM Sans", sans-serif; color: #dfe8ff; }
+.zhb-hold { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 8px; font-size: 18px; }
+.zhb-key {
+  display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 5px; border-radius: 5px;
+  background: #fff; color: #0f1a3e; font: 700 14px/1 "DM Mono", monospace;
+}
+.zhb-bar { position: relative; display: block; width: 90px; height: 8px; border-radius: 4px; background: rgba(255,255,255,.2); overflow: hidden; }
+.zhb-bar > i { position: absolute; inset: 0 auto 0 0; width: 0; background: #7dff4f; }
+.zhb-toast {
+  position: absolute; left: 50%; top: 18%; transform: translateX(-50%); max-width: calc(100vw - 32px);
+  padding: 10px 18px; border-radius: 10px; background: rgba(10,16,34,.9); border: 1px solid rgba(255,255,255,.25);
+  font: 600 16px/1.35 "DM Sans", sans-serif; text-align: center; overflow-wrap: anywhere;
+}
+@media (max-width: 900px), (max-height: 520px) {
+  .zhb-chips { top: 30%; left: 12px; gap: 7px; }
+  .zhb-chip { min-width: 0; padding: 5px 11px; font-size: 16px; }
+  .zhb-pad { bottom: 108px; padding: 7px 14px 9px; min-width: 0; }
+  .zhb-pad-h { font-size: 21px; }
+  .zhb-pad-s { font-size: 13px; }
+}

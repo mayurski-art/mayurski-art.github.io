@@ -14,6 +14,8 @@ const MODE_GROUPS = [
   // Its own group so it stays out of the Versus list (the BO2 menu reads
   // the group headings: Socialize is its own main-menu entry).
   { label: "Social", ids: ["social"] },
+  // The Zombies hub (hidden from the lists; the BO2 menu's Zombies entry)
+  { label: "Hub", ids: ["zhub"] },
 ];
 const TICK_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 

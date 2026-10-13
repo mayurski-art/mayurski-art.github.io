@@ -26,6 +26,7 @@ import { MAPS, REWARD_MAPS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-r
 import { setMapShot } from "./map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1";
 import { leaveToArcade, initExitLinks } from "./menu/exit-links.js?v=ex1-cl1";
 import { game } from "./core/state.js?v=st1";
+import { inviteLink, prepareHubEntry } from "./modes/zombies/hub.js?v=zh1";
 import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perksInTier, perkUnlocked, perkIconSvg } from "./perks.js?v=pk1-cl1-bp1-fj1";
 import { STREAK_DEFS } from "./scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1";
 
@@ -342,7 +343,7 @@ const screens = {
         { id: "public", label: "Public Match", desc: "Drop into a versus room with whoever is online. Bots fill the gaps.", go: "public" },
         { id: "social", label: "Socialize", desc: "Hang out in Troll City or at Trolling Loud with whoever is online. No guns, just emotes and chat.", go: "social" },
         { id: "solo", label: "Solo Play", desc: "Ops, Zombies or the Test Range. Just you.", go: "solo" },
-        { id: "zcoop", label: "Zombies Co-op", desc: "Up to four of you against the horde. Make a room and send the code, or type a friend's.", go: "zcoop" },
+        { id: "zombies", label: "Zombies", desc: "The hub: step on a map's pad, up to four of you go in together against the horde.", go: "zombies" },
         { id: "private", label: "Private Match", desc: "Make a room code and send it to your friends.", go: "private" },
       ],
       [
@@ -506,6 +507,16 @@ const screens = {
     // a code left over from a private room would make Zombies co-op
     enter: () => { ensureGroup("solo", "ops"); clearRoom(); },
     groups: [modeItems("solo"), [mapRow()], [deployRow("Start", "Drop in."), back("Back to the main menu.")]],
+  }),
+  /* Zombies (Zombie Rush P5): the hub, a public room with a pad per map
+     (modes/zombies/hub.js); or a room code straight into a run, the old way. */
+  zombies: () => ({
+    title: "Zombies", panel: "deploy",
+    enter: () => { ensureGroup("hub", "zhub"); prepareHubEntry(); },
+    groups: [
+      [deployRow(inviteLink ? "Join your friend" : "Enter the hub", inviteLink ? "Into the hub, on your friend's private pad." : "Walk onto a map's pad. The run starts when the timer runs out or four of you are on.")],
+      [{ id: "zcoop", label: "Room code", desc: "Skip the hub: make a room and send the code, or type a friend's.", go: "zcoop" }, back("Back to the main menu.")],
+    ],
   }),
   /* Zombies with a private code (modes/zombies/coop.js): whoever has the
      code is in the run with you, up to four. Opens with a fresh code. */
@@ -958,5 +969,8 @@ document.addEventListener("visibilitychange", () => {
   if (!backdrop || title.hidden) return;
   document.hidden ? backdrop.pause() : backdrop.resume();
 });
+
+// An invite link (?zhub=ROOM&party=CODE): open on Zombies, ready to go.
+if (inviteLink) menu.go("zombies");
 
 window.__toBo2 = { menu, get backdrop() { return backdrop; } };   // for headless tests

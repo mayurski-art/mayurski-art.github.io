@@ -20,7 +20,14 @@ import { dep, depWire, deployOffers, pickDeployable, cancelPlacing, placeDeploya
 export { deployClick } from "./deployables.js?v=zr6-zr8-zr9-zr10";
 import { bossState, bossWaveStarted, resetBosses, spawnBossNow, updateBosses } from "./boss.js?v=zr7-zr8-zr9-zr10";
 import { coop, startCoop, stopCoop, coopPreFrame, coopPostFrame, coopTargets, coopSwing, voteSkip, playerCount, roomPlayers, coopDebug, REVIVE_TIME } from "./coop.js?v=zr8-zr9-zr10";
-export { onZombieMessage } from "./coop.js?v=zr8-zr9-zr10";
+import { onZombieMessage as onCoopMessage } from "./coop.js?v=zr8-zr9-zr10";
+import { onHubMessage } from "./hub.js?v=zh1";
+
+/* Every "z" + letter message: the hub's pads (zP, zG), else the run's. */
+export function onZombieMessage(p, m) {
+  if (m.t === "zP" || m.t === "zG") onHubMessage(p, m);
+  else onCoopMessage(p, m);
+}
 
 export const FINAL_WAVE = 30;
 const BLEED_OUT = 15;           // seconds down before it's over
