@@ -26,13 +26,24 @@
 // public room (a hidden test tab once became its bot host and froze the
 // bots for real players).
 //
-// Usage: node tools/troll-ops-gate.mjs [--quick]   (--quick skips 5)
+// The standalone tests (4 and 5) run JOBS at a time once 2 and 3 are done
+// (beside them, the busy machine starved the bots' frames and failed them);
+// the bot-host test, the longest, starts first. A test that fails while
+// others ran beside it is run once more on its own: a pass there is a
+// busy-machine flake, said so in the report, not a red gate.
+//
+// Usage: node tools/troll-ops-gate.mjs [--quick] [--base <ref>] [--jobs 3]
+//   (full)    everything above, once, before the push (user, 2026-10-13)
+//   --quick   1, the page boot and 2, then only the tests for the files
+//             changed in the last commit and not yet committed (--base
+//             HEAD~3 for a task of three commits; TEST_MAP below); 3 only
+//             if maps or bots changed. The check between tasks, ~5-10 min.
 
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
-import { spawnSync } from "node:child_process";
+import { spawnSync, spawn, execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
@@ -41,8 +52,106 @@ const { chromium } = require("playwright");
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const GAME = path.join(ROOT, "assets/games/troll-ops");
-const QUICK = process.argv.includes("--quick");
+const argv = process.argv.slice(2);
+const flag = (k, d) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : d; };
+const QUICK = argv.includes("--quick");
+const BASE_REF = flag("base", "HEAD~1");
+const JOBS = Math.max(1, +flag("jobs", 3) || 3);
 const t0 = Date.now();
+let stepT = Date.now();
+const stepDone = (name) => { console.log(`   (${name}: ${Math.round((Date.now() - stepT) / 1000)}s)`); stepT = Date.now(); };
+
+/* ---------------------------------------------------------------- the tests */
+
+// The standalone tests the full gate runs.
+const INPUT_TESTS = ["troll-ops-input-test.mjs", "troll-ops-menu-test.mjs", "troll-ops-killcam-test.mjs", "troll-ops-objectives-test.mjs", "troll-ops-rope-test.mjs", "troll-ops-zcredits-test.mjs", "troll-ops-zanim-test.mjs"];
+const ROOM_TESTS = ["troll-ops-sync-test.mjs", "troll-ops-load-sync-test.mjs", "troll-ops-bot-host-test.mjs", "troll-ops-escalator-test.mjs", "troll-ops-zhub-test.mjs"];
+// the bot-host test plays a dozen two-tab matches: it gets longer
+const timeoutFor = (t) => (t === "troll-ops-bot-host-test.mjs" ? 1500000 : 600000);
+
+// --quick: which tests a changed file calls for. "bots" = step 3. Keep each
+// entry to tests that pass on main.
+const z = (...t) => t.map((x) => `troll-ops-${x}-test.mjs`);
+const TEST_MAP = [
+  [/modes\/zombies\/(credits|economy|upgrades)\.js|view\/zombies-(kiosk|thumbs)\.js/, z("zcredits", "zrun")],
+  [/modes\/zombies\/hub\.js|zhub\.js/, z("zhub")],
+  [/modes\/zombies\/coop\.js/, z("zcoop")],
+  [/modes\/zombies\/(deployables|kits)\.js|view\/zombies-bars\.js/, z("zdeploy")],
+  [/modes\/zombies\/boss\.js/, z("zboss")],
+  [/modes\/zombies\/run\.js|view\/zombies-hud\.js/, z("zrun", "zdeploy")],
+  [/troll-ops\/zombies\.js|zombie-models\.js/, z("zrun", "zanim", "zcoop")],
+  [/input\/|keyboard-mouse|gamepad|touch/, z("input")],
+  [/menu\/|menu-bo2\.js|loadout\.js|style\.css|troll-ops\.html/, z("menu")],
+  [/troll-ops\/weapons\.js|combat\/|attachments\.js|weapon-|view\/(weapon-view|viewmodels)\.js/, z("input", "killcam")],
+  [/net\.js|remote-players\.js|modes\/match-(start|end)\.js|modes\/spawns\.js/, z("sync", "load-sync")],
+  [/troll-ops\/bots\.js|troll-ops\/bot-|modes\/bot-/, [...z("bot-host"), "bots"]],
+  [/objectives|match-clock/, z("objectives")],
+  [/grinjuku|movement\.js/, z("rope")],
+  [/trollingloud/, z("escalator")],
+  [/maps\.js|map-|-layout\.js|pentagrin|hollowgrin|trollcity|grinleria|dustbowl|nav\.js/, ["bots"]],
+  [/core\/state\.js|troll-ops\/game\.js/, z("input")],
+];
+
+/* Run one test script; resolves { t, ok, fails, code, secs }. */
+function runTest(t) {
+  return new Promise((resolve) => {
+    const start = Date.now();
+    const child = spawn(process.execPath, [path.join(ROOT, "tools", t)], { cwd: ROOT, env: process.env });
+    let out = "";
+    child.stdout.on("data", (d) => { out += d; });
+    child.stderr.on("data", (d) => { out += d; });
+    const kill = setTimeout(() => child.kill(), timeoutFor(t));
+    child.on("close", (code) => {
+      clearTimeout(kill);
+      const fails = out.split("\n").filter((l) => l.startsWith("FAIL"));
+      resolve({ t, ok: code === 0 && fails.length === 0, fails, code, secs: Math.round((Date.now() - start) / 1000) });
+    });
+  });
+}
+
+/* Tests JOBS at a time; one that fails is run once more alone at the end. */
+async function runPool(tests) {
+  const queue = [...tests];
+  const results = [];
+  const worker = async () => { while (queue.length) results.push(await runTest(queue.shift())); };
+  await Promise.all(Array.from({ length: Math.min(JOBS, tests.length) }, worker));
+  for (const r of results) {
+    if (r.ok || JOBS === 1) continue;
+    const again = await runTest(r.t);
+    if (again.ok) { r.ok = true; r.retried = true; r.secs += again.secs; }
+    else if (again.fails.length) r.fails = again.fails;
+  }
+  return results;
+}
+const report = (r) => check(r.t, r.ok, r.ok ? `${r.secs}s${r.retried ? ", passed on a solo retry (failed beside other tests)" : ""}`
+  : r.fails.slice(0, 3).join(" | ") || `exit ${r.code}`);
+
+/* --quick: the tests this branch's changes call for. */
+let quickTests = [], quickBots = false;
+// (once: the parent re-runs itself under --experimental-vm-modules first)
+if (QUICK && typeof vm.SourceTextModule === "function") {
+  let changed = [];
+  try {
+    const out = execSync(`git diff --name-only ${BASE_REF} HEAD`, { cwd: ROOT, encoding: "utf8" })
+      + execSync("git diff --name-only HEAD", { cwd: ROOT, encoding: "utf8" });
+    changed = [...new Set(out.split("\n").map((l) => l.trim()).filter(Boolean))]
+      .filter((f) => /^(assets\/games\/troll-ops\/|troll-ops\.html|tools\/troll-ops-)/.test(f) && !/\.md$|\/refs\//.test(f));
+  } catch (e) { console.log(`(no diff against ${BASE_REF}: ${e.message.split("\n")[0]})`); }
+  const set = new Set();
+  const unmapped = [];
+  for (const f of changed) {
+    const own = f.match(/^tools\/(troll-ops-[\w-]+-test\.mjs)$/);   // a changed test runs itself
+    if (own) { set.add(own[1]); continue; }
+    if (f.startsWith("tools/")) continue;
+    const hits = TEST_MAP.filter(([re]) => re.test(f));
+    if (!hits.length) unmapped.push(f);
+    for (const [, ts] of hits) for (const t of ts) set.add(t);
+  }
+  quickBots = set.delete("bots");
+  quickTests = [...set].filter((t) => fs.existsSync(path.join(ROOT, "tools", t)));
+  console.log(`quick: ${changed.length} changed files since ${BASE_REF}; tests: ${quickTests.join(", ") || "none"}${quickBots ? " + the bots step" : ""}`);
+  if (unmapped.length) console.log(`  no test covers: ${unmapped.join(", ")} (the modes step still boots them)`);
+}
 let failures = 0;
 function check(name, ok, detail = "") {
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  (${detail})` : ""}`);
@@ -73,6 +182,8 @@ if (typeof vm.SourceTextModule !== "function") {
   const lc = spawnSync(process.execPath, [path.join(ROOT, "tools", "troll-ops-linkcheck.mjs")], { encoding: "utf8" });
   check("every game.X a module uses is linked (writes have setters)", lc.status === 0, `${lc.stdout}${lc.stderr}`.trim().split("\n").slice(-4).join(" | "));
 }
+
+stepDone("parse");
 
 // ---------------------------------------------------------------- server + page
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css",
@@ -160,7 +271,10 @@ for (const mode of MODES) {
     `${r.state}, map ${r.map}, ${r.bots ?? 0} bots${errors.length > before ? `, ${errors.slice(before, before + 2).join(" | ")}` : ""}`);
 }
 
+stepDone("modes");
+
 // ---------------------------------------------------------------- 3. bots
+if (!QUICK || quickBots) {
 console.log("\n== bots");
 // Every map in the vote pool (maps.js MAP_IDS, the copy game.js imports):
 // three that weren't covered froze for real players (2026-10-11).
@@ -172,30 +286,20 @@ for (const mapId of mapIds) {
   check(`${mapId}: every bot covers ground`, r.bots > 0 && r.still === 0 && r.avg > 1,
     `${r.bots} bots, avg ${r.avg.toFixed(2)} m/s, ${r.still} under 0.5 m/s over ${r.live}s`);
 }
+stepDone("bots");
+}
 
 await browser.close();
 server.close();
 
-// ---------------------------------------------------------------- 4. input
-console.log("\n== input");
-for (const t of ["troll-ops-input-test.mjs", "troll-ops-menu-test.mjs", "troll-ops-killcam-test.mjs", "troll-ops-objectives-test.mjs", "troll-ops-rope-test.mjs", "troll-ops-zcredits-test.mjs"]) {
-  const r = spawnSync(process.execPath, [path.join(ROOT, "tools", t)], { cwd: ROOT, encoding: "utf8", timeout: 600000 });
-  const out = `${r.stdout || ""}${r.stderr || ""}`;
-  const fails = out.split("\n").filter((l) => l.startsWith("FAIL"));
-  check(t, r.status === 0 && fails.length === 0, fails.slice(0, 3).join(" | ") || (r.status !== 0 ? `exit ${r.status}` : ""));
-}
+// ---------------------------------------------------------------- 4 + 5. the tests
+console.log(`\n== tests (${JOBS} at a time)`);
+const poolTests = QUICK ? quickTests : ["troll-ops-bot-host-test.mjs", ...INPUT_TESTS, ...ROOM_TESTS.filter((t) => t !== "troll-ops-bot-host-test.mjs")];
+const results = await runPool(poolTests);
+const order = (t) => poolTests.indexOf(t);
+for (const r of results.sort((a, b) => order(a.t) - order(b.t))) report(r);
+if (!poolTests.length) console.log("(none for these changes)");
+stepDone("tests");
 
-// ---------------------------------------------------------------- 5. rooms
-if (!QUICK) {
-  console.log("\n== rooms");
-  for (const t of ["troll-ops-sync-test.mjs", "troll-ops-load-sync-test.mjs", "troll-ops-bot-host-test.mjs", "troll-ops-escalator-test.mjs", "troll-ops-zhub-test.mjs"]) {
-    // The bot-host test plays a dozen two-tab matches: it gets longer.
-    const r = spawnSync(process.execPath, [path.join(ROOT, "tools", t)], { cwd: ROOT, encoding: "utf8", timeout: t === "troll-ops-bot-host-test.mjs" ? 1500000 : 600000 });
-    const out = `${r.stdout || ""}${r.stderr || ""}`;
-    const fails = out.split("\n").filter((l) => l.startsWith("FAIL"));
-    check(`${t}`, r.status === 0 && fails.length === 0, fails.slice(0, 3).join(" | ") || (r.status !== 0 ? `exit ${r.status}` : ""));
-  }
-}
-
-console.log(`\n${failures ? `GATE RED: ${failures} failed` : "GATE GREEN"} in ${Math.round((Date.now() - t0) / 1000)}s`);
+console.log(`\n${QUICK ? "QUICK " : ""}${failures ? `GATE RED: ${failures} failed` : "GATE GREEN"} in ${Math.round((Date.now() - t0) / 1000)}s`);
 process.exit(failures ? 1 : 0);

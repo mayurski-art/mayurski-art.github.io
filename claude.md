@@ -63,8 +63,12 @@ These rules hold for every session that touches the game:
 2. Never test in a public room. A tab that starts a match without a private
    room code joins the live public room and can become its bot host,
    freezing the bots for real players. Headless tests block Supabase.
-3. Run `node tools/troll-ops-gate.mjs` before every push that touches the
-   game. Red stops the push.
+3. Checks (user, 2026-10-13): between tasks, `node tools/troll-ops-gate.mjs
+   --quick` (boots every mode, then only the tests for the files changed
+   in the last commit and uncommitted; `--base HEAD~N` for a task of N
+   commits; ~5-10 min). The full `node tools/troll-ops-gate.mjs`
+   runs ONCE per session, right before the push, and only when the user
+   says to push or wrap up. Red stops the push.
 4. Bump the ?v= cache tag of every module you change, and game.js's tag in
    troll-ops.html whenever an import tag changes.
 5. A fix touches one system. Two systems = two commits, each checked with
