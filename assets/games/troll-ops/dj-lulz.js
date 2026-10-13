@@ -18,7 +18,7 @@
 // the record is at the same place for the whole room. If they leave, the
 // next oldest carries on from the last state they heard.
 
-import { BEATS } from "./music-beats.js?v=bg1-sg1";
+import { BEATS } from "./music-beats.js?v=bg1-sg1-zr10";
 
 const REVIEW_MS = 2600;        // a request sits PENDING this long
 const GAP_MS = 1600;           // silence between two records

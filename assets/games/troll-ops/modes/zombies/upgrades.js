@@ -8,11 +8,11 @@
 // "7 / ∞"), so a rebuilt gun comes back with a full mag and no reserve to
 // track.
 
-import { MELEE_DEFS, MeleeState } from "../../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9";
+import { MELEE_DEFS, MeleeState } from "../../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10";
 import { WeaponState } from "../../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1";
-import { updateGearHud } from "../../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9";
+import { updateGearHud } from "../../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10";
 import { game } from "../../core/state.js?v=st1";
-import { canAfford, spend } from "./economy.js?v=zr5-zr9";
+import { canAfford, spend } from "./economy.js?v=zr5-zr9-zr10";
 
 /* +25 max health a buy, up to 250; each buy costs half again. */
 const HP_STEP = 25;

@@ -16,8 +16,8 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { buildHumanoid } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1";
-import { buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9";
+import { buildHumanoid } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10";
+import { buildMeleeMesh, MELEE_DEFS } from "./gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10";
 import { buildHumanHand, poseHumanHand, handMaterials } from "./hand-model.js?v=to-grip2";
 
 /* Which heroes have a body so far. The rest keep the stick figure. */
