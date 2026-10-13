@@ -2118,7 +2118,6 @@ export const TROLLCITY = {
   sky: { top: 0x4f86c8, horizon: 0xf0dcb4, bottom: 0xb89a6a, sun: 1.2, sunSize: 0.035, sunColor: 0xfff0c8, haze: 0.55, clouds: 0.38, cloudColor: 0xffffff, cloudShade: 0xb8a898 },
   fog: { color: 0xdcc8a4, density: 0.0062 },
   exposure: 1.25,
-  bloom: { threshold: 0.92 },
   ground: { colorA: 0xc8a272, colorB: 0xb89260, grid: 0xb08a5a, surface: "sand", tile: 5 },
   sun: { color: 0xfff0d8, intensity: 2.7, pos: [42, 58, 30] },
   hemi: { sky: 0xb8d0ec, ground: 0xb08a5a, intensity: 1.0 },

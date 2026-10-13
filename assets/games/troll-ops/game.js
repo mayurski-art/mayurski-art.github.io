@@ -1623,7 +1623,7 @@ function applyEnvironment(map) {
   skyMat.uniforms.uCloudShade.value.set(sk.cloudShade ?? 0x8a96a6);
   renderer.toneMappingExposure = map.exposure ?? 1.5;
   // Bloom keys off the scene's linear light BEFORE tone mapping, so a map
-  // lit bright enough that plain lit surfaces pass the 0.82 default (the
+  // lit bright enough that plain lit surfaces passed the old 0.82 default (the
   // Grinleria's sunlit white marble and ice) glows all over: a white veil
   // and a blown-out rink on Medium/High. Such a map raises its threshold
   // (map.bloom) so only real lights and emissives bloom.
@@ -1843,7 +1843,7 @@ ssao.minDistance = 0.001;
 ssao.maxDistance = 0.15;
 ssao.output = SSAOPass.OUTPUT.Default;
 composer.addPass(ssao);
-const BLOOM_DEFAULT = { strength: 0.55, radius: 0.5, threshold: 0.82 };   // a map can override (applyEnvironment)
+const BLOOM_DEFAULT = { strength: 0.55, radius: 0.5, threshold: 1.2 };   // 0.82 haloed every sunlit trollface; a map can override (applyEnvironment)
 const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), BLOOM_DEFAULT.strength, BLOOM_DEFAULT.radius, BLOOM_DEFAULT.threshold);
 composer.addPass(bloom);
 const impactPass = new ShaderPass(ImpactShader);
