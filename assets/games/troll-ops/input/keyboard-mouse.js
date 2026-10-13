@@ -2,7 +2,6 @@
 // aim on the buttons, and no text selection or drag outside typing fields.
 
 import { strikeTablet } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10";
-import { AIM_ASSIST_MOUSE_SLOWDOWN } from "./aim-assist.js?v=in1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10";
 import { settings } from "../menu/settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10";
 import { lookSensScale } from "../streaks/warship.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10";
 import { charInspectorLive, menuEmoteWheel } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1";
@@ -69,10 +68,9 @@ export function initKeyboardMouse() {
     const mx = Math.max(-300, Math.min(300, e.movementX));
     const my = Math.max(-300, Math.min(300, e.movementY));
     game.mouseLookAt = performance.now();
-    // Near a target, aim assist makes the mouse a little "sticky" (see
-    // applyAimAssist) — the same slowdown the stick gets, just gentler.
-    const sticky = game.aimAssistSticky ? AIM_ASSIST_MOUSE_SLOWDOWN : 1;
-    const sens = BASE_MOUSE_SENS * (settings.sens / 100) * sticky * lookSensScale();
+    // No aim assist on a mouse, as in Phantom Forces (user, 2026-10-13):
+    // the stick and the thumb get it (input/aim-assist.js), a cursor doesn't.
+    const sens = BASE_MOUSE_SENS * (settings.sens / 100) * lookSensScale();
     look.yaw -= mx * sens;
     look.pitch += (settings.invert ? 1 : -1) * my * sens;
     look.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, look.pitch));

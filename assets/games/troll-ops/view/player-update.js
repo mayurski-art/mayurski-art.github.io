@@ -4,7 +4,7 @@
 import { updateLauncherLock } from "../combat/launcher.js?v=fj1-zr9-zr10";
 import { touchState, setTouchAds } from "../input/touch.js?v=in1-th2-bp1";
 import { currentWeapon, fireOnce, tryReload } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1";
-import { MOUSE_ACTIVE_MS, applyAimAssist, AIM_ASSIST_MOUSE_PULL } from "../input/aim-assist.js?v=in1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10";
+import { MOUSE_ACTIVE_MS, applyAimAssist } from "../input/aim-assist.js?v=in1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10";
 import { isStaging } from "../modes/match-start.js?v=mst1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1";
 import { dragonfireView, DF_ASSIST_PULL, DF_ASSIST_CONE_DEG, fireDragonfire } from "../streaks/dragonfire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10";
 import { lookSensScale, warshipView, placeWarshipCamera, fireWarship } from "../streaks/warship.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10";
@@ -94,13 +94,11 @@ export function updatePlayer(dt) {
   const gp = game.gamepadState.connected;
 
   // The pad's own assist runs in pollGamepad off stick deflection; touch
-  // gets the same while a thumb is down on the look pad, and mouse or
-  // trackpad while it's being moved. aimAssistSticky is left set from the
-  // pad's pass this frame, so only clear it when nothing is steering.
+  // gets the same while a thumb is down on the look pad. A mouse gets none
+  // (Phantom Forces; user, 2026-10-13), outside the Dragonfire below.
   const mouseSteering = game.controls.isLocked && performance.now() - game.mouseLookAt < MOUSE_ACTIVE_MS;
   const canAssist = game.player.alive && !isStaging() && !dragonfireView();
   if (canAssist && touchState.looking) applyAimAssist(dt);
-  if (canAssist && mouseSteering) applyAimAssist(dt, AIM_ASSIST_MOUSE_PULL);
 
   if ((game.isTouch &&(touchState.lookDX || touchState.lookDY)) || (gp && (game.gamepadState.lookDX || game.gamepadState.lookDY))) {
     const ls = lookSensScale();

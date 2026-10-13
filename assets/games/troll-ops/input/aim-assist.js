@@ -6,25 +6,25 @@ import * as THREE from "three";
 import { segmentBlocked } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10";
 import { game } from "../core/state.js?v=st1";
 
-/* Aim assist — a soft rotational pull toward whatever is already near the
-   crosshair, the way GTA5's "assisted aim" (not the full auto-lock option)
-   nudges an aim rather than replacing it. It runs on every input, but only
-   while that input is actually steering: the right stick deflected, a thumb
-   on the touch look pad, or the mouse/trackpad moved in the last moment —
-   so it never drags an aim that's being held still. Mouse gets a softer
-   pull and slowdown, since a cursor is already far more precise than a
-   stick or thumb. */
-const AIM_ASSIST_CONE_DEG = 7;   // ~14° wide search cone at the default (hip) FOV
-const AIM_ASSIST_SLOWDOWN_DEG = 3.5;
+/* Aim assist for a controller and a thumb, the Call of Duty way: near a
+   target your own turn slows down (the "sticky" slowdown) and the aim drifts
+   after it a little (the rotational pull), and only while you're steering
+   (the right stick deflected, a thumb on the look pad), so it never drags an
+   aim that's being held still. A mouse gets none, as in Phantom Forces
+   (user, 2026-10-13: a tester found it too much; the keyboard-and-mouse
+   handler has no slowdown and nothing pulls a mouse aim). The Dragonfire's
+   nose gun keeps its own pull for every input (view/player-update.js).
+   Toned down the same day: pull 3.4 -> 2.2, slowdown 0.45 -> 0.62, cone
+   7 -> 5.5 degrees. */
+const AIM_ASSIST_CONE_DEG = 5.5; // ~11° wide search cone at the default (hip) FOV
+const AIM_ASSIST_SLOWDOWN_DEG = 3;
 const AIM_ASSIST_RANGE = 55;
-const AIM_ASSIST_PULL = 3.4;       // rad/sec at the very centre of a lock
-const AIM_ASSIST_SLOWDOWN = 0.45;  // multiplies the player's own look turn near a target
+const AIM_ASSIST_PULL = 2.2;       // rad/sec at the very centre of a lock
+const AIM_ASSIST_SLOWDOWN = 0.62;  // multiplies the player's own look turn near a target
 // Thumbs get less friction than a stick: at 0.45 tracking a strafing
 // target on the look pad felt like dragging through mud.
-const AIM_ASSIST_TOUCH_SLOWDOWN = 0.75;
-export const AIM_ASSIST_MOUSE_PULL = 0.5;       // share of the full pull a mouse gets
-export const AIM_ASSIST_MOUSE_SLOWDOWN = 0.72;  // gentler "sticky" for mouse turns
-export const MOUSE_ACTIVE_MS = 200;             // mouse counts as steering this long after it moves
+const AIM_ASSIST_TOUCH_SLOWDOWN = 0.85;
+export const MOUSE_ACTIVE_MS = 200;             // mouse counts as steering this long after it moves (the Dragonfire)
 const _aaOrigin = new THREE.Vector3();
 const _aaForward = new THREE.Vector3();
 const _aaToTarget = new THREE.Vector3();
@@ -120,7 +120,6 @@ export function applyAimAssist(dt, strength = 1, coneDeg = AIM_ASSIST_CONE_DEG, 
   const fovScale = game.camera.fov / game.baseFov;
   const slowdownCone = Math.cos(THREE.MathUtils.degToRad(AIM_ASSIST_SLOWDOWN_DEG * fovScale));
   if (target.dot > slowdownCone) {
-    game.aimAssistSticky = true;
     game.gamepadState.lookDX *= AIM_ASSIST_SLOWDOWN;
     game.gamepadState.lookDY *= AIM_ASSIST_SLOWDOWN;
     game.touchState.lookDX *= AIM_ASSIST_TOUCH_SLOWDOWN;

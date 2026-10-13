@@ -99,7 +99,7 @@ import {
   HellfireFx, updateSoulBlazerView, soulBlazerShot, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth,
   soulBlazerInspect, soulBlazerReloadPose, SB_INSPECT_CUES,
 } from "./soul-blazer.js?v=sb1";
-import { AIM_ASSIST_MOUSE_PULL, AIM_ASSIST_MOUSE_SLOWDOWN, MOUSE_ACTIVE_MS, aimAssistPoints, applyAimAssist, findAimAssistTarget } from "./input/aim-assist.js?v=in1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10";
+import { MOUSE_ACTIVE_MS, aimAssistPoints, applyAimAssist, findAimAssistTarget } from "./input/aim-assist.js?v=in1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10";
 import { game, linkGame } from "./core/state.js?v=st1";
 import { PAD_SENS_MULT, PAD_SENS_NAMES, padLookTurn, pollGamepad, pollGamepadMenu, radialStick } from "./input/gamepad.js?v=in1-fu1b7-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10";
 import { setTouchAds, touchState, initTouch } from "./input/touch.js?v=in1-th2-bp1";
@@ -171,7 +171,6 @@ linkGame({
   get activeWeaponMesh() { return activeWeaponMesh; },
   addMatchXp,
   get adsHeld() { return adsHeld; }, set adsHeld(v) { adsHeld = v; },
-  get aimAssistSticky() { return aimAssistSticky; }, set aimAssistSticky(v) { aimAssistSticky = v; },
   get akimboShown() { return akimboShown; }, set akimboShown(v) { akimboShown = v; },
   get akimboView() { return akimboView; },
   get ambience() { return ambience; },
@@ -2001,7 +2000,6 @@ initKeyboardMouse();
 initTouch();
 
 let mouseLookAt = -Infinity;
-let aimAssistSticky = false;   // crosshair is on a target this frame (read by the mouse handler)
 
 let hitFlashT = 0;
 
@@ -2405,7 +2403,6 @@ function animate() {
     else { elapsedRun += dt; updateMatchClock(dt); }
     const staging = isStaging();
 
-    aimAssistSticky = false;   // re-earned each frame by applyAimAssist
     pollGamepad(dt);
     updatePlayer(dt);
     if (!isRange()) regenPlayer(dt);
