@@ -43,6 +43,41 @@ export function swingMelee() {
   else if (kind === "reaper") game.audio.reaperSwing();
   else if (kind === "knuckles") game.audio.knuckleSwing();
   else game.audio.swing();
+  if (game.isZombies()) meleeLunge(game.player.melee.def);
+}
+
+/* Zombie Rush (P7): a swing at a zombie just out of reach closes the gap,
+   the way a Call of Duty knife does: a short dash at it and the aim drawn
+   halfway onto it. Only zombies, so a duel never gets a free lunge. */
+export const LUNGE = { reach: 2.2, cone: 0.42, time: 0.16, maxSpeed: 12, aim: 0.5 };
+export const lungeLast = { at: 0, target: null };
+const _lungeTo = new THREE.Vector3();
+function meleeLunge(def) {
+  if (!game.zdir || game.move.impulseT > 0) return;
+  const reach = def.range * LUNGE.reach, near = def.range * 0.75;
+  const yaw = game.look.yaw;
+  const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+  let best = null, bestD = reach;
+  for (const z of game.zdir.zombies) {
+    if (!z.alive || z.dying) continue;
+    _lungeTo.subVectors(z.mesh.position, game.move.pos);
+    if (Math.abs(_lungeTo.y) > 1.2) continue;   // a floor up or down: no
+    _lungeTo.y = 0;
+    const d = _lungeTo.length();
+    if (d <= near || d >= bestD) continue;
+    if ((_lungeTo.x * fx + _lungeTo.z * fz) / d < Math.cos(LUNGE.cone)) continue;
+    best = z; bestD = d;
+  }
+  if (!best) return;
+  _lungeTo.subVectors(best.mesh.position, game.move.pos).setY(0).normalize();
+  const speed = Math.min(LUNGE.maxSpeed, (bestD - near) / LUNGE.time);
+  game.move.impulse(_lungeTo.x * speed, game.move.velocity.y, _lungeTo.z * speed, LUNGE.time);
+  const want = Math.atan2(-_lungeTo.x, -_lungeTo.z);
+  let dy = want - yaw;
+  dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+  game.look.yaw = yaw + dy * LUNGE.aim;
+  lungeLast.at = performance.now();
+  lungeLast.target = best;
 }
 
 /* The swing itself: a short fan of rays rather than one, so a swing that is

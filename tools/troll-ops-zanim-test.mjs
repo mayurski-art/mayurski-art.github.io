@@ -129,6 +129,44 @@ const stag = await page.evaluate(async () => {
 check(stag.first > 0.3 && stag.d1 > stag.d0, "a heavy hit staggers it back", JSON.stringify(stag));
 check(stag.second < 0.1, "a second heavy hit straight after is only a flinch", JSON.stringify(stag));
 
+/* 5. a swing at a zombie just out of reach lunges at it; one in reach doesn't */
+const lunge = (mul, side) => page.evaluate(async ([mul, side]) => {
+  const T = window.__trollOps;
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const zs = T.zdir().zombies.filter((z) => z.alive && !z.dying);
+  const z = zs.find((q) => q.body && q.riseT <= 0);
+  for (const o of zs) o.stunT = 999;
+  T.player.hp = T.player.maxHp = 1000;
+  await wait(900);   // the last swing done
+  const p = T.move.pos, yaw = T.look.yaw + side;
+  const r = T.player.melee.def.range * mul;
+  z.mesh.position.set(p.x - Math.sin(yaw) * r, z.groundY, p.z - Math.cos(yaw) * r);
+  z.hp = z.maxHp = 1e6;
+  const x0 = p.x, z0 = p.z, yaw0 = T.look.yaw;
+  T.swingMelee();
+  await wait(400);
+  const moved = Math.hypot(p.x - x0, p.z - z0);
+  const gap = Math.hypot(z.mesh.position.x - p.x, z.mesh.position.z - p.z);
+  const turned = Math.abs(T.look.yaw - yaw0);
+  for (const o of zs) o.stunT = 0;
+  return { moved, gap, r, turned, range: T.player.melee.def.range };
+}, [mul, side]);
+const far = await lunge(1.7, 0.2);
+check(far.moved > far.r * 0.4 && far.gap < far.range && far.turned > 0.05, "a swing just out of reach lunges at the zombie", JSON.stringify(far));
+const close = await lunge(0.5, 0);
+check(close.moved < 0.3, "one already in reach: no lunge", JSON.stringify(close));
+
+/* 6. a gun tier bought: the new gun gets admired (the inspect plays) */
+const tier = await page.evaluate(async () => {
+  const T = window.__trollOps, R = T.zrun();
+  await new Promise((r) => setTimeout(r, 900));
+  if (T.player.holding !== "gun") T.switchWeapon?.(0);
+  R.giveCash(1e6);
+  const ok = R.buy("gun");
+  return { ok, id: R.flourish.id, inspected: R.flourish.inspected, inspectT: T.inspectT(), holding: T.player.holding };
+});
+check(tier.ok && tier.id === "gun" && tier.inspected && tier.inspectT > 0, "a gun tier bought: the new gun gets admired", JSON.stringify(tier));
+
 check(!errors.length, "no page errors", errors.slice(0, 4).join(" | "));
 await browser.close();
 server.close();
