@@ -75,7 +75,7 @@ const z = (...t) => t.map((x) => `troll-ops-${x}-test.mjs`);
 const TEST_MAP = [
   [/modes\/zombies\/(credits|economy|upgrades)\.js|view\/zombies-(kiosk|thumbs)\.js/, z("zcredits", "zrun")],
   [/modes\/zombies\/hub\.js|zhub\.js/, z("zhub")],
-  [/modes\/zombies\/coop\.js/, z("zcoop")],
+  [/modes\/zombies\/coop\.js|view\/revive-ring\.js/, z("zcoop")],
   [/modes\/zombies\/(deployables|kits)\.js|view\/zombies-bars\.js/, z("zdeploy")],
   [/modes\/zombies\/boss\.js/, z("zboss")],
   [/modes\/zombies\/run\.js|view\/zombies-hud\.js/, z("zrun", "zdeploy")],
@@ -83,6 +83,7 @@ const TEST_MAP = [
   [/input\/|keyboard-mouse|gamepad|touch/, z("input")],
   [/menu\/|menu-bo2\.js|loadout\.js|style\.css|troll-ops\.html/, z("menu")],
   [/troll-ops\/weapons\.js|combat\/|attachments\.js|weapon-|view\/(weapon-view|viewmodels)\.js/, z("input", "killcam")],
+  [/combat\/melee\.js|modes\/zombies\/run\.js/, z("zanim")],
   [/net\.js|remote-players\.js|modes\/spawns\.js/, z("sync", "load-sync")],
   // match setup: every mode boots in step 2 already; one two-tab check is plenty
   [/modes\/match-(start|end)\.js/, z("sync")],
