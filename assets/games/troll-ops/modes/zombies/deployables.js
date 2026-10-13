@@ -327,6 +327,7 @@ class Deployable {
   remove() {
     this.alive = false;
     game.scene.remove(this.root);
+    if (this.flash) game.scene.remove(this.flash);
     for (const b of this.boxes) {
       const i = game.colliders.indexOf(b);
       if (i >= 0) game.colliders.splice(i, 1);
@@ -377,9 +378,40 @@ function walls() {
   return mapWalls;
 }
 
+/* A turret's muzzle flash (P7): one soft, additive star at the barrels, a
+   frame or two per shot, on a texture made once. */
+let flashMat = null;
+function muzzleFlashMat() {
+  if (flashMat) return flashMat;
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d");
+  const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, "rgba(255,250,220,1)");
+  grad.addColorStop(0.25, "rgba(255,200,90,0.9)");
+  grad.addColorStop(1, "rgba(255,120,20,0)");
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 64, 64);
+  // four spikes, so it reads as a flash and not a glow
+  g.globalCompositeOperation = "lighter";
+  g.fillStyle = "rgba(255,220,140,0.8)";
+  g.fillRect(30, 2, 4, 60);
+  g.fillRect(2, 30, 60, 4);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  flashMat = new THREE.SpriteMaterial({ map: tex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
+  return flashMat;
+}
+const FLASH_TIME = 0.045;
+
 class Turret extends Deployable {
   constructor(...a) {
     super(...a);
+    this.flash = new THREE.Sprite(muzzleFlashMat());
+    this.flash.visible = false;
+    this.flashT = 0;
+    this.shots = 0;
+    game.scene.add(this.flash);
     this.target = null;
     this.retargetT = 0;
     this.fireT = 0;
@@ -444,6 +476,8 @@ class Turret extends Deployable {
     }
     this.fireT = Math.max(0, this.fireT - dt);
     this.kick = Math.max(0, this.kick - dt * 9);
+    this.flashT = Math.max(0, this.flashT - dt);
+    this.flash.visible = this.flashT > 0;
     let off = Math.PI;
     if (this.target) {
       const p = this.aimPoint(this.target);
@@ -481,8 +515,17 @@ class Turret extends Deployable {
     const hit = _ray.intersectObjects(z.hitboxMeshes, true)[0];
     const point = hit ? hit.point : p;
     if (!dep.cosmetic) hurtZombie(z, this.stats.damage, point, dir, this.owner);
+    // a teammate's screen: the host says what it hit, but the blood is here too
+    else game.impactFx.hit(point, { normal: _v.copy(dir).negate(), dir, surface: z.body ? "blood" : "zombie", scale: 0.7 });
     game.bullets.spawn({ origin: this.muzzle.clone(), dir, def: TURRET_FX_DEF, ownerId: "remote", cosmetic: true, range: this.muzzle.distanceTo(point) });
+    // the flash at the barrels, a few sparks, and smoke every third round
+    this.flash.position.copy(this.muzzle).addScaledVector(dir, 0.08);
+    this.flash.scale.setScalar(0.32 + Math.random() * 0.18);
+    this.flash.material.rotation = Math.random() * Math.PI;
+    this.flashT = FLASH_TIME;
+    this.flash.visible = true;
     game.spawnImpactBurst(this.muzzle, 0xffd166, 3);
+    if (++this.shots % 3 === 0) game.impactFx.puff(this.muzzle, dir, 0.7);
     game.audio.shot(TURRET_FX_DEF, 0.32, this.muzzle);
   }
 }
