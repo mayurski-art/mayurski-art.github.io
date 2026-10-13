@@ -10,8 +10,8 @@
 // already earned; you pick three streaks before the match and can only call
 // those three.
 
-import { rankUnlocked } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1";
-import { hasPerk, PERK_TUNE } from "./perks.js?v=pk1-cl1-bp1-fj1";
+import { rankUnlocked } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1";
+import { hasPerk, PERK_TUNE } from "./perks.js?v=pk1-cl1-bp1-fj1-zc1";
 
 /* What a streak costs you this life: Hardline (perks.js) takes 20% off,
    rounded to 10. Bots pay the list price (streaks/bot-streaks.js). */

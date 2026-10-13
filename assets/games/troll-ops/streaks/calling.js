@@ -2,19 +2,19 @@
 // and VSAT clocks, lockouts, marking a ground point, and ending a streak
 // you control. Moved out of game.js (split phase 1).
 
-import { StreakPicker } from "../streak-picker.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1";
-import { StreakState, STREAK_DEFS, streaksAllowed } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1";
+import { StreakPicker } from "../streak-picker.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1";
+import { StreakState, STREAK_DEFS, streaksAllowed } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1";
 import { KillstreakUi } from "../killstreak-ui.js?v=to-medals3";
-import { XP_SCALE } from "../progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1";
-import { Achievements } from "../achievements.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1";
+import { XP_SCALE } from "../progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1";
+import { Achievements } from "../achievements.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1";
 import { VsatSatellite, BlastFx } from "../streak-entities.js?v=vsat2-hk1";
-import { updateStreakHud, showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10";
+import { updateStreakHud, showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1";
 import * as THREE from "three";
-import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10";
+import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1";
 import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";
 import { touchState } from "../input/touch.js?v=in1-th2-bp1";
 import { game } from "../core/state.js?v=st1";
-import { hasPerk, PERK_TUNE } from "../perks.js?v=pk1-cl1-bp1-fj1";
+import { hasPerk, PERK_TUNE } from "../perks.js?v=pk1-cl1-bp1-fj1-zc1";
 
 
 export let streakPicker;

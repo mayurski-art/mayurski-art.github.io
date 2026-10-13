@@ -9,7 +9,7 @@
 import { WeaponInspector } from "../inspector.js?v=hb1-nf-wst-ig1-sb2-if1-wb1-th2-ar1-ar2-cl1-fj1-zr9-zr10";
 import { buildWeaponMesh } from "../weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1";
 import { loadModel } from "../battlefield-props.js";
-import { resolveWeapon, defaultLoadoutFor } from "../attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1";
+import { resolveWeapon, defaultLoadoutFor } from "../attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1";
 
 const W = 320, H = 180;
 const KIT_MODEL = { turret: "zk-turret", barricade: "zk-spikewall", barrel: "zk-barrel" };

@@ -10,7 +10,7 @@
 
 import { FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10";
 import { WRISTWEAR, watchThumb } from "./wristwear.js?v=ww1c2m1";
-import { isOwner } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1";
+import { isOwner } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1";
 
 const KEY = "trollops:cosmetics";
 

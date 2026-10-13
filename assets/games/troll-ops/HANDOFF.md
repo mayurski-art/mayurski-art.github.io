@@ -452,6 +452,10 @@ Map rules:
 
 ## 5. Shipped log (newest first; one line each, details in git)
 
+- **2026-10-13** (-zc1, branch tf-zcredits)
+  - Zombie Rush P6: Credits (runs pay; guns in six tiers with levels, Rookie kit levels; credits.js) and the real Weapons / Classes kiosk screens. Test: zcredits-test.
+  - Aim assist: none on a mouse (Phantom Forces), toned down on a pad and a thumb (CoD); recoil at 70% on every gun (weapons.js RECOIL_SCALE). Test: input-test.
+
 - **2026-10-13** (-zh1, main 0e6283d, live confirmed; gate red only on bot-host-test (net::ERR_NETWORK_IO_SUSPENDED, PC slept), user said push)
   - Leaderboards (user 2026-10-13: logged-in players, weekly + monthly, all time on the profile card): one write per match (reportGameResult, meta gains pvp/won/assists/headshots/streak), leaderboard-rows.js adds rows up per window; menu Leaderboards Weekly/Monthly row; profile card all-time Zombies. Never call `TrollLeaderboard.record` for troll-ops: it files a second RPC with the weekly total as the score.
   - Zombie Rush P6 placeholders: Weapons / Classes kiosk screens and a Credits chip.
