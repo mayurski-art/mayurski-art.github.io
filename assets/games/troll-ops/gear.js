@@ -120,13 +120,15 @@ export const MELEE_DEFS = {
     id: "bat", name: "Bat", rank: 0, zombies: true,
     damage: 150, backstabMult: 1.5, range: 2.0, arc: 1.05, knock: 7,
     blurb: "Batter up.",
+    swings: "bat",   // a level swing and a backhand (BAT_SWING / BAT_BACK)
     model: { kind: "bat", len: 0.84, wide: 0.042, blade: 0.05, color: 0x8a5a2b, grip: 0x2a1a10 },
   },
   shovel: {
     id: "shovel", name: "Shovel", rank: 0, zombies: true,
     damage: 230, backstabMult: 2, range: 2.1, arc: 0.95, knock: 7.5,
     blurb: "Dig in.",
-    model: { kind: "bar", len: 0.95, wide: 0.034, hook: true, color: 0x6d7276, grip: 0x3a2412 },
+    swings: "shovel",   // an overhead slam and a spade jab (SHOVEL_CHOP / THRUST_TRACK)
+    model: { kind: "bar", len: 0.82, wide: 0.034, spade: 0x8d949b, color: 0x8a6238, grip: 0x3a2412 },
   },
 };
 
@@ -232,6 +234,7 @@ const THRUST_TRACK = gripTrack(0.46, [
 ]);
 const THRUST_WINDOW = { open: 0.20, close: 0.32 };
 
+
 /* ---- Trollsaber: held like a saber ----------------------------------
    Two hands on the hilt (game.js runs the rods to it), hilt low and
    central, blade up and across the view to the left: a mid guard. Its
@@ -266,6 +269,65 @@ function dirTrack(length, keys) {
   return { length, posKeys, quatKeys };
 }
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
+/* Zombie Rush's bat and shovel (P7), held in both hands. Keys are [t, the
+   grip (camera space), the way the head points, roll about it]: a flat swing
+   from over the right shoulder across the crosshair and a backhand back; the
+   shovel lifted and chopped down spade first, then jabbed. The first key is
+   the weapon at rest. Tuned frame by frame in the live view. */
+function heldTrack(length, keys) {
+  const posKeys = [], quatKeys = [];
+  for (const [t, grip, dir, roll] of keys) {
+    const q = saberBasis(V(...dir), roll);
+    posKeys.push({ t, v: V(...grip).sub(V(0, 0, 0.06).applyQuaternion(q)) });   // the grip hand sits 6 cm up the handle
+    quatKeys.push({ t, q });
+  }
+  return { length, posKeys, quatKeys };
+}
+const BAT_REST = [[0.28, -0.32, -0.56], [-0.08, 0.80, -0.60], 0];
+const BAT_SWING = heldTrack(0.62, [
+  [0.00, ...BAT_REST],
+  [0.14, [0.30, -0.12, -0.45], [0.70, 0.55, -0.10], 0],   // cocked up over the right shoulder
+  [0.22, [0.28, -0.14, -0.50], [0.85, 0.20, -0.48], 0],
+  [0.30, [0.08, -0.15, -0.58], [0.10, 0.12, -1.0], 0],    // through the crosshair
+  [0.38, [-0.14, -0.15, -0.52], [-0.85, 0.10, -0.50], 0],
+  [0.48, [-0.22, -0.15, -0.42], [-0.60, 0.35, 0.55], 0],  // wrapped round the left shoulder
+  [0.62, ...BAT_REST],
+]);
+const BAT_BACK = heldTrack(0.60, [
+  [0.00, ...BAT_REST],
+  [0.14, [-0.14, -0.16, -0.42], [-0.75, 0.40, 0.30], 0],  // wound back left
+  [0.24, [-0.16, -0.16, -0.52], [-0.82, 0.12, -0.55], 0],
+  [0.32, [0.05, -0.15, -0.58], [0.05, 0.12, -1.0], 0],
+  [0.40, [0.24, -0.16, -0.52], [0.85, 0.16, -0.42], 0],
+  [0.50, [0.27, -0.18, -0.46], [0.60, 0.55, 0.30], 0],
+  [0.60, ...BAT_REST],
+]);
+const BAT_WINDOW = { open: 0.24, close: 0.40 };
+const SHOVEL_REST = [[0.24, -0.30, -0.50], [-0.25, 0.45, -0.86], 0];
+const SHOVEL_CHOP = heldTrack(0.70, [
+  [0.00, ...SHOVEL_REST],
+  [0.16, [0.20, -0.20, -0.50], [0.08, 0.85, -0.25], 0],   // lifted
+  [0.28, [0.14, -0.12, -0.56], [0.02, 0.55, -0.83], 0],
+  [0.36, [0.07, -0.10, -0.55], [0.0, -0.12, -0.99], 0],   // chopped down spade first
+  [0.48, [0.07, -0.14, -0.55], [0.0, -0.20, -0.98], 0],   // dug in
+  [0.58, [0.16, -0.24, -0.52], [-0.15, 0.15, -0.98], 0],
+  [0.70, ...SHOVEL_REST],
+]);
+const SHOVEL_CHOP_WINDOW = { open: 0.30, close: 0.44 };
+const SHOVEL_JAB = heldTrack(0.46, [
+  [0.00, ...SHOVEL_REST],
+  [0.12, [0.22, -0.28, -0.32], [-0.08, 0.12, -0.99], 0],  // drawn back
+  [0.22, [0.12, -0.22, -0.80], [-0.05, 0.05, -1.0], 0],   // driven out
+  [0.30, [0.12, -0.22, -0.84], [-0.05, 0.05, -1.0], 0],
+  [0.40, [0.20, -0.27, -0.48], [-0.18, 0.30, -0.94], 0],
+  [0.46, ...SHOVEL_REST],
+]);
+const SHOVEL_JAB_WINDOW = { open: 0.18, close: 0.30 };
+const SWINGS = {
+  bat: [[BAT_SWING, BAT_WINDOW], [BAT_BACK, BAT_WINDOW]],
+  shovel: [[SHOVEL_CHOP, SHOVEL_CHOP_WINDOW], [SHOVEL_JAB, SHOVEL_JAB_WINDOW]],
+};
+
 const SABER_CUT = dirTrack(0.56, [
   [0.00, null, 0, null],
   [0.11, V(0.55, 0.78, 0.18), -60, V(0.07, 0.10, 0.06)],     // wound up over the right shoulder
@@ -394,12 +456,16 @@ export class MeleeState {
   get chainsaw() { return this.def?.model?.kind === "chainsaw"; }
   get knuckles() { return this.def?.model?.kind === "knuckles"; }
   get track() {
+    const own = SWINGS[this.def?.swings];
+    if (own) return own[this.swingIndex % 2][0];
     if (this.knuckles) return this.swingIndex % 2 === 0 ? KN_JAB_TRACK : KN_HOOK_TRACK;
     if (this.saber) return this.swingIndex % 2 === 0 ? SABER_CUT : SABER_RISE;
     if (this.chainsaw) return this.swingIndex % 2 === 0 ? CS_PLUNGE : CS_SWEEP;
     return this.swingIndex % 2 === 0 ? SWING_TRACK : THRUST_TRACK;
   }
   get window() {
+    const own = SWINGS[this.def?.swings];
+    if (own) return own[this.swingIndex % 2][1];
     if (this.knuckles) return this.swingIndex % 2 === 0 ? KNUCKLE_JAB_WINDOW : KNUCKLE_HOOK_WINDOW;
     if (this.saber) return this.swingIndex % 2 === 0 ? SABER_CUT_WINDOW : SABER_RISE_WINDOW;
     if (this.chainsaw) return CS_WINDOW;
@@ -432,6 +498,8 @@ export class MeleeState {
   /* Grip position + orientation for the view model this frame. */
   pose() {
     if (this.knuckles) return KNUCKLE_REST;   // the fists move inside it (brass-knuckles.js poseKnuckles)
+    const own = SWINGS[this.def?.swings];
+    if (own && this.t <= 0) return sampleTrack(own[0][0], 0);   // the bat / shovel's own rest
     if (this.t <= 0) return this.saber ? SABER_REST : this.chainsaw ? CHAINSAW_REST : { pos: REST_POS, quat: REST_QUAT };
     return sampleTrack(this.track, Math.min(this.t, this.total));
   }
@@ -525,13 +593,28 @@ export function buildMeleeMesh(def, includeHands = true, { held3p = false } = {}
     return sword;
   }
 
-  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.036, 0.15), mat(m.grip, 0.85, 0.05));
+  // round and taped on the bat and the shovel: a square block read as a brick up close
+  const round = m.kind === "bat" || m.kind === "bar";
+  const grip = new THREE.Mesh(round ? new THREE.CylinderGeometry(0.019, 0.021, 0.15, 10) : new THREE.BoxGeometry(0.036, 0.036, 0.15), mat(m.grip, 0.85, 0.05));
+  if (round) grip.rotation.x = Math.PI / 2;
   grip.position.copy(GRIP_ANCHOR);
   group.add(grip);
   if (includeHands) {
     const hand = buildGripHand(MELEE_HAND_SCALE);
     hand.position.copy(GRIP_ANCHOR);
     group.add(hand);
+    // Zombie Rush's bat and shovel are two-handed (P7): both hands are
+    // anchors, so the arms run to them (weapon-view.js poseMeleeArms) instead
+    // of a hand floating on its own. The bat's hands stack on the handle,
+    // the shovel's top hand rides up the shaft.
+    if (m.kind === "bat" || m.kind === "bar") {
+      hand.userData.hand = true;
+      const support = buildSupportHand(MELEE_HAND_SCALE * 0.85);
+      support.userData.hand = true;
+      support.position.copy(GRIP_ANCHOR).add(new THREE.Vector3(0, 0, m.kind === "bat" ? -0.1 : -0.34));
+      support.rotation.z = Math.PI / 2;
+      group.add(support);
+    }
   }
 
   if (m.kind === "bat") {
@@ -539,6 +622,30 @@ export function buildMeleeMesh(def, includeHands = true, { held3p = false } = {}
     shaft.rotation.x = Math.PI / 2;
     shaft.position.set(0, 0, -m.len / 2);
     group.add(shaft);
+  } else if (m.kind === "bar" && m.spade) {
+    // A real shovel (P7): round ash shaft (straight: a D-handle sat in the
+    // camera on the slam), a steel collar, and the spade, dished and pointed.
+    const wood = mat(m.color, 0.8, 0.05), steel = mat(m.spade, 0.42, 0.75);
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(m.wide * 0.5, m.wide * 0.5, m.len, 10), wood);
+    shaft.rotation.x = Math.PI / 2;
+    shaft.position.set(0, 0, -m.len / 2);
+    group.add(shaft);
+    const collar = new THREE.Mesh(new THREE.CylinderGeometry(m.wide * 0.62, m.wide * 0.9, 0.12, 10), steel);
+    collar.rotation.x = Math.PI / 2;
+    collar.position.set(0, 0, -m.len - 0.04);
+    group.add(collar);
+    // the blade: two halves canted up off the spine (the dish), then the point
+    for (const s of [-1, 1]) {
+      const half = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.008, 0.24), steel);
+      half.position.set(s * 0.048, 0.006, -m.len - 0.21);
+      half.rotation.z = s * -0.16;
+      group.add(half);
+      const tip = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.008, 0.07), steel);
+      tip.position.set(s * 0.03, 0.004, -m.len - 0.34);
+      tip.rotation.y = s * 0.7;
+      tip.rotation.z = s * -0.16;
+      group.add(tip);
+    }
   } else if (m.kind === "bar") {
     const shaft = new THREE.Mesh(new THREE.BoxGeometry(m.wide, m.wide, m.len), mat(m.color, 0.55, 0.4));
     shaft.position.set(0, 0, -m.len / 2);

@@ -99,7 +99,7 @@ export function meleeConnect() {
   // line. Rays fan across the sweep at three heights (the aim, the chest of
   // someone a little below it, the head of someone a little above), centre
   // first so a square hit wins.
-  const thrust = game.player.melee.swingIndex % 2 === 1 && def.model?.kind !== "chainsaw";
+  const thrust = game.player.melee.swingIndex % 2 === 1 && def.model?.kind !== "chainsaw" && def.swings !== "bat";   // the bat's backhand is a cut too
   const reach = def.range * (thrust ? 1.1 : 1);
   const half = (thrust ? def.arc * 0.3 : def.arc) / 2;
   ray.far = reach;
