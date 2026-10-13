@@ -201,8 +201,10 @@ check(await until(a, () => [...window.__trollOps.net.peers.values()].some((p) =>
 const bFeet = await R(b, () => { const p = window.__trollOps.move.pos; return { x: p.x, y: p.y, z: p.z }; });
 await R(a, (f) => { const T = window.__trollOps; T.move.pos.set(f.x + 0.8, f.y, f.z); T.keys.add("KeyX"); }, bFeet);
 check(await until(a, () => !!window.__trollOps.zrun().coop.coop.revive, null, 3000), "A gets the revive prompt");
+check(await until(a, () => window.__trollOps.zrun().coop.rings().some((r) => r.visible && r.k > 0), null, 3000), "A sees the revive ring under B, filling", JSON.stringify(await R(a, () => window.__trollOps.zrun().coop.rings())));
 check(await until(b, () => !window.__trollOps.zrun().run.downed, null, 9000), "A holds X: B is back up");
 await R(a, () => window.__trollOps.keys.delete("KeyX"));
+check(await until(a, () => !window.__trollOps.zrun().coop.rings().some((r) => r.visible), null, 3000), "B up: the ring goes");
 
 // ---- 7. the host leaves
 await sleep(1500);

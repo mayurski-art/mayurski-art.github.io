@@ -32,6 +32,7 @@ import { game } from "../../core/state.js?v=st1";
 import { Zombie, zombieWire } from "../../zombies.js?v=zr4c-sb2b7b7dc2f1m1u-gt1-gt2-zr5-zr6-zr7-zr8-zr9-zr10-zc2";
 import { dep, depWire, spawnDeployable } from "./deployables.js?v=zr6-zr8-zr9-zr10-zh1-zc1-zc2-hr2";
 import { bossState, bossWire, slamAt } from "./boss.js?v=zr7-zr8-zr9-zr10-zh1-zc1-zc2-hr2";
+import { updateReviveRings, clearReviveRings, reviveRingState } from "../../view/revive-ring.js?v=rv1";
 import { earn } from "./economy.js?v=zr5-zr9-zr10-zc1-zc2-hr2";
 
 const POS_EVERY = 0.1;      // seconds between zp
@@ -111,6 +112,7 @@ export function startCoop() {
 }
 
 export function stopCoop() {
+  clearReviveRings();
   coop.on = false;
   coop.host = true;
   dep.cosmetic = false;
@@ -450,18 +452,21 @@ function updateRevive(dt) {
   const held = game.player.alive && !game.player.downed && !game.localPauseOnly
     && (game.keys.has("KeyX") || (game.isTouch && game.touchState?.swap) || !!game.gamepadState?.pickup);
   let near = null, nearD = REVIVE_RANGE;
+  const rings = [];
   if (game.player.alive && !game.player.downed) {
     for (const p of roomPlayers()) {
       if (p.downed !== 1) continue;
       const s = feetOf(p);
       if (!s) continue;
+      rings.push({ id: p.id, x: s.x, y: s.y, z: s.z });
       const d = Math.hypot(s.x - game.move.pos.x, s.z - game.move.pos.z);
       if (d < nearD && Math.abs(s.y - game.move.pos.y) < 1.5) { nearD = d; near = p; }
     }
   }
-  if (!near) { coop.revive = null; return; }
+  if (!near) { coop.revive = null; updateReviveRings(rings, null, REVIVE_TIME); return; }
   if (!coop.revive || coop.revive.id !== near.id) coop.revive = { id: near.id, name: near.name || "teammate", t: 0 };
   coop.revive.t = held ? coop.revive.t + dt : 0;
+  updateReviveRings(rings, coop.revive, REVIVE_TIME);
   if (coop.revive.t >= REVIVE_TIME) {
     send({ t: "zr", to: near.id });
     near.downed = 0;   // until their next state says so
@@ -472,7 +477,7 @@ function updateRevive(dt) {
 /* Tests (__trollOps.zrun().coop). */
 export function coopDebug() {
   return {
-    coop,
+    coop, rings: reviveRingState,
     players: () => roomPlayers().map((p) => ({ id: p.id, name: p.name, downed: p.downed | 0 })),
     targets: () => coopTargets().map((t) => t.id),
     vote: () => voteSkip(),
