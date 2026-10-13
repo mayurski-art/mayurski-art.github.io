@@ -939,9 +939,13 @@ const CROWD_DETAIL = 20;   // metres: past this a crowd's guns lose their small 
 const SMALL_PART = 60;     // triangles: a gun part this small is "small"
 
 export class RemotePlayers {
-  constructor(scene) {
+  constructor(scene, camera = null) {
     this.scene = scene;
+    this.camera = camera;   // a crowd poses who's off-screen less often
     this.byId = new Map();
+    this.frustum = new THREE.Frustum();
+    this.viewProj = new THREE.Matrix4();
+    this.sphere = new THREE.Sphere(new THREE.Vector3(), 1.4);
   }
 
   sync(peers) {
@@ -956,9 +960,17 @@ export class RemotePlayers {
   /* `eye` (the camera) turns on level of detail in a crowd (Troll Royale's
      100): a troll 40 m off is posed every 2nd frame, 100 m off every 4th,
      staggered, with the skipped time handed over; past 40 m it casts no
-     shadow. Small rooms pose everyone every frame, as before. */
+     shadow. Small rooms pose everyone every frame, as before.
+     In a crowd, on screen: every frame within 15 m, every 2nd to 40 m, 3rd
+     to 100 m, 4th past it; off screen every 8th (2026-10-12: posing 99
+     trolls in the sky lobby, all within 40 m, was ~20 ms of CPU a frame). */
   update(dt = 0.016, myTeam = null, ffa = false, eye = null) {
     const lod = !!eye && this.byId.size > 24;
+    const cam = lod ? this.camera : null;
+    if (cam) {
+      this.viewProj.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+      this.frustum.setFromProjectionMatrix(this.viewProj);
+    }
     // game.js reads it: SSAO is off in a crowd (it redraws every troll).
     this.crowd = lod;
     this.frame = (this.frame || 0) + 1;
@@ -969,7 +981,11 @@ export class RemotePlayers {
       const d2 = (rp.pos.x - eye.x) ** 2 + (rp.pos.z - eye.z) ** 2;
       rp.setShadow(d2 < CROWD_SHADOW * CROWD_SHADOW);
       rp.setDetail(d2 < CROWD_DETAIL * CROWD_DETAIL);
-      const every = d2 > 100 * 100 ? 4 : d2 > 40 * 40 ? 2 : 1;
+      let every = d2 > 100 * 100 ? 4 : d2 > 40 * 40 ? 3 : d2 > 15 * 15 ? 2 : 1;
+      if (cam && d2 > 3 * 3) {
+        this.sphere.center.set(rp.pos.x, rp.pos.y + 1, rp.pos.z);
+        if (!this.frustum.intersectsSphere(this.sphere)) every = 8;
+      }
       rp.lodDt = (rp.lodDt || 0) + dt;
       if ((this.frame + i) % every) continue;
       const step = Math.min(0.1, rp.lodDt);

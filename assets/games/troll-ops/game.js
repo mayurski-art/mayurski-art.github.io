@@ -1988,7 +1988,7 @@ scene.add(localRig.root);
 localRig.parts.head.material = localRig.parts.head.material.clone();
 localRig.parts.head.material.alphaTest = 0.02;
 let localPhase = Math.random() * Math.PI * 2;
-const remotes = new RemotePlayers(scene);
+const remotes = new RemotePlayers(scene, camera);
 const pickups = new PickupSystem(scene);
 const swapHold = new SwapHold();
 
