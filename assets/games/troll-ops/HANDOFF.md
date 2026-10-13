@@ -452,7 +452,7 @@ Map rules:
 
 ## 5. Shipped log (newest first; one line each, details in git)
 
-- **2026-10-13** (-zh1, branch tf-zhub)
+- **2026-10-13** (-zh1, main 0e6283d, live confirmed; gate red only on bot-host-test (net::ERR_NETWORK_IO_SUSPENDED, PC slept), user said push)
   - Leaderboards (user 2026-10-13: logged-in players, weekly + monthly, all time on the profile card): one write per match (reportGameResult, meta gains pvp/won/assists/headshots/streak), leaderboard-rows.js adds rows up per window; menu Leaderboards Weekly/Monthly row; profile card all-time Zombies. Never call `TrollLeaderboard.record` for troll-ops: it files a second RPC with the weekly total as the score.
   - Zombie Rush P6 placeholders: Weapons / Classes kiosk screens and a Credits chip.
   - Zombie Rush P5, the hub: Zombies starts in a public hub (QZHB) with four map pads, a private pad + invite link, kiosks, and Highest Wave / Total Kills boards; pads launch co-op runs on a fresh code and runs come back. Test: zhub-test.
