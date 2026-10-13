@@ -12,6 +12,7 @@ import { returnToSocial, cancelSocialReturn } from "../modes/social.js?v=so1-si1
 import { piano } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1";
 import { clubAskOpen } from "../modes/club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1";
 import { hubReturnPending, returnToHub, forgetHubReturn, leaveHub } from "../modes/zombies/hub.js?v=zh1";
+import { kioskOpen } from "../view/zombies-kiosk.js?v=zk1";
 import { game } from "../core/state.js?v=st1";
 import { dropPerks } from "../combat/perk-carry.js?v=pk1-cl1-bp1-fj1-zh1";
 
@@ -92,7 +93,7 @@ export function initMenuButtons() {
     // the DJ booth, the piano's keys and the club door's 18+ question free
     // the mouse on purpose (and so does the sheriff's wanted board,
     // modes/social-sheriff.js: looked up, not imported, which would loop)
-    if (game.gameState === "playing" && !game.djLulz.isOpen && !piano.panel?.isOpen && !clubAskOpen() && !document.querySelector(".sheriff-board:not([hidden])")) game.openPauseMenu();
+    if (game.gameState === "playing" && !game.djLulz.isOpen && !kioskOpen() && !piano.panel?.isOpen && !clubAskOpen() && !document.querySelector(".sheriff-board:not([hidden])")) game.openPauseMenu();
   });
 
   document.addEventListener("visibilitychange", () => {

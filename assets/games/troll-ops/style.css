@@ -3604,6 +3604,7 @@ body.is-map .to-bo2-anim { visibility: hidden; }
   border: 1px solid rgba(243,236,228,.1); text-align: center; min-width: 0;
 }
 .tf-card-stats dt { font: 10px "DM Mono", monospace; color: #c9b8a6; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tf-card-sub { margin: 12px 0 6px; font: 600 11px "DM Mono", monospace; color: #c9b8a6; text-transform: uppercase; letter-spacing: .08em; }
 .tf-card-stats dd { margin: 3px 0 0; font: 600 18px Oswald, sans-serif; color: #f3ece4; }
 .tf-card-note { margin: 10px 0 0; font: 13px "DM Mono", monospace; color: #c9b8a6; }
 @container (max-width: 520px) {
@@ -4130,4 +4131,43 @@ body.to-touch-play .zh.is-downed .zh-col { visibility: hidden; }
   .zhb-pad { bottom: 108px; padding: 7px 14px 9px; min-width: 0; }
   .zhb-pad-h { font-size: 21px; }
   .zhb-pad-s { font-size: 13px; }
+}
+/* Zombies hub: the Credits chip and the kiosk screens (view/zombies-kiosk.js),
+   Zombie Rush's look: a navy panel, chunky cards, a gold coin. */
+.zhb-credits { background: linear-gradient(#2b2f3a, #16181f); border-color: #0b0c10; -webkit-text-stroke-color: #0b0c10; box-shadow: 0 3px 0 #0b0c10, 0 8px 18px rgba(0,0,0,.3); }
+.zhb-credits-n { color: #ffd84a; }
+.zhb-coin, .zk-coin { display: inline-block; width: 22px; height: 22px; border-radius: 50%; flex: none;
+  background: radial-gradient(circle at 35% 30%, #fff3a8, #f2b71c 55%, #a8700a); border: 2px solid #5a3a04; }
+.zk { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; background: rgba(5,9,22,.55); font-family: "Oswald", sans-serif; color: #fff; }
+.zk[hidden] { display: none; }
+.zk-panel { width: min(860px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 18px 20px 16px; border-radius: 16px;
+  background: linear-gradient(#1b2f6e, #0f1a3e); border: 3px solid #7fa8ff; box-shadow: 0 18px 50px rgba(0,0,0,.5); }
+.zk-head { display: flex; align-items: center; gap: 14px; }
+.zk-title { margin: 0; flex: 1; font: 700 34px/1 "Oswald", sans-serif; -webkit-text-stroke: 1.2px #060b1c; paint-order: stroke fill; }
+.zk-credits { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 10px; background: rgba(0,0,0,.35); font-size: 20px; }
+.zk-credits b { color: #ffd84a; }
+.zk-close { width: 40px; height: 40px; border-radius: 10px; border: 2px solid #4b0a0a; background: linear-gradient(#ef2b2b, #b70f14); color: #fff; font-size: 20px; cursor: pointer; }
+.zk-close:focus-visible, .zk-tab:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.zk-tabs { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.zk-tabs[hidden] { display: none; }
+.zk-tab { padding: 7px 16px; border-radius: 8px; border: 2px solid #3a5aa8; background: #12204a; color: #cfd8f0; font: 600 18px "Oswald", sans-serif; cursor: pointer; }
+.zk-tab.is-on { background: #2d6bff; border-color: #a8c4ff; color: #fff; }
+.zk-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; margin-top: 14px; }
+.zk-card { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 10px 12px; border-radius: 12px;
+  background: linear-gradient(#24407e, #172a5a); border: 2px solid rgba(255,255,255,.75); text-align: center; }
+.zk-card.is-owned { background: linear-gradient(#1f9a3a, #146a27); }
+.zk-card.is-soon .zk-card-art, .zk-card.is-soon .zk-card-name { filter: saturate(.3) brightness(.8); }
+.zk-card-art { width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; background:
+  radial-gradient(circle at 50% 45%, rgba(255,255,255,.25), transparent 60%),
+  repeating-linear-gradient(60deg, rgba(255,255,255,.07) 0 2px, transparent 2px 13px), #0c1838; }
+.zk-card-art.is-kit { aspect-ratio: 1; max-width: 120px; border-radius: 50%; }
+.zk-card-name { font-size: 22px; line-height: 1.1; -webkit-text-stroke: 1px #060b1c; paint-order: stroke fill; }
+.zk-card-price { font-size: 17px; color: #ffd84a; }
+.zk-card-note { font: 500 13px/1.3 "DM Sans", sans-serif; color: #dfe8ff; }
+.zk-ribbon { position: absolute; top: 20px; right: -44px; width: 170px; text-align: center; transform: rotate(35deg); padding: 3px 0; background: #ff9500; color: #1d1206; font: 700 12px "DM Sans", sans-serif; letter-spacing: .04em; text-transform: uppercase; }
+.zk-foot { margin: 14px 0 0; font: 500 14px/1.4 "DM Sans", sans-serif; color: #b9c6e8; }
+@media (max-width: 900px), (max-height: 520px) {
+  .zk-title { font-size: 26px; }
+  .zk-cards { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+  .zk-card-name { font-size: 18px; }
 }

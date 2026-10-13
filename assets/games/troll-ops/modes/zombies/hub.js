@@ -28,6 +28,8 @@ import { HUB } from "../../zhub.js?v=zh1";
 import { MAPS } from "../../maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1";
 import { makeRoomCode } from "../../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10";
 import { roomNow } from "../room-clock.js?v=rc1-cd1-sh1";
+import { openKiosk, closeKiosk, kioskOpen } from "../../view/zombies-kiosk.js?v=zk1";
+import { fetchRows, hasBackend, monthWindow, weekWindow, windowFor, timeLeft, tallyPlayers } from "../../leaderboard-rows.js?v=lr1";
 
 export const HUB_T = {
   countdown: 30,     // s from the owner stepping on
@@ -273,32 +275,25 @@ function drawSign(s, lines) {
 
 /* ------------------------------------------------------------ the boards */
 
-// Highest Wave and Total Kills, this week. Every Zombies run is filed as a
-// troll-ops row (match-end.js finishRun, TrollrunnerAccounts.reportGameResult:
-// meta { mode: "zombies", wave, kills }), so the boards read this week's rows
-// and add them up per player: the best wave, the kills summed. Guests aren't
-// filed, and with no backend the boards just say so.
+// Highest Wave and Total Kills, weekly and monthly in turn (BOARD_FLIP), like
+// the reference's tabs. Every Zombies run a logged-in player finishes is a
+// troll-ops row (match-end.js; leaderboard-rows.js reads them): this month's
+// are fetched once a minute, and each board adds up its window per player,
+// the best wave and the kills summed. Guests aren't filed.
 const BOARD_EVERY = 60000;   // ms between re-reads
+const BOARD_FLIP = 8000;     // ms on Weekly, then on Monthly
 const BOARD_ROWS = 10;
-const board = { rows: null, at: 0, busy: false, drawn: "", error: false };
+const board = { rows: null, at: 0, busy: false, drawn: "", error: false, period: null };
 
 async function refreshBoards() {
   if (board.busy) return;
-  const sb = window.TrollrunnerAccounts?.getClient?.();
-  const LB = window.TrollLeaderboard;
-  if (!sb || !LB?.weekWindow) { board.rows = board.rows || []; board.at = performance.now(); return; }
+  if (!hasBackend()) { board.rows = board.rows || []; board.at = performance.now(); return; }
   board.busy = true;
   try {
-    const { start, end } = LB.weekWindow();
-    const { data, error } = await sb.from("troll_leaderboard_view")
-      .select("user_id,username,meta")
-      .eq("game_id", "troll-ops")
-      .eq("meta->>mode", "zombies")
-      .gte("achieved_at", start.toISOString())
-      .lt("achieved_at", end.toISOString())
-      .limit(2000);
-    if (error) throw error;
-    board.rows = data || [];
+    const { start, end } = monthWindow();
+    // this month holds this week, bar a week that began last month
+    const wk = weekWindow();
+    board.rows = await fetchRows({ start: wk.start < start ? wk.start : start, end, mode: "zombies" }) || [];
     board.error = false;
   } catch (err) {
     console.warn("[zombies hub] boards", err);
@@ -310,26 +305,21 @@ async function refreshBoards() {
   }
 }
 
-/* Per player: best wave, kills summed; top ten each way. */
-function tally(rows) {
-  const by = new Map();
-  for (const r of rows || []) {
-    const m = r.meta || {};
-    let u = by.get(r.user_id);
-    if (!u) by.set(r.user_id, u = { name: r.username || "troll", wave: 0, kills: 0 });
-    u.wave = Math.max(u.wave, +m.wave || 0);
-    u.kills += +m.kills || 0;
-  }
-  const all = [...by.values()];
+/* Top ten each way over one window. A row without a date (a test's) counts. */
+function tally(rows, period = "week") {
+  const { start, end } = windowFor(period);
+  const inside = (rows || []).filter((r) => !r.achieved_at || (new Date(r.achieved_at) >= start && new Date(r.achieved_at) < end));
+  const all = tallyPlayers(inside.map((r) => ({ ...r, meta: { ...r.meta, mode: "zombies", pvp: false } })));
   return {
-    wave: all.filter((u) => u.wave > 0).sort((a, b) => b.wave - a.wave || b.kills - a.kills).slice(0, BOARD_ROWS).map((u) => [u.name, u.wave]),
-    kills: all.filter((u) => u.kills > 0).sort((a, b) => b.kills - a.kills).slice(0, BOARD_ROWS).map((u) => [u.name, u.kills]),
+    wave: all.filter((u) => u.zWave > 0).sort((a, b) => b.zWave - a.zWave || b.zKills - a.zKills).slice(0, BOARD_ROWS).map((u) => [u.name, u.zWave]),
+    kills: all.filter((u) => u.zKills > 0).sort((a, b) => b.zKills - a.zKills).slice(0, BOARD_ROWS).map((u) => [u.name, u.zKills]),
   };
 }
+const boardPeriod = () => board.period || (Math.floor(Date.now() / BOARD_FLIP) % 2 ? "month" : "week");
 
 /* One board, the reference's: a navy panel, the title, "Weekly · Ends in",
    then rank, player and the number down the page. */
-function drawBoard(s, title, unit, rows, ends) {
+function drawBoard(s, title, unit, rows, ends, period) {
   const { g, c } = s;
   const W = c.width, H = c.height;
   g.clearRect(0, 0, W, H);
@@ -343,7 +333,7 @@ function drawBoard(s, title, unit, rows, ends) {
     g.fillStyle = col; g.fillText(t, x, y);
   };
   text(title, W / 2, 66, 74, "#ffffff", "center");
-  text("Weekly", 48, 136, 40, "#ffffff");
+  text(period === "month" ? "Monthly" : "Weekly", 48, 136, 40, "#ffffff");
   text(`Ends: ${ends}`, W - 48, 136, 40, "#7dff4f", "right");
   g.fillStyle = "rgba(255,255,255,.14)"; g.fillRect(40, 168, W - 80, 3);
   text("Rank", 48, 198, 28, "#9fb0d8", "left", 600);
@@ -351,7 +341,7 @@ function drawBoard(s, title, unit, rows, ends) {
   text(unit, W - 48, 198, 28, "#9fb0d8", "right", 600);
   const top = 250, step = Math.min(62, (H - top - 30) / BOARD_ROWS);
   if (!rows.length) {
-    text(board.error ? "Board's down. Back soon." : "No runs yet this week.", W / 2, top + step * 3, 40, "#cfd8f0", "center", 600);
+    text(board.error ? "Board's down. Back soon." : `No runs yet this ${period}.`, W / 2, top + step * 3, 40, "#cfd8f0", "center", 600);
     text("Be the first on it.", W / 2, top + step * 4.2, 34, "#ffd84a", "center", 600);
   }
   const RANK = ["#ffd84a", "#d9e2f2", "#e8a35c"];
@@ -371,13 +361,14 @@ function drawBoard(s, title, unit, rows, ends) {
 function updateBoards() {
   if (!built) return;
   if (performance.now() - board.at > BOARD_EVERY) refreshBoards();
-  const ends = window.TrollLeaderboard?.timeLeft?.() || "Monday";
-  const t = tally(board.rows);
-  const key = JSON.stringify([t, ends, board.error]);
+  const period = boardPeriod();
+  const ends = timeLeft(period);
+  const t = tally(board.rows, period);
+  const key = JSON.stringify([t, ends, board.error, period]);
   if (key === board.drawn) return;
   board.drawn = key;
-  drawBoard(built.boards.get("wave"), "Highest Wave", "Wave", t.wave, ends);
-  drawBoard(built.boards.get("kills"), "Total Kills", "Kills", t.kills, ends);
+  drawBoard(built.boards.get("wave"), "Highest Wave", "Wave", t.wave, ends, period);
+  drawBoard(built.boards.get("kills"), "Total Kills", "Kills", t.kills, ends, period);
 }
 
 function updateSigns() {
@@ -412,6 +403,7 @@ function buildUi() {
   root.hidden = true;
   root.innerHTML = `
     <div class="zhb-chips">
+      <div class="zhb-chip zhb-credits" aria-label="Credits"><span class="zhb-coin" aria-hidden="true"></span><span class="zhb-credits-n">0</span>&nbsp;Credits</div>
       <div class="zhb-chip zhb-online"><span class="zhb-dot" aria-hidden="true"></span><span class="zhb-online-n">1</span>&nbsp;in the hub</div>
       <button type="button" class="zhb-chip zhb-invite" aria-label="Invite friends: copy a link to your private pad">Invite Friends</button>
     </div>
@@ -467,13 +459,17 @@ function updateUi(dt, party) {
   if (!ui) return;
   const humans = 1 + [...game.net.peers.values()].filter((p) => !game.isBotPeer(p)).length;
   ui.online.textContent = String(humans);
+  // a kiosk screen is up: nothing of ours under it
+  if (kioskOpen()) { ui.pad.hidden = true; return; }
   if (!hub.pad) {
     const k = nearKiosk();
     ui.pad.hidden = !k;
     if (k) {
       ui.padH.textContent = `${k.label} kiosk`;
-      ui.padS.textContent = k.id === "weapons" ? "Guns for Credits. Opening soon." : "Kits for Credits. Opening soon.";
-      ui.hold.hidden = true;
+      ui.padS.textContent = k.id === "weapons" ? "Guns for Credits." : "Kits for Credits.";
+      ui.hold.hidden = false;
+      ui.holdT.textContent = game.isTouch ? "Tap the swap button to open" : "Press to open";
+      ui.bar.style.width = "0%";
     }
     return;
   }
@@ -524,6 +520,12 @@ export function updateHub(dt) {
   hub.sendT -= dt;
   if (hub.sendT <= 0) sendClaim();
 
+  // a kiosk: X opens its screen (view/zombies-kiosk.js; placeholders for now)
+  const xDown = !game.localPauseOnly && (game.keys.has("KeyX") || (game.isTouch && game.touchState?.swap) || !!game.gamepadState?.pickup);
+  const kiosk = !hub.pad && !kioskOpen() ? nearKiosk() : null;
+  if (kiosk && xDown && !hub.xWas) openKiosk(kiosk.id);
+  hub.xWas = xDown;
+
   const party = hub.pad ? partyOn(hub.pad, myParty()) : null;
   if (party && party.owner === me() && !hub.launched) {
     const held = !game.localPauseOnly && (game.keys.has("KeyX") || (game.isTouch && game.touchState?.swap) || !!game.gamepadState?.pickup);
@@ -559,6 +561,7 @@ export function leaveHub() {
   if (!wasIn) return;
   wasIn = false;
   if (ui) ui.root.hidden = true;
+  closeKiosk();
   document.body.classList.remove("to-zhub");
   disposeScene();
   if (hub.pad) { hub.pad = null; sendClaim(); }
@@ -575,7 +578,9 @@ export function hubDebug() {
     endRun: (reason = "dead") => game.endGame(reason),
     // fake this week's rows (no backend in tests)
     setBoardRows: (rows) => { board.rows = rows; board.at = performance.now(); board.error = false; },
-    boards: () => tally(board.rows),
+    boards: (period = "week") => tally(board.rows, period),
+    setBoardPeriod: (p) => { board.period = p; },
+    kioskOpen, closeKiosk,
     state: () => game.gameState,
     input: () => ({ pauseOnly: !!game.localPauseOnly, x: game.keys.has("KeyX") }),
   };

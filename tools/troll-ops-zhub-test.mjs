@@ -82,7 +82,8 @@ const stand = (page, pad) => R(page, (pad) => {
 }, pad);
 const signOf = (page, pad) => R(page, (pad) => window.__trollHub.signs()?.[pad] || "", pad);
 const where = (page) => R(page, () => ({ mode: window.__trollOps.modeId(), room: window.__trollOps.net.room, map: window.__trollOps.builtMap()?.map?.name, state: window.__trollHub.state() }));
-const holdX = async (page, ms = 1400) => { await R(page, () => window.__trollOps.keys.add("KeyX")); await sleep(ms); await R(page, () => window.__trollOps.keys.delete("KeyX")); };
+// the tab in front runs its frames; one behind it may not (headless)
+const holdX = async (page, ms = 1400) => { await page.bringToFront(); await R(page, () => window.__trollOps.keys.add("KeyX")); await sleep(ms); await R(page, () => window.__trollOps.keys.delete("KeyX")); };
 async function backInHub(page) {
   await until(page, () => window.__trollOps.modeId() === "zhub" && !window.__trollOps.loadState().open, null, 120000);
   await loaded(page);
@@ -104,13 +105,32 @@ await R(a, () => window.__trollHub.setBoardRows([
   { user_id: "u1", username: "grinlord", meta: { mode: "zombies", wave: 12, kills: 140 } },
   { user_id: "u1", username: "grinlord", meta: { mode: "zombies", wave: 9, kills: 90 } },
   { user_id: "u2", username: "pepe_enjoyer", meta: { mode: "zombies", wave: 15, kills: 60 } },
+  // 40 days ago: on neither the weekly nor the monthly board
+  { user_id: "u3", username: "old_timer", achieved_at: new Date(Date.now() - 40 * 86400000).toISOString(), meta: { mode: "zombies", wave: 99, kills: 999 } },
 ]));
 const tally = await R(a, () => window.__trollHub.boards());
+const monthly = await R(a, () => window.__trollHub.boards("month"));
+check(!JSON.stringify([tally, monthly]).includes("old_timer") && monthly.wave[0][0] === "pepe_enjoyer", "boards: last month's run is on neither", JSON.stringify(monthly));
+await R(a, () => window.__trollHub.setBoardPeriod("month"));
 check(tally.wave[0][0] === "pepe_enjoyer" && tally.wave[0][1] === 15 && tally.kills[0][0] === "grinlord" && tally.kills[0][1] === 230,
   "boards: best wave, kills summed", JSON.stringify(tally));
 await R(a, () => { const T = window.__trollOps; T.move.pos.set(0, T.move.pos.y, -2); T.look.yaw = 0; T.look.pitch = 0.12; });
 await sleep(800);
 await a.screenshot({ path: path.join(SHOTS, `zhub-boards${TAG}.png`) });
+// the kiosks (P6 placeholders): X by one opens its screen, Escape shuts it
+for (const k of ["weapons", "classes"]) {
+  await R(a, (k) => { const T = window.__trollOps, K = window.__trollHub.HUB.kiosks.find((q) => q.id === k); T.move.pos.set(K.x - 1.6, T.move.pos.y, K.z); }, k);
+  await sleep(300);
+  await holdX(a, 300);
+  check(await until(a, () => window.__trollHub.kioskOpen(), null, 3000), `${k} kiosk opens`);
+  const txt = await R(a, () => document.querySelector(".zk")?.innerText || "");
+  check(/Coming soon/i.test(txt) && /Credits/.test(txt) && (k === "weapons" ? /Tier 4/.test(txt) : /Rookie/.test(txt)), `${k}: placeholder cards and Credits`, txt.replace(/\s+/g, " ").slice(0, 120));
+  if (k === "weapons") await a.click(".zk-tab[data-tier='3']");
+  await scanText(a, check, `the ${k} kiosk`);
+  await a.screenshot({ path: path.join(SHOTS, `zhub-kiosk-${k}${TAG}.png`) });
+  await a.keyboard.press("Escape");
+  check(await until(a, () => !window.__trollHub.kioskOpen(), null, 3000), `${k} kiosk closes`);
+}
 await stand(a, "floor"); await stand(b, "floor");
 await sleep(600);
 await a.screenshot({ path: path.join(SHOTS, `zhub-floor${TAG}.png`) });
