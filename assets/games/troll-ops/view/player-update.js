@@ -338,6 +338,12 @@ export function updatePlayer(dt) {
     // Landing roll: the view goes head over heels once and dips as you tuck.
     const rollK = royaleRollK();
     if (rollK > 0) game.camera.position.y -= Math.sin(Math.PI * rollK) * 0.9;
+    // Zombie Rush, down (P7): on the floor, the view tipped over and swaying.
+    game.downTiltT = damp(game.downTiltT || 0, game.player.downed && !game.player.out ? 1 : 0, 4, dt);
+    const downK = game.downTiltT, downNow = performance.now() / 1000;
+    if (downK > 0.001) game.camera.position.y -= downK * 0.5;
+    const downRoll = downK * (0.24 + Math.sin(downNow * 1.3) * 0.04);
+    const downPitch = downK * Math.sin(downNow * 0.9) * 0.025;
     // PF slide: the view tips over a few degrees while you slide, leaning
     // toward the side you're steering (left by default).
     game.slideTiltT = damp(game.slideTiltT, game.move.stance === STANCE.SLIDE ? 1 : 0, 9, dt);
@@ -351,7 +357,7 @@ export function updatePlayer(dt) {
     const glance = kbRepair.active ? kbRepair.glance : 0;
     // Tipsy (the saloon bar): the room leans and bobs a little.
     const tip = bar.tipsy > TIPSY.onset && game.isSocial() ? tipsyFx(bar.tipsy, performance.now() / 1000) : null;
-    game._euler.set(viewPitch + rollPitch + glance * KB_GLANCE.pitch + (tip?.pitch || 0), viewYaw + glance * KB_GLANCE.yaw, (Math.random() - 0.5) * shake * 0.6 + game.fireShake.r + slideRoll + (tip?.roll || 0));
+    game._euler.set(viewPitch + rollPitch + downPitch + glance * KB_GLANCE.pitch + (tip?.pitch || 0), viewYaw + glance * KB_GLANCE.yaw, (Math.random() - 0.5) * shake * 0.6 + game.fireShake.r + slideRoll + downRoll + (tip?.roll || 0));
     game.camera.quaternion.setFromEuler(game._euler);
     if (glance > 0 || game.weaponCamera.userData.glanced) {
       game.weaponCamera.quaternion.setFromEuler(game._euler.set(glance * KB_GLANCE.pitch, glance * KB_GLANCE.yaw, 0, "YXZ"));
