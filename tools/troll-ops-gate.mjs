@@ -83,7 +83,9 @@ const TEST_MAP = [
   [/input\/|keyboard-mouse|gamepad|touch/, z("input")],
   [/menu\/|menu-bo2\.js|loadout\.js|style\.css|troll-ops\.html/, z("menu")],
   [/troll-ops\/weapons\.js|combat\/|attachments\.js|weapon-|view\/(weapon-view|viewmodels)\.js/, z("input", "killcam")],
-  [/net\.js|remote-players\.js|modes\/match-(start|end)\.js|modes\/spawns\.js/, z("sync", "load-sync")],
+  [/net\.js|remote-players\.js|modes\/spawns\.js/, z("sync", "load-sync")],
+  // match setup: every mode boots in step 2 already; one two-tab check is plenty
+  [/modes\/match-(start|end)\.js/, z("sync")],
   [/troll-ops\/bots\.js|troll-ops\/bot-|modes\/bot-/, [...z("bot-host"), "bots"]],
   [/objectives|match-clock/, z("objectives")],
   [/grinjuku|movement\.js/, z("rope")],
