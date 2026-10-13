@@ -263,6 +263,10 @@ export function setFace(rig, mood = null) {
 const RADIAL = 8;         // sides per tube ring
 const FILLET = 5;         // samples round each bend
 const CAP_W = 8, CAP_H = 6;
+// The ring's corners, worked out once (every ring of every rig was calling
+// cos/sin per vertex: a 100-troll Royale rebuilt thousands a frame).
+const RING_COS = Float32Array.from({ length: RADIAL + 1 }, (_, k) => Math.cos((k / RADIAL) * Math.PI * 2));
+const RING_SIN = Float32Array.from({ length: RADIAL + 1 }, (_, k) => Math.sin((k / RADIAL) * Math.PI * 2));
 
 /* Straight limbs, rounded corners: each segment is a straight run, and each
    joint is turned with a short quadratic curve, like a marker line bending
@@ -307,6 +311,7 @@ class BodyStroke {
     this.last = new Float32Array(this.joints.length * 3).fill(NaN);
 
     this.samples = chains.map((c) => Array.from({ length: chainSamples(c.length) }, () => new THREE.Vector3()));
+    this.pts = chains.map((c) => c.map((j) => this.local.get(j)));   // each chain's joint positions, by reference
     const tubeVerts = this.samples.reduce((n, s) => n + s.length * (RADIAL + 1), 0);
     const capVerts = caps.length * (CAP_W + 1) * (CAP_H + 1);
     const total = tubeVerts + capVerts;
@@ -379,11 +384,13 @@ class BodyStroke {
     const frame = document.timeline?.currentTime;
     if (frame != null && frame === this.checkedAt) return;
     this.checkedAt = frame;
-    this.update();
+    this.update(true);
   }
 
-  update() {
-    this.root.updateWorldMatrix(true, true);
+  /* `drawn`: called while the renderer draws, which has just brought every
+     world matrix up to date, so the rig's needn't be walked again. */
+  update(drawn = false) {
+    if (!drawn) this.root.updateWorldMatrix(true, true);
     this._inv.copy(this.root.matrixWorld).invert();
     let changed = false;
     this.joints.forEach((j, i) => {
@@ -402,7 +409,7 @@ class BodyStroke {
     const T = this._t, Nn = this._n, B = this._b;
     let v = 0;
     this.chains.forEach((chain, ci) => {
-      const pts = chain.map((j) => this.local.get(j));
+      const pts = this.pts[ci];
       const s = this.samples[ci];
       const count = sampleChain(pts, s, this.radius * 2.2);
       let along = 0;
@@ -423,8 +430,7 @@ class BodyStroke {
         B.crossVectors(T, Nn);
         if (i > 0) along += s[i].distanceTo(s[i - 1]);
         for (let k = 0; k <= RADIAL; k++) {
-          const ang = (k / RADIAL) * Math.PI * 2;
-          const c = Math.cos(ang), sn = Math.sin(ang);
+          const c = RING_COS[k], sn = RING_SIN[k];
           const nx = Nn.x * c + B.x * sn, ny = Nn.y * c + B.y * sn, nz = Nn.z * c + B.z * sn;
           P[v * 3] = s[i].x + nx * r; P[v * 3 + 1] = s[i].y + ny * r; P[v * 3 + 2] = s[i].z + nz * r;
           N[v * 3] = nx; N[v * 3 + 1] = ny; N[v * 3 + 2] = nz;
