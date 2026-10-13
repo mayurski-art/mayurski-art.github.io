@@ -14,7 +14,7 @@ Design docs live next to this file: `COPS-AND-ROBBERS.md`, `TROLL-CITY-RP2.md`, 
 
 ### Tasks to do, in order (updated 2026-10-13)
 Start each session on a fresh branch or worktree from origin/main.
-1. **Zombie Rush P7:** the animation pass, plus the open items (gamepad buy/deploy, boss tint).
+1. **Zombie Rush P7:** the animation pass (done: bite timing, turning, stagger; next: melee lunge, tier-up flourish, turret deploy/pack, downed camera + revive ring, weapon swap, bat/shovel 1P, impacts), plus gamepad buy/deploy and the boss tint.
 2. **Black Ops 2 assault-rifle reloads,** once the user sends the rest of the details (brief: `refs/pf-reloads/BRIEF.md`).
 3. **Stylised realism graphics,** one map first, with before/after screenshots.
 4. **Then hand the user ONE test checklist** covering everything shipped since 2026-10-12 (Zombie Rush P1-P6 incl. the hub, Credits and the kiosks, weekly/monthly leaderboards, the High-graphics glow and box fixes, the Royale lag and fights, Show FPS, the phone menu, bot heads, Ghostface Killers).
@@ -452,7 +452,10 @@ Map rules:
 
 ## 5. Shipped log (newest first; one line each, details in git)
 
-- **2026-10-13** (-zc1, branch tf-zcredits)
+- **2026-10-13** (-zc1/-zc2, branch tf-zcredits)
+  - Zombie Rush P7 so far: the bite lands with the claw (dodgeable), zombies turn instead of snapping, heavy hits stagger them back. Test: zanim-test.
+  - Phone buttons show what they do (view/touch-icons.js: mug / shot / keys / fist on fire, an icon on the hold-X button); the TROLLS NFT body's emotes use its block arms (nft-fp-shot).
+  - Checks: `troll-ops-gate.mjs --quick` between tasks, the full gate (parallel, solo retry) once before the push (CLAUDE.md rule 3).
   - Zombie Rush P6: Credits (runs pay; guns in six tiers with levels, Rookie kit levels; credits.js) and the real Weapons / Classes kiosk screens. Test: zcredits-test.
   - Aim assist: none on a mouse (Phantom Forces), toned down on a pad and a thumb (CoD); recoil at 70% on every gun (weapons.js RECOIL_SCALE). Test: input-test.
 

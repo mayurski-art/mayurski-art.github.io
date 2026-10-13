@@ -21,7 +21,7 @@
 //   Dead Silence         others don't hear your steps (net.js flag, game.js steps)
 //   Awareness            you hear enemy steps louder (game.js steps)
 
-import { rankUnlocked } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1";
+import { rankUnlocked } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 
 export const PERK_TIERS = 3;
 

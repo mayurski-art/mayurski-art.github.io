@@ -5,7 +5,7 @@
 
 import * as THREE from "three";
 import { game } from "../core/state.js?v=st1";
-import { hasPerk, PERK_TUNE } from "../perks.js?v=pk1-cl1-bp1-fj1-zc1";
+import { hasPerk, PERK_TUNE } from "../perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2";
 
 const PICKUP_R = 1.6;
 const LIFE = 30;

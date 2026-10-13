@@ -3,7 +3,7 @@
 // phase 1).
 
 import * as THREE from "three";
-import { segmentBlocked } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1";
+import { segmentBlocked } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
 import { game } from "../core/state.js?v=st1";
 
 /* Aim assist for a controller and a thumb, the Call of Duty way: near a
