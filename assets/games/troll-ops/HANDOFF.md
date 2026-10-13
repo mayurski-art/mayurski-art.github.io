@@ -452,7 +452,7 @@ Map rules:
 
 ## 5. Shipped log (newest first; one line each, details in git)
 
-- **2026-10-13** (-zc1/-zc2, branch tf-zcredits)
+- **2026-10-13** (-zc1/-zc2, main 032863f, live confirmed; gate green 54 min, three tests passed on their solo retry)
   - Zombie Rush P7 so far: the bite lands with the claw (dodgeable), zombies turn instead of snapping, heavy hits stagger them back. Test: zanim-test.
   - Phone buttons show what they do (view/touch-icons.js: mug / shot / keys / fist on fire, an icon on the hold-X button); the TROLLS NFT body's emotes use its block arms (nft-fp-shot).
   - Checks: `troll-ops-gate.mjs --quick` between tasks, the full gate (parallel, solo retry) once before the push (CLAUDE.md rule 3).
