@@ -105,7 +105,28 @@ export function buyUpgrade(id) {
   if (!run.live || run.downed || game.gameState !== "playing") return false;
   const ok = buy(id);
   game.audio.zombieBuy(ok);
+  if (ok && (id === "gun" || id === "melee")) tierFlourish(id);
   return ok;
+}
+
+/* A tier bought (P7): the new one gets admired in your hands, a rising
+   chime and a shower of gold off it. Holding the other one, just the chime
+   and the gold. */
+export const flourish = { at: 0, id: null, inspected: false };
+function tierFlourish(id) {
+  flourish.at = performance.now(); flourish.id = id; flourish.inspected = false;
+  game.audio.tierUp?.();
+  if (game.player.holding === id) {
+    game.inspectT = 0;
+    game.startInspect();
+    flourish.inspected = game.inspectT > 0;
+  }
+  const p = game.player.pos, yaw = game.look.yaw, pitch = game.look.pitch;
+  const at = p.clone();
+  at.x += -Math.sin(yaw) * Math.cos(pitch) * 0.8;
+  at.z += -Math.cos(yaw) * Math.cos(pitch) * 0.8;
+  at.y += Math.sin(pitch) * 0.8 - 0.25;
+  game.spawnImpactBurst(at, 0xffc84a, 18);
 }
 
 /* The Deployables column: pick one to place (held = grid mode). */
@@ -183,7 +204,7 @@ function winRun() {
 /* Tests (__trollOps.zrun()): read and poke the run. */
 export function zombieRunDebug() {
   return {
-    run, econ, upgrades: upgradeState,
+    run, econ, upgrades: upgradeState, flourish,
     offers: () => offers(),
     buy: (id) => buyUpgrade(id),
     skip: () => skipBreak(),

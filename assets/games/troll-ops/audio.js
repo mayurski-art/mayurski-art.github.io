@@ -1170,6 +1170,13 @@ export class GameAudio {
     this._tone({ freq: 2093, duration: 0.22, gain: 0.07, type: "triangle", delay: 0.12 });
   }
 
+  /* Zombies: a gun or melee tier bought, a rising four-note chime. */
+  tierUp() {
+    if (!this._ready()) return;
+    [784, 988, 1175, 1568].forEach((freq, i) => this._tone({ freq, duration: 0.16 + i * 0.04, gain: 0.07, type: "triangle", delay: 0.08 + i * 0.07 }));
+    this._noise({ duration: 0.3, gain: 0.03, type: "highpass", freq: 6000, delay: 0.3 });
+  }
+
   /* Zombies: a deployable put down (a heavy thunk and a ratchet), and one
      the horde tore apart (splintering crunch). */
   deployPlace(at = null) {
