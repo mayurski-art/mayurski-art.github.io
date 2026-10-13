@@ -1331,6 +1331,9 @@ export function updateWeaponView(dt) {
     game.move.justLanded = false;
   }
   landDipT = damp(landDipT, 0, 7, dt);
+  // A swap: up from below the frame, muzzle low, settling (combat/weapons.js).
+  game.swapRaiseT = Math.max(0, (game.swapRaiseT || 0) - dt);
+  const sw = Math.pow(game.swapRaiseT / 0.3, 2);
 
   const insp = inspectPose();
   const rl = reloadPose(w, mesh);
@@ -1358,13 +1361,13 @@ export function updateWeaponView(dt) {
 
   mesh.position.set(
     basePos.x + bobX + swayX - w.viewKickKnockback * 0.4 + game.weaponLowerT * 0.02 + turnLagX + insp.x + rl.x,
-    basePos.y + bobY + swayY - game.weaponLowerT * 0.15 - landPos - turnLagY + insp.y + rl.y,
+    basePos.y + bobY + swayY - game.weaponLowerT * 0.15 - landPos - turnLagY + insp.y + rl.y - sw * 0.28,
     basePos.z + w.viewKickKnockback * 0.6 + game.weaponLowerT * 0.08 + insp.z + rl.z
   );
   mesh.rotation.set(
-    -w.viewKickPitch * 0.8 + game.weaponLowerT * 0.45 + landPitch - turnLagY * 2 + insp.pitch + rl.pitch,
+    -w.viewKickPitch * 0.8 + game.weaponLowerT * 0.45 + landPitch - turnLagY * 2 + insp.pitch + rl.pitch - sw * 0.6,
     w.viewKickYaw * 0.6 + (1 - adsOffset) * (0.05 + (mesh.userData.hipYaw ?? 0)) + sprintCant + turnLagX * 2 + insp.yaw + rl.yaw,
-    (1 - adsOffset) * 0.08 + game.weaponLowerT * 0.38 + sprintRoll + turnLagX * 4 + insp.roll + rl.roll + w.viewKickRoll
+    (1 - adsOffset) * 0.08 + game.weaponLowerT * 0.38 + sprintRoll + turnLagX * 4 + insp.roll + rl.roll + w.viewKickRoll + sw * 0.35
   );
   applyGunInspect(mesh, w);
   if (mesh.userData.akimbo) {
