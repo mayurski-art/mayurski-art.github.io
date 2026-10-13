@@ -1,5 +1,5 @@
 // Troll Forces: first person in the TROLLS NFT body (user, 2026-10-12: the
-// arms were the stick troll's rods). Test Range, the owner stood in for by
+// arms were the stick troll's rods; 2026-10-13 the emotes' too). Test Range, the owner stood in for by
 // a cached profile; screenshots of the rifle at rest and aimed, a pistol,
 // and the melee, and a check that the blocky arms draw and the rods don't.
 //
@@ -66,6 +66,30 @@ await page.evaluate(() => window.__trollOps.setAds(false));
 await page.evaluate(() => window.__trollOps.switchWeapon("secondary"));
 await page.waitForTimeout(900);
 await page.screenshot({ path: path.join(SHOTS, `fp-${tag}-pistol.png`) });
+// Emotes (user, 2026-10-13: the NFT body's emotes showed the stick
+// figure's hands): the emote arms get block arms too, no stick hands.
+await page.evaluate(() => window.__trollOps.switchWeapon("primary"));
+// the first-person ones (emotes.js kind "fp"): laugh, L, gun spin, facepalm, Pour up
+for (const idx of [6, 7, 8, 9, 16]) {
+  await page.evaluate((i) => window.__trollOps.setEmote(i), idx);
+  await page.waitForTimeout(900);
+  const e = await page.evaluate(async () => {
+    const { game } = await import("/assets/games/troll-ops/core/state.js?v=st1");
+    const S = game.streakArms;
+    if (!S?.visible) return { fp: false };
+    const arms = S.userData.arms;
+    // the emote's arms, or the gun's (the gun spin keeps the gun arms)
+    const box = (root) => root.children.filter((c) => c.isMesh && c.geometry.type === "BoxGeometry" && c.visible).length;
+    const blocks = box(S) + (window.__trollOps.pfArms.visible ? box(window.__trollOps.pfArms) : 0);
+    return { fp: true, rodsDraw: arms[0].rod.material.visible, hands: arms.filter((a) => a.hand.visible).length, blocks };
+  });
+  await page.screenshot({ path: path.join(SHOTS, `fp-${tag}-emote${idx}.png`) });
+  if (!e.fp) { console.log(`emote ${idx}: third person or no arms`); continue; }
+  if (body) check(!e.rodsDraw && e.hands === 0 && e.blocks >= 1, `emote ${idx}: block arms, no stick hands`, JSON.stringify(e));
+  else check(e.rodsDraw && e.blocks === 0, `emote ${idx}: the stick troll keeps its arms`, JSON.stringify(e));
+  await page.evaluate(() => window.__trollOps.setEmote(-1));
+  await page.waitForTimeout(300);
+}
 check(errors.length === 0, "no page errors", errors.join(" | "));
 console.log(fails ? `${fails} FAILED` : "ALL PASS");
 await browser.close(); server.close();

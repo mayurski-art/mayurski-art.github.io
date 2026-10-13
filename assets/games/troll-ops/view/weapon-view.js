@@ -457,16 +457,21 @@ export const pfArms = (() => {
    hands/arms are stick figures"). Each rod gets a blocky twin, a square
    white forearm with an ink line and a box fist on its tip, laid over the
    rod's pose every frame (placeBlockArms) while the rods don't draw. Every
-   arm pose (guns, melee, the saber, a pair) keeps posing the rods. */
+   arm pose (guns, melee, the saber, a pair) keeps posing the rods. The
+   emote and streak-device arms (game.streakArms) get the same, their
+   stick hands and sleeves hidden (user, 2026-10-13: emotes in the NFT
+   body showed the stick figure's hands and arms). */
 const BLOCK_ARM = 0.066;     // metres across the forearm (the body's arms are big)
 const BLOCK_FIST = 0.082;
 /* A watch or a band round a rod: a block arm wants a wider one. */
 const wristR = (rod) => (rod === pfArms.userData.rods[0] || rod === pfArms.userData.rods[1]) && cosmetics.body === "trolls-1718" ? BLOCK_ARM * 0.74 : 0.0165;
 const _baUp = new THREE.Vector3(), _baZ = new THREE.Vector3(), _baN = new THREE.Vector3(), _baQ = new THREE.Quaternion();
 const BLOCK_TURN = 0.55;   // radians a block arm is turned off square to the lens, so two faces show
-const blockArms = (() => {
-  const mat = new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.85, emissive: 0xf2f2ee, emissiveIntensity: 0.12 });
-  return pfArms.userData.rods.map((rod) => {
+const blockMat = new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.85, emissive: 0xf2f2ee, emissiveIntensity: 0.12 });
+/* A block forearm and fist for each rod, parented beside it. */
+function blockTwins(rods, parent) {
+  const mat = blockMat;
+  return rods.map((rod) => {
     const g = new THREE.BoxGeometry(BLOCK_ARM, 1, BLOCK_ARM);
     g.translate(0, 0.5, 0);
     const arm = new THREE.Mesh(g, mat);
@@ -477,15 +482,27 @@ const blockArms = (() => {
       m.visible = false;
       m.renderOrder = -1;
       m.traverse((o) => { o.frustumCulled = false; });
-      pfArms.add(m);
+      parent.add(m);
     }
     return { rod, arm, fist };
   });
-})();
+}
+const blockArms = blockTwins(pfArms.userData.rods, pfArms);
+let streakBlocks = null;   // the emote / streak-device arms', made on first use
+let streakHid = false;     // we hid their stick hands (put them back once off)
 export function placeBlockArms() {
   const on = cosmetics.body === "trolls-1718";
   pfArms.userData.rods[0].material.visible = !on;   // (both rods share it)
-  for (const b of blockArms) {
+  const sArms = game.streakArms?.userData.arms;
+  if (sArms && (on || streakBlocks)) {
+    streakBlocks ||= blockTwins(sArms.map((a) => a.rod), game.streakArms);
+    sArms[0].rod.material.visible = !on;   // (both share it too)
+    if (on || streakHid) {
+      for (const a of sArms) for (const p of [a.hand, a.wrist, a.cuff, a.sleeve]) if (p) p.visible = !on;
+      streakHid = on;
+    }
+  }
+  for (const b of streakBlocks ? [...blockArms, ...streakBlocks] : blockArms) {
     const show = on && b.rod.visible;
     b.arm.visible = b.fist.visible = show;
     if (!show) continue;
