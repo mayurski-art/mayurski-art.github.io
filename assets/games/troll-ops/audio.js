@@ -10,6 +10,11 @@
 const NOISE_SECONDS = 2;
 const HRTF_RANGE = 40;   // metres: sounds further off pan left/right only
 const SHOT_CULL = 160;   // metres: gunfire further off isn't played
+// A Royale firefight starts ~70 sound layers a second (shots, impacts), each
+// a stack of new audio nodes: a big piece of a bot frame (2026-10-12). Past
+// FAR_BUDGET layers in one FAR_WINDOW, a layer further off than NEAR_VOICE
+// is dropped: lost in the din anyway. Close sounds always play.
+const FAR_BUDGET = 8, FAR_WINDOW = 0.1, NEAR_VOICE = 30;
 
 export class GameAudio {
   constructor() {
@@ -92,6 +97,13 @@ export class GameAudio {
     return (at.x - this._lx) ** 2 + (at.y - this._ly) ** 2 + (at.z - this._lz) ** 2 > range * range;
   }
 
+  /* True when a far-off layer should be skipped (FAR_BUDGET). */
+  _overBudget(at) {
+    if (!at || !this._far(at, NEAR_VOICE)) return false;
+    if (this.now - (this._farWin ?? -1) > FAR_WINDOW) { this._farWin = this.now; this._farN = 0; }
+    return ++this._farN > FAR_BUDGET;
+  }
+
   /* Node a sound should connect to. With a position that's a fresh panner
      feeding master; without one it's master itself. Panners are cheap and
      get collected once the source stops, so one per emission is fine. */
@@ -119,6 +131,7 @@ export class GameAudio {
 
   /* Burst of filtered noise — the body of most sounds here. */
   _noise({ duration = 0.2, gain = 0.5, type = "lowpass", freq = 1200, q = 1, sweepTo = null, delay = 0, at = null }) {
+    if (this._overBudget(at)) return;
     const t0 = this.now + delay;
     const src = this.ctx.createBufferSource();
     src.buffer = this.noise;
@@ -141,6 +154,7 @@ export class GameAudio {
   }
 
   _tone({ freq = 440, duration = 0.1, gain = 0.2, type = "sine", to = null, delay = 0, at = null }) {
+    if (this._overBudget(at)) return;
     const t0 = this.now + delay;
     const osc = this.ctx.createOscillator();
     osc.type = type;
