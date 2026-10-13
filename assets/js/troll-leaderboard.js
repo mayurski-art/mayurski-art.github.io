@@ -281,8 +281,10 @@
     const headCols = cfg.columns.map(c => `<th class="${colClass(c)}">${esc(c.label)}</th>`).join("");
     const ranked = rankEntries(cfg, board.entries).slice(0, cfg.boardSize || 10);
     const rows = ranked.map(e => rowMarkup(cfg, e)).join("") ||
-      `<tr class="lb-empty"><td class="lb-empty-cell" colspan="${cfg.columns.length + 2}">No plays yet this week — be the first on the board.</td></tr>`;
-    const foot = (cfg.footNote || (board.source === "live"
+      `<tr class="lb-empty"><td class="lb-empty-cell" colspan="${cfg.columns.length + 2}">${esc(board.emptyText || "No plays yet this week — be the first on the board.")}</td></tr>`;
+    // A provider may bring its own period (a monthly board): its own empty
+    // line, foot note and countdown (board.countdown, startCountdown).
+    const foot = (board.footNote || cfg.footNote || (board.source === "live"
       ? "Live — synced across every player and device. Resets every Monday."
       : "Scores here are real. The board fills in as people play this week and resets every Monday."))
       + (board.source === "live" && !board.loggedIn ? " <strong>Log in</strong> to add your own score to the board." : "");
@@ -307,7 +309,7 @@
 
   async function refresh(g) {
     if (!g || !g.rootEl) return;
-    try { render(g, await g.provider.getBoard()); }
+    try { const board = await g.provider.getBoard(); g.board = board; render(g, board); }
     catch (err) {
       g.rootEl.innerHTML = `<p class="lb-foot">Leaderboard unavailable right now.</p>`;
       console.warn("[leaderboard] getBoard failed for " + g.config.gameId + ":", err);
@@ -320,7 +322,7 @@
     g.timer = setInterval(() => {
       if (!g.rootEl) return;
       const el = g.rootEl.querySelector("[data-lb-reset]");
-      if (el) el.textContent = timeLeft();
+      if (el) el.textContent = g.board && g.board.countdown ? g.board.countdown() : timeLeft();
       if (weekId() !== lastWeek) { lastWeek = weekId(); refresh(g); }   // weekly rotation flip
     }, 60000);
   }

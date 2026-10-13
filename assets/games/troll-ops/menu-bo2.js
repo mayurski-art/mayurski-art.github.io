@@ -27,6 +27,8 @@ import { setMapShot } from "./map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1";
 import { leaveToArcade, initExitLinks } from "./menu/exit-links.js?v=ex1-cl1";
 import { game } from "./core/state.js?v=st1";
 import { inviteLink, prepareHubEntry } from "./modes/zombies/hub.js?v=zh1";
+import { makeTrollOpsProvider } from "./leaderboard-rows.js?v=lr1";
+const lbProvider = makeTrollOpsProvider();
 import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perksInTier, perkUnlocked, perkIconSvg } from "./perks.js?v=pk1-cl1-bp1-fj1";
 import { STREAK_DEFS } from "./scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1";
 
@@ -353,7 +355,7 @@ const screens = {
         canPrestige() && { id: "prestige", label: "Prestige", value: nextPrestigeName(), desc: "You're at level 69. Go back to level 1 for a new prestige.", go: "prestige" },
       ].filter(Boolean),
       [
-        { id: "leaders", label: "Leaderboards", desc: "This week's best trolls.", go: "leaders" },
+        { id: "leaders", label: "Leaderboards", desc: "This week's and this month's best trolls.", go: "leaders" },
         { id: "barracks", label: "Barracks", desc: "Your profile card: calling card, clan tag and combat record.", go: "barracks" },
         { id: "map", label: "Troll Map", desc: "This planet is the troll map. Spin it, find your city, see who is out there.", go: "map" },
       ],
@@ -689,7 +691,14 @@ const screens = {
   }),
   faces: () => optionScreen("Face", $("#to-cos-body .to-cos-face:not([data-wrist]):not([data-body])"), { descOf: (b) => (isLocked(b) ? "Off while you wear a TROLLS body: it has its own head." : "Everyone in the match sees it.") }),
   wrists: () => optionScreen("Wrist", $$("#to-cos-body [data-wrist]"), { descOf: (b) => (b.dataset.wrist ? "On your left wrist, every match." : "A bare wrist.") }),
-  leaders: { title: "Leaderboards", panel: "deploy", detail: true, lb: true, groups: [[back("Back to the main menu.")]] },
+  leaders: () => ({
+    title: "Leaderboards", panel: "deploy", detail: true, lb: true,
+    groups: [[
+      { id: "period", label: "Board", value: lbProvider.period === "month" ? "Monthly" : "Weekly", desc: "Weekly resets every Monday, monthly on the 1st. Your all-time stats are on your profile card.",
+        onSelect: (_, m) => { lbProvider.setPeriod(lbProvider.period === "month" ? "week" : "month"); window.TrollLeaderboard?.refresh?.("troll-ops"); m.refresh(); } },
+      back("Back to the main menu."),
+    ]],
+  }),
   options: () => ({
     title: "Options", panel: "controls", detail: true,
     groups: [
@@ -781,7 +790,12 @@ const menu = createBo2Menu(nav, {
     root.classList.toggle("has-gun", !!s.gun);
     root.classList.toggle("has-lb", !!s.lb);
     lbHost.hidden = !s.lb;
-    if (s.lb && !lbHost.dataset.mounted) { lbHost.dataset.mounted = "1"; lbHost.id = "to-bo2-lb"; window.TrollLeaderboard?.mount?.("troll-ops", "#to-bo2-lb"); }
+    if (s.lb && !lbHost.dataset.mounted) {
+      lbHost.dataset.mounted = "1"; lbHost.id = "to-bo2-lb";
+      // weekly or monthly, added up from the filed matches (leaderboard-rows.js)
+      window.TrollLeaderboard?.setProvider?.("troll-ops", lbProvider);
+      window.TrollLeaderboard?.mount?.("troll-ops", "#to-bo2-lb");
+    }
     shot.hidden = id !== "maps";
     if (id !== "barracks") clanEditing = false;
     cardHost.hidden = !s.card;

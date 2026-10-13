@@ -14,6 +14,7 @@
 import { getLevel, getPrestige, isOwner, tfLevelForXp } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1";
 import { playerIconSvg, prestigeName } from "./rank-icons.js?v=rk1";
 import { fetchRecord } from "./record.js?v=rec1";
+import { zombiesAllTime } from "./leaderboard-rows.js?v=lr1";
 import { cardById, fetchCard, getMyCard, cleanClan } from "./calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1";
 
 const FALLBACK_EMBLEM = new URL("../../images/wallpaper/trollface transparent.png", import.meta.url).href;
@@ -32,7 +33,7 @@ function statsHtml(d) {
   if (d.guest) return `<p class="tf-card-note">Guests don't keep a combat record. Sign in and every match counts.</p>`;
   if (d.loading && !d.record) return `<p class="tf-card-note">Loading the combat record…</p>`;
   const r = d.record;
-  if (!r) return `<p class="tf-card-note">No matches on the record yet.</p>`;
+  if (!r) return `<p class="tf-card-note">No matches on the record yet.</p>${zombiesHtml(d)}`;
   const pct = (x) => `${(x * 100).toFixed(1)}%`;
   const cells = [
     ["K/D", r.kd.toFixed(2)],
@@ -42,7 +43,16 @@ function statsHtml(d) {
     ["Headshots", r.headshots.toLocaleString()],
     ["Best streak", String(r.bestStreak)],
   ];
-  return `<dl class="tf-card-stats">${cells.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>`;
+  return `<dl class="tf-card-stats">${cells.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>${zombiesHtml(d)}`;
+}
+
+/* Zombies, all time (leaderboard-rows.js zombiesAllTime): the runs the
+   account has filed. Shown once there's at least one. */
+function zombiesHtml(d) {
+  const z = d.zombies;
+  if (!z || !z.runs) return "";
+  const cells = [["Best wave", z.bestWave], ["Zombies killed", z.kills], ["Runs", z.runs]];
+  return `<p class="tf-card-sub">Zombies · all time</p><dl class="tf-card-stats">${cells.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(Number(v).toLocaleString())}</dd></div>`).join("")}</dl>`;
 }
 
 function rankHtml(d) {
@@ -163,6 +173,7 @@ export function openProfileCard(uid, hint = {}) {
   el.querySelector('[data-act="close"]').focus();
 
   if (!self) loadOther(uid).then((o) => { data = { ...data, ...o }; paint(); }).catch(() => {});
+  zombiesAllTime(uid).then((zombies) => { data = { ...data, zombies }; paint(); }).catch(() => {});
   fetchRecord(uid)
     .then((record) => { data = { ...data, record, loading: false }; paint(); })
     .catch(() => { data = { ...data, loading: false }; paint(); });
