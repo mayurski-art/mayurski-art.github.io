@@ -202,7 +202,7 @@ if (!SIM_ONLY) {
       impacts.length = 0; tracers.length = 0;
       for (let i = 0; i < 20; i++) onShoot(bot, target, 0.0001, false, true, 8.5);
       const hitImpacts = impacts.length, hitRanged = tracers.filter((t) => t.range > 0).length;
-      perTier[tier] = { N, missImpacts, farEnough, onWall, ranged, hitImpacts, hitRanged,
+      perTier[tier] = { N, missImpacts, farEnough, onWall, ranged, hitImpacts, hitRanged, hitShots: 20,
         spread: [Math.min(...sideways), Math.max(...sideways)].map((v) => +v.toFixed(2)),
         missSpread: bot.diff.missSpread, want: bot.diff.missSpread.map((v) => +(v * grow).toFixed(2)) };
     }
@@ -219,7 +219,9 @@ if (!SIM_ONLY) {
       check(`in game: ${tier} misses land the tier's missSpread [${r.missSpread}] to the side (on the wall: [${r.want}])`,
         r.spread[0] >= r.want[0] - 0.15 && r.spread[1] <= r.want[1] + 0.15, `saw ${r.spread}`);
       check(`in game: every ${tier} miss's tracer ends at its impact (range set)`, r.ranged === r.N, `${r.ranged}/${r.N}`);
-      check(`in game: a ${tier} hit draws no wall impact and its tracer runs free`, r.hitImpacts === 0 && r.hitRanged === 0, `${r.hitImpacts} impacts, ${r.hitRanged} ranged`);
+      // A hit's tracer ends at the target (2026-10-12): it used to run on across
+      // the map, tested against every wall, for nothing.
+      check(`in game: a ${tier} hit draws no wall impact and its tracer ends at the target`, r.hitImpacts === 0 && r.hitRanged === r.hitShots, `${r.hitImpacts} impacts, ${r.hitRanged}/${r.hitShots} ranged`);
     }
   }
   check("in game: no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));

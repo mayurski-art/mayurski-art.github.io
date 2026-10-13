@@ -145,7 +145,11 @@ export function onBotShoot(bot, target, dmg, isHead, hit, range = 30, usingSecon
       game.audio.impact(_botMiss);
     }
   }
-  remoteShotFx(_botMuzzle, dir, wid, false, 0, landed);
+  // The tracer always gets an end, so it never flies on across the island
+  // tested against every wall (ballistics.js): the target on a hit, the
+  // strike or MISS_RAY on a miss.
+  const reach = hit ? _botAim.distanceTo(_botMuzzle) : (landed || MISS_RAY);
+  remoteShotFx(_botMuzzle, dir, wid, false, 0, reach);
   game.killcam.noteShot(game.kcClock, bot.id, _botMuzzle, dir, wid);
   noteRigShot(bot.id);
   if (game.net.active) game.net.reportShotAs(bot.id, _botMuzzle, dir, wid);
