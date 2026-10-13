@@ -201,6 +201,12 @@ const BREAK_SECONDS = 15;     // between waves: time to spend (skippable)
 const RISE_TIME = 1.6;        // a grave spawn clawing up out of the ground
 const RISE_DEPTH = 1.9;
 const ATTACK_REACH_Y = 1.3;   // no swiping at someone on the balcony above
+// The bite lands when the claw does (Zombie Rush P7): BITE_AT of the way into
+// the attack clip, never sooner than BITE_MIN, and only on someone still in
+// reach then (attackRange + BITE_GRACE), so you can back out of a swing.
+const BITE_AT = 0.59;
+const BITE_MIN = 0.4;         // s
+const BITE_GRACE = 0.5;       // m
 const CLIMB_GIVE_UP = 9;      // seconds on a stair before re-thinking the route
 const BLOCKER_REACH = 0.2;    // metres from a deployable's box it stops and swings (up against it: on the spikes)
 
@@ -245,6 +251,7 @@ export class Zombie {
     this.climb = null;       // { exit, exitFloor } while changing floors
     this.climbT = 0;
     this.attackT = 0;        // the swipe clip still playing
+    this.bite = null;        // { t, wall }: a swing on its way in
     this.sinkT = 0;
 
     this.leap = null;        // { phase: windup | air | land, t, from, to }
@@ -421,7 +428,6 @@ export class Zombie {
       if (d <= this.type.attackRange + 0.4 && Math.abs(feetY - this.groundY) < ATTACK_REACH_Y) {
         this.attackCdT = this.type.attackCd;
         this._swing();
-        onAttack(this, this.type.damage);
       } else {
         this._clip("idle", 0.15);
       }
@@ -480,11 +486,28 @@ export class Zombie {
     this.pool.material.opacity = this.sinkT > 0 ? Math.max(0, 1 - this.sinkT / SINK_TIME) : 1;
   }
 
-  _swing() {
+  /* Start a swing; the hit comes when the claw lands (_biteStep). `wall`:
+     the deployable it's tearing at, else the player it's after. */
+  _swing(wall = null) {
     this.voiceEvent = "snarl";
+    const clip = this.body ? this.body.actions.attack.getClip().duration : 0;
+    this.bite = { t: Math.max(BITE_MIN, clip * BITE_AT), wall };
+    this.swung = true;   // co-op: the host tells everyone (coop.js hostSend)
     if (!this.body) return;
     this.play("attack", 0.1);
-    this.attackT = this.body.actions.attack.getClip().duration * 0.9;
+    this.attackT = clip * 0.9;
+  }
+
+  /* A swing on its way in: when it lands, hit the wall if it's still
+     standing, or the player if they're still in reach. */
+  _biteStep(dt, playerPos, onAttack, feetY) {
+    const b = this.bite;
+    b.t -= dt;
+    if (b.t > 0) return;
+    this.bite = null;
+    if (b.wall) { if (b.wall.alive) onAttack(this, this.type.damage, b.wall); return; }
+    const d = Math.hypot(playerPos.x - this.mesh.position.x, playerPos.z - this.mesh.position.z);
+    if (d <= this.type.attackRange + BITE_GRACE && Math.abs(feetY - this.groundY) < ATTACK_REACH_Y) onAttack(this, this.type.damage);
   }
 
   /* `route` says where to go: { field, goal, chase }. `field` steers round
@@ -523,6 +546,7 @@ export class Zombie {
       this.mesh.position.y = Math.max(this.groundY, this.mesh.position.y - 7 * dt);
     }
     if (this.stunT > 0 && !this.dying) {
+      this.bite = null;   // stunned mid-swing: it never lands
       this.stunT -= dt;
       this.mesh.rotation.y += dt * 3;
       this.velocity.multiplyScalar(Math.max(0, 1 - 6 * dt));
@@ -549,6 +573,8 @@ export class Zombie {
       if (this.dissolveT >= 1) this.alive = false;
       return;
     }
+
+    if (this.bite) this._biteStep(dt, playerPos, onAttack, playerFeetY ?? this.groundY);
 
     if (this.leap) {
       this._leapStep(dt, playerPos, onAttack, arena, colliders, playerFeetY ?? this.groundY);
@@ -604,8 +630,7 @@ export class Zombie {
       this.mesh.rotation.y = Math.atan2(-(wall.pos.x - this.mesh.position.x), -(wall.pos.z - this.mesh.position.z));
       if (this.attackCdT <= 0) {
         this.attackCdT = this.type.attackCd;
-        this._swing();
-        onAttack(this, this.type.damage, wall);
+        this._swing(wall);
       }
     } else if (!inReach && dist > 0.05) {
       to.normalize();
@@ -624,7 +649,6 @@ export class Zombie {
       if (inReach && this.attackCdT <= 0) {
         this.attackCdT = this.type.attackCd;
         this._swing();
-        onAttack(this, this.type.damage);
       }
     }
 

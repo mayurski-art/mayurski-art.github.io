@@ -148,7 +148,7 @@ export function coopTargets() {
    it was (`blocker`: it was at a deployable, which is nobody's). */
 export function coopSwing(z, dmg, blocker = false) {
   if (!coop.on || !coop.host || !z.nid) return false;
-  events.push(["a", z.nid]);
+  // (the swing itself went out when it started: hostSend, z.swung)
   if (blocker || z.targetId == null) return false;
   events.push(["h", z.nid, z.targetId, Math.round(dmg)]);
   return true;
@@ -209,6 +209,8 @@ function hostSend(dt, zd) {
       const p = z.mesh.position;
       born.push([z.nid, z.type.id, r2(p.x), r2(z.groundY), r2(p.z), r2(z.mesh.rotation.y), Math.round(z.hp), z.maxHp, z.riseT > 0 ? 1 : 0, z.look || 0]);
     }
+    // a swing just started: everyone sees it now, the hit comes when it lands
+    if (z.swung) { z.swung = false; if (!z.dying) events.push(["a", z.nid]); }
     if (z.dying && !z.sentDie) {
       z.sentDie = true;
       events.push(["d", z.nid, z.killedBy || me(), z.killCash || 0, z.headless ? 1 : 0]);
