@@ -48,11 +48,19 @@ function finishRun(title, headline, headlineLabel, secondLabel, thirdLabel, opts
 
   // addXp above already queued this XP for the account (troll_ops_xp).
   // Filing the run is separate: it feeds the leaderboard and the flat
-  // game_run/high_score awards, and it no-ops for guests.
+  // game_run/high_score awards, and it no-ops for guests. It's the one
+  // write: the weekly and monthly boards (modes/zombies/hub.js, the menu's
+  // Leaderboards, leaderboard.js) add these rows up over their window. The
+  // score stays this match's own, so high_score XP means a personal best.
   window.TrollrunnerAccounts?.reportGameResult?.("troll-ops", game.player.wave * 10000 + game.player.kills * 10, {
     mode: game.modeId,
+    pvp: game.isPvp() && !game.isSocial(),
+    won: !!opts.won,
     kills: game.player.kills,
     deaths: game.player.deaths,
+    assists: game.player.assists || 0,
+    headshots: game.player.headshots || 0,
+    streak: game.player.bestStreak || 0,
     wave: game.player.wave,
     map: game.loadedMapId || game.loadout.mapId,
   });
@@ -99,8 +107,8 @@ export function endGame(reason) {
     zombies ? (reason === "won" ? "Waves cleared" : "Wave reached") : "Wave reached",
     zombies ? "Zombies killed" : "Kills",
     "Time survived",
+    { won: reason === "won" },
   );
-  window.TrollLeaderboard?.report?.("troll-ops", { pvp: false, wave: game.player.wave, kills: game.player.kills });
   // A run from the hub's pads goes back to the hub (modes/zombies/hub.js).
   if (zombies && reason !== "quit") scheduleHubReturn();
 }
@@ -119,10 +127,6 @@ export function endMatch(title) {
   });
   finishRun(title, headline, royale ? "Your place" : mode.ffa ? "Your score" : "Your side", "Your kills", "Match length", { won, completed: true });
 
-  window.TrollLeaderboard?.report?.("troll-ops", {
-    pvp: true, kills: game.player.kills, deaths: game.player.deaths, won,
-    assists: game.player.assists, headshots: game.player.headshots, streak: game.player.bestStreak,
-  });
   // Combat record (record.js): this match onto the account'''s lifetime totals.
   recordMatch({
     won, kills: game.player.kills, deaths: game.player.deaths, assists: game.player.assists,
