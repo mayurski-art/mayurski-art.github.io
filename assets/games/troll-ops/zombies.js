@@ -281,6 +281,8 @@ export class Zombie {
     this.voice = voiceFor(typeId, look);
     this.body = look ? createZombieBody(look, {
       tint: this.type.tint ? new THREE.Color(this.type.tint) : TINTS[Math.floor(Math.random() * TINTS.length)],
+      // a boss's clothes go red too (zombie-models.js skinTinted), most of the way
+      cloth: this.type.boss ? new THREE.Color(1, 1, 1).lerp(new THREE.Color(this.type.tint), 0.92) : null,
       build: 0.94 + Math.random() * 0.14,
     }) : null;
     if (this.body) {

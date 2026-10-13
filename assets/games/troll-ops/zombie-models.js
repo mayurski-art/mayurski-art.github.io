@@ -160,14 +160,20 @@ function capsule(r, a, b) {
 /* The tint is for the skin only, and the skin is the atlas's left half
    (build_zombies.blender.py atlas_merge): the clothes and the mask keep
    their own colour. Every tinted clone shares one shader program. */
-function skinTinted(base, tint) {
+function skinTinted(base, tint, cloth = null) {
   const m = base.clone();
   const uTint = { value: tint.clone() };
+  // the bosses: their clothes go the same red, weaker (white = untouched)
+  const uCloth = { value: cloth ? cloth.clone() : new THREE.Color(1, 1, 1) };
+  // ...and a low red glow: a dark multiply alone reads grey-brown against a
+  // bright, hazy room (Pentagrin), the glow keeps them red at any distance
+  if (cloth) { m.emissive = tint.clone().multiplyScalar(0.6); m.emissiveIntensity = 1; }
   m.onBeforeCompile = (sh) => {
     sh.uniforms.uSkinTint = uTint;
+    sh.uniforms.uClothTint = uCloth;
     sh.fragmentShader = sh.fragmentShader
-      .replace("#include <common>", "#include <common>\nuniform vec3 uSkinTint;")
-      .replace("#include <map_fragment>", "#include <map_fragment>\nif (vMapUv.x < 0.5) diffuseColor.rgb *= uSkinTint;");
+      .replace("#include <common>", "#include <common>\nuniform vec3 uSkinTint;\nuniform vec3 uClothTint;")
+      .replace("#include <map_fragment>", "#include <map_fragment>\ndiffuseColor.rgb *= vMapUv.x < 0.5 ? uSkinTint : uClothTint;");
   };
   m.customProgramCacheKey = () => "zb-skin-tint";
   return m;
@@ -175,7 +181,7 @@ function skinTinted(base, tint) {
 
 /* One zombie body: { root, mixer, actions, bones, hitboxMeshes, dispose }.
    `root` stands at the feet facing -Z (the game's forward). */
-export function createZombieBody(look, { tint = null, build = 1 } = {}) {
+export function createZombieBody(look, { tint = null, cloth = null, build = 1 } = {}) {
   const t = templates.get(look);
   if (!t) return null;
   const model = cloneSkinned(t.scene);
@@ -189,7 +195,7 @@ export function createZombieBody(look, { tint = null, build = 1 } = {}) {
   model.traverse((o) => {
     if (!o.isMesh) return;
     if (tint && o.material.name.endsWith("_skin")) {
-      o.material = skinTinted(o.material, tint);
+      o.material = skinTinted(o.material, tint, cloth);
       own.push(o.material);
     }
   });
