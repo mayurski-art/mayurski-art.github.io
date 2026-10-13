@@ -122,7 +122,7 @@ The user said "HOLD OFF" until they say go.
 - **Royale bus-deploy cinematic,** in third and first person.
 - **Animated weapon skins** with effects coming off them.
 - **"For You" emote:** only while falling in Royale. The troll reaches out a hand romantically, with face, hand, body and background shots.
-- **(2026-10-12) Boosts bought with a troll coin.** The user's own coin, made later, would buy boosts and perks the way Roblox players spend Robux (Zombie Rush's "+50%" boosts are the model). Zombies Credits stay earn-only until then. It touches wallets and payments, so it needs a design doc and the user's go first.
+- **(2026-10-12) Boosts bought with a troll coin.** The user's own coin, made later, would buy boosts and perks the way Roblox players spend Robux (Zombie Rush's "+50%" boosts are the model). Zombies Credits stay earn-only until then. Earn-back idea: weekly leaderboards (most time played, most TDM wins...) pay coin back, so it circulates. Before any prize has real value: public matches only, results checked by the server (the netcode trusts clients, and bots play), and a legal look at "dividends" wording and minors. Boosts stay PvE (Zombies) or cosmetic, never PvP stats. It touches wallets and payments, so it needs a design doc and the user's go first.
 - **(2026-10-12) Rolling animations for the character:** a combat roll / dive roll for the stick troll, in first and third person.
 
 ### Backlog (needs a design doc / the user's go first)
