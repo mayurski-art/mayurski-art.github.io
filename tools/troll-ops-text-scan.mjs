@@ -37,6 +37,18 @@ export async function textClash(page, check, when) {
       const base = r.top + m.fontBoundingBoxAscent * k;
       return { left: r.left, right: r.right, top: base - m.actualBoundingBoxAscent * k, bottom: base + m.actualBoundingBoxDescent * k };
     };
+    const clipped = (el, r) => {
+      let { left, top, right, bottom } = r;
+      for (let e = el.parentElement; e && e !== document.body; e = e.parentElement) {
+        const cs = getComputedStyle(e);
+        if (cs.overflowX === "visible" && cs.overflowY === "visible") continue;
+        const c = e.getBoundingClientRect();
+        left = Math.max(left, c.left); right = Math.min(right, c.right);
+        top = Math.max(top, c.top); bottom = Math.min(bottom, c.bottom);
+        if (right - left < 1 || bottom - top < 1) return null;
+      }
+      return { left, top, right, bottom };
+    };
     const items = [];
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
@@ -44,7 +56,11 @@ export async function textClash(page, check, when) {
       const rg = document.createRange(); rg.selectNodeContents(n);
       const r = rg.getBoundingClientRect();
       if (r.width < 2 || r.height < 2 || r.right < 0 || r.bottom < 0 || r.left > W || r.top > H) continue;
-      items.push({ el: n.parentElement, what: `"${n.textContent.trim().slice(0, 18)}" ${label(n.parentElement)}`, r: ink(n.parentElement, n.textContent, r), text: true, world: !!n.parentElement.closest(".to-dmg-num, .zh-bars") });
+      // A scrolling list clips what's scrolled out of it: only the part
+      // inside every clipping box is on screen to clash with anything.
+      const vis = clipped(n.parentElement, ink(n.parentElement, n.textContent, r));
+      if (!vis) continue;
+      items.push({ el: n.parentElement, what: `"${n.textContent.trim().slice(0, 18)}" ${label(n.parentElement)}`, r: vis, text: true, world: !!n.parentElement.closest(".to-dmg-num, .zh-bars") });
     }
     for (const el of document.querySelectorAll(".zh-icon svg, .to-touch-btn, .to-touch-stick, canvas.to-minimap")) {
       if (!seen(el)) continue;
