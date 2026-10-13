@@ -13,27 +13,27 @@ Design docs live next to this file: `COPS-AND-ROBBERS.md`, `TROLL-CITY-RP2.md`, 
 ## 1. Open work and plans (newest first)
 
 ### Tasks to do, in order (updated 2026-10-13)
-Start each session on a fresh branch or worktree from origin/main. P5 (the hub) is built on branch `tf-zhub` (worktree `.claude/worktrees/tf-zhub`, -zh1).
-1. **The leaderboard no-op needs the user's call** (small known gaps): the plain `record` fix double-files runs and changes the high-score XP award.
-2. **Zombie Rush P6:** Credits and the Weapons / Classes screens (earn-only for now).
-3. **Zombie Rush P7:** the animation pass, plus the open items (gamepad buy/deploy, boss tint).
-4. **Black Ops 2 assault-rifle reloads,** once the user sends the rest of the details (brief: `refs/pf-reloads/BRIEF.md`).
-5. **Stylised realism graphics,** one map first, with before/after screenshots.
-6. **Then hand the user ONE test checklist** covering everything shipped since 2026-10-12 (Zombie Rush P1-P5 incl. the hub, the High-graphics glow and box fixes, the Royale lag and fights, Show FPS, the phone menu, bot heads, Ghostface Killers).
+Start each session on a fresh branch or worktree from origin/main.
+1. **Zombie Rush P6 for real:** Credits paid by runs (earn-only) and the kiosk screens working (they're placeholders: view/zombies-kiosk.js).
+2. **Zombie Rush P7:** the animation pass, plus the open items (gamepad buy/deploy, boss tint).
+3. **Black Ops 2 assault-rifle reloads,** once the user sends the rest of the details (brief: `refs/pf-reloads/BRIEF.md`).
+4. **Stylised realism graphics,** one map first, with before/after screenshots.
+5. **Then hand the user ONE test checklist** covering everything shipped since 2026-10-12 (Zombie Rush P1-P5 incl. the hub and its kiosks, weekly/monthly leaderboards, the High-graphics glow and box fixes, the Royale lag and fights, Show FPS, the phone menu, bot heads, Ghostface Killers).
 - Offered, not yet answered: stretch Royale's match length (fewer bots or a post-kill cooldown).
 - Paused or on hold (sections below): tf-parallel leftovers, Troll City RP 2c, Cops and Robbers, U Mad Bro?, the TROLLS wallet check.
 
 **References (local only, git-ignored, in the MAIN checkout's `assets/games/troll-ops/refs/`):** `zombie-rush/` (the user's Roblox screenshots, named, plus `originals/`), `zombies-clips/clip1.mp4, clip2.mp4` (gameplay recordings), `pf-reloads/BRIEF.md` (the BO2 reload brief).
 
-### Zombie Rush (P1-P4 on main, P5 the hub on `tf-zhub`)
+### Zombie Rush (P1-P5 on main, P6 kiosks as placeholders)
 Zombies rebuilt to play like Roblox's Zombie Rush Survival: a 3D hub, then a co-op 1-4 wave run with cash, upgrades, deployables and bosses, then Credits between runs. Plan: `C:\Users\mayur\.claude\plans\ok-just-switched-buzzing-magpie.md`. P1-P4 shipped (part 5).
 - **The hub (P5):** `MODES.zhub` (social + `hub`, hidden, room QZHB, never owner-switched), map `zhub.js` (`HUB`: pads, private pad, kiosks, boards), logic `modes/zombies/hub.js`.
   - Nobody hosts it: each client sends `zP` {pad, s, py} (where it stands) and works out every party itself, first on first. The owner sends `zG` {code, map, m} at 30 s, 4/4 or hold X; members `launch()` = quit button + Zombies start on that code. `scheduleHubReturn` (match-end) brings a run back 8 s after its end screen.
   - Private pad: one party per code (`py`), never walk-in. Invite link `?zhub=ROOM&party=CODE` opens the menu on Zombies and drops the friend on the pad.
-  - Boards read this week's troll-ops rows with `meta.mode = zombies` (reportGameResult's): best wave, kills summed. Guests aren't filed.
-  - After a load with no click (a launch, the return) the player is on the pause screen, as with Socialize's return. Kiosks only say "opening soon" until P6.
+  - Boards flip Weekly/Monthly every 8 s (leaderboard-rows.js over the filed rows): best wave, kills summed. Guests aren't filed.
+  - Kiosks (X): view/zombies-kiosk.js, placeholder screens (tiers of Coming soon guns; Rookie + the five kits in kits.js). Credits chip reads 0.
+  - After a load with no click (a launch, the return) the player is on the pause screen, as with Socialize's return.
   - Test: `tools/troll-ops-zhub-test.mjs` (private hub code, never QZHB; in the gate's rooms step).
-- **Next: P6** (Credits, Weapons and Classes screens on the kiosks; earn-only, see the coin idea below), then P7 (animation pass).
+- **Next: P6 for real** (runs pay Credits, the kiosks buy guns and kits; earn-only, see the coin idea below), then P7 (animation pass).
 - **Open:** gamepad buy/deploy; boss tint only reaches skin.
 - Refs (local only, main checkout): `refs/zombie-rush/` (hub pads, boards, kiosks, Weapons tier screens, Classes / Rookie kit, the in-match HUD), `refs/zombies-clips/`.
 
@@ -111,7 +111,6 @@ Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. N
 - **Cancelled 2026-10-03:** Purge XP; $TRUTHS tournaments; the whole 2026-09-30 open-asks list.
 
 ### Small known gaps (fix if touched)
-- **Leaderboard (needs the user's call):** match-end.js calls `TrollLeaderboard.report`, which doesn't exist (the engine has `record`), so leaderboard.js `reduce` never runs for troll-ops. Rows only come from `TrollrunnerAccounts.reportGameResult`. Just switching to `record` would call `troll_record_game_result` twice a run (the second is likely refused as too_fast), and `record` files the weekly totals as the score, so the high_score XP award would fire most matches. Pick one write path first.
 - **Royale length:** with 99 bots the island is down to ~10 by 2.5 min while the zone runs ~9.5 min (troll-ops-royale-pace; the same before the 2026-10-12 fixes). The user was offered fewer bots or a post-kill cooldown.
 - **Bots:** ground floor only on every map, rarely visit Hollowgrin's far districts; don't shoot down the VTOL Warship or Swarm drones; ignore an enemy UAV beyond the minimap. K9 dogs walk the ground flow field only, and nobody but you calls them.
 - **Killcam** doesn't record swivels.
@@ -454,6 +453,8 @@ Map rules:
 ## 5. Shipped log (newest first; one line each, details in git)
 
 - **2026-10-13** (-zh1, branch tf-zhub)
+  - Leaderboards (user 2026-10-13: logged-in players, weekly + monthly, all time on the profile card): one write per match (reportGameResult, meta gains pvp/won/assists/headshots/streak), leaderboard-rows.js adds rows up per window; menu Leaderboards Weekly/Monthly row; profile card all-time Zombies. Never call `TrollLeaderboard.record` for troll-ops: it files a second RPC with the weekly total as the score.
+  - Zombie Rush P6 placeholders: Weapons / Classes kiosk screens and a Credits chip.
   - Zombie Rush P5, the hub: Zombies starts in a public hub (QZHB) with four map pads, a private pad + invite link, kiosks, and Highest Wave / Total Kills boards; pads launch co-op runs on a fresh code and runs come back. Test: zhub-test.
 
 - **2026-10-12** (-zr10, the Zombie Rush branch's first push)
