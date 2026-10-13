@@ -178,7 +178,7 @@ server.close();
 
 // ---------------------------------------------------------------- 4. input
 console.log("\n== input");
-for (const t of ["troll-ops-input-test.mjs", "troll-ops-menu-test.mjs", "troll-ops-killcam-test.mjs", "troll-ops-objectives-test.mjs", "troll-ops-rope-test.mjs"]) {
+for (const t of ["troll-ops-input-test.mjs", "troll-ops-menu-test.mjs", "troll-ops-killcam-test.mjs", "troll-ops-objectives-test.mjs", "troll-ops-rope-test.mjs", "troll-ops-zcredits-test.mjs"]) {
   const r = spawnSync(process.execPath, [path.join(ROOT, "tools", t)], { cwd: ROOT, encoding: "utf8", timeout: 600000 });
   const out = `${r.stdout || ""}${r.stderr || ""}`;
   const fails = out.split("\n").filter((l) => l.startsWith("FAIL"));

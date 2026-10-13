@@ -117,15 +117,15 @@ check(tally.wave[0][0] === "pepe_enjoyer" && tally.wave[0][1] === 15 && tally.ki
 await R(a, () => { const T = window.__trollOps; T.move.pos.set(0, T.move.pos.y, -2); T.look.yaw = 0; T.look.pitch = 0.12; });
 await sleep(800);
 await a.screenshot({ path: path.join(SHOTS, `zhub-boards${TAG}.png`) });
-// the kiosks (P6 placeholders): X by one opens its screen, Escape shuts it
+// the kiosks: X by one opens its screen, Escape shuts it
 for (const k of ["weapons", "classes"]) {
   await R(a, (k) => { const T = window.__trollOps, K = window.__trollHub.HUB.kiosks.find((q) => q.id === k); T.move.pos.set(K.x - 1.6, T.move.pos.y, K.z); }, k);
   await sleep(300);
   await holdX(a, 300);
   check(await until(a, () => window.__trollHub.kioskOpen(), null, 3000), `${k} kiosk opens`);
   const txt = await R(a, () => document.querySelector(".zk")?.innerText || "");
-  check(/Coming soon/i.test(txt) && /Credits/.test(txt) && (k === "weapons" ? /Tier 4/.test(txt) : /Rookie/.test(txt)), `${k}: placeholder cards and Credits`, txt.replace(/\s+/g, " ").slice(0, 120));
-  if (k === "weapons") await a.click(".zk-tab[data-tier='3']");
+  check(/Credits/.test(txt) && (k === "weapons" ? /Tier 4/.test(txt) && /Selected Weapon/.test(txt) : /Rookie/.test(txt) && /Coming soon/i.test(txt)), `${k}: its screen and Credits`, txt.replace(/\s+/g, " ").slice(0, 120));
+  if (k === "weapons") await a.click(".zk-tier[data-id='3']");
   await scanText(a, check, `the ${k} kiosk`);
   await a.screenshot({ path: path.join(SHOTS, `zhub-kiosk-${k}${TAG}.png`) });
   await a.keyboard.press("Escape");

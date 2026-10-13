@@ -29,6 +29,7 @@ import { MAPS } from "../../maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr
 import { makeRoomCode } from "../../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10";
 import { roomNow } from "../room-clock.js?v=rc1-cd1-sh1";
 import { openKiosk, closeKiosk, kioskOpen } from "../../view/zombies-kiosk.js?v=zk1-zh1";
+import { credits, zsave, setZsave, payRun, gunAction, kitAction } from "./credits.js?v=zc1";
 import { fetchRows, hasBackend, monthWindow, weekWindow, windowFor, timeLeft, tallyPlayers } from "../../leaderboard-rows.js?v=lr1-zh1";
 
 export const HUB_T = {
@@ -417,6 +418,7 @@ function buildUi() {
   ui = {
     root,
     online: root.querySelector(".zhb-online-n"),
+    credits: root.querySelector(".zhb-credits-n"),
     invite: root.querySelector(".zhb-invite"),
     pad: root.querySelector(".zhb-pad"),
     padH: root.querySelector(".zhb-pad-h"),
@@ -459,6 +461,8 @@ function updateUi(dt, party) {
   if (!ui) return;
   const humans = 1 + [...game.net.peers.values()].filter((p) => !game.isBotPeer(p)).length;
   ui.online.textContent = String(humans);
+  const cr = credits().toLocaleString();
+  if (ui.credits.textContent !== cr) ui.credits.textContent = cr;
   // a kiosk screen is up: nothing of ours under it
   if (kioskOpen()) { ui.pad.hidden = true; return; }
   if (!hub.pad) {
@@ -520,7 +524,7 @@ export function updateHub(dt) {
   hub.sendT -= dt;
   if (hub.sendT <= 0) sendClaim();
 
-  // a kiosk: X opens its screen (view/zombies-kiosk.js; placeholders for now)
+  // a kiosk: X opens its screen (view/zombies-kiosk.js)
   const xDown = !game.localPauseOnly && (game.keys.has("KeyX") || (game.isTouch && game.touchState?.swap) || !!game.gamepadState?.pickup);
   const kiosk = !hub.pad && !kioskOpen() ? nearKiosk() : null;
   if (kiosk && xDown && !hub.xWas) openKiosk(kiosk.id);
@@ -580,7 +584,9 @@ export function hubDebug() {
     setBoardRows: (rows) => { board.rows = rows; board.at = performance.now(); board.error = false; },
     boards: (period = "week") => tally(board.rows, period),
     setBoardPeriod: (p) => { board.period = p; },
-    kioskOpen, closeKiosk,
+    kioskOpen, closeKiosk, openKiosk,
+    // Credits (credits.js)
+    zc: { zsave, setZsave, payRun, gunAction, kitAction },
     state: () => game.gameState,
     input: () => ({ pauseOnly: !!game.localPauseOnly, x: game.keys.has("KeyX") }),
   };

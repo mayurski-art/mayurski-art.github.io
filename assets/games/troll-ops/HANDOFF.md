@@ -14,26 +14,26 @@ Design docs live next to this file: `COPS-AND-ROBBERS.md`, `TROLL-CITY-RP2.md`, 
 
 ### Tasks to do, in order (updated 2026-10-13)
 Start each session on a fresh branch or worktree from origin/main.
-1. **Zombie Rush P6 for real:** Credits paid by runs (earn-only) and the kiosk screens working (they're placeholders: view/zombies-kiosk.js).
-2. **Zombie Rush P7:** the animation pass, plus the open items (gamepad buy/deploy, boss tint).
-3. **Black Ops 2 assault-rifle reloads,** once the user sends the rest of the details (brief: `refs/pf-reloads/BRIEF.md`).
-4. **Stylised realism graphics,** one map first, with before/after screenshots.
-5. **Then hand the user ONE test checklist** covering everything shipped since 2026-10-12 (Zombie Rush P1-P5 incl. the hub and its kiosks, weekly/monthly leaderboards, the High-graphics glow and box fixes, the Royale lag and fights, Show FPS, the phone menu, bot heads, Ghostface Killers).
+1. **Zombie Rush P7:** the animation pass, plus the open items (gamepad buy/deploy, boss tint).
+2. **Black Ops 2 assault-rifle reloads,** once the user sends the rest of the details (brief: `refs/pf-reloads/BRIEF.md`).
+3. **Stylised realism graphics,** one map first, with before/after screenshots.
+4. **Then hand the user ONE test checklist** covering everything shipped since 2026-10-12 (Zombie Rush P1-P6 incl. the hub, Credits and the kiosks, weekly/monthly leaderboards, the High-graphics glow and box fixes, the Royale lag and fights, Show FPS, the phone menu, bot heads, Ghostface Killers).
 - Offered, not yet answered: stretch Royale's match length (fewer bots or a post-kill cooldown).
 - Paused or on hold (sections below): tf-parallel leftovers, Troll City RP 2c, Cops and Robbers, U Mad Bro?, the TROLLS wallet check.
 
 **References (local only, git-ignored, in the MAIN checkout's `assets/games/troll-ops/refs/`):** `zombie-rush/` (the user's Roblox screenshots, named, plus `originals/`), `zombies-clips/clip1.mp4, clip2.mp4` (gameplay recordings), `pf-reloads/BRIEF.md` (the BO2 reload brief).
 
-### Zombie Rush (P1-P5 on main, P6 kiosks as placeholders)
+### Zombie Rush (P1-P6 built; P7 next)
 Zombies rebuilt to play like Roblox's Zombie Rush Survival: a 3D hub, then a co-op 1-4 wave run with cash, upgrades, deployables and bosses, then Credits between runs. Plan: `C:\Users\mayur\.claude\plans\ok-just-switched-buzzing-magpie.md`. P1-P4 shipped (part 5).
 - **The hub (P5):** `MODES.zhub` (social + `hub`, hidden, room QZHB, never owner-switched), map `zhub.js` (`HUB`: pads, private pad, kiosks, boards), logic `modes/zombies/hub.js`.
   - Nobody hosts it: each client sends `zP` {pad, s, py} (where it stands) and works out every party itself, first on first. The owner sends `zG` {code, map, m} at 30 s, 4/4 or hold X; members `launch()` = quit button + Zombies start on that code. `scheduleHubReturn` (match-end) brings a run back 8 s after its end screen.
   - Private pad: one party per code (`py`), never walk-in. Invite link `?zhub=ROOM&party=CODE` opens the menu on Zombies and drops the friend on the pad.
   - Boards flip Weekly/Monthly every 8 s (leaderboard-rows.js over the filed rows): best wave, kills summed. Guests aren't filed.
-  - Kiosks (X): view/zombies-kiosk.js, placeholder screens (tiers of Coming soon guns; Rookie + the five kits in kits.js). Credits chip reads 0.
+  - Kiosks (X, or the menu's Zombies > Weapons / Classes): view/zombies-kiosk.js, pictures from view/zombies-thumbs.js.
   - After a load with no click (a launch, the return) the player is on the pause screen, as with Socialize's return.
   - Test: `tools/troll-ops-zhub-test.mjs` (private hub code, never QZHB; in the gate's rooms step).
-- **Next: P6 for real** (runs pay Credits, the kiosks buy guns and kits; earn-only, see the coin idea below), then P7 (animation pass).
+- **Credits (P6):** `modes/zombies/credits.js`, key `trollops:zombies` (cloud-save synced; guests in memory only; troll_runner owns every gun). A run pays 1 a kill + 25 a cleared wave + 200 for the win (match-end, once). Six gun tiers open at best wave 0/5/10/15/20/25, first gun free, others 400-9,000; gun levels 1-10 (+6% dmg, +8% mag, -4% reload; 150 x lv^1.6); Rookie kit levels 1-10 (turret 600 x lv, others 300 x lv; kits.js statsAt). The equipped gun replaces the loadout primary in runs (upgrades.js equipKioskGun). Earn-only. Test: `tools/troll-ops-zcredits-test.mjs` (gate input step).
+- **Next: P7** (animation pass).
 - **Open:** gamepad buy/deploy; boss tint only reaches skin.
 - Refs (local only, main checkout): `refs/zombie-rush/` (hub pads, boards, kiosks, Weapons tier screens, Classes / Rookie kit, the in-match HUD), `refs/zombies-clips/`.
 

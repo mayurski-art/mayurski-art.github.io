@@ -27,6 +27,8 @@ import { setMapShot } from "./map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1";
 import { leaveToArcade, initExitLinks } from "./menu/exit-links.js?v=ex1-cl1";
 import { game } from "./core/state.js?v=st1";
 import { inviteLink, prepareHubEntry } from "./modes/zombies/hub.js?v=zh1";
+import { openKiosk } from "./view/zombies-kiosk.js?v=zk1-zh1";
+import { credits } from "./modes/zombies/credits.js?v=zc1";
 import { makeTrollOpsProvider } from "./leaderboard-rows.js?v=lr1-zh1";
 const lbProvider = makeTrollOpsProvider();
 import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perksInTier, perkUnlocked, perkIconSvg } from "./perks.js?v=pk1-cl1-bp1-fj1";
@@ -517,6 +519,10 @@ const screens = {
     enter: () => { ensureGroup("hub", "zhub"); prepareHubEntry(); },
     groups: [
       [deployRow(inviteLink ? "Join your friend" : "Enter the hub", inviteLink ? "Into the hub, on your friend's private pad." : "Walk onto a map's pad. The run starts when the timer runs out or four of you are on.")],
+      [
+        { id: "zweapons", label: "Weapons", value: () => `${credits().toLocaleString()} Credits`, desc: "Spend Credits on guns and their levels. Your pick is your primary in every run.", onSelect: (_, m) => { openKiosk("weapons"); m.refresh(); } },
+        { id: "zclasses", label: "Classes", desc: "Level up the Rookie kit: the turret, the barricade and the barrel.", onSelect: (_, m) => { openKiosk("classes"); m.refresh(); } },
+      ],
       [{ id: "zcoop", label: "Room code", desc: "Skip the hub: make a room and send the code, or type a friend's.", go: "zcoop" }, back("Back to the main menu.")],
     ],
   }),

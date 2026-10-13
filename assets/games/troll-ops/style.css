@@ -4138,36 +4138,104 @@ body.to-touch-play .zh.is-downed .zh-col { visibility: hidden; }
 .zhb-credits-n { color: #ffd84a; }
 .zhb-coin, .zk-coin { display: inline-block; width: 22px; height: 22px; border-radius: 50%; flex: none;
   background: radial-gradient(circle at 35% 30%, #fff3a8, #f2b71c 55%, #a8700a); border: 2px solid #5a3a04; }
-.zk { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; background: rgba(5,9,22,.55); font-family: "Oswald", sans-serif; color: #fff; }
+.zk { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; background: rgba(5,9,22,.6); font-family: "Oswald", sans-serif; color: #fff; }
 .zk[hidden] { display: none; }
-.zk-panel { width: min(860px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 18px 20px 16px; border-radius: 16px;
+.zk-panel { width: min(1060px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 16px 18px 14px; border-radius: 16px;
   background: linear-gradient(#1b2f6e, #0f1a3e); border: 3px solid #7fa8ff; box-shadow: 0 18px 50px rgba(0,0,0,.5); }
 .zk-head { display: flex; align-items: center; gap: 14px; }
 .zk-title { margin: 0; flex: 1; font: 700 34px/1 "Oswald", sans-serif; -webkit-text-stroke: 1.2px #060b1c; paint-order: stroke fill; }
-.zk-credits { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 10px; background: rgba(0,0,0,.35); font-size: 20px; }
+.zk-credits { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 10px; background: rgba(0,0,0,.35); font-size: 20px; white-space: nowrap; }
 .zk-credits b { color: #ffd84a; }
-.zk-close { width: 40px; height: 40px; border-radius: 10px; border: 2px solid #4b0a0a; background: linear-gradient(#ef2b2b, #b70f14); color: #fff; font-size: 20px; cursor: pointer; }
-.zk-close:focus-visible, .zk-tab:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
-.zk-tabs { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
-.zk-tabs[hidden] { display: none; }
-.zk-tab { padding: 7px 16px; border-radius: 8px; border: 2px solid #3a5aa8; background: #12204a; color: #cfd8f0; font: 600 18px "Oswald", sans-serif; cursor: pointer; }
-.zk-tab.is-on { background: #2d6bff; border-color: #a8c4ff; color: #fff; }
-.zk-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; margin-top: 14px; }
-.zk-card { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 10px 12px; border-radius: 12px;
-  background: linear-gradient(#24407e, #172a5a); border: 2px solid rgba(255,255,255,.75); text-align: center; }
-.zk-card.is-owned { background: linear-gradient(#1f9a3a, #146a27); }
-.zk-card.is-soon .zk-card-art, .zk-card.is-soon .zk-card-name { filter: saturate(.3) brightness(.8); }
-.zk-card-art { width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; background:
-  radial-gradient(circle at 50% 45%, rgba(255,255,255,.25), transparent 60%),
-  repeating-linear-gradient(60deg, rgba(255,255,255,.07) 0 2px, transparent 2px 13px), #0c1838; }
-.zk-card-art.is-kit { aspect-ratio: 1; max-width: 120px; border-radius: 50%; }
-.zk-card-name { font-size: 22px; line-height: 1.1; -webkit-text-stroke: 1px #060b1c; paint-order: stroke fill; }
-.zk-card-price { font-size: 17px; color: #ffd84a; }
-.zk-card-note { font: 500 13px/1.3 "DM Sans", sans-serif; color: #dfe8ff; }
-.zk-ribbon { position: absolute; top: 20px; right: -44px; width: 170px; text-align: center; transform: rotate(35deg); padding: 3px 0; background: #ff9500; color: #1d1206; font: 700 12px "DM Sans", sans-serif; letter-spacing: .04em; text-transform: uppercase; }
-.zk-foot { margin: 14px 0 0; font: 500 14px/1.4 "DM Sans", sans-serif; color: #b9c6e8; }
-@media (max-width: 900px), (max-height: 520px) {
-  .zk-title { font-size: 26px; }
-  .zk-cards { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
-  .zk-card-name { font-size: 18px; }
+.zk-close { width: 40px; height: 40px; flex: none; border-radius: 10px; border: 2px solid #4b0a0a; background: linear-gradient(#ef2b2b, #b70f14); color: #fff; font-size: 20px; cursor: pointer; }
+.zk button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.zk .zk-coin { width: 18px; height: 18px; vertical-align: -3px; margin-right: 5px; }
+.zk-thumb { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; opacity: 0; transition: opacity .2s; }
+.zk-thumb.is-in { opacity: 1; }
+/* rarity colours, Common to Mythic */
+.zk .r1 { --zr: #8a8f99; --zr2: #5d626b; } .zk .r2 { --zr: #5fbf3a; --zr2: #3a8a22; } .zk .r3 { --zr: #2f6bff; --zr2: #1d44b3; }
+.zk .r4 { --zr: #9b4dff; --zr2: #6a26c4; } .zk .r5 { --zr: #ffa21a; --zr2: #d06a00; } .zk .r6 { --zr: #ff3434; --zr2: #b01212; }
+.zk-tiers { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 14px; }
+.zk-tier { display: flex; flex-direction: column; align-items: stretch; padding: 6px 6px 0; border-radius: 10px; border: 2px solid rgba(255,255,255,.25); cursor: pointer; overflow: hidden;
+  background: linear-gradient(var(--zr), var(--zr2)); color: #fff; font: 600 16px "Oswald", sans-serif; }
+.zk-tier.is-on { border-color: #fff; box-shadow: 0 0 0 2px #fff inset; }
+.zk-tier.is-locked { filter: grayscale(.85) brightness(.6); }
+.zk-tier-n { font-size: 20px; line-height: 1; -webkit-text-stroke: 1px #060b1c; paint-order: stroke fill; }
+.zk-tier .zk-thumb { margin: 2px 0; aspect-ratio: 2.3 / 1; }
+.zk-gun .zk-thumb { aspect-ratio: 2.3 / 1; }
+/* opened from the menu: the kiosk is the screen (the menu's text isn't left showing round it) */
+body.zk-open #to-pf { visibility: hidden; }
+body.zk-open .zhb { display: none; }   /* the hub HUD under a kiosk */
+.zk-tier-r { margin: 0 -6px; padding: 3px 0; background: rgba(0,0,0,.35); font-size: 14px; }
+.zk-split { display: grid; grid-template-columns: minmax(250px, 340px) 1fr; gap: 12px; margin-top: 12px; }
+.zk-sel, .zk-list, .zk-kitbox { padding: 10px 12px 12px; border-radius: 12px; background: rgba(4,10,30,.45); border: 2px solid #2d4f9e; }
+.zk-sel h3 { margin: 0 0 8px; text-align: center; font: 600 20px "Oswald", sans-serif; }
+.zk-sel-pic { display: grid; grid-template-columns: 1.1fr 1fr; align-items: center; gap: 8px; padding: 6px; border-radius: 10px; background: linear-gradient(var(--zr), var(--zr2)); }
+.zk-sel-pic b { display: block; font-size: 21px; line-height: 1.1; -webkit-text-stroke: 1px #060b1c; paint-order: stroke fill; }
+.zk-sel-pic span { font: 500 13px "DM Sans", sans-serif; }
+.zk-stats { margin-top: 8px; border-radius: 8px; overflow: hidden; background: rgba(0,0,0,.3); }
+.zk-stat { display: flex; justify-content: space-between; gap: 10px; padding: 4px 10px; font-size: 16px; }
+.zk-stat.is-h { background: #1d44b3; font-weight: 600; }
+.zk-up { color: #4dff6a; font-weight: 700; }
+.zk-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.zk-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-height: 52px; padding: 4px 8px; border-radius: 10px; border: 2px solid rgba(0,0,0,.45);
+  font: 700 19px/1.1 "Oswald", sans-serif; color: #fff; cursor: pointer; -webkit-text-stroke: .8px #060b1c; paint-order: stroke fill; }
+.zk-btn.is-buy, .zk-btn.is-up { background: linear-gradient(#ffe14a, #f1a90c); }
+.zk-btn.is-equip { background: linear-gradient(#4dd65a, #1f9a3a); }
+.zk-btn.is-off, .zk-btn:disabled { background: linear-gradient(#59606e, #3b404b); cursor: default; }
+.zk-price { font-size: 17px; }
+.zk-btns .zk-btn:only-child { grid-column: 1 / -1; }
+.zk-list h4 { display: flex; align-items: center; gap: 10px; margin: 2px 0 8px; font: 700 20px "Oswald", sans-serif; }
+.zk-list h4::before, .zk-list h4::after { content: ""; flex: 1; height: 3px; border-radius: 2px; background: #2f6bff; }
+.zk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); gap: 8px; margin-bottom: 10px; }
+.zk-gun { position: relative; display: flex; flex-direction: column; padding: 4px 4px 0; border-radius: 10px; border: 2px solid rgba(255,255,255,.3); overflow: hidden; cursor: pointer;
+  background: linear-gradient(var(--zr), var(--zr2)); color: #fff; font: 600 15px "Oswald", sans-serif; }
+.zk-gun.is-on { border-color: #fff; box-shadow: 0 0 0 2px #fff inset; }
+.zk-gun-name { font-size: 16px; line-height: 1.1; text-align: left; -webkit-text-stroke: .8px #060b1c; paint-order: stroke fill; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zk-gun-foot { margin: 0 -4px; padding: 3px 0; background: rgba(0,0,0,.45); font-size: 15px; }
+.zk-ok { color: #4dff6a; }
+.zk-none { grid-column: 1 / -1; margin: 6px 0 10px; font: 500 14px "DM Sans", sans-serif; color: #b9c6e8; text-align: center; }
+.zk-split.is-classes { grid-template-columns: minmax(180px, 250px) 1fr; }
+.zk-kits { display: flex; flex-direction: column; gap: 8px; }
+.zk-kit { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 12px; border-radius: 10px; border: 2px solid rgba(255,255,255,.3); text-align: left;
+  background: linear-gradient(#ffa21a, #c25c00); color: #fff; font: 500 14px "DM Sans", sans-serif; }
+.zk-kit.is-on { border-color: #fff; }
+.zk-kit.is-soon { background: linear-gradient(#3a4256, #262c3b); color: #b9c6e8; }
+.zk-kit-n { font: 700 21px "Oswald", sans-serif; color: #fff; -webkit-text-stroke: .8px #060b1c; paint-order: stroke fill; }
+.zk-kit-head { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; margin-bottom: 8px; }
+.zk-kit-head b { display: block; font-size: 28px; line-height: 1; color: #ffb43a; -webkit-text-stroke: 1px #060b1c; paint-order: stroke fill; }
+.zk-kit-head p { margin: 0; font: 500 15px/1.35 "DM Sans", sans-serif; }
+.zk-dep { display: grid; grid-template-columns: 120px minmax(120px, 170px) 1fr; gap: 10px; align-items: center; padding: 8px; margin-top: 8px; border-radius: 10px; background: rgba(0,0,0,.28); border: 2px solid #2d4f9e; }
+.zk-dep-pic { position: relative; border-radius: 8px; background: linear-gradient(#36b8e8, #1a6f9e); }
+.zk-dep:nth-of-type(2) .zk-dep-pic { background: linear-gradient(#f0c419, #b8860b); }
+.zk-dep:nth-of-type(3) .zk-dep-pic { background: linear-gradient(#e04ae8, #8a1fa0); }
+.zk-dep-cash { position: absolute; left: 6px; bottom: 2px; font: 700 15px "Oswald", sans-serif; color: #4dff6a; -webkit-text-stroke: .8px #060b1c; paint-order: stroke fill; }
+.zk-dep-mid { display: flex; flex-direction: column; gap: 4px; }
+.zk-dep-mid b { font-size: 19px; line-height: 1.1; }
+.zk-lv { font: 500 13px "DM Sans", sans-serif; color: #cfd8f0; }
+.zk-dep .zk-stats { margin-top: 0; }
+.zk-foot { margin: 12px 0 0; font: 500 14px/1.4 "DM Sans", sans-serif; color: #b9c6e8; }
+@media (max-width: 900px), (max-height: 560px) {
+  .zk { padding: 8px; }
+  .zk-panel { padding: 10px 12px; max-height: calc(100vh - 16px); }
+  .zk-title { font-size: 24px; }
+  .zk-credits { font-size: 16px; padding: 4px 10px; }
+  .zk-tiers { gap: 5px; margin-top: 8px; }
+  .zk-tier-n { font-size: 15px; }
+  .zk-tier-r { font-size: 11px; }
+  .zk-split, .zk-split.is-classes { grid-template-columns: 1fr 1.4fr; gap: 8px; margin-top: 8px; }
+  .zk-stat { font-size: 14px; padding: 3px 8px; }
+  .zk-btn { min-height: 44px; font-size: 16px; }
+  .zk-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
+  .zk-gun-name { font-size: 13px; }
+  .zk-dep { grid-template-columns: 80px 1fr; }
+  .zk-dep .zk-stats { grid-column: 1 / -1; }
+  .zk-kits { gap: 5px; }
+  .zk-kit { flex-direction: row; align-items: baseline; flex-wrap: wrap; column-gap: 8px; padding: 5px 10px; font-size: 12px; }
+  .zk-kit-n { font-size: 16px; }
+  .zk-kit-head b { font-size: 22px; }
+  .zk-kit-head p { font-size: 13px; }
+}
+@media (max-width: 560px) {
+  .zk-split, .zk-split.is-classes { grid-template-columns: 1fr; }
+  .zk-tiers { grid-template-columns: repeat(3, 1fr); }
 }
