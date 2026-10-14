@@ -58,6 +58,8 @@ export const coop = {
   onCleared: null,    // run.js: (n) the host cleared one
   onRevived: null,    // run.js: (name) a teammate picked us up
   onLost: null,       // run.js: everyone went down
+  onJoinMidRound: null, // run.js: we came in while a round was on (wait it out)
+  heard: false,       // the host's first zw has come in
 };
 
 let posT = 0, waveT = 0, depT = 0;
@@ -99,6 +101,7 @@ export function startCoop() {
   coop.revive = null;
   coop.allDownT = 0;
   coop.syncT = 0;
+  coop.heard = false;
   hits = []; events = []; depDirty.clear(); lastWire = "";
   posT = waveT = depT = 0;
   dep.cosmetic = coop.on && !coop.host;
@@ -406,6 +409,11 @@ function onWave(m) {
   const w = coop.wave;
   const prevR = w.r, prevS = w.s;
   w.r = m.r | 0; w.s = String(m.s || "idle"); w.b = +m.b || 0; w.n = m.n | 0; w.vn = m.vn | 0; w.vt = Math.max(1, m.vt | 0);
+  // The host's first word on the wave, and a round is on: we dropped into a
+  // run already going, and sit this round out (run.js).
+  const first = !coop.heard;
+  coop.heard = true;
+  if (first && w.r > 0 && w.s !== "between" && w.s !== "idle") coop.onJoinMidRound?.();
   if (w.r > prevR) coop.onWaveStart?.(w.r);
   if (w.s === "between" && prevS !== "between" && w.r > 0) coop.onCleared?.(w.r);
   if (w.s !== "between" && coop.myVote) coop.myVote = false;

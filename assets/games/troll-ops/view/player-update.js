@@ -379,7 +379,8 @@ export function updatePlayer(dt) {
 
   // A grenade in hand (or leaving it) has the hands: no fire, aim or melee.
   const throwing = throwBusy();
-  const canAct = !game.move.busy && game.player.alive && !stageFrozen() && !royaleDropView() && !warshipView() && !throwing;
+  // (out: a Zombies teammate who bled out, or is waiting to drop in)
+  const canAct = !game.move.busy && game.player.alive && !game.player.out && !stageFrozen() && !royaleDropView() && !warshipView() && !throwing;
   // Pulling the trigger drops a plate or a Hopium half-used.
   if (royale?.act && wantFire) cancelRoyaleAct();
   // Aiming itself is harmless during the pre-match countdown — no shooting,

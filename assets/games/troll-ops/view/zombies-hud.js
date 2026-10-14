@@ -417,11 +417,11 @@ export function updateZombiesHud(dt, s) {
   if (d) {
     els.downBar.style.transform = `scaleX(${d.out ? 0 : Math.max(0, d.t / d.max).toFixed(3)})`;
     // solo: the last stand's kill count; co-op: wait for a teammate
-    const key = `${d.kills}:${d.need}:${d.out ? 1 : 0}`;
+    const key = `${d.kills}:${d.need}:${d.out ? 1 : 0}:${d.wait ? 1 : 0}`;
     if (key !== shown.kills) {
       shown.kills = key;
-      els.downT.textContent = d.out ? "Out" : "Bleeding out";
-      els.downK.textContent = d.out ? "Back in when the wave is cleared"
+      els.downT.textContent = d.wait ? "Joining" : d.out ? "Out" : "Bleeding out";
+      els.downK.textContent = d.wait ? "You spawn in when this round ends" : d.out ? "Back in when the wave is cleared"
         : d.need ? `Kills to get up: ${d.kills} / ${d.need}` : "Hang on: a teammate can pick you up";
     }
   }
