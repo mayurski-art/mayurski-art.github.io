@@ -3,7 +3,6 @@
 // of game.js (split phase 1).
 
 import * as THREE from "three";
-import { applyAimAssist } from "./aim-assist.js?v=in1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
 import { padEmotePressed } from "../controller-layout.js?v=cl7";
 import { game } from "../core/state.js?v=st1";
 
@@ -103,15 +102,7 @@ export function pollGamepad(dt) {
   const [turnX, turnY] = padLookTurn(lookX, lookY, lookMag, dt);
   game.gamepadState.lookDX += turnX;
   game.gamepadState.lookDY += turnY * (game.settings.invert ? -1 : 1);
-
-  // Merely having a gamepad connected isn't "playing with a controller" — a
-  // trackpad or certain mice enumerate as a Gamepad object too, and this
-  // function used to run (and pull aim toward enemies) every frame any pad
-  // object existed, even completely idle. Assist should only ever nudge the
-  // look that the controller itself is actively driving, so it's gated on
-  // real right-stick deflection this frame, not on pad presence.
-  const usingGamepadLook = lookX !== 0 || lookY !== 0;
-  if (usingGamepadLook && game.player.alive && !game.isStaging() && !game.dragonfireView()) applyAimAssist(dt);
+  // No aim assist on a stick (user, 2026-10-14: removed for every input).
 
   const btn = (i) => !!gp.buttons[i]?.pressed;
   const pressedEdge = (i) => btn(i) && !game.gpPrev[i];

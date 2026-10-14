@@ -26,8 +26,8 @@ import { MAPS, REWARD_MAPS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-r
 import { setMapShot } from "./map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1";
 import { leaveToArcade, initExitLinks } from "./menu/exit-links.js?v=ex1-cl1";
 import { game } from "./core/state.js?v=st1";
-import { inviteLink, prepareHubEntry } from "./modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1";
-import { openKiosk } from "./view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1";
+import { inviteLink, prepareHubEntry } from "./modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0";
+import { openKiosk } from "./view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0";
 import { credits } from "./modes/zombies/credits.js?v=zc1-zc2";
 import { makeTrollOpsProvider } from "./leaderboard-rows.js?v=lr1-zh1";
 const lbProvider = makeTrollOpsProvider();
@@ -720,7 +720,6 @@ const screens = {
         checkRow("to-set-invert-lobby", "Invert look", "Flip up and down."),
         checkRow("to-set-minimap-lobby", "Minimap", "The radar in the corner."),
         checkRow("to-set-fps-lobby", "Show FPS", "Frame rate in the top corner."),
-        checkRow("to-set-aimassist-lobby", "Aim assist", "Controller only."),
         selectRow("to-set-botskill", "Bot skill", "Veteran bots give +10% XP."),
         checkRow("to-set-viewmode-lobby", "View mode", "Just look at the maps, no fighting."),
       ].filter(Boolean),

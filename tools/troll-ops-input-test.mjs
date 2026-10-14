@@ -150,10 +150,10 @@ const aa = await page.evaluate(() => {
   return { pts: pts.length, ok: t === null || typeof t === "object" };
 });
 check("aim assist: finds points and runs", aa.pts > 0 && aa.ok, `${aa.pts} points`);
-// Mouse vs thumb (user, 2026-10-13: none on a mouse as in Phantom Forces,
-// Call of Duty's on a pad and a thumb): a still plate 3 degrees off the
-// reticle, up in the air where no bot is. The mouse "moving" gets no pull;
-// a thumb on the look pad does.
+// None on any input (user, 2026-10-14: aim assist removed; only the
+// Dragonfire's nose gun keeps a pull): a still plate 3 degrees off the
+// reticle, up in the air where no bot is. Neither the mouse "moving" nor a
+// thumb on the look pad gets pulled onto it.
 const drift = await page.evaluate(async () => {
   // the game object itself (same URL and tag as the game imports: one instance)
   const { game: T } = await import("/assets/games/troll-ops/core/state.js?v=st1");
@@ -175,7 +175,6 @@ const drift = await page.evaluate(async () => {
     while (performance.now() - t0 < ms) { steer(); await wait(16); }
     return Math.abs(T.look.yaw - y0);
   };
-  T.settings.aimAssist = true;
   // assist only runs for a live player (the touch pass above can leave us dead)
   if (!T.player.alive) { window.__trollOps.respawnPlayer(); await wait(300); }
   const locked = T.controls.isLocked;
@@ -190,7 +189,7 @@ const drift = await page.evaluate(async () => {
   return { mouse, thumb, dbg };
 });
 check("aim assist: none on a mouse", drift.mouse < 0.002, JSON.stringify(drift));
-check("aim assist: a thumb still gets pulled onto the target", drift.thumb > 0.01, JSON.stringify(drift));
+check("aim assist: none on a thumb either", drift.thumb < 0.002, JSON.stringify(drift));
 
 // Recoil: every gun's kick is RECOIL_SCALE (0.7) of what it lists
 const rc = await page.evaluate(async () => {

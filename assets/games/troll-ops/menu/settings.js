@@ -7,7 +7,7 @@ import { showFps } from "../core/fps-meter.js?v=fp1-zr10";
 
 export const SETTINGS_KEY = "trollops:settings";
 export const settings = {
-  volume: 50, ambience: 60, sens: 100, padSens: 3, fov: 78, invert: false, minimap: true, botSkill: "regular", aimAssist: true, thirdPerson: false,
+  volume: 50, ambience: 60, sens: 100, padSens: 3, fov: 78, invert: false, minimap: true, botSkill: "regular", thirdPerson: false,
   gfx: "auto", viewMode: false, invincible: false, fps: false,
   ...(() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch { return {}; } })(),
 };
@@ -38,7 +38,6 @@ export function applySettings() {
   set("to-set-fov",settings.fov, "to-set-fov-out", "°");
   set("to-set-invert", settings.invert);
   set("to-set-minimap", settings.minimap);
-  set("to-set-aimassist", settings.aimAssist);
   set("to-set-fps", settings.fps);
 
   set("to-set-volume-lobby", settings.volume, "to-set-volume-lobby-out");
@@ -47,7 +46,6 @@ export function applySettings() {
   set("to-set-fov-lobby", settings.fov, "to-set-fov-lobby-out", "°");
   set("to-set-invert-lobby", settings.invert);
   set("to-set-minimap-lobby", settings.minimap);
-  set("to-set-aimassist-lobby", settings.aimAssist);
   set("to-set-fps-lobby", settings.fps);
   set("to-set-viewmode-lobby", settings.viewMode);
   set("to-set-invincible", settings.invincible);

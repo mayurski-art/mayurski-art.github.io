@@ -13,7 +13,7 @@ import { HelicopterGunship, VtolWarship, HunterDrone, ReconPlane } from "../stre
 import { round2 } from "./fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
 import { showWaveBanner, pushKillfeed } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
 import { XP } from "../progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
-import { findAimAssistTarget } from "../input/aim-assist.js?v=in1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
+import { findAimAssistTarget } from "../input/aim-assist.js?v=in1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-aa0";
 import { WEAPON_DEFS } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import { game } from "../core/state.js?v=st1";
 
@@ -243,7 +243,7 @@ export function fireDragonfire() {
   const dir = game.camera.getWorldDirection(new THREE.Vector3());
   // Magnetism: someone within a few degrees of the reticle (in sight, in
   // range) draws the round onto their chest before the spread goes on.
-  const mag = game.settings.aimAssist ? findAimAssistTarget(DF_MAGNET_DEG, DF_RANGE) : null;
+  const mag = findAimAssistTarget(DF_MAGNET_DEG, DF_RANGE);
   if (mag) dir.set(mag.aim.x - game.camera.position.x, mag.aim.y - game.camera.position.y, mag.aim.z - game.camera.position.z).normalize();
   dir.x += (Math.random() - 0.5) * DF_SPREAD * 2;
   dir.y += (Math.random() - 0.5) * DF_SPREAD * 2;
