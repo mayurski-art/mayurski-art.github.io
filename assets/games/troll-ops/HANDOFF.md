@@ -159,7 +159,7 @@ Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. N
 - TDM is first to 50.
 - Max 3 streaks per loadout. BO2 names are kept and streaks must be "very accurate to Black Ops 2".
 - Lean was dropped; Q is aim.
-- Pad: Y = swap; L3 / R3 = swivel; L3+R3 = emotes. Desktop: H = emotes, T = inspect.
+- Pad is Black Ops 2's Xbox 360 default (user 2026-10-14): X reload / hold use, Y swap, LB tactical, RB lethal, L3 sprint, R3 melee, d-pad right streak, up/down scroll streaks, left tap inspect / hold emotes. Desktop: H = emotes, T = inspect.
 - Chat: Enter = all, Y = team.
 
 **Owner `troll_runner`**
@@ -460,7 +460,7 @@ Map rules:
   - Royale freefall steers like Fortnite: stick forward with the camera level flies you across the island (reach 135 m to 351 m). Test: royale-drop (now in the full run).
   - The gun no longer shows through the TROLLS body: measured, it sat 5-6 cm in the chest and through the forearms, the reload mag in the thigh, the menu carry 7.5 cm in the forearm; blocky-body.js GUN_HOLD retuned (character.js hooks). Test: nft-hold (surface-sampled, old code fails 55).
 
-- **2026-10-14** (-aa0 to -dj2, merged over -bf1 as -mg1; full gate run before the push)
+- **2026-10-14** (-aa0 to -pd1, LIVE main fd500ff; pushed on the user's say with the gate's rerun still going; the first run's 19 reds were the machine overloaded, the real five passed alone)
   - Aim assist gone (stick and thumb; the Dragonfire's nose gun keeps its pull). Auto reload on an empty mag. Tests: input, reload-death.
   - Rooms: a joiner takes the room's map from anyone in the match and the host's versus mode; whoever's match ends tells the room ("end"). Tests: roomsync, zjoin.
   - Zombies: drop into a run mid-round, spawn in when it's cleared; a host retaking a run keeps its wave; skip button says "all needed". Tests: zjoin, zcoop.
