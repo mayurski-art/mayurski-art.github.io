@@ -39,7 +39,7 @@ Zombies rebuilt to play like Roblox's Zombie Rush Survival: a 3D hub, then a co-
 Assault-rifle reloads should match Black Ops 2's (our ARs are BO2's): tactical and empty, one rifle at a time, built from footage. Brief: `refs/pf-reloads/BRIEF.md` (local only). The user is sending more details.
 
 ### Graphics: stylised realism (`REALISM.md`): IN PROGRESS
-Branch `tf-realism` (worktree `.claude/worktrees/tf-realism`). Cul-de-Grin first (user, 2026-10-13). Done: P0 (doc, views, before shots in the worktree's `.claude/realism-before/`). Next: P1 environment map.
+Branch `tf-realism` (worktree `.claude/worktrees/tf-realism`). Cul-de-Grin first (user, 2026-10-13). Done: P0 (doc, views, before shots in the worktree's `.claude/realism-before/`). Next: P3a house bakes in game. P4's graffiti is where the first krypto2009 easter eggs go (wish list).
 
 ### TROLLS NFT looks (`TROLLS-TRAITS.md`)
 #1718's blocky body is live. **Next: the wallet check** (phase 3: `ownerOf` on the contract) to replace the stopgap lock to the troll_runner account (cosmetics.js `BODIES` `owner`, `canWearBody`). Honest-client like everything else: `bk` on the wire is drawn only with `ow`.
@@ -96,6 +96,7 @@ Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. N
 - **Tablet streak animation:** the right hand presses confirm. The tablet never says "boarding" or "onboarding".
 - **Royale bus-deploy cinematic,** in third and first person.
 - **Animated weapon skins** with effects coming off them.
+- **krypto2009 easter eggs (2026-10-13, keep in mind):** krypto2009 (the user's friend on X) plasters real trollface graffiti and stickers on walls worldwide (Buenos Aires, New York; a red-white-blue spray piece signed "KRYPTO2009"). Hide tributes in the maps: his trollface pieces on walls, sticker-bombed poles, a signed piece somewhere worth finding. Best slot: the stylised-realism wear pass (P4 graffiti on Cul-de-Grin, then each map's rollout). Build from his real pieces (ask the user for the photos, keep them in `refs/`, local only), the real trollface art only, credited.
 - **"For You" emote:** only while falling in Royale. The troll reaches out a hand romantically, with face, hand, body and background shots.
 
 ### Backlog (needs a design doc / the user's go first)
