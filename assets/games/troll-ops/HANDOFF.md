@@ -39,7 +39,7 @@ Zombies rebuilt to play like Roblox's Zombie Rush Survival: a 3D hub, then a co-
 - **P7 (animation pass):** bite timing, turning, stagger (zombies.js); melee lunge (combat/melee.js LUNGE, zombies only); tier-up flourish (run.js); deploy unfold + turret arming, turret flash + co-op blood (deployables.js); swap raise (combat/weapons.js swapRaise); downed camera (player-update.js); revive ring (view/revive-ring.js); bat/shovel two-handed tracks (gear.js heldTrack / SWINGS, tuned frame by frame); boss cloth tint + glow (zombie-models.js); controller d-pad buy/deploy (view/zombies-hud.js → input/gamepad.js padHooks.zombies). Tests: zanim, zpad, zdeploy, zcoop.
 - Refs (local only, main checkout): `refs/zombie-rush/` (hub pads, boards, kiosks, Weapons tier screens, Classes / Rookie kit, the in-match HUD), `refs/zombies-clips/`.
 
-### Weapon animations: Black Ops 2 rifle reloads (built, -ar1)
+### Weapon animations: Black Ops 2 rifle reloads (live, -ar1)
 `view/ar-reload.js`: the nine BO2 rifles (keyed by `model.build`) reload the BO2 way, taken frame by frame from first-person BO2 footage (`refs/pf-reloads/FOOTAGE-NOTES.md`, local: how to watch YouTube in the browser pane and pull frames to canvas, the video's timeline, what each rifle does).
 - Each rifle is a spec: `up` (the held pose: where the well sits, which way muzzle and top point, camera space), `fetch`/`present` (where the hand gets and shows the new mag), `rockIn`, and `finish` (the empty reload's pose, handle point and pull, gun-local, and its sound). `build()` makes the tac and empty timelines from it; weapon-view blends the hip pose into the held poses, the mag and the left hand follow their keys (`posePfArms(..., hand)`), `audio.rifleBeat` plays the beats.
 - Families from the footage: stood on end at the right (SWAT-556, M27, FAL, Type 25), lower and less rolled (SCAR-H, MTAR), leaning left (M8A1), rolled the other way and worked from the right (AN-94, SMR). Empty finishes: FAL over the top, M27/SWAT/Type 25 catch slap, SCAR-H and M8A1 forward side handle, AN-94 across to the right.
@@ -459,7 +459,7 @@ Map rules:
 
 ## 5. Shipped log (newest first; one line each, details in git)
 
-- **2026-10-13** (-ar1, branch tf-reload, not pushed yet)
+- **2026-10-13** (-ar1, LIVE main 0588c6a; gate red only on zhub-test, passed solo, user said push)
   - Black Ops 2 rifle reloads for the nine BO2 rifles, from BO2 footage: tac and empty, each rifle's own pose and finish, right on the stick arms and the TROLLS block arms. Test: arreload.
 
 - **2026-10-13** (-zp1, LIVE main 10ad34e; full gate skipped on the user's say, link check fixed)
