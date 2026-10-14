@@ -132,9 +132,8 @@ Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. N
 - Merge each finished phase to main.
 - Parallel sessions each use their own worktree + branch. Commit only your own files.
 - No build timelapses or turntables (Blender `-- check` renders for review only).
-- Run headless tests ONE AT A TIME.
 - No phase videos (user 2026-10-08: "I dont need videos"): tests, push; screenshots for self-checks only.
-- No gate (user 2026-10-14: "no gate going forward"): targeted tests per change, one at a time, then push on the user's say. tools/troll-ops-gate.mjs stays in the repo, unused.
+- No gate (user 2026-10-14: "no gate going forward"): targeted tests per change (running several at once is fine), then push on the user's say. tools/troll-ops-gate.mjs stays in the repo, unused.
 
 **Art**
 - Never the troll emoji. The mascot is the trollface artwork.
@@ -374,7 +373,7 @@ Map rules:
 ## 4. Tests and tools
 
 **Running tests**
-- Run as `NODE_PATH=<main checkout>/node_modules node tools/<name>.mjs`, one at a time.
+- Run as `NODE_PATH=<main checkout>/node_modules node tools/<name>.mjs`.
 - Use GPU flags (`--use-angle=d3d11`) for anything with hold timers or audio: bar, rp, dj, trollingloud.
 - `?tohooks=1` exposes `window.__trollOps`, which includes `djLulz`, `music`, `builtMap()`, `move`, `look`, `net`.
 
