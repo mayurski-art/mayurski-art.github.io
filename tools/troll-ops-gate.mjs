@@ -64,7 +64,7 @@ const stepDone = (name) => { console.log(`   (${name}: ${Math.round((Date.now() 
 /* ---------------------------------------------------------------- the tests */
 
 // The standalone tests the full gate runs.
-const INPUT_TESTS = ["troll-ops-input-test.mjs", "troll-ops-menu-test.mjs", "troll-ops-killcam-test.mjs", "troll-ops-objectives-test.mjs", "troll-ops-rope-test.mjs", "troll-ops-zcredits-test.mjs", "troll-ops-zanim-test.mjs", "troll-ops-zpad-test.mjs", "troll-ops-arreload-test.mjs", "troll-ops-loupe-test.mjs", "troll-ops-swap-test.mjs", "troll-ops-royale-drop-test.mjs"];
+const INPUT_TESTS = ["troll-ops-input-test.mjs", "troll-ops-menu-test.mjs", "troll-ops-killcam-test.mjs", "troll-ops-objectives-test.mjs", "troll-ops-rope-test.mjs", "troll-ops-zcredits-test.mjs", "troll-ops-zanim-test.mjs", "troll-ops-zpad-test.mjs", "troll-ops-arreload-test.mjs", "troll-ops-loupe-test.mjs", "troll-ops-swap-test.mjs", "troll-ops-royale-drop-test.mjs", "troll-ops-nft-hold-test.mjs"];
 const ROOM_TESTS = ["troll-ops-sync-test.mjs", "troll-ops-load-sync-test.mjs", "troll-ops-bot-host-test.mjs", "troll-ops-escalator-test.mjs", "troll-ops-zhub-test.mjs"];
 // the bot-host test plays a dozen two-tab matches: it gets longer
 const timeoutFor = (t) => (t === "troll-ops-bot-host-test.mjs" ? 1500000 : 600000);
@@ -84,6 +84,7 @@ const TEST_MAP = [
   [/input\/gamepad\.js/, z("zpad")],
   [/input\/touch\.js|style\.css/, z("loupe")],
   [/royale-drop\.js|modes\/royale\.js/, z("royale-drop")],
+  [/character\.js|blocky-body\.js/, z("nft-hold", "3p-hold")],
   [/combat\/weapons\.js|view\/(player-update|revive-ring)\.js|pickups\.js/, z("swap")],
   [/menu\/|menu-bo2\.js|loadout\.js|style\.css|troll-ops\.html/, z("menu")],
   [/troll-ops\/weapons\.js|combat\/|attachments\.js|weapon-|view\/(weapon-view|viewmodels)\.js/, z("input", "killcam")],
