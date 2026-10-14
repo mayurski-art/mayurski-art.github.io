@@ -144,6 +144,15 @@ function blockLoupe(layer, canvas) {
 }
 
 /* What used to run at load in game.js: called from game.js where this code was. */
+/* The camera button shows the view you're in (1P / 3P). */
+export function syncPovButton() {
+  const b = game.els?.touchPov;
+  if (!b) return;
+  const tp = !!game.settings.thirdPerson;
+  b.textContent = tp ? "3P" : "1P";
+  b.setAttribute("aria-pressed", String(tp));
+}
+
 export function initTouch() {
   blockLoupe(game.els.touch, game.els.cabinet.querySelector(":scope > canvas"));
   bindStick(game.els.touchMove, game.els.touchMoveNub, game.els.touchMoveZone);
@@ -188,6 +197,11 @@ export function initTouch() {
   if (game.els.touchStreak) {
     game.els.touchStreak.addEventListener("touchstart", (e) => { e.preventDefault(); if (game.heroActive()) game.useHeroAbility(); else game.callReadyStreak(); });
   }
+  // First / third person on a phone (user, 2026-10-14: "make sure users can
+  // switch between first person and third person POV while on mobile"): the
+  // B key and the pad's Select, as a tap.
+  game.els.touchPov?.addEventListener("touchstart", (e) => { e.preventDefault(); game.toggleThirdPerson(); }, { passive: false });
+  syncPovButton();
   // Emotes on touch: tap to open the wheel (its slices are plain buttons
   // without pointer lock), tap a slice to play it, tap EMOTE again to shut it.
   // Duo invites are accepted by holding X, same as the key.

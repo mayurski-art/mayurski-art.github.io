@@ -12,15 +12,16 @@
 //
 // Bindings follow the W3C "standard" gamepad mapping pollGamepad in
 // game.js reads (button index = position on the pad, not the letter).
-// Emotes are both sticks clicked together (user; the Voyee's T is a
-// hardware turbo the browser never hears); one stick alone is the swivel.
-// A single emote button can be set here instead (padEmoteButton).
+// The layout is Black Ops 2's default on an Xbox 360 pad (user,
+// 2026-10-14). Emotes are d-pad left held (a tap inspects); a single emote
+// button can be set here instead (padEmoteButton). The Voyee's T is a
+// hardware turbo the browser never hears.
 
 const NS = "http://www.w3.org/2000/svg";
 const EMOTE_KEY = "trollops:padEmote";
 
-/* The emote button's index, or -1 for the default: L3 + R3 together
-   (game.js reads that chord itself). */
+/* The emote button's index, or -1 for the default: d-pad left held
+   (input/gamepad.js reads that itself). */
 export function padEmoteButton() {
   try {
     const v = localStorage.getItem(EMOTE_KEY);
@@ -42,21 +43,21 @@ export function padEmotePressed(gp, edge) {
 const EMOTE = "emote";
 const BINDINGS = [
   { i: 7,  side: "R", action: "Fire" },
-  { i: 5,  side: "R", action: "Throwable (hold to cook)" },
+  { i: 5,  side: "R", action: "Lethal (hold to cook)" },
   { i: 3,  side: "R", action: "Switch weapon" },
   { i: 1,  side: "R", action: "Crouch · slide" },
   { i: 0,  side: "R", action: "Jump · vault" },
-  { i: 2,  side: "R", action: "Quick melee" },
+  { i: 2,  side: "R", action: "Reload · hold: use / pick up" },
   { i: 9,  side: "R", action: "Menu" },
-  { i: 11, side: "R", action: "Look · click: swivel right", stick: "R" },
+  { i: 11, side: "R", action: "Look · click: melee", stick: "R" },
   { i: 6,  side: "L", action: "Aim down sights" },
-  { i: 4,  side: "L", action: "Reload" },
-  { i: 10, side: "L", action: "Move · click: swivel left", stick: "L" },
+  { i: 4,  side: "L", action: "Tactical (hold to cook)" },
+  { i: 10, side: "L", action: "Move · click: sprint", stick: "L" },
   { i: 8,  side: "L", action: "Third person" },
   { i: EMOTE, side: "L", action: "Emote wheel" },
-  { i: 12, side: "L", action: "Inspect weapon" },
-  { i: 14, side: "L", action: "Throwable" },
-  { i: 15, side: "L", action: "Use streak · hold: pick up / end streak" },
+  { i: 12, side: "L", action: "Previous scorestreak" },
+  { i: 14, side: "L", action: "Inspect weapon" },
+  { i: 15, side: "L", action: "Use scorestreak · hold: end it" },
   { i: 13, side: "L", action: "Next scorestreak" },
 ];
 
@@ -69,6 +70,12 @@ const GLYPHS = {
   switch: { 0: "B", 1: "A", 2: "Y", 3: "X", 4: "L", 5: "R", 6: "ZL", 7: "ZR", 8: "−", 9: "+", 10: "LS", 11: "RS", 16: "Home", 17: "O", ...DPAD },
 };
 const FAMILY_NAMES = { xbox: "Xbox controller", ps: "PlayStation controller", switch: "Switch / Voyee controller" };
+
+/* Button `i`'s name on the connected pad (X on an Xbox pad, □ on a
+   PlayStation one, Y on a Switch / Voyee), for on-screen prompts. */
+export function padButtonName(i) {
+  return GLYPHS[padFamily(firstPad())][i] ?? "";
+}
 
 export function padFamily(gp) {
   const id = String(gp?.id || "").toLowerCase();
@@ -153,7 +160,7 @@ export class ControllerLayout {
     const reset = document.createElement("button");
     reset.type = "button";
     reset.className = "to-set-btn to-pad-reset";
-    reset.textContent = "Use both sticks";
+    reset.textContent = "Use d-pad left";
     reset.addEventListener("click", () => { setPadEmoteButton(-1); this.rebinding = false; this.paintBind(); });
     bind.append(this.bindText, this.bindBtn, reset);
     host.appendChild(bind);
@@ -252,7 +259,7 @@ export class ControllerLayout {
         const y = top + n * gap;
         const tx = side === "L" ? 6 : VIEW_W - 6;
         const lx = side === "L" ? 214 : VIEW_W - 214;
-        const spot = SPOTS[b.i === EMOTE ? (padEmoteButton() >= 0 ? padEmoteButton() : "chord") : b.i] || SPOTS.chord;
+        const spot = SPOTS[b.i === EMOTE ? (padEmoteButton() >= 0 ? padEmoteButton() : 14) : b.i] || SPOTS.chord;
         const bx = spot[0] + PAD_X, by = spot[1];
         const g = el("g", { class: "pad-callout" }, this.svg);
         el("polyline", { points: `${lx},${y} ${side === "L" ? lx + 14 : lx - 14},${y} ${bx},${by}`, class: "pad-lead" }, g);
@@ -276,7 +283,7 @@ export class ControllerLayout {
   emoteName() {
     const b = padEmoteButton();
     const g = GLYPHS[this.family];
-    return b < 0 ? `${g[10]} + ${g[11]}` : g[b] || `Button ${b}`;
+    return b < 0 ? `${g[14]} (hold)` : g[b] || `Button ${b}`;
   }
 
   setFamily(f) {
@@ -310,7 +317,7 @@ export class ControllerLayout {
 
   paintBind() {
     if (!this.bindText) return;
-    this.bindText.textContent = this.rebinding ? "Press the button you want for emotes…" : `Emotes: ${this.emoteName()}${padEmoteButton() < 0 ? " (click both sticks together)" : ""}`;
+    this.bindText.textContent = this.rebinding ? "Press the button you want for emotes…" : `Emotes: ${this.emoteName()}`;
     this.bindBtn.disabled = this.rebinding;
     const c = this.callouts.get(EMOTE);
     if (c) c.glyph.textContent = this.emoteName();

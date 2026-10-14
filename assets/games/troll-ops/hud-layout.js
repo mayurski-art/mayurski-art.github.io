@@ -33,6 +33,7 @@ const TOUCH = [
   ["to-touch-streak", "Streak"],
   ["to-touch-emote", "Emote"],
   ["to-touch-admire", "Admire"],
+  ["to-touch-pov", "Camera"],
 ];
 
 function load(touch) {

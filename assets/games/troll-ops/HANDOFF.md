@@ -467,6 +467,8 @@ Map rules:
   - One in the Chamber bots: one lethal round, knife when dry. Killcam gun wears the killer's finish. Tests: oitc-bots, skin-sync.
   - Menu: Who's Online and Server Browser (menu/online.js on site-presence setActivity; hub publicRuns). Test: online.
   - Socialize: a player can take Trolling Loud's decks (rp role dj). Test: dj.
+  - Pad is Black Ops 2's Xbox 360 default (-pd1): X reload / hold use, Y swap, LB tactical, RB lethal, L3 sprint (latched, a pushed stick no longer sprints), R3 melee, d-pad right streak (hold: end), up/down scroll streaks both ways, left tap inspect / hold emotes; Back third person. Swivel is off the pad. Prompts name X by the pad's own letters (controller-layout.js padButtonName). Test: bo2pad.
+  - Phone: a 1P / 3P camera button beside Emote (to-touch-pov; movable in Customize HUD). Test: bo2pad.
 
 - **2026-10-13** (-ar1, LIVE main 0588c6a; gate red only on zhub-test, passed solo, user said push)
   - Black Ops 2 rifle reloads for the nine BO2 rifles, from BO2 footage: tac and empty, each rifle's own pose and finish, right on the stick arms and the TROLLS block arms. Test: arreload.

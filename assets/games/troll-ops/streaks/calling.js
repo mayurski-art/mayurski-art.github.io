@@ -12,7 +12,7 @@ import { updateStreakHud, showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu
 import * as THREE from "three";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
 import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";
-import { touchState } from "../input/touch.js?v=in1-th2-bp1-bf1";
+import { touchState } from "../input/touch.js?v=in1-th2-bp1-bf1-pd1";
 import { game } from "../core/state.js?v=st1";
 import { hasPerk, PERK_TUNE } from "../perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2";
 
@@ -165,15 +165,16 @@ export function readyStreaksOrdered() {
     .sort((a, b) => STREAK_DEFS[b].cost - STREAK_DEFS[a].cost);
 }
 
-/* D-pad down: move the pointer to the next ready streak. Does nothing with
-   none ready, per how BO2's own equipment wheel behaves — there's nothing to
-   select yet. */
-export function cycleSelectedStreak() {
+/* D-pad down / up: move the pointer to the next / previous ready streak
+   (`dir` +1 / -1), BO2's scroll through its streak column. Does nothing with
+   none ready — there's nothing to select yet. */
+export function cycleSelectedStreak(dir = 1) {
   if (!streaksAllowed(game.currentMode()) || !game.player.alive || game.markingStreak) return;
   const ready = readyStreaksOrdered();
   if (!ready.length) { game.selectedStreak = null; updateStreakHud(); return; }
   const at = ready.indexOf(game.selectedStreak);
-  game.selectedStreak = ready[(at + 1) % ready.length];
+  const from = at < 0 && dir < 0 ? 0 : at;   // nothing picked yet: up lands on the last one
+  game.selectedStreak = ready[(from + (dir < 0 ? -1 : 1) + ready.length) % ready.length];
   updateStreakHud();
 }
 
