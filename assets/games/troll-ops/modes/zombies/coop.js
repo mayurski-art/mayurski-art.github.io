@@ -30,8 +30,8 @@
 import * as THREE from "three";
 import { game } from "../../core/state.js?v=st1";
 import { Zombie, zombieWire } from "../../zombies.js?v=zr4c-sb2b7b7dc2f1m1u-gt1-gt2-zr5-zr6-zr7-zr8-zr9-zr10-zc2-zp1";
-import { dep, depWire, spawnDeployable } from "./deployables.js?v=zr6-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
-import { bossState, bossWire, slamAt } from "./boss.js?v=zr7-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
+import { dep, depWire, spawnDeployable } from "./deployables.js?v=zr6-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1";
+import { bossState, bossWire, slamAt } from "./boss.js?v=zr7-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1";
 import { updateReviveRings, clearReviveRings, reviveRingState } from "../../view/revive-ring.js?v=rv1-zp1";
 import { earn } from "./economy.js?v=zr5-zr9-zr10-zc1-zc2-hr2-zp1";
 
