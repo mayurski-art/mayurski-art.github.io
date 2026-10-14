@@ -1010,6 +1010,9 @@ export class RemotePlayers {
         this.sphere.center.set(rp.pos.x, rp.pos.y + 1, rp.pos.z);
         if (!this.frustum.intersectsSphere(this.sphere)) every = 8;
       }
+      // Your planemates (Troll Royale, aboard: `tilted`) ride at 40 m/s; a
+      // skipped frame leaves them metres behind the hold. Eight of them.
+      if (rp.tilted) every = 1;
       rp.lodDt = (rp.lodDt || 0) + dt;
       if ((this.frame + i) % every) continue;
       const step = Math.min(0.1, rp.lodDt);
