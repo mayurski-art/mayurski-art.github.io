@@ -993,6 +993,9 @@ export const MAPS = {
     sun: { color: 0xffc898, intensity: 1.6, pos: [-35, 22, 30] },
     hemi: { sky: 0x8aa2cc, ground: 0x2e3326, intensity: 0.9 },
     ambient: { color: 0xffe0cc, intensity: 0.5 },
+    // Stylised realism (view/grade-pass.js): cool blue-violet shade, peach
+    // sunlit highs, a touch more colour and punch.
+    grade: { shadows: 0x2a3448, shadowsAmt: 0.12, highlights: 0xffd0a0, highlightsAmt: 0.1, sat: 1.12, contrast: 1.06 },
     build(api) {
       // The boundary is invisible now: back fences, hedges and trees mark it
       // (cg-surround), with more houses outside so the street reads as part

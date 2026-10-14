@@ -416,7 +416,7 @@ async function warmGuns(defs, melee, keep) {
     uploadStandInTextures(tp);
     await Promise.all([
       game.compileWorld(tp, game.camera, game.scene),
-      game.renderer.compileAsync(fp, game.weaponCamera, game.weaponScene),
+      game.compileWorld(fp, game.weaponCamera, game.weaponScene),
     ]);
     for (const d of defs) warmedGuns.add(gunWarmKey(d));
   } finally {
@@ -451,7 +451,7 @@ export async function warmShaders() {
     warmedGuns.clear();
     await Promise.all([
       game.compileWorld(game.scene, game.camera),
-      game.renderer.compileAsync(game.weaponScene, game.weaponCamera),
+      game.compileWorld(game.weaponScene, game.weaponCamera),
       warmGuns(matchGunDefs(), game.player.melee?.def, kept),
     ]);
   } catch (e) {

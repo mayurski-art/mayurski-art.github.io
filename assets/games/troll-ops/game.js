@@ -4,7 +4,6 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
-import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1";
@@ -139,6 +138,7 @@ import { _armDir, _armFrom, _armTo, _meleeViewE, _meleeViewQ, applyMeleeInspect,
 import { makeSsao } from "./view/ssao.js?v=ao1-zr10";
 import { sky, applySky, setSkyCloudQuality } from "./view/sky.js?v=sr1";
 import { initWorldEnv, refreshWorldEnv } from "./view/environment.js?v=sr1";
+import { GradePass, ViewmodelPass } from "./view/grade-pass.js?v=sr1";
 import { fpEmoteArmsOn, poseFreeArms, socialArms, updateFpEmoteView } from "./view/fp-emote.js?v=fe1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
 import { STREAK_SHOULDER, WHISTLE_BLOW_AT, WHISTLE_HAND, WHISTLE_HOLD, WHISTLE_ROT, hideStreakArms, streakArms, updateStreakView, initStreakView } from "./view/streak-view.js?v=sv1-si1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
 import { SAW_REV_TIME, sawInspectRev, sawShake, updateMeleeView } from "./view/melee-view.js?v=mv1-si1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
@@ -1528,6 +1528,7 @@ let spawnSides = null;   // splitSpawnSides() for the loaded map: { axis, lo, hi
 function applyEnvironment(map) {
   applySky(map);
   refreshWorldEnv();
+  gradePass.setGrade(map.grade);
   renderer.toneMappingExposure = map.exposure ?? 1.5;
   // Bloom keys off the scene's linear light BEFORE tone mapping, so a map
   // lit bright enough that plain lit surfaces passed the old 0.82 default (the
@@ -1715,7 +1716,19 @@ const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), BLOOM_DEFAULT.strengt
 composer.addPass(bloom);
 const impactPass = new ShaderPass(ImpactShader);
 composer.addPass(impactPass);
-composer.addPass(new OutputPass());
+// The FP viewmodel (gun+arms) only makes sense in first person — the gun
+// is already visible on the third-person rig itself, so rendering both
+// would double up the weapon on screen.
+// Spectating in Troll Royale: the view is someone else's, so no gun of ours.
+// Dead (and not in a replay): no gun on screen, the camera is on the body.
+// Socialize draws no gun, only its free hands (socialArmsFrame).
+composer.addPass(new ViewmodelPass(weaponScene, weaponCamera, () => {
+  if (!(gameState === "playing" && !matchIntro.active && ((player.alive && !isView() && !settings.thirdPerson && !emoteIsTp() && !royaleSpectating() && !royaleDropView() && !warshipView() && !dragonfireView()) || killcam.replaying))) return false;
+  placeRodWatch();
+  return true;
+}));
+const gradePass = new GradePass();
+composer.addPass(gradePass);
 
 let muzzleFlashT = 0;
 let akimboShown = false;
@@ -2560,20 +2573,6 @@ function animate() {
   // Nor anything under the loading screen until the match is set up there.
   ssao.enabled = GFX[gfxTier()].ssao && !remotes.crowd;   // a crowd (Troll Royale): SSAO redraws every troll
   if (!(gameState === "menu" && (document.body.classList.contains("to-bo2-cover") || loadScreen.isOpen))) composer.render();
-
-  // The FP viewmodel (gun+arms) only makes sense in first person — the gun
-  // is already visible on the third-person rig itself, so rendering both
-  // would double up the weapon on screen.
-  // Spectating in Troll Royale: the view is someone else's, so no gun of ours.
-  // Dead (and not in a replay): no gun on screen, the camera is on the body.
-  // Socialize draws no gun, only its free hands (socialArmsFrame).
-  if (gameState === "playing" && !matchIntro.active && ((player.alive && !isView() && !settings.thirdPerson && !emoteIsTp() && !royaleSpectating() && !royaleDropView() && !warshipView() && !dragonfireView()) || killcam.replaying)) {
-    renderer.autoClear = false;
-    renderer.clearDepth();
-    placeRodWatch();
-    renderer.render(weaponScene, weaponCamera);
-    renderer.autoClear = true;
-  }
 }
 
 const _euler = new THREE.Euler(0, 0, 0, "YXZ");
