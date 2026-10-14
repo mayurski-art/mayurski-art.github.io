@@ -450,11 +450,11 @@ Map rules:
 
 ## 5. Shipped log (newest first; one line each, details in git)
 
-- **2026-10-13** (-zp1, branch tf-zp7 on top of tf-horses, not pushed yet)
+- **2026-10-13** (-zp1, LIVE main 10ad34e; full gate skipped on the user's say, link check fixed)
   - Zombie Rush P7 done: lunge, tier-up flourish, deploy unfold, swap raise, downed camera, revive ring, bat/shovel swings with both hands (a real spade), turret flash and co-op blood, boss tint on clothes. Tests: zanim, zdeploy, zcoop.
   - Controller in Zombie Rush: d-pad prompts instead of 4-9; down walks the highlight, up buys/deploys, R2/A places, B cancels. Test: zpad.
 
-- **2026-10-13** (-hr2, branch tf-horses, not pushed yet)
+- **2026-10-13** (-hr2, LIVE main 10ad34e)
   - Troll City RP 2c, from tf-parallel without the band: Kek & Sons the merchant (stetson, canteen, apples; social-shop.js) and six horses to ride with the horsekeeper (saddle, whistle, brush; social-horses.js). Riding puts the guns away (handsFull). Tests: shop-test, horse-test (the whistle check can miss under load; solo passes). The saloon band is still only on tf-parallel.
 
 - **2026-10-13** (-zc1/-zc2, main 032863f, live confirmed; gate green 54 min, three tests passed on their solo retry)
