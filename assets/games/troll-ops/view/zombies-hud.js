@@ -323,7 +323,8 @@ export function updateZombiesHud(dt, s) {
   const v = s.between && s.vote ? `${s.vote.n}/${s.vote.of}:${s.vote.mine ? 1 : 0}` : "";
   if (s.between && v !== shown.vote) {
     shown.vote = v;
-    els.skipS.textContent = s.vote ? `Votes ${s.vote.n}/${s.vote.of} · ${breakS}s` : `Next wave in ${breakS}s`;
+    // (user, 2026-10-14: unanimous, and it goes on by itself: say both)
+    els.skipS.textContent = s.vote ? `Votes ${s.vote.n}/${s.vote.of} · all needed · next in ${breakS}s` : `Next wave in ${breakS}s`;
     els.skipT.textContent = s.vote ? (s.vote.mine ? "Voted to skip" : "Vote to skip") : "Skip break";
     els.skip.classList.toggle("is-voted", !!s.vote?.mine);
   }
