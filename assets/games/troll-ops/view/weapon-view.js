@@ -13,6 +13,7 @@ import { soulBlazerReloadPose, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth
 import { placePistolSlide } from "./pistol-action.js?v=ps1-wb1";
 import { placeBolt } from "./rifle-action.js?v=ra1-wb1";
 import { updateSniperScope } from "./sniper-scope.js?v=ss1-wb1";
+import { hasArReload, applyArReload, arReloadBeats, easeCutReload } from "./ar-reload.js?v=ar1";
 import { chargedShotDef } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
 import { STANCE } from "../movement.js?v=umb2-sb2-gj1b7";
@@ -584,8 +585,9 @@ const _pfTip = new THREE.Vector3();
 const _pfMag = new THREE.Vector3();
 const _pfDown = new THREE.Vector3();
 /* `magBlend` 0..1 moves the support rod's tip from the handguard onto the
-   magazine (reloads). */
-function posePfArms(mesh, magBlend = 0) {
+   magazine (reloads); `hand` ({ pos, w }, world space) puts it anywhere
+   (a BO2 rifle reload's own hand keys, ar-reload.js). */
+function posePfArms(mesh, magBlend = 0, hand = null) {
   if (game.saberArmsOn) return;   // the Trollsaber has the arms (poseSaberArms)
   const show = !!mesh?.visible && !inspectArms.visible && game.player.holding === "gun";
   pfArms.visible = show;
@@ -619,6 +621,7 @@ function posePfArms(mesh, magBlend = 0) {
         mag.getWorldPosition(_pfMag).addScaledVector(_pfDown, 0.05);
         _pfTip.lerp(_pfMag, magBlend);
       }
+      if (hand) _pfTip.lerp(hand.pos, hand.w);
     }
     stretchBetween(rods[i], PF_ARM_SHOULDER[i], _pfTip);
   }
@@ -815,6 +818,7 @@ function placeByCenter(mesh, quat, centerPos, localCenter) {
    `reloadWasEmpty` branch. */
 const _reloadPose = { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0 };
 let reloadEventsFiredFor = null; // WeaponState instance we've already fired start/complete events for
+let arLastT = -1;                // a BO2 rifle reload's progress last frame (its sound beats)
 
 const MAG_HOLD_SCREEN = new THREE.Vector3(-0.05, -0.17, -0.62);
 const MAG_DROP_SCREEN = new THREE.Vector3(-0.06, -0.7, -0.45);
@@ -827,6 +831,7 @@ const _magDrop = new THREE.Vector3();
 function reloadPose(w, mesh) {
   const p = _reloadPose;
   const mag = mesh?.userData.magMesh;
+  p.arT = -1;
 
   if (!w.reloading || !w.reloadTime) {
     p.x = p.y = p.z = p.pitch = p.yaw = p.roll = p.magHold = 0;
@@ -839,6 +844,7 @@ function reloadPose(w, mesh) {
       mag.visible = true;
       mag.position.copy(mesh.userData.magazinePoint);
       mag.rotation.x = mesh.userData.magRestRotationX ?? mag.userData.restRotX ?? mag.rotation.x;
+      if (mag.userData.arTilted) { mag.rotation.y = mag.rotation.z = 0; mag.userData.arTilted = false; }
     }
     if (reloadEventsFiredFor === w) {
       if (!w.reloadCut) game.audio.reloadComplete();
@@ -856,6 +862,15 @@ function reloadPose(w, mesh) {
     p.x = p.y = p.z = p.pitch = p.yaw = p.roll = p.magHold = 0;
     p.shellT = p.rack = p.magT = -1;
     p.akimboT = 1 - Math.max(0, w.reloadT) / w.reloadTime;
+    return p;
+  }
+  // Black Ops 2's rifles: their own held poses, mag and hand (ar-reload.js),
+  // posed onto the gun once the hip pose is on it; the sound is on its beats.
+  if (hasArReload(w.def)) {
+    reloadEventsFiredFor = w;
+    p.x = p.y = p.z = p.pitch = p.yaw = p.roll = p.magHold = 0;
+    p.shellT = p.rack = p.magT = p.akimboT = p.portShell = -1;
+    p.arT = 1 - Math.max(0, w.reloadT) / w.reloadTime;
     return p;
   }
 
@@ -1378,6 +1393,16 @@ export function updateWeaponView(dt) {
     game.akimboShown = false;
   }
   placeReloadMag(mesh, rl.magT ?? -1);
+  let arHand = null;
+  if (rl.arT >= 0) {
+    arHand = applyArReload(mesh, w, rl.arT);
+    // (from where it was last frame: a reload picked up again after a swap
+    // doesn't replay the beats it already played)
+    if (arLastT >= 0) for (const beat of arReloadBeats(w, arLastT, rl.arT)) game.audio.rifleBeat(beat);
+  } else {
+    easeCutReload(mesh, dt, arLastT >= 0 && arLastT < 0.97);   // cut short: ease back, don't jump
+  }
+  arLastT = rl.arT;
   // A pistol works its slide (pistol-action.js); the empty reload ends on
   // the slide slamming home, with a little kick.
   if (mesh.userData.pistolAction) {
@@ -1395,7 +1420,7 @@ export function updateWeaponView(dt) {
   placePump(mesh, w, rl.rack ?? -1, rl.pumpBack ?? null);
   if (mesh.userData.sb) updateSoulBlazerHand(mesh, w);
   drainWeaponEvents(w);
-  posePfArms(mesh, rl.magHold || 0);
+  posePfArms(mesh, rl.magHold || 0, arHand);
 
   if (mesh.userData.sight) mesh.userData.sight.visible = true;
   fadeOpticGlass(mesh, adsSmoothT);
