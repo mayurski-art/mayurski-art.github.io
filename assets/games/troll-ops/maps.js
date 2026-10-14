@@ -568,6 +568,8 @@ export const MAPS = {
     sun: { color: 0x6a7a99, intensity: 0.25, pos: [10, 30, 10] },
     hemi: { sky: 0x8a98b0, ground: 0x2a2c30, intensity: 0.9 },
     ambient: { color: 0xc8d4e6, intensity: 0.6 },
+    // stylised realism (view/grade-pass.js): under the city: cold tunnel shade, the lamps' warmth
+    grade: { shadows: 0x182030, shadowsAmt: 0.08, highlights: 0xffe0b0, highlightsAmt: 0.06, sat: 1, contrast: 1.08 },
     build(api) {
       const TILE = 0xd8dcd4, PLAT = 0x6a6e72, TRAIN = 0xc8ccd0;
       /* ---- the station box, cut open: two staff doors in each side wall
@@ -925,6 +927,8 @@ export const MAPS = {
     sun: { color: 0xfff2d8, intensity: 1.5, pos: [18, 40, 30] },
     hemi: { sky: 0xb9d4ff, ground: 0x39432c, intensity: 1.0 },
     ambient: { color: 0xffffff, intensity: 0.7 },
+    // stylised realism (view/grade-pass.js): overcast range: a little more colour and punch
+    grade: { shadows: 0x2a3442, shadowsAmt: 0.06, highlights: 0xfff2e0, highlightsAmt: 0.03, sat: 1.04, contrast: 1.05 },
     build(api) {
       // Drawn by gr-range (models/build_range.blender.py, realism pass): a
       // block shell with pilasters and coping, a sandbag backstop, the timber
