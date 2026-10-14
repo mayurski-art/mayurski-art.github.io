@@ -13,7 +13,7 @@
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { retexture, applyBakedLightMap, applyGroundLightMap } from "./surface-textures.js?v=hg6e";
+import { retexture, applyBakedLightMap, applyGroundLightMap, groundLightAt, applyLightAt } from "./surface-textures.js?v=hg6e";
 
 const MODEL_BASE = new URL("./models/", import.meta.url).href;
 const loader = new GLTFLoader();
@@ -26,7 +26,7 @@ const bakeCache = new Map();
    request per model was a 404 each on every map load. A strength of PI
    matches Blender: three divides a light map's light by PI as it does every
    light's, the Cycles light-only bake doesn't. */
-const BAKED = new Map([
+const BAKED = new Map([...[
   // Cul-de-Grin's houses (build_cg_houses.blender.py) and the furniture
   // in them (build_culdegrin.blender.py)
   ...["terracotta", "sage", "violet"].flatMap((v) => [`house-${v}`, `house-${v}-attic`]),
@@ -36,7 +36,19 @@ const BAKED = new Map([
     "brick-pallet", "rebar-cage", "formwork", "jersey", "skip", "van", "block-stack", "timber-stack", "pipe-stack",
     "container-stair", "light-tower", "container-open", "container-red", "container-blue", "container-green",
     "container-grey"].map((n) => `gs-${n}`),
-].map((n) => [n, Math.PI]));
+  // Dust Bowl (build_dustbowl.blender.py)
+  ...["walls", "north", "centre", "market", "south"].map((n) => `db-${n}`),
+  // Grin Beach (build_grinbeach.blender.py)
+  ...["pier", "foodtruck", "shops", "towers", "beach", "bluffs", "boardwalk"].map((n) => `gb-${n}`),
+  // Grinjuku (build_grinjuku.blender.py; gj-neon is the light, not baked)
+  "gj-shell", "gj-props", "gj-skyline",
+  // the Depot (build_depot.blender.py)
+  ...["shell", "racks", "catwalk", "office", "bay"].map((n) => `dp-${n}`),
+].map((n) => [n, Math.PI]),
+  // the Grinleria (build_grinleria.blender.py): its 15 lamps in a closed
+  // white mall bake hot, so a quarter down
+  ...["shell", "outside", "atrium", "falls", "wings", "trollhead", "shops"].map((n) => [`gl-${n}`, Math.PI * 0.75]),
+]);
 /* models/<name>-bake.webp, fetched once (null if it's missing). */
 export function loadBake(name) {
   if (!bakeCache.has(name)) {
@@ -54,12 +66,20 @@ export function loadBake(name) {
 const loadBakeTexture = (name) => (BAKED.has(name) ? loadBake(name) : Promise.resolve(null));
 
 /* Lights a placed flat mesh (or every mesh under an object) with a map's
-   ground bake: groundBake = { file, rect } (maps.js), strength as BAKED's. */
-export function groundLight(obj, groundBake) {
+   ground bake: groundBake = { file, rect } (maps.js), strength as BAKED's.
+   at = [x, z, r] lights it all with the ground's average light round that
+   spot instead (a prop standing on the ground; its materials must be its
+   own, as an unbaked loadModel copy's are). intensity defaults to BAKED's. */
+export function groundLight(obj, groundBake, at = null, intensity = Math.PI) {
   if (!groundBake) return;
-  loadBake(groundBake.file).then((tex) => obj.traverse((n) => {
-    if (n.isMesh) applyGroundLightMap(n, tex, groundBake.rect, Math.PI);
-  }));
+  loadBake(groundBake.file).then((tex) => {
+    const spot = at && groundLightAt(tex, groundBake.rect, at);
+    obj.traverse((n) => {
+      if (!n.isMesh) return;
+      if (at) applyLightAt(n, spot, intensity);
+      else applyGroundLightMap(n, tex, groundBake.rect, intensity);
+    });
+  });
 }
 
 /* Blender material name -> [surface, repeat] (models/build_props.blender.py's
@@ -118,7 +138,7 @@ export function loadModel(name, mapping = PROP_RETEXTURE) {
 /* Drops a loaded clone into the scene once it resolves. Placement happens
    the instant the promise settles, so the collider (added synchronously,
    below) is live well before the visible mesh streams in. */
-export function placeModel(api, name, { x, z, y = 0, rot = 0, scale = 1, mapping, castShadow = true, groundBake = null }) {
+export function placeModel(api, name, { x, z, y = 0, rot = 0, scale = 1, mapping, castShadow = true, groundBake = null, groundAt = null }) {
   loadModel(name, mapping).then((obj) => {
     obj.position.set(x, y, z);
     obj.rotation.y = rot;
@@ -126,15 +146,16 @@ export function placeModel(api, name, { x, z, y = 0, rot = 0, scale = 1, mapping
     else if (scale !== 1) obj.scale.setScalar(scale);
     api.prop(obj);
     if (!castShadow) obj.traverse((n) => { n.castShadow = false; });
-    groundLight(obj, groundBake);
+    groundLight(obj, groundBake, groundAt);
   });
 }
 
 /* Stacked wooden crates. Footprint ~1.4x1.4, standing ~1.9 tall. */
-export function crateStack(api, { x, z, y = 0, rot = 0, size = 1.4 }) {
+export function crateStack(api, { x, z, y = 0, rot = 0, size = 1.4, groundBake = null }) {
   const s = size, h = s * 0.72 * 2;
   api.ghostBox(x, z, s, s, h, { y, pen: 2 });
-  placeModel(api, "crate-stack", { x, z, y, rot, scale: size / 1.4 });
+  // on a baked floor: lit by the floor's light round it (the lamps it lost)
+  placeModel(api, "crate-stack", { x, z, y, rot, scale: size / 1.4, groundBake, groundAt: [x, z, s / 2 + 0.8] });
   return h;
 }
 

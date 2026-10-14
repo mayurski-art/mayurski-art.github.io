@@ -115,8 +115,14 @@ export function applyBakedLightMap(mesh, bake, intensity = 1) {
    by its world x/z, so the mesh needs no light-map UVs of its own. Call it
    once the mesh is placed in the scene. */
 export function applyGroundLightMap(mesh, bake, [x0, z0, size], intensity = 1) {
-  const geo = mesh.geometry, pos = geo?.attributes.position;
+  let geo = mesh.geometry;
+  const pos = geo?.attributes.position;
   if (!bake || !pos) return false;
+  // a loaded model's copies share its geometry: these UVs are this copy's own
+  if (geo.userData.shared) {
+    geo = mesh.geometry = geo.clone();
+    geo.userData = {};
+  }
   mesh.updateWorldMatrix(true, false);
   const v = new THREE.Vector3(), uv = new Float32Array(pos.count * 2);
   for (let i = 0; i < pos.count; i++) {
@@ -126,6 +132,36 @@ export function applyGroundLightMap(mesh, bake, [x0, z0, size], intensity = 1) {
   }
   geo.setAttribute("uv1", new THREE.BufferAttribute(uv, 2));
   return applyBakedLightMap(mesh, bake, intensity);
+}
+
+/* The ground bake's light round one spot, as a 1x1 light map: the average
+   over the square [x - r, x + r] x [z - r, z + r]. For a prop standing on
+   the ground (a crate stack), which the top-down projection above would
+   paint with its own shadow. Put it on with applyLightAt. */
+let sampler = null;
+export function groundLightAt(bake, [x0, z0, size], [x, z, r]) {
+  const img = bake?.image;
+  if (!img?.width) return null;
+  const k = img.width / size;
+  const sx = Math.max(0, Math.floor((x - r - x0) * k)), sy = Math.max(0, Math.floor((z - r - z0) * k));
+  const w = Math.max(1, Math.min(img.width - sx, Math.ceil(2 * r * k))), h = Math.max(1, Math.min(img.height - sy, Math.ceil(2 * r * k)));
+  sampler = sampler || document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+  sampler.canvas.width = w; sampler.canvas.height = h;
+  sampler.drawImage(img, sx, sy, w, h, 0, 0, w, h);   // flipY off: row 0 is z0
+  const px = sampler.getImageData(0, 0, w, h).data, sum = [0, 0, 0];
+  for (let i = 0; i < px.length; i += 4) for (let c = 0; c < 3; c++) sum[c] += px[i + c];
+  const n = px.length / 4;
+  const tex = new THREE.DataTexture(new Uint8Array([sum[0] / n, sum[1] / n, sum[2] / n, 255]), 1, 1);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+export function applyLightAt(mesh, tex, intensity = 1) {
+  if (!tex || !mesh.material) return false;
+  mesh.material.lightMap = tex;   // one texel: any UV channel reads it
+  mesh.material.lightMapIntensity = intensity;
+  mesh.material.needsUpdate = true;
+  return true;
 }
 
 /* Swaps flat-color materials on a loaded (already-cloned) GLTF object for
