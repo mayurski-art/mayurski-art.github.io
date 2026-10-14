@@ -5,14 +5,13 @@
 // this file turns it into colliders, stairs and ropes, and holds the map's
 // sky and lighting. Everything you see is models/build_grinjuku.blender.py.
 
-import * as THREE from "three";
 import { GJ, grinjukuLayout } from "./grinjuku-layout.js?v=gj1";
 import { mapModel } from "./map-models.js?v=hg6e";
 
 const LAYOUT = grinjukuLayout();
 
 function buildGrinjuku(api) {
-  const { solids, stairs, ropes, lights } = LAYOUT;
+  const { solids, stairs, ropes } = LAYOUT;
   for (const s of solids) api.ghostBox(s.x, s.z, s.w, s.d, s.h, { y: s.y, pen: s.pen });
   for (const st of stairs) {
     api.stairs(st.x, st.z, st.width, st.steps, st.rise, st.run, st.dir, { ghost: true });
@@ -24,17 +23,9 @@ function buildGrinjuku(api) {
   mapModel(api, "gj-props", { x: 0, z: 0 });
   mapModel(api, "gj-neon", { x: 0, z: 0, castShadow: false });
   mapModel(api, "gj-skyline", { x: 0, z: 0, castShadow: false });
-
-  // 12 point lights, all made here (never at runtime): the neon carries the
-  // rest through bloom
-  const root = new THREE.Group();
-  api.prop(root);
-  for (const L of lights) {
-    const light = new THREE.PointLight(L.color, L.intensity, L.distance, 2);
-    light.position.set(L.x, L.y, L.z);
-    light.castShadow = false;
-    root.add(light);
-  }
+  // The layout's 12 fill lights are baked into the models' light maps
+  // (build_grinjuku.blender.py, lamps=40), not made here: 12 fewer lights in
+  // every lit shader on the map.
 }
 
 const SOOT = 0x0e0e12;
@@ -51,8 +42,14 @@ export const GRINJUKU = {
   bloom: { threshold: 0.8, strength: 0.75, radius: 0.55 },
   ground: { colorA: 0x2a2a30, colorB: 0x26262c, grid: 0x3a3a44, surface: "asphalt", tile: 4 },
   sun: { color: 0x8a98ff, intensity: 0.6, pos: [-30, 60, 40] },
-  hemi: { sky: 0x6a5aa8, ground: 0x2a1a2a, intensity: 2.2 },
-  ambient: { color: 0x4a3a6a, intensity: 0.35 },
+  // The models' light maps carry half the sky now, and the neon's glow on
+  // the walls and road (stylised realism, REALISM.md; build_grinjuku bakes
+  // with gj-neon standing in the street).
+  groundBake: { file: "grinjuku-ground", rect: [-56, -56, 112] },
+  hemi: { sky: 0x6a5aa8, ground: 0x2a1a2a, intensity: 1.1 },
+  ambient: { color: 0x4a3a6a, intensity: 0.22 },
+  // neon night: indigo shade, a magenta lift in the highs, more punch
+  grade: { shadows: 0x1a1440, shadowsAmt: 0.1, highlights: 0xff60c0, highlightsAmt: 0.06, sat: 1.12, contrast: 1.08 },
   viewFar: 420,
   build: buildGrinjuku,
   // Rain-slick asphalt: puddles to catch the neon, oil, tyre marks; flyers
@@ -65,8 +62,8 @@ export const GRINJUKU = {
       backs: [-31.4, 24.4, 31.4, 41.4], station: [-31.4, -41.4, 31.4, -32.4],
     },
     decals: [
-      { cell: "puddle", n: 26, area: ["aMain", "bMain", "midTop", "backs", "station"], size: [1.0, 2.6], color: 0x0c0e14, alpha: 0.6 },
-      { cell: "puddle", n: 10, area: ["aSite", "bSite", "midBot"], size: [0.8, 1.8], color: 0x0c0e14, alpha: 0.5 },
+      { cell: "puddle", n: 26, area: ["aMain", "bMain", "midTop", "backs", "station"], size: [1.0, 2.6], color: 0x0c0e14, alpha: 0.75, shiny: true },
+      { cell: "puddle", n: 10, area: ["aSite", "bSite", "midBot"], size: [0.8, 1.8], color: 0x0c0e14, alpha: 0.7, shiny: true },
       { cell: "oil", n: 14, area: ["aMain", "bMain", "backs", "station"], size: [0.8, 1.8], color: SOOT, alpha: 0.55 },
       { cell: "tyre", n: 10, area: ["aMain", "bMain", "backs"], size: [1.4, 1.8], stretch: 3, rot: 0.05, color: 0x0a0a0c, alpha: 0.35 },
       { cell: "crack", n: 18, size: [1.2, 2.5], color: 0x1a1a1e, alpha: 0.6 },

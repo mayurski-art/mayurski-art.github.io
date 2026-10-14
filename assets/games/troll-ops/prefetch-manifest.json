@@ -261,6 +261,10 @@
   "assets/games/troll-ops/models/gj-shell.glb",
   "assets/games/troll-ops/models/gj-props.glb",
   "assets/games/troll-ops/models/gj-neon.glb",
-  "assets/games/troll-ops/models/gj-skyline.glb"
+  "assets/games/troll-ops/models/gj-skyline.glb",
+  "assets/games/troll-ops/models/gj-shell-bake.webp",
+  "assets/games/troll-ops/models/gj-props-bake.webp",
+  "assets/games/troll-ops/models/gj-skyline-bake.webp",
+  "assets/games/troll-ops/models/grinjuku-ground-bake.webp"
  ]
 }
