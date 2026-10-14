@@ -13,7 +13,7 @@
 
 import { game } from "../../core/state.js?v=st1";
 import { econ, earn, resetCash, tickCash, waveBonus } from "./economy.js?v=zr5-zr9-zr10-zc1-zc2-hr2-zp1";
-import { buy, offers, resetUpgrades, upgradeState } from "./upgrades.js?v=zr5-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0";
+import { buy, offers, resetUpgrades, upgradeState } from "./upgrades.js?v=zr5-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0";
 import { mountZombiesHud, showZombiesHud, updateZombiesHud, announceWave, zombiesBanner } from "../../view/zombies-hud.js?v=zr6-zr7-zr8-zr9-zr10-zp1-aa0";
 import { updateZombieBars } from "../../view/zombies-bars.js?v=zr6-zr9-zr10";
 import { dep, depWire, deployOffers, pickDeployable, cancelPlacing, placeDeployable, spawnDeployable, hitBlocker, resetDeployables, clearDeployables, updateDeployables } from "./deployables.js?v=zr6-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
@@ -21,7 +21,7 @@ export { deployClick } from "./deployables.js?v=zr6-zr8-zr9-zr10-zh1-zc1-zc2-hr2
 import { bossState, bossWaveStarted, resetBosses, spawnBossNow, updateBosses } from "./boss.js?v=zr7-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
 import { coop, startCoop, stopCoop, coopPreFrame, coopPostFrame, coopTargets, coopSwing, voteSkip, playerCount, roomPlayers, coopDebug, REVIVE_TIME } from "./coop.js?v=zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
 import { onZombieMessage as onCoopMessage } from "./coop.js?v=zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
-import { onHubMessage } from "./hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0";
+import { onHubMessage } from "./hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0";
 
 /* Every "z" + letter message: the hub's pads (zP, zG), else the run's. */
 export function onZombieMessage(p, m) {

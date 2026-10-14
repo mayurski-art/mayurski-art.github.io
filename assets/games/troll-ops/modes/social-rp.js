@@ -20,11 +20,11 @@ import { setSeatLookup } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-i
 import { ROLES, DOCTOR, TUNES, PianoVoice } from "../rp-roles.js?v=rp1b7-cd1-sh1";
 import { damp } from "../anim-curves.js";
 import { touchState } from "../input/touch.js?v=in1-th2-bp1";
-import { frozenPlayer, setTouchContext } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0";
+import { frozenPlayer, setTouchContext } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0";
 import { game } from "../core/state.js?v=st1";
 import { setFireIcon } from "../view/touch-icons.js?v=ti1-zc2";
 import { PianoPanel } from "../menu/piano-panel.js?v=pp1b7-cd1-sh1";
-import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0";
+import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0";
 
 export const bar = {
   drink: null,      // { kind: "beer"|"whiskey", sips }

@@ -42,6 +42,10 @@ export function tryReload(pressed = false) {
   currentWeapon().startReload();
 }
 
+/* Auto reload (user, 2026-10-14): the last round out starts the reload on
+   its own, this long after it, so the shot and its kick read first. */
+const AUTO_RELOAD_MS = 250;
+
 /* `shot` (charge weapons, from chargedShotDef): the def this round flies
    with, the cells it costs, its recoil scale and charge level. */
 export function fireOnce(shot = null) {
@@ -55,6 +59,11 @@ export function fireOnce(shot = null) {
     return;
   }
   w.fire(shot?.cells ?? 1, shot?.kick ?? 1);
+  if (w.ammoInMag <= 0) {
+    setTimeout(() => {
+      if (currentWeapon() === w && w.ammoInMag <= 0 && !w.reloading && game.player.alive && game.gameState === "playing") tryReload();
+    }, AUTO_RELOAD_MS);
+  }
   if (w.def.akimbo) {
     // Right, left, right...: each pull fires the other gun.
     w.akimboSide = (w.akimboSide ?? 1) ^ 1;

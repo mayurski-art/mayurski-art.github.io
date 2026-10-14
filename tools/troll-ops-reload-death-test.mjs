@@ -1,5 +1,6 @@
 // Dying mid-reload must not leave the magazine hanging where the reload
-// animation had it: the respawned gun (and any gun) seats its mag.
+// animation had it: the respawned gun (and any gun) seats its mag. And an
+// emptied mag reloads by itself.
 //
 // Usage: node tools/troll-ops-reload-death-test.mjs
 
@@ -84,6 +85,32 @@ for (const slot of ["primary", "secondary"]) {
   await sleep(400);
   const drawn = await magState();
   check(`${slot}: drawn again, mag still seated`, drawn && drawn.off < 0.005, JSON.stringify(drawn));
+}
+
+// Auto reload (user, 2026-10-14): firing the last round starts the reload
+// by itself, without another trigger pull.
+for (const slot of ["primary", "secondary"]) {
+  await page.evaluate((slot) => {
+    const T = window.__trollOps;
+    if (!T.player.alive) T.respawnPlayer();
+    T.breakSpawnGuard();
+    T.switchWeapon(slot);
+  }, slot);
+  await sleep(900);
+  const r = await page.evaluate(async () => {
+    const T = window.__trollOps;
+    const w = T.currentWeapon();
+    w.reloading = false;
+    w.ammoInMag = 1;
+    w.ammoReserve = 200;
+    w.fireCooldown = 0;
+    w.pumpT = 0;
+    T.fireOnce();
+    const fired = w.ammoInMag === 0;
+    await new Promise((res) => setTimeout(res, 600));
+    return { fired, reloading: w.reloading, mag: w.ammoInMag };
+  });
+  check(`${slot}: an empty mag reloads on its own`, r.fired && (r.reloading || r.mag > 0), JSON.stringify(r));
 }
 
 check("no page errors", !errors.length, errors.join(" | "));

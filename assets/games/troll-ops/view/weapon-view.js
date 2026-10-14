@@ -1,7 +1,7 @@
 // The gun in your hands each frame: sway, bob, landing dip, ADS, inspect,
 // reloads (mags, shells, pumps), the rod arms, the Soul Blazer and the laser.
 
-import { currentWeapon, swapRaise } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0";
+import { currentWeapon, swapRaise } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0";
 import { AKIMBO_INSPECT_TIME } from "../akimbo-view.js?v=ak1-wst";
 import * as THREE from "three";
 import { rise, smoothstep, damp } from "../anim-curves.js";

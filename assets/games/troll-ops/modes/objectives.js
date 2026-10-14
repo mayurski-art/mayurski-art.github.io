@@ -2,7 +2,7 @@
 // Destroy (sites, plant/defuse, bots on the bomb, rounds, halftime).
 
 import { clearLauncher } from "../combat/launcher.js?v=fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0";
-import { updateTeamHud, checkMatchEnd, awardScore, addMatchXp } from "../combat/scoring.js?v=sc1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0";
+import { updateTeamHud, checkMatchEnd, awardScore, addMatchXp } from "../combat/scoring.js?v=sc1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0";
 import { SCORE } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2";
 import { XP } from "../progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import * as THREE from "three";

@@ -6,7 +6,7 @@ import { FP_HAND_POSES } from "../emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt
 import { EmoteWheel, EMOTES } from "../emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u-gt1-gt2-cw1-zr10";
 import * as THREE from "three";
 import { segmentBlocked } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
-import { look, keys } from "../input/keyboard-mouse.js?v=km1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0";
+import { look, keys } from "../input/keyboard-mouse.js?v=km1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0";
 import { touchState } from "../input/touch.js?v=in1-th2-bp1";
 import { initMenuRoster } from "../menu/escape-menu.js?v=em1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0";
 import { game } from "../core/state.js?v=st1";
