@@ -166,7 +166,7 @@ def build_house(v, attic):
     siding_wall(b, M, "z", hx, -hz, hz, 0.35, WALL_H, 1, [(-DOOR_W / 2, DOOR_W / 2, 0, WALL_H - 0.55)], rng)
     # corner boards
     for (cx, cz) in ((-hx, -hz), (-hx, hz), (hx, -hz), (hx, hz)):
-        b.box(M["trim"], 0.18, WALL_H - 0.3, 0.18, cx, 0.3, cz)
+        b.box(M["trim"], 0.18, WALL_H - 0.3, 0.18, cx, 0.3, cz, bevel=0.02)
     # --- the front door: a wide cased opening, both leaves swung back flat
     # against the front wall outside, a transom over it
     b.box(M["trim"], 0.08, WALL_H - 0.55, 0.14, hx + 0.04, 0, -DOOR_W / 2 - 0.07)
@@ -187,9 +187,9 @@ def build_house(v, attic):
     for s in (-1, 1):
         pz = s * (DOOR_W / 2 + 0.5)
         px = hx + PD - 0.15
-        b.box(M["trim"], 0.26, 0.2, 0.26, px, 0.06, pz)
-        b.box(M["trim"], 0.18, WALL_H - 0.55, 0.18, px, 0.26, pz)
-        b.box(M["trim"], 0.26, 0.14, 0.26, px, WALL_H - 0.43, pz)
+        b.box(M["trim"], 0.26, 0.2, 0.26, px, 0.06, pz, bevel=0.025)
+        b.box(M["trim"], 0.18, WALL_H - 0.55, 0.18, px, 0.26, pz, bevel=0.02)
+        b.box(M["trim"], 0.26, 0.14, 0.26, px, WALL_H - 0.43, pz, bevel=0.025)
     b.box(M["trim"], PD + 0.2, 0.2, DOOR_W + 1.6, hx + PD / 2, WALL_H - 0.3, 0)
     b.box(M["roof"], PD + 0.35, 0.08, DOOR_W + 1.8, hx + PD / 2 + 0.05, WALL_H - 0.1, 0, rz=-0.12)
     b.box(M["dark"], 0.1, 0.25, 0.1, hx + 0.08, 2.1, DOOR_W / 2 + 0.25)
@@ -287,7 +287,7 @@ def gable_roof(b, M, rw, rd, eave_y, ridge_y, cx, cz, rng):
             m = M["roof"] if (k + rng.randrange(2)) % 3 else M["roof2"]
             b.box(m, rw, 0.035, 0.32, cx, yy + 0.03, zz, rx=s * slope + s * 0.04)
         # fascia + soffit on the eave
-        b.box(M["trim"], rw + 0.02, 0.2, 0.04, cx, eave_y - 0.16, cz + s * (half + 0.01))
+        b.box(M["trim"], rw + 0.02, 0.2, 0.04, cx, eave_y - 0.16, cz + s * (half + 0.01), bevel=0.012)
     b.box(M["roof2"], rw + 0.04, 0.1, 0.3, cx, ridge_y - 0.02, cz)
 
 
@@ -342,10 +342,10 @@ def gutters(b, M, ox, oz, y):
 
 
 def chimney(b, M, x, z, top):
-    b.box(M["brick"], 0.75, top, 0.9, x, 0, z)
-    b.box(M["brick"], 0.85, 0.15, 1.0, x, top - 0.6, z)
-    b.box(M["found"], 0.84, 0.12, 0.84, x, top, z)
-    b.box(M["dark"], 0.3, 0.2, 0.3, x, top + 0.12, z)
+    b.box(M["brick"], 0.75, top, 0.9, x, 0, z, bevel=0.03)
+    b.box(M["brick"], 0.85, 0.15, 1.0, x, top - 0.6, z, bevel=0.03)
+    b.box(M["found"], 0.84, 0.12, 0.84, x, top, z, bevel=0.025)
+    b.box(M["dark"], 0.3, 0.2, 0.3, x, top + 0.12, z, bevel=0.02)
 
 
 def main():
