@@ -16,15 +16,18 @@
 //     spawnPad: 3,                  // metres kept clear round each spawn
 //     areas: { name: [x0, z0, x1, z1, y?] },   // scatter rects (y = floor height, default 0)
 //     avoid: [[x0, z0, x1, z1], ...],          // never scatter in these
-//     decals: [{ cell, n, area?, size: [min, max], stretch?, color?, colors?, alpha? }],
-//     place:  [{ cell, x, z, y?, size | w + d, rot?, color?, alpha?, wall? }],
+//     decals: [{ cell, n, area?, size: [min, max], stretch?, color?, colors?, alpha?, shiny? }],
+//     place:  [{ cell, x, z, y?, size | w + d, rot?, color?, alpha?, wall?, shiny? }],
 //     clutter: [{ kind, n, area?, size: [min, max], colors?, pad? }],
 //   }
 // `area` names an entry in `areas` (or an array of names); none = the whole
 // map. `wall: yaw` stands a placed decal upright, facing yaw (0 = +z).
+// `shiny: true` (puddles) goes in a second mesh, wet and glossy: it
+// reflects the map's sky (view/environment.js).
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { useWorldEnv } from "./view/environment.js?v=sr1";
 
 /* ------------------------------------------------------------- the atlas */
 // 4 x 4 cells of 256 px. Most are drawn white on clear so each decal is
@@ -566,9 +569,9 @@ export function dressMap(root, colliders, map) {
   };
 
   /* ---- decals: one merged mesh */
-  const quads = [];
+  const quads = [], wet = [];
   const col = new THREE.Color();
-  const quad = (cellIdx, x, y, z, w, d, rot, color, alpha, wall) => {
+  const quad = (cellIdx, x, y, z, w, d, rot, color, alpha, wall, shiny) => {
     const g = new THREE.PlaneGeometry(w, d);
     const u0 = (cellIdx % 4) / 4, v0 = 1 - (Math.floor(cellIdx / 4) + 1) / 4;
     const uv = g.attributes.uv;
@@ -579,7 +582,7 @@ export function dressMap(root, colliders, map) {
     const n = g.attributes.position.count, cols = new Float32Array(n * 4);
     for (let i = 0; i < n; i++) cols.set([col.r, col.g, col.b, alpha ?? 1], i * 4);
     g.setAttribute("color", new THREE.BufferAttribute(cols, 4));
-    quads.push(g);
+    (shiny ? wet : quads).push(g);
   };
   for (const d of spec.decals || []) {
     const cellIdx = typeof d.cell === "number" ? d.cell : DECAL[d.cell];
@@ -589,22 +592,25 @@ export function dressMap(root, colliders, map) {
       const s = s0 + r() * (s1 - s0);
       const colour = d.colors ? d.colors[Math.floor(r() * d.colors.length)] : d.color;
       const a = (d.alpha ?? 0.6) * (0.75 + r() * 0.25);
-      quad(cellIdx, x, y + 0.025 + r() * 0.01, z, s, s * (d.stretch ?? 1), d.rot ?? r() * Math.PI * 2, colour, a, null);
+      quad(cellIdx, x, y + 0.025 + r() * 0.01, z, s, s * (d.stretch ?? 1), d.rot ?? r() * Math.PI * 2, colour, a, null, d.shiny);
     }
   }
   for (const p of spec.place || []) {
     const cellIdx = typeof p.cell === "number" ? p.cell : DECAL[p.cell];
     const w = p.w ?? p.size ?? 2, d = p.d ?? p.size ?? 2;
-    quad(cellIdx, p.x, (p.y ?? 0) + (p.wall == null ? 0.03 : 0), p.z, w, d, p.rot ?? 0, p.color, p.alpha ?? 0.8, p.wall);
+    quad(cellIdx, p.x, (p.y ?? 0) + (p.wall == null ? 0.03 : 0), p.z, w, d, p.rot ?? 0, p.color, p.alpha ?? 0.8, p.wall, p.shiny);
   }
-  if (quads.length) {
-    const mesh = new THREE.Mesh(mergeGeometries(quads, false), new THREE.MeshStandardMaterial({
-      map: decalAtlas(), vertexColors: true, transparent: true, depthWrite: false, roughness: 0.95, metalness: 0,
+  for (const [list, name, roughness] of [[quads, "dress-decals", 0.95], [wet, "dress-wet", 0.12]]) {
+    if (!list.length) continue;
+    const m = new THREE.MeshStandardMaterial({
+      map: decalAtlas(), vertexColors: true, transparent: true, depthWrite: false, roughness, metalness: 0,
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
-    }));
+    });
+    if (list === wet) useWorldEnv(m, 0.8);   // 1.2 read as pink paint at sunset, 0.5 vanished
+    const mesh = new THREE.Mesh(mergeGeometries(list, false), m);
     mesh.receiveShadow = true;
     mesh.renderOrder = 1;
-    mesh.name = "dress-decals";
+    mesh.name = name;
     root.add(mesh);
   }
 

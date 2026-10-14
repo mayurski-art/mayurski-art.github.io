@@ -993,7 +993,7 @@ export const MAPS = {
     // clouds, haze in the street.
     sky: { top: 0x2c4f86, horizon: 0xf0a878, bottom: 0x3a3040, sun: 1.3, sunSize: 0.04, haze: 0.6, clouds: 0.45, cloudColor: 0xffc0a0, cloudShade: 0x6a5a78 },
     fog: { color: 0x9a8078, density: 0.011 },
-    ground: { colorA: 0x8faa70, colorB: 0x6f8a55, grid: 0x7d8a63, surface: "grass", tile: 4 },
+    ground: { colorA: 0x8faa70, colorB: 0x6f8a55, grid: 0x7d8a63, surface: "grass", tile: 4, patches: { color: 0xd8b878, amt: 0.5, scale: 7 } },
     sun: { color: 0xffc898, intensity: 1.6, pos: [-35, 22, 30] },
     // the houses' baked light maps carry the sky and lamp light (REALISM.md),
     // and the ground's: the light on it from above, round the houses and trees
@@ -1632,7 +1632,8 @@ MAPS.undergrin.dress = {
 };
 MAPS.culdegrin.dress = {
   seed: 73,
-  areas: { road: [-5.8, -29, 5.8, 29], lawnW: [-33, -29, -9, 29], lawnE: [9, -29, 33, 29] },
+  areas: { road: [-5.8, -29, 5.8, 29], lawnW: [-33, -29, -9, 29], lawnE: [9, -29, 33, 29],
+    walkW: [-7.8, -28, -6.2, 28, 0.06], walkE: [6.2, -28, 7.8, 28, 0.06] },
   // house floors
   avoid: [[-25, -23, -11, -13], [-25, -6, -11, 6], [-24, 12.5, -12, 23.5], [12, -23.5, 24, -12.5], [11, -6, 25, 6], [11, 13, 25, 23]],
   decals: [
@@ -1640,7 +1641,10 @@ MAPS.culdegrin.dress = {
     { cell: "crack", n: 18, area: "road", size: [1.5, 3], color: 0x1e1e20, alpha: 0.7 },
     { cell: "oil", n: 10, area: "road", size: [0.8, 1.8], color: SOOT, alpha: 0.5 },
     { cell: "tyre", n: 10, area: "road", size: [1.4, 1.8], stretch: 3, rot: 0.05, color: 0x111111, alpha: 0.4 },
-    { cell: "puddle", n: 5, area: "road", size: [1.2, 2.4], color: 0x16181c, alpha: 0.5 },
+    { cell: "puddle", n: 5, area: "road", size: [1.2, 2.4], color: 0x0c0d10, alpha: 0.85, shiny: true },
+    // wear (stylised realism P4): cracked sidewalk slabs, worn lawn
+    { cell: "crack", n: 14, area: ["walkW", "walkE"], size: [0.8, 1.4], color: 0x2a2826, alpha: 0.6 },
+    { cell: "dirt", n: 14, area: ["lawnW", "lawnE"], size: [1.2, 2.4], color: 0x5a4428, alpha: 0.5 },
   ],
   place: [
     { cell: "grin", x: 0, z: 20, y: 0.07, size: 4.2, rot: 0.15, color: 0xffffff, alpha: 1 },   // the trollface painted on the road (over the centre line)
@@ -1649,6 +1653,23 @@ MAPS.culdegrin.dress = {
     { cell: "drain", x: 5.5, z: 6, size: 0.8, color: 0x1a1a1c, alpha: 0.9 },
     { cell: "oil", x: -7, z: -10, size: 2.2, color: SOOT, alpha: 0.65 },
     { cell: "oil", x: 7, z: 10, size: 2.2, color: SOOT, alpha: 0.65 },
+    // standing water in the gutters, glossy
+    { cell: "puddle", x: -5.2, z: -16, w: 1.4, d: 2.8, color: 0x0c0d10, alpha: 0.85, shiny: true },
+    { cell: "puddle", x: 5.2, z: 3, w: 1.3, d: 2.4, rot: Math.PI, color: 0x0c0d10, alpha: 0.85, shiny: true },
+    // Spray paint on the side walls you see down the gaps between houses
+    // (siding stands ~7 cm proud of each wall line: these sit at 10), and
+    // on the back fences. The trollface is the real art (DECAL.grin).
+    { cell: "tag", x: -18, z: -12.9, y: 1.6, w: 2.6, d: 1.3, wall: 0, color: 0x2b6fd8, alpha: 0.9 },
+    { cell: "grin", x: 18, z: 6.1, y: 1.75, size: 2.1, wall: 0, color: 0xffffff, alpha: 0.95 },
+    { cell: "tag", x: 18, z: 12.9, y: 1.5, w: 2.4, d: 1.2, wall: Math.PI, rot: 0.06, color: 0xd8306a, alpha: 0.9 },
+    { cell: "tag", x: -18, z: 12.4, y: 1.3, w: 1.6, d: 0.8, wall: Math.PI, rot: -0.1, color: 0x1a1a1a, alpha: 0.85 },
+    { cell: "tag", x: -32.42, z: -4, y: 1.0, w: 2.2, d: 1.1, wall: Math.PI / 2, color: 0xe8e8e8, alpha: 0.85 },
+    { cell: "tag", x: 32.42, z: 6, y: 1.0, w: 2.2, d: 1.1, wall: -Math.PI / 2, rot: 0.05, color: 0xf2c232, alpha: 0.85 },
+    // grime run down from the gutters
+    { cell: "streak", x: -12, z: -6.1, y: 1.9, w: 0.9, d: 2.4, wall: Math.PI, color: 0x3a3226, alpha: 0.4 },
+    { cell: "streak", x: -24.2, z: -6.1, y: 1.9, w: 0.9, d: 2.4, wall: Math.PI, color: 0x3a3226, alpha: 0.35 },
+    { cell: "streak", x: 13.3, z: -12.4, y: 1.9, w: 0.9, d: 2.4, wall: 0, color: 0x3a3226, alpha: 0.4 },
+    { cell: "streak", x: 23.5, z: 6.1, y: 1.9, w: 0.9, d: 2.4, wall: 0, color: 0x3a3226, alpha: 0.35 },
   ],
   clutter: [
     { kind: "tuft", n: 700, area: ["lawnW", "lawnE"], size: [0.8, 1.4], colors: [0x9ac070, 0x8ab060, 0xa8c878, 0x7a9a50] },
@@ -1748,7 +1769,9 @@ export const MAP_IDS = Object.keys(MAPS).filter((id) => id !== "pentagrin" && id
 
 /* Lit, textured ground for maps that set ground.surface: unlike the grid
    shader it takes shadows, so modelled props sit on it instead of floating.
-   `tile` is metres per texture repeat; colorA tints it. */
+   `tile` is metres per texture repeat; colorA tints it. `patches`
+   ({ color, amt, scale }) breaks the tiling up: soft blotches (scale metres
+   across) tinted toward `color`, a dry lawn's yellow, say. */
 function groundSurface(g, w, d) {
   const s = SURFACES[g.surface];
   const tile = g.tile || 4;
@@ -1762,6 +1785,36 @@ function groundSurface(g, w, d) {
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.repeat.set(w / tile, d / tile);
     t.needsUpdate = true;
+  }
+  if (g.patches) {
+    const p = g.patches;
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.uPatch = { value: new THREE.Color(p.color) };
+      sh.uniforms.uPatchAmt = { value: p.amt ?? 0.4 };
+      sh.uniforms.uPatchScale = { value: 1 / (p.scale ?? 8) };
+      sh.vertexShader = sh.vertexShader
+        .replace("#include <common>", "#include <common>\nvarying vec2 vGPos;")
+        .replace("#include <begin_vertex>", "#include <begin_vertex>\nvGPos = (modelMatrix * vec4(transformed, 1.0)).xz;");
+      sh.fragmentShader = sh.fragmentShader
+        .replace("#include <common>", `#include <common>
+varying vec2 vGPos;
+uniform vec3 uPatch;
+uniform float uPatchAmt, uPatchScale;
+float gHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float gNoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(gHash(i), gHash(i + vec2(1, 0)), f.x), mix(gHash(i + vec2(0, 1)), gHash(i + vec2(1, 1)), f.x), f.y);
+}`)
+        .replace("#include <color_fragment>", `#include <color_fragment>
+{
+  vec2 q = vGPos * uPatchScale;
+  float n = gNoise(q) * 0.6 + gNoise(q * 2.7 + 7.3) * 0.3 + gNoise(q * 7.1 + 3.1) * 0.1;
+  diffuseColor.rgb *= mix(0.86, 1.06, n);   // lusher and thinner grass everywhere
+  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * uPatch * 1.6, smoothstep(0.52, 0.78, n) * uPatchAmt);
+}`);
+    };
+    m.customProgramCacheKey = () => "ground-patches";
   }
   return m;
 }
