@@ -55,6 +55,22 @@ No gate between steps (user, 2026-10-13); one gate when the user says push.
 ## Rollout (after buy-in)
 The environment map, grade and rim reach every map at once (the grade is neutral until a map sets `grade`). Per map: a `grade` block, the hemi/ambient retune, a bake step in its Blender builder (indoor maps bake their lamps and drop them), a ground bake, wear decals. Procedural maps (Troll City, Trolling Loud, Pentagrin, range, hub) can't be baked: they get the environment, grade, rim and retune. Order: Grin Site, Hollowgrin, Undergrin, Depot, Dust Bowl, Grinleria, Grin Beach, Grinjuku, Trollface Island, then the procedural ones.
 
+### How a map is baked (2026-10-14)
+1. `node tools/troll-ops-map-placements.mjs <map>`: loads the map headless and writes `models/<map>-placements.json` (bounds, bake colours, every placed model, every point light).
+2. In the map's builder, once: `bake_every_model(sky=(hemi sky, sky horizon, strength), ground=<ground colour>, context="<map>"[, lamps=40])`. `context` stands the rest of the map up round each model as it bakes; `lamps=40` bakes the map's point lights in (40 W a candela matches three), and then the map stops making them. Strength about 1.0 for a hemi near 1, higher for a strong hemi (Grin Beach 1.4, Grinjuku 1.7).
+3. `blender --background --python models/bake_map_ground.blender.py -- <map> [strength] [lamp watts]`: the ground bake; it prints the rect for `groundBake`.
+4. maps.js: `groundBake: { file: "<map>-ground", rect }`, hemi and ambient about halved, a `grade`, the models' names in battlefield-props.js `BAKED`, `groundLight()` on flat or scenery meshes the game draws (the road, palms, a city outside the wall: outside the rect they take the open-sky edge).
+5. Shots before (`ROOT_DIR=<main checkout>`) and after, luma, the prefetch manifest.
+
+Lessons from the rollout:
+- Cycles doesn't denoise a bake. A surface lit only by bounce (the Depot's roof, under its office) is speckled at 128 samples: `finish(..., bake=dict(samples=512, blur=2))` for that model.
+- A closed, white, lamp-lit room bakes hot (the Grinleria): turn its models down in `BAKED` (0.75 π) rather than re-bake.
+- A ceiling over strip lights gets almost nothing in the bake (Grinjuku's sewers went black): keep a little ambient (0.22 there).
+- A prop standing on a baked floor (crate stacks) or scenery outside the rect (Dust Bowl's city) takes `groundLight(obj, bake, [x, z, r])`: the floor's average light round a spot, as a 1×1 light map. Projecting from above paints a prop with its own shadow, and outside the rect clamps to the bright edge.
+- A loaded model's copies share geometry: `applyGroundLightMap` gives each copy its own (each palm its own spot).
+
+Done: Cul-de-Grin, Grin Site, Dust Bowl, Grin Beach, Grinjuku (its 12 fill lights baked), the Depot (its 9 lamps baked), the Grinleria (its 15 lamps baked). Grade only: Hollowgrin (hand-lit night), Undergrin (its Metro redesign is pending), Troll City, Trolling Loud, Trollface Island, the Pentagrin, the Hub, the range.
+
 ## Verification
 - `MODE=view OUT=.claude/realism-after node tools/troll-ops-map-shots.mjs tools/troll-ops-map-views.json culdegrin` after every step, against `.claude/realism-before/`.
 - `tools/troll-ops-map-fps.mjs culdegrin` x3, before and after. Baseline (headless Intel, 2026-10-13): 12.3 fps, 1067 draws, 564 meshes, 440 materials.

@@ -4,8 +4,9 @@
 // Loads each map headless (view mode: no bots), waits for its models to
 // stream in, and writes assets/games/troll-ops/models/<map>-placements.json:
 // the map's bounds, the colours its bake should use (sky up = hemi.sky,
-// horizon = sky.horizon, ground = ground.colorA) and every placed model as
-// [name, x, y, z, yaw, sx, sy, sz] (loadModel tags each copy with its name).
+// horizon = sky.horizon, ground = ground.colorA), every placed model as
+// [name, x, y, z, yaw, sx, sy, sz] (loadModel tags each copy with its name)
+// and the map's point lights as [x, y, z, colour, intensity, distance].
 // models/bake_map_ground.blender.py reads it.
 //
 // Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-map-placements.mjs <mapId ...>
@@ -57,16 +58,20 @@ for (const id of ids) {
     const T = window.__trollOps, THREE = await import("three");
     const map = (await import(mapsUrl)).MAPS[id];
     const p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3(), e = new THREE.Euler(), rel = new THREE.Matrix4();
-    const placements = [];
+    const placements = [], lights = [];
+    const r = (v) => Math.round(v * 1000) / 1000;
     T.scene.traverse((o) => {
-      if (!o.userData.model) return;
+      if (!o.userData.model && !o.isPointLight) return;
       o.updateWorldMatrix(true, false);
       // relative to the map root (the scene child above it): a preloaded map
       // is built off to one side, then moved
       let root = o; while (root.parent && root.parent !== T.scene) root = root.parent;
+      if (root === o) return;   // the game's own lights, not the map's
       rel.copy(root.matrixWorld).invert().multiply(o.matrixWorld).decompose(p, q, s);
+      // the map's lamps (api.lamp and the like): [x, y, z, colour, intensity, distance]
+      // (pooled effect lights sit idle at intensity 0: not the map's)
+      if (o.isPointLight) { if (o.intensity > 0) lights.push([r(p.x), r(p.y), r(p.z), o.color.getHex(), r(o.intensity), r(o.distance)]); return; }
       e.setFromQuaternion(q, "YXZ");
-      const r = (v) => Math.round(v * 1000) / 1000;
       placements.push([o.userData.model, r(p.x), r(p.y), r(p.z), r(e.y), r(s.x), r(s.y), r(s.z)]);
     });
     const hex = (c) => (c == null ? null : c);
@@ -75,11 +80,12 @@ for (const id of ids) {
       sky: [hex(map.hemi?.sky), hex(map.sky?.horizon)],
       ground: hex(map.ground?.colorA),
       placements,
+      lights,
     };
   }, [id, MAPS_URL]);
   const file = path.join(MODELS, `${id}-placements.json`);
   fs.writeFileSync(file, JSON.stringify({ map: id, ...out }, null, 1) + "\n");
-  console.log(`${id}: ${out.placements.length} placements -> ${path.relative(ROOT, file)}`);
+  console.log(`${id}: ${out.placements.length} placements, ${out.lights.length} lamps -> ${path.relative(ROOT, file)}`);
   await page.close();
 }
 await browser.close(); server.close();
