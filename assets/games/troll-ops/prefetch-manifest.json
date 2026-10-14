@@ -113,7 +113,13 @@
   "assets/games/troll-ops/models/db-south.glb",
   "assets/games/troll-ops/textures/plaster_color.jpg",
   "assets/games/troll-ops/textures/plaster_normal.jpg",
-  "assets/games/troll-ops/textures/plaster_rough.jpg"
+  "assets/games/troll-ops/textures/plaster_rough.jpg",
+  "assets/games/troll-ops/models/db-north-bake.webp",
+  "assets/games/troll-ops/models/db-walls-bake.webp",
+  "assets/games/troll-ops/models/db-market-bake.webp",
+  "assets/games/troll-ops/models/db-centre-bake.webp",
+  "assets/games/troll-ops/models/db-south-bake.webp",
+  "assets/games/troll-ops/models/dustbowl-ground-bake.webp"
  ],
  "depot": [
   "assets/games/troll-ops/models/crate-stack.glb",

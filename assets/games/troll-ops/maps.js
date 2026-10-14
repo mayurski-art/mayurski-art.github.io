@@ -387,6 +387,11 @@ function undergrinExpansion(api, P) {
 /* Cul-de-Grin's ground light map (models/build_culdegrin.blender.py
    build_ground): x and z from -60 to +60. */
 const CG_GROUND = { file: "cg-ground", rect: [-60, -60, 120] };
+// Dust Bowl's (models/bake_map_ground.blender.py)
+const DB_GROUND = { file: "dustbowl-ground", rect: [-48, -48, 96] };
+const CITY_LIGHT = [0, 0, 40];   // where Dust Bowl's city samples it: the whole village
+const GB_GROUND = { file: "grinbeach-ground", rect: [-52, -58, 104] };
+const DP_GROUND = { file: "depot-ground", rect: [-40, -40, 80] };
 
 export const MAPS = {
   grinsite: {
@@ -690,8 +695,13 @@ export const MAPS = {
     exposure: 1.5,
     ground: { colorA: 0xd8c29a, colorB: 0xc0a676, grid: 0xb8a271, surface: "sand", tile: 4 },
     sun: { color: 0xffad66, intensity: 3.1, pos: [90, 17, 34] },
-    hemi: { sky: 0x9a9ad8, ground: 0x8a5a3a, intensity: 1.05 },
-    ambient: { color: 0xffd0b0, intensity: 0.34 },
+    // The zones' light maps and the ground's carry the sky light (stylised
+    // realism, REALISM.md); the palms and the city outside take the ground's.
+    groundBake: DB_GROUND,
+    hemi: { sky: 0x9a9ad8, ground: 0x8a5a3a, intensity: 0.55 },
+    ambient: { color: 0xffd0b0, intensity: 0.14 },
+    // sunset: violet shade, orange highs
+    grade: { shadows: 0x2a2050, shadowsAmt: 0.1, highlights: 0xffb070, highlightsAmt: 0.07, sat: 1.08, contrast: 1.06 },
     build(api) {
       const MUD = 0xb89a68, MUD_DK = 0x9c7f52, ROCK = 0x7a6848, STONE = 0x9a8a6a, WOOD = 0x7a5a36;
       api.ghostWalls(0, 0, 72, 72, 5, 1.6, { ghost: true, color: 0x8a7346, surface: "brick", tile: 2.5 });
@@ -814,7 +824,11 @@ export const MAPS = {
       for (const zone of ["walls", "north", "centre", "market", "south"]) mapModel(api, `db-${zone}`, { x: 0, z: 0 });
       // the city outside the wall and the mountains (dustbowl-city.js):
       // scenery built from a seed at load, no colliders, no shadows
-      api.prop(buildDustbowlCity());
+      const city = buildDustbowlCity();
+      api.prop(city);
+      // it stands outside the ground bake, where projecting it clamps to the
+      // bright sand at its edge: the village's average light instead, softer
+      groundLight(city, DB_GROUND, CITY_LIGHT, Math.PI * 0.6);
       // the sealed gates' pilasters stand 0.36 m proud of the wall's inner face
       for (const [sz, y] of [[-1, 0], [1, BANK]]) {
         for (const px of [-2.1, 2.1]) api.ghostBox(px, sz * 34.22, 0.8, 0.36, 3.6 - y * 0.5, { y, pen: 8 });
@@ -826,11 +840,13 @@ export const MAPS = {
       const palmRoot = new THREE.Group();
       api.prop(palmRoot);
       palmTrees(palmRoot, PALMS, { seed: 29 });
+      groundLight(palmRoot, DB_GROUND);
       // palms in the streets outside
       const cityPalms = new THREE.Group();
       api.prop(cityPalms);
       palmTrees(cityPalms, CITY_PALMS, { seed: 31 });
       cityPalms.traverse((n) => { n.castShadow = false; });
+      groundLight(cityPalms, DB_GROUND, CITY_LIGHT, Math.PI * 0.6);
     },
     spawns: [[-30, -31], [30, -31], [0, -33], [-33, 0], [33, 0], [-28, 25], [28, 25], [12, 25]],
   },

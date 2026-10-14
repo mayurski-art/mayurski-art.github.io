@@ -877,6 +877,10 @@ def water_works(b, P):
 
 
 def main():
+    # Light maps (stylised realism, REALISM.md): Dust Bowl's sunset sky
+    # (maps.js hemi sky, sky horizon) and sand bounce, each zone baked with
+    # the others standing round it.
+    bake_every_model(samples=128, sky=(0x9a9ad8, 0xff9450, 1.0), ground=0xd8c29a, blur=1, context="dustbowl")
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
     P = palette()
