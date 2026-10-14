@@ -63,6 +63,33 @@ const onIsland = (p) => page.evaluate(async (p) => {
   return insidePolygon(ISLAND_EDGE, p.x, p.z);
 }, p);
 
+// ---- steering the fall (user, 2026-10-13: "land where they want to.
+// Think of fortnite"). Stick forward with the camera level flies you
+// forward faster than you fall, so the whole island is in reach; looking
+// down dives; stick back brakes over one spot.
+const sim = await page.evaluate(async () => {
+  const src = await (await fetch("/assets/games/troll-ops/modes/royale.js")).text();
+  const { Flight, DROP } = await import("/assets/games/troll-ops/" + src.match(/(royale-drop\.js\?v=[^"]+)/)[1]);
+  const THREE = await import("three");
+  const fly = (opts, input) => {
+    const f = new Flight(new THREE.Vector3(0, DROP.boxY - 2, 0), null, opts);
+    let t = 0;
+    while (f.state !== "landed" && t < 60) { f.update(1 / 60, input, () => 0); t += 1 / 60; }
+    return { reach: Math.hypot(f.pos.x, f.pos.z), t };
+  };
+  return {
+    old: fly({}, { forward: 1, strafe: 0, yaw: 0, pitch: 0 }),
+    fly: fly({ track: true }, { forward: 1, strafe: 0, yaw: 0, pitch: 0 }),
+    dive: fly({ track: true }, { forward: 1, strafe: 0, yaw: 0, pitch: -1.2 }),
+    back: fly({ track: true }, { forward: -1, strafe: 0, yaw: 0, pitch: 0 }),
+    side: fly({ track: true }, { forward: 0, strafe: 1, yaw: 0, pitch: 0 }),
+  };
+});
+const r1 = (o) => ({ reach: Math.round(o.reach), t: +o.t.toFixed(1) });
+check("stick forward, camera level: you fly across the island", sim.fly.reach > 250 && sim.fly.reach > sim.old.reach * 1.8, JSON.stringify({ was: r1(sim.old), now: r1(sim.fly) }));
+check("look down and push: a dive, down sooner", sim.dive.t < sim.fly.t * 0.75, JSON.stringify(r1(sim.dive)));
+check("stick back brakes; strafe still steers", sim.back.reach < sim.fly.reach * 0.4 && sim.side.reach > 80, JSON.stringify({ back: r1(sim.back), side: r1(sim.side) }));
+
 // ---- the lobby
 let s = await state();
 check("you start in the sky lobby, high over the island", s.me === "lobby" && s.phase === "lobby" && Math.abs(s.y - 330) < 1, JSON.stringify({ me: s.me, y: +s.y.toFixed(1) }));
@@ -119,10 +146,18 @@ check("you drop with the pistol, not a lobby gun", kit[0] === "sixtynine" && !ki
 // Falling before the floor goes (12 s on the belt's clock), never gliding,
 // and landing with the health you left with (bots take their shots once
 // you're down among them, so hp is read the moment you land).
+await page.evaluate(async () => { window.__G = (await import("/assets/games/troll-ops/core/state.js?v=st1")).game; });
 await page.waitForFunction(() => {
   const T = window.__trollOps, r = T.royale(), d = r.drop;
   if (r.me === "glide") window.__everGlide = true;
-  if (r.me === "fall" && window.__fellAt == null) { window.__fellAt = d.beltT; window.__fellY = T.move.pos.y; }
+  if (r.me === "fall" && window.__fellAt == null) {
+    window.__fellAt = d.beltT; window.__fellY = T.move.pos.y;
+    // fly for the far end of the island's long (x) axis, well inside the coast
+    window.__aim = { x: d.boxCentre.x > 0 ? -150 : 150, z: 0 };
+    T.look.yaw = Math.atan2(-(window.__aim.x - T.move.pos.x), -(window.__aim.z - T.move.pos.z));
+    T.look.pitch = 0;
+    window.__G.keys.add("KeyW");
+  }
   if ((r.me === "roll" || r.me === "ground") && window.__landHp == null) window.__landHp = T.player.hp;
   return r.me !== "belt" || d.beltT > T.DROP.floorGoneAfter + 1;
 }, null, { timeout: 150000 }).catch(() => {});
@@ -136,7 +171,10 @@ await page.waitForFunction(() => {
   if ((r.me === "roll" || r.me === "ground") && window.__landHp == null) window.__landHp = T.player.hp;
   return r.me === "roll" || r.me === "ground";
 }, null, { timeout: 90000 }).catch(() => {});
+await page.evaluate(() => window.__G.keys.delete("KeyW"));
 s = await state();
+const flewFrom = await page.evaluate(() => { const d = window.__trollOps.royale().drop; return Math.hypot(window.__trollOps.move.pos.x - d.boxCentre.x, window.__trollOps.move.pos.z - d.boxCentre.z); });
+check("held forward toward the far end, you land far from the box", flewFrom > 130, `${flewFrom.toFixed(0)} m from the box`);
 check("you land with a roll", s.me === "roll", s.me);
 await page.waitForFunction(() => window.__trollOps.royale().me === "ground", null, { timeout: 30000 }).catch(() => {});
 s = await state();
