@@ -64,7 +64,7 @@ const stepDone = (name) => { console.log(`   (${name}: ${Math.round((Date.now() 
 /* ---------------------------------------------------------------- the tests */
 
 // The standalone tests the full gate runs.
-const INPUT_TESTS = ["troll-ops-input-test.mjs", "troll-ops-menu-test.mjs", "troll-ops-killcam-test.mjs", "troll-ops-objectives-test.mjs", "troll-ops-rope-test.mjs", "troll-ops-zcredits-test.mjs", "troll-ops-zanim-test.mjs", "troll-ops-zpad-test.mjs"];
+const INPUT_TESTS = ["troll-ops-input-test.mjs", "troll-ops-menu-test.mjs", "troll-ops-killcam-test.mjs", "troll-ops-objectives-test.mjs", "troll-ops-rope-test.mjs", "troll-ops-zcredits-test.mjs", "troll-ops-zanim-test.mjs", "troll-ops-zpad-test.mjs", "troll-ops-arreload-test.mjs"];
 const ROOM_TESTS = ["troll-ops-sync-test.mjs", "troll-ops-load-sync-test.mjs", "troll-ops-bot-host-test.mjs", "troll-ops-escalator-test.mjs", "troll-ops-zhub-test.mjs"];
 // the bot-host test plays a dozen two-tab matches: it gets longer
 const timeoutFor = (t) => (t === "troll-ops-bot-host-test.mjs" ? 1500000 : 600000);
@@ -85,6 +85,7 @@ const TEST_MAP = [
   [/menu\/|menu-bo2\.js|loadout\.js|style\.css|troll-ops\.html/, z("menu")],
   [/troll-ops\/weapons\.js|combat\/|attachments\.js|weapon-|view\/(weapon-view|viewmodels)\.js/, z("input", "killcam")],
   [/combat\/melee\.js|modes\/zombies\/run\.js/, z("zanim")],
+  [/view\/(ar-reload|weapon-view)\.js|troll-ops\/audio\.js/, z("arreload")],
   [/net\.js|remote-players\.js|modes\/spawns\.js/, z("sync", "load-sync")],
   // match setup: every mode boots in step 2 already; one two-tab check is plenty
   [/modes\/match-(start|end)\.js/, z("sync")],
