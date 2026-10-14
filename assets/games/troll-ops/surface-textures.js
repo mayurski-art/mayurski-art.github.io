@@ -110,6 +110,24 @@ export function applyBakedLightMap(mesh, bake, intensity = 1) {
   return true;
 }
 
+/* A map's ground light map (models/bake_kit.py bake_ground): the light on
+   its ground seen from above over rect [x0, z0, size], put on a flat mesh
+   by its world x/z, so the mesh needs no light-map UVs of its own. Call it
+   once the mesh is placed in the scene. */
+export function applyGroundLightMap(mesh, bake, [x0, z0, size], intensity = 1) {
+  const geo = mesh.geometry, pos = geo?.attributes.position;
+  if (!bake || !pos) return false;
+  mesh.updateWorldMatrix(true, false);
+  const v = new THREE.Vector3(), uv = new Float32Array(pos.count * 2);
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
+    uv[2 * i] = (v.x - x0) / size;
+    uv[2 * i + 1] = (v.z - z0) / size;
+  }
+  geo.setAttribute("uv1", new THREE.BufferAttribute(uv, 2));
+  return applyBakedLightMap(mesh, bake, intensity);
+}
+
 /* Swaps flat-color materials on a loaded (already-cloned) GLTF object for
    textured ones, matched by the Blender-exported material name (e.g.
    "Wall", "CrateWood", "BarrelBody" — see models/build_*.blender.py's

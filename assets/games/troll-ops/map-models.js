@@ -69,9 +69,10 @@ export const RETEXTURE = {
 /* Drops models/<file>.glb at (x, y, z), turned `rot` radians about y.
    `scale` is a number or [sx, sy, sz] (a negative axis mirrors).
    `castShadow: false` suits maps under a roof: the sun can't reach inside,
-   and casting still draws every mesh a second time in the shadow pass. */
-export function mapModel(api, file, { x, z, y = 0, rot = 0, scale = 1, castShadow = true }) {
-  placeModel(api, file, { x, z, y, rot, scale, castShadow, mapping: RETEXTURE });
+   and casting still draws every mesh a second time in the shadow pass.
+   `groundBake`: a flat model lit by the map's ground bake (maps.js). */
+export function mapModel(api, file, { x, z, y = 0, rot = 0, scale = 1, castShadow = true, groundBake = null }) {
+  placeModel(api, file, { x, z, y, rot, scale, castShadow, mapping: RETEXTURE, groundBake });
 }
 
 /* Grin Site's models are gs-<name>. */

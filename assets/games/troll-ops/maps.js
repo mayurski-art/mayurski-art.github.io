@@ -18,7 +18,7 @@ import { TROLLINGLOUD } from "./trollingloud.js?v=tl4-fu1c1c2f1m1-tc3-nc1-cd1-sh
 import { GRINJUKU } from "./grinjuku.js?v=gj1";
 import { ZHUB } from "./zhub.js?v=zh1";
 import { SURFACES } from "./surface-textures.js?v=hg6e";
-import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } from "./battlefield-props.js";
+import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer, groundLight } from "./battlefield-props.js";
 import {
   portrait, picketFence, mailbox, kiddiePool, houseExterior,
   toyCar, gardenGnome, trashCan, tireSwing, streetlamp,
@@ -383,6 +383,10 @@ function undergrinExpansion(api, P) {
     api.lamp(zs * 10, 3.3, zs * 35.5, 0xff4a2a, 5, 10);           // passage, red
   }
 }
+
+/* Cul-de-Grin's ground light map (models/build_culdegrin.blender.py
+   build_ground): x and z from -60 to +60. */
+const CG_GROUND = { file: "cg-ground", rect: [-60, -60, 120] };
 
 export const MAPS = {
   grinsite: {
@@ -991,7 +995,9 @@ export const MAPS = {
     fog: { color: 0x9a8078, density: 0.011 },
     ground: { colorA: 0x8faa70, colorB: 0x6f8a55, grid: 0x7d8a63, surface: "grass", tile: 4 },
     sun: { color: 0xffc898, intensity: 1.6, pos: [-35, 22, 30] },
-    // the houses' baked light maps carry the sky and lamp light (REALISM.md)
+    // the houses' baked light maps carry the sky and lamp light (REALISM.md),
+    // and the ground's: the light on it from above, round the houses and trees
+    groundBake: CG_GROUND,
     hemi: { sky: 0x8aa2cc, ground: 0x2e3326, intensity: 0.45 },
     ambient: { color: 0xffe0cc, intensity: 0.2 },
     // Stylised realism (view/grade-pass.js): cool blue-violet shade, peach
@@ -1003,7 +1009,8 @@ export const MAPS = {
       // of a neighbourhood. Sidewalks, curbs, driveways and paths: cg-street.
       api.ghostWalls(0, 0, 68, 60, 6, 1.4);
       mapModel(api, "cg-surround", { x: 0, z: 0 });
-      mapModel(api, "cg-street", { x: 0, z: 0 });
+      mapModel(api, "cg-ground", { x: 0, z: 0, castShadow: false, groundBake: CG_GROUND });
+      mapModel(api, "cg-street", { x: 0, z: 0, groundBake: CG_GROUND });
       for (const [x, z, door, variant] of [
         [-24, -40, "e", "sage"], [0, -41, "w", "terracotta"], [24, -40, "e", "violet"],
         [-24, 40, "w", "violet"], [0, 41, "e", "sage"], [24, 40, "w", "terracotta"],
@@ -1028,6 +1035,7 @@ export const MAPS = {
       road.position.set(0, 0.02, 0);
       road.receiveShadow = true;
       api.prop(road);
+      groundLight(road, CG_GROUND);
 
       // houses either side, each enterable with a doorway facing the street.
       // Exteriors are real modelled meshes (models/build_houses.blender.py —
@@ -1911,6 +1919,7 @@ export function buildMap(id, { colliders, arena }) {
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     root.add(ground);
+    groundLight(ground, map.groundBake);
   }
 
   const stairs = [], ropes = arena.ropes;

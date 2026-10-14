@@ -13,7 +13,7 @@
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { retexture, applyBakedLightMap } from "./surface-textures.js?v=hg6e";
+import { retexture, applyBakedLightMap, applyGroundLightMap } from "./surface-textures.js?v=hg6e";
 
 const MODEL_BASE = new URL("./models/", import.meta.url).href;
 const loader = new GLTFLoader();
@@ -32,8 +32,8 @@ const BAKED = new Map([
   ...["terracotta", "sage", "violet"].flatMap((v) => [`house-${v}`, `house-${v}-attic`]),
   "cg-lounge", "cg-kitchen",
 ].map((n) => [n, Math.PI]));
-function loadBakeTexture(name) {
-  if (!BAKED.has(name)) return Promise.resolve(null);
+/* models/<name>-bake.webp, fetched once (null if it's missing). */
+export function loadBake(name) {
   if (!bakeCache.has(name)) {
     bakeCache.set(name, new Promise((resolve) => {
       new THREE.TextureLoader().load(
@@ -45,6 +45,16 @@ function loadBakeTexture(name) {
     }));
   }
   return bakeCache.get(name);
+}
+const loadBakeTexture = (name) => (BAKED.has(name) ? loadBake(name) : Promise.resolve(null));
+
+/* Lights a placed flat mesh (or every mesh under an object) with a map's
+   ground bake: groundBake = { file, rect } (maps.js), strength as BAKED's. */
+export function groundLight(obj, groundBake) {
+  if (!groundBake) return;
+  loadBake(groundBake.file).then((tex) => obj.traverse((n) => {
+    if (n.isMesh) applyGroundLightMap(n, tex, groundBake.rect, Math.PI);
+  }));
 }
 
 /* Blender material name -> [surface, repeat] (models/build_props.blender.py's
@@ -100,7 +110,7 @@ export function loadModel(name, mapping = PROP_RETEXTURE) {
 /* Drops a loaded clone into the scene once it resolves. Placement happens
    the instant the promise settles, so the collider (added synchronously,
    below) is live well before the visible mesh streams in. */
-export function placeModel(api, name, { x, z, y = 0, rot = 0, scale = 1, mapping, castShadow = true }) {
+export function placeModel(api, name, { x, z, y = 0, rot = 0, scale = 1, mapping, castShadow = true, groundBake = null }) {
   loadModel(name, mapping).then((obj) => {
     obj.position.set(x, y, z);
     obj.rotation.y = rot;
@@ -108,6 +118,7 @@ export function placeModel(api, name, { x, z, y = 0, rot = 0, scale = 1, mapping
     else if (scale !== 1) obj.scale.setScalar(scale);
     api.prop(obj);
     if (!castShadow) obj.traverse((n) => { n.castShadow = false; });
+    groundLight(obj, groundBake);
   });
 }
 

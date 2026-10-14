@@ -20,7 +20,12 @@ bake = {
   "occluders": [(w, h, d, x, y, z), ...],   # boxes that block light, not baked
                                     # (floors the game builds in JS, say)
 }
-Writes <model>-bake.webp next to the GLB.
+Writes <model>-bake.webp next to the GLB. Anything else in the Blender
+scene (import_context: the map's finished models) shades and bounces too.
+
+bake_ground() bakes a flat plane instead: the light on the map's ground,
+seen from above, which the game projects onto its flat ground pieces by
+world x/z (surface-textures.js applyGroundLightMap).
 """
 import bpy
 import math
@@ -143,8 +148,63 @@ def _masked_blur(img, r):
     img.pixels.foreach_set(px.ravel())
 
 
+def import_context(placements):
+    """Imports finished GLBs as stand-ins for the rest of the map: [(path,
+    x, z, rot), ...] in GAME coordinates (rot about +y, as maps.js places
+    them). Returns the objects; remove_context() takes them out again."""
+    objs = []
+    for (path, x, z, rot) in placements:
+        before = set(bpy.data.objects)
+        bpy.ops.import_scene.gltf(filepath=path)
+        new = [o for o in bpy.data.objects if o not in before]
+        for o in new:
+            if o.parent is None:
+                o.location = (x, -z, 0.0)
+                o.rotation_mode = "XYZ"
+                o.rotation_euler = (0.0, 0.0, rot)   # game yaw about +y = Blender +z
+            o.select_set(False)
+        objs += new
+    return objs
+
+
+def remove_context(objs):
+    meshes = {o.data for o in objs if o.type == "MESH"}
+    for o in objs:
+        bpy.data.objects.remove(o)
+    for m in meshes:
+        if m.users == 0:
+            bpy.data.meshes.remove(m)
+
+
+def bake_ground(path, rect, res=2048, samples=128, sky=(0x8aa2cc, 0x6f8a55, 1.0), color=0x8faa70,
+                lights=(), blur=1):
+    """The light on the ground at y 0 over rect = (x0, z0, size) in GAME
+    coordinates. Image u runs with x, v with z (glTF's top-down v: the
+    game reads it as u = (x - x0) / size, v = (z - z0) / size)."""
+    x0, z0, s = rect
+    me = bpy.data.meshes.new("GS_GroundBake")
+    # Blender (x, -z, 0); a plane at y 0 with "UVMap" and "Lightmap" alike
+    me.from_pydata([(x0, -z0, 0), (x0 + s, -z0, 0), (x0 + s, -(z0 + s), 0), (x0, -(z0 + s), 0)], [], [(0, 3, 2, 1)])
+    for name in ("UVMap", "Lightmap"):
+        uv = me.uv_layers.new(name=name)
+        # glTF flips v on export (v_gltf = 1 - v_blender): v_blender = 1 - (z - z0) / s
+        for loop in me.loops:
+            bx, by, _ = me.vertices[loop.vertex_index].co
+            uv.data[loop.index].uv = ((bx - x0) / s, 1.0 - (-by - z0) / s)
+    m = bpy.data.materials.new("GS_GroundBakeMat")
+    m.use_nodes = True
+    m.node_tree.nodes.get("Principled BSDF").inputs["Base Color"].default_value = (*hexlin(color), 1.0)
+    me.materials.append(m)
+    ob = bpy.data.objects.new("GS_GroundBake", me)
+    bpy.context.scene.collection.objects.link(ob)
+    bake_lightmap(ob, path, res=res, samples=samples, sky=sky, ground=None, lights=lights, blur=blur, uv=False)
+    bpy.data.objects.remove(ob)
+    bpy.data.meshes.remove(me)
+    bpy.data.materials.remove(m)
+
+
 def bake_lightmap(obj, path, res=1024, samples=128, sky=(0x8aa2cc, 0x6f8a55, 1.0),
-                  ground=0x8faa70, lights=(), blur=1, occluders=()):
+                  ground=0x8faa70, lights=(), blur=1, occluders=(), uv=True):
     scene = bpy.context.scene
     scene.render.engine = "CYCLES"
     scene.cycles.device = "CPU"
@@ -157,7 +217,10 @@ def bake_lightmap(obj, path, res=1024, samples=128, sky=(0x8aa2cc, 0x6f8a55, 1.0
         _light(*L)
     for o in occluders:
         _occluder(*o)
-    _lightmap_uv(obj, 4.0 / res)   # ~4 texels between islands
+    if uv:
+        _lightmap_uv(obj, 4.0 / res)   # ~4 texels between islands
+    else:
+        obj.data.uv_layers.active = obj.data.uv_layers["Lightmap"]
 
     name = obj.name + "-bake"
     img = bpy.data.images.new(name, res, res, alpha=True, float_buffer=True)
