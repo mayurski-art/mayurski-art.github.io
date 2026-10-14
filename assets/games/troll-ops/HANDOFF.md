@@ -58,7 +58,7 @@ Plan: `C:\Users\mayur\.claude\plans\keen-twirling-chipmunk.md`. Phases 1, 2, 6, 
 - **Grin Beach and the plane are on hold** (user 2026-10-10).
 
 ### Troll City roleplay 2b-2d (Socialize, Troll City only): IN PROGRESS
-Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. Next: 2c merchant + rideable horses (~8 sessions; partly built on tf-parallel). Each phase ships alone: targeted test, one gate, push.
+Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. Next: 2c merchant + rideable horses (~8 sessions; partly built on tf-parallel). Each phase ships alone: targeted test, push.
 - **Not yet checked by eye:** 2a's seated bodies and the pianist's hands.
 - The 2a pattern:
   - Jobs and their wire letters go in `rp-roles.js` (`ROLES`, `rr`); spots and furniture in `trollcity.js` (`rp.*`).
@@ -133,8 +133,8 @@ Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. N
 - Parallel sessions each use their own worktree + branch. Commit only your own files.
 - No build timelapses or turntables (Blender `-- check` renders for review only).
 - Run headless tests ONE AT A TIME.
-- No phase videos (user 2026-10-08: "I dont need videos"): tests, gate, push; screenshots for self-checks only.
-- One gate per session, at the very end, before the push.
+- No phase videos (user 2026-10-08: "I dont need videos"): tests, push; screenshots for self-checks only.
+- No gate (user 2026-10-14: "no gate going forward"): targeted tests per change, one at a time, then push on the user's say. tools/troll-ops-gate.mjs stays in the repo, unused.
 
 **Art**
 - Never the troll emoji. The mascot is the trollface artwork.
