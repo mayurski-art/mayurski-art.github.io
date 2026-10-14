@@ -40,6 +40,11 @@ export const HUB_T = {
   kioskRange: 2.4,   // m
 };
 const PARTY_MAX = 4;
+
+/* Runs launched from the public hub's map pads: public, so they show in the
+   menu's server list and anyone can drop in (menu/online.js). The private
+   pad's runs, and a private hub's, stay off it. */
+export const publicRuns = new Set();
 const SEND_EVERY = 1;   // s between zP resends
 
 export const hub = {
@@ -137,7 +142,7 @@ export function onHubMessage(p, m) {
     const ids = Array.isArray(m.m) ? m.m : [];
     if (padById(m.pad)) hub.flash.set(m.pad, { text: "Lobby ready!", until: performance.now() + 4000 });
     for (const id of ids) hub.claims.delete(id);
-    if (ids.includes(me()) && hub.pad === m.pad && !hub.launched && MAPS[m.map]) launch(clean(m.code), m.map);
+    if (ids.includes(me()) && hub.pad === m.pad && !hub.launched && MAPS[m.map]) launch(clean(m.code), m.map, m.pad);
   }
 }
 
@@ -150,13 +155,14 @@ function go(padId) {
   const map = pad.map || game.loadout.poolMapId || "pentagrin";
   const code = makeRoomCode();
   send({ t: "zG", pad: padId, code, map, m: party.members.map((c) => c.id) });
-  launch(code, map);
+  launch(code, map, padId);
 }
 
 /* Leave the hub for a run on `code`: the quit button's tidy-up, then a
    Zombies start on that code like a typed one (match-start.js). */
-function launch(code, map) {
+function launch(code, map, padId = null) {
   hub.launched = { code, map };
+  if (!hub.roomCustom && padId && padId !== HUB.private.id) publicRuns.add(code);
   const back = { room: hub.room, custom: hub.roomCustom };
   game.els.quitBtn.click();   // forgets any return: set ours after it
   hub.returnTo = back;
