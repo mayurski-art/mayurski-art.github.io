@@ -45,9 +45,8 @@ function loadBakeTexture(name) {
 /* Blender material name -> [surface, repeat] (models/build_props.blender.py's
    make_material calls). Rims/bands/trim/mesh/sandbag cloth are left flat —
    thin metal edges and fabric don't have a matching texture set here and
-   read worse tiled than solid. The "metal" set is left out on purpose, as
-   in map-models.js: with no environment map it renders near-black, so
-   barrels and barricade frames keep their flat Blender paint. */
+   read worse tiled than solid. Barrels and barricade frames keep their flat
+   Blender paint (the "metal" set, which reflects the sky, is unused here). */
 const PROP_RETEXTURE = {
   CrateWood: ["wood", 1.5],
 };

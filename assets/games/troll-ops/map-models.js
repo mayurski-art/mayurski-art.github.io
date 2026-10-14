@@ -13,8 +13,8 @@ import { placeModel } from "./battlefield-props.js";
 
 /* Blender material name -> [surface, tiles per metre]. Must match TEXTURED
    in models/map_kit.py: anything else was merged into flat vertex-coloured
-   paint at export. The "metal" set is never used here: with no environment
-   map it renders near-black. */
+   paint at export. The "metal" set reflects the map's sky (view/environment.js
+   useWorldEnv); nothing here uses it yet. */
 export const RETEXTURE = {
   GS_Concrete: ["cast", 0.4],
   GS_Slab: ["cast", 0.3],

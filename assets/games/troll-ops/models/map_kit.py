@@ -11,7 +11,8 @@ Authoring conventions (every map script follows them):
 - Flat-painted parts merge into one vertex-coloured "GS_Paint" material per
   model; only TEXTURED names (must match map-models.js RETEXTURE) and
   emissive materials keep their own.
-- No environment map in the game: keep metalness low or it renders black.
+- Only the game's "metal" surface set reflects the sky (view/environment.js);
+  flat paint has no reflection: keep its metalness low or it renders black.
 """
 import bpy
 import bmesh
