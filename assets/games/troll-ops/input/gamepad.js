@@ -21,6 +21,9 @@ import { game } from "../core/state.js?v=st1";
      beat, so you can whip round without a high sensitivity (hip only)
    - ADS drops the rate, and a scope's zoom drops it further
    The 1–14 ladder is BO2's, 3 (Medium) its default. */
+// Hooks other systems hand the pad: zombies = the Zombie Rush HUD's buy /
+// deploy controls (view/zombies-hud.js fills it in).
+export const padHooks = { zombies: null };
 export const PAD_SENS_MULT = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.3, 3.6, 4];
 export const PAD_SENS_NAMES = { 1: "Low", 3: "Medium", 5: "High", 7: "Very High", 9: "Insane" };
 const PAD_LOOK_DEADZONE = 0.1;
@@ -143,7 +146,7 @@ export function pollGamepad(dt) {
   // Zombie Rush, placing a deployable (view/zombies-hud.js): R2 or A puts it
   // down, B lets it go; none of the three shoots, jumps or crouches until
   // they're let go.
-  if (!game.localPauseOnly && game.zhPad?.placing()) {
+  if (!game.localPauseOnly && padHooks.zombies?.placing()) {
     if (pressedEdge(7) || pressedEdge(0)) game.deployClick(0);
     else if (pressedEdge(1)) game.deployClick(2);
     padPlaceHold = true;
@@ -191,7 +194,7 @@ export function pollGamepad(dt) {
     if (game.gpPrev[14] && !btn(14)) game.releaseThrowKey();
     // Zombie Rush: d-pad up buys / deploys the highlighted card, down walks
     // the highlight (view/zombies-hud.js); everywhere else up admires the gun.
-    const zp = game.zhPad?.active() ? game.zhPad : null;
+    const zp = padHooks.zombies?.active() ? padHooks.zombies : null;
     if (zp) {
       if (pressedEdge(12)) zp.useStart();
       if (game.gpPrev[12] && !btn(12)) zp.useEnd();

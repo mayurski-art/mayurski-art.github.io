@@ -16,6 +16,7 @@
 // cancels; a second tap on the card places on touch).
 
 import { game } from "../core/state.js?v=st1";
+import { padHooks } from "../input/gamepad.js?v=in1-fu1b7-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-zp1";
 
 let root = null;
 let hooks = { onBuy: () => {}, onSkip: () => {}, onDeploy: () => false, onPlace: () => false, onCancel: () => {} };
@@ -62,7 +63,7 @@ function setPad(on) {
   paintPad();
 }
 const padUsed = () => { pad.kb = false; setPad(document.body.classList.contains("to-has-pad")); };
-game.zhPad = {
+padHooks.zombies = {
   active: () => !!root && !root.hidden && game.gameState === "playing" && !game.localPauseOnly,
   placing: () => !!hooks.isPlacing?.(),
   next() {
