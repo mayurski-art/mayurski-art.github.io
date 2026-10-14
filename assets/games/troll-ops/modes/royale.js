@@ -290,10 +290,10 @@ export function updateBeltPlayer(dt) {
   if (game.move.pos.y < DROP.boxY - 1.5) {
     // Off with the speed you had: your run plus the belt under you.
     _edgeVel.copy(game.move.velocity).addScaledVector(_edgeAt.set(d.openDir.x, 0, d.openDir.z), DROP.beltSpeed);
-    r.flight = new Flight(game.move.pos, game.builtMap.map.edge, { glider: false, vel: _edgeVel });
+    r.flight = new Flight(game.move.pos, game.builtMap.map.edge, { glider: false, track: true, vel: _edgeVel });
     r.me = "fall";
     game.setHolding("none");
-    game.showWaveBanner("Steer with the camera — look down to dive", 1800);
+    game.showWaveBanner("Push forward to fly — look down to dive", 1800);
   }
 }
 

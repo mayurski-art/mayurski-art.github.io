@@ -40,6 +40,12 @@ export const DROP = {
   fallSpeed: 42,        // freefall, m/s down
   diveSpeed: 60,        // looking down with W held
   fallSteer: 17,        // m/s sideways in freefall
+  // You, Fortnite-style (user, 2026-10-13: "land where they want to"): push
+  // forward with the camera level and you fly, faster than you fall, so the
+  // whole island is in reach from the box (it was ~115 m at 17 m/s).
+  trackSpeed: 34,       // m/s forward, stick forward, camera level
+  trackFall: 32,        // m/s down while you fly forward like that
+  backSteer: 10,        // m/s, stick back: brake over one spot
   edgePad: 12,          // fallers are kept this far inside the island edge
   // The glider (unused since the belt: Flight never opens one unless asked).
   glideSink: 6.5,       // m/s down under the glider
@@ -570,6 +576,7 @@ export class Flight {
     this.edge = edge;
     this.glider = !!opts.glider;
     this.steer = opts.steer || DROP.fallSteer;   // m/s sideways in freefall (bots: royale.js BOT_FALL_STEER)
+    this.track = !!opts.track;   // you: stick forward flies (DROP.trackSpeed)
     this.heading = 0;      // glide heading (yaw), set on opening
   }
 
@@ -590,10 +597,16 @@ export class Flight {
       } else {
         // Look down and hold W to dive.
         const dive = input.forward > 0 && input.pitch < -0.6;
-        const targetY = -(dive ? DROP.diveSpeed : DROP.fallSpeed);
+        // Flying (you): the more level the camera, the more of the push goes
+        // forward instead of down; looking down turns it back into a dive.
+        const level = this.track && input.forward > 0 ? input.forward * (1 - Math.min(1, Math.max(0, (-input.pitch - 0.2) / 0.5))) : 0;
+        const fall = DROP.fallSpeed + (DROP.trackFall - DROP.fallSpeed) * level;
+        const targetY = -(dive ? DROP.diveSpeed : fall);
         this.vel.y += (targetY - this.vel.y) * Math.min(1, dt * 1.6);
-        const hx = (fx * input.forward + rx * input.strafe) * this.steer;
-        const hz = (fz * input.forward + rz * input.strafe) * this.steer;
+        const fwd = input.forward < 0 && this.track ? input.forward * DROP.backSteer
+          : input.forward * this.steer + level * (DROP.trackSpeed - this.steer);
+        const hx = fx * fwd + rx * input.strafe * this.steer;
+        const hz = fz * fwd + rz * input.strafe * this.steer;
         this.vel.x += (hx - this.vel.x) * Math.min(1, dt * 2.5);
         this.vel.z += (hz - this.vel.z) * Math.min(1, dt * 2.5);
       }
