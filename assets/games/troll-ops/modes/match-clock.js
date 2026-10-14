@@ -2,9 +2,9 @@
 // on the HUD only when the shown second changes. Its tick also runs the
 // frozen-bot watch.
 
-import { infectionStarted } from "./infection.js?v=in1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
-import { checkMatchEnd } from "../combat/scoring.js?v=sc1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
-import { watchBots } from "./bot-watch.js?v=bw1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
+import { infectionStarted } from "./infection.js?v=in1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-bf1";
+import { checkMatchEnd } from "../combat/scoring.js?v=sc1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-bf1";
+import { watchBots } from "./bot-watch.js?v=bw1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-bf1";
 import { game } from "../core/state.js?v=st1";
 
 export function resetMatchClock() {

@@ -16,8 +16,8 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
-import { setClothed, setHips, reshapeRig } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10";
-import { applyToken, removeToken } from "./traits.js?v=bk1-cw1-zr10";
+import { setClothed, setHips, reshapeRig } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1";
+import { applyToken, removeToken } from "./traits.js?v=bk1-cw1-zr10-bf1";
 
 const DIR = new URL("./traits/", import.meta.url);
 const ART_V = globalThis.TRAITS_BUST ?? "tr1";

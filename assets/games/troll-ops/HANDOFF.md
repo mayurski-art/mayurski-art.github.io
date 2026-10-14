@@ -12,15 +12,10 @@ Design docs live next to this file: `COPS-AND-ROBBERS.md`, `TROLL-CITY-RP2.md`, 
 
 ## 1. Open work and plans (newest first)
 
-### Tasks to do, in order (updated 2026-10-13)
+### Tasks to do, in order (updated 2026-10-14)
 Start each session on a fresh branch or worktree from origin/main.
-1. **Bugs the user reported (2026-10-13), phone first, maybe desktop too:**
-   - **Swap cycles to melee:** the swap button goes primary → secondary (if there is one) → melee → primary. Today it doesn't get you to the melee weapon.
-   - **Royale freefall steering:** while falling from the plane you can steer where you land, like Fortnite's drop.
-   - **The gun shows through the TROLLS (NFT) body** in third person (user's screenshot: the purple rifle drawn through the white block forearms, held at the chest). A fix was tried before; it's back. Take it slowly: find why (render order/depthTest on the gun or skin materials, the gun hold vs the block arm sizes in blocky-body.js `rig.gunHold`), fix the cause, and check every gun class, both sides, idle/walk/ADS/reload, with screenshots. No mistakes.
-   - **The phone's magnifier loupe** pops up over the game on a press-and-hold (the user's screenshot: `refs/bugs/ios-loupe.jpg`, local). It's the text-selection magnifier: the game surface needs `user-select: none` and `-webkit-touch-callout: none` (check every HUD/touch layer, not only the canvas).
-2. **Stylised realism graphics,** one map first, with before/after screenshots.
-3. **Then hand the user ONE test checklist** (add the BO2 rifle reloads) covering everything shipped since 2026-10-12 (Zombie Rush P1-P7 and the controller buy/deploy, the Kek & Sons merchant and the horses, incl. the hub, Credits and the kiosks, weekly/monthly leaderboards, the High-graphics glow and box fixes, the Royale lag and fights, Show FPS, the phone menu, bot heads, Ghostface Killers).
+1. **Stylised realism graphics,** one map first, with before/after screenshots.
+2. **Then hand the user ONE test checklist** (add the BO2 rifle reloads) covering everything shipped since 2026-10-12 (Zombie Rush P1-P7 and the controller buy/deploy, the Kek & Sons merchant and the horses, incl. the hub, Credits and the kiosks, weekly/monthly leaderboards, the High-graphics glow and box fixes, the Royale lag and fights, Show FPS, the phone menu, bot heads, Ghostface Killers).
 - Offered, not yet answered: stretch Royale's match length (fewer bots or a post-kill cooldown).
 - Paused or on hold (sections below): tf-parallel leftovers, Troll City RP 2c, Cops and Robbers, U Mad Bro?, the TROLLS wallet check.
 
@@ -459,6 +454,11 @@ Map rules:
 
 ## 5. Shipped log (newest first; one line each, details in git)
 
+- **2026-10-14** (-bf1; the user's 4 phone bugs)
+  - The phone magnifier: every touch control and the canvas cancel the long-press default (input/touch.js). Test: loupe.
+  - Swap cycles primary, secondary, melee (touch SWAP, a tap of X, the pad's Y), in the range, Zombies and the waves too; stands down for a co-op revive in reach. Test: swap.
+  - Royale freefall steers like Fortnite: stick forward with the camera level flies you across the island (reach 135 m to 351 m). Test: royale-drop (now in the full run).
+  - The gun no longer shows through the TROLLS body: measured, it sat 5-6 cm in the chest and through the forearms, the reload mag in the thigh, the menu carry 7.5 cm in the forearm; blocky-body.js GUN_HOLD retuned (character.js hooks). Test: nft-hold (surface-sampled, old code fails 55).
 - **2026-10-13** (-ar1, LIVE main 0588c6a; gate red only on zhub-test, passed solo, user said push)
   - Black Ops 2 rifle reloads for the nine BO2 rifles, from BO2 footage: tac and empty, each rifle's own pose and finish, right on the stick arms and the TROLLS block arms. Test: arreload.
 
