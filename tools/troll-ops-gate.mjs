@@ -83,6 +83,7 @@ const TEST_MAP = [
   [/input\/|keyboard-mouse|gamepad|touch/, z("input")],
   [/input\/gamepad\.js/, z("zpad")],
   [/input\/touch\.js|style\.css/, z("loupe")],
+  [/combat\/weapons\.js|view\/(player-update|revive-ring)\.js|pickups\.js/, z("swap")],
   [/menu\/|menu-bo2\.js|loadout\.js|style\.css|troll-ops\.html/, z("menu")],
   [/troll-ops\/weapons\.js|combat\/|attachments\.js|weapon-|view\/(weapon-view|viewmodels)\.js/, z("input", "killcam")],
   [/combat\/melee\.js|modes\/zombies\/run\.js/, z("zanim")],
