@@ -1,0 +1,215 @@
+"""
+Light-map baking for the map models (stylised realism, REALISM.md).
+
+Builder.finish(..., bake={...}) calls bake_lightmap() on the finished object
+before export: a second UV layer "Lightmap" (TEXCOORD_1 in the GLB), then a
+Cycles DIFFUSE bake with the colour pass off, so the image holds LIGHT only
+(sky, ground bounce, lamps; no albedo, no sun). The game keeps each model's
+vertex colours and photo textures and adds this as the light map
+(surface-textures.js applyBakedLightMap). The sun stays a real-time light: the
+same model is placed turned 0 or 180 degrees, and sky light looks right either
+way, a baked sun would not.
+
+bake = {
+  "res": 1024,                      # square image size
+  "samples": 128,
+  "sky": (0x8aa2cc, 0x6f8a55, 1.0), # up colour, horizon/down colour, strength
+  "ground": 0x8faa70,               # the bounce plane's colour (None: no plane)
+  "lights": [((x, y, z), 0xffcf9a, watts, radius), ...],   # GAME coordinates
+  "blur": 1,                        # masked blur radius in pixels (bake noise)
+  "occluders": [(w, h, d, x, y, z), ...],   # boxes that block light, not baked
+                                    # (floors the game builds in JS, say)
+}
+Writes <model>-bake.webp next to the GLB.
+"""
+import bpy
+import math
+import numpy as np
+from map_kit import hexlin
+
+_TEMP = []   # objects/data made for one bake, removed after it
+
+
+def _world(up, down, strength):
+    w = bpy.data.worlds.get("GS_BakeSky") or bpy.data.worlds.new("GS_BakeSky")
+    w.use_nodes = True
+    nt = w.node_tree
+    nt.nodes.clear()
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    ramp = nt.nodes.new("ShaderNodeValToRGB")
+    bg = nt.nodes.new("ShaderNodeBackground")
+    out = nt.nodes.new("ShaderNodeOutputWorld")
+    # Generated in a world shader is the view direction: z is up (Blender)
+    nt.links.new(coord.outputs["Generated"], sep.inputs["Vector"])
+    maprange = nt.nodes.new("ShaderNodeMapRange")
+    maprange.inputs["From Min"].default_value = -1.0
+    maprange.inputs["From Max"].default_value = 1.0
+    nt.links.new(sep.outputs["Z"], maprange.inputs["Value"])
+    nt.links.new(maprange.outputs["Result"], ramp.inputs["Fac"])
+    ramp.color_ramp.elements[0].position = 0.5
+    ramp.color_ramp.elements[0].color = (*hexlin(down), 1.0)
+    ramp.color_ramp.elements[1].position = 1.0
+    ramp.color_ramp.elements[1].color = (*hexlin(up), 1.0)
+    nt.links.new(ramp.outputs["Color"], bg.inputs["Color"])
+    bg.inputs["Strength"].default_value = strength
+    nt.links.new(bg.outputs["Background"], out.inputs["Surface"])
+    bpy.context.scene.world = w
+
+
+def _ground(color, size=400.0):
+    me = bpy.data.meshes.new("GS_BakeGround")
+    h = size / 2
+    me.from_pydata([(-h, -h, -0.005), (h, -h, -0.005), (h, h, -0.005), (-h, h, -0.005)], [], [(0, 1, 2, 3)])
+    m = bpy.data.materials.new("GS_BakeGroundMat")
+    m.use_nodes = True
+    b = m.node_tree.nodes.get("Principled BSDF")
+    b.inputs["Base Color"].default_value = (*hexlin(color), 1.0)
+    b.inputs["Roughness"].default_value = 1.0
+    me.materials.append(m)
+    ob = bpy.data.objects.new("GS_BakeGround", me)
+    bpy.context.scene.collection.objects.link(ob)
+    _TEMP.extend([ob, me, m])
+
+
+def _light(pos, color, watts, radius):
+    x, y, z = pos
+    ld = bpy.data.lights.new("GS_BakeLamp", "POINT")
+    ld.color = hexlin(color)
+    ld.energy = watts
+    ld.shadow_soft_size = radius
+    ob = bpy.data.objects.new("GS_BakeLamp", ld)
+    ob.location = (x, -z, y)          # game (x, y-up, z) -> Blender (x, -z, y)
+    bpy.context.scene.collection.objects.link(ob)
+    _TEMP.extend([ob, ld])
+
+
+def _occluder(w, h, d, x, y, z):
+    """A box (GAME coordinates, y = its base) that shades but isn't baked."""
+    import bmesh
+    from mathutils import Matrix
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=1.0)
+    bmesh.ops.scale(bm, vec=(w, d, h), verts=bm.verts)
+    bmesh.ops.translate(bm, vec=(x, -z, y + h / 2), verts=bm.verts)
+    me = bpy.data.meshes.new("GS_BakeOccluder")
+    bm.to_mesh(me)
+    bm.free()
+    ob = bpy.data.objects.new("GS_BakeOccluder", me)
+    bpy.context.scene.collection.objects.link(ob)
+    _TEMP.extend([ob, me])
+
+
+def _lightmap_uv(obj, margin):
+    me = obj.data
+    uv = me.uv_layers.new(name="Lightmap")
+    me.uv_layers.active = uv
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.0, area_weight=0.0,
+                             correct_aspect=True, scale_to_bounds=False)
+    # one texel density everywhere, then a tight pack: a house is hundreds of
+    # small parts (siding boards, trim) and smart_project's own packing left
+    # most of the image empty
+    bpy.ops.uv.select_all(action="SELECT")
+    bpy.ops.uv.average_islands_scale()
+    bpy.ops.uv.pack_islands(rotate=True, margin=margin)
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+
+def _masked_blur(img, r):
+    """Box-blurs only the baked texels (alpha > 0), so islands don't bleed
+    into the empty space between them: blur(colour * mask) / blur(mask)."""
+    if r <= 0:
+        return
+    w, h = img.size
+    px = np.empty(w * h * 4, dtype=np.float32)
+    img.pixels.foreach_get(px)
+    px = px.reshape(h, w, 4)
+    mask = (px[..., 3] > 0.0).astype(np.float32)
+    col = px[..., :3] * mask[..., None]
+
+    def box(a):
+        k = 2 * r + 1
+        p = np.pad(a, [(r, r), (r, r)] + [(0, 0)] * (a.ndim - 2), mode="constant")
+        c = np.cumsum(np.cumsum(p, axis=0), axis=1)
+        c = np.pad(c, [(1, 0), (1, 0)] + [(0, 0)] * (a.ndim - 2), mode="constant")
+        return c[k:, k:] - c[:-k, k:] - c[k:, :-k] + c[:-k, :-k]
+
+    num, den = box(col), box(mask)
+    out = np.where(den[..., None] > 0, num / np.maximum(den[..., None], 1e-6), 0.0)
+    px[..., :3] = np.where(mask[..., None] > 0, out, px[..., :3])
+    img.pixels.foreach_set(px.ravel())
+
+
+def bake_lightmap(obj, path, res=1024, samples=128, sky=(0x8aa2cc, 0x6f8a55, 1.0),
+                  ground=0x8faa70, lights=(), blur=1, occluders=()):
+    scene = bpy.context.scene
+    scene.render.engine = "CYCLES"
+    scene.cycles.device = "CPU"
+    scene.cycles.samples = samples
+    scene.view_settings.view_transform = "Standard"
+    _world(*sky)
+    if ground is not None:
+        _ground(ground)
+    for L in lights:
+        _light(*L)
+    for o in occluders:
+        _occluder(*o)
+    _lightmap_uv(obj, 4.0 / res)   # ~4 texels between islands
+
+    name = obj.name + "-bake"
+    img = bpy.data.images.new(name, res, res, alpha=True, float_buffer=True)
+    img.generated_color = (0, 0, 0, 0)
+    nodes = []
+    for m in obj.data.materials:
+        n = m.node_tree.nodes.new("ShaderNodeTexImage")
+        n.image = img
+        m.node_tree.nodes.active = n
+        nodes.append((m, n))
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.bake(type="DIFFUSE", pass_filter={"DIRECT", "INDIRECT"}, margin=4, use_clear=False,
+                        target="IMAGE_TEXTURES")
+    _masked_blur(img, blur)
+
+    # save as an 8-bit sRGB WebP (three reads it back as sRGB colour)
+    out = bpy.data.images.new(name + "-8", res, res, alpha=False, float_buffer=False)
+    px = np.empty(res * res * 4, dtype=np.float32)
+    img.pixels.foreach_get(px)
+    px = px.reshape(-1, 4)
+    lit = px[:, :3].copy()
+    # a byte image's pixels are stored as given: encode sRGB here
+    c = np.clip(lit, 0.0, 1.0)
+    px[:, :3] = np.where(c <= 0.0031308, c * 12.92, 1.055 * np.power(c, 1 / 2.4) - 0.055)
+    px[:, 3] = 1.0
+    out.pixels.foreach_set(px.ravel())
+    out.filepath_raw = path
+    out.file_format = "WEBP"
+    scene.render.image_settings.quality = 85
+    out.save()
+    baked = lit[lit.max(axis=1) > 0]
+    print("Baked", path, "max %.2f mean %.3f clipped %.1f%%" % (
+        float(lit.max()), float(baked.mean()) if len(baked) else 0.0,
+        100.0 * float((baked.max(axis=1) > 1.0).mean()) if len(baked) else 0.0))
+
+    # leave the model as it was, plus its Lightmap UV (UVMap stays the
+    # active/first layer: TEXCOORD_0 for the photo textures)
+    for m, n in nodes:
+        m.node_tree.nodes.remove(n)
+    obj.data.uv_layers.active = obj.data.uv_layers["UVMap"]
+    bpy.data.images.remove(img)
+    bpy.data.images.remove(out)
+    for d in _TEMP:
+        if isinstance(d, bpy.types.Object):
+            bpy.data.objects.remove(d)
+    for d in _TEMP:
+        if isinstance(d, bpy.types.Mesh):
+            bpy.data.meshes.remove(d)
+        elif isinstance(d, bpy.types.Material):
+            bpy.data.materials.remove(d)
+        elif isinstance(d, bpy.types.Light):
+            bpy.data.lights.remove(d)
+    _TEMP.clear()

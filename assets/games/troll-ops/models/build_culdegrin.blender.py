@@ -2,7 +2,7 @@
 Troll Ops — Cul-de-Grin polish models, headless Blender.
 
 Run with:
-  blender --background --python build_culdegrin.blender.py
+  blender --background --python build_culdegrin.blender.py [-- street lounge ...]
 
 Writes cg-*.glb into this folder. The houses themselves are the existing
 house-*.glb (build_houses.blender.py); this adds what the maps doc asked
@@ -129,8 +129,7 @@ def build_street(P):
         s = -1 if x < 0 else 1
         b.box(P["pavement"], 5.0, 0.05, 3.2, s * 10.3, 0, z)
     for (hx, hz, door, w, d) in HOUSES:
-        # the house models have no floor: boards inside, skirting round the walls
-        b.box(P["plank"], w - 0.7, 0.03, d - 0.7, hx, 0, hz)
+        # (the floor inside is the house model's own, light-mapped with it)
         front = hx + (w / 2 if door == "e" else -w / 2)
         x0, x1 = sorted((front, 7.8 if hx > 0 else -7.8))
         b.box(P["pavement"], x1 - x0, 0.04, 1.3, (x0 + x1) / 2, 0, hz)
@@ -172,6 +171,22 @@ def build_dumpster(P):
     b.finish("cg-dumpster.glb")
 
 
+def room_bake(lamp, x0, x1, z0, z1):
+    """Light-map settings for furniture inside a house (bake_kit.py): the
+    house's ceiling lamp (now baked, not a runtime light) at `lamp` in the
+    model's own space, and the room round it (x0..x1, z0..z1) as walls and a
+    ceiling that keep the sky out. The models are placed at different spots
+    in different houses, so this is a typical room, not each one."""
+    t, h = 0.3, 3.2
+    occ = [(x1 - x0 + 2 * t, 0.1, z1 - z0 + 2 * t, (x0 + x1) / 2, h, (z0 + z1) / 2)]
+    for x in (x0 - t / 2, x1 + t / 2):
+        occ.append((t, h, z1 - z0, x, 0, (z0 + z1) / 2))
+    for z in (z0 - t / 2, z1 + t / 2):
+        occ.append((x1 - x0 + 2 * t, h, t, (x0 + x1) / 2, 0, z))
+    return dict(res=256, samples=128, sky=(0x8aa2cc, 0xd8ae90, 1.0), ground=0x6a4a30,
+                lights=[(lamp, 0xffcf9a, 320, 0.12)], occluders=occ, blur=1)   # 320: build_cg_houses LAMP_W
+
+
 def build_lounge(P):
     """Sofa + coffee table + rug in the old 3 x 2 x 1.2 cover box; sofa faces -z."""
     b = Builder()
@@ -188,7 +203,7 @@ def build_lounge(P):
         b.box(P["desk"], 0.05, 0.4, 0.05, dx, 0, dz)
     b.box(P["paper"], 0.3, 0.01, 0.22, -0.3, 0.45, -0.5, ry=0.3)
     b.cyl(P["sign_red"], 0.05, (0.3, 0.45, -0.5), (0.3, 0.57, -0.5), seg=8)
-    b.finish("cg-lounge.glb")
+    b.finish("cg-lounge.glb", bake=room_bake((0, 2.85, -3), -6, 6, -8.5, 2.2))
 
 
 def build_kitchen(P):
@@ -207,15 +222,18 @@ def build_kitchen(P):
         b.box(P["steel"], 0.03, 0.3, 0.03, 0.55, y, 0.36)
     b.box(P["sign_red"], 0.08, 0.08, 0.01, 0.95, 1.5, 0.345)
     b.box(P["cloth_green"], 0.12, 0.25, 0.01, 1.1, 1.2, 0.345)
-    b.finish("cg-kitchen.glb")
+    b.finish("cg-kitchen.glb", bake=room_bake((-4.6, 2.85, 4.8), -10, 1.6, -0.68, 10))
 
 
 def main():
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
     P = palette()
+    # `-- street lounge` builds only those
+    only = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     for fn in (build_surround, build_street, build_cars, build_dumpster, build_lounge, build_kitchen):
-        fn(P)
+        if not only or fn.__name__[len("build_"):] in only:
+            fn(P)
     print("ALL CUL-DE-GRIN MODELS EXPORTED")
 
 

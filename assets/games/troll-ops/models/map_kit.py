@@ -362,7 +362,9 @@ class Builder:
             f.smooth = True
         return out
 
-    def finish(self, filename):
+    def finish(self, filename, bake=None):
+        """Exports the model. `bake` (bake_kit.py) also bakes its light map:
+        a second UV layer plus <name>-bake.webp beside the GLB."""
         bm = self.bm
         bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
         bm.normal_update()
@@ -408,6 +410,9 @@ class Builder:
         bpy.ops.object.select_all(action="DESELECT")
         obj.select_set(True)
         bpy.context.view_layer.objects.active = obj
+        if bake:
+            from bake_kit import bake_lightmap
+            bake_lightmap(obj, os.path.join(OUT_DIR, name + "-bake.webp"), **bake)
         path = os.path.join(OUT_DIR, filename)
         bpy.ops.export_scene.gltf(filepath=path, use_selection=True, export_format="GLB",
                                   export_yup=True, export_apply=True)

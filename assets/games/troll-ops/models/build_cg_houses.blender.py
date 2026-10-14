@@ -29,6 +29,12 @@ DOOR_W = 3.0
 ATTIC_H = 2.2
 ATTIC_T = 0.28
 ATTIC_Y = 3.2
+LAMP_W = 320          # baked ceiling lamp, watts (tuned on the interior luma: 200 read darker than the old runtime lamp)
+SAMPLES = 128
+# the door side maps.js places each attic house with: its stairwell (maps.js)
+# sits by the back wall at z -3.6..+1.8 in the world, so in model space the
+# hole's z flips when the model is turned round for a west door
+ATTIC_DOOR = {"sage": "e", "terracotta": "w", "violet": "e"}
 
 VARIANTS = {
     # name: (w, d, siding, siding_dark, roof, trim, shutter, door)
@@ -236,13 +242,29 @@ def build_house(v, attic):
         b.box(M["trim"], dg + 0.4, 0.06, 0.3, 0, ATTIC_Y + 0.15, ahz + 0.05)
         b.box(M["roof"], dg + 0.7, 0.07, 0.7, 0, top - 0.12, ahz + 0.3, rx=0.35)
         b.box(M["ceil"], aw - 0.5, 0.04, ad - 0.5, 0, top - 0.04, 0)
+        # the attic floor (maps.js has its colliders), round the stairwell;
+        # its underside is the ground floor's ceiling
+        hx0 = -(w / 2 - 1.3)
+        hx1 = hx0 + 2
+        hz0, hz1 = (-3.6, 1.8) if ATTIC_DOOR[v] == "e" else (-1.8, 3.6)
+        for (x0, x1, z0, z1) in ((-ahx, hx0, -ahz, ahz), (hx1, ahx, -ahz, ahz),
+                                 (hx0, hx1, -ahz, max(-ahz, hz0)), (hx0, hx1, min(ahz, hz1), ahz)):
+            if x1 - x0 >= 0.05 and z1 - z0 >= 0.05:
+                b.box(M["floor"], x1 - x0, 0.15, z1 - z0, (x0 + x1) / 2, ATTIC_Y, (z0 + z1) / 2)
         b.cyl(M["light"], 0.2, (0, top - 0.1, 0), (0, top - 0.04, 0), seg=12)
         ridge = top + 1.5
         gable_roof(b, M, aw + 2 * 0.35, ad + 2 * 0.35, top - 0.05, ridge, 0, 0, rng)
         gable_ends(b, M, ahx, ahz, top, ridge, rng)
         gutters(b, M, ahx + 0.35, ahz + 0.35, top - 0.12)
         chimney(b, M, -hx - 0.42, hz * 0.4, ridge + 0.3)
-    b.finish("house-%s%s.glb" % (v, "-attic" if attic else ""))
+    # Light map (bake_kit.py): Cul-de-Grin's sky and lawn, the ceiling lamp
+    # maps.js used to light at runtime, and in an attic house the attic's own.
+    lights = [((0, WALL_H - 0.35, 0), 0xffcf9a, LAMP_W, 0.12)]
+    if attic:
+        lights.append(((0, ATTIC_Y + 1.6, 0), 0xffe6b8, LAMP_W * 0.8, 0.12))
+    b.finish("house-%s%s.glb" % (v, "-attic" if attic else ""), bake=dict(
+        res=1024, samples=SAMPLES, sky=(0x8aa2cc, 0xd8ae90, 1.0), ground=0x8faa70,
+        lights=lights, blur=1))
 
 
 def gable_roof(b, M, rw, rd, eave_y, ridge_y, cx, cz, rng):
@@ -330,12 +352,19 @@ def main():
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
     palette()
+    # blender ... -- sage-attic violet  builds only those (a test bake)
+    only = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+    built = []
     for v in VARIANTS:
         for attic in (False, True):
+            name = v + ("-attic" if attic else "")
+            if only and name not in only:
+                continue
             build_house(v, attic)
+            built.append(name)
     import quantize_glb
     here = os.path.dirname(os.path.abspath(__file__))
-    quantize_glb.main([os.path.join(here, "house-%s%s.glb" % (v, s)) for v in VARIANTS for s in ("", "-attic")])
+    quantize_glb.main([os.path.join(here, "house-%s.glb" % n) for n in built])
     print("ALL HOUSES EXPORTED")
 
 

@@ -991,8 +991,9 @@ export const MAPS = {
     fog: { color: 0x9a8078, density: 0.011 },
     ground: { colorA: 0x8faa70, colorB: 0x6f8a55, grid: 0x7d8a63, surface: "grass", tile: 4 },
     sun: { color: 0xffc898, intensity: 1.6, pos: [-35, 22, 30] },
-    hemi: { sky: 0x8aa2cc, ground: 0x2e3326, intensity: 0.9 },
-    ambient: { color: 0xffe0cc, intensity: 0.5 },
+    // the houses' baked light maps carry the sky and lamp light (REALISM.md)
+    hemi: { sky: 0x8aa2cc, ground: 0x2e3326, intensity: 0.45 },
+    ambient: { color: 0xffe0cc, intensity: 0.2 },
     // Stylised realism (view/grade-pass.js): cool blue-violet shade, peach
     // sunlit highs, a touch more colour and punch.
     grade: { shadows: 0x2a3448, shadowsAmt: 0.12, highlights: 0xffd0a0, highlightsAmt: 0.1, sat: 1.12, contrast: 1.06 },
@@ -1062,7 +1063,7 @@ export const MAPS = {
         api.box(kx - fw * 0.4, kz, 1.7, 0.62, 0.92, { ghost: true, pen: 1.5 });
         api.box(kx + fw * 0.85, kz, 0.8, 0.7, 1.85, { ghost: true, pen: 2 });
         mapModel(api, "cg-kitchen", { x: kx, z: kz, scale: [fw, 1, 1] });
-        api.lamp(x, 2.85, z, 0xffcf9a, 8, 12);   // under the ceiling (at 3.2 it sat in it and the ceiling went brown)
+        // the ceiling lamp's light is baked into the house's light map (build_cg_houses)
         // a portrait on the back interior wall, facing the doorway, plus a
         // second on a side wall so there's something to see from most angles
         const backWallX = x + (door === "e" ? w / 2 - 0.4 : -(w / 2 - 0.4));
@@ -1130,21 +1131,20 @@ export const MAPS = {
             mesh.castShadow = mesh.receiveShadow = true;
             api.prop(mesh);
           }
-          // attic floor, in pieces around the stairwell: solid so the player
-          // can stand on it, sized to the model's inset attic room (w-2 by d-2,
-          // per build_houses.blender.py)
+          // attic floor colliders, in pieces around the stairwell: solid so the
+          // player can stand on it, sized to the model's inset attic room (w-2
+          // by d-2). The floor you see is the house model's (build_cg_houses).
           const ax0 = x - (w - 2) / 2, ax1 = x + (w - 2) / 2;
           const az0 = z - (d - 2) / 2, az1 = z + (d - 2) / 2;
           const hx0 = Math.min(sOuter, sInner), hx1 = Math.max(sOuter, sInner);
           const floorPiece = (x0, x1, z0, z1) => {
             if (x1 - x0 < 0.05 || z1 - z0 < 0.05) return;
-            api.box((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, 0.15, { color: 0xd8b088, y: ATTIC_Y, pen: 6, surface: "wood", tile: 1.6 });
+            api.box((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, 0.15, { ghost: true, y: ATTIC_Y, pen: 6 });
           };
           floorPiece(ax0, hx0, az0, az1);
           floorPiece(hx1, ax1, az0, az1);
           floorPiece(hx0, hx1, az0, Math.max(az0, HOLE_Z0));
           floorPiece(hx0, hx1, Math.min(az1, HOLE_Z1), az1);
-          api.lamp(x, ATTIC_Y + 1.6, z, 0xffe6b8, 7, 11);
           // attic walls had no collider at all — the perch's own room shell
           // (build_house_attic: inset w-2 by d-2, ATTIC_WALL_T=0.28, one
           // long side open for the dormer window per ATTIC_VARIANTS'
@@ -1964,6 +1964,8 @@ export function disposeMap(built, scene) {
   scene.remove(built.root);
   built.root.traverse((o) => {
     if (o.geometry) o.geometry.dispose();
-    if (o.material) o.material.dispose?.();
+    // a baked model's materials are shared by every placement and kept in
+    // its model cache (battlefield-props.js loadModel): leave them be
+    if (o.material && !o.material.userData?.shared) o.material.dispose?.();
   });
 }

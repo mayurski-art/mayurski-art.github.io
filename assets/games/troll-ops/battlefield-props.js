@@ -20,19 +20,24 @@ const loader = new GLTFLoader();
 const cache = new Map();
 const bakeCache = new Map();
 
-/* Optional per-model baked lightmap: models/<name>-bake.jpg, if a Blender
-   bake pass has produced one — see house-props.js's loadBakeTexture for
-   why a missing file just resolves to null instead of failing.
-   Only for the models listed in BAKED: asking for every model's bake was a
-   404 per model on every map load (no bakes ship yet), each one held up the
-   model and the loading screen. Add a model's name here when its bake lands. */
-const BAKED = new Set([]);
+/* Baked light maps (stylised realism, REALISM.md): models/<name>-bake.webp,
+   made by the model's Blender builder (models/bake_kit.py), for the models
+   listed here with their light-map strength. Only those are asked for: a
+   request per model was a 404 each on every map load. A strength of PI
+   matches Blender: three divides a light map's light by PI as it does every
+   light's, the Cycles light-only bake doesn't. */
+const BAKED = new Map([
+  // Cul-de-Grin's houses (build_cg_houses.blender.py) and the furniture
+  // in them (build_culdegrin.blender.py)
+  ...["terracotta", "sage", "violet"].flatMap((v) => [`house-${v}`, `house-${v}-attic`]),
+  "cg-lounge", "cg-kitchen",
+].map((n) => [n, Math.PI]));
 function loadBakeTexture(name) {
   if (!BAKED.has(name)) return Promise.resolve(null);
   if (!bakeCache.has(name)) {
     bakeCache.set(name, new Promise((resolve) => {
       new THREE.TextureLoader().load(
-        `${MODEL_BASE}${name}-bake.jpg`,
+        `${MODEL_BASE}${name}-bake.webp`,
         (tex) => resolve(tex),
         undefined,
         () => resolve(null),
@@ -62,20 +67,29 @@ const PROP_RETEXTURE = {
    retexture(); map-specific model sets (map-models.js) pass their own. */
 export function loadModel(name, mapping = PROP_RETEXTURE) {
   if (!cache.has(name)) {
-    cache.set(name, loader.loadAsync(`${MODEL_BASE}${name}.glb`).then((gltf) => {
+    cache.set(name, Promise.all([loader.loadAsync(`${MODEL_BASE}${name}.glb`), loadBakeTexture(name)]).then(([gltf, bake]) => {
       const scene = gltf.scene;
       scene.traverse((n) => { if (n.isMesh) { n.castShadow = true; n.geometry.userData.shared = true; } });
+      // A baked model is light-mapped and retextured once, here, and every
+      // placement shares its materials (16 houses were ~300 materials).
+      // Baked models are Cul-de-Grin's only: no other map patches them.
+      if (bake) {
+        scene.traverse((n) => { if (n.isMesh) { n.receiveShadow = true; applyBakedLightMap(n, bake, BAKED.get(name)); } });
+        retexture(scene, mapping);
+        scene.traverse((n) => { if (n.isMesh) n.material.userData.shared = true; });
+        scene.userData.baked = true;
+      }
       return scene;
     }));
   }
-  return Promise.all([cache.get(name), loadBakeTexture(name)]).then(([scene, bake]) => {
+  return cache.get(name).then((scene) => {
     const clone = scene.clone(true);
+    if (scene.userData.baked) return clone;
     clone.traverse((n) => {
       if (n.isMesh) {
         n.material = n.material.clone();
         n.castShadow = true;
         n.receiveShadow = true;
-        if (bake) applyBakedLightMap(n, bake);
       }
     });
     retexture(clone, mapping);

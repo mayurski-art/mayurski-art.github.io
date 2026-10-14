@@ -6,47 +6,18 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { retexture } from "./surface-textures.js?v=hg6e";
 import { RETEXTURE } from "./map-models.js?v=hg6e";
+import { loadModel } from "./battlefield-props.js";
 
 const portraitCache = new Map();
-const MODEL_BASE = new URL("./models/", import.meta.url).href;
-const houseLoader = new GLTFLoader();
-const houseCache = new Map();
 
 /* The houses are built by models/build_cg_houses.blender.py with the map
    kit (lap siding, cased windows, shingles...): flat paint arrives as vertex
    colour, and the few textured materials (brick, concrete, the wood floor and
-   porch planks) use the same metre-UV table as the other map models. */
-const HOUSE_RETEXTURE = RETEXTURE;
-
-/* Fetches (once) and returns a clone of the named house model — same
-   cache-then-clone shape as battlefield-props.js's loadModel, kept as a
-   separate cache since houses are much larger meshes than crates/barrels
-   and there's no reason to share the map with unrelated props. */
-function loadHouseModel(name) {
-  if (!houseCache.has(name)) {
-    houseCache.set(name, houseLoader.loadAsync(`${MODEL_BASE}${name}.glb`).then((gltf) => {
-      const scene = gltf.scene;
-      scene.traverse((n) => { if (n.isMesh) { n.castShadow = true; n.geometry.userData.shared = true; } });
-      return scene;
-    }));
-  }
-  // (no baked lightmaps since the rebuild: the old bakes don't fit the new meshes)
-  return houseCache.get(name).then((scene) => {
-    const clone = scene.clone(true);
-    clone.traverse((n) => {
-      if (n.isMesh) {
-        n.material = n.material.clone();
-        n.castShadow = true;
-        n.receiveShadow = true;
-      }
-    });
-    retexture(clone, HOUSE_RETEXTURE);
-    return clone;
-  });
-}
+   porch planks) use the same metre-UV table as the other map models. They
+   load like any map model (battlefield-props.js loadModel), with their
+   baked light maps. */
+const loadHouseModel = (name) => loadModel(name, RETEXTURE);
 
 /* Modelled house exterior (pitched roof, porch, windows, chimney) built by
    models/build_houses.blender.py. The model's own door gap always faces
