@@ -2,10 +2,10 @@
 // pre-match staging countdown and intro, shader warm-up, and beginMatch.
 
 import { clearLauncher } from "../combat/launcher.js?v=fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0";
-import { makeRoomCode, MAX_PLAYERS_ROYALE, MAX_PLAYERS } from "../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10-hr2-zp1";
-import { playerName, setNetStatus, noBotsRoom } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0";
+import { makeRoomCode, MAX_PLAYERS_ROYALE, MAX_PLAYERS } from "../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10-hr2-zp1-rs1";
+import { playerName, setNetStatus, noBotsRoom } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1";
 import { MAPS } from "../maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1";
-import { cancelSocialReturn } from "./social.js?v=so1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1-th2-ar2-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0";
+import { cancelSocialReturn } from "./social.js?v=so1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1-th2-ar2-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1";
 import { EMOTES } from "../emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u-gt1-gt2-cw1-zr10";
 import { emoteCode } from "../emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2-cw1-zr10";
 import { TEAMS, setFunnyDeaths } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
@@ -20,14 +20,14 @@ import { goreStandIns, ZombieDirector } from "../zombies.js?v=zr4c-sb2b7b7dc2f1m
 import { royale, openRoyaleBox, setupRoyale, teardownRoyale, updateRoyaleGear, placeBotsInLobby, applyRoyaleCatchUp } from "./royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
 import { showWaveBanner, clearHitDirs, updateStreakHud, clearDamageNumbers } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
 import { updateSpawnGuardHud, damageLog, clearDeathVisuals, yawTowardCentre } from "../combat/damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
-import { sndGoLive, prepareSndRound } from "./objectives.js?v=ob1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0";
+import { sndGoLive, prepareSndRound } from "./objectives.js?v=ob1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-rs1";
 import { streaks, streakPicker, uavUntil, vsatUntil, clearStreakLocks, killstreakUi, achievements, clearStreakEntities } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
-import { recentTeamKillers, dealtLog, lastHitRange, updateTeamHud } from "../combat/scoring.js?v=sc1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0";
-import { resetInfection } from "./infection.js?v=in1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0";
+import { recentTeamKillers, dealtLog, lastHitRange, updateTeamHud, onRoomEnd } from "../combat/scoring.js?v=sc1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-rs1";
+import { resetInfection } from "./infection.js?v=in1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-rs1";
 import { applyHeroLoadout } from "./umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
 import { TownNpcs } from "../town-npcs.js?v=tn4b7b7dc2f1m1u-cup1-nc1-cd1-sh1-gt1-gt2-cw1-zr10-hr2-zp1";
-import { clubSpawn } from "./club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0";
-import { Hill, pickHillPoints, pickBombSites, Bomb } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1";
+import { clubSpawn } from "./club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1";
+import { Hill, pickHillPoints, pickBombSites, Bomb, MODES } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1";
 import { setHillMarker, setBombSiteMarkers } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
 import { RangeSet } from "../range.js";
 import { WaveSpawner } from "../enemies.js?v=hb4-wst-soc1-sb2b7c2m1-gt1-gt2-cw1-zr10";
@@ -71,7 +71,41 @@ export function followsHostMap(m) {
   if (mode.forceMap || (mode.mapPool && !game.zombieCoop)) return false;
   // The host's map, not just any older player's: a tab stuck on its loading
   // screen used to drag everyone onto its map (net.hostId).
-  return game.net.peers.has(m.id) && game.net.hostId() === m.id;
+  const p = game.net.peers.get(m.id);
+  if (!p) return false;
+  if (game.net.hostId() === m.id) return true;
+  // ...except a room-map note (no countdown) while we're still loading in,
+  // from anyone who was here before us: only players in the match send
+  // those. A host tabbed away or lagging stops counting as host, and then
+  // nobody told a newcomer the map, who played their own pick alone
+  // (user, 2026-10-14: "only if i choose the right map").
+  return !(Number(m.left) > 0) && game.loadScreen.isOpen && p.since > 0 && p.since < game.net.since;
+}
+
+/* A room plays one mode, the host's, as it plays one map (user, 2026-10-14:
+   a friend on One in the Chamber ended at 12 kills while the other played
+   Team Deathmatch in the same room, and the map never followed either,
+   since that needs the same mode). While we load in, a room note from
+   whoever's map we'd take switches us to their versus mode. True when the
+   match is being set up again for it (the caller stops there). */
+export function adoptHostMode(m) {
+  if (!m?.mode || m.mode === game.modeId || game.socialRoom || !game.isPvp() || !game.loadScreen.isOpen) return false;
+  const next = MODES[m.mode];
+  if (!next?.pvp || next.hidden || next.royale || next.social) return false;
+  if (!followsHostMap({ ...m, mode: game.modeId })) return false;
+  game.modeId = m.mode;
+  if (MAPS[m.map]) game.roomMapHint = m.map;
+  setNetStatus(`Live · room ${game.net.room} · ${game.currentMode().name}`, "live");
+  game.loadScreen.setMap(loadInfo(game.matchMapId(game.roomMapHint)));
+  // Already set up under the loading screen for our own pick: again, for theirs.
+  if (game.gameState === "playing" || game.gameState === "paused") { enterMatch(game.roomMapHint); return true; }
+  return false;
+}
+
+/* Whether we tell newcomer `p` the room's map: the host does, and so does
+   anyone in the match who was here before them (see followsHostMap). */
+export function tellsRoomMap(p) {
+  return game.net.isBotHost() || (p.since > 0 && game.net.since < p.since);
 }
 
 export async function startGame() {
@@ -585,6 +619,7 @@ export function updateStaging(dt) {
    reuse the room the lobby already joined instead of tearing it down and
    making everyone re-handshake. */
 export function beginMatch(mapId = null) {
+  game.net.onEnd = onRoomEnd;   // someone else's match ended: ours too (combat/scoring.js)
   game.killcam.clear();
   setFunnyDeaths(!!game.currentMode().funny);
   game.suppressT = 0;

@@ -108,7 +108,7 @@ export function registerDeath(victimName, killerId, weaponId, opts = {}) {
 
     if (mode.ladder) {
       game.gunGameProgress++;
-      if (playerWon(mode, game.gunGameProgress)) { game.endMatch("You cleared the rack"); return; }
+      if (playerWon(mode, game.gunGameProgress)) { endForRoom("You cleared the rack"); return; }
       const next = game.equipFromLoadout();
       game.setActiveWeaponMesh(next);
       showWaveBanner(`${game.gunGameProgress + 1} / ${mode.ladder.length} — ${next.name}`, 1400);
@@ -237,6 +237,30 @@ export function creditAssistIfOwed(victimId, victimName) {
   pushKillfeed({ killer: "You", victim: victimName, assist: true, mine: true });
 }
 
+/* One result for the whole room (user, 2026-10-14: "my friend was done
+   playing, I was still playing"). Each client keeps its own score, and the
+   counts can drift, so whoever's match ends on the limit or the clock tells
+   the room, and everyone still in that match ends it there with the same
+   result. "You" goes out as our name and comes back as "You". */
+function endForRoom(title) {
+  if (game.isNet() && game.net.active) {
+    game.net.send({ t: "end", id: game.net.id, w: title.replace(/^You/, game.net.name), mode: game.modeId, map: game.loadedMapId });
+  }
+  game.endMatch(title);
+}
+
+/* modes/match-start.js beginMatch hands this to net (net.onEnd). */
+export function onRoomEnd(m) {
+  const mode = game.currentMode();
+  if (!mode.pvp || game.gameState !== "playing" || game.isStaging()) return;
+  if (m.mode !== game.modeId || m.map !== game.loadedMapId) return;   // an older match's, or another mode's
+  let w = String(m.w || "").slice(0, 60);
+  if (!w) return;
+  const me = game.net.name;
+  if (me && w.startsWith(me + " ")) w = "You" + w.slice(me.length);
+  game.endMatch(w);
+}
+
 export function checkMatchEnd() {
   const mode = game.currentMode();
   if (!mode.pvp || game.gameState !== "playing") return;
@@ -247,9 +271,9 @@ export function checkMatchEnd() {
     peers: [...game.net.peers.values()],
   };
   const winner = matchWinner(mode, args);
-  if (winner) { game.endMatch(winner); return; }
+  if (winner) { endForRoom(winner); return; }
   if (mode.timeLimit && game.matchClockT !== null && game.matchClockT <= 0) {
-    game.endMatch(matchWinnerOnTimeout(mode, args));
+    endForRoom(matchWinnerOnTimeout(mode, args));
   }
 }
 
