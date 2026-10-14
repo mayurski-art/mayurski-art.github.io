@@ -1950,6 +1950,8 @@ export const TROLLINGLOUD = {
   sun: { color: 0x9aa8ff, intensity: 0.7, pos: [-30, 60, 40] },
   hemi: { sky: 0x6a5aa8, ground: 0x2a1a2a, intensity: 0.85 },
   ambient: { color: 0x5a4a7a, intensity: 0.35 },
+  // stylised realism (view/grade-pass.js): club night: deep purple shade, a pink lift in the highs
+  grade: { shadows: 0x200a30, shadowsAmt: 0.1, highlights: 0xff70d0, highlightsAmt: 0.05, sat: 1.1, contrast: 1.08 },
   viewFar: 420,
   build: buildTrollingLoud,
   onShot,

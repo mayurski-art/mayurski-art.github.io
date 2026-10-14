@@ -2147,6 +2147,8 @@ export const TROLLCITY = {
   sun: { color: 0xfff0d8, intensity: 2.7, pos: [42, 58, 30] },
   hemi: { sky: 0xb8d0ec, ground: 0xb08a5a, intensity: 1.0 },
   ambient: { color: 0xfff0d8, intensity: 0.25 },
+  // stylised realism (view/grade-pass.js): dusty western day: warm highs, violet-grey shade
+  grade: { shadows: 0x3a3050, shadowsAmt: 0.08, highlights: 0xffd8a0, highlightsAmt: 0.1, sat: 1.06, contrast: 1.06 },
   build: buildTrollCity,
   // Socialize roleplay spots (saloon-bar.js / game.js updateBar). Floor
   // heights are the saloon's ground floor.

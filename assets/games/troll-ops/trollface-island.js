@@ -1099,6 +1099,8 @@ export const TROLLFACE_ISLAND = {
   sun: { color: 0xfff1d6, intensity: 2.5, pos: [-60, 90, -40] },
   hemi: { sky: 0xcfe6ff, ground: 0x4f7a45, intensity: 0.75 },
   ambient: { color: 0xffffff, intensity: 0.28 },
+  // stylised realism (view/grade-pass.js): hard sun in space: cold shade, clean highs
+  grade: { shadows: 0x101a40, shadowsAmt: 0.08, highlights: 0xfff0d0, highlightsAmt: 0.05, sat: 1.08, contrast: 1.05 },
   build: buildTrollfaceIsland,
   spawns: SPAWNS,
   edge: ISLAND_EDGE,
