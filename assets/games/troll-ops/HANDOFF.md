@@ -459,6 +459,14 @@ Map rules:
 
 ## 5. Shipped log (newest first; one line each, details in git)
 
+- **2026-10-14** (-aa0 to -dj2, on main, NOT pushed; full gate not run yet)
+  - Aim assist gone (stick and thumb; the Dragonfire's nose gun keeps its pull). Auto reload on an empty mag. Tests: input, reload-death.
+  - Rooms: a joiner takes the room's map from anyone in the match and the host's versus mode; whoever's match ends tells the room ("end"). Tests: roomsync, zjoin.
+  - Zombies: drop into a run mid-round, spawn in when it's cleared; a host retaking a run keeps its wave; skip button says "all needed". Tests: zjoin, zcoop.
+  - One in the Chamber bots: one lethal round, knife when dry. Killcam gun wears the killer's finish. Tests: oitc-bots, skin-sync.
+  - Menu: Who's Online and Server Browser (menu/online.js on site-presence setActivity; hub publicRuns). Test: online.
+  - Socialize: a player can take Trolling Loud's decks (rp role dj). Test: dj.
+
 - **2026-10-13** (-ar1, LIVE main 0588c6a; gate red only on zhub-test, passed solo, user said push)
   - Black Ops 2 rifle reloads for the nine BO2 rifles, from BO2 footage: tac and empty, each rifle's own pose and finish, right on the stick arms and the TROLLS block arms. Test: arreload.
 
