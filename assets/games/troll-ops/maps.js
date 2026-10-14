@@ -1254,8 +1254,13 @@ export const MAPS = {
     fog: { color: 0xd8bea4, density: 0.0055 },
     ground: { colorA: 0xd6c194, colorB: 0xbfa97c, grid: 0xe6d6ae, surface: "sand", tile: 3.5 },
     sun: { color: 0xffe2b4, intensity: 2.4, pos: [-22, 26, -52] },
-    hemi: { sky: 0xcce8ff, ground: 0xc4b087, intensity: 2.6 },
-    ambient: { color: 0xfff0dd, intensity: 0.75 },
+    // The models' light maps and the ground's carry half the sky light now
+    // (stylised realism, REALISM.md); the lot and palms take the ground's.
+    groundBake: GB_GROUND,
+    hemi: { sky: 0xcce8ff, ground: 0xc4b087, intensity: 1.3 },
+    ambient: { color: 0xfff0dd, intensity: 0.3 },
+    // late afternoon on the coast: sea-blue shade, warm highs
+    grade: { shadows: 0x1f3a50, shadowsAmt: 0.08, highlights: 0xffd8a8, highlightsAmt: 0.07, sat: 1.1, contrast: 1.05 },
     build(api) {
       // The shell only closes three sides. -Z is open ocean, held by a low
       // seawall instead of a 6m box, so the horizon reads as water rather
@@ -1473,6 +1478,7 @@ export const MAPS = {
       lot.position.set(0, 0.02, 27.5);
       lot.receiveShadow = true;
       api.prop(lot);
+      groundLight(lot, GB_GROUND);
       // parking stripes
       for (let x = -34; x <= 34; x += 5) {
         const stripe = new THREE.Mesh(
@@ -1526,6 +1532,7 @@ export const MAPS = {
       const palmRoot = new THREE.Group();
       api.prop(palmRoot);
       palmTrees(palmRoot, PALMS, { seed: 17 });
+      groundLight(palmRoot, GB_GROUND);
       // streetlamps down the lot, and floodlights at the far corners so the
       // sand does not go flat at its edges
       for (const [x, z] of [[-24, 23.5], [0, 23.5], [24, 23.5]]) streetlamp(api, { x, z, rot: 0 });
