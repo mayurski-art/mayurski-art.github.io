@@ -36,6 +36,8 @@ import { KB_GLANCE } from "../keyboard-repair.js?v=kr15";
 import { updateDamageNumbers } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
 import { chargedShotDef } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import { game } from "../core/state.js?v=st1";
+
+let downTiltT = 0;   // Zombie Rush, down (P7): how far over the view has tipped
 import { hasPerk, PERK_TUNE } from "../perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2";
 import { updateEnemySteps } from "./enemy-steps.js?v=es1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
 import { updateScavenger } from "../combat/scavenger.js?v=sv1-cl1-bp1-fj1-zc1-zc2";
@@ -339,8 +341,8 @@ export function updatePlayer(dt) {
     const rollK = royaleRollK();
     if (rollK > 0) game.camera.position.y -= Math.sin(Math.PI * rollK) * 0.9;
     // Zombie Rush, down (P7): on the floor, the view tipped over and swaying.
-    game.downTiltT = damp(game.downTiltT || 0, game.player.downed && !game.player.out ? 1 : 0, 4, dt);
-    const downK = game.downTiltT, downNow = performance.now() / 1000;
+    downTiltT = damp(downTiltT, game.player.downed && !game.player.out ? 1 : 0, 4, dt);
+    const downK = downTiltT, downNow = performance.now() / 1000;
     if (downK > 0.001) game.camera.position.y -= downK * 0.5;
     const downRoll = downK * (0.24 + Math.sin(downNow * 1.3) * 0.04);
     const downPitch = downK * Math.sin(downNow * 0.9) * 0.025;
