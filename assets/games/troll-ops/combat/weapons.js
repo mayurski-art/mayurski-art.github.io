@@ -258,13 +258,14 @@ function findGruntFromObject(obj) {
 /* A swap (P7): the new gun comes up from below over this long. Only the
    look: it fires the moment you have it, as before. */
 export const SWAP_RAISE = 0.3;
+export const swapRaise = { t: 0 };   // counts down; view/weapon-view.js lifts the gun by it
 export function setHolding(what) {
   if (game.player.holding === what) return;
   if (game.socialUnarmed()) return;   // hands stay empty in the hangout
   if (game.isInfected() && what !== "melee") return;   // the sword is all they have
   if (what === "melee" && !game.player.melee) return;
   game.player.holding = what;
-  if (what === "gun") game.swapRaiseT = SWAP_RAISE;   // the gun comes up into view (view/weapon-view.js)
+  if (what === "gun") swapRaise.t = SWAP_RAISE;   // the gun comes up into view (view/weapon-view.js)
   if (game.activeWeaponMesh) game.activeWeaponMesh.visible = what === "gun";
   if (game.activeMeleeMesh) game.activeMeleeMesh.visible = what === "melee";
   game.activeStreakMesh.visible = what === "streak" && game.streakDeviceKind === "tablet";
@@ -299,7 +300,7 @@ export function switchWeapon(slot) {
   game.currentWeaponSlot = slot;
   game.setActiveWeaponMesh(w.def);
   setHolding("gun");
-  game.swapRaiseT = SWAP_RAISE;   // gun to gun too
+  swapRaise.t = SWAP_RAISE;   // gun to gun too
 }
 
 /* Gamepad-only: keyboard has three dedicated keys (1/2/3) for primary/
