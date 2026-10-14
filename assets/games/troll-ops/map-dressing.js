@@ -129,20 +129,9 @@ function decalAtlas() {
       g.lineTo(128 + Math.cos(a) * d, 128 + Math.sin(a) * d); g.stroke();
     }
   });
-  // 4 grin: the trollface sprayed (same marks as the island's plazas)
-  cell(DECAL.grin, () => {
-    g.strokeStyle = W(0.92); g.lineCap = "round"; g.lineJoin = "round";
-    g.lineWidth = 9;
-    g.beginPath(); g.ellipse(128, 132, 104, 96, 0, 0, Math.PI * 2); g.stroke();
-    g.lineWidth = 8;
-    g.beginPath(); g.moveTo(52, 140); g.quadraticCurveTo(128, 236, 206, 132); g.lineTo(52, 140); g.stroke();
-    for (let k = 0; k < 7; k++) { const x = 70 + k * 19; g.beginPath(); g.moveTo(x, 142); g.lineTo(x + 2, 168 + Math.sin(k / 6 * Math.PI) * 16); g.stroke(); }
-    g.lineWidth = 7;
-    for (const ex of [88, 168]) { g.beginPath(); g.ellipse(ex, 92, 20, 10, ex < 128 ? 0.25 : -0.25, 0, Math.PI * 2); g.stroke(); }
-    g.beginPath(); g.moveTo(62, 66); g.lineTo(108, 76); g.moveTo(194, 66); g.lineTo(148, 76); g.stroke();
-    // overspray drips
-    for (let k = 0; k < 9; k++) { const x = 40 + r() * 176; g.lineWidth = 2; g.beginPath(); g.moveTo(x, 200 + r() * 20); g.lineTo(x, 214 + r() * 34); g.stroke(); }
-  });
+  // 4 grin: the real trollface art (never a hand-drawn stand-in), painted
+  // into its cell once the image loads (below). Tinted by the decal's
+  // colour like the rest: white keeps the art's own white face and ink.
   // 5 puddle: a smooth dark wet patch
   cell(DECAL.puddle, () => { blot(128, 128, 108, 0.7, 5, 0.28); blot(150, 110, 50, 0.4, 4, 0.3); });
   // 6 dirt: blotchy muck, speckled
@@ -247,6 +236,39 @@ function decalAtlas() {
   });
 
   atlasTex = new THREE.CanvasTexture(c);
+  const face = new Image();
+  face.onload = () => {
+    const i = DECAL.grin, x0 = (i % 4) * C, y0 = Math.floor(i / 4) * C, pad = 10;
+    const k = Math.min((C - 2 * pad) / face.width, (C - 2 * pad) / face.height);
+    const w = face.width * k, h = face.height * k;
+    g.clearRect(x0, y0, C, C);
+    g.drawImage(face, x0 + (C - w) / 2, y0 + (C - h) / 2, w, h);
+    // The art's mouth gaps are see-through; painted on the ground they'd show
+    // the road. Everything see-through that the outside can't reach (flood
+    // fill from the cell's edge) gets the art's black ink underneath.
+    const img = g.getImageData(x0, y0, C, C), d = img.data;
+    const out = new Uint8Array(C * C), stack = [];
+    for (let k = 0; k < C; k++) stack.push(k, (C - 1) * C + k, k * C, k * C + C - 1);
+    while (stack.length) {
+      const p = stack.pop();
+      if (out[p] || d[p * 4 + 3] > 128) continue;
+      out[p] = 1;
+      const px = p % C;
+      if (px > 0) stack.push(p - 1);
+      if (px < C - 1) stack.push(p + 1);
+      if (p >= C) stack.push(p - C);
+      if (p < C * (C - 1)) stack.push(p + C);
+    }
+    for (let p = 0; p < C * C; p++) {
+      if (out[p]) continue;
+      const a = d[p * 4 + 3] / 255;
+      for (let ch = 0; ch < 3; ch++) d[p * 4 + ch] = Math.round(d[p * 4 + ch] * a);
+      d[p * 4 + 3] = 255;
+    }
+    g.putImageData(img, x0, y0);
+    atlasTex.needsUpdate = true;
+  };
+  face.src = new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
   atlasTex.colorSpace = THREE.SRGBColorSpace;
   atlasTex.anisotropy = 4;
   return atlasTex;

@@ -1635,7 +1635,7 @@ MAPS.culdegrin.dress = {
     { cell: "puddle", n: 5, area: "road", size: [1.2, 2.4], color: 0x16181c, alpha: 0.5 },
   ],
   place: [
-    { cell: "grin", x: 0, z: 20, size: 4.2, rot: 0.15, color: 0xff8ad0, alpha: 0.75 },     // chalk on the road
+    { cell: "grin", x: 0, z: 20, y: 0.07, size: 4.2, rot: 0.15, color: 0xffffff, alpha: 1 },   // the trollface painted on the road (over the centre line)
     { cell: "splat", x: -2.5, z: 22.5, size: 1.6, color: 0xffffff, alpha: 0.7 },
     { cell: "drain", x: -5.5, z: -4, size: 0.8, color: 0x1a1a1c, alpha: 0.9 },
     { cell: "drain", x: 5.5, z: 6, size: 0.8, color: 0x1a1a1c, alpha: 0.9 },
