@@ -14,9 +14,13 @@ Design docs live next to this file: `COPS-AND-ROBBERS.md`, `TROLL-CITY-RP2.md`, 
 
 ### Tasks to do, in order (updated 2026-10-13)
 Start each session on a fresh branch or worktree from origin/main.
-1. **Black Ops 2 assault-rifle reloads,** once the user sends the rest of the details (brief: `refs/pf-reloads/BRIEF.md`).
-2. **Stylised realism graphics,** one map first, with before/after screenshots.
-3. **Then hand the user ONE test checklist** covering everything shipped since 2026-10-12 (Zombie Rush P1-P7 and the controller buy/deploy, the Kek & Sons merchant and the horses, incl. the hub, Credits and the kiosks, weekly/monthly leaderboards, the High-graphics glow and box fixes, the Royale lag and fights, Show FPS, the phone menu, bot heads, Ghostface Killers).
+1. **Black Ops 2 assault-rifle reloads** (in progress, branch tf-reload): one per rifle from BO2 footage (`refs/pf-reloads/BRIEF.md`, `FOOTAGE-NOTES.md`), right on both the stick-figure arms and the TROLLS body's block arms.
+2. **Bugs the user reported (2026-10-13), phone first, maybe desktop too:**
+   - **Swap cycles to melee:** the swap button goes primary → secondary (if there is one) → melee → primary. Today it doesn't get you to the melee weapon.
+   - **Royale freefall steering:** while falling from the plane you can steer where you land, like Fortnite's drop.
+   - **The phone's magnifier loupe** pops up over the game on a press-and-hold (the user's screenshot: `refs/bugs/ios-loupe.jpg`, local). It's the text-selection magnifier: the game surface needs `user-select: none` and `-webkit-touch-callout: none` (check every HUD/touch layer, not only the canvas).
+3. **Stylised realism graphics,** one map first, with before/after screenshots.
+4. **Then hand the user ONE test checklist** covering everything shipped since 2026-10-12 (Zombie Rush P1-P7 and the controller buy/deploy, the Kek & Sons merchant and the horses, incl. the hub, Credits and the kiosks, weekly/monthly leaderboards, the High-graphics glow and box fixes, the Royale lag and fights, Show FPS, the phone menu, bot heads, Ghostface Killers).
 - Offered, not yet answered: stretch Royale's match length (fewer bots or a post-kill cooldown).
 - Paused or on hold (sections below): tf-parallel leftovers, Troll City RP 2c, Cops and Robbers, U Mad Bro?, the TROLLS wallet check.
 
