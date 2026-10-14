@@ -16,14 +16,16 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { addInkRim } from "./view/rim-light.js?v=sr1";
 import { buildWatch, buildWristband, wristOf } from "./wristwear.js?v=ww1c2m1";
 
 const DARK = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
 
 /* The body is drawn in flat ink: no lighting, so there is no highlight or
    shading to show where one limb's tube meets another's — the whole figure
-   reads as one line drawn without lifting the pen. Shared by every rig. */
-const INK = new THREE.MeshBasicMaterial({ color: 0x050505 });
+   reads as one line drawn without lifting the pen. Shared by every rig.
+   Its edges catch a little of the sun (view/rim-light.js). */
+const INK = addInkRim(new THREE.MeshBasicMaterial({ color: 0x050505 }));
 INK.userData.shared = true;
 
 // Shared by every invisible hit-proxy primitive (see buildHumanoid below).

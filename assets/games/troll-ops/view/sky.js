@@ -8,6 +8,7 @@
 // shader into the world reflection map.
 
 import * as THREE from "three";
+import { setRim } from "./rim-light.js?v=sr1";
 
 export const SKY_UNIFORMS = () => ({
   uTop: { value: new THREE.Color(0x1a2e4a) },
@@ -108,6 +109,7 @@ export function applySky(map) {
   u.uBottom.value.set(sk.bottom);
   u.uSunDir.value.set(...map.sun.pos).normalize();
   u.uSunColor.value.set(sk.sunColor ?? map.sun.color);
+  setRim(map.sun.color);   // the characters' rim light takes the sun's colour
   u.uSunGlow.value = sk.sun ?? 0;
   u.uSunSize.value = sk.sunSize ?? 0.03;
   u.uHaze.value = sk.haze ?? 0;
