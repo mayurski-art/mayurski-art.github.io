@@ -236,7 +236,13 @@
   "assets/games/troll-ops/models/gl-wings.glb",
   "assets/games/troll-ops/models/gl-outside.glb",
   "assets/games/troll-ops/models/gl-falls.glb",
-  "assets/games/troll-ops/models/gl-trollhead.glb"
+  "assets/games/troll-ops/models/gl-trollhead.glb",
+  "assets/games/troll-ops/models/gl-shell-bake.webp",
+  "assets/games/troll-ops/models/gl-outside-bake.webp",
+  "assets/games/troll-ops/models/gl-atrium-bake.webp",
+  "assets/games/troll-ops/models/gl-falls-bake.webp",
+  "assets/games/troll-ops/models/gl-wings-bake.webp",
+  "assets/games/troll-ops/models/gl-shops-bake.webp"
  ],
  "grinjuku": [
   "assets/games/troll-ops/textures/asphalt_color.jpg",
