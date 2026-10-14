@@ -14,14 +14,13 @@ Design docs live next to this file: `COPS-AND-ROBBERS.md`, `TROLL-CITY-RP2.md`, 
 
 ### Tasks to do, in order (updated 2026-10-13)
 Start each session on a fresh branch or worktree from origin/main.
-1. **Black Ops 2 assault-rifle reloads** (in progress, branch tf-reload): one per rifle from BO2 footage (`refs/pf-reloads/BRIEF.md`, `FOOTAGE-NOTES.md`), right on both the stick-figure arms and the TROLLS body's block arms.
-2. **Bugs the user reported (2026-10-13), phone first, maybe desktop too:**
+1. **Bugs the user reported (2026-10-13), phone first, maybe desktop too:**
    - **Swap cycles to melee:** the swap button goes primary → secondary (if there is one) → melee → primary. Today it doesn't get you to the melee weapon.
    - **Royale freefall steering:** while falling from the plane you can steer where you land, like Fortnite's drop.
    - **The gun shows through the TROLLS (NFT) body** in third person (user's screenshot: the purple rifle drawn through the white block forearms, held at the chest). A fix was tried before; it's back. Take it slowly: find why (render order/depthTest on the gun or skin materials, the gun hold vs the block arm sizes in blocky-body.js `rig.gunHold`), fix the cause, and check every gun class, both sides, idle/walk/ADS/reload, with screenshots. No mistakes.
    - **The phone's magnifier loupe** pops up over the game on a press-and-hold (the user's screenshot: `refs/bugs/ios-loupe.jpg`, local). It's the text-selection magnifier: the game surface needs `user-select: none` and `-webkit-touch-callout: none` (check every HUD/touch layer, not only the canvas).
-3. **Stylised realism graphics,** one map first, with before/after screenshots.
-4. **Then hand the user ONE test checklist** covering everything shipped since 2026-10-12 (Zombie Rush P1-P7 and the controller buy/deploy, the Kek & Sons merchant and the horses, incl. the hub, Credits and the kiosks, weekly/monthly leaderboards, the High-graphics glow and box fixes, the Royale lag and fights, Show FPS, the phone menu, bot heads, Ghostface Killers).
+2. **Stylised realism graphics,** one map first, with before/after screenshots.
+3. **Then hand the user ONE test checklist** (add the BO2 rifle reloads) covering everything shipped since 2026-10-12 (Zombie Rush P1-P7 and the controller buy/deploy, the Kek & Sons merchant and the horses, incl. the hub, Credits and the kiosks, weekly/monthly leaderboards, the High-graphics glow and box fixes, the Royale lag and fights, Show FPS, the phone menu, bot heads, Ghostface Killers).
 - Offered, not yet answered: stretch Royale's match length (fewer bots or a post-kill cooldown).
 - Paused or on hold (sections below): tf-parallel leftovers, Troll City RP 2c, Cops and Robbers, U Mad Bro?, the TROLLS wallet check.
 
@@ -40,8 +39,13 @@ Zombies rebuilt to play like Roblox's Zombie Rush Survival: a 3D hub, then a co-
 - **P7 (animation pass):** bite timing, turning, stagger (zombies.js); melee lunge (combat/melee.js LUNGE, zombies only); tier-up flourish (run.js); deploy unfold + turret arming, turret flash + co-op blood (deployables.js); swap raise (combat/weapons.js swapRaise); downed camera (player-update.js); revive ring (view/revive-ring.js); bat/shovel two-handed tracks (gear.js heldTrack / SWINGS, tuned frame by frame); boss cloth tint + glow (zombie-models.js); controller d-pad buy/deploy (view/zombies-hud.js → input/gamepad.js padHooks.zombies). Tests: zanim, zpad, zdeploy, zcoop.
 - Refs (local only, main checkout): `refs/zombie-rush/` (hub pads, boards, kiosks, Weapons tier screens, Classes / Rookie kit, the in-match HUD), `refs/zombies-clips/`.
 
-### Weapon animations: Black Ops 2 reloads (waiting on the user)
-Assault-rifle reloads should match Black Ops 2's (our ARs are BO2's): tactical and empty, one rifle at a time, built from footage. Brief: `refs/pf-reloads/BRIEF.md` (local only). The user is sending more details.
+### Weapon animations: Black Ops 2 rifle reloads (built, -ar1)
+`view/ar-reload.js`: the nine BO2 rifles (keyed by `model.build`) reload the BO2 way, taken frame by frame from first-person BO2 footage (`refs/pf-reloads/FOOTAGE-NOTES.md`, local: how to watch YouTube in the browser pane and pull frames to canvas, the video's timeline, what each rifle does).
+- Each rifle is a spec: `up` (the held pose: where the well sits, which way muzzle and top point, camera space), `fetch`/`present` (where the hand gets and shows the new mag), `rockIn`, and `finish` (the empty reload's pose, handle point and pull, gun-local, and its sound). `build()` makes the tac and empty timelines from it; weapon-view blends the hip pose into the held poses, the mag and the left hand follow their keys (`posePfArms(..., hand)`), `audio.rifleBeat` plays the beats.
+- Families from the footage: stood on end at the right (SWAT-556, M27, FAL, Type 25), lower and less rolled (SCAR-H, MTAR), leaning left (M8A1), rolled the other way and worked from the right (AN-94, SMR). Empty finishes: FAL over the top, M27/SWAT/Type 25 catch slap, SCAR-H and M8A1 forward side handle, AN-94 across to the right.
+- The hand palms the mag's base so the TROLLS body's block fist never hides it. A cut reload (fire) eases back over 0.14 s. Other guns keep the old reload.
+- Tune with a frozen-frame lab (set `reloadT` via a getter, screenshot both bodies). Test: `tools/troll-ops-arreload-test.mjs` (gate input step).
+- Not yet: SMGs, LMGs and pistols still use the old reload; the BO2 video for them is linked in FOOTAGE-NOTES.
 
 ### Graphics: stylised realism (after the weapon animations)
 After Hood Warfare 2 (UE5), the user wants a mix of cartoon and realism. One map first, with before/after screenshots.
@@ -454,6 +458,9 @@ Map rules:
 ---
 
 ## 5. Shipped log (newest first; one line each, details in git)
+
+- **2026-10-13** (-ar1, branch tf-reload, not pushed yet)
+  - Black Ops 2 rifle reloads for the nine BO2 rifles, from BO2 footage: tac and empty, each rifle's own pose and finish, right on the stick arms and the TROLLS block arms. Test: arreload.
 
 - **2026-10-13** (-zp1, LIVE main 10ad34e; full gate skipped on the user's say, link check fixed)
   - Zombie Rush P7 done: lunge, tier-up flourish, deploy unfold, swap raise, downed camera, revive ring, bat/shovel swings with both hands (a real spade), turret flash and co-op blood, boss tint on clothes. Tests: zanim, zdeploy, zcoop.
