@@ -60,6 +60,7 @@ export const coop = {
   onLost: null,       // run.js: everyone went down
   onJoinMidRound: null, // run.js: we came in while a round was on (wait it out)
   heard: false,       // the host's first zw has come in
+  own: null,          // our own last wave, while we ran it (takeOver)
 };
 
 let posT = 0, waveT = 0, depT = 0;
@@ -102,6 +103,7 @@ export function startCoop() {
   coop.allDownT = 0;
   coop.syncT = 0;
   coop.heard = false;
+  coop.own = null;
   hits = []; events = []; depDirty.clear(); lastWire = "";
   posT = waveT = depT = 0;
   dep.cosmetic = coop.on && !coop.host;
@@ -249,6 +251,7 @@ function hostSend(dt, zd) {
   else if (coop.votes.size >= ids.size) zd.skipBreak();
 
   const w = waveWire(zd, ids.size);
+  coop.own = w;
   const key = `${w.r}|${w.s}|${w.n}|${w.vn}|${w.vt}`;
   waveT -= dt;
   if (waveT <= 0 || key !== lastWire) {
@@ -273,7 +276,11 @@ const waveWire = (zd, total) => ({ r: zd.round, s: zd.state, b: r2(zd.breakT), n
    standing where they were, and the wave carries on from its last word. */
 function takeOver() {
   const zd = game.zdir;
-  const w = coop.wave;
+  // The newer of the last wave we heard and the last we ran ourselves: a
+  // host that lost the role for a moment (a newcomer looked like the host
+  // while it loaded in) took it back at round 0, the only wave it had ever
+  // heard, and the run started over for everyone.
+  const w = coop.own && coop.own.r > coop.wave.r ? coop.own : coop.wave;
   for (const z of zd.zombies) {
     if (!z.proxy) continue;
     z.proxy = false;
