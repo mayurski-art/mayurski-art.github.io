@@ -16,8 +16,8 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
-import { setClothed, setHips, reshapeRig } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10";
-import { applyToken, removeToken } from "./traits.js?v=bk1-cw1-zr10";
+import { setClothed, setHips, reshapeRig } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1";
+import { applyToken, removeToken } from "./traits.js?v=bk1-cw1-zr10-bf1";
 
 const DIR = new URL("./traits/", import.meta.url);
 const ART_V = globalThis.TRAITS_BUST ?? "tr1";
@@ -44,7 +44,20 @@ const HEAD_SCALE = 0.69;   // 0.6, then 15% bigger (user) so the face reads
 // square to the aim), in toward the middle so the left hand still reaches
 // lean: how much of the stick's run lean the body keeps with the gun up
 // (all of it slanted the block torso; user: "too slanted here")
-const GUN_HOLD = { x: 0.15, y: -0.08, z: -0.1, scale: 1.15, blade: 0.38, roll: 0.07, under: 0.075, runX: 0.06, lean: 0.25 };
+// In front of the pecs, not in them (user, 2026-10-13: the gun showed
+// through the TROLLS body; measured, it sat 5-6 cm inside the chest and its
+// forearms, the reload's mag in the left thigh): the stock 7 cm further
+// forward and 2 cm in from the shoulder joint, the gun at its own size (bigger, it ran
+// through more), a little more blade and left-shoulder roll so the left
+// hand still reaches the handguard, a shallower low ready (ready, radians)
+// and the belt pouch (pouch, chest-local) out past the thigh. Its arm is
+// short for a long stock: past reachR of the arm the trigger hand takes the
+// stock's wrist (straight, the arm lay down the stock). A reload lifts the
+// gun as much as the stick's drops it (reloadDrop) and swings it a third as
+// far (swing): dropped, the launcher's tube went into the shoulder. Pistols keep
+// their own reach (pistolZ). The menu's port-arms carry raises the trigger
+// elbow (carryPoleR). tools/troll-ops-nft-hold-test.mjs measures it.
+const GUN_HOLD = { x: 0.13, y: -0.08, z: -0.17, pistolZ: -0.1, scale: 1, blade: 0.45, roll: 0.2, under: 0.075, runX: 0.06, lean: 0.25, ready: 0.1, pouch: [-0.15, -0.42, -0.2], reachR: 0.8, swing: 0.3, reloadDrop: -1, carryPoleR: [1, 0.8, 0.2] };
 
 function mat(color, extra = {}) {
   return new THREE.MeshStandardMaterial({ color, roughness: 0.8, emissive: color, emissiveIntensity: 0.4, ...extra });

@@ -1,28 +1,29 @@
 // Troll Forces weapons: firing, reloads, what a bullet hit, weapon switching,
 // the pickup prompt and the gear HUD.
 
-import { breakSpawnGuard } from "./damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2";
+import { breakSpawnGuard } from "./damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1";
 import { soulBlazerShot, soulBlazerMouth } from "../soul-blazer.js?v=sb1";
 import * as THREE from "three";
-import { royale, royaleNoise, royalePickupGun, stageFrozen, royaleDropView } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2";
+import { royale, royaleNoise, royalePickupGun, stageFrozen, royaleDropView } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
 import { resolveK9 } from "../k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d";
-import { showHitmarker, pushKillfeed, showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2";
-import { damageStreakEntity } from "../streaks/dragonfire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0-dj2";
-import { damageDog } from "../streaks/k9.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2";
-import { flinchRigFrom } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10";
-import { heroActive, hero } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2";
-import { warshipView, toggleWarshipGun } from "../streaks/warship.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2";
+import { showHitmarker, pushKillfeed, showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
+import { damageStreakEntity } from "../streaks/dragonfire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0-dj2-bf1";
+import { damageDog } from "../streaks/k9.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
+import { flinchRigFrom } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1";
+import { heroActive, hero } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
+import { warshipView, toggleWarshipGun } from "../streaks/warship.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
 import { gunDisplayName } from "../royale.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
-import { streakControlActive, streakEntities } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2";
-import { touchState } from "../input/touch.js?v=in1-th2-bp1";
-import { packageCaptureTime } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2";
-import { claimPackage, canReroll, rerollPackage } from "../streaks/air.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-kc1-dj2";
+import { streakControlActive, streakEntities } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
+import { touchState } from "../input/touch.js?v=in1-th2-bp1-bf1";
+import { packageCaptureTime } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
+import { claimPackage, canReroll, rerollPackage } from "../streaks/air.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-kc1-dj2-bf1";
 import { WeaponState } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import { CarePackage } from "../streak-entities.js?v=vsat2-hk1";
 import { game } from "../core/state.js?v=st1";
 import { contextIcon } from "../view/touch-icons.js?v=ti1-zc2";
-import { fireLauncher } from "./launcher.js?v=fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0-dj2";
-import { throwBusy } from "./throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2";
+import { fireLauncher } from "./launcher.js?v=fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0-dj2-bf1";
+import { throwBusy } from "./throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2-bf1";
+import { reviveInReach } from "../view/revive-ring.js?v=rv1-zp1-bf1";
 
 export function currentWeapon() {
   const id = game.currentWeaponSlot === "secondary" ? game.player.secondaryId : game.player.weaponId;
@@ -312,15 +313,18 @@ export function switchWeapon(slot) {
   swapRaise.t = SWAP_RAISE;   // gun to gun too
 }
 
-/* Gamepad-only: keyboard has three dedicated keys (1/2/3) for primary/
-   secondary/melee, but the pad only has one free face button for this, so it
-   cycles through whatever's actually equipped instead. Skips secondary when
-   there isn't one (Gun Game, One in the Chamber, or no sidearm picked up
-   yet) rather than landing on a dead slot. */
+/* The pad's Y and the swap button (a tap on touch, a tap of X): primary,
+   then the secondary if there is one, then the melee, then back round.
+   Keyboard also has 1/2/3. Skips a slot that's empty (Gun Game, One in the
+   Chamber, no sidearm picked up yet, no melee) rather than landing on a dead
+   one: the swap used to only flip primary and secondary, so with no
+   secondary it did nothing at all (user, 2026-10-13). */
 export function cycleWeapon() {
   if (game.socialUnarmed()) return;
   if (game.player.holding === "streak") return;   // same reason as switchWeapon
-  const order = ["primary", ...(game.player.secondaryId ? ["secondary"] : []), "melee"];
+  if (throwBusy() || game.isInfected()) return;
+  const p = game.player;
+  const order = ["primary", ...(p.secondaryId && p.weapons[p.secondaryId] ? ["secondary"] : []), ...(p.melee ? ["melee"] : [])];
   const current = game.player.holding === "melee" ? "melee" : game.currentWeaponSlot;
   const at = order.indexOf(current);
   const next = order[(at + 1) % order.length];
@@ -337,6 +341,7 @@ export function cycleWeapon() {
    "hold X on the thing at your feet" is one idea, not three. */
 let pkgHoldT = 0;
 export function updatePickupPrompt(dt) {
+  promptTick = swapTick;
   const pkg = game.player.alive ? nearbyPackage() : null;
   // Troll Royale: guns on the ground are loot, picked up the same way.
   const lootGun = royale && game.player.alive ? royale.loot.nearest(game.move.pos.x, game.move.pos.z, 1.6, (it) => it.k === "gun") : null;
@@ -366,7 +371,7 @@ export function updatePickupPrompt(dt) {
   } else pkgHoldT = 0;
   const action = game.swapHold.update(dt, held && !pkg, !!drop || !!pkg);
   if (action === "swap") {
-    switchWeapon(game.currentWeaponSlot === "secondary" ? "primary" : "secondary");
+    cycleWeapon();
   } else if (action === "pickup" && drop?.loot) {
     royalePickupGun(drop.loot);
   } else if (action === "pickup" && drop) {
@@ -418,6 +423,21 @@ export function updatePickupPrompt(dt) {
       game.els.pickupPrompt.hidden = true;
     }
   }
+}
+
+/* The swap where the PvP loop's pickup prompt doesn't run (the range,
+   Zombies, the waves): a tap of X or the touch SWAP button cycles the guns
+   and the melee there too (user, 2026-10-13: the touch swap did nothing
+   outside PvP). The Zombies hub and the hangout keep X for their own holds;
+   in co-op it's the revive while a downed teammate is in reach. Called every
+   frame from view/player-update.js; stands down while the prompt runs. */
+let swapTick = 0, promptTick = -2;
+export function updateSwapButton(dt) {
+  swapTick++;
+  if (promptTick >= swapTick - 1) return;
+  if (game.isHub() || game.isSocial() || game.isView()) return;
+  const held = !frozenPlayer() && !game.duoXClaimed && !streakControlActive() && ((game.isTouch && touchState.swap) || game.keys.has("KeyX"));
+  if (game.swapHold.update(dt, held, reviveInReach()) === "swap") cycleWeapon();
 }
 
 export function setTouchContext(label) {

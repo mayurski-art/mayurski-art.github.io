@@ -6,7 +6,7 @@
 import * as THREE from "three";
 import { game } from "../core/state.js?v=st1";
 import { hasPerk } from "../perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2";
-import { streakEntities } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2";
+import { streakEntities } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
 
 let layer = null;
 const _p = new THREE.Vector3();
