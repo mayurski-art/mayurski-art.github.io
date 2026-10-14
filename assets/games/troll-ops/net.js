@@ -18,7 +18,7 @@ export const MAX_PLAYERS_ROYALE = 100;
    host built that bot with, so every client knows the room's bot skill. */
 const BOT_SKILLS = ["recruit", "regular", "veteran"];
 // Socialize roleplay jobs by wire letter (rp-roles.js ROLES).
-const RP_ROLES = { b: "bartender", p: "pianist", d: "doctor", s: "sheriff", m: "merchant", h: "horsekeeper", c: "conductor" };
+const RP_ROLES = { b: "bartender", p: "pianist", d: "doctor", s: "sheriff", m: "merchant", h: "horsekeeper", c: "conductor", j: "dj" };
 /* A bot's level for the scoreboard: fixed per bot id (1-69), so a bot
    keeps the same rank all match and every client agrees on it. */
 function botLevel(id) {

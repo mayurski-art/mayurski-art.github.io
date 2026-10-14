@@ -19,7 +19,7 @@ import { applyHeroBody, syncHeroBody } from "./hero-bodies.js?v=umb3g-nf-wst-ig1
 import { applyCopBody, syncCopBody } from "./cop-bodies.js?v=cb2-sb2c2m1-gt1-gt2-cw1-zr10";
 import { playerIconCanvas } from "./rank-icons.js?v=rk1";
 import { buildDrink, drinkFromCode, drinkMax, FILL_TIME, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1";
-import { poseSeated, posePianoArms, roleLabel } from "./rp-roles.js?v=rp1b7-cd1-sh1";
+import { poseSeated, posePianoArms, roleLabel } from "./rp-roles.js?v=rp1b7-cd1-sh1-dj2";
 import { peerHas } from "./perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2";
 import { wearBlocky } from "./blocky-body.js?v=bk1-cw1-zr10";
 
