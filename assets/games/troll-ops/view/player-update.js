@@ -3,7 +3,7 @@
 
 import { updateLauncherLock } from "../combat/launcher.js?v=fj1-zr9-zr10-zc1-zc2-hr2-zp1";
 import { touchState, setTouchAds } from "../input/touch.js?v=in1-th2-bp1";
-import { currentWeapon, fireOnce, tryReload } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
+import { currentWeapon, fireOnce, tryReload, updateSwapButton } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
 import { MOUSE_ACTIVE_MS, applyAimAssist } from "../input/aim-assist.js?v=in1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
 import { isStaging } from "../modes/match-start.js?v=mst1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1";
 import { dragonfireView, DF_ASSIST_PULL, DF_ASSIST_CONE_DEG, fireDragonfire } from "../streaks/dragonfire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
@@ -89,6 +89,7 @@ let fireWasDown = false;
 export function updatePlayer(dt) {
   const w = currentWeapon();
   updateLauncherLock(dt);
+  updateSwapButton(dt);   // X / the touch SWAP outside the PvP pickup prompt
 
   if (game.streakHoldT > 0 && !game.streakHoldUntilMark) {
     game.streakHoldT -= dt;

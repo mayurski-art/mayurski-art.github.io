@@ -8,6 +8,7 @@ import { game } from "../core/state.js?v=st1";
 const SEG = 48;
 const IN = 0.82, OUT = 1.0;
 const rings = new Map();   // teammate id -> { g, base, fill, k }
+let reach = false;   // a downed teammate close enough to hold X on
 
 function make() {
   const g = new THREE.Group();
@@ -24,6 +25,7 @@ function make() {
 
 /* `downed`: [{ id, x, y, z }] (feet); `revive`: coop.revive ({ id, t }) or null. */
 export function updateReviveRings(downed, revive, reviveTime) {
+  reach = !!revive;
   const seen = new Set();
   const pulse = 0.38 + 0.18 * Math.sin(performance.now() / 160);
   for (const p of downed) {
@@ -55,7 +57,11 @@ export function clearReviveRings() {
     r.base.material.dispose(); r.fill.material.dispose();
   }
   rings.clear();
+  reach = false;
 }
+
+/* X (the touch swap button) is the revive while one is in reach: no weapon swap then (combat/weapons.js). */
+export const reviveInReach = () => reach;
 
 /* Tests: what's showing. */
 export const reviveRingState = () => [...rings].map(([id, r]) => ({ id, visible: r.g.visible, k: r.k }));
