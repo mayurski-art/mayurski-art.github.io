@@ -6,7 +6,7 @@ Cleaned 2026-10-12. Older, longer versions: `git show 702f867:assets/games/troll
 - Live work gets a section in part 1. When it ships, it becomes one line in the **Shipped log** (part 5) and its section is folded away.
 - Keep only what still constrains future work: architecture, rules, gotchas.
 
-Design docs live next to this file: `COPS-AND-ROBBERS.md`, `TROLL-CITY-RP2.md`, `TROLLS-TRAITS.md`, `CLASSES.md`, `FHJ18.md`, `CLUB-ENTRY.md` (done), `ZOMBIES.md` (the old Pentagrin design; Zombie Rush replaces it), `DESIGN-ARMS.md` and `DESIGN-PF.md` (both done).
+Design docs live next to this file: `COPS-AND-ROBBERS.md`, `TROLL-CITY-RP2.md`, `TROLLS-TRAITS.md`, `CLASSES.md`, `FHJ18.md`, `CLUB-ENTRY.md` (done), `ZOMBIES.md` (the old Pentagrin design; Zombie Rush replaces it), `DESIGN-ARMS.md` and `DESIGN-PF.md` (both done), `REALISM.md`.
 
 ---
 
@@ -38,8 +38,8 @@ Zombies rebuilt to play like Roblox's Zombie Rush Survival: a 3D hub, then a co-
 ### Weapon animations: Black Ops 2 reloads (waiting on the user)
 Assault-rifle reloads should match Black Ops 2's (our ARs are BO2's): tactical and empty, one rifle at a time, built from footage. Brief: `refs/pf-reloads/BRIEF.md` (local only). The user is sending more details.
 
-### Graphics: stylised realism (after the weapon animations)
-After Hood Warfare 2 (UE5), the user wants a mix of cartoon and realism. One map first, with before/after screenshots.
+### Graphics: stylised realism (`REALISM.md`): IN PROGRESS
+Branch `tf-realism` (worktree `.claude/worktrees/tf-realism`). Cul-de-Grin first (user, 2026-10-13). Done: P0 (doc, views, before shots in the worktree's `.claude/realism-before/`). Next: P1 environment map.
 
 ### TROLLS NFT looks (`TROLLS-TRAITS.md`)
 #1718's blocky body is live. **Next: the wallet check** (phase 3: `ownerOf` on the contract) to replace the stopgap lock to the troll_runner account (cosmetics.js `BODIES` `owner`, `canWearBody`). Honest-client like everything else: `bk` on the wire is drawn only with `ow`.
