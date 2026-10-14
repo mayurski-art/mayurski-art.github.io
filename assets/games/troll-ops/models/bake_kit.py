@@ -150,18 +150,22 @@ def _masked_blur(img, r):
 
 def import_context(placements):
     """Imports finished GLBs as stand-ins for the rest of the map: [(path,
-    x, z, rot), ...] in GAME coordinates (rot about +y, as maps.js places
-    them). Returns the objects; remove_context() takes them out again."""
+    x, z, rot[, y, (sx, sy, sz)]), ...] in GAME coordinates (rot about +y,
+    as maps.js places them). Returns the objects; remove_context() takes
+    them out again."""
     objs = []
-    for (path, x, z, rot) in placements:
+    for (path, x, z, rot, *rest) in placements:
+        y = rest[0] if rest else 0.0
+        sx, sy, sz = rest[1] if len(rest) > 1 else (1.0, 1.0, 1.0)
         before = set(bpy.data.objects)
         bpy.ops.import_scene.gltf(filepath=path)
         new = [o for o in bpy.data.objects if o not in before]
         for o in new:
             if o.parent is None:
-                o.location = (x, -z, 0.0)
+                o.location = (x, -z, y)
                 o.rotation_mode = "XYZ"
                 o.rotation_euler = (0.0, 0.0, rot)   # game yaw about +y = Blender +z
+                o.scale = (sx, sz, sy)               # game (x, y, z) -> Blender (x, z, y)
             o.select_set(False)
         objs += new
     return objs
@@ -217,6 +221,10 @@ def bake_lightmap(obj, path, res=1024, samples=128, sky=(0x8aa2cc, 0x6f8a55, 1.0
         _light(*L)
     for o in occluders:
         _occluder(*o)
+    if res == "auto":
+        # by the model's size: ~25 texels a metre on a crate, coarser on big ones
+        size = max(obj.dimensions)
+        res = 256 if size < 3 else 512 if size < 8 else 1024 if size < 24 else 2048
     if uv:
         _lightmap_uv(obj, 4.0 / res)   # ~4 texels between islands
     else:

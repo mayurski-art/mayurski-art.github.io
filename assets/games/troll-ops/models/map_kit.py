@@ -21,6 +21,14 @@ import os
 from mathutils import Matrix, Vector
 
 OUT_DIR = os.path.dirname(os.path.abspath(__file__))
+_BAKE = {"default": None}
+
+
+def bake_every_model(**bake):
+    """A builder calls this once to light-map every model it finishes
+    (bake_kit.py settings; res defaults to "auto", by the model's size).
+    finish(..., bake=False) opts one out."""
+    _BAKE["default"] = dict({"res": "auto"}, **bake)
 UP = Vector((0, 1, 0))
 
 
@@ -364,7 +372,10 @@ class Builder:
 
     def finish(self, filename, bake=None):
         """Exports the model. `bake` (bake_kit.py) also bakes its light map:
-        a second UV layer plus <name>-bake.webp beside the GLB."""
+        a second UV layer plus <name>-bake.webp beside the GLB. None takes
+        the builder's bake_every_model() settings, False skips it."""
+        if bake is None:
+            bake = _BAKE["default"]
         bm = self.bm
         bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
         bm.normal_update()

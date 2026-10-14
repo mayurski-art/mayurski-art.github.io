@@ -31,6 +31,11 @@ const BAKED = new Map([
   // in them (build_culdegrin.blender.py)
   ...["terracotta", "sage", "violet"].flatMap((v) => [`house-${v}`, `house-${v}-attic`]),
   "cg-lounge", "cg-kitchen",
+  // Grin Site (build_grinsite.blender.py)
+  ...["perimeter", "hoarding", "tower", "foundation", "scaffold", "cabin", "toilet", "crane", "forklift", "mixer",
+    "brick-pallet", "rebar-cage", "formwork", "jersey", "skip", "van", "block-stack", "timber-stack", "pipe-stack",
+    "container-stair", "light-tower", "container-open", "container-red", "container-blue", "container-green",
+    "container-grey"].map((n) => `gs-${n}`),
 ].map((n) => [n, Math.PI]));
 /* models/<name>-bake.webp, fetched once (null if it's missing). */
 export function loadBake(name) {
@@ -94,6 +99,9 @@ export function loadModel(name, mapping = PROP_RETEXTURE) {
   }
   return cache.get(name).then((scene) => {
     const clone = scene.clone(true);
+    // which model this is: tools/troll-ops-map-placements.mjs reads it off
+    // the built map for the ground bakes
+    clone.userData.model = name;
     if (scene.userData.baked) return clone;
     clone.traverse((n) => {
       if (n.isMesh) {

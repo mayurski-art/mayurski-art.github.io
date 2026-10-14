@@ -400,8 +400,13 @@ export const MAPS = {
     fog: { color: 0x8ea4b4, density: 0.0085 },
     ground: { colorA: 0x9a8a70, colorB: 0x7a6a52, grid: 0x8fae6e, surface: "dirt", tile: 3 },
     sun: { color: 0xfff2d8, intensity: 2.2, pos: [30, 45, -20] },
-    hemi: { sky: 0xb9d4ff, ground: 0x39432c, intensity: 1.1 },
-    ambient: { color: 0xffffff, intensity: 0.55 },
+    // The models' light maps and the ground's carry the sky light now
+    // (stylised realism, REALISM.md): hemi and ambient at about half.
+    groundBake: { file: "grinsite-ground", rect: [-48, -48, 96] },
+    hemi: { sky: 0xb9d4ff, ground: 0x39432c, intensity: 0.55 },
+    ambient: { color: 0xffffff, intensity: 0.22 },
+    // a clear working day: cool shade, sunny highs, a little more punch
+    grade: { shadows: 0x2a3a50, shadowsAmt: 0.08, highlights: 0xfff0d0, highlightsAmt: 0.06, sat: 1.08, contrast: 1.05 },
     build(api) {
       // Every collider below is the approved blockout's, unchanged; the
       // visible geometry is the gs-*.glb models (map-models.js).

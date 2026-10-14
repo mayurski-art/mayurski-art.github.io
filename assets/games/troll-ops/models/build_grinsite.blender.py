@@ -735,6 +735,10 @@ def main():
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
     P = palette()
+    # Light maps (stylised realism, REALISM.md): Grin Site's sky (maps.js
+    # hemi sky, sky horizon) and dirt bounce; each model on its own (they're
+    # placed many times, turned), the ground's own bake has them all.
+    bake_every_model(samples=128, sky=(0xb9d4ff, 0x9cbcd8, 1.0), ground=0x9a8a70, blur=1)
     for fn in (build_tower, build_foundation, build_scaffold, build_cabin, build_toilet, build_crane, build_forklift,
                build_mixer, build_brick_pallet, build_rebar_cage, build_formwork, build_jersey,
                build_skip, build_van, build_block_stack, build_timber_stack, build_pipe_stack,
