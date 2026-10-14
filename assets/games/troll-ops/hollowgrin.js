@@ -4620,6 +4620,10 @@ export const HOLLOWGRIN = {
   sun: { color: 0xb4c4ff, intensity: 1.75, pos: [-30, 40, -60] },
   hemi: { sky: 0x6c78c0, ground: 0x3a2a24, intensity: 1.25 },
   ambient: { color: 0x6a5a8a, intensity: 0.35 },
+  // Stylised realism (view/grade-pass.js): a hand-lit night map, so no bakes,
+  // just the grade: moonlit blue in the shade, the string lights' warmth in
+  // the highs, a touch more colour and punch.
+  grade: { shadows: 0x1a2448, shadowsAmt: 0.1, highlights: 0xffb070, highlightsAmt: 0.08, sat: 1.1, contrast: 1.07 },
   build: buildHollowgrin,
   onShot: (p) => { for (const f of SHOT_HOOKS) f(p); },
   // the game's mixer, for the mansion's scare sting
