@@ -39,7 +39,7 @@ Zombies rebuilt to play like Roblox's Zombie Rush Survival: a 3D hub, then a co-
 Assault-rifle reloads should match Black Ops 2's (our ARs are BO2's): tactical and empty, one rifle at a time, built from footage. Brief: `refs/pf-reloads/BRIEF.md` (local only). The user is sending more details.
 
 ### Graphics: stylised realism (`REALISM.md`): IN PROGRESS
-Branch `tf-realism` (worktree `.claude/worktrees/tf-realism`). Cul-de-Grin first (user, 2026-10-13). Done: P0 (doc, views, before shots in the worktree's `.claude/realism-before/`). Next: P3a house bakes in game. P4's graffiti is where the first krypto2009 easter eggs go (wish list).
+Branch `tf-realism` (worktree `.claude/worktrees/tf-realism`). Cul-de-Grin first (user, 2026-10-13). Built: P0-P5 plus the P6 checks (results in REALISM.md), unpushed. At the push: merge main, cascade `--suffix sr1`, gate. Then the rollout, map by map, after the user's buy-in. krypto2009 easter eggs wait on the user's photos (wish list).
 
 ### TROLLS NFT looks (`TROLLS-TRAITS.md`)
 #1718's blocky body is live. **Next: the wallet check** (phase 3: `ownerOf` on the contract) to replace the stopgap lock to the troll_runner account (cosmetics.js `BODIES` `owner`, `canWearBody`). Honest-client like everything else: `bk` on the wire is drawn only with `ow`.

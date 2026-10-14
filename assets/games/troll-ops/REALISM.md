@@ -50,7 +50,7 @@ After Hood Warfare 2 (UE5), the user wants Troll Forces to look more real, but a
 | P5 | Rim light | 2.5 |
 | P6 | Before/after sheet, luma check, fps x3, previews, cache tags `sr1`, HANDOFF | 2.5 |
 
-`--quick` gate between steps; one full gate when the user says push.
+No gate between steps (user, 2026-10-13); one gate when the user says push.
 
 ## Rollout (after buy-in)
 The environment map, grade and rim reach every map at once (the grade is neutral until a map sets `grade`). Per map: a `grade` block, the hemi/ambient retune, a bake step in its Blender builder (indoor maps bake their lamps and drop them), a ground bake, wear decals. Procedural maps (Troll City, Trolling Loud, Pentagrin, range, hub) can't be baked: they get the environment, grade, rim and retune. Order: Grin Site, Hollowgrin, Undergrin, Depot, Dust Bowl, Grinleria, Grin Beach, Grinjuku, Trollface Island, then the procedural ones.
@@ -60,7 +60,19 @@ The environment map, grade and rim reach every map at once (the grade is neutral
 - `tools/troll-ops-map-fps.mjs culdegrin` x3, before and after. Baseline (headless Intel, 2026-10-13): 12.3 fps, 1067 draws, 564 meshes, 440 materials.
 - A luma check: interiors and the porch at least 0.18, lawn shade at least 0.12, under 2 % blown pixels.
 
+## Results: Cul-de-Grin (2026-10-14)
+Built: P0-P5 and the P6 checks on `tf-realism`. The cache cascade (`--suffix sr1`) runs after merging main, right before the gate.
+- Light maps: 6 house models, the lounge and kitchen, cg-surround (2048 atlas) and a top-down ground bake (`cg-ground-bake.webp`, 2048 over 120 m) that `applyGroundLightMap` projects by world x/z onto the ground plane, road, cg-street and cg-ground. The 8 runtime house lamps are gone; hemi 0.45, ambient 0.2.
+- fps x3 each, same sitting: before 11.0 / 11.3 / 11.8, after 11.3 / 12.0 / 11.5. Draws 1028 to 989, program switches ~97 to ~75, materials 440 to 344.
+- Luma (mean, before / after): inside-house 0.25 / 0.22, porch 0.46 / 0.48, house-yard 0.46 / 0.53, street 0.43 / 0.47, aerial 0.51 / 0.52; no blown pixels.
+- Wear: tags, a trollface piece, grime streaks, sidewalk cracks, lawn dirt, glossy puddles (`shiny`), lawn `patches`. Rim: `view/rim-light.js` on outfits, hero and blocky bodies, and (thinner) the ink stick body: bots are ink only, so that's where it shows.
+
 ## Notes
+- A light map needs intensity PI: three divides its light by PI like any light's, the Cycles light-only bake doesn't. At 1 every house read 3x too dark.
+- cg-street carried old floor slabs at y 0.03 over the houses' own floors (unlit once the lamps went). Removed. Look for duplicates like it before baking a map.
+- The attic floor maps.js drew is in the attic models now (maps.js keeps its colliders), so it bakes with the house.
+- The gun draws inside the composer since P2: tools that grab frames (map-previews) turn `ViewmodelPass` off.
+- Puddle reflection: envMapIntensity 1.2 read as pink paint at sunset, 0.5 vanished; 0.8.
 - Hollowgrin's map-shots come out blank: the map loads slower than the tool's 6 s wait. Fix the wait before its rollout step.
 
 ## Open questions (my default in brackets)

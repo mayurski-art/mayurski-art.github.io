@@ -123,7 +123,17 @@
   "assets/games/troll-ops/textures/grass_rough.jpg",
   "assets/games/troll-ops/textures/asphalt_color.jpg",
   "assets/games/troll-ops/textures/asphalt_rough.jpg",
-  "assets/games/troll-ops/textures/asphalt_normal.jpg"
+  "assets/games/troll-ops/textures/asphalt_normal.jpg",
+  "assets/games/troll-ops/models/cg-ground.glb",
+  "assets/games/troll-ops/models/cg-surround-bake.webp",
+  "assets/games/troll-ops/models/cg-ground-bake.webp",
+  "assets/games/troll-ops/models/house-sage-bake.webp",
+  "assets/games/troll-ops/models/house-terracotta-bake.webp",
+  "assets/games/troll-ops/models/house-violet-bake.webp",
+  "assets/games/troll-ops/models/house-sage-attic-bake.webp",
+  "assets/games/troll-ops/models/house-terracotta-attic-bake.webp",
+  "assets/games/troll-ops/models/cg-lounge-bake.webp",
+  "assets/games/troll-ops/models/cg-kitchen-bake.webp"
  ],
  "grinbeach": [
   "assets/games/troll-ops/models/gb-bluffs.glb",
