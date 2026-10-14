@@ -6,8 +6,8 @@ import { setWeaponEnvMap, preloadWeaponModels, hasDetailedModel, buildWeaponMesh
 import { setSaberEnvMap, preloadTrollsaber } from "../trollsaber.js?v=ts4-ig1";
 import { setHalloweenEnvMap, preloadHalloweenMelee } from "../melee-models.js?v=hw2";
 import { setHeroEnvMap } from "../hero-bodies.js?v=umb3g-nf-wst-ig1-soc1c2f1m1u-th2-gt1-gt2-cw1-zr9-zr10-zp1-bf1";
-import { showSumGun, charInspector, inspectorLive, inspector } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1";
-import { restoreMeleeHands } from "./weapon-view.js?v=wv1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1";
+import { showSumGun, charInspector, inspectorLive, inspector } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-pl2";
+import { restoreMeleeHands } from "./weapon-view.js?v=wv1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2";
 import { buildMeleeMesh } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1";
 import { buildStreakDevice, buildMarkerDevice } from "../streak-device.js?v=to-df1";
 import { loadModel } from "../battlefield-props.js";
