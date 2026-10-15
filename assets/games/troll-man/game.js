@@ -133,6 +133,7 @@
   ctx.imageSmoothingEnabled = false;
 
   const FONT = "'Press Start 2P', monospace";
+  const TOUCH = window.matchMedia && matchMedia("(pointer: coarse)").matches;
   const SPRITE_DIR = "assets/games/troll-man/sprites/";
   const sprites = {};
   for (const who of ["trollface", "pepe", "doge", "gigachad", "pudgy"]) {
@@ -687,6 +688,7 @@
         g.fright = false;
         g.mode = "eyes";
         hidden = g;
+        buzz(25);
         freezeT = EAT_FREEZE;
         return;
       }
@@ -695,11 +697,13 @@
         // Aster takes the hit: the chaser bounces off and is sent back to the pen
         shield = false;
         shieldGrace = SHIELD_GRACE;
+        buzz(60);
         g.mode = "eyes"; g.frozen = 0;
         popups.push({ x: player.x, y: player.y - 1, text: "BLOCKED", color: "#ffb020", t: 0 });
         continue;
       }
       setState("dying");
+      buzz(150);
       return;
     }
   }
@@ -1021,8 +1025,9 @@
       text(label, cx, py(22) + 4, color, 8, "center");
     });
     if (Math.floor(stateTime / 0.5) % 2 === 0) text("PRESS START", W / 2, py(25), "#ffcc00", 8, "center");
-    text("ENTER / TAP", W / 2, py(26) + 4, "#888", 8, "center");
-    text("SPACE = PROBLEM?", W / 2, py(27) + 4, "#888", 8, "center");
+    // the hints match whatever the player is holding
+    text(TOUCH ? "START OR PUSH THE STICK" : "ENTER / TAP", W / 2, py(26) + 4, "#888", 8, "center");
+    text(TOUCH ? "SELECT = PROBLEM?" : "SPACE = PROBLEM?", W / 2, py(27) + 4, "#888", 8, "center");
   }
 
   // Debug builds keep the last few hundred frames' looks so the animation test can read them.
@@ -1117,7 +1122,7 @@
     }
   });
 
-  // Swipe anywhere on the screen; a tap starts the game. (The joystick comes in phase 4.)
+  // Swipe anywhere on the screen as a backup to the joystick; a tap starts the game.
   let touch0 = null;
   canvas.addEventListener("touchstart", e => {
     const t = e.changedTouches[0];
@@ -1144,6 +1149,74 @@
   });
   document.addEventListener("visibilitychange", () => { if (document.hidden && state === "play") paused = true; });
 
+  // ---- Touch controls: joystick + SELECT / START ---------------------------------
+  // A stick held off-axis (between ~24 and ~66 degrees) means "turn": take the axis
+  // he isn't moving along, so a sloppy up-right while running right still turns up
+  // at the next gap. Closer to an axis, that axis wins.
+  function steerVector(dx, dy) {
+    const ax = Math.abs(dx), ay = Math.abs(dy);
+    const h = dx > 0 ? "right" : "left", v = dy > 0 ? "down" : "up";
+    const diagonal = Math.min(ax, ay) > 0.45 * Math.max(ax, ay);
+    if (diagonal && (player.dir.x || player.dir.y)) steer(player.dir.x ? v : h);
+    else steer(ax >= ay ? h : v);
+  }
+
+  const stick = document.getElementById("tm-stick");
+  const knob = stick && stick.querySelector(".tm-stick-knob");
+  if (stick && knob) {
+    let pointer = null;
+    const track = e => {
+      const r = stick.getBoundingClientRect();
+      const dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+      const len = Math.hypot(dx, dy), reach = r.width * 0.3;          // how far the ball can travel
+      const k = len > reach ? reach / len : 1;
+      knob.style.transform = `translate(${(dx * k).toFixed(1)}px, ${(dy * k).toFixed(1)}px)`;
+      if (len >= r.width * 0.12) steerVector(dx, dy);                  // dead zone in the middle
+    };
+    stick.addEventListener("pointerdown", e => {
+      e.preventDefault();
+      pointer = e.pointerId;
+      try { stick.setPointerCapture(e.pointerId); } catch (_) { /* already gone */ }
+      if (state === "title" || state === "over") newGame();
+      track(e);
+    });
+    stick.addEventListener("pointermove", e => { if (e.pointerId === pointer) track(e); });
+    const release = e => {
+      if (e.pointerId !== pointer) return;
+      pointer = null;
+      knob.style.transform = "";                                       // springs back; the last direction holds
+    };
+    stick.addEventListener("pointerup", release);
+    stick.addEventListener("pointercancel", release);
+  }
+
+  // Buttons act on pointerdown so the taunt lands the instant the thumb does;
+  // a keyboard "click" (detail 0) still works for anyone tabbing to them.
+  function pressButton(el, action) {
+    if (!el) return;
+    el.addEventListener("pointerdown", e => {
+      e.preventDefault();
+      el.classList.add("is-down");
+      action();
+    });
+    const up = () => el.classList.remove("is-down");
+    el.addEventListener("pointerup", up);
+    el.addEventListener("pointerleave", up);
+    el.addEventListener("pointercancel", up);
+    el.addEventListener("click", e => { if (e.detail === 0) action(); });
+  }
+  pressButton(document.getElementById("tm-start"), () => {
+    if (state === "title" || state === "over") newGame(); else togglePause();
+  });
+  pressButton(document.getElementById("tm-select"), () => {
+    if (state === "title" || state === "over") newGame(); else taunt();
+  });
+
+  // A short buzz on phones that allow it: eating a chaser, a blocked hit, getting caught.
+  function buzz(ms) {
+    try { if (navigator.vibrate) navigator.vibrate(ms); } catch (_) { /* not allowed */ }
+  }
+
   // ---- Test hook (only with ?debug in the URL) --------------------------------
   if (/[?&]debug\b/.test(location.search)) {
     window.__tm = {
@@ -1154,7 +1227,8 @@
       setTimeScale(s) { timeScale = s; },
       setChasersOff(v) { chasersOff = v; },
       frames: frameLogs,
-      startFright, setState, taunt, powerUp,
+      startFright, setState, taunt, powerUp, steerVector,
+      get paused() { return paused; },
       get bonus() { return bonus; }, get shield() { return shield; }, get stonksT() { return stonksT; }, get fomoT() { return fomoT; },
       get tauntCool() { return tauntCool; },
       setDotsEaten(n) { dotsEatenLevel = n; },

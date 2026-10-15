@@ -214,7 +214,10 @@ next starts. No gate; a targeted check per change, push on your word.
    **The other three logos + bonus pickups + taunt.** Stonks, FOMO, Aster,
    coin pickups, "Problem?". Done when all four effects are visibly
    different.
-4. **Phone.** Portrait layout, joystick, SELECT/START, swipe backup,
+4. **Phone — DONE 2026-10-14** (`tools/troll-man-p4-test.mjs`). Stick off-axis
+   (24-66 degrees) means "turn": it takes the axis he is not moving along.
+   SELECT = taunt, START = start / pause; both also start from the title.
+   **Phone.** Portrait layout, joystick, SELECT/START, swipe backup,
    landscape. Done when it plays on your phone with a thumb.
 5. **Look.** Sprites, maze palette, Press Start 2P, CRT, sounds, title
    screen, attract mode, intermissions, 1UP/2UP. Done when a screenshot

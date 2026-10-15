@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/games/troll-man/style.css?v=tm-p1">
+  <link rel="stylesheet" href="assets/games/troll-man/style.css?v=tm-p4c">
 </head>
 <body>
   <a class="arcade-back-link" href="index.html?open=arcade" aria-label="Back to Troll Runner Arcade">&larr; Arcade</a>
@@ -24,9 +24,18 @@
               aria-label="Troll Man game screen. Arrow keys or WASD to move, Space to taunt, Enter to start, P to pause."></canvas>
     </div>
 
+    <!-- Touch controls: shown only on touch screens (see style.css). -->
+    <div class="tm-stick" id="tm-stick" role="group" aria-label="Joystick: drag to steer">
+      <div class="tm-stick-knob"></div>
+    </div>
+    <div class="tm-buttons">
+      <button type="button" class="tm-btn" id="tm-select" aria-label="Select: the Problem? taunt">SELECT</button>
+      <button type="button" class="tm-btn" id="tm-start" aria-label="Start or pause">START</button>
+    </div>
+
     <p class="tm-help">Arrows / WASD to move &middot; Space: Problem? &middot; Enter to start &middot; P to pause</p>
   </main>
 
-  <script src="assets/games/troll-man/game.js?v=tm-p3" defer></script>
+  <script src="assets/games/troll-man/game.js?v=tm-p4c" defer></script>
 </body>
 </html>
