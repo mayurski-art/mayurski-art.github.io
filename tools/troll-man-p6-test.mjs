@@ -39,7 +39,7 @@ async function open(query, { touch = false, viewport = { width: 1280, height: 90
   const page = await ctx.newPage();
   page.on("pageerror", e => errors.push(String(e)));
   page.on("console", m => { if (m.type() === "error" && /Content Security Policy/i.test(m.text())) errors.push("CSP: " + m.text()); });
-  await page.goto(`http://localhost:${PORT}/troll-man.html${query}`);
+  await page.goto(`http://localhost:${PORT}/troll-man${query}`);
   await page.waitForFunction(() => window.__tm || document.readyState === "complete");
   return { page, ctx };
 }
@@ -55,7 +55,7 @@ try {
     check(banner && banner.w === 1200 && banner.h === 630, `banner is 1200x630 (${JSON.stringify(banner)})`);
     const html = fs.readFileSync(path.join(ROOT, "troll-man.html"), "utf8");
     const meta = p => (html.match(new RegExp(`(?:property|name)="${p}" content="([^"]+)"`)) || [])[1];
-    check(meta("og:title") && meta("og:description") && meta("og:url") === "https://trollrunner.net/troll-man.html", "og:title, og:description, og:url");
+    check(meta("og:title") && meta("og:description") && meta("og:url") === "https://trollrunner.net/troll-man", "og:title, og:description, og:url");
     check(meta("og:image") === "https://trollrunner.net/assets/games/troll-man/ui/troll-man-banner.jpg" && meta("twitter:card") === "summary_large_image", "og:image is the banner, absolute; large twitter card");
     check(!/\u{1F9CC}/u.test(html + fs.readFileSync(path.join(ROOT, "assets/games/troll-man/game.js"), "utf8")), "no troll emoji anywhere");
   }
@@ -180,19 +180,19 @@ try {
     await page.goto(`http://localhost:${PORT}/games.html`);
     await page.waitForTimeout(800);
     const card = await page.evaluate(() => {
-      const a = document.querySelector('.hub-card a[href="troll-man.html"]');
+      const a = document.querySelector('.hub-card a[href="troll-man"]');
       const c = a && a.closest(".hub-card"), img = c && c.querySelector(".hub-card-art img");
       return c && { title: c.querySelector("h3").textContent, meta: c.querySelector(".hub-card-meta").textContent, img: img.getAttribute("src"), tag: c.querySelector(".hub-card-tag").textContent, hidden: c.hidden };
     });
     check(card && card.title === "Troll Man" && !card.hidden && card.tag === "Arcade" && /1-2 players/.test(card.meta), `games.html has the Troll Man card (${JSON.stringify(card)})`);
-    await page.evaluate(() => document.querySelector('.hub-card a[href="troll-man.html"]').closest(".hub-card").scrollIntoView({ block: "center", inline: "center" }));
-    await page.waitForFunction(() => { const i = document.querySelector('.hub-card a[href="troll-man.html"]').closest(".hub-card").querySelector("img"); return i.complete && i.naturalWidth === 1200; }, null, { timeout: 8000 }).then(() => check(true, "its art loads"), () => check(false, "its art loads"));
+    await page.evaluate(() => document.querySelector('.hub-card a[href="troll-man"]').closest(".hub-card").scrollIntoView({ block: "center", inline: "center" }));
+    await page.waitForFunction(() => { const i = document.querySelector('.hub-card a[href="troll-man"]').closest(".hub-card").querySelector("img"); return i.complete && i.naturalWidth === 1200; }, null, { timeout: 8000 }).then(() => check(true, "its art loads"), () => check(false, "its art loads"));
     if (SHOTS) {
-      const c = page.locator('.hub-card:has(a[href="troll-man.html"])');
+      const c = page.locator('.hub-card:has(a[href="troll-man"])');
       await c.screenshot({ path: path.join(OUT, "tm-p6-hub-card.png") });
     }
     const idx = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-    check(/label: 'Troll Man'[^}]*href: 'troll-man.html'/.test(idx), "the home page Arcade menu lists Troll Man");
+    check(/label: 'Troll Man'[^}]*href: 'troll-man'/.test(idx), "the home page Arcade menu lists Troll Man");
     await ctx.close();
   }
 } finally {
