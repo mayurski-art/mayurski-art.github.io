@@ -54,24 +54,35 @@ const SOUTH_EAST_PATH = polyP([[49.9, 68.5], [55, 72.2], [65, 72.4], [74, 68.5],
 const ROADS = [NORTH_ROAD, SWITCHBACK, SOUTH_WEST_PATH, SOUTH_EAST_PATH];
 
 // The landmarks, where the map draws them, and how much room each keeps clear
-// of scattered cover and landing spots.
-const lm = (px, py, r, name) => { const [x, z] = P(px, py); return { x, z, r, name }; };
+// of scattered cover and landing spots. `tier` is Troll Royale's (royale.js
+// POI_TIERS, ROYALE-ISLAND.md): hot places hold more and better loot.
+const lm = (px, py, r, name, tier) => { const [x, z] = P(px, py); return { x, z, r, name, tier }; };
 export const LANDMARKS = {
-  memelab: lm(22, 15.5, 14, "Meme Lab"),
-  city: lm(42, 23, 40, "Troll City"),
-  observatory: lm(68, 19.5, 13, "The Observatory"),
-  portal: lm(76.6, 19.2, 19, "The Portal"),      // nudged in off the cliff
-  skate: lm(79, 30, 36, "Skate Bowl"),
-  peak: lm(62.5, 35, 33, "Troll Peak"),
-  cave: lm(48, 38, 17, "The Cave"),
-  dock: lm(27, 37.5, 7, "The Dock"),
-  tree: lm(33.6, 34.2, 8, "Old Tree"),
-  boat: lm(72, 51.5, 9, "The Boat"),
-  gallery: lm(28.2, 59.5, 19, "The Gallery"),    // nudged in off the cliff
-  shop: lm(58.5, 68.5, 19, "U Mad Bro Shop"),
-  market: lm(82, 74, 26, "The Marketplace"),
-  bridge: lm(43.7, 68.5, 6, "The Bridge"),
+  memelab: lm(22, 15.5, 14, "Meme Lab", "mid"),
+  city: lm(42, 23, 40, "Troll City", "hot"),
+  observatory: lm(68, 19.5, 13, "The Observatory", "mid"),
+  portal: lm(76.6, 19.2, 19, "The Portal", "hot"),      // nudged in off the cliff
+  skate: lm(79, 30, 36, "Skate Bowl", "hot"),
+  peak: lm(62.5, 35, 33, "Troll Peak", "hot"),
+  cave: lm(48, 38, 17, "The Cave", "mid"),
+  dock: lm(27, 37.5, 7, "The Dock", "minor"),
+  tree: lm(33.6, 34.2, 8, "Old Tree", "minor"),
+  boat: lm(72, 51.5, 9, "The Boat", "mid"),
+  gallery: lm(28.2, 59.5, 19, "The Gallery", "mid"),    // nudged in off the cliff
+  shop: lm(58.5, 68.5, 19, "U Mad Bro Shop", "mid"),
+  market: lm(82, 74, 26, "The Marketplace", "mid"),
+  bridge: lm(43.7, 68.5, 6, "The Bridge", "minor"),
 };
+// Floor loot the nav grid can't place: up on the Boat's deck and the Bridge
+// (`y` is the deck: the bots' grid is ground floor only, so bots leave these).
+const BRIDGE_MID = (P(37.6, 0)[0] + P(49.9, 0)[0]) / 2;
+const LOOT_EXTRA = [
+  { x: LANDMARKS.boat.x - 6, z: LANDMARKS.boat.z, y: 1.32 },
+  { x: LANDMARKS.boat.x - 1.5, z: LANDMARKS.boat.z + 1.6, y: 1.32 },
+  { x: LANDMARKS.boat.x + 7, z: LANDMARKS.boat.z, y: 1.32 },
+  { x: BRIDGE_MID - 14, z: LANDMARKS.bridge.z, y: 0.66 },
+  { x: BRIDGE_MID + 6, z: LANDMARKS.bridge.z, y: 0.66 },
+];
 
 // Tree clumps off the map's tree layers: [px, base py, size].
 const TREE_CLUMPS = [[55.4, 21.8, 111], [19.8, 25.2, 31], [22.8, 25.2, 36], [16.7, 25.2, 23], [28.5, 29.8, 37], [40.7, 29.8, 20],
@@ -1110,6 +1121,9 @@ export const TROLLFACE_ISLAND = {
   royale: {
     players: 100,         // real players each take one bot's place
     lootPerSqM: 1 / 210,   // ~330 items: thinner than the small maps, still a gun every ~20 m
+    // Where the loot gathers, and the extra spots up on decks (ROYALE-ISLAND.md).
+    pois: Object.values(LANDMARKS),
+    lootExtra: LOOT_EXTRA,
     phases: [
       { wait: 150, close: 60, frac: 0.6, dps: 1 },
       { wait: 90, close: 50, frac: 0.35, dps: 2 },
