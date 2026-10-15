@@ -186,6 +186,9 @@ const KITS = {
   // Farmer: plaid long sleeves, denim overalls to the boots
   "clothes-farmer": { arms: "arms-farmer.glb", legs: "legs-farmer.glb",
     colours: { sleeve: "plaid", cuff: "plaid", denim: 0x3f6fa6, hem: 0x2f5a8c, boot: 0x6b4423, collar: 0x8a5a30, sole: 0x2a2420 } },
+  // Sweater Black: the farmer's pieces as black knit sleeves, dark jeans, black sneakers
+  "clothes-sweater-black": { arms: "arms-farmer.glb", legs: "legs-farmer.glb",
+    colours: { sleeve: 0x2b2b2e, cuff: 0x1f1f22, denim: 0x34363d, hem: 0x2a2c32, boot: 0x1b1b1d, collar: 0x1f1f22, sole: 0xe6e6e0 } },
 };
 /* Token #id's look on the block body: its garment and that garment's kit,
    or null when the token isn't wearable (a trait not drawn yet). */
@@ -368,6 +371,8 @@ const CAP = { a: 0.32, b: 0.345, front: 0.056, back: 0.096 };   // ellipsoid hal
 const HATS = {
   "hat-goatfarm": { ink: "#151517" },
   "hat-camper": { ink: "#8f8862", brim: [352, 452], brimFront: 0.13, brimBack: 0.13, ease: 16 },
+  // a flat cap: its bill out in front only (no brimBack: the crown all round behind)
+  "hat-baker": { ink: "#1d1c17", brim: [345, 420], brimFront: 0.105, ease: 14 },
 };
 /* How far the cap stands out of the head pivot's middle at (x, y): an
    ellipsoid round the head that closes exactly at that column's top edge of
@@ -443,9 +448,10 @@ async function capVolume(id, plane, centreY, s) {
     colTop.push(t);
   }
   const top = (x) => colTop[Math.round((x + w / 2) / w * N)];
-  const mix = (a, b, t) => a + (b - a) * t;
+  // (off the brim, a hat without one: no brimDepth to mix, it's NaN)
+  const mix = (a, b, t) => (t > 0 ? a + (b - a) * t : a);
   const zF = (x, y) => -(0.004 * s + mix(capDepth(x, y, centreY, s, CAP.front, top(x)), brimDepth(x, s, hat.brimFront), onBrim(y)));
-  const zB = (x, y) => 0.006 * s + mix(capDepth(x, y, centreY, s, CAP.back, top(x)), brimDepth(x, s, hat.brimBack), onBrim(y));
+  const zB = (x, y) => 0.006 * s + (hat.brimBack == null ? capDepth(x, y, centreY, s, CAP.back, top(x)) : mix(capDepth(x, y, centreY, s, CAP.back, top(x)), brimDepth(x, s, hat.brimBack), onBrim(y)));
   const pos = [], uv = [], groups = [[], [], []];
   const quad = (g, a, b, c, d) => { const n = pos.length / 3; for (const [p, t] of [a, b, c, d]) { pos.push(...p); uv.push(...t); } groups[g].push(n, n + 1, n + 2, n, n + 2, n + 3); };
   for (let j = 0; j < M; j++) for (let i = 0; i < N; i++) {
@@ -504,6 +510,19 @@ const BEARD = {
   sink: 0.003,       // its back, into the face
   ride: [900, 1110], // frame rows over which it hands over from the head to the chest (beardRide)
 };
+/* Every facial built as a shell on the face this way (BEARDS.md 8), by
+   trait id: the beard, and a bandana mask (a thin shell, its point hanging
+   onto the neck). reliefHead swaps these in for their flat cards. */
+const SHELLS = {
+  "facial-beard-brown": BEARD,
+  "facial-face-mask-umadbro": { ...BEARD, dark: "#0b0b0c", curl: 0.9, chin: [880, 1100], rest: 0.004,
+    thick: [0.0045, 0.006], taper: 0.01, ride: [920, 1120],
+    // a thin shell lies OFF the face (the nose and the grin's relief poked through), no depth image
+    sink: 0.002, lift: 0.008, depth: false },
+};
+/* Eye traits worn OVER a shell facial (sunglasses over a face mask): their
+   card stands this much further out than the relief's front (metres). */
+const OVER_SHELL = { "eyes-glasses-thug": 0.016 };
 /* The beard rides two joints (BEARDS.md 1): the jaw on the head, the hang
    on the chest, and between them a blend, so when the head looks down or
    welds to a rifle stock the hang stays draped on the chest instead of
@@ -621,13 +640,14 @@ function beardShape(id, plane, s, head, pivot, chest, joints) {
   return beardShapes.get(key);
 }
 async function buildBeard(id, plane, s, head, pivot, chest, joints) {
+  const BEARD = SHELLS[id];
   const { width: w, height: h } = plane.geometry.parameters;
   const top = plane.position.y + h / 2, bottom = top - h;
   const rows = 1300;               // the drawing's frame height
   const fImg = await loadImage(new URL(`${id}.png?v=${ART_V}`, DIR).href);
   // its depth (<id>.depth.png, BEARDS.md 2): how full the hair is where,
   // white the fullest; a beard without one gets the plain profile
-  const dImg = await loadImage(new URL(`${id}.depth.png?v=${ART_V}`, DIR).href).catch(() => null);
+  const dImg = BEARD.depth === false ? null : await loadImage(new URL(`${id}.depth.png?v=${ART_V}`, DIR).href).catch(() => null);
   const W = 512, H = Math.round(512 * h / w);
   const mc = document.createElement("canvas"); mc.width = W; mc.height = H;
   const mg = mc.getContext("2d", { willReadFrequently: true });
@@ -737,7 +757,7 @@ async function buildBeard(id, plane, s, head, pivot, chest, joints) {
     // chin; from the chin down it lies on whichever is further forward,
     // the jaw it grows from or the chest it drapes over
     const side = 1 - smooth01(BEARD.chin[0] - 60, BEARD.chin[1], r);
-    const jaw = H2.z(x, y) + BEARD.sink * s + side * BEARD.curl * H2.outside(x, y);
+    const jaw = H2.z(x, y) + (BEARD.sink - (BEARD.lift || 0)) * s + side * BEARD.curl * H2.outside(x, y);
     return side >= 1 ? jaw : smin(jaw, chestZ(x, y), BEARD.soft * s);
   };
   let full = (x, y) => s * (BEARD.thick[0] + (BEARD.thick[1] - BEARD.thick[0]) * smooth01(BEARD.chin[0], BEARD.chin[1] + 80, row(y)));
@@ -899,8 +919,8 @@ function reliefHead(rig) {
           g.userData.cap = cap;
           continue;
         }
-        if (id.startsWith("facial-beard")) {
-          // the beard as a mass of hair round the jaw, in place of its card
+        if (SHELLS[id]) {
+          // the beard (or a mask) as a shell round the jaw, in place of its card
           const front = grp.children.find((c) => Math.abs(c.rotation.y - Math.PI) < 1e-3);
           if (!front) continue;
           // it drapes over the torso's measured front: wait for the torso
@@ -915,7 +935,7 @@ function reliefHead(rig) {
         for (const plane of grp.children) {
           const isFront = Math.abs(plane.rotation.y - Math.PI) < 1e-3;
           moved.push([plane, plane.position.z]);
-          plane.position.z += (isFront ? -RELIEF.front : RELIEF.back) * s;
+          plane.position.z += (isFront ? -(RELIEF.front + (OVER_SHELL[id] || 0)) : RELIEF.back) * s;
         }
       }
     }

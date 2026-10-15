@@ -36,6 +36,7 @@ const EXPR_IDS = new Set(EXPRESSIONS.map((e) => e.id));
 export const BODIES = [
   { id: "", name: "Stick troll", img: "../../images/wallpaper/trollface%20transparent.png" },
   { id: "trolls-1718", token: 1718, name: "TROLLS #1718", img: "./ui/trolls-1718.png", holder: "troll_runner" },
+  { id: "trolls-1262", token: 1262, name: "TROLLS #1262", img: "./ui/trolls-1262.png", holder: "big_elva001" },
   { id: "trolls-820", token: 820, name: "TROLLS #820", img: "./ui/trolls-820.png", holder: "guccibeardd" },
 ];
 /* The signed-in account's username, lower case ("" signed out). */

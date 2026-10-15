@@ -1,0 +1,12 @@
+<!--
+  TROLLS trait: HATS / Baker Hat, from behind (mirrored onto the cap's back
+  by blocky-body.js capVolume): the full crown, its back seam, no bill.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1033" width="1000" height="1033">
+  <g transform="translate(1000 -52) scale(-1 1)" stroke="#060606" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">
+    <path fill="#2c2b24" d="M150 430 C120 380 128 300 196 252 C270 202 400 186 520 188 C660 190 790 214 856 270 C904 312 900 390 866 430 C700 452 320 456 150 430 Z"/>
+    <path fill="#3a392f" stroke="none" d="M230 262 C320 220 460 206 560 208 C660 210 760 228 812 262 C720 246 600 240 520 240 C420 240 320 248 230 262 Z"/>
+    <path fill="none" stroke="#17160f" stroke-width="5" d="M520 196 C520 280 518 360 516 440"/>
+    <path fill="none" stroke="#17160f" stroke-width="5" d="M168 404 C340 424 680 424 870 404"/>
+  </g>
+</svg>

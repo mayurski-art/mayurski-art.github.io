@@ -1,0 +1,35 @@
+<!--
+  TROLLS trait: FACIALS / Face Mask UMADBRO (a black bandana tied over the
+  face from under the eyes, knotted at the art's left with its ends out,
+  hanging in a point under the chin; "UMADBRO?" across it in white Impact).
+  Traced from TROLLS #1262. The thug glasses go on over its top edge.
+  Frame: 1000 x 1300 like the beard (traits.js TALL): the head frame's 1033
+  rows on top, the point hanging below. The block body builds it as a thin
+  shell on the face (blocky-body.js SHELLS, the beard's volume); the stick
+  body bends the point forward (traits.js).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1300" width="1000" height="1300">
+  <defs>
+    <path id="mask" d="M138 506 C330 488 690 492 888 516 C896 600 892 700 872 790 C852 880 830 940 806 990 C720 1070 650 1140 604 1186 C500 1130 380 1070 268 1016 C210 940 176 860 162 780 C146 690 136 600 138 506 Z"/>
+    <clipPath id="clip"><use href="#mask"/></clipPath>
+  </defs>
+  <!-- the knot's two ends, out behind the art's left side -->
+  <g stroke="#060606" stroke-width="10" stroke-linejoin="round" fill="#141416">
+    <path d="M140 500 C110 470 76 452 30 446 C44 470 52 490 50 508 C80 512 112 516 140 528 Z"/>
+    <path d="M142 530 C110 548 82 572 52 606 C82 606 104 600 120 592 C130 572 140 556 150 546 Z"/>
+  </g>
+  <use href="#mask" fill="#141416"/>
+  <g clip-path="url(#clip)">
+    <!-- folds: lit creases from the knot across, the shade down the art's right -->
+    <path fill="#2a2a2e" d="M150 560 C320 600 520 640 700 700 C520 660 320 620 150 590 Z"/>
+    <path fill="#2a2a2e" d="M170 860 C320 900 460 960 560 1060 C440 990 320 930 190 900 Z"/>
+    <path fill="#050506" d="M780 520 C860 640 860 820 780 1000 L900 1000 L900 520 Z"/>
+    <path fill="none" stroke="#2a2a2e" stroke-width="6" stroke-linecap="round" d="M260 1000 C380 1040 500 1100 600 1170"/>
+    <!-- the print -->
+    <text x="505" y="815" text-anchor="middle" font-family="Impact, 'Arial Narrow Bold', sans-serif" font-size="128"
+          fill="#f4f4f1" transform="rotate(9 520 790)">UMADBRO?</text>
+  </g>
+  <!-- the knot itself -->
+  <ellipse cx="146" cy="520" rx="30" ry="34" fill="#141416" stroke="#060606" stroke-width="10"/>
+  <use href="#mask" fill="none" stroke="#060606" stroke-width="11" stroke-linejoin="round"/>
+</svg>

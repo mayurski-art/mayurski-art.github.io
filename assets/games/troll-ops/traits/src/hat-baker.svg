@@ -1,0 +1,36 @@
+<!--
+  TROLLS trait: HATS / Baker Hat (a dark wool flat cap: a full, flat crown
+  puffed out past the head, a button on top, a short stiff bill over the
+  brow). Traced from TROLLS #1262.
+  Frame: the head-trait frame (traits/README.md). 1000 x 1033 units =
+  headPivot x -0.30..0.30 m, y 0.62..0 m; the face board's art sits at
+  (100, 233.3) 800 x 750. In game the bill band (y 345..420,
+  blocky-body.js HATS) stands out in front only.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1033" width="1000" height="1033">
+  <defs>
+    <!-- the wool's fleck -->
+    <filter id="wool" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.36  0 0 0 0 0.34  0 0 0 0 0.26  0 0 0 -2.2 1.25" result="fleck"/>
+      <feComposite in="fleck" in2="SourceGraphic" operator="in" result="f"/>
+      <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="f"/></feMerge>
+    </filter>
+  </defs>
+  <g transform="translate(0 -52)" stroke="#060606" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">
+    <!-- crown: wide and flat, puffed out over both sides, dipping to the brow -->
+    <path filter="url(#wool)" fill="#2c2b24" d="M150 430 C120 380 128 300 196 252 C270 202 400 186 520 188 C660 190 790 214 856 270 C904 312 900 390 866 430 C700 452 320 456 150 430 Z"/>
+    <!-- the crown's top light and its front fold -->
+    <path fill="#3a392f" stroke="none" d="M230 262 C320 220 460 206 560 208 C660 210 760 228 812 262 C720 246 600 240 520 240 C420 240 320 248 230 262 Z"/>
+    <path fill="none" stroke="#17160f" stroke-width="6" d="M206 352 C340 318 640 314 846 344"/>
+    <path fill="none" stroke="#17160f" stroke-width="5" d="M520 196 C512 250 506 300 504 330"/>
+    <!-- button -->
+    <ellipse cx="522" cy="194" rx="26" ry="12" fill="#2c2b24"/>
+  </g>
+  <g transform="translate(0 -52)" stroke="#060606" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">
+    <!-- the bill: short and stiff, out over the brow, a little to the art's right -->
+    <path fill="#25241e" d="M270 412 C420 396 680 390 860 404 C900 410 902 446 864 458 C700 482 460 486 300 466 C252 458 240 420 270 412 Z"/>
+    <path fill="#1a1915" stroke="none" d="M290 444 C460 462 690 458 852 440 C700 468 470 472 300 458 Z"/>
+    <path fill="none" stroke="#4a493e" stroke-width="4" stroke-dasharray="12 9" d="M296 424 C460 410 690 406 848 418"/>
+  </g>
+</svg>

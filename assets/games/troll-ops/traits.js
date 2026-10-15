@@ -29,17 +29,22 @@ const ART_V = globalThis.TRAITS_BUST ?? "tr1";
    (EYES/Eyes Relaxed and BACKGROUND are the OG art and nothing: "" here).
      HATS/Goatfarm Hat        hat-goatfarm       (front + back)
      HATS/Camper Hat          hat-camper         (front + back)
+     HATS/Baker Hat           hat-baker          (front + back)
      FACIALS/French Moustache facial-french-moustache
      FACIALS/Beard Brown      facial-beard-brown
+     FACIALS/Face Mask UMADBRO facial-face-mask-umadbro
      EYES/Eyes Bloodshot      eyes-bloodshot
+     EYES/Glasses Thug        eyes-glasses-thug  (worn over the facial)
      CLOTHES/Tank Runner      clothes-tank-runner (board + block template)
      CLOTHES/Farmer           clothes-farmer      (block template only)
+     CLOTHES/Sweater Black    clothes-sweater-black (block template only)
    Head traits go on in this order, each a hair in front of the last. */
 /* token -> its traits by type, as its metadata names them (local: the
    page's CSP blocks IPFS, so a token's traits are copied in here). */
 export const TOKENS = {
   1718: { hat: "Goatfarm Hat", facial: "French Moustache", eyes: "Eyes Relaxed", clothes: "Tank Runner" },
   820: { hat: "Camper Hat", facial: "Beard Brown", eyes: "Eyes Bloodshot", clothes: "Farmer" },
+  1262: { hat: "Baker Hat", facial: "Face Mask UMADBRO", eyes: "Glasses Thug", clothes: "Sweater Black" },
 };
 /* trait value -> its drawing's id; "" for a value that's the OG art. */
 export const TRAIT_ART = {
@@ -47,7 +52,11 @@ export const TRAIT_ART = {
   "French Moustache": "facial-french-moustache", "Beard Brown": "facial-beard-brown",
   "Eyes Relaxed": "", "Eyes Bloodshot": "eyes-bloodshot",
   "Tank Runner": "clothes-tank-runner", "Farmer": "clothes-farmer",
+  "Baker Hat": "hat-baker", "Face Mask UMADBRO": "facial-face-mask-umadbro",
+  "Glasses Thug": "eyes-glasses-thug", "Sweater Black": "clothes-sweater-black",
 };
+/* Eye traits that go on over the facial, not under it (shades over a mask). */
+const OVER_FACIAL = new Set(["eyes-glasses-thug"]);
 /* Token #id's drawn trait ids, worn in this order (eyes on the face, then
    the beard over the jaw, then the hat), or null when one of its traits
    isn't drawn yet: nobody shows up half dressed. */
@@ -62,10 +71,12 @@ export function tokenTraits(token) {
     if (id === undefined) return null;
     if (id) ids.push(id);
   }
+  // shades over a mask: after the facial
+  for (const id of ids.filter((x) => OVER_FACIAL.has(x))) { ids.splice(ids.indexOf(id), 1); ids.splice(ids.findIndex((x) => x.startsWith("hat-")) >>> 0, 0, id); }
   return ids;
 }
 /* Traits with a drawn back view (<id>.back.png). */
-const HAS_BACK = new Set(["hat-goatfarm", "hat-camper", "clothes-tank-runner"]);
+const HAS_BACK = new Set(["hat-goatfarm", "hat-camper", "hat-baker", "clothes-tank-runner"]);
 /* Clothes drawn as a garment board for the stick (<id>.svg with cut paths);
    the others have only a block template (blocky-body.js). */
 const HAS_BOARD = new Set(["clothes-tank-runner"]);
@@ -81,6 +92,7 @@ const HEAD = { w: 0.6, h: 0.62, y: 0.31 };
 const TALL = {
   // (the stick's flat beard; on the block body it's a volume: blocky-body.js beardVolume)
   "facial-beard-brown": { h: 1300, bend: { from: 900, z: 0.14 } },
+  "facial-face-mask-umadbro": { h: 1300, bend: { from: 950, z: 0.1 } },
 };
 const UNIT = 1 / 1667;                 // garment frame units -> metres
 const GARMENT = { w: 1000, h: 1167, spine: 500, chest: 233, depth: 0.075 };
