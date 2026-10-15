@@ -1,7 +1,7 @@
 // Room bot skill: the host's tier runs the room, veteran time banks the
 // +10% XP boost, and the lobby note says whose setting is in charge.
 
-import { isStaging } from "./match-start.js?v=mst1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-ob1-kc1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1";
+import { isStaging } from "./match-start.js?v=mst1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-ob1-kc1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1";
 import { game } from "../core/state.js?v=st1";
 
 export function roomBotSkill() {
