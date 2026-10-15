@@ -378,10 +378,11 @@ function buildUndergrinParts(api) {
   ]) slab = cut(slab, well);
   for (const [x0, z0, x1, z1] of slab) R(x0, z0, x1, z1, S0, U, UG.floor);
 
-  /* ---- rails in both bores (clear of the trains and the bore-end steps) */
-  for (const [cx, z0, z1] of [[-12, -44, -42], [-12, -16, 40.5], [12, -40.5, 16], [12, 42, 44]]) {
-    for (const rx of [cx - 0.75, cx + 0.75]) R(rx - 0.06, z0, rx + 0.06, z1, 0, 0.12, UG.grey, { pen: 6 });
-  }
+  /* ---- no rail colliders in the bores: ug-platforms draws the rails. As
+     12 cm boxes they bobbed a bot's feet between 0 and 0.12, which put the
+     0.95 platforms either side of bots.js SAME_LEVEL (0.9) from one frame to
+     the next: a bot that dropped into a bore flipped between "stairs" and
+     "same floor" every tick and never got out (the bot-stairs flake). */
 
   /* ---- one station, in the north station's coordinates (section 4.1);
      s = -1 turns it about the origin for the south station. */
