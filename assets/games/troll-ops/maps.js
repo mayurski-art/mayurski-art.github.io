@@ -860,8 +860,14 @@ export const MAPS = {
     fog: { color: 0x161b1e, density: 0.02 },
     ground: { colorA: 0x8c8e90, colorB: 0x6a6c6e, grid: 0x76828a, surface: "cast", tile: 3 },
     sun: { color: 0xbfd0e0, intensity: 0.5, pos: [10, 40, -10] },
-    hemi: { sky: 0x7c8ea8, ground: 0x2a2f36, intensity: 0.85 },
-    ambient: { color: 0xccd8e6, intensity: 0.8 },
+    // The high-bay lamps are baked into the dp-* models and the floor
+    // (stylised realism, REALISM.md); hemi and ambient stay up a bit for
+    // what isn't baked (the crates).
+    groundBake: DP_GROUND,
+    hemi: { sky: 0x7c8ea8, ground: 0x2a2f36, intensity: 0.45 },
+    ambient: { color: 0xccd8e6, intensity: 0.4 },
+    // sodium-warm lamps over cool concrete shade
+    grade: { shadows: 0x1a2430, shadowsAmt: 0.08, highlights: 0xffd8a0, highlightsAmt: 0.07, sat: 1.04, contrast: 1.07 },
     build(api) {
       const STEEL = 0x3f6fa8, BEAM = 0xd8702a, LOAD = 0xb89a6a, WRAP = 0xc8d0d8, CAT = 0x4b5158, RAIL = 0xd8b030;
       api.ghostWalls(0, 0, 56, 44, 9, 1.5, { ghost: true, color: 0x2f343a, surface: "concrete" });
@@ -919,10 +925,10 @@ export const MAPS = {
       api.ghostBox(0, -5.5, 5, 2.5, 2.6, { pen: 8 });                                           // container
       mapModel(api, "gs-container-blue", { x: 0, z: -5.5, scale: [5 / 6, 1, 1] });
       for (const [x, z, size] of [[-12, -15, 2.0], [-2, 6, 1.4], [4.2, -6, 1.4], [-20, 6, 2.2], [20, -6.5, 2.2]]) {
-        crateStack(api, { x, z, size });
+        crateStack(api, { x, z, size, groundBake: DP_GROUND });
       }
-      for (const [x, z] of [[-18, -14], [0, -14], [18, -14], [-18, 0], [0, 0], [18, 0],
-        [-18, 14], [0, 14], [18, 14]]) api.lamp(x, 8.2, z, 0xffe0b0, 28, 30);
+      // the 9 high-bay lamps (x -18/0/18, z -14/0/14, 8.2 up, 0xffe0b0 at 28)
+      // are baked into the dp-* models and the floor (build_depot.blender.py)
 
       // Every collider above is the approved blockout's, now invisible (except the
       // office glass); dp-*.glb (models/build_depot.blender.py) draw the warehouse.

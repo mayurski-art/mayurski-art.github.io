@@ -127,7 +127,15 @@
   "assets/games/troll-ops/models/dp-racks.glb",
   "assets/games/troll-ops/models/dp-catwalk.glb",
   "assets/games/troll-ops/models/dp-office.glb",
-  "assets/games/troll-ops/models/dp-bay.glb"
+  "assets/games/troll-ops/models/dp-bay.glb",
+  "assets/games/troll-ops/models/dp-shell-bake.webp",
+  "assets/games/troll-ops/models/gs-container-blue-bake.webp",
+  "assets/games/troll-ops/models/dp-office-bake.webp",
+  "assets/games/troll-ops/models/dp-racks-bake.webp",
+  "assets/games/troll-ops/models/dp-bay-bake.webp",
+  "assets/games/troll-ops/models/dp-catwalk-bake.webp",
+  "assets/games/troll-ops/models/gs-forklift-bake.webp",
+  "assets/games/troll-ops/models/depot-ground-bake.webp"
  ],
  "culdegrin": [
   "assets/games/troll-ops/models/cg-surround.glb",
