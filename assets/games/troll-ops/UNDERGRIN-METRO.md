@@ -387,15 +387,15 @@ The numbers in it are copied from sections 3 and 4. They are not colliders.
 
 | GLB | Size | Contents |
 |---|---|---|
-| `ug-shell` | 461 KB | outer walls, U slab with its wells, columns, coffered ceiling, bores, plant room and corridor walls, hall and atrium walls, arches, skylight vaults, shop walls, the 20 x 20 atrium grid |
-| `ug-platforms` | 224 KB | platform slabs, yellow zones, edge strips, MIND THE GRIN, bore floors, rails and sleepers, bore-end and nose stairs |
-| `ug-escalators` | 419 KB | both escalator pairs, the side stairs, the purple and red steel stairs, well rails |
-| `ug-trains` | 475 KB | two yellow trains with interiors, trollface ads, TROLLHALLA blinds |
-| `ug-concourse` | 1,081 KB | gates, desks, newsstand, benches, the GRINLINE board, clock, pendants, posters, roundels, hanging signs, EXIT signs, tube lights |
-| `ug-shops` | 838 KB | the twelve shop interiors, the Troll Kombat arcade, the lounges with the general's photo, the purple and red rooms |
-| `ug-plant` | 134 KB | plant room kit, corridor and bore props |
+| `ug-shell` | 449 KB | outer walls, U slab with its wells, columns, coffered ceiling, bores, plant room and corridor walls, hall and atrium walls, arches, skylight vaults, shop walls, the 20 x 20 atrium grid |
+| `ug-platforms` | 212 KB | platform slabs, yellow zones, edge strips, MIND THE GRIN, bore floors, rails and sleepers, bore-end and nose stairs |
+| `ug-escalators` | 361 KB | both escalator pairs, the side stairs, the purple and red steel stairs, well rails |
+| `ug-trains` | 412 KB | two yellow trains with interiors, trollface ads, TROLLHALLA blinds |
+| `ug-concourse` | 1,153 KB | gates, desks, newsstand, benches, the GRINLINE board, clock, pendants, posters, roundels, hanging signs, EXIT signs, tube lights |
+| `ug-shops` | 698 KB | the twelve shop interiors, the Troll Kombat arcade, the lounges with the general's photo, the purple and red rooms |
+| `ug-plant` | 173 KB | plant room kit, corridor and bore props |
 
-The new set totals 3.63 MB, within the ~6 MB budget.
+The set totals 3.46 MB, within the ~6 MB budget.
 
 **How it's painted**
 
@@ -408,17 +408,20 @@ The new set totals 3.63 MB, within the ~6 MB budget.
 
 Every GLB was rendered full-bright from the doc's views, with at least two render-and-fix rounds each. The renders are not committed.
 
-**Wiring session to-do**
+**Wired (2026-10-15).** The blockout branch merged in, and the models were rebuilt on its colliders. They were checked in game with every collider drawn over them.
 
-The assets session touched no game code.
+- `maps.js` `buildUndergrin` keeps the colliders and stair links, draws nothing itself, and places the seven models with `castShadow: false`.
+- The shop rows got their missing partitions at z ±12 and ±26. The blockout had only three a row, so the west Lounge, Apotrolle and Books were one room.
+- The four old models are deleted, and the prefetch manifest lists the new seven.
 
-1. `maps.js` `MAPS.undergrin`:
-   - colliders from sections 3 and 4
-   - spawns from section 5
-   - the section 3 lighting constants (sun 0, hemi ~0.5, ambient ~1.35, fog `0xe8e6e2 @ 0.004`, black sky)
-   - zero `api.lamp`
-   - the seven new `mapModel`s, each with `castShadow: false`
-2. Delete the four old GLBs (`ug-station`, `ug-train`, `ug-fittings`, `ug-expansion`) and anything that loads them.
-3. Map previews and loading-screen renders, then bump `SHOT_V`.
-4. Run the targeted tests (map-audit, map-walk, bot-stuck, map-fps) per CLAUDE.md. Use no gate and never a public room.
-5. Add a HANDOFF one-liner.
+**Tests:**
+- map-audit: PASS (642 colliders).
+- map-walk: 28/28.
+- bot-stuck: PASS (no stalls).
+- bot-stairs sim: flaky, with a bot sometimes slipping off the island edge into a bore. The blockout branch fails 1 run in 6; this branch failed 4 of 6, and the partitions are the only collider change it sees.
+
+**Still to do:**
+- Map previews and loading-screen shots (SHOT_V).
+- Ambience.
+- A HANDOFF line when it ships.
+- The bot lead: the stairs flake above and the blockout's stall at the west stair top.

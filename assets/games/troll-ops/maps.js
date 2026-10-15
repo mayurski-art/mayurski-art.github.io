@@ -319,47 +319,25 @@ const UG = {
   exit: 0x38d060, board: 0xff8a1e, boardPink: 0xff3fa4, purple: 0x8a3fc8, red: 0xc8302a,
 };
 
-/* Undergrin's blockout is ~1,100 boxes: one mesh each was 3,200 draws a
-   frame (shadow passes included), so the build runs against a stand-in api
-   whose box, cylinder and prop keep the colliders and stair links as usual
-   but pool the geometry, merged at the end into one mesh per material. */
+/* Undergrin's colliders are the walk-tested blockout's (~1,100 boxes); what
+   you see is the ug-*.glb set (models/build_undergrin.blender.py, the same
+   numbers). The build runs against a stand-in api whose box, cylinder and
+   stairs keep only the colliders and stair links, then drops in the models:
+   no shadows anywhere (the map has no sun). */
 function buildUndergrin(api) {
-  const pools = new Map();
-  const pool = (key, material, shadow, geo) => {
-    if (!pools.has(key)) pools.set(key, { material, shadow, geos: [] });
-    pools.get(key).geos.push(geo);
+  const solid = Object.create(api), realBox = api.box;
+  solid.box = (x, z, w, d, h, opts = {}) => api.ghostBox(x, z, w, d, h, { y: opts.y ?? 0, pen: opts.pen ?? 0.9 });
+  solid.cylinder = (x, z, r, h, opts = {}) => {
+    if (opts.solid !== false) api.ghostBox(x, z, r * 2, r * 2, h, { y: opts.y ?? 0, pen: opts.pen ?? 4 });
   };
-  const batched = Object.create(api), realBox = api.box, realCylinder = api.cylinder;
-  batched.box = (x, z, w, d, h, opts = {}) => {
-    const { color = 0x5c6b4a, y = 0, pen = 0.9, rough = 0.85, metal = 0.05, surface = null, ghost = false } = opts;
-    if (surface) return realBox(x, z, w, d, h, opts);
-    const c = api.ghostBox(x, z, w, d, h, { y, pen });
-    if (!ghost) pool(`b${color}|${rough}|${metal}`, api.mat(color, rough, metal), true, new THREE.BoxGeometry(w, h, d).translate(x, y + h / 2, z));
-    return c;
-  };
-  batched.cylinder = (x, z, r, h, opts = {}) => {
-    const { color = 0x3a4530, y = 0, solid = true, pen = 4, surface = null, ghost = false } = opts;
-    if (surface) return realCylinder(x, z, r, h, opts);
-    if (solid) api.ghostBox(x, z, r * 2, r * 2, h, { y, pen });
-    if (!ghost) pool(`c${color}`, api.mat(color, 0.7, 0.3), true, new THREE.CylinderGeometry(r, r, h, 12).translate(x, y + h / 2, z));
-  };
-  // api.stairs builds its treads with api.box: swapped for the pooling one meanwhile
-  batched.stairs = (...args) => {
-    api.box = batched.box;
+  // api.stairs builds its treads with api.box: swapped for the collider-only one meanwhile
+  solid.stairs = (...args) => {
+    api.box = solid.box;
     try { return api.stairs(...args); } finally { api.box = realBox; }
   };
-  batched.prop = (mesh) => {
-    mesh.updateMatrix();
-    const m = mesh.material;
-    pool(`p${m.type}${m.color.getHex()}${mesh.castShadow}`, m, mesh.castShadow, mesh.geometry.clone().applyMatrix4(mesh.matrix));
-    return mesh;
-  };
-  buildUndergrinParts(batched);
-  for (const { material, shadow, geos } of pools.values()) {
-    const mesh = new THREE.Mesh(mergeGeometries(geos, false), material);
-    mesh.castShadow = shadow;
-    mesh.receiveShadow = true;
-    api.prop(mesh);
+  buildUndergrinParts(solid);
+  for (const part of ["shell", "platforms", "escalators", "trains", "concourse", "shops", "plant"]) {
+    mapModel(api, `ug-${part}`, { x: 0, z: 0, castShadow: false });
   }
 }
 
@@ -380,13 +358,6 @@ function buildUndergrinParts(api) {
     if (hx1 < x1) out.push([hx1, za, x1, zb]);
     return out;
   });
-  // Paint and fittings with no collider: bands, tube lights, signs, posters.
-  const paint = (x, y, z, w, h, d, color, lit = false) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), lit ? new THREE.MeshBasicMaterial({ color }) : api.mat(color, 0.9, 0));
-    m.position.set(x, y, z);
-    m.castShadow = false;
-    return api.prop(m);
-  };
 
   /* ---- the box: outer walls 1.5 m outside the bounds; brick behind the side platforms */
   for (const s of [-1, 1]) {
@@ -419,7 +390,6 @@ function buildUndergrinParts(api) {
     const D = (dir) => (s > 0 ? dir : (dir[0] === "+" ? "-" : "+") + dir[1]);
     const B = (x0, z0, x1, z1, y0, y1, color, opts) => R(X(x0), Z(z0), X(x1), Z(z1), y0, y1, color, opts);
     const ST = (x, z, w, n, rise, run, dir, opts) => api.stairs(X(x), Z(z), w, n, rise, run, D(dir), opts);
-    const PT = (x, y, z, w, h, d, color, lit) => paint(X(x), y, Z(z), w, h, d, color, lit);
 
     // platforms at P: west side, island, east side; the bores between stay at track level
     B(-22, -44, -14.25, -14, 0, P, UG.platform);
@@ -456,11 +426,9 @@ function buildUndergrinParts(api) {
         B(tx0 + 0.1, sz - 1, tx0 + 0.6, sz + 1, P, P + 0.5, UG.seat, { pen: 1.5 });
         B(tx1 - 0.6, sz - 1, tx1 - 0.1, sz + 1, P, P + 0.5, UG.seat, { pen: 1.5 });
       }
-      PT(-12, P + 1.5, cz, 3.42, 0.6, c1 - c0 - 0.2, UG.trainBand);   // the window band
     }
     B(-12.95, -29.5, -12.85, -28.5, P, P + 2.3, UG.train, { pen: 3 });   // gangway walls
     B(-11.15, -29.5, -11.05, -28.5, P, P + 2.3, UG.train, { pen: 3 });
-    PT(-12, P + 2.0, -42.06, 2.4, 0.5, 0.1, UG.board, true);              // destination blind: TROLLHALLA
 
     // twin escalators up to the hall: feet at z -27, 17 x 0.3 / 0.5 heading south,
     // lanes centred x +-1.9; stepped balustrades 1.2 m over the treads, 0.3
@@ -496,13 +464,8 @@ function buildUndergrinParts(api) {
     B(-1.2, -32.5, 1.2, -31.5, P, P + 0.5, UG.bench, { pen: 1.5 });
     for (const x of [-6, 6]) B(x - 0.3, -29, x + 0.3, -27, P, P + 0.5, UG.bench, { pen: 1.5 });
     // tube lights under the slab, roundels and posters on the brick (emissive paint later)
-    for (let z = -42; z <= -16; z += 4) for (const x of [-18, -5, 5, 18]) PT(x, S0 - 0.08, z, 0.12, 0.08, 1.6, 0xffffff, true);
     for (const sx of [-1, 1]) {
-      PT(sx * 21.96, P + 2.2, -30, 0.06, 1.2, 1.2, UG.stripe);
-      PT(sx * 21.96, P + 2.2, -30, 0.08, 0.3, 1.5, UG.red);
-      for (const z of [-38, -17]) PT(sx * 21.96, P + 2.0, z, 0.06, 1.4, 1.0, UG.wall);
     }
-    PT(0, P + 0.05, -13.8, 19.5, 0.02, 0.4, UG.nosing);               // MIND THE GRIN, the nose edge
 
     /* ---- track level, this half of the central section (4.2) */
     B(-9.75, -14, -2, -8, 0, S0, UG.wall);                                // solid beside the walkway
@@ -535,7 +498,6 @@ function buildUndergrinParts(api) {
     B(-21.95, -11.8, -21.45, -10.2, 0, 2.0, UG.grey, { pen: 3 });
     B(-17, -0.5, -16, 0, 0, 1.8, UG.grey, { pen: 3 });
     api.cylinder(X(-16.5), Z(-11.5), 0.25, 0.4, { color: UG.red, pen: 1 });
-    for (const z of [-12, -4]) PT(-18.9, 3.2, z, 2.0, 0.12, 0.12, 0xffffff, true);   // corridor tubes
 
     /* ---- concourse, this half (4.3): the end block, the hall, its arch, the shop row */
     B(-17.5, -44, 22, -40, U, 12.4, UG.wall);                             // the hall's end wall, 4 m thick (the side stair's well is beside it)
@@ -543,16 +505,11 @@ function buildUndergrinParts(api) {
     for (const m of [1, -1]) {                                            // vault haunches, 9.6 up to the crown
       B(m * -16, -40, m * -14.5, -16, 9.6, 12, UG.wall);
       B(m * -14.5, -40, m * -13, -16, 10.8, 12, UG.wall);
-      PT(m * -15.9, U + 2.6, -28, 0.08, 0.8, 24, UG.band);                // the salmon band and the blue stripe
-      PT(m * -15.9, U + 3.15, -28, 0.08, 0.14, 24, UG.stripe);
-      for (const z of [-37, -22]) PT(m * -15.9, U + 1.7, z, 0.06, 1.3, 0.9, UG.wall);   // posters
     }
     B(-16, -16, -7, -15.5, U, 15, UG.wall);                               // arch piers, span 14
     B(7, -16, 16, -15.5, U, 15, UG.wall);
     B(-7, -16, 7, -15.5, 12, 15, UG.wall);                                // the arch head (round in the model)
     B(-16.6, -16, -16, 16, 10, 15, UG.wall);                              // atrium wall above the shop row
-    for (let z = -38; z <= -18; z += 5) PT(0, 11.9, z, 0.12, 0.1, 2.0, 0xffffff, true);   // hall tubes
-    PT(0, 10.5, -15.75, 1.6, 0.5, 0.1, UG.exit, true);                    // EXIT over the arch
     // hall furniture: benches, a photo booth and ticket machines by the escalator top
     for (const m of [1, -1]) B(m * -11.2, -30.3, m * -8.8, -29.7, U, U + 0.5, UG.bench, { pen: 1.5 });
     B(-6.75, -20.75, -5.25, -19.25, U, U + 2.3, UG.dark, { pen: 3 });
@@ -568,12 +525,12 @@ function buildUndergrinParts(api) {
     for (const dz of [-33, -19, -8, 8, 19, 33]) {
       B(-16.3, from, -16, dz - 0.9, U, 9.6, UG.wall);
       B(-16.3, dz - 0.9, -16, dz + 0.9, U + 2.4, 9.6, UG.wall);
-      PT(-16.32, U + 2.6, dz, 0.06, 0.4, 1.2, UG.exit, true);             // a lit sign over every doorway
       from = dz + 0.9;
     }
     B(-16.3, from, -16, 40, U, 9.6, UG.wall);
-    // partitions at z -26, -12, 0 (the rest come with the other half), door at x -19
-    for (const z of [-26, -12, 0]) {
+    // partitions at z -26, -12, 0, 12, 26 (this row; the other half draws the
+    // other row's), door at x -19
+    for (const z of [-26, -12, 0, 12, 26]) {
       B(-22, z - 0.15, -19.9, z + 0.15, U, 9.6, UG.wall);
       B(-18.1, z - 0.15, -16.3, z + 0.15, U, 9.6, UG.wall);
       B(-19.9, z - 0.15, -18.1, z + 0.15, U + 2.4, 9.6, UG.wall);
@@ -585,17 +542,14 @@ function buildUndergrinParts(api) {
     B(-21, -34, -17, -27, U, U + 0.02, UG.trainBand, { pen: 1 });          // the neon carpet
     B(-21.5, -22, -20.7, -16, U, U + 1.1, UG.wall, { pen: 2 });            // Grinbiss counter
     for (const z of [-24, -14]) B(-17.5, z - 0.5, -16.5, z + 0.5, U, U + 0.8, UG.escSide, { pen: 1.5 });   // tables
-    PT(-21.96, U + 2.2, -19, 0.06, 0.8, 2.4, UG.trainBand);                // menu board
     B(-18, -10, -17.9, -4, U, U + 1.0, UG.purple, { pen: 0.3 });          // purple room: rails round the stair well
     B(-21.1, -10, -21, -4, U, U + 1.0, UG.purple, { pen: 0.3 });
     B(-21, -10.1, -18, -10, U, U + 1.0, UG.purple, { pen: 0.3 });
     B(-22, -12, -21.9, 0, U, U + 0.3, UG.purple, { pen: 1 });             // purple trim
-    PT(-18.5, U + 2.6, -6, 1.2, 0.4, 0.1, UG.exit, true);                  // EXIT down to the corridor
     // west row, south half: Lounge 0..12, Apotrolle 12..26, Books 26..40
     for (const z of [2, 8]) B(-21.9, z, -21, z + 2.2, U, U + 0.9, UG.red, { pen: 2 });          // red sofas
     B(-17.3, 5.3, -16.3, 6.7, U, U + 1.4, UG.brick, { pen: 3 });                                // fireplace
     B(-21, 4.5, -17.5, 7.5, U, U + 0.02, UG.trainBand, { pen: 1 });                             // the cow-print rug
-    PT(-21.96, U + 2.4, 6, 0.06, 1.2, 0.9, UG.escSide);                                          // the general's portrait
     B(-21.5, 15, -20.7, 21, U, U + 1.1, UG.wall, { pen: 2 });                                   // Apotrolle counter
     for (const [z0, z1] of [[12.5, 17.5], [22.5, 25.5]]) B(-17, z0, -16.3, z1, U, U + 2.2, UG.grey, { pen: 3 });   // shelves of bottles
     B(-21.9, 28, -21.4, 38, U, U + 2.2, UG.escSide, { pen: 3 });                                // bookshelves
@@ -608,17 +562,8 @@ function buildUndergrinParts(api) {
   /* ---- what the two halves share: the atrium's middle and its ceiling */
   R(-9.75, -8, 9.75, 8, 0, 0.02, UG.floor, { pen: 1 });                   // plant room floor
   R(-16.6, -16, 16.6, 16, 15, 15.4, UG.glass);                            // atrium ceiling, the skylight grid
-  for (const x of [-12, -6, 0, 6, 12]) paint(x, 15, 0, 0.3, 0.2, 32, UG.mullion);
-  for (const z of [-12, -6, 0, 6, 12]) paint(0, 15, z, 33, 0.2, 0.3, UG.mullion);
   R(-10.5, -1, -7.5, 1, U, U + 1.1, UG.grey, { pen: 2 });                 // info desk
   R(7.5, -1.2, 10.5, 1.2, U, U + 2.4, UG.brick, { pen: 3 });              // newsstand
-  paint(0, 9.5, -12, 8, 1.2, 0.3, UG.trainBand);                          // GRINLINE departure board
-  paint(0, 9.5, -11.82, 7.6, 0.8, 0.05, UG.board, true);
-  paint(0, 13.0, 15.45, 1.2, 1.2, 0.1, 0xffffff, true);                   // the clock on the south arch
-  for (const z of [-10, -5, 0, 5, 10]) paint(0, 11, z, 0.5, 0.3, 0.5, 0xffffff, true);   // pendants
-  for (const s of [-1, 1]) for (let z = -38; z <= 38; z += 6) paint(s * 19, 9.5, z, 1.6, 0.1, 0.12, 0xffffff, true);   // shop-row tubes
-  for (const s of [-1, 1]) for (const z of [-6, 0, 6]) paint(0, S0 - 0.08, s * 11, 1.6, 0.08, 0.12, 0xffffff, true);   // walkway + plant tubes
-  for (const x of [-6, 6]) paint(x, S0 - 0.08, 0, 1.6, 0.08, 0.12, 0xffffff, true);
 }
 
 
@@ -801,8 +746,8 @@ export const MAPS = {
     // Rebuilt 2026-10-15 as a Metro (2025) station (UNDERGRIN-METRO.md,
     // buildUndergrin above): track, platform and concourse levels, two
     // stations turned 180 degrees about the origin, the plant room under
-    // the atrium's light well. Blockout: coloured boxes until the ug-*.glb
-    // set is rebuilt from the same numbers.
+    // the atrium's light well. Colliders from the blockout, drawn by the
+    // seven ug-*.glb (models/build_undergrin.blender.py).
     bounds: { minX: -22, maxX: 22, minZ: -44, maxZ: 44 },
     playerSpawn: { x: 0, z: 37 },
     // The modded full-bright look (UNDERGRIN-METRO.md section 3): no sun, so

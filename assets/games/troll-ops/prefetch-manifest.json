@@ -93,14 +93,13 @@
   "assets/games/troll-ops/models/gs-van-bake.webp"
  ],
  "undergrin": [
-  "assets/games/troll-ops/models/ug-station.glb",
+  "assets/games/troll-ops/models/ug-shell.glb",
   "assets/games/troll-ops/models/ug-platforms.glb",
-  "assets/games/troll-ops/models/ug-train.glb",
-  "assets/games/troll-ops/models/ug-fittings.glb",
-  "assets/games/troll-ops/models/ug-expansion.glb",
-  "assets/games/troll-ops/textures/tile_color.jpg",
-  "assets/games/troll-ops/textures/tile_normal.jpg",
-  "assets/games/troll-ops/textures/tile_rough.jpg"
+  "assets/games/troll-ops/models/ug-escalators.glb",
+  "assets/games/troll-ops/models/ug-trains.glb",
+  "assets/games/troll-ops/models/ug-concourse.glb",
+  "assets/games/troll-ops/models/ug-shops.glb",
+  "assets/games/troll-ops/models/ug-plant.glb"
  ],
  "dustbowl": [
   "assets/games/troll-ops/textures/sand_color.jpg",
