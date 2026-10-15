@@ -9,6 +9,8 @@
 //   - its hit capsules follow its shorter limbs; no page errors.
 //
 // Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-blocky-ingame.mjs
+//   TOKEN=820 for another TROLLS body (its holder from HOLDERS below); it
+//   also checks a signed-in account that isn't the holder can't wear it.
 // Writes .claude/blocky-shots/ingame-*.png.
 
 import http from "node:http";
@@ -40,6 +42,10 @@ const check = (name, ok, detail = "") => {
   if (!ok) failures++;
 };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+// each body's holder (cosmetics.js BODIES), and someone who isn't
+const HOLDERS = { 1718: "troll_runner", 820: "guccibeardd" };
+const TOKEN = +(process.env.TOKEN || 1718), HOLDER = HOLDERS[TOKEN], BODY = `trolls-${TOKEN}`;
+const OTHER = Object.values(HOLDERS).find((h) => h !== HOLDER);
 
 const browser = await chromium.launch({ args: [`--use-angle=${process.env.ANGLE || "d3d11"}`, "--enable-unsafe-swiftshader"] });
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
@@ -48,25 +54,33 @@ const page = await ctx.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 120000 });
-await page.waitForFunction(() => !!window.__trollOps && !!document.querySelector('#to-cos-body [data-body="trolls-1718"]'), null, { timeout: 90000 });
+await page.waitForFunction((sel) => !!window.__trollOps && !!document.querySelector(sel), `#to-cos-body [data-body="${BODY}"]`, { timeout: 90000 });
 
 // --- the lock
-const card = '#to-cos-body [data-body="trolls-1718"]';
+const card = `#to-cos-body [data-body="${BODY}"]`;
 const lockedOut = await page.$eval(card, (b) => b.getAttribute("aria-disabled"));
-check("signed out: TROLLS #1718 is locked", lockedOut === "true");
+check(`signed out: TROLLS #${TOKEN} is locked`, lockedOut === "true");
 await page.$eval(card, (b) => b.click());
 await wait(300);
 check("signed out: picking it does nothing", await page.$eval(card, (b) => b.getAttribute("aria-checked")) === "false");
-await page.evaluate(() => {
+const signIn = (name) => page.evaluate((name) => {
   const A = (window.TrollrunnerAccounts ||= {});
-  A.getCachedProfile = () => ({ username: "troll_runner" });
+  A.getCachedProfile = () => ({ username: name });
   window.dispatchEvent(new Event("trollrunner:auth-changed"));
-});
+}, name);
+// only its holder: another signed-in account (even the other NFT's holder) can't
+await signIn(OTHER);
 await wait(300);
-check("troll_runner: unlocked", await page.$eval(card, (b) => b.getAttribute("aria-disabled")) === "false");
+check(`${OTHER} (not the holder): still locked`, await page.$eval(card, (b) => b.getAttribute("aria-disabled")) === "true");
 await page.$eval(card, (b) => b.click());
 await wait(300);
-check("troll_runner: picked and saved", await page.evaluate(() => JSON.parse(localStorage.getItem("trollops:cosmetics") || "{}").body) === "trolls-1718");
+check(`${OTHER}: picking it does nothing`, await page.evaluate((body) => JSON.parse(localStorage.getItem("trollops:cosmetics") || "{}").body !== body, BODY));
+await signIn(HOLDER);
+await wait(300);
+check(`${HOLDER}: unlocked`, await page.$eval(card, (b) => b.getAttribute("aria-disabled")) === "false");
+await page.$eval(card, (b) => b.click());
+await wait(300);
+check(`${HOLDER}: picked and saved`, await page.evaluate(() => JSON.parse(localStorage.getItem("trollops:cosmetics") || "{}").body) === BODY);
 
 // --- a match
 await page.evaluate(async () => {
@@ -81,12 +95,13 @@ await page.waitForFunction(() => !!window.__trollOps.localRig.blocky, null, { ti
 const mine = await page.evaluate(async () => {
   const T = window.__trollOps, r = T.localRig;
   await r.blocky?.ready;
-  return { on: !!r.blocky, legs: r.legScale, build: r.build, stickHidden: !r.parts.body.visible };
+  return { on: !!r.blocky, token: r.blocky?.token, legs: r.legScale, build: r.build, stickHidden: !r.parts.body.visible };
 });
-check("your own body wears it in the match", mine.on && mine.legs === 0.67 && mine.build === 0.25 && mine.stickHidden, JSON.stringify(mine));
+check("your own body wears it in the match", mine.on && mine.token === TOKEN && mine.legs === 0.67 && mine.build === 0.25 && mine.stickHidden, JSON.stringify(mine));
 
-// --- remote players: only with the owner flag. Bots carry none, so the
-// flags are set on their peers the way net.js fills them in from `bk` / `ow`.
+// --- remote players: a body (net.js `bk`, the token) shows only on its
+// holder's name (remote-players.js mayWear). Bots carry none, so it's set
+// on their peers the way net.js fills it in.
 await page.evaluate(() => {
   const T = window.__trollOps;
   const bs = T.bots.bots.filter((b) => b.alive).slice(0, 3);
@@ -94,23 +109,26 @@ await page.evaluate(() => {
   bs.forEach((b) => { b.hero = null; b.body = null; });
 });
 await wait(1500);
-const remoteState = await page.evaluate(async () => {
+const remoteState = await page.evaluate(async ([token, holder, other]) => {
   const T = window.__trollOps;
   const rps = [...T.remotes.byId.values()].slice(0, 2);
-  // one claims the body without the owner flag, one with it
+  // one claims the body under another name, one under the holder's
   const [a, b] = rps;
-  const set = () => { a.peer.look = 1; a.peer.owner = false; b.peer.look = 1; b.peer.owner = true; };
+  // (a bot's publish puts its own name on its peer every tick: name the bots)
+  const bot = (rp) => T.bots.bots.find((x) => x.id === rp.peer.id);
+  bot(a).name = other; bot(b).name = holder;
+  const set = () => { a.peer.look = token; a.peer.name = other; b.peer.look = token; b.peer.name = holder; };
   set();
   const iv = setInterval(set, 16);
   await new Promise((r) => setTimeout(r, 1200));
   await b.rig.blocky?.ready;
   clearInterval(iv);
   window.__bkRemote = b.peer.id;
-  window.__bkKeep = setInterval(() => { b.peer.look = 1; b.peer.owner = true; }, 16);
-  return { notOwner: !!a.rig.blocky, owner: !!b.rig.blocky, id: b.peer.id };
-});
-check("a remote without the owner flag stays a stick", !remoteState.notOwner);
-check("the owner's remote wears it", remoteState.owner);
+  window.__bkKeep = setInterval(() => { b.peer.look = token; b.peer.name = holder; }, 16);
+  return { notOwner: !!a.rig.blocky, owner: b.rig.blocky?.token, id: b.peer.id };
+}, [TOKEN, HOLDER, OTHER]);
+check("a remote claiming it under another name stays a stick", !remoteState.notOwner);
+check("the holder's remote wears it", remoteState.owner === TOKEN, JSON.stringify(remoteState));
 
 // --- running and shooting, side on: two bots run parallel lines with
 // their guns up, the owner's in the body and a stick beside it (the same
@@ -200,7 +218,7 @@ const shoot = async (name, side) => {
     T.composer.render(0.016);
     done(T.renderer.domElement.toDataURL("image/png"));
   })), { id: rid, side });
-  fs.writeFileSync(path.join(OUT, `ingame-${name}.png`), Buffer.from(url.split(",")[1], "base64"));
+  fs.writeFileSync(path.join(OUT, `ingame-${TOKEN}-${name}.png`), Buffer.from(url.split(",")[1], "base64"));
 };
 for (let i = 0; i < 4; i++) { await shoot(`side-${i}`, "side"); await wait(110); }
 await shoot("front", "front");

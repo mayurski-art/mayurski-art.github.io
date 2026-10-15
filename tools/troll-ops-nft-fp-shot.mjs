@@ -26,12 +26,14 @@ await ctx.route(/supabase/, (r) => r.abort());
 const page = await ctx.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
-const body = process.env.BODY === "0" ? "" : "trolls-1718";
-await page.addInitScript((body) => {
+// BODY=trolls-820 HOLDER=guccibeardd: another token, worn by its holder
+const body = process.env.BODY === "0" ? "" : process.env.BODY || "trolls-1718";
+const holder = process.env.HOLDER || "troll_runner";
+await page.addInitScript(([body, holder]) => {
   localStorage.setItem("trollops:cosmetics", JSON.stringify({ face: "grin:og::rolex-gold", body }));
-  const profile = { username: "troll_runner" };
+  const profile = { username: holder };
   Object.defineProperty(window, "TrollrunnerAccounts", { configurable: true, get: () => window.__acct, set: (v) => { window.__acct = v; if (v) v.getCachedProfile = () => profile; } });
-}, body);
+}, [body, holder]);
 await page.goto(`http://localhost:${server.address().port}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded" });
 await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 90000 });
 await page.evaluate(async () => {
@@ -40,14 +42,19 @@ await page.evaluate(async () => {
   T.setMode("range");
   await T.startGame();
 });
-await page.waitForFunction(() => window.__trollOps.state() === "playing" && !window.__trollOps.loadState().open, null, { timeout: 120000 });
+await page.waitForFunction(() => window.__trollOps.state() === "playing" && !window.__trollOps.loadState().open, null, { timeout: 120000 }).catch(async (e) => {
+  console.log("never started:", await page.evaluate(() => ({ state: window.__trollOps.state(), load: window.__trollOps.loadState() })), errors);
+  throw e;
+});
 await page.waitForTimeout(2500);
-const tag = body ? "nft" : "stick";
+const tag = body ? body.replace("trolls-", "nft") : "stick";
 const look = () => page.evaluate(() => {
   const T = window.__trollOps;
   const rods = T.pfArms.userData.rods;
   const blocks = T.pfArms.children.filter((c) => c.isMesh && c.geometry.type === "BoxGeometry");
-  return { rodsDraw: rods[0].material.visible, rodsOn: rods.map((r) => r.visible), blocksOn: blocks.filter((b) => b.visible).length };
+  // long sleeves (the farmer's plaid, a map) on the forearms
+  const sleeves = blocks.filter((b) => b.visible && b.material.map).length;
+  return { rodsDraw: rods[0].material.visible, rodsOn: rods.map((r) => r.visible), blocksOn: blocks.filter((b) => b.visible).length, sleeves };
 });
 let fails = 0;
 const check = (ok, what, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${what}${extra ? "  " + extra : ""}`); if (!ok) fails++; };
@@ -66,6 +73,12 @@ await page.evaluate(() => window.__trollOps.setAds(false));
 await page.evaluate(() => window.__trollOps.switchWeapon("secondary"));
 await page.waitForTimeout(900);
 await page.screenshot({ path: path.join(SHOTS, `fp-${tag}-pistol.png`) });
+// aimed (user, 2026-10-15: "always make sure that the hand is not covering
+// the aim sight"): look at fp-*-ads.png and fp-*-pistol-ads.png
+await page.evaluate(() => window.__trollOps.setAds(true));
+await page.waitForTimeout(700);
+await page.screenshot({ path: path.join(SHOTS, `fp-${tag}-pistol-ads.png`) });
+await page.evaluate(() => window.__trollOps.setAds(false));
 // Emotes (user, 2026-10-13: the NFT body's emotes showed the stick
 // figure's hands): the emote arms get block arms too, no stick hands.
 await page.evaluate(() => window.__trollOps.switchWeapon("primary"));

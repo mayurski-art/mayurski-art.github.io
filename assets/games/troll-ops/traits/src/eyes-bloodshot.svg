@@ -1,0 +1,25 @@
+<!--
+  TROLLS trait: EYES / Eyes Bloodshot. The open eye's white gone pink with
+  red veins (the OG art's two enclosed whites of that eye, traced from the
+  face art and filled; the squint stays as drawn). Front only, on the face.
+  Frame: the head-trait frame (traits/README.md).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1033" width="1000" height="1033">
+  <defs>
+    <path id="white" d="M514 476 L516 474 L521 471 L524 470 L527 468 L531 467 L533 465 L537 463 L541 462 L546 460 L553 458 L561 455 L563 455 L564 464 L566 471 L567 475 L567 478 L553 479 L547 481 L543 482 L540 483 L537 485 L534 487 L530 489 L527 491 L523 493 L519 494 L513 495 L506 494 L506 491 L508 483 L510 480 L513 477 Z M629 473 L630 470 L634 470 L638 471 L642 472 L645 473 L648 475 L650 477 L650 481 L649 481 L643 478 L639 477 L634 477 L631 476 L630 475 Z"/>
+    <clipPath id="clip"><use href="#white"/></clipPath>
+  </defs>
+  <!-- pink, and a deeper flush at the corners -->
+  <use href="#white" fill="#f2b0bf"/>
+  <g clip-path="url(#clip)" fill="none" stroke-linecap="round">
+    <path fill="#e98aa0" stroke="none" d="M506 480 C512 472 520 468 532 466 L560 456 L556 470 C540 478 524 486 510 496 Z"/>
+    <!-- veins from the corners in -->
+    <g stroke="#c4303c" stroke-width="2.2">
+      <path d="M507 490 C516 486 522 482 530 480"/>
+      <path d="M509 482 C518 480 526 476 536 472"/>
+      <path d="M564 462 C556 466 550 468 544 472"/>
+      <path d="M565 472 C556 474 548 476 540 478"/>
+      <path d="M630 474 C636 474 642 475 648 478"/>
+    </g>
+  </g>
+</svg>

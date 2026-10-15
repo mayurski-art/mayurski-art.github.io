@@ -1,0 +1,105 @@
+<!--
+  TROLLS trait: CLOTHES / Farmer on the BLOCK body (blocky-body.js): a white
+  shirt with a fine red check, buttoned to a pointed collar, under blue
+  denim overalls (a bib with a pocket, brass buckles, straps over the
+  shoulders crossing at the back), traced from TROLLS #820. The sleeves and
+  the overall legs are Blender pieces (models/build_blocky_farmer.blender.py),
+  the check there the same size as here (60 mm).
+  Same template as clothes-tank-runner.block.svg, 1 unit = 1 mm:
+    front  x    0..400  (seen from the front: the troll's right on the left)
+    back   x  400..800  (seen from behind: the troll's left on the left)
+    right  x  800..1000 (the troll's right side: its back on the left)
+    left   x 1000..1200 (its left side: its front on the left)
+    top    x    0..400, y 560..760: the shoulders from above, front edge first
+  y 0 is the torso's top, y 520 the hips; the overalls' waist runs from
+  y 400 down past the hips into the legs.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" width="1200" height="760">
+  <defs>
+    <!-- the shirt's check: a red line every 60 mm, a fainter one between -->
+    <pattern id="check" width="60" height="60" patternUnits="userSpaceOnUse">
+      <rect width="60" height="60" fill="#f6f3ee"/>
+      <rect x="0" y="0" width="60" height="3" fill="#e39a9a"/>
+      <rect x="0" y="0" width="3" height="60" fill="#e39a9a"/>
+      <rect x="0" y="30" width="60" height="1.5" fill="#f1c6c6"/>
+      <rect x="30" y="0" width="1.5" height="60" fill="#f1c6c6"/>
+    </pattern>
+    <g id="stitch-style" fill="none" stroke="#d9a441" stroke-width="3" stroke-dasharray="9 7"/>
+  </defs>
+  <!-- the shirt everywhere -->
+  <rect width="1200" height="760" fill="url(#check)"/>
+  <g stroke-linejoin="round" stroke-linecap="round">
+
+    <!-- FRONT: placket and buttons, the collar's points -->
+    <path fill="none" stroke="#b9b2a6" stroke-width="4" d="M200 40 L200 220"/>
+    <g fill="#fbfaf6" stroke="#0a0a0a" stroke-width="3">
+      <circle cx="210" cy="80" r="7"/><circle cx="210" cy="140" r="7"/>
+    </g>
+    <path fill="#fbfaf6" stroke="#0a0a0a" stroke-width="6" d="M124 0 L196 0 L200 30 L168 72 Z"/>
+    <path fill="#fbfaf6" stroke="#0a0a0a" stroke-width="6" d="M276 0 L204 0 L200 30 L232 72 Z"/>
+    <!-- the overalls: straps down from the shoulders to the bib -->
+    <path fill="#3f6fa6" stroke="#0a0a0a" stroke-width="6" d="M54 0 L94 0 L132 210 L100 214 Z"/>
+    <path fill="#3f6fa6" stroke="#0a0a0a" stroke-width="6" d="M346 0 L306 0 L268 210 L300 214 Z"/>
+    <!-- the bib, the waist below it all the way round -->
+    <path fill="#3f6fa6" stroke="#0a0a0a" stroke-width="7" d="M100 200 L300 200 L306 400 L400 400 L400 560 L0 560 L0 400 L94 400 Z"/>
+    <!-- a shade down each side of the bib -->
+    <path fill="#345f92" d="M104 214 L120 214 L124 396 L100 396 Z"/>
+    <path fill="#345f92" d="M296 214 L280 214 L276 396 L300 396 Z"/>
+    <!-- the bib pocket, stitching -->
+    <path fill="#4a7cb4" stroke="#0a0a0a" stroke-width="5" d="M144 240 L256 240 L252 320 Q200 334 148 320 Z"/>
+    <g fill="none" stroke="#d9a441" stroke-width="3" stroke-dasharray="9 7">
+      <path d="M152 252 L248 252"/>
+      <path d="M112 212 L118 392 L0 392"/>
+      <path d="M288 212 L282 392 L400 392"/>
+      <path d="M200 400 L200 540"/>
+    </g>
+    <!-- the brass buckles where the straps meet the bib -->
+    <g fill="#d9b44a" stroke="#0a0a0a" stroke-width="4">
+      <rect x="98" y="196" width="40" height="30" rx="5"/>
+      <rect x="262" y="196" width="40" height="30" rx="5"/>
+    </g>
+    <g fill="#8a6a1c" stroke="none">
+      <rect x="110" y="205" width="16" height="12" rx="3"/>
+      <rect x="274" y="205" width="16" height="12" rx="3"/>
+    </g>
+    <!-- side buttons at the waist -->
+    <g fill="#d9b44a" stroke="#0a0a0a" stroke-width="3">
+      <circle cx="24" cy="430" r="9"/><circle cx="376" cy="430" r="9"/>
+    </g>
+
+    <!-- BACK: the straps cross in an X down to the waist; a yoke seam -->
+    <path fill="none" stroke="#b9b2a6" stroke-width="4" d="M410 60 C500 74 700 74 790 60"/>
+    <path fill="#3f6fa6" stroke="#0a0a0a" stroke-width="6" d="M454 0 L494 0 L650 400 L606 400 Z"/>
+    <path fill="#3f6fa6" stroke="#0a0a0a" stroke-width="6" d="M746 0 L706 0 L550 400 L594 400 Z"/>
+    <path fill="#4a7cb4" stroke="#0a0a0a" stroke-width="5" d="M576 302 L624 302 L630 352 L570 352 Z"/>
+    <path fill="#3f6fa6" stroke="#0a0a0a" stroke-width="7" d="M400 400 L800 400 L800 560 L400 560 Z"/>
+    <g fill="none" stroke="#d9a441" stroke-width="3" stroke-dasharray="9 7">
+      <path d="M400 412 L800 412"/>
+      <path d="M600 420 L600 540"/>
+    </g>
+    <!-- back pockets peeking above the hips -->
+    <path fill="#345f92" stroke="#0a0a0a" stroke-width="5" d="M450 450 L560 450 L556 520 L454 520 Z"/>
+    <path fill="#345f92" stroke="#0a0a0a" stroke-width="5" d="M640 450 L750 450 L746 520 L644 520 Z"/>
+
+    <!-- SIDES: the shirt, the denim waist, a side seam -->
+    <path fill="#3f6fa6" stroke="#0a0a0a" stroke-width="7" d="M800 400 L1200 400 L1200 560 L800 560 Z"/>
+    <path fill="none" stroke="#b9b2a6" stroke-width="4" d="M900 40 L900 400 M1100 40 L1100 400"/>
+    <g fill="none" stroke="#d9a441" stroke-width="3" stroke-dasharray="9 7">
+      <path d="M800 412 L1200 412"/>
+      <path d="M900 420 L900 540 M1100 420 L1100 540"/>
+    </g>
+  </g>
+  <!-- TOP: the shirt over the shoulders, the straps running from the front
+       (x 54..94, 306..346 at the top edge) over to the back -->
+  <g fill="#3f6fa6" stroke="#0a0a0a" stroke-width="6">
+    <path d="M54 556 L94 556 L98 764 L50 764 Z"/>
+    <path d="M306 556 L346 556 L350 764 L302 764 Z"/>
+  </g>
+  <!-- each face's ink edge -->
+  <g fill="none" stroke="#0a0a0a" stroke-width="10">
+    <rect x="0" y="0" width="400" height="560"/>
+    <rect x="400" y="0" width="400" height="560"/>
+    <rect x="800" y="0" width="200" height="560"/>
+    <rect x="1000" y="0" width="200" height="560"/>
+  </g>
+</svg>

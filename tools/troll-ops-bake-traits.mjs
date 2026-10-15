@@ -45,11 +45,14 @@ if (ci >= 0) {
   const out = args[ci + 1];
   const ids = args.slice(ci + 2);
   const b64 = (p) => `data:image/png;base64,${readFileSync(p).toString("base64")}`;
-  const layer = (src) => `<img src="${src}" style="position:absolute;left:0;top:0;width:${W}px;height:${H}px">`;
+  // each layer at its own height (a beard's frame runs on below the head's)
+  const pngH = (p) => readFileSync(p).readUInt32BE(20);
+  const CH = Math.max(H, ...ids.map((id) => pngH(join(DIR, `${id}.png`))));
+  const layer = (src) => `<img src="${src}" style="position:absolute;left:0;top:0;width:${W}px;height:auto">`;
   await shoot(
-    `<div style="position:relative;width:${W}px;height:${H}px;background:#7d7d7d">
+    `<div style="position:relative;width:${W}px;height:${CH}px;background:#7d7d7d">
        <img src="${b64(FACE)}" style="position:absolute;left:100px;top:233.3px;width:800px;height:750px">
        ${ids.map((id) => layer(b64(join(DIR, `${id}.png`)))).join("")}
-     </div>`, out);
+     </div>`, out, W, CH);
 }
 await browser.close();
