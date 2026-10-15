@@ -447,8 +447,11 @@ function buildUndergrinParts(api) {
     B(-3.0, -28.1, 3.0, -28, U, U + 1.1, UG.mullion, { pen: 0.3 });
     for (const x of [-3.0, 2.9]) B(x, -28.1, x + 0.1, -18.5, U, U + 1.1, UG.mullion, { pen: 0.3 });
 
-    // the west stair: foot z -43.5 on the side platform, 17 x 0.3 / 0.5 south to z -35
-    ST(-19.5, -43.5, 4, 17, 0.3, 0.5, "+z", { y: P, color: UG.dark, pen: 6 });
+    // the west stair: foot z -42.65 on the side platform, 17 x 0.3 / 0.45 south
+    // to z -35. The 1.35 m landing at the end wall is for the bots: from the
+    // old foot (z -43.5, half a metre off the wall) a bot coming down ended on
+    // the bottom tread at 1.25, a level with no floor, and wandered off.
+    ST(-19.5, -42.65, 4, 17, 0.3, 0.45, "+z", { y: P, color: UG.dark, pen: 6 });
     B(-17.5, -40, -17.4, -35, U, U + 1.1, UG.mullion, { pen: 0.3 });   // rail on the well's east edge (the end block holds z -44..-40)
 
     // platform nose: 4 steps down to the walkway (x -2..2, z -14..-8)

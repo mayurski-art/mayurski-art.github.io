@@ -40,7 +40,7 @@ BORE_W = {"W": (-14.25, -9.75), "E": (9.75, 14.25)}
 BORE_CX = {"W": -12.0, "E": 12.0}
 ESC = dict(x=(-1.9, 1.9), w=1.4, foot=-27.0, n=17, rise=0.3, run=0.5)
 ESC_WELL = (-2.9, 2.9, -28.0, -18.5)     # the blockout's: a 3.6 well cut the island nose off the bots' grid
-WSTAIR = dict(x0=-21.5, x1=-17.5, foot=-43.5, n=17, rise=0.3, run=0.5)
+WSTAIR = dict(x0=-21.5, x1=-17.5, foot=-42.65, n=17, rise=0.3, run=0.45)   # a 1.35 m landing at the wall
 WSTAIR_WELL = (-22.0, -17.5, -44.0, -35.0)  # beside the hall's 4 m end block (x -17.5..22, z -44..-40)
 PURPLE_WELL = (-21.0, -18.0, -10.0, -4.0)
 LIGHT_WELL = (-4.0, 4.0, -4.0, 4.0)
@@ -870,7 +870,7 @@ def station_platforms(b, PAL, s):
             text(b, PAL["dark"], "MIND THE GRIN", c, (0, 1, 0), 0.5, o=0.0, up=(s * nx, 0, 0))
     # yellow zones: round the escalator foot and the west stair's foot
     hrect(b, PAL["yellow"], X(-8), X(8), Z(-31.5), Z(-25.5), P + 0.003)
-    hrect(b, PAL["yellow"], X(-21.5), X(-17.5), Z(-44), Z(-43.5), P + 0.003)
+    hrect(b, PAL["yellow"], X(-21.5), X(-17.5), Z(-44), Z(WSTAIR["foot"]), P + 0.003)
     # bore floors: ballast flush with the track floor (y 0, what players walk
     # on), sleepers painted on it, rails 0..0.12 at +-0.75 where the
     # colliders have them: clear of the parked train and the bore-end steps
@@ -961,7 +961,7 @@ def station_escalators(b, PAL, s):
     rail_run(b, PAL, (X(a - 0.05), Z(d - 0.05)), (X(a - 0.05), Z(e)), U)
     rail_run(b, PAL, (X(c + 0.05), Z(d - 0.05)), (X(c + 0.05), Z(e)), U)
     rail_run(b, PAL, (X(a - 0.05), Z(d - 0.05)), (X(c + 0.05), Z(d - 0.05)), U)
-    # the west side stair: x -21.5..-17.5, foot z -43.5 on the platform, 17 x 0.3 / 0.5 heading south
+    # the west side stair: x -21.5..-17.5, foot z -42.65 on the platform, 17 x 0.3 / 0.45 heading south
     w = WSTAIR
     steps_x(b, PAL, min(X(w["x0"]), X(w["x1"])), max(X(w["x0"]), X(w["x1"])), Z(w["foot"]), w["n"], w["rise"], w["run"], s, P)
     # (its east side is open, as its colliders: no balustrade)
