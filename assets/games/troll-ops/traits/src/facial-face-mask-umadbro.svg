@@ -10,7 +10,7 @@
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1300" width="1000" height="1300">
   <defs>
-    <path id="mask" d="M138 506 C330 488 690 492 888 516 C896 600 892 700 872 790 C852 880 830 940 806 990 C720 1070 650 1140 604 1186 C500 1130 380 1070 268 1016 C210 940 176 860 162 780 C146 690 136 600 138 506 Z"/>
+    <path id="mask" d="M138 506 C330 488 690 492 888 516 C896 600 892 700 872 790 C852 880 830 925 806 956 C720 1005 650 1049 604 1077 C500 1043 380 1005 268 972 C210 925 176 860 162 780 C146 690 136 600 138 506 Z"/>
     <clipPath id="clip"><use href="#mask"/></clipPath>
   </defs>
   <!-- the knot's two ends, out behind the art's left side -->
@@ -22,9 +22,9 @@
   <g clip-path="url(#clip)">
     <!-- folds: lit creases from the knot across, the shade down the art's right -->
     <path fill="#2a2a2e" d="M150 560 C320 600 520 640 700 700 C520 660 320 620 150 590 Z"/>
-    <path fill="#2a2a2e" d="M170 860 C320 900 460 960 560 1060 C440 990 320 930 190 900 Z"/>
-    <path fill="#050506" d="M780 520 C860 640 860 820 780 1000 L900 1000 L900 520 Z"/>
-    <path fill="none" stroke="#2a2a2e" stroke-width="6" stroke-linecap="round" d="M260 1000 C380 1040 500 1100 600 1170"/>
+    <path fill="#2a2a2e" d="M170 860 C320 900 460 937 560 999 C440 956 320 919 190 900 Z"/>
+    <path fill="#050506" d="M780 520 C860 640 860 820 780 962 L900 962 L900 520 Z"/>
+    <path fill="none" stroke="#2a2a2e" stroke-width="6" stroke-linecap="round" d="M260 962 C380 987 500 1024 600 1067"/>
     <!-- the print -->
     <text x="505" y="815" text-anchor="middle" font-family="Impact, 'Arial Narrow Bold', sans-serif" font-size="128"
           fill="#f4f4f1" transform="rotate(9 520 790)">UMADBRO?</text>
