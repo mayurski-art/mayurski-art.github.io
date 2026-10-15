@@ -1,6 +1,6 @@
 // Troll Man phase 1 test: start a game and clear the whole maze using only
 // arrow-key presses (a BFS autopilot picks the key), at 4x game speed.
-// Passes when the level counter reaches 2 with the score every dot is worth.
+// Passes when the level counter reaches 2 with at least the score every dot is worth.
 //   node tools/troll-man-p1-test.mjs [--shots]
 import { spawn } from "node:child_process";
 import path from "node:path";
@@ -29,7 +29,7 @@ try {
 
   await page.keyboard.press("Enter");
   const want = await page.evaluate(() => {
-    let sum = 0; for (const v of window.__tm.dots) sum += v === 1 ? 10 : v === 2 ? 50 : 0; return sum;
+    let sum = 0; for (const v of window.__tm.dots) sum += v === 1 ? 10 : v >= 2 ? 50 : 0; return sum;
   });
   await page.evaluate(() => window.__tm.setTimeScale(4));
 
@@ -42,8 +42,9 @@ try {
       return { state: t.state, level: t.level, score: t.score, left: t.dotsLeft, x: p.x, y: p.y, dots: Array.from(t.dots) };
     });
     if (s.level >= 2) {
-      console.log(`cleared level 1 in ${((Date.now() - t0) / 1000).toFixed(1)}s, score ${s.score} (expected ${want})`);
-      ok = s.score === want;
+      // Stonks doubles points and bonus pickups add some, so the score is at least face value
+      console.log(`cleared level 1 in ${((Date.now() - t0) / 1000).toFixed(1)}s, score ${s.score} (face value of the dots ${want})`);
+      ok = s.score >= want;
       break;
     }
     if (SHOTS && !shotMid && s.left < 120) { shotMid = true; await page.screenshot({ path: path.join(OUT, "tm-play.png") }); }

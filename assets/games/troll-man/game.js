@@ -1,6 +1,7 @@
 // Troll Man — the trollface eats the dots, the meme faces hunt him.
 // Phase 1: maze, trollface, dots, score, level clear.
 // Phase 2: the four chasers, the pen, frightened mode, lives, the Pump.fun pill.
+// Phase 3: Stonks, FOMO and Aster power-ups, bonus pickups, the "Problem?" taunt.
 // Plan: DESIGN.md next to this file.
 (() => {
   "use strict";
@@ -17,7 +18,7 @@
   const START = { x: 13.5, y: 21 };                // between the two centre tiles, like the original
 
   // Left half of the maze; the right half is its mirror.
-  // # wall   . dot   o Pump.fun pill   - pen door   space = floor with no dot
+  // # wall   . dot   o power-up (one of each logo)   - pen door   space = floor with no dot
   const HALF = [
     "##############",
     "#............#",
@@ -96,6 +97,18 @@
   const EAT_FREEZE = 0.7;                        // the pause on eating a chaser
   const SCORE_DOT = 10, SCORE_PILL = 50;
   const EXTRA_LIFE_AT = 10000;
+  // Power-ups (the four corner tiles, one of each per level)
+  const STONKS_TIME = 8;                         // score x2
+  const FOMO_TIME = 6, MAGNET_RADIUS = 2.5;      // dots this close fly to you
+  const SHIELD_GRACE = 1.0;                      // after Aster blocks a hit, no catching for this long
+  // Bonus pickups under the pen, twice a level
+  const BONUS_AT = [70, 170];                    // dots eaten
+  const BONUS_SPOT = { x: 13.5, y: 21 };
+  const BONUS_TABLE = [["coin", 100], ["sticker", 300], ["rolex", 500], ["rolex", 500], ["keyboard", 700],
+    ["keyboard", 700], ["coin", 1000], ["sticker", 2000], ["rolex", 3000], ["keyboard", 5000]];
+  const bonusFor = lv => BONUS_TABLE[Math.min(lv, BONUS_TABLE.length) - 1];
+  // "Problem?" taunt
+  const TAUNT_TIME = 0.6, TAUNT_COOLDOWN = 10, TAUNT_RADIUS = 3, TAUNT_FREEZE = 1.2;
   const MAZE_COLORS = ["#2121de", "#de2121", "#21b04a", "#c021de", "#de8a21"];   // every 2nd level
 
   const levelSpeedUp = level => Math.min(1.25, 1 + (level - 1) * 0.04);
@@ -159,25 +172,122 @@
     return (recolourCache[id] = c);
   }
 
-  // The Pump.fun pill, drawn in-house: a diagonal capsule, white top-left half, green bottom-right.
-  const PILL = 22;                                 // px, a bit over a tile so it reads as a power-up
-  const pill = (() => {
+  // ---- Icons: power-up logos and bonus pickups, drawn in-house -----------------------
+  // Each is painted with ordinary canvas shapes, then snapped to hard pixels: alpha to
+  // on/off, every colour to the nearest of the icon's own palette. That keeps them in
+  // the same flat pixel style as the faces.
+  const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  function pixelIcon(size, palette, paint) {
     const c = document.createElement("canvas");
-    c.width = PILL; c.height = PILL;
+    c.width = size; c.height = size;
     const x = c.getContext("2d");
-    x.translate(PILL / 2, PILL / 2); x.rotate(-Math.PI / 4);
-    x.fillStyle = "#000";
-    x.beginPath(); x.roundRect(-11, -6, 22, 12, 6); x.fill();
-    x.fillStyle = "#f4f4f4"; x.beginPath(); x.roundRect(-9.5, -4.5, 9, 9, [4.5, 0, 0, 4.5]); x.fill();
-    x.fillStyle = "#55e05f"; x.beginPath(); x.roundRect(0.5, -4.5, 9, 9, [0, 4.5, 4.5, 0]); x.fill();
-    x.fillStyle = "#fff"; x.fillRect(-7, -3, 3, 2);                     // shine
-    // snap to hard pixels: no half-transparent edge
-    const d = x.getImageData(0, 0, PILL, PILL), p = d.data;
-    for (let i = 3; i < p.length; i += 4) p[i] = p[i] > 110 ? 255 : 0;
+    paint(x, size);
+    const pal = palette.map(hex);
+    const d = x.getImageData(0, 0, size, size), p = d.data;
+    for (let i = 0; i < p.length; i += 4) {
+      if (p[i + 3] <= 110) { p[i + 3] = 0; continue; }
+      p[i + 3] = 255;
+      let best = pal[0], bd = Infinity;
+      for (const q of pal) {
+        const dd = (p[i] - q[0]) ** 2 + (p[i + 1] - q[1]) ** 2 + (p[i + 2] - q[2]) ** 2;
+        if (dd < bd) { bd = dd; best = q; }
+      }
+      p[i] = best[0]; p[i + 1] = best[1]; p[i + 2] = best[2];
+    }
     x.setTransform(1, 0, 0, 1, 0, 0);
     x.putImageData(d, 0, 0);
     return c;
-  })();
+  }
+  const badge = (x, fill) => {                       // rounded-square app badge with a black rim
+    x.fillStyle = "#000"; x.beginPath(); x.roundRect(0.5, 0.5, 21, 21, 6); x.fill();
+    x.fillStyle = fill; x.beginPath(); x.roundRect(2, 2, 18, 18, 5); x.fill();
+  };
+
+  const PILL = 22;                                   // px, a bit over a tile so it reads as a power-up
+  const ICONS = {
+    // Pump.fun: a diagonal capsule, white top-left half, green bottom-right
+    pump: pixelIcon(PILL, ["#000000", "#f4f4f4", "#55e05f", "#ffffff"], x => {
+      x.translate(PILL / 2, PILL / 2); x.rotate(-Math.PI / 4);
+      x.fillStyle = "#000"; x.beginPath(); x.roundRect(-11, -6, 22, 12, 6); x.fill();
+      x.fillStyle = "#f4f4f4"; x.beginPath(); x.roundRect(-9.5, -4.5, 9, 9, [4.5, 0, 0, 4.5]); x.fill();
+      x.fillStyle = "#55e05f"; x.beginPath(); x.roundRect(0.5, -4.5, 9, 9, [0, 4.5, 4.5, 0]); x.fill();
+      x.fillStyle = "#fff"; x.fillRect(-7, -3, 3, 2);
+    }),
+    // Stonks: green badge, a white chart line zig-zagging up to an arrowhead
+    stonks: pixelIcon(PILL, ["#000000", "#16b84a", "#ffffff"], x => {
+      badge(x, "#16b84a");
+      x.strokeStyle = "#fff"; x.lineWidth = 2.6; x.lineJoin = "miter"; x.lineCap = "square";
+      x.beginPath(); x.moveTo(5, 16); x.lineTo(9, 11); x.lineTo(12, 13.5); x.lineTo(15.5, 8.5); x.stroke();
+      x.fillStyle = "#fff"; x.beginPath(); x.moveTo(18, 4.5); x.lineTo(18, 11); x.lineTo(11.5, 4.5); x.closePath(); x.fill();
+    }),
+    // FOMO: purple badge with a white hourglass running out (gold sand)
+    fomo: pixelIcon(PILL, ["#000000", "#8e3bff", "#ffffff", "#ffcc33"], x => {
+      badge(x, "#8e3bff");
+      x.fillStyle = "#fff";
+      x.fillRect(6, 4, 10, 2); x.fillRect(6, 16, 10, 2);
+      x.beginPath(); x.moveTo(7, 6); x.lineTo(15, 6); x.lineTo(11, 11); x.closePath(); x.fill();
+      x.beginPath(); x.moveTo(7, 16); x.lineTo(15, 16); x.lineTo(11, 11); x.closePath(); x.fill();
+      x.fillStyle = "#ffcc33";
+      x.beginPath(); x.moveTo(8.5, 15.5); x.lineTo(13.5, 15.5); x.lineTo(11, 12.5); x.closePath(); x.fill();
+    }),
+    // Aster: a gold six-armed asterisk with a black rim
+    aster: pixelIcon(PILL, ["#000000", "#ffb020", "#ffe08a"], x => {
+      x.translate(11, 11);
+      for (const [w, col] of [[7.5, "#000"], [4.4, "#ffb020"]]) {
+        x.strokeStyle = col; x.lineWidth = w; x.lineCap = "round";
+        for (let k = 0; k < 3; k++) {
+          const a = k * Math.PI / 3 + Math.PI / 2;
+          x.beginPath(); x.moveTo(Math.cos(a) * 7.5, Math.sin(a) * 7.5); x.lineTo(-Math.cos(a) * 7.5, -Math.sin(a) * 7.5); x.stroke();
+        }
+      }
+      x.fillStyle = "#ffe08a"; x.beginPath(); x.arc(0, 0, 2, 0, Math.PI * 2); x.fill();
+    }),
+    // $TROLL coin: gold coin, inner ring, a black T
+    coin: pixelIcon(24, ["#000000", "#ffcc33", "#c98a00", "#fff3b0"], x => {
+      x.fillStyle = "#000"; x.beginPath(); x.arc(12, 12, 11.5, 0, Math.PI * 2); x.fill();
+      x.fillStyle = "#c98a00"; x.beginPath(); x.arc(12, 12, 10, 0, Math.PI * 2); x.fill();
+      x.fillStyle = "#ffcc33"; x.beginPath(); x.arc(12, 12, 8, 0, Math.PI * 2); x.fill();
+      x.fillStyle = "#000"; x.fillRect(8, 7, 8, 3); x.fillRect(10.5, 7, 3, 10);
+      x.fillStyle = "#fff3b0"; x.fillRect(6, 6, 2, 3);
+    }),
+    // Rolex: gold case and band, green dial, white hands
+    rolex: pixelIcon(24, ["#000000", "#d9a520", "#8a6510", "#0a7a3a", "#ffffff"], x => {
+      x.fillStyle = "#000"; x.fillRect(7, 0, 10, 24);
+      x.fillStyle = "#8a6510"; x.fillRect(8, 0, 8, 24);
+      x.fillStyle = "#d9a520"; for (let y = 1; y < 24; y += 4) x.fillRect(8, y, 8, 2);
+      x.fillStyle = "#000"; x.beginPath(); x.arc(12, 12, 9, 0, Math.PI * 2); x.fill(); x.fillRect(20, 10.5, 3, 3);
+      x.fillStyle = "#d9a520"; x.beginPath(); x.arc(12, 12, 7.8, 0, Math.PI * 2); x.fill(); x.fillRect(20, 11, 2, 2);
+      x.fillStyle = "#0a7a3a"; x.beginPath(); x.arc(12, 12, 5.6, 0, Math.PI * 2); x.fill();
+      x.fillStyle = "#fff"; x.fillRect(11.5, 7.5, 1.5, 5); x.fillRect(11.5, 11.5, 4, 1.5);
+    }),
+    // Keyboard Warrior: a dark keyboard with light keys
+    keyboard: pixelIcon(24, ["#000000", "#34343f", "#d8d8e4"], x => {
+      x.fillStyle = "#000"; x.beginPath(); x.roundRect(0.5, 5, 23, 14, 2); x.fill();
+      x.fillStyle = "#34343f"; x.fillRect(2, 6.5, 20, 11);
+      x.fillStyle = "#d8d8e4";
+      for (let r = 0; r < 3; r++) for (let k = 0; k < 5; k++) x.fillRect(3 + k * 4 - (r === 1 ? 1 : 0), 7.5 + r * 3, 3, 2);
+      x.fillRect(6, 15.5, 12, 1.5);
+    }),
+  };
+  // The troll sticker uses the trollface sprite itself, so it's built once that has loaded.
+  function stickerIcon() {
+    if (ICONS.sticker) return ICONS.sticker;
+    const face = sprites["trollface-f1"];
+    if (!ready(face)) return null;
+    const c = document.createElement("canvas");
+    c.width = 24; c.height = 24;
+    const x = c.getContext("2d");
+    x.imageSmoothingEnabled = false;
+    x.fillStyle = "#000"; x.fillRect(1, 1, 22, 22);
+    x.fillStyle = "#fff"; x.fillRect(2, 2, 20, 20);
+    x.drawImage(face, 4, 4, 16, 16);
+    x.fillStyle = "#000"; x.fillRect(16, 16, 7, 7);               // peeled corner
+    x.fillStyle = "#b8b8c8"; x.beginPath(); x.moveTo(17, 22); x.lineTo(22, 17); x.lineTo(17, 17); x.closePath(); x.fill();
+    return (ICONS.sticker = c);
+  }
+  const iconFor = kind => (kind === "sticker" ? stickerIcon() : ICONS[kind]);
+  // dots[] values 2-5 are the corner power-ups
+  const POWER = { 2: "pump", 3: "stonks", 4: "fomo", 5: "aster" };
 
   // The maze is drawn once per colour: every floor tile grows by PAD into the walls,
   // the union is filled in the wall colour, then again PAD-LINE smaller in black.
@@ -219,13 +329,16 @@
   // tie-break order when two turns are equally good (the original's up, left, down, right)
   const TURN_ORDER = [DIRS.up, DIRS.left, DIRS.down, DIRS.right];
 
-  const dots = new Uint8Array(ROWS * COLS);          // 0 none, 1 dot, 2 pill
+  const dots = new Uint8Array(ROWS * COLS);          // 0 none, 1 dot, 2-5 power-up (see POWER)
   let dotsLeft = 0;
+  // The four corner tiles get one of each power-up; which corner gets which turns
+  // one step every level, so the Pump.fun pill isn't always in the same place.
   function resetDots() {
     dotsLeft = 0;
+    let corner = 0;
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       const ch = MAZE[r][c];
-      const v = ch === "." ? 1 : ch === "o" ? 2 : 0;
+      const v = ch === "." ? 1 : ch === "o" ? 2 + ((corner++ + level - 1) % 4) : 0;
       dots[r * COLS + c] = v;
       if (v) dotsLeft++;
     }
@@ -254,9 +367,18 @@
   let freezeT = 0;                        // short stop after eating a chaser
   let sinceDot = 0;                       // seconds since the last dot: a stalled player lets the next chaser out
   let dotsEatenLevel = 0, lostLifeThisLevel = false, sinceLifeLost = 0;
-  const popups = [];                      // floating score numbers
+  const popups = [];                      // floating score numbers and power-up names
   let hidden = null;                      // the chaser being eaten (hidden during the freeze)
   let chasersOff = false;                 // test hook only
+  // power-ups
+  let stonksT = 0, fomoT = 0, shield = false, shieldGrace = 0;
+  const flyers = [];                      // dots on their way to the trollface (FOMO)
+  // bonus pickups
+  let bonus = null;                       // { kind, pts, t } while one is out
+  let bonusSpawned = 0;                   // how many this level
+  const bonusHistory = [];                // the last few levels' bonus kinds, for the HUD
+  // "Problem?" taunt
+  let tauntT = 0, tauntCool = 0;
 
   function saveHigh() {
     if (score <= high) return;
@@ -275,18 +397,27 @@
     }
     phaseIdx = 0; phaseT = 0;
     frightT = 0; frightChain = 0; freezeT = 0; sinceDot = 0; hidden = null;
-    popups.length = 0;
+    popups.length = 0; flyers.length = 0;
+    // a new life or level starts clean: no running power-ups, taunt ready
+    stonksT = 0; fomoT = 0; shield = false; shieldGrace = 0;
+    tauntT = 0; tauntCool = 0;
+    bonus = null;
+    for (const g of CHASERS) g.frozen = 0;
   }
 
   function newLevel() {
     resetDots();
-    dotsEatenLevel = 0; lostLifeThisLevel = false;
+    dotsEatenLevel = 0; lostLifeThisLevel = false; bonusSpawned = 0;
     placeActors();
+    const b = bonusFor(level)[0];
+    if (bonusHistory[bonusHistory.length - 1] !== `${level}:${b}`) bonusHistory.push(`${level}:${b}`);
+    if (bonusHistory.length > 5) bonusHistory.shift();
     setState("ready");
   }
 
   function newGame() {
     score = 0; level = 1; lives = 3; extraGiven = false; paused = false;
+    bonusHistory.length = 0;
     newLevel();
   }
 
@@ -354,18 +485,58 @@
     if (r < 0 || r >= ROWS) return;
     const i = r * COLS + c, v = dots[i];
     if (!v) return;
+    takeDot(i);
+    p.pause = v >= 2 ? PILL_PAUSE : DOT_PAUSE;
+    if (v >= 2) powerUp(POWER[v]);
+  }
+
+  // A dot (or power-up tile) leaves the maze: by mouth, or by FOMO's magnet.
+  function takeDot(i) {
+    const v = dots[i];
     dots[i] = 0; dotsLeft--; dotsEatenLevel++;
     sinceDot = 0;
-    addScore(v === 2 ? SCORE_PILL : SCORE_DOT);
-    p.pause = v === 2 ? PILL_PAUSE : DOT_PAUSE;
-    if (v === 2) startFright();
+    addScore(v >= 2 ? SCORE_PILL : SCORE_DOT);
+    if (bonusSpawned < BONUS_AT.length && dotsEatenLevel >= BONUS_AT[bonusSpawned]) {
+      bonusSpawned++;
+      const [kind, pts] = bonusFor(level);
+      bonus = { kind, pts, t: 9 + Math.random() };
+    }
     if (dotsLeft === 0) setState("clear");
   }
 
+  const POWER_TEXT = { pump: ["PUMP!", "#55e05f"], stonks: ["STONKS x2", "#16b84a"], fomo: ["FOMO", "#c48bff"], aster: ["SHIELD", "#ffb020"] };
+  function powerUp(kind) {
+    if (kind === "pump") startFright();
+    else if (kind === "stonks") stonksT = STONKS_TIME;
+    else if (kind === "fomo") fomoT = FOMO_TIME;
+    else if (kind === "aster") shield = true;
+    const [label, color] = POWER_TEXT[kind];
+    popups.push({ x: player.x, y: player.y - 1, text: label, color, t: 0 });
+  }
+
+  // Every point goes through here: Stonks doubles it. Returns what was actually scored.
   function addScore(n) {
-    score += n;
+    const pts = n * (stonksT > 0 ? 2 : 1);
+    score += pts;
     if (!extraGiven && score >= EXTRA_LIFE_AT) { extraGiven = true; lives++; }
     saveHigh();
+    return pts;
+  }
+
+  // FOMO: every dot within MAGNET_RADIUS is pulled in (power-ups stay put).
+  function magnet() {
+    const pc = Math.round(player.x), pr = Math.round(player.y), R = Math.ceil(MAGNET_RADIUS);
+    for (let r = pr - R; r <= pr + R; r++) {
+      if (r < 0 || r >= ROWS) continue;
+      for (let cc = pc - R; cc <= pc + R; cc++) {
+        const c = wrapC(cc), i = r * COLS + c;
+        if (dots[i] !== 1) continue;
+        if (Math.hypot(cc - player.x, r - player.y) > MAGNET_RADIUS) continue;
+        flyers.push({ x: cc, y: r, t: 0 });
+        takeDot(i);
+        if (state !== "play") return;
+      }
+    }
   }
 
   // ---- Chasers -----------------------------------------------------------------
@@ -511,8 +682,7 @@
       if (g.mode !== "out" || wrapDist(g, player) > 0.6) continue;
       if (g.fright) {
         frightChain++;
-        const pts = 200 * 2 ** Math.min(frightChain - 1, 3);
-        addScore(pts);
+        const pts = addScore(200 * 2 ** Math.min(frightChain - 1, 3));
         popups.push({ x: g.x, y: g.y, text: String(pts), t: 0 });
         g.fright = false;
         g.mode = "eyes";
@@ -520,8 +690,47 @@
         freezeT = EAT_FREEZE;
         return;
       }
+      if (shieldGrace > 0) continue;
+      if (shield) {
+        // Aster takes the hit: the chaser bounces off and is sent back to the pen
+        shield = false;
+        shieldGrace = SHIELD_GRACE;
+        g.mode = "eyes"; g.frozen = 0;
+        popups.push({ x: player.x, y: player.y - 1, text: "BLOCKED", color: "#ffb020", t: 0 });
+        continue;
+      }
       setState("dying");
       return;
+    }
+  }
+
+  // "Problem?": the trollface stops to laugh; chasers within TAUNT_RADIUS freeze.
+  function taunt() {
+    if (state !== "play" || paused || freezeT > 0 || tauntT > 0 || tauntCool > 0) return false;
+    tauntT = TAUNT_TIME;
+    tauntCool = TAUNT_COOLDOWN;
+    for (const g of CHASERS) {
+      if (g.mode === "out" && wrapDist(g, player) <= TAUNT_RADIUS) g.frozen = TAUNT_FREEZE;
+    }
+    return true;
+  }
+
+  // Timers for everything phase 3 added; they all stop while the game is frozen.
+  function stepExtras(dt) {
+    if (stonksT > 0) stonksT = Math.max(0, stonksT - dt);
+    if (fomoT > 0) { fomoT = Math.max(0, fomoT - dt); magnet(); }
+    if (shieldGrace > 0) shieldGrace = Math.max(0, shieldGrace - dt);
+    if (tauntCool > 0) tauntCool = Math.max(0, tauntCool - dt);
+    for (const f of flyers) f.t += dt;
+    while (flyers.length && flyers[0].t > 0.18) flyers.shift();
+    if (bonus) {
+      bonus.t -= dt;
+      if (bonus.t <= 0) bonus = null;
+      else if (wrapDist(BONUS_SPOT, player) < 0.6) {
+        const pts = addScore(bonus.pts);
+        popups.push({ x: BONUS_SPOT.x, y: BONUS_SPOT.y, text: String(pts), color: "#ffb8de", t: 0 });
+        bonus = null;
+      }
     }
   }
 
@@ -549,9 +758,13 @@
     if (lostLifeThisLevel) sinceLifeLost += dt;
     if (!chasersOff) updatePen();
 
+    stepExtras(dt);
+    if (state !== "play") return;
+
     const p = player;
     tryTurn(p);
-    if (p.pause > 0) p.pause = Math.max(0, p.pause - dt);
+    if (tauntT > 0) { tauntT = Math.max(0, tauntT - dt); p.moving = false; }   // standing there laughing
+    else if (p.pause > 0) p.pause = Math.max(0, p.pause - dt);
     else {
       advance(p, playerSpeed() * dt);
       tryTurn(p);
@@ -562,7 +775,10 @@
     if (!chasersOff) {
       checkCatch();
       if (state !== "play" || freezeT > 0) return;
-      for (const g of CHASERS) stepChaser(g, dt);
+      for (const g of CHASERS) {
+        if (g.frozen > 0) { g.frozen = Math.max(0, g.frozen - dt); continue; }
+        stepChaser(g, dt);
+      }
       checkCatch();
     }
   }
@@ -651,16 +867,18 @@
   // Trollface: chomps (f1/f3) while moving, blinks (f2) now and then while standing.
   function playerLook() {
     const p = player;
+    if (state === "play" && tauntT > 0) return Math.floor(tauntT / 0.06) % 2 ? "f3" : "f1";   // the laugh
     if (state === "play" && p.moving && freezeT <= 0) return Math.floor(p.anim / CHOMP) % 2 ? "f3" : "f1";
     return p.blinking > 0 ? "f2" : "f1";
   }
 
-  // Chasers: f1 normally, f3 (grin / wow / beak open) when closing in, f2 to blink,
-  // blue when frightened, white flashes as it wears off, eyes when eaten.
+  // Chasers: f1 normally, f3 (grin / wow / beak open) when closing in, f2 to blink or
+  // when stunned by the taunt, blue when frightened, white flashes as it wears off,
+  // eyes when eaten.
   function chaserLook(g) {
     if (g.mode === "eyes" || g.mode === "entering") return "eyes";
     if (g.fright) return frightT < Math.min(2, frightLen / 2) && Math.floor(frightT / 0.2) % 2 === 0 ? "white" : "blue";
-    if (g.blinking > 0) return "f2";
+    if (g.frozen > 0 || g.blinking > 0) return "f2";
     return g.close ? "f3" : "f1";
   }
   function lookImage(name, look) {
@@ -688,7 +906,8 @@
       const look = chaserLook(g);
       if (frameLog) frameLog.chasers[g.name] = look;
       if (look === "eyes") { drawEyes(g); continue; }
-      drawFace(lookImage(g.name, look), px(g.x), py(g.y), chaserFacing(g));
+      const shake = g.frozen > 0 ? (Math.floor(stateTime * 30) % 2 ? 1 : -1) : 0;   // stunned: a little shiver
+      drawFace(lookImage(g.name, look), px(g.x) + shake, py(g.y), chaserFacing(g));
     }
   }
 
@@ -701,9 +920,39 @@
         ctx.fillStyle = "#ffb8ae";
         ctx.fillRect(px(c) - 2, py(r) - 2, 4, 4);
       } else if (blinkOn) {
-        ctx.drawImage(pill, px(c) - PILL / 2, py(r) - PILL / 2);
+        ctx.drawImage(ICONS[POWER[v]], px(c) - PILL / 2, py(r) - PILL / 2);
       }
     }
+  }
+
+  // Aster's shield: eight gold sparks circling the trollface.
+  function drawShield() {
+    const cx = Math.round(px(player.x)), cy = Math.round(py(player.y));
+    const spin = stateTime * 3;
+    for (let k = 0; k < 8; k++) {
+      const a = spin + k * Math.PI / 4;
+      const sx = Math.round(cx + Math.cos(a) * 19), sy = Math.round(cy + Math.sin(a) * 19);
+      ctx.fillStyle = k % 2 ? "#ffe08a" : "#ffb020";
+      ctx.fillRect(sx - 2, sy - 2, 4, 4);
+    }
+  }
+
+  // FOMO: dots sliding into the trollface.
+  function drawFlyers() {
+    ctx.fillStyle = "#ffb8ae";
+    for (const f of flyers) {
+      const k = Math.min(1, f.t / 0.18);
+      ctx.fillRect(Math.round(px(f.x + (player.x - f.x) * k)) - 2, Math.round(py(f.y + (player.y - f.y) * k)) - 2, 4, 4);
+    }
+  }
+
+  function drawTauntBubble() {
+    const cx = Math.round(px(player.x)), y = Math.round(py(player.y)) - 34;
+    const w = 76, x0 = Math.max(2, Math.min(W - w - 2, cx - w / 2));
+    ctx.fillStyle = "#fff"; ctx.fillRect(x0, y, w, 16);
+    ctx.fillStyle = "#000"; ctx.fillRect(x0 + 1, y + 1, w - 2, 14);
+    ctx.fillStyle = "#fff"; ctx.fillRect(cx - 2, y + 16, 4, 3);
+    text("PROBLEM?", x0 + w / 2, y + 4, "#fff", 8, "center");
   }
 
   function drawHud() {
@@ -712,11 +961,35 @@
     text("HIGH SCORE", W / 2, 8, "#fff", 8, "center");
     text(pad(score || "00", 7), 1 * TILE, 22, "#fff");
     text(pad(high || "00", 7), W / 2 + 2 * TILE, 22, "#fff", 8, "right");
-    // lives still waiting, and the level
+    if (state === "title") return;
+
+    // top right: the level, then whatever power-ups are running, each with a time bar
+    text(`LV ${level}`, W - TILE, 8, "#ffcc00", 8, "right");
+    const running = [];
+    if (stonksT > 0) running.push(["stonks", stonksT / STONKS_TIME]);
+    if (fomoT > 0) running.push(["fomo", fomoT / FOMO_TIME]);
+    if (shield) running.push(["aster", 1]);
+    running.forEach(([kind, left], i) => {
+      const x0 = W - TILE - (i + 1) * 26 + 4;
+      ctx.drawImage(ICONS[kind], x0, 19);
+      ctx.fillStyle = "#333"; ctx.fillRect(x0, 43, 22, 2);
+      ctx.fillStyle = "#fff"; ctx.fillRect(x0, 43, Math.round(22 * left), 2);
+    });
+
+    // bottom: lives on the left, the taunt in the middle, this run's bonus pickups on the right
     const by = (TOP + ROWS) * TILE + 2;
-    const waiting = state === "title" || state === "over" ? 0 : Math.max(0, lives - 1);
-    for (let i = 0; i < Math.min(waiting, 6); i++) drawFace(sprites["trollface-f1"], 2 * TILE + i * 34, by + 14, DIRS.left);
-    if (state !== "title") text(`LV ${level}`, W - 2 * TILE, by + 10, "#ffcc00", 8, "right");
+    const waiting = state === "over" ? 0 : Math.max(0, lives - 1);
+    for (let i = 0; i < Math.min(waiting, 5); i++) drawFace(sprites["trollface-f1"], 2 * TILE + i * 34, by + 14, DIRS.left);
+    const tauntReady = tauntCool <= 0;
+    text("PROBLEM?", W / 2 + 8, by + 6, tauntReady ? "#ffcc00" : "#555", 8, "center");
+    if (!tauntReady) {
+      ctx.fillStyle = "#555"; ctx.fillRect(W / 2 + 8 - 32, by + 18, 64, 2);
+      ctx.fillStyle = "#ffcc00"; ctx.fillRect(W / 2 + 8 - 32, by + 18, Math.round(64 * (1 - tauntCool / TAUNT_COOLDOWN)), 2);
+    }
+    bonusHistory.slice(-4).forEach((key, i, arr) => {
+      const icon = iconFor(key.split(":")[1]);
+      if (icon) ctx.drawImage(icon, W - TILE - (arr.length - i) * 26 + 2, by + 3);
+    });
   }
 
   // Attract screen: the cast, like the original's character / nickname roll call.
@@ -734,15 +1007,22 @@
       text(NICKS[g.name], 7 * TILE, y + 4, g.color);
     });
     if (stateTime > 3.2) {
-      drawFace(sprites["trollface-f1"], W / 2, py(17), DIRS.right);
-      text("YOU ARE THE TROLL", W / 2, py(19), "#fff", 8, "center");
-      ctx.fillStyle = "#ffb8ae"; ctx.fillRect(W / 2 - 66, py(21) - 2, 4, 4);
-      text("10 PTS", W / 2 - 50, py(21) - 4, "#fff");
-      ctx.drawImage(pill, W / 2 - 64 - PILL / 2, py(23) - PILL / 2);
-      text("50 PTS", W / 2 - 50, py(23) - 4, "#fff");
+      drawFace(sprites["trollface-f1"], W / 2, py(16), DIRS.right);
+      text("YOU ARE THE TROLL", W / 2, py(17) + 6, "#fff", 8, "center");
+      ctx.fillStyle = "#ffb8ae"; ctx.fillRect(W / 2 - 42, py(19) + 2, 4, 4);
+      text("10 PTS", W / 2 - 26, py(19), "#fff");
     }
-    if (Math.floor(stateTime / 0.5) % 2 === 0) text("PRESS START", W / 2, py(26), "#ffcc00", 8, "center");
-    text("ENTER / TAP", W / 2, py(27) + 4, "#888", 8, "center");
+    // the four power-ups, rolled in after the troll
+    const POWERS = [["pump", "PUMP", "#55e05f"], ["stonks", "STONKS", "#16b84a"], ["fomo", "FOMO", "#c48bff"], ["aster", "ASTER", "#ffb020"]];
+    POWERS.forEach(([kind, label, color], i) => {
+      if (stateTime < 3.8 + i * 0.3) return;
+      const cx = W / 2 + (i - 1.5) * 92;
+      ctx.drawImage(ICONS[kind], cx - PILL / 2, py(21) - PILL / 2);
+      text(label, cx, py(22) + 4, color, 8, "center");
+    });
+    if (Math.floor(stateTime / 0.5) % 2 === 0) text("PRESS START", W / 2, py(25), "#ffcc00", 8, "center");
+    text("ENTER / TAP", W / 2, py(26) + 4, "#888", 8, "center");
+    text("SPACE = PROBLEM?", W / 2, py(27) + 4, "#888", 8, "center");
   }
 
   // Debug builds keep the last few hundred frames' looks so the animation test can read them.
@@ -760,6 +1040,12 @@
     ctx.drawImage(mazeImage(flash ? "#ffffff" : color), 0, TOP * TILE);
     if (frameLog) frameLog.maze = flash ? "flash" : "colour";
     drawDots();
+    // the bonus pickup, blinking in its last two seconds
+    if (bonus && state === "play" && (bonus.t > 2 || Math.floor(bonus.t / 0.15) % 2 === 0)) {
+      const icon = iconFor(bonus.kind);
+      if (icon) ctx.drawImage(icon, Math.round(px(BONUS_SPOT.x)) - 12, Math.round(py(BONUS_SPOT.y)) - 12);
+    }
+    drawFlyers();
 
     const showChasers = !chasersOff && (state === "ready" || state === "play" ||
       (state === "dying" && stateTime < DEATH_HOLD) || (state === "clear" && stateTime < CLEAR_HOLD));
@@ -770,12 +1056,16 @@
       if (frameLog) frameLog.player = k < 1 ? `spin:${(1 - k).toFixed(2)}` : "gone";
     } else if (!(freezeT > 0 && hidden)) {
       const look = playerLook();
-      drawFace(sprites[`trollface-${look}`], px(player.x), py(player.y), player.face);
-      if (frameLog) frameLog.player = look;
+      // after Aster blocks a hit he flickers through the grace period
+      const flicker = shieldGrace > 0 && Math.floor(shieldGrace / 0.08) % 2 === 0;
+      if (shield && state === "play") drawShield();
+      if (!flicker) drawFace(sprites[`trollface-${look}`], px(player.x), py(player.y), player.face);
+      if (frameLog) { frameLog.player = flicker ? "flicker" : look; frameLog.shield = shield; }
     } else if (frameLog) frameLog.player = "hidden";
     if (showChasers) drawChasers();
+    if (state === "play" && tauntT > 0) drawTauntBubble();
 
-    for (const pp of popups) text(pp.text, px(pp.x), py(pp.y) - 4 - pp.t * 6, "#4deeff", 8, "center");
+    for (const pp of popups) text(pp.text, Math.round(px(pp.x)), Math.round(py(pp.y) - 4 - pp.t * 6), pp.color || "#4deeff", 8, "center");
 
     if (state === "ready") text("READY!", W / 2, py(16) - 4, "#ffcc00", 8, "center");
     if (state === "over") text("GAME  OVER", W / 2, py(16) - 4, "#ff3b3b", 8, "center");
@@ -819,6 +1109,9 @@
     } else if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       if (state === "title" || state === "over") newGame();
+      else if (e.key === " ") taunt();
+    } else if (e.key === "t" || e.key === "T") {
+      taunt();
     } else if (e.key === "p" || e.key === "P" || e.key === "Escape") {
       togglePause();
     }
@@ -861,7 +1154,10 @@
       setTimeScale(s) { timeScale = s; },
       setChasersOff(v) { chasersOff = v; },
       frames: frameLogs,
-      startFright, setState,
+      startFright, setState, taunt, powerUp,
+      get bonus() { return bonus; }, get shield() { return shield; }, get stonksT() { return stonksT; }, get fomoT() { return fomoT; },
+      get tauntCool() { return tauntCool; },
+      setDotsEaten(n) { dotsEatenLevel = n; },
       setPhase(i) { phaseIdx = i; phaseT = 0; },
       leaveOneDot(c, r) { dots.fill(0); dots[r * COLS + c] = 1; dotsLeft = 1; },
     };

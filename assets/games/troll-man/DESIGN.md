@@ -206,7 +206,12 @@ next starts. No gate; a targeted check per change, push on your word.
    **The four chasers.** Chase/scatter/frightened/pen, the four hunting
    styles, death, lives, Pump.fun pill, level scaling. Done when level 1→5
    plays like Pac-Man.
-3. **The other three logos + bonus pickups + taunt.** Stonks, FOMO, Aster,
+3. **The other three logos + bonus pickups + taunt — DONE 2026-10-14**
+   (`tools/troll-man-p3-test.mjs`). Built as: one of each logo on the four
+   corner tiles, rotating a corner per level; taunt radius 3 tiles (2 was
+   too tight to matter), freeze 1.2s, Space or T. Phones get the taunt on
+   the SELECT button in phase 4.
+   **The other three logos + bonus pickups + taunt.** Stonks, FOMO, Aster,
    coin pickups, "Problem?". Done when all four effects are visibly
    different.
 4. **Phone.** Portrait layout, joystick, SELECT/START, swipe backup,
