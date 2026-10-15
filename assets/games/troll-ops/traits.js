@@ -22,16 +22,78 @@ const DIR = new URL("./traits/", import.meta.url);
 // globalThis.TRAITS_BUST to refetch every time).
 const ART_V = globalThis.TRAITS_BUST ?? "tr1";
 
-/* token -> its drawn trait ids (the rest of its traits aren't drawn yet). */
+/* The trait library: one drawing per TROLLS trait VALUE, named after it
+   (type/value -> id), so every token with that trait wears the same art
+   (user, 2026-10-15: "if another nft has these traits then there's no need
+   to recreate them"). A token is wearable once every trait it has is drawn
+   (EYES/Eyes Relaxed and BACKGROUND are the OG art and nothing: "" here).
+     HATS/Goatfarm Hat        hat-goatfarm       (front + back)
+     HATS/Camper Hat          hat-camper         (front + back)
+     HATS/Baker Hat           hat-baker          (front + back)
+     FACIALS/French Moustache facial-french-moustache
+     FACIALS/Beard Brown      facial-beard-brown
+     FACIALS/Face Mask UMADBRO facial-face-mask-umadbro
+     EYES/Eyes Bloodshot      eyes-bloodshot
+     EYES/Glasses Thug        eyes-glasses-thug  (worn over the facial)
+     CLOTHES/Tank Runner      clothes-tank-runner (board + block template)
+     CLOTHES/Farmer           clothes-farmer      (block template only)
+     CLOTHES/Sweater Black    clothes-sweater-black (block template only)
+   Head traits go on in this order, each a hair in front of the last. */
+/* token -> its traits by type, as its metadata names them (local: the
+   page's CSP blocks IPFS, so a token's traits are copied in here). */
 export const TOKENS = {
-  1718: ["hat-goatfarm", "facial-french-moustache", "clothes-tank-runner"],
+  1718: { hat: "Goatfarm Hat", facial: "French Moustache", eyes: "Eyes Relaxed", clothes: "Tank Runner" },
+  820: { hat: "Camper Hat", facial: "Beard Brown", eyes: "Eyes Bloodshot", clothes: "Farmer" },
+  1262: { hat: "Baker Hat", facial: "Face Mask UMADBRO", eyes: "Glasses Thug", clothes: "Sweater Black" },
 };
+/* trait value -> its drawing's id; "" for a value that's the OG art. */
+export const TRAIT_ART = {
+  "Goatfarm Hat": "hat-goatfarm", "Camper Hat": "hat-camper",
+  "French Moustache": "facial-french-moustache", "Beard Brown": "facial-beard-brown",
+  "Eyes Relaxed": "", "Eyes Bloodshot": "eyes-bloodshot",
+  "Tank Runner": "clothes-tank-runner", "Farmer": "clothes-farmer",
+  "Baker Hat": "hat-baker", "Face Mask UMADBRO": "facial-face-mask-umadbro",
+  "Glasses Thug": "eyes-glasses-thug", "Sweater Black": "clothes-sweater-black",
+};
+/* Eye traits that go on over the facial, not under it (shades over a mask). */
+const OVER_FACIAL = new Set(["eyes-glasses-thug"]);
+/* Token #id's drawn trait ids, worn in this order (eyes on the face, then
+   the beard over the jaw, then the hat), or null when one of its traits
+   isn't drawn yet: nobody shows up half dressed. */
+export function tokenTraits(token) {
+  const t = TOKENS[token];
+  if (!t) return null;
+  const ids = [];
+  for (const type of ["eyes", "facial", "hat", "clothes"]) {
+    const value = t[type];
+    if (value === undefined) continue;
+    const id = TRAIT_ART[value];
+    if (id === undefined) return null;
+    if (id) ids.push(id);
+  }
+  // shades over a mask: after the facial
+  for (const id of ids.filter((x) => OVER_FACIAL.has(x))) { ids.splice(ids.indexOf(id), 1); ids.splice(ids.findIndex((x) => x.startsWith("hat-")) >>> 0, 0, id); }
+  return ids;
+}
 /* Traits with a drawn back view (<id>.back.png). */
-const HAS_BACK = new Set(["hat-goatfarm", "clothes-tank-runner"]);
+const HAS_BACK = new Set(["hat-goatfarm", "hat-camper", "hat-baker", "clothes-tank-runner"]);
+/* Clothes drawn as a garment board for the stick (<id>.svg with cut paths);
+   the others have only a block template (blocky-body.js). */
+const HAS_BOARD = new Set(["clothes-tank-runner"]);
 /* Where a garment puts the arms: half the shoulder width, metres. */
 const SHOULDERS = { "clothes-tank-runner": 0.15 };
 
 const HEAD = { w: 0.6, h: 0.62, y: 0.31 };
+/* Head drawings taller than the frame (their svg's viewBox): the beard
+   hangs below the chin, down the frame's bottom edge (y 1033, the neck
+   joint) and on, so its plane runs lower, and from the chin down it bends
+   forward (`bend`: from this frame y, out `z` metres at the bottom edge)
+   to lie over the chest instead of vanishing into it. */
+const TALL = {
+  // (the stick's flat beard; on the block body it's a volume: blocky-body.js beardVolume)
+  "facial-beard-brown": { h: 1300, bend: { from: 900, z: 0.14 } },
+  "facial-face-mask-umadbro": { h: 1300, bend: { from: 950, z: 0.1 } },
+};
 const UNIT = 1 / 1667;                 // garment frame units -> metres
 const GARMENT = { w: 1000, h: 1167, spine: 500, chest: 233, depth: 0.075 };
 
@@ -95,13 +157,27 @@ export function skullBack(rig) {
   rig.skull = back;
 }
 
-function headPlane(rig, file, back) {
+function headPlane(rig, file, back, order = 0) {
   const s = rig.scale;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(HEAD.w * s, HEAD.h * s), drawnMaterial(texture(file), { side: THREE.FrontSide }));
-  // a hair off the board: in front (the board faces -Z), or behind facing back
-  m.position.set(0, HEAD.y * s, (back ? 0.006 : -0.004) * s);
+  const tall = TALL[file.replace(/\.back$/, "")];
+  const h = tall ? HEAD.h * tall.h / 1033 : HEAD.h;
+  const geo = new THREE.PlaneGeometry(HEAD.w * s, h * s, 1, tall?.bend ? 12 : 1);
+  if (tall?.bend && !back) {
+    // the plane's local +z is forward once it's turned to face the front
+    const pos = geo.attributes.position, { from, z } = tall.bend;
+    const yFrom = (h / 2 - (from / 1033) * HEAD.h) * s;   // frame y -> plane-local y
+    for (let i = 0; i < pos.count; i++) {
+      const t = (yFrom - pos.getY(i)) / (yFrom + h * s / 2);
+      if (t > 0) pos.setZ(i, z * s * t ** 1.4);
+    }
+    geo.computeVertexNormals();
+  }
+  const m = new THREE.Mesh(geo, drawnMaterial(texture(file), { side: THREE.FrontSide }));
+  // a hair off the board: in front (the board faces -Z), or behind facing
+  // back; each trait a hair past the one before, so they never fight
+  m.position.set(0, (HEAD.y - (h - HEAD.h) / 2) * s, (back ? 0.006 + order * 0.0005 : -0.004 - order * 0.0005) * s);
   if (!back) m.rotation.y = Math.PI;
-  m.renderOrder = 2;
+  m.renderOrder = 2 + order;
   return m;
 }
 
@@ -266,9 +342,11 @@ async function buildGarment(rig, id) {
 export async function applyToken(rig, token, { headOnly = false } = {}) {
   removeToken(rig);
   skullBack(rig);
-  // headOnly: the body is dressed some other way (blocky-body.js)
-  const ids = (TOKENS[token] || []).filter((id) => !headOnly || !id.startsWith("clothes-"));
+  // headOnly: the body is dressed some other way (blocky-body.js); a
+  // garment with no board for the stick is skipped either way
+  const ids = (tokenTraits(token) || []).filter((id) => !id.startsWith("clothes-") || (!headOnly && HAS_BOARD.has(id)));
   const worn = (rig.traits = { token, meshes: [], byId: {} });
+  let order = 0;
   for (const id of ids) {
     let ms;
     if (id.startsWith("clothes-")) {
@@ -278,10 +356,11 @@ export async function applyToken(rig, token, { headOnly = false } = {}) {
       if (rig.traits !== worn) { for (const m of ms) m.parent?.remove(m); return; }
     } else {
       const g = new THREE.Group();
-      g.add(headPlane(rig, id, false));
-      if (HAS_BACK.has(id)) g.add(headPlane(rig, `${id}.back`, true));
+      g.add(headPlane(rig, id, false, order));
+      if (HAS_BACK.has(id)) g.add(headPlane(rig, `${id}.back`, true, order));
       rig.parts.headPivot.add(g);
       ms = [g];
+      order++;
     }
     worn.meshes.push(...ms);
     worn.byId[id] = ms;

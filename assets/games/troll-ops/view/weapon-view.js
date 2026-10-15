@@ -1,14 +1,16 @@
 // The gun in your hands each frame: sway, bob, landing dip, ADS, inspect,
 // reloads (mags, shells, pumps), the rod arms, the Soul Blazer and the laser.
 
-import { currentWeapon, swapRaise } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-fl1";
+import { currentWeapon, swapRaise } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1";
 import { AKIMBO_INSPECT_TIME } from "../akimbo-view.js?v=ak1-wst";
 import * as THREE from "three";
 import { rise, smoothstep, damp } from "../anim-curves.js";
 import { handMaterials, inkOutline } from "../hand-model.js?v=to-grip2";
 import { wristOf, buildWatch, buildWristband } from "../wristwear.js?v=ww1c2m1";
 import { clubWear } from "../modes/club-wear.js?v=cw1c2m1";
-import { cosmetics } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-fl1";
+import { ownBody, fpArmLook } from "../blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1";
+import { bodyToken } from "../cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1";
+import { cosmetics } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1";
 import { soulBlazerReloadPose, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth, updateSoulBlazerView, soulBlazerInspect, SB_INSPECT_CUES } from "../soul-blazer.js?v=sb1";
 import { placePistolSlide } from "./pistol-action.js?v=ps1-wb1-br1";
 import { placeBolt } from "./rifle-action.js?v=ra1-wb1";
@@ -453,7 +455,7 @@ export const pfArms = (() => {
   return root;
 })();
 
-/* The TROLLS NFT body (cosmetics.js "trolls-1718") in your own view: the
+/* The TROLLS NFT body (cosmetics.js BODIES, any token) in your own view: the
    body's own arms, not the stick troll's rods (user, 2026-10-12: "the
    hands/arms are stick figures"). Each rod gets a blocky twin, a square
    white forearm with an ink line and a box fist on its tip, laid over the
@@ -464,8 +466,17 @@ export const pfArms = (() => {
    body showed the stick figure's hands and arms). */
 const BLOCK_ARM = 0.066;     // metres across the forearm (the body's arms are big)
 const BLOCK_FIST = 0.082;
+const BLOCK_CUFF = [BLOCK_ARM * 1.16, 0.034];
+/* Aimed, the gun hand's fist drops this far (metres, at full ADS): the
+   block fist is twice the stick hand and on a pistol it rose to the rear
+   sight (user, 2026-10-15: "always make sure that the hand is not covering
+   the aim sight"). */
+const BLOCK_FIST_ADS_DROP = 0.024;   // a sleeve's cuff: across, along the arm
+/* The TROLLS body you wear (any token, cosmetics.js BODIES; the lobby only
+   lets its holder pick it): 0 for the stick troll. */
+const nftArms = () => { const t = bodyToken(ownBody.want); return t && fpArmLook(t) ? t : 0; };
 /* A watch or a band round a rod: a block arm wants a wider one. */
-const wristR = (rod) => (rod === pfArms.userData.rods[0] || rod === pfArms.userData.rods[1]) && cosmetics.body === "trolls-1718" ? BLOCK_ARM * 0.74 : 0.0165;
+const wristR = (rod) => (rod === pfArms.userData.rods[0] || rod === pfArms.userData.rods[1]) && nftArms() ? BLOCK_ARM * 0.74 : 0.0165;
 const _baUp = new THREE.Vector3(), _baZ = new THREE.Vector3(), _baN = new THREE.Vector3(), _baQ = new THREE.Quaternion();
 const BLOCK_TURN = 0.55;   // radians a block arm is turned off square to the lens, so two faces show
 const blockMat = new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.85, emissive: 0xf2f2ee, emissiveIntensity: 0.12 });
@@ -477,22 +488,28 @@ function blockTwins(rods, parent) {
     g.translate(0, 0.5, 0);
     const arm = new THREE.Mesh(g, mat);
     const fist = new THREE.Mesh(new THREE.BoxGeometry(BLOCK_FIST, BLOCK_FIST * 0.9, BLOCK_FIST), mat);
+    // a long sleeve's cuff at the wrist (the garment's, fpArmLook)
+    const cuff = new THREE.Mesh(new THREE.BoxGeometry(BLOCK_CUFF[0], BLOCK_CUFF[1], BLOCK_CUFF[0]), mat);
     inkOutline(arm, 0.0035);
     inkOutline(fist, 0.0035);
-    for (const m of [arm, fist]) {
+    inkOutline(cuff, 0.0035);
+    for (const m of [arm, fist, cuff]) {
       m.visible = false;
       m.renderOrder = -1;
       m.traverse((o) => { o.frustumCulled = false; });
       parent.add(m);
     }
-    return { rod, arm, fist };
+    return { rod, arm, fist, cuff };
   });
 }
 const blockArms = blockTwins(pfArms.userData.rods, pfArms);
 let streakBlocks = null;   // the emote / streak-device arms', made on first use
 let streakHid = false;     // we hid their stick hands (put them back once off)
 export function placeBlockArms() {
-  const on = cosmetics.body === "trolls-1718";
+  const token = nftArms(), on = !!token;
+  // the garment's sleeve (null: bare arms, the skin) and cuff
+  const look = on ? fpArmLook(token) : null;
+  const drop = on ? BLOCK_FIST_ADS_DROP * (currentWeapon()?.adsT || 0) : 0;
   pfArms.userData.rods[0].material.visible = !on;   // (both rods share it)
   const sArms = game.streakArms?.userData.arms;
   if (sArms && (on || streakBlocks)) {
@@ -506,7 +523,10 @@ export function placeBlockArms() {
   for (const b of streakBlocks ? [...blockArms, ...streakBlocks] : blockArms) {
     const show = on && b.rod.visible;
     b.arm.visible = b.fist.visible = show;
+    b.cuff.visible = show && !!look.cuff;
     if (!show) continue;
+    b.arm.material = look.sleeve || blockMat;
+    if (look.cuff) b.cuff.material = look.cuff;
     const len = b.rod.scale.y;
     b.arm.position.copy(b.rod.position);
     // the rod's turn about its own length is arbitrary: turn the box so a
@@ -518,7 +538,12 @@ export function placeBlockArms() {
     b.arm.quaternion.copy(_baQ.setFromAxisAngle(_baUp, twist)).multiply(b.rod.quaternion);
     b.arm.scale.set(1, Math.max(0.001, len - BLOCK_FIST * 0.45), 1);
     b.fist.position.copy(b.rod.position).addScaledVector(_baUp, len);
+    if (b.rod.parent === pfArms) b.fist.position.y -= drop;   // the gun's arms only, not an emote's
     b.fist.quaternion.copy(b.arm.quaternion);
+    if (b.cuff.visible) {
+      b.cuff.position.copy(b.rod.position).addScaledVector(_baUp, len - BLOCK_FIST * 0.45 - BLOCK_CUFF[1] / 2);
+      b.cuff.quaternion.copy(b.arm.quaternion);
+    }
   }
 }
 

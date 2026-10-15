@@ -3121,6 +3121,17 @@ body.to-touch-play .to-touch-pov {
   left: auto; right: calc(var(--sr) + 88px * var(--k)); bottom: auto; top: calc(var(--st, 0px) + 64px * var(--k));
   width: calc(56px * var(--k)); height: calc(30px * var(--k)); font-size: calc(11px * var(--k));
 }
+/* Free look (view/free-look.js), third person only: under the camera
+   button on the touch panel, left of it on a phone. */
+.to-touch-free { left: 22px; top: 214px; width: 52px; height: 32px; border-radius: 9px; }
+.to-touch-free svg { width: 20px; height: 20px; }
+.to-touch-free[aria-pressed="true"] { background: rgba(127,224,102,.3); border-color: rgba(127,224,102,.65); }
+.to-touch-free[hidden] { display: none; }
+body.to-touch-play .to-touch-free {
+  left: auto; right: calc(var(--sr) + 152px * var(--k)); bottom: auto; top: calc(var(--st, 0px) + 64px * var(--k));
+  width: calc(44px * var(--k)); height: calc(30px * var(--k));
+}
+body.to-touch-play .to-touch-free svg { width: calc(18px * var(--k)); height: calc(18px * var(--k)); }
 
 /* Scorestreak slots, BO2 style: the picture with the streak's tier badge on
    its corner, its name under it, then the cost (or READY and the key). */
@@ -3378,6 +3389,16 @@ body.to-touch-play .to-ss-sky { width: calc(24px * var(--k)); height: calc(24px 
 .to-bo2-party-row b { font: 500 18px Oswald, sans-serif; letter-spacing: .03em; color: var(--bo2-gold); }
 .to-bo2-lv { font: normal 12px "DM Mono", monospace; color: var(--bo2-hot); }
 .to-bo2-xp { font: 12px "DM Mono", monospace; color: var(--bo2-dim); text-shadow: 0 1px 4px rgba(0,0,0,.9); }
+.to-bo2-xp[hidden] { display: none; }
+/* Everyone else online (menu-bo2.js renderPartyOthers): your row's look,
+   quieter, with what they're doing on the right. */
+.to-bo2-party-others { display: flex; flex-direction: column; gap: 4px; }
+.to-bo2-party-row.is-other { min-height: 30px; border-bottom-color: rgba(255,176,32,.25); width: 100%; font: inherit; }
+div.to-bo2-party-row.is-other { cursor: default; }
+.to-bo2-party-row.is-other b { font-size: 15px; color: #f2ead8; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.to-bo2-party-row.is-other small { margin-left: auto; font: 11px "DM Mono", monospace; color: var(--bo2-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 50%; text-align: right; }
+.to-bo2-party-more { align-self: flex-start; background: none; border: 0; padding: 2px 10px; font: 12px "DM Mono", monospace; color: var(--bo2-hot); cursor: pointer; }
+.to-bo2-party-more:focus-visible { outline: 2px solid var(--bo2-hot); outline-offset: 2px; }
 
 /* The detail pane: the old panels (minus their lists), a map shot, the board. */
 .to-bo2-detail, .to-bo2-panel {

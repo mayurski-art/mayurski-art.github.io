@@ -13,7 +13,7 @@ import { groundHeightAt, resolveCircle } from "./movement.js?v=umb2-sb2-gj1b7";
 import { segmentBlocked } from "./ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
 import { FlowField } from "./nav.js?v=ti1-bs1b7d-fl1";
 import { clampInsidePolygon, insidePolygon } from "./edge.js";
-import { botPerks, perkBits, PERK_TUNE } from "./perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2";
+import { botPerks, perkBits, PERK_TUNE } from "./perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1";
 
 const NAMES = [
   "grinbot", "sneerbot", "chuckles", "smirko", "haha_9000", "kekbot",
@@ -173,6 +173,30 @@ const POST_STILL = 4;              // holding a post, got under 1.5 m in this lo
 /* A climb up or down a rope floor link (s.rope): the spot it hangs at is
    half a metre off the rope on the side its foot is. */
 const BOT_ROPE_UP = 3.6, BOT_ROPE_DOWN = 5;
+/* The height to read a bot's chase fields at. navFor rounds it to a 0.5 m
+   level, and a level's field only has cells on floors within 0.45 of it;
+   a bot on a stair's treads (or held there by navY) can round to a level
+   that misses the floor it's actually on. Undergrin's 0.95 platforms: from
+   a tread at 1.3 the 1.5 field has no platform, so no route, and the bot
+   wandered off (the bot-stairs flake). So: the floor round here (the
+   highest big surface at or under its feet within a metre or so: not a
+   tread or a crate) wins when the rounded level would miss it. Anywhere
+   the rounding already reaches that floor, nothing changes. */
+const NAV_FLOOR_AREA = 3;            // m²: a stair tread or a crate is less
+const NAV_FLOOR_REACH = 1.2;         // m round the bot
+function navLevelAt(colliders, x, z, y) {
+  const level = Math.round(y * 2) / 2;
+  let floor = -Infinity;
+  for (const c of colliders) {
+    const top = c.max.y;
+    if (top > y + 0.1 || top < y - 1 || top <= floor) continue;
+    if (x < c.min.x - NAV_FLOOR_REACH || x > c.max.x + NAV_FLOOR_REACH || z < c.min.z - NAV_FLOOR_REACH || z > c.max.z + NAV_FLOOR_REACH) continue;
+    if ((c.max.x - c.min.x) * (c.max.z - c.min.z) < NAV_FLOOR_AREA) continue;
+    floor = top;
+  }
+  return floor > -Infinity && Math.abs(floor - level) > 0.45 ? floor : y;
+}
+
 function ropeClimb(s, entry, exit) {
   const len = Math.hypot(s.b.x - s.a.x, s.b.z - s.a.z) || 1;
   const dx = (s.b.x - s.a.x) / len, dz = (s.b.z - s.a.z) / len;
@@ -342,6 +366,7 @@ class Bot {
     this.stairPlan = null;
     this.noRoute = null;
     this.navY = null;
+    this.navLevel = null;
     this.stuckTotal = 0;
     this.flinchT = 0;
     this.stunT = 0;
@@ -1004,7 +1029,13 @@ class Bot {
     // the way (one through the door, one round the block) had it dither in
     // the doorway for good (Trolling Loud's back door).
     if (this.navY == null || Math.abs(here - this.navY) > 0.4) this.navY = here;
-    const navY = this.navY;
+    // ...and read on the floor it's really on (navLevelAt). Worked out again
+    // only when navY moves or the bot has walked a metre.
+    const nl = this.navLevel;
+    if (!nl || nl.y !== this.navY || Math.abs(nl.x - this.pos.x) + Math.abs(nl.z - this.pos.z) > 1) {
+      this.navLevel = { y: this.navY, x: this.pos.x, z: this.pos.z, at: ctx.colliders ? navLevelAt(ctx.colliders, this.pos.x, this.pos.z, this.navY) : this.navY };
+    }
+    const navY = this.navLevel.at;
     const gy = goal.groundY ?? goal.y;
     if (this.climb) {
       const dir = this.climbStep(ctx);

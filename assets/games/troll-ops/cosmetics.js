@@ -10,8 +10,6 @@
 
 import { FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1";
 import { WRISTWEAR, watchThumb } from "./wristwear.js?v=ww1c2m1";
-import { isOwner } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
-
 const KEY = "trollops:cosmetics";
 
 export const EXPRESSIONS = [
@@ -30,12 +28,35 @@ export const COVERINGS = [
 export const WRISTS = [{ id: "", name: "None" }, ...Object.entries(WRISTWEAR).map(([id, w]) => ({ id, name: w.name }))];
 const EXPR_IDS = new Set(EXPRESSIONS.map((e) => e.id));
 // Bodies: the stick troll, or a TROLLS NFT's look (blocky-body.js
-// wearBlocky). A token's body is for its holder only; until the wallet check
-// exists (TROLLS-TRAITS.md) #1718 is locked to the troll_runner account.
+// wearBlocky). A token's body is for its holder only: until the wallet
+// check exists (TROLLS-TRAITS.md) each is locked to its holder's
+// trollrunner.net account by username (`holder`), and nobody else, not
+// even the owner, can put it on (user, 2026-10-15: #820 "should only be
+// exclusively played by him only").
 export const BODIES = [
   { id: "", name: "Stick troll", img: "../../images/wallpaper/trollface%20transparent.png" },
-  { id: "trolls-1718", name: "TROLLS #1718", img: "./ui/trolls-1718.png", owner: true },
+  { id: "trolls-1718", token: 1718, name: "TROLLS #1718", img: "./ui/trolls-1718.png", holder: "troll_runner" },
+  { id: "trolls-1262", token: 1262, name: "TROLLS #1262", img: "./ui/trolls-1262.png", holder: "big_elva001" },
+  { id: "trolls-820", token: 820, name: "TROLLS #820", img: "./ui/trolls-820.png", holder: "guccibeardd" },
 ];
+/* The signed-in account's username, lower case ("" signed out). */
+export function username() {
+  return String(window.TrollrunnerAccounts?.getCachedProfile?.()?.username || "").toLowerCase();
+}
+/* Body id -> its TROLLS token (0 for the stick or an unknown id). */
+export function bodyToken(id) {
+  return BODIES.find((x) => x.id === id)?.token || 0;
+}
+/* May an account named `name` wear token #token's body? Checked for your
+   own pick (canWearBody) and for every player on the wire (remote-players.js):
+   a body shows on its holder only. */
+export function holderOf(token) {
+  return BODIES.find((x) => x.token === +token)?.holder || null;
+}
+export function mayWear(token, name) {
+  const holder = holderOf(token);
+  return !!holder && String(name || "").toLowerCase() === holder;
+}
 /* A TROLLS body brings its own head and face (the NFT's art), so the
    expression and the face covering come off while it's worn and can't go
    back on (user, 2026-10-12). The wrist isn't the head: it stays. */
@@ -48,7 +69,7 @@ const ownFace = (face) => {
 /* May the signed-in account wear body `id`? */
 export function canWearBody(id) {
   const b = BODIES.find((x) => x.id === id);
-  return !!b && (!b.owner || isOwner());
+  return !!b && (!b.holder || mayWear(b.token, username()));
 }
 
 /* A face key off the wire or storage, or the default when it's not one we

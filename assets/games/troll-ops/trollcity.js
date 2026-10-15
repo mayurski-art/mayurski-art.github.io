@@ -32,8 +32,8 @@ import {
   barrel, crate, crateStack, trough, hitchRail, bollard, telegraphPole, wire, streetLamp,
   wheel, wagon, horse, cactus, steerSkull, rock,
   tableSet as kitTableSet, chair as kitChair, stool as kitStool, piano as kitPiano,
-  chandelier, sconce, railFence, picketFence, hayBale, log, coffin, framedPicture, artTexture,
-} from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1";
+  chandelier, sconce, railFence, picketFence, hayBale, log, coffin, framedPicture, artTexture, artAspect,
+} from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1";
 import { LoopPath, Train } from "./train.js?v=tr1b7";
 
 const BOUNDS = { minX: -62, maxX: 62, minZ: -50, maxZ: 50 };
@@ -1983,7 +1983,7 @@ function stagecoach(K, M, x, z, ry) {
    barnwood and walnut, old sepia photographs in the hotel and the barber's. */
 function hangPictures(K, M) {
   const art = {};
-  const A = (name, sepia = false) => art[name + sepia] ??= texMat(artTexture(name, { sepia }), { rough: 0.75, bounce: 0.18, decal: true });
+  const A = (name, sepia = false) => art[name + sepia] ??= Object.assign(texMat(artTexture(name, { sepia }), { rough: 0.75, bounce: 0.18, decal: true }), { userData: { aspect: artAspect(name) } });
   const U = UPPER_Y;
   for (const p of [
     // the saloon: Bach by the piano, the general by the door, the cowboys

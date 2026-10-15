@@ -20,8 +20,8 @@
 </head>
 <body>
 <div id="ui" role="toolbar" aria-label="Preview controls"></div>
-<img id="ref" alt="TROLLS NFT reference art" src="../assets/games/troll-ops/refs/trolls-1718.png">
-<div id="reflabel">TROLLS #1718 (ref)</div>
+<img id="ref" alt="TROLLS NFT reference art" src="">
+<div id="reflabel"></div>
 <script type="module">
 /* The live stick troll next to the blocky one we're building (localhost
    tool): both the game's own rig, posed by the game's own pose code; the
@@ -39,6 +39,9 @@ const q = new URLSearchParams(location.search);
 const token = q.get("token") || "1718";
 let pose = q.get("pose") || "idle";
 let spin = q.get("spin") === "1";
+// look down: the head tipped forward after the pose (a beard riding the
+// chest, BEARDS.md 1, should stay on it), radians
+let look = +(q.get("look") || 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(Math.min(2, devicePixelRatio));
@@ -75,8 +78,11 @@ scene.add(live.root);
 
 // The blocky troll: the token's drawn head traits (traits.js) on the
 // trollface, the block body (blocky-body.js) dressed in its garment.
-const { applyBlocky } = await import("../assets/games/troll-ops/blocky-body.js?t=" + Date.now());
-const ready = applyToken(rig, token, { headOnly: true }).then(() => applyBlocky(rig, { garment: "clothes-tank-runner" }));
+const { applyBlocky, tokenLook } = await import("../assets/games/troll-ops/blocky-body.js?t=" + Date.now());
+// the token's own garment (its CLOTHES trait, blocky-body.js tokenLook)
+const ready = applyToken(rig, token, { headOnly: true }).then(() => applyBlocky(rig, { garment: tokenLook(token)?.garment }));
+document.getElementById("ref").src = `../assets/games/troll-ops/refs/trolls-${token}.png`;
+document.getElementById("reflabel").textContent = `TROLLS #${token} (ref)`;
 
 // The game's own guns (weapons.js + weapon-model.js), held the game's way
 // (mountHeldWeapon: both hands, from the shoulder): ?gun=<weapons.js id>,
@@ -123,6 +129,7 @@ function buttons() {
   ui.innerHTML = "";
   for (const p of ["idle", "walk", "aim", "shoot", "run+shoot", "dance", "death"]) mk(p, pose === p, () => { pose = p; t0 = performance.now(); });
   mk("spin", spin, () => { spin = !spin; });
+  mk("look down", look !== 0, () => { look = look ? 0 : 0.45; });
   mk("close-up", orbit.dist < 2, () => { orbit.dist = orbit.dist < 2 ? 3.4 : 1.5; });
 }
 function mk(label, isOn, fn) {
@@ -142,7 +149,7 @@ function resize() {
 }
 addEventListener("resize", resize);
 resize();
-window.__preview = { rig, orbit, ready, setPose: (p) => { pose = p; t0 = performance.now(); } };
+window.__preview = { rig, orbit, ready, setLook: (v) => { look = v; }, setPose: (p) => { pose = p; t0 = performance.now(); } };
 
 renderer.setAnimationLoop((now) => {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -175,6 +182,7 @@ renderer.setAnimationLoop((now) => {
       hasGun: armed, hold: armed ? "gun" : "none", ads: armed ? 1 : 0,
       recoil: firing ? Math.max(0, 1 - k * 3) : 0, fired: firing ? k / 8 : Infinity,
     });
+    if (look) r.parts.headPivot.rotation.x += look;   // (+x tips the head pivot forward)
   }
   const close = orbit.dist < 2;
   // orbit.tx / orbit.ty (set from the console) aim the camera somewhere else

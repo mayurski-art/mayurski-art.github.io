@@ -17,7 +17,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import { setClothed, setHips, reshapeRig } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1";
-import { applyToken, removeToken } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1";
+import { applyToken, removeToken, tokenTraits } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1";
 import { addRim } from "./view/rim-light.js?v=sr1";
 
 const DIR = new URL("./traits/", import.meta.url);
@@ -172,9 +172,88 @@ function capPrint(text) {
 /* The muscular arms (models/build_blocky_arms.blender.py -> blocky/arms-muscle.glb):
    blocky muscle masses, each piece "<joint><S>__<muscle>" authored in its
    joint's frame, bone straight down -Y, at scale 1 with these bone lengths. */
-const glb = (file) => new URL(`./models/blocky/${file}?v=${globalThis.TRAITS_BUST ?? "bb1"}`, import.meta.url).href;
-const ARMS_GLB = glb("arms-muscle.glb"), TORSO_GLB = glb("torso-muscle.glb"), LEGS_GLB = glb("legs-muscle.glb");
+const glb = (file) => new URL(`./models/blocky/${file}?v=${globalThis.TRAITS_BUST ?? "bb2"}`, import.meta.url).href;
+const TORSO_GLB = glb("torso-muscle.glb");
 const HEAD_GLB = glb("head-relief.glb");
+/* What each CLOTHES trait dresses the body in (the trait library, traits.js):
+   its block template wrapped on the torso, and the arm and leg piece sets
+   (models/blocky/<file>, built by models/build_blocky_*.blender.py) with a
+   colour per piece name; a piece with no colour is skin, "plaid" the
+   shirt's cloth (plaidMaterial). Every token with the trait wears this. */
+const KITS = {
+  "clothes-tank-runner": { arms: "arms-muscle.glb", legs: "legs-muscle.glb",
+    colours: { shorts: 0x34363e, hem: 0x43464f, upper: 0x141416, sole: 0xdcdcd6 } },
+  // Farmer: plaid long sleeves, denim overalls to the boots
+  "clothes-farmer": { arms: "arms-farmer.glb", legs: "legs-farmer.glb",
+    colours: { sleeve: "plaid", cuff: "plaid", denim: 0x3f6fa6, hem: 0x2f5a8c, boot: 0x6b4423, collar: 0x8a5a30, sole: 0x2a2420 } },
+  // Sweater Black: the farmer's pieces as black knit sleeves, dark jeans, black sneakers
+  "clothes-sweater-black": { arms: "arms-farmer.glb", legs: "legs-farmer.glb",
+    colours: { sleeve: 0x2b2b2e, cuff: 0x1f1f22, denim: 0x34363d, hem: 0x2a2c32, boot: 0x1b1b1d, collar: 0x1f1f22, sole: 0xe6e6e0 } },
+};
+/* Token #id's look on the block body: its garment and that garment's kit,
+   or null when the token isn't wearable (a trait not drawn yet). */
+export function tokenLook(token) {
+  const ids = tokenTraits(token);
+  const garment = ids?.find((id) => id.startsWith("clothes-"));
+  return garment && KITS[garment] ? { garment, kit: KITS[garment] } : null;
+}
+/* The farmer's shirt: white with a fine red-pink check, a tile repeated
+   over the sleeves (box-projected UVs from Blender, 1 tile = 0.12 m). */
+let plaidTex = null;
+function plaidMaterial() {
+  if (!plaidTex) {
+    const c = document.createElement("canvas");
+    c.width = c.height = 128;
+    const g = c.getContext("2d");
+    g.fillStyle = "#f6f3ee"; g.fillRect(0, 0, 128, 128);
+    for (const [at, w, col] of [[0, 6, "#e39a9a"], [64, 6, "#e39a9a"], [32, 3, "#f1c6c6"], [96, 3, "#f1c6c6"]]) {
+      g.fillStyle = col;
+      g.fillRect(at - w / 2, 0, w, 128); g.fillRect(0, at - w / 2, 128, w);
+      if (at - w / 2 < 0) { g.fillRect(128 + at - w / 2, 0, w, 128); g.fillRect(0, 128 + at - w / 2, 128, w); }
+    }
+    plaidTex = new THREE.CanvasTexture(c);
+    plaidTex.colorSpace = THREE.SRGBColorSpace;
+    plaidTex.wrapS = plaidTex.wrapT = THREE.RepeatWrapping;
+    plaidTex.anisotropy = 8;
+  }
+  return addRim(new THREE.MeshToonMaterial({ map: plaidTex, gradientMap: CLOTH_TONES, emissive: 0xffffff, emissiveMap: plaidTex, emissiveIntensity: 0.12 }));
+}
+/* A kit's materials by piece name, up to a "-" ("sleeve-cap" is sleeve),
+   shared within one body. */
+function kitMaterials(colours) {
+  const mats = new Map();
+  return (name) => {
+    const key = name.split("-")[0];
+    if (!mats.has(key)) {
+      const c = colours[key];
+      mats.set(key, c === "plaid" ? plaidMaterial() : toon(c ?? SKIN));
+    }
+    return mats.get(key);
+  };
+}
+/* Your own first-person arms in token #token's garment (view/weapon-view.js
+   placeBlockArms): the forearm's material (null: bare, the white skin) and
+   the cuff's (null: none), or null for a token that isn't wearable. The
+   plaid gets its own repeat for the first-person box (0.066 m across, about
+   0.45 m long). */
+const fpArmLooks = new Map();
+export function fpArmLook(token) {
+  const kit = tokenLook(token)?.kit;
+  if (!kit) return null;
+  if (!fpArmLooks.has(token)) {
+    const mat = (c) => {
+      if (c == null) return null;
+      if (c !== "plaid") return toon(c);
+      const m = plaidMaterial();
+      m.map = m.emissiveMap = plaidTex.clone();
+      m.map.repeat.set(0.55, 3.6);
+      m.map.needsUpdate = true;
+      return m;
+    };
+    fpArmLooks.set(token, { sleeve: mat(kit.colours.sleeve), cuff: mat(kit.colours.cuff) });
+  }
+  return fpArmLooks.get(token);
+}
 /* The trollface with a little depth (models/build_blocky_head.blender.py):
    how far its dome stands in front of the board and its skull behind, so
    the drawn head traits (traits.js planes) move out onto them. */
@@ -202,7 +281,6 @@ function loadPieces(url) {
   }));
   return pieceSets.get(url);
 }
-const loadArms = () => loadPieces(ARMS_GLB);
 const INK_PUSH = 0.0055;
 const armInk = new THREE.MeshBasicMaterial({ color: INK, side: THREE.BackSide });
 armInk.userData.shared = true;
@@ -212,11 +290,13 @@ armInk.onBeforeCompile = (sh) => {
     `#include <begin_vertex>\n  transformed += normal * ${INK_PUSH.toFixed(4)};`);
 };
 
-/* Hang the muscle pieces on `rig`'s arm joints: each lined up with its live
-   bone and stretched to its length. Returns the added objects. */
-function muscleArms(rig, material) {
+/* Hang the kit's arm pieces on `rig`'s arm joints: each lined up with its
+   live bone and stretched to its length, in its colour by piece name
+   (muscle names are skin). Returns the added objects. */
+function muscleArms(rig, kit) {
   const p = rig.parts, s = rig.scale;
-  return loadArms().then((pieces) => {
+  const matOf = kitMaterials(kit.colours);
+  return loadPieces(glb(kit.arms)).then((pieces) => {
     const added = [];
     for (const { name, geo, hull } of pieces) {
       const [jname, muscle] = name.split("__");
@@ -234,7 +314,7 @@ function muscleArms(rig, material) {
       // is where the rig puts a gun's grip (and the support hand on the
       // handguard), so the gun runs through the fist instead of past it.
       if (kind === "hand") g.position.copy(bone).normalize().multiplyScalar(FIST_BACK * s);
-      const m = new THREE.Mesh(geo, material);
+      const m = new THREE.Mesh(geo, matOf(muscle));
       m.castShadow = true;
       m.name = muscle;
       g.add(m, new THREE.Mesh(hull, armInk));
@@ -251,14 +331,10 @@ function muscleArms(rig, material) {
    (the sneaker) on the ankle as it is. Shorts and shoes in their own colours,
    the rest skin. Returns the added objects. */
 const LEG_BONES = { thigh: 0.30, knee: 0.295 };
-function muscleLegs(rig, colours) {
+function muscleLegs(rig, kit) {
   const p = rig.parts, s = rig.scale;
-  const mats = new Map();
-  const matOf = (key) => {
-    if (!mats.has(key)) mats.set(key, toon(colours[key] ?? SKIN));
-    return mats.get(key);
-  };
-  return loadPieces(LEGS_GLB).then((pieces) => pieces.map(({ name, geo, hull }) => {
+  const matOf = kitMaterials(kit.colours);
+  return loadPieces(glb(kit.legs)).then((pieces) => pieces.map(({ name, geo, hull }) => {
     const [jname, part] = name.split("__");
     const kind = jname.slice(0, -1), side = jname.slice(-1);
     const knee = p[`knee${side}`], ankle = p[`ankle${side}`];
@@ -286,7 +362,18 @@ function muscleLegs(rig, colours) {
    boards with the white top of the head between them; user: "fix the
    umadbro hat rendering".) In the plane's own frame its +z is outward
    (the front plane is turned to face forward), so the bend is +z for both. */
-const CAP = { a: 0.32, b: 0.345, front: 0.056, back: 0.096, ink: "#151517" };   // ellipsoid half-width, half-height (to the cap's top), depths; the cap's colour
+const CAP = { a: 0.32, b: 0.345, front: 0.056, back: 0.096 };   // ellipsoid half-width, half-height (to the cap's top), depths
+/* Each hat's own shape: `ink` the colour of its walls and of the back
+   under its back drawing; `brim` a band of the head frame (y0..y1, frame
+   units) that stands out flat all round instead of following the head (a
+   bucket hat's brim: a disc, `brimFront`/`brimBack` deep, metres), easing
+   into the crown over `ease` units. */
+const HATS = {
+  "hat-goatfarm": { ink: "#151517" },
+  "hat-camper": { ink: "#8f8862", brim: [352, 452], brimFront: 0.13, brimBack: 0.13, ease: 16 },
+  // a flat cap: its bill out in front only (no brimBack: the crown all round behind)
+  "hat-baker": { ink: "#1d1c17", brim: [345, 420], brimFront: 0.105, ease: 14 },
+};
 /* How far the cap stands out of the head pivot's middle at (x, y): an
    ellipsoid round the head that closes exactly at that column's top edge of
    the cap (`top`), so the front and back meet in a rounded crown there
@@ -295,6 +382,8 @@ const capDepth = (x, y, centreY, s, d, top) => {
   const b = y > centreY && top !== undefined ? Math.max(0.05 * s, top - centreY) : CAP.b * s;
   return d * s * Math.sqrt(Math.max(0, 1 - (x / (CAP.a * s)) ** 2 - ((y - centreY) / b) ** 2));
 };
+/* The brim's depth at (x, y): flat across the band, a disc's edge in x. */
+const brimDepth = (x, s, d) => d * s * Math.sqrt(Math.max(0, 1 - (x / (CAP.a * s)) ** 2));
 
 /* Bent, the drawings still had nothing between them: from the side the cap
    was a sliver. So the cap gets thickness, like the garment boards: its
@@ -308,6 +397,13 @@ function loadImage(url) {
 async function capVolume(id, plane, centreY, s) {
   const { width: w, height: h } = plane.geometry.parameters;
   const y0 = plane.position.y - h / 2;
+  const hat = HATS[id] || HATS["hat-goatfarm"];
+  // the brim band in the plane's y (frame y runs down from the plane's top)
+  const frameY = (Y) => y0 + h - (Y / 1033) * h;
+  const brim = hat.brim ? [frameY(hat.brim[1]), frameY(hat.brim[0])] : null;
+  const ease = hat.brim ? (hat.ease / 1033) * h : 0;
+  // 0 off the brim, 1 on it, eased at its edges
+  const onBrim = (y) => !brim ? 0 : Math.max(0, Math.min(1, Math.min(y - brim[0] + ease, brim[1] + ease - y) / (2 * ease)));
   const [fImg, bImg] = await Promise.all([`${id}.png`, `${id}.back.png`].map((f) => loadImage(new URL(`${f}?v=${ART_V}`, DIR).href)));
   const W = 512, H = Math.round(512 * h / w);
   // The silhouette: the front drawing's alpha (u runs the front's way: the
@@ -324,13 +420,13 @@ async function capVolume(id, plane, centreY, s) {
   const bc = document.createElement("canvas"); bc.width = W; bc.height = H;
   const bg = bc.getContext("2d");
   bg.save(); bg.translate(W, 0); bg.scale(-1, 1); bg.drawImage(mc, 0, 0); bg.restore();
-  bg.globalCompositeOperation = "source-in"; bg.fillStyle = CAP.ink; bg.fillRect(0, 0, W, H);
+  bg.globalCompositeOperation = "source-in"; bg.fillStyle = hat.ink; bg.fillRect(0, 0, W, H);
   bg.globalCompositeOperation = "source-over"; bg.drawImage(bImg, 0, 0, W, H);
   const tex = (src) => { const t = src instanceof HTMLCanvasElement ? new THREE.CanvasTexture(src) : new THREE.Texture(src); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.needsUpdate = true; return t; };
   const mats = [
     drawn(tex(fImg), { transparent: true, alphaTest: 0.5, side: THREE.DoubleSide }),
     drawn(tex(bc), { transparent: true, alphaTest: 0.5, side: THREE.DoubleSide }),
-    mat(0x151517, { side: THREE.DoubleSide, emissiveIntensity: 0.25 }),
+    mat(parseInt(hat.ink.slice(1), 16), { side: THREE.DoubleSide, emissiveIntensity: 0.25 }),
   ];
   // A grid over the plane; a cell is cap when its centre is inside the silhouette
   const N = 170, M = Math.round(N * h / w);
@@ -352,8 +448,10 @@ async function capVolume(id, plane, centreY, s) {
     colTop.push(t);
   }
   const top = (x) => colTop[Math.round((x + w / 2) / w * N)];
-  const zF = (x, y) => -(0.004 * s + capDepth(x, y, centreY, s, CAP.front, top(x)));
-  const zB = (x, y) => 0.006 * s + capDepth(x, y, centreY, s, CAP.back, top(x));
+  // (off the brim, a hat without one: no brimDepth to mix, it's NaN)
+  const mix = (a, b, t) => (t > 0 ? a + (b - a) * t : a);
+  const zF = (x, y) => -(0.004 * s + mix(capDepth(x, y, centreY, s, CAP.front, top(x)), brimDepth(x, s, hat.brimFront), onBrim(y)));
+  const zB = (x, y) => 0.006 * s + (hat.brimBack == null ? capDepth(x, y, centreY, s, CAP.back, top(x)) : mix(capDepth(x, y, centreY, s, CAP.back, top(x)), brimDepth(x, s, hat.brimBack), onBrim(y)));
   const pos = [], uv = [], groups = [[], [], []];
   const quad = (g, a, b, c, d) => { const n = pos.length / 3; for (const [p, t] of [a, b, c, d]) { pos.push(...p); uv.push(...t); } groups[g].push(n, n + 1, n + 2, n, n + 2, n + 3); };
   for (let j = 0; j < M; j++) for (let i = 0; i < N; i++) {
@@ -382,6 +480,377 @@ async function capVolume(id, plane, centreY, s) {
   const mesh = new THREE.Mesh(geo, mats);
   mesh.castShadow = true;
   mesh.renderOrder = 2;
+  return mesh;
+}
+
+/* A beard's drawing (traits.js: a tall flat plane over the face, frame rows
+   0..1300, the head's 1033 and the hang below the chin) as hair GROWN OUT
+   OF THE FACE (user, 2026-10-15: "it needs to look good ... like its
+   attached to the trollface itself, not attached in front of it"):
+     - its back lies on the relief head's own surface (read off the head's
+       vertices into a height map), sunk a hair into it, so there's no gap
+       and no ledge where the face and the beard meet;
+     - its thickness grows from nothing at every edge (a distance field over
+       the drawing's silhouette) to a full mass in the middle, so round the
+       grin it's flush with the face and swells away from it;
+     - past the face's edge the sideburns carry on round the jaw toward the
+       ears, and under the chin it hangs down over the chest, resting on it;
+     - it's shaded in bands like the face (the same toon tones), so the two
+       read as one surface.
+   Built in the head pivot's frame (-z the front), once the relief head is on. */
+const BEARD = {
+  dark: "#3d1e09",
+  curl: 0.75,        // past the face's edge, how far back the sideburns go per metre out (pivot frame)
+  chin: [860, 1080], // frame rows from the jaw down, where it stops wrapping the jaw and drapes onto the chest
+  chest: { front: 0.135, top: 0.05 }, // the block chest's front (pecs) and top, chest-local metres (blocky/torso-muscle.glb)
+  rest: 0.008,       // the hang's back, off the shirt
+  soft: 0.035,       // how softly the jaw's surface turns into the chest's
+  thick: [0.028, 0.06], // the mass at its fullest on the jaw and in the hang
+  taper: 0.045,      // how far in from an edge it takes to reach that (metres)
+  sink: 0.003,       // its back, into the face
+  ride: [900, 1110], // frame rows over which it hands over from the head to the chest (beardRide)
+};
+/* Every facial built as a shell on the face this way (BEARDS.md 8), by
+   trait id: the beard, and a bandana mask (a thin shell, its point hanging
+   onto the neck). reliefHead swaps these in for their flat cards. */
+const SHELLS = {
+  "facial-beard-brown": BEARD,
+  "facial-face-mask-umadbro": { ...BEARD, dark: "#0b0b0c", curl: 0.9, chin: [880, 1100], rest: 0.004,
+    thick: [0.0045, 0.006], taper: 0.01, ride: [920, 1120],
+    // a thin shell lies OFF the face (the nose and the grin's relief poked through), no depth image
+    sink: 0.002, lift: 0.008, depth: false },
+};
+/* Eye traits worn OVER a shell facial (sunglasses over a face mask): their
+   card stands this much further out than the relief's front (metres). */
+const OVER_SHELL = { "eyes-glasses-thug": 0.016 };
+/* The beard rides two joints (BEARDS.md 1): the jaw on the head, the hang
+   on the chest, and between them a blend, so when the head looks down or
+   welds to a rifle stock the hang stays draped on the chest instead of
+   swinging into it. Each vertex has a weight (chestW, 0 the head, 1 the
+   chest) and a uniform carries the chest's move since the build, in the
+   head pivot's frame (beardRide, set every frame by rideUpdate). */
+function rideMaterial(material, ride) {
+  material.userData.ride = ride;
+  const prev = material.onBeforeCompile;
+  material.onBeforeCompile = (sh, r) => {
+    prev?.call(material, sh, r);
+    sh.uniforms.beardRide = ride;
+    sh.vertexShader = sh.vertexShader
+      .replace("#include <common>", "#include <common>\nattribute float chestW;\nuniform mat4 beardRide;")
+      .replace("#include <beginnormal_vertex>", "#include <beginnormal_vertex>\n  objectNormal = normalize(mix(objectNormal, mat3(beardRide) * objectNormal, chestW));")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\n  transformed = mix(transformed, (beardRide * vec4(transformed, 1.0)).xyz, chestW);");
+  };
+  material.customProgramCacheKey = () => "beard-ride";
+  return material;
+}
+/* The beard's ink outline from every angle (BEARDS.md 3): the arms' trick,
+   its front pushed out along its normals and drawn black from behind, so
+   only its silhouette shows. Each vertex's push is scaled by inkW: 0 where
+   the beard lies on the face (no ink ring round the grin: the hair grows
+   out of the face), 1 past the face's edge and down the hang. It rides the
+   chest like the beard (beardRide). */
+const BEARD_INK = 0.0065;
+function beardInk(ride) {
+  const m = new THREE.MeshBasicMaterial({ color: INK, side: THREE.BackSide });
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.beardRide = ride;
+    sh.vertexShader = sh.vertexShader
+      .replace("#include <common>", "#include <common>\nattribute float chestW;\nattribute float inkW;\nuniform mat4 beardRide;")
+      .replace("#include <begin_vertex>", `#include <begin_vertex>
+  vec3 inkN = normalize(mix(normal, mat3(beardRide) * normal, chestW));
+  transformed = mix(transformed, (beardRide * vec4(transformed, 1.0)).xyz, chestW) + inkN * ${BEARD_INK.toFixed(4)} * inkW;`);
+  };
+  m.customProgramCacheKey = () => "beard-ink";
+  return m;
+}
+const smooth01 = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+/* The relief head's front surface as a height map over the rectangle
+   [x0, x0 + w] x [y0, y0 + h] of `frame` (an Object3D the result is in):
+   for each of gw x gh bins, the frontmost z (most negative) of the head's
+   vertices there, the empty bins filled out from their filled neighbours,
+   with how far (metres) each lies outside the head. */
+function headHeights(head, frame, x0, y0, w, h, gw, gh) {
+  head.updateMatrixWorld(true);
+  frame.updateMatrixWorld(true);
+  const toFrame = new THREE.Matrix4().copy(frame.matrixWorld).invert();
+  const m = new THREE.Matrix4(), v = new THREE.Vector3();
+  const z = new Float32Array(gw * gh).fill(Infinity);
+  head.traverse((o) => {
+    if (!o.isMesh || o.material === armInk) return;
+    m.multiplyMatrices(toFrame, o.matrixWorld);
+    const pos = o.geometry.attributes.position;
+    for (let k = 0; k < pos.count; k++) {
+      v.fromBufferAttribute(pos, k).applyMatrix4(m);
+      const i = Math.floor((v.x - x0) / w * gw), j = Math.floor((v.y - y0) / h * gh);
+      if (i < 0 || j < 0 || i >= gw || j >= gh) continue;
+      if (v.z < z[j * gw + i]) z[j * gw + i] = v.z;
+    }
+  });
+  // the head's own bins; the back half's vertices never win (front is -z)
+  const out = new Float32Array(gw * gh).fill(Infinity);
+  for (let k = 0; k < z.length; k++) if (z[k] < 0) out[k] = 0; else z[k] = Infinity;
+  // fill outward a ring at a time: each empty bin takes its filled
+  // neighbours' mean, one bin further out than the nearest of them
+  const cell = Math.hypot(w / gw, h / gh) / Math.SQRT2;
+  for (let ring = 0, filled = true; filled && ring < gw + gh; ring++) {
+    filled = false;
+    const nz = z.slice(), no = out.slice();
+    for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
+      const k = j * gw + i;
+      if (z[k] !== Infinity) continue;
+      let sum = 0, n = 0, best = Infinity;
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const a = i + di, b = j + dj;
+        if (a < 0 || b < 0 || a >= gw || b >= gh) continue;
+        const q = b * gw + a;
+        if (z[q] === Infinity) continue;
+        sum += z[q]; n++; best = Math.min(best, out[q]);
+      }
+      if (n) { nz[k] = sum / n; no[k] = best + cell; filled = true; }
+    }
+    z.set(nz); out.set(no);
+  }
+  // two passes of smoothing on the head's own bins (bins straddling the
+  // dome's sculpted grooves read as speckle)
+  for (let pass = 0; pass < 2; pass++) {
+    const nz = z.slice();
+    for (let j = 1; j < gh - 1; j++) for (let i = 1; i < gw - 1; i++) {
+      const k = j * gw + i;
+      nz[k] = (z[k] * 4 + z[k - 1] + z[k + 1] + z[k - gw] + z[k + gw]) / 8;
+    }
+    z.set(nz);
+  }
+  const at = (arr, x, y) => {
+    const fx = Math.max(0, Math.min(gw - 1.001, (x - x0) / w * gw - 0.5)), fy = Math.max(0, Math.min(gh - 1.001, (y - y0) / h * gh - 0.5));
+    const i = Math.floor(fx), j = Math.floor(fy), tx = fx - i, ty = fy - j, k = j * gw + i;
+    return (arr[k] * (1 - tx) + arr[k + 1] * tx) * (1 - ty) + (arr[k + gw] * (1 - tx) + arr[k + gw + 1] * tx) * ty;
+  };
+  return { z: (x, y) => at(z, x, y), outside: (x, y) => at(out, x, y) };
+}
+/* The beard's shape, built once per beard and rig scale and shared by every
+   rig wearing it (BEARDS.md 4): its geometry (front, back and ink shell,
+   only the nodes its cells use), its two textures, and the chest-to-pivot
+   transform it was fitted to (each rig's ride is measured from that). Built
+   off the first rig to wear it; the relief head is the same on every rig,
+   and so, near enough, is the chest's place under the head at rest. */
+const beardShapes = new Map();
+function beardShape(id, plane, s, head, pivot, chest, joints) {
+  const key = `${id}|${s}`;
+  if (!beardShapes.has(key)) beardShapes.set(key, buildBeard(id, plane, s, head, pivot, chest, joints).catch((e) => { beardShapes.delete(key); throw e; }));
+  return beardShapes.get(key);
+}
+async function buildBeard(id, plane, s, head, pivot, chest, joints) {
+  const BEARD = SHELLS[id];
+  const { width: w, height: h } = plane.geometry.parameters;
+  const top = plane.position.y + h / 2, bottom = top - h;
+  const rows = 1300;               // the drawing's frame height
+  const fImg = await loadImage(new URL(`${id}.png?v=${ART_V}`, DIR).href);
+  // its depth (<id>.depth.png, BEARDS.md 2): how full the hair is where,
+  // white the fullest; a beard without one gets the plain profile
+  const dImg = BEARD.depth === false ? null : await loadImage(new URL(`${id}.depth.png?v=${ART_V}`, DIR).href).catch(() => null);
+  const W = 512, H = Math.round(512 * h / w);
+  const mc = document.createElement("canvas"); mc.width = W; mc.height = H;
+  const mg = mc.getContext("2d", { willReadFrequently: true });
+  mg.drawImage(fImg, 0, 0, W, H);
+  const alpha = mg.getImageData(0, 0, W, H).data;
+  const inside = (u, v) => {
+    const i = Math.min(W - 1, Math.max(0, Math.floor(u * W))), j = Math.min(H - 1, Math.max(0, Math.floor((1 - v) * H)));
+    return alpha[(j * W + i) * 4 + 3] > 128;
+  };
+  // the back: the silhouette in the hair's dark
+  const bc = document.createElement("canvas"); bc.width = W; bc.height = H;
+  const bg = bc.getContext("2d");
+  bg.drawImage(mc, 0, 0);
+  bg.globalCompositeOperation = "source-in"; bg.fillStyle = BEARD.dark; bg.fillRect(0, 0, W, H);
+  const tex = (src) => { const t = src instanceof HTMLCanvasElement ? new THREE.CanvasTexture(src) : new THREE.Texture(src); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.needsUpdate = true; return t; };
+  // A coarser grid than the drawing needs: the drawing's own alpha makes the
+  // edge, the grid only carries the depth (130 across: ~5 mm cells)
+  const N = 130, M = Math.round(N * h / w);
+  const X = (i) => -w / 2 + (w * i) / N, Y = (j) => bottom + (h * j) / M;
+  const uF = (x) => 0.5 - x / w, V = (y) => (y - bottom) / h;
+  const row = (y) => (top - y) / h * rows;     // pivot y -> frame row
+  const mask = new Uint8Array(N * M);
+  for (let j = 0; j < M; j++) for (let i = 0; i < N; i++) mask[j * N + i] = inside(uF((X(i) + X(i + 1)) / 2), V((Y(j) + Y(j + 1)) / 2)) ? 1 : 0;
+  const cell = (i, j) => i >= 0 && j >= 0 && i < N && j < M && mask[j * N + i] === 1;
+  // Each cell's distance in from the silhouette's edge (metres): a two-pass
+  // chamfer over the mask
+  const dw = w / N, dh = h / M, dd = Math.hypot(dw, dh);
+  const dist = new Float32Array(N * M);
+  for (let k = 0; k < dist.length; k++) dist[k] = mask[k] ? 1e9 : 0;
+  const relax = (i, j, a, b, d) => { const k = j * N + i; if (a < 0 || b < 0 || a >= N || b >= M) { dist[k] = Math.min(dist[k], d / 2); return; } dist[k] = Math.min(dist[k], dist[b * N + a] + d); };
+  for (let j = 0; j < M; j++) for (let i = 0; i < N; i++) if (mask[j * N + i]) { relax(i, j, i - 1, j, dw); relax(i, j, i, j - 1, dh); relax(i, j, i - 1, j - 1, dd); relax(i, j, i + 1, j - 1, dd); }
+  for (let j = M - 1; j >= 0; j--) for (let i = N - 1; i >= 0; i--) if (mask[j * N + i]) { relax(i, j, i + 1, j, dw); relax(i, j, i, j + 1, dh); relax(i, j, i + 1, j + 1, dd); relax(i, j, i - 1, j + 1, dd); }
+  // at a grid node: the mean of the cells round it (0 off the silhouette)
+  const nodeDist = (i, j) => {
+    let sum = 0;
+    for (const [a, b] of [[i - 1, j - 1], [i, j - 1], [i - 1, j], [i, j]]) if (a >= 0 && b >= 0 && a < N && b < M) sum += dist[b * N + a];
+    return sum / 4;
+  };
+  // The head's front surface, and how far outside the head each point is
+  const H2 = headHeights(head, pivot, -w / 2, bottom, w, h, 72, Math.round(72 * h / w));
+  // The chest's front in this frame, at pivot height y: the point on the
+  // chest joint's front (its top rounded off) brought into the pivot's frame
+  // (at the pose it's built in; each rig's ride is measured from it)
+  pivot.updateMatrixWorld(true); chest.updateMatrixWorld(true);
+  const toChest = new THREE.Matrix4().copy(chest.matrixWorld).invert().multiply(pivot.matrixWorld);
+  const toPivot = new THREE.Matrix4().copy(toChest).invert();
+  const cv = new THREE.Vector3();
+  // (a rig not posed yet has no usable matrices: then no chest to rest on)
+  const posed = toChest.elements.every(Number.isFinite) && Math.abs(toChest.determinant()) > 1e-9;
+  // Measured where it can be (BEARDS.md 9, "measure, don't guess"): rays
+  // straight back through this frame onto the chest joint's own meshes (not
+  // the head, arms or anything on another joint; the torso's big flat faces
+  // have no vertices mid-chest to bin). Each point takes the most forward
+  // hit from its height up to `lift` above, so the hair rolls over the
+  // block's rounded top edge instead of tucking behind it (the formula
+  // below put that edge 2 cm low: a band of shirt across the beard).
+  const CG = 40, cgh = Math.round(CG * h / w), cz = new Float32Array(CG * cgh).fill(Infinity);
+  if (posed) {
+    const meshes = [];
+    chest.traverse((o) => {
+      if (!o.isMesh || !o.visible || o.material === armInk) return;
+      for (let q = o; q && q !== chest; q = q.parent) if (!q.visible || q === pivot || joints?.has(q)) return;
+      meshes.push(o);
+    });
+    const ray = new THREE.Raycaster(), o3 = new THREE.Vector3(), d3 = new THREE.Vector3(0, 0, 1).transformDirection(pivot.matrixWorld);
+    const toPiv = new THREE.Matrix4().copy(pivot.matrixWorld).invert();
+    for (let j = 0; j < cgh && meshes.length; j++) for (let i = 0; i < CG; i++) {
+      o3.set(-w / 2 + (i + 0.5) * w / CG, bottom + (j + 0.5) * h / cgh, -1).applyMatrix4(pivot.matrixWorld);
+      ray.set(o3, d3);
+      const hit = ray.intersectObjects(meshes, false)[0];
+      if (hit) cz[j * CG + i] = hit.point.applyMatrix4(toPiv).z;
+    }
+  }
+  const measured = cz.some(Number.isFinite), lift = Math.ceil(0.025 * s / (h / cgh));
+  // each bin: the most forward hit from it up to `lift` above (and a column
+  // either side), then read bilinearly, so the hang has no steps
+  const cl = new Float32Array(CG * cgh).fill(Infinity);
+  for (let j = 0; j < cgh; j++) for (let i = 0; i < CG; i++) {
+    let best = Infinity;
+    for (let b = j; b <= Math.min(cgh - 1, j + lift); b++)
+      for (let a = Math.max(0, i - 1); a <= Math.min(CG - 1, i + 1); a++) best = Math.min(best, cz[b * CG + a]);
+    cl[j * CG + i] = best;
+  }
+  const chestZ = (x, y) => {
+    if (!posed) return Infinity;
+    if (measured) {
+      const fx = Math.max(0, Math.min(CG - 1.001, (x + w / 2) / w * CG - 0.5)), fy = Math.max(0, Math.min(cgh - 1.001, (y - bottom) / h * cgh - 0.5));
+      const i = Math.floor(fx), j = Math.floor(fy), tx = fx - i, ty = fy - j, k = j * CG + i;
+      const c = [cl[k], cl[k + 1], cl[k + CG], cl[k + CG + 1]], wt = [(1 - tx) * (1 - ty), tx * (1 - ty), (1 - tx) * ty, tx * ty];
+      // off the chest's edge on some corners: the ones on it, if any
+      let sum = 0, n = 0;
+      for (let q = 0; q < 4; q++) if (isFinite(c[q])) { sum += c[q] * wt[q]; n += wt[q]; }
+      return n > 0.25 ? sum / n - BEARD.rest * s : Infinity;
+    }
+    cv.set(x, y, 0).applyMatrix4(toChest);
+    const over = (cv.y - (BEARD.chest.top * s - 0.06 * s)) / (0.06 * s);   // 0 below the shoulders' rounding, 1 at the top
+    if (over >= 1) return Infinity;
+    const zc = -BEARD.chest.front * s * Math.sqrt(1 - Math.max(0, over) ** 2) - BEARD.rest * s;
+    cv.z = zc;
+    return cv.applyMatrix4(toPivot).z;
+  };
+  // smooth min of two depths (the more forward, -z, wins), rounded over k
+  const smin = (a, b, k) => { if (!isFinite(b)) return a; const t = Math.max(0, Math.min(1, 0.5 + 0.5 * (b - a) / k)); return b * (1 - t) + a * t - k * t * (1 - t); };
+  const back = (x, y) => {
+    const r = row(y);
+    // past the face's edge: on round the jaw toward the ears, above the
+    // chin; from the chin down it lies on whichever is further forward,
+    // the jaw it grows from or the chest it drapes over
+    const side = 1 - smooth01(BEARD.chin[0] - 60, BEARD.chin[1], r);
+    const jaw = H2.z(x, y) + (BEARD.sink - (BEARD.lift || 0)) * s + side * BEARD.curl * H2.outside(x, y);
+    return side >= 1 ? jaw : smin(jaw, chestZ(x, y), BEARD.soft * s);
+  };
+  let full = (x, y) => s * (BEARD.thick[0] + (BEARD.thick[1] - BEARD.thick[0]) * smooth01(BEARD.chin[0], BEARD.chin[1] + 80, row(y)));
+  if (dImg) {
+    const dc = document.createElement("canvas"); dc.width = 128; dc.height = Math.round(128 * h / w);
+    const dg = dc.getContext("2d", { willReadFrequently: true });
+    dg.drawImage(dImg, 0, 0, dc.width, dc.height);
+    const dpx = dg.getImageData(0, 0, dc.width, dc.height).data, DW = dc.width, DH = dc.height;
+    const at = (u, v) => {   // bilinear, the red channel
+      const fx = Math.max(0, Math.min(DW - 1.001, u * DW - 0.5)), fy = Math.max(0, Math.min(DH - 1.001, (1 - v) * DH - 0.5));
+      const i = Math.floor(fx), j = Math.floor(fy), tx = fx - i, ty = fy - j, k = (j * DW + i) * 4;
+      return ((dpx[k] * (1 - tx) + dpx[k + 4] * tx) * (1 - ty) + (dpx[k + DW * 4] * (1 - tx) + dpx[k + DW * 4 + 4] * tx) * ty) / 255;
+    };
+    full = (x, y) => s * BEARD.thick[1] * at(uF(x), V(y));
+  }
+  // The cells: drawn when it or a neighbour is beard (the faces run a cell
+  // past the silhouette, so the drawing's own smooth outline, its alpha,
+  // makes the edge, not the grid's steps: the hat's trick, capVolume); the
+  // ink shell on the beard's own cells, where they leave the face
+  const drawCell = (i, j) => { for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) if (cell(i + di, j + dj)) return true; return false; };
+  const inkOf = (i, j) => smooth01(0, 0.012 * s, H2.outside(X(i), Y(j)));
+  // Only the nodes those cells use get a vertex (two each: front and back)
+  const slot = new Int32Array((N + 1) * (M + 1)).fill(-1);
+  const nodes = [];
+  const use = (i, j) => { const g = j * (N + 1) + i; if (slot[g] < 0) { slot[g] = nodes.length; nodes.push([i, j]); } return slot[g]; };
+  const quads = [], inkQuads = [];
+  for (let j = 0; j < M; j++) for (let i = 0; i < N; i++) {
+    if (!drawCell(i, j)) continue;
+    const q = [use(i, j), use(i + 1, j), use(i + 1, j + 1), use(i, j + 1)];
+    quads.push(q);
+    if (cell(i, j) && (inkOf(i, j) || inkOf(i + 1, j) || inkOf(i + 1, j + 1) || inkOf(i, j + 1))) inkQuads.push(q);
+  }
+  const NN = nodes.length;
+  const pos = new Float32Array(NN * 2 * 3), uv = new Float32Array(NN * 2 * 2), wgt = new Float32Array(NN * 2), inkW = new Float32Array(NN * 2);
+  nodes.forEach(([i, j], k) => {
+    const x = X(i), y = Y(j);
+    const zb = back(x, y);
+    const zf = zb - BEARD.sink * s - full(x, y) * smooth01(0, BEARD.taper * s, nodeDist(i, j));
+    pos.set([x, y, zf], k * 3);
+    pos.set([x, y, zb], (NN + k) * 3);
+    uv.set([uF(x), V(y)], k * 2);
+    uv.set([uF(x), V(y)], (NN + k) * 2);
+    wgt[k] = wgt[NN + k] = posed ? smooth01(BEARD.ride[0], BEARD.ride[1], row(y)) : 0;
+    inkW[k] = inkOf(i, j);
+  });
+  const fIdx = [], bIdx = [], hIdx = [];
+  for (const [a, b, c, d] of quads) {
+    fIdx.push(a, d, c, a, c, b);
+    bIdx.push(NN + a, NN + b, NN + c, NN + a, NN + c, NN + d);
+  }
+  for (const [a, b, c, d] of inkQuads) hIdx.push(a, d, c, a, c, b);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+  geo.setAttribute("chestW", new THREE.BufferAttribute(wgt, 1));
+  geo.setIndex([...fIdx, ...bIdx]);
+  geo.addGroup(0, fIdx.length, 0);
+  geo.addGroup(fIdx.length, bIdx.length, 1);
+  geo.computeVertexNormals();
+  // the ink shell shares the beard's attributes
+  const hull = new THREE.BufferGeometry();
+  for (const k of ["position", "normal", "chestW"]) hull.setAttribute(k, geo.attributes[k]);
+  hull.setAttribute("inkW", new THREE.BufferAttribute(inkW, 1));
+  hull.setIndex(hIdx);
+  // every rig wearing it shares these (remote-players.js dispose skips them)
+  geo.userData.shared = hull.userData.shared = true;
+  return { geo, hull, front: tex(fImg), back: tex(bc), toChest, posed };
+}
+/* One rig's beard: the shared shape in this rig's own materials, riding
+   this rig's chest. */
+async function beardVolume(id, plane, s, head, pivot, chest, joints) {
+  const B = await beardShape(id, plane, s, head, pivot, chest, joints);
+  const ride = { value: new THREE.Matrix4() };
+  // shaded in bands like the relief face (reliefHead), so they read as one
+  const mats = [
+    rideMaterial(addRim(new THREE.MeshToonMaterial({ map: B.front, emissive: 0xffffff, emissiveMap: B.front, emissiveIntensity: 0.22, gradientMap: CLOTH_TONES, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide })), ride),
+    rideMaterial(drawn(B.back, { transparent: true, alphaTest: 0.5, side: THREE.DoubleSide, emissiveIntensity: 0.35 }), ride),
+  ];
+  const mesh = new THREE.Mesh(B.geo, mats);
+  mesh.castShadow = true;
+  mesh.renderOrder = 2;
+  const ink = new THREE.Mesh(B.hull, beardInk(ride));
+  ink.renderOrder = 2;
+  mesh.add(ink);
+  // the chest's move since the build, in the pivot's frame: a point glued
+  // to the chest at the build is at inverse(toChest now) * toChest(build)
+  const now = new THREE.Matrix4();
+  mesh.onBeforeRender = () => {
+    if (!B.posed) return;
+    now.copy(chest.matrixWorld).invert().multiply(pivot.matrixWorld).invert();
+    ride.value.multiplyMatrices(now, B.toChest);
+  };
+  mesh.userData.ride = ride;
   return mesh;
 }
 
@@ -450,10 +919,23 @@ function reliefHead(rig) {
           g.userData.cap = cap;
           continue;
         }
+        if (SHELLS[id]) {
+          // the beard (or a mask) as a shell round the jaw, in place of its card
+          const front = grp.children.find((c) => Math.abs(c.rotation.y - Math.PI) < 1e-3);
+          if (!front) continue;
+          // it drapes over the torso's measured front: wait for the torso
+          await rig.torsoReady?.catch(() => {});
+          const beard = await beardVolume(id, front, s, g, p.headPivot, p.chest, new Set(Object.values(p).filter((j) => j?.isObject3D && j !== p.chest)));
+          p.headPivot.add(beard);
+          grp.visible = false;
+          hidden.push(grp);
+          (g.userData.extra ||= []).push(beard);
+          continue;
+        }
         for (const plane of grp.children) {
           const isFront = Math.abs(plane.rotation.y - Math.PI) < 1e-3;
           moved.push([plane, plane.position.z]);
-          plane.position.z += (isFront ? -RELIEF.front : RELIEF.back) * s;
+          plane.position.z += (isFront ? -(RELIEF.front + (OVER_SHELL[id] || 0)) : RELIEF.back) * s;
         }
       }
     }
@@ -463,6 +945,7 @@ function reliefHead(rig) {
       for (const [plane, z] of moved) plane.position.z = z;
       for (const grp of hidden) grp.visible = true;
       g.userData.cap?.parent?.remove(g.userData.cap);
+      for (const o of g.userData.extra || []) o.parent?.remove(o);
     };
     return [g];
   });
@@ -504,9 +987,11 @@ function muscleTorso(rig, garment) {
 }
 
 /* Put the block body on `rig`. `look`: { garment: "clothes-tank-runner",
-   tankColor, cap: "U MAD BRO?", moustache: true }. Returns a remover. */
+   tankColor, cap: "U MAD BRO?", moustache: true }; the garment's kit
+   (KITS) picks the arm and leg pieces. Returns a remover. */
 export function applyBlocky(rig, look = {}) {
   const p = rig.parts, s = rig.scale;
+  const kit = KITS[look.garment] || KITS["clothes-tank-runner"];
   const added = [];
   const add = (parent, o) => { parent.add(o); added.push(o); return o; };
   // The head stays the trollface board (user: "roblox shape except the
@@ -552,7 +1037,8 @@ export function applyBlocky(rig, look = {}) {
   // on the torso joint (pivoting at the hips), so the body bends where the
   // spine does. Template rows: y 0 is the torso's top (chest + 0.04 m), 1 mm a unit.
   const T = B.torso;
-  if ((look.torso ?? "muscle") === "muscle") later(muscleTorso(rig, look.garment));
+  // (rig.torsoReady: the beard rests on this torso, so it waits for it)
+  if ((look.torso ?? "muscle") === "muscle") later(rig.torsoReady = muscleTorso(rig, look.garment));
   else {
   const row = (chestY) => (T.top - chestY) * 1000;
   const up = block(T.w * s, (T.top - T.mid) * s, T.d * s, torsoFaces(look.garment, row(T.top), row(T.mid)), false);
@@ -581,7 +1067,7 @@ export function applyBlocky(rig, look = {}) {
   // a tank top. Cel-shaded, like a drawing: lit, half-tone and shadow bands,
   // so each muscle's planes read (the blocks' soft self-light flattened them).
   const skin = mat(SKIN), A = B.arm * s;
-  if ((look.arms ?? "muscle") === "muscle") later(muscleArms(rig, toon(SKIN)));
+  if ((look.arms ?? "muscle") === "muscle") later(muscleArms(rig, kit));
   else for (const side of ["L", "R"]) {
     const elbow = p[`elbow${side}`], hand = p[`wrist${side}`].parent;
     added.push(limb(p[`arm${side}`], elbow.position, A, skin, 0.03 * s));
@@ -600,7 +1086,7 @@ export function applyBlocky(rig, look = {}) {
   const shorts = mat(look.shorts ?? 0x34363e), shoe = mat(0x111111);
   const L = B.leg * s;
   if ((look.legs ?? "muscle") === "muscle") {
-    later(muscleLegs(rig, { shorts: look.shorts ?? 0x34363e, hem: 0x43464f, upper: 0x141416, sole: 0xdcdcd6 }));
+    later(muscleLegs(rig, kit));
   } else for (const side of ["L", "R"]) {
     const knee = p[`knee${side}`], ankle = p[`ankle${side}`];
     // the shorts reach up into the hips and stop at the knee; the shin
@@ -664,30 +1150,31 @@ export function applyBlocky(rig, look = {}) {
 
 /* ------------------------------------------------------------ in game */
 
-/* The body cosmetic (cosmetics.js "body": "trolls-1718", account-locked):
-   TROLLS #1718 as the blocky troll on a live game rig, put on or taken off
-   in place. Cheap to call every frame; resolves once the body is on. The
-   rig is reshaped to the blocky proportions (character.js reshapeRig: arms
-   hanging straight, shorter legs) with its hit capsules along the new bones,
-   the head traits drawn on (traits.js), then the body (applyBlocky). */
-export const BLOCKY_TOKEN = 1718;
+/* The body cosmetic (cosmetics.js "body": "trolls-<token>", locked to the
+   token's holder): TROLLS #token as the blocky troll on a live game rig,
+   put on or taken off in place; `token` 0 takes it off. Cheap to call
+   every frame; resolves once the body is on. The rig is reshaped to the
+   blocky proportions (character.js reshapeRig: arms hanging straight,
+   shorter legs) with its hit capsules along the new bones, the head traits
+   drawn on (traits.js), then the body (applyBlocky) in the token's garment. */
 /* The body your own troll should wear: set from the Cosmetics pick
    (menu/lobby.js), worn by view/third-person.js every frame. */
 export const ownBody = { want: "" };
-export function wearBlocky(rig, on) {
-  on = !!on;
-  if (!!rig.blocky === on) return rig.blocky?.ready ?? Promise.resolve();
-  if (!on) {
+export function wearBlocky(rig, token) {
+  token = tokenLook(token) ? +token : 0;
+  if ((rig.blocky?.token || 0) === token) return rig.blocky?.ready ?? Promise.resolve();
+  if (rig.blocky) {
     const b = rig.blocky;
     rig.blocky = null;
     b.off();
-    return Promise.resolve();
+    if (!token) return Promise.resolve();
   }
   const head = rig.parts.head;
   const side = head.material.side;
   const unshape = reshapeRig(rig, { build: 0.25, legs: 0.67 });
   let restore = null, gone = false;
   const b = (rig.blocky = {
+    token,
     off() {
       gone = true;
       restore?.();
@@ -699,11 +1186,11 @@ export function wearBlocky(rig, on) {
       unshape();
     },
   });
-  b.ready = applyToken(rig, BLOCKY_TOKEN, { headOnly: true }).then(() => {
+  b.ready = applyToken(rig, token, { headOnly: true }).then(() => {
     if (gone) return;
     // skullBack turned the board's (possibly shared) face material one-sided
     head.material.side = side;
-    restore = applyBlocky(rig, { garment: "clothes-tank-runner" });
+    restore = applyBlocky(rig, { garment: tokenLook(token).garment });
     return restore.loaded;
   });
   return b.ready;

@@ -1,0 +1,31 @@
+<!--
+  TROLLS trait: HATS / Camper Hat (a khaki bucket hat, its wide brim all
+  round, sitting low over the brow). Traced from TROLLS #820.
+  Frame: the head-trait frame (traits/README.md). 1000 x 1033 units =
+  headPivot x -0.30..0.30 m, y 0.62..0 m; the face board's art sits at
+  (100, 233.3) 800 x 750. Baked to ../hat-camper.png by
+  tools/troll-ops-bake-traits.mjs. In game the brim band (y 352..452,
+  blocky-body.js HATS) stands out flat all round the head.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1033" width="1000" height="1033">
+  <g stroke="#0a0a0a" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">
+    <!-- the brim's far rim, up behind the crown -->
+    <path fill="#a69d78" d="M140 372 C300 322 700 322 860 372 C800 392 200 392 140 372 Z"/>
+    <!-- crown: a soft dome, in at the top, flat-topped -->
+    <path fill="#b8ae86" d="M228 372 C226 310 240 252 282 220 C340 184 660 184 718 220 C760 252 774 310 772 372 C600 392 400 392 228 372 Z"/>
+    <!-- shade down the right panel -->
+    <path fill="#9a916c" stroke="none" d="M640 196 C690 210 740 240 754 300 C760 336 760 358 756 376 L688 384 C700 320 690 240 640 196 Z"/>
+    <!-- the crown's band seam and the panel seam -->
+    <path fill="none" stroke="#6e684a" stroke-width="6" d="M232 322 C400 306 600 306 768 322"/>
+    <path fill="none" stroke="#6e684a" stroke-width="6" d="M500 196 C494 250 492 310 496 376"/>
+    <!-- eyelets on the left panel -->
+    <g fill="#6e684a" stroke="none">
+      <circle cx="340" cy="250" r="9"/><circle cx="372" cy="238" r="9"/><circle cx="404" cy="230" r="9"/>
+    </g>
+    <!-- the brim: wide, floppy, lower at the ends -->
+    <path fill="#b8ae86" d="M118 374 C260 346 740 346 882 374 C914 386 912 418 880 428 C760 452 640 458 500 456 C360 458 240 452 120 428 C88 418 86 386 118 374 Z"/>
+    <!-- its underside shade along the front edge, and the stitching -->
+    <path fill="#9a916c" stroke="none" d="M132 410 C260 430 400 440 500 440 C600 440 740 430 868 410 C780 436 620 448 500 448 C380 448 220 436 132 410 Z"/>
+    <path fill="none" stroke="#6e684a" stroke-width="4" stroke-dasharray="14 10" d="M140 392 C280 416 400 426 500 426 C600 426 720 416 860 392"/>
+  </g>
+</svg>

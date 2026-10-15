@@ -3,23 +3,25 @@
 
 import * as THREE from "three";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
-import { currentWeapon } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-fl1";
-import { stageFrozen, royaleSpectating, royaleRolling, royale, royaleRollK, royaleDropCode } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-fl1";
+import { currentWeapon } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1";
+import { stageFrozen, royaleSpectating, royaleRolling, royale, royaleRollK, royaleDropCode } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1";
 import { STANCE } from "../movement.js?v=umb2-sb2-gj1b7";
 import { poseDeath, DEATH_TIME, aimRig, gaitPhaseRate, poseHumanoid, poseThrowArm, THROW_TIME, mountHeldWeapon } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1";
-import { STANCE_LOWER, rollRig, DROP_FALL, DROP_GLIDE, poseDrop, poseRope, ROPE_CLIMB_RATE } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-fl1";
+import { STANCE_LOWER, rollRig, DROP_FALL, DROP_GLIDE, poseDrop, poseRope, ROPE_CLIMB_RATE } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1";
 import { emoteSeconds, poseEmoteCode, emoteCode, EMOTES } from "../emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1";
-import { seated, standUp, syncLocalDrink, piano } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-fl1";
+import { seated, standUp, syncLocalDrink, piano } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1";
 import { damp } from "../anim-curves.js";
-import { clubPoseLocal } from "../modes/club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-fl1";
-import { saberBlock, kbShield, saberParry, kbRepair, SLOW_IGNITE } from "../combat/melee.js?v=ml1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-fl1";
+import { clubPoseLocal } from "../modes/club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1";
+import { saberBlock, kbShield, saberParry, kbRepair, SLOW_IGNITE } from "../combat/melee.js?v=ml1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1";
 import { posePianoArms, poseSeated } from "../rp-roles.js?v=rp1b7-cd1-sh1-dj2";
 import { stripLights, buildWeaponMesh } from "../weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1";
 import { buildMeleeMesh } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1";
 import { game } from "../core/state.js?v=st1";
-import { throwState, poseThrowBody, clearThrowBody } from "../combat/throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2-bf1-sr1";
+import { throwState, poseThrowBody, clearThrowBody } from "../combat/throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1";
 import { modelKind } from "../combat/throwable-models.js?v=tm1-th2";
-import { wearBlocky, ownBody } from "../blocky-body.js?v=bk1-cw1-zr10-bf1-sr1";
+import { wearBlocky, ownBody } from "../blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1";
+import { freeLook } from "./free-look.js?v=nf1";
+import { bodyToken } from "../cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1";
 
 // Chase camera behind the player's own rig. Distance/side offset blend
 // in from an over-the-shoulder position as ADS deepens (w.adsT), rather
@@ -97,13 +99,32 @@ export function updateThirdPersonCamera(pivot, yaw, pitch, adsT) {
     game.camera.position.y + _tpForward.y * 10,
     game.camera.position.z + _tpForward.z * 10,
   );
+  // Free look (view/free-look.js): the camera swings round the body to
+  // look at it, out to your face, blended in by its weight.
+  const fw = freeLook.w;
+  if (fw > 0) {
+    _tpQ.copy(game.camera.quaternion);
+    _tpFrom.copy(game.camera.position);
+    const yo = yaw + freeLook.yaw, tilt = FREE_TILT + freeLook.pitch;
+    _tpDir.set(Math.sin(yo) * Math.cos(tilt), Math.sin(tilt), Math.cos(yo) * Math.cos(tilt));   // from the body back to the camera
+    _tpAt.copy(_tpPivot); _tpAt.y += FREE_AT_Y;
+    const len = Math.max(0.6, raycastWorld(game.colliders, _tpAt, _tpDir, FREE_DIST + big * 0.6) - 0.15);
+    game.camera.position.copy(_tpAt).addScaledVector(_tpDir, len);
+    game.camera.lookAt(_tpAt);
+    game.camera.position.lerpVectors(_tpFrom, game.camera.position, fw);
+    _tpQ2.copy(game.camera.quaternion);   // (taken before it's overwritten)
+    game.camera.quaternion.copy(_tpQ).slerp(_tpQ2, fw);
+  }
   // Aiming in, our own face ghosts out so the left of the sight picture is
   // clear; pulled in tight against a wall it would be in the way outright.
+  // (Looking round at it, it's all there.)
   const head = game.localRig.parts.head;
-  head.visible = safeLen > 0.9;
-  head.material.opacity = 1 - 0.7 * adsT;
-  head.material.depthWrite = adsT < 0.1;
+  head.visible = safeLen > 0.9 || fw > 0.5;
+  head.material.opacity = 1 - 0.7 * adsT * (1 - fw);
+  head.material.depthWrite = adsT < 0.1 || fw > 0.5;
 }
+const FREE_DIST = 2.6, FREE_TILT = 0.12, FREE_AT_Y = -0.3;   // the orbit: metres out, tilt up, aimed at the chest-to-face
+const _tpQ = new THREE.Quaternion(), _tpQ2 = new THREE.Quaternion(), _tpFrom = new THREE.Vector3(), _tpAt = new THREE.Vector3();
 
 /* Socialize jobs that pose our own body after everything else (the sheriff's
    cuffs, modes/social-sheriff.js): they push in here, so this module never
@@ -217,9 +238,9 @@ export function placeDeathCamera() {
 export function updateLocalRig(dt) {
   if (!game.player.alive && game.gameState === "playing" && !royaleSpectating()) { updateLocalDeadBody(); return; }
   game.localRig.root.position.set(game.move.pos.x, game.move.pos.y, game.move.pos.z);
-  // The TROLLS #1718 body (cosmetics.js, account-locked; menu/lobby.js sets
-  // ownBody), never under a hero or cop body.
-  wearBlocky(game.localRig, ownBody.want === "trolls-1718" && !game.localRig.heroBodyId && !game.localRig.copBodyId);
+  // The TROLLS body (cosmetics.js, locked to its token's holder; menu/lobby.js
+  // sets ownBody), never under a hero or cop body.
+  wearBlocky(game.localRig, !game.localRig.heroBodyId && !game.localRig.copBodyId ? bodyToken(ownBody.want) : 0);
   // The body follows the aim a beat behind; the head leads the turn.
   const rolling = royaleRolling();
   // Under the glider the body hangs the way the wing flies, not where you look.

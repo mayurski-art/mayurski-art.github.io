@@ -11,11 +11,11 @@
 // at once, and the rest fills in from Supabase. "Full profile" still opens
 // the site's own card (troll-accounts.js).
 
-import { getLevel, getPrestige, isOwner, tfLevelForXp } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
+import { getLevel, getPrestige, isOwner, tfLevelForXp } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1";
 import { playerIconSvg, prestigeName } from "./rank-icons.js?v=rk1";
 import { fetchRecord } from "./record.js?v=rec1";
 import { zombiesAllTime } from "./leaderboard-rows.js?v=lr1-zh1";
-import { cardById, fetchCard, getMyCard, cleanClan } from "./calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
+import { cardById, fetchCard, getMyCard, cleanClan } from "./calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1";
 
 const FALLBACK_EMBLEM = new URL("../../images/wallpaper/trollface transparent.png", import.meta.url).href;
 

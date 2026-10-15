@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<!-- Troll Man poster comp: the game's own sprites, icons and a maze screenshot laid out
+     as the loading-screen poster (1200x1700) or the share banner (1200x630).
+     tools/troll-man-poster.mjs fills window.ART and screenshots #art. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Troll Man poster comp</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Archivo+Black&family=Noto+Sans+JP:wght@900&display=swap" rel="stylesheet">
+<style>
+  :root { --blue: #2121de; --dot: #ffb8ae; --yellow: #ffcc00; --cyan: #4deeff; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #222; }
+  #art { position: relative; overflow: hidden; background: #000; font-family: "Press Start 2P", monospace; color: #fff; }
+  #art > * { position: absolute; }
+  img.px { image-rendering: pixelated; }
+  .frame { inset: var(--inset); border: 5px solid var(--blue); border-radius: 30px; box-shadow: 0 0 24px rgba(33, 33, 222, 0.55), inset 0 0 18px rgba(33, 33, 222, 0.35); }
+  .frame::after { content: ""; position: absolute; inset: 9px; border: 5px solid var(--blue); border-radius: 21px; }
+  .burst {
+    border-radius: 50%;
+    background: repeating-conic-gradient(from 0deg, #ffd21f 0 7.5deg, #ffa800 7.5deg 15deg);
+    -webkit-mask-image: radial-gradient(circle, #000 0 52%, transparent 70%);
+            mask-image: radial-gradient(circle, #000 0 52%, transparent 70%);
+  }
+  .txt { white-space: nowrap; line-height: 1.25;
+    text-shadow: -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 3px 3px 0 #000, 0 3px 0 #000, 0 -3px 0 #000, 3px 0 0 #000, -3px 0 0 #000, 5px 6px 0 #000; }
+  .bubble.txt { text-shadow: none; }
+  .c { transform: translateX(-50%); text-align: center; }
+  .dot { background: var(--dot); box-shadow: 0 0 0 4px #000; }
+  .bubble {
+    padding: 14px 18px 12px; background: #fff; color: #000;
+    border: 5px solid #000; border-radius: 14px; box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.35);
+  }
+  .bubble::after {
+    content: ""; position: absolute; left: var(--tail, 30px); bottom: -22px;
+    border: 11px solid transparent; border-top: 13px solid #000; border-left-width: 0;
+  }
+  /* flyer layout */
+  .jp { font-family: "Noto Sans JP", sans-serif; font-weight: 900; color: #111; line-height: 1.18; white-space: nowrap; }
+  .tag { padding: 6px 18px 8px; border: 4px solid #111; border-radius: 30px; background: #ffd21f; font-size: 30px; }
+  .bezel { background: #111; border-radius: 18px; padding: 22px; box-shadow: 10px 12px 0 rgba(0, 0, 0, 0.25); }
+  .bezel img { display: block; width: 100%; height: 100%; border-radius: 6px; }
+  .screen { border: 6px solid var(--blue); border-radius: 12px; box-shadow: 0 0 0 7px #050518, 0 0 34px rgba(33, 33, 222, 0.6); }
+  .screen img { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<div id="art"></div>
+<script>
+(async () => {
+  const LAYOUT = new URLSearchParams(location.search).get("layout") || "poster";
+  const ART = window.ART || {};
+  const SPR = n => `../assets/games/troll-man/sprites/${n}-32-x8.png`;
+  const art = document.getElementById("art");
+  const add = (html, style = {}) => {
+    const t = document.createElement("template");
+    t.innerHTML = html.trim();
+    const el = t.content.firstElementChild;
+    for (const [k, v] of Object.entries(style)) k.startsWith("--") ? el.style.setProperty(k, v) : (el.style[k] = v);
+    art.appendChild(el);
+    return el;
+  };
+  const px = v => `${v}px`;
+  const sprite = (name, x, y, size, flip) =>
+    add(`<img class="px" src="${SPR(name)}" alt="">`, { left: px(x), top: px(y), width: px(size), height: px(size), transform: flip ? "scaleX(-1)" : "" });
+  const icon = (kind, x, y, size) => ART.icons && ART.icons[kind] &&
+    add(`<img class="px" src="${ART.icons[kind]}" alt="">`, { left: px(x), top: px(y), width: px(size), height: px(size) });
+  const text = (s, x, y, size, color = "#fff", center = true) =>
+    add(`<div class="txt${center ? " c" : ""}"></div>`, { left: px(x), top: px(y), fontSize: px(size), color }).textContent = s;
+  const dots = (x0, x1, y, step, size) => {
+    for (let x = x0; x <= x1; x += step) add(`<i class="dot"></i>`, { left: px(x - size / 2), top: px(y - size / 2), width: px(size), height: px(size) });
+  };
+  const burst = (cx, cy, r) => add(`<div class="burst"></div>`, { left: px(cx - r), top: px(cy - r), width: px(2 * r), height: px(2 * r) });
+
+  // Flood in from the edges and clear the background, so a picture floats on anything.
+  // alphaFor(brightness) gives the new alpha, or -1 where the background ends.
+  const keyed = (src, alphaFor) => new Promise(res => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement("canvas");
+      c.width = img.width; c.height = img.height;
+      const x = c.getContext("2d");
+      x.drawImage(img, 0, 0);
+      const d = x.getImageData(0, 0, c.width, c.height), p = d.data, W = c.width, H = c.height;
+      const seen = new Uint8Array(W * H), stack = [];
+      for (let i = 0; i < W; i++) stack.push(i, (H - 1) * W + i);
+      for (let j = 0; j < H; j++) stack.push(j * W, j * W + W - 1);
+      while (stack.length) {
+        const i = stack.pop();
+        if (seen[i]) continue;
+        seen[i] = 1;
+        const a = alphaFor((p[i * 4] + p[i * 4 + 1] + p[i * 4 + 2]) / 3);
+        if (a < 0) continue;
+        p[i * 4 + 3] = a;
+        const cx = i % W, cy = (i / W) | 0;
+        if (cx > 0) stack.push(i - 1); if (cx < W - 1) stack.push(i + 1);
+        if (cy > 0) stack.push(i - W); if (cy < H - 1) stack.push(i + W);
+      }
+      x.putImageData(d, 0, 0);
+      res(c.toDataURL());
+    };
+    img.src = src;
+  });
+  // the logo jpg sits on black (stop at the red rim); the user's trollface sits on white (stop at the outline)
+  const logo = await keyed("../assets/games/troll-man/ui/troll-man-logo.jpg", v => v > 90 ? -1 : v < 30 ? 0 : Math.round(255 * (v - 30) / 60));
+  const troll = await keyed("../assets/games/troll-man/refs/faces/trollface.png", v => v < 150 ? -1 : 0);
+  const hero = (x, y, w) => add(`<img src="${troll}" alt="">`, { left: px(x), top: px(y), width: px(w) });
+  const logoAt = (x, y, w) => add(`<img src="${logo}" alt="">`, { left: px(x), top: px(y), width: px(w) });
+
+  const CAST = [
+    ["gigachad", "GIGA CHAD", "#ff3b3b", "\"HE JUST WALKS AT YOU\""],
+    ["pepe", "PEPE", "#4dff73", "\"FEELS BAD, MAN\""],
+    ["pudgy", "PUDGY", "#6fa8ff", "\"WADDLES WITH THE PACK\""],
+    ["doge", "DOGE", "#ffb84d", "\"SUCH PURSUIT\""],
+  ];
+  const POWERS = [
+    ["pump", "PUMP.FUN", "CHASERS RUN"],
+    ["stonks", "STONKS", "2X POINTS"],
+    ["fomo", "FOMO", "DOT MAGNET"],
+    ["aster", "ASTER", "SHIELD"],
+  ];
+
+  if (LAYOUT === "poster") {
+    const W = 1200, H = 1700;
+    Object.assign(art.style, { width: px(W), height: px(H) });
+    // the hero: a sunburst behind the trollface, the four chasers closing in
+    burst(600, 745, 560);
+    logoAt(100, 62, 1000);
+    text("EAT THE DOTS. DODGE THE MEMES.", 600, 408, 26, "#fff");
+    dots(856, 1080, 745, 56, 18);                     // only ahead of him: the rest are eaten
+    hero(376, 543, 448);
+    sprite("gigachad-f3", 70, 470, 224);
+    sprite("pepe-f3", 70, 800, 224);
+    sprite("pudgy-f3", 906, 470, 224, true);
+    sprite("doge-f3", 906, 800, 224, true);
+    add(`<div class="bubble txt">PROBLEM?</div>`, { left: px(700), top: px(470), fontSize: px(28), "--tail": "34px" });
+    // power-ups
+    text("- POWER-UPS -", 600, 1062, 20, "var(--cyan)");
+    POWERS.forEach(([k, name, what], i) => {
+      const cx = 165 + i * 290;
+      icon(k, cx - 44, 1104, 88);
+      text(name, cx, 1210, 20, "#fff");
+      text(what, cx, 1242, 14, "rgba(255,255,255,0.6)");
+    });
+    // the screen and the cast
+    if (ART.maze) add(`<div class="screen"><img class="px" src="${ART.maze}" alt=""></div>`, { left: px(96), top: px(1296), width: px(254), height: px(308) });
+    text("CHARACTER / NICKNAME", 412, 1300, 18, "#fff", false);
+    CAST.forEach(([k, name, col, nick], i) => {
+      const y = 1342 + i * 66;
+      sprite(`${k}-f1`, 412, y, 56);
+      text(name, 488, y + 6, 18, col, false);
+      text(nick, 488, y + 34, 13, col, false);
+    });
+    // the bottom rail: coins in the corners, the address between them
+    for (const [x, y] of [[48, 48], [1104, 48], [48, 1604], [1104, 1604]]) icon("coin", x, y, 48);
+    text("1 OR 2 PLAYERS  -  TROLLRUNNER.NET", 600, 1620, 16, "var(--yellow)");
+    add(`<div class="frame"></div>`, { "--inset": "20px" });
+  } else if (LAYOUT === "flyer" || LAYOUT === "banner") {
+    // After the 1980 Puck Man flyer (refs/puck-man-flyer-1980.png): rainbow arch with the
+    // title, the hero leaping out of it, an orange-framed grid with stars, the chasers
+    // round the edges, coins and pills where the fruit was. "flyer" is the 1200x1700
+    // loading screen; "banner" is the 1200x630 share image / hub card in the same style.
+    const BANNER = LAYOUT === "banner";
+    const W = 1200, H = BANNER ? 630 : 1700;
+    Object.assign(art.style, { width: px(W), height: px(H), background: "#fdf6e3" });
+    const star = (cx, cy, r) => {
+      let d = "";
+      for (let i = 0; i < 10; i++) {
+        const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r;
+        d += `${i ? "L" : "M"}${(cx + Math.cos(a) * rr).toFixed(1)},${(cy + Math.sin(a) * rr).toFixed(1)}`;
+      }
+      return `<path d="${d}Z" fill="#ffd21f" stroke="#111" stroke-width="4" stroke-linejoin="round"/>`;
+    };
+    const svg = body => add(`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${body}</svg>`, { left: 0, top: 0 });
+    // grid paper in an orange frame, then the rainbow arch over it
+    const backdrop = (F, AX, AY, radii, stars, frameOnTop) => {
+      let g = `<defs><pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0H0V48" fill="none" stroke="#f2cfa6" stroke-width="2"/></pattern></defs>`;
+      g += `<rect x="${F.x}" y="${F.y}" width="${F.w}" height="${F.h}" fill="#fffaf0"/><rect x="${F.x}" y="${F.y}" width="${F.w}" height="${F.h}" fill="url(#grid)"/>`;
+      const frame = `<rect x="${F.x}" y="${F.y}" width="${F.w}" height="${F.h}" fill="none" stroke="#f7941d" stroke-width="14"/>`;
+      if (!frameOnTop) g += frame;
+      const half = r => `M${AX - r},${AY} A${r},${r} 0 0 1 ${AX + r},${AY}`;
+      ["#e8312a", "#f7941d", "#ffd21f", "#fffaf0"].forEach((c, i) => { g += `<path d="${half(radii[i])}Z" fill="${c}"/>`; });
+      for (const r of [radii[0], radii[3]]) g += `<path d="${half(r)}" fill="none" stroke="#111" stroke-width="6"/>`;
+      if (frameOnTop) g += frame;
+      for (const [x, y, r] of stars) g += star(x, y, r);
+      svg(g);
+    };
+    // the leaping trollface: the face, with arms, white gloves, legs and red sneakers
+    // behind it. Drawn at 330px wide at (500, 428) and scaled to (x, y, w).
+    const leaper = (x, y, w) => {
+      const k = w / 330;
+      const limb = d => `<path d="${d}" fill="none" stroke="#111" stroke-width="32" stroke-linecap="round"/><path d="${d}" fill="none" stroke="#fff" stroke-width="18" stroke-linecap="round"/>`;
+      const glove = (gx, gy, rot) => `<g transform="translate(${gx},${gy}) rotate(${rot})">
+          <ellipse cx="0" cy="0" rx="44" ry="38" fill="#fff" stroke="#111" stroke-width="7"/>
+          <ellipse cx="-30" cy="-16" rx="16" ry="13" fill="#fff" stroke="#111" stroke-width="6"/>
+          <path d="M-14,-30 Q0,-6 -10,24" fill="none" stroke="#111" stroke-width="5" stroke-linecap="round"/>
+          <rect x="26" y="-24" width="20" height="48" rx="8" fill="#e8312a" stroke="#111" stroke-width="6"/></g>`;
+      const shoe = (sx, sy, rot) => `<g transform="translate(${sx},${sy}) rotate(${rot})">
+          <path d="M-58,10 C-58,-26 -20,-34 10,-28 C40,-22 66,-6 66,14 Z" fill="#e8312a" stroke="#111" stroke-width="7" stroke-linejoin="round"/>
+          <rect x="-62" y="8" width="132" height="20" rx="10" fill="#fff" stroke="#111" stroke-width="7"/>
+          <path d="M-16,-26 L-4,-4 M6,-24 L16,-4" stroke="#fff" stroke-width="6" stroke-linecap="round"/></g>`;
+      svg(`<g transform="translate(${x - 500 * k},${y - 428 * k}) scale(${k})">` +
+        limb("M560,560 Q470,520 440,410") + limb("M800,610 Q880,640 930,612") +
+        limb("M640,716 Q630,780 588,830") + limb("M732,706 Q790,760 840,770") +
+        shoe(570, 846, 8) + shoe(866, 770, -24) + glove(432, 392, -64) + glove(944, 606, 12) + `</g>`);
+      hero(x, y, w);
+    };
+    const maker = (right, top, size) => add(`<div class="txt">TROLL RUNNER</div>`, { right: px(right), top: px(top), fontFamily: "Archivo Black", fontSize: px(size), color: "#e8312a", textShadow: "none", letterSpacing: "1px" });
+    const jpTag = (left, top, size) => add(`<div class="jp tag">★トロールマン★</div>`, { left: px(left), top: px(top), fontSize: px(size), transform: "rotate(-62deg)" });
+    const jpCopy = (left, top, size) => add(`<div class="jp">問題か？<br>キレてんの、<br>ブロ？</div>`, { left: px(left), top: px(top), fontSize: px(size) });
+
+    if (!BANNER) {
+      const F = { x: 44, y: 640, w: 1112, h: 1012 };
+      const stars = [];
+      for (let y = 760; y <= 1560; y += 200) stars.push([F.x, y, 26], [F.x + F.w, y, 26]);
+      for (let x = 160; x <= 1040; x += 220) stars.push([x, F.y + F.h, 26]);
+      backdrop(F, 600, 668, [590, 548, 506, 464], stars);
+      leaper(500, 428, 330);
+      logoAt(222, 148, 756);
+      maker(46, 26, 44);
+      jpTag(-10, 394, 30);
+      jpCopy(196, 452, 40);
+      // the screen, tilted like the flyer's
+      if (ART.maze) add(`<div class="bezel"><img class="px" src="${ART.maze}" alt=""></div>`, { left: px(352), top: px(870), width: px(470), height: px(568), transform: "rotate(-4deg)" });
+      // the chasers round the edges, and two more trollfaces
+      sprite("pudgy-f3", 948, 676, 160, true);
+      sprite("gigachad-f3", 84, 712, 168);
+      sprite("doge-f3", 958, 960, 160, true);
+      sprite("pepe-f3", 84, 1080, 160);
+      hero(100, 1410, 170).style.transform = "rotate(-14deg)";
+      hero(928, 1410, 170).style.transform = "scaleX(-1) rotate(-14deg)";
+      // coins, pills and watches where the fruit was
+      for (const [k, x, y, s] of [["coin", 270, 760, 58], ["pump", 112, 920, 60], ["rolex", 300, 1290, 56], ["coin", 1060, 1150, 56], ["rolex", 1010, 1270, 56],
+        ["pump", 870, 1300, 56], ["coin", 120, 1290, 52], ["rolex", 840, 900, 52], ["pump", 330, 1520, 56], ["coin", 800, 1560, 50]]) icon(k, x, y, s);
+      add(`<div class="txt c">1 OR 2 PLAYERS  -  TROLLRUNNER.NET</div>`, { left: px(560), top: px(1604), fontSize: px(14), color: "#111", textShadow: "none" });
+    } else {
+      // the hub card crops ~40px off each side, so everything that matters sits inside x 60..1140
+      const F = { x: 26, y: 26, w: 1148, h: 578 };
+      const stars = [[F.x, 200, 20], [F.x, 400, 20], [F.x + F.w, 200, 20], [F.x + F.w, 400, 20]];
+      backdrop(F, 600, F.y + F.h, [540, 504, 468, 432], stars, true);
+      leaper(512, 306, 196);
+      logoAt(330, 92, 540);
+      maker(70, 36, 26);
+      jpTag(70, 380, 20);
+      jpCopy(272, 318, 26);
+      // the chase: Giga Chad and Pepe behind him on the left, Pudgy and Doge ahead on the right
+      sprite("gigachad-f3", 204, 432, 118);
+      sprite("pepe-f3", 330, 452, 112);
+      sprite("pudgy-f3", 806, 300, 118, true);
+      sprite("doge-f3", 870, 430, 118, true);
+      for (const [k, x, y, s] of [["coin", 760, 452, 44], ["pump", 990, 360, 46]]) icon(k, x, y, s);
+      add(`<div class="txt c">TROLLRUNNER.NET</div>`, { left: px(940), top: px(566), fontSize: px(14), color: "#111", textShadow: "none" });
+    }
+  } else if (LAYOUT === "banner-dark") {
+    const W = 1200, H = 630;
+    Object.assign(art.style, { width: px(W), height: px(H) });
+    burst(600, 400, 640);
+    logoAt(270, 34, 660);
+    text("EAT THE DOTS. DODGE THE MEMES.", 600, 262, 20, "#fff");
+    dots(948, 1044, 452, 48, 14);
+    CAST.forEach(([k], i) => sprite(`${k}-f3`, 62 + i * 140, 386, 128));
+    hero(680, 332, 240);
+    icon("pump", 1080, 418, 66);
+    add(`<div class="bubble txt">PROBLEM?</div>`, { left: px(880), top: px(286), fontSize: px(18), "--tail": "22px", padding: "10px 12px 8px" });
+    text("TROLLRUNNER.NET", 600, 572, 16, "var(--yellow)");
+    add(`<div class="frame"></div>`, { "--inset": "14px" });
+  }
+  await document.fonts.ready;
+  await Promise.all([...art.querySelectorAll("img")].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
+  window.READY = true;
+})();
+</script>
+</body>
+</html>

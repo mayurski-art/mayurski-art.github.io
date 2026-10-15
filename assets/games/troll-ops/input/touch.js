@@ -2,6 +2,7 @@
 // buttons. Moved out of game.js (split phase 1); touchState is read by the
 // player update and by aim assist.
 import { game } from "../core/state.js?v=st1";
+import { freeLook } from "../view/free-look.js?v=nf1";
 
 
 export const touchState = {
@@ -151,6 +152,14 @@ export function syncPovButton() {
   const tp = !!game.settings.thirdPerson;
   b.textContent = tp ? "3P" : "1P";
   b.setAttribute("aria-pressed", String(tp));
+  // free look is third person's: the eye shows only there, and comes off
+  // with it
+  const eye = document.getElementById("to-touch-free");
+  if (eye) {
+    eye.hidden = !tp;
+    if (!tp) freeLook.held = false;
+    eye.setAttribute("aria-pressed", String(freeLook.held));
+  }
 }
 
 export function initTouch() {
@@ -201,6 +210,14 @@ export function initTouch() {
   // switch between first person and third person POV while on mobile"): the
   // B key and the pad's Select, as a tap.
   game.els.touchPov?.addEventListener("touchstart", (e) => { e.preventDefault(); game.toggleThirdPerson(); }, { passive: false });
+  // Free look (view/free-look.js; user, 2026-10-15: see your troll's front
+  // "across all devices"): tap the eye, then the look pad swings the camera
+  // round you; tap it again to come back behind.
+  document.getElementById("to-touch-free")?.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    freeLook.held = !freeLook.held;
+    syncPovButton();
+  }, { passive: false });
   syncPovButton();
   // Emotes on touch: tap to open the wheel (its slices are plain buttons
   // without pointer lock), tap a slice to play it, tap EMOTE again to shut it.

@@ -1,0 +1,52 @@
+<!--
+  TROLLS trait: CLOTHES / Sweater Black on the BLOCK body (blocky-body.js):
+  a black crew-neck knit sweater, ribbed at the neck and the hem, over
+  dark jeans, traced from TROLLS #1262. The sleeves and the jeans are the
+  farmer's Blender pieces in the sweater's colours (blocky-body.js KITS).
+  Same template as clothes-farmer.block.svg, 1 unit = 1 mm:
+    front  x    0..400  (seen from the front: the troll's right on the left)
+    back   x  400..800  (seen from behind: the troll's left on the left)
+    right  x  800..1000 (the troll's right side: its back on the left)
+    left   x 1000..1200 (its left side: its front on the left)
+    top    x    0..400, y 560..760: the shoulders from above, front edge first
+  y 0 is the torso's top, y 520 the hips; the jeans' waist from y 470 down.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" width="1200" height="760">
+  <defs>
+    <!-- the knit: faint vertical ribs -->
+    <pattern id="knit" width="14" height="14" patternUnits="userSpaceOnUse">
+      <rect width="14" height="14" fill="#2b2b2e"/>
+      <rect x="0" y="0" width="2" height="14" fill="#262629"/>
+      <rect x="7" y="0" width="1" height="14" fill="#303034"/>
+    </pattern>
+    <pattern id="rib" width="10" height="10" patternUnits="userSpaceOnUse">
+      <rect width="10" height="10" fill="#232326"/>
+      <rect x="0" y="0" width="4" height="10" fill="#1b1b1e"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="760" fill="url(#knit)"/>
+  <g stroke-linejoin="round" stroke-linecap="round">
+    <!-- FRONT: the crew neck's rib, a fold or two -->
+    <path fill="url(#rib)" stroke="#060606" stroke-width="6" d="M120 0 L280 0 C270 40 240 58 200 58 C160 58 130 40 120 0 Z"/>
+    <path fill="none" stroke="#060606" stroke-width="5" d="M138 0 C150 30 172 42 200 42 C228 42 250 30 262 0"/>
+    <path fill="none" stroke="#3a3a3f" stroke-width="5" d="M60 150 C120 170 160 200 180 250"/>
+    <path fill="none" stroke="#3a3a3f" stroke-width="5" d="M340 170 C300 190 270 220 256 270"/>
+    <path fill="none" stroke="#1a1a1c" stroke-width="5" d="M120 330 C180 346 240 346 300 330"/>
+    <!-- BACK: the neck rib -->
+    <path fill="url(#rib)" stroke="#060606" stroke-width="6" d="M530 0 L670 0 C664 20 640 30 600 30 C560 30 536 20 530 0 Z"/>
+    <path fill="none" stroke="#1a1a1c" stroke-width="5" d="M470 200 C540 216 660 216 730 200"/>
+    <!-- the ribbed hem all the way round -->
+    <path fill="url(#rib)" stroke="#060606" stroke-width="6" d="M0 420 L1200 420 L1200 472 L0 472 Z"/>
+    <!-- the jeans below it -->
+    <rect x="0" y="472" width="1200" height="88" fill="#34363d" stroke="#060606" stroke-width="6"/>
+    <g fill="none" stroke="#5b5e68" stroke-width="3" stroke-dasharray="9 7">
+      <path d="M0 490 L1200 490"/>
+    </g>
+    <g fill="#2a2c32" stroke="#060606" stroke-width="4">
+      <rect x="186" y="478" width="28" height="26" rx="4"/>
+      <rect x="586" y="478" width="28" height="26" rx="4"/>
+    </g>
+    <!-- TOP: the shoulders, the neck hole's rib along the front edge -->
+    <path fill="url(#rib)" stroke="#060606" stroke-width="6" d="M120 560 L280 560 C276 600 250 620 200 620 C150 620 124 600 120 560 Z"/>
+  </g>
+</svg>
