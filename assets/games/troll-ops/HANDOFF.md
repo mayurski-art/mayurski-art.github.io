@@ -14,7 +14,7 @@ Design docs live next to this file: `COPS-AND-ROBBERS.md`, `TROLL-CITY-RP2.md`, 
 
 ### Tasks to do, in order (updated 2026-10-14)
 Start each session on a fresh branch or worktree from origin/main.
-1. **Stylised realism graphics,** one map first, with before/after screenshots.
+1. **Stylised realism follow-ups:** re-render the map previews (`tools/troll-ops-map-previews.mjs`) and bump SHOT_V; Trollface Island could get a bake too.
 2. **Then hand the user ONE test checklist** (add the BO2 rifle reloads) covering everything shipped since 2026-10-12 (Zombie Rush P1-P7 and the controller buy/deploy, the Kek & Sons merchant and the horses, incl. the hub, Credits and the kiosks, weekly/monthly leaderboards, the High-graphics glow and box fixes, the Royale lag and fights, Show FPS, the phone menu, bot heads, Ghostface Killers).
 - Offered, not yet answered: stretch Royale's match length (fewer bots or a post-kill cooldown).
 - Paused or on hold (sections below): tf-parallel leftovers, Troll City RP 2c, Cops and Robbers, U Mad Bro?, the TROLLS wallet check.
@@ -41,9 +41,6 @@ Zombies rebuilt to play like Roblox's Zombie Rush Survival: a 3D hub, then a co-
 - The hand palms the mag's base so the TROLLS body's block fist never hides it. A cut reload (fire) eases back over 0.14 s. Other guns keep the old reload.
 - Tune with a frozen-frame lab (set `reloadT` via a getter, screenshot both bodies). Test: `tools/troll-ops-arreload-test.mjs` (gate input step).
 - Not yet: SMGs, LMGs and pistols still use the old reload; the BO2 video for them is linked in FOOTAGE-NOTES.
-
-### Graphics: stylised realism (`REALISM.md`): IN PROGRESS
-Branch `tf-realism` (worktree `.claude/worktrees/tf-realism`). Cul-de-Grin first (user, 2026-10-13). Built: P0-P5 plus the P6 checks (results in REALISM.md), unpushed. At the push: merge main, cascade `--suffix sr1`, gate. Then the rollout, map by map, after the user's buy-in. krypto2009 easter eggs wait on the user's photos (wish list).
 
 ### TROLLS NFT looks (`TROLLS-TRAITS.md`)
 #1718's blocky body is live. **Next: the wallet check** (phase 3: `ownerOf` on the contract) to replace the stopgap lock to the troll_runner account (cosmetics.js `BODIES` `owner`, `canWearBody`). Honest-client like everything else: `bk` on the wire is drawn only with `ow`.
@@ -454,6 +451,7 @@ Map rules:
 
 ## 5. Shipped log (newest first; one line each, details in git)
 
+- **2026-10-14** (-sr1; stylised realism) Env map from the sky, a post-tonemap grade per map, the gun drawn inside the composer, a sun-coloured rim on characters; Cycles light-map bakes (sky, bounce, lamps; runtime lamps removed) for Cul-de-Grin, Grin Site, Dust Bowl, Grin Beach, Grinjuku, the Depot and the Grinleria, grades for the rest (how a map is baked, and the lessons: REALISM.md; krypto2009 eggs still wait on photos); wear decals and glossy puddles. Tests: input, menu, killcam, rope, view-mode, remote-body, fps, every map's bots move.
 - **2026-10-14** (-bf1; the user's 4 phone bugs)
   - The phone magnifier: every touch control and the canvas cancel the long-press default (input/touch.js). Test: loupe.
   - Swap cycles primary, secondary, melee (touch SWAP, a tap of X, the pad's Y), in the range, Zombies and the waves too; stands down for a co-op revive in reach. Test: swap.
