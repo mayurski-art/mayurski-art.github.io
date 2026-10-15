@@ -52,7 +52,6 @@ DOOR_OFF = (-4.0, 0.0, 4.0)
 DOOR_W = 1.4
 REPO = os.path.normpath(os.path.join(OUT_DIR, "..", "..", "..", ".."))
 ART_TROLL = os.path.join(REPO, "assets", "pfp", "base", "og.webp")
-ART_GENERAL = os.path.join(OUT_DIR, "..", "ui", "western", "troll-general.jpg")
 
 # west shop row (z0, z1, name) and east; the doc's 4.3 table verbatim
 SHOPS_W = [(-40, -26, "arcade"), (-26, -12, "grinbiss"), (-12, 0, "purple"), (0, 14, "lounge"), (14, 26, "apotrolle"), (26, 40, "books")]
@@ -298,11 +297,6 @@ def image_cells(path, crop, cx, cy):
     return out
 
 
-def _hexof(rgb):
-    r, g, bb = [int(round(max(0.0, min(1.0, float(v))) * 255)) for v in rgb]
-    return (r << 16) | (g << 8) | bb
-
-
 def mosaic_mat(hx):
     return mat("UG_M%06x" % hx, hx, 0.8)
 
@@ -314,18 +308,24 @@ def troll_poster(b, PAL, c, normal, w, h, bg, cells=30, o=0.012, up=None, crop=(
     g = image_cells(ART_TROLL, crop, cells, cells)
     lum = g.mean(axis=2)
     key = [[("k" if lum[j, i] < 0.6 else "w") for i in range(cells)] for j in range(cells)]
-    # flood the outside white from the border
-    outside = [[False] * cells for _ in range(cells)]
-    stack = [(j, i) for j in range(cells) for i in range(cells) if (j in (0, cells - 1) or i in (0, cells - 1)) and key[j][i] == "w"]
+    # flood the outside white from the border on a fine grid (the thin
+    # outline breaks up at poster resolution and the flood would leak into
+    # the face), then a cell is outside when most of it is
+    F = 160
+    fine = image_cells(ART_TROLL, crop, F, F).mean(axis=2) > 0.85
+    out = np.zeros((F, F), dtype=bool)
+    stack = [(j, i) for j in range(F) for i in range(F) if (j in (0, F - 1) or i in (0, F - 1)) and fine[j, i]]
     while stack:
         j, i = stack.pop()
-        if outside[j][i] or key[j][i] != "w":
+        if out[j, i] or not fine[j, i]:
             continue
-        outside[j][i] = True
+        out[j, i] = True
         for dj, di in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             jj, ii = j + dj, i + di
-            if 0 <= jj < cells and 0 <= ii < cells and not outside[jj][ii]:
+            if 0 <= jj < F and 0 <= ii < F and not out[jj, ii]:
                 stack.append((jj, ii))
+    outside = [[out[j * F // cells:(j + 1) * F // cells, i * F // cells:(i + 1) * F // cells].mean() > 0.5 and key[j][i] == "w"
+                for i in range(cells)] for j in range(cells)]
     grid = [[None if outside[j][i] else key[j][i] for i in range(cells)] for j in range(cells)]
     if bg is not None:
         panel(b, bg, c, normal, w, h, o, up=up)
@@ -336,28 +336,6 @@ def troll_poster(b, PAL, c, normal, w, h, bg, cells=30, o=0.012, up=None, crop=(
         rect(b, PAL["black"] if k == "k" else PAL["white"], org, Uv, Vv, i0 * cw, i1 * cw, (cells - j1) * ch, (cells - j0) * ch)
 
 
-def picture(b, path, crop, c, normal, w, h, cx, cy, k=7, o=0.012, seed=1):
-    """A picture as a k-colour cell mosaic (k-means on the cells)."""
-    g = image_cells(path, crop, cx, cy).reshape(-1, 3)
-    rng = np.random.default_rng(abs(int(seed)))
-    cent = g[rng.choice(len(g), k, replace=False)].copy()
-    for _ in range(12):
-        d = ((g[:, None, :] - cent[None, :, :]) ** 2).sum(-1)
-        lab = d.argmin(1)
-        for i in range(k):
-            sel = g[lab == i]
-            if len(sel):
-                cent[i] = sel.mean(0)
-    lab = lab.reshape(cy, cx)
-    mats = [mosaic_mat(_hexof(cent[i])) for i in range(k)]
-    grid = [[int(lab[j, i]) for i in range(cx)] for j in range(cy)]
-    Uv, Vv = frame(normal)
-    org = Vector(c) + Vector(normal) * o - Uv * (w / 2) - Vv * (h / 2)
-    cw, ch = w / cx, h / cy
-    for (kk, i0, i1, j0, j1) in rects2(grid):
-        rect(b, mats[kk], org, Uv, Vv, i0 * cw, i1 * cw, (cy - j1) * ch, (cy - j0) * ch)
-
-
 def general_portrait(b, PAL, c, normal, w, h, o=0.0):
     """The troll general (ui/western/troll-general.jpg) as flat paint: the
     painting's yellow ground, his grey dress uniform with gold epaulettes
@@ -365,21 +343,22 @@ def general_portrait(b, PAL, c, normal, w, h, o=0.0):
     Uv, Vv = frame(normal)
     base = Vector(c) + Vector(normal) * o
     panel(b, mosaic_mat(0xe8dc9a), c, normal, w, h, o)
-    at = lambda u, v, k: base + Vector(normal) * k + Uv * u + Vv * v
+    # heights laid out for a 2.5 m canvas (its foot at -1.25), scaled to h
+    at = lambda u, v, k: base + Vector(normal) * k + Uv * u + Vv * (v * h / 2.5)
     # torso: shoulders up to the collar, a darker sash and the collar
-    quad4(b, mosaic_mat(0x9a9ea4), [at(-0.47 * w, -h / 2, 0.01), at(0.47 * w, -h / 2, 0.01), at(0.38 * w, -0.02, 0.01), at(-0.38 * w, -0.02, 0.01)])
+    quad4(b, mosaic_mat(0x9a9ea4), [at(-0.47 * w, -1.25, 0.01), at(0.47 * w, -1.25, 0.01), at(0.38 * w, -0.02, 0.01), at(-0.38 * w, -0.02, 0.01)])
     quad4(b, mosaic_mat(0x6c7076), [at(-0.1 * w, -0.02, 0.014), at(0.1 * w, -0.02, 0.014), at(0.1 * w, -0.12, 0.014), at(-0.1 * w, -0.12, 0.014)])
-    quad4(b, mosaic_mat(0x3a5a3a), [at(-0.36 * w, -0.1, 0.014), at(-0.2 * w, -0.08, 0.014), at(0.3 * w, -h / 2, 0.014), at(0.1 * w, -h / 2, 0.014)])
+    quad4(b, mosaic_mat(0x3a5a3a), [at(-0.36 * w, -0.1, 0.014), at(-0.2 * w, -0.08, 0.014), at(0.3 * w, -1.25, 0.014), at(0.1 * w, -1.25, 0.014)])
     for sgn in (-1, 1):
         quad4(b, mosaic_mat(0xd8b040), [at(sgn * 0.2 * w, -0.03, 0.016), at(sgn * 0.4 * w, -0.06, 0.016), at(sgn * 0.42 * w, -0.2, 0.016), at(sgn * 0.22 * w, -0.17, 0.016)])
         for k in range(4):
             quad4(b, mosaic_mat(0xb08a20), [at(sgn * (0.24 + 0.04 * k) * w, -0.2, 0.018), at(sgn * (0.26 + 0.04 * k) * w, -0.2, 0.018),
                                             at(sgn * (0.26 + 0.04 * k) * w, -0.34, 0.018), at(sgn * (0.24 + 0.04 * k) * w, -0.34, 0.018)])
     quad4(b, mosaic_mat(0x2b4bd6), [at(0.16 * w, -0.3, 0.016), at(0.22 * w, -0.3, 0.016), at(0.22 * w, -0.42, 0.016), at(0.16 * w, -0.42, 0.016)])
-    disc(b, mosaic_mat(0xd8b040), base + Uv * (0.19 * w) + Vv * (-0.48), normal, 0.07, seg=10, o=0.018)
+    disc(b, mosaic_mat(0xd8b040), base + Uv * (0.19 * w) + Vv * (-0.48 * h / 2.5), normal, 0.07 * h / 2.5, seg=10, o=0.018)
     face_h = min(h * 0.46, w * 0.72)
     troll_poster(b, PAL, Vector(c) + Vector(normal) * 0.0 + Vv * (h / 2 - 0.08 - face_h / 2), normal, face_h * 1.12, face_h, None,
-                 cells=24, o=o + 0.02, crop=(240, 200, 800, 700))
+                 cells=24, o=o + 0.02)
 
 
 def sub_rects(rs, hole):
@@ -1466,8 +1445,8 @@ def dress_shop(b, PAL, name, x0, x1, z0, z1, side):
         panel(b, PAL["fire"], (back + inward * 0.53, y + 0.5, fz), (inward, 0, 0), 0.8, 0.5, o=0.0)
         bx(b, PAL["oak"], back, back + inward * 0.6, y + 1.6, y + 1.7, fz - 1.2, fz + 1.2)
         # the general's portrait over the fireplace, framed
-        bx(b, PAL["frame"], back + inward * 0.02, back + inward * 0.08, y + 1.85, y + 4.55, fz - 0.98, fz + 0.98)
-        general_portrait(b, PAL, (back + inward * 0.08, y + 3.2, fz), (inward, 0, 0), 1.8, 2.5, o=0.004)
+        bx(b, PAL["frame"], back + inward * 0.02, back + inward * 0.08, y + 1.82, y + 3.48, fz - 0.68, fz + 0.68)
+        general_portrait(b, PAL, (back + inward * 0.08, y + 2.65, fz), (inward, 0, 0), 1.2, 1.5, o=0.004)
         # standing lamp
         b.cyl(PAL["black"], 0.03, (cx - 1.6, y, cz + 2.6), (cx - 1.6, y + 1.5, cz + 2.6), seg=5)
         b.frustum(PAL["cream"], 0.5, 0.5, 0.3, 0.3, y + 1.5, y + 1.85, x=cx - 1.6, z=cz + 2.6)
