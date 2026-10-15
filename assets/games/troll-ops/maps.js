@@ -480,7 +480,7 @@ function buildUndergrin(api) {
     B(-10.05, -3.1, -9.75, 14, 0, S0, UG.grey);
     B(-10.05, -4.9, -9.75, -3.1, 2.4, S0, UG.grey);
     B(-14.25, -14, -9.75, 14, 4.0, S0, UG.grey);                          // tunnel ceiling at 4
-    B(-14.25, -3.2, -12.65, -0.8, 0, 1.0, UG.dark, { pen: 2 });           // works trolley at z -2, against the outer wall (centred, it cut the bore on the coarse grid)
+    B(-14.25, -2.2, -12.65, 0.2, 0, 1.0, UG.dark, { pen: 2 });            // works trolley at z -1, against the outer wall (centred, it cut the bore on the coarse grid; at z -2 it pinched the door)
     B(-13.95, 9.4, -13.35, 10.6, 0, 2.0, UG.grey, { pen: 3 });            // signal cabinet at z 10
     // the plant room's low cover, this half
     B(-9.3, -6.5, -6.9, -5.1, 0, 1.2, UG.dark, { pen: 2 });               // generator
