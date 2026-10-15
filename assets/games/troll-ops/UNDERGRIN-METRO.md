@@ -420,8 +420,44 @@ Every GLB was rendered full-bright from the doc's views, with at least two rende
 - bot-stuck: PASS (no stalls).
 - bot-stairs sim: flaky, with a bot sometimes slipping off the island edge into a bore. The blockout branch fails 1 run in 6; this branch failed 4 of 6, and the partitions are the only collider change it sees.
 
-**Still to do:**
-- Map previews and loading-screen shots (SHOT_V).
-- Ambience.
-- A HANDOFF line when it ships.
-- The bot lead: the stairs flake above and the blockout's stall at the west stair top.
+## 12. Phase 5 (2026-10-15, branch `claude/tf-undergrin-phase5`)
+
+- **Map preview (-ug5):** re-rendered from the atrium past the gates,
+  full-bright. `SHOT_V.undergrin` is ug5.
+- **Ambience:** the bright set replaces the dark-fog one: tube hum, air
+  handling, commuters, the PA chime and announcer, and trains pulling in
+  and passing through. Test: `tools/troll-ops-ambience-test.mjs`.
+- **Bot-stairs flake:** the bots' own logic plus `Math.random`, so a run is
+  random, but a seeded run fails the same way every time. Two
+  map-data causes are fixed:
+  - **Bore rails:** they were 12 cm colliders. A bot that fell into a bore
+    stood on a rail's edge, so its groundY bobbed between 0.04 and 0.08,
+    and the 0.95 platform crossed bots.js `SAME_LEVEL` (0.9) every other
+    frame. It dithered between "stairs" and "same floor" forever. The
+    rail colliders are gone (the models still draw the rails).
+  - **The west stairs' foot:** it was 0.5 m off the end wall, and its
+    foot link was inside the wall, so a bot coming down ended on the bottom
+    tread (1.25). The foot is now at z -42.65, a 1.35 m landing: the run
+    went from 0.5 to 0.45, and the top didn't move.
+
+**Still open: the cause under both, in bots.js.** Nav fields sit on 0.5 m
+levels and only see floors within ±0.45, so the 1.5 field has no cells at
+0.95. A bot's `navY` follows groundY only in 0.4 m jumps, so after a stair
+it can be held at 1.25–1.4. A bot that clips the bottom treads beside the
+stair (seed 4) gets the same. Either way it reads the 1.5 field, finds no
+route, parks the target for 4 s and wanders.
+
+Seeded, the side-stair descent still fails about 3 seeds in 12 after the
+fixes; before them it was 2 in 6. Two `navY` tweaks (reset on climb end,
+read it after the climb) didn't measurably help and were reverted.
+
+Real fixes: pick the field level from the floors that exist, not by rounding
+`navY` (bots, every map); or raise the platforms to about 1.1–1.2 m
+(a rebuild).
+
+Also open:
+- The in-game part of `troll-ops-bot-stairs-test.mjs` throws a
+  ReferenceError (`to`, `from`, `sinks`, `prevY`: three lines from the
+  sim's `hunt()` pasted into `run()`).
+- map-walk "N escalator (west lane) -> hall" fails on the unmodified maps.js
+  too.
