@@ -165,6 +165,7 @@ const DISTRICT = 20;               // metres: the squares crowding is counted in
 const POST_HEAT = 5;
 const POST_HEAT_KEEP = 0.99;       // per half second: about a minute's half-life
 const UPPER_Y = 1.5;               // feet this high: off the ground floor
+const POST_STILL = 4;              // holding a post, got under 1.5 m in this long: the hold ends
 
 /* Anything tall standing at body height on this spot? */
 /* A climb up or down a rope floor link (s.rope): the spot it hangs at is
@@ -642,6 +643,14 @@ class Bot {
         if (back) { this.wander.set(p.x - this.pos.x, 0, p.z - this.pos.z).normalize(); this.wanderT = Math.max(this.wanderT, 0.5); }
         desired = this.keepFooting(this.wanderStep(dt).multiplyScalar(0.35), ctx);
         p.hold -= dt;
+        // Boxed in where the shuffle can only rub a wall (a cramped landing
+        // in Hollowgrin's manor): too slow for the jam check below, so the
+        // hold ends early rather than read as a frozen bot.
+        const still = p.still || (p.still = { x: this.pos.x, z: this.pos.z, t: 0 });
+        if ((still.t += dt) > POST_STILL) {
+          if (Math.hypot(this.pos.x - still.x, this.pos.z - still.z) < 1.5) p.hold = 0;
+          p.still = null;
+        }
         if (p.hold <= 0) this.perch = null;
       } else {
         desired = this.steerTo(p.id, p, ctx);
