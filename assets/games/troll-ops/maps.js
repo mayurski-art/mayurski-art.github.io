@@ -304,85 +304,270 @@ function makeApi(root, colliders, stairLinks = [], ropes = []) {
 
 /* ------------------------------------------------------------------- maps */
 
-/* Undergrin's expansion (2026-10-01): all ghost colliders, drawn by
-   ug-expansion.glb and the cut-open ug-station.glb (build_undergrin.blender.py
-   mirrors every number here: change one, change the other).
-     - service corridors x +-(13 .. 17.5), floor at platform height, through
-       the staff doors; steps down at both ends into
-     - the cross passages z +-(32 .. 38), track level, which the tunnels open
-       into: platform, door, corridor, passage, tunnel, track, platform is a
-       loop at both ends;
-     - the ticket hall over the station, floor at 7 (the station ceiling),
-       up a stair on each mezzanine (11 steps, along x by the end wall), with
-       a railed light well over the middle of the train. */
-function undergrinExpansion(api, P) {
-  const CON = 7.0, CON_H = 3.6;
+/* Undergrin (2026-10-15): a Phantom Forces "Metro (2025)" station in the
+   modded full-bright look, UNDERGRIN-METRO.md. Every number here is the
+   doc's (section 4); models/build_undergrin.blender.py draws the same
+   numbers, so a change here is a change there. Three levels: track T at 0,
+   platform P at 0.95 (bots vault it, players jump or take the end steps),
+   concourse U at 6.0 on a 0.4 slab. The south half is the north half turned
+   180 degrees about the origin (station(-1) below), so both teams get the
+   same map. Flat colours only and no api.lamp: the look is the ambient. */
+const UG = {
+  wall: 0xe6e4df, floor: 0xececea, band: 0xc9704e, stripe: 0x2f5fd0, zone: 0xe5b84a, platform: 0xe8e6e0,
+  grey: 0x8a8d92, dark: 0x3e4146, train: 0xf2c230, trainBand: 0x1e1e22, trainDoor: 0xf4f4f0, seat: 0x2b4bd6,
+  bench: 0x2d50d8, escSide: 0x7a5a3a, nosing: 0xe8ad22, glass: 0x2a3340, mullion: 0xc8c8c4, brick: 0x8c4a3a,
+  exit: 0x38d060, board: 0xff8a1e, boardPink: 0xff3fa4, purple: 0x8a3fc8, red: 0xc8302a,
+};
 
-  /* ---- service corridors */
+function buildUndergrin(api) {
+  const P = 0.95, U = 6.0, S0 = U - 0.4;          // platform, concourse floor, slab underside
+  const H = 16;                                    // outer walls, above the atrium ceiling
+  // A solid by its extents, x0..x1 / z0..z1 / y0..y1 (any order).
+  const R = (x0, z0, x1, z1, y0, y1, color, opts = {}) =>
+    api.box((x0 + x1) / 2, (z0 + z1) / 2, Math.abs(x1 - x0), Math.abs(z1 - z0), y1 - y0, { color, y: y0, pen: 8, ...opts });
+  // Rects less a hole: the pieces of each [x0, z0, x1, z1] outside it.
+  const cut = (rects, [hx0, hz0, hx1, hz1]) => rects.flatMap(([x0, z0, x1, z1]) => {
+    if (hx0 >= x1 || hx1 <= x0 || hz0 >= z1 || hz1 <= z0) return [[x0, z0, x1, z1]];
+    const out = [];
+    if (hz0 > z0) out.push([x0, z0, x1, hz0]);
+    if (hz1 < z1) out.push([x0, hz1, x1, z1]);
+    const za = Math.max(z0, hz0), zb = Math.min(z1, hz1);
+    if (hx0 > x0) out.push([x0, za, hx0, zb]);
+    if (hx1 < x1) out.push([hx1, za, x1, zb]);
+    return out;
+  });
+  // Paint and fittings with no collider: bands, tube lights, signs, posters.
+  const paint = (x, y, z, w, h, d, color, lit = false) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), lit ? new THREE.MeshBasicMaterial({ color }) : api.mat(color, 0.9, 0));
+    m.position.set(x, y, z);
+    m.castShadow = false;
+    return api.prop(m);
+  };
+
+  /* ---- the box: outer walls 1.5 m outside the bounds; brick behind the side platforms */
   for (const s of [-1, 1]) {
-    api.ghostBox(s * 15.25, 0, 4.5, 64, P, { pen: 8 });                                // raised floor
-    api.ghostBox(s * 18, 0, 1.0, 78, 4.2, { pen: 8 });                                 // outer wall, the length of corridor + passages
-    for (const zs of [-1, 1]) api.stairs(s * 15.25, zs * 34.4, 4.5, 4, 0.275, 0.6, zs < 0 ? "+z" : "-z", { ghost: true });
-    // cover: lockers, crate stacks, a cable drum, a fuse cabinet
-    api.ghostBox(s * 17.15, s * -21, 0.6, 5, 2.0, { y: P, pen: 2 });
-    api.ghostBox(s * 14.4, s * 25, 1.2, 1.2, 1.2, { y: P, pen: 1.5 });
-    api.ghostBox(s * 14.4, s * 26.3, 1.2, 1.2, 2.4, { y: P, pen: 1.5 });
-    api.cylinder(s * 16.4, s * 4, 0.7, 1.0, { ghost: true, y: P });
-    api.ghostBox(s * 17.2, s * -8, 0.5, 1.6, 2.2, { y: P, pen: 2 });
-    api.ghostBox(s * 14.2, s * -14, 1.0, 2.2, 1.0, { y: P, pen: 1.5 });
+    R(s * 22, -45.5, s * 23.5, 45.5, S0, H, UG.wall);
+    R(s * 22, -45.5, s * 23.5, -14, 0, S0, UG.brick);
+    R(s * 22, -14, s * 23.5, 14, 0, S0, UG.wall);
+    R(s * 22, 14, s * 23.5, 45.5, 0, S0, UG.brick);
+    R(-22, s * 44, 22, s * 45.5, 0, H, UG.wall);
   }
 
-  /* ---- cross passages through both tunnels */
-  for (const zs of [-1, 1]) {
-    api.ghostBox(0, zs * 38.5, 37, 1.0, 4.2, { pen: 8 });                               // far wall
-    // the track runs on to a buffer stop; a maintenance cart and cable drums for cover
-    for (const rx of [-0.75, 0.75]) api.box(rx, zs * 33.75, 0.12, 3.5, 0.12, { ghost: true, color: 0x8a8a8e, pen: 6 });
-    api.ghostBox(0, zs * 35.8, 3.0, 0.8, 1.1, { pen: 4 });
-    api.ghostBox(zs * 7.5, zs * 35.2, 3.2, 1.6, 1.4, { pen: 3 });
-    api.cylinder(zs * -6.5, zs * 36.6, 0.75, 1.3, { ghost: true });
-    api.cylinder(zs * -9, zs * 36.8, 0.6, 1.0, { ghost: true });
-    api.ghostBox(zs * 12, zs * 37.6, 2.4, 0.8, 2.2, { pen: 3 });                        // generator against the far wall
+  /* ---- the concourse slab, 5.6..6.0, less its wells */
+  let slab = [[-22, -44, 22, 44]];
+  for (const well of [
+    [-3.6, -28, 3.6, -18.5], [-3.6, 18.5, 3.6, 28],      // escalators (z -18.5..-17 past the top is the landing)
+    [-22, -44, -17.5, -35], [17.5, 35, 22, 44],          // west / east side stairs
+    [-4, -4, 4, 4],                                      // the light well over the plant room
+    [-21, -10, -18, -4], [18, 4, 21, 10],                // purple / red steel stairs
+  ]) slab = cut(slab, well);
+  for (const [x0, z0, x1, z1] of slab) R(x0, z0, x1, z1, S0, U, UG.floor);
+
+  /* ---- rails in both bores (clear of the trains and the bore-end steps) */
+  for (const [cx, z0, z1] of [[-12, -44, -42], [-12, -16, 40.5], [12, -40.5, 16], [12, 42, 44]]) {
+    for (const rx of [cx - 0.75, cx + 0.75]) R(rx - 0.06, z0, rx + 0.06, z1, 0, 0.12, UG.grey, { pen: 6 });
   }
 
-  /* ---- the ticket hall upstairs */
-  // Floor (the station's ceiling slab, top at 7), open over the light well
-  // and both stairwells.
-  const slab = (x0, x1, z0, z1) => api.ghostBox((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, 0.3, { y: CON - 0.3, pen: 8 });
-  slab(-11.5, 2, -30.5, -28.5); slab(8.05, 11.5, -30.5, -28.5);
-  slab(-11.5, 11.5, -28.5, -5);
-  slab(-11.5, -1.6, -5, 5); slab(1.6, 11.5, -5, 5);
-  slab(-11.5, 11.5, 5, 28.5);
-  slab(-11.5, -8.05, 28.5, 30.5); slab(-2, 11.5, 28.5, 30.5);
-  // walls up from the station's
-  for (const s of [-1, 1]) {
-    api.ghostBox(s * 12.25, 0, 1.5, 64, CON_H, { y: CON, pen: 8 });
-    api.ghostBox(0, s * 31.25, 23, 1.5, CON_H, { y: CON, pen: 8 });
-  }
-  // stairs from each mezzanine (top 3.8) along x by the end wall up to 7
-  api.stairs(2.0, -29.5, 1.8, 11, 0.29, 0.55, "+x", { ghost: true, y: 3.8 });
-  api.stairs(-2.0, 29.5, 1.8, 11, 0.29, 0.55, "-x", { ghost: true, y: 3.8 });
-  // rails round the openings
-  const rail = (x, z, w, d) => api.ghostBox(x, z, w, d, 1.0, { y: CON, pen: 0.3 });
-  rail(0, -5.05, 3.3, 0.1); rail(0, 5.05, 3.3, 0.1); rail(-1.65, 0, 0.1, 10.2); rail(1.65, 0, 0.1, 10.2);
-  rail(5.0, -28.45, 6.1, 0.1); rail(1.95, -29.5, 0.1, 2.0);
-  rail(-5.0, 28.45, 6.1, 0.1); rail(-1.95, 29.5, 0.1, 2.0);
-  // gate lines across the hall, ticket offices, machines, columns, benches
-  for (const zs of [-1, 1]) {
-    for (const x of [-10, -8, -6, -4, 4, 6, 8, 10]) api.ghostBox(x, zs * 16, 0.3, 1.2, 1.0, { y: CON, pen: 2 });
-    api.ghostBox(zs * 8, zs * 22.5, 3.0, 3.0, 2.6, { y: CON, pen: 4 });
-    for (const z of [-9, -3, 3, 9]) api.ghostBox(zs * 11.1, z, 0.7, 1.0, 1.9, { y: CON, pen: 3 });
-    for (const z of [10, 22]) for (const sx of [-1, 1]) api.ghostBox(sx * 5.5, zs * z, 0.8, 0.8, CON_H, { y: CON, pen: 8 });
-    api.ghostBox(0, zs * 11, 3.2, 0.5, 0.5, { y: CON, pen: 1.5 });
-  }
+  /* ---- one station, in the north station's coordinates (section 4.1);
+     s = -1 turns it about the origin for the south station. */
+  const station = (s) => {
+    const X = (x) => s * x, Z = (z) => s * z;
+    const D = (dir) => (s > 0 ? dir : (dir[0] === "+" ? "-" : "+") + dir[1]);
+    const B = (x0, z0, x1, z1, y0, y1, color, opts) => R(X(x0), Z(z0), X(x1), Z(z1), y0, y1, color, opts);
+    const ST = (x, z, w, n, rise, run, dir, opts) => api.stairs(X(x), Z(z), w, n, rise, run, D(dir), opts);
+    const PT = (x, y, z, w, h, d, color, lit) => paint(X(x), y, Z(z), w, h, d, color, lit);
 
-  /* ---- six real lights for all of it (the station has 20; every real
-     light costs every lit pixel, so the rest is emissive fittings) */
-  for (const zs of [-1, 1]) {
-    api.lamp(0, CON + 3.2, zs * 18, 0xfff0d8, 10, 16);            // ticket hall
-    api.lamp(zs * 15.25, P + 2.7, zs * 6, 0xffa050, 6, 12);       // corridor, caged work light
-    api.lamp(zs * 10, 3.3, zs * 35.5, 0xff4a2a, 5, 10);           // passage, red
-  }
+    // platforms at P: west side, island, east side; the bores between stay at track level
+    B(-22, -44, -14.25, -14, 0, P, UG.platform);
+    B(-9.75, -44, 9.75, -14, 0, P, UG.platform);
+    B(14.25, -44, 22, -14, 0, P, UG.platform);
+    // yellow paint: a strip along every platform edge, the zone round the escalator foot
+    for (const [x0, x1] of [[-14.85, -14.25], [-9.75, -9.15], [9.15, 9.75], [14.25, 14.85]]) B(x0, -44, x1, -14, P, P + 0.02, UG.zone, { pen: 1 });
+    B(-3.6, -31, 3.6, -28, P, P + 0.02, UG.zone, { pen: 1 });
+    // columns 0.7 square at x +-6, platform to slab (none in the escalator well)
+    for (const x of [-6, 6]) for (const z of [-40, -34, -22, -16]) B(x - 0.35, z - 0.35, x + 0.35, z + 0.35, P, S0, UG.grey);
+
+    // the train in the west bore, z -42..-16: two 12.5 m cars 3.4 wide (x -13.7..-10.3)
+    // on a 0.95 undercarriage, a 1 m gangway between, a closed cab at each end
+    const tx0 = -13.7, tx1 = -10.3;
+    B(tx0, -42, tx1, -16, 0, P, UG.dark);                               // undercarriage, floor at P
+    B(tx0, -42, tx1, -16, P + 2.3, P + 2.5, UG.trainBand);              // roof
+    for (const [c0, c1] of [[-42, -29.5], [-28.5, -16]]) {
+      const cz = (c0 + c1) / 2, cabEnd = c0 === -42 ? c0 : c1, gangEnd = c0 === -42 ? c1 : c0;
+      // side walls, 0.1 thick, three 1.4 m doors a side at cz -3.8, cz, cz +3.8
+      for (const [w0, w1] of [[tx0, tx0 + 0.1], [tx1 - 0.1, tx1]]) {
+        let from = c0;
+        for (const dz of [cz - 3.8, cz, cz + 3.8]) { B(w0, from, w1, dz - 0.7, P, P + 2.3, UG.train, { pen: 3 }); from = dz + 0.7; }
+        B(w0, from, w1, c1, P, P + 2.3, UG.train, { pen: 3 });
+      }
+      // the cab: 1.35 m behind a closed partition, and the train's end wall
+      const cab = cabEnd === c0 ? c0 + 1.35 : c1 - 1.35;
+      B(tx0 + 0.1, cab - 0.05, tx1 - 0.1, cab + 0.05, P, P + 2.3, UG.trainDoor, { pen: 3 });
+      B(tx0 + 0.1, cabEnd, tx1 - 0.1, cabEnd === c0 ? c0 + 0.1 : c1 - 0.1, P, P + 2.3, UG.train, { pen: 3 });
+      // the gangway end: a 1.2 m door in the middle
+      B(tx0 + 0.1, gangEnd - 0.05, -12.6, gangEnd + 0.05, P, P + 2.3, UG.train, { pen: 3 });
+      B(-11.4, gangEnd - 0.05, tx1 - 0.1, gangEnd + 0.05, P, P + 2.3, UG.train, { pen: 3 });
+      // blue seats along both walls between the doors
+      for (const sz of [cz - 1.9, cz + 1.9]) {
+        B(tx0 + 0.1, sz - 1, tx0 + 0.6, sz + 1, P, P + 0.5, UG.seat, { pen: 1.5 });
+        B(tx1 - 0.6, sz - 1, tx1 - 0.1, sz + 1, P, P + 0.5, UG.seat, { pen: 1.5 });
+      }
+      PT(-12, P + 1.5, cz, 3.42, 0.6, c1 - c0 - 0.2, UG.trainBand);   // the window band
+    }
+    B(-12.95, -29.5, -12.85, -28.5, P, P + 2.3, UG.train, { pen: 3 });   // gangway walls
+    B(-11.15, -29.5, -11.05, -28.5, P, P + 2.3, UG.train, { pen: 3 });
+    PT(-12, P + 2.0, -42.06, 2.4, 0.5, 0.1, UG.board, true);              // destination blind: TROLLHALLA
+
+    // twin escalators up to the hall: feet at z -27, 17 x 0.3 / 0.5 heading south,
+    // lanes centred x +-1.9; stepped balustrades 1.2 m over the treads, the
+    // outer ones the well's sides (x +-2.6..3.6), the middle filling x -1.2..1.2
+    for (let i = 0; i < 17; i++) {
+      const z0 = -27 + i * 0.5, top = P + 0.3 * (i + 1) + 1.2;
+      B(-3.6, z0, -2.6, z0 + 0.5, P, top, UG.escSide, { pen: 4 });
+      B(2.6, z0, 3.6, z0 + 0.5, P, top, UG.escSide, { pen: 4 });
+      B(-1.2, z0, 1.2, z0 + 0.5, P, top, UG.escSide, { pen: 4 });
+    }
+    // well rails on the slab round the escalator hole
+    B(-3.7, -28.1, 3.7, -28, U, U + 1.1, UG.mullion, { pen: 0.3 });
+    for (const x of [-3.7, 3.6]) B(x, -28.1, x + 0.1, -18.5, U, U + 1.1, UG.mullion, { pen: 0.3 });
+
+    // the west stair: foot z -43.5 on the side platform, 17 x 0.3 / 0.5 south to z -35
+    B(-17.5, -40, -17.4, -35, U, U + 1.1, UG.mullion, { pen: 0.3 });   // rail on the well's east edge (the end block holds z -44..-40)
+
+    // platform nose: 4 steps down to the walkway (x -2..2, z -14..-8)
+    // the east bore's end: 4 steps up to the island and to the side platform
+
+    // platform furniture: benches, a vending machine, both side platforms; island benches
+    for (const sx of [-1, 1]) {
+      for (const z of [-34, -20]) B(sx * 21.1 - 0.3, z - 0.9, sx * 21.1 + 0.3, z + 0.9, P, P + 0.5, UG.bench, { pen: 1.5 });
+      B(sx * 21.2 - 0.4, -25.5, sx * 21.2 + 0.4, -24.5, P, P + 2.0, UG.dark, { pen: 3 });
+    }
+    B(-1.2, -32.5, 1.2, -31.5, P, P + 0.5, UG.bench, { pen: 1.5 });
+    for (const x of [-6, 6]) B(x - 0.3, -29, x + 0.3, -27, P, P + 0.5, UG.bench, { pen: 1.5 });
+    // tube lights under the slab, roundels and posters on the brick (emissive paint later)
+    for (let z = -42; z <= -16; z += 4) for (const x of [-18, -5, 5, 18]) PT(x, S0 - 0.08, z, 0.12, 0.08, 1.6, 0xffffff, true);
+    for (const sx of [-1, 1]) {
+      PT(sx * 21.96, P + 2.2, -30, 0.06, 1.2, 1.2, UG.stripe);
+      PT(sx * 21.96, P + 2.2, -30, 0.08, 0.3, 1.5, UG.red);
+      for (const z of [-38, -17]) PT(sx * 21.96, P + 2.0, z, 0.06, 1.4, 1.0, UG.wall);
+    }
+    PT(0, P + 0.05, -13.8, 19.5, 0.02, 0.4, UG.nosing);               // MIND THE GRIN, the nose edge
+
+    /* ---- track level, this half of the central section (4.2) */
+    B(-9.75, -14, -2, -8, 0, S0, UG.wall);                                // solid beside the walkway
+    B(2, -14, 9.75, -8, 0, S0, UG.wall);
+    B(-2, -14, 2, -8, 0, 0.02, UG.floor, { pen: 1 });                     // walkway floor
+    B(-2, -8, -0.9, -7.7, 0, S0, UG.wall);                                // plant room wall, 1.8 door
+    B(0.9, -8, 2, -7.7, 0, S0, UG.wall);
+    B(-0.9, -8, 0.9, -7.7, 2.4, S0, UG.wall);
+    B(-22, -14, -14.25, -12, 0, S0, UG.wall);                             // solid round the service corridor
+    B(-22, 0, -14.25, 14, 0, S0, UG.wall);
+    B(-15.75, -12, -14.25, -6.9, 0, S0, UG.wall);                         // corridor / bore wall, door at z -6
+    B(-15.75, -5.1, -14.25, 0, 0, S0, UG.wall);
+    B(-15.75, -6.9, -14.25, -5.1, 2.4, S0, UG.wall);
+    B(-22, -12, -15.75, 0, 0, 0.02, UG.floor, { pen: 1 });                // corridor floor
+    B(-10.05, -14, -9.75, -4.9, 0, S0, UG.grey);                          // the bore's inner wall, door at z -4
+    B(-10.05, -3.1, -9.75, 14, 0, S0, UG.grey);
+    B(-10.05, -4.9, -9.75, -3.1, 2.4, S0, UG.grey);
+    B(-14.25, -14, -9.75, 14, 4.0, S0, UG.grey);                          // tunnel ceiling at 4
+    B(-12.8, -3.2, -11.2, -0.8, 0, 1.0, UG.dark, { pen: 2 });             // works trolley at z -2
+    B(-13.95, 9.4, -13.35, 10.6, 0, 2.0, UG.grey, { pen: 3 });            // signal cabinet at z 10
+    // the plant room's low cover, this half
+    B(-9.3, -6.5, -6.9, -5.1, 0, 1.2, UG.dark, { pen: 2 });               // generator
+    for (const x of [-7, 4]) B(x, -7.7, x + 2, -7.1, 0, 1.2, UG.grey, { pen: 2 });   // switch cabinets
+    api.cylinder(X(7), Z(-6.3), 0.6, 1.0, { color: UG.escSide, pen: 2 });  // cable drums
+    api.cylinder(X(8.3), Z(-4.8), 0.5, 0.9, { color: UG.escSide, pen: 2 });
+    B(5.5, -2.5, 7.5, -0.9, 0, 0.9, UG.grey, { pen: 2 });                 // pump skid
+    // the corridor: the steel stair up to the purple room (20 x 0.3 / 0.3), lockers, fuses, a mop bucket
+    B(-21.95, -11.8, -21.45, -10.2, 0, 2.0, UG.grey, { pen: 3 });
+    B(-17, -0.5, -16, 0, 0, 1.8, UG.grey, { pen: 3 });
+    api.cylinder(X(-16.5), Z(-11.5), 0.25, 0.4, { color: UG.red, pen: 1 });
+    for (const z of [-12, -4]) PT(-18.9, 3.2, z, 2.0, 0.12, 0.12, 0xffffff, true);   // corridor tubes
+
+    /* ---- concourse, this half (4.3): the end block, the hall, its arch, the shop row */
+    B(-17.5, -44, 22, -40, U, 12.4, UG.wall);                             // the hall's end wall, 4 m thick (the side stair's well is beside it)
+    B(-16, -40, 16, -16, 12, 12.4, UG.glass);                             // barrel skylight (flat here), crown 12
+    for (const m of [1, -1]) {                                            // vault haunches, 9.6 up to the crown
+      B(m * -16, -40, m * -14.5, -16, 9.6, 12, UG.wall);
+      B(m * -14.5, -40, m * -13, -16, 10.8, 12, UG.wall);
+      PT(m * -15.9, U + 2.6, -28, 0.08, 0.8, 24, UG.band);                // the salmon band and the blue stripe
+      PT(m * -15.9, U + 3.15, -28, 0.08, 0.14, 24, UG.stripe);
+      for (const z of [-37, -22]) PT(m * -15.9, U + 1.7, z, 0.06, 1.3, 0.9, UG.wall);   // posters
+    }
+    B(-16, -16, -7, -15.5, U, 15, UG.wall);                               // arch piers, span 14
+    B(7, -16, 16, -15.5, U, 15, UG.wall);
+    B(-7, -16, 7, -15.5, 12, 15, UG.wall);                                // the arch head (round in the model)
+    B(-16.6, -16, -16, 16, 10, 15, UG.wall);                              // atrium wall above the shop row
+    for (let z = -38; z <= -18; z += 5) PT(0, 11.9, z, 0.12, 0.1, 2.0, 0xffffff, true);   // hall tubes
+    PT(0, 10.5, -15.75, 1.6, 0.5, 0.1, UG.exit, true);                    // EXIT over the arch
+    // hall furniture: benches, a photo booth and ticket machines by the escalator top
+    for (const m of [1, -1]) B(m * -11.2, -30.3, m * -8.8, -29.7, U, U + 0.5, UG.bench, { pen: 1.5 });
+    B(-6.75, -20.75, -5.25, -19.25, U, U + 2.3, UG.dark, { pen: 3 });
+    for (const x of [5.6, 6.6]) B(x, -20.3, x + 0.8, -19.7, U, U + 1.9, UG.grey, { pen: 3 });
+    // atrium, this half: the gate line at z -12, its staffed boxes, a bench, the light-well rails
+    for (const x of [-7, -4.2, -1.4, 1.4, 4.2, 7]) B(x - 0.15, -12.6, x + 0.15, -11.4, U, U + 1.0, UG.grey, { pen: 2 });
+    for (const m of [1, -1]) B(m * -9.75, -12.75, m * -8.25, -11.25, U, U + 2.2, UG.grey, { pen: 3 });
+    B(-1.2, -9.25, 1.2, -8.75, U, U + 0.5, UG.bench, { pen: 1.5 });
+    B(-4.1, -4.1, -4, 4.1, U, U + 1.1, UG.mullion, { pen: 0.3 });
+    B(-4.1, -4.1, 4.1, -4, U, U + 1.1, UG.mullion, { pen: 0.3 });
+    // the shop row's inner wall, 0.3 inside the row, six 1.8 doorways
+    let from = -40;
+    for (const dz of [-33, -19, -8, 8, 19, 33]) {
+      B(-16.3, from, -16, dz - 0.9, U, 9.6, UG.wall);
+      B(-16.3, dz - 0.9, -16, dz + 0.9, U + 2.4, 9.6, UG.wall);
+      PT(-16.32, U + 2.6, dz, 0.06, 0.4, 1.2, UG.exit, true);             // a lit sign over every doorway
+      from = dz + 0.9;
+    }
+    B(-16.3, from, -16, 40, U, 9.6, UG.wall);
+    // partitions at z -26, -12, 0 (the rest come with the other half), door at x -19
+    for (const z of [-26, -12, 0]) {
+      B(-22, z - 0.15, -19.9, z + 0.15, U, 9.6, UG.wall);
+      B(-18.1, z - 0.15, -16.3, z + 0.15, U, 9.6, UG.wall);
+      B(-19.9, z - 0.15, -18.1, z + 0.15, U + 2.4, 9.6, UG.wall);
+    }
+    B(-22, -44, -17.5, -40, 9.6, 10, UG.wall);                            // shop-row ceilings at 9.6
+    B(-22, -40, -16, 40, 9.6, 10, UG.wall);
+    // the shops, west row: Arcade -40..-26, Grinbiss -26..-12, Purple room -12..0
+    for (const z of [-33, -31, -29, -27]) B(-21.9, z - 0.45, -21.1, z + 0.45, U, U + 1.9, UG.trainBand, { pen: 3 });   // Troll Kombat cabinets
+    B(-21, -34, -17, -27, U, U + 0.02, UG.trainBand, { pen: 1 });          // the neon carpet
+    B(-21.5, -22, -20.7, -16, U, U + 1.1, UG.wall, { pen: 2 });            // Grinbiss counter
+    for (const z of [-24, -14]) B(-17.5, z - 0.5, -16.5, z + 0.5, U, U + 0.8, UG.escSide, { pen: 1.5 });   // tables
+    PT(-21.96, U + 2.2, -19, 0.06, 0.8, 2.4, UG.trainBand);                // menu board
+    B(-18, -10, -17.9, -4, U, U + 1.0, UG.purple, { pen: 0.3 });          // purple room: rails round the stair well
+    B(-21.1, -10, -21, -4, U, U + 1.0, UG.purple, { pen: 0.3 });
+    B(-21, -10.1, -18, -10, U, U + 1.0, UG.purple, { pen: 0.3 });
+    B(-22, -12, -21.9, 0, U, U + 0.3, UG.purple, { pen: 1 });             // purple trim
+    PT(-18.5, U + 2.6, -6, 1.2, 0.4, 0.1, UG.exit, true);                  // EXIT down to the corridor
+    // west row, south half: Lounge 0..12, Apotrolle 12..26, Books 26..40
+    for (const z of [2, 8]) B(-21.9, z, -21, z + 2.2, U, U + 0.9, UG.red, { pen: 2 });          // red sofas
+    B(-17.3, 5.3, -16.3, 6.7, U, U + 1.4, UG.brick, { pen: 3 });                                // fireplace
+    B(-21, 4.5, -17.5, 7.5, U, U + 0.02, UG.trainBand, { pen: 1 });                             // the cow-print rug
+    PT(-21.96, U + 2.4, 6, 0.06, 1.2, 0.9, UG.escSide);                                          // the general's portrait
+    B(-21.5, 15, -20.7, 21, U, U + 1.1, UG.wall, { pen: 2 });                                   // Apotrolle counter
+    for (const [z0, z1] of [[12.5, 17.5], [22.5, 25.5]]) B(-17, z0, -16.3, z1, U, U + 2.2, UG.grey, { pen: 3 });   // shelves of bottles
+    B(-21.9, 28, -21.4, 38, U, U + 2.2, UG.escSide, { pen: 3 });                                // bookshelves
+    B(-17, 34.5, -16.3, 39, U, U + 2.2, UG.escSide, { pen: 3 });
+    B(-19.5, 29, -18.5, 31, U, U + 0.8, UG.escSide, { pen: 1.5 });                              // reading table
+  };
+  station(1);
+  station(-1);
+
+  /* ---- what the two halves share: the atrium's middle and its ceiling */
+  R(-9.75, -8, 9.75, 8, 0, 0.02, UG.floor, { pen: 1 });                   // plant room floor
+  R(-16.6, -16, 16.6, 16, 15, 15.4, UG.glass);                            // atrium ceiling, the skylight grid
+  for (const x of [-12, -6, 0, 6, 12]) paint(x, 15, 0, 0.3, 0.2, 32, UG.mullion);
+  for (const z of [-12, -6, 0, 6, 12]) paint(0, 15, z, 33, 0.2, 0.3, UG.mullion);
+  R(-10.5, -1, -7.5, 1, U, U + 1.1, UG.grey, { pen: 2 });                 // info desk
+  R(7.5, -1.2, 10.5, 1.2, U, U + 2.4, UG.brick, { pen: 3 });              // newsstand
+  paint(0, 9.5, -12, 8, 1.2, 0.3, UG.trainBand);                          // GRINLINE departure board
+  paint(0, 9.5, -11.82, 7.6, 0.8, 0.05, UG.board, true);
+  paint(0, 13.0, 15.45, 1.2, 1.2, 0.1, 0xffffff, true);                   // the clock on the south arch
+  for (const z of [-10, -5, 0, 5, 10]) paint(0, 11, z, 0.5, 0.3, 0.5, 0xffffff, true);   // pendants
+  for (const s of [-1, 1]) for (let z = -38; z <= 38; z += 6) paint(s * 19, 9.5, z, 1.6, 0.1, 0.12, 0xffffff, true);   // shop-row tubes
+  for (const s of [-1, 1]) for (const z of [-6, 0, 6]) paint(0, S0 - 0.08, s * 11, 1.6, 0.08, 0.12, 0xffffff, true);   // walkway + plant tubes
+  for (const x of [-6, 6]) paint(x, S0 - 0.08, 0, 1.6, 0.08, 0.12, 0xffffff, true);
 }
+
 
 /* Cul-de-Grin's ground light map (models/build_culdegrin.blender.py
    build_ground): x and z from -60 to +60. */
@@ -559,126 +744,31 @@ export const MAPS = {
 
   undergrin: {
     name: "Undergrin",
-    blurb: "Two platforms, a stopped train, the service tunnels round the back and the ticket hall upstairs.",
-    // Expanded 2026-10-01 (user: "needs to be developed, it seems like I am
-    // stuck in place"): service corridors behind both platform walls, cross
-    // passages through both track tunnels joining them into a loop, and a
-    // ticket-hall concourse over the station (stairs up off each mezzanine,
-    // a light well down onto the train).
-    bounds: { minX: -18.5, maxX: 18.5, minZ: -39, maxZ: 39 },
-    playerSpawn: { x: 0, z: 26 },
+    blurb: "Two platforms, two trains, the shops upstairs and the plant room under the light well. Mind the grin.",
+    // Rebuilt 2026-10-15 as a Metro (2025) station (UNDERGRIN-METRO.md,
+    // buildUndergrin above): track, platform and concourse levels, two
+    // stations turned 180 degrees about the origin, the plant room under
+    // the atrium's light well. Blockout: coloured boxes until the ug-*.glb
+    // set is rebuilt from the same numbers.
+    bounds: { minX: -22, maxX: 22, minZ: -44, maxZ: 44 },
+    playerSpawn: { x: 0, z: 37 },
     sky: { top: 0x05070a, horizon: 0x0d1015, bottom: 0x05070a },   // underground: no sun, no cloud
     fog: { color: 0x0c1014, density: 0.025 },
-    ground: { colorA: 0x77726c, colorB: 0x5a5650, grid: 0x4a5566, surface: "dirt", tile: 2.5 },
+    ground: { colorA: 0x3e4146, colorB: 0x46494e, grid: 0x5a5d62 },   // the track bed; every floor above it is a box
     sun: { color: 0x6a7a99, intensity: 0.25, pos: [10, 30, 10] },
     hemi: { sky: 0x8a98b0, ground: 0x2a2c30, intensity: 0.9 },
     ambient: { color: 0xc8d4e6, intensity: 0.6 },
     // stylised realism (view/grade-pass.js): under the city: cold tunnel shade, the lamps' warmth
     grade: { shadows: 0x182030, shadowsAmt: 0.08, highlights: 0xffe0b0, highlightsAmt: 0.06, sat: 1, contrast: 1.08 },
-    build(api) {
-      const TILE = 0xd8dcd4, PLAT = 0x6a6e72, TRAIN = 0xc8ccd0;
-      /* ---- the station box, cut open: two staff doors in each side wall
-         (z -3.5 and 11.7, between the roundels, posters and vending
-         machines) and both track tunnel mouths (x +-2.8, up to 3.1). */
-      const DOORS = [-3.5, 11.7], DOOR_W = 2.0, DOOR_TOP = 3.7;
-      for (const s of [-1, 1]) {
-        let from = -32;
-        for (const dz of [...DOORS, 32 + DOOR_W / 2]) {
-          const to = dz - DOOR_W / 2;
-          if (to - from > 0.05) api.ghostBox(s * 12.25, (from + to) / 2, 1.5, to - from, 7, { pen: 8 });
-          if (dz < 32) {
-            api.ghostBox(s * 12.25, dz, 1.5, DOOR_W, 1.1, { pen: 8 });                            // sill, flush with both floors (platform height)
-            api.ghostBox(s * 12.25, dz, 1.5, DOOR_W, 7 - DOOR_TOP, { y: DOOR_TOP, pen: 8 });       // lintel
-          }
-          from = dz + DOOR_W / 2;
-        }
-      }
-      for (const zs of [-1, 1]) {
-        for (const sx of [-1, 1]) api.ghostBox(sx * 7.15, zs * 31.25, 8.7, 1.5, 7, { pen: 8 });   // x 2.8 .. 11.5
-        api.ghostBox(0, zs * 31.25, 5.6, 1.5, 7 - 3.1, { y: 3.1, pen: 8 });                     // over the tunnel mouth
-      }
-
-      /* ---- platforms, and the edge that closes up to the train mid-station */
-      const P = 1.1;
-      api.box(-8.5, 0, 9, 62, P, { ghost: true, color: PLAT, pen: 8, surface: "concrete", tile: 3 });
-      api.box(8.5, 0, 9, 62, P, { ghost: true, color: PLAT, pen: 8, surface: "concrete", tile: 3 });
-      for (const s of [-1, 1]) {
-        api.box(s * 2.85, 0, 2.3, 32, P, { ghost: true, color: PLAT, pen: 8 });                  // platform extension alongside the train
-      }
-      for (let z = -26; z <= 26; z += 6.5) {
-        api.cylinder(-4.6, z, 0.5, 6, { ghost: true, color: TILE, y: P });
-        api.cylinder(4.6, z, 0.5, 6, { ghost: true, color: TILE, y: P });
-      }
-
-      /* ---- the train: two carriages, doors both sides, the only covered crossing */
-      api.box(0, 0, 3.4, 32, P, { ghost: true, color: 0x2a2c30, pen: 10 });                      // undercarriage / floor base
-      for (const cz of [-8, 8]) {
-        const doors = [-4.5, 0, 4.5];
-        // side walls broken by three doors each side
-        for (const s of [-1, 1]) {
-          let from = cz - 7.5;
-          for (const dz of [...doors.map((d) => cz + d), cz + 7.5]) {
-            const g0 = dz === cz + 7.5 ? dz : dz - 0.7;
-            if (g0 - from > 0.05) api.box(s * 1.65, (from + g0) / 2, 0.1, g0 - from, 2.3, { ghost: true, color: TRAIN, y: P, pen: 2 });
-            from = dz + 0.7;
-          }
-        }
-        for (const ez of [cz - 7.45, cz + 7.45]) {                                   // end walls with a gangway door
-          for (const sx of [-1.1, 1.1]) api.box(sx, ez, 1.2, 0.1, 2.3, { ghost: true, color: TRAIN, y: P, pen: 2 });
-        }
-        api.box(0, cz, 3.4, 15, 0.2, { ghost: true, color: TRAIN, y: P + 2.3, pen: 3 });            // roof
-        for (const sz of [-6, -2.2, 2.2, 6]) api.box(sz > 0 ? 1.2 : -1.2, cz + sz, 0.5, 1.6, 0.5, { ghost: true, color: 0x3a5a8a, y: P, pen: 1 });   // seats
-      }
-
-      /* ---- open track at both ends: rails, and steps up on both sides */
-      for (const zs of [-1, 1]) {
-        for (const rx of [-0.75, 0.75]) api.box(rx, zs * 23.5, 0.12, 14, 0.12, { ghost: true, color: 0x8a8a8e, pen: 6 });
-        for (const s of [-1, 1]) api.stairs(s * 1.6, zs * 22.75, 3, 4, 0.275, 0.6, s < 0 ? "-x" : "+x", { ghost: true, color: PLAT });
-      }
-
-      /* ---- mezzanines over both ends, stairs up from the platforms */
-      const MEZ = 3.5;
-      for (const zs of [-1, 1]) {
-        api.box(0, zs * 29.1, 26, 4.3, 0.3, { ghost: true, color: PLAT, y: MEZ, pen: 8 });
-        const sx = zs < 0 ? -8.5 : 8.5;                                                // one stair per end, opposite platforms
-        // mezzanine rail, open where the stair arrives (x sx-1.5 .. sx+1.5)
-        for (const [x0, x1] of [[-13, sx - 1.5], [sx + 1.5, 13]]) {
-          api.box((x0 + x1) / 2, zs * 26.95, x1 - x0, 0.1, 1.0, { ghost: true, color: 0x8a8e92, y: MEZ + 0.3, pen: 0.3 });
-        }
-        api.stairs(sx, zs * (26.95 - 9 * 0.6), 3, 9, 0.3, 0.6, zs < 0 ? "-z" : "+z", { ghost: true, color: PLAT, y: P });
-        // tunnel mouth under the mezzanine: drawn by ug-station, lit red here
-        api.lamp(0, 2.9, zs * 29.9, 0xff3a24, 6, 10);
-      }
-
-      /* ---- platform furniture */
-      for (const s of [-1, 1]) {
-        for (const z of [-14, 14]) api.box(s * 10.5, z, 0.6, 2.2, 0.5, { ghost: true, color: 0x6a5a48, y: P, pen: 1.5 });   // benches
-        for (const z of [-20, 10]) api.box(s * 11, z * s, 0.8, 1.0, 2.0, { ghost: true, color: 0xc03a2a, y: P, pen: 3 });  // vending machines
-        api.box(s * 9, s * -6, 2.4, 2.4, 2.2, { ghost: true, color: 0x3a6a4a, y: P, pen: 3 });                              // newsstand
-        for (const z of [-19, 19]) {                                                                          // ticket barriers
-          for (const x of [7, 9, 11]) api.box(s * x, z, 0.3, 1.2, 1.0, { ghost: true, color: 0x9a9ea2, y: P, pen: 2 });
-        }
-      }
-      // A real light every 8 m (the strip fittings between are emissive
-      // only). Every lit pixel loops over every point light, and at one per
-      // 4 m the modelled station ran ~30% slower than the blockout.
-      for (let z = -28; z <= 28; z += 8) {
-        api.lamp(-8.5, 6.4, z, 0xe8f0ff, 10, 15);
-        api.lamp(8.5, 6.4, z, 0xe8f0ff, 10, 15);
-      }
-      for (const z of [-8, 8]) api.lamp(0, P + 2.0, z, 0xfff0d0, 6, 9);
-
-      undergrinExpansion(api, P);
-
-      // Every collider above is the approved blockout's, now invisible; the
-      // station is drawn by ug-*.glb (models/build_undergrin.blender.py).
-      for (const part of ["station", "platforms", "train", "fittings", "expansion"]) mapModel(api, `ug-${part}`, { x: 0, z: 0, castShadow: false });
-    },
-    // [x, z] or [x, z, floor y] (the concourse is upstairs).
-    spawns: [[0, -30], [0, 30], [-9, -29], [9, -29], [-9, 29], [9, 29], [-9, -18], [9, 18],
-      [15.25, -20], [-15.25, 20], [12, -35.5], [-12, 35.5], [-8, -12, 7], [8, 12, 7]],
+    build(api) { buildUndergrin(api); },
+    // Section 5: nine a side, three of them on the concourse (y 6); the south
+    // side is the north side turned about the origin. [-18, -40] moved to
+    // [-16.5, -40]: the doc's spot is on the west stair's treads.
+    spawns: (() => {
+      const north = [[-16.5, -40], [18, -40], [-6, -41], [6, -41], [0, -37], [-18, -30], [18, -30], [-8, -36, 6], [8, -36, 6]];
+      return [...north, ...north.map(([x, z, y]) => (y == null ? [-x, -z] : [-x, -z, y]))];
+    })(),
   },
-
   dustbowl: {
     name: "Dust Bowl",
     blurb: "Mud-brick lanes and a dry riverbed. The minaret sees everything.",
@@ -1655,17 +1745,6 @@ MAPS.depot.dress = {
     { kind: "paper", n: 40, size: [0.8, 1.3], colors: [0xf2efe6, 0xe8e0c8, 0xd8d8d0] },
     { kind: "can", n: 14, size: [1, 1], colors: [0xd8302a, 0x2a6ad8, 0xe8e8e8] },
     { kind: "plank", n: 12, size: [0.8, 1.3], colors: [0xb89a6a, 0xa88a5a] },
-  ],
-};
-MAPS.undergrin.dress = {
-  seed: 61,
-  areas: { west: [-12.8, -30.5, -4.2, 30.5, 1.1], east: [4.2, -30.5, 12.8, 30.5, 1.1], tracks: [-1.6, -30, 1.6, 30] },
-  decals: [
-    { cell: "dirt", n: 40, area: ["west", "east"], size: [1.5, 3.5], color: 0x1e1c18, alpha: 0.4 },
-    { cell: "crack", n: 22, area: ["west", "east"], size: [1.2, 2.5], color: 0x2a2826, alpha: 0.7 },
-    { cell: "puddle", n: 8, area: ["west", "east"], size: [0.8, 1.6], color: 0x101418, alpha: 0.5 },
-    { cell: "oil", n: 12, area: "tracks", size: [0.8, 1.8], color: SOOT, alpha: 0.6 },
-    { cell: "puddle", n: 8, area: "tracks", size: [1, 2], color: 0x101418, alpha: 0.6 },
   ],
 };
 MAPS.culdegrin.dress = {
