@@ -202,7 +202,8 @@ next starts. No gate; a targeted check per change, push on your word.
    clears a maze with key presses).
    **Maze + trollface + dots.** Grid, walls, cornering, tunnels, dot eating,
    score, level clear. Done when a full maze can be cleared with keys.
-2. **The four chasers.** Chase/scatter/frightened/pen, the four hunting
+2. **The four chasers — DONE 2026-10-14** (`tools/troll-man-p2-test.mjs`).
+   **The four chasers.** Chase/scatter/frightened/pen, the four hunting
    styles, death, lives, Pump.fun pill, level scaling. Done when level 1→5
    plays like Pac-Man.
 3. **The other three logos + bonus pickups + taunt.** Stonks, FOMO, Aster,

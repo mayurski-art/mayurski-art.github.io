@@ -23,6 +23,7 @@ try {
   page.on("console", m => { if (m.type() === "error") errors.push(m.text()); });
   await page.goto(`http://localhost:${PORT}/troll-man.html?debug`);
   await page.waitForFunction(() => window.__tm);
+  await page.evaluate(() => window.__tm.setChasersOff(true));   // phase 1 checks the maze and steering only
   await page.waitForTimeout(800);
   if (SHOTS) await page.screenshot({ path: path.join(OUT, "tm-title.png") });
 

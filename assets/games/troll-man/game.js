@@ -1,5 +1,7 @@
 // Troll Man — the trollface eats the dots, the meme faces hunt him.
-// Phase 1: maze, trollface, dots, score, level clear. Plan: DESIGN.md next to this file.
+// Phase 1: maze, trollface, dots, score, level clear.
+// Phase 2: the four chasers, the pen, frightened mode, lives, the Pump.fun pill.
+// Plan: DESIGN.md next to this file.
 (() => {
   "use strict";
 
@@ -10,10 +12,12 @@
   const TUNNEL_ROW = 13;
   const PEN = { c0: 10, c1: 17, r0: 12, r1: 15 };  // the group chat: walls + door + inside
   const DOOR = { c0: 13, c1: 14, r: 12 };
+  const PEN_EXIT = { x: 13.5, y: 11 };             // the tile pair just above the door
+  const PEN_MID_Y = 13.5;
   const START = { x: 13.5, y: 21 };                // between the two centre tiles, like the original
 
   // Left half of the maze; the right half is its mirror.
-  // # wall   . dot   o big dot   - pen door   space = floor with no dot
+  // # wall   . dot   o Pump.fun pill   - pen door   space = floor with no dot
   const HALF = [
     "##############",
     "#............#",
@@ -50,7 +54,8 @@
   const inPen = (c, r) => c >= PEN.c0 && c <= PEN.c1 && r >= PEN.r0 && r <= PEN.r1;
   const wrapC = c => ((c % COLS) + COLS) % COLS;
 
-  // Floor the trollface may stand on. Off the sides only the tunnel row is open.
+  // Floor the trollface (and the chasers outside the pen) may stand on.
+  // Off the sides only the tunnel row is open.
   function walkable(c, r) {
     if (r < 0 || r >= ROWS) return false;
     if (c < 0 || c >= COLS) return r === TUNNEL_ROW;
@@ -58,18 +63,52 @@
     const ch = MAZE[r][c];
     return ch !== "#" && ch !== "-";
   }
+  const inTunnel = (x, y) => Math.round(y) === TUNNEL_ROW && (x < 5.5 || x > COLS - 6.5);
+
+  // Steps from every floor tile to the pen exit, for eaten chasers (eyes) heading home.
+  const homeDist = (() => {
+    const d = new Int16Array(ROWS * COLS).fill(-1);
+    const q = [[13, PEN_EXIT.y], [14, PEN_EXIT.y]];
+    q.forEach(([c, r]) => { d[r * COLS + c] = 0; });
+    for (let i = 0; i < q.length; i++) {
+      const [c, r] = q[i];
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        if (!walkable(c + dx, r + dy)) continue;
+        const nc = wrapC(c + dx), nr = r + dy;
+        if (d[nr * COLS + nc] >= 0) continue;
+        d[nr * COLS + nc] = d[r * COLS + c] + 1;
+        q.push([nc, nr]);
+      }
+    }
+    return d;
+  })();
 
   // ---- Tuning ---------------------------------------------------------------
   const TURN_WINDOW = 0.35;          // tiles: how early a turn can be buffered and still snap (cornering)
-  const BASE_SPEED = 8;              // tiles per second at level 1
+  const BASE_SPEED = 8;              // trollface tiles per second at level 1
   const DOT_PAUSE = 1 / 60;          // the original stalls a frame per dot: empty corridors are faster
-  const BIG_PAUSE = 3 / 60;
-  const READY_TIME = 2.0, CLEAR_TIME = 2.2;
-  const SCORE_DOT = 10, SCORE_BIG = 50;
-  // maze wall colour, changes every 2nd level
-  const MAZE_COLORS = ["#2121de", "#de2121", "#21b04a", "#c021de", "#de8a21"];
+  const PILL_PAUSE = 3 / 60;
+  const READY_TIME = 2.0;
+  const CLEAR_HOLD = 1.0, CLEAR_TIME = 3.0;      // freeze, then the maze flashes
+  const DEATH_HOLD = 1.0, DEATH_TIME = 2.8;      // freeze, then the spin-out
+  const EAT_FREEZE = 0.7;                        // the pause on eating a chaser
+  const SCORE_DOT = 10, SCORE_PILL = 50;
+  const EXTRA_LIFE_AT = 10000;
+  const MAZE_COLORS = ["#2121de", "#de2121", "#21b04a", "#c021de", "#de8a21"];   // every 2nd level
 
-  const speedFor = level => BASE_SPEED * Math.min(1.25, 1 + (level - 1) * 0.04);
+  const levelSpeedUp = level => Math.min(1.25, 1 + (level - 1) * 0.04);
+  const playerSpeed = () => BASE_SPEED * levelSpeedUp(level) * (frightT > 0 ? 1.06 : 1);
+  const chaserSpeed = () => BASE_SPEED * 0.94 * Math.min(1.3, 1 + (level - 1) * 0.05);
+
+  // Scatter / chase schedule in seconds (scatter first), like the original's per-level table.
+  function schedule(lv) {
+    if (lv === 1) return [7, 20, 7, 20, 5, 20, 5, Infinity];
+    if (lv <= 4) return [7, 20, 7, 20, 5, 60, 1, Infinity];
+    return [5, 20, 5, 20, 5, 60, 1, Infinity];
+  }
+  // Pump.fun pill: how long the chasers stay blue, per level (0 = they only turn around).
+  const FRIGHT_TIME = [6, 5, 4, 3, 2, 5, 2, 2, 1, 5, 2, 1, 1, 3, 1, 1, 0, 1, 0];
+  const frightTimeFor = lv => FRIGHT_TIME[Math.min(lv, FRIGHT_TIME.length) - 1];
 
   // ---- Canvas ---------------------------------------------------------------
   const canvas = document.getElementById("tm-canvas");
@@ -81,12 +120,62 @@
   const FONT = "'Press Start 2P', monospace";
   const SPRITE_DIR = "assets/games/troll-man/sprites/";
   const sprites = {};
-  function loadSprite(name) {
-    const img = new Image();
-    img.src = `${SPRITE_DIR}${name}-32.png?v=tm-p1`;
-    sprites[name] = img;
+  for (const who of ["trollface", "pepe", "doge", "gigachad", "pudgy"]) {
+    for (const f of [1, 2, 3]) {
+      const img = new Image();
+      img.src = `${SPRITE_DIR}${who}-f${f}-32.png?v=tm-p2`;
+      sprites[`${who}-f${f}`] = img;
+    }
   }
-  ["trollface-f1", "trollface-f2", "trollface-f3", "pepe-f1", "doge-f1", "gigachad-f1", "pudgy-f1"].forEach(loadSprite);
+  const ready = img => img && img.complete && img.naturalWidth > 0;
+
+  // Frightened looks are recolours of each face, made once the image has loaded:
+  // a three-tone blue (the original's blue ghost) and the white flash with red details.
+  // Shading is kept, so a white face (Pudgy) still reads as itself, just blue.
+  const recolourCache = {};
+  function recoloured(key, flash) {
+    const id = key + (flash ? ":w" : ":b");
+    if (recolourCache[id]) return recolourCache[id];
+    const img = sprites[key];
+    if (!ready(img)) return null;
+    const c = document.createElement("canvas");
+    c.width = 32; c.height = 32;
+    const x = c.getContext("2d");
+    x.drawImage(img, 0, 0, 32, 32);
+    const d = x.getImageData(0, 0, 32, 32), p = d.data;
+    const tones = flash
+      ? { lite: [255, 255, 255], mid: [214, 214, 214], dark: [255, 60, 60] }
+      : { lite: [150, 150, 255], mid: [33, 33, 222], dark: [18, 18, 120] };
+    for (let i = 0; i < p.length; i += 4) {
+      if (!p[i + 3]) continue;
+      const lum = (p[i] + p[i + 1] + p[i + 2]) / 3;
+      if (lum < 40) continue;                         // keep the black outline
+      const col = lum > 190 ? tones.lite : lum > 95 ? tones.mid : tones.dark;
+      p[i] = col[0]; p[i + 1] = col[1]; p[i + 2] = col[2];
+    }
+    x.putImageData(d, 0, 0);
+    return (recolourCache[id] = c);
+  }
+
+  // The Pump.fun pill, drawn in-house: a diagonal capsule, white top-left half, green bottom-right.
+  const PILL = 22;                                 // px, a bit over a tile so it reads as a power-up
+  const pill = (() => {
+    const c = document.createElement("canvas");
+    c.width = PILL; c.height = PILL;
+    const x = c.getContext("2d");
+    x.translate(PILL / 2, PILL / 2); x.rotate(-Math.PI / 4);
+    x.fillStyle = "#000";
+    x.beginPath(); x.roundRect(-11, -6, 22, 12, 6); x.fill();
+    x.fillStyle = "#f4f4f4"; x.beginPath(); x.roundRect(-9.5, -4.5, 9, 9, [4.5, 0, 0, 4.5]); x.fill();
+    x.fillStyle = "#55e05f"; x.beginPath(); x.roundRect(0.5, -4.5, 9, 9, [0, 4.5, 4.5, 0]); x.fill();
+    x.fillStyle = "#fff"; x.fillRect(-7, -3, 3, 2);                     // shine
+    // snap to hard pixels: no half-transparent edge
+    const d = x.getImageData(0, 0, PILL, PILL), p = d.data;
+    for (let i = 3; i < p.length; i += 4) p[i] = p[i] > 110 ? 255 : 0;
+    x.setTransform(1, 0, 0, 1, 0, 0);
+    x.putImageData(d, 0, 0);
+    return c;
+  })();
 
   // The maze is drawn once per colour: every floor tile grows by PAD into the walls,
   // the union is filled in the wall colour, then again PAD-LINE smaller in black.
@@ -125,8 +214,10 @@
     left: { x: -1, y: 0 }, right: { x: 1, y: 0 }, up: { x: 0, y: -1 }, down: { x: 0, y: 1 },
   };
   const STILL = { x: 0, y: 0 };
+  // tie-break order when two turns are equally good (the original's up, left, down, right)
+  const TURN_ORDER = [DIRS.up, DIRS.left, DIRS.down, DIRS.right];
 
-  const dots = new Uint8Array(ROWS * COLS);          // 0 none, 1 dot, 2 big dot
+  const dots = new Uint8Array(ROWS * COLS);          // 0 none, 1 dot, 2 pill
   let dotsLeft = 0;
   function resetDots() {
     dotsLeft = 0;
@@ -140,12 +231,30 @@
 
   const player = { x: START.x, y: START.y, dir: DIRS.left, next: null, face: DIRS.left, moving: false, pause: 0, anim: 0, blinkAt: 2 };
 
-  let state = "title";        // title | ready | play | clear | over
+  // The cast. scatter = the corner each heads for in scatter mode (just outside the maze).
+  const CHASERS = [
+    { name: "gigachad", label: "GIGA CHAD", color: "#ff3b3b", scatter: { c: COLS - 3, r: -3 }, home: { x: 13.5, y: PEN_EXIT.y }, outside: true },
+    { name: "pepe",     label: "PEPE",      color: "#4dff73", scatter: { c: 2, r: -3 },        home: { x: 13.5, y: PEN_MID_Y } },
+    { name: "pudgy",    label: "PUDGY",     color: "#6fa8ff", scatter: { c: COLS - 1, r: ROWS + 1 }, home: { x: 11.5, y: PEN_MID_Y } },
+    { name: "doge",     label: "DOGE",      color: "#ffb84d", scatter: { c: 0, r: ROWS + 1 },  home: { x: 15.5, y: PEN_MID_Y } },
+  ].map(g => Object.assign(g, { x: 0, y: 0, dir: DIRS.left, mode: "pen", fright: false, reverse: false, anim: Math.random() * 3, blinkAt: 1 + Math.random() * 3 }));
+  const byName = Object.fromEntries(CHASERS.map(g => [g.name, g]));
+
+  let state = "title";        // title | ready | play | dying | clear | over
   let paused = false;
   let stateTime = 0;
-  let score = 0, level = 1, lives = 3;
+  let score = 0, level = 1, lives = 3, extraGiven = false;
   let high = 0;
   try { high = Number(localStorage.getItem("trollman.high")) || 0; } catch (_) { /* storage blocked */ }
+
+  let phaseIdx = 0, phaseT = 0;          // scatter/chase schedule position
+  let frightT = 0, frightLen = 0, frightChain = 0;
+  let freezeT = 0;                        // short stop after eating a chaser
+  let sinceDot = 0;                       // seconds since the last dot: a stalled player lets the next chaser out
+  let dotsEatenLevel = 0, lostLifeThisLevel = false, sinceLifeLost = 0;
+  const popups = [];                      // floating score numbers
+  let hidden = null;                      // the chaser being eaten (hidden during the freeze)
+  let chasersOff = false;                 // test hook only
 
   function saveHigh() {
     if (score <= high) return;
@@ -153,20 +262,55 @@
     try { localStorage.setItem("trollman.high", String(high)); } catch (_) { /* storage blocked */ }
   }
 
-  function placePlayer() {
+  const chaseMode = () => (phaseIdx % 2 === 1 ? "chase" : "scatter");
+
+  function placeActors() {
     Object.assign(player, { x: START.x, y: START.y, dir: DIRS.left, next: null, face: DIRS.left, moving: false, pause: 0, anim: 0 });
+    for (const g of CHASERS) {
+      Object.assign(g, { x: g.home.x, y: g.home.y, fright: false, reverse: false });
+      g.mode = g.outside ? "out" : "pen";
+      g.dir = g.outside ? DIRS.left : (g.name === "pepe" ? DIRS.down : DIRS.up);
+    }
+    phaseIdx = 0; phaseT = 0;
+    frightT = 0; frightChain = 0; freezeT = 0; sinceDot = 0; hidden = null;
+    popups.length = 0;
+  }
+
+  function newLevel() {
+    resetDots();
+    dotsEatenLevel = 0; lostLifeThisLevel = false;
+    placeActors();
+    setState("ready");
   }
 
   function newGame() {
-    score = 0; level = 1; lives = 3;
-    resetDots();
-    placePlayer();
-    setState("ready");
+    score = 0; level = 1; lives = 3; extraGiven = false; paused = false;
+    newLevel();
   }
 
   function setState(s) { state = s; stateTime = 0; }
 
-  // ---- Movement -------------------------------------------------------------
+  // ---- Pen release -------------------------------------------------------------
+  // Pepe leaves at once; Pudgy and Doge wait for a number of dots (fewer on later
+  // levels). After a lost life they come out on a timer instead. Either way, a player
+  // who stops eating for a few seconds gets the next one sent out.
+  function releaseDue(g) {
+    if (g.name === "pepe") return true;
+    if (lostLifeThisLevel) return sinceLifeLost >= (g.name === "pudgy" ? 2.5 : 5);
+    const need = g.name === "pudgy" ? (level === 1 ? 30 : 0) : (level === 1 ? 60 : level === 2 ? 50 : 0);
+    return dotsEatenLevel >= need;
+  }
+  function updatePen() {
+    const waiting = CHASERS.filter(g => g.mode === "pen");
+    if (!waiting.length) return;
+    const next = waiting[0];
+    if (releaseDue(next) || sinceDot >= (level < 5 ? 4 : 3)) {
+      next.mode = "leaving";
+      sinceDot = 0;
+    }
+  }
+
+  // ---- Player movement ---------------------------------------------------------
   const same = (a, b) => a.x === b.x && a.y === b.y;
 
   // A buffered turn is taken the moment it is legal: reversing any time, a
@@ -208,37 +352,241 @@
     if (r < 0 || r >= ROWS) return;
     const i = r * COLS + c, v = dots[i];
     if (!v) return;
-    dots[i] = 0; dotsLeft--;
-    score += v === 2 ? SCORE_BIG : SCORE_DOT;
-    p.pause = v === 2 ? BIG_PAUSE : DOT_PAUSE;
-    saveHigh();
+    dots[i] = 0; dotsLeft--; dotsEatenLevel++;
+    sinceDot = 0;
+    addScore(v === 2 ? SCORE_PILL : SCORE_DOT);
+    p.pause = v === 2 ? PILL_PAUSE : DOT_PAUSE;
+    if (v === 2) startFright();
     if (dotsLeft === 0) setState("clear");
   }
 
+  function addScore(n) {
+    score += n;
+    if (!extraGiven && score >= EXTRA_LIFE_AT) { extraGiven = true; lives++; }
+    saveHigh();
+  }
+
+  // ---- Chasers -----------------------------------------------------------------
+  function startFright() {
+    frightLen = frightTimeFor(level);
+    frightChain = 0;
+    for (const g of CHASERS) {
+      if (g.mode === "eyes" || g.mode === "entering") continue;
+      if (g.mode === "out") g.reverse = true;
+      g.fright = frightLen > 0;
+    }
+    frightT = frightLen;
+  }
+
+  // The tile each chaser is steering for right now.
+  function targetFor(g) {
+    if (chaseMode() === "scatter") return g.scatter;
+    const pc = wrapC(Math.round(player.x)), pr = Math.round(player.y);
+    const fd = player.face;
+    switch (g.name) {
+      case "gigachad": return { c: pc, r: pr };                                  // straight at you
+      case "pepe": return { c: pc + 4 * fd.x, r: pr + 4 * fd.y };                // 4 tiles ahead: the ambush
+      case "pudgy": {                                                             // flank off Giga Chad
+        const vc = pc + 2 * fd.x, vr = pr + 2 * fd.y, chad = byName.gigachad;
+        return { c: 2 * vc - Math.round(chad.x), r: 2 * vr - Math.round(chad.y) };
+      }
+      case "doge": {                                                              // chases, then loses interest
+        const dx = g.x - player.x, dy = g.y - player.y;
+        return dx * dx + dy * dy > 64 ? { c: pc, r: pr } : g.scatter;
+      }
+    }
+    return { c: pc, r: pr };
+  }
+
+  // At a tile centre: pick the next direction. No reversing; ties go up, left, down, right.
+  function decide(g) {
+    const c = wrapC(Math.round(g.x)), r = Math.round(g.y);
+    const back = { x: -g.dir.x, y: -g.dir.y };
+    let opts = TURN_ORDER.filter(d => !same(d, back) && walkable(c + d.x, r + d.y));
+    if (!opts.length) opts = [back];
+    let pick = opts[0];
+    if (g.mode === "eyes") {
+      let best = Infinity;
+      for (const d of opts) {
+        const v = homeDist[(r + d.y) * COLS + wrapC(c + d.x)];
+        if (v >= 0 && v < best) { best = v; pick = d; }
+      }
+    } else if (g.fright) {
+      pick = opts[Math.floor(Math.random() * opts.length)];
+    } else {
+      const t = targetFor(g);
+      let best = Infinity;
+      for (const d of opts) {
+        const dx = c + d.x - t.c, dy = r + d.y - t.r, v = dx * dx + dy * dy;
+        if (v < best) { best = v; pick = d; }
+      }
+    }
+    g.x = Math.round(g.x); g.y = r;
+    g.dir = pick;
+  }
+
+  function speedOf(g) {
+    if (g.mode === "eyes" || g.mode === "entering") return BASE_SPEED * 2;
+    if (g.mode === "pen" || g.mode === "leaving") return BASE_SPEED * 0.45;
+    let s = chaserSpeed();
+    if (g.fright) s *= 0.55;
+    else if (inTunnel(g.x, g.y)) s *= 0.5;
+    else if (g.name === "gigachad") {
+      // he speeds up when the maze is nearly empty (the original's "Cruise Elroy")
+      if (dotsLeft <= 10) s *= 1.1; else if (dotsLeft <= 20) s *= 1.05;
+    }
+    return s;
+  }
+
+  // Corridor movement: run to the next tile centre, decide there, carry on.
+  function moveOut(g, dist) {
+    if (g.reverse) { g.reverse = false; g.dir = { x: -g.dir.x, y: -g.dir.y }; }
+    let guard = 4;
+    while (dist > 1e-9 && guard--) {
+      const horiz = g.dir.x !== 0;
+      const s = horiz ? g.dir.x : g.dir.y;
+      const pos = horiz ? g.x : g.y;
+      // the next centre strictly ahead (a chaser sitting on a centre has already decided there)
+      const centre = s > 0 ? Math.floor(pos + 1e-9) + 1 : Math.ceil(pos - 1e-9) - 1;
+      const gap = Math.abs(centre - pos);
+      const stepLen = Math.min(gap, dist);
+      if (horiz) g.x += s * stepLen; else g.y += s * stepLen;
+      dist -= stepLen;
+      if (g.x < -0.5) g.x += COLS; else if (g.x >= COLS - 0.5) g.x -= COLS;
+      if (stepLen === gap) {
+        if (g.mode === "eyes" && Math.round(g.y) === PEN_EXIT.y && (Math.round(g.x) === 13 || Math.round(g.x) === 14)) {
+          g.mode = "entering";
+          return;
+        }
+        decide(g);
+      }
+    }
+  }
+
+  // Scripted moves inside the pen: bob, slide to the door, go up and out / come home.
+  function moveTowards(g, tx, ty, dist) {
+    const dx = tx - g.x, dy = ty - g.y;
+    if (Math.abs(dx) > 1e-6) {
+      const m = Math.min(Math.abs(dx), dist);
+      g.x += Math.sign(dx) * m; g.dir = dx > 0 ? DIRS.right : DIRS.left; dist -= m;
+    }
+    if (dist > 0 && Math.abs(dy) > 1e-6) {
+      const m = Math.min(Math.abs(dy), dist);
+      g.y += Math.sign(dy) * m; g.dir = dy > 0 ? DIRS.down : DIRS.up; dist -= m;
+    }
+    return Math.abs(tx - g.x) < 1e-6 && Math.abs(ty - g.y) < 1e-6;
+  }
+
+  function stepChaser(g, dt) {
+    const dist = speedOf(g) * dt;
+    g.anim += dt;
+    if (g.mode === "pen") {
+      const top = PEN_MID_Y - 0.5, bottom = PEN_MID_Y + 0.5;
+      g.y += (g.dir.y || 1) * dist;
+      if (g.y <= top) { g.y = top; g.dir = DIRS.down; }
+      if (g.y >= bottom) { g.y = bottom; g.dir = DIRS.up; }
+    } else if (g.mode === "leaving") {
+      const atX = Math.abs(g.x - PEN_EXIT.x) < 1e-6;
+      if (moveTowards(g, PEN_EXIT.x, atX ? PEN_EXIT.y : g.y, dist) && atX) {
+        g.mode = "out"; g.dir = DIRS.left;
+      }
+    } else if (g.mode === "entering") {
+      if (moveTowards(g, PEN_EXIT.x, PEN_MID_Y, dist)) {
+        g.fright = false;
+        g.mode = "leaving";                  // back to life, straight back out
+      }
+    } else {
+      moveOut(g, dist);
+    }
+  }
+
+  function wrapDist(a, b) {
+    const dx = Math.abs(a.x - b.x), dy = Math.abs(a.y - b.y);
+    return Math.hypot(Math.min(dx, COLS - dx), dy);
+  }
+
+  function checkCatch() {
+    for (const g of CHASERS) {
+      if (g.mode !== "out" || wrapDist(g, player) > 0.6) continue;
+      if (g.fright) {
+        frightChain++;
+        const pts = 200 * 2 ** Math.min(frightChain - 1, 3);
+        addScore(pts);
+        popups.push({ x: g.x, y: g.y, text: String(pts), t: 0 });
+        g.fright = false;
+        g.mode = "eyes";
+        hidden = g;
+        freezeT = EAT_FREEZE;
+        return;
+      }
+      setState("dying");
+      return;
+    }
+  }
+
   function stepPlay(dt) {
+    if (freezeT > 0) {
+      freezeT -= dt;
+      if (freezeT <= 0) hidden = null;
+      // eyes keep heading home during the freeze, everything else holds still
+      for (const g of CHASERS) if (g.mode === "eyes" && g !== hidden) stepChaser(g, dt);
+      return;
+    }
+    // scatter/chase clock (stopped while the chasers are blue)
+    if (frightT > 0) {
+      frightT -= dt;
+      if (frightT <= 0) { frightT = 0; for (const g of CHASERS) g.fright = false; }
+    } else {
+      phaseT += dt;
+      const sched = schedule(level);
+      if (phaseT >= sched[phaseIdx]) {
+        phaseT = 0; phaseIdx = Math.min(phaseIdx + 1, sched.length - 1);
+        for (const g of CHASERS) if (g.mode === "out") g.reverse = true;
+      }
+    }
+    sinceDot += dt;
+    if (lostLifeThisLevel) sinceLifeLost += dt;
+    if (!chasersOff) updatePen();
+
     const p = player;
     tryTurn(p);
-    if (p.pause > 0) { p.pause = Math.max(0, p.pause - dt); return; }
-    advance(p, speedFor(level) * dt);
-    tryTurn(p);
-    if (p.dir.x || p.dir.y) p.face = p.dir;
-    eat(p);
+    if (p.pause > 0) p.pause = Math.max(0, p.pause - dt);
+    else {
+      advance(p, playerSpeed() * dt);
+      tryTurn(p);
+      if (p.dir.x || p.dir.y) p.face = p.dir;
+      eat(p);
+      if (state !== "play") return;
+    }
+    p.anim += dt;
+    if (!chasersOff) {
+      checkCatch();
+      if (state !== "play" || freezeT > 0) return;
+      for (const g of CHASERS) stepChaser(g, dt);
+      checkCatch();
+    }
+  }
+
+  function loseLife() {
+    lives--;
+    if (lives <= 0) { saveHigh(); setState("over"); return; }
+    lostLifeThisLevel = true; sinceLifeLost = 0;
+    placeActors();
+    setState("ready");
   }
 
   // ---- Loop -----------------------------------------------------------------
   let timeScale = 1;
   function update(dt) {
     stateTime += dt;
-    player.anim += dt;
+    for (const pp of popups) pp.t += dt;
+    while (popups.length && popups[0].t > 1.2) popups.shift();
     if (paused) return;
-    if (state === "ready" && stateTime >= READY_TIME) setState("play");
+    if (state === "ready") { player.anim += dt; if (stateTime >= READY_TIME) setState("play"); }
     else if (state === "play") stepPlay(dt);
-    else if (state === "clear" && stateTime >= CLEAR_TIME) {
-      level++;
-      resetDots();
-      placePlayer();
-      setState("ready");
-    }
+    else if (state === "dying" && stateTime >= DEATH_TIME) loseLife();
+    else if (state === "clear" && stateTime >= CLEAR_TIME) { level++; newLevel(); }
+    else if (state === "over" && stateTime >= 6) setState("title");
   }
 
   let last = 0;
@@ -265,26 +613,61 @@
   }
 
   // Faces are drawn facing right; left is a mirror, up/down a quarter turn.
-  function drawFace(img, cx, cy, dir) {
-    if (!img || !img.complete || !img.naturalWidth) return;
+  function drawFace(img, cx, cy, dir, scale = 1, spin = 0) {
+    if (!img || (img instanceof HTMLImageElement && !ready(img))) return;
     ctx.save();
     ctx.translate(Math.round(cx), Math.round(cy));
+    if (spin) ctx.rotate(spin);
     if (dir.x < 0) ctx.scale(-1, 1);
     else if (dir.y < 0) ctx.rotate(-Math.PI / 2);
     else if (dir.y > 0) ctx.rotate(Math.PI / 2);
+    if (scale !== 1) ctx.scale(scale, scale);
     ctx.drawImage(img, -16, -16, 32, 32);
     ctx.restore();
   }
 
   function playerFrame() {
     const p = player;
-    if (state === "play" && p.moving) return Math.floor(p.anim / 0.09) % 2 ? "trollface-f3" : "trollface-f1";
-    // blink now and then while standing
-    if (p.anim > p.blinkAt) {
+    if (state === "play" && p.moving && freezeT <= 0) return Math.floor(p.anim / 0.09) % 2 ? "trollface-f3" : "trollface-f1";
+    if (p.anim > p.blinkAt) {                      // blink now and then while standing
       if (p.anim > p.blinkAt + 0.14) p.blinkAt = p.anim + 2 + Math.random() * 2.5;
       return "trollface-f2";
     }
     return "trollface-f1";
+  }
+
+  // Chasers: f1 normally, f3 (grin / wow / beak open) when closing in, f2 to blink.
+  function chaserImage(g) {
+    if (g.fright) {
+      const flashing = frightT < Math.min(2, frightLen / 2) && Math.floor(frightT / 0.2) % 2 === 0;
+      return recoloured(`${g.name}-f1`, flashing);
+    }
+    if (g.anim > g.blinkAt) {
+      if (g.anim > g.blinkAt + 0.14) g.blinkAt = g.anim + 2 + Math.random() * 3;
+      return sprites[`${g.name}-f2`];
+    }
+    const close = g.mode === "out" && chaseMode() === "chase" && wrapDist(g, player) < 6;
+    return sprites[`${g.name}-f${close ? 3 : 1}`];
+  }
+
+  // An eaten chaser is just its eyes, looking the way it's going.
+  function drawEyes(g) {
+    const cx = Math.round(px(g.x)), cy = Math.round(py(g.y));
+    for (const ox of [-5, 5]) {
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(cx + ox - 3, cy - 4, 6, 8);
+      ctx.fillRect(cx + ox - 4, cy - 3, 8, 6);
+      ctx.fillStyle = "#2121de";
+      ctx.fillRect(cx + ox - 1 + g.dir.x * 2, cy - 1 + g.dir.y * 2, 3, 3);
+    }
+  }
+
+  function drawChasers() {
+    for (const g of CHASERS) {
+      if (g === hidden) continue;
+      if (g.mode === "eyes" || g.mode === "entering") { drawEyes(g); continue; }
+      drawFace(chaserImage(g), px(g.x), py(g.y), g.dir);
+    }
   }
 
   function drawDots() {
@@ -296,51 +679,48 @@
         ctx.fillStyle = "#ffb8ae";
         ctx.fillRect(px(c) - 2, py(r) - 2, 4, 4);
       } else if (blinkOn) {
-        ctx.fillStyle = "#ffb8ae";
-        ctx.beginPath(); ctx.arc(px(c), py(r), 6, 0, Math.PI * 2); ctx.fill();
+        ctx.drawImage(pill, px(c) - PILL / 2, py(r) - PILL / 2);
       }
     }
   }
 
   function drawHud() {
     const pad = (n, w) => String(n).padStart(w, " ");
-    if (state === "title" || Math.floor(stateTime / 0.27) % 2 === 0 || state !== "play") text("1UP", 3 * TILE, 8, "#fff");
+    if (state !== "play" || Math.floor(stateTime / 0.27) % 2 === 0) text("1UP", 3 * TILE, 8, "#fff");
     text("HIGH SCORE", W / 2, 8, "#fff", 8, "center");
     text(pad(score || "00", 7), 1 * TILE, 22, "#fff");
     text(pad(high || "00", 7), W / 2 + 2 * TILE, 22, "#fff", 8, "right");
-    // lives (the ones still waiting) and level
+    // lives still waiting, and the level
     const by = (TOP + ROWS) * TILE + 2;
-    const waiting = state === "title" || state === "over" ? 0 : lives - 1;
-    for (let i = 0; i < waiting; i++) drawFace(sprites["trollface-f1"], 2 * TILE + i * 34, by + 14, DIRS.left);
+    const waiting = state === "title" || state === "over" ? 0 : Math.max(0, lives - 1);
+    for (let i = 0; i < Math.min(waiting, 6); i++) drawFace(sprites["trollface-f1"], 2 * TILE + i * 34, by + 14, DIRS.left);
     if (state !== "title") text(`LV ${level}`, W - 2 * TILE, by + 10, "#ffcc00", 8, "right");
   }
 
   // Attract screen: the cast, like the original's character / nickname roll call.
-  const CAST = [
-    { key: "gigachad-f1", name: "GIGA CHAD", nick: "\"HE JUST WALKS AT YOU\"", color: "#ff3b3b" },
-    { key: "pepe-f1", name: "PEPE", nick: "\"FEELS BAD, MAN\"", color: "#4dff73" },
-    { key: "pudgy-f1", name: "PUDGY", nick: "\"WADDLES WITH THE PACK\"", color: "#6fa8ff" },
-    { key: "doge-f1", name: "DOGE", nick: "\"SUCH PURSUIT\"", color: "#ffb84d" },
-  ];
+  const NICKS = {
+    gigachad: "\"HE JUST WALKS AT YOU\"", pepe: "\"FEELS BAD, MAN\"",
+    pudgy: "\"WADDLES WITH THE PACK\"", doge: "\"SUCH PURSUIT\"",
+  };
   function drawTitle() {
-    text("CHARACTER / NICKNAME", W / 2, py(2), "#fff", 8, "center");
-    CAST.forEach((c, i) => {
-      const y = py(5 + i * 3);
+    text("CHARACTER / NICKNAME", W / 2, py(1), "#fff", 8, "center");
+    CHASERS.forEach((g, i) => {
+      const y = py(4 + i * 3);
       if (stateTime < 0.5 + i * 0.6) return;     // roll them in one by one
-      drawFace(sprites[c.key], 4 * TILE, y, DIRS.right);
-      text(c.name, 7 * TILE, y - 10, c.color);
-      text(c.nick, 7 * TILE, y + 4, c.color);
+      drawFace(sprites[`${g.name}-f1`], 4 * TILE, y, DIRS.right);
+      text(g.label, 7 * TILE, y - 10, g.color);
+      text(NICKS[g.name], 7 * TILE, y + 4, g.color);
     });
     if (stateTime > 3.2) {
-      drawFace(sprites["trollface-f1"], W / 2, py(19), DIRS.right);
-      text("YOU ARE THE TROLL", W / 2, py(21), "#fff", 8, "center");
-      ctx.fillStyle = "#ffb8ae"; ctx.fillRect(W / 2 - 66, py(23) - 2, 4, 4);
-      text("10 PTS", W / 2 - 50, py(23) - 4, "#fff");
-      ctx.beginPath(); ctx.arc(W / 2 - 64, py(25), 6, 0, Math.PI * 2); ctx.fill();
-      text("50 PTS", W / 2 - 50, py(25) - 4, "#fff");
+      drawFace(sprites["trollface-f1"], W / 2, py(17), DIRS.right);
+      text("YOU ARE THE TROLL", W / 2, py(19), "#fff", 8, "center");
+      ctx.fillStyle = "#ffb8ae"; ctx.fillRect(W / 2 - 66, py(21) - 2, 4, 4);
+      text("10 PTS", W / 2 - 50, py(21) - 4, "#fff");
+      ctx.drawImage(pill, W / 2 - 64 - PILL / 2, py(23) - PILL / 2);
+      text("50 PTS", W / 2 - 50, py(23) - 4, "#fff");
     }
-    if (Math.floor(stateTime / 0.5) % 2 === 0) text("PRESS START", W / 2, py(28), "#ffcc00", 8, "center");
-    text("ENTER / TAP", W / 2, py(29) + 4, "#888", 8, "center");
+    if (Math.floor(stateTime / 0.5) % 2 === 0) text("PRESS START", W / 2, py(26), "#ffcc00", 8, "center");
+    text("ENTER / TAP", W / 2, py(27) + 4, "#888", 8, "center");
   }
 
   function draw() {
@@ -349,12 +729,22 @@
     if (state === "title") { drawHud(); drawTitle(); return; }
 
     const color = MAZE_COLORS[Math.floor((level - 1) / 2) % MAZE_COLORS.length];
-    const flash = state === "clear" && stateTime > 0.4 && Math.floor(stateTime / 0.2) % 2 === 0;
+    const flash = state === "clear" && stateTime > CLEAR_HOLD && Math.floor((stateTime - CLEAR_HOLD) / 0.2) % 2 === 0;
     ctx.drawImage(mazeImage(flash ? "#ffffff" : color), 0, TOP * TILE);
-
     drawDots();
-    if (state !== "clear" || stateTime < 0.4) drawFace(sprites[playerFrame()], px(player.x), py(player.y), player.face);
-    else drawFace(sprites["trollface-f1"], px(player.x), py(player.y), player.face);
+
+    const showChasers = !chasersOff && (state === "ready" || state === "play" ||
+      (state === "dying" && stateTime < DEATH_HOLD) || (state === "clear" && stateTime < CLEAR_HOLD));
+    if (state === "dying" && stateTime >= DEATH_HOLD) {
+      // the spin-out: the grin spins away and shrinks to nothing
+      const k = Math.min(1, (stateTime - DEATH_HOLD) / (DEATH_TIME - DEATH_HOLD - 0.3));
+      if (k < 1) drawFace(sprites["trollface-f3"], px(player.x), py(player.y), player.face, 1 - k, k * Math.PI * 6);
+    } else if (!(freezeT > 0 && hidden)) {
+      drawFace(sprites[state === "play" ? playerFrame() : "trollface-f1"], px(player.x), py(player.y), player.face);
+    }
+    if (showChasers) drawChasers();
+
+    for (const pp of popups) text(pp.text, px(pp.x), py(pp.y) - 4 - pp.t * 6, "#4deeff", 8, "center");
 
     if (state === "ready") text("READY!", W / 2, py(16) - 4, "#ffcc00", 8, "center");
     if (state === "over") text("GAME  OVER", W / 2, py(16) - 4, "#ff3b3b", 8, "center");
@@ -373,13 +763,8 @@
   };
 
   function steer(name) {
-    if (state === "title") return;
+    if (state === "title" || state === "over") return;
     player.next = DIRS[name];
-  }
-
-  function start() {
-    if (state === "title" || state === "over") newGame();
-    else togglePause();
   }
 
   function togglePause() {
@@ -431,10 +816,12 @@
   // ---- Test hook (only with ?debug in the URL) --------------------------------
   if (/[?&]debug\b/.test(location.search)) {
     window.__tm = {
-      MAZE, ROWS, COLS, walkable,
+      MAZE, ROWS, COLS, walkable, targetFor, CHASERS, player, dots, homeDist,
       get state() { return state; }, get level() { return level; }, get score() { return score; },
-      get dotsLeft() { return dotsLeft; }, player, dots,
+      get lives() { return lives; }, get dotsLeft() { return dotsLeft; },
+      get frightT() { return frightT; }, get mode() { return chaseMode(); },
       setTimeScale(s) { timeScale = s; },
+      setChasersOff(v) { chasersOff = v; },
     };
   }
 
