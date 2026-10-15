@@ -42,7 +42,7 @@ const BASE = `http://localhost:${server.address().port}`;
 // [camera x, y, z, look-at x, y, z, fov]
 const VIEWS = {
   grinsite:  [30, 16, 30, -4, 0, -4, 55],
-  undergrin: [-9, 3.2, 27, 1, 1.4, -18, 70],
+  undergrin: [-3, 8.2, 8.5, 1, 7.6, -16, 74],   // the atrium past the gates: light well, departures board, clock, Grin News
   dustbowl:  [33, 18, 33, -2, 0, -2, 55],
   depot:     [-25, 7.5, 19, 6, 1, -6, 68],
   culdegrin: [4, 26, 38, 0, 0, -4, 55],

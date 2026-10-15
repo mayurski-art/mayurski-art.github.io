@@ -16,7 +16,7 @@
 export const MAP_SHOTS = new Set(["culdegrin", "depot", "dustbowl", "grinbeach", "grinjuku", "grinleria", "grinsite", "hollowgrin", "trollcity", "trollface", "trollingloud", "undergrin"]);
 const SHOT_WIDTHS = [640, 1280, 1920, 2560, 3840];
 // one tag per map, so re-rendering one map only re-downloads that map's shots
-const SHOT_V = { dustbowl: "hq2", culdegrin: "sr1" };
+const SHOT_V = { dustbowl: "hq2", culdegrin: "sr1", undergrin: "ug5" };
 const shotFile = (id, w) => `assets/games/troll-ops/ui/maps/${id}-${w}.webp?v=${SHOT_V[id] || "hq1"}`;
 const shotSrcset = (id) => SHOT_WIDTHS.map((w) => `${shotFile(id, w)} ${w}w`).join(", ");
 // The loading screen's shot: object-fit cover at scale(1.04), so it spans the
