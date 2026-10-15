@@ -25,7 +25,7 @@ import { game } from "../core/state.js?v=st1";
 import { padButtonName } from "../controller-layout.js?v=cl7-pd1";
 import { setFireIcon } from "../view/touch-icons.js?v=ti1-zc2";
 import { PianoPanel } from "../menu/piano-panel.js?v=pp1b7-cd1-sh1-dj2";
-import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2";
+import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1";
 
 export const bar = {
   drink: null,      // { kind: "beer"|"whiskey", sips }

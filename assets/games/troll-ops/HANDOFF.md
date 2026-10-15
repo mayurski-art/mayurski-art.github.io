@@ -58,7 +58,7 @@ Plan: `C:\Users\mayur\.claude\plans\keen-twirling-chipmunk.md`. Phases 1, 2, 6, 
 - **Grin Beach is on hold** (user 2026-10-10). The C-130 drop-in came off hold 2026-10-14 and was ported to main's code on branch `tf-royale-map`.
 
 ### Troll City roleplay 2b-2d (Socialize, Troll City only): IN PROGRESS
-Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. Next: 2c merchant + rideable horses (~8 sessions; partly built on tf-parallel). Each phase ships alone: targeted test, one gate, push.
+Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. Next: 2c merchant + rideable horses (~8 sessions; partly built on tf-parallel). Each phase ships alone: targeted test, push.
 - **Not yet checked by eye:** 2a's seated bodies and the pianist's hands.
 - The 2a pattern:
   - Jobs and their wire letters go in `rp-roles.js` (`ROLES`, `rr`); spots and furniture in `trollcity.js` (`rp.*`).
@@ -131,9 +131,8 @@ Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. N
 - Merge each finished phase to main.
 - Parallel sessions each use their own worktree + branch. Commit only your own files.
 - No build timelapses or turntables (Blender `-- check` renders for review only).
-- Run headless tests ONE AT A TIME.
-- No phase videos (user 2026-10-08: "I dont need videos"): tests, gate, push; screenshots for self-checks only.
-- One gate per session, at the very end, before the push.
+- No phase videos (user 2026-10-08: "I dont need videos"): tests, push; screenshots for self-checks only.
+- No gate (user 2026-10-14: "no gate going forward"): targeted tests per change (running several at once is fine), then push on the user's say. tools/troll-ops-gate.mjs stays in the repo, unused.
 
 **Art**
 - Never the troll emoji. The mascot is the trollface artwork.
@@ -158,7 +157,7 @@ Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. N
 - TDM is first to 50.
 - Max 3 streaks per loadout. BO2 names are kept and streaks must be "very accurate to Black Ops 2".
 - Lean was dropped; Q is aim.
-- Pad: Y = swap; L3 / R3 = swivel; L3+R3 = emotes. Desktop: H = emotes, T = inspect.
+- Pad is Black Ops 2's Xbox 360 default (user 2026-10-14): X reload / hold use, Y swap, LB tactical, RB lethal, L3 sprint, R3 melee, d-pad right streak, up/down scroll streaks, left tap inspect / hold emotes. Desktop: H = emotes, T = inspect.
 - Chat: Enter = all, Y = team.
 
 **Owner `troll_runner`**
@@ -374,7 +373,7 @@ Map rules:
 ## 4. Tests and tools
 
 **Running tests**
-- Run as `NODE_PATH=<main checkout>/node_modules node tools/<name>.mjs`, one at a time.
+- Run as `NODE_PATH=<main checkout>/node_modules node tools/<name>.mjs`.
 - Use GPU flags (`--use-angle=d3d11`) for anything with hold timers or audio: bar, rp, dj, trollingloud.
 - `?tohooks=1` exposes `window.__trollOps`, which includes `djLulz`, `music`, `builtMap()`, `move`, `look`, `net`.
 
@@ -455,13 +454,15 @@ Map rules:
 ## 5. Shipped log (newest first; one line each, details in git)
 - **2026-10-14** Royale C-130 drop-in (-pl2, PLANES.md; built 2026-10-10 on tf-parallel, ported onto today's main): you start aboard one of 12 C-130s, nine trolls a plane, seated planemates, door at 0:40, red at 0:08, ramp + green at 0:00, walk off or Space, then today's flying fall (stick forward flies) off the ramp; bots spread their landings from their own plane's exit; replaces the sky-lobby box, belt and glider. Tests: royale-drop-test, royale-phase-c-test.
 
+- **2026-10-14** (-jb1) Radio: OUT WEST and GATTI (JACKBOYS), DArkSide (Bring Me The Horizon; from the user's screen recording, ends 164 s with a fade), 192k, beat grids 140 / 71.6 / 112 BPM. Tests: dj, menu, trollingloud.
+
 - **2026-10-14** (-bf1; the user's 4 phone bugs)
   - The phone magnifier: every touch control and the canvas cancel the long-press default (input/touch.js). Test: loupe.
   - Swap cycles primary, secondary, melee (touch SWAP, a tap of X, the pad's Y), in the range, Zombies and the waves too; stands down for a co-op revive in reach. Test: swap.
   - Royale freefall steers like Fortnite: stick forward with the camera level flies you across the island (reach 135 m to 351 m). Test: royale-drop (now in the full run).
   - The gun no longer shows through the TROLLS body: measured, it sat 5-6 cm in the chest and through the forearms, the reload mag in the thigh, the menu carry 7.5 cm in the forearm; blocky-body.js GUN_HOLD retuned (character.js hooks). Test: nft-hold (surface-sampled, old code fails 55).
 
-- **2026-10-14** (-aa0 to -dj2, merged over -bf1 as -mg1; full gate run before the push)
+- **2026-10-14** (-aa0 to -pd1, LIVE main fd500ff; pushed on the user's say with the gate's rerun still going; the first run's 19 reds were the machine overloaded, the real five passed alone)
   - Aim assist gone (stick and thumb; the Dragonfire's nose gun keeps its pull). Auto reload on an empty mag. Tests: input, reload-death.
   - Rooms: a joiner takes the room's map from anyone in the match and the host's versus mode; whoever's match ends tells the room ("end"). Tests: roomsync, zjoin.
   - Zombies: drop into a run mid-round, spawn in when it's cleared; a host retaking a run keeps its wave; skip button says "all needed". Tests: zjoin, zcoop.
