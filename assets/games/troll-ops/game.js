@@ -53,7 +53,7 @@ import {
   MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
 } from "./modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1";
-import { BotManager } from "./bots.js?v=cg5-em1-wst-bs1-p22-bs2-sb2-gj1-fu1b7b7d-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-ob1";
+import { BotManager } from "./bots.js?v=cg5-em1-wst-bs1-p22-bs2-sb2-gj1-fu1b7b7d-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-ob1-nl1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import { GameAudio } from "./audio.js?v=zr4-hf1-wb1-th2-zr9-zr10-zp1-ar1-pl2";
 import { MapAmbience } from "./ambience.js?v=amb1-wst-tl1-gj1-ug5";
