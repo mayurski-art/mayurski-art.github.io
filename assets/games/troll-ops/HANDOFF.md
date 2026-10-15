@@ -6,7 +6,7 @@ Cleaned 2026-10-12. Older, longer versions: `git show 702f867:assets/games/troll
 - Live work gets a section in part 1. When it ships, it becomes one line in the **Shipped log** (part 5) and its section is folded away.
 - Keep only what still constrains future work: architecture, rules, gotchas.
 
-Design docs live next to this file: `COPS-AND-ROBBERS.md`, `TROLL-CITY-RP2.md`, `TROLLS-TRAITS.md`, `CLASSES.md`, `FHJ18.md`, `CLUB-ENTRY.md` (done), `ZOMBIES.md` (the old Pentagrin design; Zombie Rush replaces it), `DESIGN-ARMS.md` and `DESIGN-PF.md` (both done).
+Design docs live next to this file: `ROYALE-ISLAND.md` (Trollface Island map pass: phase 1 done, 2-3 next), `COPS-AND-ROBBERS.md`, `TROLL-CITY-RP2.md`, `TROLLS-TRAITS.md`, `CLASSES.md`, `FHJ18.md`, `CLUB-ENTRY.md` (done), `ZOMBIES.md` (the old Pentagrin design; Zombie Rush replaces it), `DESIGN-ARMS.md` and `DESIGN-PF.md` (both done).
 
 ---
 
@@ -16,7 +16,7 @@ Design docs live next to this file: `COPS-AND-ROBBERS.md`, `TROLL-CITY-RP2.md`, 
 Start each session on a fresh branch or worktree from origin/main.
 1. **Stylised realism graphics,** one map first, with before/after screenshots.
 2. **Then hand the user ONE test checklist** (add the BO2 rifle reloads) covering everything shipped since 2026-10-12 (Zombie Rush P1-P7 and the controller buy/deploy, the Kek & Sons merchant and the horses, incl. the hub, Credits and the kiosks, weekly/monthly leaderboards, the High-graphics glow and box fixes, the Royale lag and fights, Show FPS, the phone menu, bot heads, Ghostface Killers).
-- Offered, not yet answered: stretch Royale's match length (fewer bots or a post-kill cooldown).
+- **Troll Royale island pass** (`ROYALE-ISLAND.md`): phase 1 shipped (POI loot tiers, the bots' post-kill calm). Next: phase 2 (cover, lake boardwalks), then phase 3 (five new POIs).
 - Paused or on hold (sections below): tf-parallel leftovers, Troll City RP 2c, Cops and Robbers, U Mad Bro?, the TROLLS wallet check.
 
 **References (local only, git-ignored, in the MAIN checkout's `assets/games/troll-ops/refs/`):** `zombie-rush/` (the user's Roblox screenshots, named, plus `originals/`), `zombies-clips/clip1.mp4, clip2.mp4` (gameplay recordings), `pf-reloads/BRIEF.md` (the BO2 reload brief).
@@ -112,7 +112,7 @@ Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. N
 - **Cancelled 2026-10-03:** Purge XP; $TRUTHS tournaments; the whole 2026-09-30 open-asks list.
 
 ### Small known gaps (fix if touched)
-- **Royale length:** with 99 bots the island is down to ~10 by 2.5 min while the zone runs ~9.5 min (troll-ops-royale-pace; the same before the 2026-10-12 fixes). The user was offered fewer bots or a post-kill cooldown.
+- **Royale length:** the post-kill calm (30-45 s, 2026-10-14) stretched the end (last two alive past 345 s, was ~240 s), but the middle still thins fast: ~10 left at ~220 s while the zone runs ~9.5 min (troll-ops-royale-pace). The next dial is early-phase bot sight (ROYALE_BOT_SIGHT); ask before changing it.
 - **Bots:** ground floor only on every map, rarely visit Hollowgrin's far districts; don't shoot down the VTOL Warship or Swarm drones; ignore an enemy UAV beyond the minimap. K9 dogs walk the ground flow field only, and nobody but you calls them.
 - **Killcam** doesn't record swivels.
 - **Zombies:** mid-round shader compiles (warm those materials in warmShaders). Each zombie is one atlas mesh: a new part needs an atlas cell, not its own material (build_zombies.blender.py `atlas_merge`; the tint only touches u < 0.5). A popped head is `bones.head` scaled to 0.001, re-applied after every mixer update. Any new gore material must join `goreStandIns()`.
@@ -452,6 +452,7 @@ Map rules:
 ---
 
 ## 5. Shipped log (newest first; one line each, details in git)
+- **2026-10-14** Troll Royale island phase 1 (-pi1, ROYALE-ISLAND.md): POI tiers on Trollface Island's landmarks (`LANDMARKS[].tier`, royale.js `POI_TIERS`): hot places 2.5x loot with a third of their guns a rarity up, mid 1.5x, open 0.6x, same total; loot on the Boat's deck and the Bridge (bots leave raised loot); bot landings and the last circles lean to POIs; a Royale bot is calm 30-45 s after a kill (bot-fire.js `killedAt`). Tests: royale-bots (calm), royale-island (deck loot).
 - **2026-10-14** Royale C-130 drop-in (-pl2, PLANES.md; built 2026-10-10 on tf-parallel, ported onto today's main): you start aboard one of 12 C-130s, nine trolls a plane, seated planemates, door at 0:40, red at 0:08, ramp + green at 0:00, walk off or Space, then today's flying fall (stick forward flies) off the ramp; bots spread their landings from their own plane's exit; replaces the sky-lobby box, belt and glider. Tests: royale-drop-test, royale-phase-c-test.
 
 - **2026-10-14** (-nh1) Radio: Natural Habitat (070 Shake feat. Ken Carson; from the user's screen recording, ends 207 s with a fade), beat grid 148 BPM. Tests: dj, menu, trollingloud.
