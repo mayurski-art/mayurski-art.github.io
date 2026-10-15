@@ -34,13 +34,15 @@ Zombies rebuilt to play like Roblox's Zombie Rush Survival: a 3D hub, then a co-
 - **P7 (animation pass):** bite timing, turning, stagger (zombies.js); melee lunge (combat/melee.js LUNGE, zombies only); tier-up flourish (run.js); deploy unfold + turret arming, turret flash + co-op blood (deployables.js); swap raise (combat/weapons.js swapRaise); downed camera (player-update.js); revive ring (view/revive-ring.js); bat/shovel two-handed tracks (gear.js heldTrack / SWINGS, tuned frame by frame); boss cloth tint + glow (zombie-models.js); controller d-pad buy/deploy (view/zombies-hud.js → input/gamepad.js padHooks.zombies). Tests: zanim, zpad, zdeploy, zcoop.
 - Refs (local only, main checkout): `refs/zombie-rush/` (hub pads, boards, kiosks, Weapons tier screens, Classes / Rookie kit, the in-match HUD), `refs/zombies-clips/`.
 
-### Weapon animations: Black Ops 2 rifle reloads (live, -ar1)
-`view/ar-reload.js`: the nine BO2 rifles (keyed by `model.build`) reload the BO2 way, taken frame by frame from first-person BO2 footage (`refs/pf-reloads/FOOTAGE-NOTES.md`, local: how to watch YouTube in the browser pane and pull frames to canvas, the video's timeline, what each rifle does).
+### Weapon animations: Black Ops 2 reloads (rifles live -ar1; SMGs, LMGs, pistols -br1)
+`view/ar-reload.js`: the nine BO2 rifles, the three SMGs, the three LMGs and the two pistols (keyed by `model.build`, else by id) reload the BO2 way, taken frame by frame from first-person BO2 footage (`refs/pf-reloads/FOOTAGE-NOTES.md`, local: how to watch YouTube in the browser pane and pull frames to canvas, the videos' timelines, what each gun does).
 - Each rifle is a spec: `up` (the held pose: where the well sits, which way muzzle and top point, camera space), `fetch`/`present` (where the hand gets and shows the new mag), `rockIn`, and `finish` (the empty reload's pose, handle point and pull, gun-local, and its sound). `build()` makes the tac and empty timelines from it; weapon-view blends the hip pose into the held poses, the mag and the left hand follow their keys (`posePfArms(..., hand)`), `audio.rifleBeat` plays the beats.
 - Families from the footage: stood on end at the right (SWAT-556, M27, FAL, Type 25), lower and less rolled (SCAR-H, MTAR), leaning left (M8A1), rolled the other way and worked from the right (AN-94, SMR). Empty finishes: FAL over the top, M27/SWAT/Type 25 catch slap, SCAR-H and M8A1 forward side handle, AN-94 across to the right.
-- The hand palms the mag's base so the TROLLS body's block fist never hides it. A cut reload (fire) eases back over 0.14 s. Other guns keep the old reload.
-- Tune with a frozen-frame lab (set `reloadT` via a getter, screenshot both bodies). Test: `tools/troll-ops-arreload-test.mjs` (gate input step).
-- Not yet: SMGs, LMGs and pistols still use the old reload; the BO2 video for them is linked in FOOTAGE-NOTES.
+- SMGs: MP7 stood up at the right, mag up into the grip, empty racks the rear T-handle; Vector leans left, empty stands up for the side handle; PDW-57 rolled so its top mag faces the hand (`pullOut`/`under` up, `palm: "top"`), empty racks the front side handle.
+- LMGs (ours aren't BO2's, so each wears the nearest): Colt LMG = HAMR (drum shown off, handle over the top), M60 = Mk 48 / LSAT (raised, slap the top cover), RPK = QBB LSW (stood up, worked from the right, drum rocked in). A drum keeps its rest roll (`magRestRotationZ`).
+- Pistols: Five-seven muzzle up-right, KAP-40 up-left; the empty reload ends on the hand racking the slide, and the slide drops then (`arSlideAt` -> pistol-action's `releaseAt`), no rifle beat.
+- The hand palms the mag's base so the TROLLS body's block fist never hides it. A cut reload (fire) eases back over 0.14 s. Carbines, THE BEAST, the 416, snipers, shotguns and the battle rifles keep the old reload.
+- Tune with a frozen-frame lab (set `reloadT` via a getter, screenshot both bodies). Test: `tools/troll-ops-arreload-test.mjs` (gate input step; all 17 guns).
 
 ### Graphics: stylised realism (after the weapon animations)
 After Hood Warfare 2 (UE5), the user wants a mix of cartoon and realism. One map first, with before/after screenshots.

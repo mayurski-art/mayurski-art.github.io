@@ -241,16 +241,16 @@ const SPECS = {
   // the mag drops out, the new one goes up the grip; empty, the gun comes
   // upright and the hand pulls the slide over the top.
   sixtynine: {
-    up: pose([0.12, -0.24, -0.55], [0.35, 0.85, -0.4], [-0.85, 0.35, 0.35]),
-    fetch: LEFT_HAND, present: [-0.02, -0.34, -0.55],
-    finish: { pose: pose([0.12, -0.2, -0.55], [0.1, 0.95, -0.3], [-0.95, 0.1, 0.3]), handle: [0, 0.012, 0.06], pull: [0, 0.012, 0.1], sound: null },
+    up: pose([0.05, -0.15, -0.55], [0.35, 0.85, -0.4], [-0.85, 0.35, 0.35]),
+    fetch: LEFT_HAND, present: [-0.1, -0.25, -0.53],
+    finish: { pose: pose([0.06, -0.13, -0.55], [0.1, 0.95, -0.3], [-0.95, 0.1, 0.3]), handle: [0, 0.012, 0.06], pull: [0, 0.012, 0.1], sound: null },
   },
   // KAP-40: tipped the other way, muzzle up-left, the mag from below;
   // empty, turned muzzle-up and the slide pulled.
   true69: {
-    up: pose([0.16, -0.24, -0.55], [-0.35, 0.85, -0.4], [0.85, 0.35, 0.35]),
-    fetch: LEFT_HAND, present: [-0.02, -0.34, -0.55],
-    finish: { pose: pose([0.14, -0.2, -0.55], [0.15, 0.95, -0.25], [0.95, -0.1, 0.3]), handle: [0, 0.014, 0.07], pull: [0, 0.014, 0.1], sound: null },
+    up: pose([0.04, -0.15, -0.55], [-0.35, 0.85, -0.4], [0.85, 0.35, 0.35]),
+    fetch: LEFT_HAND, present: [-0.1, -0.25, -0.53],
+    finish: { pose: pose([0.06, -0.13, -0.55], [0.15, 0.95, -0.25], [0.95, -0.1, 0.3]), handle: [0, 0.014, 0.07], pull: [0, 0.014, 0.1], sound: null },
   },
 };
 
