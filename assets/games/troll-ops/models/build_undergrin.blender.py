@@ -39,22 +39,28 @@ ARCH_SPAN, ARCH_SPRING = 14.0, 7.5
 BORE_W = {"W": (-14.25, -9.75), "E": (9.75, 14.25)}
 BORE_CX = {"W": -12.0, "E": 12.0}
 ESC = dict(x=(-1.9, 1.9), w=1.4, foot=-27.0, n=17, rise=0.3, run=0.5)
-ESC_WELL = (-3.6, 3.6, -28.0, -17.0)
+ESC_WELL = (-2.9, 2.9, -28.0, -18.5)     # the blockout's: a 3.6 well cut the island nose off the bots' grid
 WSTAIR = dict(x0=-21.5, x1=-17.5, foot=-43.5, n=17, rise=0.3, run=0.5)
-WSTAIR_WELL = (-21.5, -17.5, -40.0, -35.0)
+WSTAIR_WELL = (-22.0, -17.5, -44.0, -35.0)  # beside the hall's 4 m end block (x -17.5..22, z -44..-40)
 PURPLE_WELL = (-21.0, -18.0, -10.0, -4.0)
 LIGHT_WELL = (-4.0, 4.0, -4.0, 4.0)
 COLS = [(sx * 6.0, z) for sx in (-1, 1) for z in (-40, -34, -22, -16)]
 TRAIN_X = (-13.7, -10.3)
-CAR_Z = (-35.5, -22.5)          # north train car centres (W bore, z -42..-16)
+CAR_Z = (-35.75, -22.25)        # north train car centres (W bore, z -42..-29.5 and -28.5..-16)
 CAR_L, CAR_W = 12.5, 3.4
-DOOR_OFF = (-4.0, 0.0, 4.0)
+DOOR_OFF = (-3.8, 0.0, 3.8)
 DOOR_W = 1.4
+# central-section bores: outer wall at +-14.25, the 0.3 inner wall inside the
+# bore (x -10.05..-9.75), so the lining spans 4.2; straight to the door
+# lintels at 2.4, an elliptical vault to the 4.0 tunnel ceiling
+TUN_CX, TUN_HW, TUN_SPRING, TUN_CROWN = 12.15, 2.1, 2.4, 4.0
+DOOR_H = 2.4                    # every doorway's lintel (the blockout's)
 REPO = os.path.normpath(os.path.join(OUT_DIR, "..", "..", "..", ".."))
 ART_TROLL = os.path.join(REPO, "assets", "pfp", "base", "og.webp")
 
-# west shop row (z0, z1, name) and east; the doc's 4.3 table verbatim
-SHOPS_W = [(-40, -26, "arcade"), (-26, -12, "grinbiss"), (-12, 0, "purple"), (0, 14, "lounge"), (14, 26, "apotrolle"), (26, 40, "books")]
+# west shop row (z0, z1, name) and east: point-symmetric (the blockout moved
+# the west Lounge/Apotrolle split from the doc's 14 to 12)
+SHOPS_W = [(-40, -26, "arcade"), (-26, -12, "grinbiss"), (-12, 0, "purple"), (0, 12, "lounge"), (12, 26, "apotrolle"), (26, 40, "books")]
 SHOPS_E = [(-40, -26, "books"), (-26, -12, "apotrolle"), (-12, 0, "lounge"), (0, 12, "red"), (12, 26, "grinbiss"), (26, 40, "arcade")]
 
 
@@ -524,8 +530,12 @@ def vault_y(x, span=16.0, rise=3.0, y0=HALL_WALL):
     return yc + math.sqrt(max(0.0, R * R - x * x))
 
 
-def bench(b, PAL, x, z, y, along="x", L=2.4):
-    """Blue slatted bench on black legs, 2.4 long (the Metro one)."""
+def bench(b, PAL, x, z, y, along="x", L=2.4, back=1):
+    """Blue slatted bench on black legs, 2.4 long (the Metro one); `back`
+    is the side (+-1 across it) its back is on."""
+    if back < 0:
+        # draw it turned: mirror the across offsets
+        return _bench_flip(b, PAL, x, z, y, along, L)
     w = L if along == "x" else 0.55
     d = 0.55 if along == "x" else L
     if along == "x":
@@ -546,6 +556,24 @@ def bench(b, PAL, x, z, y, along="x", L=2.4):
             lz = z + s * (L / 2 - 0.3)
             bx(b, PAL["black"], x - 0.25, x + 0.25, y, y + 0.42, lz - 0.04, lz + 0.04)
             bx(b, PAL["black"], x + 0.2, x + 0.28, y + 0.42, y + 0.95, lz - 0.04, lz + 0.04)
+
+
+def _bench_flip(b, PAL, x, z, y, along, L):
+    if along == "x":
+        bx(b, PAL["bench"], x - L / 2, x + L / 2, y + 0.42, y + 0.47, z - 0.28, z + 0.28)
+        bx(b, PAL["bench"], x - L / 2, x + L / 2, y + 0.6, y + 0.9, z - 0.28, z - 0.22)
+    else:
+        bx(b, PAL["bench"], x - 0.28, x + 0.28, y + 0.42, y + 0.47, z - L / 2, z + L / 2)
+        bx(b, PAL["bench"], x - 0.28, x - 0.22, y + 0.6, y + 0.9, z - L / 2, z + L / 2)
+    for s in (-1, 1):
+        if along == "x":
+            lx = x + s * (L / 2 - 0.3)
+            bx(b, PAL["black"], lx - 0.04, lx + 0.04, y, y + 0.42, z - 0.25, z + 0.25)
+            bx(b, PAL["black"], lx - 0.04, lx + 0.04, y + 0.42, y + 0.95, z - 0.28, z - 0.2)
+        else:
+            lz = z + s * (L / 2 - 0.3)
+            bx(b, PAL["black"], x - 0.25, x + 0.25, y, y + 0.42, lz - 0.04, lz + 0.04)
+            bx(b, PAL["black"], x - 0.28, x - 0.2, y + 0.42, y + 0.95, lz - 0.04, lz + 0.04)
 
 
 def steps_x(b, PAL, x0, x1, z_foot, n, rise, run, direction, y0, m=None, nosing=True):
@@ -602,11 +630,11 @@ def rail_run(b, PAL, a, c, y, h=1.1, m=None, posts=2.0):
 def tunnel(b, PAL, side, z0, z1, skip_outer=False, skip_inner=False):
     """Tunnel lining (inside faces) of a bore between z0..z1; the outer /
     inner straight wall can be left out for a doorway."""
-    cx = BORE_CX[side]
+    cx = TUN_CX * (-1 if side == "W" else 1)
     out_sgn = -1 if side == "W" else 1           # which x side is the outer wall
-    hw = 2.25
-    arc = [(hw * math.cos(math.pi * i / 10), 1.75 + hw * math.sin(math.pi * i / 10)) for i in range(11)]  # +x .. -x
-    prof = [(hw, 0.0), (hw, 1.75)] + arc[1:-1] + [(-hw, 1.75), (-hw, 0.0)]
+    hw, sp, rv = TUN_HW, TUN_SPRING, TUN_CROWN - TUN_SPRING
+    arc = [(hw * math.cos(math.pi * i / 10), sp + rv * math.sin(math.pi * i / 10)) for i in range(11)]  # +x .. -x
+    prof = [(hw, 0.0), (hw, sp)] + arc[1:-1] + [(-hw, sp), (-hw, 0.0)]
     pts = [(cx + px, py) for (px, py) in prof]
     for (p0, p1) in zip(pts[:-1], pts[1:]):
         vert = abs(p0[0] - p1[0]) < 1e-6 and abs(p0[1] - p1[1]) > 0.5
@@ -614,17 +642,34 @@ def tunnel(b, PAL, side, z0, z1, skip_outer=False, skip_inner=False):
             sgn = 1 if p0[0] > cx else -1
             if (sgn == out_sgn and skip_outer) or (sgn == -out_sgn and skip_inner):
                 continue
-        quad4(b, PAL["tunnel"], [(p0[0], p0[1], z0), (p1[0], p1[1], z0), (p1[0], p1[1], z1), (p0[0], p0[1], z1)])
+        # (straight walls 1 cm proud of the wall boxes behind them: they z-fought)
+        q = [(px - 0.01 * (1 if px > cx else -1) if abs(abs(px - cx) - hw) < 1e-6 else px, py) for (px, py) in (p0, p1)]
+        quad = [(q[0][0], q[0][1], z0), (q[1][0], q[1][1], z0), (q[1][0], q[1][1], z1), (q[0][0], q[0][1], z1)]
+        # face it into the bore (the game culls back faces): flip when its
+        # normal points away from the tunnel axis
+        e1 = Vector(quad[1]) - Vector(quad[0])
+        e2 = Vector(quad[2]) - Vector(quad[1])
+        mid = (Vector(quad[0]) + Vector(quad[2])) / 2
+        if e1.cross(e2).dot(Vector((cx, sp, mid.z)) - mid) < 0:
+            quad = quad[::-1]
+        quad4(b, PAL["tunnel"], quad)
 
 
 def portal(b, PAL, side, z, sgn):
     """Headwall over a tunnel mouth at z: the bore's rectangle minus the
     arch, from the lining's springing up to the station ceiling."""
-    cx = BORE_CX[side]
-    hw = 2.25
-    pts = [(cx - hw, 1.75, z), (cx - hw, SLAB0, z), (cx + hw, SLAB0, z), (cx + hw, 1.75, z)]
-    pts += [(cx + hw * math.cos(math.pi * i / 10), 1.75 + hw * math.sin(math.pi * i / 10), z) for i in range(1, 10)]
+    cx = TUN_CX * (-1 if side == "W" else 1)
+    hw, sp, rv = TUN_HW, TUN_SPRING, TUN_CROWN - TUN_SPRING
+    pts = [(cx - hw, sp, z), (cx - hw, SLAB0, z), (cx + hw, SLAB0, z), (cx + hw, sp, z)]
+    pts += [(cx + hw * math.cos(math.pi * i / 10), sp + rv * math.sin(math.pi * i / 10), z) for i in range(1, 10)]
     quad4(b, PAL["grey"], pts)
+    quad4(b, PAL["grey"], pts[::-1])          # seen from the platform and from the bore
+    # the 0.3 inner wall's end face beside the portal
+    xi = cx + hw if side == "W" else cx - hw
+    xo = -9.75 if side == "W" else 9.75
+    face = [(xi, 0.0, z), (xo, 0.0, z), (xo, SLAB0, z), (xi, SLAB0, z)]
+    quad4(b, PAL["grey"], face)
+    quad4(b, PAL["grey"], face[::-1])
 
 
 def station_shell(b, PAL, s):
@@ -667,18 +712,18 @@ def station_shell(b, PAL, s):
     # tunnel portals in the station's south face (z -14) and the headwall
     for side in ("W", "E"):
         portal(b, PAL, side, Z(-14), s)
-    # the fills either side of the north walkway (x -2..2, z -14..-8), platform to slab
-    for (a, c) in ((-9.7, -2.0), (2.0, 9.7)):
+    # the solids either side of the north walkway (x -2..2, z -14..-8), track to slab
+    for (a, c) in ((-9.75, -2.0), (2.0, 9.75)):
         bx(b, W, X(a), X(c), 0, SLAB0, Z(-13.95), Z(-8))
     bx(b, W, X(-2), X(2), 3.0, SLAB0, Z(-13.95), Z(-8))        # walkway ceiling
+    # the plant room's door is the walkway's full 4 m: only a lintel from 2.4
+    bx(b, W, X(-2), X(2), DOOR_H, SLAB0, Z(-8), Z(-7.7))
     # the solid east of the E bore between the side platform's end and the far corridor
     bx(b, W, X(14.3), X(22), 0, SLAB0, Z(-13.95), Z(0))
-    # plant room east wall segment on this half (the door is on the other half's wall)
-    bx(b, W, X(9.4), X(9.7), 0, SLAB0, Z(-8), Z(0))
-    # plant room north wall with its door (x -0.9..0.9), 2.2 tall
-    wall_x(b, W, Z(-8.15), Z(-7.85), 0, SLAB0, X(-9.7), X(9.7), doors=[(0.0, 1.8, 2.2)])
-    # plant room west wall (between the W bore and the room), door at z -4
-    wall_z(b, W, X(-9.7), X(-9.4), 0, SLAB0, Z(-8), Z(0), doors=[(Z(-4), 1.8, 2.2)])
+    # the bores' 0.3 inner walls (inside the bores), the plant room's sides:
+    # the W one has the door at z -4, the E one's door is on the other half
+    wall_z(b, PAL["grey"], X(-10.05), X(-9.75), 0, SLAB0, Z(-14), Z(0), doors=[(Z(-4), 1.8, DOOR_H)])
+    bx(b, PAL["grey"], X(9.75), X(10.05), 0, SLAB0, Z(-14), Z(0))
     # W bore tunnel lining z -14..0 (doors: outer at z -6 to the corridor, inner at z -4 to the plant room)
     side = "W" if s > 0 else "E"
     segs = [(-14, -6.9, False, False), (-6.9, -5.1, True, False), (-5.1, -4.9, False, False), (-4.9, -3.1, False, True), (-3.1, 0, False, False)]
@@ -687,25 +732,27 @@ def station_shell(b, PAL, s):
     # the E bore (its doors are on the other half)
     tunnel(b, PAL, "E" if s > 0 else "W", Z(-14), Z(0))
     # service corridor x -22..-15.75, z -12..0 at T: the wall to the bore, end walls
-    wall_z(b, W, X(-15.75), X(-14.3), 0, SLAB0, Z(-12), Z(0), doors=[(Z(-6), 1.8, 2.2)])
+    wall_z(b, W, X(-15.75), X(-14.25), 0, SLAB0, Z(-12), Z(0), doors=[(Z(-6), 1.8, DOOR_H)])
     bx(b, W, X(-22), X(-15.75), 0, SLAB0, Z(-12.3), Z(-12))
     bx(b, W, X(-22), X(-15.75), 0, SLAB0, Z(0), Z(0.3))
     # the solid between the W side platform's end (z -14) and the corridor (z -12)
     bx(b, W, X(-22), X(-14.3), 0, SLAB0, Z(-14), Z(-12.3))
     # concourse: hall walls x +-16 (6..9) with doorways at z -33, -19 (hall) and -8 (atrium)
-    hall_doors = [(Z(-33), 2.0, 2.6), (Z(-19), 2.0, 2.6), (Z(-8), 2.0, 2.6)]
+    hall_doors = [(Z(-33), 1.8, DOOR_H), (Z(-19), 1.8, DOOR_H), (Z(-8), 1.8, DOOR_H)]
     for sx in (-1, 1):
-        xa, xb = X(sx * 16) - 0.15, X(sx * 16) + 0.15
+        xa, xb = X(sx * 16), X(sx * 16.3)
         wall_z(b, W, xa, xb, U, ATRIUM_CEIL, Z(-16), Z(0), doors=[hall_doors[2]])
         wall_z(b, W, xa, xb, U, HALL_WALL, Z(-40), Z(-16), doors=hall_doors[:2])
         fs = -s * sx                                                   # into the hall
         # the shop-side strip from the hall wall top to the shop ceiling
-        bx(b, W, X(sx * 16), X(sx * 16) - fs * 0.15, HALL_WALL, CEIL_SHOP, Z(-40), Z(-16))
+        bx(b, W, X(sx * 16), X(sx * 16.3), HALL_WALL, CEIL_SHOP, Z(-40), Z(-16))
         # paint: salmon band, blue stripe, on the hall face
-        hx = X(sx * 16) + fs * 0.15
-        band_z(b, PAL["salmon"], hx, fs, U + 1.0, U + 2.9, Z(-40), Z(-16), doors=hall_doors[:2])
+        hx = X(sx * 16)
+        # (a band's doorways give the door top as a height, not a rise)
+        band_doors = [(zc, w, U + h) for (zc, w, h) in hall_doors]
+        band_z(b, PAL["salmon"], hx, fs, U + 1.0, U + 2.9, Z(-40), Z(-16), doors=band_doors[:2])
         band_z(b, PAL["stripe"], hx, fs, U + 3.2, U + 3.35, Z(-40), Z(-16))
-        band_z(b, PAL["salmon"], hx, fs, U + 1.0, U + 2.9, Z(-16), Z(0), doors=[hall_doors[2]])
+        band_z(b, PAL["salmon"], hx, fs, U + 1.0, U + 2.9, Z(-16), Z(0), doors=[band_doors[2]])
         band_z(b, PAL["stripe"], hx, fs, U + 3.2, U + 3.35, Z(-16), Z(0))
         # upper atrium wall: a lunette window into the dark on this half
         for zc in (-9.0,):
@@ -722,18 +769,18 @@ def station_shell(b, PAL, s):
     band_x(b, PAL["stripe"], Z(-40), s, U + 3.2, U + 3.35, X(-16), X(16))
     band_x(b, PAL["salmon"], Z(-40), s, HALL_WALL + 0.2, VAULT_CROWN + 0.3, X(-16), X(16))
     # the atrium threshold at z -16: piers, the 14 m round arch (springing 7.5) and the spandrel to 15
-    zt = Z(-16)
+    zt = Z(-15.75)
     for (a, c) in ((-16, -7), (7, 16)):
-        bx(b, W, X(a), X(c), U, ATRIUM_CEIL, zt - 0.2, zt + 0.2)
+        bx(b, W, X(a), X(c), U, ATRIUM_CEIL, zt - 0.25, zt + 0.25)
     R = ARCH_SPAN / 2
     arcp = [(R * math.cos(math.pi * i / 14), ARCH_SPRING + R * math.sin(math.pi * i / 14)) for i in range(15)]  # +x .. -x
-    for zz in (zt - 0.2, zt + 0.2):
+    for zz in (zt - 0.25, zt + 0.25):
         pts = [(-R, ARCH_SPRING, zz), (-R, ATRIUM_CEIL, zz), (R, ATRIUM_CEIL, zz), (R, ARCH_SPRING, zz)] + [(x, y, zz) for (x, y) in arcp[1:-1]]
         quad4(b, W, pts)
     for (p0, p1) in zip(arcp[:-1], arcp[1:]):
-        quad4(b, PAL["salmon"], [(p0[0], p0[1], zt - 0.2), (p1[0], p1[1], zt - 0.2), (p1[0], p1[1], zt + 0.2), (p0[0], p0[1], zt + 0.2)])
+        quad4(b, PAL["salmon"], [(p0[0], p0[1], zt - 0.25), (p1[0], p1[1], zt - 0.25), (p1[0], p1[1], zt + 0.25), (p0[0], p0[1], zt + 0.25)])
     # salmon band and stripe on both faces of the threshold piers
-    for (face_z, sign) in ((zt - 0.2 * s, -s), (zt + 0.2 * s, s)):
+    for (face_z, sign) in ((zt - 0.25 * s, -s), (zt + 0.25 * s, s)):
         for (a, c) in ((-16, -7), (7, 16)):
             band_x(b, PAL["salmon"], face_z, sign, U + 1.0, U + 2.9, X(a), X(c))
             band_x(b, PAL["stripe"], face_z, sign, U + 3.2, U + 3.35, X(a), X(c))
@@ -753,7 +800,7 @@ def station_shell(b, PAL, s):
         bx(b, PAL["mullion"], x - 0.1, x + 0.1, y - 0.2, y - 0.02, Z(-40), Z(-16))
     # the vault's edge beam over the hall walls
     for sx in (-1, 1):
-        bx(b, PAL["salmon"], X(sx * 16) - 0.15, X(sx * 16) + 0.15, HALL_WALL - 0.05, HALL_WALL + 0.25, Z(-40), Z(-16))
+        bx(b, PAL["salmon"], X(sx * 16) - 0.15 * sx * s, X(sx * 16.3), HALL_WALL - 0.05, HALL_WALL + 0.25, Z(-40), Z(-16))
 
 
 def shop_walls(b, PAL):
@@ -762,13 +809,20 @@ def shop_walls(b, PAL):
     walls at z +-40, flat ceilings at 9.6."""
     W = PAL["wall"]
     for (sx, shops) in ((-1, SHOPS_W), (1, SHOPS_E)):
-        xa, xb = sorted((sx * 22, sx * 16))
+        xa, xb = sorted((sx * 22, sx * 16.3))
         parts = sorted({z for (z0, z1, _n) in shops for z in (z0, z1)})
         for z in parts:
-            if abs(z) == 40:
+            if abs(z) == 40 and z * sx < 0:
+                # the row's far end: a plain end wall
                 bx(b, W, xa, xb, U, CEIL_SHOP, z, z + (0.3 if z > 0 else -0.3))
+            elif abs(z) == 40:
+                # the stair end: the side stair's well (x 17.5..22) runs on to
+                # the outer end wall at +-44 beside the hall's 4 m end block
+                ze = 44 if z > 0 else -44
+                bx(b, W, sx * 17.5, sx * 16.3, U, CEIL_SHOP, z, ze)
+                bx(b, PAL["ceiling"], sx * 22, sx * 17.5, CEIL_SHOP, CEIL_SHOP + 0.3, z, ze)
             else:
-                wall_x(b, W, z - 0.15, z + 0.15, U, CEIL_SHOP, xa, xb, doors=[(sx * 19, 1.8, 2.4)])
+                wall_x(b, W, z - 0.15, z + 0.15, U, CEIL_SHOP, xa, xb, doors=[(sx * 19, 1.8, DOOR_H)])
         bx(b, PAL["ceiling"], xa, xb, CEIL_SHOP, CEIL_SHOP + 0.3, -40, 40)
 
 
@@ -817,30 +871,36 @@ def station_platforms(b, PAL, s):
     # yellow zones: round the escalator foot and the west stair's foot
     hrect(b, PAL["yellow"], X(-8), X(8), Z(-31.5), Z(-25.5), P + 0.003)
     hrect(b, PAL["yellow"], X(-21.5), X(-17.5), Z(-44), Z(-43.5), P + 0.003)
-    # bore floors: ballast bed, sleepers (top quads), rails
+    # bore floors: ballast flush with the track floor (y 0, what players walk
+    # on), sleepers painted on it, rails 0..0.12 at +-0.75 where the
+    # colliders have them: clear of the parked train and the bore-end steps
+    rails = {"W": [(-44, -42), (-16, 0)], "E": [(-40.5, 0)]}
     for side in ("W", "E"):
         a, c = BORE_W[side]
-        bx(b, PAL["ballast"], X(a), X(c), T - 0.3, T + 0.22, Z(-44), Z(0))
+        bx(b, PAL["ballast"], X(a), X(c), T - 0.3, T + 0.01, Z(-44), Z(0))   # a hair over the engine's ground plane
         cx = BORE_CX[side]
-        for rx in (-0.72, 0.72):
-            bx(b, PAL["rail"], X(cx + rx) - 0.035, X(cx + rx) + 0.035, T + 0.22, T + 0.36, Z(-44), Z(0))
-        k = 0.35
-        while k < 44:
-            z = -44 + k
-            hrect(b, PAL["sleeper"], X(cx) - 1.25, X(cx) + 1.25, Z(z) - 0.12, Z(z) + 0.12, T + 0.23)
-            k += 0.7
+        for (z0, z1) in rails[side]:
+            for rx in (-0.75, 0.75):
+                bx(b, PAL["rail"], X(cx + rx) - 0.06, X(cx + rx) + 0.06, T, T + 0.12, Z(z0), Z(z1))
+            k = 0.35
+            while z0 + k < z1:
+                z = z0 + k
+                hrect(b, PAL["sleeper"], X(cx) - 1.25, X(cx) + 1.25, Z(z) - 0.12, Z(z) + 0.12, T + 0.014)
+                k += 0.7
     # track-level lamps are concourse's business; nothing here
     # bore-end stairs: at the empty bore's north end (E for the north station) up to both platforms
     e = "E" if s > 0 else "W"
     a, c = BORE_W["E"]
-    # from the bore floor at x 11.75 west up to the island (x 9.75) and from 12.25 east up to the side platform
-    steps_z(b, PAL, min(Z(-44), Z(-42.1)), max(Z(-44), Z(-42.1)), X(11.75), 4, 0.1825, 0.5, -s, T + 0.22)
-    steps_z(b, PAL, min(Z(-44), Z(-42.1)), max(Z(-44), Z(-42.1)), X(12.25), 4, 0.1825, 0.5, s, T + 0.22)
-    # the island's nose stair at z -14 down to the walkway, 4 steps
-    steps_x(b, PAL, min(X(-1.5), X(1.5)), max(X(-1.5), X(1.5)), Z(-12.4), 4, 0.2375, 0.4, -s, T)
+    # two flights 3 wide centred z -42: from x 11.75 west up to the island
+    # (x 9.75) and from 12.25 east up to the side platform, 4 x 0.2375 / 0.5
+    za, zb = sorted((Z(-43.5), Z(-40.5)))
+    steps_z(b, PAL, za, zb, X(11.75), 4, 0.2375, 0.5, -s, T)
+    steps_z(b, PAL, za, zb, X(12.25), 4, 0.2375, 0.5, s, T)
+    # the island's nose stair: foot on the walkway at z -12, top flush at z -14
+    steps_x(b, PAL, min(X(-1.5), X(1.5)), max(X(-1.5), X(1.5)), Z(-12), 4, 0.2375, 0.5, -s, T)
     # the walkway floor and the corridor floor
-    bx(b, PAL["floor"], X(-2), X(2), T - 0.02, T, Z(-12.4), Z(-8))
-    bx(b, PAL["floor"], X(-22), X(-15.75), T - 0.02, T, Z(-12), Z(0))
+    bx(b, PAL["floor"], X(-2), X(2), T, T + 0.02, Z(-14), Z(-8))
+    bx(b, PAL["floor"], X(-22), X(-15.75), T, T + 0.02, Z(-12), Z(0))
 
 
 def build_platforms(PAL):
@@ -848,7 +908,7 @@ def build_platforms(PAL):
     for s in (1, -1):
         station_platforms(b, PAL, s)
     # the plant room floor
-    bx(b, PAL["floor"], -9.75, 9.75, T - 0.02, T, -8, 8)
+    bx(b, PAL["floor"], -9.75, 9.75, T, T + 0.02, -8, 8)
     b.finish("ug-platforms.glb", bake=False)
 
 
@@ -867,21 +927,26 @@ def escalator_lane(b, PAL, xc, w, z_foot, n, rise, run, s, y0):
         hrect(b, PAL["dark"], xc - half + 0.1, xc + half - 0.1, za, za + s * run, yt)
         rect(b, PAL["black"], (xc - half + 0.1, yt - rise, za), (1, 0, 0), (0, 1, 0), 0, w - 0.2, 0, rise)
         hrect(b, PAL["nosing"], xc - half + 0.1, xc + half - 0.1, za, za + s * 0.06, yt + 0.004)
-    # comb plates
+    # comb plates (the top one on the slab's landing, z -18.5..-17)
     bx(b, PAL["steel"], xc - half + 0.1, xc + half - 0.1, y0, y0 + 0.02, z_foot, z_foot - s * 0.8)
     bx(b, PAL["steel"], xc - half + 0.1, xc + half - 0.1, top, top + 0.02, z_top, z_top + s * 1.5)
-    # balustrades: wood panels following the slope, a flat run at each end
-    for side in (-1, 1):
-        px = xc + side * (half - 0.05)
-        prof = [(z_foot - s * 0.8, y0), (z_foot - s * 0.8, y0 + 1.0), (z_foot, y0 + 1.0), (z_top, top + 1.0), (z_top + s * 1.5, top + 1.0), (z_top + s * 1.5, top), (z_top, top), (z_foot, y0)]
-        b.prism(PAL["wood"], prof, px - 0.05, px + 0.05, axis="x")
-        hr = 1.02
-        b.cyl(PAL["black"], 0.045, (px, y0 + hr, z_foot - s * 0.8), (px, y0 + hr, z_foot), seg=6)
-        b.cyl(PAL["black"], 0.045, (px, y0 + hr, z_foot), (px, top + hr, z_top), seg=6)
-        b.cyl(PAL["black"], 0.045, (px, top + hr, z_top), (px, top + hr, z_top + s * 1.5), seg=6)
-    # the underside, clad: a sloping soffit box from the foot to the top
-    prof = [(z_foot - s * 0.8, y0 - 0.02), (z_foot, y0 - 0.02), (z_top, top - 0.35), (z_top + s * 1.5, top - 0.35), (z_top + s * 1.5, top - 0.5), (z_foot - s * 0.8, y0 - 0.3)]
-    b.prism(PAL["grey"], prof, xc - half, xc + half, axis="x")
+
+
+def escalator_sides(b, PAL, s, z_foot, n, rise, run, y0):
+    """The pair's balustrades as the colliders have them: solid from the
+    platform to 1.2 over the treads, 0.3 thick outside (x +-2.6..2.9) and
+    one block between the lanes (x -1.2..1.2), wood-brown, with steel caps
+    and black handrails along the lanes."""
+    z_top = z_foot + s * run * n
+    lo = y0 + 1.35                      # the slope runs mid-way between the collider's steps
+    hi = y0 + rise * n + 1.35
+    prof = [(z_foot, y0), (z_foot, lo), (z_top, hi), (z_top, y0)]
+    for (xa, xb) in ((-2.9, -2.6), (-1.2, 1.2), (2.6, 2.9)):
+        b.prism(PAL["wood"], prof, s * xa if s > 0 else s * xb, s * xb if s > 0 else s * xa, axis="x")
+        cap = [(z_foot, lo), (z_foot, lo + 0.03), (z_top, hi + 0.03), (z_top, hi)]
+        b.prism(PAL["steel"], cap, min(s * xa, s * xb), max(s * xa, s * xb), axis="x")
+    for x in (-2.6, -1.2, 1.2, 2.6):
+        b.cyl(PAL["black"], 0.045, (s * x, lo + 0.06, z_foot), (s * x, hi + 0.06, z_top), seg=6)
 
 
 def station_escalators(b, PAL, s):
@@ -890,25 +955,19 @@ def station_escalators(b, PAL, s):
     # the twin escalators: feet z -27, rising south, tops z -18.5
     for xc in ESC["x"]:
         escalator_lane(b, PAL, X(xc), ESC["w"], Z(ESC["foot"]), ESC["n"], ESC["rise"], ESC["run"], s, P)
+    escalator_sides(b, PAL, s, Z(ESC["foot"]), ESC["n"], ESC["rise"], ESC["run"], P)
     # the well rails round the escalator well at the concourse: west, east and north edges
     a, c, d, e = ESC_WELL
-    rail_run(b, PAL, (X(a), Z(d)), (X(a), Z(e)), U)
-    rail_run(b, PAL, (X(c), Z(d)), (X(c), Z(e)), U)
-    rail_run(b, PAL, (X(a), Z(d)), (X(c), Z(d)), U)
+    rail_run(b, PAL, (X(a - 0.05), Z(d - 0.05)), (X(a - 0.05), Z(e)), U)
+    rail_run(b, PAL, (X(c + 0.05), Z(d - 0.05)), (X(c + 0.05), Z(e)), U)
+    rail_run(b, PAL, (X(a - 0.05), Z(d - 0.05)), (X(c + 0.05), Z(d - 0.05)), U)
     # the west side stair: x -21.5..-17.5, foot z -43.5 on the platform, 17 x 0.3 / 0.5 heading south
     w = WSTAIR
     steps_x(b, PAL, min(X(w["x0"]), X(w["x1"])), max(X(w["x0"]), X(w["x1"])), Z(w["foot"]), w["n"], w["rise"], w["run"], s, P)
-    # its open side: a wood balustrade + handrail on the x -17.5 edge, following the slope
-    px = X(w["x1"]) - s * 0.06
-    z_top = Z(w["foot"]) + s * w["run"] * w["n"]
-    top = P + w["rise"] * w["n"]
-    prof = [(Z(w["foot"]), P), (Z(w["foot"]), P + 1.0), (z_top, top + 1.0), (z_top, top - 0.3)]
-    b.prism(PAL["wood"], prof, px - 0.06, px + 0.06, axis="x")
-    b.cyl(PAL["black"], 0.045, (px, P + 1.02, Z(w["foot"])), (px, top + 1.02, z_top), seg=6)
-    # well rails at the concourse round the stair well (east edge, north edge)
+    # (its east side is open, as its colliders: no balustrade)
+    # the well rail on the concourse: the east edge clear of the end block (z -40..-35)
     a, c, d, e = WSTAIR_WELL
-    rail_run(b, PAL, (X(c), Z(d)), (X(c), Z(e)), U)
-    rail_run(b, PAL, (X(a), Z(d)), (X(c), Z(d)), U)
+    rail_run(b, PAL, (X(c + 0.05), Z(-40)), (X(c + 0.05), Z(e)), U)
     # the purple room's steel stair: well x -21..-18, z -10..-4; bottom z -10 at T rising south to z -4 at U
     SP = {"grate": PAL["grate"], "yellow": PAL["nosing"], "steel": PAL["steel"], "toe": PAL["nosing"]}
     steel_stair(b, SP, 20, 0.3, 0.3, 3.0, Z(-10), direction=s, y0=T, x=X(-19.5), closed=True)
@@ -941,9 +1000,9 @@ def train_car(b, PAL, s, cz, cab_end):
     L = CAR_L
     z0, z1 = cz - L / 2, cz + L / 2
     floor = P
-    roof = P + 2.45
+    roof = P + 2.3
     # undercarriage (dark), bogies, the floor
-    bx(b, PAL["dark"], X(xc - 1.45), X(xc + 1.45), T + 0.3, floor, Z(z0 + 0.2), Z(z1 - 0.2))
+    bx(b, PAL["dark"], X(xc - 1.6), X(xc + 1.6), T, floor, Z(z0), Z(z1))
     for bz in (cz - 4.2, cz + 4.2):
         bx(b, PAL["black"], X(xc - 1.2), X(xc + 1.2), T + 0.1, T + 0.5, Z(bz - 1.1), Z(bz + 1.1))
         for wz in (bz - 0.75, bz + 0.75):
@@ -1002,28 +1061,21 @@ def train_car(b, PAL, s, cz, cab_end):
             for sx in (-1, 1):
                 panel(b, PAL["headlight"], (X(xc + sx * 1.2), floor + 0.45, ezw), nrm, 0.35, 0.18, o=0.07)
             panel(b, PAL["dark"], (X(xc), floor - 0.2, ezw), nrm, 3.2, 0.5, o=0.02)
-            # the cab's back wall inside, a door
-            bx(b, PAL["train"], X(xc - hw + 0.1), X(xc + hw - 0.1), floor, roof, ezw - end * s * 1.5 - 0.04, ezw - end * s * 1.5 + 0.04)
-            panel(b, PAL["band"], (X(xc), floor + 1.5, ezw - end * s * 1.5), (0, 0, -s * end), 0.7, 0.6, o=0.05)
+            # the cab's closed partition 1.35 in, white, a window into the cab
+            bx(b, PAL["door"], X(xc - hw + 0.1), X(xc + hw - 0.1), floor, roof, ezw - end * s * 1.35 - 0.05, ezw - end * s * 1.35 + 0.05)
+            panel(b, PAL["band"], (X(xc), floor + 1.5, ezw - end * s * 1.35), (0, 0, -s * end), 0.7, 0.6, o=0.06)
         else:
-            # end wall with a 1.6 wide gangway opening
+            # end wall with a 1.2 wide gangway door
             for sx in (-1, 1):
-                bx(b, PAL["train"], X(xc + sx * 0.8), X(xc + sx * hw), floor, roof + 0.2, ezw - 0.05, ezw + 0.05)
-            bx(b, PAL["train"], X(xc - 0.8), X(xc + 0.8), roof - 0.3, roof + 0.2, ezw - 0.05, ezw + 0.05)
-    # seats: blue benches along both walls between the doors, backs up the wall
+                bx(b, PAL["train"], X(xc + sx * 0.6), X(xc + sx * hw), floor, roof + 0.2, ezw - 0.05, ezw + 0.05)
+            bx(b, PAL["train"], X(xc - 0.6), X(xc + 0.6), floor + 2.05, roof + 0.2, ezw - 0.05, ezw + 0.05)
+    # seats: 0.5 x 2.0 blue benches against both walls at cz +-1.9 (the colliders'), backs up the wall
     for sx in (-1, 1):
-        for (za, zb) in ((z0 + 0.4, cz - 4.0 - DOOR_W / 2 - 0.15), (cz - 4.0 + DOOR_W / 2 + 0.15, cz - DOOR_W / 2 - 0.15),
-                         (cz + DOOR_W / 2 + 0.15, cz + 4.0 - DOOR_W / 2 - 0.15), (cz + 4.0 + DOOR_W / 2 + 0.15, z1 - 0.4)):
-            if zb - za < 0.8 or (cab_end == -1 and za < z0 + 1.6) or (cab_end == 1 and zb > z1 - 1.6):
-                continue
+        for sz in (cz - 1.9, cz + 1.9):
             x_in = xc + sx * (hw - 0.1)
-            bx(b, PAL["seat"], X(x_in), X(x_in - sx * 0.5), floor + 0.25, floor + 0.47, Z(za), Z(zb))
-            bx(b, PAL["seat"], X(x_in), X(x_in - sx * 0.1), floor + 0.47, floor + 0.95, Z(za), Z(zb))
-            bx(b, PAL["dark"], X(x_in), X(x_in - sx * 0.45), floor, floor + 0.25, Z(za + 0.1), Z(zb - 0.1))
-    # grab poles at the doors and the inside posters
-    for d in DOOR_OFF:
-        for dz in (-0.95, 0.95):
-            b.cyl(PAL["nosing"], 0.025, (X(xc), floor, Z(cz + d + dz)), (X(xc), roof, Z(cz + d + dz)), seg=6)
+            bx(b, PAL["seat"], X(x_in), X(x_in - sx * 0.5), floor + 0.25, floor + 0.5, Z(sz - 1.0), Z(sz + 1.0))
+            bx(b, PAL["seat"], X(x_in), X(x_in - sx * 0.1), floor + 0.5, floor + 0.95, Z(sz - 1.0), Z(sz + 1.0))
+            bx(b, PAL["dark"], X(x_in), X(x_in - sx * 0.45), floor, floor + 0.25, Z(sz - 0.9), Z(sz + 0.9))
 
 
 def build_trains(PAL):
@@ -1035,13 +1087,13 @@ def build_trains(PAL):
         gz = (CAR_Z[0] + CAR_Z[1]) / 2
         xc = (TRAIN_X[0] + TRAIN_X[1]) / 2
         for sx in (-1, 1):
-            bx(b, PAL["black"], s * (xc + sx * 0.85), s * (xc + sx * 1.0), P, P + 2.3, s * (gz - 0.5), s * (gz + 0.5))
-        bx(b, PAL["black"], s * (xc - 1.0), s * (xc + 1.0), P + 2.2, P + 2.4, s * (gz - 0.5), s * (gz + 0.5))
-        bx(b, PAL["mid"], s * (xc - 0.8), s * (xc + 0.8), P - 0.03, P, s * (gz - 0.5), s * (gz + 0.5))
+            bx(b, PAL["black"], s * (xc + sx * 0.85), s * (xc + sx * 0.95), P, P + 2.3, s * (gz - 0.5), s * (gz + 0.5))
+        bx(b, PAL["black"], s * (xc - 0.95), s * (xc + 0.95), P + 2.05, P + 2.3, s * (gz - 0.5), s * (gz + 0.5))
+        bx(b, PAL["mid"], s * (xc - 0.85), s * (xc + 0.85), P - 0.03, P, s * (gz - 0.5), s * (gz + 0.5))
         # posters inside: one trollface per car on the wall over the seats
         for cz in CAR_Z:
-            troll_poster(b, PAL, (s * (TRAIN_X[0] + 0.1), P + 2.17, s * (cz - 2.0)), (s, 0, 0), 0.6, 0.4, PAL["stripe"], cells=16, o=0.0)
-            troll_poster(b, PAL, (s * (TRAIN_X[1] - 0.1), P + 2.17, s * (cz + 2.0)), (-s, 0, 0), 0.6, 0.4, PAL["salmon"], cells=16, o=0.0)
+            troll_poster(b, PAL, (s * (TRAIN_X[0] + 0.1), P + 2.07, s * (cz - 2.0)), (s, 0, 0), 0.6, 0.4, PAL["stripe"], cells=16, o=0.0)
+            troll_poster(b, PAL, (s * (TRAIN_X[1] - 0.1), P + 2.07, s * (cz + 2.0)), (-s, 0, 0), 0.6, 0.4, PAL["salmon"], cells=16, o=0.0)
     b.finish("ug-trains.glb", bake=False)
 
 
@@ -1089,17 +1141,18 @@ def clock(b, PAL, c, normal):
 
 
 def photo_booth(b, PAL, x, z, y, facing):
-    bx(b, PAL["dark"], x - 0.6, x + 0.6, y, y + 2.2, z - 0.5, z + 0.5)
-    panel(b, PAL["red"], (x, y + 0.95, z + facing * 0.5), (0, 0, facing), 0.7, 1.9, o=0.01)
-    panel(b, PAL["white"], (x, y + 2.0, z + facing * 0.5), (0, 0, facing), 1.1, 0.3, o=0.01)
-    text(b, PAL["black"], "PHOTO", (x, y + 2.0, z + facing * 0.5), (0, 0, facing), 0.16, o=0.02)
+    """1.5 square, 2.3 tall (its collider)."""
+    bx(b, PAL["dark"], x - 0.75, x + 0.75, y, y + 2.3, z - 0.75, z + 0.75)
+    panel(b, PAL["red"], (x, y + 0.95, z + facing * 0.75), (0, 0, facing), 0.8, 1.9, o=0.01)
+    panel(b, PAL["white"], (x, y + 2.08, z + facing * 0.75), (0, 0, facing), 1.3, 0.3, o=0.01)
+    text(b, PAL["black"], "PHOTO", (x, y + 2.08, z + facing * 0.75), (0, 0, facing), 0.16, o=0.02)
 
 
 def ticket_machine(b, PAL, x, z, y, facing):
-    bx(b, PAL["stripe"], x - 0.4, x + 0.4, y, y + 1.8, z - 0.3, z + 0.3)
-    panel(b, PAL["screen"], (x, y + 1.25, z + facing * 0.3), (0, 0, facing), 0.5, 0.35, o=0.01)
-    panel(b, PAL["white"], (x, y + 0.7, z + facing * 0.3), (0, 0, facing), 0.6, 0.5, o=0.01)
-    text(b, PAL["black"], "TICKETS", (x, y + 1.6, z + facing * 0.3), (0, 0, facing), 0.1, o=0.012)
+    bx(b, PAL["stripe"], x - 0.4, x + 0.4, y, y + 1.9, z - 0.3, z + 0.3)
+    panel(b, PAL["screen"], (x, y + 1.3, z + facing * 0.3), (0, 0, facing), 0.5, 0.35, o=0.01)
+    panel(b, PAL["white"], (x, y + 0.75, z + facing * 0.3), (0, 0, facing), 0.6, 0.5, o=0.01)
+    text(b, PAL["black"], "TICKETS", (x, y + 1.7, z + facing * 0.3), (0, 0, facing), 0.1, o=0.012)
 
 
 def newsstand(b, PAL, x, z, y):
@@ -1179,25 +1232,26 @@ def station_concourse(b, PAL, s):
     # UNDERGRIN name boards on the side-platform back walls (white on blue), roundels, posters
     for (xw, nx) in ((-22, 1), (22, -1)):
         nrm = (s * nx, 0, 0)
-        for zc in (-38, -20):
-            panel(b, PAL["roundelblue"], (X(xw), 2.5, Z(zc)), nrm, 3.2, 0.5, o=0.02)
+        for zc in (-33.6, -20):
+            panel(b, PAL["roundelblue"], (X(xw), 2.5, Z(zc)), nrm, 3.0, 0.5, o=0.02)
             text(b, PAL["white"], "UNDERGRIN", (X(xw), 2.5, Z(zc)), nrm, 0.32, o=0.035)
-        roundel(b, PAL, (X(xw), 2.5, Z(-29)), nrm, r=0.55)
-        troll_poster(b, PAL, (X(xw), 2.1, Z(-33.5)), nrm, 1.0, 1.4, PAL["salmon"] if nx > 0 else PAL["stripe"], cells=22, o=0.02)
+        roundel(b, PAL, (X(xw), 2.5, Z(-27.6)), nrm, r=0.55)
+        troll_poster(b, PAL, (X(xw), 2.4, Z(-30.6)), nrm, 1.0, 1.4, PAL["salmon"] if nx > 0 else PAL["stripe"], cells=22, o=0.02)
         # a colour-block poster: GRINLINE in two tones
-        panel(b, PAL["stripe"] if nx > 0 else PAL["salmon"], (X(xw), 2.1, Z(-24.5)), nrm, 1.0, 1.4, o=0.02)
-        panel(b, PAL["white"], (X(xw), 2.45, Z(-24.5)), nrm, 0.8, 0.5, o=0.03)
-        text(b, PAL["black"], "GRINLINE", (X(xw), 2.45, Z(-24.5)), nrm, 0.14, o=0.04)
+        panel(b, PAL["stripe"] if nx > 0 else PAL["salmon"], (X(xw), 2.4, Z(-23)), nrm, 1.0, 1.4, o=0.02)
+        panel(b, PAL["white"], (X(xw), 2.75, Z(-23)), nrm, 0.8, 0.5, o=0.03)
+        text(b, PAL["black"], "GRINLINE", (X(xw), 2.75, Z(-23)), nrm, 0.14, o=0.04)
         panel(b, PAL["cream"], (X(xw), 2.1, Z(-16.5)), nrm, 1.0, 1.4, o=0.02)
         text(b, PAL["black"], "MIND", (X(xw), 2.45, Z(-16.5)), nrm, 0.22, o=0.035)
         text(b, PAL["black"], "THE", (X(xw), 2.1, Z(-16.5)), nrm, 0.22, o=0.035)
         text(b, PAL["salmon"], "GRIN", (X(xw), 1.75, Z(-16.5)), nrm, 0.22, o=0.035)
-        # benches and a vending machine against the wall
-        bench(b, PAL, X(xw + nx * 0.55), Z(-36), P, along="z")
-        bench(b, PAL, X(xw + nx * 0.55), Z(-22), P, along="z")
-        bx(b, PAL["red"], X(xw), X(xw + nx * 0.8), P, P + 1.9, Z(-41) - 0.5, Z(-41) + 0.5)
-        panel(b, PAL["screen"], (X(xw + nx * 0.8), P + 1.2, Z(-41)), nrm, 0.6, 0.9, o=0.01)
-        text(b, PAL["white"], "GRINK", (X(xw + nx * 0.8), P + 1.75, Z(-41)), nrm, 0.12, o=0.012)
+        # benches (0.6 x 1.8 at x +-21.1) and a vending machine (x +-20.8..21.6, z -25) against the wall
+        for zb in (-34, -20):
+            bench(b, PAL, X(xw + nx * 0.9), Z(zb), P, along="z", L=1.8, back=-s * nx)
+        vz = Z(-25)
+        bx(b, PAL["red"], X(xw + nx * 0.4), X(xw + nx * 1.2), P, P + 2.0, vz - 0.5, vz + 0.5)
+        panel(b, PAL["screen"], (X(xw + nx * 1.2), P + 1.25, vz), nrm, 0.6, 0.9, o=0.01)
+        text(b, PAL["white"], "GRINK", (X(xw + nx * 1.2), P + 1.82, vz), nrm, 0.12, o=0.012)
     # the end wall: a big roundel and TROLLHALLA, plus EXIT over the bore-end stairs
     roundel(b, PAL, (X(0), 3.3, Z(-44)), (0, 0, s), r=0.8)
     text(b, PAL["white"], "UNDERGRIN", (X(0), 2.0, Z(-44)), (0, 0, s), 0.45, o=0.02)
@@ -1207,19 +1261,24 @@ def station_concourse(b, PAL, s):
     hanging_sign(b, PAL, (X(0), SLAB0 - 1.0, Z(-31)), "z", 3.0, ["GRINLINE"], SLAB0 - 0.34)
     hanging_sign(b, PAL, (X(0), SLAB0 - 1.0, Z(-15.5)), "z", 3.0, ["PLANT ROOM"], SLAB0 - 0.34)
     exit_sign(b, PAL, (X(0), 2.6, Z(-14)), (0, 0, -s))
+    # island benches: back to back at z -32, and along z beside the x +-6 columns at z -28
+    bench(b, PAL, X(0), Z(-32.22), P, along="x", back=s)
+    bench(b, PAL, X(0), Z(-31.78), P, along="x", back=-s)
+    for x in (-6, 6):
+        bench(b, PAL, X(x), Z(-28), P, along="z", L=2.0, back=s * (1 if x > 0 else -1))
     # on the island columns: roundels on the inner faces at z -22 columns
     for (cxp, cz) in COLS:
         if cz == -22:
             roundel(b, PAL, (X(cxp) - s * (1 if cxp > 0 else -1) * 0.35, 2.4, Z(cz)), (-s * (1 if cxp > 0 else -1), 0, 0), r=0.3)
     # --- concourse: the hall
-    for x in (-13.5, 13.5):
-        bench(b, PAL, X(x), Z(-28), U, along="z")
-    photo_booth(b, PAL, X(-6), Z(-19.5), U, -s)
-    ticket_machine(b, PAL, X(5.2), Z(-19.5), U, -s)
-    ticket_machine(b, PAL, X(6.2), Z(-19.5), U, -s)
+    for x in (-10, 10):
+        bench(b, PAL, X(x), Z(-30), U, along="x", back=-s)
+    photo_booth(b, PAL, X(-6), Z(-20), U, s)
+    ticket_machine(b, PAL, X(6.0), Z(-20), U, s)
+    ticket_machine(b, PAL, X(7.0), Z(-20), U, s)
     # posters on the hall's long walls between the doorways, roundels, EXITs over the doors
     for sx in (-1, 1):
-        wx = X(sx * 16) - s * sx * 0.15
+        wx = X(sx * 16)
         nrm = (-s * sx, 0, 0)
         troll_poster(b, PAL, (wx, U + 2.0, Z(-37)), nrm, 1.2, 1.7, PAL["yellow"] if sx < 0 else PAL["cyan"], cells=24, o=0.02)
         panel(b, PAL["cyan"] if sx < 0 else PAL["yellow"], (wx, U + 2.0, Z(-26)), nrm, 1.2, 1.7, o=0.02)
@@ -1246,19 +1305,25 @@ def station_concourse(b, PAL, s):
     # --- atrium (this half): the gate line at z -12, the staffed box, the board, pendants
     for k in range(6):
         ticket_gate(b, PAL, X(-7 + 2.8 * k), Z(-12), U)
-    bx(b, PAL["white"], X(-9.6), X(-8.4), U, U + 1.1, Z(-12.6), Z(-11.4))
-    bx(b, PAL["dark"], X(-9.65), X(-8.35), U + 1.1, U + 1.16, Z(-12.65), Z(-11.35))
+    # the staffed boxes at x +-9: 1.5 square, 2.2 tall, a window all round
+    for x in (-9, 9):
+        bx(b, PAL["white"], X(x) - 0.75, X(x) + 0.75, U, U + 1.1, Z(-12) - 0.75, Z(-12) + 0.75)
+        bx(b, PAL["glass"], X(x) - 0.7, X(x) + 0.7, U + 1.1, U + 1.9, Z(-12) - 0.7, Z(-12) + 0.7)
+        bx(b, PAL["stripe"], X(x) - 0.78, X(x) + 0.78, U + 1.9, U + 2.2, Z(-12) - 0.78, Z(-12) + 0.78)
     departure_board(b, PAL, X(0), Z(-12), 9.5, s)
     bench(b, PAL, X(0), Z(-9), U, along="x")
     for x in (-8, 0, 8):
         pendant(b, PAL, X(x), Z(-6), ATRIUM_CEIL, 3.6)
-    b.cyl(PAL["black"], 0.03, (X(0), ARCH_SPRING + ARCH_SPAN / 2, Z(-16)), (X(0), ARCH_SPRING + ARCH_SPAN / 2 - 0.5, Z(-16)), seg=4)
-    clock(b, PAL, (X(0), ARCH_SPRING + ARCH_SPAN / 2 - 1.2, Z(-16)), (0, 0, s))
-    clock(b, PAL, (X(0), ARCH_SPRING + ARCH_SPAN / 2 - 1.2, Z(-16)), (0, 0, -s))
+    # a two-faced clock hung in the arch (the threshold is z -16..-15.5)
+    cy = ARCH_SPRING + ARCH_SPAN / 2 - 1.2
+    b.cyl(PAL["black"], 0.03, (X(0), ARCH_SPRING + ARCH_SPAN / 2, Z(-15.75)), (X(0), cy + 0.7, Z(-15.75)), seg=4)
+    b.cyl(PAL["black"], 0.72, (X(0), cy, Z(-16)), (X(0), cy, Z(-15.5)), seg=24)
+    clock(b, PAL, (X(0), cy, Z(-15.5)), (0, 0, s))
+    clock(b, PAL, (X(0), cy, Z(-16)), (0, 0, -s))
     # posters on the threshold piers (atrium side)
     for sx in (-1, 1):
-        troll_poster(b, PAL, (X(sx * 11.5), U + 2.2, Z(-16) + s * 0.2), (0, 0, s), 1.4, 2.0, PAL["salmon"] if sx < 0 else PAL["stripe"], cells=26, o=0.02)
-        roundel(b, PAL, (X(sx * 11.5), U + 4.4, Z(-16) + s * 0.2), (0, 0, s), r=0.45)
+        troll_poster(b, PAL, (X(sx * 11.5), U + 2.2, Z(-15.5)), (0, 0, s), 1.4, 2.0, PAL["salmon"] if sx < 0 else PAL["stripe"], cells=26, o=0.02)
+        roundel(b, PAL, (X(sx * 11.5), U + 4.4, Z(-15.5)), (0, 0, s), r=0.45)
 
 
 def build_concourse(PAL):
@@ -1304,16 +1369,16 @@ def tk_cabinet(b, PAL, x, z, y, facing, marquee_text=False):
 def tk_cabinet_x(b, PAL, x, z, y, facing, marquee_text=False):
     """Same cabinet facing +-x (against a side wall)."""
     f = facing
-    bx(b, PAL["cabinet"], x - 0.45, x + 0.45, y, y + 1.9, z - 0.4, z + 0.4)
-    bx(b, PAL["orange"], x - 0.47, x + 0.47, y + 1.55, y + 1.9, z - 0.42, z + 0.42)
-    panel(b, PAL["screen"], (x + f * 0.45, y + 1.15, z), (f, 0, 0), 0.6, 0.45, o=0.01)
-    bx(b, PAL["black"], x + f * 0.3, x + f * 0.6, y + 0.8, y + 0.9, z - 0.4, z + 0.4)
-    b.cyl(PAL["red"], 0.03, (x + f * 0.5, y + 0.9, z - 0.15), (x + f * 0.5, y + 1.05, z - 0.15), seg=5)
+    bx(b, PAL["cabinet"], x - 0.4, x + 0.4, y, y + 1.9, z - 0.45, z + 0.45)
+    bx(b, PAL["orange"], x - 0.42, x + 0.42, y + 1.55, y + 1.9, z - 0.47, z + 0.47)
+    panel(b, PAL["screen"], (x + f * 0.4, y + 1.15, z), (f, 0, 0), 0.6, 0.45, o=0.01)
+    bx(b, PAL["black"], x + f * 0.25, x + f * 0.4, y + 0.8, y + 0.9, z - 0.42, z + 0.42)
+    b.cyl(PAL["red"], 0.03, (x + f * 0.33, y + 0.9, z - 0.15), (x + f * 0.33, y + 1.05, z - 0.15), seg=5)
     if marquee_text:
-        text(b, PAL["black"], "TROLL", (x + f * 0.47, y + 1.8, z), (f, 0, 0), 0.1, o=0.012)
-        text(b, PAL["black"], "KOMBAT", (x + f * 0.47, y + 1.65, z), (f, 0, 0), 0.1, o=0.012)
+        text(b, PAL["black"], "TROLL", (x + f * 0.42, y + 1.8, z), (f, 0, 0), 0.1, o=0.012)
+        text(b, PAL["black"], "KOMBAT", (x + f * 0.42, y + 1.65, z), (f, 0, 0), 0.1, o=0.012)
     else:
-        text(b, PAL["black"], "TK", (x + f * 0.47, y + 1.72, z), (f, 0, 0), 0.18, o=0.012)
+        text(b, PAL["black"], "TK", (x + f * 0.42, y + 1.72, z), (f, 0, 0), 0.18, o=0.012)
 
 
 def table_and_chairs(b, PAL, x, z, y, m_top, r=0.45):
@@ -1326,11 +1391,10 @@ def table_and_chairs(b, PAL, x, z, y, m_top, r=0.45):
         b.cyl(PAL["black"], 0.03, (x + dx, y, z + dz), (x + dx, y + 0.42, z + dz), seg=4)
 
 
-def shelf_wall(b, PAL, x, z0, z1, y, facing, rows=4, seed=0):
-    """Shelving against a wall at x (opening toward facing), with rows of
-    coloured books / bottles as flat quads."""
+def shelf_wall(b, PAL, x, z0, z1, y, facing, rows=4, seed=0, d=0.4):
+    """Shelving against a wall at x (opening toward facing), d deep, with
+    rows of coloured books / bottles as flat quads."""
     rng = random.Random(seed)
-    d = 0.4
     xa, xb = sorted((x, x + facing * d))
     bx(b, PAL["oak"], xa, xb, y, y + 2.2, min(z0, z1) - 0.03, min(z0, z1))
     bx(b, PAL["oak"], xa, xb, y, y + 2.2, max(z0, z1), max(z0, z1) + 0.03)
@@ -1346,9 +1410,10 @@ def shelf_wall(b, PAL, x, z0, z1, y, facing, rows=4, seed=0):
             zz += w + 0.01
 
 
-def counter(b, PAL, x0, x1, z0, z1, y, m_front, m_top):
-    bx(b, m_front, x0, x1, y, y + 1.0, z0, z1)
-    bx(b, m_top, min(x0, x1) - 0.05, max(x0, x1) + 0.05, y + 1.0, y + 1.06, min(z0, z1) - 0.05, max(z0, z1) + 0.05)
+def counter(b, PAL, x0, x1, z0, z1, y, m_front, m_top, h=1.1):
+    """A counter on its collider's footprint, h tall (the top included)."""
+    bx(b, m_front, x0, x1, y, y + h - 0.06, z0, z1)
+    bx(b, m_top, x0, x1, y + h - 0.06, y + h, z0, z1)
 
 
 def sofa(b, PAL, x, z, y, along_x, L=2.2, m=None):
@@ -1374,118 +1439,126 @@ def cow_rug(b, PAL, x, z, y, w, d, seed=3):
         hrect(b, PAL["black"], x + bxp - bw / 2, x + bxp + bw / 2, z + bzp - bd / 2, z + bzp + bd / 2, y + 0.008)
 
 
-def dress_shop(b, PAL, name, x0, x1, z0, z1, side):
-    """One unit x0..x1 (the row), z0..z1; side -1 west (wall at x0 = -22,
-    hall door on the x1 side), +1 east."""
-    x0, x1 = sorted((x0, x1))
-    z0, z1 = sorted((z0, z1))
-    cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
-    L = z1 - z0
-    back = x0 if side < 0 else x1          # the outer wall
-    inward = 1 if side < 0 else -1         # from the back wall into the room
+def dress_shop(b, PAL, name, z0, z1, s):
+    """One shop of the west row (x -22..-16.3, z0..z1) for s = 1, or the same
+    shop turned 180 degrees into the east row for s = -1, exactly as
+    maps.js lays its colliders. Everything solid stands on a collider's
+    footprint; the rest is paint on the walls and floors."""
+    X = lambda x: s * x
+    Z = lambda z: s * z
     y = U
-    rng = random.Random(int(cz * 3 + side))
+    BACK, INNER = -22.0, -16.3                 # the outer wall, the hall-side wall (west row)
+    cz = (z0 + z1) / 2
+
+    def floor(m, xa, xb, za, zb):
+        hrect(b, m, min(X(xa), X(xb)), max(X(xa), X(xb)), min(Z(za), Z(zb)), max(Z(za), Z(zb)), y + 0.004)
+
+    def box(m, xa, xb, ya, yb, za, zb):
+        bx(b, m, X(xa), X(xb), ya, yb, Z(za), Z(zb))
+
+    def on_back(m, zc, yc, w, h, txt=None, tm=None, th=0.2, ty=None):
+        panel(b, m, (X(BACK + 0.01), yc, Z(zc)), (s, 0, 0), w, h, o=0.0)
+        if txt:
+            text(b, tm, txt, (X(BACK + 0.02), ty or yc, Z(zc)), (s, 0, 0), th, o=0.01)
+
+    def table(xc, zc, w, d, h, m_top):
+        """A table on its collider (w x d x h): top, four legs, two stools tucked under."""
+        box(m_top, xc - w / 2, xc + w / 2, y + h - 0.05, y + h, zc - d / 2, zc + d / 2)
+        for (dx, dz) in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
+            box(PAL["black"], xc + dx * (w / 2 - 0.08) - 0.03, xc + dx * (w / 2 - 0.08) + 0.03, y, y + h - 0.05,
+                zc + dz * (d / 2 - 0.08) - 0.03, zc + dz * (d / 2 - 0.08) + 0.03)
+        for dz in (-1, 1):
+            b.cyl(PAL["dark"], 0.17, (X(xc), y, Z(zc + dz * d * 0.22)), (X(xc), y + 0.45, Z(zc + dz * d * 0.22)), seg=10)
+
+    rng = random.Random(int(cz * 3 + s))
     if name == "arcade":
-        shop_floor(b, PAL["carpet"], x0 + 0.05, x1 - 0.05, z0 + 0.2, z1 - 0.2)
-        # neon squiggles on the carpet
-        for k in range(14):
+        # carpet: the well takes x -22..-17.5 north of z -35
+        floor(PAL["carpet"], BACK, INNER, -35, z1)
+        floor(PAL["carpet"], -17.5, INNER, z0, -35)
+        for k in range(12):
             m = PAL["neon_m"] if k % 2 else PAL["neon_c"]
-            px, pz = rng.uniform(x0 + 0.4, x1 - 0.8), rng.uniform(z0 + 0.5, z1 - 1.0)
+            px, pz = rng.uniform(-21.0, -17.8), rng.uniform(-34.4, -27.5)
             if rng.random() < 0.5:
-                hrect(b, m, px, px + rng.uniform(0.4, 1.2), pz, pz + 0.05, y + 0.008)
+                floor(m, px, px + rng.uniform(0.4, 1.2), pz, pz + 0.05)
             else:
-                hrect(b, m, px, px + 0.05, pz, pz + rng.uniform(0.4, 1.2), y + 0.008)
-        # cabinets along the back wall, facing into the room
-        k = 0
-        zz = z0 + 1.2
-        while zz < z1 - 1.0:
-            if abs(zz) < 34.6:          # the side stair lands in this corner (WSTAIR_WELL)
-                tk_cabinet_x(b, PAL, back + inward * 0.5, zz, y, inward, marquee_text=(k % 3 == 0))
-            zz += 1.0
-            k += 1
-        # a row across the far partition, clear of its doorway, and a neon sign
-        for d in (1.5, 4.6, 5.5):
-            tk_cabinet(b, PAL, back + inward * d, z1 - 0.65 if side < 0 else z0 + 0.65, y, -1 if side < 0 else 1, marquee_text=(d == 4.6))
-        panel(b, PAL["black"], (back + inward * 0.01, y + 2.9, cz), (inward, 0, 0), 3.4, 0.6, o=0.0)
-        text(b, PAL["neon_m"], "TROLL KOMBAT", (back + inward * 0.02, y + 2.9, cz), (inward, 0, 0), 0.34, o=0.01)
-    elif name == "books":
-        shop_floor(b, PAL["oak"], x0 + 0.05, x1 - 0.05, z0 + 0.2, z1 - 0.2)
-        shelf_wall(b, PAL, back, z0 + 0.6, z1 - 0.6, y, inward, rows=3, seed=int(cz))
-        # a free-standing double shelf down the middle
-        shelf_wall(b, PAL, cx - 0.4, z0 + 4.0, z1 - 4.0, y, 1, rows=3, seed=int(cz) + 1)
-        shelf_wall(b, PAL, cx + 0.4, z0 + 4.0, z1 - 4.0, y, -1, rows=3, seed=int(cz) + 2)
-        table_and_chairs(b, PAL, back + inward * 4.2, z0 + 1.6, y, PAL["oak"], r=0.55)
-        panel(b, PAL["cream"], (back + inward * 0.01, y + 2.9, cz), (inward, 0, 0), 2.6, 0.5, o=0.0)
-        text(b, PAL["black"], "TROLLSTOY", (back + inward * 0.02, y + 2.9, cz), (inward, 0, 0), 0.26, o=0.01)
+                floor(m, px, px + 0.05, pz, pz + rng.uniform(0.4, 1.2))
+        # four Troll Kombat cabinets on the back wall (x -21.9..-21.1), facing in
+        for k, zc in enumerate((-33, -31, -29, -27)):
+            tk_cabinet_x(b, PAL, X(-21.5), Z(zc), y, s, marquee_text=(k % 2 == 0))
+        on_back(PAL["black"], -30, y + 2.9, 3.4, 0.6, "TROLL KOMBAT", PAL["neon_m"], 0.34)
     elif name == "grinbiss":
-        shop_floor(b, PAL["cream"], x0 + 0.05, x1 - 0.05, z0 + 0.2, z1 - 0.2)
-        counter(b, PAL, back + inward * 0.9, back + inward * 1.9, z0 + 1.0, z0 + 4.5, y, PAL["salmon"], PAL["white"])
-        bx(b, PAL["steel"], back + inward * 0.2, back + inward * 0.8, y + 1.0, y + 1.7, z0 + 1.4, z0 + 2.2)   # coffee machine
-        bx(b, PAL["red"], back + inward * 0.2, back + inward * 0.8, y, y + 1.0, z0 + 1.2, z0 + 2.4)
-        bx(b, PAL["steel"], back + inward * 0.1, back + inward * 0.9, y, y + 1.0, z0 + 2.6, z0 + 4.4)     # fridge
-        panel(b, PAL["black"], (back + inward * 0.01, y + 2.6, z0 + 2.8), (inward, 0, 0), 2.6, 1.0, o=0.0)
-        text(b, PAL["board_o"], "GRINBISS", (back + inward * 0.02, y + 2.95, z0 + 2.8), (inward, 0, 0), 0.24, o=0.01)
-        text(b, PAL["white"], "KEBAP 4  FRIES 2", (back + inward * 0.02, y + 2.5, z0 + 2.8), (inward, 0, 0), 0.12, o=0.01)
-        for tz in (z0 + 7.5, z0 + 10.5):
-            table_and_chairs(b, PAL, cx + inward * 0.6, tz, y, PAL["white"])
-        # a stripe round the walls at 1 m
-        band_z(b, PAL["salmon"], back, inward, y + 0.9, y + 1.1, z0, z1, o=0.0)
-    elif name == "apotrolle":
-        shop_floor(b, PAL["white"], x0 + 0.05, x1 - 0.05, z0 + 0.2, z1 - 0.2)
-        counter(b, PAL, back + inward * 1.2, back + inward * 2.0, z0 + 1.0, z0 + 5.0, y, PAL["white"], PAL["green"])
-        shelf_wall(b, PAL, back, z0 + 5.5, z1 - 0.6, y, inward, rows=3, seed=int(cz) + 7)
-        panel(b, PAL["white"], (back + inward * 0.01, y + 2.7, z0 + 3.0), (inward, 0, 0), 2.4, 0.8, o=0.0)
-        text(b, PAL["green"], "APOTROLLE", (back + inward * 0.02, y + 2.7, z0 + 3.0), (inward, 0, 0), 0.22, o=0.01)
-        # the green cross out from the hall-side wall over the door
-        bx(b, PAL["cross"], cx - 0.08, cx + 0.08, y + 2.9, y + 3.5, (z1 if side < 0 else z0) - 0.3, (z1 if side < 0 else z0) + 0.3)
-        bx(b, PAL["cross"], cx - 0.08, cx + 0.08, y + 3.1, y + 3.3, (z1 if side < 0 else z0) - 0.8, (z1 if side < 0 else z0) + 0.8)
-        bx(b, PAL["cross"], cx - 0.4, cx + 0.4, y + 3.1, y + 3.3, (z1 if side < 0 else z0) - 0.1, (z1 if side < 0 else z0) + 0.1)
-    elif name in ("purple", "red"):
-        m = PAL["purple"] if name == "purple" else PAL["red"]
-        shop_floor(b, m, x0 + 0.05, x1 - 0.05, z0 + 0.2, z1 - 0.2)
-        # trim: a 0.6 m band round all four walls
-        band_z(b, m, back, inward, y + 0.6, y + 1.3, z0, z1, o=0.0)
-        band_z(b, m, x1 if side < 0 else x0, -inward, y + 0.6, y + 1.3, z0, z1, o=0.0)
-        band_x(b, m, z0 + 0.15, 1, y + 0.6, y + 1.3, x0, x1, o=0.0)
-        band_x(b, m, z1 - 0.15, -1, y + 0.6, y + 1.3, x0, x1, o=0.0)
-        # a stripe at the ceiling too, and some crates by the far wall
-        band_z(b, m, back, inward, y + 3.0, y + 3.3, z0, z1, o=0.0)
-        zb = z0 + 0.3 if name == "purple" else z1 - 2.3
-        for (dx, dz, sz) in ((4.6, 0.8, 0.8), (5.4, 0.9, 0.6), (5.0, 1.7, 0.7)):
-            bx(b, PAL["oak"], back + inward * dx - sz / 2, back + inward * dx + sz / 2, y, y + sz, zb + dz - sz / 2, zb + dz + sz / 2)
+        floor(PAL["cream"], BACK, INNER, z0, z1)
+        counter(b, PAL, X(-21.5), X(-20.7), Z(-22), Z(-16), y, PAL["salmon"], PAL["white"])
+        # the coffee machine and a till on the counter
+        box(PAL["steel"], -21.4, -20.8, y + 1.1, y + 1.6, -21.6, -20.8)
+        box(PAL["dark"], -21.3, -20.9, y + 1.1, y + 1.35, -17.2, -16.6)
+        on_back(PAL["black"], -19, y + 2.4, 2.4, 1.0)
+        text(b, PAL["board_o"], "GRINBISS", (X(BACK + 0.02), y + 2.7, Z(-19)), (s, 0, 0), 0.24, o=0.01)
+        text(b, PAL["white"], "KEBAP 4  FRIES 2", (X(BACK + 0.02), y + 2.25, Z(-19)), (s, 0, 0), 0.12, o=0.01)
+        for tz in (-24, -14):
+            table(-17.0, tz, 1.0, 1.0, 0.8, PAL["white"])
+        band_z(b, PAL["salmon"], X(BACK), s, y + 0.9, y + 1.1, Z(z0), Z(z1), o=0.0)
+    elif name == "purple":
+        m = PAL["purple"] if s > 0 else PAL["red"]
+        floor(m, BACK, INNER, z0, z1)
+        # trim: bands round all four walls, cut at the doorways
+        band_z(b, m, X(BACK), s, y + 0.6, y + 1.3, Z(z0), Z(z1), o=0.0)
+        band_z(b, m, X(INNER), -s, y + 0.6, y + 1.3, Z(z0), Z(z1), o=0.0, doors=[(Z(-8), 1.8, y + DOOR_H)])
+        for (zw, nz) in ((z0 + 0.15, 1), (z1 - 0.15, -1)):
+            band_x(b, m, Z(zw), s * nz, y + 0.6, y + 1.3, X(BACK), X(INNER), o=0.0, doors=[(X(-19), 1.8, y + DOOR_H)])
+        band_z(b, m, X(BACK), s, y + 3.0, y + 3.3, Z(z0), Z(z1), o=0.0)
     elif name == "lounge":
-        shop_floor(b, PAL["oak"], x0 + 0.05, x1 - 0.05, z0 + 0.2, z1 - 0.2)
-        cow_rug(b, PAL, cx, cz, y, 3.2, 4.0, seed=int(cz))
-        sofa(b, PAL, cx, cz - 2.6, y, True)
-        sofa(b, PAL, cx, cz + 2.6, y, True, m=PAL["red"])
-        bx(b, PAL["black"], cx - 0.4, cx + 0.4, y + 0.4, y + 0.45, cz - 0.6, cz + 0.6)   # coffee table
-        # fireplace on the back wall: brick surround, dark opening, fire
-        fz = cz
-        bx(b, PAL["brick"], back, back + inward * 0.5, y, y + 1.6, fz - 1.1, fz + 1.1)
-        bx(b, PAL["black"], back + inward * 0.5, back + inward * 0.52, y + 0.2, y + 1.0, fz - 0.6, fz + 0.6)
-        panel(b, PAL["fire"], (back + inward * 0.53, y + 0.5, fz), (inward, 0, 0), 0.8, 0.5, o=0.0)
-        bx(b, PAL["oak"], back, back + inward * 0.6, y + 1.6, y + 1.7, fz - 1.2, fz + 1.2)
-        # the general's photo over the fireplace, in a frame that hugs it
-        general_portrait(b, PAL, (back + inward * 0.08, y + 2.65, fz), (inward, 0, 0), 1.5, o=0.004)
-        # standing lamp
-        b.cyl(PAL["black"], 0.03, (cx - 1.6, y, cz + 2.6), (cx - 1.6, y + 1.5, cz + 2.6), seg=5)
-        b.frustum(PAL["cream"], 0.5, 0.5, 0.3, 0.3, y + 1.5, y + 1.85, x=cx - 1.6, z=cz + 2.6)
-    # EXIT over the hall door (on the row's hall-side wall) is in ug-concourse; shop sign over the partition doors here
-    sign = {"purple": "PURPLE ROOM", "red": "RED ROOM"}.get(name)
-    for (zz, nz) in ((z0 + 0.15, 1), (z1 - 0.15, -1)):
-        if abs(zz) > 39 or sign is None:
-            continue
-        dx = -19 if side < 0 else 19
-        panel(b, PAL["roundelblue"], (dx, y + 2.75, zz), (0, 0, nz), 1.7, 0.3, o=0.0)
-        text(b, PAL["white"], sign, (dx, y + 2.75, zz), (0, 0, nz), 0.16, o=0.012)
+        floor(PAL["oak"], BACK, INNER, z0, z1)
+        cow_rug(b, PAL, X(-19.25), Z(6), y, 3.5, 3.0, seed=int(cz * s))
+        # two red sofas against the back wall (x -21.9..-21, z 2..4.2 and 8..10.2), facing in
+        for (za, zb) in ((2.0, 4.2), (8.0, 10.2)):
+            box(PAL["red"], -21.9, -21.0, y + 0.15, y + 0.5, za, zb)              # seat
+            box(PAL["red"], -21.9, -21.65, y + 0.5, y + 0.9, za, zb)             # back
+            for ze in (za, zb - 0.2):
+                box(PAL["red"], -21.9, -21.0, y + 0.15, y + 0.7, ze, ze + 0.2)   # arms
+            box(PAL["dark"], -21.85, -21.05, y, y + 0.15, za + 0.1, zb - 0.1)
+        # the fireplace on the hall-side wall (x -17.3..-16.3, z 5.3..6.7, 1.4 tall)
+        fz = 6.0
+        box(PAL["brick"], -17.3, INNER, y, y + 1.32, fz - 0.7, fz + 0.7)
+        box(PAL["oak"], -17.35, INNER, y + 1.32, y + 1.4, fz - 0.7, fz + 0.7)
+        box(PAL["black"], -17.32, -17.3, y + 0.2, y + 0.95, fz - 0.4, fz + 0.4)
+        panel(b, PAL["fire"], (X(-17.33), y + 0.45, Z(fz)), (-s, 0, 0), 0.6, 0.4, o=0.0)
+        # the general's photo over it, in a frame that hugs it
+        general_portrait(b, PAL, (X(INNER - 0.08), y + 2.65, Z(fz)), (-s, 0, 0), 1.5, o=0.004)
+    elif name == "apotrolle":
+        floor(PAL["white"], BACK, INNER, z0, z1)
+        counter(b, PAL, X(-21.5), X(-20.7), Z(15), Z(21), y, PAL["white"], PAL["green"])
+        # bottle shelves on the hall-side wall, either side of its doorway (z 19)
+        for (za, zb, sd) in ((12.5, 17.5, 1), (22.5, 25.5, 2)):
+            shelf_wall(b, PAL, X(INNER), Z(za), Z(zb), y, -s, rows=4, seed=int(cz) + sd, d=0.7)
+        on_back(PAL["white"], 18, y + 2.7, 2.4, 0.8, "APOTROLLE", PAL["green"], 0.22)
+        # the green cross over the partition doorway (x -19) at the row's z1
+        zc = z1
+        box(PAL["cross"], -19.08, -18.92, y + 2.9, y + 3.5, zc - 0.3, zc + 0.3)
+        box(PAL["cross"], -19.08, -18.92, y + 3.1, y + 3.3, zc - 0.8, zc + 0.8)
+        box(PAL["cross"], -19.4, -18.6, y + 3.1, y + 3.3, zc - 0.1, zc + 0.1)
+    elif name == "books":
+        floor(PAL["oak"], BACK, INNER, z0, z1)
+        shelf_wall(b, PAL, X(BACK), Z(28), Z(38), y, s, rows=4, seed=int(cz), d=0.6)
+        shelf_wall(b, PAL, X(INNER), Z(34.5), Z(39), y, -s, rows=4, seed=int(cz) + 1, d=0.7)
+        table(-20.7, 30.0, 1.0, 2.0, 0.8, PAL["oak"])
+        on_back(PAL["cream"], 39.0, y + 2.9, 1.6, 0.5, "BOOKS", PAL["black"], 0.22)
+        text(b, PAL["black"], "TROLLSTOY", (X(BACK + 0.02), y + 2.6, Z(33)), (s, 0, 0), 0.2, o=0.01)
+    # shop signs over the partition doorways
+    sign = {"purple": "PURPLE ROOM" if s > 0 else "RED ROOM"}.get(name)
+    if sign:
+        for (zz, nz) in ((z0 + 0.15, 1), (z1 - 0.15, -1)):
+            if abs(zz) > 39:
+                continue
+            panel(b, PAL["roundelblue"], (X(-19), y + 2.75, Z(zz)), (0, 0, s * nz), 1.7, 0.3, o=0.0)
+            text(b, PAL["white"], sign, (X(-19), y + 2.75, Z(zz)), (0, 0, s * nz), 0.16, o=0.012)
 
 
 def build_shops(PAL):
     b = Builder()
-    for (z0, z1, name) in SHOPS_W:
-        dress_shop(b, PAL, name, -22, -16, z0, z1, -1)
-    for (z0, z1, name) in SHOPS_E:
-        dress_shop(b, PAL, name, 16, 22, z0, z1, 1)
+    for s in (1, -1):
+        for (z0, z1, name) in SHOPS_W:
+            dress_shop(b, PAL, name, z0, z1, s)
     b.finish("ug-shops.glb", bake=False)
 
 
@@ -1503,49 +1576,60 @@ def cabinet(b, PAL, x0, x1, z0, z1, y, h, m=None, face=1):
         panel(b, PAL["red"], ((x0 + x1) / 2 + 0.15, y + h * 0.85, fz), (0, 0, face), 0.06, 0.06, o=0.006)
 
 
-def plant_room(b, PAL):
+def plant_half(b, PAL, s):
+    """The plant room's north half (s = 1) or its 180-degree twin: the
+    generator, switch cabinets, cable drums and pump skid on their
+    colliders, a dado and conduit on the walls."""
+    X = lambda x: s * x
+    Z = lambda z: s * z
     y = T
-    # generator (dark green skid) at the west wall, a pump skid at the east, switch cabinets north & south, cable drums
-    bx(b, PAL["olive"], -9.0, -6.8, y + 0.15, y + 1.15, -2.0, 1.0)
-    bx(b, PAL["dark"], -9.1, -6.7, y, y + 0.15, -2.1, 1.1)
-    bx(b, PAL["nosing"], -9.0, -6.8, y + 0.9, y + 0.95, -2.0, 1.0)
-    b.cyl(PAL["dark"], 0.12, (-7.9, y + 1.15, -1.5), (-7.9, y + 1.9, -1.5), seg=8)
-    b.cyl(PAL["dark"], 0.3, (-7.9, y + 1.9, -1.5), (-7.9, y + 2.2, -1.5), seg=8)
-    # pump skid
-    bx(b, PAL["dark"], 6.8, 9.0, y, y + 0.2, -1.5, 1.5)
-    for pz in (-0.7, 0.7):
-        b.cyl(PAL["stripe"], 0.35, (7.2, y + 0.55, pz), (8.6, y + 0.55, pz), seg=10)
-        b.cyl(PAL["steel"], 0.08, (8.6, y + 0.55, pz), (9.6, y + 0.55, pz), seg=6)
-    b.cyl(PAL["steel"], 0.08, (9.6, y + 0.55, -0.7), (9.6, y + 4.0, -0.7), seg=6)
-    # switch cabinets along the north and south walls (short of the doors)
-    for (xa, xb) in ((-9.0, -6.0), (-5.5, -2.5), (2.5, 5.5), (6.0, 9.0)):
-        cabinet(b, PAL, xa, xb, -7.7, -7.2, y, 1.2, face=1)
-        cabinet(b, PAL, xa, xb, 7.2, 7.7, y, 1.2, face=-1)
-    # cable drums
-    for (dx, dz, r) in ((-6.2, 5.0, 0.55), (-4.8, 5.4, 0.45), (5.0, -5.0, 0.5)):
-        b.cyl(PAL["oak"], r, (dx, y + r, dz - 0.35), (dx, y + r, dz + 0.35), seg=12)
-        b.cyl(PAL["oak"], r * 0.35, (dx, y + r, dz - 0.42), (dx, y + r, dz + 0.42), seg=8)
-    # pipes along the walls under the ceiling, a bus duct
-    for px in (-9.3, 9.3):
-        b.cyl(PAL["steel"], 0.12, (px, 4.6, -7.5), (px, 4.6, 7.5), seg=8)
-        b.cyl(PAL["stripe"], 0.08, (px, 4.3, -7.5), (px, 4.3, 7.5), seg=6)
-    bx(b, PAL["grey"], -9.5, 9.5, 4.9, 5.2, -7.6, -7.3)
+    # generator x -9.3..-6.9, z -6.5..-5.1, 1.2 tall: olive engine on a dark skid, a yellow stripe, an exhaust
+    bx(b, PAL["dark"], X(-9.3), X(-6.9), y, y + 0.15, Z(-6.5), Z(-5.1))
+    bx(b, PAL["olive"], X(-9.2), X(-7.0), y + 0.15, y + 1.05, Z(-6.4), Z(-5.2))
+    bx(b, PAL["nosing"], X(-9.2), X(-7.0), y + 0.85, y + 0.9, Z(-6.4), Z(-5.2))
+    b.cyl(PAL["dark"], 0.1, (X(-8.0), y + 1.05, Z(-5.8)), (X(-8.0), y + 1.2, Z(-5.8)), seg=8)
+    # switch cabinets x -7..-5 and 4..6 on the north wall (z -7.7..-7.1)
+    for (xa, xb) in ((-7.0, -5.0), (4.0, 6.0)):
+        cabinet(b, PAL, X(xa), X(xb), Z(-7.7), Z(-7.1), y, 1.2, face=s)
+    # cable drums standing on end
+    for (dx, dz, r, h) in ((7.0, -6.3, 0.6, 1.0), (8.3, -4.8, 0.5, 0.9)):
+        b.cyl(PAL["oak"], r, (X(dx), y, Z(dz)), (X(dx), y + 0.08, Z(dz)), seg=14)
+        b.cyl(PAL["oak"], r * 0.55, (X(dx), y + 0.08, Z(dz)), (X(dx), y + h - 0.08, Z(dz)), seg=12)
+        b.cyl(PAL["dark"], r * 0.9, (X(dx), y + 0.12, Z(dz)), (X(dx), y + h - 0.12, Z(dz)), seg=14)
+        b.cyl(PAL["oak"], r, (X(dx), y + h - 0.08, Z(dz)), (X(dx), y + h, Z(dz)), seg=14)
+    # pump skid x 5.5..7.5, z -2.5..-0.9, 0.9 tall: two blue pumps on a dark frame
+    bx(b, PAL["dark"], X(5.5), X(7.5), y, y + 0.2, Z(-2.5), Z(-0.9))
+    for pz in (-2.1, -1.3):
+        b.cyl(PAL["stripe"], 0.3, (X(5.7), y + 0.55, Z(pz)), (X(7.3), y + 0.55, Z(pz)), seg=10)
+    # a grey dado on the bore walls (x +-9.75) and the north face (z -8), a conduit above it
+    band_z(b, PAL["grey"], X(-9.75), s, y, y + 1.3, Z(-8), Z(0), o=0.0, doors=[(Z(-4), 1.8, DOOR_H)])
+    band_z(b, PAL["grey"], X(9.75), -s, y, y + 1.3, Z(-8), Z(0), o=0.0)
+    for (xa, xb) in ((-9.75, -2.0), (2.0, 9.75)):
+        band_x(b, PAL["grey"], Z(-8), s, y, y + 1.3, X(xa), X(xb), o=0.0)
+        b.bar(PAL["dark"], (X(xa), 2.6, Z(-7.95)), (X(xb), 2.6, Z(-7.95)), 0.08)
+    b.bar(PAL["dark"], (X(-9.7), 2.6, Z(-8)), (X(-9.7), 2.6, Z(0)), 0.08)
+    b.bar(PAL["dark"], (X(9.7), 2.6, Z(-8)), (X(9.7), 2.6, Z(0)), 0.08)
+    # pipes along the bore walls under the ceiling, a bus duct along the north face
+    for px in (-9.55, 9.55):
+        b.cyl(PAL["steel"], 0.12, (X(px), 4.6, Z(-7.8)), (X(px), 4.6, Z(0)), seg=8)
+        b.cyl(PAL["stripe"], 0.08, (X(px), 4.3, Z(-7.8)), (X(px), 4.3, Z(0)), seg=6)
+    bx(b, PAL["grey"], X(-9.7), X(9.7), 4.9, 5.2, Z(-7.6), Z(-7.3))
+    # PLANT ROOM by the door
+    nrm = (0, 0, s)
+    panel(b, PAL["nosing"], (X(-3.0), 2.0, Z(-7.99)), nrm, 0.9, 0.5, o=0.0)
+    text(b, PAL["black"], "PLANT", (X(-3.0), 2.12, Z(-7.99)), nrm, 0.14, o=0.012)
+    text(b, PAL["black"], "ROOM", (X(-3.0), 1.9, Z(-7.99)), nrm, 0.14, o=0.012)
+
+
+def plant_room(b, PAL):
+    for s in (1, -1):
+        plant_half(b, PAL, s)
     # tube lights round the well (the well itself is the atrium's daylight)
     for (x, z) in ((-6, -6), (6, -6), (-6, 6), (6, 6)):
         tube_light(b, PAL, x, z, SLAB0 - 0.02, along="x", L=1.4)
-    # a grey dado round the walls, a conduit run above it, a sign by the north door
-    for (xw, sg) in ((-9.4, 1), (9.4, -1)):
-        band_z(b, PAL["grey"], xw, sg, y, y + 1.3, -7.85, 7.85, o=0.0)
-        b.bar(PAL["dark"], (xw + sg * 0.05, 2.4, -7.8), (xw + sg * 0.05, 2.4, 7.8), 0.08)
-    for (zw, sg) in ((-7.85, 1), (7.85, -1)):
-        band_x(b, PAL["grey"], zw, sg, y, y + 1.3, -9.4, 9.4, o=0.0, doors=[(0.0, 1.8, 2.2)])
-        b.bar(PAL["dark"], (-9.3, 2.4, zw + sg * 0.05), (9.3, 2.4, zw + sg * 0.05), 0.08)
-    panel(b, PAL["nosing"], (-3.0, 2.0, -7.84), (0, 0, 1), 0.9, 0.5, o=0.0)
-    text(b, PAL["black"], "PLANT", (-3.0, 2.12, -7.84), (0, 0, 1), 0.14, o=0.012)
-    text(b, PAL["black"], "ROOM", (-3.0, 1.9, -7.84), (0, 0, 1), 0.14, o=0.012)
     # a hazard line on the floor round the room's middle
     for (a, c, d, e) in ((-4.3, 4.3, -4.3, -4.15), (-4.3, 4.3, 4.15, 4.3), (-4.3, -4.15, -4.15, 4.15), (4.15, 4.3, -4.15, 4.15)):
-        hrect(b, PAL["yellow"], a, c, d, e, y + 0.006)
+        hrect(b, PAL["yellow"], a, c, d, e, T + 0.026)
 
 
 def corridor_props(b, PAL, s):
@@ -1553,14 +1637,16 @@ def corridor_props(b, PAL, s):
     X = lambda x: s * x
     Z = lambda z: s * z
     y = T
-    # lockers along the outer wall, a fuse cabinet, a mop bucket
-    for k in range(4):
-        z = -3.0 + k * 0.5
-        bx(b, PAL["grey"], X(-22), X(-21.55), y, y + 1.9, Z(z) - 0.24, Z(z) + 0.24)
-        panel(b, PAL["dark"], (X(-21.55), y + 1.0, Z(z)), (s, 0, 0), 0.02, 1.6, o=0.005)
-    cabinet(b, PAL, X(-17.4), X(-16.2), Z(-0.6), Z(-0.3), y + 0.6, 1.4, m=PAL["grey"])
-    b.cyl(PAL["nosing"], 0.2, (X(-16.6), y, Z(-11.2)), (X(-16.6), y + 0.4, Z(-11.2)), seg=10)
-    b.cyl(PAL["steel"], 0.015, (X(-16.6), y + 0.4, Z(-11.2)), (X(-16.3), y + 1.5, Z(-11.4)), seg=4)
+    # lockers on the outer wall (x -21.95..-21.45, z -11.8..-10.2), a fuse cabinet
+    # by the end wall (x -17..-16, z -0.5..0), a mop bucket (r 0.25 at -16.5, -11.5)
+    for k in range(3):
+        za = -11.8 + k * 1.6 / 3
+        bx(b, PAL["grey"], X(-21.95), X(-21.45), y, y + 2.0, Z(za), Z(za + 1.6 / 3 - 0.02))
+        panel(b, PAL["dark"], (X(-21.45), y + 1.0, Z(za + 0.8 / 3)), (s, 0, 0), 0.02, 1.7, o=0.005)
+    bx(b, PAL["grey"], X(-17.0), X(-16.0), y, y + 1.8, Z(-0.5), Z(0))
+    panel(b, PAL["nosing"], (X(-16.5), y + 1.4, Z(-0.5)), (0, 0, -s), 0.3, 0.3, o=0.005)
+    b.cyl(PAL["nosing"], 0.25, (X(-16.5), y, Z(-11.5)), (X(-16.5), y + 0.4, Z(-11.5)), seg=10)
+    b.cyl(PAL["steel"], 0.015, (X(-16.5), y + 0.4, Z(-11.5)), (X(-16.4), y + 1.4, Z(-11.6)), seg=4)
     # a sign: PLATFORM via the bore door, an arrow
     panel(b, PAL["roundelblue"], (X(-15.75), 2.6, Z(-6)), (-s, 0, 0), 1.6, 0.3, o=0.01)
     text(b, PAL["white"], "TRACK", (X(-15.75), 2.6, Z(-6)), (-s, 0, 0), 0.16, o=0.02)
@@ -1571,25 +1657,26 @@ def bore_props(b, PAL, s):
     (s = -1: the E bore's at +2 / +10)."""
     X = lambda x: s * x
     Z = lambda z: s * z
-    cx = BORE_CX["W"]
-    # trolley: a flat yellow deck on four small wheels, a toolbox and a drum on top
-    bx(b, PAL["nosing"], X(cx) - 1.0, X(cx) + 1.0, T + 0.5, T + 0.62, Z(-2) - 1.1, Z(-2) + 1.1)
-    for (wx, wz) in ((-0.72, -0.8), (0.72, -0.8), (-0.72, 0.8), (0.72, 0.8)):
-        b.cyl(PAL["black"], 0.2, (X(cx + wx) - 0.04, T + 0.4, Z(-2 + wz)), (X(cx + wx) + 0.04, T + 0.4, Z(-2 + wz)), seg=8)
-    bx(b, PAL["red"], X(cx) - 0.4, X(cx) + 0.4, T + 0.62, T + 1.0, Z(-2) - 0.3, Z(-2) + 0.3)
-    b.cyl(PAL["stripe"], 0.3, (X(cx) + 0.4, T + 0.62, Z(-2) + 0.9), (X(cx) + 0.4, T + 1.4, Z(-2) + 0.9), seg=10)
-    bx(b, PAL["dark"], X(cx) - 1.0, X(cx) - 0.9, T + 0.62, T + 1.5, Z(-2) - 1.1, Z(-2) + 1.1)
-    # signal cabinet beside the track (against the outer wall), with a signal head
-    cabinet(b, PAL, X(cx - 2.2), X(cx - 1.6), Z(-10.6), Z(-9.4), T + 0.22, 1.1, m=PAL["grey"])
-    b.cyl(PAL["black"], 0.04, (X(cx - 1.9), T + 1.3, Z(-10)), (X(cx - 1.9), T + 3.0, Z(-10)), seg=5)
-    bx(b, PAL["black"], X(cx - 1.9) - 0.15, X(cx - 1.9) + 0.15, T + 2.5, T + 3.2, Z(-10) - 0.12, Z(-10) + 0.12)
-    disc(b, PAL["red"], (X(cx - 1.9), T + 2.75, Z(-10) + 0.13 * (-s)), (0, 0, -s), 0.1, seg=10)
-    disc(b, PAL["green"], (X(cx - 1.9), T + 3.05, Z(-10) + 0.13 * (-s)), (0, 0, -s), 0.1, seg=10)
+    # works trolley against the outer wall: x -14.25..-12.65, z -2.2..0.2, 1.0 tall
+    xa, xb, za, zb = -14.25, -12.65, -2.2, 0.2
+    xm, zm = (xa + xb) / 2, (za + zb) / 2
+    bx(b, PAL["nosing"], X(xa), X(xb), T + 0.45, T + 0.57, Z(za), Z(zb))
+    for (wx, wz) in ((-0.55, -0.9), (0.55, -0.9), (-0.55, 0.9), (0.55, 0.9)):
+        b.cyl(PAL["black"], 0.2, (X(xm + wx) - 0.04, T + 0.22, Z(zm + wz)), (X(xm + wx) + 0.04, T + 0.22, Z(zm + wz)), seg=8)
+    bx(b, PAL["dark"], X(xa + 0.1), X(xb - 0.1), T + 0.05, T + 0.45, Z(za + 0.3), Z(zb - 0.3))
+    bx(b, PAL["red"], X(xm - 0.35), X(xm + 0.35), T + 0.57, T + 1.0, Z(zm - 0.6), Z(zm - 0.05))
+    b.cyl(PAL["stripe"], 0.3, (X(xm), T + 0.57, Z(zm + 0.6)), (X(xm), T + 1.0, Z(zm + 0.6)), seg=10)
+    # signal cabinet against the outer wall at z +10 (x -13.95..-13.35, 2.0 tall), its head on top
+    cabinet(b, PAL, X(-13.95), X(-13.35), Z(9.4), Z(10.6), T, 2.0, m=PAL["grey"])
+    # the signal lamps on its face toward the track
+    panel(b, PAL["black"], (X(-13.35), T + 1.6, Z(10)), (s, 0, 0), 0.3, 0.7, o=0.005)
+    disc(b, PAL["red"], (X(-13.35), T + 1.45, Z(10)), (s, 0, 0), 0.09, seg=10, o=0.01)
+    disc(b, PAL["green"], (X(-13.35), T + 1.75, Z(10)), (s, 0, 0), 0.09, seg=10, o=0.01)
 
 
 def build_plant(PAL):
     b = Builder()
-    plant_room(b, PAL)
+    plant_room(b, PAL)  # (both halves)
     for s in (1, -1):
         corridor_props(b, PAL, s)
         bore_props(b, PAL, s)
