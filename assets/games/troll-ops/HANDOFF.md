@@ -453,6 +453,7 @@ Map rules:
 
 ## 5. Shipped log (newest first; one line each, details in git)
 
+- **2026-10-14** (-nh1) Radio: Natural Habitat (070 Shake feat. Ken Carson; from the user's screen recording, ends 207 s with a fade), beat grid 148 BPM. Tests: dj, menu, trollingloud.
 - **2026-10-14** (-jb1) Radio: OUT WEST and GATTI (JACKBOYS), DArkSide (Bring Me The Horizon; from the user's screen recording, ends 164 s with a fade), 192k, beat grids 140 / 71.6 / 112 BPM. Tests: dj, menu, trollingloud.
 
 - **2026-10-14** (-bf1; the user's 4 phone bugs)
