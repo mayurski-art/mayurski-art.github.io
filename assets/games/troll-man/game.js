@@ -1536,16 +1536,19 @@
   document.addEventListener("visibilitychange", () => { if (document.hidden && state === "play") paused = true; });
 
   // ---- Touch controls: joystick + SELECT / START ---------------------------------
-  // A stick held off-axis (between ~24 and ~66 degrees) means "turn": take the axis
-  // he isn't moving along, so a sloppy up-right while running right still turns up
-  // at the next gap. Closer to an axis, that axis wins.
-  function steerVector(dx, dy) {
+  // A 4-way gated stick, like the arcade cabinet: no diagonals. The thumb's
+  // stronger axis wins, and the axis the stick is already on holds until the
+  // other one beats it by a margin, so a thumb near 45 degrees doesn't flicker.
+  let stickAxis = null;                                                // "x" | "y" | null
+  function stickDir(dx, dy) {
     const ax = Math.abs(dx), ay = Math.abs(dy);
-    const h = dx > 0 ? "right" : "left", v = dy > 0 ? "down" : "up";
-    const diagonal = Math.min(ax, ay) > 0.45 * Math.max(ax, ay);
-    if (diagonal && (player.dir.x || player.dir.y)) steer(player.dir.x ? v : h);
-    else steer(ax >= ay ? h : v);
+    const keep = 1.25;
+    if (stickAxis === "x" && ax * keep >= ay) stickAxis = "x";
+    else if (stickAxis === "y" && ay * keep >= ax) stickAxis = "y";
+    else stickAxis = ax >= ay ? "x" : "y";
+    return stickAxis === "x" ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
   }
+  function steerVector(dx, dy) { steer(stickDir(dx, dy)); }
 
   const stick = document.getElementById("tm-stick");
   const knob = stick && stick.querySelector(".tm-stick-knob");
@@ -1555,11 +1558,14 @@
       const r = stick.getBoundingClientRect();
       const dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
       const len = Math.hypot(dx, dy), reach = r.width * 0.3;          // how far the ball can travel
-      const k = len > reach ? reach / len : 1;
-      knob.style.transform = `translate(${(dx * k).toFixed(1)}px, ${(dy * k).toFixed(1)}px)`;
-      if (len < r.width * 0.12) return;                                // dead zone in the middle
-      if (state === "title") { if (Math.abs(dy) > Math.abs(dx)) menuMove(dy > 0 ? 1 : 0); }   // choose 1 or 2 players
-      else steerVector(dx, dy);
+      if (len < r.width * 0.12) { knob.style.transform = ""; stickAxis = null; return; }   // dead zone in the middle
+      const dir = stickDir(dx, dy);
+      const along = Math.min(stickAxis === "x" ? Math.abs(dx) : Math.abs(dy), reach);
+      const tx = dir === "left" ? -along : dir === "right" ? along : 0;
+      const ty = dir === "up" ? -along : dir === "down" ? along : 0;
+      knob.style.transform = `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px)`;   // the ball rides the gate
+      if (state === "title") { if (stickAxis === "y") menuMove(dir === "down" ? 1 : 0); }   // choose 1 or 2 players
+      else steer(dir);
     };
     stick.addEventListener("pointerdown", e => {
       e.preventDefault();
@@ -1573,6 +1579,7 @@
     const release = e => {
       if (e.pointerId !== pointer) return;
       pointer = null;
+      stickAxis = null;
       knob.style.transform = "";                                       // springs back; the last direction holds
     };
     stick.addEventListener("pointerup", release);

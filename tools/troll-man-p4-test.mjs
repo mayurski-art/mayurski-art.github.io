@@ -3,7 +3,7 @@
 //                     everything on screen, no scrolling
 //  landscape 844x390  screen in the middle full height, stick left, buttons right
 //  desktop 1280x900   no touch controls, help line instead
-//  stick              picks 1/2 players on the title, each direction, diagonal = turn, dead zone
+//  stick              picks 1/2 players on the title, each direction, 4-way gate (no diagonals), dead zone
 //  buttons            START starts / pauses / resumes, SELECT taunts
 //  swipe              still steers
 //   node tools/troll-man-p4-test.mjs [--shots]
@@ -91,19 +91,23 @@ try {
     await page.evaluate(() => { window.__tm.player.next = null; });
     await push(page, 0.12, 0.05);
     check(await next(page) === "none", "a nudge inside the dead zone does nothing");
-    // diagonal while running right = turn (up), close to the axis = keep the axis
+    // 4-way gate: no diagonals. The knob only ever sits on one axis and the stronger axis wins.
+    const onAxis = k => { const m = k.match(/translate\((-?[\d.]+)px, (-?[\d.]+)px\)/); return m && (+m[1] === 0) !== (+m[2] === 0); };
     await page.evaluate(() => Object.assign(window.__tm.player, { x: 3, y: 5, dir: { x: 1, y: 0 }, next: null, face: { x: 1, y: 0 } }));
-    await push(page, 0.6, -0.55);
-    check(await next(page) === "0,-1", "sloppy up-right while running right asks to turn up");
+    let k = await push(page, 0.6, -0.5);
+    check(await next(page) === "1,0" && onAxis(k), `up-right, more right, stays right; knob gated (${k})`);
     await page.evaluate(() => Object.assign(window.__tm.player, { x: 3, y: 5, dir: { x: 1, y: 0 }, next: null }));
-    await push(page, 0.8, -0.2);
-    check(await next(page) === "1,0", "mostly-right with a little up stays right");
-    // ... and the turn actually happens at the next gap (col 6 crosses row 5)
+    k = await push(page, 0.5, -0.6);
+    check(await next(page) === "0,-1" && onAxis(k), `up-right, more up, asks for up; knob gated (${k})`);
+    await page.evaluate(() => Object.assign(window.__tm.player, { x: 3, y: 5, dir: { x: 1, y: 0 }, next: null }));
+    k = await push(page, -0.55, 0.55);
+    check(onAxis(k), `a dead-on diagonal still snaps the knob to one axis (${k})`);
+    // ... and an up push actually turns him at the next gap (col 6 crosses row 5)
     await page.evaluate(() => Object.assign(window.__tm.player, { x: 3, y: 5, dir: { x: 1, y: 0 }, next: null, face: { x: 1, y: 0 } }));
-    await push(page, 0.6, -0.55);
+    await push(page, 0.2, -0.8);
     await page.waitForTimeout(700);
     const p = await page.evaluate(() => ({ x: window.__tm.player.x, y: window.__tm.player.y, d: window.__tm.player.dir }));
-    check(p.d.y === -1 && Math.round(p.x) === 6, `the diagonal turns him up at the gap (now ${p.x.toFixed(1)},${p.y.toFixed(1)} heading ${JSON.stringify(p.d)})`);
+    check(p.d.y === -1 && Math.round(p.x) === 6, `up turns him at the gap (now ${p.x.toFixed(1)},${p.y.toFixed(1)} heading ${JSON.stringify(p.d)})`);
 
     // buttons
     await page.tap("#tm-start");
