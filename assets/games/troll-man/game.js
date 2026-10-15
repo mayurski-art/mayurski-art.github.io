@@ -84,6 +84,8 @@
   })();
 
   // ---- Tuning ---------------------------------------------------------------
+  const CHOMP = 0.08;                // seconds per chomp frame while moving
+  const BLINK_LEN = 0.14;            // seconds the eyes stay shut
   const TURN_WINDOW = 0.35;          // tiles: how early a turn can be buffered and still snap (cornering)
   const BASE_SPEED = 8;              // trollface tiles per second at level 1
   const DOT_PAUSE = 1 / 60;          // the original stalls a frame per dot: empty corridors are faster
@@ -130,8 +132,8 @@
   const ready = img => img && img.complete && img.naturalWidth > 0;
 
   // Frightened looks are recolours of each face, made once the image has loaded:
-  // a three-tone blue (the original's blue ghost) and the white flash with red details.
-  // Shading is kept, so a white face (Pudgy) still reads as itself, just blue.
+  // a three-tone blue (the original's blue ghost) and a three-tone white for the flash.
+  // Shading is kept, so a white face (Pudgy) or a dark one (Giga Chad's beard) still reads.
   const recolourCache = {};
   function recoloured(key, flash) {
     const id = key + (flash ? ":w" : ":b");
@@ -144,7 +146,7 @@
     x.drawImage(img, 0, 0, 32, 32);
     const d = x.getImageData(0, 0, 32, 32), p = d.data;
     const tones = flash
-      ? { lite: [255, 255, 255], mid: [214, 214, 214], dark: [255, 60, 60] }
+      ? { lite: [255, 255, 255], mid: [222, 222, 230], dark: [160, 160, 186] }
       : { lite: [150, 150, 255], mid: [33, 33, 222], dark: [18, 18, 120] };
     for (let i = 0; i < p.length; i += 4) {
       if (!p[i + 3]) continue;
@@ -229,7 +231,7 @@
     }
   }
 
-  const player = { x: START.x, y: START.y, dir: DIRS.left, next: null, face: DIRS.left, moving: false, pause: 0, anim: 0, blinkAt: 2 };
+  const player = { x: START.x, y: START.y, dir: DIRS.left, next: null, face: DIRS.left, moving: false, pause: 0, anim: 0, blinkT: 2, blinking: 0 };
 
   // The cast. scatter = the corner each heads for in scatter mode (just outside the maze).
   const CHASERS = [
@@ -237,7 +239,7 @@
     { name: "pepe",     label: "PEPE",      color: "#4dff73", scatter: { c: 2, r: -3 },        home: { x: 13.5, y: PEN_MID_Y } },
     { name: "pudgy",    label: "PUDGY",     color: "#6fa8ff", scatter: { c: COLS - 1, r: ROWS + 1 }, home: { x: 11.5, y: PEN_MID_Y } },
     { name: "doge",     label: "DOGE",      color: "#ffb84d", scatter: { c: 0, r: ROWS + 1 },  home: { x: 15.5, y: PEN_MID_Y } },
-  ].map(g => Object.assign(g, { x: 0, y: 0, dir: DIRS.left, mode: "pen", fright: false, reverse: false, anim: Math.random() * 3, blinkAt: 1 + Math.random() * 3 }));
+  ].map(g => Object.assign(g, { x: 0, y: 0, dir: DIRS.left, mode: "pen", fright: false, reverse: false, blinkT: 1 + Math.random() * 3, blinking: 0, close: false }));
   const byName = Object.fromEntries(CHASERS.map(g => [g.name, g]));
 
   let state = "title";        // title | ready | play | dying | clear | over
@@ -265,7 +267,7 @@
   const chaseMode = () => (phaseIdx % 2 === 1 ? "chase" : "scatter");
 
   function placeActors() {
-    Object.assign(player, { x: START.x, y: START.y, dir: DIRS.left, next: null, face: DIRS.left, moving: false, pause: 0, anim: 0 });
+    Object.assign(player, { x: START.x, y: START.y, dir: DIRS.left, next: null, face: DIRS.left, moving: false, pause: 0, anim: 0, blinkT: 2, blinking: 0 });
     for (const g of CHASERS) {
       Object.assign(g, { x: g.home.x, y: g.home.y, fright: false, reverse: false });
       g.mode = g.outside ? "out" : "pen";
@@ -479,7 +481,6 @@
 
   function stepChaser(g, dt) {
     const dist = speedOf(g) * dt;
-    g.anim += dt;
     if (g.mode === "pen") {
       const top = PEN_MID_Y - 0.5, bottom = PEN_MID_Y + 0.5;
       g.y += (g.dir.y || 1) * dist;
@@ -558,7 +559,6 @@
       eat(p);
       if (state !== "play") return;
     }
-    p.anim += dt;
     if (!chasersOff) {
       checkCatch();
       if (state !== "play" || freezeT > 0) return;
@@ -575,6 +575,26 @@
     setState("ready");
   }
 
+  // ---- Animation clocks ---------------------------------------------------------
+  // Eyes shut for BLINK_LEN every 2-4.5s, each actor on its own random beat.
+  function tickBlink(a, dt) {
+    if (a.blinking > 0) { a.blinking -= dt; return; }
+    a.blinkT -= dt;
+    if (a.blinkT <= 0) { a.blinking = BLINK_LEN; a.blinkT = 2 + Math.random() * 2.5; }
+  }
+  function animate(dt) {
+    const p = player;
+    // the chomp clock runs only while he's moving; standing still, he blinks instead
+    if (state === "play" && p.moving && freezeT <= 0) { p.anim += dt; p.blinking = 0; }
+    else tickBlink(p, dt);
+    for (const g of CHASERS) {
+      tickBlink(g, dt);
+      // grins when closing in; the 5/7 tile gap stops it flickering at the edge
+      const d = wrapDist(g, player);
+      g.close = g.mode === "out" && !g.fright && chaseMode() === "chase" && (g.close ? d < 7 : d < 5);
+    }
+  }
+
   // ---- Loop -----------------------------------------------------------------
   let timeScale = 1;
   function update(dt) {
@@ -582,7 +602,8 @@
     for (const pp of popups) pp.t += dt;
     while (popups.length && popups[0].t > 1.2) popups.shift();
     if (paused) return;
-    if (state === "ready") { player.anim += dt; if (stateTime >= READY_TIME) setState("play"); }
+    if (state !== "title" && state !== "over") animate(dt);
+    if (state === "ready") { if (stateTime >= READY_TIME) setState("play"); }
     else if (state === "play") stepPlay(dt);
     else if (state === "dying" && stateTime >= DEATH_TIME) loseLife();
     else if (state === "clear" && stateTime >= CLEAR_TIME) { level++; newLevel(); }
@@ -626,29 +647,28 @@
     ctx.restore();
   }
 
-  function playerFrame() {
+  // What each actor looks like this frame. Pure reads: all timers live in update().
+  // Trollface: chomps (f1/f3) while moving, blinks (f2) now and then while standing.
+  function playerLook() {
     const p = player;
-    if (state === "play" && p.moving && freezeT <= 0) return Math.floor(p.anim / 0.09) % 2 ? "trollface-f3" : "trollface-f1";
-    if (p.anim > p.blinkAt) {                      // blink now and then while standing
-      if (p.anim > p.blinkAt + 0.14) p.blinkAt = p.anim + 2 + Math.random() * 2.5;
-      return "trollface-f2";
-    }
-    return "trollface-f1";
+    if (state === "play" && p.moving && freezeT <= 0) return Math.floor(p.anim / CHOMP) % 2 ? "f3" : "f1";
+    return p.blinking > 0 ? "f2" : "f1";
   }
 
-  // Chasers: f1 normally, f3 (grin / wow / beak open) when closing in, f2 to blink.
-  function chaserImage(g) {
-    if (g.fright) {
-      const flashing = frightT < Math.min(2, frightLen / 2) && Math.floor(frightT / 0.2) % 2 === 0;
-      return recoloured(`${g.name}-f1`, flashing);
-    }
-    if (g.anim > g.blinkAt) {
-      if (g.anim > g.blinkAt + 0.14) g.blinkAt = g.anim + 2 + Math.random() * 3;
-      return sprites[`${g.name}-f2`];
-    }
-    const close = g.mode === "out" && chaseMode() === "chase" && wrapDist(g, player) < 6;
-    return sprites[`${g.name}-f${close ? 3 : 1}`];
+  // Chasers: f1 normally, f3 (grin / wow / beak open) when closing in, f2 to blink,
+  // blue when frightened, white flashes as it wears off, eyes when eaten.
+  function chaserLook(g) {
+    if (g.mode === "eyes" || g.mode === "entering") return "eyes";
+    if (g.fright) return frightT < Math.min(2, frightLen / 2) && Math.floor(frightT / 0.2) % 2 === 0 ? "white" : "blue";
+    if (g.blinking > 0) return "f2";
+    return g.close ? "f3" : "f1";
   }
+  function lookImage(name, look) {
+    if (look === "blue" || look === "white") return recoloured(`${name}-f1`, look === "white");
+    return sprites[`${name}-${look}`];
+  }
+  // In the pen they bob up and down but keep facing the middle; elsewhere they face their way.
+  const chaserFacing = g => (g.mode === "pen" ? (g.home.x > PEN_EXIT.x ? DIRS.left : DIRS.right) : g.dir);
 
   // An eaten chaser is just its eyes, looking the way it's going.
   function drawEyes(g) {
@@ -665,8 +685,10 @@
   function drawChasers() {
     for (const g of CHASERS) {
       if (g === hidden) continue;
-      if (g.mode === "eyes" || g.mode === "entering") { drawEyes(g); continue; }
-      drawFace(chaserImage(g), px(g.x), py(g.y), g.dir);
+      const look = chaserLook(g);
+      if (frameLog) frameLog.chasers[g.name] = look;
+      if (look === "eyes") { drawEyes(g); continue; }
+      drawFace(lookImage(g.name, look), px(g.x), py(g.y), chaserFacing(g));
     }
   }
 
@@ -723,14 +745,20 @@
     text("ENTER / TAP", W / 2, py(27) + 4, "#888", 8, "center");
   }
 
+  // Debug builds keep the last few hundred frames' looks so the animation test can read them.
+  let frameLog = null;
+  const frameLogs = /[?&]debug\b/.test(location.search) ? [] : null;
+
   function draw() {
+    frameLog = frameLogs ? { t: performance.now(), state, player: null, chasers: {}, maze: null } : null;
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, W, H);
-    if (state === "title") { drawHud(); drawTitle(); return; }
+    if (state === "title") { drawHud(); drawTitle(); logFrame(); return; }
 
     const color = MAZE_COLORS[Math.floor((level - 1) / 2) % MAZE_COLORS.length];
     const flash = state === "clear" && stateTime > CLEAR_HOLD && Math.floor((stateTime - CLEAR_HOLD) / 0.2) % 2 === 0;
     ctx.drawImage(mazeImage(flash ? "#ffffff" : color), 0, TOP * TILE);
+    if (frameLog) frameLog.maze = flash ? "flash" : "colour";
     drawDots();
 
     const showChasers = !chasersOff && (state === "ready" || state === "play" ||
@@ -739,9 +767,12 @@
       // the spin-out: the grin spins away and shrinks to nothing
       const k = Math.min(1, (stateTime - DEATH_HOLD) / (DEATH_TIME - DEATH_HOLD - 0.3));
       if (k < 1) drawFace(sprites["trollface-f3"], px(player.x), py(player.y), player.face, 1 - k, k * Math.PI * 6);
+      if (frameLog) frameLog.player = k < 1 ? `spin:${(1 - k).toFixed(2)}` : "gone";
     } else if (!(freezeT > 0 && hidden)) {
-      drawFace(sprites[state === "play" ? playerFrame() : "trollface-f1"], px(player.x), py(player.y), player.face);
-    }
+      const look = playerLook();
+      drawFace(sprites[`trollface-${look}`], px(player.x), py(player.y), player.face);
+      if (frameLog) frameLog.player = look;
+    } else if (frameLog) frameLog.player = "hidden";
     if (showChasers) drawChasers();
 
     for (const pp of popups) text(pp.text, px(pp.x), py(pp.y) - 4 - pp.t * 6, "#4deeff", 8, "center");
@@ -754,6 +785,13 @@
       text("PAUSED", W / 2, py(16) - 4, "#fff", 8, "center");
     }
     drawHud();
+    logFrame();
+  }
+
+  function logFrame() {
+    if (!frameLog) return;
+    frameLogs.push(frameLog);
+    if (frameLogs.length > 900) frameLogs.splice(0, frameLogs.length - 900);
   }
 
   // ---- Input ----------------------------------------------------------------
@@ -822,6 +860,10 @@
       get frightT() { return frightT; }, get mode() { return chaseMode(); },
       setTimeScale(s) { timeScale = s; },
       setChasersOff(v) { chasersOff = v; },
+      frames: frameLogs,
+      startFright, setState,
+      setPhase(i) { phaseIdx = i; phaseT = 0; },
+      leaveOneDot(c, r) { dots.fill(0); dots[r * COLS + c] = 1; dotsLeft = 1; },
     };
   }
 
