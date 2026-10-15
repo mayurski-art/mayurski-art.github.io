@@ -807,14 +807,19 @@ export const MAPS = {
     // set is rebuilt from the same numbers.
     bounds: { minX: -22, maxX: 22, minZ: -44, maxZ: 44 },
     playerSpawn: { x: 0, z: 37 },
-    sky: { top: 0x05070a, horizon: 0x0d1015, bottom: 0x05070a },   // underground: no sun, no cloud
-    fog: { color: 0x0c1014, density: 0.025 },
+    // The modded full-bright look (UNDERGRIN-METRO.md section 3): no sun, so
+    // no shadow pass; flat white ambient does the lighting; the only lights
+    // are painted on. A black sky, and just enough fog to soften the bores.
+    sky: { top: 0x000000, horizon: 0x000000, bottom: 0x000000 },
+    fog: { color: 0xe8e6e2, density: 0.004 },
     ground: { colorA: 0x3e4146, colorB: 0x46494e, grid: 0x5a5d62 },   // the track bed; every floor above it is a box
-    sun: { color: 0x6a7a99, intensity: 0.25, pos: [10, 30, 10] },
-    hemi: { sky: 0x8a98b0, ground: 0x2a2c30, intensity: 0.9 },
-    ambient: { color: 0xc8d4e6, intensity: 0.6 },
-    // stylised realism (view/grade-pass.js): under the city: cold tunnel shade, the lamps' warmth
-    grade: { shadows: 0x182030, shadowsAmt: 0.08, highlights: 0xffe0b0, highlightsAmt: 0.06, sat: 1, contrast: 1.08 },
+    exposure: 1.0,
+    sun: { color: 0xffffff, intensity: 0, pos: [0, 30, 0] },
+    hemi: { sky: 0xffffff, ground: 0xd8d8d8, intensity: 0.5 },
+    ambient: { color: 0xffffff, intensity: 1.35 },
+    // Paint this bright crosses the bloom threshold on its own; only the
+    // painted-on lights may glow.
+    bloom: { threshold: 2.0 },
     build(api) { buildUndergrin(api); },
     // Section 5: nine a side, three of them on the concourse (y 6); the south
     // side is the north side turned about the origin. [-18, -40] moved to
