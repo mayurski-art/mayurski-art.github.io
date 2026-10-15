@@ -1,7 +1,8 @@
 // Renders the Troll Man poster (1200x1700) and share banner (1200x630) from
 // tools/troll-man-poster.html, using the game's own icons and a live maze shot.
-//   node tools/troll-man-poster.mjs
-// writes assets/games/troll-man/ui/troll-man-poster.jpg and troll-man-banner.jpg
+//   node tools/troll-man-poster.mjs            writes ui/troll-man-poster.jpg (the flyer layout, after the
+//                                              1980 Puck Man flyer) and ui/troll-man-banner.jpg
+//   node tools/troll-man-poster.mjs --dark     writes the first, dark layout to .claude/run/troll-man-poster-dark.jpg
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,19 +26,22 @@ try {
   await game.waitForFunction(() => Math.floor(window.__tm.stateTime / 0.5) % 2 === 0);   // PRESS START showing
   const ART = await game.evaluate(() => {
     const t = window.__tm, icons = {};
-    for (const k of ["pump", "stonks", "fomo", "aster", "coin"]) icons[k] = t.iconFor(k).toDataURL();
+    for (const k of ["pump", "stonks", "fomo", "aster", "coin", "rolex"]) icons[k] = t.iconFor(k).toDataURL();
     return { icons, maze: t.canvas.toDataURL() };
   });
   await game.close();
 
   // 2. lay out each piece and screenshot it
-  for (const [layout, w, h, file] of [["poster", 1200, 1700, "troll-man-poster.jpg"], ["banner", 1200, 630, "troll-man-banner.jpg"]]) {
+  const JOBS = process.argv.includes("--dark")
+    ? [["poster", 1200, 1700, path.join(ROOT, ".claude/run/troll-man-poster-dark.jpg")]]
+    : [["flyer", 1200, 1700, path.join(UI, "troll-man-poster.jpg")], ["banner", 1200, 630, path.join(UI, "troll-man-banner.jpg")]];
+  for (const [layout, w, h, file] of JOBS) {
     const page = await browser.newPage({ viewport: { width: w, height: h } });
     await page.addInitScript(a => { window.ART = a; }, ART);
     await page.goto(`http://localhost:${PORT}/tools/troll-man-poster.html?layout=${layout}`);
     await page.waitForFunction(() => window.READY, null, { timeout: 15000 });
-    await page.locator("#art").screenshot({ path: path.join(UI, file), type: "jpeg", quality: 90 });
-    console.log(`wrote ${file} (${w}x${h})`);
+    await page.locator("#art").screenshot({ path: file, type: "jpeg", quality: 90 });
+    console.log(`wrote ${path.relative(ROOT, file)} (${w}x${h})`);
     await page.close();
   }
 } finally {
