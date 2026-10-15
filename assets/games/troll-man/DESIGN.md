@@ -13,9 +13,11 @@ Troll Kombat / Troll Forces). Other options at the end. The folder is
 
 ## 1. What it is in one screen
 
-- One maze, 28×29 tiles (the original is 28×31), our own layout (no Namco maze).
-  `node tools/troll-man-maze-check.mjs` checks it: every dot reachable, no
-  dead ends, walls at least 2 tiles thick.
+- Four mazes, 28×29 tiles (the original is 28×31), our own layouts (no Namco
+  maze), one per level round and round, each in its own colour. The pen, the
+  tunnel, the start tile and the four power-up corners sit in the same place
+  in all of them. `node tools/troll-man-maze-check.mjs` checks every one:
+  every dot reachable, no dead ends, walls at least 2 tiles thick.
 - Trollface eats dots. Four meme faces chase him. Clear the maze, next level.
 - Four exchange logos are the power-ups, each doing something different.
 - Bonus pickups ("the fruit") are $TROLL coins and troll stickers.
@@ -53,14 +55,22 @@ maze corners, like the four power pellets.
 
 | Logo | Effect | Length |
 | --- | --- | --- |
-| **Pump.fun pill** | Classic power pellet. Chasers turn frightened, you eat them: 200 / 400 / 800 / 1600. | 6s, shorter on later levels |
-| **Stonks** | Score ×2 — every dot, chaser and coin counts double. The arrow-up guy flashes in the HUD. | 8s |
-| **FOMO** | Dot magnet: dots within 2 tiles get pulled into you. Clears the maze fast but drags you toward trouble. | 6s |
+| **Pump.fun pill** | Classic power pellet. Chasers turn frightened, you eat them: 200 / 400 / 800 / 1600. | 9s, a second less every level or two, 1s by level 19 |
+| **Stonks** | Score ×2 — every dot, chaser and coin counts double. | 14s |
+| **FOMO** | Dot magnet: dots within 2.5 tiles get pulled into you. Clears the maze fast but drags you toward trouble. | 10s |
 | **Aster** | Shield: one free hit. A chaser that catches you bounces off and is sent back to the pen. | until used |
 
-Logos are drawn in-house in the pixel style (parody-level redraws: the pill,
-the arrow, the star). Real brand marks are trademarks — a risk note, not a
-blocker, and your call (section 9).
+Logos are the real marks, pixelated in-house (2026-10-15, the user's call):
+the Pump.fun capsule, the stonk.fun S-mark (traced from the site's SVG) on
+its dark tile, FOMO's white double loop on navy, Aster's sand-gold disc with
+the four-point star cut in. Real brand marks are trademarks — a risk note,
+not a blocker.
+
+Difficulty climbs a step every level to level 21 instead of topping out
+early: he speeds up (to 1.5×), the chasers close the gap to a hair under his
+pace, scatter phases shrink, the pill wears off sooner, Giga Chad's
+end-of-maze rush starts earlier and runs harder, the pen lets the next
+chaser out sooner when you stop eating.
 
 ### Bonus pickups (the fruit)
 Appear under the pen twice a level, for ~10s, worth more each level:
