@@ -635,8 +635,12 @@ class Bot {
       // hold it, turning to watch the approaches.
       const p = this.perch;
       if (this.arrivePerch()) {
-        desired = new THREE.Vector3();
-        this.yaw += dt * 0.8 * this.strafeDir;
+        // Holding it: shuffling about the spot, looking round, the way a
+        // KotH bot holds a hill (stood dead still it read as a frozen bot,
+        // the gate's bots step among them), never off the edge up high.
+        const back = Math.hypot(p.x - this.pos.x, p.z - this.pos.z) > 3;
+        if (back) { this.wander.set(p.x - this.pos.x, 0, p.z - this.pos.z).normalize(); this.wanderT = Math.max(this.wanderT, 0.5); }
+        desired = this.keepFooting(this.wanderStep(dt).multiplyScalar(0.35), ctx);
         p.hold -= dt;
         if (p.hold <= 0) this.perch = null;
       } else {
@@ -1043,6 +1047,10 @@ class Bot {
       // wall. Off the grid (a stair's treads) the bot trusts its own line,
       // as it always did; so does a goal on another floor, whose ground
       // field says nothing about the way there.
+      // Just stepped off a stair (its foot in a notch the grid seals, like
+      // Hollowgrin's manor stair): on off it a beat, rather than give up on
+      // the goal there and wander back up the stair.
+      if (this.offStair && (this.clock || 0) < this.offStair.until) return new THREE.Vector3(this.offStair.x, 0, this.offStair.z);
       if (f && f.knows(this.pos.x, this.pos.z) && !f.lineClear(this.pos.x, this.pos.z, goal.x, goal.z)) {
         this.noRoute = { id, until: this.clock + NO_ROUTE_TIME };
         return orNull ? null : this.wanderStep(ctx.dtNow || 0.016);
@@ -1090,7 +1098,12 @@ class Bot {
     const t = (this.pos.x - a.x) * ux + (this.pos.z - a.z) * uz;
     const done = (Math.abs(this.groundY - e.y) < 0.45 && Math.hypot(e.x - this.pos.x, e.z - this.pos.z) < 0.9) || t > len + 0.3;
     const side = Math.abs((this.pos.x - a.x) * uz - (this.pos.z - a.z) * ux);
-    if (done || c.t > (c.limit || 8) || side > 2.2) { this.climb = null; return null; }
+    if (done || c.t > (c.limit || 8) || side > 2.2) {
+      // Just off the end of a flight: a beat more the same way (below).
+      if (done) this.offStair = { until: (this.clock || 0) + 1.2, x: ux, z: uz };
+      this.climb = null;
+      return null;
+    }
     const aim = Math.min(len, Math.max(0, t) + 1.4);
     const v = new THREE.Vector3(a.x + ux * aim - this.pos.x, 0, a.z + uz * aim - this.pos.z);
     if (v.lengthSq() < 0.04) v.set(ux, 0, uz);
@@ -1234,11 +1247,14 @@ class Bot {
       this.perchT = (this.perchT ?? between(POST_FIRST)) - dt;
       if (this.perchT > 0) return false;
       this.perchT = between(POST_EVERY);
+      // Never two high posts running: down from one, it hunts or takes
+      // a post on the ground, so it comes back down to the fight.
       const r = Math.random();
-      const post = r < POST_UP ? this.pickPost(places, places.upper, ctx)
+      const post = r < POST_UP ? (this.lastPostUp ? null : this.pickPost(places, places.upper, ctx))
         : r < POST_UP + POST_GROUND ? this.pickPost(places, places.ground, ctx) : null;
-      if (!post) return false;     // a hunt this time
+      if (!post) { this.lastPostUp = false; return false; }     // a hunt this time
       places.claims.set(post.id, (places.claims.get(post.id) || 0) + 1);
+      this.lastPostUp = post.y >= UPPER_Y;
       this.perch = { id: post.id, x: post.x, y: post.y, z: post.z, via: post.via, t: 0, arrived: false, static: true,
         hold: between(post.y >= UPPER_Y ? POST_HOLD_UP : POST_HOLD_GROUND) };
       return true;
@@ -1291,16 +1307,20 @@ class Bot {
       if (this.perchFail === p.id) continue;
       const d = Math.hypot(p.x - this.pos.x, p.z - this.pos.z);
       if (d < 6 && Math.abs(p.y - this.groundY) < 1) continue;   // already there
-      w[i] = 1 / (1 + 3 * (places.claims.get(p.id) || 0))
-        / (1 + 1.2 * (places.crowd.get(p.district) || 0))
-        / (1 + (places.heat.get(p.district) || 0) / POST_HEAT)
-        / (1 + d / 200) * (p.district === here ? 0.5 : 1);
+      // High ground: the nearest few, not one another bot holds. The
+      // ground posts do the spreading out: away from crowds, from
+      // districts that have had bots lately, from this one.
+      w[i] = 1 / (1 + 3 * (places.claims.get(p.id) || 0)) * (p.y >= UPPER_Y ? 1 / (1 + d / 40)
+        : 1 / (1 + 1.2 * (places.crowd.get(p.district) || 0)) / (1 + (places.heat.get(p.district) || 0) / POST_HEAT)
+          / (1 + d / 200) * (p.district === here ? 0.5 : 1));
       sum += w[i];
     }
     if (sum <= 0) return null;
+    // drawn heaviest first: the same odds, and a low roll is the best post
+    const order = [...w.keys()].filter((i) => w[i] > 0).sort((m, n) => w[n] - w[m]);
     let r = Math.random() * sum;
-    for (let i = 0; i < list.length; i++) { r -= w[i]; if (r <= 0 && w[i] > 0) return list[i]; }
-    return list.find((_, i) => w[i] > 0) || null;
+    for (const i of order) { r -= w[i]; if (r <= 0) return list[i]; }
+    return list[order[0]];
   }
 
   /* In a fight up on a floor (a balcony, a walkway, a roof): a step that
@@ -1312,6 +1332,7 @@ class Bot {
       this.groundY + 0.5, BOT_RADIUS * 0.8) > this.groundY - 0.45;
     if (safe(desired)) return desired;
     this.strafeDir = -this.strafeDir;
+    this.wanderT = 0;              // a holding shuffle picks another way
     this.strafeT = Math.max(this.strafeT, 0.8);
     return new THREE.Vector3();
   }
@@ -1408,23 +1429,43 @@ export class BotManager {
     };
     const cols = src.colliders;
     const fits = (x, y, z) => Math.abs(groundHeightAt(cols, x, z, y + 0.5, BOT_RADIUS * 0.8) - y) < 0.35 && !resolveBlocked(cols, x, z, y);
-    // Upper floors: from every top, the floor it reaches on its level.
-    const reached = new Map();   // level -> cells some top already claimed
+    // Upper floors: from every top, the floor it reaches on its level;
+    // only the tops a bot can get to from the ground, a flight at a time
+    // (Pentagrin's top floor is up a stair whose foot is on a landing the
+    // ground's stair doesn't reach).
+    const tops = [];
     for (let i = 0; i < stairs.length; i++) {
       const s = stairs[i];
       const [lo, hi] = s.a.y < s.b.y ? [s.a, s.b] : [s.b, s.a];
-      if (hi.y < UPPER_Y || hi.y - lo.y < 1) continue;
+      if (hi.y - lo.y < 1) continue;
       const level = Math.max(0, Math.round(hi.y * 2) / 2);
       const f = new FlowField(null, null, 0, { template: baseFor(level) });
       if (!f.compute(hi.x, hi.z)) continue;
+      tops.push({ i, lo, hi, level, f, grounded: lo.y < 0.5 });
+    }
+    for (let more = true; more;) {
+      more = false;
+      for (const t of tops) {
+        if (t.grounded) continue;
+        const from = tops.find((u) => u.grounded && Math.abs(u.hi.y - t.lo.y) < 0.5 && u.f.dist[u.f.openIndex(t.lo.x, t.lo.z)] > 0);
+        if (from) { t.grounded = true; more = true; }
+      }
+    }
+    const reached = new Map();   // level -> cells some top already claimed
+    for (const { i, lo, hi, level, f, grounded } of tops) {
+      if (!grounded || hi.y < UPPER_Y) continue;
       let seen = reached.get(level);
       if (!seen) reached.set(level, (seen = new Uint8Array(f.w * f.h)));
-      const cells = [];
+      let cells = [];
+      const any = [];
       for (let k = 0; k < f.dist.length; k++) {
         if (!f.dist[k] || seen[k]) continue;
         seen[k] = 1;
+        any.push(k);
         if (roomy(f, k, (j) => !!f.dist[j])) cells.push(k);
       }
+      // a floor too tight for a roomy spot (Pentagrin's landings): any of it
+      if (!cells.length) cells = any;
       // about one spot per 25 m² of floor, two to five a floor
       const n = Math.max(2, Math.min(5, Math.round(cells.length * f.cell * f.cell / 25)));
       for (const q of spread(f, cells, n, hi, 3)) {

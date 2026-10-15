@@ -103,9 +103,6 @@ if (!SIM_ONLY) {
       T.move.pos.set(me.x, me.y, me.z);
       if (!b.alive) break;
       maxY = Math.max(maxY, b.groundY); minY = Math.min(minY, b.groundY);
-          // Sinking off a flight on the way up: the feet dropping faster than walking down any stair.
-          if (to.y > from.y + 1 && prevY - b.groundY > 0.35 && !(b.hopY > 0)) sinks++;
-          prevY = b.groundY;
       const d = Math.hypot(b.pos.x - me.x, b.pos.z - me.z);
       if (Math.abs(b.groundY - me.y) < 0.6) best = Math.min(best, d);
       if (best < 3) { reached = Math.round((performance.now() - t0) / 100) / 10; break; }
@@ -258,6 +255,9 @@ if (!SIM_ONLY) {
         for (let t = 0; t < 120 && down == null; t += DT) {
           mgr.update(DT, ctx);
           if (up == null && perch && Math.abs(b.groundY - perch.y) < 0.6 && Math.hypot(b.pos.x - perch.x, b.pos.z - perch.z) < 2) up = +t.toFixed(1);
+          // Done holding it: back to hunting, not off to another post
+          // (bots.js posts) before this check sees it come down.
+          if (up != null && !b.perch) b.perchT = 1e9;
           if (up != null && Math.abs(b.groundY - far.y) < 0.6 && Math.hypot(b.pos.x - far.x, b.pos.z - far.z) < 2.5) down = +t.toFixed(1);
         }
         out.perch = { picked: perch ? [perch.x, perch.y, perch.z].map((v) => +v.toFixed(1)) : null, up, down,
