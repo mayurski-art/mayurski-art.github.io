@@ -6,7 +6,12 @@
    global because troll-accounts.js reads it on every
    trollrunner:presence-sync for the friend-list online dots.
 
-   joinSitePresence({ onCount }) -> { roster(), count() } */
+   A page can say what its viewer is doing (setActivity): Troll Forces
+   puts the mode, room and map there, so its menu can list who's playing
+   what and the servers you can join (assets/games/troll-ops/menu/online.js).
+   It's off the wire, so it's cleaned (cleanActivity) before anyone reads it.
+
+   joinSitePresence({ onCount, onSync }) -> { roster(), count(), setActivity(a) } */
 
 const SUPABASE_URL = "https://tjsyhfplxjtakdfkpdtg.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ";
@@ -26,17 +31,30 @@ export function viewerId() {
 
 const profile = () => window.TrollrunnerAccounts?.getCachedProfile?.() || null;
 
-export function joinSitePresence({ onCount = null } = {}) {
+/* An activity off the wire, or null: short strings, a room code, numbers. */
+function cleanActivity(a) {
+  if (!a || typeof a !== "object") return null;
+  const str = (v, n) => (typeof v === "string" ? v.slice(0, n) : null);
+  const room = typeof a.room === "string" && /^[A-Z0-9]{1,8}$/.test(a.room) ? a.room : null;
+  return {
+    game: str(a.game, 16), state: str(a.state, 12), mode: str(a.mode, 16), modeName: str(a.modeName, 32),
+    map: str(a.map, 24), mapName: str(a.mapName, 32), room, pub: !!a.pub && !!room,
+    wave: Math.max(0, Math.min(999, a.wave | 0)), max: Math.max(0, Math.min(200, a.max | 0)),
+  };
+}
+
+export function joinSitePresence({ onCount = null, onSync = null } = {}) {
   const onlineAt = new Date().toISOString();
   let channel = null;
   let joined = false;
+  let activity = null;
 
   const payload = () => {
     const a = profile();
     return {
       viewerId: viewerId(), userId: a?.userId || null, username: a?.username || null,
       avatarUrl: a?.avatarUrl || null, level: a?.level || null,
-      host: location.hostname, path: location.pathname, activeWindow: null,
+      host: location.hostname, path: location.pathname, activeWindow: null, activity,
       onlineAt, trackedAt: new Date().toISOString(),
     };
   };
@@ -54,17 +72,18 @@ export function joinSitePresence({ onCount = null } = {}) {
     byViewer.forEach((e) => {
       const uid = UUID.test(String(e.userId || "")) ? e.userId : null;
       if (uid && e.username) {
-        members.set(uid, { userId: uid, username: String(e.username).slice(0, 20), level: Math.max(1, e.level || 1), avatarUrl: e.avatarUrl || null, activeWindow: e.activeWindow === "games" ? "games" : null });
+        members.set(uid, { userId: uid, viewerId: e.viewerId, username: String(e.username).slice(0, 20), level: Math.max(1, e.level || 1), avatarUrl: e.avatarUrl || null, activeWindow: e.activeWindow === "games" ? "games" : null, activity: cleanActivity(e.activity) });
       } else guests.push(e);
     });
     guests.sort((a, b) => String(a.onlineAt).localeCompare(String(b.onlineAt)) || String(a.viewerId).localeCompare(String(b.viewerId)));
-    return { members: [...members.values()], guests: guests.map((g, i) => ({ viewerId: g.viewerId, label: `Guest${String(i + 1).padStart(3, "0")}` })) };
+    return { members: [...members.values()], guests: guests.map((g, i) => ({ viewerId: g.viewerId, label: `Guest${String(i + 1).padStart(3, "0")}`, activity: cleanActivity(g.activity) })) };
   }
   const count = () => { const r = roster(); return Math.max(1, r.members.length + r.guests.length); };
   window.getViewerRoster = roster;
 
   const sync = () => {
     if (onCount) onCount(count());
+    if (onSync) onSync(roster());
     window.dispatchEvent(new CustomEvent("trollrunner:presence-sync"));
   };
   const retrack = async () => { if (!joined) return; try { await channel.untrack(); await channel.track(payload()); } catch {} };
@@ -78,6 +97,14 @@ export function joinSitePresence({ onCount = null } = {}) {
     setInterval(retrack, 30000);
     window.addEventListener("trollrunner:auth-changed", retrack);
   }
+  /* What this viewer is doing now (null: nothing in particular). Sent at
+     once when it changes, so the servers list stays live. */
+  const setActivity = (a) => {
+    const next = cleanActivity(a);
+    if (JSON.stringify(next) === JSON.stringify(activity)) return;
+    activity = next;
+    if (joined) channel.track(payload()).catch(() => {});
+  };
   if (onCount) onCount(1);
-  return { roster, count };
+  return { roster, count, setActivity };
 }

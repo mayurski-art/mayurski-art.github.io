@@ -15,7 +15,7 @@
 // drawn traits.
 
 import * as THREE from "three";
-import { setClothed } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10";
+import { setClothed } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1";
 
 const DIR = new URL("./traits/", import.meta.url);
 // The art's cache tag: bump it when a drawing changes (a dev page can set

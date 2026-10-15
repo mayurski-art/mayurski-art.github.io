@@ -16,7 +16,7 @@
 // cancels; a second tap on the card places on touch).
 
 import { game } from "../core/state.js?v=st1";
-import { padHooks } from "../input/gamepad.js?v=in1-fu1b7-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-zp1";
+import { padHooks } from "../input/gamepad.js?v=in1-fu1b7-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-zp1-aa0-pd1";
 
 let root = null;
 let hooks = { onBuy: () => {}, onSkip: () => {}, onDeploy: () => false, onPlace: () => false, onCancel: () => {} };
@@ -323,7 +323,8 @@ export function updateZombiesHud(dt, s) {
   const v = s.between && s.vote ? `${s.vote.n}/${s.vote.of}:${s.vote.mine ? 1 : 0}` : "";
   if (s.between && v !== shown.vote) {
     shown.vote = v;
-    els.skipS.textContent = s.vote ? `Votes ${s.vote.n}/${s.vote.of} · ${breakS}s` : `Next wave in ${breakS}s`;
+    // (user, 2026-10-14: unanimous, and it goes on by itself: say both)
+    els.skipS.textContent = s.vote ? `Votes ${s.vote.n}/${s.vote.of} · all needed · next in ${breakS}s` : `Next wave in ${breakS}s`;
     els.skipT.textContent = s.vote ? (s.vote.mine ? "Voted to skip" : "Vote to skip") : "Skip break";
     els.skip.classList.toggle("is-voted", !!s.vote?.mine);
   }
@@ -417,11 +418,11 @@ export function updateZombiesHud(dt, s) {
   if (d) {
     els.downBar.style.transform = `scaleX(${d.out ? 0 : Math.max(0, d.t / d.max).toFixed(3)})`;
     // solo: the last stand's kill count; co-op: wait for a teammate
-    const key = `${d.kills}:${d.need}:${d.out ? 1 : 0}`;
+    const key = `${d.kills}:${d.need}:${d.out ? 1 : 0}:${d.wait ? 1 : 0}`;
     if (key !== shown.kills) {
       shown.kills = key;
-      els.downT.textContent = d.out ? "Out" : "Bleeding out";
-      els.downK.textContent = d.out ? "Back in when the wave is cleared"
+      els.downT.textContent = d.wait ? "Joining" : d.out ? "Out" : "Bleeding out";
+      els.downK.textContent = d.wait ? "You spawn in when this round ends" : d.out ? "Back in when the wave is cleared"
         : d.need ? `Kills to get up: ${d.kills} / ${d.need}` : "Hang on: a teammate can pick you up";
     }
   }

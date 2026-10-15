@@ -1,12 +1,14 @@
 // Troll Forces aim assist: the soft pull and slowdown toward targets near
-// the crosshair, for stick, thumb and mouse. Moved out of game.js (split
-// phase 1).
+// the crosshair. Moved out of game.js (split phase 1). Since 2026-10-14
+// (user: remove the auto assist) nothing a player aims gets it; only the
+// Dragonfire's nose gun uses it (view/player-update.js, streaks/dragonfire.js).
 
 import * as THREE from "three";
 import { segmentBlocked } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
 import { game } from "../core/state.js?v=st1";
 
-/* Aim assist for a controller and a thumb, the Call of Duty way: near a
+/* The pull, the Call of Duty way (it was a controller's and a thumb's
+   until 2026-10-14): near a
    target your own turn slows down (the "sticky" slowdown) and the aim drifts
    after it a little (the rotational pull), and only while you're steering
    (the right stick deflected, a thumb on the look pad), so it never drags an
@@ -90,7 +92,6 @@ export function findAimAssistTarget(coneDeg = AIM_ASSIST_CONE_DEG, range = AIM_A
    GTA5 pairs with the pull. Both effects fall off with angle so the assist
    never overrides a deliberate flick past the target. */
 export function applyAimAssist(dt, strength = 1, coneDeg = AIM_ASSIST_CONE_DEG, range = AIM_ASSIST_RANGE) {
-  if (!game.settings.aimAssist) return;
   // Cooking a grenade or a tactical: you're aiming the throw (an arc, a
   // corner, the floor), not at anyone, so nothing pulls or sticks the look.
   if (game.cooking.def) return;

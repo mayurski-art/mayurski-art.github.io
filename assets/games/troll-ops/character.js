@@ -1803,6 +1803,7 @@ export function poseHumanoid(rig, arg) {
 const _gT = new THREE.Vector3(), _gDir = new THREE.Vector3(), _gPole = new THREE.Vector3();
 const _gO = new THREE.Vector3(), _gP = new THREE.Vector3(), _gE = new THREE.Vector3();
 const _gF = new THREE.Vector3(), _gQ = new THREE.Quaternion(), _gGrip = new THREE.Vector3();
+const _gSh = new THREE.Vector3(), _gButt = new THREE.Vector3();
 const _gPoleL = new THREE.Vector3(-1, -1, 0.2), _gPoleR = new THREE.Vector3(1, -1, 0.2);
 function _reachArm(rig, pivot, elbow, rest, target, pole) {
   const a = rig.upperArm, b = rig.foreArm;
@@ -1915,9 +1916,9 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
   // instead of canting a mag well over.
   const pair = !!u.akimbo;
   p.gunMount.rotation.set(
-    pitch * (0.5 + up * 0.5) - (1 - up) * (1 - rl) * 0.3 + kick * 0.12 - lean + rl * (pair ? 0.9 : 0.3),
-    (pair ? 0 : rl * 0.3) + bl,
-    pair ? 0 : -rl * 0.55,
+    pitch * (0.5 + up * 0.5) - (1 - up) * (1 - rl) * (hold?.ready ?? 0.3) + kick * 0.12 - lean + rl * (pair ? 0.9 : 0.3),
+    (pair ? 0 : rl * 0.3 * (hold?.swing ?? 1)) + bl,
+    pair ? 0 : -rl * 0.55 * (hold?.swing ?? 1),
   );
   if (pair) {
     // A gun in each fist, both arms out, the pair centred on the chest.
@@ -1926,17 +1927,34 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
   } else if (pistol) {
     // Both arms out, the gun at the eye line when it's up.
     _gS.set((0.06 - up * 0.055) * s * w, (-0.25 + up * 0.33 - rl * 0.05) * s, (-0.32 - up * 0.2 + rl * 0.08 + kick * 0.03) * s);
-    if (hold) _gS.z += hold.z * s;   // out past a broad chest
+    if (hold) _gS.z += (hold.pistolZ ?? hold.z) * s;   // out past a broad chest
     _gP.copy(pt(u.gripPos)).applyEuler(p.gunMount.rotation);
   } else {
     // The butt in the right shoulder pocket; scoped, up and in to the cheek.
-    if (hold) _gS.set((hold.x + ((hold.runX ?? hold.x) - hold.x) * (1 - st) - a * 0.04 - rl * 0.03) * s, (hold.y + up * 0.09 + a * 0.05 - rl * 0.08) * s, (hold.z + kick * 0.035) * s);
+    if (hold) _gS.set((hold.x + ((hold.runX ?? hold.x) - hold.x) * (1 - st) - a * 0.04 - rl * 0.03) * s, (hold.y + up * 0.09 + a * 0.05 - rl * 0.08 * (hold.reloadDrop ?? 1)) * s, (hold.z + kick * 0.035) * s);
     else _gS.set((0.085 - a * 0.04 - rl * 0.03) * s * w, (-0.12 + up * 0.09 + a * 0.05 - rl * 0.08) * s, (-0.04 + kick * 0.035) * s);
     _gP.copy(pt(u.buttPos)).applyEuler(p.gunMount.rotation);
   }
   p.gunMount.position.copy(_gS).sub(_gP);
   // Trigger hand to the grip; the elbow winged out, more when shouldered.
   _gGrip.copy(pt(u.gripPos)).applyEuler(p.gunMount.rotation).add(p.gunMount.position);
+  // A short arm on a long stock (hold.reachR, of the arm's length): past
+  // that the hand takes the stock's wrist, back from the grip toward the
+  // butt, so the arm bends and the elbow comes out. At full stretch it lay
+  // straight down the stock, through it (the TROLLS body on the snipers).
+  if (hold?.reachR && !pistol && !pair && u.buttPos) {
+    const lim = (rig.upperArm + rig.foreArm) * hold.reachR;
+    _gSh.copy(p.armR.position).add(p.shoulderR.position);
+    if (_gGrip.distanceTo(_gSh) > lim) {
+      _gButt.copy(pt(u.buttPos)).applyEuler(p.gunMount.rotation).add(p.gunMount.position);
+      let lo = 0, hi = 1;
+      for (let i = 0; i < 12; i++) {
+        const mid = (lo + hi) / 2;
+        if (_gP.lerpVectors(_gGrip, _gButt, mid).distanceTo(_gSh) > lim) lo = mid; else hi = mid;
+      }
+      _gGrip.lerp(_gButt, Math.min(hi, 0.5));
+    }
+  }
   _gT.copy(_gGrip).sub(p.armR.position).sub(p.shoulderR.position);
   _gPoleR2.set(1, pistol ? -1 : -0.55 + up * 0.35, 0.25);
   if (pair) _gPoleR2.set(1, -1.2, 0.1);
@@ -1957,6 +1975,7 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
   const mag = u.magMesh && u.magMesh.parent === mesh ? u.magMesh : null;
   if (rk && !pair) {
     _gB.set(-0.07 * s * w, -0.5 * s, -0.1 * s);   // the belt pouch
+    if (hold?.pouch) _gB.set(hold.pouch[0] * s, hold.pouch[1] * s, hold.pouch[2] * s);   // out past a broad body's thigh
     if (mag) {
       _gW.copy(pt(u.magazinePoint)).applyEuler(p.gunMount.rotation).add(p.gunMount.position);
       if (rk < 0.12) _lerp3(_gH, _gSup, _gW, rk / 0.12);
@@ -2049,7 +2068,10 @@ function _gripSupportCarry(rig, { pitch = 0, recoil = 0, ads = 0, carryYaw = 0, 
   p.gunMount.position.copy(_gGrip).sub(_gP);
 
   _gT.copy(_gGrip).sub(p.armR.position).sub(p.shoulderR.position);
-  _reachArm(rig, p.armR, p.elbowR, rig.armRestR, _gT, _gPoleR);
+  // A broad body's elbow rides up and out (hold.carryPoleR): hung down, its
+  // thick forearm lay level across the chest with the stock inside it
+  // (user, 2026-10-13: the rifle showed through the TROLLS forearm).
+  _reachArm(rig, p.armR, p.elbowR, rig.armRestR, _gT, hold?.carryPoleR ? _gPoleR2.set(...hold.carryPoleR) : _gPoleR);
 
   // Support hand: along grip → handguard, as far as the left arm reaches.
   _gO.copy(_gGrip).sub(p.armL.position).sub(p.shoulderL.position);

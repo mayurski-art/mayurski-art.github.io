@@ -13,7 +13,7 @@
 //      out; once it's up, X puts you back in the line.
 //   3. troll_runner: in the lobby with the owner band; VIP and back open.
 //   4. A pad (phase 5): A/B keycaps, B is No, a held A doesn't answer, a
-//      fresh A does; the chips name D-pad right.
+//      fresh A does; the chips name X (BO2's use button).
 //   5. A landscape phone (phase 5): big touch buttons nothing covers, the
 //      context button reads Leave, a tap answers.
 //   6. The bandana guy: off till he's due; his schedule is the same for
@@ -222,15 +222,15 @@ await A.context().close();
 // ── 4. A pad (phase 5) ───────────────────────────────────────────────────
 A = await open(null, { pad: true });
 s = await until(A, (s) => s.phase === "queued" || s.phase === "ask", 5000);
-if (s.phase === "queued") check("pad: the chip names D-pad right for stepping out", /hold D-pad →/.test(s.chip), s.chip);
+if (s.phase === "queued") check("pad: the chip names X for stepping out", /hold X/.test(s.chip), s.chip);
 s = await until(A, (s) => s.phase === "ask", 60000);
 check("pad: the keycaps read A / B", (await caps(A)) === "A|B", await caps(A));
 await A.screenshot({ path: path.join(SHOTS, "6-pad-ask.png") });
 await setPad(A, 1, true); await pump(A, 150); await setPad(A, 1, false);
 s = await until(A, (s) => s.kick > 0.3, 3000);
 check("pad: B is 'No'", s.phase === "kick", JSON.stringify({ phase: s.phase, kick: s.kick }));
-s = await until(A, (s) => s.phase === "lockout" && /D-pad/.test(s.chip), 16000);
-check("pad: once the lockout's up, the chip says hold D-pad right", /^Hold D-pad → to get back in line/.test(s.chip), s.chip);
+s = await until(A, (s) => s.phase === "lockout" && /Hold X/.test(s.chip), 16000);
+check("pad: once the lockout's up, the chip says hold X", /^Hold X to get back in line/.test(s.chip), s.chip);
 await A.evaluate(() => window.__trollClub.join());
 // A held from before the question isn't the answer...
 await setPad(A, 0, true);

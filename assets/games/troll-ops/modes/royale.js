@@ -5,8 +5,8 @@
 import { hashSeed, seededRng, RoyaleZone, ROYALE, LootField, lootSpots, ZoneVisual, ITEM_NAMES, gunDisplayName } from "../royale.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
 import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";
 import { insidePolygon } from "../edge.js";
-import { DROP, RoyaleDrop, buildParaglider, Flight } from "../royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
-import { DROP_FALL, DROP_GLIDE, ROLL_TIME } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
+import { DROP, RoyaleDrop, buildParaglider, Flight } from "../royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1";
+import { DROP_FALL, DROP_GLIDE, ROLL_TIME } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
 import * as THREE from "three";
 import { WEAPON_DEFS, WeaponState } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import { defaultLoadoutFor } from "../attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
@@ -290,10 +290,10 @@ export function updateBeltPlayer(dt) {
   if (game.move.pos.y < DROP.boxY - 1.5) {
     // Off with the speed you had: your run plus the belt under you.
     _edgeVel.copy(game.move.velocity).addScaledVector(_edgeAt.set(d.openDir.x, 0, d.openDir.z), DROP.beltSpeed);
-    r.flight = new Flight(game.move.pos, game.builtMap.map.edge, { glider: false, vel: _edgeVel });
+    r.flight = new Flight(game.move.pos, game.builtMap.map.edge, { glider: false, track: true, vel: _edgeVel });
     r.me = "fall";
     game.setHolding("none");
-    game.showWaveBanner("Steer with the camera — look down to dive", 1800);
+    game.showWaveBanner("Push forward to fly — look down to dive", 1800);
   }
 }
 

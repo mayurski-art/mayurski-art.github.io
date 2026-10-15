@@ -1,15 +1,15 @@
 // Troll Forces scoring: registerDeath (killfeed, medals, streaks), XP, score,
 // assists, match end and the team score HUD.
 
-import { nameFor, weaponNameFor, ASSIST_MEMORY, ASSIST_MIN_DAMAGE } from "./damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
-import { spawnComicWord, pushKillfeed, jokeVerb, showWaveBanner, updateStreakHud } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
+import { nameFor, weaponNameFor, ASSIST_MEMORY, ASSIST_MIN_DAMAGE } from "./damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1-pd1";
+import { spawnComicWord, pushKillfeed, jokeVerb, showWaveBanner, updateStreakHud } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
 import { WEAPON_DEFS } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
-import { botEarn } from "../streaks/bot-streaks.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
+import { botEarn } from "../streaks/bot-streaks.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-kc1-dj2-bf1-pd1";
 import { SCORE, streaksAllowed, STREAK_DEFS, streakIconSvg } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2";
-import { hero } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
-import { killstreakUi, achievements, streaks, streakKeyLabel } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
+import { hero } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1";
+import { killstreakUi, achievements, streaks, streakKeyLabel } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1";
 import { playerWon, matchWinner, matchWinnerOnTimeout } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1";
-import { currentWeapon } from "./weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
+import { currentWeapon } from "./weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1";
 import { resolveWeapon, defaultLoadoutFor } from "../attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import { XP } from "../progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import { game } from "../core/state.js?v=st1";
@@ -108,7 +108,7 @@ export function registerDeath(victimName, killerId, weaponId, opts = {}) {
 
     if (mode.ladder) {
       game.gunGameProgress++;
-      if (playerWon(mode, game.gunGameProgress)) { game.endMatch("You cleared the rack"); return; }
+      if (playerWon(mode, game.gunGameProgress)) { endForRoom("You cleared the rack"); return; }
       const next = game.equipFromLoadout();
       game.setActiveWeaponMesh(next);
       showWaveBanner(`${game.gunGameProgress + 1} / ${mode.ladder.length} — ${next.name}`, 1400);
@@ -237,6 +237,30 @@ export function creditAssistIfOwed(victimId, victimName) {
   pushKillfeed({ killer: "You", victim: victimName, assist: true, mine: true });
 }
 
+/* One result for the whole room (user, 2026-10-14: "my friend was done
+   playing, I was still playing"). Each client keeps its own score, and the
+   counts can drift, so whoever's match ends on the limit or the clock tells
+   the room, and everyone still in that match ends it there with the same
+   result. "You" goes out as our name and comes back as "You". */
+function endForRoom(title) {
+  if (game.isNet() && game.net.active) {
+    game.net.send({ t: "end", id: game.net.id, w: title.replace(/^You/, game.net.name), mode: game.modeId, map: game.loadedMapId });
+  }
+  game.endMatch(title);
+}
+
+/* modes/match-start.js beginMatch hands this to net (net.onEnd). */
+export function onRoomEnd(m) {
+  const mode = game.currentMode();
+  if (!mode.pvp || game.gameState !== "playing" || game.isStaging()) return;
+  if (m.mode !== game.modeId || m.map !== game.loadedMapId) return;   // an older match's, or another mode's
+  let w = String(m.w || "").slice(0, 60);
+  if (!w) return;
+  const me = game.net.name;
+  if (me && w.startsWith(me + " ")) w = "You" + w.slice(me.length);
+  game.endMatch(w);
+}
+
 export function checkMatchEnd() {
   const mode = game.currentMode();
   if (!mode.pvp || game.gameState !== "playing") return;
@@ -247,9 +271,9 @@ export function checkMatchEnd() {
     peers: [...game.net.peers.values()],
   };
   const winner = matchWinner(mode, args);
-  if (winner) { game.endMatch(winner); return; }
+  if (winner) { endForRoom(winner); return; }
   if (mode.timeLimit && game.matchClockT !== null && game.matchClockT <= 0) {
-    game.endMatch(matchWinnerOnTimeout(mode, args));
+    endForRoom(matchWinnerOnTimeout(mode, args));
   }
 }
 

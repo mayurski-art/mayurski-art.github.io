@@ -3,8 +3,7 @@
 // of game.js (split phase 1).
 
 import * as THREE from "three";
-import { applyAimAssist } from "./aim-assist.js?v=in1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
-import { padEmotePressed } from "../controller-layout.js?v=cl7";
+import { padEmotePressed } from "../controller-layout.js?v=cl7-pd1";
 import { game } from "../core/state.js?v=st1";
 
 
@@ -77,8 +76,10 @@ export function padLookTurn(x, y, mag, dt) {
 }
 
 let gpWheelSwallow = false;   // the A/B that worked the emote wheel isn't a jump/crouch
-const STICK_CHORD = 0.12;  // seconds a stick click waits for the other stick
-let stickChord = null, gpDt = 0;
+const DPAD_HOLD = 0.3;     // seconds d-pad left is held before it's the emote wheel, not an inspect
+let padSprint = false;      // L3's latched sprint (BO2: ends when you stop, aim or shoot)
+let dpadLeftT = -1;         // how long d-pad left has been held; -1 = spent / not held
+let gpDt = 0;
 export function pollGamepad(dt) {
   gpDt = dt;
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -103,15 +104,7 @@ export function pollGamepad(dt) {
   const [turnX, turnY] = padLookTurn(lookX, lookY, lookMag, dt);
   game.gamepadState.lookDX += turnX;
   game.gamepadState.lookDY += turnY * (game.settings.invert ? -1 : 1);
-
-  // Merely having a gamepad connected isn't "playing with a controller" — a
-  // trackpad or certain mice enumerate as a Gamepad object too, and this
-  // function used to run (and pull aim toward enemies) every frame any pad
-  // object existed, even completely idle. Assist should only ever nudge the
-  // look that the controller itself is actively driving, so it's gated on
-  // real right-stick deflection this frame, not on pad presence.
-  const usingGamepadLook = lookX !== 0 || lookY !== 0;
-  if (usingGamepadLook && game.player.alive && !game.isStaging() && !game.dragonfireView()) applyAimAssist(dt);
+  // No aim assist on a stick (user, 2026-10-14: removed for every input).
 
   const btn = (i) => !!gp.buttons[i]?.pressed;
   const pressedEdge = (i) => btn(i) && !game.gpPrev[i];
@@ -159,46 +152,45 @@ export function pollGamepad(dt) {
   // The pause menu being open (with other people still live in the match)
   // keeps this function running so the Start button can still resume, but
   // every other action button must stop reaching the player's weapon/gear.
+  // Black Ops 2's default Xbox 360 layout (user, 2026-10-14: "like we are
+  // playing CODBO2 with a xbox360 controller ... reloading is x and weapon
+  // swap is Y"): X reload (held: use / pick up), Y switch weapon, LB
+  // tactical, RB lethal, L3 sprint, R3 melee, d-pad right the scorestreak
+  // with up / down scrolling through the ones earned.
   if (!game.localPauseOnly) {
-    if (pressedEdge(4)) game.tryReload(true);          // L1 -> reload (kept off fire face buttons)
-    if (pressedEdge(2)) game.swingMelee();         // X / square -> melee
-    // Stick clicks (user): both sticks together open the emote wheel; one
-    // alone is the swivel to that side. Decided STICK_CHORD s after the
-    // first click, so the second stick of a chord isn't read as a swivel.
+    // X / square: a tap reloads; held, it's use (pickup below). Not over the
+    // bomb or a care package, where the hold is the whole point.
+    if (pressedEdge(2) && !(game.isSnd() && game.sndCanInteract) && !game.nearbyPackage()) game.tryReload(true);
+    if (pressedEdge(11)) game.swingMelee();        // R3 -> melee
+    // L3 -> sprint, latched like BO2's: it holds while the stick is pushed
+    // and ends when you stop, aim or shoot.
+    if (pressedEdge(10)) padSprint = true;
+    if (Math.hypot(game.gamepadState.moveX, game.gamepadState.moveY) < 0.2 || game.gamepadState.ads || firingNow) padSprint = false;
+    game.gamepadState.sprint = padSprint;
     // A single emote button can be set on the Settings controller card
-    // (controller-layout.js padEmoteButton) instead.
+    // (controller-layout.js padEmoteButton); by default it's d-pad left held.
     if (padEmotePressed(gp, pressedEdge)) game.emoteWheel.toggle(game.gameState === "playing" && game.player.alive);
-    if (!stickChord && (pressedEdge(10) || pressedEdge(11))) stickChord = { t: 0, l: false, r: false, done: false };
-    if (stickChord) {
-      stickChord.t += gpDt;
-      stickChord.l ||= btn(10);
-      stickChord.r ||= btn(11);
-      if (!stickChord.done && stickChord.l && stickChord.r) {
-        stickChord.done = true;
-        game.emoteWheel.toggle(game.gameState === "playing" && game.player.alive);
-      } else if (!stickChord.done && stickChord.t >= STICK_CHORD) {
-        stickChord.done = true;
-        game.trySwivel(stickChord.l ? -1 : 1);
-      }
-      if (stickChord.done && !btn(10) && !btn(11)) stickChord = null;
-    }
     if (pressedEdge(3)) game.cycleWeapon();        // Y / triangle -> cycle primary/secondary/melee
-    // R1 -> cook whatever throwable you brought. It used to be lethal-only,
-    // so a loadout carrying a flash/smoke/EMP threw nothing on RB (user:
-    // "throwable doesn't work on controller").
-    if (pressedEdge(5)) game.startCook(game.carriedThrowSlot());
-    if (game.gpPrev[5] && !btn(5)) game.releaseThrowKey();
-    // D-pad left does the same (NOT L1 — L1 is reload above, and one button
-    // doing both would reload every time you threw a flash).
-    if (pressedEdge(14)) game.startCook(game.carriedThrowSlot());
-    if (game.gpPrev[14] && !btn(14)) game.releaseThrowKey();
+    // LB tactical, RB lethal. A loadout carries one of the two, so the other
+    // bumper has nothing to throw.
+    if (pressedEdge(4)) game.startCook("tactical");
+    if (pressedEdge(5)) game.startCook("lethal");
+    if ((game.gpPrev[4] && !btn(4)) || (game.gpPrev[5] && !btn(5))) game.releaseThrowKey();
+    // D-pad left: a tap admires the gun, a hold opens the emote wheel.
+    if (pressedEdge(14)) dpadLeftT = 0;
+    if (btn(14) && dpadLeftT >= 0) {
+      dpadLeftT += gpDt;
+      if (dpadLeftT >= DPAD_HOLD) { dpadLeftT = -1; game.emoteWheel.toggle(game.gameState === "playing" && game.player.alive); }
+    }
+    if (game.gpPrev[14] && !btn(14)) { if (dpadLeftT >= 0) game.startInspect(); dpadLeftT = -1; }
     // Zombie Rush: d-pad up buys / deploys the highlighted card, down walks
-    // the highlight (view/zombies-hud.js); everywhere else up admires the gun.
+    // the highlight (view/zombies-hud.js); everywhere else up and down
+    // scroll the scorestreaks.
     const zp = padHooks.zombies?.active() ? padHooks.zombies : null;
     if (zp) {
       if (pressedEdge(12)) zp.useStart();
       if (game.gpPrev[12] && !btn(12)) zp.useEnd();
-    } else if (pressedEdge(12)) game.startInspect();      // D-pad up -> admire the weapon
+    } else if (pressedEdge(12)) game.cycleSelectedStreak(-1);   // D-pad up -> previous scorestreak
     // Emote wheel open (both sticks, above): the right stick points at a
     // slice instead of turning the view, Cross/A plays it, Circle/B closes.
     // A held A or B doesn't jump or crouch.
@@ -215,24 +207,19 @@ export function pollGamepad(dt) {
     }
     if (pressedEdge(8)) game.toggleThirdPerson();  // Select/View/Minus -> camera toggle
 
-    // D-pad down cycles which ready streak d-pad right will fire — a pick,
-    // not a use, since the pad has a button to spare for it and keyboard's
-    // single-button "4" doesn't need one.
-    if (pressedEdge(13)) { if (zp) zp.next(); else if (game.heroActive()) game.useHeroAbility(); else game.cycleSelectedStreak(); }
-    // D-pad right is context-dependent, the same way holding X already is:
-    // over a dropped weapon or a landed package, hold it to pick up/open —
-    // otherwise it fires whichever streak is currently selected. Checked
-    // here (edge-triggered) only when nothing is underfoot; the hold case is
-    // handled below by updatePickupPrompt reading gamepadState.pickup.
-    // In a streak, d-pad right is the hold-to-end (updateStreakControl).
-    // A quick tap while marking still confirms the mark, on release so a
-    // hold that's ending it never confirms on the way.
+    // D-pad down: the next ready streak d-pad right will fire (up, above,
+    // goes back) — a pick, not a use, the way BO2 scrolls its streak column.
+    if (pressedEdge(13)) { if (zp) zp.next(); else game.cycleSelectedStreak(1); }
+    // D-pad right fires whichever streak is selected (a hero's ability in
+    // Umbrella Academy). In a streak, it's the hold-to-end
+    // (updateStreakControl); a quick tap while marking still confirms the
+    // mark, on release so a hold that's ending it never confirms on the way.
     if (pressedEdge(15) && game.streakControlActive()) {
       game.streakEnd.padAt = performance.now();
       game.streakEnd.padShort = !!game.markingStreak;
-    } else if (pressedEdge(15) && !game.nearbyPackage() && !game.pickups.nearest(game.move.pos.x, game.move.pos.z)
-        && !(game.isSnd() && game.sndCanInteract) && !game.duoXClaimed) {
-      game.useSelectedStreak();
+    } else if (pressedEdge(15)) {
+      if (game.heroActive()) game.useHeroAbility();
+      else game.useSelectedStreak();
     }
     if (game.gpPrev[15] && !btn(15) && game.streakEnd.padAt) {
       if (game.streakEnd.padShort && game.markingStreak && performance.now() - game.streakEnd.padAt < 300) game.useSelectedStreak();
@@ -240,13 +227,10 @@ export function pollGamepad(dt) {
       game.streakEnd.padShort = false;
     }
   }
-  // D-pad right, held: the pad's equivalent of holding X for swap/pickup/
-  // open. Read as a level because all three are holds, and gated on the
-  // pause the same way every other action button is. Whether this or the
-  // edge-triggered streak-fire above actually does anything is decided by
-  // updatePickupPrompt/useSelectedStreak looking at what's underfoot, same
-  // question both ask.
-  game.gamepadState.pickup = !game.localPauseOnly && btn(15) && !game.streakControlActive();
+  // X held: use — pick up a weapon, open a package, plant / defuse, accept
+  // a duo, the keyboard's held X. Read as a level because all of them are
+  // holds, and gated on the pause the same way every other action button is.
+  game.gamepadState.pickup = !game.localPauseOnly && btn(2) && !game.streakControlActive();
   game.gamepadState.endStreak = !game.localPauseOnly && btn(15);
   if (pressedEdge(9)) {                     // Start/Home -> same as the on-screen gear icon
     if (game.controls.isLocked) game.controls.unlock();

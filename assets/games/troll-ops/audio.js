@@ -933,6 +933,30 @@ export class GameAudio {
     }
   }
 
+  /* A Black Ops 2 rifle reload, one beat at a time on the view model's own
+     timeline (view/ar-reload.js): the mag released and stripped out, the
+     fresh one slid in and slapped home, the charging handle racked, the
+     bolt catch slapped. */
+  rifleBeat(beat) {
+    if (!this._ready()) return;
+    if (beat === "release") {
+      this._noise({ duration: 0.03, gain: 0.15, type: "bandpass", freq: 2300, q: 5 });
+      this._noise({ duration: 0.11, gain: 0.1, type: "bandpass", freq: 1300, q: 2, sweepTo: 800, delay: 0.03 });
+    } else if (beat === "insert") {
+      this._noise({ duration: 0.08, gain: 0.1, type: "bandpass", freq: 1000, q: 2, sweepTo: 1600 });
+      this._noise({ duration: 0.05, gain: 0.22, type: "bandpass", freq: 750, q: 3, delay: 0.08 });
+      this._noise({ duration: 0.025, gain: 0.14, type: "bandpass", freq: 2600, q: 5, delay: 0.085 });
+    } else if (beat === "rack") {
+      this._noise({ duration: 0.07, gain: 0.17, type: "bandpass", freq: 950, q: 2, sweepTo: 1500 });
+      this._noise({ duration: 0.04, gain: 0.2, type: "bandpass", freq: 1500, q: 4, delay: 0.12 });
+      this._tone({ freq: 360, to: 230, duration: 0.05, gain: 0.07, type: "triangle", delay: 0.12 });
+    } else if (beat === "slap") {
+      this._noise({ duration: 0.03, gain: 0.2, type: "bandpass", freq: 1900, q: 4 });
+      this._noise({ duration: 0.05, gain: 0.16, type: "bandpass", freq: 1200, q: 3, delay: 0.01 });
+      this._tone({ freq: 380, to: 240, duration: 0.05, gain: 0.07, type: "triangle", delay: 0.01 });
+    }
+  }
+
   /* One shell thumbed into the tube: a short click-clack. */
   shellIn() {
     if (!this._ready()) return;

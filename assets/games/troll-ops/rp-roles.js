@@ -21,6 +21,8 @@ export const ROLES = {
   merchant: { code: "m", label: "Merchant", npc: "Merchant" },
   horsekeeper: { code: "h", label: "Horsekeeper", npc: "Horsekeeper" },
   conductor: { code: "c", label: "Conductor", npc: "Conductor" },
+  // Trolling Loud's decks (dj-lulz.js); DJ Lulz is no townsfolk, so no npc
+  dj: { code: "j", label: "DJ", npc: null },
 };
 export function roleCode(role) { return ROLES[role]?.code || null; }
 export function roleLabel(role) { return ROLES[role]?.label || null; }

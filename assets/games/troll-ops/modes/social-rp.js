@@ -12,19 +12,20 @@
    Fire sips, G puts it down. Sips make you tipsy (saloon-bar.js tipsyFx).
    What's in your hand, a sip, and the role ride the state packet. */
 
-import { REACH, GRAB_TIME, BEER_SIPS, FILL_TIME_BARTENDER, FILL_TIME, APRON_TIME, POUR_TIME, OFFER_SECONDS, TIPSY, drinkMax, DRINK_KINDS, isLiquor, SIP_TIME, tipsyFx, BARTENDER_LEAVE_SECONDS, buildDrink, mountDrink, poseDrinkArm, placeDrinkInHand, PourFx } from "../saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1";
+import { REACH, GRAB_TIME, BEER_SIPS, FILL_TIME_BARTENDER, FILL_TIME, APRON_TIME, POUR_TIME, OFFER_SECONDS, TIPSY, drinkMax, DRINK_KINDS, isLiquor, SIP_TIME, tipsyFx, BARTENDER_LEAVE_SECONDS, buildDrink, mountDrink, poseDrinkArm, placeDrinkInHand, PourFx } from "../saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1";
 import * as THREE from "three";
-import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
-import { playerName } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
-import { setSeatLookup } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
-import { ROLES, DOCTOR, TUNES, PianoVoice } from "../rp-roles.js?v=rp1b7-cd1-sh1";
+import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
+import { playerName } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1";
+import { setSeatLookup } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
+import { ROLES, DOCTOR, TUNES, PianoVoice } from "../rp-roles.js?v=rp1b7-cd1-sh1-dj2";
 import { damp } from "../anim-curves.js";
-import { touchState } from "../input/touch.js?v=in1-th2-bp1";
-import { frozenPlayer, setTouchContext } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
+import { touchState } from "../input/touch.js?v=in1-th2-bp1-bf1-pd1";
+import { frozenPlayer, setTouchContext } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1";
 import { game } from "../core/state.js?v=st1";
+import { padButtonName } from "../controller-layout.js?v=cl7-pd1";
 import { setFireIcon } from "../view/touch-icons.js?v=ti1-zc2";
-import { PianoPanel } from "../menu/piano-panel.js?v=pp1b7-cd1-sh1";
-import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
+import { PianoPanel } from "../menu/piano-panel.js?v=pp1b7-cd1-sh1-dj2";
+import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1";
 
 export const bar = {
   drink: null,      // { kind: "beer"|"whiskey", sips }
@@ -649,6 +650,11 @@ export function updateBar(dt) {
   }
   const older = otherWithRole(bar.role, true);
   if (older) setBarRole(null, `${older.name} already has that job.`);
+  // Trolling Loud's decks (dj-lulz.js): off them away from the club's map;
+  // the booth hears who's on them, us or someone else.
+  if (bar.role === "dj" && !game.djLulz.active) setBarRole(null, null);
+  const djPeer = bar.role === "dj" ? null : otherWithRole("dj");
+  game.djLulz.playerDj = bar.role === "dj" ? { id: game.net.id, name: playerName() } : djPeer ? { id: djPeer.id, name: djPeer.name || "someone" } : null;
   updateRp(dt);
 
   // Hold X.
@@ -682,7 +688,7 @@ export function updateBar(dt) {
       if (game.els.pickupKey) {
         game.els.pickupKey.hidden = !cap;
         if (cap) {
-          const k = game.gamepadState.connected ? "D-pad →" : "X";
+          const k = game.gamepadState.connected ? padButtonName(2) : "X";
           if (game.els.pickupKeyCap.textContent !== k) game.els.pickupKeyCap.textContent = k;
           game.els.pickupKey.classList.toggle("is-held", !!bar.hold);
         }
@@ -780,5 +786,10 @@ export function syncFpDrink(show) {
 
 /* What used to run at load in game.js: called from game.js where this code was. */
 export function initSocialRp() {
+  // The booth's Take the decks / Hand back the decks (dj-lulz.js).
+  game.djLulz.onDecks = (take) => {
+    if (take && otherWithRole("dj")) return;
+    setBarRole(take ? "dj" : null, take ? "You're the DJ: pick any track and the whole club hears it." : "You handed the decks back to DJ Lulz.");
+  };
   setSeatLookup(() => rpSeats());
 }

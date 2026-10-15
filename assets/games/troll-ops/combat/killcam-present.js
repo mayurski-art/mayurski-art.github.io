@@ -1,13 +1,13 @@
 // Troll Forces killcam presentation: poses the world, the killer's gun or
 // melee and the HUD around a killcam.js replay, and ends or skips it.
 
-import { poseDeath, DEATH_TIME, aimRig, gaitPhaseRate, gaitFromVelocity, poseHumanoid, poseThrowArm, THROW_TIME } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10";
+import { poseDeath, DEATH_TIME, aimRig, gaitPhaseRate, gaitFromVelocity, poseHumanoid, poseThrowArm, THROW_TIME } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1";
 import { MELEE_DEFS, buildMeleeMesh, MeleeState, SABER_BLOCK, THROWABLE_DEFS } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1";
 import { WEAPON_DEFS } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import * as THREE from "three";
 import { stripLights, buildWeaponMesh } from "../weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1";
-import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
-import { grenades, explosionFx } from "./throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
+import { TEAMS } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
+import { grenades, explosionFx } from "./throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1-pd1";
 import { game } from "../core/state.js?v=st1";
 
 /* ---------------- killcam (killcam.js) ----------------
@@ -155,12 +155,13 @@ function clearKillcamNades() {
 /* The killer's gun at the hip, bobbing with their walk and kicking on each
    of their shots, coming up to the sight as they aimed (the same sight
    line our own gun uses) and dipping out of the way for a throw. Built
-   from their weapon id; hands stay hidden like ours. */
-function buildKillcamGun(wid) {
+   from their weapon id, in the finish they wear (user, 2026-10-14: Dark
+   Matter on The Beast showed factory here); hands stay hidden like ours. */
+function buildKillcamGun(wid, skin = null) {
   disposeKillcamGun();
   const def = WEAPON_DEFS[wid];
   if (!def) return;
-  killcamGun = stripLights(buildWeaponMesh(def));
+  killcamGun = stripLights(buildWeaponMesh(def, { skin }));
   killcamGun.traverse((o) => { if (o.userData.hand) o.visible = false; });
   game.weaponScene.add(killcamGun);
 }
@@ -311,7 +312,8 @@ export function startKillcamPresentation(killerId, weaponId, isHead) {
       game.localRig.deathHint = { dir: Math.abs(d) < Math.PI / 2 ? 1 : -1 };
     }
     game.localRig.death = null;
-    buildKillcamGun(weaponId && WEAPON_DEFS[weaponId] ? weaponId : game.killcam.killerWeapon);
+    const killer = game.remotes.byId.get(game.killcam.killerId);
+    buildKillcamGun(weaponId && WEAPON_DEFS[weaponId] ? weaponId : game.killcam.killerWeapon, killer?.peer?.skin || null);
     game.weaponRig.visible = false;
   }
   // The replay is the death screen now: no 62% fade or centre countdown

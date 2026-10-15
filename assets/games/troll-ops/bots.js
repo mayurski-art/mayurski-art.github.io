@@ -71,6 +71,12 @@ const ADS_AT_RANGE = 1.1;         // scoped accuracy past NEAR_RANGE
    reason to push. */
 const MAG_SIZE = 26;
 const RELOAD_TIME = 2.3;
+/* One in the Chamber (rules.oneShot, user 2026-10-14: the bots were firing
+   over and over): a bot plays it like a player. One round and it's lethal;
+   a hit buys it back (everyone dies to one, so a hit is a kill); dry, it's
+   the knife until then, no reload and no sidearm. */
+const ONE_SHOT_DAMAGE = 500;
+const magFor = (rules) => (rules?.oneShot ? 1 : MAG_SIZE);
 
 /* `hit`: the ceiling on hitChance below (fully acquired, close, standing
    still). `missSpread`: how far off the target a missed round goes, in
@@ -188,7 +194,8 @@ class Bot {
   /* Its secondary is the FHJ-18 (Troll Royale and the like swap it out). */
   get launcher() { return this.secondaryId === "fhj18"; }
 
-  constructor(team, spawn, difficulty = "regular") {
+  constructor(team, spawn, difficulty = "regular", rules = {}) {
+    this.rules = rules;   // the BotManager's, shared: the match's mode rules
     this.id = `bot-${(counter++).toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
     this.name = NAMES[counter % NAMES.length];
     this.team = team;
@@ -215,7 +222,7 @@ class Bot {
     this.wander = new THREE.Vector3();
     this.wanderT = 0;
     this.moving = false;   // real ground speed, not "has steering input" — see update()
-    this.ammo = MAG_SIZE;
+    this.ammo = magFor(rules);
     this.reloadT = 0;
     this.ads = 0;             // 0 = hip, 1 = fully scoped (see ADS_* above)
     this.adsLingerT = 0;
@@ -290,7 +297,8 @@ class Bot {
     this.hp = this.maxHp || BOT_HP;
     this.alive = true;
     this.groundY = 0;
-    this.ammo = MAG_SIZE;
+    this.ammo = magFor(this.rules);
+    if (this.rules.oneShot) this.meleeOnly = false;
     this.reloadT = 0;
     this.holdingSecondary = false;
     this.aaMissiles = BOT_AA_MISSILES;
@@ -377,7 +385,13 @@ class Bot {
 
     if (this.reloadT > 0) {
       this.reloadT -= dt;
-      if (this.reloadT <= 0) this.ammo = MAG_SIZE;
+      if (this.reloadT <= 0) this.ammo = magFor(this.rules);
+    }
+    if (this.rules.oneShot) {
+      // any kill buys the round back, the knife's too
+      if ((this.kills | 0) > (this.oneShotKills | 0)) this.ammo = 1;
+      this.oneShotKills = this.kills | 0;
+      this.meleeOnly = this.ammo <= 0;
     }
 
     // --- pick the nearest visible enemy, and the nearest enemy overall
@@ -748,6 +762,20 @@ class Bot {
     // reloading into a firefight; holstering it again (back to the rifle)
     // waits for a clear moment, same as the primary's own out-of-contact
     // reload just below.
+    if (this.rules.oneShot) {
+      // One in the Chamber: no sidearm, no reload; dry is the knife.
+      this.holdingSecondary = false;
+      if (this.ammo > 0 && canShoot && reacted && this.fireT <= 0) {
+        this.ammo--;
+        this.fireT = this.diff.interval * (0.75 + Math.random() * 0.6);
+        const hit = Math.random() < this.hitChance(bestD);
+        const head = hit && Math.random() < HEADSHOT_CHANCE;
+        if (hit) this.ammo = 1;   // the kill buys the round back
+        else this.meleeOnly = true;   // missed: the knife
+        onShoot(this, best, hit ? ONE_SHOT_DAMAGE : 0, head, hit, bestD);
+      }
+      return;
+    }
     if (!this.holdingSecondary && this.ammo <= 0 && canSee && !this.launcher) this.holdingSecondary = true;
     else if (this.holdingSecondary && !canSee && this.reloadT <= 0) this.holdingSecondary = false;
     this.updateAds(dt, { canShoot, reacted, range: bestD, objective });
@@ -1181,6 +1209,7 @@ export class BotManager {
     this.bots = [];
     this.enabled = false;
     this.difficulty = "regular";
+    this.rules = { oneShot: false };   // the match's mode rules every bot reads (match-start.js beginMatch)
     this.fieldSrc = null;         // geometry the fields are built from
     this.fieldPool = new Map();   // [level|]target id -> FlowField, reused across sweeps
     this.fieldBases = new Map();  // level -> the blocked grid every field there copies
@@ -1232,7 +1261,7 @@ export class BotManager {
         for (let i = this.bots.length - 1; i >= 0 && have > want[team]; i--) {
           if (this.bots[i].team === team) { this.bots.splice(i, 1); have--; }
         }
-        for (; have < want[team]; have++) this.bots.push(new Bot(team, spawnFor(team), this.difficulty));
+        for (; have < want[team]; have++) this.bots.push(new Bot(team, spawnFor(team), this.difficulty, this.rules));
       }
       return;
     }
@@ -1242,7 +1271,7 @@ export class BotManager {
       const team = ffa
         ? (Math.random() < 0.5 ? "phantom" : "ghost")
         : (this.bots.filter((b) => b.team === "phantom").length <= this.bots.filter((b) => b.team === "ghost").length ? "phantom" : "ghost");
-      this.bots.push(new Bot(team, spawnFor(team), this.difficulty));
+      this.bots.push(new Bot(team, spawnFor(team), this.difficulty, this.rules));
     }
   }
 

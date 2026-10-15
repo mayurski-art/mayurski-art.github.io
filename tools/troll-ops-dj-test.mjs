@@ -8,7 +8,10 @@
 //      QUEUED. A second ask from B, or A asking for the same song, is
 //      turned down.
 //   3. The DJ's own pick mixes out and B's request plays, for both.
-//   4. Shots (SHOTS=1): the panel, the now-playing chip, the dance floor.
+//   4. A player DJ (user, 2026-10-14): B takes the decks and keeps the
+//      queue; B's pick plays for both at once; skip; the music stops and
+//      starts again; B hands the decks back to DJ Lulz.
+//   5. Shots (SHOTS=1): the panel, the now-playing chip, the dance floor.
 //
 // Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-dj-test.mjs
 
@@ -144,10 +147,10 @@ await B.evaluate(() => window.__trollOps.djLulz.open());
 await sleep(500);
 const ui = await B.evaluate(() => ({
   open: !document.querySelector(".to-dj-panel").hidden, pause: document.getElementById("to-pause").hidden,
-  crate: document.querySelectorAll(".to-dj-crate button").length, now: document.querySelector(".to-dj-now-t").textContent,
+  crate: document.querySelectorAll(".to-dj-crate button").length, tracks: window.__trollOps.djLulz.tracks.length, now: document.querySelector(".to-dj-now-t").textContent,
 }));
 check(ui.open && ui.pause, "the panel opens, the pause menu doesn't", JSON.stringify(ui));
-check(ui.crate === 4 && ui.now.length > 0, "it shows the record and the crate", JSON.stringify(ui));
+check(ui.crate === ui.tracks && ui.now.length > 0, "it shows the record and the crate", JSON.stringify(ui));
 const nowT = (await dj(B)).st.now.t;
 const want = [0, 1, 2, 3].find((i) => i !== nowT);
 await B.evaluate((i) => document.querySelector(`.to-dj-crate button[data-t="${i}"]`).click(), want);
@@ -186,6 +189,32 @@ check(aPlay.st.now?.t === want, "A hears it too");
 check(played.st.q.length === 0, "the queue is empty again");
 
 /* ---------------------------------------------------------------- 4 */
+await B.evaluate(() => window.__trollOps.djLulz.takeDecks());
+const took = await until(B, (v) => v.isKeeper, 6000);
+const aSees = await until(A, (v) => v.keeper === took.keeper, 6000);
+check(took.isKeeper && aSees.keeper === took.keeper, "B takes the decks and keeps the queue", JSON.stringify({ b: took.keeper, a: aSees.keeper }));
+const title = await B.evaluate(() => { const D = window.__trollOps.djLulz; D.open(); const t = document.getElementById("to-dj-title").textContent; D.close(true); return t; });
+check(/^DJ dance_floor/i.test(title), "the panel is B's now", title);
+const pick = (took.st.now?.t + 1) % 4;
+await B.evaluate((t) => window.__trollOps.djLulz.request(t), pick);
+const aPick = await until(A, (v) => v.st.now?.t === pick, 6000);
+check(aPick.st.now?.t === pick && (aPick.st.now.at - Date.now()) < 2000, "B's pick plays for A straight away", JSON.stringify(aPick.st.now));
+await B.evaluate(() => window.__trollOps.djLulz.skip());
+const skipped = await until(A, (v) => v.st.now && v.st.now.t !== pick, 9000);
+check(skipped.st.now && skipped.st.now.t !== pick, "skip: the next record", JSON.stringify(skipped.st.now));
+await B.evaluate(() => window.__trollOps.djLulz.setHeld(true));
+const off = await until(A, (v) => !v.st.now && v.st.held, 6000);
+check(!off.st.now && off.st.held, "stop: the music's off for A too", JSON.stringify({ now: off.st.now, held: off.st.held }));
+await sleep(1500);
+check(!(await dj(B)).st.now, "...and stays off");
+await B.evaluate(() => window.__trollOps.djLulz.setHeld(false));
+const on = await until(A, (v) => !!v.st.now && !v.st.held, 9000);
+check(!!on.st.now, "start: the music's back", JSON.stringify(on.st.now));
+await B.evaluate(() => window.__trollOps.djLulz.handBack());
+const back = await until(A, (v) => v.isKeeper, 9000);
+check(back.isKeeper, "B hands the decks back: DJ Lulz (A keeps the queue) again", back.keeper);
+
+/* ---------------------------------------------------------------- 5 */
 if (SHOTS) {
   await stand(B, 0, 6.5, 0);
   await B.evaluate(() => { window.__trollOps.look.pitch = -0.62; });

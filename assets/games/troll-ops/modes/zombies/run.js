@@ -12,16 +12,16 @@
 // nobody is left standing. A cleared wave gets everyone back up.
 
 import { game } from "../../core/state.js?v=st1";
-import { econ, earn, resetCash, tickCash, waveBonus } from "./economy.js?v=zr5-zr9-zr10-zc1-zc2-hr2-zp1";
-import { buy, offers, resetUpgrades, upgradeState } from "./upgrades.js?v=zr5-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
-import { mountZombiesHud, showZombiesHud, updateZombiesHud, announceWave, zombiesBanner } from "../../view/zombies-hud.js?v=zr6-zr7-zr8-zr9-zr10-zp1";
+import { econ, earn, resetCash, tickCash, waveBonus } from "./economy.js?v=zr5-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
+import { buy, offers, resetUpgrades, upgradeState } from "./upgrades.js?v=zr5-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1";
+import { mountZombiesHud, showZombiesHud, updateZombiesHud, announceWave, zombiesBanner } from "../../view/zombies-hud.js?v=zr6-zr7-zr8-zr9-zr10-zp1-aa0-zj1-vt1-pd1";
 import { updateZombieBars } from "../../view/zombies-bars.js?v=zr6-zr9-zr10";
-import { dep, depWire, deployOffers, pickDeployable, cancelPlacing, placeDeployable, spawnDeployable, hitBlocker, resetDeployables, clearDeployables, updateDeployables } from "./deployables.js?v=zr6-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
-export { deployClick } from "./deployables.js?v=zr6-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
-import { bossState, bossWaveStarted, resetBosses, spawnBossNow, updateBosses } from "./boss.js?v=zr7-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
-import { coop, startCoop, stopCoop, coopPreFrame, coopPostFrame, coopTargets, coopSwing, voteSkip, playerCount, roomPlayers, coopDebug, REVIVE_TIME } from "./coop.js?v=zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
-import { onZombieMessage as onCoopMessage } from "./coop.js?v=zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
-import { onHubMessage } from "./hub.js?v=zh1-zc1-zc2-hr2-zp1";
+import { dep, depWire, deployOffers, pickDeployable, cancelPlacing, placeDeployable, spawnDeployable, hitBlocker, resetDeployables, clearDeployables, updateDeployables } from "./deployables.js?v=zr6-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1-pd1";
+export { deployClick } from "./deployables.js?v=zr6-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1-pd1";
+import { bossState, bossWaveStarted, resetBosses, spawnBossNow, updateBosses } from "./boss.js?v=zr7-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1-pd1";
+import { coop, startCoop, stopCoop, coopPreFrame, coopPostFrame, coopTargets, coopSwing, voteSkip, playerCount, roomPlayers, coopDebug, REVIVE_TIME } from "./coop.js?v=zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1-zj1-kc1-zf1-dj2-bf1-pd1";
+import { onZombieMessage as onCoopMessage } from "./coop.js?v=zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1-zj1-kc1-zf1-dj2-bf1-pd1";
+import { onHubMessage } from "./hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-pd1";
 
 /* Every "z" + letter message: the hub's pads (zP, zG), else the run's. */
 export function onZombieMessage(p, m) {
@@ -42,6 +42,7 @@ export const run = {
   bleedT: 0,
   standKills: 0,
   out: false,          // co-op: bled out, back when the wave is cleared
+  waiting: false,      // co-op: joined mid-round, in when the wave is cleared
 };
 
 /* Match setup, once the director exists and the loadout is equipped. */
@@ -52,6 +53,7 @@ export function startZombieRun() {
   run.bleedT = 0;
   run.standKills = 0;
   run.out = false;
+  run.waiting = false;
   game.player.downed = false;
   game.player.out = false;
   resetCash(0);
@@ -64,6 +66,7 @@ export function startZombieRun() {
   coop.onCleared = (n) => game.zdir.events.push({ type: "cleared", wave: n });
   coop.onRevived = (name) => getUp(LAST_STAND_HP, `${name} picked you up`);
   coop.onLost = () => { stopZombieRun(); game.endGame("dead"); };
+  coop.onJoinMidRound = joinMidRound;
   mountZombiesHud({ onBuy: buyUpgrade, onSkip: skipBreak, onDeploy: deploy, onPlace: placeDeployable, onCancel: cancelPlacing, isPlacing: () => !!dep.placing });
   showZombiesHud(true);
 }
@@ -71,6 +74,7 @@ export function startZombieRun() {
 /* The run is over (game over, quit, a new match): HUD off. */
 export function stopZombieRun() {
   run.live = false;
+  run.waiting = false;
   game.player.downed = false;
   game.player.out = false;
   stopCoop();
@@ -184,10 +188,25 @@ export function zombieDowned() {
   game.player.hp = 0;
 }
 
+/* Dropped into a friend's run mid-round (user, 2026-10-14): out of the
+   fight where we spawned, nobody's target, and in at full health once the
+   round is cleared, like a teammate who bled out. */
+function joinMidRound() {
+  if (run.downed) return;
+  run.waiting = true;
+  run.downed = true;
+  run.out = true;
+  game.player.downed = true;
+  game.player.out = true;
+  game.player.hp = 0;
+  zombiesBanner("You'll spawn in when this round ends");
+}
+
 function getUp(hp = LAST_STAND_HP, msg = "Back on your feet") {
   if (!run.downed) return;
   run.downed = false;
   run.out = false;
+  run.waiting = false;
   game.player.downed = false;
   game.player.out = false;
   game.player.hp = Math.round(game.player.maxHp * hp);
@@ -244,7 +263,7 @@ export function updateZombieRun(dt) {
     if (ev.type === "cleared") {
       earn(waveBonus(ev.wave), `WAVE ${ev.wave} CLEARED`);
       if (ev.wave >= FINAL_WAVE) { winRun(); return []; }
-      if (run.downed) getUp(1, run.out ? "Back in" : "Back on your feet");
+      if (run.downed) getUp(1, run.waiting ? "You're in" : run.out ? "Back in" : "Back on your feet");
     }
     else if (ev.type === "shriek") game.audio.zombieShriek(ev.at);
     else if (ev.type === "groan") game.audio.zombieGroan(ev.at, ev.voice);
@@ -284,7 +303,7 @@ export function updateZombieRun(dt) {
     deploy: deployOffers(),
     boss,
     placing: dep.placing ? { id: dep.placing.id, name: dep.placing.stats.name, ok: dep.placing.ok, grid: dep.placing.grid } : null,
-    downed: run.downed ? { t: run.bleedT, max: teamed() ? BLEED_OUT_COOP : BLEED_OUT, kills: run.standKills, need: teamed() ? 0 : LAST_STAND_KILLS, out: run.out } : null,
+    downed: run.downed ? { t: run.bleedT, max: teamed() ? BLEED_OUT_COOP : BLEED_OUT, kills: run.standKills, need: teamed() ? 0 : LAST_STAND_KILLS, out: run.out, wait: run.waiting } : null,
     vote: coop.on && roomPlayers().length ? { n: coop.host ? coop.votes.size : coop.wave.vn, of: coop.host ? playerCount() : coop.wave.vt, mine: coop.myVote } : null,
     revive: coop.revive ? { name: coop.revive.name, k: coop.revive.t / REVIVE_TIME } : null,
   });

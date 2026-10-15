@@ -29,11 +29,11 @@
 
 import * as THREE from "three";
 import { game } from "../../core/state.js?v=st1";
-import { Zombie, zombieWire } from "../../zombies.js?v=zr4c-sb2b7b7dc2f1m1u-gt1-gt2-zr5-zr6-zr7-zr8-zr9-zr10-zc2-zp1";
-import { dep, depWire, spawnDeployable } from "./deployables.js?v=zr6-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
-import { bossState, bossWire, slamAt } from "./boss.js?v=zr7-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
-import { updateReviveRings, clearReviveRings, reviveRingState } from "../../view/revive-ring.js?v=rv1-zp1";
-import { earn } from "./economy.js?v=zr5-zr9-zr10-zc1-zc2-hr2-zp1";
+import { Zombie, zombieWire } from "../../zombies.js?v=zr4c-sb2b7b7dc2f1m1u-gt1-gt2-zr5-zr6-zr7-zr8-zr9-zr10-zc2-zp1-bf1";
+import { dep, depWire, spawnDeployable } from "./deployables.js?v=zr6-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1-pd1";
+import { bossState, bossWire, slamAt } from "./boss.js?v=zr7-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1-pd1";
+import { updateReviveRings, clearReviveRings, reviveRingState } from "../../view/revive-ring.js?v=rv1-zp1-bf1";
+import { earn } from "./economy.js?v=zr5-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
 
 const POS_EVERY = 0.1;      // seconds between zp
 const WAVE_EVERY = 0.5;     // ...and zw
@@ -58,6 +58,9 @@ export const coop = {
   onCleared: null,    // run.js: (n) the host cleared one
   onRevived: null,    // run.js: (name) a teammate picked us up
   onLost: null,       // run.js: everyone went down
+  onJoinMidRound: null, // run.js: we came in while a round was on (wait it out)
+  heard: false,       // the host's first zw has come in
+  own: null,          // our own last wave, while we ran it (takeOver)
 };
 
 let posT = 0, waveT = 0, depT = 0;
@@ -99,6 +102,8 @@ export function startCoop() {
   coop.revive = null;
   coop.allDownT = 0;
   coop.syncT = 0;
+  coop.heard = false;
+  coop.own = null;
   hits = []; events = []; depDirty.clear(); lastWire = "";
   posT = waveT = depT = 0;
   dep.cosmetic = coop.on && !coop.host;
@@ -246,6 +251,7 @@ function hostSend(dt, zd) {
   else if (coop.votes.size >= ids.size) zd.skipBreak();
 
   const w = waveWire(zd, ids.size);
+  coop.own = w;
   const key = `${w.r}|${w.s}|${w.n}|${w.vn}|${w.vt}`;
   waveT -= dt;
   if (waveT <= 0 || key !== lastWire) {
@@ -270,7 +276,11 @@ const waveWire = (zd, total) => ({ r: zd.round, s: zd.state, b: r2(zd.breakT), n
    standing where they were, and the wave carries on from its last word. */
 function takeOver() {
   const zd = game.zdir;
-  const w = coop.wave;
+  // The newer of the last wave we heard and the last we ran ourselves: a
+  // host that lost the role for a moment (a newcomer looked like the host
+  // while it loaded in) took it back at round 0, the only wave it had ever
+  // heard, and the run started over for everyone.
+  const w = coop.own && coop.own.r > coop.wave.r ? coop.own : coop.wave;
   for (const z of zd.zombies) {
     if (!z.proxy) continue;
     z.proxy = false;
@@ -406,6 +416,11 @@ function onWave(m) {
   const w = coop.wave;
   const prevR = w.r, prevS = w.s;
   w.r = m.r | 0; w.s = String(m.s || "idle"); w.b = +m.b || 0; w.n = m.n | 0; w.vn = m.vn | 0; w.vt = Math.max(1, m.vt | 0);
+  // The host's first word on the wave, and a round is on: we dropped into a
+  // run already going, and sit this round out (run.js).
+  const first = !coop.heard;
+  coop.heard = true;
+  if (first && w.r > 0 && w.s !== "between" && w.s !== "idle") coop.onJoinMidRound?.();
   if (w.r > prevR) coop.onWaveStart?.(w.r);
   if (w.s === "between" && prevS !== "between" && w.r > 0) coop.onCleared?.(w.r);
   if (w.s !== "between" && coop.myVote) coop.myVote = false;

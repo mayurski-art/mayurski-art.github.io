@@ -17,6 +17,14 @@
 // are on that player's clock, and everyone else keeps an offset to it, so
 // the record is at the same place for the whole room. If they leave, the
 // next oldest carries on from the last state they heard.
+//
+// A player can be the DJ (user, 2026-10-14: "whoever is the dj in
+// socialize should be able to dj the sounds, like with the troll radio"):
+// "Take the decks" in the booth's panel makes it their job (rp-roles.js
+// "dj"; modes/social-rp.js keeps `playerDj` current). The DJ keeps the
+// queue then: plays any track for the room straight away, skips, stops and
+// starts the music, and still gets everyone's requests in line. Handing the
+// decks back (or leaving) gives them to DJ Lulz again.
 
 import { BEATS } from "./music-beats.js?v=bg1-sg1-zr10";
 
@@ -52,6 +60,8 @@ export class DjLulz {
     this.seen = new Set();                // rids we've toasted about
     this.n = 0;
     this.inClub = false;
+    this.playerDj = null;                 // { id, name }: a player on the decks (social-rp.js)
+    this.onDecks = null;                  // (take) => taking them / handing them back (social-rp.js)
     this.el = new Audio();
     this.el.preload = "auto";
     this.graph = null;                    // { ctx, src, gain, input }
@@ -86,8 +96,15 @@ export class DjLulz {
 
   roomNow() { return Date.now() + this.skew; }
 
-  /* The room's oldest real player keeps the queue (lowest id on a tie). */
+  /* Who's on the decks, for the panel, the chip and the toasts. */
+  get djLabel() { return this.playerDj ? `DJ ${clean(this.playerDj.name, 20)}` : "DJ Lulz"; }
+  /* We're the DJ. */
+  get onDecksMe() { return !!this.playerDj && this.playerDj.id === this.h.net.id; }
+
+  /* The player DJ keeps the queue; else the room's oldest real player
+     (lowest id on a tie). */
   keeperId() {
+    if (this.playerDj?.id) return this.playerDj.id;
     const net = this.h.net;
     let best = { id: net.id, since: net.since || 0 };
     if (!net.connected) return best.id;
@@ -109,8 +126,8 @@ export class DjLulz {
   _broadcast() {
     this.st.seq++;
     this.lastSent = performance.now();
-    const { seq, now, q } = this.st;
-    this.h.net.publishRp?.({ k: "djstate", seq, rn: this.roomNow(), now, q });
+    const { seq, now, q, held } = this.st;
+    this.h.net.publishRp?.({ k: "djstate", seq, rn: this.roomNow(), now, q, held: held ? 1 : undefined });
     this._react();
     this._render();
   }
@@ -129,7 +146,7 @@ export class DjLulz {
         this.skew = Math.max(...this.offs);
         this.skewed = true;
       }
-      this.st = { seq: m.seq | 0, now: this._cleanNow(m.now), q: (Array.isArray(m.q) ? m.q : []).slice(0, MAX_QUEUE + 2).map((e) => this._cleanEntry(e)).filter(Boolean) };
+      this.st = { seq: m.seq | 0, now: this._cleanNow(m.now), q: (Array.isArray(m.q) ? m.q : []).slice(0, MAX_QUEUE + 2).map((e) => this._cleanEntry(e)).filter(Boolean), held: m.held ? 1 : 0 };
       this._react();
       this._render();
     } else if (m.k === "djhi") {
@@ -139,7 +156,7 @@ export class DjLulz {
     } else if (m.k === "djno") {
       if (m.to !== this.h.net.id || !this.mine || this.mine.rid !== m.rid) return;
       this.mine = null;
-      this.h.banner(`DJ Lulz: ${clean(m.why, 60) || "not right now"}`, 2400);
+      this.h.banner(`${this.djLabel}: ${clean(m.why, 60) || "not right now"}`, 2400);
       this._render();
     }
   }
@@ -178,6 +195,12 @@ export class DjLulz {
     const S = this.st, rn = this.roomNow();
     let changed = false;
     for (const e of S.q) if (!e.ok && rn >= e.rev) { e.ok = 1; changed = true; }
+    // the player DJ stopped the music: nothing plays till they start it
+    if (S.held) {
+      if (S.now) { S.now = null; changed = true; }
+      if (changed || performance.now() - this.lastSent > STATE_EVERY_MS) this._broadcast();
+      return;
+    }
     // a request in: the DJ's own pick mixes out (once it's had a fair go)
     if (S.now && !S.now.pid && S.now.end === undefined && S.q.some((e) => e.ok)) {
       const end = Math.max(rn + MIX_OUT_MS, S.now.at + MIN_PICK_MS);
@@ -200,9 +223,41 @@ export class DjLulz {
     if (changed || performance.now() - this.lastSent > STATE_EVERY_MS) this._broadcast();
   }
 
-  /* Ours: ask for track `t`. */
+  /* ------------------------------------------------------- the player DJ */
+
+  /* On the decks (and keeping the queue): `fn` changes the state, which
+     then goes to the room. */
+  _deck(fn) {
+    if (!this.map || !this.onDecksMe || !this.isKeeper()) return false;
+    fn(this.st, this.roomNow());
+    this._broadcast();
+    return true;
+  }
+  /* Track `t` on now, for the whole room (a request for it comes out of line). */
+  playNow(t) {
+    if (!this.tracks[t]) return;
+    this._deck((S, rn) => {
+      S.q = S.q.filter((e) => e.t !== t);
+      S.held = 0;
+      S.now = { t, by: clean(this.playerDj.name), pid: this.h.net.id, rid: null, at: rn + 300 };
+      this.lastPick = t;
+    });
+  }
+  /* This record out: the next request, or the next pick, after the gap. */
+  skip() {
+    this._deck((S, rn) => { if (S.now) S.now.end = Math.min(this._end(S.now), rn + 600); });
+  }
+  /* The music off, or back on. */
+  setHeld(on) {
+    this._deck((S) => { S.held = on ? 1 : 0; if (on) S.now = null; });
+  }
+  takeDecks() { if (this.map && !this.playerDj) this.onDecks?.(true); }
+  handBack() { if (this.onDecksMe) { this.setHeld(false); this.onDecks?.(false); } }
+
+  /* Ours: ask for track `t` (the DJ: play it). */
   request(t) {
     if (!this.map || !this.tracks[t]) return;
+    if (this.onDecksMe) { this.playNow(t); return; }
     const why = this.blockReason(t);
     if (why) { this.h.banner(why, 1800); return; }
     const rid = `${this.h.net.id}:${Date.now().toString(36)}${++this.n}`;
@@ -222,6 +277,7 @@ export class DjLulz {
   blockReason(t) {
     const S = this.st, me = this.h.net.id;
     if (S.now?.t === t && this.roomNow() < this._end(S.now)) return "That one's playing right now";
+    if (this.onDecksMe) return null;   // the DJ plays what they like
     if (S.q.some((e) => e.t === t)) return "Already in the queue";
     if (this.mine || S.q.some((e) => e.pid === me)) return "You've got one in line";
     if (S.q.length >= MAX_QUEUE) return "The queue's full";
@@ -239,12 +295,12 @@ export class DjLulz {
       const key = `${e.rid}:${e.ok}`;
       if (this.seen.has(key)) continue;
       this.seen.add(key);
-      if (e.pid === me) this.h.banner(e.ok ? `DJ Lulz is on it: ${this.tracks[e.t].title} is #${S.q.indexOf(e) + 1} in line` : "Request sent, DJ Lulz is checking it…", 2200);
+      if (e.pid === me) this.h.banner(e.ok ? `${this.djLabel} is on it: ${this.tracks[e.t].title} is #${S.q.indexOf(e) + 1} in line` : `Request sent, ${this.djLabel} is checking it…`, 2200);
       else if (e.ok && this.inClub) this.h.banner(`${e.by} requested ${this.tracks[e.t].title}`, 1600);
     }
     if (S.now?.rid && !this.seen.has(`${S.now.rid}:on`)) {
       this.seen.add(`${S.now.rid}:on`);
-      if (S.now.pid === me) this.h.banner(`Now playing your request: ${this.tracks[S.now.t].title}`, 2600);
+      if (S.now.pid === me && !this.onDecksMe) this.h.banner(`Now playing your request: ${this.tracks[S.now.t].title}`, 2600);
     }
   }
 
@@ -287,7 +343,8 @@ export class DjLulz {
     const pending = this.st.q.length;
     return {
       key: "dj", ctx: "DJ", time: 0.25,
-      label: pending ? `Request a song from DJ Lulz (${pending} in line)` : "Request a song from DJ Lulz",
+      label: this.onDecksMe ? (pending ? `Open the decks (${pending} requested)` : "Open the decks")
+        : pending ? `Request a song from ${this.djLabel} (${pending} in line)` : `Request a song from ${this.djLabel}`,
       done: () => this.open(),
     };
   }
@@ -381,7 +438,7 @@ export class DjLulz {
       <div class="to-dj-chip" hidden aria-live="polite">
         <span class="to-dj-disc" aria-hidden="true"><img alt=""></span>
         <span class="to-dj-chip-txt">
-          <span class="to-dj-chip-k">DJ Lulz <b>now spinning</b></span>
+          <span class="to-dj-chip-k"><span class="to-dj-chip-who">DJ Lulz</span> <b>now spinning</b></span>
           <span class="to-dj-chip-t"></span>
           <span class="to-dj-chip-s"></span>
         </span>
@@ -398,6 +455,12 @@ export class DjLulz {
             </div>
             <button type="button" class="to-dj-x" aria-label="Close the DJ booth">✕</button>
           </header>
+          <div class="to-dj-decks" role="group" aria-label="The decks">
+            <button type="button" data-deck="take">Take the decks</button>
+            <button type="button" data-deck="skip">Skip</button>
+            <button type="button" data-deck="hold">Stop the music</button>
+            <button type="button" data-deck="back">Hand back the decks</button>
+          </div>
           <section class="to-dj-now" aria-label="Now spinning">
             <div class="to-dj-label">Now spinning</div>
             <div class="to-dj-now-row">
@@ -432,6 +495,8 @@ export class DjLulz {
       panel: $(".to-dj-panel"), close: $(".to-dj-x"), nowT: $(".to-dj-now-t"), nowA: $(".to-dj-now-a"), nowBy: $(".to-dj-now-by"),
       prog: $(".to-dj-prog i"), el: $(".to-dj-el"), left: $(".to-dj-left"), count: $(".to-dj-count"),
       queue: $(".to-dj-queue"), crate: $(".to-dj-crate"), vol: $(".to-dj-vol input"), note: $(".to-dj-note"),
+      title: $("#to-dj-title"), sub: $(".to-dj-sub"), keys: $(".to-dj-keys"), chipWho: $(".to-dj-chip-who"),
+      deck: Object.fromEntries([...root.querySelectorAll("[data-deck]")].map((b) => [b.dataset.deck, b])),
       eqs: [...root.querySelectorAll(".to-dj-eq")],
     };
     for (const img of root.querySelectorAll("img")) img.src = TROLL_URL;
@@ -446,6 +511,13 @@ export class DjLulz {
     this.ui.panel.addEventListener("click", (e) => {
       if (this.blocked) { this._retryAt = 0; this.graph?.ctx.resume?.().catch(() => {}); }
       if (e.target === this.ui.panel) this.close();
+    });
+    root.querySelector(".to-dj-decks").addEventListener("click", (e) => {
+      const k = e.target.closest("button[data-deck]")?.dataset.deck;
+      if (k === "take") this.takeDecks();
+      else if (k === "skip") this.skip();
+      else if (k === "hold") this.setHeld(!this.st.held);
+      else if (k === "back") this.handBack();
     });
     this.ui.crate.addEventListener("click", (e) => {
       const b = e.target.closest("button[data-t]");
@@ -470,11 +542,21 @@ export class DjLulz {
     const S = this.st, me = this.h.net.id, ui = this.ui;
     const n = S.now, tr = n && this.tracks[n.t];
     ui.chipT.textContent = tr ? `${tr.title} — ${tr.artist}` : "";
-    ui.nowT.textContent = tr ? tr.title : "Warming up the decks…";
+    const dj = this.onDecksMe;
+    ui.chipWho.textContent = this.djLabel;
+    ui.nowT.textContent = tr ? tr.title : S.held ? "The music's off" : "Warming up the decks…";
     ui.nowA.textContent = tr ? tr.artist : "";
-    ui.nowBy.textContent = !tr ? "" : n.pid === me ? "Your request" : n.by ? `Requested by ${n.by}` : "DJ's pick";
+    const djPick = !!this.playerDj && n?.pid === this.playerDj.id;
+    ui.nowBy.textContent = !tr ? "" : n.pid === me ? (dj ? "Your pick" : "Your request") : djPick ? `${this.djLabel}'s pick` : n.by ? `Requested by ${n.by}` : "DJ's pick";
     ui.nowBy.classList.toggle("is-mine", !!tr && n.pid === me);
     if (!this.isOpen) return;
+    ui.title.textContent = this.djLabel;
+    ui.sub.textContent = dj ? "You're on the decks · the whole club hears your pick" : "Taking requests · one each";
+    ui.deck.take.hidden = !!this.playerDj;
+    ui.deck.skip.hidden = ui.deck.hold.hidden = ui.deck.back.hidden = !dj;
+    ui.deck.skip.disabled = !n;
+    ui.deck.hold.textContent = S.held ? "Start the music" : "Stop the music";
+    ui.keys.textContent = `1–${this.tracks.length} ${dj ? "play" : "request"} · Esc close`;
     // up next
     const rows = [];
     let eta = n ? Math.max(0, this._end(n) - this.roomNow()) : 0;
@@ -492,7 +574,7 @@ export class DjLulz {
       const t = this.tracks[this.mine.t];
       rows.push(`<li class="is-mine"><span class="to-dj-pos">·</span><span class="to-dj-q-txt"><b>${esc(t.title)}</b><small>${esc(t.artist)} · you</small></span><span class="to-dj-pill is-pending"><i aria-hidden="true"></i>Sending</span></li>`);
     }
-    ui.queue.innerHTML = rows.length ? rows.join("") : `<li class="to-dj-empty">Nothing queued. DJ Lulz is freestyling: ask for something.</li>`;
+    ui.queue.innerHTML = rows.length ? rows.join("") : `<li class="to-dj-empty">${dj ? "No requests yet. Pick anything from the crate." : `Nothing queued. ${esc(this.djLabel)} is freestyling: ask for something.`}</li>`;
     ui.count.textContent = S.q.length ? `(${S.q.length})` : "";
     // the crate
     ui.crate.innerHTML = this.tracks.map((t, i) => {
@@ -502,7 +584,7 @@ export class DjLulz {
       return `<li>
         <span class="to-dj-key" aria-hidden="true">${i + 1}</span>
         <span class="to-dj-q-txt"><b>${esc(t.title)}</b><small>${esc(t.artist)}${g ? ` · ${Math.round(g.bpm)} BPM · ${mmss(g.dur)}` : ""}</small></span>
-        <button type="button" data-t="${i}" ${why ? `disabled title="${esc(why)}"` : ""} aria-label="Request ${esc(t.title)}">${state || (why ? "Later" : "Request")}</button>
+        <button type="button" data-t="${i}" ${why ? `disabled title="${esc(why)}"` : ""} aria-label="${dj ? "Play" : "Request"} ${esc(t.title)}">${state === "Playing" ? state : dj ? "Play" : state || (why ? "Later" : "Request")}</button>
       </li>`;
     }).join("");
     ui.note.textContent = this.h.radioOn() ? "Your radio's on, so the DJ is muted for you" : this.blocked ? "Click anywhere in the panel to hear the DJ" : "";
@@ -532,8 +614,8 @@ export class DjLulz {
       const q = this.st.q.length, me = this.h.net.id;
       const mineAt = this.st.q.findIndex((e) => e.pid === me);
       ui.chipS.textContent = [
-        n.pid === me ? "your request" : n.by ? `req. ${n.by}` : "DJ's pick",
-        mineAt >= 0 ? `you're #${mineAt + 1}` : q ? `${q} up next` : "hold X at the booth to request",
+        n.pid === me ? (this.onDecksMe ? "your pick" : "your request") : this.playerDj && n.pid === this.playerDj.id ? "DJ's pick" : n.by ? `req. ${n.by}` : "DJ's pick",
+        mineAt >= 0 ? `you're #${mineAt + 1}` : q ? `${q} up next` : this.onDecksMe ? "hold X at the booth for the decks" : "hold X at the booth to request",
       ].join(" · ");
       if (this.isOpen) {
         ui.el.textContent = mmss(el);
@@ -640,6 +722,12 @@ function injectCss() {
 .to-dj-pos, .to-dj-key { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; font: 700 12px/1 "DM Mono", monospace; background: rgba(255,255,255,.08); color: var(--dj-ink); }
 .to-dj-key { background: #f4eefa; color: #12081c; box-shadow: 0 2px 0 #9a8aa8; }
 .to-dj-q-txt { min-width: 0; display: flex; flex-direction: column; }
+.to-dj-decks { display: flex; flex-wrap: wrap; gap: 8px; margin: -4px 0 12px; }
+.to-dj-decks button { font: 600 11px/1 "Oswald", sans-serif; letter-spacing: .1em; text-transform: uppercase; padding: 8px 12px; border-radius: 999px; border: 0.5px solid rgba(255,63,180,.55); background: rgba(255,63,180,.12); color: var(--dj-ink); cursor: pointer; }
+.to-dj-decks button[data-deck="back"] { border-color: rgba(255,255,255,.25); background: rgba(255,255,255,.06); }
+.to-dj-decks button:hover, .to-dj-decks button:focus-visible { border-color: var(--dj-cyan); outline: none; }
+.to-dj-decks button:disabled { opacity: .45; cursor: default; }
+.to-dj-decks button[hidden] { display: none; }
 .to-dj-q-txt b { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .to-dj-q-txt small { font: 500 10.5px/1.3 "DM Mono", monospace; color: var(--dj-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .to-dj-pill { display: inline-flex; align-items: center; gap: 6px; font: 600 10px/1 "Oswald", sans-serif; letter-spacing: .1em; text-transform: uppercase; padding: 5px 8px; border-radius: 999px; white-space: nowrap; }

@@ -31,16 +31,17 @@
    `rp.door` (Trolling Loud), only in Socialize. */
 
 import * as THREE from "three";
-import { rpExtras } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
-import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
-import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1";
+import { rpExtras } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1";
+import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
+import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1";
 import { myCardData } from "../profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zh1-zc1-zc2";
 import { renderClubId, paintMiniLicence } from "../view/club-id-card.js?v=cid1-cid2-th2";
 import { isOwner } from "../progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
-import { reachHand, setFace } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10";
+import { reachHand, setFace } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1";
 import { clubWear } from "./club-wear.js?v=cw1c2m1";
-import { peerPosers } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
+import { peerPosers } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
 import { game } from "../core/state.js?v=st1";
+import { padButtonName } from "../controller-layout.js?v=cl7-pd1";
 
 export const BAND = { none: 0, guest: 1, owner: 2, vip: 3 };
 /* The test (?tohooks=1) shortens the waits: window.__trollClub.T. */
@@ -424,13 +425,13 @@ function stepMe(d, dt) {
   if (club.phase !== "lockout") ui.chip(club.phase === "queued" ? `In line · ${holdHint("Leave")} to step out` : null);
 }
 
-/* The hold that works the line on this device: X on keys, D-pad right on a
-   pad (X is melee there; every hold-to-use is D-pad right), and the context
-   button on touch, which wears `ctx` (lineAction below). */
+/* The hold that works the line on this device: X on keys and on a pad
+   (BO2's use button, by position), and the context button on touch, which
+   wears `ctx` (lineAction below). */
 function inputKind() { return game.isTouch ? "touch" : game.gamepadState?.connected ? "pad" : "keys"; }
 function holdHint(ctx) {
   const k = inputKind();
-  return k === "touch" ? `hold ${ctx}` : k === "pad" ? "hold D-pad →" : "hold X";
+  return k === "touch" ? `hold ${ctx}` : k === "pad" ? `hold ${padButtonName(2)}` : "hold X";
 }
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 

@@ -3113,6 +3113,15 @@ body.to-touch-play .to-touch-admire {
 }
 body.to-touch-play .to-touch-admire svg { width: calc(20px * var(--k)); height: calc(20px * var(--k)); }
 
+/* First / third person, showing the view you're in: under Admire on a
+   desktop's touch panel, beside Emote on a phone (the right column's full). */
+.to-touch-pov { left: 22px; top: 176px; width: 52px; height: 32px; border-radius: 9px; font: 700 11px "DM Sans", sans-serif; letter-spacing: .04em; }
+.to-touch-pov[aria-pressed="true"] { background: rgba(127,224,102,.3); border-color: rgba(127,224,102,.65); }
+body.to-touch-play .to-touch-pov {
+  left: auto; right: calc(var(--sr) + 88px * var(--k)); bottom: auto; top: calc(var(--st, 0px) + 64px * var(--k));
+  width: calc(56px * var(--k)); height: calc(30px * var(--k)); font-size: calc(11px * var(--k));
+}
+
 /* Scorestreak slots, BO2 style: the picture with the streak's tier badge on
    its corner, its name under it, then the cost (or READY and the key). */
 .to-ss-slot { width: 92px; height: auto; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 4px 5px; }
@@ -3408,6 +3417,9 @@ body.to-touch-play .to-ss-sky { width: calc(24px * var(--k)); height: calc(24px 
 .to-bo2-foot { position: absolute; left: 96px; right: 48px; bottom: 30px; z-index: 3; display: flex; align-items: flex-end; gap: 26px; color: var(--bo2-dim); font-size: 15px; pointer-events: none; }
 .to-bo2-foot > * { pointer-events: auto; }
 .to-bo2-online { font: 600 38px/1 Oswald, sans-serif; letter-spacing: .02em; color: var(--bo2-ink); text-shadow: 0 2px 10px rgba(0,0,0,.9); }
+/* it opens Who's Online (menu/online.js) */
+.to-bo2-online[role="button"] { cursor: pointer; }
+.to-bo2-online[role="button"]:hover, .to-bo2-online[role="button"]:focus-visible { text-decoration: underline; text-underline-offset: 6px; outline: none; }
 .to-bo2-status { display: block; margin-top: 8px; font: 13px "DM Mono", monospace; color: var(--bo2-soft); }
 .to-bo2-status:empty { display: none; }
 /* Map downloads (map-preload.js): a thin bar and a line of mono text under

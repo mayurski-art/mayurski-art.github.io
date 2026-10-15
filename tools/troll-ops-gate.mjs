@@ -64,8 +64,8 @@ const stepDone = (name) => { console.log(`   (${name}: ${Math.round((Date.now() 
 /* ---------------------------------------------------------------- the tests */
 
 // The standalone tests the full gate runs.
-const INPUT_TESTS = ["troll-ops-input-test.mjs", "troll-ops-menu-test.mjs", "troll-ops-killcam-test.mjs", "troll-ops-objectives-test.mjs", "troll-ops-rope-test.mjs", "troll-ops-zcredits-test.mjs", "troll-ops-zanim-test.mjs", "troll-ops-zpad-test.mjs"];
-const ROOM_TESTS = ["troll-ops-sync-test.mjs", "troll-ops-load-sync-test.mjs", "troll-ops-bot-host-test.mjs", "troll-ops-escalator-test.mjs", "troll-ops-zhub-test.mjs"];
+const INPUT_TESTS = ["troll-ops-input-test.mjs", "troll-ops-menu-test.mjs", "troll-ops-killcam-test.mjs", "troll-ops-objectives-test.mjs", "troll-ops-rope-test.mjs", "troll-ops-zcredits-test.mjs", "troll-ops-zanim-test.mjs", "troll-ops-zpad-test.mjs", "troll-ops-arreload-test.mjs", "troll-ops-loupe-test.mjs", "troll-ops-swap-test.mjs", "troll-ops-royale-drop-test.mjs", "troll-ops-nft-hold-test.mjs", "troll-ops-bo2pad-test.mjs", "troll-ops-oitc-bots-test.mjs", "troll-ops-skin-sync-test.mjs", "troll-ops-online-test.mjs"];
+const ROOM_TESTS = ["troll-ops-sync-test.mjs", "troll-ops-load-sync-test.mjs", "troll-ops-bot-host-test.mjs", "troll-ops-escalator-test.mjs", "troll-ops-zhub-test.mjs", "troll-ops-roomsync-test.mjs", "troll-ops-zjoin-test.mjs"];
 // the bot-host test plays a dozen two-tab matches: it gets longer
 const timeoutFor = (t) => (t === "troll-ops-bot-host-test.mjs" ? 1500000 : 600000);
 
@@ -81,10 +81,21 @@ const TEST_MAP = [
   [/modes\/zombies\/run\.js|view\/zombies-hud\.js/, z("zrun", "zdeploy", "zpad")],
   [/troll-ops\/zombies\.js|zombie-models\.js/, z("zrun", "zanim", "zcoop")],
   [/input\/|keyboard-mouse|gamepad|touch/, z("input")],
-  [/input\/gamepad\.js/, z("zpad")],
+  [/input\/gamepad\.js|controller-layout\.js|streaks\/calling\.js/, z("zpad", "bo2pad")],
+  [/input\/touch\.js|hud-layout\.js/, z("bo2pad")],
+  [/combat\/killcam|weapon-model\.js/, z("skin-sync")],
+  [/menu\/online\.js|site-presence\.js|menu-bo2\.js/, z("online")],
+  [/troll-ops\/bots\.js/, z("oitc-bots")],
+  [/modes\/match-start\.js|combat\/scoring\.js/, z("roomsync")],
+  [/modes\/zombies\/(coop|run|hub)\.js/, z("zjoin")],
+  [/input\/touch\.js|style\.css/, z("loupe")],
+  [/royale-drop\.js|modes\/royale\.js/, z("royale-drop")],
+  [/character\.js|blocky-body\.js/, z("nft-hold", "3p-hold")],
+  [/combat\/weapons\.js|view\/(player-update|revive-ring)\.js|pickups\.js/, z("swap")],
   [/menu\/|menu-bo2\.js|loadout\.js|style\.css|troll-ops\.html/, z("menu")],
   [/troll-ops\/weapons\.js|combat\/|attachments\.js|weapon-|view\/(weapon-view|viewmodels)\.js/, z("input", "killcam")],
   [/combat\/melee\.js|modes\/zombies\/run\.js/, z("zanim")],
+  [/view\/(ar-reload|weapon-view)\.js|troll-ops\/audio\.js/, z("arreload")],
   [/net\.js|remote-players\.js|modes\/spawns\.js/, z("sync", "load-sync")],
   // match setup: every mode boots in step 2 already; one two-tab check is plenty
   [/modes\/match-(start|end)\.js/, z("sync")],

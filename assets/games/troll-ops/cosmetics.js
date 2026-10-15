@@ -8,7 +8,7 @@
 // the materials (faceMaterial / setFace); this file is the picks and the
 // panel.
 
-import { FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10";
+import { FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1";
 import { WRISTWEAR, watchThumb } from "./wristwear.js?v=ww1c2m1";
 import { isOwner } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 

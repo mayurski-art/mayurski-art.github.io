@@ -49,7 +49,6 @@ await page.evaluate(async () => {
   await T.startGame();
   if (T.isStaging()) T.endStaging();
   T.player.maxHp = T.player.hp = 1e6;
-  T.settings.aimAssist = true;
 });
 await page.waitForFunction(() => window.__trollOps.state() === "playing", null, { timeout: 30000 });
 await sleep(3000);

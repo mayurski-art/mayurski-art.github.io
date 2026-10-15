@@ -18,7 +18,7 @@ export const MAX_PLAYERS_ROYALE = 100;
    host built that bot with, so every client knows the room's bot skill. */
 const BOT_SKILLS = ["recruit", "regular", "veteran"];
 // Socialize roleplay jobs by wire letter (rp-roles.js ROLES).
-const RP_ROLES = { b: "bartender", p: "pianist", d: "doctor", s: "sheriff", m: "merchant", h: "horsekeeper", c: "conductor" };
+const RP_ROLES = { b: "bartender", p: "pianist", d: "doctor", s: "sheriff", m: "merchant", h: "horsekeeper", c: "conductor", j: "dj" };
 /* A bot's level for the scoreboard: fixed per bot id (1-69), so a bot
    keeps the same rank all match and every client agrees on it. */
 function botLevel(id) {
@@ -140,6 +140,7 @@ export class Net {
     this._dropIds = new Set();    // an old-build host's bots, dropped when we took over
     this._hoSeen = new Map();     // bot publisher id -> when its last bot state came in
     this.onStall = null;          // modes/bot-watch.js: someone saw the bots freeze
+    this.onEnd = null;            // combat/scoring.js: someone's match ended (one result for the room)
     // Socialize rooms: how many times the owner (or a match ending) has
     // switched the room's mode. Rides every room note (`ms`) so a newcomer,
     // or anyone who missed the switch, catches up. game.js keeps it current.
@@ -499,6 +500,11 @@ export class Net {
       case "stall": {
         this.peer(m.id);
         this.onStall?.(m);
+        break;
+      }
+      case "end": {
+        this.peer(m.id);
+        this.onEnd?.(m);
         break;
       }
       case "bye": {

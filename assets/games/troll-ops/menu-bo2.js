@@ -13,7 +13,8 @@
 
 import { createBo2Menu } from "../../js/bo2-menu.js?v=to-ft2";
 import { createMapMode } from "../../js/troll-map-mode.js?v=to-bo2d";
-import { joinSitePresence } from "../../js/site-presence.js?v=to-bo2d";
+import { joinSitePresence } from "../../js/site-presence.js?v=to-bo2d-ol1";
+import { startOnline, onlinePlayers, serverList, joinServer, describe } from "./menu/online.js?v=ol1-sv1-dj2-mg1-pd1";
 import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 
 import { fetchRecord, formatPlayed } from "./record.js?v=rec1";
@@ -26,8 +27,8 @@ import { MAPS, REWARD_MAPS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-r
 import { setMapShot } from "./map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1";
 import { leaveToArcade, initExitLinks } from "./menu/exit-links.js?v=ex1-cl1";
 import { game } from "./core/state.js?v=st1";
-import { inviteLink, prepareHubEntry } from "./modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1";
-import { openKiosk } from "./view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1";
+import { inviteLink, prepareHubEntry } from "./modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-pd1";
+import { openKiosk } from "./view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1";
 import { credits } from "./modes/zombies/credits.js?v=zc1-zc2";
 import { makeTrollOpsProvider } from "./leaderboard-rows.js?v=lr1-zh1";
 const lbProvider = makeTrollOpsProvider();
@@ -132,6 +133,8 @@ const clanIn = $("input", clanForm);
 let clanEditing = false, previewCard = null;
 const myUid = () => { const p = window.TrollrunnerAccounts?.getCachedProfile?.(); return p?.id || p?.userId || null; };
 const setStatus = (t) => { $(".to-bo2-status", root).textContent = t; };
+// The site presence roster, kept current below (Who's Online, Server Browser).
+let roster = { members: [], guests: [] };
 
 function renderCardHost() {
   if (cardHost.hidden) return;
@@ -345,6 +348,7 @@ const screens = {
     groups: [
       [
         { id: "public", label: "Public Match", desc: "Drop into a versus room with whoever is online. Bots fill the gaps.", go: "public" },
+        { id: "servers", label: "Server Browser", value: () => serverValue(), desc: "Every public server, live: who's in it and what they're playing. Pick one to join, Zombies runs too.", go: "servers" },
         { id: "social", label: "Socialize", desc: "Hang out in Troll City or at Trolling Loud with whoever is online. No guns, just emotes and chat.", go: "social" },
         { id: "solo", label: "Solo Play", desc: "Ops, Zombies or the Test Range. Just you.", go: "solo" },
         { id: "zombies", label: "Zombies", desc: "The hub: step on a map's pad, up to four of you go in together against the horde.", go: "zombies" },
@@ -357,6 +361,7 @@ const screens = {
         canPrestige() && { id: "prestige", label: "Prestige", value: nextPrestigeName(), desc: "You're at level 69. Go back to level 1 for a new prestige.", go: "prestige" },
       ].filter(Boolean),
       [
+        { id: "online", label: "Who's Online", value: () => `${onlinePlayers(roster).length}`, desc: "Everyone on trollrunner.net right now, players and guests, and what they're up to.", go: "online" },
         { id: "leaders", label: "Leaderboards", desc: "This week's and this month's best trolls.", go: "leaders" },
         { id: "barracks", label: "Barracks", desc: "Your profile card: calling card, clan tag and combat record.", go: "barracks" },
         { id: "map", label: "Troll Map", desc: "This planet is the troll map. Spin it, find your city, see who is out there.", go: "map" },
@@ -490,6 +495,45 @@ const screens = {
         [back("Keep this card.")],
       ],
     };
+  },
+  /* The public servers (menu/online.js): busiest first, then each mode's
+     public room nobody is in yet. Live: the list redraws as people come and
+     go. A Zombies run already on lets you in when its round ends. */
+  servers: () => ({
+    title: "Server Browser", panel: "deploy",
+    groups: [
+      serverList(roster).map((s) => {
+        const n = s.players.length;
+        const where = [s.mapName, s.wave ? `round ${s.wave}` : ""].filter(Boolean).join(" · ");
+        return {
+          id: `srv-${s.room}`, label: s.modeName, value: n ? `${n} in` : "Empty",
+          desc: n ? `${where ? where + ". " : ""}${s.players.slice(0, 6).join(", ")}${n > 6 ? ` and ${n - 6} more` : ""}.${s.mode === "zombies" && s.wave ? " You spawn in when the round ends." : ""}`
+            : "Nobody in yet. Start it and whoever joins plays with you.",
+          onSelect: () => { if (joinServer(s)) setStatus(`Joining ${s.modeName}…`); },
+        };
+      }),
+      [back("Back to the main menu.")],
+    ],
+  }),
+  /* Everyone online (menu/online.js): accounts, then guests. Someone in a
+     public server: select to join them; an account: their profile card. */
+  online: () => {
+    const me = (() => { try { return localStorage.getItem("trollrunner_viewer_id_v1"); } catch { return null; } })();
+    const servers = serverList(roster);
+    const rows = onlinePlayers(roster).map((p) => {
+      const a = p.activity;
+      const srv = a?.pub && servers.find((s) => s.room === a.room);
+      return {
+        id: `on-${p.key}`, label: `${p.name}${p.viewerId === me ? " (you)" : ""}`,
+        value: p.guest ? "Guest" : `LV ${p.level}`,
+        desc: `${describe(a)}.${srv && p.viewerId !== me ? " Select to join them." : !p.guest ? " Select for their profile card." : ""}`,
+        onSelect: () => {
+          if (srv && p.viewerId !== me) { if (joinServer(srv)) setStatus(`Joining ${p.name}…`); }
+          else if (p.userId) openProfileCard(p.userId);
+        },
+      };
+    });
+    return { title: "Who's Online", panel: "deploy", groups: [rows, [back("Back to the main menu.")]].filter((g) => g.length) };
   },
   public: () => ({
     title: "Public Match", panel: "deploy",
@@ -720,7 +764,6 @@ const screens = {
         checkRow("to-set-invert-lobby", "Invert look", "Flip up and down."),
         checkRow("to-set-minimap-lobby", "Minimap", "The radar in the corner."),
         checkRow("to-set-fps-lobby", "Show FPS", "Frame rate in the top corner."),
-        checkRow("to-set-aimassist-lobby", "Aim assist", "Controller only."),
         selectRow("to-set-botskill", "Bot skill", "Veteran bots give +10% XP."),
         checkRow("to-set-viewmode-lobby", "View mode", "Just look at the maps, no fighting."),
       ].filter(Boolean),
@@ -911,7 +954,30 @@ const net = $("#to-net-status");
 let netBase = text(net);
 if (net) new MutationObserver(() => { const t = text(net); $(".to-bo2-status", root).textContent = t !== netBase ? t : ""; }).observe(net, { childList: true, characterData: true, subtree: true });
 
-joinSitePresence({ onCount: (n) => { $(".to-bo2-online", root).textContent = `${n} Online`; } });
+/* Who's online and the servers (menu/online.js): the presence roster, kept
+   current; the two screens and the main menu's counts redraw with it. */
+function serverValue() {
+  const n = serverList(roster).filter((s) => s.players.length).length;
+  return n ? `${n} live` : "";
+}
+const presence = joinSitePresence({
+  onCount: (n) => { $(".to-bo2-online", root).textContent = `${n} Online`; },
+  onSync: (r) => {
+    roster = r;
+    if (["servers", "online", "main"].includes(menu.current()) && !title.hidden) menu.refresh();
+  },
+});
+roster = presence.roster();
+startOnline(presence);
+// The count opens the list.
+{
+  const online = $(".to-bo2-online", root);
+  online.setAttribute("role", "button");
+  online.tabIndex = 0;
+  online.title = "Who's online";
+  online.addEventListener("click", () => menu.go("online"));
+  online.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); menu.go("online"); } });
+}
 
 /* ── Map preloading (map-preload.js): a quiet line under the online count ─ */
 const dl = $(".to-bo2-dl", root);

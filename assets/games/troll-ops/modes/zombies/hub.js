@@ -26,9 +26,9 @@ import * as THREE from "three";
 import { game } from "../../core/state.js?v=st1";
 import { HUB } from "../../zhub.js?v=zh1";
 import { MAPS } from "../../maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1";
-import { makeRoomCode } from "../../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10-hr2-zp1";
+import { makeRoomCode } from "../../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10-hr2-zp1-rs1-dj2";
 import { roomNow } from "../room-clock.js?v=rc1-cd1-sh1";
-import { openKiosk, closeKiosk, kioskOpen } from "../../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1";
+import { openKiosk, closeKiosk, kioskOpen } from "../../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1";
 import { credits, zsave, setZsave, payRun, gunAction, kitAction } from "./credits.js?v=zc1-zc2";
 import { fetchRows, hasBackend, monthWindow, weekWindow, windowFor, timeLeft, tallyPlayers } from "../../leaderboard-rows.js?v=lr1-zh1";
 
@@ -40,6 +40,11 @@ export const HUB_T = {
   kioskRange: 2.4,   // m
 };
 const PARTY_MAX = 4;
+
+/* Runs launched from the public hub's map pads: public, so they show in the
+   menu's server list and anyone can drop in (menu/online.js). The private
+   pad's runs, and a private hub's, stay off it. */
+export const publicRuns = new Set();
 const SEND_EVERY = 1;   // s between zP resends
 
 export const hub = {
@@ -137,7 +142,7 @@ export function onHubMessage(p, m) {
     const ids = Array.isArray(m.m) ? m.m : [];
     if (padById(m.pad)) hub.flash.set(m.pad, { text: "Lobby ready!", until: performance.now() + 4000 });
     for (const id of ids) hub.claims.delete(id);
-    if (ids.includes(me()) && hub.pad === m.pad && !hub.launched && MAPS[m.map]) launch(clean(m.code), m.map);
+    if (ids.includes(me()) && hub.pad === m.pad && !hub.launched && MAPS[m.map]) launch(clean(m.code), m.map, m.pad);
   }
 }
 
@@ -150,13 +155,14 @@ function go(padId) {
   const map = pad.map || game.loadout.poolMapId || "pentagrin";
   const code = makeRoomCode();
   send({ t: "zG", pad: padId, code, map, m: party.members.map((c) => c.id) });
-  launch(code, map);
+  launch(code, map, padId);
 }
 
 /* Leave the hub for a run on `code`: the quit button's tidy-up, then a
    Zombies start on that code like a typed one (match-start.js). */
-function launch(code, map) {
+function launch(code, map, padId = null) {
   hub.launched = { code, map };
+  if (!hub.roomCustom && padId && padId !== HUB.private.id) publicRuns.add(code);
   const back = { room: hub.room, custom: hub.roomCustom };
   game.els.quitBtn.click();   // forgets any return: set ours after it
   hub.returnTo = back;

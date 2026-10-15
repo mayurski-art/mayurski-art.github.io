@@ -8,11 +8,11 @@ import { KillstreakUi } from "../killstreak-ui.js?v=to-medals3";
 import { XP_SCALE } from "../progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import { Achievements } from "../achievements.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import { VsatSatellite, BlastFx } from "../streak-entities.js?v=vsat2-hk1";
-import { updateStreakHud, showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
+import { updateStreakHud, showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1";
 import * as THREE from "three";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
 import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";
-import { touchState } from "../input/touch.js?v=in1-th2-bp1";
+import { touchState } from "../input/touch.js?v=in1-th2-bp1-bf1-pd1";
 import { game } from "../core/state.js?v=st1";
 import { hasPerk, PERK_TUNE } from "../perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2";
 
@@ -165,15 +165,16 @@ export function readyStreaksOrdered() {
     .sort((a, b) => STREAK_DEFS[b].cost - STREAK_DEFS[a].cost);
 }
 
-/* D-pad down: move the pointer to the next ready streak. Does nothing with
-   none ready, per how BO2's own equipment wheel behaves — there's nothing to
-   select yet. */
-export function cycleSelectedStreak() {
+/* D-pad down / up: move the pointer to the next / previous ready streak
+   (`dir` +1 / -1), BO2's scroll through its streak column. Does nothing with
+   none ready — there's nothing to select yet. */
+export function cycleSelectedStreak(dir = 1) {
   if (!streaksAllowed(game.currentMode()) || !game.player.alive || game.markingStreak) return;
   const ready = readyStreaksOrdered();
   if (!ready.length) { game.selectedStreak = null; updateStreakHud(); return; }
   const at = ready.indexOf(game.selectedStreak);
-  game.selectedStreak = ready[(at + 1) % ready.length];
+  const from = at < 0 && dir < 0 ? 0 : at;   // nothing picked yet: up lands on the last one
+  game.selectedStreak = ready[(from + (dir < 0 ? -1 : 1) + ready.length) % ready.length];
   updateStreakHud();
 }
 

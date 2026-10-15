@@ -1,8 +1,8 @@
 // Troll Forces escape menu: the settings sliders, checks and selects (lobby
 // and pause copies kept in step) and the pause menu's player roster.
 
-import { settings, applySettings, saveSettings } from "./settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1";
-import { PAD_SENS_MULT, PAD_SENS_NAMES } from "../input/gamepad.js?v=in1-fu1b7-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-zp1";
+import { settings, applySettings, saveSettings } from "./settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0-dj2-bf1";
+import { PAD_SENS_MULT, PAD_SENS_NAMES } from "../input/gamepad.js?v=in1-fu1b7-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-zp1-aa0-pd1";
 import { game } from "../core/state.js?v=st1";
 
 function bindRange(id, key, outId, suffix = "") {
@@ -58,7 +58,6 @@ export function initEscapeMenu() {
   bindRange("to-set-fov", "fov", "to-set-fov-out", "°");
   bindCheck("to-set-invert", "invert");
   bindCheck("to-set-minimap", "minimap");
-  bindCheck("to-set-aimassist", "aimAssist");
   bindCheck("to-set-fps", "fps");
   bindCheck("to-set-invincible", "invincible");
 
@@ -68,7 +67,6 @@ export function initEscapeMenu() {
   bindRange("to-set-fov-lobby", "fov", "to-set-fov-lobby-out", "°");
   bindCheck("to-set-invert-lobby", "invert");
   bindCheck("to-set-minimap-lobby", "minimap");
-  bindCheck("to-set-aimassist-lobby", "aimAssist");
   bindCheck("to-set-fps-lobby", "fps");
   bindCheck("to-set-viewmode-lobby", "viewMode");
   bindSelect("to-set-botskill", "botSkill");
