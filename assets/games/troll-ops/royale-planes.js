@@ -18,8 +18,8 @@
 import * as THREE from "three";
 import { insidePolygon } from "./edge.js";
 import { seededRng } from "./royale.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1";
-import { loadModel } from "./battlefield-props.js";
-import { Hold, HOLD, RAMP_END, holdDaylight } from "./royale-hold.js?v=pl1-pl2";
+import { loadModel } from "./battlefield-props.js?v=sr1";
+import { Hold, HOLD, RAMP_END, holdDaylight } from "./royale-hold.js?v=pl1-pl2-sr1";
 
 export const PLANES = {
   count: 12,
