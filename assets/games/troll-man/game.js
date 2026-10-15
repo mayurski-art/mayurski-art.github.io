@@ -331,7 +331,7 @@
   const TURN_ORDER = [DIRS.up, DIRS.left, DIRS.down, DIRS.right];
 
   const dots = new Uint8Array(ROWS * COLS);          // 0 none, 1 dot, 2-5 power-up (see POWER)
-  let dotsLeft = 0;
+  let dotsLeft = 0, dotsTotal = 0;
   // The four corner tiles get one of each power-up; which corner gets which turns
   // one step every level, so the Pump.fun pill isn't always in the same place.
   function resetDots() {
@@ -343,6 +343,7 @@
       dots[r * COLS + c] = v;
       if (v) dotsLeft++;
     }
+    dotsTotal = dotsLeft;
   }
 
   const player = { x: START.x, y: START.y, dir: DIRS.left, next: null, face: DIRS.left, moving: false, pause: 0, anim: 0, blinkT: 2, blinking: 0 };
@@ -356,7 +357,9 @@
   ].map(g => Object.assign(g, { x: 0, y: 0, dir: DIRS.left, mode: "pen", fright: false, reverse: false, blinkT: 1 + Math.random() * 3, blinking: 0, close: false }));
   const byName = Object.fromEntries(CHASERS.map(g => [g.name, g]));
 
-  let state = "title";        // title | ready | play | dying | clear | over
+  // title | ready | play | dying | clear | intermission | turnover | over
+  // (the attract demo runs the normal states with demo = true)
+  let state = "title";
   let paused = false;
   let stateTime = 0;
   let score = 0, level = 1, lives = 3, extraGiven = false;
@@ -382,7 +385,7 @@
   let tauntT = 0, tauntCool = 0;
 
   function saveHigh() {
-    if (score <= high) return;
+    if (demo || score <= high) return;
     high = score;
     try { localStorage.setItem("trollman.high", String(high)); } catch (_) { /* storage blocked */ }
   }
@@ -406,23 +409,94 @@
     for (const g of CHASERS) g.frozen = 0;
   }
 
-  function newLevel() {
+  // A fresh maze for the current player's level.
+  function levelData() {
     resetDots();
     dotsEatenLevel = 0; lostLifeThisLevel = false; bonusSpawned = 0;
-    placeActors();
     const b = bonusFor(level)[0];
     if (bonusHistory[bonusHistory.length - 1] !== `${level}:${b}`) bonusHistory.push(`${level}:${b}`);
     if (bonusHistory.length > 5) bonusHistory.shift();
+  }
+
+  function newLevel() {
+    levelData();
+    placeActors();
     setState("ready");
   }
 
-  function newGame() {
-    score = 0; level = 1; lives = 3; extraGiven = false; paused = false;
+  // ---- Players: one, or two taking turns (hot seat) --------------------------------
+  // The player whose turn it is lives in the globals above (score, level, lives, dots...);
+  // the other one waits in their slot and swaps in when the turn changes, maze and all.
+  let numPlayers = 1, cur = 0;
+  let slots = [null, null];
+  let menuSel = 0;                        // title menu: 0 = 1 player, 1 = 2 players
+  let turnoverFrom = 0;                   // whose game just ended, for the "GAME OVER" card
+
+  const freshSlot = () => ({ score: 0, level: 1, lives: 3, extraGiven: false, dots: null, dotsLeft: 0,
+    dotsEatenLevel: 0, bonusSpawned: 0, bonusHistory: [], lostLifeThisLevel: false });
+  function saveSlot() {
+    slots[cur] = { score, level, lives, extraGiven, dots: dots.slice(), dotsLeft, dotsEatenLevel,
+      bonusSpawned, bonusHistory: bonusHistory.slice(), lostLifeThisLevel };
+  }
+  function loadSlot(i) {
+    const s = slots[i];
+    cur = i;
+    ({ score, level, lives, extraGiven, dotsLeft, dotsEatenLevel, bonusSpawned, lostLifeThisLevel } = s);
     bonusHistory.length = 0;
-    newLevel();
+    bonusHistory.push(...s.bonusHistory);
+    if (s.dots) dots.set(s.dots);
+    else levelData();                     // their first turn: a fresh maze
+    sinceLifeLost = 0;
+  }
+  function switchTo(i) {
+    loadSlot(i);
+    placeActors();
+    setState("ready");
   }
 
-  function setState(s) { state = s; stateTime = 0; }
+  function newGame(n = menuSel + 1) {
+    if (demo) endDemo(false);
+    numPlayers = n;
+    slots = [freshSlot(), n === 2 ? freshSlot() : null];
+    paused = false;
+    switchTo(0);
+    sfx("start");
+  }
+
+  // The score shown for player i, whether or not it's their turn.
+  const scoreOf = i => (i === cur ? score : slots[i] ? slots[i].score : 0);
+
+  // ---- Attract demo ------------------------------------------------------------------
+  // Left alone on the title, the game plays itself for a while (no sound, no high score).
+  const TITLE_IDLE = 16, DEMO_TIME = 22, TITLE_MENU_AT = 6;
+  let demo = false;
+  let demoSaved = null;                   // the real players' slots, put back afterwards
+  let demoT = 0;                          // seconds of demo play so far
+  function startDemo() {
+    demoSaved = { slots, numPlayers };
+    demo = true;
+    demoT = 0;
+    numPlayers = 1;
+    slots = [freshSlot(), null];
+    switchTo(0);
+  }
+  // toMenu: someone touched a control, so skip the roll call and show the menu
+  function endDemo(toMenu) {
+    demo = false;
+    ({ slots, numPlayers } = demoSaved || { slots: [null, null], numPlayers: 1 });
+    demoSaved = null;
+    cur = 0;
+    score = slots[0] ? slots[0].score : 0;
+    paused = false;
+    setState("title");
+    if (toMenu) stateTime = TITLE_MENU_AT;
+  }
+
+  let deathSounded = false;
+  function setState(s) {
+    state = s; stateTime = 0;
+    if (s === "dying") deathSounded = false;
+  }
 
   // ---- Pen release -------------------------------------------------------------
   // Pepe leaves at once; Pudgy and Doge wait for a number of dots (fewer on later
@@ -489,6 +563,7 @@
     takeDot(i);
     p.pause = v >= 2 ? PILL_PAUSE : DOT_PAUSE;
     if (v >= 2) powerUp(POWER[v]);
+    else sfx("waka");
   }
 
   // A dot (or power-up tile) leaves the maze: by mouth, or by FOMO's magnet.
@@ -513,13 +588,14 @@
     else if (kind === "aster") shield = true;
     const [label, color] = POWER_TEXT[kind];
     popups.push({ x: player.x, y: player.y - 1, text: label, color, t: 0 });
+    sfx("power", kind);
   }
 
   // Every point goes through here: Stonks doubles it. Returns what was actually scored.
   function addScore(n) {
     const pts = n * (stonksT > 0 ? 2 : 1);
     score += pts;
-    if (!extraGiven && score >= EXTRA_LIFE_AT) { extraGiven = true; lives++; }
+    if (!extraGiven && score >= EXTRA_LIFE_AT) { extraGiven = true; lives++; sfx("extra"); }
     saveHigh();
     return pts;
   }
@@ -534,6 +610,7 @@
         if (dots[i] !== 1) continue;
         if (Math.hypot(cc - player.x, r - player.y) > MAGNET_RADIUS) continue;
         flyers.push({ x: cc, y: r, t: 0 });
+        sfx("magnet");
         takeDot(i);
         if (state !== "play") return;
       }
@@ -689,6 +766,7 @@
         g.mode = "eyes";
         hidden = g;
         buzz(25);
+        sfx("eat");
         freezeT = EAT_FREEZE;
         return;
       }
@@ -698,6 +776,7 @@
         shield = false;
         shieldGrace = SHIELD_GRACE;
         buzz(60);
+        sfx("block");
         g.mode = "eyes"; g.frozen = 0;
         popups.push({ x: player.x, y: player.y - 1, text: "BLOCKED", color: "#ffb020", t: 0 });
         continue;
@@ -716,6 +795,7 @@
     for (const g of CHASERS) {
       if (g.mode === "out" && wrapDist(g, player) <= TAUNT_RADIUS) g.frozen = TAUNT_FREEZE;
     }
+    sfx("taunt");
     return true;
   }
 
@@ -733,6 +813,7 @@
       else if (wrapDist(BONUS_SPOT, player) < 0.6) {
         const pts = addScore(bonus.pts);
         popups.push({ x: BONUS_SPOT.x, y: BONUS_SPOT.y, text: String(pts), color: "#ffb8de", t: 0 });
+        sfx("bonus");
         bonus = null;
       }
     }
@@ -766,6 +847,7 @@
     if (state !== "play") return;
 
     const p = player;
+    if (demo) demoSteer();
     tryTurn(p);
     if (tauntT > 0) { tauntT = Math.max(0, tauntT - dt); p.moving = false; }   // standing there laughing
     else if (p.pause > 0) p.pause = Math.max(0, p.pause - dt);
@@ -787,12 +869,94 @@
     }
   }
 
+  // The demo's autopilot, run near each tile centre: head for the nearest blue chaser
+  // (if one is close) or the nearest dot, treating tiles near a dangerous chaser as
+  // walls. Boxed in, it runs from the nearest chaser instead. Good enough to look alive.
+  let demoPlanAt = -1;
+  function demoSteer() {
+    const p = player;
+    const pc = wrapC(Math.round(p.x)), pr = Math.round(p.y);
+    if (Math.abs(p.x - Math.round(p.x)) > 0.3 || Math.abs(p.y - pr) > 0.3) return;
+    const here = pr * COLS + pc;
+    if (here === demoPlanAt && p.next) return;           // already planned from this tile
+    demoPlanAt = here;
+    const danger = new Uint8Array(ROWS * COLS);
+    for (const g of CHASERS) {
+      if (g.mode !== "out" || g.fright) continue;
+      const gc = wrapC(Math.round(g.x)), gr = Math.round(g.y);
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+        if (Math.abs(dx) + Math.abs(dy) > 2) continue;
+        const r = gr + dy;
+        if (r >= 0 && r < ROWS) danger[r * COLS + wrapC(gc + dx)] = 1;
+      }
+    }
+    const blue = new Set(CHASERS.filter(g => g.mode === "out" && g.fright && frightT > 1)
+      .map(g => Math.round(g.y) * COLS + wrapC(Math.round(g.x))));
+    // BFS outward from the trollface, remembering the first step taken
+    const first = new Int8Array(ROWS * COLS).fill(-1);
+    const dist = new Int16Array(ROWS * COLS).fill(-1);
+    const q = [here]; dist[here] = 0;
+    let dotGoal = -1, blueGoal = -1;
+    for (let qi = 0; qi < q.length && blueGoal < 0; qi++) {
+      const i = q[qi], c = i % COLS, r = (i / COLS) | 0;
+      if (dotGoal >= 0 && dist[i] > 10) break;            // no blue chaser within reach: the dot it is
+      for (let k = 0; k < 4; k++) {
+        const d = TURN_ORDER[k];
+        if (!walkable(c + d.x, r + d.y)) continue;
+        const j = (r + d.y) * COLS + wrapC(c + d.x);
+        if (dist[j] >= 0 || danger[j]) continue;
+        dist[j] = dist[i] + 1;
+        first[j] = i === here ? k : first[i];
+        if (blue.has(j) && dist[j] <= 10) { blueGoal = j; break; }
+        if (dotGoal < 0 && dots[j]) dotGoal = j;
+        q.push(j);
+      }
+    }
+    const goal = blueGoal >= 0 ? blueGoal : dotGoal;
+    if (goal >= 0) { p.next = TURN_ORDER[first[goal]]; return; }
+    // nowhere safe to go: pick the open neighbour farthest from the nearest chaser
+    let best = null, bestD = -1;
+    for (const d of TURN_ORDER) {
+      if (!walkable(pc + d.x, pr + d.y)) continue;
+      const spot = { x: pc + d.x, y: pr + d.y };
+      const near = Math.min(...CHASERS.filter(g => g.mode === "out" && !g.fright).map(g => wrapDist(g, spot)), 99);
+      if (near > bestD) { bestD = near; best = d; }
+    }
+    if (best) p.next = best;
+  }
+
+  // After the spin-out. Two players: the turn passes to the other one if they still
+  // have lives (their maze exactly as they left it); a player who's out gets a
+  // GAME OVER card first.
   function loseLife() {
+    if (demo) { endDemo(false); return; }
     lives--;
-    if (lives <= 0) { saveHigh(); setState("over"); return; }
     lostLifeThisLevel = true; sinceLifeLost = 0;
+    if (numPlayers === 2) {
+      saveSlot();
+      const other = 1 - cur;
+      if (slots[other].lives > 0) {
+        if (lives <= 0) { turnoverFrom = cur; setState("turnover"); }
+        else switchTo(other);
+        return;
+      }
+    }
+    if (lives <= 0) { saveHigh(); setState("over"); return; }
     placeActors();
     setState("ready");
+  }
+
+  // Intermissions play after clearing these levels, like the original's cut-scenes.
+  const INTERMISSION_AFTER = [2, 5, 9, 13, 17];
+  const INTERMISSION_TIME = 7.6, TURNOVER_TIME = 2.6;
+  function afterClear() {
+    if (!demo && INTERMISSION_AFTER.includes(level)) { setState("intermission"); sfx("intermission"); return; }
+    level++;
+    newLevel();
+  }
+  function endIntermission() {
+    level++;
+    newLevel();
   }
 
   // ---- Animation clocks ---------------------------------------------------------
@@ -822,12 +986,38 @@
     for (const pp of popups) pp.t += dt;
     while (popups.length && popups[0].t > 1.2) popups.shift();
     if (paused) return;
-    if (state !== "title" && state !== "over") animate(dt);
-    if (state === "ready") { if (stateTime >= READY_TIME) setState("play"); }
-    else if (state === "play") stepPlay(dt);
-    else if (state === "dying" && stateTime >= DEATH_TIME) loseLife();
-    else if (state === "clear" && stateTime >= CLEAR_TIME) { level++; newLevel(); }
+    if (state !== "title" && state !== "over" && state !== "intermission" && state !== "turnover") animate(dt);
+    if (state === "title") { if (stateTime >= TITLE_IDLE) startDemo(); }
+    else if (state === "ready") { if (stateTime >= READY_TIME) setState("play"); }
+    else if (state === "play") {
+      stepPlay(dt);
+      if (demo && state === "play" && (demoT += dt) >= DEMO_TIME) endDemo(false);
+    }
+    else if (state === "dying") {
+      if (!deathSounded && stateTime >= DEATH_HOLD) { deathSounded = true; sfx("death"); }
+      if (stateTime >= DEATH_TIME) loseLife();
+    }
+    else if (state === "clear" && stateTime >= CLEAR_TIME) afterClear();
+    else if (state === "intermission" && stateTime >= INTERMISSION_TIME) endIntermission();
+    else if (state === "turnover" && stateTime >= TURNOVER_TIME) switchTo(1 - turnoverFrom);
     else if (state === "over" && stateTime >= 6) setState("title");
+  }
+
+  // The background loop follows the game: eyes heading home > blue chasers > the siren,
+  // which climbs as the maze empties. Quiet everywhere else, and in the demo.
+  function updateSoundLoop() {
+    if (!window.TMSound) return;
+    let want = null, lvl = 0;
+    if (!demo && !paused && state === "play" && !chasersOff) {
+      if (CHASERS.some(g => g.mode === "eyes" || g.mode === "entering")) want = "eyes";
+      else if (frightT > 0 && CHASERS.some(g => g.fright)) want = "fright";
+      else { want = "siren"; lvl = 1 - dotsLeft / Math.max(1, dotsTotal); }
+    }
+    window.TMSound.setLoop(want, lvl);
+  }
+  function sfx(name, arg) {
+    if (demo || !window.TMSound) return;
+    window.TMSound.play(name, arg);
   }
 
   let last = 0;
@@ -837,6 +1027,7 @@
     // fixed sub-steps keep turns and wall stops exact at any frame rate
     const steps = Math.max(1, Math.ceil(dt / (1 / 240)));
     for (let i = 0; i < steps; i++) update(dt / steps);
+    updateSoundLoop();
     draw();
     requestAnimationFrame(frame);
   }
@@ -961,20 +1152,28 @@
 
   function drawHud() {
     const pad = (n, w) => String(n).padStart(w, " ");
-    if (state !== "play" || Math.floor(stateTime / 0.27) % 2 === 0) text("1UP", 3 * TILE, 8, "#fff");
+    // the label of whoever is playing blinks, like the cabinet's
+    const blinkOff = state === "play" && Math.floor(stateTime / 0.27) % 2 === 1;
+    const twoUp = numPlayers === 2 || (state === "title" && slots[1]);
+    if (!(blinkOff && cur === 0)) text("1UP", 3 * TILE, 8, "#fff");
     text("HIGH SCORE", W / 2, 8, "#fff", 8, "center");
-    text(pad(score || "00", 7), 1 * TILE, 22, "#fff");
+    text(pad(scoreOf(0) || "00", 7), 1 * TILE, 22, "#fff");
     text(pad(high || "00", 7), W / 2 + 2 * TILE, 22, "#fff", 8, "right");
+    if (twoUp) {
+      if (!(blinkOff && cur === 1)) text("2UP", W - 4 * TILE, 8, "#fff");
+      text(pad(scoreOf(1) || "00", 7), W - TILE, 22, "#fff", 8, "right");
+    }
     if (state === "title") return;
 
-    // top right: the level, then whatever power-ups are running, each with a time bar
-    text(`LV ${level}`, W - TILE, 8, "#ffcc00", 8, "right");
+    // top right: the level (unless 2UP needs the spot), then the running power-ups,
+    // each with a time bar, tucked between HIGH SCORE and the right edge
+    if (!twoUp) text(`LV ${level}`, W - TILE, 8, "#ffcc00", 8, "right");
     const running = [];
     if (stonksT > 0) running.push(["stonks", stonksT / STONKS_TIME]);
     if (fomoT > 0) running.push(["fomo", fomoT / FOMO_TIME]);
     if (shield) running.push(["aster", 1]);
     running.forEach(([kind, left], i) => {
-      const x0 = W - TILE - (i + 1) * 26 + 4;
+      const x0 = W / 2 + 46 + i * 26;
       ctx.drawImage(ICONS[kind], x0, 19);
       ctx.fillStyle = "#333"; ctx.fillRect(x0, 43, 22, 2);
       ctx.fillStyle = "#fff"; ctx.fillRect(x0, 43, Math.round(22 * left), 2);
@@ -1024,11 +1223,41 @@
       ctx.drawImage(ICONS[kind], cx - PILL / 2, py(21) - PILL / 2);
       text(label, cx, py(22) + 4, color, 8, "center");
     });
-    if (Math.floor(stateTime / 0.5) % 2 === 0) text("PRESS START", W / 2, py(25), "#ffcc00", 8, "center");
+    // the menu: 1 or 2 players, a little trollface pointing at the choice
+    ["1 PLAYER", "2 PLAYERS"].forEach((label, i) => {
+      const y = py(24) + i * 18 - 4;
+      const on = menuSel === i;
+      text(label, W / 2 - 40, y, on ? "#ffcc00" : "#777");
+      if (on && Math.floor(stateTime / 0.4) % 2 === 0) drawFace(sprites["trollface-f1"], W / 2 - 58, y + 4, DIRS.right, 0.5);
+    });
     // the hints match whatever the player is holding
-    text(TOUCH ? "START OR PUSH THE STICK" : "ENTER / TAP", W / 2, py(26) + 4, "#888", 8, "center");
-    text(TOUCH ? "SELECT = PROBLEM?" : "SPACE = PROBLEM?", W / 2, py(27) + 4, "#888", 8, "center");
+    text(TOUCH ? "STICK TO CHOOSE, START TO PLAY" : "UP / DOWN, ENTER TO PLAY", W / 2, py(26) + 10, "#888", 8, "center");
+    text(TOUCH ? "SELECT = PROBLEM?" : "SPACE = PROBLEM?  M = SOUND", W / 2, py(27) + 8, "#888", 8, "center");
   }
+
+  // The cut-scene between some levels: Giga Chad chases the trollface off screen,
+  // then he comes back giant and the chase runs the other way.
+  function drawIntermission() {
+    const t = stateTime, y = py(14);
+    const chomp = Math.floor(t / CHOMP) % 2 ? "trollface-f3" : "trollface-f1";
+    if (t < 3.6) {
+      const x = W + 40 - t * 160;
+      drawFace(sprites[chomp], x, y, DIRS.left);
+      drawFace(sprites[Math.floor(t / 0.25) % 2 ? "gigachad-f3" : "gigachad-f1"], x + 56 - t * 4, y, DIRS.left);
+      if (frameLog) frameLog.scene = "act1";
+    } else {
+      const u = t - 3.6;
+      const cx = -30 + u * 160;
+      const flashing = u > 2.4 && Math.floor(u / 0.2) % 2 === 0;
+      drawFace(recoloured("gigachad-f1", flashing) || sprites["gigachad-f1"], cx, y, DIRS.right);
+      const gx = cx - 110;
+      drawFace(sprites[chomp], gx, y - 32, DIRS.right, 3);               // three times the size, feet level
+      if (u > 0.6) text("PROBLEM?", gx, y - 98, "#fff", 8, "center");
+      if (frameLog) frameLog.scene = "act2";
+    }
+  }
+
+  const PLAYER_NAME = ["PLAYER ONE", "PLAYER TWO"];
 
   // Debug builds keep the last few hundred frames' looks so the animation test can read them.
   let frameLog = null;
@@ -1039,6 +1268,7 @@
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, W, H);
     if (state === "title") { drawHud(); drawTitle(); logFrame(); return; }
+    if (state === "intermission") { drawHud(); drawIntermission(); logFrame(); return; }
 
     const color = MAZE_COLORS[Math.floor((level - 1) / 2) % MAZE_COLORS.length];
     const flash = state === "clear" && stateTime > CLEAR_HOLD && Math.floor((stateTime - CLEAR_HOLD) / 0.2) % 2 === 0;
@@ -1052,9 +1282,13 @@
     }
     drawFlyers();
 
-    const showChasers = !chasersOff && (state === "ready" || state === "play" ||
+    // two players: "PLAYER ONE/TWO" shows first on an empty maze, then the faces come in
+    const card = !demo && numPlayers === 2 && state === "ready" && stateTime < READY_TIME / 2;
+    const showChasers = !chasersOff && !card && (state === "ready" || state === "play" ||
       (state === "dying" && stateTime < DEATH_HOLD) || (state === "clear" && stateTime < CLEAR_HOLD));
-    if (state === "dying" && stateTime >= DEATH_HOLD) {
+    if (state === "turnover" || card) {
+      if (frameLog) frameLog.player = "none";              // between turns: an empty maze and the card
+    } else if (state === "dying" && stateTime >= DEATH_HOLD) {
       // the spin-out: the grin spins away and shrinks to nothing
       const k = Math.min(1, (stateTime - DEATH_HOLD) / (DEATH_TIME - DEATH_HOLD - 0.3));
       if (k < 1) drawFace(sprites["trollface-f3"], px(player.x), py(player.y), player.face, 1 - k, k * Math.PI * 6);
@@ -1072,8 +1306,18 @@
 
     for (const pp of popups) text(pp.text, Math.round(px(pp.x)), Math.round(py(pp.y) - 4 - pp.t * 6), pp.color || "#4deeff", 8, "center");
 
-    if (state === "ready") text("READY!", W / 2, py(16) - 4, "#ffcc00", 8, "center");
-    if (state === "over") text("GAME  OVER", W / 2, py(16) - 4, "#ff3b3b", 8, "center");
+    if (demo) {
+      if (Math.floor(stateTime / 0.5) % 2 === 0) text("PRESS START", W / 2, py(16) - 4, "#ffcc00", 8, "center");
+    } else {
+      // two players: whose turn it is, above the pen
+      if (card) text(PLAYER_NAME[cur], W / 2, py(11) - 4, "#4deeff", 8, "center");
+      if (state === "ready") text("READY!", W / 2, py(16) - 4, "#ffcc00", 8, "center");
+      if (state === "turnover") {
+        text(PLAYER_NAME[turnoverFrom], W / 2, py(11) - 4, "#4deeff", 8, "center");
+        text("GAME  OVER", W / 2, py(16) - 4, "#ff3b3b", 8, "center");
+      }
+      if (state === "over") text("GAME  OVER", W / 2, py(16) - 4, "#ff3b3b", 8, "center");
+    }
     if (paused) {
       ctx.fillStyle = "rgba(0,0,0,0.55)";
       ctx.fillRect(0, TOP * TILE, W, ROWS * TILE);
@@ -1096,33 +1340,101 @@
   };
 
   function steer(name) {
-    if (state === "title" || state === "over") return;
+    if (demo || state === "title" || state === "over" || state === "intermission") return;
     player.next = DIRS[name];
   }
 
   function togglePause() {
-    if (state === "title" || state === "over") return;
+    if (demo || state === "title" || state === "over" || state === "intermission") return;
     paused = !paused;
   }
 
+  function menuMove(i) {
+    if (menuSel === i) return;
+    menuSel = i;
+    sfx("menu");
+  }
+
+  // One place decides what "start" means wherever the game is: the title starts the
+  // chosen game, the demo stops (straight into a game), a cut-scene skips, game over
+  // goes again with the same number of players; mid-game it pauses.
+  function pressStart() {
+    if (state === "title") newGame();
+    else if (demo) newGame();
+    else if (state === "intermission") endIntermission();
+    else if (state === "over") newGame(numPlayers);
+    else togglePause();
+  }
+
+  // Any control on the title keeps the demo from starting.
+  const poke = () => { if (state === "title") stateTime = Math.min(stateTime, TITLE_IDLE - 6); };
+
+  function toggleMute() {
+    if (!window.TMSound) return;
+    window.TMSound.setMuted(!window.TMSound.muted);
+    syncMuteButton();
+  }
+  const muteBtn = document.getElementById("tm-mute");
+  function syncMuteButton() {
+    if (!muteBtn || !window.TMSound) return;
+    const m = window.TMSound.muted;
+    muteBtn.setAttribute("aria-pressed", String(m));
+    muteBtn.setAttribute("aria-label", m ? "Sound off. Turn sound on" : "Sound on. Mute");
+    muteBtn.classList.toggle("is-muted", m);
+  }
+  if (muteBtn) {
+    muteBtn.addEventListener("click", () => { toggleMute(); muteBtn.blur(); });
+    syncMuteButton();
+  }
+
+  // Browsers only allow sound after a gesture: the first key or touch switches it on.
+  const unlockSound = () => { if (window.TMSound) window.TMSound.unlock(); };
+  window.addEventListener("pointerdown", unlockSound, true);
+  window.addEventListener("touchstart", unlockSound, { capture: true, passive: true });
+
   window.addEventListener("keydown", e => {
     if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
-    if (KEYS[e.key]) {
+    const k = e.key;
+    // a focused button handles its own Enter / Space
+    if (e.target && e.target.tagName === "BUTTON" && (k === "Enter" || k === " ")) return;
+    unlockSound();
+    poke();
+    if (k === "m" || k === "M") { toggleMute(); return; }
+    if (demo) {                                           // any key ends the demo
       e.preventDefault();
-      if (state === "title") { newGame(); return; }
-      steer(KEYS[e.key]);
-    } else if (e.key === "Enter" || e.key === " ") {
+      if (k === "Enter" || k === " ") newGame(); else endDemo(true);
+      return;
+    }
+    if (state === "title") {
+      if (k === "ArrowUp" || k === "w" || k === "W") menuMove(0);
+      else if (k === "ArrowDown" || k === "s" || k === "S") menuMove(1);
+      else if (k === "1" || k === "2") newGame(Number(k));
+      else if (k === "Enter" || k === " ") newGame();
+      if (KEYS[k] || k === "Enter" || k === " ") e.preventDefault();
+      return;
+    }
+    if (KEYS[k]) {
       e.preventDefault();
-      if (state === "title" || state === "over") newGame();
-      else if (e.key === " ") taunt();
-    } else if (e.key === "t" || e.key === "T") {
+      steer(KEYS[k]);
+    } else if (k === "Enter" || k === " ") {
+      e.preventDefault();
+      if (state === "intermission" || state === "over") pressStart();
+      else if (k === " ") taunt();
+    } else if (k === "t" || k === "T") {
       taunt();
-    } else if (e.key === "p" || e.key === "P" || e.key === "Escape") {
+    } else if (k === "p" || k === "P" || k === "Escape") {
       togglePause();
     }
   });
 
-  // Swipe anywhere on the screen as a backup to the joystick; a tap starts the game.
+  // A tap on the screen: start / skip / end the demo; in a game it does nothing (swipes steer).
+  function tapScreen() {
+    poke();
+    if (demo) endDemo(true);
+    else if (state === "title" || state === "over" || state === "intermission") pressStart();
+  }
+
+  // Swipe anywhere on the screen as a backup to the joystick.
   let touch0 = null;
   canvas.addEventListener("touchstart", e => {
     const t = e.changedTouches[0];
@@ -1139,13 +1451,13 @@
     e.preventDefault();
   }, { passive: false });
   canvas.addEventListener("touchend", e => {
-    if (touch0 && (state === "title" || state === "over")) newGame();
+    if (touch0) tapScreen();
     touch0 = null;
     e.preventDefault();
   }, { passive: false });
   canvas.addEventListener("click", () => {
     canvas.focus();
-    if (state === "title" || state === "over") newGame();
+    tapScreen();
   });
   document.addEventListener("visibilitychange", () => { if (document.hidden && state === "play") paused = true; });
 
@@ -1171,13 +1483,16 @@
       const len = Math.hypot(dx, dy), reach = r.width * 0.3;          // how far the ball can travel
       const k = len > reach ? reach / len : 1;
       knob.style.transform = `translate(${(dx * k).toFixed(1)}px, ${(dy * k).toFixed(1)}px)`;
-      if (len >= r.width * 0.12) steerVector(dx, dy);                  // dead zone in the middle
+      if (len < r.width * 0.12) return;                                // dead zone in the middle
+      if (state === "title") { if (Math.abs(dy) > Math.abs(dx)) menuMove(dy > 0 ? 1 : 0); }   // choose 1 or 2 players
+      else steerVector(dx, dy);
     };
     stick.addEventListener("pointerdown", e => {
       e.preventDefault();
       pointer = e.pointerId;
       try { stick.setPointerCapture(e.pointerId); } catch (_) { /* already gone */ }
-      if (state === "title" || state === "over") newGame();
+      poke();
+      if (demo) endDemo(true);
       track(e);
     });
     stick.addEventListener("pointermove", e => { if (e.pointerId === pointer) track(e); });
@@ -1205,11 +1520,15 @@
     el.addEventListener("pointercancel", up);
     el.addEventListener("click", e => { if (e.detail === 0) action(); });
   }
-  pressButton(document.getElementById("tm-start"), () => {
-    if (state === "title" || state === "over") newGame(); else togglePause();
-  });
+  pressButton(document.getElementById("tm-start"), () => { poke(); pressStart(); });
+  // SELECT: on the title it flips between 1 and 2 players (like a cartridge menu);
+  // in a game it's the taunt; elsewhere it does what START does
   pressButton(document.getElementById("tm-select"), () => {
-    if (state === "title" || state === "over") newGame(); else taunt();
+    poke();
+    if (demo) endDemo(true);
+    else if (state === "title") menuMove(1 - menuSel);
+    else if (state === "intermission") endIntermission();
+    else taunt();
   });
 
   // A short buzz on phones that allow it: eating a chaser, a blocked hit, getting caught.
@@ -1227,7 +1546,12 @@
       setTimeScale(s) { timeScale = s; },
       setChasersOff(v) { chasersOff = v; },
       frames: frameLogs,
-      startFright, setState, taunt, powerUp, steerVector,
+      startFright, setState, taunt, powerUp, steerVector, newGame, startDemo,
+      get demo() { return demo; }, get cur() { return cur; }, get numPlayers() { return numPlayers; },
+      get slots() { return slots; }, get menuSel() { return menuSel; }, get high() { return high; },
+      get stateTime() { return stateTime; },
+      setLevel(n) { level = n; },
+      setLives(n) { lives = n; },
       get paused() { return paused; },
       get bonus() { return bonus; }, get shield() { return shield; }, get stonksT() { return stonksT; }, get fomoT() { return fomoT; },
       get tauntCool() { return tauntCool; },

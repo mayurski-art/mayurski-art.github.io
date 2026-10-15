@@ -3,7 +3,7 @@
 //                     everything on screen, no scrolling
 //  landscape 844x390  screen in the middle full height, stick left, buttons right
 //  desktop 1280x900   no touch controls, help line instead
-//  stick              START from the stick, each direction, diagonal = turn, dead zone
+//  stick              picks 1/2 players on the title, each direction, diagonal = turn, dead zone
 //  buttons            START starts / pauses / resumes, SELECT taunts
 //  swipe              still steers
 //   node tools/troll-man-p4-test.mjs [--shots]
@@ -72,10 +72,14 @@ try {
     check(st.w >= 120 && se.h >= 28, `portrait: thumb-sized controls (stick ${st.w}px, buttons ${se.h}px tall)`);
     if (SHOTS) await page.screenshot({ path: path.join(OUT, "tm-p4-portrait-title.png") });
 
-    // START from the stick, then the four directions
+    // on the title the stick picks 1 or 2 players and START starts; then the four directions
     await page.evaluate(() => window.__tm.setChasersOff(true));
+    await push(page, 0, 0.8);
+    check(await page.evaluate(() => window.__tm.menuSel) === 1 && await page.evaluate(() => window.__tm.state) === "title", "stick down on the title picks 2 PLAYERS");
     await push(page, 0, -0.8);
-    check(await page.evaluate(() => window.__tm.state) === "ready", "pushing the stick on the title starts a game");
+    check(await page.evaluate(() => window.__tm.menuSel) === 0, "stick up picks 1 PLAYER");
+    await page.tap("#tm-start");
+    check(await page.evaluate(() => window.__tm.state) === "ready", "START starts the game");
     await page.waitForFunction(() => window.__tm.state === "play", null, { timeout: 4000 });
     for (const [fx, fy, want, name] of [[0.8, 0, "1,0", "right"], [-0.8, 0, "-1,0", "left"], [0, 0.8, "0,1", "down"], [0, -0.8, "0,-1", "up"]]) {
       const knob = await push(page, fx, fy);
@@ -145,7 +149,7 @@ try {
     check(cv.h >= f.h - 40, `landscape: screen uses the height (${cv.h.toFixed(0)}px of ${f.h})`);
     if (SHOTS) {
       await page.evaluate(() => window.__tm.setChasersOff(false));
-      await push(page, 0, -0.8);
+      await page.tap("#tm-start");
       await page.waitForTimeout(2600);
       await page.screenshot({ path: path.join(OUT, "tm-p4-landscape.png") });
     }

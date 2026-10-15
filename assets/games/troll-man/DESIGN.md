@@ -219,7 +219,12 @@ next starts. No gate; a targeted check per change, push on your word.
    SELECT = taunt, START = start / pause; both also start from the title.
    **Phone.** Portrait layout, joystick, SELECT/START, swipe backup,
    landscape. Done when it plays on your phone with a thumb.
-5. **Look.** Sprites, maze palette, Press Start 2P, CRT, sounds, title
+5. **Look — DONE 2026-10-15** (`tools/troll-man-p5-test.mjs`). WebAudio
+   sounds in `sound.js` (all synthesised, original tunes, M / button to
+   mute), title menu 1 PLAYER / 2 PLAYERS, a silent attract demo after
+   16s idle, cut-scenes after levels 2, 5, 9, 13, 17, 1UP/2UP hot seat with
+   a maze per player.
+   **Look.** Sprites, maze palette, Press Start 2P, CRT, sounds, title
    screen, attract mode, intermissions, 1UP/2UP. Done when a screenshot
    looks like a cabinet.
 6. **Poster, banner, hub card, leaderboard, OG tags.** Done when it's on
