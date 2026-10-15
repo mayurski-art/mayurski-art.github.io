@@ -321,7 +321,64 @@ cheaply before any art exists.
 - The upper floor is bot-free in practice; if that feels empty, phase 1 can
   move a few bot spawns to the side stairs' feet so bots drift up more.
 
-## 10. Built assets (2026-10-15, branch `claude/tf-undergrin-metro-b6c156`)
+## 10. Blockout (phases 1 and 2, 2026-10-15)
+
+Built in `maps.js` `buildUndergrin`: coloured `api.box` colliders, every
+flight an `api.stairs` link, zero `api.lamp`. The collider layout is the
+truth the asset session matches; where this doc was ambiguous or the bots
+needed it, the blockout settled on:
+
+- **Plant-room doors** are the walkway's full 4 m (x -2..2), lintel at 2.4,
+  not 1.8. At 1.8 the room was sealed on the bots' coarse grid, and a 3.0
+  door with 0.5 m jambs left corners that bots passing each other wedged on.
+- **Escalator well** is x ±2.9, not 3.6. The wider well cut the island's
+  nose off the bots' grid against the x ±6 columns. Outer balustrades are
+  0.3 m thick at x ±2.6..2.9; the middle one fills x -1.2..1.2. The landing
+  past the top tread (z -18.5..-17) is floored.
+- **Works trolleys** sit against the bores' outer walls at z ∓1. Centred on
+  the rails, they cut the bores; at z -2 they pinched the bore door.
+- **Ticket gates**: six gates at x ±1.4, ±4.2 and ±7 with 2.5 m gaps (six
+  gates with 1.1 m gaps can't span x -7..7).
+- **Shops**: the west row's Lounge/Apotrolle split moved to 0..12/12..26, so
+  both rows are point-symmetric.
+- **Spawns**: the island spawn [0, -37] is listed first (modes.js sweeps
+  reach from spawn 0). [-18, -40] moved to [-16.5, -40], off the west
+  stair's treads.
+- **S&D sites** are designed rather than taken from `pickBombSites`:
+  A (-12, 24) on the south station's empty track and B (18, 24) on its
+  east side platform. `pickBombSites` put B inside the parked train, with its
+  marker under the floor. KOTH uses `pickHillPoints` as it is: the plant room
+  first.
+- **Draw calls**: the ~1,100 boxes are pooled and merged into one mesh per
+  material (the colliders are untouched). Without that the map drew 3,222
+  times a frame.
+
+**Look.** The full-bright spec from section 3:
+- Sun 0, so there is no shadow pass.
+- White ambient at 1.35, hemi at 0.5, exposure 1.
+- A black sky, and fog 0xe8e6e2 at a density of 0.004.
+- Bloom threshold 2.0, so only the painted-on lights glow.
+
+Mean luma in the eight shots (tools/troll-ops-map-views.json) is 104–156, or
+80 inside the train, with p90 around 190. The modded reference clips measure
+112–113 mean and 182–192 at p90. The only dark areas are the black sky
+through the skylights and the train's roof.
+
+**Tests:**
+- map-audit: PASS (630 colliders, 21,198 reachable spots).
+- map-walk: 28/28 Undergrin routes.
+- bot-stairs: 24/24, every flight both ways, plus a perch.
+- map-fps: 12.8 fps and 206 draws, against main's Undergrin at 6–12.5 fps
+  and 207 draws in the same runs.
+- bot-stuck: passes in about half of its 60-second runs. The others catch a
+  single stall, in a different place each time, usually two teammates wedged
+  on each other. Grinjuku flakes the same way. One spot came up twice: a bot
+  in the Arcade, just past the west stair's top (x -19, z -32), heading for
+  the purple room's stair. That is the lead to chase next.
+- bot-moves runs on Grinsite only. Its "throws more than frags" check is
+  chance, and it has both passed and failed on this branch.
+
+## 11. Built assets (2026-10-15, branch `claude/tf-undergrin-metro-b6c156`)
 
 `models/build_undergrin.blender.py` is rewritten from scratch. Rebuild one or
 more GLBs with
