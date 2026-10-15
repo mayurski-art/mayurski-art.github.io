@@ -1276,15 +1276,18 @@ export function coffin(K, M, x, y, z, { ry = 0, stand = false, open = false } = 
 /* The user's troll art for the walls (ui/western/): the cowboy troll, and
    the troll general's portrait (cropped out of its own frame, or the whole
    scene with the little troll beside it). `sepia` ages it into an old
-   photograph with a vignette. */
+   photograph with a vignette. A crop is [x, y, w, h] in the file's pixels. */
 const ART = {
   cowboy: { file: "cowboy-troll.jpg", crop: [40, 120, 440, 400] },
-  general: { file: "troll-general.jpg", crop: [258, 122, 468, 772] },
+  general: { file: "troll-general.jpg", crop: [255, 118, 473, 790] },   // the painting's canvas, edge to edge
   generalScene: { file: "troll-general.jpg", crop: [0, 200, 900, 877] },
   cigar: { file: "cigar-troll.jpg", crop: [0, 0, 720, 852] },
   bach: { file: "so-bach.jpg", crop: [0, 0, 768, 768] },
   tanktop: { file: "tanktop-troll.jpg", crop: [0, 0, 580, 800] },
 };
+/* An art's width / height, for a frame cut to fit it. */
+export const artAspect = (name) => ART[name].crop[2] / ART[name].crop[3];
+
 export function artTexture(name, { sepia = false } = {}) {
   const a = ART[name];
   return tex(`art-${name}-${sepia}`, () => {
@@ -1319,8 +1322,16 @@ export function artTexture(name, { sepia = false } = {}) {
      barn    rough boards nailed together, hung on a wire from a nail
      oval    an oval brass frame
      photo   a thin black frame round a cream mat (an old photograph)
-   Decoration only, no collider. */
+   w x h is the most room the picture may take: when the art material
+   carries its aspect (userData.aspect, from artAspect) the picture shrinks
+   to the art's own proportions, centred there, so the frame hugs the image
+   and nothing is stretched. Decoration only, no collider. */
 export function framedPicture(K, M, { x, y, z, w, h, o = 1, axis = "x", style = "gilt", art }) {
+  const aspect = art?.userData?.aspect;
+  if (aspect) {
+    if (w / h > aspect) w = h * aspect;
+    else h = w / aspect;
+  }
   const ry = axis === "x" ? (o > 0 ? 0 : Math.PI) : (o > 0 ? Math.PI / 2 : -Math.PI / 2);
   // everything stands off the wall by the wallpaper lining's thickness
   const put = (mat, geo, opts) => K.add(mat, place(geo.translate(0, 0, 0.026), { x, y, z, ry }), opts);
