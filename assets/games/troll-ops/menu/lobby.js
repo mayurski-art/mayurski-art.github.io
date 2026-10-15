@@ -16,7 +16,7 @@ import { heroKit, heroActive } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b
 import { SETTINGS_KEY, settings, applySettings } from "./settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0-dj2-bf1-sr1";
 import { BOT_STREAK_KEY } from "../streaks/bot-streaks.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-kc1-dj2-bf1-pd1-sr1";
 import { initCloudSave } from "../cloud-save.js?v=cs1b7-zc1-zc2";
-import { makeRoomCode } from "../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10-hr2-zp1-rs1-dj2";
+import { makeRoomCode } from "../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10-hr2-zp1-rs1-dj2-sr1";
 import { game } from "../core/state.js?v=st1";
 import { wearBlocky, ownBody } from "../blocky-body.js?v=bk1-cw1-zr10-bf1-sr1";
 
