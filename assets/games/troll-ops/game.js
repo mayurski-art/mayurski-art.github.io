@@ -1629,6 +1629,8 @@ function loadMap(id) {
   // Bot pathfinding is built from the map's colliders, so it has to follow
   // the map — a field from the old geometry routes them into new walls.
   bots.rebuildNav(colliders, ARENA, 0);
+  // and the bots' posts on it, now rather than on the match's first frame
+  bots.prepPlaces(k9Stairs());
   loadedMapId = id;
   if (colliderDebugForced) {
     colliderDebugGroup?.parent?.remove(colliderDebugGroup);

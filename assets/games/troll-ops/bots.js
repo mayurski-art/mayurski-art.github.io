@@ -1396,6 +1396,60 @@ export class BotManager {
     this.places = null;
   }
 
+  /* Which cells are blocked on a level, worked out once and copied into
+     every field there. `doors`: the ground floor's chase grid, cells shut
+     by their centre so a doorway a bot fits through is open (user,
+     2026-10-07: "bots should be smart too and not run into walls"). The
+     fixed spots (a stair's foot, a perch) keep the old grid: stair feet
+     sit in notches the finer one opens into sealed pockets, and planStair
+     read those as no way there. */
+  baseFor(level, doors = false) {
+    // A big map's coarse grid (arena.navCell >= 1, Troll Royale's island)
+    // has no doorways to find at that scale: it keeps the one grid.
+    if (this.fieldSrc.arena.navCell >= 1) doors = false;
+    const bk = doors && level <= 0.5 ? `${level}|doors` : level;
+    let base = this.fieldBases.get(bk);
+    if (!base) {
+      const src = this.fieldSrc;
+      if (level > 0.5) {
+        // Upstairs, a finer grid: walkways and landings up there are often
+        // only a metre and a half wide (the Grinder's platforms, the top of
+        // a stair), narrower than two coarse cells once the rails are
+        // padded, so the ground floor's grid sealed them off. It only
+        // covers where there's floor at this height, so a fine grid on a
+        // big map (Troll Royale's island) stays small.
+        let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+        for (const c of src.colliders) {
+          if (Math.abs(c.max.y - level) > 0.45) continue;
+          x0 = Math.min(x0, c.min.x); x1 = Math.max(x1, c.max.x);
+          z0 = Math.min(z0, c.min.z); z1 = Math.max(z1, c.max.z);
+        }
+        const a = src.arena;
+        const bounds = x0 > x1 ? { minX: a.minX, maxX: a.minX + 1, minZ: a.minZ, maxZ: a.minZ + 1 }
+          : { minX: Math.max(a.minX, x0 - 2), maxX: Math.min(a.maxX, x1 + 2), minZ: Math.max(a.minZ, z0 - 2), maxZ: Math.min(a.maxZ, z1 + 2) };
+        const cell = a.navCell ? Math.max(UPPER_NAV_CELL, a.navCell / 2) : UPPER_NAV_CELL;
+        base = new FlowField(src.colliders, bounds, level, { cell, needSupport: true });
+      } else if (doors) {
+        // Cells shut by their centre, not by any touch of a padded wall:
+        // the old rule sealed every doorway narrower than a cell plus two
+        // pads, and bots ran at the wall beside it.
+        base = new FlowField(src.colliders, src.arena, level || src.floorY, { cell: GROUND_NAV_CELL, blockBy: "centre", pad: NAV_PAD, snap: 4.4 });
+      } else {
+        base = new FlowField(src.colliders, src.arena, level || src.floorY, { ...(src.arena.navCell ? { cell: src.arena.navCell } : {}) });
+      }
+      this.fieldBases.set(bk, base);
+    }
+    return base;
+  }
+
+  /* At map load (game.js, after rebuildNav): the posts worked out now,
+     under the menu, rather than on the match's first bot update, where
+     Hollowgrin's took 150 ms. `stairs` must be the list the updates get
+     (ctx.stairs), or they work it out again. */
+  prepPlaces(stairs) {
+    if (this.fieldSrc) this.placesFor(stairs || [], (level, doors) => this.baseFor(level, doors));
+  }
+
   /* The map's posts (see POST_* above), worked out once per map from the
      nav grids: { upper, ground, all, districtOf, crowd, claims }.
      Upper: on each floor a stair or rope tops out on, the part of it that
@@ -1598,51 +1652,7 @@ export class BotManager {
     // bots re-sweeping 100 different island-sized fields every 0.3 s.
     let budget = this.bots.length > 24 ? 6 : Infinity;
 
-    // Which cells are blocked on a level, worked out once and copied into
-    // every field there. `doors`: the ground floor's chase grid, cells shut
-    // by their centre so a doorway a bot fits through is open (user,
-    // 2026-10-07: "bots should be smart too and not run into walls"). The
-    // fixed spots (a stair's foot, a perch) keep the old grid: stair feet
-    // sit in notches the finer one opens into sealed pockets, and planStair
-    // read those as no way there.
-    const baseFor = (level, doors = false) => {
-      // A big map's coarse grid (arena.navCell >= 1, Troll Royale's island)
-      // has no doorways to find at that scale: it keeps the one grid.
-      if (this.fieldSrc.arena.navCell >= 1) doors = false;
-      const bk = doors && level <= 0.5 ? `${level}|doors` : level;
-      let base = this.fieldBases.get(bk);
-      if (!base) {
-        const src = this.fieldSrc;
-        if (level > 0.5) {
-          // Upstairs, a finer grid: walkways and landings up there are often
-          // only a metre and a half wide (the Grinder's platforms, the top of
-          // a stair), narrower than two coarse cells once the rails are
-          // padded, so the ground floor's grid sealed them off. It only
-          // covers where there's floor at this height, so a fine grid on a
-          // big map (Troll Royale's island) stays small.
-          let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
-          for (const c of src.colliders) {
-            if (Math.abs(c.max.y - level) > 0.45) continue;
-            x0 = Math.min(x0, c.min.x); x1 = Math.max(x1, c.max.x);
-            z0 = Math.min(z0, c.min.z); z1 = Math.max(z1, c.max.z);
-          }
-          const a = src.arena;
-          const bounds = x0 > x1 ? { minX: a.minX, maxX: a.minX + 1, minZ: a.minZ, maxZ: a.minZ + 1 }
-            : { minX: Math.max(a.minX, x0 - 2), maxX: Math.min(a.maxX, x1 + 2), minZ: Math.max(a.minZ, z0 - 2), maxZ: Math.min(a.maxZ, z1 + 2) };
-          const cell = a.navCell ? Math.max(UPPER_NAV_CELL, a.navCell / 2) : UPPER_NAV_CELL;
-          base = new FlowField(src.colliders, bounds, level, { cell, needSupport: true });
-        } else if (doors) {
-          // Cells shut by their centre, not by any touch of a padded wall:
-          // the old rule sealed every doorway narrower than a cell plus two
-          // pads, and bots ran at the wall beside it.
-          base = new FlowField(src.colliders, src.arena, level || src.floorY, { cell: GROUND_NAV_CELL, blockBy: "centre", pad: NAV_PAD, snap: 4.4 });
-        } else {
-          base = new FlowField(src.colliders, src.arena, level || src.floorY, { ...(src.arena.navCell ? { cell: src.arena.navCell } : {}) });
-        }
-        this.fieldBases.set(bk, base);
-      }
-      return base;
-    };
+    const baseFor = (level, doors) => this.baseFor(level, doors);
     const navFor = (target, levelY = 0) => {
       if (!target || !this.fieldSrc) return null;
       // A field per floor level: an upstairs walker needs the upstairs

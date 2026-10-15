@@ -136,6 +136,7 @@ for (const id of mapIds) {
     for (let seed = 0; seed < SEEDS; seed++) {
       const mgr = new BotManager();
       mgr.rebuildNav(colliders, arena, 0);
+      mgr.prepPlaces?.(stairs);   // as game.js does at map load
       const spawnFor = (team, botId) => {
         // a ground spawn away from the other side, like game.js botSpawn
         const foes = mgr.bots.filter((b) => b.alive && b.team !== team && b.id !== botId);
@@ -162,7 +163,9 @@ for (const id of mapIds) {
       for (let t = 0; t < SECS; t += DT) {
         const t0 = performance.now();
         mgr.update(DT, ctx);
-        totals.ms += performance.now() - t0;
+        const tickMs = performance.now() - t0;
+        totals.ms += tickMs;
+        totals.maxTick = Math.max(totals.maxTick || 0, tickMs);
         // Posts picked, reached, given up on (bots.js updatePerch / pickPost).
         for (const b of mgr.bots) {
           const was = lastPerch.get(b.id), p = b.perch;
@@ -212,6 +215,7 @@ for (const id of mapIds) {
       kills: totals.kills,
       places: mgr0Places && { upper: mgr0Places.upper.length, ground: mgr0Places.ground.length, ms: +(mgr0Places.buildMs || 0).toFixed(1) },
       posts: totals.posts, fighting: share(totals.fighting),
+      maxTickMs: +(totals.maxTick || 0).toFixed(1),
       msPerBotSec: +(totals.ms / (SECS * SEEDS * 10)).toFixed(3),
     };
   }, { id, mods, SECS, SEEDS, HG: HG_DISTRICTS });
@@ -222,7 +226,7 @@ for (const id of mapIds) {
   const empty = live.filter((v) => v < even * 0.15).length;
   const minD = Math.min(...live);
   console.log(`${id.padEnd(13)} up ${String(res.upShare).padStart(5)}%  bots-up ${res.botsUp.padStart(5)}  levels ${JSON.stringify(res.levels)}`);
-  console.log(`${"".padEnd(13)} districts ${res.grid} ${JSON.stringify(res.districts)}  near-empty ${empty}/${live.length}  kills ${res.kills}  ${res.msPerBotSec} ms/bot-s`);
+  console.log(`${"".padEnd(13)} districts ${res.grid} ${JSON.stringify(res.districts)}  near-empty ${empty}/${live.length}  kills ${res.kills}  ${res.msPerBotSec} ms/bot-s  slowest tick ${res.maxTickMs} ms`);
   const ps = res.posts;
   console.log(`${"".padEnd(13)} posts ${JSON.stringify(res.places)}  up ${ps.upArrived}/${ps.up} reached, ground ${ps.groundArrived}/${ps.ground}  died on the way ${ps.died}  in sight of a foe ${res.fighting}%  failed ${JSON.stringify(Object.entries(ps.failed).sort((a, b) => b[1] - a[1]).slice(0, 6))}`);
   if (id === "hollowgrin") console.log(`${"".padEnd(13)} posts picked/reached by district ${JSON.stringify(res.posts.byNamed)}`);
