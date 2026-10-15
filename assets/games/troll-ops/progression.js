@@ -271,7 +271,8 @@ function levelSpan() {
 
 /* "5,200 / 6,050 XP": Troll Forces XP over what the next level needs. */
 export function rankXpText() {
-  if (isOwner()) return "Everything unlocked";
+  // the owner has no XP line (user, 2026-10-15: remove "Everything unlocked")
+  if (isOwner()) return "";
   const { xp, next, max } = levelSpan();
   if (max) return getPrestige() >= PRESTIGE_MASTER ? "Prestige Master · max level" : canPrestige() ? "Max level · Prestige ready" : "Max level";
   return `${xp.toLocaleString()} / ${next.toLocaleString()} XP`;

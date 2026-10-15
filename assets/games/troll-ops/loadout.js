@@ -930,7 +930,10 @@ export class Loadout {
       const next = Object.entries(WEAPON_DEFS)
         .filter(([id]) => !isUnlocked(id))
         .sort((a, b) => a[1].rank - b[1].rank)[0];
-      sum.next.textContent = next ? `${next[1].name} · LV ${next[1].rank}` : "Everything unlocked";
+      // nothing left to unlock: no "Next unlock" line at all (user,
+      // 2026-10-15: remove "Everything unlocked")
+      sum.next.textContent = next ? `${next[1].name} · LV ${next[1].rank}` : "";
+      if (sum.next.parentElement) sum.next.parentElement.hidden = !next;
     }
   }
 }

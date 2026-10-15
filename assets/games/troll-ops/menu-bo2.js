@@ -13,7 +13,7 @@
 
 import { createBo2Menu } from "../../js/bo2-menu.js?v=to-ft2";
 import { createMapMode } from "../../js/troll-map-mode.js?v=to-bo2d";
-import { joinSitePresence } from "../../js/site-presence.js?v=to-bo2d-ol1";
+import { joinSitePresence, viewerId } from "../../js/site-presence.js?v=to-bo2d-ol1";
 import { startOnline, onlinePlayers, serverList, joinServer, describe } from "./menu/online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-nf1";
 import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1";
 
@@ -915,10 +915,80 @@ renameForm.addEventListener("submit", (e) => {
 });
 
 /* ── Party, status, presence ──────────────────────────────────────────── */
+/* Everyone else online right now (the presence roster, accounts first,
+   then guests), under your own row: the user, 2026-10-15: "when users are
+   online i should be able to see them where i see the whole 1 Player (8
+   max) ... when there are users who are not online then they dont show up
+   there". Presence drops a closed tab on its next sync, so this list is
+   only ever who's on. Up to 7 beside you (8 in all); past that, a line
+   opens Who's Online. */
+const PARTY_MAX = 8;
+const partyList = document.createElement("div");
+partyList.className = "to-bo2-party-others";
+partyList.setAttribute("role", "list");
+partyList.setAttribute("aria-label", "Online now");
+$(".to-bo2-xp", root).after(partyList);
+function renderPartyOthers() {
+  const myViewer = viewerId(), uid = myUid();
+  const others = onlinePlayers(roster).filter((o) => o.viewerId !== myViewer && !(uid && o.userId === uid));
+  const shown = others.slice(0, PARTY_MAX - 1);
+  partyList.replaceChildren(...shown.map((o) => {
+    const row = document.createElement(o.userId ? "button" : "div");
+    row.className = "to-bo2-party-row is-other";
+    row.setAttribute("role", "listitem");
+    const lv = document.createElement("i");
+    lv.className = "to-bo2-lv";
+    lv.textContent = o.guest ? "Guest" : `LV ${o.level}`;
+    const name = document.createElement("b");
+    name.className = "to-bo2-name";
+    name.textContent = o.name;
+    const doing = document.createElement("small");
+    doing.textContent = describe(o.activity);
+    row.append(lv, name, doing);
+    if (o.userId) {
+      row.type = "button";
+      row.title = `${o.name}: view their profile card`;
+      row.addEventListener("click", () => openProfileCard(o.userId));
+    }
+    return row;
+  }));
+  const more = document.createElement("button");
+  more.type = "button";
+  more.className = "to-bo2-party-more";
+  more.addEventListener("click", () => menu.go("online"));
+  const setMore = () => {
+    const n = others.length - (partyList.children.length - (more.parentNode ? 1 : 0));
+    more.textContent = `+${n} more online`;
+    if (n > 0 && !more.parentNode) partyList.appendChild(more);
+  };
+  setMore();
+  fitPartyList(setMore);
+  return 1 + shown.length;
+}
+/* On a small screen the list stops short of the controls below it (the
+   online count, the Animations switch, the Emote button: user's rule, no
+   overlapping UI text); the rows that don't fit fold into "+N more". */
+const PARTY_BELOW = [".to-bo2-online", ".to-bo2-anim", "#to-char-emote"];
+function fitPartyList(setMore) {
+  const list = partyList.getBoundingClientRect();
+  if (!list.height) return;
+  let limit = innerHeight - 6;
+  for (const sel of PARTY_BELOW) {
+    const el = document.querySelector(sel);
+    const r = el?.offsetParent ? el.getBoundingClientRect() : null;
+    if (r && r.width && r.left < list.right && r.right > list.left && r.top > list.top) limit = Math.min(limit, r.top - 6);
+  }
+  const rows = () => [...partyList.querySelectorAll(".to-bo2-party-row")];
+  while (rows().length && partyList.lastElementChild.getBoundingClientRect().bottom > limit) {
+    rows().pop().remove();
+    setMore();
+  }
+}
+addEventListener("resize", () => renderParty());
 function renderParty() {
   const p = window.TrollrunnerAccounts?.getCachedProfile?.();
-  const roster = $$("#to-pf-roster .to-pf-op").length;
-  $(".to-bo2-party-lbl", root).innerHTML = `${Math.max(1, roster)} Player${roster > 1 ? "s" : ""} <span>(8 Max)</span>`;
+  const n = renderPartyOthers();
+  $(".to-bo2-party-lbl", root).innerHTML = `${n} Player${n > 1 ? "s" : ""} <span>(${PARTY_MAX} Max)</span>`;
   $(".to-bo2-name", root).textContent = p?.username ? withClan(p.username, getMyCard().clan) : "Guest troll";
   const rankEl = $("#to-lo-rank-label"), owner = !!rankEl?.classList.contains("is-owner");
   const lv = $(".to-bo2-lv", root);
@@ -928,7 +998,9 @@ function renderParty() {
   if (icon) lv.prepend(icon.cloneNode(true));
   lv.classList.toggle("has-rank-icon", !!icon);
   lv.classList.toggle("is-owner", owner);   // the owner badge, no level (style.css)
-  $(".to-bo2-xp", root).textContent = p ? text($("#to-pf-xp")) : "Log in to keep your XP";
+  const xp = $(".to-bo2-xp", root);
+  xp.textContent = p ? text($("#to-pf-xp")) : "Log in to keep your XP";
+  xp.hidden = !xp.textContent;
 }
 // Your name: your profile card when signed in, the sign-in when not.
 $(".to-bo2-party-row", root).addEventListener("click", () => {
@@ -964,6 +1036,7 @@ const presence = joinSitePresence({
   onCount: (n) => { $(".to-bo2-online", root).textContent = `${n} Online`; },
   onSync: (r) => {
     roster = r;
+    renderParty();
     if (["servers", "online", "main"].includes(menu.current()) && !title.hidden) menu.refresh();
   },
 });
