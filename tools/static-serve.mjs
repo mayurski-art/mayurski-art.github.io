@@ -18,6 +18,7 @@ http.createServer((req, res) => {
   let p = path.join(ROOT, decodeURIComponent(new URL(req.url, "http://x").pathname));
   if (!p.startsWith(ROOT)) { res.writeHead(403); return res.end(); }
   if (fs.existsSync(p) && fs.statSync(p).isDirectory()) p = path.join(p, "index.html");
+  if (!fs.existsSync(p) && fs.existsSync(p + ".html")) p += ".html";      // /troll-man -> troll-man.html, like GitHub Pages
   if (!fs.existsSync(p)) { res.writeHead(404); return res.end("not found"); }
   res.writeHead(200, { "content-type": TYPES[path.extname(p).toLowerCase()] || "application/octet-stream", "cache-control": "no-store" });
   fs.createReadStream(p).pipe(res);
