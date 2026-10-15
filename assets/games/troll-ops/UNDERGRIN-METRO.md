@@ -320,3 +320,48 @@ cheaply before any art exists.
   BLOCKOUT phase use `api.box` with colours only; no textures, no smear.
 - The upper floor is bot-free in practice; if that feels empty, phase 1 can
   move a few bot spawns to the side stairs' feet so bots drift up more.
+
+## 10. Built assets (2026-10-15, branch `claude/tf-undergrin-metro-b6c156`)
+
+`models/build_undergrin.blender.py` is rewritten from scratch. Rebuild one or
+more GLBs with
+`blender -b -P models/build_undergrin.blender.py -- shell platforms ...`.
+The numbers in it are copied from sections 3 and 4. They are not colliders.
+
+| GLB | Size | Contents |
+|---|---|---|
+| `ug-shell` | 461 KB | outer walls, U slab with its wells, columns, coffered ceiling, bores, plant room and corridor walls, hall and atrium walls, arches, skylight vaults, shop walls, the 20 x 20 atrium grid |
+| `ug-platforms` | 224 KB | platform slabs, yellow zones, edge strips, MIND THE GRIN, bore floors, rails and sleepers, bore-end and nose stairs |
+| `ug-escalators` | 419 KB | both escalator pairs, the side stairs, the purple and red steel stairs, well rails |
+| `ug-trains` | 475 KB | two yellow trains with interiors, trollface ads, TROLLHALLA blinds |
+| `ug-concourse` | 1,081 KB | gates, desks, newsstand, benches, the GRINLINE board, clock, pendants, posters, roundels, hanging signs, EXIT signs, tube lights |
+| `ug-shops` | 672 KB | the twelve shop interiors, the Troll Kombat arcade, the lounge with the general's portrait, the purple and red rooms |
+| `ug-plant` | 134 KB | plant room kit, corridor and bore props |
+
+The new set totals 3.47 MB, within the ~6 MB budget.
+
+**How it's painted**
+
+- Every material is a flat `UG_*` colour that is not in RETEXTURE, so the GLBs carry vertex paint only.
+- The emissives keep their own material: tube lights, EXIT signs, board text, screens, neons, fire, pendants, the green cross and headlights.
+- There are no lamps or textures in any file.
+- The trollface art is a cell mosaic of `assets/pfp/base/og.webp`.
+
+**Checks**
+
+Every GLB was rendered full-bright from the doc's views, with at least two render-and-fix rounds each. The renders are not committed.
+
+**Wiring session to-do**
+
+The assets session touched no game code.
+
+1. `maps.js` `MAPS.undergrin`:
+   - colliders from sections 3 and 4
+   - spawns from section 5
+   - the section 3 lighting constants (sun 0, hemi ~0.5, ambient ~1.35, fog `0xe8e6e2 @ 0.004`, black sky)
+   - zero `api.lamp`
+   - the seven new `mapModel`s, each with `castShadow: false`
+2. Delete the four old GLBs (`ug-station`, `ug-train`, `ug-fittings`, `ug-expansion`) and anything that loads them.
+3. Map previews and loading-screen renders, then bump `SHOT_V`.
+4. Run the targeted tests (map-audit, map-walk, bot-stuck, map-fps) per CLAUDE.md. Use no gate and never a public room.
+5. Add a HANDOFF one-liner.
