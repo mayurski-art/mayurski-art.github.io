@@ -1274,13 +1274,12 @@ export function coffin(K, M, x, y, z, { ry = 0, stand = false, open = false } = 
 /* ============================================================ framed pictures */
 
 /* The user's troll art for the walls (ui/western/): the cowboy troll, and
-   the troll general's portrait (cropped out of its own frame, or the whole
-   scene with the little troll beside it). `sepia` ages it into an old
+   the troll general's photo (always the whole picture, never cropped). `sepia` ages it into an old
    photograph with a vignette. A crop is [x, y, w, h] in the file's pixels. */
 const ART = {
   cowboy: { file: "cowboy-troll.jpg", crop: [40, 120, 440, 400] },
-  general: { file: "troll-general.jpg", crop: [255, 118, 473, 790] },   // the painting's canvas, edge to edge
-  generalScene: { file: "troll-general.jpg", crop: [0, 200, 900, 877] },
+  general: { file: "troll-general.jpg", crop: [0, 0, 900, 1077] },
+  generalScene: { file: "troll-general.jpg", crop: [0, 0, 900, 1077] },
   cigar: { file: "cigar-troll.jpg", crop: [0, 0, 720, 852] },
   bach: { file: "so-bach.jpg", crop: [0, 0, 768, 768] },
   tanktop: { file: "tanktop-troll.jpg", crop: [0, 0, 580, 800] },
