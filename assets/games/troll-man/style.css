@@ -42,6 +42,8 @@ body {
 }
 .tm-corner-btn:hover, .tm-corner-btn:focus-visible { border-color: rgba(33, 33, 222, 0.7); color: var(--ink); outline: none; }
 .tm-board-btn { right: 56px; }
+.tm-menu-btn { right: 102px; width: auto; padding: 0 12px; font: 500 12px/1 var(--mono); letter-spacing: 0.5px; }
+.tm-menu-btn[hidden] { display: none; }
 .tm-board-btn[aria-expanded="true"] { color: var(--gold); }
 .tm-mute .tm-mute-cross { display: none; }
 .tm-mute.is-muted .tm-mute-cross { display: inline; }
@@ -86,10 +88,30 @@ body {
   margin: 0; flex: 0 0 auto;
   color: var(--muted); font-size: 12px; text-align: center;
 }
+.tm-help span + span::before { content: " · "; }
 
 @media (max-width: 760px) {
   .tm-shell { padding-top: 48px; gap: 8px; }
   .tm-help { font-size: 11px; }
+}
+
+/* Wide mouse/keyboard screens (laptops, monitors): the logo and help move to a
+   side column so the screen gets the window's full height, whatever its size. */
+@media (pointer: fine) and (min-aspect-ratio: 5/4) and (min-width: 761px) {
+  .tm-shell {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) minmax(0, 3fr) minmax(180px, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 20px; row-gap: 14px;
+    padding: 48px 20px 16px;
+  }
+  .tm-cabinet { grid-column: 2; grid-row: 1 / span 2; height: 100%; align-items: center; }
+  .tm-logo { grid-column: 1; grid-row: 1; align-self: end; justify-self: center; }
+  .tm-logo { width: min(320px, 100%); }
+  .tm-logo img { width: 100%; }
+  .tm-help { grid-column: 1; grid-row: 2; align-self: start; justify-self: center; line-height: 1.9; }
+  .tm-help span { display: block; }
+  .tm-help span + span::before { content: none; }
 }
 
 /* ---- Touch controls -----------------------------------------------------------
@@ -147,7 +169,7 @@ body {
 @media (pointer: coarse) {
   .tm-help { display: none; }
   .tm-logo img { width: min(300px, 64vw); }
-  .tm-shell { gap: 12px; padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+  .tm-shell { gap: 12px; padding-left: 6px; padding-right: 6px; padding-bottom: max(14px, env(safe-area-inset-bottom)); }
   .tm-stick { display: block; width: clamp(124px, 18svh, 164px); height: auto; }
   .tm-buttons { display: flex; }
   /* spare height goes evenly above and below the screen, not in one gap */

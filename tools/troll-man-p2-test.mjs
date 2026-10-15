@@ -93,7 +93,7 @@ try {
       }
       await page.waitForTimeout(20);
     }
-    check(left.size === 4, `all four chasers left the pen (${[...left].join(", ")})`);
+    check(left.size === 2 && left.has("gigachad") && left.has("pepe"), `level 1 lets only Giga Chad and Pepe out of the pen (${[...left].join(", ")})`);
     check(bad.length === 0, `no chaser in a wall or stuck${bad.length ? ": " + [...new Set(bad)].slice(0, 5).join("; ") : ""}`);
     await page.close();
   }
