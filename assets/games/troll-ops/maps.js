@@ -319,7 +319,51 @@ const UG = {
   exit: 0x38d060, board: 0xff8a1e, boardPink: 0xff3fa4, purple: 0x8a3fc8, red: 0xc8302a,
 };
 
+/* Undergrin's blockout is ~1,100 boxes: one mesh each was 3,200 draws a
+   frame (shadow passes included), so the build runs against a stand-in api
+   whose box, cylinder and prop keep the colliders and stair links as usual
+   but pool the geometry, merged at the end into one mesh per material. */
 function buildUndergrin(api) {
+  const pools = new Map();
+  const pool = (key, material, shadow, geo) => {
+    if (!pools.has(key)) pools.set(key, { material, shadow, geos: [] });
+    pools.get(key).geos.push(geo);
+  };
+  const batched = Object.create(api), realBox = api.box, realCylinder = api.cylinder;
+  batched.box = (x, z, w, d, h, opts = {}) => {
+    const { color = 0x5c6b4a, y = 0, pen = 0.9, rough = 0.85, metal = 0.05, surface = null, ghost = false } = opts;
+    if (surface) return realBox(x, z, w, d, h, opts);
+    const c = api.ghostBox(x, z, w, d, h, { y, pen });
+    if (!ghost) pool(`b${color}|${rough}|${metal}`, api.mat(color, rough, metal), true, new THREE.BoxGeometry(w, h, d).translate(x, y + h / 2, z));
+    return c;
+  };
+  batched.cylinder = (x, z, r, h, opts = {}) => {
+    const { color = 0x3a4530, y = 0, solid = true, pen = 4, surface = null, ghost = false } = opts;
+    if (surface) return realCylinder(x, z, r, h, opts);
+    if (solid) api.ghostBox(x, z, r * 2, r * 2, h, { y, pen });
+    if (!ghost) pool(`c${color}`, api.mat(color, 0.7, 0.3), true, new THREE.CylinderGeometry(r, r, h, 12).translate(x, y + h / 2, z));
+  };
+  // api.stairs builds its treads with api.box: swapped for the pooling one meanwhile
+  batched.stairs = (...args) => {
+    api.box = batched.box;
+    try { return api.stairs(...args); } finally { api.box = realBox; }
+  };
+  batched.prop = (mesh) => {
+    mesh.updateMatrix();
+    const m = mesh.material;
+    pool(`p${m.type}${m.color.getHex()}${mesh.castShadow}`, m, mesh.castShadow, mesh.geometry.clone().applyMatrix4(mesh.matrix));
+    return mesh;
+  };
+  buildUndergrinParts(batched);
+  for (const { material, shadow, geos } of pools.values()) {
+    const mesh = new THREE.Mesh(mergeGeometries(geos, false), material);
+    mesh.castShadow = shadow;
+    mesh.receiveShadow = true;
+    api.prop(mesh);
+  }
+}
+
+function buildUndergrinParts(api) {
   const P = 0.95, U = 6.0, S0 = U - 0.4;          // platform, concourse floor, slab underside
   const H = 16;                                    // outer walls, above the atrium ceiling
   // A solid by its extents, x0..x1 / z0..z1 / y0..y1 (any order).
