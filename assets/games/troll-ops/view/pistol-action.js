@@ -12,7 +12,7 @@ const PRESS_AT = [0.24, 0.42];       // the admire's press-check (inspect progre
    progress (-1 when not reloading), `inspect` the admire's (-1 when not
    admiring). Returns "release" on the frame an empty reload drops the
    slide home, so the caller can play it. */
-export function placePistolSlide(mesh, w, magT, inspect = -1) {
+export function placePistolSlide(mesh, w, magT, inspect = -1, releaseAt = RELEASE_AT) {
   const a = mesh?.userData.pistolAction;
   if (!a) return null;
   let back = 0, event = null;
@@ -20,9 +20,9 @@ export function placePistolSlide(mesh, w, magT, inspect = -1) {
     // An empty reload holds the slide back until the fresh mag is seated,
     // then the slide stop drops and it slams home.
     if (w.reloadWasEmpty) {
-      back = magT < RELEASE_AT ? 1 : 1 - smoothstep(Math.min(1, (magT - RELEASE_AT) / 0.035));
-      if (magT >= RELEASE_AT && !a.released) { a.released = true; event = "release"; }
-      else if (magT < RELEASE_AT) a.released = false;
+      back = magT < releaseAt ? 1 : 1 - smoothstep(Math.min(1, (magT - releaseAt) / 0.035));
+      if (magT >= releaseAt && !a.released) { a.released = true; event = "release"; }
+      else if (magT < releaseAt) a.released = false;
     }
   } else if (w.slideLocked) {
     back = 1;

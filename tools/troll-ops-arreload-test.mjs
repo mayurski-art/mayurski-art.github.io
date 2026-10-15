@@ -1,11 +1,13 @@
-// Troll Forces Black Ops 2 rifle reloads check (view/ar-reload.js). One
-// headless tab per body, a SOLO range (no room code: never a public room),
-// Supabase blocked. For each of the nine BO2 rifles:
-//   1. Mid-reload the rifle stands up out of the hip pose (muzzle well up),
+// Troll Forces Black Ops 2 reloads check (view/ar-reload.js). One headless
+// tab per body, a SOLO range (no room code: never a public room), Supabase
+// blocked. For each of the nine BO2 rifles, the three SMGs, the three LMGs
+// and the two pistols:
+//   1. Mid-reload the gun stands up out of the hip pose (muzzle well up),
 //      the mag comes out of the well, and the left hand leaves the guard.
 //   2. A whole reload played in real time: an empty one ends on the rack or
-//      the catch (its sound beat), a tactical one doesn't; both fill the mag
-//      and end with the gun back at the hip and the mag seated square.
+//      the catch (its sound beat; a pistol's slide dropping), a tactical one
+//      doesn't; both fill the mag and end with the gun back at the hip and
+//      the mag seated square (a drum keeps its own roll).
 //   3. Cut off mid-reload (the trigger cuts a tactical one): it eases back
 //      to the hip and the mag is back in the well, square.
 // On the TROLLS body (BODY run 2) the block fist rides the hand all the way.
@@ -33,8 +35,13 @@ const browser = await chromium.launch({ args: ["--use-angle=d3d11", "--ignore-gp
 let fails = 0;
 const check = (what, ok, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${what}${extra ? "  " + extra : ""}`); if (!ok) fails++; };
 const RIFLES = ["kek", "lol", "lmao", "rofl", "heh", "mald", "coalface", "salt", "ratio"];
+const SMGS = ["snicker", "cope", "seethe"];
+const LMGS = ["coltlmg", "bellylaugh", "cackle"];
+const PISTOLS = ["sixtynine", "true69"];
 const only = process.argv.slice(2);
-const ids = only.length ? only : RIFLES;
+const ids = only.length ? only : [...RIFLES, ...SMGS, ...LMGS, ...PISTOLS];
+// the weapons.js tag game.js loads (one copy of the module, its state shared)
+const WTAG = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/game.js"), "utf8").match(/weapons\.js\?v=([^"]+)/)[1];
 
 async function boot(body) {
   const ctx = await browser.newContext({ viewport: { width: 960, height: 540 } });
@@ -60,13 +67,15 @@ async function boot(body) {
   await page.waitForFunction(() => window.__trollOps.state() === "playing" && !window.__trollOps.loadState().open, null, { timeout: 180000 });
   await page.waitForTimeout(1500);
   // helpers in the page: hold a rifle, read the view
-  await page.evaluate(async () => {
+  await page.evaluate(async (WTAG) => {
     const T = window.__trollOps;
     const THREE = await import("three");
-    const { WeaponState, WEAPON_DEFS } = await import("/assets/games/troll-ops/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2");
+    const { WeaponState, WEAPON_DEFS } = await import(`/assets/games/troll-ops/weapons.js?v=${WTAG}`);
     window.__beats = [];
     const orig = T.audio.rifleBeat.bind(T.audio);
     T.audio.rifleBeat = (b) => { window.__beats.push(b); orig(b); };
+    const origSlide = T.audio.slideRelease.bind(T.audio);
+    T.audio.slideRelease = () => { window.__beats.push("slide"); origSlide(); };
     window.__hold = (id) => {
       const def = WEAPON_DEFS[id];
       const w = new WeaponState(def);
@@ -89,12 +98,12 @@ async function boot(body) {
       return {
         up: fwd.y,
         magOff: mag ? v(mag).distanceTo(seat) : null,
-        magSquare: mag ? Math.abs(mag.rotation.y) + Math.abs(mag.rotation.z) : 0,
+        magSquare: mag ? Math.abs(mag.rotation.y) + Math.abs(mag.rotation.z - (m.userData.magRestRotationZ ?? 0)) : 0,
         tip: [tip.x, tip.y, tip.z],
         fistD, fistOn: fists.some((f) => f.visible),
       };
     };
-  });
+  }, WTAG);
   return { ctx, page, errors };
 }
 
@@ -143,7 +152,7 @@ for (const body of ["", "trolls-1718"]) {
       }, { id, empty });
       const kind = empty ? "empty" : "tactical";
       check(`${tag} ${id}: ${kind} reload fills the mag`, r.full && r.done, JSON.stringify({ full: r.full, done: r.done }));
-      const finish = r.beats.includes("rack") || r.beats.includes("slap");
+      const finish = r.beats.includes("rack") || r.beats.includes("slap") || r.beats.includes("slide");
       check(`${tag} ${id}: ${kind} reload's beats`, r.beats[0] === "release" && r.beats.includes("insert") && finish === empty, r.beats.join(","));
       check(`${tag} ${id}: ${kind} ends at the hip, mag seated square`, r.v.up < 0.35 && r.v.magOff < 0.005 && r.v.magSquare < 1e-6, JSON.stringify({ up: +r.v.up.toFixed(2), off: +r.v.magOff.toFixed(4), sq: r.v.magSquare }));
     }

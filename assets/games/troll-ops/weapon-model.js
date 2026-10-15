@@ -223,6 +223,7 @@ function buildDetailed(def, cfg, template) {
   u.magMesh = mag;
   u.magazinePoint = mag.position.clone();
   u.magRestRotationX = mag.rotation.x;
+  u.magRestRotationZ = mag.rotation.z;
 
   // Hidden hand meshes: the PF arms and the third-person rig aim at them.
   const hand = buildGripHand(1);
@@ -1327,7 +1328,9 @@ function buildBaseMesh(def, skin) {
     group.add(drum);
     group.userData.magMesh = drum;
     group.userData.magazinePoint = drum.position.clone();
-    group.userData.magRestRotationX = drum.rotation.z;
+    // (its rest roll is about Z; reloads square it back to that)
+    group.userData.magRestRotationX = drum.rotation.x;
+    group.userData.magRestRotationZ = drum.rotation.z;
   } else if (spec.mag === "tube") {
     const tube = cyl(0.018, 0.018, len * 0.55, darkMat);
     tube.rotation.x = Math.PI / 2;

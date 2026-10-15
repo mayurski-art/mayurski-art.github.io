@@ -14,7 +14,7 @@
 import { createBo2Menu } from "../../js/bo2-menu.js?v=to-ft2";
 import { createMapMode } from "../../js/troll-map-mode.js?v=to-bo2d";
 import { joinSitePresence } from "../../js/site-presence.js?v=to-bo2d-ol1";
-import { startOnline, onlinePlayers, serverList, joinServer, describe } from "./menu/online.js?v=ol1-sv1-dj2-mg1-pd1";
+import { startOnline, onlinePlayers, serverList, joinServer, describe } from "./menu/online.js?v=ol1-sv1-dj2-mg1-pd1-br1";
 import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 
 import { fetchRecord, formatPlayed } from "./record.js?v=rec1";
@@ -27,8 +27,8 @@ import { MAPS, REWARD_MAPS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-r
 import { setMapShot } from "./map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1";
 import { leaveToArcade, initExitLinks } from "./menu/exit-links.js?v=ex1-cl1";
 import { game } from "./core/state.js?v=st1";
-import { inviteLink, prepareHubEntry } from "./modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-pd1";
-import { openKiosk } from "./view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1";
+import { inviteLink, prepareHubEntry } from "./modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-pd1-br1";
+import { openKiosk } from "./view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-br1";
 import { credits } from "./modes/zombies/credits.js?v=zc1-zc2";
 import { makeTrollOpsProvider } from "./leaderboard-rows.js?v=lr1-zh1";
 const lbProvider = makeTrollOpsProvider();
