@@ -113,7 +113,8 @@
 
   const levelSpeedUp = level => Math.min(1.25, 1 + (level - 1) * 0.04);
   const playerSpeed = () => BASE_SPEED * levelSpeedUp(level) * (frightT > 0 ? 1.06 : 1);
-  const chaserSpeed = () => BASE_SPEED * 0.94 * Math.min(1.3, 1 + (level - 1) * 0.05);
+  // the chasers start a step slower and catch up over the first levels
+  const chaserSpeed = () => BASE_SPEED * Math.min(0.94, 0.86 + (level - 1) * 0.04) * Math.min(1.3, 1 + (level - 1) * 0.05);
 
   // Scatter / chase schedule in seconds (scatter first), like the original's per-level table.
   function schedule(lv) {
@@ -349,11 +350,12 @@
   const player = { x: START.x, y: START.y, dir: DIRS.left, next: null, face: DIRS.left, moving: false, pause: 0, anim: 0, blinkT: 2, blinking: 0 };
 
   // The cast. scatter = the corner each heads for in scatter mode (just outside the maze).
+  // All four start in the group chat, a little overlapped so they fit.
   const CHASERS = [
-    { name: "gigachad", label: "GIGA CHAD", color: "#ff3b3b", scatter: { c: COLS - 3, r: -3 }, home: { x: 13.5, y: PEN_EXIT.y }, outside: true },
-    { name: "pepe",     label: "PEPE",      color: "#4dff73", scatter: { c: 2, r: -3 },        home: { x: 13.5, y: PEN_MID_Y } },
-    { name: "pudgy",    label: "PUDGY",     color: "#6fa8ff", scatter: { c: COLS - 1, r: ROWS + 1 }, home: { x: 11.5, y: PEN_MID_Y } },
-    { name: "doge",     label: "DOGE",      color: "#ffb84d", scatter: { c: 0, r: ROWS + 1 },  home: { x: 15.5, y: PEN_MID_Y } },
+    { name: "gigachad", label: "GIGA CHAD", color: "#ff3b3b", scatter: { c: COLS - 3, r: -3 }, home: { x: 12.75, y: PEN_MID_Y } },
+    { name: "pepe",     label: "PEPE",      color: "#4dff73", scatter: { c: 2, r: -3 },        home: { x: 14.25, y: PEN_MID_Y } },
+    { name: "pudgy",    label: "PUDGY",     color: "#6fa8ff", scatter: { c: COLS - 1, r: ROWS + 1 }, home: { x: 11.25, y: PEN_MID_Y } },
+    { name: "doge",     label: "DOGE",      color: "#ffb84d", scatter: { c: 0, r: ROWS + 1 },  home: { x: 15.75, y: PEN_MID_Y } },
   ].map(g => Object.assign(g, { x: 0, y: 0, dir: DIRS.left, mode: "pen", fright: false, reverse: false, blinkT: 1 + Math.random() * 3, blinking: 0, close: false }));
   const byName = Object.fromEntries(CHASERS.map(g => [g.name, g]));
 
@@ -396,8 +398,8 @@
     Object.assign(player, { x: START.x, y: START.y, dir: DIRS.left, next: null, face: DIRS.left, moving: false, pause: 0, anim: 0, blinkT: 2, blinking: 0 });
     for (const g of CHASERS) {
       Object.assign(g, { x: g.home.x, y: g.home.y, fright: false, reverse: false });
-      g.mode = g.outside ? "out" : "pen";
-      g.dir = g.outside ? DIRS.left : (g.name === "pepe" ? DIRS.down : DIRS.up);
+      g.mode = "pen";
+      g.dir = g.name === "pepe" || g.name === "pudgy" ? DIRS.down : DIRS.up;   // out of step, so the overlap shifts
     }
     phaseIdx = 0; phaseT = 0;
     frightT = 0; frightChain = 0; freezeT = 0; sinceDot = 0; hidden = null;
@@ -499,19 +501,34 @@
   }
 
   // ---- Pen release -------------------------------------------------------------
-  // Pepe leaves at once; Pudgy and Doge wait for a number of dots (fewer on later
-  // levels). After a lost life they come out on a timer instead. Either way, a player
-  // who stops eating for a few seconds gets the next one sent out.
+  // Everyone starts in the group chat and the hunt builds up level by level: level 1
+  // lets two out, level 2 three, level 3 on all four; the rest sit in the box. Giga
+  // Chad leaves first; the others wait for a number of dots (fewer on later levels).
+  // After a lost life they come out on a timer instead. Either way, a player who stops
+  // eating for a few seconds gets the next one sent out (if this level lets it out).
+  const RELEASE_DOTS = [            // dots before Pepe, Pudgy, Doge leave, per level
+    [20, Infinity, Infinity],
+    [10, 50, Infinity],
+    [0, 30, 70],
+    [0, 20, 50],
+    [0, 0, 30],
+    [0, 0, 0],
+  ];
+  function releaseNeed(g) {
+    const i = CHASERS.indexOf(g);
+    return i === 0 ? 0 : RELEASE_DOTS[Math.min(level, RELEASE_DOTS.length) - 1][i - 1];
+  }
   function releaseDue(g) {
-    if (g.name === "pepe") return true;
-    if (lostLifeThisLevel) return sinceLifeLost >= (g.name === "pudgy" ? 2.5 : 5);
-    const need = g.name === "pudgy" ? (level === 1 ? 30 : 0) : (level === 1 ? 60 : level === 2 ? 50 : 0);
+    const need = releaseNeed(g);
+    if (need === Infinity) return false;
+    if (lostLifeThisLevel) return sinceLifeLost >= 1 + CHASERS.indexOf(g) * 2.5;
     return dotsEatenLevel >= need;
   }
   function updatePen() {
     const waiting = CHASERS.filter(g => g.mode === "pen");
     if (!waiting.length) return;
     const next = waiting[0];
+    if (releaseNeed(next) === Infinity) return;
     if (releaseDue(next) || sinceDot >= (level < 5 ? 4 : 3)) {
       next.mode = "leaving";
       sinceDot = 0;

@@ -48,6 +48,7 @@ try {
     check(await tm(page, () => window.TMSound.running), "the first key switches audio on");
     await waitState(page, "play");
     await page.waitForTimeout(500);
+    await page.waitForFunction(() => window.__tm.CHASERS.some(c => c.mode === "out"), null, { timeout: 4000 });   // all start in the pen
     let log = await logSince(page, n0);
     check(log.includes("start"), "start jingle on a new game");
     check(log.includes("waka"), "waka while eating dots");
