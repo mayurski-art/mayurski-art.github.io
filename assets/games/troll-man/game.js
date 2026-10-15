@@ -1049,6 +1049,7 @@
     const dt = Math.min(1 / 20, (t - (last || t)) / 1000) * timeScale;
     last = t;
     pollPad();
+    if (menuBtn) menuBtn.hidden = state === "title" && !demo;   // nothing to go back from on the title
     // fixed sub-steps keep turns and wall stops exact at any frame rate
     const steps = Math.max(1, Math.ceil(dt / (1 / 240)));
     for (let i = 0; i < steps; i++) update(dt / steps);
@@ -1220,44 +1221,40 @@
     });
   }
 
-  // Attract screen: the cast, like the original's character / nickname roll call.
-  const NICKS = {
-    gigachad: "\"HE JUST WALKS AT YOU\"", pepe: "\"FEELS BAD, MAN\"",
-    pudgy: "\"WADDLES WITH THE PACK\"", doge: "\"SUCH PURSUIT\"",
-  };
+  // Attract screen: the cast, like the original's roll call, in big type so it
+  // reads from across the room (and on a laptop).
   function drawTitle() {
-    text("CHARACTER / NICKNAME", W / 2, py(1), "#fff", 8, "center");
+    text("CHARACTER", W / 2, 50, "#fff", 16, "center");
     CHASERS.forEach((g, i) => {
-      const y = py(4 + i * 3);
+      const y = 100 + i * 42;
       if (stateTime < 0.5 + i * 0.6) return;     // roll them in one by one
-      drawFace(sprites[`${g.name}-f1`], 4 * TILE, y, DIRS.right);
-      text(g.label, 7 * TILE, y - 10, g.color);
-      text(NICKS[g.name], 7 * TILE, y + 4, g.color);
+      drawFace(sprites[`${g.name}-f1`], 136, y, DIRS.right);
+      text(g.label, 168, y - 8, g.color, 16);
     });
     if (stateTime > 3.2) {
-      drawFace(sprites["trollface-f1"], W / 2, py(16), DIRS.right);
-      text("YOU ARE THE TROLL", W / 2, py(17) + 6, "#fff", 8, "center");
-      ctx.fillStyle = "#ffb8ae"; ctx.fillRect(W / 2 - 42, py(19) + 2, 4, 4);
-      text("10 PTS", W / 2 - 26, py(19), "#fff");
+      drawFace(sprites["trollface-f1"], W / 2, 278, DIRS.right);
+      text("YOU ARE THE TROLL", W / 2, 300, "#fff", 12, "center");
+      ctx.fillStyle = "#ffb8ae"; ctx.fillRect(W / 2 - 52, 324, 6, 6);
+      text("10 PTS", W / 2 - 34, 321, "#fff", 12);
     }
     // the four power-ups, rolled in after the troll
     const POWERS = [["pump", "PUMP", "#55e05f"], ["stonks", "STONKS", "#16b84a"], ["fomo", "FOMO", "#c48bff"], ["aster", "ASTER", "#ffb020"]];
     POWERS.forEach(([kind, label, color], i) => {
       if (stateTime < 3.8 + i * 0.3) return;
-      const cx = W / 2 + (i - 1.5) * 92;
-      ctx.drawImage(ICONS[kind], cx - PILL / 2, py(21) - PILL / 2);
-      text(label, cx, py(22) + 4, color, 8, "center");
+      const cx = W / 2 + (i - 1.5) * 100;
+      ctx.drawImage(ICONS[kind], cx - PILL / 2, 362 - PILL / 2);
+      text(label, cx, 380, color, 12, "center");
     });
     // the menu: 1 or 2 players, a little trollface pointing at the choice
     ["1 PLAYER", "2 PLAYERS"].forEach((label, i) => {
-      const y = py(24) + i * 18 - 4;
+      const y = 414 + i * 28;
       const on = menuSel === i;
-      text(label, W / 2 - 40, y, on ? "#ffcc00" : "#777");
-      if (on && Math.floor(stateTime / 0.4) % 2 === 0) drawFace(sprites["trollface-f1"], W / 2 - 58, y + 4, DIRS.right, 0.5);
+      text(label, W / 2 - 64, y, on ? "#ffcc00" : "#777", 16);
+      if (on && Math.floor(stateTime / 0.4) % 2 === 0) drawFace(sprites["trollface-f1"], W / 2 - 88, y + 8, DIRS.right, 0.75);
     });
     // the hints match whatever the player is holding
-    text(TOUCH ? "STICK TO CHOOSE, START TO PLAY" : "UP / DOWN, ENTER TO PLAY", W / 2, py(26) + 10, "#888", 8, "center");
-    text(TOUCH ? "SELECT = PROBLEM?" : "SPACE = PROBLEM?  M = SOUND", W / 2, py(27) + 8, "#888", 8, "center");
+    text(TOUCH ? "STICK TO CHOOSE, START TO PLAY" : "UP / DOWN, ENTER TO PLAY", W / 2, 488, "#999", 12, "center");
+    text(TOUCH ? "SELECT = PROBLEM?" : "SPACE = PROBLEM?  M = SOUND", W / 2, 510, "#999", 12, "center");
   }
 
   // The cut-scene between some levels: Giga Chad chases the trollface off screen,
@@ -1343,10 +1340,19 @@
       }
       if (state === "over") text("GAME  OVER", W / 2, py(16) - 4, "#ff3b3b", 8, "center");
     }
-    if (paused) {
+    if (quitArmed()) {
+      ctx.fillStyle = "rgba(0,0,0,0.7)";
+      ctx.fillRect(0, TOP * TILE, W, ROWS * TILE);
+      const bx = 40, by = py(11), bw = W - 80, bh = 84;
+      ctx.fillStyle = "#000"; ctx.fillRect(bx, by, bw, bh);
+      ctx.strokeStyle = "#ffcc00"; ctx.lineWidth = 2; ctx.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
+      text("QUIT TO MENU?", W / 2, by + 20, "#ffcc00", 16, "center");
+      text(TOUCH ? "TAP MENU AGAIN TO QUIT" : "PRESS MENU OR Q AGAIN", W / 2, by + 52, "#fff", 12, "center");
+    } else if (paused) {
       ctx.fillStyle = "rgba(0,0,0,0.55)";
       ctx.fillRect(0, TOP * TILE, W, ROWS * TILE);
       text("PAUSED", W / 2, py(16) - 4, "#fff", 8, "center");
+      text(TOUCH ? "MENU = QUIT" : "Q = QUIT TO MENU", W / 2, py(17) + 4, "#999", 8, "center");
     }
     drawHud();
     logFrame();
@@ -1372,6 +1378,32 @@
   function togglePause() {
     if (demo || state === "title" || state === "over" || state === "intermission") return;
     paused = !paused;
+    quitArmedUntil = 0;
+  }
+
+  // Back to the main menu (the title). Mid-game the first press pauses and asks;
+  // a second press within a few seconds ends the run (it counts, like a game over).
+  const QUIT_WINDOW = 3000;
+  let quitArmedUntil = 0;
+  const quitArmed = () => performance.now() < quitArmedUntil;
+  function toMenu() {
+    poke();
+    if (state === "title") return;
+    if (demo) { endDemo(true); return; }
+    if (state !== "over" && !quitArmed()) {
+      quitArmedUntil = performance.now() + QUIT_WINDOW;
+      if (state !== "intermission" && state !== "turnover") paused = true;
+      return;
+    }
+    quitArmedUntil = 0;
+    if (state !== "over") {
+      if (numPlayers === 2) saveSlot();
+      saveHigh();
+      reportScore();
+    }
+    paused = false;
+    setState("title");
+    stateTime = TITLE_MENU_AT;                           // straight to the menu, no roll call
   }
 
   function menuMove(i) {
@@ -1407,6 +1439,8 @@
     muteBtn.setAttribute("aria-label", m ? "Sound off. Turn sound on" : "Sound on. Mute");
     muteBtn.classList.toggle("is-muted", m);
   }
+  const menuBtn = document.getElementById("tm-menu-btn");
+  if (menuBtn) menuBtn.addEventListener("click", () => { toMenu(); menuBtn.blur(); canvas.focus({ preventScroll: true }); });
   if (muteBtn) {
     muteBtn.addEventListener("click", () => { toggleMute(); muteBtn.blur(); });
     syncMuteButton();
@@ -1515,6 +1549,8 @@
       taunt();
     } else if (k === "p" || k === "P" || k === "Escape") {
       togglePause();
+    } else if (k === "q" || k === "Q") {
+      toMenu();
     }
   });
 
@@ -1690,7 +1726,7 @@
       frames: frameLogs,
       startFright, setState, taunt, powerUp, steerVector, newGame, startDemo,
       get demo() { return demo; }, get cur() { return cur; }, get numPlayers() { return numPlayers; },
-      get slots() { return slots; }, get menuSel() { return menuSel; }, get high() { return high; },
+      get slots() { return slots; }, get menuSel() { return menuSel; }, toMenu, get quitArmed() { return quitArmed(); }, get high() { return high; },
       get stateTime() { return stateTime; },
       setLevel(n) { level = n; },
       setLives(n) { lives = n; },
