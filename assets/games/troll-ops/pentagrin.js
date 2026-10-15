@@ -160,6 +160,8 @@ export const PENTAGRIN = {
   sun: { color: 0x9fb4cc, intensity: 0.35, pos: [20, 40, 10] },
   hemi: { sky: 0x7f93ab, ground: 0x2b3036, intensity: 1.15 },
   ambient: { color: 0xc2cedb, intensity: 1.05 },
+  // stylised realism (view/grade-pass.js): strip-lit offices: a sickly cool cast, a bit less colour
+  grade: { shadows: 0x1a2a30, shadowsAmt: 0.08, highlights: 0xe8f0d8, highlightsAmt: 0.04, sat: 0.95, contrast: 1.08 },
 
   build(api) {
     WINDOWS.length = 0;

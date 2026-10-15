@@ -26,7 +26,7 @@
 // starts the music, and still gets everyone's requests in line. Handing the
 // decks back (or leaving) gives them to DJ Lulz again.
 
-import { BEATS } from "./music-beats.js?v=bg1-sg1-zr10";
+import { BEATS } from "./music-beats.js?v=bg1-sg1-zr10-jb1-nh1";
 
 const REVIEW_MS = 2600;        // a request sits PENDING this long
 const GAP_MS = 1600;           // silence between two records

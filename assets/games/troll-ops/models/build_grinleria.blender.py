@@ -2064,6 +2064,12 @@ def main():
     t0 = time.time()
     bpy.ops.wm.read_factory_settings(use_empty=True)
     P = mall_palette()
+    # Light maps (stylised realism, REALISM.md): the day sky through the
+    # vault and skylight (maps.js hemi sky, sky horizon), the glowing panels
+    # and neon in the models, and the 15 point lights grinleria.js used to
+    # make (grinleria-placements.json, lamps=40), each part baked with the
+    # rest of the mall standing round it.
+    bake_every_model(samples=128, sky=(0xeaf2ff, 0xc6dcef, 1.0), ground=0xc8bca4, blur=1, context="grinleria", lamps=40)
     for name, fn in MODELS.items():
         if ONLY and name not in ONLY:
             continue

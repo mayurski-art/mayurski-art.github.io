@@ -9,7 +9,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { SURFACES } from "./surface-textures.js?v=hg6e";
+import { SURFACES } from "./surface-textures.js?v=hg6e-sr1";
 
 /* ================================================================ utilities */
 

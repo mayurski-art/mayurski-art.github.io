@@ -12,7 +12,7 @@
 // and tail are their own nodes, and the gallop is posed here.
 
 import * as THREE from "three";
-import { loadModel } from "./battlefield-props.js";
+import { loadModel } from "./battlefield-props.js?v=sr1";
 import { FlowField } from "./nav.js?v=ti1-bs1b7d";
 import { groundHeightAt, resolveCircle } from "./movement.js?v=umb2-sb2-gj1b7";
 

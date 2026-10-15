@@ -2,7 +2,7 @@
 Troll Ops — Cul-de-Grin polish models, headless Blender.
 
 Run with:
-  blender --background --python build_culdegrin.blender.py
+  blender --background --python build_culdegrin.blender.py [-- street lounge ...]
 
 Writes cg-*.glb into this folder. The houses themselves are the existing
 house-*.glb (build_houses.blender.py); this adds what the maps doc asked
@@ -28,6 +28,24 @@ YARD_TREES = [(-29, -9), (29, 9), (-29, -21), (29, 21)]
 OUTSIDE_HOUSES = [(-24, -40), (0, -41), (24, -40), (-24, 40), (0, 41), (24, 40),
                   (-44, -14), (-44, 14), (44, -14), (44, 14)]
 STREET_HEDGES = [(-10, 24, 14, 1.2), (10, -24, 14, 1.2), (-10, -24, 14, 1.2), (10, 24, 14, 1.2)]
+# The light bakes (stylised realism, REALISM.md) need the rest of the street
+# in the scene: every house-*.glb and cg-* model as maps.js places them
+# (x, z, rot). Keep in step with maps.js's culdegrin build().
+HOUSE_PLACEMENTS = [
+    (-24, -40, "e", "sage"), (0, -41, "w", "terracotta"), (24, -40, "e", "violet"),
+    (-24, 40, "w", "violet"), (0, 41, "e", "sage"), (24, 40, "w", "terracotta"),
+    (-44, -14, "e", "terracotta"), (-44, 14, "e", "sage"), (44, -14, "w", "sage"), (44, 14, "w", "violet"),
+    (-18, -18, "e", "terracotta"), (-18, 0, "e", "sage-attic"), (-18, 18, "e", "violet"),
+    (18, -18, "w", "violet"), (18, 0, "w", "sage"), (18, 18, "w", "terracotta-attic"),
+]
+PROP_PLACEMENTS = [
+    ("cg-car-red", -7, -10, math.pi / 2), ("cg-car-blue", 7, 10, -math.pi / 2),
+    ("cg-dumpster", -7, 14, math.pi / 2), ("cg-dumpster", 7, -14, -math.pi / 2),
+    ("cg-car-silver", -10, 9.3, 0.0), ("cg-car-red", 10, -9.3, math.pi),
+]
+# the ground light map: x, z from -60 to +60 (maps.js culdegrin groundBake)
+GROUND_RECT = (-60, -60, 120)
+SKY = (0x8aa2cc, 0xd8ae90, 1.0)          # as build_cg_houses' bakes
 
 
 def tree(b, P, x, z, h=6.0, seed=0, spread=1.0):
@@ -62,11 +80,10 @@ def hedge(b, P, x, z, w, d, h, seed):
 
 def build_surround(P):
     """Back fences on the inside of the (now invisible) boundary, hedge
-    clumps against them, trees in the backyards and outside, and grass
-    running out past the playable ground so the houses outside sit on it."""
+    clumps against them, trees in the backyards and outside. Light-mapped
+    with the houses, cars and the ground round them in the scene."""
     b = Builder()
     rng = random.Random(8)
-    b.box(P["grass"], 170, 0.02, 150, 0, -0.03, 0)
     # fences: x = +-32.55 along z, z = +-28.55 along x, 1.9 tall
     for (x0, z0, x1, z1) in ((-32.55, -28.6, -32.55, 28.6), (32.55, -28.6, 32.55, 28.6),
                              (-32.6, -28.55, 32.6, -28.55), (-32.6, 28.55, 32.6, 28.55)):
@@ -87,7 +104,7 @@ def build_surround(P):
                     b.box(P["plank"], 0.05, 0.1, seg, p.x - math.copysign(0.05, p.x), y, p.z)
         for i in range(n + 1):
             p = a.lerp(c, i / n)
-            b.box(P["plank"], 0.12, 1.95, 0.12, p.x, 0, p.z)
+            b.box(P["plank"], 0.12, 1.95, 0.12, p.x, 0, p.z, bevel=0.02)
     # hedge clumps along the fences, away from the spawn corners
     for (x, z, w, d) in ((-32.0, -12, 1.0, 5), (32.0, 12, 1.0, 5), (-20, -28.0, 6, 1.0), (20, 28.0, 6, 1.0),
                          (-32.0, 14, 1.0, 4), (32.0, -14, 1.0, 4), (14, -28.0, 5, 1.0), (-14, 28.0, 5, 1.0)):
@@ -110,7 +127,21 @@ def build_surround(P):
     for s in (-1, 1):
         b.box(P["fence"], 90, 1.75, 0.05, 0, 0.08, s * 46.0)
         b.box(P["fence"], 0.05, 1.75, 90, s * 50.0, 0.08, 0)
-    b.finish("cg-surround.glb")
+    b.finish("cg-surround.glb", bake=dict(res=2048, samples=128, sky=SKY, ground=0x8faa70, blur=1))
+
+
+def build_ground(P):
+    """Grass running out past the playable ground (the game's own ground
+    plane covers the middle) so the houses outside sit on it; then the light
+    on the ground, top-down, for it, the game's ground plane, the road and
+    cg-street (maps.js groundBake)."""
+    b = Builder()
+    b.box(P["grass"], 170, 0.02, 150, 0, -0.03, 0)
+    b.finish("cg-ground.glb")
+    from bake_kit import bake_ground, import_context, remove_context
+    surround = import_context([(os.path.join(OUT_DIR, "cg-surround.glb"), 0, 0, 0.0)])
+    bake_ground(os.path.join(OUT_DIR, "cg-ground-bake.webp"), GROUND_RECT, res=2048, samples=128, sky=SKY, blur=2)
+    remove_context(surround)
 
 
 # -------------------------------------------------------------------- street
@@ -120,7 +151,7 @@ def build_street(P):
     b = Builder()
     for s in (-1, 1):
         b.box(P["pavement"], 1.7, 0.06, 57.2, s * 6.95, 0, 0)
-        b.box(P["conc"], 0.16, 0.12, 57.2, s * 6.08, 0, 0)
+        b.box(P["conc"], 0.16, 0.12, 57.2, s * 6.08, 0, 0, bevel=0.03)
         z = -28
         while z <= 28.01:
             b.box(P["dark"], 1.7, 0.062, 0.03, s * 6.95, 0, z)
@@ -129,8 +160,7 @@ def build_street(P):
         s = -1 if x < 0 else 1
         b.box(P["pavement"], 5.0, 0.05, 3.2, s * 10.3, 0, z)
     for (hx, hz, door, w, d) in HOUSES:
-        # the house models have no floor: boards inside, skirting round the walls
-        b.box(P["plank"], w - 0.7, 0.03, d - 0.7, hx, 0, hz)
+        # (the floor inside is the house model's own, light-mapped with it)
         front = hx + (w / 2 if door == "e" else -w / 2)
         x0, x1 = sorted((front, 7.8 if hx > 0 else -7.8))
         b.box(P["pavement"], x1 - x0, 0.04, 1.3, (x0 + x1) / 2, 0, hz)
@@ -172,6 +202,22 @@ def build_dumpster(P):
     b.finish("cg-dumpster.glb")
 
 
+def room_bake(lamp, x0, x1, z0, z1):
+    """Light-map settings for furniture inside a house (bake_kit.py): the
+    house's ceiling lamp (now baked, not a runtime light) at `lamp` in the
+    model's own space, and the room round it (x0..x1, z0..z1) as walls and a
+    ceiling that keep the sky out. The models are placed at different spots
+    in different houses, so this is a typical room, not each one."""
+    t, h = 0.3, 3.2
+    occ = [(x1 - x0 + 2 * t, 0.1, z1 - z0 + 2 * t, (x0 + x1) / 2, h, (z0 + z1) / 2)]
+    for x in (x0 - t / 2, x1 + t / 2):
+        occ.append((t, h, z1 - z0, x, 0, (z0 + z1) / 2))
+    for z in (z0 - t / 2, z1 + t / 2):
+        occ.append((x1 - x0 + 2 * t, h, t, (x0 + x1) / 2, 0, z))
+    return dict(res=256, samples=128, sky=(0x8aa2cc, 0xd8ae90, 1.0), ground=0x6a4a30,
+                lights=[(lamp, 0xffcf9a, 320, 0.12)], occluders=occ, blur=1)   # 320: build_cg_houses LAMP_W
+
+
 def build_lounge(P):
     """Sofa + coffee table + rug in the old 3 x 2 x 1.2 cover box; sofa faces -z."""
     b = Builder()
@@ -188,7 +234,7 @@ def build_lounge(P):
         b.box(P["desk"], 0.05, 0.4, 0.05, dx, 0, dz)
     b.box(P["paper"], 0.3, 0.01, 0.22, -0.3, 0.45, -0.5, ry=0.3)
     b.cyl(P["sign_red"], 0.05, (0.3, 0.45, -0.5), (0.3, 0.57, -0.5), seg=8)
-    b.finish("cg-lounge.glb")
+    b.finish("cg-lounge.glb", bake=room_bake((0, 2.85, -3), -6, 6, -8.5, 2.2))
 
 
 def build_kitchen(P):
@@ -207,15 +253,29 @@ def build_kitchen(P):
         b.box(P["steel"], 0.03, 0.3, 0.03, 0.55, y, 0.36)
     b.box(P["sign_red"], 0.08, 0.08, 0.01, 0.95, 1.5, 0.345)
     b.box(P["cloth_green"], 0.12, 0.25, 0.01, 1.1, 1.2, 0.345)
-    b.finish("cg-kitchen.glb")
+    b.finish("cg-kitchen.glb", bake=room_bake((-4.6, 2.85, 4.8), -10, 1.6, -0.68, 10))
 
 
 def main():
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
     P = palette()
-    for fn in (build_surround, build_street, build_cars, build_dumpster, build_lounge, build_kitchen):
-        fn(P)
+    # `-- street lounge` builds only those
+    only = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+    want = lambda fn: not only or fn.__name__[len("build_"):] in only
+    for fn in (build_street, build_cars, build_dumpster, build_lounge, build_kitchen):
+        if want(fn):
+            fn(P)
+    if want(build_surround) or want(build_ground):
+        from bake_kit import import_context, remove_context
+        ctx = import_context(
+            [(os.path.join(OUT_DIR, "house-%s.glb" % v), x, z, 0.0 if door == "e" else math.pi)
+             for (x, z, door, v) in HOUSE_PLACEMENTS]
+            + [(os.path.join(OUT_DIR, n + ".glb"), x, z, r) for (n, x, z, r) in PROP_PLACEMENTS])
+        for fn in (build_surround, build_ground):
+            if want(fn):
+                fn(P)
+        remove_context(ctx)
     print("ALL CUL-DE-GRIN MODELS EXPORTED")
 
 

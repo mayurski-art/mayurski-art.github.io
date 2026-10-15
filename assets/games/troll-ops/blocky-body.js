@@ -16,8 +16,9 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
-import { setClothed, setHips, reshapeRig } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1";
-import { applyToken, removeToken } from "./traits.js?v=bk1-cw1-zr10-bf1";
+import { setClothed, setHips, reshapeRig } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1";
+import { applyToken, removeToken } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1";
+import { addRim } from "./view/rim-light.js?v=sr1";
 
 const DIR = new URL("./traits/", import.meta.url);
 const ART_V = globalThis.TRAITS_BUST ?? "tr1";
@@ -59,8 +60,10 @@ const HEAD_SCALE = 0.69;   // 0.6, then 15% bigger (user) so the face reads
 // elbow (carryPoleR). tools/troll-ops-nft-hold-test.mjs measures it.
 const GUN_HOLD = { x: 0.13, y: -0.08, z: -0.17, pistolZ: -0.1, scale: 1, blade: 0.45, roll: 0.2, under: 0.075, runX: 0.06, lean: 0.25, ready: 0.1, pouch: [-0.15, -0.42, -0.2], reachR: 0.8, swing: 0.3, reloadDrop: -1, carryPoleR: [1, 0.8, 0.2] };
 
+// mat() and toon() carry the rim light (view/rim-light.js); drawn() (the
+// face, prints) doesn't.
 function mat(color, extra = {}) {
-  return new THREE.MeshStandardMaterial({ color, roughness: 0.8, emissive: color, emissiveIntensity: 0.4, ...extra });
+  return addRim(new THREE.MeshStandardMaterial({ color, roughness: 0.8, emissive: color, emissiveIntensity: 0.4, ...extra }));
 }
 const edgeMat = new THREE.LineBasicMaterial({ color: INK });
 /* Three flat tones, a comic's shading. */
@@ -79,7 +82,7 @@ const CLOTH_TONES = (() => {
   return t;
 })();
 function toon(color) {
-  return new THREE.MeshToonMaterial({ color, gradientMap: TONES, emissive: color, emissiveIntensity: 0.12 });
+  return addRim(new THREE.MeshToonMaterial({ color, gradientMap: TONES, emissive: color, emissiveIntensity: 0.12 }));
 }
 /* A drawing, lit like the face board: it lights itself with its own colours
    (a flat white glow washed everything out). */

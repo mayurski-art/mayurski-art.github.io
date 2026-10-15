@@ -50,7 +50,8 @@ const info = await page.evaluate(async () => {
   return {
     map: T.loadedMapId(), alive: T.royaleAliveList().length, loot: items.length,
     offIsland: items.filter((it) => !insidePolygon(ISLAND_EDGE, it.x, it.z)).length,
-    inLake: items.filter((it) => insidePolygon(ISLAND_LAKE, it.x, it.z)).length,
+    // (the Boat's deck and the Bridge hold loot over the water: `y` up there)
+    inLake: items.filter((it) => (it.y || 0) < 0.5 && insidePolygon(ISLAND_LAKE, it.x, it.z)).length,
     wetCircles: r.zone.circles.filter((c) => !insidePolygon(ISLAND_EDGE, c.x, c.z) || insidePolygon(ISLAND_LAKE, c.x, c.z)).length,
     circles: r.zone.circles.length, edge0: ISLAND_EDGE[0],
   };

@@ -1360,6 +1360,12 @@ def main():
     t0 = time.time()
     bpy.ops.wm.read_factory_settings(use_empty=True)
     P = gj_palette()
+    # Light maps (stylised realism, REALISM.md): the night sky (maps.js hemi
+    # sky, sky horizon; 1.7 for its strong 2.2 hemi) and the asphalt, each
+    # model baked with the rest of the street round it, gj-neon included:
+    # the signs' glow lands on the walls and the road. Its 12 fill lights
+    # (grinjuku-layout.js) are baked in too; the game no longer makes them.
+    bake_every_model(samples=128, sky=(0x6a5aa8, 0x3a1a4a, 1.7), ground=0x2a2a30, blur=1, context="grinjuku", lamps=40)
     # everything that glows goes in one shadowless model, whichever part
     # of the map it belongs to: so gj-neon is rebuilt with any of them
     NEONB = Builder()
@@ -1370,7 +1376,7 @@ def main():
     if ONLY and set(MODELS) - ONLY:
         print("NOTE: gj-neon.glb left as it was: it holds the glow of every model, so build them all to change it")
     else:
-        NEONB.finish("gj-neon.glb")
+        NEONB.finish("gj-neon.glb", bake=False)   # it's the light, not lit
     fresh = [os.path.join(OUT_DIR, f) for f in sorted(os.listdir(OUT_DIR))
              if f.startswith("gj-") and f.endswith(".glb") and os.path.getmtime(os.path.join(OUT_DIR, f)) >= t0 - 1]
     quantize_glb.main(fresh)

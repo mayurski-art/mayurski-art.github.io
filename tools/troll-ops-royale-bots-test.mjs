@@ -112,7 +112,7 @@ check("bot armour soaks gunfire, not the Cringe", soak.afterGun.armor === 20 && 
 const heard = await page.evaluate(() => {
   const T = window.__trollOps, r = T.royale();
   const b = T.bots.bots.find((x) => x.alive);
-  b.gunRarity = 4; b.plates = 3; b.heals = 2; b.lootId = null; b.lastTargetId = null;
+  b.gunRarity = 4; b.plates = 3; b.heals = 2; b.lootId = null; b.lastTargetId = null; b.killedAt = 0;
   const s = r.zone.state(r.t);
   // Somewhere 20 m off, inside the circle.
   const a = Math.atan2(s.z - b.pos.z, s.x - b.pos.x);
@@ -121,6 +121,21 @@ const heard = await page.evaluate(() => {
   return o?.id || null;
 });
 check("an armed bot heads for nearby gunfire", /^noise-/.test(heard || ""), heard);
+// ...unless it has just killed someone (ROYALE-ISLAND.md pacing): calm for
+// 10-20 s, it loots and heals, sees only who's right there.
+const calm = await page.evaluate(() => {
+  const T = window.__trollOps, r = T.royale();
+  const b = T.bots.bots.find((x) => x.alive);
+  b.killedAt = performance.now(); b.hurtAt = 0;
+  const s = r.zone.state(r.t), a = Math.atan2(s.z - b.pos.z, s.x - b.pos.x);
+  T.royaleNoise(b.pos.x + Math.cos(a) * 20, b.pos.z + Math.sin(a) * 20, "someone");
+  const o = T.royaleBotObjective(b), sight = T.royaleBotSight(b);
+  b.hurtAt = performance.now();
+  const shotAt = T.royaleBotSight(b);
+  b.killedAt = 0; b.hurtAt = 0;
+  return { id: o?.id || null, sight, shotAt };
+});
+check("after a kill a bot is calm: no gunfire chasing, short sight, still fights back when shot", !/^noise-/.test(calm.id || "") && calm.sight <= 6 && calm.shotAt >= 40, JSON.stringify(calm));
 
 // The zone moves them, even under fire: jump to zone 2 closing and watch.
 const rot = await page.evaluate(async () => {

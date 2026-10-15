@@ -13,13 +13,13 @@
 // models/build_grinleria.blender.py: every collider here is a solid there,
 // drawn by the gl-*.glb models. This file lays the colliders and adds what
 // a static model can't be: glass, the painted ice, the signs (one canvas
-// atlas), the waterfall and the lights. Lights are all made here at
-// load; nothing adds one at runtime (see light-pool.js).
+// atlas) and the waterfall. The point lights it used to make are baked into
+// the models' light maps (build_grinleria.blender.py, lamps=40).
 
 import * as THREE from "three";
 import { GL, STORES, WINGS, STALLS, KIOSKS, grinleriaLayout } from "./grinleria-layout.js?v=bw1";
-import { mapModel } from "./map-models.js?v=hg6e";
-import { palmTrees } from "./map-dressing.js?v=hg6e";
+import { mapModel } from "./map-models.js?v=hg6e-sr1";
+import { palmTrees } from "./map-dressing.js?v=hg6e-sr1";
 
 const TROLLFACE_URL = new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
 
@@ -629,7 +629,7 @@ function buildFalls(root) {
 let atlas = null;
 
 function buildGrinleria(api) {
-  const { solids, escalators, lights } = grinleriaLayout();
+  const { solids, escalators } = grinleriaLayout();
   for (const s of solids) api.ghostBox(s.x, s.z, s.w, s.d, s.h, { y: s.y, pen: s.pen });
 
   // the models (models/build_grinleria.blender.py). Under a roof the sun
@@ -695,20 +695,9 @@ function buildGrinleria(api) {
 
   buildFalls(root);
 
-  // point lights: the ground concourses (under the slab), the service
-  // corridors, the wings, the garage
-  for (const L of lights) {
-    const wing = Math.abs(L.x) > GL.endX + 1;
-    const garage = L.z > GL.bldZ;
-    const corridor = !wing && !garage && Math.abs(L.z) > GL.back;
-    const accent = Math.abs(L.x - 41.6) < 0.1;
-    const color = garage || corridor ? 0xe6f0ff : accent ? 0xffd9a8 : 0xfff0d8;
-    const [intensity, distance] = accent ? [14, 10] : wing ? [34, 32] : garage ? [10, 18] : corridor ? [9, 16] : [16, 22];
-    const light = new THREE.PointLight(color, intensity, distance, 2);
-    light.position.set(L.x, L.y, L.z);
-    light.castShadow = false;
-    root.add(light);
-  }
+  // The point lights (concourses under the slab, service corridors, wings,
+  // garage: grinleriaLayout().lights) are baked into the gl-* light maps:
+  // 15 fewer lights in every lit shader here.
 }
 
 const LAYOUT = grinleriaLayout();
@@ -728,8 +717,12 @@ export const GRINLERIA = {
   noGroundPlane: true,
   ground: { colorA: 0xffffff, colorB: 0xffffff, grid: 0xc8bca4, surface: "marble", tile: 4 },
   sun: { color: 0xfff1d8, intensity: 2.3, pos: [22, 60, 14] },
-  hemi: { sky: 0xeaf2ff, ground: 0x9a8e78, intensity: 1.25 },
-  ambient: { color: 0xfff8ee, intensity: 0.75 },
+  // the models' light maps carry the sky, the panels and the lamps now
+  // (stylised realism, REALISM.md); hemi and ambient at about half
+  hemi: { sky: 0xeaf2ff, ground: 0x9a8e78, intensity: 0.65 },
+  ambient: { color: 0xfff8ee, intensity: 0.35 },
+  // a bright mall: clean warm highs, a little cool in the shade
+  grade: { shadows: 0x2a3448, shadowsAmt: 0.06, highlights: 0xfff0d8, highlightsAmt: 0.05, sat: 1.06, contrast: 1.05 },
   // Sun through the vault + the concourse lights put the white marble and
   // the ice well over the default 0.82 bloom threshold (linear, before tone
   // mapping), so Medium/High wore a white veil and a blown-out rink. At 1.2

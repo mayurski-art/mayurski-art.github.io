@@ -13,6 +13,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { addRim } from "./view/rim-light.js?v=sr1";
 
 /* ------------------------------------------------------------- materials */
 
@@ -34,6 +35,7 @@ function cloth(hex, { shine = 0 } = {}) {
     );
   };
   m.customProgramCacheKey = () => "outfit-ink";
+  addRim(m);   // the sun-coloured rim just inside the ink one (view/rim-light.js)
   MATS.set(key, m);
   return m;
 }

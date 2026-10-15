@@ -9,23 +9,23 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { makeGroundMaterial } from "./shaders.js";
-import { PENTAGRIN } from "./pentagrin.js?v=hg6e";
-import { HOLLOWGRIN } from "./hollowgrin.js?v=hg6tc-sb2";
-import { GRINLERIA } from "./grinleria.js?v=hg6e-bl1-bw1";
-import { TROLLFACE_ISLAND } from "./trollface-island.js?v=hg6e";
-import { TROLLCITY } from "./trollcity.js?v=tc2-wst-sb1-rp1-dj1-fu1b7b7d-tc3-cd1-sh1-zr10-hr2-zp1";
-import { TROLLINGLOUD } from "./trollingloud.js?v=tl4-fu1c1c2f1m1-tc3-nc1-cd1-sh1-sg1-cw1-zr10-hr2-zp1";
-import { GRINJUKU } from "./grinjuku.js?v=gj1";
-import { ZHUB } from "./zhub.js?v=zh1";
-import { SURFACES } from "./surface-textures.js?v=hg6e";
-import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } from "./battlefield-props.js";
+import { PENTAGRIN } from "./pentagrin.js?v=hg6e-sr1";
+import { HOLLOWGRIN } from "./hollowgrin.js?v=hg6tc-sb2-sr1";
+import { GRINLERIA } from "./grinleria.js?v=hg6e-bl1-bw1-sr1";
+import { TROLLFACE_ISLAND } from "./trollface-island.js?v=hg6e-pi1-sr1";
+import { TROLLCITY } from "./trollcity.js?v=tc2-wst-sb1-rp1-dj1-fu1b7b7d-tc3-cd1-sh1-zr10-hr2-zp1-sr1";
+import { TROLLINGLOUD } from "./trollingloud.js?v=tl4-fu1c1c2f1m1-tc3-nc1-cd1-sh1-sg1-cw1-zr10-hr2-zp1-jb1-nh1-sr1";
+import { GRINJUKU } from "./grinjuku.js?v=gj1-sr1";
+import { ZHUB } from "./zhub.js?v=zh1-sr1";
+import { SURFACES } from "./surface-textures.js?v=hg6e-sr1";
+import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer, groundLight } from "./battlefield-props.js?v=sr1";
 import {
   portrait, picketFence, mailbox, kiddiePool, houseExterior,
   toyCar, gardenGnome, trashCan, tireSwing, streetlamp,
-} from "./house-props.js?v=hg6e-sb2";
-import { gsModel, mapModel } from "./map-models.js?v=hg6e";
-import { buildDustbowlCity, CITY_PALMS } from "./dustbowl-city.js?v=db5";
-import { dressMap, beachWaterMaterial, palmTrees, shopSignMaterial, beachMural, rangeBoardMaterial } from "./map-dressing.js?v=hg6e";
+} from "./house-props.js?v=hg6e-sb2-sr1";
+import { gsModel, mapModel } from "./map-models.js?v=hg6e-sr1";
+import { buildDustbowlCity, CITY_PALMS } from "./dustbowl-city.js?v=db5-sr1";
+import { dressMap, beachWaterMaterial, palmTrees, shopSignMaterial, beachMural, rangeBoardMaterial } from "./map-dressing.js?v=hg6e-sr1";
 
 /* ------------------------------------------------------------ surface PBR */
 // SURFACES (the CC0 tileable texture sets) now lives in surface-textures.js,
@@ -384,6 +384,15 @@ function undergrinExpansion(api, P) {
   }
 }
 
+/* Cul-de-Grin's ground light map (models/build_culdegrin.blender.py
+   build_ground): x and z from -60 to +60. */
+const CG_GROUND = { file: "cg-ground", rect: [-60, -60, 120] };
+// Dust Bowl's (models/bake_map_ground.blender.py)
+const DB_GROUND = { file: "dustbowl-ground", rect: [-48, -48, 96] };
+const CITY_LIGHT = [0, 0, 40];   // where Dust Bowl's city samples it: the whole village
+const GB_GROUND = { file: "grinbeach-ground", rect: [-52, -58, 104] };
+const DP_GROUND = { file: "depot-ground", rect: [-40, -40, 80] };
+
 export const MAPS = {
   grinsite: {
     name: "Grin Site",
@@ -396,8 +405,13 @@ export const MAPS = {
     fog: { color: 0x8ea4b4, density: 0.0085 },
     ground: { colorA: 0x9a8a70, colorB: 0x7a6a52, grid: 0x8fae6e, surface: "dirt", tile: 3 },
     sun: { color: 0xfff2d8, intensity: 2.2, pos: [30, 45, -20] },
-    hemi: { sky: 0xb9d4ff, ground: 0x39432c, intensity: 1.1 },
-    ambient: { color: 0xffffff, intensity: 0.55 },
+    // The models' light maps and the ground's carry the sky light now
+    // (stylised realism, REALISM.md): hemi and ambient at about half.
+    groundBake: { file: "grinsite-ground", rect: [-48, -48, 96] },
+    hemi: { sky: 0xb9d4ff, ground: 0x39432c, intensity: 0.55 },
+    ambient: { color: 0xffffff, intensity: 0.22 },
+    // a clear working day: cool shade, sunny highs, a little more punch
+    grade: { shadows: 0x2a3a50, shadowsAmt: 0.08, highlights: 0xfff0d0, highlightsAmt: 0.06, sat: 1.08, contrast: 1.05 },
     build(api) {
       // Every collider below is the approved blockout's, unchanged; the
       // visible geometry is the gs-*.glb models (map-models.js).
@@ -559,6 +573,8 @@ export const MAPS = {
     sun: { color: 0x6a7a99, intensity: 0.25, pos: [10, 30, 10] },
     hemi: { sky: 0x8a98b0, ground: 0x2a2c30, intensity: 0.9 },
     ambient: { color: 0xc8d4e6, intensity: 0.6 },
+    // stylised realism (view/grade-pass.js): under the city: cold tunnel shade, the lamps' warmth
+    grade: { shadows: 0x182030, shadowsAmt: 0.08, highlights: 0xffe0b0, highlightsAmt: 0.06, sat: 1, contrast: 1.08 },
     build(api) {
       const TILE = 0xd8dcd4, PLAT = 0x6a6e72, TRAIN = 0xc8ccd0;
       /* ---- the station box, cut open: two staff doors in each side wall
@@ -679,8 +695,13 @@ export const MAPS = {
     exposure: 1.5,
     ground: { colorA: 0xd8c29a, colorB: 0xc0a676, grid: 0xb8a271, surface: "sand", tile: 4 },
     sun: { color: 0xffad66, intensity: 3.1, pos: [90, 17, 34] },
-    hemi: { sky: 0x9a9ad8, ground: 0x8a5a3a, intensity: 1.05 },
-    ambient: { color: 0xffd0b0, intensity: 0.34 },
+    // The zones' light maps and the ground's carry the sky light (stylised
+    // realism, REALISM.md); the palms and the city outside take the ground's.
+    groundBake: DB_GROUND,
+    hemi: { sky: 0x9a9ad8, ground: 0x8a5a3a, intensity: 0.55 },
+    ambient: { color: 0xffd0b0, intensity: 0.14 },
+    // sunset: violet shade, orange highs
+    grade: { shadows: 0x2a2050, shadowsAmt: 0.1, highlights: 0xffb070, highlightsAmt: 0.07, sat: 1.08, contrast: 1.06 },
     build(api) {
       const MUD = 0xb89a68, MUD_DK = 0x9c7f52, ROCK = 0x7a6848, STONE = 0x9a8a6a, WOOD = 0x7a5a36;
       api.ghostWalls(0, 0, 72, 72, 5, 1.6, { ghost: true, color: 0x8a7346, surface: "brick", tile: 2.5 });
@@ -803,7 +824,11 @@ export const MAPS = {
       for (const zone of ["walls", "north", "centre", "market", "south"]) mapModel(api, `db-${zone}`, { x: 0, z: 0 });
       // the city outside the wall and the mountains (dustbowl-city.js):
       // scenery built from a seed at load, no colliders, no shadows
-      api.prop(buildDustbowlCity());
+      const city = buildDustbowlCity();
+      api.prop(city);
+      // it stands outside the ground bake, where projecting it clamps to the
+      // bright sand at its edge: the village's average light instead, softer
+      groundLight(city, DB_GROUND, CITY_LIGHT, Math.PI * 0.6);
       // the sealed gates' pilasters stand 0.36 m proud of the wall's inner face
       for (const [sz, y] of [[-1, 0], [1, BANK]]) {
         for (const px of [-2.1, 2.1]) api.ghostBox(px, sz * 34.22, 0.8, 0.36, 3.6 - y * 0.5, { y, pen: 8 });
@@ -815,11 +840,13 @@ export const MAPS = {
       const palmRoot = new THREE.Group();
       api.prop(palmRoot);
       palmTrees(palmRoot, PALMS, { seed: 29 });
+      groundLight(palmRoot, DB_GROUND);
       // palms in the streets outside
       const cityPalms = new THREE.Group();
       api.prop(cityPalms);
       palmTrees(cityPalms, CITY_PALMS, { seed: 31 });
       cityPalms.traverse((n) => { n.castShadow = false; });
+      groundLight(cityPalms, DB_GROUND, CITY_LIGHT, Math.PI * 0.6);
     },
     spawns: [[-30, -31], [30, -31], [0, -33], [-33, 0], [33, 0], [-28, 25], [28, 25], [12, 25]],
   },
@@ -833,8 +860,14 @@ export const MAPS = {
     fog: { color: 0x161b1e, density: 0.02 },
     ground: { colorA: 0x8c8e90, colorB: 0x6a6c6e, grid: 0x76828a, surface: "cast", tile: 3 },
     sun: { color: 0xbfd0e0, intensity: 0.5, pos: [10, 40, -10] },
-    hemi: { sky: 0x7c8ea8, ground: 0x2a2f36, intensity: 0.85 },
-    ambient: { color: 0xccd8e6, intensity: 0.8 },
+    // The high-bay lamps are baked into the dp-* models and the floor
+    // (stylised realism, REALISM.md); hemi and ambient stay up a bit for
+    // what isn't baked (the crates).
+    groundBake: DP_GROUND,
+    hemi: { sky: 0x7c8ea8, ground: 0x2a2f36, intensity: 0.45 },
+    ambient: { color: 0xccd8e6, intensity: 0.4 },
+    // sodium-warm lamps over cool concrete shade
+    grade: { shadows: 0x1a2430, shadowsAmt: 0.08, highlights: 0xffd8a0, highlightsAmt: 0.07, sat: 1.04, contrast: 1.07 },
     build(api) {
       const STEEL = 0x3f6fa8, BEAM = 0xd8702a, LOAD = 0xb89a6a, WRAP = 0xc8d0d8, CAT = 0x4b5158, RAIL = 0xd8b030;
       api.ghostWalls(0, 0, 56, 44, 9, 1.5, { ghost: true, color: 0x2f343a, surface: "concrete" });
@@ -892,10 +925,10 @@ export const MAPS = {
       api.ghostBox(0, -5.5, 5, 2.5, 2.6, { pen: 8 });                                           // container
       mapModel(api, "gs-container-blue", { x: 0, z: -5.5, scale: [5 / 6, 1, 1] });
       for (const [x, z, size] of [[-12, -15, 2.0], [-2, 6, 1.4], [4.2, -6, 1.4], [-20, 6, 2.2], [20, -6.5, 2.2]]) {
-        crateStack(api, { x, z, size });
+        crateStack(api, { x, z, size, groundBake: DP_GROUND });
       }
-      for (const [x, z] of [[-18, -14], [0, -14], [18, -14], [-18, 0], [0, 0], [18, 0],
-        [-18, 14], [0, 14], [18, 14]]) api.lamp(x, 8.2, z, 0xffe0b0, 28, 30);
+      // the 9 high-bay lamps (x -18/0/18, z -14/0/14, 8.2 up, 0xffe0b0 at 28)
+      // are baked into the dp-* models and the floor (build_depot.blender.py)
 
       // Every collider above is the approved blockout's, now invisible (except the
       // office glass); dp-*.glb (models/build_depot.blender.py) draw the warehouse.
@@ -916,6 +949,8 @@ export const MAPS = {
     sun: { color: 0xfff2d8, intensity: 1.5, pos: [18, 40, 30] },
     hemi: { sky: 0xb9d4ff, ground: 0x39432c, intensity: 1.0 },
     ambient: { color: 0xffffff, intensity: 0.7 },
+    // stylised realism (view/grade-pass.js): overcast range: a little more colour and punch
+    grade: { shadows: 0x2a3442, shadowsAmt: 0.06, highlights: 0xfff2e0, highlightsAmt: 0.03, sat: 1.04, contrast: 1.05 },
     build(api) {
       // Drawn by gr-range (models/build_range.blender.py, realism pass): a
       // block shell with pilasters and coping, a sandbag backstop, the timber
@@ -989,17 +1024,24 @@ export const MAPS = {
     // clouds, haze in the street.
     sky: { top: 0x2c4f86, horizon: 0xf0a878, bottom: 0x3a3040, sun: 1.3, sunSize: 0.04, haze: 0.6, clouds: 0.45, cloudColor: 0xffc0a0, cloudShade: 0x6a5a78 },
     fog: { color: 0x9a8078, density: 0.011 },
-    ground: { colorA: 0x8faa70, colorB: 0x6f8a55, grid: 0x7d8a63, surface: "grass", tile: 4 },
+    ground: { colorA: 0x8faa70, colorB: 0x6f8a55, grid: 0x7d8a63, surface: "grass", tile: 4, patches: { color: 0xd8b878, amt: 0.5, scale: 7 } },
     sun: { color: 0xffc898, intensity: 1.6, pos: [-35, 22, 30] },
-    hemi: { sky: 0x8aa2cc, ground: 0x2e3326, intensity: 0.9 },
-    ambient: { color: 0xffe0cc, intensity: 0.5 },
+    // the houses' baked light maps carry the sky and lamp light (REALISM.md),
+    // and the ground's: the light on it from above, round the houses and trees
+    groundBake: CG_GROUND,
+    hemi: { sky: 0x8aa2cc, ground: 0x2e3326, intensity: 0.45 },
+    ambient: { color: 0xffe0cc, intensity: 0.2 },
+    // Stylised realism (view/grade-pass.js): cool blue-violet shade, peach
+    // sunlit highs, a touch more colour and punch.
+    grade: { shadows: 0x2a3448, shadowsAmt: 0.12, highlights: 0xffd0a0, highlightsAmt: 0.1, sat: 1.12, contrast: 1.06 },
     build(api) {
       // The boundary is invisible now: back fences, hedges and trees mark it
       // (cg-surround), with more houses outside so the street reads as part
       // of a neighbourhood. Sidewalks, curbs, driveways and paths: cg-street.
       api.ghostWalls(0, 0, 68, 60, 6, 1.4);
       mapModel(api, "cg-surround", { x: 0, z: 0 });
-      mapModel(api, "cg-street", { x: 0, z: 0 });
+      mapModel(api, "cg-ground", { x: 0, z: 0, castShadow: false, groundBake: CG_GROUND });
+      mapModel(api, "cg-street", { x: 0, z: 0, groundBake: CG_GROUND });
       for (const [x, z, door, variant] of [
         [-24, -40, "e", "sage"], [0, -41, "w", "terracotta"], [24, -40, "e", "violet"],
         [-24, 40, "w", "violet"], [0, 41, "e", "sage"], [24, 40, "w", "terracotta"],
@@ -1024,6 +1066,7 @@ export const MAPS = {
       road.position.set(0, 0.02, 0);
       road.receiveShadow = true;
       api.prop(road);
+      groundLight(road, CG_GROUND);
 
       // houses either side, each enterable with a doorway facing the street.
       // Exteriors are real modelled meshes (models/build_houses.blender.py —
@@ -1059,7 +1102,7 @@ export const MAPS = {
         api.box(kx - fw * 0.4, kz, 1.7, 0.62, 0.92, { ghost: true, pen: 1.5 });
         api.box(kx + fw * 0.85, kz, 0.8, 0.7, 1.85, { ghost: true, pen: 2 });
         mapModel(api, "cg-kitchen", { x: kx, z: kz, scale: [fw, 1, 1] });
-        api.lamp(x, 2.85, z, 0xffcf9a, 8, 12);   // under the ceiling (at 3.2 it sat in it and the ceiling went brown)
+        // the ceiling lamp's light is baked into the house's light map (build_cg_houses)
         // a portrait on the back interior wall, facing the doorway, plus a
         // second on a side wall so there's something to see from most angles
         const backWallX = x + (door === "e" ? w / 2 - 0.4 : -(w / 2 - 0.4));
@@ -1127,21 +1170,20 @@ export const MAPS = {
             mesh.castShadow = mesh.receiveShadow = true;
             api.prop(mesh);
           }
-          // attic floor, in pieces around the stairwell: solid so the player
-          // can stand on it, sized to the model's inset attic room (w-2 by d-2,
-          // per build_houses.blender.py)
+          // attic floor colliders, in pieces around the stairwell: solid so the
+          // player can stand on it, sized to the model's inset attic room (w-2
+          // by d-2). The floor you see is the house model's (build_cg_houses).
           const ax0 = x - (w - 2) / 2, ax1 = x + (w - 2) / 2;
           const az0 = z - (d - 2) / 2, az1 = z + (d - 2) / 2;
           const hx0 = Math.min(sOuter, sInner), hx1 = Math.max(sOuter, sInner);
           const floorPiece = (x0, x1, z0, z1) => {
             if (x1 - x0 < 0.05 || z1 - z0 < 0.05) return;
-            api.box((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, 0.15, { color: 0xd8b088, y: ATTIC_Y, pen: 6, surface: "wood", tile: 1.6 });
+            api.box((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, 0.15, { ghost: true, y: ATTIC_Y, pen: 6 });
           };
           floorPiece(ax0, hx0, az0, az1);
           floorPiece(hx1, ax1, az0, az1);
           floorPiece(hx0, hx1, az0, Math.max(az0, HOLE_Z0));
           floorPiece(hx0, hx1, Math.min(az1, HOLE_Z1), az1);
-          api.lamp(x, ATTIC_Y + 1.6, z, 0xffe6b8, 7, 11);
           // attic walls had no collider at all — the perch's own room shell
           // (build_house_attic: inset w-2 by d-2, ATTIC_WALL_T=0.28, one
           // long side open for the dormer window per ATTIC_VARIANTS'
@@ -1218,8 +1260,13 @@ export const MAPS = {
     fog: { color: 0xd8bea4, density: 0.0055 },
     ground: { colorA: 0xd6c194, colorB: 0xbfa97c, grid: 0xe6d6ae, surface: "sand", tile: 3.5 },
     sun: { color: 0xffe2b4, intensity: 2.4, pos: [-22, 26, -52] },
-    hemi: { sky: 0xcce8ff, ground: 0xc4b087, intensity: 2.6 },
-    ambient: { color: 0xfff0dd, intensity: 0.75 },
+    // The models' light maps and the ground's carry half the sky light now
+    // (stylised realism, REALISM.md); the lot and palms take the ground's.
+    groundBake: GB_GROUND,
+    hemi: { sky: 0xcce8ff, ground: 0xc4b087, intensity: 1.3 },
+    ambient: { color: 0xfff0dd, intensity: 0.3 },
+    // late afternoon on the coast: sea-blue shade, warm highs
+    grade: { shadows: 0x1f3a50, shadowsAmt: 0.08, highlights: 0xffd8a8, highlightsAmt: 0.07, sat: 1.1, contrast: 1.05 },
     build(api) {
       // The shell only closes three sides. -Z is open ocean, held by a low
       // seawall instead of a 6m box, so the horizon reads as water rather
@@ -1437,6 +1484,7 @@ export const MAPS = {
       lot.position.set(0, 0.02, 27.5);
       lot.receiveShadow = true;
       api.prop(lot);
+      groundLight(lot, GB_GROUND);
       // parking stripes
       for (let x = -34; x <= 34; x += 5) {
         const stripe = new THREE.Mesh(
@@ -1490,6 +1538,7 @@ export const MAPS = {
       const palmRoot = new THREE.Group();
       api.prop(palmRoot);
       palmTrees(palmRoot, PALMS, { seed: 17 });
+      groundLight(palmRoot, GB_GROUND);
       // streetlamps down the lot, and floodlights at the far corners so the
       // sand does not go flat at its edges
       for (const [x, z] of [[-24, 23.5], [0, 23.5], [24, 23.5]]) streetlamp(api, { x, z, rot: 0 });
@@ -1621,7 +1670,8 @@ MAPS.undergrin.dress = {
 };
 MAPS.culdegrin.dress = {
   seed: 73,
-  areas: { road: [-5.8, -29, 5.8, 29], lawnW: [-33, -29, -9, 29], lawnE: [9, -29, 33, 29] },
+  areas: { road: [-5.8, -29, 5.8, 29], lawnW: [-33, -29, -9, 29], lawnE: [9, -29, 33, 29],
+    walkW: [-7.8, -28, -6.2, 28, 0.06], walkE: [6.2, -28, 7.8, 28, 0.06] },
   // house floors
   avoid: [[-25, -23, -11, -13], [-25, -6, -11, 6], [-24, 12.5, -12, 23.5], [12, -23.5, 24, -12.5], [11, -6, 25, 6], [11, 13, 25, 23]],
   decals: [
@@ -1629,15 +1679,35 @@ MAPS.culdegrin.dress = {
     { cell: "crack", n: 18, area: "road", size: [1.5, 3], color: 0x1e1e20, alpha: 0.7 },
     { cell: "oil", n: 10, area: "road", size: [0.8, 1.8], color: SOOT, alpha: 0.5 },
     { cell: "tyre", n: 10, area: "road", size: [1.4, 1.8], stretch: 3, rot: 0.05, color: 0x111111, alpha: 0.4 },
-    { cell: "puddle", n: 5, area: "road", size: [1.2, 2.4], color: 0x16181c, alpha: 0.5 },
+    { cell: "puddle", n: 5, area: "road", size: [1.2, 2.4], color: 0x0c0d10, alpha: 0.85, shiny: true },
+    // wear (stylised realism P4): cracked sidewalk slabs, worn lawn
+    { cell: "crack", n: 14, area: ["walkW", "walkE"], size: [0.8, 1.4], color: 0x2a2826, alpha: 0.6 },
+    { cell: "dirt", n: 14, area: ["lawnW", "lawnE"], size: [1.2, 2.4], color: 0x5a4428, alpha: 0.5 },
   ],
   place: [
-    { cell: "grin", x: 0, z: 20, size: 4.2, rot: 0.15, color: 0xff8ad0, alpha: 0.75 },     // chalk on the road
+    { cell: "grin", x: 0, z: 20, y: 0.07, size: 4.2, rot: 0.15, color: 0xffffff, alpha: 1 },   // the trollface painted on the road (over the centre line)
     { cell: "splat", x: -2.5, z: 22.5, size: 1.6, color: 0xffffff, alpha: 0.7 },
     { cell: "drain", x: -5.5, z: -4, size: 0.8, color: 0x1a1a1c, alpha: 0.9 },
     { cell: "drain", x: 5.5, z: 6, size: 0.8, color: 0x1a1a1c, alpha: 0.9 },
     { cell: "oil", x: -7, z: -10, size: 2.2, color: SOOT, alpha: 0.65 },
     { cell: "oil", x: 7, z: 10, size: 2.2, color: SOOT, alpha: 0.65 },
+    // standing water in the gutters, glossy
+    { cell: "puddle", x: -5.2, z: -16, w: 1.4, d: 2.8, color: 0x0c0d10, alpha: 0.85, shiny: true },
+    { cell: "puddle", x: 5.2, z: 3, w: 1.3, d: 2.4, rot: Math.PI, color: 0x0c0d10, alpha: 0.85, shiny: true },
+    // Spray paint on the side walls you see down the gaps between houses
+    // (siding stands ~7 cm proud of each wall line: these sit at 10), and
+    // on the back fences. The trollface is the real art (DECAL.grin).
+    { cell: "tag", x: -18, z: -12.9, y: 1.6, w: 2.6, d: 1.3, wall: 0, color: 0x2b6fd8, alpha: 0.9 },
+    { cell: "grin", x: 18, z: 6.1, y: 1.75, size: 2.1, wall: 0, color: 0xffffff, alpha: 0.95 },
+    { cell: "tag", x: 18, z: 12.9, y: 1.5, w: 2.4, d: 1.2, wall: Math.PI, rot: 0.06, color: 0xd8306a, alpha: 0.9 },
+    { cell: "tag", x: -18, z: 12.4, y: 1.3, w: 1.6, d: 0.8, wall: Math.PI, rot: -0.1, color: 0x1a1a1a, alpha: 0.85 },
+    { cell: "tag", x: -32.42, z: -4, y: 1.0, w: 2.2, d: 1.1, wall: Math.PI / 2, color: 0xe8e8e8, alpha: 0.85 },
+    { cell: "tag", x: 32.42, z: 6, y: 1.0, w: 2.2, d: 1.1, wall: -Math.PI / 2, rot: 0.05, color: 0xf2c232, alpha: 0.85 },
+    // grime run down from the gutters
+    { cell: "streak", x: -12, z: -6.1, y: 1.9, w: 0.9, d: 2.4, wall: Math.PI, color: 0x3a3226, alpha: 0.4 },
+    { cell: "streak", x: -24.2, z: -6.1, y: 1.9, w: 0.9, d: 2.4, wall: Math.PI, color: 0x3a3226, alpha: 0.35 },
+    { cell: "streak", x: 13.3, z: -12.4, y: 1.9, w: 0.9, d: 2.4, wall: 0, color: 0x3a3226, alpha: 0.4 },
+    { cell: "streak", x: 23.5, z: 6.1, y: 1.9, w: 0.9, d: 2.4, wall: 0, color: 0x3a3226, alpha: 0.35 },
   ],
   clutter: [
     { kind: "tuft", n: 700, area: ["lawnW", "lawnE"], size: [0.8, 1.4], colors: [0x9ac070, 0x8ab060, 0xa8c878, 0x7a9a50] },
@@ -1737,7 +1807,9 @@ export const MAP_IDS = Object.keys(MAPS).filter((id) => id !== "pentagrin" && id
 
 /* Lit, textured ground for maps that set ground.surface: unlike the grid
    shader it takes shadows, so modelled props sit on it instead of floating.
-   `tile` is metres per texture repeat; colorA tints it. */
+   `tile` is metres per texture repeat; colorA tints it. `patches`
+   ({ color, amt, scale }) breaks the tiling up: soft blotches (scale metres
+   across) tinted toward `color`, a dry lawn's yellow, say. */
 function groundSurface(g, w, d) {
   const s = SURFACES[g.surface];
   const tile = g.tile || 4;
@@ -1751,6 +1823,36 @@ function groundSurface(g, w, d) {
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.repeat.set(w / tile, d / tile);
     t.needsUpdate = true;
+  }
+  if (g.patches) {
+    const p = g.patches;
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.uPatch = { value: new THREE.Color(p.color) };
+      sh.uniforms.uPatchAmt = { value: p.amt ?? 0.4 };
+      sh.uniforms.uPatchScale = { value: 1 / (p.scale ?? 8) };
+      sh.vertexShader = sh.vertexShader
+        .replace("#include <common>", "#include <common>\nvarying vec2 vGPos;")
+        .replace("#include <begin_vertex>", "#include <begin_vertex>\nvGPos = (modelMatrix * vec4(transformed, 1.0)).xz;");
+      sh.fragmentShader = sh.fragmentShader
+        .replace("#include <common>", `#include <common>
+varying vec2 vGPos;
+uniform vec3 uPatch;
+uniform float uPatchAmt, uPatchScale;
+float gHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float gNoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(gHash(i), gHash(i + vec2(1, 0)), f.x), mix(gHash(i + vec2(0, 1)), gHash(i + vec2(1, 1)), f.x), f.y);
+}`)
+        .replace("#include <color_fragment>", `#include <color_fragment>
+{
+  vec2 q = vGPos * uPatchScale;
+  float n = gNoise(q) * 0.6 + gNoise(q * 2.7 + 7.3) * 0.3 + gNoise(q * 7.1 + 3.1) * 0.1;
+  diffuseColor.rgb *= mix(0.86, 1.06, n);   // lusher and thinner grass everywhere
+  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * uPatch * 1.6, smoothstep(0.52, 0.78, n) * uPatchAmt);
+}`);
+    };
+    m.customProgramCacheKey = () => "ground-patches";
   }
   return m;
 }
@@ -1908,6 +2010,7 @@ export function buildMap(id, { colliders, arena }) {
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     root.add(ground);
+    groundLight(ground, map.groundBake);
   }
 
   const stairs = [], ropes = arena.ropes;
@@ -1961,6 +2064,8 @@ export function disposeMap(built, scene) {
   scene.remove(built.root);
   built.root.traverse((o) => {
     if (o.geometry) o.geometry.dispose();
-    if (o.material) o.material.dispose?.();
+    // a baked model's materials are shared by every placement and kept in
+    // its model cache (battlefield-props.js loadModel): leave them be
+    if (o.material && !o.material.userData?.shared) o.material.dispose?.();
   });
 }

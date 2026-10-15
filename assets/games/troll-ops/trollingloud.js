@@ -37,14 +37,14 @@
 // here at load; nothing adds one at runtime (light-pool.js).
 
 import * as THREE from "three";
-import { rng, Kit, place, surfMat, texMat, tex, canvasTex, glowTexture, bottlesTexture, boardsTexture } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1";
+import { rng, Kit, place, surfMat, texMat, tex, canvasTex, glowTexture, bottlesTexture, boardsTexture } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1";
 import {
   T, U, neonMat, Neon, skipOverride, ledMat, clubFx, wall, lining, cutRects, deck, glassRail,
   signsTexture, signUV, signAspect, quiltTexture, crocTexture, mosaicTexture, slatTexture, tileGlowTexture,
   fringeTexture, beamTexture, facetTexture, windowsTexture, speakerTexture, djTexture, flagTexture, busTexture,
-} from "./trollingloud-kit.js?v=tl3-tc3-sh1";
-import { BEATS } from "./music-beats.js?v=bg1-sg1-zr10";
-import { pickOutfit } from "./outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1";
+} from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1";
+import { BEATS } from "./music-beats.js?v=bg1-sg1-zr10-jb1-nh1";
+import { pickOutfit } from "./outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1";
 
 /* ============================================================== the plan */
 
@@ -1950,6 +1950,8 @@ export const TROLLINGLOUD = {
   sun: { color: 0x9aa8ff, intensity: 0.7, pos: [-30, 60, 40] },
   hemi: { sky: 0x6a5aa8, ground: 0x2a1a2a, intensity: 0.85 },
   ambient: { color: 0x5a4a7a, intensity: 0.35 },
+  // stylised realism (view/grade-pass.js): club night: deep purple shade, a pink lift in the highs
+  grade: { shadows: 0x200a30, shadowsAmt: 0.1, highlights: 0xff70d0, highlightsAmt: 0.05, sat: 1.1, contrast: 1.08 },
   viewFar: 420,
   build: buildTrollingLoud,
   onShot,

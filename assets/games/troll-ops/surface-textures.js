@@ -4,6 +4,7 @@
 // the sets it uses.
 
 import * as THREE from "three";
+import { useWorldEnv } from "./view/environment.js?v=sr1";
 
 const TEX_LOADER = new THREE.TextureLoader();
 const TEX_BASE = new URL("./textures/", import.meta.url);
@@ -76,6 +77,8 @@ function buildSurfaceMaterial(surface, color, repeat = 1, bakedLightMap = null, 
   if (s.metal) opts.metalnessMap = s.metal.clone();
   if (bakedLightMap) opts.lightMap = bakedLightMap;
   const m = new THREE.MeshStandardMaterial(opts);
+  // metal is mostly what it reflects: the map's sky (it read black with none)
+  if (surface === "metal") useWorldEnv(m);
   for (const map of [m.map, m.normalMap, m.roughnessMap, m.aoMap, m.metalnessMap]) {
     if (!map) continue;
     map.wrapS = map.wrapT = THREE.RepeatWrapping;
@@ -85,31 +88,78 @@ function buildSurfaceMaterial(surface, color, repeat = 1, bakedLightMap = null, 
   return m;
 }
 
-/* Wires up a baked lightmap on one mesh, if its geometry actually has the
-   second UV channel a bake needs. GLTFLoader puts a glTF mesh's second
-   TEXCOORD set on geometry.attributes.uv1; three.js's lightMap sampler
-   reads uv2 by default, so this copies uv1 -> uv2 rather than requiring
-   every Blender export to duplicate the channel itself. No-ops (returns
-   false) for any model without a baked second UV set — i.e. every model
-   exported before a Blender lightmap-baking pass exists — so this is
-   inert until that pass starts shipping real bakes; nothing to update
-   here to bring the baking online, `bake` just has to be truthy and named
-   right. `bake` is a THREE.Texture already loaded from e.g. a
-   "<name>-bake.jpg" beside the model's .glb; caller decides whether one
-   exists for this model. */
-export function applyBakedLightMap(mesh, bake) {
+/* Wires up a baked lightmap on one mesh, if its geometry has the second UV
+   channel a bake needs. GLTFLoader puts a glTF mesh's TEXCOORD_1 on
+   geometry.attributes.uv1, and three r160 picks a map's UV set by
+   texture.channel (0 = the metre UVs every surface texture tiles on), so the
+   bake reads channel 1. glTF UVs start top-left: flipY off.
+   No-op (false) for a model without that channel. `bake` is the
+   "<name>-bake.webp" beside the model's .glb (battlefield-props.js BAKED).
+   The bakes are light only (models/bake_kit.py: sky, bounce and lamps, no
+   colour), and three ADDS a light map to the indirect light, so a baked map
+   turns its hemisphere and ambient down instead (REALISM.md). */
+export function applyBakedLightMap(mesh, bake, intensity = 1) {
   const geo = mesh.geometry;
   if (!bake || !geo || !geo.attributes.uv1) return false;
-  if (!geo.attributes.uv2) geo.setAttribute("uv2", geo.attributes.uv1);
   bake.colorSpace = THREE.SRGBColorSpace;
+  bake.channel = 1;
+  bake.flipY = false;
   mesh.material.lightMap = bake;
-  // The bake carries a full directional-diffuse + AO pass, but the game
-  // already lights every mesh dynamically (sun + ambient + point lamps) —
-  // at full strength the two multiply and crush indoor faces that get no
-  // direct sun to near-black (confirmed in-game: house interiors read as
-  // solid black at intensity 1). Dialed down so the bake reads as a subtle
-  // AO/shadow tint on top of the real-time lighting instead of replacing it.
-  mesh.material.lightMapIntensity = 0.3;
+  mesh.material.lightMapIntensity = intensity;
+  mesh.material.needsUpdate = true;
+  return true;
+}
+
+/* A map's ground light map (models/bake_kit.py bake_ground): the light on
+   its ground seen from above over rect [x0, z0, size], put on a flat mesh
+   by its world x/z, so the mesh needs no light-map UVs of its own. Call it
+   once the mesh is placed in the scene. */
+export function applyGroundLightMap(mesh, bake, [x0, z0, size], intensity = 1) {
+  let geo = mesh.geometry;
+  const pos = geo?.attributes.position;
+  if (!bake || !pos) return false;
+  // a loaded model's copies share its geometry: these UVs are this copy's own
+  if (geo.userData.shared) {
+    geo = mesh.geometry = geo.clone();
+    geo.userData = {};
+  }
+  mesh.updateWorldMatrix(true, false);
+  const v = new THREE.Vector3(), uv = new Float32Array(pos.count * 2);
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
+    uv[2 * i] = (v.x - x0) / size;
+    uv[2 * i + 1] = (v.z - z0) / size;
+  }
+  geo.setAttribute("uv1", new THREE.BufferAttribute(uv, 2));
+  return applyBakedLightMap(mesh, bake, intensity);
+}
+
+/* The ground bake's light round one spot, as a 1x1 light map: the average
+   over the square [x - r, x + r] x [z - r, z + r]. For a prop standing on
+   the ground (a crate stack), which the top-down projection above would
+   paint with its own shadow. Put it on with applyLightAt. */
+let sampler = null;
+export function groundLightAt(bake, [x0, z0, size], [x, z, r]) {
+  const img = bake?.image;
+  if (!img?.width) return null;
+  const k = img.width / size;
+  const sx = Math.max(0, Math.floor((x - r - x0) * k)), sy = Math.max(0, Math.floor((z - r - z0) * k));
+  const w = Math.max(1, Math.min(img.width - sx, Math.ceil(2 * r * k))), h = Math.max(1, Math.min(img.height - sy, Math.ceil(2 * r * k)));
+  sampler = sampler || document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+  sampler.canvas.width = w; sampler.canvas.height = h;
+  sampler.drawImage(img, sx, sy, w, h, 0, 0, w, h);   // flipY off: row 0 is z0
+  const px = sampler.getImageData(0, 0, w, h).data, sum = [0, 0, 0];
+  for (let i = 0; i < px.length; i += 4) for (let c = 0; c < 3; c++) sum[c] += px[i + c];
+  const n = px.length / 4;
+  const tex = new THREE.DataTexture(new Uint8Array([sum[0] / n, sum[1] / n, sum[2] / n, 255]), 1, 1);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+export function applyLightAt(mesh, tex, intensity = 1) {
+  if (!tex || !mesh.material) return false;
+  mesh.material.lightMap = tex;   // one texel: any UV channel reads it
+  mesh.material.lightMapIntensity = intensity;
   mesh.material.needsUpdate = true;
   return true;
 }
@@ -133,6 +183,8 @@ export function retexture(obj, mapping) {
     const [surface, repeat, mix] = rule;
     const color = n.material.color ? n.material.color.getHex() : 0xffffff;
     const textured = buildSurfaceMaterial(surface, color, repeat, n.material.lightMap || null, mix);
-    if (textured) n.material = textured;
+    if (!textured) return;
+    textured.lightMapIntensity = n.material.lightMapIntensity;
+    n.material = textured;
   });
 }

@@ -25,10 +25,10 @@
 // their own.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, gaitFromVelocity, DANCES, reachHand } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1";
-import { buildDrink, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1";
-import { SmithWork } from "./smithy.js?v=sm1b7b7dc2f1m1-gt1-gt2-cw1-zr10-bf1";
-import { wearOutfit } from "./outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1";
+import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, gaitFromVelocity, DANCES, reachHand } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1";
+import { buildDrink, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1";
+import { SmithWork } from "./smithy.js?v=sm1b7b7dc2f1m1-gt1-gt2-cw1-zr10-bf1-sr1";
+import { wearOutfit } from "./outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1";
 
 const WALK_MPS = 1.25;
 const _lean = new THREE.Vector3(), _poleL = new THREE.Vector3(-1, -1, 0.3);

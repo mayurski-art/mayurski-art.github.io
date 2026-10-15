@@ -108,7 +108,7 @@ def build_shell(P):
     for x in DOORS:
         for k in range(8):
             b.box(P["yellow"], 0.14, 0.004, 1.3, x - 1.6 + k * 0.45, 0.003, 19.4, ry=0.6)
-    b.finish("dp-shell.glb")
+    b.finish("dp-shell.glb", bake=dict(samples=512, blur=2))   # its roof sees only bounce: noisy at 128
 
 
 # -------------------------------------------------------------------- racks
@@ -250,7 +250,7 @@ def build_office(P):
     b.box(P["white"], 0.03, 1.0, 2.0, 23.9, TOP + 1.1, 2.0)
     b.box(P["sign_blue"], 0.01, 0.05, 1.2, 23.88, TOP + 1.8, 2.0)
     b.box(P["sign_red"], 0.01, 0.05, 0.8, 23.88, TOP + 1.6, 1.9)
-    b.finish("dp-office.glb")
+    b.finish("dp-office.glb", bake=dict(samples=512, blur=2))
 
 
 # ---------------------------------------------------------------- loading bay
@@ -293,6 +293,11 @@ def main():
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
     P = palette()
+    # Light maps (stylised realism, REALISM.md): the 9 high-bay lamps maps.js
+    # used to light at runtime (depot-placements.json, lamps=40) and the
+    # little sky through the doors, each part baked with the rest standing
+    # round it. The game no longer makes the lamps.
+    bake_every_model(samples=128, sky=(0x7c8ea8, 0x161b22, 1.0), ground=0x8c8e90, blur=1, context="depot", lamps=40)
     for fn in (build_shell, build_racks, build_catwalk, build_office, build_bay):
         fn(P)
     print("ALL DEPOT MODELS EXPORTED")

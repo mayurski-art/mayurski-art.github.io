@@ -575,6 +575,10 @@ def main():
     bpy.ops.object.delete(use_global=False)
     P = palette()
     G = pal_gb()
+    # Light maps (stylised realism, REALISM.md): the beach sky (maps.js hemi
+    # sky, sky horizon; 1.4 for its strong 2.6 hemi) and sand bounce, each model baked with the rest of
+    # the beach standing round it.
+    bake_every_model(samples=128, sky=(0xcce8ff, 0xf2a86a, 1.4), ground=0xd6c194, blur=1, context="grinbeach")
     builders = {"pier": lambda: build_pier(P), "foodtruck": lambda: build_foodtruck(P),
                 "shops": lambda: build_shops(P, G), "towers": lambda: build_towers(P, G),
                 "beach": lambda: build_beach(P, G), "bluffs": lambda: build_bluffs(P, G),

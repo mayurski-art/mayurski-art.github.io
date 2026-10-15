@@ -1,37 +1,37 @@
 // Troll Forces match start: joining a room, the map loading screen, the
 // pre-match staging countdown and intro, shader warm-up, and beginMatch.
 
-import { clearLauncher } from "../combat/launcher.js?v=fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0-dj2-bf1-pd1-br1";
-import { makeRoomCode, MAX_PLAYERS_ROYALE, MAX_PLAYERS } from "../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10-hr2-zp1-rs1-dj2";
-import { playerName, setNetStatus, noBotsRoom } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-br1";
-import { MAPS } from "../maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1";
-import { cancelSocialReturn } from "./social.js?v=so1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1-th2-ar2-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-br1";
-import { EMOTES } from "../emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u-gt1-gt2-cw1-zr10-bf1";
-import { emoteCode } from "../emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2-cw1-zr10-bf1";
-import { TEAMS, setFunnyDeaths } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-br1";
+import { clearLauncher } from "../combat/launcher.js?v=fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0-dj2-bf1-pd1-pl2-pi1-sr1-br1";
+import { makeRoomCode, MAX_PLAYERS_ROYALE, MAX_PLAYERS } from "../net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10-hr2-zp1-rs1-dj2-pl2";
+import { playerName, setNetStatus, noBotsRoom } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1";
+import { MAPS } from "../maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1";
+import { cancelSocialReturn } from "./social.js?v=so1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1-th2-ar2-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1";
+import { EMOTES } from "../emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1";
+import { emoteCode } from "../emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1";
+import { TEAMS, setFunnyDeaths } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1";
 import { resolveWeapon, defaultLoadoutFor } from "../attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import * as THREE from "three";
 import { buildWeaponMesh, stripLights } from "../weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1";
 import { buildMeleeMesh, THROWABLE_DEFS } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1";
-import { grenades, applyEmpState } from "../combat/throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1-pd1-br1";
-import { ensureStrikeTablet } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-br1";
-import { loadModel } from "../battlefield-props.js";
-import { goreStandIns, ZombieDirector } from "../zombies.js?v=zr4c-sb2b7b7dc2f1m1u-gt1-gt2-zr5-zr6-zr7-zr8-zr9-zr10-zc2-zp1-bf1";
-import { royale, openRoyaleBox, setupRoyale, teardownRoyale, updateRoyaleGear, placeBotsInLobby, applyRoyaleCatchUp } from "./royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-br1";
-import { showWaveBanner, clearHitDirs, updateStreakHud, clearDamageNumbers } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-br1";
-import { updateSpawnGuardHud, damageLog, clearDeathVisuals, yawTowardCentre } from "../combat/damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1-pd1-br1";
-import { sndGoLive, prepareSndRound } from "./objectives.js?v=ob1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-br1";
-import { streaks, streakPicker, uavUntil, vsatUntil, clearStreakLocks, killstreakUi, achievements, clearStreakEntities } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-br1";
-import { recentTeamKillers, dealtLog, lastHitRange, updateTeamHud, onRoomEnd } from "../combat/scoring.js?v=sc1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-br1";
-import { resetInfection } from "./infection.js?v=in1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-br1";
-import { applyHeroLoadout } from "./umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-br1";
-import { TownNpcs } from "../town-npcs.js?v=tn4b7b7dc2f1m1u-cup1-nc1-cd1-sh1-gt1-gt2-cw1-zr10-hr2-zp1-bf1";
-import { clubSpawn } from "./club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-br1";
+import { grenades, applyEmpState } from "../combat/throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1";
+import { ensureStrikeTablet } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-pl2-pi1-sr1-br1";
+import { loadModel } from "../battlefield-props.js?v=sr1";
+import { goreStandIns, ZombieDirector } from "../zombies.js?v=zr4c-sb2b7b7dc2f1m1u-gt1-gt2-zr5-zr6-zr7-zr8-zr9-zr10-zc2-zp1-bf1-sr1";
+import { royale, greenLight, boardRoyale, setupRoyale, teardownRoyale, updateRoyaleGear, placeBotsInLobby, applyRoyaleCatchUp } from "./royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1";
+import { showWaveBanner, clearHitDirs, updateStreakHud, clearDamageNumbers } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1";
+import { updateSpawnGuardHud, damageLog, clearDeathVisuals, yawTowardCentre } from "../combat/damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1";
+import { sndGoLive, prepareSndRound } from "./objectives.js?v=ob1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1";
+import { streaks, streakPicker, uavUntil, vsatUntil, clearStreakLocks, killstreakUi, achievements, clearStreakEntities } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-pl2-pi1-sr1-br1";
+import { recentTeamKillers, dealtLog, lastHitRange, updateTeamHud, onRoomEnd } from "../combat/scoring.js?v=sc1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1";
+import { resetInfection } from "./infection.js?v=in1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1";
+import { applyHeroLoadout } from "./umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-pl2-pi1-sr1-br1";
+import { TownNpcs } from "../town-npcs.js?v=tn4b7b7dc2f1m1u-cup1-nc1-cd1-sh1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1";
+import { clubSpawn } from "./club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1";
 import { Hill, pickHillPoints, pickBombSites, Bomb, MODES } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1";
-import { setHillMarker, setBombSiteMarkers } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-br1";
+import { setHillMarker, setBombSiteMarkers } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1";
 import { RangeSet } from "../range.js";
-import { WaveSpawner } from "../enemies.js?v=hb4-wst-soc1-sb2b7c2m1-gt1-gt2-cw1-zr10-bf1";
-import { DROP } from "../royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-br1";
+import { WaveSpawner } from "../enemies.js?v=hb4-wst-soc1-sb2b7c2m1-gt1-gt2-cw1-zr10-bf1-sr1";
+import { DROP } from "../royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1";
 import { game } from "../core/state.js?v=st1";
 import { setFireIcon } from "../view/touch-icons.js?v=ti1-zc2";
 import { carryClassPerks } from "../combat/perk-carry.js?v=pk1-cl1-bp1-fj1-zh1-zc1-zc2";
@@ -450,7 +450,7 @@ async function warmGuns(defs, melee, keep) {
     uploadStandInTextures(tp);
     await Promise.all([
       game.compileWorld(tp, game.camera, game.scene),
-      game.renderer.compileAsync(fp, game.weaponCamera, game.weaponScene),
+      game.compileWorld(fp, game.weaponCamera, game.weaponScene),
     ]);
     for (const d of defs) warmedGuns.add(gunWarmKey(d));
   } finally {
@@ -485,7 +485,7 @@ export async function warmShaders() {
     warmedGuns.clear();
     await Promise.all([
       game.compileWorld(game.scene, game.camera),
-      game.renderer.compileAsync(game.weaponScene, game.weaponCamera),
+      game.compileWorld(game.weaponScene, game.weaponCamera),
       warmGuns(matchGunDefs(), game.player.melee?.def, kept),
     ]);
   } catch (e) {
@@ -529,7 +529,7 @@ export function beginStaging(seconds = STAGE_SECONDS) {
   // The sky lobby is a place to walk round in, not a frozen countdown card.
   game.els.staging.hidden = !!royale?.drop;
   if (!royale?.drop) document.body.classList.add("to-staging-on");
-  else showWaveBanner("SKY LOBBY — try the guns, the bus leaves soon", 2600);
+  else showWaveBanner(`YOUR STICK: plane ${royale.plane + 1} of 12 — the ramp opens at 0:00`, 3000);
   game.els.stagingMode.textContent = game.isPvp()
     ? `${game.currentMode().name} — ${game.builtMap.map.name}`
     : game.builtMap.map.name;
@@ -554,7 +554,7 @@ export function endStaging() {
   // The opening seconds still deserve the cover a respawn gets.
   game.player.spawnGuard = game.isPvp() ? game.SPAWN_GUARD : 0;
   updateSpawnGuardHud();
-  if (royale?.drop) openRoyaleBox();
+  if (royale?.drop) greenLight();
   else if (royale) { royale.live = true; royale.t = 0; showWaveBanner("DROP IN — last troll standing wins", 1800); }
   else if (game.isPvp() && !game.isSnd()) showWaveBanner("FIGHT", 1100);
   game.audio.stageTick(true);
@@ -691,9 +691,9 @@ export function beginMatch(mapId = null) {
   if (game.isRoyale()) setupRoyale(); else teardownRoyale();
   game.spawnOpening = true;   // cleared by endStaging — everyone opens on their own side
   clearDeathVisuals();   // dying as the last match ended left the screen dark
-  const sp = royale?.drop ? royale.drop.lobbySpot(0) : game.isPvp() ? game.teamSpawn() : game.builtMap.playerSpawn;
+  const sp = royale?.drop ? boardRoyale() : game.isPvp() ? game.teamSpawn() : game.builtMap.playerSpawn;
   game.move.reset(sp.x, sp.z, sp.y || 0);
-  game.look.yaw = yawTowardCentre(sp);
+  game.look.yaw = sp.yaw ?? yawTowardCentre(sp);
   game.look.pitch = 0;
   clubSpawn();   // Trolling Loud's door (Socialize): in the line, or in the lobby with a band
   game.bullets.clear();
@@ -813,7 +813,7 @@ export function beginMatch(mapId = null) {
       game.net.botCount = game.bots.bots.length;
       for (const b of game.bots.bots) game.net.publishBot(b);
     }
-    // Troll Royale: the bots wait in the sky lobby too.
+    // Troll Royale: the bots take the seats after the humans'.
     if (royale?.drop) placeBotsInLobby();
     // S&D's round 1 is set up like every later round, under this countdown.
     if (game.isSnd()) prepareSndRound();

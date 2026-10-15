@@ -63,7 +63,34 @@
   "assets/games/troll-ops/textures/rock_color.jpg",
   "assets/games/troll-ops/textures/rock_normal.jpg",
   "assets/games/troll-ops/textures/rock_rough.jpg",
-  "assets/games/troll-ops/textures/rock_ao.jpg"
+  "assets/games/troll-ops/textures/rock_ao.jpg",
+  "assets/games/troll-ops/models/grinsite-ground-bake.webp",
+  "assets/games/troll-ops/models/gs-block-stack-bake.webp",
+  "assets/games/troll-ops/models/gs-brick-pallet-bake.webp",
+  "assets/games/troll-ops/models/gs-cabin-bake.webp",
+  "assets/games/troll-ops/models/gs-container-blue-bake.webp",
+  "assets/games/troll-ops/models/gs-container-green-bake.webp",
+  "assets/games/troll-ops/models/gs-container-grey-bake.webp",
+  "assets/games/troll-ops/models/gs-container-open-bake.webp",
+  "assets/games/troll-ops/models/gs-container-red-bake.webp",
+  "assets/games/troll-ops/models/gs-container-stair-bake.webp",
+  "assets/games/troll-ops/models/gs-crane-bake.webp",
+  "assets/games/troll-ops/models/gs-forklift-bake.webp",
+  "assets/games/troll-ops/models/gs-formwork-bake.webp",
+  "assets/games/troll-ops/models/gs-foundation-bake.webp",
+  "assets/games/troll-ops/models/gs-hoarding-bake.webp",
+  "assets/games/troll-ops/models/gs-jersey-bake.webp",
+  "assets/games/troll-ops/models/gs-light-tower-bake.webp",
+  "assets/games/troll-ops/models/gs-mixer-bake.webp",
+  "assets/games/troll-ops/models/gs-perimeter-bake.webp",
+  "assets/games/troll-ops/models/gs-pipe-stack-bake.webp",
+  "assets/games/troll-ops/models/gs-rebar-cage-bake.webp",
+  "assets/games/troll-ops/models/gs-scaffold-bake.webp",
+  "assets/games/troll-ops/models/gs-skip-bake.webp",
+  "assets/games/troll-ops/models/gs-timber-stack-bake.webp",
+  "assets/games/troll-ops/models/gs-toilet-bake.webp",
+  "assets/games/troll-ops/models/gs-tower-bake.webp",
+  "assets/games/troll-ops/models/gs-van-bake.webp"
  ],
  "undergrin": [
   "assets/games/troll-ops/models/ug-station.glb",
@@ -86,7 +113,13 @@
   "assets/games/troll-ops/models/db-south.glb",
   "assets/games/troll-ops/textures/plaster_color.jpg",
   "assets/games/troll-ops/textures/plaster_normal.jpg",
-  "assets/games/troll-ops/textures/plaster_rough.jpg"
+  "assets/games/troll-ops/textures/plaster_rough.jpg",
+  "assets/games/troll-ops/models/db-north-bake.webp",
+  "assets/games/troll-ops/models/db-walls-bake.webp",
+  "assets/games/troll-ops/models/db-market-bake.webp",
+  "assets/games/troll-ops/models/db-centre-bake.webp",
+  "assets/games/troll-ops/models/db-south-bake.webp",
+  "assets/games/troll-ops/models/dustbowl-ground-bake.webp"
  ],
  "depot": [
   "assets/games/troll-ops/models/crate-stack.glb",
@@ -94,7 +127,15 @@
   "assets/games/troll-ops/models/dp-racks.glb",
   "assets/games/troll-ops/models/dp-catwalk.glb",
   "assets/games/troll-ops/models/dp-office.glb",
-  "assets/games/troll-ops/models/dp-bay.glb"
+  "assets/games/troll-ops/models/dp-bay.glb",
+  "assets/games/troll-ops/models/dp-shell-bake.webp",
+  "assets/games/troll-ops/models/gs-container-blue-bake.webp",
+  "assets/games/troll-ops/models/dp-office-bake.webp",
+  "assets/games/troll-ops/models/dp-racks-bake.webp",
+  "assets/games/troll-ops/models/dp-bay-bake.webp",
+  "assets/games/troll-ops/models/dp-catwalk-bake.webp",
+  "assets/games/troll-ops/models/gs-forklift-bake.webp",
+  "assets/games/troll-ops/models/depot-ground-bake.webp"
  ],
  "culdegrin": [
   "assets/games/troll-ops/models/cg-surround.glb",
@@ -123,7 +164,17 @@
   "assets/games/troll-ops/textures/grass_rough.jpg",
   "assets/games/troll-ops/textures/asphalt_color.jpg",
   "assets/games/troll-ops/textures/asphalt_rough.jpg",
-  "assets/games/troll-ops/textures/asphalt_normal.jpg"
+  "assets/games/troll-ops/textures/asphalt_normal.jpg",
+  "assets/games/troll-ops/models/cg-ground.glb",
+  "assets/games/troll-ops/models/cg-surround-bake.webp",
+  "assets/games/troll-ops/models/cg-ground-bake.webp",
+  "assets/games/troll-ops/models/house-sage-bake.webp",
+  "assets/games/troll-ops/models/house-terracotta-bake.webp",
+  "assets/games/troll-ops/models/house-violet-bake.webp",
+  "assets/games/troll-ops/models/house-sage-attic-bake.webp",
+  "assets/games/troll-ops/models/house-terracotta-attic-bake.webp",
+  "assets/games/troll-ops/models/cg-lounge-bake.webp",
+  "assets/games/troll-ops/models/cg-kitchen-bake.webp"
  ],
  "grinbeach": [
   "assets/games/troll-ops/models/gb-bluffs.glb",
@@ -132,7 +183,17 @@
   "assets/games/troll-ops/models/gb-beach.glb",
   "assets/games/troll-ops/models/gb-boardwalk.glb",
   "assets/games/troll-ops/models/gb-shops.glb",
-  "assets/games/troll-ops/models/gb-foodtruck.glb"
+  "assets/games/troll-ops/models/gb-foodtruck.glb",
+  "assets/games/troll-ops/models/gb-bluffs-bake.webp",
+  "assets/games/troll-ops/models/gb-pier-bake.webp",
+  "assets/games/troll-ops/models/gb-beach-bake.webp",
+  "assets/games/troll-ops/models/gb-towers-bake.webp",
+  "assets/games/troll-ops/models/gb-boardwalk-bake.webp",
+  "assets/games/troll-ops/models/gb-shops-bake.webp",
+  "assets/games/troll-ops/models/gb-foodtruck-bake.webp",
+  "assets/games/troll-ops/models/gs-container-green-bake.webp",
+  "assets/games/troll-ops/models/gs-container-red-bake.webp",
+  "assets/games/troll-ops/models/grinbeach-ground-bake.webp"
  ],
  "hollowgrin": [
   "assets/games/troll-ops/models/hg-mausoleum.glb",
@@ -183,7 +244,13 @@
   "assets/games/troll-ops/models/gl-wings.glb",
   "assets/games/troll-ops/models/gl-outside.glb",
   "assets/games/troll-ops/models/gl-falls.glb",
-  "assets/games/troll-ops/models/gl-trollhead.glb"
+  "assets/games/troll-ops/models/gl-trollhead.glb",
+  "assets/games/troll-ops/models/gl-shell-bake.webp",
+  "assets/games/troll-ops/models/gl-outside-bake.webp",
+  "assets/games/troll-ops/models/gl-atrium-bake.webp",
+  "assets/games/troll-ops/models/gl-falls-bake.webp",
+  "assets/games/troll-ops/models/gl-wings-bake.webp",
+  "assets/games/troll-ops/models/gl-shops-bake.webp"
  ],
  "grinjuku": [
   "assets/games/troll-ops/textures/asphalt_color.jpg",
@@ -208,6 +275,10 @@
   "assets/games/troll-ops/models/gj-shell.glb",
   "assets/games/troll-ops/models/gj-props.glb",
   "assets/games/troll-ops/models/gj-neon.glb",
-  "assets/games/troll-ops/models/gj-skyline.glb"
+  "assets/games/troll-ops/models/gj-skyline.glb",
+  "assets/games/troll-ops/models/gj-shell-bake.webp",
+  "assets/games/troll-ops/models/gj-props-bake.webp",
+  "assets/games/troll-ops/models/gj-skyline-bake.webp",
+  "assets/games/troll-ops/models/grinjuku-ground-bake.webp"
  ]
 }

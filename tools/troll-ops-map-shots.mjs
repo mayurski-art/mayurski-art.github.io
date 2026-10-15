@@ -4,7 +4,9 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url); // run with NODE_PATH=<checkout>/node_modules
 const { chromium } = require("playwright");
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+// ROOT_DIR=<another checkout> shoots that build (a before set); WAIT=<ms>
+// for maps that stream in slowly (Hollowgrin needs ~20 s)
+const ROOT = process.env.ROOT_DIR || path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp", ".glb": "model/gltf-binary", ".svg": "image/svg+xml", ".gif": "image/gif", ".mp3": "audio/mpeg" };
 const server = http.createServer((req, res) => {
   const p = path.join(ROOT, decodeURIComponent(new URL(req.url, "http://x").pathname));
@@ -44,7 +46,7 @@ for (const [id, views] of Object.entries(VIEWS)) {
     st.textContent = "body *:not(canvas):not(main):not(section):not(.arcade-shell) { visibility: hidden !important; } canvas { visibility: visible !important; } .to-minimap { display:none !important }";
     document.head.appendChild(st);
   }, [id, process.env.MODE || "ops"]);
-  await new Promise((r) => setTimeout(r, 6000));
+  await new Promise((r) => setTimeout(r, Number(process.env.WAIT) || 6000));
   for (const [x, y, z, lx, ly, lz, tag] of views) {
     await page.evaluate(([x, y, z, lx, ly, lz]) => {
       const T = window.__trollOps;
