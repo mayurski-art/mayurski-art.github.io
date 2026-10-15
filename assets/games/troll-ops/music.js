@@ -23,6 +23,7 @@ const TRACKS = [
   { title: "Ghostface Killers (feat. Travis Scott)", artist: "21 Savage, Offset, Metro Boomin", src: "assets/games/troll-ops/music/ghostface-killers.mp3" },
   { title: "OUT WEST (feat. Young Thug)", artist: "JACKBOYS, Travis Scott", src: "assets/games/troll-ops/music/out-west.mp3" },
   { title: "GATTI", artist: "JACKBOYS, Pop Smoke, Travis Scott", src: "assets/games/troll-ops/music/gatti.mp3" },
+  { title: "DArkSide", artist: "Bring Me The Horizon", src: "assets/games/troll-ops/music/darkside.mp3" },
 ];
 
 // v2 made shuffle the default. The old key saved `shuffle: false` for everyone
