@@ -1,12 +1,14 @@
-// Troll Royale rules: setup, the box and drop, the Cringe, gear, bots,
+// Troll Royale rules: setup, the planes and the drop, the Cringe, gear, bots,
 // spectating and the end. Moved out of game.js (split phase 1); royale.js
 // next door holds the zone and loot it runs on.
 
 import { hashSeed, seededRng, RoyaleZone, ROYALE, LootField, lootSpots, ZoneVisual, ITEM_NAMES, gunDisplayName } from "../royale.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
 import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";
 import { insidePolygon } from "../edge.js";
-import { DROP, RoyaleDrop, buildParaglider, Flight } from "../royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-sr1";
-import { DROP_FALL, DROP_GLIDE, ROLL_TIME } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-sr1";
+import { DROP, RoyaleDrop, buildParaglider, Flight } from "../royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2";
+import { Squadron, PLANES, flightPos, flightVel } from "../royale-planes.js?v=pl1-pl2";
+import { SEAT_SPOTS, RAMP_END } from "../royale-hold.js?v=pl1-pl2";
+import { DROP_BUS, DROP_FALL, DROP_GLIDE, ROLL_TIME, busPlacers } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2";
 import * as THREE from "three";
 import { WEAPON_DEFS, WeaponState } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import { defaultLoadoutFor } from "../attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
@@ -46,37 +48,64 @@ export function setupRoyale(seed = royaleSeed()) {
     t: 0, live: false, peak: 0, place: 0, over: false, endT: 0,
     stageKey: "", zoneAcc: 0, act: null, spectate: null, outShown: false,
     noises: [],   // recent gunfire { x, z, t }, for bots to third-party
-    drop: null, me: "ground", flight: null, lobbyItems: null,
+    drop: null, me: "ground", flight: null,
+    planeT: -DROP.lobbySeconds, plane: 0, seat: 0, autoRun: false,
   };
   royale.visual.update(zone.state(0), 0);
-  // Trollface Island opens in the sky lobby, then the box opens (royale-drop.js).
+  // Trollface Island opens aboard the C-130s (royale-drop.js, PLANES.md).
   if (DROP.enabled && map.edge) {
-    royale.drop = new RoyaleDrop({ scene: game.scene, colliders: game.colliders, edge: map.edge }, seed);
-    royale.me = "lobby";
-    royale.lobbyItems = new Map();
-    for (const it of royale.drop.lobbyGunItems()) { royale.lobbyItems.set(it.id, it); loot.add(it); }
+    royale.drop = new RoyaleDrop({ scene: game.scene, colliders: game.colliders, edge: map.edge, bounds }, seed);
+    royale.me = "aboard";
   }
 }
 
-/* In the sky lobby: free to move and try the guns, but nothing can be hurt. */
+/* Aboard before the green light: free to walk the hold, nothing can be hurt. */
 export function inSkyLobby() { return !!royale?.drop && royale.drop.phase === "lobby" && game.isStaging(); }
-/* The pre-match countdown freezes you, except in the sky lobby. */
+/* The pre-match countdown freezes you, except aboard. */
 export function stageFrozen() { return game.isStaging() && !inSkyLobby(); }
-/* In the air: the drop owns movement and the camera. (On the belt you walk
-   as normal; the floor just moves under you.) */
+/* In the air: the drop owns movement and the camera. */
 export function royaleDropView() { return !!royale?.drop && game.player.alive && (royale.me === "fall" || royale.me === "glide"); }
-/* On the moving floor or the ramp, before the edge. */
-export function royaleOnBelt() { return !!royale?.drop && game.player.alive && royale.me === "belt"; }
-/* Where you are in the drop, as the wire's `dr` (0 = not dropping; the belt is 0 too). */
+/* In your plane's hold (before the green light and after it, till you're
+   out): you walk as normal in the ghost hold, the guns stay quiet. */
+export function royaleAboard() { return !!royale?.drop && game.player.alive && royale.me === "aboard"; }
+/* Where you are in the drop, as the wire's `dr` (0 = not dropping). Aboard
+   is DROP_BUS with your seat (slot + 1) above it: your planemates draw you,
+   nobody else does. */
 export function royaleDropCode() {
+  if (royaleAboard()) return DROP_BUS | ((royale.plane * PLANES.seats + royale.seat + 1) << 2);
   if (!royaleDropView()) return 0;
   return royale.me === "fall" ? DROP_FALL : DROP_GLIDE;
 }
 
 export const _dropTarget = new THREE.Vector3();
 const _dropCam = new THREE.Vector3();
-const _edgeAt = new THREE.Vector3();
-const _edgeVel = new THREE.Vector3();
+const _exitVel = new THREE.Vector3();
+const _v = new THREE.Vector3();
+const _q = new THREE.Quaternion();
+const _qy = new THREE.Quaternion();
+const _Y = new THREE.Vector3(0, 1, 0);
+const _aboard = { m: null, seatY: null };
+
+/* Your planemates, drawn in your plane (remote-players.js busPlacers): a bot
+   sat in its seat, a player where they stand in the ghost hold (the same
+   frame as the plane's). Riders in the other planes stay hidden in theirs. */
+busPlacers.push((rp, snap) => {
+  const r = royale, d = r?.drop, sq = d?.squadron;
+  if (!snap.slot || !royaleAboard() || !d.hold) return null;
+  const { plane, seat } = Squadron.seatOf(snap.slot - 1);
+  if (plane !== sq.ridden) return null;
+  if (rp.pos.y > d.origin.y - 50) {
+    rp.pos.sub(d.origin);
+    _aboard.seatY = null;
+  } else {
+    const s = SEAT_SPOTS[seat % SEAT_SPOTS.length];
+    rp.pos.set(Math.sign(s.x) * 1.36, 0, s.z);
+    rp.yaw = s.x < 0 ? -Math.PI / 2 : Math.PI / 2;
+    _aboard.seatY = 0.44;
+  }
+  _aboard.m = sq.planeM[plane];
+  return _aboard;
+});
 let playerGlider = null;
 
 /* Orbit `dist` m behind `target` along the look direction, `height` up. */
@@ -102,153 +131,237 @@ function setPlayerGlider(on) {
   }
 }
 
-/* The bots wait in the box with everyone else, standing round the middle. */
+/* ---- boarding ------------------------------------------------------------ */
+
+/* Your slot in the squadron: the humans in the room by when they joined
+   (every client sorts them the same), nine to a plane; the bots fill the
+   seats after them. */
+function humanOrder() {
+  const list = [{ id: game.net.id || "me", since: game.net.since || 0 }];
+  for (const p of game.net.peers?.values?.() || []) if (!game.isBotPeer(p)) list.push({ id: p.id, since: p.since || 0 });
+  list.sort((a, b) => (a.since - b.since) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return list;
+}
+
+/* Where you stand at the start: in the aisle by your seat, facing across. */
+function seatStand(seat) {
+  const s = SEAT_SPOTS[seat % SEAT_SPOTS.length];
+  const o = royale.drop.origin;
+  const side = Math.sign(s.x);
+  return { x: o.x + side * 0.72, y: o.y, z: o.z + s.z, yaw: side < 0 ? -Math.PI / 2 : Math.PI / 2 };
+}
+
+/* Match start: board your plane. Returns where to stand (ghost, world) and
+   which way to face. */
+export function boardRoyale() {
+  const r = royale;
+  const slot = Math.max(0, humanOrder().findIndex((h) => h.id === (game.net.id || "me")));
+  const { plane, seat } = Squadron.seatOf(slot);
+  r.plane = plane;
+  r.seat = seat;
+  r.me = "aboard";
+  r.autoRun = false;
+  r.drop.ride(plane);
+  return seatStand(seat);
+}
+
+/* The bots we host take the seats after the humans', and sit in them (the
+   wire's DROP_BUS: nobody draws them inside). They go out in a stick, one
+   after another, while their plane is over the island. */
 export function placeBotsInLobby() {
-  const n = game.bots.bots.length + 1;
+  const r = royale, sq = r.drop.squadron;
+  const humans = humanOrder().length;
+  const perPlane = new Map();
   game.bots.bots.forEach((b, i) => {
-    const s = royale.drop.lobbySpot(i + 1, n);
-    b.pos.set(s.x, s.y, s.z);
-    b.groundY = s.y;
+    const { plane, seat } = Squadron.seatOf(humans + i);
+    const f = sq.flights[plane];
+    const order = perPlane.get(plane) || 0;
+    perPlane.set(plane, order + 1);
+    const jumpT = Math.min(f.tIn + 0.8 + order * PLANES.stickEvery, Math.max(f.tIn + 0.2, f.tOut - 1.6));
     b.airborne = true;   // parked: the bot AI leaves it be until it lands
-    b.drop = { state: "lobby" };
-    b.dropCode = 0;
+    b.drop = { state: "aboard", plane, seat, jumpT };
+    b.dropCode = DROP_BUS;
+    b.dropSlot = humans + i + 1;   // its seat, for the wire
+    botSeatPos(b);
     game.net.publishBot(b);
   });
 }
 
-/* Sky lobby tick: the guns on the floor (infinite ammo, back a few seconds
-   after they're taken), the pick-up prompt, and the countdown on the HUD. */
-export function updateSkyLobby(dt) {
-  const r = royale;
-  r.loot.update(dt, game.camera, game.move.pos);
-  for (const id of r.drop.lobbyRespawns(dt)) {
-    const it = r.lobbyItems.get(id);
-    if (it) r.loot.add(it);
+/* A bot in its seat, wherever its plane is now. */
+function botSeatPos(b) {
+  const sq = royale.drop.squadron, bd = b.drop;
+  const s = SEAT_SPOTS[bd.seat % SEAT_SPOTS.length];
+  b.pos.set(s.x, 0.45, s.z).applyMatrix4(sq.planeM[bd.plane]);
+  b.groundY = b.pos.y;
+}
+
+/* ---- the clock ----------------------------------------------------------- */
+
+/* Once a frame, before you move: the squadron flies to the drop clock, so
+   the camera and the hold are placed off the same matrix. */
+export function royaleTickDrop(dt) {
+  const r = royale, d = r?.drop;
+  if (!d || d.phase === "done") return;
+  r.planeT = d.update(dt, game.stageT);
+  const hold = d.hold;
+  if (hold && d.phase === "run" && d.squadron.rampOpen(r.planeT) && hold.lip) hold.setRampOpen(true);
+  planeSounds();
+}
+
+/* The engines from inside (aboard), the nearest other plane going over,
+   and the hold's cues: the door's and the ramp's hydraulics, the buzzer. */
+function planeSounds() {
+  const r = royale, d = r.drop, sq = d.squadron, hold = d.hold, a = game.audio;
+  if (!sq) return;
+  const aboard = royaleAboard() && hold;
+  if (aboard) {
+    a.turboprop(hold.doorK, hold.rampK);
+    if (hold.doorK > 0.02 && !r.heardDoor) { r.heardDoor = true; a.rampWhine(2.6); }
+    if (hold.rampK > 0.02 && !r.heardRamp) { r.heardRamp = true; a.rampWhine(PLANES.rampTime); }
+    if (hold.light !== r.heardLight) {
+      if (hold.light === "green" || (hold.light === "red" && r.heardLight)) a.jumpBuzzer(hold.light === "green");
+      r.heardLight = hold.light;
+    }
   }
-  for (const ws of Object.values(game.player.weapons)) if (ws) ws.ammoReserve = ws.def.reserveMax;
-  if (game.player.alive) game.updatePickupPrompt(dt);
+  // Out of the hold, the planes are heard going over; aboard, the others.
+  const cam = game.camera.position;
+  let best = null, bestD = 500 * 500;
+  for (let i = 0; i < sq.planeM.length; i++) {
+    if (aboard && i === sq.ridden) continue;
+    const e = sq.planeM[i].elements, d2 = (e[12] - cam.x) ** 2 + (e[13] - cam.y) ** 2 + (e[14] - cam.z) ** 2;
+    if (d2 < bestD) { bestD = d2; best = _sndAt.set(e[12], e[13], e[14]); }
+  }
+  a.turbopropAt(best);
+}
+const _sndAt = new THREE.Vector3();
+
+/* Aboard, during the countdown: the HUD's pill. */
+export function updateSkyLobby(dt) {
+  const r = royale, t = r.planeT;
+  r.loot.update(dt, game.camera, game.move.pos);
+  // The host keeps its bots in their seats and on the wire: the room
+  // connecting can reset the peer map they're mirrored into, and nothing
+  // else re-publishes them before the green.
+  if (game.net.isBotHost()) {
+    for (const b of game.bots.bots) {
+      if (b.drop?.state === "aboard") botSeatPos(b);
+      game.net.publishBot(b);
+    }
+  }
+  const phase = t < PLANES.doorAt ? "Wheels up" : t < PLANES.breakAt ? "Holding over the island" : "RED LIGHT — stand by";
   const secs = Math.max(0, Math.ceil(game.stageT));
   const timer = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
-  if (game.els.royalePhase.textContent !== "Box opens in") game.els.royalePhase.textContent = "Box opens in";
+  if (game.els.royalePhase.textContent !== phase) game.els.royalePhase.textContent = phase;
   if (game.els.royaleTimer.textContent !== timer) game.els.royaleTimer.textContent = timer;
   const n = `${royaleAliveList().length} trolls`;
   if (game.els.royaleAlive.textContent !== n) game.els.royaleAlive.textContent = n;
+  if (r.redShown !== true && t >= PLANES.breakAt) { r.redShown = true; game.showWaveBanner("RED LIGHT — stand up, hook up", 1800); }
 }
 
-/* 0:00 in the lobby: the lobby guns go (and whatever you picked up), one
-   wall opens, and the floor starts carrying everyone toward it. */
-export function openRoyaleBox() {
+/* 0:00: the ramp comes down and the light goes green. */
+export function greenLight() {
   const r = royale, d = r.drop;
-  d.openBox();
-  for (const it of [...r.loot.items.values()]) if ((it.y || 0) > 100) r.loot.take(it.id);
+  d.open();
   game.equipFromLoadout();
   game.setActiveWeaponMesh(game.currentWeapon().def);
+  game.setHolding("none");
   if (game.els.pickupPrompt) game.els.pickupPrompt.hidden = true;
   game.setTouchContext(null);
-  r.me = "belt";
-  game.look.yaw = d.openYaw;   // facing the open side
-  game.look.pitch = -0.1;
   if (game.net.isBotHost()) {
-    // Where they land: spread over the whole island, on the floor loot (it
-    // only lies on dry land), not piled onto the map's handful of spawn
-    // points. With 99 bots on ~16 spots every landing was a brawl: the
-    // island went from 100 to 40 in the first 15 seconds (user, 2026-10-03:
-    // "within a couple of minutes we went from 100 people to 10").
+    // Where they land: on the floor loot near where they go out (it only
+    // lies on dry land), spread over the island, not piled onto the map's
+    // handful of spawn points (user, 2026-10-03: "within a couple of
+    // minutes we went from 100 people to 10").
     const floor = [...r.loot.items.values()].filter((it) => (it.y || 0) < 100);
     const spots = floor.length ? floor : game.builtMap.spawnPoints?.length ? game.builtMap.spawnPoints : [{ x: 0, z: 0 }];
-    const rng = seededRng((r.seed ^ 0xbe17) >>> 0);
-    const landAt = botLandings(spots, game.bots.bots.length, d, game.builtMap.map.edge);
-    for (const [i, b] of game.bots.bots.entries()) {
-      const { x: tx, z: tz } = landAt[i];
-      b.airborne = true;
-      b.yaw = d.openYaw;
-      // Each bot wanders a little side to side on the way out, its own way.
-      b.drop = { state: "belt", tx, tz, ty: dropGround(tx, tz, DROP.boxY - 5) ?? 0, flight: null, wobble: rng() * Math.PI * 2, wobbleHz: 0.4 + rng() * 0.5 };
+    const landAt = botLandings(spots, game.bots.bots, d.squadron, game.builtMap.map.edge);
+    for (const b of game.bots.bots) {
+      const bd = b.drop;
+      if (!bd || bd.state !== "aboard") continue;
+      const { x: tx, z: tz } = landAt.get(b);
+      bd.tx = tx;
+      bd.tz = tz;
+      bd.ty = dropGround(tx, tz, 300) ?? 0;
     }
   }
-  game.showWaveBanner("FLOOR'S MOVING — off the edge, trolls", 2600);
+  game.showWaveBanner(game.isTouch ? "GREEN LIGHT — walk off the ramp (or tap jump)" : "GREEN LIGHT — walk off the ramp (or Space)", 2600);
 }
 
 /* Where the bots aim to land. Picked at random off the floor loot, half of
-   them aimed within 10 m of another, and most were out of reach: a fall
-   from the box carries a troll about 130 m sideways, so they came down
-   short in a ring round the drop (user, 2026-10-12: "the bots are not
-   killing each other swiftly" — 85 of 99 landed within 10 m of someone,
-   so every landing was a brawl and bot damage had been turned down to
-   20% to slow it). Now: only spots a fall can reach, each one as far from
-   the others as the spots allow. */
-// Bots steer harder in freefall than you do (nobody sees it from 300 m up),
-// so they reach the whole island, not just the 130 m round the box.
+   them aimed within 10 m of another, and most were out of reach: they came
+   down short in a ring round the drop (user, 2026-10-12: "the bots are not
+   killing each other swiftly" — 85 of 99 landed within 10 m of someone, so
+   every landing was a brawl and bot damage had been turned down to 20% to
+   slow it). Now: only spots a fall from the bot's own plane can reach, each
+   one as far from the others as the spots allow. */
+// Bots steer harder in freefall than you do (nobody sees it from 300 m up).
 const BOT_FALL_STEER = 28;
-const LAND_REACH = 0.85 * (DROP.boxY / DROP.fallSpeed) * BOT_FALL_STEER;   // metres from the opening
-function botLandings(spots, n, d, edge) {
-  const S = DROP.boxSize / 2;
-  const ex = d.boxCentre.x + d.openDir.x * S, ez = d.boxCentre.z + d.openDir.z * S;
-  const reach = (x, z) => Math.hypot(x - ex, z - ez) < LAND_REACH;
-  let pool = spots.filter((p) => reach(p.x, p.z));
-  if (pool.length < 8) pool = spots;
-  pool = pool.map((p) => ({ x: p.x, z: p.z }));
+function botLandings(spots, bots, sq, edge) {
+  const out = new Map();
+  const riders = bots.filter((b) => b.drop?.state === "aboard");
+  // Where each one goes out, and how far sideways its fall carries it.
+  const exits = riders.map((b) => {
+    const p = flightPos(sq.flights[b.drop.plane], b.drop.jumpT, new THREE.Vector3());
+    return { x: p.x, z: p.z, reach: 0.85 * (p.y / DROP.fallSpeed) * BOT_FALL_STEER };
+  });
+  const inReach = (e, x, z) => Math.hypot(x - e.x, z - e.z) < e.reach;
+  const pool = spots.map((p) => ({ x: p.x, z: p.z }));
   // More ground than the loot alone: points around each spot, on the island.
   for (const p of pool.slice()) {
     for (let k = 0; k < 6; k++) {
       const a = Math.random() * Math.PI * 2, r = 10 + Math.random() * 20;
       const x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r;
-      if ((!edge || insidePolygon(edge, x, z)) && reach(x, z)) pool.push({ x, z });
+      if (!edge || insidePolygon(edge, x, z)) pool.push({ x, z });
     }
   }
   pool.sort(() => Math.random() - 0.5);
-  // Farthest-point picking: each next spot the one furthest from all those
-  // already taken (a spot can be taken twice once they run out).
-  const out = [], near = pool.map(() => Infinity);
-  for (let i = 0; i < n; i++) {
-    let best = 0;
-    for (let j = 1; j < pool.length; j++) if (near[j] > near[best]) best = j;
-    const p = pool[best];
-    out.push({ x: p.x + (Math.random() - 0.5) * 6, z: p.z + (Math.random() - 0.5) * 6 });
+  // Farthest-point picking: each bot takes the spot in its reach furthest
+  // from all those already taken (a spot can be taken twice once they run
+  // out); nothing in reach, the nearest spot to where it goes out.
+  const near = pool.map(() => Infinity);
+  riders.forEach((b, i) => {
+    const e = exits[i];
+    let best = -1, nearest = 0, nearestD = Infinity;
+    for (let j = 0; j < pool.length; j++) {
+      const dj = Math.hypot(pool[j].x - e.x, pool[j].z - e.z);
+      if (dj < nearestD) { nearestD = dj; nearest = j; }
+      if (inReach(e, pool[j].x, pool[j].z) && (best < 0 || near[j] > near[best])) best = j;
+    }
+    const p = pool[best < 0 ? nearest : best];
+    out.set(b, { x: p.x + (Math.random() - 0.5) * 6, z: p.z + (Math.random() - 0.5) * 6 });
     for (let j = 0; j < pool.length; j++) near[j] = Math.min(near[j], Math.hypot(pool[j].x - p.x, pool[j].z - p.z));
-  }
+  });
   return out;
 }
 
-/* The belt runs; the bots on it are carried to the edge and fall toward
-   where they want to land; the zone goes live once the floor has gone. */
+/* The bots' sticks and falls; the zone goes live once every plane is past
+   its island. */
 function updateRoyaleDropWorld(dt) {
   const r = royale, d = r.drop;
   if (!d || d.phase === "lobby") return;
-  if (d.phase === "belt") {
-    d.updateBelt(dt);
-    if (!r.live && d.phase === "done") {
-      r.live = true;
-      r.t = 0;
-      game.showWaveBanner("Everyone's out — last troll standing wins", 1800);
-    }
+  const t = r.planeT;
+  if (!r.live && t > d.squadron.lastOut() + 1) {
+    r.live = true;
+    r.t = 0;
+    game.showWaveBanner("Everyone's out — last troll standing wins", 1800);
   }
   if (!game.net.isBotHost()) return;
-  const dir = d.openDir, S = DROP.boxSize / 2, c = d.boxCentre;
   for (const b of game.bots.bots) {
     const bd = b.drop;
     if (!bd || !b.alive) continue;
-    if (bd.state === "belt") {
-      // Carried along openDir, steering into the opening's width with a
-      // little wobble; held at the wall until it's lined up with the gap.
-      if (d.onBelt(b.pos)) {
-        bd.wobble += dt * bd.wobbleHz * Math.PI * 2;
-        const dx = b.pos.x - c.x, dz = b.pos.z - c.z;
-        const fwd = dx * dir.x + dz * dir.z, side = dx * -dir.z + dz * dir.x;   // side: +ve to the right of openDir
-        const wantSide = Math.sin(bd.wobble) * 2.5;
-        const sideStep = Math.max(-3 * dt, Math.min(3 * dt, wantSide - side));
-        const lined = Math.abs(side + sideStep) < DROP.beltW / 2 - 0.8;
-        const fwdStep = (!lined && fwd + d.beltStep(dt) > S - 0.6) ? Math.max(0, S - 0.6 - fwd) : d.beltStep(dt);
-        b.pos.x += dir.x * fwdStep + -dir.z * sideStep;
-        b.pos.z += dir.z * fwdStep + dir.x * sideStep;
-        b.pos.y = DROP.boxY;
-        b.groundY = b.pos.y;
-        b.yaw = d.openYaw;
-        b.dropCode = 0;
-      } else {
-        bd.flight = new Flight(b.pos, game.builtMap.map.edge, { glider: false, steer: BOT_FALL_STEER, vel: _edgeVel.set(dir.x * DROP.beltSpeed, -2, dir.z * DROP.beltSpeed) });
+    if (bd.state === "aboard") {
+      if (d.phase !== "done") botSeatPos(b);
+      b.dropCode = DROP_BUS;
+      if (t >= bd.jumpT || d.phase === "done") {
+        // Out of the back: off the ramp's end with the plane's speed.
+        const f = d.squadron.flights[bd.plane];
+        b.pos.set(0, 0, RAMP_END + 0.6).applyMatrix4(d.squadron.planeM[bd.plane]);
+        flightVel(f, t, _exitVel);
+        _exitVel.y = -3;
+        bd.flight = new Flight(b.pos, game.builtMap.map.edge, { glider: false, steer: BOT_FALL_STEER, vel: _exitVel });
         bd.state = "fly";
         b.dropCode = DROP_FALL;
+        if (bd.tx == null) { bd.tx = b.pos.x; bd.tz = b.pos.z; }
       }
     } else if (bd.state === "fly") {
       const f = bd.flight;
@@ -277,24 +390,82 @@ function updateRoyaleDropWorld(dt) {
   }
 }
 
-/* You, on the belt: after your own walking has run (player-update.js), the
-   floor carries you along openDir while you're on it; off the edge (or
-   through where the floor was) you're falling, and the drop takes over. */
-export function updateBeltPlayer(dt) {
-  const r = royale, d = r.drop;
-  if (d.onBelt(game.move.pos)) {
-    const step = d.beltStep(dt);
-    game.move.pos.x += d.openDir.x * step;
-    game.move.pos.z += d.openDir.z * step;
+/* ---- you, aboard ---------------------------------------------------------- */
+
+/* After your own walking has run (player-update.js): the guns stay down;
+   after the green, Space runs you down the aisle and off the ramp; past the
+   island you're put out; off the ramp's end (or through the open floor)
+   you're falling, and the drop takes over. */
+export function updateAboardPlayer(dt, jump) {
+  const r = royale, d = r.drop, hold = d.hold;
+  if (!hold) return;
+  if (game.player.holding !== "none") game.setHolding("none");
+  const o = d.origin, pos = game.move.pos;
+  const t = r.planeT, f = d.squadron.riddenFlight();
+  const green = d.phase !== "lobby";
+  if (green && jump && d.squadron.rampOpen(t)) r.autoRun = true;
+  if (green && f && t > f.tOut - 1.2 && !r.autoRun) {
+    // Past the island: the jumpmaster puts you out.
+    r.autoRun = true;
+    game.showWaveBanner("Past the coast — out you go", 1400);
   }
-  if (game.move.pos.y < DROP.boxY - 1.5) {
-    // Off with the speed you had: your run plus the belt under you.
-    _edgeVel.copy(game.move.velocity).addScaledVector(_edgeAt.set(d.openDir.x, 0, d.openDir.z), DROP.beltSpeed);
-    r.flight = new Flight(game.move.pos, game.builtMap.map.edge, { glider: false, track: true, vel: _edgeVel });
-    r.me = "fall";
-    game.setHolding("none");
-    game.showWaveBanner("Push forward to fly — look down to dive", 1800);
+  if (r.autoRun && d.squadron.rampOpen(t)) {
+    // Down the aisle (round the crate), then straight off the ramp.
+    const lx = pos.x - o.x, lz = pos.z - o.z;
+    const goal = lz < -1.9 ? { x: (lx < 0 ? -0.95 : 0.95), z: -1.8 } : { x: 0, z: RAMP_END + 2 };
+    const dx = goal.x - lx, dz = goal.z - lz, len = Math.hypot(dx, dz) || 1;
+    const step = Math.min(len, 6.5 * dt);
+    pos.x += (dx / len) * step;
+    pos.z += (dz / len) * step;
+    game.move.velocity.set((dx / len) * 6.5, game.move.velocity.y, (dz / len) * 6.5);
   }
+  // Lost (a fall through some gap, a stale late-join spot): back in the aisle.
+  if (!hold.contains(pos, 3) && pos.y > o.y - 1.5) {
+    const s = seatStand(r.seat);
+    game.move.reset(s.x, s.z, s.y);
+  }
+  if (pos.y < o.y - 1.5) jumpOut();
+}
+
+/* Out of the back: the ghost spot mapped into the sky, your run turned with
+   the plane, plus the plane's own speed. */
+function jumpOut() {
+  const r = royale, d = r.drop, sq = d.squadron, f = sq.riddenFlight();
+  sq.ghostToWorld(game.move.pos, _v);
+  sq.riddenQuat(_q);
+  _exitVel.copy(game.move.velocity).applyQuaternion(_q);
+  if (f) _exitVel.add(flightVel(f, r.planeT, _dropCam));
+  _exitVel.y = Math.min(_exitVel.y, -2);
+  r.exitSpeed = Math.hypot(_exitVel.x, _exitVel.z);
+  r.exitFromRamp = _v.distanceTo(_dropCam.set(0, 0, RAMP_END).applyMatrix4(sq.planeM[sq.ridden]));
+  game.move.reset(_v.x, _v.z, _v.y);
+  // The look turns with the plane, so the view out of the back carries on.
+  game.look.yaw += new THREE.Euler().setFromQuaternion(_q, "YXZ").y;
+  game.localRig.root.rotation.set(0, game.localRig.root.rotation.y, 0);
+  r.flight = new Flight(_v, game.builtMap.map.edge, { glider: false, track: true, vel: _exitVel });
+  r.me = "fall";
+  r.autoRun = false;
+  game.setHolding("none");
+  game.showWaveBanner("Push forward to fly — look down to dive", 1800);
+}
+
+/* Aboard, after the camera's been placed in the ghost hold: carry it (and
+   your body, seen in third person) up into the plane. */
+export function placeAboardView() {
+  const d = royale?.drop;
+  if (!royaleAboard() || !d.hold) return;
+  const sq = d.squadron;
+  sq.riddenQuat(_q);
+  sq.ghostToWorld(game.camera.position, game.camera.position);
+  game.camera.quaternion.premultiply(_q);
+}
+export function placeAboardRig(rig) {
+  const d = royale?.drop;
+  if (!royaleAboard() || !d.hold) return;
+  const sq = d.squadron;
+  sq.ghostToWorld(rig.root.position, rig.root.position);
+  _qy.setFromAxisAngle(_Y, rig.root.rotation.y);
+  rig.root.quaternion.copy(sq.riddenQuat(_q)).multiply(_qy);
 }
 
 /* You, in the air. */
@@ -331,10 +502,9 @@ export function updateRoyaleRoll(dt) {
   game.setHolding("gun");
 }
 
-/* Joined after the sky lobby (onHello / onStage "bt"): skip our own lobby,
-   step onto the belt where the room's is, and run the match clock from where
-   the room's is. Once the floor has gone there's no way in: watch till the
-   next match. */
+/* Joined after the countdown (onHello / onStage "bt"): the run clock is the
+   room's; if your plane is still short of the far coast you're aboard it,
+   otherwise watch till the next match. */
 export const ROYALE_BOX_GONE = 1e6;
 export function applyRoyaleCatchUp() {
   const c = game.royaleCatchUp;
@@ -343,17 +513,19 @@ export function applyRoyaleCatchUp() {
   const late = (performance.now() - c.at) / 1000;
   if (performance.now() - c.at > 30000) return;   // stale: from some older match
   if (c.sd && (c.sd >>> 0) !== royale.seed) setupRoyale(c.sd >>> 0);
+  // Board again now the room is known (at the start we may not have heard
+  // from everyone yet, and would have taken someone else's seat).
+  const s = boardRoyale();
+  game.move.reset(s.x, s.z, s.y);
+  game.look.yaw = s.yaw;
   game.endStaging();
   const r = royale, d = r.drop;
-  d.beltT = Math.min(+c.bt + late, ROYALE_BOX_GONE);
+  d.runT = Math.min(+c.bt + late, ROYALE_BOX_GONE);
+  r.planeT = d.runT;
   if (c.lv) { r.live = true; r.t = (+c.rt || 0) + late; }
-  if (d.beltT < DROP.floorGoneAfter) {
-    // On the floor near the open side, facing it, with everyone else.
-    const k = DROP.boxSize / 2 - 5;
-    game.move.reset(d.boxCentre.x + d.openDir.x * k, d.boxCentre.z + d.openDir.z * k, DROP.boxY);
-    game.look.yaw = d.openYaw;
-    r.me = "belt";
-  } else royaleLateSpectate();
+  const f = d.squadron.riddenFlight();
+  if (f && d.runT < f.tOut - 2) r.me = "aboard";
+  else royaleLateSpectate();
 }
 
 function royaleLateSpectate() {
@@ -367,7 +539,7 @@ function royaleLateSpectate() {
   game.player.hp = 0;
   game.player.spawnGuard = 0;
   game.updateSpawnGuardHud();
-  game.showWaveBanner("The floor's already gone — spectating till the next one", 2600);
+  game.showWaveBanner("The planes have gone — spectating till the next one", 2600);
 }
 
 export function teardownRoyale() {
@@ -422,9 +594,9 @@ export function updateRoyale(dt) {
   const secs = Math.max(0, Math.ceil(s.left));
   const phase = s.stage === "final" ? "Final circle" : s.stage === "closing" ? `Zone ${s.phase} closing` : `Zone ${s.phase}`;
   const timer = s.stage === "final" ? "—" : `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
-  const onBelt = r.drop?.phase === "belt" && !r.live;
-  const phaseText = onBelt ? "Floor's moving" : phase;
-  const timerText = onBelt ? "—" : timer;
+  const running = r.drop?.phase === "run" && !r.live;
+  const phaseText = running ? "GREEN LIGHT" : phase;
+  const timerText = running ? "—" : timer;
   if (game.els.royalePhase.textContent !== phaseText) game.els.royalePhase.textContent = phaseText;
   if (game.els.royaleTimer.textContent !== timerText) game.els.royaleTimer.textContent = timerText;
   const left = `${alive.length} left`;
@@ -808,13 +980,12 @@ export function royaleBotDamage(b, dmg) {
 /* Someone else's pickup or drop. */
 export function onRoyaleLoot(p, m) {
   if (!royale) return;
-  if (m.k === "take") { royale.loot.take(String(m.i)); royale.drop?.lobbyTake(String(m.i)); }
+  if (m.k === "take") royale.loot.take(String(m.i));
   else if (m.k === "add" && m.item && typeof m.item.id === "string") royale.loot.add(m.item);
 }
 
 function royaleTake(it) {
   royale.loot.take(it.id);
-  royale.drop?.lobbyTake(it.id);
   game.net.publishLoot({ k: "take", i: it.id });
 }
 

@@ -675,6 +675,95 @@ export class GameAudio {
     h.g.gain.setTargetAtTime(0.0001, t + 0.3, 0.06);
   }
 
+  /* Troll Royale's C-130, from inside: four turboprops through the hull, a
+     drone with the props' beat in it, dull with the door shut and brighter
+     open (`open` 0..1); the wind roars in as the ramp comes down (`wind`
+     0..1). Called each frame aboard; fades by itself once nobody does. */
+  turboprop(open = 0, wind = 0) {
+    if (!this.ctx || !this._ready()) return;
+    const t = this.now;
+    if (!this._prop) {
+      const a = this.ctx.createOscillator(), b = this.ctx.createOscillator(), lfo = this.ctx.createOscillator();
+      const beat = this.ctx.createGain(), lfoGain = this.ctx.createGain();
+      const f = this.ctx.createBiquadFilter(), g = this.ctx.createGain();
+      a.type = "sawtooth"; a.frequency.value = 95;
+      b.type = "sawtooth"; b.frequency.value = 97.5;
+      // The blades chop the drone 17 times a second.
+      lfo.frequency.value = 17; lfoGain.gain.value = 0.35; beat.gain.value = 0.65;
+      lfo.connect(lfoGain).connect(beat.gain);
+      f.type = "lowpass"; f.frequency.value = 260; f.Q.value = 1.2;
+      g.gain.value = 0.0001;
+      a.connect(beat); b.connect(beat); beat.connect(f).connect(g).connect(this.master);
+      const w = this.ctx.createBufferSource(), wf = this.ctx.createBiquadFilter(), wg = this.ctx.createGain();
+      w.buffer = this.noise; w.loop = true;
+      wf.type = "lowpass"; wf.frequency.value = 700; wf.Q.value = 0.6;
+      wg.gain.value = 0.0001;
+      w.connect(wf).connect(wg).connect(this.master);
+      a.start(t); b.start(t); lfo.start(t); w.start(t);
+      this._prop = { f, g, wf, wg };
+    }
+    const h = this._prop;
+    h.f.frequency.setTargetAtTime(260 + open * 420 + wind * 500, t, 0.2);
+    h.g.gain.cancelScheduledValues(t);
+    h.g.gain.setTargetAtTime(0.09 + open * 0.04, t, 0.2);
+    h.g.gain.setTargetAtTime(0.0001, t + 0.3, 0.4);
+    h.wf.frequency.setTargetAtTime(500 + wind * 1400, t, 0.3);
+    h.wg.gain.cancelScheduledValues(t);
+    h.wg.gain.setTargetAtTime(0.01 + open * 0.03 + wind * 0.16, t, 0.3);
+    h.wg.gain.setTargetAtTime(0.0001, t + 0.3, 0.4);
+  }
+
+  /* The nearest other plane going over (`at`, or null): one shared voice,
+     heard a long way off, as in saberHumAt. */
+  turbopropAt(at) {
+    if (!this.ctx) return;
+    const t = this.now;
+    if (!at) {
+      if (this._propFar) this._propFar.g.gain.setTargetAtTime(0.0001, t, 0.3);
+      return;
+    }
+    if (!this._ready()) return;
+    if (!this._propFar) {
+      const a = this.ctx.createOscillator(), b = this.ctx.createOscillator();
+      const f = this.ctx.createBiquadFilter(), g = this.ctx.createGain(), p = this.ctx.createPanner();
+      a.type = "sawtooth"; a.frequency.value = 104;
+      b.type = "sawtooth"; b.frequency.value = 107;
+      f.type = "lowpass"; f.frequency.value = 900; f.Q.value = 0.8;
+      g.gain.value = 0.0001;
+      p.panningModel = "equalpower"; p.distanceModel = "inverse";
+      p.refDistance = 40; p.rolloffFactor = 1; p.maxDistance = 600;
+      a.connect(f); b.connect(f); f.connect(g).connect(p).connect(this.master);
+      a.start(t); b.start(t);
+      this._propFar = { g, p };
+    }
+    const h = this._propFar;
+    if (h.p.positionX) {
+      h.p.positionX.setTargetAtTime(at.x, t, 0.05);
+      h.p.positionY.setTargetAtTime(at.y, t, 0.05);
+      h.p.positionZ.setTargetAtTime(at.z, t, 0.05);
+    } else {
+      h.p.setPosition(at.x, at.y, at.z);
+    }
+    h.g.gain.cancelScheduledValues(t);
+    h.g.gain.setTargetAtTime(0.12, t, 0.2);
+    h.g.gain.setTargetAtTime(0.0001, t + 0.3, 0.4);
+  }
+
+  /* The ramp or the door on its hydraulics: a whine climbing for `dur` s. */
+  rampWhine(dur = 2.2) {
+    if (!this._ready()) return;
+    this._tone({ freq: 160, to: 420, duration: dur, gain: 0.05, type: "sawtooth" });
+    this._tone({ freq: 320, to: 840, duration: dur, gain: 0.02, type: "triangle" });
+    this._noise({ duration: 0.25, gain: 0.12, type: "lowpass", freq: 260, delay: dur - 0.1 });   // the clunk home
+  }
+
+  /* The jump lights' buzzer: a long one for the green, two short for red. */
+  jumpBuzzer(green = true) {
+    if (!this._ready()) return;
+    if (green) this._tone({ freq: 340, duration: 0.9, gain: 0.07, type: "square" });
+    else for (const d of [0, 0.32]) this._tone({ freq: 230, duration: 0.22, gain: 0.05, type: "square", delay: d });
+  }
+
   saberIgnite(at = null) {
     if (!this._ready()) return;
     this._noise({ duration: 0.09, gain: 0.3, type: "highpass", freq: 3000, sweepTo: 1200, at });

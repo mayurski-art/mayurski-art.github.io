@@ -51,8 +51,8 @@ Zombies rebuilt to play like Roblox's Zombie Rush Survival: a 3D hub, then a co-
 
 ### tf-parallel batch (branch `worktree-tf-parallel`, worktree `.claude/worktrees/tf-parallel`)
 Plan: `C:\Users\mayur\.claude\plans\keen-twirling-chipmunk.md`. Phases 1, 2, 6, 7 are on main.
-- **On that branch, NOT on main (user 2026-10-10: later):** the Troll City band, RP 2c (merchant + horses), the kitchen, arm wrestling, the Royale C-130 drop-in, Grin Beach 5a (unwired WIP, cc9919e). The branch's own HANDOFF has their notes. Merge main into it before pushing any of it.
-- **Grin Beach and the plane are on hold** (user 2026-10-10).
+- **On that branch, NOT on main (user 2026-10-10: later):** the Troll City band, RP 2c (merchant + horses), the kitchen, arm wrestling, Grin Beach 5a (unwired WIP, cc9919e). The branch's own HANDOFF has their notes. Merge main into it before pushing any of it.
+- **Grin Beach is on hold** (user 2026-10-10). The C-130 drop-in came off hold 2026-10-14 and was ported to main's code on branch `tf-royale-map`.
 
 ### Troll City roleplay 2b-2d (Socialize, Troll City only): IN PROGRESS
 Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. Next: 2c merchant + rideable horses (~8 sessions; partly built on tf-parallel). Each phase ships alone: targeted test, push.
@@ -95,7 +95,6 @@ Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. N
   - Notes from Claude: keep boosts to Zombies (PvE) or cosmetics, never PvP stats. Before a prize has real value, pay out only for public matches with results checked by the server (the netcode trusts clients, and bots play). Have a lawyer look at the "dividends" framing and at minors playing. Zombies Credits stay earn-only until then. Needs a design doc and the user's go.
 - **Rolling animations (2026-10-12):** a combat / dive roll for the stick troll, in first and third person.
 - **Tablet streak animation:** the right hand presses confirm. The tablet never says "boarding" or "onboarding".
-- **Royale bus-deploy cinematic,** in third and first person.
 - **Animated weapon skins** with effects coming off them.
 - **krypto2009 easter eggs (2026-10-13, keep in mind):** krypto2009 (the user's friend on X) plasters real trollface graffiti and stickers on walls worldwide (Buenos Aires, New York; a red-white-blue spray piece signed "KRYPTO2009"). Hide tributes in the maps: his trollface pieces on walls, sticker-bombed poles, a signed piece somewhere worth finding. Best slot: the stylised-realism wear pass (P4 graffiti on Cul-de-Grin, then each map's rollout). Build from his real pieces (ask the user for the photos, keep them in `refs/`, local only), the real trollface art only, credited.
 - **"For You" emote:** only while falling in Royale. The troll reaches out a hand romantically, with face, hand, body and background shots.
@@ -105,7 +104,7 @@ Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. N
 - **Flamethrower:** a "VERY unique design" with its own silhouette like Green Candles. Steps: a doc pitching 2-3 concepts, a Blender glb, a tank-swap reload, fire stream and burn FX.
 - **Halloween skin for the Problem 416:** pumpkins, reaper, bone, violet and orange.
 - **Troll-NFT weapon skins** (wallets: ask first). First candidate: TROLLS #1718 "Tank Runner" (`assets/images/skin-art/trolls-1718-tank-runner.jpg`). Skins in general are on hold.
-- **Royale:** duos/squads and Troll Court (needs N teams; only phantom/ghost exist); real art for the bus, glider and lobby box (ask before Blender work on landmarks); loot race (two players can take one item in a latency window); looted grenades.
+- **Royale:** duos/squads and Troll Court (needs N teams; only phantom/ghost exist); landmark art (ask before Blender work on landmarks); loot race (two players can take one item in a latency window); looted grenades.
 - **Waiting on the user:** rename lists for usernames and weapons (display names only; ids stay); custom crosshair options; more radio mp3s (add to `music.js` TRACKS, then `node tools/troll-ops-beatgrid.mjs`).
 - **On hold:** Grinleria leftovers, more cosmetic slots, Royale landmark art.
 - **Cancelled 2026-10-03:** Purge XP; $TRUTHS tournaments; the whole 2026-09-30 open-asks list.
@@ -314,7 +313,8 @@ Map rules:
   - melee meshes need `userData.meleeId`
   - gear.js `basisPointing` is a mirrored basis on purpose
 - **Royale:**
-  - royale.js: zone, loot, seeded rng; royale-drop.js: lobby, bus, glider
+  - royale.js: zone, loot, seeded rng; royale-drop.js: the drop clock and Flight; royale-planes.js: the squadron; royale-hold.js: the C-130 hold (PLANES.md)
+  - Aboard, riders are placed every frame (remote-players.js crowd LOD skips frames otherwise; the plane does 40 m/s)
   - seed = hash(room:matchesPlayed), adopted from the stage owner's `sd`
   - Trollface Island: map-% → metres x = (px-50)*4.54, z = (py-47)*3.62; edge is a polygon clamp (edge.js); wading at y < 0.5
   - crowd LOD past 24 trolls
@@ -450,6 +450,7 @@ Map rules:
 ---
 
 ## 5. Shipped log (newest first; one line each, details in git)
+- **2026-10-14** Royale C-130 drop-in (-pl2, PLANES.md; built 2026-10-10 on tf-parallel, ported onto today's main): you start aboard one of 12 C-130s, nine trolls a plane, seated planemates, door at 0:40, red at 0:08, ramp + green at 0:00, walk off or Space, then today's flying fall (stick forward flies) off the ramp; bots spread their landings from their own plane's exit; replaces the sky-lobby box, belt and glider. Tests: royale-drop-test, royale-phase-c-test.
 
 - **2026-10-14** (-sr1; stylised realism) Env map from the sky, a post-tonemap grade per map, the gun drawn inside the composer, a sun-coloured rim on characters; Cycles light-map bakes (sky, bounce, lamps; runtime lamps removed) for Cul-de-Grin, Grin Site, Dust Bowl, Grin Beach, Grinjuku, the Depot and the Grinleria, grades for the rest (how a map is baked, and the lessons: REALISM.md; krypto2009 eggs still wait on photos); wear decals and glossy puddles. Tests: input, menu, killcam, rope, view-mode, remote-body, fps, every map's bots move.
 - **2026-10-14** (-jb1) Radio: OUT WEST and GATTI (JACKBOYS), DArkSide (Bring Me The Horizon; from the user's screen recording, ends 164 s with a fade), 192k, beat grids 140 / 71.6 / 112 BPM. Tests: dj, menu, trollingloud.

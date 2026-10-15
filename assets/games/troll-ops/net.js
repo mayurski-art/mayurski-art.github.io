@@ -375,7 +375,7 @@ export class Net {
         if (m.bs != null) p.botSkill = BOT_SKILLS[m.bs | 0] || null;   // only bots carry it
         // keep a short history so the renderer can interpolate in the past
         p.snaps.push({ t: performance.now(), x: m.x, y: m.y, z: m.z, yaw: m.ry, pitch: m.rp, stance: m.st, moving: !!m.mv,
-          ads: Math.max(0, Math.min(1, +m.ad || 0)), roll: Math.max(0, Math.min(1, +m.ro || 0)), drop: (m.dr | 0) & 3 });
+          ads: Math.max(0, Math.min(1, +m.ad || 0)), roll: Math.max(0, Math.min(1, +m.ro || 0)), drop: (m.dr | 0) & 3, slot: (m.dr | 0) >> 2 });
         if (p.snaps.length > 12) p.snaps.shift();
         break;
       }
@@ -551,7 +551,7 @@ export class Net {
         rl: local.reload > 0 ? round2(local.reload) : undefined,   // reload progress, 0..1
         rt: local.reload > 0 ? Math.round(local.reloadTime * 10) / 10 : undefined,   // ...and its length, s
         ro: local.roll > 0 ? round2(local.roll) : undefined,    // Royale landing roll, 0..1
-        dr: local.drop || undefined,   // Royale drop: 1 bus, 2 freefall, 3 glider
+        dr: local.drop || undefined,   // Royale drop: 1 aboard, 2 freefall, 3 glider; aboard, + (seat slot + 1) << 2
         fc: local.face && local.face !== "grin:og" ? local.face : undefined,   // cosmetics.js face
         sv: local.swivel || undefined,   // swivel: side (sign) * count, a new count = a new spin
         lv: local.level || undefined, pg: local.prestige || undefined, ow: local.owner ? 1 : undefined,   // rank
@@ -678,6 +678,7 @@ export class Net {
       t: performance.now(),
       x: bot.pos.x, y: bot.pos.y, z: bot.pos.z,
       yaw: bot.yaw, pitch: bot.pitch, stance: bot.stance || "stand", moving: !!bot.moving, ads: bot.ads || 0, roll: bot.roll || 0, drop: bot.dropCode || 0,
+      slot: bot.dropCode ? bot.dropSlot | 0 : 0,
     };
     let p = this.peers.get(bot.id);
     if (!p) {
@@ -732,7 +733,7 @@ export class Net {
       rl: p.reload > 0 ? round2(p.reload) : undefined,
       rt: p.reload > 0 ? p.reloadTime : undefined,
       ro: bot.roll > 0 ? round2(bot.roll) : undefined,
-      dr: bot.dropCode || undefined,
+      dr: bot.dropCode ? bot.dropCode | ((bot.dropSlot | 0) << 2) : undefined,   // + the seat aboard
       bs: Math.max(0, BOT_SKILLS.indexOf(bot.skill)),
       lv: botLevel(bot.id),
       pk: bot.perkBits || undefined,
