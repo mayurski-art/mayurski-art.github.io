@@ -217,6 +217,40 @@ try {
     await page.close();
   }
 
+  // ---- phase 3: the laugh, stunned chasers, the shield flicker ----------------------
+  {
+    const page = await open(false);
+    await page.evaluate(() => {
+      const t = window.__tm, g = t.CHASERS.find(c => c.name === "gigachad");
+      Object.assign(t.player, { x: 3, y: 5, dir: { x: 0, y: 0 }, next: null });
+      Object.assign(g, { mode: "out", x: 5, y: 5, dir: { x: -1, y: 0 }, frozen: 0, blinking: 0 });
+    });
+    const t = await now(page);
+    await page.keyboard.press("Space");
+    await page.waitForTimeout(120);
+    await crop(page, "taunt", 3, 4.4, 72);
+    await page.waitForTimeout(500);
+    const fr = (await framesSince(page, t)).filter(f => f.state === "play");
+    const laugh = runs(fr.slice(0, 30), f => f.player);
+    check(laugh.length >= 4 && laugh.every(([v]) => v === "f1" || v === "f3"), `taunt: laughs f1/f3 (${laugh.map(r => r[0]).join(" ")})`);
+    check(fr.slice(0, 40).every(f => f.chasers.gigachad === "f2"), "stunned chaser shuts its eyes (f2) while frozen");
+    // Aster: block a hit, then flicker through the grace period
+    await page.evaluate(() => window.__tm.powerUp("aster"));
+    await page.waitForTimeout(150);
+    await crop(page, "shield", 3, 5);
+    const t2 = await now(page);
+    await page.evaluate(() => {
+      const t = window.__tm, p = t.player, g = t.CHASERS.find(c => c.name === "pepe");
+      Object.assign(g, { mode: "out", fright: false, x: p.x, y: p.y, frozen: 0 });
+    });
+    await page.waitForTimeout(1100);
+    const fr2 = (await framesSince(page, t2)).filter(f => f.state === "play");
+    const flick = runs(fr2, f => f.player === "flicker").filter(([v]) => v).length;
+    check(flick >= 4, `blocked hit: trollface flickers (${flick} blinks) through the grace period`);
+    check(fr2[fr2.length - 1].player !== "flicker", "and stops flickering after");
+    await page.close();
+  }
+
   // ---- contact sheet ----------------------------------------------------------------
   const sheet = await browser.newPage({ viewport: { width: 940, height: 200 } });
   await sheet.setContent(`<body style="margin:0;background:#111;font:12px monospace;color:#ccc;display:flex;flex-wrap:wrap;gap:8px;padding:8px">${
