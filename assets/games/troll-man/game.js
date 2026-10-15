@@ -17,9 +17,11 @@
   const PEN_MID_Y = 13.5;
   const START = { x: 13.5, y: 21 };                // between the two centre tiles, like the original
 
-  // Left half of the maze; the right half is its mirror.
+  // Four mazes, one per level, round and round. Each is the left half; the right
+  // half is its mirror. The pen, the tunnel row, the start tile and the four
+  // power-up corners sit in the same place in every one.
   // # wall   . dot   o power-up (one of each logo)   - pen door   space = floor with no dot
-  const HALF = [
+  const HALVES = [[
     "##############",
     "#............#",
     "#.####.#####.#",
@@ -49,8 +51,100 @@
     "#.##########.#",
     "#.............",
     "##############",
-  ];
-  const MAZE = HALF.map(row => row + [...row].reverse().join(""));
+  ], [
+    "##############",
+    "#............#",
+    "#.##.####.##.#",
+    "#o##.####.##.#",
+    "#.##.####.##.#",
+    "#.............",
+    "#.##.####.##.#",
+    "#.##.####.##.#",
+    "#......##....#",
+    "######.## ####",
+    "######.## ####",
+    "######.##     ",
+    "######.## ###-",
+    "      .   #   ",
+    "######.## #   ",
+    "######.## ####",
+    "######.## ####",
+    "######.## ####",
+    "#............#",
+    "#.##.####.##.#",
+    "#.##.####.##.#",
+    "#o............",
+    "###.##.##.####",
+    "###.##.##.####",
+    "#......##.....",
+    "#.##########.#",
+    "#.##########.#",
+    "#.............",
+    "##############",
+  ], [
+    "##############",
+    "#.............",
+    "#.####.####.##",
+    "#o####.####.##",
+    "#.####.####.##",
+    "#......##.....",
+    "#.####.##.##.#",
+    "#.####.##.##.#",
+    "#......##....#",
+    "####.#### ####",
+    "####.#### ####",
+    "####.####     ",
+    "####.#### ###-",
+    "    .     #   ",
+    "####.#### #   ",
+    "####.#### ####",
+    "####.#### ####",
+    "####.#### ####",
+    "#...........##",
+    "#.####.####.##",
+    "#.####.####.##",
+    "#o............",
+    "####.#### ####",
+    "####.#### ####",
+    "#.............",
+    "#.####.#####.#",
+    "#.####.#####.#",
+    "#.............",
+    "##############",
+  ], [
+    "##############",
+    "#............#",
+    "#.##.##.####.#",
+    "#o##.##.####.#",
+    "#.##.##.####.#",
+    "#.............",
+    "#.####.#####.#",
+    "#.####.#####.#",
+    "#......##....#",
+    "#.####### ####",
+    "#.####### ####",
+    "#.#######     ",
+    "#.####### ###-",
+    "      .   #   ",
+    "#.####### #   ",
+    "#.####### ####",
+    "#.####### ####",
+    "#.####### ####",
+    "#...........##",
+    "#.##.######.##",
+    "#.##.######.##",
+    "#o............",
+    "###.#####.####",
+    "###.#####.####",
+    "#......##.....",
+    "#.####.#####.#",
+    "#.####.#####.#",
+    "#.............",
+    "##############",
+  ]];
+  const MAZES = HALVES.map(half => half.map(row => row + [...row].reverse().join("")));
+  const mazeFor = lv => (lv - 1) % MAZES.length;
+  let mazeIdx = 0, MAZE = MAZES[0];
 
   const inPen = (c, r) => c >= PEN.c0 && c <= PEN.c1 && r >= PEN.r0 && r <= PEN.r1;
   const wrapC = c => ((c % COLS) + COLS) % COLS;
@@ -66,8 +160,11 @@
   }
   const inTunnel = (x, y) => Math.round(y) === TUNNEL_ROW && (x < 5.5 || x > COLS - 6.5);
 
-  // Steps from every floor tile to the pen exit, for eaten chasers (eyes) heading home.
-  const homeDist = (() => {
+  // Steps from every floor tile to the pen exit, for eaten chasers (eyes) heading
+  // home. One table per maze, built the first time that maze comes up.
+  const homeDists = [];
+  let homeDist = null;
+  function buildHomeDist() {
     const d = new Int16Array(ROWS * COLS).fill(-1);
     const q = [[13, PEN_EXIT.y], [14, PEN_EXIT.y]];
     q.forEach(([c, r]) => { d[r * COLS + c] = 0; });
@@ -82,7 +179,14 @@
       }
     }
     return d;
-  })();
+  }
+  // Swap in the maze this level plays on.
+  function applyMaze(lv) {
+    mazeIdx = mazeFor(lv);
+    MAZE = MAZES[mazeIdx];
+    homeDist = homeDists[mazeIdx] || (homeDists[mazeIdx] = buildHomeDist());
+  }
+  applyMaze(1);
 
   // ---- Tuning ---------------------------------------------------------------
   const CHOMP = 0.08;                // seconds per chomp frame while moving
@@ -98,8 +202,8 @@
   const SCORE_DOT = 10, SCORE_PILL = 50;
   const EXTRA_LIFE_AT = 10000;
   // Power-ups (the four corner tiles, one of each per level)
-  const STONKS_TIME = 8;                         // score x2
-  const FOMO_TIME = 6, MAGNET_RADIUS = 2.5;      // dots this close fly to you
+  const STONKS_TIME = 14;                        // score x2
+  const FOMO_TIME = 10, MAGNET_RADIUS = 2.5;     // dots this close fly to you
   const SHIELD_GRACE = 1.0;                      // after Aster blocks a hit, no catching for this long
   // Bonus pickups under the pen, twice a level
   const BONUS_AT = [70, 170];                    // dots eaten
@@ -109,21 +213,26 @@
   const bonusFor = lv => BONUS_TABLE[Math.min(lv, BONUS_TABLE.length) - 1];
   // "Problem?" taunt
   const TAUNT_TIME = 0.6, TAUNT_COOLDOWN = 10, TAUNT_RADIUS = 3, TAUNT_FREEZE = 1.2;
-  const MAZE_COLORS = ["#2121de", "#de2121", "#21b04a", "#c021de", "#de8a21"];   // every 2nd level
+  const MAZE_COLORS = ["#2121de", "#de2121", "#21b04a", "#c021de", "#de8a21"];   // one per level, with the maze
 
-  const levelSpeedUp = level => Math.min(1.25, 1 + (level - 1) * 0.04);
+  // Difficulty climbs a step every level, all the way to level 21, instead of
+  // topping out early: he gets quicker, the chasers close the gap, scatter gets
+  // shorter, the pill wears off sooner, Giga Chad's end-of-maze rush starts earlier.
+  const levelSpeedUp = level => Math.min(1.5, 1 + (level - 1) * 0.025);
   const playerSpeed = () => BASE_SPEED * levelSpeedUp(level) * (frightT > 0 ? 1.06 : 1);
-  // the chasers start a step slower and catch up over the first levels
-  const chaserSpeed = () => BASE_SPEED * Math.min(0.94, 0.86 + (level - 1) * 0.04) * Math.min(1.3, 1 + (level - 1) * 0.05);
+  // the chasers start a step slower and gain on him every level, up to a hair under his pace
+  const chaserSpeed = () => BASE_SPEED * Math.min(0.985 * levelSpeedUp(level), 0.86 + (level - 1) * 0.045);
 
   // Scatter / chase schedule in seconds (scatter first), like the original's per-level table.
   function schedule(lv) {
     if (lv === 1) return [7, 20, 7, 20, 5, 20, 5, Infinity];
     if (lv <= 4) return [7, 20, 7, 20, 5, 60, 1, Infinity];
-    return [5, 20, 5, 20, 5, 60, 1, Infinity];
+    if (lv <= 8) return [5, 20, 5, 20, 5, 60, 1, Infinity];
+    if (lv <= 12) return [4, 20, 4, 20, 3, 60, 1, Infinity];
+    return [3, 20, 3, 20, 2, 60, 1, Infinity];
   }
-  // Pump.fun pill: how long the chasers stay blue, per level (0 = they only turn around).
-  const FRIGHT_TIME = [6, 5, 4, 3, 2, 5, 2, 2, 1, 5, 2, 1, 1, 3, 1, 1, 0, 1, 0];
+  // Pump.fun pill: how long the chasers stay blue, per level. Long early, a second by the end.
+  const FRIGHT_TIME = [9, 8, 7, 7, 6, 6, 5, 5, 4, 4, 4, 3, 3, 3, 2, 2, 2, 2, 1];
   const frightTimeFor = lv => FRIGHT_TIME[Math.min(lv, FRIGHT_TIME.length) - 1];
 
   // ---- Canvas ---------------------------------------------------------------
@@ -215,34 +324,48 @@
       x.fillStyle = "#55e05f"; x.beginPath(); x.roundRect(0.5, -4.5, 9, 9, [0, 4.5, 4.5, 0]); x.fill();
       x.fillStyle = "#fff"; x.fillRect(-7, -3, 3, 2);
     }),
-    // Stonks: green badge, a white chart line zig-zagging up to an arrowhead
-    stonks: pixelIcon(PILL, ["#000000", "#16b84a", "#ffffff"], x => {
-      badge(x, "#16b84a");
-      x.strokeStyle = "#fff"; x.lineWidth = 2.6; x.lineJoin = "miter"; x.lineCap = "square";
-      x.beginPath(); x.moveTo(5, 16); x.lineTo(9, 11); x.lineTo(12, 13.5); x.lineTo(15.5, 8.5); x.stroke();
-      x.fillStyle = "#fff"; x.beginPath(); x.moveTo(18, 4.5); x.lineTo(18, 11); x.lineTo(11.5, 4.5); x.closePath(); x.fill();
+    // Stonks (stonk.fun): the app icon, a near-black tile with the two-tone blue
+    // S-mark, traced from the site's stonk-mark.svg (295x289 box) and shrunk to fit
+    stonks: pixelIcon(PILL, ["#000000", "#0a1419", "#a4c5cf", "#69aac1"], x => {
+      badge(x, "#0a1419");
+      x.translate(2.5, 2.7); x.scale(17 / 295.81, 17 / 295.81);
+      x.fillStyle = "#a4c5cf";
+      x.fill(new Path2D("M294.17,44.74l-52.35,72.78c-2.98,4.18-8.9,4.81-12.8,1.44-13.65-11.86-32.92-16.66-51.46-10.98l-58.76,18c-16.66,5.1-34.26-4.26-39.36-20.9l-1-3.27c-5.1-16.63,4.28-34.29,20.89-39.38l58.76-18c13.82-4.23,25.18-13.62,31.98-26.38,1.97-3.71,3.5-7.61,4.55-11.58,1.3-4.95,6.57-7.7,11.4-5.93l84.09,30.95c5.4,1.99,7.41,8.58,4.06,13.25Z"));
+      x.fillStyle = "#69aac1";
+      x.fill(new Path2D("M5.7,257.7l84.14,30.96c4.81,1.79,10.07-1,11.41-5.98,4.67-17.47,17.93-32.24,36.47-37.92l58.76-18c16.66-5.1,25.99-22.72,20.9-39.36l-1-3.27c-5.1-16.63-22.75-26.01-39.36-20.92l-58.76,18c-13.82,4.23-28.49,2.83-41.27-3.94-3.71-1.97-7.16-4.34-10.26-7.04-3.85-3.37-9.76-2.7-12.77,1.47L1.64,244.44c-3.35,4.68-1.34,11.26,4.06,13.25Z"));
     }),
-    // FOMO: purple badge with a white hourglass running out (gold sand)
-    fomo: pixelIcon(PILL, ["#000000", "#8e3bff", "#ffffff", "#ffcc33"], x => {
-      badge(x, "#8e3bff");
+    // FOMO (fomo.family): the app icon, a navy tile with the white double-loop
+    // wordmark: two linked rounded loops, each with a slanted bar cutting its hole
+    fomo: pixelIcon(PILL, ["#000000", "#0b0a1f", "#ffffff"], x => {
+      badge(x, "#0b0a1f");
+      // one white mass of two overlapping loops, then a slanted hole cut out of each
       x.fillStyle = "#fff";
-      x.fillRect(6, 4, 10, 2); x.fillRect(6, 16, 10, 2);
-      x.beginPath(); x.moveTo(7, 6); x.lineTo(15, 6); x.lineTo(11, 11); x.closePath(); x.fill();
-      x.beginPath(); x.moveTo(7, 16); x.lineTo(15, 16); x.lineTo(11, 11); x.closePath(); x.fill();
-      x.fillStyle = "#ffcc33";
-      x.beginPath(); x.moveTo(8.5, 15.5); x.lineTo(13.5, 15.5); x.lineTo(11, 12.5); x.closePath(); x.fill();
-    }),
-    // Aster: a gold six-armed asterisk with a black rim
-    aster: pixelIcon(PILL, ["#000000", "#ffb020", "#ffe08a"], x => {
-      x.translate(11, 11);
-      for (const [w, col] of [[7.5, "#000"], [4.4, "#ffb020"]]) {
-        x.strokeStyle = col; x.lineWidth = w; x.lineCap = "round";
-        for (let k = 0; k < 3; k++) {
-          const a = k * Math.PI / 3 + Math.PI / 2;
-          x.beginPath(); x.moveTo(Math.cos(a) * 7.5, Math.sin(a) * 7.5); x.lineTo(-Math.cos(a) * 7.5, -Math.sin(a) * 7.5); x.stroke();
-        }
+      for (const cx of [7.8, 14.2]) { x.beginPath(); x.ellipse(cx, 11, 5.4, 4.3, 0, 0, Math.PI * 2); x.fill(); }
+      x.fillStyle = "#0b0a1f";
+      for (const cx of [7.3, 14.7]) {
+        x.beginPath(); x.moveTo(cx - 2.4, 13.2); x.lineTo(cx + 1.2, 13.2); x.lineTo(cx + 2.4, 8.8); x.lineTo(cx - 1.2, 8.8); x.closePath(); x.fill();
       }
-      x.fillStyle = "#ffe08a"; x.beginPath(); x.arc(0, 0, 2, 0, Math.PI * 2); x.fill();
+    }),
+    // Aster (asterdex.com): the sand-gold disc with the four-point star cut into it
+    aster: pixelIcon(PILL, ["#000000", "#e9cda4", "#cfa66e"], x => {
+      x.fillStyle = "#000"; x.beginPath(); x.arc(11, 11, 10.8, 0, Math.PI * 2); x.fill();
+      const g = x.createLinearGradient(2, 2, 20, 20);
+      g.addColorStop(0, "#e9cda4"); g.addColorStop(1, "#cfa66e");
+      x.fillStyle = g; x.beginPath(); x.arc(11, 11, 9.3, 0, Math.PI * 2); x.fill();
+      // four cuts from the rim to the centre, each bowing a little clockwise
+      x.strokeStyle = "#000"; x.lineWidth = 1.8; x.lineCap = "butt";
+      x.translate(11, 11);
+      for (let k = 0; k < 4; k++) {
+        x.beginPath(); x.moveTo(0, -10.5); x.quadraticCurveTo(2.6, -5.2, 0, 0); x.stroke();
+        x.rotate(Math.PI / 2);
+      }
+      // the star in the middle: where the cuts meet, the gaps widen
+      x.fillStyle = "#000"; x.beginPath();
+      for (let k = 0; k < 8; k++) {
+        const a = k * Math.PI / 4 - Math.PI / 2, r = k % 2 ? 1.4 : 4.2;
+        x[k ? "lineTo" : "moveTo"](Math.cos(a) * r, Math.sin(a) * r);
+      }
+      x.closePath(); x.fill();
     }),
     // $TROLL coin: gold coin, inner ring, a black T
     coin: pixelIcon(24, ["#000000", "#ffcc33", "#c98a00", "#fff3b0"], x => {
@@ -297,7 +420,8 @@
   const PAD = 10, LINE = 2, RAD = 7;
   const mazeCache = {};
   function mazeImage(color) {
-    if (mazeCache[color]) return mazeCache[color];
+    const key = `${mazeIdx}:${color}`;
+    if (mazeCache[key]) return mazeCache[key];
     const c = document.createElement("canvas");
     c.width = W; c.height = ROWS * TILE;
     const x = c.getContext("2d");
@@ -320,7 +444,7 @@
     x.fillRect(DOOR.c0 * TILE, dy - 2, (DOOR.c1 - DOOR.c0 + 1) * TILE, LINE + 4);
     x.fillStyle = "#ffb8de";
     x.fillRect(DOOR.c0 * TILE, dy, (DOOR.c1 - DOOR.c0 + 1) * TILE, LINE + 1);
-    return (mazeCache[color] = c);
+    return (mazeCache[key] = c);
   }
 
   // ---- State ----------------------------------------------------------------
@@ -413,6 +537,7 @@
 
   // A fresh maze for the current player's level.
   function levelData() {
+    applyMaze(level);
     resetDots();
     dotsEatenLevel = 0; lostLifeThisLevel = false; bonusSpawned = 0;
     const b = bonusFor(level)[0];
@@ -446,7 +571,7 @@
     ({ score, level, lives, extraGiven, dotsLeft, dotsEatenLevel, bonusSpawned, lostLifeThisLevel } = s);
     bonusHistory.length = 0;
     bonusHistory.push(...s.bonusHistory);
-    if (s.dots) dots.set(s.dots);
+    if (s.dots) { applyMaze(level); dots.set(s.dots); }
     else levelData();                     // their first turn: a fresh maze
     sinceLifeLost = 0;
   }
@@ -529,7 +654,7 @@
     if (!waiting.length) return;
     const next = waiting[0];
     if (releaseNeed(next) === Infinity) return;
-    if (releaseDue(next) || sinceDot >= (level < 5 ? 4 : 3)) {
+    if (releaseDue(next) || sinceDot >= Math.max(2, 4 - (level - 1) * 0.25)) {
       next.mode = "leaving";
       sinceDot = 0;
     }
@@ -700,8 +825,10 @@
     if (g.fright) s *= 0.55;
     else if (inTunnel(g.x, g.y)) s *= 0.5;
     else if (g.name === "gigachad") {
-      // he speeds up when the maze is nearly empty (the original's "Cruise Elroy")
-      if (dotsLeft <= 10) s *= 1.1; else if (dotsLeft <= 20) s *= 1.05;
+      // he speeds up when the maze is nearly empty (the original's "Cruise Elroy");
+      // the rush starts earlier and runs harder on later levels
+      const at = Math.min(40, 10 + (level - 1) * 2), boost = Math.min(0.2, 0.1 + (level - 1) * 0.01);
+      if (dotsLeft <= at) s *= 1 + boost; else if (dotsLeft <= at * 2) s *= 1 + boost / 2;
     }
     return s;
   }
@@ -1292,7 +1419,7 @@
     if (state === "title") { drawHud(); drawTitle(); logFrame(); return; }
     if (state === "intermission") { drawHud(); drawIntermission(); logFrame(); return; }
 
-    const color = MAZE_COLORS[Math.floor((level - 1) / 2) % MAZE_COLORS.length];
+    const color = MAZE_COLORS[(level - 1) % MAZE_COLORS.length];
     const flash = state === "clear" && stateTime > CLEAR_HOLD && Math.floor((stateTime - CLEAR_HOLD) / 0.2) % 2 === 0;
     ctx.drawImage(mazeImage(flash ? "#ffffff" : color), 0, TOP * TILE);
     if (frameLog) frameLog.maze = flash ? "flash" : "colour";
@@ -1717,7 +1844,8 @@
   // ---- Test hook (only with ?debug in the URL) --------------------------------
   if (/[?&]debug\b/.test(location.search)) {
     window.__tm = {
-      MAZE, ROWS, COLS, walkable, targetFor, CHASERS, player, dots, homeDist,
+      get MAZE() { return MAZE; }, get mazeIdx() { return mazeIdx; }, get homeDist() { return homeDist; }, MAZES, ICONS,
+      ROWS, COLS, walkable, targetFor, CHASERS, player, dots,
       get state() { return state; }, get level() { return level; }, get score() { return score; },
       get lives() { return lives; }, get dotsLeft() { return dotsLeft; },
       get frightT() { return frightT; }, get mode() { return chaseMode(); },
@@ -1728,7 +1856,7 @@
       get demo() { return demo; }, get cur() { return cur; }, get numPlayers() { return numPlayers; },
       get slots() { return slots; }, get menuSel() { return menuSel; }, toMenu, get quitArmed() { return quitArmed(); }, get high() { return high; },
       get stateTime() { return stateTime; },
-      setLevel(n) { level = n; },
+      setLevel(n) { level = n; }, newLevel,
       setLives(n) { lives = n; },
       get paused() { return paused; },
       get bonus() { return bonus; }, get shield() { return shield; }, get stonksT() { return stonksT; }, get fomoT() { return fomoT; },
