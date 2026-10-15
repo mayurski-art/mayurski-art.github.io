@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self';">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="Troll Man: the trollface eats the dots while Pepe, Doge, Giga Chad and Pudgy hunt him down. A Troll Runner arcade game.">
+  <title>Troll Man | Troll Runner Arcade</title>
+  <link rel="icon" type="image/png" href="assets/games/troll-man/sprites/trollface-f1-32.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/games/troll-man/style.css?v=tm-p1">
+</head>
+<body>
+  <a class="arcade-back-link" href="index.html?open=arcade" aria-label="Back to Troll Runner Arcade">&larr; Arcade</a>
+
+  <main class="tm-shell">
+    <h1 class="tm-logo"><img src="assets/games/troll-man/ui/troll-man-logo.jpg" alt="Troll-Man" width="1946" height="635"></h1>
+
+    <div class="tm-cabinet">
+      <canvas id="tm-canvas" width="448" height="544" tabindex="0"
+              aria-label="Troll Man game screen. Arrow keys or WASD to move, Enter to start, P to pause."></canvas>
+    </div>
+
+    <p class="tm-help">Arrows / WASD to move &middot; Enter to start &middot; P to pause &middot; swipe on phones</p>
+  </main>
+
+  <script src="assets/games/troll-man/game.js?v=tm-p1" defer></script>
+</body>
+</html>

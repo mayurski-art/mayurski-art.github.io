@@ -1,0 +1,75 @@
+:root {
+  --bg: #000;
+  --ink: #f2f2f2;
+  --muted: rgba(242, 242, 242, 0.6);
+  --line: rgba(255, 255, 255, 0.14);
+  --maze: #2121de;
+  --mono: "DM Mono", monospace;
+  --arcade: "Press Start 2P", monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; height: 100svh; overflow: hidden; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--mono);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.arcade-back-link {
+  position: absolute; top: 10px; left: 10px; z-index: 20;
+  padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px;
+  color: var(--muted); font-size: 12px; font-weight: 500; text-transform: uppercase; text-decoration: none;
+  background: rgba(0, 0, 0, 0.6);
+}
+.arcade-back-link:hover, .arcade-back-link:focus-visible {
+  border-color: rgba(33, 33, 222, 0.7); color: var(--ink); outline: none;
+}
+
+/* Logo on top, screen in the middle, one line of help under it; the screen
+   takes whatever height is left so the page never scrolls. */
+.tm-shell {
+  height: 100%;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px;
+  padding: 44px 16px 12px;
+}
+
+.tm-logo { margin: 0; flex: 0 0 auto; line-height: 0; }
+.tm-logo img { display: block; width: min(420px, 78vw); height: auto; }
+
+/* The cabinet is a size container, so the screen can be as big as the
+   space allows in either direction while keeping its 448:544 shape. */
+.tm-cabinet {
+  flex: 1 1 auto; min-height: 0;
+  width: 100%;
+  container-type: size;
+  display: flex; align-items: flex-start; justify-content: center;
+}
+.tm-cabinet canvas {
+  display: block;
+  width: min(100cqw - 16px, (100cqh - 16px) * 448 / 544);
+  height: auto;
+  aspect-ratio: 448 / 544;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  border: 2px solid #1a1a6e;
+  border-radius: 10px;
+  box-shadow: 0 0 0 6px #050518, 0 0 40px rgba(33, 33, 222, 0.35);
+  outline: none;
+  touch-action: none;
+}
+.tm-cabinet canvas:focus-visible { border-color: #3a3aff; }
+
+.tm-help {
+  margin: 0; flex: 0 0 auto;
+  color: var(--muted); font-size: 12px; text-align: center;
+}
+
+@media (max-width: 760px) {
+  .tm-shell { padding-top: 48px; gap: 8px; }
+  .tm-help { font-size: 11px; }
+}
