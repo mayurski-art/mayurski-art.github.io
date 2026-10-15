@@ -972,14 +972,14 @@ function royalePhaseIdx() {
 }
 /* Pacing (user, 2026-10-14, ROYALE-ISLAND.md option b): with 99 bots the
    island was down to ~10 by 2.5 min while the zone runs ~9.5. After a kill
-   a bot is calm for 10-20 s (its own length): it loots, plates and heals,
+   a bot is calm for 30-45 s (its own length): it loots, plates and heals,
    only sees who's right there and doesn't go to gunfire. Shot at, it still
    fights back. */
 function botCalm(b) {
   if (!b.killedAt) return false;
   let h = 0;
   for (const ch of String(b.id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return performance.now() - b.killedAt < 10000 + (h % 1000) * 10;
+  return performance.now() - b.killedAt < 30000 + (h % 1000) * 15;
 }
 export function royaleBotSight(b) {
   // Someone shooting at it gets noticed whatever the range.
