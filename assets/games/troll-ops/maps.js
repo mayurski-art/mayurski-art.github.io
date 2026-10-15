@@ -356,7 +356,7 @@ function buildUndergrin(api) {
   /* ---- the concourse slab, 5.6..6.0, less its wells */
   let slab = [[-22, -44, 22, 44]];
   for (const well of [
-    [-3.6, -28, 3.6, -18.5], [-3.6, 18.5, 3.6, 28],      // escalators (z -18.5..-17 past the top is the landing)
+    [-2.9, -28, 2.9, -18.5], [-2.9, 18.5, 2.9, 28],      // escalators (z -18.5..-17 past the top is the landing)
     [-22, -44, -17.5, -35], [17.5, 35, 22, 44],          // west / east side stairs
     [-4, -4, 4, 4],                                      // the light well over the plant room
     [-21, -10, -18, -4], [18, 4, 21, 10],                // purple / red steel stairs
@@ -419,23 +419,30 @@ function buildUndergrin(api) {
     PT(-12, P + 2.0, -42.06, 2.4, 0.5, 0.1, UG.board, true);              // destination blind: TROLLHALLA
 
     // twin escalators up to the hall: feet at z -27, 17 x 0.3 / 0.5 heading south,
-    // lanes centred x +-1.9; stepped balustrades 1.2 m over the treads, the
-    // outer ones the well's sides (x +-2.6..3.6), the middle filling x -1.2..1.2
+    // lanes centred x +-1.9; stepped balustrades 1.2 m over the treads, 0.3
+    // thick outside (x +-2.6..2.9: the doc's 3.6 well sealed the island nose
+    // off the bots' coarse grid against the x +-6 columns), the middle
+    // filling x -1.2..1.2. The slab well is x +-2.9 to match.
+    for (const x of [-1.9, 1.9]) ST(x, -27, 1.4, 17, 0.3, 0.5, "+z", { y: P, color: UG.dark, pen: 6 });
     for (let i = 0; i < 17; i++) {
       const z0 = -27 + i * 0.5, top = P + 0.3 * (i + 1) + 1.2;
-      B(-3.6, z0, -2.6, z0 + 0.5, P, top, UG.escSide, { pen: 4 });
-      B(2.6, z0, 3.6, z0 + 0.5, P, top, UG.escSide, { pen: 4 });
+      B(-2.9, z0, -2.6, z0 + 0.5, P, top, UG.escSide, { pen: 4 });
+      B(2.6, z0, 2.9, z0 + 0.5, P, top, UG.escSide, { pen: 4 });
       B(-1.2, z0, 1.2, z0 + 0.5, P, top, UG.escSide, { pen: 4 });
     }
     // well rails on the slab round the escalator hole
-    B(-3.7, -28.1, 3.7, -28, U, U + 1.1, UG.mullion, { pen: 0.3 });
-    for (const x of [-3.7, 3.6]) B(x, -28.1, x + 0.1, -18.5, U, U + 1.1, UG.mullion, { pen: 0.3 });
+    B(-3.0, -28.1, 3.0, -28, U, U + 1.1, UG.mullion, { pen: 0.3 });
+    for (const x of [-3.0, 2.9]) B(x, -28.1, x + 0.1, -18.5, U, U + 1.1, UG.mullion, { pen: 0.3 });
 
     // the west stair: foot z -43.5 on the side platform, 17 x 0.3 / 0.5 south to z -35
+    ST(-19.5, -43.5, 4, 17, 0.3, 0.5, "+z", { y: P, color: UG.dark, pen: 6 });
     B(-17.5, -40, -17.4, -35, U, U + 1.1, UG.mullion, { pen: 0.3 });   // rail on the well's east edge (the end block holds z -44..-40)
 
     // platform nose: 4 steps down to the walkway (x -2..2, z -14..-8)
+    ST(0, -12, 3, 4, 0.2375, 0.5, "-z", { color: UG.platform, pen: 6 });
     // the east bore's end: 4 steps up to the island and to the side platform
+    ST(11.75, -42, 3, 4, 0.2375, 0.5, "-x", { color: UG.grey, pen: 6 });
+    ST(12.25, -42, 3, 4, 0.2375, 0.5, "+x", { color: UG.grey, pen: 6 });
 
     // platform furniture: benches, a vending machine, both side platforms; island benches
     for (const sx of [-1, 1]) {
@@ -457,9 +464,12 @@ function buildUndergrin(api) {
     B(-9.75, -14, -2, -8, 0, S0, UG.wall);                                // solid beside the walkway
     B(2, -14, 9.75, -8, 0, S0, UG.wall);
     B(-2, -14, 2, -8, 0, 0.02, UG.floor, { pen: 1 });                     // walkway floor
-    B(-2, -8, -0.9, -7.7, 0, S0, UG.wall);                                // plant room wall, 1.8 door
-    B(0.9, -8, 2, -7.7, 0, S0, UG.wall);
-    B(-0.9, -8, 0.9, -7.7, 2.4, S0, UG.wall);
+    // plant room wall: a 3.0 door (x -1.5..1.5; the doc's 1.8 sealed the room
+    // on the bots' coarse stair-planning grid, so nobody in it could plan a
+    // way upstairs and bots stalled under the light well)
+    B(-2, -8, -1.5, -7.7, 0, S0, UG.wall);
+    B(1.5, -8, 2, -7.7, 0, S0, UG.wall);
+    B(-1.5, -8, 1.5, -7.7, 2.4, S0, UG.wall);
     B(-22, -14, -14.25, -12, 0, S0, UG.wall);                             // solid round the service corridor
     B(-22, 0, -14.25, 14, 0, S0, UG.wall);
     B(-15.75, -12, -14.25, -6.9, 0, S0, UG.wall);                         // corridor / bore wall, door at z -6
@@ -470,7 +480,7 @@ function buildUndergrin(api) {
     B(-10.05, -3.1, -9.75, 14, 0, S0, UG.grey);
     B(-10.05, -4.9, -9.75, -3.1, 2.4, S0, UG.grey);
     B(-14.25, -14, -9.75, 14, 4.0, S0, UG.grey);                          // tunnel ceiling at 4
-    B(-12.8, -3.2, -11.2, -0.8, 0, 1.0, UG.dark, { pen: 2 });             // works trolley at z -2
+    B(-14.25, -3.2, -12.65, -0.8, 0, 1.0, UG.dark, { pen: 2 });           // works trolley at z -2, against the outer wall (centred, it cut the bore on the coarse grid)
     B(-13.95, 9.4, -13.35, 10.6, 0, 2.0, UG.grey, { pen: 3 });            // signal cabinet at z 10
     // the plant room's low cover, this half
     B(-9.3, -6.5, -6.9, -5.1, 0, 1.2, UG.dark, { pen: 2 });               // generator
@@ -479,6 +489,7 @@ function buildUndergrin(api) {
     api.cylinder(X(8.3), Z(-4.8), 0.5, 0.9, { color: UG.escSide, pen: 2 });
     B(5.5, -2.5, 7.5, -0.9, 0, 0.9, UG.grey, { pen: 2 });                 // pump skid
     // the corridor: the steel stair up to the purple room (20 x 0.3 / 0.3), lockers, fuses, a mop bucket
+    ST(-19.5, -10, 3, 20, 0.3, 0.3, "+z", { color: UG.dark, pen: 6 });
     B(-21.95, -11.8, -21.45, -10.2, 0, 2.0, UG.grey, { pen: 3 });
     B(-17, -0.5, -16, 0, 0, 1.8, UG.grey, { pen: 3 });
     api.cylinder(X(-16.5), Z(-11.5), 0.25, 0.4, { color: UG.red, pen: 1 });
@@ -547,7 +558,7 @@ function buildUndergrin(api) {
     for (const [z0, z1] of [[12.5, 17.5], [22.5, 25.5]]) B(-17, z0, -16.3, z1, U, U + 2.2, UG.grey, { pen: 3 });   // shelves of bottles
     B(-21.9, 28, -21.4, 38, U, U + 2.2, UG.escSide, { pen: 3 });                                // bookshelves
     B(-17, 34.5, -16.3, 39, U, U + 2.2, UG.escSide, { pen: 3 });
-    B(-19.5, 29, -18.5, 31, U, U + 0.8, UG.escSide, { pen: 1.5 });                              // reading table
+    B(-21.2, 29, -20.2, 31, U, U + 0.8, UG.escSide, { pen: 1.5 });                              // reading table
   };
   station(1);
   station(-1);
@@ -763,11 +774,17 @@ export const MAPS = {
     build(api) { buildUndergrin(api); },
     // Section 5: nine a side, three of them on the concourse (y 6); the south
     // side is the north side turned about the origin. [-18, -40] moved to
-    // [-16.5, -40]: the doc's spot is on the west stair's treads.
+    // [-16.5, -40]: the doc's spot is on the west stair's treads. The island
+    // spawn comes first: modes.js reachableFrom sweeps from spawn 0, and the
+    // side platforms are pockets on its coarse grid.
     spawns: (() => {
-      const north = [[-16.5, -40], [18, -40], [-6, -41], [6, -41], [0, -37], [-18, -30], [18, -30], [-8, -36, 6], [8, -36, 6]];
+      const north = [[0, -37], [-16.5, -40], [18, -40], [-6, -41], [6, -41], [-18, -30], [18, -30], [-8, -36, 6], [8, -36, 6]];
       return [...north, ...north.map(([x, z, y]) => (y == null ? [-x, -z] : [-x, -z, y]))];
     })(),
+    // S&D on the defenders' half: A on the empty track, B on the side
+    // platform beside the parked train (pickBombSites put B inside the train,
+    // where its marker sits under the floor).
+    bombSites: [{ id: "A", x: -12, z: 24 }, { id: "B", x: 18, z: 24 }],
   },
   dustbowl: {
     name: "Dust Bowl",
