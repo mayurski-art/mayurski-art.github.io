@@ -941,9 +941,16 @@
         return;
       }
     }
-    if (lives <= 0) { saveHigh(); setState("over"); return; }
+    if (lives <= 0) { saveHigh(); reportScore(); setState("over"); return; }
     placeActors();
     setState("ready");
+  }
+
+  // The weekly board (assets/games/troll-man/leaderboard.js) takes 1-player games
+  // only: a hot-seat game is two people on one account.
+  function reportScore() {
+    if (demo || numPlayers !== 1 || !window.TrollLeaderboard) return;
+    try { window.TrollLeaderboard.record("troll-man", { score, level }); } catch (_) { /* never break the game */ }
   }
 
   // Intermissions play after clearing these levels, like the original's cut-scenes.
@@ -987,7 +994,7 @@
     while (popups.length && popups[0].t > 1.2) popups.shift();
     if (paused) return;
     if (state !== "title" && state !== "over" && state !== "intermission" && state !== "turnover") animate(dt);
-    if (state === "title") { if (stateTime >= TITLE_IDLE) startDemo(); }
+    if (state === "title") { if (splashOpen || boardOpen()) stateTime = 0; else if (stateTime >= TITLE_IDLE) startDemo(); }
     else if (state === "ready") { if (stateTime >= READY_TIME) setState("play"); }
     else if (state === "play") {
       stepPlay(dt);
@@ -1387,6 +1394,60 @@
     syncMuteButton();
   }
 
+  // ---- The weekly board: a panel over the game, from the trophy button -------------
+  // Opening it mid-game pauses; Esc, the x or a click outside closes it.
+  const boardBtn = document.getElementById("tm-board-btn");
+  const board = document.getElementById("tm-board");
+  const boardOpen = () => !!board && !board.hidden;
+  function setBoard(open) {
+    if (!board || open === boardOpen()) return;
+    board.hidden = !open;
+    boardBtn.setAttribute("aria-expanded", String(open));
+    if (open) {
+      if (state === "play" && !demo) paused = true;
+      if (window.TrollLeaderboard) window.TrollLeaderboard.refresh("troll-man");
+      board.querySelector(".tm-board-close").focus({ preventScroll: true });
+    } else {
+      canvas.focus({ preventScroll: true });
+    }
+  }
+  if (board && boardBtn) {
+    boardBtn.addEventListener("click", () => setBoard(!boardOpen()));
+    board.querySelector(".tm-board-close").addEventListener("click", () => setBoard(false));
+    board.addEventListener("click", e => { if (e.target === board) setBoard(false); });
+  }
+
+  // ---- Loading screen: the poster, until the first key or tap ---------------------
+  // It reads LOADING until the sprites and font are in, then PRESS START / TAP TO PLAY.
+  // The back link and the mute button stay usable above it. ?debug skips it
+  // (add &splash to see it in a test).
+  const splash = document.getElementById("tm-splash");
+  let splashOpen = !!splash && !(/[?&]debug\b/.test(location.search) && !/[?&]splash\b/.test(location.search));
+  let splashReady = false;
+  function splashLoaded() {
+    if (splashReady || !splash) return;
+    splashReady = true;
+    splash.classList.add("is-ready");
+  }
+  function closeSplash() {
+    if (!splashOpen || !splashReady) return;
+    splashOpen = false;
+    if (state === "title") stateTime = 0;
+    splash.classList.add("is-leaving");
+    setTimeout(() => { splash.hidden = true; }, 240);
+    canvas.focus({ preventScroll: true });
+  }
+  if (splash) {
+    if (!splashOpen) splash.hidden = true;
+    else {
+      if (document.readyState === "complete") splashLoaded();
+      else window.addEventListener("load", splashLoaded);
+      setTimeout(splashLoaded, 5000);                       // a slow font never keeps you out
+      splash.addEventListener("click", closeSplash);
+      splash.focus({ preventScroll: true });
+    }
+  }
+
   // Browsers only allow sound after a gesture: the first key or touch switches it on.
   const unlockSound = () => { if (window.TMSound) window.TMSound.unlock(); };
   window.addEventListener("pointerdown", unlockSound, true);
@@ -1395,6 +1456,18 @@
   window.addEventListener("keydown", e => {
     if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
     const k = e.key;
+    if (boardOpen()) {                                     // the board keeps the keys while it's up
+      if (k === "Escape") { e.preventDefault(); setBoard(false); }
+      return;
+    }
+    const onChrome = e.target && (e.target.tagName === "A" || e.target === muteBtn || e.target === boardBtn);
+    if (splashOpen && !onChrome) {                         // the poster takes the first key
+      if (k === "Tab") return;
+      e.preventDefault();
+      unlockSound();
+      closeSplash();
+      return;
+    }
     // a focused button handles its own Enter / Space
     if (e.target && e.target.tagName === "BUTTON" && (k === "Enter" || k === " ")) return;
     unlockSound();
@@ -1558,11 +1631,13 @@
       setDotsEaten(n) { dotsEatenLevel = n; },
       setPhase(i) { phaseIdx = i; phaseT = 0; },
       leaveOneDot(c, r) { dots.fill(0); dots[r * COLS + c] = 1; dotsLeft = 1; },
+      iconFor, canvas,                                       // the poster tool borrows these
+      get splashOpen() { return splashOpen; }, get splashReady() { return splashReady; }, get boardOpen() { return boardOpen(); },
     };
   }
 
   // Draw the HUD in the arcade font once it's loaded; the loop starts either way.
   if (document.fonts && document.fonts.load) document.fonts.load(`8px ${FONT}`).catch(() => {});
-  canvas.focus({ preventScroll: true });
+  if (!splashOpen) canvas.focus({ preventScroll: true });
   requestAnimationFrame(frame);
 })();

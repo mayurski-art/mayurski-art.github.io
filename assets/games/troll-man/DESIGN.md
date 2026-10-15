@@ -227,7 +227,14 @@ next starts. No gate; a targeted check per change, push on your word.
    **Look.** Sprites, maze palette, Press Start 2P, CRT, sounds, title
    screen, attract mode, intermissions, 1UP/2UP. Done when a screenshot
    looks like a cabinet.
-6. **Poster, banner, hub card, leaderboard, OG tags.** Done when it's on
+6. **Poster, banner, hub card, leaderboard, OG tags — DONE 2026-10-15**
+   (`tools/troll-man-p6-test.mjs`). `tools/troll-man-poster.mjs` renders
+   `ui/troll-man-poster.jpg` (1200x1700, the loading screen until the first
+   key or tap) and `ui/troll-man-banner.jpg` (1200x630, OG image and hub card
+   art) from the game's own sprites and icons. Weekly board from the trophy
+   button, 1-player games only. Card on games.html, entry in the home Arcade
+   menu.
+   **Poster, banner, hub card, leaderboard, OG tags.** Done when it's on
    the arcade page and a score lands on the weekly board.
 
 Phase 1-2 are the game. 3-6 can ship one at a time after that.

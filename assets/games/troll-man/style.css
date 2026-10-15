@@ -6,6 +6,8 @@
   --maze: #2121de;
   --mono: "DM Mono", monospace;
   --arcade: "Press Start 2P", monospace;
+  /* the shared leaderboard styles read these */
+  --gold: #ffcc00; --cyan: #4deeff; --green: #4dff73; --red: #ff3b3b;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -29,8 +31,8 @@ body {
   border-color: rgba(33, 33, 222, 0.7); color: var(--ink); outline: none;
 }
 
-/* Sound on/off, top right, mirroring the back link. */
-.tm-mute {
+/* Sound on/off and the leaderboard, top right, mirroring the back link. */
+.tm-corner-btn {
   position: absolute; top: 10px; right: 10px; z-index: 20;
   width: 38px; height: 32px; padding: 0;
   display: grid; place-items: center;
@@ -38,7 +40,9 @@ body {
   color: var(--muted); background: rgba(0, 0, 0, 0.6);
   cursor: pointer;
 }
-.tm-mute:hover, .tm-mute:focus-visible { border-color: rgba(33, 33, 222, 0.7); color: var(--ink); outline: none; }
+.tm-corner-btn:hover, .tm-corner-btn:focus-visible { border-color: rgba(33, 33, 222, 0.7); color: var(--ink); outline: none; }
+.tm-board-btn { right: 56px; }
+.tm-board-btn[aria-expanded="true"] { color: var(--gold); }
 .tm-mute .tm-mute-cross { display: none; }
 .tm-mute.is-muted .tm-mute-cross { display: inline; }
 .tm-mute.is-muted .tm-mute-waves { display: none; }
@@ -173,4 +177,67 @@ body {
   .tm-logo img { width: min(220px, 54vw); }
   .tm-stick { width: clamp(108px, 17svh, 124px); }
   .tm-btn { height: 28px; line-height: 28px; }
+}
+
+/* ---- Loading screen ---------------------------------------------------------------
+   The poster, full screen on black, until the first key or tap. The back link and the
+   corner buttons sit above it. */
+.tm-splash {
+  position: fixed; inset: 0; z-index: 15;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  padding: 52px 16px max(16px, env(safe-area-inset-bottom));
+  border: 0; margin: 0; background: #000; color: var(--gold);
+  cursor: pointer; font: inherit;
+  transition: opacity 0.24s ease;
+}
+.tm-splash[hidden] { display: none; }
+.tm-splash.is-leaving { opacity: 0; pointer-events: none; }
+.tm-splash:focus-visible { outline: none; }
+.tm-splash img {
+  display: block; min-height: 0;
+  height: min(100% - 40px, (100vw - 32px) * 1700 / 1200);
+  width: auto; aspect-ratio: 1200 / 1700;
+  border-radius: 10px;
+  box-shadow: 0 0 0 4px #050518, 0 0 40px rgba(33, 33, 222, 0.45);
+}
+.tm-splash-cta { font: 12px/1 var(--arcade); letter-spacing: 1px; min-height: 12px; }
+.tm-cta-key, .tm-cta-tap { display: none; }
+.tm-splash.is-ready .tm-cta-loading { display: none; }
+.tm-splash.is-ready .tm-cta-key { display: inline; animation: tm-blink 1s steps(1) infinite; }
+@media (pointer: coarse) {
+  .tm-splash.is-ready .tm-cta-key { display: none; }
+  .tm-splash.is-ready .tm-cta-tap { display: inline; animation: tm-blink 1s steps(1) infinite; }
+}
+.tm-splash:focus-visible .tm-splash-cta { outline: 2px solid var(--gold); outline-offset: 6px; }
+@keyframes tm-blink { 50% { opacity: 0; } }
+
+/* ---- The weekly board -------------------------------------------------------------- */
+.tm-board {
+  position: fixed; inset: 0; z-index: 30;
+  display: grid; place-items: center;
+  padding: 56px 16px 16px;
+  background: rgba(0, 0, 0, 0.72);
+}
+.tm-board[hidden] { display: none; }
+.tm-board-card {
+  width: min(560px, 100%); max-height: 100%;
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 16px; overflow: auto;
+  background: #05051a; border: 2px solid var(--maze); border-radius: 14px;
+  box-shadow: 0 0 0 5px #050518, 0 0 40px rgba(33, 33, 222, 0.45);
+}
+.tm-board-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tm-board-head h2 { margin: 0; font: 13px/1.4 var(--arcade); color: var(--gold); }
+.tm-board-close {
+  width: 34px; height: 34px; flex: 0 0 auto; padding: 0;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: transparent; color: var(--ink); font-size: 22px; line-height: 1; cursor: pointer;
+}
+.tm-board-close:hover, .tm-board-close:focus-visible { border-color: rgba(33, 33, 222, 0.7); outline: none; }
+.tm-board .lb-root { background: rgba(0, 0, 0, 0.35); }
+.tm-board .lb-table { min-width: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-splash { transition: none; }
+  .tm-splash.is-ready .tm-cta-key, .tm-splash.is-ready .tm-cta-tap { animation: none; }
 }

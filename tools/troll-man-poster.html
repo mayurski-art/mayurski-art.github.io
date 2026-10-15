@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<!-- Troll Man poster comp: the game's own sprites, icons and a maze screenshot laid out
+     as the loading-screen poster (1200x1700) or the share banner (1200x630).
+     tools/troll-man-poster.mjs fills window.ART and screenshots #art. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Troll Man poster comp</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root { --blue: #2121de; --dot: #ffb8ae; --yellow: #ffcc00; --cyan: #4deeff; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #222; }
+  #art { position: relative; overflow: hidden; background: #000; font-family: "Press Start 2P", monospace; color: #fff; }
+  #art > * { position: absolute; }
+  img.px { image-rendering: pixelated; }
+  .frame { inset: var(--inset); border: 5px solid var(--blue); border-radius: 30px; box-shadow: 0 0 24px rgba(33, 33, 222, 0.55), inset 0 0 18px rgba(33, 33, 222, 0.35); }
+  .frame::after { content: ""; position: absolute; inset: 9px; border: 5px solid var(--blue); border-radius: 21px; }
+  .burst {
+    border-radius: 50%;
+    background: repeating-conic-gradient(from 0deg, #ffd21f 0 7.5deg, #ffa800 7.5deg 15deg);
+    -webkit-mask-image: radial-gradient(circle, #000 0 52%, transparent 70%);
+            mask-image: radial-gradient(circle, #000 0 52%, transparent 70%);
+  }
+  .txt { white-space: nowrap; line-height: 1.25;
+    text-shadow: -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 3px 3px 0 #000, 0 3px 0 #000, 0 -3px 0 #000, 3px 0 0 #000, -3px 0 0 #000, 5px 6px 0 #000; }
+  .bubble.txt { text-shadow: none; }
+  .c { transform: translateX(-50%); text-align: center; }
+  .dot { background: var(--dot); box-shadow: 0 0 0 4px #000; }
+  .bubble {
+    padding: 14px 18px 12px; background: #fff; color: #000;
+    border: 5px solid #000; border-radius: 14px; box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.35);
+  }
+  .bubble::after {
+    content: ""; position: absolute; left: var(--tail, 30px); bottom: -22px;
+    border: 11px solid transparent; border-top: 13px solid #000; border-left-width: 0;
+  }
+  .screen { border: 6px solid var(--blue); border-radius: 12px; box-shadow: 0 0 0 7px #050518, 0 0 34px rgba(33, 33, 222, 0.6); }
+  .screen img { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<div id="art"></div>
+<script>
+(async () => {
+  const LAYOUT = new URLSearchParams(location.search).get("layout") || "poster";
+  const ART = window.ART || {};
+  const SPR = n => `../assets/games/troll-man/sprites/${n}-32-x8.png`;
+  const art = document.getElementById("art");
+  const add = (html, style = {}) => {
+    const t = document.createElement("template");
+    t.innerHTML = html.trim();
+    const el = t.content.firstElementChild;
+    for (const [k, v] of Object.entries(style)) k.startsWith("--") ? el.style.setProperty(k, v) : (el.style[k] = v);
+    art.appendChild(el);
+    return el;
+  };
+  const px = v => `${v}px`;
+  const sprite = (name, x, y, size, flip) =>
+    add(`<img class="px" src="${SPR(name)}" alt="">`, { left: px(x), top: px(y), width: px(size), height: px(size), transform: flip ? "scaleX(-1)" : "" });
+  const icon = (kind, x, y, size) => ART.icons && ART.icons[kind] &&
+    add(`<img class="px" src="${ART.icons[kind]}" alt="">`, { left: px(x), top: px(y), width: px(size), height: px(size) });
+  const text = (s, x, y, size, color = "#fff", center = true) =>
+    add(`<div class="txt${center ? " c" : ""}"></div>`, { left: px(x), top: px(y), fontSize: px(size), color }).textContent = s;
+  const dots = (x0, x1, y, step, size) => {
+    for (let x = x0; x <= x1; x += step) add(`<i class="dot"></i>`, { left: px(x - size / 2), top: px(y - size / 2), width: px(size), height: px(size) });
+  };
+  const burst = (cx, cy, r) => add(`<div class="burst"></div>`, { left: px(cx - r), top: px(cy - r), width: px(2 * r), height: px(2 * r) });
+
+  // Flood in from the edges and clear the background, so a picture floats on anything.
+  // alphaFor(brightness) gives the new alpha, or -1 where the background ends.
+  const keyed = (src, alphaFor) => new Promise(res => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement("canvas");
+      c.width = img.width; c.height = img.height;
+      const x = c.getContext("2d");
+      x.drawImage(img, 0, 0);
+      const d = x.getImageData(0, 0, c.width, c.height), p = d.data, W = c.width, H = c.height;
+      const seen = new Uint8Array(W * H), stack = [];
+      for (let i = 0; i < W; i++) stack.push(i, (H - 1) * W + i);
+      for (let j = 0; j < H; j++) stack.push(j * W, j * W + W - 1);
+      while (stack.length) {
+        const i = stack.pop();
+        if (seen[i]) continue;
+        seen[i] = 1;
+        const a = alphaFor((p[i * 4] + p[i * 4 + 1] + p[i * 4 + 2]) / 3);
+        if (a < 0) continue;
+        p[i * 4 + 3] = a;
+        const cx = i % W, cy = (i / W) | 0;
+        if (cx > 0) stack.push(i - 1); if (cx < W - 1) stack.push(i + 1);
+        if (cy > 0) stack.push(i - W); if (cy < H - 1) stack.push(i + W);
+      }
+      x.putImageData(d, 0, 0);
+      res(c.toDataURL());
+    };
+    img.src = src;
+  });
+  // the logo jpg sits on black (stop at the red rim); the user's trollface sits on white (stop at the outline)
+  const logo = await keyed("../assets/games/troll-man/ui/troll-man-logo.jpg", v => v > 90 ? -1 : v < 30 ? 0 : Math.round(255 * (v - 30) / 60));
+  const troll = await keyed("../assets/games/troll-man/refs/faces/trollface.png", v => v < 150 ? -1 : 0);
+  const hero = (x, y, w) => add(`<img src="${troll}" alt="">`, { left: px(x), top: px(y), width: px(w) });
+  const logoAt = (x, y, w) => add(`<img src="${logo}" alt="">`, { left: px(x), top: px(y), width: px(w) });
+
+  const CAST = [
+    ["gigachad", "GIGA CHAD", "#ff3b3b", "\"HE JUST WALKS AT YOU\""],
+    ["pepe", "PEPE", "#4dff73", "\"FEELS BAD, MAN\""],
+    ["pudgy", "PUDGY", "#6fa8ff", "\"WADDLES WITH THE PACK\""],
+    ["doge", "DOGE", "#ffb84d", "\"SUCH PURSUIT\""],
+  ];
+  const POWERS = [
+    ["pump", "PUMP.FUN", "CHASERS RUN"],
+    ["stonks", "STONKS", "2X POINTS"],
+    ["fomo", "FOMO", "DOT MAGNET"],
+    ["aster", "ASTER", "SHIELD"],
+  ];
+
+  if (LAYOUT === "poster") {
+    const W = 1200, H = 1700;
+    Object.assign(art.style, { width: px(W), height: px(H) });
+    // the hero: a sunburst behind the trollface, the four chasers closing in
+    burst(600, 745, 560);
+    logoAt(100, 62, 1000);
+    text("EAT THE DOTS. DODGE THE MEMES.", 600, 408, 26, "#fff");
+    dots(856, 1080, 745, 56, 18);                     // only ahead of him: the rest are eaten
+    hero(376, 543, 448);
+    sprite("gigachad-f3", 70, 470, 224);
+    sprite("pepe-f3", 70, 800, 224);
+    sprite("pudgy-f3", 906, 470, 224, true);
+    sprite("doge-f3", 906, 800, 224, true);
+    add(`<div class="bubble txt">PROBLEM?</div>`, { left: px(700), top: px(470), fontSize: px(28), "--tail": "34px" });
+    // power-ups
+    text("- POWER-UPS -", 600, 1062, 20, "var(--cyan)");
+    POWERS.forEach(([k, name, what], i) => {
+      const cx = 165 + i * 290;
+      icon(k, cx - 44, 1104, 88);
+      text(name, cx, 1210, 20, "#fff");
+      text(what, cx, 1242, 14, "rgba(255,255,255,0.6)");
+    });
+    // the screen and the cast
+    if (ART.maze) add(`<div class="screen"><img class="px" src="${ART.maze}" alt=""></div>`, { left: px(96), top: px(1296), width: px(254), height: px(308) });
+    text("CHARACTER / NICKNAME", 412, 1300, 18, "#fff", false);
+    CAST.forEach(([k, name, col, nick], i) => {
+      const y = 1342 + i * 66;
+      sprite(`${k}-f1`, 412, y, 56);
+      text(name, 488, y + 6, 18, col, false);
+      text(nick, 488, y + 34, 13, col, false);
+    });
+    // the bottom rail: coins in the corners, the address between them
+    for (const [x, y] of [[48, 48], [1104, 48], [48, 1604], [1104, 1604]]) icon("coin", x, y, 48);
+    text("1 OR 2 PLAYERS  -  TROLLRUNNER.NET", 600, 1620, 16, "var(--yellow)");
+    add(`<div class="frame"></div>`, { "--inset": "20px" });
+  } else {
+    const W = 1200, H = 630;
+    Object.assign(art.style, { width: px(W), height: px(H) });
+    burst(600, 400, 640);
+    logoAt(270, 34, 660);
+    text("EAT THE DOTS. DODGE THE MEMES.", 600, 262, 20, "#fff");
+    dots(948, 1044, 452, 48, 14);
+    CAST.forEach(([k], i) => sprite(`${k}-f3`, 62 + i * 140, 386, 128));
+    hero(680, 332, 240);
+    icon("pump", 1080, 418, 66);
+    add(`<div class="bubble txt">PROBLEM?</div>`, { left: px(880), top: px(286), fontSize: px(18), "--tail": "22px", padding: "10px 12px 8px" });
+    text("TROLLRUNNER.NET", 600, 572, 16, "var(--yellow)");
+    add(`<div class="frame"></div>`, { "--inset": "14px" });
+  }
+  await document.fonts.ready;
+  await Promise.all([...art.querySelectorAll("img")].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
+  window.READY = true;
+})();
+</script>
+</body>
+</html>
