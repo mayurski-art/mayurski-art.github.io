@@ -201,6 +201,15 @@ def rects(grid):
     return out
 
 
+def rects2(grid):
+    """rects() row-major and column-major, whichever needs fewer quads."""
+    a = rects(grid)
+    H, W = len(grid), len(grid[0])
+    t = [[grid[j][i] for j in range(H)] for i in range(W)]
+    c = [(k, j0, j1, i0, i1) for (k, i0, i1, j0, j1) in rects(t)]
+    return a if len(a) <= len(c) else c
+
+
 FONT = {
     "^": "..#.. .#.#. #...# ..... ..... ..... .....",
     "A": ".###. #...# #...# ##### #...# #...# #...#", "B": "####. #...# #...# ####. #...# #...# ####.",
@@ -257,7 +266,7 @@ def text(b, m, s, c, normal, h, o=0.012, align="c", up=None):
         org = c - Vv * (h / 2)
     else:
         org = c - Uv * W - Vv * (h / 2)
-    for (_k, i0, i1, j0, j1) in rects(grid):
+    for (_k, i0, i1, j0, j1) in rects2(grid):
         rect(b, m, org, Uv, Vv, i0 * cell, i1 * cell, (7 - j1) * cell, (7 - j0) * cell)
     return W
 
@@ -298,11 +307,11 @@ def mosaic_mat(hx):
     return mat("UG_M%06x" % hx, hx, 0.8)
 
 
-def troll_poster(b, PAL, c, normal, w, h, bg, cells=30, o=0.012, up=None):
-    """Trollface line art as a cell mosaic on a coloured backing: black
-    lines and the white inside of the face; the white outside is skipped
-    so the backing shows."""
-    g = image_cells(ART_TROLL, (210, 190, 810, 790), cells, cells)
+def troll_poster(b, PAL, c, normal, w, h, bg, cells=30, o=0.012, up=None, crop=(210, 190, 810, 790)):
+    """Trollface line art as a cell mosaic on a coloured backing (none when
+    bg is None): black lines and the white inside of the face; the white
+    outside is skipped so the backing shows."""
+    g = image_cells(ART_TROLL, crop, cells, cells)
     lum = g.mean(axis=2)
     key = [[("k" if lum[j, i] < 0.6 else "w") for i in range(cells)] for j in range(cells)]
     # flood the outside white from the border
@@ -318,18 +327,19 @@ def troll_poster(b, PAL, c, normal, w, h, bg, cells=30, o=0.012, up=None):
             if 0 <= jj < cells and 0 <= ii < cells and not outside[jj][ii]:
                 stack.append((jj, ii))
     grid = [[None if outside[j][i] else key[j][i] for i in range(cells)] for j in range(cells)]
-    panel(b, bg, c, normal, w, h, o, up=up)
+    if bg is not None:
+        panel(b, bg, c, normal, w, h, o, up=up)
     Uv, Vv = frame(normal, up)
     org = Vector(c) + Vector(normal) * (o + 0.006) - Uv * (w / 2) - Vv * (h / 2)
     cw, ch = w / cells, h / cells
-    for (k, i0, i1, j0, j1) in rects(grid):
+    for (k, i0, i1, j0, j1) in rects2(grid):
         rect(b, PAL["black"] if k == "k" else PAL["white"], org, Uv, Vv, i0 * cw, i1 * cw, (cells - j1) * ch, (cells - j0) * ch)
 
 
 def picture(b, path, crop, c, normal, w, h, cx, cy, k=7, o=0.012, seed=1):
     """A picture as a k-colour cell mosaic (k-means on the cells)."""
     g = image_cells(path, crop, cx, cy).reshape(-1, 3)
-    rng = np.random.default_rng(seed)
+    rng = np.random.default_rng(abs(int(seed)))
     cent = g[rng.choice(len(g), k, replace=False)].copy()
     for _ in range(12):
         d = ((g[:, None, :] - cent[None, :, :]) ** 2).sum(-1)
@@ -344,8 +354,32 @@ def picture(b, path, crop, c, normal, w, h, cx, cy, k=7, o=0.012, seed=1):
     Uv, Vv = frame(normal)
     org = Vector(c) + Vector(normal) * o - Uv * (w / 2) - Vv * (h / 2)
     cw, ch = w / cx, h / cy
-    for (kk, i0, i1, j0, j1) in rects(grid):
+    for (kk, i0, i1, j0, j1) in rects2(grid):
         rect(b, mats[kk], org, Uv, Vv, i0 * cw, i1 * cw, (cy - j1) * ch, (cy - j0) * ch)
+
+
+def general_portrait(b, PAL, c, normal, w, h, o=0.0):
+    """The troll general (ui/western/troll-general.jpg) as flat paint: the
+    painting's yellow ground, his grey dress uniform with gold epaulettes
+    and a medal, the trollface line art on top."""
+    Uv, Vv = frame(normal)
+    base = Vector(c) + Vector(normal) * o
+    panel(b, mosaic_mat(0xe8dc9a), c, normal, w, h, o)
+    at = lambda u, v, k: base + Vector(normal) * k + Uv * u + Vv * v
+    # torso: shoulders up to the collar, a darker sash and the collar
+    quad4(b, mosaic_mat(0x9a9ea4), [at(-0.47 * w, -h / 2, 0.01), at(0.47 * w, -h / 2, 0.01), at(0.38 * w, -0.02, 0.01), at(-0.38 * w, -0.02, 0.01)])
+    quad4(b, mosaic_mat(0x6c7076), [at(-0.1 * w, -0.02, 0.014), at(0.1 * w, -0.02, 0.014), at(0.1 * w, -0.12, 0.014), at(-0.1 * w, -0.12, 0.014)])
+    quad4(b, mosaic_mat(0x3a5a3a), [at(-0.36 * w, -0.1, 0.014), at(-0.2 * w, -0.08, 0.014), at(0.3 * w, -h / 2, 0.014), at(0.1 * w, -h / 2, 0.014)])
+    for sgn in (-1, 1):
+        quad4(b, mosaic_mat(0xd8b040), [at(sgn * 0.2 * w, -0.03, 0.016), at(sgn * 0.4 * w, -0.06, 0.016), at(sgn * 0.42 * w, -0.2, 0.016), at(sgn * 0.22 * w, -0.17, 0.016)])
+        for k in range(4):
+            quad4(b, mosaic_mat(0xb08a20), [at(sgn * (0.24 + 0.04 * k) * w, -0.2, 0.018), at(sgn * (0.26 + 0.04 * k) * w, -0.2, 0.018),
+                                            at(sgn * (0.26 + 0.04 * k) * w, -0.34, 0.018), at(sgn * (0.24 + 0.04 * k) * w, -0.34, 0.018)])
+    quad4(b, mosaic_mat(0x2b4bd6), [at(0.16 * w, -0.3, 0.016), at(0.22 * w, -0.3, 0.016), at(0.22 * w, -0.42, 0.016), at(0.16 * w, -0.42, 0.016)])
+    disc(b, mosaic_mat(0xd8b040), base + Uv * (0.19 * w) + Vv * (-0.48), normal, 0.07, seg=10, o=0.018)
+    face_h = min(h * 0.46, w * 0.72)
+    troll_poster(b, PAL, Vector(c) + Vector(normal) * 0.0 + Vv * (h / 2 - 0.08 - face_h / 2), normal, face_h * 1.12, face_h, None,
+                 cells=24, o=o + 0.02, crop=(240, 200, 800, 700))
 
 
 def sub_rects(rs, hole):
@@ -462,10 +496,12 @@ def ring(b, m, c, normal, r0, r1, seg=24, o=0.0):
 
 
 def roundel(b, PAL, c, normal, r=0.5, label="UNDERGRIN"):
-    """The UNDERGRIN roundel: red ring, blue bar, white lettering."""
-    ring(b, PAL["roundel"], c, normal, r * 0.62, r, seg=28, o=0.015)
+    """The UNDERGRIN roundel: red ring, blue bar, white lettering (none on
+    the small ones)."""
+    ring(b, PAL["roundel"], c, normal, r * 0.62, r, seg=16, o=0.015)
     panel(b, PAL["roundelblue"], c, normal, r * 2.3, r * 0.42, o=0.03)
-    text(b, PAL["white"], label, c, normal, r * 0.26, o=0.045)
+    if label and r >= 0.4:
+        text(b, PAL["white"], label, c, normal, r * 0.26, o=0.045)
 
 
 def tube_light(b, PAL, x, z, y, along="x", L=1.2):
@@ -492,12 +528,10 @@ def bench(b, PAL, x, z, y, along="x", L=2.4):
     """Blue slatted bench on black legs, 2.4 long (the Metro one)."""
     w = L if along == "x" else 0.55
     d = 0.55 if along == "x" else L
-    for k in range(3):
-        off = -0.2 + k * 0.2
-        if along == "x":
-            bx(b, PAL["bench"], x - L / 2, x + L / 2, y + 0.42, y + 0.47, z + off - 0.08, z + off + 0.08)
-        else:
-            bx(b, PAL["bench"], x + off - 0.08, x + off + 0.08, y + 0.42, y + 0.47, z - L / 2, z + L / 2)
+    if along == "x":
+        bx(b, PAL["bench"], x - L / 2, x + L / 2, y + 0.42, y + 0.47, z - 0.28, z + 0.28)
+    else:
+        bx(b, PAL["bench"], x - 0.28, x + 0.28, y + 0.42, y + 0.47, z - L / 2, z + L / 2)
     # back slats
     if along == "x":
         bx(b, PAL["bench"], x - L / 2, x + L / 2, y + 0.6, y + 0.9, z + 0.22, z + 0.28)
@@ -1034,12 +1068,12 @@ def departure_board(b, PAL, x, z, y, facing):
     faces, hung on two rods."""
     w, h, d = 6.0, 1.5, 0.3
     bx(b, PAL["black"], x - w / 2, x + w / 2, y, y + h, z - d / 2, z + d / 2)
-    rows = [("GRINLINE  DEPARTURES", "board_o", 0.17), ("TROLLHALLA   2 MIN", "board_p", 0.14), ("JEETSBURG    5 MIN", "board_o", 0.14),
-            ("DUST BOWL    9 MIN", "board_o", 0.14), ("GRIN BEACH  14 MIN", "board_o", 0.14)]
+    rows = [("GRINLINE", "board_o", 0.2), ("TROLLHALLA  2", "board_p", 0.15), ("JEETSBURG   5", "board_o", 0.15),
+            ("DUST BOWL   9", "board_o", 0.15), ("GRIN BEACH 14", "board_o", 0.15)]
     for nz in (-1, 1):
         yy = y + h - 0.25
-        for (s, mname, hh) in rows:
-            text(b, P[mname], s, (x, yy, z + nz * d / 2), (0, 0, nz), hh, o=0.012)
+        for (txt, mname, hh) in rows if nz == facing else rows[:1]:
+            text(b, PAL[mname], txt, (x, yy, z + nz * d / 2), (0, 0, nz), hh, o=0.012)
             yy -= 0.27
     for rx in (-2.4, 2.4):
         b.cyl(PAL["black"], 0.02, (x + rx, y + h, z), (x + rx, ATRIUM_CEIL, z), seg=4)
@@ -1080,7 +1114,7 @@ def newsstand(b, PAL, x, z, y):
         rng = random.Random(int(x * 7 + z + nz))
         for k in range(6):
             col = rng.choice(["orange", "pink", "cyan", "green", "yellow", "white"])
-            panel(b, P[col], (x - 1.25 + k * 0.5, y + 0.7, z + nz * 1.2), (0, 0, nz), 0.4, 0.55, o=0.01)
+            panel(b, PAL[col], (x - 1.25 + k * 0.5, y + 0.7, z + nz * 1.2), (0, 0, nz), 0.4, 0.55, o=0.01)
     for nx in (-1, 1):
         text(b, PAL["white"], "NEWS", (x + nx * 1.7, y + 2.72, z), (nx, 0, 0), 0.17, o=0.012)
 
@@ -1103,18 +1137,18 @@ def hanging_sign(b, PAL, c, normal_axis, w, lines, y_ceil, bg="roundelblue", fg=
     x, y, z = c
     h = 0.22 * len(lines) + 0.12
     if normal_axis == "z":
-        bx(b, P[bg], x - w / 2, x + w / 2, y, y + h, z - 0.03, z + 0.03)
+        bx(b, PAL[bg], x - w / 2, x + w / 2, y, y + h, z - 0.03, z + 0.03)
         for nz in (-1, 1):
             yy = y + h - 0.17
             for ln in lines:
-                text(b, P[fg], ln, (x, yy, z + nz * 0.03), (0, 0, nz), 0.15, o=0.012)
+                text(b, PAL[fg], ln, (x, yy, z + nz * 0.03), (0, 0, nz), 0.15, o=0.012)
                 yy -= 0.22
     else:
-        bx(b, P[bg], x - 0.03, x + 0.03, y, y + h, z - w / 2, z + w / 2)
+        bx(b, PAL[bg], x - 0.03, x + 0.03, y, y + h, z - w / 2, z + w / 2)
         for nx in (-1, 1):
             yy = y + h - 0.17
             for ln in lines:
-                text(b, P[fg], ln, (x + nx * 0.03, yy, z), (nx, 0, 0), 0.15, o=0.012)
+                text(b, PAL[fg], ln, (x + nx * 0.03, yy, z), (nx, 0, 0), 0.15, o=0.012)
                 yy -= 0.22
     for rx in (-w / 2 + 0.2, w / 2 - 0.2):
         if normal_axis == "z":
@@ -1149,8 +1183,11 @@ def station_concourse(b, PAL, s):
             panel(b, PAL["roundelblue"], (X(xw), 2.5, Z(zc)), nrm, 3.2, 0.5, o=0.02)
             text(b, PAL["white"], "UNDERGRIN", (X(xw), 2.5, Z(zc)), nrm, 0.32, o=0.035)
         roundel(b, PAL, (X(xw), 2.5, Z(-29)), nrm, r=0.55)
-        troll_poster(b, PAL, (X(xw), 2.1, Z(-33.5)), nrm, 1.0, 1.4, PAL["salmon"], cells=28, o=0.02)
-        troll_poster(b, PAL, (X(xw), 2.1, Z(-24.5)), nrm, 1.0, 1.4, PAL["stripe"], cells=28, o=0.02)
+        troll_poster(b, PAL, (X(xw), 2.1, Z(-33.5)), nrm, 1.0, 1.4, PAL["salmon"] if nx > 0 else PAL["stripe"], cells=22, o=0.02)
+        # a colour-block poster: GRINLINE in two tones
+        panel(b, PAL["stripe"] if nx > 0 else PAL["salmon"], (X(xw), 2.1, Z(-24.5)), nrm, 1.0, 1.4, o=0.02)
+        panel(b, PAL["white"], (X(xw), 2.45, Z(-24.5)), nrm, 0.8, 0.5, o=0.03)
+        text(b, PAL["black"], "GRINLINE", (X(xw), 2.45, Z(-24.5)), nrm, 0.14, o=0.04)
         panel(b, PAL["cream"], (X(xw), 2.1, Z(-16.5)), nrm, 1.0, 1.4, o=0.02)
         text(b, PAL["black"], "MIND", (X(xw), 2.45, Z(-16.5)), nrm, 0.22, o=0.035)
         text(b, PAL["black"], "THE", (X(xw), 2.1, Z(-16.5)), nrm, 0.22, o=0.035)
@@ -1167,8 +1204,8 @@ def station_concourse(b, PAL, s):
     exit_sign(b, PAL, (X(12), 3.0, Z(-44)), (0, 0, s))
     exit_sign(b, PAL, (X(-19.5), 3.2, Z(-44)), (0, 0, s))
     # hanging direction signs on the island: to the trains, up to the concourse
-    hanging_sign(b, PAL, (X(0), SLAB0 - 1.0, Z(-31)), "z", 3.4, ["<  TROLLHALLA", "GRINLINE  >"], SLAB0 - 0.34)
-    hanging_sign(b, PAL, (X(0), SLAB0 - 1.0, Z(-15.5)), "z", 3.0, ["PLANT ROOM: DOWN"], SLAB0 - 0.34)
+    hanging_sign(b, PAL, (X(0), SLAB0 - 1.0, Z(-31)), "z", 3.0, ["GRINLINE"], SLAB0 - 0.34)
+    hanging_sign(b, PAL, (X(0), SLAB0 - 1.0, Z(-15.5)), "z", 3.0, ["PLANT ROOM"], SLAB0 - 0.34)
     exit_sign(b, PAL, (X(0), 2.6, Z(-14)), (0, 0, -s))
     # on the island columns: roundels on the inner faces at z -22 columns
     for (cxp, cz) in COLS:
@@ -1184,13 +1221,19 @@ def station_concourse(b, PAL, s):
     for sx in (-1, 1):
         wx = X(sx * 16) - s * sx * 0.15
         nrm = (-s * sx, 0, 0)
-        troll_poster(b, PAL, (wx, U + 2.0, Z(-37)), nrm, 1.2, 1.7, PAL["yellow"], cells=28, o=0.02)
-        troll_poster(b, PAL, (wx, U + 2.0, Z(-26)), nrm, 1.2, 1.7, PAL["cyan"], cells=28, o=0.02)
+        troll_poster(b, PAL, (wx, U + 2.0, Z(-37)), nrm, 1.2, 1.7, PAL["yellow"] if sx < 0 else PAL["cyan"], cells=24, o=0.02)
+        panel(b, PAL["cyan"] if sx < 0 else PAL["yellow"], (wx, U + 2.0, Z(-26)), nrm, 1.2, 1.7, o=0.02)
+        panel(b, PAL["black"], (wx, U + 2.0, Z(-26)), nrm, 0.9, 0.9, o=0.03)
         panel(b, PAL["cream"], (wx, U + 2.0, Z(-29.5)), nrm, 1.2, 1.7, o=0.02)
-        text(b, PAL["black"], "GRINLINE", (wx, U + 2.5, Z(-29.5)), nrm, 0.2, o=0.035)
-        text(b, PAL["salmon"], "EVERY", (wx, U + 2.1, Z(-29.5)), nrm, 0.2, o=0.035)
-        text(b, PAL["salmon"], "2 MIN", (wx, U + 1.75, Z(-29.5)), nrm, 0.2, o=0.035)
-        text(b, PAL["black"], "PROBABLY", (wx, U + 1.4, Z(-29.5)), nrm, 0.14, o=0.035)
+        if sx < 0:
+            text(b, PAL["black"], "GRINLINE", (wx, U + 2.5, Z(-29.5)), nrm, 0.2, o=0.035)
+            text(b, PAL["salmon"], "EVERY", (wx, U + 2.1, Z(-29.5)), nrm, 0.2, o=0.035)
+            text(b, PAL["salmon"], "2 MIN", (wx, U + 1.75, Z(-29.5)), nrm, 0.2, o=0.035)
+            text(b, PAL["black"], "PROBABLY", (wx, U + 1.4, Z(-29.5)), nrm, 0.14, o=0.035)
+        else:
+            text(b, PAL["salmon"], "MIND", (wx, U + 2.4, Z(-29.5)), nrm, 0.26, o=0.035)
+            text(b, PAL["salmon"], "THE", (wx, U + 2.0, Z(-29.5)), nrm, 0.26, o=0.035)
+            text(b, PAL["black"], "GRIN", (wx, U + 1.6, Z(-29.5)), nrm, 0.26, o=0.035)
         roundel(b, PAL, (wx, U + 4.2, Z(-22)), nrm, r=0.5)
         for zd in (-33, -19):
             exit_sign(b, PAL, (wx, U + 2.95, Z(zd)), nrm, w=0.6)
@@ -1199,7 +1242,7 @@ def station_concourse(b, PAL, s):
     for z in (-36, -30, -24, -18):
         pendant(b, PAL, X(0), Z(z), vault_y(0) - 0.3, 2.6)
     # a hanging sign over the escalator top
-    hanging_sign(b, PAL, (X(0), U + 3.2, Z(-21)), "z", 3.4, ["TRAINS: DOWN", "ATRIUM: AHEAD"], vault_y(0) - 0.22)
+    hanging_sign(b, PAL, (X(0), U + 3.2, Z(-21)), "z", 3.4, ["TRAINS: DOWN"], vault_y(0) - 0.22)
     # --- atrium (this half): the gate line at z -12, the staffed box, the board, pendants
     for k in range(6):
         ticket_gate(b, PAL, X(-7 + 2.8 * k), Z(-12), U)
@@ -1214,7 +1257,7 @@ def station_concourse(b, PAL, s):
     clock(b, PAL, (X(0), ARCH_SPRING + ARCH_SPAN / 2 - 1.2, Z(-16)), (0, 0, -s))
     # posters on the threshold piers (atrium side)
     for sx in (-1, 1):
-        troll_poster(b, PAL, (X(sx * 11.5), U + 2.2, Z(-16) + s * 0.2), (0, 0, s), 1.4, 2.0, PAL["salmon"] if sx < 0 else PAL["stripe"], cells=30, o=0.02)
+        troll_poster(b, PAL, (X(sx * 11.5), U + 2.2, Z(-16) + s * 0.2), (0, 0, s), 1.4, 2.0, PAL["salmon"] if sx < 0 else PAL["stripe"], cells=26, o=0.02)
         roundel(b, PAL, (X(sx * 11.5), U + 4.4, Z(-16) + s * 0.2), (0, 0, s), r=0.45)
 
 
@@ -1280,8 +1323,7 @@ def table_and_chairs(b, PAL, x, z, y, m_top, r=0.45):
     for (dx, dz) in ((0.75, 0), (-0.75, 0)):
         bx(b, PAL["dark"], x + dx - 0.2, x + dx + 0.2, y + 0.42, y + 0.47, z + dz - 0.2, z + dz + 0.2)
         bx(b, PAL["dark"], x + dx + (0.16 if dx > 0 else -0.2), x + dx + (0.2 if dx > 0 else -0.16), y + 0.47, y + 0.9, z + dz - 0.2, z + dz + 0.2)
-        for (lx, lz) in ((-0.17, -0.17), (0.17, -0.17), (-0.17, 0.17), (0.17, 0.17)):
-            bx(b, PAL["black"], x + dx + lx - 0.02, x + dx + lx + 0.02, y, y + 0.42, z + dz + lz - 0.02, z + dz + lz + 0.02)
+        b.cyl(PAL["black"], 0.03, (x + dx, y, z + dz), (x + dx, y + 0.42, z + dz), seg=4)
 
 
 def shelf_wall(b, PAL, x, z0, z1, y, facing, rows=4, seed=0):
@@ -1298,9 +1340,9 @@ def shelf_wall(b, PAL, x, z0, z1, y, facing, rows=4, seed=0):
     for r in range(rows):
         zz = min(z0, z1) + 0.05
         while zz < max(z0, z1) - 0.1:
-            w = rng.uniform(0.06, 0.16)
+            w = rng.uniform(0.14, 0.4)
             h = rng.uniform(0.22, 0.38)
-            panel(b, P[rng.choice(cols)], (x + facing * (d - 0.05), y + 0.33 + r * 0.45 + h / 2, zz + w / 2), (facing, 0, 0), w, h, o=0.0)
+            panel(b, PAL[rng.choice(cols)], (x + facing * (d - 0.05), y + 0.33 + r * 0.45 + h / 2, zz + w / 2), (facing, 0, 0), w, h, o=0.0)
             zz += w + 0.01
 
 
@@ -1368,10 +1410,10 @@ def dress_shop(b, PAL, name, x0, x1, z0, z1, side):
         text(b, PAL["neon_m"], "TROLL KOMBAT", (back + inward * 0.02, y + 2.9, cz), (inward, 0, 0), 0.34, o=0.01)
     elif name == "books":
         shop_floor(b, PAL["oak"], x0 + 0.05, x1 - 0.05, z0 + 0.2, z1 - 0.2)
-        shelf_wall(b, PAL, back, z0 + 0.6, z1 - 0.6, y, inward, rows=4, seed=int(cz))
+        shelf_wall(b, PAL, back, z0 + 0.6, z1 - 0.6, y, inward, rows=3, seed=int(cz))
         # a free-standing double shelf down the middle
-        shelf_wall(b, PAL, cx - 0.4, z0 + 2.5, z1 - 2.5, y, 1, rows=3, seed=int(cz) + 1)
-        shelf_wall(b, PAL, cx + 0.4, z0 + 2.5, z1 - 2.5, y, -1, rows=3, seed=int(cz) + 2)
+        shelf_wall(b, PAL, cx - 0.4, z0 + 4.0, z1 - 4.0, y, 1, rows=3, seed=int(cz) + 1)
+        shelf_wall(b, PAL, cx + 0.4, z0 + 4.0, z1 - 4.0, y, -1, rows=3, seed=int(cz) + 2)
         table_and_chairs(b, PAL, back + inward * 4.2, z0 + 1.6, y, PAL["oak"], r=0.55)
         panel(b, PAL["cream"], (back + inward * 0.01, y + 2.9, cz), (inward, 0, 0), 2.6, 0.5, o=0.0)
         text(b, PAL["black"], "TROLLSTOY", (back + inward * 0.02, y + 2.9, cz), (inward, 0, 0), 0.26, o=0.01)
@@ -1383,8 +1425,7 @@ def dress_shop(b, PAL, name, x0, x1, z0, z1, side):
         bx(b, PAL["steel"], back + inward * 0.1, back + inward * 0.9, y, y + 1.0, z0 + 2.6, z0 + 4.4)     # fridge
         panel(b, PAL["black"], (back + inward * 0.01, y + 2.6, z0 + 2.8), (inward, 0, 0), 2.6, 1.0, o=0.0)
         text(b, PAL["board_o"], "GRINBISS", (back + inward * 0.02, y + 2.95, z0 + 2.8), (inward, 0, 0), 0.24, o=0.01)
-        text(b, PAL["white"], "KEBAP 4  FRIES 2", (back + inward * 0.02, y + 2.6, z0 + 2.8), (inward, 0, 0), 0.12, o=0.01)
-        text(b, PAL["white"], "GRINK 1.5  NO REFUNDS", (back + inward * 0.02, y + 2.35, z0 + 2.8), (inward, 0, 0), 0.12, o=0.01)
+        text(b, PAL["white"], "KEBAP 4  FRIES 2", (back + inward * 0.02, y + 2.5, z0 + 2.8), (inward, 0, 0), 0.12, o=0.01)
         for tz in (z0 + 7.5, z0 + 10.5):
             table_and_chairs(b, PAL, cx + inward * 0.6, tz, y, PAL["white"])
         # a stripe round the walls at 1 m
@@ -1392,7 +1433,7 @@ def dress_shop(b, PAL, name, x0, x1, z0, z1, side):
     elif name == "apotrolle":
         shop_floor(b, PAL["white"], x0 + 0.05, x1 - 0.05, z0 + 0.2, z1 - 0.2)
         counter(b, PAL, back + inward * 1.2, back + inward * 2.0, z0 + 1.0, z0 + 5.0, y, PAL["white"], PAL["green"])
-        shelf_wall(b, PAL, back, z0 + 5.5, z1 - 0.6, y, inward, rows=4, seed=int(cz) + 7)
+        shelf_wall(b, PAL, back, z0 + 5.5, z1 - 0.6, y, inward, rows=3, seed=int(cz) + 7)
         panel(b, PAL["white"], (back + inward * 0.01, y + 2.7, z0 + 3.0), (inward, 0, 0), 2.4, 0.8, o=0.0)
         text(b, PAL["green"], "APOTROLLE", (back + inward * 0.02, y + 2.7, z0 + 3.0), (inward, 0, 0), 0.22, o=0.01)
         # the green cross out from the hall-side wall over the door
@@ -1426,14 +1467,14 @@ def dress_shop(b, PAL, name, x0, x1, z0, z1, side):
         bx(b, PAL["oak"], back, back + inward * 0.6, y + 1.6, y + 1.7, fz - 1.2, fz + 1.2)
         # the general's portrait over the fireplace, framed
         bx(b, PAL["frame"], back + inward * 0.02, back + inward * 0.08, y + 1.85, y + 4.55, fz - 0.98, fz + 0.98)
-        picture(b, ART_GENERAL, (240, 110, 760, 920), (back + inward * 0.08, y + 3.2, fz), (inward, 0, 0), 1.8, 2.5, 22, 30, k=7, o=0.0, seed=int(cz) + 4)
+        general_portrait(b, PAL, (back + inward * 0.08, y + 3.2, fz), (inward, 0, 0), 1.8, 2.5, o=0.004)
         # standing lamp
         b.cyl(PAL["black"], 0.03, (cx - 1.6, y, cz + 2.6), (cx - 1.6, y + 1.5, cz + 2.6), seg=5)
         b.frustum(PAL["cream"], 0.5, 0.5, 0.3, 0.3, y + 1.5, y + 1.85, x=cx - 1.6, z=cz + 2.6)
     # EXIT over the hall door (on the row's hall-side wall) is in ug-concourse; shop sign over the partition doors here
-    sign = {"arcade": "ARCADE", "books": "TROLLSTOY", "grinbiss": "GRINBISS", "apotrolle": "APOTROLLE", "purple": "PURPLE ROOM", "red": "RED ROOM", "lounge": "LOUNGE"}[name]
+    sign = {"purple": "PURPLE ROOM", "red": "RED ROOM"}.get(name)
     for (zz, nz) in ((z0 + 0.15, 1), (z1 - 0.15, -1)):
-        if abs(zz) > 39:
+        if abs(zz) > 39 or sign is None:
             continue
         dx = -19 if side < 0 else 19
         panel(b, PAL["roundelblue"], (dx, y + 2.75, zz), (0, 0, nz), 1.7, 0.3, o=0.0)
@@ -1493,6 +1534,16 @@ def plant_room(b, PAL):
     # tube lights round the well (the well itself is the atrium's daylight)
     for (x, z) in ((-6, -6), (6, -6), (-6, 6), (6, 6)):
         tube_light(b, PAL, x, z, SLAB0 - 0.02, along="x", L=1.4)
+    # a grey dado round the walls, a conduit run above it, a sign by the north door
+    for (xw, sg) in ((-9.4, 1), (9.4, -1)):
+        band_z(b, PAL["grey"], xw, sg, y, y + 1.3, -7.85, 7.85, o=0.0)
+        b.bar(PAL["dark"], (xw + sg * 0.05, 2.4, -7.8), (xw + sg * 0.05, 2.4, 7.8), 0.08)
+    for (zw, sg) in ((-7.85, 1), (7.85, -1)):
+        band_x(b, PAL["grey"], zw, sg, y, y + 1.3, -9.4, 9.4, o=0.0, doors=[(0.0, 1.8, 2.2)])
+        b.bar(PAL["dark"], (-9.3, 2.4, zw + sg * 0.05), (9.3, 2.4, zw + sg * 0.05), 0.08)
+    panel(b, PAL["nosing"], (-3.0, 2.0, -7.84), (0, 0, 1), 0.9, 0.5, o=0.0)
+    text(b, PAL["black"], "PLANT", (-3.0, 2.12, -7.84), (0, 0, 1), 0.14, o=0.012)
+    text(b, PAL["black"], "ROOM", (-3.0, 1.9, -7.84), (0, 0, 1), 0.14, o=0.012)
     # a hazard line on the floor round the room's middle
     for (a, c, d, e) in ((-4.3, 4.3, -4.3, -4.15), (-4.3, 4.3, 4.15, 4.3), (-4.3, -4.15, -4.15, 4.15), (4.15, 4.3, -4.15, 4.15)):
         hrect(b, PAL["yellow"], a, c, d, e, y + 0.006)
