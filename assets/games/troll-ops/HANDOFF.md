@@ -453,6 +453,8 @@ Map rules:
 
 ## 5. Shipped log (newest first; one line each, details in git)
 
+- **2026-10-14** (-jb1) Radio: OUT WEST and GATTI (JACKBOYS), 192k, beat grids 140 / 71.6 BPM. Tests: dj, menu, trollingloud.
+
 - **2026-10-14** (-bf1; the user's 4 phone bugs)
   - The phone magnifier: every touch control and the canvas cancel the long-press default (input/touch.js). Test: loupe.
   - Swap cycles primary, secondary, melee (touch SWAP, a tap of X, the pad's Y), in the range, Zombies and the waves too; stands down for a co-op revive in reach. Test: swap.
