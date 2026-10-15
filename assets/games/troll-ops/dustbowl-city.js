@@ -13,7 +13,7 @@
 // blocks get taller with distance, so the skyline carries over the wall.
 
 import * as THREE from "three";
-import { retexture } from "./surface-textures.js?v=hg6e";
+import { retexture } from "./surface-textures.js?v=hg6e-sr1";
 
 /* Palms in the streets outside (drawn by map-dressing.js palmTrees in
    maps.js); the blocks keep clear of them. [x, z, height] */

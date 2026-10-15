@@ -36,12 +36,12 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { SURFACES, retexture } from "./surface-textures.js?v=hg6e";
-import { portrait } from "./house-props.js?v=hg6e-sb2";
-import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e";
-import { loadModel } from "./battlefield-props.js";
+import { SURFACES, retexture } from "./surface-textures.js?v=hg6e-sr1";
+import { portrait } from "./house-props.js?v=hg6e-sb2-sr1";
+import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1";
+import { loadModel } from "./battlefield-props.js?v=sr1";
 import { buildChapel } from "./hollowgrin-chapel.js?v=hg6tc";
-import { placeMannequins } from "./hollowgrin-mannequins.js?v=hg6h";
+import { placeMannequins } from "./hollowgrin-mannequins.js?v=hg6h-sr1";
 
 export const HG_FLOORS = { ground: 0, upper: 3.6, loft: 2.4, wheel: 6.0, mansion: 4.2, brake: 9.0 };
 // The barn's loft (x 17.35..20.4 over the west end) is its own floor: by

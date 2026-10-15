@@ -22,7 +22,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { insidePolygon, clampInsidePolygon } from "./edge.js";
 import { rollGun, RARITIES, seededRng } from "./royale.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
-import { loadModel } from "./battlefield-props.js";
+import { loadModel } from "./battlefield-props.js?v=sr1";
 
 export const DROP = {
   enabled: true,        // tests switch it off to start on the ground, as before
