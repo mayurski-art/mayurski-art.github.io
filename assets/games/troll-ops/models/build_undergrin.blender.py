@@ -336,29 +336,50 @@ def troll_poster(b, PAL, c, normal, w, h, bg, cells=30, o=0.012, up=None, crop=(
         rect(b, PAL["black"] if k == "k" else PAL["white"], org, Uv, Vv, i0 * cw, i1 * cw, (cells - j1) * ch, (cells - j0) * ch)
 
 
-def general_portrait(b, PAL, c, normal, w, h, o=0.0):
-    """The troll general (ui/western/troll-general.jpg) as flat paint: the
-    painting's yellow ground, his grey dress uniform with gold epaulettes
-    and a medal, the trollface line art on top."""
-    Uv, Vv = frame(normal)
-    base = Vector(c) + Vector(normal) * o
-    panel(b, mosaic_mat(0xe8dc9a), c, normal, w, h, o)
-    # heights laid out for a 2.5 m canvas (its foot at -1.25), scaled to h
-    at = lambda u, v, k: base + Vector(normal) * k + Uv * u + Vv * (v * h / 2.5)
-    # torso: shoulders up to the collar, a darker sash and the collar
-    quad4(b, mosaic_mat(0x9a9ea4), [at(-0.47 * w, -1.25, 0.01), at(0.47 * w, -1.25, 0.01), at(0.38 * w, -0.02, 0.01), at(-0.38 * w, -0.02, 0.01)])
-    quad4(b, mosaic_mat(0x6c7076), [at(-0.1 * w, -0.02, 0.014), at(0.1 * w, -0.02, 0.014), at(0.1 * w, -0.12, 0.014), at(-0.1 * w, -0.12, 0.014)])
-    quad4(b, mosaic_mat(0x3a5a3a), [at(-0.36 * w, -0.1, 0.014), at(-0.2 * w, -0.08, 0.014), at(0.3 * w, -1.25, 0.014), at(0.1 * w, -1.25, 0.014)])
-    for sgn in (-1, 1):
-        quad4(b, mosaic_mat(0xd8b040), [at(sgn * 0.2 * w, -0.03, 0.016), at(sgn * 0.4 * w, -0.06, 0.016), at(sgn * 0.42 * w, -0.2, 0.016), at(sgn * 0.22 * w, -0.17, 0.016)])
-        for k in range(4):
-            quad4(b, mosaic_mat(0xb08a20), [at(sgn * (0.24 + 0.04 * k) * w, -0.2, 0.018), at(sgn * (0.26 + 0.04 * k) * w, -0.2, 0.018),
-                                            at(sgn * (0.26 + 0.04 * k) * w, -0.34, 0.018), at(sgn * (0.24 + 0.04 * k) * w, -0.34, 0.018)])
-    quad4(b, mosaic_mat(0x2b4bd6), [at(0.16 * w, -0.3, 0.016), at(0.22 * w, -0.3, 0.016), at(0.22 * w, -0.42, 0.016), at(0.16 * w, -0.42, 0.016)])
-    disc(b, mosaic_mat(0xd8b040), base + Uv * (0.19 * w) + Vv * (-0.48 * h / 2.5), normal, 0.07 * h / 2.5, seg=10, o=0.018)
-    face_h = min(h * 0.46, w * 0.72)
-    troll_poster(b, PAL, Vector(c) + Vector(normal) * 0.0 + Vv * (h / 2 - 0.08 - face_h / 2), normal, face_h * 1.12, face_h, None,
-                 cells=24, o=o + 0.02)
+ART_GENERAL = os.path.join(OUT_DIR, "..", "ui", "western", "troll-general.jpg")
+GENERAL_ASPECT = 900 / 1077   # the photo's width / height
+
+
+def portrait_mat(name, c, normal, w, h):
+    """The general's actual photo (ui/western/troll-general.jpg), embedded
+    in the GLB. Kept out of the vertex paint (gs_keep) and out of RETEXTURE,
+    so the game shows it as exported. finish() gives every face planar UVs
+    in metres (game z, y on an x-facing wall); a Mapping node (exported as
+    KHR_texture_transform) turns those into 0..1 across this one canvas."""
+    m = bpy.data.materials.get(name) or bpy.data.materials.new(name)
+    m["gs_hex"] = 0xffffff
+    m["gs_keep"] = True
+    m.use_nodes = True
+    nt = m.node_tree
+    bsdf = nt.nodes.get("Principled BSDF")
+    bsdf.inputs["Roughness"].default_value = 1.0
+    uvn = nt.nodes.new("ShaderNodeUVMap")
+    uvn.uv_map = "UVMap"
+    mp = nt.nodes.new("ShaderNodeMapping")
+    tex = nt.nodes.new("ShaderNodeTexImage")
+    tex.image = bpy.data.images.load(ART_GENERAL, check_existing=True)
+    tex.extension = "CLIP"
+    # u runs to the viewer's right: -z on a +x-facing wall, +z on a -x one
+    su = -1.0 if normal[0] > 0 else 1.0
+    mp.inputs["Scale"].default_value = (su / w, 1.0 / h, 1.0)
+    mp.inputs["Location"].default_value = (0.5 - su * c[2] / w, 0.5 - c[1] / h, 0.0)
+    nt.links.new(uvn.outputs["UV"], mp.inputs["Vector"])
+    nt.links.new(mp.outputs["Vector"], tex.inputs["Vector"])
+    nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    return m
+
+
+def general_portrait(b, PAL, c, normal, h, o=0.0, border=0.08):
+    """The troll general's photo, h tall at its own aspect, in a frame
+    that hugs it: the frame is the canvas plus `border` all round. `normal`
+    is +-x (the lounges' back walls). Returns the frame's outer size."""
+    w = h * GENERAL_ASPECT
+    x, y, z = c
+    nx = normal[0]
+    bx(b, PAL["frame"], min(x - nx * 0.06, x), max(x - nx * 0.06, x), y - h / 2 - border, y + h / 2 + border,
+       z - w / 2 - border, z + w / 2 + border)
+    panel(b, portrait_mat("UG_Portrait%s" % ("W" if nx > 0 else "E"), c, normal, w, h), c, normal, w, h, o)
+    return w + 2 * border, h + 2 * border
 
 
 def sub_rects(rs, hole):
@@ -1444,9 +1465,8 @@ def dress_shop(b, PAL, name, x0, x1, z0, z1, side):
         bx(b, PAL["black"], back + inward * 0.5, back + inward * 0.52, y + 0.2, y + 1.0, fz - 0.6, fz + 0.6)
         panel(b, PAL["fire"], (back + inward * 0.53, y + 0.5, fz), (inward, 0, 0), 0.8, 0.5, o=0.0)
         bx(b, PAL["oak"], back, back + inward * 0.6, y + 1.6, y + 1.7, fz - 1.2, fz + 1.2)
-        # the general's portrait over the fireplace, framed
-        bx(b, PAL["frame"], back + inward * 0.02, back + inward * 0.08, y + 1.82, y + 3.48, fz - 0.68, fz + 0.68)
-        general_portrait(b, PAL, (back + inward * 0.08, y + 2.65, fz), (inward, 0, 0), 1.2, 1.5, o=0.004)
+        # the general's photo over the fireplace, in a frame that hugs it
+        general_portrait(b, PAL, (back + inward * 0.08, y + 2.65, fz), (inward, 0, 0), 1.5, o=0.004)
         # standing lamp
         b.cyl(PAL["black"], 0.03, (cx - 1.6, y, cz + 2.6), (cx - 1.6, y + 1.5, cz + 2.6), seg=5)
         b.frustum(PAL["cream"], 0.5, 0.5, 0.3, 0.3, y + 1.5, y + 1.85, x=cx - 1.6, z=cz + 2.6)

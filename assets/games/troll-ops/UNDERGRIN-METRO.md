@@ -335,16 +335,16 @@ The numbers in it are copied from sections 3 and 4. They are not colliders.
 | `ug-escalators` | 419 KB | both escalator pairs, the side stairs, the purple and red steel stairs, well rails |
 | `ug-trains` | 475 KB | two yellow trains with interiors, trollface ads, TROLLHALLA blinds |
 | `ug-concourse` | 1,081 KB | gates, desks, newsstand, benches, the GRINLINE board, clock, pendants, posters, roundels, hanging signs, EXIT signs, tube lights |
-| `ug-shops` | 672 KB | the twelve shop interiors, the Troll Kombat arcade, the lounge with the general's portrait, the purple and red rooms |
+| `ug-shops` | 838 KB | the twelve shop interiors, the Troll Kombat arcade, the lounges with the general's photo, the purple and red rooms |
 | `ug-plant` | 134 KB | plant room kit, corridor and bore props |
 
-The new set totals 3.47 MB, within the ~6 MB budget.
+The new set totals 3.63 MB, within the ~6 MB budget.
 
 **How it's painted**
 
 - Every material is a flat `UG_*` colour that is not in RETEXTURE, so the GLBs carry vertex paint only.
 - The emissives keep their own material: tube lights, EXIT signs, board text, screens, neons, fire, pendants, the green cross and headlights.
-- There are no lamps or textures in any file.
+- There are no lamps in any file. The one texture is the general's portrait in the lounges: the actual `ui/western/troll-general.jpg`, embedded once in `ug-shops`. It is on the kept material `UG_PortraitW` or `UG_PortraitE`, which is not in RETEXTURE, so it shows as exported. Its frame is cut to the photo's 900 x 1077 ratio.
 - The trollface art is a cell mosaic of `assets/pfp/base/og.webp`.
 
 **Checks**
