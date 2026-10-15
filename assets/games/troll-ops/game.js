@@ -56,7 +56,7 @@ import {
 import { BotManager } from "./bots.js?v=cg5-em1-wst-bs1-p22-bs2-sb2-gj1-fu1b7b7d-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-ob1";
 import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import { GameAudio } from "./audio.js?v=zr4-hf1-wb1-th2-zr9-zr10-zp1-ar1-pl2";
-import { MapAmbience } from "./ambience.js?v=amb1-wst-tl1-gj1";
+import { MapAmbience } from "./ambience.js?v=amb1-wst-tl1-gj1-ug5";
 import { insidePolygon } from "./edge.js";
 import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./royale.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1";
 import { GameMusic, EQ_BANDS, EQ_RANGE } from "./music.js?v=to-gs1-sg1-zr10-jb1-nh1-hl1";
