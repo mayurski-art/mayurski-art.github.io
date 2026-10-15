@@ -22,14 +22,16 @@ const PRESETS = {
       ["clank", 6, 16], ["car", 10, 24], ["chirp", 9, 20], ["gunfire", 22, 45],
     ],
   },
-  // Underground station: mains hum, moving tunnel air, drips, and every so
-  // often a train going through the other bore.
+  // Undergrin Metro, the bright one (UNDERGRIN-METRO.md): the tube lights'
+  // hum, steady ventilation (no gusts, no drips), a few commuters, the PA's
+  // three-note chime and its announcer, trains pulling in and through.
   undergrin: {
     beds: [
-      { kind: "hum", freqs: [60, 120, 180, 240], gain: 0.018, lp: 420 },
-      { kind: "wind", freq: 230, gain: 0.035, gust: 0.4, rate: 0.04 },
+      { kind: "hum", freqs: [120, 240, 360], gain: 0.011, lp: 900 },
+      { kind: "noise", type: "lowpass", freq: 900, gain: 0.016 },   // air handling
+      { kind: "murmur", gain: 0.01 },
     ],
-    events: [["drip", 2, 7], ["train", 35, 70], ["buzz", 12, 28], ["creak", 18, 36]],
+    events: [["pa", 22, 45], ["arrival", 35, 65], ["train", 50, 90, 0.6]],
   },
   // Dry, gusty, and somebody else's war two streets over.
   dustbowl: {
@@ -614,6 +616,60 @@ export class MapAmbience {
         const out = this._out(0.055 * gain, 0);
         this._osc(out, { type: "triangle", path: [[880, 0], [880, 1.2]], t0: t, dur: 1.2, attack: 0.005 });
         this._osc(out, { type: "triangle", path: [[698.5, 0], [698.5, 1.6]], t0: t + 0.55, dur: 1.6, attack: 0.005 });
+        break;
+      }
+      case "pa": {
+        // A station PA: a three-note bell rising, then a muffled announcer
+        // (formant blips through a small speaker), each with a hall echo.
+        const pan = rand(-0.3, 0.3);
+        for (const [delay, lvl] of [[0, 1], [0.16, 0.3]]) {
+          const out = this._out(0.05 * gain * lvl, pan);
+          [523.25, 659.25, 783.99].forEach((hz, i) => {
+            this._osc(out, { path: [[hz, 0], [hz, 1.1]], t0: t + delay + i * 0.42, dur: 1.1, attack: 0.004 });
+            this._osc(out, { path: [[hz * 2.76, 0], [hz * 2.76, 0.4]], t0: t + delay + i * 0.42, dur: 0.4, peak: 0.25, attack: 0.002 });
+          });
+          const spk = this.audio.ctx.createBiquadFilter();
+          spk.type = "bandpass"; spk.frequency.value = 1200; spk.Q.value = 0.9;
+          spk.connect(out);
+          let t0 = t + delay + 2.0;
+          const words = 6 + Math.floor(Math.random() * 6);
+          const pitch = rand(130, 175);
+          for (let i = 0; i < words; i++) {
+            const d = rand(0.09, 0.22);
+            this._osc(spk, { type: "sawtooth", path: [[pitch * rand(0.92, 1.1), 0], [pitch * rand(0.85, 1.05), d]], t0, dur: d, peak: 0.35, attack: 0.015 });
+            this._burst(spk, { t0, dur: d * 0.8, type: "bandpass", freq: rand(700, 2400), q: 3, peak: 0.25, attack: 0.01 });
+            t0 += d + (Math.random() < 0.25 ? rand(0.15, 0.3) : rand(0.02, 0.06));
+          }
+        }
+        break;
+      }
+      case "arrival": {
+        // A train pulling in at this platform: the rumble builds, the brakes
+        // squeal down, it stops, the door chime beeps and the doors hiss open.
+        const ctx = this.audio.ctx;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.16 * gain, t + 4);
+        g.gain.exponentialRampToValueAtTime(0.05 * gain, t + 7);
+        g.gain.setValueAtTime(0.05 * gain, t + 11);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 12);
+        const p = ctx.createStereoPanner();
+        const dir = Math.random() < 0.5 ? 1 : -1;
+        p.pan.setValueAtTime(-0.8 * dir, t);
+        p.pan.linearRampToValueAtTime(0.2 * dir, t + 7);
+        g.connect(p).connect(this.bus);
+        this._burst(g, { t0: t, dur: 7.5, freq: 160, sweepTo: 90, q: 0.5, attack: 3.5 });
+        for (let i = 0; i < 12; i++) {
+          const t0 = t + 2 + i * (0.3 + i * 0.03);
+          this._burst(g, { t0, dur: 0.06, type: "bandpass", freq: 600, q: 2, peak: 0.25, attack: 0.002 });
+        }
+        this._osc(g, { path: [[2400, 0], [1700, 2.6]], t0: t + 4.2, dur: 2.8, peak: 0.05, attack: 0.25, vib: 30, vibRate: 7 });
+        const out = this._out(0.045 * gain, 0.2 * dir);
+        for (let i = 0; i < 3; i++) {
+          this._osc(out, { type: "square", path: [[1046.5, 0], [1046.5, 0.16]], t0: t + 8 + i * 0.4, dur: 0.16, peak: 0.4, attack: 0.004 });
+          this._osc(out, { type: "square", path: [[784, 0], [784, 0.16]], t0: t + 8.2 + i * 0.4, dur: 0.16, peak: 0.4, attack: 0.004 });
+        }
+        this._burst(this._out(0.06 * gain, 0.2 * dir), { t0: t + 9.4, dur: 0.9, type: "highpass", freq: 3000, peak: 1, attack: 0.03 });
         break;
       }
       case "shimmer": {

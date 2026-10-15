@@ -420,8 +420,43 @@ Every GLB was rendered full-bright from the doc's views, with at least two rende
 - bot-stuck: PASS (no stalls).
 - bot-stairs sim: flaky, with a bot sometimes slipping off the island edge into a bore. The blockout branch fails 1 run in 6; this branch failed 4 of 6, and the partitions are the only collider change it sees.
 
-**Still to do:**
-- Map previews and loading-screen shots (SHOT_V).
-- Ambience.
-- A HANDOFF line when it ships.
-- The bot lead: the stairs flake above and the blockout's stall at the west stair top.
+## 12. Phase 5 (2026-10-15, branch `claude/tf-undergrin-phase5`)
+
+- **Map preview (-ug5):** re-rendered from the atrium past the gates,
+  full-bright. `SHOT_V.undergrin` is ug5.
+- **Ambience:** the bright set replaces the dark-fog one: tube hum, air
+  handling, commuters, the PA chime and announcer, and trains pulling in
+  and passing through. Test: `tools/troll-ops-ambience-test.mjs`.
+- **Bot-stairs flake:** the bots' own logic plus `Math.random`, so a run is
+  random, but a seeded run fails the same way every time. Two
+  map-data causes are fixed:
+  - **Bore rails:** they were 12 cm colliders. A bot that fell into a bore
+    stood on a rail's edge, so its groundY bobbed between 0.04 and 0.08,
+    and the 0.95 platform crossed bots.js `SAME_LEVEL` (0.9) every other
+    frame. It dithered between "stairs" and "same floor" forever. The
+    rail colliders are gone (the models still draw the rails).
+  - **The west stairs' foot:** it was 0.5 m off the end wall, and its
+    foot link was inside the wall, so a bot coming down ended on the bottom
+    tread (1.25). The foot is now at z -42.65, a 1.35 m landing: the run
+    went from 0.5 to 0.45, and the top didn't move.
+
+**The cause under both, fixed in bots.js (-nl1).** Nav fields sit on 0.5 m
+levels and only see floors within ±0.45, so the 1.5 field has no cells at
+0.95. A bot on the treads, or with `navY` held 0.4 above the floor after a
+descent, read the 1.5 field, found no route and wandered. Now `navLevelAt`
+reads the field on the floor the bot is on (the highest surface of 3 m²
+or more at or under its feet, within 1.2 m) whenever the rounded level
+would miss it. Anywhere else the level is unchanged.
+
+The numbers:
+- Seeded, undergrin seeds 1-16: 384/384 hunts pass, against 5 failing
+  seeds before.
+- Unseeded, every map, x2: every flight passes. Grinleria's perch check
+  fails in both runs, as it did before the fix.
+
+Also open:
+- The in-game part of `troll-ops-bot-stairs-test.mjs` throws a
+  ReferenceError (`to`, `from`, `sinks`, `prevY`: three lines from the
+  sim's `hunt()` pasted into `run()`).
+- map-walk "N escalator (west lane) -> hall" fails on the unmodified maps.js
+  too.
