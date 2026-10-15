@@ -2,13 +2,13 @@
 // spectating and the end. Moved out of game.js (split phase 1); royale.js
 // next door holds the zone and loot it runs on.
 
-import { hashSeed, seededRng, RoyaleZone, ROYALE, LootField, lootSpots, ZoneVisual, ITEM_NAMES, gunDisplayName } from "../royale.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
+import { hashSeed, seededRng, RoyaleZone, ROYALE, LootField, lootSpots, ZoneVisual, ITEM_NAMES, gunDisplayName, POI_TIERS, poiTierAt } from "../royale.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1";
 import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";
 import { insidePolygon } from "../edge.js";
-import { DROP, RoyaleDrop, buildParaglider, Flight } from "../royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-sr1";
-import { Squadron, PLANES, flightPos, flightVel } from "../royale-planes.js?v=pl1-pl2-sr1";
-import { SEAT_SPOTS, RAMP_END } from "../royale-hold.js?v=pl1-pl2-sr1";
-import { DROP_BUS, DROP_FALL, DROP_GLIDE, ROLL_TIME, busPlacers } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-sr1";
+import { DROP, RoyaleDrop, buildParaglider, Flight } from "../royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1";
+import { Squadron, PLANES, flightPos, flightVel } from "../royale-planes.js?v=pl1-pl2-pi1";
+import { SEAT_SPOTS, RAMP_END } from "../royale-hold.js?v=pl1-pl2";
+import { DROP_BUS, DROP_FALL, DROP_GLIDE, ROLL_TIME, busPlacers } from "../remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1";
 import * as THREE from "three";
 import { WEAPON_DEFS, WeaponState } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import { defaultLoadoutFor } from "../attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
@@ -40,9 +40,18 @@ export function setupRoyale(seed = royaleSeed()) {
   const dry = (x, z) => onLand(x, z) && (!map.wade || !insidePolygon(map.wade, x, z));
   // Circle centres stay on dry land too: a final circle in the lake is a
   // slow wade for everyone.
-  const zone = new RoyaleZone(bounds, rng, map.royale?.phases || ROYALE.phases, map.edge ? dry : null);
+  // Points of interest (ROYALE-ISLAND.md): the loot gathers there, and the
+  // last circles lean toward them.
+  const pois = map.royale?.pois || null;
+  const nearPoi = pois ? (x, z) => {
+    let s = 0;
+    for (const p of pois) { const t = POI_TIERS[p.tier]; if (t) s = Math.max(s, t.zone * Math.max(0, 1 - Math.hypot(x - p.x, z - p.z) / (p.r + 30))); }
+    return s;
+  } : null;
+  const zone = new RoyaleZone(bounds, rng, map.royale?.phases || ROYALE.phases, map.edge ? dry : null, nearPoi);
   const loot = new LootField(game.scene);
-  loot.spawnSeeded(lootSpots(game.colliders, bounds, rng, { ok: map.edge ? dry : null, perSqM: map.royale?.lootPerSqM }), rng, royaleGround);
+  const spots = lootSpots(game.colliders, bounds, rng, { ok: map.edge ? dry : null, perSqM: map.royale?.lootPerSqM, pois });
+  loot.spawnSeeded(spots.concat(map.royale?.lootExtra || []), rng, royaleGround);
   royale = {
     seed, zone, loot, visual: new ZoneVisual(game.scene),
     t: 0, live: false, peak: 0, place: 0, over: false, endT: 0,
@@ -272,9 +281,9 @@ export function greenLight() {
     // lies on dry land), spread over the island, not piled onto the map's
     // handful of spawn points (user, 2026-10-03: "within a couple of
     // minutes we went from 100 people to 10").
-    const floor = [...r.loot.items.values()].filter((it) => (it.y || 0) < 100);
+    const floor = [...r.loot.items.values()].filter((it) => (it.y || 0) < 0.5);   // not the decks
     const spots = floor.length ? floor : game.builtMap.spawnPoints?.length ? game.builtMap.spawnPoints : [{ x: 0, z: 0 }];
-    const landAt = botLandings(spots, game.bots.bots, d.squadron, game.builtMap.map.edge);
+    const landAt = botLandings(spots, game.bots.bots, d.squadron, game.builtMap.map.edge, game.builtMap.map.royale?.pois);
     for (const b of game.bots.bots) {
       const bd = b.drop;
       if (!bd || bd.state !== "aboard") continue;
@@ -293,10 +302,11 @@ export function greenLight() {
    killing each other swiftly" — 85 of 99 landed within 10 m of someone, so
    every landing was a brawl and bot damage had been turned down to 20% to
    slow it). Now: only spots a fall from the bot's own plane can reach, each
-   one as far from the others as the spots allow. */
+   one as far from the others as the spots allow, the points of interest
+   counting as further (POI_TIERS `land`), so the hot drops get a crowd. */
 // Bots steer harder in freefall than you do (nobody sees it from 300 m up).
 const BOT_FALL_STEER = 28;
-function botLandings(spots, bots, sq, edge) {
+function botLandings(spots, bots, sq, edge, pois = null) {
   const out = new Map();
   const riders = bots.filter((b) => b.drop?.state === "aboard");
   // Where each one goes out, and how far sideways its fall carries it.
@@ -315,6 +325,7 @@ function botLandings(spots, bots, sq, edge) {
     }
   }
   pool.sort(() => Math.random() - 0.5);
+  const pull = pool.map((p) => poiTierAt(pois, p.x, p.z)?.land ?? 1);
   // Farthest-point picking: each bot takes the spot in its reach furthest
   // from all those already taken (a spot can be taken twice once they run
   // out); nothing in reach, the nearest spot to where it goes out.
@@ -325,7 +336,7 @@ function botLandings(spots, bots, sq, edge) {
     for (let j = 0; j < pool.length; j++) {
       const dj = Math.hypot(pool[j].x - e.x, pool[j].z - e.z);
       if (dj < nearestD) { nearestD = dj; nearest = j; }
-      if (inReach(e, pool[j].x, pool[j].z) && (best < 0 || near[j] > near[best])) best = j;
+      if (inReach(e, pool[j].x, pool[j].z) && (best < 0 || near[j] * pull[j] > near[best] * pull[best])) best = j;
     }
     const p = pool[best < 0 ? nearest : best];
     out.set(b, { x: p.x + (Math.random() - 0.5) * 6, z: p.z + (Math.random() - 0.5) * 6 });
@@ -817,7 +828,7 @@ function royaleBotLoot(b, circle) {
   const reach = botArmed(b) && (b.plates | 0) > 0 ? BOT_LOOT_SEARCH_ARMED : BOT_LOOT_SEARCH;
   let best = null, bestD = reach;
   for (const it of items.values()) {
-    if (claimed.has(it.id) || !botWants(b, it)) continue;
+    if (claimed.has(it.id) || (it.y || 0) > 0.5 || !botWants(b, it)) continue;
     if (Math.hypot(it.x - circle.x, it.z - circle.z) > circle.r) continue;
     const d = Math.hypot(it.x - b.pos.x, it.z - b.pos.z);
     if (d < bestD) { best = it; bestD = d; }
@@ -830,7 +841,7 @@ function royaleBotLoot(b, circle) {
 
 /* The newest gunfire an armed bot can hear that isn't its own. */
 function royaleNoiseFor(b) {
-  if (!botArmed(b)) return null;
+  if (!botArmed(b) || botCalm(b)) return null;
   for (let i = royale.noises.length - 1; i >= 0; i--) {
     const n = royale.noises[i];
     if (royale.t - n.t > 4 || n.by === b.id) continue;
@@ -959,9 +970,21 @@ function royalePhaseIdx() {
   const s = royale.zone.state(royale.t);
   return Math.max(0, Math.min(4, (s.phase | 0) - 1 + (s.stage === "final" ? 1 : 0)));
 }
+/* Pacing (user, 2026-10-14, ROYALE-ISLAND.md option b): with 99 bots the
+   island was down to ~10 by 2.5 min while the zone runs ~9.5. After a kill
+   a bot is calm for 30-45 s (its own length): it loots, plates and heals,
+   only sees who's right there and doesn't go to gunfire. Shot at, it still
+   fights back. */
+function botCalm(b) {
+  if (!b.killedAt) return false;
+  let h = 0;
+  for (const ch of String(b.id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return performance.now() - b.killedAt < 30000 + (h % 1000) * 15;
+}
 export function royaleBotSight(b) {
   // Someone shooting at it gets noticed whatever the range.
   if (b.hurtAt && performance.now() - b.hurtAt < 3000) return 45;
+  if (botCalm(b)) return UNARMED_SIGHT;
   // Only the landing pistol: run for a gun, don't pick fights on the way
   // (unless someone's right there). Bots that have one fight as they find
   // people, and those fights end fast.

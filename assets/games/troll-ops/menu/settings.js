@@ -1,7 +1,7 @@
 // Troll Forces settings: the saved settings object and applySettings, which
 // pushes it into audio, FOV, the minimap, graphics and the bot skill.
 
-import { minimapCanvas } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-sr1";
+import { minimapCanvas } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1";
 import { game } from "../core/state.js?v=st1";
 import { showFps } from "../core/fps-meter.js?v=fp1-zr10";
 

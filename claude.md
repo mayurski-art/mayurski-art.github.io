@@ -66,7 +66,7 @@ These rules hold for every session that touches the game:
 3. Checks (user, 2026-10-14: "no gate going forward"): don't run
    `tools/troll-ops-gate.mjs`, full or `--quick`. Each change gets its own
    targeted test (the ones the gate's TEST_MAP lists for the files you
-   touched are a good guide), run one at a time; push when the user says.
+   touched are a good guide), in parallel is fine; push when the user says.
 4. Bump the ?v= cache tag of every module you change, and game.js's tag in
    troll-ops.html whenever an import tag changes.
 5. A fix touches one system. Two systems = two commits, each checked with
