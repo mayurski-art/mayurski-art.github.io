@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://mayurski-art.github.io https://trollrunner.net https://www.trollrunner.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co; object-src 'none'; base-uri 'self';">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="Troll Man: the trollface eats the dots while Pepe, Doge, Giga Chad and Pudgy hunt him down. A Troll Runner arcade game.">
+  <meta property="og:title" content="Troll Man | Troll Runner Arcade">
+  <meta property="og:description" content="Eat the dots. Dodge the memes. Giga Chad, Pepe, Pudgy and Doge are coming. Problem?">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://trollrunner.net/troll-man.html">
+  <meta property="og:image" content="https://trollrunner.net/assets/games/troll-man/ui/troll-man-banner.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Troll Man: the trollface runs from Giga Chad, Pepe, Pudgy and Doge">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Troll Man | Troll Runner Arcade">
+  <meta name="twitter:description" content="Eat the dots. Dodge the memes. Problem?">
+  <meta name="twitter:image" content="https://trollrunner.net/assets/games/troll-man/ui/troll-man-banner.jpg">
+  <title>Troll Man | Troll Runner Arcade</title>
+  <link rel="icon" type="image/png" href="assets/games/troll-man/sprites/trollface-f1-32.png">
+  <link rel="preload" as="image" href="assets/games/troll-man/ui/troll-man-poster.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/troll-leaderboard.css?v=lb-engine-v1">
+  <link rel="stylesheet" href="assets/games/troll-man/style.css?v=tm-p6">
+</head>
+<body>
+  <a class="arcade-back-link" href="index.html?open=arcade" aria-label="Back to Troll Runner Arcade">&larr; Arcade</a>
+  <button type="button" class="tm-corner-btn tm-board-btn" id="tm-board-btn" aria-label="Weekly leaderboard" aria-expanded="false" aria-controls="tm-board">
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path d="M7 4h10v5a5 5 0 0 1-10 0z" fill="currentColor"/>
+      <path d="M7 6H4v1.5A3.5 3.5 0 0 0 7.5 11M17 6h3v1.5a3.5 3.5 0 0 1-3.5 3.5" fill="none" stroke="currentColor" stroke-width="2"/>
+      <path d="M12 14v4M8 20h8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+    </svg>
+  </button>
+  <button type="button" class="tm-corner-btn tm-mute" id="tm-mute" aria-pressed="false" aria-label="Sound on. Mute">
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/>
+      <path class="tm-mute-waves" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path class="tm-mute-cross" d="M16 9l6 6M22 9l-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+  </button>
+
+  <!-- Loading screen: the poster until the first key or tap (game.js). -->
+  <button type="button" class="tm-splash" id="tm-splash" aria-label="Troll Man. Press any key or tap to play">
+    <img src="assets/games/troll-man/ui/troll-man-poster.jpg" alt="" width="1200" height="1700">
+    <span class="tm-splash-cta" aria-hidden="true">
+      <span class="tm-cta-loading">LOADING&hellip;</span>
+      <span class="tm-cta-key">PRESS ANY KEY</span>
+      <span class="tm-cta-tap">TAP TO PLAY</span>
+    </span>
+  </button>
+
+  <main class="tm-shell">
+    <h1 class="tm-logo"><img src="assets/games/troll-man/ui/troll-man-logo.jpg" alt="Troll-Man" width="1946" height="635"></h1>
+
+    <div class="tm-cabinet">
+      <canvas id="tm-canvas" width="448" height="544" tabindex="0"
+              aria-label="Troll Man game screen. Arrow keys or WASD to move, Space to taunt, Enter to start, P to pause."></canvas>
+    </div>
+
+    <!-- Touch controls: shown only on touch screens (see style.css). -->
+    <div class="tm-stick" id="tm-stick" role="group" aria-label="Joystick: drag to steer">
+      <div class="tm-stick-knob"></div>
+    </div>
+    <div class="tm-buttons">
+      <button type="button" class="tm-btn" id="tm-select" aria-label="Select: the Problem? taunt">SELECT</button>
+      <button type="button" class="tm-btn" id="tm-start" aria-label="Start or pause">START</button>
+    </div>
+
+    <p class="tm-help">Arrows / WASD to move &middot; Space: Problem? &middot; Enter to start &middot; P to pause &middot; M for sound</p>
+  </main>
+
+  <!-- The weekly board (shared engine, assets/games/LEADERBOARD.md). -->
+  <div class="tm-board" id="tm-board" role="dialog" aria-modal="true" aria-labelledby="tm-board-title" hidden>
+    <section class="tm-board-card">
+      <header class="tm-board-head">
+        <h2 id="tm-board-title">Top Trolls this week</h2>
+        <button type="button" class="tm-board-close" aria-label="Close the leaderboard">&times;</button>
+      </header>
+      <div id="lb-root" class="lb-root"><p class="lb-foot">Loading leaderboard&hellip;</p></div>
+    </section>
+  </div>
+
+  <script src="assets/js/troll-leaderboard.js?v=lb-engine-v1" defer></script>
+  <script src="assets/games/troll-man/leaderboard.js?v=tm-p6" defer></script>
+  <script src="assets/games/troll-man/sound.js?v=tm-p5" defer></script>
+  <script src="assets/games/troll-man/game.js?v=tm-p6" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
+  <script src="https://mayurski-art.github.io/assets/js/troll-accounts.js"></script>
+  <script src="assets/games/shared/site-lock.js"></script>
+</body>
+</html>

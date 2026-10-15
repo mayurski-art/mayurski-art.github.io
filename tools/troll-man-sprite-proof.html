@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Troll Man sprite proof</title>
+<style>
+  body { margin: 0; background: #111; color: #ddd; font: 13px monospace; }
+  canvas { image-rendering: pixelated; display: block; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+// Troll Man phase 0: the original meme faces + the trollface, pixelated to
+// game size, so the user can approve them before any game code.
+// Sources: the trollface from the site; the four meme faces are dropped by
+// the user into assets/games/troll-man/refs/faces/<name>.(png|jpg|webp).
+// A missing face is skipped, so this runs with whatever is there.
+const SIZES = [24, 32];
+// The trollface is the user's own pixel version (refs/faces/trollface.png),
+// never the site's green-eyed logo-face.
+const FACES = [
+  { name: "trollface" },                       // 443x400, transparent
+  { name: "pepe" },                            // 461x381, transparent
+  // Doge is the same pixel art as a sticker print: crop the sticker border off and key the pale background
+  { name: "doge", src: "../assets/games/troll-man/refs/faces/doge-source.jpg", crop: [95, 55, 410, 490], keyWhite: true, tol: 60 },
+  { name: "gigachad", crop: [50, 20, 160, 150], keyWhite: true, tol: 28, grey: true },   // 256x256 on a flat grey background; head only
+  // Pudgy Penguin: a smooth cartoon, so it goes through the pixelator from the user's source image
+  { name: "pudgy", src: "../assets/games/troll-man/refs/faces/pudgy-source.png", crop: [55, 85, 350, 250], keyWhite: true },
+];
+const EXT = ["png", "jpg", "jpeg", "webp"];
+// Generated sprite sheets: one character per row, 3 frames per row (normal, blink, mouth/action), white background.
+const SHEETS = [
+  { src: "../assets/games/troll-man/refs/faces/sheet-troll-pepe.webp", cols: 3, rows: ["trollface", "pepe"] },
+  // drawn-on checkerboard "transparency": a wider key tolerance takes both squares out
+  { src: "../assets/games/troll-man/refs/faces/sheet-doge-chad.webp", cols: 3, rows: ["doge", "gigachad"], tol: 70 },
+  { src: "../assets/games/troll-man/refs/faces/sheet-pudgy.webp", cols: 3, rows: ["pudgy"] },
+];
+
+function loadImg(src) {
+  return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+}
+async function loadFace(f) {
+  if (f.src) return loadImg(f.src);
+  for (const e of EXT) {
+    try { return await loadImg(`../assets/games/troll-man/refs/faces/${f.name}.${e}`); } catch (_) {}
+  }
+  return null;
+}
+
+// Flood-fill the background colour (sampled at the corners) from the corners
+// to transparent; enclosed areas of the same colour (teeth, eye whites) stay.
+function keyOutWhite(c, tol = 40) {
+  const x = c.getContext("2d"), w = c.width, h = c.height;
+  const d = x.getImageData(0, 0, w, h), p = d.data;
+  // seed 2px in from the corners: some sources carry a 1px border that is not the background colour
+  const seen = new Uint8Array(w * h), q = [2 * w + 2, 2 * w + w - 3, (h - 3) * w + 2, (h - 3) * w + w - 3];
+  const bg = [0, 1, 2].map(k => q.reduce((s, i) => s + p[i * 4 + k], 0) / 4);
+  const isWhite = i => Math.abs(p[i * 4] - bg[0]) < tol && Math.abs(p[i * 4 + 1] - bg[1]) < tol && Math.abs(p[i * 4 + 2] - bg[2]) < tol;
+  while (q.length) {
+    const i = q.pop(); if (seen[i] || !isWhite(i)) continue; seen[i] = 1; p[i * 4 + 3] = 0;
+    const cx = i % w, cy = (i / w) | 0;
+    if (cx > 0) q.push(i - 1); if (cx < w - 1) q.push(i + 1); if (cy > 0) q.push(i - w); if (cy < h - 1) q.push(i + w);
+  }
+  x.putImageData(d, 0, 0);
+}
+
+// Area-average downscale in halving steps, hard alpha, posterize, 1px black outline.
+function pixelate(img, crop, box, keyWhite, tol, grey) {
+  const inner = box - 2;
+  crop = crop || [0, 0, img.naturalWidth, img.naturalHeight];
+  let c = document.createElement("canvas"); c.width = crop[2]; c.height = crop[3];
+  c.getContext("2d").drawImage(img, crop[0], crop[1], crop[2], crop[3], 0, 0, crop[2], crop[3]);
+  if (keyWhite) keyOutWhite(c, tol);
+  // keep only the largest connected shape: sheet cells can catch the edge of the neighbouring frame
+  {
+    const x = c.getContext("2d"), w = c.width, h = c.height, d = x.getImageData(0, 0, w, h), p = d.data;
+    // label on a mask dilated by 3px, so soft/anti-aliased seams inside a drawing don't split it
+    let m = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) m[i] = p[i * 4 + 3] > 40 ? 1 : 0;
+    for (let pass = 0; pass < 3; pass++) {
+      const n = new Uint8Array(m);
+      for (let i = 0; i < w * h; i++) if (!m[i]) {
+        const ix = i % w;
+        if ((ix > 0 && m[i - 1]) || (ix < w - 1 && m[i + 1]) || (i >= w && m[i - w]) || (i + w < w * h && m[i + w])) n[i] = 1;
+      }
+      m = n;
+    }
+    const label = new Int32Array(w * h).fill(-1); const sizes = [], edge = []; let best = -1;
+    for (let i = 0; i < w * h; i++) {
+      if (!m[i] || label[i] >= 0) continue;
+      const id = sizes.length; sizes.push(0); edge.push(false); const q = [i]; label[i] = id;
+      while (q.length) {
+        const j = q.pop(); sizes[id]++;
+        const jx = j % w, jy = (j / w) | 0;
+        if (jx === 0 || jy === 0 || jx === w - 1 || jy === h - 1) edge[id] = true;
+        for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+          const X = jx + dx, Y = jy + dy; if (X < 0 || Y < 0 || X >= w || Y >= h) continue;
+          const k = Y * w + X; if (label[k] < 0 && m[k]) { label[k] = id; q.push(k); }
+        }
+      }
+      if (best < 0 || sizes[id] > sizes[best]) best = id;
+    }
+    // drop only small pieces that touch the crop edge (a neighbouring frame bleeding into this cell);
+    // anything inside the cell (pupils, teeth, soft-edged parts) stays
+    if (sizes.length > 1) {
+      const keep = sizes.map((s, id) => !edge[id] || s >= sizes[best] * 0.15);
+      for (let i = 0; i < w * h; i++) if (label[i] >= 0 && !keep[label[i]]) p[i * 4 + 3] = 0;
+      x.putImageData(d, 0, 0);
+    }
+  }
+  // trim transparent margins so every frame fills the box the same way
+  {
+    // a row/column counts only with a run of opaque pixels, so leftover background specks don't widen the box
+    const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+    const minRun = Math.max(3, Math.round(c.width / 60));
+    const rows = new Uint32Array(c.height), cols = new Uint32Array(c.width);
+    for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (d[(y * c.width + x) * 4 + 3] > 110) { rows[y]++; cols[x]++; }
+    let x0 = 0, x1 = c.width - 1, y0 = 0, y1 = c.height - 1;
+    while (x0 < x1 && cols[x0] < minRun) x0++; while (x1 > x0 && cols[x1] < minRun) x1--;
+    while (y0 < y1 && rows[y0] < minRun) y0++; while (y1 > y0 && rows[y1] < minRun) y1--;
+    if (x1 >= 0 && (x1 - x0 + 1 < c.width || y1 - y0 + 1 < c.height)) {
+      const t = document.createElement("canvas"); t.width = x1 - x0 + 1; t.height = y1 - y0 + 1;
+      t.getContext("2d").drawImage(c, x0, y0, t.width, t.height, 0, 0, t.width, t.height); c = t;
+    }
+  }
+  while (c.width / 2 > inner) {
+    const n = document.createElement("canvas"); n.width = Math.round(c.width / 2); n.height = Math.round(c.height / 2);
+    const nx = n.getContext("2d"); nx.imageSmoothingEnabled = true; nx.imageSmoothingQuality = "high";
+    nx.drawImage(c, 0, 0, n.width, n.height); c = n;
+  }
+  const s = document.createElement("canvas");
+  if (c.width >= c.height) { s.width = inner; s.height = Math.max(1, Math.round(inner * c.height / c.width)); }
+  else { s.height = inner; s.width = Math.max(1, Math.round(inner * c.width / c.height)); }
+  const sx = s.getContext("2d"); sx.imageSmoothingEnabled = true; sx.imageSmoothingQuality = "high";
+  sx.drawImage(c, 0, 0, s.width, s.height);
+  const d = sx.getImageData(0, 0, s.width, s.height), p = d.data;
+  for (let i = 0; i < p.length; i += 4) {
+    if (p[i + 3] < 110) { p[i + 3] = 0; continue; }
+    p[i + 3] = 255;
+    if (grey) { const l = Math.min(255, Math.round((p[i] + p[i+1] + p[i+2]) / 3 * 1.15)); p[i] = p[i+1] = p[i+2] = l; }   // greyscale sources: kill colour casts, lift a touch
+    for (let k = 0; k < 3; k++) p[i + k] = p[i + k] > 190 ? 255 : Math.round(p[i + k] / 51) * 51;   // whites stay white, else 6 levels
+  }
+  const out = new Uint8ClampedArray(p), W = s.width, H = s.height;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = (y * W + x) * 4; if (p[i + 3]) continue;
+    const nb = [[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy]) => {
+      const X = x + dx, Y = y + dy; return X >= 0 && Y >= 0 && X < W && Y < H && p[(Y * W + X) * 4 + 3];
+    });
+    if (nb) { out[i] = out[i+1] = out[i+2] = 0; out[i+3] = 255; }
+  }
+  sx.putImageData(new ImageData(out, W, H), 0, 0);
+  const b = document.createElement("canvas"); b.width = box; b.height = box;
+  b.getContext("2d").drawImage(s, ((box - W) / 2) | 0, ((box - H) / 2) | 0);
+  return b;
+}
+
+// Pac-Man frightened: body -> blue, light bits -> pale pink, outline kept.
+function frightened(c) {
+  const n = document.createElement("canvas"); n.width = c.width; n.height = c.height;
+  const nx = n.getContext("2d"); nx.drawImage(c, 0, 0);
+  const d = nx.getImageData(0, 0, n.width, n.height), p = d.data;
+  for (let i = 0; i < p.length; i += 4) {
+    if (!p[i + 3]) continue;
+    const lum = (p[i] + p[i+1] + p[i+2]) / 3;
+    if (lum < 40) continue;
+    if (lum > 200) { p[i] = 255; p[i+1] = 184; p[i+2] = 174; }
+    else { p[i] = 33; p[i+1] = 33; p[i+2] = 222; }
+  }
+  nx.putImageData(d, 0, 0); return n;
+}
+
+async function main() {
+  const loaded = [];
+  for (const f of FACES) { const img = await loadFace(f); if (img) loaded.push({ ...f, img }); else console.log("missing face:", f.name); }
+
+  // sheets -> one entry per frame, cropped from the grid cell; keyWhite drops the white background
+  const frames = [];
+  for (const s of SHEETS) {
+    let img; try { img = await loadImg(s.src); } catch (_) { console.log("missing sheet:", s.src); continue; }
+    const cw = img.naturalWidth / s.cols, ch = img.naturalHeight / s.rows.length;
+    s.rows.forEach((name, r) => { for (let c = 0; c < s.cols; c++) frames.push({ name: `${name}-f${c + 1}`, img, crop: [Math.round(c * cw), Math.round(r * ch), Math.round(cw), Math.round(ch)], keyWhite: true, tol: s.tol || 40 }); });
+  }
+
+  const cv = document.getElementById("c"), ROW = 150, W = 900;
+  cv.width = W; cv.height = 44 + loaded.length * ROW + 40 + (frames.length ? 60 + Math.ceil(frames.length / 3) * 120 : 0);
+  const x = cv.getContext("2d"); x.imageSmoothingEnabled = false;
+  x.fillStyle = "#000"; x.fillRect(0, 0, cv.width, cv.height);
+  x.fillStyle = "#ffcc00"; x.font = "bold 15px monospace";
+  x.fillText("TROLL MAN sprite proof - original art pixelated. Per row: 24px box at 1x 2x 3x, then 32px box at 1x 2x 3x, then frightened", 16, 26);
+
+  window.__sprites = {};   // name -> dataURL of the 32px sprite, saved by the .mjs runner
+  loaded.forEach((f, r) => {
+    const top = 44 + r * ROW;
+    x.fillStyle = "#8a8a8a"; x.font = "12px monospace"; x.fillText(f.name, 16, top + 14);
+    let cx = 16;
+    const sprites = SIZES.map(sz => pixelate(f.img, f.crop, sz, f.keyWhite, f.tol, f.grey));
+    window.__sprites[f.name] = sprites[SIZES.indexOf(32)].toDataURL("image/png");
+    sprites.forEach((spr, si) => {
+      [1, 2, 3].forEach(s => {
+        const box = SIZES[si] * s;
+        x.fillStyle = "#2121de"; x.fillRect(cx - 5, top + 22, 2, box + 8);
+        x.fillStyle = "#ffb8ae"; for (let i = 0; i < 3; i++) x.fillRect(cx + box + 5 + i * 8, top + 26 + box / 2, 2, 2);
+        x.drawImage(spr, cx, top + 26, box, box);
+        cx += box + 34;
+      });
+      cx += 10;
+    });
+    if (f.name !== "trollface") x.drawImage(frightened(sprites[1]), cx, top + 26, 32 * 3, 32 * 3);
+  });
+
+  // sheet frames: three per character, 32px box at 3x, then the blink/action frames read as an animation strip
+  if (frames.length) {
+    const top0 = 44 + loaded.length * ROW + 40;
+    x.fillStyle = "#ffcc00"; x.font = "bold 14px monospace"; x.fillText("generated sheets - frames 1/2/3 at 32px, 3x", 16, top0 + 14);
+    frames.forEach((f, i) => {
+      const r = Math.floor(i / 3), c = i % 3, top = top0 + 24 + r * 120, cx = 16 + c * 140;
+      const spr = pixelate(f.img, f.crop, 32, f.keyWhite, f.tol);
+      window.__sprites[f.name] = spr.toDataURL("image/png");
+      x.fillStyle = "#8a8a8a"; x.font = "11px monospace"; x.fillText(f.name, cx, top + 10);
+      x.drawImage(spr, cx, top + 16, 96, 96);
+      if (c === 2 && !f.name.startsWith("trollface")) x.drawImage(frightened(spr), cx + 140, top + 16, 96, 96);
+    });
+  }
+  window.__done = true;
+}
+main().catch(e => { console.error(e); window.__done = "err:" + e; });
+</script>
+</body>
+</html>

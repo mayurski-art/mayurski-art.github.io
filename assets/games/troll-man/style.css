@@ -1,0 +1,243 @@
+:root {
+  --bg: #000;
+  --ink: #f2f2f2;
+  --muted: rgba(242, 242, 242, 0.6);
+  --line: rgba(255, 255, 255, 0.14);
+  --maze: #2121de;
+  --mono: "DM Mono", monospace;
+  --arcade: "Press Start 2P", monospace;
+  /* the shared leaderboard styles read these */
+  --gold: #ffcc00; --cyan: #4deeff; --green: #4dff73; --red: #ff3b3b;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; height: 100svh; overflow: hidden; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--mono);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.arcade-back-link {
+  position: absolute; top: 10px; left: 10px; z-index: 20;
+  padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px;
+  color: var(--muted); font-size: 12px; font-weight: 500; text-transform: uppercase; text-decoration: none;
+  background: rgba(0, 0, 0, 0.6);
+}
+.arcade-back-link:hover, .arcade-back-link:focus-visible {
+  border-color: rgba(33, 33, 222, 0.7); color: var(--ink); outline: none;
+}
+
+/* Sound on/off and the leaderboard, top right, mirroring the back link. */
+.tm-corner-btn {
+  position: absolute; top: 10px; right: 10px; z-index: 20;
+  width: 38px; height: 32px; padding: 0;
+  display: grid; place-items: center;
+  border: 1px solid var(--line); border-radius: 8px;
+  color: var(--muted); background: rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+}
+.tm-corner-btn:hover, .tm-corner-btn:focus-visible { border-color: rgba(33, 33, 222, 0.7); color: var(--ink); outline: none; }
+.tm-board-btn { right: 56px; }
+.tm-board-btn[aria-expanded="true"] { color: var(--gold); }
+.tm-mute .tm-mute-cross { display: none; }
+.tm-mute.is-muted .tm-mute-cross { display: inline; }
+.tm-mute.is-muted .tm-mute-waves { display: none; }
+
+/* Logo on top, screen in the middle, one line of help under it; the screen
+   takes whatever height is left so the page never scrolls. */
+.tm-shell {
+  height: 100%;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px;
+  padding: 44px 16px 12px;
+}
+
+.tm-logo { margin: 0; flex: 0 0 auto; line-height: 0; }
+.tm-logo img { display: block; width: min(420px, 78vw); height: auto; }
+
+/* The cabinet is a size container, so the screen can be as big as the
+   space allows in either direction while keeping its 448:544 shape. */
+.tm-cabinet {
+  flex: 1 1 auto; min-height: 0;
+  width: 100%;
+  container-type: size;
+  display: flex; align-items: flex-start; justify-content: center;
+}
+.tm-cabinet canvas {
+  display: block;
+  width: min(100cqw - 16px, (100cqh - 16px) * 448 / 544);
+  height: auto;
+  aspect-ratio: 448 / 544;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  border: 2px solid #1a1a6e;
+  border-radius: 10px;
+  box-shadow: 0 0 0 6px #050518, 0 0 40px rgba(33, 33, 222, 0.35);
+  outline: none;
+  touch-action: none;
+}
+.tm-cabinet canvas:focus-visible { border-color: #3a3aff; }
+
+.tm-help {
+  margin: 0; flex: 0 0 auto;
+  color: var(--muted); font-size: 12px; text-align: center;
+}
+
+@media (max-width: 760px) {
+  .tm-shell { padding-top: 48px; gap: 8px; }
+  .tm-help { font-size: 11px; }
+}
+
+/* ---- Touch controls -----------------------------------------------------------
+   An arcade stick (red ball top on a dark base) and two NES-style pill buttons.
+   Hidden on mouse/keyboard screens; on touch screens they replace the help line. */
+.tm-stick, .tm-buttons { display: none; }
+
+.tm-stick {
+  position: relative;
+  flex: 0 0 auto;
+  width: 132px; height: 132px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, #15152a 0 52%, #0b0b18 53% 100%);
+  border: 3px solid var(--maze);
+  box-shadow: 0 0 0 5px #050518, 0 0 24px rgba(33, 33, 222, 0.35), inset 0 0 0 2px #000;
+  touch-action: none;
+  user-select: none; -webkit-user-select: none;
+}
+/* the four direction notches */
+.tm-stick::before {
+  content: ""; position: absolute; inset: 10px; border-radius: 50%;
+  background:
+    linear-gradient(#3a3a8a, #3a3a8a) 50% 0 / 4px 10px no-repeat,
+    linear-gradient(#3a3a8a, #3a3a8a) 50% 100% / 4px 10px no-repeat,
+    linear-gradient(#3a3a8a, #3a3a8a) 0 50% / 10px 4px no-repeat,
+    linear-gradient(#3a3a8a, #3a3a8a) 100% 50% / 10px 4px no-repeat;
+}
+.tm-stick-knob {
+  position: absolute; left: 50%; top: 50%;
+  width: 44%; height: 44%; margin: -22% 0 0 -22%;          /* % of the base, so it scales with it */
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 32%, #ff9a9a 0 12%, #ff2a2a 34%, #b00010 70%, #5a0008 100%);
+  box-shadow: 0 6px 0 #2a0004, 0 8px 14px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.tm-buttons { flex: 0 0 auto; gap: 18px; justify-content: center; }
+.tm-btn {
+  min-width: 76px; height: 30px; padding: 0 12px;
+  border: 0; border-radius: 15px;
+  background: #2b2b33;
+  box-shadow: 0 3px 0 #0e0e12, inset 0 0 0 2px #45454f;
+  color: #d8d8e0;
+  font: 9px/30px var(--arcade);
+  letter-spacing: 0.5px;
+  touch-action: manipulation;
+  user-select: none; -webkit-user-select: none;
+  cursor: pointer;
+}
+.tm-btn:active, .tm-btn.is-down { transform: translateY(2px); box-shadow: 0 1px 0 #0e0e12, inset 0 0 0 2px #6a6a78; }
+.tm-btn:focus-visible { outline: 2px solid #ffcc00; outline-offset: 2px; }
+
+@media (pointer: coarse) {
+  .tm-help { display: none; }
+  .tm-logo img { width: min(300px, 64vw); }
+  .tm-shell { gap: 12px; padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+  .tm-stick { display: block; width: clamp(124px, 18svh, 164px); height: auto; }
+  .tm-buttons { display: flex; }
+  /* spare height goes evenly above and below the screen, not in one gap */
+  .tm-cabinet { align-items: center; }
+}
+
+/* Phone on its side: the screen in the middle at full height, the stick on the
+   left, the buttons on the right, no logo (there's no room for it). */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 560px) {
+  .tm-shell {
+    display: grid;
+    grid-template-columns: minmax(150px, 1fr) minmax(0, 3fr) minmax(150px, 1fr);
+    grid-template-rows: 100%;
+    align-items: end;
+    gap: 8px;
+    padding: 8px max(12px, env(safe-area-inset-right)) 10px max(12px, env(safe-area-inset-left));
+  }
+  .tm-logo { display: none; }
+  .tm-cabinet { grid-column: 2; grid-row: 1; height: 100%; align-items: center; }
+  .tm-stick { grid-column: 1; grid-row: 1; justify-self: center; margin-bottom: 12px; width: clamp(120px, 34svh, 150px); }
+  .tm-buttons { grid-column: 3; grid-row: 1; justify-self: center; flex-direction: column; gap: 14px; margin-bottom: 24px; }
+}
+
+/* Short phones held upright: a smaller logo and stick buy the screen some room. */
+@media (pointer: coarse) and (orientation: portrait) and (max-height: 720px) {
+  .tm-shell { gap: 8px; padding-top: 46px; }
+  .tm-logo img { width: min(220px, 54vw); }
+  .tm-stick { width: clamp(108px, 17svh, 124px); }
+  .tm-btn { height: 28px; line-height: 28px; }
+}
+
+/* ---- Loading screen ---------------------------------------------------------------
+   The poster, full screen on black, until the first key or tap. The back link and the
+   corner buttons sit above it. */
+.tm-splash {
+  position: fixed; inset: 0; z-index: 15;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  padding: 52px 16px max(16px, env(safe-area-inset-bottom));
+  border: 0; margin: 0; background: #000; color: var(--gold);
+  cursor: pointer; font: inherit;
+  transition: opacity 0.24s ease;
+}
+.tm-splash[hidden] { display: none; }
+.tm-splash.is-leaving { opacity: 0; pointer-events: none; }
+.tm-splash:focus-visible { outline: none; }
+.tm-splash img {
+  display: block; min-height: 0;
+  height: min(100% - 40px, (100vw - 32px) * 1700 / 1200);
+  width: auto; aspect-ratio: 1200 / 1700;
+  border-radius: 10px;
+  box-shadow: 0 0 0 4px #050518, 0 0 40px rgba(33, 33, 222, 0.45);
+}
+.tm-splash-cta { font: 12px/1 var(--arcade); letter-spacing: 1px; min-height: 12px; }
+.tm-cta-key, .tm-cta-tap { display: none; }
+.tm-splash.is-ready .tm-cta-loading { display: none; }
+.tm-splash.is-ready .tm-cta-key { display: inline; animation: tm-blink 1s steps(1) infinite; }
+@media (pointer: coarse) {
+  .tm-splash.is-ready .tm-cta-key { display: none; }
+  .tm-splash.is-ready .tm-cta-tap { display: inline; animation: tm-blink 1s steps(1) infinite; }
+}
+.tm-splash:focus-visible .tm-splash-cta { outline: 2px solid var(--gold); outline-offset: 6px; }
+@keyframes tm-blink { 50% { opacity: 0; } }
+
+/* ---- The weekly board -------------------------------------------------------------- */
+.tm-board {
+  position: fixed; inset: 0; z-index: 30;
+  display: grid; place-items: center;
+  padding: 56px 16px 16px;
+  background: rgba(0, 0, 0, 0.72);
+}
+.tm-board[hidden] { display: none; }
+.tm-board-card {
+  width: min(560px, 100%); max-height: 100%;
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 16px; overflow: auto;
+  background: #05051a; border: 2px solid var(--maze); border-radius: 14px;
+  box-shadow: 0 0 0 5px #050518, 0 0 40px rgba(33, 33, 222, 0.45);
+}
+.tm-board-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tm-board-head h2 { margin: 0; font: 13px/1.4 var(--arcade); color: var(--gold); }
+.tm-board-close {
+  width: 34px; height: 34px; flex: 0 0 auto; padding: 0;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: transparent; color: var(--ink); font-size: 22px; line-height: 1; cursor: pointer;
+}
+.tm-board-close:hover, .tm-board-close:focus-visible { border-color: rgba(33, 33, 222, 0.7); outline: none; }
+.tm-board .lb-root { background: rgba(0, 0, 0, 0.35); }
+.tm-board .lb-table { min-width: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-splash { transition: none; }
+  .tm-splash.is-ready .tm-cta-key, .tm-splash.is-ready .tm-cta-tap { animation: none; }
+}
