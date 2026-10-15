@@ -2874,7 +2874,7 @@ if (/[?&]tohooks=1/.test(location.search)) {
     saberState: () => ({ ...saberBlock, trail: !!saberTrail?.mesh.visible, deflectT: saberDeflectT, parry: { ...saberParry.sample(), t: saberParry.t }, flick: saberFlick }),
     DROP, royaleDropView, inSkyLobby, greenLight, planes: () => royale?.drop?.squadron,
     royale: () => royale, royaleAliveList, startRoyaleAct, royalePickupGun, royaleWants, setupRoyale, cycleSpectate, royaleSpectating,
-    royaleBotObjective, royaleBotDamage, royaleNoise, ROYALE,
+    royaleBotObjective, royaleBotDamage, royaleBotSight, royaleNoise, ROYALE,
     activeStreakMesh: () => activeStreakMesh, streakHoldT: () => streakHoldT,
     streakArms, beginStreakHold, weaponRig, WHISTLE_HAND, WHISTLE_ROT, spawnVsatSat,
     beginStreakHold, endStreakHold, meleeHolster: () => meleeHolster, clearStreakLocks,
