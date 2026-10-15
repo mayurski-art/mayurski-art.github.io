@@ -14,7 +14,11 @@ Design docs live next to this file: `ROYALE-ISLAND.md` (Trollface Island map pas
 
 ### Tasks to do, in order (updated 2026-10-14)
 Start each session on a fresh branch or worktree from origin/main.
-1. **Stylised realism follow-ups:** re-render the map previews (`tools/troll-ops-map-previews.mjs`) and bump SHOT_V; Trollface Island could get a bake too.
+1. **Stylised realism follow-ups** (live -sr1; how a map is baked, the lessons: `REALISM.md`):
+   - Re-render the map-select previews (`tools/troll-ops-map-previews.mjs <map>` for the 7 baked maps) and bump each one's `SHOT_V` in map-load-screen.js; they still show the old lighting.
+   - Bake Trollface Island the same way (placements, `bake_every_model`, ground bake, `BAKED`, hemi/ambient halved, before/after shots).
+   - Test reds seen at the -sr1 push, not from it: `view-mode-test` "W + Space flies forward and up" fails on main too (fix it); `remote-body-test` is flaky on main and the branch; `input-test` twice threw "pos.clone is not a function" under machine load (passed 3x alone; no stack caught: rerun with page-error stacks and find the caller).
+   - krypto2009 easter eggs: ask the user for his photos first (wish list).
 2. **Then hand the user ONE test checklist** (add the BO2 rifle reloads) covering everything shipped since 2026-10-12 (Zombie Rush P1-P7 and the controller buy/deploy, the Kek & Sons merchant and the horses, incl. the hub, Credits and the kiosks, weekly/monthly leaderboards, the High-graphics glow and box fixes, the Royale lag and fights, Show FPS, the phone menu, bot heads, Ghostface Killers).
 - **Troll Royale island pass** (`ROYALE-ISLAND.md`): phase 1 shipped (POI loot tiers, the bots' post-kill calm). Next: phase 2 (cover, lake boardwalks), then phase 3 (five new POIs).
 - Paused or on hold (sections below): tf-parallel leftovers, Troll City RP 2c, Cops and Robbers, U Mad Bro?, the TROLLS wallet check.
