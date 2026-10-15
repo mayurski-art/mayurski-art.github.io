@@ -18,7 +18,7 @@ import { TROLLINGLOUD } from "./trollingloud.js?v=tl4-fu1c1c2f1m1-tc3-nc1-cd1-sh
 import { GRINJUKU } from "./grinjuku.js?v=gj1-sr1";
 import { ZHUB } from "./zhub.js?v=zh1-sr1";
 import { SURFACES } from "./surface-textures.js?v=hg6e-sr1";
-import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer } from "./battlefield-props.js?v=sr1";
+import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer, groundLight } from "./battlefield-props.js?v=sr1";
 import {
   portrait, picketFence, mailbox, kiddiePool, houseExterior,
   toyCar, gardenGnome, trashCan, tireSwing, streetlamp,
