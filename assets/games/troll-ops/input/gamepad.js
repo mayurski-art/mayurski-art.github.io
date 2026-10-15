@@ -5,6 +5,7 @@
 import * as THREE from "three";
 import { padEmotePressed } from "../controller-layout.js?v=cl7-pd1";
 import { game } from "../core/state.js?v=st1";
+import { freeLook } from "../view/free-look.js?v=nf1";
 
 
 /* Stick look, built like Black Ops 2's (user: "smooth like BO2"). The old
@@ -31,6 +32,8 @@ const PAD_CURVE = 2;                                      // magnitude ^ this
 const PAD_YAW_RATE = THREE.MathUtils.degToRad(170);       // full push at Medium, hip
 const PAD_PITCH_RATE = THREE.MathUtils.degToRad(105);
 const PAD_ADS_RATE = 0.55;                                // hip -> iron sights
+let padSelectAt = -1, padFree = false;   // Select: held since, holding free look
+const PAD_FREE_HOLD_MS = 280;               // a hold this long is free look, not the 1P / 3P tap
 const PAD_BOOST = 1.7;                                    // yaw x at the rim, fully ramped
 const PAD_BOOST_EDGE = 0.95;                              // how far out counts as the rim
 const PAD_BOOST_DELAY = 0.15;                             // s at the rim before it starts
@@ -205,7 +208,16 @@ export function pollGamepad(dt) {
       if (btn(0) || btn(1)) { game.gamepadState.jump = false; game.gamepadState.crouch = false; }
       else if (!game.emoteWheel.isOpen) gpWheelSwallow = false;
     }
-    if (pressedEdge(8)) game.toggleThirdPerson();  // Select/View/Minus -> camera toggle
+    // Select/View/Minus: a tap switches 1P / 3P; held in third person it's
+    // free look (view/free-look.js), the right stick swinging the camera
+    // round your troll until you let go
+    if (pressedEdge(8)) padSelectAt = performance.now();
+    if (btn(8) && padSelectAt >= 0 && !padFree && game.settings.thirdPerson && performance.now() - padSelectAt > PAD_FREE_HOLD_MS) { padFree = true; freeLook.held = true; }
+    if (game.gpPrev[8] && !btn(8)) {
+      if (padFree) freeLook.held = false;
+      else if (padSelectAt >= 0) game.toggleThirdPerson();
+      padFree = false; padSelectAt = -1;
+    }
 
     // D-pad down: the next ready streak d-pad right will fire (up, above,
     // goes back) — a pick, not a use, the way BO2 scrolls its streak column.

@@ -2,7 +2,7 @@
 // firing and melee input, regen, and the per-frame HUD numbers.
 
 import { updateLauncherLock } from "../combat/launcher.js?v=fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1";
-import { touchState, setTouchAds } from "../input/touch.js?v=in1-th2-bp1-bf1-pd1";
+import { touchState, setTouchAds } from "../input/touch.js?v=in1-th2-bp1-bf1-pd1-nf1";
 import { currentWeapon, fireOnce, tryReload, updateSwapButton } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1";
 import { MOUSE_ACTIVE_MS, applyAimAssist } from "../input/aim-assist.js?v=in1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-aa0";
 import { isStaging } from "../modes/match-start.js?v=mst1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-ob1-kc1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-nf1";
@@ -25,6 +25,7 @@ import { strikeTablet, throwMarker } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b
 import { insidePolygon } from "../edge.js";
 import { INFECTION } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1";
 import { heroActive, hero } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1";
+import { captureFreeLook } from "./free-look.js?v=nf1";
 import { updateSwivel, updateLocalRig, placeDeathCamera, updateEmoteCamera, updateThirdPersonCamera, swivel, swivelK } from "./third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-nf1";
 import { DF_RANGE } from "../dragonfire.js?v=df3-sb2";
 import { settings } from "../menu/settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0-dj2-bf1-pl2-pi1-sr1-br1-nf1";
@@ -110,6 +111,9 @@ export function updatePlayer(dt) {
     touchState.lookDX = 0; touchState.lookDY = 0;
     game.gamepadState.lookDX = 0; game.gamepadState.lookDY = 0;
   }
+  // Free look in third person (view/free-look.js): this frame's turn goes
+  // to the camera's orbit, the aim stays put, before anything reads it.
+  captureFreeLook(dt);
 
   let ix = 0, iz = 0;
   if (game.isTouch) {

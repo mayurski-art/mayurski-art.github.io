@@ -16,6 +16,7 @@ import { callStreakSlot } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-w
 import { startCook, carriedThrowSlot, cancelCook, releaseThrowKey } from "../combat/throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1";
 import { renderScoreboard } from "../core/scoreboard.js?v=sb1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1";
 import { game } from "../core/state.js?v=st1";
+import { freeLook } from "../view/free-look.js?v=nf1";
 
 // Look is composed by hand rather than by PointerLockControls: recoil and the
 // touch stick both need to write into the same orientation, and letting PLC
@@ -148,7 +149,13 @@ export function initKeyboardMouse() {
       game.els.scoreboard.hidden = false;
     }
   });
-  window.addEventListener("blur", () => { cancelCook(); game.emoteWheel.close(true); });
+  window.addEventListener("blur", () => { cancelCook(); game.emoteWheel.close(true); freeLook.held = false; });
+  // Free look in third person (view/free-look.js): hold Alt and the mouse
+  // swings the camera round your troll, to its face. (Kept from the
+  // browser, which would take Alt for its menu bar.)
+  const isAlt = (e) => e.code === "AltLeft" || e.code === "AltRight";
+  window.addEventListener("keydown", (e) => { if (isAlt(e) && game.gameState === "playing" && !game.chat.isTyping) { e.preventDefault(); freeLook.held = true; } });
+  window.addEventListener("keyup", (e) => { if (isAlt(e)) { e.preventDefault(); freeLook.held = false; } });
   window.addEventListener("keyup", (e) => {
     keys.delete(e.code);
     if (e.code === "Tab") game.els.scoreboard.hidden = true;

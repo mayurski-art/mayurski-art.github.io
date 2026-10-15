@@ -12,7 +12,7 @@ import { updateStreakHud, showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu
 import * as THREE from "three";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
 import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";
-import { touchState } from "../input/touch.js?v=in1-th2-bp1-bf1-pd1";
+import { touchState } from "../input/touch.js?v=in1-th2-bp1-bf1-pd1-nf1";
 import { game } from "../core/state.js?v=st1";
 import { hasPerk, PERK_TUNE } from "../perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1";
 

@@ -3121,6 +3121,17 @@ body.to-touch-play .to-touch-pov {
   left: auto; right: calc(var(--sr) + 88px * var(--k)); bottom: auto; top: calc(var(--st, 0px) + 64px * var(--k));
   width: calc(56px * var(--k)); height: calc(30px * var(--k)); font-size: calc(11px * var(--k));
 }
+/* Free look (view/free-look.js), third person only: under the camera
+   button on the touch panel, left of it on a phone. */
+.to-touch-free { left: 22px; top: 214px; width: 52px; height: 32px; border-radius: 9px; }
+.to-touch-free svg { width: 20px; height: 20px; }
+.to-touch-free[aria-pressed="true"] { background: rgba(127,224,102,.3); border-color: rgba(127,224,102,.65); }
+.to-touch-free[hidden] { display: none; }
+body.to-touch-play .to-touch-free {
+  left: auto; right: calc(var(--sr) + 152px * var(--k)); bottom: auto; top: calc(var(--st, 0px) + 64px * var(--k));
+  width: calc(44px * var(--k)); height: calc(30px * var(--k));
+}
+body.to-touch-play .to-touch-free svg { width: calc(18px * var(--k)); height: calc(18px * var(--k)); }
 
 /* Scorestreak slots, BO2 style: the picture with the streak's tier badge on
    its corner, its name under it, then the cost (or READY and the key). */

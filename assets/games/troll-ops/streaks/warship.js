@@ -1,7 +1,7 @@
 // Troll Forces VTOL Warship: riding its guns, the thermal feed, rounds
 // landing. Moved out of game.js (split phase 1).
 
-import { touchState } from "../input/touch.js?v=in1-th2-bp1-bf1-pd1";
+import { touchState } from "../input/touch.js?v=in1-th2-bp1-bf1-pd1-nf1";
 import { WARSHIP_GUNS, VtolWarship } from "../streak-entities.js?v=vsat2-hk1-sr1";
 import { streakBounds, round2 } from "./fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1";
 import { STREAK_DEFS } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1";

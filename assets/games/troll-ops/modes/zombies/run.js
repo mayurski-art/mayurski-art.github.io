@@ -14,7 +14,7 @@
 import { game } from "../../core/state.js?v=st1";
 import { econ, earn, resetCash, tickCash, waveBonus } from "./economy.js?v=zr5-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1";
 import { buy, offers, resetUpgrades, upgradeState } from "./upgrades.js?v=zr5-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1";
-import { mountZombiesHud, showZombiesHud, updateZombiesHud, announceWave, zombiesBanner } from "../../view/zombies-hud.js?v=zr6-zr7-zr8-zr9-zr10-zp1-aa0-zj1-vt1-pd1";
+import { mountZombiesHud, showZombiesHud, updateZombiesHud, announceWave, zombiesBanner } from "../../view/zombies-hud.js?v=zr6-zr7-zr8-zr9-zr10-zp1-aa0-zj1-vt1-pd1-nf1";
 import { updateZombieBars } from "../../view/zombies-bars.js?v=zr6-zr9-zr10";
 import { dep, depWire, deployOffers, pickDeployable, cancelPlacing, placeDeployable, spawnDeployable, hitBlocker, resetDeployables, clearDeployables, updateDeployables } from "./deployables.js?v=zr6-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1";
 export { deployClick } from "./deployables.js?v=zr6-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1";

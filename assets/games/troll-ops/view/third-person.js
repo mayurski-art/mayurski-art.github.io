@@ -20,6 +20,7 @@ import { game } from "../core/state.js?v=st1";
 import { throwState, poseThrowBody, clearThrowBody } from "../combat/throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1";
 import { modelKind } from "../combat/throwable-models.js?v=tm1-th2";
 import { wearBlocky, ownBody } from "../blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1";
+import { freeLook } from "./free-look.js?v=nf1";
 import { bodyToken } from "../cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1";
 
 // Chase camera behind the player's own rig. Distance/side offset blend
@@ -98,13 +99,32 @@ export function updateThirdPersonCamera(pivot, yaw, pitch, adsT) {
     game.camera.position.y + _tpForward.y * 10,
     game.camera.position.z + _tpForward.z * 10,
   );
+  // Free look (view/free-look.js): the camera swings round the body to
+  // look at it, out to your face, blended in by its weight.
+  const fw = freeLook.w;
+  if (fw > 0) {
+    _tpQ.copy(game.camera.quaternion);
+    _tpFrom.copy(game.camera.position);
+    const yo = yaw + freeLook.yaw, tilt = FREE_TILT + freeLook.pitch;
+    _tpDir.set(Math.sin(yo) * Math.cos(tilt), Math.sin(tilt), Math.cos(yo) * Math.cos(tilt));   // from the body back to the camera
+    _tpAt.copy(_tpPivot); _tpAt.y += FREE_AT_Y;
+    const len = Math.max(0.6, raycastWorld(game.colliders, _tpAt, _tpDir, FREE_DIST + big * 0.6) - 0.15);
+    game.camera.position.copy(_tpAt).addScaledVector(_tpDir, len);
+    game.camera.lookAt(_tpAt);
+    game.camera.position.lerpVectors(_tpFrom, game.camera.position, fw);
+    _tpQ2.copy(game.camera.quaternion);   // (taken before it's overwritten)
+    game.camera.quaternion.copy(_tpQ).slerp(_tpQ2, fw);
+  }
   // Aiming in, our own face ghosts out so the left of the sight picture is
   // clear; pulled in tight against a wall it would be in the way outright.
+  // (Looking round at it, it's all there.)
   const head = game.localRig.parts.head;
-  head.visible = safeLen > 0.9;
-  head.material.opacity = 1 - 0.7 * adsT;
-  head.material.depthWrite = adsT < 0.1;
+  head.visible = safeLen > 0.9 || fw > 0.5;
+  head.material.opacity = 1 - 0.7 * adsT * (1 - fw);
+  head.material.depthWrite = adsT < 0.1 || fw > 0.5;
 }
+const FREE_DIST = 2.6, FREE_TILT = 0.12, FREE_AT_Y = -0.3;   // the orbit: metres out, tilt up, aimed at the chest-to-face
+const _tpQ = new THREE.Quaternion(), _tpQ2 = new THREE.Quaternion(), _tpFrom = new THREE.Vector3(), _tpAt = new THREE.Vector3();
 
 /* Socialize jobs that pose our own body after everything else (the sheriff's
    cuffs, modes/social-sheriff.js): they push in here, so this module never

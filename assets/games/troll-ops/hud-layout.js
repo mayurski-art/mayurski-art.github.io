@@ -34,6 +34,7 @@ const TOUCH = [
   ["to-touch-emote", "Emote"],
   ["to-touch-admire", "Admire"],
   ["to-touch-pov", "Camera"],
+  ["to-touch-free", "Free look"],
 ];
 
 function load(touch) {
