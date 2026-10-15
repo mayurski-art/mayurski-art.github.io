@@ -88,6 +88,9 @@ async function open(ctx, label, { room = "", lobby = 90, noBots = true } = {}) {
   check("trolls aboard: only your planemates are drawn (the rest are inside their planes)", seen.aboard > 50 && seen.aboardShown <= 8,JSON.stringify({ aboard: seen.aboard, shown: seen.aboardShown }));
   check("fallers skydive belly down", seen.fall > 0 && seen.fallFlat === seen.fall, JSON.stringify({ fall: seen.fall, flat: seen.fallFlat }));
   check("nobody opens a glider", seen.glide === 0 && seen.landedWing === 0, JSON.stringify({ glide: seen.glide, wings: seen.landedWing }));
+  // The crowd LOD poses an off-screen troll every 8th frame: give the last
+  // one down a moment to stand up before looking.
+  await sleep(1500);
   const after = await P.evaluate(() => {
     const T = window.__trollOps;
     let wings = 0, flat = 0;
