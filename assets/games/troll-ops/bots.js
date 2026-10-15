@@ -107,6 +107,8 @@ const UNSTICK_AFTER = 3;          // the 3rd stuck in a row side-steps instead o
 const UNSTICK_TIME = 0.9;
 const PROGRESS_WINDOW = 2.5;      // out of a fight, a bot that wanted to move this long...
 const PROGRESS_MIN = 1.0;         // ...and got less than this far is stuck too
+const DRIFT_WINDOW = 6;           // out of a fight, wanting to move and never this far from one spot
+const DRIFT_MIN = 1.5;            // in that long: stuck too
 const MOVE_COOLDOWN = 1.2;
 
 /* Grenades. One lethal and one tactical a life, like a player's kit, rolled
@@ -737,8 +739,20 @@ class Bot {
         if (moved > PROGRESS_MIN * 2) this.stuckHops = 0;
         this.progress = null;
       }
+      // And over a few windows: back and forth a metre each way passes
+      // every window above and still goes nowhere (a bot on Hollowgrin's
+      // railed park deck, 9 m up, did it till the bots step flagged it).
+      const q = this.drift || (this.drift = { x: this.pos.x, z: this.pos.z, t: 0 });
+      q.t += dt;
+      if (Math.hypot(this.pos.x - q.x, this.pos.z - q.z) > DRIFT_MIN) this.drift = null;
+      else if (q.t > DRIFT_WINDOW && !this.climb) {
+        // a hop won't end a loop: side-step and plan afresh
+        jammed = true; this.drift = null;
+        this.stuckHops = Math.max(this.stuckHops || 0, UNSTICK_AFTER - 1);
+      }
     } else {
       this.progress = null;
+      this.drift = null;
       if (grounded && got > 1.5 && this.unstickT <= 0) this.stuckHops = 0;
     }
     if (this.stuckT > STUCK_HOP || jammed) {
