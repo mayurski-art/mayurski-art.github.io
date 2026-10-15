@@ -464,6 +464,7 @@ Map rules:
 - **2026-10-14** (-br1, LIVE main 1641012b; gate not run, user said push) Black Ops 2 reloads for the SMGs (MP7, Vector, PDW-57), LMGs (Colt = HAMR, M60 = Mk 48, RPK = QBB) and pistols (Five-seven, KAP-40, slide racked to finish an empty one), from BO2 footage; procedural drum mags keep their roll through any reload. Tests: arreload (361), pistols, smgs.
 
 - **2026-10-14** (-sr1; stylised realism) Env map from the sky, a post-tonemap grade per map, the gun drawn inside the composer, a sun-coloured rim on characters; Cycles light-map bakes (sky, bounce, lamps; runtime lamps removed) for Cul-de-Grin, Grin Site, Dust Bowl, Grin Beach, Grinjuku, the Depot and the Grinleria, grades for the rest (how a map is baked, and the lessons: REALISM.md; krypto2009 eggs still wait on photos); wear decals and glossy puddles. Tests: input, menu, killcam, rope, view-mode, remote-body, fps, every map's bots move.
+- **2026-10-15** (-hl1) Radio: Headlines (Drake), beat grid 152 BPM. Tests: dj, menu, trollingloud.
 - **2026-10-14** (-nh1) Radio: Natural Habitat (070 Shake feat. Ken Carson; from the user's screen recording, ends 207 s with a fade), beat grid 148 BPM. Tests: dj, menu, trollingloud.
 - **2026-10-14** (-jb1) Radio: OUT WEST and GATTI (JACKBOYS), DArkSide (Bring Me The Horizon; from the user's screen recording, ends 164 s with a fade), 192k, beat grids 140 / 71.6 / 112 BPM. Tests: dj, menu, trollingloud.
 
