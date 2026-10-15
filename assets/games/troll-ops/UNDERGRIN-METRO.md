@@ -440,20 +440,19 @@ Every GLB was rendered full-bright from the doc's views, with at least two rende
     tread (1.25). The foot is now at z -42.65, a 1.35 m landing: the run
     went from 0.5 to 0.45, and the top didn't move.
 
-**Still open: the cause under both, in bots.js.** Nav fields sit on 0.5 m
+**The cause under both, fixed in bots.js (-nl1).** Nav fields sit on 0.5 m
 levels and only see floors within ±0.45, so the 1.5 field has no cells at
-0.95. A bot's `navY` follows groundY only in 0.4 m jumps, so after a stair
-it can be held at 1.25–1.4. A bot that clips the bottom treads beside the
-stair (seed 4) gets the same. Either way it reads the 1.5 field, finds no
-route, parks the target for 4 s and wanders.
+0.95. A bot on the treads, or with `navY` held 0.4 above the floor after a
+descent, read the 1.5 field, found no route and wandered. Now `navLevelAt`
+reads the field on the floor the bot is on (the highest surface of 3 m²
+or more at or under its feet, within 1.2 m) whenever the rounded level
+would miss it. Anywhere else the level is unchanged.
 
-Seeded, the side-stair descent still fails about 3 seeds in 12 after the
-fixes; before them it was 2 in 6. Two `navY` tweaks (reset on climb end,
-read it after the climb) didn't measurably help and were reverted.
-
-Real fixes: pick the field level from the floors that exist, not by rounding
-`navY` (bots, every map); or raise the platforms to about 1.1–1.2 m
-(a rebuild).
+The numbers:
+- Seeded, undergrin seeds 1-16: 384/384 hunts pass, against 5 failing
+  seeds before.
+- Unseeded, every map, x2: every flight passes. Grinleria's perch check
+  fails in both runs, as it did before the fix.
 
 Also open:
 - The in-game part of `troll-ops-bot-stairs-test.mjs` throws a
