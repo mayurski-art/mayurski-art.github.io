@@ -508,12 +508,10 @@ function buildUndergrinParts(api) {
     B(-9.75, -14, -2, -8, 0, S0, UG.wall);                                // solid beside the walkway
     B(2, -14, 9.75, -8, 0, S0, UG.wall);
     B(-2, -14, 2, -8, 0, 0.02, UG.floor, { pen: 1 });                     // walkway floor
-    // plant room wall: a 3.0 door (x -1.5..1.5; the doc's 1.8 sealed the room
-    // on the bots' coarse stair-planning grid, so nobody in it could plan a
-    // way upstairs and bots stalled under the light well)
-    B(-2, -8, -1.5, -7.7, 0, S0, UG.wall);
-    B(1.5, -8, 2, -7.7, 0, S0, UG.wall);
-    B(-1.5, -8, 1.5, -7.7, 2.4, S0, UG.wall);
+    // plant room door: the walkway's full 4 m, a lintel at 2.4 (the doc's 1.8
+    // sealed the room on the bots' coarse stair-planning grid, and a 3.0 with
+    // 0.5 jambs left corners that two bots passing wedged on)
+    B(-2, -8, 2, -7.7, 2.4, S0, UG.wall);
     B(-22, -14, -14.25, -12, 0, S0, UG.wall);                             // solid round the service corridor
     B(-22, 0, -14.25, 14, 0, S0, UG.wall);
     B(-15.75, -12, -14.25, -6.9, 0, S0, UG.wall);                         // corridor / bore wall, door at z -6
