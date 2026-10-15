@@ -1031,6 +1031,7 @@
   function frame(t) {
     const dt = Math.min(1 / 20, (t - (last || t)) / 1000) * timeScale;
     last = t;
+    pollPad();
     // fixed sub-steps keep turns and wall stops exact at any frame rate
     const steps = Math.max(1, Math.ceil(dt / (1 / 240)));
     for (let i = 0; i < steps; i++) update(dt / steps);
@@ -1596,13 +1597,57 @@
   pressButton(document.getElementById("tm-start"), () => { poke(); pressStart(); });
   // SELECT: on the title it flips between 1 and 2 players (like a cartridge menu);
   // in a game it's the taunt; elsewhere it does what START does
-  pressButton(document.getElementById("tm-select"), () => {
+  function pressSelect() {
     poke();
     if (demo) endDemo(true);
     else if (state === "title") menuMove(1 - menuSel);
     else if (state === "intermission") endIntermission();
     else taunt();
-  });
+  }
+  pressButton(document.getElementById("tm-select"), pressSelect);
+
+  // ---- Gamepad ---------------------------------------------------------------------
+  // Standard mapping: d-pad (12-15) or the left stick moves, Start (9) is START,
+  // Back / Select (8) is SELECT, A (0) taunts in a game and starts everywhere else,
+  // B (1) closes the board. Polled once a frame; a press acts once.
+  const PAD_DEAD = 0.5;
+  let padPrev = [], padDir = null;
+  function pollPad() {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    let pad = null;
+    for (const p of pads) if (p && p.connected) { pad = p; break; }
+    if (!pad) { padPrev = []; padDir = null; return; }
+    const held = i => !!(pad.buttons[i] && pad.buttons[i].pressed);
+    const pressed = i => held(i) && !padPrev[i];
+    let dir = held(12) ? "up" : held(13) ? "down" : held(14) ? "left" : held(15) ? "right" : null;
+    if (!dir) {
+      const ax = pad.axes[0] || 0, ay = pad.axes[1] || 0;
+      if (Math.max(Math.abs(ax), Math.abs(ay)) > PAD_DEAD) dir = Math.abs(ax) > Math.abs(ay) ? (ax > 0 ? "right" : "left") : (ay > 0 ? "down" : "up");
+    }
+    const newDir = dir && dir !== padDir;
+    const anyPress = [0, 1, 8, 9].some(pressed) || newDir;
+    if (anyPress) unlockSound();
+    if (splashOpen) {
+      if (anyPress) closeSplash();
+    } else if (boardOpen()) {
+      if (pressed(1) || pressed(9)) setBoard(false);
+    } else {
+      if (anyPress) poke();
+      if (pressed(9)) pressStart();
+      if (pressed(8)) pressSelect();
+      if (pressed(0)) {
+        if (demo || state === "title" || state === "over" || state === "intermission") pressStart();
+        else taunt();
+      }
+      if (newDir) {
+        if (demo) endDemo(true);
+        else if (state === "title" && (dir === "up" || dir === "down")) menuMove(dir === "up" ? 0 : 1);
+      }
+      if (dir) steer(dir);                                // held, it keeps asking, like a held key
+    }
+    padDir = dir;
+    padPrev = pad.buttons.map(b => b.pressed);
+  }
 
   // A short buzz on phones that allow it: eating a chaser, a blocked hit, getting caught.
   function buzz(ms) {

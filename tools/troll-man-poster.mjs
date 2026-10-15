@@ -2,7 +2,7 @@
 // tools/troll-man-poster.html, using the game's own icons and a live maze shot.
 //   node tools/troll-man-poster.mjs            writes ui/troll-man-poster.jpg (the flyer layout, after the
 //                                              1980 Puck Man flyer) and ui/troll-man-banner.jpg
-//   node tools/troll-man-poster.mjs --dark     writes the first, dark layout to .claude/run/troll-man-poster-dark.jpg
+//   node tools/troll-man-poster.mjs --dark     writes the first, dark layouts to .claude/run/troll-man-{poster,banner}-dark.jpg
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,7 +33,7 @@ try {
 
   // 2. lay out each piece and screenshot it
   const JOBS = process.argv.includes("--dark")
-    ? [["poster", 1200, 1700, path.join(ROOT, ".claude/run/troll-man-poster-dark.jpg")]]
+    ? [["poster", 1200, 1700, path.join(ROOT, ".claude/run/troll-man-poster-dark.jpg")], ["banner-dark", 1200, 630, path.join(ROOT, ".claude/run/troll-man-banner-dark.jpg")]]
     : [["flyer", 1200, 1700, path.join(UI, "troll-man-poster.jpg")], ["banner", 1200, 630, path.join(UI, "troll-man-banner.jpg")]];
   for (const [layout, w, h, file] of JOBS) {
     const page = await browser.newPage({ viewport: { width: w, height: h } });

@@ -56,7 +56,7 @@ try {
     const html = fs.readFileSync(path.join(ROOT, "troll-man.html"), "utf8");
     const meta = p => (html.match(new RegExp(`(?:property|name)="${p}" content="([^"]+)"`)) || [])[1];
     check(meta("og:title") && meta("og:description") && meta("og:url") === "https://trollrunner.net/troll-man", "og:title, og:description, og:url");
-    check(meta("og:image") === "https://trollrunner.net/assets/games/troll-man/ui/troll-man-banner.jpg" && meta("twitter:card") === "summary_large_image", "og:image is the banner, absolute; large twitter card");
+    check(/^https:\/\/trollrunner\.net\/assets\/games\/troll-man\/ui\/troll-man-banner\.jpg(\?v=[\w-]+)?$/.test(meta("og:image") || "") && meta("twitter:card") === "summary_large_image", "og:image is the banner, absolute; large twitter card");
     check(!/\u{1F9CC}/u.test(html + fs.readFileSync(path.join(ROOT, "assets/games/troll-man/game.js"), "utf8")), "no troll emoji anywhere");
   }
 
