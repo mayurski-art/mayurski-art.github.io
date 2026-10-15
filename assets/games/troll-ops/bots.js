@@ -139,8 +139,32 @@ const PERCH_EVERY = [10, 20];
 const PERCH_CHANCE = 0.35;
 const PERCH_RANGE = 45;
 const PERCH_HOLD = [4, 8];
-const PERCH_GIVE_UP = 30;          // seconds to get there before it's dropped
+const PERCH_GIVE_UP = 45;          // seconds to get there before it's dropped
 const PERCH_NO_GAIN = 5;           // seconds without getting a metre closer before it's dropped
+
+/* Posts (BotManager placesFor): with only stair tops to perch on and the
+   nearest enemy to run at otherwise, bots spent 0-4% of a match off the
+   ground floor and left whole districts empty (Hollowgrin's park, chapel,
+   creek: HANDOFF "Small known gaps"). So each map gets a list of posts:
+   spots across every upper floor a stair or rope reaches, and spots spread
+   over the whole ground. With nobody in sight a bot takes a post now and
+   then (POST_UP / POST_GROUND of its picks, the rest are hunts), favouring
+   districts nobody's in, holds it (longer up high, where it fights from
+   the edge rather than walking off it), then hunts or moves on. */
+const POST_FIRST = [2, 7];
+const POST_EVERY = [6, 12];        // seconds of hunting between posts
+const POST_UP = 0.32;
+const POST_GROUND = 0.28;
+const POST_HOLD_UP = [4, 9];
+const POST_HOLD_GROUND = [2, 5];
+const POST_SPACING = 18;           // metres between ground posts (about)
+const DISTRICT = 20;               // metres: the squares crowding is counted in
+/* Bot-seconds spent in a district lately (fading by half a minute or so):
+   a district this many bot-seconds warm counts half as much, so
+   the ones nobody's been to come up. */
+const POST_HEAT = 5;
+const POST_HEAT_KEEP = 0.99;       // per half second: about a minute's half-life
+const UPPER_Y = 1.5;               // feet this high: off the ground floor
 
 /* Anything tall standing at body height on this spot? */
 /* A climb up or down a rope floor link (s.rope): the spot it hangs at is
@@ -311,7 +335,7 @@ class Bot {
     this.lastTargetId = null;
     this.roam = null;
     this.perch = null;
-    this.perchT = between(PERCH_FIRST);
+    this.perchT = between(POST_FIRST);
     this.stairPlan = null;
     this.noRoute = null;
     this.navY = null;
@@ -527,6 +551,11 @@ class Bot {
         : toTarget.addScaledVector(new THREE.Vector3(-toTarget.z, 0, toTarget.x), weave).normalize();
     } else if (best) {
       this.yaw = Math.atan2(-(best.pos.x - this.pos.x), -(best.pos.z - this.pos.z));
+      // The next post comes round in a fight too: on a small busy map
+      // (Depot: someone in sight nine tenths of the time) a bot that only
+      // picked one out of contact never went anywhere but where it met them.
+      // At half the pace, so most fights are still fought where they start.
+      if (!this.perch && !objective && ctx.places?.all.length) this.updatePerch(dt * 0.5, ctx);
       // Close to a comfortable range rather than walking into their face,
       // and strafe laterally the whole time — a bot that holds still while
       // trading shots reads as scripted, not skilled. Flip strafe direction
@@ -550,7 +579,10 @@ class Bot {
       // Someone coming in with a sword gets kited: back off while shooting,
       // since standing to trade is exactly what they want.
       // Just smoked themselves: back off in it.
-      const closeSign = this.retreatT > 0 ? -1 : best.melee ? (bestD < 14 ? -1 : 0) : bestD > 12 ? 1 : (bestD < 6 ? -1 : 0);
+      let closeSign = this.retreatT > 0 ? -1 : best.melee ? (bestD < 14 ? -1 : 0) : bestD > 12 ? 1 : (bestD < 6 ? -1 : 0);
+      // Up on a floor over them: hold the high ground, don't walk off it
+      // to close the range.
+      if (this.groundY >= UPPER_Y && this.groundY - (best.groundY ?? best.pos.y ?? 0) > 1.2) closeSign = Math.min(closeSign, 0);
       desired = toTarget.multiplyScalar(closeSign * 0.6)
         .addScaledVector(lateral, this.diff.strafe)
         .normalize();
@@ -565,6 +597,13 @@ class Bot {
         // off the side of it.
         const dir = this.climbStep(ctx);
         if (dir) desired = dir.addScaledVector(lateral, 0.15).normalize();
+      } else if (this.perch && !this.perch.arrived && ctx.places?.all.length && !this.arrivePerch()) {
+        // On its way to a post (a balcony, a far district): it keeps going
+        // while it shoots, or a busy map's fights hold everyone on the
+        // ground where they met.
+        const toward = this.steerTo(this.perch.id, this.perch, ctx);
+        desired = toward.multiplyScalar(0.85).addScaledVector(lateral, 0.4).normalize();
+        if (this.noRoute?.id === this.perch.id) { this.perchFail = this.perch.id; this.perch = null; }
       } else if (this.flinchT > 0.15) {
         // A fresh flinch briefly overrides strafing with a hard juke off-line —
         // the instinctive first move a real player makes under fire.
@@ -579,6 +618,7 @@ class Bot {
         }
         this.strafeT = Math.max(this.strafeT, 0.5);
       }
+      if (!objective?.urgent) desired = this.keepFooting(desired, ctx);
     } else if (objective && objD > objective.radius) {
       // Nobody in sight and the mode wants us somewhere — go there before
       // hunting. Without this KotH bots never stood on the hill and S&D
@@ -594,8 +634,7 @@ class Bot {
       // Taking the high ground for a while (updatePerch): up there, then
       // hold it, turning to watch the approaches.
       const p = this.perch;
-      if (!p.arrived && Math.hypot(p.x - this.pos.x, p.z - this.pos.z) < 1.2 && Math.abs(p.y - this.groundY) < 0.6) p.arrived = true;
-      if (p.arrived) {
+      if (this.arrivePerch()) {
         desired = new THREE.Vector3();
         this.yaw += dt * 0.8 * this.strafeDir;
         p.hold -= dt;
@@ -603,7 +642,7 @@ class Bot {
       } else {
         desired = this.steerTo(p.id, p, ctx);
         this.yaw = Math.atan2(-desired.x, -desired.z);
-        if (this.noRoute?.id === p.id) this.perch = null;   // can't get there from here
+        if (this.noRoute?.id === p.id) { this.perch = null; this.perchFail = p.id; }   // can't get there from here
       }
     } else if (lead) {
       // Nobody in sight: walk the flow field toward the nearest enemy rather
@@ -700,7 +739,9 @@ class Bot {
         const back = this.stuckHops > UNSTICK_AFTER + 1 ? 0.7 : 0;
         this.unstickDir.set(-desired.z * this.unstickSide - desired.x * back, 0, desired.x * this.unstickSide - desired.z * back).normalize();
         this.unstickT = UNSTICK_TIME;
-        this.perch = null;
+        // jammed on the way to its post: the post goes too (in a fight,
+        // pinned while strafing, it keeps it for after)
+        if (!best) { if (this.perch && !this.perch.arrived) this.perchFail = this.perch.id; this.perch = null; }
         this.climb = null;
         this.stairPlan = null;
         if (this.stuckHops > UNSTICK_AFTER + 3) this.stuckHops = 0;
@@ -958,7 +999,10 @@ class Bot {
         if (dir) return dir;
       }
     }
-    const field = (key, x, z, level, isStatic) => ctx.navFor?.({ id: key, pos: { x, z }, static: isStatic }, level);
+    // `doors`: a fixed spot's field on the ground floor's finer chase grid
+    // instead of the old one (navFor), for a stair foot behind a doorway
+    // the old grid seals (Troll City's saloon stair).
+    const field = (key, x, z, level, isStatic, doors = false) => ctx.navFor?.({ id: key, pos: { x, z }, static: isStatic, doors }, level);
     // The field's own target cell (a goal in a gap too tight for the grid
     // snaps to the nearest open cell, which can be the one we're in): the
     // last few metres are a straight walk.
@@ -972,10 +1016,20 @@ class Bot {
     };
     let step = null, tried = false;
     if (gy == null || !stairs.length || Math.abs(gy - here) < SAME_LEVEL) {
-      const f = field(id, goal.x, goal.z, goal.static ? here : navY, goal.static);
+      // a fixed spot's field is read on its own floor: a bot up on a
+      // 0.8 m cart rounds to the 1 m level, which has no grid round it
+      let f = field(id, goal.x, goal.z, goal.static ? gy ?? here : navY, goal.static);
       step = f?.steer(this.pos.x, this.pos.z);
       tried = true;
       if (step) return step;
+      // A fixed spot on the ground the old grid can't reach (a post in
+      // Hollowgrin's chapel, past a door it seals): the chase grid's.
+      if (goal.static && here < 1.2 && (gy ?? 0) < 0.75) {
+        const d = field(id, goal.x, goal.z, 0, true, true);
+        step = d?.steer(this.pos.x, this.pos.z);
+        if (step) return step;
+        if (d) f = d;
+      }
       if (arrived(f) && (gy == null || Math.abs(gy - here) < 0.6)) return straight();
       // The doors grid has no way from here: a stair's foot, say, in a
       // notch the finer grid seals off. A second opinion from the old grid,
@@ -1009,11 +1063,13 @@ class Bot {
         }
         step = field(key, entry.x, entry.z, here, true)?.steer(this.pos.x, this.pos.z);
         if (step) return step;
+        if (here < 0.75) step = field(key, entry.x, entry.z, here, true, true)?.steer(this.pos.x, this.pos.z);
+        if (step) return step;
         const v = new THREE.Vector3(entry.x - this.pos.x, 0, entry.z - this.pos.z);
         if (v.lengthSq() > 1e-6) return v.normalize();
       }
     }
-    if (!tried) step = field(id, goal.x, goal.z, goal.static ? here : navY, goal.static)?.steer(this.pos.x, this.pos.z);
+    if (!tried) step = field(id, goal.x, goal.z, goal.static ? gy ?? here : navY, goal.static)?.steer(this.pos.x, this.pos.z);
     if (step) return step;
     if (orNull) return null;
     const v = new THREE.Vector3(goal.x - this.pos.x, 0, goal.z - this.pos.z);
@@ -1115,10 +1171,15 @@ class Bot {
       return k >= 0 && f.dist[k] ? f.dist[k] * f.cell : Infinity;
     };
     let best = null, bestCost = Infinity;
-    for (const c of cand.slice(0, 5)) {
+    // the nearest few, and the flight a post was found from (placesFor:
+    // `via`), which surely reaches it; a nearer one may top out on a
+    // walkway of its own (the Grinleria's escalators)
+    for (const c of cand.filter((c, k) => k < 5 || c.i === goal.via)) {
       const key = `stair${c.i}${c.end}`;
-      const toFoot = Math.hypot(c.entry.x - this.pos.x, c.entry.z - this.pos.z) < 1.5
+      let toFoot = Math.hypot(c.entry.x - this.pos.x, c.entry.z - this.pos.z) < 1.5
         ? 0 : fdist(field(key, c.entry.x, c.entry.z, here, true), this.pos.x, this.pos.z);
+      // walled off on the old grid: the finer one may find the doorway
+      if (!isFinite(toFoot) && here < 0.75) toFoot = fdist(field(key, c.entry.x, c.entry.z, here, true, true), this.pos.x, this.pos.z);
       if (!isFinite(toFoot)) continue;
       let onward;
       if (Math.abs(c.exit.y - gy) < 0.6) {
@@ -1160,10 +1221,27 @@ class Bot {
       if (!p.arrived) {
         const d = Math.hypot(p.x - this.pos.x, p.z - this.pos.z) + Math.abs(p.y - this.groundY) * 3;
         if (p.bestD == null || d < p.bestD - 1) { p.bestD = d; p.gainT = p.t; }
-        if (p.t - p.gainT > PERCH_NO_GAIN) this.perch = null;
+        // On its way round to the stair (walking away from the post to
+        // get up to it) is progress too: only standing still for it isn't.
+        if (!p.from || Math.hypot(this.pos.x - p.from.x, this.pos.z - p.from.z) > 2) { p.from = { x: this.pos.x, z: this.pos.z }; p.gainT = p.t; }
+        if (p.t - p.gainT > PERCH_NO_GAIN) { this.perch = null; this.perchFail = p.id; }
       }
       if (this.perch && p.t > PERCH_GIVE_UP && !p.arrived) this.perch = null;
       return !!this.perch;
+    }
+    const places = ctx.places;
+    if (places?.all.length) {
+      this.perchT = (this.perchT ?? between(POST_FIRST)) - dt;
+      if (this.perchT > 0) return false;
+      this.perchT = between(POST_EVERY);
+      const r = Math.random();
+      const post = r < POST_UP ? this.pickPost(places, places.upper, ctx)
+        : r < POST_UP + POST_GROUND ? this.pickPost(places, places.ground, ctx) : null;
+      if (!post) return false;     // a hunt this time
+      places.claims.set(post.id, (places.claims.get(post.id) || 0) + 1);
+      this.perch = { id: post.id, x: post.x, y: post.y, z: post.z, via: post.via, t: 0, arrived: false, static: true,
+        hold: between(post.y >= UPPER_Y ? POST_HOLD_UP : POST_HOLD_GROUND) };
+      return true;
     }
     this.perchT = (this.perchT ?? between(PERCH_FIRST)) - dt;
     if (this.perchT > 0 || !stairs.length) return false;
@@ -1188,6 +1266,54 @@ class Bot {
       && !resolveBlocked(ctx.colliders, fx, fz, c.hi.y)) { x = fx; z = fz; }
     this.perch = { id: `perch${c.i}${c.end}`, x, y: c.hi.y, z, t: 0, hold: between(PERCH_HOLD), arrived: false, static: true };
     return true;
+  }
+
+  /* At its perch or post (marked so from here on)? A post on the ground
+     is a patch of it, not a spot: a few metres off counts. */
+  arrivePerch() {
+    const p = this.perch;
+    const r = p.y < UPPER_Y && p.id.startsWith("post-") ? 3 : 1.2;
+    if (!p.arrived && Math.hypot(p.x - this.pos.x, p.z - this.pos.z) < r && Math.abs(p.y - this.groundY) < 0.6) p.arrived = true;
+    return p.arrived;
+  }
+
+  /* A post from `list` (places.upper or .ground), drawn at random, weighted
+     away from posts another bot holds or is headed to, from crowded
+     districts, from the one it's standing in, and a little by distance, so
+     the far side of a big map gets its turn. */
+  pickPost(places, list, ctx) {
+    if (!list.length) return null;
+    const here = places.districtOf(this.pos.x, this.pos.z);
+    let sum = 0;
+    const w = new Float32Array(list.length);
+    for (let i = 0; i < list.length; i++) {
+      const p = list[i];
+      if (this.perchFail === p.id) continue;
+      const d = Math.hypot(p.x - this.pos.x, p.z - this.pos.z);
+      if (d < 6 && Math.abs(p.y - this.groundY) < 1) continue;   // already there
+      w[i] = 1 / (1 + 3 * (places.claims.get(p.id) || 0))
+        / (1 + 1.2 * (places.crowd.get(p.district) || 0))
+        / (1 + (places.heat.get(p.district) || 0) / POST_HEAT)
+        / (1 + d / 200) * (p.district === here ? 0.5 : 1);
+      sum += w[i];
+    }
+    if (sum <= 0) return null;
+    let r = Math.random() * sum;
+    for (let i = 0; i < list.length; i++) { r -= w[i]; if (r <= 0 && w[i] > 0) return list[i]; }
+    return list.find((_, i) => w[i] > 0) || null;
+  }
+
+  /* In a fight up on a floor (a balcony, a walkway, a roof): a step that
+     would take it off the edge isn't taken. The strafe turns round instead,
+     and if that's off an edge too it stands and shoots. */
+  keepFooting(desired, ctx) {
+    if (this.groundY < UPPER_Y - 0.3 || this.climb || this.hopY > 0 || desired.lengthSq() < 1e-4) return desired;
+    const safe = (v) => groundHeightAt(ctx.colliders, this.pos.x + v.x * 0.9, this.pos.z + v.z * 0.9,
+      this.groundY + 0.5, BOT_RADIUS * 0.8) > this.groundY - 0.45;
+    if (safe(desired)) return desired;
+    this.strafeDir = -this.strafeDir;
+    this.strafeT = Math.max(this.strafeT, 0.8);
+    return new THREE.Vector3();
   }
 
   /* No target and no route: drift, so they don't stand still looking broken. */
@@ -1237,6 +1363,138 @@ export class BotManager {
     this.fieldPool.clear();
     this.frameFields.clear();
     this.staticFields.clear();
+    this.places = null;
+  }
+
+  /* The map's posts (see POST_* above), worked out once per map from the
+     nav grids: { upper, ground, all, districtOf, crowd, claims }.
+     Upper: on each floor a stair or rope tops out on, the part of it that
+     top reaches, a few spots spread across it (the far end of a balcony,
+     the corners of a roof), never on its lip. Ground: spots about
+     POST_SPACING apart over the largest walkable stretch of ground, so
+     every district has some. A big map with its own coarse grid (Troll
+     Royale's island: loot, the zone and the drop move its bots) gets none,
+     and its bots keep the old stair-top perches. */
+  placesFor(stairs, baseFor) {
+    if (this.places && this.places.stairs === stairs) return this.places;
+    const src = this.fieldSrc, a = src.arena;
+    const places = { stairs, upper: [], ground: [], all: [], crowd: new Map(), claims: new Map(), heat: new Map(), crowdT: 0,
+      districtOf: (x, z) => Math.floor((x - a.minX) / DISTRICT) + 64 * Math.floor((z - a.minZ) / DISTRICT) };
+    this.places = places;
+    if (a.navCell >= 1) return places;
+    const t0 = performance.now();
+    const centre = (f, k) => ({ x: f.minX + (k % f.w + 0.5) * f.cell, z: f.minZ + (((k / f.w) | 0) + 0.5) * f.cell });
+    // open, and so are its eight neighbours: not on a lip or in a notch
+    const roomy = (f, k, open) => {
+      const ix = k % f.w, iz = (k / f.w) | 0;
+      if (ix < 1 || iz < 1 || ix >= f.w - 1 || iz >= f.h - 1) return false;
+      for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) if (!open(k + dz * f.w + dx)) return false;
+      return true;
+    };
+    // Up to n of these cells spread apart: each the farthest from those
+    // already taken (and from `from`), none closer than `gap`.
+    const spread = (f, cells, n, from, gap) => {
+      const out = [], pts = cells.map((k) => centre(f, k));
+      const d = pts.map((p) => (from ? Math.hypot(p.x - from.x, p.z - from.z) : Infinity));
+      for (let m = 0; m < n; m++) {
+        let bi = -1, bd = gap;
+        for (let i = 0; i < pts.length; i++) if (d[i] > bd) { bd = d[i]; bi = i; }
+        if (bi < 0) break;
+        const q = pts[bi];
+        out.push(q);
+        for (let i = 0; i < pts.length; i++) d[i] = Math.min(d[i], Math.hypot(pts[i].x - q.x, pts[i].z - q.z));
+      }
+      return out;
+    };
+    const cols = src.colliders;
+    const fits = (x, y, z) => Math.abs(groundHeightAt(cols, x, z, y + 0.5, BOT_RADIUS * 0.8) - y) < 0.35 && !resolveBlocked(cols, x, z, y);
+    // Upper floors: from every top, the floor it reaches on its level.
+    const reached = new Map();   // level -> cells some top already claimed
+    for (let i = 0; i < stairs.length; i++) {
+      const s = stairs[i];
+      const [lo, hi] = s.a.y < s.b.y ? [s.a, s.b] : [s.b, s.a];
+      if (hi.y < UPPER_Y || hi.y - lo.y < 1) continue;
+      const level = Math.max(0, Math.round(hi.y * 2) / 2);
+      const f = new FlowField(null, null, 0, { template: baseFor(level) });
+      if (!f.compute(hi.x, hi.z)) continue;
+      let seen = reached.get(level);
+      if (!seen) reached.set(level, (seen = new Uint8Array(f.w * f.h)));
+      const cells = [];
+      for (let k = 0; k < f.dist.length; k++) {
+        if (!f.dist[k] || seen[k]) continue;
+        seen[k] = 1;
+        if (roomy(f, k, (j) => !!f.dist[j])) cells.push(k);
+      }
+      // about one spot per 25 m² of floor, two to five a floor
+      const n = Math.max(2, Math.min(5, Math.round(cells.length * f.cell * f.cell / 25)));
+      for (const q of spread(f, cells, n, hi, 3)) {
+        const y = groundHeightAt(cols, q.x, q.z, hi.y + 0.5, BOT_RADIUS * 0.8);
+        if (Math.abs(y - hi.y) > 0.5 || !fits(q.x, y, q.z)) continue;
+        places.upper.push({ id: `post-u${places.upper.length}`, x: q.x, y, z: q.z, via: i, district: places.districtOf(q.x, q.z) });
+      }
+    }
+    // The ground: its largest connected stretch on the chase grid, whose
+    // doorways are open (the old grid seals Hollowgrin's chapel). A post
+    // in there is walked to on that grid too (steerTo's `doors`).
+    const g = baseFor(0, true);
+    const label = new Int32Array(g.w * g.h), queue = new Int32Array(g.w * g.h);
+    let bestLabel = 0, bestSize = 0;
+    for (let k0 = 0, n = 0; k0 < label.length; k0++) {
+      if (g.blocked[k0] || label[k0]) continue;
+      n++;
+      let head = 0, tail = 0;
+      queue[tail++] = k0; label[k0] = n;
+      while (head < tail) {
+        const k = queue[head++], ix = k % g.w, iz = (k / g.w) | 0;
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const jx = ix + dx, jz = iz + dz;
+          if (jx < 0 || jz < 0 || jx >= g.w || jz >= g.h) continue;
+          const j = jz * g.w + jx;
+          if (g.blocked[j] || label[j]) continue;
+          label[j] = n; queue[tail++] = j;
+        }
+      }
+      if (tail > bestSize) { bestSize = tail; bestLabel = n; }
+    }
+    const cells = [];
+    for (let k = 0; k < label.length; k += 2) {
+      if (label[k] !== bestLabel || !roomy(g, k, (j) => label[j] === bestLabel)) continue;
+      const c = centre(g, k);
+      if (a.edge && !insidePolygon(a.edge, c.x, c.z)) continue;
+      if (a.wade && insidePolygon(a.wade, c.x, c.z)) continue;
+      cells.push(k);
+    }
+    // One a POST_SPACING square: the open spot nearest its middle, so a
+    // room in a corner (the chapel) gets one, and edges don't get them all.
+    // A spot the old grid has open all round counts as nearer (bots walk
+    // there by the old grid's fields: one it only snaps to, they stop
+    // short of); one only the chase grid reaches is the last pick.
+    const S = POST_SPACING, sq = new Map(), old = baseFor(0);
+    const oldOpen = (x, z) => {
+      const i = old.index(x, z);
+      if (i < 0) return false;
+      const ix = i % old.w, iz = (i / old.w) | 0;
+      for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+        const jx = ix + dx, jz = iz + dz;
+        if (jx < 0 || jz < 0 || jx >= old.w || jz >= old.h || old.blocked[jz * old.w + jx]) return false;
+      }
+      return true;
+    };
+    for (const k of cells) {
+      const q = centre(g, k);
+      const sx = Math.floor((q.x - a.minX) / S), sz = Math.floor((q.z - a.minZ) / S);
+      const d = Math.hypot(q.x - (a.minX + (sx + 0.5) * S), q.z - (a.minZ + (sz + 0.5) * S)) + (oldOpen(q.x, q.z) ? 0 : 2);
+      const key = sx + 1000 * sz, had = sq.get(key);
+      if (had && had.d <= d) continue;
+      if (!fits(q.x, 0, q.z) || groundHeightAt(cols, q.x, q.z, 0.5, BOT_RADIUS * 0.8) > 0.3) continue;
+      sq.set(key, { d, q });
+    }
+    for (const { q } of sq.values()) {
+      places.ground.push({ id: `post-g${places.ground.length}`, x: q.x, y: 0, z: q.z, district: places.districtOf(q.x, q.z) });
+    }
+    places.all = [...places.upper, ...places.ground];
+    places.buildMs = performance.now() - t0;
+    return places;
   }
 
   /* Fill the room up to `target` participants, splitting bots across sides. */
@@ -1342,13 +1600,13 @@ export class BotManager {
       const level = Math.max(0, Math.round(levelY * 2) / 2);
       // `target.coarse`: a chase on the old grid (steerTo's second opinion
       // when the doors grid has no way from where the bot stands).
-      const key = (level ? `${level}|${target.id}` : target.id) + (target.coarse ? "|old" : "");
+      const key = (level ? `${level}|${target.id}` : target.id) + (target.coarse ? "|old" : "") + (target.static && target.doors ? "|doors" : "");
       // A fixed spot (a stair's foot, a perch): swept once and kept for the
       // match, outside the pool, so lots of them can't evict the chases.
       if (target.static) {
         let f = this.staticFields.get(key);
         if (!f) {
-          f = new FlowField(null, null, 0, { template: baseFor(level) });
+          f = new FlowField(null, null, 0, { template: baseFor(level, !!target.doors) });
           f.compute(target.pos.x, target.pos.z);
           this.staticFields.set(key, f);
         }
@@ -1383,7 +1641,23 @@ export class BotManager {
     // `ctx.lodNear`: where the real players are (null = every bot, every frame).
     const lod = ctx.lodNear && this.bots.length > 24 ? ctx.lodNear : null;
     this.lodFrame = (this.lodFrame || 0) + 1;
-    const sub = { ...ctx, navFor, dtNow: dt };
+    // Where everyone is, by district, and which posts are taken: a couple
+    // of times a second is plenty for picking the next post.
+    const places = this.fieldSrc ? this.placesFor(ctx.stairs || [], baseFor) : null;
+    if (places?.all.length && (places.crowdT -= dt) <= 0) {
+      places.crowdT = 0.5;
+      places.crowd.clear();
+      places.claims.clear();
+      for (const [k, v] of places.heat) places.heat.set(k, v * POST_HEAT_KEEP);
+      for (const b of this.bots) {
+        if (!b.alive) continue;
+        const k = places.districtOf(b.pos.x, b.pos.z);
+        places.crowd.set(k, (places.crowd.get(k) || 0) + 1);
+        places.heat.set(k, (places.heat.get(k) || 0) + 0.5);
+        if (b.perch) places.claims.set(b.perch.id, (places.claims.get(b.perch.id) || 0) + 1);
+      }
+    }
+    const sub = { ...ctx, navFor, dtNow: dt, places };
     for (let i = 0; i < this.bots.length; i++) {
       const bot = this.bots[i];
       let step = dt;

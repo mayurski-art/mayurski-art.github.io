@@ -245,7 +245,31 @@ export class FlowField {
      this spot has no route (outside the grid, or walled off). */
   steer(x, z, out = new THREE.Vector3()) {
     const i = this.openIndex(x, z);
-    if (i < 0 || !this.dist[i]) return null;
+    if (i < 0) return null;
+    if (!this.dist[i]) {
+      // An open cell the sweep never reached: a sliver of floor cut off by
+      // the grid, like the last tread of the Grinleria's escalators, where
+      // a walker steps off onto the floor beyond. Head for the nearest
+      // routed cell a step or two away, if nothing stands in between.
+      const ix = i % this.w, iz = (i / this.w) | 0;
+      let best = -1, bd = Infinity;
+      for (let dz = -2; dz <= 2; dz++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const jx = ix + dx, jz = iz + dz;
+          if (jx < 0 || jz < 0 || jx >= this.w || jz >= this.h) continue;
+          const j = jz * this.w + jx;
+          if (this.blocked[j] || !this.dist[j]) continue;
+          const d = dx * dx + dz * dz;
+          if (d >= bd) continue;
+          const cx = this.minX + (jx + 0.5) * this.cell, cz = this.minZ + (jz + 0.5) * this.cell;
+          if (!this.lineClear(x, z, cx, cz)) continue;
+          bd = d; best = j;
+        }
+      }
+      if (best < 0) return null;
+      const cx = this.minX + (best % this.w + 0.5) * this.cell, cz = this.minZ + (((best / this.w) | 0) + 0.5) * this.cell;
+      return out.set(cx - x, 0, cz - z).normalize();
+    }
     const ix = i % this.w, iz = (i / this.w) | 0;
     let best = this.dist[i], bx = 0, bz = 0;
     for (let dz = -1; dz <= 1; dz++) {
