@@ -12,7 +12,7 @@
 // (the Pentagrin) everyone follows the player's floor field.
 
 import * as THREE from "three";
-import { FlowField } from "./nav.js?v=ti1-bs1b7d";
+import { FlowField } from "./nav.js?v=ti1-bs1b7d-fl1";
 import { makeEnemyDissolveMaterial } from "./shaders.js";
 import { buildHumanoid, poseHumanoid } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1";
 import { groundHeightAt, resolveCircle } from "./movement.js?v=umb2-sb2-gj1b7";

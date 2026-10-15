@@ -1,7 +1,7 @@
 // Troll Forces mode picker: the Play tab's mode list, prestige locks and the
 // per-mode lobby state (streak picker, forced map, map pool).
 
-import { MODES, MODE_IDS } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1";
+import { MODES, MODE_IDS } from "../modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1";
 import { prestigeUnlocked } from "../progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import { streaksAllowed } from "../scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2";
 import { game } from "../core/state.js?v=st1";
