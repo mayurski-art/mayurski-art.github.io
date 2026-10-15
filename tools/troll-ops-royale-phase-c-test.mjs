@@ -1,9 +1,9 @@
 // Troll Royale phase C: everyone else's drop, and joining late.
-//   1. One client, 99 bots: trolls on the belt are drawn standing, fallers
-//      skydive (belly down), and nobody opens a glider any more.
-//   2. A second client joining while the belt runs steps onto the floor
-//      (no sky lobby of its own) and doesn't take the bots over.
-//   3. A third joining after the floor has gone spectates.
+//   1. One client, 99 bots: trolls aboard the C-130s are not drawn (they're
+//      inside), fallers skydive (belly down), nobody opens a glider.
+//   2. A second client joining while the planes are over the island boards
+//      its plane (no countdown of its own) and doesn't take the bots over.
+//   3. A third joining after the planes have gone spectates.
 //
 // Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-royale-phase-c-test.mjs
 
@@ -40,20 +40,19 @@ const browser = await chromium.launch({ args: ["--use-angle=d3d11", "--autoplay-
   "--disable-background-timer-throttling", "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows"] });
 const errors = [];
 
-async function open(ctx, label, { room = "", lobby = 90, noBots = true, floorGone = null } = {}) {
+async function open(ctx, label, { room = "", lobby = 90, noBots = true } = {}) {
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(`${label}: ${e.message}`));
   await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 90000 });
-  await page.evaluate(async ({ room, lobby, noBots, floorGone }) => {
+  await page.evaluate(async ({ room, lobby, noBots }) => {
     const T = window.__trollOps;
     T.DROP.lobbySeconds = lobby;
-    if (floorGone != null) T.DROP.floorGoneAfter = floorGone;
     T.setMode("royale");
     if (T.els.noBots) T.els.noBots.checked = noBots;
     if (room) { T.els.room.value = room; T.els.room.dispatchEvent(new Event("input")); }
     await T.startGame();
-  }, { room, lobby, noBots, floorGone });
+  }, { room, lobby, noBots });
   await page.waitForFunction(() => window.__trollOps.state() === "playing", null, { timeout: 120000 });
   return page;
 }
@@ -63,18 +62,18 @@ async function open(ctx, label, { room = "", lobby = 90, noBots = true, floorGon
   const ctx = await browser.newContext({ viewport: { width: 960, height: 540 } });
   await ctx.route(/supabase/, (r) => r.abort());
   const P = await open(ctx, "solo", { lobby: 8, noBots: false });
-  await P.waitForFunction(() => window.__trollOps.royale()?.me === "belt", null, { timeout: 120000 });
+  await P.waitForFunction(() => window.__trollOps.royale()?.me === "aboard", null, { timeout: 120000 });
   await sleep(1500);
-  const seen = { beltShown: 0, beltHidden: 0, beltHigh: 0, fall: 0, fallFlat: 0, glide: 0, landedWing: 0 };
+  const seen = { aboard: 0, aboardShown: 0, fall: 0, fallFlat: 0, glide: 0, landedWing: 0 };
   const t0 = Date.now();
   while (Date.now() - t0 < 90000) {
     const s = await P.evaluate(() => {
       const T = window.__trollOps;
-      const o = { beltShown: 0, beltHidden: 0, beltHigh: 0, fall: 0, fallFlat: 0, glide: 0, landedWing: 0, airborne: 0 };
+      const o = { aboard: 0, aboardShown: 0, fall: 0, fallFlat: 0, glide: 0, landedWing: 0, airborne: 0 };
       for (const rp of T.remotes.byId.values()) {
         if (!rp.alive) continue;
-        // On the belt a troll is just a troll standing up high: drawn, upright.
-        if (!rp.drop && rp.pos.y > 300) { o.beltHigh++; rp.rig.root.visible ? o.beltShown++ : o.beltHidden++; }
+        // Aboard (the wire's DROP_BUS) a troll is inside a plane: not drawn.
+        if (rp.drop === 1) { o.aboard++; if (rp.rig.root.visible) o.aboardShown++; }
         if (rp.drop === 2) { o.fall++; if (rp.rig.root.rotation.x < -1) o.fallFlat++; }
         if (rp.drop === 3) o.glide++;
         if (!rp.drop && rp.glider) o.landedWing++;
@@ -86,9 +85,12 @@ async function open(ctx, label, { room = "", lobby = 90, noBots = true, floorGon
     if (s.airborne === 0 && seen.fall) break;
     await sleep(400);
   }
-  check("trolls on the belt are drawn standing", seen.beltHigh > 50 && seen.beltShown > 0, JSON.stringify({ high: seen.beltHigh, shown: seen.beltShown, hidden: seen.beltHidden }));
+  check("trolls aboard: only your planemates are drawn (the rest are inside their planes)", seen.aboard > 50 && seen.aboardShown <= 8,JSON.stringify({ aboard: seen.aboard, shown: seen.aboardShown }));
   check("fallers skydive belly down", seen.fall > 0 && seen.fallFlat === seen.fall, JSON.stringify({ fall: seen.fall, flat: seen.fallFlat }));
   check("nobody opens a glider", seen.glide === 0 && seen.landedWing === 0, JSON.stringify({ glide: seen.glide, wings: seen.landedWing }));
+  // The crowd LOD poses an off-screen troll every 8th frame: give the last
+  // one down a moment to stand up before looking.
+  await sleep(1500);
   const after = await P.evaluate(() => {
     const T = window.__trollOps;
     let wings = 0, flat = 0;
@@ -104,34 +106,34 @@ async function open(ctx, label, { room = "", lobby = 90, noBots = true, floorGon
   const ctx = await browser.newContext({ viewport: { width: 640, height: 400 } });
   await ctx.route(/supabase/, (r) => r.abort());
   const ROOM = "RDC" + Math.floor(Math.random() * 90 + 10);
-  // The real belt runs 12 s, about as long as a headless page takes to
-  // load: a longer one here (on both ends: the joiner judges "too late" by
-  // its own DROP) so B lands inside it whatever the machine's speed.
-  const FLOOR_GONE = 40;
-  const A = await open(ctx, "A", { room: ROOM, lobby: 6, floorGone: FLOOR_GONE });
-  await A.waitForFunction(() => window.__trollOps.royale()?.me === "belt", null, { timeout: 120000 });
+  // A real plane is over the island ~10 s, about as long as a headless page
+  // takes to load: slow planes here (on every page, so they agree) so B
+  // boards inside the window whatever the machine's speed.
+  await ctx.addInitScript(() => { window.__trollPlanesTune = { speed: 10 }; });
+  const A = await open(ctx, "A", { room: ROOM, lobby: 6 });
+  await A.waitForFunction(() => window.__trollOps.royale()?.drop?.phase === "run", null, { timeout: 120000 });
   await sleep(500);
-  const B = await open(ctx, "B", { room: ROOM, floorGone: FLOOR_GONE });
+  const B = await open(ctx, "B", { room: ROOM });
   await B.waitForFunction(() => !window.__trollOps.isStaging(), null, { timeout: 20000 }).catch(() => {});
   await sleep(500);
   const s = await Promise.all([A, B].map((p) => p.evaluate(() => {
     const T = window.__trollOps, r = T.royale();
-    return { me: r.me, phase: r.drop?.phase, beltT: r.drop?.beltT, y: +T.move.pos.y.toFixed(1), staging: T.isStaging(), host: T.net.isBotHost(), peers: T.net.peers.size };
+    return { me: r.me, phase: r.drop?.phase, runT: r.drop?.runT, plane: r.plane, seat: r.seat, y: +T.move.pos.y.toFixed(1), staging: T.isStaging(), host: T.net.isBotHost(), peers: T.net.peers.size };
   })));
-  check("a late joiner skips the sky lobby and steps onto the belt", !s[1].staging && s[1].phase === "belt" && (s[1].me === "belt" || s[1].me === "fall"), JSON.stringify(s[1]));
-  check("its belt clock is where everyone else's is", Math.abs(s[0].beltT - s[1].beltT) < 2.5, `${s[0].beltT?.toFixed(1)} vs ${s[1].beltT?.toFixed(1)}`);
+  check("a late joiner skips the countdown and boards its plane", !s[1].staging && s[1].phase === "run" && (s[1].me === "aboard" || s[1].me === "fall") && s[1].plane === 0 && s[1].seat === 1, JSON.stringify(s[1]));
+  check("its drop clock is where everyone else's is", Math.abs(s[0].runT - s[1].runT) < 2.5, `${s[0].runT?.toFixed(1)} vs ${s[1].runT?.toFixed(1)}`);
   check("the first client keeps the bots", s[0].host && !s[1].host, JSON.stringify({ a: s[0].host, b: s[1].host }));
 
-  // Once the floor has gone there's no way in.
+  // Once the planes have gone there's no way in.
   await A.waitForFunction(() => window.__trollOps.royale()?.drop?.phase === "done", null, { timeout: 120000 });
-  const C = await open(ctx, "C", { room: ROOM, floorGone: FLOOR_GONE });
+  const C = await open(ctx, "C", { room: ROOM });
   await C.waitForFunction(() => !window.__trollOps.isStaging(), null, { timeout: 20000 }).catch(() => {});
   await sleep(500);
   const c = await C.evaluate(() => {
     const T = window.__trollOps, r = T.royale();
     return { late: !!r.lateJoin, staging: T.isStaging(), live: r.live, spectating: T.royaleSpectating(), host: T.net.isBotHost() };
   });
-  check("joining after the floor went: spectate, don't drop in", c.late && !c.staging && c.live && !c.host, JSON.stringify(c));
+  check("joining after the planes went: spectate, don't drop in", c.late && !c.staging && c.live && !c.host, JSON.stringify(c));
   await ctx.close();
 }
 

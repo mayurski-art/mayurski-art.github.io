@@ -5,7 +5,9 @@ dependencies (plain Python):
   - vertex colours  float RGBA  -> normalized unsigned-byte RGBA
   - normals         float XYZ   -> normalized signed-byte XYZ (+ pad)
   - UVs dropped on materials the game never textures (everything not in
-    map-models.js RETEXTURE: the flat GS_Paint and the emissive lamps)
+    map-models.js RETEXTURE: the flat GS_Paint and the emissive lamps),
+    except TEXCOORD_1, the baked light map's (bake_kit.py), which every
+    material keeps, as normalized unsigned shorts
 
 Positions stay float. Byte normals need KHR_mesh_quantization, which
 three.js's GLTFLoader supports; it is added to extensionsUsed/Required.
@@ -122,6 +124,17 @@ def main(paths):
                              "normalized": True, "count": a["count"], "type": "VEC4"})
             return len(new_accs) - 1
 
+        def uv01_accessor(ai):
+            # a light-map UV lies in 0..1: 16 bits each is plenty
+            a = j["accessors"][ai]
+            vals = accessor_values(j, bin_, ai)
+            data = bytearray()
+            for (u, v) in vals:
+                data += struct.pack("<HH", *(max(0, min(65535, round(c * 65535))) for c in (u, v)))
+            new_accs.append({"bufferView": add_view(bytes(data), stride=4, target=34962), "componentType": USHORT,
+                             "normalized": True, "count": a["count"], "type": "VEC2"})
+            return len(new_accs) - 1
+
         def normal_accessor(ai):
             a = j["accessors"][ai]
             vals = accessor_values(j, bin_, ai)
@@ -141,6 +154,8 @@ def main(paths):
                         attrs[k] = color_accessor(ai)
                     elif k == "NORMAL":
                         attrs[k] = normal_accessor(ai)
+                    elif k == "TEXCOORD_1":
+                        attrs[k] = uv01_accessor(ai)
                     elif k.startswith("TEXCOORD") and mat not in keep_uv:
                         continue
                     else:

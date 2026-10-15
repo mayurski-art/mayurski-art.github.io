@@ -11,7 +11,8 @@ Authoring conventions (every map script follows them):
 - Flat-painted parts merge into one vertex-coloured "GS_Paint" material per
   model; only TEXTURED names (must match map-models.js RETEXTURE) and
   emissive materials keep their own.
-- No environment map in the game: keep metalness low or it renders black.
+- Only the game's "metal" surface set reflects the sky (view/environment.js);
+  flat paint has no reflection: keep its metalness low or it renders black.
 """
 import bpy
 import bmesh
@@ -20,6 +21,18 @@ import os
 from mathutils import Matrix, Vector
 
 OUT_DIR = os.path.dirname(os.path.abspath(__file__))
+_BAKE = {"default": None}
+
+
+def bake_every_model(**bake):
+    """A builder calls this once to light-map every model it finishes
+    (bake_kit.py settings; res defaults to "auto", by the model's size).
+    context="<mapId>" stands the rest of that map up round each one while it
+    bakes (its <mapId>-placements.json, tools/troll-ops-map-placements.mjs),
+    so world-space pieces shade each other; lamps=<watts a candela> bakes the
+    map's point lights in too (its api.lamp()s: then the map drops them; ~40
+    matches three's light). finish(..., bake=False) opts one out."""
+    _BAKE["default"] = dict({"res": "auto"}, **bake)
 UP = Vector((0, 1, 0))
 
 
@@ -361,7 +374,15 @@ class Builder:
             f.smooth = True
         return out
 
-    def finish(self, filename):
+    def finish(self, filename, bake=None):
+        """Exports the model. `bake` (bake_kit.py) also bakes its light map:
+        a second UV layer plus <name>-bake.webp beside the GLB. None takes
+        the builder's bake_every_model() settings, False skips it, a dict
+        overrides some of them (samples=512 for a bounce-lit ceiling)."""
+        if bake is None:
+            bake = _BAKE["default"]
+        elif bake:
+            bake = dict(_BAKE["default"] or {}, **bake)
         bm = self.bm
         bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
         bm.normal_update()
@@ -407,6 +428,31 @@ class Builder:
         bpy.ops.object.select_all(action="DESELECT")
         obj.select_set(True)
         bpy.context.view_layer.objects.active = obj
+        if bake:
+            from bake_kit import bake_lightmap, import_context, remove_context
+            bake = dict(bake)
+            ctx_map = bake.pop("context", None)
+            lamp_w = bake.pop("lamps", None)
+            ctx = []
+            if ctx_map:
+                import json
+                with open(os.path.join(OUT_DIR, ctx_map + "-placements.json")) as f:
+                    spec = json.load(f)
+                places = spec["placements"]
+                if lamp_w:
+                    bake["lights"] = list(bake.get("lights", ())) + [
+                        ((x, y, z), col, inten * lamp_w, 0.15) for (x, y, z, col, inten, _d) in spec.get("lights", [])]
+                ctx = import_context([(os.path.join(OUT_DIR, n + ".glb"), x, z, yaw, y, (sx, sy, sz))
+                                      for (n, x, y, z, yaw, sx, sy, sz) in places
+                                      if n != name and os.path.exists(os.path.join(OUT_DIR, n + ".glb"))])
+                bpy.ops.object.select_all(action="DESELECT")
+                obj.select_set(True)
+                bpy.context.view_layer.objects.active = obj
+            bake_lightmap(obj, os.path.join(OUT_DIR, name + "-bake.webp"), **bake)
+            remove_context(ctx)
+            bpy.ops.object.select_all(action="DESELECT")
+            obj.select_set(True)
+            bpy.context.view_layer.objects.active = obj
         path = os.path.join(OUT_DIR, filename)
         bpy.ops.export_scene.gltf(filepath=path, use_selection=True, export_format="GLB",
                                   export_yup=True, export_apply=True)

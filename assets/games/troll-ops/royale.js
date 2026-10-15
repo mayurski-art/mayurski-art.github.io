@@ -16,7 +16,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
-import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1";
+import { buildWeaponMesh, stripLights } from "./weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1";
 import { SLOTS, defaultLoadoutFor, fitsFor, resolveWeapon } from "./attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import { FlowField } from "./nav.js?v=ti1-bs1b7d";
 
@@ -104,7 +104,10 @@ function pickWeighted(rng, list, weightOf) {
 export class RoyaleZone {
   /* `onLand(x, z)`: where a circle's centre may go (Trollface Island: on
      the island, not over the void round it). */
-  constructor(bounds, rng, phases = ROYALE.phases, onLand = null) {
+  /* `prefer(x, z)`: a score; the last circles (a fifth of the map or less)
+     take the best of six good spots, so the endgame is somewhere with cover
+     (Trollface Island: its points of interest), not open meadow. */
+  constructor(bounds, rng, phases = ROYALE.phases, onLand = null, prefer = null) {
     this.phases = phases;
     const cx = (bounds.minX + bounds.maxX) / 2, cz = (bounds.minZ + bounds.maxZ) / 2;
     const r0 = Math.hypot(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ) / 2 + 2;
@@ -118,12 +121,18 @@ export class RoyaleZone {
       // Somewhere inside the last circle, and not hanging far off the map.
       const room = Math.max(0, Math.min(prev.r, span) - r);
       let x = prev.x, z = prev.z;
-      for (let tries = 0; tries < 24; tries++) {
+      const pick = prefer && ph.frac <= 0.22 ? 6 : 1;
+      let found = 0, bestS = -Infinity, bx = x, bz = z;
+      for (let tries = 0; tries < 24 * pick && found < pick; tries++) {
         const a = rng() * Math.PI * 2, d = Math.sqrt(rng()) * room * 0.85;
         x = THREE.MathUtils.clamp(prev.x + Math.cos(a) * d, bounds.minX + r * 0.5, bounds.maxX - r * 0.5);
         z = THREE.MathUtils.clamp(prev.z + Math.sin(a) * d, bounds.minZ + r * 0.5, bounds.maxZ - r * 0.5);
-        if (!onLand || onLand(x, z)) break;
+        if (onLand && !onLand(x, z)) continue;
+        found++;
+        const sc = pick > 1 ? prefer(x, z) : 0;
+        if (sc > bestS) { bestS = sc; bx = x; bz = z; }
       }
+      if (found) { x = bx; z = bz; }
       this.circles.push({ x, z, r });
     }
     this.length = phases.reduce((s, p) => s + p.wait + p.close, 0);
@@ -226,11 +235,35 @@ export function rollGun(rng, rarityIdx, weaponId = null) {
   return { id, att };
 }
 
-/* A floor item, before it has a mesh. */
-function rollItem(rng) {
+/* Points of interest (a map's `royale.pois`: { x, z, r, tier }): loot
+   gathers at the hot ones and runs thin over open ground, so where you drop
+   is a choice (ROYALE-ISLAND.md). `density` is relative to open ground;
+   `boost` is the share of guns there rolled one rarity up; `land` and `zone`
+   weight the bots' landing picks and the last circles toward them. */
+export const POI_TIERS = {
+  hot: { density: 2.5, boost: 0.33, land: 1.6, zone: 1 },
+  mid: { density: 1.5, boost: 0, land: 1.25, zone: 0.6 },
+  minor: { density: 1, boost: 0, land: 1, zone: 0.2 },
+};
+export const OPEN_DENSITY = 0.6;
+/* The tier of the place (x, z) is in, or null out in the open. A POI counts
+   4 m past its radius (its edge is where the cover is). */
+export function poiTierAt(pois, x, z) {
+  let best = null;
+  for (const p of pois || []) {
+    const t = POI_TIERS[p.tier];
+    if (t && Math.hypot(x - p.x, z - p.z) < p.r + 4 && (!best || t.density > best.density)) best = t;
+  }
+  return best;
+}
+
+/* A floor item, before it has a mesh. `boost`: the chance a gun rolls one
+   rarity up (hot POIs). */
+function rollItem(rng, boost = 0) {
   const kind = pickWeighted(rng, KIND_WEIGHTS, (k) => k[1])[0];
   if (kind !== "gun") return { k: kind, n: 1 };
-  const r = RARITIES.indexOf(pickWeighted(rng, RARITIES, (x) => x.weight));
+  let r = RARITIES.indexOf(pickWeighted(rng, RARITIES, (x) => x.weight));
+  if (boost > 0 && rng() < boost) r = Math.min(RARITIES.length - 1, r + 1);
   const { id, att } = rollGun(rng, r);
   return { k: "gun", w: id, a: att, r };
 }
@@ -239,7 +272,10 @@ function rollItem(rng) {
    every item can be walked to), thinned to ROYALE.lootSpacing apart. */
 /* `ok(x, z)`: extra test for a spot (on the island, out of the lake).
    `perSqM`: density; a big map runs thinner than a small one. */
-export function lootSpots(colliders, bounds, rng, { ok = null, perSqM = ROYALE.lootPerSqM } = {}) {
+/* `pois`: points of interest (POI_TIERS): the same number of items, more of
+   them at the POIs (a spot is kept with a chance by its place's density) and
+   each spot says how much its guns are boosted. */
+export function lootSpots(colliders, bounds, rng, { ok = null, perSqM = ROYALE.lootPerSqM, pois = null } = {}) {
   // The player's own step (movement.js STEP_UP 0.36) and a margin off walls,
   // so every item is somewhere you can actually stand.
   const field = new FlowField(colliders, bounds, 0, { step: 0.34, pad: 0.7 });
@@ -255,11 +291,14 @@ export function lootSpots(colliders, bounds, rng, { ok = null, perSqM = ROYALE.l
   const want = Math.round(area * perSqM);
   const out = [];
   const minD2 = ROYALE.lootSpacing * ROYALE.lootSpacing;
-  for (let tries = 0; tries < want * 30 && out.length < want && open.length; tries++) {
+  const top = pois?.length ? Math.max(OPEN_DENSITY, ...Object.values(POI_TIERS).map((t) => t.density)) : 1;
+  for (let tries = 0; tries < want * 30 * top && out.length < want && open.length; tries++) {
     const [ix, iz] = open[Math.floor(rng() * open.length)];
     const x = field.minX + (ix + 0.5) * field.cell, z = field.minZ + (iz + 0.5) * field.cell;
+    const tier = pois?.length ? poiTierAt(pois, x, z) : null;
+    if (pois?.length && rng() * top > (tier ? tier.density : OPEN_DENSITY)) continue;
     if (out.some((p) => (p.x - x) ** 2 + (p.z - z) ** 2 < minD2)) continue;
-    out.push({ x, z });
+    out.push(tier?.boost ? { x, z, boost: tier.boost } : { x, z });
   }
   return out;
 }
@@ -391,7 +430,7 @@ export class LootField {
 
   spawnSeeded(spots, rng, groundAt) {
     spots.forEach((p, i) => {
-      this.add({ id: `s${i}`, ...rollItem(rng), x: p.x, y: groundAt(p.x, p.z), z: p.z });
+      this.add({ id: `s${i}`, ...rollItem(rng, p.boost), x: p.x, y: p.y ?? groundAt(p.x, p.z), z: p.z });
     });
   }
 

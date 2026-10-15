@@ -98,6 +98,8 @@ for (const id of ids) {
       C.setPixelRatio?.(1); C.setSize(W, H);
       // A spawn that hurts (Hollowgrin) leaves the low-HP blur on: clear it.
       for (const p of C.passes) for (const k of ["uHitFlash", "uLowHp", "uAberration", "uSuppress"]) if (p.uniforms?.[k]) p.uniforms[k].value = 0;
+      // No gun: the viewmodel draws inside the composer (view/grade-pass.js).
+      for (const p of C.passes) if (p.constructor.name === "ViewmodelPass") p.enabled = false;
       // Troll Royale: no zone wall, next-circle ring or loot beams in the shot.
       const roy = T.royale?.();
       if (roy) {

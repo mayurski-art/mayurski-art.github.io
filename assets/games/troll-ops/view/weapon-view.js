@@ -1,19 +1,19 @@
 // The gun in your hands each frame: sway, bob, landing dip, ADS, inspect,
 // reloads (mags, shells, pumps), the rod arms, the Soul Blazer and the laser.
 
-import { currentWeapon, swapRaise } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1";
+import { currentWeapon, swapRaise } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1";
 import { AKIMBO_INSPECT_TIME } from "../akimbo-view.js?v=ak1-wst";
 import * as THREE from "three";
 import { rise, smoothstep, damp } from "../anim-curves.js";
 import { handMaterials, inkOutline } from "../hand-model.js?v=to-grip2";
 import { wristOf, buildWatch, buildWristband } from "../wristwear.js?v=ww1c2m1";
 import { clubWear } from "../modes/club-wear.js?v=cw1c2m1";
-import { cosmetics } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1";
+import { cosmetics } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1";
 import { soulBlazerReloadPose, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth, updateSoulBlazerView, soulBlazerInspect, SB_INSPECT_CUES } from "../soul-blazer.js?v=sb1";
-import { placePistolSlide } from "./pistol-action.js?v=ps1-wb1";
+import { placePistolSlide } from "./pistol-action.js?v=ps1-wb1-br1";
 import { placeBolt } from "./rifle-action.js?v=ra1-wb1";
 import { updateSniperScope } from "./sniper-scope.js?v=ss1-wb1";
-import { hasArReload, applyArReload, arReloadBeats, easeCutReload } from "./ar-reload.js?v=ar1";
+import { hasArReload, applyArReload, arReloadBeats, arSlideAt, easeCutReload } from "./ar-reload.js?v=ar1-br1";
 import { chargedShotDef } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
 import { STANCE } from "../movement.js?v=umb2-sb2-gj1b7";
@@ -844,7 +844,7 @@ function reloadPose(w, mesh) {
       mag.visible = true;
       mag.position.copy(mesh.userData.magazinePoint);
       mag.rotation.x = mesh.userData.magRestRotationX ?? mag.userData.restRotX ?? mag.rotation.x;
-      if (mag.userData.arTilted) { mag.rotation.y = mag.rotation.z = 0; mag.userData.arTilted = false; }
+      if (mag.userData.arTilted) { mag.rotation.y = 0; mag.rotation.z = mesh.userData.magRestRotationZ ?? 0; mag.userData.arTilted = false; }
     }
     if (reloadEventsFiredFor === w) {
       if (!w.reloadCut) game.audio.reloadComplete();
@@ -1196,8 +1196,9 @@ function placeReloadMag(mesh, t) {
   const away = t < 0.45 ? seg(0.18, 0.34) : 1 - seg(0.56, 0.7);
   // In the hand it hangs upright on screen, tipped toward you, whatever
   // the gun's roll: slerp from its seated rotation to that screen pose.
-  _magRestQ.setFromEuler(_magRestE.set(restRot, 0, 0));
-  if (sidearm) _magHoldQ.setFromEuler(_magRestE.set(restRot + 0.3, 0, 0));
+  const restZ = mesh.userData.magRestRotationZ ?? 0;   // a drum's roll
+  _magRestQ.setFromEuler(_magRestE.set(restRot, 0, restZ));
+  if (sidearm) _magHoldQ.setFromEuler(_magRestE.set(restRot + 0.3, 0, restZ));
   else mesh.getWorldQuaternion(_magHoldQ).invert().multiply(MAG_HOLD_QUAT);
   mag.quaternion.copy(_magRestQ).slerp(_magHoldQ, away);
   mag.visible = true;
@@ -1404,10 +1405,12 @@ export function updateWeaponView(dt) {
   }
   arLastT = rl.arT;
   // A pistol works its slide (pistol-action.js); the empty reload ends on
-  // the slide slamming home, with a little kick.
+  // the slide slamming home, with a little kick (a BO2 pistol reload: as
+  // the hand racks it, ar-reload.js arSlideAt).
   if (mesh.userData.pistolAction) {
     const admire = game.inspectT > 0 && game.player.holding === "gun" ? inspectProgress() : -1;
-    if (placePistolSlide(mesh, w, rl.magT ?? -1, admire) === "release") {
+    const arSlide = rl.arT >= 0 ? arSlideAt(w) : null;
+    if (placePistolSlide(mesh, w, arSlide != null ? rl.arT : (rl.magT ?? -1), admire, arSlide ?? undefined) === "release") {
       game.audio.slideRelease();
       w.viewKickPitch += 0.012;
     }

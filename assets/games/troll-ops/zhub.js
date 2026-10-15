@@ -270,6 +270,8 @@ export const ZHUB = {
   sun: { color: 0xfff6e8, intensity: 2.0, pos: [14, 40, 18] },
   hemi: { sky: 0xdbe8ff, ground: 0x8a96ab, intensity: 1.2 },
   ambient: { color: 0xffffff, intensity: 0.6 },
+  // stylised realism (view/grade-pass.js): a clean sunny day, a little more colour
+  grade: { shadows: 0x2a3a58, shadowsAmt: 0.06, highlights: 0xfff4e0, highlightsAmt: 0.04, sat: 1.06, contrast: 1.04 },
   viewFar: 200,
   build: buildHub,
   // the open floor behind the pads, facing them

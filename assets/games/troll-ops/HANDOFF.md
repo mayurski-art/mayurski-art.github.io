@@ -6,7 +6,7 @@ Cleaned 2026-10-12. Older, longer versions: `git show 702f867:assets/games/troll
 - Live work gets a section in part 1. When it ships, it becomes one line in the **Shipped log** (part 5) and its section is folded away.
 - Keep only what still constrains future work: architecture, rules, gotchas.
 
-Design docs live next to this file: `COPS-AND-ROBBERS.md`, `TROLL-CITY-RP2.md`, `TROLLS-TRAITS.md`, `CLASSES.md`, `FHJ18.md`, `CLUB-ENTRY.md` (done), `ZOMBIES.md` (the old Pentagrin design; Zombie Rush replaces it), `DESIGN-ARMS.md` and `DESIGN-PF.md` (both done).
+Design docs live next to this file: `ROYALE-ISLAND.md` (Trollface Island map pass: phase 1 done, 2-3 next), `COPS-AND-ROBBERS.md`, `TROLL-CITY-RP2.md`, `TROLLS-TRAITS.md`, `CLASSES.md`, `FHJ18.md`, `CLUB-ENTRY.md` (done), `ZOMBIES.md` (the old Pentagrin design; Zombie Rush replaces it), `DESIGN-ARMS.md` and `DESIGN-PF.md` (both done), `REALISM.md`.
 
 ---
 
@@ -14,9 +14,13 @@ Design docs live next to this file: `COPS-AND-ROBBERS.md`, `TROLL-CITY-RP2.md`, 
 
 ### Tasks to do, in order (updated 2026-10-14)
 Start each session on a fresh branch or worktree from origin/main.
-1. **Stylised realism graphics,** one map first, with before/after screenshots.
-2. **Then hand the user ONE test checklist** (add the BO2 rifle reloads) covering everything shipped since 2026-10-12 (Zombie Rush P1-P7 and the controller buy/deploy, the Kek & Sons merchant and the horses, incl. the hub, Credits and the kiosks, weekly/monthly leaderboards, the High-graphics glow and box fixes, the Royale lag and fights, Show FPS, the phone menu, bot heads, Ghostface Killers).
-- Offered, not yet answered: stretch Royale's match length (fewer bots or a post-kill cooldown).
+1. **Stylised realism follow-ups** (live -sr1; how a map is baked, the lessons: `REALISM.md`):
+   - Re-render the map-select previews (`tools/troll-ops-map-previews.mjs <map>` for the 7 baked maps) and bump each one's `SHOT_V` in map-load-screen.js; they still show the old lighting.
+   - Bake Trollface Island the same way (placements, `bake_every_model`, ground bake, `BAKED`, hemi/ambient halved, before/after shots).
+   - Test reds seen at the -sr1 push, not from it: `view-mode-test` "W + Space flies forward and up" fails on main too (fix it); `remote-body-test` is flaky on main and the branch; `input-test` twice threw "pos.clone is not a function" under machine load (passed 3x alone; no stack caught: rerun with page-error stacks and find the caller).
+   - krypto2009 easter eggs: ask the user for his photos first (wish list).
+2. **Then hand the user ONE test checklist** (add the BO2 reloads: rifles, SMGs, LMGs, pistols) covering everything shipped since 2026-10-12 (Zombie Rush P1-P7 and the controller buy/deploy, the Kek & Sons merchant and the horses, incl. the hub, Credits and the kiosks, weekly/monthly leaderboards, the High-graphics glow and box fixes, the Royale lag and fights, Show FPS, the phone menu, bot heads, Ghostface Killers).
+- **Troll Royale island pass** (`ROYALE-ISLAND.md`): phase 1 shipped (POI loot tiers, the bots' post-kill calm). Next: phase 2 (cover, lake boardwalks), then phase 3 (five new POIs).
 - Paused or on hold (sections below): tf-parallel leftovers, Troll City RP 2c, Cops and Robbers, U Mad Bro?, the TROLLS wallet check.
 
 **References (local only, git-ignored, in the MAIN checkout's `assets/games/troll-ops/refs/`):** `zombie-rush/` (the user's Roblox screenshots, named, plus `originals/`), `zombies-clips/clip1.mp4, clip2.mp4` (gameplay recordings), `pf-reloads/BRIEF.md` (the BO2 reload brief).
@@ -34,16 +38,17 @@ Zombies rebuilt to play like Roblox's Zombie Rush Survival: a 3D hub, then a co-
 - **P7 (animation pass):** bite timing, turning, stagger (zombies.js); melee lunge (combat/melee.js LUNGE, zombies only); tier-up flourish (run.js); deploy unfold + turret arming, turret flash + co-op blood (deployables.js); swap raise (combat/weapons.js swapRaise); downed camera (player-update.js); revive ring (view/revive-ring.js); bat/shovel two-handed tracks (gear.js heldTrack / SWINGS, tuned frame by frame); boss cloth tint + glow (zombie-models.js); controller d-pad buy/deploy (view/zombies-hud.js → input/gamepad.js padHooks.zombies). Tests: zanim, zpad, zdeploy, zcoop.
 - Refs (local only, main checkout): `refs/zombie-rush/` (hub pads, boards, kiosks, Weapons tier screens, Classes / Rookie kit, the in-match HUD), `refs/zombies-clips/`.
 
-### Weapon animations: Black Ops 2 rifle reloads (live, -ar1)
-`view/ar-reload.js`: the nine BO2 rifles (keyed by `model.build`) reload the BO2 way, taken frame by frame from first-person BO2 footage (`refs/pf-reloads/FOOTAGE-NOTES.md`, local: how to watch YouTube in the browser pane and pull frames to canvas, the video's timeline, what each rifle does).
+### Weapon animations: Black Ops 2 reloads (live: rifles -ar1; SMGs, LMGs, pistols -br1, main 1641012b)
+`view/ar-reload.js`: the nine BO2 rifles, the three SMGs, the three LMGs and the two pistols (keyed by `model.build`, else by id) reload the BO2 way, taken frame by frame from first-person BO2 footage (`refs/pf-reloads/FOOTAGE-NOTES.md`, local: how to watch YouTube in the browser pane and pull frames to canvas, the rifle video's timeline, what each rifle does).
+- The other classes' videos (Krystalize; not yet in FOOTAGE-NOTES): SMGs `fgEPhScjUVY` (MP7 0-20 s, PDW-57 20-50, Vector 50-74), LMGs `dEIfIt4caSI` (Mk 48 0-57, QBB 57-92, LSAT 92-133, HAMR 133-170), pistols `uXcvlVRBEQ0` (Five-seven 0-16, KAP-40 76-91). The slow-mo reload is near the end of each gun's stretch. With the browser pane hidden, `computer screenshot` comes back stale: use `zoom` on a region (sometimes twice).
 - Each rifle is a spec: `up` (the held pose: where the well sits, which way muzzle and top point, camera space), `fetch`/`present` (where the hand gets and shows the new mag), `rockIn`, and `finish` (the empty reload's pose, handle point and pull, gun-local, and its sound). `build()` makes the tac and empty timelines from it; weapon-view blends the hip pose into the held poses, the mag and the left hand follow their keys (`posePfArms(..., hand)`), `audio.rifleBeat` plays the beats.
 - Families from the footage: stood on end at the right (SWAT-556, M27, FAL, Type 25), lower and less rolled (SCAR-H, MTAR), leaning left (M8A1), rolled the other way and worked from the right (AN-94, SMR). Empty finishes: FAL over the top, M27/SWAT/Type 25 catch slap, SCAR-H and M8A1 forward side handle, AN-94 across to the right.
-- The hand palms the mag's base so the TROLLS body's block fist never hides it. A cut reload (fire) eases back over 0.14 s. Other guns keep the old reload.
-- Tune with a frozen-frame lab (set `reloadT` via a getter, screenshot both bodies). Test: `tools/troll-ops-arreload-test.mjs` (gate input step).
-- Not yet: SMGs, LMGs and pistols still use the old reload; the BO2 video for them is linked in FOOTAGE-NOTES.
-
-### Graphics: stylised realism (after the weapon animations)
-After Hood Warfare 2 (UE5), the user wants a mix of cartoon and realism. One map first, with before/after screenshots.
+- SMGs: MP7 stood up at the right, mag up into the grip, empty racks the rear T-handle; Vector leans left, empty stands up for the side handle; PDW-57 rolled so its top mag faces the hand (`pullOut`/`under` up, `palm: "top"`), empty racks the front side handle.
+- LMGs (ours aren't BO2's, so each wears the nearest): Colt LMG = HAMR (drum shown off, handle over the top), M60 = Mk 48 / LSAT (raised, slap the top cover), RPK = QBB LSW (stood up, worked from the right, drum rocked in). A drum keeps its rest roll (`magRestRotationZ`).
+- Pistols: Five-seven muzzle up-right, KAP-40 up-left; the empty reload ends on the hand racking the slide, and the slide drops then (`arSlideAt` -> pistol-action's `releaseAt`), no rifle beat.
+- The hand palms the mag's base so the TROLLS body's block fist never hides it. A cut reload (fire) eases back over 0.14 s. Carbines, THE BEAST, the 416, snipers, shotguns and the battle rifles keep the old reload.
+- Tune with a frozen-frame lab (set `reloadT` via a getter, screenshot both bodies; hide the `?tohooks` debug panel, it covers the gun). A gun whose mag seats deep in the grip (the MP7) needs its `well` further left, or the stood-up body swings off screen. Test: `tools/troll-ops-arreload-test.mjs` (gate input step; all 17 guns).
+- Not yet: checked by eye in a real match (headless frames only). On the TROLLS body the block arm holding a pistol's grip covers the bottom of the gun and the incoming mag (the left fist itself never does).
 
 ### TROLLS NFT looks (`TROLLS-TRAITS.md`)
 #1718's blocky body is live. **Next: the wallet check** (phase 3: `ownerOf` on the contract) to replace the stopgap lock to the troll_runner account (cosmetics.js `BODIES` `owner`, `canWearBody`). Honest-client like everything else: `bk` on the wire is drawn only with `ow`.
@@ -54,11 +59,11 @@ After Hood Warfare 2 (UE5), the user wants a mix of cartoon and realism. One map
 
 ### tf-parallel batch (branch `worktree-tf-parallel`, worktree `.claude/worktrees/tf-parallel`)
 Plan: `C:\Users\mayur\.claude\plans\keen-twirling-chipmunk.md`. Phases 1, 2, 6, 7 are on main.
-- **On that branch, NOT on main (user 2026-10-10: later):** the Troll City band, RP 2c (merchant + horses), the kitchen, arm wrestling, the Royale C-130 drop-in, Grin Beach 5a (unwired WIP, cc9919e). The branch's own HANDOFF has their notes. Merge main into it before pushing any of it.
-- **Grin Beach and the plane are on hold** (user 2026-10-10).
+- **On that branch, NOT on main (user 2026-10-10: later):** the Troll City band, RP 2c (merchant + horses), the kitchen, arm wrestling, Grin Beach 5a (unwired WIP, cc9919e). The branch's own HANDOFF has their notes. Merge main into it before pushing any of it.
+- **Grin Beach is on hold** (user 2026-10-10). The C-130 drop-in came off hold 2026-10-14 and was ported to main's code on branch `tf-royale-map`.
 
 ### Troll City roleplay 2b-2d (Socialize, Troll City only): IN PROGRESS
-Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. Next: 2c merchant + rideable horses (~8 sessions; partly built on tf-parallel). Each phase ships alone: targeted test, one gate, push.
+Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. Next: 2c merchant + rideable horses (~8 sessions; partly built on tf-parallel). Each phase ships alone: targeted test, push.
 - **Not yet checked by eye:** 2a's seated bodies and the pianist's hands.
 - The 2a pattern:
   - Jobs and their wire letters go in `rp-roles.js` (`ROLES`, `rr`); spots and furniture in `trollcity.js` (`rp.*`).
@@ -98,8 +103,8 @@ Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. N
   - Notes from Claude: keep boosts to Zombies (PvE) or cosmetics, never PvP stats. Before a prize has real value, pay out only for public matches with results checked by the server (the netcode trusts clients, and bots play). Have a lawyer look at the "dividends" framing and at minors playing. Zombies Credits stay earn-only until then. Needs a design doc and the user's go.
 - **Rolling animations (2026-10-12):** a combat / dive roll for the stick troll, in first and third person.
 - **Tablet streak animation:** the right hand presses confirm. The tablet never says "boarding" or "onboarding".
-- **Royale bus-deploy cinematic,** in third and first person.
 - **Animated weapon skins** with effects coming off them.
+- **krypto2009 easter eggs (2026-10-13, keep in mind):** krypto2009 (the user's friend on X) plasters real trollface graffiti and stickers on walls worldwide (Buenos Aires, New York; a red-white-blue spray piece signed "KRYPTO2009"). Hide tributes in the maps: his trollface pieces on walls, sticker-bombed poles, a signed piece somewhere worth finding. Best slot: the stylised-realism wear pass (P4 graffiti on Cul-de-Grin, then each map's rollout). Build from his real pieces (ask the user for the photos, keep them in `refs/`, local only), the real trollface art only, credited.
 - **"For You" emote:** only while falling in Royale. The troll reaches out a hand romantically, with face, hand, body and background shots.
 
 ### Backlog (needs a design doc / the user's go first)
@@ -107,13 +112,13 @@ Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. N
 - **Flamethrower:** a "VERY unique design" with its own silhouette like Green Candles. Steps: a doc pitching 2-3 concepts, a Blender glb, a tank-swap reload, fire stream and burn FX.
 - **Halloween skin for the Problem 416:** pumpkins, reaper, bone, violet and orange.
 - **Troll-NFT weapon skins** (wallets: ask first). First candidate: TROLLS #1718 "Tank Runner" (`assets/images/skin-art/trolls-1718-tank-runner.jpg`). Skins in general are on hold.
-- **Royale:** duos/squads and Troll Court (needs N teams; only phantom/ghost exist); real art for the bus, glider and lobby box (ask before Blender work on landmarks); loot race (two players can take one item in a latency window); looted grenades.
+- **Royale:** duos/squads and Troll Court (needs N teams; only phantom/ghost exist); landmark art (ask before Blender work on landmarks); loot race (two players can take one item in a latency window); looted grenades.
 - **Waiting on the user:** rename lists for usernames and weapons (display names only; ids stay); custom crosshair options; more radio mp3s (add to `music.js` TRACKS, then `node tools/troll-ops-beatgrid.mjs`).
 - **On hold:** Grinleria leftovers, more cosmetic slots, Royale landmark art.
 - **Cancelled 2026-10-03:** Purge XP; $TRUTHS tournaments; the whole 2026-09-30 open-asks list.
 
 ### Small known gaps (fix if touched)
-- **Royale length:** with 99 bots the island is down to ~10 by 2.5 min while the zone runs ~9.5 min (troll-ops-royale-pace; the same before the 2026-10-12 fixes). The user was offered fewer bots or a post-kill cooldown.
+- **Royale length:** the post-kill calm (30-45 s, 2026-10-14) stretched the end (last two alive past 345 s, was ~240 s), but the middle still thins fast: ~10 left at ~220 s while the zone runs ~9.5 min (troll-ops-royale-pace). The next dial is early-phase bot sight (ROYALE_BOT_SIGHT); ask before changing it.
 - **Bots:** ground floor only on every map, rarely visit Hollowgrin's far districts; don't shoot down the VTOL Warship or Swarm drones; ignore an enemy UAV beyond the minimap. K9 dogs walk the ground flow field only, and nobody but you calls them.
 - **Killcam** doesn't record swivels.
 - **Zombies:** mid-round shader compiles (warm those materials in warmShaders). Each zombie is one atlas mesh: a new part needs an atlas cell, not its own material (build_zombies.blender.py `atlas_merge`; the tint only touches u < 0.5). A popped head is `bones.head` scaled to 0.001, re-applied after every mixer update. Any new gore material must join `goreStandIns()`.
@@ -132,9 +137,8 @@ Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. N
 - Merge each finished phase to main.
 - Parallel sessions each use their own worktree + branch. Commit only your own files.
 - No build timelapses or turntables (Blender `-- check` renders for review only).
-- Run headless tests ONE AT A TIME.
-- No phase videos (user 2026-10-08: "I dont need videos"): tests, gate, push; screenshots for self-checks only.
-- One gate per session, at the very end, before the push.
+- No phase videos (user 2026-10-08: "I dont need videos"): tests, push; screenshots for self-checks only.
+- No gate (user 2026-10-14: "no gate going forward"): targeted tests per change (running several at once is fine), then push on the user's say. tools/troll-ops-gate.mjs stays in the repo, unused.
 
 **Art**
 - Never the troll emoji. The mascot is the trollface artwork.
@@ -159,7 +163,7 @@ Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. N
 - TDM is first to 50.
 - Max 3 streaks per loadout. BO2 names are kept and streaks must be "very accurate to Black Ops 2".
 - Lean was dropped; Q is aim.
-- Pad: Y = swap; L3 / R3 = swivel; L3+R3 = emotes. Desktop: H = emotes, T = inspect.
+- Pad is Black Ops 2's Xbox 360 default (user 2026-10-14): X reload / hold use, Y swap, LB tactical, RB lethal, L3 sprint, R3 melee, d-pad right streak, up/down scroll streaks, left tap inspect / hold emotes. Desktop: H = emotes, T = inspect.
 - Chat: Enter = all, Y = team.
 
 **Owner `troll_runner`**
@@ -317,7 +321,8 @@ Map rules:
   - melee meshes need `userData.meleeId`
   - gear.js `basisPointing` is a mirrored basis on purpose
 - **Royale:**
-  - royale.js: zone, loot, seeded rng; royale-drop.js: lobby, bus, glider
+  - royale.js: zone, loot, seeded rng; royale-drop.js: the drop clock and Flight; royale-planes.js: the squadron; royale-hold.js: the C-130 hold (PLANES.md)
+  - Aboard, riders are placed every frame (remote-players.js crowd LOD skips frames otherwise; the plane does 40 m/s)
   - seed = hash(room:matchesPlayed), adopted from the stage owner's `sd`
   - Trollface Island: map-% → metres x = (px-50)*4.54, z = (py-47)*3.62; edge is a polygon clamp (edge.js); wading at y < 0.5
   - crowd LOD past 24 trolls
@@ -374,7 +379,7 @@ Map rules:
 ## 4. Tests and tools
 
 **Running tests**
-- Run as `NODE_PATH=<main checkout>/node_modules node tools/<name>.mjs`, one at a time.
+- Run as `NODE_PATH=<main checkout>/node_modules node tools/<name>.mjs`.
 - Use GPU flags (`--use-angle=d3d11`) for anything with hold timers or audio: bar, rp, dj, trollingloud.
 - `?tohooks=1` exposes `window.__trollOps`, which includes `djLulz`, `music`, `builtMap()`, `move`, `look`, `net`.
 
@@ -453,6 +458,14 @@ Map rules:
 ---
 
 ## 5. Shipped log (newest first; one line each, details in git)
+- **2026-10-14** Troll Royale island phase 1 (-pi1, ROYALE-ISLAND.md): POI tiers on Trollface Island's landmarks (`LANDMARKS[].tier`, royale.js `POI_TIERS`): hot places 2.5x loot with a third of their guns a rarity up, mid 1.5x, open 0.6x, same total; loot on the Boat's deck and the Bridge (bots leave raised loot); bot landings and the last circles lean to POIs; a Royale bot is calm 30-45 s after a kill (bot-fire.js `killedAt`). Tests: royale-bots (calm), royale-island (deck loot).
+- **2026-10-14** Royale C-130 drop-in (-pl2, PLANES.md; built 2026-10-10 on tf-parallel, ported onto today's main): you start aboard one of 12 C-130s, nine trolls a plane, seated planemates, door at 0:40, red at 0:08, ramp + green at 0:00, walk off or Space, then today's flying fall (stick forward flies) off the ramp; bots spread their landings from their own plane's exit; replaces the sky-lobby box, belt and glider. Tests: royale-drop-test, royale-phase-c-test.
+
+- **2026-10-14** (-br1, LIVE main 1641012b; gate not run, user said push) Black Ops 2 reloads for the SMGs (MP7, Vector, PDW-57), LMGs (Colt = HAMR, M60 = Mk 48, RPK = QBB) and pistols (Five-seven, KAP-40, slide racked to finish an empty one), from BO2 footage; procedural drum mags keep their roll through any reload. Tests: arreload (361), pistols, smgs.
+
+- **2026-10-14** (-sr1; stylised realism) Env map from the sky, a post-tonemap grade per map, the gun drawn inside the composer, a sun-coloured rim on characters; Cycles light-map bakes (sky, bounce, lamps; runtime lamps removed) for Cul-de-Grin, Grin Site, Dust Bowl, Grin Beach, Grinjuku, the Depot and the Grinleria, grades for the rest (how a map is baked, and the lessons: REALISM.md; krypto2009 eggs still wait on photos); wear decals and glossy puddles. Tests: input, menu, killcam, rope, view-mode, remote-body, fps, every map's bots move.
+- **2026-10-14** (-nh1) Radio: Natural Habitat (070 Shake feat. Ken Carson; from the user's screen recording, ends 207 s with a fade), beat grid 148 BPM. Tests: dj, menu, trollingloud.
+- **2026-10-14** (-jb1) Radio: OUT WEST and GATTI (JACKBOYS), DArkSide (Bring Me The Horizon; from the user's screen recording, ends 164 s with a fade), 192k, beat grids 140 / 71.6 / 112 BPM. Tests: dj, menu, trollingloud.
 
 - **2026-10-14** (-bf1; the user's 4 phone bugs)
   - The phone magnifier: every touch control and the canvas cancel the long-press default (input/touch.js). Test: loupe.
@@ -460,7 +473,7 @@ Map rules:
   - Royale freefall steers like Fortnite: stick forward with the camera level flies you across the island (reach 135 m to 351 m). Test: royale-drop (now in the full run).
   - The gun no longer shows through the TROLLS body: measured, it sat 5-6 cm in the chest and through the forearms, the reload mag in the thigh, the menu carry 7.5 cm in the forearm; blocky-body.js GUN_HOLD retuned (character.js hooks). Test: nft-hold (surface-sampled, old code fails 55).
 
-- **2026-10-14** (-aa0 to -dj2, merged over -bf1 as -mg1; full gate run before the push)
+- **2026-10-14** (-aa0 to -pd1, LIVE main fd500ff; pushed on the user's say with the gate's rerun still going; the first run's 19 reds were the machine overloaded, the real five passed alone)
   - Aim assist gone (stick and thumb; the Dragonfire's nose gun keeps its pull). Auto reload on an empty mag. Tests: input, reload-death.
   - Rooms: a joiner takes the room's map from anyone in the match and the host's versus mode; whoever's match ends tells the room ("end"). Tests: roomsync, zjoin.
   - Zombies: drop into a run mid-round, spawn in when it's cleared; a host retaking a run keeps its wave; skip button says "all needed". Tests: zjoin, zcoop.

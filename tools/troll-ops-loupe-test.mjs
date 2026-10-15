@@ -57,13 +57,15 @@ check("a tap on reload still reloads", await page.evaluate(() => window.__trollO
 const cdp = await ctx.newCDPSession(page);
 const touch = (type, pts) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: pts });
 const lb = await box("to-touch-look");
-const yaw0 = await page.evaluate(() => window.__trollOps.look.yaw);
+// aim assist pulls the view back onto the range target ahead and can eat the drag
+const yaw0 = await page.evaluate(() => { window.__trollOps.settings.aimAssist = false; return window.__trollOps.look.yaw; });
 const lx = lb.x + lb.width * 0.5, ly = lb.y + lb.height * 0.5;
 await touch("touchStart", [{ x: lx, y: ly, id: 1 }]);
 for (let i = 1; i <= 8; i++) { await touch("touchMove", [{ x: lx - i * 12, y: ly, id: 1 }]); await page.waitForTimeout(16); }
-await page.waitForTimeout(100);
+// the look applies on the next frames; under a loaded gate those can lag, so wait for them
+await page.waitForFunction((y0) => Math.abs(window.__trollOps.look.yaw - y0) > 0.05, yaw0, { timeout: 3000 }).catch(() => {});
 await touch("touchEnd", []);
-const yaw1 = await page.evaluate(() => window.__trollOps.look.yaw);
+const yaw1 = await page.evaluate(() => { window.__trollOps.settings.aimAssist = true; return window.__trollOps.look.yaw; });
 check("a drag on the look pad still turns the view", Math.abs(yaw1 - yaw0) > 0.05, `${yaw0.toFixed(3)} -> ${yaw1.toFixed(3)}`);
 
 const mz = await box("to-touch-movezone");
