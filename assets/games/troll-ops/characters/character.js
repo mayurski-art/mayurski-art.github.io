@@ -1783,7 +1783,7 @@ export function poseHumanoid(rig, arg) {
   syncWristwear(rig);
   syncWristband(rig);
   rig.emoteProps?.hide();   // an emote's props (lean-cup.js), once it's over
-  if (rig.gumBubble) rig.gumBubble.visible = false;   // and the Bubblegum bubble (emotes.js)
+  for (const o of rig.emoteBits || []) o.visible = false;   // and the bubble, the crutches (emotes.js)
   beginPose(rig, "gait");
   _poseHumanoid(rig, arg);
   if ((arg.hold ?? "gun") === "gun" && !arg.zombie) _gripSupport(rig, arg);

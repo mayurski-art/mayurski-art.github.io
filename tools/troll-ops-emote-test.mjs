@@ -240,7 +240,7 @@ await A.evaluate(() => window.__trollOps.setEmote(-1));
 // (A is a guest to it, on the stick) doesn't play it for A.
 const GUM = await A.evaluate(() => window.__trollOps.emoteWheel.slices.findIndex((b) => b.textContent.includes("Bubblegum")));
 const wheelHas = () => A.evaluate(() => { const w = window.__trollOps.emoteWheel; w.layout(); return w.shown.includes(w.slices.findIndex((b) => b.textContent.includes("Bubblegum"))); });
-check("bubblegum is the newest emote (its own wire code)", GUM === 18, `slot ${GUM}`);
+check("bubblegum keeps its slot (18, wire code 19)", GUM === 18, `slot ${GUM}`);
 check("bubblegum: not on a guest's wheel", !(await wheelHas()));
 await A.evaluate(() => { const A = window.TrollrunnerAccounts; window.__gp = A?.getCachedProfile; if (A) A.getCachedProfile = () => ({ username: "troll_runner", id: "test" }); });
 check("bubblegum: on the owner's wheel, any body", await wheelHas());
@@ -254,6 +254,23 @@ const gumB = await B.evaluate((id) => {
 }, aId);
 check("bubblegum: a guest's code doesn't play on others' screens", gumB.em === GUM + 1 && !gumB.bubble, JSON.stringify(gumB));
 await A.evaluate(() => { window.__trollOps.setEmote(-1); const A = window.TrollrunnerAccounts; if (A && window.__gp) A.getCachedProfile = window.__gp; });
+
+// Crutches: a pair stands from the armpits to the ground while it plays, and
+// goes away when it stops.
+const CR = await A.evaluate(() => window.__trollOps.emoteWheel.slices.findIndex((b) => b.textContent.includes("Crutches")));
+await A.evaluate((i) => window.__trollOps.setEmote(i), CR);
+await sleep(1500);
+const cr = await A.evaluate(() => {
+  const rig = window.__trollOps.localRig, pair = rig.crutches, v = rig.root.position;
+  if (!pair) return null;
+  rig.root.updateMatrixWorld(true);
+  const tips = pair.children.map((c) => { const t = c.userData.tip.getWorldPosition(c.position.clone()); return +(t.y - v.y).toFixed(3); });
+  return { on: pair.visible, tips };
+});
+check("crutches: both on the ground while it plays", cr?.on && cr.tips.every((y) => Math.abs(y) < 0.03), JSON.stringify(cr));
+await A.evaluate(() => window.__trollOps.setEmote(-1));
+await sleep(500);
+check("crutches: gone once it stops", await A.evaluate(() => !window.__trollOps.localRig.crutches?.visible));
 
 check("no page errors", errors.length === 0, errors.join(" | "));
 await browser.close();

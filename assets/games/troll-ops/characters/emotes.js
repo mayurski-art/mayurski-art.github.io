@@ -39,7 +39,21 @@ function base(rig) {
   setHandPose(rig, 1, "open");
   setFace(rig);   // the rig's own face (the sad emote swaps it)
   resetSecondaryJoints(rig);
-  if (rig.gumBubble) rig.gumBubble.visible = false;
+  // an emote's own pieces (the bubble, the crutches): its pose shows them
+  for (const o of rig.emoteBits || []) o.visible = false;
+}
+/* Hang an emote's piece on `parent` the first time, kept on the rig
+   (rig[key]) and hidden between emotes (base above; character.js
+   poseHumanoid once the emote is over). */
+function emoteBit(rig, key, parent, make) {
+  if (!rig[key]) {
+    const o = make();
+    o.visible = false;
+    parent.add(o);
+    rig[key] = o;
+    (rig.emoteBits ||= []).push(o);
+  }
+  return rig[key];
 }
 function head(rig, pitch = 0, yaw = 0, roll = 0) {
   const p = rig.parts;
@@ -487,25 +501,23 @@ function duoDancePartner(rig, t) {
    at the lips, so it fits the stick's head and the TROLLS one alike. */
 const GUM = { x: 0.08, y: -0.036, lips: 0.012, r: 0.1, seconds: 4.6, pop: 3.2 };
 let gumParts = null;
+const INK_MAT = new THREE.MeshBasicMaterial({ color: 0x111111, side: THREE.BackSide });
+INK_MAT.userData.shared = true;
 function gumBubble(rig) {
-  if (rig.gumBubble) return rig.gumBubble;
-  if (!gumParts) {
-    const geo = new THREE.SphereGeometry(1, 24, 16);
-    const mat = new THREE.MeshStandardMaterial({ color: 0xff8ac4, emissive: 0x5a1036, roughness: 0.3, metalness: 0 });
-    const ink = new THREE.MeshBasicMaterial({ color: 0x111111, side: THREE.BackSide });
-    // every rig shares these (remote-players.js dispose skips them)
-    geo.userData.shared = mat.userData.shared = ink.userData.shared = true;
-    gumParts = { geo, mat, ink };
-  }
-  const g = new THREE.Group();
-  const ball = new THREE.Mesh(gumParts.geo, gumParts.mat);
-  const ink = new THREE.Mesh(gumParts.geo, gumParts.ink);
-  ink.scale.setScalar(1.07);
-  g.add(ball, ink);
-  g.visible = false;
-  rig.parts.head.add(g);
-  rig.gumBubble = g;
-  return g;
+  return emoteBit(rig, "gumBubble", rig.parts.head, () => {
+    if (!gumParts) {
+      const geo = new THREE.SphereGeometry(1, 24, 16);
+      const mat = new THREE.MeshStandardMaterial({ color: 0xff8ac4, emissive: 0x5a1036, roughness: 0.3, metalness: 0 });
+      // every rig shares these (remote-players.js dispose skips them)
+      geo.userData.shared = mat.userData.shared = true;
+      gumParts = { geo, mat };
+    }
+    const g = new THREE.Group();
+    const ink = new THREE.Mesh(gumParts.geo, INK_MAT);
+    ink.scale.setScalar(1.07);
+    g.add(new THREE.Mesh(gumParts.geo, gumParts.mat), ink);
+    return g;
+  });
 }
 function poseGum(rig, t) {
   const p = rig.parts;
@@ -544,6 +556,106 @@ function poseGum(rig, t) {
   done(rig);
 }
 
+/* Crutches (user, 2026-10-16): hobbling on a pair of crutches, the left
+   leg hurt and tucked up. Loops until you move: the crutches swing ahead
+   and plant, the body swings through on the good leg with a hop, the
+   crutches come back under. Each crutch is placed every frame from the
+   armpit (its pad) to the ground (its tip), so it fits the stick and the
+   broad TROLLS bodies alike, and the hands reach for its grip. */
+const CRUTCH = { pad: 0.13, grip: 0.36, beat: 1.15 };   // pad width, grip down from the pad (share), seconds a stride
+let crutchParts = null;
+function makeCrutch() {
+  if (!crutchParts) {
+    const metal = new THREE.MeshStandardMaterial({ color: 0xa7b0ba, roughness: 0.35, metalness: 0.6 });
+    const rubber = new THREE.MeshStandardMaterial({ color: 0x2b2b2e, roughness: 0.9 });
+    const shaft = new THREE.CylinderGeometry(0.015, 0.015, 1, 10).translate(0, -0.5, 0);   // from its top down, length 1
+    const pad = new THREE.BoxGeometry(CRUTCH.pad, 0.032, 0.05);
+    const grip = new THREE.CylinderGeometry(0.014, 0.014, 0.1, 10).rotateZ(PI / 2);
+    const tip = new THREE.CylinderGeometry(0.017, 0.014, 0.045, 10).translate(0, 0.0225, 0);
+    for (const o of [metal, rubber, shaft, pad, grip, tip]) o.userData.shared = true;
+    crutchParts = { metal, rubber, shaft, pad, grip, tip };
+  }
+  const P = crutchParts;
+  const inked = (geo, mat, k = 1.25) => {
+    const g = new THREE.Group(), m = new THREE.Mesh(geo, mat), ink = new THREE.Mesh(geo, INK_MAT);
+    m.castShadow = true;
+    ink.scale.set(k, 1.04, k);
+    g.add(m, ink);
+    return g;
+  };
+  const c = new THREE.Group();
+  c.userData.shaft = inked(P.shaft, P.metal, 1.6);
+  c.userData.pad = inked(P.pad, P.rubber, 1.12);
+  c.userData.grip = inked(P.grip, P.rubber, 1.15);
+  c.userData.tip = inked(P.tip, P.rubber, 1.2);
+  c.add(c.userData.shaft, c.userData.pad, c.userData.grip, c.userData.tip);
+  return c;
+}
+function crutchPair() {
+  const g = new THREE.Group();
+  g.add(makeCrutch(), makeCrutch());
+  return g;
+}
+const _cTop = new THREE.Vector3(), _cTip = new THREE.Vector3(), _cDir = new THREE.Vector3(), _cGrip = new THREE.Vector3();
+const _cUp = new THREE.Vector3(0, -1, 0), _cQ = new THREE.Quaternion();
+const _cPole = [new THREE.Vector3(-1, -0.4, 0.6), new THREE.Vector3(1, -0.4, 0.6)];
+/* Stand crutch `c` (root space) from under the arm on `side` to `tip`. */
+function placeCrutch(rig, c, side, tip, out) {
+  const p = rig.parts, s = rig.scale, root = rig.root;
+  // the pad: just under the shoulder, out to the arm's own line
+  (side < 0 ? p.armL : p.armR).getWorldPosition(_cTop);
+  root.worldToLocal(_cTop);
+  _cTop.x += side * out * s;
+  _cTop.y -= (rig.blocky ? 0.12 : 0.08) * s;
+  _cDir.copy(tip).sub(_cTop);
+  const len = _cDir.length();
+  _cDir.divideScalar(len);
+  c.position.copy(_cTop);
+  c.quaternion.setFromUnitVectors(_cUp, _cDir);
+  c.userData.shaft.scale.set(1, len, 1);
+  c.userData.tip.position.set(0, -len, 0);
+  c.userData.tip.rotation.set(PI, 0, 0);
+  c.userData.grip.position.set(0, -len * CRUTCH.grip, 0);
+  c.scale.setScalar(1);
+  // the hand on the grip (reachHand works in chest space)
+  _cGrip.set(0, -len * CRUTCH.grip, 0);
+  c.localToWorld(_cGrip);
+  p.chest.worldToLocal(_cGrip);
+  reachHand(rig, side, _cGrip, _cPole[side < 0 ? 0 : 1]);
+  setHandPose(rig, side, "fist");
+}
+function poseCrutches(rig, t) {
+  const p = rig.parts, s = rig.scale;
+  base(rig);
+  const on = ease(t / 0.4);
+  const c = (t / CRUTCH.beat) % 1;
+  // 0-0.35 the crutches swing ahead and plant, 0.35-0.75 the body swings
+  // through on them (a hop on the good leg), 0.75-1 they come back under
+  const reach = c < 0.35 ? ease(c / 0.35) : c < 0.75 ? 1 : 1 - ease((c - 0.75) / 0.25);
+  const lift = c < 0.35 ? 0 : c < 0.75 ? Math.sin(((c - 0.35) / 0.4) * PI) : 0;
+  const w = rig.blocky ? 1.35 : 1;   // the TROLLS body's broad shoulders
+  p.hips.position.y = rig.hipY + lift * 0.035 * s * on;
+  p.torso.rotation.x = (0.05 + reach * 0.12 - lift * 0.05) * on;
+  p.chest.rotation.x = 0.04 * on;
+  // the hurt leg tucked up behind, the good leg giving on each landing
+  p.legL.rotation.set((0.3 + lift * 0.1) * on, 0, 0.04 * on);
+  p.kneeL.rotation.x = -1.25 * on;
+  p.legR.rotation.x = (0.06 - lift * 0.05) * on;
+  p.kneeR.rotation.x = -(0.12 + (1 - lift) * reach * 0.12) * on;
+  head(rig, (0.1 + reach * 0.06) * on, 0, Math.sin(t * PI * 2 / CRUTCH.beat) * 0.05 * on);
+  rig.root.updateMatrixWorld(true);
+  const pair = emoteBit(rig, "crutches", rig.root, crutchPair);
+  pair.visible = on > 0.02;
+  for (const side of [-1, 1]) {
+    // the tip: out past the foot, ahead as the crutches swing (-z forward)
+    _cTip.set(side * 0.3 * w * s, 0, (0.05 - reach * 0.32) * s);
+    // (the stick's arms all start at the neck: its pads go out to where
+    // armpits would be, or the two met in the middle of the chest)
+    placeCrutch(rig, pair.children[side < 0 ? 0 : 1], side, _cTip, rig.blocky ? 0.07 : 0.13);
+  }
+  done(rig);
+}
+
 export const EMOTES = [
   { id: "groove", name: "Groove", kind: "tp", pose: DANCES[0] },
   { id: "floss", name: "Floss", kind: "tp", pose: DANCES[1] },
@@ -567,6 +679,7 @@ export const EMOTES = [
   // a TROLLS token's own (`token`): the wheel shows it only to its wearer
   // and the owner, remotes play it only for them (cosmetics.js mayEmoteToken)
   { id: "gum", name: "Bubblegum", kind: "tp", pose: poseGum, seconds: GUM.seconds, token: 989 },
+  { id: "crutches", name: "Crutches", kind: "tp", pose: poseCrutches },
 ];
 
 export const DEFAULT_EMOTE_SECONDS = 8;
