@@ -22,15 +22,16 @@ import { Pass, FullScreenQuad } from "three/addons/postprocessing/Pass.js";
 export const INK_LAYER = 7;
 const INK = {
   color: 0x080808,
-  width: 0.009,   // the line's width in metres on the body (so it scales with the body on screen)
+  width: 0.013,   // the line's width in metres on the body (so it scales with the body on screen)
   minPx: 1.0,     // never thinner than this many pixels (a far-off bot)
-  maxPx: 3.2,     // nor thicker (a close-up)
+  maxPx: 4.5,     // nor thicker (a close-up)
   fold: 0.07,     // metres: a depth jump this big inside one piece is an edge
   retag: 30,      // frames between re-tags (pieces that load late, emote props)
 };
 
 /* ── Tagging ───────────────────────────────────────────────────────────── */
 const rigs = new Set();
+const isHull = (m) => !Array.isArray(m) && m?.isMeshBasicMaterial && m.side === THREE.BackSide;
 const skipMat = (m) => !m || m.side === THREE.BackSide || m.transparent || m.alphaTest > 0 || m.isLineBasicMaterial;
 let nextId = 1;
 function tagRig(rig) {
@@ -54,12 +55,25 @@ function tagRig(rig) {
       o.userData.inkHooked = own;
     }
   });
+  // A piece's own inverted-hull ink (blocky-body.js armInk, hung beside the
+  // piece): this pass outlines the piece now, and the two never lined up,
+  // so slivers of it showed between them (user, 2026-10-16: "bits of white
+  // pixel in between these black lines"). Hidden while the piece is inked
+  // here (a hull beside an un-inked piece, the beard's, stays); the hull's
+  // weight went into the pass's width.
+  rig.root.traverse((o) => {
+    if (!o.isMesh || !o.visible || !isHull(o.material)) return;
+    if (!o.parent?.children.some((c) => c !== o && c.userData.inkId !== undefined)) return;
+    o.visible = false;
+    o.userData.inkHull = true;
+  });
 }
 /* A worn TROLLS body joins the pass (blocky-body.js wearBlocky, once on). */
 export function tagInk(rig) { rigs.add(rig); tagRig(rig); }
 export function untagInk(rig) {
   rigs.delete(rig);
   rig.root.traverse((o) => {
+    if (o.userData.inkHull) { o.visible = true; delete o.userData.inkHull; }
     if (o.userData.inkId === undefined) return;
     o.layers.disable(INK_LAYER);
     delete o.userData.inkId;
