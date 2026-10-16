@@ -78,6 +78,7 @@ function poseDab(rig, t) {
   base(rig);
   const beat = (t % 1) , on = t < 3 ? env(beat, 0.05, 0.25, 0.7, 0.95) : 0;
   const lean = t >= 3 ? ease((t - 3) / 0.4) : 0;
+  if (rig.blocky) return poseDabBlocky(rig, on, lean);
   // Face tucked into the left elbow, right arm flung up and out.
   p.armL.rotation.set(1.6 * on, 0, 0.9 * on);
   p.elbowL.rotation.x = 2.2 * on;
@@ -91,6 +92,40 @@ function poseDab(rig, t) {
   p.elbowL.rotation.x += 1.6 * lean; p.elbowR.rotation.x += 1.6 * lean;
   p.chest.rotation.x -= 0.15 * lean;
   head(rig, 0.45 * on - 0.15 * lean, 0.5 * on, 0);
+  done(rig);
+}
+
+/* The dab on a TROLLS body (user, 2026-10-16: the dab "seems off" on the
+   NFT characters): the stick's joint angles piled the thick block arms over
+   the whole head. Here the hands are placed (reachHand, chest space): the
+   right arm straight out, up and to the side; the left elbow under the
+   chin, its forearm running up parallel to the right arm, the head tucked
+   down into it with the top of the head showing. After: hands on hips. */
+const DAB = {
+  rest: (side) => [side * 0.3, -0.62, 0.02],
+  // (chest space: +x the right side, -z in front)
+  out: [0.72, 0.4, -0.1],        // right hand, the arm near straight
+  // left hand: in reach (the elbow at the chin, about 0.3 out from the
+  // shoulder), the forearm from there up along the right arm's line
+  tuck: [0.16, 0.27, -0.24],
+  hips: (side) => [side * 0.29, -0.5, -0.01],
+};
+const _dabA = new THREE.Vector3(), _dabB = new THREE.Vector3();
+const _dabPoleTuck = new THREE.Vector3(-0.5, -0.4, -1), _dabPoleOut = new THREE.Vector3(0.2, -1, -0.3);
+const _dabPoleHip = [new THREE.Vector3(-1, 0.1, -0.6), new THREE.Vector3(1, 0.1, -0.6)];
+function poseDabBlocky(rig, on, lean) {
+  const p = rig.parts, s = rig.scale;
+  for (const side of [-1, 1]) {
+    _dabA.fromArray(DAB.rest(side)).lerp(_dabB.fromArray(side > 0 ? DAB.out : DAB.tuck), on);
+    _dabA.lerp(_dabB.fromArray(DAB.hips(side)), lean).multiplyScalar(s);
+    reachHand(rig, side, _dabA, lean > on ? _dabPoleHip[side > 0 ? 1 : 0] : side > 0 ? _dabPoleOut : _dabPoleTuck);
+    setHandPose(rig, side, "fist");
+  }
+  p.torso.rotation.set(0.1 * on, -0.2 * on, 0.1 * on);
+  p.hips.rotation.y = 0.08 * on;
+  p.legR.rotation.z = -0.1 * on;
+  p.chest.rotation.x = -0.12 * lean;
+  head(rig, 0.55 * on - 0.1 * lean, 0.35 * on, -0.15 * on);
   done(rig);
 }
 
@@ -117,7 +152,12 @@ function poseBirdTP(rig, t) {
   for (const side of [-1, 1]) {
     const jab = Math.max(0, Math.sin(beat + (side > 0 ? PI : 0))) * up;
     // From hanging at the side to up beside the head, out past its edge.
-    _birdT.set(side * (0.28 + up * 0.1) * s * w, (-0.6 + up * (0.7 + jab * 0.06)) * s, (-0.02 - up * 0.06) * s);
+    // A TROLLS body's block arms are thick and its shoulders broad: the
+    // stick's spot put both fists over the face, so they go wider and a
+    // little higher, the block finger standing clear of the head
+    // (blocky-body.js birdFinger).
+    if (rig.blocky) _birdT.set(side * (0.3 + up * 0.11) * s, (-0.6 + up * (0.8 + jab * 0.06)) * s, (-0.02 - up * 0.03) * s);
+    else _birdT.set(side * (0.28 + up * 0.1) * s * w, (-0.6 + up * (0.7 + jab * 0.06)) * s, (-0.02 - up * 0.06) * s);
     reachHand(rig, side, _birdT, side < 0 ? _birdPoleL : _birdPoleR);
     setHandPose(rig, side, up > 0.35 ? "bird" : "open");
     // The back of the hand to the front, so the finger reads.
@@ -128,6 +168,31 @@ function poseBirdTP(rig, t) {
 }
 
 /* ------------------------------------------------ first person, body side */
+
+/* TROLLS bodies: a hand that touches the face goes to the face itself. The
+   stick's joint angles were set for the stick's head; a TROLLS head is
+   smaller and lower (blocky-body.js HEAD_SCALE) and its arms thicker, so
+   the facepalm, the L and the sad wipe all landed over the top of the head
+   (user, 2026-10-16). `facePoint` reads a spot on the posed head board in
+   reachHand's chest space: `x`, `y` across and up the face in half-widths
+   and half-heights from its middle, `front` out in front of it (head
+   units). Pose the head first. */
+const _face = new THREE.Vector3();
+function facePoint(rig, x, y, front) {
+  const head = rig.parts.head, g = head.geometry.parameters;
+  head.updateWorldMatrix(true, false);
+  rig.parts.chest.updateWorldMatrix(true, false);
+  _face.set(x * g.width / 2, y * g.height / 2, front);
+  return rig.parts.chest.worldToLocal(head.localToWorld(_face));
+}
+/* From hanging at the side (`side` -1 left, 1 right) to `target`, by `k`. */
+const _hang = new THREE.Vector3();
+function reachFrom(rig, side, target, k, pole) {
+  _hang.set(side * 0.3, -0.62, 0.02).multiplyScalar(rig.scale).lerp(target, k);
+  reachHand(rig, side, _hang, pole);
+}
+const POLE_OUT_R = new THREE.Vector3(1, -0.7, -0.4), POLE_OUT_L = new THREE.Vector3(-1, -0.7, -0.4);
+const POLE_DOWN_R = new THREE.Vector3(0.25, -1, -0.8);
 
 function poseLaughTP(rig, t) {
   const p = rig.parts;
@@ -140,6 +205,8 @@ function poseLaughTP(rig, t) {
   p.torso.rotation.x = 0.12 * up + shake * 0.05;
   p.hips.position.y = rig.hipY - Math.abs(shake) * 0.02 * rig.scale;
   head(rig, -0.25 * up + shake * 0.08, 0, 0);
+  // the block fist hid the whole face: on a TROLLS body it holds the belly
+  if (rig.blocky) reachFrom(rig, -1, _face.set(-0.06, -0.34 + shake * 0.02, -0.2).multiplyScalar(rig.scale), up, POLE_OUT_L);
   done(rig);
 }
 function poseLoserTP(rig, t) {
@@ -150,6 +217,7 @@ function poseLoserTP(rig, t) {
   p.elbowR.rotation.x = 1.9 * up;
   p.hips.rotation.z = Math.sin(t * 5) * 0.06 * up;
   head(rig, 0.05, 0, Math.sin(t * 5) * 0.12 * up);
+  if (rig.blocky) reachFrom(rig, 1, facePoint(rig, -0.3, 0.6, 0.18), up, POLE_DOWN_R);   // on the forehead (head-local -x: its right side)
   done(rig);
 }
 function poseSpinTP(rig, t) {
@@ -171,6 +239,9 @@ function poseFacepalmTP(rig, t) {
   p.elbowR.rotation.x = 2.3 * up;
   p.chest.rotation.x = 0.1 * up;
   head(rig, 0.5 * up, Math.sin(t * 3) * 0.2 * up, 0);
+  // the palm over the eyes, the elbow down in front of the chest so the
+  // forearm comes up to the face (out to the side it read as a salute)
+  if (rig.blocky) reachFrom(rig, 1, facePoint(rig, -0.35, 0, 0.2), up, POLE_DOWN_R);
   done(rig);
 }
 
@@ -199,6 +270,8 @@ function poseSadTP(rig, t) {
   p.armL.rotation.set(0.12 * down + sob * 0.04, 0, 0.1);
   p.elbowL.rotation.x = 0.2 * down;
   head(rig, 0.42 * down + sob * 0.05, wipe * 0.06, 0.12 * down);
+  // the fist across the eyes, rubbing (facePoint above)
+  if (rig.blocky) reachFrom(rig, 1, facePoint(rig, -0.3 + wipe * 0.15, 0.15, 0.2), down, POLE_DOWN_R);
   done(rig);
 }
 
