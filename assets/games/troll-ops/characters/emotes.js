@@ -561,8 +561,11 @@ function poseGum(rig, t) {
    and plant, the body swings through on the good leg with a hop, the
    crutches come back under. Each crutch is placed every frame from the
    armpit (its pad) to the ground (its tip), so it fits the stick and the
-   broad TROLLS bodies alike, and the hands reach for its grip. */
-const CRUTCH = { pad: 0.13, grip: 0.36, beat: 1.15 };   // pad width, grip down from the pad (share), seconds a stride
+   broad TROLLS bodies alike, and the hands reach for its grip.
+   Three strides in, a crutch slips: a stumble, the crutches fly, a
+   faceplant with a bounce, and one last twitch on the floor (user,
+   2026-10-16: "falls down dramatically after using the crutches"). */
+const CRUTCH = { pad: 0.13, grip: 0.36, beat: 1.15, strides: 3, seconds: 7.5 };   // pad width, grip down from the pad (share), seconds a stride, strides before the fall, the whole emote
 let crutchParts = null;
 function makeCrutch() {
   if (!crutchParts) {
@@ -624,9 +627,68 @@ function placeCrutch(rig, c, side, tip, out) {
   reachHand(rig, side, _cGrip, _cPole[side < 0 ? 0 : 1]);
   setHandPose(rig, side, "fist");
 }
+/* Lay crutch `c` (root space) from `top` along `dir` (unit), `len` long. */
+function layCrutch(c, top, dir, len) {
+  c.position.copy(top);
+  c.quaternion.setFromUnitVectors(_cUp, dir);
+  c.userData.shaft.scale.set(1, len, 1);
+  c.userData.tip.position.set(0, -len, 0);
+  c.userData.tip.rotation.set(PI, 0, 0);
+  c.userData.grip.position.set(0, -len * CRUTCH.grip, 0);
+}
+const _fTop = new THREE.Vector3(), _fRest = new THREE.Vector3(), _fDir = new THREE.Vector3(), _fSpin = new THREE.Quaternion(), _fX = new THREE.Vector3(1, 0, 0);
+/* The fall, `u` seconds after the last stride. */
+function poseCrutchFall(rig, u) {
+  const p = rig.parts, s = rig.scale, w = rig.blocky ? 1.35 : 1;
+  const trip = ease(u / 0.3);                                  // the stumble: arms up, body pitching
+  const f = clamp01((u - 0.2) / 0.5) ** 2;                     // the drop, speeding up
+  const bounce = u > 0.7 && u < 1.05 ? Math.sin(((u - 0.7) / 0.35) * PI) * (1 - (u - 0.7) / 0.35) : 0;
+  const twitch = u > 2.4 && u < 2.9 ? Math.sin(((u - 2.4) / 0.5) * PI * 3) : 0;
+  const flat = rig.blocky ? 0.2 : 0.13;
+  p.hips.position.y = rig.hipY + (flat * s - rig.hipY) * f + bounce * 0.05 * s;
+  p.hips.position.z = -0.3 * s * f;
+  p.hips.rotation.x = 1.5 * f + trip * (1 - f) * 0.25;
+  p.torso.rotation.x = 0.2 * trip * (1 - f) - bounce * 0.12;
+  // arms flung up in the stumble, out ahead on the floor
+  p.armL.rotation.set(2.4 * trip + 0.5 * f, 0, 0.5 + 0.2 * f);
+  p.armR.rotation.set(2.1 * trip + 0.8 * f, 0, -0.4 - 0.25 * f);
+  p.elbowL.rotation.x = 0.5 * (1 - f) + 0.2;
+  p.elbowR.rotation.x = 0.4 * (1 - f) + 0.3;
+  // the hurt leg stays bent, the good one kicks out, then twitches
+  p.legL.rotation.set(0.3 * (1 - f) - 0.05 * f, 0, 0.06);
+  p.kneeL.rotation.x = -1.25 * (1 - f) - 0.5 * f;
+  p.legR.rotation.set(-0.35 * trip * (1 - f), 0, -0.05);
+  p.kneeR.rotation.x = -0.15 - Math.max(0, twitch) * 0.9;
+  // head up in surprise, then a cheek on the floor
+  head(rig, -0.5 * trip * (1 - f) - 0.35 * f, 1.1 * f, 0.2 * f);
+  setHandPose(rig, -1, "open");
+  setHandPose(rig, 1, "open");
+  if (f > 0.9) setFace(rig, "sad");
+  rig.root.updateMatrixWorld(true);
+  const pair = emoteBit(rig, "crutches", rig.root, crutchPair);
+  pair.visible = true;
+  // the crutches fly up and out ahead, tumbling, and land flat either side
+  const k = ease((u - 0.05) / 0.6), arc = Math.sin(k * PI);
+  const len = 1.05 * s;
+  for (const side of [-1, 1]) {
+    _fTop.set(side * 0.3 * w * s, 1.15 * s, -0.15 * s);
+    _fRest.set(side * (0.55 + 0.1 * side) * w * s, 0.03 * s, (-0.35 + side * 0.25) * s);
+    _fTop.lerp(_fRest, k);
+    _fTop.y += arc * 0.45 * s;
+    _fDir.set(side * 0.4, 0, -1).normalize();
+    _fDir.lerp(_cUp, 1 - k).normalize();
+    const c = pair.children[side < 0 ? 0 : 1];
+    layCrutch(c, _fTop, _fDir, len);
+    _fSpin.setFromAxisAngle(_fX, (1 - k) * k * 4 * PI * side);
+    c.quaternion.premultiply(_fSpin);
+  }
+  done(rig);
+}
 function poseCrutches(rig, t) {
   const p = rig.parts, s = rig.scale;
   base(rig);
+  const fallAt = CRUTCH.strides * CRUTCH.beat;
+  if (t >= fallAt) return poseCrutchFall(rig, t - fallAt);
   const on = ease(t / 0.4);
   const c = (t / CRUTCH.beat) % 1;
   // 0-0.35 the crutches swing ahead and plant, 0.35-0.75 the body swings
@@ -679,7 +741,7 @@ export const EMOTES = [
   // a TROLLS token's own (`token`): the wheel shows it only to its wearer
   // and the owner, remotes play it only for them (cosmetics.js mayEmoteToken)
   { id: "gum", name: "Bubblegum", kind: "tp", pose: poseGum, seconds: GUM.seconds, token: 989 },
-  { id: "crutches", name: "Crutches", kind: "tp", pose: poseCrutches },
+  { id: "crutches", name: "Crutches", kind: "tp", pose: poseCrutches, seconds: CRUTCH.seconds },
 ];
 
 export const DEFAULT_EMOTE_SECONDS = 8;

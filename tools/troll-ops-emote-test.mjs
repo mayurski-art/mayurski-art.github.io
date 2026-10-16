@@ -268,6 +268,17 @@ const cr = await A.evaluate(() => {
   return { on: pair.visible, tips };
 });
 check("crutches: both on the ground while it plays", cr?.on && cr.tips.every((y) => Math.abs(y) < 0.03), JSON.stringify(cr));
+// then the fall (user, 2026-10-16): face down on the floor, the crutches flat beside
+await A.evaluate(() => { window.__trollOps.emote().t = 6; });
+await sleep(400);
+const fall = await A.evaluate(() => {
+  const rig = window.__trollOps.localRig, v = rig.root.position;
+  rig.root.updateMatrixWorld(true);
+  const hy = rig.parts.hips.getWorldPosition(v.clone()).y - v.y;
+  const ys = rig.crutches.children.map((c) => +(c.userData.tip.getWorldPosition(v.clone()).y - v.y).toFixed(3));
+  return { hy: +hy.toFixed(3), pitch: +rig.parts.hips.rotation.x.toFixed(2), ys, on: rig.crutches.visible, playing: !!window.__trollOps.emote() };
+});
+check("crutches: then a faceplant, the crutches flat on the floor", fall.playing && fall.hy < 0.3 && fall.pitch > 1.3 && fall.on && fall.ys.every((y) => Math.abs(y) < 0.08), JSON.stringify(fall));
 await A.evaluate(() => window.__trollOps.setEmote(-1));
 await sleep(500);
 check("crutches: gone once it stops", await A.evaluate(() => !window.__trollOps.localRig.crutches?.visible));
