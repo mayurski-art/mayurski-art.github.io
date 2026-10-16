@@ -11,7 +11,7 @@
 // penetration needs to measure material thickness.
 
 import * as THREE from "three";
-import { makeTracerMaterial } from "../shaders.js";
+import { makeTracerMaterial } from "../view/shaders.js?v=or1";
 import { computeDamage } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 
 const DROP = 9.81;          // m/s^2 applied to bullets

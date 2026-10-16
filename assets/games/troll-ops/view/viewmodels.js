@@ -11,7 +11,7 @@ import { restoreMeleeHands } from "./weapon-view.js?v=wv1-si1-gj1-if1-fu1b7b7dc2
 import { buildMeleeMesh } from "../weapons/gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1";
 import { buildStreakDevice, buildMarkerDevice } from "../streaks/streak-device.js?v=to-df1-or1";
 import { loadModel } from "../battlefield-props.js?v=sr1";
-import { makeMuzzleFlashMaterial } from "../shaders.js";
+import { makeMuzzleFlashMaterial } from "./shaders.js?v=or1";
 import { createAkimboView } from "../weapons/akimbo-view.js?v=ak1-wst-or1";
 import { HellfireFx } from "../weapons/soul-blazer.js?v=sb1-or1";
 import { game } from "../core/state.js?v=st1";

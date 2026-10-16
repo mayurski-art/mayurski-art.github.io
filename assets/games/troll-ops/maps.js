@@ -8,7 +8,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { makeGroundMaterial } from "./shaders.js";
+import { makeGroundMaterial } from "./view/shaders.js?v=or1";
 import { PENTAGRIN } from "./pentagrin.js?v=hg6e-sr1";
 import { HOLLOWGRIN } from "./hollowgrin.js?v=hg6tc-sb2-sr1";
 import { GRINLERIA } from "./grinleria.js?v=hg6e-bl1-bw1-sr1";
