@@ -14,7 +14,7 @@
 import { createBo2Menu } from "../../../js/bo2-menu.js?v=to-ft2";
 import { createMapMode } from "../../../js/troll-map-mode.js?v=to-bo2d";
 import { joinSitePresence, viewerId } from "../../../js/site-presence.js?v=to-bo2d-ol1";
-import { startOnline, onlinePlayers, serverList, joinServer, describe } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2";
+import { startOnline, onlinePlayers, serverList, joinServer, describe } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1";
 import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
 
 import { fetchRecord, formatPlayed } from "../progression/record.js?v=rec1-or1";
@@ -27,8 +27,8 @@ import { MAPS, REWARD_MAPS } from "../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2
 import { setMapShot } from "../maps/map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1-sr1-ug5-or1";
 import { leaveToArcade, initExitLinks } from "./exit-links.js?v=ex1-cl1";
 import { game } from "../core/state.js?v=st1";
-import { inviteLink, prepareHubEntry } from "../modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2";
-import { openKiosk } from "../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2";
+import { inviteLink, prepareHubEntry } from "../modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1";
+import { openKiosk } from "../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1";
 import { credits } from "../modes/zombies/credits.js?v=zc1-zc2";
 import { makeTrollOpsProvider } from "../progression/leaderboard-rows.js?v=lr1-zh1-or1";
 const lbProvider = makeTrollOpsProvider();
@@ -107,6 +107,8 @@ root.innerHTML = `
       <span class="to-bo2-dl" aria-live="polite"><i></i><b></b></span>
       <button type="button" class="to-bo2-back"><kbd>Esc</kbd>Back</button>
     </div>
+    <button type="button" class="to-bo2-quick" data-go="barracks">Barracks</button>
+    <button type="button" class="to-bo2-quick" data-go="options">Options</button>
     <button type="button" class="to-bo2-anim" role="switch" aria-checked="true">Animations <b>On</b></button>
   </footer>`;
 pf.prepend(root);
@@ -284,6 +286,28 @@ function perkScreen(tier) {
 const perkHost = document.createElement("div");
 perkHost.className = "to-bo2-perk";
 perkHost.hidden = true;
+
+/* Cosmetics > Body search: a box over the list on the Body screen, by name
+   or token number ("820", "#1262"), as the TROLLS bodies pile up. */
+let bodyQuery = "";
+const bodySearch = document.createElement("input");
+bodySearch.type = "search";
+bodySearch.className = "to-bo2-search";
+bodySearch.placeholder = "Search bodies: name or #";
+bodySearch.setAttribute("aria-label", "Search bodies");
+bodySearch.autocomplete = "off";
+bodySearch.spellcheck = false;
+bodySearch.hidden = true;
+bodySearch.addEventListener("input", () => { bodyQuery = bodySearch.value; menu.refresh(); });
+bodySearch.addEventListener("keydown", (e) => {
+  // Down or Enter drops into the list; Esc clears, then leaves
+  if (e.key === "ArrowDown" || e.key === "Enter") { e.preventDefault(); nav.querySelector(".tr-menu-item:not([aria-disabled='true'])")?.focus(); }
+  else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); if (bodySearch.value) { bodySearch.value = ""; bodyQuery = ""; menu.refresh(); } else { bodySearch.blur(); menu.back(); } }
+});
+const bodyMatches = (b) => {
+  const q = bodyQuery.trim().toLowerCase().replace(/[#\s]+/g, "");
+  return !q || text(b).toLowerCase().replace(/[#\s]+/g, "").includes(q);
+};
 function renderPerk(id, tier) {
   const def = PERK_DEFS[id];
   perkHost.style.setProperty("--perk", PERK_TIER_COLORS[tier]);
@@ -363,11 +387,12 @@ const screens = {
       [
         { id: "online", label: "Who's Online", value: () => `${onlinePlayers(roster).length}`, desc: "Everyone on trollrunner.net right now, players and guests, and what they're up to.", go: "online" },
         { id: "leaders", label: "Leaderboards", desc: "This week's and this month's best trolls.", go: "leaders" },
-        { id: "barracks", label: "Barracks", desc: "Your profile card: calling card, clan tag and combat record.", go: "barracks" },
         { id: "map", label: "Troll Map", desc: "This planet is the troll map. Spin it, find your city, see who is out there.", go: "map" },
       ],
       [
-        { id: "options", label: "Options", desc: "Sensitivity, FOV, graphics, controls and the HUD.", go: "options" },
+        // Options and the Barracks sit in the footer now, by the Animations
+        // switch, and your name opens the Barracks (user, 2026-10-15: Options
+        // was "buried in all that scrolling down").
         { id: "arcade", label: "Arcade", desc: "Back to the Troll Runner arcade.", onSelect: () => { if (!leaveToArcade()) window.location.href = "index.html?open=arcade"; } },
       ],
     ],
@@ -736,9 +761,14 @@ const screens = {
     };
   },
   heroes: () => optionScreen("Hero", $$("#to-lo-heroes .to-lo-hero")),
-  bodies: () => optionScreen("Body", $$("#to-cos-body [data-body]"), {
-    descOf: (b) => (isLocked(b) ? "Locked: for the holder of this TROLLS NFT." : b.dataset.body ? "This TROLLS look, every match. Everyone sees it." : "The classic stick troll."),
-  }),
+  bodies: () => {
+    const s = optionScreen("Body", $$("#to-cos-body [data-body]").filter(bodyMatches), {
+      descOf: (b) => (isLocked(b) ? "Locked: for the holder of this TROLLS NFT." : b.dataset.body ? "This TROLLS look, every match. Everyone sees it." : "The classic stick troll."),
+    });
+    s.enter = () => { bodyQuery = bodySearch.value = ""; };
+    if (!s.groups[0].length) s.groups[0] = [{ id: "o-none", label: "No match", disabled: true, desc: `No TROLLS body matches "${bodyQuery.trim()}".` }];
+    return s;
+  },
   faces: () => optionScreen("Face", $("#to-cos-body .to-cos-face:not([data-wrist]):not([data-body])"), { descOf: (b) => (isLocked(b) ? "Off while you wear a TROLLS body: it has its own head." : "Everyone in the match sees it.") }),
   wrists: () => optionScreen("Wrist", $$("#to-cos-body [data-wrist]"), { descOf: (b) => (b.dataset.wrist ? "On your left wrist, every match." : "A bare wrist.") }),
   leaders: () => ({
@@ -850,6 +880,8 @@ const menu = createBo2Menu(nav, {
     cardHost.hidden = !s.card;
     root.classList.toggle("has-card", !!s.card);
     perkHost.hidden = s.perk == null;
+    if (!bodySearch.isConnected) nav.insertBefore(bodySearch, $(".tr-menu-groups", nav));
+    bodySearch.hidden = id !== "bodies";
     root.classList.toggle("has-perk", s.perk != null);
     if (s.perk != null) renderPerk(game.loadout.classPerks[s.perk], s.perk);
     renderCardHost();
@@ -1002,12 +1034,34 @@ function renderParty() {
   xp.textContent = p ? text($("#to-pf-xp")) : "Log in to keep your XP";
   xp.hidden = !xp.textContent;
 }
-// Your name: your profile card when signed in, the sign-in when not.
+// Your name: the Barracks (your card, calling card, clan tag, record) when
+// signed in, the sign-in when not.
+$(".to-bo2-party-row", root).title = "Your Barracks";
 $(".to-bo2-party-row", root).addEventListener("click", () => {
-  const id = myUid();
-  if (id) openProfileCard(id);
+  if (myUid()) openQuick("barracks");
   else $("#to-pf-profile")?.click();
 });
+// The footer's Barracks and Options buttons: straight there from anywhere
+// in the menu, Back returns to the main menu.
+function openQuick(id) {
+  if (menu.current() === id) return;
+  menu.backTo("main");
+  menu.go(id);
+}
+for (const b of $$(".to-bo2-quick", root)) b.addEventListener("click", () => openQuick(b.dataset.go));
+/* The Emote pill joins that row (user, 2026-10-15: under the operator's
+   feet it sat on the footer buttons). It still shows only while the
+   operator does (lobby.js charInspectorLive hides .to-char-view). */
+{
+  const emoteBtn = document.getElementById("to-char-emote");
+  const charView = document.querySelector(".to-char-view");
+  if (emoteBtn) {
+    $(".to-bo2-quick", root).before(emoteBtn);
+    const sync = () => { emoteBtn.hidden = !!charView && charView.style.display === "none"; };
+    sync();
+    if (charView) new MutationObserver(sync).observe(charView, { attributes: true, attributeFilter: ["style"] });
+  }
+}
 // The footer grows (Back button, status line), so the list's room comes
 // from its real height: see .to-bo2-menu in style.css.
 {
