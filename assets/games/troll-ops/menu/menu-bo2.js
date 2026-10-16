@@ -240,8 +240,9 @@ const mapRow = () => ({
   id: "map", label: "Map", value: mapName(), go: mapForced() ? null : "maps",
   disabled: mapForced(), desc: mapForced() ? "This mode always plays its own map." : text($("#to-pf-mapcard-blurb")) || "Pick where you drop.",
 });
+// every lobby's go button is its one Primary, orange (redesign phase 4)
 const deployRow = (label, desc) => ({
-  id: "deploy", label, desc,
+  id: "deploy", label, desc, tier: "primary",
   onSelect: () => { const b = startBtn(); if (b && !b.disabled) b.click(); },
 });
 
