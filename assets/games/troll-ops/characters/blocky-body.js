@@ -173,7 +173,7 @@ function capPrint(text) {
 /* The muscular arms (models/build_blocky_arms.blender.py -> blocky/arms-muscle.glb):
    blocky muscle masses, each piece "<joint><S>__<muscle>" authored in its
    joint's frame, bone straight down -Y, at scale 1 with these bone lengths. */
-const glb = (file) => new URL(`../models/blocky/${file}?v=${globalThis.TRAITS_BUST ?? "bb4"}`, import.meta.url).href;
+const glb = (file) => new URL(`../models/blocky/${file}?v=${globalThis.TRAITS_BUST ?? "bb5"}`, import.meta.url).href;
 const TORSO_GLB = glb("torso-muscle.glb");
 const HEAD_GLB = glb("head-relief.glb");
 /* What each CLOTHES trait dresses the body in (the trait library, traits.js):
@@ -284,7 +284,7 @@ export function fpArmLook(token) {
 /* The trollface with a little depth (models/build_blocky_head.blender.py):
    how far its dome stands in front of the board and its skull behind, so
    the drawn head traits (traits.js planes) move out onto them. */
-const RELIEF = { front: 0.045, back: 0.19 };   // front: the dome plus the sculpted brow and upper lip under the cap and moustache
+const RELIEF = { front: 0.085, back: 0.19 };   // front: the dome plus the sculpted brow and upper lip under the cap and moustache
 const ARM_BONES = { arm: 0.30, elbow: 0.325 };
 const FIST_BACK = -0.058;   // the fist (0.125 long, down from the wrist) moved back up the forearm by half
 /* A Blender piece set: [{ name, geo, hull }], each with its ink shell (the
@@ -438,7 +438,7 @@ function muscleLegs(rig, kit) {
    boards with the white top of the head between them; user: "fix the
    umadbro hat rendering".) In the plane's own frame its +z is outward
    (the front plane is turned to face forward), so the bend is +z for both. */
-const CAP = { a: 0.32, b: 0.345, front: 0.056, back: 0.235 };   // ellipsoid half-width, half-height (to the cap's top), depths
+const CAP = { a: 0.32, b: 0.345, front: 0.09, back: 0.235 };   // ellipsoid half-width, half-height (to the cap's top), depths
 /* Each hat's own shape: `ink` the colour of its walls and of the back
    under its back drawing; `brim` a band of the head frame (y0..y1, frame
    units) that stands out flat all round instead of following the head (a
@@ -1000,17 +1000,19 @@ function rimInk(hull, face) {
   rimInks.set(hull, rim);
   return rim;
 }
-/* A back trait card bent round the deeper skull (build_blocky_head BACK):
-   across x it falls from the skull's back toward the board, an ellipse of
-   half-width SKULL_HALF, so a band hugs the head. Once per plane. */
+/* A trait card bent round the head (build_blocky_head FRONT, BACK): across
+   x it falls from the dome or the skull toward the board, an ellipse of
+   half-width SKULL_HALF, so a band hugs the skull and glasses the face.
+   Once per plane. */
 const SKULL_HALF = 0.25;
-function wrapBack(plane, s) {
+const HEAD_FRONT = 0.065;   // the dome alone (build_blocky_head FRONT), without the features on it
+function wrapCard(plane, s, depth) {
   const { width: w, height: h } = plane.geometry.parameters;
   const geo = new THREE.PlaneGeometry(w, h, 40, 1);
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const k = Math.min(1, Math.abs(pos.getX(i)) / (SKULL_HALF * s));
-    pos.setZ(i, -RELIEF.back * s * (1 - Math.sqrt(1 - k * k)));
+    pos.setZ(i, -depth * s * (1 - Math.sqrt(1 - k * k)));
   }
   geo.computeVertexNormals();
   plane.geometry = geo;
@@ -1091,9 +1093,10 @@ function reliefHead(rig) {
         for (const plane of grp.children) {
           const isFront = Math.abs(plane.rotation.y - Math.PI) < 1e-3;
           moved.push([plane, plane.position.z]);
-          // a band round the back of the skull (the blindfold): bent onto it,
-          // not a flat card floating off its rounded sides
-          if (!isFront && !plane.userData.wrapped) wrapBack(plane, s);
+          // a band round the back of the skull (the blindfold), or glasses
+          // across the rounded face: bent onto it, not a flat card floating
+          // off its sides
+          if (!plane.userData.wrapped) wrapCard(plane, s, isFront ? HEAD_FRONT : RELIEF.back);
           plane.position.z += (isFront ? -(RELIEF.front + (OVER_SHELL[id] || 0)) : RELIEF.back) * s;
         }
       }

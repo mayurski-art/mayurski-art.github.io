@@ -33,8 +33,12 @@ OUT = os.path.join(K.HERE, "blocky", "head-relief.glb")
 W, H = 0.48, 0.45             # the face board
 # the dome in front of the board, the skull behind (m, scale 1). BACK was 0.075,
 # a 0.1 m slab side-on with a blank back (user, 2026-10-16: "build everything",
-# the HANDOFF's flat head side): a real skull behind the face now.
-FRONT, BACK = 0.03, 0.19
+# the HANDOFF's flat head side): a real skull behind the face now. FRONT was
+# 0.03 on a flat superellipse: side-on the face was a straight edge (user,
+# 2026-10-16: "fix the flat side view of the NFT head"); now a rounder dome
+# (P_FRONT) with the jaw jutting a little (JUT), a profile with a brow and chin.
+FRONT, BACK = 0.065, 0.19
+P_FRONT, JUT = 2.0, 0.2
 
 # (centre x, y as fractions of the art from its top left, radii rx, ry,
 # height in metres; negative sinks)
@@ -103,7 +107,7 @@ def relief(u, v, dark):
 
 def build():
     ob = K.trollface_head(name="head__relief", center=(0, 0, 0), w=W, h=H, depth_front=FRONT,
-                          depth_back=BACK, jut=0.0, skull=0.0, segs=160, lat=34,
+                          depth_back=BACK, jut=JUT, p_front=P_FRONT, skull=0.0, segs=160, lat=34,
                           # the outline's tufts came out as spikes at this many
                           # segments, so it's smoothed; that takes the jaw out
                           # past the drawing in places, where the art is
