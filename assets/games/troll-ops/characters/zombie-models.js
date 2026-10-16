@@ -18,16 +18,16 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 const LOOKS = {
-  walker: new URL("./models/zombie-walker.glb?v=zr4", import.meta.url).href,
-  runner: new URL("./models/zombie-runner.glb?v=zr4", import.meta.url).href,
-  woman: new URL("./models/zombie-woman.glb?v=zr4", import.meta.url).href,
-  worker: new URL("./models/zombie-worker.glb?v=zr4", import.meta.url).href,
+  walker: new URL("../models/zombie-walker.glb?v=zr4", import.meta.url).href,
+  runner: new URL("../models/zombie-runner.glb?v=zr4", import.meta.url).href,
+  woman: new URL("../models/zombie-woman.glb?v=zr4", import.meta.url).href,
+  worker: new URL("../models/zombie-worker.glb?v=zr4", import.meta.url).href,
   // the rare one: a rubber mask of the real trollface art (zombies.js
   // picks it about 1 in 40)
-  trollmask: new URL("./models/zombie-trollmask.glb?v=zr4", import.meta.url).href,
+  trollmask: new URL("../models/zombie-trollmask.glb?v=zr4", import.meta.url).href,
   // the leaper's own gaunt, long-armed body and clip set (idle, lope,
   // crouch, leap, attack, die, rise)
-  leaper: new URL("./models/zombie-leaper.glb?v=zr4", import.meta.url).href,
+  leaper: new URL("../models/zombie-leaper.glb?v=zr4", import.meta.url).href,
 };
 export const ZOMBIE_LOOKS = Object.keys(LOOKS);
 export const RARE_LOOKS = { trollmask: 1 / 40 };

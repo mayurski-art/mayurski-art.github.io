@@ -4,21 +4,21 @@
 import { currentWeapon, swapRaise } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { AKIMBO_INSPECT_TIME } from "../akimbo-view.js?v=ak1-wst";
 import * as THREE from "three";
-import { rise, smoothstep, damp } from "../anim-curves.js";
+import { rise, smoothstep, damp } from "../characters/anim-curves.js?v=or1";
 import { handMaterials, inkOutline } from "../hand-model.js?v=to-grip2";
-import { wristOf, buildWatch, buildWristband } from "../wristwear.js?v=ww1c2m1";
+import { wristOf, buildWatch, buildWristband } from "../characters/wristwear.js?v=ww1c2m1-or1";
 import { clubWear } from "../modes/club-wear.js?v=cw1c2m1";
-import { ownBody, fpArmLook } from "../blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1";
-import { bodyToken } from "../cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1";
+import { ownBody, fpArmLook } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1";
+import { bodyToken } from "../characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1";
 import { cosmetics } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { soulBlazerReloadPose, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth, updateSoulBlazerView, soulBlazerInspect, SB_INSPECT_CUES } from "../soul-blazer.js?v=sb1";
-import { placePistolSlide } from "./pistol-action.js?v=ps1-wb1-br1";
-import { placeBolt } from "./rifle-action.js?v=ra1-wb1";
+import { placePistolSlide } from "./pistol-action.js?v=ps1-wb1-br1-or1";
+import { placeBolt } from "./rifle-action.js?v=ra1-wb1-or1";
 import { updateSniperScope } from "./sniper-scope.js?v=ss1-wb1";
-import { hasArReload, applyArReload, arReloadBeats, arSlideAt, easeCutReload } from "./ar-reload.js?v=ar1-br1";
+import { hasArReload, applyArReload, arReloadBeats, arSlideAt, easeCutReload } from "./ar-reload.js?v=ar1-br1-or1";
 import { chargedShotDef } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
-import { STANCE } from "../movement.js?v=umb2-sb2-gj1b7";
+import { STANCE } from "../movement.js?v=umb2-sb2-gj1b7-or1";
 import { game } from "../core/state.js?v=st1";
 
 /* Phase 2 (DESIGN-ARMS.md §5): landing-impact dip. `move.justLanded`/

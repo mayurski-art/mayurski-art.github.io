@@ -13,7 +13,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { addRim } from "./view/rim-light.js?v=sr1";
+import { addRim } from "../view/rim-light.js?v=sr1";
 
 /* ------------------------------------------------------------- materials */
 

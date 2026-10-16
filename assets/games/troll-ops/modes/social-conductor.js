@@ -17,7 +17,7 @@ import { peerPosers } from "../net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-
 import { TRAIN } from "../train.js?v=tr1b7";
 import { bell, ride, trainOf, whistle } from "./social-train.js?v=st1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { applyHold, clock, onClockMessage, roomNow, updateRoomClock } from "./room-clock.js?v=rc1-cd1-sh1";
-import { hatFor, wearJobHat } from "../outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1";
+import { hatFor, wearJobHat } from "../characters/outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1-or1";
 
 export const CONDUCTOR = {
   capTime: 0.6,       // hold X at the stand: take the cap, or hang it up

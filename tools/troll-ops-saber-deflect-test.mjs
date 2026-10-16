@@ -74,7 +74,7 @@ check("left round deflected, parry aims left", r1.hp1 === r1.hp0 && st.parry.x <
 check("wrist flick mid-parry", Math.abs(st.flick) > 0.3 && st.parry.k > 0.8, JSON.stringify({ flick: st.flick, k: st.parry.k }));
 await shot(page, "lk-left-flick.png");
 const sim = await page.evaluate(async () => {
-  const { ParryState } = await import("./assets/games/troll-ops/character.js?v=to-lk1");
+  const { ParryState } = await import("./assets/games/troll-ops/characters/character.js?v=to-lk1");
   const p = new ParryState();
   p.start(-0.3, 0); for (let i = 0; i < 6; i++) p.update(1 / 60);   // 0.1 s in
   const before = { ...p.sample() };

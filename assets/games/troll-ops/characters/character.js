@@ -16,8 +16,8 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { addInkRim } from "./view/rim-light.js?v=sr1";
-import { buildWatch, buildWristband, wristOf } from "./wristwear.js?v=ww1c2m1";
+import { addInkRim } from "../view/rim-light.js?v=sr1";
+import { buildWatch, buildWristband, wristOf } from "./wristwear.js?v=ww1c2m1-or1";
 
 const DARK = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
 
@@ -36,7 +36,7 @@ const HIT_PROXY_MAT = new THREE.MeshBasicMaterial({ visible: false });
 // loaded once at module scope rather than per-rig.
 const TEXTURE_LOADER = new THREE.TextureLoader();
 const TROLLFACE_TEXTURE = TEXTURE_LOADER.load(
-  new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href,
+  new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href,
 );
 TROLLFACE_TEXTURE.colorSpace = THREE.SRGBColorSpace;
 // The artwork glows at about half strength on top of the lighting, so the
@@ -68,7 +68,7 @@ SAD_TEXTURE.colorSpace = THREE.SRGBColorSpace;
     g.drawImage(img, 0, (SAD_CANVAS.height - h) / 2, w, h);
     SAD_TEXTURE.needsUpdate = true;
   };
-  img.src = new URL("./ui/trollface-sad.png", import.meta.url).href;
+  img.src = new URL("../ui/trollface-sad.png", import.meta.url).href;
 }
 const SAD_HEAD_MAT = TROLLFACE_HEAD_MAT.clone();
 SAD_HEAD_MAT.map = SAD_TEXTURE;
@@ -168,7 +168,7 @@ function coveringMaterial(id) {
   // redraw with the ink once the artwork has loaded
   const img = new Image();
   img.onload = () => { const d = coveringCanvas(id, img); c.getContext("2d").clearRect(0, 0, 800, 730); c.getContext("2d").drawImage(d, 0, 0); t.needsUpdate = true; };
-  img.src = new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
+  img.src = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
   COVER_TEX.set(id, m);
   return m;
 }

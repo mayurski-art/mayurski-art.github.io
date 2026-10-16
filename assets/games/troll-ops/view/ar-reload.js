@@ -18,7 +18,7 @@
 // block arms laid over them) follow the hand.
 
 import * as THREE from "three";
-import { smoothstep } from "../anim-curves.js";
+import { smoothstep } from "../characters/anim-curves.js?v=or1";
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 

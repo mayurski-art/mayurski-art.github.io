@@ -3,7 +3,7 @@
 // handle lifts, the bolt rakes back and rides home, the handle drops; an
 // empty reload works it once more to chamber the fresh mag.
 
-import { smoothstep } from "../anim-curves.js";
+import { smoothstep } from "../characters/anim-curves.js?v=or1";
 
 const LIFT = 1.05;                       // handle swing up, radians about the bore
 // Beats of one cycle as fractions of it: [start, end] of each move.

@@ -28,12 +28,12 @@
    blocky one wears token #1718's look.
    ?token=1718&pose=idle|walk|aim|shoot|run+shoot|dance|death&gun=<id>&spin=1 */
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, poseDeath, DANCES, gaitPhaseRate, mountHeldWeapon } from "../assets/games/troll-ops/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1";
+import { buildHumanoid, poseHumanoid, poseDeath, DANCES, gaitPhaseRate, mountHeldWeapon } from "../assets/games/troll-ops/characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1";
 import { buildWeaponMesh, stripLights, preloadWeaponModels } from "../assets/games/troll-ops/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-br1";
 import { WEAPON_DEFS } from "../assets/games/troll-ops/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1";
 // Fresh art and code every load (a dev page): traits.js reads TRAITS_BUST.
 globalThis.TRAITS_BUST = String(Date.now());
-const { applyToken } = await import("../assets/games/troll-ops/traits.js?t=" + Date.now());
+const { applyToken } = await import("../assets/games/troll-ops/characters/traits.js?t=" + Date.now());
 
 const q = new URLSearchParams(location.search);
 const token = q.get("token") || "1718";
@@ -78,7 +78,7 @@ scene.add(live.root);
 
 // The blocky troll: the token's drawn head traits (traits.js) on the
 // trollface, the block body (blocky-body.js) dressed in its garment.
-const { applyBlocky, tokenLook } = await import("../assets/games/troll-ops/blocky-body.js?t=" + Date.now());
+const { applyBlocky, tokenLook } = await import("../assets/games/troll-ops/characters/blocky-body.js?t=" + Date.now());
 // the token's own garment (its CLOTHES trait, blocky-body.js tokenLook)
 const ready = applyToken(rig, token, { headOnly: true }).then(() => applyBlocky(rig, { garment: tokenLook(token)?.garment }));
 document.getElementById("ref").src = `../assets/games/troll-ops/refs/trolls-${token}.png`;

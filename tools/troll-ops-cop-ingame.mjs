@@ -76,7 +76,7 @@ const stick = await frameTime();
 const n = await page.evaluate(async () => {
   const T = window.__trollOps;
   for (const b of T.bots.bots) { b.hero = null; b.body = "patrol"; }
-  const { preloadCopBodies } = await import("/assets/games/troll-ops/cop-bodies.js?v=cb2");
+  const { preloadCopBodies } = await import("/assets/games/troll-ops/characters/cop-bodies.js?v=cb2");
   await preloadCopBodies(["patrol"]);
   return T.bots.bots.length;
 });

@@ -49,7 +49,7 @@ page.on("pageerror", (e) => errors.push(e.message));
 await page.goto(`${BASE}/__hold.html`);
 const rows = await page.evaluate(async () => {
   const THREE = await import("three");
-  const C = await import("/assets/games/troll-ops/character.js");
+  const C = await import("/assets/games/troll-ops/characters/character.js");
   const WM = await import("/assets/games/troll-ops/weapon-model.js");
   const { WEAPON_DEFS } = await import("/assets/games/troll-ops/weapons.js");
   try { await WM.preloadWeaponModels(); } catch {}

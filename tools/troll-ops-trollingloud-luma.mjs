@@ -77,7 +77,7 @@ await page.evaluate(async (tier) => {
     if (/Bloom/i.test(n)) p.enabled = tier !== "low";
   }
   const THREE = await import("three");   // the page's import map
-  const { buildHumanoid } = await import("/assets/games/troll-ops/character.js?v=to-hb4-em1-fc1-wst");
+  const { buildHumanoid } = await import("/assets/games/troll-ops/characters/character.js?v=to-hb4-em1-fc1-wst");
   const mat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.7, metalness: 0.1 });
   const rig = buildHumanoid(mat, { height: 1.8, gun: false });
   window.__lumaBody = rig.root || rig.group || rig;

@@ -4,10 +4,10 @@
 import * as THREE from "three";
 import { inspectArms, restoreMeleeHands, pfArms, _meleeViewQ, _meleeViewE, meleeHands, applyReaperInspect, applyMeleeInspect, inspectProgress, poseSaberArms, poseMeleeArms, inspectDur } from "./weapon-view.js?v=wv1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { saberTrail, POWER_IGNITE_DELAY, POWER_EQUIP_TIME, MELEE_DRAW_TIME, POWER_IGNITE, MELEE_EQUIP_TIME, saberBlock, kbShield, kbRepair, _kbFarGrip, saberParry, _parryW, _parryPos, _parryQ, _bladeG, _bladeP, _flickQ, _viewZ, _viewX, POWER_RETRACT, updateSaberFx } from "../combat/melee.js?v=ml1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
-import { damp } from "../anim-curves.js";
+import { damp } from "../characters/anim-curves.js?v=or1";
 import { KB_SHIELD } from "../keyboard-repair.js?v=kr15";
-import { SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1";
-import { parryWeights, PARRY_ZONES } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1";
+import { SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1";
+import { parryWeights, PARRY_ZONES } from "../characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1";
 import { currentWeapon } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { poseKnuckles } from "../brass-knuckles.js?v=bk1-wst";
 import { game } from "../core/state.js?v=st1";

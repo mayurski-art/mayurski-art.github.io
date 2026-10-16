@@ -232,7 +232,7 @@ for (const map of maps) {
   // the rare trollface-mask zombie: force its odds to 1 and look at one
   const mask = await page.evaluate(async () => {
     const T = window.__trollOps;
-    const zm = await import("/assets/games/troll-ops/zombie-models.js?v=zr4c");
+    const zm = await import("/assets/games/troll-ops/characters/zombie-models.js?v=zr4c");
     zm.RARE_LOOKS.trollmask = 1;
     const zd = T.zdir();
     zd.clear();

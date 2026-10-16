@@ -1,6 +1,6 @@
 // Troll Ops skin editor: serves tools/troll-skin-editor.html and saves what
 // you set there. Save writes that skin's crops back into
-// assets/games/troll-ops/skins.js and writes its freshly baked atlas and
+// assets/games/troll-ops/characters/skins.js and writes its freshly baked atlas and
 // picker thumbnail to assets/games/troll-ops/skins/ — no separate bake step.
 //
 // Usage: node tools/troll-skin-editor.mjs [port]   then open the URL it prints.
@@ -12,7 +12,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const SKINS_JS = path.join(ROOT, "assets/games/troll-ops/skins.js");
+const SKINS_JS = path.join(ROOT, "assets/games/troll-ops/characters/skins.js");
 const OUT = path.join(ROOT, "assets/games/troll-ops/skins");
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".avif": "image/avif", ".json": "application/json" };
 const IMAGE = /\.(jpe?g|png|webp|avif)$/i;

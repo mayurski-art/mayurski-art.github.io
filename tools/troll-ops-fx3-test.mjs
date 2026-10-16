@@ -100,7 +100,7 @@ const sad = await page.evaluate(async () => {
   T.charInspector.emote = null;
   // The menu canvas may have no size at a small viewport (it never ticks
   // then), so put the rig back through its ordinary pose directly.
-  const C = await import("/assets/games/troll-ops/character.js?v=to-fx3");
+  const C = await import("/assets/games/troll-ops/characters/character.js?v=to-fx3");
   C.poseHumanoid(T.charInspector.humanoid, { moving: false, pitch: 0, dt: 0.016, hold: "none" });
   const after = T.charInspector.humanoid.parts.head.material.map?.image?.getContext ? "sad" : "grin";
   return { during, after, name: T.emoteWheel.slices[idx]?.textContent };

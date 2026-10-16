@@ -11,7 +11,7 @@
 // The primary is the gun you equipped at the hub's Weapons kiosk, at its
 // level (credits.js), not your multiplayer loadout's; the secondary stays.
 
-import { MELEE_DEFS, MeleeState } from "../../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1";
+import { MELEE_DEFS, MeleeState } from "../../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1";
 import { WeaponState } from "../../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
 import { updateGearHud } from "../../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { game } from "../../core/state.js?v=st1";

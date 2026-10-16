@@ -12,7 +12,7 @@
 
 import * as THREE from "three";
 import { buildGripHand, buildSupportHand } from "./hand-model.js";
-import { smoothstep } from "./anim-curves.js";
+import { smoothstep } from "./characters/anim-curves.js?v=or1";
 import { buildThrowable, modelKind } from "./combat/throwable-models.js?v=tm1-th2";
 import { buildTrollsaber } from "./trollsaber.js?v=ts4-ig1";
 import { buildReaperKnife, buildChainsaw } from "./melee-models.js?v=hw2";

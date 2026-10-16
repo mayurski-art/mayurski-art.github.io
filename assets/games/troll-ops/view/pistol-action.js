@@ -3,7 +3,7 @@
 // every shot, locked back on the last round, held back through an empty
 // reload until the slide release, and a press-check in the admire.
 
-import { smoothstep } from "../anim-curves.js";
+import { smoothstep } from "../characters/anim-curves.js?v=or1";
 
 const RELEASE_AT = 0.76;             // empty reload: the slide drops here (reload progress)
 const PRESS_AT = [0.24, 0.42];       // the admire's press-check (inspect progress)

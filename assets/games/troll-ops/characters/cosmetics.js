@@ -8,13 +8,13 @@
 // the materials (faceMaterial / setFace); this file is the picks and the
 // panel.
 
-import { FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1";
-import { WRISTWEAR, watchThumb } from "./wristwear.js?v=ww1c2m1";
+import { FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1";
+import { WRISTWEAR, watchThumb } from "./wristwear.js?v=ww1c2m1-or1";
 const KEY = "trollops:cosmetics";
 
 export const EXPRESSIONS = [
-  { id: "grin", name: "Trollface", img: "../../images/wallpaper/trollface%20transparent.png" },
-  { id: "sad", name: "Sad trollface", img: "./ui/trollface-sad.png" },
+  { id: "grin", name: "Trollface", img: "../../../images/wallpaper/trollface%20transparent.png" },
+  { id: "sad", name: "Sad trollface", img: "../ui/trollface-sad.png" },
 ];
 // Face coverings (character.js FACE_COVERINGS): worn over the lower face.
 export const COVERINGS = [
@@ -34,10 +34,10 @@ const EXPR_IDS = new Set(EXPRESSIONS.map((e) => e.id));
 // even the owner, can put it on (user, 2026-10-15: #820 "should only be
 // exclusively played by him only").
 export const BODIES = [
-  { id: "", name: "Stick troll", img: "../../images/wallpaper/trollface%20transparent.png" },
-  { id: "trolls-1718", token: 1718, name: "TROLLS #1718", img: "./ui/trolls-1718.png", holder: "troll_runner" },
-  { id: "trolls-1262", token: 1262, name: "TROLLS #1262", img: "./ui/trolls-1262.png", holder: "big_elva001" },
-  { id: "trolls-820", token: 820, name: "TROLLS #820", img: "./ui/trolls-820.png", holder: "guccibeardd" },
+  { id: "", name: "Stick troll", img: "../../../images/wallpaper/trollface%20transparent.png" },
+  { id: "trolls-1718", token: 1718, name: "TROLLS #1718", img: "../ui/trolls-1718.png", holder: "troll_runner" },
+  { id: "trolls-1262", token: 1262, name: "TROLLS #1262", img: "../ui/trolls-1262.png", holder: "big_elva001" },
+  { id: "trolls-820", token: 820, name: "TROLLS #820", img: "../ui/trolls-820.png", holder: "guccibeardd" },
 ];
 /* The signed-in account's username, lower case ("" signed out). */
 export function username() {

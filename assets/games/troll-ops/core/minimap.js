@@ -5,7 +5,7 @@
 import { royale, drawRoyaleMinimap } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { CarePackage } from "../streaks/streak-entities.js?v=vsat2-hk1-sr1-or1";
 import * as THREE from "three";
-import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7";
+import { groundHeightAt } from "../movement.js?v=umb2-sb2-gj1b7-or1";
 import { game } from "./state.js?v=st1";
 import { peerHas } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1";
 

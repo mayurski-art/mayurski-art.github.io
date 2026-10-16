@@ -16,11 +16,11 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
-import { setClothed, setHips, reshapeRig } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1";
-import { applyToken, removeToken, tokenTraits } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1";
-import { addRim } from "./view/rim-light.js?v=sr1";
+import { setClothed, setHips, reshapeRig } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1";
+import { applyToken, removeToken, tokenTraits } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1";
+import { addRim } from "../view/rim-light.js?v=sr1";
 
-const DIR = new URL("./traits/", import.meta.url);
+const DIR = new URL("../traits/", import.meta.url);
 const ART_V = globalThis.TRAITS_BUST ?? "tr1";
 const FRAME = { w: 1000, h: 1167, spine: 500, chest: 233, unit: 1667 };   // the garment frame
 
@@ -151,7 +151,7 @@ function faceTexture() {
   t.anisotropy = 8;
   const img = new Image();
   img.onload = () => { g.drawImage(img, 0, (H.top - 0.48) * px, 0.48 * px, 0.45 * px); t.needsUpdate = true; };
-  img.src = new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
+  img.src = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
   return t;
 }
 
@@ -172,7 +172,7 @@ function capPrint(text) {
 /* The muscular arms (models/build_blocky_arms.blender.py -> blocky/arms-muscle.glb):
    blocky muscle masses, each piece "<joint><S>__<muscle>" authored in its
    joint's frame, bone straight down -Y, at scale 1 with these bone lengths. */
-const glb = (file) => new URL(`./models/blocky/${file}?v=${globalThis.TRAITS_BUST ?? "bb2"}`, import.meta.url).href;
+const glb = (file) => new URL(`../models/blocky/${file}?v=${globalThis.TRAITS_BUST ?? "bb2"}`, import.meta.url).href;
 const TORSO_GLB = glb("torso-muscle.glb");
 const HEAD_GLB = glb("head-relief.glb");
 /* What each CLOTHES trait dresses the body in (the trait library, traits.js):

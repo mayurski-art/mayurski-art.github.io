@@ -136,8 +136,8 @@ export function skinsFor(weaponId) {
   return [...(SKINNABLE.has(weaponId) ? SKINS : []), ...FINISHES];
 }
 
-export const skinAtlasUrl = (id) => new URL(`./skins/${id}.jpg`, import.meta.url).href;
-export const skinThumbUrl = (id) => new URL(`./skins/${id}-thumb.jpg`, import.meta.url).href;
+export const skinAtlasUrl = (id) => new URL(`../skins/${id}.jpg`, import.meta.url).href;
+export const skinThumbUrl = (id) => new URL(`../skins/${id}-thumb.jpg`, import.meta.url).href;
 
 /* One texture per skin, loaded on first use and shared by every gun wearing
    it — yours, your third-person body's, and every other player's. */

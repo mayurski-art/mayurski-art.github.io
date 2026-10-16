@@ -15,9 +15,9 @@
 // drawn traits.
 
 import * as THREE from "three";
-import { setClothed } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1";
+import { setClothed } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1";
 
-const DIR = new URL("./traits/", import.meta.url);
+const DIR = new URL("../traits/", import.meta.url);
 // The art's cache tag: bump it when a drawing changes (a dev page can set
 // globalThis.TRAITS_BUST to refetch every time).
 const ART_V = globalThis.TRAITS_BUST ?? "tr1";
@@ -148,7 +148,7 @@ export function skullBack(rig) {
       sil("#f3f3ef", 0.965);
       skullTex.needsUpdate = true;
     };
-    img.src = new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
+    img.src = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
   }
   const back = new THREE.Mesh(head.geometry, drawnMaterial(skullTex, { roughness: 0.7 }));
   back.position.copy(head.position);
