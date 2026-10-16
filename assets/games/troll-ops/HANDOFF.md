@@ -12,8 +12,9 @@ Design docs live next to this file: `ROYALE-ISLAND.md` (Trollface Island map pas
 
 ## 1. Open work and plans (newest first)
 
-### Tasks to do, in order (updated 2026-10-14)
+### Tasks to do, in order (updated 2026-10-15)
 Start each session on a fresh branch or worktree from origin/main.
+0. **TROLLS #989 Bubblegum emote** (owner only; section "TROLLS NFT looks" below). Then the NFT outline breaks and the head's flat side.
 1. **Stylised realism follow-ups** (live -sr1; how a map is baked, the lessons: `REALISM.md`):
    - Re-render the map-select previews (`tools/troll-ops-map-previews.mjs <map>` for the 7 baked maps) and bump each one's `SHOT_V` in map-load-screen.js; they still show the old lighting.
    - Bake Trollface Island the same way (placements, `bake_every_model`, ground bake, `BAKED`, hemi/ambient halved, before/after shots).
@@ -51,7 +52,11 @@ Zombies rebuilt to play like Roblox's Zombie Rush Survival: a 3D hub, then a co-
 - Not yet: checked by eye in a real match (headless frames only). On the TROLLS body the block arm holding a pistol's grip covers the bottom of the gun and the incoming mag (the left fist itself never does).
 
 ### TROLLS NFT looks (`TROLLS-TRAITS.md`)
-#1718's blocky body is live. **Next: the wallet check** (phase 3: `ownerOf` on the contract) to replace the stopgap lock to the troll_runner account (cosmetics.js `BODIES` `owner`, `canWearBody`). Honest-client like everything else: `bk` on the wire is drawn only with `ow`.
+Live blocky bodies: #1718 and #989 (troll_runner), #820 (guccibeardd), #1262 (big_elva001).
+- **Next: #989's Bubblegum emote** (user, 2026-10-15): the body has no gum; its holder alone gets a Bubblegum emote. Append to characters/emotes.js EMOTES (index+1 is the wire code, so last) with `token: 989`; the emote wheel hides it unless you wear #989, and remotes play it only on a #989 body. A pink bubble at the lips grows, pops and snaps back (~4.5 s): on the head board at about (0.096, -0.046, 0.11), radius 0.1 (trait-preview.html's "gum" button shows it). The face stays #989's own pucker (FACE_ART gum).
+- Then: outline breaks where pieces touch, the head's flat side profile. When the troll dev signs up, move #989's holder (cosmetics.js BODIES) to his account.
+- #989's face lesson: the user wants the CLASSIC trollface (outline, jaw, cheek folds, chin lines) with only the expression changed (traits/src/face-gum.svg masks the trollface's features and clips the new ones from the user's drawing). Don't hand-draw faces or paste a whole outside drawing.
+- Later: **the wallet check** (phase 3: `ownerOf` on the contract) to replace the stopgap lock to the troll_runner account (cosmetics.js `BODIES` `owner`, `canWearBody`). Honest-client like everything else: `bk` on the wire is drawn only with `ow`.
 - Code: blocky-body.js (`wearBlocky`, `ownBody`, `applyBlocky`), character.js `reshapeRig` and the opt-in `rig.gunHold` / `rig.rigidTorso`, traits.js. Pieces: models/build_blocky_*.blender.py -> models/blocky/*.glb (hero_kit.py). Art: traits/src/*.svg, baked by tools/troll-ops-bake-traits.mjs.
 - Check: tools/trait-preview.html, tools/troll-ops-blocky-ingame.mjs.
 - Gotchas: a preview must MOVE the rig (`_footLock` pins planted feet). The body is ~30 cm shorter than the stick and its hitboxes follow it.
