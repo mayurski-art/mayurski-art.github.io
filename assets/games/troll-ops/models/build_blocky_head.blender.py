@@ -39,6 +39,25 @@ W, H = 0.48, 0.45             # the face board
 # (P_FRONT) with the jaw jutting a little (JUT), a profile with a brow and chin.
 FRONT, BACK = 0.065, 0.19
 P_FRONT, JUT = 2.0, 0.2
+P_BACK, SKULL = 2.4, 0.0
+
+# Candidate shapes for the NFT look (user, 2026-10-16: the head "just doesnt
+# look like in the nft characters"; the NFTs draw the trollface as a broad
+# flat face with a jaw that juts, where ours read as a mask on a ball in 3/4
+# and side views). `-- variant <name>` builds blocky/head-<name>.glb, tried
+# side by side in tools/nft-lab.html before one replaces head-relief.glb.
+# Each keeps a rounded side (2026-10-16 -fh1: no flat slab).
+VARIANTS = {
+    # a flatter, broader face plane (the drawing reads flat, like the NFT
+    # art), the jaw jutting forward under it, a shallower skull
+    "flat": dict(FRONT=0.05, P_FRONT=3.6, JUT=0.55, BACK=0.15, P_BACK=2.2, SKULL=0.15),
+    # the jaw and chin as one big mass jutting further, the face less flat
+    "jaw": dict(FRONT=0.07, P_FRONT=2.6, JUT=0.8, BACK=0.16, P_BACK=2.4, SKULL=0.1),
+}
+if len(ARGS) >= 2 and ARGS[0] == "variant":
+    globals().update(VARIANTS[ARGS[1]])
+    OUT = os.path.join(K.HERE, "blocky", f"head-{ARGS[1]}.glb")
+    ARGS = ARGS[2:]
 
 # (centre x, y as fractions of the art from its top left, radii rx, ry,
 # height in metres; negative sinks)
@@ -107,7 +126,7 @@ def relief(u, v, dark):
 
 def build():
     ob = K.trollface_head(name="head__relief", center=(0, 0, 0), w=W, h=H, depth_front=FRONT,
-                          depth_back=BACK, jut=JUT, p_front=P_FRONT, skull=0.0, segs=160, lat=34,
+                          depth_back=BACK, jut=JUT, p_front=P_FRONT, p_back=P_BACK, skull=SKULL, segs=160, lat=34,
                           # the outline's tufts came out as spikes at this many
                           # segments, so it's smoothed; that takes the jaw out
                           # past the drawing in places, where the art is

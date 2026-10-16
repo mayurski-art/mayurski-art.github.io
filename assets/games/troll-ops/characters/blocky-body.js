@@ -40,7 +40,7 @@ const B = {
    radius at the bottom and top): tried at 0.07, then off (user: "i dont
    want the neck"), kept as a lab slider. The head's hit sphere stays
    exactly where and as big as it was at 0.69 (HIT_LOOK): cosmetic only. */
-const HEAD = { scale: 0.85, neck: 0, neckR: [0.05, 0.043] };
+const HEAD = { scale: 0.85, neck: 0, neckR: [0.05, 0.043], model: "relief" };
 const HIT_LOOK = { scale: 0.69, y: 0.02 };
 /* Where the rifle's stock sits (chest-local, metres at scale 1: x out to
    the right, y up, z forward is -) and how big the gun is drawn. */
@@ -182,7 +182,6 @@ function capPrint(text) {
    joint's frame, bone straight down -Y, at scale 1 with these bone lengths. */
 const glb = (file) => new URL(`../models/blocky/${file}?v=${globalThis.TRAITS_BUST ?? "bb5"}`, import.meta.url).href;
 const TORSO_GLB = glb("torso-muscle.glb");
-const HEAD_GLB = glb("head-relief.glb");
 /* What each CLOTHES trait dresses the body in (the trait library, traits.js):
    its block template wrapped on the torso, and the arm and leg piece sets
    (models/blocky/<file>, built by models/build_blocky_*.blender.py) with a
@@ -288,10 +287,18 @@ export function fpArmLook(token) {
   }
   return fpArmLooks.get(token);
 }
-/* The trollface with a little depth (models/build_blocky_head.blender.py):
-   how far its dome stands in front of the board and its skull behind, so
-   the drawn head traits (traits.js planes) move out onto them. */
-const RELIEF = { front: 0.085, back: 0.19 };   // front: the dome plus the sculpted brow and upper lip under the cap and moustache
+/* The trollface with depth (models/build_blocky_head.blender.py), one per
+   head shape (HEAD.model; the variants are candidates for the NFT look,
+   2026-10-16): its file, how far its dome stands in front of the board
+   (`dome`, its FRONT, without the features) and, with the sculpted brow
+   and upper lip under the cap and moustache, `front`; and its skull behind
+   (`back`), so the drawn head traits (traits.js planes) move out onto them. */
+const HEAD_MODELS = {
+  relief: { file: "head-relief.glb", dome: 0.065, front: 0.085, back: 0.19 },
+  flat: { file: "head-flat.glb", dome: 0.05, front: 0.078, back: 0.15 },
+  jaw: { file: "head-jaw.glb", dome: 0.07, front: 0.107, back: 0.16 },
+};
+const headModel = () => HEAD_MODELS[HEAD.model] || HEAD_MODELS.relief;
 const ARM_BONES = { arm: 0.30, elbow: 0.325 };
 const FIST_BACK = -0.058;   // the fist (0.125 long, down from the wrist) moved back up the forearm by half
 /* A Blender piece set: [{ name, geo, hull }], each with its ink shell (the
@@ -1065,7 +1072,6 @@ function rimInk(hull, face) {
    half-width SKULL_HALF, so a band hugs the skull and glasses the face.
    Once per plane. */
 const SKULL_HALF = 0.25;
-const HEAD_FRONT = 0.065;   // the dome alone (build_blocky_head FRONT), without the features on it
 function wrapCard(plane, s, depth) {
   const { width: w, height: h } = plane.geometry.parameters;
   const geo = new THREE.PlaneGeometry(w, h, 40, 1);
@@ -1081,7 +1087,8 @@ function wrapCard(plane, s, depth) {
 
 function reliefHead(rig) {
   const p = rig.parts, s = rig.scale, board = p.head;
-  return loadPieces(HEAD_GLB).then(async (pieces) => {
+  const M = headModel();
+  return loadPieces(glb(M.file)).then(async (pieces) => {
     // On the board itself (its turn undone), so it shows and hides with it
     // (the game sets the head's visibility: third person, cutscenes); the
     // board's own drawing is taken off the render layers instead.
@@ -1156,8 +1163,8 @@ function reliefHead(rig) {
           // a band round the back of the skull (the blindfold), or glasses
           // across the rounded face: bent onto it, not a flat card floating
           // off its sides
-          if (!plane.userData.wrapped) wrapCard(plane, s, isFront ? HEAD_FRONT : RELIEF.back);
-          plane.position.z += (isFront ? -(RELIEF.front + (OVER_SHELL[id] || 0)) : RELIEF.back) * s;
+          if (!plane.userData.wrapped) wrapCard(plane, s, isFront ? M.dome : M.back);
+          plane.position.z += (isFront ? -(M.front + (OVER_SHELL[id] || 0)) : M.back) * s;
         }
       }
     }
@@ -1402,7 +1409,7 @@ export function applyBlocky(rig, look = {}) {
 /* The NFT design lab (tools/nft-lab.html) tunes these tables live and
    rebuilds the body: they're read at build time, and `flush` drops the
    beard shapes built from the old values. The game never touches this. */
-export const DESIGN = { KITS, HAIRS, HATS, CAP, SHELLS, RELIEF, HEAD, TOKENS, TRAIT_ART, flush: () => beardShapes.clear() };
+export const DESIGN = { KITS, HAIRS, HATS, CAP, SHELLS, HEAD_MODELS, HEAD, TOKENS, TRAIT_ART, flush: () => beardShapes.clear() };
 
 /* ------------------------------------------------------------ in game */
 
