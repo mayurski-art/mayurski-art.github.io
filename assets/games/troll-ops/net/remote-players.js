@@ -7,12 +7,12 @@
 
 import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, gaitFromVelocity, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, ParryState } from "../characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2";
-import { poseEmoteCode } from "../characters/emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2";
+import { poseEmoteCode, EMOTES, ROLE_BIT } from "../characters/emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2";
 import { THROW, parseThrowWire, poseThrowBody, clearThrowBody } from "../combat/throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2";
 import { buildWeaponMesh, stripLights } from "../weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1";
 import { WEAPON_DEFS } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "../weapons/gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1";
-import { cleanFaceKey, mayWear } from "../characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1";
+import { cleanFaceKey, mayWear, mayEmoteToken } from "../characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { sharedParaglider } from "../modes/royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1-fl1-or1";
 import { applyHeroBody, syncHeroBody } from "../characters/hero-bodies.js?v=umb3g-nf-wst-ig1-soc1c2f1m1u-th2-gt1-gt2-cw1-zr9-zr10-zp1-bf1-sr1-or1-nf2";
@@ -551,7 +551,11 @@ export class RemotePlayer {
     const sword = swinging || meleeHeld;
     // Emoting (the peer's `em`, see emotes.js): weapons away.
     // cineEmote: a pose the match intro (match-intro.js) holds them in, local only.
-    const em = this.alive ? (this.peer.emote | 0) || (this.cineEmote | 0) : 0;
+    let em = this.alive ? (this.peer.emote | 0) || (this.cineEmote | 0) : 0;
+    // a TROLLS token's own emote (#989's Bubblegum) plays only on its
+    // wearer or the owner (cosmetics.js mayEmoteToken)
+    const tokEm = EMOTES[(em & (ROLE_BIT - 1)) - 1]?.token;
+    if (tokEm && !mayEmoteToken(tokEm, this.rig.blocky?.token || 0, this.peer.name)) em = 0;
     if (em !== this.emCode) { this.emCode = em; this.emoteT = 0; }   // a new emote starts from 0
     this.emoteT = em ? (this.emoteT || 0) + dt : 0;
     if (this.meleeMesh) this.meleeMesh.visible = sword && !em;

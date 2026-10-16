@@ -2872,6 +2872,7 @@ body.to-touch-play .to-spawnguard { bottom: auto; top: 26%; }
 .to-emote-hub b { font-family: "Oswald", sans-serif; font-size: 18px; color: #eaf5e4; letter-spacing: .06em; text-transform: uppercase; }
 .to-emote-hub span { font-family: "DM Mono", monospace; font-size: 10px; color: #9aa596; }
 @media (prefers-reduced-motion: reduce) { .to-emote-slice { transition: none; } }
+.to-emote-slice[hidden] { display: none; }   /* a TROLLS token's own emote, not yours (emote-wheel.js layout) */
 
 /* BO2-style killcam overlay (game.js startKillcamPresentation). KILLCAM
    across the top between the letterbox bars, the killer plate bottom-left,

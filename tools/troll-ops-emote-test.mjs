@@ -104,7 +104,7 @@ const wheel = await A.evaluate(async () => {
   T.look.yaw = Math.PI / 2;   // looking away from B on purpose
   T.emoteWheel.open();
   await new Promise((r) => setTimeout(r, 600));
-  return { disabled: T.emoteWheel.slices.filter((b) => b.classList.contains("is-disabled")).length, hub: T.emoteWheel.el.querySelector(".to-emote-hub span").textContent };
+  return { disabled: T.emoteWheel.slices.filter((b) => !b.hidden && b.classList.contains("is-disabled")).length, hub: T.emoteWheel.el.querySelector(".to-emote-hub span").textContent };
 });
 check("duo slices are usable without aiming at anyone", wheel.disabled === 0 && /hold X/.test(wheel.hub), JSON.stringify(wheel));
 
@@ -227,13 +227,33 @@ const cw = await A.evaluate(async () => {
 });
 const ankleY = cw.frames.flat().map((a) => a[0]);
 const moved = cw.frames.some((f, i) => i && f.some((a, j) => Math.hypot(a[1] - cw.frames[i - 1][j][1], a[2] - cw.frames[i - 1][j][2]) > 0.01));
-check("crip walk is the last emote and plays", CW === cw.last && cw.emote === CW, `slice ${CW} of ${cw.last}, playing ${cw.emote}`);
+check("crip walk keeps its slot (17) and plays", CW === 17 && cw.emote === CW, `slice ${CW} of ${cw.last}, playing ${cw.emote}`);
 check("crip walk: the feet stay on the ground", Math.min(...ankleY) > 0.005 && Math.max(...ankleY) < 0.12, `ankles ${Math.min(...ankleY)}..${Math.max(...ankleY)} m`);
 check("crip walk: the feet move", moved, JSON.stringify(cw.frames.map((f) => f.map((a) => a.slice(1)))));
 await sleep(700);
 const cwWire = await B.evaluate((id) => window.__trollOps.net.peers.get(id)?.emote, aId);
 check("the crip walk goes out on the wire (index+1)", cwWire === CW + 1, `em ${cwWire}`);
 await A.evaluate(() => window.__trollOps.setEmote(-1));
+
+// Bubblegum: TROLLS #989's own emote. A guest on the stick doesn't get it on
+// the wheel; the owner's account does, on any body, and blows a bubble. B
+// (A is a guest to it, on the stick) doesn't play it for A.
+const GUM = await A.evaluate(() => window.__trollOps.emoteWheel.slices.findIndex((b) => b.textContent.includes("Bubblegum")));
+const wheelHas = () => A.evaluate(() => { const w = window.__trollOps.emoteWheel; w.layout(); return w.shown.includes(w.slices.findIndex((b) => b.textContent.includes("Bubblegum"))); });
+check("bubblegum is the newest emote (its own wire code)", GUM === 18, `slot ${GUM}`);
+check("bubblegum: not on a guest's wheel", !(await wheelHas()));
+await A.evaluate(() => { const A = window.TrollrunnerAccounts; window.__gp = A?.getCachedProfile; if (A) A.getCachedProfile = () => ({ username: "troll_runner", id: "test" }); });
+check("bubblegum: on the owner's wheel, any body", await wheelHas());
+await A.evaluate((i) => window.__trollOps.setEmote(i), GUM);
+await sleep(2200);
+const gumA = await A.evaluate(() => { const b = window.__trollOps.localRig.gumBubble; return { on: !!b?.visible, r: b ? +b.scale.y.toFixed(3) : 0 }; });
+check("bubblegum: the owner blows a bubble", gumA.on && gumA.r > 0.03, JSON.stringify(gumA));
+const gumB = await B.evaluate((id) => {
+  const T = window.__trollOps, rp = T.remotes.byId.get(id);
+  return { em: T.net.peers.get(id)?.emote, bubble: !!rp?.rig?.gumBubble?.visible, found: !!rp };
+}, aId);
+check("bubblegum: a guest's code doesn't play on others' screens", gumB.em === GUM + 1 && !gumB.bubble, JSON.stringify(gumB));
+await A.evaluate(() => { window.__trollOps.setEmote(-1); const A = window.TrollrunnerAccounts; if (A && window.__gp) A.getCachedProfile = window.__gp; });
 
 check("no page errors", errors.length === 0, errors.join(" | "));
 await browser.close();

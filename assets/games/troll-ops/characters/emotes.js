@@ -39,6 +39,7 @@ function base(rig) {
   setHandPose(rig, 1, "open");
   setFace(rig);   // the rig's own face (the sad emote swaps it)
   resetSecondaryJoints(rig);
+  if (rig.gumBubble) rig.gumBubble.visible = false;
 }
 function head(rig, pitch = 0, yaw = 0, roll = 0) {
   const p = rig.parts;
@@ -478,6 +479,71 @@ function duoDancePartner(rig, t) {
 
 /* ---------------------------------------------------------------- list */
 
+/* Bubblegum: TROLLS #989's own emote (traits.js: its Bubblegum facial is
+   the emote, not worn). Lips puckered (character.js FACE_ART gum), a pink
+   bubble grows at them, wobbles, pops and the gum snaps back over the
+   mouth, then gets sucked back in. For whoever wears #989, and the owner on
+   any body (cosmetics.js mayEmoteToken). The bubble hangs on the head board
+   at the lips, so it fits the stick's head and the TROLLS one alike. */
+const GUM = { x: 0.08, y: -0.036, lips: 0.012, r: 0.1, seconds: 4.6, pop: 3.2 };
+let gumParts = null;
+function gumBubble(rig) {
+  if (rig.gumBubble) return rig.gumBubble;
+  if (!gumParts) {
+    const geo = new THREE.SphereGeometry(1, 24, 16);
+    const mat = new THREE.MeshStandardMaterial({ color: 0xff8ac4, emissive: 0x5a1036, roughness: 0.3, metalness: 0 });
+    const ink = new THREE.MeshBasicMaterial({ color: 0x111111, side: THREE.BackSide });
+    // every rig shares these (remote-players.js dispose skips them)
+    geo.userData.shared = mat.userData.shared = ink.userData.shared = true;
+    gumParts = { geo, mat, ink };
+  }
+  const g = new THREE.Group();
+  const ball = new THREE.Mesh(gumParts.geo, gumParts.mat);
+  const ink = new THREE.Mesh(gumParts.geo, gumParts.ink);
+  ink.scale.setScalar(1.07);
+  g.add(ball, ink);
+  g.visible = false;
+  rig.parts.head.add(g);
+  rig.gumBubble = g;
+  return g;
+}
+function poseGum(rig, t) {
+  const p = rig.parts;
+  base(rig);
+  setFace(rig, "gum");
+  const on = env(t, 0, 0.3, GUM.seconds - 0.4, GUM.seconds);
+  // a relaxed stand, chin up to blow, a flinch back at the pop
+  const blow = clamp01((t - 0.3) / (GUM.pop - 0.3));
+  const flinch = t > GUM.pop ? Math.max(0, 1 - (t - GUM.pop) / 0.35) : 0;
+  p.armL.rotation.set(-0.08 * on, 0, 0.14 * on);
+  p.armR.rotation.set(-0.08 * on, 0, -0.14 * on);
+  p.elbowL.rotation.x = 0.25 * on;
+  p.elbowR.rotation.x = 0.25 * on;
+  p.torso.rotation.x = -0.04 * on - flinch * 0.06;
+  head(rig, (-0.12 * blow - flinch * 0.25) * on, Math.sin(t * 1.3) * 0.05 * on, 0.06 * on);
+  const b = gumBubble(rig);
+  let r = 0, sx = 1, sy = 1, sz = 1;
+  if (t > 0.3 && t < GUM.pop) {
+    // grows with each breath out, wobbling as it goes
+    const k = ease(blow) * (0.92 + 0.08 * Math.sin(t * 6));
+    r = GUM.r * Math.max(0.08, k);
+    const wob = Math.sin(t * 11) * 0.04 * k;
+    sx = 1 + wob; sy = 1 - wob;
+  } else if (t >= GUM.pop && t < GUM.pop + 0.08) {
+    r = GUM.r * 1.15;   // the pop
+  } else if (t >= GUM.pop + 0.08) {
+    // snapped back flat over the lips, then sucked back in
+    const back = clamp01((t - GUM.pop - 0.08) / 1.1);
+    r = GUM.r * 0.75 * (1 - ease(back));
+    sx = 1.1; sy = 0.75; sz = 0.12;
+  }
+  b.visible = r > 0.002;
+  b.scale.set(r * sx, r * sy, r * sz);
+  // its back stays at the lips as it grows
+  b.position.set(GUM.x, GUM.y, GUM.lips + r * sz);
+  done(rig);
+}
+
 export const EMOTES = [
   { id: "groove", name: "Groove", kind: "tp", pose: DANCES[0] },
   { id: "floss", name: "Floss", kind: "tp", pose: DANCES[1] },
@@ -498,6 +564,9 @@ export const EMOTES = [
   { id: "bird", name: "Middle fingers", kind: "tp", pose: poseBirdTP, seconds: BIRD_SECONDS },
   { id: "lean", name: "Pour up", kind: "fp", pose: poseLeanTP, fp: leanFp, fpProps: fpLeanProps, props: true, seconds: LEAN_SECONDS },
   { id: "cwalk", name: "Crip walk", kind: "tp", pose: poseCripWalk },
+  // a TROLLS token's own (`token`): the wheel shows it only to its wearer
+  // and the owner, remotes play it only for them (cosmetics.js mayEmoteToken)
+  { id: "gum", name: "Bubblegum", kind: "tp", pose: poseGum, seconds: GUM.seconds, token: 989 },
 ];
 
 export const DEFAULT_EMOTE_SECONDS = 8;

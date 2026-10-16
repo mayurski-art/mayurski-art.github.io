@@ -15,6 +15,7 @@
 import { EMOTES } from "./emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2";
 
 export { EMOTES };
+import { mayEmoteToken, wornToken, username } from "./cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1";
 
 // A little travel before a slice lights up, so a twitch on open doesn't pick.
 const DEADZONE = 22;
@@ -36,16 +37,13 @@ export class EmoteWheel {
     this.el.hidden = true;
     this.el.setAttribute("role", "menu");
     this.el.setAttribute("aria-label", "Emotes");
-    const n = EMOTES.length;
+    this.shown = EMOTES.map((_, i) => i);   // the slices on the wheel (layout)
     this.slices = EMOTES.map((e, i) => {
       const b = document.createElement("button");
       b.type = "button";
       b.className = `to-emote-slice is-${e.kind}`;
       b.dataset.slot = String(i);
       b.setAttribute("role", "menuitem");
-      const a = (i / n) * Math.PI * 2;   // slot 0 at the top, clockwise
-      b.style.left = `calc(50% + ${Math.sin(a) * RADIUS}px)`;
-      b.style.top = `calc(50% - ${Math.cos(a) * RADIUS}px)`;
       const tag = document.createElement("i");
       tag.textContent = KIND_TAG[e.kind];
       const name = document.createElement("span");
@@ -70,7 +68,25 @@ export class EmoteWheel {
     this.hub.innerHTML = "<b>Emote</b><span></span>";
     this.el.appendChild(this.hub);
     parent.appendChild(this.el);
+    this.layout();
     this.paintHub();
+  }
+
+  /* Lay the slices round the wheel: every emote but a TROLLS token's own
+     (emotes.js `token`), which only its wearer and the owner get (cosmetics.js
+     mayEmoteToken). Checked on each open: the body or the account may have
+     changed since. Slot 0 at the top, clockwise. */
+  layout() {
+    const worn = wornToken(), name = username();
+    this.shown = EMOTES.map((_, i) => i).filter((i) => mayEmoteToken(EMOTES[i].token, worn, name));
+    const n = this.shown.length;
+    this.slices.forEach((b) => { b.hidden = true; });
+    this.shown.forEach((i, k) => {
+      const b = this.slices[i], a = (k / n) * Math.PI * 2;
+      b.hidden = false;
+      b.style.left = `calc(50% + ${Math.sin(a) * RADIUS}px)`;
+      b.style.top = `calc(50% - ${Math.cos(a) * RADIUS}px)`;
+    });
   }
 
   /* Whether duo emotes can be used here at all (a teammate to share one
@@ -85,10 +101,11 @@ export class EmoteWheel {
     this.paintHub();
   }
 
-  disabled(i) { return EMOTES[i]?.kind === "duo" && !this.duoAllowed; }
+  disabled(i) { return (EMOTES[i]?.kind === "duo" && !this.duoAllowed) || !this.shown.includes(i); }
 
   open() {
     if (this.isOpen) return;
+    this.layout();
     this.isOpen = true;
     this.pick = -1;
     this.dx = this.dy = 0;
@@ -115,9 +132,9 @@ export class EmoteWheel {
 
   pickFromPointer() {
     if (Math.hypot(this.dx, this.dy) < DEADZONE) { this.pick = -1; this.paint(); return; }
-    const n = EMOTES.length;
+    const n = this.shown.length;
     const a = Math.atan2(this.dx, -this.dy);   // 0 at the top, clockwise
-    const i = ((Math.round(a / (Math.PI * 2 / n)) % n) + n) % n;
+    const i = this.shown[((Math.round(a / (Math.PI * 2 / n)) % n) + n) % n];
     this.pick = this.disabled(i) ? -1 : i;
     this.paint();
   }

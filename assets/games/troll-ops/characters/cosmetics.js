@@ -62,6 +62,18 @@ export function mayWear(token, name) {
   const n = String(name || "").toLowerCase();
   return !!holder && (n === holder || n === OWNER);
 }
+/* A TROLLS token's own emote (emotes.js `token`: #989's Bubblegum): for
+   whoever has that body on (`worn`, its token, 0 for none), and for the
+   owner on any body (user, 2026-10-16: "troll_runner should be able to do
+   it too"). The emote wheel asks for you, remote-players.js for others. */
+export function mayEmoteToken(token, worn, name) {
+  return !token || +worn === +token || String(name || "").toLowerCase() === OWNER;
+}
+/* The TROLLS token this browser's player wears (0 the stick). */
+export function wornToken() {
+  const b = loadCosmetics().body;
+  return canWearBody(b) ? bodyToken(b) : 0;
+}
 /* A TROLLS body brings its own head and face (the NFT's art), so the
    expression and the face covering come off while it's worn and can't go
    back on (user, 2026-10-12). The wrist isn't the head: it stays. */
