@@ -455,7 +455,11 @@ function renderTuning() {
     sliderRow("Thickness on jaw", ["SHELLS", facial, "thick", 0], 0.002, 0.08, 0.001),
     sliderRow("Thickness hanging", ["SHELLS", facial, "thick", 1], 0.002, 0.1, 0.001),
     sliderRow("Wraps round jaw", ["SHELLS", facial, "curl"], 0.2, 1.4, 0.01, (x) => x.toFixed(2)),
-    ...(DEFAULTS.SHELLS[facial].hem ? [
+    ...(DEFAULTS.SHELLS[facial].hem?.jaw ? [
+      sliderRow("Below the jaw", ["SHELLS", facial, "hem", "margin"], 0, 200, 5, (x) => x.toFixed(0)),
+      sliderRow("Chin drop", ["SHELLS", facial, "hem", "chin", 2], 0, 250, 5, (x) => x.toFixed(0)),
+      sliderRow("Chin drop at x", ["SHELLS", facial, "hem", "chin", 0], 250, 750, 5, (x) => x.toFixed(0)),
+    ] : DEFAULTS.SHELLS[facial].hem ? [
       sliderRow("Ends at row", ["SHELLS", facial, "hem", "row"], 860, 1100, 5, (x) => x.toFixed(0)),
       sliderRow("Hem curve", ["SHELLS", facial, "hem", "rise"], 0, 250, 5, (x) => x.toFixed(0)),
     ] : []),

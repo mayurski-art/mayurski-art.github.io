@@ -606,6 +606,10 @@ async function capVolume(id, plane, centreY, s) {
      - it's shaded in bands like the face (the same toon tones), so the two
        read as one surface.
    Built in the head pivot's frame (-z the front), once the relief head is on. */
+/* The trollface's jaw: the bottom of the face art's silhouette in each
+   column ([head frame x, row]), measured off trollface transparent.png. */
+const JAW = [[0, 877], [175, 877], [200, 906], [250, 930], [300, 935], [350, 932], [400, 923], [450, 911], [500, 901],
+  [550, 885], [600, 855], [650, 830], [700, 805], [750, 771], [800, 715], [850, 634], [875, 596], [1000, 560]];
 const BEARD = {
   dark: "#3d1e09",
   curl: 0.75,        // past the face's edge, how far back the sideburns go per metre out (pivot frame)
@@ -617,7 +621,12 @@ const BEARD = {
   taper: 0.045,      // how far in from an edge it takes to reach that (metres)
   sink: 0.003,       // its back, into the face
   ride: [900, 1110], // frame rows over which it hands over from the head to the chest (beardRide)
-  hem: { row: 960, rise: 110 }, // where the drawing ends under the jaw (hemmed): clear of the shirt
+  // where the drawing ends under the jaw (hemmed), clear of the shirt: the
+  // trollface's own jaw line, `margin` rows below it and `chin` [x, width,
+  // rows] lower again under the chin (user, 2026-10-16: "the beard doesnt
+  // follow the path of the trollface shape"; the old cut was a symmetric
+  // curve, and the jaw slants from row ~935 on the left to ~770 on the right)
+  hem: { jaw: JAW, margin: 60, chin: [480, 140, 50] },
   tint: [0.42, 0.56, 0.8], // the material's colour (r, g, b), so the lit beard reads the NFT's brown, not ginger (beardVolume)
 };
 /* Every facial built as a shell on the face this way (BEARDS.md 8), by
@@ -628,11 +637,14 @@ const SHELLS = {
   "facial-face-mask-umadbro": { ...BEARD, tint: 1, dark: "#0b0b0c", curl: 0.9, chin: [880, 1100], rest: 0.004,
     thick: [0.0045, 0.006], taper: 0.01, ride: [920, 1120],
     // a thin shell lies OFF the face (the nose and the grin's relief poked through), no depth image
-    sink: 0.002, lift: 0.008, depth: false },
+    // (the mask keeps the symmetric cut it was approved with)
+    sink: 0.002, lift: 0.008, depth: false, hem: { row: 960, rise: 110 } },
 };
-/* A shell's drawing cut off along its hem: frame row `row` mid-chin, `rise`
-   rows higher at the drawing's sides (a parabola), feathered over `soft`
-   rows so alphaTest leaves a smooth edge. No hem: the drawing as it is. */
+/* A shell's drawing cut off along its hem, feathered over `soft` rows so
+   alphaTest leaves a smooth edge: either along the jaw (`jaw`: [frame x,
+   row] points, plus `margin` and the `chin` drop) or at frame row `row`
+   mid-chin, `rise` rows higher at the drawing's sides (a parabola). No hem:
+   the drawing as it is. */
 function hemmed(img, hem, rows) {
   if (!hem) return img;
   const c = document.createElement("canvas");
@@ -640,12 +652,26 @@ function hemmed(img, hem, rows) {
   const g = c.getContext("2d");
   g.drawImage(img, 0, 0);
   const d = g.getImageData(0, 0, c.width, c.height), px = d.data, soft = hem.soft ?? 14;
+  // the cut's row in each column of the drawing (its x is the head frame's, 1000 wide)
+  const cut = new Float32Array(c.width);
+  for (let x = 0; x < c.width; x++) {
+    const fx = (x + 0.5) / c.width * 1000;
+    if (hem.jaw) {
+      const j = hem.jaw, i = Math.max(1, Math.min(j.length - 1, j.findIndex(([jx]) => jx >= fx)));
+      const [x0, r0] = j[i - 1], [x1, r1] = j[i];
+      const [cx, cw, cd] = hem.chin || [0, 1, 0];
+      cut[x] = r0 + (r1 - r0) * Math.max(0, Math.min(1, (fx - x0) / (x1 - x0))) + (hem.margin || 0) + cd * Math.exp(-(((fx - cx) / cw) ** 2));
+    } else {
+      const u = fx / 500 - 1;
+      cut[x] = hem.row - hem.rise * u * u;
+    }
+  }
+  const top = Math.min(...cut) - soft;
   for (let y = 0; y < c.height; y++) {
     const r = (y + 0.5) / c.height * rows;
-    if (r < hem.row - hem.rise - soft) continue;
+    if (r < top) continue;
     for (let x = 0; x < c.width; x++) {
-      const u = (x + 0.5) / c.width * 2 - 1;
-      const k = 1 - smooth01(hem.row - hem.rise * u * u - soft, hem.row - hem.rise * u * u, r);
+      const k = 1 - smooth01(cut[x] - soft, cut[x], r);
       if (k < 1) px[(y * c.width + x) * 4 + 3] *= k;
     }
   }
