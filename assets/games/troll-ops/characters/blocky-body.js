@@ -34,13 +34,13 @@ const B = {
 };
 /* The board head's size on the block body: 0.48 m wide x 0.6 = ~0.29, a
    blocky avatar's head-to-torso ratio. */
-/* The head on the body, like the NFT art (user, 2026-10-16: the head was
-   small and sat straight on the torso; the NFTs draw it big on a long thin
-   neck): `scale` the board's size (0.6, then 0.69 so the face read, now
-   0.85), `neck` how far up the neck lifts it (metres), `neckR` the neck's
-   radius at the bottom and top. The head's hit sphere stays exactly where
-   and as big as it was at 0.69 on no neck (HIT_LOOK): cosmetic only. */
-const HEAD = { scale: 0.85, neck: 0.07, neckR: [0.05, 0.043] };
+/* The head on the body, bigger like the NFT art (user, 2026-10-16: the
+   head was small): `scale` the board's size (0.6, then 0.69 so the face
+   read, now 0.85). `neck` lifts it on a thin neck (metres; `neckR` its
+   radius at the bottom and top): tried at 0.07, then off (user: "i dont
+   want the neck"), kept as a lab slider. The head's hit sphere stays
+   exactly where and as big as it was at 0.69 (HIT_LOOK): cosmetic only. */
+const HEAD = { scale: 0.85, neck: 0, neckR: [0.05, 0.043] };
 const HIT_LOOK = { scale: 0.69, y: 0.02 };
 /* Where the rifle's stock sits (chest-local, metres at scale 1: x out to
    the right, y up, z forward is -) and how big the gun is drawn. */
