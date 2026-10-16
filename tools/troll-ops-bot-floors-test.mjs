@@ -83,7 +83,7 @@ await page.goto(`${BASE}/__bot-floors-sim.html`);
 // The same ?v= tags game.js imports them with, so this runs what ships.
 const gameSrc = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/game.js"), "utf8");
 const tag = (mod) => gameSrc.match(new RegExp(`\\./${mod}\\.js(\\?v=[^"']*)?["']`))?.[1] || "";
-const mods = { maps: `/assets/games/troll-ops/maps.js${tag("maps")}`, bots: `/assets/games/troll-ops/bots.js${tag("bots")}`,
+const mods = { maps: `/assets/games/troll-ops/maps.js${tag("maps")}`, bots: `/assets/games/troll-ops/bots/bots.js${tag("bots/bots")}`,
   ballistics: `/assets/games/troll-ops/ballistics.js${tag("ballistics")}`, movement: `/assets/games/troll-ops/movement.js${tag("movement")}` };
 const mapIds = await page.evaluate(async (mods) => (await import(mods.maps)).MAP_IDS, mods);
 

@@ -34,7 +34,7 @@ await page.route(/supabase/, (r) => r.abort());
 await page.goto(`${BASE}/__amb.html`);
 
 const out = await page.evaluate(async () => {
-  const { MapAmbience } = await import("/assets/games/troll-ops/ambience.js");
+  const { MapAmbience } = await import("/assets/games/troll-ops/sound/ambience.js");
   const RATE = 22050;
   // GameAudio's surface that ambience.js uses, over an offline context.
   const fake = (secs) => {

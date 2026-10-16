@@ -127,8 +127,8 @@ if (!SIM_ONLY) {
   // The same ?v= tags game.js imports them with, so this runs what ships.
   const gameSrc = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/game.js"), "utf8");
   const tag = (mod) => gameSrc.match(new RegExp(`\\./${mod}\\.js(\\?v=[^"']*)?["']`))?.[1] || "";
-  const mods = { maps: `/assets/games/troll-ops/maps.js${tag("maps")}`, bots: `/assets/games/troll-ops/bots.js${tag("bots")}`,
-    nav: `/assets/games/troll-ops/nav.js${tag("nav")}`, movement: `/assets/games/troll-ops/movement.js${tag("movement")}` };
+  const mods = { maps: `/assets/games/troll-ops/maps.js${tag("maps")}`, bots: `/assets/games/troll-ops/bots/bots.js${tag("bots/bots")}`,
+    nav: `/assets/games/troll-ops/bots/nav.js${tag("bots/nav")}`, movement: `/assets/games/troll-ops/movement.js${tag("movement")}` };
   const mapIds = await page.evaluate(async (mods) => Object.keys((await import(mods.maps)).MAPS), mods);
 
   for (const id of mapIds) {

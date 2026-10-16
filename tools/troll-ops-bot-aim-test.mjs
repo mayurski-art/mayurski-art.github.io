@@ -48,7 +48,7 @@ function check(name, ok, detail = "") {
 // The same ?v= tags game.js imports them with, so this runs what ships.
 const gameSrc = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/game.js"), "utf8");
 const tag = (mod) => gameSrc.match(new RegExp(`\\./${mod.replace(/\//g, "\\/")}\\.js(\\?v=[^"']*)?["']`))?.[1] || "";
-const mods = { bots: `/assets/games/troll-ops/bots.js${tag("bots")}`, state: `/assets/games/troll-ops/core/state.js${tag("core/state")}` };
+const mods = { bots: `/assets/games/troll-ops/bots/bots.js${tag("bots/bots")}`, state: `/assets/games/troll-ops/core/state.js${tag("core/state")}` };
 
 const EXPECTED = { recruit: 0.28, regular: 0.37, veteran: 0.55 };
 // 4000 rounds puts 3 points at ~4 sigma; at 2000 a tier strayed past 3

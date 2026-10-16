@@ -246,7 +246,7 @@ const page2 = await openGame(() => {
 const CLOUD_TAG = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/menu/lobby.js"), "utf8").match(/cloud-save\.js\?v=([\w-]+)/)[1];
 const booted = await page2.evaluate(async (tag) => {
   await new Promise((r) => setTimeout(r, 4000));
-  const mod = await import(`/assets/games/troll-ops/cloud-save.js?v=${tag}`);
+  const mod = await import(`/assets/games/troll-ops/net/cloud-save.js?v=${tag}`);
   const st = mod.cloudSaveState();
   return {
     bootWrites: st.bootWrites, settled: st.settled,

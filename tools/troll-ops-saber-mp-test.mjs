@@ -66,7 +66,7 @@ await sim.goto(`${BASE}/troll-ops.html`);
 await sim.waitForFunction(() => !!document.querySelector("script[type=importmap]"), null, { timeout: 30000 });
 const runBot = (opts) => sim.evaluate(async ({ difficulty, blocking, facing }) => {
   const THREE = await import("three");
-  const { BotManager } = await import("/assets/games/troll-ops/bots.js?v=to-sb1");
+  const { BotManager } = await import("/assets/games/troll-ops/bots/bots.js?v=to-sb1");
   // Seeded, so the one-in-N "let this throw go" roll is the same every run.
   let seed = 7;
   Math.random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;

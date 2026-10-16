@@ -4,7 +4,7 @@
 //
 // Decodes every mp3 in assets/games/troll-ops/music (ffmpeg on PATH), finds
 // its tempo and where the beats fall, and writes
-// assets/games/troll-ops/music-beats.js: per track { bpm, offset (s of the
+// assets/games/troll-ops/sound/music-beats.js: per track { bpm, offset (s of the
 // first beat), down (which beat of four is the bar's one), kick / level (one
 // digit 0-9 per beat: the low end's punch and the overall loudness) }.
 // The club (trollingloud.js) reads the song's clock against that grid, so the
@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DIR = join(ROOT, "assets/games/troll-ops/music");
-const OUT = join(ROOT, "assets/games/troll-ops/music-beats.js");
+const OUT = join(ROOT, "assets/games/troll-ops/sound/music-beats.js");
 const SR = 22050, N = 1024, HOP = 256, FPS = SR / HOP;
 
 function decode(file) {

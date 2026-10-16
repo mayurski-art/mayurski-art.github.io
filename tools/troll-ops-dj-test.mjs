@@ -115,7 +115,7 @@ check(!a1.paused && !b1.paused && a1.graph, "the record plays (through the booth
 const [ta, tb] = await Promise.all([A.evaluate(() => window.__trollOps.djLulz.song()?.t), B.evaluate(() => window.__trollOps.djLulz.song()?.t)]);
 check(Math.abs(ta - tb) < 0.6, "both are at the same place in it", `${ta?.toFixed(2)} vs ${tb?.toFixed(2)}`);
 const L = await until(A, (d) => d.song, 5000, lights);
-const grid = await A.evaluate(async (src) => (await import("/assets/games/troll-ops/music-beats.js?v=bg1")).BEATS[src], (await A.evaluate(() => window.__trollOps.djLulz.song().src)));
+const grid = await A.evaluate(async (src) => (await import("/assets/games/troll-ops/sound/music-beats.js?v=bg1")).BEATS[src], (await A.evaluate(() => window.__trollOps.djLulz.song().src)));
 check(L.song && Math.abs(L.song.bpm - grid.bpm) < 0.01, "the club's clock runs on the record's beat grid", `${L.song?.bpm} BPM`);
 check(L.want === 0, "the club's own synth track is off under the DJ", `want ${L.want}`);
 // the beat lands on the grid: sample the kick across a second, its peaks a beat apart
