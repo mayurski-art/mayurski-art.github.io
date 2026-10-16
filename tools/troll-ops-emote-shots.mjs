@@ -36,10 +36,11 @@ await page.waitForTimeout(2500);
 
 const EMOTES = (process.env.EMOTES || "dab,bird").split(",");
 const BODIES = (process.env.BODIES || "0,1718,989,820,1262").split(",").map(Number);
-const YAWS = { front: [0], 34: [0.6], both: [0, 0.6] }[process.env.YAW || "both"];
+// named, or a list of radians off the front ("0,0.8,1.57")
+const YAWS = { front: [0], 34: [0.6], both: [0, 0.6] }[process.env.YAW || "both"] || process.env.YAW.split(",").map(Number);
 const TIMES = process.env.TIMES ? process.env.TIMES.split(",").map(Number) : null;
 
-const out = await page.evaluate(async ({ EMOTES, BODIES, YAWS, TIMES, ZOOM }) => {
+const out = await page.evaluate(async ({ EMOTES, BODIES, YAWS, TIMES, ZOOM, HEAD }) => {
   // the page's own module instances: the exact URLs (tags) it loaded
   const mod = (file) => import(performance.getEntriesByType("resource").map((e) => e.name).find((n) => n.includes(`/characters/${file}?v=`)));
   const B = await mod("blocky-body.js");
@@ -50,9 +51,10 @@ const out = await page.evaluate(async ({ EMOTES, BODIES, YAWS, TIMES, ZOOM }) =>
   const rest = ci.yaw;
   const sheets = [];
   for (const id of EMOTES) {
+    // "idle": no emote, the menu's ready stance (for looking at the body itself)
     const idx = E.EMOTES.findIndex((e) => e.id === id);
-    if (idx < 0) { sheets.push({ id, error: "no such emote" }); continue; }
-    const secs = E.emoteSeconds(idx);
+    if (idx < 0 && id !== "idle") { sheets.push({ id, error: "no such emote" }); continue; }
+    const secs = idx < 0 ? 1 : E.emoteSeconds(idx);
     const times = TIMES || [0.15, 0.3, 0.5, 0.7, 0.9].map((f) => +(f * Math.min(secs, 6)).toFixed(2));
     const cells = [];
     for (const tok of BODIES) {
@@ -61,9 +63,18 @@ const out = await page.evaluate(async ({ EMOTES, BODIES, YAWS, TIMES, ZOOM }) =>
         for (const t of times) {
           ci.yaw = rest + y; ci.pitch = ci.pitch; ci.idleT = -1e9; ci.dragging = true;
           // settle the blend from the last pose, then freeze at t
-          for (let k = 0; k < 30; k++) { ci.emote = { code: E.emoteCode(idx), t: Math.max(0, t - 0.5 + k / 60), secs: 1e9 }; ci.tick(1 / 60); }
-          ci.emote = { code: E.emoteCode(idx), t, secs: 1e9 };
+          for (let k = 0; k < 30; k++) { ci.emote = idx < 0 ? null : { code: E.emoteCode(idx), t: Math.max(0, t - 0.5 + k / 60), secs: 1e9 }; ci.tick(1 / 60); }
+          ci.emote = idx < 0 ? null : { code: E.emoteCode(idx), t, secs: 1e9 };
           ci.tick(0);
+          if (HEAD) {
+            // HEAD=1: the camera on the head, close (the menu frames the body)
+            const h = ci.humanoid.parts.headPivot, c = ci.camera;
+            const at = h.getWorldPosition(c.position.clone()); at.y += 0.12;
+            const d = 0.9 * (ZOOM || 1);
+            c.position.set(at.x + Math.sin(ci.yaw) * d, at.y + 0.05, at.z + Math.cos(ci.yaw) * d);
+            c.lookAt(at);
+            ci.renderer.render(ci.scene, c);
+          }
           cells.push({ tok, y, t, url: ci.canvas.toDataURL() });
         }
       }
@@ -104,7 +115,7 @@ const out = await page.evaluate(async ({ EMOTES, BODIES, YAWS, TIMES, ZOOM }) =>
     sheets.push({ id, url: sheet.toDataURL("image/png") });
   }
   return sheets;
-}, { EMOTES, BODIES, YAWS, TIMES, ZOOM: +process.env.ZOOM || 0 });
+}, { EMOTES, BODIES, YAWS, TIMES, ZOOM: +process.env.ZOOM || 0, HEAD: !!process.env.HEAD });
 
 for (const s of out) {
   if (s.error) { console.log(`${s.id}: ${s.error}`); continue; }
