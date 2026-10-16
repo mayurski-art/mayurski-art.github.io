@@ -172,7 +172,7 @@ function capPrint(text) {
 /* The muscular arms (models/build_blocky_arms.blender.py -> blocky/arms-muscle.glb):
    blocky muscle masses, each piece "<joint><S>__<muscle>" authored in its
    joint's frame, bone straight down -Y, at scale 1 with these bone lengths. */
-const glb = (file) => new URL(`../models/blocky/${file}?v=${globalThis.TRAITS_BUST ?? "bb2"}`, import.meta.url).href;
+const glb = (file) => new URL(`../models/blocky/${file}?v=${globalThis.TRAITS_BUST ?? "bb3"}`, import.meta.url).href;
 const TORSO_GLB = glb("torso-muscle.glb");
 const HEAD_GLB = glb("head-relief.glb");
 /* What each CLOTHES trait dresses the body in (the trait library, traits.js):
@@ -283,7 +283,7 @@ export function fpArmLook(token) {
 /* The trollface with a little depth (models/build_blocky_head.blender.py):
    how far its dome stands in front of the board and its skull behind, so
    the drawn head traits (traits.js planes) move out onto them. */
-const RELIEF = { front: 0.045, back: 0.075 };   // front: the dome plus the sculpted brow and upper lip under the cap and moustache
+const RELIEF = { front: 0.045, back: 0.19 };   // front: the dome plus the sculpted brow and upper lip under the cap and moustache
 const ARM_BONES = { arm: 0.30, elbow: 0.325 };
 const FIST_BACK = -0.058;   // the fist (0.125 long, down from the wrist) moved back up the forearm by half
 /* A Blender piece set: [{ name, geo, hull }], each with its ink shell (the
@@ -437,7 +437,7 @@ function muscleLegs(rig, kit) {
    boards with the white top of the head between them; user: "fix the
    umadbro hat rendering".) In the plane's own frame its +z is outward
    (the front plane is turned to face forward), so the bend is +z for both. */
-const CAP = { a: 0.32, b: 0.345, front: 0.056, back: 0.096 };   // ellipsoid half-width, half-height (to the cap's top), depths
+const CAP = { a: 0.32, b: 0.345, front: 0.056, back: 0.235 };   // ellipsoid half-width, half-height (to the cap's top), depths
 /* Each hat's own shape: `ink` the colour of its walls and of the back
    under its back drawing; `brim` a band of the head frame (y0..y1, frame
    units) that stands out flat all round instead of following the head (a
@@ -445,11 +445,11 @@ const CAP = { a: 0.32, b: 0.345, front: 0.056, back: 0.096 };   // ellipsoid hal
    into the crown over `ease` units. */
 const HATS = {
   "hat-goatfarm": { ink: "#151517" },
-  "hat-camper": { ink: "#8f8862", brim: [352, 452], brimFront: 0.13, brimBack: 0.13, ease: 16 },
+  "hat-camper": { ink: "#8f8862", brim: [352, 452], brimFront: 0.13, brimBack: 0.26, ease: 16 },
   // a flat cap: its bill out in front only (no brimBack: the crown all round behind)
   "hat-baker": { ink: "#1d1c17", brim: [345, 420], brimFront: 0.105, ease: 14 },
   // the wizard's floppy brim all round; the cone stands on the crown's ellipsoid
-  "hat-magician": { ink: "#16188c", brim: [320, 432], brimFront: 0.15, brimBack: 0.15, ease: 16 },
+  "hat-magician": { ink: "#16188c", brim: [320, 432], brimFront: 0.15, brimBack: 0.28, ease: 16 },
   // trucker caps: the bill out in front only, mesh behind
   "hat-trucker-microsoft": { ink: "#b8305a", brim: [345, 448], brimFront: 0.13, ease: 14 },
   "hat-trucker-yobucks": { ink: "#c9c9c2", brim: [345, 448], brimFront: 0.13, ease: 14 },
@@ -999,6 +999,23 @@ function rimInk(hull, face) {
   rimInks.set(hull, rim);
   return rim;
 }
+/* A back trait card bent round the deeper skull (build_blocky_head BACK):
+   across x it falls from the skull's back toward the board, an ellipse of
+   half-width SKULL_HALF, so a band hugs the head. Once per plane. */
+const SKULL_HALF = 0.25;
+function wrapBack(plane, s) {
+  const { width: w, height: h } = plane.geometry.parameters;
+  const geo = new THREE.PlaneGeometry(w, h, 40, 1);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const k = Math.min(1, Math.abs(pos.getX(i)) / (SKULL_HALF * s));
+    pos.setZ(i, -RELIEF.back * s * (1 - Math.sqrt(1 - k * k)));
+  }
+  geo.computeVertexNormals();
+  plane.geometry = geo;
+  plane.userData.wrapped = true;
+}
+
 function reliefHead(rig) {
   const p = rig.parts, s = rig.scale, board = p.head;
   return loadPieces(HEAD_GLB).then(async (pieces) => {
@@ -1073,6 +1090,9 @@ function reliefHead(rig) {
         for (const plane of grp.children) {
           const isFront = Math.abs(plane.rotation.y - Math.PI) < 1e-3;
           moved.push([plane, plane.position.z]);
+          // a band round the back of the skull (the blindfold): bent onto it,
+          // not a flat card floating off its rounded sides
+          if (!isFront && !plane.userData.wrapped) wrapBack(plane, s);
           plane.position.z += (isFront ? -(RELIEF.front + (OVER_SHELL[id] || 0)) : RELIEF.back) * s;
         }
       }

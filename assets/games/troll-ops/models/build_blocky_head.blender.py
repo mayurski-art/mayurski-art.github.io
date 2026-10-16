@@ -31,7 +31,10 @@ import hero_kit as K  # noqa: E402
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT = os.path.join(K.HERE, "blocky", "head-relief.glb")
 W, H = 0.48, 0.45             # the face board
-FRONT, BACK = 0.03, 0.075     # the dome in front of the board, the skull behind (m, scale 1)
+# the dome in front of the board, the skull behind (m, scale 1). BACK was 0.075,
+# a 0.1 m slab side-on with a blank back (user, 2026-10-16: "build everything",
+# the HANDOFF's flat head side): a real skull behind the face now.
+FRONT, BACK = 0.03, 0.19
 
 # (centre x, y as fractions of the art from its top left, radii rx, ry,
 # height in metres; negative sinks)

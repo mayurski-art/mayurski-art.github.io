@@ -46,7 +46,8 @@ def outward(ob):
 
 
 # ---------------------------------------------------------------- the cap
-CAP = {"c": (0.0, 0.05, 0.02), "rx": 0.245, "ry": 0.235, "front": 0.07, "back": 0.125}
+# (back: 0.05 past the skull, build_blocky_head BACK 0.19; was 0.125 on the 0.075 slab)
+CAP = {"c": (0.0, 0.05, 0.02), "rx": 0.245, "ry": 0.235, "front": 0.07, "back": 0.24}
 
 
 def hairline(phi):
