@@ -7,7 +7,8 @@
      screens: { id: screen | () => screen }
        screen: { title, groups: [[item, ...], ...], back?: false }
        item:   { id, label, desc, value?, go?: screenId, href?, newTab?,
-                 onSelect?(item, api), disabled?, on? (ticked) }
+                 onSelect?(item, api), disabled?, on? (ticked),
+                 tier?: "primary" (the row gets .is-primary: the page styles it) }
      keys: true to drive it from the keyboard (arrows / W S, Enter, Esc or
        Backspace for Back) while no text field has focus.
      item.adjust(dir): a value row (a setting). Left/right (A/D) call it
@@ -139,6 +140,7 @@ export function createBo2Menu(nav, { screens, start = "main", keys = false, onSc
         b.type = "button";
         b.className = "tr-menu-item";
         b.dataset.id = it.id || "";
+        if (it.tier) b.classList.add(`is-${it.tier}`);
         if (it.disabled) b.setAttribute("aria-disabled", "true");
         const label = document.createElement("span");
         label.textContent = it.label;

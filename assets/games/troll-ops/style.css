@@ -3482,7 +3482,7 @@ div.to-bo2-party-row.is-other { cursor: default; }
 .to-bo2-foot > div:first-child { margin-right: auto; }
 .to-bo2-foot > button + button { margin-left: -16px; }
 /* the Emote pill, moved into the row (menu-bo2.js): the same pill */
-.to-bo2-foot .to-char-emote { position: static; transform: none; min-height: 36px; padding: 0 14px 0 10px; border: 1px solid rgba(243,236,228,.35); border-radius: 10px; background: rgba(3,1,1,.45); color: var(--bo2-soft); font: 15px "DM Sans", sans-serif; letter-spacing: 0; text-transform: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.to-bo2-foot .to-char-emote { position: static; transform: none; min-height: 44px; padding: 0 18px 0 12px; border: 1px solid rgba(243,236,228,.35); border-radius: 12px; background: rgba(3,1,1,.45); color: var(--bo2-soft); font: 15px "DM Sans", sans-serif; letter-spacing: 0; text-transform: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
 .to-bo2-foot .to-char-emote:hover, .to-bo2-foot .to-char-emote[aria-expanded="true"] { color: var(--bo2-ink); border-color: var(--bo2-ink); }
 .to-bo2-foot .to-char-emote[hidden] { display: none; }
 .to-bo2-anim b { font: 600 13px "DM Mono", monospace; color: var(--bo2-ink); }
@@ -3491,6 +3491,30 @@ div.to-bo2-party-row.is-other { cursor: default; }
 /* Off: nothing in the menu or the countdown card moves. */
 body.tf-anim-off #to-title *, body.tf-anim-off #to-title *::before, body.tf-anim-off #to-title *::after,
 body.tf-anim-off #to-staging, body.tf-anim-off #to-staging * { animation: none !important; transition: none !important; }
+/* ── Button tiers (redesign phase 1, user 2026-10-16; the Claude Design
+   board "Button tiers"): one Primary per screen (orange, the thing you came
+   to do), Secondary for what you come back to (the dock), Quiet for every
+   row in a list. ─────────────────────────────────────────────────────── */
+.tf-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-sizing: border-box; cursor: pointer; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
+.tf-btn:disabled, .tf-btn[aria-disabled="true"] { cursor: default; }
+.tf-btn--primary { min-height: 52px; padding: 0 22px; border: 0; border-radius: 12px; background: #ff8a1f; color: #1a0b00; font: 600 21px Oswald, sans-serif; letter-spacing: .05em; text-transform: uppercase; }
+.tf-btn--primary:hover, .tf-btn--primary:focus-visible { background: #ffa24d; outline: 2px solid #ffd27a; outline-offset: 3px; }
+.tf-btn--primary:active { background: #d96f0f; }
+.tf-btn--primary:disabled { background: #3a2a1d; color: #8d7f72; outline: none; }
+.tf-btn--secondary { min-height: 44px; padding: 0 18px; border: 1px solid rgba(243,236,228,.35); border-radius: 12px; background: rgba(3,1,1,.45); color: var(--bo2-soft, #e2d6c8); font: 15px "DM Sans", sans-serif; }
+.tf-btn--secondary:hover, .tf-btn--secondary:focus-visible { color: var(--bo2-ink, #f3ece4); border-color: var(--bo2-ink, #f3ece4); background: rgba(243,236,228,.08); outline: 2px solid var(--bo2-hot, #ff8a1f); outline-offset: 3px; }
+.tf-btn--secondary:hover:not(:focus-visible) { outline: none; }
+.tf-btn--secondary:active { background: rgba(243,236,228,.16); }
+.tf-btn--secondary:disabled { color: #6f645a; border-color: rgba(243,236,228,.14); background: none; }
+/* the BO2 list (assets/js/bo2-menu.js) in Troll Forces: Quiet rows with a
+   soft rounded fill when highlighted, and the one Primary row */
+.to-bo2 .tr-menu-item { border-radius: 10px; }
+.to-bo2 .tr-menu-item.is-hot { color: #fff; background: rgba(243,236,228,.1); }
+.to-bo2 .tr-menu-item.is-hot small { color: var(--bo2-gold); }
+.to-bo2 .tr-menu-item.is-primary { align-items: center; min-height: 48px; margin: 0 0 6px; padding: 0 18px; max-width: 380px; border-radius: 12px; background: #ff8a1f; color: #1a0b00; font-weight: 600; line-height: 48px; text-shadow: none; }
+.to-bo2 .tr-menu-item.is-primary small { color: #3a1d05; }
+.to-bo2 .tr-menu-item.is-primary.is-hot { background: #ffa24d; color: #1a0b00; box-shadow: inset 0 0 0 2px var(--bo2-gold); }
+.to-bo2 .tr-menu-item.is-primary:active { background: #d96f0f; }
 .to-bo2 kbd { font: 12px "DM Mono", monospace; padding: 3px 7px; border-radius: 5px; border: 1px solid rgba(243,236,228,.35); color: var(--bo2-ink); background: none; }
 body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
 /* trollrunner.net's home carries the socials now; keep the menu clean.

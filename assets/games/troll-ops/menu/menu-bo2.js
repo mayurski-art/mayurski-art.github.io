@@ -11,7 +11,7 @@
    (#to-pf-center) moves into the right-hand detail pane, with the parts
    that became lists hidden by CSS. */
 
-import { createBo2Menu } from "../../../js/bo2-menu.js?v=to-ft2";
+import { createBo2Menu } from "../../../js/bo2-menu.js?v=to-ft2-tb1";
 import { createMapMode } from "../../../js/troll-map-mode.js?v=to-bo2d";
 import { joinSitePresence, viewerId } from "../../../js/site-presence.js?v=to-bo2d-ol1-iv1";
 import { initInvites, invitePlayer } from "./invites.js?v=iv1-nb2-pc2-sb1-cf1-gs2";
@@ -109,10 +109,10 @@ root.innerHTML = `
       <span class="to-bo2-dl" aria-live="polite"><i></i><b></b></span>
       <button type="button" class="to-bo2-back"><kbd>Esc</kbd>Back</button>
     </div>
-    <button type="button" class="to-bo2-quick to-bo2-chat">Chat<b class="to-pchat-badge" hidden></b></button>
-    <button type="button" class="to-bo2-quick" data-go="barracks">Barracks</button>
-    <button type="button" class="to-bo2-quick" data-go="options">Options</button>
-    <button type="button" class="to-bo2-anim" role="switch" aria-checked="true">Animations <b>On</b></button>
+    <button type="button" class="tf-btn tf-btn--secondary to-bo2-quick to-bo2-chat">Chat<b class="to-pchat-badge" hidden></b></button>
+    <button type="button" class="tf-btn tf-btn--secondary to-bo2-quick" data-go="barracks">Barracks</button>
+    <button type="button" class="tf-btn tf-btn--secondary to-bo2-quick" data-go="options">Options</button>
+    <button type="button" class="tf-btn tf-btn--secondary to-bo2-anim" role="switch" aria-checked="true">Animations <b>On</b></button>
   </footer>`;
 pf.prepend(root);
 const nav = $(".to-bo2-menu", root);
@@ -374,7 +374,7 @@ const screens = {
     title: "Troll Forces", panel: "deploy", back: false,
     groups: [
       [
-        { id: "public", label: "Public Match", desc: "Drop into a versus room with whoever is online. Bots fill the gaps.", go: "public" },
+        { id: "public", label: "Public Match", tier: "primary", desc: "Drop into a versus room with whoever is online. Bots fill the gaps.", go: "public" },
         { id: "servers", label: "Server Browser", value: () => serverValue(), desc: "Every public server, live: who's in it and what they're playing. Pick one to join, Zombies runs too.", go: "servers" },
         { id: "social", label: "Socialize", desc: "Hang out in Troll City or at Trolling Loud with whoever is online. No guns, just emotes and chat.", go: "social" },
         { id: "solo", label: "Solo Play", desc: "Ops, Zombies or the Test Range. Just you.", go: "solo" },
