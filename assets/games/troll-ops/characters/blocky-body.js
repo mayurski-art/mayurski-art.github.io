@@ -572,13 +572,14 @@ const BEARD = {
   sink: 0.003,       // its back, into the face
   ride: [900, 1110], // frame rows over which it hands over from the head to the chest (beardRide)
   hem: { row: 960, rise: 110 }, // where the drawing ends under the jaw (hemmed): clear of the shirt
+  tint: [0.42, 0.56, 0.8], // the material's colour (r, g, b), so the lit beard reads the NFT's brown, not ginger (beardVolume)
 };
 /* Every facial built as a shell on the face this way (BEARDS.md 8), by
    trait id: the beard, and a bandana mask (a thin shell, its point hanging
    onto the neck). reliefHead swaps these in for their flat cards. */
 const SHELLS = {
   "facial-beard-brown": BEARD,
-  "facial-face-mask-umadbro": { ...BEARD, dark: "#0b0b0c", curl: 0.9, chin: [880, 1100], rest: 0.004,
+  "facial-face-mask-umadbro": { ...BEARD, tint: 1, dark: "#0b0b0c", curl: 0.9, chin: [880, 1100], rest: 0.004,
     thick: [0.0045, 0.006], taper: 0.01, ride: [920, 1120],
     // a thin shell lies OFF the face (the nose and the grin's relief poked through), no depth image
     sink: 0.002, lift: 0.008, depth: false },
@@ -926,6 +927,12 @@ async function beardVolume(id, plane, s, head, pivot, chest, joints) {
     rideMaterial(addRim(new THREE.MeshToonMaterial({ map: B.front, emissive: 0xffffff, emissiveMap: B.front, emissiveIntensity: 0.22, gradientMap: CLOTH_TONES, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide })), ride),
     rideMaterial(drawn(B.back, { transparent: true, alphaTest: 0.5, side: THREE.DoubleSide, emissiveIntensity: 0.35 }), ride),
   ];
+  // The lights push a drawn colour well past the art (a white face just
+  // clips): the Beard Brown came out ginger (user, 2026-10-16). `tint`
+  // takes it back down to the NFT's brown, front and back alike.
+  const tint = [].concat(SHELLS[id].tint ?? 1);   // one factor, or [r, g, b]
+  const k = new THREE.Color(...(tint.length === 3 ? tint : [tint[0], tint[0], tint[0]]));
+  for (const m of mats) { m.color.multiply(k); m.emissive.multiply(k); }
   const mesh = new THREE.Mesh(B.geo, mats);
   mesh.castShadow = true;
   mesh.renderOrder = 2;
