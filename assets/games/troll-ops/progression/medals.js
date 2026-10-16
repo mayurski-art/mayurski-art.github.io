@@ -124,7 +124,7 @@ export function badgeSvg(def, { inner = "" } = {}) {
     + `<g fill="${m.ink}" stroke="${m.ink}" color="${m.ink}" stroke-linecap="round" stroke-linejoin="round">${glyph}</g></svg>`;
 }
 
-const artUrl = (name) => new URL(`medals/${name}.png?v=${MEDAL_ART_V}`, import.meta.url).href;
+const artUrl = (name) => new URL(`../medals/${name}.png?v=${MEDAL_ART_V}`, import.meta.url).href;
 
 /* A medal's icon markup: its art if it has some, else the drawn badge. */
 export function medalIcon(def) {

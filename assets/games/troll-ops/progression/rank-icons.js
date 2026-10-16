@@ -10,7 +10,7 @@
 
 // The same transparent trollface art the rig head wears (character.js), so
 // it is already in the cache by the time an icon draws.
-const TROLL_ART = new URL("../../images/wallpaper/trollface transparent.png", import.meta.url).href;
+const TROLL_ART = new URL("../../../images/wallpaper/trollface transparent.png", import.meta.url).href;
 
 let uid = 0;
 const id = (p) => `tfr-${p}-${++uid}`;
@@ -173,7 +173,7 @@ export function playerIconSvg(level, prestige = 0, size = 28) {
 /* ---- canvas versions, for name tags over players' heads. An SVG drawn
    into a canvas can't load images of its own, so the art is drawn in here.
    One 64x64 canvas per icon, built once and cached. */
-const OWNER_ART = new URL("../../images/icons/pfp.png", import.meta.url).href;
+const OWNER_ART = new URL("../../../images/icons/pfp.png", import.meta.url).href;
 const canvasCache = new Map();
 const loadImg = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
 const svgImg = (svg) => loadImg(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);

@@ -12,7 +12,7 @@ import { spawnDamageNumber } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1
 import { SaberTrail } from "../trollsaber.js?v=ts4-ig1";
 import { damp } from "../anim-curves.js";
 import { game } from "../core/state.js?v=st1";
-import { throwBusy } from "./throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1";
+import { throwBusy } from "./throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1";
 
 /* Quick melee swings without putting the gun away; pressing 3 makes the
    melee weapon the thing in your hands, which swings and moves faster. */

@@ -48,7 +48,7 @@ async function open(label) {
 }
 // fn runs in the page with P = the game's perks module, T = its hooks.
 const perks = async (page, fn, arg) => {
-  await page.evaluate(async (tag) => { window.__P ||= await import(`/assets/games/troll-ops/perks.js?v=${tag}`); }, PERKS_TAG);
+  await page.evaluate(async (tag) => { window.__P ||= await import(`/assets/games/troll-ops/progression/perks.js?v=${tag}`); }, PERKS_TAG);
   return page.evaluate(fn, arg);
 };
 

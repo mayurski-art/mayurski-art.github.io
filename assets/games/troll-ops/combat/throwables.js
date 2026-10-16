@@ -10,8 +10,8 @@ import { round2 } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1
 import { segmentBlocked, raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
 import { THROW_TIME } from "../character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1";
 import { game } from "../core/state.js?v=st1";
-import { hasPerk, PERK_TUNE } from "../perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1";
-import { throwStart, throwReleased, throwCancel, throwRequestRelease, throwArmed, updateThrow, throwHandWorld } from "./throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1";
+import { hasPerk, PERK_TUNE } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1";
+import { throwStart, throwReleased, throwCancel, throwRequestRelease, throwArmed, updateThrow, throwHandWorld } from "./throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1";
 
 export let grenades;
 

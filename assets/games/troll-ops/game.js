@@ -9,9 +9,9 @@ import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=p5bm-ws
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1";
 import { WeaponInspector } from "./menu/inspector.js?v=hb1-nf-wst-ig1-sb2-if1-wb1-th2-ar1-ar2-cl1-fj1-zr9-zr10-zp1-sr1-or1";
 import { CharacterInspector } from "./menu/char-inspector.js?v=hb4-wst-soc1-sb2c2-wb1m1-ar1-ar2-gt1-gt2-bk1-cw1-fj1-zr10-bf1-sr1-br1-or1";
-import { Loadout } from "./loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-gj1-fu1b7b7dc1c2-wb1m1-tc3-nc1-th2-ar2-cd1-sh1-cl1-bp1-sg1-bw1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-jb1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-nf1-or1";
-import { StreakPicker } from "./streak-picker.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1";
-import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1";
+import { Loadout } from "./progression/loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-gj1-fu1b7b7dc1c2-wb1m1-tc3-nc1-th2-ar2-cd1-sh1-cl1-bp1-sg1-bw1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-jb1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-nf1-or1";
+import { StreakPicker } from "./streaks/streak-picker.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1";
+import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1";
 import { K9Pack, K9, resolveK9 } from "./bots/k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d-sr1-fl1-or1";
 import {
   CarePackage, MarkerCanister, HunterDrone, HelicopterGunship, ReconPlane, AirstrikeRun, BlastFx,
@@ -20,17 +20,17 @@ import {
   DRONE_DAMAGE, DRONE_SPLASH_RADIUS, DRONE_SPEED,
   AIRSTRIKE_DELAY, AIRSTRIKE_RADIUS, AIRSTRIKE_DAMAGE, AIRSTRIKE_BOMBS,
   HELI_FIRE_RANGE, HELI_DAMAGE,
-} from "./streak-entities.js?v=vsat2-hk1-sr1";
-import { KillstreakUi } from "./killstreak-ui.js?v=to-medals3";
-import { medalSvg } from "./medals.js?v=to-medals3";
-import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js?v=wu1";
+} from "./streaks/streak-entities.js?v=vsat2-hk1-sr1-or1";
+import { KillstreakUi } from "./streaks/killstreak-ui.js?v=to-medals3-or1";
+import { medalSvg } from "./progression/medals.js?v=to-medals3-or1";
+import { StrikeTablet, STRIKE_TARGETS } from "./streaks/streak-tablet.js?v=wu1-or1";
 import { KillCam } from "./killcam.js?v=to-fx3-kc2";
-import { Achievements } from "./achievements.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1";
-import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE, prestigeUnlocked, getLevel, getPrestige, isOwner } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1";
-import { playerIconSvg } from "./rank-icons.js?v=rk1";
-import { recordMatch } from "./record.js?v=rec1";
-import { getMyCard, withClan } from "./calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1";
-import { openProfileCard } from "./profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zh1-zc1-zc2-nf1";
+import { Achievements } from "./progression/achievements.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
+import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE, prestigeUnlocked, getLevel, getPrestige, isOwner } from "./progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
+import { playerIconSvg } from "./progression/rank-icons.js?v=rk1-or1";
+import { recordMatch } from "./progression/record.js?v=rec1-or1";
+import { getMyCard, withClan } from "./progression/calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
+import { openProfileCard } from "./progression/profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zh1-zc1-zc2-nf1-or1";
 import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1";
 import { createMapPreloader } from "./map-preload.js?v=mp4";
 import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1-sr1-ug5";
@@ -63,7 +63,7 @@ import { GameMusic, EQ_BANDS, EQ_RANGE } from "./sound/music.js?v=to-gs1-sg1-zr1
 import { DjLulz } from "./dj-lulz.js?v=dj1-sg1-zr10-dj2-jb1-hl1-or1";
 import { stage, rise, damp, smoothstep } from "./anim-curves.js";
 import { AnimDebugLab } from "./labs/anim-debug.js?v=or1";
-import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streak-device.js?v=to-df1";
+import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streaks/streak-device.js?v=to-df1-or1";
 import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./hand-model.js?v=to-grip2";
 import { FlowField } from "./bots/nav.js?v=ti1-bs1b7d-fl1-or1";
 import { ZombieDirector, goreStandIns } from "./zombies.js?v=zr4c-sb2b7b7dc2f1m1u-gt1-gt2-zr5-zr6-zr7-zr8-zr9-zr10-zc2-zp1-bf1-sr1-fl1-or1";
@@ -90,8 +90,8 @@ import { HudLayout } from "./hud-layout.js?v=hl3-pd1-nf1";
 import { initCloudSave } from "./net/cloud-save.js?v=cs1b7-zc1-zc2-or1";
 import { ControllerLayout, padEmotePressed } from "./controller-layout.js?v=cl7-pd1";
 import { CosmeticsPanel, cleanFaceKey, loadCosmetics } from "./cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1";
-import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./dragonfire.js?v=df3-sb2";
-import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./sam-turret.js?v=sam1-fj1";
+import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./streaks/dragonfire-drone.js?v=df3-sb2-or1";
+import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./streaks/sam-turret.js?v=sam1-fj1-or1";
 import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1-fl1-or1";
 import { preloadHalloweenMelee, setHalloweenEnvMap } from "./melee-models.js?v=hw2";
 import {
@@ -122,7 +122,7 @@ import { endKillcamPresentation, killcamFov, killcamSelfId, killcamWeaponFov, sk
 import { ASSIST_MEMORY, ASSIST_MIN_DAMAGE, assistersFor, breakSpawnGuard, clearDeathVisuals, damageLog, damagePlayer, isExplosive, killcamBaseRespawn, killerPosFor, nameFor, noteDamage, onGruntAttack, respawnPlayer, showDeathCard, updateSpawnGuardHud, weaponNameFor, yawTowardCentre } from "./combat/damage.js?v=dm1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { MELEE_DRAW_TIME, MELEE_EQUIP_TIME, POWER_EQUIP_TIME, POWER_HOLSTER_TIME, POWER_IGNITE, POWER_IGNITE_DELAY, POWER_RETRACT, SLOW_IGNITE, _bladeG, _bladeP, _flickQ, _kbFarGrip, _parryPos, _parryQ, _parryW, _viewX, _viewZ, kbRepair, kbShield, meleeConnect, onRemoteDeflect, saberBlock, saberParry, saberTrail, swingMelee, tryDeflect, updateKbShield, updateRemoteSabers, updateSaberBlock, updateSaberFx, initMelee } from "./combat/melee.js?v=ml1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { applyEmpState, applyRemoteNade, areaDamage, blastCandidates, botNadesThrown, botThrow, cancelCook, carriedThrowSlot, empPlayer, explosionFx, flashPlayer, grenadeCtx, grenades, nextNadeId, publishBoom, refillGear, releaseCook, releaseThrowKey, startCook, stunActor, tickCook, updateBlastLights, initThrowables } from "./combat/throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
-import { throwState, throwWire, throwModel } from "./combat/throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1";
+import { throwState, throwWire, throwModel } from "./combat/throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1";
 import { currentWeapon, cycleWeapon, fireOnce, frozenPlayer, nearbyPackage, onBulletActorHit, resolveBulletTarget, setHolding, setTouchContext, switchWeapon, tryReload, updateGearHud, updatePickupPrompt } from "./combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { addMatchXp, awardKillXp, awardScore, checkMatchEnd, creditAssistIfOwed, dealtLog, lastHitRange, noteDealt, recentTeamKillers, registerDeath, updateTeamHud } from "./combat/scoring.js?v=sc1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { botBusy, botObjective, noteRemoteBombAct, prepareSndRound, scoreHill, siteUnderfoot, sndAliveCounts, sndBotSite, sndDefendTeam, sndGoLive, sndLive, sndRoundWin, updateSnd } from "./modes/objectives.js?v=ob1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";

@@ -2,7 +2,7 @@
 // Quit to the lobby), and losing pointer lock or hiding the tab opening the
 // pause menu.
 
-import { addXp } from "../progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1";
+import { addXp } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
 import { setBombSiteMarkers } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { setNetStatus, renderLobbyRoster, showLobbyPanel } from "./lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { renderModes } from "./mode-picker.js?v=mp1-fu1b7b7d-wb1-ar1-ar2-cl1-bp1-fj1-zr9-zr10-zh1-zc1-zc2-nf1-fl1-or1";

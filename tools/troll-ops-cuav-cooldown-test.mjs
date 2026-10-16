@@ -166,7 +166,7 @@ check("the throttle trigger squeezes on the rev", swing.throttle && swing.maxThr
 
 // ---- Level readout: Troll Forces XP over what the next Troll Forces level needs
 const lv = await page.evaluate(async () => {
-  const P = await import("/assets/games/troll-ops/progression.js?v=lv3");
+  const P = await import("/assets/games/troll-ops/progression/progression.js?v=lv3");
   const real = window.TrollrunnerAccounts;
   window.TrollrunnerAccounts = { ...(real || {}), getCachedProfile: () => ({ xp: 5000, level: 29 }) };
   localStorage.setItem("trollops:xp-pending", "9000");   // queued XP must not show until it lands

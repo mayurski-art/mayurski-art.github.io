@@ -13,7 +13,7 @@ import { killcamSelfId, startKillcamPresentation, endKillcamPresentation } from 
 import { TEAMS } from "../net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { game } from "../core/state.js?v=st1";
 import { carryClassPerks, classSwitch } from "./perk-carry.js?v=pk1-cl1-bp1-fj1-zh1-zc1-zc2-nf1-fl1-or1";
-import { hasPerk, PERK_TUNE } from "../perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1";
+import { hasPerk, PERK_TUNE } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1";
 
 /* What Flak Jacket (perks.js) shrugs off: thrown lethals and the streaks
    that blow up (not gunship rounds, dogs, a crate on the head or the bomb). */

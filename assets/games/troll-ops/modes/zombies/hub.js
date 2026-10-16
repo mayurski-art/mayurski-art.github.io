@@ -30,7 +30,7 @@ import { makeRoomCode } from "../../net/net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p2
 import { roomNow } from "../room-clock.js?v=rc1-cd1-sh1";
 import { openKiosk, closeKiosk, kioskOpen } from "../../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1";
 import { credits, zsave, setZsave, payRun, gunAction, kitAction } from "./credits.js?v=zc1-zc2";
-import { fetchRows, hasBackend, monthWindow, weekWindow, windowFor, timeLeft, tallyPlayers } from "../../leaderboard-rows.js?v=lr1-zh1";
+import { fetchRows, hasBackend, monthWindow, weekWindow, windowFor, timeLeft, tallyPlayers } from "../../progression/leaderboard-rows.js?v=lr1-zh1-or1";
 
 export const HUB_T = {
   countdown: 30,     // s from the owner stepping on

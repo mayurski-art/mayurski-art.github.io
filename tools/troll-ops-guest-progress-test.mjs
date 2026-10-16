@@ -46,7 +46,7 @@ await boot();
 await page.evaluate(() => { localStorage.removeItem("trollrunner-accounts-auth"); localStorage.setItem("trollops:xp", "50000"); localStorage.removeItem("trollops:xp-pending"); localStorage.removeItem("trollops:achievements"); });
 await boot();
 const g1 = await page.evaluate(async () => {
-  const p = await import("/assets/games/troll-ops/progression.js?v=gu1");
+  const p = await import("/assets/games/troll-ops/progression/progression.js?v=gu1");
   const old = localStorage.getItem("trollops:xp");
   const before = p.getXp();
   p.addXp(700);
@@ -57,10 +57,10 @@ check("the old saved guest total is gone", g1.old === null && g1.before === 0, J
 check("a guest levels up for the session", g1.after === 700 && g1.rank > 1, JSON.stringify(g1));
 check("nothing of it is stored or queued", g1.stored === null && !(Number(g1.pending) > 0), JSON.stringify(g1));
 await boot();
-const g2 = await page.evaluate(async () => { const p = await import("/assets/games/troll-ops/progression.js?v=gu1"); return { xp: p.getXp(), rank: p.getRank() }; });
+const g2 = await page.evaluate(async () => { const p = await import("/assets/games/troll-ops/progression/progression.js?v=gu1"); return { xp: p.getXp(), rank: p.getRank() }; });
 check("reload: back to level 1", g2.xp === 0 && g2.rank === 1, JSON.stringify(g2));
 const ach = await page.evaluate(async () => {
-  const { Achievements } = await import("/assets/games/troll-ops/achievements.js?v=gu1");
+  const { Achievements } = await import("/assets/games/troll-ops/progression/achievements.js?v=gu1");
   const a = new Achievements();
   a.award("flawless");
   const keys = Object.keys(localStorage).filter((k) => /achiev/i.test(k));
@@ -72,7 +72,7 @@ check("a guest's achievements aren't saved", ach.vals.every((v) => !v || !v.incl
 await page.evaluate(() => localStorage.setItem("trollrunner-accounts-auth", "{\"access_token\":\"x\"}"));
 await boot();
 const s1 = await page.evaluate(async () => {
-  const p = await import("/assets/games/troll-ops/progression.js?v=gu1");
+  const p = await import("/assets/games/troll-ops/progression/progression.js?v=gu1");
   p.addXp(300);
   return { signed: p.isSignedIn(), pending: Number(localStorage.getItem("trollops:xp-pending")) };
 });

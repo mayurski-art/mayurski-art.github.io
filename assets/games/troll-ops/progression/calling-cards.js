@@ -8,9 +8,9 @@
 // that the card is one you may wear. Keep CARDS and cleanClan() in step with
 // it. Guests keep nothing, so they wear the default card and no tag.
 
-import { prestigeUnlocked } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1";
+import { prestigeUnlocked } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
 
-const ART = (file) => new URL(`./ui/cards/${file}`, import.meta.url).href;
+const ART = (file) => new URL(`../ui/cards/${file}`, import.meta.url).href;
 
 /* Free starters, cut from the $TROLL banners (@swish art), then one card
    per prestige (prestige phase 5): reach level 69 and prestige, and that

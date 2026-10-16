@@ -12,7 +12,7 @@
 // announces both, so we track both. What each medal looks like and pays lives
 // in medals.js.
 
-import { badgeSvg, medalDef, medalIcon } from "./medals.js?v=to-medals3";
+import { badgeSvg, medalDef, medalIcon } from "../progression/medals.js?v=to-medals3-or1";
 
 const MULTIKILL_WINDOW = 4000;   // ms — BO2's multikill grace is about this
 

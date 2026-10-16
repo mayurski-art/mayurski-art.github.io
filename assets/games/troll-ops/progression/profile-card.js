@@ -11,13 +11,13 @@
 // at once, and the rest fills in from Supabase. "Full profile" still opens
 // the site's own card (troll-accounts.js).
 
-import { getLevel, getPrestige, isOwner, tfLevelForXp } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1";
-import { playerIconSvg, prestigeName } from "./rank-icons.js?v=rk1";
-import { fetchRecord } from "./record.js?v=rec1";
-import { zombiesAllTime } from "./leaderboard-rows.js?v=lr1-zh1";
-import { cardById, fetchCard, getMyCard, cleanClan } from "./calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1";
+import { getLevel, getPrestige, isOwner, tfLevelForXp } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
+import { playerIconSvg, prestigeName } from "./rank-icons.js?v=rk1-or1";
+import { fetchRecord } from "./record.js?v=rec1-or1";
+import { zombiesAllTime } from "./leaderboard-rows.js?v=lr1-zh1-or1";
+import { cardById, fetchCard, getMyCard, cleanClan } from "./calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
 
-const FALLBACK_EMBLEM = new URL("../../images/wallpaper/trollface transparent.png", import.meta.url).href;
+const FALLBACK_EMBLEM = new URL("../../../images/wallpaper/trollface transparent.png", import.meta.url).href;
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const safeUrl = (u) => (u && !/^\s*(javascript|vbscript):/i.test(String(u)) ? String(u) : "");
