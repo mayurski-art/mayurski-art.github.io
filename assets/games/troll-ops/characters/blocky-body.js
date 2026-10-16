@@ -16,8 +16,8 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
-import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2";
-import { applyToken, removeToken, tokenTraits, tokenFace } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1";
+import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1";
+import { applyToken, removeToken, tokenTraits, tokenFace } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1";
 import { addRim } from "../view/rim-light.js?v=sr1";
 import { tagInk, untagInk } from "../view/char-ink.js?v=ci1";
 
@@ -351,54 +351,81 @@ function muscleArms(rig, kit) {
       g.add(m, new THREE.Mesh(hull, armInk));
       joint.add(g);
       added.push(g);
-      if (kind === "hand") added.push(birdFinger(rig, side, bone, m.material));
+      if (kind === "hand") added.push(...fistFingers(rig, side, bone, m.material));
     }
     return added;
   });
 }
 
-/* The middle finger (emotes.js "Middle fingers"): the block fist has none,
-   so a finger block stands out of its knuckle end, on along the forearm.
-   It hangs on the stick hand's "bird" mesh, so it shows exactly when that
+/* Fingers the block fist doesn't have: the middle finger (emotes.js
+   "Middle fingers") and the L (the index finger and the thumb out, "L on
+   forehead"). Finger blocks stand out of the fist, placed in the fist's own
+   frame (build_blocky_arms fist: down -Y from the wrist, the back of the
+   hand out +X on the right, the thumb across the front -Z). Each set hangs
+   on the stick hand's mesh for that pose, so it shows exactly when that
    pose does (character.js setHandPose; the stick hand itself is drawn on
    no layer while the body is on), and turns with the wrist. */
 const FIST_LEN = 0.125;
 const FINGER = { w: 0.036, len: 0.1, sink: 0.012 };
-const fingerGeo = new Map();
-function birdFinger(rig, side, bone, mat) {
-  const s = rig.scale;
-  if (!fingerGeo.has(s)) {
-    const geo = new THREE.BoxGeometry(FINGER.w * s, FINGER.len * s, FINGER.w * s);
-    const hull = mergeVertices(new THREE.BufferGeometry().setAttribute("position", geo.attributes.position.clone()).setIndex(geo.index.clone()), 1e-4);
-    hull.computeVertexNormals();
-    geo.userData.shared = hull.userData.shared = true;
-    fingerGeo.set(s, { geo, hull });
-  }
-  const { geo, hull } = fingerGeo.get(s);
-  const wrist = rig.parts[`wrist${side}`], hand = wrist.parent, bird = rig.hands[side].bird;
-  // where it goes in the hand point's frame: out of the knuckles (sunk in a
-  // little so no seam shows), its long side down the forearm
+// [x (mirrored on the left), y, z] of each block's centre, and its long axis
+const FIST_FINGERS = {
+  bird: [{ at: [0, -(FIST_LEN + FINGER.len / 2 - FINGER.sink), 0], along: "y" }],
+  lsign: [
+    // the index: out of the knuckles at the thumb's corner
+    { at: [-0.018, -(FIST_LEN + 0.15 / 2 - FINGER.sink), -0.036], along: "y", len: 0.15 },
+    // the thumb: out of the front, square to the index
+    { at: [-0.014, -0.045, -(0.061 + 0.11 / 2 - FINGER.sink)], along: "z", len: 0.11 },
+  ],
+};
+const fingerGeo = new Map();   // by length
+function fistFingers(rig, side, bone, mat) {
+  const block = (len) => {
+    if (!fingerGeo.has(len)) {
+      const geo = new THREE.BoxGeometry(FINGER.w, len, FINGER.w);
+      const hull = mergeVertices(new THREE.BufferGeometry().setAttribute("position", geo.attributes.position.clone()).setIndex(geo.index.clone()), 1e-4);
+      hull.computeVertexNormals();
+      geo.userData.shared = hull.userData.shared = true;
+      fingerGeo.set(len, { geo, hull });
+    }
+    return fingerGeo.get(len);
+  };
+  const s = rig.scale, sx = side === "L" ? -1 : 1;
+  const wrist = rig.parts[`wrist${side}`], hand = wrist.parent;
+  // the fist's frame in the hand point's (as muscleArms hangs it)
   const dir = bone.clone().normalize();
-  const want = new THREE.Matrix4().compose(
-    dir.clone().multiplyScalar((FIST_LEN + FIST_BACK + FINGER.len / 2 - FINGER.sink) * s),
-    new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir),
-    new THREE.Vector3(1, 1, 1));
-  // ...and so in the bird mesh's frame, the wrist at rest (it twists the
-  // finger with it after)
-  const q = wrist.quaternion.clone();
-  wrist.quaternion.identity();
-  hand.updateMatrixWorld(true);
-  const rel = new THREE.Matrix4().copy(hand.matrixWorld).invert().multiply(bird.matrixWorld);
-  wrist.quaternion.copy(q);
-  hand.updateMatrixWorld(true);
-  const f = new THREE.Group();
-  f.matrixAutoUpdate = false;
-  f.matrix.copy(rel.invert().multiply(want));
-  const m = new THREE.Mesh(geo, mat);
-  m.castShadow = true;
-  f.add(m, new THREE.Mesh(hull, armInk));
-  bird.add(f);
-  return f;
+  const fistM = new THREE.Matrix4().compose(dir.clone().multiplyScalar(FIST_BACK * s),
+    new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir), new THREE.Vector3(s, s, s));
+  const toZ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+  const out = [];
+  for (const [pose, blocks] of Object.entries(FIST_FINGERS)) {
+    const mesh = rig.hands[side][pose];
+    if (!mesh) continue;
+    // the fist's frame in this mesh's, the wrist at rest (it twists the
+    // fingers with it after)
+    const q = wrist.quaternion.clone();
+    wrist.quaternion.identity();
+    hand.updateMatrixWorld(true);
+    const rel = new THREE.Matrix4().copy(hand.matrixWorld).invert().multiply(mesh.matrixWorld);
+    wrist.quaternion.copy(q);
+    hand.updateMatrixWorld(true);
+    const base = rel.invert().multiply(fistM);
+    const f = new THREE.Group();
+    f.matrixAutoUpdate = false;
+    f.matrix.copy(base);
+    for (const b of blocks) {
+      const { geo, hull } = block(b.len || FINGER.len);
+      const piece = new THREE.Group();
+      piece.position.set(b.at[0] * sx, b.at[1], b.at[2]);
+      if (b.along === "z") piece.quaternion.copy(toZ);
+      const m = new THREE.Mesh(geo, mat);
+      m.castShadow = true;
+      piece.add(m, new THREE.Mesh(hull, armInk));
+      f.add(piece);
+    }
+    mesh.add(f);
+    out.push(f);
+  }
+  return out;
 }
 
 /* The muscular legs (models/build_blocky_legs.blender.py -> blocky/legs-muscle.glb):

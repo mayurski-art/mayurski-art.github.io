@@ -16,7 +16,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { buildHumanoid } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2";
+import { buildHumanoid } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1";
 import { buildMeleeMesh, MELEE_DEFS } from "../weapons/gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1";
 import { buildHumanHand, poseHumanHand, handMaterials } from "../weapons/hand-model.js?v=to-grip2-or1";
 import { addRim } from "../view/rim-light.js?v=sr1";
@@ -195,6 +195,7 @@ function buildHeroHands(rig, id) {
     // just never drawn.
     mitt.open.layers.disableAll();
     mitt.fist.layers.disableAll();
+    mitt.lsign?.layers.disableAll();
     rig.heroHands[key] = { hand, pose: null, scale, rest: hand.position.clone() };
     poseHeroHand(rig, side, "relaxed");
   }
@@ -238,7 +239,7 @@ function clearHands(rig) {
       h.hand.traverse((o) => { if (o.isMesh) o.geometry?.dispose(); });
     }
     const mitt = rig.hands?.[key];
-    if (mitt) { mitt.open.layers.set(0); mitt.fist.layers.set(0); }
+    if (mitt) { mitt.open.layers.set(0); mitt.fist.layers.set(0); mitt.lsign?.layers.set(0); }
   }
   rig.heroHands = null;
 }

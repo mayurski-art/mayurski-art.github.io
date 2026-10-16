@@ -18,7 +18,7 @@
 // z swings the left arm out (the right arm out is negative z).
 
 import * as THREE from "three";
-import { DANCES, setHandPose, setFace, resetSecondaryJoints, reachHand, placeFoot, beginPose, endPose } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2";
+import { DANCES, setHandPose, setFace, resetSecondaryJoints, reachHand, placeFoot, beginPose, endPose } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1";
 import { LeanKit, LEAN, LEAN_SECONDS, leanFp } from "../weapons/lean-cup.js?v=ng1-or1";
 
 const PI = Math.PI;
@@ -170,7 +170,7 @@ function poseBirdTP(rig, t) {
     // A TROLLS body's block arms are thick and its shoulders broad: the
     // stick's spot put both fists over the face, so they go wider and a
     // little higher, the block finger standing clear of the head
-    // (blocky-body.js birdFinger).
+    // (blocky-body.js fistFingers).
     if (rig.blocky) _birdT.set(side * (0.3 + up * 0.11) * s, (-0.6 + up * (0.8 + jab * 0.06)) * s, (-0.02 - up * 0.03) * s);
     else _birdT.set(side * (0.28 + up * 0.1) * s * w, (-0.6 + up * (0.7 + jab * 0.06)) * s, (-0.02 - up * 0.06) * s);
     reachHand(rig, side, _birdT, side < 0 ? _birdPoleL : _birdPoleR);
@@ -233,6 +233,9 @@ function poseLoserTP(rig, t) {
   p.hips.rotation.z = Math.sin(t * 5) * 0.06 * up;
   head(rig, 0.05, 0, Math.sin(t * 5) * 0.12 * up);
   if (rig.blocky) reachFrom(rig, 1, facePoint(rig, -0.3, 0.6, 0.18), up, POLE_DOWN_R);   // on the forehead (head-local -x: its right side)
+  setHandPose(rig, 1, up > 0.35 ? "L" : "open");
+  // the block fist turned palm in, so the L reads the right way round
+  if (rig.blocky) p.wristR.quaternion.setFromAxisAngle(rig.armRestR, Math.PI * up);
   done(rig);
 }
 function poseSpinTP(rig, t) {

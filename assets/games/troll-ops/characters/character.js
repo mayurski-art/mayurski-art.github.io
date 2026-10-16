@@ -505,7 +505,12 @@ function handGeometry(kind, thumb, s) {
   } else {
     // A fist: a rounded block with the thumb laid across it.
     parts.push(extrude(roundedRect(-0.036 * s, -0.082 * s, 0.072 * s, 0.085 * s, 0.028 * s)));
-    parts.push(extrude(roundedRect(-0.009 * s, -0.042 * s, 0.018 * s, 0.042 * s, 0.009 * s), thumb * 1.2, thumb * 0.03 * s, -0.03 * s));
+    // The L (the loser emote): the index finger straight out of the
+    // knuckles on the thumb's side, the thumb standing out square to it
+    if (kind === "L") {
+      parts.push(extrude(roundedRect(-0.0095 * s, -0.142 * s, 0.019 * s, 0.075 * s, 0.0095 * s), 0, thumb * 0.024 * s, 0));
+      parts.push(extrude(roundedRect(-0.009 * s, -0.06 * s, 0.018 * s, 0.06 * s, 0.009 * s), thumb * Math.PI / 2, thumb * 0.03 * s, -0.022 * s));
+    } else parts.push(extrude(roundedRect(-0.009 * s, -0.042 * s, 0.018 * s, 0.042 * s, 0.009 * s), thumb * 1.2, thumb * 0.03 * s, -0.03 * s));
     // The bird: the same fist with the middle finger standing straight out
     // of the knuckles (the middle-fingers emote).
     if (kind === "bird") parts.push(extrude(roundedRect(-0.0095 * s, -0.142 * s, 0.019 * s, 0.075 * s, 0.0095 * s), 0, thumb * -0.004 * s, 0));
@@ -526,20 +531,23 @@ function buildHand(parent, side, s, material, armAngle) {
   const open = new THREE.Mesh(handGeometry("open", side, s), material);
   const fist = new THREE.Mesh(handGeometry("fist", side, s), material);
   const bird = new THREE.Mesh(handGeometry("bird", side, s), material);
-  fist.visible = bird.visible = false;
-  open.castShadow = fist.castShadow = bird.castShadow = true;
-  turn.add(open, fist, bird);
-  return { group: align, turn, open, fist, bird, pose: "open" };
+  const lsign = new THREE.Mesh(handGeometry("L", side, s), material);
+  fist.visible = bird.visible = lsign.visible = false;
+  open.castShadow = fist.castShadow = bird.castShadow = lsign.castShadow = true;
+  turn.add(open, fist, bird, lsign);
+  return { group: align, turn, open, fist, bird, lsign, pose: "open" };
 }
 
-/* "open", "fist" or "bird" (middle finger up). Cheap to call every frame. */
+/* "open", "fist", "bird" (middle finger up) or "L" (index and thumb out).
+   Cheap to call every frame. */
 export function setHandPose(rig, side, pose) {
   const h = side < 0 ? rig.hands.L : rig.hands.R;
   if (h.pose === pose) return;
   h.pose = pose;
-  h.open.visible = pose !== "fist" && pose !== "bird";
+  h.open.visible = pose !== "fist" && pose !== "bird" && pose !== "L";
   h.fist.visible = pose === "fist";
   h.bird.visible = pose === "bird";
+  h.lsign.visible = pose === "L";
 }
 
 function joint(parent, x = 0, y = 0, z = 0) {

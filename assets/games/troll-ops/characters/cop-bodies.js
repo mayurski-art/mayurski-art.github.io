@@ -25,7 +25,7 @@
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { buildHumanoid } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2";
+import { buildHumanoid } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1";
 
 export const COP_BODIES = {
   patrol: "cop-patrol.glb?v=cb2",
@@ -325,7 +325,7 @@ function hideStick(rig, hide) {
   for (const key of ["L", "R"]) {
     const h = rig.hands?.[key];
     if (!h) continue;
-    for (const m of [h.open, h.fist, h.bird]) if (m) { if (hide) m.layers.disableAll(); else m.layers.set(0); }
+    for (const m of [h.open, h.fist, h.bird, h.lsign]) if (m) { if (hide) m.layers.disableAll(); else m.layers.set(0); }
   }
   // face coverings, hats and other head cosmetics ride the head pivot
   if (p.headPivot) for (const c of p.headPivot.children) {
@@ -746,11 +746,12 @@ export function syncCopBody(rig, o = {}) {
     // fingers: a fist round the grip with the trigger finger laid along the
     // receiver; the support hand wrapped round the handguard, thumb over
     const grip = onGun && arm.side > 0;
-    const fist = arm.mitt.pose === "fist" || arm.mitt.pose === "bird" || grip;
+    const fist = arm.mitt.pose === "fist" || arm.mitt.pose === "bird" || arm.mitt.pose === "L" || grip;
     const wrap = onGun && arm.side < 0;
     for (const f of cop.fingers[arm.key]) {
       const name = f.bone.name;
-      const out = (arm.mitt.pose === "bird" && name.startsWith("middle")) || (grip && name.startsWith("index"));
+      const out = (arm.mitt.pose === "bird" && name.startsWith("middle")) || (grip && name.startsWith("index"))
+        || (arm.mitt.pose === "L" && (name.startsWith("index") || f.thumb));
       let c = wrap ? (f.thumb ? 0.45 : f.k === 1 ? 0.95 : 0.85)
         : fist && !out ? (f.thumb ? 0.7 : f.k === 1 ? 1.2 : 1.35) : (f.thumb ? 0.15 : 0.18);
       if (out) c = 0.06;
