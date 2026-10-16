@@ -22,7 +22,7 @@ import { addRim } from "../view/rim-light.js?v=sr1";
 import { tagInk, untagInk } from "../view/char-ink.js?v=ci1-ci2-ci3-ci4";
 
 const DIR = new URL("../traits/", import.meta.url);
-const ART_V = globalThis.TRAITS_BUST ?? "tr4";
+const ART_V = globalThis.TRAITS_BUST ?? "tr5";
 const FRAME = { w: 1000, h: 1167, spine: 500, chest: 233, unit: 1667 };   // the garment frame
 
 const SKIN = 0xf3f3ef, INK = 0x0a0a0a;
@@ -659,6 +659,12 @@ const SHELLS = {
     // a thin shell lies OFF the face (the nose and the grin's relief poked through), no depth image
     // (the mask keeps the symmetric cut it was approved with)
     sink: 0.002, lift: 0.008, depth: false, hem: { row: 960, rise: 110 } },
+  // the blindfold: a cloth band moulded onto the face like the mask, its
+  // ends wrapping round past the face's sides (as a card bent round an
+  // ellipse it stood off the temples like a plank; user, 2026-10-16), the
+  // back card (its knot) kept; head-frame rows, no hang, no hem
+  "eyes-blindfold": { ...BEARD, tint: 1, dark: "#6f6550", curl: 0.9, rows: 1033, chin: [2000, 2100], ride: [2000, 2100], rest: 0.004,
+    thick: [0.004, 0.005], taper: 0.01, sink: 0.002, lift: 0.006, depth: false, hem: null, keepBack: true },
 };
 /* A shell's drawing cut off along its hem, feathered over `soft` rows so
    alphaTest leaves a smooth edge: either along the jaw (`jaw`: [frame x,
@@ -821,7 +827,7 @@ async function buildBeard(id, plane, s, head, pivot, chest, joints) {
   const BEARD = SHELLS[id];
   const { width: w, height: h } = plane.geometry.parameters;
   const top = plane.position.y + h / 2, bottom = top - h;
-  const rows = 1300;               // the drawing's frame height
+  const rows = BEARD.rows ?? 1300; // the drawing's frame height (a beard's tall frame; an eye band the head frame)
   const fImg = await loadImage(new URL(`${id}.png?v=${ART_V}`, DIR).href);
   // its depth (<id>.depth.png, BEARDS.md 2): how full the hair is where,
   // white the fullest; a beard without one gets the plain profile
@@ -1160,12 +1166,15 @@ function reliefHead(rig) {
           await rig.torsoReady?.catch(() => {});
           const beard = await beardVolume(id, front, s, g, p.headPivot, p.chest, new Set(Object.values(p).filter((j) => j?.isObject3D && j !== p.chest)));
           p.headPivot.add(beard);
-          grp.visible = false;
-          hidden.push(grp);
           (g.userData.extra ||= []).push(beard);
-          continue;
+          // (a band round the head, the blindfold, keeps its back card)
+          const only = SHELLS[id].keepBack ? front : grp;
+          only.visible = false;
+          hidden.push(only);
+          if (!SHELLS[id].keepBack) continue;
         }
         for (const plane of grp.children) {
+          if (!plane.visible) continue;
           const isFront = Math.abs(plane.rotation.y - Math.PI) < 1e-3;
           moved.push([plane, plane.position.z]);
           // a band round the back of the skull (the blindfold), or glasses
