@@ -21,7 +21,7 @@ import { playerIconCanvas } from "./rank-icons.js?v=rk1";
 import { buildDrink, drinkFromCode, drinkMax, FILL_TIME, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1";
 import { poseSeated, posePianoArms, roleLabel } from "./rp-roles.js?v=rp1b7-cd1-sh1-dj2";
 import { peerHas } from "./perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1";
-import { wearBlocky } from "./blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1";
+import { wearBlocky } from "./blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1";
 
 /* Socialize seats: game.js hands over the map's seat list (rp.seats), so a
    peer's `seat` (index + 1) can be looked up for its height and kind. */

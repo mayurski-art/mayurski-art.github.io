@@ -293,9 +293,13 @@ armInk.onBeforeCompile = (sh) => {
 /* Hang the kit's arm pieces on `rig`'s arm joints: each lined up with its
    live bone and stretched to its length, in its colour by piece name
    (muscle names are skin). Returns the added objects. */
+// The sneaker's pieces (legs-muscle.glb "upper", "sole"): an arm piece with
+// the same name is a muscle, skin (user, 2026-10-15: the runner's upper
+// arms showed black in the armpit, painted the shoe's colour by name)
+const SHOE_PARTS = ["upper", "sole"];
 function muscleArms(rig, kit) {
   const p = rig.parts, s = rig.scale;
-  const matOf = kitMaterials(kit.colours);
+  const matOf = kitMaterials(Object.fromEntries(Object.entries(kit.colours).filter(([k]) => !SHOE_PARTS.includes(k))));
   return loadPieces(glb(kit.arms)).then((pieces) => {
     const added = [];
     for (const { name, geo, hull } of pieces) {
@@ -509,6 +513,7 @@ const BEARD = {
   taper: 0.045,      // how far in from an edge it takes to reach that (metres)
   sink: 0.003,       // its back, into the face
   ride: [900, 1110], // frame rows over which it hands over from the head to the chest (beardRide)
+  hem: { row: 960, rise: 110 }, // where the drawing ends under the jaw (hemmed): clear of the shirt
 };
 /* Every facial built as a shell on the face this way (BEARDS.md 8), by
    trait id: the beard, and a bandana mask (a thin shell, its point hanging
@@ -520,6 +525,28 @@ const SHELLS = {
     // a thin shell lies OFF the face (the nose and the grin's relief poked through), no depth image
     sink: 0.002, lift: 0.008, depth: false },
 };
+/* A shell's drawing cut off along its hem: frame row `row` mid-chin, `rise`
+   rows higher at the drawing's sides (a parabola), feathered over `soft`
+   rows so alphaTest leaves a smooth edge. No hem: the drawing as it is. */
+function hemmed(img, hem, rows) {
+  if (!hem) return img;
+  const c = document.createElement("canvas");
+  c.width = img.naturalWidth || img.width; c.height = img.naturalHeight || img.height;
+  const g = c.getContext("2d");
+  g.drawImage(img, 0, 0);
+  const d = g.getImageData(0, 0, c.width, c.height), px = d.data, soft = hem.soft ?? 14;
+  for (let y = 0; y < c.height; y++) {
+    const r = (y + 0.5) / c.height * rows;
+    if (r < hem.row - hem.rise - soft) continue;
+    for (let x = 0; x < c.width; x++) {
+      const u = (x + 0.5) / c.width * 2 - 1;
+      const k = 1 - smooth01(hem.row - hem.rise * u * u - soft, hem.row - hem.rise * u * u, r);
+      if (k < 1) px[(y * c.width + x) * 4 + 3] *= k;
+    }
+  }
+  g.putImageData(d, 0, 0);
+  return c;
+}
 /* Eye traits worn OVER a shell facial (sunglasses over a face mask): their
    card stands this much further out than the relief's front (metres). */
 const OVER_SHELL = { "eyes-glasses-thug": 0.016 };
@@ -649,9 +676,14 @@ async function buildBeard(id, plane, s, head, pivot, chest, joints) {
   // white the fullest; a beard without one gets the plain profile
   const dImg = BEARD.depth === false ? null : await loadImage(new URL(`${id}.depth.png?v=${ART_V}`, DIR).href).catch(() => null);
   const W = 512, H = Math.round(512 * h / w);
+  // the hem (user, 2026-10-15: "part of the lower facial asset goes into the
+  // upper torso ... we want there to be some feel of separation"): the
+  // drawing ends on a curve under the jaw, lowest mid-chin and rising
+  // toward the ears, so the face reads as one piece and the shirt another
+  const art = hemmed(fImg, (globalThis.SHELL_HEM || {})[id] || BEARD.hem, rows);
   const mc = document.createElement("canvas"); mc.width = W; mc.height = H;
   const mg = mc.getContext("2d", { willReadFrequently: true });
-  mg.drawImage(fImg, 0, 0, W, H);
+  mg.drawImage(art, 0, 0, W, H);
   const alpha = mg.getImageData(0, 0, W, H).data;
   const inside = (u, v) => {
     const i = Math.min(W - 1, Math.max(0, Math.floor(u * W))), j = Math.min(H - 1, Math.max(0, Math.floor((1 - v) * H)));
@@ -824,7 +856,7 @@ async function buildBeard(id, plane, s, head, pivot, chest, joints) {
   hull.setIndex(hIdx);
   // every rig wearing it shares these (remote-players.js dispose skips them)
   geo.userData.shared = hull.userData.shared = true;
-  return { geo, hull, front: tex(fImg), back: tex(bc), toChest, posed };
+  return { geo, hull, front: tex(art), back: tex(bc), toChest, posed };
 }
 /* One rig's beard: the shared shape in this rig's own materials, riding
    this rig's chest. */
@@ -861,6 +893,29 @@ async function beardVolume(id, plane, s, head, pivot, chest, joints) {
    and the drawn skull back (traits.js) are hidden; the drawn traits move
    out onto the dome and the skull. Returns the added objects, and a
    function that puts it all back. */
+/* The face's ink hull round its rim only (user, 2026-10-15: the farmer's
+   nose "looks cracked"): the pushed-out back faces poked through the
+   sculpted nostril's crease as black spikes. The drawing already inks the
+   face's front, so the hull's triangles facing the way the face does (its
+   mean normal) are dropped; the silhouette, where the outline shows, keeps
+   them. Built once per hull. */
+const rimInks = new WeakMap();
+function rimInk(hull, face) {
+  if (rimInks.has(hull)) return rimInks.get(hull);
+  const fn = face.attributes.normal, front = new THREE.Vector3(), v = new THREE.Vector3();
+  for (let i = 0; i < fn.count; i++) front.add(v.fromBufferAttribute(fn, i));
+  front.normalize();
+  const n = hull.attributes.normal, idx = hull.index, keep = [];
+  const facing = (i) => v.fromBufferAttribute(n, i).dot(front) > 0.55;
+  if (n && idx) for (let t = 0; t < idx.count; t += 3) {
+    const a = idx.getX(t), b = idx.getX(t + 1), c = idx.getX(t + 2);
+    if (!(facing(a) && facing(b) && facing(c))) keep.push(a, b, c);
+  }
+  const rim = n && idx ? hull.clone() : hull;
+  if (rim !== hull) { rim.setIndex(keep); rim.userData.shared = true; }
+  rimInks.set(hull, rim);
+  return rim;
+}
 function reliefHead(rig) {
   const p = rig.parts, s = rig.scale, board = p.head;
   return loadPieces(HEAD_GLB).then(async (pieces) => {
@@ -898,7 +953,7 @@ function reliefHead(rig) {
         look.depthWrite = bm.depthWrite;
       };
       m.castShadow = true;
-      g.add(m, new THREE.Mesh(hull, armInk));
+      g.add(m, new THREE.Mesh(face ? rimInk(hull, geo) : hull, armInk));
     }
     board.add(g);
     const mask = board.layers.mask;
