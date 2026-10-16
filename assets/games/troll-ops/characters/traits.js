@@ -44,7 +44,7 @@ const ART_V = globalThis.TRAITS_BUST ?? "tr5";
      HATS/Trucker Hat Microsoft hat-trucker-microsoft (front + back)
      HATS/Trucker Hat Yobucks hat-trucker-yobucks (front + back)
      FACIALS/Licky            facial-licky
-     FACIALS/Gold Tooth       facial-gold-tooth
+     FACIALS/Gold Tooth       the face itself (face-gold-tooth.svg, character.js FACE_ART)
      EYES/Cracked Eyes        the face itself (face-cracked.svg, character.js FACE_ART)
      EYES/Blindfold           eyes-blindfold     (front + back)
      EYES/Glasses Reading     eyes-glasses-reading
@@ -76,7 +76,7 @@ export const TRAIT_ART = {
   "Glasses Thug": "eyes-glasses-thug", "Sweater Black": "clothes-sweater-black",
   "Carrot Cake Hair": "hat-carrot-cake-hair", "Sensei": "clothes-sensei",
   "Magician Hat": "hat-magician", "Trucker Hat Microsoft": "hat-trucker-microsoft", "Trucker Hat Yobucks": "hat-trucker-yobucks",
-  "Licky": "facial-licky", "Gold Tooth": "facial-gold-tooth",
+  "Licky": "facial-licky", "Gold Tooth": "",
   "Cracked Eyes": "", "Blindfold": "eyes-blindfold", "Glasses Reading": "eyes-glasses-reading",
   "Jester": "clothes-jester", "Tshirt Black": "clothes-tshirt-black", "Trainer": "clothes-trainer",
   "Eyes None": "", "None": "", "Bubblegum": "",
@@ -93,8 +93,9 @@ const OVER_FACIAL = new Set(["eyes-glasses-thug"]);
    it: its expression key (character.js FACE_ART). #989's Bubblegum is the
    face blowing, without the gum (the gum is the holder's emote); #33's
    Cracked Eyes are painted into the trollface in place of its squints (as
-   a card they floated in front of the grin; user, 2026-10-16). */
-const FACE_TRAITS = { Bubblegum: "gum", "Cracked Eyes": "cracked" };
+   a card they floated in front of the grin; user, 2026-10-16), and #2631's
+   Gold Tooth fills a tooth of it (a card was half buried in the grin). */
+const FACE_TRAITS = { Bubblegum: "gum", "Cracked Eyes": "cracked", "Gold Tooth": "goldtooth" };
 export function tokenFace(token) {
   const t = TOKENS[token];
   return FACE_TRAITS[t?.facial] || FACE_TRAITS[t?.eyes] || null;

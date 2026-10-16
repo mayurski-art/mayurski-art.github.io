@@ -18,7 +18,7 @@ import { BOT_STREAK_KEY } from "../streaks/bot-streaks.js?v=sk1-si1-gj1-fu1b7b7d
 import { initCloudSave } from "../net/cloud-save.js?v=cs1b7-zc1-zc2-or1";
 import { makeRoomCode } from "../net/net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10-hr2-zp1-rs1-dj2-pl2-nf1-or1";
 import { game } from "../core/state.js?v=st1";
-import { wearBlocky, ownBody } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1";
+import { wearBlocky, ownBody } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1";
 
 // The tab bar across the top swaps what's under it. "deploy" is the Play
 // tab (mode list, map card, Deploy); the rest open one panel each.
