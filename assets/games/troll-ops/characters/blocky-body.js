@@ -19,7 +19,7 @@ import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1";
 import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1-gt1";
 import { addRim } from "../view/rim-light.js?v=sr1";
-import { tagInk, untagInk } from "../view/char-ink.js?v=ci1-ci2-ci3-ci4";
+import { tagInk, untagInk } from "../view/char-ink.js?v=ci1-ci2-ci3-ci4-ci5";
 
 const DIR = new URL("../traits/", import.meta.url);
 const ART_V = globalThis.TRAITS_BUST ?? "tr5";
@@ -1152,6 +1152,7 @@ function reliefHead(rig) {
           const cap = await capVolume(id, front, board.position.y, s);
           // flipped back on a mirrored head (HEAD.mirror): the print reads
           if (HEAD.mirror) cap.scale.x *= -1;
+          cap.userData.inkOwn = true;   // its own outline, not the face's (view/char-ink.js)
           p.headPivot.add(cap);
           grp.visible = false;
           hidden.push(grp);
