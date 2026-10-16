@@ -15,7 +15,7 @@ import { createBo2Menu } from "../../../js/bo2-menu.js?v=to-ft2-tb1";
 import { createMapMode } from "../../../js/troll-map-mode.js?v=to-bo2d";
 import { joinSitePresence, viewerId } from "../../../js/site-presence.js?v=to-bo2d-ol1-iv1";
 import { initInvites, invitePlayer } from "./invites.js?v=iv1-nb2-pc2-sb1-cf1-gs2-gf1";
-import { initPublicChat } from "./public-chat.js?v=pch1-nb2-pc2-gf1";
+import { initPublicChat, setChatPreview } from "./public-chat.js?v=pch1-nb2-pc2-gf1-sc1";
 import { startOnline, onlinePlayers, serverList, joinServer, describe } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1";
 import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
 
@@ -97,6 +97,10 @@ root.innerHTML = `
     <span class="to-bo2-party-lbl"></span>
     <button type="button" class="to-bo2-party-row"><i class="to-bo2-lv"></i><b class="to-bo2-name">Guest</b></button>
     <span class="to-bo2-xp"></span>
+    <section class="to-bo2-chatcard" aria-label="Public chat">
+      <header><b>Public chat</b><button type="button" class="tf-btn tf-btn--secondary to-bo2-quick to-bo2-chat">Open<b class="to-pchat-badge" hidden></b></button></header>
+      <ol class="to-bo2-chatcard-log"></ol>
+    </section>
   </aside>
   <section class="to-bo2-detail" aria-live="polite">
     <figure class="to-bo2-mapshot" hidden><img alt=""><figcaption></figcaption></figure>
@@ -109,7 +113,6 @@ root.innerHTML = `
       <span class="to-bo2-dl" aria-live="polite"><i></i><b></b></span>
       <button type="button" class="to-bo2-back"><kbd>Esc</kbd>Back</button>
     </div>
-    <button type="button" class="tf-btn tf-btn--secondary to-bo2-quick to-bo2-chat">Chat<b class="to-pchat-badge" hidden></b></button>
     <button type="button" class="tf-btn tf-btn--secondary to-bo2-quick" data-go="barracks">Barracks</button>
     <button type="button" class="tf-btn tf-btn--secondary to-bo2-quick" data-go="options">Options</button>
   </footer>`;
@@ -973,9 +976,11 @@ function renderPartyOthers() {
   const others = onlinePlayers(roster).filter((o) => o.viewerId !== myViewer && !(uid && o.userId === uid));
   const shown = others.slice(0, PARTY_MAX - 1);
   partyList.replaceChildren(...shown.map((o) => {
+    const item = document.createElement("div");
+    item.className = "to-bo2-party-item";
+    item.setAttribute("role", "listitem");
     const row = document.createElement("button");
     row.className = "to-bo2-party-row is-other";
-    row.setAttribute("role", "listitem");
     const lv = document.createElement("i");
     lv.className = "to-bo2-lv";
     lv.textContent = o.guest ? "Guest" : `LV ${o.level}`;
@@ -993,7 +998,19 @@ function renderPartyOthers() {
       row.title = `${o.name}: invite them to play`;
       row.addEventListener("click", () => openGuestCard({ viewerId: o.viewerId, name: o.name }));
     }
-    return row;
+    // Invite straight from the list (the redesign's social column)
+    const inv = document.createElement("button");
+    inv.type = "button";
+    inv.className = "tf-btn tf-btn--secondary to-bo2-party-invite";
+    inv.textContent = "Invite";
+    inv.setAttribute("aria-label", `Invite ${o.name} to play`);
+    inv.addEventListener("click", () => {
+      const msg = invitePlayer({ viewerId: o.viewerId, name: o.name, userId: o.userId });
+      inv.title = msg || "";
+      if (/^Invite sent/.test(msg || "")) { inv.textContent = "Sent"; inv.disabled = true; }
+    });
+    item.append(row, inv);
+    return item;
   }));
   const more = document.createElement("button");
   more.type = "button";
@@ -1011,7 +1028,7 @@ function renderPartyOthers() {
 /* On a small screen the list stops short of the controls below it (the
    online count, the Animations switch, the Emote button: user's rule, no
    overlapping UI text); the rows that don't fit fold into "+N more". */
-const PARTY_BELOW = [".to-bo2-online", ".to-bo2-quick", "#to-char-emote"];
+const PARTY_BELOW = [".to-bo2-online", ".to-bo2-foot .to-bo2-quick", "#to-char-emote", ".to-bo2-chatcard"];
 function fitPartyList(setMore) {
   const list = partyList.getBoundingClientRect();
   if (!list.height) return;
@@ -1023,7 +1040,8 @@ function fitPartyList(setMore) {
   }
   const rows = () => [...partyList.querySelectorAll(".to-bo2-party-row")];
   while (rows().length && partyList.lastElementChild.getBoundingClientRect().bottom > limit) {
-    rows().pop().remove();
+    const last = rows().pop();
+    (last.closest(".to-bo2-party-item") || last).remove();
     setMore();
   }
 }
@@ -1067,7 +1085,7 @@ for (const b of $$(".to-bo2-quick[data-go]", root)) b.addEventListener("click", 
   const emoteBtn = document.getElementById("to-char-emote");
   const charView = document.querySelector(".to-char-view");
   if (emoteBtn) {
-    $(".to-bo2-quick", root).before(emoteBtn);
+    $(".to-bo2-foot .to-bo2-quick", root).before(emoteBtn);
     const sync = () => { emoteBtn.hidden = !!charView && charView.style.display === "none"; };
     sync();
     if (charView) new MutationObserver(sync).observe(charView, { attributes: true, attributeFilter: ["style"] });
@@ -1113,6 +1131,7 @@ setInviteHandler(invitePlayer);
 // The public chat (menu/public-chat.js): its pill in the footer, for
 // everyone, guests too; it opens while the menu's up
 initPublicChat({ presence, pill: $(".to-bo2-chat", root), viewerId, canOpen: () => !title.hidden, matchChat: () => game.chat });
+setChatPreview($(".to-bo2-chatcard-log", root));
 // The count opens the list.
 {
   const online = $(".to-bo2-online", root);

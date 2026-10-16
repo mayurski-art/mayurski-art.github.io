@@ -144,6 +144,17 @@ function push(m) {
   chat.msgs.push(m);
   if (chat.msgs.length > CHAT.keep) chat.msgs.splice(0, chat.msgs.length - CHAT.keep);
   if (chat.open) render();
+  paintPreview();
+}
+/* The menu's chat card (menu-bo2.js): the last few lines, GIFs as GIFs. */
+let previewEl = null;
+export function setChatPreview(el) { previewEl = el; paintPreview(); }
+function paintPreview() {
+  if (!previewEl) return;
+  const last = chat.msgs.slice(-3);
+  previewEl.innerHTML = last.length
+    ? last.map((m) => `<li><b>${esc(m.name)}</b> ${m.text ? esc(m.text) : ""}${m.gif ? `<img src="${gifSrc(m.gif)}" alt="GIF: ${esc(gifOf(m.gif).label)}">` : ""}</li>`).join("")
+    : `<li class="is-empty">Quiet in here. Say hi: everyone on Troll Forces sees it.</li>`;
 }
 /* Say `text` (or send GIF `gif`, an id in GIFS) to everyone: { name,
    text, gif } when it went, else { error } ("" for nothing to send). The

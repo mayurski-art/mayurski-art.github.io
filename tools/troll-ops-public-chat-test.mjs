@@ -76,8 +76,8 @@ const read = () => page.evaluate(() => {
 const say = (from, text) => page.evaluate(([from, text]) => window.__presence.deliver({ k: "chat", from, d: { text } }), [from, text]);
 
 // 1. The pill is there for a guest (we are one)
-const pill = await page.evaluate(() => { const b = document.querySelector(".to-bo2-chat"); return b && { shown: !!b.offsetParent, text: b.textContent.trim() }; });
-check(pill?.shown && /Chat/.test(pill.text), "a guest sees the Chat pill in the footer", JSON.stringify(pill));
+const pill = await page.evaluate(() => { const b = document.querySelector(".to-bo2-chat"); return b && { shown: !!b.offsetParent && !!b.closest(".to-bo2-chatcard"), text: b.textContent.trim() }; });
+check(pill?.shown && /Open/.test(pill.text) , "a guest sees the chat card (Open) in the social column", JSON.stringify(pill));
 // 2. A message with the chat shut: a notification and an unread count
 await say("v-1", "anyone up for TDM?");
 await page.waitForTimeout(200);
