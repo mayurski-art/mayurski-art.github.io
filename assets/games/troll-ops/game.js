@@ -24,7 +24,7 @@ import {
 import { KillstreakUi } from "./streaks/killstreak-ui.js?v=to-medals3-or1";
 import { medalSvg } from "./progression/medals.js?v=to-medals3-or1";
 import { StrikeTablet, STRIKE_TARGETS } from "./streaks/streak-tablet.js?v=wu1-or1";
-import { KillCam } from "./killcam.js?v=to-fx3-kc2";
+import { KillCam } from "./combat/killcam.js?v=to-fx3-kc2-or1";
 import { Achievements } from "./progression/achievements.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
 import { addXp, syncXp, xpForRun, xpForMatch, XP, XP_SCALE, prestigeUnlocked, getLevel, getPrestige, isOwner } from "./progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
 import { playerIconSvg } from "./progression/rank-icons.js?v=rk1-or1";
@@ -85,7 +85,7 @@ import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./weapons/trollsa
 import { createAkimboView, AKIMBO_INSPECT_TIME } from "./weapons/akimbo-view.js?v=ak1-wst-or1";
 import { createKeyboardRepair, KB_SHIELD, KB_GLANCE } from "./weapons/keyboard-repair.js?v=kr15-or1";
 import { RangeSet } from "./range.js";
-import { PickupSystem, SwapHold } from "./pickups.js?v=sw1-wst-sb2-wb1-ar1-ar2-fj1-br1-or1";
+import { PickupSystem, SwapHold } from "./combat/pickups.js?v=sw1-wst-sb2-wb1-ar1-ar2-fj1-br1-or1";
 import { HudLayout } from "./menu/hud-layout.js?v=hl3-pd1-nf1-or1";
 import { initCloudSave } from "./net/cloud-save.js?v=cs1b7-zc1-zc2-or1";
 import { ControllerLayout, padEmotePressed } from "./menu/controller-layout.js?v=cl7-pd1-or1";
