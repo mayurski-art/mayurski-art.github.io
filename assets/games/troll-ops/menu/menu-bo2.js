@@ -15,6 +15,7 @@ import { createBo2Menu } from "../../../js/bo2-menu.js?v=to-ft2";
 import { createMapMode } from "../../../js/troll-map-mode.js?v=to-bo2d";
 import { joinSitePresence, viewerId } from "../../../js/site-presence.js?v=to-bo2d-ol1";
 import { initInvites, invitePlayer } from "./invites.js?v=iv1";
+import { initPublicChat } from "./public-chat.js?v=pch1";
 import { startOnline, onlinePlayers, serverList, joinServer, describe } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2";
 import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
 
@@ -108,6 +109,7 @@ root.innerHTML = `
       <span class="to-bo2-dl" aria-live="polite"><i></i><b></b></span>
       <button type="button" class="to-bo2-back"><kbd>Esc</kbd>Back</button>
     </div>
+    <button type="button" class="to-bo2-quick to-bo2-chat">Chat<b class="to-pchat-badge" hidden></b></button>
     <button type="button" class="to-bo2-quick" data-go="barracks">Barracks</button>
     <button type="button" class="to-bo2-quick" data-go="options">Options</button>
     <button type="button" class="to-bo2-anim" role="switch" aria-checked="true">Animations <b>On</b></button>
@@ -1053,7 +1055,7 @@ function openQuick(id) {
   menu.backTo("main");
   menu.go(id);
 }
-for (const b of $$(".to-bo2-quick", root)) b.addEventListener("click", () => openQuick(b.dataset.go));
+for (const b of $$(".to-bo2-quick[data-go]", root)) b.addEventListener("click", () => openQuick(b.dataset.go));
 /* The Emote pill joins that row (user, 2026-10-15: under the operator's
    feet it sat on the footer buttons). It still shows only while the
    operator does (lobby.js charInspectorLive hides .to-char-view). */
@@ -1104,6 +1106,9 @@ startOnline(presence);
 // Invites (menu/invites.js) on the same channel, the cards' Invite button
 initInvites(presence);
 setInviteHandler(invitePlayer);
+// The public chat (menu/public-chat.js): its pill in the footer, for
+// everyone, guests too; it opens while the menu's up
+initPublicChat({ presence, pill: $(".to-bo2-chat", root), viewerId, canOpen: () => !title.hidden });
 // The count opens the list.
 {
   const online = $(".to-bo2-online", root);
