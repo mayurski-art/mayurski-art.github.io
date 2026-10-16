@@ -241,15 +241,14 @@ const NAMES = { 1718: "Troll Runner", 820: "Farmer", 1262: "UMADBRO", 989: "Goku
 /* Every edit is a path into DESIGN and a value. The defaults are a deep
    copy taken before anything is touched; "Game vs mine" builds the left
    troll from them. */
-const TABLES = ["KITS", "HAIRS", "HATS", "CAP", "SHELLS", "RELIEF", "HEAD_SCALE", ...(INK ? ["INK"] : [])];
+const TABLES = ["KITS", "HAIRS", "HATS", "CAP", "SHELLS", "RELIEF", "HEAD", ...(INK ? ["INK"] : [])];
 const DEFAULTS = structuredClone(Object.fromEntries(TABLES.map((k) => [k, DESIGN[k]])));
 const STORE = "nftlab:v1";
 let saved = {};
 try { saved = JSON.parse(localStorage.getItem(STORE) || "{}"); } catch {}
-const edits = new Map(Object.entries(saved.edits || {}));   // "KITS|clothes-sensei|colours|gi" -> value
+const edits = new Map(Object.entries(saved.edits || {}).filter(([k]) => TABLES.includes(k.split("|")[0])));   // "KITS|clothes-sensei|colours|gi" -> value
 const getAt = (root, path) => path.reduce((o, k) => (o == null ? o : o[k]), root);
 function setAt(root, path, v) {
-  // DESIGN.HEAD_SCALE is a copy of a const: the lab applies it itself
   if (path.length === 1) { root[path[0]] = v; return; }
   let o = root;
   for (const k of path.slice(0, -1)) o = o[k] ??= {};
@@ -344,7 +343,6 @@ async function wear(r, useEdits) {
   DESIGN.flush();
   await wearBlocky(r.rig, 0);
   await wearBlocky(r.rig, LAB_ID);
-  r.rig.parts.headPivot.scale.setScalar(useEdits ? valueOf(["HEAD_SCALE"]) : DEFAULTS.HEAD_SCALE);
   if (!scene.ink) untagInk(r.rig);
   shadowsOn(r);
 }
@@ -440,7 +438,10 @@ function renderTuning() {
     colourRow("Line colour", ["INK", "color"]),
   ] : []));
   $("headRows").replaceChildren(
-    sliderRow("Head size", ["HEAD_SCALE"], 0.5, 0.95, 0.01, (x) => x.toFixed(2)),
+    sliderRow("Head size", ["HEAD", "scale"], 0.5, 1.2, 0.01, (x) => x.toFixed(2)),
+    sliderRow("Neck length (cm)", ["HEAD", "neck"], 0, 0.16, 0.005, (x) => (x * 100).toFixed(1)),
+    sliderRow("Neck width (cm)", ["HEAD", "neckR", 0], 0.02, 0.09, 0.002, (x) => (x * 200).toFixed(1)),
+    sliderRow("Neck top width (cm)", ["HEAD", "neckR", 1], 0.02, 0.09, 0.002, (x) => (x * 200).toFixed(1)),
     sliderRow("Face pushes out", ["RELIEF", "front"], 0.02, 0.16, 0.005),
     sliderRow("Skull depth", ["RELIEF", "back"], 0.08, 0.3, 0.005),
   );
