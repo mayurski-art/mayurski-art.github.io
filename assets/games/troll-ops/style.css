@@ -3515,6 +3515,8 @@ body.tf-anim-off #to-staging, body.tf-anim-off #to-staging * { animation: none !
 .to-bo2 .tr-menu-item.is-primary small { color: #3a1d05; }
 .to-bo2 .tr-menu-item.is-primary.is-hot { background: #ffa24d; color: #1a0b00; box-shadow: inset 0 0 0 2px var(--bo2-gold); }
 .to-bo2 .tr-menu-item.is-primary:active { background: #d96f0f; }
+/* the dock only on the top menu (redesign phase 2) */
+.to-bo2:not(.is-top) .to-bo2-foot .to-bo2-quick, .to-bo2:not(.is-top) .to-bo2-foot .to-char-emote { display: none; }
 .to-bo2 kbd { font: 12px "DM Mono", monospace; padding: 3px 7px; border-radius: 5px; border: 1px solid rgba(243,236,228,.35); color: var(--bo2-ink); background: none; }
 body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
 /* trollrunner.net's home carries the socials now; keep the menu clean.

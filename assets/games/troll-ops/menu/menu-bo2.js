@@ -112,7 +112,6 @@ root.innerHTML = `
     <button type="button" class="tf-btn tf-btn--secondary to-bo2-quick to-bo2-chat">Chat<b class="to-pchat-badge" hidden></b></button>
     <button type="button" class="tf-btn tf-btn--secondary to-bo2-quick" data-go="barracks">Barracks</button>
     <button type="button" class="tf-btn tf-btn--secondary to-bo2-quick" data-go="options">Options</button>
-    <button type="button" class="tf-btn tf-btn--secondary to-bo2-anim" role="switch" aria-checked="true">Animations <b>On</b></button>
   </footer>`;
 pf.prepend(root);
 const nav = $(".to-bo2-menu", root);
@@ -802,6 +801,8 @@ const screens = {
         checkRow("to-set-viewmode-lobby", "View mode", "Just look at the maps, no fighting."),
       ].filter(Boolean),
       [
+        { id: "anim", label: "Animations", value: () => (animOff ? "Off" : "On"), adjust: () => toggleAnim(),
+          desc: "The spinning planet and the asteroids. Off is easier on a slow laptop." },
         { id: "hud", label: "HUD layout", desc: "Move the buttons and the HUD.", onSelect: () => $("#to-pfp-controls [data-hud-layout]")?.click() },
         back("Back to the main menu."),
       ],
@@ -866,6 +867,9 @@ const menu = createBo2Menu(nav, {
     if (id !== lastScreen) { lastScreen = id; if (s.enter) { s.enter(); m.refresh(); return; } }
     if (s.panel && s.panel !== lastPanel) { lastPanel = s.panel; rail(s.panel); }
     root.dataset.screen = id;
+    // the dock (Emote, Chat, Barracks, Options) is the top menu's only:
+    // inside a screen the footer is Back, nothing else to press
+    root.classList.toggle("is-top", id === "main");
     // Phones size the operator and the detail pane from the list's height.
     pf.style.setProperty("--menu-h", `${nav.offsetHeight}px`);
     screenDetail = !!s.detail || id === "search" || id === "pinsearch";
@@ -1007,7 +1011,7 @@ function renderPartyOthers() {
 /* On a small screen the list stops short of the controls below it (the
    online count, the Animations switch, the Emote button: user's rule, no
    overlapping UI text); the rows that don't fit fold into "+N more". */
-const PARTY_BELOW = [".to-bo2-online", ".to-bo2-anim", "#to-char-emote"];
+const PARTY_BELOW = [".to-bo2-online", ".to-bo2-quick", "#to-char-emote"];
 function fitPartyList(setMore) {
   const list = partyList.getBoundingClientRect();
   if (!list.height) return;
@@ -1152,25 +1156,23 @@ let dlHide = 0;
   renderDl();
 })();
 
-/* ── Animations switch (bottom right) ─────────────────────────────────
+/* ── Animations (an Options row; it was a footer switch till the redesign,
+   user 2026-10-16) ───────────────────────────────────────────────────────
    For slow laptops (user, 2026-10-03): off freezes the planet and the
    asteroids, drops the menu's CSS animations (body.tf-anim-off), and
    game.js cuts the solo pre-match countdown short. Remembered per device. */
 const ANIM_KEY = "tf-anim-off";
-const animBtn = $(".to-bo2-anim", root);
 let animOff = false;
 try { animOff = localStorage.getItem(ANIM_KEY) === "1"; } catch {}
 function applyAnim() {
   document.body.classList.toggle("tf-anim-off", animOff);
-  animBtn.setAttribute("aria-checked", String(!animOff));
-  $("b", animBtn).textContent = animOff ? "Off" : "On";
   backdrop?.setStill?.(animOff);
 }
-animBtn.addEventListener("click", () => {
+function toggleAnim() {
   animOff = !animOff;
   try { animOff ? localStorage.setItem(ANIM_KEY, "1") : localStorage.removeItem(ANIM_KEY); } catch {}
   applyAnim();
-});
+}
 applyAnim();
 
 /* ── The planet: lazy, and paused whenever the lobby isn't showing ───── */

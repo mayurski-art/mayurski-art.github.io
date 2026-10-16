@@ -120,7 +120,7 @@ for (const [w, h] of [[390, 844], [844, 390]]) {
     const hit = (a, b) => a.bottom > b.top + 1 && b.bottom > a.top + 1 && a.right > b.left + 1 && b.right > a.left + 1;
     const overlap = rs.some((a, i) => rs.some((b, j) => j > i && hit(a, b)));
     // nor the controls below it (online count, Animations, Emote)
-    const below = [".to-bo2-online", ".to-bo2-anim", "#to-char-emote"].map((q) => document.querySelector(q)).filter((e) => e?.offsetParent).map((e) => e.getBoundingClientRect());
+    const below = [".to-bo2-online", ".to-bo2-quick", "#to-char-emote"].map((q) => document.querySelector(q)).filter((e) => e?.offsetParent).map((e) => e.getBoundingClientRect());
     const covered = rs.some((a) => below.some((b) => hit(a, b)));
     const bottom = Math.max(0, ...rs.map((r) => r.bottom));
     return { shown: els.length, right: Math.max(0, ...rs.map((r) => r.right)), bottom, overlap, covered, more: document.querySelector(".to-bo2-party-more")?.textContent };
