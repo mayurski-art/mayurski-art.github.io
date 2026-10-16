@@ -195,6 +195,19 @@ const KITS = {
   "clothes-sensei": { arms: "arms-sensei.glb", legs: "legs-sensei.glb",
     colours: { sleeve: 0x2d5a96, band: 0x2d5a96, gi: 0xf2841f, hem: 0xd96f15, boot: 0x2d5a96, sole: 0x24252b },
     fp: { sleeve: null, cuff: 0x2d5a96 } },
+  // Jester (#33): the farmer's pieces as the purple jacket's sleeves with
+  // teal shirt cuffs, purple trousers and black shoes
+  "clothes-jester": { arms: "arms-farmer.glb", legs: "legs-farmer.glb",
+    colours: { sleeve: 0x4b2a70, cuff: 0x3f8090, denim: 0x3c2159, hem: 0x2c173f, boot: 0x17151a, sole: 0x0e0d10 } },
+  // Tshirt Black (#2630): the Sensei's short sleeves in black (the band is
+  // skin: bare forearms), dark jeans, black sneakers
+  "clothes-tshirt-black": { arms: "arms-sensei.glb", legs: "legs-farmer.glb",
+    colours: { sleeve: 0x1d1d20, denim: 0x3b4a66, hem: 0x2f3c55, boot: 0x1b1b1d, sole: 0xe6e6e0 },
+    fp: { sleeve: null, cuff: null } },
+  // Trainer (#2631): short white shirt sleeves, navy track trousers, black trainers
+  "clothes-trainer": { arms: "arms-sensei.glb", legs: "legs-farmer.glb",
+    colours: { sleeve: 0xf2f2ee, denim: 0x232f48, hem: 0x1b253a, boot: 0x1b1b1d, sole: 0xe6e6e0 },
+    fp: { sleeve: null, cuff: null } },
 };
 /* Hair modelled in Blender (traits.js MODELLED), worn on the relief head in
    its frame: the file and a colour per piece name. Carrot Cake Hair is the
@@ -435,6 +448,11 @@ const HATS = {
   "hat-camper": { ink: "#8f8862", brim: [352, 452], brimFront: 0.13, brimBack: 0.13, ease: 16 },
   // a flat cap: its bill out in front only (no brimBack: the crown all round behind)
   "hat-baker": { ink: "#1d1c17", brim: [345, 420], brimFront: 0.105, ease: 14 },
+  // the wizard's floppy brim all round; the cone stands on the crown's ellipsoid
+  "hat-magician": { ink: "#16188c", brim: [320, 432], brimFront: 0.15, brimBack: 0.15, ease: 16 },
+  // trucker caps: the bill out in front only, mesh behind
+  "hat-trucker-microsoft": { ink: "#b8305a", brim: [345, 448], brimFront: 0.13, ease: 14 },
+  "hat-trucker-yobucks": { ink: "#c9c9c2", brim: [345, 448], brimFront: 0.13, ease: 14 },
 };
 /* How far the cap stands out of the head pivot's middle at (x, y): an
    ellipsoid round the head that closes exactly at that column's top edge of

@@ -1,0 +1,24 @@
+<!--
+  TROLLS trait: HATS / Trucker Hat Microsoft, from behind (mirrored onto
+  the cap's back by blocky-body.js capVolume): white mesh all round, the
+  snapback strap's opening and its pink strap.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1033" width="1000" height="1033">
+  <g transform="translate(0 -40)">
+  <defs>
+    <pattern id="mesh" width="16" height="16" patternUnits="userSpaceOnUse">
+      <rect width="16" height="16" fill="#efefea"/>
+      <circle cx="8" cy="8" r="3.4" fill="#c9c9c2"/>
+    </pattern>
+  </defs>
+  <g stroke="#0a0a0a" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">
+    <path fill="url(#mesh)" d="M196 414 C184 304 222 206 330 162 C420 128 580 128 674 162 C782 206 820 304 806 414 C620 434 380 434 196 414 Z"/>
+    <path fill="none" stroke="#a9a9a2" stroke-width="5" d="M500 140 C496 230 496 320 500 420"/>
+    <ellipse cx="500" cy="140" rx="24" ry="11" fill="#f0457a"/>
+    <!-- the strap's opening, the band of pink across it -->
+    <path fill="#f3f3ef" d="M420 424 C420 380 450 352 500 352 C550 352 580 380 580 424 Z"/>
+    <path fill="#f0457a" stroke-width="6" d="M404 380 L596 380 L596 404 L404 404 Z"/>
+    <g fill="#0a0a0a" stroke="none"><circle cx="468" cy="392" r="5"/><circle cx="500" cy="392" r="5"/><circle cx="532" cy="392" r="5"/></g>
+  </g>
+  </g>
+</svg>

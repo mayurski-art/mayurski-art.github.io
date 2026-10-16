@@ -1,0 +1,40 @@
+<!--
+  TROLLS trait: EYES / Glasses Reading. Round gold wire frames over the
+  eyes, pale blue glass with a glint, a keyhole bridge over the nose and
+  the arms running back to the face's edges. Traced from TROLLS #2631.
+  Front only. Frame: the head-trait frame (traits/README.md).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1033" width="1000" height="1033">
+  <!-- the glass: a pale tint, kept over the alpha test (traits.js 0.3) -->
+  <g fill="#cfeaf6" fill-opacity="0.42">
+    <circle cx="348" cy="478" r="62"/>
+    <circle cx="578" cy="472" r="68"/>
+  </g>
+  <!-- glints -->
+  <g fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" opacity="0.9">
+    <path d="M310 456 C318 440 332 432 348 430"/>
+    <path d="M536 448 C546 432 562 422 580 420"/>
+    <path d="M384 508 C392 500 396 492 398 484"/>
+  </g>
+  <!-- the arms back to the face's edges, then the rims and bridge over -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#0a0a0a" stroke-width="20">
+      <path d="M287 466 C240 458 196 456 156 460"/>
+      <path d="M645 460 C720 448 800 444 878 448"/>
+      <circle cx="348" cy="478" r="62"/>
+      <circle cx="578" cy="472" r="68"/>
+      <path d="M410 470 C430 446 488 442 510 462"/>
+    </g>
+    <g stroke="#e0b23a" stroke-width="9">
+      <path d="M287 466 C240 458 196 456 156 460"/>
+      <path d="M645 460 C720 448 800 444 878 448"/>
+      <circle cx="348" cy="478" r="62"/>
+      <circle cx="578" cy="472" r="68"/>
+      <path d="M410 470 C430 446 488 442 510 462"/>
+    </g>
+    <g stroke="#fff1b0" stroke-width="3">
+      <path d="M300 440 C318 424 340 418 360 420"/>
+      <path d="M530 428 C552 410 578 404 600 408"/>
+    </g>
+  </g>
+</svg>

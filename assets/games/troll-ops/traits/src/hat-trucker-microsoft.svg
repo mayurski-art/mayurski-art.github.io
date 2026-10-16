@@ -1,0 +1,51 @@
+<!--
+  TROLLS trait: HATS / Trucker Hat Microsoft (a hot-pink trucker cap: foam
+  front panels with the old four-colour window flag trailing pixels, white
+  mesh sides, a curved bill out over the brow). Traced from TROLLS #2630.
+  Same cap as hat-trucker-yobucks.svg, its own colours and print.
+  Frame: the head-trait frame (traits/README.md). 1000 x 1033 units =
+  headPivot x -0.30..0.30 m, y 0.62..0 m; the face board's art sits at
+  (100, 233.3) 800 x 750. In game the bill band (y 345..448,
+  blocky-body.js HATS) stands out in front only.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1033" width="1000" height="1033">
+  <g transform="translate(0 -40)">
+  <defs>
+    <pattern id="mesh" width="16" height="16" patternUnits="userSpaceOnUse">
+      <rect width="16" height="16" fill="#efefea"/>
+      <circle cx="8" cy="8" r="3.4" fill="#c9c9c2"/>
+    </pattern>
+  </defs>
+  <g stroke="#0a0a0a" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">
+    <!-- the crown: mesh at the sides -->
+    <path fill="url(#mesh)" d="M196 414 C184 304 222 206 330 162 C420 128 580 128 674 162 C782 206 820 304 806 414 C620 434 380 434 196 414 Z"/>
+    <!-- the foam front panels -->
+    <path fill="#f0457a" d="M292 410 C284 300 316 200 396 160 C460 136 540 136 604 160 C684 200 716 300 708 410 C600 422 400 422 292 410 Z"/>
+    <path fill="#d33a69" stroke="none" d="M604 160 C684 200 716 300 708 410 L650 414 C660 320 650 220 604 160 Z"/>
+    <path fill="none" stroke="#a82c53" stroke-width="5" d="M500 140 C496 230 496 320 500 414"/>
+    <ellipse cx="500" cy="140" rx="24" ry="11" fill="#f0457a"/>
+    <!-- the print: the four-colour window flag, a pixel trail behind it -->
+    <g stroke="#0a0a0a" stroke-width="4">
+      <path fill="#f25022" d="M520 216 C534 210 548 212 560 216 L560 262 C548 258 534 256 520 262 Z"/>
+      <path fill="#7fba00" d="M566 218 C580 222 592 222 606 216 L606 262 C592 268 580 268 566 264 Z"/>
+      <path fill="#00a4ef" d="M520 268 C534 262 548 264 560 268 L560 314 C548 310 534 308 520 314 Z"/>
+      <path fill="#ffb900" d="M566 270 C580 274 592 274 606 268 L606 314 C592 320 580 320 566 316 Z"/>
+    </g>
+    <g stroke="none">
+      <rect x="500" y="224" width="12" height="12" fill="#f25022"/><rect x="484" y="240" width="10" height="10" fill="#f25022"/>
+      <rect x="468" y="226" width="8" height="8" fill="#f25022"/><rect x="452" y="244" width="6" height="6" fill="#f25022"/>
+      <rect x="500" y="276" width="12" height="12" fill="#00a4ef"/><rect x="484" y="292" width="10" height="10" fill="#00a4ef"/>
+      <rect x="468" y="278" width="8" height="8" fill="#00a4ef"/><rect x="452" y="296" width="6" height="6" fill="#00a4ef"/>
+      <rect x="500" y="250" width="10" height="10" fill="#7fba00"/><rect x="474" y="262" width="8" height="8" fill="#ffb900"/>
+    </g>
+    <!-- the bill: curved, out over the brow -->
+    <path fill="#f0457a" d="M236 404 C420 382 700 380 880 398 C932 406 934 452 886 464 C722 490 452 492 282 470 C232 462 212 414 236 404 Z"/>
+    <path fill="#c4365f" stroke="none" d="M262 450 C450 472 700 470 872 448 C720 478 460 482 282 462 Z"/>
+    <g fill="none" stroke="#a82c53" stroke-width="4">
+      <path d="M262 418 C450 400 700 398 862 412"/>
+      <path d="M266 430 C450 412 700 410 868 424"/>
+      <path d="M272 442 C450 424 700 422 870 436"/>
+    </g>
+  </g>
+  </g>
+</svg>

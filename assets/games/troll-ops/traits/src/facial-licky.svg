@@ -1,0 +1,18 @@
+<!--
+  TROLLS trait: FACIALS / Licky. The tongue out of the grin's art-right
+  side, curled up over the upper teeth toward the corner of the mouth.
+  Traced from TROLLS #2630. Front only.
+  Frame: the head-trait frame (traits/README.md); the grin's upper teeth
+  run y 640..700, the lower y 720..790, the corner at x ~720.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1033" width="1000" height="1033">
+  <g stroke="#0a0a0a" stroke-width="10" stroke-linejoin="round" stroke-linecap="round">
+    <path fill="#ee8aa4" d="M584 726 C600 700 628 668 650 640 C668 616 694 598 718 606 C744 616 742 652 724 684 C704 720 676 748 640 760 C612 768 586 754 584 726 Z"/>
+  </g>
+  <!-- shade on the underside, the middle groove and a wet glint -->
+  <path fill="#cf6683" d="M598 740 C620 752 660 744 690 718 C676 742 650 758 626 762 C608 764 598 754 598 740 Z"/>
+  <g fill="none" stroke-linecap="round">
+    <path stroke="#b84d6a" stroke-width="6" d="M640 726 C656 700 680 668 706 640"/>
+    <path stroke="#ffd7e1" stroke-width="7" d="M690 618 C704 612 718 614 724 626"/>
+  </g>
+</svg>

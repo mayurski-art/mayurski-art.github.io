@@ -1,0 +1,50 @@
+<!--
+  TROLLS trait: CLOTHES / Trainer on the BLOCK body (blocky-body.js): a
+  royal-blue vest open over a white short-sleeved shirt, its wide collar
+  flipped out over the vest, a black scarf hanging down the middle, dark
+  track trousers below. Traced from TROLLS #2631. The short white sleeves
+  are the Sensei's Blender pieces and the trousers the farmer's (KITS).
+  Same template as clothes-farmer.block.svg, 1 unit = 1 mm:
+    front  x    0..400  (seen from the front: the troll's right on the left)
+    back   x  400..800  (seen from behind: the troll's left on the left)
+    right  x  800..1000 (the troll's right side: its back on the left)
+    left   x 1000..1200 (its left side: its front on the left)
+    top    x    0..400, y 560..760: the shoulders from above, front edge first
+  y 0 is the torso's top, y 520 the hips; the vest's hem y 460, trousers below.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" width="1200" height="760">
+  <rect width="1200" height="760" fill="#1f4f9c"/>
+  <g stroke-linejoin="round" stroke-linecap="round">
+    <!-- FRONT: the shirt in the vest's opening, the scarf over it -->
+    <path fill="#f2f2ee" stroke="#060606" stroke-width="6" d="M126 0 L274 0 L262 460 L138 460 Z"/>
+    <path fill="#1a1a1d" stroke="#060606" stroke-width="6" d="M168 6 L232 6 L246 460 L154 460 Z"/>
+    <path fill="none" stroke="#33333a" stroke-width="5" d="M200 40 L198 450 M182 90 L176 440 M220 90 L226 440"/>
+    <!-- the collar's two wide points, flipped out over the vest -->
+    <path fill="#f2f2ee" stroke="#060606" stroke-width="6" d="M70 0 L166 0 L170 30 L120 96 L52 54 Z"/>
+    <path fill="#f2f2ee" stroke="#060606" stroke-width="6" d="M330 0 L234 0 L230 30 L280 96 L348 54 Z"/>
+    <path fill="none" stroke="#c9c9c3" stroke-width="4" d="M80 40 L128 72 M320 40 L272 72"/>
+    <!-- the vest's edge, its darker side panels and a fold -->
+    <path fill="none" stroke="#060606" stroke-width="6" d="M126 96 L138 460 M274 96 L262 460"/>
+    <g fill="none" stroke="#163c78" stroke-width="6">
+      <path d="M40 140 C60 230 64 330 56 440"/>
+      <path d="M360 140 C340 230 336 330 344 440"/>
+    </g>
+    <!-- BACK: the shirt collar, a yoke seam -->
+    <path fill="#f2f2ee" stroke="#060606" stroke-width="6" d="M510 0 L690 0 C682 30 646 48 600 48 C554 48 518 30 510 0 Z"/>
+    <path fill="none" stroke="#163c78" stroke-width="6" d="M430 120 C520 140 680 140 770 120"/>
+    <path fill="none" stroke="#163c78" stroke-width="5" d="M600 140 L600 460"/>
+    <!-- SIDES: the side seam -->
+    <g fill="none" stroke="#163c78" stroke-width="5">
+      <path d="M900 30 L900 460"/><path d="M1100 30 L1100 460"/>
+    </g>
+    <!-- the hem all the way round, the track trousers below with a stripe -->
+    <path fill="none" stroke="#060606" stroke-width="6" d="M0 460 L1200 460"/>
+    <rect x="0" y="460" width="1200" height="100" fill="#232f48" stroke="#060606" stroke-width="6"/>
+    <path fill="#1a1a1d" stroke="#060606" stroke-width="5" d="M154 460 L246 460 L244 480 L156 480 Z"/>
+    <g fill="#f2f2ee" stroke="none">
+      <rect x="896" y="466" width="10" height="94"/><rect x="1094" y="466" width="10" height="94"/>
+    </g>
+    <!-- TOP: the shoulders, the collar along the front edge -->
+    <path fill="#f2f2ee" stroke="#060606" stroke-width="6" d="M110 560 L290 560 C278 604 244 622 200 622 C156 622 122 604 110 560 Z"/>
+  </g>
+</svg>

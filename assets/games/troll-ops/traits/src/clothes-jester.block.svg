@@ -1,0 +1,75 @@
+<!--
+  TROLLS trait: CLOTHES / Jester on the BLOCK body (blocky-body.js): a
+  purple suit jacket hanging open over a dark green waistcoat with gold
+  buttons, a teal shirt and a patterned green tie, purple trousers below.
+  Traced from TROLLS #33. The jacket's sleeves (teal shirt cuffs) and the
+  trousers are the farmer's Blender pieces in these colours (KITS).
+  Same template as clothes-farmer.block.svg, 1 unit = 1 mm:
+    front  x    0..400  (seen from the front: the troll's right on the left)
+    back   x  400..800  (seen from behind: the troll's left on the left)
+    right  x  800..1000 (the troll's right side: its back on the left)
+    left   x 1000..1200 (its left side: its front on the left)
+    top    x    0..400, y 560..760: the shoulders from above, front edge first
+  y 0 is the torso's top, y 520 the hips; the jacket's hem y 470, trousers below.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" width="1200" height="760">
+  <defs>
+    <pattern id="tie" width="16" height="16" patternUnits="userSpaceOnUse">
+      <rect width="16" height="16" fill="#5d7a5c"/>
+      <path d="M8 1 L15 8 L8 15 L1 8 Z" fill="none" stroke="#3f5a40" stroke-width="2"/>
+      <circle cx="8" cy="8" r="2" fill="#86a283"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="760" fill="#4b2a70"/>
+  <g stroke-linejoin="round" stroke-linecap="round">
+    <!-- FRONT: the shirt in the jacket's opening -->
+    <path fill="#3f8090" stroke="#060606" stroke-width="6" d="M104 0 L296 0 L270 470 L130 470 Z"/>
+    <!-- the tie down the middle, its knot at the collar -->
+    <path fill="url(#tie)" stroke="#060606" stroke-width="5" d="M190 34 L210 34 L226 250 L200 282 L174 250 Z"/>
+    <path fill="#5d7a5c" stroke="#060606" stroke-width="5" d="M184 8 L216 8 L210 36 L190 36 Z"/>
+    <!-- the shirt collar's two points -->
+    <path fill="#4a95a6" stroke="#060606" stroke-width="5" d="M118 0 L186 0 L192 30 L150 72 Z"/>
+    <path fill="#4a95a6" stroke="#060606" stroke-width="5" d="M282 0 L214 0 L208 30 L250 72 Z"/>
+    <!-- the waistcoat, a V over the tie from y 200 -->
+    <path fill="#1e3b2a" stroke="#060606" stroke-width="6" d="M110 90 L170 90 L200 214 L230 90 L290 90 L268 470 L132 470 Z"/>
+    <path fill="none" stroke="#14281c" stroke-width="5" d="M200 214 L200 470"/>
+    <g fill="#d8b04a" stroke="#060606" stroke-width="4">
+      <circle cx="210" cy="262" r="9"/><circle cx="210" cy="324" r="9"/><circle cx="210" cy="386" r="9"/>
+    </g>
+    <!-- the jacket's lapels, folded back along the opening -->
+    <path fill="#5a3484" stroke="#060606" stroke-width="6" d="M70 0 L110 0 L140 300 L104 330 L90 160 Z"/>
+    <path fill="#5a3484" stroke="#060606" stroke-width="6" d="M330 0 L290 0 L260 300 L296 330 L310 160 Z"/>
+    <path fill="none" stroke="#060606" stroke-width="6" d="M104 330 L130 470 M296 330 L270 470"/>
+    <!-- a pocket flap and folds -->
+    <path fill="#432562" stroke="#060606" stroke-width="5" d="M290 360 L360 356 L362 378 L292 382 Z"/>
+    <g fill="none" stroke="#35204f" stroke-width="5">
+      <path d="M30 120 C46 200 50 300 40 420"/>
+      <path d="M370 120 C354 200 350 300 360 420"/>
+    </g>
+
+    <!-- BACK: the shirt's collar over the jacket's, the centre seam and vent -->
+    <path fill="#5a3484" stroke="#060606" stroke-width="6" d="M500 0 L700 0 C690 40 650 58 600 58 C550 58 510 40 500 0 Z"/>
+    <path fill="#4a95a6" stroke="#060606" stroke-width="5" d="M526 0 L674 0 C668 22 640 32 600 32 C560 32 532 22 526 0 Z"/>
+    <path fill="none" stroke="#35204f" stroke-width="6" d="M600 58 L600 470"/>
+    <path fill="none" stroke="#060606" stroke-width="5" d="M600 380 L600 470"/>
+    <g fill="none" stroke="#35204f" stroke-width="5">
+      <path d="M450 140 C500 160 540 200 560 260"/>
+      <path d="M750 140 C700 160 660 200 640 260"/>
+    </g>
+    <!-- SIDES: a fold and the jacket's side seam -->
+    <g fill="none" stroke="#35204f" stroke-width="6">
+      <path d="M900 40 C894 160 896 300 904 470"/>
+      <path d="M1100 40 C1106 160 1104 300 1096 470"/>
+    </g>
+    <!-- the jacket's hem all round, the trousers below -->
+    <path fill="none" stroke="#060606" stroke-width="6" d="M0 470 L130 470 M270 470 L1200 470"/>
+    <rect x="0" y="470" width="1200" height="90" fill="#3c2159" stroke="#060606" stroke-width="6"/>
+    <path fill="#1e3b2a" stroke="#060606" stroke-width="6" d="M130 470 L270 470 L268 490 L132 490 Z"/>
+    <g fill="none" stroke="#2c173f" stroke-width="5">
+      <path d="M100 500 L104 560"/><path d="M300 500 L296 560"/><path d="M600 490 L600 560"/>
+    </g>
+
+    <!-- TOP: the shoulders, the shirt collar along the front edge -->
+    <path fill="#4a95a6" stroke="#060606" stroke-width="6" d="M118 560 L282 560 C270 600 240 616 200 616 C160 616 130 600 118 560 Z"/>
+  </g>
+</svg>

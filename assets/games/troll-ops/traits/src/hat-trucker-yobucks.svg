@@ -1,0 +1,48 @@
+<!--
+  TROLLS trait: HATS / Trucker Hat Yobucks (a white trucker cap: foam
+  front panels with a green round "STEALIN' YO BUCKS" badge, a trollface in
+  its middle, white mesh sides, a curved bill out over the brow). Traced
+  from TROLLS #2631. Same cap as hat-trucker-microsoft.svg.
+  Frame: the head-trait frame (traits/README.md). In game the bill band
+  (y 345..448, blocky-body.js HATS) stands out in front only.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1033" width="1000" height="1033">
+  <g transform="translate(0 -40)">
+  <defs>
+    <pattern id="mesh" width="16" height="16" patternUnits="userSpaceOnUse">
+      <rect width="16" height="16" fill="#efefea"/>
+      <circle cx="8" cy="8" r="3.4" fill="#c9c9c2"/>
+    </pattern>
+    <path id="ringTop" d="M452 286 a48 48 0 0 1 96 0"/>
+    <path id="ringBottom" d="M437 286 a63 63 0 0 0 126 0"/>
+  </defs>
+  <g stroke="#0a0a0a" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">
+    <path fill="url(#mesh)" d="M196 414 C184 304 222 206 330 162 C420 128 580 128 674 162 C782 206 820 304 806 414 C620 434 380 434 196 414 Z"/>
+    <path fill="#f7f7f3" d="M292 410 C284 300 316 200 396 160 C460 136 540 136 604 160 C684 200 716 300 708 410 C600 422 400 422 292 410 Z"/>
+    <path fill="#dcdcd5" stroke="none" d="M604 160 C684 200 716 300 708 410 L650 414 C660 320 650 220 604 160 Z"/>
+    <path fill="none" stroke="#b9b9b2" stroke-width="5" d="M500 140 C496 196 496 210 497 212 M497 362 C498 380 499 400 500 414"/>
+    <ellipse cx="500" cy="140" rx="24" ry="11" fill="#f7f7f3"/>
+  </g>
+  <!-- the badge -->
+  <circle cx="500" cy="286" r="76" fill="#0b6e48" stroke="#0a0a0a" stroke-width="7"/>
+  <circle cx="500" cy="286" r="68" fill="none" stroke="#f7f7f3" stroke-width="3"/>
+  <circle cx="500" cy="286" r="42" fill="#f7f7f3" stroke="#0a0a0a" stroke-width="4"/>
+  <image href="../../../../images/wallpaper/trollface%20transparent.png" x="466" y="257" width="68" height="62"/>
+  <g font-family="Impact, 'Arial Narrow Bold', sans-serif" font-size="21" fill="#f7f7f3" letter-spacing="1.5" text-anchor="middle">
+    <text><textPath href="#ringTop" startOffset="50%">STEALIN'</textPath></text>
+  </g>
+  <g font-family="Impact, 'Arial Narrow Bold', sans-serif" font-size="21" fill="#f7f7f3" letter-spacing="1.5" text-anchor="middle">
+    <text><textPath href="#ringBottom" startOffset="50%">YO BUCKS</textPath></text>
+  </g>
+  <g fill="#f7f7f3"><circle cx="438" cy="290" r="4"/><circle cx="562" cy="290" r="4"/></g>
+  <g stroke="#0a0a0a" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">
+    <path fill="#f7f7f3" d="M236 404 C420 382 700 380 880 398 C932 406 934 452 886 464 C722 490 452 492 282 470 C232 462 212 414 236 404 Z"/>
+    <path fill="#d6d6cf" stroke="none" d="M262 450 C450 472 700 470 872 448 C720 478 460 482 282 462 Z"/>
+    <g fill="none" stroke="#b9b9b2" stroke-width="4">
+      <path d="M262 418 C450 400 700 398 862 412"/>
+      <path d="M266 430 C450 412 700 410 868 424"/>
+      <path d="M272 442 C450 424 700 422 870 436"/>
+    </g>
+  </g>
+  </g>
+</svg>

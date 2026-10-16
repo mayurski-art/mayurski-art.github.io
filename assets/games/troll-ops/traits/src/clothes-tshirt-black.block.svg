@@ -1,0 +1,50 @@
+<!--
+  TROLLS trait: CLOTHES / Tshirt Black on the BLOCK body (blocky-body.js):
+  a plain black crew-neck tee, soft folds, its hem loose over dark jeans.
+  Traced from TROLLS #2630. The short sleeves are the Sensei's Blender
+  pieces and the jeans the farmer's, in these colours (KITS).
+  Same template as clothes-farmer.block.svg, 1 unit = 1 mm:
+    front  x    0..400  (seen from the front: the troll's right on the left)
+    back   x  400..800  (seen from behind: the troll's left on the left)
+    right  x  800..1000 (the troll's right side: its back on the left)
+    left   x 1000..1200 (its left side: its front on the left)
+    top    x    0..400, y 560..760: the shoulders from above, front edge first
+  y 0 is the torso's top, y 520 the hips; the tee's hem y 450, jeans below.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" width="1200" height="760">
+  <rect width="1200" height="760" fill="#1d1d20"/>
+  <g stroke-linejoin="round" stroke-linecap="round">
+    <!-- FRONT: the crew neck, the folds where the cotton drapes -->
+    <path fill="#151517" stroke="#060606" stroke-width="6" d="M122 0 L278 0 C268 38 238 56 200 56 C162 56 132 38 122 0 Z"/>
+    <path fill="none" stroke="#38383e" stroke-width="4" d="M138 0 C150 28 172 40 200 40 C228 40 250 28 262 0"/>
+    <g fill="none" stroke="#33333a" stroke-width="6">
+      <path d="M50 140 C110 160 150 196 172 246"/>
+      <path d="M350 150 C300 176 268 210 252 262"/>
+      <path d="M90 330 C150 350 250 350 310 330"/>
+      <path d="M140 400 C180 410 220 410 260 400"/>
+    </g>
+    <!-- BACK: the neck and a fold between the shoulder blades -->
+    <path fill="#151517" stroke="#060606" stroke-width="6" d="M530 0 L670 0 C664 20 640 30 600 30 C560 30 536 20 530 0 Z"/>
+    <g fill="none" stroke="#33333a" stroke-width="6">
+      <path d="M470 180 C540 200 660 200 730 180"/>
+      <path d="M480 340 C560 356 640 356 720 340"/>
+    </g>
+    <!-- SIDES: the side seam -->
+    <g fill="none" stroke="#2c2c32" stroke-width="5">
+      <path d="M900 30 L900 450"/><path d="M1100 30 L1100 450"/>
+    </g>
+    <!-- the hem all the way round, and the jeans below it -->
+    <path fill="none" stroke="#060606" stroke-width="6" d="M0 450 L1200 450"/>
+    <rect x="0" y="450" width="1200" height="110" fill="#3b4a66" stroke="#060606" stroke-width="6"/>
+    <g fill="none" stroke="#6e7d9a" stroke-width="3" stroke-dasharray="9 7">
+      <path d="M0 470 L1200 470"/>
+    </g>
+    <g fill="#2f3c55" stroke="#060606" stroke-width="4">
+      <rect x="186" y="456" width="28" height="26" rx="4"/>
+      <rect x="586" y="456" width="28" height="26" rx="4"/>
+    </g>
+    <path fill="none" stroke="#2f3c55" stroke-width="5" d="M200 482 L200 560"/>
+    <!-- TOP: the shoulders, the neck along the front edge -->
+    <path fill="#151517" stroke="#060606" stroke-width="6" d="M122 560 L278 560 C270 598 240 614 200 614 C160 614 130 598 122 560 Z"/>
+  </g>
+</svg>

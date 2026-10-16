@@ -1,0 +1,22 @@
+<!--
+  TROLLS trait: EYES / Blindfold, from behind (traits.js puts it on the
+  back of the head, facing back): the band carried round the skull at the
+  same height, tied in a knot with two short tails hanging.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1033" width="1000" height="1033">
+  <g stroke="#0a0a0a" stroke-width="11" stroke-linejoin="round" stroke-linecap="round">
+    <path fill="#b9b09b" d="M110 412 C360 420 700 440 856 452 C864 482 862 520 848 548 C700 538 360 518 116 510 C104 482 102 440 110 412 Z"/>
+    <!-- the tails, then the knot over them -->
+    <path fill="#a69d88" d="M470 492 C452 560 430 620 404 664 C430 676 452 674 470 664 C484 610 496 556 500 500 Z"/>
+    <path fill="#a69d88" d="M530 496 C550 560 576 616 606 656 C582 672 560 672 542 662 C526 610 514 556 512 500 Z"/>
+    <path fill="#b9b09b" d="M454 456 C470 434 532 434 548 458 C560 480 546 512 520 518 C496 524 462 516 452 494 C446 482 446 468 454 456 Z"/>
+  </g>
+  <g fill="none" stroke-linecap="round">
+    <path stroke="#978e7a" stroke-width="14" d="M140 496 C360 502 700 522 830 532"/>
+    <g stroke="#7a7262" stroke-width="5">
+      <path d="M476 468 C490 486 510 488 528 474"/>
+      <path d="M470 520 C462 570 448 610 430 646"/>
+      <path d="M528 520 C538 570 556 610 578 644"/>
+    </g>
+  </g>
+</svg>

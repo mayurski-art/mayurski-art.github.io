@@ -40,6 +40,17 @@ const ART_V = globalThis.TRAITS_BUST ?? "tr1";
      CLOTHES/Sweater Black    clothes-sweater-black (block template only)
      HATS/Carrot Cake Hair    hat-carrot-cake-hair (MODELLED: Blender spikes, no drawing)
      CLOTHES/Sensei           clothes-sensei      (block template only)
+     HATS/Magician Hat        hat-magician       (front + back)
+     HATS/Trucker Hat Microsoft hat-trucker-microsoft (front + back)
+     HATS/Trucker Hat Yobucks hat-trucker-yobucks (front + back)
+     FACIALS/Licky            facial-licky
+     FACIALS/Gold Tooth       facial-gold-tooth
+     EYES/Cracked Eyes        eyes-cracked
+     EYES/Blindfold           eyes-blindfold     (front + back)
+     EYES/Glasses Reading     eyes-glasses-reading
+     CLOTHES/Jester           clothes-jester      (block template only)
+     CLOTHES/Tshirt Black     clothes-tshirt-black (block template only)
+     CLOTHES/Trainer          clothes-trainer     (block template only)
      FACIALS/Bubblegum        the token's emote, not worn (user, 2026-10-15:
                               "without the bubble gum", the holder gets the
                               bubblegum emote; emotes.js)
@@ -51,6 +62,9 @@ export const TOKENS = {
   820: { hat: "Camper Hat", facial: "Beard Brown", eyes: "Eyes Bloodshot", clothes: "Farmer" },
   1262: { hat: "Baker Hat", facial: "Face Mask UMADBRO", eyes: "Glasses Thug", clothes: "Sweater Black" },
   989: { hat: "Carrot Cake Hair", facial: "Bubblegum", eyes: "None", clothes: "Sensei" },
+  33: { hat: "Magician Hat", facial: "French Moustache", eyes: "Cracked Eyes", clothes: "Jester" },
+  2630: { hat: "Trucker Hat Microsoft", facial: "Licky", eyes: "Blindfold", clothes: "Tshirt Black" },
+  2631: { hat: "Trucker Hat Yobucks", facial: "Gold Tooth", eyes: "Glasses Reading", clothes: "Trainer" },
 };
 /* trait value -> its drawing's id; "" for a value that's the OG art. */
 export const TRAIT_ART = {
@@ -61,6 +75,10 @@ export const TRAIT_ART = {
   "Baker Hat": "hat-baker", "Face Mask UMADBRO": "facial-face-mask-umadbro",
   "Glasses Thug": "eyes-glasses-thug", "Sweater Black": "clothes-sweater-black",
   "Carrot Cake Hair": "hat-carrot-cake-hair", "Sensei": "clothes-sensei",
+  "Magician Hat": "hat-magician", "Trucker Hat Microsoft": "hat-trucker-microsoft", "Trucker Hat Yobucks": "hat-trucker-yobucks",
+  "Licky": "facial-licky", "Gold Tooth": "facial-gold-tooth",
+  "Cracked Eyes": "eyes-cracked", "Blindfold": "eyes-blindfold", "Glasses Reading": "eyes-glasses-reading",
+  "Jester": "clothes-jester", "Tshirt Black": "clothes-tshirt-black", "Trainer": "clothes-trainer",
   "Eyes None": "", "None": "", "Bubblegum": "",
 };
 /* Traits that are Blender models, not drawings (blocky-body.js HAIRS puts
@@ -95,7 +113,7 @@ export function tokenTraits(token) {
   return ids;
 }
 /* Traits with a drawn back view (<id>.back.png). */
-const HAS_BACK = new Set(["hat-goatfarm", "hat-camper", "hat-baker", "clothes-tank-runner"]);
+const HAS_BACK = new Set(["hat-goatfarm", "hat-camper", "hat-baker", "hat-magician", "hat-trucker-microsoft", "hat-trucker-yobucks", "eyes-blindfold", "clothes-tank-runner"]);
 /* Clothes drawn as a garment board for the stick (<id>.svg with cut paths);
    the others have only a block template (blocky-body.js). */
 const HAS_BOARD = new Set(["clothes-tank-runner"]);
