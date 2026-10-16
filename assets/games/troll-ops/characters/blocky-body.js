@@ -34,7 +34,14 @@ const B = {
 };
 /* The board head's size on the block body: 0.48 m wide x 0.6 = ~0.29, a
    blocky avatar's head-to-torso ratio. */
-const HEAD_SCALE = 0.69;   // 0.6, then 15% bigger (user) so the face reads
+/* The head on the body, like the NFT art (user, 2026-10-16: the head was
+   small and sat straight on the torso; the NFTs draw it big on a long thin
+   neck): `scale` the board's size (0.6, then 0.69 so the face read, now
+   0.85), `neck` how far up the neck lifts it (metres), `neckR` the neck's
+   radius at the bottom and top. The head's hit sphere stays exactly where
+   and as big as it was at 0.69 on no neck (HIT_LOOK): cosmetic only. */
+const HEAD = { scale: 0.85, neck: 0.07, neckR: [0.05, 0.043] };
+const HIT_LOOK = { scale: 0.69, y: 0.02 };
 /* Where the rifle's stock sits (chest-local, metres at scale 1: x out to
    the right, y up, z forward is -) and how big the gun is drawn. */
 // blade: the upper body turned into the gun (radians); roll: the left
@@ -1229,9 +1236,15 @@ export function applyBlocky(rig, look = {}) {
   const boardHead = !look.blockHead;
   const hide = boardHead ? [p.body] : [p.body, p.head];
   const pivotY = p.headPivot.position.y;
+  const hit = rig.hitboxMeshes?.[0], hitWas = hit && [hit.position.y, hit.scale.x];
   if (boardHead) {
-    p.headPivot.scale.setScalar(HEAD_SCALE);
-    p.headPivot.position.y = 0.02 * s;
+    p.headPivot.scale.setScalar(HEAD.scale);
+    p.headPivot.position.y = (HIT_LOOK.y + HEAD.neck) * s;
+    // the hit sphere (a child of the head pivot) kept at its old place and size
+    if (hit) {
+      hit.scale.setScalar(HIT_LOOK.scale / HEAD.scale);
+      hit.position.y = (HIT_LOOK.y * s + HIT_LOOK.scale * hitWas[0] - p.headPivot.position.y) / HEAD.scale;
+    }
   }
   for (const o of hide) o.visible = false;
   for (const side of ["L", "R"]) rig.hands[side].group.traverse((o) => o.layers.disableAll());
@@ -1259,6 +1272,15 @@ export function applyBlocky(rig, look = {}) {
   }));
   // the face with a little depth (look.relief false: the flat board)
   if (boardHead && look.relief !== false) later(reliefHead(rig));
+  // the neck: a thin tapered skin piece on the neck joint, from inside the
+  // chest up into the head, so it nods with the head
+  if (boardHead && HEAD.neck > 0) {
+    const y0 = -0.03 * s, y1 = p.headPivot.position.y + 0.08 * HEAD.scale * s;
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(HEAD.neckR[1] * s, HEAD.neckR[0] * s, y1 - y0, 20), toon(SKIN));
+    neck.position.y = (y0 + y1) / 2;
+    neck.castShadow = true;
+    add(p.neckPivot, neck);
+  }
 
   // --- torso: the muscular one from Blender (look.torso "muscle", the
   // default), or ("block") a chest block on the chest joint and a hip block
@@ -1333,6 +1355,7 @@ export function applyBlocky(rig, look = {}) {
     for (const side of ["L", "R"]) rig.hands[side].group.traverse((o) => o.layers.enableAll());
     p.headPivot.scale.setScalar(1);
     p.headPivot.position.y = pivotY;
+    if (hit) { hit.position.y = hitWas[0]; hit.scale.setScalar(hitWas[1]); }
     setClothed(rig, 0);
     setHips(rig, 0);
     delete rig.gunHold;
@@ -1379,7 +1402,7 @@ export function applyBlocky(rig, look = {}) {
 /* The NFT design lab (tools/nft-lab.html) tunes these tables live and
    rebuilds the body: they're read at build time, and `flush` drops the
    beard shapes built from the old values. The game never touches this. */
-export const DESIGN = { KITS, HAIRS, HATS, CAP, SHELLS, RELIEF, HEAD_SCALE, TOKENS, TRAIT_ART, flush: () => beardShapes.clear() };
+export const DESIGN = { KITS, HAIRS, HATS, CAP, SHELLS, RELIEF, HEAD, TOKENS, TRAIT_ART, flush: () => beardShapes.clear() };
 
 /* ------------------------------------------------------------ in game */
 
