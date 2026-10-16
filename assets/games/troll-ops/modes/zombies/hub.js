@@ -24,7 +24,7 @@
 
 import * as THREE from "three";
 import { game } from "../../core/state.js?v=st1";
-import { HUB } from "../../zhub.js?v=zh1-sr1";
+import { HUB } from "./hub-hall.js?v=zh1-sr1-or1";
 import { MAPS } from "../../maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1";
 import { makeRoomCode } from "../../net/net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10-hr2-zp1-rs1-dj2-pl2-nf1-or1";
 import { roomNow } from "../room-clock.js?v=rc1-cd1-sh1";

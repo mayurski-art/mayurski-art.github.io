@@ -52,7 +52,7 @@ if (process.env.GAIT_CHAR) await page.evaluate((f) => { window.__charFile = f; }
 
 const res = await page.evaluate(async () => {
   const THREE = await import("three");
-  const C = await import("/assets/games/troll-ops/" + (window.__charFile || "character.js") + "?v=gait-test");
+  const C = await import("/assets/games/troll-ops/" + (window.__charFile || "characters/character.js") + "?v=gait-test");
   const DT = 1 / 120;
   const out = {};
   const ankle = (rig, k) => rig.parts[k].getWorldPosition(new THREE.Vector3());

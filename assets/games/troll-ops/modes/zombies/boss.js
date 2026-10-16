@@ -17,7 +17,7 @@
 
 import * as THREE from "three";
 import { game } from "../../core/state.js?v=st1";
-import { healthForRound, ZOMBIE_TYPES } from "../../zombies.js?v=zr4c-sb2b7b7dc2f1m1u-gt1-gt2-zr5-zr6-zr7-zr8-zr9-zr10-zc2-zp1-bf1-sr1-fl1-or1";
+import { healthForRound, ZOMBIE_TYPES } from "./horde.js?v=zr4c-sb2b7b7dc2f1m1u-gt1-gt2-zr5-zr6-zr7-zr8-zr9-zr10-zc2-zp1-bf1-sr1-fl1-or1";
 import { dep } from "./deployables.js?v=zr6-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 
 export const MINI_WAVES = [10, 20];

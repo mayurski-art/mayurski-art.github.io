@@ -78,7 +78,7 @@ const inHold = (l) => Math.abs(l.x) < 1.7 && l.y > -0.2 && l.y < 2.9 && l.z > -6
 // down dives; stick back brakes over one spot.
 const sim = await page.evaluate(async () => {
   const src = await (await fetch("/assets/games/troll-ops/modes/royale.js")).text();
-  const { Flight, DROP } = await import("/assets/games/troll-ops/" + src.match(/(royale-drop\.js\?v=[^"]+)/)[1]);
+  const { Flight, DROP } = await import("/assets/games/troll-ops/modes/" + src.match(/(royale-drop\.js\?v=[^"]+)/)[1]);
   const THREE = await import("three");
   const fly = (opts, input) => {
     const f = new Flight(new THREE.Vector3(0, 328, 0), null, opts);

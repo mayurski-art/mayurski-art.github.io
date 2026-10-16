@@ -72,7 +72,7 @@ async function boot(body, match = true) {
     if (!T.settings.thirdPerson) T.toggleThirdPerson();
     // the game's own weapons.js (its import tag read off the module that loads it)
     const src = await (await fetch("/assets/games/troll-ops/view/player-update.js")).text();
-    const W = await import("/assets/games/troll-ops/" + src.match(/\.\.\/(weapons\.js\?v=[^"]+)/)[1]);
+    const W = await import("/assets/games/troll-ops/" + src.match(/\.\.\/(weapons\/weapons\.js\?v=[^"]+)/)[1]);
     const { game } = await import("/assets/games/troll-ops/core/state.js?v=st1");
     window.__hold = (id) => {
       const def = W.WEAPON_DEFS[id], w = new W.WeaponState(def);

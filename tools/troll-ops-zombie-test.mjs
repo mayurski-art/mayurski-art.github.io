@@ -264,7 +264,7 @@ for (const map of maps) {
   // crouch (with a shriek), fly and land a hit
   const leap = await page.evaluate(async () => {
     const T = window.__trollOps;
-    const { lineClear } = await import("/assets/games/troll-ops/zombies.js?v=zr4c");
+    const { lineClear } = await import("/assets/games/troll-ops/modes/zombies/horde.js?v=zr4c");
     const zd = T.zdir();
     zd.clear();
     zd.forceType = "leaper";

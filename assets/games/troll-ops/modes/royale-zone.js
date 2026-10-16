@@ -15,10 +15,10 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { WEAPON_DEFS } from "./weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
-import { buildWeaponMesh, stripLights } from "./weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1";
-import { SLOTS, defaultLoadoutFor, fitsFor, resolveWeapon } from "./weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
-import { FlowField } from "./bots/nav.js?v=ti1-bs1b7d-fl1-or1";
+import { WEAPON_DEFS } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
+import { buildWeaponMesh, stripLights } from "../weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1";
+import { SLOTS, defaultLoadoutFor, fitsFor, resolveWeapon } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
+import { FlowField } from "../bots/nav.js?v=ti1-bs1b7d-fl1-or1";
 
 /* ---- tuning ------------------------------------------------------------ */
 

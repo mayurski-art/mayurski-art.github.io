@@ -43,7 +43,7 @@ const setBody = (on) => page.evaluate(async (on) => {
   const src = await (await fetch("/assets/games/troll-ops/game.js")).text();
   const url = "/assets/games/troll-ops/" + src.match(/\.\/(menu\/lobby\.js\?v=[^"]+)/)[1];
   const lsrc = await (await fetch(url)).text();
-  const B = await import(new URL(lsrc.match(/"(\.\.\/blocky-body\.js\?v=[^"]+)"/)[1], location.origin + url).href);
+  const B = await import(new URL(lsrc.match(/"(\.\.\/characters\/blocky-body\.js\?v=[^"]+)"/)[1], location.origin + url).href);
   await B.wearBlocky(window.__trollOps.charInspector.humanoid, on);
 }, on);
 

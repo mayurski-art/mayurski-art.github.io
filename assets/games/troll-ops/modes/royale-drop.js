@@ -17,7 +17,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { clampInsidePolygon } from "./edge.js";
+import { clampInsidePolygon } from "../edge.js";
 import { Squadron, PLANES } from "./royale-planes.js?v=pl1-pl2-pi1-sr1-fl1-or1";
 
 export const DROP = {
@@ -47,7 +47,7 @@ export const DROP = {
 let faceTex = null;
 function trollfaceTexture() {
   if (faceTex) return faceTex;
-  faceTex = new THREE.TextureLoader().load(new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href);
+  faceTex = new THREE.TextureLoader().load(new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href);
   faceTex.colorSpace = THREE.SRGBColorSpace;
   return faceTex;
 }

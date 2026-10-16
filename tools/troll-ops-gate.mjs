@@ -79,7 +79,7 @@ const TEST_MAP = [
   [/modes\/zombies\/(deployables|kits)\.js|view\/zombies-bars\.js/, z("zdeploy")],
   [/modes\/zombies\/boss\.js/, z("zboss")],
   [/modes\/zombies\/run\.js|view\/zombies-hud\.js/, z("zrun", "zdeploy", "zpad")],
-  [/troll-ops\/zombies\.js|zombie-models\.js/, z("zrun", "zanim", "zcoop")],
+  [/troll-ops\/modes\/zombies\/horde\.js|zombie-models\.js/, z("zrun", "zanim", "zcoop")],
   [/input\/|keyboard-mouse|gamepad|touch/, z("input")],
   [/input\/gamepad\.js|controller-layout\.js|streaks\/calling\.js/, z("zpad", "bo2pad")],
   [/input\/touch\.js|hud-layout\.js/, z("bo2pad")],
