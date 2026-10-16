@@ -54,8 +54,11 @@ same city.
 - OG tags / favicon / SEO polish.
 
 ## Troll Forces (assets/games/troll-ops, troll-ops.html)
-game.js is being split into folders (core/ input/ view/ combat/ modes/
-streaks/ menu/); the plan is the "Troll Forces: splitting game.js" doc.
+The game lives in folders (bots/ characters/ combat/ core/ input/ maps/
+menu/ modes/ net/ progression/ sound/ streaks/ view/ weapons/; design docs
+in docs/, labs in labs/); only game.js, style.css and the prefetch
+manifest sit at the top. Move a file with tools/troll-ops-move.mjs, then
+run tools/troll-ops-import-check.mjs (--load for the pages).
 These rules hold for every session that touches the game:
 1. One Troll Forces session at a time. Run `git status` before the first
    edit; an unexplained modified file means another session is live, so
