@@ -41,9 +41,9 @@ export const BODIES = [
   { id: "trolls-820", token: 820, name: "TROLLS #820", img: "../ui/trolls-820.png", holder: "guccibeardd" },
   // the troll dev's (OpenSea: the_troll_); troll_runner's until he has an account
   { id: "trolls-989", token: 989, name: "TROLLS #989", img: "../ui/trolls-989.png", holder: "troll_runner" },
-  // holders to come (user, 2026-10-16: "Ill tell you the accounts it should go to later"); troll_runner's till then (#2631 is lacksss's, user 2026-10-16)
+  // holders to come (user, 2026-10-16: "Ill tell you the accounts it should go to later"); troll_runner's till then (#2630 karlezetroll, #2631 lacksss: user 2026-10-16)
   { id: "trolls-33", token: 33, name: "TROLLS #33", img: "../ui/trolls-33.png", holder: "troll_runner" },
-  { id: "trolls-2630", token: 2630, name: "TROLLS #2630", img: "../ui/trolls-2630.png", holder: "troll_runner" },
+  { id: "trolls-2630", token: 2630, name: "TROLLS #2630", img: "../ui/trolls-2630.png", holder: "karlezetroll" },
   { id: "trolls-2631", token: 2631, name: "TROLLS #2631", img: "../ui/trolls-2631.png", holder: "lacksss" },
 ];
 /* The signed-in account's username, lower case ("" signed out). */
