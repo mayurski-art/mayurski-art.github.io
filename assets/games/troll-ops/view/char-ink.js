@@ -55,15 +55,18 @@ function tagRig(rig) {
       o.userData.inkHooked = own;
     }
   });
-  // A piece's own inverted-hull ink (blocky-body.js armInk, hung beside the
-  // piece): this pass outlines the piece now, and the two never lined up,
-  // so slivers of it showed between them (user, 2026-10-16: "bits of white
-  // pixel in between these black lines"). Hidden while the piece is inked
-  // here (a hull beside an un-inked piece, the beard's, stays); the hull's
-  // weight went into the pass's width.
+  // A piece's own inverted-hull ink (blocky-body.js armInk, added right
+  // after its piece: g.add(piece, hull)): this pass outlines the piece now,
+  // and the two never lined up, so slivers of it showed between them (user,
+  // 2026-10-16: "bits of white pixel in between these black lines"). Hidden
+  // only while THAT piece is inked here: the face drawing, the beard and the
+  // hat are see-through materials the pass skips, so their hulls stay (hiding
+  // every hull with an inked neighbour took their outlines off; user:
+  // "sloppy"). The hull's weight went into the pass's width.
   rig.root.traverse((o) => {
     if (!o.isMesh || !o.visible || !isHull(o.material)) return;
-    if (!o.parent?.children.some((c) => c !== o && c.userData.inkId !== undefined)) return;
+    const kids = o.parent?.children || [], piece = kids[kids.indexOf(o) - 1];
+    if (!piece?.isMesh || piece.userData.inkId === undefined) return;
     o.visible = false;
     o.userData.inkHull = true;
   });
