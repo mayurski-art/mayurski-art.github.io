@@ -1,0 +1,63 @@
+<!--
+  TROLLS #33's face (EYES / Cracked Eyes, refs/trolls-33.png): the trollface
+  itself (outline, brows, nose, cheek folds, grin) with only its squinting
+  eyes painted out and the cracked eyeballs put in their place, so they're
+  part of the face rather than a card floating in front of the grin (user,
+  2026-10-16). The eyeballs are eyes-cracked.svg's, moved from the head
+  frame into the trollface png's own frame (800 x 730: x - 100,
+  (y - 233.3) x 730/750), so it swaps in for the face.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 730" width="800" height="730">
+  <defs>
+    <!-- what of the trollface stays: everything but the two squints -->
+    <mask id="keep" maskUnits="userSpaceOnUse" x="0" y="0" width="800" height="730">
+      <rect width="800" height="730" fill="#fff"/>
+      <ellipse cx="252" cy="238" rx="74" ry="34" fill="#000"/>
+      <ellipse cx="474" cy="232" rx="90" ry="36" fill="#000"/>
+    </mask>
+    <filter id="skin" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 0.984  0 0 0 0 0.984  0 0 0 0 0.984  0 0 0 1 0"/></filter>
+    <radialGradient id="ball" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#fbeef0"/>
+      <stop offset="0.62" stop-color="#f7dde2"/>
+      <stop offset="1" stop-color="#eba8b6"/>
+    </radialGradient>
+    <clipPath id="L"><ellipse cx="348" cy="478" rx="64" ry="50"/></clipPath>
+    <clipPath id="R"><ellipse cx="576" cy="474" rx="80" ry="54"/></clipPath>
+  </defs>
+  <!-- the skin, then the trollface with its squints painted out -->
+  <image href="../../../../images/wallpaper/trollface%20transparent.png" width="800" height="730" filter="url(#skin)"/>
+  <image href="../../../../images/wallpaper/trollface%20transparent.png" width="800" height="730" mask="url(#keep)"/>
+  <!-- the eyeballs, in eyes-cracked.svg's head-frame coordinates -->
+  <g transform="matrix(1 0 0 0.9733 -100 -227.1)">
+    <g stroke="#0a0a0a" stroke-width="11">
+      <ellipse cx="348" cy="478" rx="64" ry="50" fill="url(#ball)"/>
+      <ellipse cx="576" cy="474" rx="80" ry="54" fill="url(#ball)"/>
+    </g>
+    <!-- veins in from the rims -->
+    <g fill="none" stroke="#c4303c" stroke-width="2.6" stroke-linecap="round">
+      <g clip-path="url(#L)">
+        <path d="M286 472 C300 470 310 476 318 470 M300 470 C306 462 314 460 320 456"/>
+        <path d="M290 500 C302 494 312 498 320 492"/>
+        <path d="M410 470 C398 468 390 474 382 468 M396 470 C390 462 384 460 378 458"/>
+        <path d="M404 500 C394 494 386 498 378 492"/>
+        <path d="M336 432 C338 442 334 448 338 456"/>
+      </g>
+      <g clip-path="url(#R)">
+        <path d="M498 470 C514 468 524 474 534 468 M514 468 C520 458 528 456 536 452"/>
+        <path d="M504 498 C518 492 528 496 538 490"/>
+        <path d="M654 468 C640 466 630 472 620 466 M638 468 C632 458 624 456 616 454"/>
+        <path d="M648 498 C636 492 626 496 616 490"/>
+        <path d="M572 424 C574 436 570 442 574 452"/>
+      </g>
+    </g>
+    <!-- pupils, both looking a little to the art's right -->
+    <g fill="#0a0a0a">
+      <circle cx="356" cy="482" r="19"/>
+      <circle cx="588" cy="478" r="20"/>
+    </g>
+    <g fill="#ffffff">
+      <circle cx="350" cy="475" r="5"/>
+      <circle cx="581" cy="471" r="5"/>
+    </g>
+  </g>
+</svg>

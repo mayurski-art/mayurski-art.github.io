@@ -45,7 +45,7 @@ const ART_V = globalThis.TRAITS_BUST ?? "tr2";
      HATS/Trucker Hat Yobucks hat-trucker-yobucks (front + back)
      FACIALS/Licky            facial-licky
      FACIALS/Gold Tooth       facial-gold-tooth
-     EYES/Cracked Eyes        eyes-cracked
+     EYES/Cracked Eyes        the face itself (face-cracked.svg, character.js FACE_ART)
      EYES/Blindfold           eyes-blindfold     (front + back)
      EYES/Glasses Reading     eyes-glasses-reading
      CLOTHES/Jester           clothes-jester      (block template only)
@@ -77,7 +77,7 @@ export const TRAIT_ART = {
   "Carrot Cake Hair": "hat-carrot-cake-hair", "Sensei": "clothes-sensei",
   "Magician Hat": "hat-magician", "Trucker Hat Microsoft": "hat-trucker-microsoft", "Trucker Hat Yobucks": "hat-trucker-yobucks",
   "Licky": "facial-licky", "Gold Tooth": "facial-gold-tooth",
-  "Cracked Eyes": "eyes-cracked", "Blindfold": "eyes-blindfold", "Glasses Reading": "eyes-glasses-reading",
+  "Cracked Eyes": "", "Blindfold": "eyes-blindfold", "Glasses Reading": "eyes-glasses-reading",
   "Jester": "clothes-jester", "Tshirt Black": "clothes-tshirt-black", "Trainer": "clothes-trainer",
   "Eyes None": "", "None": "", "Bubblegum": "",
 };
@@ -89,12 +89,15 @@ const OVER_FACIAL = new Set(["eyes-glasses-thug"]);
 /* Token #id's drawn trait ids, worn in this order (eyes on the face, then
    the beard over the jaw, then the hat), or null when one of its traits
    isn't drawn yet: nobody shows up half dressed. */
-/* A facial that is the whole face rather than a drawing over it: its
-   expression key (character.js FACE_ART). #989's Bubblegum is the face
-   blowing, without the gum (the gum is the holder's emote). */
-const FACE_TRAITS = { Bubblegum: "gum" };
+/* A facial or eyes trait that is the whole face rather than a drawing over
+   it: its expression key (character.js FACE_ART). #989's Bubblegum is the
+   face blowing, without the gum (the gum is the holder's emote); #33's
+   Cracked Eyes are painted into the trollface in place of its squints (as
+   a card they floated in front of the grin; user, 2026-10-16). */
+const FACE_TRAITS = { Bubblegum: "gum", "Cracked Eyes": "cracked" };
 export function tokenFace(token) {
-  return FACE_TRAITS[TOKENS[token]?.facial] || null;
+  const t = TOKENS[token];
+  return FACE_TRAITS[t?.facial] || FACE_TRAITS[t?.eyes] || null;
 }
 
 export function tokenTraits(token) {

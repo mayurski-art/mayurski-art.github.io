@@ -82,6 +82,14 @@ GUM_TEXTURE.colorSpace = THREE.SRGBColorSpace;
 const GUM_HEAD_MAT = TROLLFACE_HEAD_MAT.clone();
 GUM_HEAD_MAT.map = GUM_TEXTURE;
 GUM_HEAD_MAT.emissiveMap = GUM_TEXTURE;
+/* EYES / Cracked Eyes (#33, traits/src/face-cracked.svg): the trollface with
+   its squints swapped for the cracked eyeballs, painted into the face (as a
+   card they floated in front of the grin; user, 2026-10-16). */
+const CRACKED_TEXTURE = TEXTURE_LOADER.load(new URL("../traits/face-cracked.png?v=fc1", import.meta.url).href);
+CRACKED_TEXTURE.colorSpace = THREE.SRGBColorSpace;
+const CRACKED_HEAD_MAT = TROLLFACE_HEAD_MAT.clone();
+CRACKED_HEAD_MAT.map = CRACKED_TEXTURE;
+CRACKED_HEAD_MAT.emissiveMap = CRACKED_TEXTURE;
 
 /* Faces a rig can wear, by key "expression:og" (cosmetics.js): the
    expression picks the artwork (the grin, or trolltruths' sad one). The
@@ -90,7 +98,7 @@ GUM_HEAD_MAT.emissiveMap = GUM_TEXTURE;
    keys on the wire and in storage still read. `rig.face` is the rig's own
    pick; the Sad trollface emote swaps the expression for a moment. An NFT
    body with a face of its own sets `rig.nftFace`, worn over the pick. */
-const FACE_ART = { grin: TROLLFACE_HEAD_MAT, sad: SAD_HEAD_MAT, gum: GUM_HEAD_MAT };
+const FACE_ART = { grin: TROLLFACE_HEAD_MAT, sad: SAD_HEAD_MAT, gum: GUM_HEAD_MAT, cracked: CRACKED_HEAD_MAT };
 export function faceMaterial(key = "grin:og") {
   // later parts are the face covering and the wrist (cosmetics.js): the
   // material is the same with or without them
