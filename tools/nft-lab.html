@@ -128,6 +128,11 @@
       <div class="body"><div class="note" id="kitNote"></div><div id="kitRows"></div></div>
     </details>
 
+    <details open>
+      <summary>Outline</summary>
+      <div class="body"><div class="note">Every NFT body, live. Outside = round the body; inside = where pieces meet.</div><div id="inkRows"></div></div>
+    </details>
+
     <details>
       <summary>Head &amp; face</summary>
       <div class="body"><div id="headRows"></div></div>
@@ -218,12 +223,14 @@ const [charTag, wmTag, inkTag, emoTag, wpTag] = await Promise.all([
 ]);
 const C = await import(`${ROOT}characters/character.js?v=${charTag}`);
 const { buildWeaponMesh, stripLights, preloadWeaponModels } = await import(`${ROOT}weapons/weapon-model.js?v=${wmTag}`);
-const { CharInkPass, untagInk } = await import(`${ROOT}view/char-ink.js?v=${inkTag}`);
+const { CharInkPass, untagInk, INK } = await import(`${ROOT}view/char-ink.js?v=${inkTag}`);
 const { EMOTES, poseEmoteCode, emoteCode, emoteSeconds } = await import(`${ROOT}characters/emotes.js?v=${emoTag}`);
 const { WEAPON_DEFS } = await import(`${ROOT}weapons/weapons.js?v=${wpTag}`);
 const BB = await import(`${ROOT}characters/blocky-body.js?t=${Date.now()}`);
 const { DESIGN, wearBlocky } = BB;
 if (!DESIGN) throw new Error("blocky-body.js has no DESIGN export");
+// the outline settings (view/char-ink.js INK) ride along with the body tables
+if (INK) DESIGN.INK = INK;
 
 const $ = (id) => document.getElementById(id);
 const q = new URLSearchParams(location.search);
@@ -234,7 +241,7 @@ const NAMES = { 1718: "Troll Runner", 820: "Farmer", 1262: "UMADBRO", 989: "Goku
 /* Every edit is a path into DESIGN and a value. The defaults are a deep
    copy taken before anything is touched; "Game vs mine" builds the left
    troll from them. */
-const TABLES = ["KITS", "HAIRS", "HATS", "CAP", "SHELLS", "RELIEF", "HEAD_SCALE"];
+const TABLES = ["KITS", "HAIRS", "HATS", "CAP", "SHELLS", "RELIEF", "HEAD_SCALE", ...(INK ? ["INK"] : [])];
 const DEFAULTS = structuredClone(Object.fromEntries(TABLES.map((k) => [k, DESIGN[k]])));
 const STORE = "nftlab:v1";
 let saved = {};
@@ -266,7 +273,8 @@ function edit(path, v) {
   setAt(live(), path, structuredClone(v));
   persist();
   renderChanges();
-  rebuildSoon();
+  // the outline is read every frame: no rebuild
+  if (path[0] !== "INK") rebuildSoon();
 }
 const valueOf = (path) => (edits.has(path.join("|")) ? edits.get(path.join("|")) : getAt(DEFAULTS, path));
 applyAll(true);
@@ -424,6 +432,13 @@ function renderTuning() {
   if (hair) for (const k of Object.keys(DEFAULTS.HAIRS[art("hat")].colours)) rows.push(colourRow("hair " + k, ["HAIRS", art("hat"), "colours", k]));
   $("kitRows").replaceChildren(...rows);
 
+  $("inkRows").replaceChildren(...(INK ? [
+    sliderRow("Outside width (mm)", ["INK", "width"], 0.003, 0.025, 0.0005, (x) => (x * 1000).toFixed(1)),
+    sliderRow("Outside max (px)", ["INK", "maxPx"], 1, 6, 0.1, (x) => x.toFixed(1)),
+    sliderRow("Inside width", ["INK", "inner"], 0.2, 1, 0.05, (x) => x.toFixed(2)),
+    sliderRow("Inside strength", ["INK", "innerAlpha"], 0, 1, 0.05, (x) => x.toFixed(2)),
+    colourRow("Line colour", ["INK", "color"]),
+  ] : []));
   $("headRows").replaceChildren(
     sliderRow("Head size", ["HEAD_SCALE"], 0.5, 0.95, 0.01, (x) => x.toFixed(2)),
     sliderRow("Face pushes out", ["RELIEF", "front"], 0.02, 0.16, 0.005),
@@ -531,7 +546,7 @@ $("copyBtn").onclick = async () => {
   const L = changeLines();
   const text = [
     `TROLLS design lab: token #${baseToken} (${Object.values(traits).join(" / ")})`,
-    ...(L.length ? L.map((l) => "- " + (l.text || `blocky-body.js ${l.where}: ${l.from} -> ${l.to}`)) : ["- no slider changes"]),
+    ...(L.length ? L.map((l) => "- " + (l.text || `${l.where.startsWith("INK") ? "view/char-ink.js" : "blocky-body.js"} ${l.where}: ${l.from} -> ${l.to}`)) : ["- no slider changes"]),
     ...($("notes").value.trim() ? ["", "Notes:", $("notes").value.trim()] : []),
   ].join("\n");
   try { await navigator.clipboard.writeText(text); toast("Copied. Paste it to Claude to bake it in."); }
