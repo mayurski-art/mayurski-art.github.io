@@ -43,7 +43,7 @@ const check = (name, ok, detail = "") => {
 };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 // each body's holder (cosmetics.js BODIES), and someone who isn't
-const HOLDERS = { 1718: "troll_runner", 820: "guccibeardd", 1262: "big_elva001", 989: "troll_runner", 33: "troll_runner", 2630: "troll_runner", 2631: "troll_runner" };
+const HOLDERS = { 1718: "troll_runner", 820: "guccibeardd", 1262: "big_elva001", 989: "troll_runner", 33: "troll_runner", 2630: "troll_runner", 2631: "lacksss" };
 const TOKEN = +(process.env.TOKEN || 1718), HOLDER = HOLDERS[TOKEN], BODY = `trolls-${TOKEN}`;
 // (never troll_runner: the owner wears every body, cosmetics.js mayWear)
 const OTHER = Object.values(HOLDERS).find((h) => h !== HOLDER && h !== "troll_runner");
