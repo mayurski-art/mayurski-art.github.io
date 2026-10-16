@@ -110,7 +110,9 @@ await page.click('.tf-card-overlay [data-act="close"]').catch(() => {});
 await page.waitForFunction(() => ["playing", "paused"].includes(window.__trollOps.state()), null, { timeout: 60000 }).catch(() => {});
 const st = await page.evaluate(() => ({ state: window.__trollOps.state(), room: window.__trollOps.els.room.value }));
 check(["playing", "paused"].includes(st.state) && st.room === inv?.room, "and we're in a match on that code", JSON.stringify(st));
-const listed = await page.evaluate(async (room) => (await import("/assets/games/troll-ops/menu/online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2")).isPublicRoom(room), inv?.room);
+// (online.js at the tag the menu imports it with: one module, one publicRuns)
+const ONLINE = "/assets/games/troll-ops/menu/" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/menu/menu-bo2.js"), "utf8").match(/online\.js\?v=[^"]+/)[0];
+const listed = await page.evaluate(async ([room, url]) => (await import(url)).isPublicRoom(room), [inv?.room, ONLINE]);
 check(!listed, "an invite's room is never listed as a public server");
 
 // 3. In a match, an invite from someone: Join leaves this match and goes to theirs
