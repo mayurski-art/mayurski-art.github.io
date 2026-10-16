@@ -17,9 +17,9 @@
 // third-person rig and remote players unchanged.
 
 import * as THREE from "three";
-import { buildGripHand, buildSupportHand } from "./hand-model.js";
-import { OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS, buildIronRear, buildIronFront, railSection } from "./attachment-models.js?v=fg1-wst";
-import { skinAtlasTexture, SKIN_ATLAS, skinDef } from "./characters/skins.js?v=p5-wb1-or1";
+import { buildGripHand, buildSupportHand } from "./hand-model.js?v=to-grip2-or1";
+import { OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS, buildIronRear, buildIronFront, railSection } from "./attachment-models.js?v=fg1-wst-or1";
+import { skinAtlasTexture, SKIN_ATLAS, skinDef } from "../characters/skins.js?v=p5-wb1-or1";
 
 /* Side profiles in weapon space, as [z, y] points (z forward is negative,
    y up), plus each part's thickness across x. The baker draws its panel

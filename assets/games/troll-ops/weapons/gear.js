@@ -11,13 +11,13 @@
 // slow-moving body that comes to rest on the floor.
 
 import * as THREE from "three";
-import { buildGripHand, buildSupportHand } from "./hand-model.js";
-import { smoothstep } from "./characters/anim-curves.js?v=or1";
-import { buildThrowable, modelKind } from "./combat/throwable-models.js?v=tm1-th2";
-import { buildTrollsaber } from "./trollsaber.js?v=ts4-ig1";
-import { buildReaperKnife, buildChainsaw } from "./melee-models.js?v=hw2";
-import { buildHaloBlade } from "./halo-blade.js?v=hb2-ig1";
-import { buildKnucklePair, KNUCKLE_REST, KNUCKLE_JAB, KNUCKLE_HOOK, KNUCKLE_JAB_WINDOW, KNUCKLE_HOOK_WINDOW } from "./brass-knuckles.js?v=bk1-wst";
+import { buildGripHand, buildSupportHand } from "./hand-model.js?v=to-grip2-or1";
+import { smoothstep } from "../characters/anim-curves.js?v=or1";
+import { buildThrowable, modelKind } from "../combat/throwable-models.js?v=tm1-th2";
+import { buildTrollsaber } from "./trollsaber.js?v=ts4-ig1-or1";
+import { buildReaperKnife, buildChainsaw } from "./melee-models.js?v=hw2-or1";
+import { buildHaloBlade } from "./halo-blade.js?v=hb2-ig1-or1";
+import { buildKnucklePair, KNUCKLE_REST, KNUCKLE_JAB, KNUCKLE_HOOK, KNUCKLE_JAB_WINDOW, KNUCKLE_HOOK_WINDOW } from "./brass-knuckles.js?v=bk1-wst-or1";
 
 export const GRENADE_GRAVITY = 18;   // heavier than real so throws land where you look
 const GRAVITY = GRENADE_GRAVITY;
@@ -846,7 +846,7 @@ let faceTexCache = null;
 function trollfaceTexture(THREE) {
   if (faceTexCache) return faceTexCache;
   faceTexCache = new THREE.TextureLoader().load(
-    new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href);
+    new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href);
   faceTexCache.colorSpace = THREE.SRGBColorSpace;
   return faceTexCache;
 }

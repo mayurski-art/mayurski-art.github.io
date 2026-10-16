@@ -93,7 +93,7 @@ const TEST_MAP = [
   [/character\.js|blocky-body\.js/, z("nft-hold", "3p-hold")],
   [/combat\/weapons\.js|view\/(player-update|revive-ring)\.js|pickups\.js/, z("swap")],
   [/menu\/|menu-bo2\.js|loadout\.js|style\.css|troll-ops\.html/, z("menu")],
-  [/troll-ops\/weapons\.js|combat\/|attachments\.js|weapon-|view\/(weapon-view|viewmodels)\.js/, z("input", "killcam")],
+  [/troll-ops\/weapons\/weapons\.js|combat\/|attachments\.js|weapon-|view\/(weapon-view|viewmodels)\.js/, z("input", "killcam")],
   [/combat\/melee\.js|modes\/zombies\/run\.js/, z("zanim")],
   [/view\/(ar-reload|weapon-view)\.js|troll-ops\/sound\/audio\.js/, z("arreload")],
   [/net\.js|remote-players\.js|modes\/spawns\.js/, z("sync", "load-sync")],

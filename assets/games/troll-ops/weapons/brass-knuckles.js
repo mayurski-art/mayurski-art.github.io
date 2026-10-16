@@ -27,7 +27,7 @@ const SCALE = 1.35;
 
 /* ---------------------------------------------------------------- textures */
 
-const TROLL_URL = new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
+const TROLL_URL = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
 let reliefTex = null;
 /* The trollface cast into the plate: the ink lines as a bump map (they sink
    in) and darkened in the colour, everything else bare brass. */

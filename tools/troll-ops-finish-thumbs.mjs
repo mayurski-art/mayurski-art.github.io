@@ -35,9 +35,9 @@ await page.goto(`${BASE}/troll-ops.html?tohooks=1`);
 await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 60000 });
 const shots = await page.evaluate(async () => {
   const THREE = await import("three");
-  const wm = await import("/assets/games/troll-ops/weapon-model.js?v=p5-em1-br1");
+  const wm = await import("/assets/games/troll-ops/weapons/weapon-model.js?v=p5-em1-br1");
   const { FINISHES } = await import("/assets/games/troll-ops/characters/skins.js?v=p5");
-  const { resolveWeapon } = await import("/assets/games/troll-ops/attachments.js?v=cg1");
+  const { resolveWeapon } = await import("/assets/games/troll-ops/weapons/attachments.js?v=cg1");
   const canvas = document.createElement("canvas");
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(1);

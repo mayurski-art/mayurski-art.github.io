@@ -11,8 +11,8 @@
 // penetration needs to measure material thickness.
 
 import * as THREE from "three";
-import { makeTracerMaterial } from "./shaders.js";
-import { computeDamage } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
+import { makeTracerMaterial } from "../shaders.js";
+import { computeDamage } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 
 const DROP = 9.81;          // m/s^2 applied to bullets
 const MAX_LIFE = 3.0;       // seconds before a stray round is culled

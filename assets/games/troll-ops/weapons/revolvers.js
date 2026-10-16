@@ -129,7 +129,7 @@ function projectUVs(mesh, tile) {
 }
 
 /* Ivory with grain and the trollface scrimshawed in black ink. */
-const TROLL_URL = new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
+const TROLL_URL = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
 function scrimshawTexture() {
   return tex("scrim", () => {
     const draw = (g, W, H, img) => {

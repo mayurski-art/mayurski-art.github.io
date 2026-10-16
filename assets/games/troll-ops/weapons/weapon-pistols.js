@@ -11,8 +11,8 @@
 // reload can pull it.
 
 import * as THREE from "three";
-import { buildGripHand } from "./hand-model.js";
-import { OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS, railSection } from "./attachment-models.js?v=fg1-wst";
+import { buildGripHand } from "./hand-model.js?v=to-grip2-or1";
+import { OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS, railSection } from "./attachment-models.js?v=fg1-wst-or1";
 
 /* ---------------------------------------------------------------- helpers */
 

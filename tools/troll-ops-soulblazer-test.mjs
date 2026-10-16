@@ -244,7 +244,7 @@ if (want("reload")) {
   await page.waitForFunction(() => !window.__trollOps.currentWeapon().reloading, null, { timeout: 12000 });
   // the Grinmington still reloads the old way from empty
   const gm = await page.evaluate(async () => {
-    const { WeaponState, WEAPON_DEFS } = await import("/assets/games/troll-ops/weapons.js?v=p5bm-wst-hf1");
+    const { WeaponState, WEAPON_DEFS } = await import("/assets/games/troll-ops/weapons/weapons.js?v=p5bm-wst-hf1");
     const w = new WeaponState(WEAPON_DEFS.grinmington);
     w.ammoInMag = 0;
     w.startReload();

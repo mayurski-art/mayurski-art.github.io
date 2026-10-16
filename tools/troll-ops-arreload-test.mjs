@@ -70,7 +70,7 @@ async function boot(body) {
   await page.evaluate(async (WTAG) => {
     const T = window.__trollOps;
     const THREE = await import("three");
-    const { WeaponState, WEAPON_DEFS } = await import(`/assets/games/troll-ops/weapons.js?v=${WTAG}`);
+    const { WeaponState, WEAPON_DEFS } = await import(`/assets/games/troll-ops/weapons/weapons.js?v=${WTAG}`);
     window.__beats = [];
     const orig = T.audio.rifleBeat.bind(T.audio);
     T.audio.rifleBeat = (b) => { window.__beats.push(b); orig(b); };

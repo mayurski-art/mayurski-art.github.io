@@ -21,7 +21,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
-const TS_URL = new URL("./models/trollsaber.glb?v=ts1", import.meta.url).href;
+const TS_URL = new URL("../models/trollsaber.glb?v=ts1", import.meta.url).href;
 
 export const SABER_BLADE_LEN = 0.88;
 export const SABER_EMIT_Z = -0.142;   // inside the shroud (models/build_trollsaber)

@@ -5,8 +5,8 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 
-import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
-import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1";
+import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
+import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1";
 import { WeaponInspector } from "./menu/inspector.js?v=hb1-nf-wst-ig1-sb2-if1-wb1-th2-ar1-ar2-cl1-fj1-zr9-zr10-zp1-sr1-or1";
 import { CharacterInspector } from "./menu/char-inspector.js?v=hb4-wst-soc1-sb2c2-wb1m1-ar1-ar2-gt1-gt2-bk1-cw1-fj1-zr10-bf1-sr1-br1-or1";
 import { Loadout } from "./progression/loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-gj1-fu1b7b7dc1c2-wb1m1-tc3-nc1-th2-ar2-cd1-sh1-cl1-bp1-sg1-bw1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-jb1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-nf1-or1";
@@ -54,7 +54,7 @@ import {
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
 } from "./modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1-or1";
 import { BotManager } from "./bots/bots.js?v=cg5-em1-wst-bs1-p22-bs2-sb2-gj1-fu1b7b7d-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-ob1-nl1-nf1-fl1-or1";
-import { resolveWeapon, defaultLoadoutFor } from "./attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
+import { resolveWeapon, defaultLoadoutFor } from "./weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { GameAudio } from "./sound/audio.js?v=zr4-hf1-wb1-th2-zr9-zr10-zp1-ar1-pl2-or1";
 import { MapAmbience } from "./sound/ambience.js?v=amb1-wst-tl1-gj1-ug5-or1";
 import { insidePolygon } from "./edge.js";
@@ -64,7 +64,7 @@ import { DjLulz } from "./dj-lulz.js?v=dj1-sg1-zr10-dj2-jb1-hl1-or1";
 import { stage, rise, damp, smoothstep } from "./characters/anim-curves.js?v=or1";
 import { AnimDebugLab } from "./labs/anim-debug.js?v=or1";
 import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streaks/streak-device.js?v=to-df1-or1";
-import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./hand-model.js?v=to-grip2";
+import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./weapons/hand-model.js?v=to-grip2-or1";
 import { FlowField } from "./bots/nav.js?v=ti1-bs1b7d-fl1-or1";
 import { ZombieDirector, goreStandIns } from "./zombies.js?v=zr4c-sb2b7b7dc2f1m1u-gt1-gt2-zr5-zr6-zr7-zr8-zr9-zr10-zc2-zp1-bf1-sr1-fl1-or1";
 import { deployClick, nextZombieWave, onZombieMessage, startZombieRun, stopZombieRun, updateZombieRun, zombieDowned, zombieHit, zombieRunDebug } from "./modes/zombies/run.js?v=zr6-zr7-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-zj1-rs1-kc1-sv1-vt1-zf1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1";
@@ -73,17 +73,17 @@ import { ImpactShader, makeMuzzleFlashMaterial } from "./shaders.js";
 import { ImpactFx } from "./impact-fx.js?v=zr4";
 import { LightPool } from "./light-pool.js";
 import { loadModel } from "./battlefield-props.js?v=sr1";
-import { kickCurve } from "./attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
+import { kickCurve } from "./weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { WaveSpawner } from "./bots/enemies.js?v=hb4-wst-soc1-sb2b7c2m1-gt1-gt2-cw1-zr10-bf1-sr1-or1";
-import { BulletSystem, segmentBlocked, raycastWorld } from "./ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
+import { BulletSystem, segmentBlocked, raycastWorld } from "./weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1";
 import { MovementController, STANCE, groundHeightAt } from "./movement.js?v=umb2-sb2-gj1b7-or1";
 import { applyHeroBody, syncHeroBody, setHeroEnvMap, preloadHeroBodies } from "./characters/hero-bodies.js?v=umb3g-nf-wst-ig1-soc1c2f1m1u-th2-gt1-gt2-cw1-zr9-zr10-zp1-bf1-sr1-or1";
 import { HeroKit, HEROES, HERO_IDS, FootprintTrail, randomHero, botStats, savedHero, saveHero } from "./characters/heroes.js?v=umb2-or1";
-import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1";
-import { poseKnuckles } from "./brass-knuckles.js?v=bk1-wst";
-import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./trollsaber.js?v=ts4-ig1";
-import { createAkimboView, AKIMBO_INSPECT_TIME } from "./akimbo-view.js?v=ak1-wst";
-import { createKeyboardRepair, KB_SHIELD, KB_GLANCE } from "./keyboard-repair.js?v=kr15";
+import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./weapons/gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1";
+import { poseKnuckles } from "./weapons/brass-knuckles.js?v=bk1-wst-or1";
+import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./weapons/trollsaber.js?v=ts4-ig1-or1";
+import { createAkimboView, AKIMBO_INSPECT_TIME } from "./weapons/akimbo-view.js?v=ak1-wst-or1";
+import { createKeyboardRepair, KB_SHIELD, KB_GLANCE } from "./weapons/keyboard-repair.js?v=kr15-or1";
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js?v=sw1-wst-sb2-wb1-ar1-ar2-fj1-br1-or1";
 import { HudLayout } from "./hud-layout.js?v=hl3-pd1-nf1";
@@ -93,12 +93,12 @@ import { CosmeticsPanel, cleanFaceKey, loadCosmetics } from "./characters/cosmet
 import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./streaks/dragonfire-drone.js?v=df3-sb2-or1";
 import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./streaks/sam-turret.js?v=sam1-fj1-or1";
 import { DROP, RoyaleDrop, Flight, buildParaglider } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1-fl1-or1";
-import { preloadHalloweenMelee, setHalloweenEnvMap } from "./melee-models.js?v=hw2";
+import { preloadHalloweenMelee, setHalloweenEnvMap } from "./weapons/melee-models.js?v=hw2-or1";
 import {
   HellfireFx, updateSoulBlazerView, soulBlazerShot, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth,
   soulBlazerInspect, soulBlazerReloadPose, SB_INSPECT_CUES,
-} from "./soul-blazer.js?v=sb1";
-import { MOUSE_ACTIVE_MS, aimAssistPoints, applyAimAssist, findAimAssistTarget } from "./input/aim-assist.js?v=in1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-aa0";
+} from "./weapons/soul-blazer.js?v=sb1-or1";
+import { MOUSE_ACTIVE_MS, aimAssistPoints, applyAimAssist, findAimAssistTarget } from "./input/aim-assist.js?v=in1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-aa0-or1";
 import { game, linkGame } from "./core/state.js?v=st1";
 import { PAD_SENS_MULT, PAD_SENS_NAMES, padLookTurn, pollGamepad, pollGamepadMenu, radialStick } from "./input/gamepad.js?v=in1-fu1b7-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-zp1-aa0-pd1-nf1";
 import { setTouchAds, touchState, initTouch, syncPovButton } from "./input/touch.js?v=in1-th2-bp1-bf1-pd1-nf1";

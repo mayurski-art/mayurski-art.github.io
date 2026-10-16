@@ -112,7 +112,7 @@ const fit = await page.evaluate(async () => {
   const src = await (await fetch("/assets/games/troll-ops/modes/zombies/run.js")).text();
   const hudUrl = "/assets/games/troll-ops/view/" + src.match(/view\/(zombies-hud\.js\?v=[^"]+)/)[1];
   const { fitLabel } = await import(hudUrl);
-  const { WEAPON_DEFS } = await import("/assets/games/troll-ops/weapons.js");
+  const { WEAPON_DEFS } = await import("/assets/games/troll-ops/weapons/weapons.js");
   const t = document.querySelector(".zh-card-gun .zh-title");
   const cut = [], wrapped = [];
   let longest = "";

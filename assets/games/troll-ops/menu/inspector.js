@@ -11,8 +11,8 @@
 // to draw a menu prop would cost more than one more context.
 
 import * as THREE from "three";
-import { buildWeaponMesh } from "../weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1";
-import { buildMeleeMesh } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1";
+import { buildWeaponMesh } from "../weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1";
+import { buildMeleeMesh } from "../weapons/gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1";
 import { buildThrowable, modelKind } from "../combat/throwable-models.js?v=tm1-th2";
 import { loadModel } from "../battlefield-props.js?v=sr1";
 import { buildDragonfireModel } from "../streaks/dragonfire-drone.js?v=df3-sb2-or1";

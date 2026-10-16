@@ -5,19 +5,19 @@
 // the same code path looking like themselves.
 
 import * as THREE from "three";
-import { buildGripHand, buildSupportHand } from "./hand-model.js";
+import { buildGripHand, buildSupportHand } from "./hand-model.js?v=to-grip2-or1";
 import {
   OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS,
   buildIronRear, buildIronFront, railSection,
-} from "./attachment-models.js?v=fg1-wst";
+} from "./attachment-models.js?v=fg1-wst-or1";
 import { build416 } from "./weapon-416.js?v=cg1-wst-wb1-or1";
-import { buildRevolverPair } from "./revolvers.js?v=rv2-wst";
-import { PISTOL_BUILDERS } from "./weapon-pistols.js?v=ps1-wb1";
-import { SNIPER_BUILDERS } from "./weapon-snipers.js?v=sn2-wb1";
-import { SMG_BUILDERS } from "./weapon-smgs.js?v=sm1-wb1";
-import { AR_BUILDERS } from "./weapon-ars.js?v=ar1-ar2";
-import { finishDef } from "./characters/skins.js?v=p5-wb1-or1";
-import { rigSoulBlazer, SB_INSPECT_KEYS } from "./soul-blazer.js?v=sb1";
+import { buildRevolverPair } from "./revolvers.js?v=rv2-wst-or1";
+import { PISTOL_BUILDERS } from "./weapon-pistols.js?v=ps1-wb1-or1";
+import { SNIPER_BUILDERS } from "./weapon-snipers.js?v=sn2-wb1-or1";
+import { SMG_BUILDERS } from "./weapon-smgs.js?v=sm1-wb1-or1";
+import { AR_BUILDERS } from "./weapon-ars.js?v=ar1-ar2-or1";
+import { finishDef } from "../characters/skins.js?v=p5-wb1-or1";
+import { rigSoulBlazer, SB_INSPECT_KEYS } from "./soul-blazer.js?v=sb1-or1";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 const MATS = {
@@ -36,7 +36,7 @@ const MATS = {
    below stands in. The side tank is the magazine (magMesh), so the PF
    reload pulls it off like a mag. Per-instance glow materials are handed
    to game.js in userData.gc so the candle, hose and gauge can react. */
-const GC_URL = new URL("./models/greencandles.glb?v=gc1", import.meta.url).href;
+const GC_URL = new URL("../models/greencandles.glb?v=gc1", import.meta.url).href;
 const GC_SCALE = 0.8;
 const GC_GLOW = ["GC_CandleCore", "GC_CandleShell", "GC_Wick", "GC_HoseGlow", "GC_Gauge", "GC_Led"];
 const GC_TUNE = {
@@ -100,12 +100,12 @@ export function hasDetailedModel(def) {
    hand matches); `railY` is the top of the rail an optic sits on. */
 const DETAILED = {
   beast: {
-    url: new URL("./models/beast.glb?v=be3", import.meta.url).href,
+    url: new URL("../models/beast.glb?v=be3", import.meta.url).href,
     p: "BE", device: "BE_Brake", rake: -0.35, railY: 0.038, adsDistance: 0.24,
     glow: ["BE_Core", "BE_Vein"],
   },
   coltlmg: {
-    url: new URL("./models/coltlmg.glb?v=cl2", import.meta.url).href,
+    url: new URL("../models/coltlmg.glb?v=cl2", import.meta.url).href,
     p: "CL", device: "CL_Hider", rake: -0.37, railY: 0.0465, adsDistance: null,
     glow: [],
   },
@@ -113,37 +113,37 @@ const DETAILED = {
   // (models/build_ar_<id>.blender.py); weapon-ars.js's traced versions stand
   // in until the model streams in.
   kek: {
-    url: new URL("./models/ar-kek.glb?v=ar2", import.meta.url).href,
+    url: new URL("../models/ar-kek.glb?v=ar2", import.meta.url).href,
     p: "MT", device: "MT_Hider", rake: -0.37, railY: 0.0431, adsDistance: null,
     glow: [],
   },
   lol: {
-    url: new URL("./models/ar-lol.glb?v=ar2", import.meta.url).href,
+    url: new URL("../models/ar-lol.glb?v=ar2", import.meta.url).href,
     p: "T2", device: "T2_Hider", rake: -0.37, railY: 0.1073, adsDistance: null,
     glow: [],
   },
   lmao: {
-    url: new URL("./models/ar-lmao.glb?v=ar2", import.meta.url).href,
+    url: new URL("../models/ar-lmao.glb?v=ar2", import.meta.url).href,
     p: "SW", device: "SW_Hider", rake: -0.37, railY: 0.0693, adsDistance: null,
     glow: [],
   },
   rofl: {
-    url: new URL("./models/ar-rofl.glb?v=ar2", import.meta.url).href,
+    url: new URL("../models/ar-rofl.glb?v=ar2", import.meta.url).href,
     p: "FA", device: "FA_Hider", rake: -0.37, railY: 0.0783, adsDistance: null,
     glow: [],
   },
   heh: {
-    url: new URL("./models/ar-heh.glb?v=ar2", import.meta.url).href,
+    url: new URL("../models/ar-heh.glb?v=ar2", import.meta.url).href,
     p: "M2", device: "M2_Hider", rake: -0.37, railY: 0.0410, adsDistance: null,
     glow: [],
   },
   mald: {
-    url: new URL("./models/ar-mald.glb?v=ar2", import.meta.url).href,
+    url: new URL("../models/ar-mald.glb?v=ar2", import.meta.url).href,
     p: "SC", device: "SC_Hider", rake: -0.37, railY: 0.0552, adsDistance: null,
     glow: [],
   },
   coalface: {
-    url: new URL("./models/ar-coalface.glb?v=ar2", import.meta.url).href,
+    url: new URL("../models/ar-coalface.glb?v=ar2", import.meta.url).href,
     p: "AN", device: "AN_Hider", rake: -0.37, railY: 0.0283, adsDistance: null,
     glow: [],
   },
@@ -151,7 +151,7 @@ const DETAILED = {
   // side render); FJ_Mag is the battery box the reload swaps. The procedural
   // tube from weapons.js's `model` stands in till it streams in.
   fhj18: {
-    url: new URL("./models/fhj18.glb?v=fj1", import.meta.url).href,
+    url: new URL("../models/fhj18.glb?v=fj1", import.meta.url).href,
     p: "FJ", device: "FJ_None", rake: -0.36, railY: 0.194, adsDistance: 0.16,
     // On the right shoulder: out to the side and up at the hip, and the
     // third-person body rests the leather pad (not the tail) on its shoulder.
@@ -159,12 +159,12 @@ const DETAILED = {
     glow: [],
   },
   salt: {
-    url: new URL("./models/ar-salt.glb?v=ar2", import.meta.url).href,
+    url: new URL("../models/ar-salt.glb?v=ar2", import.meta.url).href,
     p: "SM", device: "SM_Hider", rake: -0.37, railY: 0.0672, adsDistance: null,
     glow: [],
   },
   ratio: {
-    url: new URL("./models/ar-ratio.glb?v=ar2", import.meta.url).href,
+    url: new URL("../models/ar-ratio.glb?v=ar2", import.meta.url).href,
     p: "M8", device: "M8_Hider", rake: -0.37, railY: 0.1073, adsDistance: null,
     glow: [],
   },
@@ -313,7 +313,7 @@ function buildDetailed(def, cfg, template) {
    (placeReloadShell), and the attachments hang off the same spots the
    procedural gun used: optics on the rail, a device on the muzzle (the
    breacher comes off), underbarrels on the pump so they ride with it. */
-const GM_URL = new URL("./models/grinmington.glb?v=gm2", import.meta.url).href;
+const GM_URL = new URL("../models/grinmington.glb?v=gm2", import.meta.url).href;
 const GM_RAIL_TOP = 0.036;
 const GM_BARREL_END = -0.601;
 const GM_BORE_Y = 0.010;
@@ -464,7 +464,7 @@ function buildGrinmington(def) {
    the root here, each mesh keeping its rest matrix and its pivot, so they
    survive a remote player's mergeHeld as loose meshes and turn about the
    right point. Until the model streams in, the procedural pump gun stands in. */
-const SB_URL = new URL("./models/soulblazer.glb?v=sb1", import.meta.url).href;
+const SB_URL = new URL("../models/soulblazer.glb?v=sb1", import.meta.url).href;
 const SB_RAIL_TOP = 0.036;
 const SB_BORE_Y = 0.010;
 const SB_GRIP_RAKE = -0.315;

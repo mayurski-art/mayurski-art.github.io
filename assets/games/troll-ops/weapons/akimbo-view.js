@@ -16,7 +16,7 @@
 // Nothing here adds a light (light-pool.js).
 
 import * as THREE from "three";
-import { CYL } from "./revolvers.js?v=rv2-wst";
+import { CYL } from "./revolvers.js?v=rv2-wst-or1";
 
 const TAU = Math.PI * 2;
 const COCK = 0.55;              // hammer back

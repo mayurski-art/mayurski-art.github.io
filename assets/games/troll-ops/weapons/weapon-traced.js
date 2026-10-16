@@ -17,8 +17,8 @@
 // blocks, bands, bolt, iron {y, rearX, adsDistance} and ironParts.
 
 import * as THREE from "three";
-import { buildGripHand, buildSupportHand } from "./hand-model.js";
-import { OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS, railSection } from "./attachment-models.js?v=fg1-wst";
+import { buildGripHand, buildSupportHand } from "./hand-model.js?v=to-grip2-or1";
+import { OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS, railSection } from "./attachment-models.js?v=fg1-wst-or1";
 
 const parse = (s) => s.trim().split(/\s+/).map((p) => p.split(",").map(Number));
 

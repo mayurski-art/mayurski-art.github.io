@@ -24,7 +24,7 @@ const GAME = path.join(ROOT, "assets/games/troll-ops");
 const rel = (f) => path.relative(ROOT, f).replace(/\\/g, "/");
 const SKIP = new Set(["node_modules", "models", "refs", "ui", "textures", "skins", "medals", "music", "streak-icons", "trollface-characters", "troll-greencandles", "troll-melee-1"]);
 // tagged twice before the organisation started (left alone on purpose)
-const SPLIT_OK = new Set(["assets/games/troll-ops/hand-model.js"]);
+const SPLIT_OK = new Set(["assets/games/troll-ops/weapons/hand-model.js"]);
 
 function walk(dir, out = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {

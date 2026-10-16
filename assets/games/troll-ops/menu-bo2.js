@@ -18,7 +18,7 @@ import { startOnline, onlinePlayers, serverList, joinServer, describe } from "./
 import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER } from "./progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
 
 import { fetchRecord, formatPlayed } from "./progression/record.js?v=rec1-or1";
-import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
+import { WEAPON_DEFS } from "./weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withClan } from "./progression/calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
 import { renderCard, myCardData, openProfileCard } from "./progression/profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zh1-zc1-zc2-nf1-or1";
 import { shareCardOnX, saveCardPhoto } from "./menu/card-share.js?v=cs1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";

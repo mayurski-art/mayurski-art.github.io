@@ -193,7 +193,7 @@ check("aim assist: none on a thumb either", drift.thumb < 0.002, JSON.stringify(
 
 // Recoil: every gun's kick is RECOIL_SCALE (0.7) of what it lists
 const rc = await page.evaluate(async () => {
-  const W = await import("/assets/games/troll-ops/weapons.js?probe");
+  const W = await import("/assets/games/troll-ops/weapons/weapons.js?probe");
   // the MTAR lists no kick of its own: it takes the assault class's 0.021
   return { scale: W.RECOIL_SCALE, mtar: W.WEAPON_DEFS.kek.recoilKickPitch };
 });

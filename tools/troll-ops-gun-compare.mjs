@@ -6,7 +6,7 @@
 //
 // Usage:
 //   NODE_PATH=<main checkout>/node_modules node tools/troll-ops-gun-compare.mjs <id> <ref.png> <out.png>
-//     [--module assets/games/troll-ops/weapon-ars.js] [--export AR_SPECS] [--optic iron]
+//     [--module assets/games/troll-ops/weapons/weapon-ars.js] [--export AR_SPECS] [--optic iron]
 // <ref.png> is the prepared reference troll-ops-trace.mjs wrote (the
 // spec's pixels are its pixels). Needs no game, no room and no network.
 
@@ -25,7 +25,7 @@ const pos = argv.filter((a, i) => !a.startsWith("--") && !argv[i - 1]?.startsWit
 const flag = (k, d) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : d; };
 const [id, refPath, outPath] = pos;
 if (!id || !refPath || !outPath) { console.error("usage: troll-ops-gun-compare.mjs <id> <ref.png> <out.png> [--module m] [--export E] [--optic o]"); process.exit(2); }
-const mod = flag("module", "assets/games/troll-ops/weapon-ars.js");
+const mod = flag("module", "assets/games/troll-ops/weapons/weapon-ars.js");
 const exp = flag("export", "AR_SPECS");
 const optic = flag("optic", "iron");
 
@@ -54,7 +54,7 @@ const refUrl = `data:image/png;base64,${fs.readFileSync(refPath).toString("base6
 
 const png = await page.evaluate(async ({ mod, exp, id, optic, refUrl, bust }) => {
   const THREE = await import("three");
-  const { buildTraced } = await import("/assets/games/troll-ops/weapon-traced.js?v=" + bust);
+  const { buildTraced } = await import("/assets/games/troll-ops/weapons/weapon-traced.js?v=" + bust);
   const specs = (await import(`/${mod}?v=${bust}`))[exp];
   const spec = specs[id];
   if (!spec) throw new Error(`no spec ${id} in ${mod} ${exp}`);

@@ -43,7 +43,7 @@
 // white shut in by lines that is paper too.
 
 import { SKIN_ATLAS } from "../assets/games/troll-ops/characters/skins.js";
-import { PANELS_416, panelBounds } from "../assets/games/troll-ops/weapon-416.js";
+import { PANELS_416, panelBounds } from "../assets/games/troll-ops/weapons/weapon-416.js";
 
 export const PARTS = ["upper", "lower", "handguard", "stock", "grip", "mag"];
 

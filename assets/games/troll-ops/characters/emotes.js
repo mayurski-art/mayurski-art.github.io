@@ -19,7 +19,7 @@
 
 import * as THREE from "three";
 import { DANCES, setHandPose, setFace, resetSecondaryJoints, reachHand, placeFoot, beginPose, endPose } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1";
-import { LeanKit, LEAN, LEAN_SECONDS, leanFp } from "../lean-cup.js?v=ng1";
+import { LeanKit, LEAN, LEAN_SECONDS, leanFp } from "../weapons/lean-cup.js?v=ng1-or1";
 
 const PI = Math.PI;
 const clamp01 = (v) => Math.max(0, Math.min(1, v));

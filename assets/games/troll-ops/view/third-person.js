@@ -2,7 +2,7 @@
 // the double-tap swivel, and posing our own body (updateLocalRig).
 
 import * as THREE from "three";
-import { raycastWorld } from "../ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2";
+import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1";
 import { currentWeapon } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { stageFrozen, royaleSpectating, royaleRolling, royale, royaleRollK, royaleDropCode } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { STANCE } from "../movement.js?v=umb2-sb2-gj1b7-or1";
@@ -14,8 +14,8 @@ import { damp } from "../characters/anim-curves.js?v=or1";
 import { clubPoseLocal } from "../modes/club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1";
 import { saberBlock, kbShield, saberParry, kbRepair, SLOW_IGNITE } from "../combat/melee.js?v=ml1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { posePianoArms, poseSeated } from "../rp-roles.js?v=rp1b7-cd1-sh1-dj2";
-import { stripLights, buildWeaponMesh } from "../weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1";
-import { buildMeleeMesh } from "../gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1";
+import { stripLights, buildWeaponMesh } from "../weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1";
+import { buildMeleeMesh } from "../weapons/gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1";
 import { game } from "../core/state.js?v=st1";
 import { throwState, poseThrowBody, clearThrowBody } from "../combat/throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1";
 import { modelKind } from "../combat/throwable-models.js?v=tm1-th2";

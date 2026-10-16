@@ -50,8 +50,8 @@ await page.goto(`${BASE}/__hold.html`);
 const rows = await page.evaluate(async () => {
   const THREE = await import("three");
   const C = await import("/assets/games/troll-ops/characters/character.js");
-  const WM = await import("/assets/games/troll-ops/weapon-model.js");
-  const { WEAPON_DEFS } = await import("/assets/games/troll-ops/weapons.js");
+  const WM = await import("/assets/games/troll-ops/weapons/weapon-model.js");
+  const { WEAPON_DEFS } = await import("/assets/games/troll-ops/weapons/weapons.js");
   try { await WM.preloadWeaponModels(); } catch {}
   const out = [];
   const v = () => new THREE.Vector3();

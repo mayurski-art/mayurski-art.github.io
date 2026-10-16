@@ -13,7 +13,7 @@ const std = (color, rough = 0.5, metal = 0.2, o = {}) => new THREE.MeshStandardM
 let faceTex = null;
 function trollface() {
   if (faceTex) return faceTex;
-  faceTex = new THREE.TextureLoader().load(new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href);
+  faceTex = new THREE.TextureLoader().load(new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href);
   faceTex.colorSpace = THREE.SRGBColorSpace;
   return faceTex;
 }
@@ -256,8 +256,8 @@ function buildChainsawFallback() {
    arrives, so nothing has to be rebuilt. */
 
 const URLS = {
-  reaper: new URL("./models/reaper.glb?v=hw1", import.meta.url).href,
-  chainsaw: new URL("./models/chainsaw.glb?v=hw2", import.meta.url).href,
+  reaper: new URL("../models/reaper.glb?v=hw1", import.meta.url).href,
+  chainsaw: new URL("../models/chainsaw.glb?v=hw2", import.meta.url).href,
 };
 const templates = {};
 const waiting = { reaper: new Set(), chainsaw: new Set() };
@@ -342,7 +342,7 @@ function engravingTexture() {
     g.drawImage(off, 128 - 60, 390 - 62, 120, 120);
     engraveTex.needsUpdate = true;
   };
-  img.src = new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
+  img.src = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
   return engraveTex;
 }
 

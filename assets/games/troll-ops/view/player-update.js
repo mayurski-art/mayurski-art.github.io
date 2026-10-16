@@ -4,7 +4,7 @@
 import { updateLauncherLock } from "../combat/launcher.js?v=fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { touchState, setTouchAds } from "../input/touch.js?v=in1-th2-bp1-bf1-pd1-nf1";
 import { currentWeapon, fireOnce, tryReload, updateSwapButton } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
-import { MOUSE_ACTIVE_MS, applyAimAssist } from "../input/aim-assist.js?v=in1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-aa0";
+import { MOUSE_ACTIVE_MS, applyAimAssist } from "../input/aim-assist.js?v=in1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-aa0-or1";
 import { isStaging } from "../modes/match-start.js?v=mst1-si1-mb1-gj1-if1-fu1b7b7dc1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-ob1-kc1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1";
 import { dragonfireView, DF_ASSIST_PULL, DF_ASSIST_CONE_DEG, fireDragonfire } from "../streaks/dragonfire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { lookSensScale, warshipView, placeWarshipCamera, fireWarship } from "../streaks/warship.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
@@ -33,9 +33,9 @@ import { EMOTES } from "../characters/emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u-g
 import { damp } from "../characters/anim-curves.js?v=or1";
 import { STANCE } from "../movement.js?v=umb2-sb2-gj1b7-or1";
 import { kbRepair, meleeConnect, updateSaberBlock, updateKbShield, swingMelee } from "../combat/melee.js?v=ml1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
-import { KB_GLANCE } from "../keyboard-repair.js?v=kr15";
+import { KB_GLANCE } from "../weapons/keyboard-repair.js?v=kr15-or1";
 import { updateDamageNumbers } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
-import { chargedShotDef } from "../weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2";
+import { chargedShotDef } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { game } from "../core/state.js?v=st1";
 
 let downTiltT = 0;   // Zombie Rush, down (P7): how far over the view has tipped
