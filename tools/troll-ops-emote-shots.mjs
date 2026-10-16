@@ -38,9 +38,10 @@ const EMOTES = (process.env.EMOTES || "dab,bird").split(",");
 const BODIES = (process.env.BODIES || "0,1718,989,820,1262").split(",").map(Number);
 // named, or a list of radians off the front ("0,0.8,1.57")
 const YAWS = { front: [0], 34: [0.6], both: [0, 0.6] }[process.env.YAW || "both"] || process.env.YAW.split(",").map(Number);
+const CELL = +process.env.CELL || 360;   // CELL=900: a cell this tall at most (default 360)
 const TIMES = process.env.TIMES ? process.env.TIMES.split(",").map(Number) : null;
 
-const out = await page.evaluate(async ({ EMOTES, BODIES, YAWS, TIMES, ZOOM, HEAD }) => {
+const out = await page.evaluate(async ({ EMOTES, BODIES, YAWS, TIMES, ZOOM, HEAD, CELL }) => {
   // the page's own module instances: the exact URLs (tags) it loaded
   const mod = (file) => import(performance.getEntriesByType("resource").map((e) => e.name).find((n) => n.includes(`/characters/${file}?v=`)));
   const B = await mod("blocky-body.js");
@@ -99,7 +100,7 @@ const out = await page.evaluate(async ({ EMOTES, BODIES, YAWS, TIMES, ZOOM, HEAD
     const sx = Math.max(0, x0 - pad), sy = Math.max(0, y0 - pad);
     const sw = Math.min(cw, x1 + pad) - sx, sh = Math.min(chh, y1 + pad) - sy;
     const cols = times.length, rows = cells.length / cols;
-    const scale = Math.min(1, 360 / sh);
+    const scale = Math.min(1, CELL / sh);
     const W = Math.round(sw * scale), H = Math.round(sh * scale);
     const sheet = document.createElement("canvas");
     sheet.width = W * cols + 70; sheet.height = H * rows + 24;
@@ -115,7 +116,7 @@ const out = await page.evaluate(async ({ EMOTES, BODIES, YAWS, TIMES, ZOOM, HEAD
     sheets.push({ id, url: sheet.toDataURL("image/png") });
   }
   return sheets;
-}, { EMOTES, BODIES, YAWS, TIMES, ZOOM: +process.env.ZOOM || 0, HEAD: !!process.env.HEAD });
+}, { EMOTES, BODIES, YAWS, TIMES, ZOOM: +process.env.ZOOM || 0, HEAD: !!process.env.HEAD, CELL });
 
 for (const s of out) {
   if (s.error) { console.log(`${s.id}: ${s.error}`); continue; }

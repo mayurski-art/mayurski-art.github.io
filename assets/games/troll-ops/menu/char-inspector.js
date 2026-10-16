@@ -14,6 +14,7 @@
 import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, aimRig, mountHeldWeapon } from "../characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2";
 import { buildWeaponMesh } from "../weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1";
+import { drawInkOverlay } from "../view/char-ink.js?v=ci1";
 import { poseEmoteCode, emoteCode, emoteSeconds } from "../characters/emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-cf1-gs2";
 
 const MIN_ZOOM = 0.5;
@@ -262,5 +263,6 @@ export class CharacterInspector {
     this.camera.lookAt(0, LOOK_Y, 0);
 
     this.renderer.render(this.scene, this.camera);
+    drawInkOverlay(this.renderer, this.scene, this.camera);   // a TROLLS body's edge ink
   }
 }

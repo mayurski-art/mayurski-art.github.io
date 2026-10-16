@@ -19,6 +19,7 @@ import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2";
 import { applyToken, removeToken, tokenTraits, tokenFace } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1";
 import { addRim } from "../view/rim-light.js?v=sr1";
+import { tagInk, untagInk } from "../view/char-ink.js?v=ci1";
 
 const DIR = new URL("../traits/", import.meta.url);
 const ART_V = globalThis.TRAITS_BUST ?? "tr2";
@@ -1348,6 +1349,7 @@ export function wearBlocky(rig, token) {
     token,
     off() {
       gone = true;
+      untagInk(rig);
       restore?.();
       removeToken(rig);
       // the traits' skull back (traits.js skullBack): the stick has none
@@ -1367,7 +1369,8 @@ export function wearBlocky(rig, token) {
     // skullBack turned the board's (possibly shared) face material one-sided
     head.material.side = side;
     restore = applyBlocky(rig, { garment: tokenLook(token).garment });
-    return restore.loaded;
+    // the edge ink (view/char-ink.js) once its pieces are on
+    return restore.loaded.then(() => { if (!gone) tagInk(rig); });
   });
   return b.ready;
 }
