@@ -94,16 +94,18 @@ for (const [f, line, mod, tag] of toolTags) {
 }
 
 // relative path literals in game modules, resolved from the module's folder
-const LIT = /(["'`])(\.{1,2}\/[^"'`\n]*?)\1/g;
+// (a template: only its static part, up to the first ${, so a quote inside
+// ${..} can't end the match: `./models/${f}?v=${x ?? "bb2"}`)
+const LIT = /(["'])(\.{1,2}\/[^"'`\n]*?)\1|`(\.{1,2}\/[^`\n]*?)(?=`|\$\{)/g;
 for (const f of gameFiles.filter((f) => /\.m?js$/.test(f))) {
   const t = fs.readFileSync(f, "utf8");
   for (const m of t.matchAll(LIT)) {
-    let p = m[2];
-    if (m[1] === "`") { const d = p.indexOf("${"); if (d >= 0) p = p.slice(0, p.lastIndexOf("/", d) + 1); }
+    let p = m[2] ?? m[3];
+    if (m[3] !== undefined && t[m.index + 1 + p.length] === "$") p = p.slice(0, p.lastIndexOf("/") + 1);
     p = p.replace(/[?#].*$/, "");
     if (!p || p === "./" || p === "../") continue;
     const target = path.join(path.dirname(f), p);
-    if (!exists(target)) fail(f, lineOf(t, m.index), `relative path points at nothing: ${m[2]}`);
+    if (!exists(target)) fail(f, lineOf(t, m.index), `relative path points at nothing: ${m[2] ?? m[3]}`);
   }
   for (const m of t.matchAll(/(["'`])(assets\/games\/troll-ops\/[^"'`\n$]*?)(?:\?[^"'`\n]*)?\1/g)) {
     if (!exists(path.join(ROOT, m[2]))) fail(f, lineOf(t, m.index), `root path points at nothing: ${m[2]}`);

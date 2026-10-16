@@ -104,10 +104,17 @@ for (const F of gameFiles) {
   let t = before;
   if (/\.m?js$/.test(F) || /\.html$/.test(F)) {
     // quoted relative literals ('./x', "../x", `./x/${y}`)
-    t = t.replace(/(["'`])(\.{1,2}\/[^"'`\n]*?)\1/g, (m, q, lit) => {
-      const r = repoint(F, lit);
+    // (a template: only its static part, up to the first ${, so a quote
+    // inside ${..} can't end the match)
+    t = t.replace(/(["'])(\.{1,2}\/[^"'`\n]*?)\1|`(\.{1,2}\/[^`\n]*?)(?=(`|\$\{))/g, (m, q, lit, tl, end) => {
+      if (tl !== undefined && end === "${") {
+        const r = repoint(F, tl + "${");
+        if (r === null) return m;
+        changes++; return "`" + r.slice(0, -2);
+      }
+      const r = repoint(F, tl ?? lit);
       if (r === null) return m;
-      changes++; return q + r + q;
+      changes++; return tl !== undefined ? "`" + r : q + r + q;   // (the template's closing ` isn't in m)
     });
   }
   if (/\.html$/.test(F)) {
