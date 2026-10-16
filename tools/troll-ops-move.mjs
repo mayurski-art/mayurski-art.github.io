@@ -44,8 +44,11 @@ const gameRel = (f) => slash(path.relative(GAME, f));
 /* the moves: old absolute path -> new absolute path */
 const moves = new Map();
 for (const n of names) {
-  const from = path.join(GAME, n), dest = path.join(GAME, to, path.basename(n));
-  if (!fs.existsSync(from)) { console.error(`no such file: ${n}`); process.exit(1); }
+  // "old.js=new.js" renames it on the way (a name the folder already has:
+  // royale.js beside modes/royale.js)
+  const [src, as] = n.split("=");
+  const from = path.join(GAME, src), dest = path.join(GAME, to, as || path.basename(src));
+  if (!fs.existsSync(from)) { console.error(`no such file: ${src}`); process.exit(1); }
   if (fs.existsSync(dest)) { console.error(`already there: ${gameRel(dest)}`); process.exit(1); }
   moves.set(path.normalize(from), path.normalize(dest));
 }
