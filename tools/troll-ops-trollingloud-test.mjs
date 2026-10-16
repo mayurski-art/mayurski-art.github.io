@@ -143,7 +143,7 @@ async function open(mode) {
   const { page, errors } = await open("snd");
   const r = await page.evaluate(async () => {
     const T = window.__trollOps;
-    const { groundHeightAt } = await import("/assets/games/troll-ops/movement.js");
+    const { groundHeightAt } = await import("/assets/games/troll-ops/core/movement.js");
     return T.bombSites().map((s) => ({ ...s, y: groundHeightAt(typeof T.colliders === "function" ? T.colliders() : T.colliders, s.x, s.z, 3) }));
   });
   console.log("sites", JSON.stringify(r));

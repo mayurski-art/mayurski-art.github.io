@@ -40,7 +40,7 @@ page.on("pageerror", (e) => errors.push(e.message));
 await page.goto(`${BASE}/__esc.html`);
 const gameSrc = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/game.js"), "utf8");
 const tag = (mod) => gameSrc.match(new RegExp(`\\./${mod}\\.js(\\?v=[^"']*)?["']`))?.[1] || "";
-const mods = { maps: `/assets/games/troll-ops/maps.js${tag("maps")}`, movement: `/assets/games/troll-ops/movement.js${tag("movement")}`,
+const mods = { maps: `/assets/games/troll-ops/maps.js${tag("maps")}`, movement: `/assets/games/troll-ops/core/movement.js${tag("core/movement")}`,
   layout: "/assets/games/troll-ops/grinleria-layout.js" };
 
 const res = await page.evaluate(async (mods) => {

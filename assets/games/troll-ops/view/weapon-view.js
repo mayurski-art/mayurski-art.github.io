@@ -18,7 +18,7 @@ import { updateSniperScope } from "./sniper-scope.js?v=ss1-wb1";
 import { hasArReload, applyArReload, arReloadBeats, arSlideAt, easeCutReload } from "./ar-reload.js?v=ar1-br1-or1";
 import { chargedShotDef } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1";
-import { STANCE } from "../movement.js?v=umb2-sb2-gj1b7-or1";
+import { STANCE } from "../core/movement.js?v=umb2-sb2-gj1b7-or1";
 import { game } from "../core/state.js?v=st1";
 
 /* Phase 2 (DESIGN-ARMS.md §5): landing-impact dip. `move.justLanded`/

@@ -9,8 +9,8 @@
 // surfaces instead of invisible walls.
 
 import * as THREE from "three";
-import { smoothstep, damp } from "./characters/anim-curves.js?v=or1";
-import { clampInsidePolygon } from "./edge.js";
+import { smoothstep, damp } from "../characters/anim-curves.js?v=or1";
+import { clampInsidePolygon } from "../edge.js";
 
 export const STANCE = { STAND: "stand", CROUCH: "crouch", SLIDE: "slide", PRONE: "prone", VAULT: "vault", ROPE: "rope" };
 
