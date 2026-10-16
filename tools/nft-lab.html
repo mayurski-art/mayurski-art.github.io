@@ -540,13 +540,30 @@ function toast(msg) {
 }
 
 /* ------------------------------------------------------------ reference */
+/* The token's own art: refs/trolls-<id>.png if it's saved, else read off
+   the chain (tokenURI on the TROLLS contract -> its metadata -> image, via
+   the Pinata gateway; ipfs.io no longer serves them). */
 let refUrls = {};
+const RPC = "https://ethereum-rpc.publicnode.com", TROLLS = "0xfba5880244850d89a91479a01bb8d1b678cd79fe";
+const ipfs = (u) => u.replace(/^ipfs:\/\//, "https://gateway.pinata.cloud/ipfs/");
+async function chainArt(id) {
+  const data = "0xc87b56dd" + BigInt(id).toString(16).padStart(64, "0");
+  const r = await (await fetch(RPC, { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_call", params: [{ to: TROLLS, data }, "latest"] }) })).json();
+  const hex = r.result.slice(2), len = parseInt(hex.slice(64, 128), 16);
+  const uri = new TextDecoder().decode(new Uint8Array(hex.slice(128, 128 + len * 2).match(/../g).map((b) => parseInt(b, 16))));
+  return ipfs((await (await fetch(ipfs(uri))).json()).image);
+}
 function setRef(url) {
   if (url) refUrls[baseToken] = url;
-  const img = $("refImg"), src = refUrls[baseToken] || `${ROOT}refs/trolls-${baseToken}.png`;
-  $("refCap").textContent = `#${baseToken} ${NAMES[baseToken] || ""}`;
+  const id = baseToken, img = $("refImg"), src = refUrls[id] || `${ROOT}refs/trolls-${id}.png`;
+  $("refCap").textContent = `#${id} ${NAMES[id] || ""}`;
   img.onload = () => { img.hidden = false; $("refDrop").hidden = true; };
-  img.onerror = () => { img.hidden = true; $("refDrop").hidden = false; };
+  img.onerror = () => {
+    img.hidden = true; $("refDrop").hidden = false;
+    if (refUrls[id]) return;
+    chainArt(id).then((u) => { refUrls[id] = u; if (baseToken === id) img.src = u; }).catch(() => {});
+  };
   img.src = src;
 }
 const pickRef = () => $("refFile").click();
