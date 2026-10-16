@@ -318,7 +318,7 @@ function fpSpin(t) {
   // Two full twirls with a quick ease, a flip of the wrist to finish.
   const turn = ease(t / 1.6) * PI * 4;
   const up = env(t, 0, 0.25, 2.1, 2.5);
-  return { R: null, L: null, gun: { spin: turn, lift: 0.05 * up }, cam: { pitch: 0, yaw: 0 } };
+  return { R: null, L: null, gun: { spin: turn, up }, cam: { pitch: 0, yaw: 0 } };
 }
 function fpFacepalm(t) {
   const up = env(t, 0, 0.4, 2.6, 3.0), shake = Math.sin(t * 3) * 0.035;

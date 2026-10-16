@@ -1,7 +1,7 @@
 // The gun in your hands each frame: sway, bob, landing dip, ADS, inspect,
 // reloads (mags, shells, pumps), the rod arms, the Soul Blazer and the laser.
 
-import { currentWeapon, swapRaise } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1";
+import { currentWeapon, swapRaise } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2";
 import { AKIMBO_INSPECT_TIME } from "../weapons/akimbo-view.js?v=ak1-wst-or1";
 import * as THREE from "three";
 import { rise, smoothstep, damp } from "../characters/anim-curves.js?v=or1";
@@ -10,7 +10,7 @@ import { wristOf, buildWatch, buildWristband } from "../characters/wristwear.js?
 import { clubWear } from "../modes/club-wear.js?v=cw1c2m1";
 import { ownBody, fpArmLook } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1";
 import { bodyToken } from "../characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1-em2-nb2-pc2";
-import { cosmetics } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1";
+import { cosmetics } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2";
 import { soulBlazerReloadPose, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth, updateSoulBlazerView, soulBlazerInspect, SB_INSPECT_CUES } from "../weapons/soul-blazer.js?v=sb1-or1";
 import { placePistolSlide } from "./pistol-action.js?v=ps1-wb1-br1-or1";
 import { placeBolt } from "./rifle-action.js?v=ra1-wb1-or1";
@@ -612,7 +612,7 @@ const _pfDown = new THREE.Vector3();
 /* `magBlend` 0..1 moves the support rod's tip from the handguard onto the
    magazine (reloads); `hand` ({ pos, w }, world space) puts it anywhere
    (a BO2 rifle reload's own hand keys, ar-reload.js). */
-function posePfArms(mesh, magBlend = 0, hand = null) {
+function posePfArms(mesh, magBlend = 0, hand = null, oneHand = false) {
   if (game.saberArmsOn) return;   // the Trollsaber has the arms (poseSaberArms)
   const show = !!mesh?.visible && !inspectArms.visible && game.player.holding === "gun";
   pfArms.visible = show;
@@ -633,7 +633,7 @@ function posePfArms(mesh, magBlend = 0, hand = null) {
   for (let i = 0; i < 2; i++) {
     // Sidearms carry no support hand: the left rod cups the grip too.
     const anchor = anchors[i] || anchors[0];
-    rods[i].visible = !!anchor;
+    rods[i].visible = !!anchor && !(oneHand && i === 1);   // a twirl: the support hand lets go
     if (!anchor) continue;
     anchor.getWorldPosition(_pfTip);
     _pfDown.set(0, -1, 0).applyQuaternion(mesh.quaternion);
@@ -650,6 +650,20 @@ function posePfArms(mesh, magBlend = 0, hand = null) {
     }
     stretchBetween(rods[i], PF_ARM_SHOULDER[i], _pfTip);
   }
+}
+
+/* The Gun spin emote (emotes.js fpSpin: { spin, up }): the gun twirls end
+   over end on the trigger finger, about its grip (every view model's
+   pivot), not rolled round its barrel (user, 2026-10-16: "gun spin emote
+   doesnt work with the currently equipped weapon"). A long gun is held out
+   further and lower first, so its barrel swings clear of the lens. */
+function gunTwirl(mesh, g) {
+  const up = g.up ?? 1;
+  const out = THREE.MathUtils.clamp((inspectBounds(mesh).len - 0.3) / 0.5, 0, 1);
+  mesh.position.y += (0.05 - 0.1 * out) * up;
+  mesh.position.z -= 0.25 * out * up;
+  mesh.rotateX(g.spin);
+  mesh.updateMatrixWorld(true);
 }
 
 /* Keyboard Warrior toss. Beats (t):
@@ -1448,7 +1462,10 @@ export function updateWeaponView(dt) {
   placePump(mesh, w, rl.rack ?? -1, rl.pumpBack ?? null);
   if (mesh.userData.sb) updateSoulBlazerHand(mesh, w);
   drainWeaponEvents(w);
-  posePfArms(mesh, rl.magHold || 0, arHand);
+  // The Gun spin emote twirls the gun before the arms are posed on it
+  const twirl = game.player.holding === "gun" ? game.fpEmoteFrame?.()?.gun : null;
+  if (twirl?.spin != null) gunTwirl(mesh, twirl);
+  posePfArms(mesh, rl.magHold || 0, arHand, twirl?.spin != null);
 
   if (mesh.userData.sight) mesh.userData.sight.visible = true;
   fadeOpticGlass(mesh, adsSmoothT);
