@@ -29,7 +29,7 @@ export class MatchChat {
     this.lines = [];
     this.teamOnly = false;
     this.channel = "all";       // "all" | "team" | "public"
-    this.pub = null;            // { send(text) -> { name, text } | { error }, live() } (setPublic)
+    this.pub = null;            // { send(text, gif) -> { name, text, gif } | { error }, live(), gifs, gifSrc } (setPublic)
     this.lastSend = 0;
     this.typing = false;
 
@@ -118,6 +118,7 @@ export class MatchChat {
 
   setChannel(chan) {
     this.channel = chan;
+    queueMicrotask(() => this.paintGifs());
     this.teamOnly = chan === "team";
     this.chan.textContent = chan === "team" ? "TEAM" : chan === "public" ? "PUBLIC" : "ALL";
     this.chan.classList.toggle("is-team", chan === "team");
@@ -136,6 +137,7 @@ export class MatchChat {
     if (!this.typing) return;
     this.typing = false;
     this.form.hidden = true;
+    this.paintGifs();
     this.root.classList.remove("is-open");
     this.input.blur();
     this.render();
@@ -146,7 +148,7 @@ export class MatchChat {
     const t = String(text || "").replace(/\s+/g, " ").trim().slice(0, MAX_LEN);
     if (this.channel === "public") {
       const r = t ? this.pub?.send(t) : null;
-      if (r && r.name) this.add({ name: r.name, text: r.text, pub: true, you: true });
+      if (r && r.name) this.add({ name: r.name, text: r.text, gif: r.gif, pub: true, you: true });
       else if (r?.error) this.add({ name: "", text: r.error, note: true });
       return r;
     }
@@ -169,8 +171,42 @@ export class MatchChat {
   }
 
   /* A public chat message (menu/public-chat.js), already checked. */
-  receivePublic(name, text, uid = null) {
-    this.add({ name: String(name).slice(0, 24), uid: safeUid(uid), text: String(text).slice(0, 200), pub: true });
+  receivePublic(name, text, uid = null, gif = null) {
+    this.add({ name: String(name).slice(0, 24), uid: safeUid(uid), text: String(text || "").slice(0, 200), gif, pub: true });
+  }
+
+  /* A GIF to everyone (the strip over the box on the PUBLIC channel). */
+  sendGif(id) {
+    const r = this.pub?.send("", id);
+    if (r && r.name) this.add({ name: r.name, text: "", gif: r.gif, pub: true, you: true });
+    else if (r?.error) this.add({ name: "", text: r.error, note: true });
+    this.input?.focus();
+  }
+
+  /* The GIF strip shows while you type on PUBLIC. */
+  paintGifs() {
+    const on = this.typing && this.channel === "public" && !!this.pub?.gifs?.length;
+    if (on && !this.gifs) {
+      this.gifs = document.createElement("div");
+      this.gifs.className = "to-chat-gifs";
+      this.gifs.setAttribute("role", "group");
+      this.gifs.setAttribute("aria-label", "Send a GIF to everyone");
+      for (const g of this.pub.gifs) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.dataset.gif = g.id;
+        const img = document.createElement("img");
+        img.src = this.pub.gifSrc(g.id);
+        img.alt = g.label;
+        img.loading = "lazy";
+        b.appendChild(img);
+        // mousedown, not click: the input keeps focus, so the box stays open
+        b.addEventListener("mousedown", (e) => { e.preventDefault(); this.sendGif(g.id); });
+        this.gifs.appendChild(b);
+      }
+      this.form.before(this.gifs);
+    }
+    if (this.gifs) this.gifs.hidden = !on;
   }
 
   add(line) {
@@ -215,6 +251,13 @@ export class MatchChat {
       text.className = "to-chat-text";
       text.textContent = l.text;
       li.append(name, document.createTextNode(": "), text);
+      if (l.gif && this.pub?.gifSrc) {
+        const img = document.createElement("img");
+        img.className = "to-chat-gif";
+        img.src = this.pub.gifSrc(l.gif);
+        img.alt = "GIF";
+        li.appendChild(img);
+      }
       return li;
     }));
     // solo, the box is there for the public chat once there's any

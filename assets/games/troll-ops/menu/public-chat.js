@@ -14,6 +14,9 @@
 // remembered on this device. In a match the public chat is a channel of the
 // match chatbox instead (net/chat.js: U to type, Phantom Forces style; user,
 // 2026-10-16): its lines show there, not as cards, and muted they don't.
+// GIFs (user, 2026-10-16: "users should be able to send gifs in the chat"):
+// the site's own trollface GIFs (ui/gifs/), picked from a grid; a message
+// carries only the GIF's id, checked against GIFS, never a link.
 
 const CHAT = {
   max: 200,        // characters a message
@@ -22,6 +25,15 @@ const CHAT = {
   toast: 5,        // seconds a notification stays up
 };
 const MUTE_KEY = "trollops:chat-muted";
+export const GIFS = [
+  ["grin", "Trollface grin"], ["lel", "Lel"], ["problem", "Problem?"], ["forward", "Forward"],
+  ["cya", "Cya later n00b"], ["catchme", "Catch me if you can"], ["powerup", "Powering up"], ["stroll", "Give me all your stroll"],
+  ["chase", "The chase"], ["computer", "Trolling online"], ["typer", "Typing furiously"], ["keyboard", "Keyboard Warrior"],
+  ["monopoly", "Monopoly troll"], ["youngster", "Youngster troll"],
+].map(([id, label]) => ({ id, label }));
+const GIF_BY_ID = new Map(GIFS.map((g) => [g.id, g]));
+export const gifSrc = (id) => (GIF_BY_ID.has(id) ? new URL(`../ui/gifs/${id}.gif?v=g1`, import.meta.url).href : "");
+const gifOf = (id) => GIF_BY_ID.get(id) || null;
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const clean = (t) => String(t ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, CHAT.max);
@@ -44,12 +56,26 @@ function build() {
     + `<button type="button" class="to-pchat-mute"></button>`
     + `<button type="button" class="to-pchat-close" aria-label="Close the chat">×</button></header>`
     + `<ol class="to-pchat-log" aria-live="polite"></ol>`
+    + `<div class="to-pchat-gifs" hidden role="group" aria-label="Send a GIF">${GIFS.map((g) => `<button type="button" data-gif="${g.id}"><img src="${gifSrc(g.id)}" alt="${esc(g.label)}" loading="lazy"></button>`).join("")}</div>`
     + `<form class="to-pchat-form"><input type="text" maxlength="${CHAT.max}" autocomplete="off" enterkeyhint="send" placeholder="Say something to everyone online" aria-label="Message">`
+    + `<button type="button" class="to-pchat-gifbtn" aria-expanded="false" aria-label="Send a GIF">GIF</button>`
     + `<button type="submit">Send</button></form>`
     + `<p class="to-pchat-note"></p>`;
   el.querySelector(".to-pchat-close").addEventListener("click", () => setOpen(false));
   el.querySelector(".to-pchat-mute").addEventListener("click", () => setMuted(!chat.muted));
   el.querySelector(".to-pchat-form").addEventListener("submit", (e) => { e.preventDefault(); send(); });
+  const grid = el.querySelector(".to-pchat-gifs"), gifBtn = el.querySelector(".to-pchat-gifbtn");
+  const showGifs = (on) => { grid.hidden = !on; gifBtn.setAttribute("aria-expanded", String(on)); };
+  gifBtn.addEventListener("click", () => showGifs(grid.hidden));
+  grid.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-gif]");
+    if (!b) return;
+    const r = sendPublic("", b.dataset.gif);
+    if (r.error) { note(r.error); return; }
+    note("");
+    showGifs(false);
+    el.querySelector("input").focus();
+  });
   // the game's keys stay out of the box while you type; Esc shuts the chat
   el.addEventListener("keydown", (e) => {
     if (e.key === "Escape") { e.preventDefault(); setOpen(false); }
@@ -81,7 +107,7 @@ function render() {
   if (!chat.panel) return;
   const log = chat.panel.querySelector(".to-pchat-log");
   log.innerHTML = chat.msgs.length
-    ? chat.msgs.map((m) => `<li class="${m.me ? "is-me" : ""}"><b>${esc(m.name)}</b><time>${time(m.at)}</time><p>${esc(m.text)}</p></li>`).join("")
+    ? chat.msgs.map((m) => `<li class="${m.me ? "is-me" : ""}"><b>${esc(m.name)}</b><time>${time(m.at)}</time>${m.text ? `<p>${esc(m.text)}</p>` : ""}${m.gif ? `<img class="to-pchat-gif" src="${gifSrc(m.gif)}" alt="GIF: ${esc(gifOf(m.gif).label)}">` : ""}</li>`).join("")
     : `<li class="to-pchat-empty">Nobody's said anything yet. Say hi: everyone on Troll Forces sees it, guests too.</li>`;
   log.scrollTop = log.scrollHeight;
   const n = chat.presence?.count?.() || 1;
@@ -119,19 +145,20 @@ function push(m) {
   if (chat.msgs.length > CHAT.keep) chat.msgs.splice(0, chat.msgs.length - CHAT.keep);
   if (chat.open) render();
 }
-/* Say `text` to everyone: { name, text } when it went, else { error }
-   ("" for nothing to send). The panel and the match chatbox both send
-   through here. */
-export function sendPublic(text) {
+/* Say `text` (or send GIF `gif`, an id in GIFS) to everyone: { name,
+   text, gif } when it went, else { error } ("" for nothing to send). The
+   panel and the match chatbox both send through here. */
+export function sendPublic(text, gif = null) {
   text = clean(text);
-  if (!text) return { error: "" };
+  gif = gifOf(gif) ? gif : null;
+  if (!text && !gif) return { error: "" };
   const t = performance.now();
   if (t - chat.lastSent < CHAT.gap * 1000) return { error: "Easy: one message a second." };
-  if (!chat.presence?.live || !chat.presence.send("chat", { text })) return { error: "Not connected yet. Try again in a moment." };
+  if (!chat.presence?.live || !chat.presence.send("chat", gif ? { text, gif } : { text })) return { error: "Not connected yet. Try again in a moment." };
   chat.lastSent = t;
   const name = chat.presence.nameOf?.(myViewer())?.name || "You";
-  push({ name, text, at: Date.now(), me: true });
-  return { name, text };
+  push({ name, text, gif, at: Date.now(), me: true });
+  return { name, text, gif };
 }
 export const publicLive = () => !!chat.presence?.live;
 function send() {
@@ -146,16 +173,17 @@ const myViewer = () => viewerIdFn();
 
 function onChat(d, from) {
   const text = clean(d.text);
+  const gif = typeof d.gif === "string" && gifOf(d.gif) ? d.gif : null;
   const who = chat.presence.nameOf(from);
-  if (!text || !who) return;
-  push({ name: who.name, text, at: Date.now(), me: false });
+  if ((!text && !gif) || !who) return;
+  push({ name: who.name, text, gif, at: Date.now(), me: false });
   // in a match: a line in the chatbox, Phantom Forces style
   const inMatch = !!chat.matchChat && !chat.canOpen();
-  if (inMatch && !chat.muted) chat.matchChat.receivePublic(who.name, text, who.userId);
+  if (inMatch && !chat.muted) chat.matchChat.receivePublic(who.name, text, who.userId, gif);
   if (chat.open) return;
   chat.unread++;
   paintPill();
-  if (!chat.muted && !inMatch) showToast(who.name, text);
+  if (!chat.muted && !inMatch) showToast(who.name, text || "sent a GIF");
 }
 
 /* ── The notification ──────────────────────────────────────────────────── */
@@ -183,7 +211,7 @@ function hideToast() { if (chat.toast) chat.toast.hidden = true; clearTimeout(ch
 export function initPublicChat({ presence, pill, viewerId, canOpen = () => true, matchChat = null }) {
   chat.presence = presence;
   // (the game makes its match chatbox after the menu: picked up when it's there)
-  const hook = () => { let mc = null; try { mc = typeof matchChat === "function" ? matchChat() : matchChat; } catch { /* not made yet */ } if (mc && !chat.matchChat) { chat.matchChat = mc; mc.setPublic?.({ send: sendPublic, live: publicLive }); } };
+  const hook = () => { let mc = null; try { mc = typeof matchChat === "function" ? matchChat() : matchChat; } catch { /* not made yet */ } if (mc && !chat.matchChat) { chat.matchChat = mc; mc.setPublic?.({ send: sendPublic, live: publicLive, gifs: GIFS, gifSrc }); } };
   hook();
   chat.pill = pill;
   chat.canOpen = canOpen;
