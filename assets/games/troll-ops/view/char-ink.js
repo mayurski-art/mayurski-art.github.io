@@ -20,19 +20,28 @@ import * as THREE from "three";
 import { Pass, FullScreenQuad } from "three/addons/postprocessing/Pass.js";
 
 export const INK_LAYER = 7;
-const INK = {
-  color: 0x080808,
-  width: 0.013,   // the line's width in metres on the body (so it scales with the body on screen)
-  minPx: 1.0,     // never thinner than this many pixels (a far-off bot)
-  maxPx: 4.5,     // nor thicker (a close-up)
-  fold: 0.07,     // metres: a depth jump this big inside one piece is an edge
-  retag: 30,      // frames between re-tags (pieces that load late, emote props)
+/* Two weights, like the NFT art (user, 2026-10-16: the one heavy black line
+   was "too harsh"): a bold line round the body's outside, and thinner,
+   lighter lines where pieces meet inside it (an arm over the torso, a
+   sleeve, the shorts). Read every frame, so the design lab
+   (tools/nft-lab.html) tunes it live. */
+export const INK = {
+  color: 0x1e1b18,  // a warm near-black, softer than pure black
+  width: 0.011,     // the outside line's width in metres on the body (so it scales with the body on screen)
+  minPx: 1.0,       // never thinner than this many pixels (a far-off bot)
+  maxPx: 3.2,       // nor thicker (a close-up)
+  inner: 0.5,       // the inside lines' width, as a share of the outside's
+  innerAlpha: 0.7,  // and their strength
+  fold: 0.07,       // metres: a depth jump this big inside one piece is an edge
+  retag: 30,        // frames between re-tags (pieces that load late, emote props)
 };
 
 /* ── Tagging ───────────────────────────────────────────────────────────── */
 const rigs = new Set();
 const isHull = (m) => !Array.isArray(m) && m?.isMeshBasicMaterial && m.side === THREE.BackSide;
-const skipMat = (m) => !m || m.side === THREE.BackSide || m.transparent || m.alphaTest > 0 || m.isLineBasicMaterial;
+// (cut-out pieces with a texture are inked by their drawn shape, inkId;
+// see-through ones without one, fades and glows, are not)
+const skipMat = (m) => !m || m.side === THREE.BackSide || m.isLineBasicMaterial || ((m.transparent || m.alphaTest > 0) && !m.map);
 let nextId = 1;
 function tagRig(rig) {
   const joints = new Set(Object.values(rig.parts || {}));
@@ -87,25 +96,52 @@ export function untagInk(rig) {
 export const inkActive = () => rigs.size > 0;
 
 /* ── The id pass ───────────────────────────────────────────────────────── */
+// Cut-out pieces (the face drawing, the beard, the hats: alpha-tested
+// textures) draw their id only where their texture is solid (uMap,
+// uCut), and the beard's hang follows the chest like the beard does
+// (blocky-body.js rideMaterial: chestW + beardRide), so their outline is
+// their drawn shape, not their card's.
 const idMat = new THREE.ShaderMaterial({
-  uniforms: { uId: { value: 0 } },
+  uniforms: { uId: { value: 0 }, uMap: { value: null }, uCut: { value: 0 }, uRide: { value: 0 }, beardRide: { value: new THREE.Matrix4() } },
   vertexShader: `
     #include <common>
     #include <skinning_pars_vertex>
+    attribute float chestW;
+    uniform mat4 beardRide;
+    uniform float uRide;
+    varying vec2 vMapUv;
     void main() {
+      vMapUv = uv;
       #include <skinbase_vertex>
       #include <begin_vertex>
+      transformed = mix(transformed, (beardRide * vec4(transformed, 1.0)).xyz, chestW * uRide);
       #include <skinning_vertex>
       #include <project_vertex>
     }`,
   fragmentShader: `
-    uniform float uId;
-    void main() { gl_FragColor = vec4(mod(uId, 256.0) / 255.0, floor(uId / 256.0) / 255.0, 0.0, 1.0); }`,
+    uniform float uId, uCut;
+    uniform sampler2D uMap;
+    varying vec2 vMapUv;
+    void main() {
+      if (uCut > 0.0 && texture2D(uMap, vMapUv).a < uCut) discard;
+      gl_FragColor = vec4(mod(uId, 256.0) / 255.0, floor(uId / 256.0) / 255.0, 0.0, 1.0);
+    }`,
 });
 let drawingIds = false;
 function inkId() {
   if (!drawingIds || this.userData.inkId === undefined) return;
-  idMat.uniforms.uId.value = this.userData.inkId;
+  // (a beard or a cap is one mesh with a front and a back material; the
+  // id pass draws it once, so it takes the front drawing's cut-out, which
+  // the back's silhouette matches)
+  const u = idMat.uniforms, m = Array.isArray(this.material) ? this.material[0] : this.material;
+  u.uId.value = this.userData.inkId;
+  // a ghosted face (the third-person aim fades it) draws no id
+  const cut = m.map && (m.alphaTest > 0 || m.transparent) ? Math.max(m.alphaTest || 0.5, 0.05) : 0;
+  u.uCut.value = m.opacity < 0.5 ? 2 : cut;
+  u.uMap.value = cut ? m.map : null;
+  const ride = m.userData?.ride;
+  u.uRide.value = ride ? 1 : 0;
+  if (ride) u.beardRide.value.copy(ride.value);
   idMat.uniformsNeedUpdate = true;
 }
 let frame = 0;
@@ -143,6 +179,7 @@ const edgeShader = (overlay) => ({
     tColor: { value: null }, tId: { value: null }, tIdDepth: { value: null }, tSceneDepth: { value: null },
     useScene: { value: 0 }, resolution: { value: new THREE.Vector2(1, 1) }, cameraNear: { value: 0.1 }, cameraFar: { value: 1000 },
     inkColor: { value: new THREE.Color(INK.color) }, widthM: { value: INK.width }, minPx: { value: INK.minPx }, maxPx: { value: INK.maxPx }, fold: { value: INK.fold },
+    inner: { value: INK.inner }, innerAlpha: { value: INK.innerAlpha },
     tanHalfFov: { value: 0.5 },
   },
   vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
@@ -150,7 +187,7 @@ const edgeShader = (overlay) => ({
     #include <packing>
     varying vec2 vUv;
     uniform sampler2D tColor, tId, tIdDepth, tSceneDepth;
-    uniform float useScene, cameraNear, cameraFar, widthM, minPx, maxPx, fold, tanHalfFov;
+    uniform float useScene, cameraNear, cameraFar, widthM, minPx, maxPx, fold, tanHalfFov, inner, innerAlpha;
     uniform vec2 resolution;
     uniform vec3 inkColor;
     float viewZ(float d) { return -perspectiveDepthToViewZ(d, cameraNear, cameraFar); }
@@ -175,21 +212,27 @@ const edgeShader = (overlay) => ({
         // pixels per metre at this depth: the line keeps its width on the body
         float ppm = resolution.y / (2.0 * tanHalfFov * z0);
         float w = clamp(widthM * ppm, minPx, maxPx);
+        float wi = max(1.0, w * inner);
         for (int i = 0; i < 8; i++) {
           float ang = float(i) * 0.785398;
           vec2 dir = vec2(cos(ang), sin(ang)) / resolution;
-          for (int k = 0; k < 2; k++) {
-            // the line itself, then a soft pixel past it (a cheap anti-alias)
-            float r = k == 0 ? w : w + 1.0;
+          for (int k = 0; k < 4; k++) {
+            // each weight's line, then a soft pixel past it (a cheap anti-alias)
+            bool outer = k >= 2;
+            float r = (outer ? w : wi) + (k == 1 || k == 3 ? 1.0 : 0.0);
+            float soft = k == 1 || k == 3 ? 0.4 : 1.0;
             float z;
             float b = idAt(vUv + dir * r, z);
+            // nothing there: the body's outside, the bold line
+            if (b < 0.5) { if (outer) ink = max(ink, soft); continue; }
+            if (outer) continue;
             float hit = 0.0;
-            // another piece behind this one (or nothing): the line on our
-            // side; two flush pieces: the line on the higher id's side
+            // another piece behind this one: the line on our side; two flush
+            // pieces: the line on the higher id's side
             if (b != a && (z > z0 + 0.004 || (abs(z - z0) <= 0.004 && a > b))) hit = 1.0;
             // a fold inside the piece: the line on its near side
             else if (b == a && z - z0 > max(fold, z0 * 0.03)) hit = 1.0;
-            ink = max(ink, hit * (k == 0 ? 1.0 : 0.4));
+            ink = max(ink, hit * soft * innerAlpha);
           }
         }
       }
@@ -198,6 +241,13 @@ const edgeShader = (overlay) => ({
         : "gl_FragColor = vec4(mix(col.rgb, inkColor, ink), col.a);"}
     }`,
 });
+
+/* The current INK settings onto a pass's uniforms (cheap: a few numbers). */
+function styleInk(u) {
+  u.inkColor.value.setHex(INK.color);
+  u.widthM.value = INK.width; u.minPx.value = INK.minPx; u.maxPx.value = INK.maxPx;
+  u.inner.value = INK.inner; u.innerAlpha.value = INK.innerAlpha; u.fold.value = INK.fold;
+}
 
 /* In a match: after the RenderPass, before the rest (game.js). Reads the
    scene's depth off the composer's target (it needs a depthTexture). It
@@ -233,6 +283,7 @@ export class CharInkPass extends Pass {
     u.tIdDepth.value = this.ids.depthTexture;
     u.tSceneDepth.value = readBuffer.depthTexture;
     u.useScene.value = readBuffer.depthTexture ? 1 : 0;
+    styleInk(u);
     u.cameraNear.value = this.camera.near;
     u.cameraFar.value = this.camera.far;
     u.tanHalfFov.value = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) / (this.camera.zoom || 1);
@@ -261,6 +312,7 @@ export function drawInkOverlay(renderer, scene, camera) {
   u.tId.value = overlay.ids.texture;
   u.tIdDepth.value = overlay.ids.depthTexture;
   u.resolution.value.copy(overlay.size);
+  styleInk(u);
   u.cameraNear.value = camera.near;
   u.cameraFar.value = camera.far;
   u.tanHalfFov.value = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / (camera.zoom || 1);

@@ -19,7 +19,7 @@ import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1";
 import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1";
 import { addRim } from "../view/rim-light.js?v=sr1";
-import { tagInk, untagInk } from "../view/char-ink.js?v=ci1-ci2-ci3";
+import { tagInk, untagInk } from "../view/char-ink.js?v=ci1-ci2-ci3-ci4";
 
 const DIR = new URL("../traits/", import.meta.url);
 const ART_V = globalThis.TRAITS_BUST ?? "tr2";
