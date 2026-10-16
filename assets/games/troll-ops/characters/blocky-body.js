@@ -17,12 +17,12 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1";
-import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1";
+import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1";
 import { addRim } from "../view/rim-light.js?v=sr1";
 import { tagInk, untagInk } from "../view/char-ink.js?v=ci1-ci2-ci3-ci4";
 
 const DIR = new URL("../traits/", import.meta.url);
-const ART_V = globalThis.TRAITS_BUST ?? "tr3";
+const ART_V = globalThis.TRAITS_BUST ?? "tr4";
 const FRAME = { w: 1000, h: 1167, spine: 500, chest: 233, unit: 1667 };   // the garment frame
 
 const SKIN = 0xf3f3ef, INK = 0x0a0a0a;
@@ -40,7 +40,13 @@ const B = {
    radius at the bottom and top): tried at 0.07, then off (user: "i dont
    want the neck"), kept as a lab slider. The head's hit sphere stays
    exactly where and as big as it was at 0.69 (HIT_LOOK): cosmetic only. */
-const HEAD = { scale: 0.85, neck: 0, neckR: [0.05, 0.043], model: "relief" };
+// `mirror`: the whole face flipped left to right, so the chin points down
+// to the south-east like the NFTs' instead of the south-west (user,
+// 2026-10-16: "horizontal flip ... all the faces"): the head pivot's x is
+// negated, so the face, its relief, and every face trait (eyes, beard,
+// moustache, mask) flip together; hats are flipped back (applyBlocky,
+// reliefHead) so their prints still read.
+const HEAD = { scale: 0.85, neck: 0, neckR: [0.05, 0.043], model: "relief", mirror: true };
 const HIT_LOOK = { scale: 0.69, y: 0.02 };
 /* Where the rifle's stock sits (chest-local, metres at scale 1: x out to
    the right, y up, z forward is -) and how big the gun is drawn. */
@@ -1138,6 +1144,8 @@ function reliefHead(rig) {
           const front = grp.children.find((c) => Math.abs(c.rotation.y - Math.PI) < 1e-3);
           if (!front) continue;
           const cap = await capVolume(id, front, board.position.y, s);
+          // flipped back on a mirrored head (HEAD.mirror): the print reads
+          if (HEAD.mirror) cap.scale.x *= -1;
           p.headPivot.add(cap);
           grp.visible = false;
           hidden.push(grp);
@@ -1245,7 +1253,7 @@ export function applyBlocky(rig, look = {}) {
   const pivotY = p.headPivot.position.y;
   const hit = rig.hitboxMeshes?.[0], hitWas = hit && [hit.position.y, hit.scale.x];
   if (boardHead) {
-    p.headPivot.scale.setScalar(HEAD.scale);
+    p.headPivot.scale.set(HEAD.mirror ? -HEAD.scale : HEAD.scale, HEAD.scale, HEAD.scale);
     p.headPivot.position.y = (HIT_LOOK.y + HEAD.neck) * s;
     // the hit sphere (a child of the head pivot) kept at its old place and size
     if (hit) {
