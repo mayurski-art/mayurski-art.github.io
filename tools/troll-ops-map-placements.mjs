@@ -1,5 +1,5 @@
 // Troll Forces — dumps where a map puts its Blender models, for the light
-// bakes (stylised realism, assets/games/troll-ops/REALISM.md).
+// bakes (stylised realism, assets/games/troll-ops/docs/REALISM.md).
 //
 // Loads each map headless (view mode: no bots), waits for its models to
 // stream in, and writes assets/games/troll-ops/models/<map>-placements.json:

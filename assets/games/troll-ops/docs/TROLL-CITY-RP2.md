@@ -169,4 +169,4 @@ Each phase ships on its own: targeted test → one full gate → push to main, n
 - Full gate `node tools/troll-ops-gate.mjs` once per phase before the push; after the push, curl `trollrunner.net/troll-ops.html` for the new tag.
 
 ## First execution step
-Write this design next to the others as `assets/games/troll-ops/TROLL-CITY-RP2.md` (short, the decisions and the per-phase plans), replace HANDOFF.md's stale phase-2 notes (lines 25-38: "logic in game.js", "real train riskiest") with a pointer to it, then start phase 0 + 2d.
+Write this design next to the others as `assets/games/troll-ops/docs/TROLL-CITY-RP2.md` (short, the decisions and the per-phase plans), replace HANDOFF.md's stale phase-2 notes (lines 25-38: "logic in game.js", "real train riskiest") with a pointer to it, then start phase 0 + 2d.

@@ -51,7 +51,7 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (m) => { if ((m.type() === "error" || m.type() === "warning") && !/toNonIndexed/.test(m.text())) errors.push(m.text()); });
 const gun = process.env.GUN ? `&gun=${process.env.GUN}` : "";
-await page.goto(`${BASE}/assets/games/troll-ops/cop-lab.html?still=1&look=${LOOK}${gun}`);
+await page.goto(`${BASE}/assets/games/troll-ops/labs/cop-lab.html?still=1&look=${LOOK}${gun}`);
 await page.waitForFunction(() => !!window.__lab, null, { timeout: 60000 });
 await page.evaluate(async () => { await window.__lab.ready(); });
 check("body loaded", await page.evaluate(() => !!window.__lab.rig.cop));

@@ -42,7 +42,7 @@ const W = +(E.W || 420);
 const browser = await chromium.launch({ args: [`--use-angle=${E.ANGLE || "d3d11"}`, "--enable-unsafe-swiftshader"] });
 const page = await browser.newPage({ viewport: { width: 700, height: 800 } });
 page.on("pageerror", (e) => console.log("PAGE ERROR", e.message));
-await page.goto(`http://localhost:${server.address().port}/assets/games/troll-ops/cop-lab.html?still=1&look=${LOOK === "stick" ? "" : LOOK}${E.GUN ? "&gun=" + E.GUN : ""}`);
+await page.goto(`http://localhost:${server.address().port}/assets/games/troll-ops/labs/cop-lab.html?still=1&look=${LOOK === "stick" ? "" : LOOK}${E.GUN ? "&gun=" + E.GUN : ""}`);
 await page.waitForFunction(() => !!window.__lab);
 await page.evaluate(async () => { await window.__lab.ready(); });
 const shots = [];
