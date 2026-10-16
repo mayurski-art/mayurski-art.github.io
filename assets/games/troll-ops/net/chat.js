@@ -3,8 +3,10 @@
 // Only the people in your room see it: messages ride the match's own
 // broadcast channel (net.sendChat / "chat" messages), nothing is stored.
 // Enter opens all-chat, Y team chat (team modes; free-for-all is all-chat
-// only), Enter sends, Esc closes. While the box is open the game ignores
-// its own keys (see isTyping in game.js).
+// only), U the public chat (everyone on Troll Forces, menu/public-chat.js:
+// it rides the site presence channel, so it works solo too); Tab while
+// typing steps through the channels. Enter sends, Esc closes. While the box
+// is open the game ignores its own keys (see isTyping in game.js).
 //
 // The log sits bottom-left in the HUD. With the box closed it only shows
 // the last few lines, which fade after a while; open, it shows the history.
@@ -26,6 +28,8 @@ export class MatchChat {
     this.onOpenChange = onOpenChange;
     this.lines = [];
     this.teamOnly = false;
+    this.channel = "all";       // "all" | "team" | "public"
+    this.pub = null;            // { send(text) -> { name, text } | { error }, live() } (setPublic)
     this.lastSend = 0;
     this.typing = false;
 
@@ -60,6 +64,8 @@ export class MatchChat {
     });
     input.addEventListener("keydown", (e) => {
       if (e.key === "Escape") { e.preventDefault(); this.close(); }
+      // Tab: the next channel this match has
+      if (e.key === "Tab") { e.preventDefault(); this.cycle(e.shiftKey ? -1 : 1); }
       // Keep game shortcuts out of the page while typing.
       e.stopPropagation();
     });
@@ -77,20 +83,53 @@ export class MatchChat {
   /* Clickable names only while the cursor is free. */
   setInteractive(on) { this.root.classList.toggle("is-interactive", !!on); }
 
-  open(teamOnly = false) {
-    if (!this.net.connected) return;
-    this.teamOnly = !!teamOnly && this.isTeamMode();
+  /* The public chat to send through (menu/public-chat.js sendPublic). */
+  setPublic(pub) { this.pub = pub; }
+
+  /* The channels open to us now: room ones need a room, public the site. */
+  channels() {
+    const out = [];
+    if (this.net.connected) out.push("all");
+    if (this.net.connected && this.isTeamMode()) out.push("team");
+    if (this.pub?.live()) out.push("public");
+    return out;
+  }
+
+  /* open(): all-chat; open(true) or open("team"): team; open("public"). */
+  open(chan = "all") {
+    if (chan === true) chan = "team";
+    else if (chan === false) chan = "all";
+    const have = this.channels();
+    if (!have.length) return;
+    if (!have.includes(chan)) chan = have.includes("all") ? "all" : have[0];
+    this.setChannel(chan);
     this.typing = true;
     this.form.hidden = false;
     this.root.classList.add("is-open");
-    this.chan.textContent = this.teamOnly ? "TEAM" : "ALL";
-    this.chan.classList.toggle("is-team", this.teamOnly);
     this.input.value = "";
     this.render();
     // Focus after the key that opened the box has finished, or its
     // character (Enter/Y) lands in the input.
-    setTimeout(() => this.input.focus(), 0);
+    // If it can't take focus (the match intro), it closes again: open with
+    // nowhere to type, every game key would be swallowed.
+    setTimeout(() => { this.input.focus(); if (document.activeElement !== this.input) this.close(); }, 0);
     this.onOpenChange?.(true);
+  }
+
+  setChannel(chan) {
+    this.channel = chan;
+    this.teamOnly = chan === "team";
+    this.chan.textContent = chan === "team" ? "TEAM" : chan === "public" ? "PUBLIC" : "ALL";
+    this.chan.classList.toggle("is-team", chan === "team");
+    this.chan.classList.toggle("is-public", chan === "public");
+    this.input.setAttribute("aria-label", chan === "public" ? "Public chat message: everyone on Troll Forces" : "Chat message");
+  }
+
+  cycle(step) {
+    const have = this.channels();
+    if (have.length < 2) return;
+    const i = have.indexOf(this.channel);
+    this.setChannel(have.at((i + step + have.length) % have.length));
   }
 
   close() {
@@ -105,6 +144,12 @@ export class MatchChat {
 
   send(text) {
     const t = String(text || "").replace(/\s+/g, " ").trim().slice(0, MAX_LEN);
+    if (this.channel === "public") {
+      const r = t ? this.pub?.send(t) : null;
+      if (r && r.name) this.add({ name: r.name, text: r.text, pub: true, you: true });
+      else if (r?.error) this.add({ name: "", text: r.error, note: true });
+      return r;
+    }
     if (!t || !this.net.connected) return;
     const now = performance.now();
     if (now - this.lastSend < COOLDOWN_MS) return;
@@ -121,6 +166,11 @@ export class MatchChat {
     const teamOnly = !!m.tt;
     if (teamOnly && m.tm !== this.net.team) return;
     this.add({ name: String(m.n || peer?.name || "operator").slice(0, 24), uid: safeUid(m.u || peer?.uid), team: m.tm || peer?.team, text, teamOnly });
+  }
+
+  /* A public chat message (menu/public-chat.js), already checked. */
+  receivePublic(name, text, uid = null) {
+    this.add({ name: String(name).slice(0, 24), uid: safeUid(uid), text: String(text).slice(0, 200), pub: true });
   }
 
   add(line) {
@@ -140,10 +190,15 @@ export class MatchChat {
     this.log.replaceChildren(...show.map((l) => {
       const li = document.createElement("li");
       li.className = "to-chat-line";
-      if (l.teamOnly) {
+      if (l.note) {
+        li.classList.add("is-note");
+        li.textContent = l.text;
+        return li;
+      }
+      if (l.teamOnly || l.pub) {
         const tag = document.createElement("span");
-        tag.className = "to-chat-tag";
-        tag.textContent = "[TEAM]";
+        tag.className = l.pub ? "to-chat-tag is-public" : "to-chat-tag";
+        tag.textContent = l.pub ? "[PUBLIC]" : "[TEAM]";
         li.appendChild(tag);
       }
       const name = document.createElement(l.uid ? "button" : "span");
@@ -154,7 +209,7 @@ export class MatchChat {
         name.title = `View ${l.name}'s profile`;
       }
       name.textContent = l.you ? `${l.name} (you)` : l.name;
-      const color = this.teamColor?.(l.team);
+      const color = !l.pub && this.teamColor?.(l.team);
       if (color && this.isTeamMode()) name.style.color = color;
       const text = document.createElement("span");
       text.className = "to-chat-text";
@@ -162,7 +217,8 @@ export class MatchChat {
       li.append(name, document.createTextNode(": "), text);
       return li;
     }));
-    this.root.hidden = !this.net.connected;
+    // solo, the box is there for the public chat once there's any
+    this.root.hidden = !this.net.connected && !this.typing && !show.length;
   }
 }
 

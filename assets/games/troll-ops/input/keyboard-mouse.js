@@ -85,6 +85,12 @@ export function initKeyboardMouse() {
       game.chat.open(e.code === "KeyY");
       return;
     }
+    // U: the public chat (everyone on Troll Forces), in any match, solo too
+    if (e.code === "KeyU" && !e.repeat && game.gameState === "playing" && !typingField(e.target)) {
+      e.preventDefault();
+      game.chat.open("public");
+      return;
+    }
     // The emote wheel (in a match, or on the menu's operator): H opens and
     // closes it, X plays what's hovered, Esc closes.
     const wheel = game.gameState === "menu" ? (charInspectorLive ? menuEmoteWheel : null) : game.emoteWheel;

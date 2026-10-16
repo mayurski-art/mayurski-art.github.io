@@ -3002,6 +3002,9 @@ body.to-touch-play .to-spawnguard { bottom: auto; top: 26%; }
   color: #0b0f0c; background: #ffd84d; border-radius: 4px; padding: 1px 6px;
 }
 .to-chat-chan.is-team { background: #8fe36a; }
+.to-chat-chan.is-public { background: #ff8a1f; }
+.to-chat-tag.is-public { color: #ff8a1f; }
+.to-chat-line.is-note { color: #ffcf8a; font-style: italic; }
 .to-chat-input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: #fff; font: inherit; }
 
 /* Duo emote request (game.js updateDuo): "<name> wants to Dap up: hold X" with

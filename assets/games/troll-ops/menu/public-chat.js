@@ -10,8 +10,10 @@
 // so you see what's said while you're here (the last CHAT.keep of it). Who
 // said it is read off the roster (nameOf), never the message.
 // A message while the panel is shut pops a notification (a card bottom
-// left, in the menu or a match) unless the chat is muted: the bell in the
-// panel's header, remembered on this device.
+// left) unless the chat is muted: the bell in the panel's header,
+// remembered on this device. In a match the public chat is a channel of the
+// match chatbox instead (net/chat.js: U to type, Phantom Forces style; user,
+// 2026-10-16): its lines show there, not as cards, and muted they don't.
 
 const CHAT = {
   max: 200,        // characters a message
@@ -117,16 +119,25 @@ function push(m) {
   if (chat.msgs.length > CHAT.keep) chat.msgs.splice(0, chat.msgs.length - CHAT.keep);
   if (chat.open) render();
 }
+/* Say `text` to everyone: { name, text } when it went, else { error }
+   ("" for nothing to send). The panel and the match chatbox both send
+   through here. */
+export function sendPublic(text) {
+  text = clean(text);
+  if (!text) return { error: "" };
+  const t = performance.now();
+  if (t - chat.lastSent < CHAT.gap * 1000) return { error: "Easy: one message a second." };
+  if (!chat.presence?.live || !chat.presence.send("chat", { text })) return { error: "Not connected yet. Try again in a moment." };
+  chat.lastSent = t;
+  const name = chat.presence.nameOf?.(myViewer())?.name || "You";
+  push({ name, text, at: Date.now(), me: true });
+  return { name, text };
+}
+export const publicLive = () => !!chat.presence?.live;
 function send() {
   const input = chat.panel.querySelector("input");
-  const text = clean(input.value);
-  if (!text) return;
-  const t = performance.now();
-  if (t - chat.lastSent < CHAT.gap * 1000) { note("Easy: one message a second."); return; }
-  if (!chat.presence?.live || !chat.presence.send("chat", { text })) { note("Not connected yet. Try again in a moment."); return; }
-  chat.lastSent = t;
-  const me = chat.presence.nameOf?.(myViewer())?.name || "You";
-  push({ name: me, text, at: Date.now(), me: true });
+  const r = sendPublic(input.value);
+  if (r.error !== undefined) { if (r.error) note(r.error); return; }
   input.value = "";
   note("");
 }
@@ -138,10 +149,13 @@ function onChat(d, from) {
   const who = chat.presence.nameOf(from);
   if (!text || !who) return;
   push({ name: who.name, text, at: Date.now(), me: false });
+  // in a match: a line in the chatbox, Phantom Forces style
+  const inMatch = !!chat.matchChat && !chat.canOpen();
+  if (inMatch && !chat.muted) chat.matchChat.receivePublic(who.name, text, who.userId);
   if (chat.open) return;
   chat.unread++;
   paintPill();
-  if (!chat.muted) showToast(who.name, text);
+  if (!chat.muted && !inMatch) showToast(who.name, text);
 }
 
 /* ── The notification ──────────────────────────────────────────────────── */
@@ -166,8 +180,11 @@ function hideToast() { if (chat.toast) chat.toast.hidden = true; clearTimeout(ch
 /* `presence`: the site presence handle; `pill`: the footer button (its
    badge inside); `viewerId`: ours; `canOpen()`: whether the panel can open
    now (the menu is up: in a match a notification only tells you). */
-export function initPublicChat({ presence, pill, viewerId, canOpen = () => true }) {
+export function initPublicChat({ presence, pill, viewerId, canOpen = () => true, matchChat = null }) {
   chat.presence = presence;
+  // (the game makes its match chatbox after the menu: picked up when it's there)
+  const hook = () => { let mc = null; try { mc = typeof matchChat === "function" ? matchChat() : matchChat; } catch { /* not made yet */ } if (mc && !chat.matchChat) { chat.matchChat = mc; mc.setPublic?.({ send: sendPublic, live: publicLive }); } };
+  hook();
   chat.pill = pill;
   chat.canOpen = canOpen;
   viewerIdFn = viewerId;
@@ -177,5 +194,5 @@ export function initPublicChat({ presence, pill, viewerId, canOpen = () => true 
   paintPill();
   presence.on?.("chat", onChat);
   // the menu went (a match started): the panel goes with it
-  setInterval(() => { if (chat.open && !chat.canOpen()) setOpen(false); }, 500);
+  setInterval(() => { hook(); if (chat.open && !chat.canOpen()) setOpen(false); }, 500);
 }

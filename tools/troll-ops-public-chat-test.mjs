@@ -151,6 +151,57 @@ for (const [w, h] of [[390, 844], [844, 390]]) {
   await page.keyboard.press("Escape");
 }
 
+// 7. In a match: the public chat is a channel of the match chatbox (U)
+await page.setViewportSize({ width: 1280, height: 720 });
+await page.evaluate(async () => {
+  const T = window.__trollOps;
+  T.composer && (T.composer.render = () => {});
+  T.setMode("tdm");
+  if (T.els.noBots) T.els.noBots.checked = true;
+  T.els.room.value = "PCHAT";
+  T.els.room.dispatchEvent(new Event("input"));
+  await T.startGame();
+});
+await page.waitForFunction(() => window.__trollOps.state() === "playing", null, { timeout: 60000 });
+// past the intro and the countdown (the box can't take focus under them)
+await page.waitForFunction(() => !/to-(intro|staging)-on/.test(document.body.className), null, { timeout: 90000 });
+await page.waitForTimeout(500);
+const box = () => page.evaluate(() => {
+  const r = document.querySelector(".to-chat");
+  return { shown: !!r && !r.hidden, lines: [...(r?.querySelectorAll(".to-chat-line") || [])].map((l) => l.textContent), chan: r?.querySelector(".to-chat-chan")?.textContent, open: !r?.querySelector(".to-chat-form").hidden };
+});
+await say("v-2", "gl in there");
+await page.waitForTimeout(300);
+let b = await box();
+s = await read();
+check(b.lines.some((l) => l.includes("[PUBLIC]") && l.includes("player_2") && l.includes("gl in there")) && s.toast === null, "mid-match a public message is a [PUBLIC] line in the chatbox, not a card", JSON.stringify({ b, toast: s.toast }));
+await page.keyboard.press("KeyU");
+await page.waitForTimeout(200);
+b = await box();
+check(b.open && b.chan === "PUBLIC", "U opens the chatbox on PUBLIC", JSON.stringify(b));
+await page.waitForTimeout(1300);
+await page.keyboard.type("hello all");
+await page.keyboard.press("Enter");
+await page.waitForTimeout(200);
+const sentPub = await page.evaluate(() => window.__sent.filter((m) => m.k === "chat").map((m) => m.d.text));
+b = await box();
+check(sentPub.includes("hello all") && b.lines.some((l) => l.includes("[PUBLIC]") && l.includes("(you)") && l.includes("hello all")), "Enter sends it to everyone, shown as yours", JSON.stringify({ sentPub, lines: b.lines }));
+// Tab steps through the channels: ALL -> TEAM -> PUBLIC
+await page.keyboard.press("Enter");
+await page.waitForTimeout(200);
+const chans = [(await box()).chan];
+for (let i = 0; i < 3; i++) { await page.keyboard.press("Tab"); chans.push((await box()).chan); }
+check(chans.join(",") === "ALL,TEAM,PUBLIC,ALL", "Tab steps ALL, TEAM, PUBLIC and round", chans.join(","));
+await page.keyboard.press("Escape");
+// muted: no public lines in the match either
+await page.evaluate(() => localStorage.setItem("trollops:chat-muted", "1"));
+const mutedBefore = (await box()).lines.length;
+await page.evaluate(() => { const m = document.querySelector(".to-pchat-mute"); if (m && m.getAttribute("aria-pressed") !== "true") m.click(); });
+await say("v-1", "should not show");
+await page.waitForTimeout(300);
+b = await box();
+check(!b.lines.some((l) => l.includes("should not show")), "muted: no public lines in the match", JSON.stringify(b.lines.slice(-3)));
+
 check(errors.length === 0, "no page errors", errors.join(" | "));
 console.log(fails ? `${fails} FAILED` : "ALL PASS");
 await browser.close(); server.close();

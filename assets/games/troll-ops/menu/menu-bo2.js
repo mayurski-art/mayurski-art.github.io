@@ -1108,7 +1108,7 @@ initInvites(presence);
 setInviteHandler(invitePlayer);
 // The public chat (menu/public-chat.js): its pill in the footer, for
 // everyone, guests too; it opens while the menu's up
-initPublicChat({ presence, pill: $(".to-bo2-chat", root), viewerId, canOpen: () => !title.hidden });
+initPublicChat({ presence, pill: $(".to-bo2-chat", root), viewerId, canOpen: () => !title.hidden, matchChat: () => game.chat });
 // The count opens the list.
 {
   const online = $(".to-bo2-online", root);
