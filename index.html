@@ -448,7 +448,7 @@ var backdrop = null;   // var: read by menu callbacks that can run before this l
 const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 200));
 window.addEventListener('load', () => idle(async () => {
   try {
-    const { mountMenuBackdrop } = await import('./assets/js/menu-globe.js?v=home6');
+    const { mountMenuBackdrop } = await import('./assets/js/menu-globe.js?v=home7');
     backdrop = mountMenuBackdrop($('home-backdrop'));
     document.querySelector('.home-still')?.remove();
     window.__trHome = { backdrop, menu };   // for headless tests

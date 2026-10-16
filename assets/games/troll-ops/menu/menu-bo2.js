@@ -1165,7 +1165,7 @@ const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 300));
 function coverOn(on) { document.body.classList.toggle("to-bo2-cover", on); }
 idle(async () => {
   try {
-    const { mountMenuBackdrop } = await import("../../../js/menu-globe.js?v=to-bo2f");
+    const { mountMenuBackdrop } = await import("../../../js/menu-globe.js?v=to-bo2g");
     backdrop = mountMenuBackdrop($(".to-bo2-bg", root));
     if (animOff) backdrop.setStill?.(true);
     coverOn(!title.hidden);

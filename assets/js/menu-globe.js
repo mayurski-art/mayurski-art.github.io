@@ -371,43 +371,74 @@ export function mountMenuBackdrop(host) {
   if (webglOk()) {
     loadLibRetry().then((maplibregl) => {
       if (dead) return;
-      map = new maplibregl.Map({
-        container: planetEl,
-        style: style(),
-        center: [-30, TILT_LAT],
-        zoom: 1,
-        attributionControl: false,
-        fadeDuration: 0,
-        dragRotate: false,
-        pitchWithRotate: false,
-        boxZoom: false,
-        maxZoom: 6,
-        pixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
-      });
-      // Handlers exist but stay off until map mode turns them on.
-      MAP_HANDLERS.forEach((h) => map[h] && map[h].disable());
-      // queryRenderedFeatures doesn't report circles on the globe, so hit
-      // test by hand: the nearest troll on the facing side within a finger.
-      map.on("mousemove", (e) => { if (mapMode) planetEl.classList.toggle("is-pin", !!pinAt(e.point, 14)); });
-      map.on("click", (e) => {
-        if (!mapMode) return;
-        // Picking a spot for your own pin: every tap is a spot, not a troll.
-        if (picker) { picker({ lat: e.lngLat.lat, lng: e.lngLat.lng }, e.point); return; }
-        if (!mapMode.onPin) return;
-        const hit = pinAt(e.point, 22);
-        mapMode.onPin(hit ? hit.pin : null, hit ? hit.at : e.point);
-      });
-      map.on("style.load", () => {
-        map.setProjection({ type: "globe" });
-        // Our own limb glow replaces MapLibre's blue atmosphere.
-        if (map.setSky) map.setSky({ "atmosphere-blend": 0 });
-        try { map.addImage("crust", crustImage()); map.setPaintProperty("land", "fill-pattern", "crust"); } catch {}
-        fitZoom();
-        map.once("idle", () => planetEl.classList.add("is-ready"));
-      });
-      map.on("error", (e) => console.warn("[menu-globe]", e && e.error ? e.error.message : e));
+      makeMap(maplibregl);
       refreshPins();
     }).catch((e) => console.warn("[menu-globe]", e.message));
+  }
+
+  // Phones drop the globe's GL context when rotated or backgrounded, and iOS
+  // seldom hands it back: the planet turns into a grey disc and the whole
+  // page reads black and white. Show the stand-in planet meanwhile, and build
+  // a fresh map if the context isn't restored soon.
+  let relost = 0;
+  function rebuild(maplibregl) {
+    if (dead || !map) return;
+    const view = { center: map.getCenter(), zoom: map.getZoom(), padding: map.getPadding() };
+    try { map.remove(); } catch {}
+    map = null;
+    makeMap(maplibregl, view);
+    renderFaces();
+  }
+
+  function makeMap(maplibregl, view = null) {
+    map = new maplibregl.Map({
+      container: planetEl,
+      style: style(),
+      center: view ? view.center : [-30, TILT_LAT],
+      zoom: view ? view.zoom : 1,
+      attributionControl: false,
+      fadeDuration: 0,
+      dragRotate: false,
+      pitchWithRotate: false,
+      boxZoom: false,
+      maxZoom: 6,
+      pixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
+    });
+    if (view) map.setPadding(view.padding);
+    // Handlers exist but stay off until map mode turns them on.
+    MAP_HANDLERS.forEach((h) => map[h] && map[h][mapMode ? "enable" : "disable"]());
+    // queryRenderedFeatures doesn't report circles on the globe, so hit
+    // test by hand: the nearest troll on the facing side within a finger.
+    map.on("mousemove", (e) => { if (mapMode) planetEl.classList.toggle("is-pin", !!pinAt(e.point, 14)); });
+    map.on("click", (e) => {
+      if (!mapMode) return;
+      // Picking a spot for your own pin: every tap is a spot, not a troll.
+      if (picker) { picker({ lat: e.lngLat.lat, lng: e.lngLat.lng }, e.point); return; }
+      if (!mapMode.onPin) return;
+      const hit = pinAt(e.point, 22);
+      mapMode.onPin(hit ? hit.pin : null, hit ? hit.at : e.point);
+    });
+    map.on("style.load", () => {
+      map.setProjection({ type: "globe" });
+      // Our own limb glow replaces MapLibre's blue atmosphere.
+      if (map.setSky) map.setSky({ "atmosphere-blend": 0 });
+      try { map.addImage("crust", crustImage()); map.setPaintProperty("land", "fill-pattern", "crust"); } catch {}
+      if (pins.length) map.getSource("pins").setData(pinsGeo(pins));
+      if (draft) map.getSource("draft").setData(pinsGeo([draft]));
+      if (!mapMode && !busy) fitZoom();
+      map.once("idle", () => planetEl.classList.add("is-ready"));
+    });
+    map.on("error", (e) => console.warn("[menu-globe]", e && e.error ? e.error.message : e));
+    map.on("webglcontextlost", () => {
+      planetEl.classList.remove("is-ready");
+      clearTimeout(relost);
+      relost = setTimeout(() => rebuild(maplibregl), 1200);
+    });
+    map.on("webglcontextrestored", () => {
+      clearTimeout(relost);
+      map.once("idle", () => planetEl.classList.add("is-ready"));
+      map.triggerRepaint();
+    });
   }
 
   function pinAt(point, maxPx) {
