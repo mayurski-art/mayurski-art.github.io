@@ -14,13 +14,14 @@
 import { createBo2Menu } from "../../../js/bo2-menu.js?v=to-ft2";
 import { createMapMode } from "../../../js/troll-map-mode.js?v=to-bo2d";
 import { joinSitePresence, viewerId } from "../../../js/site-presence.js?v=to-bo2d-ol1";
+import { initInvites, invitePlayer } from "./invites.js?v=iv1";
 import { startOnline, onlinePlayers, serverList, joinServer, describe } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2";
 import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
 
 import { fetchRecord, formatPlayed } from "../progression/record.js?v=rec1-or1";
 import { WEAPON_DEFS } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withClan } from "../progression/calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
-import { renderCard, myCardData, openProfileCard } from "../progression/profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zh1-zc1-zc2-nf1-or1";
+import { renderCard, myCardData, openProfileCard, openGuestCard, setInviteHandler } from "../progression/profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zh1-zc1-zc2-nf1-or1";
 import { shareCardOnX, saveCardPhoto } from "./card-share.js?v=cs1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
 import { FINISHES } from "../characters/skins.js?v=p5-wb1-or1";
 import { MAPS, REWARD_MAPS } from "../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1";
@@ -551,10 +552,11 @@ const screens = {
       return {
         id: `on-${p.key}`, label: `${p.name}${p.viewerId === me ? " (you)" : ""}`,
         value: p.guest ? "Guest" : `LV ${p.level}`,
-        desc: `${describe(a)}.${srv && p.viewerId !== me ? " Select to join them." : !p.guest ? " Select for their profile card." : ""}`,
+        desc: `${describe(a)}.${srv && p.viewerId !== me ? " Select to join them." : p.viewerId === me ? "" : !p.guest ? " Select for their profile card, or invite them." : " Select to invite them."}`,
         onSelect: () => {
           if (srv && p.viewerId !== me) { if (joinServer(srv)) setStatus(`Joining ${p.name}…`); }
-          else if (p.userId) openProfileCard(p.userId);
+          else if (p.userId) openProfileCard(p.userId, { name: p.name });
+          else if (p.viewerId !== me) openGuestCard({ viewerId: p.viewerId, name: p.name });
         },
       };
     });
@@ -965,7 +967,7 @@ function renderPartyOthers() {
   const others = onlinePlayers(roster).filter((o) => o.viewerId !== myViewer && !(uid && o.userId === uid));
   const shown = others.slice(0, PARTY_MAX - 1);
   partyList.replaceChildren(...shown.map((o) => {
-    const row = document.createElement(o.userId ? "button" : "div");
+    const row = document.createElement("button");
     row.className = "to-bo2-party-row is-other";
     row.setAttribute("role", "listitem");
     const lv = document.createElement("i");
@@ -977,10 +979,13 @@ function renderPartyOthers() {
     const doing = document.createElement("small");
     doing.textContent = describe(o.activity);
     row.append(lv, name, doing);
+    row.type = "button";
     if (o.userId) {
-      row.type = "button";
-      row.title = `${o.name}: view their profile card`;
-      row.addEventListener("click", () => openProfileCard(o.userId));
+      row.title = `${o.name}: profile card and invite`;
+      row.addEventListener("click", () => openProfileCard(o.userId, { name: o.name }));
+    } else {
+      row.title = `${o.name}: invite them to play`;
+      row.addEventListener("click", () => openGuestCard({ viewerId: o.viewerId, name: o.name }));
     }
     return row;
   }));
@@ -1096,6 +1101,9 @@ const presence = joinSitePresence({
 });
 roster = presence.roster();
 startOnline(presence);
+// Invites (menu/invites.js) on the same channel, the cards' Invite button
+initInvites(presence);
+setInviteHandler(invitePlayer);
 // The count opens the list.
 {
   const online = $(".to-bo2-online", root);

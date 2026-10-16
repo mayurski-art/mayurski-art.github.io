@@ -11,7 +11,14 @@
    what and the servers you can join (assets/games/troll-ops/menu/online.js).
    It's off the wire, so it's cleaned (cleanActivity) before anyone reads it.
 
-   joinSitePresence({ onCount, onSync }) -> { roster(), count(), setActivity(a) } */
+   Messages ride the same channel as broadcasts (send / on): Troll Forces'
+   invites and its public chat (assets/games/troll-ops/menu/invites.js,
+   public-chat.js). Every one carries the sender's viewerId; who that is
+   (a username, or GuestNNN) is read off the roster, never the message, so
+   a message can't put words in a name that isn't online. Off the wire,
+   each listener checks its own fields.
+
+   joinSitePresence({ onCount, onSync }) -> { roster(), count(), setActivity(a), send(kind, data), on(kind, fn), nameOf(viewerId) } */
 
 const SUPABASE_URL = "https://tjsyhfplxjtakdfkpdtg.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3loZnBseGp0YWtkZmtwZHRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTc0ODksImV4cCI6MjA5MTk3MzQ4OX0.xLUcPUUguRBQttNwiIRWJHxjJjLqrQDMu4Ubsk5yZoQ";
@@ -48,6 +55,7 @@ export function joinSitePresence({ onCount = null, onSync = null } = {}) {
   let channel = null;
   let joined = false;
   let activity = null;
+  const listeners = new Map();   // message kind -> Set of fn(data, from)
 
   const payload = () => {
     const a = profile();
@@ -91,7 +99,12 @@ export function joinSitePresence({ onCount = null, onSync = null } = {}) {
   if (window.supabase) {
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
     channel = client.channel("trollrunner-site-presence", { config: { presence: { key: viewerId() } } });
-    channel.on("presence", { event: "sync" }, sync).subscribe((status) => {
+    channel.on("presence", { event: "sync" }, sync);
+    channel.on("broadcast", { event: "msg" }, ({ payload: m }) => {
+      if (!m || typeof m.k !== "string" || typeof m.from !== "string" || m.from === viewerId()) return;
+      for (const fn of listeners.get(m.k) || []) { try { fn(m.d || {}, m.from); } catch { /* one bad listener */ } }
+    });
+    channel.subscribe((status) => {
       if (status === "SUBSCRIBED") { joined = true; channel.track(payload()); }
     });
     setInterval(retrack, 30000);
@@ -105,6 +118,22 @@ export function joinSitePresence({ onCount = null, onSync = null } = {}) {
     activity = next;
     if (joined) channel.track(payload()).catch(() => {});
   };
+  /* A message to everyone on the channel (each listener decides if it's
+     theirs); false when it couldn't go. */
+  const send = (k, d = {}) => {
+    if (!joined) return false;
+    channel.send({ type: "broadcast", event: "msg", payload: { k, from: viewerId(), d } }).catch(() => {});
+    return true;
+  };
+  const on = (k, fn) => { if (!listeners.has(k)) listeners.set(k, new Set()); listeners.get(k).add(fn); return () => listeners.get(k).delete(fn); };
+  /* Who a viewerId is right now: { name, userId, guest }, or null offline. */
+  const nameOf = (vid) => {
+    const r = roster();
+    const m = r.members.find((x) => x.viewerId === vid);
+    if (m) return { name: m.username, userId: m.userId, guest: false };
+    const g = r.guests.find((x) => x.viewerId === vid);
+    return g ? { name: g.label, userId: null, guest: true } : null;
+  };
   if (onCount) onCount(1);
-  return { roster, count, setActivity };
+  return { roster, count, setActivity, send, on, nameOf, get live() { return joined; } };
 }

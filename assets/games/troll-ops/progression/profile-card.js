@@ -10,6 +10,10 @@
 // name, level, prestige, owner, clan, card off their state messages) draws
 // at once, and the rest fills in from Supabase. "Full profile" still opens
 // the site's own card (troll-accounts.js).
+//
+// Invite (menu/invites.js, set with setInviteHandler) asks anyone online who
+// isn't you to play: on an account's card, and on the guest card
+// (openGuestCard) a guest's name opens, since guests have no profile.
 
 import { getLevel, getPrestige, isOwner, tfLevelForXp } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
 import { playerIconSvg, prestigeName } from "./rank-icons.js?v=rk1-or1";
@@ -113,7 +117,13 @@ async function loadOther(uid) {
 }
 
 /* ── The overlay ──────────────────────────────────────────────────────── */
-let overlay = null, lastFocus = null, openFor = null;
+let overlay = null, lastFocus = null, openFor = null, inviteFor = null, inviteHandler = null;
+/* fn({ viewerId, name }) -> a status line; menu/invites.js sets it. */
+export function setInviteHandler(fn) { inviteHandler = fn; }
+/* An account's viewer on the presence roster, or null when they're offline. */
+function onlineViewer(uid) {
+  try { return window.getViewerRoster?.()?.members?.find((m) => m.userId === uid)?.viewerId || null; } catch { return null; }
+}
 
 function close() {
   if (!overlay || overlay.hidden) return;
@@ -126,7 +136,7 @@ function close() {
 function onKey(e) {
   if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); close(); }
   else if (e.key === "Tab") {
-    const f = [...overlay.querySelectorAll("button")];
+    const f = [...overlay.querySelectorAll("button:not([hidden])")];
     const i = f.indexOf(document.activeElement);
     if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
     else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
@@ -140,11 +150,15 @@ function ensureOverlay() {
   overlay.hidden = true;
   overlay.innerHTML = `<div class="tf-card-dialog" role="dialog" aria-modal="true" aria-label="Profile card">`
     + `<div class="tf-card-slot"></div>`
-    + `<div class="tf-card-actions"><button type="button" data-act="full">Full profile</button><button type="button" data-act="close">Close</button></div>`
+    + `<p class="tf-card-status" aria-live="polite"></p>`
+    + `<div class="tf-card-actions"><button type="button" data-act="invite" class="is-invite">Invite</button><button type="button" data-act="full">Full profile</button><button type="button" data-act="close">Close</button></div>`
     + `</div>`;
   overlay.addEventListener("click", (e) => {
     const act = e.target.closest("[data-act]")?.dataset.act;
     if (act === "close" || e.target === overlay) close();
+    else if (act === "invite" && inviteFor && inviteHandler) {
+      overlay.querySelector(".tf-card-status").textContent = inviteHandler(inviteFor) || "";
+    }
     else if (act === "full") {
       const id = openFor;
       close();
@@ -166,17 +180,40 @@ export function openProfileCard(uid, hint = {}) {
   openFor = uid;
   if (el.hidden) lastFocus = document.activeElement;
   el.querySelector('[data-act="full"]').hidden = !accounts()?.openProfileCard;
+  setInvite(self ? null : onlineViewer(uid), hint.name || "Operator");
   el.hidden = false;
   paint();
   document.removeEventListener("keydown", onKey, true);
   document.addEventListener("keydown", onKey, true);
   el.querySelector('[data-act="close"]').focus();
 
-  if (!self) loadOther(uid).then((o) => { data = { ...data, ...o }; paint(); }).catch(() => {});
+  if (!self) loadOther(uid).then((o) => { data = { ...data, ...o }; paint(); if (inviteFor && o.name) inviteFor.name = o.name; }).catch(() => {});
   zombiesAllTime(uid).then((zombies) => { data = { ...data, zombies }; paint(); }).catch(() => {});
   fetchRecord(uid)
     .then((record) => { data = { ...data, record, loading: false }; paint(); })
     .catch(() => { data = { ...data, loading: false }; paint(); });
+}
+
+/* The Invite button: shown for someone online who isn't you. */
+function setInvite(vid, name) {
+  inviteFor = vid && inviteHandler ? { viewerId: vid, name } : null;
+  overlay.querySelector('[data-act="invite"]').hidden = !inviteFor;
+  overlay.querySelector(".tf-card-status").textContent = "";
+}
+
+/* A guest's card (no account, no record): their GuestNNN name and Invite. */
+export function openGuestCard({ viewerId, name }) {
+  if (!viewerId) return;
+  const el = ensureOverlay();
+  openFor = null;
+  if (el.hidden) lastFocus = document.activeElement;
+  el.querySelector('[data-act="full"]').hidden = true;
+  el.querySelector(".tf-card-slot").innerHTML = renderCard({ name: name || "Guest", guest: true });
+  setInvite(viewerId, name || "Guest");
+  el.hidden = false;
+  document.removeEventListener("keydown", onKey, true);
+  document.addEventListener("keydown", onKey, true);
+  (el.querySelector('[data-act="invite"]:not([hidden])') || el.querySelector('[data-act="close"]')).focus();
 }
 
 export function closeProfileCard() { close(); }

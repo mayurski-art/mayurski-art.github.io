@@ -3708,6 +3708,36 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
 }
 .tf-card-actions button:hover, .tf-card-actions button:focus-visible { color: #ff8a1f; border-color: #ff8a1f; outline: none; }
 .tf-card-actions button[hidden] { display: none; }
+/* Invite (menu/invites.js): the card's lead action, and what came of it. */
+.tf-card-actions button.is-invite { color: #1a0904; background: #ff8a1f; border-color: #ff8a1f; margin-right: auto; }
+.tf-card-actions button.is-invite:hover, .tf-card-actions button.is-invite:focus-visible { color: #1a0904; background: #ffa54d; }
+.tf-card-status { margin: 10px 0 0; min-height: 1em; font: 13px "DM Mono", monospace; color: #ffcf8a; }
+.tf-card-status:empty { display: none; }
+
+/* An invite to play, top of the screen over everything (menu/invites.js). */
+.to-invite {
+  position: fixed; top: max(12px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 2147483600;
+  width: min(420px, calc(100vw - 32px)); box-sizing: border-box; padding: 12px 14px 14px; overflow: hidden;
+  background: rgba(16, 9, 5, .96); border: 1px solid #ff8a1f; border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.6);
+  color: #f3ece4; font: 14px "DM Sans", sans-serif;
+}
+.to-invite[hidden] { display: none; }
+.to-invite-text { margin: 0 0 10px; line-height: 1.35; }
+.to-invite-text b { color: #ff8a1f; }
+.to-invite-key { margin: -4px 0 10px; font: 12px "DM Mono", monospace; color: #c9b8a6; }
+.to-invite-key[hidden] { display: none; }
+.to-invite-key kbd { padding: 1px 6px; border: 1px solid #ff8a1f; border-radius: 4px; color: #ff8a1f; font: inherit; }
+.to-invite-acts { display: flex; gap: 8px; }
+.to-invite-acts button {
+  flex: 1; min-height: 40px; border-radius: 6px; cursor: pointer;
+  font: 600 13px Oswald, sans-serif; letter-spacing: .08em; text-transform: uppercase;
+  color: #f3ece4; background: rgba(255,255,255,.06); border: 1px solid rgba(243,236,228,.2);
+}
+.to-invite-acts button[data-act="join"] { color: #1a0904; background: #ff8a1f; border-color: #ff8a1f; }
+.to-invite-acts button:focus-visible { outline: 2px solid #fff3d6; outline-offset: 2px; }
+.to-invite-clock { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: #ff8a1f; transform-origin: left; }
+@keyframes to-invite-clock { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .to-invite-clock { animation: none !important; } }
 
 /* Barracks (menu-bo2.js): your card up top, then the calling cards or the
    clan tag box under it. */

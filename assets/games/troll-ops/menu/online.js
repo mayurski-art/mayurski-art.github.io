@@ -101,8 +101,9 @@ export function serverList(roster) {
   return live;
 }
 
-/* Into server `s` from the menu: its mode, its map, its room. */
-export function joinServer(s) {
+/* Into server `s` from the menu: its mode, its map, its room. `listed`
+   false: a private room (an invite's), never put on the public list. */
+export function joinServer(s, { listed = true } = {}) {
   if (!s || !MODES[s.mode] || game.gameState === "playing" || game.gameState === "paused") return false;
   // The lobby's own mode button, so everything it sets up for a mode is set.
   document.querySelector(`#to-lo-mode [data-mode="${s.mode}"]`)?.click();
@@ -114,7 +115,7 @@ export function joinServer(s) {
     // word on it anyway: match-start.js followsHostMap)
     else if (!MODES[s.mode].forceMap) { const b = document.querySelector(`#to-lo-maps [data-map="${s.map}"]`); if (b && !b.disabled) b.click(); }
   }
-  if (!isPublicRoom(s.room)) publicRuns.add(s.room);   // a hub run: we list it too, now we're in it
+  if (listed && !isPublicRoom(s.room)) publicRuns.add(s.room);   // a hub run: we list it too, now we're in it
   game.els.room.value = s.room;
   game.roomIsCustom = true;
   game.startGame();
