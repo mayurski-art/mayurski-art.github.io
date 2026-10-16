@@ -17,7 +17,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1";
-import { applyToken, removeToken, tokenTraits, tokenFace } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1";
+import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1";
 import { addRim } from "../view/rim-light.js?v=sr1";
 import { tagInk, untagInk } from "../view/char-ink.js?v=ci1";
 
@@ -1349,6 +1349,11 @@ export function applyBlocky(rig, look = {}) {
 
   return restore;
 }
+
+/* The NFT design lab (tools/nft-lab.html) tunes these tables live and
+   rebuilds the body: they're read at build time, and `flush` drops the
+   beard shapes built from the old values. The game never touches this. */
+export const DESIGN = { KITS, HAIRS, HATS, CAP, SHELLS, RELIEF, HEAD_SCALE, TOKENS, TRAIT_ART, flush: () => beardShapes.clear() };
 
 /* ------------------------------------------------------------ in game */
 
