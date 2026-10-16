@@ -20,6 +20,7 @@ import { arrestCineOn, hideArrestCine, placeArrestCine } from "./arrest-cine.js?
 import { updateDuel, duelFire } from "../modes/social-duel.js?v=sd1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2";
 import { clubHolds, clubHold, updateClubEntry, clubEyeDrop } from "../modes/club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2";
 import { clubCineOn, placeClubCine } from "./club-entry-cine.js?v=cc1c3f1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2";
+import { updateLeanTrip } from "./lean-trip.js?v=lt1";
 import { TIPSY, tipsyFx } from "../maps/saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1-nf2-em2";
 import { strikeTablet, throwMarker } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2";
 import { insidePolygon } from "../maps/edge.js?v=or1";
@@ -89,6 +90,7 @@ let fireWasDown = false;
 
 export function updatePlayer(dt) {
   const w = currentWeapon();
+  const trip = updateLeanTrip(dt);   // the Pour up's after-effect (lean-trip.js)
   updateLauncherLock(dt);
   updateSwapButton(dt);   // X / the touch SWAP outside the PvP pickup prompt
 
@@ -363,7 +365,7 @@ export function updatePlayer(dt) {
     const glance = kbRepair.active ? kbRepair.glance : 0;
     // Tipsy (the saloon bar): the room leans and bobs a little.
     const tip = bar.tipsy > TIPSY.onset && game.isSocial() ? tipsyFx(bar.tipsy, performance.now() / 1000) : null;
-    game._euler.set(viewPitch + rollPitch + downPitch + glance * KB_GLANCE.pitch + (tip?.pitch || 0), viewYaw + glance * KB_GLANCE.yaw, (Math.random() - 0.5) * shake * 0.6 + game.fireShake.r + slideRoll + downRoll + (tip?.roll || 0));
+    game._euler.set(viewPitch + rollPitch + downPitch + glance * KB_GLANCE.pitch + (tip?.pitch || 0) + trip.pitch, viewYaw + glance * KB_GLANCE.yaw, (Math.random() - 0.5) * shake * 0.6 + game.fireShake.r + slideRoll + downRoll + (tip?.roll || 0) + trip.roll);
     game.camera.quaternion.setFromEuler(game._euler);
     if (glance > 0 || game.weaponCamera.userData.glanced) {
       game.weaponCamera.quaternion.setFromEuler(game._euler.set(glance * KB_GLANCE.pitch, glance * KB_GLANCE.yaw, 0, "YXZ"));

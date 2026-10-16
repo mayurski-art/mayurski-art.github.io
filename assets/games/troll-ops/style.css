@@ -2874,6 +2874,22 @@ body.to-touch-play .to-spawnguard { bottom: auto; top: 26%; }
 @media (prefers-reduced-motion: reduce) { .to-emote-slice { transition: none; } }
 .to-emote-slice[hidden] { display: none; }   /* a TROLLS token's own emote, not yours (emote-wheel.js layout) */
 
+/* The Pour up's after-effect (view/lean-trip.js): a purple wash and vignette
+   over the world, faint trollfaces drifting up it. Opacity and the vars are
+   set every frame; it never takes a click. */
+.to-lean-trip {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0; overflow: hidden; z-index: 0;
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(150, 60, 220, 0) 35%, rgba(70, 10, 120, .55) 100%),
+    rgba(150, 70, 230, var(--wash, .2));
+  mix-blend-mode: hard-light;
+  filter: hue-rotate(var(--hue, 0deg));
+}
+.to-lean-trip-face {
+  position: absolute; left: 0; top: 0; width: 30vmin; height: auto; opacity: 0;
+  filter: sepia(1) saturate(4) hue-rotate(225deg) blur(1px);
+}
+
 /* BO2-style killcam overlay (game.js startKillcamPresentation). KILLCAM
    across the top between the letterbox bars, the killer plate bottom-left,
    the skip hint bottom-right. Sits above the bars (z 19). */
