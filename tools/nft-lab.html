@@ -241,7 +241,7 @@ const NAMES = { 1718: "Troll Runner", 820: "Farmer", 1262: "UMADBRO", 989: "Goku
 /* Every edit is a path into DESIGN and a value. The defaults are a deep
    copy taken before anything is touched; "Game vs mine" builds the left
    troll from them. */
-const TABLES = ["KITS", "HAIRS", "HATS", "CAP", "SHELLS", "RELIEF", "HEAD", ...(INK ? ["INK"] : [])];
+const TABLES = ["KITS", "HAIRS", "HATS", "CAP", "SHELLS", "HEAD_MODELS", "HEAD", ...(INK ? ["INK"] : [])];
 const DEFAULTS = structuredClone(Object.fromEntries(TABLES.map((k) => [k, DESIGN[k]])));
 const STORE = "nftlab:v1";
 let saved = {};
@@ -437,13 +437,18 @@ function renderTuning() {
     sliderRow("Inside strength", ["INK", "innerAlpha"], 0, 1, 0.05, (x) => x.toFixed(2)),
     colourRow("Line colour", ["INK", "color"]),
   ] : []));
+  const shapeId = "h" + uid++, SHAPES = { relief: "Current", flat: "Flat drawing", jaw: "Big jaw" };
+  const shapeSel = el("select", { id: shapeId, on: { change: (e) => { edit(["HEAD", "model"], e.target.value); renderTuning(); } } },
+    ...Object.keys(DESIGN.HEAD_MODELS || {}).map((k) => el("option", { value: k }, SHAPES[k] || k)));
+  shapeSel.value = valueOf(["HEAD", "model"]);
   $("headRows").replaceChildren(
+    el("div", { class: "row" + (edited(["HEAD", "model"]) ? " edited" : "") }, el("label", { for: shapeId }, "Head shape"), shapeSel),
     sliderRow("Head size", ["HEAD", "scale"], 0.5, 1.2, 0.01, (x) => x.toFixed(2)),
     sliderRow("Neck length (cm)", ["HEAD", "neck"], 0, 0.16, 0.005, (x) => (x * 100).toFixed(1)),
     sliderRow("Neck width (cm)", ["HEAD", "neckR", 0], 0.02, 0.09, 0.002, (x) => (x * 200).toFixed(1)),
     sliderRow("Neck top width (cm)", ["HEAD", "neckR", 1], 0.02, 0.09, 0.002, (x) => (x * 200).toFixed(1)),
-    sliderRow("Face pushes out", ["RELIEF", "front"], 0.02, 0.16, 0.005),
-    sliderRow("Skull depth", ["RELIEF", "back"], 0.08, 0.3, 0.005),
+    sliderRow("Face pushes out", ["HEAD_MODELS", valueOf(["HEAD", "model"]), "front"], 0.02, 0.16, 0.005),
+    sliderRow("Skull depth", ["HEAD_MODELS", valueOf(["HEAD", "model"]), "back"], 0.08, 0.3, 0.005),
   );
 
   const hat = art("hat"), H = DESIGN.HATS[hat];
