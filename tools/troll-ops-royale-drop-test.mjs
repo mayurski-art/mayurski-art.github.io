@@ -59,8 +59,8 @@ const state = () => page.evaluate(() => {
   };
 });
 const onIsland = (p) => page.evaluate(async (p) => {
-  const { ISLAND_EDGE } = await import("/assets/games/troll-ops/trollface-island.js?v=ti3");
-  const { insidePolygon } = await import("/assets/games/troll-ops/edge.js");
+  const { ISLAND_EDGE } = await import("/assets/games/troll-ops/maps/trollface-island.js?v=ti3");
+  const { insidePolygon } = await import("/assets/games/troll-ops/maps/edge.js?v=or1");
   return insidePolygon(ISLAND_EDGE, p.x, p.z);
 }, p);
 /* The camera in the ridden plane's own frame (the floor's middle, -z the nose). */
@@ -214,8 +214,8 @@ s = await state();
 check("every bot jumps and lands, the zone goes live, the planes go", s.live && s.phase === "done" && s.airborne === 0 && s.botsOff === 0 && s.botsHigh === 0 && s.trolls >= 90,
   JSON.stringify({ live: s.live, phase: s.phase, airborne: s.airborne, stuckHigh: s.botsOff, high: s.botsHigh, trolls: s.trolls }));
 const botsOnIsland = await page.evaluate(async () => {
-  const { ISLAND_EDGE } = await import("/assets/games/troll-ops/trollface-island.js?v=ti3");
-  const { insidePolygon } = await import("/assets/games/troll-ops/edge.js");
+  const { ISLAND_EDGE } = await import("/assets/games/troll-ops/maps/trollface-island.js?v=ti3");
+  const { insidePolygon } = await import("/assets/games/troll-ops/maps/edge.js?v=or1");
   const T = window.__trollOps;
   return T.bots.bots.filter((b) => b.alive && !insidePolygon(ISLAND_EDGE, b.pos.x, b.pos.z)).length;
 });

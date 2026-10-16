@@ -4,7 +4,7 @@
 
 import { hashSeed, seededRng, RoyaleZone, ROYALE, LootField, lootSpots, ZoneVisual, ITEM_NAMES, gunDisplayName, POI_TIERS, poiTierAt } from "./royale-zone.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1-fl1-or1";
 import { groundHeightAt } from "../core/movement.js?v=umb2-sb2-gj1b7-or1";
-import { insidePolygon } from "../edge.js";
+import { insidePolygon } from "../maps/edge.js?v=or1";
 import { DROP, RoyaleDrop, buildParaglider, Flight } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1-fl1-or1";
 import { Squadron, PLANES, flightPos, flightVel } from "./royale-planes.js?v=pl1-pl2-pi1-sr1-fl1-or1";
 import { SEAT_SPOTS, RAMP_END } from "./royale-hold.js?v=pl1-pl2-sr1-or1";

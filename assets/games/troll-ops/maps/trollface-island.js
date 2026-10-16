@@ -18,9 +18,9 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { insidePolygon } from "./edge.js";
-import { SURFACES } from "./surface-textures.js?v=hg6e-sr1";
-import { mapModel } from "./map-models.js?v=hg6e-sr1";
+import { insidePolygon } from "./edge.js?v=or1";
+import { SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1";
+import { mapModel } from "./map-models.js?v=hg6e-sr1-or1";
 
 const BOUNDS = { minX: -205, maxX: 205, minZ: -155, maxZ: 155 };
 
@@ -1053,7 +1053,7 @@ function dressIsland(api, root, K, M, r, clear) {
 
   // billboards by the roads: the key art, the sad troll, the key art again
   const loader = new THREE.TextureLoader();
-  const art = (file) => { const t = loader.load(new URL(`./ui/${file}`, import.meta.url).href); t.colorSpace = THREE.SRGBColorSpace; return t; };
+  const art = (file) => { const t = loader.load(new URL(`../ui/${file}`, import.meta.url).href); t.colorSpace = THREE.SRGBColorSpace; return t; };
   const billboards = [[NORTH_ROAD, 4, "troll-forces-key-art.jpg", 7.5, 4.2], [SOUTH_EAST_PATH, 3, "trollface-sad.png", 4.5, 4.5], [SWITCHBACK, 2, "troll-forces-key-art.jpg", 7.5, 4.2]];
   for (const [road, idx, file, w, h] of billboards) {
     const [ax, az] = road[idx], [bx, bz] = road[idx + 1];

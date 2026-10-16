@@ -10,7 +10,7 @@ import { showSumGun, charInspector, inspectorLive, inspector } from "../menu/lob
 import { restoreMeleeHands } from "./weapon-view.js?v=wv1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { buildMeleeMesh } from "../weapons/gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1";
 import { buildStreakDevice, buildMarkerDevice } from "../streaks/streak-device.js?v=to-df1-or1";
-import { loadModel } from "../battlefield-props.js?v=sr1";
+import { loadModel } from "../maps/battlefield-props.js?v=sr1-or1";
 import { makeMuzzleFlashMaterial } from "./shaders.js?v=or1";
 import { createAkimboView } from "../weapons/akimbo-view.js?v=ak1-wst-or1";
 import { HellfireFx } from "../weapons/soul-blazer.js?v=sb1-or1";

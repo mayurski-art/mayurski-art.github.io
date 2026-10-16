@@ -46,7 +46,7 @@ await page.goto(`http://localhost:${server.address().port}/troll-ops.html?tohook
 await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 90000 });
 
 let maps = process.argv.slice(2);
-if (!maps.length) maps = await page.evaluate(async () => (await import("./assets/games/troll-ops/maps.js")).MAP_IDS).catch(() => []);
+if (!maps.length) maps = await page.evaluate(async () => (await import("./assets/games/troll-ops/maps/maps.js")).MAP_IDS).catch(() => []);
 if (!maps.length) maps = ["trollcity"];
 
 for (const mapId of maps) {

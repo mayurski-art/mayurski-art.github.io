@@ -36,12 +36,12 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { SURFACES, retexture } from "./surface-textures.js?v=hg6e-sr1";
-import { portrait } from "./house-props.js?v=hg6e-sb2-sr1";
-import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1";
-import { loadModel } from "./battlefield-props.js?v=sr1";
-import { buildChapel } from "./hollowgrin-chapel.js?v=hg6tc";
-import { placeMannequins } from "./hollowgrin-mannequins.js?v=hg6h-sr1";
+import { SURFACES, retexture } from "./surface-textures.js?v=hg6e-sr1-or1";
+import { portrait } from "./house-props.js?v=hg6e-sb2-sr1-or1";
+import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1";
+import { loadModel } from "./battlefield-props.js?v=sr1-or1";
+import { buildChapel } from "./hollowgrin-chapel.js?v=hg6tc-or1";
+import { placeMannequins } from "./hollowgrin-mannequins.js?v=hg6h-sr1-or1";
 
 export const HG_FLOORS = { ground: 0, upper: 3.6, loft: 2.4, wheel: 6.0, mansion: 4.2, brake: 9.0 };
 // The barn's loft (x 17.35..20.4 over the west end) is its own floor: by
@@ -311,7 +311,7 @@ function carveTexture() {
       g.putImageData(d, 0, 0);
       t.needsUpdate = true;
     };
-    img.src = new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
+    img.src = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
     return t;
   });
 }
@@ -1158,7 +1158,7 @@ function paintMat(file) {
 }
 
 /* The trollface artwork as it is: white face, black ink. */
-const trollTexture = () => imageTex("../../images/wallpaper/trollface%20transparent.png");
+const trollTexture = () => imageTex("../../../images/wallpaper/trollface%20transparent.png");
 
 /* St. Grinsworth's rose window: twelve wedges of coloured glass in lead,
    and the trollface grinning out of the middle in pale amber glass. */
@@ -1209,7 +1209,7 @@ function roseTexture() {
       g.drawImage(k, S / 2 - 130, S / 2 - 130);
       t.needsUpdate = true;
     };
-    img.src = new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
+    img.src = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
     return t;
   });
 }
@@ -1265,7 +1265,7 @@ function stainedTexture() {
       g.drawImage(k, W / 2 - 75, H * 0.48 - 75);
       t.needsUpdate = true;
     };
-    img.src = new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
+    img.src = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
     return t;
   });
 }
@@ -3574,8 +3574,8 @@ function buildHollowgrin(api) {
     awningRed: texMat(stripesTexture("#b8242c", "#f0e6d6"), { rough: 0.9, side: THREE.DoubleSide }),
     purpleDisc: new THREE.MeshStandardMaterial({ color: 0x6a2aa8, roughness: 0.6, emissive: 0x3a0f6a }),
     plinth: new THREE.MeshStandardMaterial({ color: 0x0c0c10, roughness: 0.35 }),
-    posterPaint: paintMat("ui/easter/poster-dark-planetoid.jpg"),
-    galleryPaint: paintMat("ui/easter/meme-gallery.jpg"),
+    posterPaint: paintMat("../ui/easter/poster-dark-planetoid.jpg"),
+    galleryPaint: paintMat("../ui/easter/meme-gallery.jpg"),
     sidingA: surfMat("wood", 0x3c4a5a, { mix: 0.25, tile: 1.6 }),
     sidingB: surfMat("wood", 0x5a4a3a, { mix: 0.25, tile: 1.6 }),
     sidingC: surfMat("wood", 0x4a3a52, { mix: 0.25, tile: 1.6 }),

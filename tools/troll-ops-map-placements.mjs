@@ -21,7 +21,7 @@ const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/cs
 const ids = process.argv.slice(2);
 // maps.js at the exact URL game.js imports it by, so the page hands back the
 // same module (its MAPS) instead of loading a second copy
-const MAPS_URL = "./assets/games/troll-ops/" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/game.js"), "utf8").match(/from "(\.\/maps\.js[^"]*)"/)[1].slice(2);
+const MAPS_URL = "./assets/games/troll-ops/" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/game.js"), "utf8").match(/from "(\.\/maps\/maps\.js[^"]*)"/)[1].slice(2);
 if (!ids.length) { console.error("usage: troll-ops-map-placements.mjs <mapId ...>"); process.exit(2); }
 
 const server = http.createServer((req, res) => {

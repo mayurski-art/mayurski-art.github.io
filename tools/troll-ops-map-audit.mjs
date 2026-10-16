@@ -50,7 +50,7 @@ await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentload
 
 const wanted = process.argv.slice(2);
 const maps = await page.evaluate(async (wanted) => {
-  const M = await import("/assets/games/troll-ops/maps.js");
+  const M = await import("/assets/games/troll-ops/maps/maps.js");
   const ids = wanted.length ? wanted : M.MAP_IDS;
   return ids.map((id) => {
     const colliders = [], arena = {};

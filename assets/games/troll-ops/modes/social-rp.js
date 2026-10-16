@@ -12,7 +12,7 @@
    Fire sips, G puts it down. Sips make you tipsy (saloon-bar.js tipsyFx).
    What's in your hand, a sip, and the role ride the state packet. */
 
-import { REACH, GRAB_TIME, BEER_SIPS, FILL_TIME_BARTENDER, FILL_TIME, APRON_TIME, POUR_TIME, OFFER_SECONDS, TIPSY, drinkMax, DRINK_KINDS, isLiquor, SIP_TIME, tipsyFx, BARTENDER_LEAVE_SECONDS, buildDrink, mountDrink, poseDrinkArm, placeDrinkInHand, PourFx } from "../saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1";
+import { REACH, GRAB_TIME, BEER_SIPS, FILL_TIME_BARTENDER, FILL_TIME, APRON_TIME, POUR_TIME, OFFER_SECONDS, TIPSY, drinkMax, DRINK_KINDS, isLiquor, SIP_TIME, tipsyFx, BARTENDER_LEAVE_SECONDS, buildDrink, mountDrink, poseDrinkArm, placeDrinkInHand, PourFx } from "../maps/saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1";
 import * as THREE from "three";
 import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { playerName } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";

@@ -4,10 +4,10 @@
 // the sets it uses.
 
 import * as THREE from "three";
-import { useWorldEnv } from "./view/environment.js?v=sr1";
+import { useWorldEnv } from "../view/environment.js?v=sr1";
 
 const TEX_LOADER = new THREE.TextureLoader();
-const TEX_BASE = new URL("./textures/", import.meta.url);
+const TEX_BASE = new URL("../textures/", import.meta.url);
 function loadTex(name, srgb) {
   const t = TEX_LOADER.load(new URL(name, TEX_BASE).href);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;

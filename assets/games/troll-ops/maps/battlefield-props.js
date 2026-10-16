@@ -13,9 +13,9 @@
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { retexture, applyBakedLightMap, applyGroundLightMap, groundLightAt, applyLightAt } from "./surface-textures.js?v=hg6e-sr1";
+import { retexture, applyBakedLightMap, applyGroundLightMap, groundLightAt, applyLightAt } from "./surface-textures.js?v=hg6e-sr1-or1";
 
-const MODEL_BASE = new URL("./models/", import.meta.url).href;
+const MODEL_BASE = new URL("../models/", import.meta.url).href;
 const loader = new GLTFLoader();
 const cache = new Map();
 const bakeCache = new Map();

@@ -6,8 +6,8 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { RETEXTURE } from "./map-models.js?v=hg6e-sr1";
-import { loadModel } from "./battlefield-props.js?v=sr1";
+import { RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1";
+import { loadModel } from "./battlefield-props.js?v=sr1-or1";
 
 const portraitCache = new Map();
 

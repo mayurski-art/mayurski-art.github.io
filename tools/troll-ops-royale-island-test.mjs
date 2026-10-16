@@ -44,8 +44,8 @@ await page.waitForFunction(() => window.__trollOps.state() === "playing" && !win
 
 const info = await page.evaluate(async () => {
   const T = window.__trollOps, r = T.royale();
-  const { ISLAND_EDGE, ISLAND_LAKE } = await import("/assets/games/troll-ops/trollface-island.js?v=ti3");
-  const { insidePolygon } = await import("/assets/games/troll-ops/edge.js");
+  const { ISLAND_EDGE, ISLAND_LAKE } = await import("/assets/games/troll-ops/maps/trollface-island.js?v=ti3");
+  const { insidePolygon } = await import("/assets/games/troll-ops/maps/edge.js?v=or1");
   const items = [...r.loot.items.values()];
   return {
     map: T.loadedMapId(), alive: T.royaleAliveList().length, loot: items.length,
@@ -90,8 +90,8 @@ const [ex, ez] = info.edge0;
 const len = Math.hypot(ex, ez);
 const out = await walk(ex - (ex / len) * 4, ez - (ez / len) * 4, ex / len, ez / len, 3000);
 const held = await page.evaluate(async (p) => {
-  const { ISLAND_EDGE } = await import("/assets/games/troll-ops/trollface-island.js?v=ti3");
-  const { insidePolygon } = await import("/assets/games/troll-ops/edge.js");
+  const { ISLAND_EDGE } = await import("/assets/games/troll-ops/maps/trollface-island.js?v=ti3");
+  const { insidePolygon } = await import("/assets/games/troll-ops/maps/edge.js?v=or1");
   return insidePolygon(ISLAND_EDGE, p[0], p[1]) && window.__trollOps.player.alive;
 }, out.end);
 check("the cliff edge holds you (invisible wall)", held, JSON.stringify(out.end.map((v) => +v.toFixed(1))));

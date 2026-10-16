@@ -91,8 +91,8 @@ function callerLine(skip) {
 }
 
 const THREE = await import("three");
-const kitMod = await import(pathToFileURL(path.join(ROOT, "assets/games/troll-ops/trollcity-kit.js")).href + "?v=tc2-wst");
-const { TROLLCITY } = await import(pathToFileURL(path.join(ROOT, "assets/games/troll-ops/trollcity.js")).href);
+const kitMod = await import(pathToFileURL(path.join(ROOT, "assets/games/troll-ops/maps/trollcity-kit.js")).href + "?v=tc2-wst");
+const { TROLLCITY } = await import(pathToFileURL(path.join(ROOT, "assets/games/troll-ops/maps/trollcity.js")).href);
 
 // Every piece the Kit is handed: its world box, material, and where from.
 const origAdd = kitMod.Kit.prototype.add;

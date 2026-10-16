@@ -5,8 +5,8 @@
 // this file turns it into colliders, stairs and ropes, and holds the map's
 // sky and lighting. Everything you see is models/build_grinjuku.blender.py.
 
-import { GJ, grinjukuLayout } from "./grinjuku-layout.js?v=gj1";
-import { mapModel } from "./map-models.js?v=hg6e-sr1";
+import { GJ, grinjukuLayout } from "./grinjuku-layout.js?v=gj1-or1";
+import { mapModel } from "./map-models.js?v=hg6e-sr1-or1";
 
 const LAYOUT = grinjukuLayout();
 

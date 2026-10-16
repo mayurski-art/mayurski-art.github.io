@@ -17,7 +17,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { clampInsidePolygon } from "../edge.js";
+import { clampInsidePolygon } from "../maps/edge.js?v=or1";
 import { Squadron, PLANES } from "./royale-planes.js?v=pl1-pl2-pi1-sr1-fl1-or1";
 
 export const DROP = {

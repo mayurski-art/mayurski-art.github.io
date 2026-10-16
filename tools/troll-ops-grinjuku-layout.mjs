@@ -1,4 +1,4 @@
-// Dumps The Grinjuku's layout (assets/games/troll-ops/grinjuku-layout.js)
+// Dumps The Grinjuku's layout (assets/games/troll-ops/maps/grinjuku-layout.js)
 // to models/grinjuku-layout.json for the Blender build script.
 //
 //   node tools/troll-ops-grinjuku-layout.mjs
@@ -13,7 +13,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DIR = path.join(ROOT, "assets/games/troll-ops");
 // The layout file is a plain ES module with no imports; load it as one
 // whatever the repo's package type is.
-const src = fs.readFileSync(path.join(DIR, "grinjuku-layout.js"), "utf8");
+const src = fs.readFileSync(path.join(DIR, "maps/grinjuku-layout.js"), "utf8");
 const mod = await import(`data:text/javascript;base64,${Buffer.from(src).toString("base64")}`);
 const out = { GJ: mod.GJ, ...mod.grinjukuLayout() };
 const file = path.join(DIR, "models/grinjuku-layout.json");

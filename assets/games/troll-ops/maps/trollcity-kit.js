@@ -9,7 +9,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { SURFACES } from "./surface-textures.js?v=hg6e-sr1";
+import { SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1";
 
 /* ================================================================ utilities */
 
@@ -41,7 +41,7 @@ export function canvasTex(w, h, draw, { srgb = true, repeat = false } = {}) {
 const TEX = {};
 export function tex(name, make) { return TEX[name] ??= make(); }
 
-const TROLL_URL = new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
+const TROLL_URL = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
 let trollImg = null;
 const trollWaiters = [];
 /* The trollface artwork (white face, black ink), loaded once; `then` runs
@@ -1308,7 +1308,7 @@ export function artTexture(name, { sepia = false } = {}) {
       }
       t.needsUpdate = true;
     };
-    img.src = new URL(`./ui/western/${a.file}`, import.meta.url).href;
+    img.src = new URL(`../ui/western/${a.file}`, import.meta.url).href;
     return t;
   });
 }

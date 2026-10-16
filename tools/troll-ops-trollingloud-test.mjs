@@ -64,9 +64,9 @@ async function open(mode) {
   console.log("--- versus");
   const { page, errors } = await open("tdm");
   const lightCount = () => page.evaluate(() => { let n = 0; window.__trollOps.scene.traverse((o) => { if (o.isPointLight || o.isSpotLight) n++; }); return n; });
-  const dbg = () => page.evaluate(async () => (await import("/assets/games/troll-ops/maps.js")).MAPS.trollingloud.debug());
+  const dbg = () => page.evaluate(async () => (await import("/assets/games/troll-ops/maps/maps.js")).MAPS.trollingloud.debug());
   // (waitForFunction needs a plain predicate: an async one returns a Promise, which is truthy at once)
-  await page.evaluate(async () => { window.__tl = (await import("/assets/games/troll-ops/maps.js")).MAPS.trollingloud; });
+  await page.evaluate(async () => { window.__tl = (await import("/assets/games/troll-ops/maps/maps.js")).MAPS.trollingloud; });
   await page.waitForFunction(() => { const d = window.__tl.debug(); return d.active && d.beat > 0; }, null, { timeout: 60000 });
   await sleep(1000);
   const d0 = await dbg();
@@ -74,7 +74,7 @@ async function open(mode) {
   const n0 = await lightCount();
   // the beat, read in-page across 2 s of real time (no stale read across awaits)
   const beats = await page.evaluate(async () => {
-    const M = (await import("/assets/games/troll-ops/maps.js")).MAPS.trollingloud;
+    const M = (await import("/assets/games/troll-ops/maps/maps.js")).MAPS.trollingloud;
     const frame = () => new Promise((r) => requestAnimationFrame(r));
     await frame(); await frame();
     const a = M.debug().beat, t0 = performance.now();
@@ -89,7 +89,7 @@ async function open(mode) {
 
   // shots, straight through the map hook the bullets use
   const shot = await page.evaluate(async () => {
-    const M = (await import("/assets/games/troll-ops/maps.js")).MAPS.trollingloud;
+    const M = (await import("/assets/games/troll-ops/maps/maps.js")).MAPS.trollingloud;
     const sign = M.debug().signs.find((s) => s.g === 5);           // "u mad?" over the bar
     M.onShot({ x: sign.x, y: sign.y, z: sign.z });
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -106,14 +106,14 @@ async function open(mode) {
   check(shot.ball > 0.9, "the mirror ball spins up when shot");
   check(shot.gone === 1, "a shot bottle breaks");
   await sleep(4000);
-  const back = await page.evaluate(async () => (await import("/assets/games/troll-ops/maps.js")).MAPS.trollingloud.debug().kill[5]);
+  const back = await page.evaluate(async () => (await import("/assets/games/troll-ops/maps/maps.js")).MAPS.trollingloud.debug().kill[5]);
   check(back === 0, "the sign relights");
   check((await lightCount()) === n0, "the light count never changed", `${n0}`);
 
   // the track: on in the hall, muffled out in the alley, off under the radio
   const snd = await page.evaluate(async () => {
     const T = window.__trollOps;
-    const M = (await import("/assets/games/troll-ops/maps.js")).MAPS.trollingloud;
+    const M = (await import("/assets/games/troll-ops/maps/maps.js")).MAPS.trollingloud;
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     // (headless, the camera can sit on the intro shot, so the zones are read
     // straight off the muffle map rather than from wherever the camera is)

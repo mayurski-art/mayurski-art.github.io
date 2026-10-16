@@ -294,7 +294,7 @@ console.log("\n== bots");
 // Every map in the vote pool (maps.js MAP_IDS, the copy game.js imports):
 // three that weren't covered froze for real players (2026-10-11).
 const mapsTag = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/game.js"), "utf8").match(/\.\/maps\.js(\?v=[^"']*)["']/)?.[1] || "";
-const mapIds = await page.evaluate(async (u) => (await import(u)).MAP_IDS, `/assets/games/troll-ops/maps.js${mapsTag}`);
+const mapIds = await page.evaluate(async (u) => (await import(u)).MAP_IDS, `/assets/games/troll-ops/maps/maps.js${mapsTag}`);
 check(`the vote pool lists its maps (${mapIds.length})`, mapIds.length >= 8, mapIds.join(" "));
 for (const mapId of mapIds) {
   const r = await play("tdm", mapId, 15);

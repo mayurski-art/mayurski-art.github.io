@@ -13,7 +13,7 @@
 // looking up at open sky.
 
 import * as THREE from "three";
-import * as P from "./props.js";
+import * as P from "./props.js?v=or1";
 
 export const FLOOR = { labs: 0, war: 5.5, board: 11 };
 

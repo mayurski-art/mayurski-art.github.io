@@ -27,7 +27,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { useWorldEnv } from "./view/environment.js?v=sr1";
+import { useWorldEnv } from "../view/environment.js?v=sr1";
 
 /* ------------------------------------------------------------- the atlas */
 // 4 x 4 cells of 256 px. Most are drawn white on clear so each decal is
@@ -271,7 +271,7 @@ function decalAtlas() {
     g.putImageData(img, x0, y0);
     atlasTex.needsUpdate = true;
   };
-  face.src = new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
+  face.src = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
   atlasTex.colorSpace = THREE.SRGBColorSpace;
   atlasTex.anisotropy = 4;
   return atlasTex;

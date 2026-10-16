@@ -58,7 +58,7 @@ function canvasTex(w, h, draw, { repeat = false } = {}) {
 
 /* The trollface artwork, recoloured: its white face and its black ink each
    to a colour (or dropped), alpha kept. Drawn in once the image loads. */
-const TROLL_URL = new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
+const TROLL_URL = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
 let trollImg = null;
 function withTroll(t, draw) {
   trollImg ??= new Promise((res) => {

@@ -33,8 +33,8 @@ import {
   wheel, wagon, horse, cactus, steerSkull, rock,
   tableSet as kitTableSet, chair as kitChair, stool as kitStool, piano as kitPiano,
   chandelier, sconce, railFence, picketFence, hayBale, log, coffin, framedPicture, artTexture, artAspect,
-} from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1";
-import { LoopPath, Train } from "./train.js?v=tr1b7";
+} from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1";
+import { LoopPath, Train } from "./train.js?v=tr1b7-or1";
 
 const BOUNDS = { minX: -62, maxX: 62, minZ: -50, maxZ: 50 };
 const T = 0.3;            // wall thickness

@@ -16,9 +16,9 @@
 // the other eleven are instanced, one InstancedMesh per part.
 
 import * as THREE from "three";
-import { insidePolygon } from "../edge.js";
+import { insidePolygon } from "../maps/edge.js?v=or1";
 import { seededRng } from "./royale-zone.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1-fl1-or1";
-import { loadModel } from "../battlefield-props.js?v=sr1";
+import { loadModel } from "../maps/battlefield-props.js?v=sr1-or1";
 import { Hold, HOLD, RAMP_END, holdDaylight } from "./royale-hold.js?v=pl1-pl2-sr1-or1";
 
 export const PLANES = {

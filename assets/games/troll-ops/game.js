@@ -31,9 +31,9 @@ import { playerIconSvg } from "./progression/rank-icons.js?v=rk1-or1";
 import { recordMatch } from "./progression/record.js?v=rec1-or1";
 import { getMyCard, withClan } from "./progression/calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
 import { openProfileCard } from "./progression/profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zh1-zc1-zc2-nf1-or1";
-import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1";
-import { createMapPreloader } from "./map-preload.js?v=mp4";
-import { createMapLoadScreen, mapShotAttrs } from "./map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1-sr1-ug5";
+import { buildMap, disposeMap, MAPS, MAP_IDS } from "./maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1";
+import { createMapPreloader } from "./maps/map-preload.js?v=mp4-or1";
+import { createMapLoadScreen, mapShotAttrs } from "./maps/map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1-sr1-ug5-or1";
 import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net/net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10-hr2-zp1-rs1-dj2-pl2-nf1-or1";
 import { MatchChat, safeUid } from "./net/chat.js?v=to-social1-or1";
 import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths, setSeatLookup } from "./net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
@@ -44,8 +44,8 @@ import {
   buildDrink, placeDrinkInHand, poseDrinkArm, mountDrink, drinkCode, drinkMax, tipsyFx, TIPSY,
   BEER_SIPS, GRAB_TIME, FILL_TIME, FILL_TIME_BARTENDER, POUR_TIME, SIP_TIME, APRON_TIME,
   OFFER_SECONDS, REACH, BARTENDER_LEAVE_SECONDS,
-} from "./saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1";
-import { TownNpcs } from "./town-npcs.js?v=tn4b7b7dc2f1m1u-cup1-nc1-cd1-sh1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1";
+} from "./maps/saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1";
+import { TownNpcs } from "./maps/town-npcs.js?v=tn4b7b7dc2f1m1u-cup1-nc1-cd1-sh1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1";
 import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES, hideFpEmoteProps, fpEmoteRodTip } from "./characters/emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1";
 import { buildWatch, wristOf } from "./characters/wristwear.js?v=ww1c2m1-or1";
 import { MatchIntro } from "./modes/match-intro.js?v=mi5-wst-or1";
@@ -57,10 +57,10 @@ import { BotManager } from "./bots/bots.js?v=cg5-em1-wst-bs1-p22-bs2-sb2-gj1-fu1
 import { resolveWeapon, defaultLoadoutFor } from "./weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { GameAudio } from "./sound/audio.js?v=zr4-hf1-wb1-th2-zr9-zr10-zp1-ar1-pl2-or1";
 import { MapAmbience } from "./sound/ambience.js?v=amb1-wst-tl1-gj1-ug5-or1";
-import { insidePolygon } from "./edge.js";
+import { insidePolygon } from "./maps/edge.js?v=or1";
 import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./modes/royale-zone.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1-fl1-or1";
 import { GameMusic, EQ_BANDS, EQ_RANGE } from "./sound/music.js?v=to-gs1-sg1-zr10-jb1-nh1-hl1-or1";
-import { DjLulz } from "./dj-lulz.js?v=dj1-sg1-zr10-dj2-jb1-hl1-or1";
+import { DjLulz } from "./maps/dj-lulz.js?v=dj1-sg1-zr10-dj2-jb1-hl1-or1";
 import { stage, rise, damp, smoothstep } from "./characters/anim-curves.js?v=or1";
 import { AnimDebugLab } from "./labs/anim-debug.js?v=or1";
 import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streaks/streak-device.js?v=to-df1-or1";
@@ -71,8 +71,8 @@ import { deployClick, nextZombieWave, onZombieMessage, startZombieRun, stopZombi
 import { updateHub } from "./modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./view/shaders.js?v=or1";
 import { ImpactFx } from "./view/impact-fx.js?v=zr4-or1";
-import { LightPool } from "./light-pool.js";
-import { loadModel } from "./battlefield-props.js?v=sr1";
+import { LightPool } from "./maps/light-pool.js?v=or1";
+import { loadModel } from "./maps/battlefield-props.js?v=sr1-or1";
 import { kickCurve } from "./weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { WaveSpawner } from "./bots/enemies.js?v=hb4-wst-soc1-sb2b7c2m1-gt1-gt2-cw1-zr10-bf1-sr1-or1";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1";
@@ -84,7 +84,7 @@ import { poseKnuckles } from "./weapons/brass-knuckles.js?v=bk1-wst-or1";
 import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./weapons/trollsaber.js?v=ts4-ig1-or1";
 import { createAkimboView, AKIMBO_INSPECT_TIME } from "./weapons/akimbo-view.js?v=ak1-wst-or1";
 import { createKeyboardRepair, KB_SHIELD, KB_GLANCE } from "./weapons/keyboard-repair.js?v=kr15-or1";
-import { RangeSet } from "./range.js";
+import { RangeSet } from "./maps/range.js?v=or1";
 import { PickupSystem, SwapHold } from "./combat/pickups.js?v=sw1-wst-sb2-wb1-ar1-ar2-fj1-br1-or1";
 import { HudLayout } from "./menu/hud-layout.js?v=hl3-pd1-nf1-or1";
 import { initCloudSave } from "./net/cloud-save.js?v=cs1b7-zc1-zc2-or1";

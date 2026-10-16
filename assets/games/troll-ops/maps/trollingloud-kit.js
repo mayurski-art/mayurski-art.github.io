@@ -9,7 +9,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { rng, canvasTex, tex, place } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1";
+import { rng, canvasTex, tex, place } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1";
 
 export const T = 0.3;   // wall thickness
 
@@ -397,7 +397,7 @@ export function glassRail(K, M, { axis, at, a, b, y, h = 1.05 }) {
 
 /* ============================================================== textures */
 
-const TROLL_URL = new URL("../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
+const TROLL_URL = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
 let trollImg = null;
 const trollWaiters = [];
 function withTroll(then) {
