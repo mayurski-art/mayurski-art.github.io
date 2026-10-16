@@ -77,7 +77,7 @@ SAD_HEAD_MAT.emissiveMap = SAD_TEXTURE;
 /* TROLLS #989's face (traits/src/face-gum.svg): eyes squeezed shut, lips
    puckered to blow, no grin. The NFT's own face, worn by its body
    (blocky-body.js sets rig.nftFace), in the trollface png's own frame. */
-const GUM_TEXTURE = TEXTURE_LOADER.load(new URL("../traits/face-gum.png?v=fg1", import.meta.url).href);
+const GUM_TEXTURE = TEXTURE_LOADER.load(new URL("../traits/face-gum.png?v=fg2", import.meta.url).href);
 GUM_TEXTURE.colorSpace = THREE.SRGBColorSpace;
 const GUM_HEAD_MAT = TROLLFACE_HEAD_MAT.clone();
 GUM_HEAD_MAT.map = GUM_TEXTURE;
