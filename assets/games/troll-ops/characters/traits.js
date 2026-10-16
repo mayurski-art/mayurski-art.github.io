@@ -15,7 +15,7 @@
 // drawn traits.
 
 import * as THREE from "three";
-import { setClothed } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1";
+import { setClothed } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2";
 
 const DIR = new URL("../traits/", import.meta.url);
 // The art's cache tag: bump it when a drawing changes (a dev page can set
@@ -38,6 +38,11 @@ const ART_V = globalThis.TRAITS_BUST ?? "tr1";
      CLOTHES/Tank Runner      clothes-tank-runner (board + block template)
      CLOTHES/Farmer           clothes-farmer      (block template only)
      CLOTHES/Sweater Black    clothes-sweater-black (block template only)
+     HATS/Carrot Cake Hair    hat-carrot-cake-hair (MODELLED: Blender spikes, no drawing)
+     CLOTHES/Sensei           clothes-sensei      (block template only)
+     FACIALS/Bubblegum        the token's emote, not worn (user, 2026-10-15:
+                              "without the bubble gum", the holder gets the
+                              bubblegum emote; emotes.js)
    Head traits go on in this order, each a hair in front of the last. */
 /* token -> its traits by type, as its metadata names them (local: the
    page's CSP blocks IPFS, so a token's traits are copied in here). */
@@ -45,6 +50,7 @@ export const TOKENS = {
   1718: { hat: "Goatfarm Hat", facial: "French Moustache", eyes: "Eyes Relaxed", clothes: "Tank Runner" },
   820: { hat: "Camper Hat", facial: "Beard Brown", eyes: "Eyes Bloodshot", clothes: "Farmer" },
   1262: { hat: "Baker Hat", facial: "Face Mask UMADBRO", eyes: "Glasses Thug", clothes: "Sweater Black" },
+  989: { hat: "Carrot Cake Hair", facial: "Bubblegum", eyes: "None", clothes: "Sensei" },
 };
 /* trait value -> its drawing's id; "" for a value that's the OG art. */
 export const TRAIT_ART = {
@@ -54,12 +60,25 @@ export const TRAIT_ART = {
   "Tank Runner": "clothes-tank-runner", "Farmer": "clothes-farmer",
   "Baker Hat": "hat-baker", "Face Mask UMADBRO": "facial-face-mask-umadbro",
   "Glasses Thug": "eyes-glasses-thug", "Sweater Black": "clothes-sweater-black",
+  "Carrot Cake Hair": "hat-carrot-cake-hair", "Sensei": "clothes-sensei",
+  "Eyes None": "", "None": "", "Bubblegum": "",
 };
+/* Traits that are Blender models, not drawings (blocky-body.js HAIRS puts
+   them on the relief head): no planes here. */
+export const MODELLED = new Set(["hat-carrot-cake-hair"]);
 /* Eye traits that go on over the facial, not under it (shades over a mask). */
 const OVER_FACIAL = new Set(["eyes-glasses-thug"]);
 /* Token #id's drawn trait ids, worn in this order (eyes on the face, then
    the beard over the jaw, then the hat), or null when one of its traits
    isn't drawn yet: nobody shows up half dressed. */
+/* A facial that is the whole face rather than a drawing over it: its
+   expression key (character.js FACE_ART). #989's Bubblegum is the face
+   blowing, without the gum (the gum is the holder's emote). */
+const FACE_TRAITS = { Bubblegum: "gum" };
+export function tokenFace(token) {
+  return FACE_TRAITS[TOKENS[token]?.facial] || null;
+}
+
 export function tokenTraits(token) {
   const t = TOKENS[token];
   if (!t) return null;
@@ -349,7 +368,8 @@ export async function applyToken(rig, token, { headOnly = false } = {}) {
   let order = 0;
   for (const id of ids) {
     let ms;
-    if (id.startsWith("clothes-")) {
+    if (MODELLED.has(id)) ms = [];
+    else if (id.startsWith("clothes-")) {
       setClothed(rig, SHOULDERS[id] ?? 0.1);
       const g = await buildGarment(rig, id);
       ms = g.userData.parts;

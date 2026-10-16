@@ -1,0 +1,32 @@
+<!--
+  TROLLS #989's face (FACIALS / Bubblegum, refs/trolls-goku-dev.png) without
+  the gum: the trollface itself (its outline, jaw, cheek folds and chin
+  lines) with only the expression changed (user, 2026-10-15): its brows,
+  eyes, nose and grin painted out, and the smug squint and the lips
+  puckered to blow put in their place, taken from the user's ChatGPT
+  drawing (face-989-art.png) and lined up on the trollface's own eyes.
+  In the trollface png's frame (800 x 730), so it swaps in for the face.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 730" width="800" height="730">
+  <defs>
+    <!-- what of the trollface stays: everything but the brows, eyes, nose and grin -->
+    <mask id="keep" maskUnits="userSpaceOnUse" x="0" y="0" width="800" height="730">
+      <rect width="800" height="730" fill="#fff"/>
+      <path fill="#000" d="M150 150 L605 150 L650 200 L660 280 L700 292 L702 350 L655 425 L560 505 L470 548 L300 556 L170 545 L118 480 L112 380 L114 300 L150 282 L158 210 Z"/>
+    </mask>
+    <filter id="skin" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 0.984  0 0 0 0 0.984  0 0 0 0 0.984  0 0 0 1 0"/></filter>
+    <!-- the drawing's expression only (drawing px): brows, eyes, nose, lips;
+         not its outline, cheek folds or chin -->
+    <clipPath id="expr" clipPathUnits="userSpaceOnUse">
+      <path d="M330 270 L1030 300 L1085 520 L1080 620 L930 700 L920 850 L760 860 L700 760 L560 700 L420 640 L330 560 Z"/>
+    </clipPath>
+  </defs>
+  <!-- the skin, then the trollface with its features painted out -->
+  <image href="../../../../images/wallpaper/trollface%20transparent.png" width="800" height="730" filter="url(#skin)"/>
+  <image href="../../../../images/wallpaper/trollface%20transparent.png" width="800" height="730" mask="url(#keep)"/>
+  <!-- the new expression: the drawing's eyes (centres ~515,450 and 885,485)
+       on the trollface's (~248,238 and 500,238) -->
+  <g transform="translate(-102 -68) scale(0.68)">
+    <image href="face-989-art.png" width="1254" height="1254" clip-path="url(#expr)"/>
+  </g>
+</svg>

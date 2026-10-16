@@ -16,8 +16,8 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
-import { setClothed, setHips, reshapeRig } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1";
-import { applyToken, removeToken, tokenTraits } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1";
+import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2";
+import { applyToken, removeToken, tokenTraits, tokenFace } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2";
 import { addRim } from "../view/rim-light.js?v=sr1";
 
 const DIR = new URL("../traits/", import.meta.url);
@@ -189,6 +189,18 @@ const KITS = {
   // Sweater Black: the farmer's pieces as black knit sleeves, dark jeans, black sneakers
   "clothes-sweater-black": { arms: "arms-farmer.glb", legs: "legs-farmer.glb",
     colours: { sleeve: 0x2b2b2e, cuff: 0x1f1f22, denim: 0x34363d, hem: 0x2a2c32, boot: 0x1b1b1d, collar: 0x1f1f22, sole: 0xe6e6e0 } },
+  // Sensei: the undershirt's short blue sleeves and wristbands, baggy orange
+  // gi trousers gathered into blue boots (build_blocky_sensei); first-person
+  // forearms bare with the wristband (`fp`: the forearm's and cuff's colours)
+  "clothes-sensei": { arms: "arms-sensei.glb", legs: "legs-sensei.glb",
+    colours: { sleeve: 0x2d5a96, band: 0x2d5a96, gi: 0xf2841f, hem: 0xd96f15, boot: 0x2d5a96, sole: 0x24252b },
+    fp: { sleeve: null, cuff: 0x2d5a96 } },
+};
+/* Hair modelled in Blender (traits.js MODELLED), worn on the relief head in
+   its frame: the file and a colour per piece name. Carrot Cake Hair is the
+   NFT's black spikes, a dark grey so the toon bands and the ink read on it. */
+const HAIRS = {
+  "hat-carrot-cake-hair": { file: "hair-carrot-cake.glb", colours: { hair: 0x2c2c33 } },
 };
 /* Token #id's look on the block body: its garment and that garment's kit,
    or null when the token isn't wearable (a trait not drawn yet). */
@@ -250,7 +262,8 @@ export function fpArmLook(token) {
       m.map.needsUpdate = true;
       return m;
     };
-    fpArmLooks.set(token, { sleeve: mat(kit.colours.sleeve), cuff: mat(kit.colours.cuff) });
+    const fp = kit.fp ?? kit.colours;
+    fpArmLooks.set(token, { sleeve: mat(fp.sleeve), cuff: mat(fp.cuff) });
   }
   return fpArmLooks.get(token);
 }
@@ -994,6 +1007,19 @@ function reliefHead(rig) {
         }
       }
     }
+    // modelled hair: on the relief head's group, in its frame (it shows and
+    // hides with the face), each piece inked like the arms
+    for (const id of tokenTraits(rig.traits?.token) || []) {
+      const hair = HAIRS[id];
+      if (!hair) continue;
+      const matOf = kitMaterials(hair.colours);
+      for (const { name, geo, hull } of await loadPieces(glb(hair.file))) {
+        const m = new THREE.Mesh(geo, matOf(name.split("__")[0]));
+        m.castShadow = true;
+        m.name = name;
+        g.add(m, new THREE.Mesh(hull, armInk));
+      }
+    }
     g.userData.undo = () => {
       board.layers.mask = mask;
       if (rig.skull) rig.skull.visible = true;
@@ -1238,9 +1264,14 @@ export function wearBlocky(rig, token) {
       rig.skull?.parent?.remove(rig.skull);
       rig.skull = null;
       head.material.side = side;
+      rig.nftFace = null;
+      setFace(rig);
       unshape();
     },
   });
+  // the NFT's own face, if its facial is one (traits.js tokenFace)
+  rig.nftFace = tokenFace(token);
+  setFace(rig);
   b.ready = applyToken(rig, token, { headOnly: true }).then(() => {
     if (gone) return;
     // skullBack turned the board's (possibly shared) face material one-sided

@@ -74,13 +74,23 @@ const SAD_HEAD_MAT = TROLLFACE_HEAD_MAT.clone();
 SAD_HEAD_MAT.map = SAD_TEXTURE;
 SAD_HEAD_MAT.emissiveMap = SAD_TEXTURE;
 
+/* TROLLS #989's face (traits/src/face-gum.svg): eyes squeezed shut, lips
+   puckered to blow, no grin. The NFT's own face, worn by its body
+   (blocky-body.js sets rig.nftFace), in the trollface png's own frame. */
+const GUM_TEXTURE = TEXTURE_LOADER.load(new URL("../traits/face-gum.png?v=fg1", import.meta.url).href);
+GUM_TEXTURE.colorSpace = THREE.SRGBColorSpace;
+const GUM_HEAD_MAT = TROLLFACE_HEAD_MAT.clone();
+GUM_HEAD_MAT.map = GUM_TEXTURE;
+GUM_HEAD_MAT.emissiveMap = GUM_TEXTURE;
+
 /* Faces a rig can wear, by key "expression:og" (cosmetics.js): the
    expression picks the artwork (the grin, or trolltruths' sad one). The
    trollface is always its own white; there are no face colours (user,
    2026-10-08), and the second part of the key is kept as "og" only so old
    keys on the wire and in storage still read. `rig.face` is the rig's own
-   pick; the Sad trollface emote swaps the expression for a moment. */
-const FACE_ART = { grin: TROLLFACE_HEAD_MAT, sad: SAD_HEAD_MAT };
+   pick; the Sad trollface emote swaps the expression for a moment. An NFT
+   body with a face of its own sets `rig.nftFace`, worn over the pick. */
+const FACE_ART = { grin: TROLLFACE_HEAD_MAT, sad: SAD_HEAD_MAT, gum: GUM_HEAD_MAT };
 export function faceMaterial(key = "grin:og") {
   // later parts are the face covering and the wrist (cosmetics.js): the
   // material is the same with or without them
@@ -245,7 +255,7 @@ function syncWristband(rig) {
 export function setFace(rig, mood = null) {
   const head = rig.parts?.head;
   if (!head || !head.userData.trollface) return;
-  const own = rig.face || "grin:og";
+  const own = rig.nftFace || rig.face || "grin:og";
   const want = faceMaterial(mood || own);
   if (head.material !== want) head.material = want;
 }
@@ -1768,7 +1778,7 @@ function _poseDanceWave(rig, t) {
    runs, so rebuilding there would draw the line a frame behind the hands
    and head, and it would visibly slip off them in fast motion. */
 export function poseHumanoid(rig, arg) {
-  if (rig.parts.head.userData.trollface && rig.parts.head.material !== faceMaterial(rig.face)) setFace(rig);
+  if (rig.parts.head.userData.trollface && rig.parts.head.material !== faceMaterial(rig.nftFace || rig.face)) setFace(rig);
   syncCovering(rig);
   syncWristwear(rig);
   syncWristband(rig);

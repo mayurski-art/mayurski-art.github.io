@@ -12,7 +12,7 @@
 // walk up to a teammate and hold X to send it). Duo slices are greyed out
 // where there's no teammate to share one with (setDuo), e.g. solo or FFA.
 
-import { EMOTES } from "./emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1";
+import { EMOTES } from "./emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2";
 
 export { EMOTES };
 

@@ -1,0 +1,73 @@
+<!--
+  TROLLS trait: CLOTHES / Sensei on the BLOCK body (blocky-body.js), traced
+  from TROLLS #989 (refs/trolls-goku-dev.png): an orange gi crossed over a
+  blue undershirt in a deep V, the trollface badge on the chest, a blue belt
+  knotted at the front over orange gi trousers. The short blue sleeves,
+  wristbands, trouser legs and boots are Blender pieces (blocky-body.js
+  KITS, models/build_blocky_sensei.blender.py).
+  Same template as clothes-farmer.block.svg, 1 unit = 1 mm:
+    front  x    0..400  (seen from the front: the troll's right on the left)
+    back   x  400..800  (seen from behind: the troll's left on the left)
+    right  x  800..1000 (the troll's right side: its back on the left)
+    left   x 1000..1200 (its left side: its front on the left)
+    top    x    0..400, y 560..760: the shoulders from above, front edge first
+  y 0 is the torso's top, y 520 the hips; the belt y 420..470, trousers below.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" width="1200" height="760">
+  <rect width="1200" height="760" fill="#f2841f"/>
+  <g stroke-linejoin="round" stroke-linecap="round">
+    <!-- FRONT: the undershirt in the V, the lapels either side of it -->
+    <path fill="#2d5a96" stroke="#060606" stroke-width="6" d="M118 0 L282 0 L206 238 Z"/>
+    <path fill="#234a7c" stroke="none" d="M150 0 L250 0 L206 150 Z"/>
+    <!-- the collarbone line on the undershirt -->
+    <path fill="none" stroke="#173560" stroke-width="5" d="M168 40 C188 52 222 52 240 40"/>
+    <!-- the lapels: a band of gi along each side of the V -->
+    <path fill="#f58a26" stroke="#060606" stroke-width="6" d="M90 0 L118 0 L206 238 L194 268 Z"/>
+    <path fill="#f58a26" stroke="#060606" stroke-width="6" d="M282 0 L312 0 L214 262 L206 238 Z"/>
+    <!-- the over panel's edge, on down from the V to the belt -->
+    <path fill="none" stroke="#060606" stroke-width="6" d="M200 262 C188 320 168 370 150 420"/>
+    <!-- folds -->
+    <g fill="none" stroke="#c65f12" stroke-width="6">
+      <path d="M40 140 C80 170 110 210 128 262"/>
+      <path d="M360 150 C330 190 300 236 280 300"/>
+      <path d="M60 360 C90 370 120 388 140 410"/>
+      <path d="M320 340 C290 360 262 384 248 412"/>
+    </g>
+    <!-- the trollface badge on the troll's left chest -->
+    <circle cx="306" cy="200" r="34" fill="#f6f4ee" stroke="#060606" stroke-width="7"/>
+    <image href="../../../../images/wallpaper/trollface%20transparent.png" x="279" y="176" width="54" height="49"/>
+
+    <!-- BACK: the undershirt's collar, folds, the badge large between the shoulders -->
+    <path fill="#2d5a96" stroke="#060606" stroke-width="6" d="M524 0 L676 0 C668 26 640 40 600 40 C560 40 532 26 524 0 Z"/>
+    <path fill="#f58a26" stroke="#060606" stroke-width="6" d="M500 0 L524 0 C532 26 560 40 600 40 C640 40 668 26 676 0 L700 0 C690 46 650 64 600 64 C550 64 510 46 500 0 Z"/>
+    <circle cx="600" cy="190" r="66" fill="#f6f4ee" stroke="#060606" stroke-width="8"/>
+    <image href="../../../../images/wallpaper/trollface%20transparent.png" x="547" y="143" width="106" height="97"/>
+    <g fill="none" stroke="#c65f12" stroke-width="6">
+      <path d="M450 300 C520 330 680 330 750 300"/>
+      <path d="M470 380 C540 398 660 398 730 380"/>
+    </g>
+    <!-- SIDES: a fold down each -->
+    <g fill="none" stroke="#c65f12" stroke-width="6">
+      <path d="M900 60 C890 160 896 280 910 400"/>
+      <path d="M1100 60 C1110 160 1104 280 1090 400"/>
+    </g>
+
+    <!-- the belt all the way round -->
+    <path fill="#2d5a96" stroke="#060606" stroke-width="6" d="M0 420 L1200 420 L1200 470 L0 470 Z"/>
+    <path fill="none" stroke="#234a7c" stroke-width="5" d="M0 446 L1200 446"/>
+    <!-- the trousers below it -->
+    <rect x="0" y="470" width="1200" height="90" fill="#f2841f" stroke="#060606" stroke-width="6"/>
+    <g fill="none" stroke="#c65f12" stroke-width="5">
+      <path d="M100 490 C110 520 116 540 118 560"/>
+      <path d="M300 490 C290 520 284 540 282 560"/>
+      <path d="M600 480 L600 560"/>
+    </g>
+    <!-- the knot at the front, its two tails hanging over the trousers -->
+    <path fill="#2d5a96" stroke="#060606" stroke-width="6" d="M186 452 L178 532 L202 528 L204 470 Z"/>
+    <path fill="#2d5a96" stroke="#060606" stroke-width="6" d="M214 452 L230 526 L252 520 L226 466 Z"/>
+    <rect x="180" y="412" width="44" height="62" rx="10" fill="#2d5a96" stroke="#060606" stroke-width="6"/>
+
+    <!-- TOP: the shoulders, the V's undershirt along the front edge -->
+    <path fill="#2d5a96" stroke="#060606" stroke-width="6" d="M118 560 L282 560 C270 600 240 616 200 616 C160 616 130 600 118 560 Z"/>
+  </g>
+</svg>

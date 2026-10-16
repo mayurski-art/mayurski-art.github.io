@@ -3,6 +3,7 @@
 // pixels once, the same on every player's device.
 //
 //   node tools/troll-ops-bake-traits.mjs              # every svg in src/
+//   node tools/troll-ops-bake-traits.mjs --only clothes-sensei.block   # just that one
 //   node tools/troll-ops-bake-traits.mjs --compose <out.png> <id> [<id> ...]
 //        also writes the face art with those traits on it (a 2D check)
 //
@@ -34,8 +35,15 @@ async function shoot(html, out, w = W, h = H) {
 
 // Each svg's own size (its viewBox): head traits are the head frame, clothes
 // the garment frame (TROLLS-TRAITS.md).
-for (const f of readdirSync(SRC).filter((f) => f.endsWith(".svg"))) {
-  const svg = readFileSync(join(SRC, f), "utf8");
+// --only <id>[,<id>]: just those (the rest stay as they are on disk).
+// An <image href="..."> relative to the svg (a badge's trollface) is put
+// inline, since the page the svg is shot on can't reach the disk.
+const oi = args.indexOf("--only");
+const only = oi >= 0 ? new Set(args[oi + 1].split(",")) : null;
+const inline = (svg) => svg.replace(/href="(?!data:|#|https?:)([^"]+\.(png|webp|jpe?g))"/g, (m, p, ext) =>
+  `href="data:image/${ext === "jpg" ? "jpeg" : ext};base64,${readFileSync(join(SRC, decodeURIComponent(p))).toString("base64")}"`);
+for (const f of readdirSync(SRC).filter((f) => f.endsWith(".svg") && (!only || only.has(f.replace(/\.svg$/, ""))))) {
+  const svg = inline(readFileSync(join(SRC, f), "utf8"));
   const vb = /viewBox="0 0 (\d+) (\d+)"/.exec(svg);
   await shoot(svg, join(DIR, f.replace(/\.svg$/, ".png")), vb ? +vb[1] : W, vb ? +vb[2] : H);
 }

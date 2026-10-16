@@ -8,7 +8,7 @@
 // the materials (faceMaterial / setFace); this file is the picks and the
 // panel.
 
-import { FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1";
+import { FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2";
 import { WRISTWEAR, watchThumb } from "./wristwear.js?v=ww1c2m1-or1";
 const KEY = "trollops:cosmetics";
 
@@ -38,6 +38,8 @@ export const BODIES = [
   { id: "trolls-1718", token: 1718, name: "TROLLS #1718", img: "../ui/trolls-1718.png", holder: "troll_runner" },
   { id: "trolls-1262", token: 1262, name: "TROLLS #1262", img: "../ui/trolls-1262.png", holder: "big_elva001" },
   { id: "trolls-820", token: 820, name: "TROLLS #820", img: "../ui/trolls-820.png", holder: "guccibeardd" },
+  // the troll dev's (OpenSea: the_troll_); troll_runner's until he has an account
+  { id: "trolls-989", token: 989, name: "TROLLS #989", img: "../ui/trolls-989.png", holder: "troll_runner" },
 ];
 /* The signed-in account's username, lower case ("" signed out). */
 export function username() {

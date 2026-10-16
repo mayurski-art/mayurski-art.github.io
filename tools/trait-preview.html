@@ -33,7 +33,7 @@ import { buildWeaponMesh, stripLights, preloadWeaponModels } from "../assets/gam
 import { WEAPON_DEFS } from "../assets/games/troll-ops/weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1";
 // Fresh art and code every load (a dev page): traits.js reads TRAITS_BUST.
 globalThis.TRAITS_BUST = String(Date.now());
-const { applyToken } = await import("../assets/games/troll-ops/characters/traits.js?t=" + Date.now());
+const { applyToken, tokenFace } = await import("../assets/games/troll-ops/characters/traits.js?t=" + Date.now());
 
 const q = new URLSearchParams(location.search);
 const token = q.get("token") || "1718";
@@ -81,6 +81,14 @@ scene.add(live.root);
 const { applyBlocky, tokenLook } = await import("../assets/games/troll-ops/characters/blocky-body.js?t=" + Date.now());
 // the token's own garment (its CLOTHES trait, blocky-body.js tokenLook)
 const ready = applyToken(rig, token, { headOnly: true }).then(() => applyBlocky(rig, { garment: tokenLook(token)?.garment }));
+// the NFT's own face, if its facial is one (#989's pucker; wearBlocky does this in the game)
+rig.nftFace = tokenFace?.(token) || null;
+// ?gum=1 / the "gum" button: a pink bubble at the lips (the Bubblegum emote's prop, a preview)
+let gum = q.get("gum") === "1";
+const bubble = new THREE.Mesh(new THREE.SphereGeometry(0.1, 32, 24), new THREE.MeshStandardMaterial({ color: 0xf59ac0, roughness: 0.25, transparent: true, opacity: 0.88, emissive: 0xf59ac0, emissiveIntensity: 0.25 }));
+bubble.add(new THREE.Mesh(new THREE.SphereGeometry(0.104, 32, 24), new THREE.MeshBasicMaterial({ color: 0x111111, side: THREE.BackSide })));
+bubble.position.set(0.096, -0.046, 0.11);
+rig.parts.head.add(bubble);
 document.getElementById("ref").src = `../assets/games/troll-ops/refs/trolls-${token}.png`;
 document.getElementById("reflabel").textContent = `TROLLS #${token} (ref)`;
 
@@ -129,6 +137,7 @@ function buttons() {
   ui.innerHTML = "";
   for (const p of ["idle", "walk", "aim", "shoot", "run+shoot", "dance", "death"]) mk(p, pose === p, () => { pose = p; t0 = performance.now(); });
   mk("spin", spin, () => { spin = !spin; });
+  mk("gum", gum, () => { gum = !gum; });
   mk("look down", look !== 0, () => { look = look ? 0 : 0.45; });
   mk("close-up", orbit.dist < 2, () => { orbit.dist = orbit.dist < 2 ? 3.4 : 1.5; });
 }
@@ -155,6 +164,7 @@ renderer.setAnimationLoop((now) => {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   const t = (now - t0) / 1000;
   if (spin) orbit.yaw += dt * 0.6;
+  bubble.visible = gum;
   const armed = GUN_POSES.has(pose), firing = pose === "shoot" || pose === "run+shoot";
   const moving = pose === "walk" || pose === "run+shoot";
   // the cop lab's shooting: 8 shots a second, each kicking and settling
