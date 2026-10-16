@@ -33,15 +33,15 @@
       <path d="M60 360 C90 370 120 388 140 410"/>
       <path d="M320 340 C290 360 262 384 248 412"/>
     </g>
-    <!-- the trollface badge on the troll's left chest -->
-    <circle cx="306" cy="200" r="34" fill="#f6f4ee" stroke="#060606" stroke-width="7"/>
-    <image href="../../../../images/wallpaper/trollface%20transparent.png" x="279" y="176" width="54" height="49"/>
+    <!-- the trollface badge high on the troll's left chest (user, 2026-10-16: raised) -->
+    <circle cx="312" cy="112" r="34" fill="#f6f4ee" stroke="#060606" stroke-width="7"/>
+    <image href="../../../../images/wallpaper/trollface%20transparent.png" x="285" y="88" width="54" height="49"/>
 
     <!-- BACK: the undershirt's collar, folds, the badge large between the shoulders -->
     <path fill="#2d5a96" stroke="#060606" stroke-width="6" d="M524 0 L676 0 C668 26 640 40 600 40 C560 40 532 26 524 0 Z"/>
     <path fill="#f58a26" stroke="#060606" stroke-width="6" d="M500 0 L524 0 C532 26 560 40 600 40 C640 40 668 26 676 0 L700 0 C690 46 650 64 600 64 C550 64 510 46 500 0 Z"/>
-    <circle cx="600" cy="190" r="66" fill="#f6f4ee" stroke="#060606" stroke-width="8"/>
-    <image href="../../../../images/wallpaper/trollface%20transparent.png" x="547" y="143" width="106" height="97"/>
+    <circle cx="600" cy="150" r="66" fill="#f6f4ee" stroke="#060606" stroke-width="8"/>
+    <image href="../../../../images/wallpaper/trollface%20transparent.png" x="547" y="103" width="106" height="97"/>
     <g fill="none" stroke="#c65f12" stroke-width="6">
       <path d="M450 300 C520 330 680 330 750 300"/>
       <path d="M470 380 C540 398 660 398 730 380"/>

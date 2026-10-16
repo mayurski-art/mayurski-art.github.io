@@ -17,11 +17,11 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2";
-import { applyToken, removeToken, tokenTraits, tokenFace } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2";
+import { applyToken, removeToken, tokenTraits, tokenFace } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1";
 import { addRim } from "../view/rim-light.js?v=sr1";
 
 const DIR = new URL("../traits/", import.meta.url);
-const ART_V = globalThis.TRAITS_BUST ?? "tr1";
+const ART_V = globalThis.TRAITS_BUST ?? "tr2";
 const FRAME = { w: 1000, h: 1167, spine: 500, chest: 233, unit: 1667 };   // the garment frame
 
 const SKIN = 0xf3f3ef, INK = 0x0a0a0a;
@@ -172,7 +172,7 @@ function capPrint(text) {
 /* The muscular arms (models/build_blocky_arms.blender.py -> blocky/arms-muscle.glb):
    blocky muscle masses, each piece "<joint><S>__<muscle>" authored in its
    joint's frame, bone straight down -Y, at scale 1 with these bone lengths. */
-const glb = (file) => new URL(`../models/blocky/${file}?v=${globalThis.TRAITS_BUST ?? "bb3"}`, import.meta.url).href;
+const glb = (file) => new URL(`../models/blocky/${file}?v=${globalThis.TRAITS_BUST ?? "bb4"}`, import.meta.url).href;
 const TORSO_GLB = glb("torso-muscle.glb");
 const HEAD_GLB = glb("head-relief.glb");
 /* What each CLOTHES trait dresses the body in (the trait library, traits.js):

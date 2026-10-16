@@ -154,9 +154,8 @@ SPIKES = [
     ("back2", (-0.12, 0.08, 0.09), (-0.32, 0.09, 0.33), 0.17, {"flat": (0, 1, 0)}),
     ("back3", (0.12, 0.07, 0.09), (0.32, 0.05, 0.33), 0.17, {"flat": (0, 1, 0)}),
     ("back4", (0.0, -0.03, 0.10), (0.02, -0.16, 0.31), 0.16, {"flat": (0, 1, 0), "bend": (0, 0.03, 0)}),
-    # the nape, down over the back of the skull
-    ("nape1", (-0.09, -0.06, 0.09), (-0.16, -0.22, 0.17), 0.13, {"flat": (0, 0, 1)}),
-    ("nape2", (0.09, -0.07, 0.09), (0.15, -0.23, 0.17), 0.13, {"flat": (0, 0, 1)}),
+    # (no nape spikes: the two down over the back of the skull read as
+    # spikes off the neck; user, 2026-10-16 "i want removed")
     # the fringe over the forehead, rooted up on the cap so it covers the
     # cap's front edge, hanging a hair in front of the brow
     # (the eyes are at y ~0.09, x +0.10 and -0.05: the locks end above them,
