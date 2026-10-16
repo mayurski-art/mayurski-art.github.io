@@ -30,9 +30,10 @@ const EXPR_IDS = new Set(EXPRESSIONS.map((e) => e.id));
 // Bodies: the stick troll, or a TROLLS NFT's look (blocky-body.js
 // wearBlocky). A token's body is for its holder only: until the wallet
 // check exists (TROLLS-TRAITS.md) each is locked to its holder's
-// trollrunner.net account by username (`holder`), and nobody else, not
-// even the owner, can put it on (user, 2026-10-15: #820 "should only be
-// exclusively played by him only").
+// trollrunner.net account by username (`holder`), and nobody else can put
+// it on (user, 2026-10-15: #820 "should only be exclusively played by him
+// only"). The owner is the one exception: troll_runner wears every TROLLS
+// body, the ones here and every one added later (user, 2026-10-15).
 export const BODIES = [
   { id: "", name: "Stick troll", img: "../../../images/wallpaper/trollface%20transparent.png" },
   { id: "trolls-1718", token: 1718, name: "TROLLS #1718", img: "../ui/trolls-1718.png", holder: "troll_runner" },
@@ -51,13 +52,15 @@ export function bodyToken(id) {
 }
 /* May an account named `name` wear token #token's body? Checked for your
    own pick (canWearBody) and for every player on the wire (remote-players.js):
-   a body shows on its holder only. */
+   a body shows on its holder only, and on the owner. */
+const OWNER = "troll_runner";
 export function holderOf(token) {
   return BODIES.find((x) => x.token === +token)?.holder || null;
 }
 export function mayWear(token, name) {
   const holder = holderOf(token);
-  return !!holder && String(name || "").toLowerCase() === holder;
+  const n = String(name || "").toLowerCase();
+  return !!holder && (n === holder || n === OWNER);
 }
 /* A TROLLS body brings its own head and face (the NFT's art), so the
    expression and the face covering come off while it's worn and can't go
