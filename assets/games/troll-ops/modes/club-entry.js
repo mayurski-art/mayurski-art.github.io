@@ -41,7 +41,7 @@ import { reachHand, setFace } from "../characters/character.js?v=to-hb4-em1-fc1-
 import { clubWear } from "./club-wear.js?v=cw1c2m1";
 import { peerPosers } from "../net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { game } from "../core/state.js?v=st1";
-import { padButtonName } from "../controller-layout.js?v=cl7-pd1";
+import { padButtonName } from "../menu/controller-layout.js?v=cl7-pd1-or1";
 
 export const BAND = { none: 0, guest: 1, owner: 2, vip: 3 };
 /* The test (?tohooks=1) shortens the waits: window.__trollClub.T. */

@@ -86,9 +86,9 @@ import { createAkimboView, AKIMBO_INSPECT_TIME } from "./weapons/akimbo-view.js?
 import { createKeyboardRepair, KB_SHIELD, KB_GLANCE } from "./weapons/keyboard-repair.js?v=kr15-or1";
 import { RangeSet } from "./range.js";
 import { PickupSystem, SwapHold } from "./pickups.js?v=sw1-wst-sb2-wb1-ar1-ar2-fj1-br1-or1";
-import { HudLayout } from "./hud-layout.js?v=hl3-pd1-nf1";
+import { HudLayout } from "./menu/hud-layout.js?v=hl3-pd1-nf1-or1";
 import { initCloudSave } from "./net/cloud-save.js?v=cs1b7-zc1-zc2-or1";
-import { ControllerLayout, padEmotePressed } from "./controller-layout.js?v=cl7-pd1";
+import { ControllerLayout, padEmotePressed } from "./menu/controller-layout.js?v=cl7-pd1-or1";
 import { CosmeticsPanel, cleanFaceKey, loadCosmetics } from "./characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1";
 import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./streaks/dragonfire-drone.js?v=df3-sb2-or1";
 import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./streaks/sam-turret.js?v=sam1-fj1-or1";
@@ -100,7 +100,7 @@ import {
 } from "./weapons/soul-blazer.js?v=sb1-or1";
 import { MOUSE_ACTIVE_MS, aimAssistPoints, applyAimAssist, findAimAssistTarget } from "./input/aim-assist.js?v=in1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-aa0-or1";
 import { game, linkGame } from "./core/state.js?v=st1";
-import { PAD_SENS_MULT, PAD_SENS_NAMES, padLookTurn, pollGamepad, pollGamepadMenu, radialStick } from "./input/gamepad.js?v=in1-fu1b7-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-zp1-aa0-pd1-nf1";
+import { PAD_SENS_MULT, PAD_SENS_NAMES, padLookTurn, pollGamepad, pollGamepadMenu, radialStick } from "./input/gamepad.js?v=in1-fu1b7-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-zp1-aa0-pd1-nf1-or1";
 import { setTouchAds, touchState, initTouch, syncPovButton } from "./input/touch.js?v=in1-th2-bp1-bf1-pd1-nf1";
 import { ROLL_SPEED, ROYALE_BOX_GONE, _dropTarget, applyRoyaleCatchUp, cancelRoyaleAct, cycleSpectate, drawRoyaleMinimap, hideSpectateHud, inSkyLobby, onRoyaleLoot, ordinal, placeBotsInLobby, placeDropCamera, placeSpectateCamera, royale, royaleAliveList, royaleBotDamage, royaleBotObjective, royaleBotSight, royaleBotVsBot, royaleDropCode, royaleDropView, royaleNoise, royaleOnDeath, royalePickupGun, royaleRollK, royaleRolling, royaleSpectating, royaleWants, setupRoyale, stageFrozen, startRoyaleAct, greenLight, teardownRoyale, updateDropPlayer, updateRoyale, updateRoyaleGear, updateRoyaleRoll, updateSkyLobby, initRoyale } from "./modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";
 import { clearDamageNumbers, clearHitDirs, damageNumbers, flashHit, flinchPeer, hitDirs, jokeVerb, noteHitDirection, pushKillfeed, showHitmarker, showWaveBanner, spawnComicWord, spawnDamageNumber, updateDamageNumbers, updateHitDirs, updateStreakHud } from "./core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1";

@@ -3,7 +3,7 @@
 // of game.js (split phase 1).
 
 import * as THREE from "three";
-import { padEmotePressed } from "../controller-layout.js?v=cl7-pd1";
+import { padEmotePressed } from "../menu/controller-layout.js?v=cl7-pd1-or1";
 import { game } from "../core/state.js?v=st1";
 import { freeLook } from "../view/free-look.js?v=nf1";
 

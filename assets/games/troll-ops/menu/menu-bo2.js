@@ -11,29 +11,29 @@
    (#to-pf-center) moves into the right-hand detail pane, with the parts
    that became lists hidden by CSS. */
 
-import { createBo2Menu } from "../../js/bo2-menu.js?v=to-ft2";
-import { createMapMode } from "../../js/troll-map-mode.js?v=to-bo2d";
-import { joinSitePresence, viewerId } from "../../js/site-presence.js?v=to-bo2d-ol1";
-import { startOnline, onlinePlayers, serverList, joinServer, describe } from "./menu/online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1";
-import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER } from "./progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
+import { createBo2Menu } from "../../../js/bo2-menu.js?v=to-ft2";
+import { createMapMode } from "../../../js/troll-map-mode.js?v=to-bo2d";
+import { joinSitePresence, viewerId } from "../../../js/site-presence.js?v=to-bo2d-ol1";
+import { startOnline, onlinePlayers, serverList, joinServer, describe } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1";
+import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
 
-import { fetchRecord, formatPlayed } from "./progression/record.js?v=rec1-or1";
-import { WEAPON_DEFS } from "./weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
-import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withClan } from "./progression/calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
-import { renderCard, myCardData, openProfileCard } from "./progression/profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zh1-zc1-zc2-nf1-or1";
-import { shareCardOnX, saveCardPhoto } from "./menu/card-share.js?v=cs1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
-import { FINISHES } from "./characters/skins.js?v=p5-wb1-or1";
-import { MAPS, REWARD_MAPS } from "./maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1";
-import { setMapShot } from "./map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1-sr1-ug5";
-import { leaveToArcade, initExitLinks } from "./menu/exit-links.js?v=ex1-cl1";
-import { game } from "./core/state.js?v=st1";
-import { inviteLink, prepareHubEntry } from "./modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1";
-import { openKiosk } from "./view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1";
-import { credits } from "./modes/zombies/credits.js?v=zc1-zc2";
-import { makeTrollOpsProvider } from "./progression/leaderboard-rows.js?v=lr1-zh1-or1";
+import { fetchRecord, formatPlayed } from "../progression/record.js?v=rec1-or1";
+import { WEAPON_DEFS } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
+import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withClan } from "../progression/calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
+import { renderCard, myCardData, openProfileCard } from "../progression/profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zh1-zc1-zc2-nf1-or1";
+import { shareCardOnX, saveCardPhoto } from "./card-share.js?v=cs1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
+import { FINISHES } from "../characters/skins.js?v=p5-wb1-or1";
+import { MAPS, REWARD_MAPS } from "../maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1";
+import { setMapShot } from "../map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1-sr1-ug5";
+import { leaveToArcade, initExitLinks } from "./exit-links.js?v=ex1-cl1";
+import { game } from "../core/state.js?v=st1";
+import { inviteLink, prepareHubEntry } from "../modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1";
+import { openKiosk } from "../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1";
+import { credits } from "../modes/zombies/credits.js?v=zc1-zc2";
+import { makeTrollOpsProvider } from "../progression/leaderboard-rows.js?v=lr1-zh1-or1";
 const lbProvider = makeTrollOpsProvider();
-import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perksInTier, perkUnlocked, perkIconSvg } from "./progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1";
-import { STREAK_DEFS } from "./streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1";
+import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perksInTier, perkUnlocked, perkIconSvg } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1";
+import { STREAK_DEFS } from "../streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
    calling cards and the private-match maps. */
@@ -1111,7 +1111,7 @@ const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 300));
 function coverOn(on) { document.body.classList.toggle("to-bo2-cover", on); }
 idle(async () => {
   try {
-    const { mountMenuBackdrop } = await import("../../js/menu-globe.js?v=to-bo2f");
+    const { mountMenuBackdrop } = await import("../../../js/menu-globe.js?v=to-bo2f");
     backdrop = mountMenuBackdrop($(".to-bo2-bg", root));
     if (animOff) backdrop.setStill?.(true);
     coverOn(!title.hidden);

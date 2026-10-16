@@ -59,9 +59,9 @@ for (const name of ["Team Deathmatch", "Zombies"]) check(servers.some((t) => t.s
 // ---- 3
 const joined = await page.evaluate(async (room) => {
   const { game } = await import("/assets/games/troll-ops/core/state.js?v=st1");
-  const src = await (await fetch("/assets/games/troll-ops/menu-bo2.js")).text();
-  const i = src.indexOf("./menu/online.js?v=");
-  const O = await import("/assets/games/troll-ops/" + src.slice(i + 2, src.indexOf(String.fromCharCode(34), i)));
+  const src = await (await fetch("/assets/games/troll-ops/menu/menu-bo2.js")).text();
+  const i = src.indexOf("./online.js?v=");
+  const O = await import("/assets/games/troll-ops/menu/" + src.slice(i + 2, src.indexOf(String.fromCharCode(34), i)));
   game.els.noBots.checked = true;
   O.joinServer({ room, mode: "koth", modeName: "King of the Hill", map: "grinsite", players: ["someone"] });
   await new Promise((r) => setTimeout(r, 4000));
