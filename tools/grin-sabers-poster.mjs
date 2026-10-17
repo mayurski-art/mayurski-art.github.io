@@ -29,7 +29,7 @@ try {
     const page = await browser.newPage({ viewport: { width: s.w, height: s.h }, deviceScaleFactor: 1 });
     page.on("pageerror", (e) => console.log("page error", String(e)));
     await page.addInitScript(() => { window.__gsHeadless = true; });
-    await page.goto(`http://localhost:${PORT}/grin-sabers.html?debug`);
+    await page.goto(`http://localhost:${PORT}/sabers.html?debug`);
     await page.waitForFunction(() => window.__gs && window.__gs.duel, null, { timeout: 60000 });
     await page.evaluate(() => document.fonts.ready);
     const info = await page.evaluate(({ cam, layout }) => {

@@ -1,7 +1,8 @@
 # Grin Sabers — handoff
 
 Plan: the "Grin Sabers: design" doc (claude.ai/artifact/E5ci3p3huPKsoY8HzHeDPe).
-Page: `grin-sabers.html` (`/grin-sabers`). Not linked from the arcade yet (phase 6).
+Page: `sabers.html` (trollrunner.net/sabers), card on games.html + home Arcade menu.
+`grin-sabers.html` only redirects old links to /sabers.
 
 ## Rules for sessions
 - New code goes in the folder that owns it; `game.js` is boot, menus and the loop only.

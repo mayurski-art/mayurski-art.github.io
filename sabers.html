@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://mayurski-art.github.io https://trollrunner.net https://www.trollrunner.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co; object-src 'none'; base-uri 'self';">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#120c1c">
+  <meta name="description" content="Grin Sabers: saber duels for trollfaces. Read the swing, block it, disarm them. A Troll Runner arcade game.">
+  <meta property="og:title" content="Grin Sabers | Troll Runner Arcade">
+  <meta property="og:description" content="Saber duels for trollfaces. Read the swing, block it, bonk them. Problem?">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://trollrunner.net/sabers">
+  <meta property="og:image" content="https://trollrunner.net/assets/games/grin-sabers/ui/grin-sabers-banner.jpg?v=gs2">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Grin Sabers: two trollfaces lock blue and red sabers under a temple arch at sunset">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Grin Sabers | Troll Runner Arcade">
+  <meta name="twitter:description" content="Saber duels for trollfaces. Problem?">
+  <meta name="twitter:image" content="https://trollrunner.net/assets/games/grin-sabers/ui/grin-sabers-banner.jpg?v=gs2">
+  <title>Grin Sabers | Troll Runner Arcade</title>
+  <link rel="icon" type="image/png" href="assets/images/wallpaper/trollface%20transparent.png">
+  <link rel="preload" as="image" href="assets/games/grin-sabers/ui/grin-sabers-poster.jpg?v=gs2">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,700;9..40,800&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/games/grin-sabers/style.css?v=gs2">
+</head>
+<body>
+  <canvas id="gs-canvas" aria-label="Grin Sabers arena"></canvas>
+
+  <!-- In-match HUD (ui/hud.js fills it). -->
+  <div class="gs-hud" id="gs-hud" hidden>
+    <div class="gs-bars">
+      <div class="gs-side gs-side-you">
+        <div class="gs-name" id="gs-name-you">You</div>
+        <div class="gs-hp" role="meter" aria-label="Your health" aria-valuemin="0" aria-valuemax="100"><i id="gs-hp-you"></i></div>
+        <div class="gs-bp" role="meter" aria-label="Your block points" aria-valuemin="0" aria-valuemax="100"><i id="gs-bp-you"></i></div>
+        <div class="gs-pips" id="gs-pips-you" aria-label="Rounds won"></div>
+      </div>
+      <div class="gs-clock" id="gs-clock">90</div>
+      <div class="gs-side gs-side-them">
+        <div class="gs-name" id="gs-name-them">Bot</div>
+        <div class="gs-hp" role="meter" aria-label="Opponent health" aria-valuemin="0" aria-valuemax="100"><i id="gs-hp-them"></i></div>
+        <div class="gs-bp" role="meter" aria-label="Opponent block points" aria-valuemin="0" aria-valuemax="100"><i id="gs-bp-them"></i></div>
+        <div class="gs-pips" id="gs-pips-them" aria-label="Rounds won"></div>
+      </div>
+    </div>
+    <!-- Where the next swing comes from (red) and where your guard faces (white). -->
+    <div class="gs-reticle" id="gs-reticle" aria-hidden="true">
+      <span class="gs-wedge" data-zone="left"></span>
+      <span class="gs-wedge" data-zone="right"></span>
+      <span class="gs-wedge" data-zone="high"></span>
+      <span class="gs-wedge" data-zone="mid"></span>
+    </div>
+    <div class="gs-callout" id="gs-callout" aria-live="polite"></div>
+    <div class="gs-banner" id="gs-banner" aria-live="assertive"></div>
+    <div class="gs-clashbar" id="gs-clashbar" hidden><span>MASH ATTACK</span><i id="gs-clashfill"></i></div>
+  </div>
+
+  <!-- Touch controls (shown on touch screens only). -->
+  <div class="gs-touch" id="gs-touch" hidden>
+    <div class="gs-stick" id="gs-stick" role="group" aria-label="Joystick: drag to move"><div class="gs-knob"></div></div>
+    <div class="gs-swipe" id="gs-swipe" aria-label="Tap to swing, swipe to pick the swing direction"></div>
+    <div class="gs-tbtns">
+      <button type="button" class="gs-tbtn gs-tguard" id="gs-tguard" aria-label="Guard (hold)">GUARD</button>
+      <button type="button" class="gs-tbtn" id="gs-tdodge" aria-label="Dodge">DODGE</button>
+      <button type="button" class="gs-tbtn" id="gs-tjump" aria-label="Jump">JUMP</button>
+    </div>
+  </div>
+
+  <!-- Title + menus. -->
+  <div class="gs-menu" id="gs-menu">
+    <a class="gs-back" href="index.html?open=arcade" aria-label="Back to Troll Runner Arcade">&larr; Arcade</a>
+    <div class="gs-menu-card" id="gs-menu-main">
+      <img class="gs-logo-face" src="assets/images/wallpaper/trollface%20transparent.png" alt="" width="96" height="90">
+      <h1 class="gs-logo">Grin <span>Sabers</span></h1>
+      <p class="gs-tag">Read the swing. Block it. Bonk them.</p>
+      <nav class="gs-list" aria-label="Main menu">
+        <button type="button" data-go="tiers">Duel a bot</button>
+        <button type="button" data-go="colour">Blade colour</button>
+        <button type="button" data-go="help">How to fight</button>
+      </nav>
+      <p class="gs-soon">Online duels, forms and the hub are on the way.</p>
+    </div>
+    <div class="gs-menu-card" id="gs-menu-tiers" hidden>
+      <h2>Pick your bot</h2>
+      <nav class="gs-list gs-tiers" aria-label="Bot difficulty">
+        <button type="button" data-tier="0"><b>Noob</b><small>Slow swings, guesses your guard</small></button>
+        <button type="button" data-tier="1"><b>Tryhard</b><small>Blocks half your swings, short combos</small></button>
+        <button type="button" data-tier="2"><b>Sweat</b><small>Full combos, feints, counters</small></button>
+        <button type="button" data-tier="3"><b>Final boss</b><small>Reads you. Disarms you. Problem?</small></button>
+      </nav>
+      <button type="button" class="gs-backbtn" data-go="main">Back</button>
+    </div>
+    <div class="gs-menu-card" id="gs-menu-colour" hidden>
+      <h2>Blade colour</h2>
+      <div class="gs-swatches" id="gs-swatches" role="radiogroup" aria-label="Blade colour"></div>
+      <button type="button" class="gs-backbtn" data-go="main">Back</button>
+    </div>
+    <div class="gs-menu-card gs-help" id="gs-menu-help" hidden>
+      <h2>How to fight</h2>
+      <table>
+        <tr><th></th><th>Desktop</th><th>Controller</th><th>Phone</th></tr>
+        <tr><td>Move</td><td>WASD</td><td>Left stick</td><td>Left stick</td></tr>
+        <tr><td>Aim</td><td>Mouse (or IJKL)</td><td>Right stick</td><td>Swipe direction</td></tr>
+        <tr><td>Swing</td><td>Click: the swing comes from where you aim</td><td>RB</td><td>Tap, or swipe from the side to swing from</td></tr>
+        <tr><td>Heavy</td><td>Hold click</td><td>Hold RB</td><td>Press and hold, then let go</td></tr>
+        <tr><td>Guard</td><td>Hold right click: it faces where you aim</td><td>Hold LB</td><td>Hold GUARD just before the hit</td></tr>
+        <tr><td>Dodge / jump</td><td>Shift / Space</td><td>B / A</td><td>DODGE / JUMP</td></tr>
+      </table>
+      <ul>
+        <li><b>The ring on your opponent:</b> white shows your aim, red shows where their swing is coming from.</li>
+        <li><b>Perfect block:</b> guard with your aim on the red side. Costs no block points, and a swing right after is a fast counter.</li>
+        <li><b>Disarm:</b> perfect block, then flick the mouse hard the other way just before the hit.</li>
+        <li><b>Feint:</b> right click during your own windup cancels the swing.</li>
+        <li><b>Clash:</b> swing into their swing, then mash attack.</li>
+        <li>A heavy swing breaks a guard on the wrong side. Out of block points, your guard breaks.</li>
+      </ul>
+      <button type="button" class="gs-backbtn" data-go="main">Back</button>
+    </div>
+    <div class="gs-menu-card" id="gs-menu-result" hidden>
+      <h2 id="gs-result-title">You win</h2>
+      <p id="gs-result-line"></p>
+      <nav class="gs-list" aria-label="After the match">
+        <button type="button" data-act="rematch">Rematch</button>
+        <button type="button" data-go="tiers">Pick another bot</button>
+        <button type="button" data-go="main">Main menu</button>
+      </nav>
+    </div>
+    <div class="gs-menu-card" id="gs-menu-pause" hidden>
+      <h2>Paused</h2>
+      <nav class="gs-list" aria-label="Pause">
+        <button type="button" data-act="resume">Resume</button>
+        <button type="button" data-go="main" data-act="quit">Quit to menu</button>
+      </nav>
+    </div>
+  </div>
+
+  <button type="button" class="gs-mute" id="gs-mute" aria-pressed="false" aria-label="Sound on. Mute">
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/>
+      <path class="gs-mute-waves" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path class="gs-mute-cross" d="M16 9l6 6M22 9l-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+  </button>
+
+  <!-- Loading screen: the poster until the first key, click or tap (game.js). -->
+  <button type="button" class="gs-loading" id="gs-loading" aria-label="Grin Sabers. Press any key or tap to play">
+    <img src="assets/games/grin-sabers/ui/grin-sabers-poster.jpg?v=gs2" alt="" width="1200" height="1700">
+    <span class="gs-cta" aria-hidden="true"><span class="gs-cta-loading">Igniting&hellip;</span><span class="gs-cta-key">Press any key</span><span class="gs-cta-tap">Tap to play</span></span>
+  </button>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./assets/vendor/three.module.min.js",
+        "three/addons/": "./assets/vendor/addons/"
+      }
+    }
+  </script>
+  <script type="module" src="assets/games/grin-sabers/game.js?v=gs3"></script>
+</body>
+</html>

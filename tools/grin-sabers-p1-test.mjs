@@ -38,7 +38,7 @@ try {
     return route.abort();
   });
   await page.addInitScript(() => { window.__gsHeadless = true; });
-  await page.goto(`http://localhost:${PORT}/grin-sabers.html?debug`);
+  await page.goto(`http://localhost:${PORT}/sabers.html?debug`);
   await page.waitForFunction(() => window.__gs && window.__gs.duel, null, { timeout: 30000 });
   await page.waitForTimeout(2500);
   if (SHOTS) await page.screenshot({ path: path.join(OUT, "gs-title.png") });
@@ -152,7 +152,7 @@ try {
   phone.on("pageerror", (e) => errors.push(String(e)));
   await phone.route("**/*", (route) => (route.request().url().startsWith(`http://localhost:${PORT}/`) ? route.continue() : route.abort()));
   await phone.addInitScript(() => { window.__gsHeadless = true; });
-  await phone.goto(`http://localhost:${PORT}/grin-sabers.html?debug`, { waitUntil: "domcontentloaded" });
+  await phone.goto(`http://localhost:${PORT}/sabers.html?debug`, { waitUntil: "domcontentloaded" });
   await phone.waitForFunction(() => window.__gs && window.__gs.duel, null, { timeout: 30000 });
   await phone.waitForTimeout(1500);
   if (SHOTS) await phone.screenshot({ path: path.join(OUT, "gs-phone-title.png") });
