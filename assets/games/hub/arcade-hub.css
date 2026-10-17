@@ -169,9 +169,11 @@
   margin-bottom: 30px;
 }
 
+/* Four games, four across on a desktop, so none sits alone below the fold
+   (a fourth card on a second row went unseen); two by two on tablets. */
 .hub-carousel-track {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 20px;
 }
 
