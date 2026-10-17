@@ -18,6 +18,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { addInkRim } from "../view/rim-light.js?v=sr1";
 import { buildWatch, buildWristband, wristOf } from "./wristwear.js?v=ww1c2m1-or1";
+import { sampleGait, applyClip, CLIP_HIPS, CLIP_SPINE, CLIP_ARM_L, CLIP_ARM_R } from "./clips.js?v=rc1";
 
 const DARK = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
 
@@ -1389,6 +1390,14 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   p.hips.position.x = weight * 0.026 * s;
   p.hips.position.z = Math.sin(g.swayT * 0.7) * 0.006 * st.sway * s * idleK;
 
+  // A sprint clip made in Roblox Studio (rig.clips, characters/clips.js)
+  // takes over the body above the legs as a straight-ahead run reaches
+  // sprint speed. The legs stay on the foot placement below.
+  const clip = zombie ? null : rig.clips?.sprint;
+  const clipW = clip ? _smooth(Math.max(0, Math.min(1, (v - 5.4) / 1.2))) * blend * (1 - crouch) * Math.max(0, fwd) * (1 - sideways) : 0;
+  const clipS = clipW > 0 ? sampleGait(clip, cyc / (Math.PI * 2), rig.clipSample || (rig.clipSample = {})) : null;
+  if (clipS) applyClip(rig, clipS, clipW, CLIP_HIPS);
+
   // A walking stance starts a little nearer the hips than it ends: the heel
   // lands just ahead, the toe pushes off well behind (with the heel up).
   const back = 0.075 * (1 - run);
@@ -1552,7 +1561,8 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   p.torso.rotation.set(-(crouch * 0.25 + moveLean * 0.7 + squash * 0.3 + airK * 0.06) + F.bp, 0, str * -0.1 * blend - weight * 0.04 + F.br);
   p.spine.rotation.set(-(crouch * 0.05 + moveLean * 0.15), -p.hips.rotation.y * 0.55, str * -0.03 * blend);
   p.chest.rotation.set(-(crouch * 0.07 + moveLean * 0.15), -p.hips.rotation.y * 0.85, str * -0.03 * blend);
-  const lean = p.torso.rotation.x + p.spine.rotation.x + p.chest.rotation.x;
+  if (clipS) applyClip(rig, clipS, clipW, CLIP_SPINE);
+  const lean =p.torso.rotation.x + p.spine.rotation.x + p.chest.rotation.x;
 
   if (zombie) {
     // Both arms out front, with a lopsided shamble.
@@ -1645,6 +1655,9 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   // flicks a little past each end of its swing.
   p.wristL.rotation.set(gripped ? 0 : -legSwingL * 0.2 * blend, 0, 0);
   p.wristR.rotation.set(hold === "none" ? legSwingL * 0.15 * blend : 0, 0, 0);
+  // The clip's arms only where a hand is free (a gun's hands are on the gun).
+  if (clipS && !gripped) applyClip(rig, clipS, clipW, CLIP_ARM_L);
+  if (clipS && hold === "none") applyClip(rig, clipS, clipW, CLIP_ARM_R);
 
   // _poseNeckAndHead's `pitch` is + head down (the zombie's hang, the
   // dances' nods); the aim's is + up. Passed straight through, an aim up

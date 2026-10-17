@@ -30,8 +30,11 @@
 // Three rigs on a treadmill: the floor slides under them at their real speed,
 // so a foot that slides against the grid is a foot that isn't planted.
 // ?t=1.23 freezes the clock at that time (for screenshots).
+// ?clips=1: two sprinters side by side, the procedural one and the one
+// wearing the Roblox Studio sprint (characters/clips/sprint.json).
 import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, gaitPhaseRate } from "../assets/games/troll-ops/characters/character.js";
+import { loadClip, setRigClips } from "../assets/games/troll-ops/characters/clips.js?v=rc1";
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(2, devicePixelRatio));
@@ -58,11 +61,16 @@ grid.position.y = 0.002;
 floor.add(grid);
 scene.add(floor);
 
-const GAITS = [
+const CLIPS = new URLSearchParams(location.search).has("clips");
+const GAITS = CLIPS ? [
+  { name: "Sprint 7 m/s (game)", mps: 7.02 },
+  { name: "Sprint 7 m/s (Studio)", mps: 7.02, clip: "sprint" },
+] : [
   { name: "Walk 1.6 m/s", mps: 1.6 },
   { name: "Run 4.2 m/s", mps: 4.2 },
   { name: "Sprint 5.7 m/s", mps: 5.7 },
 ];
+const clips = CLIPS ? { sprint: await loadClip("sprint") } : null;
 const mat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.7, metalness: 0.1 });
 // Lanes sit in a row along X, everyone facing -X, so a camera off to the
 // side (+Z) sees all three in profile.
@@ -71,7 +79,8 @@ const lineMat = new THREE.LineBasicMaterial({ color: 0xe8ffe8 });
 const tickGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0.004, -0.45), new THREE.Vector3(0, 0.004, 0.45)]);
 const lanes = GAITS.map((g, i) => {
   const rig = buildHumanoid(mat, { height: 1.8, gun: true });
-  const x = (i - 1) * 3;
+  const x = (i - (GAITS.length - 1) / 2) * (CLIPS ? 1.6 : 3);
+  if (g.clip) setRigClips(rig, { sprint: clips.sprint });
   rig.root.position.x = x;
   rig.root.rotation.y = Math.PI / 2;
   scene.add(rig.root);
@@ -124,7 +133,7 @@ function frame(now) {
     poseHumanoid(l.rig, {
       phase: l.phase, moving: true, pitch: 0, lower: $("crouch").checked ? 0.45 : 0,
       strafe: 0, forward: back ? -1 : 1, speed: Math.min(1, l.mps / 4.2), mps: l.mps,
-      dt: frozen != null ? 1 : dt, hasGun: $("gun").checked,
+      dt: frozen != null ? 1 : dt, hasGun: $("gun").checked, hold: $("gun").checked ? "gun" : "none",
     });
     const p = l.rig.root.position.clone().project(camera);
     l.tag.style.left = `${(p.x * 0.5 + 0.5) * innerWidth}px`;
