@@ -11,7 +11,7 @@
 // hit capsules are left out. Meshes made in Studio from code live only in
 // that session (they aren't saved with the place): run this again to re-import.
 //
-//   node tools/troll-ops-to-studio.mjs [--token 989] [--pieces rbx989] [--port 5298]
+//   node tools/troll-ops-to-studio.mjs [--token 989] [--pieces sensei3] [--port 5298]
 //
 // Needs Playwright. Serves until Studio fetches /done (or 15 minutes pass).
 import http from "node:http";
@@ -28,7 +28,7 @@ catch { ({ chromium } = require(path.join(process.execPath, "../../lib/node_modu
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const TOKEN = +arg("--token", 989);
-const PIECES = arg("--pieces", TOKEN === 989 ? "rbx989" : "");
+const PIECES = arg("--pieces", "");   // (default: the body the game gives the token)
 const PORT = +arg("--port", 5298);
 
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".png": "image/png",

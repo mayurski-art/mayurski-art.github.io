@@ -205,10 +205,11 @@ const KITS = {
   // Sensei: the undershirt's short blue sleeves and wristbands, baggy orange
   // gi trousers gathered into blue boots (build_blocky_sensei); first-person
   // forearms bare with the wristband (`fp`: the forearm's and cuff's colours)
-  // #989's legs and torso are the Roblox Studio body (tools/troll-ops-roblox-
-  // body.mjs; nft-lab "Body pieces"), the arms plain in their sleeves and the
-  // head held up off its collar (user, 2026-10-17)
-  "clothes-sensei": { arms: "arms-sensei.glb", legs: "legs-rbx989.glb", torso: "torso-rbx989.glb", plainArms: true, headLift: 0.03,
+  // #989's legs and torso are Sensei v3, a logo-free gi made in Roblox Studio
+  // (tools/troll-ops-roblox-body.mjs; nft-lab "Body pieces"; user, 2026-10-17:
+  // "redesign the sensei outfit but without the logos"), the arms plain in
+  // their sleeves and the head set down onto its shorter collar
+  "clothes-sensei": { arms: "arms-sensei.glb", legs: "legs-sensei3.glb", torso: "torso-sensei3.glb", plainArms: true, headLift: -0.04,
     colours: { sleeve: 0x2d5a96, band: 0x2d5a96, gi: 0xf2841f, hem: 0xd96f15, boot: 0x2d5a96, sole: 0x24252b },
     fp: { sleeve: null, cuff: 0x2d5a96 } },
   // Jester (#33): the farmer's pieces as the purple jacket's sleeves with
