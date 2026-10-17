@@ -421,11 +421,32 @@ function renderTraits() {
   }));
 }
 const art = (t) => DESIGN.TRAIT_ART[traits[t]] || "";
+/* The body's pieces: the garment's own Blender kit, or a Roblox Studio body
+   (tools/troll-ops-roblox-body.mjs -> models/blocky/{arms,legs,torso}-<id>.glb,
+   painted). ?pieces=<id> picks one on load. */
+const ROBLOX_BODIES = { rbx989: "Roblox Studio #989" };
+function setPieces(garment, id) {
+  const rbx = ROBLOX_BODIES[id];
+  for (const part of ["arms", "legs", "torso"])
+    edit(["KITS", garment, part], rbx ? `${part}-${id}.glb` : DEFAULTS.KITS[garment][part]);
+  // its hands: the garment's own Blender fists
+  edit(["KITS", garment, "fists"], rbx ? DEFAULTS.KITS[garment].arms : DEFAULTS.KITS[garment].fists);
+}
+function piecesRow(garment) {
+  const id = "p" + uid++;
+  const sel = el("select", { id, on: { change: (e) => { setPieces(garment, e.target.value); renderTuning(); } } },
+    el("option", { value: "" }, "Blender (live)"),
+    ...Object.entries(ROBLOX_BODIES).map(([k, v]) => el("option", { value: k }, v)));
+  const arms = valueOf(["KITS", garment, "arms"]);
+  sel.value = Object.keys(ROBLOX_BODIES).find((k) => arms === `arms-${k}.glb`) || "";
+  return el("div", { class: "row" + (edited(["KITS", garment, "arms"]) ? " edited" : "") }, el("label", { for: id }, "Body pieces"), sel);
+}
 function renderTuning() {
   // outfit colours: the garment's kit, and modelled hair
   const garment = art("clothes"), kit = DESIGN.KITS[garment];
   $("kitNote").textContent = kit ? `${nice(garment)}: every token wearing it changes too.` : "";
   const rows = kit ? Object.keys(DEFAULTS.KITS[garment].colours).map((k) => colourRow(k, ["KITS", garment, "colours", k])) : [];
+  if (kit) rows.unshift(piecesRow(garment));
   const hair = DESIGN.HAIRS[art("hat")];
   if (hair) for (const k of Object.keys(DEFAULTS.HAIRS[art("hat")].colours)) rows.push(colourRow("hair " + k, ["HAIRS", art("hat"), "colours", k]));
   $("kitRows").replaceChildren(...rows);
@@ -803,6 +824,7 @@ window.__lab = { mine, game, DESIGN, edits, rebuild, setView, orbit, scene,
 applyScene();
 renderViews();
 traits = { ...DESIGN.TOKENS[baseToken] };
+if (q.has("pieces") && DESIGN.KITS[art("clothes")]) setPieces(art("clothes"), q.get("pieces"));
 setRef();
 renderAll();
 await rebuild(true);

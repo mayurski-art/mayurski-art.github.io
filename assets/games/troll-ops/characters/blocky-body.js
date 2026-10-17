@@ -256,11 +256,26 @@ function plaidMaterial() {
   }
   return addRim(new THREE.MeshToonMaterial({ map: plaidTex, gradientMap: CLOTH_TONES, emissive: 0xffffff, emissiveMap: plaidTex, emissiveIntensity: 0.12 }));
 }
+/* A painted piece's material: its own texture (a Roblox Studio body,
+   tools/troll-ops-roblox-body.mjs, carries one per part), cel-shaded like
+   the cloth, one per texture. */
+const paintedMats = new Map();
+function paintedMaterial(map) {
+  if (!paintedMats.has(map)) {
+    map.colorSpace = THREE.SRGBColorSpace;
+    map.anisotropy = 8;
+    const m = addRim(new THREE.MeshToonMaterial({ map, gradientMap: CLOTH_TONES, emissive: 0xffffff, emissiveMap: map, emissiveIntensity: 0.12 }));
+    m.userData.shared = true;
+    paintedMats.set(map, m);
+  }
+  return paintedMats.get(map);
+}
 /* A kit's materials by piece name, up to a "-" ("sleeve-cap" is sleeve),
-   shared within one body. */
+   shared within one body; a piece that brings its own texture wears it. */
 function kitMaterials(colours) {
   const mats = new Map();
-  return (name) => {
+  return (name, map) => {
+    if (map) return paintedMaterial(map);
     const key = name.split("-")[0];
     if (!mats.has(key)) {
       const c = colours[key];
@@ -322,7 +337,7 @@ function loadPieces(url) {
       hull.computeVertexNormals();
       // every rig wearing the body shares these (remote-players.js dispose skips them)
       geo.userData.shared = hull.userData.shared = true;
-      out.push({ name: named.name, geo, hull, mat: o.material?.name || "" });
+      out.push({ name: named.name, geo, hull, mat: o.material?.name || "", map: o.material?.map || null });
     });
     return out;
   }));
@@ -347,9 +362,13 @@ const SHOE_PARTS = ["upper", "sole"];
 function muscleArms(rig, kit) {
   const p = rig.parts, s = rig.scale;
   const matOf = kitMaterials(Object.fromEntries(Object.entries(kit.colours).filter(([k]) => !SHOE_PARTS.includes(k))));
-  return loadPieces(glb(kit.arms)).then((pieces) => {
+  // a kit without hands of its own (a Roblox Studio body) borrows the fists
+  // from another kit's arms (`fists`): the gun grips are built on those
+  const sets = [loadPieces(glb(kit.arms)), ...(kit.fists ? [loadPieces(glb(kit.fists))] : [])];
+  return Promise.all(sets).then(([own, fists]) => {
+    const pieces = fists ? [...own, ...fists.filter((x) => x.name.startsWith("hand"))] : own;
     const added = [];
-    for (const { name, geo, hull } of pieces) {
+    for (const { name, geo, hull, map } of pieces) {
       const [jname, muscle] = name.split("__");
       const kind = jname.slice(0, -1), side = jname.slice(-1);
       const joint = kind === "hand" ? p[`wrist${side}`].parent : p[`${kind}${side}`];
@@ -365,7 +384,7 @@ function muscleArms(rig, kit) {
       // is where the rig puts a gun's grip (and the support hand on the
       // handguard), so the gun runs through the fist instead of past it.
       if (kind === "hand") g.position.copy(bone).normalize().multiplyScalar(FIST_BACK * s);
-      const m = new THREE.Mesh(geo, matOf(muscle));
+      const m = new THREE.Mesh(geo, matOf(muscle, map));
       m.castShadow = true;
       m.name = muscle;
       g.add(m, new THREE.Mesh(hull, armInk));
@@ -457,7 +476,7 @@ const LEG_BONES = { thigh: 0.30, knee: 0.295 };
 function muscleLegs(rig, kit) {
   const p = rig.parts, s = rig.scale;
   const matOf = kitMaterials(kit.colours);
-  return loadPieces(glb(kit.legs)).then((pieces) => pieces.map(({ name, geo, hull }) => {
+  return loadPieces(glb(kit.legs)).then((pieces) => pieces.map(({ name, geo, hull, map }) => {
     const [jname, part] = name.split("__");
     const kind = jname.slice(0, -1), side = jname.slice(-1);
     const knee = p[`knee${side}`], ankle = p[`ankle${side}`];
@@ -468,7 +487,7 @@ function muscleLegs(rig, kit) {
       g.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), bone.clone().normalize());
       g.scale.set(s, s * bone.length() / (LEG_BONES[kind] * s), s);
     } else g.scale.setScalar(s);
-    const m = new THREE.Mesh(geo, matOf(part));
+    const m = new THREE.Mesh(geo, matOf(part, map));
     m.castShadow = true;
     m.name = part;
     g.add(m, new THREE.Mesh(hull, armInk));
@@ -1330,6 +1349,17 @@ function reliefHead(rig) {
    the clothes drawing wraps the muscles. Returns the added objects. */
 function muscleTorso(rig, garment) {
   const p = rig.parts, s = rig.scale;
+  // a kit with its own painted torso (a Roblox Studio body) wears that
+  if (KITS[garment]?.torso) return loadPieces(glb(KITS[garment].torso)).then((pieces) => pieces.map(({ name, geo, hull, map }) => {
+    const g = new THREE.Group();
+    g.scale.setScalar(s);
+    const m = new THREE.Mesh(geo, map ? paintedMaterial(map) : toon(SKIN));
+    m.castShadow = true;
+    m.name = name.split("__")[1];
+    g.add(m, new THREE.Mesh(hull, armInk));
+    p[name.split("__")[0]].add(g);
+    return g;
+  }));
   let material = toon(SKIN);
   if (garment) {
     const map = new THREE.TextureLoader().load(new URL(`${garment}.block.png?v=${ART_V}`, DIR).href);
