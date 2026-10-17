@@ -69,6 +69,19 @@ export const MODES = {
     blurb: "Every troll for themselves. First to 30 kills wins. No clock.",
   },
 
+  /* Domination (user, 2026-10-17): Black Ops 2's three flags, A B C. A held
+     flag scores its side a point every few seconds; kills score nothing.
+     modes/domination.js runs the flags. */
+  dom: {
+    id: "dom",
+    name: "Domination",
+    short: "Domination",
+    pvp: true, ffa: false,
+    scoreLimit: 200,
+    flags: true,
+    blurb: "Three flags, A, B and C. Stand on one to take it; every flag you hold scores. First side to 200 wins.",
+  },
+
   koth: {
     id: "koth",
     name: "King of the Hill",
@@ -394,7 +407,7 @@ export function findOpenGround(colliders, bounds, x, z, r = 2, reachable = null)
 
 /* A predicate: can someone walking from the spawns get to (x, z)? One flow
    field swept out from the first spawn; everything else just asks it. */
-function reachableFrom(colliders, bounds, spawnPoints) {
+export function reachableFrom(colliders, bounds, spawnPoints) {
   if (!spawnPoints?.length) return null;
   const field = new FlowField(colliders, bounds, 0);
   const s = spawnPoints[0];

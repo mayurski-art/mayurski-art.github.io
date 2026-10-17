@@ -450,6 +450,11 @@ export class Net {
         this.h.onBomb?.(m);
         break;
       }
+      /* Domination: the flags, from the bot host (modes/domination.js). */
+      case "dom": {
+        this.h.onDom?.(m);
+        break;
+      }
       /* Scorestreaks. Same authority model as the bomb above: whoever earned
          the streak decides everything about it — where the crate lands, what
          is inside, which enemy the drone picks, where the strike falls — and
@@ -817,6 +822,12 @@ export class Net {
      every client applies once and remembers regardless of order. */
   publishBomb(payload) {
     this.send({ t: "bomb", id: this.id, ...payload });
+  }
+
+  /* Domination flag state ("state", a few times a second) and captures
+     ("cap"), sent by the bot host only (modes/domination.js). */
+  publishDom(payload) {
+    this.send({ t: "dom", id: this.id, ...payload });
   }
 
   /* Scorestreak events. `kind` names the streak ("uav", "carepackage",
