@@ -6,6 +6,10 @@
   run y 640..700, the lower y 720..790, the corner at x ~720.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1033" width="1000" height="1033">
+  <!-- drawn mirrored onto the grin's art-left: the NFT head is flipped left
+       to right in game (blocky-body.js HEAD.mirror), which puts it back on
+       the grin's right like #2630's (user, 2026-10-16) -->
+  <g transform="translate(1000 0) scale(-1 1)">
   <g stroke="#0a0a0a" stroke-width="10" stroke-linejoin="round" stroke-linecap="round">
     <path fill="#ee8aa4" d="M584 726 C600 700 628 668 650 640 C668 616 694 598 718 606 C744 616 742 652 724 684 C704 720 676 748 640 760 C612 768 586 754 584 726 Z"/>
   </g>
@@ -14,5 +18,6 @@
   <g fill="none" stroke-linecap="round">
     <path stroke="#b84d6a" stroke-width="6" d="M640 726 C656 700 680 668 706 640"/>
     <path stroke="#ffd7e1" stroke-width="7" d="M690 618 C704 612 718 614 724 626"/>
+  </g>
   </g>
 </svg>

@@ -716,7 +716,8 @@ function placeCamera(o = orbit) {
   game.rig.root.position.x = sep;
   mine.rig.parts.headPivot.getWorldPosition(headAt);
   const close = o.dist < 1.8;
-  focus.set(close ? headAt.x : 0, close ? headAt.y + 0.12 : 0.88, -travel);
+  // (o.lift: the close-up framed higher, for a tall hat)
+  focus.set(close ? headAt.x : 0, close ? headAt.y + 0.12 + (o.lift || 0) : 0.88, -travel);
   camera.position.set(focus.x - Math.sin(o.yaw) * Math.cos(o.pitch) * o.dist * (ab && !close ? 1.35 : 1), focus.y + Math.sin(o.pitch) * o.dist, focus.z - Math.cos(o.yaw) * Math.cos(o.pitch) * o.dist * (ab && !close ? 1.35 : 1));
   camera.lookAt(focus);
   const [kx, ky, kz] = key.userData.at || [3, 6, -4];
@@ -798,7 +799,7 @@ addEventListener("keydown", (e) => {
 
 /* ------------------------------------------------------------ go */
 window.__lab = { mine, game, DESIGN, edits, rebuild, setView, orbit, scene,
-  look(yaw, pitch, dist) { Object.assign(want, { yaw, pitch, dist }); Object.assign(orbit, { yaw, pitch, dist }); } };
+  look(yaw, pitch, dist, lift = 0) { Object.assign(want, { yaw, pitch, dist }); Object.assign(orbit, { yaw, pitch, dist, lift }); } };
 applyScene();
 renderViews();
 traits = { ...DESIGN.TOKENS[baseToken] };

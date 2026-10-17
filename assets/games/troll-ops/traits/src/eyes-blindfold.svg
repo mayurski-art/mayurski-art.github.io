@@ -1,27 +1,37 @@
 <!--
-  TROLLS trait: EYES / Blindfold. A band of putty-grey cloth tied over the
-  eyes, wider than the face, dipping a little to the art's left with the
-  face's tilt; creased where it pulls over the brow and the nose. Traced
-  from TROLLS #2630. Front, and a back view (eyes-blindfold.back.svg: the
-  band round the skull and its knot).
+  TROLLS trait: EYES / Blindfold. A band of khaki cloth tied over the eyes,
+  traced from TROLLS #2630: it ends at the face's own sides (the face art's
+  silhouette at eye level, x ~150..860), narrowing a little where it turns
+  round the head, with a darker lower edge, a lit top and folds where it
+  pulls over the brow and the nose. Drawn lighter than before (user,
+  2026-10-16: the old band stuck out past the face like a plank). Front,
+  and a back view (eyes-blindfold.back.svg: the band round the skull and
+  its knot). blocky-body.js SIT lays it on the face, not in front of it.
   Frame: the head-trait frame (traits/README.md).
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1033" width="1000" height="1033">
-  <g stroke="#0a0a0a" stroke-width="11" stroke-linejoin="round" stroke-linecap="round">
-    <path fill="#b9b09b" d="M146 452 C300 438 640 418 890 410 C902 440 900 482 886 510 C640 518 300 538 154 548 C140 520 138 482 146 452 Z"/>
-  </g>
-  <g fill="none" stroke-linecap="round">
-    <!-- the darker underside and the top light -->
-    <path stroke="#978e7a" stroke-width="16" d="M170 530 C320 520 640 500 870 494"/>
-    <path stroke="#cfc7b2" stroke-width="9" d="M176 462 C320 450 640 432 866 424"/>
-    <!-- creases where it pulls over the nose and round the brows -->
-    <g stroke="#7a7262" stroke-width="5">
-      <path d="M470 446 C482 470 486 494 480 520"/>
-      <path d="M520 444 C512 470 512 494 520 518"/>
-      <path d="M254 470 C290 482 320 486 352 482"/>
-      <path d="M620 460 C660 470 700 470 736 460"/>
-      <path d="M210 512 C240 500 270 498 300 504"/>
-      <path d="M680 498 C720 488 760 486 800 490"/>
+  <defs>
+    <clipPath id="band"><path d="M152 452 C300 440 640 428 858 424 C868 452 868 494 858 520 C640 528 300 540 160 546 C146 520 144 482 152 452 Z"/></clipPath>
+  </defs>
+  <g clip-path="url(#band)">
+    <rect x="100" y="400" width="800" height="170" fill="#b8ad93"/>
+    <!-- the darker lower edge and the lit top -->
+    <path fill="#968b72" d="M140 512 C320 500 640 488 880 484 L880 560 L140 560 Z"/>
+    <path fill="#d2c8ae" d="M140 420 L880 410 L880 440 C640 444 320 454 140 466 Z"/>
+    <!-- folds where it pulls over the nose and round the brows -->
+    <g fill="none" stroke="#7d735e" stroke-width="4" stroke-linecap="round">
+      <path d="M478 446 C488 470 490 494 484 522"/>
+      <path d="M524 444 C516 470 516 494 522 520"/>
+      <path d="M248 474 C290 484 322 488 356 482"/>
+      <path d="M622 462 C662 472 702 472 738 462"/>
+      <path d="M206 514 C240 502 272 500 304 506"/>
+      <path d="M684 500 C724 490 764 488 806 492"/>
+    </g>
+    <g fill="none" stroke="#e2d9c1" stroke-width="3" stroke-linecap="round" opacity="0.8">
+      <path d="M300 458 C380 452 440 450 470 450"/>
+      <path d="M560 448 C620 446 700 442 780 438"/>
     </g>
   </g>
+  <!-- its edge, lighter than the face's lines -->
+  <path fill="none" stroke="#1a1712" stroke-width="7" stroke-linejoin="round" d="M152 452 C300 440 640 428 858 424 C868 452 868 494 858 520 C640 528 300 540 160 546 C146 520 144 482 152 452 Z"/>
 </svg>

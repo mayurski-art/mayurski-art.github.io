@@ -23,10 +23,29 @@ const SRC = join(dirname(fileURLToPath(import.meta.url)), "../assets/games/troll
 const BEARD = {
   id: "facial-beard-brown",
   outer: "M150 440 C104 520 88 640 104 760 C126 878 220 987 290 1050 C322 1081 346 1123 372 1140 C400 1148 420 1128 448 1145 C476 1157 500 1139 526 1154 C554 1142 580 1156 606 1137 C634 1126 656 1145 684 1128 C716 1096 760 1042 812 972 C880 878 936 780 930 650 C926 560 900 490 860 440",
-  inner: "M860 440 C874 490 884 530 872 570 C852 622 816 668 772 708 C700 764 600 792 500 798 C420 802 320 796 250 772 C206 742 176 694 156 640 C134 580 134 510 150 440",
+  // up the sides it runs a little inside the face art's silhouette (measured
+  // off trollface transparent.png every 20 rows, 10 px in): the old trace
+  // stood up to 60 px off the face at the sideburns, a gap that showed
+  // between the face and the beard in 3/4 view (user, 2026-10-16)
+  inner: through([[788, 440], [803, 460], [824, 480], [846, 500], [860, 520], [868, 540], [870, 560], [869, 580], [863, 600],
+    [851, 620], [833, 640], [815, 660], [799, 680], [772, 708]]) +
+    " C700 764 600 792 500 798 C420 802 320 796 250 772" +
+    through([[250, 772], [205, 742], [188, 700], [190, 680], [188, 660], [183, 640], [175, 620], [166, 600], [155, 580],
+      [150, 560], [148, 540], [148, 520], [155, 500], [169, 480], [190, 460], [203, 440]]).replace(/^M[\d. ]+/, " "),
   base: "#6e3b17", lit: "#9a5a2a", mid: "#7c4520", dark: "#4a250d", cleft: "#341807",
   shade: "#52290f",
 };
+
+// A smooth path (M + C) through points (Catmull-Rom)
+function through(p) {
+  let d = `M${p[0][0]} ${p[0][1]}`;
+  for (let i = 0; i + 1 < p.length; i++) {
+    const a = p[Math.max(0, i - 1)], b = p[i], c = p[i + 1], e = p[Math.min(p.length - 1, i + 2)];
+    const r = (v) => Math.round(v * 10) / 10;
+    d += ` C${r(b[0] + (c[0] - a[0]) / 6)} ${r(b[1] + (c[1] - a[1]) / 6)} ${r(c[0] - (e[0] - b[0]) / 6)} ${r(c[1] - (e[1] - b[1]) / 6)} ${c[0]} ${c[1]}`;
+  }
+  return d;
+}
 
 // --- path sampling (M + C only) ---
 function sample(d, step = 4) {
@@ -192,7 +211,7 @@ function locks(inner, outer) {
 
 const outer = sample(BEARD.outer), inner = sample(BEARD.inner);
 const edge = tufted(outer);
-const outline = poly(edge) + " " + BEARD.inner.replace(/^M[\d. ]+/, "L860 440 ") + " Z";
+const outline = poly(edge) + " " + BEARD.inner.replace(/^M/, "L") + " Z";
 const outerOnly = poly(edge);
 const L = locks(inner, outer);
 

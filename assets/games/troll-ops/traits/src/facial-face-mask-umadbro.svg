@@ -8,6 +8,9 @@
   shell on the face (blocky-body.js SHELLS, the beard's volume); the stick
   body bends the point forward (traits.js).
 -->
+<!-- The print is drawn mirrored (and its tilt flipped): the NFT head is
+     flipped left to right in game (blocky-body.js HEAD.mirror), which turns
+     it back to read. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1300" width="1000" height="1300">
   <defs>
     <path id="mask" d="M138 506 C330 488 690 492 888 516 C896 600 892 700 872 790 C852 880 830 925 806 956 C720 1005 650 1049 604 1077 C500 1043 380 1005 268 972 C210 925 176 860 162 780 C146 690 136 600 138 506 Z"/>
@@ -27,7 +30,7 @@
     <path fill="none" stroke="#2a2a2e" stroke-width="6" stroke-linecap="round" d="M260 962 C380 987 500 1024 600 1067"/>
     <!-- the print -->
     <text x="505" y="815" text-anchor="middle" font-family="Impact, 'Arial Narrow Bold', sans-serif" font-size="128"
-          fill="#f4f4f1" transform="rotate(9 520 790)">UMADBRO?</text>
+          fill="#f4f4f1" transform="translate(1000 0) scale(-1 1) rotate(-9 520 790)">UMADBRO?</text>
   </g>
   <!-- the knot itself -->
   <ellipse cx="146" cy="520" rx="30" ry="34" fill="#141416" stroke="#060606" stroke-width="10"/>

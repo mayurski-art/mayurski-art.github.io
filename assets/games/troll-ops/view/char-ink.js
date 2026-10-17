@@ -53,8 +53,12 @@ function tagRig(rig) {
     while (g.parent && g.parent !== rig.root && !joints.has(g.parent)) g = g.parent;
     // the chest and hip halves are one rigid torso: no seam between them,
     // and the relief face and the skull back behind it are one head
+    // and what's drawn on the face (the trait cards, the beard and mask
+    // shells on the head pivot) is the head too: no seam round a moustache
+    // (a grey ring, user 2026-10-16), as the NFTs draw them; a hat
+    // (userData.inkOwn) keeps its own line
     const key = g.parent === rig.parts?.chest || g.parent === rig.parts?.torso ? "torso"
-      : g === rig.skull || g.parent === rig.parts?.head ? "head" : g;
+      : g === rig.skull || g.parent === rig.parts?.head || (g.parent === rig.parts?.headPivot && !g.userData.inkOwn) ? "head" : g;
     if (!rig.inkGroups.has(key)) rig.inkGroups.set(key, (nextId = (nextId % 65000) + 1));
     o.userData.inkId = rig.inkGroups.get(key);
     o.layers.enable(INK_LAYER);
