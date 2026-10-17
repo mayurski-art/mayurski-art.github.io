@@ -35,6 +35,7 @@ import {
   chandelier, sconce, railFence, picketFence, hayBale, log, coffin, framedPicture, artTexture, artAspect,
 } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1";
 import { LoopPath, Train } from "./train.js?v=tr1b7-or1";
+import { buildTrainBoard } from "./train-board.js?v=tb1";
 
 const BOUNDS = { minX: -62, maxX: 62, minZ: -50, maxZ: 50 };
 const T = 0.3;            // wall thickness
@@ -1417,6 +1418,8 @@ function buildRailway(K, M, lights, R) {
   // the Grin Express (loco, tender, two open cars) standing at the platform,
   // the goods wagons on the siding
   TRAIN_STATE.train = buildTrain(K, M);
+  // its timetable, live, over the platform past the loco (train-board.js)
+  TRAIN_STATE.board = buildTrainBoard(K, M, place, { x: -27, z: -26.3, floor: FLOOR });
   boxcar(K, M, 30, TRACKS[1], M.boxcar, "KEK RAIL", "#8a3a2a");
   boxcar(K, M, -26.5, TRACKS[1], M.boxcarYellow, "TROLL & PACIFIC", "#b88a3a");
   flatcar(K, M, -15.6, TRACKS[1]);
@@ -1641,7 +1644,7 @@ function buildLoopTrack(K, M, R) {
 
 /* The Grin Express: its loco and tender, two open passenger cars, each its
    own group with its own colliders, so train.js can run it round the loop. */
-const TRAIN_STATE = { train: null };
+const TRAIN_STATE = { train: null, board: null };
 /* The conductor's job (modes/social-conductor.js): the cap's stand on the
    platform behind the shops, and the platforms you can hold the train from
    (that one and the station's, across the tracks). */
@@ -2192,7 +2195,7 @@ export const TROLLCITY = {
   build: buildTrollCity,
   // Socialize roleplay spots (saloon-bar.js / game.js updateBar). Floor
   // heights are the saloon's ground floor.
-  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, conductor: CONDUCTOR, sheriff: SHERIFF, band: BAND, shop: SHOP, horses: () => RIDE, arm: () => ARM, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
+  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, trainBoard: () => TRAIN_STATE.board, conductor: CONDUCTOR, sheriff: SHERIFF, band: BAND, shop: SHOP, horses: () => RIDE, arm: () => ARM, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
   // Team spawns: past the railway in the north, out on the plain south.
   spawns: [[-56, -46], [-46, -47.5], [-16, -47.8], [-2, -47.8], [8, -48], [18, -46.5], [50, -46], [58, -40],
     [-56, 46], [-44, 46.5], [-26, 45], [-12, 46], [0, 45.5], [14, 46], [28, 45], [40, 45.5]],

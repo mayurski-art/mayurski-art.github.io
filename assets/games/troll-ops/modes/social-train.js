@@ -25,6 +25,7 @@ import { game } from "../core/state.js?v=st1";
 export const ride = { car: null, deck: null, called: false, moving: false };
 
 export const trainOf = () => game.builtMap?.map?.rp?.train?.() || null;
+const boardOf = () => game.builtMap?.map?.rp?.trainBoard?.() || null;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 /* The train's clock, in seconds: the room's, less the conductor's holds. */
@@ -58,12 +59,14 @@ export function updateTrain() {
   const mv = game.move;
   if (!tr || !game.isSocial()) {
     if (tr && (tr.state.s || tr.state.v)) tr.park();
+    boardOf()?.update(null);   // parked: no service
     ride.car = null;
     if (mv) mv.riding = false;
     if (game.net) game.net.trainAt = null;
     return;
   }
   tr.update(trainClock());
+  boardOf()?.update(tr.state);   // the platform's timetable board (maps/train-board.js)
   const st = tr.state, moving = st.v > 0.05, pos = mv.pos;
 
   // On a deck (by where our feet were on it last frame), or, while it
