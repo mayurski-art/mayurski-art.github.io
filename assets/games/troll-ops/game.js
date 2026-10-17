@@ -1298,7 +1298,7 @@ const net = new Net({
     // and loot even if their match counts drifted apart.
     if (royale && isStaging() && m.sd && (m.sd >>> 0) !== royale.seed) setupRoyale(m.sd >>> 0);
     const left = Number(m.left);
-    if (!Number.isFinite(left) || left <= 0) { if (isStaging()) endStaging(); return; }
+    if (!Number.isFinite(left) || left <= 0) { if (isStaging() && !m.to) endStaging(); return; }   // (a note to us alone at 0, the room's map, opened the C-130 mid-countdown)
     if (isStaging() && left < stageT) { stageT = left; stageOwner = false; }
   },
   /* Bomb sync. `id` here is the sender, not necessarily the actor — a bot
