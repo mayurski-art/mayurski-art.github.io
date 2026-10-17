@@ -464,6 +464,7 @@ Map rules:
 ---
 
 ## 5. Shipped log (newest first; one line each, details in git)
+- **2026-10-17** (-rb1, -fg3, -hd1) TROLLS #989: the user's own trollface drawing on a head built from its outline (head-989.glb, FACE_HEADS), hairline above the eyes; Roblox Studio body (tools/troll-ops-roblox-body.mjs, blocky legs/torso-rbx989.glb) in the NFT lab only (?pieces=rbx989), in game is phase 2 of the "Roblox bodies for NFT characters" doc. Tests: nft-face, nft-hold, 3p-hold, bot-head.
 - **2026-10-17** (-bt1) Troll City saloon sound (modes/social-saloon-sound.js): Piano Pete plays the house tunes on his own (room clock), one earshot falloff for every instrument (muffled through the walls), murmur, clinks and laughs inside only. Test: saloon-sound.
 - **2026-10-17** (-bt1) Troll City station timetable board (maps/train-board.js): a chalkboard gantry over the platform, next arrival / departs m:ss / status, off the train's own timetable. Test: train-board.
 - **2026-10-17** (-bt1) Club door: Bandana Benny every 90 s, and a player in a bandana gets asked to take it off. Test: club-bandana.
