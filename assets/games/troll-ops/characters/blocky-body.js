@@ -771,6 +771,11 @@ const SHELLS = {
   // back card (its knot) kept; head-frame rows, no hang, no hem
   "eyes-blindfold": { ...BEARD, tint: 1, dark: "#6f6550", curl: 0.9, rows: 1033, chin: [2000, 2100], ride: [2000, 2100], rest: 0.004,
     thick: [0.004, 0.005], taper: 0.01, sink: 0.002, lift: 0.006, depth: false, hem: null, keepBack: true },
+  // the French Moustache the same way: as a card its curled tips stood off
+  // past the cheeks in 3/4 view (user, 2026-10-16); moulded on, they lie on
+  // the face and turn back round its sides
+  "facial-french-moustache": { ...BEARD, tint: 1, dark: "#0b0b0c", curl: 0.9, rows: 1033, chin: [2000, 2100], ride: [2000, 2100], rest: 0.004,
+    thick: [0.003, 0.004], taper: 0.006, sink: 0.002, lift: 0.005, depth: false, hem: null },
 };
 /* A shell's drawing cut off along its hem, feathered over `soft` rows so
    alphaTest leaves a smooth edge: either along the jaw (`jaw`: [frame x,
