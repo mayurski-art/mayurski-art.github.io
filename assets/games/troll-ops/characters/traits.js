@@ -20,7 +20,7 @@ import { setClothed } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-
 const DIR = new URL("../traits/", import.meta.url);
 // The art's cache tag: bump it when a drawing changes (a dev page can set
 // globalThis.TRAITS_BUST to refetch every time).
-const ART_V = globalThis.TRAITS_BUST ?? "tr5";
+const ART_V = globalThis.TRAITS_BUST ?? "tr6";
 
 /* The trait library: one drawing per TROLLS trait VALUE, named after it
    (type/value -> id), so every token with that trait wears the same art
