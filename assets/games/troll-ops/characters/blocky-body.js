@@ -1229,6 +1229,40 @@ function wrapCard(plane, s, depth) {
   plane.userData.wrapped = true;
 }
 
+/* The face's triangles above the hairline, pushed out along their
+   normals, as one mesh in `mat`. The hairline comes down in points (the
+   fringe's spikes onto the forehead, like the NFT's), from `top` between
+   them to `low` at their tips, `points` across the face (user, 2026-10-17:
+   a straight band looked bad). Built once per face. */
+const HAIRLINE = { top: 0.13, low: 0.07, points: 5, x: [-0.22, 0.22], out: 0.003 };
+const hairlineY = (x) => {
+  const [x0, x1] = HAIRLINE.x, f = ((x - x0) / (x1 - x0)) * HAIRLINE.points;
+  const t = Math.abs((f - Math.floor(f)) * 2 - 1);   // 1 between points, 0 at a tip
+  return HAIRLINE.low + (HAIRLINE.top - HAIRLINE.low) * t;
+};
+const hairlines = new WeakMap();
+function hairline(faceGeo, mat) {
+  if (!hairlines.has(faceGeo)) {
+    const pos = faceGeo.attributes.position, nrm = faceGeo.attributes.normal, idx = faceGeo.index;
+    const keep = [];
+    const n = idx ? idx.count : pos.count, at = (i) => (idx ? idx.getX(i) : i);
+    for (let t = 0; t < n; t += 3) {
+      const a = at(t), b = at(t + 1), c = at(t + 2);
+      const above = (i) => pos.getY(i) > hairlineY(pos.getX(i));
+      if (above(a) && above(b) && above(c)) keep.push(a, b, c);
+    }
+    const p = pos.array.slice();
+    if (nrm) for (let i = 0; i < pos.count; i++) for (let k = 0; k < 3; k++) p[i * 3 + k] += nrm.array[i * 3 + k] * HAIRLINE.out;
+    const geo = new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(p, 3)).setIndex(keep);
+    geo.computeVertexNormals();
+    geo.userData.shared = true;
+    hairlines.set(faceGeo, geo);
+  }
+  const m = new THREE.Mesh(hairlines.get(faceGeo), mat);
+  m.castShadow = true;
+  m.name = "hairline";
+  return m;
+}
 function reliefHead(rig) {
   const p = rig.parts, s = rig.scale, board = p.head;
   const M = headModel();
@@ -1330,6 +1364,12 @@ function reliefHead(rig) {
         m.name = name;
         g.add(m, new THREE.Mesh(hull, armInk));
       }
+      // The hairline: the face's forehead stands in front of the hair's cap,
+      // so the bare scalp showed between the fringe spikes (user,
+      // 2026-10-17: no scalp under hair). The face's top strip, above the
+      // brows, gets a skin of the hair's colour a hair's width out.
+      const face = pieces.find((x) => x.mat === "trollface");
+      if (face) g.add(hairline(face.geo, matOf("hair")));
     }
     g.userData.undo = () => {
       board.layers.mask = mask;
