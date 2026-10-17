@@ -4557,3 +4557,57 @@ body.zk-open .zhb { display: none; }   /* the hub HUD under a kiosk */
   .zk-split, .zk-split.is-classes { grid-template-columns: 1fr; }
   .zk-tiers { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* Tactical Nuke (streaks/nuke.js). The banked row sits above the streak
+   strip; the countdown is a red bar and a big number for the whole match,
+   over a red pulse at the screen edges. */
+.to-nuke-ready {
+  position: absolute; left: 16px; bottom: 196px; z-index: 13;
+  display: flex; align-items: center; gap: 9px; padding: 6px 12px 6px 6px;
+  background: rgba(46,4,2,.72); border: 2px solid #ff3b2a; border-radius: 10px;
+  color: #fff; font-weight: 700; letter-spacing: .06em; font-size: 14px;
+  animation: to-nuke-ready 1.1s ease-in-out infinite;
+}
+.to-nuke-ready-icon { display: block; flex: none; width: 38px; height: 38px; overflow: hidden; }
+.to-nuke-ready-icon > * { width: 100%; height: 100%; display: block; object-fit: contain; }
+.to-nuke-ready span { display: flex; flex-direction: column; gap: 2px; line-height: 1.1; }
+.to-nuke-ready kbd {
+  font: 600 11px "DM Mono", monospace; color: #ffb3a8; letter-spacing: .04em;
+}
+.to-nuke-ready[role="button"] { pointer-events: auto; touch-action: manipulation; }
+body.to-touch-play .to-nuke-ready {
+  left: calc(var(--sl) + 10px); bottom: auto; top: calc(34px + 160px * var(--k)); z-index: 16;
+}
+@keyframes to-nuke-ready {
+  0%, 100% { box-shadow: 0 0 0 rgba(255,59,42,0); }
+  50% { box-shadow: 0 0 18px rgba(255,59,42,.75); }
+}
+.to-nuke-tint {
+  position: absolute; inset: 0; z-index: 11; pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(255,40,20,0) 45%, rgba(255,40,20,.42) 100%);
+  animation: to-nuke-tint 1s ease-in-out infinite;
+}
+@keyframes to-nuke-tint { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+.to-nuke {
+  position: absolute; left: 0; right: 0; top: 16%; z-index: 19; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  font-family: "DM Sans", sans-serif; color: #fff; text-align: center;
+  text-shadow: 0 2px 6px rgba(0,0,0,.8);
+}
+.to-nuke-banner {
+  width: 100%; padding: 8px 16px; box-sizing: border-box;
+  background: linear-gradient(90deg, rgba(150,10,4,0), rgba(190,16,8,.88) 18%, rgba(190,16,8,.88) 82%, rgba(150,10,4,0));
+  display: flex; flex-direction: column; gap: 2px;
+}
+.to-nuke-banner b { font-size: clamp(18px, 3.4vw, 30px); letter-spacing: .14em; }
+.to-nuke-banner span { font-size: 13px; font-weight: 600; letter-spacing: .08em; color: #ffd2cb; }
+.to-nuke-count {
+  font: 700 clamp(56px, 11vw, 104px)/1 "DM Mono", monospace; color: #ff3b2a;
+  text-shadow: 0 0 22px rgba(255,59,42,.7), 0 3px 8px rgba(0,0,0,.9);
+}
+.to-nuke-count.is-tick { animation: to-nuke-tick .45s ease-out; }
+@keyframes to-nuke-tick { from { transform: scale(1.35); } to { transform: scale(1); } }
+body.to-touch-play .to-nuke { top: 22%; }
+@media (prefers-reduced-motion: reduce) {
+  .to-nuke-ready, .to-nuke-tint, .to-nuke-count.is-tick { animation: none; }
+}

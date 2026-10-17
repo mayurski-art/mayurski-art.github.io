@@ -5,6 +5,7 @@
 import * as THREE from "three";
 import { padEmotePressed } from "../menu/controller-layout.js?v=cl7-pd1-or1";
 import { game } from "../core/state.js?v=st1";
+import { nuke, callNuke } from "../streaks/nuke.js?v=tn1";
 import { freeLook } from "../view/free-look.js?v=nf1";
 
 
@@ -82,6 +83,10 @@ let gpWheelSwallow = false;   // the A/B that worked the emote wheel isn't a jum
 const DPAD_HOLD = 0.3;     // seconds d-pad left is held before it's the emote wheel, not an inspect
 let padSprint = false;      // L3's latched sprint (BO2: ends when you stop, aim or shoot)
 let dpadLeftT = -1;         // how long d-pad left has been held; -1 = spent / not held
+// With a Tactical Nuke banked, d-pad right held this long calls it; a tap is
+// still the selected streak, fired on release instead of on press.
+const NUKE_PAD_HOLD = 0.5;
+let nukePadT = -1;
 let gpDt = 0;
 export function pollGamepad(dt) {
   gpDt = dt;
@@ -229,9 +234,18 @@ export function pollGamepad(dt) {
     if (pressedEdge(15) && game.streakControlActive()) {
       game.streakEnd.padAt = performance.now();
       game.streakEnd.padShort = !!game.markingStreak;
+    } else if (pressedEdge(15) && nuke.ready && !game.heroActive()) {
+      nukePadT = 0;
     } else if (pressedEdge(15)) {
       if (game.heroActive()) game.useHeroAbility();
       else game.useSelectedStreak();
+    }
+    if (nukePadT >= 0 && btn(15)) {
+      nukePadT += gpDt;
+      if (nukePadT >= NUKE_PAD_HOLD) { nukePadT = -1; callNuke(); }
+    } else if (nukePadT >= 0) {
+      nukePadT = -1;
+      game.useSelectedStreak();
     }
     if (game.gpPrev[15] && !btn(15) && game.streakEnd.padAt) {
       if (game.streakEnd.padShort && game.markingStreak && performance.now() - game.streakEnd.padAt < 300) game.useSelectedStreak();

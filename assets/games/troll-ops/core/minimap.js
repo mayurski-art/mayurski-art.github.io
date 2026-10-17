@@ -7,7 +7,7 @@ import { CarePackage } from "../streaks/streak-entities.js?v=vsat2-hk1-sr1-or1";
 import * as THREE from "three";
 import { groundHeightAt } from "./movement.js?v=umb2-sb2-gj1b7-or1";
 import { game } from "./state.js?v=st1";
-import { drawDomMinimap } from "../modes/domination.js?v=dom1";
+import { drawDomMinimap } from "../modes/domination.js?v=dom1-tn1";
 import { peerHas } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1";
 
 // Static geometry is drawn once per map into an offscreen canvas and blitted
