@@ -273,6 +273,29 @@ function paintedMaterial(map, alphaTest = 0) {
   }
   return paintedMats.get(map);
 }
+/* The torso badges' placeholder (user, 2026-10-17: the trollface badge
+   "looks messy"; blank first, the trollface goes in later): the badge's
+   disc, plain off-white with a thin dark ring, covering the Roblox Studio
+   texture's own logo underneath. Same disc as the badge drawing
+   (tools/troll-ops-roblox-body.mjs badgeImage): see-through outside it. */
+let badgeBlank = null;
+function badgePlaceholder() {
+  if (badgeBlank) return badgeBlank;
+  const c = document.createElement("canvas");
+  c.width = c.height = 256;
+  const g = c.getContext("2d"), r = 256 / 2 - 2;
+  g.beginPath();
+  g.arc(128, 128, r, 0, Math.PI * 2);
+  g.fillStyle = "#1e1b18";
+  g.fill();
+  g.beginPath();
+  g.arc(128, 128, r * 0.9, 0, Math.PI * 2);
+  g.fillStyle = "#f6f4ee";
+  g.fill();
+  badgeBlank = new THREE.CanvasTexture(c);
+  badgeBlank.flipY = false;   // the GLB's UVs (a symmetric disc either way)
+  return badgeBlank;
+}
 /* A kit's materials by piece name, up to a "-" ("sleeve-cap" is sleeve),
    shared within one body; a piece that brings its own texture wears it. */
 function kitMaterials(colours) {
@@ -1435,7 +1458,20 @@ function muscleTorso(rig, garment) {
   if (KITS[garment]?.torso) return loadPieces(glb(KITS[garment].torso)).then((pieces) => pieces.map(({ name, geo, hull, map, alphaTest }) => {
     const g = new THREE.Group();
     g.scale.setScalar(s);
-    const m = new THREE.Mesh(geo, map ? paintedMaterial(map, alphaTest) : toon(SKIN));
+    const badge = name.split("__")[1]?.startsWith("badge");
+    const m = new THREE.Mesh(geo, map ? paintedMaterial(badge ? badgePlaceholder() : map, alphaTest) : toon(SKIN));
+    if (badge) {
+      m.userData.placeholder = "trollface badge";
+      // the front disc came out smaller than the texture's own logo under
+      // it, whose spikes showed round it: grown a third about its centre
+      // (the chest is near flat there)
+      if (name.split("__")[1] === "badge") {
+        geo.computeBoundingBox();
+        const c = geo.boundingBox.getCenter(new THREE.Vector3());
+        m.position.copy(c).multiplyScalar(-0.3);
+        m.scale.setScalar(1.3);
+      }
+    }
     m.castShadow = !alphaTest;
     m.name = name.split("__")[1];
     // a decal (the badges) lies on the torso: no ink shell of its own

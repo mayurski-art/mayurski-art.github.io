@@ -554,8 +554,12 @@ function poseGum(rig, t) {
   }
   b.visible = r > 0.002;
   b.scale.set(r * sx, r * sy, r * sz);
-  // its back stays at the lips as it grows
-  b.position.set(GUM.x, GUM.y, GUM.lips + r * sz);
+  // its back stays at the lips as it grows. A mirrored head (the TROLLS
+  // body's, blocky-body.js HEAD.mirror) wears its drawing flipped back the
+  // right way, so its lips are on the board's other side (user, 2026-10-17:
+  // "positioning of the bubblegum emote needs to be fixed")
+  const side = p.headPivot.scale.x < 0 ? -1 : 1;
+  b.position.set(GUM.x * side, GUM.y, GUM.lips + r * sz);
   done(rig);
 }
 
