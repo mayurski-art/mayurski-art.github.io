@@ -1392,10 +1392,17 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
 
   // A sprint clip made in Roblox Studio (rig.clips, characters/clips.js)
   // takes over the body above the legs as a straight-ahead run reaches
-  // sprint speed. The legs stay on the foot placement below.
-  const clip = zombie ? null : rig.clips?.sprint;
-  const clipW = clip ? _smooth(Math.max(0, Math.min(1, (v - 5.4) / 1.2))) * blend * (1 - crouch) * Math.max(0, fwd) * (1 - sideways) : 0;
+  // sprint speed. The legs stay on the foot placement below. With a gun in
+  // hand it's the gun sprint (Phantom Forces': the gun drops across the
+  // chest), which also carries the gun: _gripSupport reads rig.clipGun.
+  const gunClip = hold === "gun" && hasGun ? rig.clips?.["sprint-gun"] : null;
+  const clip = zombie ? null : gunClip || rig.clips?.sprint;
+  // Aiming or shooting ends a sprint, as in PF: the clip fades while the gun
+  // is up (rig.fireK: _gripSupport's last frame).
+  const gunUp = gunClip ? Math.max(Math.min(1, ads), rig.fireK ?? 0) : 0;
+  const clipW = clip ? _smooth(Math.max(0, Math.min(1, (v - 5.4) / 1.2))) * blend * (1 - crouch) * Math.max(0, fwd) * (1 - sideways) * (1 - gunUp) : 0;
   const clipS = clipW > 0 ? sampleGait(clip, cyc / (Math.PI * 2), rig.clipSample || (rig.clipSample = {})) : null;
+  rig.clipGun = clipS && clip === gunClip ? { w: clipW, s: clipS } : null;
   if (clipS) applyClip(rig, clipS, clipW, CLIP_HIPS);
 
   // A walking stance starts a little nearer the hips than it ends: the heel
@@ -1985,6 +1992,25 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
     _gP.copy(pt(u.buttPos)).applyEuler(p.gunMount.rotation);
   }
   p.gunMount.position.copy(_gS).sub(_gP);
+  // A gun sprint clip (Studio) carries a long gun its own way: its gunMount
+  // pose is the gun's turn in the chest and where the butt sits, off the
+  // shoulder pocket. Shooting, aiming or reloading takes the gun back.
+  const gc = rig.clipGun, gcs = gc?.s.gunMount;
+  if (gcs && !pistol && !pair) {
+    const k = gc.w * (1 - up) * (1 - rl);
+    if (k > 0) {
+      p.gunMount.quaternion.slerp(gcs.q, k);
+      if (gcs.p) _gS.addScaledVector(gcs.p, k * s);
+      _gP.copy(pt(u.buttPos)).applyQuaternion(p.gunMount.quaternion);
+      p.gunMount.position.copy(_gS).sub(_gP);
+      // A long handguard across the chest can end past the left hand's
+      // reach: slide the gun back toward that shoulder until it doesn't.
+      _gSup.copy(pt(u.supportHandPos)).applyQuaternion(p.gunMount.quaternion).add(p.gunMount.position);
+      _gT.copy(_gSup).sub(p.armL.position).sub(p.shoulderL.position);
+      const over = _gT.length() - (rig.upperArm + rig.foreArm) * 0.95;
+      if (over > 0) p.gunMount.position.addScaledVector(_gT.normalize(), -over);
+    }
+  }
   // Trigger hand to the grip; the elbow winged out, more when shouldered.
   _gGrip.copy(pt(u.gripPos)).applyEuler(p.gunMount.rotation).add(p.gunMount.position);
   // A short arm on a long stock (hold.reachR, of the arm's length): past

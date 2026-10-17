@@ -35,6 +35,9 @@
 import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, gaitPhaseRate } from "../assets/games/troll-ops/characters/character.js";
 import { loadClip, setRigClips } from "../assets/games/troll-ops/characters/clips.js?v=rc1";
+import { mountHeldWeapon } from "../assets/games/troll-ops/characters/character.js";
+import * as WM from "../assets/games/troll-ops/weapons/weapon-model.js";
+import { WEAPON_DEFS } from "../assets/games/troll-ops/weapons/weapons.js";
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(2, devicePixelRatio));
@@ -70,7 +73,10 @@ const GAITS = CLIPS ? [
   { name: "Run 4.2 m/s", mps: 4.2 },
   { name: "Sprint 5.7 m/s", mps: 5.7 },
 ];
-const clips = CLIPS ? { sprint: await loadClip("sprint") } : null;
+// The clips lab holds a real rifle (the SWAT-556): the stand-in stick gun has
+// no handguard, so the game holds it like a pistol.
+if (CLIPS) { try { await WM.preloadWeaponModels(); } catch {} }
+const clips = CLIPS ? { sprint: await loadClip("sprint"), "sprint-gun": await loadClip("sprint-gun").catch(() => null) } : null;
 const mat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.7, metalness: 0.1 });
 // Lanes sit in a row along X, everyone facing -X, so a camera off to the
 // side (+Z) sees all three in profile.
@@ -78,9 +84,10 @@ const TICK = 0.25, TICKS = 11;
 const lineMat = new THREE.LineBasicMaterial({ color: 0xe8ffe8 });
 const tickGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0.004, -0.45), new THREE.Vector3(0, 0.004, 0.45)]);
 const lanes = GAITS.map((g, i) => {
-  const rig = buildHumanoid(mat, { height: 1.8, gun: true });
+  const rig = buildHumanoid(mat, { height: 1.8, gun: !CLIPS });
+  if (CLIPS) mountHeldWeapon(rig, (rig.parts.gun = WM.stripLights(WM.buildWeaponMesh(WEAPON_DEFS.lmao))));
   const x = (i - (GAITS.length - 1) / 2) * (CLIPS ? 1.6 : 3);
-  if (g.clip) setRigClips(rig, { sprint: clips.sprint });
+  if (g.clip) setRigClips(rig, clips);
   rig.root.position.x = x;
   rig.root.rotation.y = Math.PI / 2;
   scene.add(rig.root);
