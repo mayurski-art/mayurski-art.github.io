@@ -59,7 +59,11 @@ const halves = [LEFT, RIGHT].map((pts, side) => {
   return { main: spline(pts), curl: spline(CURL.map(([dx, dy]) => [ex + dx * flip, ey + dy])) };
 });
 
-const shapes = halves.map(({ main, curl }) => [tapered(main, W.mid, W.end), tapered(curl, W.end, W.curl * 0.7)]).flat();
+// a round joint where each half meets its curl: the half's end cap is a
+// half circle swept one way, so where the curl turns off it a crescent was
+// left out, a gap toward each end (user, 2026-10-16)
+const joint = ([x, y], r) => `M${f(x - r)} ${f(y)} a${f(r)} ${f(r)} 0 1 0 ${f(2 * r)} 0 a${f(r)} ${f(r)} 0 1 0 ${f(-2 * r)} 0 Z`;
+const shapes = halves.map(({ main, curl }) => [tapered(main, W.mid, W.end), joint(main.at(-1), W.end / 2), tapered(curl, W.end, W.curl * 0.7)]).flat();
 const shine = halves.map(({ main }) => line(main.slice(3, Math.round(main.length * 0.62)).map(([x, y]) => [x, y - W.mid * 0.16])));
 
 const svg = `<!--
