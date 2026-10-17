@@ -15,6 +15,9 @@
 // Design: "Troll Forces: Roblox bodies for NFT characters" (2026-10-17).
 //
 //   node tools/troll-ops-roblox-body.mjs <export dir> <id> [--out <dir>] [--tex 1024]
+//        [--joints shoulderY,hipY,legX]  (studs; default the #989 export's)
+//        [--no-logos]                    (a design without emblems: no badge decals)
+//        [--neck 0.12]                   (metres the torso keeps above the shoulders: lower cuts a skin neck off)
 //
 // The export dir holds torso.obj/.png, left_arm, right_arm, left_leg,
 // right_leg (Studio studs, feet at y 0, facing -Z, the character's right +X).
@@ -28,6 +31,9 @@ const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i < 0 ? d : args.splice(i, 2)[1]; };
 const OUT = opt("--out", "assets/games/troll-ops/models/blocky");
 const TEX = +opt("--tex", "1024");
+const JOINTS = opt("--joints", "");
+const NECK = opt("--neck", "");
+const NO_LOGOS = args.includes("--no-logos") && !!args.splice(args.indexOf("--no-logos"), 1);
 const [SRC, ID] = args;
 if (!SRC || !ID) { console.error("usage: troll-ops-roblox-body.mjs <export dir> <id> [--out dir] [--tex 1024]"); process.exit(1); }
 
@@ -45,6 +51,10 @@ const RIG = {
 // Where the Studio body's joints are, in studs (measured on the #989 export,
 // 2026-10-17: the shoulders, the hips at the leg tops' pivots)
 const SRC_JOINTS = { shoulderY: 4.01, hipY: 2.48, legX: 0.54 };
+// another body's (measured the same way: shoulder height where the arms
+// join, the hips a little under the trousers' tops, the legs' mean x)
+if (JOINTS) [SRC_JOINTS.shoulderY, SRC_JOINTS.hipY, SRC_JOINTS.legX] = JOINTS.split(",").map(Number);
+if (NECK) RIG.neckClip = +NECK;
 const OVERLAP = 0.02;   // metres an upper piece runs down past its seam
 const TUCK = 0.06;      // metres a lower piece runs up inside the one above, so a bent knee shows no gap (the Blender forearm: 3.5 cm)
 
@@ -283,7 +293,7 @@ function torso(src) {
     { name: "torso__rbx", tex: "torso", ...piece(obj, down, -(waist + ov), Infinity, at(hipsY)) },
   ];
   const img = readPng(path.join(src, "torso.png"));
-  for (const logo of LOGOS) {
+  for (const logo of NO_LOGOS ? [] : LOGOS) {
     const found = findLogo(obj, img, logo.at);
     if (!found) { console.log(`  ${logo.name}: no logo found`); continue; }
     found.r = Math.min(found.r * logo.grow, logo.max ?? Infinity);
@@ -450,7 +460,7 @@ fs.mkdirSync(OUT, { recursive: true });
 let total = 0;
 for (const [kind, build, texNames] of [
   ["legs", legs, ["left_leg", "right_leg"]],
-  ["torso", torso, ["torso", "badge"]],
+  ["torso", torso, NO_LOGOS ? ["torso"] : ["torso", "badge"]],
 ]) {
   console.log(`${kind}:`);
   const pieces = build(SRC);
