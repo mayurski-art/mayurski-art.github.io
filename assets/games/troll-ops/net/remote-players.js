@@ -786,6 +786,9 @@ export class RemotePlayer {
       air: !!this.air, vy, land,
       phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, forward,
       speed: gaitSpeed, mps: this.gaitMps ?? speed, dt, hasGun,
+      // A bot's top speed (4.2 m/s) is its sprint: it plays the sprint clip
+      // there (characters/clips.js), as a player's 7 m/s sprint does.
+      sprint: this.peer.isBot || this.peer.botSkill ? Math.max(0, Math.min(1, ((this.gaitMps ?? speed) - 3.2) / 0.8)) : null,
       hold: sword ? "melee" : unarmed ? "none" : "gun", swing, block: this.blockT, ads: sword || unarmed ? 0 : this.ads,
       fired: this.peer.shotAt ? (performance.now() - this.peer.shotAt) / 1000 : Infinity,
       reload: this.reloadK,
