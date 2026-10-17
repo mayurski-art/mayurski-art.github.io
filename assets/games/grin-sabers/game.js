@@ -40,6 +40,7 @@ let hitstop = 0;
 let simNow = 0;
 let snapCam = true;
 let manual = false;           // tests: the sim only moves through __gs.step()
+let camHold = null;           // tools: a fixed camera { pos, look } for posed shots
 
 /* ------------------------------------------------------------ events */
 
@@ -318,7 +319,8 @@ function frame(t) {
     if (mode === "play" && !manual) input.read(duel.me);
     if (dt > 0) { simNow += dt; duel.update(dt, simNow); }
     const { a, b } = duel;
-    if (duel.kind === "bot") cam.follow(a, b, real, snapCam);
+    if (camHold) { view.camera.position.copy(camHold.pos); view.camera.lookAt(camHold.look); }
+    else if (duel.kind === "bot") cam.follow(a, b, real, snapCam);
     else cam.spectate(a, b, real, snapCam);
     snapCam = false;
     if (a.clash && dt > 0 && Math.random() < 0.5) sparks.burst(a.clash.at, Math.random() < 0.5 ? a.colour : b.colour, 3, 2.2);
@@ -337,8 +339,31 @@ function frame(t) {
   arena.update(t / 1000);
   view.render();
 
-  if (firstFrame) { firstFrame = false; $("gs-loading").classList.add("gone"); }
+  if (firstFrame) { firstFrame = false; splashReady(); }
 }
+
+/* ------------------------------------------------------------ splash */
+
+// The poster stays up until a key, click or tap: that gesture also lets the
+// browser start audio. ?debug skips it (tests).
+const splash = $("gs-loading");
+let splashUp = !new URLSearchParams(location.search).has("debug");
+function splashReady() {
+  if (!splashUp) { splash.classList.add("gone"); return; }
+  splash.classList.add("ready");
+  splash.focus({ preventScroll: true });
+}
+function closeSplash(e) {
+  if (!splashUp || !splash.classList.contains("ready")) return;
+  e?.preventDefault?.();
+  splashUp = false;
+  unlockAudio();
+  sfx.ignite();
+  splash.classList.add("gone");
+  showMenu("main");
+}
+splash.addEventListener("click", closeSplash);
+addEventListener("keydown", (e) => { if (splashUp) closeSplash(e); }, true);
 
 /* -------------------------------------------------------------- boot */
 
@@ -369,6 +394,12 @@ if (new URLSearchParams(location.search).has("debug")) {
       }
     },
     get now() { return simNow; },
+    /* Hold the camera still (the poster tool), or null to let it follow again. */
+    holdCamera(pos, look, fov = null) {
+      camHold = pos ? { pos: new THREE.Vector3(...pos), look: new THREE.Vector3(...look) } : null;
+      if (fov) { view.camera.fov = fov; view.camera.updateProjectionMatrix(); }
+    },
+    sparks,
     events: [],
   };
   const orig = onEvent;

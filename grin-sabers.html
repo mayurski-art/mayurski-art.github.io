@@ -10,12 +10,21 @@
   <meta property="og:description" content="Saber duels for trollfaces. Read the swing, block it, bonk them. Problem?">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://trollrunner.net/grin-sabers">
+  <meta property="og:image" content="https://trollrunner.net/assets/games/grin-sabers/ui/grin-sabers-banner.jpg?v=gs1">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Grin Sabers: two trollfaces lock blue and red sabers under a temple arch at sunset">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Grin Sabers | Troll Runner Arcade">
+  <meta name="twitter:description" content="Saber duels for trollfaces. Problem?">
+  <meta name="twitter:image" content="https://trollrunner.net/assets/games/grin-sabers/ui/grin-sabers-banner.jpg?v=gs1">
   <title>Grin Sabers | Troll Runner Arcade</title>
   <link rel="icon" type="image/png" href="assets/images/wallpaper/trollface%20transparent.png">
+  <link rel="preload" as="image" href="assets/games/grin-sabers/ui/grin-sabers-poster.jpg?v=gs1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,700;9..40,800&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/games/grin-sabers/style.css?v=gs1">
+  <link rel="stylesheet" href="assets/games/grin-sabers/style.css?v=gs2">
 </head>
 <body>
   <canvas id="gs-canvas" aria-label="Grin Sabers arena"></canvas>
@@ -136,7 +145,11 @@
     </svg>
   </button>
 
-  <div class="gs-loading" id="gs-loading">Igniting&hellip;</div>
+  <!-- Loading screen: the poster until the first key, click or tap (game.js). -->
+  <button type="button" class="gs-loading" id="gs-loading" aria-label="Grin Sabers. Press any key or tap to play">
+    <img src="assets/games/grin-sabers/ui/grin-sabers-poster.jpg?v=gs1" alt="" width="1200" height="1700">
+    <span class="gs-cta" aria-hidden="true"><span class="gs-cta-loading">Igniting&hellip;</span><span class="gs-cta-key">Press any key</span><span class="gs-cta-tap">Tap to play</span></span>
+  </button>
 
   <script type="importmap">
     {
@@ -146,6 +159,6 @@
       }
     }
   </script>
-  <script type="module" src="assets/games/grin-sabers/game.js?v=gs1"></script>
+  <script type="module" src="assets/games/grin-sabers/game.js?v=gs2"></script>
 </body>
 </html>

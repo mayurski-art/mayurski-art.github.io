@@ -18,3 +18,5 @@ combat/ (fighter, swings, forms, resolve) · bots/ · modes/duel.js · view/ (sc
 ## Shipped
 - 2026-10-16 phase 1: duels vs 4 bot tiers, aim-based swings and guards, perfect
   block, disarm, feint, clash, combos, heavy, dodge, jump; temple courtyard; demo title.
+- 2026-10-16 key art: poster (loading screen) + banner (OG, future arcade card), rendered
+  from the game by `node tools/grin-sabers-poster.mjs`.
