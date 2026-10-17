@@ -1,12 +1,8 @@
 // Grin Sabers — the in-match HUD: health and block points, round pips,
-// the clock, the reticle on the opponent (red = where their swing comes
-// from, white = where you aim), callouts and banners.
-
-import * as THREE from "three";
-import { zoneFor, zoneFromAim } from "../combat/swings.js?v=gs2";
+// the clock, callouts and banners. No on-screen swing arrows (user,
+// 2026-10-16): you read the swing off the opponent's blade.
 
 const $ = (id) => document.getElementById(id);
-const _p = new THREE.Vector3();
 
 export class Hud {
   constructor() {
@@ -14,10 +10,9 @@ export class Hud {
     this.el = {
       hpYou: $("gs-hp-you"), hpThem: $("gs-hp-them"), bpYou: $("gs-bp-you"), bpThem: $("gs-bp-them"),
       nameYou: $("gs-name-you"), nameThem: $("gs-name-them"), pipsYou: $("gs-pips-you"), pipsThem: $("gs-pips-them"),
-      clock: $("gs-clock"), reticle: $("gs-reticle"), callout: $("gs-callout"), banner: $("gs-banner"),
+      clock: $("gs-clock"), callout: $("gs-callout"), banner: $("gs-banner"),
       clashbar: $("gs-clashbar"), clashfill: $("gs-clashfill"),
     };
-    this.wedges = Object.fromEntries([...this.el.reticle.querySelectorAll(".gs-wedge")].map((w) => [w.dataset.zone, w]));
     this.cache = {};
     this.bannerT = 0;
   }
@@ -43,7 +38,7 @@ export class Hud {
     el.style[prop] = v;
   }
 
-  update(me, them, clock, camera, aim, dt) {
+  update(me, them, clock, dt) {
     const e = this.el;
     this.set("hpy", e.hpYou, "width", `${me.hp}%`);
     this.set("hpt", e.hpThem, "width", `${them.hp}%`);
@@ -55,24 +50,6 @@ export class Hud {
     e.hpThem.parentElement.setAttribute("aria-valuenow", Math.round(them.hp));
     const c = String(Math.max(0, Math.ceil(clock)));
     if (this.cache.clock !== c) { this.cache.clock = c; e.clock.textContent = c; }
-
-    // reticle on their chest
-    _p.set(them.pos.x, them.pos.y + 1.3, them.pos.z).project(camera);
-    const vis = _p.z < 1 && them.alive && me.alive;
-    e.reticle.style.display = vis ? "" : "none";
-    if (vis) {
-      const x = (_p.x * 0.5 + 0.5) * innerWidth, y = (-_p.y * 0.5 + 0.5) * innerHeight;
-      e.reticle.style.left = `${x.toFixed(1)}px`;
-      e.reticle.style.top = `${y.toFixed(1)}px`;
-    }
-    const incoming = them.state === "swing" && them.swing.phase !== "recover" ? zoneFor(them.swing.dir) : null;
-    const heavy = incoming && them.swing.heavy;
-    const aimZone = zoneFromAim(aim.x, aim.y);
-    for (const [z, w] of Object.entries(this.wedges)) {
-      w.classList.toggle("incoming", z === incoming);
-      w.classList.toggle("heavy", z === incoming && !!heavy);
-      w.classList.toggle("guard", z === (me.state === "guard" ? me.guardZone : aimZone));
-    }
 
     // clash bar
     const cl = me.clash;

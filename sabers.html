@@ -10,21 +10,21 @@
   <meta property="og:description" content="Saber duels for trollfaces. Read the swing, block it, bonk them. Problem?">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://trollrunner.net/sabers">
-  <meta property="og:image" content="https://trollrunner.net/assets/games/grin-sabers/ui/grin-sabers-banner.jpg?v=gs2">
+  <meta property="og:image" content="https://trollrunner.net/assets/games/grin-sabers/ui/grin-sabers-banner.jpg?v=gs3">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Grin Sabers: two trollfaces lock blue and red sabers under a temple arch at sunset">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Grin Sabers | Troll Runner Arcade">
   <meta name="twitter:description" content="Saber duels for trollfaces. Problem?">
-  <meta name="twitter:image" content="https://trollrunner.net/assets/games/grin-sabers/ui/grin-sabers-banner.jpg?v=gs2">
+  <meta name="twitter:image" content="https://trollrunner.net/assets/games/grin-sabers/ui/grin-sabers-banner.jpg?v=gs3">
   <title>Grin Sabers | Troll Runner Arcade</title>
   <link rel="icon" type="image/png" href="assets/images/wallpaper/trollface%20transparent.png">
-  <link rel="preload" as="image" href="assets/games/grin-sabers/ui/grin-sabers-poster.jpg?v=gs2">
+  <link rel="preload" as="image" href="assets/games/grin-sabers/ui/grin-sabers-poster.jpg?v=gs3">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,700;9..40,800&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/games/grin-sabers/style.css?v=gs2">
+  <link rel="stylesheet" href="assets/games/grin-sabers/style.css?v=gs3">
 </head>
 <body>
   <canvas id="gs-canvas" aria-label="Grin Sabers arena"></canvas>
@@ -45,13 +45,6 @@
         <div class="gs-bp" role="meter" aria-label="Opponent block points" aria-valuemin="0" aria-valuemax="100"><i id="gs-bp-them"></i></div>
         <div class="gs-pips" id="gs-pips-them" aria-label="Rounds won"></div>
       </div>
-    </div>
-    <!-- Where the next swing comes from (red) and where your guard faces (white). -->
-    <div class="gs-reticle" id="gs-reticle" aria-hidden="true">
-      <span class="gs-wedge" data-zone="left"></span>
-      <span class="gs-wedge" data-zone="right"></span>
-      <span class="gs-wedge" data-zone="high"></span>
-      <span class="gs-wedge" data-zone="mid"></span>
     </div>
     <div class="gs-callout" id="gs-callout" aria-live="polite"></div>
     <div class="gs-banner" id="gs-banner" aria-live="assertive"></div>
@@ -107,11 +100,12 @@
         <tr><td>Swing</td><td>Click: the swing comes from where you aim</td><td>RB</td><td>Tap, or swipe from the side to swing from</td></tr>
         <tr><td>Heavy</td><td>Hold click</td><td>Hold RB</td><td>Press and hold, then let go</td></tr>
         <tr><td>Guard</td><td>Hold right click: it faces where you aim</td><td>Hold LB</td><td>Hold GUARD just before the hit</td></tr>
-        <tr><td>Dodge / jump</td><td>Shift / Space</td><td>B / A</td><td>DODGE / JUMP</td></tr>
+        <tr><td>Run</td><td>Hold Shift</td><td>Stick all the way, or click it in</td><td>Push the stick to the edge</td></tr>
+        <tr><td>Dodge / jump</td><td>Tap Shift / Space</td><td>B / A</td><td>DODGE / JUMP</td></tr>
       </table>
       <ul>
-        <li><b>The ring on your opponent:</b> white shows your aim, red shows where their swing is coming from.</li>
-        <li><b>Perfect block:</b> guard with your aim on the red side. Costs no block points, and a swing right after is a fast counter.</li>
+        <li><b>Read the blade:</b> watch where they cock their saber back. That's the side the swing comes from.</li>
+        <li><b>Perfect block:</b> guard aimed at that side. Costs no block points, and a swing right after is a fast counter.</li>
         <li><b>Disarm:</b> perfect block, then flick the mouse hard the other way just before the hit.</li>
         <li><b>Feint:</b> right click during your own windup cancels the swing.</li>
         <li><b>Clash:</b> swing into their swing, then mash attack.</li>
@@ -147,7 +141,7 @@
 
   <!-- Loading screen: the poster until the first key, click or tap (game.js). -->
   <button type="button" class="gs-loading" id="gs-loading" aria-label="Grin Sabers. Press any key or tap to play">
-    <img src="assets/games/grin-sabers/ui/grin-sabers-poster.jpg?v=gs2" alt="" width="1200" height="1700">
+    <img src="assets/games/grin-sabers/ui/grin-sabers-poster.jpg?v=gs3" alt="" width="1200" height="1700">
     <span class="gs-cta" aria-hidden="true"><span class="gs-cta-loading">Igniting&hellip;</span><span class="gs-cta-key">Press any key</span><span class="gs-cta-tap">Tap to play</span></span>
   </button>
 
@@ -159,6 +153,6 @@
       }
     }
   </script>
-  <script type="module" src="assets/games/grin-sabers/game.js?v=gs3"></script>
+  <script type="module" src="assets/games/grin-sabers/game.js?v=gs4"></script>
 </body>
 </html>

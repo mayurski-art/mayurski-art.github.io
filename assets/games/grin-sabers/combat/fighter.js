@@ -19,18 +19,21 @@ import * as THREE from "three";
 import {
   buildHumanoid, poseHumanoid, reachHand, setHandPose, aimRig, flinchRig,
   gaitPhaseRate, poseDeath, DEATH_TIME,
-} from "../../troll-ops/characters/character.js?v=gs2";
-import { buildSaber, SaberTrail, EMIT_Z } from "../view/saber.js?v=gs2";
-import { FORMS, SWING_BASE } from "./forms.js?v=gs2";
+} from "../../troll-ops/characters/character.js?v=gs3";
+import { buildSaber, SaberTrail, EMIT_Z } from "../view/saber.js?v=gs3";
+import { FORMS, SWING_BASE } from "./forms.js?v=gs3";
 import {
-  READY, GUARDS, STAGGER, CLASH, SWINGS, newPose, copyPose, lerpPose, strikePose, smooth, zoneFromAim,
-} from "./swings.js?v=gs2";
+  READY, RUN, GUARDS, STAGGER, CLASH, SWINGS, newPose, copyPose, lerpPose, strikePose, smooth, zoneFromAim,
+} from "./swings.js?v=gs3";
 
 export const REACH = 1.75;          // chest to chest, the blade can reach about this far
 const HAND_GAP = 0.1;               // right fist to left fist along the hilt
 const BP_REGEN = 14;                // block points a second, standing/walking/guarding
 const DODGE_COST = 12, FEINT_COST = 6;
 const GRAVITY = 13, JUMP_V = 6.2;
+// Ground speeds, m/s. Walking is the duel footwork (always facing the
+// opponent); running breaks the lock-on and faces where you run.
+const WALK = { fwd: 3.4, back: 2.8, side: 3.0 }, RUN_SPEED = 6.8;
 
 export function blankIntent() {
   return {
@@ -44,6 +47,7 @@ export function blankIntent() {
     touchGuard: false,            // guard from a touch button: timed perfect blocks
     flick: null,                  // {x, y}: a quick flick this frame (disarm attempt)
     dodge: false, jump: false,    // pressed this frame
+    sprint: false,                // held: run
     mash: false,                  // attack pressed during a clash
   };
 }
@@ -252,11 +256,19 @@ export class Fighter {
     const f = this.form;
     this.t += dt;
 
-    // Face the opponent (lock-on), unless down.
+    // Face the opponent (lock-on), unless down or running. Movement keys
+    // always steer relative to the line to the opponent (lockYaw), so
+    // turning to run doesn't change what W and D mean.
     const dx = opp.pos.x - this.pos.x, dz = opp.pos.z - this.pos.z;
     const dist = Math.hypot(dx, dz);
+    if (dist > 0.01) this.lockYaw = Math.atan2(-dx, -dz);
+    this.sprinting = !this.frozen && !!it.sprint && this.state === "idle" && Math.hypot(it.mx, it.mz) > 0.2;
     if (this.state !== "ko" && dist > 0.01) {
-      const want = Math.atan2(-dx, -dz);
+      let want = this.lockYaw;
+      if (this.sprinting) {
+        const L = this.lockYaw, fx = -Math.sin(L), fz = -Math.cos(L), rx = Math.cos(L), rz = -Math.sin(L);
+        want = Math.atan2(-(fx * it.mz + rx * it.mx), -(fz * it.mz + rz * it.mx));
+      }
       let d = want - this.yaw;
       d = Math.atan2(Math.sin(d), Math.cos(d));
       const turn = this.state === "swing" && this.swing.phase !== "windup" ? 4 : 14;
@@ -336,7 +348,8 @@ export class Fighter {
     }
 
     // --- block points
-    if ((this.state === "idle" || this.state === "guard") && this.onGround && !this.frozen) {
+    // (not while running: Saber Showdown's rule, so running away costs you)
+    if ((this.state === "idle" || this.state === "guard") && this.onGround && !this.frozen && !this.sprinting) {
       this.bp = Math.min(100, this.bp + BP_REGEN * dt);
     }
 
@@ -365,8 +378,9 @@ export class Fighter {
   }
 
   move(dt, it, opp, dist, arena) {
-    const fw = this.forward(_v);
-    const rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);
+    const L = this.lockYaw ?? this.yaw;
+    const fw = _v.set(-Math.sin(L), 0, -Math.cos(L));
+    const rx = Math.cos(L), rz = -Math.sin(L);
     let tx = 0, tz = 0;
     const st = this.state;
     if (st === "dodge") {
@@ -380,8 +394,9 @@ export class Fighter {
       let mz = canMove ? it.mz : 0, mx = canMove ? it.mx : 0;
       const l = Math.hypot(mx, mz);
       if (l > 1) { mx /= l; mz /= l; }
-      let speed = mz < 0 ? 2.5 : 3.1;
-      if (Math.abs(mx) > Math.abs(mz)) speed = 2.7;
+      let speed = mz < 0 ? WALK.back : WALK.fwd;
+      if (Math.abs(mx) > Math.abs(mz)) speed = WALK.side;
+      if (this.sprinting) speed = RUN_SPEED;
       if (st === "guard") speed *= 0.55;
       if (st === "swing") speed *= 0.35;
       if (st === "rebound") speed *= 0.5;
@@ -439,7 +454,7 @@ export class Fighter {
       case "rebound": lerpPose(this.pose, this.fromPose, READY, smooth(this.t / this.dur)); return null;
       case "stagger": return STAGGER;
       case "clash": return CLASH;
-      default: return READY;
+      default: return this.sprinting ? RUN : READY;
     }
   }
 

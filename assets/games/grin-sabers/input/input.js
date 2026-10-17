@@ -1,21 +1,21 @@
 // Grin Sabers — a person's input, turned into a Fighter intent.
 //
-// One idea runs every device: an AIM, a point in a ring round the opponent
-// (the HUD's white arrow). Your swing comes FROM the side you aim at, and
-// your guard faces it. A perfect block is a guard aimed where the red arrow
-// shows. A fast flick while guarding is the disarm move, and doesn't move
+// One idea runs every device: an AIM (left, right, high or the middle).
+// Your swing comes FROM the side you aim at, and your guard faces it. A
+// perfect block is a guard aimed at the side their swing comes from. A fast flick while guarding is the disarm move, and doesn't move
 // the aim.
 //
 //   mouse      move = aim, left click = swing (hold = heavy), right click = guard
-//   keyboard   WASD move, Shift dodge, Space jump, IJKL aim (keyboard only:
+//   keyboard   WASD move, Shift tap dodge / hold run, Space jump, IJKL aim (keyboard only:
 //              F swing, G guard)
-//   gamepad    left stick move, right stick aim, RB/RT swing, LB/LT guard,
+//   gamepad    left stick move (all the way, or clicked in: run), right stick aim, RB/RT swing, LB/LT guard,
 //              B dodge, A jump, Start pause
-//   touch      left stick, tap = swing, swipe = swing from the side you
+//   touch      left stick (pushed to the edge: run), tap = swing, swipe = swing from the side you
 //              start on, GUARD/DODGE/JUMP buttons (touch guards are timed)
 
 const AIM_GAIN = 0.0065;          // aim per pixel of mouse travel
 const FLICK_SPEED = 2600;         // px/s: faster than this is a flick, not aim
+const TAP_MS = 200;               // Shift released sooner than this: a dodge; held longer: running
 
 export class Input {
   constructor(canvas) {
@@ -45,7 +45,7 @@ export class Input {
       if (k === "m") this.edges.mute = true;
       if (!this.enabled) return;
       this.lastInput = "keys";
-      if (k === "shift") this.edges.dodge = true;
+      if (k === "shift") this.shiftAt = performance.now();   // tap = dodge (on release), hold = run
       if (k === " ") { this.edges.jump = true; e.preventDefault(); }
       if (k === "f") { this.edges.attack = true; this.mouse.left = true; }
       if (k === "i") this.setAim(0, 1);
@@ -57,6 +57,7 @@ export class Input {
       const k = e.key.toLowerCase();
       this.keys.delete(k);
       if (k === "f") { this.mouse.left = false; this.attackReleased = true; }
+      if (k === "shift" && this.enabled && performance.now() - (this.shiftAt ?? 0) < TAP_MS) this.edges.dodge = true;
     });
     addEventListener("blur", () => { this.keys.clear(); this.mouse.left = this.mouse.right = false; });
 
@@ -104,7 +105,8 @@ export class Input {
       const l = Math.hypot(x, y);
       if (l > 1) { x /= l; y /= l; }
       this.touch.mx = x; this.touch.my = y;
-      knob.style.transform = `translate(${x * 39}px, ${y * 39}px)`;
+      const travel = r.width * 0.3;   // the stick scales with the screen (style.css)
+      knob.style.transform = `translate(${x * travel}px, ${y * travel}px)`;
     };
     stick?.addEventListener("touchstart", (e) => { e.preventDefault(); const t = e.changedTouches[0]; this.touch.stickId = t.identifier; stickMove(t); this.lastInput = "touch"; }, { passive: false });
     stick?.addEventListener("touchmove", (e) => { e.preventDefault(); for (const t of e.changedTouches) if (t.identifier === this.touch.stickId) stickMove(t); }, { passive: false });
@@ -187,7 +189,7 @@ export class Input {
       mz: Math.abs(gp.axes[1]) > 0.18 ? -gp.axes[1] : 0,
       ax: gp.axes[2] || 0, ay: -(gp.axes[3] || 0),
       attack: edge(5) || edge(7), attackHeld: b(5) || b(7),
-      guard: b(4) || b(6), dodge: edge(1), jump: edge(0), pause: edge(9),
+      guard: b(4) || b(6), dodge: edge(1), jump: edge(0), pause: edge(9), sprintBtn: b(10),
     };
     this.pad.prev = gp.buttons.map((x) => x.pressed);
     if (out.attack || out.guard || Math.hypot(out.mx, out.mz) > 0.3) this.lastInput = "pad";
@@ -223,6 +225,10 @@ export class Input {
     if (this.touch.stickId != null) { mx = this.touch.mx; mz = -this.touch.my; }
     if (pad && (pad.mx || pad.mz)) { mx = pad.mx; mz = pad.mz; }
     it.mx = mx; it.mz = mz;
+    const now = performance.now();
+    it.sprint = (k.has("shift") && now - (this.shiftAt ?? now) >= TAP_MS)
+      || (this.touch.stickId != null && Math.hypot(this.touch.mx, this.touch.my) > 0.92)
+      || (!!pad && (pad.sprintBtn || Math.hypot(pad.mx, pad.mz) > 0.95));
     const attack = this.edges.attack || !!pad?.attack;
     it.attack = attack;
     it.mash = attack;

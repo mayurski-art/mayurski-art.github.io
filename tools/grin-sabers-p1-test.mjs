@@ -130,6 +130,18 @@ try {
     let combo = 0;
     g.step(2.4, (k) => { me.intent.attack = k % 9 === 0; me.intent.dir = null; if (me.combo > combo) combo = me.combo; });
     out.combo = { combo, ev: since(i0).filter((t) => t === "strike").length };
+
+    // running: sideways at full speed, facing the way it runs, no block-point refill
+    place();
+    bot.pos.set(0, 0, -6);
+    me.bp = 50;
+    let topSpeed = 0;
+    g.step(1, () => { me.intent.sprint = true; me.intent.mx = 1; me.intent.mz = 0; topSpeed = Math.max(topSpeed, Math.hypot(me.vel.x, me.vel.z)); });
+    const turn = Math.abs(Math.atan2(Math.sin(me.yaw - me.lockYaw), Math.cos(me.yaw - me.lockYaw)));
+    out.run = { topSpeed: +topSpeed.toFixed(2), turnedDeg: Math.round(turn * 57.3), bp: Math.round(me.bp) };
+    me.intent.sprint = false; me.intent.mx = 0;
+    g.step(0.6);
+    out.runStop = { turnBackDeg: Math.round(Math.abs(Math.atan2(Math.sin(me.yaw - me.lockYaw), Math.cos(me.yaw - me.lockYaw))) * 57.3) };
     return out;
   });
   console.log(JSON.stringify(rules));
@@ -142,6 +154,9 @@ try {
   check("two strikes meeting lock into a clash", rules.clash.clashed, JSON.stringify(rules.clash));
   check("the masher wins the clash", rules.clashEnd.winner === "You", JSON.stringify(rules.clashEnd));
   check("clicking through a combo chains to the form's limit (4)", rules.combo.combo === 4, JSON.stringify(rules.combo));
+  check("running reaches run speed and faces the way it runs", rules.run.topSpeed > 6 && rules.run.turnedDeg > 60, JSON.stringify(rules.run));
+  check("running doesn't refill block points", rules.run.bp <= 50, JSON.stringify(rules.run));
+  check("letting go of run turns back to face the opponent", rules.runStop.turnBackDeg < 15, JSON.stringify(rules.runStop));
   await page.evaluate(() => window.__gs.manual(false));
   await page.waitForTimeout(800);
   if (SHOTS) await page.screenshot({ path: path.join(OUT, "gs-duel.png") });

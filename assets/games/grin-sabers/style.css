@@ -52,21 +52,6 @@ button { font: inherit; color: inherit; }
 .gs-pips span.won { background: var(--gs-gold); border-color: var(--gs-gold); opacity: 1; box-shadow: 0 0 8px var(--gs-gold); }
 .gs-clock { font: 500 22px "DM Mono", monospace; min-width: 44px; text-align: center; padding-top: 10px; text-shadow: 0 1px 4px #000; }
 
-/* The reticle sits on the opponent: four wedges round a ring. */
-.gs-reticle { position: absolute; left: 0; top: 0; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.18); will-change: transform; }
-.gs-wedge { position: absolute; width: 0; height: 0; opacity: 0.25; transition: opacity 0.08s; }
-.gs-wedge[data-zone="left"]  { left: -16px; top: 46px; border: 14px solid transparent; border-right: 22px solid #fff; border-left: 0; }
-.gs-wedge[data-zone="right"] { right: -16px; top: 46px; border: 14px solid transparent; border-left: 22px solid #fff; border-right: 0; }
-.gs-wedge[data-zone="high"]  { top: -16px; left: 46px; border: 14px solid transparent; border-bottom: 22px solid #fff; border-top: 0; }
-.gs-wedge[data-zone="mid"]   { left: 50px; top: 50px; width: 20px; height: 20px; border-radius: 50%; background: #fff; }
-.gs-wedge.guard { opacity: 0.95; filter: drop-shadow(0 0 6px #fff); }
-.gs-wedge.incoming { opacity: 1; filter: drop-shadow(0 0 8px var(--gs-red)); }
-.gs-wedge[data-zone="left"].incoming  { border-right-color: var(--gs-red); }
-.gs-wedge[data-zone="right"].incoming { border-left-color: var(--gs-red); }
-.gs-wedge[data-zone="high"].incoming  { border-bottom-color: var(--gs-red); }
-.gs-wedge[data-zone="mid"].incoming   { background: var(--gs-red); }
-.gs-wedge.incoming.heavy { animation: gs-pulse 0.18s infinite alternate; }
 @keyframes gs-pulse { to { transform: scale(1.35); } }
 
 .gs-callout { position: absolute; left: 50%; top: 31%; transform: translateX(-50%); font-weight: 800; font-size: 22px;
@@ -139,5 +124,55 @@ body.playing .gs-mute { top: max(58px, calc(env(safe-area-inset-top) + 46px)); b
   .gs-logo { font-size: 36px; }
   .gs-name { font-size: 13px; }
   .gs-clock { font-size: 18px; padding-top: 8px; }
-  .gs-reticle { transform: scale(0.8); }
+}
+
+/* ---------- scaling to the screen
+   Everything sizes off the shorter side of the screen (vmin), clamped, so a
+   phone, a tablet, a laptop and a 4K or ultrawide monitor all get a HUD in
+   proportion. The bars stop stretching past 1500 px so they stay readable
+   on ultrawides. */
+.gs-bars { left: max(16px, env(safe-area-inset-left)); right: max(16px, env(safe-area-inset-right));
+  max-width: 1500px; margin: 0 auto; gap: clamp(10px, 1.6vmin, 26px); }
+.gs-name { font-size: clamp(12px, 1.7vmin, 24px); }
+.gs-hp { height: clamp(9px, 1.25vmin, 18px); border-radius: 999px; }
+.gs-bp { height: clamp(4px, 0.55vmin, 8px); }
+.gs-pips span { width: clamp(8px, 1.1vmin, 15px); height: clamp(8px, 1.1vmin, 15px); }
+.gs-clock { font-size: clamp(17px, 2.6vmin, 36px); min-width: clamp(36px, 5vmin, 70px); padding-top: clamp(6px, 1vmin, 14px); }
+.gs-callout { font-size: clamp(16px, 2.6vmin, 36px); }
+.gs-banner { font-size: clamp(30px, 8vmin, 110px); }
+.gs-clashbar { width: clamp(220px, 36vmin, 480px); }
+body.playing .gs-mute { top: max(calc(clamp(12px, 1.7vmin, 24px) + clamp(9px, 1.25vmin, 18px) + 34px), calc(env(safe-area-inset-top) + 46px)); }
+
+/* touch controls: thumb-sized on phones, a touch bigger on tablets */
+.gs-stick { width: clamp(104px, 20vmin, 168px); height: clamp(104px, 20vmin, 168px); }
+.gs-knob { width: 40%; height: 40%; left: 30%; top: 30%; }
+.gs-tbtns { grid-template-columns: repeat(2, clamp(64px, 12vmin, 96px)); gap: clamp(8px, 1.4vmin, 14px); }
+.gs-tbtn { height: clamp(46px, 8.5vmin, 70px); font-size: clamp(11px, 1.8vmin, 15px); }
+.gs-tguard { height: clamp(52px, 9.5vmin, 80px); }
+
+/* menus: big screens get a bigger card */
+@media (min-width: 1600px) and (min-height: 900px) {
+  .gs-menu-card { width: 520px; padding: 30px 28px; }
+  .gs-logo { font-size: 54px; }
+  .gs-list button, .gs-backbtn { font-size: 19px; padding: 15px 18px; }
+}
+/* short screens (a phone on its side): a compact card that fits without scrolling */
+@media (max-height: 520px) {
+  .gs-menu { padding: 8px; }
+  .gs-menu-card { padding: 12px 16px; width: min(420px, 100%); }
+  .gs-logo-face { display: none; }
+  .gs-logo { font-size: 30px; }
+  .gs-tag { margin: 4px 0 10px; font-size: 13px; }
+  .gs-list { gap: 6px; }
+  .gs-list button, .gs-backbtn { padding: 9px 14px; font-size: 15px; }
+  .gs-tiers small { display: inline; margin: 0 0 0 8px; }
+  .gs-backbtn { margin-top: 8px; }
+  .gs-soon { margin-top: 8px; font-size: 11.5px; }
+  .gs-menu h2 { font-size: 18px; margin-bottom: 8px; }
+  .gs-swatches { grid-template-columns: repeat(6, 1fr); gap: 6px; }
+  .gs-swatches button i { height: 30px; }
+  .gs-help table { font-size: 12px; }
+  .gs-help ul { font-size: 12.5px; margin: 6px 0; }
+  .gs-back { top: 8px; left: 8px; }
+  .gs-cta { bottom: 6%; }
 }

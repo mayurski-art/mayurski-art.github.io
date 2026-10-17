@@ -23,3 +23,6 @@ combat/ (fighter, swings, forms, resolve) · bots/ · modes/duel.js · view/ (sc
   from the game by `node tools/grin-sabers-poster.mjs`.
 - 2026-10-16 grip: sword fists on the hilt (the rig mitts hide while armed), hilt drawn
   1.3x, centred ready stance, high guard over the head, windups clear of the face (-gs2).
+- 2026-10-16 swing arrows removed (user): you read the blade. HUD, menus and touch
+  controls scale with vmin; bars cap at 1500 px. Running: hold Shift / stick to the edge,
+  faces the run, no block-point refill; walk faster (-gs3, game.js gs4).
