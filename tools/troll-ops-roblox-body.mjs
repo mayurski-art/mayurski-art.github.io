@@ -1,16 +1,15 @@
 #!/usr/bin/env node
 // Troll Forces: a Roblox Studio body (generate_mesh, exported as OBJ + PNG
-// per part) cut into the blocky body's kit pieces, written as three GLBs the
+// per part) cut into the blocky body's kit pieces, written as two GLBs the
 // game loads like its Blender kits (characters/blocky-body.js KITS):
 //
-//   arms-<id>.glb   armL/R__rbx (shoulder to elbow), elbowL/R__rbx (elbow to
-//                   wrist), handL/R__rbx (the hand), each in its joint's frame
-//                   with the bone straight down -Y, like arms-sensei.glb
 //   legs-<id>.glb   thighL/R__rbx (hip to knee), kneeL/R__rbx (knee to the
-//                   boot top), ankleL/R__rbx (the boot, sole near y 0)
+//                   ankle, the boot shaft with it), ankleL/R__rbx (the foot)
 //   torso-<id>.glb  chest__rbx (on the chest joint) and torso__rbx (on the
 //                   hips), like torso-muscle.glb
 //
+// The arms stay the garment's Blender ones: the Studio arms' fine bumps
+// speckled their ink, and their open hands read badly (user, 2026-10-17).
 // Every piece keeps its Studio texture (one per part) as the glTF material's
 // base colour map, palette-quantized to 256 colours so a body stays near 2 MB.
 // Design: "Troll Forces: Roblox bodies for NFT characters" (2026-10-17).
@@ -34,21 +33,20 @@ if (!SRC || !ID) { console.error("usage: troll-ops-roblox-body.mjs <export dir> 
 
 /* ---------------------------------------------------------------- rig */
 // The blocky rig at scale 1 (character.js reshapeRig build 0.25 legs 0.67,
-// blocky-body.js ARM_BONES / LEG_BONES / FIST_BACK): metres.
+// blocky-body.js LEG_BONES): metres.
 const RIG = {
-  arm: 0.30, fore: 0.325, fistBack: -0.058, fistLen: 0.125,
   thigh: 0.30, shin: 0.295, sole: 0.012,
   chestToHips: 0.48,
   ankle: 0.07,         // the foot piece reaches this high: the ankle, so the boot shaft rides the shin with the cuff
                        // (at the boot top, 0.16, the cuff tilted with the shin over a level boot: user, 2026-10-17)
-  neckClip: 0.17,      // the torso stops this far above the shoulders (the board head sits there)
+  neckClip: 0.12,      // the torso stops this far above the shoulders, round the collar: its neck stump
+                       // ran up under the chin (user, 2026-10-17: the head mustn't touch the torso)
 };
 // Where the Studio body's joints are, in studs (measured on the #989 export,
 // 2026-10-17: the shoulders, the hips at the leg tops' pivots)
-const SRC_JOINTS = { shoulderY: 4.01, shoulderX: 0.776, hipY: 2.48, legX: 0.54 };
+const SRC_JOINTS = { shoulderY: 4.01, hipY: 2.48, legX: 0.54 };
 const OVERLAP = 0.02;   // metres an upper piece runs down past its seam
-const TUCK = 0.06;      // metres a lower piece runs up inside the one above, so a bent elbow or knee shows no gap (the Blender forearm: 3.5 cm)
-const ARM_ACROSS = 0.26;   // studs -> metres across the arm (its length is fitted to the bones)
+const TUCK = 0.06;      // metres a lower piece runs up inside the one above, so a bent knee shows no gap (the Blender forearm: 3.5 cm)
 
 /* ---------------------------------------------------------------- input */
 function readObj(file) {
@@ -157,18 +155,7 @@ function indexedPng({ w, h, pal, map }) {
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const len = (a) => Math.hypot(...a);
-const norm = (a) => { const l = len(a); return [a[0] / l, a[1] / l, a[2] / l]; };
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-// The rotation (a 3x3, rows) turning unit vector `a` onto unit vector `b`
-function rotOnto(a, b) {
-  const v = cross(a, b), c = dot(a, b), k = 1 / (1 + c);
-  return [
-    [v[0] * v[0] * k + c, v[0] * v[1] * k - v[2], v[0] * v[2] * k + v[1]],
-    [v[1] * v[0] * k + v[2], v[1] * v[1] * k + c, v[1] * v[2] * k - v[0]],
-    [v[2] * v[0] * k - v[1], v[2] * v[1] * k + v[0], v[2] * v[2] * k + c],
-  ];
-}
-const apply = (m, p) => [dot(m[0], p), dot(m[1], p), dot(m[2], p)];
 
 /* A piece: the surface between `lo` and `hi` along `coord` (studs ->
    metres down the limb), its triangles clipped exactly at those two planes
@@ -261,42 +248,6 @@ function piece(obj, coord, lo, hi, xf) {
 }
 
 /* ---------------------------------------------------------------- the cuts */
-function arms(src) {
-  const out = [];
-  for (const [side, file, sx] of [["L", "left_arm", -1], ["R", "right_arm", 1]]) {
-    const obj = readObj(path.join(src, `${file}.obj`));
-    const S = [sx * SRC_JOINTS.shoulderX, SRC_JOINTS.shoulderY, 0];
-    // the bone: from the shoulder to the vertex farthest from it (the fingertips)
-    let tip = S, far = 0;
-    for (const v of obj.v) { const d = len(sub(v, S)); if (d > far) { far = d; tip = v; } }
-    const d = norm(sub(tip, S));
-    const k = (RIG.arm + RIG.fore + RIG.fistBack + RIG.fistLen) / far;   // studs -> metres along the whole arm
-    const along = (p) => dot(sub(p, S), d) * k;                   // metres down the bone
-    const cutElbow = RIG.arm, cutHand = RIG.arm + RIG.fore + RIG.fistBack;
-    // The Studio arm is bent at the elbow: each segment is straightened on
-    // its own axis (from the middle of the arm at one cut to the middle at
-    // the next), so the upper arm and the forearm each hang straight down
-    // their bone (user, 2026-10-17: "not have the arms so curvy").
-    const middle = (at) => {
-      const c = [0, 0, 0]; let n = 0;
-      for (const v of obj.v) if (Math.abs(along(v) - at) < 0.025) { c[0] += v[0]; c[1] += v[1]; c[2] += v[2]; n++; }
-      return n ? c.map((x) => x / n) : null;
-    };
-    const E = middle(cutElbow), W = middle(cutHand);
-    // across the arm: the torso's scale, so sleeves are the body's thickness
-    // (the length scale made them balloons); along it: fitted to the bone
-    const seg = (from, to, boneLen) => {
-      const ax = sub(to, from), R = rotOnto(norm(ax), [0, -1, 0]), kk = boneLen / len(ax);
-      return (p) => { const q = apply(R, sub(p, from)); return [q[0] * ARM_ACROSS, q[1] * kk, q[2] * ARM_ACROSS]; };
-    };
-    out.push({ name: `arm${side}__rbx`, tex: file, ...piece(obj, along, -Infinity, cutElbow + OVERLAP, seg(S, E, RIG.arm)) });
-    out.push({ name: `elbow${side}__rbx`, tex: file, ...piece(obj, along, cutElbow - TUCK, cutHand + OVERLAP, seg(E, W, cutHand - cutElbow)) });
-    // no hand: the open Studio hands read badly (user, 2026-10-17); the kit
-    // wears the game's own fists (KITS fists), which the gun grips are built on
-    console.log(`  arm ${side}: ${far.toFixed(2)} studs long, ${k.toFixed(3)} m/stud, bone ${d.map((x) => x.toFixed(2)).join(",")}`);
-  }
-  return out;
-}
 function legs(src) {
   const out = [];
   // one scale down the leg: hip to the sole is the rig's thigh + shin + sole
@@ -327,10 +278,21 @@ function torso(src) {
   const ov = OVERLAP / ky;
   const at = (y0) => (p) => [p[0] * kx, (p[1] - y0) * ky, p[2] * kx];
   console.log(`  torso: ${ky.toFixed(3)} m/stud tall, ${kx} across, neck clipped above ${top.toFixed(2)} studs`);
-  return [
+  const out = [
     { name: "chest__rbx", tex: "torso", ...piece(obj, down, -top, -(waist - ov), at(chestY)) },
     { name: "torso__rbx", tex: "torso", ...piece(obj, down, -(waist + ov), Infinity, at(hipsY)) },
   ];
+  const img = readPng(path.join(src, "torso.png"));
+  for (const logo of LOGOS) {
+    const found = findLogo(obj, img, logo.at);
+    if (!found) { console.log(`  ${logo.name}: no logo found`); continue; }
+    found.r = Math.min(found.r * logo.grow, logo.max ?? Infinity);
+    // whole below the collar, where the torso is cut
+    found.c[1] = Math.min(found.c[1], top - found.r * 1.05);
+    console.log(`  ${logo.name}: at ${found.c.map((x) => x.toFixed(2)).join(",")} r ${found.r.toFixed(2)} studs (${found.n} black)`);
+    out.push({ name: logo.name, tex: "badge", ...decal(obj, found, logo.back, top, at(chestY)) });
+  }
+  return out;
 }
 
 /* ---------------------------------------------------------------- glb */
@@ -347,7 +309,8 @@ function writeGlb(file, pieces, images) {
   for (const [name, png] of images) {
     imgs.push({ bufferView: view(png), mimeType: "image/png", name });
     textures.push({ source: imgs.length - 1, sampler: 0 });
-    materials.push({ name: `rbx-${name}`, pbrMetallicRoughness: { baseColorTexture: { index: textures.length - 1 }, metallicFactor: 0, roughnessFactor: 1 } });
+    materials.push({ name: `rbx-${name}`, pbrMetallicRoughness: { baseColorTexture: { index: textures.length - 1 }, metallicFactor: 0, roughnessFactor: 1 },
+      ...(name === "badge" ? { alphaMode: "MASK", alphaCutoff: 0.5 } : {}) });
     texOf.set(name, materials.length - 1);
   }
   for (const p of pieces) {
@@ -386,17 +349,108 @@ function writeGlb(file, pieces, images) {
   return fs.statSync(file).size;
 }
 
+/* ---------------------------------------------------------------- logos */
+// Studio draws its own scribbled emblems where the NFT has the trollface
+// badge (user, 2026-10-17: "fix the logos"). Each is found on the mesh (the
+// black texels on the front left chest, and between the shoulders, in 3D:
+// the texture splits a logo across islands) and covered by a decal: the
+// torso's own surface there, pushed out a hair, wearing the badge the live
+// sensei kit draws (traits/src/clothes-sensei.block.svg: an off-white disc,
+// a black ring, the trollface across it). Material "rbx-badge", alpha-masked.
+const BADGE_ART = "assets/images/wallpaper/trollface transparent.png";
+const LOGOS = [
+  // studs: the character's left is -X, its front -Z
+  { name: "chest__badge", back: false, at: (c) => c[2] < -0.2 && c[0] < 0 && c[1] > 3.3 && c[1] < 4.5, grow: 1.4 },
+  { name: "chest__badge-back", back: true, at: (c) => c[2] > 0.2 && c[1] > 3.6 && c[1] < 4.6, grow: 1.4, max: 0.4 },
+];
+const mid3 = (ps) => [0, 1, 2].map((k) => (ps[0][k] + ps[1][k] + ps[2][k]) / 3);
+function findLogo(obj, img, at) {
+  const { w, h, rgba } = img, pts = [];
+  const black = (u, v) => {
+    const x = Math.min(w - 1, Math.max(0, Math.round(u * w))), y = Math.min(h - 1, Math.max(0, Math.round((1 - v) * h)));
+    const i = (y * w + x) * 4;
+    // black in every channel: the navy undershirt is dark too, but blue
+    return Math.max(rgba[i], rgba[i + 1], rgba[i + 2]) < 50;
+  };
+  for (const tri of obj.tris) {
+    if (tri.some(([, ti]) => ti < 0)) continue;
+    const c = mid3(tri.map(([vi]) => obj.v[vi]));
+    if (!at(c)) continue;
+    const uv = mid3(tri.map(([, ti]) => [...obj.vt[ti], 0]));
+    if (black(uv[0], uv[1])) pts.push(c);
+  }
+  if (pts.length < 4) return null;
+  const med = [0, 1, 2].map((k) => pts.map((p) => p[k]).sort((x, y) => x - y)[pts.length >> 1]);
+  const near = pts.filter((p) => Math.hypot(p[0] - med[0], p[1] - med[1]) < 0.5);
+  const c = [0, 1, 2].map((k) => near.reduce((t, p) => t + p[k], 0) / near.length);
+  const ds = near.map((p) => Math.hypot(p[0] - c[0], p[1] - c[1])).sort((x, y) => x - y);
+  return { c, r: Math.max(ds[Math.floor(ds.length * 0.9)] || 0, 0.1), n: near.length };
+}
+/* The decal: the surface's triangles round `logo` (within its radius, on
+   its side), out along the smoothed normals, uv a flat projection of the
+   badge seen from that side, through `xf` like the torso. */
+function decal(obj, { c, r }, back, top, xf) {
+  const R = r * 1.3, pos = [], uv = [], index = [], seen = new Map();
+  const pk = (p) => p.map((x) => Math.round(x * 1e4)).join(",");
+  const acc = new Map();
+  const tris = obj.tris.filter((tri) => {
+    const m = mid3(tri.map(([vi]) => obj.v[vi]));
+    return (back ? m[2] > 0 : m[2] < 0) && m[1] < top && Math.hypot(m[0] - c[0], m[1] - c[1]) < R;
+  });
+  for (const tri of tris) {
+    const ps = tri.map(([vi]) => obj.v[vi]), n = cross(sub(ps[1], ps[0]), sub(ps[2], ps[0]));
+    for (const p of ps) { const k = pk(p), a = acc.get(k) || [0, 0, 0]; acc.set(k, [a[0] + n[0], a[1] + n[1], a[2] + n[2]]); }
+  }
+  for (const tri of tris) for (const [vi] of tri) {
+    const p = obj.v[vi], k = pk(p);
+    if (!seen.has(k)) {
+      seen.set(k, pos.length / 3);
+      const n = acc.get(k), l = len(n) || 1;
+      pos.push(...xf([p[0] + n[0] / l * 0.012, p[1] + n[1] / l * 0.012, p[2] + n[2] / l * 0.012]));
+      // seen from the front (-Z) the character's left (-X) is on the right
+      uv.push((back ? 1 : -1) * (p[0] - c[0]) / (2 * r) + 0.5, 0.5 - (p[1] - c[1]) / (2 * r));
+    }
+    index.push(seen.get(k));
+  }
+  const nrm = new Float32Array(pos.length);
+  for (const [k, i] of seen) { const n = acc.get(k), l = len(n) || 1; const q = xf([n[0] / l, n[1] / l, n[2] / l]), o = xf([0, 0, 0]); const d = sub(q, o), dl = len(d) || 1; nrm.set([d[0] / dl, d[1] / dl, d[2] / dl], i * 3); }
+  return { pos: new Float32Array(pos), uv: new Float32Array(uv), nrm, index: new Uint32Array(index), caps: 0 };
+}
+/* The badge drawing, RGBA, see-through outside the disc. */
+function badgeImage(size = 256) {
+  const A = readPng(BADGE_ART), rgba = Buffer.alloc(size * size * 4);
+  const cx = size / 2, r = size / 2 - 2, ring = r * 0.2, iw = r * 1.6, ih = iw * (A.h / A.w);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cx), i = (y * size + x) * 4;
+    let col = d > r - ring ? [6, 6, 6] : [246, 244, 238];
+    const ax = ((x - cx) / iw + 0.5) * A.w, ay = ((y - cx) / ih + 0.5) * A.h;
+    if (d <= r - ring && ax >= 0 && ay >= 0 && ax < A.w && ay < A.h) {
+      const j = (Math.floor(ay) * A.w + Math.floor(ax)) * 4, al = A.rgba[j + 3] / 255;
+      col = col.map((v, k) => v * (1 - al) + A.rgba[j + k] * al);
+    }
+    rgba.set([...col.map(Math.round), d <= r ? 255 : 0], i);
+  }
+  return rgbaPng(size, size, rgba);
+}
+function rgbaPng(w, h, rgba) {
+  const rows = Buffer.alloc((w * 4 + 1) * h);
+  for (let y = 0; y < h; y++) rgba.copy(rows, y * (w * 4 + 1) + 1, y * w * 4, (y + 1) * w * 4);
+  const ih = Buffer.alloc(13); ih.writeUInt32BE(w, 0); ih.writeUInt32BE(h, 4); ih[8] = 8; ih[9] = 6;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", ih),
+    chunk("IDAT", zlib.deflateSync(rows, { level: 9 })), chunk("IEND", Buffer.alloc(0))]);
+}
+
 /* ---------------------------------------------------------------- run */
 const texture = (name) => {
+  if (name === "badge") return [name, badgeImage()];
   const q = quantize(shrink(readPng(path.join(SRC, `${name}.png`)), TEX));
   return [name, indexedPng(q)];
 };
 fs.mkdirSync(OUT, { recursive: true });
 let total = 0;
 for (const [kind, build, texNames] of [
-  ["arms", arms, ["left_arm", "right_arm"]],
   ["legs", legs, ["left_leg", "right_leg"]],
-  ["torso", torso, ["torso"]],
+  ["torso", torso, ["torso", "badge"]],
 ]) {
   console.log(`${kind}:`);
   const pieces = build(SRC);

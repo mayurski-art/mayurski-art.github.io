@@ -260,11 +260,11 @@ function plaidMaterial() {
    tools/troll-ops-roblox-body.mjs, carries one per part), cel-shaded like
    the cloth, one per texture. */
 const paintedMats = new Map();
-function paintedMaterial(map) {
+function paintedMaterial(map, alphaTest = 0) {
   if (!paintedMats.has(map)) {
     map.colorSpace = THREE.SRGBColorSpace;
     map.anisotropy = 8;
-    const m = addRim(new THREE.MeshToonMaterial({ map, gradientMap: CLOTH_TONES, emissive: 0xffffff, emissiveMap: map, emissiveIntensity: 0.12 }));
+    const m = addRim(new THREE.MeshToonMaterial({ map, gradientMap: CLOTH_TONES, emissive: 0xffffff, emissiveMap: map, emissiveIntensity: 0.12, alphaTest }));
     m.userData.shared = true;
     paintedMats.set(map, m);
   }
@@ -325,6 +325,33 @@ const FIST_BACK = -0.058;   // the fist (0.125 long, down from the wrist) moved 
 /* A Blender piece set: [{ name, geo, hull }], each with its ink shell (the
    piece pushed out along smooth normals, drawn inside out). Once per file. */
 const pieceSets = new Map();
+/* Laplacian smoothing: each vertex moved halfway to its neighbours'
+   average, `n` times (the open rim of a piece stays put). */
+function smoothHull(geo, n) {
+  const pos = geo.attributes.position, idx = geo.index, count = pos.count;
+  const nb = Array.from({ length: count }, () => new Set());
+  const edgeUse = new Map();
+  for (let t = 0; t < idx.count; t += 3) for (let e = 0; e < 3; e++) {
+    const a = idx.getX(t + e), b = idx.getX(t + (e + 1) % 3);
+    nb[a].add(b); nb[b].add(a);
+    const k = a < b ? `${a}|${b}` : `${b}|${a}`;
+    edgeUse.set(k, (edgeUse.get(k) || 0) + 1);
+  }
+  const rim = new Uint8Array(count);
+  for (const [k, used] of edgeUse) if (used === 1) for (const v of k.split("|")) rim[+v] = 1;
+  const p = pos.array, q = new Float32Array(p.length);
+  for (let it = 0; it < n; it++) {
+    for (let i = 0; i < count; i++) {
+      if (rim[i] || !nb[i].size) { q[i * 3] = p[i * 3]; q[i * 3 + 1] = p[i * 3 + 1]; q[i * 3 + 2] = p[i * 3 + 2]; continue; }
+      let x = 0, y = 0, z = 0;
+      for (const j of nb[i]) { x += p[j * 3]; y += p[j * 3 + 1]; z += p[j * 3 + 2]; }
+      const m = nb[i].size;
+      q[i * 3] = (p[i * 3] + x / m) / 2; q[i * 3 + 1] = (p[i * 3 + 1] + y / m) / 2; q[i * 3 + 2] = (p[i * 3 + 2] + z / m) / 2;
+    }
+    p.set(q);
+  }
+  pos.needsUpdate = true;
+}
 function loadPieces(url) {
   if (!pieceSets.has(url)) pieceSets.set(url, new GLTFLoader().loadAsync(url).then((gltf) => {
     const out = [];
@@ -334,10 +361,13 @@ function loadPieces(url) {
       const named = o.name.includes("__") ? o : o.parent;
       const geo = o.geometry.clone().applyMatrix4(o.matrixWorld);
       const hull = mergeVertices(new THREE.BufferGeometry().setAttribute("position", geo.attributes.position.clone()).setIndex(geo.index?.clone() ?? null), 1e-4);
+      // a painted (Roblox Studio) piece is finely bumpy: its shell is
+      // smoothed first, or it pokes through the dips as black specks
+      if (o.material?.map) smoothHull(hull, 4);
       hull.computeVertexNormals();
       // every rig wearing the body shares these (remote-players.js dispose skips them)
       geo.userData.shared = hull.userData.shared = true;
-      out.push({ name: named.name, geo, hull, mat: o.material?.name || "", map: o.material?.map || null });
+      out.push({ name: named.name, geo, hull, mat: o.material?.name || "", map: o.material?.map || null, alphaTest: o.material?.alphaTest || 0 });
     });
     return out;
   }));
@@ -362,14 +392,13 @@ const SHOE_PARTS = ["upper", "sole"];
 function muscleArms(rig, kit) {
   const p = rig.parts, s = rig.scale;
   const matOf = kitMaterials(Object.fromEntries(Object.entries(kit.colours).filter(([k]) => !SHOE_PARTS.includes(k))));
-  // a kit without hands of its own (a Roblox Studio body) borrows the fists
-  // from another kit's arms (`fists`): the gun grips are built on those
-  const sets = [loadPieces(glb(kit.arms)), ...(kit.fists ? [loadPieces(glb(kit.fists))] : [])];
-  return Promise.all(sets).then(([own, fists]) => {
-    const pieces = fists ? [...own, ...fists.filter((x) => x.name.startsWith("hand"))] : own;
+  return loadPieces(glb(kit.arms)).then((pieces) => {
     const added = [];
     for (const { name, geo, hull, map } of pieces) {
       const [jname, muscle] = name.split("__");
+      // `plainArms`: no bicep or tricep bulges, a plain arm in its sleeve
+      // (with the Roblox Studio body; user, 2026-10-17)
+      if (kit.plainArms && (muscle === "bicep" || muscle === "tricep")) continue;
       const kind = jname.slice(0, -1), side = jname.slice(-1);
       const joint = kind === "hand" ? p[`wrist${side}`].parent : p[`${kind}${side}`];
       // the bone this piece hangs along: to the joint's child (the hand
@@ -1390,13 +1419,15 @@ function reliefHead(rig) {
 function muscleTorso(rig, garment) {
   const p = rig.parts, s = rig.scale;
   // a kit with its own painted torso (a Roblox Studio body) wears that
-  if (KITS[garment]?.torso) return loadPieces(glb(KITS[garment].torso)).then((pieces) => pieces.map(({ name, geo, hull, map }) => {
+  if (KITS[garment]?.torso) return loadPieces(glb(KITS[garment].torso)).then((pieces) => pieces.map(({ name, geo, hull, map, alphaTest }) => {
     const g = new THREE.Group();
     g.scale.setScalar(s);
-    const m = new THREE.Mesh(geo, map ? paintedMaterial(map) : toon(SKIN));
-    m.castShadow = true;
+    const m = new THREE.Mesh(geo, map ? paintedMaterial(map, alphaTest) : toon(SKIN));
+    m.castShadow = !alphaTest;
     m.name = name.split("__")[1];
-    g.add(m, new THREE.Mesh(hull, armInk));
+    // a decal (the badges) lies on the torso: no ink shell of its own
+    g.add(m);
+    if (!alphaTest) g.add(new THREE.Mesh(hull, armInk));
     p[name.split("__")[0]].add(g);
     return g;
   }));
@@ -1447,7 +1478,9 @@ export function applyBlocky(rig, look = {}) {
   const hit = rig.hitboxMeshes?.[0], hitWas = hit && [hit.position.y, hit.scale.x];
   if (boardHead) {
     p.headPivot.scale.set(HEAD.mirror ? -HEAD.scale : HEAD.scale, HEAD.scale, HEAD.scale);
-    p.headPivot.position.y = (HIT_LOOK.y + HEAD.neck) * s;
+    // (kit.headLift: the head held up off a torso that reaches the chin,
+    // the Roblox Studio body's; user, 2026-10-17)
+    p.headPivot.position.y = (HIT_LOOK.y + HEAD.neck + (kit.headLift || 0)) * s;
     // the hit sphere (a child of the head pivot) kept at its old place and size
     if (hit) {
       hit.scale.setScalar(HIT_LOOK.scale / HEAD.scale);

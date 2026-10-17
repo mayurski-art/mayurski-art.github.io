@@ -66,7 +66,8 @@
   #status.on { opacity: 1; }
 
   /* ---- reference card ---- */
-  #ref { position: absolute; right: 12px; bottom: 12px; width: 170px; background: rgba(28,28,30,.9); border: 0.5px solid var(--line); border-radius: 14px; padding: 8px; }
+  /* top right, under the view buttons: at the bottom it fell below short windows */
+  #ref { position: absolute; right: 12px; top: 64px; width: 170px; background: rgba(28,28,30,.9); border: 0.5px solid var(--line); border-radius: 14px; padding: 8px; }
   #ref img { width: 100%; border-radius: 9px; display: block; }
   #ref .drop { border: 1px dashed #55555c; border-radius: 9px; padding: 18px 8px; text-align: center; color: var(--dim); font-size: 11.5px; cursor: pointer; }
   #ref .drop.over { border-color: var(--accent); color: var(--accent); }
@@ -100,7 +101,7 @@
     #stage { grid-row: 1; }
     #panel { grid-row: 2; border-right: none; border-top: 0.5px solid var(--line); }
     #changes { width: 100%; }
-    #ref { width: 110px; }
+    #ref { width: 110px; top: auto; bottom: 12px; }
     #labels span { margin: 0 10%; }
   }
 </style>
@@ -427,19 +428,25 @@ const art = (t) => DESIGN.TRAIT_ART[traits[t]] || "";
 const ROBLOX_BODIES = { rbx989: "Roblox Studio #989" };
 function setPieces(garment, id) {
   const rbx = ROBLOX_BODIES[id];
-  for (const part of ["arms", "legs", "torso"])
+  // the arms stay the garment's Blender ones (simpler and clean: the Studio
+  // arms' fine bumps speckled their ink; user, 2026-10-17)
+  for (const part of ["legs", "torso"])
     edit(["KITS", garment, part], rbx ? `${part}-${id}.glb` : DEFAULTS.KITS[garment][part]);
-  // its hands: the garment's own Blender fists
-  edit(["KITS", garment, "fists"], rbx ? DEFAULTS.KITS[garment].arms : DEFAULTS.KITS[garment].fists);
+  edit(["KITS", garment, "arms"], DEFAULTS.KITS[garment].arms);
+  edit(["KITS", garment, "fists"], DEFAULTS.KITS[garment].fists);
+  // plain arms in their sleeves, no bicep or tricep bulges
+  edit(["KITS", garment, "plainArms"], rbx ? true : DEFAULTS.KITS[garment].plainArms);
+  // the head held up off the torso's collar
+  edit(["KITS", garment, "headLift"], rbx ? 0.03 : DEFAULTS.KITS[garment].headLift);
 }
 function piecesRow(garment) {
   const id = "p" + uid++;
   const sel = el("select", { id, on: { change: (e) => { setPieces(garment, e.target.value); renderTuning(); } } },
     el("option", { value: "" }, "Blender (live)"),
     ...Object.entries(ROBLOX_BODIES).map(([k, v]) => el("option", { value: k }, v)));
-  const arms = valueOf(["KITS", garment, "arms"]);
-  sel.value = Object.keys(ROBLOX_BODIES).find((k) => arms === `arms-${k}.glb`) || "";
-  return el("div", { class: "row" + (edited(["KITS", garment, "arms"]) ? " edited" : "") }, el("label", { for: id }, "Body pieces"), sel);
+  const legs = valueOf(["KITS", garment, "legs"]);
+  sel.value = Object.keys(ROBLOX_BODIES).find((k) => legs === `legs-${k}.glb`) || "";
+  return el("div", { class: "row" + (edited(["KITS", garment, "legs"]) ? " edited" : "") }, el("label", { for: id }, "Body pieces"), sel);
 }
 function renderTuning() {
   // outfit colours: the garment's kit, and modelled hair
