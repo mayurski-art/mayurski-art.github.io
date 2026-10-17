@@ -657,11 +657,13 @@ async function capVolume(id, plane, centreY, s) {
   bg.globalCompositeOperation = "source-in"; bg.fillStyle = hat.ink; bg.fillRect(0, 0, W, H);
   bg.globalCompositeOperation = "source-over"; bg.drawImage(bImg, 0, 0, W, H);
   const tex = (src) => { const t = src instanceof HTMLCanvasElement ? new THREE.CanvasTexture(src) : new THREE.Texture(src); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.needsUpdate = true; return t; };
-  const mats = [
-    drawn(tex(fImg), { transparent: true, alphaTest: 0.5, side: THREE.DoubleSide }),
-    drawn(tex(bc), { transparent: true, alphaTest: 0.5, side: THREE.DoubleSide }),
-    mat(parseInt(hat.ink.slice(1), 16), { side: THREE.DoubleSide, emissiveIntensity: 0.25 }),
-  ];
+  // shaded in bands like the cloth and the face, and solid: lit as a
+  // standard (glossy) surface it took on the menu's orange sun and a black
+  // cap read as see-through (user, 2026-10-16). The cut-out edge is the
+  // alphaTest alone, so it needn't blend.
+  const cloth = (t) => addRim(new THREE.MeshToonMaterial({ map: t, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.22, gradientMap: CLOTH_TONES, alphaTest: 0.5, side: THREE.DoubleSide }));
+  const mats = [cloth(tex(fImg)), cloth(tex(bc)), toon(parseInt(hat.ink.slice(1), 16))];
+  mats[2].side = THREE.DoubleSide;
   // A grid over the plane; a cell is cap when its centre is inside the silhouette
   const N = 170, M = Math.round(N * h / w);
   const X = (i) => -w / 2 + (w * i) / N, Y = (j) => y0 + (h * j) / M;
