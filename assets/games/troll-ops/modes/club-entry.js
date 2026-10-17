@@ -46,7 +46,7 @@ import { padButtonName } from "../menu/controller-layout.js?v=cl7-pd1-or1";
 export const BAND = { none: 0, guest: 1, owner: 2, vip: 3 };
 /* The test (?tohooks=1) shortens the waits: window.__trollClub.T. */
 const T = { lockSecs: 120, checkSecs: 3.0, idSecs: 2.6, bandSecs: 1.8, afkSecs: 25, minAhead: 1,
-  bandanaEvery: 150, bandanaLook: 1.2, bandanaSit: 2.5 };   // the bandana guy: a slot every 150 s, most with him in
+  bandanaEvery: 90, bandanaLook: 1.2, bandanaSit: 2.5 };   // the bandana guy: a slot every 90 s, most with him in
 const SNAP_AT = 0.5;       // into the band act: the moment it snaps shut
 const WAVE_SECS = 1.3;     // the bouncer's wave in, after a band
 const ROPE_OPEN = 1.4, ROPE_SHUT = 1.5;   // s
