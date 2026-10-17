@@ -35,7 +35,7 @@ import {
   chandelier, sconce, railFence, picketFence, hayBale, log, coffin, framedPicture, artTexture, artAspect,
 } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1";
 import { LoopPath, Train } from "./train.js?v=tr1b7-or1";
-import { buildTrainBoard } from "./train-board.js?v=tb1";
+import { buildTrainBoard } from "./train-board.js?v=tb1-bt1";
 
 const BOUNDS = { minX: -62, maxX: 62, minZ: -50, maxZ: 50 };
 const T = 0.3;            // wall thickness
