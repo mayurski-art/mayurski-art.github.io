@@ -60,9 +60,12 @@ in docs/, labs in labs/); only game.js, style.css and the prefetch
 manifest sit at the top. Move a file with tools/troll-ops-move.mjs, then
 run tools/troll-ops-import-check.mjs (--load for the pages).
 These rules hold for every session that touches the game:
-1. One Troll Forces session at a time. Run `git status` before the first
-   edit; an unexplained modified file means another session is live, so
-   stop and ask.
+1. Parallel Troll Forces sessions are fine (user, 2026-10-16), each in its
+   own worktree and branch, never two in one checkout. Run `git status`
+   before the first edit; an unexplained modified file means another
+   session is in this checkout, so stop and ask. A branch that will be
+   merged into another session's skips the ?v= cascade (rule 4): the one
+   session that merges the branches runs it once, after the merge.
 2. Never test in a public room. A tab that starts a match without a private
    room code joins the live public room and can become its bot host,
    freezing the bots for real players. Headless tests block Supabase.
