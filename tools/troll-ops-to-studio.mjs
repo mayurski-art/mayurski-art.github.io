@@ -75,25 +75,73 @@ data = await page.evaluate(async ({ TOKEN, PIECES }) => {
     k.plainArms = true; k.headLift = 0.03;
     DESIGN.flush();
   }
-  const rig = C.buildHumanoid(new THREE.MeshStandardMaterial({ color: 0x222222 }), { height: 1.8, gun: false });
-  await wearBlocky(rig, TOKEN);
-  // let late loads (textures, GLB pieces) land
-  await new Promise((r) => setTimeout(r, 1500));
-  rig.root.updateMatrixWorld(true);
-
   // The joints, in the order a mesh claims its nearest one.
   const NAMES = ["hips", "torso", "spine", "chest", "neckPivot", "headPivot", "shoulderL", "armL", "elbowL", "wristL",
     "shoulderR", "armR", "elbowR", "wristR", "hipL", "kneeL", "ankleL", "ballL", "hipR", "kneeR", "ankleR", "ballR", "gunMount"];
+  const visibleChain = (o) => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; };
+  // (the blocky body hides the stick troll's mitts by their layers, not visibility)
+  const drawn = (o) => o.isMesh && o.geometry && !o.userData.isHitProxy && visibleChain(o) && o.layers.mask !== 0;
+  const build = async (token) => {
+    const r = C.buildHumanoid(new THREE.MeshStandardMaterial({ color: 0x222222 }), { height: 1.8, gun: false });
+    await wearBlocky(r, token);
+    // let late loads (textures, GLB pieces) land
+    await new Promise((res) => setTimeout(res, 1500));
+    r.root.updateMatrixWorld(true);
+    return r;
+  };
+  // Which trait each piece is: built again without one trait at a time
+  // ("None"), the pieces that go missing are that trait's; the rest are the
+  // clothes (the garment's kit: torso, legs, arms and fists). A piece is
+  // known by its joint, name, size and place.
+  const sigs = (r) => {
+    const by = new Map();
+    for (const n of NAMES) if (r.parts[n] && !by.has(r.parts[n])) by.set(r.parts[n], n);
+    const out = new Map(), box = new THREE.Box3(), c = new THREE.Vector3();
+    r.root.traverse((o) => {
+      if (!drawn(o)) return;
+      let j = "root";
+      for (let q = o.parent; q; q = q.parent) if (by.has(q)) { j = by.get(q); break; }
+      r.root.worldToLocal(box.setFromObject(o).getCenter(c));
+      const tris = (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
+      out.set(o, `${j}|${o.name}|${tris}|${c.toArray().map((x) => Math.round(x * 100)).join(",")}`);
+    });
+    return out;
+  };
+  // what's left on the head (the bare head the facial's drawing sits on) is the troll's own
+  const HEAD_JOINTS = new Set(["headPivot", "neckPivot"]);
+  const TRAITS = { ...DESIGN.TOKENS[TOKEN] };
+  const TYPES = ["hat", "facial", "eyes"];
+  const without = {};
+  for (const t of TYPES) {
+    if (!TRAITS[t] || TRAITS[t] === "None") continue;
+    DESIGN.TOKENS[99990] = { ...TRAITS, [t]: "None" };
+    DESIGN.flush();
+    without[t] = new Set((await sigs(await build(99990))).values());
+  }
+  DESIGN.flush();
+  const rig = await build(TOKEN);
+  const traitOf = new Map([...sigs(rig)].map(([o, s]) => [o, TYPES.find((t) => without[t] && !without[t].has(s)) || "clothes"]));
   const byObj = new Map();
   for (const n of NAMES) if (rig.parts[n] && !byObj.has(rig.parts[n])) byObj.set(rig.parts[n], n);
   const jointOf = (o) => { for (let q = o.parent; q; q = q.parent) { if (byObj.has(q)) return byObj.get(q); if (q === rig.root) return "root"; } return "root"; };
   const inv = new THREE.Matrix4(), rel = new THREE.Matrix4(), pos = new THREE.Vector3(), quat = new THREE.Quaternion(), scl = new THREE.Vector3();
   const rootInv = new THREE.Matrix4().copy(rig.root.matrixWorld).invert();
-  const worldOf = (n) => (n === "root" ? rig.root.matrixWorld : rig.parts[n].matrixWorld);
+  // A joint's frame without its scale or mirror (the blocky head pivot is
+  // scaled 0.85 and mirrored): Studio's joint parts can't scale, so that
+  // goes into the pieces' vertices, and they come out the size the game draws.
+  const rtOf = new Map();
+  const worldOf = (n) => {
+    if (!rtOf.has(n)) {
+      const m = n === "root" ? rig.root.matrixWorld : rig.parts[n].matrixWorld;
+      m.decompose(pos, quat, scl);
+      rtOf.set(n, new THREE.Matrix4().compose(pos.clone(), quat.clone(), new THREE.Vector3(1, 1, 1)));
+    }
+    return rtOf.get(n);
+  };
   const joints = [];
   for (const [obj, n] of byObj) {
     const parent = jointOf(obj);
-    rel.copy(inv.copy(worldOf(parent)).invert()).multiply(obj.matrixWorld);
+    rel.copy(inv.copy(worldOf(parent)).invert()).multiply(worldOf(n));
     rel.decompose(pos, quat, scl);
     joints.push({ name: n, parent, p: pos.toArray(), q: quat.toArray() });
   }
@@ -122,10 +170,8 @@ data = await page.evaluate(async ({ TOKEN, PIECES }) => {
   };
 
   const meshes = [];
-  const visibleChain = (o) => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; };
   rig.root.traverse((o) => {
-    // (the blocky body hides the stick troll's mitts by their layers, not visibility)
-    if (!o.isMesh || !o.geometry || o.userData.isHitProxy || !visibleChain(o) || o.layers.mask === 0) return;
+    if (!drawn(o)) return;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     const g = o.geometry.index ? o.geometry : o.geometry; // indexed or not, handled below
     const joint = jointOf(o);
@@ -159,6 +205,7 @@ data = await page.evaluate(async ({ TOKEN, PIECES }) => {
       const c = mat.color ? mat.color.clone() : new THREE.Color(1, 1, 1);
       meshes.push({
         name: (o.name || o.parent?.name || "piece").slice(0, 40), joint,
+        trait: traitOf.get(o) === "clothes" && HEAD_JOINTS.has(joint) ? "base" : traitOf.get(o) || "clothes",
         chain: (() => { const c = []; for (let q = o; q && q !== rig.root && !byObj.has(q); q = q.parent) c.push((q.name || "?") + (Object.keys(q.userData).length ? "{" + Object.keys(q.userData).join(",") + "}" : "")); return c.join(" < "); })(),
         color: [c.r, c.g, c.b].map((x) => +x.toFixed(4)),   // linear
         tex: texOf(mat.map), transparent: !!mat.transparent || mat.alphaTest > 0, opacity: mat.opacity ?? 1,
@@ -169,7 +216,9 @@ data = await page.evaluate(async ({ TOKEN, PIECES }) => {
   });
   const index = {
     token: TOKEN, pieces: PIECES || null, garment: garment || null,
-    joints, meshes: meshes.map((m, i) => ({ i, name: m.name, joint: m.joint, chain: m.chain, verts: m.v.length / 3, tris: m.tri.length / 3, tex: m.tex })),
+    // trait type -> its name (clothes, hat, facial, eyes; "None" = not worn)
+    traits: TRAITS,
+    joints, meshes: meshes.map((m, i) => ({ i, name: m.name, joint: m.joint, trait: m.trait, chain: m.chain, verts: m.v.length / 3, tris: m.tri.length / 3, tex: m.tex })),
     textures: texSize.map(([w, h, flipY], i) => ({ i, w, h, flipY, chars: textures[i].length })),
   };
   return { index, meshes, textures };
@@ -178,6 +227,6 @@ await browser.close();
 if (errors.length) console.log("page errors:\n  " + errors.join("\n  "));
 const tris = data.index.meshes.reduce((s, m) => s + m.tris, 0);
 console.log(`TROLLS #${TOKEN}${PIECES ? ` on ${PIECES}` : ""}: ${data.index.joints.length} joints, ${data.index.meshes.length} meshes (${tris} triangles), ${data.index.textures.length} textures`);
-for (const m of data.index.meshes) console.log(`  ${String(m.i).padStart(2)} ${m.joint.padEnd(10)} ${String(m.tris).padStart(6)} tris  tex ${m.tex}  ${m.chain}`);
+for (const m of data.index.meshes) console.log(`  ${String(m.i).padStart(2)} ${m.trait.padEnd(7)} ${m.joint.padEnd(10)} ${String(m.tris).padStart(6)} tris  tex ${m.tex}  ${m.name}`);
 console.log(`serving on http://127.0.0.1:${PORT}/index.json: run tools/troll-ops-to-studio.luau in Studio`);
 setTimeout(() => { console.log("timed out"); process.exit(0); }, 15 * 60 * 1000);
