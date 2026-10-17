@@ -74,6 +74,7 @@ const r = await page.evaluate(async () => {
   // Free hands: the clip leans the runner; the legs are the gait's own.
   const mk = () => C.buildHumanoid(new THREE.MeshBasicMaterial(), { height: 1.8, gun: false });
   const a = mk(), b = mk();
+  CL.setRigClips(a, null);   // every rig gets the game's clips: this one runs without
   CL.setRigClips(b, { sprint });
   run(a, { hold: "none" });
   run(b, { hold: "none" });
@@ -109,11 +110,25 @@ const r = await page.evaluate(async () => {
     const rig = mk();
     const mesh = WM.stripLights(WM.buildWeaponMesh(WEAPON_DEFS.lmao));
     C.mountHeldWeapon(rig, mesh);
-    if (withClip) CL.setRigClips(rig, { "sprint-gun": sprintGun });
+    CL.setRigClips(rig, withClip ? { "sprint-gun": sprintGun } : null);
     run(rig, { hold: "gun", hasGun: true, ...extra }, 60);
     rig.root.updateMatrixWorld(true);
     return new THREE.Vector3(0, 0, -1).transformDirection(rig.parts.gunMount.matrixWorld);
   };
+  // Every game rig wears the game's clips (they load with clips.js).
+  for (let i = 0; i < 50 && !(CL.GAME_CLIPS.sprint && CL.GAME_CLIPS["sprint-gun"]); i++) await new Promise((r) => setTimeout(r, 100));
+  const g = mk();
+  out.gameRig = !!(g.clips?.sprint && g.clips?.["sprint-gun"]);
+  // A bot at its 4.2 m/s top speed, told it's sprinting, plays the gun sprint;
+  // a player at 5.2 m/s (a run, not a sprint) doesn't.
+  const gunRig = () => { const r = mk(); C.mountHeldWeapon(r, WM.stripLights(WM.buildWeaponMesh(WEAPON_DEFS.lmao))); return r; };
+  const bot = gunRig(), runner = gunRig();
+  for (let i = 0; i < 40; i++) {
+    C.poseHumanoid(bot, { phase: i * 0.1, moving: true, speed: 1, mps: 4.2, sprint: 1, dt: 0.016, hold: "gun", hasGun: true });
+    C.poseHumanoid(runner, { phase: i * 0.1, moving: true, speed: 1, mps: 5.2, dt: 0.016, hold: "gun", hasGun: true });
+  }
+  out.botSprints = !!bot.clipGun;
+  out.runnerRuns = !runner.clipGun;
   out.adsGap = aim(true, { ads: 1 }).angleTo(aim(false, { ads: 1 }));
   out.carryGap = aim(true, {}).angleTo(aim(false, {}));
   return out;
@@ -125,6 +140,9 @@ check(`gun sprint plays on every long gun (${r.guns})`, r.guns > 20 && !r.off.le
 check("both hands stay on the gun through the stride", !r.bad.length, r.bad.length ? r.bad.join(", ") : `worst ${r.worst.toFixed(3)} m`);
 check("the sprint carry turns the gun off the aim", r.carryGap > 0.3, `${r.carryGap.toFixed(2)} rad`);
 check("aiming puts the gun back on the aim", r.adsGap < 0.04, `${r.adsGap.toFixed(3)} rad`);
+check("every game rig wears the sprint clips", r.gameRig);
+check("a bot's full run plays the gun sprint", r.botSprints);
+check("a player's run (5.2 m/s) doesn't", r.runnerRuns);
 check("no page errors", !errors.length, errors.join(" | "));
 
 await browser.close();

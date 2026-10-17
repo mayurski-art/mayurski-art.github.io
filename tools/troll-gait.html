@@ -87,7 +87,8 @@ const lanes = GAITS.map((g, i) => {
   const rig = buildHumanoid(mat, { height: 1.8, gun: !CLIPS });
   if (CLIPS) mountHeldWeapon(rig, (rig.parts.gun = WM.stripLights(WM.buildWeaponMesh(WEAPON_DEFS.lmao))));
   const x = (i - (GAITS.length - 1) / 2) * (CLIPS ? 1.6 : 3);
-  if (g.clip) setRigClips(rig, clips);
+  // (every game rig wears the clips now: the "game" lane is today's procedural run)
+  setRigClips(rig, g.clip ? clips : null);
   rig.root.position.x = x;
   rig.root.rotation.y = Math.PI / 2;
   scene.add(rig.root);

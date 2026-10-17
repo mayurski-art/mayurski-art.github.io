@@ -18,7 +18,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { addInkRim } from "../view/rim-light.js?v=sr1";
 import { buildWatch, buildWristband, wristOf } from "./wristwear.js?v=ww1c2m1-or1";
-import { sampleGait, applyClip, CLIP_HIPS, CLIP_SPINE, CLIP_ARM_L, CLIP_ARM_R } from "./clips.js?v=rc1";
+import { sampleGait, applyClip, GAME_CLIPS, CLIP_HIPS, CLIP_SPINE, CLIP_ARM_L, CLIP_ARM_R } from "./clips.js?v=rc1";
 
 const DARK = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
 
@@ -826,6 +826,8 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
     armRestR: new THREE.Vector3(ARM.x, ARM.y, 0).normalize(),
   };
   if (gunMesh) mountHeldWeapon(rig, gunMesh);
+  // The Roblox Studio clips (characters/clips.js), shared, filled as they load.
+  rig.clips = GAME_CLIPS;
   return rig;
 }
 
@@ -1320,8 +1322,10 @@ function inferGrip(mesh) {
    current kick. `block`: 0..1 into the saber guard (melee hold, no swing).
    `ads`: 0..1 aiming down sights — the gun comes up to the eye, on the aim. */
 /* `air`: off the ground; `vy`: vertical speed (m/s, + up); `land`: 0..1, a
-   landing's force on the frame it lands (0.5 for a jump's, 1 for a big drop). */
-function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, forward = 1, speed = 1, mps = null, dt = 0.016, zombie = false, hasGun = false, hold = "gun", swing = null, recoil = 0, block = 0, ads = 0, air = false, vy = 0, land = 0 }) {
+   landing's force on the frame it lands (0.5 for a jump's, 1 for a big drop).
+   `sprint`: 0..1 how far into the sprint clip, for a body whose top speed
+   isn't a sprint's (a bot); left out, it follows the speed. */
+function _poseHumanoid(rig, { sprint = null, phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, forward = 1, speed = 1, mps = null, dt = 0.016, zombie = false, hasGun = false, hold = "gun", swing = null, recoil = 0, block = 0, ads = 0, air = false, vy = 0, land = 0 }) {
   const p = rig.parts;
   const s = rig.scale;
   const str = Math.max(-1, Math.min(1, strafe));
@@ -1392,7 +1396,8 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
 
   // A sprint clip made in Roblox Studio (rig.clips, characters/clips.js)
   // takes over the body above the legs as a straight-ahead run reaches
-  // sprint speed. The legs stay on the foot placement below. With a gun in
+  // sprint speed (or as far as `sprint` says, 0..1: a bot's full run).
+  // The legs stay on the foot placement below. With a gun in
   // hand it's the gun sprint (Phantom Forces': the gun drops across the
   // chest), which also carries the gun: _gripSupport reads rig.clipGun.
   const gunClip = hold === "gun" && hasGun ? rig.clips?.["sprint-gun"] : null;
@@ -1400,7 +1405,8 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   // Aiming or shooting ends a sprint, as in PF: the clip fades while the gun
   // is up (rig.fireK: _gripSupport's last frame).
   const gunUp = gunClip ? Math.max(Math.min(1, ads), rig.fireK ?? 0) : 0;
-  const clipW = clip ? _smooth(Math.max(0, Math.min(1, (v - 5.4) / 1.2))) * blend * (1 - crouch) * Math.max(0, fwd) * (1 - sideways) * (1 - gunUp) : 0;
+  const sprintK = sprint ?? _smooth(Math.max(0, Math.min(1, (v - 5.4) / 1.2)));
+  const clipW = clip ? sprintK * blend * (1 - crouch) * Math.max(0, fwd) * (1 - sideways) * (1 - gunUp) : 0;
   const clipS = clipW > 0 ? sampleGait(clip, cyc / (Math.PI * 2), rig.clipSample || (rig.clipSample = {})) : null;
   rig.clipGun = clipS && clip === gunClip ? { w: clipW, s: clipS } : null;
   if (clipS) applyClip(rig, clipS, clipW, CLIP_HIPS);
@@ -1568,7 +1574,8 @@ function _poseHumanoid(rig, { phase = 0, moving = false, pitch = 0, lower = 0, s
   p.torso.rotation.set(-(crouch * 0.25 + moveLean * 0.7 + squash * 0.3 + airK * 0.06) + F.bp, 0, str * -0.1 * blend - weight * 0.04 + F.br);
   p.spine.rotation.set(-(crouch * 0.05 + moveLean * 0.15), -p.hips.rotation.y * 0.55, str * -0.03 * blend);
   p.chest.rotation.set(-(crouch * 0.07 + moveLean * 0.15), -p.hips.rotation.y * 0.85, str * -0.03 * blend);
-  if (clipS) applyClip(rig, clipS, clipW, CLIP_SPINE);
+  // (a body with its own gun hold runs upright behind the gun: rig.gunHold.lean)
+  if (clipS) applyClip(rig, clipS, clipW * (gunClip ? rig.gunHold?.lean ?? 1 : 1), CLIP_SPINE);
   const lean =p.torso.rotation.x + p.spine.rotation.x + p.chest.rotation.x;
 
   if (zombie) {

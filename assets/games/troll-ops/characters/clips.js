@@ -78,8 +78,10 @@ export function sampleGait(clip, u, out) {
 }
 
 /* Blend the joints in `names` from wherever the procedural pose put them
-   toward the sample, by w (0..1). Offsets add to the joint's rest spot
-   (`rest`: name -> Vector3, the joint's position when the rig was built). */
+   toward the sample, by w (0..1). A slide (the shoulders' roll) adds on top
+   of where the pose put the joint, so a body that moved its sockets (the
+   blocky body's broad shoulders) keeps them. Hip slides are skipped: their
+   height stays the gait's, which the planted feet hold up. */
 export function applyClip(rig, sample, w, names) {
   if (!(w > 0)) return;
   const p = rig.parts;
@@ -87,34 +89,28 @@ export function applyClip(rig, sample, w, names) {
     const s = sample[name], o = p[name];
     if (!s || !o) continue;
     o.quaternion.slerp(s.q, w);
-    if (s.p) {
-      const rest = rig.clipRest?.[name];
-      if (rest) {
-        _v.copy(rest).addScaledVector(s.p, rig.scale || 1);
-        o.position.lerp(_v, w);
-      }
-    }
+    if (s.p && name !== "hips") o.position.addScaledVector(s.p, w * (rig.scale || 1));
   }
 }
-const _v = new THREE.Vector3();
 
 /* What a clip may drive, by body region (legs never: see the top). */
-// (the hips turn only: their height stays the gait's, which the planted feet
-// hold up; no rest is recorded for them, so their offset is skipped)
 export const CLIP_HIPS = ["hips"];
 export const CLIP_SPINE = ["torso", "spine", "chest"];
 export const CLIP_ARM_L = ["shoulderL", "armL", "elbowL", "wristL"];
 export const CLIP_ARM_R = ["shoulderR", "armR", "elbowR", "wristR"];
 
-/* Give a rig its gait clips: { sprint } (each a prepared clip). Joint rest
-   positions are recorded here, before any pose moves them. */
+/* Give a rig its gait clips: { sprint, "sprint-gun" } (prepared clips). */
 export function setRigClips(rig, clips) {
   rig.clips = clips;
-  if (!rig.clipRest) {
-    rig.clipRest = {};
-    for (const n of [...CLIP_SPINE, ...CLIP_ARM_L, ...CLIP_ARM_R]) {
-      const o = rig.parts[n];
-      if (o) rig.clipRest[n] = o.position.clone();
-    }
+}
+
+/* The game's clips, filled as they load; every rig buildHumanoid makes
+   shares this one object, so a rig built before they land picks them up.
+   ?clips=0 in the page's address leaves them out (to compare). */
+export const GAME_CLIPS = {};
+const OFF = typeof location !== "undefined" && new URLSearchParams(location.search).get("clips") === "0";
+if (!OFF && typeof fetch !== "undefined") {
+  for (const name of ["sprint", "sprint-gun"]) {
+    loadClip(name).then((c) => { GAME_CLIPS[name] = c; }, (e) => console.warn(e.message));
   }
 }
