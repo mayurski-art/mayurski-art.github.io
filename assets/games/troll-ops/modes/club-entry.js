@@ -46,7 +46,7 @@ import { padButtonName } from "../menu/controller-layout.js?v=cl7-pd1-or1";
 export const BAND = { none: 0, guest: 1, owner: 2, vip: 3 };
 /* The test (?tohooks=1) shortens the waits: window.__trollClub.T. */
 const T = { lockSecs: 120, checkSecs: 3.0, idSecs: 2.6, bandSecs: 1.8, afkSecs: 25, minAhead: 1,
-  bandanaEvery: 150, bandanaLook: 1.2, bandanaSit: 2.5 };   // the bandana guy: a slot every 150 s, most with him in
+  bandanaEvery: 90, bandanaLook: 1.2, bandanaSit: 2.5, bandanaAskSecs: 8 };   // the bandana guy: a slot every 90 s, most with him in
 const SNAP_AT = 0.5;       // into the band act: the moment it snaps shut
 const WAVE_SECS = 1.3;     // the bouncer's wave in, after a band
 const ROPE_OPEN = 1.4, ROPE_SHUT = 1.5;   // s
@@ -197,6 +197,9 @@ function resetDoor() {
   rope.drop();
   clubWear.band = 0;
   clubWear.glow = 0;
+  if (club.bandOff && game.localRig && club.faceFull) game.localRig.face = club.faceFull;   // the bandana's back on once you leave
+  club.bandOff = false;
+  club.faceFull = null;
   if (game.localRig) { game.localRig.band = 0; game.localRig.root.rotation.x = 0; }
   Object.assign(club, { phase: "none", t: 0, queue: [], npcs: [], lanes: [], lane: -1, walkTo: [], live: false, kick: null, sit: 0 });
   club.cineHide?.();
@@ -214,6 +217,7 @@ export function updateClubEntry(dt) {
   if (!d) { if (club.live) resetDoor(); wireOut(); return; }
   if (!club.live) { wireOut(); return; }   // not spawned here yet
   club.t += dt;
+  if (club.bandOff) hideBandana();   // (a face picked in the menu mid-visit comes off too)
   ui.pollPad();
   syncRemotes(d, dt);
   stepNpcs(d, dt);
@@ -237,7 +241,7 @@ export function updateClubEntry(dt) {
 /* Is the door moving us (in the line, at a lane, walking in)? Then
    view/player-update.js lets clubHold() move us instead of the keys. */
 export function clubHolds() {
-  return club.live && ["queued", "lane", "id", "ask", "band", "walk", "kick"].includes(club.phase);
+  return club.live && ["queued", "lane", "id", "ask", "bandana", "band", "walk", "kick"].includes(club.phase);
 }
 export function clubHold(dt) {
   const d = door();
@@ -366,13 +370,14 @@ function walk(n, target, dt) {
 function stepMe(d, dt) {
   const p = game.move.pos;
   // Up at the bouncer, eyes on his hands.
-  if (["lane", "id", "ask"].includes(club.phase) && club.lane >= 0 && near(p, club.lanes[club.lane], 0.3)) game.look.pitch += (-0.2 - game.look.pitch) * Math.min(1, dt * 3);
+  if (["lane", "id", "ask", "bandana"].includes(club.phase) && club.lane >= 0 && near(p, club.lanes[club.lane], 0.3)) game.look.pitch += (-0.2 - game.look.pitch) * Math.min(1, dt * 3);
   switch (club.phase) {
     case "lane": {
       const l = club.lanes[club.lane];
       if (!near(p, l, 0.05)) break;
       game.look.yaw = turn(game.look.yaw, l.yaw, dt * 5);
       if (club.t > 0.6) {
+        if (wornBandana() && !club.bandOff) { ui.ask(answerBandana, "bandana"); go("bandana"); break; }
         const signed = !!window.TrollrunnerAccounts?.getCachedProfile?.();
         if (signed) { ui.showCard(); go("id"); }
         else { ui.ask(answer); go("ask"); }
@@ -382,6 +387,12 @@ function stepMe(d, dt) {
     case "id":
       game.look.yaw = turn(game.look.yaw, club.lanes[club.lane].yaw, dt * 5);
       if (club.t > T.idSecs) { ui.hideCard(); ui.ask(answer); go("ask"); }
+      break;
+    case "bandana":
+      game.look.yaw = turn(game.look.yaw, club.lanes[club.lane].yaw, dt * 5);
+      // Ignoring the bouncer counts as a no.
+      if (club.t > T.bandanaAskSecs) { ui.hideAll(); answerBandana(false); }
+      else if (club.t > T.afkSecs && othersWaiting()) toBack();
       break;
     case "ask":
       // Nobody home while another human waits: to the back.
@@ -444,6 +455,31 @@ function freeLane(wave = true) {
 /* The 18+ question is up: the mouse is free for its buttons on purpose
    (menu/buttons.js doesn't pause for it). */
 export function clubAskOpen() { return !!ui.dialog && !ui.dialog.hidden; }
+
+/* A bandana on at the front (user, 2026-10-16): the bouncer asks you to take
+   it off. Yes: it's off for this visit (hidden on your rig and in your
+   packet; your saved face isn't touched) and the door goes on. No, or
+   ignoring him: the same kick-out as the bandana guy's. */
+const wornBandana = () => String(game.localRig?.face || "").split(":")[2]?.startsWith("bandana-");
+const noBandana = (f) => { const [e, , , w] = String(f).split(":"); return `${e}:og${w ? `::${w}` : ""}`; };
+function hideBandana() {
+  const rig = game.localRig;
+  if (!rig || !wornBandana()) return;
+  club.faceFull = rig.face;
+  rig.face = noBandana(rig.face);
+}
+function answerBandana(yes) {
+  if (club.phase !== "bandana") return;
+  if (yes) {
+    club.bandOff = true;
+    hideBandana();
+    showWaveBanner(`${door()?.lanes[club.lane]?.bouncer || "The bouncer"}: "Thank you. Don't make me ask twice"`, 2200);
+    go("lane");
+    return;
+  }
+  club.kick = startKick(club.lane, ME);
+  go("kick");
+}
 
 /* The answer at the door: "Yeah" (18+) or "No". */
 function answer(adult) {
@@ -964,7 +1000,7 @@ function addActions() {
   peerPosers.push(posePeer);
   // Gone from the tab at the front while someone waits: to the back.
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden && club.live && ["lane", "id", "ask"].includes(club.phase) && othersWaiting()) toBack();
+    if (document.hidden && club.live && ["lane", "id", "ask", "bandana"].includes(club.phase) && othersWaiting()) toBack();
   });
 }
 function lineAction() {
@@ -993,11 +1029,12 @@ function wireOut() {
   if (!w) return;
   const on = club.live && !!door();
   w.wb = on ? clubWear.band : 0;
+  w.fc = on && club.bandOff && game.localRig ? game.localRig.face : null;   // the bandana's off for everyone (net.js)
   w.cq = on && club.phase === "queued" ? Math.round(club.ticket) : 0;
   let ce = null;
   if (on) {
     if (club.kick) ce = `kick:${club.kick.li}:${club.kick.tc.toFixed(2)}`;
-    else if (["lane", "id", "ask", "band", "walk"].includes(club.phase)) ce = `${club.phase}:${Math.max(0, club.lane)}:${club.t.toFixed(2)}`;
+    else if (["lane", "id", "ask", "bandana", "band", "walk"].includes(club.phase)) ce = `${club.phase === "bandana" ? "ask" : club.phase}:${Math.max(0, club.lane)}:${club.t.toFixed(2)}`;
     else if (club.sit > 0.5) ce = "sit:0:0";
   }
   w.ce = ce;
@@ -1251,7 +1288,7 @@ function laneAct(l) {
   if (who === ME) {
     const at = game.move.pos;
     if (club.phase === "id") return { act: "check", to: at, k: club.t / T.idSecs };
-    if (club.phase === "ask") return { act: "ask", to: at };
+    if (club.phase === "ask" || club.phase === "bandana") return { act: "ask", to: at };
     if (club.phase === "band") return { act: "band", to: at, k: club.t / T.bandSecs, wrist: myWrist(_v) };
     return { act: "face", to: at };
   }
@@ -1633,9 +1670,16 @@ const ui = {
     this.card.hidden = false;
   },
   hideCard() { if (this.card) this.card.hidden = true; },
-  ask(fn) {
+  ask(fn, kind = "age") {
     this.mount();
     this.onAnswer = fn;
+    const bd = kind === "bandana";
+    this.dialog.querySelector("#club-ask-q").textContent = bd ? "Bandana off?" : "You 18 or older?";
+    const [y, n] = this.dialog.querySelectorAll("button");
+    y.firstChild.textContent = bd ? "Off it comes " : "Yeah ";
+    y.setAttribute("aria-label", bd ? "Yes, take the bandana off" : "Yeah, I'm 18 or older");
+    n.firstChild.textContent = bd ? "Keep it on " : "No ";
+    n.setAttribute("aria-label", bd ? "No, keep the bandana on" : "No, I'm under 18");
     releaseHeldInputs();
     this.wasLocked = !game.isTouch && !!document.pointerLockElement;
     if (this.wasLocked) game.controls?.unlock?.();
@@ -1731,7 +1775,7 @@ if (new URLSearchParams(location.search).has("tohooks")) {
       line: club.queue.map((e) => (e.me ? "me" : e.remote ? e.id : "npc")),
       remotes: [...club.remotes.values()].map((R) => ({
         id: R.id, ph: R.ph, lane: R.lane, cq: R.cq, kick: R.K ? +R.K.tc.toFixed(2) : -1,
-        band: R.rp.rig.band | 0, bandMesh: !!R.rp.rig.bandMesh?.parent, card: !!R.card?.visible,
+        face: R.rp.rig.face, band: R.rp.rig.band | 0, bandMesh: !!R.rp.rig.bandMesh?.parent, card: !!R.card?.visible,
         lie: +R.rp.rig.root.rotation.x.toFixed(2), y: +R.rp.rig.root.position.y.toFixed(2),
       })),
       lanes: club.lanes.map((l) => ({ who: l.who === ME ? "me" : l.who?.remote ? l.who.id : l.who ? "npc" : null, act: laneAct(l).act })),
