@@ -30,6 +30,7 @@ import { GuitarVoice, TrumpetVoice } from "../sound/instrument-voices.js?v=iv1-b
 import { PianoVoice } from "./rp-roles.js?v=rp1b7-cd1-sh1-dj2-or1-bw2";
 import { holdInstrument, poseInstrument, fpInstrument, hideFpInstrument } from "../characters/instruments.js?v=in1-bw2";
 import { SONGS, songParts, partEvents } from "../sound/songs.js?v=sg1-bw2";
+import { earshot, updateSaloonSound } from "./social-saloon-sound.js?v=ss1";
 
 export const BAND = {
   takeTime: 0.5,        // hold X at Cisco / Tex: take the instrument, or hand it back
@@ -185,12 +186,9 @@ function whereIs(who, kind) {
   const rp = game.remotes.byId.get(who);
   return rp ? { x: rp.pos.x, y: rp.pos.y + 1.5, z: rp.pos.z } : null;
 }
-/* How loud from where the camera is (on top of the panner's own falloff). */
-function nearGain(at) {
-  if (!at) return 0;
-  const d = Math.hypot(at.x - game.camera.position.x, at.z - game.camera.position.z);
-  return Math.max(0, Math.min(1, 1 - (d - 12) / 40));
-}
+/* How loud from where the camera is (on top of the panner's own falloff):
+   the saloon's walls between us count (social-saloon-sound.js). */
+const nearGain = (at) => earshot(at);
 
 /* ---------------------------------------------------------------- the room */
 
@@ -369,6 +367,7 @@ export function updateBand(dt) {
     if (kind) handBack(null);
     if (band.song) stopBand(false);
     holdInstrument(game.localRig, null);
+    updateSaloonSound(false);
     return;
   }
   // our hands: an instrument means no drink
@@ -393,6 +392,8 @@ export function updateBand(dt) {
     if (k === "trumpet" && v.sounding != null && now() - (p.ntAt || 0) > 4000) v.release();
   }
   stepBand();
+  // Pete on his own between songs, and the room's murmur
+  updateSaloonSound(!!band.song);
 }
 
 /* Our body, third person (view/third-person.js localPosers). */

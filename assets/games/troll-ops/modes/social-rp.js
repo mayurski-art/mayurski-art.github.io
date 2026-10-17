@@ -18,6 +18,7 @@ import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-
 import { playerName } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2";
 import { setSeatLookup } from "../net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2";
 import { ROLES, DOCTOR, TUNES, PianoVoice } from "./rp-roles.js?v=rp1b7-cd1-sh1-dj2-or1-bw2";
+import { earshot, stopSaloonSound } from "./social-saloon-sound.js?v=ss1";
 import { damp } from "../characters/anim-curves.js?v=or1";
 import { touchState } from "../input/touch.js?v=in1-th2-bp1-bf1-pd1-nf1";
 import { frozenPlayer, setTouchContext } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2";
@@ -53,6 +54,7 @@ export function resetBar() {
   bar.pourK = 0; bar.pourTap = null; bar.pourPose = 0;
   seated = null;
   stopPianos();
+  stopSaloonSound();
   piano.played = false; piano.tune = 0;
   npcYieldKey = "";
 }
@@ -421,8 +423,7 @@ function pianoKeyFrom(p, midi, beat = null) {
   p.pnSent.push(now);
   p.keysAt = now;
   piano.heard++;
-  const d = Math.hypot(s.x - game.camera.position.x, s.z - game.camera.position.z);
-  liveVoice(p.id, s).strike(midi, 0.8, Math.max(0, Math.min(1, 1 - (d - 10) / 28)) * 0.9, 0.8, piano.bandWhen?.(beat));
+  liveVoice(p.id, s).strike(midi, 0.8, earshot({ x: s.x, y: s.y, z: s.z }) * 0.9, 0.8, piano.bandWhen?.(beat));
 }
 
 export function standUp() {
@@ -536,9 +537,8 @@ function updateRp(dt) {
   for (const [id, w] of want) {
     let v = piano.voices.get(id);
     if (!v) { v = new PianoVoice(game.audio, { x: w.s.x, y: w.s.y + 0.6, z: w.s.z }, w.tune); piano.voices.set(id, v); }
-    // Loud in the saloon, gone a street away.
-    const d = Math.hypot(w.s.x - game.camera.position.x, w.s.z - game.camera.position.z);
-    v.update(Math.max(0, Math.min(1, 1 - (d - 10) / 28)) * 0.9);
+    // Loud in the saloon, quiet through its walls, gone a street away.
+    v.update(earshot({ x: w.s.x, y: w.s.y, z: w.s.z }) * 0.9);
   }
 }
 
