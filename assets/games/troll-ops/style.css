@@ -3892,6 +3892,81 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
 .to-bo2-perk p { margin: 4px 0 0; font: 14px "DM Sans", sans-serif; color: #d8cbbd; line-height: 1.4; }
 .to-bo2-perk em { display: block; margin-top: 6px; font: normal 12px "DM Mono", monospace; color: #ff8a1f; }
 @media (max-width: 760px) { .to-bo2-perk-icon { width: 64px; height: 64px; padding: 10px; } .to-bo2-perk b { font-size: 21px; } }
+/* Create a Class / a class: the whole class at once (menu/class-preview.js). */
+.to-bo2.has-cls #to-pf-center { display: none !important; }
+/* desktop layout only (phones hide the gun view): the gun gets shorter
+   there, so the whole class fits under it without a scroll */
+@container cab (min-aspect-ratio: 9/10) and (min-height: 521px) and (min-width: 761px) {
+  #to-title.is-bo2 .to-pf > .to-bo2.has-cls ~ .to-gun-view.is-hero { height: 24cqh; }
+  .to-bo2.has-cls.has-gun .to-bo2-detail { top: calc(100px + 24cqh + 14px); max-height: calc(100% - 210px - 24cqh); }
+}
+.to-cp[hidden] { display: none; }
+.to-cp { display: flex; flex-direction: column; gap: 14px; color: #f3ece4; }
+.to-cp small { display: block; font: 11px "DM Mono", monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--bo2-dim, #b8a898); }
+.to-cp b { display: block; font: 600 20px/1.15 Oswald, sans-serif; letter-spacing: .04em; text-transform: uppercase; overflow-wrap: anywhere; }
+.to-cp-head { display: flex; align-items: baseline; gap: 12px; border-bottom: 1px solid rgba(243,236,228,.14); padding-bottom: 10px; }
+.to-cp-head b { font-size: 24px; color: var(--bo2-hot, #ffb020); }
+.to-cp-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; }
+.to-cp-cell { min-width: 0; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.04); border: 1px solid rgba(243,236,228,.10); }
+.to-cp-chips { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.to-cp-chips li { font: 12px "DM Mono", monospace; padding: 3px 8px; border-radius: 999px; background: rgba(255,176,32,.14); color: #ffd590; border: 1px solid rgba(255,176,32,.35); }
+.to-cp-chips li.is-none { background: none; color: var(--bo2-dim, #b8a898); border-style: dashed; border-color: rgba(243,236,228,.25); }
+.to-cp-group h3 { margin: 0 0 8px; font: 12px "DM Mono", monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--bo2-dim, #b8a898); font-weight: 400; }
+.to-cp-perks, .to-cp-streaks { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.to-cp-perk, .to-cp-streak { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 8px; border-radius: 10px; background: rgba(255,255,255,.04); border: 1px solid rgba(243,236,228,.10); }
+.to-cp-txt { min-width: 0; }
+.to-cp-perk b, .to-cp-streak b { font-size: 16px; }
+.to-cp-perk small { color: var(--perk); }
+.to-cp-perk-icon { flex: none; width: 46px; height: 46px; padding: 8px; box-sizing: border-box; border-radius: 10px; color: #0d1410; background: var(--perk);
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.35), inset 0 -3px 0 rgba(0,0,0,.25); }
+.to-cp-perk-icon.is-empty, .to-cp-streak.is-empty .to-cp-badge { background: rgba(255,255,255,.06); border: 1px dashed rgba(243,236,228,.3); box-shadow: none; }
+.to-cp-perk-icon svg, .to-cp-badge svg { width: 100%; height: 100%; display: block; }
+.to-cp-badge { flex: none; width: 46px; height: 46px; border-radius: 10px; }
+.to-cp-streak.is-empty { opacity: .6; }
+/* phones and narrow panes: one weapon per line, the six tiles in a 2-up grid,
+   smaller icons, so the whole class fits the short pane under the list */
+@container cab (max-height: 520px) or (max-width: 760px) {
+  .to-cp { gap: 6px; }
+  .to-cp small { font-size: 10px; }
+  /* the list beside it already names the class (its title or hot row) */
+  .to-cp-head { display: none; }
+  .to-cp b { font-size: 15px; }
+  .to-cp-row { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .to-cp-cell { padding: 6px 8px; border-radius: 8px; }
+  .to-cp-chips { margin-top: 4px; gap: 4px; }
+  .to-cp-chips li { font-size: 10px; padding: 1px 6px; }
+  .to-cp-group h3 { margin-bottom: 4px; font-size: 10px; }
+  .to-cp-perks, .to-cp-streaks { gap: 6px; }
+  .to-cp-perk, .to-cp-streak { gap: 6px; padding: 5px; border-radius: 8px; }
+  .to-cp-perk-icon, .to-cp-badge { width: 28px; height: 28px; padding: 5px; border-radius: 7px; }
+  .to-cp-badge { padding: 0; }
+  .to-cp-perk b, .to-cp-streak b { font-size: 12.5px; }
+}
+.to-cp-perk b, .to-cp-streak b { overflow-wrap: normal; }
+/* sideways phones: the gun stays, shorter, in the right column */
+@container cab (min-aspect-ratio: 9/10) and ((max-height: 520px) or (max-width: 760px)) {
+  /* (92px floor: the gun must stay a real size, tools/troll-ops-class-preview-phone-test.mjs) */
+  #to-title.is-bo2 .to-pf > .to-bo2.has-cls ~ .to-gun-view.is-hero { height: max(92px, 21cqh); }
+  #to-title.is-bo2 .to-pf > .to-bo2.has-cls ~ .to-gun-view.is-hero .to-gun-hint { display: none; }
+  .to-bo2.has-cls.has-gun .to-bo2-detail { top: calc(54px + max(92px, 21cqh) + 8px); max-height: calc(100% - 54px - max(92px, 21cqh) - 8px - var(--foot-h, 36px) - 20px); padding: 8px 10px; }
+}
+/* every phone: the card goes two rows under the gun, the four weapon cells,
+   then the six perk + streak tiles */
+@container cab ((max-height: 520px) or (max-width: 760px)) or (max-aspect-ratio: 9/10) {
+  .to-cp { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+  .to-cp-row { display: contents; }
+  .to-cp-cell { padding: 5px 6px; }
+  .to-cp small { font-size: 9px; }
+  .to-cp b { font-size: 13px; }
+  .to-cp-chips li { font-size: 9px; padding: 0 5px; }
+  .to-cp-group { grid-column: span 2; }
+  .to-cp-group h3 { display: none; }
+  .to-cp-perks, .to-cp-streaks { gap: 5px; }
+  .to-cp-perk, .to-cp-streak { flex-direction: column; align-items: center; text-align: center; gap: 2px; padding: 3px; }
+  .to-cp-perk small, .to-cp-streak small { font-size: 8.5px; letter-spacing: .04em; }  .to-cp-perk-icon, .to-cp-badge { width: 24px; height: 24px; padding: 4px; border-radius: 6px; }
+  .to-cp-badge { padding: 0; }
+  .to-cp-perk b, .to-cp-streak b { font-size: 11px; }
+}
 .to-bo2-card[hidden], .to-bo2-clan[hidden], .to-bo2-card-share[hidden] { display: none; }
 /* Under your card: Share on X, Save as photo (menu/card-share.js). */
 .to-bo2-card-share { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }

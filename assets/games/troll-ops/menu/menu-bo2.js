@@ -36,6 +36,7 @@ import { makeTrollOpsProvider } from "../progression/leaderboard-rows.js?v=lr1-z
 const lbProvider = makeTrollOpsProvider();
 import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perksInTier, perkUnlocked, perkIconSvg } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1";
 import { STREAK_DEFS } from "../streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1";
+import { renderClassPreview } from "./class-preview.js?v=cp1";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
    calling cards and the private-match maps. */
@@ -287,6 +288,12 @@ function perkScreen(tier) {
     ],
   };
 }
+
+/* The whole class, in the detail pane (class-preview.js). */
+const classHost = document.createElement("div");
+classHost.className = "to-cp";
+classHost.setAttribute("role", "group");
+classHost.hidden = true;
 
 /* The perk you're on, big, in the detail pane (BO2's perk card). */
 const perkHost = document.createElement("div");
@@ -651,10 +658,10 @@ const screens = {
   classlist: () => {
     const L = game.loadout;
     return {
-      title: "Create a Class", panel: "loadout", detail: true, gun: true,
+      title: "Create a Class", panel: "loadout", detail: true, gun: true, cls: L.active,
       groups: [
         L.classes.map((c, i) => ({
-          id: `cl-${i}`, label: c.name, on: i === L.active, desc: L.classSummary(i),
+          id: `cl-${i}`, label: c.name, on: i === L.active, desc: L.classSummary(i), classIdx: i,
           onSelect: (_, m) => { L.setActiveClass(i); m.go("class"); },
         })),
         [back("Back to the main menu.")],
@@ -670,7 +677,7 @@ const screens = {
     const gearVal = (i) => { const cur = gearRow(i) && $$(".to-lo-gear", gearRow(i)).find(isOn); return cur ? strongOf(cur) : ""; };
     const streaks = [...L.classStreaks].filter((id) => STREAK_DEFS[id]).map((id) => STREAK_DEFS[id].short || STREAK_DEFS[id].name);
     return {
-      title: L.className, panel: "loadout", detail: true, gun: true,
+      title: L.className, panel: "loadout", detail: true, gun: true, cls: L.active,
       groups: [
         [
           { id: "primary", label: "Primary", value: primary, desc: "Your main weapon.", onSelect: (_, m) => { slot("primary"); m.go("classes"); } },
@@ -896,6 +903,9 @@ const menu = createBo2Menu(nav, {
     bodySearch.hidden = id !== "bodies";
     root.classList.toggle("has-perk", s.perk != null);
     if (s.perk != null) renderPerk(game.loadout.classPerks[s.perk], s.perk);
+    classHost.hidden = s.cls == null;
+    root.classList.toggle("has-cls", s.cls != null);
+    if (s.cls != null) renderClassPreview(classHost, game.loadout, lastHot?.classIdx ?? s.cls);
     renderCardHost();
     const ownBack = (s.groups || []).flat().some((it) => it && it.id === "back");
     $(".to-bo2-back", root).classList.toggle("is-on", m.depth() > 0 && !ownBack);
@@ -910,6 +920,8 @@ const menu = createBo2Menu(nav, {
     // A perk tier: the perk you're on (None shows the slot empty).
     const pt = /^perk-(\d)$/.exec(lastScreen || "");
     if (pt && it && (it.perkId || it.id === "pk-none")) renderPerk(it.perkId || null, +pt[1]);
+    // Create a Class: the class you're on, all of it (class-preview.js).
+    if (lastScreen === "classlist" && it?.classIdx != null) renderClassPreview(classHost, game.loadout, it.classIdx);
     if (!it) return;
     if (it.mapId) {
       const img = $("img", shot);
@@ -935,6 +947,7 @@ renameForm.innerHTML = `<label for="to-bo2-rename-in">Class name</label>`
   + `<small id="to-bo2-rename-help">Up to 16 letters. Enter saves, Esc cancels.</small>`;
 detail.prepend(renameForm);
 detail.prepend(perkHost);
+detail.prepend(classHost);
 const renameIn = $("input", renameForm);
 function stopRename() {
   renameForm.hidden = true;
