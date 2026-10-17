@@ -318,8 +318,16 @@ const HEAD_MODELS = {
   relief: { file: "head-relief.glb", dome: 0.065, front: 0.085, back: 0.19 },
   flat: { file: "head-flat.glb", dome: 0.05, front: 0.078, back: 0.15 },
   jaw: { file: "head-jaw.glb", dome: 0.07, front: 0.107, back: 0.16 },
+  // #989's own drawing: its outline and features (build_blocky_head -- variant 989)
+  // its eyes and forehead lines sit higher than the trollface's: the
+  // hairline (HAIRLINE) stays above them
+  989: { file: "head-989.glb", dome: 0.065, front: 0.085, back: 0.19, hairline: { top: 0.175, low: 0.13 } },
 };
-const headModel = () => HEAD_MODELS[HEAD.model] || HEAD_MODELS.relief;
+/* An NFT face drawn on a shape of its own wears its own head (rig.nftFace,
+   traits.js tokenFace; user, 2026-10-17: #989's drawing on the trollface
+   head didn't match it). */
+const FACE_HEADS = { gum: "989" };
+const headModel = (rig) => HEAD_MODELS[FACE_HEADS[rig?.nftFace]] || HEAD_MODELS[HEAD.model] || HEAD_MODELS.relief;
 const ARM_BONES = { arm: 0.30, elbow: 0.325 };
 const FIST_BACK = -0.058;   // the fist (0.125 long, down from the wrist) moved back up the forearm by half
 /* A Blender piece set: [{ name, geo, hull }], each with its ink shell (the
@@ -1264,20 +1272,22 @@ function wrapCard(plane, s, depth) {
    them to `low` at their tips, `points` across the face (user, 2026-10-17:
    a straight band looked bad). Built once per face. */
 const HAIRLINE = { top: 0.13, low: 0.07, points: 5, x: [-0.22, 0.22], out: 0.003 };
-const hairlineY = (x) => {
+// `h`: a head's own heights (HEAD_MODELS hairline), over HAIRLINE's
+const hairlineY = (x, h) => {
   const [x0, x1] = HAIRLINE.x, f = ((x - x0) / (x1 - x0)) * HAIRLINE.points;
   const t = Math.abs((f - Math.floor(f)) * 2 - 1);   // 1 between points, 0 at a tip
-  return HAIRLINE.low + (HAIRLINE.top - HAIRLINE.low) * t;
+  const { top, low } = { ...HAIRLINE, ...h };
+  return low + (top - low) * t;
 };
 const hairlines = new WeakMap();
-function hairline(faceGeo, mat) {
+function hairline(faceGeo, mat, h) {
   if (!hairlines.has(faceGeo)) {
     const pos = faceGeo.attributes.position, nrm = faceGeo.attributes.normal, idx = faceGeo.index;
     const keep = [];
     const n = idx ? idx.count : pos.count, at = (i) => (idx ? idx.getX(i) : i);
     for (let t = 0; t < n; t += 3) {
       const a = at(t), b = at(t + 1), c = at(t + 2);
-      const above = (i) => pos.getY(i) > hairlineY(pos.getX(i));
+      const above = (i) => pos.getY(i) > hairlineY(pos.getX(i), h);
       if (above(a) && above(b) && above(c)) keep.push(a, b, c);
     }
     const p = pos.array.slice();
@@ -1294,7 +1304,7 @@ function hairline(faceGeo, mat) {
 }
 function reliefHead(rig) {
   const p = rig.parts, s = rig.scale, board = p.head;
-  const M = headModel();
+  const M = headModel(rig);
   return loadPieces(glb(M.file)).then(async (pieces) => {
     // On the board itself (its turn undone), so it shows and hides with it
     // (the game sets the head's visibility: third person, cutscenes); the
@@ -1398,7 +1408,7 @@ function reliefHead(rig) {
       // 2026-10-17: no scalp under hair). The face's top strip, above the
       // brows, gets a skin of the hair's colour a hair's width out.
       const face = pieces.find((x) => x.mat === "trollface");
-      if (face) g.add(hairline(face.geo, matOf("hair")));
+      if (face) g.add(hairline(face.geo, matOf("hair"), M.hairline));
     }
     g.userData.undo = () => {
       board.layers.mask = mask;

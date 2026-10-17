@@ -54,8 +54,27 @@ VARIANTS = {
     # the jaw and chin as one big mass jutting further, the face less flat
     "jaw": dict(FRONT=0.07, P_FRONT=2.6, JUT=0.8, BACK=0.16, P_BACK=2.4, SKULL=0.1),
 }
+# A token's own face drawing gets a head of its own shape (user, 2026-10-17:
+# #989's drawing on the trollface head "seems like you would have to build
+# the head shape"): `ART` is traced for the outline and carved, and FEATURES
+# sit on that drawing (fractions of the art, which is drawn mirrored: the
+# game flips the head, HEAD.mirror).
+VARIANTS["989"] = dict(
+    ART=os.path.join(K.HERE, "..", "traits", "face-gum.png"),
+    FEATURES=[
+        (0.55, 0.72, 0.34, 0.20, 0.018),     # the big lower face and jaw
+        (0.79, 0.45, 0.11, 0.12, 0.014),     # cheek (viewer's left, the art's)
+        (0.26, 0.43, 0.11, 0.12, 0.014),     # cheek (viewer's right)
+        (0.445, 0.45, 0.05, 0.07, 0.012),    # nose
+        (0.425, 0.60, 0.065, 0.075, 0.014),  # the kiss
+        (0.54, 0.22, 0.34, 0.07, 0.008),     # brow, under the forehead lines
+        (0.695, 0.33, 0.08, 0.055, -0.008),  # eye, sunk
+        (0.41, 0.33, 0.08, 0.055, -0.008),   # eye, sunk
+    ])
+ART = K.TROLLFACE_PNG
 if len(ARGS) >= 2 and ARGS[0] == "variant":
     globals().update(VARIANTS[ARGS[1]])
+    K.TROLLFACE_PNG = os.path.normpath(ART)
     OUT = os.path.join(K.HERE, "blocky", f"head-{ARGS[1]}.glb")
     ARGS = ARGS[2:]
 
@@ -145,7 +164,7 @@ def build():
                           # the drawing round onto the rim, so its own thick
                           # black outline makes the edge (not plain skull)
                           rim_band=0.18)
-    img = bpy.data.images.load(K.TROLLFACE_PNG, check_existing=True)
+    img = bpy.data.images.load(os.path.normpath(ART), check_existing=True)
     dark = darkness_map(img)
     me = ob.data
     # Blender coords: game x = x, game y = z, game z = -y; the front is game z < 0

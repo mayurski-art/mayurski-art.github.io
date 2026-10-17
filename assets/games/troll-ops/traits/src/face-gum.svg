@@ -7,7 +7,9 @@
   for the face on the same head.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 730" width="800" height="730">
+  <g transform="translate(800 0) scale(-1 1)">
   <g transform="translate(-15.69 0.42) scale(0.5531 0.5443)">
     <image href="face-989-new.png" width="1472" height="1344"/>
+  </g>
   </g>
 </svg>
