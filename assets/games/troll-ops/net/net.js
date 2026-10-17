@@ -126,7 +126,7 @@ export class Net {
     this.peers = new Map();   // id -> { team, name, last, ... }
     // Trolling Loud's door (modes/club-entry.js keeps these current): the
     // wristband tier, the line ticket, the door phase "phase:lane:seconds".
-    this.club = { wb: 0, cq: 0, ce: null };
+    this.club = { wb: 0, cq: 0, ce: null, fc: null };
     this.trainAt = null;   // riding the Grin Express (modes/social-train.js)
     this.cuff = 0; this.jail = 0; this.wanted = null;   // Troll City's law (modes/social-sheriff.js)
     this.stetson = 0;   // a hat from Kek & Sons (modes/social-shop.js)
@@ -558,7 +558,7 @@ export class Net {
         rt: local.reload > 0 ? Math.round(local.reloadTime * 10) / 10 : undefined,   // ...and its length, s
         ro: local.roll > 0 ? round2(local.roll) : undefined,    // Royale landing roll, 0..1
         dr: local.drop || undefined,   // Royale drop: 1 aboard, 2 freefall, 3 glider; aboard, + (seat slot + 1) << 2
-        fc: local.face && local.face !== "grin:og" ? local.face : undefined,   // cosmetics.js face
+        fc: ((f) => (f && f !== "grin:og" ? f : undefined))(this.club.fc ?? local.face),   // cosmetics.js face
         sv: local.swivel || undefined,   // swivel: side (sign) * count, a new count = a new spin
         lv: local.level || undefined, pg: local.prestige || undefined, ow: local.owner ? 1 : undefined,   // rank
         bk: local.look || undefined,   // the TROLLS body worn, by token (cosmetics.js)
