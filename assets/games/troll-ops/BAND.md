@@ -30,6 +30,8 @@ Guitar and trumpet beside the piano; real sheet music (notes on a staff, scores)
    - **From the user's links:** Wabash Blues, Silent Night, Gymnopédie 1, Gnossienne 1, Bach Prelude in C, Chopin Prelude E minor, Schubert Serenade, Clair de Lune, Chopin Nocturne Op. 9 No. 2, Rondo alla Turca, Liebestraum 3.
 
    A startup check validates every part: each bar adds up, every note is in range, every chord is known.
+
+   **As built (40 songs):** the 12 first sheets; The Star-Spangled Banner; Cielito Lindo, La Cucaracha, Jarabe Tapatío, La Bamba (trad.), Habanera del Trollface and Corrido del Grin (originals); Taps, When the Saints, Amazing Grace, The Carnival of Venice, Flight of the Bumblebee; Red River Valley, Clementine, House of the Rising Sun, Greensleeves, Romance Anónimo; Minuet in G, Moonlight Sonata, Maple Leaf Rag; Silent Night, Gymnopédie 1, Gnossienne 1, Bach's Prelude in C, Chopin's E-minor Prelude and Nocturne Op. 9 No. 2, Clair de Lune, Rondo alla Turca. Each from a text source (songs.js notes which). **Left out** (no text source to check the notes): Las Mañanitas, La Adelita, La Llorona, Amapola, Malagueña, Reveille, Wabash Blues, Liebestraum 3, La Paloma (only a folk variant), Schubert's Ständchen (only a dance setting).
 10. The piano's blank sheet-music plank shows the open sheet (a canvas texture). Done last, and optional.
 
 ## Build order (four commits, one gate, one push; tag suffix `bd1`)
