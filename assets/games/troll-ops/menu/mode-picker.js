@@ -1,7 +1,7 @@
 // Troll Forces mode picker: the Play tab's mode list, prestige locks and the
 // per-mode lobby state (streak picker, forced map, map pool).
 
-import { MODES, MODE_IDS } from "../modes/modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1-or1";
+import { MODES, MODE_IDS } from "../modes/modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1-or1-ffa1";
 import { prestigeUnlocked } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
 import { streaksAllowed } from "../streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1";
 import { game } from "../core/state.js?v=st1";
@@ -9,7 +9,7 @@ import { game } from "../core/state.js?v=st1";
 /* The Play tab's mode list: versus modes first, then the solo ones, each a
    full-width row with a tick on the one you're deploying into. */
 const MODE_GROUPS = [
-  { label: "Versus", ids: ["tdm", "koth", "snd", "infection", "oitc", "gungame", "umb"] },
+  { label: "Versus", ids: ["tdm", "ffa", "koth", "snd", "infection", "oitc", "gungame", "umb"] },
   { label: "Solo", ids: ["ops", "zombies", "range"] },
   // Its own group so it stays out of the Versus list (the BO2 menu reads
   // the group headings: Socialize is its own main-menu entry).

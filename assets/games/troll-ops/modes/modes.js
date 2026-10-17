@@ -58,6 +58,17 @@ export const MODES = {
     blurb: "Trolls against Jeets. First side to 69 kills wins. No clock.",
   },
 
+  /* Free-for-all (user, 2026-10-17): plain deathmatch, every troll for
+     themselves, normal loadouts and scorestreaks. 30 is Black Ops 2's limit. */
+  ffa: {
+    id: "ffa",
+    name: "Free-for-All",
+    short: "Free-for-All",
+    pvp: true, ffa: true,
+    scoreLimit: 30,
+    blurb: "Every troll for themselves. First to 30 kills wins. No clock.",
+  },
+
   koth: {
     id: "koth",
     name: "King of the Hill",
@@ -254,7 +265,7 @@ export function matchWinner(mode, { teamScores, selfScore, selfName, peers }) {
   if (!limit) return null;
 
   if (mode.ffa) {
-    if (selfScore >= limit) return `${selfName} wins`;
+    if (selfScore >= limit) return selfName === "You" ? "You win" : `${selfName} wins`;
     for (const p of peers) {
       if ((p.kills | 0) >= limit) return `${p.name} wins`;
     }
@@ -279,7 +290,7 @@ export function matchWinnerOnTimeout(mode, { teamScores, selfScore, selfName, pe
       if (k > bestScore) { bestScore = k; bestName = p.name; tie = false; }
       else if (k === bestScore) tie = true;
     }
-    return tie ? "Time's up — tie" : `${bestName} wins`;
+    return tie ? "Time's up — tie" : bestName === "You" ? "You win" : `${bestName} wins`;
   }
 
   if (teamScores.phantom === teamScores.ghost) return "Time's up — tie";
