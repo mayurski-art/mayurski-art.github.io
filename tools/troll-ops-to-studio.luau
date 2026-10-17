@@ -199,6 +199,8 @@ local ok, res = pcall(function()
 		mp.DoubleSided = m.doubleSided or false
 		mp:SetAttribute("Joint", m.joint)
 		mp:SetAttribute("Offset", CFrame.new(mid))
+		-- a blank spot whose art goes in later (the trollface badges)
+		if m.placeholder then mp:SetAttribute("Placeholder", m.placeholder); mp.Name = mp.Name .. "_PLACEHOLDER" end
 		mp.CFrame = CFrame.new(mid)
 		mp.Parent = traitModel(m.trait or "clothes")
 		made += 1

@@ -206,6 +206,8 @@ data = await page.evaluate(async ({ TOKEN, PIECES }) => {
       meshes.push({
         name: (o.name || o.parent?.name || "piece").slice(0, 40), joint,
         trait: traitOf.get(o) === "clothes" && HEAD_JOINTS.has(joint) ? "base" : traitOf.get(o) || "clothes",
+        // a spot waiting for its art (blocky-body.js: the trollface badges)
+        placeholder: o.userData.placeholder || null,
         chain: (() => { const c = []; for (let q = o; q && q !== rig.root && !byObj.has(q); q = q.parent) c.push((q.name || "?") + (Object.keys(q.userData).length ? "{" + Object.keys(q.userData).join(",") + "}" : "")); return c.join(" < "); })(),
         color: [c.r, c.g, c.b].map((x) => +x.toFixed(4)),   // linear
         tex: texOf(mat.map), transparent: !!mat.transparent || mat.alphaTest > 0, opacity: mat.opacity ?? 1,
