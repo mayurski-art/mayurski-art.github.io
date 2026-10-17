@@ -426,24 +426,28 @@ const art = (t) => DESIGN.TRAIT_ART[traits[t]] || "";
    (tools/troll-ops-roblox-body.mjs -> models/blocky/{arms,legs,torso}-<id>.glb,
    painted). ?pieces=<id> picks one on load. */
 const ROBLOX_BODIES = { rbx989: "Roblox Studio #989" };
+// A garment whose live kit is a Roblox body keeps its Blender pieces here,
+// for "Blender" (the Sensei: #989 wears the Studio body in game since 2026-10-17)
+const BLENDER_PIECES = { "clothes-sensei": { legs: "legs-sensei.glb", torso: undefined, plainArms: undefined, headLift: undefined } };
 function setPieces(garment, id) {
   const rbx = ROBLOX_BODIES[id];
+  const blender = { ...DEFAULTS.KITS[garment], ...BLENDER_PIECES[garment] };
   // the arms stay the garment's Blender ones (simpler and clean: the Studio
   // arms' fine bumps speckled their ink; user, 2026-10-17)
   for (const part of ["legs", "torso"])
-    edit(["KITS", garment, part], rbx ? `${part}-${id}.glb` : DEFAULTS.KITS[garment][part]);
+    edit(["KITS", garment, part], rbx ? `${part}-${id}.glb` : blender[part]);
   edit(["KITS", garment, "arms"], DEFAULTS.KITS[garment].arms);
   edit(["KITS", garment, "fists"], DEFAULTS.KITS[garment].fists);
   // plain arms in their sleeves, no bicep or tricep bulges
-  edit(["KITS", garment, "plainArms"], rbx ? true : DEFAULTS.KITS[garment].plainArms);
+  edit(["KITS", garment, "plainArms"], rbx ? true : blender.plainArms);
   // the head held up off the torso's collar
-  edit(["KITS", garment, "headLift"], rbx ? 0.03 : DEFAULTS.KITS[garment].headLift);
+  edit(["KITS", garment, "headLift"], rbx ? 0.03 : blender.headLift);
 }
 function piecesRow(garment) {
   const id = "p" + uid++;
   const sel = el("select", { id, on: { change: (e) => { setPieces(garment, e.target.value); renderTuning(); } } },
-    el("option", { value: "" }, "Blender (live)"),
-    ...Object.entries(ROBLOX_BODIES).map(([k, v]) => el("option", { value: k }, v)));
+    el("option", { value: "" }, BLENDER_PIECES[garment] ? "Blender" : "Blender (live)"),
+    ...Object.entries(ROBLOX_BODIES).map(([k, v]) => el("option", { value: k }, DEFAULTS.KITS[garment].legs === `legs-${k}.glb` ? `${v} (live)` : v)));
   const legs = valueOf(["KITS", garment, "legs"]);
   sel.value = Object.keys(ROBLOX_BODIES).find((k) => legs === `legs-${k}.glb`) || "";
   return el("div", { class: "row" + (edited(["KITS", garment, "legs"]) ? " edited" : "") }, el("label", { for: id }, "Body pieces"), sel);
@@ -679,7 +683,7 @@ $("abBtn").onclick = () => {
 };
 
 // Poses: the game's own pose code; emotes loop
-const POSES = [["idle", "Idle"], ["ready", "Port arms (menu)"], ["walk", "Walk"], ["run", "Run"], ["aim", "Aim"], ["shoot", "Shoot"], ["death", "Death"]];
+const POSES = [["idle", "Idle"], ["ready", "Port arms (menu)"], ["walk", "Walk"], ["run", "Run"], ["sprint", "Sprint (Studio clip)"], ["aim", "Aim"], ["shoot", "Shoot"], ["death", "Death"]];
 for (const [i, e] of EMOTES.entries()) POSES.push(["emote:" + i, "Emote: " + e.name]);
 let pose = POSES.some(([k]) => k === q.get("pose")) ? q.get("pose") : "idle", t0 = performance.now();
 $("pose").replaceChildren(...POSES.map(([k, n]) => el("option", { value: k }, n)));
@@ -698,8 +702,9 @@ function setGun(id) {
 
 function poseRig(r, t, dt, travel) {
   const rig = r.rig;
-  const armed = pose === "aim" || pose === "shoot" || pose === "ready", firing = pose === "shoot";
-  const moving = pose === "walk" || pose === "run", mps = pose === "run" ? 5.5 : 2.2;
+  const armed = pose === "aim" || pose === "shoot" || pose === "ready" || pose === "sprint", firing = pose === "shoot";
+  // (sprint: a player's 7 m/s, where the Roblox Studio sprint clips play)
+  const moving = pose === "walk" || pose === "run" || pose === "sprint", mps = pose === "sprint" ? 7.02 : pose === "run" ? 5.5 : 2.2;
   r.gun.visible = armed;
   rig.root.position.z = -travel;
   if (pose.startsWith("emote:")) {
@@ -763,8 +768,8 @@ renderer.setAnimationLoop((now) => {
   if (spin) want.yaw += dt * 0.5;
   const e = Math.min(1, dt * 7);
   orbit.yaw += (want.yaw - orbit.yaw) * e; orbit.pitch += (want.pitch - orbit.pitch) * e; orbit.dist += (want.dist - orbit.dist) * e;
-  const moving = pose === "walk" || pose === "run";
-  travel = moving ? (travel + dt * (pose === "run" ? 5.5 : 2.2)) % 30 : 0;
+  const moving = pose === "walk" || pose === "run" || pose === "sprint";
+  travel = moving ? (travel + dt * (pose === "sprint" ? 7.02 : pose === "run" ? 5.5 : 2.2)) % 30 : 0;
   poseRig(mine, t, dt, travel);
   if (ab) poseRig(game, t, dt, travel);
   placeCamera();

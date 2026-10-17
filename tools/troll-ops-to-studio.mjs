@@ -159,6 +159,7 @@ data = await page.evaluate(async ({ TOKEN, PIECES }) => {
       const c = mat.color ? mat.color.clone() : new THREE.Color(1, 1, 1);
       meshes.push({
         name: (o.name || o.parent?.name || "piece").slice(0, 40), joint,
+        chain: (() => { const c = []; for (let q = o; q && q !== rig.root && !byObj.has(q); q = q.parent) c.push((q.name || "?") + (Object.keys(q.userData).length ? "{" + Object.keys(q.userData).join(",") + "}" : "")); return c.join(" < "); })(),
         color: [c.r, c.g, c.b].map((x) => +x.toFixed(4)),   // linear
         tex: texOf(mat.map), transparent: !!mat.transparent || mat.alphaTest > 0, opacity: mat.opacity ?? 1,
         doubleSided: mat.side === THREE.DoubleSide,
@@ -168,7 +169,7 @@ data = await page.evaluate(async ({ TOKEN, PIECES }) => {
   });
   const index = {
     token: TOKEN, pieces: PIECES || null, garment: garment || null,
-    joints, meshes: meshes.map((m, i) => ({ i, name: m.name, joint: m.joint, verts: m.v.length / 3, tris: m.tri.length / 3, tex: m.tex })),
+    joints, meshes: meshes.map((m, i) => ({ i, name: m.name, joint: m.joint, chain: m.chain, verts: m.v.length / 3, tris: m.tri.length / 3, tex: m.tex })),
     textures: texSize.map(([w, h, flipY], i) => ({ i, w, h, flipY, chars: textures[i].length })),
   };
   return { index, meshes, textures };
@@ -177,6 +178,6 @@ await browser.close();
 if (errors.length) console.log("page errors:\n  " + errors.join("\n  "));
 const tris = data.index.meshes.reduce((s, m) => s + m.tris, 0);
 console.log(`TROLLS #${TOKEN}${PIECES ? ` on ${PIECES}` : ""}: ${data.index.joints.length} joints, ${data.index.meshes.length} meshes (${tris} triangles), ${data.index.textures.length} textures`);
-for (const m of data.index.meshes) console.log(`  ${String(m.i).padStart(2)} ${m.joint.padEnd(10)} ${String(m.tris).padStart(6)} tris  tex ${m.tex}  ${m.name}`);
+for (const m of data.index.meshes) console.log(`  ${String(m.i).padStart(2)} ${m.joint.padEnd(10)} ${String(m.tris).padStart(6)} tris  tex ${m.tex}  ${m.chain}`);
 console.log(`serving on http://127.0.0.1:${PORT}/index.json: run tools/troll-ops-to-studio.luau in Studio`);
 setTimeout(() => { console.log("timed out"); process.exit(0); }, 15 * 60 * 1000);
