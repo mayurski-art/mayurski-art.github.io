@@ -16,8 +16,8 @@
 // (modes/social-rp.js for the piano, modes/social-band.js for the others).
 // Esc closes it; keys are caught in the capture phase while it's open.
 
-import { SONGS, LEVELS, songsFor, playNotes, partEvents, chordTones, guitarVoicing, midiName, LOW, HIGH } from "../songs.js?v=sg1";
-import { scoreSvg, beatX, valves } from "../notation.js?v=nt1";
+import { SONGS, LEVELS, songsFor, playNotes, partEvents, chordTones, guitarVoicing, midiName, LOW, HIGH } from "../sound/songs.js?v=sg1-bw2";
+import { scoreSvg, beatX, valves } from "./notation.js?v=nt1-bw2";
 
 /* Key code -> midi. Bottom row C3-B3, top row C4-B4, then I 9 O 0 P [ = ]
    up to G5. */

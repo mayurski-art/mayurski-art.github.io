@@ -45,9 +45,7 @@ import {
 } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1";
 import { BEATS } from "../sound/music-beats.js?v=bg1-sg1-zr10-jb1-nh1-hl1-or1";
 import { pickOutfit } from "../characters/outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1-or1";
-import { BEATS } from "./music-beats.js?v=bg1";
-import { pickOutfit } from "./outfits.js?v=of1m1-nc1-cd1-sh1-hs1";
-import { buildKitchen, kitchenMaterials, hopBackLight, PASS_HATCH } from "./trollingloud-kitchen.js?v=kt1";
+import { buildKitchen, kitchenMaterials, hopBackLight, PASS_HATCH } from "./trollingloud-kitchen.js?v=kt1-bw2";
 
 /* ============================================================== the plan */
 

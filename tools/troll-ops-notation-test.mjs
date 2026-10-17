@@ -11,8 +11,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DIR = path.join(ROOT, "assets", "games", "troll-ops");
-const S = await import(pathToFileURL(path.join(DIR, "songs.js")).href);
-const N = await import(pathToFileURL(path.join(DIR, "notation.js")).href);
+const S = await import(pathToFileURL(path.join(DIR, "sound/songs.js")).href);
+const N = await import(pathToFileURL(path.join(DIR, "menu/notation.js")).href);
 
 let failures = 0;
 const check = (name, ok, detail = "") => { console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  (${detail})` : ""}`); if (!ok) failures++; };

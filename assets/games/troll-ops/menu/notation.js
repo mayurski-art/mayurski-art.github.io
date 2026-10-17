@@ -11,7 +11,7 @@
 // <g class="nt" data-i="n">, n counting as songs.js playNotes() does, so
 // the panel can light the next one.
 
-import { songParts, splitBeats } from "./songs.js?v=sg1";
+import { songParts, splitBeats } from "../sound/songs.js?v=sg1-bw2";
 
 const SP = 8;              // a staff space
 const STAFF = 4 * SP;      // bottom line to top line

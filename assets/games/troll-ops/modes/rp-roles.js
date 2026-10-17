@@ -9,7 +9,7 @@
 // trollcity.js lists the seats and job spots on the map as `rp`.
 
 import * as THREE from "three";
-import { TUNES } from "./songs.js?v=sg1";
+import { TUNES } from "../sound/songs.js?v=sg1-bw2";
 export { TUNES };
 
 /* The jobs. One player each; `npc` is the townsfolk role that steps off
