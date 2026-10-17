@@ -496,8 +496,8 @@ const HATS = {
   "hat-camper": { ink: "#8f8862", brim: [352, 452], brimFront: 0.13, brimBack: 0.26, ease: 16 },
   // a flat cap: its bill out in front only (no brimBack: the crown all round behind)
   "hat-baker": { ink: "#1d1c17", brim: [345, 420], brimFront: 0.105, ease: 14 },
-  // the wizard's floppy brim all round; the cone stands on the crown's ellipsoid
-  "hat-magician": { ink: "#16188c", brim: [320, 432], brimFront: 0.15, brimBack: 0.28, ease: 16 },
+  // the wizard's hat is modelled whole (wizardHat): a bent cone on a wavy brim
+  "hat-magician": { ink: "#16188c", brim: [320, 432], brimFront: 0.15, brimBack: 0.28, ease: 16, model: "wizard" },
   // trucker caps: the bill out in front only, mesh behind
   "hat-trucker-microsoft": { ink: "#b8305a", brim: [345, 448], brimFront: 0.13, ease: 14 },
   "hat-trucker-yobucks": { ink: "#c9c9c2", brim: [345, 448], brimFront: 0.13, ease: 14 },
@@ -522,10 +522,116 @@ const brimDepth = (x, s, d) => d * s * Math.sqrt(Math.max(0, 1 - (x / (CAP.a * s
 function loadImage(url) {
   return new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = url; });
 }
+/* The wizard's hat (#33, HATS model "wizard"), built as a real hat rather
+   than its drawing pushed out: pushed out, the cone was a thin fin from the
+   side, its walls smeared the drawing into streaks and the brim was a flat
+   slab (user, 2026-10-16: "fix the wizard hat for #33"). Like the NFT: a
+   tapering cone round the crown that flops back and to the viewer's left
+   with a drooping tip, on a wide, softly wavy brim, blue with yellow
+   stars, cel-shaded, outlined by the ink pass. In the head pivot's frame
+   (-z the front); `y` the brim's height, and the crown sized off the cap's
+   ellipse (CAP) so it sits over the head like the caps. */
+// crown: the base's half-width and its front and back (metres at scale 1: the
+// face is 0.24 either side of the middle, its brow ~0.075 in front, the skull
+// 0.19 behind); brim: its half-width and half-depth
+const WIZARD = { blue: "#2532c9", under: "#151d8f", star: "#f6c52f", height: 0.46, bend: [0.24, 0.08], droop: 0.05,
+  crown: [0.27, 0.1, 0.215], brim: [0.38, 0.33], wave: 0.014, sag: 0.022, thick: 0.012, stars: 14, band: 0.03 };
+let wizardTex = null;
+function wizardStars() {
+  if (wizardTex) return wizardTex;
+  const c = document.createElement("canvas"); c.width = 1024; c.height = 512;
+  const g = c.getContext("2d");
+  g.fillStyle = WIZARD.blue; g.fillRect(0, 0, c.width, c.height);
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+  for (let n = 0; n < WIZARD.stars; n++) {
+    const x = rnd() * c.width, y = 40 + rnd() * (c.height - 80), r = 34 + rnd() * 16, rot = rnd() * Math.PI;
+    for (const dx of [-c.width, 0, c.width]) {   // wrapped round the seam
+      g.beginPath();
+      for (let k = 0; k < 10; k++) {
+        const a = rot + (k * Math.PI) / 5, rr = k % 2 ? r * 0.45 : r;
+        g.lineTo(x + dx + Math.cos(a) * rr, y + Math.sin(a) * rr);
+      }
+      g.closePath();
+      g.fillStyle = WIZARD.star; g.fill();
+      g.lineWidth = 3; g.strokeStyle = "#0a0a0a"; g.stroke();
+    }
+  }
+  wizardTex = new THREE.CanvasTexture(c);
+  wizardTex.colorSpace = THREE.SRGBColorSpace;
+  wizardTex.wrapS = wizardTex.wrapT = THREE.RepeatWrapping;
+  wizardTex.anisotropy = 8;
+  return wizardTex;
+}
+function wizardHat(y, s) {
+  const W = WIZARD, map = wizardStars();
+  const cloth = addRim(new THREE.MeshToonMaterial({ map, gradientMap: CLOTH_TONES, emissive: 0xffffff, emissiveMap: map, emissiveIntensity: 0.12 }));
+  const under = toon(new THREE.Color(W.under).getHex());
+  const ax = W.crown[0] * s, az = ((W.crown[1] + W.crown[2]) / 2) * s, zc = ((W.crown[2] - W.crown[1]) / 2) * s;
+  const N = 48, K = 28, TAU = Math.PI * 2;
+  // the cone: rings up a bent centre line, tapering to a drooping tip
+  const pos = [], uv = [], idx = [];
+  for (let k = 0; k <= K; k++) {
+    // the centre line rises, leaning more and more to the side, and over
+    // its last third flops sideways and a little down to a point
+    const t = k / K, taper = Math.pow(1 - t, 0.9), flop = Math.max(0, t - 0.62) / 0.38;
+    const cx = W.bend[0] * s * (t * t * 0.6 + flop * flop * 0.9), cz = zc + W.bend[1] * s * t * t;
+    const cy = y + W.height * s * Math.min(t, 0.62 + 0.38 * Math.sin(flop * Math.PI / 2) * 0.55) - W.droop * s * flop * flop * flop;
+    for (let i = 0; i <= N; i++) {
+      const a = (i / N) * TAU;
+      pos.push(cx + Math.cos(a) * ax * taper, cy, cz + Math.sin(a) * az * taper);
+      uv.push(i / N, t * 0.9 + 0.05);
+    }
+  }
+  for (let k = 0; k < K; k++) for (let i = 0; i < N; i++) {
+    const a = k * (N + 1) + i, b = a + N + 1;
+    idx.push(a, b, a + 1, a + 1, b, b + 1);
+  }
+  const cone = new THREE.BufferGeometry();
+  cone.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  cone.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  cone.setIndex(idx);
+  cone.computeVertexNormals();
+  // the brim: a ring from just inside the crown out to its wavy, sagging edge,
+  // a top and an underside a few mm apart, joined round the rim
+  const R = 10, bp = [], buv = [], top = [], bot = [], rim = [];
+  const ring = (j, i, lower) => {
+    const r = j / R, a = (i / N) * TAU;
+    // (at r 0 just inside the crown: tucked under the cone)
+    const rx = ax * 0.9 + (W.brim[0] * s - ax * 0.9) * r, rz = az * 0.9 + (W.brim[1] * s - az * 0.9) * r;
+    const yy = y + (W.wave * s * Math.sin(3 * a + 0.6) - W.sag * s) * r * r - (lower ? W.thick * s : 0);
+    bp.push(Math.cos(a) * rx, yy, zc + Math.sin(a) * rz);
+    buv.push(0.5 + (Math.cos(a) * rx) / (0.62 * s), 0.5 + (Math.sin(a) * rz) / (0.31 * s));   // seen from above, so its stars keep their shape
+  };
+  for (const lower of [false, true]) for (let j = 0; j <= R; j++) for (let i = 0; i <= N; i++) ring(j, i, lower);
+  const at = (lower, j, i) => (lower ? (R + 1) * (N + 1) : 0) + j * (N + 1) + i;
+  for (let j = 0; j < R; j++) for (let i = 0; i < N; i++) {
+    top.push(at(0, j, i), at(0, j, i + 1), at(0, j + 1, i), at(0, j, i + 1), at(0, j + 1, i + 1), at(0, j + 1, i));
+    bot.push(at(1, j, i), at(1, j + 1, i), at(1, j, i + 1), at(1, j, i + 1), at(1, j + 1, i), at(1, j + 1, i + 1));
+  }
+  for (let i = 0; i < N; i++) rim.push(at(0, R, i), at(0, R, i + 1), at(1, R, i), at(0, R, i + 1), at(1, R, i + 1), at(1, R, i));
+  const brim = new THREE.BufferGeometry();
+  brim.setAttribute("position", new THREE.Float32BufferAttribute(bp, 3));
+  brim.setAttribute("uv", new THREE.Float32BufferAttribute(buv, 2));
+  brim.setIndex([...top, ...rim, ...bot]);
+  brim.addGroup(0, top.length + rim.length, 0);
+  brim.addGroup(top.length + rim.length, bot.length, 1);
+  brim.computeVertexNormals();
+  // the dark hatband round the cone's foot, a hair outside it
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(1.012, 1.03, W.band * s, N, 1, true), toon(0x0d1150));
+  band.scale.set(ax, 1, az);
+  band.position.set(0, y + (W.band / 2) * s + 0.002 * s, zc);
+  const hat = new THREE.Group();
+  for (const m of [new THREE.Mesh(cone, cloth), new THREE.Mesh(brim, [cloth, under]), band]) { m.castShadow = true; hat.add(m); }
+  return hat;
+}
+
 async function capVolume(id, plane, centreY, s) {
   const { width: w, height: h } = plane.geometry.parameters;
   const y0 = plane.position.y - h / 2;
   const hat = HATS[id] || HATS["hat-goatfarm"];
+  // a hat modelled whole (the wizard's), the brim just under its band's top (on the brow, like the NFT)
+  if (hat.model === "wizard") return wizardHat(y0 + h - ((hat.brim[0] + 45) / 1033) * h, s);
   // the brim band in the plane's y (frame y runs down from the plane's top)
   const frameY = (Y) => y0 + h - (Y / 1033) * h;
   const brim = hat.brim ? [frameY(hat.brim[1]), frameY(hat.brim[0])] : null;
