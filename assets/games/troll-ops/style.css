@@ -1285,10 +1285,13 @@ body.to-social:not(.to-social-armed) #to-touch-interact { display: none !importa
    under the crosshair. The newest is on top; older ones shrink and fade.
    Opaque by default and animated from there: if the animation never runs
    (reduced motion, a throttled or headless tab) the medal still shows. */
+/* Medals pop just ABOVE the crosshair (user, 2026-10-17): under it they sat
+   on the streak devices held low in the view (the tablet, the nuke handheld).
+   The newest is nearest the crosshair; older ones shrink away upward. */
 .to-ks-badges {
-  position: absolute; left: 50%; top: 60%; transform: translateX(-50%);
+  position: absolute; left: 50%; bottom: calc(50% + 30px); transform: translateX(-50%);
   width: min(70vw, 440px);
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  display: flex; flex-direction: column-reverse; align-items: center; gap: 2px;
   pointer-events: none; z-index: 14;
 }
 .to-medal-pop {
@@ -1309,7 +1312,7 @@ body.to-social:not(.to-social-armed) #to-touch-interact { display: none !importa
   font-family: "Oswald", sans-serif; font-weight: 500; font-size: clamp(14px, 2vh, 19px);
   letter-spacing: .04em; line-height: 1.1; color: #f5b82e; text-shadow: 0 2px 0 rgba(0,0,0,.5);
 }
-.to-medal-pop.is-old { opacity: .5; transform: scale(.72); margin-top: -6px; }
+.to-medal-pop.is-old { opacity: .5; transform: scale(.72); margin-bottom: -6px; }
 .to-medal-pop.is-old .to-medal-icon { display: none; }
 @keyframes to-medal-in {
   from { transform: scale(1.9); }
@@ -4611,3 +4614,18 @@ body.to-touch-play .to-nuke { top: 22%; }
 @media (prefers-reduced-motion: reduce) {
   .to-nuke-ready, .to-nuke-tint, .to-nuke-count.is-tick { animation: none; }
 }
+
+/* Medal splash on short screens: no room for the stack of three between the
+   streak banner and the crosshair, so only the newest shows. On a phone the
+   gap is about 44px, so the medal becomes one line, small badge then name,
+   tucked just over the crosshair (user, 2026-10-17: keep the held devices
+   and the streak strip clear). */
+@media (max-height: 640px) {
+  .to-medal-pop.is-old { display: none; }
+  .to-ks-badges { bottom: calc(50% + 22px); }
+}
+body.to-touch-play .to-ks-badges { bottom: calc(50% + 11px); }
+body.to-touch-play .to-medal-pop { flex-direction: row; align-items: center; gap: 6px; }
+body.to-touch-play .to-medal-icon { width: 24px; }
+body.to-touch-play .to-medal-name { font-size: 17px; }
+body.to-touch-play .to-medal-pts { font-size: 14px; }
