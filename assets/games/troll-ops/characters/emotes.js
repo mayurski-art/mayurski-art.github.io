@@ -19,7 +19,7 @@
 
 import * as THREE from "three";
 import { DANCES, setHandPose, setFace, resetSecondaryJoints, reachHand, placeFoot, beginPose, endPose } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2";
-import { LeanKit, LEAN, LEAN_SECONDS, leanFp } from "../weapons/lean-cup.js?v=ng1-or1";
+import { LeanKit, LEAN, LEAN_SECONDS, leanFp } from "../weapons/lean-cup.js?v=ng1-or1-lp1";
 
 const PI = Math.PI;
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -353,7 +353,7 @@ let fpLean = null;
 function fpLeanProps(parent, handR, handL, t) { (fpLean ||= new LeanKit()).fp(parent, handR, handL, t); }
 export function hideFpEmoteProps() { fpLean?.hide(); }
 /* Where arm `side`'s rod should end on a held prop, or null. */
-export function fpEmoteRodTip(side, from, hand, out) { return fpLean ? fpLean.rodTip(side, from, hand, out) : null; }
+export function fpEmoteRodTip(side, from, hand, out, pad = 0) { return fpLean ? fpLean.rodTip(side, from, hand, out, pad) : null; }
 
 /* -------------------------------------------------------------- duo */
 // Both players face each other; each pose is written from its own side, so

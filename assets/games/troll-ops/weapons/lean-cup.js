@@ -276,13 +276,13 @@ const ROD_TIP = 0.0065;
 /* Does the segment from `a` to `b` (stopping just short of b) pass
    inside the prop's surface? Sampled; props are local, a dozen samples do. */
 const _rc = new THREE.Vector3(), _rdH = new THREE.Vector3(), _rdS = new THREE.Vector3();
-function rodCuts(obj, a, b, fit, s) {
+function rodCuts(obj, a, b, fit, s, pad = 0) {
   const rFn = obj.userData.mouth ? (y) => (y >= 0 && y <= BOTTLE.h ? BOTTLE.r : -1) : (y) => (y >= 0 && y <= CUP.h + CUP.stack ? CUP.bot + (CUP.top - CUP.bot) * Math.min(1, y / CUP.h) : -1);
   for (let i = 1; i < 14; i++) {
     _rc.lerpVectors(a, b, i / 15);
     obj.worldToLocal(_rc.applyMatrix4(obj.parent.matrixWorld));
     const r0 = rFn(_rc.y);
-    if (r0 > 0 && Math.hypot(_rc.x, _rc.z) < r0) return true;
+    if (r0 > 0 && Math.hypot(_rc.x, _rc.z) < r0 + pad) return true;
   }
   return false;
 }   // the rod's tip radius (game.js streakArms)
@@ -338,18 +338,23 @@ export class LeanKit {
      the hand would be (`hand`: that hand's position) so you see it touch.
      If the rod would cut through the prop on its way there, the touch point
      turns toward the shoulder until it doesn't. Null when that hand isn't
-     holding anything. Same space as fp()'s `parent`. */
-  rodTip(side, from, hand, out) {
+     holding anything. Same space as fp()'s `parent`. `pad`: a TROLLS
+     body's block arm ends in a fist (view/weapon-view.js blockFistPad), so
+     it stops that much further off and clears the prop by its width. */
+  rodTip(side, from, hand, out, pad = 0) {
     const obj = side > 0 ? this.cup : this.bottle, fit = side > 0 ? GRIP.cup : GRIP.bottle;
     if (!obj.visible || !obj.parent) return null;
-    const s = obj.scale.x, rr = fit.r * s + ROD_TIP;
+    const s = obj.scale.x, rr = fit.r * s + ROD_TIP + pad;
     const axis = _ax.set(0, 1, 0).applyQuaternion(obj.quaternion);
+    // (a block fist holds the bottle by its base, tipped up away from the
+    // cup: on its side the fat arm lay right across it)
+    if (pad && side < 0) return out.copy(axis).multiplyScalar(-pad).add(obj.position);
     const p = _rimW.copy(axis).multiplyScalar(fit.h * s).add(obj.position);
     const flat = (v, o) => o.subVectors(v, p).addScaledVector(axis, -o.subVectors(v, p).dot(axis)).normalize();
     const dHand = flat(hand, _rdH), dShoulder = flat(from, _rdS);
     for (let k = 0; k <= 1.0001; k += 0.125) {
       out.copy(dHand).lerp(dShoulder, k).normalize().multiplyScalar(rr).add(p);
-      if (!rodCuts(obj, from, out, fit, s)) return out;
+      if (!rodCuts(obj, from, out, fit, s, pad)) return out;
     }
     return out;
   }

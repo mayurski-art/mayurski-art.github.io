@@ -10,8 +10,8 @@
 // it at once. Local only: nothing goes on the wire.
 
 import { game } from "../core/state.js?v=st1";
-import { EMOTES } from "../characters/emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-nb2-pc2-cf1-gs2-lh1-fg2";
-import { LEAN } from "../weapons/lean-cup.js?v=ng1-or1";
+import { EMOTES } from "../characters/emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-nb2-pc2-cf1-gs2-lh1-fg2-lp1";
+import { LEAN } from "../weapons/lean-cup.js?v=ng1-or1-lp1";
 
 export const TRIP = {
   seconds: 24,      // the whole trip
@@ -23,7 +23,7 @@ export const TRIP = {
   faces: 5,         // drifting trollfaces
 };
 
-const trip = { t: 0, on: false, el: null, faces: [], last: 0 };
+const trip = { t: 0, on: false, el: null, faces: [], last: 0, lastE: -1 };
 const LEAN_IDX = EMOTES.findIndex((e) => e.id === "lean");
 const FACE_SRC = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
 
@@ -65,8 +65,11 @@ const smooth = (v) => { const x = Math.max(0, Math.min(1, v)); return x * x * (3
 const NONE = { roll: 0, pitch: 0 };
 const out = { roll: 0, pitch: 0 };
 export function updateLeanTrip(dt) {
-  const e = game.emote;
-  if (e && e.idx === LEAN_IDX && e.t >= LEAN.sipUp[1] && e.t - dt < LEAN.sipUp[1]) startLeanTrip();
+  // the sip: the emote's own clock passing it since the last frame (not
+  // `dt`, which a slow or clamped frame can make miss it)
+  const e = game.emote, et = e && e.idx === LEAN_IDX ? e.t : -1;
+  if (et >= LEAN.sipUp[1] && trip.lastE < LEAN.sipUp[1]) startLeanTrip();
+  trip.lastE = et;
   const now = performance.now(), gap = now - trip.last;
   trip.last = now;
   if (!trip.on) return NONE;
