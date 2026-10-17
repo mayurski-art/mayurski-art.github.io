@@ -4,9 +4,9 @@
 // title screen and, later, spectators). The duel runs the round flow and the
 // contact checks; everything it wants seen or heard goes out as events.
 
-import { Fighter } from "../combat/fighter.js?v=gs1";
-import { resolveFrame, updateClash } from "../combat/resolve.js?v=gs1";
-import { DuelBot, TIERS } from "../bots/duel-bot.js?v=gs1";
+import { Fighter } from "../combat/fighter.js?v=gs2";
+import { resolveFrame, updateClash } from "../combat/resolve.js?v=gs2";
+import { DuelBot, TIERS } from "../bots/duel-bot.js?v=gs2";
 
 export const ROUNDS_TO_WIN = 2;
 export const ROUND_TIME = 90;

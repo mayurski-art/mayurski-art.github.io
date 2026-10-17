@@ -19,15 +19,15 @@ import * as THREE from "three";
 import {
   buildHumanoid, poseHumanoid, reachHand, setHandPose, aimRig, flinchRig,
   gaitPhaseRate, poseDeath, DEATH_TIME,
-} from "../../troll-ops/characters/character.js?v=gs1";
-import { buildSaber, SaberTrail, EMIT_Z } from "../view/saber.js?v=gs1";
-import { FORMS, SWING_BASE } from "./forms.js?v=gs1";
+} from "../../troll-ops/characters/character.js?v=gs2";
+import { buildSaber, SaberTrail, EMIT_Z } from "../view/saber.js?v=gs2";
+import { FORMS, SWING_BASE } from "./forms.js?v=gs2";
 import {
   READY, GUARDS, STAGGER, CLASH, SWINGS, newPose, copyPose, lerpPose, strikePose, smooth, zoneFromAim,
-} from "./swings.js?v=gs1";
+} from "./swings.js?v=gs2";
 
 export const REACH = 1.75;          // chest to chest, the blade can reach about this far
-const HAND_GAP = 0.11;              // right hand to left hand along the hilt
+const HAND_GAP = 0.1;               // right fist to left fist along the hilt
 const BP_REGEN = 14;                // block points a second, standing/walking/guarding
 const DODGE_COST = 12, FEINT_COST = 6;
 const GRAVITY = 13, JUMP_V = 6.2;
@@ -57,6 +57,22 @@ function faceMaterialFlat(lit) {
   if (_flatFace) return _flatFace;
   _flatFace = new THREE.MeshBasicMaterial({ map: lit.map, color: 0xeeeeee, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide });
   return _flatFace;
+}
+
+/* Sword fists. The rig's mitts are flat cut-outs laid along the forearm, made
+   for open hands and gestures; they can't close round a handle. While a
+   saber is held they hide and these take over: round ink fists centred ON
+   the hilt (the arm's line ends inside them), the right under the emitter,
+   the left a fist lower, so the steel shows between and round them. */
+const FIST_GEO = new THREE.SphereGeometry(1, 18, 14);
+const FIST_MAT = new THREE.MeshBasicMaterial({ color: 0x050505 });
+function makeFist(scene) {
+  const m = new THREE.Mesh(FIST_GEO, FIST_MAT);
+  m.scale.set(0.05, 0.047, 0.043);   // wide across the hilt, short along it
+  m.castShadow = true;
+  m.visible = false;
+  scene.add(m);
+  return m;
 }
 
 function nameTag(text, colour) {
@@ -98,6 +114,7 @@ export class Fighter {
     this.saber = buildSaber(colour, { light });
     scene.add(this.saber.group);
     this.trail = new SaberTrail(scene, colour);
+    this.fists = [makeFist(scene), makeFist(scene)];
 
     this.pos = new THREE.Vector3();
     this.vel = new THREE.Vector3();
@@ -441,6 +458,7 @@ export class Fighter {
     rig.root.position.copy(this.pos);
 
     if (this.state === "ko") {
+      this.showSwordFists(false);
       poseDeath(rig, Math.min(1, this.koT / DEATH_TIME));
       this.placeSaberOnBody(dt, now, false);
       this.tag.visible = false;
@@ -479,11 +497,11 @@ export class Fighter {
       _w.copy(g).addScaledVector(d, -HAND_GAP);
       _pole.copy(POLE_L);
       reachHand(rig, -1, _w, _pole);
-      setHandPose(rig, 1, "fist");
-      setHandPose(rig, -1, "fist");
+      this.showSwordFists(true);
       rig.body.update();
       this.placeSaberInHands();
     } else {
+      this.showSwordFists(false);
       setHandPose(rig, 1, "open");
       setHandPose(rig, -1, "open");
       rig.body.update();
@@ -502,13 +520,25 @@ export class Fighter {
     this.saber.update(dt, now);
   }
 
-  /* The saber group at the right fist, blade along the pose's direction. */
+  showSwordFists(on) {
+    const h = this.rig.hands;
+    h.R.group.visible = h.L.group.visible = !on;
+    this.fists[0].visible = this.fists[1].visible = on;
+  }
+
+  /* The saber group at the right fist, blade along the pose's direction,
+     and both sword fists on the hilt. */
   placeSaberInHands() {
     const p = this.rig.parts, sg = this.saber.group;
     p.wristR.getWorldPosition(sg.position);
     p.chest.getWorldQuaternion(_q);
     _v.copy(this.pose.d).applyQuaternion(_q);
     sg.quaternion.setFromUnitVectors(_fwd, _v);
+    const [fr, fl] = this.fists;
+    fr.position.copy(sg.position);
+    fl.position.copy(sg.position).addScaledVector(_v, -HAND_GAP);
+    fr.quaternion.copy(sg.quaternion);
+    fl.quaternion.copy(sg.quaternion);
   }
 
   /* Down or dropped: the hilt follows the body or lies where it landed. */
@@ -546,6 +576,6 @@ export class Fighter {
   }
 
   dispose() {
-    this.scene.remove(this.rig.root, this.saber.group, this.trail.mesh, this.tag);
+    this.scene.remove(this.rig.root, this.saber.group, this.trail.mesh, this.tag, ...this.fists);
   }
 }

@@ -5,15 +5,15 @@
 // ?debug exposes window.__gs for the headless tests (tools/grin-sabers-*.mjs).
 
 import * as THREE from "three";
-import { createView, DuelCamera } from "./view/scene.js?v=gs1";
-import { Sparks, BLADE_COLOURS } from "./view/saber.js?v=gs1";
-import { buildCourtyard } from "./arenas/courtyard.js?v=gs1";
-import { Duel, ROUNDS_TO_WIN } from "./modes/duel.js?v=gs1";
-import { TIERS } from "./bots/duel-bot.js?v=gs1";
-import { Input } from "./input/input.js?v=gs1";
-import { Hud } from "./ui/hud.js?v=gs1";
-import { sfx, Hum, unlockAudio, isMuted, setMuted } from "./sound/sfx.js?v=gs1";
-import { flinchRigFrom } from "../troll-ops/characters/character.js?v=gs1";
+import { createView, DuelCamera } from "./view/scene.js?v=gs2";
+import { Sparks, BLADE_COLOURS } from "./view/saber.js?v=gs2";
+import { buildCourtyard } from "./arenas/courtyard.js?v=gs2";
+import { Duel, ROUNDS_TO_WIN } from "./modes/duel.js?v=gs2";
+import { TIERS } from "./bots/duel-bot.js?v=gs2";
+import { Input } from "./input/input.js?v=gs2";
+import { Hud } from "./ui/hud.js?v=gs2";
+import { sfx, Hum, unlockAudio, isMuted, setMuted } from "./sound/sfx.js?v=gs2";
+import { flinchRigFrom } from "../troll-ops/characters/character.js?v=gs2";
 
 const $ = (id) => document.getElementById(id);
 const canvas = $("gs-canvas");

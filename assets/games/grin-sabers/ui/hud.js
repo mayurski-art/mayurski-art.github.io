@@ -3,7 +3,7 @@
 // from, white = where you aim), callouts and banners.
 
 import * as THREE from "three";
-import { zoneFor, zoneFromAim } from "../combat/swings.js?v=gs1";
+import { zoneFor, zoneFromAim } from "../combat/swings.js?v=gs2";
 
 const $ = (id) => document.getElementById(id);
 const _p = new THREE.Vector3();

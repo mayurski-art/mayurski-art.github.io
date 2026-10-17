@@ -20,3 +20,5 @@ combat/ (fighter, swings, forms, resolve) · bots/ · modes/duel.js · view/ (sc
   block, disarm, feint, clash, combos, heavy, dodge, jump; temple courtyard; demo title.
 - 2026-10-16 key art: poster (loading screen) + banner (OG, future arcade card), rendered
   from the game by `node tools/grin-sabers-poster.mjs`.
+- 2026-10-16 grip: sword fists on the hilt (the rig mitts hide while armed), hilt drawn
+  1.3x, centred ready stance, high guard over the head, windups clear of the face (-gs2).

@@ -10,8 +10,8 @@
 // blade, for clashes).
 
 import * as THREE from "three";
-import { HEAVY_MULT, blockCost } from "./forms.js?v=gs1";
-import { zoneFor } from "./swings.js?v=gs1";
+import { HEAVY_MULT, blockCost } from "./forms.js?v=gs2";
+import { zoneFor } from "./swings.js?v=gs2";
 
 const BODY_R = 0.27, BODY_Y0 = 0.25, BODY_Y1 = 1.72;
 const CLASH_TIME = 1.5;

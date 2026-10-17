@@ -6,8 +6,8 @@
 // wrong guess. Better tiers chain combos, feint, counter after a perfect
 // block, try disarms and mash harder in a clash.
 
-import { blankIntent, REACH } from "../combat/fighter.js?v=gs1";
-import { zoneFor } from "../combat/swings.js?v=gs1";
+import { blankIntent, REACH } from "../combat/fighter.js?v=gs2";
+import { zoneFor } from "../combat/swings.js?v=gs2";
 
 export const TIERS = [
   { name: "Noob",       colour: "#3dff6e", react: 0.42, read: 0.3,  combo: 1, heavy: 0.08, feint: 0,    counter: 0.1, disarm: 0,    dodge: 0.02, mash: 4,  aggro: 0.45 },

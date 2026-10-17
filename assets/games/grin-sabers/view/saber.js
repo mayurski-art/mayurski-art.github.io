@@ -12,7 +12,10 @@
 import * as THREE from "three";
 
 export const BLADE_LEN = 0.9;
-export const EMIT_Z = -0.13;
+// The hilt is drawn at cartoon scale (HILT_SCALE): the trollfaces' fists are
+// big, and a real-size hilt vanished inside two of them.
+const HILT_SCALE = 1.3;
+export const EMIT_Z = -0.135 * HILT_SCALE;
 const IGNITE_TIME = 0.34;
 const RETRACT_TIME = 0.2;
 const BEAM_HALF = 0.075;
@@ -164,7 +167,9 @@ function buildHilt() {
 export function buildSaber(colourHex = "#3fa9ff", { light = null } = {}) {
   const color = new THREE.Color(colourHex);
   const group = new THREE.Group();
-  group.add(buildHilt());
+  const hilt = buildHilt();
+  hilt.scale.setScalar(HILT_SCALE);
+  group.add(hilt);
 
   const beamMat = new THREE.ShaderMaterial({
     uniforms: {
