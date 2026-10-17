@@ -719,10 +719,11 @@ function hall(K, M, N, HN, S, lights) {
   /* ---- "no trolling on the dance floor", over the lobby doors */
   sign(S, N, M, "noTroll", 0, 3.55, 13 - T / 2 - 0.03, 0.62, { ry: Math.PI, group: 9 });
 
-  /* ---- light: three over the floor, one on the DJ, two on the mezzanine */
-  addLight(S, lights, 0xff2ab4, 34, 24, -5.5, 6.2, -6, { hue: 0.92, amp: 0.25 });
-  addLight(S, lights, 0x3ff0ff, 34, 24, 5.5, 6.2, -6, { hue: 0.5, amp: 0.25 });
-  addLight(S, lights, 0x8a4aff, 30, 24, 0, 6.2, 3.5, { hue: 0.75, amp: 0.25 });
+  /* ---- light: three round the ball over the floor, one on the DJ, two on the mezzanine */
+  // (the three over the floor ride round the ball, turning with it)
+  addLight(S, lights, 0xff2ab4, 34, 24, DC.x, 6.3, DC.z, { hue: 0.92, amp: 0.25, orbit: 0 });
+  addLight(S, lights, 0x3ff0ff, 34, 24, DC.x, 6.3, DC.z, { hue: 0.5, amp: 0.25, orbit: 2.094 });
+  addLight(S, lights, 0x8a4aff, 30, 24, DC.x, 6.3, DC.z, { hue: 0.75, amp: 0.25, orbit: 4.189 });
   addLight(S, lights, 0xffd8f0, 16, 12, 0, 3.4, -12.6, { amp: 0.2 });
   addLight(S, lights, 0x9a60ff, 14, 16, -11.7, 7.6, -2, { amp: 0.15 });
   addLight(S, lights, 0x9a60ff, 14, 16, 11.7, 7.6, -2, { amp: 0.15 });
@@ -746,12 +747,12 @@ function rayToHall(a) {
   return Math.min(tx, tz);
 }
 
-function addLight(S, lights, color, power, range, x, y, z, { hue = null, amp = 0.2 } = {}) {
+function addLight(S, lights, color, power, range, x, y, z, { hue = null, amp = 0.2, orbit = null } = {}) {
   const l = new THREE.PointLight(color, power, range, 1.6);
   l.position.set(x, y, z);
   l.castShadow = false;
   lights.push(l);
-  S.lights.push({ l, base: power, hue, amp });
+  S.lights.push({ l, base: power, hue, amp, orbit });
 }
 
 /* ==================================================== the rooms off the hall */
@@ -1417,19 +1418,21 @@ function buildTrollingLoud(api) {
   mirror.add(S.ballMirror);
   root.add(mirror);
 
-  /* ---- the lasers, fanning from over the DJ booth */
+  /* ---- the lasers, bursting out of the mirror ball and turning with it */
   {
     const geos = [];
-    const cols = [0x3aff7a, 0x3ff0ff, 0x3aff7a, 0xff3fb4, 0x3aff7a, 0x3ff0ff, 0x3aff7a, 0xff3fb4, 0x3aff7a];
-    for (let i = 0; i < 9; i++) {
-      const yaw = -0.9 + (i / 8) * 1.8, pitch = 0.08 + (i % 3) * 0.1, len = 26;
+    const cols = [0x3aff7a, 0x3ff0ff, 0x3aff7a, 0xff3fb4];
+    const BALL_Y = S.ball.position.y, N_BEAMS = 14;
+    for (let i = 0; i < N_BEAMS; i++) {
+      const yaw = (i / N_BEAMS) * Math.PI * 2, pitch = -(0.16 + (i % 4) * 0.12);
+      const len = Math.min(24, (BALL_Y - 0.1) / Math.sin(-pitch));
       for (const rx of [0, Math.PI / 2]) {
         const g = new THREE.PlaneGeometry(len, 0.07);
         g.translate(len / 2, 0, 0);
         g.rotateX(rx);
         g.rotateZ(pitch);
         g.rotateY(-Math.PI / 2 - yaw);
-        const n = g.attributes.position.count, c = new THREE.Color(cols[i]).multiplyScalar(1.4);
+        const n = g.attributes.position.count, c = new THREE.Color(cols[i % cols.length]).multiplyScalar(1.4);
         const arr = new Float32Array(n * 3);
         for (let k = 0; k < n; k++) { arr[k * 3] = c.r; arr[k * 3 + 1] = c.g; arr[k * 3 + 2] = c.b; }
         g.setAttribute("color", new THREE.Float32BufferAttribute(arr, 3));
@@ -1437,7 +1440,7 @@ function buildTrollingLoud(api) {
       }
     }
     const lasers = new THREE.Mesh(mergeLasers(geos), M.beam);
-    lasers.position.set(0, STAGE.top + 1.75, -14.6);
+    lasers.position.copy(S.ball.position);
     lasers.renderOrder = 3;
     lasers.frustumCulled = false;
     skipOverride(lasers);
@@ -1521,8 +1524,8 @@ function tick(S, cam) {
 
   // the lasers sweep
   if (S.lasers) {
-    S.lasers.rotation.y = Math.sin(now * 0.45) * 0.35;
-    S.lasers.rotation.x = Math.sin(now * 0.21) * 0.08;
+    S.lasers.rotation.y = -S.ballRot;
+    S.lasers.rotation.x = Math.sin(now * 0.21) * 0.05;
     S.lasers.material.opacity = 0.55 + 0.45 * kick;
   }
   // the DJ bobs
@@ -1531,6 +1534,10 @@ function tick(S, cam) {
   // the real lights: a gentle kick, the hall's three drifting round the wheel
   for (const L of S.lights) {
     L.l.intensity = L.base * (0.6 + 0.4 * S.level) * (1 + L.amp * (kick - 0.35));
+    if (L.orbit !== null) {
+      const a = L.orbit - S.ballRot;
+      L.l.position.set(U.uBall.value.x + Math.cos(a) * 1.3, 6.3, U.uBall.value.z + Math.sin(a) * 1.3);
+    }
     if (L.hue !== null) L.l.color.copy(_c.setHSL((L.hue + bp / 64) % 1, 1, 0.6));
   }
 
