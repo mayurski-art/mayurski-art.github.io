@@ -51,13 +51,7 @@ page.on("pageerror", (e) => errors.push(e.message));
 await page.addInitScript(() => {
   const fake = { getCachedProfile: () => ({ username: "troll_runner", tags: [] }) };
   Object.defineProperty(window, "TrollrunnerAccounts", { configurable: true, get: () => fake, set: () => {} });
-  // headless Chrome on Windows clips the REAL cursor to the viewport on pointer lock: never ask for it
-  // so it's faked: the page thinks it's locked, the desktop's cursor stays free
-  let locked = null;
-  const changed = () => setTimeout(() => document.dispatchEvent(new Event("pointerlockchange")));
-  Object.defineProperty(Document.prototype, "pointerLockElement", { configurable: true, get: () => locked });
-  Element.prototype.requestPointerLock = function () { locked = this; changed(); return Promise.resolve(); };
-  Document.prototype.exitPointerLock = function () { locked = null; changed(); };
+
 });
 await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 420000 });
 await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 420000 });

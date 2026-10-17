@@ -13,6 +13,8 @@
 //   touch      left stick (pushed to the edge: run), tap = swing, swipe = swing from the side you
 //              start on, GUARD/DODGE/JUMP buttons (touch guards are timed)
 
+import "../../../js/automation-pointer-lock.js?v=ap1";   // tests: a fake lock, so headless Chrome can't trap the desktop cursor
+
 const AIM_GAIN = 0.0065;          // aim per pixel of mouse travel
 const FLICK_SPEED = 2600;         // px/s: faster than this is a flick, not aim
 const TAP_MS = 200;               // Shift released sooner than this: a dodge; held longer: running
