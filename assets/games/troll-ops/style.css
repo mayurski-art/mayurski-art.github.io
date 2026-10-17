@@ -3578,8 +3578,9 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
   .to-bo2-party-row { min-height: 30px; }
   .to-bo2-party-row b { font-size: 16px; }
   .to-bo2-detail, .to-bo2-panel { right: max(20px, env(safe-area-inset-right)); top: 54px; max-height: calc(100% - 54px - var(--foot-h, 36px) - 20px); padding: 12px 14px; }
-  .to-bo2.has-gun .to-bo2-detail { top: 54px; }
-  #to-title.is-bo2 .to-pf > .to-gun-view.is-hero { display: none; }
+  /* the gun stands in the right column, the detail pane under it */
+  #to-title.is-bo2 .to-pf > .to-gun-view.is-hero { display: block; left: var(--bo2-col); right: max(20px, env(safe-area-inset-right)); top: 54px; height: 38cqh; }
+  .to-bo2.has-gun .to-bo2-detail { top: calc(54px + 38cqh + 8px); max-height: calc(100% - 54px - 38cqh - 8px - var(--foot-h, 36px) - 20px); }
   /* below the party box: at 96px a narrow phone stood the head on "Log in to keep your XP" */
   #to-title.is-bo2 .to-char-view { left: 50%; right: 0; top: 124px; bottom: 16px; --char-shift: 0; }
   .to-bo2-party { bottom: 70px; }
@@ -3615,8 +3616,10 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
   .to-bo2-detail, .to-bo2-panel { left: 12px; right: 12px; top: calc(56px + env(safe-area-inset-top) + var(--menu-h, 300px) + 8px); bottom: auto; max-height: calc(100% - 56px - env(safe-area-inset-top) - var(--menu-h, 300px) - 8px - var(--foot-h, 42px) - 30px); padding: 12px; }
   #to-title.is-bo2 .to-bo2-detail .to-lo-detail { background: none; border: 0; padding: 0; box-shadow: none; }
   .to-bo2-panel { bottom: auto; }
-  .to-bo2.has-gun .to-bo2-detail { top: calc(56px + env(safe-area-inset-top) + var(--menu-h, 300px) + 8px); }
-  #to-title.is-bo2 .to-pf > .to-gun-view.is-hero { display: none; }
+  /* the gun under the list, the detail pane under the gun */
+  #to-title.is-bo2 .to-pf > .to-gun-view.is-hero { display: block; left: 12px; right: 12px; top: calc(56px + env(safe-area-inset-top) + var(--menu-h, 300px) + 8px); height: 24cqh; }
+  .to-bo2.has-gun .to-bo2-detail { top: calc(56px + env(safe-area-inset-top) + var(--menu-h, 300px) + 16px + 24cqh);
+    max-height: calc(100% - 56px - env(safe-area-inset-top) - var(--menu-h, 300px) - 16px - 24cqh - var(--foot-h, 42px) - 30px); }
   /* the operator stands to the right of the list, as on the desktop */
   #to-title.is-bo2 .to-char-view { left: 46%; right: 0; top: calc(80px + env(safe-area-inset-top)); bottom: calc(100% - 56px - env(safe-area-inset-top) - var(--menu-h, 300px) + 90px); --char-shift: 0; --char-dist: 1.2; }
   .to-bo2-foot { left: 20px; right: 16px; bottom: calc(18px + env(safe-area-inset-bottom)); align-items: center; }

@@ -74,8 +74,12 @@ const pfCenter = document.getElementById("to-pf-center")?.parentElement || null;
 function mountGunView(panel) {
   // Beside the panel on desktop; phones have no room beside it, so there the
   // Weapons view keeps it boxed in its detail card.
+  // The BO2 menu stages it itself on every size (style.css, the phone
+  // blocks): boxed in the card it showed only on the Weapons screens, and
+  // sideways not at all (user, 2026-10-17: "I can't see the preview images").
   const narrow = (pfCenter?.clientWidth || 0) <= 760;
-  const boxMount = panel === "loadout" && narrow ? document.getElementById("to-gun-mount-loadout") : null;
+  const bo2 = !!document.getElementById("to-title")?.classList.contains("is-bo2");
+  const boxMount = panel === "loadout" && narrow && !bo2 ? document.getElementById("to-gun-mount-loadout") : null;
   const target = boxMount || pfCenter;
   inspectorLive = !!(gunView && target);
   if (!inspectorLive) return;
