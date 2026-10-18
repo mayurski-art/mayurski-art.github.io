@@ -623,6 +623,7 @@ export function updateStaging(dt) {
 export function beginMatch(mapId = null) {
   game.net.onEnd = onRoomEnd;   // someone else's match ended: ours too (combat/scoring.js)
   game.bots.rules.oneShot = !!game.currentMode().oneShot;   // One in the Chamber's bots (bots.js)
+  game.bots.rules.calm = !!game.currentMode().royale;       // Troll Royale's bots hop and slide less (bots.js)
   game.killcam.clear();
   setFunnyDeaths(!!game.currentMode().funny);
   game.suppressT = 0;

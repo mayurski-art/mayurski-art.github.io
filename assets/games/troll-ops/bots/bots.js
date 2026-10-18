@@ -708,7 +708,10 @@ class Bot {
       this.moveRollT -= dt;
       if (this.wantSlide && this.moving) { this.wantSlide = false; this.startSlide(this.vel); }
       else if (this.moveRollT <= 0) {
-        this.moveRollT = MOVE_ROLL;
+        // Troll Royale (rules.calm): a hundred bots in fights all over the
+        // island hopping and sliding every couple of seconds read as heads
+        // bobbing nonstop (user, 2026-10-18), so a roll there is every 2.5 s.
+        this.moveRollT = this.rules.calm ? MOVE_ROLL * 5 : MOVE_ROLL;
         const r = Math.random();
         if (r < this.diff.jump) this.startHop();
         else if (r < this.diff.jump + this.diff.slide && this.moving) this.startSlide(this.vel);
@@ -1410,7 +1413,7 @@ export class BotManager {
     this.bots = [];
     this.enabled = false;
     this.difficulty = "regular";
-    this.rules = { oneShot: false };   // the match's mode rules every bot reads (match-start.js beginMatch)
+    this.rules = { oneShot: false, calm: false };   // the match's mode rules every bot reads (match-start.js beginMatch)
     this.fieldSrc = null;         // geometry the fields are built from
     this.fieldPool = new Map();   // [level|]target id -> FlowField, reused across sweeps
     this.fieldBases = new Map();  // level -> the blocked grid every field there copies
