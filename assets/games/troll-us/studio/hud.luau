@@ -352,28 +352,54 @@ local function nearLaptop(pos)
 	return stand and flat(stand.Position, pos) <= R("useRange") + 1
 end
 
--- ---------- task panel ----------
+-- ---------- task tablet ----------
+-- one shared frame; each task's mini-game (TaskPanels) is built into its game area. The tablet has its own
+-- ScreenGui with no UIScale: it fills 90 percent of a phone's width and keeps every control at 44 px or more.
+local TaskPanels = require(TU:WaitForChild("TaskPanels"))
+local taskGui = new("ScreenGui", { Name = "TrollUsTask", ResetOnSpawn = false, IgnoreGuiInset = false,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = 6 }, player:WaitForChild("PlayerGui"))
 local panel = round(outline(new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
-	Size = UDim2.fromOffset(420, 250), BackgroundColor3 = Color3.fromRGB(46, 50, 62), Visible = false, ZIndex = 20 }, gui), 4), 16)
-local panelTitle = label({ Size = UDim2.new(1, 0, 0, 44), Position = UDim2.fromOffset(0, 14), Font = BLACK, TextSize = 26, ZIndex = 21 }, panel)
-local panelRoom = label({ Size = UDim2.new(1, 0, 0, 22), Position = UDim2.fromOffset(0, 56), TextSize = 16, TextColor3 = Color3.fromRGB(180, 186, 200), ZIndex = 21 }, panel)
-local holdBtn = round(outline(new("TextButton", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 100),
-	Size = UDim2.fromOffset(240, 60), BackgroundColor3 = Color3.fromRGB(240, 200, 60), Text = "HOLD", Font = BLACK, TextSize = 24,
-	TextColor3 = INK, ZIndex = 21, AutoButtonColor = false }, panel), 3), 12)
-local holdBar = round(new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 182), Size = UDim2.fromOffset(300, 18),
-	BackgroundColor3 = Color3.fromRGB(26, 28, 36), ZIndex = 21 }, panel), 9)
-local holdFill = round(new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = GREEN, ZIndex = 22 }, holdBar), 9)
-local panelClose = round(new("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 10), Size = UDim2.fromOffset(34, 34),
-	BackgroundColor3 = RED, Text = "X", Font = BLACK, TextSize = 18, TextColor3 = WHITE, ZIndex = 22 }, panel), 17)
-local openTask, holding, held = nil, false, 0
-local function closePanel() panel.Visible = false; openTask = nil; holding = false; held = 0; holdFill.Size = UDim2.fromScale(0, 1) end
+	BackgroundColor3 = Color3.fromRGB(46, 50, 62), Visible = false, ZIndex = 50 }, taskGui), 4), 18)
+local panelTitle = label({ Size = UDim2.new(1, -120, 0, 30), Position = UDim2.fromOffset(60, 8), Font = BLACK, TextSize = 24, TextScaled = true, ZIndex = 51 }, panel)
+new("UITextSizeConstraint", { MaxTextSize = 24 }, panelTitle)
+local panelRoom = label({ Size = UDim2.new(1, -120, 0, 18), Position = UDim2.fromOffset(60, 38), TextSize = 14, TextColor3 = Color3.fromRGB(180, 186, 200), ZIndex = 51 }, panel)
+local panelClose = round(outline(new("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 8), Size = UDim2.fromOffset(44, 44),
+	BackgroundColor3 = RED, Text = "X", Font = BLACK, TextSize = 20, TextColor3 = WHITE, ZIndex = 52 }, panel), 2), 22)
+local gameArea = round(new("Frame", { Position = UDim2.fromOffset(12, 60), Size = UDim2.new(1, -24, 1, -72), BackgroundColor3 = Color3.fromRGB(34, 37, 48),
+	ClipsDescendants = true, ZIndex = 51 }, panel), 12)
+local doneCard = round(outline(new("TextLabel", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(0.7, 0, 0, 70),
+	BackgroundColor3 = GREEN, Text = "TASK COMPLETE", Font = BLACK, TextScaled = true, TextColor3 = INK, Visible = false, ZIndex = 70 }, panel), 3), 14)
+new("UITextSizeConstraint", { MaxTextSize = 34 }, doneCard)
+new("UIPadding", { PaddingTop = UDim.new(0, 12), PaddingBottom = UDim.new(0, 12) }, doneCard)
+local openTask, cleanupGame = nil, nil
+local function closePanel()
+	panel.Visible = false; doneCard.Visible = false; openTask = nil
+	if cleanupGame then cleanupGame(); cleanupGame = nil end
+end
 panelClose.Activated:Connect(closePanel)
-holdBtn.InputBegan:Connect(function(i)
-	if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then holding = true end
-end)
-holdBtn.InputEnded:Connect(function(i)
-	if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then holding = false end
-end)
+local function openPanel(d)
+	closePanel()
+	openTask = d
+	-- Studio test hook: a TestViewport (Vector2) attribute on the LocalPlayer sizes the tablet as if on that screen
+	local vp = (RunService:IsStudio() and player:GetAttribute("TestViewport")) or workspace.CurrentCamera.ViewportSize
+	panel.Size = UDim2.fromOffset(math.floor(math.min(vp.X * 0.9, 760)), math.floor(math.min(vp.Y * 0.88, 500)))
+	panelTitle.Text = d.task; panelRoom.Text = d.room
+	panel.Visible = true
+	task.wait() -- let the frame lay out so the game area has its size
+	if openTask ~= d then return end
+	local c = player.Character
+	local info = { name = player.DisplayName, suit = c and c:GetAttribute("Suit"), room = d.room,
+		scan = function() Net:FireServer("Scan") end }
+	cleanupGame = TaskPanels.open(gameArea, d.task, info, function()
+		doneCard.Visible = true
+		-- the server wants a moment between opening and finishing a task
+		local wait = math.max(0, 1.1 - (os.clock() - d.openedAt))
+		task.delay(wait, function()
+			if openTask == d then Net:FireServer("TaskDone", d.id) end
+		end)
+		task.delay(wait + 0.7, function() if openTask == d then closePanel() end end)
+	end)
+end
 
 -- ---------- meeting tablet ----------
 local meeting = round(outline(new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
@@ -691,12 +717,8 @@ Net.OnClientEvent:Connect(function(kind, d)
 		me.tasks = d
 		drawTasks()
 	elseif kind == "OpenTask" then
-		openTask = d
-		panelTitle.Text = d.task
-		panelRoom.Text = d.room
-		held = 0; holding = false
-		holdFill.Size = UDim2.fromScale(0, 1)
-		panel.Visible = true
+		d.openedAt = os.clock()
+		task.spawn(openPanel, d)
 	elseif kind == "Alert" then
 		local body = d.kind == "Body"
 		bannerText.Text = body and "DEAD BODY REPORTED" or "EMERGENCY MEETING"
@@ -827,15 +849,6 @@ RunService.RenderStepped:Connect(function(dt)
 		end
 	end
 
-	-- task hold
-	if openTask and panel.Visible then
-		if holding then held += dt else held = math.max(0, held - dt * 2) end
-		holdFill.Size = UDim2.fromScale(math.clamp(held / openTask.hold, 0, 1), 1)
-		if held >= openTask.hold then
-			Net:FireServer("TaskDone", openTask.id)
-			closePanel()
-		end
-	end
 end)
 
 -- ---------- first person, per frame ----------

@@ -20,7 +20,7 @@ local Rules = {
 	gameOverTime = 8,
 
 	tasksPerPlayer = 4,
-	taskHoldTime = 2,       -- s the placeholder panel takes
+	taskHoldTime = 1,       -- s at least between opening a task panel and finishing it (the server checks)
 	emergencyMeetings = 1,
 	emergencyCooldown = 15,
 

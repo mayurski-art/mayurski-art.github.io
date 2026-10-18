@@ -657,6 +657,14 @@ HANDLERS.TaskDone = function(p, id)
 	p.openTask = nil
 	markTaskDone(p, id)
 end
+-- Submit Scan: everyone sees the scanner rings round you (the visual task, proof you are crew)
+HANDLERS.Scan = function(p)
+	local o = p.openTask
+	local pad = o and Pads[o.id]
+	if not pad or pad:GetAttribute("Task") ~= "Submit Scan" or p.role ~= "Crewmate" or not p.alive then return end
+	local pos = posOf(p)
+	if pos then broadcast("Scan", { at = pos, time = 6 }) end
+end
 HANDLERS.Report = function(p)
 	if S.phase ~= "Roam" or not p.alive then return end
 	local pos = posOf(p); if not pos then return end

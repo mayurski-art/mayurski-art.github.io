@@ -37,6 +37,29 @@ Net.OnClientEvent:Connect(function(kind, data)
 		role = data.role
 		partners = {}
 		for _, id in ipairs(data.impostors or {}) do partners[id] = true end
+	elseif kind == "Scan" and data.at then
+		-- two green rings sweep up and down whoever is being scanned
+		local fx = workspace:FindFirstChild("TrollUsFX") or Instance.new("Folder")
+		fx.Name = "TrollUsFX"; fx.Parent = workspace
+		local rings = {}
+		for k = 1, 2 do
+			local r = Instance.new("Part")
+			r.Shape = Enum.PartType.Cylinder; r.Size = Vector3.new(0.12, 4.2, 4.2)
+			r.Anchored = true; r.CanCollide = false; r.CanQuery = false; r.CanTouch = false; r.CastShadow = false
+			r.Material = Enum.Material.Neon; r.Color = Color3.fromRGB(60, 230, 130); r.Transparency = 0.55
+			r.Parent = fx
+			rings[k] = r
+		end
+		local t0, base = os.clock(), Vector3.new(data.at.X, 0, data.at.Z)
+		local conn
+		conn = RunService.RenderStepped:Connect(function()
+			local t = os.clock() - t0
+			if t > (data.time or 6) then conn:Disconnect(); for _, r in ipairs(rings) do r:Destroy() end; return end
+			for k, r in ipairs(rings) do
+				local y = 0.3 + (math.sin(t * 2.2 + k * math.pi) + 1) * 2.3
+				r.CFrame = CFrame.new(base + Vector3.new(0, y, 0)) * CFrame.Angles(0, 0, math.rad(90))
+			end
+		end)
 	elseif kind == "Kill" and data.from and data.at then
 		-- everyone gets the clip in the world; within sight range it also shakes your view
 		KillClips.play(fx, data.clip, data.from, data.at)

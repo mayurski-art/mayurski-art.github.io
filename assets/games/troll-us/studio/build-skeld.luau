@@ -418,6 +418,18 @@ for _, pad in ipairs(F.Tasks:GetChildren()) do
 		part(nc({ Name = "Monitor", Size = Vector3.new(2.1, 1.4, 0.06), Position = Vector3.new(px, 3.7, f + 0.33), Color = dim, Material = Enum.Material.Neon, Parent = m }))
 		part(nc({ Name = "Kick", Size = Vector3.new(2.7, 0.3, 1.2), Position = Vector3.new(px, 0.15, f + 0.55), Color = Color3.fromRGB(40, 42, 52), Parent = m }))
 		pad.Transparency = 1
+	elseif pad:GetAttribute("Task") == "Submit Scan" then
+		-- the MedBay scanner: a lit disc on the floor and the emitter in the ceiling over it
+		pad.Transparency = 1
+		local UP = CFrame.Angles(0, 0, math.rad(90))
+		part(nc({ Name = "Rim", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.34, 4.4, 4.4), CFrame = CFrame.new(px, 0.17, pz) * UP,
+			Color = Color3.fromRGB(40, 200, 120), Material = Enum.Material.Neon, Parent = m }))
+		part(nc({ Name = "Disc", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.38, 3.9, 3.9), CFrame = CFrame.new(px, 0.19, pz) * UP,
+			Color = Color3.fromRGB(70, 76, 90), Parent = m }))
+		part(nc({ Name = "Emitter", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.7, 3.4, 3.4), CFrame = CFrame.new(px, WALL_H - 0.35, pz) * UP,
+			Color = Color3.fromRGB(118, 122, 136), Parent = m }))
+		part(nc({ Name = "Lens", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.1, 2.6, 2.6), CFrame = CFrame.new(px, WALL_H - 0.75, pz) * UP,
+			Color = Color3.fromRGB(40, 200, 120), Material = Enum.Material.Neon, Parent = m }))
 	else
 		-- floor hatch: grey frame (so the yellow task outline shows), dark grate, a lit centre
 		pad.Color = Color3.fromRGB(120, 124, 138)
@@ -681,7 +693,7 @@ do -- Electrical: the breaker wall by the Lights fix, the distributor, cable tra
 	end
 end
 
-do -- MedBay: the scanner pad with its ring, two beds, the sample bench
+do -- MedBay: two beds, the sample bench (the scanner is built on the Submit Scan pad, with the consoles)
 	local m = room("MedBay")
 	local function bedAt(cx, cz, alongX)
 		local sz = function(a, h, b) return alongX and Vector3.new(b, h, a) or Vector3.new(a, h, b) end
@@ -692,10 +704,6 @@ do -- MedBay: the scanner pad with its ring, two beds, the sample bench
 	end
 	bedAt(-41.6, -25, false)
 	bedAt(-34, -15.9, true)
-	C(m, -29, 0, -19.5, 0.12, 4.4, Color3.fromRGB(40, 200, 120), N({ Material = NEON }))
-	C(m, -29, 0, -19.5, 0.22, 3.9, Color3.fromRGB(70, 76, 90), N())
-	C(m, -29, WALL_H - 0.7, -19.5, 0.7, 3.4, MID, N())
-	C(m, -29, WALL_H - 0.8, -19.5, 0.1, 2.6, Color3.fromRGB(40, 200, 120), N({ Material = NEON }))
 	B(m, Vector3.new(1.8, 2.5, 6), Vector3.new(-24.95, 1.25, -25), WHITE)
 	for k = 0, 4 do
 		C(m, -25.1, 2.5, -27.2 + k * 1.1, 0.9, 0.35, ({ Color3.fromRGB(220, 60, 60), Color3.fromRGB(60, 160, 220), Color3.fromRGB(80, 200, 100) })[k % 3 + 1], N({ Transparency = 0.25 }))
