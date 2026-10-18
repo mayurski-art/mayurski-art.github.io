@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-UO4QH5a1/EJaKy04a1M145p91ah/OAvnbdYUo0eTasA=' https://cdn.jsdelivr.net https://mayurski-art.github.io https://trollrunner.net https://www.trollrunner.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co; object-src 'none'; base-uri 'self';">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <!-- not linked from the arcade until phase 6 -->
+  <meta name="robots" content="noindex">
+  <title>Troll Us | Troll Runner Arcade</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #05060c; overflow: hidden; }
+    #tu-canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+    #tu-status { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); color: #cfd3df;
+      font: 700 18px/1.3 "DM Sans", Arial, sans-serif; text-align: center; pointer-events: none; }
+    /* the inside of your own goggle frame (Studio: an 80 px lip from 20 px in, a 4 px dark ring inside it) */
+    #tu-goggle { position: fixed; inset: 24px; border-radius: 32px; pointer-events: none; display: none;
+      box-shadow: 0 0 0 4px #26262c, 0 0 0 84px var(--suit, #8e0c0c); }
+    #tu-dot { position: fixed; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%;
+      background: #fff; box-shadow: 0 0 0 1.5px rgba(0,0,0,.75); pointer-events: none; display: none; }
+    #tu-hint { position: fixed; left: 36px; bottom: 32px; max-width: calc(100% - 72px); color: #c8cdd7;
+      font: 600 14px/18px "DM Sans", Arial, sans-serif; pointer-events: none; text-shadow: 0 1px 2px #000; }
+    #tu-stick { position: fixed; left: 104px; top: calc(100% - 104px); width: 112px; height: 112px; margin: -56px 0 0 -56px;
+      border-radius: 50%; background: rgba(255,255,255,.12); border: 2px solid rgba(255,255,255,.35);
+      pointer-events: none; display: none; opacity: .6; }
+    #tu-stick.is-active { opacity: 1; }
+    #tu-stick > div { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px 0 0 -24px;
+      border-radius: 50%; background: rgba(255,255,255,.55); }
+    body.is-touch #tu-stick { display: block; }
+    /* right of the stick at rest (it ends 164 px in), with a gap */
+    body.is-touch #tu-hint { left: auto; right: 36px; text-align: right; max-width: calc(100% - 216px); }
+    body.is-playing #tu-goggle, body.is-playing #tu-dot { display: block; }
+  </style>
+</head>
+<body>
+  <canvas id="tu-canvas" aria-label="Troll Us"></canvas>
+  <div id="tu-goggle" aria-hidden="true"></div>
+  <div id="tu-dot" aria-hidden="true"></div>
+  <div id="tu-stick" aria-hidden="true"><div></div></div>
+  <div id="tu-hint"></div>
+  <div id="tu-status" role="status"></div>
+  <!-- the import map is allowed by its hash in the CSP: change it and the hash must change too -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./assets/vendor/three.module.min.js",
+        "three/addons/": "./assets/vendor/addons/"
+      }
+    }
+  </script>
+  <script type="module" src="assets/games/troll-us/web/main.js?v=tu-4d1"></script>
+</body>
+</html>
