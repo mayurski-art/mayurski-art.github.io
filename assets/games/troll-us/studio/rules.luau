@@ -66,10 +66,27 @@ Rules.fixPads = {
 	Comms = { { room = "Communications", x = 34, z = 44 } },
 }
 
--- uploaded audio: name -> "rbxassetid://..." once the WAVs in assets/games/troll-us/sounds are on Roblox.
--- An empty entry plays rbxasset://sounds/trollus/<name>.wav (the WAVs copied into Studio for local tests).
--- Names: step1 step2 kill vent door siren report vote eject win defeat task alarm reveal click
-Rules.sounds = {}
+-- audio: name -> asset id. These are free sounds from Roblox's own licensed libraries in the Creator Store
+-- (Pro Sound Effects and APM Music), so they play in any experience without uploading anything.
+-- A name with no id plays rbxasset://sounds/trollus/<name>.wav: our synthesised WAVs in
+-- assets/games/troll-us/sounds, which only exist where they were copied into Studio's content folder.
+Rules.sounds = {
+	step1 = "rbxassetid://9118246309",   -- Robot Footsteps Metal Sparks 1 (SFX), 0.3 s; pitch varies per step
+	step2 = "rbxassetid://9118246309",
+	kill = "rbxassetid://9113480915",    -- Body Fall Thud 2 (SFX)
+	vent = "rbxassetid://9116644054",    -- Metal Hatch Squeak Open Quickly Close 2 (SFX)
+	door = "rbxassetid://9120370628",    -- Vehicle Door Bump Slamming Metal Door 1 (SFX)
+	siren = "rbxassetid://9119662934",   -- Submarine Alarm Klaxon 6 (SFX), the emergency meeting
+	report = "rbxassetid://9040287613",  -- Sudden Strike (APM), orchestra and choir stab: a body is found
+	vote = "rbxassetid://9113649171",    -- Button Click And Ring 1 (SFX)
+	eject = "rbxassetid://9125805781",   -- Rising Whoosh Hissing Build Up (SFX)
+	win = "rbxassetid://9042409054",     -- Day Of The Election Sting 2 (APM), fanfare
+	defeat = "rbxassetid://1846942404",  -- Loser Sting Three B (APM)
+	task = "rbxassetid://9119802022",    -- Synth Chime Single Synth Tone 2 (SFX)
+	alarm = "rbxassetid://9119160581",   -- Siren Blat 4 (SFX), looped for Reactor / O2
+	reveal = "rbxassetid://125909120236588", -- Mounting Consequences StingA (APM)
+	click = "rbxassetid://9119717523",   -- Switch Click On Or Off Toggle Button 2 (SFX)
+}
 
 Rules.suits = { "Red", "Blue", "Green", "Pink", "Orange", "Yellow", "Black", "White", "Purple", "Brown", "Cyan", "Lime" }
 Rules.botNames = { "Alex", "Sam", "Jordan", "Casey", "Riley", "Morgan", "Taylor", "Jamie", "Avery", "Quinn" }

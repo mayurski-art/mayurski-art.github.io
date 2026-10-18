@@ -1,8 +1,8 @@
--- Sounds (ModuleScript in ReplicatedStorage.TrollUs): plays the synthesised set from assets/games/troll-us/sounds
--- (made by tools/synth-sounds.mjs). Rules.sounds maps a name to its uploaded rbxassetid; a name with no id falls
--- back to rbxasset://sounds/trollus/<name>.wav, which only exists on a machine where the WAVs were copied into
--- Studio's content folder (the local test bench). Positional sounds sit in a Part, so Roblox pans and fades them:
--- in first person you hear who is behind you.
+-- Sounds (ModuleScript in ReplicatedStorage.TrollUs): plays the sound set. Rules.sounds maps each name to a free
+-- Creator Store sound from Roblox's licensed libraries; a name with no id falls back to our synthesised WAV
+-- (tools/synth-sounds.mjs) at rbxasset://sounds/trollus/<name>.wav, which only exists where the WAVs were copied
+-- into Studio's content folder. Positional sounds sit in a Part, so Roblox pans and fades them: in first person
+-- you hear who is behind you.
 local RS = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 local SoundService = game:GetService("SoundService")
@@ -56,7 +56,8 @@ end
 function Sounds.play(name, opts)
 	local s = make(name, opts, SoundService)
 	s:Play()
-	if not s.Looped then Debris:AddItem(s, 6) end
+	-- stings run up to ~8 s: tidy up when it ends (Debris is only the backstop)
+	if not s.Looped then s.Ended:Connect(function() s:Destroy() end); Debris:AddItem(s, 12) end
 	return s
 end
 
