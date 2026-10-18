@@ -689,17 +689,7 @@ export class RemotePlayer {
     this.rig.root.visible = visible;
     if (!visible) { this.setGlider(false); return; }
 
-    const target = performance.now() - RENDER_DELAY;
-    let a = null, b = null;
-    for (let i = snaps.length - 1; i >= 0; i--) {
-      if (snaps[i].t <= target) { a = snaps[i]; b = snaps[i + 1] || null; break; }
-    }
-    if (!a) a = snaps[0];
-    if (!b) b = snaps[snaps.length - 1];
-
-    let k = 0;
-    if (a !== b && b.t > a.t) k = Math.max(0, Math.min(1, (target - a.t) / (b.t - a.t)));
-
+    const { a, b, k } = bracket(snaps);
     this.pos.set(
       a.x + (b.x - a.x) * k,
       a.y + (b.y - a.y) * k,
@@ -958,6 +948,20 @@ export class RemotePlayer {
     this.syncBody(s.pitch || 0);
   }
 
+  /* A crowd's skipped frame (RemotePlayers' LOD): the pose waits its turn,
+     but the troll still slides to where the snapshots put it, so one 40 m
+     off moves smoothly instead of in 15-20 Hz jumps (user, 2026-10-18:
+     Troll Royale's bots looked glitchy). On the ground only: the drop's,
+     the roll's and the plane's placements are their own. */
+  glide() {
+    const snaps = this.peer.snaps;
+    if (!this.alive || !snaps.length || this.drop || this.tilted || this.dying || !this.rig.root.visible) return;
+    const { a, b, k } = bracket(snaps);
+    _glide.set(a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k, a.z + (b.z - a.z) * k).sub(this.pos);
+    this.pos.add(_glide);
+    this.rig.root.position.add(_glide);
+  }
+
   /* A realistic body follows the rig once it is posed for the frame
      (update, then any killcam replayPose). */
   syncBody(pitch = this.pitch || 0) {
@@ -1036,8 +1040,24 @@ function lerpAngle(a, b, k) {
   return a + d * k;
 }
 
+/* The two snapshots RENDER_DELAY ago falls between, and how far along. */
+const _glide = new THREE.Vector3();
+function bracket(snaps) {
+  const target = performance.now() - RENDER_DELAY;
+  let a = null, b = null;
+  for (let i = snaps.length - 1; i >= 0; i--) {
+    if (snaps[i].t <= target) { a = snaps[i]; b = snaps[i + 1] || null; break; }
+  }
+  if (!a) a = snaps[0];
+  if (!b) b = snaps[snaps.length - 1];
+  let k = 0;
+  if (a !== b && b.t > a.t) k = Math.max(0, Math.min(1, (target - a.t) / (b.t - a.t)));
+  return { a, b, k };
+}
+
 /* Owns the set of remote players and keeps it in sync with Net's peer map. */
-const FAR_HIDE = 150;   // metres: a crowd's trolls past this aren't drawn
+const FAR_HIDE = 200;   // metres: a crowd's trolls past this aren't drawn
+const FAR_BAND = 12;    // metres: ...and come back only this much nearer
 const CROWD_SHADOW = 15;   // metres: a crowd's trolls past this cast no shadow
 const CROWD_DETAIL = 20;   // metres: past this a crowd's guns lose their small parts
 const SMALL_PART = 60;     // triangles: a gun part this small is "small"
@@ -1094,16 +1114,19 @@ export class RemotePlayers {
       // skipped frame leaves them metres behind the hold. Eight of them.
       if (rp.tilted) every = 1;
       rp.lodDt = (rp.lodDt || 0) + dt;
-      if ((this.frame + i) % every) continue;
+      if ((this.frame + i) % every) { rp.glide(); continue; }
       const step = Math.min(0.1, rp.lodDt);
       rp.lodDt = 0;
       rp.update(step, myTeam, ffa);
       rp.syncBody();
-      // Past 150 m a troll is a couple of pixels: not drawn at all (the body
+      // Past FAR_HIDE a troll is a few pixels: not drawn at all (the body
       // was most of a 100-troll frame). Still placed, so it can still be hit.
-      // A glider is 7 m wide, so it stays in sight twice as far.
-      const far = rp.drop === DROP_GLIDE ? FAR_HIDE * 2 : FAR_HIDE;
-      if (d2 > far * far && !rp.dying) { rp.rig.root.visible = false; rp.tag.visible = false; }
+      // A glider is 7 m wide, so it stays in sight twice as far. Once hidden
+      // it comes back only FAR_BAND nearer, so one walking along the line
+      // doesn't blink (user, 2026-10-18: bots "disappear in and out").
+      const far = (rp.drop === DROP_GLIDE ? FAR_HIDE * 2 : FAR_HIDE) - (rp.farHidden ? FAR_BAND : 0);
+      rp.farHidden = d2 > far * far && !rp.dying;
+      if (rp.farHidden) { rp.rig.root.visible = false; rp.tag.visible = false; }
     }
   }
 
