@@ -347,8 +347,109 @@ local function nearbyVent(pos)
 	end
 end
 
+-- ---------- first person: goggle frame, centre dot, task arrow ----------
+-- its own ScreenGui with no UIScale, so viewport points from the camera land where they should
+local fpGui = new("ScreenGui", { Name = "TrollUsGoggles", ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 1 }, player.PlayerGui)
+-- UIStroke draws outward from a frame's edge: the lip is a fat stroke from 20 px in to past the screen edge,
+-- the dark ring a thin one just inside it. Together they are the inside of your own goggle frame.
+local lipFrame = round(new("Frame", { BackgroundTransparency = 1, Position = UDim2.fromOffset(20, 20), Size = UDim2.new(1, -40, 1, -40), ZIndex = 2 }, fpGui), 36)
+local lipStroke = new("UIStroke", { Thickness = 80, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, lipFrame)
+local ringFrame = round(new("Frame", { BackgroundTransparency = 1, Position = UDim2.fromOffset(24, 24), Size = UDim2.new(1, -48, 1, -48), ZIndex = 2 }, fpGui), 32)
+new("UIStroke", { Thickness = 4, Color = Color3.fromRGB(38, 38, 44), ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, ringFrame)
+local dot = round(outline(new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(6, 6),
+	BackgroundColor3 = WHITE }, fpGui), 1.5), 3)
+local arrow = label({ Text = "▲", Font = BLACK, TextSize = 30, TextColor3 = Color3.fromRGB(255, 220, 60), TextStrokeTransparency = 0,
+	AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(40, 40), Visible = false }, fpGui)
+-- vent grate: dark slats across your view while you hide in a vent
+local ventGrate = new("Frame", { BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Visible = false, ZIndex = 0 }, fpGui) -- under the goggle rim
+for i = 0, 7 do
+	new("Frame", { BackgroundColor3 = Color3.fromRGB(14, 15, 20), BorderSizePixel = 0, BackgroundTransparency = 0.08,
+		Position = UDim2.fromScale(0, i / 8), Size = UDim2.new(1, 0, 1 / 16, 0) }, ventGrate)
+end
+local altHint = label({ Text = "Hold Alt to use the mouse", TextSize = 14, TextColor3 = Color3.fromRGB(200, 205, 215),
+	AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 36, 1, -32), Size = UDim2.fromOffset(240, 18),
+	TextXAlignment = Enum.TextXAlignment.Left, Visible = false }, fpGui)
+
+-- ---------- the map ----------
+local mapFrame = round(outline(new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+	Size = UDim2.fromOffset(640, 424), BackgroundColor3 = Color3.fromRGB(22, 34, 60), Visible = false, ZIndex = 30 }, gui), 4), 18)
+label({ Text = "THE SKELD", Font = BLACK, TextSize = 22, Size = UDim2.new(1, 0, 0, 36), Position = UDim2.fromOffset(0, 4), ZIndex = 31 }, mapFrame)
+local mapClose = round(new("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 8), Size = UDim2.fromOffset(30, 30),
+	BackgroundColor3 = RED, Text = "X", Font = BLACK, TextSize = 16, TextColor3 = WHITE, ZIndex = 33 }, mapFrame), 15)
+local mapArea = new("Frame", { Position = UDim2.fromOffset(20, 48), Size = UDim2.fromOffset(600, 360), BackgroundTransparency = 1, ZIndex = 31 }, mapFrame)
+local MX, MZ, MS = -100, -60, 3 -- the ship spans x -100..100, z -60..60; 3 px a stud; -Z (yaw 0) is up
+local function mapPos(p) return UDim2.fromOffset((p.X - MX) * MS, (p.Z - MZ) * MS) end
+local mapBuilt, mapMarks, mapMe = false, nil, nil
+local function buildMap()
+	mapBuilt = true
+	for _, folder in ipairs({ Map.Halls, Map.Rooms }) do
+		local isRoom = folder == Map.Rooms
+		for _, part in ipairs(folder:GetChildren()) do
+			if part:IsA("BasePart") then
+				local f = new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = mapPos(part.Position),
+					Size = UDim2.fromOffset(part.Size.X * MS, part.Size.Z * MS), BorderSizePixel = 0, ZIndex = isRoom and 33 or 32,
+					BackgroundColor3 = isRoom and Color3.fromRGB(150, 172, 210) or Color3.fromRGB(104, 124, 160) }, mapArea)
+				if isRoom then
+					local l = label({ Text = part.Name, Font = BOLD, TextColor3 = INK, TextStrokeTransparency = 1, TextScaled = true,
+						AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(1, -4, 0, 14), ZIndex = 34 }, f)
+					new("UITextSizeConstraint", { MaxTextSize = 11 }, l) -- shrink long names to fit, never break a word
+				end
+			end
+		end
+	end
+	mapMarks = new("Frame", { Name = "Marks", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 36 }, mapArea)
+	mapMe = label({ Text = "▲", Font = BLACK, TextSize = 20, AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(22, 22),
+		TextStrokeTransparency = 0, ZIndex = 37 }, mapArea)
+end
+local function toggleMap(on)
+	if on == nil then on = not mapFrame.Visible end
+	if on and not mapBuilt then buildMap() end
+	mapFrame.Visible = on
+end
+mapClose.Activated:Connect(function() toggleMap(false) end)
+local btnMap = round(outline(new("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 16),
+	Size = UDim2.fromOffset(64, 64), BackgroundColor3 = Color3.fromRGB(235, 235, 240), Text = "MAP", Font = BLACK, TextSize = 16, TextColor3 = INK }, hud), 3), 14)
+btnMap.Activated:Connect(function() toggleMap() end)
+
+-- ---------- security cameras ----------
+local CAM_NAMES = { "Upper Engine hall", "Electrical hall", "O2 hall", "Navigation hall" }
+local camUI = round(outline(new("Frame", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -24), Size = UDim2.fromOffset(560, 64),
+	BackgroundColor3 = Color3.fromRGB(20, 22, 30), BackgroundTransparency = 0.15, Visible = false, ZIndex = 30 }, gui), 3), 12)
+-- label spans the gap between "<" (10..50) and ">" (360..400)
+local camLabel = label({ Text = "", Font = BLACK, TextSize = 17, Position = UDim2.fromOffset(56, 0), Size = UDim2.fromOffset(298, 64), ZIndex = 31 }, camUI)
+local rec = label({ Text = "● REC", Font = BLACK, TextSize = 16, TextColor3 = RED, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -96, 0, 36),
+	Size = UDim2.fromOffset(80, 22), Visible = false, ZIndex = 30, TextXAlignment = Enum.TextXAlignment.Right }, gui)
+local camN = 0
+local function setCam(n)
+	camN = n
+	player:SetAttribute("CamView", n)
+	camUI.Visible = n > 0
+	rec.Visible = n > 0
+	if n > 0 then camLabel.Text = "CAMERA " .. n .. "  ·  " .. CAM_NAMES[n] end
+end
+local function camButton(text, x, w, f)
+	local b = round(new("TextButton", { Position = UDim2.fromOffset(x, 12), Size = UDim2.fromOffset(w, 40), BackgroundColor3 = Color3.fromRGB(70, 76, 92),
+		Text = text, Font = BLACK, TextSize = 18, TextColor3 = WHITE, ZIndex = 31 }, camUI), 8)
+	b.Activated:Connect(f)
+end
+camButton("<", 10, 40, function() setCam((camN - 2) % 4 + 1) end)
+camButton(">", 360, 40, function() setCam(camN % 4 + 1) end)
+camButton("CLOSE", 560 - 96, 86, function() setCam(0) end)
+local function nearDesk(pos)
+	local desk = Map.Props:FindFirstChild("SecurityDesk")
+	return desk and flat(desk.Position, pos) <= R("useRange") + 1
+end
+
 -- ---------- actions ----------
-local function doUse() if btnUse:GetAttribute("On") then Net:FireServer("Use") end end
+local function doUse()
+	if camN > 0 then setCam(0); return end
+	if not btnUse:GetAttribute("On") then return end
+	if me.useTarget == "desk" then
+		if TU:GetAttribute("Sabotage") ~= "Comms" then setCam(1) end
+	else
+		Net:FireServer("Use")
+	end
+end
 local function doReport() if btnReport:GetAttribute("On") then Net:FireServer("Report") end end
 local function doKill() if btnKill:GetAttribute("On") then Net:FireServer("Kill") end end
 local function doVent() if btnVent:GetAttribute("On") then Net:FireServer("Vent") end end
@@ -362,6 +463,9 @@ UIS.InputBegan:Connect(function(input, processed)
 	if processed then return end
 	local f = KEYS[input.KeyCode]
 	if f and TU:GetAttribute("Phase") == "Roam" then f() end
+	if input.KeyCode == Enum.KeyCode.M and TU:GetAttribute("Phase") == "Roam" then toggleMap() end
+	local n = input.KeyCode.Value - Enum.KeyCode.One.Value + 1
+	if camN > 0 and n >= 1 and n <= 4 then setCam(n) end
 	if input.KeyCode == Enum.KeyCode.Slash and meeting.Visible then task.defer(function() chatInput:CaptureFocus() end) end
 end)
 
@@ -377,7 +481,7 @@ local function showPhase()
 	meeting.Visible = phase == "Discuss" or phase == "Vote" or phase == "Results"
 	eject.Visible = phase == "Eject"
 	over.Visible = phase == "GameOver"
-	if phase ~= "Roam" then closePanel(); sabMenu.Visible = false end
+	if phase ~= "Roam" then closePanel(); sabMenu.Visible = false; toggleMap(false); if camN > 0 then setCam(0) end end
 	if phase == "Vote" then me.voted = false; setSelected(nil) end
 	if phase == "Roam" then
 		if lastPhase == "Reveal" then me.killReadyAt = now() + 10; me.sabotageReadyAt = now() + 30 -- matches the server's opening cooldown
@@ -532,7 +636,11 @@ RunService.RenderStepped:Connect(function(dt)
 		if pos then
 			local critical = sab == "Reactor" or sab == "O2"
 			local onButton = alive and flat(Map.Props.EmergencyButton.Position, pos) <= R("useRange") + 1.5 and not critical
-			setOn(btnUse, not venting and ((alive and nearbyFix(pos) ~= nil) or onButton or nearbyTaskPad(pos) ~= nil))
+			local serverUse = (alive and nearbyFix(pos) ~= nil) or onButton or nearbyTaskPad(pos) ~= nil
+			me.useTarget = serverUse and "server" or (alive and nearDesk(pos) and "desk") or nil
+			setOn(btnUse, camN > 0 or (not venting and me.useTarget ~= nil))
+			-- leaving the desk, or Comms going down, switches the cameras off
+			if camN > 0 and (not nearDesk(pos) or sab == "Comms") then setCam(0) end
 			setOn(btnReport, alive and not venting and nearbyBody(pos) ~= nil)
 			if imp then
 				local kcd = math.max(0, math.ceil(me.killReadyAt - t))
@@ -557,6 +665,108 @@ RunService.RenderStepped:Connect(function(dt)
 		if held >= openTask.hold then
 			Net:FireServer("TaskDone", openTask.id)
 			closePanel()
+		end
+	end
+end)
+
+-- ---------- first person, per frame ----------
+local function padOf(id)
+	for _, pad in ipairs(Map.Tasks:GetChildren()) do if pad:GetAttribute("TaskId") == id then return pad end end
+end
+-- where the arrow points: an unfixed sabotage pad first (red), else the nearest unfinished task (yellow)
+local function arrowTarget(pos)
+	local sab = TU:GetAttribute("Sabotage") or ""
+	local best, bd, red = nil, math.huge, false
+	if sab ~= "" and me.alive() then
+		for _, f in ipairs(Map.FixPads:GetChildren()) do
+			if f:GetAttribute("Kind") == sab and not f:GetAttribute("Fixed") and flat(f.Position, pos) < bd then best, bd, red = f, flat(f.Position, pos), true end
+		end
+		if best then return best.Position, true end
+	end
+	if sab == "Comms" and me.role ~= "Impostor" then return nil end
+	for _, t in ipairs(me.tasks) do
+		local pad = not t.done and padOf(t.id)
+		if pad and flat(pad.Position, pos) < bd then best, bd = pad, flat(pad.Position, pos) end
+	end
+	return best and best.Position, red
+end
+
+local uiOpen = nil
+RunService.RenderStepped:Connect(function()
+	local phase = TU:GetAttribute("Phase")
+	local cam = workspace.CurrentCamera
+	local c = myChar()
+	local pos = myPos()
+
+	-- tell the client when the mouse must be free
+	local open = panel.Visible or sabMenu.Visible or mapFrame.Visible or meeting.Visible
+	if open ~= uiOpen then uiOpen = open; player:SetAttribute("UIOpen", open) end
+
+	-- the goggle frame: your suit, a shade darker, round the edge of your eyes
+	local fp = (phase == "Roam" or phase == "Lobby" or phase == "Countdown") and camN == 0
+	lipFrame.Visible, ringFrame.Visible, dot.Visible = fp, fp, fp and not open
+	if c then
+		local s = suitColor(c:GetAttribute("Suit"))
+		lipStroke.Color = Color3.new(s.R * 0.72, s.G * 0.72, s.B * 0.72)
+	end
+	ventGrate.Visible = phase == "Roam" and c ~= nil and c:GetAttribute("Venting") == true
+	altHint.Visible = phase == "Roam" and UIS.KeyboardEnabled and not UIS.TouchEnabled and not open and camN == 0
+
+	-- map markers
+	if mapFrame.Visible and mapMarks and pos then
+		-- a pool of dots, moved every frame: a frame created and destroyed each frame never gets drawn
+		local used = 0
+		local pool = mapMarks:GetChildren()
+		local function mark(p, color, size)
+			used += 1
+			local f = pool[used]
+			if not f then
+				f = round(new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), BorderSizePixel = 0, ZIndex = 36 }, mapMarks), 7)
+				pool[used] = f
+			end
+			f.Visible = true
+			f.Position = mapPos(p); f.Size = UDim2.fromOffset(size, size); f.BackgroundColor3 = color
+		end
+		local sab = TU:GetAttribute("Sabotage") or ""
+		if not (sab == "Comms" and me.role ~= "Impostor") then
+			for _, t in ipairs(me.tasks) do
+				local pad = not t.done and padOf(t.id)
+				if pad then mark(pad.Position, Color3.fromRGB(255, 220, 60), 10) end
+			end
+		end
+		if sab ~= "" and math.floor(now() * 3) % 2 == 0 then
+			for _, f in ipairs(Map.FixPads:GetChildren()) do
+				if f:GetAttribute("Kind") == sab and not f:GetAttribute("Fixed") then mark(f.Position, RED, 14) end
+			end
+		end
+		for i = used + 1, #pool do pool[i].Visible = false end
+		local look = cam.CFrame.LookVector
+		mapMe.Position = mapPos(pos)
+		mapMe.Rotation = math.deg(math.atan2(look.X, -look.Z)) -- 0 = facing -Z = up on the map
+		mapMe.TextColor3 = suitColor(c and c:GetAttribute("Suit"))
+	end
+
+	-- task arrow: a marker over the target when it is on screen, an arrow at the edge when it is not
+	local target, isRed
+	if phase == "Roam" and pos and camN == 0 and not open and not (c and c:GetAttribute("Venting")) then target, isRed = arrowTarget(pos) end
+	arrow.Visible = target ~= nil
+	if target then
+		arrow.TextColor3 = isRed and RED or Color3.fromRGB(255, 220, 60)
+		local sp = cam:WorldToViewportPoint(target + Vector3.new(0, 2.5, 0))
+		local vp = cam.ViewportSize
+		local m = 60
+		if sp.Z > 0 and sp.X > m and sp.X < vp.X - m and sp.Y > m and sp.Y < vp.Y - m then
+			arrow.Text = "▼"; arrow.Rotation = 0
+			arrow.Position = UDim2.fromOffset(sp.X, sp.Y)
+		else
+			local d = Vector2.new(sp.X - vp.X / 2, sp.Y - vp.Y / 2)
+			if sp.Z < 0 then d = -d end
+			if d.Magnitude < 1 then d = Vector2.new(0, -1) end
+			local k = math.min((vp.X / 2 - m) / math.max(math.abs(d.X), 1e-3), (vp.Y / 2 - m) / math.max(math.abs(d.Y), 1e-3))
+			local e = Vector2.new(vp.X / 2, vp.Y / 2) + d * k
+			arrow.Text = "▲"
+			arrow.Rotation = math.deg(math.atan2(d.Y, d.X)) + 90
+			arrow.Position = UDim2.fromOffset(e.X, e.Y)
 		end
 	end
 end)

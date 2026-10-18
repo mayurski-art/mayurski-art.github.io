@@ -6,7 +6,7 @@
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
 
-local WALL_H = 6
+local WALL_H = 9 -- first person: at 6 the void above the walls showed at eye height (3.6)
 local CELL = 2
 local BOUNDS = { x1 = -100, x2 = 100, z1 = -60, z2 = 60 }
 
@@ -47,7 +47,13 @@ local HALLS = {
 	{ -26, 28, 8, 4 },    -- Electrical entry from the bottom corridor
 }
 
-local CAMERAS = { { -62, -30 }, { -30, 32 }, { 50, -14 }, { 78, 10 } }
+-- security cameras: x, z, then the floor point each one looks at, down its own hall
+local CAMERAS = {
+	{ -62, -30, -62, -6 },  -- Upper Engine, down the hall to Security
+	{ -30, 32, -10, 32 },   -- the bottom corridor, toward Storage
+	{ 50, -14, 50, -30 },   -- O2, up the hall to Weapons
+	{ 78, 10, 72, 18 },     -- Navigation, down the turn to Shields
+}
 local VENT_GROUPS = {
 	Electrical = "A", MedBay = "A", Security = "A",
 	Reactor = "B", ["Upper Engine"] = "B", ["Lower Engine"] = "B",
@@ -80,7 +86,7 @@ if base then base:Destroy() end
 local root = Instance.new("Folder"); root.Name = "TrollUs"
 local map = Instance.new("Model"); map.Name = "Map"; map.Parent = root
 local F = {}
-for _, n in ipairs({ "Rooms", "Halls", "Walls", "Vents", "Doors", "Tasks", "Cameras", "Props", "FixPads" }) do
+for _, n in ipairs({ "Rooms", "Halls", "Walls", "Vents", "Doors", "Tasks", "Cameras", "Props", "FixPads", "Ceiling" }) do
 	local f = Instance.new("Folder"); f.Name = n; f.Parent = map; F[n] = f
 end
 
@@ -237,6 +243,7 @@ for i, c in ipairs(CAMERAS) do
 	local cam = part({ Name = "Camera" .. i, Size = Vector3.new(1.2, 1.2, 1.6), Position = Vector3.new(c[1], WALL_H - 1, c[2]),
 		Color = Color3.fromRGB(230, 60, 60), CanCollide = false, CanQuery = false, Parent = F.Cameras })
 	cam:SetAttribute("Index", i)
+	cam:SetAttribute("LookAt", Vector3.new(c[3], 0, c[4]))
 end
 -- sabotage fix pads: Rules.fixPads says how many each Kind needs (Reactor and O2 need both)
 local FIX_PADS = {
@@ -259,6 +266,29 @@ local btn = part({ Name = "EmergencyButton", Shape = Enum.PartType.Cylinder, Siz
 	CFrame = CFrame.new(0, 2.7, -30) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(230, 40, 40), Parent = F.Props })
 btn:SetAttribute("Room", "Cafeteria")
 
+-- Security desk: Use here to watch the four cameras (client-side view, see TrollUsHUD)
+local desk = part({ Name = "SecurityDesk", Size = Vector3.new(6, 2.5, 1.4), Position = Vector3.new(-54, 1.25, 3),
+	Color = Color3.fromRGB(70, 74, 86), Parent = F.Props })
+desk:SetAttribute("Room", "Security")
+for i = -1, 1 do
+	part({ Name = "Monitor", Size = Vector3.new(1.7, 1.2, 0.2), CFrame = CFrame.new(-54 + i * 1.9, 3.15, 3.2) * CFrame.Angles(math.rad(-10), 0, 0),
+		Color = Color3.fromRGB(60, 120, 200), Material = Enum.Material.Neon, CanCollide = false, Parent = F.Props })
+end
+
+-- ceilings: one dark slab per room and hall plus a light panel per room. CastShadow off so the sun still
+-- lights the floors (the ship has no interior lights yet)
+local CEIL = Color3.fromRGB(44, 46, 56)
+local function ceiling(x, z, w, d)
+	part({ Name = "Ceiling", Size = Vector3.new(w + 1, 1, d + 1), Position = Vector3.new(x, WALL_H + 0.5, z),
+		Color = CEIL, CastShadow = false, Parent = F.Ceiling })
+end
+for _, r in ipairs(ROOMS) do
+	ceiling(r.x, r.z, r.w, r.d)
+	part({ Name = "LightPanel", Size = Vector3.new(math.max(4, r.w * 0.45), 0.1, 1.6), Position = Vector3.new(r.x, WALL_H - 0.05, r.z),
+		Color = Color3.fromRGB(235, 240, 255), Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, CastShadow = false, Parent = F.Ceiling })
+end
+for _, h in ipairs(HALLS) do ceiling(h[1], h[2], h[3], h[4]) end
+
 local spawn = Instance.new("SpawnLocation")
 spawn.Name = "Spawn"; spawn.Size = Vector3.new(10, 1, 10); spawn.Position = Vector3.new(0, -0.45, -18)
 spawn.Anchored = true; spawn.Transparency = 1; spawn.CanCollide = false; spawn.Neutral = true; spawn.Duration = 0
@@ -272,6 +302,10 @@ Lighting.Brightness = 2
 Lighting.GlobalShadows = true
 Lighting.Ambient = Color3.fromRGB(110, 110, 120)
 Lighting.OutdoorAmbient = Color3.fromRGB(120, 120, 130)
+-- vision is classic fog: an Atmosphere turns it off, and depth of field blurs the first-person view
+for _, c in ipairs(Lighting:GetChildren()) do
+	if c:IsA("Atmosphere") then c:Destroy() elseif c:IsA("DepthOfFieldEffect") then c.Enabled = false end
+end
 
 print(("TrollUs built: %d rooms, %d halls, %d walls, %d doors, %d vents, %d tasks")
 	:format(#ROOMS, #HALLS, #F.Walls:GetChildren(), #F.Doors:GetChildren(), #F.Vents:GetChildren(), #F.Tasks:GetChildren()))

@@ -101,6 +101,13 @@ end
 local old = StarterPlayer:FindFirstChild("StarterCharacter"); if old then old:Destroy() end
 buildCrewmate("Red").Parent = StarterPlayer
 StarterPlayer.CharacterJumpPower = 0
+-- an empty Animate stops Roblox adding its default one, which waits forever on a Torso this rig does not have
+local scs = StarterPlayer:WaitForChild("StarterCharacterScripts")
+if not scs:FindFirstChild("Animate") then
+	local stub = Instance.new("LocalScript"); stub.Name = "Animate"
+	stub.Source = "-- empty on purpose: the waddle lives in TrollUsClient"
+	stub.Parent = scs
+end
 StarterPlayer.EnableMouseLockOption = false
 
 -- the palette, for the lobby later

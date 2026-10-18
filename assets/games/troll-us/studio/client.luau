@@ -1,7 +1,11 @@
--- TrollUsClient (StarterPlayerScripts): top-down camera, the waddle for every Crewmate on screen,
--- ghost and vent visibility, and vision as black fog.
+-- TrollUsClient (StarterPlayerScripts): the first-person camera and look controls, the waddle for every
+-- Crewmate on screen, ghost and vent visibility, and vision as black fog.
+-- The HUD talks to this script through two attributes on the LocalPlayer:
+--   UIOpen (bool)  a panel, the map or a menu is open: free the mouse
+--   CamView (int)  1..4 = watching that security camera, 0/nil = own eyes
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
 local CS = game:GetService("CollectionService")
 local Lighting = game:GetService("Lighting")
 local RS = game:GetService("ReplicatedStorage")
@@ -10,17 +14,17 @@ local TU = RS:WaitForChild("TrollUs")
 local Net = TU:WaitForChild("Net")
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
+local Map = workspace:WaitForChild("TrollUs"):WaitForChild("Map")
 
--- pitch = atan(up/back) ~ 55 degrees. A narrow FOV from far back keeps it close to the flat Among Us look;
--- at the default 70 the beans near the screen edges stretch and read as tipped over.
-local CAM_FOV = 35
-local CAM_UP, CAM_BACK = 60, 42
-local CAM_D = math.sqrt(CAM_UP * CAM_UP + CAM_BACK * CAM_BACK)
+local FOV = 80
+local EYE = 0.8          -- studs above the root's centre: the visor, 3.6 above the floor
+local PITCH_MAX = math.rad(75)
+local MOUSE_RAD = math.rad(0.25) -- per pixel, times the Roblox mouse sensitivity setting
+local TOUCH_RAD = math.rad(0.32)
 local STEP_HZ = 2.4
 local LEG_SWING = 0.9
 local BOB = 0.16
 local LEAN = 0.08
-local FACE_YAW = 0.55
 local VISION = { crew = 24, impostor = 36, lights = 8 }
 
 local role, partners = "Crewmate", {}
@@ -35,8 +39,9 @@ TU:GetAttributeChangedSignal("Phase"):Connect(function()
 	if TU:GetAttribute("Phase") == "Lobby" then role, partners = "Crewmate", {} end
 end)
 
--- ---------- own character: facing + camera ----------
+-- ---------- own character ----------
 local myChar, myHrp, myHum, ao
+local yaw, pitch = 0, 0
 local function setup(char)
 	myChar = char
 	myHrp = char:WaitForChild("HumanoidRootPart")
@@ -48,9 +53,56 @@ local function setup(char)
 	ao.RigidityEnabled = true
 	ao.Parent = myHrp
 	camera.CameraType = Enum.CameraType.Scriptable
+	-- start looking the way the bean faces
+	local look = myHrp.CFrame.LookVector
+	yaw, pitch = math.atan2(-look.X, -look.Z), 0
 end
 if player.Character then task.spawn(setup, player.Character) end
 player.CharacterAdded:Connect(setup)
+
+-- ---------- look input ----------
+local function mouseFree()
+	local phase = TU:GetAttribute("Phase")
+	if player:GetAttribute("UIOpen") then return true end
+	if phase ~= "Roam" and phase ~= "Lobby" and phase ~= "Countdown" then return true end
+	if (player:GetAttribute("CamView") or 0) > 0 then return true end
+	-- the lobby has a START button to click: look by holding the right mouse button there
+	if phase ~= "Roam" then return true end
+	return UIS:IsKeyDown(Enum.KeyCode.LeftAlt) -- hold Alt in a round to click the HUD
+end
+local rmb = false
+local function turn(dx, dy, k)
+	yaw -= dx * k
+	pitch = math.clamp(pitch - dy * k, -PITCH_MAX, PITCH_MAX)
+end
+UIS.InputBegan:Connect(function(input, processed)
+	if input.UserInputType == Enum.UserInputType.MouseButton2 and not processed then rmb = true end
+end)
+UIS.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton2 then rmb = false end
+end)
+UIS.InputChanged:Connect(function(input, processed)
+	if input.UserInputType == Enum.UserInputType.MouseMovement then
+		if not mouseFree() or rmb then
+			local sens = UserSettings():GetService("UserGameSettings").MouseSensitivity
+			turn(input.Delta.X, input.Delta.Y, MOUSE_RAD * sens)
+		end
+	end
+end)
+-- phone: drag anywhere on the right 60 percent of the screen that is not a button; the stick owns the left
+local lookTouch, lastTouch = nil, nil
+UIS.TouchStarted:Connect(function(t, processed)
+	if processed or lookTouch then return end
+	if t.Position.X < camera.ViewportSize.X * 0.4 then return end
+	lookTouch, lastTouch = t, t.Position
+end)
+UIS.TouchMoved:Connect(function(t)
+	if t ~= lookTouch then return end
+	local d = t.Position - lastTouch
+	lastTouch = t.Position
+	turn(d.X, d.Y, TOUCH_RAD)
+end)
+UIS.TouchEnded:Connect(function(t) if t == lookTouch then lookTouch = nil end end)
 
 -- ---------- per-model animation ----------
 local anim = setmetatable({}, { __mode = "k" })
@@ -98,52 +150,103 @@ local function setHidden(m, amount, tagMax)
 	end
 end
 
--- ---------- frame ----------
-local yaw = 0
-RunService.RenderStepped:Connect(function(dt)
-	local phase = TU:GetAttribute("Phase")
-	local meAlive = not myChar or myChar:GetAttribute("Alive") ~= false
-
-	if myHrp and myHrp.Parent then
-		local pos = myHrp.Position
-		camera.CameraType = Enum.CameraType.Scriptable
-		camera.FieldOfView = CAM_FOV
-		camera.CFrame = CFrame.lookAt(pos + Vector3.new(0, CAM_UP, CAM_BACK), pos)
-		if ao and myHum then
-			local mv = myHum.MoveDirection
-			local target = mv.Magnitude > 0.05 and math.clamp(mv.X, -1, 1) * FACE_YAW or 0
-			yaw += (target - yaw) * math.min(1, dt * 10)
-			ao.CFrame = CFrame.Angles(0, math.pi + yaw, 0) -- front = (sin yaw, 0, cos yaw): turns toward the walk
+-- ---------- lights ----------
+-- an Atmosphere switches classic fog off, and vision IS the fog; the Baseplate template ships one, and a
+-- place saved before it was removed brings it back, so drop it here on every client
+local function dropAtmosphere()
+	for _, c in ipairs(Lighting:GetChildren()) do
+		if c:IsA("Atmosphere") then c:Destroy() end
+		if c:IsA("DepthOfFieldEffect") then c.Enabled = false end
+	end
+end
+dropAtmosphere()
+Lighting.ChildAdded:Connect(function() task.defer(dropAtmosphere) end)
+local LIGHT = { Ambient = Lighting.Ambient, OutdoorAmbient = Lighting.OutdoorAmbient, Brightness = Lighting.Brightness }
+local DARK = { Ambient = Color3.fromRGB(30, 30, 36), OutdoorAmbient = Color3.fromRGB(30, 30, 36), Brightness = 0.4 }
+local lightsOut = false
+local function setLights(out)
+	if out == lightsOut then return end
+	lightsOut = out
+	for k, v in pairs(out and DARK or LIGHT) do Lighting[k] = v end
+	local ceiling = Map:FindFirstChild("Ceiling")
+	for _, p in ipairs(ceiling and ceiling:GetChildren() or {}) do
+		if p.Name == "LightPanel" then
+			p.Material = out and Enum.Material.SmoothPlastic or Enum.Material.Neon
+			p.Color = out and Color3.fromRGB(50, 52, 60) or Color3.fromRGB(235, 240, 255)
 		end
 	end
+end
 
-	-- vision
+-- a security camera view: from just under the camera box toward its LookAt point down the hall
+local function camViewCFrame(n)
+	local cam = Map.Cameras:FindFirstChild("Camera" .. n)
+	local at = cam and cam:GetAttribute("LookAt")
+	if not at then return nil end
+	local p = cam.Position
+	return CFrame.lookAt(p + (at - p).Unit * 1.4, at) -- a stud out in front, so the camera's own box stays out of shot
+end
+
+-- ---------- frame ----------
+RunService:BindToRenderStep("TrollUsCamera", Enum.RenderPriority.Camera.Value + 1, function(dt)
+	local phase = TU:GetAttribute("Phase")
+	local meAlive = not myChar or myChar:GetAttribute("Alive") ~= false
+	local venting = myChar and myChar:GetAttribute("Venting")
+	local camView = player:GetAttribute("CamView") or 0
+
+	-- Studio test hook: set TestYaw / TestPitch (radians) on the LocalPlayer to aim the camera
+	if RunService:IsStudio() and player:GetAttribute("TestYaw") then
+		yaw, pitch = player:GetAttribute("TestYaw"), player:GetAttribute("TestPitch") or 0
+		player:SetAttribute("TestYaw", nil); player:SetAttribute("TestPitch", nil)
+	end
+
+	local free = mouseFree() and not rmb
+	UIS.MouseBehavior = free and Enum.MouseBehavior.Default
+		or (rmb and Enum.MouseBehavior.LockCurrentPosition or Enum.MouseBehavior.LockCenter)
+	UIS.MouseIconEnabled = free
+
+	camera.CameraType = Enum.CameraType.Scriptable
+	camera.FieldOfView = FOV
+	if camView > 0 and camViewCFrame(camView) then
+		camera.CFrame = camViewCFrame(camView)
+	elseif myHrp and myHrp.Parent then
+		local p = myHrp.Position
+		-- in a vent you peek out at floor level through the grate (the HUD draws the slats)
+		local eye = venting and Vector3.new(p.X, 0.7, p.Z) or (p + Vector3.new(0, EYE, 0))
+		camera.CFrame = CFrame.new(eye) * CFrame.Angles(0, yaw, 0) * CFrame.Angles(pitch, 0, 0)
+		-- the bean faces where you look, so others can see it (front is -Z)
+		if ao then ao.CFrame = CFrame.Angles(0, yaw, 0) end
+	end
+
+	-- vision: in first person the fog distance is the vision radius itself; walls do the rest
 	local r
-	if phase == "Roam" and meAlive then
-		if role == "Impostor" then r = VISION.impostor
+	if (phase == "Roam" or phase == "Lobby" or phase == "Countdown") and meAlive and camView == 0 then
+		if venting then r = 16
+		elseif phase ~= "Roam" then r = VISION.crew
+		elseif role == "Impostor" then r = VISION.impostor
 		elseif TU:GetAttribute("Sabotage") == "Lights" then r = VISION.lights
 		else r = VISION.crew end
 	end
-	local fogEnd = 1e5
 	if r then
-		fogEnd = math.sqrt(CAM_D * CAM_D + r * r)
 		Lighting.FogColor = Color3.new(0, 0, 0)
-		Lighting.FogStart = math.sqrt(CAM_D * CAM_D + (r * 0.55) ^ 2)
-		Lighting.FogEnd = fogEnd
+		Lighting.FogStart = r * 0.55
+		Lighting.FogEnd = r
 	else
 		Lighting.FogStart = 0
 		Lighting.FogEnd = 1e5
 	end
+	setLights(phase == "Roam" and TU:GetAttribute("Sabotage") == "Lights" and role ~= "Impostor")
 
 	for _, m in ipairs(CS:GetTagged("Crewmate")) do
 		if m:IsDescendantOf(workspace) then
 			animate(m, dt)
 			local hide = 0
-			if m:GetAttribute("Alive") == false then
+			if m == myChar then
+				hide = camView > 0 and 0 or 1 -- your own bean never blocks your eyes
+			elseif m:GetAttribute("Alive") == false then
 				hide = meAlive and 1 or 0.5
 			end
-			if m:GetAttribute("Venting") then hide = (m == myChar) and 0.6 or 1 end
-			setHidden(m, hide, r and fogEnd or 1e5)
+			if m ~= myChar and m:GetAttribute("Venting") then hide = 1 end
+			setHidden(m, hide, r or 1e5)
 			-- fellow Impostors read in red
 			local hrp = m:FindFirstChild("HumanoidRootPart")
 			local tag = hrp and hrp:FindFirstChild("Tag")

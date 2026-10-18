@@ -213,12 +213,14 @@ local function step(dt)
 			local b = stateOf(p)
 			local hrp, hum = api.hrpOf(p), api.humOf(p)
 			if hrp and hum then
-				-- face the camera, leaning toward the walk direction
+				-- first person: face where you walk (front is -Z), keep the last heading when standing still
 				local ao = hrp:FindFirstChild("Face")
 				if ao then
 					local v = hrp.AssemblyLinearVelocity
-					local yaw = math.clamp(v.X / 12, -1, 1) * 0.55
-					ao.CFrame = CFrame.Angles(0, math.pi + yaw, 0) -- same facing rule as the player
+					if Vector3.new(v.X, 0, v.Z).Magnitude > 1 then
+						b.yaw = math.atan2(-v.X, -v.Z)
+					end
+					ao.CFrame = CFrame.Angles(0, b.yaw or 0, 0)
 				end
 
 				if S.phase ~= "Roam" then

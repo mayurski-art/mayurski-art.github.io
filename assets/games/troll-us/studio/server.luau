@@ -118,7 +118,8 @@ local function nameTag(model, name)
 	local hrp = model:WaitForChild("HumanoidRootPart")
 	local old = hrp:FindFirstChild("Tag"); if old then old:Destroy() end
 	local bb = Instance.new("BillboardGui"); bb.Name = "Tag"; bb.Size = UDim2.new(0, 140, 0, 22)
-	bb.StudsOffset = Vector3.new(0, 4.4, 0); bb.AlwaysOnTop = true; bb.LightInfluence = 0
+	-- not AlwaysOnTop: in first person a name must not show through a wall
+	bb.StudsOffset = Vector3.new(0, 3.6, 0); bb.AlwaysOnTop = false; bb.LightInfluence = 0
 	local t = Instance.new("TextLabel"); t.Name = "Name"; t.Size = UDim2.fromScale(1, 1); t.BackgroundTransparency = 1
 	t.Text = name; t.Font = Enum.Font.GothamBold; t.TextSize = 15; t.TextColor3 = Color3.new(1, 1, 1)
 	t.TextStrokeTransparency = 0.2; t.Parent = bb
