@@ -309,7 +309,9 @@ end
 -- ---------- kills, bodies, vents ----------
 local function spawnBody(victim)
 	local pos = posOf(victim); if not pos then return end
+	victim.model.Archivable = true -- player characters are not archivable, and Clone() returns nil for them
 	local b = victim.model:Clone()
+	if not b then return end
 	b.Name = "DeadBody"
 	for _, d in ipairs(b:GetDescendants()) do
 		if d:IsA("Humanoid") or d:IsA("Script") or d:IsA("LocalScript") or d:IsA("BillboardGui")
@@ -321,6 +323,7 @@ local function spawnBody(victim)
 	b:PivotTo(CFrame.new(pos.X, 1.7, pos.Z) * CFrame.Angles(0, math.pi, 0) * CFrame.Angles(math.rad(90), 0, 0))
 	b.Parent = Bodies
 end
+local KILL_CLIPS = { "Stab", "Shoot", "Tongue" }
 local function doKill(killer, victim)
 	if S.phase ~= "Roam" or not killer.alive or not victim.alive or killer.venting then return end
 	if killer.role ~= "Impostor" or victim.role == "Impostor" then return end
@@ -328,20 +331,27 @@ local function doKill(killer, victim)
 	local kp, vp = posOf(killer), posOf(victim)
 	if not kp or not vp or flat(kp, vp) > R("killRange") + 0.5 then return end
 	victim.alive = false
-	spawnBody(victim)
-	ghostify(victim, true)
 	victim.openTask = nil
-	moveTo(killer, vp)
 	killer.killReady = now() + R("killCooldown")
+	-- the clip plays for ~0.7 s on every client before the body drops and the killer lands on it
+	local clip = KILL_CLIPS[math.random(#KILL_CLIPS)]
+	setFrozen(victim, true)
+	task.delay(0.7, function()
+		if S.phase ~= "Roam" then setFrozen(victim, false); return end
+		spawnBody(victim)
+		ghostify(victim, true)
+		setFrozen(victim, false)
+		if killer.alive then moveTo(killer, vp) end
+		checkWin() -- after the clip, so a winning kill is seen before the end screen
+	end)
 	for _, w in ipairs(list()) do
 		if w.isBot and w.alive and w.role == "Crewmate" and w ~= victim then
 			local wp = posOf(w)
 			if wp and flat(wp, vp) < 22 then w.sus[killer.id] = true end
 		end
 	end
-	sendTo(victim, "YouDied", { suit = killer.suit })
-	broadcast("Kill", { killer = killer.id, victim = victim.id })
-	checkWin()
+	sendTo(victim, "YouDied", { suit = killer.suit, killer = killer.id, clip = clip })
+	broadcast("Kill", { killer = killer.id, victim = victim.id, clip = clip, from = kp, at = vp })
 end
 
 local function ventsInGroup(g)
@@ -612,17 +622,28 @@ HANDLERS.Report = function(p)
 	if S.phase ~= "Roam" or not p.alive then return end
 	local pos = posOf(p); if not pos then return end
 	for _, b in ipairs(Bodies:GetChildren()) do
-		if flat(b:GetPivot().Position, pos) <= R("reportRange") then callMeeting(p, "Body"); return end
+		local bp = b:GetPivot().Position
+		-- first person: you have to be able to see it, a body behind a wall does not count
+		if flat(bp, pos) <= R("reportRange") and Rules.lineOfSight(Map, pos, bp) then callMeeting(p, "Body"); return end
 	end
 end
 HANDLERS.Kill = function(p)
 	if p.role ~= "Impostor" then return end
 	local pos = posOf(p); if not pos then return end
+	-- first person: the victim has to be in front of you (the bean faces where its player looks)
+	local hrp = hrpOf(p); if not hrp then return end
+	local look = hrp.CFrame.LookVector
+	local fwd = Vector3.new(look.X, 0, look.Z).Unit
+	local cosCone = math.cos(math.rad(R("killCone")))
 	local best, bd = nil, R("killRange")
 	for _, q in ipairs(list()) do
 		if q.alive and q.role ~= "Impostor" then
 			local qp = posOf(q)
-			if qp and flat(qp, pos) <= bd then best, bd = q, flat(qp, pos) end
+			local d = qp and flat(qp, pos)
+			if d and d <= bd then
+				local to = Vector3.new(qp.X - pos.X, 0, qp.Z - pos.Z)
+				if d < R("killPointBlank") or (to.Magnitude > 0 and fwd:Dot(to.Unit) >= cosCone) then best, bd = q, d end
+			end
 		end
 	end
 	if best then doKill(p, best) end
@@ -678,7 +699,7 @@ end)
 -- ---------- bots ----------
 Bots.init({
 	S = S, R = R, now = now, list = list, posOf = posOf, hrpOf = hrpOf, humOf = humOf, flat = flat,
-	Pads = Pads, Map = Map, Bodies = Bodies, Rules = Rules,
+	Pads = Pads, Map = Map, Bodies = Bodies, Rules = Rules, los = function(a, b) return Rules.lineOfSight(Map, a, b) end,
 	kill = doKill, report = function(p) callMeeting(p, "Body") end, taskDone = markTaskDone,
 	fix = fixAt, sabotage = startSabotage,
 })

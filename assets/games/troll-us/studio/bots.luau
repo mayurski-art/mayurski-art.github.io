@@ -72,7 +72,8 @@ local function thinkCrew(p, b, idx)
 
 	if p.alive then
 		for _, body in ipairs(api.Bodies:GetChildren()) do
-			if api.flat(body:GetPivot().Position, pos) <= 12 then
+			local bp = body:GetPivot().Position
+			if api.flat(bp, pos) <= 12 and api.los(pos, bp) then -- first person: only a body the bot can see
 				stop(p, b)
 				api.report(p)
 				return

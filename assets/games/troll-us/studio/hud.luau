@@ -174,10 +174,55 @@ local banner = new("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim
 local bannerText = label({ Size = UDim2.new(1, 0, 0, 90), Font = BLACK, TextSize = 64, TextStrokeTransparency = 0, ZIndex = 13 }, banner)
 local bannerSub = label({ Position = UDim2.fromOffset(0, 90), Size = UDim2.new(1, 0, 0, 40), TextSize = 22, ZIndex = 13 }, banner)
 
+-- the victim's last view: the killer's bean lunging at you with the same clip everyone else saw
 local died = card("Died")
-died.BackgroundTransparency = 0.2
-local diedText = label({ AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45), Size = UDim2.fromOffset(800, 100),
-	Font = BLACK, TextSize = 64, ZIndex = 11, Text = "You were killed" }, died)
+died.BackgroundColor3 = Color3.fromRGB(70, 0, 0)
+new("UIGradient", { Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(150, 10, 10), Color3.fromRGB(10, 0, 0)) }, died)
+local diedView = new("ViewportFrame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.42), Size = UDim2.fromScale(0.9, 0.8),
+	BackgroundTransparency = 1, Ambient = Color3.fromRGB(150, 150, 160), LightColor = Color3.new(1, 1, 1),
+	LightDirection = Vector3.new(-0.3, -1, 0.6), ZIndex = 11 }, died)
+local diedCam = new("Camera", { FieldOfView = 50 }, diedView)
+diedView.CurrentCamera = diedCam
+local diedText = label({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -40), Size = UDim2.fromOffset(800, 80),
+	Font = BLACK, TextSize = 58, ZIndex = 12, Text = "You were killed", TextStrokeTransparency = 0 }, died)
+local KillClips = require(TU:WaitForChild("KillClips"))
+
+local function playDeath(killerId, clip)
+	diedView:ClearAllChildren()
+	diedCam = new("Camera", { FieldOfView = 50 }, diedView)
+	diedView.CurrentCamera = diedCam
+	local src
+	for _, m in ipairs(CS:GetTagged("Crewmate")) do if m:GetAttribute("TUId") == killerId then src = m end end
+	if not src then return end
+	src.Archivable = true -- player characters are not archivable; this only changes this client's copy
+	local m = src:Clone()
+	if not m then return end
+	-- the clone keeps the waddle pose it was caught in; put every joint back to rest (root first, then the rest)
+	for _ = 1, 2 do
+		for _, mo in ipairs(m:GetDescendants()) do
+			if mo:IsA("Motor6D") and mo.Part0 and mo.Part1 then mo.Part1.CFrame = mo.Part0.CFrame * mo.C0 * mo.C1:Inverse() end
+		end
+	end
+	for _, d in ipairs(m:GetDescendants()) do
+		if d:IsA("LuaSourceContainer") or d:IsA("BillboardGui") or d:IsA("Humanoid") or d:IsA("Constraint") or d:IsA("AlignOrientation") then d:Destroy()
+		elseif d:IsA("BasePart") then d.Anchored = true; d.LocalTransparencyModifier = 0 end
+	end
+	m:PivotTo(CFrame.new(0, 2.8, 0)) -- feet at 0, front (-Z) toward the camera
+	m.Parent = diedView
+	diedCam.CFrame = CFrame.lookAt(Vector3.new(0.4, 3.3, -7.4), Vector3.new(0, 3.0, 0)) -- the whole dome in shot
+	-- the killer steps in at you while the props do the rest
+	task.spawn(function()
+		local t = 0
+		while t < 0.4 and m.Parent do
+			t += RunService.Heartbeat:Wait()
+			m:PivotTo(CFrame.new(0, 2.8, -1.4 * math.clamp((t - 0.1) / 0.2, 0, 1)))
+		end
+	end)
+	-- the "victim" is you, at the camera: the props come right at the screen
+	-- the tongue goes past your lower left, so its tip never covers the grin
+	local at = clip == "Tongue" and Vector3.new(-2.2, 0, -7.4) or Vector3.new(0, 0, -7.4)
+	KillClips.play(diedView, clip or "Stab", Vector3.new(0, 0, -1.4), at)
+end
 
 local eject = card("Eject")
 for _ = 1, 70 do
@@ -328,16 +373,26 @@ local function nearbyFix(pos)
 		if f:GetAttribute("Kind") == kind and not f:GetAttribute("Fixed") and flat(f.Position, pos) <= R("useRange") then return f end
 	end
 end
+-- both match the server's checks: a body you can see, a victim inside the cone in front of you
 local function nearbyBody(pos)
 	for _, b in ipairs(Bodies:GetChildren()) do
-		if flat(b:GetPivot().Position, pos) <= R("reportRange") then return b end
+		local bp = b:GetPivot().Position
+		if flat(bp, pos) <= R("reportRange") and Rules.lineOfSight(Map, pos, bp) then return b end
 	end
 end
 local function nearbyVictim(pos)
+	local look = workspace.CurrentCamera.CFrame.LookVector
+	local fwd = Vector3.new(look.X, 0, look.Z)
+	fwd = fwd.Magnitude > 0 and fwd.Unit or Vector3.new(0, 0, -1)
+	local cosCone = math.cos(math.rad(R("killCone")))
 	for _, m in ipairs(CS:GetTagged("Crewmate")) do
 		if m ~= myChar() and m:GetAttribute("Alive") ~= false and not me.partners[m:GetAttribute("TUId")] then
 			local h = m:FindFirstChild("HumanoidRootPart")
-			if h and flat(h.Position, pos) <= R("killRange") then return m end
+			local d = h and flat(h.Position, pos)
+			if d and d <= R("killRange") then
+				local to = Vector3.new(h.Position.X - pos.X, 0, h.Position.Z - pos.Z)
+				if d < R("killPointBlank") or (to.Magnitude > 0 and fwd:Dot(to.Unit) >= cosCone) then return m end
+			end
 		end
 	end
 end
@@ -579,8 +634,10 @@ Net.OnClientEvent:Connect(function(kind, d)
 		overImps.Text = (#names == 1 and "The Impostor was " or "The Impostors were ") .. table.concat(names, " and ")
 	elseif kind == "YouDied" then
 		diedText.TextColor3 = suitColor(d.suit)
+		closePanel(); toggleMap(false); if camN > 0 then setCam(0) end
 		died.Visible = true
-		task.delay(2.5, function() died.Visible = false end)
+		playDeath(d.killer, d.clip)
+		task.delay(2.6, function() died.Visible = false end)
 	elseif kind == "Kill" then
 		local c = myChar()
 		if c and d.killer == c:GetAttribute("TUId") then me.killReadyAt = now() + R("killCooldown") end

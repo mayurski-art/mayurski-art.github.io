@@ -40,6 +40,24 @@ function Rules.impostorsFor(n)
 	return n >= 7 and 2 or 1
 end
 
+-- first person: a kill needs the victim inside this cone in front of the killer (half-angle, degrees),
+-- unless they are closer than killPointBlank
+Rules.killCone = 35
+Rules.killPointBlank = 2.5
+
+-- can someone whose feet are at `from` see the point `to`? Only walls and shut doors block the view.
+-- Shared by the server (reports), the bots and the HUD (the REPORT button) so all three agree.
+function Rules.lineOfSight(map, from, to)
+	local block = { map.Walls }
+	for _, d in ipairs(map.Doors:GetChildren()) do if d.CanCollide then table.insert(block, d) end end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = block
+	local eye = Vector3.new(from.X, 3.6, from.Z)
+	local target = Vector3.new(to.X, 1, to.Z)
+	return workspace:Raycast(eye, target - eye, params) == nil
+end
+
 -- fix pads per sabotage: Kind -> list of {room, x, z}; build-skeld.luau builds the parts (keep the two in sync)
 Rules.fixPads = {
 	Lights = { { room = "Electrical", x = -36, z = 22 } },

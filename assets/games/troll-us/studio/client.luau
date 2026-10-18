@@ -27,12 +27,24 @@ local BOB = 0.16
 local LEAN = 0.08
 local VISION = { crew = 24, impostor = 36, lights = 8 }
 
+local KillClips = require(TU:WaitForChild("KillClips"))
+local fx = Instance.new("Folder"); fx.Name = "TrollUsFX"; fx.Parent = workspace -- this client's own effects
+local shakeUntil = 0
+
 local role, partners = "Crewmate", {}
 Net.OnClientEvent:Connect(function(kind, data)
 	if kind == "Role" then
 		role = data.role
 		partners = {}
 		for _, id in ipairs(data.impostors or {}) do partners[id] = true end
+	elseif kind == "Kill" and data.from and data.at then
+		-- everyone gets the clip in the world; within sight range it also shakes your view
+		KillClips.play(fx, data.clip, data.from, data.at)
+		local me = player.Character
+		local myId = me and me:GetAttribute("TUId")
+		local hrp = me and me:FindFirstChild("HumanoidRootPart")
+		local near = hrp and (Vector3.new(hrp.Position.X - data.at.X, 0, hrp.Position.Z - data.at.Z).Magnitude < 14)
+		if myId == data.killer or near then shakeUntil = os.clock() + 0.35 end
 	end
 end)
 TU:GetAttributeChangedSignal("Phase"):Connect(function()
@@ -212,7 +224,13 @@ RunService:BindToRenderStep("TrollUsCamera", Enum.RenderPriority.Camera.Value + 
 		local p = myHrp.Position
 		-- in a vent you peek out at floor level through the grate (the HUD draws the slats)
 		local eye = venting and Vector3.new(p.X, 0.7, p.Z) or (p + Vector3.new(0, EYE, 0))
-		camera.CFrame = CFrame.new(eye) * CFrame.Angles(0, yaw, 0) * CFrame.Angles(pitch, 0, 0)
+		local cf = CFrame.new(eye) * CFrame.Angles(0, yaw, 0) * CFrame.Angles(pitch, 0, 0)
+		local shake = shakeUntil - os.clock()
+		if shake > 0 then
+			local a = 0.05 * shake / 0.35
+			cf *= CFrame.Angles((math.random() - 0.5) * a, (math.random() - 0.5) * a, (math.random() - 0.5) * a)
+		end
+		camera.CFrame = cf
 		-- the bean faces where you look, so others can see it (front is -Z)
 		if ao then ao.CFrame = CFrame.Angles(0, yaw, 0) end
 	end
