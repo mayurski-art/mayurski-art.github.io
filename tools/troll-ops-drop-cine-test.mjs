@@ -76,6 +76,8 @@ const fallSamples = (page, to, max = 20000) => page.evaluate(async ({ u, fl, to,
   });
 }, { u: STATE, fl: FALL, to, max });
 const fallAt = async (page, t) => (await fallSamples(page, t)).at(-1);
+const SFX = "/assets/games/troll-ops/sound/sfx-files.js?v=" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/modes/royale.js"), "utf8").match(/sfx-files\.js\?v=([a-z0-9-]+)/)[1];
+const sfxState = (page) => page.evaluate(async (u) => { const m = await import(u); return { loaded: m.SFX_NAMES.filter((n) => m.sfxLoaded(n)), all: m.SFX_NAMES.length, played: [...m.sfxPlayed] }; }, SFX);
 const shot = async (page, name) => { if (OUT) await page.screenshot({ path: path.join(OUT, name) }); };
 
 async function open(lobbySeconds) {
@@ -354,6 +356,10 @@ await shot(a, "fall-view.png");
 await a.evaluate(() => window.__trollOps.keys.delete("KeyC"));
 x = (await fallSamples(a, fsm.at(-1).t + 0.3)).at(-1) ?? fsm.at(-1);
 check(x.view === -1 && Math.abs(x.camDist - 7) < 1.2, "let go: back behind you", JSON.stringify(x));
+// Phase 4: the real clips (sound/sfx-files.js), all in and each on its cue.
+const snd = await sfxState(a);
+check(snd.loaded.length === snd.all, "every sound clip loaded", `${snd.loaded.length}/${snd.all}`);
+for (const n of ["mask-hiss", "breathing", "strap-snap", "belt", "steps", "latch", "wind-in", "gust", "wind-rush", "whoosh"]) check(snd.played.includes(n), `the ${n} clip plays`, snd.played.join(" "));
 await a.close();
 
 // ---- music: the iPod and a Troll Radio song, the radio put back after

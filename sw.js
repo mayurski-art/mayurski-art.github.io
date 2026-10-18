@@ -7,7 +7,7 @@
 // Storage instead: the first load of a map downloads it, every later one
 // reads it off the disk.
 //
-// Only Troll Forces' art and models, and three.js, go through here.
+// Only Troll Forces' art, models and sound clips, and three.js, go through here.
 // Everything else on the site, the pages themselves included, is left to
 // the network exactly as before (no respondWith).
 //
@@ -47,6 +47,7 @@ function kindOf(req) {
   if (p.startsWith(VENDOR) && /\.js$/.test(p)) return "art";
   if (!p.startsWith(GAME) || p.includes("/refs/")) return null;
   if (ART.test(p)) return "art";
+  if (p.startsWith(GAME + "sfx/") && /\.mp3$/i.test(p)) return "art";   // sound clips (sound/sfx-files.js)
   if (/\.(js|css)$/.test(p) && u.searchParams.has("v")) return "tagged";
   return null;
 }

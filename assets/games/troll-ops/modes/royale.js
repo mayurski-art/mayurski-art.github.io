@@ -14,8 +14,9 @@ import { WEAPON_DEFS, WeaponState } from "../weapons/weapons.js?v=p5bm-wst-hf1-f
 import { defaultLoadoutFor } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1";
 import { game } from "../core/state.js?v=st1";
-import { updateDropCine, dropCineEye, resetDropCine, dropCineCrewSeat, dropCineAtRamp } from "./royale-cine.js?v=dc1-ne1-dc2-dc3";
-import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose } from "./royale-fall.js?v=dc3";
+import { updateDropCine, dropCineEye, resetDropCine, dropCineCrewSeat, dropCineAtRamp } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4";
+import { playSfx, preloadSfx } from "../sound/sfx-files.js?v=dc4";
+import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose } from "./royale-fall.js?v=dc3-dc4";
 
 // Phase 1 ("Mini Royale"): solo, one life, loot only, the Cringe closing in,
 // last troll standing. royale.js has the zone, the loot and their visuals;
@@ -33,6 +34,7 @@ function royaleGround(x, z) { return groundHeightAt(game.colliders, x, z, 0.8, 0
 
 export function setupRoyale(seed = royaleSeed()) {
   teardownRoyale();
+  preloadSfx();   // the drop's clips (sound/sfx-files.js), in well before the scene
   const rng = seededRng(seed);
   const map = game.builtMap.map;
   const bounds = map.bounds;
@@ -230,12 +232,21 @@ function planeSounds() {
   if (aboard) {
     a.turboprop(hold.doorK, hold.rampK);
     if (hold.doorK > 0.02 && !r.heardDoor) { r.heardDoor = true; a.rampWhine(2.6); }
-    if (hold.rampK > 0.02 && !r.heardRamp) { r.heardRamp = true; a.rampWhine(PLANES.rampTime); }
+    if (hold.rampK > 0.02 && !r.heardRamp) {
+      // The latch lets go, then the hydraulics.
+      r.heardRamp = true;
+      playSfx("latch", { gain: 0.7 });
+      a.rampWhine(PLANES.rampTime);
+    }
+    // The wind coming in as the ramp goes down (a loop, up with the ramp).
+    if (hold.rampK > 0.02 && !r.windIn) r.windIn = playSfx("wind-in", { gain: 0, loop: true }) || null;
+    r.windIn?.setGain(hold.rampK * 0.35, 0.2);
     if (hold.light !== r.heardLight) {
       if (hold.light === "green" || (hold.light === "red" && r.heardLight)) a.jumpBuzzer(hold.light === "green");
       r.heardLight = hold.light;
     }
   }
+  else if (r.windIn) { r.windIn.stop(0.4); r.windIn = null; }
   // Out of the hold, the planes are heard going over; aboard, the others.
   const cam = game.camera.position;
   let best = null, bestD = 500 * 500;
@@ -472,6 +483,18 @@ function jumpOut() {
   // The fall's opening show (royale-fall.js) has the camera and the stick
   // for its first seconds; its end puts up the fly banner.
   startFallShow(back, game.look.yaw, game.move.pos, _exitVel);
+  // The slipstream as you go, and the wind of the fall from then on.
+  playSfx("gust", { gain: 0.8 });
+  r.windRush = playSfx("wind-rush", { gain: 0.15, loop: true }) || null;
+}
+/* The fall's wind: louder and higher the faster you go; gone on landing. */
+function fallWind(f) {
+  const r = royale;
+  if (!r.windRush) return;
+  if (!f || f.state === "landed") { r.windRush.stop(0.3); r.windRush = null; return; }
+  const v = Math.min(1, f.vel.length() / 45);
+  r.windRush.setGain(0.15 + v * 0.45, 0.15);
+  r.windRush.setRate(0.85 + v * 0.35);
 }
 /* The fall show, for the camera (view/player-update.js) and your body
    (view/third-person.js). */
@@ -508,6 +531,7 @@ export function updateDropPlayer(dt, ix, iz) {
   const coast = updateFallShow(dt);
   if (coast) ix = iz = 0;
   f.update(dt, { forward: iz, strafe: ix, yaw: game.look.yaw, pitch: game.look.pitch, open: false, coast }, dropGround);
+  fallWind(f);
   game.move.pos.copy(f.pos);
   game.move.velocity.copy(f.vel);
   if (f.state === "glide" && r.me !== "glide") { r.me = "glide"; setPlayerGlider(true); game.audio.reload(); }
@@ -581,6 +605,11 @@ function royaleLateSpectate() {
 export function teardownRoyale() {
   resetDropCine();
   endFallShow();
+  if (royale) {
+    royale.windIn?.stop(0.2);
+    royale.windRush?.stop(0.2);
+    royale.windIn = royale.windRush = null;
+  }
   if (!royale) return;
   royale.drop?.dispose();
   setPlayerGlider(false);

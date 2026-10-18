@@ -20,6 +20,7 @@
 
 import * as THREE from "three";
 import { game } from "../core/state.js?v=st1";
+import { playSfx } from "../sound/sfx-files.js?v=dc4";
 import { FALL_SHOW, FALL_FLIP, fallShowQuat } from "../net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3";
 
 export const FALL_CUTS = [FALL_FLIP, 3, 4.5];
@@ -67,7 +68,7 @@ export function updateFallShow(dt) {
   const was = show.t;
   show.t += dt;
   if (was >= FALL_SHOW) return false;
-  for (const c of [...FALL_CUTS, FALL_SHOW]) if (was < c && show.t >= c) game.audio.swing?.();
+  for (const c of [...FALL_CUTS, FALL_SHOW]) if (was < c && show.t >= c && !playSfx("whoosh", { gain: 0.5 })) game.audio.swing?.();
   if (show.t >= FALL_SHOW) game.showWaveBanner("Push forward to fly — look down to dive", 1800);
   return show.t < FALL_SHOW;
 }

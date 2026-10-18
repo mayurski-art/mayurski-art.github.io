@@ -11,8 +11,9 @@
 // through it. Phase 2 owns what happens at zero (missile, flash, the end).
 
 import { game } from "../core/state.js?v=st1";
+import { playSfx, preloadSfx } from "../sound/sfx-files.js?v=dc4";
 import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3";
-import { beginStreakHold, endStreakHold } from "./hold.js?v=sh1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3";
+import { beginStreakHold, endStreakHold } from "./hold.js?v=sh1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4";
 import { killstreakUi } from "./calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3";
 import { buildNukeDevice } from "./nuke-device.js?v=tn1";
 import { NukeBlast, MISSILE_TIME } from "./nuke-blast.js?v=tn2";
@@ -63,6 +64,7 @@ function keyLabel() {
 export function grantNuke() {
   if (!nukeModeOk() || nuke.ready || nuke.used) return;
   nuke.ready = true;
+  preloadSfx();   // the alarm, missile and blast clips, in before the call
   renderReady();
   killstreakUi.banner({ title: "TACTICAL NUKE READY", sub: `${keyLabel()} to call it in`, label: "Nuclear", tone: "red" });
 }
@@ -105,6 +107,7 @@ export function applyRemoteNuke(m) {
 }
 
 function startInbound(info) {
+  preloadSfx();
   nuke.inbound = { ...info, t0: performance.now(), lastSec: NUKE.countdown + 1, sky: saveSky() };
   const el = ensureOverlay();
   el.root.hidden = false;
@@ -291,6 +294,7 @@ export function placeNukeCamera(camera) {
 
 function clearInbound() {
   const ib = nuke.inbound;
+  ib?.alarm?.stop(0.2);
   if (ib?.sky) restoreSky(ib.sky);
   if (ib?.fog && game.scene.fog) game.scene.fog.color.copy(ib.fog);
   ib?.blast?.dispose();
@@ -368,19 +372,24 @@ function restoreSky(base) {
   for (const k of SKY_KEYS) skyMat.uniforms[k].value.copy(base[k]);
 }
 
-// ---- sound: synthesised for now; the Pixabay alarm clip replaces it once
-// the clip loader lands (drop cinematic doc, Sound).
+// ---- sound: the Pixabay clips (sound/sfx-files.js), each with its synth
+// version for when the clip isn't in yet.
 
+/* The alarm: one long clip looped through the countdown (stopped at zero),
+   or the synth wail once a second. */
 function nukeSiren() {
   const a = game.audio;
   if (!a?._ready?.()) return;
+  const ib = nuke.inbound;
+  if (ib && !ib.alarm) ib.alarm = playSfx("nuke-alarm", { gain: 0.55, loop: true }) || null;
+  if (ib?.alarm) return;
   a._tone({ freq: 440, to: 880, duration: 0.5, gain: 0.05, type: "sawtooth" });
   a._tone({ freq: 880, to: 440, duration: 0.45, gain: 0.05, type: "sawtooth", delay: 0.5 });
 }
 /* The missile coming in: a long rising tear, then the hit. */
 function missileSound() {
   const a = game.audio;
-  if (!a?._ready?.()) return;
+  if (!a?._ready?.() || playSfx("missile", { gain: 0.8 })) return;
   a._noise({ duration: 3, gain: 0.12, type: "bandpass", freq: 500, q: 1.4, sweepTo: 2600 });
   a._tone({ freq: 220, to: 900, duration: 3, gain: 0.03, type: "sawtooth" });
 }
@@ -388,6 +397,11 @@ function missileSound() {
 function blastSound() {
   const a = game.audio;
   if (!a?._ready?.()) return;
+  nuke.inbound?.alarm?.stop(0.1);
+  if (playSfx("nuke-blast", { gain: 1 })) {
+    a._tone({ freq: 48, to: 22, duration: 8, gain: 0.25, type: "sine", delay: 0.1 });   // under the clip's rumble
+    return;
+  }
   a.explosion(3);
   a._noise({ duration: 9, gain: 0.5, type: "lowpass", freq: 260, sweepTo: 40, delay: 0.15 });
   a._tone({ freq: 48, to: 22, duration: 8, gain: 0.35, type: "sine", delay: 0.1 });
@@ -395,6 +409,7 @@ function blastSound() {
 function nukeBeep(armed) {
   const a = game.audio;
   if (!a?._ready?.()) return;
+  if (armed ? playSfx("beep", { gain: 0.6 }) && playSfx("beep", { gain: 0.6, delay: 0.12 }) : playSfx("beep", { gain: 0.5, delay: 0.6, rate: 0.8 })) return;
   if (armed) for (const d of [0, 0.12]) a._tone({ freq: 1320, duration: 0.08, gain: 0.08, type: "square", delay: d });
   else a._tone({ freq: 1000, duration: 0.12, gain: 0.07, type: "square", delay: 0.6 });
 }

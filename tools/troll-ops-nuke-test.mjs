@@ -228,6 +228,14 @@ check(eb.won === (eb.team === ea.team), "the other tab's result follows the call
 check(!ea.inbound && !eb.inbound && ea.white && eb.white, "the blast is cleaned up");
 check(eb.sky === skyBase, "the sky comes back", `${eb.sky} vs ${skyBase}`);
 if (OUT) await b.screenshot({ path: path.join(OUT, "nuke-end.png") });
+// The clips (sound/sfx-files.js): the alarm, the missile, the blast, the
+// beeps, on the caller's tab and the other one.
+const SFX = "/assets/games/troll-ops/sound/sfx-files.js?v=" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/streaks/nuke.js"), "utf8").match(/sfx-files\.js\?v=([a-z0-9-]+)/)[1];
+for (const [who, page] of [["the caller", a], ["the other tab", b]]) {
+  const played = await page.evaluate(async (u) => [...(await import(u)).sfxPlayed], SFX);
+  const want = who === "the caller" ? ["beep", "nuke-alarm", "missile", "nuke-blast"] : ["nuke-alarm", "missile", "nuke-blast"];
+  check(want.every((n) => played.includes(n)), `${who}: the nuke's clips play`, played.join(" "));
+}
 await a.close(); await b.close();
 
 // ---- FFA banks it, Domination doesn't

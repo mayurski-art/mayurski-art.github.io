@@ -31,12 +31,13 @@
 
 import * as THREE from "three";
 import { game } from "../core/state.js?v=st1";
-import { beginStreakHold, endStreakHold } from "../streaks/hold.js?v=sh1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3";
+import { beginStreakHold, endStreakHold } from "../streaks/hold.js?v=sh1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4";
 import { SEAT_SPOTS } from "./royale-hold.js?v=pl1-pl2-sr1-or1";
 import { oxygenMask } from "./royale-mask.js?v=dc1";
 import { familyPhoto, setPhotoThumb } from "./royale-photo.js?v=dc1";
 import { ipod, drawIpod, pressIpod } from "./royale-ipod.js?v=dc1";
 import { updateCrew, hideCrew, crewSeat, yourRampPath, pathAt, paceFor } from "./royale-crew.js?v=dc2";
+import { playSfx } from "../sound/sfx-files.js?v=dc4";
 
 export const CINE = {
   start: -22,       // drop clock: the scene takes over
@@ -57,7 +58,10 @@ export const CINE = {
   turn: [-1.6, -0.3],      // round to face into the hold
   tail: 1.4,               // GO GO GO, after the green
   raise: [-14.6, -13.5],   // the mask up to the face
-  breaths: [-12, -11, -10],
+  // On the breathing clip (sound/sfx-files.js "breathing" at BREATH_RATE
+  // from breathFrom): the visor fogs as each one goes out.
+  breaths: [-13.1, -11.43, -9.5],
+  breathFrom: -13.2,
   lower: [-9.2, -8.5],     // the strap off, the mask down
   seatedEye: -0.42,        // the eye this much lower, sitting
 };
@@ -154,6 +158,7 @@ export function resetDropCine() {
   cine.armed = false;
   cine.done = false;
   cine.heard.clear();
+  cine.breathClip = cine.stepsClip = false;
   showUi(false);
   showCard(false);
 }
@@ -280,7 +285,7 @@ function pin(r, t) {
   // Boots on the deck: a step every stride.
   if (cine.last) {
     cine.stepAcc += Math.hypot(x - cine.last.x, z - cine.last.z);
-    if (cine.stepAcc > 0.7) { cine.stepAcc = 0; metalStep(); }
+    if (cine.stepAcc > 0.7) { cine.stepAcc = 0; if (!cine.stepsClip) metalStep(); }
   }
   cine.last = { x, z };
 }
@@ -322,7 +327,9 @@ function lookStanding(t, dt) {
 /* The eye's drop for sitting (royale.js placeAboardView): up as you stand. */
 export function dropCineEye() { return cine.on ? CINE.seatedEye * (1 - smooth(CINE.stand[0], CINE.stand[1], cine.t)) : 0; }
 
-// ---- sound: synthesised (the Pixabay clips come with the loader, phase 4)
+// ---- sound: the Pixabay clips (sound/sfx-files.js); each slot keeps its
+// synth version for when its clip isn't in yet.
+const BREATH_RATE = 1.15;   // the clip's three breaths fitted to the mask's 4.4 s
 
 function cues(t) {
   const once = (id, at, fn) => { if (t >= at && !cine.heard.has(id)) { cine.heard.add(id); fn(); } };
@@ -334,9 +341,11 @@ function cues(t) {
     once("click", CINE.press[0] + 0.15, wheelClick);
   }
   once("seal", CINE.raise[1] - 0.05, maskHiss);
-  CINE.breaths.forEach((at, i) => { once(`in${i}`, at, breathIn); once(`out${i}`, at + 0.45, breathOut); });
+  once("breathing", CINE.breathFrom, () => { cine.breathClip = !!playSfx("breathing", { gain: 0.8, rate: BREATH_RATE }); });
+  if (!cine.breathClip) CINE.breaths.forEach((at, i) => { once(`in${i}`, at, breathIn); once(`out${i}`, at + 0.45, breathOut); });
   once("snap", CINE.lower[0], strapSnap);
   once("belt", CINE.stand[0], seatbeltClick);
+  once("steps", CINE.walkFrom + 0.1, () => { cine.stepsClip = !!playSfx("steps", { gain: 0.55 }); });
 }
 const audio = () => (game.audio?._ready?.() ? game.audio : null);
 function paperRustle() {
@@ -354,7 +363,7 @@ function wheelClick() {
   a._noise({ duration: 0.015, gain: 0.12, type: "highpass", freq: 4200 });
 }
 function maskHiss() {
-  const a = audio(); if (!a) return;
+  const a = audio(); if (!a || playSfx("mask-hiss", { gain: 0.45 })) return;
   a._noise({ duration: 1.6, gain: 0.07, type: "highpass", freq: 3200, sweepTo: 5200 });
 }
 function breathIn() {
@@ -367,7 +376,7 @@ function breathOut() {
   a._noise({ duration: 0.12, gain: 0.05, type: "highpass", freq: 2800, delay: 0.05 });   // the valve's flutter
 }
 function strapSnap() {
-  const a = audio(); if (!a) return;
+  const a = audio(); if (!a || playSfx("strap-snap", { gain: 0.6 })) return;
   a._noise({ duration: 0.05, gain: 0.3, type: "highpass", freq: 1800 });
   a._tone({ freq: 520, to: 180, duration: 0.07, gain: 0.08, type: "square" });
 }
@@ -377,7 +386,7 @@ function metalStep() {
   a._tone({ freq: 140, to: 90, duration: 0.06, gain: 0.05, type: "triangle" });
 }
 function seatbeltClick() {
-  const a = audio(); if (!a) return;
+  const a = audio(); if (!a || playSfx("belt", { gain: 0.7 })) return;
   for (const d of [0, 0.09]) a._noise({ duration: 0.03, gain: 0.25, type: "highpass", freq: 2600, delay: d });
 }
 
