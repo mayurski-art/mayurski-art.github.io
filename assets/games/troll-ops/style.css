@@ -4636,3 +4636,71 @@ body.to-touch-play .to-medal-pts { font-size: 14px; }
   position: absolute; inset: 0; z-index: 60; pointer-events: none;
   background: #fffaf2; opacity: 0;
 }
+
+/* Troll Royale drop cinematic (modes/royale-cine.js): letterbox bars, the
+   jumpmaster's subtitle in the bottom bar, the mask's visor (dark edges,
+   breath fog), and the HUD out of the way while it runs. */
+.to-dropcine-ui { position: absolute; inset: 0; z-index: 18; pointer-events: none; }
+.to-dropcine-bar {
+  position: absolute; left: 0; right: 0; height: 11%; background: #000;
+  transition: transform .5s ease-out;
+}
+.to-dropcine-bar.is-top { top: 0; transform: translateY(-100%); }
+.to-dropcine-bar.is-bottom { bottom: 0; transform: translateY(100%); }
+.to-dropcine-ui.is-on .to-dropcine-bar { transform: translateY(0); }
+.to-dropcine-sub {
+  position: absolute; left: 50%; bottom: 2.4%; transform: translateX(-50%);
+  margin: 0; width: min(88vw, 760px); text-align: center;
+  font: 600 clamp(14px, 2.3vw, 21px)/1.3 "DM Sans", sans-serif; color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,.9);
+  opacity: 0; transition: opacity .25s;
+}
+.to-dropcine-sub.is-on { opacity: 1; }
+.to-dropcine-sub b { color: #ffb347; margin-right: .45em; font-weight: 700; }
+.to-dropcine-sub b::after { content: ":"; }
+.to-dropcine-memory {
+  position: absolute; inset: 0; opacity: 0;
+  background: radial-gradient(ellipse 62% 56% at 50% 54%, rgba(40,22,8,0) 45%, rgba(40,22,8,.55) 100%);
+  backdrop-filter: sepia(.25) saturate(.85);
+  -webkit-mask-image: radial-gradient(ellipse 62% 56% at 50% 54%, transparent 40%, #000 95%);
+  mask-image: radial-gradient(ellipse 62% 56% at 50% 54%, transparent 40%, #000 95%);
+}
+.to-dropcine-visor {
+  position: absolute; inset: 0; opacity: 0;
+  background: radial-gradient(ellipse 58% 52% at 50% 44%, rgba(0,0,0,0) 30%, rgba(4,6,4,.55) 70%, rgba(4,6,4,.92) 100%);
+}
+.to-dropcine-visor i {
+  position: absolute; inset: 0; opacity: 0;
+  background: radial-gradient(ellipse 50% 34% at 50% 66%, rgba(225,232,236,.6), rgba(225,232,236,0) 72%); filter: blur(2px);
+}
+body.to-dropcine .to-hud { opacity: 0; transition: opacity .4s; }
+@media (prefers-reduced-motion: reduce) {
+  .to-dropcine-bar, .to-dropcine-sub, body.to-dropcine .to-hud { transition: none; }
+}
+
+/* The drop cinematic's opener card (modes/royale-cine.js), in the lobby
+   from the door opening: the photo or music, and which Troll Radio song. */
+.to-dropcine-card {
+  position: absolute; right: max(16px, env(safe-area-inset-right)); top: 50%; transform: translateY(-50%);
+  z-index: 17; width: min(300px, 42vw); padding: 12px; box-sizing: border-box;
+  background: rgba(10,12,10,.72); border: 1px solid rgba(255,255,255,.14); border-radius: 12px;
+  font-family: "DM Sans", sans-serif; color: #fff; pointer-events: auto;
+}
+.to-dropcine-card-h { margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #ffb347; }
+.to-dropcine-card-row { display: flex; gap: 8px; }
+.to-dropcine-card-row button {
+  flex: 1; display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 9px 10px;
+  background: rgba(255,255,255,.06); color: #fff; border: 1.5px solid rgba(255,255,255,.16); border-radius: 9px;
+  font: inherit; cursor: pointer; touch-action: manipulation;
+}
+.to-dropcine-card-row button b { font-size: 15px; }
+.to-dropcine-card-row button span { font-size: 11.5px; color: rgba(255,255,255,.7); line-height: 1.25; }
+.to-dropcine-card-row button.is-on { border-color: #ffb347; background: rgba(255,179,71,.16); }
+.to-dropcine-card-song { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.to-dropcine-card-song button {
+  flex: none; width: 30px; height: 30px; border-radius: 8px; border: 1px solid rgba(255,255,255,.2);
+  background: rgba(255,255,255,.08); color: #fff; font-size: 18px; line-height: 1; cursor: pointer; touch-action: manipulation;
+}
+.to-dropcine-card-track { flex: 1; min-width: 0; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.to-dropcine-card-keys { margin: 8px 0 0; font: 500 11px "DM Mono", monospace; color: rgba(255,255,255,.55); }
+body.to-touch-play .to-dropcine-card { top: auto; bottom: calc(40px + 120px * var(--k, 1)); transform: none; right: calc(var(--sr, 0px) + 10px); }

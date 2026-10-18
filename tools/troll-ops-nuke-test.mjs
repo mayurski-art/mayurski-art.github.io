@@ -41,7 +41,8 @@ const check = (ok, what, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} $
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const errors = [];
 const STATE = "/assets/games/troll-ops/core/state.js?v=st1";
-const NUKE = "/assets/games/troll-ops/streaks/nuke.js?v=tn1-tn2";
+// The game's own instance: whatever tag the game imports it under today.
+const NUKE = "/assets/games/troll-ops/streaks/nuke.js?v=" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/combat/scoring.js"), "utf8").match(/streaks\/nuke\.js\?v=([a-z0-9-]+)/)[1];
 const SKY = "/assets/games/troll-ops/view/sky.js?v=sr1";
 
 async function open(room, mode) {

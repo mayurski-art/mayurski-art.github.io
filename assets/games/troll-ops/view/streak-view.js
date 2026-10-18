@@ -2,14 +2,15 @@
 // and the arms that hold them.
 
 import * as THREE from "three";
-import { inspectArms, stretchBetween, _armDir, _armFrom, _armTo } from "./weapon-view.js?v=wv1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2";
+import { inspectArms, stretchBetween, _armDir, _armFrom, _armTo } from "./weapon-view.js?v=wv1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1";
 import { damp } from "../characters/anim-curves.js?v=or1";
-import { poseFreeArms } from "./fp-emote.js?v=fe1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2";
+import { poseFreeArms } from "./fp-emote.js?v=fe1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1";
 import { launchPendingDrone } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5";
 import { drawTabletScreen } from "../streaks/streak-device.js?v=to-df1-or1";
 import { handMaterials, buildHumanHand, inkOutline, placeHand, poseHumanHand, handWrist } from "../weapons/hand-model.js?v=to-grip2-or1";
 import { game } from "../core/state.js?v=st1";
-import { nuke, nukeDevice, nukeLeft, NUKE } from "../streaks/nuke.js?v=tn1-tn2";
+import { nuke, nukeDevice, nukeLeft, NUKE } from "../streaks/nuke.js?v=tn1-tn2-dc1";
+import { dropCineMask, dropCineMaskK, dropCinePhoto, dropCinePhotoK, dropCineIpod, dropCineIpodK } from "../modes/royale-cine.js?v=dc1";
 import { drawNukeScreen, setNukeControls } from "../streaks/nuke-device.js?v=tn1";
 
 let streakSprintT = 0;
@@ -22,6 +23,18 @@ const TABLET_PRESS_AT = 0.45;       // seconds into a UAV/gunship call the thumb
 // so the crosshair stays clear.
 const NUKE_HOLD_POS = new THREE.Vector3(0.012, -0.142, -0.44);
 const NUKE_TILT = -0.34;
+// The oxygen mask: held low, then on the face just under the eyes.
+const MASK_DOWN = new THREE.Vector3(0.03, -0.3, -0.3);
+const MASK_ON = new THREE.Vector3(0, -0.1, -0.13);
+const MASK_TILT = -0.3;
+// The family photo: from the chest pocket, then held close and low.
+const PHOTO_DOWN = new THREE.Vector3(-0.06, -0.3, -0.26);
+const PHOTO_UP = new THREE.Vector3(0.006, -0.045, -0.26);
+const PHOTO_TILT = -0.22;
+// The iPod: out of the pocket, held up a little right of centre.
+const IPOD_DOWN = new THREE.Vector3(0.04, -0.3, -0.26);
+const IPOD_UP = new THREE.Vector3(0.02, -0.045, -0.27);
+const IPOD_TILT = -0.3;
 // The K9 whistle: hand target in viewmodel space (fingers up and back into
 // the mouth, so you see the back of it, knuckles forward), how long it is
 // held, when the note starts.
@@ -35,8 +48,11 @@ export function updateStreakView(dt) {
   const mesh = game.streakDeviceKind === "marker" ? game.activeMarkerMesh
     : game.streakDeviceKind === "drone" ? game.activeDroneMesh
     : game.streakDeviceKind === "nuke" ? nukeDevice()
+    : game.streakDeviceKind === "mask" ? dropCineMask()
+    : game.streakDeviceKind === "photo" ? dropCinePhoto()
+    : game.streakDeviceKind === "ipod" ? dropCineIpod()
     : game.streakDeviceKind === "whistle" ? null : game.activeStreakMesh;
-  for (const m of [game.activeStreakMesh, game.activeMarkerMesh, game.activeDroneMesh, nukeDevice()]) m.visible = held && m === mesh;
+  for (const m of [game.activeStreakMesh, game.activeMarkerMesh, game.activeDroneMesh, nukeDevice(), dropCineMask(), dropCinePhoto(), dropCineIpod()]) m.visible = held && m === mesh;
   if (!held) { game.streakRaiseT = 0; streakSprintT = 0; hideStreakArms(); return; }
   inspectArms.visible = false;
   if (!game.player.alive) { game.finishStreakHold(); if (mesh) mesh.visible = false; hideStreakArms(); return; }
@@ -100,6 +116,51 @@ export function updateStreakView(dt) {
     // Hands let go a moment into the toss, not once it's gone.
     poseStreakArms(toss > 0.35 ? null : mesh, "cup", dt, 0);
     if (game.pendingDroneLaunch && game.streakHoldElapsed >= game.DRONE_TOSS_AT) launchPendingDrone();
+    return;
+  }
+
+  if (game.streakDeviceKind === "ipod") {
+    // The iPod (modes/royale-cine.js): up out of the pocket in both hands,
+    // the screen tipped to the eye while you pick and press play, then held
+    // lower while you listen; then away. The scene draws its screen.
+    const k = dropCineIpodK();
+    const e = k * k * (3 - 2 * k);
+    mesh.position.set(IPOD_DOWN.x + (IPOD_UP.x - IPOD_DOWN.x) * e + idleX,
+      IPOD_DOWN.y + (IPOD_UP.y - IPOD_DOWN.y) * e + idleY,
+      IPOD_DOWN.z + (IPOD_UP.z - IPOD_DOWN.z) * e);
+    mesh.rotation.set(-1.1 + (IPOD_TILT + 1.1) * e, -0.3 * (1 - e), 0.06 + 0.3 * (1 - e));
+    mesh.visible = k > 0.01;
+    poseStreakArms(mesh.visible ? mesh : null, "side", dt, 0);
+    return;
+  }
+
+  if (game.streakDeviceKind === "photo") {
+    // The family photo (modes/royale-cine.js): up out of the chest pocket
+    // in both hands, held low and close, tipped up to the eye; the right
+    // thumb strokes across it (royale-photo.js setPhotoThumb); then away.
+    const k = dropCinePhotoK();
+    const e = k * k * (3 - 2 * k);
+    mesh.position.set(PHOTO_DOWN.x + (PHOTO_UP.x - PHOTO_DOWN.x) * e + idleX,
+      PHOTO_DOWN.y + (PHOTO_UP.y - PHOTO_DOWN.y) * e + idleY,
+      PHOTO_DOWN.z + (PHOTO_UP.z - PHOTO_DOWN.z) * e);
+    mesh.rotation.set(-1.2 + (PHOTO_TILT + 1.2) * e, -0.4 * (1 - e), 0.05 + 0.3 * (1 - e));
+    mesh.visible = k > 0.01;
+    poseStreakArms(mesh.visible ? mesh : null, "side", dt, 0);
+    return;
+  }
+
+  if (game.streakDeviceKind === "mask") {
+    // Troll Royale's oxygen mask (modes/royale-cine.js): up in both hands
+    // from low, tipped so its rim sits under your eyes while it's on, then
+    // back down and away. The scene's clock drives it, not the hold's.
+    const k = dropCineMaskK();
+    const e = k * k * (3 - 2 * k);
+    mesh.position.set(MASK_DOWN.x + (MASK_ON.x - MASK_DOWN.x) * e + idleX * (1 - e),
+      MASK_DOWN.y + (MASK_ON.y - MASK_DOWN.y) * e + idleY * (1 - e),
+      MASK_DOWN.z + (MASK_ON.z - MASK_DOWN.z) * e);
+    mesh.rotation.set(-1.1 + (MASK_TILT + 1.1) * e, 0.35 * (1 - e), 0.25 * (1 - e));
+    mesh.visible = k > 0.01;
+    poseStreakArms(mesh.visible ? mesh : null, "side", dt, 0);
     return;
   }
 

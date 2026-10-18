@@ -1,0 +1,433 @@
+// Troll Royale — the drop cinematic, phase 1 (doc "Troll Forces: Royale
+// drop cinematic"): the last stretch before the green, first person, no
+// skip. Phase 1 is the photo and the mask:
+//
+//   T-40 .. T-22   a card: how you spend the wait, picked in the lobby
+//                  (user, 2026-10-17): the photo, or music
+//   T-22 .. T-16   seated, and either
+//                    the photo: your family's (you, her and your baby son)
+//                    out of your chest pocket, a long look, your thumb
+//                    across it; or
+//                    music: the iPod out, the wired earbuds in, a Troll
+//                    Radio song you picked, play, and you listen
+//   T-16           the jumpmaster cuts in; your head comes up, the photo
+//                  or the iPod goes back in the pocket, the song fades
+//   T-15 .. T-12   he tells you to mask up; your hands
+//                  bring the oxygen mask to your face, the view darkens
+//   T-12 .. T-9    three slow breaths, the visor fogging on each
+//   T-9  .. T-8    strap off, the mask drops away; on your feet
+//
+// Everything runs off the drop clock (royale.planeT), which every client
+// already shares, so nothing new goes on the wire. A client that boards
+// after T-22 (a late join) skips it. At T-8 you're back on your feet at your
+// seat, as the hold has always been. Subtitles only, no voice.
+
+import * as THREE from "three";
+import { game } from "../core/state.js?v=st1";
+import { beginStreakHold, endStreakHold } from "../streaks/hold.js?v=sh1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1";
+import { SEAT_SPOTS } from "./royale-hold.js?v=pl1-pl2-sr1-or1";
+import { oxygenMask } from "./royale-mask.js?v=dc1";
+import { familyPhoto, setPhotoThumb } from "./royale-photo.js?v=dc1";
+import { ipod, drawIpod, pressIpod } from "./royale-ipod.js?v=dc1";
+
+export const CINE = {
+  start: -22,       // drop clock: the scene takes over
+  photoOut: [-21.6, -20.5],   // the photo up out of the pocket
+  caress: [-19.3, -17.2],     // the thumb across it, slowly
+  interrupt: -16,             // the jumpmaster cuts in
+  photoAway: [-15.9, -15.1],  // back in the pocket
+  maskFrom: -15,              // the hands go to the mask
+  choiceFrom: -40,            // the opener's card comes up (the door opens)
+  buds: [-20.4, -19.8],       // music: the earbuds in
+  press: [-19.6, -19.2],      // the thumb on play
+  playAt: -19.4,              // the song starts
+  fade: [-16, -15.3],         // and fades when he cuts in
+  release: -8,      // and hands you back
+  raise: [-14.6, -13.5],   // the mask up to the face
+  breaths: [-12, -11, -10],
+  lower: [-9.2, -8.5],     // the strap off, the mask down
+  seatedEye: -0.42,        // the eye this much lower, sitting
+};
+
+/* What the jumpmaster says, and when. Subtitles only (user, 2026-10-17). */
+const LINES = [
+  { at: -16, until: -12, who: "Jumpmaster", text: "Hey. Mask on, troll. Air's thin up here." },
+  { at: -12, until: -9, who: "Jumpmaster", text: "Deep breaths. That's it." },
+  { at: -9, until: -8, who: "Jumpmaster", text: "Okay, off. On your feet." },
+];
+
+const cine = { armed: false, on: false, done: false, t: 0, yaw: 0, heard: new Set(), lineAt: null, song: null };
+
+/* How you spend the wait: "photo" or "music", and the Troll Radio track.
+   Remembered for next time (this browser only). */
+const OPENER_KEY = "to-drop-opener";
+const opener = (() => {
+  try { const s = JSON.parse(localStorage.getItem(OPENER_KEY) || "{}"); return { pick: s.pick === "music" ? "music" : "photo", track: s.track | 0 }; }
+  catch { return { pick: "photo", track: 0 }; }
+})();
+function saveOpener() { try { localStorage.setItem(OPENER_KEY, JSON.stringify(opener)); } catch { /* private window */ } }
+/* Tests and the card: set the opener. */
+export function setDropOpener(pick, track = opener.track) {
+  opener.pick = pick === "music" ? "music" : "photo";
+  const n = game.music?.tracks?.length || 1;
+  opener.track = ((track % n) + n) % n;
+  saveOpener();
+  renderCard();
+}
+export function dropOpener() { return { ...opener }; }
+
+const smooth = (a, b, x) => { const k = Math.min(1, Math.max(0, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
+
+/* 0 down out of view .. 1 sealed on the face. */
+export function maskK(t = cine.t) {
+  if (!cine.on) return 0;
+  return smooth(CINE.raise[0], CINE.raise[1], t) * (1 - smooth(CINE.lower[0], CINE.lower[1], t));
+}
+/* The breath in the mask: 0 .. 1 at the top of each exhale. */
+function breath(t) {
+  let b = 0;
+  for (const at of CINE.breaths) {
+    const u = t - at;
+    if (u >= 0 && u < 1) b = Math.max(b, u < 0.45 ? 0 : Math.sin(((u - 0.45) / 0.55) * Math.PI));
+  }
+  return b;
+}
+
+export function dropCineOn() { return cine.on; }
+/* The photo or the iPod: 0 in the pocket .. 1 up in front of you. */
+function propK(t) {
+  if (!cine.on) return 0;
+  return smooth(CINE.photoOut[0], CINE.photoOut[1], t) * (1 - smooth(CINE.photoAway[0], CINE.photoAway[1], t));
+}
+export function photoK(t = cine.t) { return cine.pick === "photo" ? propK(t) : 0; }
+export function ipodK(t = cine.t) { return cine.pick === "music" ? propK(t) : 0; }
+/* Where you're looking at it (head down), 0..1, until he cuts in. */
+function photoLook(t) {
+  if (cine.pick !== "photo") return 0;
+  return smooth(CINE.photoOut[0] - 0.2, CINE.photoOut[1] + 0.3, t) * (1 - smooth(CINE.interrupt, CINE.interrupt + 0.35, t));
+}
+/* Music: down at the iPod to pick and press play, then head up, listening. */
+function ipodLook(t) {
+  if (cine.pick !== "music") return 0;
+  return smooth(CINE.photoOut[0] - 0.2, CINE.photoOut[1] + 0.3, t) * (1 - smooth(CINE.playAt + 0.2, CINE.playAt + 1, t));
+}
+function listening(t) {
+  if (cine.pick !== "music") return 0;
+  return smooth(CINE.playAt + 0.2, CINE.playAt + 1, t) * (1 - smooth(CINE.interrupt, CINE.interrupt + 0.35, t));
+}
+export function dropCineIpod() { return ipod(); }
+export function dropCineIpodK() { return ipodK(); }
+export function dropCinePhoto() { return familyPhoto(); }
+export function dropCinePhotoK() { return photoK(); }
+/* The thumb's stroke, 0..1 (setPhotoThumb). */
+export function dropCineCaress(t = cine.t) {
+  const k = (t - CINE.caress[0]) / (CINE.caress[1] - CINE.caress[0]);
+  return k > 0 && k < 1 ? k : 0;
+}
+/* The mask is in the hands (streak-view.js poses it while this is true). */
+export function dropCineMask() { return oxygenMask(); }
+export function dropCineMaskK() { return maskK(); }
+
+/* A new match: nothing carried over. */
+export function resetDropCine() {
+  if (cine.on) finish(false);
+  cine.armed = false;
+  cine.done = false;
+  cine.heard.clear();
+  showUi(false);
+  showCard(false);
+}
+
+/* From royale.js updateAboardPlayer, every frame aboard. True while the
+   scene has you (the hold's own walking rules wait). */
+export function updateDropCine(r, dt) {
+  const t = r.planeT;
+  const d = r.drop;
+  // Only a player aboard before the scene starts gets it: a late join
+  // boards past T-15 and goes straight to the hold as it was.
+  if (!cine.armed && !cine.done && d.phase === "lobby" && t < CINE.start - 0.2) cine.armed = true;
+  // In the lobby, the card: photo or music.
+  showCard(cine.armed && !cine.on && !cine.done && d.phase === "lobby" && t >= CINE.choiceFrom && t < CINE.start && game.player.alive);
+  if (cardOn) padPick();
+  if (!cine.on && cine.armed && !cine.done && t >= CINE.start && t < CINE.release) begin(r);
+  if (!cine.on) return false;
+  cine.t = t;
+  if (!game.player.alive || d.phase !== "lobby" || t >= CINE.release) { finish(true); return false; }
+  pin(r);
+  // He cuts in: the photo goes away and the hands go to the mask.
+  if (t >= CINE.maskFrom && (game.streakDeviceKind === "photo" || game.streakDeviceKind === "ipod")) beginStreakHold(0, "mask");
+  if (cine.pick === "photo") setPhotoThumb(familyPhoto(), dropCineCaress(t));
+  else music(t);
+  look(t);
+  cues(t);
+  ui(t);
+  return true;
+}
+
+const t0 = (r) => r.planeT;
+function begin(r) {
+  cine.on = true;
+  const seat = seatOf(r);
+  cine.yaw = seat.yaw;
+  game.setHolding?.("none");
+  // The photo, then the mask, go in the hands the way a streak device does.
+  cine.pick = opener.pick;
+  for (const m of [familyPhoto(), ipod(), oxygenMask()]) if (!m.parent) game.weaponRig.add(m);
+  beginStreakHold(0, t0(r) < CINE.maskFrom ? (cine.pick === "music" ? "ipod" : "photo") : "mask");
+  document.body.classList.add("to-dropcine");
+  showUi(true);
+}
+
+function finish(seatbelt) {
+  cine.on = false;
+  cine.done = true;
+  cine.armed = false;
+  if (game.player.holding === "streak" && ["mask", "photo", "ipod"].includes(game.streakDeviceKind)) endStreakHold(true);
+  oxygenMask().visible = false;
+  familyPhoto().visible = false;
+  ipod().visible = false;
+  stopSong();
+  document.body.classList.remove("to-dropcine");
+  showUi(false);
+  if (seatbelt) seatbeltClick();
+}
+
+/* Your seat: in the ghost hold (world), the spot in front of its pan, and
+   which way you face (across the hold). */
+const _seat = new THREE.Vector3();
+function seatOf(r) {
+  const hold = r.drop.hold, o = r.drop.origin;
+  const s = hold?.seats?.[r.seat]?.local || null;
+  const sp = SEAT_SPOTS[r.seat % SEAT_SPOTS.length];
+  const lx = s ? s.x : sp.x, lz = s ? s.z : sp.z;
+  _seat.set(o.x + lx * 0.84, o.y, o.z + lz);
+  return { pos: _seat, yaw: lx < 0 ? -Math.PI / 2 : Math.PI / 2 };
+}
+
+/* Seated: you don't walk, whatever the keys say. */
+function pin(r) {
+  const { pos } = seatOf(r);
+  const p = game.move.pos;
+  if (Math.abs(p.x - pos.x) > 0.01 || Math.abs(p.z - pos.z) > 0.01 || Math.abs(p.y - pos.y) > 0.3) game.move.reset(pos.x, pos.z, pos.y);
+  game.move.velocity.set(0, 0, 0);
+}
+
+/* The head: down at the photo, up and round to the jumpmaster when he
+   cuts in (he's forward, toward the flight deck), then across the hold, a
+   little down while the hands bring the mask up, a slow sway with the
+   plane, and a nod on each breath. */
+function look(t) {
+  const k = maskK(t);
+  const lift = smooth(CINE.raise[0] - 0.3, CINE.raise[1], t) * (1 - smooth(CINE.raise[1], CINE.raise[1] + 0.8, t));
+  const down = photoLook(t) + ipodLook(t) * 0.85;
+  const lis = listening(t);
+  const glance = smooth(CINE.interrupt, CINE.interrupt + 0.4, t) * (1 - smooth(CINE.raise[0] + 0.2, CINE.raise[0] + 1.1, t));
+  const toFront = cine.yaw < 0 ? 0.55 : -0.55;   // the flight deck is -Z: yaw 0
+  game.look.yaw = cine.yaw + glance * toFront + Math.sin(t * 0.55) * 0.035 * (1 - down * 0.6) + Math.sin(t * 1.7) * 0.008;
+  // Listening: head back a touch against the wall, a small nod on the beat.
+  const nod = lis * (0.05 + Math.max(0, Math.sin(t * Math.PI * 2 * 1.15)) * 0.03);
+  game.look.pitch = -0.06 - down * 0.3 + nod + glance * 0.08 - lift * 0.16 + k * 0.05 - breath(t) * 0.025 + Math.sin(t * 0.8) * 0.01;
+}
+
+/* The eye's drop for sitting (royale.js placeAboardView). */
+export function dropCineEye() { return cine.on ? CINE.seatedEye : 0; }
+
+// ---- sound: synthesised (the Pixabay clips come with the loader, phase 4)
+
+function cues(t) {
+  const once = (id, at, fn) => { if (t >= at && !cine.heard.has(id)) { cine.heard.add(id); fn(); } };
+  once("photo-out", CINE.photoOut[0] + 0.1, paperRustle);
+  once("photo-away", CINE.photoAway[0], paperRustle);
+  if (cine.pick === "music") {
+    once("bud-l", CINE.buds[0] + 0.1, budIn);
+    once("bud-r", CINE.buds[1] - 0.15, budIn);
+    once("click", CINE.press[0] + 0.15, wheelClick);
+  }
+  once("seal", CINE.raise[1] - 0.05, maskHiss);
+  CINE.breaths.forEach((at, i) => { once(`in${i}`, at, breathIn); once(`out${i}`, at + 0.45, breathOut); });
+  once("snap", CINE.lower[0], strapSnap);
+}
+const audio = () => (game.audio?._ready?.() ? game.audio : null);
+function paperRustle() {
+  const a = audio(); if (!a) return;
+  a._noise({ duration: 0.22, gain: 0.05, type: "bandpass", freq: 3400, q: 0.9, sweepTo: 2200 });
+  a._noise({ duration: 0.12, gain: 0.03, type: "highpass", freq: 4500, delay: 0.14 });
+}
+function budIn() {
+  const a = audio(); if (!a) return;
+  a._noise({ duration: 0.08, gain: 0.08, type: "lowpass", freq: 500 });
+  a._noise({ duration: 0.03, gain: 0.04, type: "highpass", freq: 3000, delay: 0.05 });
+}
+function wheelClick() {
+  const a = audio(); if (!a) return;
+  a._noise({ duration: 0.015, gain: 0.12, type: "highpass", freq: 4200 });
+}
+function maskHiss() {
+  const a = audio(); if (!a) return;
+  a._noise({ duration: 1.6, gain: 0.07, type: "highpass", freq: 3200, sweepTo: 5200 });
+}
+function breathIn() {
+  const a = audio(); if (!a) return;
+  a._noise({ duration: 0.45, gain: 0.1, type: "bandpass", freq: 700, q: 0.8, sweepTo: 1300 });
+}
+function breathOut() {
+  const a = audio(); if (!a) return;
+  a._noise({ duration: 0.6, gain: 0.12, type: "bandpass", freq: 1100, q: 0.7, sweepTo: 450 });
+  a._noise({ duration: 0.12, gain: 0.05, type: "highpass", freq: 2800, delay: 0.05 });   // the valve's flutter
+}
+function strapSnap() {
+  const a = audio(); if (!a) return;
+  a._noise({ duration: 0.05, gain: 0.3, type: "highpass", freq: 1800 });
+  a._tone({ freq: 520, to: 180, duration: 0.07, gain: 0.08, type: "square" });
+}
+function seatbeltClick() {
+  const a = audio(); if (!a) return;
+  for (const d of [0, 0.09]) a._noise({ duration: 0.03, gain: 0.25, type: "highpass", freq: 2600, delay: d });
+}
+
+// ---- music: the song on Troll Radio (sound/music.js), through the earbuds
+
+/* Play the picked track from the top, at the player's music volume, and
+   remember what the radio was doing so it goes back after. */
+function music(t) {
+  const dev = ipod();
+  const tracks = game.music?.tracks || [];
+  const playing = t >= CINE.playAt;
+  drawIpod(dev, { mode: playing ? "playing" : "list", tracks, index: opener.track, t: Math.max(0, t - CINE.playAt) });
+  const pk = (t - CINE.press[0]) / (CINE.press[1] - CINE.press[0]);
+  pressIpod(dev, pk > 0 && pk < 1 ? Math.sin(pk * Math.PI) : 0);
+  if (playing && !cine.song && t < CINE.fade[1]) startSong();
+  if (cine.song && t >= CINE.fade[0]) {
+    const k = Math.min(1, (t - CINE.fade[0]) / (CINE.fade[1] - CINE.fade[0]));
+    if (game.music) game.music.el.volume = cine.song.vol * (1 - k);
+    if (k >= 1) stopSong();
+  }
+}
+function startSong() {
+  const m = game.music;
+  if (!m?.hasTracks) { cine.song = { vol: 0 }; return; }
+  cine.song = { vol: m.volume, prevPlaying: m.playing, prevIndex: m.order[m.pos], prevPos: m.pos };
+  m.playIndex(opener.track);
+}
+function stopSong() {
+  const s = cine.song, m = game.music;
+  cine.song = null;
+  if (!s || !m || s.vol == null) return;
+  m.stop();
+  m.el.volume = m.volume;
+  // The radio was on before: back to what it was playing. Off: back on
+  // its own track, still off.
+  if (s.prevPlaying && s.prevIndex != null) m.playIndex(s.prevIndex);
+  else if (s.prevPos != null) { m.pos = s.prevPos; m._loadCurrent(false); }
+}
+export function dropCineSong() { return cine.song ? { index: opener.track, playing: !!game.music?.playing } : null; }
+
+// ---- the opener card (the lobby): photo or music, and which song
+
+let card = null, cardOn = false;
+function ensureCard() {
+  if (card) return card;
+  const parent = document.getElementById("to-hud")?.parentElement || document.body;
+  const root = document.createElement("div");
+  root.className = "to-dropcine-card";
+  root.hidden = true;
+  root.setAttribute("role", "group");
+  root.setAttribute("aria-label", "Before the drop");
+  root.innerHTML = `<p class="to-dropcine-card-h">Before the drop</p>
+<div class="to-dropcine-card-row">
+  <button type="button" data-pick="photo"><b>Photo</b><span>One more look at the family</span></button>
+  <button type="button" data-pick="music"><b>Music</b><span>Troll Radio on the iPod</span></button>
+</div>
+<div class="to-dropcine-card-song">
+  <button type="button" data-step="-1" aria-label="Previous song">‹</button>
+  <span class="to-dropcine-card-track"></span>
+  <button type="button" data-step="1" aria-label="Next song">›</button>
+</div>
+<p class="to-dropcine-card-keys"></p>`;
+  parent.appendChild(root);
+  root.addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.dataset.pick) setDropOpener(b.dataset.pick);
+    else if (b.dataset.step) setDropOpener("music", opener.track + +b.dataset.step);
+  });
+  window.addEventListener("keydown", (e) => {
+    if (!cardOn) return;
+    if (e.code === "ArrowLeft" || e.code === "ArrowRight") { setDropOpener(opener.pick === "photo" ? "music" : "photo"); e.preventDefault(); }
+    else if ((e.code === "ArrowUp" || e.code === "ArrowDown") && opener.pick === "music") { setDropOpener("music", opener.track + (e.code === "ArrowUp" ? -1 : 1)); e.preventDefault(); }
+  }, true);
+  card = { root, track: root.querySelector(".to-dropcine-card-track"), song: root.querySelector(".to-dropcine-card-song"), keys: root.querySelector(".to-dropcine-card-keys") };
+  return card;
+}
+function showCard(on) {
+  if (on === cardOn) return;
+  cardOn = on;
+  if (!on && !card) return;
+  ensureCard().root.hidden = !on;
+  if (on) renderCard();
+}
+function renderCard() {
+  if (!card) return;
+  for (const b of card.root.querySelectorAll("[data-pick]")) {
+    const sel = b.dataset.pick === opener.pick;
+    b.classList.toggle("is-on", sel);
+    b.setAttribute("aria-pressed", String(sel));
+  }
+  const tr = game.music?.tracks?.[opener.track];
+  card.song.hidden = opener.pick !== "music" || !tr;
+  if (tr) card.track.textContent = `${tr.title} · ${tr.artist}`;
+  card.keys.textContent = game.isTouch ? "Tap to choose" : game.gamepadState?.connected ? "D-pad ← → choose · ↑ ↓ song" : "← → choose · ↑ ↓ song";
+}
+/* A controller: the d-pad works the card (its own edges, read here). */
+const padPrev = [];
+function padPick() {
+  const gp = navigator.getGamepads?.()?.find((p) => p) || null;
+  if (!gp) return;
+  const edge = (i) => { const on = !!gp.buttons[i]?.pressed; const was = padPrev[i]; padPrev[i] = on; return on && !was; };
+  if (edge(14) || edge(15)) setDropOpener(opener.pick === "photo" ? "music" : "photo");
+  if (opener.pick === "music") {
+    if (edge(12)) setDropOpener("music", opener.track - 1);
+    if (edge(13)) setDropOpener("music", opener.track + 1);
+  }
+}
+
+// ---- the letterbox, the subtitle, the visor
+
+let el = null;
+function ensureUi() {
+  if (el) return el;
+  const parent = document.getElementById("to-hud")?.parentElement || document.body;
+  const root = document.createElement("div");
+  root.className = "to-dropcine-ui";
+  root.hidden = true;
+  root.innerHTML = `<div class="to-dropcine-memory" aria-hidden="true"></div><div class="to-dropcine-visor" aria-hidden="true"><i></i></div>`
+    + `<div class="to-dropcine-bar is-top" aria-hidden="true"></div><div class="to-dropcine-bar is-bottom" aria-hidden="true"></div>`
+    + `<p class="to-dropcine-sub" aria-live="polite"><b></b><span></span></p>`;
+  parent.appendChild(root);
+  el = {
+    root, memory: root.querySelector(".to-dropcine-memory"), visor: root.querySelector(".to-dropcine-visor"), fog: root.querySelector(".to-dropcine-visor i"),
+    sub: root.querySelector(".to-dropcine-sub"), who: root.querySelector(".to-dropcine-sub b"), text: root.querySelector(".to-dropcine-sub span"),
+  };
+  return el;
+}
+function showUi(on) {
+  if (!on && !el) return;
+  const u = ensureUi();
+  u.root.hidden = !on;
+  u.root.classList.toggle("is-on", on);
+  if (!on) { cine.lineAt = null; u.sub.classList.remove("is-on"); }
+}
+function ui(t) {
+  const u = ensureUi();
+  const line = LINES.find((l) => t >= l.at && t < l.until) || null;
+  if ((line?.at ?? null) !== cine.lineAt) {
+    cine.lineAt = line?.at ?? null;
+    if (line) { u.who.textContent = line.who; u.text.textContent = line.text; }
+    u.sub.classList.toggle("is-on", !!line);
+  }
+  const k = maskK(t);
+  // Lost in the photo: the edges go soft and warm until he cuts in.
+  u.memory.style.opacity = String(photoLook(t) * 0.85);
+  u.visor.style.opacity = String(k * 0.9);
+  u.fog.style.opacity = String(k * breath(t) * 0.75);
+}
