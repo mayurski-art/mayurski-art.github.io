@@ -20,6 +20,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { insidePolygon } from "./edge.js?v=or1";
 import { SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1";
+import { lakeWaterMaterial, fallsTexture } from "./lake-water.js?v=wf2";
 import { mapModel } from "./map-models.js?v=hg6e-sr1-or1";
 
 const BOUNDS = { minX: -205, maxX: 205, minZ: -155, maxZ: 155 };
@@ -573,9 +574,8 @@ function buildTrollfaceIsland(api) {
   const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.9, ...o });
   const M = {
     cliff: std(0x3b404b),
-    lakebed: std(0x49b8d8, { roughness: 1 }),
-    water: new THREE.MeshStandardMaterial({ color: 0x3cc8ff, roughness: 0.15, metalness: 0.05, transparent: true, opacity: 0.7, depthWrite: false }),
-    falls: new THREE.MeshBasicMaterial({ color: 0xa6e6ff, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }),
+    lakebed: std(0xb8a878, { roughness: 1 }),   // sand, under the shallows' see-through water
+    falls: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, side: THREE.DoubleSide, depthWrite: false }),
     greyDark: std(0x8b8f98, { roughness: 0.85 }),
     wood: std(0x9a7b55),
     trunk: std(0x6b4a2e),
@@ -613,10 +613,15 @@ function buildTrollfaceIsland(api) {
   const water = new THREE.ShapeGeometry(shapeOf(ISLAND_LAKE));
   water.rotateX(-Math.PI / 2);
   water.translate(0, WATER_Y, 0);
-  const waterMesh = new THREE.Mesh(water, M.water);
+  // Shallows over the sand, deep blue in the middle, a foam line and a
+  // chop that moves (lake-water.js; it was one flat cyan, user 2026-10-18).
+  const lakeWater = lakeWaterMaterial(ISLAND_LAKE);
+  const waterMesh = new THREE.Mesh(water, lakeWater);
   waterMesh.renderOrder = 2;
+  waterMesh.onBeforeRender = lakeWater.userData.tick;
   root.add(waterMesh);
-  // The waterfall: a sheet hanging off the cliff where the river meets it.
+  // The waterfall: a sheet hanging off the cliff where the river meets it,
+  // its streaks pouring down.
   {
     const [[ax, az], [bx, bz]] = RIVER_MOUTH;
     const len = Math.hypot(bx - ax, bz - az), hgt = CLIFF_DEPTH + 60;
@@ -624,7 +629,13 @@ function buildTrollfaceIsland(api) {
     g.rotateY(-Math.atan2(bz - az, bx - ax));
     const nx = -(bz - az) / len, nz = (bx - ax) / len;   // outward: away from the lake
     g.translate((ax + bx) / 2 + nx * 0.8, WATER_Y - hgt / 2, (az + bz) / 2 + nz * 0.8);
-    root.add(new THREE.Mesh(g, M.falls));
+    const streaks = fallsTexture();
+    streaks.repeat.set((len + 2) / 8, hgt / 16);
+    M.falls.map = streaks;
+    M.falls.opacity = 1;
+    const falls = new THREE.Mesh(g, M.falls);
+    falls.onBeforeRender = () => { streaks.offset.y = (performance.now() / 1000) * 0.9 % 1; };
+    root.add(falls);
   }
   // The beach all round the shore (not over the waterfall's lip).
   const mouth = LAKE_PCT.findIndex(([px, py]) => px === 37.2 && py === 72.2);
