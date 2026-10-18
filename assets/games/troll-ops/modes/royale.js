@@ -5,16 +5,16 @@
 import { hashSeed, seededRng, RoyaleZone, ROYALE, LootField, lootSpots, ZoneVisual, ITEM_NAMES, gunDisplayName, POI_TIERS, poiTierAt } from "./royale-zone.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1-fl1-or1";
 import { groundHeightAt } from "../core/movement.js?v=umb2-sb2-gj1b7-or1";
 import { insidePolygon } from "../maps/edge.js?v=or1";
-import { DROP, RoyaleDrop, buildParaglider, Flight } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1-fl1-or1";
-import { Squadron, PLANES, flightPos, flightVel } from "./royale-planes.js?v=pl1-pl2-pi1-sr1-fl1-or1";
+import { DROP, RoyaleDrop, buildParaglider, Flight } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1-fl1-or1-dc2";
+import { Squadron, PLANES, flightPos, flightVel } from "./royale-planes.js?v=pl1-pl2-pi1-sr1-fl1-or1-dc2";
 import { SEAT_SPOTS, RAMP_END } from "./royale-hold.js?v=pl1-pl2-sr1-or1";
-import { DROP_BUS, DROP_FALL, DROP_GLIDE, ROLL_TIME, busPlacers } from "../net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5";
+import { DROP_BUS, DROP_FALL, DROP_GLIDE, ROLL_TIME, busPlacers } from "../net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2";
 import * as THREE from "three";
 import { WEAPON_DEFS, WeaponState } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { defaultLoadoutFor } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1";
 import { game } from "../core/state.js?v=st1";
-import { updateDropCine, dropCineEye, resetDropCine } from "./royale-cine.js?v=dc1-ne1";
+import { updateDropCine, dropCineEye, resetDropCine, dropCineCrewSeat, dropCineAtRamp } from "./royale-cine.js?v=dc1-ne1-dc2";
 
 // Phase 1 ("Mini Royale"): solo, one life, loot only, the Cringe closing in,
 // last troll standing. royale.js has the zone, the loot and their visuals;
@@ -108,6 +108,8 @@ busPlacers.push((rp, snap) => {
     rp.pos.sub(d.origin);
     _aboard.seatY = null;
   } else {
+    // The drop cinematic's squad mate sits here (royale-crew.js): not the bot too.
+    if (seat === dropCineCrewSeat(r)) return null;
     const s = SEAT_SPOTS[seat % SEAT_SPOTS.length];
     rp.pos.set(Math.sign(s.x) * 1.36, 0, s.z);
     rp.yaw = s.x < 0 ? -Math.PI / 2 : Math.PI / 2;
@@ -258,14 +260,14 @@ export function updateSkyLobby(dt) {
       game.net.publishBot(b);
     }
   }
-  const phase = t < PLANES.doorAt ? "Wheels up" : t < PLANES.breakAt ? "Holding over the island" : "RED LIGHT — stand by";
+  const phase = t < PLANES.doorAt ? "Wheels up" : t < PLANES.redAt ? "Holding over the island" : "RED LIGHT — stand by";
   const secs = Math.max(0, Math.ceil(game.stageT));
   const timer = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
   if (game.els.royalePhase.textContent !== phase) game.els.royalePhase.textContent = phase;
   if (game.els.royaleTimer.textContent !== timer) game.els.royaleTimer.textContent = timer;
   const n = `${royaleAliveList().length} trolls`;
   if (game.els.royaleAlive.textContent !== n) game.els.royaleAlive.textContent = n;
-  if (r.redShown !== true && t >= PLANES.breakAt) { r.redShown = true; game.showWaveBanner("RED LIGHT — stand up, hook up", 1800); }
+  if (r.redShown !== true && t >= PLANES.redAt) { r.redShown = true; game.showWaveBanner("RED LIGHT — stand by", 1800); }
 }
 
 /* 0:00: the ramp comes down and the light goes green. */
@@ -294,7 +296,8 @@ export function greenLight() {
       bd.ty = dropGround(tx, tz, 300) ?? 0;
     }
   }
-  game.showWaveBanner(game.isTouch ? "GREEN LIGHT — walk off the ramp (or tap jump)" : "GREEN LIGHT — walk off the ramp (or Space)", 2600);
+  if (dropCineAtRamp()) game.showWaveBanner(game.isTouch ? "GREEN LIGHT — tap jump to fall back out" : "GREEN LIGHT — Space to fall back out", 2600);
+  else game.showWaveBanner(game.isTouch ? "GREEN LIGHT — walk off the ramp (or tap jump)" : "GREEN LIGHT — walk off the ramp (or Space)", 2600);
 }
 
 /* Where the bots aim to land. Picked at random off the floor loot, half of
@@ -411,7 +414,7 @@ function updateRoyaleDropWorld(dt) {
 export function updateAboardPlayer(dt, jump) {
   const r = royale, d = r.drop, hold = d.hold;
   if (!hold) return;
-  // The drop cinematic (royale-cine.js) has you seated, masking up, T-15 to T-8.
+  // The drop cinematic (royale-cine.js) has you, T-22 to the green.
   if (updateDropCine(r, dt)) return;
   if (game.player.holding !== "none") game.setHolding("none");
   const o = d.origin, pos = game.move.pos;
@@ -428,10 +431,13 @@ export function updateAboardPlayer(dt, jump) {
     const lx = pos.x - o.x, lz = pos.z - o.z;
     const goal = lz < -1.9 ? { x: (lx < 0 ? -0.95 : 0.95), z: -1.8 } : { x: 0, z: RAMP_END + 2 };
     const dx = goal.x - lx, dz = goal.z - lz, len = Math.hypot(dx, dz) || 1;
-    const step = Math.min(len, 6.5 * dt);
+    // Facing into the hold at the ramp (the drop cinematic): a few steps
+    // back and over the edge, not a sprint.
+    const run = Math.cos(game.look.yaw) > 0.5 && lz > 3 ? 3.4 : 6.5;
+    const step = Math.min(len, run * dt);
     pos.x += (dx / len) * step;
     pos.z += (dz / len) * step;
-    game.move.velocity.set((dx / len) * 6.5, game.move.velocity.y, (dz / len) * 6.5);
+    game.move.velocity.set((dx / len) * run, game.move.velocity.y, (dz / len) * run);
   }
   // Lost (a fall through some gap, a stale late-join spot): back in the aisle.
   if (!hold.contains(pos, 3) && pos.y > o.y - 1.5) {

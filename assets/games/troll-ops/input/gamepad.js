@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import { padEmotePressed } from "../menu/controller-layout.js?v=cl7-pd1-or1";
 import { game } from "../core/state.js?v=st1";
-import { nuke, callNuke } from "../streaks/nuke.js?v=tn1-tn2-dc1-ne1";
+import { nuke, callNuke } from "../streaks/nuke.js?v=tn1-tn2-dc1-ne1-dc2";
 import { freeLook } from "../view/free-look.js?v=nf1";
 
 

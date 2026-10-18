@@ -33,7 +33,9 @@ export const PLANES = {
   arriveEvery: 3.5,
   inbound: 600,       // how far out they start (m beyond the circle)
   doorAt: -40,        // the upper door swings up
-  breakAt: -8,        // red light; off the circle onto the run
+  breakAt: -8,        // off the circle onto the run
+  redAt: -15,         // the red light (the drop cinematic's mask on)
+  rampAt: -5,         // the ramp starts down (open by the green)
   rampTime: 2.2,      // the ramp lowering after the green
   stickEvery: 0.6,    // bots out one after another
   climb: 5,           // m/s up after the run
@@ -265,13 +267,13 @@ export class Squadron {
 
   /* The lights by the ramp for flight f at t. */
   lightAt(f, t) {
-    if (t < PLANES.breakAt) return "off";
+    if (t < PLANES.redAt) return "off";
     if (t < 0) return "red";
     return t < f.tOut - 1 ? "green" : "red";
   }
 
   doorK(t) { return smooth(PLANES.doorAt, PLANES.doorAt + 4, t); }
-  rampK(t) { return smooth(0, PLANES.rampTime, t); }
+  rampK(t) { return smooth(PLANES.rampAt, PLANES.rampAt + PLANES.rampTime, t); }
 
   update(t, dt) {
     this.t = t;

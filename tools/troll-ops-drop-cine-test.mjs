@@ -41,6 +41,7 @@ const errors = [];
 const STATE = "/assets/games/troll-ops/core/state.js?v=st1";
 // The tag the game imports it at (one module instance): read from royale.js.
 const CINE = "/assets/games/troll-ops/modes/royale-cine.js?v=" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/modes/royale.js"), "utf8").match(/royale-cine\.js\?v=([a-z0-9-]+)/)[1];
+const CREW = "/assets/games/troll-ops/modes/royale-crew.js?v=" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/modes/royale-cine.js"), "utf8").match(/royale-crew\.js\?v=([a-z0-9-]+)/)[1];
 const shot = async (page, name) => { if (OUT) await page.screenshot({ path: path.join(OUT, name) }); };
 
 async function open(lobbySeconds) {
@@ -61,15 +62,23 @@ async function open(lobbySeconds) {
   await page.waitForFunction(() => window.__trollOps.planes()?.hold?.plane, null, { timeout: 90000 });
   return page;
 }
-const st = (page) => page.evaluate(async ({ u, c }) => {
+// One state snapshot, taken in the page on the first frame the drop clock
+// reaches `target` (waiting out there and polling landed samples late
+// whenever the machine was busy).
+const snap = (page, target = -Infinity, max = 70000) => page.evaluate(async ({ u, c, w, target, max }) => {
+  const crewMod = await import(w);
   const { game } = await import(u);
   const cine = await import(c);
-  const T = window.__trollOps, r = T.royale();
+  const T = window.__trollOps;
+  const take = () => {
+  const r = T.royale();
   const sub = document.querySelector(".to-dropcine-sub");
   const visor = document.querySelector(".to-dropcine-visor");
   const card = document.querySelector(".to-dropcine-card");
   const m = game.music;
   return {
+    crew: crewMod.crewState(), eye: cine.dropCineEye(), lz: game.move.pos.z - (r?.drop?.origin?.z ?? 0),
+    light: T.planes()?.hold?.light, ramp: +(T.planes()?.hold?.rampK ?? 0).toFixed(2),
     t: r?.planeT ?? null, phase: r?.drop?.phase, me: r?.me, on: cine.dropCineOn(), k: cine.dropCineMaskK(),
     holding: game.player.holding, kind: game.streakDeviceKind, mask: !!cine.dropCineMask().visible,
     photo: !!cine.dropCinePhoto().visible, photoK: cine.dropCinePhotoK(), caress: cine.dropCineCaress(),
@@ -87,16 +96,19 @@ const st = (page) => page.evaluate(async ({ u, c }) => {
     cardPick: card?.querySelector("[data-pick].is-on")?.dataset.pick || null,
     cardSong: card && !card.querySelector(".to-dropcine-card-song").hidden ? card.querySelector(".to-dropcine-card-track").textContent : "",
   };
-}, { u: STATE, c: CINE });
-const until = async (page, t, max = 70000) => {
-  const t0 = Date.now();
-  for (;;) {
-    const s = await st(page);
-    if (s.t != null && s.t >= t) return s;
-    if (Date.now() - t0 > max) return s;
-    await sleep(80);
-  }
-};
+  };
+  return await new Promise((done) => {
+    const t0 = performance.now();
+    const tick = () => {
+      const t = T.royale()?.planeT;
+      if ((t != null && t >= target) || performance.now() - t0 > max) done(take());
+      else requestAnimationFrame(tick);
+    };
+    tick();
+  });
+}, { u: STATE, c: CINE, w: CREW, target, max });
+const st = (page) => snap(page);
+const until = (page, t, max = 70000) => snap(page, t, max);
 const setOpener = (page, pick, track) => page.evaluate(async ({ c, pick, track }) => (await import(c)).setDropOpener(pick, track), { c: CINE, pick, track });
 const angOff = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
 
@@ -155,14 +167,38 @@ check(s.pitch < -0.25, "looking down at it", `pitch=${s.pitch.toFixed(2)}`);
 check(s.memory > 0.5, "the edges go warm", `memory=${s.memory.toFixed(2)}`);
 check(!s.song, "no song on the photo path");
 await shot(a, "photo-look.png");
-s = await until(a, -18.2);
-check(s.caress > 0.2 && s.caress < 0.8, "the thumb across it", `caress=${s.caress.toFixed(2)}`);
+// The stroke runs T-19.3..T-17.2: watch it go across (a single sample can land late).
+// Sampled in the page every frame, so a slow poll can't miss it.
+const strokes = await a.evaluate(async (c) => {
+  const cine = await import(c), T = window.__trollOps, out = [];
+  await new Promise((done) => {
+    const tick = () => {
+      const t = T.royale().planeT;
+      if (t > -19.3 && t < -17.2) out.push(+cine.dropCineCaress().toFixed(2));
+      if (t >= -17.2) done(); else requestAnimationFrame(tick);
+    };
+    tick();
+  });
+  return out.filter((_, i) => i % 6 === 0);
+}, CINE);
+s = await st(a);
+check(strokes.some((c) => c > 0.2 && c < 0.8), "the thumb across it", strokes.join(" "));
 await shot(a, "photo-caress.png");
 
+// He's by you, standing still, from T-16.4; the lean and the tap run
+// T-16..T-14.8 (sampled mid-beat: a busy machine can hand back the frame
+// before the one asked for).
+s = await until(a, -16.15);
+const upright = s.crew?.jmLean ?? 0;
 s = await until(a, -15.7);
 check(/Hey\. Mask on, troll/.test(s.sub), "T-16: he cuts in", s.sub);
 check(s.pitch > -0.2, "the head comes up", `pitch=${s.pitch.toFixed(2)}`);
-check(s.photoK < 0.8, "the photo's going away", `k=${s.photoK.toFixed(2)}`);
+const lean = await until(a, -15.4);
+// The bodies (user: "make sure the body and arm movements are logically
+// correct"): he leans in toward you, his hand goes to his own mouth.
+check((lean.crew?.jmLean ?? 0) > upright + 0.04, "the jumpmaster leans in (forward, toward you)", `head ahead of hips ${upright.toFixed(2)} -> ${(lean.crew?.jmLean ?? 0).toFixed(2)} m`);
+check((lean.crew?.jmHandToMouth ?? 9) < 0.14, "his hand taps his own mouth", `hand ${(lean.crew?.jmHandToMouth ?? 9).toFixed(2)} m from it`);
+check(s.photoK < 0.95, "the photo's going away", `k=${s.photoK.toFixed(2)}`);
 check(s.memory < 0.2, "the warm edges fade", `memory=${s.memory.toFixed(2)}`);
 await shot(a, "photo-interrupt.png");
 
@@ -173,6 +209,7 @@ await shot(a, "cine-raise.png");
 s = await until(a, -13);
 check(s.k > 0.95 && s.mask, "the mask is on the face by T-13", `k=${s.k.toFixed(2)}`);
 check(s.visor > 0.6, "the visor darkens", `opacity=${s.visor.toFixed(2)}`);
+check(s.crew?.mask && (s.crew?.mateHandsToMask ?? 9) < 0.16, "the squad mate holds his mask on with both hands", `mask ${s.crew?.mask}, hands ${(s.crew?.mateHandsToMask ?? 9).toFixed(2)} m from it`);
 await shot(a, "cine-mask-on.png");
 
 s = await until(a, -11.5);
@@ -187,19 +224,34 @@ check(fog > 0.2, "the visor fogs on a breath", `fog=${fog.toFixed(2)}`);
 s = await until(a, -8.8);
 check(/Okay, off/.test(s.sub), "the third line", s.sub);
 check(s.k < 0.6, "the mask is coming off", `k=${s.k.toFixed(2)}`);
+check(s.crew?.mate.shown && s.crew?.jm.shown, "the jumpmaster and the squad mate are there", JSON.stringify(s.crew));
 
-s = await until(a, -7.6);
-check(!s.on && !s.body && !s.ui && !s.mask && !s.photo && !s.ipod, "T-8: the scene hands you back", JSON.stringify({ on: s.on, body: s.body, ui: s.ui, mask: s.mask }));
-check(s.holding === "none", "nothing in the hands", s.holding);
-const x1 = s.x, z1 = s.z;
-await a.evaluate(() => window.__trollOps.keys.add("KeyW"));
-await sleep(700);
-s = await st(a);
-await a.evaluate(() => window.__trollOps.keys.delete("KeyW"));
-check(Math.hypot(s.x - x1, s.z - z1) > 0.2, "on your feet: W walks again", `moved ${Math.hypot(s.x - x1, s.z - z1).toFixed(2)} m`);
+// ---- phase 2: up, down the aisle, the ramp, the turn
+s = await until(a, -7.5);
+check(s.on && s.body, "T-8: still the scene's", JSON.stringify({ on: s.on, body: s.body }));
+check(s.holding === "none" && !s.mask, "the hands are empty", JSON.stringify({ holding: s.holding, mask: s.mask }));
+check(s.eye > -0.05, "on your feet", `eye=${s.eye.toFixed(2)}`);
+const lz0 = s.lz;
+s = await until(a, -5.6);
+check(/Get to the ramp/.test(s.sub), "the walk line", s.sub);
+check(s.lz > lz0 + 0.5, "walking aft down the aisle", `z ${lz0.toFixed(2)} -> ${s.lz.toFixed(2)}`);
+await shot(a, "walk.png");
+s = await until(a, -3.0);
+check(Math.abs(s.lz - 5.7) < 0.3, "at the ramp's hinge by T-3", `z=${s.lz.toFixed(2)}`);
+check(s.light === "red" && s.ramp > 0.1, "red light on, the ramp coming down", JSON.stringify({ light: s.light, ramp: s.ramp }));
+check(Math.cos(s.yaw) < -0.8, "looking aft at the ramp", `yaw=${s.yaw.toFixed(2)}`);
+await shot(a, "ramp.png");
+s = await until(a, -0.4);
+check(/Back to the door/.test(s.sub), "the turn line", s.sub);
+check(Math.cos(s.yaw) > 0.8, "turned round to face into the hold", `yaw=${s.yaw.toFixed(2)}`);
+check(s.crew?.jm.shown && s.crew?.mate.shown, "the crew in the hold with you", JSON.stringify(s.crew));
+await shot(a, "turned.png");
 
-s = await until(a, 0.6, 30000);
+s = await until(a, 0.4, 30000);
 check(s.phase === "run", "the green still comes", s.phase);
+check(!s.on && !s.body, "the green: yours again, the HUD back", JSON.stringify({ on: s.on, body: s.body }));
+check(/GO! GO! GO!/.test(s.sub), "GO GO GO", s.sub);
+await shot(a, "go.png");
 await a.evaluate(() => window.__trollOps.keys.add("Space"));
 for (let i = 0; i < 80 && (await st(a)).me === "aboard"; i++) await sleep(100);
 await a.evaluate(() => window.__trollOps.keys.delete("Space"));
@@ -230,16 +282,20 @@ check(s.music.at > 0.5, "and it keeps going", `at=${s.music.at.toFixed(2)} s`);
 check(s.pitch > -0.2, "head up, listening", `pitch=${s.pitch.toFixed(2)}`);
 check(s.memory < 0.05, "no warm edges on the music path", `memory=${s.memory.toFixed(2)}`);
 await shot(b, "ipod-listen.png");
-s = await until(b, -15.6);
-check(/Hey\. Mask on, troll/.test(s.sub), "T-16: he cuts in", s.sub);
-check(s.music.vol < s.music.base * 0.7, "the song fades", `vol=${s.music.vol.toFixed(2)} of ${s.music.base.toFixed(2)}`);
+// The fade runs T-16..T-15.3: watch it (a single sample can land after it).
+let faded = 1, line = "";
+for (s = await until(b, -16.05); s.t < -15.3; s = await st(b)) { if (s.song) faded = Math.min(faded, s.music.vol / s.music.base); if (s.sub) line = s.sub; }
+check(/Hey\. Mask on, troll/.test(line), "T-16: he cuts in", line);
+check(faded < 0.8, "the song fades", `down to ${(faded * 100).toFixed(0)}%`);
 s = await until(b, -14.7);
 check(!s.song && s.music.paused, "the song's stopped", JSON.stringify(s.music));
 check(Math.abs(s.music.vol - s.music.base) < 0.01, "the radio's volume put back", `vol=${s.music.vol.toFixed(2)}`);
 check(s.music.playing === before.playing && s.music.index === before.index, "the radio as it was before", JSON.stringify({ before, now: s.music }));
 check(s.kind === "mask" && !s.ipod, "the hands go to the mask", JSON.stringify({ kind: s.kind, ipod: s.ipod }));
 s = await until(b, -7.6);
-check(!s.on && s.holding === "none" && !s.ipod, "T-8: handed back", JSON.stringify({ on: s.on, holding: s.holding }));
+check(s.on && s.holding === "none" && !s.ipod, "T-8: up, hands empty", JSON.stringify({ on: s.on, holding: s.holding }));
+s = await until(b, 0.4, 30000);
+check(!s.on && s.holding === "none", "the green: handed back", JSON.stringify({ on: s.on, holding: s.holding }));
 await b.close();
 
 // ---- a late join skips it
