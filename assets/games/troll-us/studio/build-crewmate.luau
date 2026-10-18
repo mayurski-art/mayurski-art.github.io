@@ -60,8 +60,16 @@ local function buildCrewmate(suit)
 		CFrame = CFrame.new(0, 2.9, 1.85), Parent = m })
 	-- visor = flat elliptical cylinder sunk into the body; the axis is local X and a 90 yaw puts
 	-- the Right cap on -Z (the front), so the Decal goes on Right
-	local face = part({ Name = "Face", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.4, 1.7, 2.4), Color = Color3.fromRGB(255, 255, 255),
+	-- goggle frame: a raised lip in a darker shade of the suit, a dark ring inside it, the white face proud of both,
+	-- so the face reads as part of the suit instead of a sticker. Server paint() honours SuitShade.
+	local lip = part({ Name = "VisorLip", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 2.2, 2.9), Color = Color3.new(color.R * 0.72, color.G * 0.72, color.B * 0.72),
 		CFrame = CFrame.new(0, 3.6, -1.5) * CFrame.Angles(0, math.rad(90), 0), Parent = m })
+	lip:SetAttribute("SuitShade", 0.72)
+	local ring = part({ Name = "VisorRing", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.3, 1.95, 2.65), Color = Color3.fromRGB(38, 38, 44),
+		CFrame = CFrame.new(0, 3.6, -1.65) * CFrame.Angles(0, math.rad(90), 0), Parent = m })
+	ring:SetAttribute("SuitShade", 0)
+	local face = part({ Name = "Face", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.4, 1.7, 2.4), Color = Color3.fromRGB(255, 255, 255),
+		CFrame = CFrame.new(0, 3.6, -1.65) * CFrame.Angles(0, math.rad(90), 0), Parent = m })
 	if FACE_ASSET ~= 0 then
 		local d = Instance.new("Decal"); d.Name = "Trollface"; d.Face = Enum.NormalId.Right
 		d.Texture = "rbxassetid://" .. FACE_ASSET; d.Parent = face
@@ -75,6 +83,8 @@ local function buildCrewmate(suit)
 	motor("LegRJoint", body, legR, body.CFrame:ToObjectSpace(legR.CFrame))
 	motor("PackJoint", body, pack, body.CFrame:ToObjectSpace(pack.CFrame))
 	motor("FaceJoint", body, face, body.CFrame:ToObjectSpace(face.CFrame))
+	motor("VisorLipJoint", body, lip, body.CFrame:ToObjectSpace(lip.CFrame))
+	motor("VisorRingJoint", body, ring, body.CFrame:ToObjectSpace(ring.CFrame))
 
 	local hum = Instance.new("Humanoid"); hum.Parent = m
 	hum.HipHeight = 1.0

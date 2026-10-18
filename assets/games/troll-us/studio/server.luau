@@ -95,7 +95,11 @@ local SUITS = RS:WaitForChild("TrollUsSuits")
 local function paint(model, suit)
 	local c = SUITS[suit].Value
 	for _, d in ipairs(model:GetDescendants()) do
-		if d:IsA("BasePart") and d.Name ~= "Face" and d.Name ~= "HumanoidRootPart" then d.Color = c end
+		if d:IsA("BasePart") and d.Name ~= "Face" and d.Name ~= "HumanoidRootPart" then
+			-- SuitShade: 0 keeps the part's own colour (the visor's dark ring), else a multiple of the suit (the darker lip)
+			local k = d:GetAttribute("SuitShade") or 1
+			if k > 0 then d.Color = Color3.new(c.R * k, c.G * k, c.B * k) end
+		end
 	end
 end
 local function setGroup(model, g)
