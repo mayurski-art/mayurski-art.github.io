@@ -10,6 +10,7 @@ local RunService = game:GetService("RunService")
 
 local TU = RS:WaitForChild("TrollUs")
 local Rules = require(TU:WaitForChild("Rules"))
+local Hats = require(TU:WaitForChild("Hats"))
 local Net = TU:WaitForChild("Net")
 local Root = workspace:WaitForChild("TrollUs")
 local Map = Root:WaitForChild("Map")
@@ -111,6 +112,7 @@ local function ghostify(p, on)
 	setGroup(p.model, on and "TUGhost" or "TUCrew")
 	for _, d in ipairs(p.model:GetDescendants()) do
 		if d:IsA("BasePart") and GHOST_HIDE[d.Name] then d.Transparency = on and 1 or 0 end
+		if d:IsA("BasePart") and d.Name == "GhostTail" then d.Transparency = on and 0 or 1 end -- legs go, a wisp of tail shows
 	end
 	p.model:SetAttribute("Alive", not on)
 end
@@ -129,7 +131,7 @@ local function dress(p)
 	local m = p.model
 	m:SetAttribute("TUId", p.id); m:SetAttribute("DisplayName", p.name); m:SetAttribute("Suit", p.suit)
 	m:SetAttribute("Alive", p.alive ~= false); m:SetAttribute("Venting", false)
-	paint(m, p.suit); setGroup(m, "TUCrew"); nameTag(m, p.name)
+	paint(m, p.suit); Hats.wear(m, p.hat); setGroup(m, "TUCrew"); nameTag(m, p.name)
 	CS:AddTag(m, "Crewmate")
 	local hum = m:FindFirstChildOfClass("Humanoid")
 	if hum then hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None end
@@ -144,7 +146,9 @@ local function freeSuit()
 end
 
 local function newPart(id, name, isBot)
-	return { id = id, name = name, isBot = isBot, suit = freeSuit(), role = "Crewmate", alive = true,
+	-- bots pick a hat now and then; humans choose theirs in the lobby wardrobe
+	local hat = (isBot and math.random() < 0.6) and Hats.LIST[math.random(2, #Hats.LIST)] or "None"
+	return { id = id, name = name, isBot = isBot, suit = freeSuit(), hat = hat, role = "Crewmate", alive = true,
 		tasks = {}, killReady = 0, meetings = 1, sus = {}, venting = nil, openTask = nil }
 end
 
@@ -320,7 +324,11 @@ local function spawnBody(victim)
 	end
 	CS:RemoveTag(b, "Crewmate")
 	b:SetAttribute("Of", victim.id)
-	b:PivotTo(CFrame.new(pos.X, 1.7, pos.Z) * CFrame.Angles(0, math.pi, 0) * CFrame.Angles(math.rad(90), 0, 0))
+	-- on its side (the bean is 3.2 wide, so its middle rests 1.6 up), one leg kicked up, still grinning
+	b:PivotTo(CFrame.new(pos.X, 1.6, pos.Z) * CFrame.Angles(0, math.random() * math.pi * 2, 0) * CFrame.Angles(0, 0, math.rad(90)))
+	local leg = b:FindFirstChild("LegR")
+	if leg then leg.CFrame = leg.CFrame * CFrame.new(0, 0.5, 0) * CFrame.Angles(math.rad(-75), 0, 0) * CFrame.new(0, -0.5, 0) end
+	local tail = b:FindFirstChild("GhostTail"); if tail then tail.Transparency = 1 end
 	b.Parent = Bodies
 end
 local KILL_CLIPS = { "Stab", "Shoot", "Tongue" }
@@ -612,6 +620,21 @@ HANDLERS.Start = function(p)
 	after(R("startCountdown"), gen, startGame)
 end
 HANDLERS.Use = function(p) use(p) end
+-- the lobby wardrobe: a free suit colour and a hat from the list
+HANDLERS.Wardrobe = function(p, suit, hat)
+	if S.phase ~= "Lobby" then return end
+	if type(suit) == "string" and table.find(Rules.suits, suit) then
+		local taken = false
+		for _, q in pairs(S.parts) do if q ~= p and q.suit == suit then taken = true end end
+		if not taken then p.suit = suit end
+	end
+	if type(hat) == "string" and table.find(Hats.LIST, hat) then p.hat = hat end
+	if p.model then
+		paint(p.model, p.suit); p.model:SetAttribute("Suit", p.suit)
+		Hats.wear(p.model, p.hat)
+		setGroup(p.model, "TUCrew")
+	end
+end
 HANDLERS.TaskDone = function(p, id)
 	local o = p.openTask
 	if not o or o.id ~= id or now() - o.at < R("taskHoldTime") * 0.8 then return end

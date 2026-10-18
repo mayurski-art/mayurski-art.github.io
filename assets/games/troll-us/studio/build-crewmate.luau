@@ -56,6 +56,9 @@ local function buildCrewmate(suit)
 		CFrame = CFrame.new(-0.8, 0.5, 0.1), Parent = m })
 	local legR = part({ Name = "LegR", Size = Vector3.new(1.0, 1.0, 1.3), Color = color,
 		CFrame = CFrame.new(0.8, 0.5, 0.1), Parent = m })
+	-- the ghost's wisp of tail where the legs were: hidden until the server ghostifies the bean
+	local tail = part({ Name = "GhostTail", Shape = Enum.PartType.Ball, Size = Vector3.new(1.5, 1.0, 2.3), Color = color,
+		Transparency = 1, CFrame = CFrame.new(0, 0.95, 0.75) * CFrame.Angles(math.rad(12), 0, 0), Parent = m })
 	local pack = part({ Name = "Backpack", Size = Vector3.new(1.9, 2.2, 1.0), Color = color,
 		CFrame = CFrame.new(0, 2.9, 1.85), Parent = m })
 	-- visor = flat elliptical cylinder sunk into the body; the axis is local X and a 90 yaw puts
@@ -83,6 +86,7 @@ local function buildCrewmate(suit)
 	motor("LegRJoint", body, legR, body.CFrame:ToObjectSpace(legR.CFrame))
 	motor("PackJoint", body, pack, body.CFrame:ToObjectSpace(pack.CFrame))
 	motor("FaceJoint", body, face, body.CFrame:ToObjectSpace(face.CFrame))
+	motor("GhostTailJoint", body, tail, body.CFrame:ToObjectSpace(tail.CFrame))
 	motor("VisorLipJoint", body, lip, body.CFrame:ToObjectSpace(lip.CFrame))
 	motor("VisorRingJoint", body, ring, body.CFrame:ToObjectSpace(ring.CFrame))
 

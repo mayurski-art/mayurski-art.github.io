@@ -187,26 +187,42 @@ local diedText = label({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new
 	Font = BLACK, TextSize = 58, ZIndex = 12, Text = "You were killed", TextStrokeTransparency = 0 }, died)
 local KillClips = require(TU:WaitForChild("KillClips"))
 
-local function playDeath(killerId, clip)
-	diedView:ClearAllChildren()
-	diedCam = new("Camera", { FieldOfView = 50 }, diedView)
-	diedView.CurrentCamera = diedCam
-	local src
-	for _, m in ipairs(CS:GetTagged("Crewmate")) do if m:GetAttribute("TUId") == killerId then src = m end end
-	if not src then return end
-	src.Archivable = true -- player characters are not archivable; this only changes this client's copy
+-- a still copy of a bean for a ViewportFrame: anchored, scripts and tags gone, every joint back at rest
+-- (a live bean is caught mid-waddle). Player characters are not archivable; flipping it only affects this client.
+local function cloneAtRest(src)
+	src.Archivable = true
 	local m = src:Clone()
-	if not m then return end
-	-- the clone keeps the waddle pose it was caught in; put every joint back to rest (root first, then the rest)
-	for _ = 1, 2 do
+	if not m then return nil end
+	CS:RemoveTag(m, "Crewmate") -- tags clone too; a preview must not count as a player (lobby count, taken colours)
+	for _ = 1, 2 do -- root joint first, then the ones hanging off the body
 		for _, mo in ipairs(m:GetDescendants()) do
 			if mo:IsA("Motor6D") and mo.Part0 and mo.Part1 then mo.Part1.CFrame = mo.Part0.CFrame * mo.C0 * mo.C1:Inverse() end
+		end
+	end
+	-- hats are welded to the dome, which just moved: put them back on it
+	local hat, dome = m:FindFirstChild("Hat"), m:FindFirstChild("Dome")
+	local srcHat, srcDome = src:FindFirstChild("Hat"), src:FindFirstChild("Dome")
+	if hat and dome and srcHat and srcDome then
+		local parts, srcParts = hat:GetChildren(), srcHat:GetChildren()
+		for i, p in ipairs(parts) do
+			if p:IsA("BasePart") and srcParts[i] then p.CFrame = dome.CFrame * srcDome.CFrame:ToObjectSpace(srcParts[i].CFrame) end
 		end
 	end
 	for _, d in ipairs(m:GetDescendants()) do
 		if d:IsA("LuaSourceContainer") or d:IsA("BillboardGui") or d:IsA("Humanoid") or d:IsA("Constraint") or d:IsA("AlignOrientation") then d:Destroy()
 		elseif d:IsA("BasePart") then d.Anchored = true; d.LocalTransparencyModifier = 0 end
 	end
+	return m
+end
+
+local function playDeath(killerId, clip)
+	diedView:ClearAllChildren()
+	diedCam = new("Camera", { FieldOfView = 50 }, diedView)
+	diedView.CurrentCamera = diedCam
+	local src
+	for _, m in ipairs(CS:GetTagged("Crewmate")) do if m:GetAttribute("TUId") == killerId then src = m end end
+	local m = src and cloneAtRest(src)
+	if not m then return end
 	m:PivotTo(CFrame.new(0, 2.8, 0)) -- feet at 0, front (-Z) toward the camera
 	m.Parent = diedView
 	diedCam.CFrame = CFrame.lookAt(Vector3.new(0.4, 3.3, -7.4), Vector3.new(0, 3.0, 0)) -- the whole dome in shot
@@ -243,6 +259,98 @@ local overSub = label({ AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fr
 	TextSize = 26, ZIndex = 11 }, over)
 local overImps = label({ AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.56), Size = UDim2.fromOffset(900, 40),
 	TextSize = 22, ZIndex = 11, TextColor3 = Color3.fromRGB(255, 120, 120) }, over)
+
+-- ---------- wardrobe (lobby laptop) ----------
+local Hats = require(TU:WaitForChild("Hats"))
+local wardrobe = round(outline(new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45),
+	Size = UDim2.fromOffset(760, 430), BackgroundColor3 = Color3.fromRGB(28, 30, 40), Visible = false, ZIndex = 40 }, gui), 4), 18)
+label({ Text = "WARDROBE", Font = BLACK, TextSize = 24, Size = UDim2.new(1, 0, 0, 40), Position = UDim2.fromOffset(0, 6), ZIndex = 41 }, wardrobe)
+local wardClose = round(new("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 10), Size = UDim2.fromOffset(32, 32),
+	BackgroundColor3 = RED, Text = "X", Font = BLACK, TextSize = 16, TextColor3 = WHITE, ZIndex = 42 }, wardrobe), 16)
+local wardView = round(new("ViewportFrame", { Position = UDim2.fromOffset(16, 56), Size = UDim2.fromOffset(300, 358),
+	BackgroundColor3 = Color3.fromRGB(44, 48, 62), Ambient = Color3.fromRGB(150, 150, 160), LightDirection = Vector3.new(-0.4, -1, 0.5), ZIndex = 41 }, wardrobe), 14)
+local wardCam = new("Camera", { FieldOfView = 40 }, wardView)
+wardView.CurrentCamera = wardCam
+wardCam.CFrame = CFrame.lookAt(Vector3.new(0, 4.4, -13), Vector3.new(0, 3.5, 0)) -- room above the dome for the tall hats
+label({ Text = "COLOUR", Font = BLACK, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(336, 52),
+	Size = UDim2.fromOffset(200, 22), ZIndex = 41 }, wardrobe)
+local suitGrid = new("Frame", { Position = UDim2.fromOffset(336, 78), Size = UDim2.fromOffset(404, 130), BackgroundTransparency = 1, ZIndex = 41 }, wardrobe)
+new("UIGridLayout", { CellSize = UDim2.fromOffset(58, 58), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder }, suitGrid)
+label({ Text = "HAT", Font = BLACK, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(336, 218),
+	Size = UDim2.fromOffset(200, 22), ZIndex = 41 }, wardrobe)
+local hatGrid = new("Frame", { Position = UDim2.fromOffset(336, 244), Size = UDim2.fromOffset(404, 170), BackgroundTransparency = 1, ZIndex = 41 }, wardrobe)
+new("UIGridLayout", { CellSize = UDim2.fromOffset(124, 44), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder }, hatGrid)
+
+local suitButtons, hatButtons = {}, {}
+local function wear(suit, hat)
+	local c = player.Character
+	Net:FireServer("Wardrobe", suit or (c and c:GetAttribute("Suit")), hat or (c and c:GetAttribute("Hat")))
+end
+for i, name in ipairs(Rules.suits) do
+	local b = round(new("TextButton", { BackgroundColor3 = suitColor(name), Text = "", Font = BLACK, TextSize = 30, TextColor3 = INK,
+		LayoutOrder = i, AutoButtonColor = false, ZIndex = 42 }, suitGrid), 29)
+	suitButtons[name] = { button = b, stroke = new("UIStroke", { Thickness = 3, Color = INK, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, b) }
+	b.Activated:Connect(function() if b.Text == "" then wear(name, nil) end end)
+end
+for i, name in ipairs(Hats.LIST) do
+	local b = round(outline(new("TextButton", { BackgroundColor3 = Color3.fromRGB(70, 76, 92), Text = name, Font = BOLD, TextSize = 15,
+		TextColor3 = WHITE, LayoutOrder = i, ZIndex = 42 }, hatGrid), 2), 10)
+	hatButtons[name] = b
+	b.Activated:Connect(function() wear(nil, name) end)
+end
+
+local wardModel, wardKey = nil, nil
+local function refreshWardrobe()
+	local c = player.Character
+	if not c then return end
+	local mySuit, myHat = c:GetAttribute("Suit"), c:GetAttribute("Hat") or "None"
+	-- colours another player wears are crossed out
+	local taken = {}
+	for _, m in ipairs(CS:GetTagged("Crewmate")) do if m ~= c and m:GetAttribute("Suit") then taken[m:GetAttribute("Suit")] = true end end
+	for name, sb in pairs(suitButtons) do
+		sb.button.Text = taken[name] and "X" or ""
+		sb.button.BackgroundTransparency = taken[name] and 0.6 or 0
+		sb.stroke.Color = (name == mySuit) and WHITE or INK
+		sb.stroke.Thickness = (name == mySuit) and 5 or 3
+	end
+	for name, b in pairs(hatButtons) do b.BackgroundColor3 = (name == myHat) and Color3.fromRGB(68, 170, 60) or Color3.fromRGB(70, 76, 92) end
+	-- rebuild the preview when what you wear changes
+	local key = tostring(mySuit) .. "/" .. myHat
+	if key ~= wardKey or not wardModel then
+		wardKey = key
+		if wardModel then wardModel:Destroy() end
+		wardModel = cloneAtRest(c)
+		if wardModel then
+			for _, d in ipairs(wardModel:GetDescendants()) do
+				if d:IsA("BasePart") and d.Name == "GhostTail" then d.Transparency = 1 end
+			end
+			wardModel.Parent = wardView
+		end
+	end
+end
+local function openWardrobe(on)
+	wardrobe.Visible = on
+	if on then wardKey = nil; refreshWardrobe() end
+end
+wardClose.Activated:Connect(function() openWardrobe(false) end)
+local btnWard = round(outline(new("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(0.5, -8, 0, 66),
+	Size = UDim2.fromOffset(180, 42), BackgroundColor3 = Color3.fromRGB(110, 200, 255), Text = "WARDROBE", Font = BLACK, TextSize = 20, TextColor3 = INK }, lobby), 3), 10)
+btnWard.Activated:Connect(function() openWardrobe(not wardrobe.Visible) end)
+btnStart.AnchorPoint = Vector2.new(0, 0)
+btnStart.Position = UDim2.new(0.5, 8, 0, 66)
+RunService.RenderStepped:Connect(function()
+	if not wardrobe.Visible then return end
+	if TU:GetAttribute("Phase") ~= "Lobby" then openWardrobe(false); return end
+	refreshWardrobe()
+	if wardModel then wardModel:PivotTo(CFrame.new(0, 2.8, 0) * CFrame.Angles(0, math.sin(os.clock() * 0.8) * 0.45, 0)) end
+end)
+local laptopHint = round(new("TextLabel", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -160), Size = UDim2.fromOffset(200, 34),
+	BackgroundColor3 = Color3.fromRGB(20, 22, 30), BackgroundTransparency = 0.2, Text = "E  ·  Wardrobe", Font = BLACK, TextSize = 17,
+	TextColor3 = WHITE, Visible = false }, gui), 8)
+local function nearLaptop(pos)
+	local stand = Map.Props:FindFirstChild("LaptopStand")
+	return stand and flat(stand.Position, pos) <= R("useRange") + 1
+end
 
 -- ---------- task panel ----------
 local panel = round(outline(new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
@@ -519,6 +627,10 @@ UIS.InputBegan:Connect(function(input, processed)
 	local f = KEYS[input.KeyCode]
 	if f and TU:GetAttribute("Phase") == "Roam" then f() end
 	if input.KeyCode == Enum.KeyCode.M and TU:GetAttribute("Phase") == "Roam" then toggleMap() end
+	if input.KeyCode == Enum.KeyCode.E and TU:GetAttribute("Phase") == "Lobby" then
+		local pos = myPos()
+		if wardrobe.Visible then openWardrobe(false) elseif pos and nearLaptop(pos) then openWardrobe(true) end
+	end
 	local n = input.KeyCode.Value - Enum.KeyCode.One.Value + 1
 	if camN > 0 and n >= 1 and n <= 4 then setCam(n) end
 	if input.KeyCode == Enum.KeyCode.Slash and meeting.Visible then task.defer(function() chatInput:CaptureFocus() end) end
@@ -756,7 +868,8 @@ RunService.RenderStepped:Connect(function()
 	local pos = myPos()
 
 	-- tell the client when the mouse must be free
-	local open = panel.Visible or sabMenu.Visible or mapFrame.Visible or meeting.Visible
+	local open = panel.Visible or sabMenu.Visible or mapFrame.Visible or meeting.Visible or wardrobe.Visible
+	laptopHint.Visible = phase == "Lobby" and pos ~= nil and nearLaptop(pos) and not wardrobe.Visible
 	if open ~= uiOpen then uiOpen = open; player:SetAttribute("UIOpen", open) end
 
 	-- the goggle frame: your suit, a shade darker, round the edge of your eyes

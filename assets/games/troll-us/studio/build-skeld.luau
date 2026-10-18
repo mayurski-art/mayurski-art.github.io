@@ -266,6 +266,15 @@ local btn = part({ Name = "EmergencyButton", Shape = Enum.PartType.Cylinder, Siz
 	CFrame = CFrame.new(0, 2.7, -30) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(230, 40, 40), Parent = F.Props })
 btn:SetAttribute("Room", "Cafeteria")
 
+-- lobby laptop: the wardrobe (suit colour + hat), near the spawn in Cafeteria
+local stand = part({ Name = "LaptopStand", Size = Vector3.new(2.6, 2.4, 1.8), Position = Vector3.new(-10, 1.2, -15),
+	Color = Color3.fromRGB(150, 152, 160), Parent = F.Props })
+part({ Name = "LaptopBase", Size = Vector3.new(2, 0.12, 1.3), Position = Vector3.new(-10, 2.46, -15.1),
+	Color = Color3.fromRGB(60, 62, 72), Parent = F.Props })
+part({ Name = "LaptopScreen", Size = Vector3.new(2, 1.3, 0.1), CFrame = CFrame.new(-10, 3.1, -15.7) * CFrame.Angles(math.rad(-12), 0, 0),
+	Color = Color3.fromRGB(70, 140, 220), Material = Enum.Material.SmoothPlastic, CanCollide = false, Parent = F.Props })
+stand:SetAttribute("Wardrobe", true)
+
 -- Security desk: Use here to watch the four cameras (client-side view, see TrollUsHUD)
 local desk = part({ Name = "SecurityDesk", Size = Vector3.new(6, 2.5, 1.4), Position = Vector3.new(-54, 1.25, 3),
 	Color = Color3.fromRGB(70, 74, 86), Parent = F.Props })
