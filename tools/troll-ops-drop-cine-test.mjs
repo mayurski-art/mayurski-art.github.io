@@ -425,6 +425,19 @@ await a.close();
 // ---- music: the iPod and a Troll Radio song, the radio put back after
 const b = await open(45);
 await setOpener(b, "music", 2);   // picked before the scene, as the music checks below expect
+await b.evaluate(() => { window.__trollOps.settings.thirdPerson = true; });
+s = await until(b, -33);
+let tv = await tpView(b);
+check(tv.vis && tv.dist > 0.9 && Math.abs(tv.x) < 0.9 && Math.abs(tv.y) < 0.9 && tv.z < 1, "third person, walking to the seat: you're in frame", JSON.stringify(tv));
+await shot(b, "tp-walk.png");
+s = await until(b, -27);
+tv = await tpView(b);
+check(s.sitK > 0.95 && tv.vis && tv.dist > 0.9 && Math.abs(tv.x) < 0.9 && Math.abs(tv.y) < 0.9 && tv.z < 1, "third person, seated: you're in frame", JSON.stringify({ sitK: s.sitK, ...tv }));
+await shot(b, "tp-seated.png");
+s = await until(b, -21);
+tv = await tpView(b);
+check(!tv.vis, "the scene itself is first person", JSON.stringify(tv));
+await b.evaluate(() => { window.__trollOps.settings.thirdPerson = false; });
 s = await st(b);
 const N = s.music?.tracks || 0;
 check(N > 2, "Troll Radio has tracks", String(N));

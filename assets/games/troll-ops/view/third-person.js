@@ -64,6 +64,37 @@ export function updateEmoteCamera(pivot, yaw, duoDist = 0) {
   game.camera.lookAt(_tpPivot);
 }
 
+/* The camera's spots, best first. Behind you: { side: which shoulder (and
+   how far over), lift: m higher }. With nothing in your hands there's no
+   aim to keep, so it can also swing round you: { orbit: radians round
+   from straight behind } (beside you, then ahead of you looking back). */
+const TP_SPOTS = [{ side: 1, lift: 0 }, { side: -1, lift: 0 }, { side: 0.4, lift: 0.8 }, { side: 0, lift: 1.4 },
+  { orbit: 1.6, lift: 0.45 }, { orbit: -1.6, lift: 0.45 }, { orbit: 2.4, lift: 0.4 }, { orbit: -2.4, lift: 0.4 }];
+const TP_AIMED = 4;   // the spots that keep the aim (a gun in your hands)
+let tpPick = 0;
+/* Aim _tpDir at spot `i` (from the pivot); how far out it's clear (a small
+   skin short of a wall or floor so it never rests on it) and how much of
+   the wanted distance that is. */
+const _tpRoom = { len: 0, k: 0 };
+function tpSpot(i, dist, side) {
+  const c = TP_SPOTS[i];
+  if (c.orbit != null) {
+    // Round you on the level: straight behind turned by `orbit`.
+    const bx = -_tpForward.x, bz = -_tpForward.z, h = Math.hypot(bx, bz) || 1;
+    const co = Math.cos(c.orbit), so = Math.sin(c.orbit);
+    _tpDesired.set(_tpPivot.x + ((bx * co + bz * so) / h) * dist, _tpPivot.y, _tpPivot.z + ((-bx * so + bz * co) / h) * dist);
+  } else {
+    _tpDesired.copy(_tpPivot).addScaledVector(_tpForward, -dist).addScaledVector(_tpRight, side * c.side);
+  }
+  _tpDesired.y += TP_HEIGHT + c.lift;
+  _tpDir.copy(_tpDesired).sub(_tpPivot);
+  const want = _tpDir.length();
+  _tpDir.normalize();
+  _tpRoom.len = Math.max(0.15, raycastWorld(game.colliders, _tpPivot, _tpDir, want) - 0.1);
+  _tpRoom.k = _tpRoom.len / want;
+  return _tpRoom;
+}
+
 export function updateThirdPersonCamera(pivot, yaw, pitch, adsT) {
   // A U Mad Bro? hero body is far wider than the stick figure (the Knight's
   // head and pauldrons): sit further back and further out so it never
@@ -77,28 +108,35 @@ export function updateThirdPersonCamera(pivot, yaw, pitch, adsT) {
   _tpRight.set(1, 0, 0).applyEuler(game._euler);
 
   _tpPivot.copy(pivot);
-  _tpDesired.copy(_tpPivot)
-    .addScaledVector(_tpForward, -dist)
-    .addScaledVector(_tpRight, side);
-  _tpDesired.y += TP_HEIGHT;
-
-  _tpDir.copy(_tpDesired).sub(_tpPivot);
-  const wantLen = _tpDir.length();
-  _tpDir.normalize();
-  // Pull the camera in toward the pivot if the desired spot is behind a
-  // wall/floor — a small skin width keeps it from resting exactly on the
-  // surface and clipping into it.
-  const safeLen = Math.max(0.15, raycastWorld(game.colliders, _tpPivot, _tpDir, wantLen) - 0.1);
+  // Over the shoulder, or, when a wall's right behind you (a corridor, the
+  // Royale plane's hold), the other shoulder or higher up: whichever has
+  // the room, so the camera doesn't end up inside your own body (user,
+  // 2026-10-18: "users should be able to see themselves").
+  // Swinging round you is only for empty hands (the plane, Socialize).
+  const spots = game.player.holding === "none" ? TP_SPOTS.length : TP_AIMED;
+  if (tpPick >= spots) tpPick = 0;
+  let best = tpSpot(tpPick, dist, side).k;
+  if (best < 0.85) {
+    // Boxed in: the spot with the most room (a clear margin to change, so
+    // it doesn't flick between two).
+    for (let i = 0; i < spots; i++) {
+      if (i === tpPick) continue;
+      const k = tpSpot(i, dist, side).k;
+      if (k > best + 0.15) { tpPick = i; best = k; }
+    }
+  } else if (tpPick !== 0 && tpSpot(0, dist, side).k > 0.95) tpPick = 0;   // room behind again
+  const safeLen = tpSpot(tpPick, dist, side).len;
 
   game.camera.position.copy(_tpPivot).addScaledVector(_tpDir, safeLen);
   // Look along the aim from over the shoulder, parallel to it, rather than
   // back across at the pivot: converging on the pivot ran the line of sight
   // through our own head, which filled the middle of the screen in ADS.
-  game.camera.lookAt(
-    game.camera.position.x + _tpForward.x * 10,
-    game.camera.position.y + _tpForward.y * 10,
-    game.camera.position.z + _tpForward.z * 10,
-  );
+  // Round the side or squeezed in close with nothing in your hands, there's
+  // no aim to keep: it looks at you instead.
+  _tpAt.set(game.camera.position.x + _tpForward.x * 10, game.camera.position.y + _tpForward.y * 10, game.camera.position.z + _tpForward.z * 10);
+  const atYou = game.player.holding !== "none" ? 0 : tpPick >= TP_AIMED ? 1 : Math.min(1, Math.max(0, (1.8 - safeLen) / 1.2));
+  if (atYou > 0) _tpAt.lerp(_tpFrom.copy(_tpPivot).setY(_tpPivot.y - 0.35), atYou);
+  game.camera.lookAt(_tpAt);
   // Free look (view/free-look.js): the camera swings round the body to
   // look at it, out to your face, blended in by its weight.
   const fw = freeLook.w;
