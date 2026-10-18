@@ -14,7 +14,7 @@ import { WEAPON_DEFS, WeaponState } from "../weapons/weapons.js?v=p5bm-wst-hf1-f
 import { defaultLoadoutFor } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1";
 import { game } from "../core/state.js?v=st1";
-import { updateDropCine, dropCineEye, resetDropCine } from "./royale-cine.js?v=dc1";
+import { updateDropCine, dropCineEye, resetDropCine } from "./royale-cine.js?v=dc1-ne1";
 
 // Phase 1 ("Mini Royale"): solo, one life, loot only, the Cringe closing in,
 // last troll standing. royale.js has the zone, the loot and their visuals;

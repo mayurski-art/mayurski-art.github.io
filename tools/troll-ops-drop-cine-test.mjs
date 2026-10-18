@@ -39,7 +39,8 @@ const check = (ok, what, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} $
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const errors = [];
 const STATE = "/assets/games/troll-ops/core/state.js?v=st1";
-const CINE = "/assets/games/troll-ops/modes/royale-cine.js?v=dc1";
+// The tag the game imports it at (one module instance): read from royale.js.
+const CINE = "/assets/games/troll-ops/modes/royale-cine.js?v=" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/modes/royale.js"), "utf8").match(/royale-cine\.js\?v=([a-z0-9-]+)/)[1];
 const shot = async (page, name) => { if (OUT) await page.screenshot({ path: path.join(OUT, name) }); };
 
 async function open(lobbySeconds) {
