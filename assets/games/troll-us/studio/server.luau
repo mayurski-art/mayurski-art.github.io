@@ -7,6 +7,7 @@ local CS = game:GetService("CollectionService")
 local PhysicsService = game:GetService("PhysicsService")
 local TextService = game:GetService("TextService")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local TU = RS:WaitForChild("TrollUs")
 local Rules = require(TU:WaitForChild("Rules"))
@@ -43,6 +44,11 @@ PhysicsService:CollisionGroupSetCollidable("TUGhost", "TUCrew", false)
 PhysicsService:CollisionGroupSetCollidable("TUGhost", "TUGhost", false)
 for _, f in ipairs({ Map.Walls, Map.Doors }) do
 	for _, p in ipairs(f:GetChildren()) do p.CollisionGroup = "TUWalls" end
+end
+-- room props block crewmates but not ghosts
+local decor = Map:FindFirstChild("Decor")
+for _, p in ipairs(decor and decor:GetDescendants() or {}) do
+	if p:IsA("BasePart") then p.CollisionGroup = "TUWalls" end
 end
 -- the security cameras sit at head height and snag beans in the halls; places built before the fix still collide
 for _, d in ipairs(Map.Cameras:GetDescendants()) do
@@ -286,18 +292,28 @@ local function startSabotage(kind)
 	S.sabotageReady = now() + R("sabotageCooldown")
 	return true
 end
+-- a door's Panel/Stripe/Edge children slide between their OpenCF and ShutCF; the Lamp goes red while shut
+local DOOR_SLIDE = TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local function setDoor(d, shut)
+	d.CanCollide = shut
+	for _, c in ipairs(d:GetChildren()) do
+		local cf = c:GetAttribute(shut and "ShutCF" or "OpenCF")
+		if cf then TweenService:Create(c, DOOR_SLIDE, { CFrame = cf }):Play() end
+		if c.Name == "Lamp" then c.Color = shut and Color3.fromRGB(240, 50, 50) or Color3.fromRGB(60, 220, 110) end
+	end
+end
 local function closeDoors(room)
 	if now() < S.doorsReady or S.phase ~= "Roam" then return end
 	S.doorsReady = now() + R("doorsCooldown")
 	for _, d in ipairs(Map.Doors:GetChildren()) do
 		if d:GetAttribute("Room") == room then
-			d.CanCollide = true; d.Transparency = 0.15
-			task.delay(R("doorsCloseTime"), function() d.CanCollide = false; d.Transparency = 0.75 end)
+			setDoor(d, true)
+			task.delay(R("doorsCloseTime"), function() setDoor(d, false) end)
 		end
 	end
 end
 local function openAllDoors()
-	for _, d in ipairs(Map.Doors:GetChildren()) do d.CanCollide = false; d.Transparency = 0.75 end
+	for _, d in ipairs(Map.Doors:GetChildren()) do if d.CanCollide then setDoor(d, false) end end
 end
 local function fixAt(p, pad)
 	local s = S.sabotage

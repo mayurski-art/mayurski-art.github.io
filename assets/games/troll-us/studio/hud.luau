@@ -860,6 +860,43 @@ local function arrowTarget(pos)
 	return best and best.Position, red
 end
 
+-- your unfinished tasks' consoles get a yellow outline (Among Us does the same); the Shields hex wall
+-- lights up once you have primed the shields
+local taskGlow = {}
+local shieldsLit = nil
+local function updateTaskGlow(phase)
+	local want = {}
+	local sab = TU:GetAttribute("Sabotage") or ""
+	local primed = false
+	for _, t in ipairs(me.tasks) do
+		if t.done and t.task == "Prime Shields" then primed = true end
+		local pad = phase == "Roam" and not t.done and not (sab == "Comms" and me.role ~= "Impostor") and padOf(t.id)
+		if pad then want[pad:FindFirstChild("Console") or pad] = true end
+	end
+	for inst, h in pairs(taskGlow) do
+		if not want[inst] then h:Destroy(); taskGlow[inst] = nil end
+	end
+	for inst in pairs(want) do
+		if not taskGlow[inst] then
+			local h = Instance.new("Highlight")
+			h.FillTransparency = 1; h.OutlineColor = Color3.fromRGB(255, 220, 60); h.OutlineTransparency = 0
+			h.DepthMode = Enum.HighlightDepthMode.Occluded; h.Adornee = inst; h.Parent = inst
+			taskGlow[inst] = h
+		end
+	end
+	if primed ~= shieldsLit then
+		shieldsLit = primed
+		local decor = Map:FindFirstChild("Decor")
+		local shields = decor and decor:FindFirstChild("Shields")
+		for _, p in ipairs(shields and shields:GetChildren() or {}) do
+			if p.Name == "Hex" then
+				p.Material = primed and Enum.Material.Neon or Enum.Material.SmoothPlastic
+				p.Color = primed and Color3.fromRGB(90, 150, 255) or Color3.fromRGB(60, 78, 120)
+			end
+		end
+	end
+end
+
 local uiOpen = nil
 RunService.RenderStepped:Connect(function()
 	local phase = TU:GetAttribute("Phase")
@@ -915,6 +952,8 @@ RunService.RenderStepped:Connect(function()
 		mapMe.Rotation = math.deg(math.atan2(look.X, -look.Z)) -- 0 = facing -Z = up on the map
 		mapMe.TextColor3 = suitColor(c and c:GetAttribute("Suit"))
 	end
+
+	updateTaskGlow(phase)
 
 	-- task arrow: a marker over the target when it is on screen, an arrow at the edge when it is not
 	local target, isRed

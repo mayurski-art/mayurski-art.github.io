@@ -185,6 +185,7 @@ local function setLights(out)
 		if p.Name == "LightPanel" then
 			p.Material = out and Enum.Material.SmoothPlastic or Enum.Material.Neon
 			p.Color = out and Color3.fromRGB(50, 52, 60) or Color3.fromRGB(235, 240, 255)
+			local l = p:FindFirstChildOfClass("PointLight"); if l then l.Enabled = not out end
 		end
 	end
 end
