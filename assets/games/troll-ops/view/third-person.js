@@ -4,7 +4,7 @@
 import * as THREE from "three";
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1";
 import { currentWeapon } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2";
-import { stageFrozen, royaleSpectating, royaleRolling, royale, royaleRollK, royaleDropCode, fallShowPose, dropCineSitK } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2";
+import { stageFrozen, royaleSpectating, royaleRolling, royale, royaleAboard, royaleRollK, royaleDropCode, fallShowPose, dropCineSitK } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2";
 import { STANCE } from "../core/movement.js?v=umb2-sb2-gj1b7-or1";
 import { poseDeath, DEATH_TIME, aimRig, gaitPhaseRate, poseHumanoid, poseThrowArm, THROW_TIME, mountHeldWeapon } from "../characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1";
 import { STANCE_LOWER, rollRig, DROP_FALL, DROP_GLIDE, poseDrop, poseRope, ROPE_CLIMB_RATE } from "../net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2";
@@ -65,9 +65,12 @@ export function updateEmoteCamera(pivot, yaw, duoDist = 0) {
 }
 
 /* The camera's spots, best first. Behind you: { side: which shoulder (and
-   how far over), lift: m higher }. With nothing in your hands there's no
-   aim to keep, so it can also swing round you: { orbit: radians round
-   from straight behind } (beside you, then ahead of you looking back). */
+   how far over), lift: m higher }. Aboard the Royale plane (sat, or walked
+   to your seat, nothing to aim) it can also swing round you: { orbit:
+   radians round from straight behind } (beside you, then ahead of you
+   looking back). Only there: anywhere else it made the view spin as you
+   turned (user, 2026-10-18: "the way the screen moves ... is weird"); to
+   see yourself, free look (Alt, Select, the eye). */
 const TP_SPOTS = [{ side: 1, lift: 0 }, { side: -1, lift: 0 }, { side: 0.4, lift: 0.8 }, { side: 0, lift: 1.4 },
   { orbit: 1.6, lift: 0.45 }, { orbit: -1.6, lift: 0.45 }, { orbit: 2.4, lift: 0.4 }, { orbit: -2.4, lift: 0.4 }];
 const TP_AIMED = 4;   // the spots that keep the aim (a gun in your hands)
@@ -112,8 +115,9 @@ export function updateThirdPersonCamera(pivot, yaw, pitch, adsT) {
   // Royale plane's hold), the other shoulder or higher up: whichever has
   // the room, so the camera doesn't end up inside your own body (user,
   // 2026-10-18: "users should be able to see themselves").
-  // Swinging round you is only for empty hands (the plane, Socialize).
-  const spots = game.player.holding === "none" ? TP_SPOTS.length : TP_AIMED;
+  // Swinging round you is only for the plane.
+  const aboard = royaleAboard();
+  const spots = aboard ? TP_SPOTS.length : TP_AIMED;
   if (tpPick >= spots) tpPick = 0;
   let best = tpSpot(tpPick, dist, side).k;
   if (best < 0.85) {
@@ -131,10 +135,10 @@ export function updateThirdPersonCamera(pivot, yaw, pitch, adsT) {
   // Look along the aim from over the shoulder, parallel to it, rather than
   // back across at the pivot: converging on the pivot ran the line of sight
   // through our own head, which filled the middle of the screen in ADS.
-  // Round the side or squeezed in close with nothing in your hands, there's
-  // no aim to keep: it looks at you instead.
+  // Round the side or squeezed in close in the plane, there's no aim to
+  // keep: it looks at you instead.
   _tpAt.set(game.camera.position.x + _tpForward.x * 10, game.camera.position.y + _tpForward.y * 10, game.camera.position.z + _tpForward.z * 10);
-  const atYou = game.player.holding !== "none" ? 0 : tpPick >= TP_AIMED ? 1 : Math.min(1, Math.max(0, (1.8 - safeLen) / 1.2));
+  const atYou = !aboard ? 0 : tpPick >= TP_AIMED ? 1 : Math.min(1, Math.max(0, (1.8 - safeLen) / 1.2));
   if (atYou > 0) _tpAt.lerp(_tpFrom.copy(_tpPivot).setY(_tpPivot.y - 0.35), atYou);
   game.camera.lookAt(_tpAt);
   // Free look (view/free-look.js): the camera swings round the body to
