@@ -53,25 +53,133 @@ local function swatch(color, size, parent)
 	return round(outline(new("Frame", { BackgroundColor3 = color, Size = UDim2.fromOffset(size, size) }, parent), 2), size)
 end
 
-local gui = new("ScreenGui", { Name = "TrollUsHUD", ResetOnSpawn = false, IgnoreGuiInset = true,
-	ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = 5 }, player:WaitForChild("PlayerGui"))
-local scale = new("UIScale", {}, gui)
-local function rescale()
-	local vp = workspace.CurrentCamera.ViewportSize
-	scale.Scale = math.clamp(math.min(vp.X / 1100, vp.Y / 680), 0.55, 1.25)
+-- ---------- the look: chunky rounded panels, ink outlines, a heavy face for titles ----------
+local TITLE = Enum.Font.LuckiestGuy
+local PANEL = Color3.fromRGB(34, 38, 52)
+local function shade(c, k) return Color3.new(c.R * k, c.G * k, c.B * k) end
+local function stroke(o, t, c)
+	local s = o:FindFirstChildOfClass("UIStroke") or new("UIStroke", { ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, o)
+	s.Thickness = t; s.Color = c or INK
+	return o
 end
+-- a sheen, lighter at the top; with lip, a hard darker band along the bottom like the edge of a key
+local function shine(o, lip)
+	local g = o:FindFirstChildOfClass("UIGradient") or new("UIGradient", { Rotation = 90 }, o)
+	g.Color = lip and ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)), ColorSequenceKeypoint.new(0.78, Color3.fromRGB(226, 226, 232)),
+		ColorSequenceKeypoint.new(0.8, Color3.fromRGB(165, 165, 175)), ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 150, 160)),
+	}) or ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(196, 200, 212))
+	return o
+end
+-- a panel: thick ink edge, a faint light rim just inside it, a sheen
+local function panelize(o, r)
+	r = r or 18
+	round(o, r); stroke(o, 4); shine(o)
+	local rim = round(new("Frame", { Name = "Rim", BackgroundTransparency = 1, Position = UDim2.fromOffset(3, 3), Size = UDim2.new(1, -6, 1, -6),
+		ZIndex = o.ZIndex }, o), math.max(2, r - 3))
+	new("UIStroke", { Thickness = 2, Color = WHITE, Transparency = 0.8, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, rim)
+	return o
+end
+-- a button: ink edge, the key lip, the title face
+local function chunky(b, r, font)
+	round(b, r or 12); stroke(b, 3); shine(b, true)
+	if b:IsA("TextButton") or b:IsA("TextLabel") then b.Font = font or TITLE end
+	return b
+end
+-- a title: the heavy face with a fat ink outline round the letters
+local function titled(l, size, thick)
+	l.Font = TITLE; l.TextSize = size or l.TextSize; l.TextStrokeTransparency = 1
+	local s = l:FindFirstChildOfClass("UIStroke") or new("UIStroke", { ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, l)
+	s.Thickness = thick or math.max(2, math.floor((size or l.TextSize) / 14)); s.Color = INK
+	return l
+end
+
+-- a little 2D Crewmate for the screens: body, backpack, legs and the goggle visor with the trollface.
+-- A CanvasGroup, so it turns as one (the ejection tumble). Faces right, like the meeting icons.
+local FACE = "rbxassetid://120956857562746"
+local function beanIcon(suit, size, parent)
+	local g = new("CanvasGroup", { Name = "Bean", BackgroundTransparency = 1, Size = UDim2.fromOffset(size, size) }, parent)
+	local line = math.max(1.5, size / 30)
+	local function piece(name, x, y, w, h, r, z)
+		local f = new("Frame", { Name = name, Position = UDim2.fromOffset(x * size, y * size), Size = UDim2.fromOffset(w * size, h * size),
+			BorderSizePixel = 0, ZIndex = z }, g)
+		round(f, r * size); new("UIStroke", { Thickness = line, Color = INK }, f)
+		return f
+	end
+	local pack = piece("Pack", 0.08, 0.36, 0.24, 0.40, 0.07, 1)
+	local legL = piece("LegL", 0.26, 0.68, 0.23, 0.26, 0.08, 1)
+	local legR = piece("LegR", 0.55, 0.68, 0.23, 0.26, 0.08, 1)
+	local body = piece("Body", 0.2, 0.05, 0.62, 0.76, 0.28, 2)
+	local lip = piece("Lip", 0.42, 0.19, 0.5, 0.32, 0.14, 3)
+	local face = round(new("ImageLabel", { Name = "Face", Position = UDim2.fromOffset(0.455 * size, 0.215 * size),
+		Size = UDim2.fromOffset(0.43 * size, 0.26 * size), BackgroundColor3 = WHITE, BorderSizePixel = 0, Image = FACE,
+		ScaleType = Enum.ScaleType.Fit, ZIndex = 4 }, g), 0.1 * size)
+	-- a glint on the body, top left
+	round(new("Frame", { Name = "Glint", Position = UDim2.fromOffset(0.28 * size, 0.13 * size), Size = UDim2.fromOffset(0.09 * size, 0.2 * size),
+		BackgroundColor3 = WHITE, BackgroundTransparency = 0.55, BorderSizePixel = 0, ZIndex = 3 }, g), 0.05 * size)
+	local function paint(s)
+		local c = suitColor(s)
+		body.BackgroundColor3, legL.BackgroundColor3, legR.BackgroundColor3 = c, c, c
+		pack.BackgroundColor3, lip.BackgroundColor3 = shade(c, 0.72), shade(c, 0.72)
+	end
+	paint(suit)
+	return g, paint
+end
+
+-- deep space for the full-screen cards: a gradient and scattered stars
+local function space(f, z)
+	f.BackgroundColor3 = WHITE
+	new("UIGradient", { Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(8, 10, 26), Color3.fromRGB(2, 2, 8)) }, f)
+	for _ = 1, 90 do
+		local d = math.random() < 0.15 and 3 or (math.random() < 0.4 and 2 or 1)
+		new("Frame", { BackgroundColor3 = WHITE, BackgroundTransparency = math.random() * 0.5, BorderSizePixel = 0, Size = UDim2.fromOffset(d, d),
+			Position = UDim2.fromScale(math.random(), math.random()), ZIndex = z }, f)
+	end
+end
+-- the oval of light the beans stand in (role card, game over): stacked faint ellipses, so it fades out softly
+-- in every direction. paintSpot recolours it.
+local function spotlight(f, z, color)
+	local holder = new("Frame", { Name = "Spot", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.75),
+		Size = UDim2.fromOffset(1, 1), BackgroundTransparency = 1, ZIndex = z }, f)
+	for k = 0, 6 do
+		local w, h = 960 - k * 95, 190 - k * 22
+		local e = new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(w, h), BackgroundColor3 = color or Color3.fromRGB(70, 90, 130),
+			BackgroundTransparency = 0.82, BorderSizePixel = 0, ZIndex = z }, holder)
+		new("UICorner", { CornerRadius = UDim.new(0.5, 0) }, e)
+	end
+	return holder
+end
+local function paintSpot(holder, color)
+	for _, e in ipairs(holder:GetChildren()) do e.BackgroundColor3 = color end
+end
+
+local screen = new("ScreenGui", { Name = "TrollUsHUD", ResetOnSpawn = false, IgnoreGuiInset = true,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = 5 }, player:WaitForChild("PlayerGui"))
+local scale = new("UIScale", {}, screen)
+-- everything hangs off one root frame, so a Studio test can shrink it to another screen's shape
+local gui = new("Frame", { Name = "Root", BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(1, 1) }, screen)
+local function rescale()
+	-- Studio test hook: a TestViewport (Vector2) attribute on the LocalPlayer lays the HUD out as on that screen
+	local tv = RunService:IsStudio() and player:GetAttribute("TestViewport")
+	local vp = tv or workspace.CurrentCamera.ViewportSize
+	scale.Scale = math.clamp(math.min(vp.X / 1100, vp.Y / 680), 0.55, 1.25)
+	gui.Size = tv and UDim2.fromOffset(tv.X / scale.Scale, tv.Y / scale.Scale) or UDim2.fromScale(1, 1)
+	gui.ClipsDescendants = tv ~= nil
+end
+player:GetAttributeChangedSignal("TestViewport"):Connect(rescale)
 rescale()
 workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(rescale)
 
 -- ---------- HUD: task bar + list ----------
 local hud = new("Frame", { Name = "Hud", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Visible = false }, gui)
-local bar = round(outline(new("Frame", { Position = UDim2.fromOffset(16, 16), Size = UDim2.fromOffset(380, 30),
-	BackgroundColor3 = Color3.fromRGB(70, 74, 84) }, hud), 3), 6)
-local barFill = round(new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = GREEN, BorderSizePixel = 0 }, bar), 6)
-label({ Size = UDim2.fromScale(1, 1), Text = "TOTAL TASKS COMPLETED", TextSize = 15, Font = BLACK, TextStrokeTransparency = 0.2, ZIndex = 2 }, bar)
+local bar = shine(stroke(round(new("Frame", { Position = UDim2.fromOffset(16, 16), Size = UDim2.fromOffset(400, 34),
+	BackgroundColor3 = Color3.fromRGB(58, 62, 74) }, hud), 10), 4))
+local barFill = shine(round(new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = GREEN, BorderSizePixel = 0 }, bar), 9), true)
+titled(label({ Size = UDim2.fromScale(1, 1), Text = "TOTAL TASKS COMPLETED", ZIndex = 2 }, bar), 17, 2)
 
-local taskBox = round(new("Frame", { Position = UDim2.fromOffset(16, 54), Size = UDim2.fromOffset(300, 40),
-	AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.45 }, hud), 8)
+local taskBox = stroke(round(new("Frame", { Position = UDim2.fromOffset(16, 60), Size = UDim2.fromOffset(310, 40),
+	AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = Color3.fromRGB(10, 12, 20), BackgroundTransparency = 0.35 }, hud), 12), 2, Color3.fromRGB(90, 96, 112))
 new("UIPadding", { PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8), PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) }, taskBox)
 new("UIListLayout", { Padding = UDim.new(0, 3), SortOrder = Enum.SortOrder.LayoutOrder }, taskBox)
 
@@ -100,10 +208,10 @@ end
 
 -- ---------- action buttons ----------
 local function actionButton(text, x, y)
-	local b = round(outline(new("TextButton", { AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, x, 1, y),
+	local b = chunky(new("TextButton", { AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, x, 1, y),
 		Size = UDim2.fromOffset(100, 100), BackgroundColor3 = Color3.fromRGB(235, 235, 240), Text = text,
-		Font = BLACK, TextSize = 18, TextColor3 = INK, AutoButtonColor = true }, hud), 3), 18)
-	local cd = label({ Name = "CD", Size = UDim2.fromScale(1, 1), Text = "", TextSize = 40, Font = BLACK, TextColor3 = WHITE, TextStrokeTransparency = 0 }, b)
+		TextSize = 21, TextColor3 = INK, AutoButtonColor = true }, hud), 20)
+	local cd = titled(label({ Name = "CD", Size = UDim2.fromScale(1, 1), Text = "", TextColor3 = WHITE }, b), 46, 3)
 	return b, cd
 end
 local btnUse = actionButton("USE", -16, -16)
@@ -112,7 +220,7 @@ local btnKill, killCD = actionButton("KILL", -232, -16)
 local btnVent = actionButton("VENT", -16, -124)
 local btnSab, sabCD = actionButton("SABOTAGE", -124, -124)
 local btnExit = actionButton("EXIT", -232, -124)
-btnSab.TextSize = 14
+btnSab.TextSize = 15
 local function setOn(b, on)
 	b.BackgroundTransparency = on and 0.05 or 0.55
 	b.TextTransparency = on and 0 or 0.55
@@ -121,12 +229,16 @@ local function setOn(b, on)
 end
 
 -- ---------- sabotage menu ----------
-local sabMenu = round(outline(new("Frame", { AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -16, 1, -236),
-	Size = UDim2.fromOffset(320, 210), BackgroundColor3 = Color3.fromRGB(40, 20, 24), Visible = false }, hud), 3), 12)
-label({ Text = "SABOTAGE", Font = BLACK, Size = UDim2.new(1, 0, 0, 30), TextColor3 = RED }, sabMenu)
+local sabMenu = panelize(new("Frame", { AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -16, 1, -236),
+	Size = UDim2.fromOffset(320, 214), BackgroundColor3 = Color3.fromRGB(52, 22, 28), Visible = false }, hud), 16)
+titled(label({ Text = "SABOTAGE", Size = UDim2.new(1, 0, 0, 32), Position = UDim2.fromOffset(0, 2), TextColor3 = RED }, sabMenu), 24)
 local function sabButton(text, x, y, w, kind, room)
-	local b = round(new("TextButton", { Position = UDim2.fromOffset(x, y), Size = UDim2.fromOffset(w, 34),
-		BackgroundColor3 = Color3.fromRGB(150, 30, 36), Text = text, Font = BOLD, TextSize = 14, TextColor3 = WHITE }, sabMenu), 8)
+	local b = chunky(new("TextButton", { Position = UDim2.fromOffset(x, y), Size = UDim2.fromOffset(w, 34),
+		BackgroundColor3 = Color3.fromRGB(170, 36, 42), Text = text, TextSize = 15, TextColor3 = WHITE, ZIndex = 2 }, sabMenu), 9)
+	-- long room names shrink to fit the small door buttons
+	b.TextScaled = true
+	new("UITextSizeConstraint", { MaxTextSize = 15 }, b)
+	new("UIPadding", { PaddingLeft = UDim.new(0, 5), PaddingRight = UDim.new(0, 5), PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8) }, b)
 	b.Activated:Connect(function()
 		Net:FireServer("Sabotage", kind, room)
 		if kind == "Doors" then me.doorsReadyAt = now() + R("doorsCooldown") else me.sabotageReadyAt = now() + R("sabotageCooldown") end
@@ -137,59 +249,67 @@ sabButton("Lights", 10, 34, 145, "Lights")
 sabButton("Comms", 165, 34, 145, "Comms")
 sabButton("Reactor", 10, 74, 145, "Reactor")
 sabButton("O2", 165, 74, 145, "O2")
-label({ Text = "Close doors", TextSize = 13, Position = UDim2.fromOffset(0, 112), Size = UDim2.new(1, 0, 0, 16) }, sabMenu)
+label({ Text = "Close doors", TextSize = 13, Position = UDim2.fromOffset(0, 113), Size = UDim2.new(1, 0, 0, 16), ZIndex = 2 }, sabMenu)
 local DOOR_ROOMS = { "Storage", "Admin", "Electrical", "MedBay", "Security", "Upper Engine", "Lower Engine" }
 for i, room in ipairs(DOOR_ROOMS) do
 	local col, row = (i - 1) % 4, math.floor((i - 1) / 4)
 	local short = room:gsub(" Engine", " Eng")
-	sabButton(short, 10 + col * 76, 132 + row * 38, 70, "Doors", room)
+	sabButton(short, 10 + col * 76, 134 + row * 38, 70, "Doors", room)
 end
 
 -- ---------- alarm ----------
-local alarm = label({ AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 16), Size = UDim2.fromOffset(460, 36),
-	Text = "", Font = BLACK, TextSize = 24, TextColor3 = RED, TextStrokeTransparency = 0, Visible = false }, gui)
+local alarm = titled(label({ AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 64), Size = UDim2.fromOffset(460, 40),
+	Text = "", TextColor3 = RED, Visible = false }, gui), 30, 3)
 local flash = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = RED, BackgroundTransparency = 1, ZIndex = 0 }, gui)
 
 -- ---------- lobby ----------
-local lobby = round(outline(new("Frame", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -24),
-	Size = UDim2.fromOffset(440, 120), BackgroundColor3 = Color3.fromRGB(28, 30, 40), Visible = false }, gui), 3), 14)
-label({ Text = "TROLL US", Font = BLACK, TextSize = 26, Size = UDim2.new(1, 0, 0, 34), Position = UDim2.fromOffset(0, 6) }, lobby)
-local lobbyInfo = label({ Text = "", TextSize = 15, TextColor3 = Color3.fromRGB(190, 195, 210), Size = UDim2.new(1, 0, 0, 20), Position = UDim2.fromOffset(0, 40) }, lobby)
-local btnStart = round(outline(new("TextButton", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 66),
-	Size = UDim2.fromOffset(180, 42), BackgroundColor3 = GREEN, Text = "START", Font = BLACK, TextSize = 22, TextColor3 = INK }, lobby), 3), 10)
+local lobby = panelize(new("Frame", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -24),
+	Size = UDim2.fromOffset(440, 132), BackgroundColor3 = PANEL, Visible = false }, gui), 18)
+titled(label({ Text = 'TROLL <font color="#FF4040">US</font>', RichText = true, Size = UDim2.new(1, 0, 0, 36), Position = UDim2.fromOffset(0, 6), ZIndex = 2 }, lobby), 32)
+local lobbyInfo = label({ Text = "", TextSize = 15, TextColor3 = Color3.fromRGB(190, 195, 210), Size = UDim2.new(1, 0, 0, 20), Position = UDim2.fromOffset(0, 44), ZIndex = 2 }, lobby)
+local btnStart = chunky(new("TextButton", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 72),
+	Size = UDim2.fromOffset(180, 46), BackgroundColor3 = GREEN, Text = "START", TextSize = 26, TextColor3 = INK, ZIndex = 2 }, lobby), 12)
 btnStart.Activated:Connect(function() Net:FireServer("Start") end)
-local countdown = label({ AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.35), Size = UDim2.fromOffset(300, 140),
-	Text = "", Font = BLACK, TextSize = 120, TextStrokeTransparency = 0, Visible = false }, gui)
+local countdown = titled(label({ AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.35), Size = UDim2.fromOffset(300, 150),
+	Text = "", Visible = false }, gui), 130, 6)
 
 -- ---------- full-screen cards ----------
 local function card(name)
 	return new("Frame", { Name = name, Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), Visible = false, ZIndex = 10 }, gui)
 end
-local roleCard = card("Role")
-local roleTitle = label({ AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.38), Size = UDim2.fromOffset(800, 120),
-	Font = BLACK, TextSize = 96, ZIndex = 11 }, roleCard)
-local roleSub = label({ AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.52), Size = UDim2.fromOffset(800, 40),
-	TextSize = 24, ZIndex = 11 }, roleCard)
-local roleRow = new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.6), Size = UDim2.fromOffset(800, 60),
-	BackgroundTransparency = 1, ZIndex = 11 }, roleCard)
-new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center, Padding = UDim.new(0, 10) }, roleRow)
+-- the full-screen cards live in one table (Luau allows 200 locals in a scope)
+local C = {}
+C.roleCard = card("Role")
+space(C.roleCard, 10)
+C.roleSpot = spotlight(C.roleCard, 10)
+C.roleTitle = titled(label({ AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.2), Size = UDim2.fromOffset(900, 130),
+	ZIndex = 11 }, C.roleCard), 116, 7)
+C.roleSub = label({ AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.36), Size = UDim2.fromOffset(800, 40),
+	TextSize = 26, ZIndex = 11, TextStrokeTransparency = 1 }, C.roleCard)
+C.roleRow = new("Frame", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.fromScale(0.5, 0.78), Size = UDim2.fromOffset(1000, 130),
+	BackgroundTransparency = 1, ZIndex = 11 }, C.roleCard)
+new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center,
+	VerticalAlignment = Enum.VerticalAlignment.Bottom, Padding = UDim.new(0, 4) }, C.roleRow)
 
-local banner = new("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.fromScale(0, 0.45), Size = UDim2.new(1, 0, 0, 150),
+C.banner = new("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.fromScale(0, 0.45), Size = UDim2.new(1, 0, 0, 170),
 	BackgroundColor3 = Color3.fromRGB(120, 0, 0), Visible = false, ZIndex = 12 }, gui)
-local bannerText = label({ Size = UDim2.new(1, 0, 0, 90), Font = BLACK, TextSize = 64, TextStrokeTransparency = 0, ZIndex = 13 }, banner)
-local bannerSub = label({ Position = UDim2.fromOffset(0, 90), Size = UDim2.new(1, 0, 0, 40), TextSize = 22, ZIndex = 13 }, banner)
+stroke(C.banner, 5); shine(C.banner)
+C.bannerBean, C.bannerPaint = beanIcon("Red", 140, C.banner)
+C.bannerBean.AnchorPoint = Vector2.new(1, 0.5); C.bannerBean.Position = UDim2.new(0.5, -330, 0.5, 0); C.bannerBean.ZIndex = 13
+C.bannerText = titled(label({ AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 70, 0, 22), Size = UDim2.fromOffset(760, 90), ZIndex = 13 }, C.banner), 70, 6)
+C.bannerSub = label({ AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 70, 0, 112), Size = UDim2.fromOffset(760, 36), TextSize = 24, ZIndex = 13 }, C.banner)
 
 -- the victim's last view: the killer's bean lunging at you with the same clip everyone else saw
-local died = card("Died")
-died.BackgroundColor3 = Color3.fromRGB(70, 0, 0)
-new("UIGradient", { Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(150, 10, 10), Color3.fromRGB(10, 0, 0)) }, died)
-local diedView = new("ViewportFrame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.42), Size = UDim2.fromScale(0.9, 0.8),
+C.died = card("Died")
+C.died.BackgroundColor3 = Color3.fromRGB(70, 0, 0)
+new("UIGradient", { Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(150, 10, 10), Color3.fromRGB(10, 0, 0)) }, C.died)
+C.diedView = new("ViewportFrame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.42), Size = UDim2.fromScale(0.9, 0.8),
 	BackgroundTransparency = 1, Ambient = Color3.fromRGB(150, 150, 160), LightColor = Color3.new(1, 1, 1),
-	LightDirection = Vector3.new(-0.3, -1, 0.6), ZIndex = 11 }, died)
-local diedCam = new("Camera", { FieldOfView = 50 }, diedView)
-diedView.CurrentCamera = diedCam
-local diedText = label({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -40), Size = UDim2.fromOffset(800, 80),
-	Font = BLACK, TextSize = 58, ZIndex = 12, Text = "You were killed", TextStrokeTransparency = 0 }, died)
+	LightDirection = Vector3.new(-0.3, -1, 0.6), ZIndex = 11 }, C.died)
+C.diedCam = new("Camera", { FieldOfView = 50 }, C.diedView)
+C.diedView.CurrentCamera = C.diedCam
+C.diedText = titled(label({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -40), Size = UDim2.fromOffset(800, 80),
+	ZIndex = 12, Text = "YOU WERE KILLED" }, C.died), 64, 5)
 local KillClips = require(TU:WaitForChild("KillClips"))
 local Sounds = require(TU:WaitForChild("Sounds"))
 
@@ -222,16 +342,16 @@ local function cloneAtRest(src)
 end
 
 local function playDeath(killerId, clip)
-	diedView:ClearAllChildren()
-	diedCam = new("Camera", { FieldOfView = 50 }, diedView)
-	diedView.CurrentCamera = diedCam
+	C.diedView:ClearAllChildren()
+	C.diedCam = new("Camera", { FieldOfView = 50 }, C.diedView)
+	C.diedView.CurrentCamera = C.diedCam
 	local src
 	for _, m in ipairs(CS:GetTagged("Crewmate")) do if m:GetAttribute("TUId") == killerId then src = m end end
 	local m = src and cloneAtRest(src)
 	if not m then return end
 	m:PivotTo(CFrame.new(0, 2.8, 0)) -- feet at 0, front (-Z) toward the camera
-	m.Parent = diedView
-	diedCam.CFrame = CFrame.lookAt(Vector3.new(0.4, 3.3, -7.4), Vector3.new(0, 3.0, 0)) -- the whole dome in shot
+	m.Parent = C.diedView
+	C.diedCam.CFrame = CFrame.lookAt(Vector3.new(0.4, 3.3, -7.4), Vector3.new(0, 3.0, 0)) -- the whole dome in shot
 	-- the killer steps in at you while the props do the rest
 	task.spawn(function()
 		local t = 0
@@ -243,46 +363,88 @@ local function playDeath(killerId, clip)
 	-- the "victim" is you, at the camera: the props come right at the screen
 	-- the tongue goes past your lower left, so its tip never covers the grin
 	local at = clip == "Tongue" and Vector3.new(-2.2, 0, -7.4) or Vector3.new(0, 0, -7.4)
-	KillClips.play(diedView, clip or "Stab", Vector3.new(0, 0, -1.4), at)
+	KillClips.play(C.diedView, clip or "Stab", Vector3.new(0, 0, -1.4), at)
 end
 
-local eject = card("Eject")
+C.eject = card("Eject")
 for _ = 1, 70 do
 	new("Frame", { BackgroundColor3 = WHITE, BorderSizePixel = 0, Size = UDim2.fromOffset(2, 2),
-		Position = UDim2.fromScale(math.random(), math.random()), ZIndex = 10 }, eject)
+		Position = UDim2.fromScale(math.random(), math.random()), ZIndex = 10 }, C.eject)
 end
-local ejectBean = swatch(WHITE, 70, eject)
-ejectBean.ZIndex = 11
-local ejectText = label({ AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(900, 60),
-	Font = Enum.Font.Code, TextSize = 36, ZIndex = 12, TextStrokeTransparency = 1 }, eject)
-local ejectSub = label({ AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 52), Size = UDim2.fromOffset(900, 40),
-	Font = Enum.Font.Code, TextSize = 26, ZIndex = 12, TextStrokeTransparency = 1, TextColor3 = Color3.fromRGB(200, 200, 210) }, eject)
+C.ejectBean, C.ejectPaint = beanIcon("Red", 110, C.eject)
+C.ejectBean.AnchorPoint = Vector2.new(0.5, 0.5); C.ejectBean.ZIndex = 11
+C.ejectText = label({ AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.6), Size = UDim2.fromOffset(900, 60),
+	Font = BOLD, TextSize = 38, ZIndex = 12, TextStrokeTransparency = 1 }, C.eject)
+C.ejectSub = label({ AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.6, 52), Size = UDim2.fromOffset(900, 40),
+	Font = BOLD, TextSize = 26, ZIndex = 12, TextStrokeTransparency = 1, TextColor3 = Color3.fromRGB(200, 200, 210) }, C.eject)
 
-local over = card("GameOver")
-local overTitle = label({ AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.3), Size = UDim2.fromOffset(900, 130),
-	Font = BLACK, TextSize = 110, ZIndex = 11 }, over)
-local overSub = label({ AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.46), Size = UDim2.fromOffset(900, 40),
-	TextSize = 26, ZIndex = 11 }, over)
-local overImps = label({ AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.56), Size = UDim2.fromOffset(900, 40),
-	TextSize = 22, ZIndex = 11, TextColor3 = Color3.fromRGB(255, 120, 120) }, over)
+C.over = card("GameOver")
+space(C.over, 10)
+C.overSpot = spotlight(C.over, 10)
+C.overTitle = titled(label({ AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.17), Size = UDim2.fromOffset(900, 130),
+	ZIndex = 11 }, C.over), 124, 7)
+C.overSub = label({ AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.32), Size = UDim2.fromOffset(900, 36),
+	TextSize = 26, ZIndex = 11, TextStrokeTransparency = 1 }, C.over)
+C.overImps = label({ AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.39), Size = UDim2.fromOffset(900, 30),
+	TextSize = 20, ZIndex = 11, TextStrokeTransparency = 1, TextColor3 = Color3.fromRGB(255, 120, 120) }, C.over)
+-- the winners stand in the light
+C.overRow = new("Frame", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.fromScale(0.5, 0.78), Size = UDim2.fromOffset(1000, 130),
+	BackgroundTransparency = 1, ZIndex = 11 }, C.over)
+new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center,
+	VerticalAlignment = Enum.VerticalAlignment.Bottom, Padding = UDim.new(0, 4) }, C.overRow)
+
+-- ---------- title screen ----------
+-- the first thing you see on joining: the logo over deep space, beans drifting past, PLAY into the lobby
+local title = card("Title")
+local titleState = { done = false, show = nil } -- show: set once the phase code exists (PLAY shows the lobby)
+do
+title.ZIndex = 60; title.Visible = true
+space(title, 60)
+local drifters = {}
+for i, suit in ipairs({ "Cyan", "Lime", "Pink", "Orange", "Purple" }) do
+	local b = beanIcon(suit, 46 + i * 9, title)
+	b.AnchorPoint = Vector2.new(0.5, 0.5); b.ZIndex = 61; b.GroupTransparency = 0.15
+	drifters[i] = { bean = b, x = math.random(), y = 0.12 + (i - 1) * 0.19, speed = 0.018 + math.random() * 0.02, spin = (math.random() - 0.5) * 70 }
+end
+local logo = titled(label({ Text = 'TROLL <font color="#FF4040">US</font>', RichText = true, AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.fromScale(0.5, 0.34), Size = UDim2.fromOffset(1000, 180), ZIndex = 63 }, title), 170, 10)
+local tagline = label({ Text = "Find the Impostor. Or be one.", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.34, 112),
+	Size = UDim2.fromOffset(800, 36), TextSize = 28, TextColor3 = Color3.fromRGB(205, 210, 225), TextStrokeTransparency = 1, ZIndex = 63 }, title)
+local btnPlay = chunky(new("TextButton", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.34, 210), Size = UDim2.fromOffset(280, 76),
+	BackgroundColor3 = GREEN, Text = "PLAY", TextSize = 44, TextColor3 = INK, ZIndex = 63 }, title), 18)
+local controls = label({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -28), Size = UDim2.fromOffset(1000, 22),
+	TextSize = 16, TextColor3 = Color3.fromRGB(150, 156, 175), TextStrokeTransparency = 1, ZIndex = 63,
+	Text = UIS.TouchEnabled and "Left stick to move  ·  drag the right side to look  ·  tap the buttons to act"
+		or "WASD move  ·  mouse look  ·  E use  ·  R report  ·  M map  ·  hold Alt for the mouse" }, title)
+btnPlay.Activated:Connect(function() titleState.done = true; title.Visible = false; if titleState.show then titleState.show() end end)
+RunService.RenderStepped:Connect(function(dt)
+	if not title.Visible then return end
+	for _, d in ipairs(drifters) do
+		d.x += d.speed * dt
+		if d.x > 1.15 then d.x = -0.15 end
+		d.bean.Position = UDim2.fromScale(d.x, d.y)
+		d.bean.Rotation += d.spin * dt
+	end
+end)
+end
 
 -- ---------- wardrobe (lobby laptop) ----------
 local Hats = require(TU:WaitForChild("Hats"))
-local wardrobe = round(outline(new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45),
-	Size = UDim2.fromOffset(760, 430), BackgroundColor3 = Color3.fromRGB(28, 30, 40), Visible = false, ZIndex = 40 }, gui), 4), 18)
-label({ Text = "WARDROBE", Font = BLACK, TextSize = 24, Size = UDim2.new(1, 0, 0, 40), Position = UDim2.fromOffset(0, 6), ZIndex = 41 }, wardrobe)
-local wardClose = round(new("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 10), Size = UDim2.fromOffset(32, 32),
-	BackgroundColor3 = RED, Text = "X", Font = BLACK, TextSize = 16, TextColor3 = WHITE, ZIndex = 42 }, wardrobe), 16)
+local wardrobe = panelize(new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45),
+	Size = UDim2.fromOffset(760, 430), BackgroundColor3 = PANEL, Visible = false, ZIndex = 40 }, gui), 20)
+titled(label({ Text = "WARDROBE", Size = UDim2.new(1, 0, 0, 40), Position = UDim2.fromOffset(0, 8), ZIndex = 41 }, wardrobe), 30)
+local wardClose = chunky(new("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 10), Size = UDim2.fromOffset(44, 44),
+	BackgroundColor3 = RED, Text = "X", TextSize = 22, TextColor3 = WHITE, ZIndex = 42 }, wardrobe), 22)
 local wardView = round(new("ViewportFrame", { Position = UDim2.fromOffset(16, 56), Size = UDim2.fromOffset(300, 358),
 	BackgroundColor3 = Color3.fromRGB(44, 48, 62), Ambient = Color3.fromRGB(150, 150, 160), LightDirection = Vector3.new(-0.4, -1, 0.5), ZIndex = 41 }, wardrobe), 14)
 local wardCam = new("Camera", { FieldOfView = 40 }, wardView)
 wardView.CurrentCamera = wardCam
 wardCam.CFrame = CFrame.lookAt(Vector3.new(0, 4.4, -13), Vector3.new(0, 3.5, 0)) -- room above the dome for the tall hats
-label({ Text = "COLOUR", Font = BLACK, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(336, 52),
+label({ Text = "COLOUR", Font = TITLE, TextSize = 18, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(336, 52),
 	Size = UDim2.fromOffset(200, 22), ZIndex = 41 }, wardrobe)
 local suitGrid = new("Frame", { Position = UDim2.fromOffset(336, 78), Size = UDim2.fromOffset(404, 130), BackgroundTransparency = 1, ZIndex = 41 }, wardrobe)
 new("UIGridLayout", { CellSize = UDim2.fromOffset(58, 58), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder }, suitGrid)
-label({ Text = "HAT", Font = BLACK, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(336, 218),
+label({ Text = "HAT", Font = TITLE, TextSize = 18, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(336, 218),
 	Size = UDim2.fromOffset(200, 22), ZIndex = 41 }, wardrobe)
 local hatGrid = new("Frame", { Position = UDim2.fromOffset(336, 244), Size = UDim2.fromOffset(404, 170), BackgroundTransparency = 1, ZIndex = 41 }, wardrobe)
 new("UIGridLayout", { CellSize = UDim2.fromOffset(124, 44), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder }, hatGrid)
@@ -299,8 +461,8 @@ for i, name in ipairs(Rules.suits) do
 	b.Activated:Connect(function() if b.Text == "" then wear(name, nil) end end)
 end
 for i, name in ipairs(Hats.LIST) do
-	local b = round(outline(new("TextButton", { BackgroundColor3 = Color3.fromRGB(70, 76, 92), Text = name, Font = BOLD, TextSize = 15,
-		TextColor3 = WHITE, LayoutOrder = i, ZIndex = 42 }, hatGrid), 2), 10)
+	local b = chunky(new("TextButton", { BackgroundColor3 = Color3.fromRGB(70, 76, 92), Text = name, TextSize = 16,
+		TextColor3 = WHITE, LayoutOrder = i, ZIndex = 42 }, hatGrid), 10)
 	hatButtons[name] = b
 	b.Activated:Connect(function() wear(nil, name) end)
 end
@@ -339,20 +501,20 @@ local function openWardrobe(on)
 	if on then wardKey = nil; refreshWardrobe() end
 end
 wardClose.Activated:Connect(function() openWardrobe(false) end)
-local btnWard = round(outline(new("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(0.5, -8, 0, 66),
-	Size = UDim2.fromOffset(180, 42), BackgroundColor3 = Color3.fromRGB(110, 200, 255), Text = "WARDROBE", Font = BLACK, TextSize = 20, TextColor3 = INK }, lobby), 3), 10)
+local btnWard = chunky(new("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(0.5, -8, 0, 72),
+	Size = UDim2.fromOffset(180, 46), BackgroundColor3 = Color3.fromRGB(110, 200, 255), Text = "WARDROBE", TextSize = 22, TextColor3 = INK, ZIndex = 2 }, lobby), 12)
 btnWard.Activated:Connect(function() openWardrobe(not wardrobe.Visible) end)
 btnStart.AnchorPoint = Vector2.new(0, 0)
-btnStart.Position = UDim2.new(0.5, 8, 0, 66)
+btnStart.Position = UDim2.new(0.5, 8, 0, 72)
 RunService.RenderStepped:Connect(function()
 	if not wardrobe.Visible then return end
 	if TU:GetAttribute("Phase") ~= "Lobby" then openWardrobe(false); return end
 	refreshWardrobe()
 	if wardModel then wardModel:PivotTo(CFrame.new(0, 2.8, 0) * CFrame.Angles(0, math.sin(os.clock() * 0.8) * 0.45, 0)) end
 end)
-local laptopHint = round(new("TextLabel", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -160), Size = UDim2.fromOffset(200, 34),
-	BackgroundColor3 = Color3.fromRGB(20, 22, 30), BackgroundTransparency = 0.2, Text = "E  ·  Wardrobe", Font = BLACK, TextSize = 17,
-	TextColor3 = WHITE, Visible = false }, gui), 8)
+local laptopHint = stroke(round(new("TextLabel", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -172), Size = UDim2.fromOffset(200, 38),
+	BackgroundColor3 = PANEL, BackgroundTransparency = 0.1, Text = "E  ·  WARDROBE", Font = TITLE, TextSize = 19,
+	TextColor3 = WHITE, Visible = false }, gui), 10), 3)
 local function nearLaptop(pos)
 	local stand = Map.Props:FindFirstChild("LaptopStand")
 	return stand and flat(stand.Position, pos) <= R("useRange") + 1
@@ -364,17 +526,17 @@ end
 local TaskPanels = require(TU:WaitForChild("TaskPanels"))
 local taskGui = new("ScreenGui", { Name = "TrollUsTask", ResetOnSpawn = false, IgnoreGuiInset = false,
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = 6 }, player:WaitForChild("PlayerGui"))
-local panel = round(outline(new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
-	BackgroundColor3 = Color3.fromRGB(46, 50, 62), Visible = false, ZIndex = 50 }, taskGui), 4), 18)
-local panelTitle = label({ Size = UDim2.new(1, -120, 0, 30), Position = UDim2.fromOffset(60, 8), Font = BLACK, TextSize = 24, TextScaled = true, ZIndex = 51 }, panel)
-new("UITextSizeConstraint", { MaxTextSize = 24 }, panelTitle)
+local panel = panelize(new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+	BackgroundColor3 = Color3.fromRGB(46, 50, 62), Visible = false, ZIndex = 50 }, taskGui), 20)
+local panelTitle = titled(label({ Size = UDim2.new(1, -120, 0, 30), Position = UDim2.fromOffset(60, 8), TextScaled = true, ZIndex = 51 }, panel), 26, 2)
+new("UITextSizeConstraint", { MaxTextSize = 26 }, panelTitle)
 local panelRoom = label({ Size = UDim2.new(1, -120, 0, 18), Position = UDim2.fromOffset(60, 38), TextSize = 14, TextColor3 = Color3.fromRGB(180, 186, 200), ZIndex = 51 }, panel)
-local panelClose = round(outline(new("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 8), Size = UDim2.fromOffset(44, 44),
-	BackgroundColor3 = RED, Text = "X", Font = BLACK, TextSize = 20, TextColor3 = WHITE, ZIndex = 52 }, panel), 2), 22)
+local panelClose = chunky(new("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 8), Size = UDim2.fromOffset(44, 44),
+	BackgroundColor3 = RED, Text = "X", TextSize = 22, TextColor3 = WHITE, ZIndex = 52 }, panel), 22)
 local gameArea = round(new("Frame", { Position = UDim2.fromOffset(12, 60), Size = UDim2.new(1, -24, 1, -72), BackgroundColor3 = Color3.fromRGB(34, 37, 48),
 	ClipsDescendants = true, ZIndex = 51 }, panel), 12)
-local doneCard = round(outline(new("TextLabel", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(0.7, 0, 0, 70),
-	BackgroundColor3 = GREEN, Text = "TASK COMPLETE", Font = BLACK, TextScaled = true, TextColor3 = INK, Visible = false, ZIndex = 70 }, panel), 3), 14)
+local doneCard = chunky(new("TextLabel", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(0.7, 0, 0, 74),
+	BackgroundColor3 = GREEN, Text = "TASK COMPLETE!", TextScaled = true, TextColor3 = INK, Visible = false, ZIndex = 70 }, panel), 16)
 new("UITextSizeConstraint", { MaxTextSize = 34 }, doneCard)
 new("UIPadding", { PaddingTop = UDim.new(0, 12), PaddingBottom = UDim.new(0, 12) }, doneCard)
 local openTask, cleanupGame = nil, nil
@@ -387,7 +549,8 @@ local function openPanel(d)
 	closePanel()
 	openTask = d
 	-- Studio test hook: a TestViewport (Vector2) attribute on the LocalPlayer sizes the tablet as if on that screen
-	local vp = (RunService:IsStudio() and player:GetAttribute("TestViewport")) or workspace.CurrentCamera.ViewportSize
+	-- (the ScreenGui keeps clear of the top bar, so measure it rather than the whole viewport)
+	local vp = (RunService:IsStudio() and player:GetAttribute("TestViewport")) or taskGui.AbsoluteSize
 	panel.Size = UDim2.fromOffset(math.floor(math.min(vp.X * 0.9, 760)), math.floor(math.min(vp.Y * 0.88, 500)))
 	panelTitle.Text = d.task; panelRoom.Text = d.room
 	panel.Visible = true
@@ -409,20 +572,21 @@ local function openPanel(d)
 end
 
 -- ---------- meeting tablet ----------
-local meeting = round(outline(new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
-	Size = UDim2.fromOffset(1020, 620), BackgroundColor3 = Color3.fromRGB(150, 170, 200), Visible = false, ZIndex = 5 }, gui), 6), 24)
-label({ Text = "Who Is The Impostor?", Font = BLACK, TextSize = 34, TextColor3 = INK, TextStrokeTransparency = 1,
-	Size = UDim2.fromOffset(620, 50), Position = UDim2.fromOffset(20, 10), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 6 }, meeting)
+local meeting = panelize(new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+	Size = UDim2.fromOffset(1020, 620), BackgroundColor3 = Color3.fromRGB(160, 180, 210), Visible = false, ZIndex = 5 }, gui), 28)
+stroke(meeting, 6)
+titled(label({ Text = "WHO IS THE IMPOSTOR?", TextColor3 = WHITE,
+	Size = UDim2.fromOffset(620, 50), Position = UDim2.fromOffset(20, 10), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 6 }, meeting), 38, 4)
 local meetTimer = label({ Text = "", TextSize = 20, TextColor3 = INK, TextStrokeTransparency = 1, Size = UDim2.fromOffset(620, 26),
 	Position = UDim2.fromOffset(20, 572), TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 6 }, meeting)
 local grid = new("Frame", { Position = UDim2.fromOffset(20, 66), Size = UDim2.fromOffset(620, 450), BackgroundTransparency = 1, ZIndex = 6 }, meeting)
 new("UIGridLayout", { CellSize = UDim2.fromOffset(304, 82), CellPadding = UDim2.fromOffset(12, 8), SortOrder = Enum.SortOrder.LayoutOrder }, grid)
-local skipBtn = round(outline(new("TextButton", { Position = UDim2.fromOffset(20, 566), Size = UDim2.fromOffset(170, 40),
-	BackgroundColor3 = Color3.fromRGB(230, 232, 240), Text = "SKIP VOTE", Font = BLACK, TextSize = 18, TextColor3 = INK, ZIndex = 6 }, meeting), 2), 10)
-local skipVotes = new("Frame", { Position = UDim2.fromOffset(200, 576), Size = UDim2.fromOffset(240, 22), BackgroundTransparency = 1, ZIndex = 6 }, meeting)
+local skipBtn = chunky(new("TextButton", { Position = UDim2.fromOffset(20, 562), Size = UDim2.fromOffset(180, 46),
+	BackgroundColor3 = Color3.fromRGB(230, 232, 240), Text = "SKIP VOTE", TextSize = 20, TextColor3 = INK, ZIndex = 6 }, meeting), 12)
+local skipVotes = new("Frame", { Position = UDim2.fromOffset(212, 572), Size = UDim2.fromOffset(240, 26), BackgroundTransparency = 1, ZIndex = 6 }, meeting)
 new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 3) }, skipVotes)
 
-local chatBox = round(new("Frame", { Position = UDim2.fromOffset(660, 66), Size = UDim2.fromOffset(340, 540), BackgroundColor3 = Color3.fromRGB(235, 238, 245), ZIndex = 6 }, meeting), 14)
+local chatBox = stroke(round(new("Frame", { Position = UDim2.fromOffset(660, 66), Size = UDim2.fromOffset(340, 540), BackgroundColor3 = Color3.fromRGB(235, 238, 245), ZIndex = 6 }, meeting), 16), 3)
 local chatLog = new("ScrollingFrame", { Position = UDim2.fromOffset(8, 8), Size = UDim2.new(1, -16, 1, -64), BackgroundTransparency = 1,
 	CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 6, ZIndex = 7 }, chatBox)
 new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, chatLog)
@@ -460,14 +624,15 @@ local function buildRows(roster)
 	for _, c in ipairs(grid:GetChildren()) do if c:IsA("GuiObject") then c:Destroy() end end
 	rows = {}
 	for i, r in ipairs(roster) do
-		local f = round(outline(new("TextButton", { Text = "", BackgroundColor3 = r.alive and WHITE or Color3.fromRGB(150, 150, 160),
-			LayoutOrder = i, AutoButtonColor = r.alive, ZIndex = 7 }, grid), 2), 12)
-		local sw = swatch(suitColor(r.suit), 52, f)
-		sw.Position = UDim2.fromOffset(12, 15); sw.ZIndex = 8
+		local f = shine(stroke(round(new("TextButton", { Text = "", BackgroundColor3 = r.alive and WHITE or Color3.fromRGB(150, 150, 160),
+			LayoutOrder = i, AutoButtonColor = r.alive, ZIndex = 7 }, grid), 14), 3), true)
+		local sw = beanIcon(r.suit, 64, f)
+		sw.Position = UDim2.fromOffset(6, 6); sw.ZIndex = 8
+		if not r.alive then sw.GroupTransparency = 0.45 end
 		label({ Text = r.name, Font = BLACK, TextSize = 20, TextColor3 = INK, TextStrokeTransparency = 1, Position = UDim2.fromOffset(76, 8),
 			Size = UDim2.fromOffset(200, 30), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 8 }, f)
 		if not r.alive then
-			label({ Text = "X", Font = BLACK, TextSize = 46, TextColor3 = RED, Position = UDim2.fromOffset(12, 15), Size = UDim2.fromOffset(52, 52), ZIndex = 9 }, f)
+			titled(label({ Text = "X", TextColor3 = RED, Position = UDim2.fromOffset(12, 12), Size = UDim2.fromOffset(52, 56), ZIndex = 9 }, f), 54, 3)
 		end
 		local voted = round(new("TextLabel", { Text = "I VOTED", Font = BLACK, TextSize = 12, TextColor3 = WHITE, BackgroundColor3 = RED,
 			Position = UDim2.fromOffset(4, 4), Size = UDim2.fromOffset(62, 18), Rotation = -12, Visible = false, ZIndex = 10 }, f), 4)
@@ -485,7 +650,7 @@ end
 local function addChat(from, suit, text, ghost)
 	chatOrder += 1
 	local f = new("Frame", { Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = chatOrder, ZIndex = 7 }, chatLog)
-	local sw = swatch(suitColor(suit), 26, f); sw.ZIndex = 8
+	local sw = beanIcon(suit, 30, f); sw.ZIndex = 8
 	label({ Text = from .. (ghost and " (ghost)" or ""), Font = BLACK, TextSize = 14, TextColor3 = ghost and Color3.fromRGB(120, 120, 140) or INK,
 		TextStrokeTransparency = 1, Position = UDim2.fromOffset(34, 0), Size = UDim2.new(1, -34, 0, 16), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 8 }, f)
 	label({ Text = text, TextSize = 15, TextColor3 = INK, TextStrokeTransparency = 1, TextWrapped = true, AutomaticSize = Enum.AutomaticSize.Y,
@@ -567,12 +732,12 @@ local altHint = label({ Text = "Hold Alt to use the mouse", TextSize = 14, TextC
 	TextXAlignment = Enum.TextXAlignment.Left, Visible = false }, fpGui)
 
 -- ---------- the map ----------
-local mapFrame = round(outline(new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
-	Size = UDim2.fromOffset(640, 424), BackgroundColor3 = Color3.fromRGB(22, 34, 60), Visible = false, ZIndex = 30 }, gui), 4), 18)
-label({ Text = "THE SKELD", Font = BLACK, TextSize = 22, Size = UDim2.new(1, 0, 0, 36), Position = UDim2.fromOffset(0, 4), ZIndex = 31 }, mapFrame)
-local mapClose = round(new("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 8), Size = UDim2.fromOffset(30, 30),
-	BackgroundColor3 = RED, Text = "X", Font = BLACK, TextSize = 16, TextColor3 = WHITE, ZIndex = 33 }, mapFrame), 15)
-local mapArea = new("Frame", { Position = UDim2.fromOffset(20, 48), Size = UDim2.fromOffset(600, 360), BackgroundTransparency = 1, ZIndex = 31 }, mapFrame)
+local mapFrame = panelize(new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+	Size = UDim2.fromOffset(640, 430), BackgroundColor3 = Color3.fromRGB(26, 40, 70), Visible = false, ZIndex = 30 }, gui), 20)
+titled(label({ Text = "THE SKELD", Size = UDim2.new(1, 0, 0, 36), Position = UDim2.fromOffset(0, 8), ZIndex = 31 }, mapFrame), 28)
+local mapClose = chunky(new("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 8), Size = UDim2.fromOffset(44, 44),
+	BackgroundColor3 = RED, Text = "X", TextSize = 22, TextColor3 = WHITE, ZIndex = 33 }, mapFrame), 22)
+local mapArea = new("Frame", { Position = UDim2.fromOffset(20, 56), Size = UDim2.fromOffset(600, 360), BackgroundTransparency = 1, ZIndex = 31 }, mapFrame)
 local MX, MZ, MS = -100, -60, 3 -- the ship spans x -100..100, z -60..60; 3 px a stud; -Z (yaw 0) is up
 local function mapPos(p) return UDim2.fromOffset((p.X - MX) * MS, (p.Z - MZ) * MS) end
 local mapBuilt, mapMarks, mapMe = false, nil, nil
@@ -603,14 +768,14 @@ local function toggleMap(on)
 	mapFrame.Visible = on
 end
 mapClose.Activated:Connect(function() toggleMap(false) end)
-local btnMap = round(outline(new("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 16),
-	Size = UDim2.fromOffset(64, 64), BackgroundColor3 = Color3.fromRGB(235, 235, 240), Text = "MAP", Font = BLACK, TextSize = 16, TextColor3 = INK }, hud), 3), 14)
+local btnMap = chunky(new("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 16),
+	Size = UDim2.fromOffset(68, 68), BackgroundColor3 = Color3.fromRGB(235, 235, 240), Text = "MAP", TextSize = 20, TextColor3 = INK }, hud), 16)
 btnMap.Activated:Connect(function() toggleMap() end)
 
 -- ---------- security cameras ----------
 local CAM_NAMES = { "Upper Engine hall", "Electrical hall", "O2 hall", "Navigation hall" }
-local camUI = round(outline(new("Frame", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -24), Size = UDim2.fromOffset(560, 64),
-	BackgroundColor3 = Color3.fromRGB(20, 22, 30), BackgroundTransparency = 0.15, Visible = false, ZIndex = 30 }, gui), 3), 12)
+local camUI = panelize(new("Frame", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -24), Size = UDim2.fromOffset(560, 64),
+	BackgroundColor3 = PANEL, Visible = false, ZIndex = 30 }, gui), 16)
 -- label spans the gap between "<" (10..50) and ">" (360..400)
 local camLabel = label({ Text = "", Font = BLACK, TextSize = 17, Position = UDim2.fromOffset(56, 0), Size = UDim2.fromOffset(298, 64), ZIndex = 31 }, camUI)
 local rec = label({ Text = "● REC", Font = BLACK, TextSize = 16, TextColor3 = RED, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -96, 0, 36),
@@ -624,12 +789,12 @@ local function setCam(n)
 	if n > 0 then camLabel.Text = "CAMERA " .. n .. "  ·  " .. CAM_NAMES[n] end
 end
 local function camButton(text, x, w, f)
-	local b = round(new("TextButton", { Position = UDim2.fromOffset(x, 12), Size = UDim2.fromOffset(w, 40), BackgroundColor3 = Color3.fromRGB(70, 76, 92),
-		Text = text, Font = BLACK, TextSize = 18, TextColor3 = WHITE, ZIndex = 31 }, camUI), 8)
+	local b = chunky(new("TextButton", { Position = UDim2.fromOffset(x, 10), Size = UDim2.fromOffset(w, 44), BackgroundColor3 = Color3.fromRGB(70, 76, 92),
+		Text = text, TextSize = 20, TextColor3 = WHITE, ZIndex = 31 }, camUI), 10)
 	b.Activated:Connect(f)
 end
-camButton("<", 10, 40, function() setCam((camN - 2) % 4 + 1) end)
-camButton(">", 360, 40, function() setCam(camN % 4 + 1) end)
+camButton("<", 10, 44, function() setCam((camN - 2) % 4 + 1) end)
+camButton(">", 360, 44, function() setCam(camN % 4 + 1) end)
 camButton("CLOSE", 560 - 96, 86, function() setCam(0) end)
 local function nearDesk(pos)
 	local desk = Map.Props:FindFirstChild("SecurityDesk")
@@ -673,14 +838,15 @@ end)
 local lastPhase = nil
 local function showPhase()
 	local phase = TU:GetAttribute("Phase")
-	lobby.Visible = phase == "Lobby" or phase == "Countdown"
+	if phase ~= "Lobby" and phase ~= "Countdown" then titleState.done = true; title.Visible = false end
+	lobby.Visible = (phase == "Lobby" or phase == "Countdown") and titleState.done
 	countdown.Visible = phase == "Countdown"
-	roleCard.Visible = phase == "Reveal"
+	C.roleCard.Visible = phase == "Reveal"
 	hud.Visible = phase == "Roam"
-	banner.Visible = phase == "Alert"
+	C.banner.Visible = phase == "Alert"
 	meeting.Visible = phase == "Discuss" or phase == "Vote" or phase == "Results"
-	eject.Visible = phase == "Eject"
-	over.Visible = phase == "GameOver"
+	C.eject.Visible = phase == "Eject"
+	C.over.Visible = phase == "GameOver"
 	if phase ~= "Roam" then closePanel(); sabMenu.Visible = false; toggleMap(false); if camN > 0 then setCam(0) end end
 	if phase == "Vote" then me.voted = false; setSelected(nil) end
 	if phase == "Roam" then
@@ -694,6 +860,7 @@ local function showPhase()
 	lastPhase = phase
 end
 TU:GetAttributeChangedSignal("Phase"):Connect(showPhase)
+titleState.show = showPhase
 TU:GetAttributeChangedSignal("Sabotage"):Connect(drawTasks)
 
 -- ---------- net ----------
@@ -703,21 +870,32 @@ Net.OnClientEvent:Connect(function(kind, d)
 		me.partners = {}
 		for _, id in ipairs(d.impostors or {}) do me.partners[id] = true end
 		local imp = d.role == "Impostor"
-		roleTitle.Text = imp and "Impostor" or "Crewmate"
-		roleTitle.TextColor3 = imp and RED or Color3.fromRGB(120, 220, 255)
+		C.roleTitle.Text = imp and "Impostor" or "Crewmate"
+		C.roleTitle.TextColor3 = imp and RED or Color3.fromRGB(120, 220, 255)
 		local partnerNames = {}
 		for _, m in ipairs(CS:GetTagged("Crewmate")) do
 			local id = m:GetAttribute("TUId")
 			if me.partners[id] and m ~= player.Character then table.insert(partnerNames, m:GetAttribute("DisplayName")) end
 		end
-		roleSub.Text = imp and (#partnerNames > 0 and (table.concat(partnerNames, " and ") .. " is also an Impostor.") or "Kill everyone. Don't get caught.")
+		C.roleSub.Text = imp and (#partnerNames > 0 and (table.concat(partnerNames, " and ") .. " is also an Impostor.") or "Kill everyone. Don't get caught.")
 			or (d.count == 1 and "There is 1 Impostor among us" or ("There are " .. d.count .. " Impostors among us"))
-		for _, c in ipairs(roleRow:GetChildren()) do if c:IsA("GuiObject") then c:Destroy() end end
+		for _, c in ipairs(C.roleRow:GetChildren()) do if c:IsA("GuiObject") then c:Destroy() end end
+		-- you stand in the middle, a size up; the rest of your side either side of you
+		local mine = player.Character and player.Character:GetAttribute("TUId")
+		local side = {}
 		for _, m in ipairs(CS:GetTagged("Crewmate")) do
-			if not imp or me.partners[m:GetAttribute("TUId")] then
-				local s = swatch(suitColor(m:GetAttribute("Suit")), 50, roleRow); s.ZIndex = 12
-			end
+			local id = m:GetAttribute("TUId")
+			if id ~= mine and (not imp or me.partners[id]) then table.insert(side, m:GetAttribute("Suit")) end
 		end
+		local order = {}
+		for i, s in ipairs(side) do if i % 2 == 1 then table.insert(order, 1, s) else table.insert(order, s) end end
+		table.insert(order, math.floor(#order / 2) + 1, "ME")
+		for i, s in ipairs(order) do
+			local me_ = s == "ME"
+			local b = beanIcon(me_ and (player.Character and player.Character:GetAttribute("Suit")) or s, me_ and 130 or 96, C.roleRow)
+			b.LayoutOrder = i; b.ZIndex = 12
+		end
+		paintSpot(C.roleSpot, imp and Color3.fromRGB(150, 40, 40) or Color3.fromRGB(60, 110, 160))
 		btnKill.Visible, btnVent.Visible, btnSab.Visible, btnExit.Visible = imp, imp, imp, imp
 		drawTasks()
 		Sounds.play("reveal")
@@ -729,10 +907,11 @@ Net.OnClientEvent:Connect(function(kind, d)
 		task.spawn(openPanel, d)
 	elseif kind == "Alert" then
 		local body = d.kind == "Body"
-		bannerText.Text = body and "DEAD BODY REPORTED" or "EMERGENCY MEETING"
-		bannerSub.Text = d.by .. (body and " found a body" or " called a meeting")
-		banner.BackgroundColor3 = body and Color3.fromRGB(120, 0, 0) or Color3.fromRGB(150, 70, 0)
-		banner.Visible = true
+		C.bannerText.Text = body and "DEAD BODY REPORTED" or "EMERGENCY MEETING"
+		C.bannerSub.Text = d.by .. (body and " found a body" or " called a meeting")
+		C.banner.BackgroundColor3 = body and Color3.fromRGB(150, 16, 16) or Color3.fromRGB(190, 96, 10)
+		C.bannerPaint(d.suit)
+		C.banner.Visible = true
 		Sounds.play(body and "report" or "siren")
 	elseif kind == "MeetingStart" then
 		me.roster = d.roster
@@ -746,44 +925,54 @@ Net.OnClientEvent:Connect(function(kind, d)
 		for _, r in ipairs(me.roster) do suitOf[r.id] = r.suit end
 		for voter, target in pairs(d.votes) do
 			local strip = (target == "skip") and skipVotes or (rows[target] and rows[target].strip)
-			if strip then local s = swatch(suitColor(suitOf[voter]), 20, strip); s.ZIndex = 9 end
+			if strip then local s = beanIcon(suitOf[voter], 24, strip); s.ZIndex = 9 end
 		end
 	elseif kind == "Chat" then
 		addChat(d.from, d.suit, d.text, d.ghost)
 	elseif kind == "Eject" then
-		ejectText.Text = ""; ejectSub.Text = ""
+		C.ejectText.Text = ""; C.ejectSub.Text = ""
 		Sounds.play("eject")
-		ejectBean.Visible = d.suit ~= nil
+		C.ejectBean.Visible = d.suit ~= nil
 		if d.suit then
-			ejectBean.BackgroundColor3 = suitColor(d.suit)
-			ejectBean.Position = UDim2.new(-0.1, 0, 0.35, 0); ejectBean.Rotation = 0
-			TweenService:Create(ejectBean, TweenInfo.new(R("ejectionTime") - 0.5, Enum.EasingStyle.Linear),
-				{ Position = UDim2.new(1.05, 0, 0.32, 0), Rotation = 720 }):Play()
+			C.ejectPaint(d.suit)
+			C.ejectBean.Position = UDim2.new(-0.1, 0, 0.36, 0); C.ejectBean.Rotation = 0
+			TweenService:Create(C.ejectBean, TweenInfo.new(R("ejectionTime") - 0.5, Enum.EasingStyle.Linear),
+				{ Position = UDim2.new(1.1, 0, 0.3, 0), Rotation = 720 }):Play()
 		end
 		task.spawn(function()
 			for i = 1, #d.text do
-				if not eject.Visible and i > 1 then return end
-				ejectText.Text = d.text:sub(1, i)
+				if not C.eject.Visible and i > 1 then return end
+				C.ejectText.Text = d.text:sub(1, i)
 				task.wait(0.05)
 			end
 			task.wait(0.4)
-			ejectSub.Text = d.sub
+			C.ejectSub.Text = d.sub
 		end)
 	elseif kind == "GameOver" then
 		local won = (d.winner == "Impostors") == (me.role == "Impostor")
-		overTitle.Text = won and "VICTORY" or "DEFEAT"
+		C.overTitle.Text = won and "VICTORY" or "DEFEAT"
 		Sounds.play(won and "win" or "defeat")
-		overTitle.TextColor3 = won and BLUE or RED
-		overSub.Text = d.reason
+		C.overTitle.TextColor3 = won and BLUE or RED
+		C.overSub.Text = d.reason
 		local names = {}
 		for _, imp in ipairs(d.impostors) do table.insert(names, imp.name) end
-		overImps.Text = (#names == 1 and "The Impostor was " or "The Impostors were ") .. table.concat(names, " and ")
+		C.overImps.Text = (#names == 1 and "The Impostor was " or "The Impostors were ") .. table.concat(names, " and ")
+		local impSuit = {}
+		for _, imp in ipairs(d.impostors) do impSuit[imp.suit] = true end
+		for _, c in ipairs(C.overRow:GetChildren()) do if c:IsA("GuiObject") then c:Destroy() end end
+		local winners = {}
+		for _, m in ipairs(CS:GetTagged("Crewmate")) do
+			local s = m:GetAttribute("Suit")
+			if s and ((d.winner == "Impostors") == (impSuit[s] == true)) then table.insert(winners, s) end
+		end
+		for i, s in ipairs(winners) do local b = beanIcon(s, #winners > 8 and 84 or 100, C.overRow); b.LayoutOrder = i; b.ZIndex = 12 end
+		paintSpot(C.overSpot, won and Color3.fromRGB(60, 110, 170) or Color3.fromRGB(150, 40, 40))
 	elseif kind == "YouDied" then
-		diedText.TextColor3 = suitColor(d.suit)
+		C.diedText.TextColor3 = suitColor(d.suit)
 		closePanel(); toggleMap(false); if camN > 0 then setCam(0) end
-		died.Visible = true
+		C.died.Visible = true
 		playDeath(d.killer, d.clip)
-		task.delay(2.6, function() died.Visible = false end)
+		task.delay(2.6, function() C.died.Visible = false end)
 	elseif kind == "Kill" then
 		local c = myChar()
 		if c and d.killer == c:GetAttribute("TUId") then me.killReadyAt = now() + R("killCooldown") end
@@ -792,6 +981,7 @@ end)
 
 -- ---------- sound: the critical-sabotage alarm and button clicks ----------
 -- Reactor and O2 beep until they are fixed (or the meeting/round ends them)
+do
 local alarmSound
 local function updateAlarm()
 	local sab = TU:GetAttribute("Sabotage")
@@ -808,6 +998,7 @@ end
 for _, g in ipairs({ gui, taskGui }) do
 	for _, o in ipairs(g:GetDescendants()) do clicky(o) end
 	g.DescendantAdded:Connect(clicky)
+end
 end
 
 -- ---------- frame ----------
@@ -950,7 +1141,7 @@ RunService.RenderStepped:Connect(function()
 	local pos = myPos()
 
 	-- tell the client when the mouse must be free
-	local open = panel.Visible or sabMenu.Visible or mapFrame.Visible or meeting.Visible or wardrobe.Visible
+	local open = panel.Visible or sabMenu.Visible or mapFrame.Visible or meeting.Visible or wardrobe.Visible or title.Visible
 	laptopHint.Visible = phase == "Lobby" and pos ~= nil and nearLaptop(pos) and not wardrobe.Visible
 	if open ~= uiOpen then uiOpen = open; player:SetAttribute("UIOpen", open) end
 
