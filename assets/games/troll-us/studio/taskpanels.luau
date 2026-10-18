@@ -513,7 +513,10 @@ GAMES["Divert Power"] = function(ctx)
 	local a, W, H = ctx.area, ctx.W, ctx.H
 	ctx.hint("Push the lit switch all the way up")
 	local names = { "WEP", "O2", "NAV", "SHD", "COM", "ENG", "SEC", "MED" }
-	local pick = math.random(1, 8)
+	-- the lit switch is the room the power goes to (the next stop of the chain); a random one if none was sent
+	local ROOM_SWITCH = { Weapons = "WEP", O2 = "O2", Navigation = "NAV", Shields = "SHD", Communications = "COM",
+		["Upper Engine"] = "ENG", ["Lower Engine"] = "ENG", Security = "SEC", MedBay = "MED" }
+	local pick = table.find(names, ROOM_SWITCH[ctx.info and ctx.info.target or ""] or "") or math.random(1, 8)
 	local top, bot = H * 0.12, H * 0.64
 	local sp = (W - 40) / 8
 	for i, n in ipairs(names) do

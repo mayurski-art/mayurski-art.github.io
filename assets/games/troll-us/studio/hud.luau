@@ -32,6 +32,7 @@ local INK = Color3.fromRGB(20, 22, 30)
 local WHITE = Color3.new(1, 1, 1)
 local GREEN = Color3.fromRGB(68, 214, 44)
 local RED = Color3.fromRGB(235, 40, 40)
+local YELLOW = Color3.fromRGB(245, 220, 60)
 local BLUE = Color3.fromRGB(60, 140, 255)
 local BOLD, BLACK = Enum.Font.GothamBold, Enum.Font.GothamBlack
 
@@ -89,7 +90,11 @@ local function drawTasks()
 		return
 	end
 	for i, t in ipairs(me.tasks) do
-		line(t.room .. ": " .. t.task, t.done and GREEN or WHITE, 2 + i)
+		-- a task across rooms shows the stop you are on and how many are done: "Admin: Upload Data (1/2)";
+		-- part way through it turns yellow, like the real thing
+		local steps = t.steps or 1
+		local label = t.room .. ": " .. t.task .. (steps > 1 and (" (" .. (t.step or 0) .. "/" .. steps .. ")") or "")
+		line(label, t.done and GREEN or ((t.step or 0) > 0 and YELLOW or WHITE), 2 + i)
 	end
 end
 
@@ -388,7 +393,7 @@ local function openPanel(d)
 	task.wait() -- let the frame lay out so the game area has its size
 	if openTask ~= d then return end
 	local c = player.Character
-	local info = { name = player.DisplayName, suit = c and c:GetAttribute("Suit"), room = d.room,
+	local info = { name = player.DisplayName, suit = c and c:GetAttribute("Suit"), room = d.room, target = d.target,
 		scan = function() Net:FireServer("Scan") end }
 	cleanupGame = TaskPanels.open(gameArea, d.task, info, function()
 		doneCard.Visible = true

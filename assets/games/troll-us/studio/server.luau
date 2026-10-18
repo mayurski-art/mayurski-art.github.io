@@ -237,16 +237,57 @@ local function sendTasks(p)
 	local out = {}
 	for _, t in ipairs(p.tasks) do
 		local pad = Pads[t.id]
-		table.insert(out, { id = t.id, task = pad:GetAttribute("Task"), room = pad:GetAttribute("Room"), done = t.done })
+		-- step = stops already done, steps = stops in all (1 for a one-stop task)
+		table.insert(out, { id = t.id, task = pad:GetAttribute("Task"), room = pad:GetAttribute("Room"), done = t.done,
+			step = t.done and #t.steps or t.step - 1, steps = #t.steps })
 	end
 	sendTo(p, "Tasks", out)
 end
+-- Tasks that span rooms. Each one is a list of pads walked in order; t.id is always the pad of the stop you
+-- are on, so the arrow, the outline, the use check and the bots follow the chain without knowing about it.
+--   Download Data (Weapons / Navigation / Comms / Electrical) -> Upload Data in Admin
+--   Divert Power in Electrical -> Accept Diverted Power in the room it went to (Comms or Security)
+--   Fuel Engines: Storage -> Upper Engine -> Lower Engine
+-- A chain counts once towards the task bar, when its last stop is done.
+local function padsNamed(task, room)
+	local out = {}
+	for id, pad in pairs(Pads) do
+		if pad:GetAttribute("Task") == task and (not room or pad:GetAttribute("Room") == room) then table.insert(out, id) end
+	end
+	table.sort(out)
+	return out
+end
+local function taskUnits()
+	local units, chained = {}, {}
+	local function chain(kind, ids)
+		for _, id in ipairs(ids) do if not id then return end end
+		for _, id in ipairs(ids) do chained[id] = true end
+		table.insert(units, { kind = kind, steps = ids })
+	end
+	local upload = padsNamed("Upload Data")[1]
+	for _, id in ipairs(padsNamed("Download Data")) do chain("Download Data", { id, upload }) end
+	local divert = padsNamed("Divert Power")[1]
+	for _, id in ipairs(padsNamed("Accept Diverted Power")) do chain("Divert Power", { divert, id }) end
+	chain("Fuel Engines", { padsNamed("Fuel Engines", "Storage")[1], padsNamed("Fuel Engines", "Upper Engine")[1],
+		padsNamed("Fuel Engines", "Lower Engine")[1] })
+	-- every pad that is not a stop of some chain is a one-stop task of its own
+	for id in pairs(Pads) do
+		if not chained[id] then table.insert(units, { kind = "pad" .. id, steps = { id } }) end
+	end
+	return units
+end
 local function assignTasks(p)
-	local ids = {}
-	for id in pairs(Pads) do table.insert(ids, id) end
-	for i = #ids, 2, -1 do local j = math.random(i); ids[i], ids[j] = ids[j], ids[i] end
+	local units = taskUnits()
+	for i = #units, 2, -1 do local j = math.random(i); units[i], units[j] = units[j], units[i] end
 	p.tasks = {}
-	for i = 1, math.min(R("tasksPerPlayer"), #ids) do table.insert(p.tasks, { id = ids[i], done = false }) end
+	local kinds = {} -- one of each chain (never two Download Datas both ending at the one Upload pad)
+	for _, u in ipairs(units) do
+		if #p.tasks >= R("tasksPerPlayer") then break end
+		if not kinds[u.kind] then
+			kinds[u.kind] = true
+			table.insert(p.tasks, { id = u.steps[1], steps = u.steps, step = 1, done = false })
+		end
+	end
 end
 
 local endGame -- forward
@@ -269,6 +310,12 @@ local function markTaskDone(p, id)
 	for _, t in ipairs(p.tasks) do
 		if t.id == id and not t.done then
 			if p.role ~= "Crewmate" then return end -- fake tasks count for nothing
+			if t.step < #t.steps then
+				-- on to the next stop of the chain; the task bar only moves when the last one is done
+				t.step += 1; t.id = t.steps[t.step]
+				sendTasks(p)
+				return true
+			end
 			t.done = true
 			sendTasks(p)
 			updateProgress()
@@ -624,8 +671,10 @@ local function use(p)
 	if t then
 		p.openTask = { id = t.id, at = now() }
 		local pad = Pads[t.id]
+		-- Divert Power lights the switch of the room the power goes to (the next stop of the chain)
+		local nextPad = t.steps[t.step + 1] and Pads[t.steps[t.step + 1]]
 		sendTo(p, "OpenTask", { id = t.id, task = pad:GetAttribute("Task"), room = pad:GetAttribute("Room"),
-			hold = R("taskHoldTime"), fake = p.role ~= "Crewmate" })
+			target = nextPad and nextPad:GetAttribute("Room"), hold = R("taskHoldTime"), fake = p.role ~= "Crewmate" })
 	end
 end
 
