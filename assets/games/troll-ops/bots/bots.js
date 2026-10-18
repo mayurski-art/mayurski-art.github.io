@@ -1685,6 +1685,8 @@ export class BotManager {
   byId(id) { return this.bots.find((b) => b.id === id) || null; }
 
   update(dt, ctx) {
+    // A Tactical Nuke went off (streaks/nuke.js): nobody moves again this match.
+    if (this.frozen) return;
     // One field per *pursued target*, re-swept a few times a second. Keyed by
     // target id and cached for the frame: several bots chasing one person
     // share a single BFS, and bots chasing different people don't thrash a

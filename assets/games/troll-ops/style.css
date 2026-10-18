@@ -4629,3 +4629,10 @@ body.to-touch-play .to-medal-pop { flex-direction: row; align-items: center; gap
 body.to-touch-play .to-medal-icon { width: 24px; }
 body.to-touch-play .to-medal-name { font-size: 17px; }
 body.to-touch-play .to-medal-pts { font-size: 14px; }
+
+/* The Tactical Nuke's last whiteout (streaks/nuke.js), over everything.
+   Its opacity is set every frame from the blast's clock. */
+.to-nuke-white {
+  position: absolute; inset: 0; z-index: 60; pointer-events: none;
+  background: #fffaf2; opacity: 0;
+}

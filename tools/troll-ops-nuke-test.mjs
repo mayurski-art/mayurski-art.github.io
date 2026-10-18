@@ -1,4 +1,4 @@
-// Troll Forces Tactical Nuke, phase 1: earn and call (user, 2026-10-17).
+// Troll Forces Tactical Nuke, phases 1 and 2 (user, 2026-10-17).
 // Two tabs in one PRIVATE room (Supabase is blocked; never a public room),
 // no bots:
 //   - 25 kills without dying banks it in TDM: the HUD row shows, nothing in
@@ -6,7 +6,10 @@
 //   - N raises the handheld; the key goes down about 1.6 s in and the nuke
 //     is ARMED and spent;
 //   - the other tab gets the same countdown (banner, "from <caller>", 10..1)
-//     and the sky tints; both close at zero and the sky comes back;
+//     and the sky tints; the score limit waits;
+//   - phase 2: the missile before zero; at zero everyone is down, the HUD
+//     goes and the nuke cameras take over; 12 s on, the end screen on both
+//     tabs with the caller side as the winner, the sky back;
 //   - a second 25 banks nothing;
 //   - FFA banks it too; Domination never does.
 //
@@ -38,7 +41,7 @@ const check = (ok, what, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} $
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const errors = [];
 const STATE = "/assets/games/troll-ops/core/state.js?v=st1";
-const NUKE = "/assets/games/troll-ops/streaks/nuke.js?v=tn1";
+const NUKE = "/assets/games/troll-ops/streaks/nuke.js?v=tn1-tn2";
 const SKY = "/assets/games/troll-ops/view/sky.js?v=sr1";
 
 async function open(room, mode) {
@@ -138,12 +141,92 @@ if (OUT) await b.screenshot({ path: path.join(OUT, "nuke-countdown.png") });
 const stillPlaying = await b.evaluate(() => window.__trollOps.state());
 check(stillPlaying === "playing", "the match keeps going through the countdown");
 
-await sleep(6500);
-const endA = await state(a), endB = await state(b);
-check(!endA.overlay && !endB.overlay && !endA.inbound && !endB.inbound, "the countdown closes at zero on both tabs", JSON.stringify({ a: endA.overlay, b: endB.overlay }));
-check(endB.sky === skyBase, "the sky comes back", `${endB.sky} vs ${skyBase}`);
+// A second 25 while it's inbound banks nothing (one per match).
 await killAt(a, 24);
 check(!(await state(a)).ready, "a second 25 banks nothing");
+// The score limit can't end it while the nuke is inbound.
+const lim = await a.evaluate(async (u) => {
+  const T = window.__trollOps;
+  const t = T.net.team || "phantom";
+  T.teamScores[t] = 68;
+  const enemy = t === "phantom" ? "ghost" : "phantom";
+  T.registerDeath("Dummy", T.net.id, "pistol", { victimId: "lim", victimTeam: enemy });
+  return { score: T.teamScores[t], state: T.state() };
+}, STATE);
+check(lim.state === "playing", "the score limit waits for the nuke", JSON.stringify(lim));
+// Spy on the result each tab files at the end (won or not).
+for (const p of [a, b]) await p.evaluate(() => {
+  const acc = window.TrollrunnerAccounts || (window.TrollrunnerAccounts = {});
+  const orig = acc.reportGameResult;
+  acc.reportGameResult = (g, s, o) => { window.__nukeResult = o; return orig?.(g, s, o); };
+});
+
+const leftNow = (await state(a)).left;
+await sleep(Math.max(0, (leftNow - 1.8) * 1000));
+const missile = await a.evaluate(async (n) => {
+  const { nuke } = await import(n);
+  return { blast: !!nuke.inbound?.blast, missile: !!nuke.inbound?.blast?.missile?.visible };
+}, NUKE);
+check(missile.blast && missile.missile, "the missile is in the air before zero", JSON.stringify(missile));
+if (OUT) await a.screenshot({ path: path.join(OUT, "nuke-missile.png") });
+
+const waitT = async (page, t) => {
+  for (let i = 0; i < 200; i++) {
+    const s = await state(page);
+    if (s.left != null && -s.left >= t) return true;
+    if (s.left == null) return false;
+    await sleep(100);
+  }
+  return false;
+};
+await waitT(a, 1);
+const zero = await Promise.all([a, b].map((p) => p.evaluate(async ({ n, u }) => {
+  const { nuke, nukeCineOn } = await import(n);
+  const { game } = await import(u);
+  return {
+    gone: !!nuke.inbound?.gone, cine: nukeCineOn(), alive: game.player.alive, hud: !document.getElementById("to-hud").hidden,
+    frozen: !!game.bots?.frozen, respawnShown: !document.getElementById("to-respawn")?.hidden, state: window.__trollOps.state(),
+    overlay: !document.querySelector(".to-nuke")?.hidden,
+  };
+}, { n: NUKE, u: STATE })));
+for (const [i, z] of zero.entries()) {
+  const tab = i ? "B" : "A";
+  check(z.gone && z.cine && !z.alive && !z.hud && z.frozen && !z.respawnShown && !z.overlay, `tab ${tab}: at zero everyone is down, the HUD goes, the cameras take over`, JSON.stringify(z));
+  check(z.state === "playing", `tab ${tab}: the match is still on through the blast`);
+}
+if (OUT) {
+  await waitT(a, 2); await a.screenshot({ path: path.join(OUT, "nuke-t2.png") });
+  await waitT(a, 5); await a.screenshot({ path: path.join(OUT, "nuke-t5.png") });
+  await waitT(b, 6); await b.screenshot({ path: path.join(OUT, "nuke-t6-other.png") });
+  await waitT(a, 9); await a.screenshot({ path: path.join(OUT, "nuke-t9.png") });
+}
+const respawned = await a.evaluate(async (u) => (await import(u)).game.player.alive, STATE);
+check(!respawned, "nobody respawns during the blast");
+
+// The end screen at +12, the caller's side the winner.
+for (let i = 0; i < 160; i++) {
+  const st = await Promise.all([a, b].map((p) => p.evaluate(() => window.__trollOps.state())));
+  if (st.every((s) => s !== "playing")) break;
+  await sleep(100);
+}
+const ends = await Promise.all([a, b].map((p) => p.evaluate(async ({ n, s }) => {
+  const { nuke } = await import(n);
+  const { skyMat } = await import(s);
+  return {
+    state: window.__trollOps.state(), title: document.getElementById("to-go-title")?.textContent || "",
+    won: window.__nukeResult?.won ?? null, team: window.__trollOps.net.team, inbound: !!nuke.inbound,
+    sky: skyMat.uniforms.uTop.value.getHexString(), white: document.querySelector(".to-nuke-white")?.hidden ?? true,
+  };
+}, { n: NUKE, s: SKY })));
+const [ea, eb] = ends;
+check(ea.state !== "playing" && eb.state !== "playing", "the match ends after the blast on both tabs", JSON.stringify({ a: ea.state, b: eb.state }));
+check(ea.title === "You went nuclear", "the caller's end screen", ea.title);
+check(eb.title === `${name} went nuclear`, "the other tab's end screen names the caller", eb.title);
+check(ea.won === true, "the caller wins", JSON.stringify(ea.won));
+check(eb.won === (eb.team === ea.team), "the other tab's result follows the caller's side", JSON.stringify({ won: eb.won, teams: [ea.team, eb.team] }));
+check(!ea.inbound && !eb.inbound && ea.white && eb.white, "the blast is cleaned up");
+check(eb.sky === skyBase, "the sky comes back", `${eb.sky} vs ${skyBase}`);
+if (OUT) await b.screenshot({ path: path.join(OUT, "nuke-end.png") });
 await a.close(); await b.close();
 
 // ---- FFA banks it, Domination doesn't
