@@ -6,6 +6,8 @@
 // that (stools, task pads, vent covers), and anything starting above 4.6 is over its head
 export const STEP_HEIGHT = 1.5;
 export const BEAN_HEIGHT = 4.6;
+// the root is 2.6 wide: a circle of 1.3 on the floor plan
+export const BEAN_RADIUS = 1.3;
 
 // parts low enough to walk over (task pads, vent covers, floors) and parts above your head (door lintels,
 // ceilings) are not walls. The door panels are left out until doors can shut (step 5).

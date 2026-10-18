@@ -2,10 +2,10 @@
 // a 2.6-wide root (radius 1.3 on the floor plan), walkSpeed from the rules, looking up or down at most 75°.
 // The camera turns like Studio's CFrame.new(eye) * Angles(0, yaw, 0) * Angles(pitch, 0, 0).
 import * as THREE from 'three';
-import { resolve } from './collide.js?v=tu-4c1';
+import { resolve, BEAN_RADIUS } from './collide.js?v=tu-4d1';
 
+export { BEAN_RADIUS };
 export const EYE_HEIGHT = 3.6;
-export const BEAN_RADIUS = 1.3;
 const PITCH_MAX = 75 * Math.PI / 180;
 const SUBSTEP = 0.4; // studs per collision step, well under the thinnest wall, so a slow frame can't skip one
 

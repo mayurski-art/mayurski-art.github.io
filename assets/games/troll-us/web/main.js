@@ -1,14 +1,24 @@
-// Troll Us web: entry point (phase 4). Step 3 walks you round The Skeld in first person; beans and bots come in
-// the next steps. A test hook lives on window.TU.
+// Troll Us web: entry point (phase 4). You walk The Skeld in first person while bot Crewmates waddle between
+// task pads; the round itself (roles, tasks, kills, meetings) is phase 5. A test hook lives on window.TU.
 //   ?cam=x,y,z&look=x,y,z&fov=70   a fixed camera instead of walking (used to compare with Studio screenshots)
 //   ?suit=Blue                     the colour of your goggle frame
+//   ?bots=7                        how many bots (Studio fills to botFillTo players, you included)
+//   ?seed=1                        repeatable bot choices (tests)
 //   ?at=x,z&yaw=deg                start somewhere other than the spot by the Cafeteria table
 import * as THREE from 'three';
 import { buildMap } from './view/map.js?v=tu-4b1';
 import { addLights } from './view/lights.js?v=tu-4b1';
-import { buildColliders } from './core/collide.js?v=tu-4c1';
-import { createPlayer, updatePlayer, placeCamera } from './core/player.js?v=tu-4c1';
+import { buildColliders } from './core/collide.js?v=tu-4d1';
+import { createPlayer, updatePlayer, placeCamera } from './core/player.js?v=tu-4d1';
 import { input, initInput, readMove, takeLook } from './input/input.js?v=tu-4c1';
+import { buildBean, waddle, suitHex } from './view/bean.js?v=tu-4d1';
+import { buildNav, findPath } from './bots/nav.js?v=tu-4d1';
+import { createBot, updateBot } from './bots/bots.js?v=tu-4d1';
+
+// a small seeded random (mulberry32) so a test can replay the same bots
+function seeded(a) {
+  return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
 
 const EXPORT = 'assets/games/troll-us/export/';
 const canvas = document.getElementById('tu-canvas');
@@ -69,10 +79,8 @@ function showHint() {
 
 async function start() {
   status.textContent = 'Loading The Skeld…';
-  const [json, rules] = await Promise.all([
-    fetch(EXPORT + 'map.json?v=tu-4b1').then((r) => r.json()),
-    fetch(EXPORT + 'rules.json?v=tu-4c1').then((r) => r.json()),
-  ]);
+  const get = (f) => fetch(EXPORT + f + '?v=tu-4d1').then((r) => r.json());
+  const [json, rules, rig, hats] = await Promise.all([get('map.json'), get('rules.json'), get('rig.json'), get('hats.json')]);
   const map = buildMap(json);
   scene.add(map.group);
   addLights(scene);
@@ -89,7 +97,33 @@ async function start() {
     yaw: (q.get('yaw') != null ? Number(q.get('yaw')) : 90) * Math.PI / 180,
     speed: rules.walkSpeed || 14,
   });
-  setSuit(q.get('suit') || 'Red', rules);
+  const mySuit = q.get('suit') || 'Red';
+  setSuit(mySuit, rules);
+
+  // the bots: the other suits in lobby order, a random hat each, standing round the table like Studio's ring
+  const nav = buildNav(map, shapes);
+  const rng = q.get('seed') ? seeded(Number(q.get('seed'))) : Math.random;
+  const botCount = Math.max(0, Math.min(11, q.get('bots') != null ? Number(q.get('bots')) : (rules.botFillTo || 8) - 1));
+  const suits = (rules.suits || []).filter((s) => s !== mySuit);
+  const hatNames = hats.list || ['None'];
+  const pads = map.pads;
+  const bots = [];
+  for (let i = 0; i < botCount; i++) {
+    const a = ((i + 1) / (botCount + 1)) * Math.PI * 2;
+    const bot = createBot(nav, { x: table[0] + Math.cos(a) * 13, z: table[1] + Math.sin(a) * 13,
+      speed: rules.botWalkSpeed || 12, taskTime: rules.botTaskTime || 6, rng, name: rules.botNames?.[i] || 'Bot ' + (i + 1) });
+    bot.yaw = Math.atan2(Math.cos(a), Math.sin(a)); // facing the table
+    bot.busy = 0.5 + rng() * 2; // don't all set off on the same frame
+    const hat = hatNames[Math.floor(rng() * hatNames.length)];
+    bot.bean = buildBean(rig, { suit: suitHex(suits[i % suits.length], rules), hat: hat === 'None' ? null : hat, hats });
+    bot.suit = suits[i % suits.length]; bot.hat = hat;
+    scene.add(bot.bean.group);
+    bots.push(bot);
+  }
+  const placeBean = (bot) => { bot.bean.group.position.set(bot.x, 0, bot.z); bot.bean.group.rotation.y = bot.yaw; };
+  bots.forEach(placeBean);
+  // runs the bots without drawing (the walk test calls this thousands of times)
+  const stepBots = (dt) => { for (const b of bots) { updateBot(b, dt, pads, shapes); placeBean(b); waddle(b.bean, dt, b.moving ? 1 : 0); } };
 
   const fixed = q.get('cam');
   if (fixed) setCam(nums('cam'), nums('look'), Number(q.get('fov')) || undefined);
@@ -110,6 +144,7 @@ async function start() {
   status.textContent = '';
 
   const tick = (dt) => {
+    stepBots(dt);
     if (!fixed) {
       updatePlayer(player, dt, readMove(), takeLook(), shapes);
       placeCamera(player, camera);
@@ -118,7 +153,8 @@ async function start() {
   };
   let last = performance.now();
   const frame = (now) => { tick(Math.min(0.1, (now - last) / 1000)); last = now; };
-  window.TU = { THREE, scene, camera, renderer, map, shapes, player, input, setCam, setVision, VISION,
+  window.TU = { THREE, scene, camera, renderer, map, shapes, player, input, setCam, setVision, VISION, rules, rig, hats,
+    nav, findPath, bots, stepBots, buildBean, waddle,
     render: () => renderer.render(scene, camera), tick, step: (dt, mx, my) => updatePlayer(player, dt, { moveX: mx, moveY: my }, [0, 0], shapes),
     ready: true };
   renderer.setAnimationLoop(frame);
