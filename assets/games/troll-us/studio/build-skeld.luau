@@ -19,7 +19,7 @@ local ROOMS = {
 	{ name = "Shields",        x = 52,  z = 24,  w = 20, d = 20, tint = Color3.fromRGB(214, 210, 222), tasks = { "Prime Shields" }, vent = { 58, 30 } },
 	{ name = "Communications", x = 28,  z = 38,  w = 20, d = 16, tint = Color3.fromRGB(220, 214, 206), tasks = { "Download Data", "Accept Diverted Power" } },
 	{ name = "Storage",        x = 0,   z = 26,  w = 28, d = 32, tint = Color3.fromRGB(200, 200, 204), tasks = { "Fuel Engines", "Empty Garbage" }, door = true },
-	{ name = "Admin",          x = 28,  z = 8,   w = 24, d = 20, tint = Color3.fromRGB(222, 218, 206), tasks = { "Swipe Card", "Upload Data", "Fix Wiring" }, vent = { 36, 14 }, door = true },
+	{ name = "Admin",          x = 28,  z = 9,   w = 24, d = 18, tint = Color3.fromRGB(222, 218, 206), tasks = { "Swipe Card", "Upload Data", "Fix Wiring" }, vent = { 36, 14 }, door = true },
 	{ name = "Electrical",     x = -26, z = 16,  w = 24, d = 20, tint = Color3.fromRGB(222, 212, 200), tasks = { "Fix Wiring", "Divert Power", "Calibrate Distributor", "Download Data" }, vent = { -34, 10 }, door = true },
 	{ name = "MedBay",         x = -30, z = -24, w = 20, d = 20, tint = Color3.fromRGB(206, 222, 216), tasks = { "Submit Scan", "Inspect Sample" }, vent = { -36, -18 }, door = true },
 	{ name = "Upper Engine",   x = -62, z = -34, w = 24, d = 24, tint = Color3.fromRGB(212, 206, 206), tasks = { "Align Engine Output", "Fuel Engines" }, vent = { -70, -42 }, door = true },
@@ -32,7 +32,7 @@ local HALLS = {
 	{ 30, -36, 16, 8 },   -- Cafeteria > Weapons
 	{ 50, -20, 8, 16 },   -- Weapons > O2
 	{ 61, -10, 18, 8 },   -- O2 > Navigation
-	{ 78, 10, 8, 12 },    -- Navigation down
+	{ 78, 12, 8, 16 },    -- Navigation down (runs to z 20 so the turn into Shields is 8 wide)
 	{ 70, 16, 16, 8 },    -- > Shields
 	{ 40, 32, 8, 12 },    -- Shields > Communications
 	{ 16, 38, 8, 8 },     -- Communications > Storage
@@ -41,8 +41,8 @@ local HALLS = {
 	{ 0, -1, 8, 22 },     -- Cafeteria > Storage
 	{ -40, -34, 36, 8 },  -- Cafeteria > MedBay > Upper Engine
 	{ -62, -2, 8, 48 },   -- Upper Engine > Security > Lower Engine
-	{ -76, -20, 12, 8 },  -- Upper Engine > Reactor
-	{ -76, 14, 12, 12 },  -- Lower Engine > Reactor
+	{ -75, -20, 14, 8 },  -- Upper Engine > Reactor (at 12 wide it clipped the engine room by 4, too tight for a bean)
+	{ -75, 14, 14, 12 },  -- Lower Engine > Reactor (same)
 	{ -38, 32, 48, 8 },   -- Lower Engine > Storage (bottom corridor)
 	{ -26, 28, 8, 4 },    -- Electrical entry from the bottom corridor
 }
@@ -80,7 +80,7 @@ if base then base:Destroy() end
 local root = Instance.new("Folder"); root.Name = "TrollUs"
 local map = Instance.new("Model"); map.Name = "Map"; map.Parent = root
 local F = {}
-for _, n in ipairs({ "Rooms", "Halls", "Walls", "Vents", "Doors", "Tasks", "Cameras", "Props" }) do
+for _, n in ipairs({ "Rooms", "Halls", "Walls", "Vents", "Doors", "Tasks", "Cameras", "Props", "FixPads" }) do
 	local f = Instance.new("Folder"); f.Name = n; f.Parent = map; F[n] = f
 end
 
@@ -212,6 +212,7 @@ for _, r in ipairs(ROOMS) do
 end
 
 -- ---------- vents, tasks, cameras, button, spawn ----------
+local taskId = 0
 for _, r in ipairs(ROOMS) do
 	if r.vent then
 		local v = part({ Name = "Vent", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.4, 3.2, 3.2),
@@ -222,17 +223,34 @@ for _, r in ipairs(ROOMS) do
 	end
 	local x1, x2, z1, z2 = rect(r)
 	for i, t in ipairs(r.tasks) do
+		taskId += 1
 		local px = x1 + 3 + (i - 1) * 4.5
 		local pad = part({ Name = "Task", Size = Vector3.new(2.4, 0.3, 2.4), Position = Vector3.new(px, 0.15, z1 + 2.5),
 			Color = Color3.fromRGB(80, 200, 120), Parent = F.Tasks })
 		pad:SetAttribute("Room", r.name)
 		pad:SetAttribute("Task", t)
+		pad:SetAttribute("TaskId", taskId)
 	end
 end
 for i, c in ipairs(CAMERAS) do
+	-- head height over corridor junctions: must not collide, or Crewmate domes snag on them
 	local cam = part({ Name = "Camera" .. i, Size = Vector3.new(1.2, 1.2, 1.6), Position = Vector3.new(c[1], WALL_H - 1, c[2]),
-		Color = Color3.fromRGB(230, 60, 60), Parent = F.Cameras })
+		Color = Color3.fromRGB(230, 60, 60), CanCollide = false, CanQuery = false, Parent = F.Cameras })
 	cam:SetAttribute("Index", i)
+end
+-- sabotage fix pads: Rules.fixPads says how many each Kind needs (Reactor and O2 need both)
+local FIX_PADS = {
+	{ "LightsFix1", "Lights", 1, "Electrical", -36, 22, Color3.fromRGB(255, 220, 60) },
+	{ "ReactorFix1", "Reactor", 1, "Reactor", -90, -12, Color3.fromRGB(255, 80, 60) },
+	{ "ReactorFix2", "Reactor", 2, "Reactor", -78, 6, Color3.fromRGB(255, 80, 60) },
+	{ "CommsFix1", "Comms", 1, "Communications", 34, 44, Color3.fromRGB(200, 120, 255) },
+	{ "O2Fix1", "O2", 1, "O2", 50, -4, Color3.fromRGB(80, 200, 255) },
+	{ "O2Fix2", "O2", 2, "Admin", 36, 4, Color3.fromRGB(80, 200, 255) },
+}
+for _, f in ipairs(FIX_PADS) do
+	local p = part({ Name = f[1], Size = Vector3.new(2.6, 0.3, 2.6), Position = Vector3.new(f[5], 0.15, f[6]),
+		Color = f[7], Material = Enum.Material.Neon, CanCollide = false, Parent = F.FixPads })
+	p:SetAttribute("Kind", f[2]); p:SetAttribute("Index", f[3]); p:SetAttribute("Room", f[4]); p:SetAttribute("Fixed", false)
 end
 -- emergency table + button
 part({ Name = "CafeteriaTable", Size = Vector3.new(9, 2.4, 9), Position = Vector3.new(0, 1.2, -30),

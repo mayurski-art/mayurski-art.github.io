@@ -40,8 +40,11 @@ local function buildCrewmate(suit)
 	local m = Instance.new("Model"); m.Name = "StarterCharacter"
 
 	-- chunky bean: 3.2 wide, 5.4 tall, flat disc bottom
-	local hrp = part({ Name = "HumanoidRootPart", Size = Vector3.new(3.2, 3.6, 3.0), Transparency = 1,
-		CanCollide = true, Massless = false, CFrame = CFrame.new(0, 2.8, 0), Parent = m })
+	-- the only collider: a bit slimmer than the 3.2 bean and frictionless, so beans slide along walls
+	-- instead of pinning on them next to the task pads
+	local hrp = part({ Name = "HumanoidRootPart", Size = Vector3.new(2.6, 3.6, 2.6), Transparency = 1,
+		CanCollide = true, Massless = false, CFrame = CFrame.new(0, 2.8, 0),
+		CustomPhysicalProperties = PhysicalProperties.new(0.7, 0, 0, 100, 1), Parent = m })
 
 	local body = part({ Name = "Body", Shape = Enum.PartType.Cylinder, Size = Vector3.new(2.6, 3.2, 3.2), Color = color,
 		CFrame = CFrame.new(0, 2.5, 0) * CFrame.Angles(0, 0, math.rad(90)), Parent = m })
@@ -143,7 +146,7 @@ local function setup(char)
 		local targetYaw = 0
 		if speed > 0.05 then targetYaw = math.clamp(mv.X, -1, 1) * FACE_YAW end
 		yaw += (targetYaw - yaw) * math.min(1, dt * 10)
-		ao.CFrame = CFrame.Angles(0, math.pi - yaw, 0)
+		ao.CFrame = CFrame.Angles(0, math.pi + yaw, 0)
 
 		if speed > 0.05 then
 			phase += dt * STEP_HZ * math.pi * 2 * speed
