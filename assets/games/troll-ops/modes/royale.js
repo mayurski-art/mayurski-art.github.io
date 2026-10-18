@@ -14,7 +14,7 @@ import { WEAPON_DEFS, WeaponState } from "../weapons/weapons.js?v=p5bm-wst-hf1-f
 import { defaultLoadoutFor } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1";
 import { game } from "../core/state.js?v=st1";
-import { updateDropCine, dropCineEye, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1";
+import { updateDropCine, dropCineEye, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1";
 import { playSfx, preloadSfx } from "../sound/sfx-files.js?v=dc4";
 import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose } from "./royale-fall.js?v=dc3-dc4-rf1";
 
