@@ -42,6 +42,40 @@ const STATE = "/assets/games/troll-ops/core/state.js?v=st1";
 // The tag the game imports it at (one module instance): read from royale.js.
 const CINE = "/assets/games/troll-ops/modes/royale-cine.js?v=" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/modes/royale.js"), "utf8").match(/royale-cine\.js\?v=([a-z0-9-]+)/)[1];
 const CREW = "/assets/games/troll-ops/modes/royale-crew.js?v=" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/modes/royale-cine.js"), "utf8").match(/royale-crew\.js\?v=([a-z0-9-]+)/)[1];
+const FALL = "/assets/games/troll-ops/modes/royale-fall.js?v=" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/modes/royale.js"), "utf8").match(/royale-fall\.js\?v=([a-z0-9-]+)/)[1];
+// The fall's opening show (phase 3), sampled in the page each frame from
+// the first fall frame until its clock reaches `to`.
+const fallSamples = (page, to, max = 20000) => page.evaluate(async ({ u, fl, to, max }) => {
+  const { game } = await import(u);
+  const fall = await import(fl);
+  const THREE = await import("three");
+  const T = window.__trollOps;
+  const v = new THREE.Vector3(), q = new THREE.Quaternion();
+  const out = [];
+  return await new Promise((done) => {
+    const t0 = performance.now();
+    const tick = () => {
+      const fs = fall.fallShowState();
+      if (fs) {
+        const cam = game.camera, rig = game.localRig.root;
+        cam.updateMatrixWorld(); rig.updateMatrixWorld();
+        const up = v.set(0, 1, 0).applyQuaternion(cam.getWorldQuaternion(q)).y;
+        const face = v.set(0, 0, -1).applyQuaternion(rig.getWorldQuaternion(q)).y;
+        const body = new THREE.Vector3(game.move.pos.x, game.move.pos.y + 1, game.move.pos.z);
+        const sq = T.royale().drop.squadron, m = sq.planeM[sq.ridden];
+        const plane = m ? new THREE.Vector3().setFromMatrixPosition(m) : null;
+        out.push({ t: fs.t, back: fs.back, shot: fs.shot, view: fs.view, me: T.royale().me, rigVis: rig.visible, camUp: up, face,
+          camDist: cam.position.distanceTo(body), camDy: cam.position.y - body.y, camPlane: plane ? cam.position.distanceTo(plane) : null,
+          yaw: game.look.yaw, height: T.royale().flight?.height ?? null,
+          hv: Math.hypot(T.royale().flight?.vel.x ?? 0, T.royale().flight?.vel.z ?? 0) });
+      }
+      if ((fs && fs.t >= to) || performance.now() - t0 > max) done(out);
+      else requestAnimationFrame(tick);
+    };
+    tick();
+  });
+}, { u: STATE, fl: FALL, to, max });
+const fallAt = async (page, t) => (await fallSamples(page, t)).at(-1);
 const shot = async (page, name) => { if (OUT) await page.screenshot({ path: path.join(OUT, name) }); };
 
 async function open(lobbySeconds) {
@@ -107,6 +141,23 @@ const snap = (page, target = -Infinity, max = 70000) => page.evaluate(async ({ u
     tick();
   });
 }, { u: STATE, c: CINE, w: CREW, target, max });
+// The crew's measures on every frame the drop clock spends in [from, to].
+const CREW_LEAN0 = -16;   // royale-crew.js CREW.lean[0]
+const crewOver = (page, from, to) => page.evaluate(async ({ w, from, to }) => {
+  const crewMod = await import(w);
+  const T = window.__trollOps;
+  const out = [];
+  return await new Promise((done) => {
+    const t0 = performance.now();
+    const tick = () => {
+      const t = T.royale()?.planeT;
+      if (t != null && t >= from && t <= to) out.push({ t, ...crewMod.crewState() });
+      if ((t != null && t > to) || performance.now() - t0 > 70000) done(out);
+      else requestAnimationFrame(tick);
+    };
+    tick();
+  });
+}, { w: CREW, from, to });
 const st = (page) => snap(page);
 const until = (page, t, max = 70000) => snap(page, t, max);
 const setOpener = (page, pick, track) => page.evaluate(async ({ c, pick, track }) => (await import(c)).setDropOpener(pick, track), { c: CINE, pick, track });
@@ -114,6 +165,8 @@ const angOff = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
 
 // ---- photo: the card, then the whole scene
 const a = await open(45);
+// The lean beat, every frame (measured below): started now, before it.
+const leanWatch = crewOver(a, -16.5, -15.2);
 await setOpener(a, "photo", 0);
 let s = await st(a);
 check(s.t != null && s.t < -40.2, "boarded before the card", `t=${s.t?.toFixed(1)}`);
@@ -186,18 +239,21 @@ check(strokes.some((c) => c > 0.2 && c < 0.8), "the thumb across it", strokes.jo
 await shot(a, "photo-caress.png");
 
 // He's by you, standing still, from T-16.4; the lean and the tap run
-// T-16..T-14.8 (sampled mid-beat: a busy machine can hand back the frame
-// before the one asked for).
-s = await until(a, -16.15);
-const upright = s.crew?.jmLean ?? 0;
+// T-16..T-14.8. Every frame over it is measured (single samples land late
+// on a busy machine): leanWatch, from the top.
 s = await until(a, -15.7);
 check(/Hey\. Mask on, troll/.test(s.sub), "T-16: he cuts in", s.sub);
 check(s.pitch > -0.2, "the head comes up", `pitch=${s.pitch.toFixed(2)}`);
-const lean = await until(a, -15.4);
+const leanF = await leanWatch;
+const uprightF = leanF.filter((q) => q.t < CREW_LEAN0);
+const leaning = leanF.filter((q) => q.t > CREW_LEAN0 + 0.4);
+const upright = Math.min(...uprightF.map((q) => q.jmLean));
+const leanMax = Math.max(...leaning.map((q) => q.jmLean));
+const handMin = Math.min(...leaning.map((q) => q.jmHandToMouth));
 // The bodies (user: "make sure the body and arm movements are logically
 // correct"): he leans in toward you, his hand goes to his own mouth.
-check((lean.crew?.jmLean ?? 0) > upright + 0.04, "the jumpmaster leans in (forward, toward you)", `head ahead of hips ${upright.toFixed(2)} -> ${(lean.crew?.jmLean ?? 0).toFixed(2)} m`);
-check((lean.crew?.jmHandToMouth ?? 9) < 0.14, "his hand taps his own mouth", `hand ${(lean.crew?.jmHandToMouth ?? 9).toFixed(2)} m from it`);
+check(uprightF.length && leaning.length && leanMax > upright + 0.04, "the jumpmaster leans in (forward, toward you)", `head ahead of hips ${upright.toFixed(2)} -> ${leanMax.toFixed(2)} m (${uprightF.length}/${leaning.length} frames)`);
+check(handMin < 0.14, "his hand taps his own mouth", `hand ${handMin.toFixed(2)} m from it`);
 check(s.photoK < 0.95, "the photo's going away", `k=${s.photoK.toFixed(2)}`);
 check(s.memory < 0.2, "the warm edges fade", `memory=${s.memory.toFixed(2)}`);
 await shot(a, "photo-interrupt.png");
@@ -252,11 +308,52 @@ check(s.phase === "run", "the green still comes", s.phase);
 check(!s.on && !s.body, "the green: yours again, the HUD back", JSON.stringify({ on: s.on, body: s.body }));
 check(/GO! GO! GO!/.test(s.sub), "GO GO GO", s.sub);
 await shot(a, "go.png");
+// Watching from before the jump: the tumble is over in 1.5 s.
+const tumbleWatch = fallSamples(a, 1.5, 30000);
 await a.evaluate(() => window.__trollOps.keys.add("Space"));
 for (let i = 0; i < 80 && (await st(a)).me === "aboard"; i++) await sleep(100);
 await a.evaluate(() => window.__trollOps.keys.delete("Space"));
 s = await st(a);
 check(s.me === "fall" || s.me === "glide", "and the jump still works", s.me);
+
+// ---- the fall's opening show (phase 3)
+let fsm = await tumbleWatch;
+const tumble = fsm.filter((x) => x.shot === "tumble");
+check(fsm[0]?.back === true, "out backwards (facing into the hold)", JSON.stringify(fsm[0]));
+check(tumble.length > 3 && tumble.every((x) => !x.rigVis), "the tumble: first person, your body hidden", `${tumble.length} frames`);
+check(Math.min(...tumble.map((x) => x.camUp)) < -0.5, "the tumble goes over backwards (the view upside down)", `min up ${Math.min(...tumble.map((x) => x.camUp)).toFixed(2)}`);
+await shot(a, "fall-tumble.png");
+let x = await fallAt(a, 2.2);
+check(x.shot === "ramp" && x.rigVis, "cut: the wide from the ramp", JSON.stringify(x));
+check(x.camDy > 5 && x.camDist > 15, "left above where you went out, you falling away", `${x.camDist.toFixed(1)} m off, ${x.camDy.toFixed(1)} m up`);
+check(x.face > 0.7, "you on your back, face up", `face y ${x.face.toFixed(2)}`);
+await shot(a, "fall-ramp.png");
+x = await fallAt(a, 3.8);
+check(x.shot === "side" && Math.abs(x.camDist - 6.7) < 0.6, "cut: falling beside you", JSON.stringify(x));
+await shot(a, "fall-side.png");
+x = await fallAt(a, 4.7);
+check(x.shot === "low" && x.camDy < -7, "cut: below you looking up", JSON.stringify(x));
+await shot(a, "fall-low.png");
+await a.evaluate(() => window.__trollOps.keys.add("KeyW"));
+fsm = await fallSamples(a, 6.3);
+await a.evaluate(() => window.__trollOps.keys.delete("KeyW"));
+const show = fsm.filter((q) => q.t < 6);
+check(Math.max(...show.filter((q) => q.t > 5.2).map((q) => q.hv)) < 2.5, "no steering in the show (W held)", `${Math.max(...show.filter((q) => q.t > 5.2).map((q) => q.hv)).toFixed(1)} m/s`);
+x = fsm.at(-1);
+check(x.shot === "behind" && x.face < -0.7, "then behind you, belly down", JSON.stringify(x));
+check(Math.abs(x.camDist - 7) < 1.2, "the usual drop camera", `${x.camDist.toFixed(1)} m`);
+await shot(a, "fall-behind.png");
+// Hold-to-view: crouch held cycles the angles, two seconds each.
+await a.evaluate(() => window.__trollOps.keys.add("KeyC"));
+fsm = await fallSamples(a, x.t + 2);
+const views = [...new Set(fsm.map((q) => q.view))];
+const high = fsm.filter((q) => q.height > 80);
+check(views.includes(0) && (views.includes(1) || high.length < fsm.length), "C held: the angles cycle (side, then low)", JSON.stringify({ views, from: fsm[0]?.height?.toFixed(0), to: fsm.at(-1)?.height?.toFixed(0) }));
+check(fsm.every((q) => q.height > 80 || q.view === -1), "never under 80 m", "");
+await shot(a, "fall-view.png");
+await a.evaluate(() => window.__trollOps.keys.delete("KeyC"));
+x = (await fallSamples(a, fsm.at(-1).t + 0.3)).at(-1) ?? fsm.at(-1);
+check(x.view === -1 && Math.abs(x.camDist - 7) < 1.2, "let go: back behind you", JSON.stringify(x));
 await a.close();
 
 // ---- music: the iPod and a Troll Radio song, the radio put back after

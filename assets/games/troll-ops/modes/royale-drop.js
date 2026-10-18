@@ -266,12 +266,13 @@ export class Flight {
     this.heading = 0;      // glide heading (yaw), set on opening
   }
 
-  /* `input`: { forward, strafe, yaw, pitch, open } (forward/strafe -1..1).
+  /* `input`: { forward, strafe, yaw, pitch, open, coast } (forward/strafe -1..1).
      `groundAt(x, z, fromY)`: the ground height under a point. */
   update(dt, input, groundAt) {
     if (this.state === "landed") return;
     const ground = groundAt(this.pos.x, this.pos.z, this.pos.y) ?? 0;
     const height = this.pos.y - ground;
+    this.height = height;   // read by the fall camera (royale-fall.js)
     const fx = -Math.sin(input.yaw), fz = -Math.cos(input.yaw);   // where you look
     const rx = Math.cos(input.yaw), rz = -Math.sin(input.yaw);
 
@@ -288,7 +289,10 @@ export class Flight {
         const level = this.track && input.forward > 0 ? input.forward * (1 - Math.min(1, Math.max(0, (-input.pitch - 0.2) / 0.5))) : 0;
         const fall = DROP.fallSpeed + (DROP.trackFall - DROP.fallSpeed) * level;
         const targetY = -(dive ? DROP.diveSpeed : fall);
-        this.vel.y += (targetY - this.vel.y) * Math.min(1, dt * 1.6);
+        // Just out of the plane (the drop cinematic's fall, `input.coast`):
+        // the speed builds as off a real exit, not in a second or two, so
+        // the show doesn't spend the height you'd fly with.
+        this.vel.y += (targetY - this.vel.y) * Math.min(1, dt * (input.coast ? 0.25 : 1.6));
         const fwd = input.forward < 0 && this.track ? input.forward * DROP.backSteer
           : input.forward * this.steer + level * (DROP.trackSpeed - this.steer);
         const hx = fx * fwd + rx * input.strafe * this.steer;
