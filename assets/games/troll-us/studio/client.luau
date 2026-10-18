@@ -28,6 +28,7 @@ local LEAN = 0.08
 local VISION = { crew = 24, impostor = 36, lights = 8 }
 
 local KillClips = require(TU:WaitForChild("KillClips"))
+local Sounds = require(TU:WaitForChild("Sounds"))
 local fx = Instance.new("Folder"); fx.Name = "TrollUsFX"; fx.Parent = workspace -- this client's own effects
 local shakeUntil = 0
 
@@ -60,7 +61,13 @@ Net.OnClientEvent:Connect(function(kind, data)
 				r.CFrame = CFrame.new(base + Vector3.new(0, y, 0)) * CFrame.Angles(0, 0, math.rad(90))
 			end
 		end)
+	elseif kind == "Vent" and data.at then
+		Sounds.at("vent", data.at)
+	elseif kind == "Door" and data.at then
+		-- the slam lands when the panel hits the floor
+		if data.shut then task.delay(0.4, function() Sounds.at("door", data.at) end) else Sounds.at("door", data.at, { volume = 0.45, speed = 1.3 }) end
 	elseif kind == "Kill" and data.from and data.at then
+		Sounds.at("kill", data.at)
 		-- everyone gets the clip in the world; within sight range it also shakes your view
 		KillClips.play(fx, data.clip, data.from, data.at)
 		local me = player.Character
@@ -81,6 +88,12 @@ local function setup(char)
 	myChar = char
 	myHrp = char:WaitForChild("HumanoidRootPart")
 	myHum = char:WaitForChild("Humanoid")
+	-- the stock Roblox character sounds (plastic running, jumping) would double up with our own footsteps
+	local function mute(d)
+		if d:IsA("Sound") and not Sounds.ours(d) then d.Volume = 0 end
+	end
+	for _, d in ipairs(myHrp:GetDescendants()) do mute(d) end
+	myHrp.DescendantAdded:Connect(mute)
 	local att = Instance.new("Attachment"); att.Parent = myHrp
 	ao = Instance.new("AlignOrientation")
 	ao.Mode = Enum.OrientationAlignmentMode.OneAttachment
@@ -160,8 +173,18 @@ local function animate(m, dt)
 		return
 	end
 	if speed > 0.05 then
+		local before = math.floor(st.phase / math.pi)
 		st.phase += dt * STEP_HZ * math.pi * 2 * speed
 		local s = math.sin(st.phase)
+		-- a footstep each time a foot plants (sin crosses zero), from the bean itself so you hear who is
+		-- behind you; yours are quieter. Out of earshot nothing is made at all.
+		if math.floor(st.phase / math.pi) ~= before and speed > 0.3 then
+			local far = (camera.CFrame.Position - hrp.Position).Magnitude
+			if far < 40 then
+				st.foot = not st.foot
+				Sounds.on(hrp, st.foot and "step1" or "step2", { volume = m == myChar and 0.55 or 1, speed = 0.92 + math.random() * 0.16 })
+			end
+		end
 		legL.Transform = CFrame.Angles(s * LEG_SWING, 0, 0)
 		legR.Transform = CFrame.Angles(-s * LEG_SWING, 0, 0)
 		root.Transform = CFrame.new(0, math.abs(s) * BOB, 0) * CFrame.Angles(0, 0, s * LEAN)

@@ -66,6 +66,11 @@ Rules.fixPads = {
 	Comms = { { room = "Communications", x = 34, z = 44 } },
 }
 
+-- uploaded audio: name -> "rbxassetid://..." once the WAVs in assets/games/troll-us/sounds are on Roblox.
+-- An empty entry plays rbxasset://sounds/trollus/<name>.wav (the WAVs copied into Studio for local tests).
+-- Names: step1 step2 kill vent door siren report vote eject win defeat task alarm reveal click
+Rules.sounds = {}
+
 Rules.suits = { "Red", "Blue", "Green", "Pink", "Orange", "Yellow", "Black", "White", "Purple", "Brown", "Cyan", "Lime" }
 Rules.botNames = { "Alex", "Sam", "Jordan", "Casey", "Riley", "Morgan", "Taylor", "Jamie", "Avery", "Quinn" }
 

@@ -191,6 +191,7 @@ diedView.CurrentCamera = diedCam
 local diedText = label({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -40), Size = UDim2.fromOffset(800, 80),
 	Font = BLACK, TextSize = 58, ZIndex = 12, Text = "You were killed", TextStrokeTransparency = 0 }, died)
 local KillClips = require(TU:WaitForChild("KillClips"))
+local Sounds = require(TU:WaitForChild("Sounds"))
 
 -- a still copy of a bean for a ViewportFrame: anchored, scripts and tags gone, every joint back at rest
 -- (a live bean is caught mid-waddle). Player characters are not archivable; flipping it only affects this client.
@@ -397,6 +398,7 @@ local function openPanel(d)
 		scan = function() Net:FireServer("Scan") end }
 	cleanupGame = TaskPanels.open(gameArea, d.task, info, function()
 		doneCard.Visible = true
+		Sounds.play("task")
 		-- the server wants a moment between opening and finishing a task
 		local wait = math.max(0, 1.1 - (os.clock() - d.openedAt))
 		task.delay(wait, function()
@@ -718,6 +720,7 @@ Net.OnClientEvent:Connect(function(kind, d)
 		end
 		btnKill.Visible, btnVent.Visible, btnSab.Visible, btnExit.Visible = imp, imp, imp, imp
 		drawTasks()
+		Sounds.play("reveal")
 	elseif kind == "Tasks" then
 		me.tasks = d
 		drawTasks()
@@ -730,12 +733,14 @@ Net.OnClientEvent:Connect(function(kind, d)
 		bannerSub.Text = d.by .. (body and " found a body" or " called a meeting")
 		banner.BackgroundColor3 = body and Color3.fromRGB(120, 0, 0) or Color3.fromRGB(150, 70, 0)
 		banner.Visible = true
+		Sounds.play(body and "report" or "siren")
 	elseif kind == "MeetingStart" then
 		me.roster = d.roster
 		buildRows(d.roster)
 	elseif kind == "Voted" then
 		local row = rows[d.id]
 		if row then row.voted.Visible = true end
+		Sounds.play("vote")
 	elseif kind == "VoteResults" then
 		local suitOf = {}
 		for _, r in ipairs(me.roster) do suitOf[r.id] = r.suit end
@@ -747,6 +752,7 @@ Net.OnClientEvent:Connect(function(kind, d)
 		addChat(d.from, d.suit, d.text, d.ghost)
 	elseif kind == "Eject" then
 		ejectText.Text = ""; ejectSub.Text = ""
+		Sounds.play("eject")
 		ejectBean.Visible = d.suit ~= nil
 		if d.suit then
 			ejectBean.BackgroundColor3 = suitColor(d.suit)
@@ -766,6 +772,7 @@ Net.OnClientEvent:Connect(function(kind, d)
 	elseif kind == "GameOver" then
 		local won = (d.winner == "Impostors") == (me.role == "Impostor")
 		overTitle.Text = won and "VICTORY" or "DEFEAT"
+		Sounds.play(won and "win" or "defeat")
 		overTitle.TextColor3 = won and BLUE or RED
 		overSub.Text = d.reason
 		local names = {}
@@ -782,6 +789,26 @@ Net.OnClientEvent:Connect(function(kind, d)
 		if c and d.killer == c:GetAttribute("TUId") then me.killReadyAt = now() + R("killCooldown") end
 	end
 end)
+
+-- ---------- sound: the critical-sabotage alarm and button clicks ----------
+-- Reactor and O2 beep until they are fixed (or the meeting/round ends them)
+local alarmSound
+local function updateAlarm()
+	local sab = TU:GetAttribute("Sabotage")
+	local on = TU:GetAttribute("Phase") == "Roam" and (sab == "Reactor" or sab == "O2")
+	if on and not alarmSound then alarmSound = Sounds.play("alarm", { loop = true })
+	elseif not on and alarmSound then alarmSound:Destroy(); alarmSound = nil end
+end
+TU:GetAttributeChangedSignal("Sabotage"):Connect(updateAlarm)
+TU:GetAttributeChangedSignal("Phase"):Connect(updateAlarm)
+-- every button on the HUD, the meeting tablet and the task tablet clicks
+local function clicky(o)
+	if o:IsA("GuiButton") then o.Activated:Connect(function() Sounds.play("click") end) end
+end
+for _, g in ipairs({ gui, taskGui }) do
+	for _, o in ipairs(g:GetDescendants()) do clicky(o) end
+	g.DescendantAdded:Connect(clicky)
+end
 
 -- ---------- frame ----------
 RunService.RenderStepped:Connect(function(dt)

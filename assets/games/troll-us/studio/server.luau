@@ -342,6 +342,8 @@ end
 -- a door's Panel/Stripe/Edge children slide between their OpenCF and ShutCF; the Lamp goes red while shut
 local DOOR_SLIDE = TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local function setDoor(d, shut)
+	-- the slam is heard near the door (only when it actually changes)
+	if d.CanCollide ~= shut then broadcast("Door", { at = d.Position, shut = shut }) end
 	d.CanCollide = shut
 	for _, c in ipairs(d:GetChildren()) do
 		local cf = c:GetAttribute(shut and "ShutCF" or "OpenCF")
@@ -433,6 +435,7 @@ local function ventsInGroup(g)
 end
 local function ventTo(p, v)
 	p.venting = v
+	broadcast("Vent", { at = v.Position }) -- the lid pops: anyone close by hears it
 	local hrp = hrpOf(p)
 	if hrp then hrp.Anchored = true end
 	moveTo(p, v.Position)
@@ -443,6 +446,7 @@ local function ventExit(p)
 	if not p.venting then return end
 	local v = p.venting
 	p.venting = nil
+	broadcast("Vent", { at = v.Position })
 	local hrp = hrpOf(p)
 	moveTo(p, v.Position)
 	if hrp then hrp.Anchored = false end
