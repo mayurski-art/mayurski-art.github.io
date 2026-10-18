@@ -11,7 +11,9 @@
 //   the jumpmaster   by the crew hatch; walks down to you as you sit
 //                    (T-19.6), leans in at T-16 and taps his face (mask on),
 //                    points aft at T-9, goes ahead to the ramp, holds the
-//                    strap; waves you round at T-1.6, GO at the green
+//                    strap; waves you round at T-1.6, steps in front of
+//                    you, and at the green shoves you out backwards
+//                    (user, 2026-10-18), then GO GO GO
 //   the squad mate   in the seat across from you (the bot drawn there is
 //                    hidden: crewSeat()); masks up with you, stands at T-8,
 //                    lines up beside you at the ramp, turns with you
@@ -37,7 +39,10 @@ export const CREW = {
   mateWalk: -7.4,
   wave: [-1.7, -0.4],     // round you go: back to the door
   turn: [-1.6, -0.3],     // you both turn to face into the hold
-  go: [0, 1.6],           // GO GO GO
+  stepIn: [-0.9, -0.2],   // he steps in, square in front of you
+  shove: [0.02, 0.6],     // both hands to your chest and out: the push
+  shoveHit: 0.3,          // ...his hands land (royale-cine.js sends you back)
+  go: [0.6, 2.2],         // GO GO GO
   mask: [-14.6, -8.8],    // the squad mate's mask on
   seatY: 0.44,
 };
@@ -76,8 +81,9 @@ export function crewSeat(seat) {
 }
 
 /* Your lane from the seat to the ramp (royale-cine.js walks you along it). */
+export const RAMP_SPOT = (side) => ({ x: side * 0.3, z: 5.7 });
 export function yourRampPath(side, seatX, seatZ) {
-  return [{ x: seatX, z: seatZ }, { x: side * 0.62, z: seatZ + 0.15 }, { x: side * 0.62, z: 4.6 }, { x: side * 0.3, z: 5.7 }];
+  return [{ x: seatX, z: seatZ }, { x: side * 0.62, z: seatZ + 0.15 }, { x: side * 0.62, z: 4.6 }, RAMP_SPOT(side)];
 }
 
 let crew = null;
@@ -119,6 +125,9 @@ export function crewState() {
     jmHandToMouth: w(jr.parts.handR).distanceTo(w(jr.parts.head, 0.12 * g.width / 2, -0.42 * g.height / 2, 0.05)),
     // the squad mate's hands from his mask
     mateHandsToMask: Math.max(w(mr.parts.handL).distanceTo(w(crew.mate.mask)), w(mr.parts.handR).distanceTo(w(crew.mate.mask))),
+    // where his hands are (world): the shove lands them on your chest
+    jmHands: w(jr.parts.handL).add(w(jr.parts.handR)).multiplyScalar(0.5).toArray(),
+    jmReach: crew.jm.reach ?? null,   // closest his hands came to your chest in the shove
   };
 }
 
@@ -207,9 +216,16 @@ export function updateCrew(r, t, dt, you, side, seatZ) {
   const jz = Math.max(-4.9, Math.min(4.6, seatZ - 1.0));
   const toYou = [{ x: 0, z: -5.0 }, { x: side * 0.62, z: -4.9 }, { x: side * 0.62, z: jz }];
   const toRamp = [{ x: side * 0.62, z: jz }, { x: side * 0.45, z: jz + 0.3 }, { x: side * 0.45, z: 3.6 }, { x: side * 1.0, z: 4.1 }];
+  // Then square in front of you at the ramp (you face in, he faces you).
+  const rampAt = RAMP_SPOT(side), front = { x: rampAt.x, z: rampAt.z - 0.82 };
   const jp = t < CREW.jmToRamp
     ? pathAt(toYou, CREW.jmWalk, paceFor(toYou, CREW.jmWalk, CREW.jmBy, 1.4), t, jm.pos)
-    : pathAt(toRamp, CREW.jmToRamp, paceFor(toRamp, CREW.jmToRamp, -5.6, 1.6), t, jm.pos);
+    : t < CREW.stepIn[0]
+      ? pathAt(toRamp, CREW.jmToRamp, paceFor(toRamp, CREW.jmToRamp, -5.6, 1.6), t, jm.pos)
+      : pathAt([toRamp.at(-1), front], CREW.stepIn[0], paceFor([toRamp.at(-1), front], CREW.stepIn[0], CREW.stepIn[1], 1), t, jm.pos);
+  // The shove: his weight goes in behind his hands, a short step at you.
+  const lunge = shoveK(t);
+  jp.z += lunge * 0.16;
   let jyaw = jp.yaw, jpitch = 0;
   const atYou = Math.atan2(-(you.x - jp.x), -(you.z - jp.z));
   if (t < CREW.jmWalk) jyaw = Math.PI;   // by the hatch, looking down the hold
@@ -219,9 +235,17 @@ export function updateCrew(r, t, dt, you, side, seatZ) {
     const aft = smooth(CREW.point[0] - 0.4, CREW.point[0], t);
     jyaw = lerpAngle(atYou, Math.PI, aft);
     jpitch = -0.4 * (1 - aft);
-  } else if (!jp.moving) jyaw = atYou;   // at the ramp: watching you
+  } else if (!jp.moving && t >= CREW.stepIn[0]) jyaw = Math.PI;   // facing you square (you face -z, he faces +z)
+  else if (!jp.moving) jyaw = atYou;   // at the ramp: watching you
   const jrig = place(jm, { x: jp.x, z: jp.z, yaw: jyaw, moving: jp.moving, mps: 2.4, pitch: jpitch, dt });
   poseJumpmaster(jrig, t);
+  // How close his hands came to your chest as they landed (the tests read
+  // it): still plane-local here, before carry().
+  if (t >= CREW.shoveHit - 0.02 && t <= CREW.shoveHit + 0.12) {
+    const hl = jrig.parts.handL.getWorldPosition(_a), hr = jrig.parts.handR.getWorldPosition(_b);
+    const d = hl.add(hr).multiplyScalar(0.5).distanceTo(_c.set(rampAt.x, 1.23, rampAt.z));
+    jm.reach = Math.min(jm.reach ?? 9, d);
+  } else if (t < CREW.shove[0]) jm.reach = null;
   jm.lastT = t;
   carry(jrig, m);
 
@@ -273,6 +297,17 @@ function poseJumpmaster(rig, t) {
     const c = (t - CREW.wave[0]) * 9;
     reachFrom(rig, 1, _a.set((0.3 + Math.cos(c) * 0.05) * s, (0.28 + Math.sin(c) * 0.05) * s, -0.22 * s), wave, POLE_DOWN_R);
   }
+  const up = smooth(CREW.shove[0], CREW.shove[0] + 0.12, t) * (1 - smooth(CREW.shove[1] - 0.15, CREW.shove[1], t));
+  if (up > 0) {
+    // Both hands up flat at his chest, then out at yours, his body behind them.
+    const k = shoveK(t);
+    p.torso.rotation.x += LEAN * 0.22 * Math.max(0, k);
+    rig.root.updateMatrixWorld(true);
+    for (const side of [-1, 1]) {
+      _a.set(side * 0.16 * s, 0.06 * s, (-0.3 - 0.36 * k) * s);
+      reachFrom(rig, side, _a, up, side > 0 ? POLE_OUT_R : POLE_OUT_L);
+    }
+  }
   const go = smooth(CREW.go[0], CREW.go[0] + 0.15, t) * (1 - smooth(CREW.go[1] - 0.3, CREW.go[1], t));
   if (go > 0) {
     // Up by the ear, then down and out at the door, over and over.
@@ -283,6 +318,16 @@ function poseJumpmaster(rig, t) {
   }
   rig.body?.update?.();
   rig.root.updateMatrixWorld(true);
+}
+
+/* The shove's reach: 0 hands at his chest .. 1 arms out straight; the
+   wind-up draws them in first. */
+function shoveK(t) {
+  const [a, b] = CREW.shove, hit = CREW.shoveHit;
+  if (t < a || t > b) return 0;
+  if (t < hit - 0.08) return -0.25 * smooth(a, hit - 0.08, t);          // drawn back
+  if (t < hit) return -0.25 + 1.25 * smooth(hit - 0.08, hit, t);         // out
+  return 1 - smooth(hit + 0.12, b, t);                                    // and back down
 }
 
 /* The squad mate in his seat: hands on his knees; with you, both hands

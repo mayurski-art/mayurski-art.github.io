@@ -2,7 +2,11 @@
 // card, then the photo or the iPod, then the mask, T-22 to T-8 on the drop
 // clock. A PRIVATE room code (Supabase is blocked; never a public room),
 // bots on, the lobby cut to 45 s:
-//   - T-40..T-22: the card (photo or music; ← → pick, ↑ ↓ song);
+//   - T-36: walked to your seat from across the hold (round the pallet),
+//     sat down; the card only once you're seated (photo or music;
+//     ← → pick, ↑ ↓ song); in third person your body walks and sits, the
+//     camera finds room in the hold, the scene itself is first person;
+//   - the green: the jumpmaster shoves you out, no key needed;
 //   - photo: T-22 the scene starts, seated (keys don't move you), facing
 //     across the hold, the HUD out, the photo up, the thumb across it, the
 //     jumpmaster cuts in at T-16, the mask on (visor dark, fog on the
@@ -67,7 +71,9 @@ const fallSamples = (page, to, max = 20000) => page.evaluate(async ({ u, fl, to,
         out.push({ t: fs.t, back: fs.back, shot: fs.shot, view: fs.view, me: T.royale().me, rigVis: rig.visible, camUp: up, face,
           camDist: cam.position.distanceTo(body), camDy: cam.position.y - body.y, camPlane: plane ? cam.position.distanceTo(plane) : null,
           yaw: game.look.yaw, height: T.royale().flight?.height ?? null,
-          hv: Math.hypot(T.royale().flight?.vel.x ?? 0, T.royale().flight?.vel.z ?? 0) });
+          sub: !!document.querySelector(".to-dropcine-sub.is-on"), bars: !!document.querySelector(".to-dropcine-ui.is-on"),
+          hv: Math.hypot(T.royale().flight?.vel.x ?? 0, T.royale().flight?.vel.z ?? 0),
+          ...(() => { const p = fall.fallFaceOnScreen(cam); return { faceX: p.x, faceY: p.y, faceZ: p.z }; })() });
       }
       if ((fs && fs.t >= to) || performance.now() - t0 > max) done(out);
       else requestAnimationFrame(tick);
@@ -113,7 +119,7 @@ const snap = (page, target = -Infinity, max = 70000) => page.evaluate(async ({ u
   const card = document.querySelector(".to-dropcine-card");
   const m = game.music;
   return {
-    crew: crewMod.crewState(), eye: cine.dropCineEye(), lz: game.move.pos.z - (r?.drop?.origin?.z ?? 0),
+    crew: crewMod.crewState(), eye: cine.dropCineEye(), sitK: cine.dropCineSitK(), lz: game.move.pos.z - (r?.drop?.origin?.z ?? 0),
     light: T.planes()?.hold?.light, ramp: +(T.planes()?.hold?.rampK ?? 0).toFixed(2),
     t: r?.planeT ?? null, phase: r?.drop?.phase, me: r?.me, on: cine.dropCineOn(), k: cine.dropCineMaskK(),
     holding: game.player.holding, kind: game.streakDeviceKind, mask: !!cine.dropCineMask().visible,
@@ -161,6 +167,33 @@ const crewOver = (page, from, to) => page.evaluate(async ({ w, from, to }) => {
   });
 }, { w: CREW, from, to });
 const st = (page) => snap(page);
+// Every frame from now to drop clock `to`: where you are in the hold.
+const holdPath = (page, to) => page.evaluate(async (to) => {
+  const T = window.__trollOps, out = [];
+  return await new Promise((done) => {
+    const t0 = performance.now();
+    const tick = () => {
+      const r = T.royale(), o = r.drop.origin;
+      const card = document.querySelector(".to-dropcine-card");
+      out.push({ t: r.planeT, x: T.move.pos.x - o.x, z: T.move.pos.z - o.z, card: !!card && !card.hidden });
+      if (r.planeT >= to || performance.now() - t0 > 60000) done(out);
+      else requestAnimationFrame(tick);
+    };
+    tick();
+  });
+}, to);
+// Third person: how far the camera is from your head, and where your head
+// is on screen.
+const tpView = (page) => page.evaluate(async (u) => {
+  const { game } = await import(u);
+  const head = game.localRig.parts.head;
+  head.updateWorldMatrix(true, false);
+  const h = head.getWorldPosition(game.camera.position.clone());
+  const dist = h.distanceTo(game.camera.position);
+  game.camera.updateMatrixWorld();
+  const p = h.clone().project(game.camera);
+  return { dist, x: p.x, y: p.y, z: p.z, vis: game.localRig.root.visible };
+}, STATE);
 const until = (page, t, max = 70000) => snap(page, t, max);
 const setOpener = (page, pick, track) => page.evaluate(async ({ c, pick, track }) => (await import(c)).setDropOpener(pick, track), { c: CINE, pick, track });
 const angOff = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
@@ -171,11 +204,31 @@ const a = await open(45);
 const leanWatch = crewOver(a, -16.5, -15.2);
 await setOpener(a, "photo", 0);
 let s = await st(a);
-check(s.t != null && s.t < -40.2, "boarded before the card", `t=${s.t?.toFixed(1)}`);
-check(!s.on && !s.body && !s.card, "nothing before T-40");
-
-s = await until(a, -39);
-check(s.card && s.cardPick === "photo", "T-40: the card is up, photo picked", JSON.stringify({ card: s.card, pick: s.cardPick }));
+check(s.t != null && s.t < -36.2, "boarded before the walk to the seat", "t=" + s.t?.toFixed(1));
+check(!s.on && !s.body && !s.card, "nothing before T-36");
+// Stand across the hold from your seat, beside the pallet: the walk has to
+// go round behind it.
+const seatSide = await a.evaluate(() => { const T = window.__trollOps, r = T.royale(), o = r.drop.origin, l = r.drop.hold.seats?.[r.seat]?.local; const side = (l?.x ?? 1) < 0 ? -1 : 1; T.move.reset(o.x - side * 0.8, o.z - 3.3, o.y); return side; });
+s = await until(a, -36.5);
+await a.evaluate(() => window.__trollOps.keys.add("KeyA"));   // keys mustn't move you off it
+const walked = await holdPath(a, -30.2);
+await a.evaluate(() => window.__trollOps.keys.delete("KeyA"));
+const during = walked.filter((q) => q.t > -35.8);
+const inPallet = during.filter((q) => Math.abs(q.x) < 0.43 && q.z > -4.65 && q.z < -2.1);
+check(during.length > 10 && !inPallet.length, "walked to the seat round the pallet, not through it", inPallet.length + " frames in it");
+check(during.every((q) => Math.abs(q.x) < 1.45), "...and inside the hold's walls");
+check(Math.sign(walked.at(-1).x) === seatSide && Math.abs(walked.at(-1).x) > 0.9, "...to your own seat", JSON.stringify(walked.at(-1)));
+const early = walked.filter((q) => q.card && q.t < -29.7);
+check(!early.length, "no card while you're still getting to your seat", early.length ? "up at t=" + early[0].t.toFixed(2) : "");
+s = await until(a, -29.3);
+check(s.sitK > 0.95 && s.eye < -0.35, "sat down", JSON.stringify({ sitK: s.sitK, eye: s.eye }));
+const x1 = s.x, z1 = s.z;
+await a.evaluate(() => window.__trollOps.keys.add("KeyW"));
+await sleep(500);
+await a.evaluate(() => window.__trollOps.keys.delete("KeyW"));
+s = await st(a);
+check(Math.hypot(s.x - x1, s.z - z1) < 0.05, "seated: W doesn't move you", (Math.hypot(s.x - x1, s.z - z1)).toFixed(3));
+check(s.card && s.cardPick === "photo", "sat down: the card is up, photo picked", JSON.stringify({ card: s.card, pick: s.cardPick }));
 check(!s.on && !s.body, "the scene hasn't started");
 await shot(a, "card-photo.png");
 await a.keyboard.press("ArrowRight");
@@ -305,18 +358,20 @@ check(Math.cos(s.yaw) > 0.8, "turned round to face into the hold", `yaw=${s.yaw.
 check(s.crew?.jm.shown && s.crew?.mate.shown, "the crew in the hold with you", JSON.stringify(s.crew));
 await shot(a, "turned.png");
 
-s = await until(a, 0.4, 30000);
+// The shove: his hands land on your chest as the light goes green.
+s = await until(a, -0.5, 30000);
+check(s.crew?.jm.shown && s.crew.jmHands, "he's stepped in front of you", JSON.stringify(s.crew?.jm));
+const tumbleWatch = fallSamples(a, 1.5, 30000);   // the tumble is over in 1.5 s
+s = await until(a, 0.5, 30000);
+// The game's own measure (royale-crew.js): sampled from out here, a busy
+// machine skips the few frames the hands are on you.
+check((s.crew?.jmReach ?? 9) < 0.3, "the green: his hands land on your chest", (s.crew?.jmReach ?? 9).toFixed(2) + " m");
+await shot(a, "shove.png");
 check(s.phase === "run", "the green still comes", s.phase);
-check(!s.on && !s.body, "the green: yours again, the HUD back", JSON.stringify({ on: s.on, body: s.body }));
 check(/GO! GO! GO!/.test(s.sub), "GO GO GO", s.sub);
-await shot(a, "go.png");
-// Watching from before the jump: the tumble is over in 1.5 s.
-const tumbleWatch = fallSamples(a, 1.5, 30000);
-await a.evaluate(() => window.__trollOps.keys.add("Space"));
-for (let i = 0; i < 80 && (await st(a)).me === "aboard"; i++) await sleep(100);
-await a.evaluate(() => window.__trollOps.keys.delete("Space"));
+for (let i = 0; i < 40 && (await st(a)).me === "aboard"; i++) await sleep(100);
 s = await st(a);
-check(s.me === "fall" || s.me === "glide", "and the jump still works", s.me);
+check(s.me === "fall" || s.me === "glide", "shoved out, no key pressed", s.me);
 
 // ---- the fall's opening show (phase 3)
 let fsm = await tumbleWatch;
@@ -330,11 +385,16 @@ check(x.shot === "ramp" && x.rigVis, "cut: the wide from the ramp", JSON.stringi
 check(x.camDy > 5 && x.camDist > 15, "left above where you went out, you falling away", `${x.camDist.toFixed(1)} m off, ${x.camDy.toFixed(1)} m up`);
 check(x.face > 0.7, "you on your back, face up", `face y ${x.face.toFixed(2)}`);
 await shot(a, "fall-ramp.png");
+check(Math.abs(x.faceX) < 0.45 && Math.abs(x.faceY) < 0.5 && x.faceZ < 1, "your face in the middle of it", JSON.stringify({ x: x.faceX, y: x.faceY }));
 x = await fallAt(a, 3.8);
-check(x.shot === "side" && Math.abs(x.camDist - 6.7) < 0.6, "cut: falling beside you", JSON.stringify(x));
-await shot(a, "fall-side.png");
-x = await fallAt(a, 4.7);
-check(x.shot === "low" && x.camDy < -7, "cut: below you looking up", JSON.stringify(x));
+check(x.shot === "face" && x.camDy > 1.2 && x.camDist < 3.5, "cut: just over you, into your face", JSON.stringify(x));
+check(Math.abs(x.faceX) < 0.45 && Math.abs(x.faceY) < 0.6 && x.faceZ < 1, "...your face in frame", JSON.stringify({ x: x.faceX, y: x.faceY }));
+check(!x.sub && !x.bars, "out of the plane: the subtitle and the bars are gone", JSON.stringify({ sub: x.sub, bars: x.bars }));
+await shot(a, "fall-face.png");
+x = await fallAt(a, 5.9);
+check(x.shot === "low" && x.camDy < -1.2 && x.camDist < 3.2, "cut: close below as you roll over", JSON.stringify(x));
+check(Math.abs(x.faceX) < 0.5 && Math.abs(x.faceY) < 0.6 && x.faceZ < 1, "...your face in frame", JSON.stringify({ x: x.faceX, y: x.faceY }));
+check(x.face < -0.5, "...belly down by the end of it", "face y " + x.face.toFixed(2));
 await shot(a, "fall-low.png");
 await a.evaluate(() => window.__trollOps.keys.add("KeyW"));
 fsm = await fallSamples(a, 6.3);
@@ -347,10 +407,10 @@ check(Math.abs(x.camDist - 7) < 1.2, "the usual drop camera", `${x.camDist.toFix
 await shot(a, "fall-behind.png");
 // Hold-to-view: crouch held cycles the angles, two seconds each.
 await a.evaluate(() => window.__trollOps.keys.add("KeyC"));
-fsm = await fallSamples(a, x.t + 2);
+fsm = await fallSamples(a, x.t + 2.6);
 const views = [...new Set(fsm.map((q) => q.view))];
 const high = fsm.filter((q) => q.height > 80);
-check(views.includes(0) && (views.includes(1) || high.length < fsm.length), "C held: the angles cycle (side, then low)", JSON.stringify({ views, from: fsm[0]?.height?.toFixed(0), to: fsm.at(-1)?.height?.toFixed(0) }));
+check(views.includes(0) && (views.includes(1) || high.length < fsm.length), "C held: the angles cycle (side, then front)", JSON.stringify({ views, from: fsm[0]?.height?.toFixed(0), to: fsm.at(-1)?.height?.toFixed(0) }));
 check(fsm.every((q) => q.height > 80 || q.view === -1), "never under 80 m", "");
 await shot(a, "fall-view.png");
 await a.evaluate(() => window.__trollOps.keys.delete("KeyC"));
@@ -363,7 +423,8 @@ for (const n of ["mask-hiss", "breathing", "strap-snap", "belt", "steps", "latch
 await a.close();
 
 // ---- music: the iPod and a Troll Radio song, the radio put back after
-const b = await open(30);
+const b = await open(45);
+await setOpener(b, "music", 2);   // picked before the scene, as the music checks below expect
 s = await st(b);
 const N = s.music?.tracks || 0;
 check(N > 2, "Troll Radio has tracks", String(N));
@@ -372,9 +433,11 @@ await setOpener(b, "music", 2);
 const before = s.music;
 s = await until(b, -21.5);
 check(s.on && s.kind === "ipod", "T-22: the iPod is in the hands", JSON.stringify({ on: s.on, kind: s.kind }));
-s = await until(b, -20);
+// (Sampled late on a busy machine the song may be on already: then it
+// mustn't have started before the press, T-19.4, by its own clock.)
+check(!s.song || s.music.at <= s.t + 19.4 + 0.3, "nothing playing before play's pressed", "t=" + s.t?.toFixed(2) + " song at " + s.music?.at?.toFixed(2));
+s = await until(b, -20.4);
 check(s.ipod && s.ipodK > 0.9 && !s.photo, "the iPod is up, no photo", `k=${s.ipodK.toFixed(2)}`);
-check(!s.song, "nothing playing before play's pressed");
 await shot(b, "ipod-list.png");
 s = await until(b, -18.4);
 check(s.song && s.song.index === 2, "play: the picked song is on", JSON.stringify(s.song));

@@ -5,16 +5,19 @@
 //   0   .. 1.5  the tumble, first person: out backwards you go over once
 //               (the hold rolls up out of sight, the plane's belly, sky)
 //               and land on your back; out forwards, a head-first tip
-//   1.5 .. 3    cut: wide, from where you left the ramp, you shrinking
-//               below it as the plane pulls away
-//   3   .. 4.5  cut: falling beside you, the plane going on behind
-//   4.5 .. 6    cut: below you looking up, as you roll onto your belly
+//   1.5 .. 3    cut: from where you left the ramp, a long lens on your
+//               face as you fall away on your back (framed as if from 3 m)
+//   3   .. 4.5  cut: just over you, looking down into your face
+//   4.5 .. 6    cut: close below, ahead of your head: your face comes
+//               round into it as you roll onto your belly
 //   6 on        the camera behind you; yours to fly
+// Every shot is aimed at your head and framed on your face and body (user,
+// 2026-10-18: "more emphasis on seeing the face and body").
 //
 // No steering in the show (so everyone covers the same ground before
 // control starts); the pose is net/remote-players.js poseDrop's, which
 // your planemates play for you too. Held after the show (crouch: C, Ctrl,
-// the touch crouch button, the pad's), the side, low and wide angles come
+// the touch crouch button, the pad's), side, front and low angles come
 // back 1.5 s each while you steer, down to 80 m. The show's fall
 // builds speed slowly (Flight's `coast`), so it costs ~130 m of the ~330.
 
@@ -32,6 +35,8 @@ const _q = new THREE.Quaternion();
 const _body = new THREE.Vector3();
 const _cam = new THREE.Vector3();
 const _v = new THREE.Vector3();
+const _head = new THREE.Vector3();
+const _up = new THREE.Vector3();
 
 /* Out of the plane (royale.js jumpOut): `back` whether you went out facing
    into the hold, `yaw` your facing (world), `at` where you left it and
@@ -57,7 +62,7 @@ export function fallShowState() {
 }
 function shotAt(t) {
   if (t >= FALL_SHOW) return "behind";
-  return t < FALL_CUTS[0] ? "tumble" : t < FALL_CUTS[1] ? "ramp" : t < FALL_CUTS[2] ? "side" : "low";
+  return t < FALL_CUTS[0] ? "tumble" : t < FALL_CUTS[1] ? "ramp" : t < FALL_CUTS[2] ? "face" : "low";
 }
 
 /* Each frame of the fall, before the flight steps: a whoosh on each cut.
@@ -93,11 +98,11 @@ export function placeFallShowCamera(camera, pos, held, height, dt) {
     placeShot(camera, shot, show.yaw, show.t);
     return "tp";
   }
-  // Hold-to-view: side, low, wide, 1.5 s each, while it's held.
+  // Hold-to-view: side, front, low, 1.5 s each, while it's held.
   if (held && height > VIEW_FLOOR) {
     show.view = Math.floor(show.holdT / VIEW_EVERY) % 3;
     show.holdT += dt;
-    placeShot(camera, ["side", "low", "wide"][show.view], game.look.yaw, show.holdT);
+    placeShot(camera, VIEWS[show.view], game.look.yaw, show.holdT);
     return "tp";
   }
   if (show.view >= 0) { show.view = -1; show.holdT = 0; }
@@ -112,27 +117,57 @@ function lens(camera, z) {
   return null;
 }
 
+const VIEWS = ["side", "front", "low"];
+/* Where your face is: the head of your own rig (posed every frame), or
+   near enough from the belly before it has been. */
+function headAt(out) {
+  const head = game.localRig?.parts?.head;
+  if (head) { head.updateWorldMatrix(true, false); return head.getWorldPosition(out); }
+  return out.copy(_body).y += 0.6;
+}
 function placeShot(camera, shot, yaw, t) {
   const fx = -Math.sin(yaw), fz = -Math.cos(yaw);   // your facing
   const rx = Math.cos(yaw), rz = -Math.sin(yaw);    // your right
+  headAt(_head);
+  // Aimed between your face and your chest: the face high in the frame,
+  // the body under it.
+  const aim = _v.copy(_head).lerp(_body, 0.3);
+  _up.set(0, 1, 0);
+  let frame = 1.3;   // the lens
   if (shot === "ramp") {
-    // Left behind where you went out, looking down at you.
+    // Left behind where you went out, a long lens on you falling away
+    // (you're face up): framed as if from 3 m.
     _cam.copy(show.exit);
-  } else if (shot === "side") {
-    // Falling with you 6 m off your right, a little aft and above: the plane
-    // goes on beyond you.
-    _cam.set(_body.x + rx * 6 - fx * 2.5, _body.y + 1.6, _body.z + rz * 6 - fz * 2.5);
+    frame = Math.max(1, Math.min(24, _cam.distanceTo(aim) / 3));
+  } else if (shot === "face") {
+    // Just over you on your back, a little toward your feet, looking down
+    // into your face; your head at the top of the frame.
+    _cam.copy(_head).addScaledVector(_v.set(fx, 0, fz), 0.9);
+    _cam.y += 2.3;
+    aim.copy(_head).lerp(_body, 0.25);
+    _up.set(-fx, 0, -fz);
+    frame = 1.15;
   } else if (shot === "low") {
-    // Below you, off to one side, looking up at you against the sky.
-    _cam.set(_body.x - rx * 2.5 + fx * 1.5, _body.y - 8, _body.z - rz * 2.5 + fz * 1.5);
+    // Close below you and ahead of your head: you roll over onto your
+    // belly into it, face first.
+    _cam.set(_head.x + fx * 1.0 + rx * 0.6, _head.y - 2.1, _head.z + fz * 1.0 + rz * 0.6);
+    frame = 1.45;
+  } else if (shot === "side") {
+    // Falling with you 3.2 m off your right, level with your head.
+    _cam.set(_head.x + rx * 3.2 - fx * 0.6, _head.y + 0.4, _head.z + rz * 3.2 - fz * 0.6);
   } else {
-    // Wide: out ahead and below, a slow drift round you.
-    const a = yaw + 0.6 + t * 0.12, d = 16;
-    _cam.set(_body.x - Math.sin(a) * d, _body.y - 5, _body.z - Math.cos(a) * d);
+    // Front: out ahead of you and a little below, into your face.
+    _cam.set(_head.x + fx * 2.8, _head.y - 1.1, _head.z + fz * 2.8);
   }
   camera.position.copy(_cam);
+  camera.up.copy(_up);
+  camera.lookAt(aim);
   camera.up.set(0, 1, 0);
-  camera.lookAt(_body);
-  // Framed about as if from 9 m (the ramp's long lens follows you down).
-  lens(camera, shot === "ramp" ? Math.max(1, Math.min(14, _cam.distanceTo(_body) / 9)) : shot === "wide" ? 1.8 : 1.35);
+  lens(camera, frame);
+}
+/* Tests: where your face sits on screen (-1..1 both ways, z < 1 in front
+   of the camera). */
+export function fallFaceOnScreen(camera) {
+  headAt(_head);
+  return _head.clone().project(camera);
 }

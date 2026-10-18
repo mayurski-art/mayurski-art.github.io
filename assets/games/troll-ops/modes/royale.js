@@ -14,9 +14,9 @@ import { WEAPON_DEFS, WeaponState } from "../weapons/weapons.js?v=p5bm-wst-hf1-f
 import { defaultLoadoutFor } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1";
 import { game } from "../core/state.js?v=st1";
-import { updateDropCine, dropCineEye, resetDropCine, dropCineCrewSeat, dropCineAtRamp } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4";
+import { updateDropCine, dropCineEye, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1";
 import { playSfx, preloadSfx } from "../sound/sfx-files.js?v=dc4";
-import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose } from "./royale-fall.js?v=dc3-dc4";
+import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose } from "./royale-fall.js?v=dc3-dc4-rf1";
 
 // Phase 1 ("Mini Royale"): solo, one life, loot only, the Cringe closing in,
 // last troll standing. royale.js has the zone, the loot and their visuals;
@@ -176,6 +176,7 @@ export function boardRoyale() {
   r.seat = seat;
   r.me = "aboard";
   r.autoRun = false;
+  r.pushed = null;
   r.drop.ride(plane);
   return seatStand(seat);
 }
@@ -308,7 +309,8 @@ export function greenLight() {
       bd.ty = dropGround(tx, tz, 300) ?? 0;
     }
   }
-  if (dropCineAtRamp()) game.showWaveBanner(game.isTouch ? "GREEN LIGHT — tap jump to fall back out" : "GREEN LIGHT — Space to fall back out", 2600);
+  // The drop cinematic's jumpmaster shoves you out himself.
+  if (dropCineAtRamp()) game.showWaveBanner("GREEN LIGHT", 1400);
   else game.showWaveBanner(game.isTouch ? "GREEN LIGHT — walk off the ramp (or tap jump)" : "GREEN LIGHT — walk off the ramp (or Space)", 2600);
 }
 
@@ -432,6 +434,12 @@ export function updateAboardPlayer(dt, jump) {
   const o = d.origin, pos = game.move.pos;
   const t = r.planeT, f = d.squadron.riddenFlight();
   const green = d.phase !== "lobby";
+  if (r.pushed) {
+    // Shoved (royale-cine.js): staggering back off the ramp, still facing
+    // in, the head thrown back a little.
+    game.look.yaw = r.pushed.yaw;
+    game.look.pitch = Math.min(0.3, game.look.pitch + dt * 1.4);
+  }
   if (green && jump && d.squadron.rampOpen(t)) r.autoRun = true;
   if (green && f && t > f.tOut - 1.2 && !r.autoRun) {
     // Past the island: the jumpmaster puts you out.
@@ -445,7 +453,7 @@ export function updateAboardPlayer(dt, jump) {
     const dx = goal.x - lx, dz = goal.z - lz, len = Math.hypot(dx, dz) || 1;
     // Facing into the hold at the ramp (the drop cinematic): a few steps
     // back and over the edge, not a sprint.
-    const run = Math.cos(game.look.yaw) > 0.5 && lz > 3 ? 3.4 : 6.5;
+    const run = r.pushed ? 5 : Math.cos(game.look.yaw) > 0.5 && lz > 3 ? 3.4 : 6.5;
     const step = Math.min(len, run * dt);
     pos.x += (dx / len) * step;
     pos.z += (dz / len) * step;
@@ -479,6 +487,8 @@ function jumpOut() {
   r.flight = new Flight(_v, game.builtMap.map.edge, { glider: false, track: true, vel: _exitVel });
   r.me = "fall";
   r.autoRun = false;
+  r.pushed = null;
+  dropCineOut();
   game.setHolding("none");
   // The fall's opening show (royale-fall.js) has the camera and the stick
   // for its first seconds; its end puts up the fly banner.
@@ -498,7 +508,7 @@ function fallWind(f) {
 }
 /* The fall show, for the camera (view/player-update.js) and your body
    (view/third-person.js). */
-export { fallShowPose };
+export { fallShowPose, dropCineSitK, dropCineFirstPerson };
 export function placeFallCamera(held, dt) {
   return placeFallShowCamera(game.camera, game.move.pos, held, royale.flight?.height ?? 0, dt);
 }
@@ -606,6 +616,7 @@ export function teardownRoyale() {
   resetDropCine();
   endFallShow();
   if (royale) {
+    royale.pushed = null;
     royale.windIn?.stop(0.2);
     royale.windRush?.stop(0.2);
     royale.windIn = royale.windRush = null;
