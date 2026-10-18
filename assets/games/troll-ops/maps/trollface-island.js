@@ -584,7 +584,14 @@ function buildTrollfaceIsland(api) {
   const L = LANDMARKS;
 
   /* ---- the island: grass top, cliff sides, lake, river, waterfall ------- */
-  const slab = new THREE.ExtrudeGeometry(shapeOf(ISLAND_EDGE), { depth: CLIFF_DEPTH, bevelEnabled: false, curveSegments: 1 });
+  // The lake is a hole in the top: its bed 12 mm over the grass flickered in
+  // stripes from the plane (closer than the depth buffer can tell apart).
+  const top = shapeOf(ISLAND_EDGE);
+  top.holes.push(shapeOf([...ISLAND_LAKE].reverse()));
+  // The plazas too (paved below): no grass under them to fight with.
+  const PLAZAS = [[L.city.x, L.city.z, 76, 46], [L.skate.x, L.skate.z, 62, 38], [L.gallery.x, L.gallery.z, 34, 32], [L.shop.x, L.shop.z + 2, 40, 24]];
+  for (const [x, z, w, d] of PLAZAS) top.holes.push(shapeOf([[x - w / 2, z - d / 2], [x - w / 2, z + d / 2], [x + w / 2, z + d / 2], [x + w / 2, z - d / 2]]));
+  const slab = new THREE.ExtrudeGeometry(top, { depth: CLIFF_DEPTH, bevelEnabled: false, curveSegments: 1 });
   slab.rotateX(-Math.PI / 2);
   slab.translate(0, -CLIFF_DEPTH, 0);
   // Phase 2: the textured, blended ground and rock cliffs (UVs are metres).
@@ -626,13 +633,9 @@ function buildTrollfaceIsland(api) {
 
   /* ---- roads, paths and paved ground ----------------------------------- */
   // Roads and paths are in the ground mask (phase 2); plazas are textured.
-  const paved = [
-    patch(L.city.x, L.city.z, 76, 46, 0.025),
-    patch(L.skate.x, L.skate.z, 62, 38, 0.025),
-    patch(L.gallery.x, L.gallery.z, 34, 32, 0.025),
-    patch(L.shop.x, L.shop.z + 2, 40, 24, 0.025),
-  ];
-  const plaza = texMaterial("cast", 0xe6e3dc, 5, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  // Each fills its hole in the island top (PLAZAS, above).
+  const paved = PLAZAS.map(([x, z, w, d]) => patch(x, z, w, d, 0));
+  const plaza = texMaterial("cast", 0xe6e3dc, 5);
   root.add(Object.assign(new THREE.Mesh(mergeGeometries(paved.map(worldUV), false), plaza), { receiveShadow: true }));
 
   /* ---- landmarks (grey boxes, sized for play) ---------------------------- */
