@@ -231,10 +231,11 @@ check(Math.hypot(s.x - x1, s.z - z1) < 0.05, "seated: W doesn't move you", (Math
 check(s.card && s.cardPick === "photo", "sat down: the card is up, photo picked", JSON.stringify({ card: s.card, pick: s.cardPick }));
 check(!s.on && !s.body, "the scene hasn't started");
 await shot(a, "card-photo.png");
-await a.keyboard.press("ArrowRight");
+check(await a.evaluate(() => [...document.querySelectorAll(".to-dropcine-card-key")].map((k) => k.textContent).join("") === "XY" && document.querySelector(".to-dropcine-card").dataset.device === "keys"), "the card shows X and Y keycaps");
+await a.keyboard.press("y");
 await sleep(120);
 s = await st(a);
-check(s.cardPick === "music" && s.opener.pick === "music" && s.cardSong.length > 0, "→ picks music, the song row shows", JSON.stringify({ pick: s.cardPick, song: s.cardSong }));
+check(s.cardPick === "music" && s.opener.pick === "music" && s.cardSong.length > 0, "Y picks music, the song row shows", JSON.stringify({ pick: s.cardPick, song: s.cardSong }));
 const firstSong = s.cardSong;
 await a.keyboard.press("ArrowDown");
 await sleep(120);
@@ -245,10 +246,10 @@ await sleep(120);
 s = await st(a);
 check(s.opener.track === 0, "↑ back again", String(s.opener.track));
 await shot(a, "card-music.png");
-await a.keyboard.press("ArrowLeft");
+await a.keyboard.press("x");
 await sleep(120);
 s = await st(a);
-check(s.cardPick === "photo" && s.opener.pick === "photo", "← back to photo", s.cardPick);
+check(s.cardPick === "photo" && s.opener.pick === "photo", "X back to photo", s.cardPick);
 const saved = await a.evaluate(() => localStorage.getItem("to-drop-opener"));
 check(/"pick":"photo"/.test(saved || ""), "the pick is remembered", saved);
 // The card's arrow keys must not leak into the game while it's up (the pad

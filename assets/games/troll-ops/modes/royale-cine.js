@@ -33,10 +33,10 @@
 
 import * as THREE from "three";
 import { game } from "../core/state.js?v=st1";
-import { beginStreakHold, endStreakHold } from "../streaks/hold.js?v=sh1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1";
+import { beginStreakHold, endStreakHold } from "../streaks/hold.js?v=sh1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1";
 import { SEAT_SPOTS } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1";
 import { oxygenMask } from "./royale-mask.js?v=dc1";
-import { familyPhoto, setPhotoThumb } from "./royale-photo.js?v=dc1-ph1";
+import { familyPhoto, setPhotoThumb } from "./royale-photo.js?v=dc1-ph1-op1";
 import { ipod, drawIpod, pressIpod } from "./royale-ipod.js?v=dc1";
 import { updateCrew, hideCrew, crewSeat, yourRampPath, pathAt, paceFor, CREW } from "./royale-crew.js?v=dc2-rf1-ls1-rr1";
 import { playSfx } from "../sound/sfx-files.js?v=dc4";
@@ -513,10 +513,16 @@ function ensureCard() {
   root.hidden = true;
   root.setAttribute("role", "group");
   root.setAttribute("aria-label", "Before the drop");
+  // Press X for the photo, Y for music (user, 2026-10-18), the prompt in
+  // the device's own terms: a pad's face buttons, keycaps, or just tap.
   root.innerHTML = `<p class="to-dropcine-card-h">Before the drop</p>
 <div class="to-dropcine-card-row">
-  <button type="button" data-pick="photo"><b>Photo</b><span>One more look at the family</span></button>
-  <button type="button" data-pick="music"><b>Music</b><span>Troll Radio on the iPod</span></button>
+  <button type="button" data-pick="photo"><i class="to-dropcine-card-key is-x" aria-hidden="true">X</i>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M4 18l6-5 4 3 3-2 3 3"/></svg>
+    <b>Photo</b><span>One last look</span></button>
+  <button type="button" data-pick="music"><i class="to-dropcine-card-key is-y" aria-hidden="true">Y</i>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></svg>
+    <b>Music</b><span>Troll Radio</span></button>
 </div>
 <div class="to-dropcine-card-song">
   <button type="button" data-step="-1" aria-label="Previous song">‹</button>
@@ -533,8 +539,13 @@ function ensureCard() {
   });
   window.addEventListener("keydown", (e) => {
     if (!cardOn) return;
-    if (e.code === "ArrowLeft" || e.code === "ArrowRight") { setDropOpener(opener.pick === "photo" ? "music" : "photo"); e.preventDefault(); }
-    else if ((e.code === "ArrowUp" || e.code === "ArrowDown") && opener.pick === "music") { setDropOpener("music", opener.track + (e.code === "ArrowUp" ? -1 : 1)); e.preventDefault(); }
+    const k = e.key.toLowerCase();
+    if (k === "x") { setDropOpener("photo"); e.preventDefault(); e.stopPropagation(); }
+    else if (k === "y") { setDropOpener("music"); e.preventDefault(); e.stopPropagation(); }
+    else if ((e.code === "ArrowLeft" || e.code === "ArrowRight" || e.code === "ArrowUp" || e.code === "ArrowDown") && opener.pick === "music") {
+      setDropOpener("music", opener.track + (e.code === "ArrowLeft" || e.code === "ArrowUp" ? -1 : 1));
+      e.preventDefault();
+    }
   }, true);
   card = { root, track: root.querySelector(".to-dropcine-card-track"), song: root.querySelector(".to-dropcine-card-song"), keys: root.querySelector(".to-dropcine-card-keys") };
   return card;
@@ -556,7 +567,12 @@ function renderCard() {
   const tr = game.music?.tracks?.[opener.track];
   card.song.hidden = opener.pick !== "music" || !tr;
   if (tr) card.track.textContent = `${tr.title} · ${tr.artist}`;
-  card.keys.textContent = game.isTouch ? "Tap to choose" : game.gamepadState?.connected ? "D-pad ← → choose · ↑ ↓ song" : "← → choose · ↑ ↓ song";
+  const device = game.isTouch ? "touch" : navigator.getGamepads?.()?.some((p) => p) ? "pad" : "keys";
+  card.root.dataset.device = device;
+  const song = opener.pick === "music";
+  card.keys.textContent = device === "touch" ? (song ? "Tap one · ‹ › song" : "Tap one")
+    : device === "pad" ? (song ? "D-pad ← → song" : "")
+    : (song ? "← → song" : "");
 }
 /* A controller: the d-pad works the card (its own edges, read here). */
 const padPrev = [];
@@ -564,11 +580,15 @@ function padPick() {
   const gp = navigator.getGamepads?.()?.find((p) => p) || null;
   if (!gp) return;
   const edge = (i) => { const on = !!gp.buttons[i]?.pressed; const was = padPrev[i]; padPrev[i] = on; return on && !was; };
-  if (edge(14) || edge(15)) setDropOpener(opener.pick === "photo" ? "music" : "photo");
+  // X (2) the photo, Y (3) music (a PlayStation pad's square and triangle);
+  // the d-pad steps the song.
+  if (edge(2)) setDropOpener("photo");
+  if (edge(3)) setDropOpener("music");
   if (opener.pick === "music") {
-    if (edge(12)) setDropOpener("music", opener.track - 1);
-    if (edge(13)) setDropOpener("music", opener.track + 1);
+    if (edge(14) || edge(12)) setDropOpener("music", opener.track - 1);
+    if (edge(15) || edge(13)) setDropOpener("music", opener.track + 1);
   }
+  if (card && card.root.dataset.device !== "pad") renderCard();
 }
 
 // ---- the letterbox, the subtitle, the visor

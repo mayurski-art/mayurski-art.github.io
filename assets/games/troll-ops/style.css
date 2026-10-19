@@ -4689,13 +4689,29 @@ body.to-dropcine .to-hud { opacity: 0; transition: opacity .4s; }
 .to-dropcine-card-h { margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #ffb347; }
 .to-dropcine-card-row { display: flex; gap: 8px; }
 .to-dropcine-card-row button {
-  flex: 1; display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 9px 10px;
-  background: rgba(255,255,255,.06); color: #fff; border: 1.5px solid rgba(255,255,255,.16); border-radius: 9px;
-  font: inherit; cursor: pointer; touch-action: manipulation;
+  position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center;
+  padding: 14px 8px 10px; min-height: 104px;
+  background: rgba(255,255,255,.05); color: #fff; border: 1.5px solid rgba(255,255,255,.14); border-radius: 11px;
+  font: inherit; cursor: pointer; touch-action: manipulation; transition: border-color .15s, background .15s, transform .15s;
 }
-.to-dropcine-card-row button b { font-size: 15px; }
-.to-dropcine-card-row button span { font-size: 11.5px; color: rgba(255,255,255,.7); line-height: 1.25; }
-.to-dropcine-card-row button.is-on { border-color: #ffb347; background: rgba(255,179,71,.16); }
+.to-dropcine-card-row button svg { width: 30px; height: 30px; margin-bottom: 4px; fill: none; stroke: rgba(255,255,255,.85); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.to-dropcine-card-row button b { font-size: 15px; letter-spacing: .02em; }
+.to-dropcine-card-row button span { font-size: 11px; color: rgba(255,255,255,.62); line-height: 1.25; }
+.to-dropcine-card-row button.is-on { border-color: #ffb347; background: rgba(255,179,71,.14); transform: translateY(-1px); }
+.to-dropcine-card-row button.is-on svg { stroke: #ffcf8a; }
+/* The button to press, in the device's terms (royale-cine.js renderCard):
+   a pad's face buttons (X blue, Y yellow), keycaps, nothing on touch. */
+.to-dropcine-card-key {
+  position: absolute; top: 7px; left: 7px; display: grid; place-items: center; width: 24px; height: 24px; box-sizing: border-box;
+  font: 700 12px "DM Mono", monospace; font-style: normal; color: #fff;
+  border-radius: 6px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.35); border-bottom-width: 3px;
+}
+.to-dropcine-card[data-device="pad"] .to-dropcine-card-key { border-radius: 50%; border-width: 0; width: 26px; height: 26px; font-size: 13px; }
+.to-dropcine-card[data-device="pad"] .to-dropcine-card-key.is-x { background: #2f6fd6; }
+.to-dropcine-card[data-device="pad"] .to-dropcine-card-key.is-y { background: #d9a400; color: #1a1400; }
+.to-dropcine-card[data-device="touch"] .to-dropcine-card-key { display: none; }
+.to-dropcine-card[data-device="touch"] .to-dropcine-card-row button { min-height: 116px; }
+.to-dropcine-card-keys:empty { display: none; }
 .to-dropcine-card-song { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
 .to-dropcine-card-song button {
   flex: none; width: 30px; height: 30px; border-radius: 8px; border: 1px solid rgba(255,255,255,.2);
