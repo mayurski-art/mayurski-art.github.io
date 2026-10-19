@@ -5,6 +5,15 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://mayurski-art.github.io https://trollrunner.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://tjsyhfplxjtakdfkpdtg.supabase.co wss://tjsyhfplxjtakdfkpdtg.supabase.co https://nominatim.openstreetmap.org; frame-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#030101">
+<!-- Home Screen app: without a manifest iOS saves the home page as a plain
+     Safari bookmark, toolbar and all. Icons added before this shipped have
+     to be removed and added again. -->
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Troll Runner">
+<link rel="apple-touch-icon" href="/assets/images/icons/app/apple-touch-icon.png">
 <meta name="description" content="Troll Runner: games, the troll world map, the Trollface Terminal, PFPs and more.">
 <meta property="og:title" content="Troll Runner">
 <meta property="og:description" content="Games, the troll world map, the Trollface Terminal, PFPs and more.">

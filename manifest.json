@@ -1,7 +1,8 @@
 {
   "name": "Troll Runner",
   "short_name": "TROLLRUNNER",
-  "start_url": "/world.html",
+  "id": "/",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#000000",
