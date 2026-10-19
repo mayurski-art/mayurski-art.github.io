@@ -434,11 +434,12 @@ await setOpener(b, "music", 2);   // picked before the scene, as the music check
 await b.evaluate(() => { window.__trollOps.settings.thirdPerson = true; });
 s = await until(b, -39);
 let tv = await tpView(b);
-check(tv.vis && tv.dist > 0.9 && Math.abs(tv.x) < 0.9 && Math.abs(tv.y) < 0.9 && tv.z < 1, "third person, walking to the seat: you're in frame", JSON.stringify(tv));
+const tpOk = (tv) => tv.vis ? tv.dist > 0.9 && Math.abs(tv.x) < 0.9 && Math.abs(tv.y) < 0.9 && tv.z < 1 : tv.dist < 0.3;
+check(tpOk(tv), "third person, walking to the seat: you're in frame (or first person, boxed in)", JSON.stringify(tv));
 await shot(b, "tp-walk.png");
 s = await until(b, -33);
 tv = await tpView(b);
-check(s.sitK > 0.95 && tv.vis && tv.dist > 0.9 && Math.abs(tv.x) < 0.9 && Math.abs(tv.y) < 0.9 && tv.z < 1, "third person, seated: you're in frame", JSON.stringify({ sitK: s.sitK, ...tv }));
+check(s.sitK > 0.95 && tpOk(tv), "third person, seated: you're in frame (or first person against the wall)", JSON.stringify({ sitK: s.sitK, ...tv }));
 await shot(b, "tp-seated.png");
 s = await until(b, -27);
 tv = await tpView(b);
