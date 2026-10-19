@@ -14,7 +14,7 @@ import { WEAPON_DEFS, WeaponState } from "../weapons/weapons.js?v=p5bm-wst-hf1-f
 import { defaultLoadoutFor } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1";
 import { game } from "../core/state.js?v=st1";
-import { updateDropCine, dropCineEye, dropCineLean, dropCineZoom, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1";
+import { updateDropCine, dropCineEye, dropCineLean, dropCineZoom, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1";
 import { playSfx, preloadSfx } from "../sound/sfx-files.js?v=dc4";
 import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose } from "./royale-fall.js?v=dc3-dc4-rf1-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3";
 
@@ -851,6 +851,8 @@ const BOT_LOOT_SEARCH_ARMED = 20; // armed and plated: what's near
 const BOT_LOOT_SEARCH_HURT = 40;  // armed, out of plates or hurt
 const LOOT_CROWD_CELL = 10;       // metres: the grid other bots are counted on
 const LOOT_CROWD_COST = 12;       // metres added to a pick per other bot by it
+const BOT_REGEN_DELAY = 4500;     // ms since the last hit, as yours (player-update.js REGEN_DELAY)
+const BOT_REGEN_RATE = 12;        // hp a second, as yours
 // Gunfire this close draws an armed bot in, by zone phase: short early, so a
 // fight doesn't pull in the whole crowded opening (a chain that emptied the
 // island in three minutes once bots could actually kill each other).
@@ -1057,9 +1059,14 @@ function updateRoyaleBot(b, dt) {
       else if (it.k === "heal") b.heals++;
     }
   }
+  // Health comes back on its own out of a fight, the same as yours
+  // (view/player-update.js regenPlayer): bots never got it, so with a couple
+  // of dozen heals on the island nearly every bot spent the match under 40.
+  const maxHp = b.maxHp || 100;
+  if (b.hp < maxHp && performance.now() - (b.hurtAt || 0) > BOT_REGEN_DELAY) b.hp = Math.min(maxHp, b.hp + BOT_REGEN_RATE * dt);
   // Plate or heal with nobody in sight, or mid-fight while nothing has hit
   // it for a couple of seconds (behind cover); a hit cancels it.
-  const quiet = !b.lastTargetId || performance.now() - (b.hurtAt || 0) > 2000;
+  const quiet =!b.lastTargetId || performance.now() - (b.hurtAt || 0) > 2000;
   if (b.act) {
     if (!quiet || (b.hurtAt || 0) > b.act.at) { b.act = null; return; }
     b.act.t += dt;
