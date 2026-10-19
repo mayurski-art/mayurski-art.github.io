@@ -234,6 +234,41 @@ async function pageCapture({ MAP, kitUrl, GEOMETRY }) {
       if (hit) c.path = hit.path;
     }
   }
+  // What a section drew beside a building but inside it (a shop's shelves
+  // and counter, the courthouse's chairs and stove) goes in that building:
+  // drag the building in Studio and its insides come along.
+  {
+    const top = new Map();
+    for (const r of recs) {
+      if (r.live && r.root !== mainRoot) continue;
+      const p = r.path.split("/").slice(0, 2).join("/");
+      if (!p.includes("/")) continue;
+      if (!top.has(p)) top.set(p, new THREE.Box3());
+      top.get(p).union(r.bb);
+    }
+    const house = (p, b) => { const s = b.getSize(new THREE.Vector3()); return !/\/Ground_\d+$/.test(p) && s.y > 2.5 && Math.max(s.x, s.z) > 3; };
+    const into = new Map();
+    for (const [p, b] of top) {
+      let best = null, area = Infinity;
+      const ab = (b.max.x - b.min.x) * (b.max.z - b.min.z);
+      for (const [q, h] of top) {
+        if (q === p || q.split("/")[0] !== p.split("/")[0] || !house(q, h)) continue;
+        const a = (h.max.x - h.min.x) * (h.max.z - h.min.z);
+        if (a <= ab || !h.clone().expandByScalar(0.3).containsBox(b)) continue;
+        if (a < area) { area = a; best = q; }
+      }
+      if (best) into.set(p, best);
+    }
+    // (shelves in a shop: the shop, however deep)
+    const home = (p) => { for (let i = 0; i < 8 && into.has(p); i++) p = into.get(p); return p; };
+    const rename = (path) => {
+      const parts = path.split("/");
+      const p = parts.slice(0, 2).join("/");
+      return into.has(p) ? `${home(p)}/${parts.slice(1).join("/")}` : path;
+    };
+    for (const r of recs) r.path = rename(r.path);
+    for (const c of cols) c.path = rename(c.path);
+  }
   // each model's box (pieces at any depth below it), for finding the model
   // a marker or a lamp stands in
   const modelBox = new Map();
@@ -478,11 +513,12 @@ async function pageCapture({ MAP, kitUrl, GEOMETRY }) {
   const zl = map.zombieLayout?.();
   for (const [i, w] of (zl?.windows || []).entries()) mark("zombie", `ZombieIn_${i + 1}`, [w.x, w.y ?? 0, w.z]);
   // every { x, z } in the RP spec, named by where it sits in it, and every
-  // { x0, x1, z0, z1 } (a zone) as a flat box
+  // { x0, x1, z0, z1 } (a zone) as a flat box (the names trollcity-studio.js
+  // walkRp gives: a spec entry that's a function is called, nothing below)
   const seen = new Set();
   const walk = (v, name, depth) => {
     if (v == null || depth > 6) return;
-    if (typeof v === "function") { try { v = v(); } catch { return; } }
+    if (typeof v === "function") { if (depth) return; try { v = v(); } catch { return; } }
     if (typeof v !== "object" || seen.has(v)) return;
     if (!Array.isArray(v) && v.constructor && v.constructor !== Object) return;   // live objects (the train)
     seen.add(v);

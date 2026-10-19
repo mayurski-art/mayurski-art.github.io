@@ -7,10 +7,11 @@
 //   - every RP spot (the rp spec, walked: bar, seats, jail, train ...)
 //   - triangles drawn per material
 //   - five views rendered the same (mean pixel difference)
-// With --moved (phase 2 on), RP spots and colliders may differ; the
-// geometry checks still hold for what Studio left alone.
+// With --moved (Studio moved models), what's meant to differ is listed, not
+// failed: colliders, stairs, RP spots, triangles, the views (--rp prints
+// every RP value that moved, code -> Studio).
 //
-//   node tools/troll-ops-trollcity-contract-test.mjs [--shots <dir>]
+//   node tools/troll-ops-trollcity-contract-test.mjs [--moved [--rp]] [--shots <dir>]
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -22,6 +23,7 @@ try { ({ chromium } = require("playwright")); }
 catch { ({ chromium } = require(path.join(process.env.LOCALAPPDATA || "", "npm-cache/_npx/361ceb562f3b3235/node_modules/playwright"))); }
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const SHOTS = arg("--shots", null);
+const MOVED = process.argv.includes("--moved"), RP = process.argv.includes("--rp");
 
 const server = await serve(0);
 const port = server.address().port;
@@ -63,7 +65,7 @@ async function build(studio) {
     const seen = new Set();
     const walk = (v, name, depth) => {
       if (v == null || depth > 6) return;
-      if (typeof v === "function") { try { v = v(); } catch { return; } }
+      if (typeof v === "function") { if (depth) return; try { v = v(); } catch { return; } }
       if (typeof v !== "object" || seen.has(v)) return;
       if (!Array.isArray(v) && v.constructor && v.constructor !== Object) return;
       seen.add(v);
@@ -115,7 +117,10 @@ await browser.close();
 server.close();
 
 let fails = 0;
-const check = (name, ok, detail = "") => { console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  (${detail})` : ""}`); if (!ok) fails++; };
+const check = (name, ok, detail = "", soft = false) => {
+  console.log(`${ok ? "PASS" : soft && MOVED ? "DIFF" : "FAIL"}  ${name}${detail ? `  (${detail})` : ""}`);
+  if (!ok && !(soft && MOVED)) fails++;
+};
 const diff = (a, b) => { const A = new Set(a), B = new Set(b); return [a.filter((x) => !B.has(x)), b.filter((x) => !A.has(x))]; };
 
 check("no page errors", !code.errors.length && !stud.errors.length, [...code.errors, ...stud.errors].slice(0, 3).join(" | "));
@@ -129,22 +134,26 @@ check("every Studio mesh found its material", !stud.warns.some((w) => /Troll Cit
     if (j < 0) lost.push(c.join(",")); else left[j] = null;
   }
   const extra = left.filter(Boolean).map((d) => d.join(","));
-  check("colliders", !lost.length && !extra.length, `${code.cols.length} vs ${stud.cols.length}; lost ${lost.length} ${lost.slice(0, 2).join(" ")}; extra ${extra.length} ${extra.slice(0, 2).join(" ")}`);
+  check("colliders", !lost.length && !extra.length, `${code.cols.length} vs ${stud.cols.length}; lost ${lost.length} ${lost.slice(0, 2).join(" ")}; extra ${extra.length} ${extra.slice(0, 2).join(" ")}`, true);
 }
 {
   const [lost, extra] = diff(code.stairs, stud.stairs);
-  check("stair links", !lost.length && !extra.length, `${code.stairs.length} vs ${stud.stairs.length}`);
+  check("stair links", !lost.length && !extra.length, `${code.stairs.length} vs ${stud.stairs.length}${MOVED ? `: ${lost.join(" ")} -> ${extra.join(" ")}` : ""}`, true);
 }
-check("spawns", JSON.stringify(code.spawns) === JSON.stringify(stud.spawns));
+check("spawns", JSON.stringify(code.spawns) === JSON.stringify(stud.spawns), "", true);
 {
   const [lost, extra] = diff(code.rp, stud.rp);
-  check("RP spots", !lost.length && !extra.length, `${code.rp.length} values; ${lost.slice(0, 3).join(" ")} / ${extra.slice(0, 3).join(" ")}`);
+  check("RP spots", !lost.length && !extra.length, `${code.rp.length} values, ${lost.length} differ; ${lost.slice(0, 3).join(" ")} / ${extra.slice(0, 3).join(" ")}`, true);
+  if (RP) {
+    const now = new Map(stud.rp.map((v) => v.split("=")));
+    for (const v of lost) { const [k, a] = v.split("="); console.log(`   ${k}: ${a} -> ${now.get(k)}`); }
+  }
 }
 {
   const keys = new Set([...Object.keys(code.tris), ...Object.keys(stud.tris)]);
   const off = [...keys].filter((k) => code.tris[k] !== stud.tris[k]).map((k) => `${k}: ${code.tris[k] || 0} -> ${stud.tris[k] || 0}`);
   const total = (t) => Object.values(t).reduce((a, b) => a + b, 0);
-  check("triangles per material", !off.length, `${total(code.tris)} vs ${total(stud.tris)}; ${off.slice(0, 4).join("; ")}`);
+  check("triangles per material", !off.length, `${total(code.tris)} vs ${total(stud.tris)}; ${off.slice(0, 4).join("; ")}`, true);
 }
 VIEWS.forEach((v, i) => {
   const a = code.px[i], b = stud.px[i];
@@ -154,7 +163,7 @@ VIEWS.forEach((v, i) => {
     sum += d; if (d > 24) big++;
   }
   const mean = sum / (a.length / 4), share = big / (a.length / 4);
-  check(`view ${v.name} renders the same`, mean < 1.5 && share < 0.01, `mean ${mean.toFixed(2)}/255, ${(share * 100).toFixed(2)}% pixels off`);
+  check(`view ${v.name} renders the same`, mean < 1.5 && share < 0.01, `mean ${mean.toFixed(2)}/255, ${(share * 100).toFixed(2)}% pixels off`, true);
   if (SHOTS) {
     fs.mkdirSync(SHOTS, { recursive: true });
     for (const [tag, s] of [["code", code.shots[i]], ["studio", stud.shots[i]]]) fs.writeFileSync(path.join(SHOTS, `${v.name}-${tag}.png`), Buffer.from(s.split(",")[1], "base64"));

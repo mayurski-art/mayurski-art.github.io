@@ -8,6 +8,9 @@
 //   Studio has it now: the game's own geometry, so an untouched town comes
 //   back exactly as it was. A piece missing in Studio was deleted.
 //   Colliders come back as the game's AABBs; markers as where they stand.
+//   Each model's move (what most of its pieces did) goes in the layout, so
+//   what the code still draws in it (the badge, the cell doors, the lamps)
+//   and its RP spots go with it; a marker moved there has the last word.
 //
 //   node tools/troll-ops-map-from-studio.mjs            check: print what
 //        Studio changed (no edits)
@@ -103,13 +106,14 @@ const still = (cf, s, pos, axes, size) =>
   [0, 1, 2].every((k) => Math.abs(s[k] / K - size[k]) < 1e-3);
 let moved = 0, kept = 0, fresh = 0;
 const seen = new Set();
+const delta = new Map();   // piece -> its move (null: where it was)
 for (const s of got.parts) {
   if (s.new) { fresh++; continue; }
   if (s.p != null) {
     const piece = pieces[s.p];
     if (!piece || !piece.prim || piece.live) continue;
-    if (still(s.cf, s.s, piece.prim.p, piece.prim.f, piece.prim.s)) { put(piece, null); kept++; }
-    else { put(piece, studio(s.cf, s.s).multiply(original(piece.prim).invert())); moved++; }
+    if (still(s.cf, s.s, piece.prim.p, piece.prim.f, piece.prim.s)) { put(piece, null); kept++; delta.set(piece.i, null); }
+    else { const m = studio(s.cf, s.s).multiply(original(piece.prim).invert()); put(piece, m); moved++; delta.set(piece.i, m); }
     seen.add(s.p);
   } else if (s.g != null) {
     const { mid, size } = meshMid(s.g);
@@ -125,6 +129,7 @@ for (const s of got.parts) {
     for (const piece of pieces) {
       if (piece.g !== s.g || piece.live) continue;
       put(piece, same ? null : m);
+      delta.set(piece.i, same ? null : m);
       seen.add(piece.i);
       same ? kept++ : moved++;
     }
@@ -159,16 +164,81 @@ const cols = got.colliders.map((c) => {
   console.log(`colliders: ${got.colliders.length} from Studio (the game had ${before.length} still ones): ${changed} changed or new, ${Math.max(0, before.length - got.colliders.length)} fewer`);
 }
 
-/* ------------------------------------------------------------ markers */
+/* ------------------------------------------------------------ moves */
+// Each model's box as the code built it (its still pieces), and its move:
+// what most of its pieces did in Studio. A building dragged whole moves;
+// one with a window nudged stays put. trollcity-studio.js moves what the
+// code still draws by the smallest box round it, so a model left be beside
+// a moved one goes in the list too (as staying put).
+const moves = [];
+const I4 = new THREE.Matrix4();
 {
-  let movedM = 0;
+  const box = new Map();
+  for (const p of pieces) {
+    if (p.live || !p.geo || !p.path) continue;
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    for (let i = 0; i < p.geo.p.length; i += 3) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], p.geo.p[i + k]); hi[k] = Math.max(hi[k], p.geo.p[i + k]); }
+    const parts = p.path.split("/");
+    for (let d = 2; d <= parts.length; d++) {
+      const path = parts.slice(0, d).join("/");
+      if (/\/Ground_\d+$/.test(path)) continue;   // a yard: too broad to stand in
+      if (!box.has(path)) box.set(path, { lo: [...lo], hi: [...hi], votes: [] });
+      const b = box.get(path);
+      for (let k = 0; k < 3; k++) { b.lo[k] = Math.min(b.lo[k], lo[k]); b.hi[k] = Math.max(b.hi[k], hi[k]); }
+      if (!delta.has(p.i)) continue;   // deleted in Studio: no say
+      // (pieces moved together agree to a millimetre, a milliradian)
+      const m = delta.get(p.i) || I4;
+      let v = b.votes.find((q) => q.m.elements.every((e, i) => Math.abs(e - m.elements[i]) < 2e-3));
+      if (!v) b.votes.push((v = { n: 0, m }));
+      v.n++;
+    }
+  }
+  const rows = (m) => { const e = m.elements; return [e[0], e[4], e[8], e[12], e[1], e[5], e[9], e[13], e[2], e[6], e[10], e[14]].map((x) => Math.round(x * 1e5) / 1e5); };
+  const near = (m) => m.elements.every((x, i) => Math.abs(x - I4.elements[i]) < 1e-3);
+  const went = [], mixed = [];
+  for (const [path, b] of box) {
+    const votes = [...b.votes].sort((a, c) => c.n - a.n);
+    if (!votes.length) continue;
+    const total = votes.reduce((a, v) => a + v.n, 0);
+    if (!near(votes[0].m)) {
+      went.push({ path, b, m: votes[0].m });
+      if (votes[0].n < total * 0.9) mixed.push(`${path} (${votes[0].n}/${total})`);
+    }
+  }
+  const pad = (b) => [b.lo[0] - 0.25, b.lo[2] - 0.25, b.hi[0] + 0.25, b.hi[2] + 0.25];
+  const touches = (a, c) => { const A = pad(a), C = pad(c); return A[0] <= C[2] && C[0] <= A[2] && A[1] <= C[3] && C[1] <= A[3]; };
+  for (const [path, b] of box) {
+    const w = went.find((x) => x.path === path);
+    if (w) moves.push([...b.lo, ...b.hi].map(r4).concat([rows(w.m)]));
+    else if (went.some((x) => touches(x.b, b))) moves.push([...b.lo, ...b.hi].map(r4).concat([0]));
+  }
+  console.log(`models: ${went.length} moved${went.length ? `: ${went.slice(0, 8).map((x) => x.path).join(", ")}${went.length > 8 ? " ..." : ""}` : ""}`);
+  if (mixed.length) console.log(`  moved, but not all their pieces with them (the most did): ${mixed.join(", ")}`);
+}
+
+/* ------------------------------------------------------------ markers */
+// An RP marker that moved (on its own or with its model) is that spot:
+// [x, y, z, yaw|null, w|null, d|null] by its name in the RP spec.
+const rpOut = {};
+{
+  let movedM = 0, other = 0;
+  const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
   for (const mk of got.markers) {
     const o = index.markers[mk.m];
     if (!o) continue;
     const off = Math.hypot(mk.p[0] - o.p[0], mk.p[1] - o.p[1], mk.p[2] - o.p[2]);
-    if (off > 0.01) movedM++;
+    const turned = typeof o.yaw === "number" && Math.abs(wrap(mk.yaw - o.yaw)) > 0.01;
+    let size = null;
+    if (o.zone && mk.size) {
+      size = Math.abs(Math.sin(mk.yaw || 0)) > 0.7 ? [mk.size[2], mk.size[0]] : [mk.size[0], mk.size[2]];
+      if (Math.abs(size[0] - o.zone[0]) < 0.01 && Math.abs(size[1] - o.zone[1]) < 0.01) size = null;
+    }
+    if (off < 0.01 && !turned && !size) continue;
+    if (o.kind !== "rp") { other++; continue; }
+    movedM++;
+    rpOut[o.name] = [...mk.p.map(r4), typeof o.yaw === "number" ? r4(mk.yaw) : null, size ? r4(size[0]) : null, size ? r4(size[1]) : null];
   }
-  console.log(`markers: ${got.markers.length} (the game has ${index.markers.length}), ${movedM} moved (phase 2 carries moves into the game)`);
+  console.log(`markers: ${got.markers.length} (the game has ${index.markers.length}), ${movedM} RP spots moved${other ? `, ${other} spawns or zombie windows moved (phase 3: not carried yet)` : ""}`);
 }
 
 /* ------------------------------------------------------------ the GLB */
@@ -256,8 +326,11 @@ fs.writeFileSync(GLB, glb);
 const nl = "\n";
 fs.writeFileSync(LAYOUT, `// Troll City's Studio town (doc "Troll City redesign in Roblox Studio"),${nl}` +
   `// written by tools/troll-ops-map-from-studio.mjs --write. trollcity-studio.js${nl}` +
-  `// draws models/<glb>.glb and lays these still colliders: [x, z, w, d, h, y, pen].${nl}` +
+  `// draws models/<glb>.glb and lays these still colliders: [x, z, w, d, h, y, pen];${nl}` +
+  `// moves and rp: what Studio moved (see trollcity-studio.js).${nl}` +
   `export const TC_LAYOUT = {${nl}  glb: "tc-town", v: "${v}",${nl}  colliders: [${nl}` +
-  cols.map((c) => `    ${JSON.stringify(c)},`).join(nl) + `${nl}  ],${nl}};${nl}`);
+  cols.map((c) => `    ${JSON.stringify(c)},`).join(nl) + `${nl}  ],${nl}  moves: [${nl}` +
+  moves.map((m) => `    ${JSON.stringify(m)},`).join(nl) + `${nl}  ],${nl}  rp: {${nl}` +
+  Object.entries(rpOut).map(([k, r]) => `    ${JSON.stringify(k)}: ${JSON.stringify(r)},`).join(nl) + `${nl}  },${nl}};${nl}`);
 console.log(`wrote ${path.relative(ROOT, GLB)} and ${path.relative(ROOT, LAYOUT)}`);
 console.log("now bump: node tools/troll-ops-bump-tags.mjs <suffix> assets/games/troll-ops/maps/trollcity-layout.js --write");
