@@ -47,6 +47,16 @@ function reticleMat(color) {
   return new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, depthTest: false, transparent: true });
 }
 
+/* A reticle drawn over everything is only right looking through the glass:
+   from the hip, in third person, on someone else's gun or on loot it
+   floated over the optic (and over walls). Hidden until the viewmodel is
+   aimed (view/weapon-view.js fadeOpticGlass). */
+function sightMark(o) {
+  o.userData.reticle = true;
+  o.visible = false;
+  return o;
+}
+
 function box(w, h, d, mat) { return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); }
 function tube(rt, rb, h, mat, seg = 16) { return new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat); }
 
@@ -153,7 +163,7 @@ function buildReflex() {
   const dot = new THREE.Mesh(new THREE.CircleGeometry(0.0022, 12), reticleMat(0xff2a2a));
   dot.position.z = 0.004;
   dot.renderOrder = 10;
-  g.add(dot);
+  g.add(sightMark(dot));
 
   // Body block below the glass holds the battery + brightness rocker.
   const body = box(0.04, 0.016, 0.042, shell);
@@ -196,7 +206,7 @@ function buildCoyote() {
   const dot = new THREE.Mesh(new THREE.CircleGeometry(0.0024, 12), reticleMat(0xff3322));
   dot.position.z = -len / 2 + 0.006;
   dot.renderOrder = 10;
-  g.add(dot);
+  g.add(sightMark(dot));
 
   // Brightness turret on top, killflash-style shade on the objective.
   const t = turret(0.009, 0.016, M.knob());
@@ -251,7 +261,7 @@ function buildAcog() {
   chev.rotation.x = Math.PI / 2;
   chev.position.z = -len / 2;
   chev.renderOrder = 10;
-  g.add(chev);
+  g.add(sightMark(chev));
 
   // Fibre-optic light pipe: the amber stripe running along the top.
   const pipe = tube(0.0035, 0.0035, len * 0.62, new THREE.MeshStandardMaterial({
@@ -319,7 +329,7 @@ function buildScope8() {
   cross.add(hLine, vLine);
   cross.position.z = -len / 2 - bellLen - 0.004;
   cross.renderOrder = 10;
-  g.add(cross);
+  g.add(sightMark(cross));
 
   // Magnification ring + both turrets — the details that say "8x".
   const magRing = sleeve(r * 1.25, r * 1.25, 0.016, M.knob(), 20);

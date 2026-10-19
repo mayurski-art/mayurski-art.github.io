@@ -9,13 +9,13 @@ import { buildGripHand, buildSupportHand } from "./hand-model.js?v=to-grip2-or1"
 import {
   OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS,
   buildIronRear, buildIronFront, railSection,
-} from "./attachment-models.js?v=fg1-wst-or1";
-import { build416 } from "./weapon-416.js?v=cg1-wst-wb1-or1";
+} from "./attachment-models.js?v=fg1-wst-or1-rt1";
+import { build416 } from "./weapon-416.js?v=cg1-wst-wb1-or1-rt1";
 import { buildRevolverPair } from "./revolvers.js?v=rv2-wst-or1";
-import { PISTOL_BUILDERS } from "./weapon-pistols.js?v=ps1-wb1-or1";
-import { SNIPER_BUILDERS } from "./weapon-snipers.js?v=sn2-wb1-or1";
-import { SMG_BUILDERS } from "./weapon-smgs.js?v=sm1-wb1-or1";
-import { AR_BUILDERS } from "./weapon-ars.js?v=ar1-ar2-or1";
+import { PISTOL_BUILDERS } from "./weapon-pistols.js?v=ps1-wb1-or1-rt1";
+import { SNIPER_BUILDERS } from "./weapon-snipers.js?v=sn2-wb1-or1-rt1";
+import { SMG_BUILDERS } from "./weapon-smgs.js?v=sm1-wb1-or1-rt1";
+import { AR_BUILDERS } from "./weapon-ars.js?v=ar1-ar2-or1-rt1";
 import { finishDef } from "../characters/skins.js?v=p5-wb1-or1";
 import { rigSoulBlazer, SB_INSPECT_KEYS } from "./soul-blazer.js?v=sb1-or1";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
