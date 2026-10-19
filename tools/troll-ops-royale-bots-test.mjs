@@ -113,6 +113,7 @@ const heard = await page.evaluate(() => {
   const T = window.__trollOps, r = T.royale();
   const b = T.bots.bots.find((x) => x.alive);
   b.gunRarity = 4; b.plates = 3; b.heals = 2; b.lootId = null; b.lastTargetId = null; b.killedAt = 0;
+  b.calmAt = b.sparedAt = 0; b.flee = null;   // nor calm from sparing someone (the pace director), nor running
   const s = r.zone.state(r.t);
   // Somewhere 20 m off, inside the circle.
   const a = Math.atan2(s.z - b.pos.z, s.x - b.pos.x);
