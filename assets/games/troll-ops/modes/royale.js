@@ -14,7 +14,7 @@ import { WEAPON_DEFS, WeaponState } from "../weapons/weapons.js?v=p5bm-wst-hf1-f
 import { defaultLoadoutFor } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1";
 import { game } from "../core/state.js?v=st1";
-import { updateDropCine, dropCineEye, dropCineLean, dropCineZoom, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1";
+import { updateDropCine, dropCineEye, dropCineLean, dropCineZoom, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1";
 import { playSfx, preloadSfx } from "../sound/sfx-files.js?v=dc4";
 import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose } from "./royale-fall.js?v=dc3-dc4-rf1-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3";
 
@@ -525,6 +525,8 @@ export function placeAboardView() {
   sq.riddenQuat(_q);
   game.camera.position.y += dropCineEye();   // seated in the cinematic
   game.camera.position.z += dropCineLean();  // ...or leaning out over the edge to look down
+  const zoom = dropCineZoom();               // (game.js keeps the fov; zoom is ours, as royale-fall.js)
+  if (game.camera.zoom !== zoom) { game.camera.zoom = zoom; game.camera.updateProjectionMatrix(); }
   sq.ghostToWorld(game.camera.position, game.camera.position);
   game.camera.quaternion.premultiply(_q);
 }
@@ -617,9 +619,9 @@ function royaleLateSpectate() {
 }
 
 export function teardownRoyale() {
+  document.body.classList.remove("to-aboard");   // the plane's trimmed touch HUD (view/player-update.js)
   resetDropCine();
   endFallShow();
-  document.body.classList.remove("to-aboard");   // the plane's trimmed touch HUD (view/player-update.js)
   if (royale) {
     royale.pushed = null;
     royale.windIn?.stop(0.2);

@@ -4678,48 +4678,58 @@ body.to-dropcine .to-hud { opacity: 0; transition: opacity .4s; }
   .to-dropcine-bar, .to-dropcine-sub, body.to-dropcine .to-hud { transition: none; }
 }
 
-/* The drop cinematic's opener card (modes/royale-cine.js), in the lobby
-   from the door opening: the photo or music, and which Troll Radio song. */
+/* The drop cinematic's opener card (modes/royale-cine.js): photo or music,
+   as plain as a Detroit: Become Human choice (user, 2026-10-18): the word
+   and its button, each in a thin bracket frame, a line running down to the
+   scene. On touch the button is what you tap. */
 .to-dropcine-card {
-  position: absolute; right: max(16px, env(safe-area-inset-right)); top: 50%; transform: translateY(-50%);
-  z-index: 17; width: min(300px, 42vw); padding: 12px; box-sizing: border-box;
-  background: rgba(10,12,10,.72); border: 1px solid rgba(255,255,255,.14); border-radius: 12px;
-  font-family: "DM Sans", sans-serif; color: #fff; pointer-events: auto;
+  --br: rgba(220, 236, 255, .55); --hi: #ffb347;
+  position: absolute; right: max(28px, calc(env(safe-area-inset-right) + 16px)); top: 50%; transform: translateY(-50%);
+  z-index: 17; display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+  font-family: "DM Sans", sans-serif; color: #eef4ff; pointer-events: auto;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, .6);
 }
-.to-dropcine-card-h { margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #ffb347; }
-.to-dropcine-card-row { display: flex; gap: 8px; }
+.to-dropcine-card-row { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
 .to-dropcine-card-row button {
-  position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center;
-  padding: 14px 8px 10px; min-height: 104px;
-  background: rgba(255,255,255,.05); color: #fff; border: 1.5px solid rgba(255,255,255,.14); border-radius: 11px;
-  font: inherit; cursor: pointer; touch-action: manipulation; transition: border-color .15s, background .15s, transform .15s;
+  display: flex; align-items: center; gap: 8px; padding: 0; border: 0; background: none; color: inherit;
+  font: inherit; cursor: pointer; touch-action: manipulation;
 }
-.to-dropcine-card-row button svg { width: 30px; height: 30px; margin-bottom: 4px; fill: none; stroke: rgba(255,255,255,.85); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.to-dropcine-card-row button b { font-size: 15px; letter-spacing: .02em; }
-.to-dropcine-card-row button span { font-size: 11px; color: rgba(255,255,255,.62); line-height: 1.25; }
-.to-dropcine-card-row button.is-on { border-color: #ffb347; background: rgba(255,179,71,.14); transform: translateY(-1px); }
-.to-dropcine-card-row button.is-on svg { stroke: #ffcf8a; }
-/* The button to press, in the device's terms (royale-cine.js renderCard):
-   a pad's face buttons (X blue, Y yellow), keycaps, nothing on touch. */
+.to-dropcine-card-row button:nth-child(2) { margin-right: 22px; }   /* staggered, like the reference */
+/* thin corner brackets round the word and round the button */
+.to-dropcine-card-word, .to-dropcine-card-key {
+  --c: var(--br);
+  background:
+    linear-gradient(var(--c), var(--c)) left top / 9px 1.5px, linear-gradient(var(--c), var(--c)) left top / 1.5px 9px,
+    linear-gradient(var(--c), var(--c)) right top / 9px 1.5px, linear-gradient(var(--c), var(--c)) right top / 1.5px 9px,
+    linear-gradient(var(--c), var(--c)) left bottom / 9px 1.5px, linear-gradient(var(--c), var(--c)) left bottom / 1.5px 9px,
+    linear-gradient(var(--c), var(--c)) right bottom / 9px 1.5px, linear-gradient(var(--c), var(--c)) right bottom / 1.5px 9px,
+    rgba(8, 14, 22, .38);
+  background-repeat: no-repeat;
+}
+.to-dropcine-card-word {
+  padding: 9px 14px; font-size: 19px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase;
+}
 .to-dropcine-card-key {
-  position: absolute; top: 7px; left: 7px; display: grid; place-items: center; width: 24px; height: 24px; box-sizing: border-box;
-  font: 700 12px "DM Mono", monospace; font-style: normal; color: #fff;
-  border-radius: 6px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.35); border-bottom-width: 3px;
+  display: grid; place-items: center; width: 40px; height: 40px; box-sizing: border-box;
+  font: 400 22px "DM Sans", sans-serif; font-style: normal; color: #eef4ff;
 }
-.to-dropcine-card[data-device="pad"] .to-dropcine-card-key { border-radius: 50%; border-width: 0; width: 26px; height: 26px; font-size: 13px; }
-.to-dropcine-card[data-device="pad"] .to-dropcine-card-key.is-x { background: #2f6fd6; }
-.to-dropcine-card[data-device="pad"] .to-dropcine-card-key.is-y { background: #d9a400; color: #1a1400; }
-.to-dropcine-card[data-device="touch"] .to-dropcine-card-key { display: none; }
-.to-dropcine-card[data-device="touch"] .to-dropcine-card-row button { min-height: 116px; }
-.to-dropcine-card-keys:empty { display: none; }
-.to-dropcine-card-song { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.to-dropcine-card-row button:hover .to-dropcine-card-key,
+.to-dropcine-card-row button:focus-visible .to-dropcine-card-key { --c: rgba(255, 255, 255, .9); }
+.to-dropcine-card-row button:focus-visible { outline: none; }
+.to-dropcine-card-row button.is-on .to-dropcine-card-word,
+.to-dropcine-card-row button.is-on .to-dropcine-card-key { --c: var(--hi); color: #ffd9a3; }
+.to-dropcine-card-row button.is-on .to-dropcine-card-key { background-color: rgba(255, 179, 71, .18); }
+/* touch: a bigger button to tap */
+.to-dropcine-card[data-device="touch"] .to-dropcine-card-key { width: 48px; height: 48px; font-size: 24px; }
+.to-dropcine-card-song { display: flex; align-items: center; gap: 6px; max-width: min(300px, 48vw); font-size: 12.5px; }
+.to-dropcine-card-song[hidden] { display: none; }
 .to-dropcine-card-song button {
-  flex: none; width: 30px; height: 30px; border-radius: 8px; border: 1px solid rgba(255,255,255,.2);
-  background: rgba(255,255,255,.08); color: #fff; font-size: 18px; line-height: 1; cursor: pointer; touch-action: manipulation;
+  flex: none; width: 30px; height: 30px; border: 0; background: none; color: #eef4ff; font-size: 20px; line-height: 1;
+  cursor: pointer; touch-action: manipulation;
 }
-.to-dropcine-card-track { flex: 1; min-width: 0; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.to-dropcine-card-keys { margin: 8px 0 0; font: 500 11px "DM Mono", monospace; color: rgba(255,255,255,.55); }
-body.to-touch-play .to-dropcine-card { top: auto; bottom: calc(40px + 120px * var(--k, 1)); transform: none; right: calc(var(--sr, 0px) + 10px); }
+.to-dropcine-card-track { flex: 1; min-width: 0; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .85; }
+.to-dropcine-card-time { display: block; width: 180px; height: 2px; background: rgba(220, 236, 255, .14); }
+.to-dropcine-card-time b { display: block; height: 100%; background: rgba(220, 236, 255, .7); transform-origin: left center; }
 
 /* iPhone Safari: how to play without the browser's bars (input/fullscreen.js) */
 .to-pwa-tip {

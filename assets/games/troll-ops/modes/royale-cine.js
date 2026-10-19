@@ -62,7 +62,8 @@ export const CINE = {
   walkBy: -9.4,            // ...there by now, whatever the seat
   turn: [-1.6, -0.3],      // round to face into the hold
   lookDown: [-6, -1.75],   // down past the edge once the ramp's slid in: a long look (user, 2026-10-18)
-  lean: 0.9,               // m: the head out past the edge to look straight down (the floor hid most of it)
+  lean: 1.3,               // m: the head out past the edge to look straight down (the floor hid most of it)
+  zoom: 1.75,              // a longer lens looking down: the island bigger, the floor's edge out of frame
   tail: 1.4,               // GO GO GO, after the green
   raise: [-20.6, -19.5],   // the mask up to the face
   // On the breathing clip (sound/sfx-files.js "breathing" at BREATH_RATE
@@ -176,6 +177,7 @@ export function resetDropCine() {
    scene has you (the hold's own walking rules wait). */
 export function updateDropCine(r, dt) {
   const t = r.planeT;
+  cine.sq = r.drop?.squadron || null;   // the ridden plane's heading, for the look down (lookStanding)
   const d = r.drop;
   cine.lastT = t;
   // Only a player aboard before the scene starts gets it: a late join
@@ -187,6 +189,7 @@ export function updateDropCine(r, dt) {
   else cine.seating = null;
   // Sat down: the card, photo or music.
   showCard(seatTime && cine.seating?.at != null && t >= Math.max(CINE.cardFrom, cine.seating.at + CINE.sitTime));
+  tickCard(t);
   if (cardOn) padPick();
   if (!cine.on && cine.armed && !cine.done && t >= CINE.start && t < CINE.release) begin(r);
   if (!cine.on) {
@@ -384,6 +387,7 @@ function look(t, dt) {
 /* On your feet: down the aisle the way you walk, then aft at the ramp
    watching it come down, then round to face into the hold (toward your own
    wall, where the jumpmaster holds the strap). */
+const _north = new THREE.Vector3(), _northQ = new THREE.Quaternion();
 function lookStanding(t, dt) {
   const w = cine.walk;
   let want;
@@ -396,14 +400,25 @@ function lookStanding(t, dt) {
   // The ramp slides in under the floor (royale-planes.js retractAt): a look
   // straight down past the edge at the island, then back up for the turn.
   const down = smooth(CINE.lookDown[0], CINE.lookDown[0] + 0.45, t) * (1 - smooth(CINE.lookDown[1] - 0.35, CINE.lookDown[1], t));
-  game.look.yaw = cine.head + Math.sin(t * 0.55) * 0.02;
+  // Looking down, the head turns so the island's the right way up: map
+  // north at the top, as it's drawn (user, 2026-10-18), whichever way the
+  // plane runs. Yaw is in the hold's frame, so less the plane's heading.
+  let yaw = cine.head;
+  if (down > 0 && cine.sq) {
+    const fwd = _north.set(0, 0, -1).applyQuaternion(cine.sq.riddenQuat(_northQ));
+    const north = -Math.atan2(-fwd.x, -fwd.z);   // world yaw 0 looks -z: the map's top
+    yaw += Math.atan2(Math.sin(north - yaw), Math.cos(north - yaw)) * down;
+  }
+  game.look.yaw = yaw + Math.sin(t * 0.55) * 0.02;
   game.look.pitch = -0.04 - ramp * 0.14 - down * 1.32 + (w.moving ? Math.sin(t * 9) * 0.008 : 0) + Math.sin(t * 0.8) * 0.01;
   cine.lean = down * CINE.lean;
+  cine.zoom = 1 + down * (CINE.zoom - 1);
 }
 
 /* The eye's drop for sitting (royale.js placeAboardView): up as you stand. */
 export function dropCineEye() { return CINE.seatedEye * dropCineSitK(); }
 /* ...and how far it leans out aft over the edge (plane-local +z). */
+export function dropCineZoom() { return cine.on ? cine.zoom || 1 : 1; }
 export function dropCineLean() { return cine.on ? cine.lean || 0 : 0; }
 
 // ---- sound: the Pixabay clips (sound/sfx-files.js); each slot keeps its
@@ -517,23 +532,20 @@ function ensureCard() {
   root.hidden = true;
   root.setAttribute("role", "group");
   root.setAttribute("aria-label", "Before the drop");
-  // Press X for the photo, Y for music (user, 2026-10-18), the prompt in
-  // the device's own terms: a pad's face buttons, keycaps, or just tap.
-  root.innerHTML = `<p class="to-dropcine-card-h">Before the drop</p>
-<div class="to-dropcine-card-row">
-  <button type="button" data-pick="photo"><i class="to-dropcine-card-key is-x" aria-hidden="true">X</i>
-    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M4 18l6-5 4 3 3-2 3 3"/></svg>
-    <b>Photo</b><span>One last look</span></button>
-  <button type="button" data-pick="music"><i class="to-dropcine-card-key is-y" aria-hidden="true">Y</i>
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></svg>
-    <b>Music</b><span>Troll Radio</span></button>
+  // Press X for the photo, Y for music (user, 2026-10-18), and as plain as
+  // a Detroit: Become Human choice: the word and its button in a thin
+  // bracket frame, a line running down to the scene. The button in the
+  // device's own terms (keycap, the pad's face button); on touch you tap it.
+  root.innerHTML = `<div class="to-dropcine-card-row">
+  <button type="button" data-pick="photo" aria-label="Photo"><span class="to-dropcine-card-word">Photo</span><i class="to-dropcine-card-key is-x" aria-hidden="true">X</i></button>
+  <button type="button" data-pick="music" aria-label="Music"><span class="to-dropcine-card-word">Music</span><i class="to-dropcine-card-key is-y" aria-hidden="true">Y</i></button>
 </div>
 <div class="to-dropcine-card-song">
   <button type="button" data-step="-1" aria-label="Previous song">‹</button>
   <span class="to-dropcine-card-track"></span>
   <button type="button" data-step="1" aria-label="Next song">›</button>
 </div>
-<p class="to-dropcine-card-keys"></p>`;
+<i class="to-dropcine-card-time" aria-hidden="true"><b></b></i>`;
   parent.appendChild(root);
   root.addEventListener("click", (e) => {
     const b = e.target.closest("button");
@@ -551,7 +563,7 @@ function ensureCard() {
       e.preventDefault();
     }
   }, true);
-  card = { root, track: root.querySelector(".to-dropcine-card-track"), song: root.querySelector(".to-dropcine-card-song"), keys: root.querySelector(".to-dropcine-card-keys") };
+  card = { root, track: root.querySelector(".to-dropcine-card-track"), song: root.querySelector(".to-dropcine-card-song"), keys: [...root.querySelectorAll(".to-dropcine-card-key")], time: root.querySelector(".to-dropcine-card-time b") };
   return card;
 }
 function showCard(on) {
@@ -571,12 +583,20 @@ function renderCard() {
   const tr = game.music?.tracks?.[opener.track];
   card.song.hidden = opener.pick !== "music" || !tr;
   if (tr) card.track.textContent = `${tr.title} · ${tr.artist}`;
-  const device = game.isTouch ? "touch" : navigator.getGamepads?.()?.some((p) => p) ? "pad" : "keys";
+  const pad = navigator.getGamepads?.()?.find((p) => p);
+  const device = game.isTouch ? "touch" : pad ? "pad" : "keys";
   card.root.dataset.device = device;
-  const song = opener.pick === "music";
-  card.keys.textContent = device === "touch" ? (song ? "Tap one · ‹ › song" : "Tap one")
-    : device === "pad" ? (song ? "D-pad ← → song" : "")
-    : (song ? "← → song" : "");
+  // A PlayStation pad's square and triangle sit where an Xbox pad's X and Y do.
+  const ps = device === "pad" && /playstation|dualsense|dualshock|054c/i.test(pad.id);
+  card.root.dataset.pad = ps ? "ps" : "";
+  const glyphs = ps ? ["\u25A1", "\u25B3"] : ["X", "Y"];
+  card.keys.forEach((k, i) => { if (k.textContent !== glyphs[i]) k.textContent = glyphs[i]; });
+}
+/* The line under the choice runs down to the scene. */
+function tickCard(t) {
+  if (!card || !cardOn) return;
+  const k = Math.max(0, Math.min(1, (CINE.start - t) / (CINE.start - CINE.cardFrom)));
+  card.time.style.transform = `scaleX(${k.toFixed(3)})`;
 }
 /* A controller: the d-pad works the card (its own edges, read here). */
 const padPrev = [];
