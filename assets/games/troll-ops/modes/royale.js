@@ -14,7 +14,7 @@ import { WEAPON_DEFS, WeaponState } from "../weapons/weapons.js?v=p5bm-wst-hf1-f
 import { defaultLoadoutFor } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1";
 import { game } from "../core/state.js?v=st1";
-import { updateDropCine, dropCineEye, dropCineLean, dropCineZoom, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1";
+import { updateDropCine, dropCineEye, dropCineLean, dropCineZoom, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1";
 import { playSfx, preloadSfx } from "../sound/sfx-files.js?v=dc4";
 import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose } from "./royale-fall.js?v=dc3-dc4-rf1-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3";
 
@@ -711,6 +711,7 @@ export function updateRoyale(dt) {
 
   // The bots we host take the Cringe too, and leave their gear when they go.
   if (game.net.isBotHost()) {
+    if (r.live && !r.over) royalePaceTick(dt, alive.length);
     for (const b of game.bots.bots) {
       if (r.live && b.alive && s.dps > 0 && RoyaleZone.outside(s, b.pos.x, b.pos.z)) {
         b.zoneAcc = (b.zoneAcc || 0) + s.dps * dt;
@@ -864,6 +865,8 @@ function initRoyaleBot(b) {
   b.heals = 0;
   b.act = null;
   b.lootId = null;
+  b.flee = null;
+  b.sparedAt = b.calmAt = 0;
 }
 
 function botArmed(b) { return b.gunRarity != null; }
@@ -944,6 +947,8 @@ export function royaleBotObjective(b) {
   const zone = { id: `zone-${s.phase}`, x: c.x, z: c.z, radius: Math.max(2, c.r * 0.5), urgent: outNow };
   const soon = s.stage !== "wait" || s.left < 15;
   if (outNow || (d > c.r * 0.8 && soon)) return zone;
+  const flee = royaleBotFlee(b, c);
+  if (flee) return flee;
   const it = royaleBotLoot(b, c);
   // Without a real gun, getting one beats trading pistol shots.
   if (it) {
@@ -957,6 +962,30 @@ export function royaleBotObjective(b) {
   if (noise) return { ...noise, radius: 3 };
   if (d > c.r * 0.8) return zone;
   return royaleBotRoam(b, c, s.phase);
+}
+
+/* Losing a fight: spared by the pace director (royaleBotHit), or low with
+   no armour left and still being shot. Break off: run ~25 m away from who
+   it was fighting, staying inside the circle, and heal once nothing has hit
+   it for a couple of seconds (updateRoyaleBot). */
+const FLEE_TIME = 7000;   // ms
+function royaleBotFlee(b, c) {
+  const now = performance.now();
+  const spared = b.sparedAt && now - b.sparedAt < FLEE_TIME;
+  const losing = b.hp < 40 && !(b.armor | 0) && b.hurtAt && now - b.hurtAt < 2500;
+  if (!spared && !losing) { b.flee = null; return null; }
+  if (!b.flee || now > b.flee.until) {
+    const foe = b.lastSeen;
+    let ax = b.pos.x - (foe ? foe.x : c.x), az = b.pos.z - (foe ? foe.z : c.z);
+    const len = Math.hypot(ax, az) || 1;
+    // away from them, leaning toward the middle of the circle
+    let x = b.pos.x + (ax / len) * 25 + (c.x - b.pos.x) * 0.2;
+    let z = b.pos.z + (az / len) * 25 + (c.z - b.pos.z) * 0.2;
+    const dc = Math.hypot(x - c.x, z - c.z);
+    if (dc > c.r * 0.8) { x = c.x + (x - c.x) * (c.r * 0.8 / dc); z = c.z + (z - c.z) * (c.r * 0.8 / dc); }
+    b.flee = { x, z, n: (b.flee?.n || 0) + 1, until: now + FLEE_TIME };
+  }
+  return { id: `flee-${b.id}-${b.flee.n}`, x: b.flee.x, z: b.flee.z, radius: 3, urgent: true };
 }
 
 /* Armed and stocked, with nothing to hear: move about inside the circle
@@ -1038,7 +1067,7 @@ function updateRoyaleBot(b, dt) {
    keep out of fights (UNARMED_SIGHT); tools/troll-ops-royale-pace.mjs. */
 const ROYALE_BOT_SIGHT = [11, 14, 19, 27, 40];   // 2026-10-18: kills spread over a ~14 min match
 const UNARMED_SIGHT = 6;      // metres, by zone phase
-const ROYALE_BOT_VS_BOT = [0.25, 0.35, 0.5, 0.7, 1];  // damage scale, by zone phase (the pace director below moves it)
+const ROYALE_BOT_VS_BOT = [0.75, 0.8, 0.9, 1, 1];  // damage scale, by zone phase (the pace director below decides the kills)
 function royalePhaseIdx() {
   if (!royale?.live) return 0;
   const s = royale.zone.state(royale.t);
@@ -1050,10 +1079,13 @@ function royalePhaseIdx() {
    only sees who's right there and doesn't go to gunfire. Shot at, it still
    fights back. */
 function botCalm(b) {
+  const now = performance.now();
+  // Won a fight the other one ran from (royaleBotHit): calm for a bit too.
+  if (b.calmAt && now - b.calmAt < SPARE_CALM) return true;
   if (!b.killedAt) return false;
   let h = 0;
   for (const ch of String(b.id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return performance.now() - b.killedAt < 50000 + (h % 1000) * 30;   // 50-80 s
+  return now - b.killedAt < 50000 + (h % 1000) * 30;   // 50-80 s
 }
 export function royaleBotSight(b) {
   // Someone shooting at it gets noticed whatever the range.
@@ -1070,29 +1102,43 @@ export function royaleBotSight(b) {
    bunch up at the loot after landing, so no sight range or fixed damage
    kept the first three minutes from being a massacre. Instead the field
    follows a curve, about 70 left at 3 min, 45 at 6, 22 at 9, 8 at 11 and
-   the last few by ~13 (the zone closes at ~14): bot-on-bot damage eases off
-   while they're ahead of it and picks up while they're behind. Bots only:
-   what a bot does to you is untouched. */
+   the last few by ~13 (the zone closes at ~14). Bots only: what a bot does
+   to you is untouched.
+   First pass turned bot-on-bot damage down while they were ahead of it:
+   fights became chip-damage standoffs nobody could heal out of, and they
+   still died too fast. Now the guns hit near full and the director deals
+   in kills: credits come in along the curve (faster while the field is
+   behind it), and a bot-on-bot hit that would kill with no credit in hand
+   leaves the loser on a sliver of health instead. It breaks off, heals up
+   behind cover (royaleBotFlee), and the winner calms down for a bit. */
 const PACE_END = 780;   // s from the zone going live: the field down to the last few
-const PACE = { min: 0.05, max: 1.8, every: 1000 };
-const pace = { at: -1e9, k: 1, n0: 0 };
-export function royalePaceK() {
-  if (!royale?.live) return ROYALE_BOT_VS_BOT[0];
-  const now = performance.now();
-  if (now - pace.at < PACE.every) return pace.k;
-  pace.at = now;
-  const alive = royaleAliveList().length;
+const PACE = { cap: 2, floor: 0.04, spareHp: 6 };
+const SPARE_CALM = 20000;   // ms: the winner of a fight the other ran from
+const pace = { credit: 1, n0: 0, target: 0 };
+function royalePaceTick(dt, alive) {
   if (!pace.n0 || royale.t < 1) pace.n0 = Math.max(pace.n0 | 0, alive);
   const u = Math.min(1, Math.max(0, royale.t) / PACE_END);
-  const target = Math.max(2, pace.n0 * Math.pow(1 - u, 1.3));
-  // behind the curve (too many left): harder; ahead of it: softer
-  // (steep: bunched up after landing, even half damage still killed fast)
-  const want = ROYALE_BOT_VS_BOT[royalePhaseIdx()] * Math.pow(alive / target, 6);
-  pace.k += (Math.min(PACE.max, Math.max(PACE.min, want)) - pace.k) * 0.35;
-  return pace.k;
+  pace.target = Math.max(2, pace.n0 * Math.pow(1 - u, 1.3));
+  const slope = Math.max(PACE.floor, pace.n0 * 1.3 / PACE_END * Math.pow(1 - u, 0.3));
+  // behind the curve (too many left): kills come quicker; ahead: slower
+  const rate = slope * Math.min(4, Math.pow(alive / pace.target, 3));
+  pace.credit = Math.min(PACE.cap, pace.credit + rate * dt);
 }
-export function resetRoyalePace() { pace.at = -1e9; pace.k = 1; pace.n0 = 0; }
-export function royaleBotVsBot() { return royalePaceK(); }
+export function resetRoyalePace() { pace.credit = 1; pace.n0 = 0; pace.target = 0; }
+export function royalePace() { return { credit: pace.credit, target: pace.target }; }
+
+/* Bot on bot (combat/bot-fire.js botDealDamage): how much of `dmg` lands. */
+export function royaleBotHit(by, victim, dmg) {
+  dmg *= ROYALE_BOT_VS_BOT[royalePhaseIdx()];
+  const left = victim.hp + (victim.armor | 0);
+  if (dmg < left || !royale?.live) return dmg;
+  if (royale.t >= PACE_END) return dmg;
+  if (pace.credit >= 1) { pace.credit -= 1; return dmg; }
+  const now = performance.now();
+  victim.sparedAt = now;
+  by.calmAt = now;
+  return Math.max(0, left - PACE.spareHp);
+}
 
 /* A bot's shot hits as hard as the gun it's holding: the pistol it lands
    with is weak, a looted gun better, a rarer one better still. */

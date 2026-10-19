@@ -73,7 +73,8 @@ for (let i = 0; i < 4000; i++) {
     const alive = T.bots.bots.filter((b) => b.alive).length;
     const B = T.bots.bots.filter((b) => b.alive), nn = B.map((b) => Math.min(...B.filter((o) => o !== b).map((o) => Math.hypot(o.pos.x - b.pos.x, o.pos.z - b.pos.z)))).sort((a, b) => a - b);
     const now = performance.now(), seeing = B.filter((b) => b.seenId).length, hurt = B.filter((b) => b.hurtAt && now - b.hurtAt < 3000).length, armed = B.filter((b) => b.gunRarity != null).length;
-    const ex = { nnMed: Math.round(nn[nn.length >> 1]), nn10: nn.filter((d) => d < 10).length, seeing, hurt, armed };
+    const spared = B.filter((b) => b.sparedAt && now - b.sparedAt < 7000).length, low = B.filter((b) => b.hp < 40).length;
+    const ex = { nnMed: Math.round(nn[nn.length >> 1]), nn10: nn.filter((d) => d < 10).length, seeing, hurt, armed, spared, low };
     const P = window.__pace, ttk = (P.ttk || []).map((x) => x[0]).sort((a, b) => a - b), hn = (P.ttk || []).map((x) => x[1]).sort((a, b) => a - b);
     const fights = Object.values(P.first || {}).filter((f) => performance.now() / 1000 - f.last < 8).length;
     return { t: Math.round(r.t), live: r.live, alive, causes: P.causes, me: r.me, hits: P.hits | 0, fights, ttkMed: ttk[ttk.length >> 1], hitsMed: hn[hn.length >> 1], phase: r.zone?.state?.(r.t)?.phase, ex };
