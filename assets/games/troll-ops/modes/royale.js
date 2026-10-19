@@ -14,7 +14,7 @@ import { WEAPON_DEFS, WeaponState } from "../weapons/weapons.js?v=p5bm-wst-hf1-f
 import { defaultLoadoutFor } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1";
 import { game } from "../core/state.js?v=st1";
-import { updateDropCine, dropCineEye, dropCineLean, dropCineZoom, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1";
+import { updateDropCine, dropCineEye, dropCineLean, dropCineZoom, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1";
 import { playSfx, preloadSfx } from "../sound/sfx-files.js?v=dc4";
 import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose } from "./royale-fall.js?v=dc3-dc4-rf1-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3";
 
@@ -846,8 +846,11 @@ function royaleDropBotGear(b) {
 // stays generic: it walks to whatever botObjective() hands it.
 
 const BOT_LOOT_REACH = 1.3;      // metres: close enough to grab it
-const BOT_LOOT_SEARCH = 30;      // how far a bot looks for loot it wants
-const BOT_LOOT_SEARCH_ARMED = 10;
+const BOT_LOOT_SEARCH = 60;      // how far a bot looks for loot it wants (on the pistol)
+const BOT_LOOT_SEARCH_ARMED = 20; // armed and plated: what's near
+const BOT_LOOT_SEARCH_HURT = 40;  // armed, out of plates or hurt
+const LOOT_CROWD_CELL = 10;       // metres: the grid other bots are counted on
+const LOOT_CROWD_COST = 12;       // metres added to a pick per other bot by it
 // Gunfire this close draws an armed bot in, by zone phase: short early, so a
 // fight doesn't pull in the whole crowded opening (a chain that emptied the
 // island in three minutes once bots could actually kill each other).
@@ -896,25 +899,40 @@ function royaleBotLoot(b, circle) {
   }
   if (royale.t < (b.lootRetry || 0)) return null;
   // Who has called what, built once a frame and kept up as bots pick.
+  // And how many bots stand on each patch of ground: loot with a crowd
+  // round it counts as further off, so they spread out to loot instead of
+  // all piling into the nearest building (2026-10-19: median 6 m apart).
   if (royale.claimedT !== royale.t) {
     royale.claimedT = royale.t;
     royale.claimed = new Set();
-    for (const o of game.bots.bots) if (o.alive && o.lootId) royale.claimed.add(o.lootId);
+    royale.crowd = new Map();
+    for (const o of game.bots.bots) {
+      if (!o.alive) continue;
+      if (o.lootId) royale.claimed.add(o.lootId);
+      const k = crowdKey(o.pos.x, o.pos.z);
+      royale.crowd.set(k, (royale.crowd.get(k) || 0) + 1);
+    }
   }
-  const claimed = royale.claimed;
-  const reach = botArmed(b) && (b.plates | 0) > 0 ? BOT_LOOT_SEARCH_ARMED : BOT_LOOT_SEARCH;
+  const claimed = royale.claimed, crowd = royale.crowd, mine = crowdKey(b.pos.x, b.pos.z);
+  const reach = !botArmed(b) ? BOT_LOOT_SEARCH
+    : (b.plates | 0) > 0 && b.hp >= 60 ? BOT_LOOT_SEARCH_ARMED : BOT_LOOT_SEARCH_HURT;
   let best = null, bestD = reach;
   for (const it of items.values()) {
     if (claimed.has(it.id) || (it.y || 0) > 0.5 || !botWants(b, it)) continue;
     if (Math.hypot(it.x - circle.x, it.z - circle.z) > circle.r) continue;
     const d = Math.hypot(it.x - b.pos.x, it.z - b.pos.z);
-    if (d < bestD) { best = it; bestD = d; }
+    if (d >= reach) continue;
+    const k = crowdKey(it.x, it.z), n = (crowd.get(k) || 0) - (k === mine ? 1 : 0);
+    const cost = d + LOOT_CROWD_COST * n;
+    if (cost < bestD) { best = it; bestD = cost; }
   }
   b.lootId = best?.id || null;
   if (best) claimed.add(best.id);
   else b.lootRetry = royale.t + LOOT_RETRY * (0.8 + Math.random() * 0.4);
   return best;
 }
+
+function crowdKey(x, z) { return Math.floor(x / LOOT_CROWD_CELL) * 4096 + Math.floor(z / LOOT_CROWD_CELL); }
 
 /* The newest gunfire an armed bot can hear that isn't its own. */
 function royaleNoiseFor(b) {
@@ -945,23 +963,27 @@ export function royaleBotObjective(b) {
   const outNow = RoyaleZone.outside(s, b.pos.x, b.pos.z);
   const d = Math.hypot(b.pos.x - c.x, b.pos.z - c.z);
   const zone = { id: `zone-${s.phase}`, x: c.x, z: c.z, radius: Math.max(2, c.r * 0.5), urgent: outNow };
-  const soon = s.stage !== "wait" || s.left < 15;
+  // Time to go: closing, or the wait nearly up for how far it has to walk.
+  // Until then it loots and roams the circle it's in, rather than the whole
+  // field walking straight into the next one and piling up there.
+  const soon = s.stage !== "wait" || s.left < 15 + Math.max(0, d - c.r * 0.8) / 4;
   if (outNow || (d > c.r * 0.8 && soon)) return zone;
-  const flee = royaleBotFlee(b, c);
+  const area = soon ? c : { x: s.x, z: s.z, r: s.r * 0.9 };
+  const flee = royaleBotFlee(b, area);
   if (flee) return flee;
-  const it = royaleBotLoot(b, c);
+  const it = royaleBotLoot(b, area);
   // Without a real gun, getting one beats trading pistol shots.
   if (it) {
     const d = Math.hypot(it.x - b.pos.x, it.z - b.pos.z);
     const need = (it.k === "gun" && !botArmed(b))
       || (it.k === "plate" && !(b.plates | 0) && !(b.armor | 0) && d < 15)
-      || (it.k === "heal" && b.hp < 50 && d < 15);
+      || (it.k === "heal" && b.hp < 50 && d < 40);
     return { id: `loot-${it.id}`, x: it.x, z: it.z, radius: 0.9, urgent: need || d < 8 };
   }
   const noise = royaleNoiseFor(b);
   if (noise) return { ...noise, radius: 3 };
-  if (d > c.r * 0.8) return zone;
-  return royaleBotRoam(b, c, s.phase);
+  if (soon && d > c.r * 0.8) return zone;
+  return royaleBotRoam(b, area, s.phase);
 }
 
 /* Losing a fight: spared by the pace director (royaleBotHit), or low with
