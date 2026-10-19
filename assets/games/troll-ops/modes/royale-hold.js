@@ -174,15 +174,29 @@ export class Hold {
     this.group.add(plane, inside);
     this.plane = plane;
     this.inside = inside;
-    this.setRamp(this.rampK);
+    this.setRamp(this.rampK, this.retractK || 0);
     this.setDoor(this.doorK);
     this.setLight(this.light);
   }
 
-  /* 0 shut .. 1 level with the floor. */
-  setRamp(k) {
+  /* 0 shut .. 1 level with the floor; `r` 0 .. 1 slid back in under it. */
+  setRamp(k, r = 0) {
     this.rampK = k;
-    if (this.ramp) this.ramp.rotation.x = HOLD.rampShut * (1 - k);
+    this.retractK = r;
+    if (!this.ramp) return;
+    const home = this.ramp.userData.home ??= this.ramp.position.clone();
+    this.ramp.rotation.x = HOLD.rampShut * (1 - k);
+    this.ramp.position.set(home.x, home.y - 0.25 * Math.min(1, r * 4), home.z - HOLD.rampLen * r);
+  }
+
+  /* The ramp slid in: its deck goes, the hold ends at the hinge. */
+  dropRampFloor() {
+    const { colliders } = this.ctx;
+    const c = this.rampFloor;
+    if (!c) return;
+    const i = colliders.indexOf(c); if (i >= 0) colliders.splice(i, 1);
+    const j = this.colliders.indexOf(c); if (j >= 0) this.colliders.splice(j, 1);
+    this.rampFloor = null;
   }
 
   /* 0 shut .. 1 up in the tail. */

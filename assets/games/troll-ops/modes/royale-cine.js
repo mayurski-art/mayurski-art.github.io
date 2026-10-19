@@ -33,12 +33,12 @@
 
 import * as THREE from "three";
 import { game } from "../core/state.js?v=st1";
-import { beginStreakHold, endStreakHold } from "../streaks/hold.js?v=sh1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3";
-import { SEAT_SPOTS } from "./royale-hold.js?v=pl1-pl2-sr1-or1";
+import { beginStreakHold, endStreakHold } from "../streaks/hold.js?v=sh1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1";
+import { SEAT_SPOTS } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1";
 import { oxygenMask } from "./royale-mask.js?v=dc1";
 import { familyPhoto, setPhotoThumb } from "./royale-photo.js?v=dc1-ph1";
 import { ipod, drawIpod, pressIpod } from "./royale-ipod.js?v=dc1";
-import { updateCrew, hideCrew, crewSeat, yourRampPath, pathAt, paceFor, CREW } from "./royale-crew.js?v=dc2-rf1-ls1";
+import { updateCrew, hideCrew, crewSeat, yourRampPath, pathAt, paceFor, CREW } from "./royale-crew.js?v=dc2-rf1-ls1-rr1";
 import { playSfx } from "../sound/sfx-files.js?v=dc4";
 
 export const CINE = {
@@ -61,6 +61,7 @@ export const CINE = {
   walkFrom: -7.4,          // down the aisle to the ramp
   walkBy: -3.4,            // ...there by now, whatever the seat
   turn: [-1.6, -0.3],      // round to face into the hold
+  lookDown: [-2.6, -1.55], // down past the edge as the ramp slides in
   tail: 1.4,               // GO GO GO, after the green
   raise: [-14.6, -13.5],   // the mask up to the face
   // On the breathing clip (sound/sfx-files.js "breathing" at BREATH_RATE
@@ -391,8 +392,11 @@ function lookStanding(t, dt) {
   if (t >= CINE.turn[0]) cine.head = want;   // the turn is the script's own
   else cine.head += Math.atan2(Math.sin(want - cine.head), Math.cos(want - cine.head)) * Math.min(1, dt * 5);
   const ramp = smooth(-5, -4, t) * (1 - smooth(CINE.turn[0], CINE.turn[0] + 0.5, t));
+  // The ramp slides in under the floor (royale-planes.js retractAt): a look
+  // straight down past the edge at the island, then back up for the turn.
+  const down = smooth(CINE.lookDown[0], CINE.lookDown[0] + 0.45, t) * (1 - smooth(CINE.lookDown[1] - 0.35, CINE.lookDown[1], t));
   game.look.yaw = cine.head + Math.sin(t * 0.55) * 0.02;
-  game.look.pitch = -0.04 - ramp * 0.14 + (w.moving ? Math.sin(t * 9) * 0.008 : 0) + Math.sin(t * 0.8) * 0.01;
+  game.look.pitch = -0.04 - ramp * 0.14 - down * 0.62 + (w.moving ? Math.sin(t * 9) * 0.008 : 0) + Math.sin(t * 0.8) * 0.01;
 }
 
 /* The eye's drop for sitting (royale.js placeAboardView): up as you stand. */

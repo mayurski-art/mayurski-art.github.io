@@ -19,7 +19,7 @@ import * as THREE from "three";
 import { insidePolygon } from "../maps/edge.js?v=or1";
 import { seededRng } from "./royale-zone.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1-fl1-or1";
 import { loadModel } from "../maps/battlefield-props.js?v=sr1-or1";
-import { Hold, HOLD, RAMP_END, holdDaylight } from "./royale-hold.js?v=pl1-pl2-sr1-or1";
+import { Hold, HOLD, RAMP_END, holdDaylight } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1";
 
 export const PLANES = {
   count: 12,
@@ -37,6 +37,12 @@ export const PLANES = {
   redAt: -15,         // the red light (the drop cinematic's mask on)
   rampAt: -5,         // the ramp starts down (open by the green)
   rampTime: 2.2,      // the ramp lowering after the green
+  // ...then it slides back in under the floor, and the hold ends at the
+  // hinge over open air: a clear look straight down at the island before
+  // you go (user, 2026-10-18: "the hanger door should open and then be
+  // retracted inward ... briefly look down to see the island").
+  retractAt: -2.7,    // (the drop cinematic looks down through it, royale-cine.js lookStanding)
+  retractTime: 0.9,
   stickEvery: 0.6,    // bots out one after another
   climb: 5,           // m/s up after the run
   gone: 45,           // the squadron is out of sight
@@ -274,6 +280,7 @@ export class Squadron {
 
   doorK(t) { return smooth(PLANES.doorAt, PLANES.doorAt + 4, t); }
   rampK(t) { return smooth(PLANES.rampAt, PLANES.rampAt + PLANES.rampTime, t); }
+  retractK(t) { return smooth(PLANES.retractAt, PLANES.retractAt + PLANES.retractTime, t); }
 
   update(t, dt) {
     this.t = t;
@@ -281,11 +288,11 @@ export class Squadron {
     this.root.visible = t < P.gone;
     if (!this.root.visible) return;
     for (let i = 0; i < this.flights.length; i++) flightMatrix(this.flights[i], t, this.planeM[i]);
-    const door = this.doorK(t), ramp = this.rampK(t);
+    const door = this.doorK(t), ramp = this.rampK(t), retract = this.retractK(t);
     if (this.template) {
       for (const p of this.props) p.rotation.z += 31 * dt;
       this.template.traverse((o) => {
-        if (o.name === "C130_Ramp") o.rotation.x = HOLD.rampShut * (1 - ramp);
+        if (o.name === "C130_Ramp") rampPose(o, ramp, retract);
         if (o.name === "C130_Door") o.rotation.x = HOLD.doorOpen * door;
       });
       this.template.updateMatrixWorld(true);
@@ -312,7 +319,7 @@ export class Squadron {
       this.hold.group.matrixWorldNeedsUpdate = true;
       this.hold.spin(dt);
       this.hold.setDoor(door);
-      this.hold.setRamp(ramp);
+      this.hold.setRamp(ramp, retract);
       const light = this.lightAt(f, t);
       if (light !== this.hold.light) this.hold.setLight(light);
       holdDaylight(0.14 + 0.3 * Math.max(ramp, door * 0.4));
@@ -342,3 +349,10 @@ export class Squadron {
 }
 
 export { RAMP_END, HOLD };
+/* The ramp: lowered (k 0 shut .. 1 level), then slid in under the floor
+   (r 0 .. 1 all the way in). */
+export function rampPose(o, k, r = 0) {
+  const home = o.userData.home ??= o.position.clone();
+  o.rotation.x = HOLD.rampShut * (1 - k);
+  o.position.set(home.x, home.y - 0.25 * Math.min(1, r * 4), home.z - HOLD.rampLen * r);
+}
