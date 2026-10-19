@@ -25,6 +25,7 @@ export const PLANES = {
   count: 12,
   seats: 9,
   speed: 40,          // m/s
+  runSpeed: 26,       // m/s on the drop run (runDist)
   orbitR: 420,        // the holding circle, round the island's middle (its corners are ~260 m out)
   baseAlt: 330,
   altStep: 20,        // each slot higher than the last: crossing runs pass well clear
@@ -35,14 +36,14 @@ export const PLANES = {
   doorAt: -40,        // the upper door swings up
   breakAt: -8,        // off the circle onto the run
   redAt: -15,         // the red light (the drop cinematic's mask on)
-  rampAt: -5,         // the ramp starts down (open by the green)
+  rampAt: -6,         // the ramp starts down (open by the green)
   rampTime: 2.2,      // the ramp lowering after the green
   // ...then it slides back in under the floor, and the hold ends at the
   // hinge over open air: a clear look straight down at the island before
   // you go (user, 2026-10-18: "the hanger door should open and then be
   // retracted inward ... briefly look down to see the island").
-  retractAt: -2.7,    // (the drop cinematic looks down through it, royale-cine.js lookStanding)
-  retractTime: 0.9,
+  retractAt: -3.6,    // (the drop cinematic looks down through it, royale-cine.js lookStanding)
+  retractTime: 0.8,
   stickEvery: 0.6,    // bots out one after another
   climb: 5,           // m/s up after the run
   gone: 45,           // the squadron is out of sight
@@ -67,6 +68,18 @@ const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3
 const _f = new THREE.Vector3(), _up = new THREE.Vector3(), _x = new THREE.Vector3(), _y = new THREE.Vector3();
 const _m = new THREE.Matrix4(), _m2 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _one = new THREE.Vector3(1, 1, 1);
 const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
+
+const LAND_LEFT = 7;   // s over the island after the green, at least (nine out at stickEvery, and room)
+const LOOK_IN = 110;   // m over land at the look down through the ramp (T-2.6)
+/* The run slows for the drop, the way jump planes do (40 m/s easing to
+   runSpeed), so the island takes ~15 s to cross: time to be well over it at
+   the look down and still have it under you for the jump. Metres along the
+   run at run-time t (smooth into the break's 40 m/s at t 0). */
+function runDist(t) {
+  if (t <= 0) return PLANES.speed * t;
+  const vr = PLANES.runSpeed, tau = 1.6;
+  return vr * t + (PLANES.speed - vr) * tau * (1 - Math.exp(-t / tau));
+}
 
 /* The twelve flights, from the seed. `centre` {x, z}; `edge` the island
    outline (the run's over-land window comes from it). */
@@ -132,16 +145,25 @@ export function planFlights(seed, centre, edge) {
     // Over land: sample the run for the window it's over the island.
     if (edge) {
       let tin = -1, tout = -1;
-      for (let t = 0; t < 30; t += 0.1) {
-        const x = Q.x + dir.x * P.speed * t, z = Q.z + dir.z * P.speed * t;
+      let deep = -1;
+      for (let t = 0; t < 40; t += 0.1) {
+        const d = runDist(t), x = Q.x + dir.x * d, z = Q.z + dir.z * d;
         const on = insidePolygon(edge, x, z);
         if (on && tin < 0) tin = t;
+        if (on && deep < 0 && d - runDist(tin) >= LOOK_IN) deep = t;
         if (!on && tin >= 0) { tout = t; break; }
       }
       f.over = tin >= 0;
-      f.tIn = Math.max(0, tin);
-      f.tOut = tout > 0 ? tout : tin >= 0 ? 30 : 8;
-    } else { f.over = true; f.tIn = 0; f.tOut = 8; }
+      const end = tout > 0 ? tout : tin >= 0 ? 30 : 8;
+      // Each plane runs `lead` seconds ahead of the drop clock, so it's
+      // already over land when you look down through the open ramp before
+      // the green (user, 2026-10-18: see the island, then jump): LOOK_IN m
+      // in at the look (T-2), but never so far in that less than LAND_LEFT
+      // s over the island is left after the green for everyone to go.
+      f.lead = f.over ? Math.max(0, Math.min((deep >= 0 ? deep : tin) + 2.6, end - LAND_LEFT)) : 0;
+      f.tIn = Math.max(0, tin - f.lead);
+      f.tOut = end - f.lead;
+    } else { f.over = true; f.lead = 0; f.tIn = 0; f.tOut = 8; }
     flights.push(f);
   }
   return flights;
@@ -150,6 +172,7 @@ export function planFlights(seed, centre, edge) {
 /* Where flight f is at time t (the floor's middle, world). */
 export function flightPos(f, t, out = new THREE.Vector3()) {
   const P = PLANES;
+  t += f.lead || 0;   // run-time: the plane's own clock (planFlights)
   if (t < f.tA) {
     const u = 1 - Math.min(1, (f.tA - t) / f.inDur);
     if (f.tA - t > f.inDur) {
@@ -163,8 +186,8 @@ export function flightPos(f, t, out = new THREE.Vector3()) {
     return out.set(f.cx + Math.cos(a) * P.orbitR, f.alt, f.cz + Math.sin(a) * P.orbitR);
   }
   if (t < 0) return hermite(out, f.B, f.mb0, f.Q, f.mb1, (t - P.breakAt) / -P.breakAt);
-  out.copy(f.Q).addScaledVector(f.dir, P.speed * t);
-  const climbFrom = f.tOut + 2;
+  out.copy(f.Q).addScaledVector(f.dir, runDist(t));
+  const climbFrom = f.tOut + (f.lead || 0) + 2;
   if (t > climbFrom) out.y += (t - climbFrom) * P.climb;
   return out;
 }

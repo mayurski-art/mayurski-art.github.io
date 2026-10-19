@@ -182,7 +182,8 @@ const jumped = await page.evaluate(async () => {
   return { me: r.me, secs: r.planeT - t0, fromRamp: r.exitFromRamp ?? -1, hvel: r.exitSpeed || 0 };
 });
 check("Space: down the aisle and off the ramp", jumped.me === "fall" && jumped.secs < 4.5, JSON.stringify({ me: jumped.me, gameSeconds: +jumped.secs.toFixed(2) }));
-check("...out of the back of the plane, with its speed", jumped.fromRamp >= 0 && jumped.fromRamp < 12 && jumped.hvel > 25, JSON.stringify({ fromRampEnd: +jumped.fromRamp.toFixed(1), speed: +jumped.hvel.toFixed(1) }));
+check("...out of the back of the plane, with its speed", jumped.fromRamp >= 0 && jumped.fromRamp < 12 && jumped.hvel > 16,   // the run slows to PLANES.runSpeed (26 m/s)
+  JSON.stringify({ fromRampEnd: +jumped.fromRamp.toFixed(1), speed: +jumped.hvel.toFixed(1) }));
 // Off the ramp, fly for the far side of the island from where you went out
 // (well inside the coast), stick held forward, camera level.
 await page.evaluate(() => {

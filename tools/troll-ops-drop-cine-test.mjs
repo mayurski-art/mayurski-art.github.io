@@ -353,8 +353,8 @@ check(Math.abs(s.lz - 5.7) < 0.3, "at the ramp's hinge by T-3", `z=${s.lz.toFixe
 check(s.light === "red" && s.ramp > 0.1, "red light on, the ramp coming down", JSON.stringify({ light: s.light, ramp: s.ramp }));
 check(Math.cos(s.yaw) < -0.8, "looking aft at the ramp", `yaw=${s.yaw.toFixed(2)}`);
 await shot(a, "ramp.png");
-s = await until(a, -2.0);
-check(s.pitch < -0.5 && s.ramp >= 0.99, "T-2: looking down past the edge as the ramp slides in", JSON.stringify({ pitch: s.pitch, ramp: s.ramp }));
+s = await until(a, -2.6);
+check(s.pitch < -0.5 && s.ramp >= 0.99, "T-2.6: looking down past the edge, the ramp slid in", JSON.stringify({ pitch: s.pitch, ramp: s.ramp }));
 await shot(a, "look-down.png");
 s = await until(a, -0.4);
 check(/Back to the door/.test(s.sub), "the turn line", s.sub);
