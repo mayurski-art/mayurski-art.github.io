@@ -18,7 +18,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { insidePolygon } from "./edge.js?v=or1";
+import { insidePolygon, clampInsidePolygon } from "./edge.js?v=or1";
 import { SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1";
 import { lakeWaterMaterial, fallsTexture } from "./lake-water.js?v=wf2";
 import { mapModel } from "./map-models.js?v=hg6e-sr1-or1";
@@ -194,6 +194,17 @@ const shapeOf = (poly) => {
   s.closePath();
   return s;
 };
+
+/* The lake's hole in the island top. The lake runs out over the cliff at
+   the river mouth, past the coast; a hole crossing its outline broke the
+   top's triangulation, and ~9000 m2 of grass came out twice, some of it
+   over the U Mad Bro Shop's paving (the flicker there). The hole stops
+   just inside the coast; the water and its bed keep the full shape. */
+const LAKE_HOLE = ISLAND_LAKE.map(([x, z]) => {
+  const p = { x, z };
+  clampInsidePolygon(p, ISLAND_EDGE, 0.4);
+  return [p.x, p.z];
+});
 
 /* A flat ribbon along a polyline, `w` wide, just above the grass. */
 function ribbon(points, w, y) {
@@ -378,6 +389,9 @@ diffuseColor.rgb *= col;`);
   m.customProgramCacheKey = () => "tfi-ground-2";
   return m;
 }
+
+/* Ground under things: pushed back in depth so anything resting on it wins. */
+const SINK = { polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 4 };
 
 /* A tileable texture set as a material with a fixed repeat (UVs in metres). */
 function texMaterial(surface, color, metresPerTile, o = {}) {
@@ -587,7 +601,7 @@ function buildTrollfaceIsland(api) {
   // The lake is a hole in the top: its bed 12 mm over the grass flickered in
   // stripes from the plane (closer than the depth buffer can tell apart).
   const top = shapeOf(ISLAND_EDGE);
-  top.holes.push(shapeOf([...ISLAND_LAKE].reverse()));
+  top.holes.push(shapeOf([...LAKE_HOLE].reverse()));
   // The plazas too (paved below): no grass under them to fight with.
   const PLAZAS = [[L.city.x, L.city.z, 76, 46], [L.skate.x, L.skate.z, 62, 38], [L.gallery.x, L.gallery.z, 34, 32], [L.shop.x, L.shop.z + 2, 40, 24]];
   for (const [x, z, w, d] of PLAZAS) top.holes.push(shapeOf([[x - w / 2, z - d / 2], [x - w / 2, z + d / 2], [x + w / 2, z + d / 2], [x + w / 2, z - d / 2]]));
@@ -596,6 +610,10 @@ function buildTrollfaceIsland(api) {
   slab.translate(0, -CLIFF_DEPTH, 0);
   // Phase 2: the textured, blended ground and rock cliffs (UVs are metres).
   const ground = groundMaterial(groundMask());
+  // The buildings' floors sit 2-3 cm over the ground and the paving; from
+  // 130 m out (or the plane) the depth buffer can't tell them apart and the
+  // ground flickered up through every floor. Both now lose any tie.
+  Object.assign(ground, SINK);
   const cliffRock = texMaterial("rock", 0xd2d6e0, 9);
   const island = new THREE.Mesh(slab, [ground, cliffRock]);
   island.receiveShadow = true;
@@ -646,7 +664,7 @@ function buildTrollfaceIsland(api) {
   // Roads and paths are in the ground mask (phase 2); plazas are textured.
   // Each fills its hole in the island top (PLAZAS, above).
   const paved = PLAZAS.map(([x, z, w, d]) => patch(x, z, w, d, 0));
-  const plaza = texMaterial("cast", 0xe6e3dc, 5);
+  const plaza = texMaterial("cast", 0xe6e3dc, 5, SINK);
   root.add(Object.assign(new THREE.Mesh(mergeGeometries(paved.map(worldUV), false), plaza), { receiveShadow: true }));
 
   /* ---- landmarks (grey boxes, sized for play) ---------------------------- */
