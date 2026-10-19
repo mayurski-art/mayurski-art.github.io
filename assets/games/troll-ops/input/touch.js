@@ -2,6 +2,7 @@
 // buttons. Moved out of game.js (split phase 1); touchState is read by the
 // player update and by aim assist.
 import { game } from "../core/state.js?v=st1";
+import { initFullscreen } from "./fullscreen.js?v=fs1";
 import { freeLook } from "../view/free-look.js?v=nf1";
 
 
@@ -163,6 +164,7 @@ export function syncPovButton() {
 }
 
 export function initTouch() {
+  initFullscreen();   // the browser's bars off on phones and tablets
   blockLoupe(game.els.touch, game.els.cabinet.querySelector(":scope > canvas"));
   bindStick(game.els.touchMove, game.els.touchMoveNub, game.els.touchMoveZone);
 

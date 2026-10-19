@@ -4720,3 +4720,18 @@ body.to-dropcine .to-hud { opacity: 0; transition: opacity .4s; }
 .to-dropcine-card-track { flex: 1; min-width: 0; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .to-dropcine-card-keys { margin: 8px 0 0; font: 500 11px "DM Mono", monospace; color: rgba(255,255,255,.55); }
 body.to-touch-play .to-dropcine-card { top: auto; bottom: calc(40px + 120px * var(--k, 1)); transform: none; right: calc(var(--sr, 0px) + 10px); }
+
+/* iPhone Safari: how to play without the browser's bars (input/fullscreen.js) */
+.to-pwa-tip {
+  position: fixed; z-index: 9999; left: 50%; transform: translateX(-50%);
+  top: calc(10px + env(safe-area-inset-top, 0px)); max-width: min(520px, calc(100% - 32px));
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 14px;
+  background: rgba(10, 12, 10, 0.92); color: #f2efe9; border: 0.5px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  font: 500 13px/1.35 "DM Sans", system-ui, sans-serif;
+}
+.to-pwa-tip b { color: #ff9500; font-weight: 700; }
+.to-pwa-tip button {
+  flex: none; width: 28px; height: 28px; border-radius: 50%; border: 0;
+  background: rgba(255, 255, 255, 0.12); color: inherit; font-size: 18px; line-height: 1; cursor: pointer;
+}
