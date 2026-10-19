@@ -5,10 +5,13 @@
 --   workspace.<Map>_Live            the town, one Model a building or prop:
 --     <Section>/<Thing>_<n>/...      Parts (saved with the place) and
 --                                    MeshParts (Mesh_<i>, made from code)
---     Colliders                      the game's collision boxes (hidden,
---                                    solid, locked): what you can walk on
---     Markers                        spawns, zombie windows, RP spots (locked)
---     Lights                         the indoor lamps
+--       Colliders                    its collision boxes (hidden, solid,
+--                                    locked): they move with the model
+--       Markers                      its RP spots (locked): the same
+--       Lights                       its lamps (drawn by code: reference)
+--     Markers                        spawns and zombie windows (locked)
+--   A Part or MeshPart with Live set is drawn by code in the game (the
+--   train, the board, the jail doors): locked, shown for reference only.
 --   ServerStorage.TC_MeshData/<i>    each mesh's data, and TC_Images/<i>
 --   ServerStorage.TC_Lib             require(it).restore(): rebuilds every
 --                                    Mesh_<i> after the place is reopened
@@ -113,6 +116,8 @@ function M.mesh(i, mats)
 	if mat.alpha < 1 then mp.Transparency = 1 - mat.alpha end
 	mp.DoubleSided = mat.both or mat.cutout or false
 	mp:SetAttribute("TC_Mesh", i)
+	-- its size at scale 1: resizing it in Studio scales the piece in the game
+	mp:SetAttribute("Size0", mp.Size)
 	mp:SetAttribute("TC_Mat", mat.name)
 	mp.CFrame = CFrame.new(mid)
 	return mp, mid
@@ -209,6 +214,20 @@ return M
 			return m
 		end
 
+		-- a model's own folder (Colliders, Markers, Lights), made on first use
+		local function folderIn(path, name)
+			local m = path and modelAt(path) or root
+			local f = m:FindFirstChild(name)
+			if not f then f = Instance.new("Folder"); f.Name = name; f.Parent = m end
+			return f
+		end
+		-- a live piece is drawn by code in the game (the train, the board, the
+		-- jail doors): shown here for reference, locked, and never exported
+		local function liveOne(part)
+			part.Locked = true
+			part:SetAttribute("Live", true)
+		end
+
 		status.phase = "parts"
 		local MATERIAL = Lib.material
 		local SHAPE = { b = Enum.PartType.Block, c = Enum.PartType.Cylinder, s = Enum.PartType.Ball }
@@ -229,6 +248,9 @@ return M
 				if mat.alpha < 1 then part.Transparency = 1 - mat.alpha end
 				part.TopSurface = Enum.SurfaceType.Smooth; part.BottomSurface = Enum.SurfaceType.Smooth
 				part.Name = p.name or mat.name
+				-- the game piece it is (the from-studio tool rebuilds it from the code's own geometry)
+				if p.i then part:SetAttribute("P", p.i) end
+				if p.live then liveOne(part) end
 				part.Parent = modelAt(p.path)
 				made += 1
 			end
@@ -248,64 +270,85 @@ return M
 			store(meshData, tostring(info.i), getBig("/x/mesh-" .. info.i .. ".json"))
 			-- one that Studio can't take (the far plain is 2700 studs across) is skipped and named
 			local okMesh, mp = pcall(Lib.mesh, info.i, mats)
-			if okMesh then mp.Parent = modelAt(info.path); nm += 1
+			if okMesh then
+				if info.live then liveOne(mp) end
+				mp.Parent = modelAt(info.path); nm += 1
 			else status.skipped = (status.skipped or "") .. info.path .. " (" .. tostring(mp) .. "); " end
 			status.meshes = nm
 			task.wait()
 		end
 
-		-- section by section into the workspace
-		status.phase = "parenting"
-		root.Parent = workspace
-		for _, m in pairs(sections) do m.Parent = root; task.wait() end
-
 		status.phase = "colliders"
-		local cf = Instance.new("Folder"); cf.Name = "Colliders"
+		-- each in the model it belongs to (it moves with it); the live ones
+		-- (the train's, the jail doors') stay code's and aren't shown
 		local cols = HttpService:JSONDecode(getBig("/x/colliders.json"))
-		for i, c in ipairs(cols) do
-			local lo = Vector3.new(c.min[1], c.min[2], c.min[3]) * K
-			local hi = Vector3.new(c.max[1], c.max[2], c.max[3]) * K
-			local part = Instance.new("Part"); part.Name = "Collider_" .. i
-			part.Anchored = true; part.CanCollide = true; part.Locked = true; part.CastShadow = false
-			part.Transparency = 1; part.Color = Color3.fromRGB(255, 60, 60); part.Material = Enum.Material.ForceField
-			part.Size = (hi - lo):Max(Vector3.one * 0.05); part.CFrame = CFrame.new((lo + hi) / 2)
-			part:SetAttribute("Pen", c.pen)
-			part.Parent = cf
+		local shown = 0
+		for _, c in ipairs(cols) do
+			if not c.live then
+				local lo = Vector3.new(c.min[1], c.min[2], c.min[3]) * K
+				local hi = Vector3.new(c.max[1], c.max[2], c.max[3]) * K
+				local part = Instance.new("Part"); part.Name = "Collider_" .. c.i
+				part.Anchored = true; part.CanCollide = true; part.Locked = true; part.CastShadow = false
+				part.Transparency = 1; part.Color = Color3.fromRGB(255, 60, 60); part.Material = Enum.Material.ForceField
+				part.Size = (hi - lo):Max(Vector3.one * 0.05); part.CFrame = CFrame.new((lo + hi) / 2)
+				part:SetAttribute("C", c.i)
+				part:SetAttribute("Pen", c.pen)
+				part.Parent = folderIn(c.path, "Colliders")
+				shown += 1
+			end
 		end
-		cf.Parent = root
 
 		local KIND = { spawn = Color3.fromRGB(0, 170, 255), zombie = Color3.fromRGB(120, 200, 60), rp = Color3.fromRGB(255, 170, 0) }
-		local mf = Instance.new("Folder"); mf.Name = "Markers"
 		for _, mk in ipairs(index.markers) do
 			local part = Instance.new("Part"); part.Name = mk.name
 			part.Anchored = true; part.CanCollide = false; part.Locked = true; part.CastShadow = false
-			part.Shape = Enum.PartType.Ball; part.Size = Vector3.one * (mk.kind == "rp" and 0.6 or 1.5)
 			part.Material = Enum.Material.Neon; part.Color = KIND[mk.kind] or Color3.new(1, 1, 1)
-			local pos = Vector3.new(mk.p[1], mk.p[2], mk.p[3]) * K + Vector3.new(0, part.Size.Y / 2, 0)
+			local lift
+			if mk.zone then
+				-- a zone: a flat sheet over the floor it covers
+				part.Size = Vector3.new(mk.zone[1] * K, 0.1, mk.zone[2] * K); part.Transparency = 0.85
+				lift = 0.05
+			else
+				part.Shape = Enum.PartType.Ball; part.Size = Vector3.one * (mk.kind == "rp" and 0.6 or 1.5)
+				lift = part.Size.Y / 2
+			end
+			local pos = Vector3.new(mk.p[1], mk.p[2], mk.p[3]) * K + Vector3.new(0, lift, 0)
 			part.CFrame = mk.yaw and CFrame.new(pos) * CFrame.Angles(0, mk.yaw, 0) or CFrame.new(pos)
+			part:SetAttribute("M", mk.i)
+			part:SetAttribute("Lift", lift)
 			part:SetAttribute("Kind", mk.kind)
 			if mk.label then part:SetAttribute("Label", mk.label) end
 			if mk.team then part:SetAttribute("Team", mk.team) end
 			if mk.yaw then part:SetAttribute("Yaw", mk.yaw) end
-			part.Parent = mf
+			part.Parent = folderIn(mk.path, "Markers")
 		end
-		mf.Parent = root
 
-		local lf = Instance.new("Folder"); lf.Name = "Lights"
 		for i, l in ipairs(index.lights) do
 			local part = Instance.new("Part"); part.Name = "Lamp_" .. i
-			part.Anchored = true; part.CanCollide = false; part.Transparency = 1; part.CastShadow = false
+			part.Anchored = true; part.CanCollide = false; part.Transparency = 1; part.CastShadow = false; part.Locked = true
 			part.Size = Vector3.one * 0.4; part.CFrame = CFrame.new(Vector3.new(l.p[1], l.p[2], l.p[3]) * K)
+			part:SetAttribute("Live", true)
 			local pl = Instance.new("PointLight")
 			pl.Color = Color3.new(l.color[1], l.color[2], l.color[3])
 			pl.Brightness = math.clamp(l.power / 6, 0.5, 4)
 			pl.Range = math.min(60, l.range * K)
 			pl.Shadows = true
 			pl.Parent = part
-			part.Parent = lf
+			part.Parent = folderIn(l.path, "Lights")
 		end
-		lf.Parent = root
-		status.colliders = #cols
+
+		-- section by section into the workspace
+		status.phase = "parenting"
+		root.Parent = workspace
+		for _, m in pairs(sections) do m.Parent = root; task.wait() end
+		-- where the town stands: a stray drag of the whole town is undone on the way out
+		root:SetAttribute("Home", root:GetPivot())
+		-- the way back (tools/troll-ops-map-from-studio.luau), kept in the place
+		local back = ServerStorage:FindFirstChild("TC_FromStudio"); if back then back:Destroy() end
+		back = Instance.new("ModuleScript"); back.Name = "TC_FromStudio"
+		back.Source = get("/tools/troll-ops-map-from-studio.luau"); back.Parent = ServerStorage
+		cols = { n = shown }
+		status.colliders = cols.n
 		status.markers = #index.markers
 	end)
 	HttpService.HttpEnabled = wasHttp
