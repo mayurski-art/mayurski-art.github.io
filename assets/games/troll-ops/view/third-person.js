@@ -5,13 +5,14 @@ import * as THREE from "three";
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1";
 import { currentWeapon } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2";
 import { stageFrozen, royaleSpectating, royaleRolling, royale, royaleAboard, royaleRollK, royaleDropCode, fallShowPose, dropCineSitK } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2";
+import { HOLD, RAMP_END } from "../modes/royale-hold.js?v=pl1-pl2-sr1-or1";
 import { STANCE } from "../core/movement.js?v=umb2-sb2-gj1b7-or1";
 import { poseDeath, DEATH_TIME, aimRig, gaitPhaseRate, poseHumanoid, poseThrowArm, THROW_TIME, mountHeldWeapon } from "../characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1";
 import { STANCE_LOWER, rollRig, DROP_FALL, DROP_GLIDE, poseDrop, poseRope, ROPE_CLIMB_RATE } from "../net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2";
 import { emoteSeconds, poseEmoteCode, emoteCode, EMOTES } from "../characters/emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-cf1-gs2-lh1-fg2-lp1-fg3-rc1-rc4";
-import { seated, standUp, syncLocalDrink, piano } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2";
+import { seated, standUp, syncLocalDrink, piano } from "../modes/social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc2";
 import { damp } from "../characters/anim-curves.js?v=or1";
-import { clubPoseLocal } from "../modes/club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2";
+import { clubPoseLocal } from "../modes/club-entry.js?v=ce1c1c2-wb1m1uc4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc2";
 import { saberBlock, kbShield, saberParry, kbRepair, SLOW_IGNITE } from "../combat/melee.js?v=ml1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2";
 import { posePianoArms, poseSeated } from "../modes/rp-roles.js?v=rp1b7-cd1-sh1-dj2-or1-bw2";
 import { stripLights, buildWeaponMesh } from "../weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1";
@@ -64,36 +65,46 @@ export function updateEmoteCamera(pivot, yaw, duoDist = 0) {
   game.camera.lookAt(_tpPivot);
 }
 
-/* The camera's spots, best first. Behind you: { side: which shoulder (and
-   how far over), lift: m higher }. Aboard the Royale plane (sat, or walked
-   to your seat, nothing to aim) it can also swing round you: { orbit:
-   radians round from straight behind } (beside you, then ahead of you
-   looking back). Only there: anywhere else it made the view spin as you
-   turned (user, 2026-10-18: "the way the screen moves ... is weird"); to
-   see yourself, free look (Alt, Select, the eye). */
-const TP_SPOTS = [{ side: 1, lift: 0 }, { side: -1, lift: 0 }, { side: 0.4, lift: 0.8 }, { side: 0, lift: 1.4 },
-  { orbit: 1.6, lift: 0.45 }, { orbit: -1.6, lift: 0.45 }, { orbit: 2.4, lift: 0.4 }, { orbit: -2.4, lift: 0.4 }];
-const TP_AIMED = 4;   // the spots that keep the aim (a gun in your hands)
+/* The camera's spots behind you, best first: { side: which shoulder (and
+   how far over), lift: m higher }. */
+const TP_SPOTS = [{ side: 1, lift: 0 }, { side: -1, lift: 0 }, { side: 0.4, lift: 0.8 }, { side: 0, lift: 1.4 }];
 let tpPick = 0;
+/* Aboard the Royale plane the hold is ~3 m across and curved: its hull
+   isn't a collider (the ghost hold has walls at the floor only), so the
+   camera kept to a box inside it (plane-local, as royale-hold.js HOLD),
+   closer in, and when you're sat with the wall at your back it goes once
+   across the aisle to face you (user, 2026-10-18, a video: the camera
+   hung 3 m back, swung shoulder to shoulder and out through the hull). */
+const AB_DIST = 2.1, AB_X = 1.0, AB_Y = [0.35, 2.25];
+let tpFront = false;
+const _abLo = new THREE.Vector3(), _abHi = new THREE.Vector3();
+function holdRoom(from, dir, want) {
+  const o = royale.drop.origin;
+  _abLo.set(o.x - AB_X, o.y + AB_Y[0], o.z + HOLD.fwd + 0.3);
+  _abHi.set(o.x + AB_X, o.y + AB_Y[1], o.z + RAMP_END);
+  let t = want;
+  for (const ax of ["x", "y", "z"]) {
+    const d = dir[ax];
+    if (Math.abs(d) < 1e-6) continue;
+    const lim = d > 0 ? (_abHi[ax] - from[ax]) / d : (_abLo[ax] - from[ax]) / d;
+    t = Math.min(t, Math.max(0, lim));
+  }
+  return t;
+}
 /* Aim _tpDir at spot `i` (from the pivot); how far out it's clear (a small
    skin short of a wall or floor so it never rests on it) and how much of
    the wanted distance that is. */
 const _tpRoom = { len: 0, k: 0 };
-function tpSpot(i, dist, side) {
+function tpSpot(i, dist, side, aboard = false) {
   const c = TP_SPOTS[i];
-  if (c.orbit != null) {
-    // Round you on the level: straight behind turned by `orbit`.
-    const bx = -_tpForward.x, bz = -_tpForward.z, h = Math.hypot(bx, bz) || 1;
-    const co = Math.cos(c.orbit), so = Math.sin(c.orbit);
-    _tpDesired.set(_tpPivot.x + ((bx * co + bz * so) / h) * dist, _tpPivot.y, _tpPivot.z + ((-bx * so + bz * co) / h) * dist);
-  } else {
-    _tpDesired.copy(_tpPivot).addScaledVector(_tpForward, -dist).addScaledVector(_tpRight, side * c.side);
-  }
+  _tpDesired.copy(_tpPivot).addScaledVector(_tpForward, -dist).addScaledVector(_tpRight, side * c.side);
   _tpDesired.y += TP_HEIGHT + c.lift;
   _tpDir.copy(_tpDesired).sub(_tpPivot);
   const want = _tpDir.length();
   _tpDir.normalize();
-  _tpRoom.len = Math.max(0.15, raycastWorld(game.colliders, _tpPivot, _tpDir, want) - 0.1);
+  let room = raycastWorld(game.colliders, _tpPivot, _tpDir, want);
+  if (aboard) room = Math.min(room, holdRoom(_tpPivot, _tpDir, want) + 0.1);
+  _tpRoom.len = Math.max(0.15, room - 0.1);
   _tpRoom.k = _tpRoom.len / want;
   return _tpRoom;
 }
@@ -103,7 +114,8 @@ export function updateThirdPersonCamera(pivot, yaw, pitch, adsT) {
   // head and pauldrons): sit further back and further out so it never
   // covers the crosshair.
   const big = game.localRig.heroBodyId ? 1 : 0;
-  const dist = TP_HIP_DIST + (TP_ADS_DIST - TP_HIP_DIST) * adsT + big * 0.5;
+  const aboard = royaleAboard() && !!royale.drop?.origin;
+  const dist = aboard ? AB_DIST : TP_HIP_DIST + (TP_ADS_DIST - TP_HIP_DIST) * adsT + big * 0.5;
   const side = TP_HIP_SIDE + (TP_ADS_SIDE - TP_HIP_SIDE) * adsT + big * 0.32;
 
   game._euler.set(pitch, yaw, 0);
@@ -112,34 +124,41 @@ export function updateThirdPersonCamera(pivot, yaw, pitch, adsT) {
 
   _tpPivot.copy(pivot);
   // Over the shoulder, or, when a wall's right behind you (a corridor, the
-  // Royale plane's hold), the other shoulder or higher up: whichever has
-  // the room, so the camera doesn't end up inside your own body (user,
-  // 2026-10-18: "users should be able to see themselves").
-  // Swinging round you is only for the plane.
-  const aboard = royaleAboard();
-  const spots = aboard ? TP_SPOTS.length : TP_AIMED;
-  if (tpPick >= spots) tpPick = 0;
-  let best = tpSpot(tpPick, dist, side).k;
+  // plane's hold), the other shoulder or higher up: whichever has the room,
+  // so the camera doesn't end up inside your own body (user, 2026-10-18:
+  // "users should be able to see themselves"). It never swings round you on
+  // its own (that spun the view as you turned); to see your face, free look
+  // (Alt, Select, the eye).
+  const spots = TP_SPOTS.length;
+  let best = tpSpot(tpPick, dist, side, aboard).k;
   if (best < 0.85) {
     // Boxed in: the spot with the most room (a clear margin to change, so
     // it doesn't flick between two).
     for (let i = 0; i < spots; i++) {
       if (i === tpPick) continue;
-      const k = tpSpot(i, dist, side).k;
+      const k = tpSpot(i, dist, side, aboard).k;
       if (k > best + 0.15) { tpPick = i; best = k; }
     }
-  } else if (tpPick !== 0 && tpSpot(0, dist, side).k > 0.95) tpPick = 0;   // room behind again
-  const safeLen = tpSpot(tpPick, dist, side).len;
+  } else if (tpPick !== 0 && tpSpot(0, dist, side, aboard).k > 0.95) tpPick = 0;   // room behind again
+  let safeLen = tpSpot(tpPick, dist, side, aboard).len;
+  // In the plane with no room behind (sat against the wall): across the
+  // aisle, facing you, until there's room behind again.
+  tpFront = aboard && (tpFront ? safeLen < 1.5 : safeLen < 0.95);
+  if (tpFront) {
+    const fh = Math.hypot(_tpForward.x, _tpForward.z) || 1;
+    _tpDir.set(_tpForward.x / fh * AB_DIST, TP_HEIGHT + 0.3, _tpForward.z / fh * AB_DIST);
+    const want = _tpDir.length();
+    _tpDir.normalize();
+    safeLen = Math.max(0.6, Math.min(raycastWorld(game.colliders, _tpPivot, _tpDir, want), holdRoom(_tpPivot, _tpDir, want)) - 0.1);
+  }
 
   game.camera.position.copy(_tpPivot).addScaledVector(_tpDir, safeLen);
   // Look along the aim from over the shoulder, parallel to it, rather than
   // back across at the pivot: converging on the pivot ran the line of sight
   // through our own head, which filled the middle of the screen in ADS.
-  // Round the side or squeezed in close in the plane, there's no aim to
-  // keep: it looks at you instead.
+  // Across the aisle in the plane it looks at you.
   _tpAt.set(game.camera.position.x + _tpForward.x * 10, game.camera.position.y + _tpForward.y * 10, game.camera.position.z + _tpForward.z * 10);
-  const atYou = !aboard ? 0 : tpPick >= TP_AIMED ? 1 : Math.min(1, Math.max(0, (1.8 - safeLen) / 1.2));
-  if (atYou > 0) _tpAt.lerp(_tpFrom.copy(_tpPivot).setY(_tpPivot.y - 0.35), atYou);
+  if (tpFront) _tpAt.copy(_tpPivot).setY(_tpPivot.y - 0.35);
   game.camera.lookAt(_tpAt);
   // Free look (view/free-look.js): the camera swings round the body to
   // look at it, out to your face, blended in by its weight.
