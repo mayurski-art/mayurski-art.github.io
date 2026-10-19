@@ -1,0 +1,31 @@
+{
+  "bounds": [-87, -50, 87, 90],
+  "labels": [
+    [-45, -15.6, "Clothier"], [-32, -15.6, "Kek & Sons"], [-14, -15.6, "Rusty Grin\nSaloon"], [4, -15.6, "Ramirez\nBank"], [18, -15.6, "Guns"], [29, -15.6, "Doc Grin"],
+    [-44, 15.6, "Smithy"], [3, 15.6, "Barber"], [15, 15.6, "Undertaker"], [28, 15.6, "Assay"],
+    [-3, -42, "Station"], [-28, -42.5, "Freight"], [34, -44, "Lumber"],
+    [-46, 33.5, "house"], [32, 33.5, "house"], [44, 34.5, "house"], [54, 44.5, "Boot Hill"],
+    [0, 86, "new bounds 174 x 140 m (red dashes); the train loop's south track moves out past z 92"]
+  ],
+  "moves": [
+    { "name": "Grin Inn\n(the hotel)", "from": [-35, 9.6, -25, 21.6], "to": [-35, 24.6, -25, 36.6] },
+    { "name": "Telegraph", "from": [-13, 9.6, -3, 21.6], "to": [-13, 24.6, -3, 36.6] },
+    { "name": "Livery\n+ corral", "from": [-12, 28, 6, 40], "to": [-2, 44, 16, 56] },
+    { "name": "house", "from": [-37, 32, -29, 39], "to": [-50, 46, -42, 53] },
+    { "name": "TOWN HALL\n(sheriff, jail)", "from": [42, -10, 56, 10], "to": [64, -14, 84, 14] },
+    { "name": "statue", "from": [36, -1, 38, 1], "to": [58, -1, 60, 1] },
+    { "name": "arch", "from": [-56.5, -6.5, -55.5, 6.5], "to": [-80.5, -6.5, -79.5, 6.5] }
+  ],
+  "adds": [
+    { "name": "TOWN SQUARE\nbandstand, well,\ncottonwood, benches", "box": [-35, 7, -3, 24] },
+    { "name": "CHAPEL", "box": [62, 34, 72, 50] },
+    { "name": "new lots\n(Main St east)", "box": [36, -21.6, 60, -9.6] },
+    { "name": "new lots", "box": [36, 9.6, 60, 21.6] },
+    { "name": "new lots\n(Main St west)", "box": [-76, -21.6, -52, -9.6] },
+    { "name": "new lots", "box": [-76, 9.6, -52, 21.6] },
+    { "name": "dry creek + bridge", "box": [-87, 68, 87, 74] },
+    { "name": "cattle pen", "box": [-80, 52, -62, 64] },
+    { "name": "oil derricks", "box": [52, 74, 76, 88] },
+    { "name": "camp", "circle": [-60, 82, 5] }
+  ]
+}

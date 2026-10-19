@@ -1,0 +1,9 @@
+{
+  "labels": [
+    [-45, -15.6, "Clothier"], [-32, -15.6, "Kek & Sons"], [-14, -15.6, "Rusty Grin\nSaloon"], [4, -15.6, "Ramirez\nBank"], [18, -15.6, "Guns"], [29, -15.6, "Doc Grin"],
+    [-44, 15.6, "Smithy"], [-30, 15.6, "Grin Inn"], [-8, 15.6, "Telegraph"], [3, 15.6, "Barber"], [15, 15.6, "Undertaker"], [28, 15.6, "Assay"],
+    [49, 0, "Courthouse\n(sheriff, jail)"], [37, 4, "statue"], [-18, 2, "well"], [-56, 4, "arch"],
+    [-3, -42, "Station"], [-28, -42.5, "Freight"], [34, -44, "Lumber"], [12, -42.5, "water\ntower"],
+    [-3, 34, "Livery"], [-46, 33.5, "house"], [-33, 35.5, "house"], [32, 33.5, "house"], [44, 34.5, "house"], [54, 44.5, "Boot Hill"]
+  ]
+}
