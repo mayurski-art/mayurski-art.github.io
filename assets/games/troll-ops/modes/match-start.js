@@ -559,7 +559,7 @@ export function endStaging() {
   if (royale?.drop) greenLight();
   else if (royale) { royale.live = true; royale.t = 0; showWaveBanner("DROP IN — last troll standing wins", 1800); }
   else if (game.isPvp() && !game.isSnd()) showWaveBanner("FIGHT", 1100);
-  game.audio.stageTick(true);
+  game.audio.stageTick(false, true);   // GO: the long buzzer
   // The horde/zombie clock — and the first wave banner — start now, not when
   // the map loaded, so nothing was ever ticking behind the countdown.
   if (game.isZombies()) game.nextZombieWave();

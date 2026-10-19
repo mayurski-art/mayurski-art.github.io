@@ -1357,11 +1357,18 @@ export class GameAudio {
     this._tone({ freq: enemy ? 330 : 990, to: enemy ? 300 : 1180, duration: 0.06, gain: 0.05, type: "square" });
   }
 
-  stageTick(last = false) {
+  /* The countdown: a military buzzer, not a tick (user, 2026-10-18). A
+     short low rasp each second, two sharper pulses for the last three, and
+     (`go`) a long one at zero. Two detuned saws beat against each other for
+     the buzz. */
+  stageTick(last = false, go = false) {
     if (!this._ready()) return;
-    this._tone({
-      freq: last ? 880 : 560, duration: last ? 0.2 : 0.07,
-      gain: last ? 0.15 : 0.1, type: "square",
-    });
+    const buzz = (freq, duration, gain, delay = 0) => {
+      this._tone({ freq, duration, gain, type: "sawtooth", delay });
+      this._tone({ freq: freq * 1.012, duration, gain: gain * 0.8, type: "square", delay });
+    };
+    if (go) { buzz(196, 0.75, 0.07); return; }
+    if (last) { buzz(233, 0.13, 0.07); buzz(233, 0.13, 0.07, 0.17); return; }
+    buzz(110, 0.11, 0.06);
   }
 }
