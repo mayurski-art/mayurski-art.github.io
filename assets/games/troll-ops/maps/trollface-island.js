@@ -312,8 +312,9 @@ function valueNoise(cell, seed) {
   };
 }
 
-/* R sand, G path / worn earth, B rock, A colour noise. */
-function groundMask() {
+/* R sand, G path / worn earth, B rock, A colour noise. Exported for
+   tools/troll-ops-island-to-studio.mjs, which paints Studio terrain from it. */
+export function groundMask() {
   const W = Math.ceil((BOUNDS.maxX - BOUNDS.minX) / MASK_RES), H = Math.ceil((BOUNDS.maxZ - BOUNDS.minZ) / MASK_RES);
   const data = new Uint8Array(W * H * 4);
   const big = valueNoise(34, 11), small = valueNoise(9, 12);
