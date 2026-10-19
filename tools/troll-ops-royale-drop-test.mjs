@@ -141,7 +141,7 @@ check("the camera is inside the plane's hold", inHold(c0.local), JSON.stringify(
 await new Promise((r) => setTimeout(r, 700));
 let c1 = await camLocal();
 const moved = Math.hypot(c1.world.x - c0.world.x, c1.world.z - c0.world.z), dtGame = c1.t - c0.t;
-check("...and flies with it (at the plane's speed)", dtGame > 0.1 && moved > dtGame * 40 * 0.6 && moved < dtGame * 40 * 1.6 && inHold(c1.local), JSON.stringify({ moved: +moved.toFixed(1), gameSeconds: +dtGame.toFixed(2) }));
+check("...and flies with it (at the plane's speed)", dtGame > 0.1 && moved > dtGame * 20 * 0.7 && moved < dtGame * 40 * 1.6 && inHold(c1.local), JSON.stringify({ moved: +moved.toFixed(1), gameSeconds: +dtGame.toFixed(2) }));
 const walk = await page.evaluate(async () => {
   const T = window.__trollOps, x0 = T.move.pos.x, z0 = T.move.pos.z;
   T.look.yaw = Math.PI;   // aft, down the aisle (ghost frame: +z)
@@ -182,7 +182,7 @@ const jumped = await page.evaluate(async () => {
   return { me: r.me, secs: r.planeT - t0, fromRamp: r.exitFromRamp ?? -1, hvel: r.exitSpeed || 0 };
 });
 check("Space: down the aisle and off the ramp", jumped.me === "fall" && jumped.secs < 4.5, JSON.stringify({ me: jumped.me, gameSeconds: +jumped.secs.toFixed(2) }));
-check("...out of the back of the plane, with its speed", jumped.fromRamp >= 0 && jumped.fromRamp < 12 && jumped.hvel > 16,   // the run slows to PLANES.runSpeed (26 m/s)
+check("...out of the back of the plane, with its speed", jumped.fromRamp >= 0 && jumped.fromRamp < 12 && jumped.hvel > 11,   // the run slows to PLANES.runSpeed (20 m/s)
   JSON.stringify({ fromRampEnd: +jumped.fromRamp.toFixed(1), speed: +jumped.hvel.toFixed(1) }));
 // Off the ramp, fly for the far side of the island from where you went out
 // (well inside the coast), stick held forward, camera level.

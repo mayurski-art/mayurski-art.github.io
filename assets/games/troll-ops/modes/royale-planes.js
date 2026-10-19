@@ -25,7 +25,7 @@ export const PLANES = {
   count: 12,
   seats: 9,
   speed: 40,          // m/s
-  runSpeed: 26,       // m/s on the drop run (runDist)
+  runSpeed: 20,       // m/s on the drop run (runDist): slow enough to be over land for the whole look down
   orbitR: 420,        // the holding circle, round the island's middle (its corners are ~260 m out)
   baseAlt: 330,
   altStep: 20,        // each slot higher than the last: crossing runs pass well clear
@@ -35,14 +35,14 @@ export const PLANES = {
   inbound: 600,       // how far out they start (m beyond the circle)
   doorAt: -40,        // the upper door swings up
   breakAt: -8,        // off the circle onto the run
-  redAt: -15,         // the red light (the drop cinematic's mask on)
-  rampAt: -6,         // the ramp starts down (open by the green)
+  redAt: -21,         // the red light (the drop cinematic's mask on)
+  rampAt: -9.2,        // the ramp starts down (open by the green)
   rampTime: 2.2,      // the ramp lowering after the green
   // ...then it slides back in under the floor, and the hold ends at the
   // hinge over open air: a clear look straight down at the island before
   // you go (user, 2026-10-18: "the hanger door should open and then be
   // retracted inward ... briefly look down to see the island").
-  retractAt: -3.6,    // (the drop cinematic looks down through it, royale-cine.js lookStanding)
+  retractAt: -6.8,   // (the drop cinematic looks down through it, royale-cine.js lookStanding)
   retractTime: 0.8,
   stickEvery: 0.6,    // bots out one after another
   climb: 5,           // m/s up after the run
@@ -69,8 +69,10 @@ const _f = new THREE.Vector3(), _up = new THREE.Vector3(), _x = new THREE.Vector
 const _m = new THREE.Matrix4(), _m2 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _one = new THREE.Vector3(1, 1, 1);
 const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
 
-const LAND_LEFT = 7;   // s over the island after the green, at least (nine out at stickEvery, and room)
-const LOOK_IN = 110;   // m over land at the look down through the ramp (T-2.6)
+const LOOK_AT = 3.9;   // s before the green: the middle of the look down (royale-cine.js CINE.lookDown)
+const LAND_LEFT = 6;   // s over the island after the green, at least (nine out at stickEvery, and room)
+const LOOK_IN = 150;   // m over land mid look down through the ramp (LOOK_AT): looking aft,
+                       // most of the island is behind and below you
 /* The run slows for the drop, the way jump planes do (40 m/s easing to
    runSpeed), so the island takes ~15 s to cross: time to be well over it at
    the look down and still have it under you for the jump. Metres along the
@@ -160,7 +162,7 @@ export function planFlights(seed, centre, edge) {
       // the green (user, 2026-10-18: see the island, then jump): LOOK_IN m
       // in at the look (T-2), but never so far in that less than LAND_LEFT
       // s over the island is left after the green for everyone to go.
-      f.lead = f.over ? Math.max(0, Math.min((deep >= 0 ? deep : tin) + 2.6, end - LAND_LEFT)) : 0;
+      f.lead = f.over ? Math.max(0, Math.min((deep >= 0 ? deep : tin) + LOOK_AT, end - LAND_LEFT)) : 0;
       f.tIn = Math.max(0, tin - f.lead);
       f.tOut = end - f.lead;
     } else { f.over = true; f.lead = 0; f.tIn = 0; f.tOut = 8; }

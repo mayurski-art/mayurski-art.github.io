@@ -150,7 +150,7 @@ const snap = (page, target = -Infinity, max = 70000) => page.evaluate(async ({ u
   });
 }, { u: STATE, c: CINE, w: CREW, target, max });
 // The crew's measures on every frame the drop clock spends in [from, to].
-const CREW_LEAN0 = -16;   // royale-crew.js CREW.lean[0]
+const CREW_LEAN0 = -22;   // royale-crew.js CREW.lean[0]
 const crewOver = (page, from, to) => page.evaluate(async ({ w, from, to }) => {
   const crewMod = await import(w);
   const T = window.__trollOps;
@@ -201,26 +201,26 @@ const angOff = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
 // ---- photo: the card, then the whole scene
 const a = await open(45);
 // The lean beat, every frame (measured below): started now, before it.
-const leanWatch = crewOver(a, -16.5, -15.2);
+const leanWatch = crewOver(a, -22.5, -21.2);
 await setOpener(a, "photo", 0);
 let s = await st(a);
-check(s.t != null && s.t < -36.2, "boarded before the walk to the seat", "t=" + s.t?.toFixed(1));
-check(!s.on && !s.body && !s.card, "nothing before T-36");
+check(s.t != null && s.t < -42.2, "boarded before the walk to the seat", "t=" + s.t?.toFixed(1));
+check(!s.on && !s.body && !s.card, "nothing before T-42");
 // Stand across the hold from your seat, beside the pallet: the walk has to
 // go round behind it.
 const seatSide = await a.evaluate(() => { const T = window.__trollOps, r = T.royale(), o = r.drop.origin, l = r.drop.hold.seats?.[r.seat]?.local; const side = (l?.x ?? 1) < 0 ? -1 : 1; T.move.reset(o.x - side * 0.8, o.z - 3.3, o.y); return side; });
-s = await until(a, -36.5);
+s = await until(a, -42.5);
 await a.evaluate(() => window.__trollOps.keys.add("KeyA"));   // keys mustn't move you off it
-const walked = await holdPath(a, -30.2);
+const walked = await holdPath(a, -36.2);
 await a.evaluate(() => window.__trollOps.keys.delete("KeyA"));
-const during = walked.filter((q) => q.t > -35.8);
+const during = walked.filter((q) => q.t > -41.8);
 const inPallet = during.filter((q) => Math.abs(q.x) < 0.43 && q.z > -4.65 && q.z < -2.1);
 check(during.length > 10 && !inPallet.length, "walked to the seat round the pallet, not through it", inPallet.length + " frames in it");
 check(during.every((q) => Math.abs(q.x) < 1.45), "...and inside the hold's walls");
 check(Math.sign(walked.at(-1).x) === seatSide && Math.abs(walked.at(-1).x) > 0.9, "...to your own seat", JSON.stringify(walked.at(-1)));
-const early = walked.filter((q) => q.card && q.t < -29.7);
+const early = walked.filter((q) => q.card && q.t < -35.7);
 check(!early.length, "no card while you're still getting to your seat", early.length ? "up at t=" + early[0].t.toFixed(2) : "");
-s = await until(a, -29.3);
+s = await until(a, -35.3);
 check(s.sitK > 0.95 && s.eye < -0.35, "sat down", JSON.stringify({ sitK: s.sitK, eye: s.eye }));
 const x1 = s.x, z1 = s.z;
 await a.evaluate(() => window.__trollOps.keys.add("KeyW"));
@@ -256,10 +256,10 @@ check(/"pick":"photo"/.test(saved || ""), "the pick is remembered", saved);
 // pick and the weapon swap): you're still aboard and walking is untouched.
 check(s.me === "aboard", "still aboard", s.me);
 
-s = await until(a, -21.5);
+s = await until(a, -27.5);
 const yawOff = s.seatYaw == null ? 0 : angOff(s.yaw, s.seatYaw);
-check(!s.card, "T-22: the card goes", String(s.card));
-check(s.on && s.body && s.ui, "T-22: the scene starts", JSON.stringify({ on: s.on, body: s.body, ui: s.ui, t: s.t }));
+check(!s.card, "T-28: the card goes", String(s.card));
+check(s.on && s.body && s.ui, "T-28: the scene starts", JSON.stringify({ on: s.on, body: s.body, ui: s.ui, t: s.t }));
 check(s.holding === "streak" && s.kind === "photo", "the photo is in the hands", JSON.stringify({ holding: s.holding, kind: s.kind }));
 check(yawOff < 0.6, "facing across the hold", `off=${yawOff.toFixed(3)} rad`);
 check(!s.sub, "no line yet", s.sub);
@@ -270,7 +270,7 @@ s = await st(a);
 await a.evaluate(() => window.__trollOps.keys.delete("KeyW"));
 check(Math.hypot(s.x - x0, s.z - z0) < 0.05, "seated: W doesn't walk you", `moved ${Math.hypot(s.x - x0, s.z - z0).toFixed(3)} m`);
 
-s = await until(a, -19.8);
+s = await until(a, -25.8);
 check(s.photo && s.photoK > 0.95, "the photo is up", `k=${s.photoK.toFixed(2)}`);
 check(s.pitch < -0.25, "looking down at it", `pitch=${s.pitch.toFixed(2)}`);
 check(s.memory > 0.5, "the edges go warm", `memory=${s.memory.toFixed(2)}`);
@@ -283,8 +283,8 @@ const strokes = await a.evaluate(async (c) => {
   await new Promise((done) => {
     const tick = () => {
       const t = T.royale().planeT;
-      if (t > -19.3 && t < -17.2) out.push(+cine.dropCineCaress().toFixed(2));
-      if (t >= -17.2) done(); else requestAnimationFrame(tick);
+      if (t > -25.3 && t < -23.2) out.push(+cine.dropCineCaress().toFixed(2));
+      if (t >= -23.2) done(); else requestAnimationFrame(tick);
     };
     tick();
   });
@@ -297,7 +297,7 @@ await shot(a, "photo-caress.png");
 // He's by you, standing still, from T-16.4; the lean and the tap run
 // T-16..T-14.8. Every frame over it is measured (single samples land late
 // on a busy machine): leanWatch, from the top.
-s = await until(a, -15.7);
+s = await until(a, -21.7);
 check(/Hey\. Mask on, troll/.test(s.sub), "T-16: he cuts in", s.sub);
 check(s.pitch > -0.2, "the head comes up", `pitch=${s.pitch.toFixed(2)}`);
 const leanF = await leanWatch;
@@ -314,17 +314,17 @@ check(s.photoK < 0.95, "the photo's going away", `k=${s.photoK.toFixed(2)}`);
 check(s.memory < 0.2, "the warm edges fade", `memory=${s.memory.toFixed(2)}`);
 await shot(a, "photo-interrupt.png");
 
-s = await until(a, -14.7);
+s = await until(a, -20.7);
 check(s.kind === "mask" && !s.photo, "T-15: the hands go to the mask", JSON.stringify({ kind: s.kind, photo: s.photo }));
 await shot(a, "cine-raise.png");
 
-s = await until(a, -13);
+s = await until(a, -19);
 check(s.k > 0.95 && s.mask, "the mask is on the face by T-13", `k=${s.k.toFixed(2)}`);
 check(s.visor > 0.6, "the visor darkens", `opacity=${s.visor.toFixed(2)}`);
 check(s.crew?.mask && (s.crew?.mateHandsToMask ?? 9) < 0.16, "the squad mate holds his mask on with both hands", `mask ${s.crew?.mask}, hands ${(s.crew?.mateHandsToMask ?? 9).toFixed(2)} m from it`);
 await shot(a, "cine-mask-on.png");
 
-s = await until(a, -11.5);
+s = await until(a, -17.5);
 check(/Deep breaths/.test(s.sub), "the second line", s.sub);
 let fog = 0;
 for (let i = 0; i < 14; i++) {
@@ -333,29 +333,31 @@ for (let i = 0; i < 14; i++) {
 }
 check(fog > 0.2, "the visor fogs on a breath", `fog=${fog.toFixed(2)}`);
 
-s = await until(a, -8.8);
+s = await until(a, -14.8);
 check(/Okay, off/.test(s.sub), "the third line", s.sub);
 check(s.k < 0.6, "the mask is coming off", `k=${s.k.toFixed(2)}`);
 check(s.crew?.mate.shown && s.crew?.jm.shown, "the jumpmaster and the squad mate are there", JSON.stringify(s.crew));
 
 // ---- phase 2: up, down the aisle, the ramp, the turn
-s = await until(a, -7.5);
-check(s.on && s.body, "T-8: still the scene's", JSON.stringify({ on: s.on, body: s.body }));
+s = await until(a, -13.5);
+check(s.on && s.body, "T-14: still the scene's", JSON.stringify({ on: s.on, body: s.body }));
 check(s.holding === "none" && !s.mask, "the hands are empty", JSON.stringify({ holding: s.holding, mask: s.mask }));
 check(s.eye > -0.05, "on your feet", `eye=${s.eye.toFixed(2)}`);
 const lz0 = s.lz;
-s = await until(a, -5.6);
+s = await until(a, -11.6);
 check(/Get to the ramp/.test(s.sub), "the walk line", s.sub);
 check(s.lz > lz0 + 0.5, "walking aft down the aisle", `z ${lz0.toFixed(2)} -> ${s.lz.toFixed(2)}`);
 await shot(a, "walk.png");
-s = await until(a, -3.0);
-check(Math.abs(s.lz - 5.7) < 0.3, "at the ramp's hinge by T-3", `z=${s.lz.toFixed(2)}`);
+s = await until(a, -8.6);
+check(Math.abs(s.lz - 5.7) < 0.3, "at the ramp's hinge by T-8.6", `z=${s.lz.toFixed(2)}`);
 check(s.light === "red" && s.ramp > 0.1, "red light on, the ramp coming down", JSON.stringify({ light: s.light, ramp: s.ramp }));
 check(Math.cos(s.yaw) < -0.8, "looking aft at the ramp", `yaw=${s.yaw.toFixed(2)}`);
 await shot(a, "ramp.png");
-s = await until(a, -2.6);
-check(s.pitch < -0.5 && s.ramp >= 0.99, "T-2.6: looking down past the edge, the ramp slid in", JSON.stringify({ pitch: s.pitch, ramp: s.ramp }));
+s = await until(a, -5.2);
+check(s.pitch < -0.5 && s.ramp >= 0.99, "T-5.2: looking down past the edge, the ramp slid in", JSON.stringify({ pitch: s.pitch, ramp: s.ramp }));
 await shot(a, "look-down.png");
+s = await until(a, -2.4);
+check(s.pitch < -0.5, "T-2.4: still looking down (a long look)", JSON.stringify({ pitch: s.pitch }));
 s = await until(a, -0.4);
 check(/Back to the door/.test(s.sub), "the turn line", s.sub);
 check(Math.cos(s.yaw) > 0.8, "turned round to face into the hold", `yaw=${s.yaw.toFixed(2)}`);
@@ -430,15 +432,15 @@ await a.close();
 const b = await open(45);
 await setOpener(b, "music", 2);   // picked before the scene, as the music checks below expect
 await b.evaluate(() => { window.__trollOps.settings.thirdPerson = true; });
-s = await until(b, -33);
+s = await until(b, -39);
 let tv = await tpView(b);
 check(tv.vis && tv.dist > 0.9 && Math.abs(tv.x) < 0.9 && Math.abs(tv.y) < 0.9 && tv.z < 1, "third person, walking to the seat: you're in frame", JSON.stringify(tv));
 await shot(b, "tp-walk.png");
-s = await until(b, -27);
+s = await until(b, -33);
 tv = await tpView(b);
 check(s.sitK > 0.95 && tv.vis && tv.dist > 0.9 && Math.abs(tv.x) < 0.9 && Math.abs(tv.y) < 0.9 && tv.z < 1, "third person, seated: you're in frame", JSON.stringify({ sitK: s.sitK, ...tv }));
 await shot(b, "tp-seated.png");
-s = await until(b, -21);
+s = await until(b, -27);
 tv = await tpView(b);
 check(!tv.vis, "the scene itself is first person", JSON.stringify(tv));
 await b.evaluate(() => { window.__trollOps.settings.thirdPerson = false; });
@@ -448,35 +450,35 @@ check(N > 2, "Troll Radio has tracks", String(N));
 await setOpener(b, "music", 2);
 // The radio's off before (the default in a test tab): it stays off after.
 const before = s.music;
-s = await until(b, -21.5);
-check(s.on && s.kind === "ipod", "T-22: the iPod is in the hands", JSON.stringify({ on: s.on, kind: s.kind }));
+s = await until(b, -27.5);
+check(s.on && s.kind === "ipod", "T-28: the iPod is in the hands", JSON.stringify({ on: s.on, kind: s.kind }));
 // (Sampled late on a busy machine the song may be on already: then it
 // mustn't have started before the press, T-19.4, by its own clock.)
 check(!s.song || s.music.at <= s.t + 19.4 + 0.3, "nothing playing before play's pressed", "t=" + s.t?.toFixed(2) + " song at " + s.music?.at?.toFixed(2));
-s = await until(b, -20.4);
+s = await until(b, -26.4);
 check(s.ipod && s.ipodK > 0.9 && !s.photo, "the iPod is up, no photo", `k=${s.ipodK.toFixed(2)}`);
 await shot(b, "ipod-list.png");
-s = await until(b, -18.4);
+s = await until(b, -24.4);
 check(s.song && s.song.index === 2, "play: the picked song is on", JSON.stringify(s.song));
 check(s.music.index === 2 && !s.music.paused, "Troll Radio is playing track 3", JSON.stringify(s.music));
 await shot(b, "ipod-playing.png");
-s = await until(b, -17);
+s = await until(b, -23);
 check(s.music.at > 0.5, "and it keeps going", `at=${s.music.at.toFixed(2)} s`);
 check(s.pitch > -0.2, "head up, listening", `pitch=${s.pitch.toFixed(2)}`);
 check(s.memory < 0.05, "no warm edges on the music path", `memory=${s.memory.toFixed(2)}`);
 await shot(b, "ipod-listen.png");
 // The fade runs T-16..T-15.3: watch it (a single sample can land after it).
 let faded = 1, line = "";
-for (s = await until(b, -16.05); s.t < -15.3; s = await st(b)) { if (s.song) faded = Math.min(faded, s.music.vol / s.music.base); if (s.sub) line = s.sub; }
+for (s = await until(b, -22.05); s.t < -21.3; s = await st(b)) { if (s.song) faded = Math.min(faded, s.music.vol / s.music.base); if (s.sub) line = s.sub; }
 check(/Hey\. Mask on, troll/.test(line), "T-16: he cuts in", line);
 check(faded < 0.8, "the song fades", `down to ${(faded * 100).toFixed(0)}%`);
-s = await until(b, -14.7);
+s = await until(b, -20.7);
 check(!s.song && s.music.paused, "the song's stopped", JSON.stringify(s.music));
 check(Math.abs(s.music.vol - s.music.base) < 0.01, "the radio's volume put back", `vol=${s.music.vol.toFixed(2)}`);
 check(s.music.playing === before.playing && s.music.index === before.index, "the radio as it was before", JSON.stringify({ before, now: s.music }));
 check(s.kind === "mask" && !s.ipod, "the hands go to the mask", JSON.stringify({ kind: s.kind, ipod: s.ipod }));
-s = await until(b, -7.6);
-check(s.on && s.holding === "none" && !s.ipod, "T-8: up, hands empty", JSON.stringify({ on: s.on, holding: s.holding }));
+s = await until(b, -13.6);
+check(s.on && s.holding === "none" && !s.ipod, "T-14: up, hands empty", JSON.stringify({ on: s.on, holding: s.holding }));
 s = await until(b, 0.4, 30000);
 check(!s.on && s.holding === "none", "the green: handed back", JSON.stringify({ on: s.on, holding: s.holding }));
 await b.close();
@@ -484,7 +486,7 @@ await b.close();
 // ---- a late join skips it
 const c = await open(18);
 s = await until(c, -17);
-check(!s.on && !s.body && !s.card, "a late join (aboard after T-22) never gets the card or the scene", JSON.stringify({ t: s.t, on: s.on, card: s.card }));
+check(!s.on && !s.body && !s.card, "a late join (aboard after T-28) never gets the card or the scene", JSON.stringify({ t: s.t, on: s.on, card: s.card }));
 s = await until(c, -12);
 check(!s.on && s.holding !== "streak", "still nothing at T-12", JSON.stringify({ on: s.on, holding: s.holding }));
 await c.close();

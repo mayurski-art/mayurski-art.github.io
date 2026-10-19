@@ -30,20 +30,20 @@ import { oxygenMask } from "./royale-mask.js?v=dc1";
 
 /* Beats on the drop clock (royale-cine.js CINE has yours). */
 export const CREW = {
-  jmWalk: -19.6,          // the jumpmaster sets off down the aisle to you
-  jmBy: -16.4,            // ...and is by you
-  lean: [-16, -14.8],     // leans in, taps his face: mask on
-  point: [-9.2, -8.2],    // points aft: the ramp
-  jmToRamp: -8.6,         // goes ahead to the ramp
-  stand: -7.7,            // the squad mate's up
-  mateWalk: -7.4,
+  jmWalk: -25.6,          // the jumpmaster sets off down the aisle to you
+  jmBy: -22.4,            // ...and is by you
+  lean: [-22, -20.8],     // leans in, taps his face: mask on
+  point: [-15.2, -14.2],    // points aft: the ramp
+  jmToRamp: -14.6,         // goes ahead to the ramp
+  stand: -13.7,            // the squad mate's up
+  mateWalk: -13.4,
   wave: [-1.7, -0.4],     // round you go: back to the door
   turn: [-1.6, -0.3],     // you both turn to face into the hold
   stepIn: [-0.9, -0.2],   // he steps in, square in front of you
   shove: [0.02, 0.6],     // both hands to your chest and out: the push
   shoveHit: 0.3,          // ...his hands land (royale-cine.js sends you back)
   go: [0.6, 2.2],         // GO GO GO
-  mask: [-14.6, -8.8],    // the squad mate's mask on
+  mask: [-20.6, -14.8],    // the squad mate's mask on
   seatY: 0.44,
 };
 

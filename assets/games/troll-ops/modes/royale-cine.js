@@ -33,52 +33,52 @@
 
 import * as THREE from "three";
 import { game } from "../core/state.js?v=st1";
-import { beginStreakHold, endStreakHold } from "../streaks/hold.js?v=sh1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1";
+import { beginStreakHold, endStreakHold } from "../streaks/hold.js?v=sh1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3";
 import { SEAT_SPOTS } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1";
 import { oxygenMask } from "./royale-mask.js?v=dc1";
 import { familyPhoto, setPhotoThumb } from "./royale-photo.js?v=dc1-ph1-op1";
 import { ipod, drawIpod, pressIpod } from "./royale-ipod.js?v=dc1";
-import { updateCrew, hideCrew, crewSeat, yourRampPath, pathAt, paceFor, CREW } from "./royale-crew.js?v=dc2-rf1-ls1-rr1";
+import { updateCrew, hideCrew, crewSeat, yourRampPath, pathAt, paceFor, CREW } from "./royale-crew.js?v=dc2-rf1-ls1-rr1-ld2";
 import { playSfx } from "../sound/sfx-files.js?v=dc4";
 
 export const CINE = {
-  start: -22,       // drop clock: the scene takes over
-  photoOut: [-21.6, -20.5],   // the photo up out of the pocket
-  caress: [-19.3, -17.2],     // the thumb across it, slowly
-  interrupt: -16,             // the jumpmaster cuts in
-  photoAway: [-15.9, -15.1],  // back in the pocket
-  maskFrom: -15,              // the hands go to the mask
-  seatFrom: -36,              // walked to your seat from wherever you are
-  seatBy: -30.6,              // ...there by now (sooner if you're close)
+  start: -28,       // drop clock: the scene takes over
+  photoOut: [-27.6, -26.5],   // the photo up out of the pocket
+  caress: [-25.3, -23.2],     // the thumb across it, slowly
+  interrupt: -22,             // the jumpmaster cuts in
+  photoAway: [-21.9, -21.1],  // back in the pocket
+  maskFrom: -21,              // the hands go to the mask
+  seatFrom: -42,              // walked to your seat from wherever you are
+  seatBy: -36.6,              // ...there by now (sooner if you're close)
   sitTime: 0.7,               // turning round and sitting down
-  cardFrom: -29.6,            // seated: the opener's card comes up
-  buds: [-20.4, -19.8],       // music: the earbuds in
-  press: [-19.6, -19.2],      // the thumb on play
-  playAt: -19.4,              // the song starts
-  fade: [-16, -15.3],         // and fades when he cuts in
+  cardFrom: -35.6,            // seated: the opener's card comes up
+  buds: [-26.4, -25.8],       // music: the earbuds in
+  press: [-25.6, -25.2],      // the thumb on play
+  playAt: -25.4,              // the song starts
+  fade: [-22, -21.3],         // and fades when he cuts in
   release: 0,       // the green: hands you back, at the ramp
-  stand: [-8, -7.45],      // seatbelt off, up on your feet
-  walkFrom: -7.4,          // down the aisle to the ramp
-  walkBy: -3.4,            // ...there by now, whatever the seat
+  stand: [-14, -13.45],      // seatbelt off, up on your feet
+  walkFrom: -13.4,          // down the aisle to the ramp
+  walkBy: -9.4,            // ...there by now, whatever the seat
   turn: [-1.6, -0.3],      // round to face into the hold
-  lookDown: [-3.4, -1.75], // down past the edge once the ramp's slid in
-  lean: 0.62,              // m: the head just out past the edge to look straight down (the floor hid most of it)
+  lookDown: [-6, -1.75],   // down past the edge once the ramp's slid in: a long look (user, 2026-10-18)
+  lean: 0.9,               // m: the head out past the edge to look straight down (the floor hid most of it)
   tail: 1.4,               // GO GO GO, after the green
-  raise: [-14.6, -13.5],   // the mask up to the face
+  raise: [-20.6, -19.5],   // the mask up to the face
   // On the breathing clip (sound/sfx-files.js "breathing" at BREATH_RATE
   // from breathFrom): the visor fogs as each one goes out.
-  breaths: [-13.1, -11.43, -9.5],
-  breathFrom: -13.2,
-  lower: [-9.2, -8.5],     // the strap off, the mask down
+  breaths: [-19.1, -17.43, -15.5],
+  breathFrom: -19.2,
+  lower: [-15.2, -14.5],     // the strap off, the mask down
   seatedEye: -0.42,        // the eye this much lower, sitting
 };
 
 /* What the jumpmaster says, and when. Subtitles only (user, 2026-10-17). */
 const LINES = [
-  { at: -16, until: -12, who: "Jumpmaster", text: "Hey. Mask on, troll. Air's thin up here." },
-  { at: -12, until: -9, who: "Jumpmaster", text: "Deep breaths. That's it." },
-  { at: -9, until: -7, who: "Jumpmaster", text: "Okay, off. On your feet." },
-  { at: -7, until: -4.6, who: "Jumpmaster", text: "Get to the ramp. Wait for green." },
+  { at: -22, until: -18, who: "Jumpmaster", text: "Hey. Mask on, troll. Air's thin up here." },
+  { at: -18, until: -15, who: "Jumpmaster", text: "Deep breaths. That's it." },
+  { at: -15, until: -13, who: "Jumpmaster", text: "Okay, off. On your feet." },
+  { at: -13, until: -10.6, who: "Jumpmaster", text: "Get to the ramp. Wait for green." },
   { at: -1.7, until: 0, who: "Jumpmaster", text: "Back to the door." },
   { at: 0, until: 1.4, who: "Jumpmaster", text: "GO! GO! GO!" },
 ];
@@ -392,12 +392,12 @@ function lookStanding(t, dt) {
   else want = Math.PI + cine.side * Math.PI * smooth(CINE.turn[0], CINE.turn[1], t);
   if (t >= CINE.turn[0]) cine.head = want;   // the turn is the script's own
   else cine.head += Math.atan2(Math.sin(want - cine.head), Math.cos(want - cine.head)) * Math.min(1, dt * 5);
-  const ramp = smooth(-6, -5, t) * (1 - smooth(CINE.turn[0], CINE.turn[0] + 0.5, t));
+  const ramp = smooth(-9.4, -8.4, t) * (1 - smooth(CINE.turn[0], CINE.turn[0] + 0.5, t));
   // The ramp slides in under the floor (royale-planes.js retractAt): a look
   // straight down past the edge at the island, then back up for the turn.
   const down = smooth(CINE.lookDown[0], CINE.lookDown[0] + 0.45, t) * (1 - smooth(CINE.lookDown[1] - 0.35, CINE.lookDown[1], t));
   game.look.yaw = cine.head + Math.sin(t * 0.55) * 0.02;
-  game.look.pitch = -0.04 - ramp * 0.14 - down * 1.18 + (w.moving ? Math.sin(t * 9) * 0.008 : 0) + Math.sin(t * 0.8) * 0.01;
+  game.look.pitch = -0.04 - ramp * 0.14 - down * 1.32 + (w.moving ? Math.sin(t * 9) * 0.008 : 0) + Math.sin(t * 0.8) * 0.01;
   cine.lean = down * CINE.lean;
 }
 
