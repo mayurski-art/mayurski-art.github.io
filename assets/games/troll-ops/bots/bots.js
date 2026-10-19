@@ -251,7 +251,8 @@ class Bot {
     this.name = NAMES[counter % NAMES.length];
     this.team = team;
     this.isBot = true;
-    this.skill = DIFFICULTY[difficulty] ? difficulty : "regular";
+    // A mode can fix the tier (Troll Royale: rules.skill, match-start.js beginMatch).
+    this.skill = DIFFICULTY[rules.skill] ? rules.skill : DIFFICULTY[difficulty] ? difficulty : "regular";
     this.diff = DIFFICULTY[this.skill];
     this.weaponId = BOT_WEAPONS[counter % BOT_WEAPONS.length];
     this.secondaryId = counter % 5 === 0 ? "fhj18" : BOT_SIDEARMS[counter % BOT_SIDEARMS.length];
@@ -1413,7 +1414,7 @@ export class BotManager {
     this.bots = [];
     this.enabled = false;
     this.difficulty = "regular";
-    this.rules = { oneShot: false, calm: false };   // the match's mode rules every bot reads (match-start.js beginMatch)
+    this.rules = { oneShot: false, calm: false, skill: null };   // the match's mode rules every bot reads (match-start.js beginMatch)
     this.fieldSrc = null;         // geometry the fields are built from
     this.fieldPool = new Map();   // [level|]target id -> FlowField, reused across sweeps
     this.fieldBases = new Map();  // level -> the blocked grid every field there copies

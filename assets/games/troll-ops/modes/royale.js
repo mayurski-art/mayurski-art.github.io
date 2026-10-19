@@ -34,6 +34,7 @@ function royaleGround(x, z) { return groundHeightAt(game.colliders, x, z, 0.8, 0
 
 export function setupRoyale(seed = royaleSeed()) {
   teardownRoyale();
+  resetRoyalePace();
   preloadSfx();   // the drop's clips (sound/sfx-files.js), in well before the scene
   const rng = seededRng(seed);
   const map = game.builtMap.map;
@@ -1032,9 +1033,9 @@ function updateRoyaleBot(b, dt) {
    a collapse. The crowding was the real cause (bots landed in a ring round
    the drop: botLandings), so damage starts at 60% now and pistol-only bots
    keep out of fights (UNARMED_SIGHT); tools/troll-ops-royale-pace.mjs. */
-const ROYALE_BOT_SIGHT = [16, 20, 26, 34, 45];
+const ROYALE_BOT_SIGHT = [11, 14, 19, 27, 40];   // 2026-10-18: kills spread over a ~14 min match
 const UNARMED_SIGHT = 6;      // metres, by zone phase
-const ROYALE_BOT_VS_BOT = [0.6, 0.7, 0.85, 1, 1];  // damage scale, by zone phase
+const ROYALE_BOT_VS_BOT = [0.25, 0.35, 0.5, 0.7, 1];  // damage scale, by zone phase (the pace director below moves it)
 function royalePhaseIdx() {
   if (!royale?.live) return 0;
   const s = royale.zone.state(royale.t);
@@ -1049,7 +1050,7 @@ function botCalm(b) {
   if (!b.killedAt) return false;
   let h = 0;
   for (const ch of String(b.id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return performance.now() - b.killedAt < 30000 + (h % 1000) * 15;
+  return performance.now() - b.killedAt < 50000 + (h % 1000) * 30;   // 50-80 s
 }
 export function royaleBotSight(b) {
   // Someone shooting at it gets noticed whatever the range.
@@ -1061,7 +1062,34 @@ export function royaleBotSight(b) {
   if (!botArmed(b)) return UNARMED_SIGHT;
   return ROYALE_BOT_SIGHT[royalePhaseIdx()];
 }
-export function royaleBotVsBot() { return ROYALE_BOT_VS_BOT[royalePhaseIdx()]; }
+/* The pace director (user, 2026-10-18: "killing to occur gradually ... the
+   game can be finished within 15 minutes" solo against 99 bots). Bots
+   bunch up at the loot after landing, so no sight range or fixed damage
+   kept the first three minutes from being a massacre. Instead the field
+   follows a curve, about 70 left at 3 min, 45 at 6, 22 at 9, 8 at 11 and
+   the last few by ~13 (the zone closes at ~14): bot-on-bot damage eases off
+   while they're ahead of it and picks up while they're behind. Bots only:
+   what a bot does to you is untouched. */
+const PACE_END = 780;   // s from the zone going live: the field down to the last few
+const PACE = { min: 0.05, max: 1.8, every: 1000 };
+const pace = { at: -1e9, k: 1, n0: 0 };
+export function royalePaceK() {
+  if (!royale?.live) return ROYALE_BOT_VS_BOT[0];
+  const now = performance.now();
+  if (now - pace.at < PACE.every) return pace.k;
+  pace.at = now;
+  const alive = royaleAliveList().length;
+  if (!pace.n0 || royale.t < 1) pace.n0 = Math.max(pace.n0 | 0, alive);
+  const u = Math.min(1, Math.max(0, royale.t) / PACE_END);
+  const target = Math.max(2, pace.n0 * Math.pow(1 - u, 1.3));
+  // behind the curve (too many left): harder; ahead of it: softer
+  // (steep: bunched up after landing, even half damage still killed fast)
+  const want = ROYALE_BOT_VS_BOT[royalePhaseIdx()] * Math.pow(alive / target, 6);
+  pace.k += (Math.min(PACE.max, Math.max(PACE.min, want)) - pace.k) * 0.35;
+  return pace.k;
+}
+export function resetRoyalePace() { pace.at = -1e9; pace.k = 1; pace.n0 = 0; }
+export function royaleBotVsBot() { return royalePaceK(); }
 
 /* A bot's shot hits as hard as the gun it's holding: the pistol it lands
    with is weak, a looted gun better, a rarer one better still. */

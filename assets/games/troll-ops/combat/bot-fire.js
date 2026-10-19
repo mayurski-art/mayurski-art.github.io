@@ -108,7 +108,6 @@ export function onBotShoot(bot, target, dmg, isHead, hit, range = 30, usingSecon
   const wid = (usingSecondary ? bot.secondaryId : bot.weaponId) || "problem416";
   if (royale) {
     dmg = royaleBotDamage(bot, dmg);
-    if (game.bots.byId(target.id)) dmg *= royaleBotVsBot();
     royaleNoise(bot.pos.x, bot.pos.z, bot.id);
   }
 
@@ -288,6 +287,9 @@ export function botDealDamage(bot, targetId, dmg, isHead, wid) {
   flinchPeer(targetId, bot.id, isHead);
 
   if (game.bots.byId(targetId)) {
+    // Troll Royale: bot on bot, by the pace director (royale.js royalePaceK),
+    // whatever did it: a gun, a streak, a crate.
+    if (royale) dmg *= royaleBotVsBot();
     const { killed, bot: victim } = game.bots.applyHit(targetId, dmg, { explosive: isExplosive(wid) });
     if (killed) {
       bot.kills++;

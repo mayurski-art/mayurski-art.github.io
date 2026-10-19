@@ -297,6 +297,7 @@ let loadWaitT = 0;
    it a flag rather than a state means the ~25 existing `gameState === "playing"`
    checks all keep working untouched. */
 const STAGE_SECONDS = 6;
+const ROYALE_BOT_SKILL = "regular";   // Troll Royale bots: one baseline tier for every match (user, 2026-10-18)
 // TDM and S&D open on a cinematic of both teams (match-intro.js), so their
 // first countdown is long enough to hold it plus a couple of beats to GO.
 // Every client uses the same length so the shared clock never shrinks it.
@@ -624,6 +625,8 @@ export function beginMatch(mapId = null) {
   game.net.onEnd = onRoomEnd;   // someone else's match ended: ours too (combat/scoring.js)
   game.bots.rules.oneShot = !!game.currentMode().oneShot;   // One in the Chamber's bots (bots.js)
   game.bots.rules.calm = !!game.currentMode().royale;       // Troll Royale's bots hop and slide less (bots.js)
+  // ...and play at one baseline, not the Bot skill setting (user, 2026-10-18).
+  game.bots.rules.skill = game.currentMode().royale ? ROYALE_BOT_SKILL : null;
   game.killcam.clear();
   setFunnyDeaths(!!game.currentMode().funny);
   game.suppressT = 0;

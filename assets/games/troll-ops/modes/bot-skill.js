@@ -5,6 +5,7 @@ import { isStaging } from "./match-start.js?v=mst1-si1-mb1-gj1-if1-fu1b7b7dc1c2-
 import { game } from "../core/state.js?v=st1";
 
 export function roomBotSkill() {
+  if (game.bots.rules.skill) return game.bots.count ? game.bots.rules.skill : null;   // a mode's own tier (Troll Royale)
   if (!game.net.active || game.net.isBotHost()) return game.bots.count ? game.bots.difficulty : null;
   const n = {};
   for (const p of game.net.peers.values()) if (p.botSkill) n[p.botSkill] = (n[p.botSkill] || 0) + 1;
@@ -41,6 +42,8 @@ export function renderBotSkillNote() {
   const el = document.getElementById("to-set-botskill-note");
   if (!el) return;
   let text = "Veteran bots: +10% XP";
+  if (game.currentMode?.()?.royale) text = "Troll Royale's bots play at one set skill.";
+  else
   if (game.net.active && !game.net.isBotHost()) {
     const seen = roomBotSkill() || game.roomSkillSeen;
     text = seen

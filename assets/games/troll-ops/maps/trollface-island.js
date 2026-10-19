@@ -1159,11 +1159,13 @@ export const TROLLFACE_ISLAND = {
     pois: Object.values(LANDMARKS),
     lootExtra: LOOT_EXTRA,
     phases: [
-      { wait: 150, close: 60, frac: 0.6, dps: 1 },
-      { wait: 90, close: 50, frac: 0.35, dps: 2 },
-      { wait: 60, close: 40, frac: 0.2, dps: 4 },
-      { wait: 45, close: 30, frac: 0.1, dps: 7 },
-      { wait: 30, close: 30, frac: 0, dps: 12 },
+      // ~14 min to the last circle (user, 2026-10-18: a solo match against
+      // 99 bots done inside 15 minutes, the killing gradual)
+      { wait: 200, close: 75, frac: 0.6, dps: 1 },
+      { wait: 140, close: 65, frac: 0.35, dps: 2 },
+      { wait: 100, close: 55, frac: 0.2, dps: 4 },
+      { wait: 70, close: 45, frac: 0.1, dps: 7 },
+      { wait: 40, close: 40, frac: 0, dps: 12 },
     ],
   },
 };
