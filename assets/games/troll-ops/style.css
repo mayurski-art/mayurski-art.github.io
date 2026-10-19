@@ -4735,3 +4735,24 @@ body.to-touch-play .to-dropcine-card { top: auto; bottom: calc(40px + 120px * va
   flex: none; width: 28px; height: 28px; border-radius: 50%; border: 0;
   background: rgba(255, 255, 255, 0.12); color: inherit; font-size: 18px; line-height: 1; cursor: pointer;
 }
+
+/* Troll Royale, in the C-130: nothing to shoot, throw or swing (combat/weapons.js
+   royaleAboard), so only move, look, Emote and POV show (view/player-update.js). */
+body.to-aboard #to-crosshair,
+body.to-aboard #hud-ammo,
+body.to-aboard #to-hud-gear,
+body.to-aboard #to-cook,
+body.to-aboard #to-touch-fire,
+body.to-aboard #to-touch-fire-l,
+body.to-aboard #to-touch-ads,
+body.to-aboard #to-touch-tac,
+body.to-aboard #to-touch-reload,
+body.to-aboard #to-touch-slide,
+body.to-aboard #to-touch-jump,
+body.to-aboard #to-touch-melee,
+body.to-aboard #to-touch-nade,
+body.to-aboard #to-touch-interact,
+body.to-aboard #to-touch-swap,
+body.to-aboard #to-touch-admire,
+body.to-aboard #to-touch-streak,
+body.to-aboard #to-touch-endstreak { display: none !important; }

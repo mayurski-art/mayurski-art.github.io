@@ -619,6 +619,7 @@ function royaleLateSpectate() {
 export function teardownRoyale() {
   resetDropCine();
   endFallShow();
+  document.body.classList.remove("to-aboard");   // the plane's trimmed touch HUD (view/player-update.js)
   if (royale) {
     royale.pushed = null;
     royale.windIn?.stop(0.2);

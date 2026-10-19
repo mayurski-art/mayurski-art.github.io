@@ -91,6 +91,7 @@ function flyView(dt, ix, iz) {
 const FIRE_SPRINT_HOLD = 0.35;
 let fireSprintHoldT = 0;
 let fireWasDown = false;
+let aboardHud = false;   // body.to-aboard is on
 
 export function updatePlayer(dt) {
   const w = currentWeapon();
@@ -230,6 +231,9 @@ export function updatePlayer(dt) {
   });
   // Troll Royale's opening: aboard the C-130, off the ramp and the drop
   // takes over (after the walk, so collisions have resolved).
+  // In the plane only what works there shows: move, look, Emote, POV (style.css body.to-aboard).
+  const aboard = royaleAboard();
+  if (aboard !== aboardHud) { aboardHud = aboard; document.body.classList.toggle("to-aboard", aboard); }
   if (royaleAboard()) updateAboardPlayer(dt, !frozen && ((game.isTouch && touchState.jump) || (gp && game.gamepadState.jump) || game.keys.has("Space")));
 
   // fist fights with the townsfolk (Socialize): after we've moved, so a
