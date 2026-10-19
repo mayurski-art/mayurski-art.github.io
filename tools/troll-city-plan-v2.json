@@ -1,0 +1,414 @@
+{
+ "view": [
+  -140,
+  -66,
+  140,
+  160
+ ],
+ "bounds": [
+  -124,
+  -55,
+  124,
+  145
+ ],
+ "labels": [
+  [
+   -45,
+   -15.6,
+   "Clothier"
+  ],
+  [
+   -32,
+   -15.6,
+   "Kek"
+  ],
+  [
+   -14,
+   -15.6,
+   "Saloon"
+  ],
+  [
+   4,
+   -15.6,
+   "Bank"
+  ],
+  [
+   18,
+   -15.6,
+   "Guns"
+  ],
+  [
+   29,
+   -15.6,
+   "Doc"
+  ],
+  [
+   -44,
+   15.6,
+   "Smithy"
+  ],
+  [
+   3,
+   15.6,
+   "Barber"
+  ],
+  [
+   15,
+   15.6,
+   "Undertaker"
+  ],
+  [
+   28,
+   15.6,
+   "Assay"
+  ],
+  [
+   -3,
+   -42,
+   "Station"
+  ],
+  [
+   -28,
+   -42.5,
+   "Freight"
+  ],
+  [
+   34,
+   -44,
+   "Lumber"
+  ],
+  [
+   -46,
+   33.5,
+   "house"
+  ],
+  [
+   32,
+   33.5,
+   "house"
+  ],
+  [
+   44,
+   34.5,
+   "house"
+  ],
+  [
+   -10,
+   -3,
+   "MAIN STREET"
+  ],
+  [
+   0,
+   152,
+   "new bounds 248 x 200 m (red dashes) = 4x today; the train loop goes round it"
+  ],
+  [
+   -110,
+   92,
+   "the train loop today:\nit grows out past the red\nbounds (and the far mesas move)"
+  ]
+ ],
+ "moves": [
+  {
+   "name": "Grin Inn\n(hotel)",
+   "from": [
+    -35,
+    9.6,
+    -25,
+    21.6
+   ],
+   "to": [
+    -35,
+    24.6,
+    -25,
+    36.6
+   ]
+  },
+  {
+   "name": "Telegraph",
+   "from": [
+    -13,
+    9.6,
+    -3,
+    21.6
+   ],
+   "to": [
+    -13,
+    24.6,
+    -3,
+    36.6
+   ]
+  },
+  {
+   "name": "Livery\n+ corral",
+   "from": [
+    -12,
+    28,
+    6,
+    40
+   ],
+   "to": [
+    -2,
+    40,
+    16,
+    52
+   ]
+  },
+  {
+   "name": "house",
+   "from": [
+    -37,
+    32,
+    -29,
+    39
+   ],
+   "to": [
+    -50,
+    42,
+    -42,
+    49
+   ]
+  },
+  {
+   "name": "TOWN HALL\n(sheriff, jail)",
+   "from": [
+    42,
+    -10,
+    56,
+    10
+   ],
+   "to": [
+    80,
+    -16,
+    104,
+    16
+   ]
+  },
+  {
+   "name": "statue",
+   "from": [
+    36,
+    -1,
+    38,
+    1
+   ],
+   "to": [
+    73,
+    -1,
+    75,
+    1
+   ]
+  },
+  {
+   "name": "arch",
+   "from": [
+    -56.5,
+    -6.5,
+    -55.5,
+    6.5
+   ],
+   "to": [
+    -112.5,
+    -6.5,
+    -111.5,
+    6.5
+   ]
+  },
+  {
+   "name": "Boot Hill",
+   "from": [
+    48,
+    40,
+    60,
+    49
+   ],
+   "to": [
+    98,
+    76,
+    114,
+    90
+   ]
+  }
+ ],
+ "adds": [
+  {
+   "name": "TOWN SQUARE",
+   "box": [
+    -35,
+    7,
+    -3,
+    24
+   ]
+  },
+  {
+   "name": "Main St lots (west)",
+   "box": [
+    -102,
+    -21.6,
+    -52,
+    -9.6
+   ]
+  },
+  {
+   "name": "Main St lots (west)",
+   "box": [
+    -102,
+    9.6,
+    -52,
+    21.6
+   ]
+  },
+  {
+   "name": "Main St lots (east)",
+   "box": [
+    36,
+    -21.6,
+    70,
+    -9.6
+   ]
+  },
+  {
+   "name": "Main St lots (east)",
+   "box": [
+    36,
+    9.6,
+    70,
+    21.6
+   ]
+  },
+  {
+   "name": "cross\nst",
+   "box": [
+    -25,
+    36.6,
+    -13,
+    60
+   ]
+  },
+  {
+   "name": "cross\nst",
+   "box": [
+    56,
+    21.6,
+    66,
+    60
+   ]
+  },
+  {
+   "name": "cross\nst",
+   "box": [
+    -82,
+    21.6,
+    -72,
+    60
+   ]
+  },
+  {
+   "name": "SECOND STREET",
+   "box": [
+    -102,
+    60,
+    84,
+    72
+   ]
+  },
+  {
+   "name": "CHAPEL",
+   "box": [
+    86,
+    56,
+    98,
+    76
+   ]
+  },
+  {
+   "name": "Second St lots",
+   "box": [
+    -102,
+    46,
+    -84,
+    60
+   ]
+  },
+  {
+   "name": "Second St lots",
+   "box": [
+    20,
+    46,
+    56,
+    60
+   ]
+  },
+  {
+   "name": "Second St lots: opera house, school,\nbathhouse, boarding houses",
+   "box": [
+    -102,
+    72,
+    84,
+    88
+   ]
+  },
+  {
+   "name": "houses",
+   "box": [
+    -70,
+    26,
+    -52,
+    56
+   ]
+  },
+  {
+   "name": "houses",
+   "box": [
+    66,
+    26,
+    80,
+    54
+   ]
+  },
+  {
+   "name": "dry creek + bridge",
+   "box": [
+    -124,
+    102,
+    124,
+    108
+   ]
+  },
+  {
+   "name": "stockyard\n+ cattle pen",
+   "box": [
+    -118,
+    114,
+    -84,
+    140
+   ]
+  },
+  {
+   "name": "ranch",
+   "box": [
+    -70,
+    116,
+    -52,
+    130
+   ]
+  },
+  {
+   "name": "oil derricks",
+   "box": [
+    66,
+    114,
+    116,
+    140
+   ]
+  },
+  {
+   "name": "camp",
+   "circle": [
+    -20,
+    126,
+    6
+   ]
+  }
+ ]
+}
