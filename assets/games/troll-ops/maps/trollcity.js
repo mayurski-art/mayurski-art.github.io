@@ -36,7 +36,7 @@ import {
 } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1";
 import { LoopPath, Train } from "./train.js?v=tr1b7-or1";
 import { buildTrainBoard } from "./train-board.js?v=tb1-bt1-tcs1";
-import { studioTown, loadStudioTown } from "./trollcity-studio.js?v=ts1-tcs1";
+import { studioTown, loadStudioTown, setMoves, moveRp, moveFresh, movePoint, moveGeo, moveLive } from "./trollcity-studio.js?v=ts1-tcs1";
 
 const BOUNDS = { minX: -62, maxX: 62, minZ: -50, maxZ: 50 };
 const T = 0.3;            // wall thickness
@@ -1355,7 +1355,8 @@ function buildCourthouse(K, M, lights) {
     K.root.add(shut);
     const c = K.api.ghostBox(cx0, door.c, 0.12, door.w, 2.8, { y: Y, pen: 0.3 });
     c.live = true;
-    const closed = { min: c.min.clone(), max: c.max.clone() };
+    // (kept on the collider: a Studio move moves it, trollcity-studio.js)
+    const closed = c.closed = { min: c.min.clone(), max: c.max.clone() };
     const setShut = (on) => {
       shut.visible = on;
       c.min.copy(closed.min); c.max.copy(closed.max);
@@ -1663,10 +1664,11 @@ const CONDUCTOR = {
 function buildTrain(K, M) {
   const car = (build, len, back, decks) => {
     const group = new THREE.Group();
+    group.userData.tcFixed = true;   // the train runs its own loop, wherever the town's models went
     K.root.add(group);
     const boxes = [];
     const api = {
-      ghostBox: (x, z, w, d, h, { y = 0, pen = 0.9 } = {}) => boxes.push({ c: Object.assign(K.api.ghostBox(x, z, w, d, h, { y, pen }), { live: true }), x, z, w, d, y, h }),
+      ghostBox: (x, z, w, d, h, { y = 0, pen = 0.9 } = {}) => boxes.push({ c: Object.assign(K.api.ghostBox(x, z, w, d, h, { y, pen }), { live: true, train: true }), x, z, w, d, y, h }),
     };
     const kit = new Kit(api, group);
     build(kit);
@@ -2174,14 +2176,18 @@ function buildTrollCity(api) {
   // Studio"): its file draws every still piece and lays every still
   // collider; the builders above only keep what's live (the train, the
   // board, the jail doors, the forge, the lamps) and the RP spots.
+  // What's live, and every RP spot, goes where Studio moved its model.
   const studio = studioTown();
+  setMoves(studio);
+  moveRp(TROLLCITY.rp);
   if (studio) {
     const mine = api.colliders.splice(c0);
     api.colliders.push(...mine.filter((c) => c.live));
+    moveLive({ root, lights, colliders: api.colliders, stairLinks: api.stairLinks });
     for (const [x, z, w, d, h, y, pen] of studio.colliders) api.ghostBox(x, z, w, d, h, { y, pen });
     loadStudioTown(api, root, studio);
   }
-  K.flush({ liveOnly: !!studio });
+  K.flush({ liveOnly: !!studio, move: studio ? moveGeo : null });
   for (const l of lights) {
     l.castShadow = false;
     root.add(l);
@@ -2216,7 +2222,7 @@ export const TROLLCITY = {
   build: buildTrollCity,
   // Socialize roleplay spots (saloon-bar.js / game.js updateBar). Floor
   // heights are the saloon's ground floor.
-  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => townNpcs(), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, trainBoard: () => TRAIN_STATE.board, conductor: CONDUCTOR, sheriff: SHERIFF, band: BAND, shop: SHOP, horses: () => RIDE, arm: () => ARM, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
+  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => moveFresh(townNpcs(), "npcs"), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, trainBoard: () => TRAIN_STATE.board, conductor: CONDUCTOR, sheriff: SHERIFF, band: BAND, shop: SHOP, horses: () => RIDE, arm: () => ARM, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
   // Team spawns: past the railway in the north, out on the plain south.
   spawns: [[-56, -46], [-46, -47.5], [-16, -47.8], [-2, -47.8], [8, -48], [18, -46.5], [50, -46], [58, -40],
     [-56, 46], [-44, 46.5], [-26, 45], [-12, 46], [0, 45.5], [14, 46], [28, 45], [40, 45.5]],
@@ -2225,7 +2231,7 @@ export const TROLLCITY = {
     windows: ZSPAWNS.map((w) => ({ ...w })),
     floorOf: tcFloorOf,
     floors: TC_FLOORS,
-    links: [{ from: "ground", to: "upper", a: { x: STAIR.x, z: STAIR.zFoot + 0.9 }, b: { x: STAIR.x, z: STAIR_HOLE.z0 - 0.9 } }],
+    links: [{ from: "ground", to: "upper", a: movePoint({ x: STAIR.x, z: STAIR.zFoot + 0.9 }), b: movePoint({ x: STAIR.x, z: STAIR_HOLE.z0 - 0.9 }) }],
     support: true,
     preferDist: 16,
     navCell: 0.55,

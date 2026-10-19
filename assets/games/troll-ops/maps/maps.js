@@ -300,8 +300,10 @@ function makeApi(root, colliders, stairLinks = [], ropes = []) {
     },
 
     mat,
-    // the arena's collider list, for a map that swaps its own (trollcity.js's Studio town)
+    // the arena's collider list and stair links, for a map that swaps its
+    // own (trollcity.js's Studio town)
     colliders,
+    stairLinks,
   };
   return api;
 }

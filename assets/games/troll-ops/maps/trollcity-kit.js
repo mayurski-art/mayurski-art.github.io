@@ -243,13 +243,16 @@ export class Kit {
     if (mat) this.box(mat, x, y, z, w, h, d);
   }
 
-  flush({ liveOnly = false } = {}) {
+  /* `move(geo)`, when given, may move each piece first (where Studio moved
+     its model, trollcity-studio.js). */
+  flush({ liveOnly = false, move = null } = {}) {
     for (const [mat, l] of this.lists) {
       if (liveOnly) {
         for (const g of l.geos) if (!g.userData.live) g.dispose();
         l.geos = l.geos.filter((g) => g.userData.live);
         if (!l.geos.length) continue;
       }
+      if (move) for (const g of l.geos) move(g);
       const merged = mergeGeometries(l.geos, false);
       for (const g of l.geos) g.dispose();
       if (!merged) continue;
