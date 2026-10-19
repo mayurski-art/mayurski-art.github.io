@@ -22,6 +22,7 @@ import { insidePolygon, clampInsidePolygon } from "./edge.js?v=or1";
 import { SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1";
 import { lakeWaterMaterial, fallsTexture } from "./lake-water.js?v=wf2";
 import { mapModel } from "./map-models.js?v=hg6e-sr1-or1";
+import { ISLAND_SOLIDS } from "./trollface-island-colliders.js?v=is1";
 
 const BOUNDS = { minX: -205, maxX: 205, minZ: -155, maxZ: 155 };
 
@@ -581,7 +582,14 @@ function grinTexture() {
   return t;
 }
 
-function buildTrollfaceIsland(api) {
+function buildTrollfaceIsland(mapApi) {
+  // The colliders come from trollface-island-colliders.js, the file the
+  // Roblox Studio round trip writes (doc "Troll Royale map in Roblox
+  // Studio"). The helpers below still lay them in code, but only for
+  // tools/troll-ops-island-colliders.mjs (islandCollidersFromCode), which
+  // turns that into the file; in the game their calls go nowhere.
+  const fromCode = !!mapApi.islandCollidersFromCode;
+  const api = fromCode ? mapApi : Object.assign(Object.create(mapApi), { ghostBox() { return null; } });
   const root = new THREE.Group();
   api.prop(root);
   const K = new GreyKit(api, root);
@@ -947,6 +955,7 @@ function buildTrollfaceIsland(api) {
 
   dressIsland(api, root, K, M, r, clear);
   K.flush();
+  if (!fromCode) for (const c of ISLAND_SOLIDS) mapApi.ghostBox(c.x, c.z, c.w, c.d, c.h, { y: c.y, pen: c.pen });
 }
 
 /* Instanced clutter, paddocks, signposts, billboards, graffiti (phase 2). */
