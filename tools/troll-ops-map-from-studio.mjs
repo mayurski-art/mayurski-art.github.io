@@ -19,7 +19,9 @@
 //        trollcity-layout.js's ?v= tag yourself
 //   [--port 5297]
 //
-// New Parts made in Studio are counted but not drawn yet (phase 2).
+// A Part made in Studio is drawn with the town's own surfaces (its Roblox
+// material picks the family, its colour the nearest of the town's materials
+// in it), and is a collider too if it's CanCollide.
 
 import http from "node:http";
 import fs from "node:fs";
@@ -105,10 +107,11 @@ const still = (cf, s, pos, axes, size) =>
   [0, 1, 2].every((c) => [0, 1, 2].every((r) => Math.abs(cf[3 + r * 3 + c] - axes[c * 3 + r]) < 1e-3)) &&
   [0, 1, 2].every((k) => Math.abs(s[k] / K - size[k]) < 1e-3);
 let moved = 0, kept = 0, fresh = 0;
+const made = [];   // Parts made in Studio
 const seen = new Set();
 const delta = new Map();   // piece -> its move (null: where it was)
 for (const s of got.parts) {
-  if (s.new) { fresh++; continue; }
+  if (s.new) { fresh++; made.push(s); continue; }
   if (s.p != null) {
     const piece = pieces[s.p];
     if (!piece || !piece.prim || piece.live) continue;
@@ -136,9 +139,10 @@ for (const s of got.parts) {
   }
 }
 const deleted = pieces.filter((p) => !p.live && !seen.has(p.i)).length;
-console.log(`pieces: ${kept} as they were, ${moved} moved, ${deleted} deleted, ${fresh} new Parts (not drawn yet)`);
+console.log(`pieces: ${kept} as they were, ${moved} moved, ${deleted} deleted, ${fresh} new Parts`);
 
 /* ------------------------------------------------------------ colliders */
+const newCols = [];   // solid Parts made in Studio (below)
 const before = cap.colliders.filter((c) => !c.live);
 // in the game's own order, new ones after, so a diff of the file reads
 got.colliders.sort((a, b) => (a.c ?? Infinity) - (b.c ?? Infinity));
@@ -162,6 +166,70 @@ const cols = got.colliders.map((c) => {
     if (Math.max(...now.map((v, k) => Math.abs(v - was[k]))) > 0.01) changed++;
   }
   console.log(`colliders: ${got.colliders.length} from Studio (the game had ${before.length} still ones): ${changed} changed or new, ${Math.max(0, before.length - got.colliders.length)} fewer`);
+}
+
+/* ------------------------------------------------------------ new Parts */
+{
+  // Roblox material -> the families of the town's materials (capture's rbxOf)
+  const FAMILY = {
+    WoodPlanks: ["WoodPlanks"], Wood: ["WoodPlanks"], Brick: ["Brick"], Slate: ["Slate"], Rock: ["Slate"], Cobblestone: ["Slate"],
+    Granite: ["Slate"], Pebble: ["Slate"], Basalt: ["Slate"], Sandstone: ["Slate"], Limestone: ["Slate", "Plaster"],
+    Concrete: ["Plaster", "Slate"], Plaster: ["Plaster"], Marble: ["Plaster", "Slate"], CorrugatedSteel: ["CorrugatedSteel"],
+    DiamondPlate: ["Metal"], Metal: ["Metal"], Foil: ["Foil"], RoofShingles: ["RoofShingles"], Sand: ["Sand"], Ground: ["Sand"],
+    Mud: ["Sand"], Grass: ["Grass"], LeafyGrass: ["Grass"], Fabric: ["Fabric"], Carpet: ["Fabric"], Glass: ["Glass"], Neon: ["Neon"],
+    SmoothPlastic: ["SmoothPlastic"], Plastic: ["SmoothPlastic"],
+  };
+  const pool = index.mats.filter((m) => m.key && !m.pictured && !m.cutout && (m.alpha === 1 || m.rbx === "Glass"));
+  const pick = (rbx, c) => {
+    for (const fam of [FAMILY[rbx], null]) {
+      const list = pool.filter((m) => (fam ? fam.includes(m.rbx) : m.rbx !== "Neon" && m.rbx !== "Glass"));
+      let best = null, d0 = Infinity;
+      for (const m of list) {
+        const d = 0.3 * (m.color[0] - c[0]) ** 2 + 0.59 * (m.color[1] - c[1]) ** 2 + 0.11 * (m.color[2] - c[2]) ** 2;
+        if (d < d0) { d0 = d; best = m; }
+      }
+      if (best) return best;
+    }
+    return null;
+  };
+  // a unit shape, centred, Roblox's axes (a cylinder lies along x, a wedge
+  // rises to the back, +z)
+  const unit = (shape) => {
+    if (/^(Block|Part|TrussPart|Seat|SpawnLocation)$/.test(shape)) return { g: new THREE.BoxGeometry(1, 1, 1), smooth: false };
+    if (shape === "Cylinder") return { g: new THREE.CylinderGeometry(0.5, 0.5, 1, 20).rotateZ(-Math.PI / 2), smooth: true };
+    if (shape === "Ball") return { g: new THREE.SphereGeometry(0.5, 20, 14), smooth: true };
+    if (shape === "Wedge" || shape === "WedgePart") {
+      const P = [[-0.5, -0.5, -0.5], [0.5, -0.5, -0.5], [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5], [-0.5, 0.5, 0.5], [0.5, 0.5, 0.5]];
+      const T = [[0, 1, 2], [1, 3, 2], [2, 3, 4], [3, 5, 4], [0, 4, 1], [1, 4, 5], [0, 2, 4], [1, 5, 3]];   // facing out
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(T.flat().flatMap((i) => P[i]), 3));
+      return { g, smooth: false };
+    }
+    return null;
+  };
+  let drawn = 0, solid = 0;
+  const skipped = new Map();
+  for (const s of made) {
+    const m = studio(s.cf, s.s);
+    if (s.solid && !(s.path || "").includes("Colliders")) {
+      // its box, axis-aligned, in metres
+      const box = new THREE.Box3();
+      for (let i = 0; i < 8; i++) box.expandByPoint(new THREE.Vector3(i & 1 ? 0.5 : -0.5, i & 2 ? 0.5 : -0.5, i & 4 ? 0.5 : -0.5).applyMatrix4(m));
+      const c = box.getCenter(new THREE.Vector3()), z = box.getSize(new THREE.Vector3());
+      newCols.push([c.x, c.z, z.x, z.z, z.y, box.min.y, s.pen ?? 8].map(r4));
+      solid++;
+    }
+    if (s.alpha <= 0.02) continue;
+    const u = unit(s.new);
+    const mat = u && pick(s.mat, s.color);
+    if (!u || !mat) { skipped.set(s.new, (skipped.get(s.new) || 0) + 1); continue; }
+    const g = u.g.index ? u.g.toNonIndexed() : u.g;
+    const geo = { p: Array.from(g.attributes.position.array) };
+    if (u.smooth) geo.n = Array.from(g.attributes.normal.array);
+    put({ key: mat.key, tint: mat.tint, shadow: true, pictured: false, geo }, m);
+    drawn++;
+  }
+  if (made.length) console.log(`new Parts: ${drawn} drawn, ${solid} solid${skipped.size ? `; not drawn (no shape for them yet): ${[...skipped].map(([k, n]) => `${n} ${k}`).join(", ")}` : ""}`);
 }
 
 /* ------------------------------------------------------------ moves */
@@ -329,7 +397,7 @@ fs.writeFileSync(LAYOUT, `// Troll City's Studio town (doc "Troll City redesign 
   `// draws models/<glb>.glb and lays these still colliders: [x, z, w, d, h, y, pen];${nl}` +
   `// moves and rp: what Studio moved (see trollcity-studio.js).${nl}` +
   `export const TC_LAYOUT = {${nl}  glb: "tc-town", v: "${v}",${nl}  colliders: [${nl}` +
-  cols.map((c) => `    ${JSON.stringify(c)},`).join(nl) + `${nl}  ],${nl}  moves: [${nl}` +
+  [...cols, ...newCols].map((c) => `    ${JSON.stringify(c)},`).join(nl) + `${nl}  ],${nl}  moves: [${nl}` +
   moves.map((m) => `    ${JSON.stringify(m)},`).join(nl) + `${nl}  ],${nl}  rp: {${nl}` +
   Object.entries(rpOut).map(([k, r]) => `    ${JSON.stringify(k)}: ${JSON.stringify(r)},`).join(nl) + `${nl}  },${nl}};${nl}`);
 console.log(`wrote ${path.relative(ROOT, GLB)} and ${path.relative(ROOT, LAYOUT)}`);

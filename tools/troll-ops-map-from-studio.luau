@@ -76,7 +76,9 @@ return function(PORT)
 			elseif not inFolder(p, "Lights") and not inFolder(p, "Markers") then
 				-- new: made in Studio
 				table.insert(parts, { new = p:IsA("Part") and p.Shape.Name or p.ClassName, cf = cfOut(U * p.CFrame), s = sz(p.Size),
-					color = { p.Color.R, p.Color.G, p.Color.B }, mat = p.Material.Name, alpha = 1 - p.Transparency, name = p.Name, path = modelPath(p) })
+					color = { p.Color.R, p.Color.G, p.Color.B }, mat = p.Material.Name, alpha = 1 - p.Transparency, name = p.Name, path = modelPath(p),
+					-- solid (CanCollide): a collider in the game too; Pen, if set, how much a bullet goes through
+					solid = p.CanCollide, pen = p:GetAttribute("Pen") })
 			end
 		end
 		n += 1
