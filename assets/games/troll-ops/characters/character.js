@@ -1507,9 +1507,18 @@ function _poseHumanoid(rig, { sprint = null, phase = 0, moving = false, pitch = 
     // A landing kicks a spring (under-damped: down, a small rebound, settled
     // in ~0.4 s); `land` 1 sinks it about the full squash.
     if (land > 0) g.landV = Math.max(g.landV || 0, land * 20);
+    // Stepped in slices of 1/60 s or less: a crowd's far trolls are posed
+    // with up to 0.1 s at a time, and in one step that long this spring
+    // gains instead of settling, so a bot that landed hard from the Royale
+    // drop sank through the island, further every pose, out to kilometres
+    // (user, 2026-10-18: bots "in the ground", blinking).
     const lw = 13, lz = 0.55;
-    g.landV = (g.landV || 0) + (-lw * lw * (g.landX || 0) - 2 * lz * lw * (g.landV || 0)) * dt;
-    g.landX = (g.landX || 0) + g.landV * dt;
+    const n = Math.min(12, Math.ceil(dt * 60)), h = dt / n;
+    for (let i = 0; i < n; i++) {
+      g.landV = (g.landV || 0) + (-lw * lw * (g.landX || 0) - 2 * lz * lw * (g.landV || 0)) * h;
+      g.landX = (g.landX || 0) + g.landV * h;
+    }
+    if (!(Math.abs(g.landX) < 3)) g.landX = g.landV = 0;   // a hard landing peaks ~1.5: past that it has run away
   }
   const airK = g.air || 0, squash = Math.max(0, g.landX || 0);
   if (airK > 0.001) {

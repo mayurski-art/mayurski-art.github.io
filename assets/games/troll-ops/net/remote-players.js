@@ -6,22 +6,22 @@
 // buys smooth motion at the cost of aiming very slightly behind live.
 
 import * as THREE from "three";
-import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, gaitFromVelocity, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, ParryState } from "../characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1";
-import { poseEmoteCode, EMOTES, ROLE_BIT } from "../characters/emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-cf1-gs2-lh1-fg2-lp1-fg3-rc1-rc4";
-import { THROW, parseThrowWire, poseThrowBody, clearThrowBody } from "../combat/throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-em2-lh1-fg2-fg3-rc1";
+import { buildHumanoid, poseHumanoid, poseDeath, poseThrowArm, gaitPhaseRate, gaitFromVelocity, mountHeldWeapon, aimRig, THROW_TIME, DANCES, DEATH_TIME, ParryState } from "../characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1";
+import { poseEmoteCode, EMOTES, ROLE_BIT } from "../characters/emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-cf1-gs2-lh1-fg2-lp1-fg3-rc1-rc4-ls1";
+import { THROW, parseThrowWire, poseThrowBody, clearThrowBody } from "../combat/throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1";
 import { buildWeaponMesh, stripLights } from "../weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1";
 import { WEAPON_DEFS } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { MeleeState, buildMeleeMesh, MELEE_DEFS } from "../weapons/gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1";
-import { cleanFaceKey, mayWear, mayEmoteToken } from "../characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1-em2-nb2-pc2-lh1-fg2-fg3-rc1";
+import { cleanFaceKey, mayWear, mayEmoteToken } from "../characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1-em2-nb2-pc2-lh1-fg2-fg3-rc1-ls1";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { sharedParaglider } from "../modes/royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1-fl1-or1-dc2-dc3";
-import { applyHeroBody, syncHeroBody } from "../characters/hero-bodies.js?v=umb3g-nf-wst-ig1-soc1c2f1m1u-th2-gt1-gt2-cw1-zr9-zr10-zp1-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1";
-import { applyCopBody, syncCopBody } from "../characters/cop-bodies.js?v=cb2-sb2c2m1-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1";
+import { applyHeroBody, syncHeroBody } from "../characters/hero-bodies.js?v=umb3g-nf-wst-ig1-soc1c2f1m1u-th2-gt1-gt2-cw1-zr9-zr10-zp1-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1";
+import { applyCopBody, syncCopBody } from "../characters/cop-bodies.js?v=cb2-sb2c2m1-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1";
 import { playerIconCanvas } from "../progression/rank-icons.js?v=rk1-or1";
-import { buildDrink, drinkFromCode, drinkMax, FILL_TIME, mountDrink, poseDrinkArm } from "../maps/saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1";
+import { buildDrink, drinkFromCode, drinkMax, FILL_TIME, mountDrink, poseDrinkArm } from "../maps/saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1";
 import { poseSeated, posePianoArms, roleLabel } from "../modes/rp-roles.js?v=rp1b7-cd1-sh1-dj2-or1-bw2";
 import { peerHas } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1";
-import { wearBlocky } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5";
+import { wearBlocky } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1";
 
 /* Socialize seats: game.js hands over the map's seat list (rp.seats), so a
    peer's `seat` (index + 1) can be looked up for its height and kind. */
@@ -194,7 +194,16 @@ export function poseDrop(rig, state, t, show = null, showYaw = undefined) {
   for (const j of [p.kneeL, p.kneeR, p.ankleL, p.ankleR, p.elbowL, p.elbowR]) j.rotation.set(0, 0, 0);
   if (state === DROP_FALL && show != null && t < FALL_SHOW) {
     poseFallShow(rig, t, show, f, f2, showYaw);
-  } else if (state === DROP_FALL) {
+    rig.body.update();
+    return;
+  }
+  // The show turns the body by quaternion; on its back (pitched past 90°)
+  // that reads back as a half roll (z = PI, yaw turned round). Everything
+  // after sets only x and y, so the roll stayed: bots landed standing on
+  // their heads, legs up, head through the island (user, 2026-10-18: "troll
+  // bots appear to be in the ground"). Off with it.
+  if (root.rotation.z !== 0) root.rotation.set(0, root.rotation.y + (Math.abs(root.rotation.z) > 1.57 ? Math.PI : 0), 0);
+  if (state === DROP_FALL) {
     const a = -1.35;
     root.rotation.x = a;
     const dz = -FALL_PIVOT * Math.sin(a), yaw = root.rotation.y;
@@ -801,6 +810,8 @@ export class RemotePlayer {
     this.rig.root.position.copy(this.pos);
     // Off the plane's bank: upright again before the yaw goes on.
     if (this.tilted) { this.rig.root.rotation.x = this.rig.root.rotation.z = 0; this.tilted = false; }
+    // Never on the ground with a roll (poseDrop says why).
+    if (this.rig.root.rotation.z !== 0) { this.rig.root.rotation.order = "YXZ"; this.rig.root.rotation.z = 0; }
     // Their head leads toward where they aim; the body turns after it.
     aimRig(this.rig, this.yaw, dt, { moving });
     // A swivel they started: the body spins the full turn over SWIVEL_TIME.
