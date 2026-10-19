@@ -9,6 +9,8 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { makeGroundMaterial } from "../view/shaders.js?v=or1";
+import { groundHeightAt } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1";
+import { setGroundField } from "../core/ground-field.js?v=gf1";
 import { PENTAGRIN } from "./pentagrin.js?v=hg6e-sr1-or1";
 import { HOLLOWGRIN } from "./hollowgrin.js?v=hg6tc-sb2-sr1-or1";
 import { GRINLERIA } from "./grinleria.js?v=hg6e-bl1-bw1-sr1-or1";
@@ -2078,6 +2080,17 @@ export function findStairs(colliders, known = []) {
 
 /* Fills `colliders` and `arena` in place — the movement controller holds
    references to both, so they must be mutated rather than replaced. */
+/* A built map going live (game.js, every load, preloaded or not): its
+   ground's heightfield, if it has hills (core/ground-field.js), and each
+   spawn stood on the floor under it. Spawns are authored as [x, z]: at y 0
+   on Undergrin the push out of the 1.1 m platform shoved players out past
+   the end wall, stuck in a sliver they could only shuffle along (user:
+   "stuck in place"). */
+export function settleMap(map, spawnPoints, colliders) {
+  setGroundField(map.groundField || null);
+  for (const sp of spawnPoints) if (!sp.y) sp.y = groundHeightAt(colliders, sp.x, sp.z, 2.0);
+}
+
 export function buildMap(id, { colliders, arena }) {
   const map = MAPS[id] || MAPS.grinsite;
   const root = new THREE.Group();

@@ -10,6 +10,7 @@
 // of them their next step, and it costs one pass over a ~3k-cell grid.
 
 import * as THREE from "three";
+import { floorAt } from "../core/ground-field.js?v=gf1";
 
 const CELL = 1.1;
 
@@ -113,7 +114,9 @@ export class FlowField {
     const walls = [];
     const centre = blockBy === "centre";
     for (const c of colliders) {
-      if (!blocks(c, floorY, step)) continue;
+      // On the ground floor of a hilly map, measured from the ground under it.
+      const fy = floorY < 0.5 ? floorY + floorAt((c.min.x + c.max.x) / 2, (c.min.z + c.max.z) / 2) : floorY;
+      if (!blocks(c, fy, step)) continue;
       walls.push(c.min.x, c.max.x, c.min.z, c.max.z);
       let x0, x1, z0, z1;
       if (centre) {

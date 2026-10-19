@@ -13,8 +13,8 @@
 
 import * as THREE from "three";
 import { loadModel } from "../maps/battlefield-props.js?v=sr1-or1";
-import { FlowField } from "./nav.js?v=ti1-bs1b7d-fl1-or1";
-import { groundHeightAt, resolveCircle } from "../core/movement.js?v=umb2-sb2-gj1b7-or1";
+import { FlowField } from "./nav.js?v=ti1-bs1b7d-fl1-or1-gf1";
+import { groundHeightAt, resolveCircle } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1";
 
 export const K9 = {
   dogs: 6,

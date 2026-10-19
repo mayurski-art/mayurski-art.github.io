@@ -10,6 +10,7 @@
 
 import * as THREE from "three";
 import { smoothstep, damp } from "../characters/anim-curves.js?v=or1";
+import { floorAt } from "./ground-field.js?v=gf1";
 import { clampInsidePolygon } from "../maps/edge.js?v=or1";
 
 export const STANCE = { STAND: "stand", CROUCH: "crouch", SLIDE: "slide", PRONE: "prone", VAULT: "vault", ROPE: "rope" };
@@ -51,9 +52,11 @@ const ROPE_COOLDOWN = 0.45;    // s before you can grab again
 const ROPE_LOOK_DOWN = -0.45;  // rad of pitch: below this, W climbs down
 
 /* Highest walkable surface under (x,z) that isn't above `ceiling`.
-   Shared with the enemy AI so grunts stand on platforms too. */
+   Shared with the enemy AI so grunts stand on platforms too. The ground
+   itself (y 0, or a hilly map's heightfield, core/ground-field.js) is
+   always under you, whatever the ceiling. */
 export function groundHeightAt(colliders, x, z, ceiling, radius = RADIUS * 0.8) {
-  let best = 0;
+  let best = floorAt(x, z);
   for (const c of colliders) {
     if (c.max.y > ceiling + 1e-3) continue;
     if (x < c.min.x - radius || x > c.max.x + radius) continue;

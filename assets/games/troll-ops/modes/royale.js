@@ -2,21 +2,22 @@
 // spectating and the end. Moved out of game.js (split phase 1); royale.js
 // next door holds the zone and loot it runs on.
 
-import { hashSeed, seededRng, RoyaleZone, ROYALE, LootField, lootSpots, ZoneVisual, ITEM_NAMES, gunDisplayName, POI_TIERS, poiTierAt } from "./royale-zone.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1-fl1-or1-rt1-ut1";
-import { groundHeightAt } from "../core/movement.js?v=umb2-sb2-gj1b7-or1";
+import { hashSeed, seededRng, RoyaleZone, ROYALE, LootField, lootSpots, ZoneVisual, ITEM_NAMES, gunDisplayName, POI_TIERS, poiTierAt } from "./royale-zone.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1-fl1-or1-rt1-ut1-gf1";
+import { groundHeightAt } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1";
+import { floorAt } from "../core/ground-field.js?v=gf1";
 import { insidePolygon } from "../maps/edge.js?v=or1";
-import { DROP, RoyaleDrop, buildParaglider, Flight } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1-fl1-or1-dc2-dc3-rr1-ld1-rt1-ld2-ld3-ut1";
-import { Squadron, PLANES, flightPos, flightVel } from "./royale-planes.js?v=pl1-pl2-pi1-sr1-fl1-or1-dc2-rr1-ld1-rt1-ld2-ld3-ut1";
+import { DROP, RoyaleDrop, buildParaglider, Flight } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1-fl1-or1-dc2-dc3-rr1-ld1-rt1-ld2-ld3-ut1-gf1";
+import { Squadron, PLANES, flightPos, flightVel } from "./royale-planes.js?v=pl1-pl2-pi1-sr1-fl1-or1-dc2-rr1-ld1-rt1-ld2-ld3-ut1-gf1";
 import { SEAT_SPOTS, RAMP_END } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1";
-import { DROP_BUS, DROP_FALL, DROP_GLIDE, ROLL_TIME, busPlacers } from "../net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1";
+import { DROP_BUS, DROP_FALL, DROP_GLIDE, ROLL_TIME, busPlacers } from "../net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1";
 import * as THREE from "three";
 import { WEAPON_DEFS, WeaponState } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { defaultLoadoutFor } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
-import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1";
+import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1-gf1";
 import { game } from "../core/state.js?v=st1";
 import { updateDropCine, dropCineEye, dropCineLean, dropCineZoom, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-ut1";
 import { playSfx, preloadSfx } from "../sound/sfx-files.js?v=dc4";
-import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose } from "./royale-fall.js?v=dc3-dc4-rf1-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1";
+import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose } from "./royale-fall.js?v=dc3-dc4-rf1-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1";
 
 // Phase 1 ("Mini Royale"): solo, one life, loot only, the Cringe closing in,
 // last troll standing. royale.js has the zone, the loot and their visuals;
@@ -30,7 +31,7 @@ export let royale = null;
 
 function royaleSeed() { return hashSeed(`${game.net.room || "solo"}:${game.matchesPlayed}:royale`); }
 
-function royaleGround(x, z) { return groundHeightAt(game.colliders, x, z, 0.8, 0.3) ?? 0; }
+function royaleGround(x, z) { return groundHeightAt(game.colliders, x, z, floorAt(x, z) + 0.8, 0.3) ?? 0; }
 
 export function setupRoyale(seed = royaleSeed()) {
   teardownRoyale();

@@ -12,6 +12,7 @@
 
 import * as THREE from "three";
 import { makeTracerMaterial } from "../view/shaders.js?v=or1";
+import { groundField, terrainHit } from "../core/ground-field.js?v=gf1";
 import { computeDamage } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 
 const DROP = 9.81;          // m/s^2 applied to bullets
@@ -50,7 +51,7 @@ export function segmentBlocked(colliders, from, to) {
     const hit = segmentAABB(from, dir, len, c.min, c.max);
     if (hit && hit.t1 > 0 && hit.t0 < len) return true;
   }
-  return false;
+  return terrainHit(from, dir, len) < len;   // over a hill
 }
 
 /* Nearest world-collider hit along a ray, in metres, or `len` if nothing is
@@ -62,7 +63,7 @@ export function raycastWorld(colliders, origin, dir, len) {
     const hit = segmentAABB(origin, dir, len, c.min, c.max);
     if (hit && hit.t1 > 0 && hit.t0 < nearest) nearest = Math.max(0, hit.t0);
   }
-  return nearest;
+  return Math.min(nearest, terrainHit(origin, dir, nearest));
 }
 
 class Tracer {
@@ -285,7 +286,8 @@ export class BulletSystem {
 
         // --- ground plane
         let groundT = Infinity;
-        if (b.vel.y < 0 && to.y <= 0 && from.y > 0) groundT = ((from.y - 0) / (from.y - to.y)) * len;
+        if (groundField()) groundT = terrainHit(from, dir, len);   // a hilly map's ground
+        else if (b.vel.y < 0 && to.y <= 0 && from.y > 0) groundT = ((from.y - 0) / (from.y - to.y)) * len;
 
         const first = Math.min(actorT, wallT, groundT);
         onTrace?.(b, from, dir, Math.min(first, len), actorT === first ? actorObj : null);
