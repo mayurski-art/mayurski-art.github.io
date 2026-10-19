@@ -10,7 +10,7 @@
 
 import * as THREE from "three";
 import { smoothstep, damp } from "../characters/anim-curves.js?v=or1";
-import { floorAt } from "./ground-field.js?v=gf1";
+import { floorAt } from "./ground-field.js?v=gf1-tg1";
 import { clampInsidePolygon } from "../maps/edge.js?v=or1";
 
 export const STANCE = { STAND: "stand", CROUCH: "crouch", SLIDE: "slide", PRONE: "prone", VAULT: "vault", ROPE: "rope" };

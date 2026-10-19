@@ -20,8 +20,11 @@ export function setGroundField(field) {
 export function groundField() { return F; }
 
 /* The ground's height at (x, z). */
-export function floorAt(x, z) {
-  if (!F) return 0;
+export function floorAt(x, z) { return F ? sampleField(F, x, z) : 0; }
+
+/* A field's height at (x, z), set or not (a map reads its own while it
+   builds, before it goes live). */
+export function sampleField(F, x, z) {
   const u = (x - F.minX) / F.cell, v = (z - F.minZ) / F.cell;
   if (u < 0 || v < 0 || u > F.w - 1 || v > F.h - 1) return 0;
   const i = Math.min(F.w - 2, Math.floor(u)), j = Math.min(F.h - 2, Math.floor(v));

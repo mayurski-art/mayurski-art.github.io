@@ -17,12 +17,14 @@
 // helpers. North is -z.
 
 import * as THREE from "three";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { mergeGeometries, mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import { insidePolygon, clampInsidePolygon } from "./edge.js?v=or1";
 import { SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1";
 import { lakeWaterMaterial, fallsTexture } from "./lake-water.js?v=wf2";
 import { mapModel } from "./map-models.js?v=hg6e-sr1-or1";
 import { ISLAND_SOLIDS } from "./trollface-island-colliders.js?v=is1";
+import { ISLAND_GROUND } from "./trollface-island-ground.js?v=tg1";
+import { sampleField } from "../core/ground-field.js?v=gf1-tg1";
 
 const BOUNDS = { minX: -205, maxX: 205, minZ: -155, maxZ: 155 };
 
@@ -94,6 +96,16 @@ const TREE_CLUMPS = [[55.4, 21.8, 111], [19.8, 25.2, 31], [22.8, 25.2, 36], [16.
   [14, 36.6, 13], [85.3, 38.2, 16], [13.2, 42.9, 40], [30.6, 66.8, 29], [33.1, 67.6, 48], [56.5, 76.5, 114], [34.4, 27.7, 12],
   [39.3, 29, 10], [78.1, 22.7, 8], [81, 22.7, 9], [57.7, 16.4, 9]];
 
+/* The ground's hills, sculpted in Studio (phase 3 of the doc "Troll Royale
+   map in Roblox Studio"): cm as Int16 in base64, read once into metres. The
+   coast, lake, paths, POI floors and every collider's footing are y 0. */
+const GROUND_FIELD = (() => {
+  const g = ISLAND_GROUND, bin = atob(g.heights), n = g.w * g.h, heights = new Float32Array(n);
+  for (let k = 0; k < n; k++) heights[k] = (((bin.charCodeAt(2 * k) | (bin.charCodeAt(2 * k + 1) << 8)) << 16) >> 16) / 100;
+  return { minX: g.minX, minZ: g.minZ, cell: g.cell, w: g.w, h: g.h, heights };
+})();
+const groundY = (x, z) => sampleField(GROUND_FIELD, x, z);
+
 const CLIFF_DEPTH = 46;
 const WATER_Y = 0.34;       // the lake's surface; its floor is the island top (y 0)
 const RISE = 0.33;          // stair steps: under movement.js STEP_UP (0.36)
@@ -115,6 +127,10 @@ class GreyKit {
   /* mat null = collider only: a Blender model draws that part. */
   add(geo, mat) {
     if (!mat) { geo.dispose(); return; }
+    // On a hill, stood on the ground under its middle (on flat ground: 0).
+    geo.computeBoundingBox();
+    const bb = geo.boundingBox, dy = groundY((bb.min.x + bb.max.x) / 2, (bb.min.z + bb.max.z) / 2);
+    if (dy) geo.translate(0, dy, 0);
     if (!this.parts.has(mat)) this.parts.set(mat, []);
     this.parts.get(mat).push(geo.index ? geo.toNonIndexed() : geo);
   }
@@ -344,6 +360,11 @@ export function groundMask() {
       data[o + 3] = Math.round((ns * 0.6 + nb * 0.4) * 255);
     }
   }
+  // Cells repainted in Studio: 1 grass, 2 sand, 3 path, 4 rock.
+  for (const [i, j, code] of ISLAND_GROUND.paint) {
+    const o = (j * W + i) * 4;
+    data[o] = code === 2 ? 255 : 0; data[o + 1] = code === 3 ? 255 : 0; data[o + 2] = code === 4 ? 255 : 0;
+  }
   const tex = new THREE.DataTexture(data, W, H, THREE.RGBAFormat);
   tex.magFilter = tex.minFilter = THREE.LinearFilter;
   tex.needsUpdate = true;
@@ -351,9 +372,29 @@ export function groundMask() {
 }
 
 /* The island top: four textures blended by the mask, in world space. */
+/* The hills' mesh: each 2 m grid square on dry land with a corner off the
+   ground, at the field's heights. null on a flat island. */
+function hillGeometry() {
+  const F = GROUND_FIELD, H = F.heights, pos = [];
+  for (let j = 0; j < F.h - 1; j++) for (let i = 0; i < F.w - 1; i++) {
+    const k = j * F.w + i, a = H[k], b = H[k + 1], c = H[k + F.w], d = H[k + F.w + 1];
+    if (Math.max(a, b, c, d) < 0.005) continue;
+    const x = F.minX + i * F.cell, z = F.minZ + j * F.cell, x1 = x + F.cell, z1 = z + F.cell;
+    if (!insidePolygon(ISLAND_EDGE, x + F.cell / 2, z + F.cell / 2) || insidePolygon(ISLAND_LAKE, x + F.cell / 2, z + F.cell / 2)) continue;
+    pos.push(x, a, z, x, c, z1, x1, b, z, x1, b, z, x, c, z1, x1, d, z1);
+  }
+  if (!pos.length) return null;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  const merged = mergeVertices(g);
+  merged.computeVertexNormals();
+  return merged;
+}
+
 function groundMaterial(mask) {
   const S = SURFACES;
   const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95 });
+  m.userData.mask = mask;
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, {
       tGrass: { value: S.grass.color }, tSand: { value: S.sand.color }, tDirt: { value: S.dirt.color },
@@ -627,6 +668,11 @@ function buildTrollfaceIsland(mapApi) {
   const island = new THREE.Mesh(slab, [ground, cliffRock]);
   island.receiveShadow = true;
   root.add(island);
+  // The hills: a 2 m grid over the slab wherever the ground rises, painted
+  // the same (world-space mask); the slab is sunk in depth, so where a
+  // hill meets it at y 0 the hill wins.
+  const hills = hillGeometry();
+  if (hills) root.add(Object.assign(new THREE.Mesh(hills, groundMaterial(ground.userData.mask)), { receiveShadow: true }));
   const under = new THREE.ConeGeometry(150, 70, 9);
   under.rotateX(Math.PI);
   under.scale(1.25, 1, 0.9);
@@ -985,6 +1031,7 @@ function dressIsland(api, root, K, M, r, clear) {
     const mesh = new THREE.InstancedMesh(geo, mat, spots.length);
     spots.forEach(([x, z], i) => {
       place(dummy, x, z);
+      dummy.position.y += groundY(x, z);   // on a hill
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
       if (palette) mesh.setColorAt(i, col.set(palette[Math.floor(r() * palette.length)]).offsetHSL(0, 0, (r() - 0.5) * 0.08));
@@ -1155,6 +1202,7 @@ export const TROLLFACE_ISLAND = {
   // stylised realism (view/grade-pass.js): hard sun in space: cold shade, clean highs
   grade: { shadows: 0x101a40, shadowsAmt: 0.08, highlights: 0xfff0d0, highlightsAmt: 0.05, sat: 1.08, contrast: 1.05 },
   build: buildTrollfaceIsland,
+  groundField: GROUND_FIELD,   // the hills (core/ground-field.js reads it while the map is live)
   spawns: SPAWNS,
   edge: ISLAND_EDGE,
   wade: ISLAND_LAKE,

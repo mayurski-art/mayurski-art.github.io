@@ -10,7 +10,7 @@
 // of them their next step, and it costs one pass over a ~3k-cell grid.
 
 import * as THREE from "three";
-import { floorAt } from "../core/ground-field.js?v=gf1";
+import { floorAt } from "../core/ground-field.js?v=gf1-tg1";
 
 const CELL = 1.1;
 

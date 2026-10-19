@@ -1,5 +1,5 @@
 // Ground height (core/ground-field.js, doc "Troll Royale map in Roblox
-// Studio", phase 2): a test hill on the flat island. You walk up it and fall
+// Studio", phase 2): a test hill in place of the island's own. You walk up it and fall
 // onto it, a bot stands on it and its grid still crosses it, loot and the
 // landing find its top, it stops a bullet and a bot's line of sight; and
 // with no field the island is flat at y 0 exactly as before.
@@ -69,11 +69,15 @@ const setup = await page.evaluate(async (TAGS) => {
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (clear(x, z, 18)) spot = { x, z };
   }
-  return { spot, hadField: !!gf.groundField(), flat: spot && groundHeightAt(cols, spot.x, spot.z, 0.8, 0.3) };
+  const live = gf.groundField();
+  gf.setGroundField(null);   // no field: flat at y 0, as every map was
+  const flat = spot && groundHeightAt(cols, spot.x, spot.z, 0.8, 0.3);
+  gf.setGroundField(live);
+  return { spot, hadField: !!live && live.heights.length === I.groundField.heights.length && live.heights.every((v, k) => v === I.groundField.heights[k]), flat };
 }, TAGS);
 check("an open spot for the test hill", !!setup.spot, JSON.stringify(setup.spot));
-check("Trollface Island has no heightfield yet (flat until phase 3)", !setup.hadField);
-check("flat: the ground there is y 0, as before", setup.flat === 0, `${setup.flat}`);
+check("Trollface Island's Studio hills are live", setup.hadField);
+check("no field: the ground is y 0, as before", setup.flat === 0, `${setup.flat}`);
 const { x: HX, z: HZ } = setup.spot;
 const HILL = 4, SIGMA = 8;   // a 4 m round hill, steepest ~0.3 m per m
 

@@ -29,6 +29,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const BASE = path.join(ROOT, "assets/games/troll-ops/studio/trollface-island/contract.json");
 const BASELINE = process.argv.includes("--baseline");
 const BUDGET = 8 * 1024 * 1024;
+// The game's own movement.js instance (it reads the live ground field).
+const MOVEMENT_TAG = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/game.js"), "utf8").match(/core\/movement\.js\?v=([^"']+)/)[1];
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css",
   ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp",
   ".glb": "model/gltf-binary", ".mp3": "audio/mpeg", ".svg": "image/svg+xml", ".gif": "image/gif" };
@@ -56,13 +58,14 @@ await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 120000 })
 await page.evaluate(async () => { const T = window.__trollOps; T.DROP.enabled = false; T.setMode("royale"); await T.startGame(); });
 await page.waitForFunction(() => window.__trollOps.state() === "playing" && !window.__trollOps.isStaging(), null, { timeout: 120000 });
 
-const got = await page.evaluate(async () => {
+const got = await page.evaluate(async (MOVEMENT_TAG) => {
   const T = window.__trollOps;
   const { game } = await import("/assets/games/troll-ops/core/state.js?v=st1");
   const m = await import("/assets/games/troll-ops/maps/trollface-island.js?v=ti3");
   const { ISLAND_SOLIDS } = await import("/assets/games/troll-ops/maps/trollface-island-colliders.js?v=is1");
   const { insidePolygon } = await import("/assets/games/troll-ops/maps/edge.js?v=or1");
   const { FlowField } = await import("/assets/games/troll-ops/bots/nav.js");
+  const { groundHeightAt } = await import(`/assets/games/troll-ops/core/movement.js?v=${MOVEMENT_TAG}`);
   const I = m.TROLLFACE_ISLAND;
   const cols = game.colliders;
   // Each data-file collider present in the game (same AABB to 1 cm).
@@ -79,6 +82,24 @@ const got = await page.evaluate(async () => {
   // Every POI reachable from every other on the bots' grid (navCell 2 m).
   const field = new FlowField(cols, I.bounds, 0, { cell: I.navCell || 2 });
   const pois = Object.entries(m.LANDMARKS);
+  // The ground (phase 3): its slope, and flat wherever gameplay stands.
+  const F = I.groundField, Hh = F ? F.heights : new Float32Array(0);
+  let steep = 0;
+  if (F) for (let j = 0; j < F.h; j++) for (let i = 0; i < F.w; i++) {
+    const k = j * F.w + i;
+    if (i < F.w - 1) steep = Math.max(steep, Math.abs(Hh[k + 1] - Hh[k]));
+    if (j < F.h - 1) steep = Math.max(steep, Math.abs(Hh[k + F.w] - Hh[k]));
+  }
+  const gy = (x, z) => groundHeightAt([], x, z, 1e3);   // the ground alone, no colliders
+  const hiIn = (pts) => pts.reduce((m, [x, z]) => Math.max(m, gy(x, z)), 0);
+  const ringPts = (l, f) => { const out = []; for (let a = 0; a < 6.28; a += 0.3) for (const k of [0, 0.5, 1]) out.push([l.x + Math.cos(a) * l.r * f * k, l.z + Math.sin(a) * l.r * f * k]); return out; };
+  const ground = {
+    field: !!F, steep, top: Hh.reduce((m, v) => Math.max(m, v), 0),
+    poi: Math.max(...pois.map(([, l]) => hiIn(ringPts(l, 0.8)))),
+    under: Math.max(...ISLAND_SOLIDS.map((c) => hiIn([[c.x, c.z], [c.x - c.w / 2, c.z - c.d / 2], [c.x + c.w / 2, c.z - c.d / 2], [c.x - c.w / 2, c.z + c.d / 2], [c.x + c.w / 2, c.z + c.d / 2]]))),
+    coastLake: Math.max(hiIn(I.edge), hiIn(I.wade)),
+    spawns: hiIn(I.spawns),
+  };
   const cut = [];
   // A POI counts as reached when any open cell inside its ring is: its
   // centre is often in a building or up on a deck.
@@ -101,9 +122,9 @@ const got = await page.evaluate(async () => {
       pois: Object.fromEntries(pois.map(([k, l]) => [k, { x: l.x, z: l.z, r: l.r, tier: l.tier }])),
       royale: { players: I.royale.players, lootPerSqM: I.royale.lootPerSqM, lootExtra: I.royale.lootExtra, phases: I.royale.phases },
     },
-    solids: ISLAND_SOLIDS.length, missing, strays, spawns: I.spawns.length, badSpawns, cut,
+    solids: ISLAND_SOLIDS.length, missing, strays, spawns: I.spawns.length, badSpawns, cut, ground,
   };
-});
+}, MOVEMENT_TAG);
 await browser.close();
 server.close();
 
@@ -124,12 +145,20 @@ check("every collider in the data file is in the game", got.missing === 0, `${go
 check("each landmark's colliders sit by its ring", got.strays.length === 0, got.strays.slice(0, 5).join(", "));
 check("every spawn is on open dry land", got.badSpawns === 0, `${got.badSpawns} of ${got.spawns} blocked or wet`);
 check("every POI is reachable from every other (bots' grid)", got.cut.length === 0, got.cut.join(", "));
+const g = got.ground;
+check("the island has its Studio ground", g.field, `top ${g.top.toFixed(2)} m`);
+check("no slope over 1.5 m per 2 m (bots and the nav grid)", g.steep <= 1.5, `steepest ${g.steep.toFixed(2)} m`);
+check("POI floors are flat", g.poi < 0.05, `highest ${g.poi.toFixed(3)} m inside 0.8 of a ring`);
+check("every collider stands on flat ground", g.under < 0.05, `highest ${g.under.toFixed(3)} m under one`);
+// (the lake's water is at 0.34 m: its shore just has to stay under it)
+check("the coast and the lake's shore stay low (under 0.25 m)", g.coastLake < 0.25, `${g.coastLake.toFixed(3)} m`);
+check("every spawn is on flat ground", g.spawns < 0.05, `${g.spawns.toFixed(3)} m`);
 
 // Download: the island's landmark models (tf-*.glb, not the sky lobby's bus
 // and skybox) and its data files.
 const MODELS = path.join(ROOT, "assets/games/troll-ops/models");
 const files = fs.readdirSync(MODELS).filter((f) => /^tf-.*\.(glb|webp|png)$/.test(f) && !/^tf-(bus|busface|skybox)\./.test(f)).map((f) => path.join(MODELS, f));
-files.push(path.join(ROOT, "assets/games/troll-ops/maps/trollface-island-colliders.js"));
+files.push(path.join(ROOT, "assets/games/troll-ops/maps/trollface-island-colliders.js"), path.join(ROOT, "assets/games/troll-ops/maps/trollface-island-ground.js"));
 const bytes = files.reduce((s, f) => s + fs.statSync(f).size, 0);
 check("the island's files are 8 MB or less", bytes <= BUDGET, `${(bytes / 1048576).toFixed(2)} MB in ${files.length} files`);
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
