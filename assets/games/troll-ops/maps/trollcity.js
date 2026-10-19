@@ -32,10 +32,11 @@ import {
   barrel, crate, crateStack, trough, hitchRail, bollard, telegraphPole, wire, streetLamp,
   wheel, wagon, horse, cactus, steerSkull, rock,
   tableSet as kitTableSet, chair as kitChair, stool as kitStool, piano as kitPiano,
-  chandelier, sconce, railFence, picketFence, hayBale, log, coffin, framedPicture, artTexture, artAspect,
-} from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1";
+  chandelier, sconce, railFence, picketFence, hayBale, log, coffin, framedPicture, artTexture, artAspect, resetMatKeys,
+} from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1";
 import { LoopPath, Train } from "./train.js?v=tr1b7-or1";
-import { buildTrainBoard } from "./train-board.js?v=tb1-bt1";
+import { buildTrainBoard } from "./train-board.js?v=tb1-bt1-tcs1";
+import { studioTown, loadStudioTown } from "./trollcity-studio.js?v=ts1-tcs1";
 
 const BOUNDS = { minX: -62, maxX: 62, minZ: -50, maxZ: 50 };
 const T = 0.3;            // wall thickness
@@ -574,12 +575,17 @@ function materials() {
   M.clock = new THREE.MeshStandardMaterial({ map: clockTexture(), roughness: 0.5, emissive: 0x222018, emissiveMap: clockTexture() });
   M.trollPaint = new THREE.MeshStandardMaterial({ map: trollPaintTexture("#f2ead6"), transparent: true, alphaTest: 0.35, roughness: 0.9, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 });
   M.trollGold = new THREE.MeshStandardMaterial({ map: trollPaintTexture("#e8b84a"), alphaTest: 0.35, roughness: 0.35, metalness: 0.6, side: THREE.DoubleSide });
+  // named by key: the Studio town (studio/trollcity) asks for them by name
+  for (const [k, v] of Object.entries(M)) {
+    if (v?.isMaterial) v.name ||= k;
+    else if (Array.isArray(v)) v.forEach((m, i) => { if (m?.isMaterial) m.name ||= k + i; });
+  }
   return M;
 }
 
 /* A sign painted in the town's style. */
 function sign(text, sub = "", o = {}) {
-  return texMat(signTexture(text, { sub, ...o }), { rough: 0.85, decal: true });
+  return Object.assign(texMat(signTexture(text, { sub, ...o }), { rough: 0.85, decal: true }), { name: "sign:" + text });
 }
 
 /* ================================================================= interiors */
@@ -1071,8 +1077,8 @@ function buildShops(K, M, lights) {
     // its own coal and glow materials, so the smith can make them breathe
     SMITHY.coal = M.coal.clone();
     SMITHY.glow = M.fireGlow.clone();
-    K.box(SMITHY.coal, -47.4, Y + 0.9, 19.7, 1.4, 0.06, 0.9, {}, { shadow: false });
-    K.add(SMITHY.glow, place(new THREE.PlaneGeometry(3, 3), { x: -47.4, y: Y + 0.95, z: 19.7, rx: -Math.PI / 2 }), { shadow: false });
+    K.box(SMITHY.coal, -47.4, Y + 0.9, 19.7, 1.4, 0.06, 0.9, {}, { shadow: false, live: true });
+    K.add(SMITHY.glow, place(new THREE.PlaneGeometry(3, 3), { x: -47.4, y: Y + 0.95, z: 19.7, rx: -Math.PI / 2 }), { shadow: false, live: true });
     K.box(M.stone, -47.4, Y + 2.3, 20.2, 2.0, 1.0, 1.0);
     K.box(M.stone, -47.4, Y + 3.3, 20.6, 0.9, 3.4, 0.7);
     // anvil on a stump, a quench barrel, tools on the wall
@@ -1348,6 +1354,7 @@ function buildCourthouse(K, M, lights) {
     shut.visible = false;
     K.root.add(shut);
     const c = K.api.ghostBox(cx0, door.c, 0.12, door.w, 2.8, { y: Y, pen: 0.3 });
+    c.live = true;
     const closed = { min: c.min.clone(), max: c.max.clone() };
     const setShut = (on) => {
       shut.visible = on;
@@ -1659,7 +1666,7 @@ function buildTrain(K, M) {
     K.root.add(group);
     const boxes = [];
     const api = {
-      ghostBox: (x, z, w, d, h, { y = 0, pen = 0.9 } = {}) => boxes.push({ c: K.api.ghostBox(x, z, w, d, h, { y, pen }), x, z, w, d, y, h }),
+      ghostBox: (x, z, w, d, h, { y = 0, pen = 0.9 } = {}) => boxes.push({ c: Object.assign(K.api.ghostBox(x, z, w, d, h, { y, pen }), { live: true }), x, z, w, d, y, h }),
     };
     const kit = new Kit(api, group);
     build(kit);
@@ -2063,7 +2070,8 @@ function hangPictures(K, M) {
 function buildPlains(K, M, R) {
   // the plain itself, out to the horizon (the map's own ground stops 12 m
   // past the bounds, and the hills and the railway run on past that)
-  K.add(M.plainFar, place(new THREE.PlaneGeometry(900, 900), { y: -0.04, rx: -Math.PI / 2 }), { shadow: false });
+  // (live: drawn by code even with the Studio town, it's too big for Studio)
+  K.add(M.plainFar, place(new THREE.PlaneGeometry(900, 900), { y: -0.04, rx: -Math.PI / 2 }), { shadow: false, live: true });
   // grass taking over at the edges of town
   for (const [x, z, w, d] of [[-56, -30, 12, 40], [-56, 30, 12, 40], [58, -28, 8, 44], [58, 28, 8, 22], [0, 46, 124, 8], [-20, -48.5, 84, 3], [20, 44, 50, 6]]) {
     flat(K, M.grassDry, x, z, w, d, { y: 0.015 });
@@ -2142,6 +2150,8 @@ function buildTrollCity(api) {
   const root = new THREE.Group();
   api.prop(root);
   root.castShadow = false;
+  resetMatKeys();
+  const c0 = api.colliders.length;
   const K = new Kit(api, root);
   const lights = [];
   const M = materials();
@@ -2160,7 +2170,18 @@ function buildTrollCity(api) {
   hangPictures(K, M);
   rpFurniture(K, M);
 
-  K.flush();
+  // The Studio town (studio/trollcity, doc "Troll City redesign in Roblox
+  // Studio"): its file draws every still piece and lays every still
+  // collider; the builders above only keep what's live (the train, the
+  // board, the jail doors, the forge, the lamps) and the RP spots.
+  const studio = studioTown();
+  if (studio) {
+    const mine = api.colliders.splice(c0);
+    api.colliders.push(...mine.filter((c) => c.live));
+    for (const [x, z, w, d, h, y, pen] of studio.colliders) api.ghostBox(x, z, w, d, h, { y, pen });
+    loadStudioTown(api, root, studio);
+  }
+  K.flush({ liveOnly: !!studio });
   for (const l of lights) {
     l.castShadow = false;
     root.add(l);

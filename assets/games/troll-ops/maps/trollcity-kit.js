@@ -169,8 +169,31 @@ export function place(geo, { x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx = 1
   return geo;
 }
 
+/* Every material a Kit draws with has a key, the same on every build of
+   the town: its name, else "#n" in the order unnamed ones were first used.
+   The Studio town (studio/trollcity) names its pieces' materials by key. */
+const KEYS = new Map(), TAKEN = new Map();
+let unnamed = 0;
+export function resetMatKeys() { KEYS.clear(); TAKEN.clear(); unnamed = 0; }
+export function matKey(mat) {
+  let k = KEYS.get(mat);
+  if (k == null) {
+    k = mat.name || `#${unnamed++}`;
+    // two materials under one name (a sign twice): the second is name~2
+    const n = (TAKEN.get(k) || 0) + 1;
+    TAKEN.set(k, n);
+    if (n > 1) k += `~${n}`;
+    KEYS.set(mat, k);
+  }
+  return k;
+}
+/* The materials seen this build, by key. */
+export function matsByKey() { return new Map([...KEYS].map(([m, k]) => [k, m])); }
+
 /* Everything drawn on the map goes through a Kit: pieces are grouped by
-   material and merged into one mesh each at flush(). */
+   material and merged into one mesh each at flush(). A piece added with
+   `live: true` is drawn by code whatever the town's Studio file holds
+   (it moves, glows or redraws): flush({ liveOnly: true }) keeps only those. */
 export class Kit {
   constructor(api, root) {
     this.api = api;
@@ -178,7 +201,8 @@ export class Kit {
     this.lists = new Map();
   }
 
-  add(mat, geo, { shadow = true, color = null } = {}) {
+  add(mat, geo, { shadow = true, color = null, live = false } = {}) {
+    matKey(mat);
     let g = geo.index ? geo.toNonIndexed() : geo;
     if (g !== geo) geo.dispose();
     const n = g.attributes.position.count;
@@ -200,6 +224,7 @@ export class Kit {
     if (!l) this.lists.set(mat, (l = { geos: [], shadow: false }));
     l.shadow ||= shadow;
     l.geos.push(g);
+    if (live) g.userData.live = true;
     return g;
   }
 
@@ -218,8 +243,13 @@ export class Kit {
     if (mat) this.box(mat, x, y, z, w, h, d);
   }
 
-  flush() {
+  flush({ liveOnly = false } = {}) {
     for (const [mat, l] of this.lists) {
+      if (liveOnly) {
+        for (const g of l.geos) if (!g.userData.live) g.dispose();
+        l.geos = l.geos.filter((g) => g.userData.live);
+        if (!l.geos.length) continue;
+      }
       const merged = mergeGeometries(l.geos, false);
       for (const g of l.geos) g.dispose();
       if (!merged) continue;

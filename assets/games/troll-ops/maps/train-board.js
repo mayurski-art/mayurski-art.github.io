@@ -181,7 +181,7 @@ export function buildTrainBoard(K, M, place, { x, z, floor, span = 2.3 }) {
   // the board's frame, then the slate on both faces
   K.box(M.trimDark, x, floor + under - 0.06, z, 0.1, h + 0.12, w + 0.14);
   for (const o of [1, -1]) {
-    K.add(face.material, place(new THREE.PlaneGeometry(w, h), { x: x + o * 0.056, y: floor + under + h / 2, z, ry: o > 0 ? Math.PI / 2 : -Math.PI / 2 }), { shadow: false });
+    K.add(face.material, place(new THREE.PlaneGeometry(w, h), { x: x + o * 0.056, y: floor + under + h / 2, z, ry: o > 0 ? Math.PI / 2 : -Math.PI / 2 }), { shadow: false, live: true });
   }
   return face;
 }
