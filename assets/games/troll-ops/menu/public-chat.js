@@ -108,7 +108,7 @@ function render() {
   const log = chat.panel.querySelector(".to-pchat-log");
   log.innerHTML = chat.msgs.length
     ? chat.msgs.map((m) => `<li class="${m.me ? "is-me" : ""}"><b>${esc(m.name)}</b><time>${time(m.at)}</time>${m.text ? `<p>${esc(m.text)}</p>` : ""}${m.gif ? `<img class="to-pchat-gif" src="${gifSrc(m.gif)}" alt="GIF: ${esc(gifOf(m.gif).label)}">` : ""}</li>`).join("")
-    : `<li class="to-pchat-empty">Nobody's said anything yet. Say hi: everyone on Troll Forces sees it, guests too.</li>`;
+    : `<li class="to-pchat-empty">Nobody's said anything yet. Say hi: everyone on Troll Warfare sees it, guests too.</li>`;
   log.scrollTop = log.scrollHeight;
   const n = chat.presence?.count?.() || 1;
   chat.panel.querySelector(".to-pchat-who").textContent = `${n} online`;
@@ -154,7 +154,7 @@ function paintPreview() {
   const last = chat.msgs.slice(-3);
   previewEl.innerHTML = last.length
     ? last.map((m) => `<li><b>${esc(m.name)}</b> ${m.text ? esc(m.text) : ""}${m.gif ? `<img src="${gifSrc(m.gif)}" alt="GIF: ${esc(gifOf(m.gif).label)}">` : ""}</li>`).join("")
-    : `<li class="is-empty">Quiet in here. Say hi: everyone on Troll Forces sees it.</li>`;
+    : `<li class="is-empty">Quiet in here. Say hi: everyone on Troll Warfare sees it.</li>`;
 }
 /* Say `text` (or send GIF `gif`, an id in GIFS) to everyone: { name,
    text, gif } when it went, else { error } ("" for nothing to send). The

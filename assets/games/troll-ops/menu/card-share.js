@@ -18,7 +18,7 @@ const fullName = (d) => { const c = cleanClan(d.clan); return `${c ? `[${c}] ` :
 export function cardPostText(d) {
   const r = d.record;
   const bits = r ? [`K/D ${r.kd.toFixed(2)}`, `W/L ${r.wl.toFixed(2)}`, `best streak ${r.bestStreak}`] : [];
-  return `My Troll Forces card: ${fullName(d)}${bits.length ? ` · ${bits.join(" · ")}` : ""}. Problem?`;
+  return `My Troll Warfare card: ${fullName(d)}${bits.length ? ` · ${bits.join(" · ")}` : ""}. Problem?`;
 }
 
 export function shareCardOnX(d) {
@@ -169,7 +169,7 @@ async function drawCard(d, withAvatar) {
   g.textAlign = "left"; g.textBaseline = "alphabetic";
   g.font = '600 24px Oswald, "Arial Narrow", sans-serif'; g.fillStyle = "#ff8a1f";
   if ("letterSpacing" in g) g.letterSpacing = "3px";
-  g.fillText("TROLL FORCES", PAD, H - 26);
+  g.fillText("TROLL WARFARE", PAD, H - 26);
   if ("letterSpacing" in g) g.letterSpacing = "0px";
   g.textAlign = "right"; g.font = '20px "DM Mono", monospace'; g.fillStyle = "#c9b8a6";
   g.fillText("trollrunner.net", W - PAD, H - 26);

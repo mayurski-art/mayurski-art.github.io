@@ -2110,7 +2110,7 @@
     game_first_daily: 'First game of the day',
     boss_kill: 'Boss defeated',
     versus_match: 'Versus match played',
-    troll_ops_xp: 'Troll Forces match',
+    troll_ops_xp: 'Troll Warfare match',
   };
 
   function xpEventLabel(eventType, source) {

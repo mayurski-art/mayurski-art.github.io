@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Troll Forces">
+  <meta name="apple-mobile-web-app-title" content="Troll Warfare">
   <link rel="apple-touch-icon" href="assets/images/icons/app/apple-touch-icon.png">
   <script>
     // trollrunner.net/tf is the game's short link (tf/index.html bounces
@@ -22,8 +22,8 @@
       try { history.replaceState(history.state, "", "/tf" + location.search + location.hash); } catch (e) { /* file:// */ }
     }
   </script>
-  <meta name="description" content="Troll Forces: a Phantom Forces-style shooter in the Troll Runner Arcade. Twenty-plus weapons with attachments, projectile ballistics, sliding, vaulting and weapon pickups, and waves of trollface grunts that keep coming.">
-  <title>Troll Forces | Troll Runner Arcade</title>
+  <meta name="description" content="Troll Warfare: a Phantom Forces-style shooter in the Troll Runner Arcade. Twenty-plus weapons with attachments, projectile ballistics, sliding, vaulting and weapon pickups, and waves of trollface grunts that keep coming.">
+  <title>Troll Warfare | Troll Runner Arcade</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23161a14'/%3E%3Ctext x='8' y='44' font-size='34'%3E%F0%9F%8E%AF%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -35,7 +35,7 @@
 <body>
 
   <main class="arcade-shell">
-    <section class="to-cabinet" id="to-cabinet" aria-label="Troll Forces">
+    <section class="to-cabinet" id="to-cabinet" aria-label="Troll Warfare">
 
       <!-- Title screen: the Phantom Forces-style deployment lobby -->
       <!-- is-bo2 from the first paint (menu-bo2.js adds it too): the old lobby's map
@@ -54,7 +54,7 @@
               <a class="to-pf-arcade" href="index.html?open=arcade" title="Back to arcade" aria-label="Back to arcade">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg><span>Arcade</span>
               </a>
-              <span class="to-pf-logo">TROLL <b>FORCES</b></span>
+              <span class="to-pf-logo">TROLL <b>WARFARE</b></span>
             </div>
             <nav class="to-pf-tabs" id="to-pf-rail" aria-label="Lobby menu">
               <button type="button" class="to-pf-tab is-active" data-panel="deploy" aria-pressed="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 5l12 7-12 7z"/></svg><span>Play</span></button>
@@ -457,7 +457,7 @@
               <button type="button" class="to-set-btn" id="to-set-roommode-go">Start</button>
             </div>
             <button type="button" class="to-btn to-btn-ghost" id="to-quit-btn">Leave match</button>
-            <a class="to-btn to-btn-danger" href="troll-ops.html" id="to-exit-btn">Troll Forces home</a>
+            <a class="to-btn to-btn-danger" href="troll-ops.html" id="to-exit-btn">Troll Warfare home</a>
           </div>
         </div>
       </div>
@@ -483,7 +483,7 @@
             <div class="to-vote-list" id="to-vote-list" role="group" aria-label="Vote for the next map"></div>
           </div>
           <button type="button" class="to-btn to-btn-primary" id="to-retry-btn">Drop in again</button>
-          <a class="to-btn to-btn-ghost" href="troll-ops.html" id="to-go-home-btn">Troll Forces home</a>
+          <a class="to-btn to-btn-ghost" href="troll-ops.html" id="to-go-home-btn">Troll Warfare home</a>
         </div>
       </div>
 
@@ -692,7 +692,7 @@
       <div class="to-rotate" id="to-rotate" aria-live="polite">
         <div class="to-rotate-phone" aria-hidden="true"></div>
         <strong>Turn your phone sideways</strong>
-        <span>Troll Forces plays in landscape.</span>
+        <span>Troll Warfare plays in landscape.</span>
       </div>
 
       <div class="to-loading" id="to-loading">
@@ -751,7 +751,7 @@
 
           <div class="gs-wing gs-wing-r">
             <div class="gs-inset gs-list">
-              <div class="gs-list-head"><span class="gs-disc" aria-hidden="true"></span><span>Troll Forces FM</span></div>
+              <div class="gs-list-head"><span class="gs-disc" aria-hidden="true"></span><span>Troll Warfare FM</span></div>
               <ol id="to-radio-list" aria-label="Playlist"></ol>
             </div>
             <div class="gs-pods" aria-hidden="true"><i></i><i></i><i></i></div>
@@ -780,9 +780,9 @@
     }
   </script>
   <script src="assets/js/troll-leaderboard.js?v=lb-engine-v2" defer></script>
-  <script src="./assets/games/troll-ops/progression/leaderboard.js?v=to-lb-p2-or1" defer></script>
-  <script type="module" src="assets/games/troll-ops/game.js?v=to-umb3g-rm2-gs1-kb5-god1-hol1-sw5-hq1-em1-amb2-mi6-wst-ig1-tl1-bs1-ac1-lw1-tl2-wu1-sb1-cb2-tn2-rp1-dj1-zr4c-cr1-p22-vs14-t69-u69-hf1-db1-sa1-fs1-sb2-md1-bh1-ng1-sp7-kc2-p5h-db2a-db2b-db2c-db3-db4-db5-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-zj1-rs1-ob1-kc1-sv1-vt1-zf1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nl1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-sn1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-bc1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-bz1-ld1-an1-rt1-ld2-ld3-na1-na2-kp1-bl1-rg1-tb1-ut1-is1-tg1"></script>
-  <script type="module" src="./assets/games/troll-ops/menu/menu-bo2.js?v=umb2-bn1-rec1-pc1-p5-tc1-hq1-k9-amb2-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-ww1-ng1-db2a-db2b-db2c-db3-db4-db5-gj1-fu1-cs1-mb1b7b7dc1c2-wb1m1-tc3-nc1-ar2-cd1-sh1-cl1-bp1-sg1-bw1-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-gl1-nb2-pc2-cf1-gs2-tb1-dk1-gf1-sc1-lb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-cq1-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-is1-tg1"></script>
+  <script src="./assets/games/troll-ops/progression/leaderboard.js?v=to-lb-p2-or1-tw1" defer></script>
+  <script type="module" src="assets/games/troll-ops/game.js?v=to-umb3g-rm2-gs1-kb5-god1-hol1-sw5-hq1-em1-amb2-mi6-wst-ig1-tl1-bs1-ac1-lw1-tl2-wu1-sb1-cb2-tn2-rp1-dj1-zr4c-cr1-p22-vs14-t69-u69-hf1-db1-sa1-fs1-sb2-md1-bh1-ng1-sp7-kc2-p5h-db2a-db2b-db2c-db3-db4-db5-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-zj1-rs1-ob1-kc1-sv1-vt1-zf1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nl1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-sn1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-bc1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-bz1-ld1-an1-rt1-ld2-ld3-na1-na2-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1"></script>
+  <script type="module" src="./assets/games/troll-ops/menu/menu-bo2.js?v=umb2-bn1-rec1-pc1-p5-tc1-hq1-k9-amb2-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-ww1-ng1-db2a-db2b-db2c-db3-db4-db5-gj1-fu1-cs1-mb1b7b7dc1c2-wb1m1-tc3-nc1-ar2-cd1-sh1-cl1-bp1-sg1-bw1-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-gl1-nb2-pc2-cf1-gs2-tb1-dk1-gf1-sc1-lb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-cq1-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-is1-tg1-tw1"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
   <script src="https://mayurski-art.github.io/assets/js/troll-accounts.js"></script>

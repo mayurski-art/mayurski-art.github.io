@@ -123,7 +123,7 @@ export class MatchChat {
     this.chan.textContent = chan === "team" ? "TEAM" : chan === "public" ? "PUBLIC" : "ALL";
     this.chan.classList.toggle("is-team", chan === "team");
     this.chan.classList.toggle("is-public", chan === "public");
-    this.input.setAttribute("aria-label", chan === "public" ? "Public chat message: everyone on Troll Forces" : "Chat message");
+    this.input.setAttribute("aria-label", chan === "public" ? "Public chat message: everyone on Troll Warfare" : "Chat message");
   }
 
   cycle(step) {
