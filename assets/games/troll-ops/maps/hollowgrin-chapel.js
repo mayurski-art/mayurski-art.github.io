@@ -16,7 +16,7 @@
 // them back: the import tags (?v=) would make a second copy of that module.
 
 import * as THREE from "three";
-import { floorTexture, runnerTexture, ceilingTexture, friezeTexture, lancetTexture, domeTexture, apseWallTexture, sunburstTexture, frontalTexture, rulesTexture, lanternTexture, archFill, inward, quad, band } from "./chapel-art.js?v=ca1";
+import { floorTexture, runnerTexture, ceilingTexture, friezeTexture, lancetTexture, domeTexture, apseWallTexture, sunburstTexture, frontalTexture, rulesTexture, lanternTexture, archFill, inward, quad, band } from "./chapel-art.js?v=ca1-tcs1";
 
 export const CHAPEL = { x0: -49.5, x1: -39, z0: -3, z1: 7, h: 6.4 };
 const T = 0.6;                                      // wall thickness

@@ -14,6 +14,7 @@
 import * as THREE from "three";
 import { loadModel } from "../maps/battlefield-props.js?v=sr1-or1";
 import { FlowField } from "./nav.js?v=ti1-bs1b7d-fl1-or1-gf1-tg1";
+import { floorAt } from "../core/ground-field.js?v=gf1-tg1";
 import { groundHeightAt, resolveCircle } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1";
 
 export const K9 = {
@@ -29,6 +30,7 @@ export const K9 = {
   perTarget: 2,        // dogs that would rather split up than all chase one
   snapHz: 8,           // owner -> room position updates
   radius: 0.32,
+  head: 1.2,           // what a dog runs under, over the level its grid is on
 };
 
 const MAX_FIELDS = 12;   // flow fields a pack keeps (one per target per level)
@@ -230,12 +232,18 @@ export class K9Pack {
      by their centre (nav.js blockBy "centre") with the dog's own radius as
      the margin, so a door a dog fits through is open in the grid; the
      padded-footprint rule sealed anything under a cell plus two pads and
-     the dogs ran at the wall beside it. A cell no coarser than a metre. */
+     the dogs ran at the wall beside it. A cell no coarser than a metre.
+     Only what a dog meets counts: things that start under K9.head above the
+     level (from the ground under them on the ground level, as nav.js does).
+     A person's 2.2 m headroom made the saloon back room's door lintel, 2.1 m
+     over its floor, a wall, and dogs that ran in at the back door sat there. */
   baseFor(y) {
     const level = Math.max(0, Math.round(y * 2) / 2);
     let base = this.baseFields.get(level);
     if (!base) {
-      const { colliders, bounds } = this.world;
+      const { bounds } = this.world;
+      const colliders = this.world.colliders.filter((c) =>
+        c.min.y < level + K9.head + (level < 0.5 ? floorAt((c.min.x + c.max.x) / 2, (c.min.z + c.max.z) / 2) : 0));
       base = new FlowField(colliders, bounds, level, {
         step: 0.5, needSupport: level > 0.5, blockBy: "centre", pad: K9.radius, cell: Math.min(this.world.navCell || 0.6, 1.0),
       });

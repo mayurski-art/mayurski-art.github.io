@@ -22,7 +22,7 @@
 import * as THREE from "three";
 import { Kit, place, prismGeo, surfMat, texMat, signTexture, shingleTexture, rng } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1";
 import { loadModel } from "./battlefield-props.js?v=sr1-or1";
-import { floorTexture, runnerTexture, ceilingTexture, friezeTexture, lancetTexture, domeTexture, apseWallTexture, sunburstTexture, frontalTexture, rulesTexture, lanternTexture, roseTexture, archFill, inward, quad, band } from "./chapel-art.js?v=ca1";
+import { floorTexture, runnerTexture, ceilingTexture, friezeTexture, lancetTexture, domeTexture, apseWallTexture, sunburstTexture, frontalTexture, rulesTexture, lanternTexture, roseTexture, archFill, inward, quad, band } from "./chapel-art.js?v=ca1-tcs1";
 
 export const CHAPEL = { x0: 82, x1: 104, z0: 60, z1: 72, h: 8 };
 const T = 0.6;                                         // wall thickness

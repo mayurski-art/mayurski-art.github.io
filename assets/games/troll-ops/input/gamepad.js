@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import { padEmotePressed } from "../menu/controller-layout.js?v=cl7-pd1-or1";
 import { game } from "../core/state.js?v=st1";
-import { nuke, callNuke } from "../streaks/nuke.js?v=tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1";
+import { nuke, callNuke } from "../streaks/nuke.js?v=tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1";
 import { freeLook } from "../view/free-look.js?v=nf1";
 
 

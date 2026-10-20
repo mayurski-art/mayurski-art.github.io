@@ -13,7 +13,7 @@ import { STREAK_DEFS, PACKAGE_STREAK_POOL, streakIconSvg } from "./scorestreaks.
 import { groundHeightAt } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1";
 import { FlowField } from "../bots/nav.js?v=ti1-bs1b7d-fl1-or1-gf1-tg1";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js?v=wu1-or1";
-import { K9Pack } from "../bots/k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d-sr1-fl1-or1-gf1-tg1";
+import { K9Pack } from "../bots/k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d-sr1-fl1-or1-gf1-tg1-tcs1";
 import { game } from "../core/state.js?v=st1";
 import { hasPerk, peerHas } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1";
 
