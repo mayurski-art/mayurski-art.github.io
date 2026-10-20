@@ -37,6 +37,7 @@ import {
 import { LoopPath, Train } from "./train.js?v=tr1b7-or1";
 import { buildTrainBoard } from "./train-board.js?v=tb1-bt1-tcs1";
 import { studioTown, loadStudioTown, setMoves, moveRp, moveFresh, movePoint, moveGeo, moveLive } from "./trollcity-studio.js?v=ts1-tcs1";
+import { buildChapel } from "./trollcity-chapel.js?v=tch1";
 
 // 248 x 200 m since the redesign (doc "Troll City redesign in Roblox Studio"):
 // Main Street on z 0, the square on x 0, Second Street on z 66
@@ -1729,6 +1730,8 @@ function buildRoundLoopTrack(K, M) {
 /* The Grin Express: its loco and tender, two open passenger cars, each its
    own group with its own colliders, so train.js can run it round the loop. */
 const TRAIN_STATE = { train: null, board: null };
+/* St. Grinsworth's (trollcity-chapel.js): the loft stair's ends, for the zombies' links. */
+const CHAPEL_STATE = { stair: null };
 /* The conductor's job (modes/social-conductor.js): the cap's stand on the
    platform behind the shops, and the platforms you can hold the train from
    (that one and the station's, across the tracks). */
@@ -2271,6 +2274,11 @@ function buildTrollCity(api) {
     l.castShadow = false;
     root.add(l);
   }
+  // last of all, St. Grinsworth's (trollcity-chapel.js): drawn by code after
+  // the Studio town, its own Kit, never moved; its pews join the seats
+  const chapel = buildChapel(api, root, M, { wall, FLOOR, LOFT_Y: UPPER_Y });
+  SEATS.push(...chapel.seats);
+  CHAPEL_STATE.stair = chapel.stair;
 
   /* ------------------------------------------------ zombie entry points */
   // off the plains, all round the edge
@@ -2310,7 +2318,8 @@ export const TROLLCITY = {
     windows: ZSPAWNS.map((w) => ({ ...w })),
     floorOf: tcFloorOf,
     floors: TC_FLOORS,
-    links: [{ from: "ground", to: "upper", a: movePoint({ x: STAIR.x, z: STAIR.zFoot + 0.9 }), b: movePoint({ x: STAIR.x, z: STAIR_HOLE.z0 - 0.9 }) }],
+    links: [{ from: "ground", to: "upper", a: movePoint({ x: STAIR.x, z: STAIR.zFoot + 0.9 }), b: movePoint({ x: STAIR.x, z: STAIR_HOLE.z0 - 0.9 }) },
+      ...(CHAPEL_STATE.stair ? [{ from: "ground", to: "upper", ...CHAPEL_STATE.stair }] : [])],
     support: true,
     preferDist: 16,
     navCell: 0.55,
