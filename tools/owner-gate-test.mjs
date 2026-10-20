@@ -1,7 +1,8 @@
-// Owner gate test: Grin Sabers and Troll Us stay shut to a signed-out
-// visitor and to any other account, open for troll_runner, and only
-// troll_runner sees them in the home Arcade menu. The accounts script is
-// stubbed (no network); ?gate turns the gate on for localhost.
+// Owner gate test: Grin Sabers and Troll Us send a signed-out visitor or
+// any other account back home, open for troll_runner, and show greyed out
+// (not clickable) in the home Arcade menu and the games hub for everyone
+// else. The accounts script is stubbed (no network); ?gate turns the gate
+// on for localhost.
 //   node tools/owner-gate-test.mjs
 import { spawn } from "node:child_process";
 import path from "node:path";
@@ -19,42 +20,39 @@ const stub = (user) => `window.TrollrunnerAccounts = {
   getSession: async () => ${user ? `({ username: ${JSON.stringify(user)} })` : "null"},
   getCachedProfile: () => ${user ? `({ username: ${JSON.stringify(user)} })` : "null"},
 };`;
+const GAME_JS = /grin-sabers\/game\.js|troll-us\/web\/main\.js/;
 
 const browser = await chromium.launch({ args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 async function open(url, user, real = false) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   const errors = [];
+  const gameLoads = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   await page.route("**/*", (route) => {
     const u = route.request().url();
+    if (GAME_JS.test(u)) gameLoads.push(u);
     if (!real && /\/assets\/js\/troll-accounts\.js/.test(u)) return route.fulfill({ contentType: "text/javascript", body: stub(user) });
     if (u.startsWith(`http://localhost:${PORT}/`) || u.startsWith("data:") || u.startsWith("blob:")) return route.continue();
     return route.abort();
   });
   await page.goto(`http://localhost:${PORT}/${url}`, { waitUntil: "domcontentloaded" });
-  return { page, errors };
+  return { page, errors, gameLoads };
 }
 
-const GAMES = [
-  { page: "sabers.html", name: "Grin Sabers" },
-  { page: "trollus.html", name: "Troll Us" },
-];
-for (const g of GAMES) {
+for (const g of [{ page: "sabers.html", name: "Grin Sabers" }, { page: "trollus.html", name: "Troll Us" }]) {
   for (const [who, user, real] of [["signed out", null], ["another account", "some_troll"], ["accounts script down", null, true]]) {
-    const { page } = await open(`${g.page}?gate&debug`, user, real);
-    const card = await page.waitForSelector("#owner-gate", { timeout: 15000 }).catch(() => null);
-    await page.waitForTimeout(1500);
-    const text = card ? await card.innerText() : "";
-    const loaded = await page.evaluate(() => performance.getEntriesByType("resource").some((r) => /grin-sabers\/game\.js|troll-us\/web\/main\.js/.test(r.name)));
-    check(`${g.name}: ${who} gets the locked card`, !!card && /Not open yet/.test(text) && text.includes(g.name), text.replace(/\s+/g, " "));
-    check(`${g.name}: ${who} never loads the game module`, !loaded);
+    const { page, gameLoads } = await open(`${g.page}?gate&debug`, user, real);
+    const home = await page.waitForURL((u) => u.pathname === "/", { timeout: 15000 }).then(() => true, () => false);
+    await page.waitForTimeout(1000);
+    check(`${g.name}: ${who} is sent home`, home, page.url());
+    check(`${g.name}: ${who} never loads the game module`, gameLoads.length === 0, gameLoads.join(" "));
     await page.close();
   }
   const { page, errors } = await open(`${g.page}?gate&debug`, "troll_runner");
-  await page.waitForFunction(() => performance.getEntriesByType("resource").some((r) => /grin-sabers\/game\.js|troll-us\/web\/main\.js/.test(r.name)), null, { timeout: 15000 }).catch(() => {});
+  await page.waitForFunction((re) => performance.getEntriesByType("resource").some((r) => new RegExp(re).test(r.name)), GAME_JS.source, { timeout: 15000 }).catch(() => {});
   await page.waitForTimeout(4000);
-  const st = await page.evaluate(() => ({ gate: !!document.querySelector("#owner-gate"), gs: !!window.__gs, tu: document.querySelector("#tu-status")?.textContent ?? null }));
-  check(`${g.name}: troll_runner gets the game`, !st.gate && (g.page === "sabers.html" ? st.gs : !/Could not load/.test(st.tu || "")), JSON.stringify(st));
+  const st = await page.evaluate(() => ({ path: location.pathname, gs: !!window.__gs, tu: document.querySelector("#tu-status")?.textContent ?? null }));
+  check(`${g.name}: troll_runner gets the game`, st.path.includes(g.page) && (g.page === "sabers.html" ? st.gs : !/Could not load/.test(st.tu || "")), JSON.stringify(st));
   check(`${g.name}: no page errors for troll_runner`, errors.length === 0, errors.slice(0, 2).join(" | "));
   await page.close();
 }
@@ -63,14 +61,24 @@ for (const [who, user, want] of [["signed out", null, false], ["troll_runner", "
   const { page } = await open("?open=arcade", user);
   await page.waitForTimeout(2500);
   const text = await page.locator("#home-menu").innerText();
-  const has = /Grin Sabers/i.test(text) || /Troll Us/i.test(text);
-  check(`home Arcade, ${who}: ${want ? "lists" : "hides"} both games`, has === want && /Troll Kombat/i.test(text), text.replace(/\s+/g, " ").slice(0, 160));
+  const rows = await page.evaluate(() => ["a-sabers", "a-trollus"].map((id) => document.querySelector(`#home-menu [data-id="${id}"]`)?.getAttribute("aria-disabled") || "open"));
+  check(`home Arcade, ${who}: both games listed, ${want ? "clickable" : "greyed out"}`, /Grin Sabers/i.test(text) && /Troll Us/i.test(text) && rows.every((r) => (r === "open") === want), rows.join(","));
+  if (!want) {
+    await page.click('#home-menu [data-id="a-sabers"]', { force: true });
+    await page.click('#home-menu [data-id="a-sabers"]', { force: true });
+    await page.waitForTimeout(800);
+    check("home Arcade, signed out: clicking Grin Sabers goes nowhere", !/sabers/.test(page.url()), page.url());
+  }
   await page.close();
 }
 {
   const { page } = await open("games.html", null);
+  await page.waitForTimeout(800);
   const html = await page.content();
-  check("games hub has no Grin Sabers / Troll Us card", !/href="(sabers|trollus)"/.test(html) && !/Grin Sabers|Troll Us/.test(html));
+  const cards = await page.evaluate(() => [...document.querySelectorAll(".hub-card")]
+    .filter((c) => /Grin Sabers|Troll Us/.test(c.querySelector("h3")?.textContent || ""))
+    .map((c) => c.classList.contains("is-locked") && !c.querySelector("a.hub-card-play")));
+  check("games hub shows both cards locked, no play link", cards.length === 2 && cards.every(Boolean) && !/href="(sabers|trollus)"/.test(html), JSON.stringify(cards));
   await page.close();
 }
 await browser.close();

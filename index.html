@@ -284,6 +284,8 @@ const mapMode = createMapMode({
 // shown while troll_runner is signed in.
 const isTrollRunner = () => String(accounts()?.getCachedProfile?.()?.username || '').toLowerCase() === 'troll_runner';
 
+const soon = () => (isTrollRunner() ? {} : { disabled: true, value: 'Soon', desc: 'Not open yet. Still cooking.' });
+
 const screens = {
   main: () => ({
     title: 'Main Menu',
@@ -300,8 +302,8 @@ const screens = {
       ] : [],
     ],
   }),
-  // Grin Sabers and Troll Us aren't open yet (user, 2026-10-20): only
-  // troll_runner sees them, and their pages are gated too (owner-gate.js).
+  // Grin Sabers and Troll Us aren't open yet (user, 2026-10-20): listed for
+  // everyone but only troll_runner can open them (pages: owner-gate.js).
   arcade: () => ({
     title: 'Arcade',
     groups: [
@@ -309,10 +311,8 @@ const screens = {
         { id: 'a-forces', label: 'Troll Warfare', desc: 'Online PvP, Zombies and Troll Royale. The big one.', href: 'troll-ops.html' },
         { id: 'a-kombat', label: 'Troll Kombat', desc: 'Two-player fighting. Pepe, Doge and the gladiator.', href: 'troll-kombat' },
         { id: 'a-trollman', label: 'Troll Man', desc: 'Eat the dots, dodge the memes. The arcade classic, trolled.', href: 'troll-man' },
-        ...(isTrollRunner() ? [
-          { id: 'a-sabers', label: 'Grin Sabers', desc: 'Saber duels for trollfaces. Block it, disarm them, bonk them.', href: 'sabers' },
-          { id: 'a-trollus', label: 'Troll Us', desc: 'Among Us, but everyone is a trollface. Very sus.', href: 'trollus' },
-        ] : []),
+        { id: 'a-sabers', label: 'Grin Sabers', desc: 'Saber duels for trollfaces. Block it, disarm them, bonk them.', href: 'sabers', ...soon() },
+        { id: 'a-trollus', label: 'Troll Us', desc: 'Among Us, but everyone is a trollface. Very sus.', href: 'trollus', ...soon() },
       ],
       [
         { id: 'a-lb', label: 'Leaderboard', desc: "This week's top trolls across the arcade.", go: 'leaderboard' },
