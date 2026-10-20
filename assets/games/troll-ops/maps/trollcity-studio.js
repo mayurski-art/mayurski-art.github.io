@@ -172,7 +172,7 @@ export function movePoint(p) {
    finds its own way: userData.tcFixed), the lamps, the live colliders (a
    shut door keeps its box in `closed`) and the stair links. */
 export function moveGeo(g) {
-  if (!MOVES.length) return;
+  if (!MOVES.length || g.userData.tcFixed) return;
   g.computeBoundingBox();
   const m = moveFor(g.boundingBox)?.m;
   if (m) g.applyMatrix4(m);

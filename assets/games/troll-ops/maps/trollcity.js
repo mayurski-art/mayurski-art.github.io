@@ -1698,6 +1698,11 @@ function buildRoundLoopTrack(K, M) {
   const R = rng(4242);
   const path = new RoundLoop(LOOP);
   const o = { shadow: false, live: true };
+  // fixed where the code lays it: no Studio model's move takes it along
+  // (the hills and mesas moved out past it; moveGeo skips tcFixed)
+  const K0 = K;
+  K = Object.create(K0);
+  K.box = (...args) => { const g = K0.box(...args); g.userData.tcFixed = true; return g; };
   const p = { x: 0, z: 0, dx: 0, dz: 0 };
   let from = 0;
   for (const g of path.segs) {
