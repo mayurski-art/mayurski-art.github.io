@@ -33,6 +33,15 @@ const PORT = { x0: 77, col: 77.5, z: [-6, -3.6, -1.2, 1.2, 3.6, 6], half: 7.2 };
 const STAIR = { x: 84.6, z: -5.2, w: 1.1, steps: 14, run: 0.3 };
 const CELLS = { x: 98.6, edges: [ZJ + T / 2, 5.5, 8.85, 12.2, HALL.z1 - T] };
 export const PLAZA = { x0: 64, x1: 76, z0: -9.6, z1: 9.6 };
+// the clerk's office's three Troll-o-Graphs (made in Studio: Props/TrollOGraph_*),
+// backs to its south wall: hold X in front of one (modes/social-computers.js).
+// trolltruths.com lets itself be framed, so it opens in the game; OpenSea and
+// trollface.io refuse (X-Frame-Options DENY), so theirs open in a new tab.
+export const COMPUTERS = [
+  { key: "trolltruths", name: "TrollTruths", url: "https://trolltruths.com", frame: true, x: 85, z: -7.45, floor: 0.3 },
+  { key: "opensea", name: "OpenSea: TROLLS", url: "https://opensea.io/collection/trollsoneth", frame: false, x: 87, z: -7.45, floor: 0.3 },
+  { key: "trollface", name: "trollface.io", url: "https://trollface.io", frame: false, x: 89, z: -7.45, floor: 0.3 },
+];
 
 /* Build it into `root`, after the town. H = { wall, railing, wallPic, sign,
    signBoard, slabWithHole, stove, rifleRack, counter, FLOOR, UPPER_Y,

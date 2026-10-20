@@ -39,7 +39,7 @@ import { LoopPath, Train } from "./train.js?v=tr1b7-or1";
 import { buildTrainBoard } from "./train-board.js?v=tb1-bt1-tcs1";
 import { studioTown, loadStudioTown, setMoves, moveRp, moveFresh, movePoint, moveGeo, moveLive } from "./trollcity-studio.js?v=ts1-tcs1";
 import { buildChapel } from "./trollcity-chapel.js?v=tch1-tcs1";
-import { buildHall, HALL, PLAZA } from "./trollcity-hall.js?v=th1-tcs1";
+import { buildHall, HALL, PLAZA, COMPUTERS } from "./trollcity-hall.js?v=th1-tcs1";
 import { buildEast, EAST } from "./trollcity-east.js?v=te1-tcs1";
 
 // 248 x 200 m since the redesign (doc "Troll City redesign in Roblox Studio"):
@@ -2353,7 +2353,7 @@ export const TROLLCITY = {
   build: buildTrollCity,
   // Socialize roleplay spots (saloon-bar.js / game.js updateBar). Floor
   // heights are the saloon's ground floor.
-  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => [...hallNpcs(moveFresh(townNpcs(), "npcs")), ...chapelNpcs()], seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, trainBoard: () => TRAIN_STATE.board, conductor: CONDUCTOR, sheriff: SHERIFF, band: BAND, shop: SHOP, horses: () => RIDE, arm: () => ARM, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
+  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => [...hallNpcs(moveFresh(townNpcs(), "npcs")), ...chapelNpcs()], seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, trainBoard: () => TRAIN_STATE.board, conductor: CONDUCTOR, sheriff: SHERIFF, band: BAND, shop: SHOP, horses: () => RIDE, arm: () => ARM, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR }, computers: COMPUTERS },
   // Team spawns: past the railway in the north, out on the plain south.
   spawns: [[-56, -46], [-46, -47.5], [-16, -47.8], [-2, -47.8], [8, -48], [18, -46.5], [50, -46], [58, -40],
     [-56, 46], [-44, 46.5], [-26, 45], [-12, 46], [0, 45.5], [14, 46], [28, 45], [40, 45.5]],
