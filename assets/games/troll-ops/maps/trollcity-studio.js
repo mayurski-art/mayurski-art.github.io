@@ -6,7 +6,10 @@
 //                           material: named "<key>|<tint>|<shadow>", where
 //                           key is the Kit's material key (trollcity-kit.js
 //                           matKey), tint a vertex colour ("" = none) and
-//                           shadow 1 or 0
+//                           shadow 1 or 0; a prop made in Studio with
+//                           generate_mesh is "gen:<hash>", its own
+//                           material and JPEG in the GLB ("gen:plain": none,
+//                           its tint is its colour)
 //   trollcity-layout.js     the still colliders, [x, z, w, d, h, y, pen];
 //                           `moves`, the models Studio moved, turned or
 //                           left be beside one that moved:
@@ -212,12 +215,26 @@ export function loadStudioTown(api, root, studio) {
   loader.load(`${URL_GLB}${studio.glb}.glb?v=${studio.v}`, (gltf) => {
     const K = new Kit(api, root);
     const missing = [];
+    const gen = new Map();   // a generated prop's material, made once per key and tint
     gltf.scene.traverse((o) => {
       if (!o.isMesh) return;
       let q = o;
       while (q && !q.userData.tc) q = q.parent;
       const [key, tint, shadow] = (q?.userData.tc || o.name).split("|");
-      const mat = mats.get(key);
+      let mat = mats.get(key);
+      if (!mat && key.startsWith("gen:")) {
+        const k = key + "|" + tint;
+        if (!gen.has(k)) {
+          const m = o.material.clone();
+          if (!m.map && tint) m.color.set(+`0x${tint}`);
+          m.roughness = 0.85; m.metalness = 0;
+          gen.set(k, m);
+        }
+        mat = gen.get(k);
+        o.updateWorldMatrix(true, false);
+        K.add(mat, o.geometry.clone().applyMatrix4(o.matrixWorld), { shadow: shadow !== "0" });
+        return;
+      }
       if (!mat) { missing.push(key); return; }
       o.updateWorldMatrix(true, false);
       const g = o.geometry.clone().applyMatrix4(o.matrixWorld);
