@@ -3,8 +3,9 @@
 // A dusty 1870s boomtown on the open plains, after Bronze City (the user's
 // reference shots and notes are in HANDOFF.md, images in refs/western/).
 // Main Street runs west-east through the middle: false-fronted shops on
-// raised boardwalks either side, and the domed courthouse (sheriff's
-// office and jail) closing its east end, its clock a trollface. North of
+// raised boardwalks either side, and the town hall (trollcity-hall.js: the
+// sheriff's office, the jail, the courtroom) closing its east end, its
+// clocks trollfaces. North of
 // the shops: back lots, the railway (a locomotive and freight cars standing
 // on two tracks), the station, the water tower, the freight shed and the
 // lumber yard. South: a cross street down to the livery stable and the
@@ -38,6 +39,7 @@ import { LoopPath, Train } from "./train.js?v=tr1b7-or1";
 import { buildTrainBoard } from "./train-board.js?v=tb1-bt1-tcs1";
 import { studioTown, loadStudioTown, setMoves, moveRp, moveFresh, movePoint, moveGeo, moveLive } from "./trollcity-studio.js?v=ts1-tcs1";
 import { buildChapel } from "./trollcity-chapel.js?v=tch1";
+import { buildHall, HALL, PLAZA } from "./trollcity-hall.js?v=th1-tcs1";
 
 // 248 x 200 m since the redesign (doc "Troll City redesign in Roblox Studio"):
 // Main Street on z 0, the square on x 0, Second Street on z 66
@@ -1743,6 +1745,15 @@ function chapelNpcs() {
   const p = CHAPEL_STATE.preacher;
   return p ? [{ name: "Reverend Grin", role: "Preacher", act: "preach", x: p.x, z: p.z, y: p.y, yaw: p.yaw }] : [];
 }
+/* The town hall (trollcity-hall.js): its stair's ends, and where Sheriff
+   Grimes and Deputy Doofus stand in the sheriff's office. */
+const HALL_STATE = { stair: null, grimes: null, deputy: null };
+/* The townsfolk with the hall's spots: the sheriff and his deputy moved in. */
+function hallNpcs(list) {
+  const at = { "Sheriff Grimes": HALL_STATE.grimes, "Deputy Doofus": HALL_STATE.deputy };
+  for (const n of list) { const p = at[n.name]; if (p) Object.assign(n, p); }
+  return list;
+}
 /* The conductor's job (modes/social-conductor.js): the cap's stand on the
    platform behind the shops, and the platforms you can hold the train from
    (that one and the station's, across the tracks). */
@@ -2221,7 +2232,9 @@ function rpFurniture(K, M) {
   benchSeats(-21.6, -18.6, 1.0, "z", U + 0.95, U, -Math.PI / 2);       // upstairs, by the stair
   benchSeats(-11.5, -15.95, 2.0, "x", U + 0.85, U, Math.PI);           // the upstairs hall
   benchSeats(-33.5, 18.6, 2.2, "z", Y + 0.85, Y, -Math.PI / 2);        // the Grin Inn's lobby
+  const s0 = SEATS.length;
   for (const z of [-3.4, 3.4]) benchSeats(47.9, z, 2.0, "z", Y + 0.5, Y, Math.PI / 2);   // the sheriff's waiting benches
+  for (const s of SEATS.slice(s0)) s.court = true;                                         // (gone: the town hall's instead)
   for (const x of [-2.5, 0.5]) benchSeats(x, -44.2, 2.0, "x", Y + 0.48, Y, Math.PI);      // the station's waiting room
   for (const x of [-8.4, 0.2]) benchSeats(x, -37.95, 1.8, "x", Y + 0.5, Y, Math.PI);      // the platform
   for (const x of [0.8, 3.2]) seatAt(x, 18.9, Y + 0.75, Y, 0, "chair", 0.7);              // the barber's chairs
@@ -2252,7 +2265,17 @@ function buildTrollCity(api) {
 
   buildStreet(K, M, lights, R);
   buildShops(K, M, lights);
-  buildCourthouse(K, M, lights);
+  // The old courthouse still builds (so no piece after it changes number),
+  // but what it keeps live goes: the town hall has its own (trollcity-hall.js)
+  {
+    const r0 = root.children.length, l0 = lights.length, k0 = api.colliders.length, s0 = SEATS.length;
+    buildCourthouse(K, M, lights);
+    for (const o of root.children.slice(r0)) root.remove(o);
+    lights.length = l0;
+    for (const c of api.colliders.slice(k0)) if (c.live) { delete c.closed; c.min.set(0, -60, 0); c.max.set(0.01, -59.99, 0.01); }
+    for (const s of SEATS.slice(s0)) s.court = true;
+    JAIL.cells.length = 0;
+  }
   buildRailway(K, M, lights, R);
   buildSouth(K, M, lights, R);
   buildPlains(K, M, R);
@@ -2273,6 +2296,7 @@ function buildTrollCity(api) {
   const studio = studioTown();
   setMoves(studio);
   moveRp(TROLLCITY.rp);
+  for (let i = SEATS.length; i--;) if (SEATS[i].court) SEATS.splice(i, 1);
   if (studio) {
     const mine = api.colliders.splice(c0);
     api.colliders.push(...mine.filter((c) => c.live));
@@ -2291,6 +2315,11 @@ function buildTrollCity(api) {
   SEATS.push(...chapel.seats);
   CHAPEL_STATE.stair = chapel.stair;
   CHAPEL_STATE.preacher = chapel.preacher;
+  // and the town hall (trollcity-hall.js), the same way: it fills the
+  // sheriff's and the jail's spots, its seats join the rest
+  const hall = buildHall(api, root, M, { wall, railing, wallPic, sign, signBoard, slabWithHole, stove, rifleRack, counter, FLOOR, UPPER_Y, sheriff: SHERIFF, jail: JAIL });
+  SEATS.push(...hall.seats);
+  Object.assign(HALL_STATE, { stair: hall.stair, grimes: hall.grimes, deputy: hall.deputy });
 
   /* ------------------------------------------------ zombie entry points */
   // off the plains, all round the edge
@@ -2321,7 +2350,7 @@ export const TROLLCITY = {
   build: buildTrollCity,
   // Socialize roleplay spots (saloon-bar.js / game.js updateBar). Floor
   // heights are the saloon's ground floor.
-  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => [...moveFresh(townNpcs(), "npcs"), ...chapelNpcs()], seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, trainBoard: () => TRAIN_STATE.board, conductor: CONDUCTOR, sheriff: SHERIFF, band: BAND, shop: SHOP, horses: () => RIDE, arm: () => ARM, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
+  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => [...hallNpcs(moveFresh(townNpcs(), "npcs")), ...chapelNpcs()], seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, trainBoard: () => TRAIN_STATE.board, conductor: CONDUCTOR, sheriff: SHERIFF, band: BAND, shop: SHOP, horses: () => RIDE, arm: () => ARM, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
   // Team spawns: past the railway in the north, out on the plain south.
   spawns: [[-56, -46], [-46, -47.5], [-16, -47.8], [-2, -47.8], [8, -48], [18, -46.5], [50, -46], [58, -40],
     [-56, 46], [-44, 46.5], [-26, 45], [-12, 46], [0, 45.5], [14, 46], [28, 45], [40, 45.5]],
@@ -2331,7 +2360,8 @@ export const TROLLCITY = {
     floorOf: tcFloorOf,
     floors: TC_FLOORS,
     links: [{ from: "ground", to: "upper", a: movePoint({ x: STAIR.x, z: STAIR.zFoot + 0.9 }), b: movePoint({ x: STAIR.x, z: STAIR_HOLE.z0 - 0.9 }) },
-      ...(CHAPEL_STATE.stair ? [{ from: "ground", to: "upper", ...CHAPEL_STATE.stair }] : [])],
+      ...(CHAPEL_STATE.stair ? [{ from: "ground", to: "upper", ...CHAPEL_STATE.stair }] : []),
+      ...(HALL_STATE.stair ? [{ from: "ground", to: "upper", ...HALL_STATE.stair }] : [])],
     support: true,
     preferDist: 16,
     navCell: 0.55,
@@ -2407,4 +2437,5 @@ function townNpcs() {
 export const TC_FOOTPRINTS = [
   [-50, ROW_N.back, 33, ROW_N.front + WALK], [-50, ROW_S.front - WALK, 33, ROW_S.back],
   [COURT.x0 - 3, COURT.z0, COURT.x1, COURT.z1], [-36, -48, 46, -24], [-12, 28, 6, 40],
+  [HALL.x0 - 4, HALL.z0, HALL.x1, HALL.z1 + 2.5], [PLAZA.x0, PLAZA.z0, PLAZA.x1, PLAZA.z1],
 ];

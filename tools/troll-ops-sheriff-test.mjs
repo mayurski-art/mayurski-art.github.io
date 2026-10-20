@@ -125,9 +125,9 @@ check("B sees A as the sheriff, hat on, badge gone from the desk", hatB.role ===
 check("A wears the hat too", (await A.evaluate(() => window.__trollOps.localRig.jobHatKind)) === "sheriff");
 
 // ── 2. Cuffs and the leash ───────────────────────────────────────────────
-// Out in the courthouse's main room, B a step in front of A.
-await putAt(A, 46.0, 4.0, S.badge.floor, 0);
-await putAt(B, 46.0, 3.0, S.badge.floor, Math.PI);
+// Down the jail's corridor (clear 13 m to the north), B a step in front of A.
+await putAt(A, 96.6, 14.8, S.badge.floor, 0);
+await putAt(B, 96.6, 13.8, S.badge.floor, Math.PI);
 await pumpAll([A, B], 1200);
 s = await rp(A);
 check("next to B: cuff them", /cuff outlaw_b/i.test(s.prompt || ""), s.prompt);
@@ -200,9 +200,9 @@ await pumpAll([A, B], 600);
 check("just let out: a fresh cuff is refused", !(await sh(B)).cuffed);
 
 // ── 6. Nobody cuffs the owner ────────────────────────────────────────────
-await putAt(C, 46.0, 3.0, S.badge.floor, Math.PI);
-await putAt(A, 46.0, 4.0, S.badge.floor, 0);
-await putAt(B, 44.0, 6.0, S.badge.floor, 0);
+await putAt(C, 96.6, 13.8, S.badge.floor, Math.PI);
+await putAt(A, 96.6, 14.8, S.badge.floor, 0);
+await putAt(B, 95.2, 12.0, S.badge.floor, 0);
 await pumpAll([A, B, C], 1500);
 s = await rp(A);
 check("by troll_runner the prompt says no", /nobody cuffs/i.test(s.prompt || ""), s.prompt);

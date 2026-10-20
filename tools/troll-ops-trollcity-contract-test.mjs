@@ -33,7 +33,7 @@ const VIEWS = [
   { name: "main-street", eye: [-30, 4, 2], at: [30, 3, 0] },
   { name: "aerial", eye: [50, 55, 80], at: [0, 0, -5] },
   { name: "saloon-bar", eye: [-14, 1.9, -11.5], at: [-6.5, 1.4, -18] },
-  { name: "courthouse", eye: [30, 3, 6], at: [48, 3, -2] },
+  { name: "town-hall", eye: [60, 3, 6], at: [92, 4, 0] },
   { name: "station", eye: [-5, 3, -22], at: [-22, 2, -32] },
 ];
 
