@@ -389,6 +389,16 @@ export class TownNpcs {
         p.headPivot.rotation.y = sw(0.35) * 0.6;
         break;
       }
+      case "preach": {
+        // At the pulpit: the left hand on the book, the right raised to the
+        // pews and brought down again on the point; the head sweeps the rows.
+        const up = 0.5 + 0.5 * sw(0.7);
+        p.armL.rotation.set(0.75, 0, 0.15); p.elbowL.rotation.set(0.7, 0, 0);
+        p.armR.rotation.set(1.1 + up * 1.4, 0, -0.25 - up * 0.2); p.elbowR.rotation.set(0.5 - up * 0.35, 0, 0);
+        p.headPivot.rotation.y = sw(0.4, 1) * 0.45;
+        p.headPivot.rotation.x = -0.08 * up;
+        break;
+      }
       case "phone": {
         // Thumbing a phone held at the chest; every so often look up the line.
         const up = Math.max(0, sw(0.45)) ** 6;

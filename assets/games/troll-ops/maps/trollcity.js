@@ -1731,7 +1731,13 @@ function buildRoundLoopTrack(K, M) {
    own group with its own colliders, so train.js can run it round the loop. */
 const TRAIN_STATE = { train: null, board: null };
 /* St. Grinsworth's (trollcity-chapel.js): the loft stair's ends, for the zombies' links. */
-const CHAPEL_STATE = { stair: null };
+const CHAPEL_STATE = { stair: null, preacher: null };
+/* The chapel's townsfolk: the preacher at the pulpit (built after the Studio
+   town, so never moved with it). */
+function chapelNpcs() {
+  const p = CHAPEL_STATE.preacher;
+  return p ? [{ name: "Reverend Grin", role: "Preacher", act: "preach", x: p.x, z: p.z, y: p.y, yaw: p.yaw }] : [];
+}
 /* The conductor's job (modes/social-conductor.js): the cap's stand on the
    platform behind the shops, and the platforms you can hold the train from
    (that one and the station's, across the tracks). */
@@ -2279,6 +2285,7 @@ function buildTrollCity(api) {
   const chapel = buildChapel(api, root, M, { wall, FLOOR, LOFT_Y: UPPER_Y });
   SEATS.push(...chapel.seats);
   CHAPEL_STATE.stair = chapel.stair;
+  CHAPEL_STATE.preacher = chapel.preacher;
 
   /* ------------------------------------------------ zombie entry points */
   // off the plains, all round the edge
@@ -2309,7 +2316,7 @@ export const TROLLCITY = {
   build: buildTrollCity,
   // Socialize roleplay spots (saloon-bar.js / game.js updateBar). Floor
   // heights are the saloon's ground floor.
-  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => moveFresh(townNpcs(), "npcs"), seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, trainBoard: () => TRAIN_STATE.board, conductor: CONDUCTOR, sheriff: SHERIFF, band: BAND, shop: SHOP, horses: () => RIDE, arm: () => ARM, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
+  rp: { bar: { ...BAR, floorY: FLOOR }, npcs: () => [...moveFresh(townNpcs(), "npcs"), ...chapelNpcs()], seats: () => SEATS, surfaces: () => SURFACES, smithy: () => SMITHY, train: () => TRAIN_STATE.train, trainBoard: () => TRAIN_STATE.board, conductor: CONDUCTOR, sheriff: SHERIFF, band: BAND, shop: SHOP, horses: () => RIDE, arm: () => ARM, jail: () => JAIL, doctor: { ...DOC, floorY: FLOOR } },
   // Team spawns: past the railway in the north, out on the plain south.
   spawns: [[-56, -46], [-46, -47.5], [-16, -47.8], [-2, -47.8], [8, -48], [18, -46.5], [50, -46], [58, -40],
     [-56, 46], [-44, 46.5], [-26, 45], [-12, 46], [0, 45.5], [14, 46], [28, 45], [40, 45.5]],
