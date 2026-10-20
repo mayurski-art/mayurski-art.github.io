@@ -5,7 +5,9 @@
 -- set). Phase 1 sends the colliders: each part in TrollfaceIsland/Colliders
 -- as the game's AABB (a rotated part gives its world bounding box), in its
 -- `i` order, new parts after; `n` is its landmark (attribute, else the name
--- up to "_"), `pen` its bullet loss (attribute, else 0.9).
+-- up to "_"), `pen` its bullet loss (attribute, else 0.9). Phase 3 sends
+-- the terrain, phase 4 the props (TrollfaceIsland/Props: each model's Kind,
+-- foot x/z, turn about Y and scale).
 
 local PORT = PORT or 5296
 local HttpService = game:GetService("HttpService")
@@ -117,13 +119,39 @@ end
 local terrain = { minX = bounds.minX, minZ = bounds.minZ, cell = CELL, w = gw, h = gh, heights = heights,
 	paint = { res = RES, w = mw, h = mh, cells = table.concat(paint) } }
 
+-- Phase 4: the props. Kind from the model's attribute (a copied stand-in
+-- keeps it), else its name up to "_".
+local props = {}
+local propsFolder = root:FindFirstChild("Props")
+if propsFolder then
+	local list = propsFolder:GetChildren()
+	table.sort(list, function(a, b)
+		local ia, ib = a:GetAttribute("i") or math.huge, b:GetAttribute("i") or math.huge
+		if ia ~= ib then return ia < ib end
+		return a:GetFullName() < b:GetFullName()
+	end)
+	for _, m in ipairs(list) do
+		if m:IsA("Model") then
+			local cf = m:GetPivot()
+			local look = cf.LookVector
+			table.insert(props, {
+				kind = m:GetAttribute("Kind") or string.match(m.Name, "^([^_]+)"),
+				x = cf.Position.X / S, z = cf.Position.Z / S,
+				yaw = math.deg(math.atan2(-look.X, -look.Z)),
+				s = m:GetScale(),
+			})
+		end
+	end
+end
+
 local HS = HttpService.HttpEnabled
 HttpService.HttpEnabled = true
 local ok, res = pcall(function()
 	local a = HttpService:PostAsync(("http://localhost:%d/colliders"):format(PORT), HttpService:JSONEncode(out), Enum.HttpContentType.ApplicationJson)
 	local b = HttpService:PostAsync(("http://localhost:%d/terrain"):format(PORT), HttpService:JSONEncode(terrain), Enum.HttpContentType.ApplicationJson)
-	return a .. "; " .. b
+	local c = HttpService:PostAsync(("http://localhost:%d/props"):format(PORT), HttpService:JSONEncode(props), Enum.HttpContentType.ApplicationJson)
+	return a .. "; " .. b .. "; " .. c
 end)
 HttpService.HttpEnabled = HS
 if not ok then error("post: " .. tostring(res)) end
-return ("sent %d colliders and the terrain (%dx%d points): %s"):format(#out, gw, gh, res)
+return ("sent %d colliders, the terrain (%dx%d points) and %d props: %s"):format(#out, gw, gh, #props, res)

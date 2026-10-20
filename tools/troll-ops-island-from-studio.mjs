@@ -4,12 +4,13 @@
 //   /colliders  the Colliders folder, as the game's AABBs
 //   /terrain    the terrain's height at each 2 m grid point and its material
 //               per 2 m paint cell (phase 3)
+//   /props      the trees, rocks and cover (phase 4): kind, x, z, yaw, scale
 //
 //   node tools/troll-ops-island-from-studio.mjs           check: print how
 //        Studio's island differs from the game's files (no edits: none)
 //   node tools/troll-ops-island-from-studio.mjs --write   write
-//        maps/trollface-island-colliders.js and maps/trollface-island-ground.js,
-//        then bump the ?v= tags of those two
+//        maps/trollface-island-colliders.js, maps/trollface-island-ground.js and
+//        maps/trollface-island-props.js, then bump the ?v= tags of those
 //   [--port 5296]
 //
 // Wherever sculpt.json's `keep` is 0 (tools/troll-ops-island-sculpt.mjs)
@@ -27,6 +28,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const FILE = path.join(ROOT, "assets/games/troll-ops/maps/trollface-island-colliders.js");
 const GROUND = path.join(ROOT, "assets/games/troll-ops/maps/trollface-island-ground.js");
+const PROPS = path.join(ROOT, "assets/games/troll-ops/maps/trollface-island-props.js");
 const STUDIO = path.join(ROOT, "assets/games/troll-ops/studio/trollface-island");
 const args = process.argv.slice(2);
 const WRITE = args.includes("--write");
@@ -37,6 +39,7 @@ const r4 = (v) => Math.round(v * 1e4) / 1e4;
 const STEEP = 1.5;   // m of rise allowed between 2 m neighbours (the contract)
 
 const { ISLAND_SOLIDS: now } = await import(pathToFileURL(FILE).href + `?t=${Date.now()}`);
+const { ISLAND_PROPS: propsNow } = await import(pathToFileURL(PROPS).href + `?t=${Date.now()}`);
 
 function colliders(body) {
   const got = JSON.parse(body).map((c) => ({ n: String(c.n), x: r4(c.x), z: r4(c.z), w: r4(c.w), d: r4(c.d), h: r4(c.h), y: r4(c.y), pen: r4(c.pen) }));
@@ -118,6 +121,36 @@ export const ISLAND_GROUND = ${JSON.stringify(field)};
   return steep > STEEP ? "terrain too steep" : same ? "terrain matches" : `terrain differs (top ${(top / 100).toFixed(2)} m)`;
 }
 
+function props(body) {
+  const P = propsNow;
+  const list = JSON.parse(body);
+  const bad = list.filter((p) => !P.kinds.includes(p.kind));
+  if (bad.length) throw new Error(`unknown prop kinds: ${[...new Set(bad.map((p) => p.kind))].join(", ")}`);
+  const items = list.map((p) => [P.kinds.indexOf(p.kind), Math.round(p.x * 10), Math.round(p.z * 10), ((Math.round(p.yaw) % 360) + 360) % 360, Math.round(p.s * 100)]);
+  let changed = 0;
+  for (let i = 0; i < Math.min(items.length, P.items.length); i++) if (items[i].some((v, k) => Math.abs(v - P.items[i][k]) > (k === 3 ? 1 : 0))) changed++;
+  const added = Math.max(0, items.length - P.items.length), removed = Math.max(0, P.items.length - items.length);
+  const count = {};
+  for (const it of items) count[P.kinds[it[0]]] = (count[P.kinds[it[0]]] || 0) + 1;
+  console.log(`props: ${items.length} from Studio (file has ${P.items.length}): ${changed} changed, ${added} added, ${removed} removed`, JSON.stringify(count));
+  const diff = changed + added + removed;
+  if (WRITE && diff) {
+    const src = fs.readFileSync(PROPS, "utf8");
+    const head = src.slice(0, src.indexOf("export const ISLAND_PROPS"));
+    const rows = [];
+    for (let i = 0; i < items.length; i += 12) rows.push("    " + items.slice(i, i + 12).map((it) => JSON.stringify(it)).join(",") + ",");
+    fs.writeFileSync(PROPS, head + `export const ISLAND_PROPS = {
+  kinds: ${JSON.stringify(P.kinds)},
+  items: [
+${rows.join("\n")}
+  ],
+};
+`);
+    console.log(`  wrote ${path.relative(ROOT, PROPS)}`);
+  }
+  return diff ? `${diff} prop differences` : "props match";
+}
+
 const got = {};
 const server = http.createServer((req, res) => {
   if (req.method !== "POST") { res.writeHead(404); return res.end(); }
@@ -128,12 +161,13 @@ const server = http.createServer((req, res) => {
     try {
       if (req.url.startsWith("/colliders")) out = got.colliders = colliders(body);
       else if (req.url.startsWith("/terrain")) out = got.terrain = terrain(body);
+      else if (req.url.startsWith("/props")) out = got.props = props(body);
       else { res.writeHead(404); return res.end(); }
     } catch (e) { console.error(e); out = "error: " + e.message; got.error = true; }
     res.writeHead(200, { "content-type": "text/plain" });
     res.end(out);
-    if (got.colliders && got.terrain || got.error) {
-      if (WRITE) console.log("now bump: node tools/troll-ops-bump-tags.mjs <suffix> assets/games/troll-ops/maps/trollface-island-colliders.js assets/games/troll-ops/maps/trollface-island-ground.js --write");
+    if (got.colliders && got.terrain && got.props || got.error) {
+      if (WRITE) console.log("now bump: node tools/troll-ops-bump-tags.mjs <suffix> assets/games/troll-ops/maps/trollface-island-colliders.js assets/games/troll-ops/maps/trollface-island-ground.js assets/games/troll-ops/maps/trollface-island-props.js --write");
       server.close();
       process.exitCode = got.error || /steep/.test(got.terrain) ? 1 : 0;
     }

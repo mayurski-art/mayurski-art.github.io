@@ -13,7 +13,10 @@
 // tier) and the Royale rules unchanged; every collider in the data file is
 // in the game and each landmark's sits by its ring; every spawn on open dry
 // land; every POI reachable from every other on the bots' 2 m grid; the
-// island's files at 8 MB or less. Frame rate is checked by hand at phone
+// island's files at 14 MB or less (the redesign's cap). Phase 4: every
+// prop (trees, rocks, cover) on dry land, off the paths and the spawns, with
+// its colliders in the game; cover stops a bullet; the props' draws and the
+// frame's draw calls within budget. Frame rate is checked by hand at phone
 // size (a headless GPU says nothing about a phone).
 
 import http from "node:http";
@@ -28,7 +31,7 @@ const { chromium } = require("playwright");
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const BASE = path.join(ROOT, "assets/games/troll-ops/studio/trollface-island/contract.json");
 const BASELINE = process.argv.includes("--baseline");
-const BUDGET = 8 * 1024 * 1024;
+const BUDGET = 14 * 1024 * 1024;
 // The game's own movement.js instance (it reads the live ground field).
 const MOVEMENT_TAG = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/game.js"), "utf8").match(/core\/movement\.js\?v=([^"']+)/)[1];
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css",
@@ -63,6 +66,10 @@ const got = await page.evaluate(async (MOVEMENT_TAG) => {
   const { game } = await import("/assets/games/troll-ops/core/state.js?v=st1");
   const m = await import("/assets/games/troll-ops/maps/trollface-island.js?v=ti3");
   const { ISLAND_SOLIDS } = await import("/assets/games/troll-ops/maps/trollface-island-colliders.js?v=is1");
+  const { ISLAND_PROPS } = await import("/assets/games/troll-ops/maps/trollface-island-props.js?v=ip1");
+  const { propColliders } = await import("/assets/games/troll-ops/maps/island-props.js?v=ip1");
+  const { segmentBlocked } = await import("/assets/games/troll-ops/weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1-gf1-tg1");
+  const THREE = await import("three");
   const { insidePolygon } = await import("/assets/games/troll-ops/maps/edge.js?v=or1");
   const { FlowField } = await import("/assets/games/troll-ops/bots/nav.js");
   const { groundHeightAt } = await import(`/assets/games/troll-ops/core/movement.js?v=${MOVEMENT_TAG}`);
@@ -100,6 +107,49 @@ const got = await page.evaluate(async (MOVEMENT_TAG) => {
     coastLake: Math.max(hiIn(I.edge), hiIn(I.wade)),
     spawns: hiIn(I.spawns),
   };
+  // Phase 4: the props.
+  const P = ISLAND_PROPS, mask = m.groundMask().image, MW = mask.width, MRES = (I.bounds.maxX - I.bounds.minX) / MW;
+  const onPath = (x, z) => { const i = Math.floor((x - I.bounds.minX) / MRES), j = Math.floor((z - I.bounds.minZ) / MRES); return mask.data[(j * MW + i) * 4 + 1] >= 128; };
+  const propIssues = [];
+  let propCols = 0, propMissing = 0;
+  for (const [k, x10, z10, yaw, s100] of P.items) {
+    const kind = P.kinds[k], x = x10 / 10, z = z10 / 10;
+    if (!insidePolygon(I.edge, x, z)) propIssues.push(`${kind} off the island at ${x},${z}`);
+    else if (insidePolygon(I.wade, x, z)) propIssues.push(`${kind} in the lake at ${x},${z}`);
+    else if (onPath(x, z)) propIssues.push(`${kind} on a path at ${x},${z}`);
+    else if (I.spawns.some(([sx, sz]) => Math.hypot(sx - x, sz - z) < 3)) propIssues.push(`${kind} on a spawn at ${x},${z}`);
+    for (const [cx, cz, w, d, h, y] of propColliders(kind, x, z, yaw, s100 / 100)) {
+      propCols++;
+      const y0 = y + gy(cx, cz);
+      if (!inGame.has(key(cx - w / 2, y0, cz - d / 2, cx + w / 2, y0 + h, cz + d / 2))) propMissing++;
+    }
+  }
+  // Cover stops a bullet: a shot at waist height through each cover kind's
+  // first prop, 4 m out either side, square to its long side.
+  const stops = {};
+  for (const kind of ["boulder", "rockwall", "crates", "hay", "logs", "barrels", "sandbags"]) {
+    const it = P.items.find((t) => P.kinds[t[0]] === kind);
+    if (!it) continue;
+    const x = it[1] / 10, z = it[2] / 10, t = (it[3] * Math.PI) / 180, y = gy(x, z) + 0.6;
+    const nx = Math.sin(t), nz = Math.cos(t);    // the prop's own +z, turned
+    stops[kind] = segmentBlocked(cols, new THREE.Vector3(x - nx * 4, y, z - nz * 4), new THREE.Vector3(x + nx * 4, y, z + nz * 4));
+  }
+  const propMeshes = [];
+  game.scene.traverse((o) => { if (o.isInstancedMesh && o.userData.props) propMeshes.push(o); });
+  // Every draw in one whole frame (the scene, its shadows, the minimap).
+  const info = game.renderer.info;
+  await new Promise((r) => requestAnimationFrame(r));
+  info.autoReset = false; info.reset();
+  await new Promise((r) => requestAnimationFrame(r));
+  const calls = info.render.calls;
+  for (const o of propMeshes) o.visible = false;
+  info.reset();
+  await new Promise((r) => requestAnimationFrame(r));
+  const callsBare = info.render.calls;
+  for (const o of propMeshes) o.visible = true;
+  info.autoReset = true;
+  const props = { count: P.items.length, issues: propIssues, cols: propCols, missing: propMissing, stops,
+    draws: propMeshes.length, instances: propMeshes.reduce((n, o) => n + o.count, 0), calls, callsBare };
   const cut = [];
   // A POI counts as reached when any open cell inside its ring is: its
   // centre is often in a building or up on a deck.
@@ -122,7 +172,7 @@ const got = await page.evaluate(async (MOVEMENT_TAG) => {
       pois: Object.fromEntries(pois.map(([k, l]) => [k, { x: l.x, z: l.z, r: l.r, tier: l.tier }])),
       royale: { players: I.royale.players, lootPerSqM: I.royale.lootPerSqM, lootExtra: I.royale.lootExtra, phases: I.royale.phases },
     },
-    solids: ISLAND_SOLIDS.length, missing, strays, spawns: I.spawns.length, badSpawns, cut, ground,
+    solids: ISLAND_SOLIDS.length, missing, strays, spawns: I.spawns.length, badSpawns, cut, ground, props,
   };
 }, MOVEMENT_TAG);
 await browser.close();
@@ -154,13 +204,22 @@ check("every collider stands on flat ground", g.under < 0.05, `highest ${g.under
 check("the coast and the lake's shore stay low (under 0.25 m)", g.coastLake < 0.25, `${g.coastLake.toFixed(3)} m`);
 check("every spawn is on flat ground", g.spawns < 0.05, `${g.spawns.toFixed(3)} m`);
 
+const pr = got.props;
+check("every prop is on dry land, off the paths and the spawns", pr.issues.length === 0, pr.issues.length ? `${pr.issues.length}: ${pr.issues.slice(0, 4).join("; ")}` : `${pr.count} props`);
+check("every prop's colliders are in the game", pr.missing === 0, `${pr.missing} of ${pr.cols} missing`);
+check("cover stops a bullet", Object.values(pr.stops).every(Boolean), JSON.stringify(pr.stops));
+check("props draw in 30 calls or fewer, 2,500 instances or fewer", pr.draws <= 30 && pr.instances <= 2500, `${pr.draws} draws, ${pr.instances} instances`);
+// The whole frame is mostly the 100 players and the loot (phase 10's phone
+// pass works on that); here the props may add 40 calls at most.
+check("the props add 40 draw calls or fewer to a frame", pr.calls - pr.callsBare <= 40, `${pr.calls - pr.callsBare} of ${pr.calls} calls`);
+
 // Download: the island's landmark models (tf-*.glb, not the sky lobby's bus
 // and skybox) and its data files.
 const MODELS = path.join(ROOT, "assets/games/troll-ops/models");
 const files = fs.readdirSync(MODELS).filter((f) => /^tf-.*\.(glb|webp|png)$/.test(f) && !/^tf-(bus|busface|skybox)\./.test(f)).map((f) => path.join(MODELS, f));
-files.push(path.join(ROOT, "assets/games/troll-ops/maps/trollface-island-colliders.js"), path.join(ROOT, "assets/games/troll-ops/maps/trollface-island-ground.js"));
+files.push(...["colliders", "ground", "props"].map((f) => path.join(ROOT, `assets/games/troll-ops/maps/trollface-island-${f}.js`)), path.join(ROOT, "assets/games/troll-ops/maps/island-props.js"));
 const bytes = files.reduce((s, f) => s + fs.statSync(f).size, 0);
-check("the island's files are 8 MB or less", bytes <= BUDGET, `${(bytes / 1048576).toFixed(2)} MB in ${files.length} files`);
+check("the island's files are 14 MB or less", bytes <= BUDGET, `${(bytes / 1048576).toFixed(2)} MB in ${files.length} files`);
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 
 console.log(failures ? `${failures} FAILED` : "ALL PASS");

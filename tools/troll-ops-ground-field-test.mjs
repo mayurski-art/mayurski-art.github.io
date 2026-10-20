@@ -62,7 +62,9 @@ const setup = await page.evaluate(async (TAGS) => {
   const m = await import("/assets/games/troll-ops/maps/trollface-island.js?v=ti3");
   const { insidePolygon } = await import("/assets/games/troll-ops/maps/edge.js?v=or1");
   const I = m.TROLLFACE_ISLAND, cols = game.colliders;
-  const clear = (x, z, r) => !cols.some((c) => c.max.y > 0.3 && c.max.x > x - r && c.min.x < x + r && c.max.z > z - r && c.min.z < z + r)
+  // Nothing solid along the walk (from 20 m west to 10 m east, 7 m either
+  // side): the island's cover (phase 4) leaves no 18 m clearing anywhere.
+  const clear = (x, z, r) => !cols.some((c) => c.max.y > 0.3 && c.max.x > x - 24 && c.min.x < x + 10 && c.max.z > z - 7 && c.min.z < z + 7)
     && [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]].every(([dx, dz]) => insidePolygon(I.edge, x + dx, z + dz) && !insidePolygon(I.wade, x + dx, z + dz));
   let spot = null;
   for (let r = 0; r < 200 && !spot; r += 6) for (let a = 0; a < 6.28 && !spot; a += 0.4) {
