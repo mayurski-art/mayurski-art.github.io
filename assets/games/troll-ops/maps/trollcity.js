@@ -40,6 +40,7 @@ import { buildTrainBoard } from "./train-board.js?v=tb1-bt1-tcs1";
 import { studioTown, loadStudioTown, setMoves, moveRp, moveFresh, movePoint, moveGeo, moveLive } from "./trollcity-studio.js?v=ts1-tcs1";
 import { buildChapel } from "./trollcity-chapel.js?v=tch1-tcs1";
 import { buildHall, HALL, PLAZA } from "./trollcity-hall.js?v=th1-tcs1";
+import { buildEast, EAST } from "./trollcity-east.js?v=te1-tcs1";
 
 // 248 x 200 m since the redesign (doc "Troll City redesign in Roblox Studio"):
 // Main Street on z 0, the square on x 0, Second Street on z 66
@@ -2320,6 +2321,8 @@ function buildTrollCity(api) {
   const hall = buildHall(api, root, M, { wall, railing, wallPic, sign, signBoard, slabWithHole, stove, rifleRack, counter, FLOOR, UPPER_Y, sheriff: SHERIFF, jail: JAIL });
   SEATS.push(...hall.seats);
   Object.assign(HALL_STATE, { stair: hall.stair, grimes: hall.grimes, deputy: hall.deputy });
+  // and the east end of Main Street on to it (trollcity-east.js): six shops
+  SEATS.push(...buildEast(api, root, M, { shop, boardwalk, counter, shelves, stove, wallPic, sign, FLOOR, ROW_N, ROW_S, WALK }).seats);
 
   /* ------------------------------------------------ zombie entry points */
   // off the plains, all round the edge
@@ -2438,4 +2441,5 @@ export const TC_FOOTPRINTS = [
   [-50, ROW_N.back, 33, ROW_N.front + WALK], [-50, ROW_S.front - WALK, 33, ROW_S.back],
   [COURT.x0 - 3, COURT.z0, COURT.x1, COURT.z1], [-36, -48, 46, -24], [-12, 28, 6, 40],
   [HALL.x0 - 4, HALL.z0, HALL.x1, HALL.z1 + 2.5], [PLAZA.x0, PLAZA.z0, PLAZA.x1, PLAZA.z1],
+  [EAST.n.x0, ROW_N.back, EAST.n.x1, ROW_N.front + WALK], [EAST.s.x0, ROW_S.front - WALK, EAST.s.x1, ROW_S.back],
 ];
