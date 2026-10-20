@@ -193,11 +193,13 @@ const cols = got.colliders.map((c) => {
     return null;
   };
   // a unit shape, centred, Roblox's axes (a cylinder lies along x, a wedge
-  // rises to the back, +z)
-  const unit = (shape) => {
+  // rises to the back, +z); round ones get fewer sides the smaller they are
+  // (d: the round part's width in metres)
+  const unit = (shape, d) => {
+    const n = d < 0.4 ? 8 : d < 1.5 ? 12 : 20;
     if (/^(Block|Part|TrussPart|Seat|SpawnLocation)$/.test(shape)) return { g: new THREE.BoxGeometry(1, 1, 1), smooth: false };
-    if (shape === "Cylinder") return { g: new THREE.CylinderGeometry(0.5, 0.5, 1, 20).rotateZ(-Math.PI / 2), smooth: true };
-    if (shape === "Ball") return { g: new THREE.SphereGeometry(0.5, 20, 14), smooth: true };
+    if (shape === "Cylinder") return { g: new THREE.CylinderGeometry(0.5, 0.5, 1, n).rotateZ(-Math.PI / 2), smooth: true };
+    if (shape === "Ball") return { g: new THREE.SphereGeometry(0.5, n, Math.max(6, Math.round(n * 0.7))), smooth: true };
     if (shape === "Wedge" || shape === "WedgePart") {
       const P = [[-0.5, -0.5, -0.5], [0.5, -0.5, -0.5], [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5], [-0.5, 0.5, 0.5], [0.5, 0.5, 0.5]];
       const T = [[0, 1, 2], [1, 3, 2], [2, 3, 4], [3, 5, 4], [0, 4, 1], [1, 4, 5], [0, 2, 4], [1, 5, 3]];   // facing out
@@ -220,7 +222,7 @@ const cols = got.colliders.map((c) => {
       solid++;
     }
     if (s.alpha <= 0.02) continue;
-    const u = unit(s.new);
+    const u = unit(s.new, Math.max(s.s[1], s.s[2]) / K);
     const mat = u && pick(s.mat, s.color);
     if (!u || !mat) { skipped.set(s.new, (skipped.get(s.new) || 0) + 1); continue; }
     const g = u.g.index ? u.g.toNonIndexed() : u.g;
