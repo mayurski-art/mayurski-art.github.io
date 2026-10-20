@@ -9,7 +9,8 @@
 // pews in two blocks with a cross aisle to the side door (Boot Hill), the
 // hammer-beam roof over the painted panels, the chancel, altar, sunburst,
 // mosaic apse and the Controllments, and an organ loft over the door, up a
-// stair in the tower.
+// stair in the tower. Two of Hollowgrin's mannequins sit in the pews
+// (hollowgrin-mannequins.js: the woman and the man, models/mq-*.glb).
 //
 // Drawn by code, not Studio: its look is the painted textures (chapel-art.js)
 // and a Studio part can't carry those. It's built after the Studio town
@@ -20,6 +21,7 @@
 
 import * as THREE from "three";
 import { Kit, place, prismGeo, surfMat, texMat, signTexture, shingleTexture, rng } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1";
+import { loadModel } from "./battlefield-props.js?v=sr1-or1";
 import { floorTexture, runnerTexture, ceilingTexture, friezeTexture, lancetTexture, domeTexture, apseWallTexture, sunburstTexture, frontalTexture, rulesTexture, lanternTexture, roseTexture, archFill, inward, quad, band } from "./chapel-art.js?v=ca1";
 
 export const CHAPEL = { x0: 82, x1: 104, z0: 60, z1: 72, h: 8 };
@@ -50,6 +52,9 @@ const RAIL_X = 103.6;
 // floor height, so zombies find their way up it: trollcity.js links it)
 const STAIR = { x: TW.x0 + T, z: TW.z0 + T + 0.5, w: 1.0, steps: 14, run: 0.27 };
 const LOFT = { x1: 85.6 };
+// Hollowgrin's two churchgoers, sat facing the altar (east) on the pews' middle
+// seats: [model, pew row x, z]. Their seats come off the RP list.
+const SITTERS = [["pew_woman", PEW_BLOCKS[0][2], CZ - 0.9 - 2.1], ["pew_man", PEW_BLOCKS[1][1], CZ + 0.9 + 2.1]];
 
 const _up = new THREE.Vector3(0, 1, 0);
 function rodGeo(a, b, r, seg = 4) {
@@ -318,6 +323,22 @@ export function buildChapel(api, root, M, H) {
       }
     }
     endGeo.dispose();
+    // the churchgoers, frozen mid-sermon; nobody sits in their seats
+    for (const [name, x, z] of SITTERS) {
+      const i = seats.findIndex((s) => Math.abs(s.x - (x + 0.03)) < 0.01 && Math.abs(s.z - z) < 0.01);
+      if (i >= 0) seats.splice(i, 1);
+      loadModel(`mq-${name}`, {}).then((obj) => {
+        obj.position.set(x + 0.02, F, z);
+        obj.rotation.y = Math.PI / 2;
+        obj.traverse((n) => {
+          if (!n.isMesh) return;
+          // one baked atlas: hair, brows and lashes cut out of it, the rest opaque
+          Object.assign(n.material, { transparent: false, alphaTest: 0.5, depthWrite: true });
+          if (n.material.map) n.material.map.anisotropy = 4;
+        });
+        api.prop(obj);
+      }).catch((e) => console.warn("mannequin", name, e));
+    }
   }
 
   /* ---- the roof: brick gables, slates outside, the hammer beams and the
