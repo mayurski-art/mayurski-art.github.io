@@ -451,9 +451,9 @@ export function buildHall(api, root, M, H) {
         cot: { x: IN.x1 - 0.6, y: F + 0.58, z: zc - 0.6 },
       });
       K.box(M.blackIron, cx0, F + 2.8, zc, 0.1, 0.1, z1 - z0);
-      // a cot, a bucket, a trollface scratched on the wall
-      K.solid(IN.x1 - 0.6, zc - 0.6, 0.9, 2.0, 0.5, { y: F, pen: 1, mat: M.furniture });
-      K.box(M.canvasCloth, IN.x1 - 0.6, F + 0.5, zc - 0.6, 0.85, 0.08, 1.95);
+      // a cot (the bunk itself is made in Studio: Props/JailBunk_*; here only
+      // its collider), a bucket, a trollface scratched on the wall
+      K.api.ghostBox(IN.x1 - 0.6, zc - 0.6, 0.9, 2.0, 0.5, { y: F, pen: 1 });
       K.cyl(M.steel, cx0 + 0.8, F, zc - 1.1, 0.16, 0.14, 0.3, 10);
       K.add(M.trollPaint, place(new THREE.PlaneGeometry(0.7, 0.7), { x: IN.x1 - 0.04, y: F + 1.7, z: zc + 0.55, ry: -Math.PI / 2 }), { shadow: false });
     }
