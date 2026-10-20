@@ -6,7 +6,7 @@
 //      An enemy pack is let loose in the back lot behind that wall. The back
 //      doors are 1.2 m wide, too narrow for the old grid; every dog has to
 //      find one and come through it to you, without grinding on the wall.
-//   2. You stand in a courthouse jail cell with the bars closed (an extra
+//   2. You stand in a town hall jail cell with the bars closed (the cell's
 //      collider across the open door). The dogs can't get in. They mustn't
 //      spend their time pushing at the bars: they give you up and heel.
 //   3. Case 1 again with an enemy bot in the back lot instead of the pack,
@@ -114,15 +114,14 @@ check("saloon: no dog had to turn round more than twice", saloon.dogs.every((d) 
 check("saloon: none of them spent long pushing at the wall", saloon.dogs.every((d) => d && d.grind < 1.5), JSON.stringify(saloon.dogs.map((d) => d?.grind)));
 
 /* ---- 2. the jail: nothing to be done, so don't try */
-// The courthouse's middle cell is x 51.2..55.7, z -3.4..3.4, behind bars at
-// x 51.2 with a 1 m door at z 1.2 standing open; a collider across that
-// door shuts you in. The pack starts in the sheriff's office through the
-// partition door (x 49, z 0, 1.4 m wide).
-await page.evaluate(() => {
-  const T = window.__trollOps, THREE = T.THREE;
-  T.colliders.push({ min: new THREE.Vector3(51.15, 0, 0.6), max: new THREE.Vector3(51.25, 3.0, 1.8), pen: 0.3, k9DoorsTest: true });
-});
-const jail = await run("jail", { x: 53.5, y: 0.3, z: 0.3 }, { x: 45.5, y: 0.3, z: 1.5 }, -Math.PI / 2, 12, 1.9);
+// The town hall's second cell (maps/trollcity-hall.js) is x 98.6..103.7,
+// z 5.6..8.7, behind bars at x 98.6 with a 1 m door at z 8.0; the game's own
+// shut door (the cell's setShut, as a refused fist fight uses) closes you in.
+// The pack starts in the jail corridor outside it.
+const shutCell = (on) => page.evaluate((on) => window.__trollOps.builtMap().map.rp.jail().cells[1].setShut(on), on);
+await shutCell(true);
+const jail = await run("jail", { x: 100.6, y: 0.3, z: 7.0 }, { x: 95.0, y: 0.3, z: 7.5 }, -Math.PI / 2, 12, 1.9);
+await shutCell(false);
 console.log(JSON.stringify(jail));
 if (OUT) await page.screenshot({ path: path.join(OUT, "k9-doors-jail.png") });
 check("jail: no dog gets in to you", jail.reached === 0, `closest ${jail.closest}`);

@@ -164,21 +164,22 @@ for (let i = 0; i < 12 && !(after < before - 5 || after < 0.5); i++) {
 check("parked a while, it walks home", after < before - 5 || after < 0.5, `${before.toFixed(1)} -> ${after.toFixed(1)} m from home`);
 
 // ── 4. The corral rail ───────────────────────────────────────────────────
-// the bay this time, from beyond the corral's far rail (z 42) at a gallop's speed
+// the bay this time, from inside the corral (the Studio town moved it to
+// x -68..-52, z 44..58) at a gallop's speed, south over its rail at z 44
 const h1 = a.list[1];
 await putAt(A, h1.x + 0.2, h1.z + 1.6, 0, 0);
 await pumpAll([A], 500);
 await hold(A, [B], 800);
 check("A's on the bay", (await H(A)).mine === 1);
-await tune(A, () => { const Hs = window.__trollHorses.horses, h = Hs.list[Hs.mine]; h.x = 16; h.z = 52; h.y = 0; h.v = 10; h.yaw = 0; window.__trollOps.look.yaw = h.yaw; });
+await tune(A, () => { const Hs = window.__trollHorses.horses, h = Hs.list[Hs.mine]; h.x = -60; h.z = 51; h.y = 0; h.v = 10; h.yaw = 0; window.__trollOps.look.yaw = h.yaw; });
 await pumpAll([A], 200);
 await A.keyboard.down("ShiftLeft"); await A.keyboard.down("w");
 let maxY = 0;
-for (let i = 0; i < 30; i++) { await pumpAll([A], 100); const q = (await H(A)).list[1]; maxY = Math.max(maxY, q.y); if (i === 9) await A.screenshot({ path: path.join(SHOTS, "t-hop.png") }); if (q.z < 39) break; }
+for (let i = 0; i < 30; i++) { await pumpAll([A], 100); const q = (await H(A)).list[1]; maxY = Math.max(maxY, q.y); if (i === 9) await A.screenshot({ path: path.join(SHOTS, "t-hop.png") }); if (q.z < 41) break; }
 await A.keyboard.up("w"); await A.keyboard.up("ShiftLeft");
 await pumpAll([A], 900);
 a = await H(A);
-check("a gallop clears the corral rail by itself", a.list[1].z < 41.5 && maxY > 0.6, JSON.stringify({ z: a.list[1].z, maxY }));
+check("a gallop clears the corral rail by itself", a.list[1].z < 43.5 && maxY > 0.6, JSON.stringify({ z: a.list[1].z, maxY }));
 await A.keyboard.press("KeyC");
 await pumpAll([A, B], 600);
 check("and off again", (await H(A)).mine === -1);
@@ -197,14 +198,15 @@ await putAt(A, h4.x + 1.4, h4.z, 0, Math.PI / 2);
 await pumpAll([A], 500);
 s = await rp(A);
 check("by the dun with no saddle: saddle it", /saddle the dun by the trough/i.test(s.prompt || ""), s.prompt);
-await hold(A, [B], 1800);
+// held till it's done (1.5 s of game time; a slow headless frame rate stretches it)
+await holdRp(A, [B], async () => (await H(A)).list[4].saddled, 8000);
 await pumpAll([A, B], 900);
 check("saddled, on both tabs", (await H(A)).list[4].saddled && (await H(B)).list[4].saddled);
 await putAt(B, h4.x - 1.4, h4.z, 0, -Math.PI / 2);
 await pumpAll([B], 500);
 s = await rp(B);
 check("B can mount it now", /mount the dun by the trough/i.test(s.prompt || ""), s.prompt);
-await hold(B, [A], 800);
+await holdRp(B, [A], async () => (await H(B)).mine === 4, 6000);
 check("B rides it", (await H(B)).mine === 4);
 await B.keyboard.press("KeyC"); await pumpAll([B, A], 500);
 // a whistle: away from the horses
