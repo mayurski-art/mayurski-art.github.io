@@ -1,7 +1,8 @@
 // Troll Forces — St. Grinsworth's chapel art: the canvas textures (brick floor,
 // red runner, painted hammer-beam panels, frieze, stained-glass lancets, mosaic
 // dome and apse wall, trollface sunburst, altar frontal, Controllments boards,
-// star lantern) and the shape helpers (arch fill, inside-out, quad, wall band).
+// star lantern, the rose window) and the shape helpers (arch fill, inside-out,
+// quad, wall band).
 //
 // Shared by Hollowgrin's chapel (hollowgrin-chapel.js) and Troll City's bigger
 // one (trollcity-chapel.js). Each texture is made once and cached.
@@ -568,4 +569,58 @@ export function band(axis, at, a, b, y0, y1, face, rep) {
   else g.rotateY(face > 0 ? Math.PI / 2 : -Math.PI / 2);
   g.translate(axis === "x" ? (a + b) / 2 : at, (y0 + y1) / 2, axis === "x" ? at : (a + b) / 2);
   return g;
+}
+
+/* St. Grinsworth's rose window: twelve wedges of coloured glass in lead,
+   and the trollface grinning out of the middle in pale amber glass. */
+export function roseTexture() {
+  return tex("rose", () => {
+    const S = 512, c = document.createElement("canvas");
+    c.width = c.height = S;
+    const g = c.getContext("2d");
+    const glass = ["#7a2fd0", "#2fae5a", "#e08a1e", "#2a5ad8", "#c0243c", "#2fae5a"];
+    g.fillStyle = "#000";
+    g.fillRect(0, 0, S, S);
+    for (let i = 0; i < 12; i++) {
+      const a0 = (i / 12) * Math.PI * 2, a1 = ((i + 1) / 12) * Math.PI * 2;
+      g.fillStyle = glass[i % glass.length];
+      g.beginPath(); g.moveTo(S / 2, S / 2); g.arc(S / 2, S / 2, S / 2 - 6, a0, a1); g.closePath(); g.fill();
+      // petals of a lighter shade on each wedge
+      g.fillStyle = "rgba(255,255,255,.18)";
+      const am = (a0 + a1) / 2;
+      g.beginPath(); g.arc(S / 2 + Math.cos(am) * 200, S / 2 + Math.sin(am) * 200, 34, 0, Math.PI * 2); g.fill();
+    }
+    g.strokeStyle = "#0b0a0c";
+    g.lineWidth = 9;
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      g.beginPath(); g.moveTo(S / 2 + Math.cos(a) * 150, S / 2 + Math.sin(a) * 150); g.lineTo(S / 2 + Math.cos(a) * 252, S / 2 + Math.sin(a) * 252); g.stroke();
+    }
+    for (const r of [150, 252]) { g.beginPath(); g.arc(S / 2, S / 2, r, 0, Math.PI * 2); g.stroke(); }
+    g.fillStyle = "#5a2a8a";
+    g.beginPath(); g.arc(S / 2, S / 2, 148, 0, Math.PI * 2); g.fill();
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    const img = new Image();
+    img.onload = () => {
+      const k = document.createElement("canvas");
+      k.width = k.height = 260;
+      const kg = k.getContext("2d");
+      const s = Math.min(250 / img.width, 250 / img.height);
+      kg.drawImage(img, (260 - img.width * s) / 2, (260 - img.height * s) / 2, img.width * s, img.height * s);
+      const d = kg.getImageData(0, 0, 260, 260), px = d.data;
+      for (let i = 0; i < px.length; i += 4) {
+        if (px[i + 3] < 100) { px[i + 3] = 0; continue; }
+        const lum = px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11;
+        if (lum < 110) { px[i] = 12; px[i + 1] = 10; px[i + 2] = 12; }        // the lead
+        else { px[i] = 255; px[i + 1] = 222; px[i + 2] = 150; }               // amber glass
+        px[i + 3] = 255;
+      }
+      kg.putImageData(d, 0, 0);
+      g.drawImage(k, S / 2 - 130, S / 2 - 130);
+      t.needsUpdate = true;
+    };
+    img.src = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
+    return t;
+  });
 }
