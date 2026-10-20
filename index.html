@@ -300,15 +300,19 @@ const screens = {
       ] : [],
     ],
   }),
-  arcade: {
+  // Grin Sabers and Troll Us aren't open yet (user, 2026-10-20): only
+  // troll_runner sees them, and their pages are gated too (owner-gate.js).
+  arcade: () => ({
     title: 'Arcade',
     groups: [
       [
         { id: 'a-forces', label: 'Troll Warfare', desc: 'Online PvP, Zombies and Troll Royale. The big one.', href: 'troll-ops.html' },
         { id: 'a-kombat', label: 'Troll Kombat', desc: 'Two-player fighting. Pepe, Doge and the gladiator.', href: 'troll-kombat' },
         { id: 'a-trollman', label: 'Troll Man', desc: 'Eat the dots, dodge the memes. The arcade classic, trolled.', href: 'troll-man' },
-        { id: 'a-sabers', label: 'Grin Sabers', desc: 'Saber duels for trollfaces. Block it, disarm them, bonk them.', href: 'sabers' },
-        { id: 'a-trollus', label: 'Troll Us', desc: 'Among Us, but everyone is a trollface. Very sus.', href: 'trollus' },
+        ...(isTrollRunner() ? [
+          { id: 'a-sabers', label: 'Grin Sabers', desc: 'Saber duels for trollfaces. Block it, disarm them, bonk them.', href: 'sabers' },
+          { id: 'a-trollus', label: 'Troll Us', desc: 'Among Us, but everyone is a trollface. Very sus.', href: 'trollus' },
+        ] : []),
       ],
       [
         { id: 'a-lb', label: 'Leaderboard', desc: "This week's top trolls across the arcade.", go: 'leaderboard' },
@@ -317,7 +321,7 @@ const screens = {
         { id: 'back', label: 'Back', desc: 'Back to the main menu.', onSelect: (_, m) => m.back() },
       ],
     ],
-  },
+  }),
   about: () => (isTrollRunner() ? panel('panel-about', 'About', 'Back to the main menu.') : null),
   leaderboard: panel('panel-lb', 'Leaderboard', 'Back to the arcade.'),
   ...mapMode.screens,
@@ -373,7 +377,7 @@ function renderAccount() {
   }
   // About comes and goes with the troll_runner sign-in.
   if (menu.current() === 'about' && !isTrollRunner()) menu.back();
-  else if (menu.current() === 'main') menu.refresh();
+  else if (menu.current() === 'main' || menu.current() === 'arcade') menu.refresh();
 }
 $('home-acct-row').addEventListener('click', openProfile);
 window.addEventListener('trollrunner:auth-changed', renderAccount);
