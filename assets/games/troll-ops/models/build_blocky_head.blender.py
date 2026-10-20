@@ -71,6 +71,21 @@ VARIANTS["989"] = dict(
         (0.695, 0.33, 0.08, 0.055, -0.008),  # eye, sunk
         (0.41, 0.33, 0.08, 0.055, -0.008),   # eye, sunk
     ])
+# #1718's Eyes Relaxed (traits/face-relaxed.png): the trollface's own outline
+# and features, but the closed lids sit over the eyeballs, so the eyes swell
+# a little where the trollface's squints sink.
+VARIANTS["1718"] = dict(
+    ART=os.path.join(K.HERE, "..", "traits", "face-relaxed.png"),
+    FEATURES=[
+        (0.512, 0.62, 0.36, 0.17, 0.02),     # the grin's mass, jutting
+        (0.19, 0.40, 0.11, 0.12, 0.014),     # cheek (viewer's left)
+        (0.82, 0.42, 0.11, 0.12, 0.014),     # cheek (viewer's right)
+        (0.49, 0.46, 0.06, 0.055, 0.012),    # nose
+        (0.46, 0.27, 0.33, 0.07, 0.008),     # brow ridge
+        (0.315, 0.335, 0.085, 0.045, 0.004), # lid over the eyeball (viewer's left)
+        (0.59, 0.325, 0.095, 0.045, 0.004),  # lid over the eyeball (viewer's right)
+        (0.50, 0.82, 0.27, 0.07, 0.006),     # chin
+    ])
 ART = K.TROLLFACE_PNG
 if len(ARGS) >= 2 and ARGS[0] == "variant":
     globals().update(VARIANTS[ARGS[1]])

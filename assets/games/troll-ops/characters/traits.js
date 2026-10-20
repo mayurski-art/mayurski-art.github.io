@@ -15,7 +15,7 @@
 // drawn traits.
 
 import * as THREE from "three";
-import { setClothed } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1";
+import { setClothed } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1";
 
 const DIR = new URL("../traits/", import.meta.url);
 // The art's cache tag: bump it when a drawing changes (a dev page can set
@@ -26,7 +26,8 @@ const ART_V = globalThis.TRAITS_BUST ?? "tr7";
    (type/value -> id), so every token with that trait wears the same art
    (user, 2026-10-15: "if another nft has these traits then there's no need
    to recreate them"). A token is wearable once every trait it has is drawn
-   (EYES/Eyes Relaxed and BACKGROUND are the OG art and nothing: "" here).
+   (BACKGROUND is nothing, and EYES/Eyes Relaxed is painted into the face,
+   FACE_TRAITS: "" here).
      HATS/Goatfarm Hat        hat-goatfarm       (front + back)
      HATS/Camper Hat          hat-camper         (front + back)
      HATS/Baker Hat           hat-baker          (front + back)
@@ -94,8 +95,9 @@ const OVER_FACIAL = new Set(["eyes-glasses-thug"]);
    face blowing, without the gum (the gum is the holder's emote); #33's
    Cracked Eyes are painted into the trollface in place of its squints (as
    a card they floated in front of the grin; user, 2026-10-16), and #2631's
-   Gold Tooth fills a tooth of it (a card was half buried in the grin). */
-const FACE_TRAITS = { Bubblegum: "gum", "Cracked Eyes": "cracked", "Gold Tooth": "goldtooth" };
+   Gold Tooth fills a tooth of it (a card was half buried in the grin);
+   #1718's Eyes Relaxed are its closed lids in place of the squints. */
+const FACE_TRAITS = { Bubblegum: "gum", "Cracked Eyes": "cracked", "Gold Tooth": "goldtooth", "Eyes Relaxed": "relaxed" };
 export function tokenFace(token) {
   const t = TOKENS[token];
   return FACE_TRAITS[t?.facial] || FACE_TRAITS[t?.eyes] || null;

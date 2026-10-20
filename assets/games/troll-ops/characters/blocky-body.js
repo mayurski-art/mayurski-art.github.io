@@ -16,8 +16,8 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
-import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1";
-import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1-gt1-fg2-bd1-mj1-fg3-rc1-ls1-ut1";
+import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1";
+import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1-gt1-fg2-bd1-mj1-fg3-rc1-ls1-ut1-er1";
 import { addRim } from "../view/rim-light.js?v=sr1";
 import { tagInk, untagInk } from "../view/char-ink.js?v=ci1-ci2-ci3-ci4-ci5";
 
@@ -349,11 +349,14 @@ const HEAD_MODELS = {
   // its eyes and forehead lines sit higher than the trollface's: the
   // hairline (HAIRLINE) stays above them
   989: { file: "head-989.glb", dome: 0.065, front: 0.085, back: 0.19, hairline: { top: 0.175, low: 0.13 } },
+  // #1718's Eyes Relaxed: the relief head with the lids swelling over the
+  // eyeballs where the squints sank (build_blocky_head -- variant 1718)
+  1718: { file: "head-1718.glb", dome: 0.065, front: 0.085, back: 0.19 },
 };
 /* An NFT face drawn on a shape of its own wears its own head (rig.nftFace,
    traits.js tokenFace; user, 2026-10-17: #989's drawing on the trollface
    head didn't match it). */
-const FACE_HEADS = { gum: "989" };
+const FACE_HEADS = { gum: "989", relaxed: "1718" };
 const headModel = (rig) => HEAD_MODELS[FACE_HEADS[rig?.nftFace]] || HEAD_MODELS[HEAD.model] || HEAD_MODELS.relief;
 const ARM_BONES = { arm: 0.30, elbow: 0.325 };
 const FIST_BACK = -0.058;   // the fist (0.125 long, down from the wrist) moved back up the forearm by half
