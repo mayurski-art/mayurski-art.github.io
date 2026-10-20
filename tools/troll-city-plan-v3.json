@@ -1,0 +1,303 @@
+{
+ "view": [
+  -140,
+  -66,
+  140,
+  160
+ ],
+ "bounds": [
+  -124,
+  -55,
+  124,
+  145
+ ],
+ "lines": [
+  [
+   0,
+   -55,
+   0,
+   145,
+   "the town's middle line"
+  ],
+  [
+   -124,
+   0,
+   124,
+   0,
+   ""
+  ],
+  [
+   -124,
+   66,
+   124,
+   66,
+   ""
+  ]
+ ],
+ "labels": [
+  [
+   0,
+   4,
+   "MAIN STREET"
+  ],
+  [
+   -60,
+   66,
+   "SECOND STREET (to build)"
+  ],
+  [
+   -37.5,
+   29.3,
+   "Grin Inn"
+  ],
+  [
+   -37.5,
+   42.3,
+   "Telegraph"
+  ],
+  [
+   -36,
+   54.5,
+   "house"
+  ],
+  [
+   37.5,
+   29.3,
+   "Undertaker"
+  ],
+  [
+   37.5,
+   41.3,
+   "Barber"
+  ],
+  [
+   36.5,
+   14.5,
+   "Assay"
+  ],
+  [
+   -70,
+   50.5,
+   "Livery + corral"
+  ],
+  [
+   -61,
+   30,
+   "house"
+  ],
+  [
+   69,
+   32,
+   "house"
+  ],
+  [
+   81,
+   33,
+   "house"
+  ],
+  [
+   -25,
+   12,
+   "cross\nst"
+  ],
+  [
+   25,
+   12,
+   "cross\nst"
+  ],
+  [
+   0,
+   152,
+   "248 x 200 m; green dashes = the town's lines. Built: the square and what faces it."
+  ]
+ ],
+ "moves": [
+  {
+   "name": "TOWN HALL\n(sheriff, jail)",
+   "from": [
+    42,
+    -10,
+    56,
+    10
+   ],
+   "to": [
+    80,
+    -16,
+    104,
+    16
+   ]
+  },
+  {
+   "name": "statue",
+   "from": [
+    36,
+    -1,
+    38,
+    1
+   ],
+   "to": [
+    73,
+    -1,
+    75,
+    1
+   ]
+  },
+  {
+   "name": "arch",
+   "from": [
+    -56.5,
+    -6.5,
+    -55.5,
+    6.5
+   ],
+   "to": [
+    -112.5,
+    -6.5,
+    -111.5,
+    6.5
+   ]
+  },
+  {
+   "name": "Boot Hill",
+   "from": [
+    46.5,
+    38.5,
+    61.5,
+    50.5
+   ],
+   "to": [
+    98,
+    78,
+    114,
+    90
+   ]
+  }
+ ],
+ "adds": [
+  {
+   "name": "Main St lots (west)",
+   "box": [
+    -102,
+    -21.6,
+    -52,
+    -9.6
+   ]
+  },
+  {
+   "name": "Main St lots (west)",
+   "box": [
+    -102,
+    9.6,
+    -52,
+    21.6
+   ]
+  },
+  {
+   "name": "Main St lots (east)",
+   "box": [
+    36,
+    -21.6,
+    70,
+    -9.6
+   ]
+  },
+  {
+   "name": "Main St lots\n(east)",
+   "box": [
+    44,
+    9.6,
+    70,
+    21.6
+   ]
+  },
+  {
+   "name": "SECOND STREET",
+   "box": [
+    -102,
+    60,
+    84,
+    72
+   ]
+  },
+  {
+   "name": "opera house\n(faces the square)",
+   "box": [
+    -12,
+    72,
+    12,
+    90
+   ]
+  },
+  {
+   "name": "Second St lots",
+   "box": [
+    -102,
+    72,
+    -14,
+    88
+   ]
+  },
+  {
+   "name": "Second St lots",
+   "box": [
+    14,
+    72,
+    84,
+    88
+   ]
+  },
+  {
+   "name": "CHAPEL",
+   "box": [
+    86,
+    56,
+    98,
+    76
+   ]
+  },
+  {
+   "name": "dry creek + bridge",
+   "box": [
+    -124,
+    102,
+    124,
+    108
+   ]
+  },
+  {
+   "name": "stockyard\n+ cattle pen",
+   "box": [
+    -118,
+    114,
+    -84,
+    140
+   ]
+  },
+  {
+   "name": "ranch",
+   "box": [
+    -70,
+    116,
+    -52,
+    130
+   ]
+  },
+  {
+   "name": "oil derricks",
+   "box": [
+    66,
+    114,
+    116,
+    140
+   ]
+  },
+  {
+   "name": "camp",
+   "circle": [
+    -20,
+    126,
+    6
+   ]
+  }
+ ]
+}

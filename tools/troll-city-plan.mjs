@@ -7,7 +7,8 @@
 //
 // Plan file: { bounds: [x0, z0, x1, z1], labels: [[x, z, "text"]],
 //   moves: [{ name, from: [x0, z0, x1, z1], to: [x0, z0, x1, z1] }],
-//   adds: [{ name, box: [x0, z0, x1, z1] | circle: [x, z, r] }] }
+//   adds: [{ name, box: [x0, z0, x1, z1] | circle: [x, z, r] }],
+//   lines: [[x0, z0, x1, z1, "label"]] (the town's lines: middle, streets) }
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -101,6 +102,12 @@ const png = await page.evaluate(async ({ VIEW, W, H, PPM, plan }) => {
     const a = Math.atan2(bz - az, bx - ax);
     g.fillStyle = "#c0182a"; g.beginPath(); g.moveTo(bx, bz); g.lineTo(bx - 14 * Math.cos(a - 0.4), bz - 14 * Math.sin(a - 0.4)); g.lineTo(bx - 14 * Math.cos(a + 0.4), bz - 14 * Math.sin(a + 0.4)); g.fill();
     label((m.to[0] + m.to[2]) / 2, (m.to[1] + m.to[3]) / 2, m.name, "#6a0010");
+  }
+  for (const [x0, z0, x1, z1, t] of plan.lines || []) {
+    const [a, b] = P(x0, z0), [c, d] = P(x1, z1);
+    g.setLineDash([14, 7]); g.lineWidth = 2; g.strokeStyle = "#0a7a3c";
+    g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); g.setLineDash([]);
+    if (t) label(x1 - (x1 - x0) * 0.04, z1 - (z1 - z0) * 0.04, t, "#0a5a2c");
   }
   for (const [x, z, t] of plan.labels || []) label(x, z, t);
   // compass
