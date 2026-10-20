@@ -85,7 +85,8 @@ const setClock = (u) => page.evaluate((u) => {
 
 let s = await st();
 check("the Grin Express is three cars", s.cars === 3, `${s.cars}`);
-check("it runs in Socialize (it has a timetable)", s.period > 100 && s.period < 120, s.period?.toFixed(1));
+// (the loop round the grown town, 248 x 200 m: about 2:20 a lap)
+check("it runs in Socialize (it has a timetable)", s.period > 130 && s.period < 150, s.period?.toFixed(1));
 
 // Standing at the platform with 12 s to go: step onto the first car.
 await setClock(13);

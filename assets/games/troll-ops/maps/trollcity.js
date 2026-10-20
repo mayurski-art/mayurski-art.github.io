@@ -38,7 +38,9 @@ import { LoopPath, Train } from "./train.js?v=tr1b7-or1";
 import { buildTrainBoard } from "./train-board.js?v=tb1-bt1-tcs1";
 import { studioTown, loadStudioTown, setMoves, moveRp, moveFresh, movePoint, moveGeo, moveLive } from "./trollcity-studio.js?v=ts1-tcs1";
 
-const BOUNDS = { minX: -62, maxX: 62, minZ: -50, maxZ: 50 };
+// 248 x 200 m since the redesign (doc "Troll City redesign in Roblox Studio"):
+// Main Street on z 0, the square on x 0, Second Street on z 66
+const BOUNDS = { minX: -124, maxX: 124, minZ: -55, maxZ: 145 };
 const T = 0.3;            // wall thickness
 const FLOOR = 0.3;        // shop floors and boardwalks sit this high
 const STREET = { z0: -7, z1: 7 };
@@ -1624,10 +1626,14 @@ function locomotive(K, M, x, tz) {
   }
 }
 
-/* The loop track (train.js LoopPath): the north straight is the station's
-   track 0, already laid; these are the two end arcs and the south straight. */
-const LOOP = { x0: -90, x1: 90, z0: -29.8, z1: 59.8 };
+/* The first loop track (train.js LoopPath): the north straight is the
+   station's track 0, already laid; these are the two end arcs and the south
+   straight. The town outgrew it (doc "Troll City redesign in Roblox
+   Studio"): the train runs LOOP now, and this one stays only so every piece
+   after it keeps its number in the Studio town, which deletes it. */
+const LOOP_1 = { x0: -90, x1: 90, z0: -29.8, z1: 59.8 };
 function buildLoopTrack(K, M, R) {
+  const LOOP = LOOP_1;
   const path = new LoopPath(LOOP);
   // the south straight
   K.box(M.ballast, 0, 0, LOOP.z1, LOOP.x1 - LOOP.x0, 0.14, 3.0, {}, { shadow: false });
@@ -1647,6 +1653,76 @@ function buildLoopTrack(K, M, R) {
       K.box(M.tie, p.x, 0.12, p.z, 0.24, 0.1, 2.5, { ry: ry + (R() - 0.5) * 0.04 }, { shadow: false });
       for (const o of [-0.72, 0.72]) K.box(M.rail_, p.x + nx * o, 0.22, p.z + nz * o, 0.66, 0.1, 0.07, { ry }, { shadow: false });
     }
+  }
+}
+
+/* The loop round the grown town (248 x 200 m): a rectangle with rounded
+   corners just outside the bounds, not a half circle each end (that would
+   be 185 m across). The north straight is still the station's track 0;
+   at(s) as train.js LoopPath, from (x1, z0) running west. */
+const LOOP = { x0: -114, x1: 114, z0: -29.8, z1: 155, r: 20 };
+class RoundLoop {
+  constructor({ x0, x1, z0, z1, r }) {
+    const lx = x1 - x0, lz = z1 - z0 - 2 * r, q = Math.PI * r / 2;
+    // straights: from (x, z) along (dx, dz); arcs: round (x, z) from angle
+    // a, turning the way the clock goes seen from above (angle falling)
+    this.segs = [
+      { n: lx, x: x1, z: z0, dx: -1, dz: 0 },
+      { n: q, x: x0, z: z0 + r, a: -Math.PI / 2 },
+      { n: lz, x: x0 - r, z: z0 + r, dx: 0, dz: 1 },
+      { n: q, x: x0, z: z1 - r, a: Math.PI },
+      { n: lx, x: x0, z: z1, dx: 1, dz: 0 },
+      { n: q, x: x1, z: z1 - r, a: Math.PI / 2 },
+      { n: lz, x: x1 + r, z: z1 - r, dx: 0, dz: -1 },
+      { n: q, x: x1, z: z0 + r, a: 0 },
+    ];
+    this.r = r;
+    this.length = this.segs.reduce((a, g) => a + g.n, 0);
+  }
+
+  at(s, out = { x: 0, z: 0, dx: 0, dz: 0 }) {
+    s = ((s % this.length) + this.length) % this.length;
+    for (const g of this.segs) {
+      if (s > g.n) { s -= g.n; continue; }
+      if (g.a === undefined) return Object.assign(out, { x: g.x + g.dx * s, z: g.z + g.dz * s, dx: g.dx, dz: g.dz });
+      const a = g.a - s / this.r;
+      return Object.assign(out, { x: g.x + this.r * Math.cos(a), z: g.z + this.r * Math.sin(a), dx: Math.sin(a), dz: -Math.cos(a) });
+    }
+    return this.at(0, out);
+  }
+}
+/* Its track, all but the north straight: drawn by code (live), after every
+   other piece of the town so none of theirs change number. */
+function buildRoundLoopTrack(K, M) {
+  const R = rng(4242);
+  const path = new RoundLoop(LOOP);
+  const o = { shadow: false, live: true };
+  const p = { x: 0, z: 0, dx: 0, dz: 0 };
+  let from = 0;
+  for (const g of path.segs) {
+    if (from > 0) {
+      if (g.a === undefined) {
+        // a straight: one bed and two rails its length, a tie every 0.62 m
+        const cx = g.x + g.dx * g.n / 2, cz = g.z + g.dz * g.n / 2, ry = Math.atan2(-g.dz, g.dx);
+        K.box(M.ballast, cx, 0, cz, g.n, 0.14, 3.0, { ry }, o);
+        for (const s of [-0.72, 0.72]) {
+          K.box(M.rail_, cx - g.dz * s, 0.22, cz + g.dx * s, g.n, 0.1, 0.07, { ry }, o);
+          K.box(M.rail_, cx - g.dz * s, 0.22, cz + g.dx * s, g.n, 0.03, 0.14, { ry }, o);
+        }
+        for (let s = 0.31; s < g.n; s += 0.62) K.box(M.tie, g.x + g.dx * s, 0.12, g.z + g.dz * s, 0.24, 0.1, 2.5, { ry: ry + (R() - 0.5) * 0.04 }, o);
+      } else {
+        // a corner, in short straight pieces
+        for (let s = 0; s < g.n; s += 0.62) {
+          path.at(from + s, p);
+          const ry = Math.atan2(-p.dz, p.dx);
+          const nx = -p.dz, nz = p.dx;
+          if (Math.round(s / 0.62) % 3 === 0) K.box(M.ballast, p.x, 0, p.z, 2.0, 0.14, 3.0, { ry }, o);
+          K.box(M.tie, p.x, 0.12, p.z, 0.24, 0.1, 2.5, { ry: ry + (R() - 0.5) * 0.04 }, o);
+          for (const k of [-0.72, 0.72]) K.box(M.rail_, p.x + nx * k, 0.22, p.z + nz * k, 0.66, 0.1, 0.07, { ry }, o);
+        }
+      }
+    }
+    from += g.n;
   }
 }
 
@@ -1682,7 +1758,7 @@ function buildTrain(K, M) {
     car((k) => passengerCar(k, M), 9.0, 23.1, [{ x0: -4.4, x1: 4.4, z0: -1.25, z1: 1.25, y: 0.9 }]),
   ];
   // standing with the loco at x -12, the cars along the platform
-  return new Train(new LoopPath(LOOP), cars, { station: LOOP.x1 + 12 });
+  return new Train(new RoundLoop(LOOP), cars, { station: LOOP.x1 + 12 });
 }
 
 /* An open passenger car (local, nose to -x): a deck at 0.9 m with a running
@@ -2096,7 +2172,8 @@ function buildPlains(K, M, R) {
     [-120, 160, 30, 64, 26, 0.3, false], [120, -150, 24, 70, 22, 0.8, false], [-190, -40, 26, 48, 24, 0.4, false],
   ]) mesa(K, dark ? M.mesaDark : M.mesa, x, z, w, h, d, ry, R);
   // low rolling hills on the plain, nearer
-  // (clear of the train's loop, which runs out to x ±135 and z 60)
+  // (where the first town put them; the Studio town moves the ones the grown
+  // town and its loop, out to x ±134 and z 155, would cut through)
   for (const [x, z, r, h] of [[-95, -70, 40, 6], [100, 122, 46, 7], [-90, 128, 36, 5], [100, -80, 34, 6], [0, 112, 50, 5], [10, -110, 44, 6]]) {
     const g = new THREE.SphereGeometry(r, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2);
     K.add(M.hill, place(g, { x, y: -1.2, z, sy: (h + 1.2) / r }), { shadow: false });
@@ -2171,6 +2248,8 @@ function buildTrollCity(api) {
 
   hangPictures(K, M);
   rpFurniture(K, M);
+  // last: the loop round the grown town (live, numbered after everything)
+  buildRoundLoopTrack(K, M);
 
   // The Studio town (studio/trollcity, doc "Troll City redesign in Roblox
   // Studio"): its file draws every still piece and lays every still
