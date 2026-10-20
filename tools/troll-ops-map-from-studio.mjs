@@ -21,13 +21,17 @@
 //
 // A Part made in Studio is drawn with the town's own surfaces (its Roblox
 // material picks the family, its colour the nearest of the town's materials
-// in it), and is a collider too if it's CanCollide.
+// in it), and is a collider too if it's CanCollide. A MeshPart made in
+// Studio (generate_mesh) comes back as itself: its mesh, and its texture
+// (at most 512 px, JPEG, in the GLB as the material "gen:<hash>"), a
+// collider too if it's CanCollide.
 
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { pathToFileURL } from "node:url";
+import { createRequire } from "node:module";
 import { ROOT, captureMap } from "./troll-ops-map-capture.mjs";
 
 const THREE = await import(pathToFileURL(path.join(ROOT, "assets/vendor/three.module.min.js")).href);
@@ -41,7 +45,7 @@ const LAYOUT = path.join(ROOT, "assets/games/troll-ops/maps/trollcity-layout.js"
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 
 /* ------------------------------------------------------------ receive */
-const got = { parts: [], colliders: null, markers: null };
+const got = { parts: [], colliders: null, markers: null, genMesh: new Map(), genTex: new Map() };
 await new Promise((done) => {
   const server = http.createServer((req, res) => {
     if (req.method !== "POST") { res.writeHead(404); return res.end(); }
@@ -53,6 +57,12 @@ await new Promise((done) => {
       if (what === "parts") got.parts.push(...v);
       else if (what === "colliders") got.colliders = v;
       else if (what === "markers") got.markers = v;
+      else if (what === "gen-mesh") got.genMesh.set(v.id, v);
+      else if (what === "gen-tex") {
+        const t = got.genTex.get(v.id) || { w: v.w, h: v.h, parts: [] };
+        t.parts[v.i - 1] = v.b64;
+        got.genTex.set(v.id, t);
+      }
       res.writeHead(200, { "content-type": "text/plain" });
       res.end(what === "end" ? "rebuilding the town (see the terminal)" : "ok");
       if (what === "end") { server.close(); done(); }
@@ -108,10 +118,12 @@ const still = (cf, s, pos, axes, size) =>
   [0, 1, 2].every((k) => Math.abs(s[k] / K - size[k]) < 1e-3);
 let moved = 0, kept = 0, fresh = 0;
 const made = [];   // Parts made in Studio
+const gens = [];   // MeshParts made in Studio (generate_mesh)
 const seen = new Set();
 const delta = new Map();   // piece -> its move (null: where it was)
 for (const s of got.parts) {
   if (s.new) { fresh++; made.push(s); continue; }
+  if (s.gen) { gens.push(s); continue; }
   if (s.p != null) {
     const piece = pieces[s.p];
     if (!piece || !piece.prim || piece.live) continue;
@@ -234,6 +246,58 @@ const cols = got.colliders.map((c) => {
   if (made.length) console.log(`new Parts: ${drawn} drawn, ${solid} solid${skipped.size ? `; not drawn (no shape for them yet): ${[...skipped].map(([k, n]) => `${n} ${k}`).join(", ")}` : ""}`);
 }
 
+/* ------------------------------------------------------------ generated props */
+// Each is its mesh (mesh space: Roblox centres a MeshPart on the mesh's box,
+// at MeshSize for a scale of 1) where Studio has it; its texture, once,
+// as a JPEG (the headless browser encodes it), its material "gen:<hash>".
+const genImages = new Map();   // material key -> { jpeg: Buffer }
+{
+  const texKey = new Map();
+  if (got.genTex.size) {
+    const { chromium } = createRequire(import.meta.url)("playwright");   // NODE_PATH: the main checkout's node_modules
+    const browser = await chromium.launch();
+    const page = await browser.newPage();
+    for (const [id, t] of got.genTex) {
+      const b64 = t.parts.join("");
+      const jpeg = Buffer.from((await page.evaluate(({ w, h, b64 }) => {
+        const c = document.createElement("canvas"); c.width = w; c.height = h;
+        const bin = atob(b64), px = new Uint8ClampedArray(bin.length);
+        for (let i = 0; i < bin.length; i++) px[i] = bin.charCodeAt(i);
+        c.getContext("2d").putImageData(new ImageData(px, w, h), 0, 0);
+        return c.toDataURL("image/jpeg", 0.85).split(",")[1];
+      }, { w: t.w, h: t.h, b64 })), "base64");
+      const key = "gen:" + crypto.createHash("sha1").update(jpeg).digest("hex").slice(0, 8);
+      texKey.set(id, key);
+      genImages.set(key, { jpeg });
+    }
+    await browser.close();
+  }
+  let drawn = 0, solid = 0, tris = 0;
+  const missing = new Set();
+  for (const s of gens) {
+    const m = studio(s.cf, s.s);
+    if (s.solid) {
+      const box = new THREE.Box3();
+      for (let i = 0; i < 8; i++) box.expandByPoint(new THREE.Vector3(i & 1 ? 0.5 : -0.5, i & 2 ? 0.5 : -0.5, i & 4 ? 0.5 : -0.5).applyMatrix4(m));
+      const c = box.getCenter(new THREE.Vector3()), z = box.getSize(new THREE.Vector3());
+      newCols.push([c.x, c.z, z.x, z.z, z.y, box.min.y, s.pen ?? 6].map(r4));
+      solid++;
+    }
+    const g = got.genMesh.get(s.gen);
+    if (!g) { missing.add(s.name); continue; }
+    // mesh space to the unit box: centre on its box, divide by MeshSize
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    for (let i = 0; i < g.p.length; i += 3) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], g.p[i + k]); hi[k] = Math.max(hi[k], g.p[i + k]); }
+    const mid = lo.map((l, k) => (l + hi[k]) / 2);
+    const unitM = m.clone().multiply(new THREE.Matrix4().makeScale(1 / s.ms[0], 1 / s.ms[1], 1 / s.ms[2])).multiply(new THREE.Matrix4().makeTranslation(-mid[0], -mid[1], -mid[2]));
+    const key = (s.tex && texKey.get(s.tex)) || null;
+    const tint = key ? "" : s.color.map((c) => Math.round(c * 255).toString(16).padStart(2, "0")).join("");
+    put({ key: key || "gen:plain", tint, shadow: true, pictured: true, geo: { p: g.p, n: g.n, uv: g.uv } }, unitM);
+    drawn++; tris += g.p.length / 9;
+  }
+  if (gens.length) console.log(`generated props: ${drawn} drawn (${Math.round(tris)} triangles, ${genImages.size} textures), ${solid} solid${missing.size ? `; no mesh for ${[...missing].join(", ")}` : ""}`);
+}
+
 /* ------------------------------------------------------------ moves */
 // Each model's box as the code built it (its still pieces), and its move:
 // what most of its pieces did in Studio. A building dragged whole moves;
@@ -344,12 +408,13 @@ function bake(list, withNormals, withUV) {
 
 function writeGLB(groups) {
   const chunks = [], views = [], accessors = [], meshesOut = [], nodes = [];
+  const images = [], textures = [], materials = [], matOf = new Map();
   let offset = 0;
   const view = (typed, target) => {
     const buf = Buffer.from(typed.buffer, typed.byteOffset, typed.byteLength);
     const pad = (4 - (buf.length % 4)) % 4;
     chunks.push(buf, Buffer.alloc(pad));
-    views.push({ buffer: 0, byteOffset: offset, byteLength: buf.length, target });
+    views.push({ buffer: 0, byteOffset: offset, byteLength: buf.length, ...(target ? { target } : {}) });
     offset += buf.length + pad;
     return views.length - 1;
   };
@@ -357,9 +422,24 @@ function writeGLB(groups) {
     accessors.push({ bufferView: view(typed, type === "SCALAR" ? 34963 : 34962), componentType: comp, count, type, ...extra });
     return accessors.length - 1;
   };
+  // a generated prop's material: its JPEG (gen:plain has none: tinted in the game)
+  const genMat = (key) => {
+    if (matOf.has(key)) return matOf.get(key);
+    const img = genImages.get(key);
+    const mat = { name: key, pbrMetallicRoughness: { metallicFactor: 0, roughnessFactor: 0.85 } };
+    if (img) {
+      images.push({ bufferView: view(new Uint8Array(img.jpeg), 0), mimeType: "image/jpeg" });
+      textures.push({ source: images.length - 1, sampler: 0 });
+      mat.pbrMetallicRoughness.baseColorTexture = { index: textures.length - 1 };
+    }
+    materials.push(mat);
+    matOf.set(key, materials.length - 1);
+    return materials.length - 1;
+  };
   let tris = 0;
   for (const [name, g] of groups) {
     const prims = [];
+    const gm = name.startsWith("gen:") ? genMat(name.split("|")[0]) : null;
     for (const [kind, list] of [["flat", g.flat], ["smooth", g.smooth]]) {
       if (!list.length) continue;
       const { P, N, U, I } = bake(list, kind === "smooth", g.pictured);
@@ -371,7 +451,7 @@ function writeGLB(groups) {
       if (U.length) attributes.TEXCOORD_0 = acc(new Float32Array(U), "VEC2", 5126, U.length / 2);
       const big = pos.length / 3 > 65535;
       const indices = acc(big ? new Uint32Array(I) : new Uint16Array(I), "SCALAR", big ? 5125 : 5123, I.length);
-      prims.push({ attributes, indices, mode: 4 });
+      prims.push({ attributes, indices, mode: 4, ...(gm != null ? { material: gm } : {}) });
       tris += I.length / 3;
     }
     // (the name in extras too: GLTFLoader rewrites names with spaces or ":")
@@ -380,7 +460,8 @@ function writeGLB(groups) {
   }
   const bin = Buffer.concat(chunks);
   const json = { asset: { version: "2.0", generator: "troll-ops-map-from-studio" }, scene: 0, scenes: [{ nodes: nodes.map((_, i) => i) }],
-    nodes, meshes: meshesOut, accessors, bufferViews: views, buffers: [{ byteLength: bin.length }] };
+    nodes, meshes: meshesOut, accessors, bufferViews: views, buffers: [{ byteLength: bin.length }],
+    ...(materials.length ? { materials, ...(images.length ? { images, textures, samplers: [{ magFilter: 9729, minFilter: 9987, wrapS: 10497, wrapT: 10497 }] } : {}) } : {}) };
   let js = Buffer.from(JSON.stringify(json));
   js = Buffer.concat([js, Buffer.alloc((4 - (js.length % 4)) % 4, 0x20)]);
   const head = Buffer.alloc(12), jh = Buffer.alloc(8), bh = Buffer.alloc(8);
