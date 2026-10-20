@@ -34,6 +34,7 @@ try {
     const u = route.request().url();
     if (u.startsWith(`http://localhost:${PORT}/`) || u.startsWith("data:") || u.startsWith("blob:")) return route.continue();
     if (u.includes("fonts.g")) return route.abort();
+    if (u.includes("supabase-js")) return route.abort();   // the owner gate's sign-in check (assets/js/owner-gate.js)
     offsite.push(u);
     return route.abort();
   });

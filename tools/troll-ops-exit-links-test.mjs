@@ -46,8 +46,8 @@ const homes = await page.evaluate(() => ["to-exit-btn", "to-go-home-btn"].map((i
   const a = document.getElementById(id);
   return a ? [a.getAttribute("href"), a.textContent.trim()] : null;
 }));
-check("pause menu exit goes to the game's home", homes[0]?.[0] === "troll-ops.html" && /Troll Forces home/.test(homes[0][1]), JSON.stringify(homes[0]));
-check("game-over button goes to the game's home", homes[1]?.[0] === "troll-ops.html" && /Troll Forces home/.test(homes[1][1]), JSON.stringify(homes[1]));
+check("pause menu exit goes to the game's home", homes[0]?.[0] === "troll-ops.html" && /Troll Warfare home/.test(homes[0][1]), JSON.stringify(homes[0]));
+check("game-over button goes to the game's home", homes[1]?.[0] === "troll-ops.html" && /Troll Warfare home/.test(homes[1][1]), JSON.stringify(homes[1]));
 check("no arcade links left in the pause/game-over screens",
   await page.evaluate(() => !document.querySelector('#to-pause a[href="games.html"], #to-gameover a[href="games.html"]')));
 await page.close();

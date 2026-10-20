@@ -232,7 +232,7 @@ kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgb
 <script src="assets/js/site-lock.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3" integrity="sha384-uVefCux0Kf6w34gQVv8+jUPUwvwFUdnrcwI1kOJHs7sfPPXdDDucwcrPrppD6oUe" crossorigin="anonymous"></script>
 <script src="assets/js/admin-auth.js?v=20260815a"></script>
-<script src="assets/js/troll-accounts.js?v=20260930a"></script>
+<script src="assets/js/troll-accounts.js?v=20260930a-tw1"></script>
 <script src="assets/js/troll-notis.js"></script>
 <script type="module">
 import { createBo2Menu } from './assets/js/bo2-menu.js?v=home9';
@@ -284,12 +284,14 @@ const mapMode = createMapMode({
 // shown while troll_runner is signed in.
 const isTrollRunner = () => String(accounts()?.getCachedProfile?.()?.username || '').toLowerCase() === 'troll_runner';
 
+const soon = () => (isTrollRunner() ? {} : { disabled: true, value: 'Soon', desc: 'Not open yet. Still cooking.' });
+
 const screens = {
   main: () => ({
     title: 'Main Menu',
     groups: [
       [
-        { id: 'arcade', label: 'Arcade', desc: 'Troll Forces, Troll Kombat and the weekly ladder.', go: 'arcade' },
+        { id: 'arcade', label: 'Arcade', desc: 'Troll Warfare, Troll Kombat and the weekly ladder.', go: 'arcade' },
         { id: 'terminal', label: 'Terminal', desc: 'The Trollface Terminal. The archive, the riddles, the transmissions.', href: 'https://trolltruths.com', newTab: true },
       ],
       [
@@ -300,15 +302,17 @@ const screens = {
       ] : [],
     ],
   }),
-  arcade: {
+  // Grin Sabers and Troll Us aren't open yet (user, 2026-10-20): listed for
+  // everyone but only troll_runner can open them (pages: owner-gate.js).
+  arcade: () => ({
     title: 'Arcade',
     groups: [
       [
-        { id: 'a-forces', label: 'Troll Forces', desc: 'Online PvP, Zombies and Troll Royale. The big one.', href: 'troll-ops.html' },
+        { id: 'a-forces', label: 'Troll Warfare', desc: 'Online PvP, Zombies and Troll Royale. The big one.', href: 'troll-ops.html' },
         { id: 'a-kombat', label: 'Troll Kombat', desc: 'Two-player fighting. Pepe, Doge and the gladiator.', href: 'troll-kombat' },
         { id: 'a-trollman', label: 'Troll Man', desc: 'Eat the dots, dodge the memes. The arcade classic, trolled.', href: 'troll-man' },
-        { id: 'a-sabers', label: 'Grin Sabers', desc: 'Saber duels for trollfaces. Block it, disarm them, bonk them.', href: 'sabers' },
-        { id: 'a-trollus', label: 'Troll Us', desc: 'Among Us, but everyone is a trollface. Very sus.', href: 'trollus' },
+        { id: 'a-sabers', label: 'Grin Sabers', desc: 'Saber duels for trollfaces. Block it, disarm them, bonk them.', href: 'sabers', ...soon() },
+        { id: 'a-trollus', label: 'Troll Us', desc: 'Among Us, but everyone is a trollface. Very sus.', href: 'trollus', ...soon() },
       ],
       [
         { id: 'a-lb', label: 'Leaderboard', desc: "This week's top trolls across the arcade.", go: 'leaderboard' },
@@ -317,7 +321,7 @@ const screens = {
         { id: 'back', label: 'Back', desc: 'Back to the main menu.', onSelect: (_, m) => m.back() },
       ],
     ],
-  },
+  }),
   about: () => (isTrollRunner() ? panel('panel-about', 'About', 'Back to the main menu.') : null),
   leaderboard: panel('panel-lb', 'Leaderboard', 'Back to the arcade.'),
   ...mapMode.screens,
@@ -373,7 +377,7 @@ function renderAccount() {
   }
   // About comes and goes with the troll_runner sign-in.
   if (menu.current() === 'about' && !isTrollRunner()) menu.back();
-  else if (menu.current() === 'main') menu.refresh();
+  else if (menu.current() === 'main' || menu.current() === 'arcade') menu.refresh();
 }
 $('home-acct-row').addEventListener('click', openProfile);
 window.addEventListener('trollrunner:auth-changed', renderAccount);
