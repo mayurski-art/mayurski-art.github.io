@@ -144,30 +144,33 @@ const aSeen = await until(A, (v) => v && v.state, 8000, (p) => p.evaluate(() => 
 }));
 check("other players see empty hands", !!aSeen?.state && aSeen.weapon == null, JSON.stringify(aSeen));
 
-// The owner (user: "troll_runner should not have any restriction"): the
-// whole loadout, guns and HUD, though nobody can be hurt.
+// The owner too (user, 2026-10-20): no gun, melee or throwable comes out
+// in Socialize for anyone, troll_runner included.
 const armed = await A.evaluate(async () => {
   const T = window.__trollOps;
   const hp0 = T.player.hp;
   T.damagePlayer(500, "someone", "problem416");
   T.switchWeapon("secondary");
-  T.switchWeapon("primary");
+  T.switchWeapon("melee");
   T.swingMelee();
+  T.startCook("lethal");
+  T.startCook("tactical");
   return {
-    hp0, hp1: T.player.hp, holding: T.player.holding, meleeBusy: !!T.player.melee?.busy,
+    hp0, hp1: T.player.hp, holding: T.player.holding, meleeBusy: !!T.player.melee?.busy, cooking: !!T.cooking.def,
+    gun: T.fpWeaponDrawn(),
     crosshair: getComputedStyle(document.getElementById("to-crosshair")).display,
     ammo: getComputedStyle(document.querySelector(".to-hud-bottom")).display,
   };
 });
 check("the owner can't be hurt either", armed.hp1 === armed.hp0, `${armed.hp0} -> ${armed.hp1}`);
-check("the owner swaps weapons and swings melee", armed.holding === "gun" && armed.meleeBusy, JSON.stringify(armed));
-check("the owner keeps the combat HUD", armed.crosshair !== "none" && armed.ammo !== "none", JSON.stringify(armed));
+check("the owner can't draw a gun, swing melee or cook a throwable", armed.holding !== "secondary" && armed.holding !== "melee" && !armed.meleeBusy && !armed.cooking && armed.gun !== true, JSON.stringify(armed));
+check("the owner gets no combat HUD", armed.crosshair === "none" && armed.ammo === "none", JSON.stringify(armed));
 await pump(A, 1500);
-const ownerSeen = await until(B, (v) => v && v.weapon, 8000, (p) => p.evaluate(() => {
+const ownerSeen = await until(B, (v) => v && v.state, 8000, (p) => p.evaluate(() => {
   const peer = [...window.__trollOps.net.peers.values()].find((x) => !String(x.id).startsWith("bot-"));
-  return peer ? { weapon: peer.weapon ?? null } : null;
+  return peer ? { state: peer.snaps.length > 0, weapon: peer.weapon ?? null } : null;
 }));
-check("everyone sees the owner's gun", !!ownerSeen?.weapon, JSON.stringify(ownerSeen));
+check("everyone sees the owner's hands empty", !!ownerSeen?.state && ownerSeen.weapon == null, JSON.stringify(ownerSeen));
 
 await A.evaluate(() => window.__trollOps.setEmote(4));
 await pump(A, 1200);
