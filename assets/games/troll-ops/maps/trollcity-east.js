@@ -125,7 +125,7 @@ export function buildEast(api, root, M, H) {
   }
 
   /* ---- south row ---- */
-  // Grin Express Co.: stage and freight; the counter, the strongbox, the scales, parcels
+  // Grin Express Co.: stage and freight; the counter, the scales, parcels (the safe: Studio)
   {
     const F = shop(K, M, {
       x0: 44, x1: 53, row: "s", h1: 4.2, ff: 7.0, wallMat: M.wallTeal, trim: M.trimCream,
@@ -134,8 +134,7 @@ export function buildEast(api, root, M, H) {
       back: [door(50.4, 2.2, 2.8)],
     });
     counter(K, M, { x: 47.2, z: 15.6, w: 4.0, d: 0.7, mat: M.furniture });
-    K.solid(45.2, 19.8, 0.9, 0.7, 0.7, { y: Y, mat: M.blackIron, pen: 1 });
-    K.box(M.brass, 45.2, Y + 0.3, 19.44, 0.16, 0.18, 0.03);
+    // (the safe in the corner is a Studio prop)
     K.cyl(M.blackIron, 51.6, Y, 19.5, 0.05, 0.05, 1.2, 6);
     K.box(M.brass, 51.6, Y + 1.2, 19.5, 0.6, 0.04, 0.04);
     for (const s of [-1, 1]) K.cyl(M.brass, 51.6 + s * 0.28, Y + 0.95, 19.5, 0.14, 0.1, 0.05, 10);
