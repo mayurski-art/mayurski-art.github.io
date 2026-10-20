@@ -41,6 +41,10 @@ export const COMPUTERS = [
   { key: "trolltruths", name: "TrollTruths", url: "https://trolltruths.com", frame: true, x: 85, z: -7.45, floor: 0.3 },
   { key: "opensea", name: "OpenSea: TROLLS", url: "https://opensea.io/collection/trollsoneth", frame: false, x: 87, z: -7.45, floor: 0.3 },
   { key: "trollface", name: "trollface.io", url: "https://trollface.io", frame: false, x: 89, z: -7.45, floor: 0.3 },
+  // and in the front hall, against the sheriff's wall: the donation kiosk (Props/DonationKiosk_1),
+  // the home page's Donate wallet, in a new tab like the two above
+  { key: "donate", name: "Donate", title: "Donation kiosk", label: "Donate to the Troll Runner wallet", url: "https://finance.trollrunner.net", frame: false,
+    note: "Tips go to the Troll Runner wallet, on its own page in a new tab. The game keeps running here.", x: 84.45, z: 4.6, floor: 0.3 },
 ];
 
 /* Build it into `root`, after the town. H = { wall, railing, wallPic, sign,

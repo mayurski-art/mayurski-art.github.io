@@ -9,7 +9,9 @@
 //     screen offers the real site in a new tab; the click is the player's,
 //     so no popup blocker stops it, and the game keeps running behind it.
 //
-// Esc or Close puts the screen away. Nothing goes over the wire: it's each
+// The front hall's donation kiosk works the same way (the home page's Donate
+// wallet, finance.trollrunner.net, in a new tab). Esc or Close puts the
+// screen away. Nothing goes over the wire: it's each
 // player's own screen.
 
 import { game } from "../core/state.js?v=st1";
@@ -31,7 +33,7 @@ function computerAction() {
   const p = game.move.pos;
   const c = list.find((q) => near(p, q, COMPUTER.reach));
   if (!c) return null;
-  return { key: `computer:${c.key}`, label: `Use the Troll-o-Graph: ${c.name}`, ctx: "Use", time: COMPUTER.useTime, done: () => screen.open(c) };
+  return { key: `computer:${c.key}`, label: c.label || `Use the Troll-o-Graph: ${c.name}`, ctx: "Use", time: COMPUTER.useTime, done: () => screen.open(c) };
 }
 
 /* The screen: the site framed (trolltruths) or a card that opens it in a new
@@ -70,16 +72,16 @@ const screen = {
     this.at = c.key;
     const host = new URL(c.url).host;
     const bar = `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px 8px 14px;background:linear-gradient(#5a3e1c,#3a2814);border-bottom:1px solid #b8862e">`
-      + `<span style="font:800 15px/1 'DM Sans',sans-serif;letter-spacing:.06em;color:#e8c868;text-transform:uppercase">Troll-o-Graph</span>`
+      + `<span style="font:800 15px/1 'DM Sans',sans-serif;letter-spacing:.06em;color:#e8c868;text-transform:uppercase">${esc(c.title || "Troll-o-Graph")}</span>`
       + `<span style="font:500 13px/1 'DM Mono',monospace;opacity:.8;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(host)}</span>`
       + `<button type="button" data-close="1" aria-label="Close the Troll-o-Graph" style="padding:7px 14px;border-radius:10px;border:0.5px solid rgba(232,200,104,.6);background:rgba(0,0,0,.25);color:#f4e8cf;font:inherit;cursor:pointer">Close <kbd style="font:inherit;opacity:.7">Esc</kbd></button></div>`;
     const body = c.frame
       ? `<iframe title="${esc(c.name)}" src="${esc(c.url)}" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" style="flex:1;width:100%;border:0;background:#fff"></iframe>`
       : `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;background:radial-gradient(circle at 50% 40%,#1f3a22,#0c1a0e);color:#9cf0a8;font:500 15px/1.5 'DM Mono',monospace">`
         + `<div style="font:800 20px/1.2 'DM Sans',sans-serif;color:#c8f8d0">${esc(c.name)}</div>`
-        + `<div style="max-width:30em;opacity:.85">This one won't show inside the game, so it opens in a new tab. The game keeps running here.</div>`
+        + `<div style="max-width:30em;opacity:.85">${esc(c.note || "This one won't show inside the game, so it opens in a new tab. The game keeps running here.")}</div>`
         + `<a data-out="1" href="${esc(c.url)}" target="_blank" rel="noopener noreferrer" style="margin-top:6px;padding:12px 22px;border-radius:12px;background:#e8c868;color:#1c1208;font:800 16px/1 'DM Sans',sans-serif;text-decoration:none">Open ${esc(host)}</a></div>`;
-    this.el.setAttribute("aria-label", `Troll-o-Graph: ${c.name}`);
+    this.el.setAttribute("aria-label", `${c.title || "Troll-o-Graph"}: ${c.name}`);
     this.el.innerHTML = bar + body;
     this.el.hidden = false;
     (this.el.querySelector("a[data-out]") || this.el.querySelector("button"))?.focus();

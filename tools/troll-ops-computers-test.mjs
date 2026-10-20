@@ -1,7 +1,7 @@
 // Troll Forces Socialize, Troll City: the town hall's three Troll-o-Graphs
-// (modes/social-computers.js): the prompt in front of each, hold X, the
+// and its donation kiosk (modes/social-computers.js): the prompt in front of each, hold X, the
 // screen (trolltruths framed, the CSP letting it in; OpenSea and trollface.io
-// a new-tab link), Esc / Close, the pause menu left shut, a real new tab.
+// a new-tab link; the kiosk finance.trollrunner.net in a new tab), Esc / Close, the pause menu left shut, a real new tab.
 //
 // Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-computers-test.mjs
 
@@ -95,7 +95,7 @@ await join(A);
 await pumpAll([A], 4000);
 const C = await A.evaluate(() => window.__trollOps.builtMap().map.rp.computers);
 const CS = () => A.evaluate(() => window.__trollComputers.state());
-check("three Troll-o-Graphs in the town hall", Array.isArray(C) && C.length === 3, JSON.stringify(C));
+check("three Troll-o-Graphs and the donation kiosk in the town hall", Array.isArray(C) && C.length === 4 && C.some((c) => c.key === "donate"), JSON.stringify(C));
 
 // away from them: no prompt
 await putAt(A, 86, -11, 0.3, Math.PI);
@@ -107,7 +107,7 @@ for (const [i, c] of C.entries()) {
   await putAt(A, c.x, c.z, c.floor, Math.PI);
   await pumpAll([A], 600);
   s = await rp(A);
-  check(`at ${c.name}: the prompt`, (s.prompt || "").includes(`Troll-o-Graph: ${c.name}`), s.prompt);
+  check(`at ${c.name}: the prompt`, (s.prompt || "").includes(c.label || `Troll-o-Graph: ${c.name}`), s.prompt);
   await holdRp(A, [], async () => (await CS()).open, 6000);
   let st = await CS();
   check(`${c.name}: the screen opens`, st.open && st.at === c.key, JSON.stringify({ open: st.open, at: st.at }));
@@ -139,6 +139,16 @@ check("OpenSea opens in a new tab", !!tab && /opensea\.io\/collection\/trollsone
 await pumpAll([A], 300);
 check("and the screen goes away", !(await CS()).open);
 if (tab) await tab.close();
+
+// the kiosk: the Donate wallet in a new tab
+const K = C.find((c) => c.key === "donate");
+await putAt(A, K.x, K.z, K.floor, 0);
+await pumpAll([A], 500);
+await holdRp(A, [], async () => (await CS()).open, 6000);
+await ctx.route(/finance.trollrunner.net/, (r) => r.fulfill({ status: 200, contentType: "text/html", body: "<title>stub</title>" }));
+const [tab2] = await Promise.all([ctx.waitForEvent("page", { timeout: 8000 }).catch(() => null), A.click(".troll-o-graph a[data-out]")]);
+check("the kiosk opens the Donate wallet in a new tab", !!tab2 && /finance.trollrunner.net/.test(tab2.url()), tab2 && tab2.url());
+if (tab2) await tab2.close();
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 console.log(failures ? `${failures} failed` : "all passed");
