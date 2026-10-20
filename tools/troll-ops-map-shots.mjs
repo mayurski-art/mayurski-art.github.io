@@ -30,7 +30,7 @@ const VIEWS = only.length ? Object.fromEntries(only.map((id) => [id, VIEWS_ALL[i
 for (const [id, views] of Object.entries(VIEWS)) {
   const page = await ctx.newPage();
   page.on("pageerror", (e) => console.log("ERR", id, e.message));
-  await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 90000 });
+  await page.goto(`${BASE}/troll-ops.html?tohooks=1${process.env.QUERY ? "&" + process.env.QUERY : ""}`, { waitUntil: "domcontentloaded", timeout: 90000 });
   await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 60000 });
   await page.evaluate(async ([id, mode]) => {
     const T = window.__trollOps;
