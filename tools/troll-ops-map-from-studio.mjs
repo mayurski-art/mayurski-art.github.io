@@ -293,8 +293,11 @@ const rpOut = {};
 {
   let movedM = 0, other = 0;
   const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+  // by name first: a new RP spot in the game renumbers every marker after it,
+  // but the names (rp.seats.12, ...) stay put; M is the fallback
+  const byName = new Map(index.markers.map((o) => [o.name, o]));
   for (const mk of got.markers) {
-    const o = index.markers[mk.m];
+    const o = (mk.name && byName.get(mk.name)) || index.markers[mk.m];
     if (!o) continue;
     const off = Math.hypot(mk.p[0] - o.p[0], mk.p[1] - o.p[1], mk.p[2] - o.p[2]);
     const turned = typeof o.yaw === "number" && Math.abs(wrap(mk.yaw - o.yaw)) > 0.01;

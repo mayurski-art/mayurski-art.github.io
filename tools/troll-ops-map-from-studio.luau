@@ -58,7 +58,7 @@ return function(PORT)
 				local pcf = U * p.CFrame
 				local pos = pcf.Position - Vector3.new(0, lift, 0)
 				local look = pcf.LookVector
-				table.insert(marks, { m = p:GetAttribute("M"), p = { pos.X / K, pos.Y / K, pos.Z / K },
+				table.insert(marks, { m = p:GetAttribute("M"), name = p.Name, p = { pos.X / K, pos.Y / K, pos.Z / K },
 					-- the way it faces, in the game's yaw (0 = -z, +PI/2 = -x)
 					yaw = math.atan2(-look.X, -look.Z), size = p:GetAttribute("Kind") == "rp" and p.Shape == Enum.PartType.Block and sz(p.Size / K) or nil })
 			elseif inFolder(p, "Colliders") then
