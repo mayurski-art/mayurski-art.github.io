@@ -1423,6 +1423,10 @@ function _poseHumanoid(rig, { sprint = null, phase = 0, moving = false, pitch = 
   // A walking stance starts a little nearer the hips than it ends: the heel
   // lands just ahead, the toe pushes off well behind (with the heel up).
   const back = 0.075 * (1 - run);
+  // A body's gun stance (rig.gunHold.stance [out, back, sink], metres:
+  // blocky-body.js) while it stands with a gun: the feet wider, the right
+  // one back, the knees bent (user, 2026-10-21: #1718's render)
+  const gst = hold === "gun" && hasGun ? rig.gunHold?.stance : null, gsk = gst ? (1 - blend) * (1 - crouch) : 0;
   const feet = [];
   for (const [side, legPhase] of [[-1, cyc], [1, cyc + Math.PI]]) {
     let u = (legPhase / (Math.PI * 2)) % 1;
@@ -1472,6 +1476,7 @@ function _poseHumanoid(rig, { sprint = null, phase = 0, moving = false, pitch = 
     // ...or, on a body with hips (setHips), right under its own hip.
     const baseX = side * (Math.max(0.085 * st.width, rig.hipHalf || 0) + crouch * 0.06) * s;
     _foot.set(baseX + tx * along, rig.limbRadius + up, tz * along);
+    if (gsk) { _foot.x += side * gst[0] * gsk * s; _foot.z += (side > 0 ? gst[1] : -gst[1] * 0.4) * gsk * s; }
     // Crouched feet land a touch behind the hips, prone ones further.
     _foot.z += crouch * 0.12 * s;
     // Standing: the resting foot steps a little forward and out.
@@ -1502,7 +1507,7 @@ function _poseHumanoid(rig, { sprint = null, phase = 0, moving = false, pitch = 
   // (in proportion to the legs: the same centimetres sank a short-legged
   // body (the blocky one, legs 0.67) into a lunge)
   const level = standY - (run * 0.06 * s + (zombie ? 0.06 * s : 0) - spring * st.bounce * s * run) * blend * legK - Math.abs(weight) * 0.006 * s;
-  p.hips.position.y = Math.max(level - 0.07 * s * legK, Math.min(level, reach));
+  p.hips.position.y = Math.max(level - 0.07 * s * legK, Math.min(level, reach)) - (gsk ? gst[2] * gsk * s : 0);
 
   // In the air: knees tuck on the way up and the legs reach for the ground
   // on the way down, the free arm lifts out for balance. Only for a real
@@ -1967,6 +1972,7 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
   rig.fireK = (rig.fireK ?? 0) + (wantUp - (rig.fireK ?? 0)) * Math.min(1, dt * (wantUp ? 18 : 3.5));
   const rk = reload > 0 && reload < 1 ? reload : 0;
   const rl = reloadEnv(rk);
+  rig.gripReload = rk;   // (a body's own hands let go of the handguard: blocky-body.js handPoseFor)
   const up = Math.max(a, rig.fireK) * (1 - rl);
   // A broad body blades into the gun (hold.blade, radians): the upper body
   // turns right-side back, half at the hips and half in the chest, and the
@@ -2037,7 +2043,10 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
     }
   }
   // Trigger hand to the grip; the elbow winged out, more when shouldered.
-  _gGrip.copy(pt(u.gripPos)).applyEuler(p.gunMount.rotation).add(p.gunMount.position);
+  _gGrip.copy(pt(u.gripPos));
+  // (a body whose own hand holds the grip: its arm to that hand's wrist, gun space)
+  if (hold?.gripOff && !pistol && !pair) _gGrip.add(_gPt.fromArray(hold.gripOff).multiplyScalar(gs));
+  _gGrip.applyEuler(p.gunMount.rotation).add(p.gunMount.position);
   // A short arm on a long stock (hold.reachR, of the arm's length): past
   // that the hand takes the stock's wrist, back from the grip toward the
   // butt, so the arm bends and the elbow comes out. At full stretch it lay
@@ -2057,6 +2066,9 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
   }
   _gT.copy(_gGrip).sub(p.armR.position).sub(p.shoulderR.position);
   _gPoleR2.set(1, pistol ? -1 : -0.55 + up * 0.35, 0.25);
+  // (a body's own elbow, rig.gunHold.poleR: down by the ribs on a long gun,
+  // #1718's render; user, 2026-10-21)
+  if (hold?.poleR && !pistol) _gPoleR2.set(...hold.poleR);
   if (pair) _gPoleR2.set(1, -1.2, 0.1);
   _reachArm(rig, p.armR, p.elbowR, rig.armRestR, _gT, _gPoleR2);
 
@@ -2069,6 +2081,7 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
     // A big fist on the handguard's top stands up into the sight line:
     // such a body holds it from underneath (hold.under, metres below)
     if (hold?.under) _gSup.y -= hold.under * s;
+    if (hold?.supportOff) _gSup.add(_gPt.fromArray(hold.supportOff).multiplyScalar(gs));
   }
   _gSup.applyEuler(p.gunMount.rotation).add(p.gunMount.position);
   let magOut = 0;
@@ -2097,6 +2110,7 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
     _gO.copy(_gGrip).sub(p.armL.position).sub(p.shoulderL.position);
     _gT.copy(_gSup).sub(p.armL.position).sub(p.shoulderL.position);
     const reach = (rig.upperArm + rig.foreArm) * 0.97;
+    _gB.copy(_gT);   // (where it wanted to reach)
     if (_gT.length() > reach) {
       let lo = 0, hi = 1;
       for (let i = 0; i < 12; i++) {
@@ -2105,9 +2119,13 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
       }
       _gT.lerpVectors(_gO, _gT, lo);
     }
+    // how far short of the handguard the arm stopped, in the gun's space: a
+    // body's own support hand slides back along it that far (blocky-body.js)
+    rig.supportShort = (rig.supportShort || new THREE.Vector3()).copy(_gT).sub(_gB).applyQuaternion(_gQi.setFromEuler(p.gunMount.rotation).invert()).divideScalar(gs);
   }
   // Left elbow down and out to the left, where a camera behind can see it.
   _gPoleL2.set(-1, -0.7, 0.1);
+  if (hold?.poleL && !pair && !pistol) _gPoleL2.set(...hold.poleL);
   _reachArm(rig, p.armL, p.elbowL, rig.armRestL, _gT, _gPoleL2);
   setHandPose(rig, -1, "fist");
   setHandPose(rig, 1, "fist");
@@ -2168,6 +2186,8 @@ function _gripSupportCarry(rig, { pitch = 0, recoil = 0, ads = 0, carryYaw = 0, 
   p.gunMount.position.copy(_gGrip).sub(_gP);
 
   _gT.copy(_gGrip).sub(p.armR.position).sub(p.shoulderR.position);
+  // (a body whose own hand holds the grip: its arm to that hand's wrist)
+  if (hold?.gripOff) _gT.add(_gPt.fromArray(hold.gripOff).multiplyScalar(gs).applyEuler(p.gunMount.rotation));
   // A broad body's elbow rides up and out (hold.carryPoleR): hung down, its
   // thick forearm lay level across the chest with the stock inside it
   // (user, 2026-10-13: the rifle showed through the TROLLS forearm).
@@ -2177,6 +2197,7 @@ function _gripSupportCarry(rig, { pitch = 0, recoil = 0, ads = 0, carryYaw = 0, 
   _gO.copy(_gGrip).sub(p.armL.position).sub(p.shoulderL.position);
   _gT.copy(pt(mesh.userData.supportHandPos));
   if (hold?.under) _gT.y -= hold.under * s;
+  if (hold?.supportOff) _gT.add(_gPt.fromArray(hold.supportOff).multiplyScalar(gs));
   _gT.applyEuler(p.gunMount.rotation).add(p.gunMount.position).sub(p.armL.position).sub(p.shoulderL.position);
   const reach = (rig.upperArm + rig.foreArm) * 0.97;
   if (_gT.length() > reach) {

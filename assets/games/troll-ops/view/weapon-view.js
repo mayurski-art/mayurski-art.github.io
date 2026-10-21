@@ -1,16 +1,17 @@
 // The gun in your hands each frame: sway, bob, landing dip, ADS, inspect,
 // reloads (mags, shells, pumps), the rod arms, the Soul Blazer and the laser.
 
-import { currentWeapon, swapRaise } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5";
+import { currentWeapon, swapRaise } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6";
 import { AKIMBO_INSPECT_TIME } from "../weapons/akimbo-view.js?v=ak1-wst-or1";
 import * as THREE from "three";
 import { rise, smoothstep, damp } from "../characters/anim-curves.js?v=or1";
 import { handMaterials, inkOutline } from "../weapons/hand-model.js?v=to-grip2-or1";
 import { wristOf, buildWatch, buildWristband } from "../characters/wristwear.js?v=ww1c2m1-or1";
 import { clubWear } from "../modes/club-wear.js?v=cw1c2m1";
-import { ownBody, fpArmLook } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4-rb5";
-import { bodyToken } from "../characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1-em2-nb2-pc2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4";
-import { cosmetics } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5";
+import { makeHand } from "../characters/rig-hand.js?v=rh1";
+import { ownBody, fpArmLook, handOff, wristOnGun, holdGun } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6";
+import { bodyToken } from "../characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1-em2-nb2-pc2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6";
+import { cosmetics } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6";
 import { soulBlazerReloadPose, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth, updateSoulBlazerView, soulBlazerInspect, SB_INSPECT_CUES } from "../weapons/soul-blazer.js?v=sb1-or1";
 import { placePistolSlide } from "./pistol-action.js?v=ps1-wb1-br1-or1";
 import { placeBolt } from "./rifle-action.js?v=ra1-wb1-or1";
@@ -512,17 +513,30 @@ function blockTwins(rods, parent) {
    bone turned up the rod at its own size, slid up it so its palm sits on
    the rod's tip, where the grip or the guard is (stretched to the rod,
    which starts off screen, it came out 1.8x and the hands were blobs:
-   user, 2026-10-20, "no clear distinction of each hand"). */
+   user, 2026-10-20, "no clear distinction of each hand"). With studio.hand
+   its own hand is the posable one (rig-hand.js) at the arm's wrist, the
+   arm's cut off: on the gun the trigger hand and the support hand, a
+   melee's haft gripped, an emote's arms relaxed. */
 const STUDIO_FLIP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
 const STUDIO_TURN = 0.0;   // radians round the arm, as BLOCK_TURN
 function studioArm(b, studio, token) {
   if (b.studio?.userData.token !== token) {
     b.studio?.parent?.remove(b.studio);
+    b.hand?.mesh.parent?.remove(b.hand.mesh);   // (left on the gun)
     const s = studio[b.side];
     b.studio = new THREE.Mesh(s.geo, s.mat);
     b.studio.userData.token = token;
     b.studio.frustumCulled = false;
     b.studio.renderOrder = -1;
+    b.hand = null;
+    if (studio.hand) {
+      b.studio.material = handOff(s.mat);
+      b.hand = makeHand(b.side, studio.hand.size);
+      b.hand.mesh.position.y = -studio.hand.wrist;
+      b.hand.mesh.renderOrder = -1;
+      b.hand.setPose("relaxed", true);
+      b.studio.add(b.hand.mesh);
+    }
     b.arm.parent.add(b.studio);
   }
   return b.studio;
@@ -550,7 +564,7 @@ export function placeBlockArms() {
     b.arm.visible = b.fist.visible = show;
     b.cuff.visible = show && !!look.cuff;
     const studio = on && look.studio;
-    if (studio) { b.arm.visible = b.fist.visible = b.cuff.visible = false; studioArm(b, studio, token).visible = show; }
+    if (studio) { b.arm.visible = b.fist.visible = b.cuff.visible = false; studioArm(b, studio, token).visible = show; if (b.hand) b.hand.mesh.visible = show; }
     else if (b.studio) b.studio.visible = false;
     if (!show) continue;
     b.arm.material = look.sleeve || blockMat;
@@ -564,6 +578,26 @@ export function placeBlockArms() {
     _baN.set(0, 0, 1).addScaledVector(_baUp, -_baUp.z).normalize();
     const twist = Math.atan2(_baZ.clone().cross(_baN).dot(_baUp), _baZ.dot(_baN)) + BLOCK_TURN;
     if (studio) {
+      if (b.hand) {
+        const gunArm = b.rod.parent === pfArms;   // the gun's or the melee's arms, not an emote's
+        const gun = gunArm && game.player.holding === "gun" ? pfArms.userData.gun : null;
+        const onGun = !!gun?.visible && !(b.side === "L" && pfArms.userData.offGun) && !!gun.userData[b.side === "L" ? "supportHandPos" : "gripPos"];
+        // (the support hand closed round the handguard: the open C-clamp's fingers
+        // stood up into the sight picture, user 2026-10-15: never cover the sight)
+        b.hand.setPose(onGun ? (b.side === "R" ? "trigger" : "cradle") : gunArm ? (b.side === "L" && pfArms.userData.offGun ? "pinch" : "grip") : "relaxed");
+        // on the gun, held in its grips (as the third-person body's: blocky-body.js
+        // holdGun), or back on the arm's wrist
+        if (onGun && b.hand.mesh.parent !== gun) holdGun(b.hand, b.side, gun, b.studio.matrixWorld.getMaxScaleOnAxis() * studio.hand.size);
+        else if (!onGun && b.hand.mesh.parent !== b.studio) {
+          b.hand.mesh.position.set(0, -studio.hand.wrist, 0);
+          b.hand.mesh.quaternion.identity();
+          b.hand.mesh.scale.set(b.side === "L" ? -studio.hand.size : studio.hand.size, studio.hand.size, studio.hand.size);
+          b.studio.add(b.hand.mesh);
+        }
+        const now = performance.now();
+        b.hand.update(Math.min(0.1, (now - (b.handT || now)) / 1000));
+        b.handT = now;
+      }
       b.studio.position.copy(b.rod.position).addScaledVector(_baUp, len - studio.len);
       b.studio.quaternion.copy(_baQ.setFromAxisAngle(_baUp, twist - BLOCK_TURN + STUDIO_TURN)).multiply(b.rod.quaternion).multiply(STUDIO_FLIP);
       b.studio.scale.setScalar(1);
@@ -664,11 +698,23 @@ function posePfArms(mesh, magBlend = 0, hand = null, oneHand = false) {
     anchors = mesh.userData.pfAnchors = [grip, support].filter(Boolean).length ? [grip || support, support] : [];
   }
   const rods = pfArms.userData.rods;
+  // A Studio body's own hands hold the gun (placeBlockArms): its arms reach
+  // their wrists (blocky-body.js wristOnGun), on the gun's grip points
+  const own = nftArms() && fpArmLook(nftArms())?.studio?.hand;
+  pfArms.userData.gun = mesh;
+  pfArms.userData.offGun = magBlend > 0 || (hand?.w ?? 0) > 0 ? 1 : 0;
   for (let i = 0; i < 2; i++) {
     // Sidearms carry no support hand: the left rod cups the grip too.
     const anchor = anchors[i] || anchors[0];
     rods[i].visible = !!anchor && !(oneHand && i === 1);   // a twirl: the support hand lets go
     if (!anchor) continue;
+    const at = own && mesh.userData[i ? "supportHandPos" : "gripPos"];
+    if (at && !(i === 1 && pfArms.userData.offGun)) {
+      const k = own.size * (rods[i].parent?.matrixWorld.getMaxScaleOnAxis() || 1) / mesh.matrixWorld.getMaxScaleOnAxis();
+      mesh.localToWorld(_pfTip.fromArray(wristOnGun(i ? "L" : "R", k)).add(at));
+      stretchBetween(rods[i], PF_ARM_SHOULDER[i], _pfTip);
+      continue;
+    }
     anchor.getWorldPosition(_pfTip);
     _pfDown.set(0, -1, 0).applyQuaternion(mesh.quaternion);
     if (i === 1) {
