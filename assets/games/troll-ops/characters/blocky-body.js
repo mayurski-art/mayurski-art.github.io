@@ -19,7 +19,7 @@ import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4";
 import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1-gt1-fg2-bd1-mj1-fg3-rc1-ls1-ut1-er1-cl1-rb4";
 import { addRim } from "../view/rim-light.js?v=sr1";
-import { tagInk, untagInk } from "../view/char-ink.js?v=ci1-ci2-ci3-ci4-ci5-rb4";
+import { tagInk, untagInk } from "../view/char-ink.js?v=ci1-ci2-ci3-ci4-ci5-rb4-rb5";
 
 const DIR = new URL("../traits/", import.meta.url);
 const ART_V = globalThis.TRAITS_BUST ?? "tr7";
@@ -200,7 +200,7 @@ const KITS = {
   // rbx1718, arms and their hands included, shoulders on the torso), the rig
   // fitted to it at 0.26 m a stud, drawn as Studio draws it (smooth, no line)
   "clothes-tank-runner": { arms: "arms-rbx1718.glb", legs: "legs-rbx1718.glb", torso: "torso-rbx1718.glb",
-    fit: { reach: REACH_1718, shoulder: 0.112, build: 0.6, legs: 0.65 }, smooth: true, gunHold: { z: -0.12, roll: 0.26 },
+    fit: { reach: REACH_1718, shoulder: 0.112, shoulderZ: 0.035, build: 0.6, legs: 0.65 }, smooth: true, gunHold: { z: -0.12, roll: 0.26 },
     colours: { shorts: 0x34363e, hem: 0x43464f, upper: 0x141416, sole: 0xdcdcd6 } },
   // Farmer: plaid long sleeves, denim overalls to the boots
   "clothes-farmer": { arms: "arms-farmer.glb", legs: "legs-farmer.glb",
@@ -380,7 +380,7 @@ const HEAD_MODELS = {
   // capLift/capTilt: its cap sits that much higher (m) and tipped back (rad),
   // the brim up off the eyes like the NFT, the back still on the skull
   // (user, 2026-10-20)
-  1718: { file: "head-1718.glb", dome: 0.065, front: 0.085, back: 0.19, capLift: 0.03, capTilt: 0.15 },
+  1718: { file: "head-1718.glb", dome: 0.065, front: 0.085, back: 0.19, capLift: 0.03, capTilt: 0.06, capFwd: 0.035 },
 };
 /* An NFT face drawn on a shape of its own wears its own head (rig.nftFace,
    traits.js tokenFace; user, 2026-10-17: #989's drawing on the trollface
@@ -1519,6 +1519,7 @@ function reliefHead(rig) {
           if (HEAD.mirror) cap.scale.x *= -1;
           cap.position.y += (M.capLift || 0) * s;
           cap.rotation.x += M.capTilt || 0;
+          cap.position.z -= (M.capFwd || 0) * s;   // (capFwd: brought forward, m; user, 2026-10-20: "a bit more frontward")
           cap.userData.inkOwn = true;   // its own outline, not the face's (view/char-ink.js)
           p.headPivot.add(cap);
           grp.visible = false;
@@ -1681,6 +1682,8 @@ export function applyBlocky(rig, look = {}) {
   // touching, an ink edge between them (from the stick's one hip point the
   // two blocks overlapped and read as one).
   setClothed(rig, kit.fit?.shoulder ?? B.torso.w / 2 + B.arm / 2);
+  // (fit.shoulderZ: the arms' pivots brought forward, m; user, 2026-10-20: "the shoulders are retracted back a bit")
+  p.armL.position.z = p.armR.position.z = -(kit.fit?.shoulderZ || 0) * s;
   setHips(rig, B.torso.w / 4);
   // The gun hold (character.js _gripSupport): the stock in the right
   // shoulder pocket, out at the edge of the broad chest and in front of the
@@ -1786,6 +1789,7 @@ export function applyBlocky(rig, look = {}) {
     p.headPivot.position.y = pivotY;
     if (hit) { hit.position.y = hitWas[0]; hit.scale.setScalar(hitWas[1]); }
     setClothed(rig, 0);
+    p.armL.position.z = p.armR.position.z = 0;
     setHips(rig, 0);
     delete rig.gunHold;
     delete rig.rigidTorso;
