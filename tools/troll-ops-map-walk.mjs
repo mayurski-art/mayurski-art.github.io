@@ -212,6 +212,9 @@ const BASE = `http://localhost:${server.address().port}`;
 const browser = await chromium.launch({ args: [`--use-angle=${process.env.ANGLE || "d3d11"}`, "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--autoplay-policy=no-user-gesture-required"] });
 const ctx = await browser.newContext({ viewport: { width: 640, height: 360 } });
 await ctx.route(/supabase/, (r) => r.abort());
+// Kabukigrin (docs/KABUKIGRIN.md) keeps Grinjuku's B side and routes: its runs
+// until the club's rooms get their own (phase 3)
+RUNS.kabukigrin_wip = RUNS.grinjuku;
 const maps = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(RUNS);
 let fails = 0;
 for (const map of maps) {
