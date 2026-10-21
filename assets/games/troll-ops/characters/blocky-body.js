@@ -183,46 +183,47 @@ function capPrint(text) {
   return t;
 }
 
-/* The muscular arms (models/build_blocky_arms.blender.py -> blocky/arms-muscle.glb):
-   blocky muscle masses, each piece "<joint><S>__<muscle>" authored in its
-   joint's frame, bone straight down -Y, at scale 1 with these bone lengths. */
+/* The Blender pieces (models/build_blocky_*.blender.py -> models/blocky/*.glb),
+   each "<joint><S>__<part>" authored in its joint's frame, bone straight
+   down -Y, at scale 1. */
 const glb = (file) => new URL(`../models/blocky/${file}?v=${globalThis.TRAITS_BUST ?? "bb5"}`, import.meta.url).href;
 const TORSO_GLB = glb("torso-muscle.glb");
 /* What each CLOTHES trait dresses the body in (the trait library, traits.js):
-   its block template wrapped on the torso, and the arm and leg piece sets
-   (models/blocky/<file>, built by models/build_blocky_*.blender.py) with a
+   its block template wrapped on the torso, its `sleeves` on the box arms
+   (boxArms: "long", "short" or none, bare), and the leg piece set
+   (models/blocky/<file>, built by models/build_blocky_*.blender.py), with a
    colour per piece name; a piece with no colour is skin, "plaid" the
    shirt's cloth (plaidMaterial). Every token with the trait wears this. */
 const KITS = {
-  "clothes-tank-runner": { arms: "arms-muscle.glb", legs: "legs-muscle.glb",
+  "clothes-tank-runner": { legs: "legs-muscle.glb",
     colours: { shorts: 0x34363e, hem: 0x43464f, upper: 0x141416, sole: 0xdcdcd6 } },
   // Farmer: plaid long sleeves, denim overalls to the boots
-  "clothes-farmer": { arms: "arms-farmer.glb", legs: "legs-farmer.glb",
+  "clothes-farmer": { sleeves: "long", legs: "legs-farmer.glb",
     colours: { sleeve: "plaid", cuff: "plaid", denim: 0x3f6fa6, hem: 0x2f5a8c, boot: 0x6b4423, collar: 0x8a5a30, sole: 0x2a2420 } },
   // Sweater Black: the farmer's pieces as black knit sleeves, dark jeans, black sneakers
-  "clothes-sweater-black": { arms: "arms-farmer.glb", legs: "legs-farmer.glb",
+  "clothes-sweater-black": { sleeves: "long", legs: "legs-farmer.glb",
     colours: { sleeve: 0x2b2b2e, cuff: 0x1f1f22, denim: 0x34363d, hem: 0x2a2c32, boot: 0x1b1b1d, collar: 0x1f1f22, sole: 0xe6e6e0 } },
   // Sensei: the undershirt's short blue sleeves and wristbands, baggy orange
   // gi trousers gathered into blue boots (build_blocky_sensei); first-person
   // forearms bare with the wristband (`fp`: the forearm's and cuff's colours)
   // #989's legs and torso are Sensei v3, a logo-free gi made in Roblox Studio
   // (tools/troll-ops-roblox-body.mjs; nft-lab "Body pieces"; user, 2026-10-17:
-  // "redesign the sensei outfit but without the logos"), the arms plain in
-  // their sleeves and the head set down onto its shorter collar
-  "clothes-sensei": { arms: "arms-sensei.glb", legs: "legs-sensei3.glb", torso: "torso-sensei3.glb", plainArms: true, headLift: -0.04,
+  // "redesign the sensei outfit but without the logos"), the head set
+  // down onto its shorter collar
+  "clothes-sensei": { sleeves: "short", legs: "legs-sensei3.glb", torso: "torso-sensei3.glb", headLift: -0.04,
     colours: { sleeve: 0x2d5a96, band: 0x2d5a96, gi: 0xf2841f, hem: 0xd96f15, boot: 0x2d5a96, sole: 0x24252b },
     fp: { sleeve: null, cuff: 0x2d5a96 } },
   // Jester (#33): the farmer's pieces as the purple jacket's sleeves with
   // teal shirt cuffs, purple trousers and black shoes
-  "clothes-jester": { arms: "arms-farmer.glb", legs: "legs-farmer.glb",
+  "clothes-jester": { sleeves: "long", legs: "legs-farmer.glb",
     colours: { sleeve: 0x4b2a70, cuff: 0x3f8090, denim: 0x3c2159, hem: 0x2c173f, boot: 0x17151a, sole: 0x0e0d10 } },
   // Tshirt Black (#2630): the Sensei's short sleeves in black (the band is
   // skin: bare forearms), dark jeans, black sneakers
-  "clothes-tshirt-black": { arms: "arms-sensei.glb", legs: "legs-farmer.glb",
+  "clothes-tshirt-black": { sleeves: "short", legs: "legs-farmer.glb",
     colours: { sleeve: 0x1d1d20, denim: 0x3b4a66, hem: 0x2f3c55, boot: 0x1b1b1d, sole: 0xe6e6e0 },
     fp: { sleeve: null, cuff: null } },
   // Trainer (#2631): short white shirt sleeves, navy track trousers, black trainers
-  "clothes-trainer": { arms: "arms-sensei.glb", legs: "legs-farmer.glb",
+  "clothes-trainer": { sleeves: "short", legs: "legs-farmer.glb",
     colours: { sleeve: 0xf2f2ee, denim: 0x232f48, hem: 0x1b253a, boot: 0x1b1b1d, sole: 0xe6e6e0 },
     fp: { sleeve: null, cuff: null } },
 };
@@ -420,47 +421,79 @@ armInk.onBeforeCompile = (sh) => {
     `#include <begin_vertex>\n  transformed += normal * ${INK_PUSH.toFixed(4)};`);
 };
 
-/* Hang the kit's arm pieces on `rig`'s arm joints: each lined up with its
-   live bone and stretched to its length, in its colour by piece name
-   (muscle names are skin). Returns the added objects. */
-// The sneaker's pieces (legs-muscle.glb "upper", "sole"): an arm piece with
-// the same name is a muscle, skin (user, 2026-10-15: the runner's upper
-// arms showed black in the armpit, painted the shoe's colour by name)
-const SHOE_PARTS = ["upper", "sole"];
-function muscleArms(rig, kit) {
-  const p = rig.parts, s = rig.scale;
-  const matOf = kitMaterials(Object.fromEntries(Object.entries(kit.colours).filter(([k]) => !SHOE_PARTS.includes(k))));
-  return loadPieces(glb(kit.arms)).then((pieces) => {
-    const added = [];
-    for (const { name, geo, hull, map } of pieces) {
-      const [jname, muscle] = name.split("__");
-      // `plainArms`: no bicep or tricep bulges, a plain arm in its sleeve
-      // (with the Roblox Studio body; user, 2026-10-17)
-      if (kit.plainArms && (muscle === "bicep" || muscle === "tricep")) continue;
-      const kind = jname.slice(0, -1), side = jname.slice(-1);
-      const joint = kind === "hand" ? p[`wrist${side}`].parent : p[`${kind}${side}`];
-      // the bone this piece hangs along: to the joint's child (the hand
+/* The arms as plain rectangles, Roblox style (user, 2026-10-21: "for all
+   blox characters lets keep the arm build really simple just rectangles",
+   "no need for tricep bicep"): a box down each bone, stretched to its live
+   length, and a box fist on the hand point, each with its ink shell. The
+   kit's `sleeves` dress them: "long" the whole arm in the sleeve's colour
+   with a cuff at the wrist, "short" the top of the upper arm (and a band at
+   the wrist when the kit has one), none bare skin. Returns the added objects. */
+// (10 cm square: the menu operator's port-arms carry crosses the right
+// forearm at the wrist, where the old muscle forearm had tapered to 9 cm)
+const ARM_BOX = { w: 0.10, top: 0.045, cap: 0.03, shortSleeve: 0.17, cuff: 0.035, over: 0.008, fist: [0.11, 0.125, 0.12] };
+const boxGeos = new Map();   // by size
+// (`name` the part of the arm it is: the hold tests sort the meshes by it)
+function inkedBox(name, w, h, d, y, mat) {
+  const key = [w, h, d].join();
+  if (!boxGeos.has(key)) {
+    const geo = new THREE.BoxGeometry(w, h, d);
+    const hull = mergeVertices(new THREE.BufferGeometry().setAttribute("position", geo.attributes.position.clone()).setIndex(geo.index.clone()), 1e-4);
+    hull.computeVertexNormals();
+    geo.userData.shared = hull.userData.shared = true;
+    boxGeos.set(key, { geo, hull });
+  }
+  const { geo, hull } = boxGeos.get(key);
+  const g = new THREE.Group();
+  g.position.y = y;
+  const m = new THREE.Mesh(geo, mat);
+  m.castShadow = true;
+  m.name = name;
+  g.add(m, new THREE.Mesh(hull, armInk));
+  return { g, m };
+}
+function boxArms(rig, kit) {
+  const p = rig.parts, s = rig.scale, c = kit.colours, X = ARM_BOX;
+  const matOf = kitMaterials(c);
+  const skin = matOf("skin"), sleeve = kit.sleeves ? matOf("sleeve") : skin;
+  const added = [];
+  for (const side of ["L", "R"]) {
+    const hand = p[`wrist${side}`].parent;
+    for (const kind of ["arm", "elbow", "hand"]) {
+      const joint = kind === "hand" ? hand : p[`${kind}${side}`];
+      // the bone this box hangs along: to the joint's child (the hand
       // carries on along the forearm)
-      const bone = kind === "arm" ? p[`elbow${side}`].position
-        : p[`wrist${side}`].parent.position;
+      const bone = kind === "arm" ? p[`elbow${side}`].position : hand.position;
       const g = new THREE.Group();
       g.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), bone.clone().normalize());
-      const stretch = kind === "hand" ? 1 : bone.length() / (ARM_BONES[kind] * s);
-      g.scale.set(s, s * stretch, s);
-      // The fist is centred on the hand point, not hung below it: that point
-      // is where the rig puts a gun's grip (and the support hand on the
-      // handguard), so the gun runs through the fist instead of past it.
-      if (kind === "hand") g.position.copy(bone).normalize().multiplyScalar(FIST_BACK * s);
-      const m = new THREE.Mesh(geo, matOf(muscle, map));
-      m.castShadow = true;
-      m.name = muscle;
-      g.add(m, new THREE.Mesh(hull, armInk));
+      const len = ARM_BONES[kind] ?? 0;
+      g.scale.set(s, kind === "hand" ? s : bone.length() / len, s);
+      if (kind === "hand") {
+        // The fist is centred on the hand point, not hung below it: that point
+        // is where the rig puts a gun's grip (and the support hand on the
+        // handguard), so the gun runs through the fist instead of past it.
+        g.position.copy(bone).normalize().multiplyScalar(FIST_BACK * s);
+        const [fw, fh, fd] = X.fist;
+        const { g: box, m } = inkedBox("fist", fw, fh, fd, -fh / 2, skin);
+        g.add(box);
+        added.push(...fistFingers(rig, side, bone, m.material));
+      } else {
+        // the upper arm starts a little above the shoulder joint (its cap),
+        // the forearm a little above the elbow so a bent arm doesn't gap
+        const top = kind === "arm" ? X.top : X.cap, bottom = len;
+        const long = kit.sleeves === "long", part = kind === "arm" ? "upper" : "fore";
+        g.add(inkedBox(part, X.w, top + bottom, X.w, (top - bottom) / 2, long ? sleeve : skin).g);
+        if (kind === "arm" && kit.sleeves === "short") {
+          const h = top + X.shortSleeve;
+          g.add(inkedBox(part, X.w + X.over * 2, h, X.w + X.over * 2, top - h / 2, sleeve).g);
+        }
+        const wrist = kind === "elbow" && (long ? c.cuff : c.band);
+        if (wrist) g.add(inkedBox(part, X.w + X.over * 2, X.cuff, X.w + X.over * 2, -bottom + X.cuff / 2 + 0.01, matOf(long ? "cuff" : "band")).g);
+      }
       joint.add(g);
       added.push(g);
-      if (kind === "hand") added.push(...fistFingers(rig, side, bone, m.material));
     }
-    return added;
-  });
+  }
+  return Promise.resolve(added);
 }
 
 /* Fingers the block fist doesn't have: the middle finger (emotes.js
@@ -497,7 +530,7 @@ function fistFingers(rig, side, bone, mat) {
   };
   const s = rig.scale, sx = side === "L" ? -1 : 1;
   const wrist = rig.parts[`wrist${side}`], hand = wrist.parent;
-  // the fist's frame in the hand point's (as muscleArms hangs it)
+  // the fist's frame in the hand point's (as boxArms hangs it)
   const dir = bone.clone().normalize();
   const fistM = new THREE.Matrix4().compose(dir.clone().multiplyScalar(FIST_BACK * s),
     new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir), new THREE.Vector3(s, s, s));
@@ -1613,7 +1646,7 @@ export function applyBlocky(rig, look = {}) {
   // a tank top. Cel-shaded, like a drawing: lit, half-tone and shadow bands,
   // so each muscle's planes read (the blocks' soft self-light flattened them).
   const skin = mat(SKIN), A = B.arm * s;
-  if ((look.arms ?? "muscle") === "muscle") later(muscleArms(rig, kit));
+  if ((look.arms ?? "muscle") === "muscle") later(boxArms(rig, kit));
   else for (const side of ["L", "R"]) {
     const elbow = p[`elbow${side}`], hand = p[`wrist${side}`].parent;
     added.push(limb(p[`arm${side}`], elbow.position, A, skin, 0.03 * s));
