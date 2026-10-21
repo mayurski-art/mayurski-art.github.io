@@ -18,17 +18,10 @@
   <!-- the skin, then the trollface with its squints painted out -->
   <image href="../../../../images/wallpaper/trollface%20transparent.png" width="800" height="730" filter="url(#skin)"/>
   <image href="../../../../images/wallpaper/trollface%20transparent.png" width="800" height="730" mask="url(#keep)"/>
-  <!-- the closed lids: one arched stroke each, thick in the middle and
-       tapered at the corners like the trollface's own ink -->
-  <g fill="#0a0a0a">
-    <path d="M182 250 C202 230 228 222 254 223 C282 224 306 233 324 248
-             C304 242 282 240 254 241 C228 242 204 244 182 250 Z"/>
-    <path d="M386 244 C410 224 442 215 472 215 C508 216 540 227 564 244
-             C538 236 508 233 472 234 C442 235 412 238 386 244 Z"/>
-  </g>
-  <!-- a thin lash crease under each lid -->
-  <g fill="none" stroke="#0a0a0a" stroke-width="5" stroke-linecap="round">
-    <path d="M216 260 C238 255 264 255 290 260"/>
-    <path d="M426 254 C454 248 490 248 522 254"/>
+  <!-- the NFT's relaxed eyes: one lid line each, sagging a little in the
+       middle, round-ended, as heavy as the trollface's own ink -->
+  <g fill="none" stroke="#0a0a0a" stroke-width="15" stroke-linecap="round">
+    <path d="M190 228 C222 240 262 246 316 238"/>
+    <path d="M398 232 C440 244 494 246 550 228"/>
   </g>
 </svg>

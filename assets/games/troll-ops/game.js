@@ -8,7 +8,7 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1-rt1-ut1";
 import { WeaponInspector } from "./menu/inspector.js?v=hb1-nf-wst-ig1-sb2-if1-wb1-th2-ar1-ar2-cl1-fj1-zr9-zr10-zp1-sr1-or1-rt1-ut1";
-import { CharacterInspector } from "./menu/char-inspector.js?v=hb4-wst-soc1-sb2c2-wb1m1-ar1-ar2-gt1-gt2-bk1-cw1-fj1-zr10-bf1-sr1-br1-or1-nf2-em2-cf1-gs2-ci1-lh1-ci2-ci3-ci4-ci5-fg2-lp1-fg3-rc1-rc4-ls1-rt1-ut1-er1";
+import { CharacterInspector } from "./menu/char-inspector.js?v=hb4-wst-soc1-sb2c2-wb1m1-ar1-ar2-gt1-gt2-bk1-cw1-fj1-zr10-bf1-sr1-br1-or1-nf2-em2-cf1-gs2-ci1-lh1-ci2-ci3-ci4-ci5-fg2-lp1-fg3-rc1-rc4-ls1-rt1-ut1-er1-cl1";
 import { Loadout } from "./progression/loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-gj1-fu1b7b7dc1c2-wb1m1-tc3-nc1-th2-ar2-cd1-sh1-cl1-bp1-sg1-bw1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-jb1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-nf1-or1-bw2-bt1-wf1-wf2-zf1-is1-gf1-tg1-tcs1";
 import { StreakPicker } from "./streaks/streak-picker.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1";
@@ -38,15 +38,15 @@ import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } fro
 import { MatchChat, safeUid } from "./net/chat.js?v=to-social1-or1-pc2-gf1-tw1";
 import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths, setSeatLookup } from "./net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1";
 import { ROLES, roleCode, DOCTOR, poseSeated, posePianoArms, PianoVoice, TUNES } from "./modes/rp-roles.js?v=rp1b7-cd1-sh1-dj2-or1-bw2";
-import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1";
-import { EmoteWheel, EMOTES } from "./characters/emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-nb2-pc2-cf1-gs2-lh1-fg2-lp1-fg3-rc1-rc4-ls1-ut1-er1";
+import { buildHumanoid, poseHumanoid, poseDeath, DEATH_TIME, poseThrowArm, THROW_TIME, gaitPhaseRate, mountHeldWeapon, aimRig, flinchRigFrom, DANCES, ParryState, parryWeights, PARRY_ZONES } from "./characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1";
+import { EmoteWheel, EMOTES } from "./characters/emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-nb2-pc2-cf1-gs2-lh1-fg2-lp1-fg3-rc1-rc4-ls1-ut1-er1-cl1";
 import {
   buildDrink, placeDrinkInHand, poseDrinkArm, mountDrink, drinkCode, drinkMax, tipsyFx, TIPSY,
   BEER_SIPS, GRAB_TIME, FILL_TIME, FILL_TIME_BARTENDER, POUR_TIME, SIP_TIME, APRON_TIME,
   OFFER_SECONDS, REACH, BARTENDER_LEAVE_SECONDS,
-} from "./maps/saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1";
-import { TownNpcs } from "./maps/town-npcs.js?v=tn4b7b7dc2f1m1u-cup1-nc1-cd1-sh1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1-nf2-em2-lh1-fg2-bw2-fg3-rc1-ls1-ut1-tcs1-er1";
-import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES, hideFpEmoteProps, fpEmoteRodTip } from "./characters/emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-cf1-gs2-lh1-fg2-lp1-fg3-rc1-rc4-ls1-ut1-er1";
+} from "./maps/saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1";
+import { TownNpcs } from "./maps/town-npcs.js?v=tn4b7b7dc2f1m1u-cup1-nc1-cd1-sh1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1-nf2-em2-lh1-fg2-bw2-fg3-rc1-ls1-ut1-tcs1-er1-cl1";
+import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES, hideFpEmoteProps, fpEmoteRodTip } from "./characters/emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-cf1-gs2-lh1-fg2-lp1-fg3-rc1-rc4-ls1-ut1-er1-cl1";
 import { buildWatch, wristOf } from "./characters/wristwear.js?v=ww1c2m1-or1";
 import { MatchIntro } from "./modes/match-intro.js?v=mi5-wst-or1";
 import {
@@ -66,18 +66,18 @@ import { AnimDebugLab } from "./labs/anim-debug.js?v=or1";
 import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streaks/streak-device.js?v=to-df1-or1";
 import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./weapons/hand-model.js?v=to-grip2-or1";
 import { FlowField } from "./bots/nav.js?v=ti1-bs1b7d-fl1-or1-gf1-tg1";
-import { ZombieDirector, goreStandIns } from "./modes/zombies/horde.js?v=zr4c-sb2b7b7dc2f1m1u-gt1-gt2-zr5-zr6-zr7-zr8-zr9-zr10-zc2-zp1-bf1-sr1-fl1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-gf1-tg1-er1";
-import { deployClick, nextZombieWave, onZombieMessage, startZombieRun, stopZombieRun, updateZombieRun, zombieDowned, zombieHit, zombieRunDebug } from "./modes/zombies/run.js?v=zr6-zr7-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-zj1-rs1-kc1-sv1-vt1-zf1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1";
+import { ZombieDirector, goreStandIns } from "./modes/zombies/horde.js?v=zr4c-sb2b7b7dc2f1m1u-gt1-gt2-zr5-zr6-zr7-zr8-zr9-zr10-zc2-zp1-bf1-sr1-fl1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-gf1-tg1-er1-cl1";
+import { deployClick, nextZombieWave, onZombieMessage, startZombieRun, stopZombieRun, updateZombieRun, zombieDowned, zombieHit, zombieRunDebug } from "./modes/zombies/run.js?v=zr6-zr7-zr8-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-zj1-rs1-kc1-sv1-vt1-zf1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cl1";
 import { updateHub } from "./modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1";
 import { ImpactShader, makeMuzzleFlashMaterial } from "./view/shaders.js?v=or1";
 import { ImpactFx } from "./view/impact-fx.js?v=zr4-or1";
 import { LightPool } from "./maps/light-pool.js?v=or1";
 import { loadModel } from "./maps/battlefield-props.js?v=sr1-or1";
 import { kickCurve } from "./weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
-import { WaveSpawner } from "./bots/enemies.js?v=hb4-wst-soc1-sb2b7c2m1-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-gf1-tg1-er1";
+import { WaveSpawner } from "./bots/enemies.js?v=hb4-wst-soc1-sb2b7c2m1-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-gf1-tg1-er1-cl1";
 import { BulletSystem, segmentBlocked, raycastWorld } from "./weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1-gf1-tg1";
 import { MovementController, STANCE, groundHeightAt } from "./core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1";
-import { applyHeroBody, syncHeroBody, setHeroEnvMap, preloadHeroBodies } from "./characters/hero-bodies.js?v=umb3g-nf-wst-ig1-soc1c2f1m1u-th2-gt1-gt2-cw1-zr9-zr10-zp1-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1";
+import { applyHeroBody, syncHeroBody, setHeroEnvMap, preloadHeroBodies } from "./characters/hero-bodies.js?v=umb3g-nf-wst-ig1-soc1c2f1m1u-th2-gt1-gt2-cw1-zr9-zr10-zp1-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1";
 import { HeroKit, HEROES, HERO_IDS, FootprintTrail, randomHero, botStats, savedHero, saveHero } from "./characters/heroes.js?v=umb2-or1";
 import { MeleeState, MELEE_DEFS, buildMeleeMesh, GrenadeSystem, blastDamage, THROWABLE_DEFS, GRENADE_GRAVITY, SABER_BLOCK, SABER_PARRY, chainsawRevAt } from "./weapons/gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1";
 import { poseKnuckles } from "./weapons/brass-knuckles.js?v=bk1-wst-or1";
@@ -89,7 +89,7 @@ import { PickupSystem, SwapHold } from "./combat/pickups.js?v=sw1-wst-sb2-wb1-ar
 import { HudLayout } from "./menu/hud-layout.js?v=hl3-pd1-nf1-or1";
 import { initCloudSave } from "./net/cloud-save.js?v=cs1b7-zc1-zc2-or1";
 import { ControllerLayout, padEmotePressed } from "./menu/controller-layout.js?v=cl7-pd1-or1";
-import { CosmeticsPanel, cleanFaceKey, loadCosmetics } from "./characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1-em2-nb2-pc2-lh1-fg2-fg3-rc1-ls1-ut1-er1";
+import { CosmeticsPanel, cleanFaceKey, loadCosmetics } from "./characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1-em2-nb2-pc2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1";
 import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./streaks/dragonfire-drone.js?v=df3-sb2-or1";
 import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./streaks/sam-turret.js?v=sam1-fj1-or1";
 import { DROP, RoyaleDrop, Flight, buildParaglider } from "./modes/royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1-fl1-or1-dc2-dc3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1";

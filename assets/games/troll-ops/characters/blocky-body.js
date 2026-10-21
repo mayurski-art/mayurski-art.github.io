@@ -16,8 +16,8 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
-import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1";
-import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1-gt1-fg2-bd1-mj1-fg3-rc1-ls1-ut1-er1";
+import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1";
+import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1-gt1-fg2-bd1-mj1-fg3-rc1-ls1-ut1-er1-cl1";
 import { addRim } from "../view/rim-light.js?v=sr1";
 import { tagInk, untagInk } from "../view/char-ink.js?v=ci1-ci2-ci3-ci4-ci5";
 
@@ -351,7 +351,10 @@ const HEAD_MODELS = {
   989: { file: "head-989.glb", dome: 0.065, front: 0.085, back: 0.19, hairline: { top: 0.175, low: 0.13 } },
   // #1718's Eyes Relaxed: the relief head with the lids swelling over the
   // eyeballs where the squints sank (build_blocky_head -- variant 1718)
-  1718: { file: "head-1718.glb", dome: 0.065, front: 0.085, back: 0.19 },
+  // capLift/capTilt: its cap sits that much higher (m) and tipped back (rad),
+  // the brim up off the eyes like the NFT, the back still on the skull
+  // (user, 2026-10-20)
+  1718: { file: "head-1718.glb", dome: 0.065, front: 0.085, back: 0.19, capLift: 0.03, capTilt: 0.15 },
 };
 /* An NFT face drawn on a shape of its own wears its own head (rig.nftFace,
    traits.js tokenFace; user, 2026-10-17: #989's drawing on the trollface
@@ -1387,6 +1390,8 @@ function reliefHead(rig) {
           const cap = await capVolume(id, front, board.position.y, s);
           // flipped back on a mirrored head (HEAD.mirror): the print reads
           if (HEAD.mirror) cap.scale.x *= -1;
+          cap.position.y += (M.capLift || 0) * s;
+          cap.rotation.x += M.capTilt || 0;
           cap.userData.inkOwn = true;   // its own outline, not the face's (view/char-ink.js)
           p.headPivot.add(cap);
           grp.visible = false;

@@ -28,7 +28,7 @@ import { roomNow } from "./room-clock.js?v=rc1-cd1-sh1";
 import { InstrumentPanel } from "../menu/instrument-panel.js?v=ip1-bw2";
 import { GuitarVoice, TrumpetVoice } from "../sound/instrument-voices.js?v=iv1-bw2";
 import { PianoVoice } from "./rp-roles.js?v=rp1b7-cd1-sh1-dj2-or1-bw2";
-import { holdInstrument, poseInstrument, fpInstrument, hideFpInstrument } from "../characters/instruments.js?v=in1-bw2-fg3-rc1-ls1-ut1-er1";
+import { holdInstrument, poseInstrument, fpInstrument, hideFpInstrument } from "../characters/instruments.js?v=in1-bw2-fg3-rc1-ls1-ut1-er1-cl1";
 import { SONGS, songParts, partEvents } from "../sound/songs.js?v=sg1-bw2";
 import { earshot, updateSaloonSound } from "./social-saloon-sound.js?v=ss1-bt1";
 

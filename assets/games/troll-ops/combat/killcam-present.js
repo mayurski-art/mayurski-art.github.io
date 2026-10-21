@@ -1,7 +1,7 @@
 // Troll Forces killcam presentation: poses the world, the killer's gun or
 // melee and the HUD around a killcam.js replay, and ends or skips it.
 
-import { poseDeath, DEATH_TIME, aimRig, gaitPhaseRate, gaitFromVelocity, poseHumanoid, poseThrowArm, THROW_TIME } from "../characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1";
+import { poseDeath, DEATH_TIME, aimRig, gaitPhaseRate, gaitFromVelocity, poseHumanoid, poseThrowArm, THROW_TIME } from "../characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1";
 import { MELEE_DEFS, buildMeleeMesh, MeleeState, SABER_BLOCK, THROWABLE_DEFS } from "../weapons/gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1";
 import { WEAPON_DEFS } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import * as THREE from "three";

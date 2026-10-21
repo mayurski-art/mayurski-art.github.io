@@ -102,7 +102,7 @@ GOLD_HEAD_MAT.map = GOLD_TEXTURE;
 GOLD_HEAD_MAT.emissiveMap = GOLD_TEXTURE;
 /* EYES / Eyes Relaxed (#1718, traits/src/face-relaxed.svg): the trollface
    with its squints swapped for the NFT's closed, smug lids. */
-const RELAXED_TEXTURE = TEXTURE_LOADER.load(new URL("../traits/face-relaxed.png?v=er1", import.meta.url).href);
+const RELAXED_TEXTURE = TEXTURE_LOADER.load(new URL("../traits/face-relaxed.png?v=er2", import.meta.url).href);
 RELAXED_TEXTURE.colorSpace = THREE.SRGBColorSpace;
 const RELAXED_HEAD_MAT = TROLLFACE_HEAD_MAT.clone();
 RELAXED_HEAD_MAT.map = RELAXED_TEXTURE;

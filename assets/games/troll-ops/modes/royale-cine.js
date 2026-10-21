@@ -38,7 +38,7 @@ import { SEAT_SPOTS } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1";
 import { oxygenMask } from "./royale-mask.js?v=dc1";
 import { familyPhoto, setPhotoThumb } from "./royale-photo.js?v=dc1-ph1-op1";
 import { ipod, drawIpod, pressIpod } from "./royale-ipod.js?v=dc1";
-import { updateCrew, hideCrew, crewSeat, yourRampPath, pathAt, paceFor, CREW } from "./royale-crew.js?v=dc2-rf1-ls1-rr1-ld2-ut1-er1";
+import { updateCrew, hideCrew, crewSeat, yourRampPath, pathAt, paceFor, CREW } from "./royale-crew.js?v=dc2-rf1-ls1-rr1-ld2-ut1-er1-cl1";
 import { playSfx } from "../sound/sfx-files.js?v=dc4";
 
 export const CINE = {

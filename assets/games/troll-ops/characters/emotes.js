@@ -18,7 +18,7 @@
 // z swings the left arm out (the right arm out is negative z).
 
 import * as THREE from "three";
-import { DANCES, setHandPose, setFace, resetSecondaryJoints, reachHand, placeFoot, beginPose, endPose } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1";
+import { DANCES, setHandPose, setFace, resetSecondaryJoints, reachHand, placeFoot, beginPose, endPose } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1";
 import { LeanKit, LEAN, LEAN_SECONDS, leanFp } from "../weapons/lean-cup.js?v=ng1-or1-lp1";
 
 const PI = Math.PI;

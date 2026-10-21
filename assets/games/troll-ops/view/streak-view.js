@@ -10,7 +10,7 @@ import { drawTabletScreen } from "../streaks/streak-device.js?v=to-df1-or1";
 import { handMaterials, buildHumanHand, inkOutline, placeHand, poseHumanHand, handWrist } from "../weapons/hand-model.js?v=to-grip2-or1";
 import { game } from "../core/state.js?v=st1";
 import { nuke, nukeDevice, nukeLeft, NUKE } from "../streaks/nuke.js?v=tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1";
-import { dropCineMask, dropCineMaskK, dropCinePhoto, dropCinePhotoK, dropCineIpod, dropCineIpodK } from "../modes/royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1";
+import { dropCineMask, dropCineMaskK, dropCinePhoto, dropCinePhotoK, dropCineIpod, dropCineIpodK } from "../modes/royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cl1";
 import { drawNukeScreen, setNukeControls } from "../streaks/nuke-device.js?v=tn1";
 
 let streakSprintT = 0;
