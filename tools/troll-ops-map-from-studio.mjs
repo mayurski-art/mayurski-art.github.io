@@ -53,7 +53,7 @@ const mi = args.indexOf("--map");
 const MAP = mi >= 0 ? args[mi + 1] : "trollcity";
 const OUTS = {
   trollcity: { sources: ["trollcity"], library: [], glb: "tc-town", layout: "maps/trollcity-layout.js", name: "TC_LAYOUT", moves: true },
-  kabukigrin: { sources: ["grinjuku", "trollingloud"], library: ["trollingloud"], glb: "kb-town", layout: "maps/kabukigrin-layout.js", name: "KB_LAYOUT", moves: false },
+  kabukigrin: { sources: ["grinjuku", "trollingloud"], library: ["trollingloud"], glb: "kb-town", layout: "maps/kabukigrin-layout.js", name: "KB_LAYOUT", moves: false, newMats: "glb" },
 };
 const OUTCFG = OUTS[MAP];
 if (!OUTCFG) { console.error(`no such map: ${MAP} (${Object.keys(OUTS).join(", ")})`); process.exit(1); }
@@ -137,9 +137,10 @@ const meshMid = (C, g) => {
 
 const out = new Map();   // "key|tint|shadow" -> { flat: [], smooth: [] } of placed geometries
 const put = (piece, m) => {
-  const name = `${piece.key}|${piece.tint}|${piece.shadow ? 1 : 0}`;
+  // (a new Part on a GLB-built map: "|n", its own colour on its GLB material)
+  const name = `${piece.key}|${piece.tint}|${piece.shadow ? 1 : 0}${piece.fresh ? "|n" : ""}`;
   // (a picture and a GLB chunk keep their UVs; a GLB chunk its paint and light-map UVs too)
-  if (!out.has(name)) out.set(name, { flat: [], smooth: [], pictured: piece.pictured, uv: !!(piece.pictured || piece.glb), extra: !!piece.glb });
+  if (!out.has(name)) out.set(name, { flat: [], smooth: [], pictured: piece.pictured, uv: !!(piece.pictured || piece.glb || piece.fresh), extra: !!piece.glb });
   out.get(name)[piece.geo.n ? "smooth" : "flat"].push({ geo: piece.geo, m });
 };
 // Untouched in Studio: within a millimetre and a milliradian of where it
@@ -230,7 +231,10 @@ const cols = got.colliders.map((c) => {
     Mud: ["Sand"], Grass: ["Grass"], LeafyGrass: ["Grass"], Fabric: ["Fabric"], Carpet: ["Fabric"], Glass: ["Glass"], Neon: ["Neon"],
     SmoothPlastic: ["SmoothPlastic"], Plastic: ["SmoothPlastic"],
   };
-  const pool = allMats.filter((m) => m.key && !m.pictured && !m.cutout && (m.alpha === 1 || m.rbx === "Glass"));
+  // (a GLB-built map's new Parts take its GLB materials: the textures and
+  // glow the game already draws it with)
+  const pool = allMats.filter((m) => m.key && !m.pictured && !m.cutout && (m.alpha === 1 || m.rbx === "Glass") &&
+    (OUTCFG.newMats !== "glb" || m.key.startsWith("glb:")));
   const pick = (rbx, c) => {
     for (const fam of [FAMILY[rbx], null]) {
       const list = pool.filter((m) => (fam ? fam.includes(m.rbx) : m.rbx !== "Neon" && m.rbx !== "Glass"));
@@ -277,6 +281,25 @@ const cols = got.colliders.map((c) => {
     const mat = u && pick(s.mat, s.color);
     if (!u || !mat) { skipped.set(s.new, (skipped.get(s.new) || 0) + 1); continue; }
     const g = u.g.index ? u.g.toNonIndexed() : u.g;
+    if (OUTCFG.newMats === "glb") {
+      // in world metres, with metre UVs (a GLB material's texture repeats
+      // per metre) projected off each face's main axis, in its own colour
+      g.applyMatrix4(m);
+      if (!u.smooth) g.computeVertexNormals();
+      const P = g.attributes.position.array, N = g.attributes.normal.array, uv = [];
+      for (let t = 0; t < P.length; t += 9) {
+        const nx = Math.abs(N[t]), ny = Math.abs(N[t + 1]), nz = Math.abs(N[t + 2]);
+        for (let v = t; v < t + 9; v += 3) {
+          if (ny >= nx && ny >= nz) uv.push(P[v], P[v + 2]);
+          else if (nx >= nz) uv.push(P[v + 2], P[v + 1]);
+          else uv.push(P[v], P[v + 1]);
+        }
+      }
+      const hex = s.color.map((c) => Math.round(Math.min(1, Math.max(0, c)) * 255).toString(16).padStart(2, "0")).join("");
+      put({ key: mat.key, tint: hex, shadow: true, pictured: false, fresh: true, geo: { p: Array.from(P), n: Array.from(N), uv } }, null);
+      drawn++;
+      continue;
+    }
     const geo = { p: Array.from(g.attributes.position.array) };
     if (u.smooth) geo.n = Array.from(g.attributes.normal.array);
     put({ key: mat.key, tint: mat.tint, shadow: true, pictured: false, geo }, m);
@@ -529,8 +552,9 @@ function writeGLB(groups) {
   // a GLB chunk's material: the source GLB's own (colour, roughness, glow),
   // under the chunk's key; the game lights and retextures it as that GLB
   const srcMats = new Map(), exts = new Set();
-  const glbMat = (key) => {
-    if (matOf.has(key)) return matOf.get(key);
+  const glbMat = (key, tint = null) => {
+    const id = tint ? `${key}|${tint}` : key;
+    if (matOf.has(id)) return matOf.get(id);
     const [, file, name] = key.split(":");
     if (!srcMats.has(file)) {
       let list = [];
@@ -547,14 +571,20 @@ function writeGLB(groups) {
     delete mat.normalTexture; delete mat.emissiveTexture; delete mat.occlusionTexture;
     for (const e of Object.keys(mat.extensions || {})) exts.add(e);
     mat.name = key;
+    if (tint) {
+      // the Part's colour, as glTF wants it (linear)
+      const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+      const rgb = [0, 2, 4].map((i) => lin(parseInt(tint.slice(i, i + 2), 16) / 255));
+      mat.pbrMetallicRoughness = { ...(mat.pbrMetallicRoughness || {}), baseColorFactor: [...rgb, 1] };
+    }
     materials.push(mat);
-    matOf.set(key, materials.length - 1);
+    matOf.set(id, materials.length - 1);
     return materials.length - 1;
   };
   let tris = 0;
   for (const [name, g] of groups) {
     const prims = [];
-    const gm = name.startsWith("gen:") ? genMat(name.split("|")[0]) : name.startsWith("glb:") ? glbMat(name.split("|")[0]) : null;
+    const gm = name.startsWith("gen:") ? genMat(name.split("|")[0]) : name.startsWith("glb:") ? glbMat(name.split("|")[0], name.endsWith("|n") ? name.split("|")[1] : null) : null;
     for (const [kind, list] of [["flat", g.flat], ["smooth", g.smooth]]) {
       if (!list.length) continue;
       const { P, N, U, U2, C, I } = bake(list, kind === "smooth", g.uv ?? g.pictured, g.extra);
