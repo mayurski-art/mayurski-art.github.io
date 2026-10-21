@@ -277,8 +277,10 @@ async function pageCapture({ MAP, kitUrl, GEOMETRY, CFG }) {
   // Every placed GLB (but the reference ones) is cut into pieces by the
   // still colliders: a triangle goes to the smallest box round its centre
   // (grown 0.15 m), and each (box, material) chunk is a piece named by the
-  // solid the box came from. The rest is loose, by side.
-  {
+  // solid the box came from. The rest is loose, by side. Only a map that
+  // IS its GLBs (a layout file, Grinjuku); elsewhere a GLB is a prop the
+  // game places by itself (Troll City's church pews) and stays out
+  if (CFG.layout) {
     const solids = CFG.layout ? (await import("/assets/games/troll-ops/maps/" + CFG.layout.url))[CFG.layout.fn]().solids : null;
     const still = cols.map((c, i) => ({ i, c, bb: c.bb.clone().expandByScalar(0.15), area: (c.max[0] - c.min[0]) * (c.max[2] - c.min[2]) * (c.max[1] - c.min[1]) }))
       .filter((s) => !s.c.live);
@@ -718,15 +720,6 @@ async function pageCapture({ MAP, kitUrl, GEOMETRY, CFG }) {
   const mark = (kind, name, p, extra = {}) => markers.push({ i: markers.length, kind, name, p: p.map(r4), path: kind === "rp" ? owner(p, /^rp\.(seats|surfaces|arm)\./.test(name)) : null, ...extra });
   for (const [i, s] of (map.spawns || []).entries()) mark("spawn", `Spawn_${i + 1}`, [s[0], s[2] ?? 0, s[1]], { team: s[1] < 0 ? "north" : "south" });
   if (map.playerSpawn) mark("spawn", "PlayerSpawn", [map.playerSpawn.x, 0, map.playerSpawn.z]);
-  // S&D sites, climbing ropes (foot; the top and the side you step off are
-  // attributes) and every flight of stairs (foot; its top an attribute)
-  for (const s of map.bombSites || []) mark("site", `Site_${s.id}`, [s.x, s.y ?? 0, s.z]);
-  for (const [i, r] of (arena.ropes || []).entries()) {
-    mark("rope", `Rope_${i + 1}`, [r.x, r.y0, r.z], { top: r4(r.y1), dir: r.dx ? (r.dx > 0 ? "+x" : "-x") : (r.dz > 0 ? "+z" : "-z") });
-  }
-  for (const [i, s] of (built.stairs || []).filter((s) => !s.rope).entries()) {
-    mark("stair", `Stair_${i + 1}`, [s.a.x, s.a.y, s.a.z], { to: [s.b.x, s.b.y, s.b.z].map(r4) });
-  }
   const zl = map.zombieLayout?.();
   for (const [i, w] of (zl?.windows || []).entries()) mark("zombie", `ZombieIn_${i + 1}`, [w.x, w.y ?? 0, w.z]);
   // every { x, z } in the RP spec, named by where it sits in it, and every
@@ -748,6 +741,16 @@ async function pageCapture({ MAP, kitUrl, GEOMETRY, CFG }) {
     for (const [k, c] of Object.entries(v)) walk(c, name + "." + k, depth + 1);
   };
   for (const [k, v] of Object.entries(map.rp || {})) walk(v, "rp." + k, 0);
+  // (after the older kinds, so their numbers M stay what a place keeps)
+  // S&D sites, climbing ropes (foot; the top and the side you step off are
+  // attributes) and every flight of stairs (foot; its top an attribute)
+  for (const s of map.bombSites || []) mark("site", `Site_${s.id}`, [s.x, s.y ?? 0, s.z]);
+  for (const [i, r] of (arena.ropes || []).entries()) {
+    mark("rope", `Rope_${i + 1}`, [r.x, r.y0, r.z], { top: r4(r.y1), dir: r.dx ? (r.dx > 0 ? "+x" : "-x") : (r.dz > 0 ? "+z" : "-z") });
+  }
+  for (const [i, s] of (built.stairs || []).filter((s) => !s.rope).entries()) {
+    mark("stair", `Stair_${i + 1}`, [s.a.x, s.a.y, s.a.z], { to: [s.b.x, s.b.y, s.b.z].map(r4) });
+  }
 
   const colOut = cols.map((c, i) => ({ i, min: c.min.map(r4), max: c.max.map(r4), pen: c.pen, live: c.live || undefined, path: c.path }));
 
