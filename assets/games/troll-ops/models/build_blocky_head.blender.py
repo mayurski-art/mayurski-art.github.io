@@ -41,19 +41,8 @@ FRONT, BACK = 0.065, 0.19
 P_FRONT, JUT = 2.0, 0.2
 P_BACK, SKULL = 2.4, 0.0
 
-# Candidate shapes for the NFT look (user, 2026-10-16: the head "just doesnt
-# look like in the nft characters"; the NFTs draw the trollface as a broad
-# flat face with a jaw that juts, where ours read as a mask on a ball in 3/4
-# and side views). `-- variant <name>` builds blocky/head-<name>.glb, tried
-# side by side in tools/nft-lab.html before one replaces head-relief.glb.
-# Each keeps a rounded side (2026-10-16 -fh1: no flat slab).
-VARIANTS = {
-    # a flatter, broader face plane (the drawing reads flat, like the NFT
-    # art), the jaw jutting forward under it, a shallower skull
-    "flat": dict(FRONT=0.05, P_FRONT=3.6, JUT=0.55, BACK=0.15, P_BACK=2.2, SKULL=0.15),
-    # the jaw and chin as one big mass jutting further, the face less flat
-    "jaw": dict(FRONT=0.07, P_FRONT=2.6, JUT=0.8, BACK=0.16, P_BACK=2.4, SKULL=0.1),
-}
+# `-- variant <name>` builds blocky/head-<name>.glb: a token's own head.
+VARIANTS = {}
 # A token's own face drawing gets a head of its own shape (user, 2026-10-17:
 # #989's drawing on the trollface head "seems like you would have to build
 # the head shape"): `ART` is traced for the outline and carved, and FEATURES

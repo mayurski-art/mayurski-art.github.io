@@ -336,15 +336,12 @@ export function fpArmLook(token) {
   return fpArmLooks.get(token);
 }
 /* The trollface with depth (models/build_blocky_head.blender.py), one per
-   head shape (HEAD.model; the variants are candidates for the NFT look,
-   2026-10-16): its file, how far its dome stands in front of the board
+   head shape (HEAD.model, or a token's own face: FACE_HEADS): its file, how far its dome stands in front of the board
    (`dome`, its FRONT, without the features) and, with the sculpted brow
    and upper lip under the cap and moustache, `front`; and its skull behind
    (`back`), so the drawn head traits (traits.js planes) move out onto them. */
 const HEAD_MODELS = {
   relief: { file: "head-relief.glb", dome: 0.065, front: 0.085, back: 0.19 },
-  flat: { file: "head-flat.glb", dome: 0.05, front: 0.078, back: 0.15 },
-  jaw: { file: "head-jaw.glb", dome: 0.07, front: 0.107, back: 0.16 },
   // #989's own drawing: its outline and features (build_blocky_head -- variant 989)
   // its eyes and forehead lines sit higher than the trollface's: the
   // hairline (HAIRLINE) stays above them
