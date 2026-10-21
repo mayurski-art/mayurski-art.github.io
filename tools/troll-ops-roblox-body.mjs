@@ -18,6 +18,9 @@
 //        [--joints shoulderY,hipY,legX]  (studs; default the #989 export's)
 //        [--no-logos]                    (a design without emblems: no badge decals)
 //        [--neck 0.12]                   (metres the torso keeps above the shoulders: lower cuts a skin neck off)
+//        [--across 0.28]                 (metres per stud across the torso: wider fills the shoulders)
+//        [--print art.png --print-at y,w]  (a print across the chest front: centred y studs up, w studs wide;
+//                                           Studio can't spell, so lettering goes on as a decal)
 //
 // The export dir holds torso.obj/.png, left_arm, right_arm, left_leg,
 // right_leg (Studio studs, feet at y 0, facing -Z, the character's right +X).
@@ -33,6 +36,9 @@ const OUT = opt("--out", "assets/games/troll-ops/models/blocky");
 const TEX = +opt("--tex", "1024");
 const JOINTS = opt("--joints", "");
 const NECK = opt("--neck", "");
+const ACROSS = +opt("--across", "0.28");
+const PRINT = opt("--print", "");
+const PRINT_AT = opt("--print-at", "").split(",").map(Number);
 const NO_LOGOS = args.includes("--no-logos") && !!args.splice(args.indexOf("--no-logos"), 1);
 const [SRC, ID] = args;
 if (!SRC || !ID) { console.error("usage: troll-ops-roblox-body.mjs <export dir> <id> [--out dir] [--tex 1024]"); process.exit(1); }
@@ -280,7 +286,7 @@ function legs(src) {
 function torso(src) {
   const obj = readObj(path.join(src, "torso.obj"));
   const ky = RIG.chestToHips / (SRC_JOINTS.shoulderY - SRC_JOINTS.hipY);
-  const kx = 0.28;
+  const kx = ACROSS;
   const chestY = SRC_JOINTS.shoulderY, hipsY = SRC_JOINTS.hipY;
   const waist = (chestY + hipsY) / 2;     // studs: the chest half above, the hips half below
   const top = chestY + RIG.neckClip / ky;
@@ -302,6 +308,12 @@ function torso(src) {
     console.log(`  ${logo.name}: at ${found.c.map((x) => x.toFixed(2)).join(",")} r ${found.r.toFixed(2)} studs (${found.n} black)`);
     out.push({ name: logo.name, tex: "badge", ...decal(obj, found, logo.back, top, at(chestY)) });
   }
+  if (PRINT) {
+    const art = readPng(PRINT), [y, w] = PRINT_AT;
+    const found = { c: [0, y, 0], r: w / 2, ry: (w / 2) * (art.h / art.w), rect: true };
+    console.log(`  chest__print: ${path.basename(PRINT)} at ${y} studs, ${w} wide`);
+    out.push({ name: "chest__print", tex: "print", ...decal(obj, found, false, top, at(chestY)) });
+  }
   return out;
 }
 
@@ -320,7 +332,7 @@ function writeGlb(file, pieces, images) {
     imgs.push({ bufferView: view(png), mimeType: "image/png", name });
     textures.push({ source: imgs.length - 1, sampler: 0 });
     materials.push({ name: `rbx-${name}`, pbrMetallicRoughness: { baseColorTexture: { index: textures.length - 1 }, metallicFactor: 0, roughnessFactor: 1 },
-      ...(name === "badge" ? { alphaMode: "MASK", alphaCutoff: 0.5 } : {}) });
+      ...(name === "badge" || name === "print" ? { alphaMode: "MASK", alphaCutoff: 0.5 } : {}) });
     texOf.set(name, materials.length - 1);
   }
   for (const p of pieces) {
@@ -397,15 +409,19 @@ function findLogo(obj, img, at) {
   return { c, r: Math.max(ds[Math.floor(ds.length * 0.9)] || 0, 0.1), n: near.length };
 }
 /* The decal: the surface's triangles round `logo` (within its radius, on
-   its side), out along the smoothed normals, uv a flat projection of the
-   badge seen from that side, through `xf` like the torso. */
-function decal(obj, { c, r }, back, top, xf) {
-  const R = r * 1.3, pos = [], uv = [], index = [], seen = new Map();
+   its side; `ry` for one taller or shorter than wide), out along the
+   smoothed normals, uv a flat projection of the art seen from that side,
+   through `xf` like the torso. */
+function decal(obj, { c, r, ry = r, rect = false }, back, top, xf) {
+  const pos = [], uv = [], index = [], seen = new Map();
+  // a round badge takes a disc of surface, a print (rect) its whole box
+  const inside = (m) => rect ? Math.abs(m[0] - c[0]) < r * 1.5 && Math.abs(m[1] - c[1]) < ry * 2.5
+    : Math.hypot((m[0] - c[0]) / r, (m[1] - c[1]) / ry) < 1.3;
   const pk = (p) => p.map((x) => Math.round(x * 1e4)).join(",");
   const acc = new Map();
   const tris = obj.tris.filter((tri) => {
     const m = mid3(tri.map(([vi]) => obj.v[vi]));
-    return (back ? m[2] > 0 : m[2] < 0) && m[1] < top && Math.hypot(m[0] - c[0], m[1] - c[1]) < R;
+    return (back ? m[2] > 0 : m[2] < 0) && m[1] < top && inside(m);
   });
   for (const tri of tris) {
     const ps = tri.map(([vi]) => obj.v[vi]), n = cross(sub(ps[1], ps[0]), sub(ps[2], ps[0]));
@@ -418,7 +434,7 @@ function decal(obj, { c, r }, back, top, xf) {
       const n = acc.get(k), l = len(n) || 1;
       pos.push(...xf([p[0] + n[0] / l * 0.012, p[1] + n[1] / l * 0.012, p[2] + n[2] / l * 0.012]));
       // seen from the front (-Z) the character's left (-X) is on the right
-      uv.push((back ? 1 : -1) * (p[0] - c[0]) / (2 * r) + 0.5, 0.5 - (p[1] - c[1]) / (2 * r));
+      uv.push((back ? 1 : -1) * (p[0] - c[0]) / (2 * r) + 0.5, 0.5 - (p[1] - c[1]) / (2 * ry));
     }
     index.push(seen.get(k));
   }
@@ -453,6 +469,7 @@ function rgbaPng(w, h, rgba) {
 /* ---------------------------------------------------------------- run */
 const texture = (name) => {
   if (name === "badge") return [name, badgeImage()];
+  if (name === "print") { const a = readPng(PRINT); return [name, rgbaPng(a.w, a.h, a.rgba)]; }
   const q = quantize(shrink(readPng(path.join(SRC, `${name}.png`)), TEX));
   return [name, indexedPng(q)];
 };
@@ -460,7 +477,7 @@ fs.mkdirSync(OUT, { recursive: true });
 let total = 0;
 for (const [kind, build, texNames] of [
   ["legs", legs, ["left_leg", "right_leg"]],
-  ["torso", torso, NO_LOGOS ? ["torso"] : ["torso", "badge"]],
+  ["torso", torso, [...(NO_LOGOS ? ["torso"] : ["torso", "badge"]), ...(PRINT ? ["print"] : [])]],
 ]) {
   console.log(`${kind}:`);
   const pieces = build(SRC);
