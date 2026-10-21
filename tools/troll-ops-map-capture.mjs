@@ -344,7 +344,9 @@ async function pageCapture({ MAP, kitUrl, GEOMETRY, CFG }) {
           for (const [attr, A] of Object.entries(G.attributes)) {
             const sz = A.itemSize, out = new Float32Array(tris.length * 3 * sz);
             let k = 0;
-            for (const t of tris) for (let v = 0; v < 3; v++) for (let q = 0; q < sz; q++) out[k++] = A.array[(t * 3 + v) * sz + q];
+            // (getX..getW: a quantised GLB packs normals, paint and UVs as normalised integers)
+            const get = ["getX", "getY", "getZ", "getW"];
+            for (const t of tris) for (let v = 0; v < 3; v++) for (let q = 0; q < sz; q++) out[k++] = A[get[q]](t * 3 + v);
             geo.setAttribute(attr, new THREE.BufferAttribute(out, sz));
           }
           // the chunk's own paint, for Studio's colour
@@ -643,6 +645,15 @@ async function pageCapture({ MAP, kitUrl, GEOMETRY, CFG }) {
   };
   const stats = { box: 0, cyl: 0, ball: 0, mesh: 0, live: 0 };
   const pieces = [];
+  // an attribute's values as numbers: a quantised GLB (KHR_mesh_quantization)
+  // packs normals, paint and UVs as normalised integers, read back by getX..
+  const GET = ["getX", "getY", "getZ", "getW"];
+  const values = (a, f) => {
+    if (!a.normalized) return Array.from(a.array, f);
+    const out = new Array(a.count * a.itemSize);
+    for (let i = 0; i < a.count; i++) for (let k = 0; k < a.itemSize; k++) out[i * a.itemSize + k] = f(a[GET[k]](i));
+    return out;
+  };
   for (const r of recs) {
     const mid = matOf(r.mat, r.color, r.key, r.glb ? r.key.split(":")[2] : null);
     let prim = null;
@@ -662,17 +673,17 @@ async function pageCapture({ MAP, kitUrl, GEOMETRY, CFG }) {
     if (GEOMETRY) {
       const g = r.src, P = g.attributes.position, N = g.attributes.normal, UV = g.attributes.uv;
       piece.geo = {
-        p: Array.from(P.array, r4),
+        p: values(P, r4),
         // a box's normals are flat: the Kit makes them again
-        n: N && r.type !== "BoxGeometry" ? Array.from(N.array, (x) => +x.toFixed(4)) : null,
-        uv: UV && (mats[mid].pictured || r.glb) ? Array.from(UV.array, r4) : null,
+        n: N && r.type !== "BoxGeometry" ? values(N, (x) => +x.toFixed(4)) : null,
+        uv: UV && (mats[mid].pictured || r.glb) ? values(UV, r4) : null,
         idx: g.index ? Array.from(g.index.array) : null,
       };
       // a GLB chunk keeps its light-map UVs and its vertex paint: its
       // material is the model's, which reads both
       if (r.glb) {
-        if (g.attributes.uv1 || g.attributes.uv2) piece.geo.uv2 = Array.from((g.attributes.uv1 || g.attributes.uv2).array, r4);
-        if (g.attributes.color) piece.geo.c = Array.from(g.attributes.color.array, (x) => +x.toFixed(4));
+        if (g.attributes.uv1 || g.attributes.uv2) piece.geo.uv2 = values(g.attributes.uv1 || g.attributes.uv2, r4);
+        if (g.attributes.color) piece.geo.c = values(g.attributes.color, (x) => +x.toFixed(4));
       }
     }
     if (r.glb) piece.glb = r.key.split(":")[1];

@@ -469,7 +469,31 @@ function bake(list, withNormals, withUV, withExtra = false) {
       else I.push(base + idx[t], base + idx[t + 1], base + idx[t + 2]);
     }
   }
+  // a GLB chunk comes in a corner per triangle corner: corners that agree on
+  // everything are welded into one (a third of the size, the same mesh)
+  if (withExtra) return weld({ P, N, U, U2, C, I });
   return { P, N, U, U2, C, I };
+}
+
+function weld({ P, N, U, U2, C, I }) {
+  const out = { P: [], N: [], U: [], U2: [], C: [], I: [] }, at = new Map(), q = (x) => Math.round(x * 1e5);
+  const nv = P.length / 3, map = new Int32Array(nv);
+  for (let i = 0; i < nv; i++) {
+    const k = [P[i * 3], P[i * 3 + 1], P[i * 3 + 2], ...(N.length ? [N[i * 3], N[i * 3 + 1], N[i * 3 + 2]] : []),
+      ...(U.length ? [U[i * 2], U[i * 2 + 1]] : []), U2[i * 2], U2[i * 2 + 1], C[i * 3], C[i * 3 + 1], C[i * 3 + 2]].map(q).join(",");
+    let j = at.get(k);
+    if (j == null) {
+      j = out.P.length / 3; at.set(k, j);
+      out.P.push(P[i * 3], P[i * 3 + 1], P[i * 3 + 2]);
+      if (N.length) out.N.push(N[i * 3], N[i * 3 + 1], N[i * 3 + 2]);
+      if (U.length) out.U.push(U[i * 2], U[i * 2 + 1]);
+      out.U2.push(U2[i * 2], U2[i * 2 + 1]);
+      out.C.push(C[i * 3], C[i * 3 + 1], C[i * 3 + 2]);
+    }
+    map[i] = j;
+  }
+  for (const i of I) out.I.push(map[i]);
+  return out;
 }
 
 function writeGLB(groups) {
@@ -502,10 +526,35 @@ function writeGLB(groups) {
     matOf.set(key, materials.length - 1);
     return materials.length - 1;
   };
+  // a GLB chunk's material: the source GLB's own (colour, roughness, glow),
+  // under the chunk's key; the game lights and retextures it as that GLB
+  const srcMats = new Map(), exts = new Set();
+  const glbMat = (key) => {
+    if (matOf.has(key)) return matOf.get(key);
+    const [, file, name] = key.split(":");
+    if (!srcMats.has(file)) {
+      let list = [];
+      try {
+        const b = fs.readFileSync(path.join(ROOT, `assets/games/troll-ops/models/${file}.glb`));
+        list = JSON.parse(b.subarray(20, 20 + b.readUInt32LE(12)).toString()).materials || [];
+      } catch {}
+      srcMats.set(file, new Map(list.map((m) => [m.name.replace(/[^\w]+/g, "_"), m])));
+    }
+    const src = srcMats.get(file).get(name);
+    const mat = src ? JSON.parse(JSON.stringify(src)) : { pbrMetallicRoughness: { metallicFactor: 0, roughnessFactor: 0.9 } };
+    // (no textures: the Blender GLBs have none)
+    if (mat.pbrMetallicRoughness) { delete mat.pbrMetallicRoughness.baseColorTexture; delete mat.pbrMetallicRoughness.metallicRoughnessTexture; }
+    delete mat.normalTexture; delete mat.emissiveTexture; delete mat.occlusionTexture;
+    for (const e of Object.keys(mat.extensions || {})) exts.add(e);
+    mat.name = key;
+    materials.push(mat);
+    matOf.set(key, materials.length - 1);
+    return materials.length - 1;
+  };
   let tris = 0;
   for (const [name, g] of groups) {
     const prims = [];
-    const gm = name.startsWith("gen:") ? genMat(name.split("|")[0]) : null;
+    const gm = name.startsWith("gen:") ? genMat(name.split("|")[0]) : name.startsWith("glb:") ? glbMat(name.split("|")[0]) : null;
     for (const [kind, list] of [["flat", g.flat], ["smooth", g.smooth]]) {
       if (!list.length) continue;
       const { P, N, U, U2, C, I } = bake(list, kind === "smooth", g.uv ?? g.pictured, g.extra);
@@ -528,7 +577,7 @@ function writeGLB(groups) {
   }
   const bin = Buffer.concat(chunks);
   const json = { asset: { version: "2.0", generator: "troll-ops-map-from-studio" }, scene: 0, scenes: [{ nodes: nodes.map((_, i) => i) }],
-    nodes, meshes: meshesOut, accessors, bufferViews: views, buffers: [{ byteLength: bin.length }],
+    nodes, meshes: meshesOut, accessors, bufferViews: views, buffers: [{ byteLength: bin.length }], ...(exts.size ? { extensionsUsed: [...exts] } : {}),
     ...(materials.length ? { materials, ...(images.length ? { images, textures, samplers: [{ magFilter: 9729, minFilter: 9987, wrapS: 10497, wrapT: 10497 }] } : {}) } : {}) };
   let js = Buffer.from(JSON.stringify(json));
   js = Buffer.concat([js, Buffer.alloc((4 - (js.length % 4)) % 4, 0x20)]);
