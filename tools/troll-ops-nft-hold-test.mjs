@@ -165,7 +165,14 @@ await page.evaluate(async () => {
     const grip = u.gripPos ? gun.localToWorld(new V().copy(u.gripPos)) : null;
     if (grip && h.gripDrop) grip.y -= h.gripDrop * sc;
     const handL = r.parts.wristL.parent.getWorldPosition(new V()), handR = r.parts.wristR.parent.getWorldPosition(new V());
-    const gapL = sup ? +(handL.distanceTo(sup) * 100).toFixed(1) : null, gapR = grip ? +(handR.distanceTo(grip) * 100).toFixed(1) : null;
+    let gapL = sup ? +(handL.distanceTo(sup) * 100).toFixed(1) : null, gapR = grip ? +(handR.distanceTo(grip) * 100).toFixed(1) : null;
+    // A body with its own hands (blocky-body.js kit.hand) holds the gun with
+    // them, fixed to the gun (holdGun): the arm's hand point is the wrist,
+    // and it has to meet that hand's wrist, not the handguard
+    const own = gun.children.filter((o) => o.isSkinnedMesh && o.material?.vertexColors);
+    const ownL = own.find((o) => o.scale.x < 0), ownR = own.find((o) => o.scale.x > 0);
+    if (ownL) gapL = +(handL.distanceTo(ownL.getWorldPosition(new V())) * 100).toFixed(1);
+    if (ownR) gapR = +(handR.distanceTo(ownR.getWorldPosition(new V())) * 100).toFixed(1);
     return { gapL, gapR, pts: pts.length, pieces: pieces.length, names: [...new Set(pieces.map((m) => m.name))].join(","), out };
   };
 });

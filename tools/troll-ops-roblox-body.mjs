@@ -36,6 +36,12 @@
 //                                           one piece: the Studio body exactly, at one scale)
 //        [--hands]                       (instead: <dir>/hand_open + hand_fist, a Studio right hand open and
 //                                           clenched, -> hands-<id>.glb, white, in the game fist's frame)
+//        [--torso-trim x,y]              (the torso's own skin out past x studs (shoulder balls filling the
+//                                           armholes) and its dark below y studs (the shorts' waistband) dropped:
+//                                           the arms' and the legs' own show, and move with them)
+//        [--lime]                        (the yellow-greens (an olive tank, the shoes) made the NFT's bright lime)
+//        [--hand-k 0.165]                (with --hands: metres per stud; 0.14 matches a Studio body's own hand
+//                                           at 0.26 m/stud, the #1718 grip fist)
 //        [--print art.png --print-at y,w]  (a print across the chest front: centred y studs up, w studs wide;
 //                                           Studio can't spell, so lettering goes on as a decal)
 //
@@ -65,6 +71,9 @@ const BUILD = +opt("--build", "0.25"), LEGS = +opt("--legs", "0.67");
 const WHOLE = args.includes("--whole") && !!args.splice(args.indexOf("--whole"), 1);
 const STUDIO_HAND = args.includes("--arm-hands") && !!args.splice(args.indexOf("--arm-hands"), 1);
 const HANDS = args.includes("--hands") && !!args.splice(args.indexOf("--hands"), 1);
+const HAND_SCALE = +opt("--hand-k", "0.165");
+const LIME = args.includes("--lime") && !!args.splice(args.indexOf("--lime"), 1);
+const TORSO_TRIM = opt("--torso-trim", "").split(",").filter(Boolean).map(Number);
 const PRINT_AT = opt("--print-at", "").split(",").map(Number);
 const NO_LOGOS = args.includes("--no-logos") && !!args.splice(args.indexOf("--no-logos"), 1);
 const [SRC, ID] = args;
@@ -482,8 +491,30 @@ function muscles(obj, cx, ky) {
     return [xc + dx * k, zc + dz * k];
   };
 }
+/* --torso-trim: a Studio torso can carry the body under the clothes, the
+   shoulders' skin in the armholes and the shorts' top under the hem; held
+   still on the chest they parted from the arms and legs as those moved
+   (user, 2026-10-21: "the arms stay connected to the shoulders"). Each
+   triangle goes by the texel at its middle. */
+function trimTorso(obj, img, [skinX, darkY]) {
+  const texel = (t) => {
+    const x = Math.min(img.w - 1, Math.max(0, Math.floor(t[0] * img.w))), y = Math.min(img.h - 1, Math.max(0, Math.floor((1 - t[1]) * img.h)));
+    const i = (y * img.w + x) * 4;
+    return [img.rgba[i], img.rgba[i + 1], img.rgba[i + 2]];
+  };
+  const before = obj.tris.length;
+  obj.tris = obj.tris.filter((tri) => {
+    const p = [0, 1, 2].map((k) => tri.reduce((s, [vi]) => s + obj.v[vi][k], 0) / 3);
+    const t = [0, 1].map((k) => tri.reduce((s, [, ti]) => s + (ti >= 0 ? obj.vt[ti][k] : 0), 0) / 3);
+    const [r, g, b] = texel(t), mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    const skin = mx > 90 && (mx - mn) / mx < 0.12, dark = mx < 70;
+    return !((skin && Math.abs(p[0]) > skinX) || (dark && p[1] < darkY));
+  });
+  console.log(`  torso trim: ${before - obj.tris.length} of ${before} triangles off (skin past ${skinX}, dark below ${darkY} studs)`);
+}
 function torso(src) {
   const obj = readObj(path.join(src, "torso.obj"));
+  if (TORSO_TRIM.length) trimTorso(obj, readPng(path.join(src, "torso.png")), TORSO_TRIM);
   // (--whole: one scale down as across, the Studio torso's own height)
   const ky = WHOLE ? ACROSS : RIG.chestToHips / (SRC_JOINTS.shoulderY - SRC_JOINTS.hipY);
   const kx = ACROSS;
@@ -675,7 +706,7 @@ function rgbaPng(w, h, rgba) {
 // 2026-10-08). `back`: the side the export shows the back of the hand on
 // (-1: -Z, toward the export's front camera). `cut`: studs off the bottom
 // (the open hand's glove cuff).
-const HAND_K = 0.165;   // metres per stud: a cartoon hand a little bigger than the block fist (it starts inside the forearm, FIST_BACK)
+const HAND_K = HAND_SCALE;   // metres per stud: 0.165 a cartoon hand a little bigger than the block fist (it starts inside the forearm, FIST_BACK)
 const HAND_PARTS = [
   { name: "handR__open", file: "hand_open", back: 1, cut: 0.13 },
   { name: "handR__fist", file: "hand_fist", back: -1, cut: 0.12 },
@@ -716,6 +747,26 @@ function skinWhite({ w, h, rgba }) {
   }
   return { w, h, rgba: out };
 }
+/* --lime: Studio's greens come out olive; the NFT's tank is a bright lime
+   (#9be04a-ish; user, 2026-10-21: "look exactly like this"). Every
+   yellow-green texel turned to that hue, more saturated and lighter, its
+   shading kept. */
+function lime({ w, h, rgba }) {
+  const out = Buffer.from(rgba);
+  for (let i = 0; i < rgba.length; i += 4) {
+    const r = rgba[i] / 255, g = rgba[i + 1] / 255, b = rgba[i + 2] / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    if (mx < 0.2 || d / mx < 0.2) continue;
+    let hue = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    hue *= 60; if (hue < 0) hue += 360;
+    if (hue < 45 || hue > 110) continue;
+    const v = Math.min(1, mx * 1.25), s = Math.min(1, (d / mx) * 1.35 + 0.1), H = 92 / 60;
+    const c = v * s, x = c * (1 - Math.abs((H % 2) - 1)), m = v - c;
+    // H in [1,2): (x, c, 0)
+    out[i] = Math.round((x + m) * 255); out[i + 1] = Math.round((c + m) * 255); out[i + 2] = Math.round(m * 255);
+  }
+  return { w, h, rgba: out };
+}
 function whiten({ w, h, rgba }) {
   const lum = (i) => 0.3 * rgba[i] + 0.59 * rgba[i + 1] + 0.11 * rgba[i + 2];
   const ls = [];
@@ -731,7 +782,7 @@ const texture = (name) => {
   if (name.startsWith("hand_")) return [name, indexedPng(quantize(shrink(whiten(readPng(path.join(SRC, `${name}.png`))), 512)))];
   if (name === "print") { const a = readPng(PRINT); return [name, rgbaPng(a.w, a.h, a.rgba)]; }
   const img = readPng(path.join(SRC, `${name}.png`));
-  const q = quantize(shrink(SKIN_WHITE ? skinWhite(img) : img, TEX));
+  const q = quantize(shrink((LIME ? lime : (x) => x)(SKIN_WHITE ? skinWhite(img) : img), TEX));
   return [name, indexedPng(q)];
 };
 fs.mkdirSync(OUT, { recursive: true });
