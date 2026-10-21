@@ -181,6 +181,10 @@ export const HAND_POSES = {
    press). Cheap: a few dozen Euler writes. */
 export function poseHumanHand(hand, pose, thumbPress = 0) {
   const rig = hand.userData.rig;
+  // remembered, for a body's own posable hand laid over this one
+  // (view/weapon-view.js placeBlockArms)
+  hand.userData.pose = pose;
+  hand.userData.press = thumbPress;
   const p = HAND_POSES[pose] || HAND_POSES.relaxed;
   for (let i = 0; i < 4; i++) {
     const [a, b, c] = p.curl[i];

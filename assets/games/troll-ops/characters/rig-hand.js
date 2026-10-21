@@ -52,7 +52,18 @@ export const POSES = {
   lsign: { rest: FIST, index: F(0.02, 0.03, 0.02), thumb: [1.25, -0.1, 0, 0] },
   // round a ball: the grenade, a cup
   cup: { rest: F(0.62, 0.62, 0.45), thumb: [0.75, 0.55, 0.2, 0.2], spread: 0.09 },
+  // calling the K9s: index and middle together, tips bent in toward the
+  // lips, ring and little folded under the thumb
+  whistle: { rest: FIST, index: F(0.05, 0.12, 0.2), middle: F(0.05, 0.12, 0.2), thumb: [0.3, 1.0, 0.55, 0.4] },
 };
+/* Any hand-pose name the game uses (the stick mitts' "open" and "L", the
+   first-person hands' names) as one of POSES: what an emote or a device
+   asks for reaches the hand unchanged where the two agree. */
+const ALIAS = { open: "relaxed", L: "lsign" };
+export const rigPose = (name) => (POSES[name] ? name : ALIAS[name] || "relaxed");
+/* The palm's centre, metres down from the wrist at size 1: where the
+   first-person hands (weapons/hand-model.js, origin mid-palm) line up. */
+export const PALM_Y = 0.052;
 const NAMES = ["index", "middle", "ring", "little"];
 
 const _q = new THREE.Quaternion(), _e = new THREE.Euler();
@@ -94,7 +105,7 @@ function build() {
   // wrist a short column up into the forearm
   const palm = new THREE.SphereGeometry(1, 20, 14);
   palm.scale(0.024, 0.054, 0.05);
-  palm.translate(0.002, -0.052, 0);
+  palm.translate(0.002, -PALM_Y, 0);
   parts.push([palm, root]);
   // (long and full: it runs up into the forearm and covers the cut there)
   const wrist = new THREE.CapsuleGeometry(0.03, 0.05, 4, 16);
@@ -164,15 +175,18 @@ export function makeHand(side, size = 1, material = handMat) {
       b1.rotation.set(0, 0, -m);
       b2.rotation.set(0, 0, -t);
     });
-    const [out, across, kn, tip] = a[4];
+    const [out, across, k0, t0] = a[4];
+    // a press (a thumb tapping a screen) curls the thumb's two joints on top
+    const kn = k0 + hand.press * 0.5, tip = t0 + hand.press * 0.6;
     // the thumb hangs down and forward off the palm's side; `out` swings it
     // forward (-Z) and off the palm, `across` over toward the fingers
     thumb[0].rotation.set(0.12 + out * 0.8, 0, -0.25 - across * 0.9, "XZY");
     thumb[1].rotation.set(-kn * 0.5, 0, -kn * 0.9);
     thumb[2].rotation.set(-tip * 0.4, 0, -tip);
   };
-  return {
+  const hand = {
     mesh,
+    press: 0,   // 0..1, the thumb pressed down (applied with the next update)
     get pose() { return want; },
     setPose(name, now = false) {
       want = POSES[name] || POSES.relaxed;
@@ -186,4 +200,5 @@ export function makeHand(side, size = 1, material = handMat) {
     },
     mir,
   };
+  return hand;
 }

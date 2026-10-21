@@ -16,10 +16,10 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
-import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6";
-import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1-gt1-fg2-bd1-mj1-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6";
+import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1";
+import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1-gt1-fg2-bd1-mj1-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1";
 import { addRim } from "../view/rim-light.js?v=sr1";
-import { makeHand } from "./rig-hand.js?v=rh1";
+import { makeHand, rigPose } from "./rig-hand.js?v=rh1-hp1";
 import { tagInk, untagInk } from "../view/char-ink.js?v=ci1-ci2-ci3-ci4-ci5-rb4-rb5";
 
 const DIR = new URL("../traits/", import.meta.url);
@@ -612,9 +612,12 @@ export function handCut(geo, y) {
 }
 /* A cut arm's materials: the arm drawn, its own hand not. */
 export const handOff = (mat) => [mat, HIDDEN];
-const HAND_POSES = { open: "relaxed", fist: "fist", bird: "bird", L: "lsign" };
+/* The stick hand's pose (character.js setHandPose) as the real hand's:
+   "fist" by what's held (the gun's trigger and support hands, a haft's
+   grip), any other name straight through (rig-hand.js rigPose: an emote
+   or a device names the pose it means). */
 export function handPoseFor(rig, side, stick) {
-  if (stick !== "fist") return HAND_POSES[stick] || "relaxed";
+  if (stick !== "fist") return rigPose(stick);
   const held = rig.held;
   if (held?.visible && held.parent === rig.parts.gunMount) {
     if (side === "R") return (rig.fireK ?? 0) > 0.5 ? "fire" : "trigger";

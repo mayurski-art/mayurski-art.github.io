@@ -563,16 +563,21 @@ function buildHand(parent, side, s, material, armAngle) {
   return { group: align, turn, open, fist, bird, lsign, pose: "open" };
 }
 
-/* "open", "fist", "bird" (middle finger up) or "L" (index and thumb out).
-   Cheap to call every frame. */
+/* "open", "fist", "bird" (middle finger up) or "L" (index and thumb out),
+   or any pose of the posable hand (rig-hand.js POSES: "point", "flat",
+   "grip", "cup", "whistle"...). h.pose keeps the name asked for, so a body
+   with real hands (blocky-body.js handPoseFor) gets exactly it; the stick
+   mitt shows the nearest of its four shapes. Cheap to call every frame. */
+const MITT = { fist: "fist", bird: "bird", L: "L", lsign: "L", point: "fist", grip: "fist", trigger: "fist", fire: "fist", cradle: "fist", pinch: "fist", whistle: "fist" };
 export function setHandPose(rig, side, pose) {
   const h = side < 0 ? rig.hands.L : rig.hands.R;
   if (h.pose === pose) return;
   h.pose = pose;
-  h.open.visible = pose !== "fist" && pose !== "bird" && pose !== "L";
-  h.fist.visible = pose === "fist";
-  h.bird.visible = pose === "bird";
-  h.lsign.visible = pose === "L";
+  const m = MITT[pose] || "open";
+  h.open.visible = m === "open";
+  h.fist.visible = m === "fist";
+  h.bird.visible = m === "bird";
+  h.lsign.visible = m === "L";
 }
 
 function joint(parent, x = 0, y = 0, z = 0) {
