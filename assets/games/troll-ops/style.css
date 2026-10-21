@@ -3653,9 +3653,9 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
      corner; "the character should appear below ... all this empty space") */
   #to-title.is-bo2 .to-char-view { left: 0; right: 0;
     top: calc(56px + env(safe-area-inset-top) + var(--menu-h, 300px) + 8px + var(--party-h, 190px));
-    bottom: calc(var(--foot-h, 42px) + 24px + env(safe-area-inset-bottom)); --char-shift: 0; --char-dist: 1.2; }
+    bottom: calc(var(--foot-h, 42px) + 24px + env(safe-area-inset-bottom)); --char-shift: 0; --char-dist: 0.9; }
   /* no room there (a long list, menu-bo2.js charRoom): beside the list */
-  #to-title.is-bo2 .to-pf.char-beside .to-char-view { left: 46%; top: calc(80px + env(safe-area-inset-top)); bottom: calc(100% - 56px - env(safe-area-inset-top) - var(--menu-h, 300px) + 90px); }
+  #to-title.is-bo2 .to-pf.char-beside .to-char-view { left: 46%; top: calc(80px + env(safe-area-inset-top)); bottom: calc(100% - 56px - env(safe-area-inset-top) - var(--menu-h, 300px) + 90px); --char-dist: 1.2; }
   .to-bo2-foot { left: 20px; right: 16px; bottom: calc(18px + env(safe-area-inset-bottom)); align-items: center; }
   .to-bo2-online { font-size: 26px; }
   :is(.to-bo2-anim, .to-bo2-quick), .to-bo2-foot .to-char-emote { min-height: 40px; font-size: 13px; padding: 0 10px; }
