@@ -15,7 +15,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { GRINJUKU } from "./grinjuku.js?v=gj1-sr1-or1";
-import { KB_LAYOUT } from "./kabukigrin-layout.js?v=kb0";
+import { KB_LAYOUT } from "./kabukigrin-layout.js?v=kb0-kb1-kb2-kb3";
 import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1";
 import { loadBake } from "./battlefield-props.js?v=sr1-or1";
 import { applyBakedLightMap, retexture } from "./surface-textures.js?v=hg6e-sr1-or1";
@@ -72,9 +72,26 @@ function buildKabukigrin(api) {
   api.stairLinks.push(...STAIRS.map((s) => ({ a: { ...s.a }, b: { ...s.b } })));
   for (const r of ROPES) api.rope(r.x, r.z, r.y0, r.y1, { dir: r.dir, ghost: true });
   loadTown(api);
+  // the club's lights (doc 3.3): Grinjuku's own are baked into its models
+  for (const [x, y, z, hex, power, range] of L.lights) {
+    const l = new THREE.PointLight(new THREE.Color(hex), power, range, 1.6);
+    l.position.set(x, y, z);
+    api.prop(l).castShadow = false;
+  }
   // the far city: drawn by the game, not part of the Studio town
   mapModel(api, "gj-skyline", { x: 0, z: 0, castShadow: false });
 }
+
+// The street's decals and litter stay off the club's floor (doc 5): every
+// scatter that named no area, or A site, now names the rest
+const DRESS = (() => {
+  const d = GRINJUKU.dress, rest = Object.keys(d.areas).filter((a) => a !== "aSite");
+  const keep = (e) => {
+    const area = e.area ? [].concat(e.area).filter((a) => a !== "aSite") : rest;
+    return area.length ? { ...e, area } : null;
+  };
+  return { ...d, decals: d.decals.map(keep).filter(Boolean), clutter: d.clutter.map(keep).filter(Boolean) };
+})();
 
 export const KABUKIGRIN = {
   ...GRINJUKU,
@@ -82,6 +99,7 @@ export const KABUKIGRIN = {
   blurb: "Shinjuku's neon on one side, a nightclub on the other.",
   playerSpawn: { x: PLAYER[0], z: PLAYER[2] },
   build: buildKabukigrin,
+  dress: DRESS,
   bombSites: SITES,
   spawns: SPAWNS,
   debug: () => ({ ropes: ROPES.map((r) => ({ ...r })), sites: SITES.map((s) => ({ ...s })) }),
