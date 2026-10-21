@@ -16,10 +16,10 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
-import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1";
-import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1-gt1-fg2-bd1-mj1-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1";
+import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1";
+import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1-gt1-fg2-bd1-mj1-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1";
 import { addRim } from "../view/rim-light.js?v=sr1";
-import { makeHand, rigPose } from "./rig-hand.js?v=rh1-hp1-mh1";
+import { makeHand, rigPose, PALM_Y } from "./rig-hand.js?v=rh1-hp1-mh1-ht2";
 import { tagInk, untagInk } from "../view/char-ink.js?v=ci1-ci2-ci3-ci4-ci5-rb4-rb5";
 
 const DIR = new URL("../traits/", import.meta.url);
@@ -201,7 +201,7 @@ const KITS = {
   // rbx1718, arms and their hands included, shoulders on the torso), the rig
   // fitted to it at 0.26 m a stud, drawn as Studio draws it (smooth, no line)
   "clothes-tank-runner": { arms: "arms-rbx1718v3.glb", legs: "legs-rbx1718v3.glb", torso: "torso-rbx1718v3.glb",
-    fit: { reach: REACH_1718, shoulder: 0.138, shoulderZ: 0.035, build: 0.6, legs: 0.89 }, smooth: true, hand: { wrist: 0.49, cut: 0.465, size: 1.45 }, gunHold: { x: 0.18, y: -0.02, z: -0.07, roll: 0.02, blade: 0.35, under: 0, poleR: [1, -1.1, 0.2], poleL: [-1, -1.1, 0.1], stance: [0.05, 0.1, 0.012] },
+    fit: { reach: REACH_1718, shoulder: 0.138, shoulderZ: 0.035, build: 0.6, legs: 0.89 }, smooth: true, hand: { wrist: 0.49, cut: 0.465, size: 1.38 }, gunHold: { x: 0.18, y: -0.02, z: -0.07, roll: 0.02, blade: 0.35, under: 0, poleR: [1, -1.1, 0.2], poleL: [-1, -1.1, 0.1], stance: [0.05, 0.1, 0.012] },
     headScale: 1.35, shoulderHold: 0.35,
     colours: { shorts: 0x34363e, hem: 0x43464f, upper: 0x141416, sole: 0xdcdcd6 } },
   // Farmer: plaid long sleeves, denim overalls to the boots
@@ -610,8 +610,19 @@ export function handCut(geo, y) {
   }
   return handCuts.get(key);
 }
-/* A cut arm's materials: the arm drawn, its own hand not. */
-export const handOff = (mat) => [mat, HIDDEN];
+/* A cut arm's materials: the arm drawn, its own hand not. The arm two-sided:
+   its open end at the cut shows its inside, skin, not black shards round
+   the posable hand's wrist. */
+const twoSided = new Map();
+export const handOff = (mat) => {
+  if (!twoSided.has(mat)) {
+    const m = mat.clone();
+    m.side = THREE.DoubleSide;
+    m.userData.shared = true;
+    twoSided.set(mat, m);
+  }
+  return [twoSided.get(mat), HIDDEN];
+};
 /* The stick hand's pose (character.js setHandPose) as the real hand's:
    "fist" by what's held (the gun's trigger and support hands, a haft's
    grip), any other name straight through (rig-hand.js rigPose: an emote
@@ -684,7 +695,11 @@ function rigHand(rig, side, bone, limb, kit) {
   hand.setPose(handPoseFor(rig, side, h.pose), true);
   const home = { p: hand.mesh.position.clone(), s: hand.mesh.scale.clone() };
   let last = 0, worldSize = 0;
-  hand.mesh.onBeforeRender = () => {
+  // run from the arm as well as the hand: a hand left on a gun that's been
+  // put away (an emote, a streak device) never draws, so from its own hook
+  // it never came back to the wrist and the arm ended in its cut (the
+  // third-person emotes, live until -ht1)
+  const sync = () => {
     const now = performance.now(), dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
     last = now;
     const pose = handPoseFor(rig, side, h.pose);
@@ -706,6 +721,9 @@ function rigHand(rig, side, bone, limb, kit) {
       f.add(hand.mesh);
     }
   };
+  hand.mesh.onBeforeRender = sync;
+  const armHook = arm.onBeforeRender;
+  arm.onBeforeRender = function (...a) { armHook.apply(this, a); sync(); };
   f.add(hand.mesh);
   // a hand left on the gun goes with the body
   f.userData.undo = () => hand.mesh.parent?.remove(hand.mesh);
@@ -2042,6 +2060,9 @@ export function wearBlocky(rig, token) {
   const fit = tokenLook(token)?.kit.fit;
   const unshape = reshapeRig(rig, { build: fit?.build ?? 0.25, legs: fit?.legs ?? 0.67, reach });
   rig.blockyReach = reach;
+  // its own hands: reachHand puts their palms on its targets (character.js)
+  const handKit = tokenLook(token)?.kit.hand;
+  rig.palmReach = handKit ? PALM_Y * handKit.size * rig.scale : 0;
   let restore = null, gone = false;
   const b = (rig.blocky = {
     token,
@@ -2058,6 +2079,7 @@ export function wearBlocky(rig, token) {
       setFace(rig);
       unshape();
       rig.blockyReach = 1;
+      rig.palmReach = 0;
     },
   });
   // the NFT's own face, if its facial is one (traits.js tokenFace)

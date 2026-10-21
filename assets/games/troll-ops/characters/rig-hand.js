@@ -84,7 +84,8 @@ const geoCache = new Map();
    plane (its direction crossed with the back of the hand, +X), a thumb
    joint toward the palm and the fingers. */
 const _X = new THREE.Vector3(1, 0, 0);
-const TOWARD = new THREE.Vector3(-0.55, 0, 0.83);   // where a thumb curls: across the palm, toward the little finger
+const TOWARD = new THREE.Vector3(-0.55, 0, 0.83);
+const FLARE = 0.18;   // where a thumb curls: across the palm, toward the little finger
 function buildMH() {
   const J = DATA.joints, at = (n) => new THREE.Vector3(...J[n]);
   const root = new THREE.Bone(), bones = [root], hinges = [];
@@ -109,7 +110,15 @@ function buildMH() {
   const fingers = NAMES.map((n) => chain(n, false));
   const thumb = chain("thumb", true);
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.Float32BufferAttribute(DATA.position, 3));
+  // the stub of forearm above the wrist flared a little, so it covers the
+  // arm's jagged cut where the two meet (blocky-body.js handCut)
+  const P = Float32Array.from(DATA.position);
+  for (let i = 0; i < P.length; i += 3) {
+    const k = 1 + FLARE * Math.min(1, Math.max(0, P[i + 1]) / 0.03);
+    P[i] *= k;
+    P[i + 2] *= k;
+  }
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(P, 3));
   geo.setAttribute("normal", new THREE.Float32BufferAttribute(DATA.normal, 3));
   geo.setAttribute("skinIndex", new THREE.Uint16BufferAttribute(DATA.skinIndex, 4));
   geo.setAttribute("skinWeight", new THREE.Float32BufferAttribute(DATA.skinWeight, 4));

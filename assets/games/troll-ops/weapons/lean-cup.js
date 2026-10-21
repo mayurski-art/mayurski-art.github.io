@@ -571,7 +571,8 @@ export function leanFp(t) {
 const _tR = new THREE.Vector3(), _rimW = new THREE.Vector3(), _hE = new THREE.Vector3();
 const _poleR = new THREE.Vector3(1, -1, 0.3), _poleL = new THREE.Vector3(-1, -1, 0.3);
 /* The middle of a mitt's palm in the rig's root frame: out past the wrist
-   along the forearm, a little to the inside (where a held thing sits). */
+   along the forearm, a little to the inside (where a held thing sits). A
+   body's own hand (rig.palmReach, blocky-body.js) has its palm that far on. */
 function palmCentre(rig, side, k, out) {
   const p = rig.parts;
   (side > 0 ? p.elbowR : p.elbowL).getWorldPosition(_hE);
@@ -579,5 +580,5 @@ function palmCentre(rig, side, k, out) {
   rig.root.worldToLocal(_hE);
   rig.root.worldToLocal(out);
   _hE.subVectors(out, _hE).normalize();
-  return out.addScaledVector(_hE, 0.075 * k).add(_off.set(-side * 0.035 * k, 0, -0.02 * k));
+  return out.addScaledVector(_hE, rig.palmReach || 0.075 * k).add(_off.set(-side * 0.035 * k, 0, -0.02 * k));
 }

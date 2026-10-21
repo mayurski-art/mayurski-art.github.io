@@ -1909,13 +1909,23 @@ function _reachArm(rig, pivot, elbow, rest, target, pole) {
   elbow.quaternion.setFromUnitVectors(rest, _gF.applyQuaternion(_gQ));
 }
 /* Put a hand at `target` (chest space) with the elbow bent toward `pole`:
-   the same two-bone IK as the gun hold, for emotes. `side` -1 left, +1 right. */
-const _rhT = new THREE.Vector3();
+   the same two-bone IK as the gun hold, for emotes. `side` -1 left, +1 right.
+   A body with its own hands (blocky-body.js rig.palmReach: the wrist to the
+   palm's centre) puts its PALM there: the wrist stops that far short, back
+   along the forearm, so a cup, a crutch's grip or the face is in the hand,
+   not under the fingers (the hand point is the wrist since -rb6). */
+const _rhT = new THREE.Vector3(), _rhF = new THREE.Vector3(), _rhQ = new THREE.Quaternion();
 export function reachHand(rig, side, target, pole) {
   const p = rig.parts;
   const pivot = side < 0 ? p.armL : p.armR, shoulder = side < 0 ? p.shoulderL : p.shoulderR;
+  const elbow = side < 0 ? p.elbowL : p.elbowR, rest = side < 0 ? rig.armRestL : rig.armRestR;
   _rhT.copy(target).sub(pivot.position).sub(shoulder.position);
-  _reachArm(rig, pivot, side < 0 ? p.elbowL : p.elbowR, side < 0 ? rig.armRestL : rig.armRestR, _rhT, pole);
+  _reachArm(rig, pivot, elbow, rest, _rhT, pole);
+  if (!rig.palmReach) return;
+  // the forearm's line as solved, then once more a palm short along it
+  _rhF.copy(rest).applyQuaternion(_rhQ.copy(pivot.quaternion).multiply(elbow.quaternion));
+  _rhT.addScaledVector(_rhF, -rig.palmReach);
+  _reachArm(rig, pivot, elbow, rest, _rhT, pole);
 }
 /* Third-person shooting and reloading (user: "it seems like the gun is only
    being held with one hand and shot with one hand. we also need reloading
