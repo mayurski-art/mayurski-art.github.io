@@ -212,9 +212,18 @@ const BASE = `http://localhost:${server.address().port}`;
 const browser = await chromium.launch({ args: [`--use-angle=${process.env.ANGLE || "d3d11"}`, "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--autoplay-policy=no-user-gesture-required"] });
 const ctx = await browser.newContext({ viewport: { width: 640, height: 360 } });
 await ctx.route(/supabase/, (r) => r.abort());
-// Kabukigrin (docs/KABUKIGRIN.md) keeps Grinjuku's B side and routes: its runs
-// until the club's rooms get their own (phase 3)
-RUNS.kabukigrin_wip = RUNS.grinjuku;
+// Kabukigrin (docs/KABUKIGRIN.md) keeps Grinjuku's B side and routes, and
+// walls A site into a club: every way into the hall is a doorway now
+RUNS.kabukigrin_wip = [...RUNS.grinjuku,
+  [-27.6, 0, -2, 0, 1, 3.5, "A Main -> the club's main door", (r) => r.end[2] > 7],
+  [-27, 0, 29, 0, -1, 3, "kitchen -> hall (west back door)", (r) => r.end[2] < 21],
+  [-16, 0, 29, 0, -1, 3, "green room -> hall (east back door)", (r) => r.end[2] < 21],
+  [-27.5, 0, 37, 0, -1, 3, "yard -> kitchen (west yard door)", (r) => r.end[2] < 31],
+  [-15.5, 0, 37, 0, -1, 3, "yard -> green room (east yard door)", (r) => r.end[2] < 31],
+  [-2, 0, 28.5, -1, 0, 3, "the backs -> green room (east door)", (r) => r.end[0] < -9],
+  [-22, 0, 27.6, 1, 0, 2.5, "kitchen -> green room (partition door)", (r) => r.end[0] > -17],
+  [-27.6, 0, 12, 0, -1, 3.5, "hall -> A Main (out the main door)", (r) => r.end[2] < 0],
+];
 const maps = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(RUNS);
 let fails = 0;
 for (const map of maps) {
