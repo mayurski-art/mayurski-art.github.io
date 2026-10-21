@@ -26,7 +26,7 @@ export const INK_LAYER = 7;
    sleeve, the shorts). Read every frame, so the design lab
    (tools/nft-lab.html) tunes it live. */
 export const INK = {
-  color: 0x1e1b18,  // a warm near-black, softer than pure black
+  color: 0x45403b,  // a warm dark grey (0x1e1b18 read too dark round the trollface: user, 2026-10-20)
   width: 0.011,     // the outside line's width in metres on the body (so it scales with the body on screen)
   minPx: 1.0,       // never thinner than this many pixels (a far-off bot)
   maxPx: 3.2,       // nor thicker (a close-up)
