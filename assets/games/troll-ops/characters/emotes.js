@@ -563,6 +563,121 @@ function poseGum(rig, t) {
   done(rig);
 }
 
+/* Cigar: TROLLS #1272's own emote (traits.js: its Cigar facial is the
+   emote, not worn; user, 2026-10-21: "1272 should not have a cigar in his
+   face just make it an exclusive emote"). The right hand fishes a cigar out
+   of the vest, puts it in the grin's corner and goes to the belt; two long
+   puffs (the tip glows), the hand takes it back out and holds it off to the
+   side, chin up, three smoke rings' worth of puffs drift up, then it's
+   tucked away. For whoever wears #1272, and the owner on any body
+   (cosmetics.js mayEmoteToken). Blocky like the body: boxes, inked. In the
+   mouth it hangs on the head board at the grin's corner (the NFT's art
+   right, flipped back on a mirrored head like the bubble); in the hand, on
+   the hand point, out of the front of the fist. */
+const CIGAR = { seconds: 6.2, len: 0.2, thick: 0.042, corner: [0.36, -0.42], smoke: [4.3, 5.7] };
+const CIGAR_COLOURS = { leaf: 0x6b3a1f, band: 0xb0302a, ash: 0x9a9a94, tip: 0xffb02e, ember: 0xa8321a };
+let cigarGeos = null;
+function makeCigar() {
+  if (!cigarGeos) {
+    const box = (l, t) => new THREE.BoxGeometry(l, t, t);
+    cigarGeos = { leaf: box(1, 1), ink: box(1, 1) };
+    for (const g of Object.values(cigarGeos)) g.userData.shared = true;
+  }
+  const L = CIGAR.len, T = CIGAR.thick, g = new THREE.Group();
+  // [colour, from, to (along +x, the lit end out), thickness]
+  const part = (colour, a, b, t = T) => {
+    const m = new THREE.Mesh(cigarGeos.leaf, colour instanceof THREE.Material ? colour : new THREE.MeshToonMaterial({ color: colour }));
+    m.scale.set(b - a, t, t);
+    m.position.x = (a + b) / 2;
+    const ink = new THREE.Mesh(cigarGeos.ink, INK_MAT);
+    ink.scale.set(b - a + 0.008, t + 0.008, t + 0.008);
+    ink.position.x = m.position.x;
+    g.add(m, ink);
+    return m;
+  };
+  part(CIGAR_COLOURS.leaf, 0, L * 0.92);
+  part(CIGAR_COLOURS.band, L * 0.12, L * 0.24, T * 1.08);
+  part(CIGAR_COLOURS.ash, L * 0.92, L * 0.96);
+  // the ember: lit, so it glows in the dark too, brighter on a puff
+  g.userData.tip = part(new THREE.MeshBasicMaterial({ color: CIGAR_COLOURS.ember }), L * 0.96, L);
+  return g;
+}
+const _smokeGeo = new THREE.SphereGeometry(1, 12, 8);
+_smokeGeo.userData.shared = true;
+function cigarSmoke() {
+  const g = new THREE.Group();
+  for (let i = 0; i < 4; i++) g.add(new THREE.Mesh(_smokeGeo, new THREE.MeshBasicMaterial({ color: 0xd8d8d2, transparent: true, depthWrite: false })));
+  return g;
+}
+const _cigT = new THREE.Vector3(), _cigBelt = new THREE.Vector3(), _cigOut = new THREE.Vector3();
+const _cigPole = new THREE.Vector3(1, -0.8, 0.2), _cigHipPole = new THREE.Vector3(-1, 0.1, 0.6), _cigHip = new THREE.Vector3();
+const _cigEmber = new THREE.Color(CIGAR_COLOURS.ember), _cigLit = new THREE.Color(CIGAR_COLOURS.tip);
+function poseCigar(rig, t) {
+  const p = rig.parts, s = rig.scale, w = rig.blocky ? 1.35 : 1;
+  base(rig);
+  const T = CIGAR.seconds;
+  // the right hand's stops: the vest pocket, the mouth, the belt, held out
+  const pocket = env(t, 0, 0.35, 0.55, 0.8);
+  const toMouth = Math.max(env(t, 0.55, 1.0, 1.25, 1.6), env(t, 3.3, 3.7, 3.95, 4.3));
+  const atBelt = env(t, 1.25, 1.7, 3.3, 3.6);
+  const out = env(t, 3.95, 4.4, 5.5, 5.95);
+  const inMouth = t >= 1.15 && t < 3.85;
+  const chinUp = env(t, 4.2, 4.6, 5.5, 5.9);
+  // two long draws, a glow each
+  const puff = Math.max(env(t, 1.9, 2.15, 2.35, 2.6), env(t, 2.75, 3.0, 3.15, 3.4));
+  head(rig, -0.08 * puff - 0.3 * chinUp, 0.06 * atBelt, 0.08 * atBelt);
+  p.torso.rotation.x = -0.05 * (atBelt + chinUp);
+  // the left hand on the hip, a cocky stance
+  const hip = env(t, 0.2, 0.7, 5.6, 6.1);
+  _cigHip.set(-0.3 * s, -0.62 * s, 0.02 * s).lerp(_cigOut.set(-0.2 * w * s, -0.5 * s, 0.03 * s), hip);
+  reachHand(rig, -1, _cigHip, _cigHipPole);
+  setHandPose(rig, -1, hip > 0.5 ? "fist" : "open");
+  // right hand: blended from hanging through each stop (chest space)
+  _cigT.set(0.3 * s, -0.62 * s, 0.02 * s);
+  _cigT.lerp(_cigOut.set(-0.06 * w * s, -0.14 * s, -0.17 * s), pocket);
+  _cigT.lerp(_cigBelt.set(0.1 * w * s, -0.5 * s, -0.12 * s), atBelt);
+  _cigT.lerp(_cigOut.set(0.26 * w * s, -0.28 * s, -0.28 * s), out);
+  const side = p.headPivot.scale.x < 0 ? -1 : 1;
+  if (toMouth > 0) {
+    // the fist just off the grin's corner, on the cigar's side of the face
+    const m = facePoint(rig, CIGAR.corner[0] * side * 1.35, CIGAR.corner[1], 0.13 * s);
+    _cigT.lerp(m, toMouth);
+  }
+  reachHand(rig, 1, _cigT, _cigPole);
+  setHandPose(rig, 1, pocket + toMouth + atBelt + out > 0.3 ? "fist" : "open");
+  const shown = t >= 0.45 && t < T - 0.3;
+  // in the mouth: across the grin's corner, angled out, forward and a bit down
+  const mouth = emoteBit(rig, "cigarMouth", p.head, makeCigar);
+  const g = p.head.geometry.parameters;
+  mouth.visible = shown && inMouth;
+  mouth.position.set(CIGAR.corner[0] * side * g.width / 2, CIGAR.corner[1] * g.height / 2, 0.03 * s);
+  mouth.rotation.set(0, side * -0.45, -side * 0.2);
+  mouth.scale.set(side * s, s, s);
+  // in the hand: out of the front of the fist
+  const handPt = p.wristR.parent;
+  const held = emoteBit(rig, "cigarHand", handPt, makeCigar);
+  held.visible = shown && !inMouth;
+  held.position.set(0, 0, 0);
+  held.rotation.set(0, PI / 2, 0);
+  held.scale.setScalar(s);
+  const lit = Math.max(0.35, puff, 0.35 + 0.15 * Math.sin(t * 5));
+  for (const c of [mouth, held]) c.userData.tip.material.color.copy(_cigEmber).lerp(_cigLit, lit);
+  // the smoke: puffs out of the grin, rising and spreading as they fade
+  const smoke = emoteBit(rig, "cigarSmoke", p.head, cigarSmoke);
+  smoke.visible = t >= CIGAR.smoke[0] && t < CIGAR.smoke[1] + 0.8;
+  smoke.children.forEach((puffBall, i) => {
+    const u = (t - CIGAR.smoke[0] - i * 0.3) / 1.1;
+    puffBall.visible = u > 0 && u < 1;
+    if (!puffBall.visible) return;
+    const r = (0.035 + 0.08 * u) * s;
+    puffBall.scale.setScalar(r);
+    puffBall.position.set((CIGAR.corner[0] * 0.4 * side * g.width / 2) + Math.sin(i * 2.1 + u * 3) * 0.04 * s,
+      CIGAR.corner[1] * g.height / 2 + (0.02 + 0.16 * u) * s, (0.08 + 0.3 * u) * s);
+    puffBall.material.opacity = 0.75 * (1 - u);
+  });
+  done(rig);
+}
+
 /* Crutches (user, 2026-10-16): hobbling on a pair of crutches, the left
    leg hurt and tucked up. Loops until you move: the crutches swing ahead
    and plant, the body swings through on the good leg with a hop, the
@@ -749,6 +864,7 @@ export const EMOTES = [
   // and the owner, remotes play it only for them (cosmetics.js mayEmoteToken)
   { id: "gum", name: "Bubblegum", kind: "tp", pose: poseGum, seconds: GUM.seconds, token: 989 },
   { id: "crutches", name: "Crutches", kind: "tp", pose: poseCrutches, seconds: CRUTCH.seconds },
+  { id: "cigar", name: "Cigar", kind: "tp", pose: poseCigar, seconds: CIGAR.seconds, token: 1272 },
 ];
 
 export const DEFAULT_EMOTE_SECONDS = 8;

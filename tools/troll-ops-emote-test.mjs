@@ -283,6 +283,30 @@ await A.evaluate(() => window.__trollOps.setEmote(-1));
 await sleep(500);
 check("crutches: gone once it stops", await A.evaluate(() => !window.__trollOps.localRig.crutches?.visible));
 
+// Cigar: TROLLS #1272's own emote (user, 2026-10-21). Last in the list (its
+// wire code new); a guest on the stick doesn't get it, the owner does on any
+// body: in the mouth on a puff, in the hand while the smoke goes up, and
+// gone once it stops.
+const CIG = await A.evaluate(() => window.__trollOps.emoteWheel.slices.findIndex((b) => b.textContent.includes("Cigar")));
+const cigOnWheel = () => A.evaluate((i) => { const w = window.__trollOps.emoteWheel; w.layout(); return w.shown.includes(i); }, CIG);
+check("cigar: on the wheel's list, after the crutches", CIG > CR, `slot ${CIG}`);
+check("cigar: not on a guest's wheel", !(await cigOnWheel()));
+await A.evaluate(() => { const A = window.TrollrunnerAccounts; window.__gp = A?.getCachedProfile; if (A) A.getCachedProfile = () => ({ username: "troll_runner", id: "test" }); });
+check("cigar: on the owner's wheel, any body", await cigOnWheel());
+await A.evaluate((i) => window.__trollOps.setEmote(i), CIG);
+const cigAt = (t) => A.evaluate(async (t) => {
+  window.__trollOps.emote().t = t;
+  await new Promise((r) => setTimeout(r, 300));
+  const rig = window.__trollOps.localRig;
+  return { mouth: !!rig.cigarMouth?.visible, hand: !!rig.cigarHand?.visible, smoke: !!rig.cigarSmoke?.visible };
+}, t);
+const cigPuff = await cigAt(2.2), cigSmoke = await cigAt(4.8);
+check("cigar: in the mouth on a puff", cigPuff.mouth && !cigPuff.hand, JSON.stringify(cigPuff));
+check("cigar: in the hand while the smoke goes up", cigSmoke.hand && !cigSmoke.mouth && cigSmoke.smoke, JSON.stringify(cigSmoke));
+await A.evaluate(() => { window.__trollOps.setEmote(-1); const A = window.TrollrunnerAccounts; if (A && window.__gp) A.getCachedProfile = window.__gp; });
+await sleep(500);
+check("cigar: gone once it stops", await A.evaluate(() => { const r = window.__trollOps.localRig; return !r.cigarMouth?.visible && !r.cigarHand?.visible && !r.cigarSmoke?.visible; }));
+
 check("no page errors", errors.length === 0, errors.join(" | "));
 await browser.close();
 server.close();
