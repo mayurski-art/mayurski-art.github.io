@@ -18,8 +18,8 @@
 // z swings the left arm out (the right arm out is negative z).
 
 import * as THREE from "three";
-import { DANCES, setHandPose, setFace, resetSecondaryJoints, reachHand, placeFoot, beginPose, endPose } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1";
-import { LeanKit, LEAN, LEAN_SECONDS, leanFp } from "../weapons/lean-cup.js?v=ng1-or1-lp1-ht1";
+import { DANCES, setHandPose, setFace, resetSecondaryJoints, reachHand, placeFoot, beginPose, endPose } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1";
+import { LeanKit, LEAN, LEAN_SECONDS, leanFp } from "../weapons/lean-cup.js?v=ng1-or1-lp1-ht1-bx1";
 
 const PI = Math.PI;
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -340,9 +340,9 @@ function fpFacepalm(t) {
 function poseLeanTP(rig, t) {
   base(rig);
   const s = (rig.emoteProps ||= new LeanKit()).tp(rig, t, reachHand);
-  setHandPose(rig, 1, "cup");   // round the cup (a stick mitt: open)
+  setHandPose(rig, 1, "fist");
   const iceHeld = t >= LEAN.iceUp[0] && t < LEAN.drop[0];
-  setHandPose(rig, -1, s.bottle ? "grip" : iceHeld ? "fist" : "open");
+  setHandPose(rig, -1, iceHeld || s.bottle ? "fist" : "open");
   rig.parts.torso.rotation.x = 0.06 * s.look;
   head(rig, 0.38 * s.look - 0.25 * s.sip, 0, 0);
   done(rig);
@@ -632,7 +632,7 @@ function placeCrutch(rig, c, side, tip, out) {
   c.localToWorld(_cGrip);
   p.chest.worldToLocal(_cGrip);
   reachHand(rig, side, _cGrip, _cPole[side < 0 ? 0 : 1]);
-  setHandPose(rig, side, "grip");   // round the grip (a stick mitt: its fist)
+  setHandPose(rig, side, "fist");
 }
 /* Lay crutch `c` (root space) from `top` along `dir` (unit), `len` long. */
 function layCrutch(c, top, dir, len) {

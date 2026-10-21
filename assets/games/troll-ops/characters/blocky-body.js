@@ -16,10 +16,9 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
-import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1";
-import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1-gt1-fg2-bd1-mj1-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1";
+import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1";
+import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1-gt1-fg2-bd1-mj1-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1";
 import { addRim } from "../view/rim-light.js?v=sr1";
-import { makeHand, rigPose, PALM_Y } from "./rig-hand.js?v=rh1-hp1-mh1-ht2";
 import { tagInk, untagInk } from "../view/char-ink.js?v=ci1-ci2-ci3-ci4-ci5-rb4-rb5";
 
 const DIR = new URL("../traits/", import.meta.url);
@@ -96,7 +95,6 @@ const CLOTH_TONES = (() => {
   t.needsUpdate = true;
   return t;
 })();
-const smoothColour = (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0 });
 function toon(color) {
   return addRim(new THREE.MeshToonMaterial({ color, gradientMap: TONES, emissive: color, emissiveIntensity: 0.12 }));
 }
@@ -195,14 +193,8 @@ const TORSO_GLB = glb("torso-muscle.glb");
    (models/blocky/<file>, built by models/build_blocky_*.blender.py) with a
    colour per piece name; a piece with no colour is skin, "plaid" the
    shirt's cloth (plaidMaterial). Every token with the trait wears this. */
-const REACH_1718 = 0.77;   // (the hand point on the Studio wrist: the posable hand starts there, kit.hand)   // tools/troll-ops-roblox-body.mjs --reach: the rig's hand point on the Studio palm
 const KITS = {
-  // #1718's legs and torso made in Roblox Studio (tools/troll-ops-roblox-body.mjs,
-  // rbx1718, arms and their hands included, shoulders on the torso), the rig
-  // fitted to it at 0.26 m a stud, drawn as Studio draws it (smooth, no line)
-  "clothes-tank-runner": { arms: "arms-rbx1718v3.glb", legs: "legs-rbx1718v3.glb", torso: "torso-rbx1718v3.glb",
-    fit: { reach: REACH_1718, shoulder: 0.138, shoulderZ: 0.035, build: 0.6, legs: 0.89 }, smooth: true, hand: { wrist: 0.49, cut: 0.465, size: 1.38 }, gunHold: { x: 0.18, y: -0.02, z: -0.07, roll: 0.02, blade: 0.35, under: 0, poleR: [1, -1.1, 0.2], poleL: [-1, -1.1, 0.1], stance: [0.05, 0.1, 0.012] },
-    headScale: 1.35, shoulderHold: 0.35,
+  "clothes-tank-runner": { arms: "arms-muscle.glb", legs: "legs-muscle.glb",
     colours: { shorts: 0x34363e, hem: 0x43464f, upper: 0x141416, sole: 0xdcdcd6 } },
   // Farmer: plaid long sleeves, denim overalls to the boots
   "clothes-farmer": { arms: "arms-farmer.glb", legs: "legs-farmer.glb",
@@ -270,22 +262,9 @@ function plaidMaterial() {
 }
 /* A painted piece's material: its own texture (a Roblox Studio body,
    tools/troll-ops-roblox-body.mjs, carries one per part), cel-shaded like
-   the cloth, one per texture. `smooth` (a kit's): lit smoothly instead, as
-   Roblox Studio shows it, no tone bands and no ink line (userData.noInk,
-   view/char-ink.js; user, 2026-10-20: "smooth shading like Studio",
-   "everything should be exact except the head"). */
-const paintedMats = new Map(), smoothMats = new Map();
-function paintedMaterial(map, alphaTest = 0, smooth = false) {
-  if (smooth) {
-    if (!smoothMats.has(map)) {
-      map.colorSpace = THREE.SRGBColorSpace;
-      map.anisotropy = 8;
-      const m = new THREE.MeshStandardMaterial({ map, roughness: 0.85, metalness: 0, alphaTest });
-      m.userData.shared = true;
-      smoothMats.set(map, m);
-    }
-    return smoothMats.get(map);
-  }
+   the cloth, one per texture. */
+const paintedMats = new Map();
+function paintedMaterial(map, alphaTest = 0) {
   if (!paintedMats.has(map)) {
     map.colorSpace = THREE.SRGBColorSpace;
     map.anisotropy = 8;
@@ -320,14 +299,14 @@ function badgePlaceholder() {
 }
 /* A kit's materials by piece name, up to a "-" ("sleeve-cap" is sleeve),
    shared within one body; a piece that brings its own texture wears it. */
-function kitMaterials(colours, smooth = false) {
+function kitMaterials(colours) {
   const mats = new Map();
   return (name, map) => {
-    if (map) return paintedMaterial(map, 0, smooth);
+    if (map) return paintedMaterial(map);
     const key = name.split("-")[0];
     if (!mats.has(key)) {
       const c = colours[key];
-      mats.set(key, c === "plaid" ? plaidMaterial() : smooth ? smoothColour(c ?? SKIN) : toon(c ?? SKIN));
+      mats.set(key, c === "plaid" ? plaidMaterial() : toon(c ?? SKIN));
     }
     return mats.get(key);
   };
@@ -352,19 +331,7 @@ export function fpArmLook(token) {
       return m;
     };
     const fp = kit.fp ?? kit.colours;
-    const look = { sleeve: mat(fp.sleeve), cuff: mat(fp.cuff), studio: null };
-    fpArmLooks.set(token, look);
-    // a smooth Studio body's own whole arms, for its first-person view
-    // (view/weapon-view.js placeBlockArms: in place of the block twins);
-    // `len` the shoulder-to-hand-point length they're built to (metres, scale 1)
-    // and, with kit.hand, each arm's own hand cut off (its geometry's group
-    // 1) for the posable hand (rig-hand.js) in its place
-    if (kit.smooth && kit.arms) loadPieces(glb(kit.arms)).then((pieces) => {
-      const by = Object.fromEntries(pieces.filter((p) => p.name.endsWith("__whole")).map((p) => [p.name[3], p]));
-      if (!by.L || !by.R) return;
-      const arm = (p) => ({ geo: kit.hand ? handCut(p.geo, -(kit.hand.cut ?? kit.hand.wrist)) : p.geo, mat: paintedMaterial(p.map, 0, true) });
-      look.studio = { L: arm(by.L), R: arm(by.R), len: Math.hypot(0.30 * (kit.fit?.build ?? 0.25), 0.62) * reachOf(kit), hand: kit.hand || null };
-    });
+    fpArmLooks.set(token, { sleeve: mat(fp.sleeve), cuff: mat(fp.cuff) });
   }
   return fpArmLooks.get(token);
 }
@@ -384,7 +351,7 @@ const HEAD_MODELS = {
   // capLift/capTilt: its cap sits that much higher (m) and tipped back (rad),
   // the brim up off the eyes like the NFT, the back still on the skull
   // (user, 2026-10-20)
-  1718: { file: "head-1718.glb", dome: 0.065, front: 0.085, back: 0.19, capLift: 0.03, capTilt: 0.06, capFwd: 0.035 },
+  1718: { file: "head-1718.glb", dome: 0.065, front: 0.085, back: 0.19, capLift: 0.03, capTilt: 0.15 },
 };
 /* An NFT face drawn on a shape of its own wears its own head (rig.nftFace,
    traits.js tokenFace; user, 2026-10-17: #989's drawing on the trollface
@@ -392,13 +359,6 @@ const HEAD_MODELS = {
 const FACE_HEADS = { gum: "989", relaxed: "1718" };
 const headModel = (rig) => HEAD_MODELS[FACE_HEADS[rig?.nftFace]] || HEAD_MODELS[HEAD.model] || HEAD_MODELS.relief;
 const ARM_BONES = { arm: 0.30, elbow: 0.325 };
-/* A kit's `fit`: the rig fitted to a Roblox Studio body at one scale
-   instead of the body squeezed onto the rig (user, 2026-10-20: the raw
-   Studio body "looks way better"): `reach` its arms' share of the rig's
-   (tools/troll-ops-roblox-body.mjs --reach, the same), `shoulder` the arms'
-   pivots out from the middle (metres), `build` the arms' hang out from the
-   body (reshapeRig's; the Studio arms hang 16 degrees out). */
-const reachOf = (kit) => kit?.fit?.reach || 1;
 const FIST_BACK = -0.058;   // the fist (0.125 long, down from the wrist) moved back up the forearm by half
 /* A Blender piece set: [{ name, geo, hull }], each with its ink shell (the
    piece pushed out along smooth normals, drawn inside out). Once per file. */
@@ -467,78 +427,9 @@ armInk.onBeforeCompile = (sh) => {
 // the same name is a muscle, skin (user, 2026-10-15: the runner's upper
 // arms showed black in the armpit, painted the shoe's colour by name)
 const SHOE_PARTS = ["upper", "sole"];
-// a piece's geometry made `t` as wide and deep (cached: shared by every rig)
-const slimCache = new WeakMap();
-function slimmed(geo, t) {
-  if (t === 1) return geo;
-  let byT = slimCache.get(geo);
-  if (!byT) slimCache.set(geo, (byT = new Map()));
-  if (!byT.has(t)) byT.set(t, geo.clone().applyMatrix4(new THREE.Matrix4().makeScale(t, 1, t)));
-  return byT.get(t);
-}
-/* A whole Studio limb (a kit's "__whole" pieces, tools/troll-ops-roblox-body.mjs
-   --whole) bent at its joints instead of cut into pieces at them: a
-   SkinnedMesh on the chain's joints, each vertex following the bone it
-   lies beside and blending over 7 cm at a joint, so an elbow or knee bends
-   as one surface (the cuts showed as ragged white bands once the ink and
-   the tone bands were off; user, 2026-10-20: "everything should be exact",
-   "his arms are snapped off"). The piece is in the first joint's frame
-   with its bone down -Y; the joints' rest places come from their positions
-   alone, whatever pose the rig is in, the bind matrix identity (the mesh's
-   own world matrix, attached, takes the rig's movement out). `anchor`: a
-   joint above the chain (the chest) that the limb's top end stays with:
-   the shoulder cap, blending in over the 7 cm above the pivot, so a
-   raised arm turns out of its shoulder instead of swinging the whole
-   shoulder off the chest (user, 2026-10-20: "the arm isnt attached to
-   the shoulder"). */
-const _down = new THREE.Vector3(0, -1, 0);
-function skinnedLimb(rig, chain, geo, material, smooth, name, anchor = null, HOLD = 0.5) {
-  const s = rig.scale, [j0, j1, j2] = chain;
-  const g = new THREE.Group();
-  g.quaternion.setFromUnitVectors(_down, j1.position.clone().normalize());
-  g.scale.setScalar(s);
-  j0.add(g);
-  const y1 = -j1.position.length() / s, y2 = j2 ? y1 - j2.position.length() / s : -Infinity;
-  const pos = geo.attributes.position, n = pos.count;
-  const idx = new Uint16Array(n * 4), w = new Float32Array(n * 4);
-  const BAND = 0.035;
-  const below = (y, at) => { const t = Math.min(1, Math.max(0, (at + BAND - y) / (2 * BAND))); return t * t * (3 - 2 * t); };
-  const CAP = [0.0, 0.05];   // metres about the pivot the anchor's hold ramps up over; HOLD how much (all of it stretched the upper arm thin, a kit's shoulderHold)
-  for (let i = 0; i < n; i++) {
-    const y = pos.getY(i), a = below(y, y1), b = j2 ? below(y, y2) : 0;
-    let c = anchor ? Math.min(1, Math.max(0, (y - CAP[0]) / (CAP[1] - CAP[0]))) : 0;
-    c = c * c * (3 - 2 * c) * HOLD;
-    idx.set([0, 1, 2, 3], i * 4);
-    w.set([(1 - a) * (1 - c), a * (1 - b), a * b, (1 - a) * c], i * 4);
-  }
-  const sg = geo.clone();
-  sg.setAttribute("skinIndex", new THREE.Uint16BufferAttribute(idx, 4));
-  sg.setAttribute("skinWeight", new THREE.Float32BufferAttribute(w, 4));
-  const mesh = new THREE.SkinnedMesh(sg, material);
-  mesh.castShadow = true;
-  mesh.name = name;
-  mesh.frustumCulled = false;
-  if (smooth) mesh.userData.noInk = true;
-  g.add(mesh);
-  // each joint's rest frame in g's: down the chain by position only
-  const rest = [new THREE.Matrix4().compose(new THREE.Vector3(), g.quaternion, g.scale).invert()];
-  for (const j of [j1, j2]) if (j) rest.push(rest[rest.length - 1].clone().multiply(new THREE.Matrix4().makeTranslation(j.position.x, j.position.y, j.position.z)));
-  const bones = chain.filter(Boolean);
-  if (anchor) {
-    // the anchor's rest frame in g's: back up the joints from the pivot to it
-    const up = rest[0].clone();
-    for (let j = j0; j && j !== anchor; j = j.parent) up.multiply(new THREE.Matrix4().makeTranslation(-j.position.x, -j.position.y, -j.position.z));
-    while (rest.length < 3) rest.push(rest[rest.length - 1].clone());
-    while (bones.length < 3) bones.push(bones[bones.length - 1]);
-    rest.push(up);
-    bones.push(anchor);
-  }
-  mesh.bind(new THREE.Skeleton(bones, rest.map((m) => m.invert())), new THREE.Matrix4());
-  return g;
-}
 function muscleArms(rig, kit) {
   const p = rig.parts, s = rig.scale;
-  const matOf = kitMaterials(Object.fromEntries(Object.entries(kit.colours).filter(([k]) => !SHOE_PARTS.includes(k))), kit.smooth);
+  const matOf = kitMaterials(Object.fromEntries(Object.entries(kit.colours).filter(([k]) => !SHOE_PARTS.includes(k))));
   return loadPieces(glb(kit.arms)).then((pieces) => {
     const added = [];
     for (const { name, geo, hull, map } of pieces) {
@@ -547,12 +438,6 @@ function muscleArms(rig, kit) {
       // (with the Roblox Studio body; user, 2026-10-17)
       if (kit.plainArms && (muscle === "bicep" || muscle === "tricep")) continue;
       const kind = jname.slice(0, -1), side = jname.slice(-1);
-      if (muscle === "whole") {
-        const hand = p[`wrist${side}`].parent;
-        const limb = skinnedLimb(rig, [p[`arm${side}`], p[`elbow${side}`], hand], kit.hand ? handCut(geo, -(kit.hand.cut ?? kit.hand.wrist)) : geo, matOf(muscle, map), kit.smooth, "forewhole", p.chest, kit.shoulderHold ?? 0.5);
-        added.push(limb, ...(kit.hand ? [rigHand(rig, side, hand.position, limb, kit)] : fistFingers(rig, side, hand.position, kit.smooth ? smoothColour(SKIN) : toon(SKIN), kit.smooth)));
-        continue;
-      }
       const joint = kind === "hand" ? p[`wrist${side}`].parent : p[`${kind}${side}`];
       // the bone this piece hangs along: to the joint's child (the hand
       // carries on along the forearm)
@@ -560,175 +445,22 @@ function muscleArms(rig, kit) {
         : p[`wrist${side}`].parent.position;
       const g = new THREE.Group();
       g.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), bone.clone().normalize());
-      const stretch = kind === "hand" ? 1 : bone.length() / (ARM_BONES[kind] * s * reachOf(kit));
+      const stretch = kind === "hand" ? 1 : bone.length() / (ARM_BONES[kind] * s);
       g.scale.set(s, s * stretch, s);
       // The fist is centred on the hand point, not hung below it: that point
       // is where the rig puts a gun's grip (and the support hand on the
       // handguard), so the gun runs through the fist instead of past it.
-      if (kind === "hand") g.position.copy(bone).normalize().multiplyScalar(FIST_BACK * s * reachOf(kit));
-      // `armThin`: the arm (not the fist) that much slimmer across, to sit
-      // with a lean Studio body (#1718; user, 2026-10-20); the geometry
-      // itself, so the ink shell keeps its width (scaled, it speckled)
-      const thin = kind === "hand" ? 1 : kit.armThin || 1;
-      const m = new THREE.Mesh(slimmed(geo, thin), matOf(muscle, map));
+      if (kind === "hand") g.position.copy(bone).normalize().multiplyScalar(FIST_BACK * s);
+      const m = new THREE.Mesh(geo, matOf(muscle, map));
       m.castShadow = true;
-      m.name = kind === "hand" ? "fist" : muscle;   // the gun hold test and the 1P twins look for the fist by name
-      g.add(m);
-      if (!kit.smooth) g.add(new THREE.Mesh(slimmed(hull, thin), armInk));
-      else m.userData.noInk = true;
+      m.name = muscle;
+      g.add(m, new THREE.Mesh(hull, armInk));
       joint.add(g);
       added.push(g);
-      if (kind === "hand") added.push(...fistFingers(rig, side, bone, m.material, kit.smooth));
+      if (kind === "hand") added.push(...fistFingers(rig, side, bone, m.material));
     }
     return added;
   });
-}
-
-/* A Studio body's own hands (kit.hand; user, 2026-10-21: "those hands
-   should be more developed, like the finger separation can be seen"): its
-   whole arm's lumpy hand cut off (handCut: the geometry's group 1, below
-   `wrist` metres down the arm, drawn with HIDDEN) and a posable hand
-   (rig-hand.js) in its place, `size` times the default. Each frame it
-   takes its pose from the stick hand's (setHandPose) and what the body
-   holds: on a gun the trigger hand (the finger in while firing) and the
-   support hand round the handguard, a melee's haft in a grip. */
-const HIDDEN = new THREE.MeshBasicMaterial({ visible: false });
-HIDDEN.userData.shared = true;
-/* `geo` (a limb down -Y) with its triangles in two groups: 0 above `y`,
-   1 (the hand) the rest. Cached: every rig and the first-person arms share it. */
-const handCuts = new Map();
-export function handCut(geo, y) {
-  const key = geo.uuid + y;
-  if (!handCuts.has(key)) {
-    const g = geo.clone(), pos = g.attributes.position, ix = g.index.array, arm = [], hand = [];
-    for (let i = 0; i < ix.length; i += 3) (pos.getY(ix[i]) > y && pos.getY(ix[i + 1]) > y && pos.getY(ix[i + 2]) > y ? arm : hand).push(ix[i], ix[i + 1], ix[i + 2]);
-    g.setIndex([...arm, ...hand]);
-    g.addGroup(0, arm.length, 0);
-    g.addGroup(arm.length, hand.length, 1);
-    g.userData.shared = true;
-    handCuts.set(key, g);
-  }
-  return handCuts.get(key);
-}
-/* A cut arm's materials: the arm drawn, its own hand not. The arm two-sided:
-   its open end at the cut shows its inside, skin, not black shards round
-   the posable hand's wrist. */
-const twoSided = new Map();
-export const handOff = (mat) => {
-  if (!twoSided.has(mat)) {
-    const m = mat.clone();
-    m.side = THREE.DoubleSide;
-    m.userData.shared = true;
-    twoSided.set(mat, m);
-  }
-  return [twoSided.get(mat), HIDDEN];
-};
-/* The stick hand's pose (character.js setHandPose) as the real hand's:
-   "fist" by what's held (the gun's trigger and support hands, a haft's
-   grip), any other name straight through (rig-hand.js rigPose: an emote
-   or a device names the pose it means). */
-export function handPoseFor(rig, side, stick) {
-  if (stick !== "fist") return rigPose(stick);
-  const held = rig.held;
-  if (held?.visible && held.parent === rig.parts.gunMount) {
-    if (side === "R") return (rig.fireK ?? 0) > 0.5 ? "fire" : "trigger";
-    return (rig.gripReload ?? 0) > 0 ? "pinch" : "cradle";   // the mag out and in, off the gun
-  }
-  return held?.visible ? "grip" : "fist";
-}
-/* On a gun the hand holds the gun itself, as a CoD viewmodel's does: it
-   hangs in the gun's frame (+X right, +Y up, +Z back to the butt), not the
-   wrist's, so the grip lies across the palm whatever the arm's IK made of
-   the wrist (measured, the grip ran 40 degrees through the palm). The
-   trigger hand: the grip from the index to the little finger, thumb on
-   top, the fingers round its front, the forearm back to the butt. The
-   support hand: under the handguard, the tube across the knuckles, the
-   thumb along its left, the fingers up its right. `basis`: the hand's
-   frame axes in the gun's; `curl`: where the held thing sits in the
-   hand's frame (metres at size 1: in the fingers' curl). */
-const ON_GUN = {
-  R: { at: "gripPos", basis: [[1, 0, 0], [0, 0, 1], [0, -1, 0]], curl: [-0.028, -0.105, 0] },
-  L: { at: "supportHandPos", basis: [[0, 1, 0], [-1, 0, 0], [0, 0, 1]], curl: [0.03, -0.075, 0], drop: 0.06 },   // (the support point is on the rail's top: the tube is under it)
-};
-const _gm = new THREE.Matrix4(), _gv = new THREE.Vector3(), _gw = new THREE.Vector3();
-/* Where the hand's wrist is on the gun (gun space, from its grip point), a
-   hand `k` metres big: the arm's IK reaches there (rig.gunHold gripOff,
-   supportOff: character.js), so the forearm ends where the hand begins. */
-export function wristOnGun(side, k) {
-  const on = ON_GUN[side], [X, Y, Z] = on.basis.map((v) => new THREE.Vector3(...v));
-  const c = new THREE.Vector3(...on.curl).multiplyScalar(k);
-  const v = new THREE.Vector3().addScaledVector(X, -c.x).addScaledVector(Y, -c.y).addScaledVector(Z, -c.z);
-  v.y -= on.drop || 0;
-  return v.toArray();
-}
-export function holdGun(hand, side, held, worldSize) {
-  const on = ON_GUN[side], pt = held.userData[on.at];
-  if (!pt) return false;
-  const [X, Y, Z] = on.basis.map((v) => new THREE.Vector3(...v));
-  hand.mesh.quaternion.setFromRotationMatrix(_gm.makeBasis(X, Y, Z));
-  // the held point in the curl: the wrist back from it along the hand's axes
-  const k = worldSize / held.matrixWorld.getMaxScaleOnAxis();
-  _gv.set(...on.curl).multiplyScalar(k);   // (the hand's own units, scaled)
-  hand.mesh.position.copy(pt);
-  hand.mesh.position.y -= on.drop || 0;
-  hand.mesh.position.sub(_gw.set(0, 0, 0).addScaledVector(X, _gv.x).addScaledVector(Y, _gv.y).addScaledVector(Z, _gv.z));
-  hand.mesh.scale.set(side === "L" ? -k : k, k, k);
-  hand.mesh.userData.onGun = hand.mesh.position.clone();
-  held.add(hand.mesh);
-  return true;
-}
-function rigHand(rig, side, bone, limb, kit) {
-  const arm = limb.children[0], h = rig.hands[side];
-  arm.material = handOff(arm.material);
-  // the hand's wrist on the arm's: `wrist` down the arm, above the hand
-  // point (the rig's: the shoulder to the elbow to the hand, metres at scale 1)
-  const r = rig.blockyReach || 1;
-  const handAt = (rig.parts[`elbow${side}`].position.length() + bone.length()) / rig.scale;
-  const f = new THREE.Group();
-  f.matrixAutoUpdate = false;
-  f.matrix.copy(fistFrame(rig, side, bone)(h.turn));
-  const hand = makeHand(side, kit.hand.size / r);
-  hand.mesh.position.y = FIST_BACK + (handAt - kit.hand.wrist) / r;
-  // the palm toward the grip: the grip (on the hand point) in the curl of the fingers
-  hand.mesh.position.x = (side === "R" ? 1 : -1) * 0.008 * kit.hand.size / r;
-  hand.mesh.userData.noInk = true;
-  hand.setPose(handPoseFor(rig, side, h.pose), true);
-  const home = { p: hand.mesh.position.clone(), s: hand.mesh.scale.clone() };
-  let last = 0, worldSize = 0;
-  // run from the arm as well as the hand: a hand left on a gun that's been
-  // put away (an emote, a streak device) never draws, so from its own hook
-  // it never came back to the wrist and the arm ended in its cut (the
-  // third-person emotes, live until -ht1)
-  const sync = () => {
-    const now = performance.now(), dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
-    last = now;
-    const pose = handPoseFor(rig, side, h.pose);
-    hand.setPose(pose);
-    if (dt) hand.update(dt);
-    // onto the gun, or back to the wrist (takes hold from the next frame)
-    const gun = (pose === "trigger" || pose === "fire" || pose === "cradle") ? rig.held : null;
-    if (gun && hand.mesh.parent !== gun) {
-      if (hand.mesh.parent === f) worldSize = hand.mesh.matrixWorld.getMaxScaleOnAxis();
-      if (worldSize && !holdGun(hand, side, gun, worldSize)) f.add(hand.mesh);
-    } else if (gun && side === "L" && rig.supportShort) {
-      // past the arm's reach the support hand slides back along the handguard
-      // to meet it (character.js rig.supportShort, gun space)
-      hand.mesh.position.copy(hand.mesh.userData.onGun).add(rig.supportShort);
-    } else if (!gun && hand.mesh.parent !== f) {
-      hand.mesh.position.copy(home.p);
-      hand.mesh.quaternion.identity();
-      hand.mesh.scale.copy(home.s);
-      f.add(hand.mesh);
-    }
-  };
-  hand.mesh.onBeforeRender = sync;
-  const armHook = arm.onBeforeRender;
-  arm.onBeforeRender = function (...a) { armHook.apply(this, a); sync(); };
-  f.add(hand.mesh);
-  // a hand left on the gun goes with the body
-  f.userData.undo = () => hand.mesh.parent?.remove(hand.mesh);
-  h.turn.add(f);
-  return f;
 }
 
 /* Fingers the block fist doesn't have: the middle finger (emotes.js
@@ -751,59 +483,49 @@ const FIST_FINGERS = {
     { at: [-0.014, -0.045, -(0.061 + 0.11 / 2 - FINGER.sink)], along: "z", len: 0.11 },
   ],
 };
-const fingerGeo = new Map();   // by length and width
-/* The fist's frame (as muscleArms hangs it on the hand point) in the frame
-   of one of the stick hand's pose meshes, taken with the wrist at rest (the
-   wrist twists whatever hangs there with it after). */
-function fistFrame(rig, side, bone) {
-  const s = rig.scale * (rig.blockyReach || 1);
+const fingerGeo = new Map();   // by length
+function fistFingers(rig, side, bone, mat) {
+  const block = (len) => {
+    if (!fingerGeo.has(len)) {
+      const geo = new THREE.BoxGeometry(FINGER.w, len, FINGER.w);
+      const hull = mergeVertices(new THREE.BufferGeometry().setAttribute("position", geo.attributes.position.clone()).setIndex(geo.index.clone()), 1e-4);
+      hull.computeVertexNormals();
+      geo.userData.shared = hull.userData.shared = true;
+      fingerGeo.set(len, { geo, hull });
+    }
+    return fingerGeo.get(len);
+  };
+  const s = rig.scale, sx = side === "L" ? -1 : 1;
   const wrist = rig.parts[`wrist${side}`], hand = wrist.parent;
+  // the fist's frame in the hand point's (as muscleArms hangs it)
   const dir = bone.clone().normalize();
   const fistM = new THREE.Matrix4().compose(dir.clone().multiplyScalar(FIST_BACK * s),
     new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir), new THREE.Vector3(s, s, s));
-  return (mesh) => {
+  const toZ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+  const out = [];
+  for (const [pose, blocks] of Object.entries(FIST_FINGERS)) {
+    const mesh = rig.hands[side][pose];
+    if (!mesh) continue;
+    // the fist's frame in this mesh's, the wrist at rest (it twists the
+    // fingers with it after)
     const q = wrist.quaternion.clone();
     wrist.quaternion.identity();
     hand.updateMatrixWorld(true);
     const rel = new THREE.Matrix4().copy(hand.matrixWorld).invert().multiply(mesh.matrixWorld);
     wrist.quaternion.copy(q);
     hand.updateMatrixWorld(true);
-    return rel.invert().multiply(fistM);
-  };
-}
-function fistFingers(rig, side, bone, mat, smooth = false) {
-  const block = (len, w = FINGER.w) => {
-    const key = `${len}:${w}`;
-    if (!fingerGeo.has(key)) {
-      const geo = new THREE.BoxGeometry(w, len, w);
-      const hull = mergeVertices(new THREE.BufferGeometry().setAttribute("position", geo.attributes.position.clone()).setIndex(geo.index.clone()), 1e-4);
-      hull.computeVertexNormals();
-      geo.userData.shared = hull.userData.shared = true;
-      fingerGeo.set(key, { geo, hull });
-    }
-    return fingerGeo.get(key);
-  };
-  const sx = side === "L" ? -1 : 1;
-  const frame = fistFrame(rig, side, bone);
-  const toZ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-  const out = [];
-  for (const [pose, blocks] of Object.entries(FIST_FINGERS)) {
-    const mesh = rig.hands[side][pose];
-    if (!mesh) continue;
-    const base = frame(mesh);
+    const base = rel.invert().multiply(fistM);
     const f = new THREE.Group();
     f.matrixAutoUpdate = false;
     f.matrix.copy(base);
     for (const b of blocks) {
-      const { geo, hull } = block(b.len || FINGER.len, b.w);
+      const { geo, hull } = block(b.len || FINGER.len);
       const piece = new THREE.Group();
       piece.position.set(b.at[0] * sx, b.at[1], b.at[2]);
       if (b.along === "z") piece.quaternion.copy(toZ);
       const m = new THREE.Mesh(geo, mat);
       m.castShadow = true;
-      piece.add(m);
-      if (!smooth) piece.add(new THREE.Mesh(hull, armInk));
-      else m.userData.noInk = true;
+      piece.add(m, new THREE.Mesh(hull, armInk));
       f.add(piece);
     }
     mesh.add(f);
@@ -820,12 +542,11 @@ function fistFingers(rig, side, bone, mat, smooth = false) {
 const LEG_BONES = { thigh: 0.30, knee: 0.295 };
 function muscleLegs(rig, kit) {
   const p = rig.parts, s = rig.scale;
-  const matOf = kitMaterials(kit.colours, kit.smooth);
+  const matOf = kitMaterials(kit.colours);
   return loadPieces(glb(kit.legs)).then((pieces) => pieces.map(({ name, geo, hull, map }) => {
     const [jname, part] = name.split("__");
     const kind = jname.slice(0, -1), side = jname.slice(-1);
     const knee = p[`knee${side}`], ankle = p[`ankle${side}`];
-    if (part === "whole") return skinnedLimb(rig, [knee.parent, knee, ankle], geo, matOf(part, map), kit.smooth, "thighwhole");
     const joint = { thigh: knee.parent, knee, ankle }[kind];
     const g = new THREE.Group();
     const bone = { thigh: knee.position, knee: ankle.position }[kind];
@@ -836,9 +557,7 @@ function muscleLegs(rig, kit) {
     const m = new THREE.Mesh(geo, matOf(part, map));
     m.castShadow = true;
     m.name = part;
-    g.add(m);
-    if (!kit.smooth) g.add(new THREE.Mesh(hull, armInk));
-    else m.userData.noInk = true;
+    g.add(m, new THREE.Mesh(hull, armInk));
     joint.add(g);
     return g;
   }));
@@ -1670,7 +1389,6 @@ function reliefHead(rig) {
           if (HEAD.mirror) cap.scale.x *= -1;
           cap.position.y += (M.capLift || 0) * s;
           cap.rotation.x += M.capTilt || 0;
-          cap.position.z -= (M.capFwd || 0) * s;   // (capFwd: brought forward, m; user, 2026-10-20: "a bit more frontward")
           cap.userData.inkOwn = true;   // its own outline, not the face's (view/char-ink.js)
           p.headPivot.add(cap);
           grp.visible = false;
@@ -1736,45 +1454,6 @@ function reliefHead(rig) {
   });
 }
 
-/* A whole Studio torso ("chest__whole") bent at the waist: a SkinnedMesh on
-   the chest joint and the hips, each vertex following the chest above the
-   waist and the hips below it, blending between. Rigid on the chest, the
-   tank turned with the chest as the body bladed into a gun while the
-   shorts stayed with the hips, and its hem pinched and showed the
-   waistband (user, 2026-10-21: "the tanktop is messed up"). */
-function skinnedTorso(rig, geo, material) {
-  const p = rig.parts, s = rig.scale;
-  const g = new THREE.Group();
-  g.scale.setScalar(s);
-  p.chest.add(g);
-  // the hips' joint in the chest's frame at rest, by the joints' positions alone
-  const off = new THREE.Vector3();
-  for (let j = p.chest; j && j !== p.hips; j = j.parent) off.sub(j.position);
-  const yh = off.y / s;   // the hips, metres below the chest at scale 1
-  const pos = geo.attributes.position, n = pos.count;
-  const idx = new Uint16Array(n * 4), w = new Float32Array(n * 4);
-  for (let i = 0; i < n; i++) {
-    // the hips' share: none above 30% of the way down to them, all past 75%
-    let t = Math.min(1, Math.max(0, (pos.getY(i) / yh - 0.3) / 0.45));
-    t = t * t * (3 - 2 * t);
-    idx.set([0, 1, 0, 0], i * 4);
-    w.set([1 - t, t, 0, 0], i * 4);
-  }
-  const sg = geo.clone();
-  sg.setAttribute("skinIndex", new THREE.Uint16BufferAttribute(idx, 4));
-  sg.setAttribute("skinWeight", new THREE.Float32BufferAttribute(w, 4));
-  const mesh = new THREE.SkinnedMesh(sg, material);
-  mesh.castShadow = true;
-  mesh.frustumCulled = false;
-  mesh.userData.noInk = true;
-  mesh.name = "whole";
-  g.add(mesh);
-  const rest = [new THREE.Matrix4().makeScale(s, s, s).invert()];
-  rest.push(rest[0].clone().multiply(new THREE.Matrix4().makeTranslation(off.x, off.y, off.z)));
-  mesh.bind(new THREE.Skeleton([p.chest, p.hips], rest.map((m) => m.invert())), new THREE.Matrix4());
-  return g;
-}
-
 /* The muscular torso (models/build_blocky_torso.blender.py -> blocky/torso-muscle.glb):
    "chest__*" pieces on the chest joint, "torso__*" on the torso joint (it
    pivots at the hips), each UV-mapped onto the garment's block template, so
@@ -1783,13 +1462,10 @@ function muscleTorso(rig, garment) {
   const p = rig.parts, s = rig.scale;
   // a kit with its own painted torso (a Roblox Studio body) wears that
   if (KITS[garment]?.torso) return loadPieces(glb(KITS[garment].torso)).then((pieces) => pieces.map(({ name, geo, hull, map, alphaTest }) => {
-    // (the print on it too, or it slid off the tank as the body turned)
-    if ((name === "chest__whole" || name === "chest__print") && KITS[garment].smooth) return skinnedTorso(rig, geo, paintedMaterial(map, alphaTest, true));
     const g = new THREE.Group();
     g.scale.setScalar(s);
     const badge = name.split("__")[1]?.startsWith("badge");
-    const smooth = KITS[garment].smooth;
-    const m = new THREE.Mesh(geo, map ? paintedMaterial(badge ? badgePlaceholder() : map, alphaTest, smooth) : toon(SKIN));
+    const m = new THREE.Mesh(geo, map ? paintedMaterial(badge ? badgePlaceholder() : map, alphaTest) : toon(SKIN));
     if (badge) {
       m.userData.placeholder = "trollface badge";
       // the front disc came out smaller than the texture's own logo under
@@ -1806,8 +1482,7 @@ function muscleTorso(rig, garment) {
     m.name = name.split("__")[1];
     // a decal (the badges) lies on the torso: no ink shell of its own
     g.add(m);
-    if (!alphaTest && !smooth) g.add(new THREE.Mesh(hull, armInk));
-    if (smooth) m.userData.noInk = true;
+    if (!alphaTest) g.add(new THREE.Mesh(hull, armInk));
     p[name.split("__")[0]].add(g);
     return g;
   }));
@@ -1857,16 +1532,14 @@ export function applyBlocky(rig, look = {}) {
   const pivotY = p.headPivot.position.y;
   const hit = rig.hitboxMeshes?.[0], hitWas = hit && [hit.position.y, hit.scale.x];
   if (boardHead) {
-    // (kit.headScale: the head that much bigger, #1718's render; user, 2026-10-21)
-    const hs = HEAD.scale * (kit.headScale || 1);
-    p.headPivot.scale.set(HEAD.mirror ? -hs : hs, hs, hs);
+    p.headPivot.scale.set(HEAD.mirror ? -HEAD.scale : HEAD.scale, HEAD.scale, HEAD.scale);
     // (kit.headLift: the head held up off a torso that reaches the chin,
     // the Roblox Studio body's; user, 2026-10-17)
     p.headPivot.position.y = (HIT_LOOK.y + HEAD.neck + (kit.headLift || 0)) * s;
     // the hit sphere (a child of the head pivot) kept at its old place and size
     if (hit) {
-      hit.scale.setScalar(HIT_LOOK.scale / hs);
-      hit.position.y = (HIT_LOOK.y * s + HIT_LOOK.scale * hitWas[0] - p.headPivot.position.y) / hs;
+      hit.scale.setScalar(HIT_LOOK.scale / HEAD.scale);
+      hit.position.y = (HIT_LOOK.y * s + HIT_LOOK.scale * hitWas[0] - p.headPivot.position.y) / HEAD.scale;
     }
   }
   for (const o of hide) o.visible = false;
@@ -1875,18 +1548,13 @@ export function applyBlocky(rig, look = {}) {
   // the torso's width and its full depth, side by side under it and
   // touching, an ink edge between them (from the stick's one hip point the
   // two blocks overlapped and read as one).
-  setClothed(rig, kit.fit?.shoulder ?? B.torso.w / 2 + B.arm / 2);
-  // (fit.shoulderZ: the arms' pivots brought forward, m; user, 2026-10-20: "the shoulders are retracted back a bit")
-  p.armL.position.z = p.armR.position.z = -(kit.fit?.shoulderZ || 0) * s;
+  setClothed(rig, B.torso.w / 2 + B.arm / 2);
   setHips(rig, B.torso.w / 4);
   // The gun hold (character.js _gripSupport): the stock in the right
   // shoulder pocket, out at the edge of the broad chest and in front of the
   // pecs (the stick's pocket, scaled by its build, landed in the middle of
   // this chest and buried the gun), the gun drawn bigger for the body.
-  // (a kit's `gunHold` over it: a Studio body's shorter reach holds the gun closer)
-  rig.gunHold = kit.gunHold ? { ...GUN_HOLD, ...kit.gunHold } : GUN_HOLD;
-  // a body's own hands on the gun: the arms reach the hands' wrists
-  if (kit.hand && kit.gunHold) Object.assign(rig.gunHold, { gripOff: wristOnGun("R", kit.hand.size * s), supportOff: wristOnGun("L", kit.hand.size * s) });
+  rig.gunHold = GUN_HOLD;
   // one rigid torso: its halves never twist against each other (character.js)
   rig.rigidTorso = true;
 
@@ -1985,7 +1653,6 @@ export function applyBlocky(rig, look = {}) {
     p.headPivot.position.y = pivotY;
     if (hit) { hit.position.y = hitWas[0]; hit.scale.setScalar(hitWas[1]); }
     setClothed(rig, 0);
-    p.armL.position.z = p.armR.position.z = 0;
     setHips(rig, 0);
     delete rig.gunHold;
     delete rig.rigidTorso;
@@ -2056,13 +1723,7 @@ export function wearBlocky(rig, token) {
   }
   const head = rig.parts.head;
   const side = head.material.side;
-  const reach = reachOf(tokenLook(token)?.kit);
-  const fit = tokenLook(token)?.kit.fit;
-  const unshape = reshapeRig(rig, { build: fit?.build ?? 0.25, legs: fit?.legs ?? 0.67, reach });
-  rig.blockyReach = reach;
-  // its own hands: reachHand puts their palms on its targets (character.js)
-  const handKit = tokenLook(token)?.kit.hand;
-  rig.palmReach = handKit ? PALM_Y * handKit.size * rig.scale : 0;
+  const unshape = reshapeRig(rig, { build: 0.25, legs: 0.67 });
   let restore = null, gone = false;
   const b = (rig.blocky = {
     token,
@@ -2078,8 +1739,6 @@ export function wearBlocky(rig, token) {
       rig.nftFace = null;
       setFace(rig);
       unshape();
-      rig.blockyReach = 1;
-      rig.palmReach = 0;
     },
   });
   // the NFT's own face, if its facial is one (traits.js tokenFace)
