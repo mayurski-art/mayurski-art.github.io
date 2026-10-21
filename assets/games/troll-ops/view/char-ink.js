@@ -48,6 +48,8 @@ function tagRig(rig) {
   rig.inkGroups ||= new Map();
   rig.root.traverse((o) => {
     if (!o.isMesh || o.layers.mask === 0) return;   // (the hidden stick hands: off every layer)
+    // a Roblox Studio body drawn as Studio draws it (blocky-body.js kit.smooth): no line
+    if (o.userData.noInk) return;
     if (Array.isArray(o.material) ? o.material.some(skipMat) : skipMat(o.material)) return;
     let g = o;
     while (g.parent && g.parent !== rig.root && !joints.has(g.parent)) g = g.parent;

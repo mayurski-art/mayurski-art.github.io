@@ -842,8 +842,10 @@ export function buildHumanoid(material, { height = 1.8, build = 1, gun = true, f
    the arm and leg joints, the lengths the poses read, and the bone hit
    capsules laid along the new bones (their thickness kept). For a body
    cosmetic worn on a live rig (blocky-body.js wearBlocky), so the game's
-   rig isn't rebuilt. Returns a function that puts it all back. */
-export function reshapeRig(rig, { build = 1, legs = 1 } = {}) {
+   rig isn't rebuilt. `reach`: the arms that much of their length (a
+   Roblox Studio body's own arms, kept at its scale). Returns a function
+   that puts it all back. */
+export function reshapeRig(rig, { build = 1, legs = 1, reach = 1 } = {}) {
   const p = rig.parts, s = rig.scale;
   const keys = ["build", "legScale", "hipY", "thigh", "shin", "limbRadius", "upperArm", "foreArm"];
   const saved = Object.fromEntries(keys.map((k) => [k, rig[k]]));
@@ -853,7 +855,7 @@ export function reshapeRig(rig, { build = 1, legs = 1 } = {}) {
   const hb = rig.hitboxMeshes;
   const hbSaved = hb.map((m) => [m.position.clone(), m.quaternion.clone(), m.scale.clone()]);
 
-  const ARM = new THREE.Vector3(0.30 * s * build, -0.62 * s, 0);
+  const ARM = new THREE.Vector3(0.30 * s * build, -0.62 * s, 0).multiplyScalar(reach);
   for (const side of [-1, 1]) {
     const k = side < 0 ? "L" : "R";
     p[`elbow${k}`].position.set(side * ARM.x * 0.48, ARM.y * 0.48, 0);

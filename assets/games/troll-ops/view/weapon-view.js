@@ -1,16 +1,16 @@
 // The gun in your hands each frame: sway, bob, landing dip, ADS, inspect,
 // reloads (mags, shells, pumps), the rod arms, the Soul Blazer and the laser.
 
-import { currentWeapon, swapRaise } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2";
+import { currentWeapon, swapRaise } from "../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4";
 import { AKIMBO_INSPECT_TIME } from "../weapons/akimbo-view.js?v=ak1-wst-or1";
 import * as THREE from "three";
 import { rise, smoothstep, damp } from "../characters/anim-curves.js?v=or1";
 import { handMaterials, inkOutline } from "../weapons/hand-model.js?v=to-grip2-or1";
 import { wristOf, buildWatch, buildWristband } from "../characters/wristwear.js?v=ww1c2m1-or1";
 import { clubWear } from "../modes/club-wear.js?v=cw1c2m1";
-import { ownBody, fpArmLook } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2";
-import { bodyToken } from "../characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1-em2-nb2-pc2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1";
-import { cosmetics } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cu1-rb2";
+import { ownBody, fpArmLook } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4";
+import { bodyToken } from "../characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1-em2-nb2-pc2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4";
+import { cosmetics } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4";
 import { soulBlazerReloadPose, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth, updateSoulBlazerView, soulBlazerInspect, SB_INSPECT_CUES } from "../weapons/soul-blazer.js?v=sb1-or1";
 import { placePistolSlide } from "./pistol-action.js?v=ps1-wb1-br1-or1";
 import { placeBolt } from "./rifle-action.js?v=ra1-wb1-or1";
@@ -488,7 +488,7 @@ const blockMat = new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.
 /* A block forearm and fist for each rod, parented beside it. */
 function blockTwins(rods, parent) {
   const mat = blockMat;
-  return rods.map((rod) => {
+  return rods.map((rod, i) => {
     const g = new THREE.BoxGeometry(BLOCK_ARM, 1, BLOCK_ARM);
     g.translate(0, 0.5, 0);
     const arm = new THREE.Mesh(g, mat);
@@ -504,8 +504,28 @@ function blockTwins(rods, parent) {
       m.traverse((o) => { o.frustumCulled = false; });
       parent.add(m);
     }
-    return { rod, arm, fist, cuff };
+    return { rod, arm, fist, cuff, side: i ? "L" : "R", studio: null };
   });
+}
+/* A smooth Studio body (blocky-body.js kit.smooth, fpArmLook().studio) wears
+   its own whole arm over each rod instead of the block twin: the arm's
+   bone turned up the rod at its own size, slid up it so its palm sits on
+   the rod's tip, where the grip or the guard is (stretched to the rod,
+   which starts off screen, it came out 1.8x and the hands were blobs:
+   user, 2026-10-20, "no clear distinction of each hand"). */
+const STUDIO_FLIP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
+const STUDIO_TURN = 0.0;   // radians round the arm, as BLOCK_TURN
+function studioArm(b, studio, token) {
+  if (b.studio?.userData.token !== token) {
+    b.studio?.parent?.remove(b.studio);
+    const s = studio[b.side];
+    b.studio = new THREE.Mesh(s.geo, s.mat);
+    b.studio.userData.token = token;
+    b.studio.frustumCulled = false;
+    b.studio.renderOrder = -1;
+    b.arm.parent.add(b.studio);
+  }
+  return b.studio;
 }
 const blockArms = blockTwins(pfArms.userData.rods, pfArms);
 let streakBlocks = null;   // the emote / streak-device arms', made on first use
@@ -529,6 +549,9 @@ export function placeBlockArms() {
     const show = on && b.rod.visible;
     b.arm.visible = b.fist.visible = show;
     b.cuff.visible = show && !!look.cuff;
+    const studio = on && look.studio;
+    if (studio) { b.arm.visible = b.fist.visible = b.cuff.visible = false; studioArm(b, studio, token).visible = show; }
+    else if (b.studio) b.studio.visible = false;
     if (!show) continue;
     b.arm.material = look.sleeve || blockMat;
     if (look.cuff) b.cuff.material = look.cuff;
@@ -540,6 +563,12 @@ export function placeBlockArms() {
     _baZ.set(0, 0, 1).applyQuaternion(b.rod.quaternion);
     _baN.set(0, 0, 1).addScaledVector(_baUp, -_baUp.z).normalize();
     const twist = Math.atan2(_baZ.clone().cross(_baN).dot(_baUp), _baZ.dot(_baN)) + BLOCK_TURN;
+    if (studio) {
+      b.studio.position.copy(b.rod.position).addScaledVector(_baUp, len - studio.len);
+      b.studio.quaternion.copy(_baQ.setFromAxisAngle(_baUp, twist - BLOCK_TURN + STUDIO_TURN)).multiply(b.rod.quaternion).multiply(STUDIO_FLIP);
+      b.studio.scale.setScalar(1);
+      continue;
+    }
     b.arm.quaternion.copy(_baQ.setFromAxisAngle(_baUp, twist)).multiply(b.rod.quaternion);
     b.arm.scale.set(1, Math.max(0.001, len - BLOCK_FIST * 0.45), 1);
     b.fist.position.copy(b.rod.position).addScaledVector(_baUp, len);

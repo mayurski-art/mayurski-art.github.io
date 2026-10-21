@@ -18,7 +18,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { clampInsidePolygon } from "../maps/edge.js?v=or1";
-import { Squadron, PLANES } from "./royale-planes.js?v=pl1-pl2-pi1-sr1-fl1-or1-dc2-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1";
+import { Squadron, PLANES } from "./royale-planes.js?v=pl1-pl2-pi1-sr1-fl1-or1-dc2-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-rb4";
 
 export const DROP = {
   enabled: true,        // tests switch it off to start on the ground, as before
