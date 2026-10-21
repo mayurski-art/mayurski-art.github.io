@@ -297,6 +297,7 @@ const imgCache = new Map();
 function garmentPixels(file) {
   if (!imgCache.has(file)) imgCache.set(file, new Promise((done) => {
     const img = new Image();
+    img.crossOrigin = "anonymous";
     img.onload = () => {
       const c = document.createElement("canvas");
       c.width = img.width; c.height = img.height;

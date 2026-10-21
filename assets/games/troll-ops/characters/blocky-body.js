@@ -17,7 +17,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1";
-import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1-gt1-fg2-bd1-mj1-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-sf1";
+import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1-gt1-fg2-bd1-mj1-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-sf1-hl1";
 import { addRim } from "../view/rim-light.js?v=sr1";
 import { tagInk, untagInk } from "../view/char-ink.js?v=ci1-ci2-ci3-ci4-ci5-rb4-rb5";
 
@@ -134,6 +134,7 @@ function croppedTexture(file, [x0, y0, x1, y1], frameW, frameH, ground = "#f3f3e
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 8;
   const img = new Image();
+  img.crossOrigin = "anonymous";
   img.onload = () => { g.drawImage(img, x0 * img.width / frameW, y0 * img.height / frameH, (x1 - x0) * img.width / frameW, (y1 - y0) * img.height / frameH, 0, 0, c.width, c.height); t.needsUpdate = true; };
   img.src = file;
   return t;
@@ -644,8 +645,10 @@ const brimDepth = (x, s, d) => d * s * Math.sqrt(Math.max(0, 1 - (x / (CAP.a * s
    the bent back drawing (the back drawn over the cap's own black, so the
    whole silhouette is cap), walled round in that black. Built in the head
    pivot's frame from the hat's two drawings; the flat planes are hidden. */
+// (crossOrigin as three's TextureLoader asks: the same art then comes from
+// the cache instead of a second download, seconds on a phone)
 function loadImage(url) {
-  return new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = url; });
+  return new Promise((ok, no) => { const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => ok(i); i.onerror = no; i.src = url; });
 }
 /* The wizard's hat (#33, HATS model "wizard"), built as a real hat rather
    than its drawing pushed out: pushed out, the cone was a thin fin from the
@@ -1849,6 +1852,26 @@ export const DESIGN = { KITS, HAIRS, HATS, CAP, SHELLS, HEAD_MODELS, HEAD, TOKEN
 /* The body your own troll should wear: set from the Cosmetics pick
    (menu/lobby.js), worn by view/third-person.js every frame. */
 export const ownBody = { want: "" };
+/* Start token's body pieces downloading at once: applyBlocky asks for them
+   only once the traits' art is on, so on a phone the head (the biggest,
+   half a megabyte) landed seconds after everything else. */
+function prefetchPieces(rig, token) {
+  const look = tokenLook(token);
+  if (!look) return;
+  const kit = KITS[look.garment] || KITS["clothes-tank-runner"];
+  const urls = [glb(headModel(rig).file), kit.torso ? glb(kit.torso) : TORSO_GLB];
+  if (kit.legs) urls.push(glb(kit.legs));
+  for (const id of tokenTraits(token) || []) if (HAIRS[id]) urls.push(glb(HAIRS[id].file));
+  for (const u of urls) loadPieces(u).catch(() => {});
+}
+
+/* The same, with no rig yet: the page's first moments, for the body you
+   wore last (menu/lobby.js), so it's in by the time your sign-in says you
+   may wear it. */
+export function prefetchBody(token) {
+  if (tokenLook(token)) prefetchPieces({ nftFace: tokenFace(token) }, +token);
+}
+
 export function wearBlocky(rig, token) {
   token = tokenLook(token) ? +token : 0;
   if ((rig.blocky?.token || 0) === token) return rig.blocky?.ready ?? Promise.resolve();
@@ -1881,6 +1904,7 @@ export function wearBlocky(rig, token) {
   // the NFT's own face, if its facial is one (traits.js tokenFace)
   rig.nftFace = tokenFace(token);
   setFace(rig);
+  prefetchPieces(rig, token);
   b.ready = applyToken(rig, token, { headOnly: true }).then(() => {
     if (gone) return;
     // skullBack turned the board's (possibly shared) face material one-sided
