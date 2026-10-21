@@ -194,7 +194,9 @@ const TORSO_GLB = glb("torso-muscle.glb");
    colour per piece name; a piece with no colour is skin, "plaid" the
    shirt's cloth (plaidMaterial). Every token with the trait wears this. */
 const KITS = {
-  "clothes-tank-runner": { arms: "arms-muscle.glb", legs: "legs-muscle.glb",
+  // #1718's legs and torso made in Roblox Studio (tools/troll-ops-roblox-body.mjs,
+  // rbx1718), the muscle arms slimmed to sit with it
+  "clothes-tank-runner": { arms: "arms-muscle.glb", legs: "legs-rbx1718.glb", torso: "torso-rbx1718.glb", armThin: 0.72,
     colours: { shorts: 0x34363e, hem: 0x43464f, upper: 0x141416, sole: 0xdcdcd6 } },
   // Farmer: plaid long sleeves, denim overalls to the boots
   "clothes-farmer": { arms: "arms-farmer.glb", legs: "legs-farmer.glb",
@@ -427,6 +429,15 @@ armInk.onBeforeCompile = (sh) => {
 // the same name is a muscle, skin (user, 2026-10-15: the runner's upper
 // arms showed black in the armpit, painted the shoe's colour by name)
 const SHOE_PARTS = ["upper", "sole"];
+// a piece's geometry made `t` as wide and deep (cached: shared by every rig)
+const slimCache = new WeakMap();
+function slimmed(geo, t) {
+  if (t === 1) return geo;
+  let byT = slimCache.get(geo);
+  if (!byT) slimCache.set(geo, (byT = new Map()));
+  if (!byT.has(t)) byT.set(t, geo.clone().applyMatrix4(new THREE.Matrix4().makeScale(t, 1, t)));
+  return byT.get(t);
+}
 function muscleArms(rig, kit) {
   const p = rig.parts, s = rig.scale;
   const matOf = kitMaterials(Object.fromEntries(Object.entries(kit.colours).filter(([k]) => !SHOE_PARTS.includes(k))));
@@ -451,10 +462,14 @@ function muscleArms(rig, kit) {
       // is where the rig puts a gun's grip (and the support hand on the
       // handguard), so the gun runs through the fist instead of past it.
       if (kind === "hand") g.position.copy(bone).normalize().multiplyScalar(FIST_BACK * s);
-      const m = new THREE.Mesh(geo, matOf(muscle, map));
+      // `armThin`: the arm (not the fist) that much slimmer across, to sit
+      // with a lean Studio body (#1718; user, 2026-10-20); the geometry
+      // itself, so the ink shell keeps its width (scaled, it speckled)
+      const thin = kind === "hand" ? 1 : kit.armThin || 1;
+      const m = new THREE.Mesh(slimmed(geo, thin), matOf(muscle, map));
       m.castShadow = true;
       m.name = muscle;
-      g.add(m, new THREE.Mesh(hull, armInk));
+      g.add(m, new THREE.Mesh(slimmed(hull, thin), armInk));
       joint.add(g);
       added.push(g);
       if (kind === "hand") added.push(...fistFingers(rig, side, bone, m.material));
