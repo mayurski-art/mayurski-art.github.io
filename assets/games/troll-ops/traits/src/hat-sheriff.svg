@@ -1,0 +1,29 @@
+<!--
+  TROLLS trait: HATS / Sheriff Hat (a black cowboy hat: a pinched crown, a
+  wide brim curling up at the sides, a brown band with a gold star at the
+  front). Traced from TROLLS #1272. In game it's modelled whole
+  (blocky-body.js HATS model "cowboy"); this drawing is its card.
+  Frame: the head-trait frame (traits/README.md). 1000 x 1033 units =
+  headPivot x -0.30..0.30 m, y 0.62..0 m; the face board's art sits at
+  (100, 233.3) 800 x 750.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1033" width="1000" height="1033">
+  <!-- drawn mirrored: the NFT head is flipped left to right in game
+       (blocky-body.js HEAD.mirror), which puts the star back on the
+       band's right like #1272's -->
+  <g transform="translate(1000 0) scale(-1 1)" stroke="#0a0a0a" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">
+    <!-- the brim's far rim, up behind the crown -->
+    <path fill="#151517" d="M90 330 C260 300 740 300 910 330 C840 352 160 352 90 330 Z"/>
+    <!-- crown: tall, pinched in at the top, a crease down the middle -->
+    <path fill="#1d1d20" d="M250 360 C244 280 252 200 296 150 C340 120 420 132 500 160 C580 132 660 120 704 150 C748 200 756 280 750 360 C600 380 400 380 250 360 Z"/>
+    <path fill="none" stroke="#3a3a40" stroke-width="7" d="M500 168 C496 200 494 230 496 262"/>
+    <path fill="#2c2c31" stroke="none" d="M300 170 C330 150 380 150 420 162 C380 180 340 220 320 300 L270 304 C268 250 276 200 300 170 Z"/>
+    <!-- the band, and its gold star -->
+    <path fill="#4e2e17" d="M252 312 C400 330 600 330 748 312 L750 356 C600 376 400 376 250 356 Z"/>
+    <path fill="#f2bd38" stroke-width="7" d="M640 300 L650 322 L674 324 L656 340 L661 364 L640 352 L619 364 L624 340 L606 324 L630 322 Z"/>
+    <!-- the brim: wide, its sides curling up, dipping at the front -->
+    <path fill="#1d1d20" d="M60 300 C110 312 180 350 300 362 C400 372 600 372 700 362 C820 350 890 312 940 300 C960 320 930 380 880 400 C760 440 620 450 500 450 C380 450 240 440 120 400 C70 380 40 320 60 300 Z"/>
+    <!-- the brim's underside showing along the front edge -->
+    <path fill="#2e2e33" stroke="none" d="M110 392 C240 428 380 438 500 438 C620 438 760 428 890 392 C790 432 640 446 500 446 C360 446 210 432 110 392 Z"/>
+  </g>
+</svg>

@@ -17,7 +17,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1";
-import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1-gt1-fg2-bd1-mj1-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1";
+import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1-gt1-fg2-bd1-mj1-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-sf1";
 import { addRim } from "../view/rim-light.js?v=sr1";
 import { tagInk, untagInk } from "../view/char-ink.js?v=ci1-ci2-ci3-ci4-ci5-rb4-rb5";
 
@@ -226,6 +226,10 @@ const KITS = {
   "clothes-trainer": { sleeves: "short", legs: "legs-farmer.glb",
     colours: { sleeve: 0xf2f2ee, denim: 0x232f48, hem: 0x1b253a, boot: 0x1b1b1d, sole: 0xe6e6e0 },
     fp: { sleeve: null, cuff: null } },
+  // Sheriff Gear (#1272): white long shirt sleeves (the vest's on the
+  // torso template), dark jeans, brown cowboy boots
+  "clothes-sheriff-gear": { sleeves: "long", legs: "legs-farmer.glb",
+    colours: { sleeve: 0xf4f4f0, cuff: 0xe2e2dc, denim: 0x2c3650, hem: 0x222a3e, boot: 0x4a2e18, sole: 0x2a1c12 } },
 };
 /* Hair modelled in Blender (traits.js MODELLED), worn on the relief head in
    its frame: the file and a colour per piece name. Carrot Cake Hair is the
@@ -620,6 +624,8 @@ const HATS = {
   // trucker caps: the bill out in front only, mesh behind
   "hat-trucker-microsoft": { ink: "#b8305a", brim: [345, 448], brimFront: 0.13, ease: 14 },
   "hat-trucker-yobucks": { ink: "#c9c9c2", brim: [345, 448], brimFront: 0.13, ease: 14 },
+  // the sheriff's cowboy hat is modelled whole too (cowboyHat)
+  "hat-sheriff": { ink: "#151517", brim: [365, 440], model: "cowboy" },
 };
 /* How far the cap stands out of the head pivot's middle at (x, y): an
    ellipsoid round the head that closes exactly at that column's top edge of
@@ -745,12 +751,110 @@ function wizardHat(y, s) {
   return hat;
 }
 
+/* The sheriff's cowboy hat (#1272, HATS model "cowboy"), modelled whole like
+   the wizard's: a tall crown pinched in at the front with a crease down its
+   top, a brown band with a gold star at the front, and a wide brim whose
+   sides curl up and whose front and back dip, black felt cel-shaded, outlined
+   by the ink pass. Sat low and tipped toward the NFT's art right (flipped
+   back with the print on a mirrored head). In the head pivot's frame (-z the
+   front), `y` the brim's height; the crown sized off the wizard's, which
+   sits over the head like the caps. */
+const COWBOY = { felt: 0x232326, under: 0x141416, band: 0x4e2e17, star: 0xf2bd38, height: 0.2, taper: 0.9,
+  crease: 0.05, pinch: 0.035, brim: [0.43, 0.37], curl: 0.085, dip: 0.025, thick: 0.014, bandH: 0.04, tilt: 0.2 };
+function cowboyHat(y, s) {
+  const C = COWBOY, W = WIZARD;
+  const felt = toon(C.felt), under = toon(C.under);
+  const ax = W.crown[0] * s * 0.95, az = ((W.crown[1] + W.crown[2]) / 2) * s, zc = ((W.crown[2] - W.crown[1]) / 2) * s;
+  const N = 48, K = 10, R = 8, TAU = Math.PI * 2;
+  // the crown's top at (x, z): a crease down the middle, the front corners pinched in
+  const topY = (x, z, r) => C.height * s + 0.02 * s * (1 - r * r)
+    - C.crease * s * Math.exp(-((x / (0.07 * s)) ** 2)) * Math.max(0, 1 - 0.4 * r)
+    - C.pinch * s * Math.exp(-(((Math.abs(x) - 0.12 * s) / (0.06 * s)) ** 2)) * Math.max(0, (zc - z) / az);
+  const pos = [], idx = [];
+  // the sides: rings up from the band to the top's edge, tapering in
+  for (let k = 0; k <= K; k++) {
+    const t = k / K, sc = 1 - (1 - C.taper) * t;
+    for (let i = 0; i <= N; i++) {
+      const a = (i / N) * TAU, x = Math.cos(a) * ax * sc, z = zc + Math.sin(a) * az * sc;
+      pos.push(x, topY(Math.cos(a) * ax * C.taper, zc + Math.sin(a) * az * C.taper, 1) * t, z);
+    }
+  }
+  for (let k = 0; k < K; k++) for (let i = 0; i < N; i++) {
+    const a = k * (N + 1) + i, b = a + N + 1;
+    idx.push(a, b, a + 1, a + 1, b, b + 1);
+  }
+  // the top: rings in from the edge to the middle, on the creased surface
+  const top0 = pos.length / 3;
+  for (let j = 0; j <= R; j++) {
+    const r = 1 - j / R;
+    for (let i = 0; i <= N; i++) {
+      const a = (i / N) * TAU, x = Math.cos(a) * ax * C.taper * r, z = zc + Math.sin(a) * az * C.taper * r;
+      pos.push(x, topY(x, z, r), z);
+    }
+  }
+  for (let j = 0; j < R; j++) for (let i = 0; i < N; i++) {
+    const a = top0 + j * (N + 1) + i, b = a + N + 1;
+    idx.push(a, b, a + 1, a + 1, b, b + 1);
+  }
+  const crown = new THREE.BufferGeometry();
+  crown.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  crown.setIndex(idx);
+  crown.computeVertexNormals();
+  // the brim: from just inside the crown out to its edge, the sides curling
+  // up and the front and back dipping, a top and an underside joined round the rim
+  const RB = 10, bp = [], top = [], bot = [], rim = [];
+  for (const lower of [false, true]) for (let j = 0; j <= RB; j++) for (let i = 0; i <= N; i++) {
+    const r = j / RB, a = (i / N) * TAU, c = Math.cos(a), sn = Math.sin(a);
+    const rx = ax * 0.9 + (C.brim[0] * s - ax * 0.9) * r, rz = az * 0.9 + (C.brim[1] * s - az * 0.9) * r;
+    const yy = (C.curl * c * c - C.dip * sn * sn) * s * r * r * r - (lower ? C.thick * s : 0);
+    bp.push(c * rx, yy, zc + sn * rz);
+  }
+  const at = (lower, j, i) => (lower ? (RB + 1) * (N + 1) : 0) + j * (N + 1) + i;
+  for (let j = 0; j < RB; j++) for (let i = 0; i < N; i++) {
+    top.push(at(0, j, i), at(0, j, i + 1), at(0, j + 1, i), at(0, j, i + 1), at(0, j + 1, i + 1), at(0, j + 1, i));
+    bot.push(at(1, j, i), at(1, j + 1, i), at(1, j, i + 1), at(1, j, i + 1), at(1, j + 1, i), at(1, j + 1, i + 1));
+  }
+  for (let i = 0; i < N; i++) rim.push(at(0, RB, i), at(0, RB, i + 1), at(1, RB, i), at(0, RB, i + 1), at(1, RB, i + 1), at(1, RB, i));
+  const brim = new THREE.BufferGeometry();
+  brim.setAttribute("position", new THREE.Float32BufferAttribute(bp, 3));
+  brim.setIndex([...top, ...rim, ...bot]);
+  brim.addGroup(0, top.length + rim.length, 0);
+  brim.addGroup(top.length + rim.length, bot.length, 1);
+  brim.computeVertexNormals();
+  // the band round the crown's foot, a hair outside it
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(1.02, 1.025, C.bandH * s, N, 1, true), toon(C.band));
+  band.scale.set(ax, 1, az);
+  band.position.set(0, (C.bandH / 2) * s + 0.002 * s, zc);
+  // the gold star on the band's front, a step off the crown's middle (the
+  // NFT's art right), an ink star behind it for its outline
+  const star = new THREE.Shape();
+  for (let k = 0; k < 10; k++) {
+    const a = Math.PI / 2 + (k * Math.PI) / 5, rr = (k % 2 ? 0.42 : 1) * 0.026 * s;
+    k ? star.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : star.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+  }
+  const starGeo = new THREE.ExtrudeGeometry(star, { depth: 0.006 * s, bevelEnabled: false });
+  const sx = -0.1 * s, sz = zc - az * 1.03 * Math.sqrt(1 - (sx / ax) ** 2);
+  const starM = new THREE.Mesh(starGeo, toon(C.star));
+  const starInk = new THREE.Mesh(starGeo, new THREE.MeshBasicMaterial({ color: INK }));
+  starInk.scale.set(1.35, 1.35, 0.5);
+  for (const m of [starM, starInk]) {
+    m.position.set(sx, (C.bandH / 2) * s, sz - (m === starM ? 0.006 * s : 0));
+    m.rotation.y = Math.PI + Math.atan2(sx / ax, 1) * 0.5;
+  }
+  const hat = new THREE.Group();
+  for (const m of [new THREE.Mesh(crown, felt), new THREE.Mesh(brim, [felt, under]), band, starM, starInk]) { m.castShadow = true; hat.add(m); }
+  hat.position.y = y;
+  hat.rotation.z = C.tilt;
+  return hat;
+}
+
 async function capVolume(id, plane, centreY, s) {
   const { width: w, height: h } = plane.geometry.parameters;
   const y0 = plane.position.y - h / 2;
   const hat = HATS[id] || HATS["hat-goatfarm"];
   // a hat modelled whole (the wizard's), the brim just under its band's top (on the brow, like the NFT)
   if (hat.model === "wizard") return wizardHat(y0 + h - ((hat.brim[0] + 45) / 1033) * h, s);
+  if (hat.model === "cowboy") return cowboyHat(y0 + h - ((hat.brim[0] + 45) / 1033) * h, s);
   // the brim band in the plane's y (frame y runs down from the plane's top)
   const frameY = (Y) => y0 + h - (Y / 1033) * h;
   const brim = hat.brim ? [frameY(hat.brim[1]), frameY(hat.brim[0])] : null;

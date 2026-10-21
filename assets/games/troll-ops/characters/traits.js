@@ -55,6 +55,11 @@ const ART_V = globalThis.TRAITS_BUST ?? "tr7";
      FACIALS/Bubblegum        the token's emote, not worn (user, 2026-10-15:
                               "without the bubble gum", the holder gets the
                               bubblegum emote; emotes.js)
+     HATS/Sheriff Hat         hat-sheriff        (front + back; MODELLED in game: blocky-body.js cowboyHat)
+     CLOTHES/Sheriff Gear     clothes-sheriff-gear (block template only)
+     FACIALS/Cigar            the token's emote, not worn (user, 2026-10-21:
+                              "1272 should not have a cigar in his face just
+                              make it an exclusive emote"; emotes.js)
    Head traits go on in this order, each a hair in front of the last. */
 /* token -> its traits by type, as its metadata names them (local: the
    page's CSP blocks IPFS, so a token's traits are copied in here). */
@@ -66,6 +71,7 @@ export const TOKENS = {
   33: { hat: "Magician Hat", facial: "French Moustache", eyes: "Cracked Eyes", clothes: "Jester" },
   2630: { hat: "Trucker Hat Microsoft", facial: "Licky", eyes: "Blindfold", clothes: "Tshirt Black" },
   2631: { hat: "Trucker Hat Yobucks", facial: "Gold Tooth", eyes: "Glasses Reading", clothes: "Trainer" },
+  1272: { hat: "Sheriff Hat", facial: "Cigar", eyes: "Eyes None", clothes: "Sheriff Gear" },
 };
 /* trait value -> its drawing's id; "" for a value that's the OG art. */
 export const TRAIT_ART = {
@@ -80,7 +86,8 @@ export const TRAIT_ART = {
   "Licky": "facial-licky", "Gold Tooth": "",
   "Cracked Eyes": "", "Blindfold": "eyes-blindfold", "Glasses Reading": "eyes-glasses-reading",
   "Jester": "clothes-jester", "Tshirt Black": "clothes-tshirt-black", "Trainer": "clothes-trainer",
-  "Eyes None": "", "None": "", "Bubblegum": "",
+  "Sheriff Hat": "hat-sheriff", "Sheriff Gear": "clothes-sheriff-gear",
+  "Eyes None": "", "None": "", "Bubblegum": "", "Cigar": "",
 };
 /* Traits that are Blender models, not drawings (blocky-body.js HAIRS puts
    them on the relief head): no planes here. */
@@ -119,7 +126,7 @@ export function tokenTraits(token) {
   return ids;
 }
 /* Traits with a drawn back view (<id>.back.png). */
-const HAS_BACK = new Set(["hat-goatfarm", "hat-camper", "hat-baker", "hat-magician", "hat-trucker-microsoft", "hat-trucker-yobucks", "eyes-blindfold", "clothes-tank-runner"]);
+const HAS_BACK = new Set(["hat-goatfarm", "hat-camper", "hat-baker", "hat-magician", "hat-trucker-microsoft", "hat-trucker-yobucks", "hat-sheriff", "eyes-blindfold", "clothes-tank-runner"]);
 /* Clothes drawn as a garment board for the stick (<id>.svg with cut paths);
    the others have only a block template (blocky-body.js). */
 const HAS_BOARD = new Set(["clothes-tank-runner"]);

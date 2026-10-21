@@ -45,6 +45,8 @@ export const BODIES = [
   { id: "trolls-33", token: 33, name: "TROLLS #33", img: "../ui/trolls-33.png", holder: "bradz_" },
   { id: "trolls-2630", token: 2630, name: "TROLLS #2630", img: "../ui/trolls-2630.png", holder: "karlezetroll" },
   { id: "trolls-2631", token: 2631, name: "TROLLS #2631", img: "../ui/trolls-2631.png", holder: "lacksss" },
+  // holder's account still to come (user, 2026-10-21); troll_runner's till then
+  { id: "trolls-1272", token: 1272, name: "TROLLS #1272", img: "../ui/trolls-1272.png", holder: "troll_runner" },
 ];
 /* The signed-in account's username, lower case ("" signed out). */
 export function username() {
