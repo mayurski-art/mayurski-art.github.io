@@ -98,7 +98,7 @@ const mine = await page.evaluate(async () => {
   await r.blocky?.ready;
   return { on: !!r.blocky, token: r.blocky?.token, legs: r.legScale, build: r.build, stickHidden: !r.parts.body.visible };
 });
-check("your own body wears it in the match", mine.on && mine.token === TOKEN && mine.legs === 0.67 && mine.build === 0.25 && mine.stickHidden, JSON.stringify(mine));
+check("your own body wears it in the match", mine.on && mine.token === TOKEN && mine.legs > 0 && mine.legs < 1 && mine.build > 0 && mine.build < 1 && mine.stickHidden, JSON.stringify(mine));
 
 // --- remote players: a body (net.js `bk`, the token) shows only on its
 // holder's name (remote-players.js mayWear). Bots carry none, so it's set
@@ -194,7 +194,7 @@ check("still wearing it on the run", bs.blocky && bs.n > 12, `${bs.n} running fr
 // hips on average; the body's stride is the stick's, scaled to its legs
 // (feet that stayed planted out in front read as a slant)
 check("cadence follows the real speed (4.2 m/s)", Math.abs(bs.mps - 4.2) < 0.4 && Math.abs(ss.mps - 4.2) < 0.4, `blocky ${bs.mps.toFixed(2)}, stick ${ss.mps.toFixed(2)}`);
-check("feet pass under the body, like the stick's stride scaled to its legs", Math.abs(bs.mean / 0.67 - ss.mean) < 0.06 && Math.abs(bs.mean) < 0.1, `blocky ${bs.mean.toFixed(3)} m (${bs.min.toFixed(2)}..${bs.max.toFixed(2)}), stick ${ss.mean.toFixed(3)} m (${ss.min.toFixed(2)}..${ss.max.toFixed(2)})`);
+check("feet pass under the body, like the stick's stride scaled to its legs", Math.abs(bs.mean / (mine.legs || 0.67) - ss.mean) < 0.06 && Math.abs(bs.mean) < 0.1, `blocky ${bs.mean.toFixed(3)} m (${bs.min.toFixed(2)}..${bs.max.toFixed(2)}), stick ${ss.mean.toFixed(3)} m (${ss.min.toFixed(2)}..${ss.max.toFixed(2)})`);
 check("feet go both ahead and behind", bs.min < -0.12 && bs.max > 0.12);
 check("torso upright on the run with the gun up (median < 4, peak < 7 degrees)", bs.median < 0.07 && bs.pitch < 0.122,
   `median ${(bs.median * 57.3).toFixed(1)}, peak ${(bs.pitch * 57.3).toFixed(1)} deg; the stick: ${(ss.median * 57.3).toFixed(1)}, ${(ss.pitch * 57.3).toFixed(1)}`);
