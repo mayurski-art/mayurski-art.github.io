@@ -7,7 +7,8 @@
 //
 //   NODE_PATH=<checkout>/node_modules node tools/troll-ops-menu-char-shot.mjs
 //   SHOTS_DIR=<dir>; W/H for the viewport (default 1366x634); PHONE=1;
-//   TOKEN=<TROLLS token> the body worn (default 1718)
+//   TOKEN=<TROLLS token> the body worn (default 1718); CLICK=<menu item> opens
+//   that screen first (CLICK=Cosmetics)
 import http from "node:http"; import fs from "node:fs"; import path from "node:path"; import os from "node:os";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -36,7 +37,11 @@ page.on("pageerror", (e) => errors.push(e.message));
 await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded" });
 await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 90000 });
 await page.waitForTimeout(2500);
-const tag = process.env.PHONE ? "-phone" : `-${W}x${H}`;
+const tag = (process.env.PHONE ? "-phone" : `-${W}x${H}`) + (process.env.CLICK ? `-${process.env.CLICK.toLowerCase()}` : "");
+if (process.env.CLICK) {
+  await page.locator(".to-bo2-menu .tr-menu-item", { hasText: new RegExp(`^\s*${process.env.CLICK}`, "i") }).first().click();
+  await page.waitForTimeout(800);
+}
 
 /* The TROLLS body on or off the menu operator, through the lobby's own
    blocky-body module (same URL, same instance). */

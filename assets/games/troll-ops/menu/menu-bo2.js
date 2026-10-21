@@ -868,6 +868,16 @@ function umbBanner(it) {
   }
 }
 
+/* A portrait phone stands the operator under the party (style.css): where a
+   long list leaves under CHAR_ROOM px there, it stands beside the list. */
+const CHAR_ROOM = 200;
+function charRoom() {
+  const menuH = parseFloat(pf.style.getPropertyValue("--menu-h")) || 300;
+  const partyH = parseFloat(pf.style.getPropertyValue("--party-h")) || 190;
+  const footH = parseFloat(pf.style.getPropertyValue("--foot-h")) || 42;
+  pf.classList.toggle("char-beside", pf.clientHeight - (56 + menuH + 8 + partyH) - (footH + 24) < CHAR_ROOM);
+}
+
 /* ── The menu ─────────────────────────────────────────────────────────── */
 let lastPanel = null, lastScreen = null;
 const menu = createBo2Menu(nav, {
@@ -883,6 +893,7 @@ const menu = createBo2Menu(nav, {
     root.classList.toggle("is-top", id === "main");
     // Phones size the operator and the detail pane from the list's height.
     pf.style.setProperty("--menu-h", `${nav.offsetHeight}px`);
+    charRoom();
     screenDetail = !!s.detail || id === "search" || id === "pinsearch";
     root.classList.toggle("has-detail", screenDetail);
     root.classList.toggle("has-gun", !!s.gun);
@@ -1109,9 +1120,20 @@ for (const b of $$(".to-bo2-quick[data-go]", root)) b.addEventListener("click", 
 // from its real height: see .to-bo2-menu in style.css.
 {
   const foot = $(".to-bo2-foot", root);
-  const setFoot = () => root.style.setProperty("--foot-h", `${foot.offsetHeight}px`);
+  const setFoot = () => {
+    root.style.setProperty("--foot-h", `${foot.offsetHeight}px`);
+    // (and on #to-pf, round the operator: a portrait phone stands it above the footer)
+    pf.style.setProperty("--foot-h", `${foot.offsetHeight}px`);
+    charRoom();
+  };
   setFoot();
   new ResizeObserver(setFoot).observe(foot);
+  // the party and its chat card: a portrait phone stands the operator under them
+  const party = $(".to-bo2-party", root);
+  const setParty = () => { pf.style.setProperty("--party-h", `${party.offsetHeight}px`); charRoom(); };
+  setParty();
+  new ResizeObserver(setParty).observe(party);
+  new ResizeObserver(charRoom).observe(pf);
 }
 window.addEventListener("trollrunner:auth-changed", () => setTimeout(() => { renderParty(); menu.refresh(); }, 50));
 window.addEventListener("trollforces:prestige-changed", () => setTimeout(() => { renderParty(); menu.refresh(); }, 50));
