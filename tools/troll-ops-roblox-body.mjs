@@ -19,6 +19,7 @@
 //        [--no-logos]                    (a design without emblems: no badge decals)
 //        [--neck 0.12]                   (metres the torso keeps above the shoulders: lower cuts a skin neck off)
 //        [--across 0.28]                 (metres per stud across the torso: wider fills the shoulders)
+//        [--leg-across k]                (metres per stud across the legs; default from the hips' spacing)
 //        [--print art.png --print-at y,w]  (a print across the chest front: centred y studs up, w studs wide;
 //                                           Studio can't spell, so lettering goes on as a decal)
 //
@@ -37,6 +38,7 @@ const TEX = +opt("--tex", "1024");
 const JOINTS = opt("--joints", "");
 const NECK = opt("--neck", "");
 const ACROSS = +opt("--across", "0.28");
+const LEG_ACROSS = +opt("--leg-across", "0");
 const PRINT = opt("--print", "");
 const PRINT_AT = opt("--print-at", "").split(",").map(Number);
 const NO_LOGOS = args.includes("--no-logos") && !!args.splice(args.indexOf("--no-logos"), 1);
@@ -268,7 +270,7 @@ function legs(src) {
   const out = [];
   // one scale down the leg: hip to the sole is the rig's thigh + shin + sole
   const ky = (RIG.thigh + RIG.shin + RIG.sole) / SRC_JOINTS.hipY;
-  const kx = 0.10 / SRC_JOINTS.legX;    // the rig's hips are 0.10 m apart from the middle (blocky-body setHips)
+  const kx = LEG_ACROSS || 0.10 / SRC_JOINTS.legX;    // the rig's hips are 0.10 m apart from the middle (blocky-body setHips)
   const kneeY = RIG.shin + RIG.sole, bootY = RIG.ankle;   // metres above the floor
   for (const [side, file, sx] of [["L", "left_leg", -1], ["R", "right_leg", 1]]) {
     const obj = readObj(path.join(src, `${file}.obj`));
