@@ -1,16 +1,24 @@
-// The Troll City build, captured piece by piece in headless Chromium, for
-// the Studio round trip (doc "Troll City redesign in Roblox Studio"):
-// tools/troll-ops-map-to-studio.mjs sends it to Studio, and
-// tools/troll-ops-map-from-studio.mjs rebuilds the town from it plus what
+// A Troll Forces map's build, captured piece by piece in headless Chromium,
+// for the Studio round trip (docs "Troll City redesign in Roblox Studio",
+// "Kabukigrin"): tools/troll-ops-map-to-studio.mjs sends it to Studio, and
+// tools/troll-ops-map-from-studio.mjs rebuilds the map from it plus what
 // Studio moved. Both capture the same deterministic build, so piece i is
 // the same piece on both sides.
 //
 // The map builds exactly as in the game (maps.js buildMap, ?tcstudio=0
 // semantics: the code-built town), with the Kit watched. The served copies
-// of trollcity.js / trollcity-kit.js get a call marker at the top of each
-// builder (function name(K, ...) {) so every piece and collider knows which
-// call drew it: one Studio model per building and prop. The files on disk
-// are never touched.
+// of the map's builder files (CFG below) get a call marker at the top of
+// each builder (function name(K, ...) {) so every piece and collider knows
+// which call drew it: one Studio model per building and prop. The files on
+// disk are never touched.
+//
+// A map drawn from Blender GLBs (Grinjuku: mapModel) has no builders. Its
+// GLB meshes are cut into pieces by the map's colliders instead: every
+// triangle goes to the smallest collider box round its centre (the Blender
+// build fits a model to every solid), and each (solid, material) chunk is a
+// piece of its own, named by the solid's kind (`layout`); what sits in no
+// box is loose, grouped by side. Reference models (the far skyline) stay
+// live.
 //
 //   const cap = await captureMap({ map: "trollcity", geometry: true });
 import http from "node:http";
@@ -34,16 +42,52 @@ export const TYPES = { ".html": "text/html", ".js": "text/javascript", ".json": 
 const PAGE = `<!doctype html><meta charset="utf-8"><script type="importmap">
 {"imports":{"three":"/assets/vendor/three.module.min.js","three/addons/":"/assets/vendor/addons/"}}</script>`;
 
+/* Each map the round trip knows:
+     watched   builder files (under maps/) and the tag their calls carry
+     root      the call that builds the whole map (its own pieces are "Town")
+     section   a call that is a section of the map (a building, a room):
+               the model path starts at it. Default: the outermost watched
+               call in the chain
+     fold      builders that fold into their caller (pieces of a thing, not
+               things you'd move on their own)
+     layout    for a GLB-built map: the module whose <fn>() lists the solids
+               the colliders were laid from, in order, each { k, side }
+     side      for a GLB-built map: which side a loose point is on
+     reference models (GLB files) shown live, never exported */
+export const CFG = {
+  trollcity: {
+    watched: { "trollcity.js": "trollcity", "trollcity-kit.js": "kit" },
+    root: "trollcity:buildTrollCity",
+    section: (n) => /^trollcity:(build[A-Z]\w*|hangPictures|rpFurniture)$/.test(n),
+    fold: ["wall", "room", "slabWithHole", "railing", "gableRoof", "signBoard", "wallPic", "api_stairs", "boardwalk", "flat", "seatAt", "benchSeats", "materials"],
+  },
+  trollingloud: {
+    watched: { "trollingloud.js": "club", "trollingloud-kit.js": "neon", "trollingloud-kitchen.js": "kitchen", "trollcity-kit.js": "kit" },
+    root: null,
+    section: null,
+    fold: ["wall", "lining", "deck", "glassRail", "cutRects", "bx", "atlasQuad", "batten", "steelStair", "materials", "seatAt", "sofaSeats", "mergeAll", "prismGeo2", "ringPts"],
+  },
+  grinjuku: {
+    watched: {},
+    layout: { module: "grinjuku-layout.js", fn: "grinjukuLayout" },
+    side: (x) => (x < -6 ? "A" : x > 6 ? "B" : "mid"),
+    reference: ["gj-skyline"],
+  },
+};
+const MAPS_DIR = "assets/games/troll-ops/maps/";
+const cfgOf = (map) => CFG[map] || { watched: {} };
+
 /* The served copies: a call marker at the top of every top-level builder
    that takes the Kit, so a piece knows which call drew it. */
-const WATCHED = { "assets/games/troll-ops/maps/trollcity.js": "trollcity", "assets/games/troll-ops/maps/trollcity-kit.js": "kit" };
 function instrument(src, file) {
   return src.replace(/^((?:export )?function (\w+)\(K\b[^\n]*?\)\s*\{)/gm, (m, head, name) => `${head} globalThis.__tcCall && globalThis.__tcCall("${file}:${name}");`);
 }
 
-/* A static server for the repo (with the watched files instrumented);
+/* A static server for the repo (with the map's watched files instrumented);
    `extra(url, res)` answers first (return true when it did). */
-export async function serve(port, extra = () => false) {
+export async function serve(port, extra = () => false, map = "trollcity") {
+  const WATCHED = {};
+  for (const [f, tag] of Object.entries(cfgOf(map).watched)) WATCHED[MAPS_DIR + f] = tag;
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, "http://x");
     if (url.pathname === "/__export.html") { res.writeHead(200, { "content-type": "text/html" }); return res.end(PAGE); }
@@ -63,32 +107,49 @@ export async function serve(port, extra = () => false) {
 /* Capture the map. `geometry`: also each piece's own geometry (world
    metres: positions, normals, uvs, index), for rebuilding it. */
 export async function captureMap({ map = "trollcity", geometry = false, port = 0 } = {}) {
-  const server = await serve(port);
-  const kitUrl = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/maps/trollcity.js"), "utf8").match(/"\.\/(trollcity-kit\.js\?v=[^"]+)"/)[1];
+  const server = await serve(port, undefined, map);
+  const kitUrl = fs.readFileSync(path.join(ROOT, MAPS_DIR + "trollcity.js"), "utf8").match(/"\.\/(trollcity-kit\.js\?v=[^"]+)"/)[1];
+  const cfg = cfgOf(map);
+  // the layout module's url, with its ?v= tag as the map imports it
+  let layoutUrl = null;
+  if (cfg.layout) {
+    const src = fs.readFileSync(path.join(ROOT, MAPS_DIR + map + ".js"), "utf8");
+    const m = src.match(new RegExp(`"\\./(${cfg.layout.module.replace(".", "\\.")}\\?v=[^"]+)"`));
+    layoutUrl = m ? m[1] : cfg.layout.module;
+  }
   const browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
   const page = await browser.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   // the code-built town, whatever Studio town the repo holds
   await page.goto(`http://127.0.0.1:${server.address().port}/__export.html?tcstudio=0`);
-  const data = await page.evaluate(pageCapture, { MAP: map, kitUrl, GEOMETRY: geometry });
+  const data = await page.evaluate(pageCapture, {
+    MAP: map, kitUrl, GEOMETRY: geometry,
+    CFG: { watched: cfg.watched, root: cfg.root || null, section: cfg.section ? cfg.section.toString() : null, fold: cfg.fold || [],
+      layout: cfg.layout ? { url: layoutUrl, fn: cfg.layout.fn } : null, side: cfg.side ? cfg.side.toString() : null, reference: cfg.reference || [] },
+  });
   await browser.close();
   server.close();
   if (errors.length) console.log("page errors:\n  " + errors.join("\n  "));
   return data;
 }
 
-async function pageCapture({ MAP, kitUrl, GEOMETRY }) {
+async function pageCapture({ MAP, kitUrl, GEOMETRY, CFG }) {
   Error.stackTraceLimit = 200;
   const THREE = await import("three");
   const kit = await import("/assets/games/troll-ops/maps/" + kitUrl);
+  const TAG = {};   // file basename (no .js) -> tag
+  for (const [f, tag] of Object.entries(CFG.watched)) TAG[f.replace(/\.js$/, "")] = tag;
+  const fileRe = Object.keys(TAG).length ? new RegExp(`at (?:[\\w$]+\\.)?([\\w$]+) \\(.*\\/(${Object.keys(TAG).map((f) => f.replace(/[.-]/g, "\\$&")).join("|")})\\.js`) : null;
+  const SECTION = CFG.section ? new Function("return " + CFG.section)() : null;
+  const SIDE = CFG.side ? new Function("return " + CFG.side)() : null;
 
   /* ------------------------------------------------ who drew what */
   // A call is known by its name and stack depth: two calls of one builder
   // at one depth can't be live together, so the newest is the one running.
   const frames = () => new Error().stack.split("\n").slice(1).map((l) => {
-    const m = l.match(/at (?:Kit\.)?([\w$]+) \(.*\/(trollcity-kit|trollcity)\.js/);
-    return m ? `${m[2] === "trollcity-kit" ? "kit" : "trollcity"}:${m[1]}` : null;
+    const m = fileRe && l.match(fileRe);
+    return m ? `${TAG[m[2]]}:${m[1]}` : null;
   });
   const running = new Map(), calls = [];
   globalThis.__tcCall = (name) => {
@@ -136,10 +197,14 @@ async function pageCapture({ MAP, kitUrl, GEOMETRY }) {
   // when the town was built (buildMap trims stair ends after)
   const colRecs = [];
   let colSnap = null;
+  const propped = [];   // what the map placed whole (mapModel's GLBs), as they land
   const build0 = map.build;
   map.build = (api) => {
     const g0 = api.ghostBox;
     api.ghostBox = function (...a) { const c = g0.apply(this, a); colRecs.push({ c, chain: chainNow() }); return c; };
+    // (kept patched: a GLB lands by api.prop after its load, long after build returns)
+    const p0 = api.prop;
+    api.prop = function (o) { propped.push(o); return p0.call(this, o); };
     try { return build0(api); }
     finally {
       api.ghostBox = g0;
@@ -149,10 +214,20 @@ async function pageCapture({ MAP, kitUrl, GEOMETRY }) {
   const colliders = [], arena = {};
   let built;
   try { built = buildMap(MAP, { colliders, arena }); } finally { map.build = build0; }
-  // late loads (the gallery's art)
-  await new Promise((r) => setTimeout(r, 2500));
+  // late loads (the gallery's art, a GLB-built map's models): wait until
+  // nothing new has landed for a while
+  {
+    const count = () => { let n = 0; built.root.traverse((o) => { if (o.isMesh) n++; }); return n; };
+    const t0 = performance.now();
+    let last = count(), quiet = 0;
+    while (performance.now() - t0 < 30000) {
+      await new Promise((r) => setTimeout(r, 500));
+      const n = count();
+      if (n === last) { if ((quiet += 500) >= 2500) break; } else { last = n; quiet = 0; }
+    }
+  }
   built.root.updateMatrixWorld(true);
-  const mainRoot = recs[0].root;
+  const mainRoot = recs[0]?.root ?? built.root;
 
   const V = (a) => new THREE.Vector3(...a);
   const r4 = (x) => +x.toFixed(4);
@@ -160,18 +235,18 @@ async function pageCapture({ MAP, kitUrl, GEOMETRY }) {
   /* ------------------------------------------------ models */
   // Which builders fold into the one that called them (pieces of a
   // building, not things you'd move on their own).
-  const FOLD = new Set(["wall", "room", "slabWithHole", "railing", "gableRoof", "signBoard", "wallPic", "api_stairs",
-    "boardwalk", "flat", "seatAt", "benchSeats", "materials"].flatMap((n) => [`trollcity:${n}`, `kit:${n}`]));
-  const SECTION = (n) => /^trollcity:(build[A-Z]\w*|hangPictures|rpFurniture)$/.test(n) && n !== "trollcity:buildTrollCity";
+  const tags = [...new Set(Object.values(TAG))];
+  const FOLD = new Set((CFG.fold || []).flatMap((n) => tags.map((t) => `${t}:${n}`)));
+  const isSection = (n) => n !== CFG.root && (SECTION ? SECTION(n) : true);
   const nice = (n) => n.split(":")[1].replace(/^build/, "").replace(/^kit/, "").replace(/^(.)/, (c) => c.toUpperCase());
   const counts = new Map();
   const modelOf = new Map();          // call id -> model path
   const pathOf = (chain) => {
     // (and a wrapper calling its namesake: trollcity's chair is the kit's chair)
     const kept = chain.filter((id, i) => !FOLD.has(calls[id]) && !(i && nice(calls[chain[i - 1]]) === nice(calls[id])));
-    let s = kept.findIndex((id) => SECTION(calls[id]));
+    let s = kept.findIndex((id) => isSection(calls[id]));
     const out = [];
-    if (s < 0) { out.push("Town"); s = kept.findIndex((id) => calls[id] === "trollcity:buildTrollCity"); }
+    if (s < 0) { out.push("Town"); s = kept.findIndex((id) => calls[id] === CFG.root); }
     else out.push(nice(calls[kept[s]]));
     // the section's own calls, two levels down (a shop, then its furniture)
     for (const id of kept.slice(s + 1, s + 3)) {
@@ -197,6 +272,96 @@ async function pageCapture({ MAP, kitUrl, GEOMETRY }) {
   }
   for (const r of recs) { r.path = pathOf(r.chain); r.src.computeBoundingBox(); r.bb = r.src.boundingBox; }
   const cols = colSnap.map((c) => ({ ...c, path: pathOf(c.chain), bb: new THREE.Box3(V(c.min), V(c.max)) }));
+
+  /* ------------------------------------------------ GLB-built maps */
+  // Every placed GLB (but the reference ones) is cut into pieces by the
+  // still colliders: a triangle goes to the smallest box round its centre
+  // (grown 0.15 m), and each (box, material) chunk is a piece named by the
+  // solid the box came from. The rest is loose, by side.
+  {
+    const solids = CFG.layout ? (await import("/assets/games/troll-ops/maps/" + CFG.layout.url))[CFG.layout.fn]().solids : null;
+    const still = cols.map((c, i) => ({ i, c, bb: c.bb.clone().expandByScalar(0.15), area: (c.max[0] - c.min[0]) * (c.max[2] - c.min[2]) * (c.max[1] - c.min[1]) }))
+      .filter((s) => !s.c.live);
+    const boxName = new Map();   // collider i -> model path
+    const kindN = new Map();
+    const nameFor = (i) => {
+      if (boxName.has(i)) return boxName.get(i);
+      const s = solids?.[i];
+      const kind = s ? s.k.replace(/^_/, "") : "box";
+      const side = s?.side || (SIDE ? SIDE((cols[i].min[0] + cols[i].max[0]) / 2, (cols[i].min[2] + cols[i].max[2]) / 2) : "mid");
+      const k = `${side}/${kind}`;
+      kindN.set(k, (kindN.get(k) || 0) + 1);
+      boxName.set(i, `${k}_${kindN.get(k)}`);
+      return boxName.get(i);
+    };
+    const centre = new THREE.Vector3(), a = new THREE.Vector3(), b = new THREE.Vector3(), c3 = new THREE.Vector3();
+    // (a triangle in no box joins the nearest box this close: a sign on a
+    // shopfront, a lantern off a wall)
+    const NEAR = 1.2;
+    // in a fixed order: the GLBs load in whatever order the network gives, and
+    // the mesh numbers Studio keeps must come out the same every capture
+    const byFile = (m) => `${m.userData?.model || ""}|${m.position.toArray().map((v) => v.toFixed(3)).join(",")}`;
+    for (const model of [...propped].sort((x, y) => byFile(x) < byFile(y) ? -1 : byFile(x) > byFile(y) ? 1 : 0)) {
+      const file = model.userData?.model;
+      if (!file || CFG.reference.includes(file)) continue;
+      // the GLB's material names, in primitive order: the game's retexture
+      // pass makes its own unnamed materials, and the loader keeps the order
+      let names = [];
+      try {
+        const buf = await (await fetch(`/assets/games/troll-ops/models/${file}.glb`)).arrayBuffer();
+        const dv = new DataView(buf), jl = dv.getUint32(12, true);
+        const j = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 20, jl)));
+        names = (j.meshes || []).flatMap((m) => m.primitives.map((p) => j.materials?.[p.material]?.name || "mat"));
+      } catch {}
+      let prim = 0;
+      model.traverse((o) => {
+        if (!o.isMesh) return;
+        o.userData.__glb = true;
+        const matName = (names[prim++] || (Array.isArray(o.material) ? o.material[0] : o.material).name || "mat").replace(/[^\w]+/g, "_");
+        const g = o.geometry.clone().applyMatrix4(o.matrixWorld);
+        const G = g.index ? g.toNonIndexed() : g;
+        const P = G.attributes.position, n = P.count / 3;
+        // each triangle's chunk
+        const chunkOf = new Map();   // name -> [triangle indices]
+        for (let t = 0; t < n; t++) {
+          a.fromBufferAttribute(P, t * 3); b.fromBufferAttribute(P, t * 3 + 1); c3.fromBufferAttribute(P, t * 3 + 2);
+          centre.copy(a).add(b).add(c3).divideScalar(3);
+          let best = null;
+          for (const s of still) if (s.bb.containsPoint(centre) && (!best || s.area < best.area)) best = s;
+          if (!best) {
+            let d0 = NEAR;
+            for (const s of still) { const d = s.bb.distanceToPoint(centre); if (d < d0) { d0 = d; best = s; } }
+          }
+          const name = best ? nameFor(best.i) : `Loose/${SIDE ? SIDE(centre.x, centre.z) + "/" : ""}${file}`;
+          if (!chunkOf.has(name)) chunkOf.set(name, []);
+          chunkOf.get(name).push(t);
+        }
+        const mat = Array.isArray(o.material) ? o.material[0] : o.material;
+        for (const [name, tris] of chunkOf) {
+          const geo = new THREE.BufferGeometry();
+          for (const [attr, A] of Object.entries(G.attributes)) {
+            const sz = A.itemSize, out = new Float32Array(tris.length * 3 * sz);
+            let k = 0;
+            for (const t of tris) for (let v = 0; v < 3; v++) for (let q = 0; q < sz; q++) out[k++] = A.array[(t * 3 + v) * sz + q];
+            geo.setAttribute(attr, new THREE.BufferAttribute(out, sz));
+          }
+          // the chunk's own paint, for Studio's colour
+          let tint = null;
+          const C = geo.attributes.color;
+          if (C) {
+            const s = [0, 0, 0];
+            for (let i = 0; i < C.count; i++) { s[0] += C.getX(i); s[1] += C.getY(i); s[2] += C.getZ(i); }
+            tint = new THREE.Color(s[0] / C.count, s[1] / C.count, s[2] / C.count);
+          }
+          geo.computeBoundingBox();
+          recs.push({ i: recs.length, type: "Mesh", params: null, pts: [], nrm: [], mat, key: `glb:${file}:${matName}`, color: tint,
+            shadow: o.castShadow !== false, live: false, chain: [], src: geo, root: mainRoot, path: name, bb: geo.boundingBox, glb: true });
+        }
+        if (G !== g) G.dispose();
+        g.dispose();
+      });
+    }
+  }
   // What a section drew itself (the station, the stable, the houses) is
   // split into the clumps that touch: one model a building. Its colliders
   // join the clump they sit in.
@@ -357,17 +522,19 @@ async function pageCapture({ MAP, kitUrl, GEOMETRY }) {
   const mats = [], matIds = new Map();
   // a texture that is a picture (sign, poster, painting) rather than a surface
   const pictured = (m) => !!m.map && !m.userData?.tile;
-  const matOf = (m, tint, key = null) => {
-    const id0 = m.uuid + "|" + (tint ?? "");
+  // `glb`: a Blender model's material, named by its GLB: a tiled surface
+  // with the chunk's paint, never a picture (Studio shows its average)
+  const matOf = (m, tint, key = null, glb = null) => {
+    const id0 = (glb || m.uuid) + "|" + (tint ?? "");
     if (matIds.has(id0)) return matIds.get(id0);
     const c = (m.color ? m.color.clone() : new THREE.Color(1, 1, 1));
     if (tint != null) c.multiply(new THREE.Color(tint));
     let col = srgb(c);
-    const pic = pictured(m);
+    const pic = !glb && pictured(m);
     if (m.map && !pic) { const a = texAvg(m.map); col = col.map((v, i) => v * a[i]); }
     const id = mats.length;
     mats.push({
-      name: m.name || m.type, key, tint: hex(tint), color: col.map((v) => +Math.min(1, v).toFixed(4)), rbx: rbxOf(m.name, m),
+      name: glb || m.name || m.type, key, tint: hex(tint), color: col.map((v) => +Math.min(1, v).toFixed(4)), rbx: rbxOf(glb || m.name, m),
       alpha: m.transparent ? +(m.opacity ?? 1).toFixed(3) : 1, cutout: (m.alphaTest || 0) > 0,
       img: pic ? imageOf(m.map) : -1, both: m.side === THREE.DoubleSide, pictured: pic,
     });
@@ -380,8 +547,9 @@ async function pageCapture({ MAP, kitUrl, GEOMETRY }) {
   const toMesh = (path, mid, geo, matrix = null, live = false, piece = null) => {
     const key = path + "|" + mid + "|" + (live ? 1 : 0);
     let grp = meshGroups.get(key);
-    if (!grp) meshGroups.set(key, (grp = { path, mat: mid, live, pieces: [], v: [], n: [], uv: [], tri: [] }));
+    if (!grp) meshGroups.set(key, (grp = { path, mat: mid, live, pieces: [], pieceTri: [], v: [], n: [], uv: [], tri: [] }));
     if (piece != null) grp.pieces.push(piece);
+    const t0 = grp.tri.length / 3;
     const P = geo.attributes.position, N = geo.attributes.normal, UV = geo.attributes.uv;
     const base = grp.v.length / 3, p = new THREE.Vector3(), nm = matrix ? new THREE.Matrix3().getNormalMatrix(matrix) : null;
     const flat = !N ? geo.clone().toNonIndexed() : null;
@@ -402,6 +570,38 @@ async function pageCapture({ MAP, kitUrl, GEOMETRY }) {
       const a = idx ? idx.getX(t) : t, b = idx ? idx.getX(t + 1) : t + 1, c = idx ? idx.getX(t + 2) : t + 2;
       if (flip) grp.tri.push(base + a, base + c, base + b); else grp.tri.push(base + a, base + b, base + c);
     }
+    if (piece != null) grp.pieceTri.push({ piece, t0, t1: grp.tri.length / 3 });
+  };
+  // Studio's EditableMesh takes some 60k vertices: a bigger group goes to
+  // Studio in several MeshParts, cut between pieces (a piece stays whole in
+  // one group) or, for a live reference with no pieces, by triangles
+  const VLIM = 48000;
+  const splitBig = (grp) => {
+    if (grp.v.length / 3 <= VLIM) return [grp];
+    const out = [], ranges = grp.pieceTri.length ? grp.pieceTri : [{ piece: null, t0: 0, t1: grp.tri.length / 3 }];
+    const fresh = () => ({ path: grp.path, mat: grp.mat, live: grp.live, pieces: [], pieceTri: [], v: [], n: [], uv: [], tri: [], remap: new Map() });
+    let cur = null;
+    for (const r of ranges) {
+      const step = r.piece == null ? Math.floor(VLIM / 3) : r.t1 - r.t0;
+      for (let t0 = r.t0; t0 < r.t1; t0 += step) {
+        const t1 = Math.min(r.t1, t0 + step);
+        if (!cur || cur.v.length / 3 + (t1 - t0) * 3 > VLIM) { cur = fresh(); out.push(cur); }
+        if (r.piece != null) cur.pieces.push(r.piece);
+        for (let t = t0 * 3; t < t1 * 3; t++) {
+          const a = grp.tri[t];
+          let j = cur.remap.get(a);
+          if (j == null) {
+            j = cur.v.length / 3; cur.remap.set(a, j);
+            cur.v.push(grp.v[a * 3], grp.v[a * 3 + 1], grp.v[a * 3 + 2]);
+            cur.n.push(grp.n[a * 3], grp.n[a * 3 + 1], grp.n[a * 3 + 2]);
+            cur.uv.push(grp.uv[a * 2], grp.uv[a * 2 + 1]);
+          }
+          cur.tri.push(j);
+        }
+      }
+    }
+    for (const g of out) delete g.remap;
+    return out;
   };
   const frame = (X, Y, Z) => [X, Y, Z].flatMap((v) => [r4(v.x), r4(v.y), r4(v.z)]);
   const asBox = (r) => {
@@ -442,7 +642,7 @@ async function pageCapture({ MAP, kitUrl, GEOMETRY }) {
   const stats = { box: 0, cyl: 0, ball: 0, mesh: 0, live: 0 };
   const pieces = [];
   for (const r of recs) {
-    const mid = matOf(r.mat, r.color, r.key);
+    const mid = matOf(r.mat, r.color, r.key, r.glb ? r.key.split(":")[2] : null);
     let prim = null;
     if (!mats[mid].pictured) {
       if (r.type === "BoxGeometry" && r.nrm.length === 3) prim = asBox(r);
@@ -463,21 +663,29 @@ async function pageCapture({ MAP, kitUrl, GEOMETRY }) {
         p: Array.from(P.array, r4),
         // a box's normals are flat: the Kit makes them again
         n: N && r.type !== "BoxGeometry" ? Array.from(N.array, (x) => +x.toFixed(4)) : null,
-        uv: UV && mats[mid].pictured ? Array.from(UV.array, r4) : null,
+        uv: UV && (mats[mid].pictured || r.glb) ? Array.from(UV.array, r4) : null,
         idx: g.index ? Array.from(g.index.array) : null,
       };
+      // a GLB chunk keeps its light-map UVs and its vertex paint: its
+      // material is the model's, which reads both
+      if (r.glb) {
+        if (g.attributes.uv1 || g.attributes.uv2) piece.geo.uv2 = Array.from((g.attributes.uv1 || g.attributes.uv2).array, r4);
+        if (g.attributes.color) piece.geo.c = Array.from(g.attributes.color.array, (x) => +x.toFixed(4));
+      }
     }
+    if (r.glb) piece.glb = r.key.split(":")[1];
     pieces.push(piece);
   }
   // the mesh groups, numbered; each piece knows its group
-  const meshes = [...meshGroups.values()];
+  const grouped = new Set(meshGroups.values());
+  const meshes = [...grouped].flatMap(splitBig);
   meshes.forEach((grp, gi) => { for (const i of grp.pieces) pieces[i].g = gi; });
 
   // what the map drew without the Kit (the sheriff's badge, the posters, the
   // jail doors, the conductor's cap): live, shown in Studio for reference
   let other = 0;
   built.root.traverse((o) => {
-    if (!o.isMesh || o.userData.__kit) return;
+    if (!o.isMesh || o.userData.__kit || o.userData.__glb) return;
     for (let q = o; q; q = q.parent) if (q.userData.__kit) return;
     if (!o.visible) return;
     const m = Array.isArray(o.material) ? o.material[0] : o.material;
@@ -496,7 +704,7 @@ async function pageCapture({ MAP, kitUrl, GEOMETRY }) {
     other++;
   });
   // (groups added for the live objects after numbering)
-  const meshesAll = [...meshGroups.values()];
+  const meshesAll = [...meshes, ...[...meshGroups.values()].filter((g) => !grouped.has(g)).flatMap(splitBig)];
 
   const lights = [];
   built.root.traverse((o) => {
@@ -510,6 +718,15 @@ async function pageCapture({ MAP, kitUrl, GEOMETRY }) {
   const mark = (kind, name, p, extra = {}) => markers.push({ i: markers.length, kind, name, p: p.map(r4), path: kind === "rp" ? owner(p, /^rp\.(seats|surfaces|arm)\./.test(name)) : null, ...extra });
   for (const [i, s] of (map.spawns || []).entries()) mark("spawn", `Spawn_${i + 1}`, [s[0], s[2] ?? 0, s[1]], { team: s[1] < 0 ? "north" : "south" });
   if (map.playerSpawn) mark("spawn", "PlayerSpawn", [map.playerSpawn.x, 0, map.playerSpawn.z]);
+  // S&D sites, climbing ropes (foot; the top and the side you step off are
+  // attributes) and every flight of stairs (foot; its top an attribute)
+  for (const s of map.bombSites || []) mark("site", `Site_${s.id}`, [s.x, s.y ?? 0, s.z]);
+  for (const [i, r] of (arena.ropes || []).entries()) {
+    mark("rope", `Rope_${i + 1}`, [r.x, r.y0, r.z], { top: r4(r.y1), dir: r.dx ? (r.dx > 0 ? "+x" : "-x") : (r.dz > 0 ? "+z" : "-z") });
+  }
+  for (const [i, s] of (built.stairs || []).filter((s) => !s.rope).entries()) {
+    mark("stair", `Stair_${i + 1}`, [s.a.x, s.a.y, s.a.z], { to: [s.b.x, s.b.y, s.b.z].map(r4) });
+  }
   const zl = map.zombieLayout?.();
   for (const [i, w] of (zl?.windows || []).entries()) mark("zombie", `ZombieIn_${i + 1}`, [w.x, w.y ?? 0, w.z]);
   // every { x, z } in the RP spec, named by where it sits in it, and every
@@ -544,7 +761,7 @@ async function pageCapture({ MAP, kitUrl, GEOMETRY }) {
       images: images.map((im, i) => ({ i, w: im.w, h: im.h, flipY: im.flipY, chars: im.b64.length })),
       colliders: colOut.length, stats: { ...stats, other, calls: calls.length, pieces: recs.length },
     },
-    parts, meshes: meshesAll.map(({ pieces: _, ...g }) => g), images: images.map((im) => im.b64), colliders: colOut,
+    parts, meshes: meshesAll.map(({ pieces: _, pieceTri: __, ...g }) => g), images: images.map((im) => im.b64), colliders: colOut,
     pieces: GEOMETRY ? pieces : pieces.map(({ geo: _, ...p }) => p),
   };
 }

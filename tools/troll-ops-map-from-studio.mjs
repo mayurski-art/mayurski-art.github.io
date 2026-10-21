@@ -17,7 +17,7 @@
 //   node tools/troll-ops-map-from-studio.mjs --write    write
 //        models/tc-town.glb and maps/trollcity-layout.js, then bump
 //        trollcity-layout.js's ?v= tag yourself
-//   [--port 5297]
+//   [--port 5297] [--map trollcity]
 //
 // A Part made in Studio is drawn with the town's own surfaces (its Roblox
 // material picks the family, its colour the nearest of the town's materials
@@ -25,6 +25,16 @@
 // Studio (generate_mesh) comes back as itself: its mesh, and its texture
 // (at most 512 px, JPEG, in the GLB as the material "gen:<hash>"), a
 // collider too if it's CanCollide.
+//
+// --map kabukigrin (doc "Kabukigrin"): a map laid out in Studio from other
+// maps' pieces. Its `sources` are captured, and each part is rebuilt from
+// the capture its Map attribute names (a Trolling Loud booth dragged into
+// Kabukigrin_Live comes back as that booth); pieces of a `library` source
+// left in the library aren't "deleted", just unused. Its layout file holds
+// every collider, every marker by name and every light, and no `moves`:
+// nothing of the code's moves with a model there, the statics are all
+// Studio's. A GLB-built source's chunks keep their light-map UVs and paint
+// (TEXCOORD_1, COLOR_0) under the material "glb:<model>:<material>".
 
 import http from "node:http";
 import fs from "node:fs";
@@ -39,14 +49,28 @@ const args = process.argv.slice(2);
 const WRITE = args.includes("--write");
 const pi = args.indexOf("--port");
 const PORT = pi >= 0 ? +args[pi + 1] : 5297;
+const mi = args.indexOf("--map");
+const MAP = mi >= 0 ? args[mi + 1] : "trollcity";
+const OUTS = {
+  trollcity: { sources: ["trollcity"], library: [], glb: "tc-town", layout: "maps/trollcity-layout.js", name: "TC_LAYOUT", moves: true },
+  kabukigrin: { sources: ["grinjuku", "trollingloud"], library: ["trollingloud"], glb: "kb-town", layout: "maps/kabukigrin-layout.js", name: "KB_LAYOUT", moves: false },
+};
+const OUTCFG = OUTS[MAP];
+if (!OUTCFG) { console.error(`no such map: ${MAP} (${Object.keys(OUTS).join(", ")})`); process.exit(1); }
 const K = 3;   // studs per metre
-const GLB = path.join(ROOT, "assets/games/troll-ops/models/tc-town.glb");
-const LAYOUT = path.join(ROOT, "assets/games/troll-ops/maps/trollcity-layout.js");
+const GLB = path.join(ROOT, `assets/games/troll-ops/models/${OUTCFG.glb}.glb`);
+const LAYOUT = path.join(ROOT, "assets/games/troll-ops/" + OUTCFG.layout);
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 
 /* ------------------------------------------------------------ receive */
-const got = { parts: [], colliders: null, markers: null, genMesh: new Map(), genTex: new Map() };
-await new Promise((done) => {
+// --save f.json keeps what Studio sent; --replay f.json runs on it with no Studio
+const argOf = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
+const SAVE = argOf("--save"), REPLAY = argOf("--replay");
+const got = { parts: [], colliders: null, markers: null, lights: [], genMesh: new Map(), genTex: new Map() };
+if (REPLAY) {
+  const j = JSON.parse(fs.readFileSync(REPLAY, "utf8"));
+  Object.assign(got, j, { genMesh: new Map(j.genMesh), genTex: new Map(j.genTex) });
+} else await new Promise((done) => {
   const server = http.createServer((req, res) => {
     if (req.method !== "POST") { res.writeHead(404); return res.end(); }
     let body = "";
@@ -57,6 +81,7 @@ await new Promise((done) => {
       if (what === "parts") got.parts.push(...v);
       else if (what === "colliders") got.colliders = v;
       else if (what === "markers") got.markers = v;
+      else if (what === "lights") got.lights = v;
       else if (what === "gen-mesh") got.genMesh.set(v.id, v);
       else if (what === "gen-tex") {
         const t = got.genTex.get(v.id) || { w: v.w, h: v.h, parts: [] };
@@ -70,11 +95,19 @@ await new Promise((done) => {
   });
   server.listen(PORT, "127.0.0.1", () => console.log(`waiting for Studio on http://127.0.0.1:${PORT}`));
 });
-console.log(`from Studio: ${got.parts.length} parts, ${got.colliders.length} colliders, ${got.markers.length} markers`);
+if (SAVE) fs.writeFileSync(SAVE, JSON.stringify({ ...got, genMesh: [...got.genMesh], genTex: [...got.genTex] }));
+console.log(`from Studio: ${got.parts.length} parts, ${got.colliders.length} colliders, ${got.markers.length} markers, ${got.lights.length} lights`);
 
 /* ------------------------------------------------------------ rebuild */
-const cap = await captureMap({ geometry: true });
+// every source map, captured fresh; a record names its map (an older place
+// made for one map has no Map attributes: the first source)
+const caps = {};
+for (const m of OUTCFG.sources) { console.log(`capturing ${m}...`); caps[m] = await captureMap({ map: m, geometry: true }); }
+const capOf = (s) => caps[s.map] || caps[OUTCFG.sources[0]];
+const cap = caps[OUTCFG.sources[0]];
 const { pieces, meshes, index } = cap;
+// the materials of every source, for new Parts
+const allMats = OUTCFG.sources.flatMap((m) => caps[m].index.mats);
 
 // Studio's CFrame (studs: x y z, then the rotation's rows) and size, as a
 // matrix taking a unit-sized local frame to world metres.
@@ -95,8 +128,8 @@ const original = (prim) => {
     f[2], f[5], f[8], prim.p[2],
     0, 0, 0, 1).multiply(new THREE.Matrix4().makeScale(...prim.s.map((v) => v || 1e-6)));
 };
-const meshMid = (g) => {
-  const v = meshes[g].v;
+const meshMid = (C, g) => {
+  const v = C.meshes[g].v;
   const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
   for (let i = 0; i < v.length; i += 3) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], v[i + k] * K); hi[k] = Math.max(hi[k], v[i + k] * K); }
   return { mid: lo.map((l, k) => (l + hi[k]) / 2 / K), size: lo.map((l, k) => hi[k] - l) };
@@ -105,7 +138,8 @@ const meshMid = (g) => {
 const out = new Map();   // "key|tint|shadow" -> { flat: [], smooth: [] } of placed geometries
 const put = (piece, m) => {
   const name = `${piece.key}|${piece.tint}|${piece.shadow ? 1 : 0}`;
-  if (!out.has(name)) out.set(name, { flat: [], smooth: [], pictured: piece.pictured });
+  // (a picture and a GLB chunk keep their UVs; a GLB chunk its paint and light-map UVs too)
+  if (!out.has(name)) out.set(name, { flat: [], smooth: [], pictured: piece.pictured, uv: !!(piece.pictured || piece.glb), extra: !!piece.glb });
   out.get(name)[piece.geo.n ? "smooth" : "flat"].push({ geo: piece.geo, m });
 };
 // Untouched in Studio: within a millimetre and a milliradian of where it
@@ -119,19 +153,21 @@ const still = (cf, s, pos, axes, size) =>
 let moved = 0, kept = 0, fresh = 0;
 const made = [];   // Parts made in Studio
 const gens = [];   // MeshParts made in Studio (generate_mesh)
-const seen = new Set();
-const delta = new Map();   // piece -> its move (null: where it was)
+const seen = new Set();         // "<map>:<piece>"
+const delta = new Map();        // piece -> its move (null: where it was); the first source's
+const mapName = (s) => (caps[s.map] ? s.map : OUTCFG.sources[0]);
 for (const s of got.parts) {
   if (s.new) { fresh++; made.push(s); continue; }
   if (s.gen) { gens.push(s); continue; }
+  const C = capOf(s), mn = mapName(s);
   if (s.p != null) {
-    const piece = pieces[s.p];
+    const piece = C.pieces[s.p];
     if (!piece || !piece.prim || piece.live) continue;
-    if (still(s.cf, s.s, piece.prim.p, piece.prim.f, piece.prim.s)) { put(piece, null); kept++; delta.set(piece.i, null); }
-    else { const m = studio(s.cf, s.s).multiply(original(piece.prim).invert()); put(piece, m); moved++; delta.set(piece.i, m); }
-    seen.add(s.p);
+    if (still(s.cf, s.s, piece.prim.p, piece.prim.f, piece.prim.s)) { put(piece, null); kept++; if (C === cap) delta.set(piece.i, null); }
+    else { const m = studio(s.cf, s.s).multiply(original(piece.prim).invert()); put(piece, m); moved++; if (C === cap) delta.set(piece.i, m); }
+    seen.add(`${mn}:${s.p}`);
   } else if (s.g != null) {
-    const { mid, size } = meshMid(s.g);
+    const { mid, size } = meshMid(C, s.g);
     // a MeshPart is its mesh centred on its box, at Size0 for scale 1
     const m = new THREE.Matrix4().set(
       s.cf[3], s.cf[4], s.cf[5], s.cf[0] / K,
@@ -141,41 +177,44 @@ for (const s of got.parts) {
       .multiply(new THREE.Matrix4().makeScale(s.s[0] / s.s0[0], s.s[1] / s.s0[1], s.s[2] / s.s0[2]))
       .multiply(new THREE.Matrix4().makeTranslation(-mid[0], -mid[1], -mid[2]));
     const same = still(s.cf, s.s.map((v, k) => v / s.s0[k] * size[k]), mid, [1, 0, 0, 0, 1, 0, 0, 0, 1], size.map((v) => v / K));
-    for (const piece of pieces) {
+    for (const piece of C.pieces) {
       if (piece.g !== s.g || piece.live) continue;
       put(piece, same ? null : m);
-      delta.set(piece.i, same ? null : m);
-      seen.add(piece.i);
+      if (C === cap) delta.set(piece.i, same ? null : m);
+      seen.add(`${mn}:${piece.i}`);
       same ? kept++ : moved++;
     }
   }
 }
-const deleted = pieces.filter((p) => !p.live && !seen.has(p.i)).length;
-console.log(`pieces: ${kept} as they were, ${moved} moved, ${deleted} deleted, ${fresh} new Parts`);
+let deleted = 0, unused = 0;
+for (const m of OUTCFG.sources) {
+  const n = caps[m].pieces.filter((p) => !p.live && !seen.has(`${m}:${p.i}`)).length;
+  if (OUTCFG.library.includes(m)) unused += n; else deleted += n;
+}
+console.log(`pieces: ${kept} as they were, ${moved} moved, ${deleted} deleted, ${fresh} new Parts${unused ? `, ${unused} library pieces unused` : ""}`);
 
 /* ------------------------------------------------------------ colliders */
 const newCols = [];   // solid Parts made in Studio (below)
-const before = cap.colliders.filter((c) => !c.live);
+const before = OUTCFG.sources.filter((m) => !OUTCFG.library.includes(m)).flatMap((m) => caps[m].colliders.filter((c) => !c.live));
 // in the game's own order, new ones after, so a diff of the file reads
 got.colliders.sort((a, b) => (a.c ?? Infinity) - (b.c ?? Infinity));
+const colWas = (c) => {
+  const o = c.c != null ? capOf(c).colliders.find((k) => k.i === c.c) : null;
+  return o ? { o, was: [(o.min[0] + o.max[0]) / 2, (o.min[2] + o.max[2]) / 2, o.max[0] - o.min[0], o.max[2] - o.min[2], o.max[1] - o.min[1], o.min[1]] } : null;
+};
 const cols = got.colliders.map((c) => {
-  const o = cap.colliders.find((k) => k.i === c.c);
-  if (o) {
-    const was = [(o.min[0] + o.max[0]) / 2, (o.min[2] + o.max[2]) / 2, o.max[0] - o.min[0], o.max[2] - o.min[2], o.max[1] - o.min[1], o.min[1]];
-    // left where it was (Studio keeps 32-bit numbers): the game's own numbers
-    if ([c.x, c.z, c.w, c.d, c.h, c.y].every((v, k) => Math.abs(v - was[k]) < 1e-3)) return [...was, o.pen].map(r4);
-  }
+  const w = colWas(c);
+  // left where it was (Studio keeps 32-bit numbers): the game's own numbers
+  if (w && [c.x, c.z, c.w, c.d, c.h, c.y].every((v, k) => Math.abs(v - w.was[k]) < 1e-3)) return [...w.was, w.o.pen].map(r4);
   return [c.x, c.z, c.w, c.d, c.h, c.y, c.pen].map(r4);
 });
 {
-  const byI = new Map(cap.colliders.map((c) => [c.i, c]));
   let changed = 0;
   for (const c of got.colliders) {
-    const o = byI.get(c.c);
-    if (!o) { changed++; continue; }
-    const was = [(o.min[0] + o.max[0]) / 2, (o.min[2] + o.max[2]) / 2, o.max[0] - o.min[0], o.max[2] - o.min[2], o.max[1] - o.min[1], o.min[1]];
+    const w = colWas(c);
+    if (!w) { changed++; continue; }
     const now = [c.x, c.z, c.w, c.d, c.h, c.y];
-    if (Math.max(...now.map((v, k) => Math.abs(v - was[k]))) > 0.01) changed++;
+    if (Math.max(...now.map((v, k) => Math.abs(v - w.was[k]))) > 0.01) changed++;
   }
   console.log(`colliders: ${got.colliders.length} from Studio (the game had ${before.length} still ones): ${changed} changed or new, ${Math.max(0, before.length - got.colliders.length)} fewer`);
 }
@@ -191,7 +230,7 @@ const cols = got.colliders.map((c) => {
     Mud: ["Sand"], Grass: ["Grass"], LeafyGrass: ["Grass"], Fabric: ["Fabric"], Carpet: ["Fabric"], Glass: ["Glass"], Neon: ["Neon"],
     SmoothPlastic: ["SmoothPlastic"], Plastic: ["SmoothPlastic"],
   };
-  const pool = index.mats.filter((m) => m.key && !m.pictured && !m.cutout && (m.alpha === 1 || m.rbx === "Glass"));
+  const pool = allMats.filter((m) => m.key && !m.pictured && !m.cutout && (m.alpha === 1 || m.rbx === "Glass"));
   const pick = (rbx, c) => {
     for (const fam of [FAMILY[rbx], null]) {
       const list = pool.filter((m) => (fam ? fam.includes(m.rbx) : m.rbx !== "Neon" && m.rbx !== "Glass"));
@@ -306,7 +345,7 @@ const genImages = new Map();   // material key -> { jpeg: Buffer }
 // a moved one goes in the list too (as staying put).
 const moves = [];
 const I4 = new THREE.Matrix4();
-{
+if (OUTCFG.moves) {
   const box = new Map();
   for (const p of pieces) {
     if (p.live || !p.geo || !p.path) continue;
@@ -354,7 +393,26 @@ const I4 = new THREE.Matrix4();
 // An RP marker that moved (on its own or with its model) is that spot:
 // [x, y, z, yaw|null, w|null, d|null] by its name in the RP spec.
 const rpOut = {};
-{
+// Every marker as it stands, by name, for a map whose layout is Studio's
+// (kabukigrin): { kind, p, yaw, size?, top?, dir?, to?, label?, team? }
+const markersOut = {};
+const lightsOut = got.lights.map((l) => [...l.p.map(r4), "#" + l.color.map((c) => Math.round(Math.min(1, c) * 255).toString(16).padStart(2, "0")).join(""), r4(l.power), r4(l.range)]);
+if (!OUTCFG.moves) {
+  const dup = new Set();
+  for (const mk of got.markers) {
+    if (!mk.name) continue;
+    if (markersOut[mk.name]) dup.add(mk.name);
+    const o = { kind: mk.kind || "rp", p: mk.p.map(r4) };
+    if (typeof mk.yaw === "number" && mk.kind !== "spawn" && mk.kind !== "site") o.yaw = r4(mk.yaw);
+    if (mk.size) o.size = [r4(mk.size[0]), r4(mk.size[2])];
+    for (const k of ["top", "dir", "label", "team"]) if (mk[k] != null) o[k] = typeof mk[k] === "number" ? r4(mk[k]) : mk[k];
+    if (mk.to) o.to = mk.to.map(r4);
+    markersOut[mk.name] = o;
+  }
+  const kinds = {};
+  for (const o of Object.values(markersOut)) kinds[o.kind] = (kinds[o.kind] || 0) + 1;
+  console.log(`markers: ${Object.keys(markersOut).length} by name (${Object.entries(kinds).map(([k, n]) => `${n} ${k}`).join(", ")}); lights: ${lightsOut.length}${dup.size ? `; NAMED TWICE (the last wins): ${[...dup].join(", ")}` : ""}`);
+} else {
   let movedM = 0, other = 0;
   const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
   // by name first: a new RP spot in the game renumbers every marker after it,
@@ -379,8 +437,8 @@ const rpOut = {};
 }
 
 /* ------------------------------------------------------------ the GLB */
-function bake(list, withNormals, withUV) {
-  const P = [], N = [], U = [], I = [];
+function bake(list, withNormals, withUV, withExtra = false) {
+  const P = [], N = [], U = [], U2 = [], C = [], I = [];
   const v = new THREE.Vector3(), nm = new THREE.Matrix3();
   for (const { geo, m } of list) {
     const base = P.length / 3;
@@ -396,14 +454,22 @@ function bake(list, withNormals, withUV) {
         N.push(v.x, v.y, v.z);
       }
     }
-    if (withUV) for (let i = 0; i < geo.p.length / 3; i++) U.push(geo.uv ? geo.uv[i * 2] : 0, geo.uv ? geo.uv[i * 2 + 1] : 0);
-    const idx = geo.idx || Array.from({ length: geo.p.length / 3 }, (_, i) => i);
+    const nv = geo.p.length / 3;
+    if (withUV) for (let i = 0; i < nv; i++) U.push(geo.uv ? geo.uv[i * 2] : 0, geo.uv ? geo.uv[i * 2 + 1] : 0);
+    // a GLB chunk's light-map UVs and paint (white, opaque where it has none)
+    if (withExtra) for (let i = 0; i < nv; i++) {
+      U2.push(geo.uv2 ? geo.uv2[i * 2] : 0, geo.uv2 ? geo.uv2[i * 2 + 1] : 0);
+      if (geo.c && geo.c.length === nv * 4) C.push(geo.c[i * 4], geo.c[i * 4 + 1], geo.c[i * 4 + 2]);
+      else if (geo.c) C.push(geo.c[i * 3], geo.c[i * 3 + 1], geo.c[i * 3 + 2]);
+      else C.push(1, 1, 1);
+    }
+    const idx = geo.idx || Array.from({ length: nv }, (_, i) => i);
     for (let t = 0; t < idx.length; t += 3) {
       if (flip) I.push(base + idx[t], base + idx[t + 2], base + idx[t + 1]);
       else I.push(base + idx[t], base + idx[t + 1], base + idx[t + 2]);
     }
   }
-  return { P, N, U, I };
+  return { P, N, U, U2, C, I };
 }
 
 function writeGLB(groups) {
@@ -442,13 +508,15 @@ function writeGLB(groups) {
     const gm = name.startsWith("gen:") ? genMat(name.split("|")[0]) : null;
     for (const [kind, list] of [["flat", g.flat], ["smooth", g.smooth]]) {
       if (!list.length) continue;
-      const { P, N, U, I } = bake(list, kind === "smooth", g.pictured);
+      const { P, N, U, U2, C, I } = bake(list, kind === "smooth", g.uv ?? g.pictured, g.extra);
       const pos = new Float32Array(P);
       const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
       for (let i = 0; i < pos.length; i += 3) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], pos[i + k]); hi[k] = Math.max(hi[k], pos[i + k]); }
       const attributes = { POSITION: acc(pos, "VEC3", 5126, pos.length / 3, { min: lo, max: hi }) };
       if (N.length) attributes.NORMAL = acc(new Float32Array(N), "VEC3", 5126, N.length / 3);
       if (U.length) attributes.TEXCOORD_0 = acc(new Float32Array(U), "VEC2", 5126, U.length / 2);
+      if (U2.length) attributes.TEXCOORD_1 = acc(new Float32Array(U2), "VEC2", 5126, U2.length / 2);
+      if (C.length) attributes.COLOR_0 = acc(new Float32Array(C), "VEC3", 5126, C.length / 3);
       const big = pos.length / 3 > 65535;
       const indices = acc(big ? new Uint32Array(I) : new Uint16Array(I), "SCALAR", big ? 5125 : 5123, I.length);
       prims.push({ attributes, indices, mode: 4, ...(gm != null ? { material: gm } : {}) });
@@ -473,18 +541,31 @@ function writeGLB(groups) {
 
 const { glb, tris } = writeGLB([...out].sort(([a], [b]) => (a < b ? -1 : 1)));
 const v = crypto.createHash("sha1").update(glb).digest("hex").slice(0, 8);
-console.log(`town: ${out.size} meshes, ${tris} triangles, ${(glb.length / 1024 / 1024).toFixed(2)} MB (GLB ${v})`);
-if (!WRITE) { console.log("check only: --write to write models/tc-town.glb and maps/trollcity-layout.js"); process.exit(0); }
+console.log(`${MAP}: ${out.size} meshes, ${tris} triangles, ${(glb.length / 1024 / 1024).toFixed(2)} MB (GLB ${v})`);
+if (!WRITE) { console.log(`check only: --write to write models/${OUTCFG.glb}.glb and ${OUTCFG.layout}`); process.exit(0); }
 
 fs.writeFileSync(GLB, glb);
 const nl = "\n";
-fs.writeFileSync(LAYOUT, `// Troll City's Studio town (doc "Troll City redesign in Roblox Studio"),${nl}` +
-  `// written by tools/troll-ops-map-from-studio.mjs --write. trollcity-studio.js${nl}` +
-  `// draws models/<glb>.glb and lays these still colliders: [x, z, w, d, h, y, pen];${nl}` +
-  `// moves and rp: what Studio moved (see trollcity-studio.js).${nl}` +
-  `export const TC_LAYOUT = {${nl}  glb: "tc-town", v: "${v}",${nl}  colliders: [${nl}` +
-  [...cols, ...newCols].map((c) => `    ${JSON.stringify(c)},`).join(nl) + `${nl}  ],${nl}  moves: [${nl}` +
-  moves.map((m) => `    ${JSON.stringify(m)},`).join(nl) + `${nl}  ],${nl}  rp: {${nl}` +
-  Object.entries(rpOut).map(([k, r]) => `    ${JSON.stringify(k)}: ${JSON.stringify(r)},`).join(nl) + `${nl}  },${nl}};${nl}`);
+const rows = (list) => list.map((c) => `    ${JSON.stringify(c)},`).join(nl);
+if (OUTCFG.moves) {
+  fs.writeFileSync(LAYOUT, `// Troll City's Studio town (doc "Troll City redesign in Roblox Studio"),${nl}` +
+    `// written by tools/troll-ops-map-from-studio.mjs --write. trollcity-studio.js${nl}` +
+    `// draws models/<glb>.glb and lays these still colliders: [x, z, w, d, h, y, pen];${nl}` +
+    `// moves and rp: what Studio moved (see trollcity-studio.js).${nl}` +
+    `export const TC_LAYOUT = {${nl}  glb: "tc-town", v: "${v}",${nl}  colliders: [${nl}` +
+    rows([...cols, ...newCols]) + `${nl}  ],${nl}  moves: [${nl}` +
+    rows(moves) + `${nl}  ],${nl}  rp: {${nl}` +
+    Object.entries(rpOut).map(([k, r]) => `    ${JSON.stringify(k)}: ${JSON.stringify(r)},`).join(nl) + `${nl}  },${nl}};${nl}`);
+} else {
+  fs.writeFileSync(LAYOUT, `// ${MAP}'s Studio layout (doc "Kabukigrin"), written by${nl}` +
+    `// tools/troll-ops-map-from-studio.mjs --map ${MAP} --write. The map draws${nl}` +
+    `// models/<glb>.glb and lays these colliders: [x, z, w, d, h, y, pen];${nl}` +
+    `// markers: every Studio marker by name ({ kind, p: [x, y, z], yaw?, size?,${nl}` +
+    `// top?, dir?, to?, label?, team? }); lights: [x, y, z, "#rrggbb", power, range].${nl}` +
+    `export const ${OUTCFG.name} = {${nl}  glb: "${OUTCFG.glb}", v: "${v}",${nl}  colliders: [${nl}` +
+    rows([...cols, ...newCols]) + `${nl}  ],${nl}  markers: {${nl}` +
+    Object.entries(markersOut).map(([k, r]) => `    ${JSON.stringify(k)}: ${JSON.stringify(r)},`).join(nl) + `${nl}  },${nl}  lights: [${nl}` +
+    rows(lightsOut) + `${nl}  ],${nl}};${nl}`);
+}
 console.log(`wrote ${path.relative(ROOT, GLB)} and ${path.relative(ROOT, LAYOUT)}`);
-console.log("now bump: node tools/troll-ops-bump-tags.mjs <suffix> assets/games/troll-ops/maps/trollcity-layout.js --write");
+console.log(`now bump: node tools/troll-ops-bump-tags.mjs <suffix> assets/games/troll-ops/${OUTCFG.layout} --write`);

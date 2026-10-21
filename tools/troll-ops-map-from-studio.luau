@@ -17,15 +17,23 @@
 -- town moved or turned as one (a stray drag) means nothing to the game:
 -- everything is sent relative to the town's Home pivot.
 --
+-- Every record carries `map`, the map the part was imported from (its Map
+-- attribute): a piece dragged in from another map's library is rebuilt from
+-- that map's capture. Lights (parts in a Lights folder with a PointLight)
+-- go as `lights`; markers are any part in a Markers folder (its Kind
+-- attribute, "rp" when none), not only the imported ones.
+--
 -- A module: the to-studio import keeps it in the place as
 -- ServerStorage.TC_FromStudio, so a round trip is
 --   require(game.ServerStorage.TC_FromStudio:Clone())(5297)
-return function(PORT)
+-- or, for another map's root, (5297, "Kabukigrin_Live").
+return function(PORT, rootName)
 	PORT = PORT or 5297
+	rootName = rootName or "TrollCity_Live"
 	local HttpService = game:GetService("HttpService")
 	local AssetService = game:GetService("AssetService")
-	local root = workspace:FindFirstChild("TrollCity_Live")
-	if not root then error("no workspace.TrollCity_Live: import it with tools/troll-ops-map-to-studio.luau first") end
+	local root = workspace:FindFirstChild(rootName)
+	if not root then error("no workspace." .. rootName .. ": import it with tools/troll-ops-map-to-studio.luau first") end
 	local K = 3
 	local U = (root:GetAttribute("Home") or root:GetPivot()) * root:GetPivot():Inverse()
 
@@ -53,38 +61,51 @@ return function(PORT)
 		return table.concat(t, "/")
 	end
 
-	local parts, cols, marks = {}, {}, {}
+	local parts, cols, marks, lights = {}, {}, {}, {}
 	local n = 0
 	for _, p in ipairs(root:GetDescendants()) do
 		if p:IsA("BasePart") and not p:GetAttribute("Live") then
-			if p:GetAttribute("M") then
+			local map = p:GetAttribute("Map")
+			if p:GetAttribute("M") or inFolder(p, "Markers") then
 				local lift = p:GetAttribute("Lift") or 0
 				local pcf = U * p.CFrame
 				local pos = pcf.Position - Vector3.new(0, lift, 0)
 				local look = pcf.LookVector
-				table.insert(marks, { m = p:GetAttribute("M"), name = p.Name, p = { pos.X / K, pos.Y / K, pos.Z / K },
+				local kind = p:GetAttribute("Kind") or "rp"
+				local to = p:GetAttribute("To")
+				table.insert(marks, { m = p:GetAttribute("M"), map = map, name = p.Name, kind = kind, p = { pos.X / K, pos.Y / K, pos.Z / K },
 					-- the way it faces, in the game's yaw (0 = -z, +PI/2 = -x)
-					yaw = math.atan2(-look.X, -look.Z), size = p:GetAttribute("Kind") == "rp" and p.Shape == Enum.PartType.Block and sz(p.Size / K) or nil })
+					yaw = math.atan2(-look.X, -look.Z), size = kind == "rp" and p.Shape == Enum.PartType.Block and sz(p.Size / K) or nil,
+					-- a rope's top and the side you step off; a stair's top
+					top = p:GetAttribute("Top"), dir = p:GetAttribute("Dir"), to = to and { to.X, to.Y, to.Z } or nil,
+					label = p:GetAttribute("Label"), team = p:GetAttribute("Team") })
+			elseif inFolder(p, "Lights") then
+				local pl = p:FindFirstChildOfClass("PointLight")
+				if pl then
+					local pos = (U * p.CFrame).Position
+					table.insert(lights, { map = map, name = p.Name, p = { pos.X / K, pos.Y / K, pos.Z / K }, color = { pl.Color.R, pl.Color.G, pl.Color.B },
+						power = p:GetAttribute("Power") or pl.Brightness * 6, range = p:GetAttribute("Range") or pl.Range / K })
+				end
 			elseif inFolder(p, "Colliders") then
 				local cf, half = U * p.CFrame, p.Size / 2
 				local ex = math.abs(cf.RightVector.X) * half.X + math.abs(cf.UpVector.X) * half.Y + math.abs(cf.LookVector.X) * half.Z
 				local ey = math.abs(cf.RightVector.Y) * half.X + math.abs(cf.UpVector.Y) * half.Y + math.abs(cf.LookVector.Y) * half.Z
 				local ez = math.abs(cf.RightVector.Z) * half.X + math.abs(cf.UpVector.Z) * half.Y + math.abs(cf.LookVector.Z) * half.Z
 				local c = cf.Position
-				table.insert(cols, { c = p:GetAttribute("C"), x = c.X / K, z = c.Z / K, w = 2 * ex / K, d = 2 * ez / K, h = 2 * ey / K,
+				table.insert(cols, { c = p:GetAttribute("C"), map = map, x = c.X / K, z = c.Z / K, w = 2 * ex / K, d = 2 * ez / K, h = 2 * ey / K,
 					y = (c.Y - ey) / K, pen = p:GetAttribute("Pen") or 0.9 })
 			elseif p:GetAttribute("TC_Mesh") then
-				table.insert(parts, { g = p:GetAttribute("TC_Mesh"), cf = cfOut(U * p.CFrame), s = sz(p.Size), s0 = sz(p:GetAttribute("Size0") or p.Size) })
+				table.insert(parts, { g = p:GetAttribute("TC_Mesh"), map = map, cf = cfOut(U * p.CFrame), s = sz(p.Size), s0 = sz(p:GetAttribute("Size0") or p.Size) })
 			elseif p:GetAttribute("P") then
-				table.insert(parts, { p = p:GetAttribute("P"), cf = cfOut(U * p.CFrame), s = sz(p.Size) })
-			elseif p:IsA("MeshPart") and not inFolder(p, "Lights") and not inFolder(p, "Markers") then
+				table.insert(parts, { p = p:GetAttribute("P"), map = map, cf = cfOut(U * p.CFrame), s = sz(p.Size) })
+			elseif p:IsA("MeshPart") then
 				-- made in Studio (generate_mesh): its own mesh and texture
 				local tex = p.TextureID
 				local sa = p:FindFirstChildOfClass("SurfaceAppearance")
 				if tex == "" and sa then tex = sa.ColorMap end
 				table.insert(parts, { gen = p.MeshId, tex = tex ~= "" and tex or nil, cf = cfOut(U * p.CFrame), s = sz(p.Size), ms = sz(p.MeshSize),
 					color = { p.Color.R, p.Color.G, p.Color.B }, name = p.Name, path = modelPath(p), solid = p.CanCollide, pen = p:GetAttribute("Pen") })
-			elseif not inFolder(p, "Lights") and not inFolder(p, "Markers") then
+			else
 				-- new: made in Studio
 				table.insert(parts, { new = p:IsA("Part") and p.Shape.Name or p.ClassName, cf = cfOut(U * p.CFrame), s = sz(p.Size),
 					color = { p.Color.R, p.Color.G, p.Color.B }, mat = p.Material.Name, alpha = 1 - p.Transparency, name = p.Name, path = modelPath(p),
@@ -183,9 +204,10 @@ return function(PORT)
 		end
 		post("colliders", cols)
 		post("markers", marks)
-		return post("end", { parts = #parts, colliders = #cols, markers = #marks })
+		post("lights", lights)
+		return post("end", { parts = #parts, colliders = #cols, markers = #marks, lights = #lights })
 	end)
 	HttpService.HttpEnabled = HS
 	if not ok then error("post: " .. tostring(res)) end
-	return ("sent %d parts, %d colliders, %d markers: %s"):format(#parts, #cols, #marks, res)
+	return ("sent %d parts, %d colliders, %d markers, %d lights: %s"):format(#parts, #cols, #marks, #lights, res)
 end

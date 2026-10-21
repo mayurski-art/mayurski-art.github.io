@@ -12,11 +12,15 @@
 --     Markers                        spawns and zombie windows (locked)
 --   A Part or MeshPart with Live set is drawn by code in the game (the
 --   train, the board, the jail doors): locked, shown for reference only.
---   ServerStorage.TC_MeshData/<i>    each mesh's data, and TC_Images/<i>
+--   ServerStorage.TC_MeshData_<map>/<i>  each mesh's data, and TC_Images_<map>/<i>
+--                                    (a place can hold several maps: Kabukigrin's
+--                                    holds Grinjuku and a Trolling Loud library)
 --   ServerStorage.TC_Lib             require(it).restore(): rebuilds every
 --                                    Mesh_<i> after the place is reopened
 --                                    (code-made meshes aren't saved), where
 --                                    it stands now
+--   Every part carries Map = the map it came from, so a piece dragged from
+--   one map's root into another's exports from the right capture.
 -- 1 m = 3 studs, same axes as the game (y up, -z north).
 return function(opts)
 	opts = opts or {}
@@ -39,6 +43,9 @@ local function MATERIAL(n)
 	return ok and m or Enum.Material.SmoothPlastic
 end
 M.material = MATERIAL
+-- a map's data folder (an older place, one map, has no suffix)
+local function dataName(base, map) return map and (base .. "_" .. map) or base end
+M.dataName = dataName
 local B64 = {}
 do
 	local alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
@@ -50,9 +57,11 @@ local function joined(folder)
 	return table.concat(t)
 end
 local images = {}
-function M.image(i)
-	if images[i] then return images[i] end
-	local f = ServerStorage:FindFirstChild("TC_Images") and ServerStorage.TC_Images:FindFirstChild(tostring(i))
+function M.image(i, map)
+	local key = tostring(map) .. "/" .. i
+	if images[key] then return images[key] end
+	local folder = ServerStorage:FindFirstChild(dataName("TC_Images", map))
+	local f = folder and folder:FindFirstChild(tostring(i))
 	if not f then return nil end
 	local s, w, h = joined(f), f:GetAttribute("w"), f:GetAttribute("h")
 	local size = w * h * 4
@@ -70,12 +79,12 @@ function M.image(i)
 	end
 	local img = AssetService:CreateEditableImage({ Size = Vector2.new(w, h) })
 	img:WritePixelsBuffer(Vector2.zero, Vector2.new(w, h), buf)
-	images[i] = { img = img, flipY = f:GetAttribute("flipY") }
-	return images[i]
+	images[key] = { img = img, flipY = f:GetAttribute("flipY") }
+	return images[key]
 end
 -- a MeshPart from mesh i's data, centred on its own box (its centre in the map, in studs, comes back too)
-function M.mesh(i, mats)
-	local f = ServerStorage.TC_MeshData:FindFirstChild(tostring(i))
+function M.mesh(i, mats, map)
+	local f = ServerStorage[dataName("TC_MeshData", map)]:FindFirstChild(tostring(i))
 	local m = HttpService:JSONDecode(joined(f))
 	local mat = mats[m.mat + 1]
 	local nv = #m.v / 3
@@ -85,7 +94,7 @@ function M.mesh(i, mats)
 		lo = lo:Min(p); hi = hi:Max(p)
 	end
 	local mid = (lo + hi) / 2
-	local tex = mat.img >= 0 and M.image(mat.img) or nil
+	local tex = mat.img >= 0 and M.image(mat.img, map) or nil
 	local em = AssetService:CreateEditableMesh()
 	local vid, nid, uid = {}, {}, {}
 	for v = 0, nv - 1 do
@@ -119,20 +128,24 @@ function M.mesh(i, mats)
 	-- its size at scale 1: resizing it in Studio scales the piece in the game
 	mp:SetAttribute("Size0", mp.Size)
 	mp:SetAttribute("TC_Mat", mat.name)
+	if map then mp:SetAttribute("Map", map) end
 	mp.CFrame = CFrame.new(mid)
 	return mp, mid
 end
-function M.mats()
-	return HttpService:JSONDecode(ServerStorage.TC_MeshData:GetAttribute("mats"))
+function M.mats(map)
+	return HttpService:JSONDecode(ServerStorage[dataName("TC_MeshData", map)]:GetAttribute("mats"))
 end
 -- After reopening the place: every Mesh_<i> is an empty MeshPart. Make
 -- each again where it stands now, the size it is now.
 function M.restore()
-	local mats = M.mats()
+	local mats = {}
 	local n = 0
 	for _, old in ipairs(workspace:GetDescendants()) do
 		if old:IsA("MeshPart") and old:GetAttribute("TC_Mesh") then
-			local mp = M.mesh(old:GetAttribute("TC_Mesh"), mats)
+			local map = old:GetAttribute("Map")
+			local mk = tostring(map)
+			if not mats[mk] then mats[mk] = M.mats(map) end
+			local mp = M.mesh(old:GetAttribute("TC_Mesh"), mats[mk], map)
 			mp.CFrame = old.CFrame
 			mp.Size = old.Size
 			mp.Name = old.Name
@@ -180,24 +193,28 @@ return M
 	local ok, err = pcall(function()
 		local index = HttpService:JSONDecode(get("/x/index.json"))
 		local mats = index.mats
-		local rootName = (index.name or index.map):gsub("%s+", "") .. "_Live"
+		local MAP = index.map
+		local rootName = (index.root or index.name or index.map):gsub("%s+", "") .. "_Live"
 
 		-- never lose someone's edits: an earlier import is kept, renamed
 		local prev = workspace:FindFirstChild(rootName)
 		if prev then prev.Name = rootName .. "_old_" .. os.time() end
 		local root = Instance.new("Model"); root.Name = rootName
-		root:SetAttribute("TC_Map", index.map)
+		root:SetAttribute("TC_Map", MAP)
 		root:SetAttribute("TC_Unit", "1 m = 3 studs")
 
-		-- the library + stored data
-		for _, n in ipairs({ "TC_Lib", "TC_MeshData", "TC_Images" }) do
+		-- the library + this map's stored data (another map's stays)
+		local meshName, imgName = "TC_MeshData_" .. MAP, "TC_Images_" .. MAP
+		for _, n in ipairs({ "TC_Lib", meshName, imgName }) do
 			local o = ServerStorage:FindFirstChild(n); if o then o:Destroy() end
 		end
 		local lib = Instance.new("ModuleScript"); lib.Name = "TC_Lib"; lib.Source = LIB_SRC; lib.Parent = ServerStorage
-		local meshData = Instance.new("Folder"); meshData.Name = "TC_MeshData"; meshData.Parent = ServerStorage
+		local meshData = Instance.new("Folder"); meshData.Name = meshName; meshData.Parent = ServerStorage
 		meshData:SetAttribute("mats", HttpService:JSONEncode(mats))
-		local imgData = Instance.new("Folder"); imgData.Name = "TC_Images"; imgData.Parent = ServerStorage
+		local imgData = Instance.new("Folder"); imgData.Name = imgName; imgData.Parent = ServerStorage
 		local Lib = require(lib:Clone())
+		-- every part knows the map it came from
+		local function tag(part) part:SetAttribute("Map", MAP) end
 
 		-- the models, nested by path; built off the DataModel, parented a section at a time
 		local models = {}
@@ -251,6 +268,7 @@ return M
 				-- the game piece it is (the from-studio tool rebuilds it from the code's own geometry)
 				if p.i then part:SetAttribute("P", p.i) end
 				if p.live then liveOne(part) end
+				tag(part)
 				part.Parent = modelAt(p.path)
 				made += 1
 			end
@@ -269,9 +287,10 @@ return M
 		for _, info in ipairs(index.meshes) do
 			store(meshData, tostring(info.i), getBig("/x/mesh-" .. info.i .. ".json"))
 			-- one that Studio can't take (the far plain is 2700 studs across) is skipped and named
-			local okMesh, mp = pcall(Lib.mesh, info.i, mats)
+			local okMesh, mp = pcall(Lib.mesh, info.i, mats, MAP)
 			if okMesh then
 				if info.live then liveOne(mp) end
+				tag(mp)
 				mp.Parent = modelAt(info.path); nm += 1
 			else status.skipped = (status.skipped or "") .. info.path .. " (" .. tostring(mp) .. "); " end
 			status.meshes = nm
@@ -293,12 +312,14 @@ return M
 				part.Size = (hi - lo):Max(Vector3.one * 0.05); part.CFrame = CFrame.new((lo + hi) / 2)
 				part:SetAttribute("C", c.i)
 				part:SetAttribute("Pen", c.pen)
+				tag(part)
 				part.Parent = folderIn(c.path, "Colliders")
 				shown += 1
 			end
 		end
 
-		local KIND = { spawn = Color3.fromRGB(0, 170, 255), zombie = Color3.fromRGB(120, 200, 60), rp = Color3.fromRGB(255, 170, 0) }
+		local KIND = { spawn = Color3.fromRGB(0, 170, 255), zombie = Color3.fromRGB(120, 200, 60), rp = Color3.fromRGB(255, 170, 0),
+			site = Color3.fromRGB(255, 50, 50), rope = Color3.fromRGB(190, 90, 255), stair = Color3.fromRGB(60, 220, 200) }
 		for _, mk in ipairs(index.markers) do
 			local part = Instance.new("Part"); part.Name = mk.name
 			part.Anchored = true; part.CanCollide = false; part.Locked = true; part.CastShadow = false
@@ -308,6 +329,11 @@ return M
 				-- a zone: a flat sheet over the floor it covers
 				part.Size = Vector3.new(mk.zone[1] * K, 0.1, mk.zone[2] * K); part.Transparency = 0.85
 				lift = 0.05
+			elseif mk.kind == "rope" then
+				-- a rope: a thin post from its foot to its top
+				local h = (mk.top - mk.p[2]) * K
+				part.Size = Vector3.new(0.3, h, 0.3); part.Transparency = 0.4
+				lift = h / 2
 			else
 				part.Shape = Enum.PartType.Ball; part.Size = Vector3.one * (mk.kind == "rp" and 0.6 or 1.5)
 				lift = part.Size.Y / 2
@@ -320,20 +346,31 @@ return M
 			if mk.label then part:SetAttribute("Label", mk.label) end
 			if mk.team then part:SetAttribute("Team", mk.team) end
 			if mk.yaw then part:SetAttribute("Yaw", mk.yaw) end
+			if mk.top then part:SetAttribute("Top", mk.top) end
+			if mk.dir then part:SetAttribute("Dir", mk.dir) end
+			if mk.to then part:SetAttribute("To", Vector3.new(mk.to[1], mk.to[2], mk.to[3])) end
+			tag(part)
 			part.Parent = folderIn(mk.path, "Markers")
 		end
 
+		-- the map's real lights: the game makes them in code, from here on
+		-- where these stand (a new map reads them back; Troll City's are its own)
 		for i, l in ipairs(index.lights) do
 			local part = Instance.new("Part"); part.Name = "Lamp_" .. i
-			part.Anchored = true; part.CanCollide = false; part.Transparency = 1; part.CastShadow = false; part.Locked = true
-			part.Size = Vector3.one * 0.4; part.CFrame = CFrame.new(Vector3.new(l.p[1], l.p[2], l.p[3]) * K)
-			part:SetAttribute("Live", true)
+			part.Anchored = true; part.CanCollide = false; part.Transparency = 0.7; part.CastShadow = false
+			part.Material = Enum.Material.Neon; part.Color = Color3.new(l.color[1], l.color[2], l.color[3])
+			part.Shape = Enum.PartType.Ball
+			part.Size = Vector3.one * 0.6; part.CFrame = CFrame.new(Vector3.new(l.p[1], l.p[2], l.p[3]) * K)
+			part:SetAttribute("Kind", "light")
+			part:SetAttribute("Power", l.power)
+			part:SetAttribute("Range", l.range)
 			local pl = Instance.new("PointLight")
 			pl.Color = Color3.new(l.color[1], l.color[2], l.color[3])
 			pl.Brightness = math.clamp(l.power / 6, 0.5, 4)
 			pl.Range = math.min(60, l.range * K)
 			pl.Shadows = true
 			pl.Parent = part
+			tag(part)
 			part.Parent = folderIn(l.path, "Lights")
 		end
 
@@ -342,7 +379,11 @@ return M
 		root.Parent = workspace
 		for _, m in pairs(sections) do m.Parent = root; task.wait() end
 		-- where the town stands: a stray drag of the whole town is undone on the way out
+		-- the pivot pinned at the game's origin: Home is then where the game stands
+		root.WorldPivot = CFrame.identity
 		root:SetAttribute("Home", root:GetPivot())
+		-- a library stands aside; its pieces export relative to Home all the same
+		if index.at then root:PivotTo(root:GetPivot() + Vector3.new(index.at[1], index.at[2], index.at[3]) * K) end
 		-- the way back (tools/troll-ops-map-from-studio.luau), kept in the place
 		local back = ServerStorage:FindFirstChild("TC_FromStudio"); if back then back:Destroy() end
 		back = Instance.new("ModuleScript"); back.Name = "TC_FromStudio"

@@ -1,5 +1,7 @@
-// A Troll Forces map, as the game builds it, into Roblox Studio (for now:
-// Troll City, the one built by trollcity-kit.js's Kit).
+// A Troll Forces map, as the game builds it, into Roblox Studio: Troll City
+// (built by trollcity-kit.js's Kit), Trolling Loud (the same Kit and the Neon
+// batches) and Grinjuku (Blender GLBs, cut into pieces by its colliders);
+// see CFG in tools/troll-ops-map-capture.mjs.
 //
 // The live map is captured piece by piece (tools/troll-ops-map-capture.mjs:
 // every piece knows the builder call that drew it), so Studio gets one
@@ -22,6 +24,12 @@
 // 1 m = 3 studs. Same axes as three.js (y up, -z north).
 //
 //   node tools/troll-ops-map-to-studio.mjs [--map trollcity] [--port 5299] [--out .claude/roblox-export/trollcity]
+//        [--name Kabukigrin]   the root Model's name (<name>_Live) instead of the map's
+//        [--at 120,0,0]        stand the import there (metres) once built: a
+//                              library to pull pieces from; its Home pivot
+//                              stays where the game has it, so pieces dragged
+//                              into another map's root export in that map's
+//                              coordinates
 //
 // Writes the export to --out, then serves it on 127.0.0.1 until Studio
 // fetches /done (or 30 minutes pass).
@@ -34,8 +42,12 @@ const MAP = arg("--map", "trollcity");
 const PORT = +arg("--port", 5299);
 const OUT = path.resolve(ROOT, arg("--out", `.claude/roblox-export/${MAP}`));
 const NO_SERVE = process.argv.includes("--no-serve");
+const NAME = arg("--name", null);
+const AT = arg("--at", null);
 
 const data = await captureMap({ map: MAP });
+if (NAME) data.index.root = NAME;
+if (AT) data.index.at = AT.split(",").map(Number);
 fs.mkdirSync(OUT, { recursive: true });
 for (const f of fs.readdirSync(OUT)) fs.rmSync(path.join(OUT, f));
 const CHUNK = 1500;
