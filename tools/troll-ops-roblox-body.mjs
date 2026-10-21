@@ -25,6 +25,8 @@
 //                                           wrist, for Studio hands; --joints takes a 4th, shoulderX)
 //        [--arm-across 0.26]             (metres per stud across the arms)
 //        [--arm-hands]                   (with --arms: the Studio arm's own hands too, handL/R__rbx)
+//        [--skin-white]                  (the grey Studio skin made the trollface's white, its shading kept;
+//                                           the clothes, coloured or dark, untouched)
 //        [--reach r]                     (the arms r of the rig's length: the Studio body's own, at one scale;
 //                                           the kit's fit.reach, blocky-body.js)
 //        [--build b --legs l]            (the rig's reshapeRig build and legs the kit fits it with, default
@@ -58,6 +60,7 @@ const PRINT = opt("--print", "");
 const ARMS = args.includes("--arms") && !!args.splice(args.indexOf("--arms"), 1);
 const ARM_ACROSS = +opt("--arm-across", "0.26");
 const REACH = +opt("--reach", "1");
+const SKIN_WHITE = args.includes("--skin-white") && !!args.splice(args.indexOf("--skin-white"), 1);
 const BUILD = +opt("--build", "0.25"), LEGS = +opt("--legs", "0.67");
 const WHOLE = args.includes("--whole") && !!args.splice(args.indexOf("--whole"), 1);
 const STUDIO_HAND = args.includes("--arm-hands") && !!args.splice(args.indexOf("--arm-hands"), 1);
@@ -694,6 +697,25 @@ function hands(src) {
   });
 }
 // a Studio hand's skin made the trolls' white, its shading kept
+/* --skin-white: the skin (grey: unsaturated and not dark) lifted to the
+   trollface's white (#f4f4f0 at the skin's usual light, the shading kept);
+   the tank top, the shoes (coloured) and the shorts (dark) stay as they are
+   (user, 2026-10-20: "the color of the body doesnt even match to the white
+   color of the trollface"). */
+function skinWhite({ w, h, rgba }) {
+  const out = Buffer.from(rgba);
+  const skin = (i) => { const mx = Math.max(rgba[i], rgba[i + 1], rgba[i + 2]), mn = Math.min(rgba[i], rgba[i + 1], rgba[i + 2]); return mx > 90 && (mx - mn) / mx < 0.12; };
+  const ls = [];
+  for (let i = 0; i < rgba.length; i += 4 * 5) if (skin(i)) ls.push(Math.max(rgba[i], rgba[i + 1], rgba[i + 2]));
+  ls.sort((a, b) => a - b);
+  const ref = ls[Math.floor(ls.length * 0.8)] || 255;
+  for (let i = 0; i < rgba.length; i += 4) {
+    if (!skin(i)) continue;
+    const k = Math.min(1, Math.max(rgba[i], rgba[i + 1], rgba[i + 2]) / ref);
+    out[i] = Math.round(244 * k); out[i + 1] = Math.round(244 * k); out[i + 2] = Math.round(240 * k);
+  }
+  return { w, h, rgba: out };
+}
 function whiten({ w, h, rgba }) {
   const lum = (i) => 0.3 * rgba[i] + 0.59 * rgba[i + 1] + 0.11 * rgba[i + 2];
   const ls = [];
@@ -708,7 +730,8 @@ const texture = (name) => {
   if (name === "badge") return [name, badgeImage()];
   if (name.startsWith("hand_")) return [name, indexedPng(quantize(shrink(whiten(readPng(path.join(SRC, `${name}.png`))), 512)))];
   if (name === "print") { const a = readPng(PRINT); return [name, rgbaPng(a.w, a.h, a.rgba)]; }
-  const q = quantize(shrink(readPng(path.join(SRC, `${name}.png`)), TEX));
+  const img = readPng(path.join(SRC, `${name}.png`));
+  const q = quantize(shrink(SKIN_WHITE ? skinWhite(img) : img, TEX));
   return [name, indexedPng(q)];
 };
 fs.mkdirSync(OUT, { recursive: true });
