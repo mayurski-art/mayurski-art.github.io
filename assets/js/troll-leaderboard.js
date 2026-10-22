@@ -280,14 +280,14 @@
     if (!g.rootEl) return;
     const headCols = cfg.columns.map(c => `<th class="${colClass(c)}">${esc(c.label)}</th>`).join("");
     const ranked = rankEntries(cfg, board.entries).slice(0, cfg.boardSize || 10);
-    const rows = ranked.map(e => rowMarkup(cfg, e)).join("") ||
-      `<tr class="lb-empty"><td class="lb-empty-cell" colspan="${cfg.columns.length + 2}">${esc(board.emptyText || "No plays yet this week — be the first on the board.")}</td></tr>`;
-    // A provider may bring its own period (a monthly board): its own empty
-    // line, foot note and countdown (board.countdown, startCountdown).
-    const foot = (board.footNote || cfg.footNote || (board.source === "live"
-      ? "Live — synced across every player and device. Resets every Monday."
-      : "Scores here are real. The board fills in as people play this week and resets every Monday."))
-      + (board.source === "live" && !board.loggedIn ? " <strong>Log in</strong> to add your own score to the board." : "");
+    // An empty board is just its header: no "be the first" line, and no
+    // stock foot note when the board brings none (user, 2026-10-22).
+    const rows = ranked.map(e => rowMarkup(cfg, e)).join("") || (board.emptyText
+      ? `<tr class="lb-empty"><td class="lb-empty-cell" colspan="${cfg.columns.length + 2}">${esc(board.emptyText)}</td></tr>` : "");
+    // A provider may bring its own period (a monthly board): its own foot
+    // note and countdown (board.countdown, startCountdown).
+    const foot = [board.footNote || cfg.footNote || "",
+      board.source === "live" && !board.loggedIn ? "<strong>Log in</strong> to add your own score to the board." : ""].filter(Boolean).join(" ");
     g.rootEl.innerHTML = `
       <div class="lb-bar">
         <div class="lb-week">
@@ -304,7 +304,7 @@
           <tbody>${rows}</tbody>
         </table>
       </div>
-      <p class="lb-foot">${foot}</p>`;
+      ${foot ? `<p class="lb-foot">${foot}</p>` : ""}`;
   }
 
   async function refresh(g) {

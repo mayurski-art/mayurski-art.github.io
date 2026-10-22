@@ -333,7 +333,7 @@ let lbLoad = null;
 function mountLeaderboard() {
   lbLoad = lbLoad || new Promise((resolve, reject) => {
     const sc = document.createElement('script');
-    sc.src = 'assets/js/troll-leaderboard.js?v=lb-engine-v1';
+    sc.src = 'assets/js/troll-leaderboard.js?v=lb-engine-v1-nd2';
     sc.onload = resolve; sc.onerror = reject;
     document.head.appendChild(sc);
   }).then(() => window.TrollLeaderboard?.mountArcadeBoard('#arcade-lb-root'))
