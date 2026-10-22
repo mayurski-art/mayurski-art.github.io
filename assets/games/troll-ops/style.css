@@ -2006,11 +2006,14 @@ body.to-touch-play .to-ws-guns span { pointer-events: auto; cursor: pointer; pad
   background: var(--fm-spk); border-radius: 16px;
   box-shadow: 0 0 0 2px var(--fm-edge), inset 0 2px 2px rgba(255,255,255,.35), inset 0 -6px 12px rgba(0,0,0,.25);
 }
-.fm-spk-l { left: 0; }
-.fm-spk-r { right: 0; }
+/* The window overlaps each box by 12px, so the cones centre in the part
+   that shows (and stay small enough that the bass kick never clips). */
+.fm-spk { box-sizing: border-box; }
+.fm-spk-l { left: 0; padding-right: 12px; }
+.fm-spk-r { right: 0; padding-left: 12px; }
 .fm-spk i { display: block; border-radius: 50%; background: var(--fm-cone); box-shadow: 0 0 0 3px rgba(0,0,0,.25), inset 0 0 6px rgba(0,0,0,.6); }
-.fm-tw { width: 34px; height: 34px; }
-.fm-woof { width: 64px; height: 64px; transform: scale(calc(1 + var(--kick, 0) * .12)); transition: transform 60ms linear; }
+.fm-tw { width: 32px; height: 32px; }
+.fm-woof { width: 56px; height: 56px; transform: scale(calc(1 + var(--kick, 0) * .12)); transition: transform 60ms linear; }
 
 /* the window */
 .fm-win {
