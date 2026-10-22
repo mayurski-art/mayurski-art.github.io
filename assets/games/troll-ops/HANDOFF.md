@@ -469,6 +469,7 @@ Map rules:
 
 ## 5. Shipped log (newest first; one line each, details in git)
 - **2026-10-22** (-rz1) Phone rotation: the match view resizes once the size settles (view/resize.js, out of game.js), not on each of iOS's resize events mid-turn; 3 render-target reallocations -> 1 per rotation (user: iPhone "kicked out" after the rotate card, likely iOS killing the tab on the memory spike; not checked on a real iPhone). Test: headless iPhone portrait -> TDM -> landscape.
+- **2026-10-22** (-tm4) Trolling Loud under Neutral: exposure 1.3 -> 1.4, grade sat 0.97, shadow tint 0.03, contrast 1.1; dark club, neon still pops.
 - **2026-10-22** (-tm3) Hollowgrin under Neutral: exposure 1.6 (was the 1.5 default), grade sat 0.95, shadow tint 0.03; the shade reads inky blue, not purple haze.
 - **2026-10-22** (-tm2) The menu's operator and inspect viewers (menu/inspector.js, char-inspector.js) tone map with Neutral too, so the menu matches the match.
 - **2026-10-22** (-tm1) Tone mapping is Neutral, not ACES (game.js renderer). Truer colour: bluer skies, richer wood and sand, no orange push on highlights; night maps (Hollowgrin, Trolling Loud) get slightly lifted blacks. Same exposure and grades; all 12 maps shot ACES vs Neutral, AgX tried and dropped (washed out).

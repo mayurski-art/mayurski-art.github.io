@@ -1439,7 +1439,7 @@ export const TROLLINGLOUD = {
   // city, no sun disc, a dim moon. Inside, the neon does the work.
   sky: { top: 0x05040c, horizon: 0x3a1440, bottom: 0x0c0612, haze: 0.35, clouds: 0.18, cloudColor: 0x3a2a4a, cloudShade: 0x0c0a14 },
   fog: { color: 0x170c22, density: 0.011 },
-  exposure: 1.3,
+  exposure: 1.4,   // with the grade's sat and shadow tint, tuned for Neutral tone mapping (-tm4)
   bloom: { threshold: 0.78, strength: 0.85, radius: 0.6 },
   noGroundPlane: true,
   ground: { colorA: 0x2a2a30, colorB: 0x222228, grid: 0x3a3a44, surface: "asphalt", tile: 4 },
@@ -1447,7 +1447,7 @@ export const TROLLINGLOUD = {
   hemi: { sky: 0x6a5aa8, ground: 0x2a1a2a, intensity: 0.85 },
   ambient: { color: 0x5a4a7a, intensity: 0.35 },
   // stylised realism (view/grade-pass.js): club night: deep purple shade, a pink lift in the highs
-  grade: { shadows: 0x200a30, shadowsAmt: 0.1, highlights: 0xff70d0, highlightsAmt: 0.05, sat: 1.1, contrast: 1.08 },
+  grade: { shadows: 0x200a30, shadowsAmt: 0.03, highlights: 0xff70d0, highlightsAmt: 0.05, sat: 0.97, contrast: 1.1 },
   viewFar: 420,
   build: buildTrollingLoud,
   onShot: CLUB.onShot,
