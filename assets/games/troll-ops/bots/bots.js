@@ -1309,8 +1309,9 @@ class Bot {
       // Never two high posts running: down from one, it hunts or takes
       // a post on the ground, so it comes back down to the fight.
       const r = Math.random();
-      const post = r < POST_UP ? (this.lastPostUp ? null : this.pickPost(places, places.upper, ctx))
-        : r < POST_UP + POST_GROUND ? this.pickPost(places, places.ground, ctx) : null;
+      const k = places.postOdds ?? 1;
+      const post = r < POST_UP * k ? (this.lastPostUp ? null : this.pickPost(places, places.upper, ctx))
+        : r < (POST_UP + POST_GROUND) * k ? this.pickPost(places, places.ground, ctx) : null;
       if (!post) { this.lastPostUp = false; return false; }     // a hunt this time
       places.claims.set(post.id, (places.claims.get(post.id) || 0) + 1);
       this.lastPostUp = post.y >= UPPER_Y;
@@ -1371,7 +1372,7 @@ class Bot {
       // districts that have had bots lately, from this one.
       w[i] = 1 / (1 + 3 * (places.claims.get(p.id) || 0)) * (p.y >= UPPER_Y ? 1 / (1 + d / 40)
         : 1 / (1 + 1.2 * (places.crowd.get(p.district) || 0)) / (1 + (places.heat.get(p.district) || 0) / POST_HEAT)
-          / (1 + d / 200) * (p.district === here ? 0.5 : 1));
+          / (1 + d / 200) * (p.district === here ? 0.5 : 1) / (places.groundIn?.get(p.district) || 1));
       sum += w[i];
     }
     if (sum <= 0) return null;
@@ -1513,6 +1514,7 @@ export class BotManager {
     if (this.places && this.places.stairs === stairs) return this.places;
     const src = this.fieldSrc, a = src.arena;
     const places = { stairs, upper: [], ground: [], all: [], crowd: new Map(), claims: new Map(), heat: new Map(), crowdT: 0,
+      postOdds: a.botPostOdds ?? 1,   // (maps.js) the map's share of posts against hunts
       districtOf: (x, z) => Math.floor((x - a.minX) / DISTRICT) + 64 * Math.floor((z - a.minZ) / DISTRICT) };
     this.places = places;
     if (a.navCell >= 1) return places;
@@ -1646,6 +1648,11 @@ export class BotManager {
     for (const { q } of sq.values()) {
       places.ground.push({ id: `post-g${places.ground.length}`, x: q.x, y: 0, z: q.z, district: places.districtOf(q.x, q.z) });
     }
+    // ground posts a district has: pickPost shares a district's odds out
+    // among them, so a corner with one post comes up as often as a street
+    // block with six
+    places.groundIn = new Map();
+    for (const p of places.ground) places.groundIn.set(p.district, (places.groundIn.get(p.district) || 0) + 1);
     places.all = [...places.upper, ...places.ground];
     places.buildMs = performance.now() - t0;
     return places;

@@ -2111,6 +2111,9 @@ export function buildMap(id, { colliders, arena }) {
   // where the bots keep to (bots.js), when it's less than where you can go:
   // Troll City's town, not the desert out to its train loop
   arena.botEdge = map.botEdge || null;
+  // how often the bots head for a post rather than hunt (bots.js), 1 = as
+  // everywhere: a town too big for ten bots to meet in hunts more
+  arena.botPostOdds = map.botPostOdds ?? 1;
   arena.wade = map.wade || null;
   arena.navCell = map.navCell || null;
   // Climbing ropes (api.rope): the movement controller reads them here.
