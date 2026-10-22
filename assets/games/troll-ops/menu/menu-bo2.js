@@ -37,7 +37,7 @@ const lbProvider = makeTrollOpsProvider();
 import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perksInTier, perkUnlocked, perkIconSvg } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1";
 import { STREAK_DEFS } from "../streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1";
 import { renderClassPreview } from "./class-preview.js?v=cp1-rb4-hp1-bx1";
-import { lobby, enterLobby, leaveLobby, lobbyActivity, round, candidates, tally, renderPanel, tickClock } from "./map-vote.js?v=mv1-vs1";
+import { lobby, enterLobby, leaveLobby, lobbyActivity, round, candidates, tally, renderPanel, tickClock } from "./map-vote.js?v=mv1-vs1-vt2";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
    calling cards and the private-match maps. */
@@ -101,7 +101,7 @@ root.innerHTML = `
     <span class="to-bo2-xp"></span>
   </aside>
   <section class="to-bo2-detail" aria-live="polite">
-    <figure class="to-bo2-mapshot" hidden><img alt=""><figcaption></figcaption></figure>
+    <figure class="to-bo2-mapshot" hidden><img alt=""></figure>
     <div class="to-bo2-lb" hidden></div>
   </section>
   <footer class="to-bo2-foot">
@@ -129,7 +129,7 @@ title.classList.add("is-bo2");
 const cardHost = document.createElement("div");
 cardHost.className = "to-bo2-card";
 cardHost.hidden = true;
-cardHost.innerHTML = `<div class="to-bo2-card-slot"></div><p class="to-bo2-cardnote" hidden></p>`
+cardHost.innerHTML = `<div class="to-bo2-card-slot"></div>`
   + `<div class="to-bo2-card-share" hidden><button type="button" data-act="share">Share on X</button><button type="button" data-act="photo">Save as photo</button></div>`
   + `<form class="to-bo2-clan" hidden><label for="to-bo2-clan-in">Clan tag</label>`
   + `<input id="to-bo2-clan-in" maxlength="4" autocomplete="off" spellcheck="false" aria-describedby="to-bo2-clan-help">`
@@ -151,9 +151,6 @@ function renderCardHost() {
   if (clanEditing) d.clan = cleanClan(clanIn.value);
   $(".to-bo2-card-slot", cardHost).innerHTML = renderCard(d);
   shownCard = d;
-  const note = $(".to-bo2-cardnote", cardHost);
-  note.hidden = !previewCard;
-  note.textContent = previewCard ? cardById(previewCard).desc : "";
   clanForm.hidden = !clanEditing;
   // Share / save: your own card, signed in, in the Barracks proper.
   $(".to-bo2-card-share", cardHost).hidden = lastScreen !== "barracks" || clanEditing || d.guest;
@@ -843,7 +840,6 @@ function umbBanner(it) {
     img.hidden = false;
     img.alt = "U Mad Bro? heroes: Troll Knight, Troll Hunter, Super Troll, Troll Metamorphosis and the Trollernaut";
     img.src = UMB_BANNERS[umbIdx];
-    $("figcaption", shot).textContent = it.desc || "";
     if (!umbTimer) umbTimer = setInterval(() => { umbIdx = (umbIdx + 1) % UMB_BANNERS.length; img.src = UMB_BANNERS[umbIdx]; }, 4500);
   } else if (root.classList.contains("is-umb")) {
     clearInterval(umbTimer); umbTimer = 0;
@@ -875,9 +871,9 @@ let voteView = null, voteHot = null;
 /* Phones and tablets get it as a sheet over the whole lobby instead (user,
    2026-10-22: "for the map preview and voting system on mobile devices we
    should have a popup screen", "not needed for desktop"): beside or under
-   the list there was no room for the preview. It opens on arriving at
-   Public Match; × goes back to the list, and a tap on the small panel by
-   the list ("clicking on the map previews itself") brings it back. */
+   the list there was no room for the preview. A tap on the small panel by
+   the list opens it ("clicking on the map previews itself"), never just
+   arriving at Public Match ("which shouldnt happen"); × goes back. */
 const voteSheet = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
 let sheetOpen = false;
 function openSheet(m = menu) {
@@ -951,9 +947,8 @@ function dropIn(id) {
 function paintVote(hot) {
   if (hot !== undefined) voteHot = hot;
   if (!voteView) return;
-  const p = window.TrollrunnerAccounts?.getCachedProfile?.();
   const go = sheetOpen && findRow(voteView);
-  renderPanel(voteHost, { ...voteView, hot: voteHot, me: p?.username || "You", sheet: go && { label: go.label, value: go.value } });
+  renderPanel(voteHost, { ...voteView, hot: voteHot, sheet: go && { label: go.label, value: go.value } });
 }
 function showVote(v) {
   voteView = v || null;
@@ -995,7 +990,7 @@ const menu = createBo2Menu(nav, {
     // Public Match), then the screen re-renders from the updated lobby.
     if (id !== lastScreen) {
       lastScreen = id;
-      sheetOpen = voteSheet && id === "public";
+      sheetOpen = false;
       if (s.enter) { s.enter(); m.refresh(); return; }
     }
     if (s.panel && s.panel !== lastPanel) { lastPanel = s.panel; rail(s.panel); }
@@ -1052,7 +1047,6 @@ const menu = createBo2Menu(nav, {
     if (it.mapId) {
       const img = $("img", shot);
       setMapShot(img, it.mapId, `${Math.ceil(shot.parentElement?.clientWidth || 640)}px`);
-      $("figcaption", shot).textContent = it.desc || "";
     }
     // Previews: the old picker cards (streaks, weapons, melee, throwables)
     // show their model on focus; off them, the preview goes back to your pick.

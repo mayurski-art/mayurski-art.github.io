@@ -3731,7 +3731,6 @@ div.to-bo2-party-row.is-other { cursor: default; }
 .to-bo2.has-lb #to-pf-center, .to-bo2[data-screen="maps"] #to-pf-center { display: none !important; }
 .to-bo2-mapshot { margin: 0; }
 .to-bo2-mapshot img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; }
-.to-bo2-mapshot figcaption { margin-top: 10px; color: var(--bo2-soft); font-size: 15px; }
 /* The map vote (menu/map-vote.js): Public Match's lobby, in the middle where
    the operator stood, the party column beside it. Short of room, it takes the
    detail pane's place and the party steps aside (the panel lists the lobby). */
@@ -3761,8 +3760,6 @@ div.to-bo2-party-row.is-other { cursor: default; }
 .to-mv-cards li.is-mine { border-color: var(--bo2-gold); box-shadow: inset 0 0 0 1px var(--bo2-gold); }
 .to-mv-cards li.is-mine i::after { content: " · your vote"; color: var(--bo2-gold); }
 .to-mv-cards li.is-lead i { color: var(--bo2-ink); }
-.to-mv-lobby { margin: 12px 0 0; font-size: 14px; line-height: 1.45; color: var(--bo2-soft); }
-.to-mv-lobby b { color: var(--bo2-gold); font-weight: 500; }
 @media (max-width: 1199px) {
   .to-bo2-vote { left: var(--bo2-col); right: 48px; }
   .to-bo2.has-vote .to-bo2-party { visibility: hidden; }
@@ -3795,8 +3792,7 @@ body.to-vote-sheet #to-title:not([hidden]) ~ .to-radio { visibility: hidden; }
   background: rgba(0,0,0,.4); color: var(--bo2-ink); font-size: 26px; line-height: 1; cursor: pointer;
 }
 .to-bo2-vote.is-sheet .to-mv-big { display: block; margin: 0; }
-.to-bo2-vote.is-sheet :is(.to-mv-cards, .to-mv-lobby) { margin: 0; }
-.to-bo2-vote.is-sheet .to-mv-lobby { font-size: 13px; }
+.to-bo2-vote.is-sheet .to-mv-cards { margin: 0; }
 .to-mv-foot { margin-top: auto; }
 .to-mv-go {
   display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 52px; padding: 0 18px;
@@ -3807,8 +3803,8 @@ body.to-vote-sheet #to-title:not([hidden]) ~ .to-radio { visibility: hidden; }
 .to-mv-go:active { background: #d96f0f; }
 @media (orientation: landscape) {
   .to-bo2 .to-bo2-vote.is-sheet {
-    display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto;
-    grid-template-areas: "head head" "big cards" "big lobby" "foot foot"; column-gap: 16px; row-gap: 8px;
+    display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: "head head" "big cards" "foot foot"; column-gap: 16px; row-gap: 8px;
   }
   .to-bo2-vote.is-sheet header { grid-area: head; }
   .to-bo2-vote.is-sheet .to-mv-big { grid-area: big; display: flex; flex-direction: column; min-height: 0; }
@@ -3818,7 +3814,6 @@ body.to-vote-sheet #to-title:not([hidden]) ~ .to-radio { visibility: hidden; }
   .to-bo2-vote.is-sheet .to-mv-cards li { display: flex; align-items: center; }
   .to-bo2-vote.is-sheet .to-mv-cards img { width: 40%; flex: none; }
   .to-bo2-vote.is-sheet .to-mv-cards span { min-width: 0; }
-  .to-bo2-vote.is-sheet .to-mv-lobby { grid-area: lobby; font-size: 12px; line-height: 1.35; }
   .to-bo2-vote.is-sheet .to-mv-foot { grid-area: foot; margin: 0; }
   .to-bo2-vote.is-sheet .to-mv-go { min-height: 44px; }
 }
@@ -4317,7 +4312,6 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
   color: #f3ece4; background: rgba(255,255,255,.06); border: 1px solid rgba(243,236,228,.2);
 }
 .to-bo2-card-share button:hover, .to-bo2-card-share button:focus-visible { color: #ff8a1f; border-color: #ff8a1f; outline: none; }
-.to-bo2-cardnote { margin: 12px 0 0; font-size: 14px; color: var(--bo2-soft); }
 .to-bo2-clan { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
 .to-bo2-clan label { font: 500 15px Oswald, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--bo2-soft); }
 .to-bo2-clan input {

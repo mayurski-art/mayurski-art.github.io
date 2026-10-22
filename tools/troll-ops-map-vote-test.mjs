@@ -112,7 +112,8 @@ await roster([member(1, lobbyAct(cands[1])), member(2, lobbyAct(cands[1], true))
 await page.waitForTimeout(400);
 s = await read();
 check(/2 votes/.test(s.cards[1].text) && /0 votes/.test(s.cards[0].text), "others' votes count", JSON.stringify(s.cards.map((c) => c.text)));
-check(/player_1/.test(s.lobby) && /player_2 \(ready\)/.test(s.lobby) && !/player_3/.test(s.lobby), "the lobby lists who's in it (not the menu browser)", s.lobby);
+// no "In the lobby: ..." line under the vote (user, 2026-10-22)
+check(!s.lobby && !/In the lobby/.test(await page.evaluate(() => document.querySelector(".to-bo2-vote").textContent)), "no lobby sentence under the vote", s.lobby);
 await page.evaluate((id) => document.querySelector(`.to-mv-cards li[data-map="${id}"]`).click(), cands[0]);
 await page.waitForTimeout(300);
 s = await read();

@@ -78,16 +78,15 @@ export function tally(others, cands) {
 
 const clock = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)); return `0:${String(s).padStart(2, "0")}`; };
 const shot = (id, sizes, cls = "") => `<img class="${cls}" ${mapShotAttrs(id, sizes)} alt="" draggable="false">`;
-const names = (ps) => ps.map((p) => esc(p.name)).join(", ");
 
 /* The panel in the lobby's middle. `view` is one of
-   { kind: "vote", cands, t (tally), hot (map id to show big), me (our name) }
+   { kind: "vote", cands, t (tally), hot (map id to show big) }
    { kind: "live", server (menu/online.js serverList entry) }
    { kind: "fixed", map (id) } */
 export function renderPanel(host, view) {
   let html = "";
   if (view.kind === "vote") {
-    const { cands, t, hot, me } = view;
+    const { cands, t, hot } = view;
     const big = hot && cands.includes(hot) ? hot : lobby.vote || t.winner;
     const total = [...t.votes.values()].reduce((a, b) => a + b, 0);
     html = `<header><b>Map vote</b><span class="to-mv-clock" aria-label="Vote ends in">${clock(round().left)}</span></header>`
@@ -97,17 +96,18 @@ export function renderPanel(host, view) {
         const cls = [id === lobby.vote && "is-mine", id === big && "is-hot", id === t.winner && total && "is-lead"].filter(Boolean).join(" ");
         return `<li class="${cls}" data-map="${esc(id)}">${shot(id, "180px")}<span><b>${esc(MAPS[id]?.name || id)}</b><i>${n} vote${n === 1 ? "" : "s"}</i></span>`
           + `<em style="--p:${total ? n / total : 0}"></em></li>`;
-      }).join("")}</ol>`
-      + `<p class="to-mv-lobby">In the lobby: <b>${esc(me)}${lobby.ready ? " (ready)" : ""}</b>${t.inLobby.length ? `, ${t.inLobby.map((p) => `${esc(p.name)}${p.activity.ready ? " (ready)" : ""}`).join(", ")}` : ""}.`
-      + ` ${t.inLobby.length ? (lobby.ready ? "You drop in when the vote ends." : "Find Match readies you up: everyone ready drops in together when the vote ends.") : "Nobody else yet: Find Match starts on your pick."}</p>`;
+      }).join("")}</ol>`;
+    // No line under it saying who's in the lobby and how Find Match works
+    // (user, 2026-10-22: "make sure the description lines in the game is
+    // removed including the 'in the lobby: ...' text"); Find Match's row
+    // still counts who's ready.
   } else if (view.kind === "live") {
     const s = view.server;
     html = `<header><b>Match in progress</b><span class="to-mv-clock">${s.players.length} playing</span></header>`
-      + `<figure class="to-mv-big">${s.map ? shot(s.map, "560px") : ""}<figcaption><b>${esc(s.mapName || "")}</b></figcaption></figure>`
-      + `<p class="to-mv-lobby">${names(s.players.map((name) => ({ name })))} ${s.players.length === 1 ? "is" : "are"} already playing ${esc(s.modeName)}. Find Match joins them on their map.</p>`;
+      + `<figure class="to-mv-big">${s.map ? shot(s.map, "560px") : ""}<figcaption><b>${esc(s.mapName || "")}</b></figcaption></figure>`;
   } else if (view.kind === "fixed") {
     html = `<header><b>Map</b></header>`
-      + `<figure class="to-mv-big">${shot(view.map, "560px")}<figcaption><b>${esc(MAPS[view.map]?.name || view.map)}</b><small>This mode always plays here</small></figcaption></figure>`;
+      + `<figure class="to-mv-big">${shot(view.map, "560px")}<figcaption><b>${esc(MAPS[view.map]?.name || view.map)}</b></figcaption></figure>`;
   }
   /* A phone shows it as a sheet over the lobby (menu-bo2.js): a close
      button, and the lobby's go button at the foot. */

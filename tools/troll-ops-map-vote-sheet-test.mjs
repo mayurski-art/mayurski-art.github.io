@@ -1,11 +1,14 @@
 // Troll Forces: the map vote on a phone is a sheet over the lobby (menu-bo2.js
 // voteSheet; user, 2026-10-22: "for the map preview and voting system on
 // mobile devices we should have a popup screen", "not needed for desktop",
-// "clicking on the map previews itself would be nice"). Offline, as in
-// troll-ops-map-vote-test.mjs: Supabase blocked, a fake presence channel,
-// Find Match's start button stubbed, so no public room is ever joined.
+// "clicking on the map previews itself would be nice"; and not on arriving:
+// "if users want the full screen version then they can hit tap to open").
+// Offline, as in troll-ops-map-vote-test.mjs: Supabase blocked, a fake
+// presence channel, Find Match's start button stubbed, so no public room is
+// ever joined.
 //   Phone, upright and sideways:
-//   1. Public Match opens the sheet over the whole lobby: ×, three maps, the
+//   0. Public Match shows the small panel by the list, not the sheet.
+//   1. A tap on it opens the sheet over the whole lobby: ×, three maps, the
 //      clock, Find Match at the foot; no vote rows in the list.
 //   2. A tap on a map is our vote.
 //   3. × closes it: the small panel stays by the list, nothing covered.
@@ -101,8 +104,13 @@ for (const [w, h] of [[390, 844], [844, 390]]) {
   const tag = `phone ${w}x${h}`;
   const { ctx, page, errors } = await open({ width: w, height: h }, true);
   let s = await read(page);
+  // 0
+  check(s.shown && !s.sheet && s.tap, `${tag}: Public Match shows the small panel, not the sheet`, JSON.stringify({ sheet: s.sheet, tap: s.tap }));
   // 1
-  check(s.shown && s.sheet && s.close && /^Find Match/i.test(s.go) && s.cards.length === 3 && /^0:\d\d$/.test(s.clock), `${tag}: Public Match opens the sheet`, JSON.stringify({ sheet: s.sheet, go: s.go, n: s.cards.length, clock: s.clock }));
+  await tap(page, ".to-bo2-vote");
+  await page.waitForTimeout(300);
+  s = await read(page);
+  check(s.shown && s.sheet && s.close && /^Find Match/i.test(s.go) && s.cards.length === 3 && /^0:\d\d$/.test(s.clock), `${tag}: tap to open: the sheet`, JSON.stringify({ sheet: s.sheet, go: s.go, n: s.cards.length, clock: s.clock }));
   check(s.box.l <= 1 && s.box.t <= 1 && s.box.r >= w - 1 && s.box.b >= h - 1, `${tag}: the sheet covers the lobby`, JSON.stringify(s.box));
   check(s.big > 80, `${tag}: the preview shows big`, `${s.big}px`);
   check(s.voteRows === 0, `${tag}: no vote rows in the list`);
