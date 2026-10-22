@@ -45,6 +45,11 @@ export const SURFACES = {
   tile: lazySet("tile"),
   grass: lazySet("grass"),
   marble: lazySet("marble"),
+  // Poly Haven (CC0), 1k: dry_ground_01 (colour lifted to the sand set's
+  // brightness) and weathered_brown_planks (colour made grey so a material's
+  // paint tints it, as the code-drawn boards were)
+  dryground: lazySet("dryground", ["ao"]),
+  wplanks: lazySet("wplanks", ["ao"]),
 };
 
 /* Builds one tinted, textured MeshStandardMaterial from a SURFACES entry,

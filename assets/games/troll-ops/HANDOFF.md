@@ -469,6 +469,7 @@ Map rules:
 
 ## 5. Shipped log (newest first; one line each, details in git)
 - **2026-10-22** (-rz1) Phone rotation: the match view resizes once the size settles (view/resize.js, out of game.js), not on each of iOS's resize events mid-turn; 3 render-target reallocations -> 1 per rotation (user: iPhone "kicked out" after the rotate card, likely iOS killing the tab on the memory spike; not checked on a real iPhone). Test: headless iPhone portrait -> TDM -> landscape.
+- **2026-10-22** (-tx1) Troll City photo textures (Poly Haven CC0, 1k): ground dry_ground_01 (textures/dryground_*, lifted to the sand set's brightness), all timber weathered_brown_planks (textures/wplanks_*, greyed so paint tints it, turned so boards run up); boardsTexture no longer used by the town. 2.5 MB.
 - **2026-10-22** (-tcp1) Troll City: the north telegraph line (6 poles on the saloon kerb, their wires, the crossroads and out-of-town runs) set aside in Studio (ServerStorage.TC_SetAside.NorthPoles) and re-exported; the south line stays.
 - **2026-10-22** (-tm7) Trolling Loud back on ACES (tone: "aces") with its old exposure and grade, undoing -tm4.
 - **2026-10-22** (-tm6) Hollowgrin back on ACES (tone: "aces") with its old grade, undoing -tm3: the user preferred the ACES night.

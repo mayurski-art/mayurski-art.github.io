@@ -27,20 +27,20 @@
 import * as THREE from "three";
 import {
   rng, Kit, place, prismGeo, runs, flat, surfMat, texMat, tex, canvasTex,
-  boardsTexture, tinTexture, shingleTexture, damaskTexture, signTexture, wantedTexture,
+  tinTexture, shingleTexture, damaskTexture, signTexture, wantedTexture,
   bottlesTexture, goodsTexture, paintingTexture, clockTexture, trollPaintTexture,
   glassTexture, curtainTexture, glowTexture, piebaldTexture, barsTexture,
   barrel, crate, crateStack, trough, hitchRail, bollard, telegraphPole, wire, streetLamp,
   wheel, wagon, horse, cactus, steerSkull, rock,
   tableSet as kitTableSet, chair as kitChair, stool as kitStool, piano as kitPiano,
   chandelier, sconce, railFence, picketFence, hayBale, log, coffin, framedPicture, artTexture, artAspect, resetMatKeys,
-} from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1";
+} from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1";
 import { LoopPath, Train } from "./train.js?v=tr1b7-or1";
 import { buildTrainBoard } from "./train-board.js?v=tb1-bt1-tcs1";
-import { studioTown, loadStudioTown, setMoves, moveRp, moveFresh, movePoint, moveGeo, moveLive } from "./trollcity-studio.js?v=ts1-tcs1-tcp1";
-import { buildChapel } from "./trollcity-chapel.js?v=tch1-tcs1-tcs2-mg1";
-import { buildHall, HALL, PLAZA, COMPUTERS } from "./trollcity-hall.js?v=th1-tcs1";
-import { buildEast, EAST } from "./trollcity-east.js?v=te1-tcs1";
+import { studioTown, loadStudioTown, setMoves, moveRp, moveFresh, movePoint, moveGeo, moveLive } from "./trollcity-studio.js?v=ts1-tcs1-tcp1-tx1";
+import { buildChapel } from "./trollcity-chapel.js?v=tch1-tcs1-tcs2-mg1-tx1";
+import { buildHall, HALL, PLAZA, COMPUTERS } from "./trollcity-hall.js?v=th1-tcs1-tx1";
+import { buildEast, EAST } from "./trollcity-east.js?v=te1-tcs1-tx1";
 
 // 248 x 200 m since the redesign (doc "Troll City redesign in Roblox Studio"):
 // Main Street on z 0, the square on x 0, Second Street on z 66
@@ -431,7 +431,15 @@ function boardwalk(K, M, z0, z1, a, b, gaps = []) {
 /* =============================================================== materials */
 
 function materials() {
-  const B = (color, o = {}) => texMat(boardsTexture({ seed: o.seed ?? 3, worn: o.worn ?? 0.3 }), { color, tile: o.tile ?? 2.0, bump: 0.015, rough: 0.92, bounce: o.bounce ?? 0 });
+  // Timber is a photo plank set (Poly Haven, surface-textures.js), grey so
+  // each material's paint tints it. Its boards must run up the image, as the
+  // code-drawn ones did: `turn` for a set whose boards run across.
+  const PLANKS = { set: "wplanks", turn: true };
+  const B = (color, o = {}) => {
+    const m = surfMat(PLANKS.set, color, { mix: 0, tile: o.tile ?? 2.0, bounce: o.bounce ?? 0 });
+    if (PLANKS.turn) for (const t of [m.map, m.normalMap, m.roughnessMap, m.aoMap]) t.rotation = Math.PI / 2;
+    return m;
+  };
   const clap = (color, o = {}) => {
     const m = B(color, o);
     m.userData.vertical = true;   // boards run along the wall: clapboard
@@ -2362,7 +2370,7 @@ export const TROLLCITY = {
   sky: { top: 0x4f86c8, horizon: 0xf0dcb4, bottom: 0xb89a6a, sun: 1.2, sunSize: 0.035, sunColor: 0xfff0c8, haze: 0.55, clouds: 0.38, cloudColor: 0xffffff, cloudShade: 0xb8a898 },
   fog: { color: 0xdcc8a4, density: 0.0062 },
   exposure: 1.25,
-  ground: { colorA: 0xc8a272, colorB: 0xb89260, grid: 0xb08a5a, surface: "sand", tile: 5 },
+  ground: { colorA: 0xc8a272, colorB: 0xb89260, grid: 0xb08a5a, surface: "dryground", tile: 5 },
   sun: { color: 0xfff0d8, intensity: 2.7, pos: [42, 58, 30] },
   hemi: { sky: 0xb8d0ec, ground: 0xb08a5a, intensity: 1.0 },
   ambient: { color: 0xfff0d8, intensity: 0.25 },

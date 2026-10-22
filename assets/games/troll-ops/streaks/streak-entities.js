@@ -17,7 +17,7 @@
 // the map.
 
 import * as THREE from "three";
-import { loadModel } from "../maps/battlefield-props.js?v=sr1-or1";
+import { loadModel } from "../maps/battlefield-props.js?v=sr1-or1-tx1";
 
 export const PACKAGE_CLAIM_RADIUS = 2.2;
 export const PACKAGE_LIFETIME = 75;        // seconds before it's abandoned

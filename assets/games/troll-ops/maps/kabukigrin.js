@@ -24,18 +24,18 @@
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { GRINJUKU } from "./grinjuku.js?v=gj1-sr1-or1";
+import { GRINJUKU } from "./grinjuku.js?v=gj1-sr1-or1-tx1";
 import { KB_LAYOUT } from "./kabukigrin-layout.js?v=kb0-kb1-kb2-kb3-kb5-kb6-kb9-kb10";
-import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1";
-import { loadBake } from "./battlefield-props.js?v=sr1-or1";
-import { applyBakedLightMap, retexture } from "./surface-textures.js?v=hg6e-sr1-or1";
-import { Kit, place, surfMat, texMat } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1";
-import { U, Neon, neonMat, clubFx, cutRects, slatTexture, mosaicTexture } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1";
-import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4-kb6-kb11";
-import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5";
-import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8";
-import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9";
-import { buildStreet, streetSound } from "./kabukigrin-street.js?v=kb10-kb11-kb12";
+import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1";
+import { loadBake } from "./battlefield-props.js?v=sr1-or1-tx1";
+import { applyBakedLightMap, retexture } from "./surface-textures.js?v=hg6e-sr1-or1-tx1";
+import { Kit, place, surfMat, texMat } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1";
+import { U, Neon, neonMat, clubFx, cutRects, slatTexture, mosaicTexture } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1";
+import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4-kb6-kb11-tx1";
+import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5-tx1";
+import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8-tx1";
+import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9-tx1";
+import { buildStreet, streetSound } from "./kabukigrin-street.js?v=kb10-kb11-kb12-tx1";
 
 const URL_GLB = new URL("../models/", import.meta.url).href;
 const loader = new GLTFLoader();
