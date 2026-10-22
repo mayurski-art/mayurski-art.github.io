@@ -389,6 +389,7 @@ Map rules:
 - Run as `NODE_PATH=<main checkout>/node_modules node tools/<name>.mjs`.
 - Use GPU flags (`--use-angle=d3d11`) for anything with hold timers or audio: bar, rp, dj, trollingloud.
 - `?tohooks=1` exposes `window.__trollOps`, which includes `djLulz`, `music`, `builtMap()`, `move`, `look`, `net`.
+- Refactoring a map: `troll-ops-map-fingerprint.mjs <map> --out f` before, `--against f` after; IDENTICAL means every mesh, light, collider, seat and zombie spawn is unchanged.
 
 **Test-writing traps**
 - Teleport with `T.move.pos` (the feet), never `player.pos`.
