@@ -1146,7 +1146,8 @@ export function tableSet(K, M, x, y, z, { chairs = 4, r = 0.55, seed = 1, cards 
   const R = rng(seed);
   for (let i = 0; i < chairs; i++) {
     const a = (i / chairs) * Math.PI * 2 + R() * 0.4;
-    chair(K, M, x + Math.cos(a) * (r + 0.35), y, z + Math.sin(a) * (r + 0.35), { ry: -a - Math.PI / 2 + (R() - 0.5) * 0.5 });
+    // facing in: a chair's back is its +z side, so ry turns that to point away from the table
+    chair(K, M, x + Math.cos(a) * (r + 0.35), y, z + Math.sin(a) * (r + 0.35), { ry: Math.PI / 2 - a + (R() - 0.5) * 0.5 });
   }
   if (cards) {
     for (let i = 0; i < 5; i++) K.box(M.cards, x + (R() - 0.5) * 0.5, y + 0.775, z + (R() - 0.5) * 0.5, 0.07, 0.004, 0.1, { ry: R() * 3 }, { shadow: false });
