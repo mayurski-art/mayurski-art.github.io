@@ -2104,6 +2104,9 @@ export function buildMap(id, { colliders, arena }) {
   // Non-rectangular maps (edge.js): the coastline you can't pass, water you
   // wade through, and a coarser nav grid for a big map. null elsewhere.
   arena.edge = map.edge || null;
+  // where the bots keep to (bots.js), when it's less than where you can go:
+  // Troll City's town, not the desert out to its train loop
+  arena.botEdge = map.botEdge || null;
   arena.wade = map.wade || null;
   arena.navCell = map.navCell || null;
   // Climbing ropes (api.rope): the movement controller reads them here.

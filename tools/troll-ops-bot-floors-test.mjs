@@ -95,6 +95,14 @@ for (const id of mapIds) {
     const { buildMap } = await import(mods.maps);
     const { BotManager } = await import(mods.bots);
     const { groundHeightAt } = await import(mods.movement);
+    const insideEdge = (poly, x, z) => {   // even-odd, as maps/edge.js
+      let inside = false;
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const [xi, zi] = poly[i], [xj, zj] = poly[j];
+        if ((zi > z) !== (zj > z) && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
+      }
+      return inside;
+    };
     const colliders = [], arena = {};
     const bm = buildMap(id, { colliders, arena });
     // What game.js (k9Stairs) hands the bots.
@@ -117,6 +125,9 @@ for (const id of mapIds) {
       for (let z = arena.minZ + 0.5; z < arena.maxZ; z += 1.5) {
         const k = cellOf(x, z);
         tried[k]++;
+        // past the bots' edge (Troll City's town, maps.js arena.botEdge) isn't theirs
+        const edge = arena.botEdge || arena.edge;
+        if (edge && !insideEdge(edge, x, z)) continue;
         let free = true;
         for (const c of colliders) {
           if (c.max.y <= 0.45 || c.min.y >= 1.7) continue;

@@ -2350,6 +2350,12 @@ export const TROLLCITY = {
   name: "Troll City",
   blurb: "Dust, saloons and a railroad. This town ain't big enough for the both of you.",
   bounds: { ...BOUNDS },
+  // The bots keep to the town (maps.js arena.botEdge): its streets and back
+  // lots, the corral, the town hall, the chapel and Boot Hill, the spawns
+  // past the square. The desert out to the train loop is yours alone; spread
+  // over all of it the bots hardly met.
+  botEdge: [[-64, -55], [72, -55], [72, -24], [112, -24], [112, 24], [72, 24], [72, 52], [108, 52], [108, 94],
+    [78, 94], [78, 76], [-62, 76], [-62, 60], [-100, 60], [-100, 34], [-64, 34]],
   playerSpawn: { x: -20, z: 0 },
   // Mid-afternoon on the plains: a high warm sun, a pale dusty sky going
   // gold at the horizon, scattered fair-weather cloud.
