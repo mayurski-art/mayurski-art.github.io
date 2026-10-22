@@ -58,7 +58,12 @@ const { code, game, landmarks } = await page.evaluate(async () => {
     m.TROLLFACE_ISLAND.build(api);
     return got;
   };
-  return { code: run(true), game: run(false), landmarks: m.LANDMARKS };
+  // The game lays the props' own colliders first (island-props.js, from
+  // trollface-island-props.js); they aren't in the colliders file.
+  const { ISLAND_PROPS } = await import("/assets/games/troll-ops/maps/trollface-island-props.js");
+  const { propColliders } = await import("/assets/games/troll-ops/maps/island-props.js");
+  const nProps = ISLAND_PROPS.items.reduce((n, [k, x, z, yaw, s]) => n + propColliders(ISLAND_PROPS.kinds[k], x / 10, z / 10, yaw, s / 100).length, 0);
+  return { code: run(true), game: run(false).slice(nProps), landmarks: m.LANDMARKS };
 });
 await browser.close();
 server.close();

@@ -22,8 +22,10 @@ import { insidePolygon, clampInsidePolygon } from "./edge.js?v=or1";
 import { SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1";
 import { lakeWaterMaterial, fallsTexture } from "./lake-water.js?v=wf2";
 import { mapModel } from "./map-models.js?v=hg6e-sr1-or1";
-import { ISLAND_SOLIDS } from "./trollface-island-colliders.js?v=is1";
+import { ISLAND_SOLIDS } from "./trollface-island-colliders.js?v=is1-ip1";
 import { ISLAND_GROUND } from "./trollface-island-ground.js?v=tg1";
+import { ISLAND_PROPS } from "./trollface-island-props.js?v=ip1";
+import { buildIslandProps } from "./island-props.js?v=ip1";
 import { sampleField } from "../core/ground-field.js?v=gf1-tg1";
 
 const BOUNDS = { minX: -205, maxX: 205, minZ: -155, maxZ: 155 };
@@ -87,14 +89,6 @@ const LOOT_EXTRA = [
   { x: BRIDGE_MID - 14, z: LANDMARKS.bridge.z, y: 0.66 },
   { x: BRIDGE_MID + 6, z: LANDMARKS.bridge.z, y: 0.66 },
 ];
-
-// Tree clumps off the map's tree layers: [px, base py, size].
-const TREE_CLUMPS = [[55.4, 21.8, 111], [19.8, 25.2, 31], [22.8, 25.2, 36], [16.7, 25.2, 23], [28.5, 29.8, 37], [40.7, 29.8, 20],
-  [37.7, 31.9, 14], [72.6, 37.8, 29], [76, 38.2, 26], [87.1, 39.5, 25], [15.9, 42, 40], [52.7, 74.8, 59], [60.8, 76.5, 75],
-  [53.1, 16.4, 69], [59.8, 16, 48], [58.8, 21.8, 11], [74.9, 22.7, 14], [71.5, 23.9, 10], [68.2, 25.6, 9], [14.7, 26.9, 14],
-  [33.2, 26.9, 13], [66.1, 26.9, 12], [12.8, 27.7, 13], [26.2, 29.8, 77], [11.2, 31.5, 14], [39.5, 31.5, 13], [11.4, 35.7, 52],
-  [14, 36.6, 13], [85.3, 38.2, 16], [13.2, 42.9, 40], [30.6, 66.8, 29], [33.1, 67.6, 48], [56.5, 76.5, 114], [34.4, 27.7, 12],
-  [39.3, 29, 10], [78.1, 22.7, 8], [81, 22.7, 9], [57.7, 16.4, 9]];
 
 /* The ground's hills, sculpted in Studio (phase 3 of the doc "Troll Royale
    map in Roblox Studio"): cm as Int16 in base64, read once into metres. The
@@ -293,9 +287,9 @@ const SPAWNS = spreadSpawns(20);
      coast sand, the roads, worn rings round the landmarks, rock outcrops,
      and a noise channel for colour variation), the textures sampled in
      world space at two scales so the tiling doesn't show.
-   - Trees in two kinds (broadleaf, pine) with per-tree tints, textured
-     boulder clusters, instanced bushes / grass tufts / flowers (no
-     colliders; game.js applyClutter thins them on lower graphics tiers),
+   - Instanced grass tufts / flowers (no colliders; game.js applyClutter
+     thins them on lower graphics tiers); the trees, bushes, boulders and
+     cover are data since phase 4 of the Studio doc (island-props.js),
      two fenced paddocks, signposts, billboards, grin graffiti.
    ====================================================================== */
 const MASK_RES = 2;   // metres a mask texel
@@ -448,27 +442,6 @@ function texMaterial(surface, color, metresPerTile, o = {}) {
 function worldUV(g) {
   const p = g.attributes.position, uv = g.attributes.uv;
   for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i), p.getZ(i));
-  return g;
-}
-
-/* Give a geometry one vertex colour (for tinting merged trees). */
-function tinted(g, hex) {
-  const c = new THREE.Color(hex), n = g.attributes.position.count, a = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
-  g.setAttribute("color", new THREE.BufferAttribute(a, 3));
-  return g;
-}
-
-/* Lumpy: push each vertex out or in a little (same vertex, same push). */
-function lumpy(g, r, amt) {
-  const p = g.attributes.position, seen = new Map();
-  for (let i = 0; i < p.count; i++) {
-    const k = `${p.getX(i).toFixed(3)},${p.getY(i).toFixed(3)},${p.getZ(i).toFixed(3)}`;
-    if (!seen.has(k)) seen.set(k, 1 + (r() - 0.5) * amt);
-    const s = seen.get(k);
-    p.setXYZ(i, p.getX(i) * s, p.getY(i) * s, p.getZ(i) * s);
-  }
-  g.computeVertexNormals();
   return g;
 }
 
@@ -933,72 +906,14 @@ function buildTrollfaceIsland(mapApi) {
     mapModel(api, "tf-bridge", { x: mid, z });
   }
 
-  /* ---- cover: the map's tree clumps, and rocks where nothing else is ----- */
+  /* ---- cover: trees, bushes, boulders, walls, crates, hay, logs, barrels,
+     sandbags. Data since phase 4 of the Studio doc: Studio's layout (first
+     laid out by tools/troll-ops-island-props.mjs), drawn by island-props.js
+     with their own colliders (not in ISLAND_SOLIDS). ------------------------ */
   const r = rng(0x7a011f);
   const spawnClear = (x, z) => SPAWNS.every(([sx, sz]) => Math.hypot(x - sx, z - sz) > 4);
   const clear = (x, z, pad) => openGround(x, z, pad) && spawnClear(x, z);
-  // Two kinds of tree, each crown its own shade (vertex colours, so they
-  // all still merge into one mesh).
-  const leaf = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: true });
-  const LEAF = [0x2f9e44, 0x3fbf62, 0x2a8a3c, 0x58c46a, 0x4caf50, 0x7bc95a];
-  const PINE = [0x1f6b45, 0x26805a, 0x1d5c3f, 0x2e7d4f];
-  const tree = (x, z) => {
-    if (r() < 0.3) {
-      const h = 1.6 + r() * 0.8, s = 2.2 + r() * 0.9;
-      K.cyl(x, z, 0.3, h + 0.6, M.trunk, { segs: 7 });
-      const col = PINE[Math.floor(r() * PINE.length)];
-      for (let k = 0; k < 3; k++) {
-        const g = new THREE.ConeGeometry(s * (1 - k * 0.24), 2.6, 8);
-        g.rotateY(r() * 6);
-        g.translate(x, h + 1.1 + k * 1.45, z);
-        K.add(tinted(g, new THREE.Color(col).offsetHSL(0, 0, (r() - 0.5) * 0.06).getHex()), leaf);
-      }
-    } else {
-      const h = 2.4 + r() * 1.4, s = 1.7 + r() * 1.0;
-      K.cyl(x, z, 0.33, h, M.trunk, { segs: 7, rTop: 0.24 });
-      const col = LEAF[Math.floor(r() * LEAF.length)];
-      for (let k = 0; k < 3; k++) {
-        const ss = s * (0.65 + r() * 0.35);
-        const g = lumpy(new THREE.IcosahedronGeometry(ss, 1), r, 0.22);
-        g.scale(1, 0.8, 1);
-        const a = (k / 3) * Math.PI * 2 + r();
-        g.translate(x + Math.cos(a) * s * 0.45, h + ss * 0.55 + k * 0.35, z + Math.sin(a) * s * 0.45);
-        K.add(tinted(g, new THREE.Color(col).offsetHSL((r() - 0.5) * 0.02, 0, (r() - 0.5) * 0.08).getHex()), leaf);
-      }
-    }
-  };
-  for (const [px, py, n] of TREE_CLUMPS) {
-    const [cx, cz] = P(px, py - 1);
-    const count = Math.min(6, 2 + Math.floor(n / 25)), spread = 2.5 + Math.sqrt(n) * 0.5;
-    for (let k = 0, tries = 0; k < count && tries < 30; tries++) {
-      const a = r() * Math.PI * 2, d = Math.sqrt(r()) * spread;
-      const tx = cx + Math.cos(a) * d, tz = cz + Math.sin(a) * d;
-      if (!clear(tx, tz, 4)) continue;
-      tree(tx, tz);
-      k++;
-    }
-  }
-  // Boulders: textured, each with a couple of smaller stones at its foot.
-  const boulder = texMaterial("rock", 0xf4f2ee, 2.2, { flatShading: true });
-  let rocks = 0;
-  for (let tries = 0; tries < 3000 && rocks < 45; tries++) {
-    const x = BOUNDS.minX + r() * (BOUNDS.maxX - BOUNDS.minX), z = BOUNDS.minZ + r() * (BOUNDS.maxZ - BOUNDS.minZ);
-    if (!clear(x, z, 5)) continue;
-    const s = 0.9 + r() * 1.1;
-    const g = lumpy(new THREE.DodecahedronGeometry(s, 1), r, 0.3);
-    g.scale(1.3, 0.75, 1);
-    g.rotateY(r() * 6);
-    g.translate(x, s * 0.42, z);
-    K.add(g, boulder);
-    api.ghostBox(x, z, s * 2.2, s * 1.8, s * 1.2, { pen: 6 });
-    for (let k = 0; k < 2; k++) {
-      const ss = 0.25 + r() * 0.3, a = r() * 6;
-      const sg = lumpy(new THREE.DodecahedronGeometry(ss, 0), r, 0.3);
-      sg.translate(x + Math.cos(a) * s * 1.5, ss * 0.35, z + Math.sin(a) * s * 1.2);
-      K.add(sg, boulder);
-    }
-    rocks++;
-  }
+  buildIslandProps(root, fromCode ? null : mapApi, ISLAND_PROPS, groundY);
 
   dressIsland(api, root, K, M, r, clear);
   K.flush();
@@ -1010,19 +925,11 @@ function dressIsland(api, root, K, M, r, clear) {
   const L = LANDMARKS;
   const dummy = new THREE.Object3D();
   const col = new THREE.Color();
-  const scatter = (n, pad, near = null) => {
+  const scatter = (n, pad) => {
     const out = [];
     for (let tries = 0; tries < n * 30 && out.length < n; tries++) {
-      let x, z;
-      if (near && r() < 0.6) {
-        const [px, py, size] = near[Math.floor(r() * near.length)];
-        const [cx, cz] = P(px, py - 1);
-        const a = r() * Math.PI * 2, d = Math.sqrt(r()) * (4 + Math.sqrt(size));
-        x = cx + Math.cos(a) * d; z = cz + Math.sin(a) * d;
-      } else {
-        x = BOUNDS.minX + r() * (BOUNDS.maxX - BOUNDS.minX);
-        z = BOUNDS.minZ + r() * (BOUNDS.maxZ - BOUNDS.minZ);
-      }
+      const x = BOUNDS.minX + r() * (BOUNDS.maxX - BOUNDS.minX);
+      const z = BOUNDS.minZ + r() * (BOUNDS.maxZ - BOUNDS.minZ);
       if (clear(x, z, pad)) out.push([x, z]);
     }
     return out;
@@ -1043,13 +950,6 @@ function dressIsland(api, root, K, M, r, clear) {
     root.add(mesh);
     return mesh;
   };
-
-  // bushes, mostly round the tree clumps
-  const bushGeo = lumpy(new THREE.IcosahedronGeometry(1, 1), r, 0.25);
-  bushGeo.scale(1, 0.7, 1);
-  instanced(bushGeo, new THREE.MeshLambertMaterial({ flatShading: true }), scatter(360, 2.5, TREE_CLUMPS),
-    (d, x, z) => { const s = 0.45 + r() * 0.65; d.position.set(x, s * 0.35, z); d.rotation.set(0, r() * 6, 0); d.scale.set(s, s * (0.8 + r() * 0.4), s); },
-    [0x2f9e44, 0x3a9d3a, 0x4caf50, 0x2a7a3c, 0x5fae4a]);
 
   // grass tufts all over the open ground
   const tuftGeo = mergeGeometries([0, 1].map((k) => {
@@ -1212,7 +1112,7 @@ export const TROLLFACE_ISLAND = {
   // Troll Royale on the full island: the design doc's players and timings.
   royale: {
     players: 100,         // real players each take one bot's place
-    lootPerSqM: 1 / 210,   // ~330 items: thinner than the small maps, still a gun every ~20 m
+    lootPerSqM: 1 / 175,   // ~290 items: per m2 of open ground, and the props (phase 4) cover a sixth of it (was 1 / 210 before them)
     // Where the loot gathers, and the extra spots up on decks (ROYALE-ISLAND.md).
     pois: Object.values(LANDMARKS),
     lootExtra: LOOT_EXTRA,

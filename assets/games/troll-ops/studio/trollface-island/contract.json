@@ -461,7 +461,7 @@
  },
  "royale": {
   "players": 100,
-  "lootPerSqM": 0.004761904761904762,
+  "lootPerSqM": 0.005714285714285714,
   "lootExtra": [
    {
     "x": 93.9,
