@@ -233,7 +233,10 @@ const cols = got.colliders.map((c) => {
   };
   // (a GLB-built map's new Parts take its GLB materials: the textures and
   // glow the game already draws it with)
-  const pool = allMats.filter((m) => m.key && !m.pictured && !m.cutout && (m.alpha === 1 || m.rbx === "Glass") &&
+  // Named keys only: an unnamed material's "#n" counts the order unnamed
+  // ones are first used, which differs between this code-built capture and
+  // the Studio town the game draws, so "#25" here can be nothing there.
+  const pool = allMats.filter((m) => m.key && !m.key.startsWith("#") && !m.pictured && !m.cutout && (m.alpha === 1 || m.rbx === "Glass") &&
     (OUTCFG.newMats !== "glb" || m.key.startsWith("glb:")));
   const pick = (rbx, c) => {
     for (const fam of [FAMILY[rbx], null]) {
