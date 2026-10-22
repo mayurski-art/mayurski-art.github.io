@@ -17,20 +17,23 @@
 // strip, the LED windows on Mid Bottom) and the two video screens
 // (video-wall.js); the borrowed rooms' live bits (kabukigrin-rooms.js: the
 // yokocho, the tatami VIP and its koi tank, the office's one-way mirror).
+// In Socialize (kabukigrin-social.js): the door on A Main, the line, DJ Lulz
+// at the booth, the crowd in the club and on the street, the seats.
 // Kept as kabukigrin_wip (out of the vote pool) until phase 6.
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { GRINJUKU } from "./grinjuku.js?v=gj1-sr1-or1";
-import { KB_LAYOUT } from "./kabukigrin-layout.js?v=kb0-kb1-kb2-kb3-kb5-kb6";
+import { KB_LAYOUT } from "./kabukigrin-layout.js?v=kb0-kb1-kb2-kb3-kb5-kb6-kb9";
 import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1";
 import { loadBake } from "./battlefield-props.js?v=sr1-or1";
 import { applyBakedLightMap, retexture } from "./surface-textures.js?v=hg6e-sr1-or1";
 import { Kit, place, surfMat, texMat } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1";
-import { Neon, neonMat, clubFx, cutRects, slatTexture, mosaicTexture } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1";
+import { U, Neon, neonMat, clubFx, cutRects, slatTexture, mosaicTexture } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1";
 import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4-kb6";
 import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5";
 import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8";
+import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9";
 
 const URL_GLB = new URL("../models/", import.meta.url).href;
 const loader = new GLTFLoader();
@@ -424,6 +427,10 @@ const DRESS = (() => {
   return { ...d, decals: d.decals.map(keep).filter(Boolean), clutter: d.clutter.map(keep).filter(Boolean) };
 })();
 
+// the crowd: the same every build (seeded), made once
+let CAST = null;
+const cast = () => (CAST ??= kbNpcs({ DC: PLAN.DC, DANCE, deck: PLAN.deck }));
+
 export const KABUKIGRIN = {
   ...GRINJUKU,
   name: "Kabukigrin",
@@ -438,5 +445,16 @@ export const KABUKIGRIN = {
   attachAudio: CLUB.attachAudio,
   attachMusic: CLUB.attachMusic,
   onFrame: CLUB.onFrame,
+  /* Socialize (doc 4.1): DJ Lulz at the booth, requests from the floor in
+     front of the stage; the door, the crowd and the seats */
+  dj: { name: "DJ Lulz", spot: { x: -27.3, z: 15, y: 0, reach: 3.4 }, club: { ...HALL, top: PLAN.TOP }, input: CLUB.songInput },
+  rp: {
+    npcs: () => cast(),
+    seats: () => kbFreeSeats(cast()),
+    beat: () => U.uBeatPos.value,
+    npcShadows: false,
+    view: KB_VIEW,
+    door: KB_DOOR,
+  },
   debug: () => ({ ...CLUB.debug(), rooms: roomsDebug(), ropes: ROPES.map((r) => ({ ...r })), sites: SITES.map((s) => ({ ...s })) }),
 };

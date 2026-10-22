@@ -219,7 +219,7 @@ MODES.social = {
   // Only the maps built for hanging out (user, 2026-10-07); the other maps
   // stay open to every other mode. Its own list, not a mapPool: the room
   // still follows its host's map.
-  maps: ["trollcity", "trollingloud"],
+  maps: ["trollcity", "trollingloud", "kabukigrin_wip"],
   blurb: "Hang out in Troll City or at Trolling Loud with whoever is online. No guns, just emotes and chat.",
 };
 
