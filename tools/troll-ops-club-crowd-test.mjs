@@ -15,6 +15,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
+// MAP=<id>: another club map (kabukigrin_wip); Trolling Loud by default
+const MAP = process.env.MAP || "trollingloud";
+const TL = MAP === "trollingloud";
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
 
@@ -50,14 +53,14 @@ async function play(label, mode) {
   page.on("pageerror", (e) => errors.push(`${label}: ${e.message}`));
   await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 420000 });
   await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 420000 });
-  await page.evaluate(async (mode) => {
+  await page.evaluate(async ([mode, map]) => {
     const T = window.__trollOps;
     T.setLoadWaitMax(8);
     T.setMode(mode);
     if (T.els.noBots) T.els.noBots.checked = true;
-    T.loadout.mapId = "trollingloud";
+    T.loadout.mapId = map;
     await T.startGame();
-  }, mode);
+  }, [mode, MAP]);
   await page.waitForFunction(() => window.__trollOps.loadState && !window.__trollOps.loadState().open && window.__trollOps.social().gameState === "playing", null, { timeout: 420000 });
   return page;
 }
@@ -86,7 +89,7 @@ const cast = await A.evaluate(() => {
   const tinted = N.list.filter((n) => n.rig.parts.head.material.color.getHex() !== 0xffffff).map((n) => n.c.name);
   return { n: N.list.length, roles, out, shadows, guests: guests.length, dressed, looks, staffDressed, tinted, clothed };
 });
-check("Socialize on Trolling Loud has a crowd", !!cast && cast.n >= 80, cast ? `${cast.n} NPCs` : "no townNpcs");
+check(`Socialize on ${MAP} has a crowd`, !!cast && cast.n >= 80, cast ? `${cast.n} NPCs` : "no townNpcs");
 check("the club has its staff", cast && cast.roles.Bouncer >= 3 && cast.roles.Bartender >= 3 && cast.roles["Go-go dancer"] === 1 && cast.roles.Raver >= 12, JSON.stringify(cast?.roles));
 check("everyone is inside the map", cast && cast.out.length === 0, cast?.out.join(", "));
 check("the crowd casts no shadows", cast && cast.shadows === 0, `${cast?.shadows} shadow casters`);
@@ -106,19 +109,23 @@ check("the dancers have the club's clock to move on", bps > 0.5 && bps < 4, `${b
 const arms = await A.evaluate(() => {
   const T = window.__trollOps, N = T.townNpcs();
   const n = N.list.find((x) => x.c.name === "Big Lulz");
-  N.update(0, { x: n.x, y: 1.9, z: n.z + 3 });
+  N.update(0, { x: n.x - Math.sin(n.yaw) * 3, y: 1.9, z: n.z - Math.cos(n.yaw) * 3 });
   const V = T.camera.position.constructor;
   n.rig.root.updateMatrixWorld(true);
   const chest = n.rig.parts.chest.getWorldPosition(new V());
   const L = n.rig.parts.wristL.getWorldPosition(new V()), R = n.rig.parts.wristR.getWorldPosition(new V());
-  // he faces +z (yaw PI): "in front" is +z of the chest
-  return { dyL: chest.y - L.y, dyR: chest.y - R.y, fwdL: L.z - chest.z, fwdR: R.z - chest.z, wide: Math.abs(L.x - R.x), headTop: n.rig.parts.head.getWorldPosition(new V()).y };
+  // "in front" is the way he faces (yaw 0 faces -z)
+  const fx = -Math.sin(n.yaw), fz = -Math.cos(n.yaw);
+  const fwd = (w) => (w.x - chest.x) * fx + (w.z - chest.z) * fz;
+  return { dyL: chest.y - L.y, dyR: chest.y - R.y, fwdL: fwd(L), fwdR: fwd(R), wide: Math.abs(L.x - R.x), headTop: n.rig.parts.head.getWorldPosition(new V()).y };
 });
 check("the bouncers fold their arms (hands at the chest, in front, close)", arms.dyL > -0.15 && arms.dyL < 0.5 && arms.dyR > -0.15 && arms.dyR < 0.5 && arms.fwdL > 0.05 && arms.fwdR > 0.05 && arms.wide < 0.5, JSON.stringify(arms));
 
 // ── drawn room by room ────────────────────────────────────────────────────
-const seen = (eye) => A.evaluate((eye) => {
+const seen = (eye) => A.evaluate(([eye, tl]) => {
   const N = window.__trollOps.townNpcs();
+  // the line outside the door: Trolling Loud's along its alley, Kabukigrin's up A Main
+  const LINE = tl ? (n) => n.c.y === 0 && n.z > 22 : (n) => n.c.role === "Clubgoer" && Math.abs(n.c.x + 29.2) < 0.4 && n.c.z < 1.5 && n.c.z > -7;
   N.update(0, eye);
   const vis = (pred) => N.list.filter(pred).map((n) => n.rig.root.visible);
   const all = (a) => a.length > 0 && a.every(Boolean), none = (a) => a.length > 0 && !a.some(Boolean);
@@ -126,11 +133,12 @@ const seen = (eye) => A.evaluate((eye) => {
     dancers: all(vis((n) => n.c.role === "Raver")), dancersHidden: none(vis((n) => n.c.role === "Raver")),
     bar: all(vis((n) => n.c.name === "Shots McGee")), barHidden: none(vis((n) => n.c.name === "Shots McGee")),
     skyBar: all(vis((n) => n.c.name === "Skye")), skyBarHidden: none(vis((n) => n.c.name === "Skye")),
-    line: all(vis((n) => n.c.y === 0 && n.z > 22)), lineHidden: none(vis((n) => n.c.y === 0 && n.z > 22)),
+    line: all(vis(LINE)), lineHidden: none(vis(LINE)),
     sky: all(vis((n) => n.c.zone === "sky")),
     shown: N.list.filter((n) => n.rig.root.visible).length,
   };
-}, eye);
+}, [eye, TL]);
+if (TL) {
 const hall = await seen({ x: 0, y: 1.9, z: 2 });
 check("from the dance floor: the dancers, the bar and the roof's strollers show", hall.dancers && hall.bar && hall.sky, JSON.stringify(hall));
 check("from the dance floor: the Sky Bar and the line outside don't", hall.skyBarHidden && hall.lineHidden, JSON.stringify(hall));
@@ -139,11 +147,23 @@ check("from the roof: the Sky Bar shows, the dance floor and the main bar don't"
 const street = await seen({ x: 0, y: 1.6, z: 28 });
 check("from the street: the line shows, the hall doesn't", street.line && street.dancersHidden, JSON.stringify(street));
 check("fewer are drawn than stand in the club", hall.shown < cast.n && roof.shown < cast.n && street.shown < cast.n, `${hall.shown} / ${roof.shown} / ${street.shown} of ${cast.n}`);
+} else {
+  // Kabukigrin: its front door's wide open onto A Main, so the hall and the
+  // line see each other; the tatami room doesn't see the line, B side
+  // doesn't see the club
+  const hall = await seen({ x: -22, y: 1.9, z: 8 });
+  check("from the dance floor: the dancers, the bar and the line out the door show", hall.dancers && hall.bar && hall.line, JSON.stringify(hall));
+  const vip = await seen({ x: -27, y: 1.9, z: 27 });
+  check("from the tatami room: the dancers show, the line outside doesn't", vip.dancers && vip.lineHidden, JSON.stringify(vip));
+  const street = await seen({ x: 22, y: 1.6, z: 10 });
+  check("from B side: the club's dancers and the line don't", street.dancersHidden && street.lineHidden, JSON.stringify(street));
+  check("fewer are drawn than stand in the club", vip.shown < cast.n && street.shown < cast.n, `${hall.shown} / ${vip.shown} / ${street.shown} of ${cast.n}`);
+}
 
 // ── TDM on the same map: no crowd ─────────────────────────────────────────
 const B = await play("tdm", "tdm");
 const tdm = await B.evaluate(() => window.__trollOps.townNpcs());
-check("a TDM match on Trolling Loud has no crowd", tdm == null);
+check(`a TDM match on ${MAP} has no crowd`, tdm == null);
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 console.log(failures ? `\n${failures} FAILED` : "\nALL PASSED");

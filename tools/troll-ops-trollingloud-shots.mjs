@@ -68,6 +68,12 @@ const KB_VIEWS = {
   mirror:    [-22, 2.4, 17.5, -13.9, 4.6, 21.6, 60],
   yokocho:   [7.5, 1.6, -3, 23, 1.3, -3, 74],
   yokoBar:   [12.6, 1.6, -2.4, 9, 1.3, -3.9, 72],
+  // Socialize's furniture (phase 5): the booths, the bar stools, the sofas, the door
+  boothsS:   [-21.5, 1.7, 15.5, -21.5, 0.8, 23.4, 70],
+  boothN:    [-22, 1.7, 10.5, -22, 0.8, 4.5, 66],
+  stools:    [-20.5, 1.7, 7.5, -16.8, 0.8, 13, 70],
+  sofaMezz:  [-11.6, 4.7, 12.5, -6.8, 3.5, 15.5, 70],
+  door:      [-27.6, 1.7, -8, -27.6, 1.4, 3, 70],
 };
 const MAP = process.env.MAP || "trollingloud";
 if (/^kabukigrin/.test(MAP)) { for (const k of Object.keys(VIEWS)) delete VIEWS[k]; Object.assign(VIEWS, KB_VIEWS); }

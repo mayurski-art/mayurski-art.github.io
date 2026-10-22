@@ -21,6 +21,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
+// MAP=<id>: another club map (kabukigrin_wip); Trolling Loud by default
+const MAP = process.env.MAP || "trollingloud";
+// where A and B stand on the floor, at the booth (and facing it), and the
+// two shots' spots, each map's own
+const SPOT = {
+  trollingloud: { a: [3, 4], b: [-3, 4], booth: [0, -12.6, 0], floor: [0, 6.5, 0], deck: [0, -9.5, 0] },
+  kabukigrin_wip: { a: [-21, 12], b: [-21, 18], booth: [-27.3, 15, Math.PI / 2], floor: [-19, 15, Math.PI / 2], deck: [-25.5, 15, Math.PI / 2] },
+}[MAP];
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -69,12 +77,12 @@ async function open(label, username) {
   return page;
 }
 async function joinClub(page) {
-  await page.evaluate(async () => {
+  await page.evaluate(async (map) => {
     const T = window.__trollOps;
     T.setMode("social");
-    T.loadout.mapId = "trollingloud";
+    T.loadout.mapId = map;
     await T.startGame();
-  });
+  }, MAP);
   await page.waitForFunction(() => { const T = window.__trollOps; return !T.loadState().open && T.social().gameState === "playing"; }, null, { timeout: 240000 });
   // Past the door's line already (modes/club-entry.js), with a band on.
   await page.evaluate(() => window.__trollClub?.pass());
@@ -99,12 +107,12 @@ await joinClub(A);
 await sleep(2500);
 const B = await open("B", "dance_floor_dan");
 await joinClub(B);
-await stand(A, 3, 4); await stand(B, -3, 4);
+await stand(A, ...SPOT.a); await stand(B, ...SPOT.b);
 
 /* ---------------------------------------------------------------- 1 */
 console.log("--- the record");
 const map = await B.evaluate(() => window.__trollOps.social().map);
-check(map === "trollingloud", "B is in the club", map);
+check(map === MAP, "B is in the club", map);
 const a1 = await until(A, (d) => d.st.now && !d.paused, 20000);
 check(a1.isKeeper && a1.st.now, "A (in first) keeps the queue and DJ Lulz starts a record", JSON.stringify({ keeper: a1.keeper, now: a1.st.now }));
 const b1 = await until(B, (d) => d.st.now && d.st.now.t === a1.st.now.t && !d.paused, 20000);
@@ -134,7 +142,7 @@ check(Math.max(...peaks.map((p) => p[1])) > 0.2, "the floor kicks", `max ${Math.
 console.log("--- a request");
 const far = await B.evaluate(() => !!window.__trollOps.djLulz.action(window.__trollOps.move.pos));
 check(!far, "no request prompt on the dance floor");
-await stand(B, 0, -12.6, 0);
+await stand(B, ...SPOT.booth);
 await sleep(300);
 const act = await B.evaluate(() => window.__trollOps.djLulz.action(window.__trollOps.move.pos)?.label);
 check(/DJ Lulz/.test(act || ""), "at the booth hold X offers a request", act);
@@ -216,11 +224,11 @@ check(back.isKeeper, "B hands the decks back: DJ Lulz (A keeps the queue) again"
 
 /* ---------------------------------------------------------------- 5 */
 if (SHOTS) {
-  await stand(B, 0, 6.5, 0);
+  await stand(B, ...SPOT.floor);
   await B.evaluate(() => { window.__trollOps.look.pitch = -0.62; });
   await sleep(4000);   // past the record's first bars
   for (let i = 0; i < 8; i++) { await B.screenshot({ path: path.join(SHOTS, `floor-${i}.png`) }); await sleep(120); }
-  await stand(B, 0, -9.5, 0);
+  await stand(B, ...SPOT.deck);
   await B.evaluate(() => { window.__trollOps.look.pitch = 0.05; });
   await sleep(400);
   await B.screenshot({ path: path.join(SHOTS, "booth.png") });

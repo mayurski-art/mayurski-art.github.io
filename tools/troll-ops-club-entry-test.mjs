@@ -35,6 +35,18 @@ const { chromium } = require("playwright");
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SHOTS = path.join(ROOT, "tools", ".club-shots");
+// MAP=<id>: another club map (kabukigrin_wip); Trolling Loud by default
+const MAP = process.env.MAP || "trollingloud";
+// the rooms the bands are tried in, each map's own: VIP, back of house, the
+// street, a side way in to the main floor, the lobby
+const SPOT = {
+  // (curb: past the door's curb line, where the bounced land; alley: well out
+  // on the street; lane0: the first lane's x)
+  trollingloud: { vip: [-22, 0.3, 3], back: [0, 0.3, -20], street: [0, 0, 27], side: [24, 0.3, 17], lobby: [0, 0.3, 18],
+    curb: (z) => z > 27, alley: (z) => z > 25, lane0: -3.3, mouth: [0, 23.4], across: "z" },
+  kabukigrin_wip: { vip: [-28, 0.35, 27], back: [-22, 0.05, 32], street: [-27.6, 0, -4], side: [-8, 0.05, 10], lobby: [-27, 0.05, 7],
+    curb: (z) => z < -1.5, alley: (z) => z < 0, lane0: -29.9, mouth: [-27.6, 3], across: "x" },
+}[MAP];
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css",
   ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp",
   ".glb": "model/gltf-binary", ".mp3": "audio/mpeg", ".ogg": "audio/ogg", ".svg": "image/svg+xml", ".gif": "image/gif" };
@@ -86,12 +98,12 @@ async function open(user, { phone = false, pad = false } = {}) {
     // bandanaEvery: the bandana guy never due on his own (case 6 sends him)
     Object.assign(window.__trollClub.T, { checkSecs: 0.5, idSecs: 0.8, bandSecs: 0.4, lockSecs: 3, minAhead: 3, bandanaEvery: 1e9 });
   });
-  await page.evaluate(async () => {
+  await page.evaluate(async (map) => {
     const T = window.__trollOps;
     T.setMode("social");
-    T.loadout.mapId = "trollingloud";
+    T.loadout.mapId = map;
     await T.startGame();
-  });
+  }, MAP);
   await page.waitForFunction(() => !window.__trollOps.loadState().open, null, { timeout: 420000 });
   await page.evaluate(() => { window.__trollOps.els.pause.hidden = true; });
   await pump(page, 600);
@@ -140,7 +152,9 @@ await A.screenshot({ path: path.join(SHOTS, "1-line.png") });
 const before = { x: s.x, z: s.z };
 await A.keyboard.down("w"); await pump(A, 700); await A.keyboard.up("w");
 s = await S(A);
-check("the line holds you in your place (or walks you up it)", s.phase !== "queued" || (Math.abs(s.z - before.z) < 0.2 && s.x >= before.x - 0.05), JSON.stringify(s));
+// (held across the line, and no further from the door than you were)
+const toDoor = (p) => Math.hypot(p.x - SPOT.mouth[0], p.z - SPOT.mouth[1]);
+check("the line holds you in your place (or walks you up it)", s.phase !== "queued" || (Math.abs(s[SPOT.across] - before[SPOT.across]) < 0.2 && toDoor(s) <= toDoor(before) + 0.05), JSON.stringify(s));
 // the line moves up and a lane takes you
 s = await until(A, (s) => s.phase === "id" || s.phase === "ask", 60000);
 check("the line moves up to a lane, and your ID comes out", s.phase === "id" && s.card && /club_tester/.test(s.cardText), JSON.stringify({ ...s, cardText: s.cardText.slice(0, 40) }));
@@ -159,14 +173,14 @@ check("the band's on your right wrist", s.rigBand === 1 && s.bandMesh, JSON.stri
 check("clubgoers checked in ahead of you wear theirs", s.npcBands >= 1, `${s.npcBands} banded`);
 check("'Yeah': a guest band, walked into the lobby", s.phase === "in" && s.band === 1 && s.zone === "main", JSON.stringify(s));
 await A.screenshot({ path: path.join(SHOTS, "4-lobby.png") });
-await poke(A, -22, 0.3, 3); await pump(A, 300); s = await S(A);
+await poke(A, ...SPOT.vip); await pump(A, 300); s = await S(A);
 check("the guest band doesn't open VIP", s.zone !== "vip", JSON.stringify(s));
 check("and security puts a hand up", s.blocks === 1, JSON.stringify({ blocks: s.blocks }));
-await poke(A, 0, 0.3, -20); await pump(A, 300); s = await S(A);
+await poke(A, ...SPOT.back); await pump(A, 300); s = await S(A);
 check("or back of house", s.zone !== "back", JSON.stringify(s));
-await poke(A, 0, 0, 27); await pump(A, 300); s = await S(A);
+await poke(A, ...SPOT.street); await pump(A, 300); s = await S(A);
 check("out on the street with it", s.zone === "street", JSON.stringify(s));
-await poke(A, 24, 0.3, 17); await pump(A, 300); s = await S(A);
+await poke(A, ...SPOT.side); await pump(A, 300); s = await S(A);
 check("and back in by a side door, no line", s.zone === "main", JSON.stringify(s));
 check("signed in: no page errors", A.errors.length === 0, A.errors.slice(0, 3).join(" | "));
 await A.context().close();
@@ -178,9 +192,9 @@ check("guest: in the line", s.phase === "queued", JSON.stringify(s));
 // out of the line (X), then try the front door and a side door
 await A.evaluate(() => window.__trollClub.leave());
 await pump(A, 200);
-await poke(A, 0, 0.3, 18); await pump(A, 300); s = await S(A);
+await poke(A, ...SPOT.lobby); await pump(A, 300); s = await S(A);
 check("no band: the lobby's fenced off", s.zone === "street" && s.phase === "none", JSON.stringify(s));
-await poke(A, 24, 0.3, 17); await pump(A, 300); s = await S(A);
+await poke(A, ...SPOT.side); await pump(A, 300); s = await S(A);
 check("and so is every side door", s.zone === "street", JSON.stringify(s));
 await A.evaluate(() => window.__trollClub.join());
 s = await until(A, (s) => s.phase === "id" || s.phase === "ask", 60000);
@@ -193,7 +207,7 @@ s = await until(A, (s) => s.kick > 3.0, 6000);
 check("both bouncers carry you, off your feet", s.held === 2 && s.y > 0.25, JSON.stringify(s));
 await A.screenshot({ path: path.join(SHOTS, "5a-carried.png") });
 s = await until(A, (s) => s.kick > 5.1, 6000);
-check("tossed on your back by the curb, caption and stamp up", s.lie > 1.3 && s.z > 27 && /18/.test(s.cap) && s.stamp, JSON.stringify(s));
+check("tossed on your back by the curb, caption and stamp up", s.lie > 1.3 && SPOT.curb(s.z) && /18/.test(s.cap) && s.stamp, JSON.stringify(s));
 await A.screenshot({ path: path.join(SHOTS, "5b-tossed.png") });
 s = await until(A, (s) => s.phase !== "kick" && s.chip, 6000);   // (the chip is up the frame after)
 check("'No': out on the curb, locked out", s.phase === "lockout" && s.band === 0 && s.zone === "street" && /Bounced/.test(s.chip) && !s.cine, JSON.stringify(s));
@@ -212,9 +226,9 @@ A = await open("troll_runner");
 s = await S(A);
 check("troll_runner: in the lobby with the owner band", s.phase === "in" && s.band === 2 && s.zone === "main", JSON.stringify(s));
 check("the black and gold owner band on his wrist", s.rigBand === 2 && s.bandMesh, JSON.stringify({ rigBand: s.rigBand, bandMesh: s.bandMesh }));
-await poke(A, -22, 0.3, 3); await pump(A, 300); s = await S(A);
+await poke(A, ...SPOT.vip); await pump(A, 300); s = await S(A);
 check("VIP's open to him", s.zone === "vip", JSON.stringify(s));
-await poke(A, 0, 0.3, -20); await pump(A, 300); s = await S(A);
+await poke(A, ...SPOT.back); await pump(A, 300); s = await S(A);
 check("so is back of house", s.zone === "back", JSON.stringify(s));
 check("owner: no page errors", A.errors.length === 0, A.errors.slice(0, 3).join(" | "));
 await A.context().close();
@@ -239,7 +253,7 @@ await pump(A, 500); s = await S(A);
 check("pad: an A already held when the question comes up doesn't answer it", s.phase === "ask" && s.ask, JSON.stringify({ phase: s.phase }));
 await setPad(A, 0, false); await pump(A, 200);
 await setPad(A, 0, true); await pump(A, 150); await setPad(A, 0, false);
-s = await until(A, (s) => s.phase === "in", 15000);
+s = await until(A, (s) => s.phase === "in", 25000);
 check("pad: ...a fresh A is 'Yeah': banded and in", s.phase === "in" && s.band === 1, JSON.stringify({ phase: s.phase, band: s.band }));
 check("pad: no page errors", A.errors.length === 0, A.errors.slice(0, 3).join(" | "));
 await A.context().close();
@@ -300,15 +314,15 @@ check("bandana: the schedule has him most slots, both lanes, every colour, the s
 // Sent now, 12 s up the alley already (the walk's long), shorter look and curb.
 await A.evaluate(() => { const C = window.__trollClub; Object.assign(C.T, { bandanaLook: 0.8, bandanaSit: 1.2 }); C.bandana(0, Date.now() - 12000); });
 b = await untilB((b) => b.phase === "up" && b.visible, 5000);
-check("bandana: he comes up the alley in a bandana", b.on && !b.off && b.visible && /:bandana-red$/.test(b.face) && b.z > 25, JSON.stringify({ phase: b.phase, face: b.face, x: b.x, z: b.z, vis: b.visible }));
+check("bandana: he comes up the alley in a bandana", b.on && !b.off && b.visible && /:bandana-red$/.test(b.face) && SPOT.alley(b.z), JSON.stringify({ phase: b.phase, face: b.face, x: b.x, z: b.z, vis: b.visible }));
 b = await untilB((b) => b.phase === "look", 25000);
-check("bandana: he takes lane 0 and the bouncer turns to him", b.phase === "look" && b.lanes[0].who === "bandana" && b.lanes[0].act === "face" && Math.abs(b.x + 3.3) < 0.3,
+check("bandana: he takes lane 0 and the bouncer turns to him", b.phase === "look" && b.lanes[0].who === "bandana" && b.lanes[0].act === "face" && Math.abs(b.x - SPOT.lane0) < 0.3,
   JSON.stringify({ phase: b.phase, x: b.x, z: b.z, lanes: b.lanes }));
 b = await untilB((b) => b.tc > 2.5, 15000);
 check("bandana: the bouncers carry him off (the other one helps unless you're at his lane)",
   b.phase === "kick" && b.lanes[0].kick && (b.lanes[1].hold || b.lanes[1].who === "me") && b.y > 0.15, JSON.stringify({ phase: b.phase, tc: b.tc, y: b.y, lanes: b.lanes }));
 b = await untilB((b) => b.tc > 5.3 || b.phase === "curb", 15000);
-check("bandana: ...and toss him on his back by the curb", b.rz > 27 && b.lie > 1.3, JSON.stringify({ tc: b.tc, rz: b.rz, lie: b.lie, y: b.y }));
+check("bandana: ...and toss him on his back by the curb", SPOT.curb(b.rz) && b.lie > 1.3, JSON.stringify({ tc: b.tc, rz: b.rz, lie: b.lie, y: b.y }));
 b = await untilB((b) => b.phase === "curb", 15000);
 check("bandana: he sits on the curb; both lanes are free again",
   b.phase === "curb" && b.lanes.every((l) => !l.kick && !l.hold && !l.reserved && l.who !== "bandana"), JSON.stringify({ phase: b.phase, x: b.x, z: b.z, lanes: b.lanes }));

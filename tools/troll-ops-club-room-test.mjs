@@ -24,6 +24,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
+// MAP=<id>: another club map (kabukigrin_wip); Trolling Loud by default
+const MAP = process.env.MAP || "trollingloud";
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
 
@@ -79,12 +81,12 @@ async function open(label, user) {
     // bandanaEvery: the bandana guy kept out of cases 1-5 (6 brings him in)
     Object.assign(window.__trollClub.T, { checkSecs: 0.6, idSecs: 2.0, bandSecs: 1.6, lockSecs: 2, afkSecs: 600, bandanaEvery: 1e9 });
   });
-  await page.evaluate(async () => {
+  await page.evaluate(async (map) => {
     const T = window.__trollOps;
     T.setMode("social");
-    T.loadout.mapId = "trollingloud";
+    T.loadout.mapId = map;
     await T.startGame();
-  });
+  }, MAP);
   await page.waitForFunction(() => !window.__trollOps.loadState().open, null, { timeout: 420000 });
   // The podiums take nobody till all three are in (released below).
   await page.evaluate(() => { window.__trollOps.els.pause.hidden = true; window.__trollClub.club.lanes.forEach((l) => { l.hold = true; }); });
