@@ -131,11 +131,14 @@ const peaks = await A.evaluate(async () => {
   const M = window.__trollOps.builtMap().map, frame = () => new Promise((r) => requestAnimationFrame(r));
   const out = [];
   const t0 = performance.now();
-  while (performance.now() - t0 < 2500) { await frame(); const d = M.debug(); out.push([performance.now(), d.kick, d.beat]); }
+  while (performance.now() - t0 < 2500) { await frame(); const d = M.debug(); out.push([performance.now(), d.kick, d.beat, d.song?.t]); }
   return out;
 });
-const beatSpan = peaks.at(-1)[2] - peaks[0][2], secs = (peaks.at(-1)[0] - peaks[0][0]) / 1000;
-check(Math.abs(beatSpan / secs * 60 - grid.bpm) < grid.bpm * 0.06, "the beat advances at the record's tempo", `${(beatSpan / secs * 60).toFixed(1)} vs ${grid.bpm}`);
+// against the record's own clock, not the wall's: a slow tab (a heavy map
+// headless runs ~10 fps) can't keep its audio fed, and the record (with the
+// beat) is jumped back into step with the room now and then
+const beatSpan = peaks.at(-1)[2] - peaks[0][2], secs = peaks.at(-1)[3] - peaks[0][3];
+check(Math.abs(beatSpan / secs * 60 - grid.bpm) < grid.bpm * 0.06, "the beat advances at the record's tempo", `${(beatSpan / secs * 60).toFixed(1)} vs ${grid.bpm}, ${peaks.length} frames`);
 check(Math.max(...peaks.map((p) => p[1])) > 0.2, "the floor kicks", `max ${Math.max(...peaks.map((p) => p[1])).toFixed(2)}`);
 
 /* ---------------------------------------------------------------- 2 */

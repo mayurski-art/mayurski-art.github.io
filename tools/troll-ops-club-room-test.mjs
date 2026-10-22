@@ -161,10 +161,12 @@ await B.evaluate(() => window.__trollClub.answer(false));
 s = await until((ss) => ss[2].remotes.find((r) => r.id === id.B)?.kick > 0.5, 8000);
 const bOnC = () => s[2].remotes.find((r) => r.id === id.B);
 check("C plays B's throw-out", bOnC()?.kick > 0 && bOnC()?.ph === "kick", JSON.stringify(bOnC()));
-s = await until((ss) => ss[2].remotes.find((r) => r.id === id.B)?.lie > 1.2, 8000);
+// (the kick runs on B's frame clock: three software-rendered tabs of a heavy
+// map play it at under half speed, so these waits leave room for that)
+s = await until((ss) => ss[2].remotes.find((r) => r.id === id.B)?.lie > 1.2, 20000);
 check("B lands on their back on C's screen", bOnC()?.lie > 1.2, JSON.stringify(bOnC()));
 await C.screenshot({ path: path.join(SHOTS, "room-2-b-thrown-seen-by-c.png") });
-s = await until((ss) => ss[2].remotes.find((r) => r.id === id.B)?.ph === "sit", 10000);
+s = await until((ss) => ss[2].remotes.find((r) => r.id === id.B)?.ph === "sit", 25000);
 check("then sat on the curb", bOnC()?.ph === "sit" && bOnC()?.y < 0.2, JSON.stringify(bOnC()));
 await C.screenshot({ path: path.join(SHOTS, "room-3-b-on-the-curb.png") });
 
