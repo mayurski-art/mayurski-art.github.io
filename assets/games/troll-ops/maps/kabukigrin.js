@@ -30,7 +30,7 @@ import { Kit, place, surfMat, texMat } from "./trollcity-kit.js?v=tc2-wst-tc3-sh
 import { Neon, neonMat, clubFx, cutRects, slatTexture, mosaicTexture } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1";
 import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4-kb6";
 import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5";
-import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6";
+import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8";
 
 const URL_GLB = new URL("../models/", import.meta.url).href;
 const loader = new GLTFLoader();
@@ -284,7 +284,9 @@ function buildClub(api) {
   // (its riveted panels, one a character, are Studio's)
   const strip = jpSign("トローリング・ラウド", { vertical: true, color: "#3ff0ff" });
   const sh = 5.4, sw = sh * strip.aspect;
-  for (const [dx, ry] of [[0.085, Math.PI / 2], [-0.085, -Math.PI / 2]]) N.quad(strip.mat, -30.9 + dx, 2.5 + sh / 2, 3.25, sw, sh, { ry, k: 1.15, beat: 0 });
+  for (const [dx, ry] of [[0.085, Math.PI / 2], [-0.085, -Math.PI / 2]]) N.quad(strip.mat, -30.9 + dx, 2.5 + sh / 2, 3.25, sw, sh, { ry, k: 1.15, beat: 0, group: 3 });
+  // shootable: a round into either face shorts it out (sign group 3)
+  S.signs.push({ group: 3, x: -30.9, y: 2.5 + sh / 2, z: 3.25, w: sw, h: sh, ry: Math.PI / 2 });
 
   /* ---- the east wall on Mid Bottom: six LED windows pulsing on the kick,
      the big cyan trollface between them */
@@ -303,7 +305,7 @@ function buildClub(api) {
   }
 
   // the borrowed rooms (doc 3.5 b, c, d): Studio's walls, these their insides
-  buildRooms({ root, K, N, M, jpSign, sfx: CLUB.sfx });
+  buildRooms({ root, K, N, M, S, jpSign, sfx: CLUB.sfx });
 
   K.flush();
   N.flush();

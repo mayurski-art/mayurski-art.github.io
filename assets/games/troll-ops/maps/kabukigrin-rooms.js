@@ -294,7 +294,7 @@ function camFeeds() {
 
 /* ============================================================== the rooms */
 
-export function buildRooms({ root, K, N, M, jpSign, sfx }) {
+export function buildRooms({ root, K, N, M, S, jpSign, sfx }) {
   const R = { koi: null, mirror: null };
   const shoji = texMat(shojiTexture(), { tile: 0.9, rough: 0.9, bounce: 0.55 });
   const tatami = texMat(tatamiTexture(), { tile: 1.82, rough: 0.85 });
@@ -441,7 +441,9 @@ export function buildRooms({ root, K, N, M, jpSign, sfx }) {
     const nm = texMat(norenTexture(cloth, name), { alphaTest: 0.4, side: THREE.DoubleSide, rough: 0.9, bounce: 0.3 });
     quad(nm, x, 1.67, face + out * 0.03, 1.9, 0.56, ry);
     const s = jpSign(name, { color: warm, size: 96 });
-    N.quad(s.mat, x, 2.1, face + out * 0.015, 0.24 * s.aspect, 0.24, { ry, k: 1.1, beat: 0 });
+    // each bar's sign is its own shootable group (5 .. 10): a round shorts just that one
+    N.quad(s.mat, x, 2.1, face + out * 0.015, 0.24 * s.aspect, 0.24, { ry, k: 1.1, beat: 0, group: 5 + i });
+    S.signs.push({ group: 5 + i, x, y: 2.1, z: face + out * 0.015, w: 0.24 * s.aspect, h: 0.24, ry });
     // a menu on the other wall, opposite
     const menu = texMat(menuTexture(MENUS[i % 3]), { rough: 0.9, bounce: 0.12, decal: true });
     quad(menu, x, 1.45, side > 0 ? -2.01 : -3.99, 0.42, 0.68, side > 0 ? Math.PI : 0);
