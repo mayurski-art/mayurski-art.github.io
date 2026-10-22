@@ -2106,7 +2106,24 @@ function resize() {
   weaponCamera.aspect = w / h;
   weaponCamera.updateProjectionMatrix();
 }
-window.addEventListener("resize", resize);
+/* Turning a phone sideways (user, 2026-10-22: iPhone, the rotate card, then
+   "the game bugged and i got kicked out"). iOS fires resize several times
+   through one rotation while its bars animate, and each one reallocated
+   every full-size render target, right after a match loaded, when memory is
+   tightest. iOS answers a spike like that by killing the tab and reloading
+   it, which lands back on the menu. The new size is taken once, after it
+   has held for a moment. */
+let resizeTimer = 0;
+let resizedTo = "";
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    const size = `${els.cabinet.clientWidth}x${els.cabinet.clientHeight}`;
+    if (size === resizedTo) return;
+    resizedTo = size;
+    resize();
+  }, 150);
+});
 
 /* Graphics tiers. SSAO is the big one: it re-renders the whole scene with a
    normal material every frame, then samples and blurs it, which roughly
