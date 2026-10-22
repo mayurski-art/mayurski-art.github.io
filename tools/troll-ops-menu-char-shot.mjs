@@ -6,7 +6,9 @@
 // touch an edge of its box that isn't the screen's (a cut mid-screen).
 //
 //   NODE_PATH=<checkout>/node_modules node tools/troll-ops-menu-char-shot.mjs
-//   SHOTS_DIR=<dir>; W/H for the viewport (default 1366x634); PHONE=1
+//   SHOTS_DIR=<dir>; W/H for the viewport (default 1366x634); PHONE=1;
+//   TOKEN=<TROLLS token> the body worn (default 1718); CLICK=<menu item> opens
+//   that screen first (CLICK=Cosmetics)
 import http from "node:http"; import fs from "node:fs"; import path from "node:path"; import os from "node:os";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -35,17 +37,25 @@ page.on("pageerror", (e) => errors.push(e.message));
 await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded" });
 await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 90000 });
 await page.waitForTimeout(2500);
-const tag = process.env.PHONE ? "-phone" : `-${W}x${H}`;
+const tag = (process.env.PHONE ? "-phone" : `-${W}x${H}`) + (process.env.CLICK ? `-${process.env.CLICK.toLowerCase()}` : "");
+if (process.env.CLICK) {
+  await page.locator(".to-bo2-menu .tr-menu-item", { hasText: new RegExp(`^\s*${process.env.CLICK}`, "i") }).first().click();
+  await page.waitForTimeout(800);
+}
 
 /* The TROLLS body on or off the menu operator, through the lobby's own
    blocky-body module (same URL, same instance). */
-const setBody = (on) => page.evaluate(async (on) => {
+// (wearBlocky takes a token number: true is no token, the stick stays on)
+const TOKEN = +(process.env.TOKEN || 1718);
+const setBody = (on) => page.evaluate(async (token) => {
   const src = await (await fetch("/assets/games/troll-ops/game.js")).text();
   const url = "/assets/games/troll-ops/" + src.match(/\.\/(menu\/lobby\.js\?v=[^"]+)/)[1];
   const lsrc = await (await fetch(url)).text();
   const B = await import(new URL(lsrc.match(/"(\.\.\/characters\/blocky-body\.js\?v=[^"]+)"/)[1], location.origin + url).href);
-  await B.wearBlocky(window.__trollOps.charInspector.humanoid, on);
-}, on);
+  const t0 = performance.now();
+  await B.wearBlocky(window.__trollOps.charInspector.humanoid, token);
+  return Math.round(performance.now() - t0);
+}, on ? TOKEN : 0);
 
 /* Draw a frame, lay it over the canvas, and measure the drawn pixels. */
 const frame = () => page.evaluate(() => {
@@ -89,7 +99,8 @@ const frame = () => page.evaluate(() => {
 });
 
 for (const on of [true, false]) {
-  await setBody(on);
+  const ms = await setBody(on);
+  if (on) console.log(`TROLLS #${TOKEN} on in ${ms} ms`);
   for (const z of [1, 0.5, 2.2]) {
     await page.evaluate((z) => { const ci = window.__trollOps.charInspector; ci.setZoom(z); ci.zoom = ci.zoomTarget; }, z);
     await page.waitForTimeout(300);

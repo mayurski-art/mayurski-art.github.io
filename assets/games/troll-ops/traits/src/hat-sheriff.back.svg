@@ -1,0 +1,13 @@
+<!--
+  TROLLS trait: HATS / Sheriff Hat, seen from BEHIND (the back of the
+  head-trait frame: drawn as the viewer behind sees it). The same crown,
+  band and curled brim, no star.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1033" width="1000" height="1033">
+  <g stroke="#0a0a0a" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">
+    <path fill="#151517" d="M90 330 C260 300 740 300 910 330 C840 352 160 352 90 330 Z"/>
+    <path fill="#1d1d20" d="M250 360 C244 280 252 200 296 150 C340 120 420 132 500 160 C580 132 660 120 704 150 C748 200 756 280 750 360 C600 380 400 380 250 360 Z"/>
+    <path fill="#4e2e17" d="M252 312 C400 330 600 330 748 312 L750 356 C600 376 400 376 250 356 Z"/>
+    <path fill="#1d1d20" d="M60 300 C110 312 180 350 300 362 C400 372 600 372 700 362 C820 350 890 312 940 300 C960 320 930 380 880 400 C760 440 620 450 500 450 C380 450 240 440 120 400 C70 380 40 320 60 300 Z"/>
+  </g>
+</svg>

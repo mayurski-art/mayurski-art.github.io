@@ -1,0 +1,27 @@
+<!--
+  TROLLS #1718's face (EYES / Eyes Relaxed, refs/trolls-1718.png): the
+  trollface itself (outline, brows, nose, cheek folds, grin) with only its
+  squinting eyes painted out and the NFT's closed, smug lids drawn in their
+  place, the way face-cracked.svg swaps #33's eyes. In the trollface png's
+  own frame (800 x 730), so it swaps in for the face on the same head.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 730" width="800" height="730">
+  <defs>
+    <!-- what of the trollface stays: everything but the two squints -->
+    <mask id="keep" maskUnits="userSpaceOnUse" x="0" y="0" width="800" height="730">
+      <rect width="800" height="730" fill="#fff"/>
+      <ellipse cx="252" cy="238" rx="74" ry="34" fill="#000"/>
+      <ellipse cx="474" cy="232" rx="90" ry="36" fill="#000"/>
+    </mask>
+    <filter id="skin" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 0.984  0 0 0 0 0.984  0 0 0 0 0.984  0 0 0 1 0"/></filter>
+  </defs>
+  <!-- the skin, then the trollface with its squints painted out -->
+  <image href="../../../../images/wallpaper/trollface%20transparent.png" width="800" height="730" filter="url(#skin)"/>
+  <image href="../../../../images/wallpaper/trollface%20transparent.png" width="800" height="730" mask="url(#keep)"/>
+  <!-- the NFT's relaxed eyes: one lid line each, sagging a little in the
+       middle, round-ended, as heavy as the trollface's own ink -->
+  <g fill="none" stroke="#0a0a0a" stroke-width="15" stroke-linecap="round">
+    <path d="M190 228 C222 240 262 246 316 238"/>
+    <path d="M398 232 C440 244 494 246 550 228"/>
+  </g>
+</svg>

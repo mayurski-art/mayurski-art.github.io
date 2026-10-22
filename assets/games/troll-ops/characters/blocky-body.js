@@ -16,10 +16,10 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
-import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1";
-import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1-gt1-fg2-bd1-mj1-fg3-rc1-ls1-ut1";
+import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1";
+import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1-gt1-fg2-bd1-mj1-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-sf1-hl1-mg1";
 import { addRim } from "../view/rim-light.js?v=sr1";
-import { tagInk, untagInk } from "../view/char-ink.js?v=ci1-ci2-ci3-ci4-ci5";
+import { tagInk, untagInk } from "../view/char-ink.js?v=ci1-ci2-ci3-ci4-ci5-rb4-rb5-mg1";
 
 const DIR = new URL("../traits/", import.meta.url);
 const ART_V = globalThis.TRAITS_BUST ?? "tr7";
@@ -134,6 +134,7 @@ function croppedTexture(file, [x0, y0, x1, y1], frameW, frameH, ground = "#f3f3e
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 8;
   const img = new Image();
+  img.crossOrigin = "anonymous";
   img.onload = () => { g.drawImage(img, x0 * img.width / frameW, y0 * img.height / frameH, (x1 - x0) * img.width / frameW, (y1 - y0) * img.height / frameH, 0, 0, c.width, c.height); t.needsUpdate = true; };
   img.src = file;
   return t;
@@ -183,48 +184,53 @@ function capPrint(text) {
   return t;
 }
 
-/* The muscular arms (models/build_blocky_arms.blender.py -> blocky/arms-muscle.glb):
-   blocky muscle masses, each piece "<joint><S>__<muscle>" authored in its
-   joint's frame, bone straight down -Y, at scale 1 with these bone lengths. */
+/* The Blender pieces (models/build_blocky_*.blender.py -> models/blocky/*.glb),
+   each "<joint><S>__<part>" authored in its joint's frame, bone straight
+   down -Y, at scale 1. */
 const glb = (file) => new URL(`../models/blocky/${file}?v=${globalThis.TRAITS_BUST ?? "bb5"}`, import.meta.url).href;
 const TORSO_GLB = glb("torso-muscle.glb");
 /* What each CLOTHES trait dresses the body in (the trait library, traits.js):
-   its block template wrapped on the torso, and the arm and leg piece sets
-   (models/blocky/<file>, built by models/build_blocky_*.blender.py) with a
+   its block template wrapped on the torso, its `sleeves` on the box arms
+   (boxArms: "long", "short" or none, bare), and the leg piece set
+   (models/blocky/<file>, built by models/build_blocky_*.blender.py), with a
    colour per piece name; a piece with no colour is skin, "plaid" the
    shirt's cloth (plaidMaterial). Every token with the trait wears this. */
 const KITS = {
-  "clothes-tank-runner": { arms: "arms-muscle.glb", legs: "legs-muscle.glb",
+  "clothes-tank-runner": { legs: "legs-muscle.glb",
     colours: { shorts: 0x34363e, hem: 0x43464f, upper: 0x141416, sole: 0xdcdcd6 } },
   // Farmer: plaid long sleeves, denim overalls to the boots
-  "clothes-farmer": { arms: "arms-farmer.glb", legs: "legs-farmer.glb",
+  "clothes-farmer": { sleeves: "long", legs: "legs-farmer.glb",
     colours: { sleeve: "plaid", cuff: "plaid", denim: 0x3f6fa6, hem: 0x2f5a8c, boot: 0x6b4423, collar: 0x8a5a30, sole: 0x2a2420 } },
   // Sweater Black: the farmer's pieces as black knit sleeves, dark jeans, black sneakers
-  "clothes-sweater-black": { arms: "arms-farmer.glb", legs: "legs-farmer.glb",
+  "clothes-sweater-black": { sleeves: "long", legs: "legs-farmer.glb",
     colours: { sleeve: 0x2b2b2e, cuff: 0x1f1f22, denim: 0x34363d, hem: 0x2a2c32, boot: 0x1b1b1d, collar: 0x1f1f22, sole: 0xe6e6e0 } },
   // Sensei: the undershirt's short blue sleeves and wristbands, baggy orange
   // gi trousers gathered into blue boots (build_blocky_sensei); first-person
   // forearms bare with the wristband (`fp`: the forearm's and cuff's colours)
   // #989's legs and torso are Sensei v3, a logo-free gi made in Roblox Studio
   // (tools/troll-ops-roblox-body.mjs; nft-lab "Body pieces"; user, 2026-10-17:
-  // "redesign the sensei outfit but without the logos"), the arms plain in
-  // their sleeves and the head set down onto its shorter collar
-  "clothes-sensei": { arms: "arms-sensei.glb", legs: "legs-sensei3.glb", torso: "torso-sensei3.glb", plainArms: true, headLift: -0.04,
+  // "redesign the sensei outfit but without the logos"), the head set
+  // down onto its shorter collar
+  "clothes-sensei": { sleeves: "short", legs: "legs-sensei3.glb", torso: "torso-sensei3.glb", headLift: -0.04,
     colours: { sleeve: 0x2d5a96, band: 0x2d5a96, gi: 0xf2841f, hem: 0xd96f15, boot: 0x2d5a96, sole: 0x24252b },
     fp: { sleeve: null, cuff: 0x2d5a96 } },
   // Jester (#33): the farmer's pieces as the purple jacket's sleeves with
   // teal shirt cuffs, purple trousers and black shoes
-  "clothes-jester": { arms: "arms-farmer.glb", legs: "legs-farmer.glb",
+  "clothes-jester": { sleeves: "long", legs: "legs-farmer.glb",
     colours: { sleeve: 0x4b2a70, cuff: 0x3f8090, denim: 0x3c2159, hem: 0x2c173f, boot: 0x17151a, sole: 0x0e0d10 } },
   // Tshirt Black (#2630): the Sensei's short sleeves in black (the band is
   // skin: bare forearms), dark jeans, black sneakers
-  "clothes-tshirt-black": { arms: "arms-sensei.glb", legs: "legs-farmer.glb",
+  "clothes-tshirt-black": { sleeves: "short", legs: "legs-farmer.glb",
     colours: { sleeve: 0x1d1d20, denim: 0x3b4a66, hem: 0x2f3c55, boot: 0x1b1b1d, sole: 0xe6e6e0 },
     fp: { sleeve: null, cuff: null } },
   // Trainer (#2631): short white shirt sleeves, navy track trousers, black trainers
-  "clothes-trainer": { arms: "arms-sensei.glb", legs: "legs-farmer.glb",
+  "clothes-trainer": { sleeves: "short", legs: "legs-farmer.glb",
     colours: { sleeve: 0xf2f2ee, denim: 0x232f48, hem: 0x1b253a, boot: 0x1b1b1d, sole: 0xe6e6e0 },
     fp: { sleeve: null, cuff: null } },
+  // Sheriff Gear (#1272): white long shirt sleeves (the vest's on the
+  // torso template), dark jeans, brown cowboy boots
+  "clothes-sheriff-gear": { sleeves: "long", legs: "legs-farmer.glb",
+    colours: { sleeve: 0xf4f4f0, cuff: 0xe2e2dc, denim: 0x2c3650, hem: 0x222a3e, boot: 0x4a2e18, sole: 0x2a1c12 } },
 };
 /* Hair modelled in Blender (traits.js MODELLED), worn on the relief head in
    its frame: the file and a colour per piece name. Carrot Cake Hair is the
@@ -336,24 +342,27 @@ export function fpArmLook(token) {
   return fpArmLooks.get(token);
 }
 /* The trollface with depth (models/build_blocky_head.blender.py), one per
-   head shape (HEAD.model; the variants are candidates for the NFT look,
-   2026-10-16): its file, how far its dome stands in front of the board
+   head shape (HEAD.model, or a token's own face: FACE_HEADS): its file, how far its dome stands in front of the board
    (`dome`, its FRONT, without the features) and, with the sculpted brow
    and upper lip under the cap and moustache, `front`; and its skull behind
    (`back`), so the drawn head traits (traits.js planes) move out onto them. */
 const HEAD_MODELS = {
   relief: { file: "head-relief.glb", dome: 0.065, front: 0.085, back: 0.19 },
-  flat: { file: "head-flat.glb", dome: 0.05, front: 0.078, back: 0.15 },
-  jaw: { file: "head-jaw.glb", dome: 0.07, front: 0.107, back: 0.16 },
   // #989's own drawing: its outline and features (build_blocky_head -- variant 989)
   // its eyes and forehead lines sit higher than the trollface's: the
   // hairline (HAIRLINE) stays above them
   989: { file: "head-989.glb", dome: 0.065, front: 0.085, back: 0.19, hairline: { top: 0.175, low: 0.13 } },
+  // #1718's Eyes Relaxed: the relief head with the lids swelling over the
+  // eyeballs where the squints sank (build_blocky_head -- variant 1718)
+  // capLift/capTilt: its cap sits that much higher (m) and tipped back (rad),
+  // the brim up off the eyes like the NFT, the back still on the skull
+  // (user, 2026-10-20)
+  1718: { file: "head-1718.glb", dome: 0.065, front: 0.085, back: 0.19, capLift: 0.03, capTilt: 0.15 },
 };
 /* An NFT face drawn on a shape of its own wears its own head (rig.nftFace,
    traits.js tokenFace; user, 2026-10-17: #989's drawing on the trollface
    head didn't match it). */
-const FACE_HEADS = { gum: "989" };
+const FACE_HEADS = { gum: "989", relaxed: "1718" };
 const headModel = (rig) => HEAD_MODELS[FACE_HEADS[rig?.nftFace]] || HEAD_MODELS[HEAD.model] || HEAD_MODELS.relief;
 const ARM_BONES = { arm: 0.30, elbow: 0.325 };
 const FIST_BACK = -0.058;   // the fist (0.125 long, down from the wrist) moved back up the forearm by half
@@ -417,47 +426,79 @@ armInk.onBeforeCompile = (sh) => {
     `#include <begin_vertex>\n  transformed += normal * ${INK_PUSH.toFixed(4)};`);
 };
 
-/* Hang the kit's arm pieces on `rig`'s arm joints: each lined up with its
-   live bone and stretched to its length, in its colour by piece name
-   (muscle names are skin). Returns the added objects. */
-// The sneaker's pieces (legs-muscle.glb "upper", "sole"): an arm piece with
-// the same name is a muscle, skin (user, 2026-10-15: the runner's upper
-// arms showed black in the armpit, painted the shoe's colour by name)
-const SHOE_PARTS = ["upper", "sole"];
-function muscleArms(rig, kit) {
-  const p = rig.parts, s = rig.scale;
-  const matOf = kitMaterials(Object.fromEntries(Object.entries(kit.colours).filter(([k]) => !SHOE_PARTS.includes(k))));
-  return loadPieces(glb(kit.arms)).then((pieces) => {
-    const added = [];
-    for (const { name, geo, hull, map } of pieces) {
-      const [jname, muscle] = name.split("__");
-      // `plainArms`: no bicep or tricep bulges, a plain arm in its sleeve
-      // (with the Roblox Studio body; user, 2026-10-17)
-      if (kit.plainArms && (muscle === "bicep" || muscle === "tricep")) continue;
-      const kind = jname.slice(0, -1), side = jname.slice(-1);
-      const joint = kind === "hand" ? p[`wrist${side}`].parent : p[`${kind}${side}`];
-      // the bone this piece hangs along: to the joint's child (the hand
+/* The arms as plain rectangles, Roblox style (user, 2026-10-21: "for all
+   blox characters lets keep the arm build really simple just rectangles",
+   "no need for tricep bicep"): a box down each bone, stretched to its live
+   length, and a box fist on the hand point, each with its ink shell. The
+   kit's `sleeves` dress them: "long" the whole arm in the sleeve's colour
+   with a cuff at the wrist, "short" the top of the upper arm (and a band at
+   the wrist when the kit has one), none bare skin. Returns the added objects. */
+// (10 cm square: the menu operator's port-arms carry crosses the right
+// forearm at the wrist, where the old muscle forearm had tapered to 9 cm)
+const ARM_BOX = { w: 0.10, top: 0.045, cap: 0.03, shortSleeve: 0.17, cuff: 0.035, over: 0.008, fist: [0.11, 0.125, 0.12] };
+const boxGeos = new Map();   // by size
+// (`name` the part of the arm it is: the hold tests sort the meshes by it)
+function inkedBox(name, w, h, d, y, mat) {
+  const key = [w, h, d].join();
+  if (!boxGeos.has(key)) {
+    const geo = new THREE.BoxGeometry(w, h, d);
+    const hull = mergeVertices(new THREE.BufferGeometry().setAttribute("position", geo.attributes.position.clone()).setIndex(geo.index.clone()), 1e-4);
+    hull.computeVertexNormals();
+    geo.userData.shared = hull.userData.shared = true;
+    boxGeos.set(key, { geo, hull });
+  }
+  const { geo, hull } = boxGeos.get(key);
+  const g = new THREE.Group();
+  g.position.y = y;
+  const m = new THREE.Mesh(geo, mat);
+  m.castShadow = true;
+  m.name = name;
+  g.add(m, new THREE.Mesh(hull, armInk));
+  return { g, m };
+}
+function boxArms(rig, kit) {
+  const p = rig.parts, s = rig.scale, c = kit.colours, X = ARM_BOX;
+  const matOf = kitMaterials(c);
+  const skin = matOf("skin"), sleeve = kit.sleeves ? matOf("sleeve") : skin;
+  const added = [];
+  for (const side of ["L", "R"]) {
+    const hand = p[`wrist${side}`].parent;
+    for (const kind of ["arm", "elbow", "hand"]) {
+      const joint = kind === "hand" ? hand : p[`${kind}${side}`];
+      // the bone this box hangs along: to the joint's child (the hand
       // carries on along the forearm)
-      const bone = kind === "arm" ? p[`elbow${side}`].position
-        : p[`wrist${side}`].parent.position;
+      const bone = kind === "arm" ? p[`elbow${side}`].position : hand.position;
       const g = new THREE.Group();
       g.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), bone.clone().normalize());
-      const stretch = kind === "hand" ? 1 : bone.length() / (ARM_BONES[kind] * s);
-      g.scale.set(s, s * stretch, s);
-      // The fist is centred on the hand point, not hung below it: that point
-      // is where the rig puts a gun's grip (and the support hand on the
-      // handguard), so the gun runs through the fist instead of past it.
-      if (kind === "hand") g.position.copy(bone).normalize().multiplyScalar(FIST_BACK * s);
-      const m = new THREE.Mesh(geo, matOf(muscle, map));
-      m.castShadow = true;
-      m.name = muscle;
-      g.add(m, new THREE.Mesh(hull, armInk));
+      const len = ARM_BONES[kind] ?? 0;
+      g.scale.set(s, kind === "hand" ? s : bone.length() / len, s);
+      if (kind === "hand") {
+        // The fist is centred on the hand point, not hung below it: that point
+        // is where the rig puts a gun's grip (and the support hand on the
+        // handguard), so the gun runs through the fist instead of past it.
+        g.position.copy(bone).normalize().multiplyScalar(FIST_BACK * s);
+        const [fw, fh, fd] = X.fist;
+        const { g: box, m } = inkedBox("fist", fw, fh, fd, -fh / 2, skin);
+        g.add(box);
+        added.push(...fistFingers(rig, side, bone, m.material));
+      } else {
+        // the upper arm starts a little above the shoulder joint (its cap),
+        // the forearm a little above the elbow so a bent arm doesn't gap
+        const top = kind === "arm" ? X.top : X.cap, bottom = len;
+        const long = kit.sleeves === "long", part = kind === "arm" ? "upper" : "fore";
+        g.add(inkedBox(part, X.w, top + bottom, X.w, (top - bottom) / 2, long ? sleeve : skin).g);
+        if (kind === "arm" && kit.sleeves === "short") {
+          const h = top + X.shortSleeve;
+          g.add(inkedBox(part, X.w + X.over * 2, h, X.w + X.over * 2, top - h / 2, sleeve).g);
+        }
+        const wrist = kind === "elbow" && (long ? c.cuff : c.band);
+        if (wrist) g.add(inkedBox(part, X.w + X.over * 2, X.cuff, X.w + X.over * 2, -bottom + X.cuff / 2 + 0.01, matOf(long ? "cuff" : "band")).g);
+      }
       joint.add(g);
       added.push(g);
-      if (kind === "hand") added.push(...fistFingers(rig, side, bone, m.material));
     }
-    return added;
-  });
+  }
+  return Promise.resolve(added);
 }
 
 /* Fingers the block fist doesn't have: the middle finger (emotes.js
@@ -494,7 +535,7 @@ function fistFingers(rig, side, bone, mat) {
   };
   const s = rig.scale, sx = side === "L" ? -1 : 1;
   const wrist = rig.parts[`wrist${side}`], hand = wrist.parent;
-  // the fist's frame in the hand point's (as muscleArms hangs it)
+  // the fist's frame in the hand point's (as boxArms hangs it)
   const dir = bone.clone().normalize();
   const fistM = new THREE.Matrix4().compose(dir.clone().multiplyScalar(FIST_BACK * s),
     new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir), new THREE.Vector3(s, s, s));
@@ -584,6 +625,8 @@ const HATS = {
   // trucker caps: the bill out in front only, mesh behind
   "hat-trucker-microsoft": { ink: "#b8305a", brim: [345, 448], brimFront: 0.13, ease: 14 },
   "hat-trucker-yobucks": { ink: "#c9c9c2", brim: [345, 448], brimFront: 0.13, ease: 14 },
+  // the sheriff's cowboy hat is modelled whole too (cowboyHat)
+  "hat-sheriff": { ink: "#151517", brim: [365, 440], model: "cowboy" },
 };
 /* How far the cap stands out of the head pivot's middle at (x, y): an
    ellipsoid round the head that closes exactly at that column's top edge of
@@ -602,8 +645,10 @@ const brimDepth = (x, s, d) => d * s * Math.sqrt(Math.max(0, 1 - (x / (CAP.a * s
    the bent back drawing (the back drawn over the cap's own black, so the
    whole silhouette is cap), walled round in that black. Built in the head
    pivot's frame from the hat's two drawings; the flat planes are hidden. */
+// (crossOrigin as three's TextureLoader asks: the same art then comes from
+// the cache instead of a second download, seconds on a phone)
 function loadImage(url) {
-  return new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = url; });
+  return new Promise((ok, no) => { const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => ok(i); i.onerror = no; i.src = url; });
 }
 /* The wizard's hat (#33, HATS model "wizard"), built as a real hat rather
    than its drawing pushed out: pushed out, the cone was a thin fin from the
@@ -709,12 +754,110 @@ function wizardHat(y, s) {
   return hat;
 }
 
+/* The sheriff's cowboy hat (#1272, HATS model "cowboy"), modelled whole like
+   the wizard's: a tall crown pinched in at the front with a crease down its
+   top, a brown band with a gold star at the front, and a wide brim whose
+   sides curl up and whose front and back dip, black felt cel-shaded, outlined
+   by the ink pass. Sat low and tipped toward the NFT's art right (flipped
+   back with the print on a mirrored head). In the head pivot's frame (-z the
+   front), `y` the brim's height; the crown sized off the wizard's, which
+   sits over the head like the caps. */
+const COWBOY = { felt: 0x232326, under: 0x141416, band: 0x4e2e17, star: 0xf2bd38, height: 0.2, taper: 0.9,
+  crease: 0.05, pinch: 0.035, brim: [0.43, 0.37], curl: 0.085, dip: 0.025, thick: 0.014, bandH: 0.04, tilt: 0.2 };
+function cowboyHat(y, s) {
+  const C = COWBOY, W = WIZARD;
+  const felt = toon(C.felt), under = toon(C.under);
+  const ax = W.crown[0] * s * 0.95, az = ((W.crown[1] + W.crown[2]) / 2) * s, zc = ((W.crown[2] - W.crown[1]) / 2) * s;
+  const N = 48, K = 10, R = 8, TAU = Math.PI * 2;
+  // the crown's top at (x, z): a crease down the middle, the front corners pinched in
+  const topY = (x, z, r) => C.height * s + 0.02 * s * (1 - r * r)
+    - C.crease * s * Math.exp(-((x / (0.07 * s)) ** 2)) * Math.max(0, 1 - 0.4 * r)
+    - C.pinch * s * Math.exp(-(((Math.abs(x) - 0.12 * s) / (0.06 * s)) ** 2)) * Math.max(0, (zc - z) / az);
+  const pos = [], idx = [];
+  // the sides: rings up from the band to the top's edge, tapering in
+  for (let k = 0; k <= K; k++) {
+    const t = k / K, sc = 1 - (1 - C.taper) * t;
+    for (let i = 0; i <= N; i++) {
+      const a = (i / N) * TAU, x = Math.cos(a) * ax * sc, z = zc + Math.sin(a) * az * sc;
+      pos.push(x, topY(Math.cos(a) * ax * C.taper, zc + Math.sin(a) * az * C.taper, 1) * t, z);
+    }
+  }
+  for (let k = 0; k < K; k++) for (let i = 0; i < N; i++) {
+    const a = k * (N + 1) + i, b = a + N + 1;
+    idx.push(a, b, a + 1, a + 1, b, b + 1);
+  }
+  // the top: rings in from the edge to the middle, on the creased surface
+  const top0 = pos.length / 3;
+  for (let j = 0; j <= R; j++) {
+    const r = 1 - j / R;
+    for (let i = 0; i <= N; i++) {
+      const a = (i / N) * TAU, x = Math.cos(a) * ax * C.taper * r, z = zc + Math.sin(a) * az * C.taper * r;
+      pos.push(x, topY(x, z, r), z);
+    }
+  }
+  for (let j = 0; j < R; j++) for (let i = 0; i < N; i++) {
+    const a = top0 + j * (N + 1) + i, b = a + N + 1;
+    idx.push(a, b, a + 1, a + 1, b, b + 1);
+  }
+  const crown = new THREE.BufferGeometry();
+  crown.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  crown.setIndex(idx);
+  crown.computeVertexNormals();
+  // the brim: from just inside the crown out to its edge, the sides curling
+  // up and the front and back dipping, a top and an underside joined round the rim
+  const RB = 10, bp = [], top = [], bot = [], rim = [];
+  for (const lower of [false, true]) for (let j = 0; j <= RB; j++) for (let i = 0; i <= N; i++) {
+    const r = j / RB, a = (i / N) * TAU, c = Math.cos(a), sn = Math.sin(a);
+    const rx = ax * 0.9 + (C.brim[0] * s - ax * 0.9) * r, rz = az * 0.9 + (C.brim[1] * s - az * 0.9) * r;
+    const yy = (C.curl * c * c - C.dip * sn * sn) * s * r * r * r - (lower ? C.thick * s : 0);
+    bp.push(c * rx, yy, zc + sn * rz);
+  }
+  const at = (lower, j, i) => (lower ? (RB + 1) * (N + 1) : 0) + j * (N + 1) + i;
+  for (let j = 0; j < RB; j++) for (let i = 0; i < N; i++) {
+    top.push(at(0, j, i), at(0, j, i + 1), at(0, j + 1, i), at(0, j, i + 1), at(0, j + 1, i + 1), at(0, j + 1, i));
+    bot.push(at(1, j, i), at(1, j + 1, i), at(1, j, i + 1), at(1, j, i + 1), at(1, j + 1, i), at(1, j + 1, i + 1));
+  }
+  for (let i = 0; i < N; i++) rim.push(at(0, RB, i), at(0, RB, i + 1), at(1, RB, i), at(0, RB, i + 1), at(1, RB, i + 1), at(1, RB, i));
+  const brim = new THREE.BufferGeometry();
+  brim.setAttribute("position", new THREE.Float32BufferAttribute(bp, 3));
+  brim.setIndex([...top, ...rim, ...bot]);
+  brim.addGroup(0, top.length + rim.length, 0);
+  brim.addGroup(top.length + rim.length, bot.length, 1);
+  brim.computeVertexNormals();
+  // the band round the crown's foot, a hair outside it
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(1.02, 1.025, C.bandH * s, N, 1, true), toon(C.band));
+  band.scale.set(ax, 1, az);
+  band.position.set(0, (C.bandH / 2) * s + 0.002 * s, zc);
+  // the gold star on the band's front, a step off the crown's middle (the
+  // NFT's art right), an ink star behind it for its outline
+  const star = new THREE.Shape();
+  for (let k = 0; k < 10; k++) {
+    const a = Math.PI / 2 + (k * Math.PI) / 5, rr = (k % 2 ? 0.42 : 1) * 0.026 * s;
+    k ? star.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : star.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+  }
+  const starGeo = new THREE.ExtrudeGeometry(star, { depth: 0.006 * s, bevelEnabled: false });
+  const sx = -0.1 * s, sz = zc - az * 1.03 * Math.sqrt(1 - (sx / ax) ** 2);
+  const starM = new THREE.Mesh(starGeo, toon(C.star));
+  const starInk = new THREE.Mesh(starGeo, new THREE.MeshBasicMaterial({ color: INK }));
+  starInk.scale.set(1.35, 1.35, 0.5);
+  for (const m of [starM, starInk]) {
+    m.position.set(sx, (C.bandH / 2) * s, sz - (m === starM ? 0.006 * s : 0));
+    m.rotation.y = Math.PI + Math.atan2(sx / ax, 1) * 0.5;
+  }
+  const hat = new THREE.Group();
+  for (const m of [new THREE.Mesh(crown, felt), new THREE.Mesh(brim, [felt, under]), band, starM, starInk]) { m.castShadow = true; hat.add(m); }
+  hat.position.y = y;
+  hat.rotation.z = C.tilt;
+  return hat;
+}
+
 async function capVolume(id, plane, centreY, s) {
   const { width: w, height: h } = plane.geometry.parameters;
   const y0 = plane.position.y - h / 2;
   const hat = HATS[id] || HATS["hat-goatfarm"];
   // a hat modelled whole (the wizard's), the brim just under its band's top (on the brow, like the NFT)
   if (hat.model === "wizard") return wizardHat(y0 + h - ((hat.brim[0] + 45) / 1033) * h, s);
+  if (hat.model === "cowboy") return cowboyHat(y0 + h - ((hat.brim[0] + 45) / 1033) * h, s);
   // the brim band in the plane's y (frame y runs down from the plane's top)
   const frameY = (Y) => y0 + h - (Y / 1033) * h;
   const brim = hat.brim ? [frameY(hat.brim[1]), frameY(hat.brim[0])] : null;
@@ -1384,6 +1527,8 @@ function reliefHead(rig) {
           const cap = await capVolume(id, front, board.position.y, s);
           // flipped back on a mirrored head (HEAD.mirror): the print reads
           if (HEAD.mirror) cap.scale.x *= -1;
+          cap.position.y += (M.capLift || 0) * s;
+          cap.rotation.x += M.capTilt || 0;
           cap.userData.inkOwn = true;   // its own outline, not the face's (view/char-ink.js)
           p.headPivot.add(cap);
           grp.visible = false;
@@ -1608,7 +1753,7 @@ export function applyBlocky(rig, look = {}) {
   // a tank top. Cel-shaded, like a drawing: lit, half-tone and shadow bands,
   // so each muscle's planes read (the blocks' soft self-light flattened them).
   const skin = mat(SKIN), A = B.arm * s;
-  if ((look.arms ?? "muscle") === "muscle") later(muscleArms(rig, kit));
+  if ((look.arms ?? "muscle") === "muscle") later(boxArms(rig, kit));
   else for (const side of ["L", "R"]) {
     const elbow = p[`elbow${side}`], hand = p[`wrist${side}`].parent;
     added.push(limb(p[`arm${side}`], elbow.position, A, skin, 0.03 * s));
@@ -1707,6 +1852,26 @@ export const DESIGN = { KITS, HAIRS, HATS, CAP, SHELLS, HEAD_MODELS, HEAD, TOKEN
 /* The body your own troll should wear: set from the Cosmetics pick
    (menu/lobby.js), worn by view/third-person.js every frame. */
 export const ownBody = { want: "" };
+/* Start token's body pieces downloading at once: applyBlocky asks for them
+   only once the traits' art is on, so on a phone the head (the biggest,
+   half a megabyte) landed seconds after everything else. */
+function prefetchPieces(rig, token) {
+  const look = tokenLook(token);
+  if (!look) return;
+  const kit = KITS[look.garment] || KITS["clothes-tank-runner"];
+  const urls = [glb(headModel(rig).file), kit.torso ? glb(kit.torso) : TORSO_GLB];
+  if (kit.legs) urls.push(glb(kit.legs));
+  for (const id of tokenTraits(token) || []) if (HAIRS[id]) urls.push(glb(HAIRS[id].file));
+  for (const u of urls) loadPieces(u).catch(() => {});
+}
+
+/* The same, with no rig yet: the page's first moments, for the body you
+   wore last (menu/lobby.js), so it's in by the time your sign-in says you
+   may wear it. */
+export function prefetchBody(token) {
+  if (tokenLook(token)) prefetchPieces({ nftFace: tokenFace(token) }, +token);
+}
+
 export function wearBlocky(rig, token) {
   token = tokenLook(token) ? +token : 0;
   if ((rig.blocky?.token || 0) === token) return rig.blocky?.ready ?? Promise.resolve();
@@ -1739,6 +1904,7 @@ export function wearBlocky(rig, token) {
   // the NFT's own face, if its facial is one (traits.js tokenFace)
   rig.nftFace = tokenFace(token);
   setFace(rig);
+  prefetchPieces(rig, token);
   b.ready = applyToken(rig, token, { headOnly: true }).then(() => {
     if (gone) return;
     // skullBack turned the board's (possibly shared) face material one-sided

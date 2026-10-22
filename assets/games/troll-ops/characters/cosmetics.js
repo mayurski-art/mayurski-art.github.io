@@ -8,7 +8,7 @@
 // the materials (faceMaterial / setFace); this file is the picks and the
 // panel.
 
-import { FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1";
+import { FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1";
 import { WRISTWEAR, watchThumb } from "./wristwear.js?v=ww1c2m1-or1";
 const KEY = "trollops:cosmetics";
 
@@ -45,6 +45,8 @@ export const BODIES = [
   { id: "trolls-33", token: 33, name: "TROLLS #33", img: "../ui/trolls-33.png", holder: "bradz_" },
   { id: "trolls-2630", token: 2630, name: "TROLLS #2630", img: "../ui/trolls-2630.png", holder: "karlezetroll" },
   { id: "trolls-2631", token: 2631, name: "TROLLS #2631", img: "../ui/trolls-2631.png", holder: "lacksss" },
+  // holder's account still to come (user, 2026-10-21); troll_runner's till then
+  { id: "trolls-1272", token: 1272, name: "TROLLS #1272", img: "../ui/trolls-1272.png", holder: "troll_runner" },
 ];
 /* The signed-in account's username, lower case ("" signed out). */
 export function username() {

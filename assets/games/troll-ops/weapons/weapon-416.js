@@ -17,7 +17,7 @@
 // third-person rig and remote players unchanged.
 
 import * as THREE from "three";
-import { buildGripHand, buildSupportHand } from "./hand-model.js?v=to-grip2-or1";
+import { buildGripHand, buildSupportHand } from "./hand-model.js?v=to-grip2-or1-hp1-bx1";
 import { OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS, buildIronRear, buildIronFront, railSection } from "./attachment-models.js?v=fg1-wst-or1-rt1";
 import { skinAtlasTexture, SKIN_ATLAS, skinDef } from "../characters/skins.js?v=p5-wb1-or1";
 

@@ -15,7 +15,7 @@
 // drawn traits.
 
 import * as THREE from "three";
-import { setClothed } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1";
+import { setClothed } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1";
 
 const DIR = new URL("../traits/", import.meta.url);
 // The art's cache tag: bump it when a drawing changes (a dev page can set
@@ -26,7 +26,8 @@ const ART_V = globalThis.TRAITS_BUST ?? "tr7";
    (type/value -> id), so every token with that trait wears the same art
    (user, 2026-10-15: "if another nft has these traits then there's no need
    to recreate them"). A token is wearable once every trait it has is drawn
-   (EYES/Eyes Relaxed and BACKGROUND are the OG art and nothing: "" here).
+   (BACKGROUND is nothing, and EYES/Eyes Relaxed is painted into the face,
+   FACE_TRAITS: "" here).
      HATS/Goatfarm Hat        hat-goatfarm       (front + back)
      HATS/Camper Hat          hat-camper         (front + back)
      HATS/Baker Hat           hat-baker          (front + back)
@@ -54,6 +55,11 @@ const ART_V = globalThis.TRAITS_BUST ?? "tr7";
      FACIALS/Bubblegum        the token's emote, not worn (user, 2026-10-15:
                               "without the bubble gum", the holder gets the
                               bubblegum emote; emotes.js)
+     HATS/Sheriff Hat         hat-sheriff        (front + back; MODELLED in game: blocky-body.js cowboyHat)
+     CLOTHES/Sheriff Gear     clothes-sheriff-gear (block template only)
+     FACIALS/Cigar            the token's emote, not worn (user, 2026-10-21:
+                              "1272 should not have a cigar in his face just
+                              make it an exclusive emote"; emotes.js)
    Head traits go on in this order, each a hair in front of the last. */
 /* token -> its traits by type, as its metadata names them (local: the
    page's CSP blocks IPFS, so a token's traits are copied in here). */
@@ -65,6 +71,7 @@ export const TOKENS = {
   33: { hat: "Magician Hat", facial: "French Moustache", eyes: "Cracked Eyes", clothes: "Jester" },
   2630: { hat: "Trucker Hat Microsoft", facial: "Licky", eyes: "Blindfold", clothes: "Tshirt Black" },
   2631: { hat: "Trucker Hat Yobucks", facial: "Gold Tooth", eyes: "Glasses Reading", clothes: "Trainer" },
+  1272: { hat: "Sheriff Hat", facial: "Cigar", eyes: "Eyes None", clothes: "Sheriff Gear" },
 };
 /* trait value -> its drawing's id; "" for a value that's the OG art. */
 export const TRAIT_ART = {
@@ -79,7 +86,8 @@ export const TRAIT_ART = {
   "Licky": "facial-licky", "Gold Tooth": "",
   "Cracked Eyes": "", "Blindfold": "eyes-blindfold", "Glasses Reading": "eyes-glasses-reading",
   "Jester": "clothes-jester", "Tshirt Black": "clothes-tshirt-black", "Trainer": "clothes-trainer",
-  "Eyes None": "", "None": "", "Bubblegum": "",
+  "Sheriff Hat": "hat-sheriff", "Sheriff Gear": "clothes-sheriff-gear",
+  "Eyes None": "", "None": "", "Bubblegum": "", "Cigar": "",
 };
 /* Traits that are Blender models, not drawings (blocky-body.js HAIRS puts
    them on the relief head): no planes here. */
@@ -94,8 +102,9 @@ const OVER_FACIAL = new Set(["eyes-glasses-thug"]);
    face blowing, without the gum (the gum is the holder's emote); #33's
    Cracked Eyes are painted into the trollface in place of its squints (as
    a card they floated in front of the grin; user, 2026-10-16), and #2631's
-   Gold Tooth fills a tooth of it (a card was half buried in the grin). */
-const FACE_TRAITS = { Bubblegum: "gum", "Cracked Eyes": "cracked", "Gold Tooth": "goldtooth" };
+   Gold Tooth fills a tooth of it (a card was half buried in the grin);
+   #1718's Eyes Relaxed are its closed lids in place of the squints. */
+const FACE_TRAITS = { Bubblegum: "gum", "Cracked Eyes": "cracked", "Gold Tooth": "goldtooth", "Eyes Relaxed": "relaxed" };
 export function tokenFace(token) {
   const t = TOKENS[token];
   return FACE_TRAITS[t?.facial] || FACE_TRAITS[t?.eyes] || null;
@@ -117,7 +126,7 @@ export function tokenTraits(token) {
   return ids;
 }
 /* Traits with a drawn back view (<id>.back.png). */
-const HAS_BACK = new Set(["hat-goatfarm", "hat-camper", "hat-baker", "hat-magician", "hat-trucker-microsoft", "hat-trucker-yobucks", "eyes-blindfold", "clothes-tank-runner"]);
+const HAS_BACK = new Set(["hat-goatfarm", "hat-camper", "hat-baker", "hat-magician", "hat-trucker-microsoft", "hat-trucker-yobucks", "hat-sheriff", "eyes-blindfold", "clothes-tank-runner"]);
 /* Clothes drawn as a garment board for the stick (<id>.svg with cut paths);
    the others have only a block template (blocky-body.js). */
 const HAS_BOARD = new Set(["clothes-tank-runner"]);
@@ -288,6 +297,7 @@ const imgCache = new Map();
 function garmentPixels(file) {
   if (!imgCache.has(file)) imgCache.set(file, new Promise((done) => {
     const img = new Image();
+    img.crossOrigin = "anonymous";
     img.onload = () => {
       const c = document.createElement("canvas");
       c.width = img.width; c.height = img.height;

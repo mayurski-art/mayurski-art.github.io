@@ -11,7 +11,7 @@
 // slow-moving body that comes to rest on the floor.
 
 import * as THREE from "three";
-import { buildGripHand, buildSupportHand } from "./hand-model.js?v=to-grip2-or1";
+import { buildGripHand, buildSupportHand } from "./hand-model.js?v=to-grip2-or1-hp1-bx1";
 import { smoothstep } from "../characters/anim-curves.js?v=or1";
 import { buildThrowable, modelKind } from "../combat/throwable-models.js?v=tm1-th2";
 import { buildTrollsaber } from "./trollsaber.js?v=ts4-ig1-or1";

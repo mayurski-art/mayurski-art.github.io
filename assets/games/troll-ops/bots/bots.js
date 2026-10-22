@@ -743,7 +743,8 @@ class Bot {
 
     this.pos.x = Math.max(arena.minX + BOT_RADIUS, Math.min(arena.maxX - BOT_RADIUS, this.pos.x));
     this.pos.z = Math.max(arena.minZ + BOT_RADIUS, Math.min(arena.maxZ - BOT_RADIUS, this.pos.z));
-    if (arena.edge) clampInsidePolygon(this.pos, arena.edge, BOT_RADIUS);
+    const edge = arena.botEdge || arena.edge;   // (maps.js: the bots' own edge, if the map has one)
+    if (edge) clampInsidePolygon(this.pos, edge, BOT_RADIUS);
     // On a stair, ducking under the floor above where the flight passes
     // through its stairwell: the slab's edge is lower than head height
     // part of the way (the U Mad Mansion's), and caught the bots there.
@@ -1613,7 +1614,7 @@ export class BotManager {
     for (let k = 0; k < label.length; k += 2) {
       if (label[k] !== bestLabel || !roomy(g, k, (j) => label[j] === bestLabel)) continue;
       const c = centre(g, k);
-      if (a.edge && !insidePolygon(a.edge, c.x, c.z)) continue;
+      if ((a.botEdge || a.edge) && !insidePolygon(a.botEdge || a.edge, c.x, c.z)) continue;
       if (a.wade && insidePolygon(a.wade, c.x, c.z)) continue;
       cells.push(k);
     }

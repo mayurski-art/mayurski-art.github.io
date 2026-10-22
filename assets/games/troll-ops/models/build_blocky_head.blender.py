@@ -41,19 +41,8 @@ FRONT, BACK = 0.065, 0.19
 P_FRONT, JUT = 2.0, 0.2
 P_BACK, SKULL = 2.4, 0.0
 
-# Candidate shapes for the NFT look (user, 2026-10-16: the head "just doesnt
-# look like in the nft characters"; the NFTs draw the trollface as a broad
-# flat face with a jaw that juts, where ours read as a mask on a ball in 3/4
-# and side views). `-- variant <name>` builds blocky/head-<name>.glb, tried
-# side by side in tools/nft-lab.html before one replaces head-relief.glb.
-# Each keeps a rounded side (2026-10-16 -fh1: no flat slab).
-VARIANTS = {
-    # a flatter, broader face plane (the drawing reads flat, like the NFT
-    # art), the jaw jutting forward under it, a shallower skull
-    "flat": dict(FRONT=0.05, P_FRONT=3.6, JUT=0.55, BACK=0.15, P_BACK=2.2, SKULL=0.15),
-    # the jaw and chin as one big mass jutting further, the face less flat
-    "jaw": dict(FRONT=0.07, P_FRONT=2.6, JUT=0.8, BACK=0.16, P_BACK=2.4, SKULL=0.1),
-}
+# `-- variant <name>` builds blocky/head-<name>.glb: a token's own head.
+VARIANTS = {}
 # A token's own face drawing gets a head of its own shape (user, 2026-10-17:
 # #989's drawing on the trollface head "seems like you would have to build
 # the head shape"): `ART` is traced for the outline and carved, and FEATURES
@@ -70,6 +59,21 @@ VARIANTS["989"] = dict(
         (0.54, 0.22, 0.34, 0.07, 0.008),     # brow, under the forehead lines
         (0.695, 0.33, 0.08, 0.055, -0.008),  # eye, sunk
         (0.41, 0.33, 0.08, 0.055, -0.008),   # eye, sunk
+    ])
+# #1718's Eyes Relaxed (traits/face-relaxed.png): the trollface's own outline
+# and features, but the closed lids sit over the eyeballs, so the eyes swell
+# a little where the trollface's squints sink.
+VARIANTS["1718"] = dict(
+    ART=os.path.join(K.HERE, "..", "traits", "face-relaxed.png"),
+    FEATURES=[
+        (0.512, 0.62, 0.36, 0.17, 0.02),     # the grin's mass, jutting
+        (0.19, 0.40, 0.11, 0.12, 0.014),     # cheek (viewer's left)
+        (0.82, 0.42, 0.11, 0.12, 0.014),     # cheek (viewer's right)
+        (0.49, 0.46, 0.06, 0.055, 0.012),    # nose
+        (0.46, 0.27, 0.33, 0.07, 0.008),     # brow ridge
+        (0.315, 0.335, 0.085, 0.045, 0.004), # lid over the eyeball (viewer's left)
+        (0.59, 0.325, 0.095, 0.045, 0.004),  # lid over the eyeball (viewer's right)
+        (0.50, 0.82, 0.27, 0.07, 0.006),     # chin
     ])
 ART = K.TROLLFACE_PNG
 if len(ARGS) >= 2 and ARGS[0] == "variant":

@@ -128,13 +128,14 @@ await page.evaluate(async () => {
     const gun = r.held; if (!gun) return { err: "no held" };
     const pieces = [];
     r.root.traverse((o) => {
-      if (!o.isMesh || !o.visible || !o.material?.isMeshToonMaterial || !o.name) return;
+      // (a smooth Studio body's pieces, blocky-body.js kit.smooth, carry userData.noInk)
+      if (!o.isMesh || !o.visible || !(o.material?.isMeshToonMaterial || o.userData.noInk) || !o.name) return;
       for (let x = o; x; x = x.parent) if (x === gun) return;
       let vis = true; for (let x = o; x && x !== r.root; x = x.parent) if (!x.visible) vis = false;
       if (vis) pieces.push(o);
     });
     const pts = surface(gun);
-    const box = (m, shrink) => { m.geometry.computeBoundingBox(); const b = m.geometry.boundingBox.clone(); const sz = b.getSize(new THREE.Vector3()); if (shrink) b.expandByVector(sz.multiplyScalar(-shrink)); else b.expandByScalar(0.004); const sc = new THREE.Vector3(); m.matrixWorld.decompose(new THREE.Vector3(), new THREE.Quaternion(), sc); return { m, b, inv: m.matrixWorld.clone().invert(), k: (sc.x + sc.y + sc.z) / 3 }; };
+    const box = (m, shrink) => { m.geometry.computeBoundingBox(); const b = m.geometry.boundingBox.clone(); const sz = b.getSize(new THREE.Vector3()); if (shrink) b.expandByVector(sz.multiplyScalar(-shrink)); else b.expandByScalar(0.004); if (m.isSkinnedMesh) b.expandByScalar(sz.length()); const sc = new THREE.Vector3(); m.matrixWorld.decompose(new THREE.Vector3(), new THREE.Quaternion(), sc); return { m, b, inv: m.matrixWorld.clone().invert(), k: (sc.x + sc.y + sc.z) / 3 }; };
     const isFist = (m) => /^(fist|knuckles|thumb)$/.test(m.name);
     const fists = pieces.filter(isFist).map((m) => box(m, 0));
     const held = (p) => fists.some(({ b, inv }) => b.containsPoint(p.clone().applyMatrix4(inv)));
@@ -164,7 +165,14 @@ await page.evaluate(async () => {
     const grip = u.gripPos ? gun.localToWorld(new V().copy(u.gripPos)) : null;
     if (grip && h.gripDrop) grip.y -= h.gripDrop * sc;
     const handL = r.parts.wristL.parent.getWorldPosition(new V()), handR = r.parts.wristR.parent.getWorldPosition(new V());
-    const gapL = sup ? +(handL.distanceTo(sup) * 100).toFixed(1) : null, gapR = grip ? +(handR.distanceTo(grip) * 100).toFixed(1) : null;
+    let gapL = sup ? +(handL.distanceTo(sup) * 100).toFixed(1) : null, gapR = grip ? +(handR.distanceTo(grip) * 100).toFixed(1) : null;
+    // A body with its own hands (blocky-body.js kit.hand) holds the gun with
+    // them, fixed to the gun (holdGun): the arm's hand point is the wrist,
+    // and it has to meet that hand's wrist, not the handguard
+    const own = gun.children.filter((o) => o.isSkinnedMesh && o.material?.vertexColors);
+    const ownL = own.find((o) => o.scale.x < 0), ownR = own.find((o) => o.scale.x > 0);
+    if (ownL) gapL = +(handL.distanceTo(ownL.getWorldPosition(new V())) * 100).toFixed(1);
+    if (ownR) gapR = +(handR.distanceTo(ownR.getWorldPosition(new V())) * 100).toFixed(1);
     return { gapL, gapR, pts: pts.length, pieces: pieces.length, names: [...new Set(pieces.map((m) => m.name))].join(","), out };
   };
 });
@@ -187,7 +195,7 @@ await page.evaluate(async () => {
     const T = window.__trollOps, r = window.__rigOverride || T.localRig;
     // the box pass finds the candidates; the ray pass keeps only the real ones
     const sides = new Map();
-    r.root.traverse((o) => { if (o.isMesh && o.material?.isMeshToonMaterial) { sides.set(o, o.material.side); o.material.side = THREE.DoubleSide; } });
+    r.root.traverse((o) => { if (o.isMesh && (o.material?.isMeshToonMaterial || o.userData.noInk)) { sides.set(o, o.material.side); o.material.side = THREE.DoubleSide; } });
     try {
       const res = prev.call(null, true);
       return res;

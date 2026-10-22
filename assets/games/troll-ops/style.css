@@ -1954,6 +1954,255 @@ body.to-touch-play .to-ws-guns span { pointer-events: auto; cursor: pointer; pad
 @container cab (max-height: 620px) { .to-radio-panel.gs { zoom: .7; } }
 @container cab (max-height: 460px) { .to-radio-panel.gs { zoom: .55; } }
 
+/* ---- the round button that flips girl <-> male radio ---- */
+.rs-swap {
+  flex: none; width: 24px; height: 24px; padding: 0; border-radius: 50%; cursor: pointer;
+  border: 2px solid rgba(255,255,255,.85); box-shadow: 0 1px 3px rgba(0,0,0,.45), inset 0 1px 2px rgba(255,255,255,.35);
+}
+.rs-swap-don { background: radial-gradient(circle at 35% 30%, #4a4650, #0b0b0d 70%); }
+.rs-swap-girl { background: radial-gradient(circle at 35% 30%, #fff, #ff86bd 50%, #d9488a); }
+.rs-swap:hover { transform: scale(1.1); }
+.gs-swap { position: absolute; right: 80px; top: 34px; z-index: 3; }
+
+/* ---- Pink + Black tie: a three-column media-player window with speakers
+   either side and the skin's art under the screen. 720x470 design. ---- */
+.to-radio-panel.fm {
+  position: absolute; left: 0; bottom: 42px;
+  width: 720px; height: 470px; padding: 0;
+  background: none; border: 0; border-radius: 0; box-shadow: none; backdrop-filter: none;
+  display: block; user-select: none;
+  font-family: "DM Sans", system-ui, sans-serif;
+  filter: drop-shadow(0 16px 26px rgba(0,0,0,.5));
+}
+.to-radio-panel.fm[hidden] { display: none; }
+.fm button { font-family: inherit; }
+.fm :focus-visible { outline: 2px solid var(--fm-accent); outline-offset: 2px; }
+
+.fm-girl {
+  --fm-win: linear-gradient(180deg, #ffe6f0, #fcd3e2 60%, #f7c2d6);
+  --fm-edge: #eaa2bf; --fm-ink: #c2387a; --fm-text: #9b2a5f; --fm-soft: #c56b95;
+  --fm-panel: linear-gradient(180deg, #fff3f8, #ffe4ee);
+  --fm-screen: radial-gradient(120% 120% at 50% 0%, #2b1426, #120711);
+  --fm-list: #1c0d17; --fm-list-text: #fbe7f0; --fm-list-on: linear-gradient(90deg, #ff7cb6, #e4559a);
+  --fm-accent: #ff5fa8; --fm-thumb: linear-gradient(#e4ccff, #9a68e0);
+  --fm-btn: linear-gradient(180deg, #e3cdff, #b18af0 55%, #8d5fd6); --fm-btn-ink: #fff; --fm-btn-edge: #7c4fc6;
+  --fm-spk: linear-gradient(180deg, #ffd9e8, #f3b2cc); --fm-cone: radial-gradient(circle, #f6d8ff 0 12%, #5a2a52 14% 30%, #2a0f26 32% 56%, #c47aa8 58% 64%, #7a3a66 66%);
+}
+.fm-don {
+  --fm-win: linear-gradient(180deg, #1a191f, #0c0b0f);
+  --fm-edge: #34313c; --fm-ink: #d9b25f; --fm-text: #e9e5f0; --fm-soft: #9a94a6;
+  --fm-panel: linear-gradient(180deg, #16151b, #0f0e13);
+  --fm-screen: radial-gradient(120% 120% at 50% 0%, #15121e, #050507);
+  --fm-list: #0d0c11; --fm-list-text: #e4e0ea; --fm-list-on: linear-gradient(90deg, #3a2a63, #261c40);
+  --fm-accent: #9b6bff; --fm-thumb: linear-gradient(#f1d79a, #b08a3c);
+  --fm-btn: linear-gradient(180deg, #2b2a32, #18171d); --fm-btn-ink: #a57cff; --fm-btn-edge: #3b3844;
+  --fm-spk: linear-gradient(180deg, #2a292f, #121116); --fm-cone: radial-gradient(circle, #6a6870 0 10%, #161519 12% 30%, #050505 32% 56%, #3c3a42 58% 64%, #1a191e 66%);
+}
+
+/* speakers */
+.fm-spk {
+  position: absolute; top: 46px; width: 86px; height: 206px; z-index: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-evenly;
+  background: var(--fm-spk); border-radius: 16px;
+  box-shadow: 0 0 0 2px var(--fm-edge), inset 0 2px 2px rgba(255,255,255,.35), inset 0 -6px 12px rgba(0,0,0,.25);
+}
+/* The window overlaps each box by 12px, so the cones centre in the part
+   that shows (and stay small enough that the bass kick never clips). */
+.fm-spk { box-sizing: border-box; }
+.fm-spk-l { left: 0; padding-right: 12px; }
+.fm-spk-r { right: 0; padding-left: 12px; }
+.fm-spk i { display: block; border-radius: 50%; background: var(--fm-cone); box-shadow: 0 0 0 3px rgba(0,0,0,.25), inset 0 0 6px rgba(0,0,0,.6); }
+.fm-tw { width: 32px; height: 32px; }
+.fm-woof { width: 56px; height: 56px; transform: scale(calc(1 + var(--kick, 0) * .12)); transition: transform 60ms linear; }
+
+/* the window */
+.fm-win {
+  position: absolute; left: 74px; right: 74px; top: 0; height: 332px; z-index: 1;
+  background: var(--fm-win); border-radius: 18px;
+  box-shadow: 0 0 0 2px var(--fm-edge), inset 0 2px 1px rgba(255,255,255,.4);
+  color: var(--fm-text);
+}
+.fm-don .fm-win { height: 470px; border-radius: 12px; }
+.fm-bar {
+  position: absolute; left: 0; right: 0; top: 0; height: 40px;
+  display: flex; align-items: center; gap: 8px; padding: 0 10px 0 16px; box-sizing: border-box;
+  border-bottom: 1.5px solid var(--fm-edge);
+}
+.fm-titles { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; white-space: nowrap; overflow: hidden; }
+.fm-titles b { font-size: 16px; font-weight: 700; color: var(--fm-ink); overflow: hidden; text-overflow: ellipsis; }
+.fm-don .fm-titles b { font-size: 14px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--fm-text); }
+.fm-titles small { font-size: 11px; color: var(--fm-soft); overflow: hidden; text-overflow: ellipsis; }
+.fm-x {
+  width: 24px; height: 24px; padding: 0; border-radius: 50%; cursor: pointer;
+  display: grid; place-items: center;
+  border: 2px solid rgba(255,255,255,.85); color: #fff;
+  background: radial-gradient(circle at 35% 30%, #ff8a80, #e5261d 55%, #a90f0a);
+  box-shadow: 0 1px 3px rgba(0,0,0,.45);
+  font: 700 15px/1 "DM Sans", sans-serif;
+}
+.fm-x:hover { filter: brightness(1.1); }
+
+/* columns */
+.fm-col {
+  position: absolute; top: 50px; width: 162px; height: 270px; box-sizing: border-box;
+  border-radius: 12px; background: var(--fm-panel);
+  box-shadow: 0 0 0 1.5px var(--fm-edge), inset 0 1px 0 rgba(255,255,255,.35);
+  padding: 8px 10px; display: flex; flex-direction: column;
+}
+.fm-eq { left: 10px; }
+.fm-list { right: 10px; padding: 8px 6px 6px; }
+.fm-col h3 {
+  margin: 0 0 6px; display: flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--fm-ink);
+  white-space: nowrap; overflow: hidden;
+}
+.fm-col h3 > span { overflow: hidden; text-overflow: ellipsis; }
+.fm-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--fm-accent); box-shadow: 0 0 6px var(--fm-accent); }
+
+/* EQ + levels */
+.fm-bands {
+  display: flex; justify-content: space-between; height: 118px; padding: 6px 4px 0;
+  border-radius: 8px; background: var(--fm-screen); box-shadow: inset 0 2px 5px rgba(0,0,0,.6);
+}
+.fm-bands label { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 12px; }
+.fm-bands span { font: 6px "DM Mono", monospace; letter-spacing: -.02em; color: var(--fm-list-text); opacity: .75; white-space: nowrap; }
+.fm-reset {
+  align-self: flex-end; margin: 3px 0 2px; padding: 0; border: 0; background: none; cursor: pointer;
+  font-size: 10px; color: var(--fm-soft); text-decoration: underline;
+}
+.fm-level { display: grid; grid-template-columns: 1fr 1fr; row-gap: 2px; margin-top: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--fm-ink); }
+.fm-level span { grid-column: 1 / -1; font-weight: 700; }
+.fm-level input { grid-column: 1 / -1; }
+.fm-level em { font-style: normal; color: var(--fm-soft); font-size: 9px; }
+.fm-level em:last-child { text-align: right; }
+
+.fm input[type="range"] { -webkit-appearance: none; appearance: none; margin: 0; background: none; cursor: pointer; width: 100%; height: 14px; }
+.fm input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 3px; background: rgba(0,0,0,.35); box-shadow: inset 0 1px 1px rgba(0,0,0,.4); }
+.fm input[type="range"]::-moz-range-track { height: 4px; border-radius: 3px; background: rgba(0,0,0,.35); }
+.fm input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 16px; margin-top: -6px; border-radius: 4px; background: var(--fm-thumb); border: 1px solid rgba(0,0,0,.45); }
+.fm input[type="range"]::-moz-range-thumb { width: 12px; height: 16px; border-radius: 4px; background: var(--fm-thumb); border: 1px solid rgba(0,0,0,.45); }
+.fm-bands input[type="range"] { writing-mode: vertical-lr; direction: rtl; width: 12px; height: 92px; }
+.fm-bands input[type="range"]::-webkit-slider-runnable-track { width: 4px; height: auto; background: linear-gradient(0deg, var(--fm-accent), rgba(255,255,255,.12)); }
+.fm-bands input[type="range"]::-moz-range-track { width: 4px; height: auto; }
+.fm-bands input[type="range"]::-webkit-slider-thumb { width: 12px; height: 7px; margin-top: 0; margin-left: -4px; border-radius: 2px; box-shadow: 0 0 6px var(--fm-accent); }
+
+/* middle: the digital screen, seek, transport */
+.fm-mid { position: absolute; left: 182px; top: 50px; width: 212px; }
+.fm-screen {
+  position: relative; height: 118px; border-radius: 12px; overflow: hidden;
+  background: var(--fm-screen);
+  box-shadow: 0 0 0 2px var(--fm-edge), inset 0 0 18px rgba(0,0,0,.8);
+}
+.fm-screen canvas { display: block; width: 100%; height: 100%; }
+.fm-screen::after { /* glass + scanlines */
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.035) 0 1px, transparent 1px 3px),
+    radial-gradient(120% 70% at 30% 0%, rgba(255,255,255,.12), transparent 55%);
+}
+.fm-readout {
+  position: absolute; left: 12px; right: 12px; top: 9px;
+  display: flex; flex-direction: column; gap: 2px;
+  font: 600 12.5px "DM Mono", ui-monospace, monospace; color: #fff;
+  text-shadow: 0 0 6px var(--fm-accent);
+}
+.fm-time { font-size: 10.5px; font-weight: 500; opacity: .8; }
+.fm .gs-marquee em { font-style: normal; opacity: .75; }
+.fm:not(.is-playing) .gs-marquee span { animation: none; padding-left: 0; }
+.fm-seek { margin-top: 8px; }
+.fm-transport { display: flex; gap: 5px; margin-top: 8px; }
+.fm-btn {
+  flex: 1; height: 36px; padding: 0; border-radius: 9px; cursor: pointer;
+  display: grid; place-items: center;
+  background: var(--fm-btn); color: var(--fm-btn-ink);
+  border: 1.5px solid var(--fm-btn-edge);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,.45), 0 2px 3px rgba(0,0,0,.25);
+}
+.fm-btn svg { width: 15px; height: 15px; fill: currentColor; }
+.fm-btn:hover { filter: brightness(1.1); }
+.fm-btn:active { transform: translateY(1px); }
+.fm-btn:disabled { opacity: .4; cursor: default; }
+.fm .gs-ico-pause, .fm.is-playing .gs-ico-play { display: none; }
+.fm.is-playing .gs-ico-pause { display: inline; }
+.fm-shuffle { background: linear-gradient(180deg, #ffe58a, #f5bf2a); border-color: #c89310; color: #6a4a00; }
+.fm-don .fm-shuffle { background: var(--fm-btn); border-color: var(--fm-btn-edge); color: var(--fm-ink); }
+.fm-shuffle.is-active { box-shadow: 0 0 0 2px var(--fm-accent), 0 0 10px var(--fm-accent); }
+
+/* playlist */
+.fm-list ol {
+  list-style: none; margin: 0; padding: 3px; flex: 1; overflow-y: auto;
+  border-radius: 8px; background: var(--fm-list); box-shadow: inset 0 2px 5px rgba(0,0,0,.5);
+  scrollbar-width: thin; scrollbar-color: var(--fm-accent) transparent;
+}
+.fm-list li + li { border-top: 1px solid rgba(255,255,255,.07); }
+.fm-list button {
+  display: flex; width: 100%; align-items: baseline; gap: 6px; padding: 5px 6px;
+  background: none; border: 0; border-radius: 5px; color: var(--fm-list-text);
+  font-size: 11px; text-align: left; cursor: pointer;
+}
+.fm-list button span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fm-list button time { flex: none; font: 10px "DM Mono", monospace; opacity: .75; }
+.fm-list button:hover { background: rgba(255,255,255,.07); }
+.fm-list button[aria-current="true"] { background: var(--fm-list-on); color: #fff; }
+.fm-list button[aria-current="true"] span::before { content: "\25B6  "; font-size: 8px; }
+.fm-list footer {
+  display: flex; gap: 6px; align-items: center; padding: 6px 4px 0;
+  font-size: 8.5px; letter-spacing: .02em; text-transform: uppercase; color: var(--fm-soft); white-space: nowrap;
+}
+.fm-shufstate { margin-left: auto; color: var(--fm-ink); }
+
+/* the art: Pink sits in a bump under the screen, Black tie fills the
+   bottom of the window */
+.fm-bump {
+  position: absolute; left: 172px; width: 232px; top: 300px; height: 170px;
+  background: var(--fm-win); border-radius: 0 0 70px 70px;
+  box-shadow: 0 2px 0 2px var(--fm-edge);
+  clip-path: inset(0 -6px -6px -6px);
+}
+/* picks up the window gradient where it meets it, so there's no seam */
+.fm-girl .fm-bump { background: linear-gradient(180deg, #f8c6d9, #f3b6cd); }
+.fm-don .fm-bump { display: none; }
+.fm-art { position: absolute; z-index: 0; overflow: hidden; pointer-events: none; }
+.fm-art img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* Multiply takes the photo's white-pink backdrop into the window's own
+   pink, and the mask dissolves its edges into the bump. */
+.fm-girl .fm-art {
+  left: 182px; width: 212px; top: 232px; height: 230px; border-radius: 0 0 64px 64px;
+  mix-blend-mode: multiply;
+  -webkit-mask-image: radial-gradient(70% 75% at 50% 58%, #000 62%, transparent 100%);
+          mask-image: radial-gradient(70% 75% at 50% 58%, #000 62%, transparent 100%);
+}
+.fm-girl .fm-art img { object-position: 50% 8%; filter: saturate(1.15); }
+/* The tuxedo troll stands at 38% across his picture, so the image is
+   sized up and shifted to put him under the screen; the mask melts the
+   picture's edges away, and lighten swaps its pure black for the window's
+   own colour so there's no darker patch. */
+.fm-don .fm-art {
+  left: 120px; width: 336px; top: 200px; height: 236px;
+  mix-blend-mode: lighten;   /* the picture's black becomes the window's charcoal */
+  -webkit-mask-image: radial-gradient(60% 70% at 50% 55%, #000 50%, transparent 100%);
+          mask-image: radial-gradient(60% 70% at 50% 55%, #000 50%, transparent 100%);
+}
+.fm-don .fm-art img {
+  position: absolute; left: 50%; top: -38px; width: 370px; height: auto;
+  transform: translateX(-38%);
+}
+.fm-col, .fm-mid, .fm-bar { z-index: 1; }
+.fm-foot {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 34px; z-index: 1;
+  display: flex; align-items: center; gap: 14px; padding: 0 14px; box-sizing: border-box;
+  border-top: 1.5px solid var(--fm-edge);
+  font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--fm-ink); white-space: nowrap;
+}
+.fm-foot > span:last-child { color: var(--fm-soft); letter-spacing: .1em; }
+.fm-foot i { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--fm-ink), transparent); }
+
+/* Smaller cabinets: same skins, zoomed down. */
+@container cab (max-width: 900px) { .to-radio-panel.fm { zoom: .72; } }
+@container cab (max-width: 700px) { .to-radio-panel.fm { zoom: .5; } }
+@container cab (max-height: 680px) { .to-radio-panel.fm { zoom: .66; } }
+@container cab (max-height: 460px) { .to-radio-panel.fm { zoom: .48; } }
+
 /* X/Twitter link — sits right next to the radio toggle, main menu only
    (the radio itself stays up through the match; this doesn't need to). */
 .to-x-link {
@@ -3648,8 +3897,14 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
   #to-title.is-bo2 .to-pf > .to-gun-view.is-hero { display: block; left: 12px; right: 12px; top: calc(56px + env(safe-area-inset-top) + var(--menu-h, 300px) + 8px); height: 24cqh; }
   .to-bo2.has-gun .to-bo2-detail { top: calc(56px + env(safe-area-inset-top) + var(--menu-h, 300px) + 16px + 24cqh);
     max-height: calc(100% - 56px - env(safe-area-inset-top) - var(--menu-h, 300px) - 16px - 24cqh - var(--foot-h, 42px) - 30px); }
-  /* the operator stands to the right of the list, as on the desktop */
-  #to-title.is-bo2 .to-char-view { left: 46%; right: 0; top: calc(80px + env(safe-area-inset-top)); bottom: calc(100% - 56px - env(safe-area-inset-top) - var(--menu-h, 300px) + 90px); --char-shift: 0; --char-dist: 1.2; }
+  /* the operator stands in the room under the party and its chat card, over
+     the footer (user, 2026-10-21: beside the list it was a sliver in the
+     corner; "the character should appear below ... all this empty space") */
+  #to-title.is-bo2 .to-char-view { left: 0; right: 0;
+    top: calc(56px + env(safe-area-inset-top) + var(--menu-h, 300px) + 8px + var(--party-h, 190px));
+    bottom: calc(var(--foot-h, 42px) + 24px + env(safe-area-inset-bottom)); --char-shift: 0; --char-dist: 0.9; }
+  /* no room there (a long list, menu-bo2.js charRoom): beside the list */
+  #to-title.is-bo2 .to-pf.char-beside .to-char-view { left: 46%; top: calc(80px + env(safe-area-inset-top)); bottom: calc(100% - 56px - env(safe-area-inset-top) - var(--menu-h, 300px) + 90px); --char-dist: 1.2; }
   .to-bo2-foot { left: 20px; right: 16px; bottom: calc(18px + env(safe-area-inset-bottom)); align-items: center; }
   .to-bo2-online { font-size: 26px; }
   :is(.to-bo2-anim, .to-bo2-quick), .to-bo2-foot .to-char-emote { min-height: 40px; font-size: 13px; padding: 0 10px; }

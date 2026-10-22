@@ -1,0 +1,74 @@
+<!--
+  TROLLS trait: CLOTHES / Sheriff Gear on the BLOCK body (blocky-body.js):
+  a white collared shirt buttoned down the middle, under an open brown
+  leather vest with a gold star badge on its (the troll's) left breast;
+  a dark belt with a gold buckle and dark jeans below. Traced from TROLLS
+  #1272. The white long sleeves are the box arms' (KITS sleeves "long"),
+  the jeans and boots the farmer's leg pieces.
+  Same template as clothes-farmer.block.svg, 1 unit = 1 mm:
+    front  x    0..400  (seen from the front: the troll's right on the left)
+    back   x  400..800  (seen from behind: the troll's left on the left)
+    right  x  800..1000 (the troll's right side: its back on the left)
+    left   x 1000..1200 (its left side: its front on the left)
+    top    x    0..400, y 560..760: the shoulders from above, front edge first
+  y 0 is the torso's top, y 520 the hips; the vest's hem y 450, the belt below.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" width="1200" height="760">
+  <defs>
+    <path id="star" d="M0 -34 L9.8 -13.5 L32.3 -10.5 L15.9 5.2 L20 27.5 L0 16.8 L-20 27.5 L-15.9 5.2 L-32.3 -10.5 L-9.8 -13.5 Z"/>
+  </defs>
+  <rect width="1200" height="760" fill="#5a341c"/>
+  <g stroke-linejoin="round" stroke-linecap="round">
+    <!-- FRONT: the shirt in the vest's wide opening, buttoned down the middle -->
+    <path fill="#f4f4f0" stroke="#060606" stroke-width="6" d="M92 0 L308 0 L268 450 L132 450 Z"/>
+    <path fill="none" stroke="#c9c9c3" stroke-width="5" d="M200 30 L200 450"/>
+    <g fill="#d9d9d3" stroke="#060606" stroke-width="3">
+      <circle cx="212" cy="90" r="7"/><circle cx="212" cy="180" r="7"/><circle cx="212" cy="270" r="7"/><circle cx="212" cy="360" r="7"/>
+    </g>
+    <!-- shade where the shirt goes under the vest -->
+    <path fill="#dcdcd6" stroke="none" d="M100 20 L134 20 L150 446 L134 446 Z M300 20 L266 20 L250 446 L266 446 Z"/>
+    <!-- the collar's two points, flipped out at the neck -->
+    <path fill="#f4f4f0" stroke="#060606" stroke-width="6" d="M110 0 L194 0 L196 26 L150 92 L104 46 Z"/>
+    <path fill="#f4f4f0" stroke="#060606" stroke-width="6" d="M290 0 L206 0 L204 26 L250 92 L296 46 Z"/>
+    <!-- the vest's open edges, a darker leather band along each -->
+    <path fill="none" stroke="#341c0d" stroke-width="16" d="M100 10 L142 450 M300 10 L258 450"/>
+    <path fill="none" stroke="#060606" stroke-width="6" d="M92 0 L134 450 M308 0 L266 450"/>
+    <!-- leather seams down each panel, and a pocket welt -->
+    <g fill="none" stroke="#3f2311" stroke-width="5">
+      <path d="M44 120 C54 220 56 330 50 446"/>
+      <path d="M356 120 C346 220 344 330 350 446"/>
+      <path d="M40 300 L104 296"/>
+    </g>
+    <!-- the gold star badge on the troll's left breast -->
+    <g transform="translate(334 186) rotate(-8) scale(1.3)">
+      <use href="#star" fill="#f6c84a" stroke="#060606" stroke-width="5"/>
+      <g fill="#f6c84a" stroke="#060606" stroke-width="4">
+        <circle cx="0" cy="-36" r="6"/><circle cx="34.2" cy="-11.1" r="6"/><circle cx="21.2" cy="29.1" r="6"/>
+        <circle cx="-21.2" cy="29.1" r="6"/><circle cx="-34.2" cy="-11.1" r="6"/>
+      </g>
+      <path fill="#d39a22" stroke="none" d="M0 -20 L6 -6 L0 2 Z M-6 -6 L0 2 L-14 0 Z"/>
+      <circle r="6" fill="#b07a12"/>
+    </g>
+    <!-- BACK: the shirt collar over the vest, a yoke seam, the back seam -->
+    <path fill="#f4f4f0" stroke="#060606" stroke-width="6" d="M520 0 L680 0 C672 28 640 44 600 44 C560 44 528 28 520 0 Z"/>
+    <path fill="none" stroke="#3f2311" stroke-width="6" d="M424 110 C520 132 680 132 776 110"/>
+    <path fill="none" stroke="#3f2311" stroke-width="5" d="M600 130 L600 446"/>
+    <!-- SIDES: the white shirt under the armhole, the side seam -->
+    <path fill="#f4f4f0" stroke="#060606" stroke-width="6" d="M856 0 L944 0 L936 70 C916 84 884 84 864 70 Z"/>
+    <path fill="#f4f4f0" stroke="#060606" stroke-width="6" d="M1056 0 L1144 0 L1136 70 C1116 84 1084 84 1064 70 Z"/>
+    <g fill="none" stroke="#3f2311" stroke-width="5">
+      <path d="M900 84 L900 446"/><path d="M1100 84 L1100 446"/>
+    </g>
+    <!-- the vest's hem all the way round; the belt below it, the jeans below that -->
+    <rect x="0" y="450" width="1200" height="44" fill="#2b1a10" stroke="#060606" stroke-width="6"/>
+    <rect x="0" y="494" width="1200" height="66" fill="#2c3650" stroke="#060606" stroke-width="6"/>
+    <g fill="none" stroke="#202840" stroke-width="5">
+      <path d="M120 494 L120 560 M280 494 L280 560 M600 494 L600 560"/>
+    </g>
+    <!-- the gold buckle at the front -->
+    <rect x="168" y="448" width="64" height="48" rx="6" fill="#e0aa2e" stroke="#060606" stroke-width="5"/>
+    <rect x="184" y="462" width="32" height="20" rx="3" fill="#2b1a10" stroke="#060606" stroke-width="3"/>
+    <!-- TOP: the shoulders, the shirt collar along the front edge -->
+    <path fill="#f4f4f0" stroke="#060606" stroke-width="6" d="M100 560 L300 560 C288 606 248 626 200 626 C152 626 112 606 100 560 Z"/>
+  </g>
+</svg>

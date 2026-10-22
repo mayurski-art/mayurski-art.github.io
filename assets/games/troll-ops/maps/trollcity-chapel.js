@@ -30,7 +30,7 @@ const CZ = (CHAPEL.z0 + CHAPEL.z1) / 2;                // 66: Second Street's mi
 const IN = { x0: CHAPEL.x0 + T, x1: CHAPEL.x1 - T, z0: CHAPEL.z0 + T, z1: CHAPEL.z1 - T };
 export const CHAPEL_TOWER = { x0: 77, x1: 82, z0: 63.5, z1: 68.5, top: 16, belfry: 20, spire: 32 };
 const TW = CHAPEL_TOWER;
-const DOOR = { w: 1.8, h: 3.4 };                       // the west door, and the arch from the tower into the nave
+const DOOR = { w: 2.4, h: 3.8 };                    // the west door, and the arch from the tower into the nave
 export const CHAPEL_SIDE_DOOR = { c: 94, w: 1.8, h: 3.4 };
 const APSE = { x: CHAPEL.x1 - T / 2, r: 4.0, R: 4.5, spring: 3.4 };
 const LANCETS = [86.8, 90.4, 94, 97.6, 101.2];         // 5 a side; the south one at 94 sits over the side door
@@ -49,8 +49,11 @@ const PEW_Z = { north: [IN.z0 + 0.1, CZ - 0.9], south: [CZ + 0.9, IN.z1 - 0.1] }
 const CHANCEL = { step: 101.9, x: 102.4 };
 const RAIL_X = 103.6;
 // the stair up the tower's north wall to the organ loft (the town's upper
-// floor height, so zombies find their way up it: trollcity.js links it)
-const STAIR = { x: TW.x0 + T, z: TW.z0 + T + 0.5, w: 1.0, steps: 14, run: 0.27 };
+// floor height, so zombies find their way up it: trollcity.js links it).
+// Its foot stands 0.9 m off the west wall, room to walk straight onto it
+// (flush to the wall, a body only reached it over the second step), and its
+// top step ends at the nave's west wall, the loft through it.
+const STAIR = { x: TW.x0 + T + 0.9, z: TW.z0 + T + 0.5, w: 1.0, steps: 14, run: 0.25 };
 const LOFT = { x1: 85.6 };
 // Hollowgrin's two churchgoers, sat facing the altar (east) on the pews' middle
 // seats: [model, pew row x, z]. Their seats come off the RP list.
@@ -117,8 +120,8 @@ export function buildChapel(api, root, M, H) {
   K.solid(TW.x0 + T / 2, CZ, T, DOOR.w, F, { mat: M.stone, pen: 8 });
   K.solid(C.x0 + T / 2, CZ, T, DOOR.w, F, { mat: M.stone, pen: 8 });
   K.solid(CHAPEL_SIDE_DOOR.c, C.z1 - T / 2, CHAPEL_SIDE_DOOR.w, T, F, { mat: M.stone, pen: 8 });
-  K.solid(TW.x0 - 0.75, CZ, 1.5, 3.0, 0.15, { mat: M.stone, pen: 8 });
-  K.solid(TW.x0 - 0.35, CZ, 0.7, 3.0, F, { mat: M.stone, pen: 8 });
+  K.solid(TW.x0 - 0.75, CZ, 1.5, DOOR.w + 1.2, 0.15, { mat: M.stone, pen: 8 });
+  K.solid(TW.x0 - 0.35, CZ, 0.7, DOOR.w + 1.2, F, { mat: M.stone, pen: 8 });
   K.solid(CHAPEL_SIDE_DOOR.c, C.z1 + 0.4, 2.8, 0.8, 0.15, { mat: M.stone, pen: 8 });
   const runner = (x0, x1, y, w) => {
     const g = new THREE.PlaneGeometry(x1 - x0, w);
@@ -170,7 +173,7 @@ export function buildChapel(api, root, M, H) {
   };
   for (const s of [-1, 1]) {
     leaf(D.c + s * (D.w / 2 - 0.04), C.z1 + 0.47, 0.9, D.h - F - 0.2, "z");
-    leaf(TW.x0 - 0.06, CZ + s * (DOOR.w / 2 + 0.5), 0.9, DOOR.h - F - 0.2, "z");
+    leaf(TW.x0 - 0.06, CZ + s * (DOOR.w * 0.75 + 0.05), DOOR.w / 2, DOOR.h - F - 0.2, "z");
   }
   // wainscot and dado rail round the nave, the stencilled frieze up top
   {

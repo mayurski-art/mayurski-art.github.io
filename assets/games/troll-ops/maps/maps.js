@@ -14,11 +14,11 @@ import { setGroundField } from "../core/ground-field.js?v=gf1-tg1";
 import { PENTAGRIN } from "./pentagrin.js?v=hg6e-sr1-or1";
 import { HOLLOWGRIN } from "./hollowgrin.js?v=hg6tc-sb2-sr1-or1-tcs1";
 import { GRINLERIA } from "./grinleria.js?v=hg6e-bl1-bw1-sr1-or1";
-import { TROLLFACE_ISLAND } from "./trollface-island.js?v=hg6e-pi1-sr1-or1-wf1-wf2-zf1-bp1-is1-tg1-ip1";
-import { TROLLCITY } from "./trollcity.js?v=tc2-wst-sb1-rp1-dj1-fu1b7b7d-tc3-cd1-sh1-zr10-hr2-zp1-sr1-pf1-or1-bw2-bt1-tcs1";
+import { TROLLFACE_ISLAND } from "./trollface-island.js?v=hg6e-pi1-sr1-or1-wf1-wf2-zf1-bp1-is1-tg1-ip1-mg1";
+import { TROLLCITY } from "./trollcity.js?v=tc2-wst-sb1-rp1-dj1-fu1b7b7d-tc3-cd1-sh1-zr10-hr2-zp1-sr1-pf1-or1-bw2-bt1-tcs1-tcs2-mg1";
 import { TROLLINGLOUD } from "./trollingloud.js?v=tl4-fu1c1c2f1m1-tc3-nc1-cd1-sh1-sg1-cw1-zr10-hr2-zp1-jb1-nh1-sr1-hl1-pf1-or1-bw2-bt1-tcs1-cl1-kb4-kb6-kb11";
 import { GRINJUKU } from "./grinjuku.js?v=gj1-sr1-or1";
-import { KABUKIGRIN } from "./kabukigrin.js?v=kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11";
+import { KABUKIGRIN } from "./kabukigrin.js?v=kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-mg1";
 import { ZHUB } from "../modes/zombies/hub-hall.js?v=zh1-sr1-or1";
 import { SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1";
 import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer, groundLight } from "./battlefield-props.js?v=sr1-or1";
@@ -2108,6 +2108,9 @@ export function buildMap(id, { colliders, arena }) {
   // Non-rectangular maps (edge.js): the coastline you can't pass, water you
   // wade through, and a coarser nav grid for a big map. null elsewhere.
   arena.edge = map.edge || null;
+  // where the bots keep to (bots.js), when it's less than where you can go:
+  // Troll City's town, not the desert out to its train loop
+  arena.botEdge = map.botEdge || null;
   arena.wade = map.wade || null;
   arena.navCell = map.navCell || null;
   // Climbing ropes (api.rope): the movement controller reads them here.

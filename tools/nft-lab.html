@@ -425,12 +425,11 @@ const art = (t) => DESIGN.TRAIT_ART[traits[t]] || "";
 /* The body's pieces: the garment's own Blender kit, or a Roblox Studio body
    (tools/troll-ops-roblox-body.mjs -> models/blocky/{arms,legs,torso}-<id>.glb,
    painted). ?pieces=<id> picks one on load. */
-const ROBLOX_BODIES = { rbx989: "Roblox Studio #989", sensei3: "Roblox Studio Sensei v3 (no logos)" };
+const ROBLOX_BODIES = { sensei3: "Roblox Studio Sensei v3 (no logos)" };
 // how far each body's collar holds the head up (metres; the v3 torso is shorter)
-const ROBLOX_HEAD_LIFT = { rbx989: 0.03, sensei3: -0.04 };
-// A garment whose live kit is a Roblox body keeps its Blender pieces here,
-// for "Blender" (the Sensei: #989 wears the Studio body in game since 2026-10-17)
-const BLENDER_PIECES = { "clothes-sensei": { legs: "legs-sensei.glb", torso: undefined, plainArms: undefined, headLift: undefined } };
+const ROBLOX_HEAD_LIFT = { sensei3: -0.04 };
+// A garment whose live kit is a Roblox body keeps its Blender pieces here, for "Blender"
+const BLENDER_PIECES = {};
 function setPieces(garment, id) {
   const rbx = ROBLOX_BODIES[id];
   const blender = { ...DEFAULTS.KITS[garment], ...BLENDER_PIECES[garment] };
@@ -471,7 +470,7 @@ function renderTuning() {
     sliderRow("Inside strength", ["INK", "innerAlpha"], 0, 1, 0.05, (x) => x.toFixed(2)),
     colourRow("Line colour", ["INK", "color"]),
   ] : []));
-  const shapeId = "h" + uid++, SHAPES = { relief: "Current", flat: "Flat drawing", jaw: "Big jaw" };
+  const shapeId = "h" + uid++, SHAPES = { relief: "Current" };
   const shapeSel = el("select", { id: shapeId, on: { change: (e) => { edit(["HEAD", "model"], e.target.value); renderTuning(); } } },
     ...Object.keys(DESIGN.HEAD_MODELS || {}).map((k) => el("option", { value: k }, SHAPES[k] || k)));
   shapeSel.value = valueOf(["HEAD", "model"]);
