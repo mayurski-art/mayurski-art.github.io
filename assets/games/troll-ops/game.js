@@ -1431,7 +1431,7 @@ renderLobbyRoster();
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMapping = THREE.NeutralToneMapping;   // truer colour than ACES, which pushed everything warm (-tm1)
 renderer.toneMappingExposure = 1.5;
 initWorldEnv(renderer);
 els.cabinet.appendChild(renderer.domElement);
