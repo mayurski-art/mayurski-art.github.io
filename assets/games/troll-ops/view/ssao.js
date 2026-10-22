@@ -6,6 +6,7 @@
 // every face and floor gun (user 2026-10-12). Anything see-through is left
 // out of that pass, so only solid geometry casts the shading.
 import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
+import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
 
 const seeThrough = (m) => Array.isArray(m) ? m.some(seeThrough) : !!m && (m.transparent || m.alphaTest > 0);
 
@@ -17,6 +18,19 @@ export function makeSsao(scene, camera) {
   ssao.output = SSAOPass.OUTPUT.Default;
   hideSeeThrough(ssao);
   return ssao;
+}
+
+/* High's AO since three r186: ground-truth AO (GTAOPass), which reads how
+   much of the sky each pixel's surroundings hide, then denoises it. Softer,
+   wider and truer than SSAO's creases: the dark where a wall meets the
+   street, under a porch roof, round a barrel's foot. */
+export function makeGtao(scene, camera) {
+  const ao = new GTAOPass(scene, camera, 1, 1, {}, {
+    radius: 1.2, distanceExponent: 1.5, thickness: 2, distanceFallOff: 1, scale: 1.7, samples: 16,
+  }, { lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 16 });
+  ao.blendIntensity = 1;
+  hideSeeThrough(ao);
+  return ao;
 }
 
 /* three r186's AO passes hide what they skip in _overrideVisibility, pushing
