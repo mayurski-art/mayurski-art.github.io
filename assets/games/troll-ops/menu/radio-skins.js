@@ -87,7 +87,6 @@ const fm = (skin, art) => `
     <div class="fm-bump" aria-hidden="true"></div>
     <div class="fm-art" aria-hidden="true">${art}</div>
     <div class="fm-bar">
-      <img class="fm-logo" src="assets/images/wallpaper/trollface%20transparent.png" alt="" draggable="false">
       <div class="fm-titles"><b data-station>Troll Warfare FM</b><small data-station-mode></small></div>
       ${swap(skin === "girl" ? "don" : "girl", "fm-swap")}
       <button type="button" class="fm-x" id="to-radio-close" aria-label="Close radio">×</button>
