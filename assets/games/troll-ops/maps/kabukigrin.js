@@ -20,14 +20,14 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { GRINJUKU } from "./grinjuku.js?v=gj1-sr1-or1";
-import { KB_LAYOUT } from "./kabukigrin-layout.js?v=kb0-kb1-kb2-kb3";
+import { KB_LAYOUT } from "./kabukigrin-layout.js?v=kb0-kb1-kb2-kb3-kb5";
 import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1";
 import { loadBake } from "./battlefield-props.js?v=sr1-or1";
 import { applyBakedLightMap, retexture } from "./surface-textures.js?v=hg6e-sr1-or1";
 import { Kit, place, surfMat, texMat } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1";
 import { Neon, neonMat, clubFx, cutRects, slatTexture, mosaicTexture } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1";
 import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4";
-import { videoScreen } from "./video-wall.js?v=vw1-kb4";
+import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5";
 
 const URL_GLB = new URL("../models/", import.meta.url).href;
 const loader = new GLTFLoader();
@@ -171,21 +171,24 @@ function cutDanceFloor(obj, R = DANCE) {
 /* Grinjuku's own street dressing where the club's walls now are: the
    shop signs, awnings and lightboxes on the facades that became the hall's
    walls, and the blade sign on Mid Bottom's wall where the club's trollface
-   goes. Every triangle wholly inside a box goes; Studio's new pieces (their
-   key ends "|n") stay. */
+   goes. Every triangle wholly inside a box goes (bar the ground's, flat at
+   y 0); Studio's new pieces (their
+   key ends "|n") and its generated props ("gen:") stay. */
 const CLEAR = [
-  [-31.75, -14.4, 0.05, 7.45, 3.9, 5.6],     // the hall's north wall, inside
+  [-31.75, -14.25, -0.01, 7.45, 3.9, 5.6],   // the hall's north wall, inside, down to the floor
   [-31.75, -30.7, 0.05, 7.45, 4, 23.8],      // its west wall, behind the DJ
   [-31.75, -14.4, 0.05, 7.45, 23, 24.1],     // its south wall
   [-14.7, -13.6, 0.05, 3.6, 4, 23.8],        // the bar's wall under the mezzanine, its parapet's signs
   [-6.2, -4.4, 0.05, 8.8, 13.6, 14.4],       // the blade sign on Mid Bottom's wall
+  [-24.6, -22.85, 2.7, 8.6, -8.35, 3.25],    // the A Main screen's footprint: the windows, lightboxes and shop signs on that face
+  [15.8, 22.8, 3.45, 7.75, -32.6, -31.85],   // the Alta screen's
 ];
 function clearForClub(scene) {
   scene.traverse((o) => {
     if (!o.isMesh) return;
     let q = o;
     while (q && !q.userData.tc) q = q.parent;
-    if (/\|n$/.test(q?.userData.tc || o.name)) return;
+    if (/\|n$|^gen:/.test(q?.userData.tc || o.name)) return;
     const g = o.geometry, P = g.attributes.position;
     const I = g.index ?? { count: P.count, getX: (i) => i };
     o.updateMatrixWorld(true);
@@ -194,10 +197,11 @@ function clearForClub(scene) {
       v.fromBufferAttribute(P, i).applyMatrix4(o.matrixWorld);
       return CLEAR.findIndex(([x0, x1, y0, y1, z0, z1]) => v.x >= x0 && v.x <= x1 && v.y >= y0 && v.y <= y1 && v.z >= z0 && v.z <= z1);
     };
+    const flat = (t) => [0, 1, 2].every((k) => Math.abs(v.fromBufferAttribute(P, I.getX(t + k)).applyMatrix4(o.matrixWorld).y) < 0.02);
     let dropped = 0;
     for (let t = 0; t < I.count; t += 3) {
       const a = inBox(I.getX(t));
-      if (a >= 0 && a === inBox(I.getX(t + 1)) && a === inBox(I.getX(t + 2))) { dropped++; continue; }
+      if (a >= 0 && a === inBox(I.getX(t + 1)) && a === inBox(I.getX(t + 2)) && !flat(t)) { dropped++; continue; }
       keep.push(I.getX(t), I.getX(t + 1), I.getX(t + 2));
     }
     if (dropped) g.setIndex(keep);
@@ -223,9 +227,8 @@ function buildClub(api) {
   // the bottles on the back bar under the mezzanine (Studio's counter and cabinet)
   bottleWall(K, M, S, { x: -14.45, back: -14.42, z0: 8.4, z1: 16, y: 0, rows: 2, glow: { h: 1.7, y: 2.05 }, ghostH: 1.75 });
 
-  /* ---- the marquee over the main door, facing up A Main (doc 3.2) */
-  K.box(M.blackGloss, -26, 3.95, 3.45, 5.0, 1.25, 0.5);
-  K.box(M.gold, -26, 3.93, 3.45, 5.06, 0.04, 0.54);
+  /* ---- the marquee over the main door, facing up A Main (doc 3.2): its
+     black and gold box is Studio's (generate_mesh), the sign and bulbs on it */
   sign(S, N, M, "logo", -26, 4.575, 3.18, 0.9, { ry: Math.PI, group: 1, halo: 0xff3fb4, haloK: 0.35, beat: 0.35 });
   for (let i = 0; i < 24; i++) {
     N.add(M.neon, new THREE.SphereGeometry(0.035, 6, 4).translate(-28.4 + i * 0.208, 3.95, 3.19), { color: 0xffd080, k: 2.2, chase: 1, phase: i / 24, beat: 0.2 });
@@ -235,10 +238,10 @@ function buildClub(api) {
 
   /* ---- the kanji strip on the front corner: a blade sign reading downward,
      cyan and steady (the street's neon is calm) */
+  // (its riveted panels, one a character, are Studio's)
   const strip = jpSign("トローリング・ラウド", { vertical: true, color: "#3ff0ff" });
   const sh = 5.4, sw = sh * strip.aspect;
-  K.box(M.blackMetal, -30.9, 2.42, 3.25, 0.1, sh + 0.16, sw + 0.16);
-  for (const [dx, ry] of [[0.06, Math.PI / 2], [-0.06, -Math.PI / 2]]) N.quad(strip.mat, -30.9 + dx, 2.5 + sh / 2, 3.25, sw, sh, { ry, k: 1.15, beat: 0 });
+  for (const [dx, ry] of [[0.085, Math.PI / 2], [-0.085, -Math.PI / 2]]) N.quad(strip.mat, -30.9 + dx, 2.5 + sh / 2, 3.25, sw, sh, { ry, k: 1.15, beat: 0 });
 
   /* ---- the east wall on Mid Bottom: six LED windows pulsing on the kick,
      the big cyan trollface between them */
@@ -262,11 +265,20 @@ function buildClub(api) {
   for (const l of lights) root.add(l);
   finishClub(root, M, HN, S, CLUB);
 
-  /* ---- the video screens: the club's over the Sewers' mouth on A Main,
-     the Alta screen on the east block's corner over the forecourt */
-  api.prop(videoScreen({ w: 12, h: 4, px: [768, 256], x: -23.3, y: 5.3, z: -2, ry: -Math.PI / 2 })).castShadow = false;
+  /* ---- the video screens, Times Square billboards (refs/times-square-
+     screens-*.jpg): each in a housing built out from its facade past every
+     window frame, ledge and sign on it, so nothing stands in front, the shop
+     signs in its way cleared (CLEAR). The club's over the Sewers' mouth on
+     A Main, short of the marquee; the Alta screen on the east block's
+     corner over the forecourt */
+  api.prop(videoScreen({ w: 11.2, h: 5.6, px: [768, 384], x: -24.62, y: 5.65, z: -2.6, ry: -Math.PI / 2, frame: 1.6 })).castShadow = false;
   // (east of the corner's blade signs at x 14, over the shop signs)
-  api.prop(videoScreen({ w: 6.67, h: 4, px: [640, 384], x: 19.3, y: 5.6, z: -32.3, ry: Math.PI, offset: 17.3 })).castShadow = false;
+  api.prop(videoScreen({ w: 6.67, h: 4, px: [640, 384], x: 19.3, y: 5.6, z: -33.3, ry: Math.PI, offset: 17.3, frame: 1.28 })).castShadow = false;
+  // and the hall's two, facing each other over the dance floor: the pole
+  // dancer on the front wall (the Sewers block's face), @SwishPng's leaping
+  // trolls on the back wall's solid run
+  api.prop(videoScreen({ w: 5.6, h: 3.15, px: [768, 432], x: -19.9, y: 5.1, z: 4.06, ry: 0, clips: ["pole"] })).castShadow = false;
+  api.prop(videoScreen({ w: 6.4, h: 3.6, px: [640, 360], x: -21.5, y: 4.3, z: 23.76, ry: Math.PI, clips: ["swish"], fps: 24 })).castShadow = false;
 }
 
 /* The hall's inside (doc 3.4): Trolling Loud's slatted walls with the red

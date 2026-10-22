@@ -6,8 +6,11 @@
 // (10 fps) and only while the screen is drawn (onBeforeRender), so it
 // costs one small texture upload a tenth of a second and no light. Two
 // screens on a map run `offset` seconds apart so they never show the same
-// frame. The clips draw from the neon sign atlas (trollingloud-kit.js) and
-// plain canvas shapes: nothing to download.
+// frame. The street's clips draw from the neon sign atlas
+// (trollingloud-kit.js) and plain canvas shapes: nothing to download. The
+// club's two inside play their own lists: the pole dancer (one cut-out PNG,
+// spun in canvas) and @SwishPng's leaping trolls (a small muted MP4, drawn
+// into the canvas so the LED rows and the credit sit on it).
 
 import * as THREE from "three";
 import { SIGNS, signsTexture } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1";
@@ -20,6 +23,24 @@ const BEAT = 128 / 60;
 
 const ease = (p) => 1 - Math.pow(1 - Math.min(1, Math.max(0, p)), 3);
 const atlas = () => signsTexture().image;
+
+// the club screens' footage, fetched the first time a screen shows it
+const TEX = new URL("../textures/", import.meta.url).href;
+let dancer = null, leap = null;
+const dancerImg = () => {
+  if (!dancer) { dancer = new Image(); dancer.src = `${TEX}screen-pole-dancer.png`; }
+  return dancer.complete && dancer.naturalWidth ? dancer : null;
+};
+const leapVideo = () => {
+  if (!leap) {
+    leap = Object.assign(document.createElement("video"), { src: `${TEX}screen-swish-leap.mp4`, muted: true, loop: true, playsInline: true, preload: "auto" });
+    leap.setAttribute("muted", "");
+  }
+  if (leap.paused) leap.play().catch(() => {});
+  return leap.readyState >= 2 ? leap : null;
+};
+// the dancer cut-out: where the pole ran through it (px), of its 434 x 296
+const DANCER_POLE = 251.5;
 
 /* Blit a sign from the atlas, centred on cx, cy, `h` tall. */
 function blit(g, name, cx, cy, h, alpha = 1) {
@@ -173,25 +194,82 @@ const CLIPS = [
       g.restore();
     }
   } },
+  // the club's: a trollface spinning round a green neon pole in space
+  // (ref refs/club-screen-pole-dance-ref.webp), a turn every 4 s, behind
+  // the pole for half of it
+  { id: "pole", s: 12, draw(g, w, h, t) {
+    g.fillStyle = "#000";
+    g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 150; i++) {
+      const r = (k) => { const v = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); };
+      const depth = 0.3 + r(3) * 0.7, s = Math.max(1, h * 0.005 * depth);
+      g.globalAlpha = (0.3 + 0.6 * depth) * (0.75 + 0.25 * Math.sin(t * (1 + r(4) * 3) + i));
+      g.fillStyle = "#fff";
+      g.fillRect((((r(1) - t * 0.015 * depth) % 1) + 1) % 1 * w, r(2) * h, s, s);
+    }
+    g.globalAlpha = 1;
+    const px = w / 2, kick = Math.exp(-((t * BEAT) % 1) * 4);
+    const pole = () => {
+      g.save();
+      g.shadowColor = "#3aff4a";
+      g.shadowBlur = h * (0.06 + 0.05 * kick);
+      g.fillStyle = "#3aff4a";
+      g.fillRect(px - h * 0.022, 0, h * 0.044, h);
+      g.shadowBlur = 0;
+      g.fillStyle = "#e0ffe0";
+      g.fillRect(px - h * 0.007, 0, h * 0.014, h);
+      g.restore();
+    };
+    const img = dancerImg();
+    const spin = t * Math.PI / 2, front = Math.sin(spin) >= 0;
+    if (front) pole();
+    if (img) {
+      const dh = h * 0.86, k = dh / img.height;
+      g.save();
+      g.translate(px, h * (0.5 + 0.02 * Math.sin(spin * 2)));
+      // (edge on, still a sliver of it)
+      const c = Math.cos(spin);
+      g.scale(Math.sign(c || 1) * Math.max(0.12, Math.abs(c)), 1);
+      g.globalAlpha = front ? 1 : 0.8;
+      g.drawImage(img, -DANCER_POLE * k, -dh / 2, img.width * k, dh);
+      g.restore();
+    }
+    if (!front) pole();
+  } },
+  // the club's other: @SwishPng's leaping trolls on the beach, as it is
+  { id: "swish", s: 22, draw(g, w, h) {
+    g.fillStyle = "#000";
+    g.fillRect(0, 0, w, h);
+    const v = leapVideo();
+    if (v) g.drawImage(v, 0, 0, w, h);
+    glowText(g, "art @SwishPng", w * 0.97, h * 0.92, h * 0.05, "#ffffff", { align: "right", weight: 700, blur: 0.15, alpha: 0.8 });
+  } },
 ];
-const LOOP = CLIPS.reduce((n, c) => n + c.s + FLASH, 0);
+// what the street's screens play
+const STREET = ["umad", "dj", "stickers", "ticker", "logo"];
 
-/* Which clip, and how far in, `t` seconds into the loop; null in a flash. */
-function clipAt(t) {
-  let u = ((t % LOOP) + LOOP) % LOOP;
-  for (const c of CLIPS) {
+/* Which of `list`'s clips, and how far in, `t` seconds into the loop; null
+   in a flash (a one-clip list just loops, no flash). */
+function clipAt(list, t) {
+  const gap = list.length > 1 ? FLASH : 0;
+  const loop = list.reduce((n, c) => n + c.s + gap, 0);
+  let u = ((t % loop) + loop) % loop;
+  for (const c of list) {
     if (u < c.s) return { c, t: u };
     u -= c.s;
-    if (u < FLASH) return null;
-    u -= FLASH;
+    if (u < gap) return null;
+    u -= gap;
   }
   return null;
 }
 
 /* A screen `w` x `h` metres at x, y, z (its centre), facing `ry`, drawn
    at `px` [width, height] pixels, `offset` seconds into the loop. With a
-   black bezel `frame` metres deep behind it. Returns the group. */
-export function videoScreen({ w, h, px, x, y, z, ry = 0, offset = 0, frame = 0.25 }) {
+   black bezel `frame` metres deep behind it (or, set into a wall, a flat
+   black surround `inset` metres wide), playing the `clips` (ids; the
+   street's list by default) at `fps`. Returns the group. */
+export function videoScreen({ w, h, px, x, y, z, ry = 0, offset = 0, frame = 0.25, inset = 0, clips = STREET, fps = FPS }) {
+  const list = clips.map((id) => CLIPS.find((c) => c.id === id));
   const c = document.createElement("canvas");
   [c.width, c.height] = px;
   const g = c.getContext("2d");
@@ -210,9 +288,14 @@ export function videoScreen({ w, h, px, x, y, z, ry = 0, offset = 0, frame = 0.2
     bezel.castShadow = false;
     group.add(bezel);
   }
+  if (inset) {
+    const edge = new THREE.Mesh(new THREE.PlaneGeometry(w + inset * 2, h + inset * 2), new THREE.MeshStandardMaterial({ color: 0x08080a, roughness: 0.5, metalness: 0.3 }));
+    edge.position.z = -0.01;
+    group.add(edge);
+  }
   let shown = -1;
   const draw = (t) => {
-    const at = clipAt(t);
+    const at = clipAt(list, t);
     if (!at) { g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); return; }
     g.save();
     at.c.draw(g, c.width, c.height, at.t);
@@ -223,10 +306,10 @@ export function videoScreen({ w, h, px, x, y, z, ry = 0, offset = 0, frame = 0.2
   };
   screen.onBeforeRender = () => {
     const t = performance.now() / 1000 + offset;
-    const f = Math.floor(t * FPS);
+    const f = Math.floor(t * fps);
     if (f === shown) return;
     shown = f;
-    draw(f / FPS);
+    draw(f / fps);
     map.needsUpdate = true;
   };
   draw(offset);
