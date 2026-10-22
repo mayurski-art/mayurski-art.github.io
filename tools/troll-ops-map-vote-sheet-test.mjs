@@ -92,6 +92,8 @@ const read = (page) => page.evaluate(() => {
     big: (() => { const i = v.querySelector(".to-mv-big img"); return i && i.offsetParent ? Math.round(i.getBoundingClientRect().height) : 0; })(),
   };
 });
+// the description line: still there for screen readers, nothing on screen
+const descHidden = (page) => page.evaluate(() => { const d = document.querySelector(".to-bo2-menu .tr-menu-desc"), r = d.getBoundingClientRect(); return !!d.textContent && r.width <= 1 && r.height <= 1; });
 // a real tap at the element's middle, so anything drawn over it would take it
 const tap = (page, sel) => page.tap(sel);
 
@@ -120,8 +122,7 @@ for (const [w, h] of [[390, 844], [844, 390]]) {
   s = await read(page);
   const clear = s.box.t >= s.menuB - 1 || s.box.l >= s.menuR - 1;
   check(s.shown && !s.sheet && s.tap && clear, `${tag}: × closes it, the small panel stays by the list`, JSON.stringify({ sheet: s.sheet, tap: s.tap, box: s.box, menuB: s.menuB, menuR: s.menuR }));
-  const desc = await page.evaluate(() => getComputedStyle(document.querySelector(".to-bo2-menu .tr-menu-desc")).display);
-  check(desc === "none", `${tag}: no description line under the list`, desc);
+  check(await descHidden(page), `${tag}: no description line under the list`);
   const radioBack = await page.evaluate(() => getComputedStyle(document.querySelector(".to-radio")).visibility);
   check(radioBack === "visible", `${tag}: the radio comes back`, radioBack);
   await page.screenshot({ path: path.join(SHOTS, `vote-panel-${w}x${h}.png`) });
@@ -144,8 +145,7 @@ for (const [w, h] of [[390, 844], [844, 390]]) {
   const s = await read(page);
   check(s.shown && !s.sheet && !s.tap && !s.close && !s.go && s.voteRows === 3, "desktop: no sheet, the vote rows in the list", JSON.stringify({ sheet: s.sheet, tap: s.tap, rows: s.voteRows }));
   check(s.box.l >= s.menuR, "desktop: the panel in the middle, beside the list", JSON.stringify(s.box));
-  const desc = await page.evaluate(() => getComputedStyle(document.querySelector(".to-bo2-menu .tr-menu-desc")).display);
-  check(desc === "none", "desktop: no description line under the list either", desc);
+  check(await descHidden(page), "desktop: no description line under the list either");
   const pics = await page.waitForFunction(() => [...document.querySelectorAll(".to-bo2-vote img")].every((i) => i.complete && i.naturalWidth > 0), null, { timeout: 15000 }).then(() => true, () => false);
   check(pics, "desktop: the map pictures load");
   await page.screenshot({ path: path.join(SHOTS, "vote-desktop-1440.png") });

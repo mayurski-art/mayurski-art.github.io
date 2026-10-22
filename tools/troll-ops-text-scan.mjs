@@ -39,7 +39,9 @@ export async function textClash(page, check, when) {
     };
     const clipped = (el, r) => {
       let { left, top, right, bottom } = r;
-      for (let e = el.parentElement; e && e !== document.body; e = e.parentElement) {
+      // from the text's own element: a screen-reader-only label (1px,
+      // overflow hidden, e.g. bo2-menu.js's description) clips its own text
+      for (let e = el; e && e !== document.body; e = e.parentElement) {
         const cs = getComputedStyle(e);
         if (cs.overflowX === "visible" && cs.overflowY === "visible") continue;
         const c = e.getBoundingClientRect();

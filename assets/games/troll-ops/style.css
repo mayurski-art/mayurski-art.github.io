@@ -3763,10 +3763,6 @@ div.to-bo2-party-row.is-other { cursor: default; }
 .to-mv-cards li.is-lead i { color: var(--bo2-ink); }
 .to-mv-lobby { margin: 12px 0 0; font-size: 14px; line-height: 1.45; color: var(--bo2-soft); }
 .to-mv-lobby b { color: var(--bo2-gold); font-weight: 500; }
-/* Public Match's list goes without the line describing each button, on
-   every device (user, 2026-10-22: "we dont need the extra texts for each
-   button", "from game modes to find match", "not just on phones") */
-.to-bo2[data-screen="public"] .tr-menu-desc { display: none; }
 @media (max-width: 1199px) {
   .to-bo2-vote { left: var(--bo2-col); right: 48px; }
   .to-bo2.has-vote .to-bo2-party { visibility: hidden; }
@@ -3936,7 +3932,6 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
   .to-bo2-menu .tr-menu-title { font-size: 24px; margin-bottom: 2px; }
   .to-bo2-menu .tr-menu-item { min-height: 24px; line-height: 24px; font-size: 16px; }
   .to-bo2-menu .tr-menu-group { padding-bottom: 4px; }
-  .to-bo2-menu .tr-menu-desc { font-size: 13px; min-height: 0; margin-top: 6px; }
   /* A row scrolled half out of the list fades away whole: the 24px rows left
      a sliver of capitals showing right on top of the description. */
   .to-bo2-menu .tr-menu-groups.fade-b { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 34px), transparent calc(100% - 8px)); mask-image: linear-gradient(to bottom, #000 calc(100% - 34px), transparent calc(100% - 8px)); }
@@ -3975,7 +3970,6 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
   .to-bo2-menu .tr-menu-title { font-size: 32px; margin-bottom: 2px; }
   .to-bo2-menu .tr-menu-item { min-height: 29px; line-height: 29px; font-size: 19px; }
   .to-bo2-menu .tr-menu-group { padding-bottom: 6px; }
-  .to-bo2-menu .tr-menu-desc { font-size: 14px; min-height: 40px; }
   /* with a detail pane open, the list keeps to the top part and scrolls */
   .to-bo2.has-detail .to-bo2-menu { max-height: 40%; }
   .to-bo2-party { left: 20px; right: 20px; width: auto; bottom: auto; top: calc(56px + env(safe-area-inset-top) + var(--menu-h, 300px) + 8px); }
