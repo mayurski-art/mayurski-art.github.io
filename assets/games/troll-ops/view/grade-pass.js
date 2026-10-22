@@ -81,6 +81,15 @@ export class GradePass extends OutputPass {
       + "\tif (uGrade > 0.5) gl_FragColor.rgb = gradeColor(gl_FragColor.rgb);\n}";
   }
 
+  /* A map's whole look: its grade, exposure (default 1.5) and tone mapping.
+     Neutral unless the map asks for `tone: "aces"`: the night maps keep
+     ACES, whose toe sinks their purple shade to near black (-tm5). */
+  setLook(renderer, map) {
+    this.setGrade(map.grade);
+    renderer.toneMapping = map.tone === "aces" ? THREE.ACESFilmicToneMapping : THREE.NeutralToneMapping;
+    renderer.toneMappingExposure = map.exposure ?? 1.5;
+  }
+
   /* map.grade: { sat, contrast, shadows (hex), shadowsAmt, highlights (hex),
      highlightsAmt }. Tints are sRGB hex, as the map's other colours are. */
   setGrade(grade) {
