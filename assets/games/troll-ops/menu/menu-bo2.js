@@ -37,7 +37,7 @@ const lbProvider = makeTrollOpsProvider();
 import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perksInTier, perkUnlocked, perkIconSvg } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1";
 import { STREAK_DEFS } from "../streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1";
 import { renderClassPreview } from "./class-preview.js?v=cp1-rb4-hp1-bx1";
-import { lobby, enterLobby, leaveLobby, lobbyActivity, round, candidates, tally, renderPanel, tickClock } from "./map-vote.js?v=mv1";
+import { lobby, enterLobby, leaveLobby, lobbyActivity, round, candidates, tally, renderPanel, tickClock } from "./map-vote.js?v=mv1-vs1";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
    calling cards and the private-match maps. */
@@ -872,6 +872,18 @@ voteHost.setAttribute("aria-label", "Map vote");
 voteHost.hidden = true;
 root.appendChild(voteHost);
 let voteView = null, voteHot = null;
+/* Phones and tablets get it as a sheet over the whole lobby instead (user,
+   2026-10-22: "for the map preview and voting system on mobile devices we
+   should have a popup screen", "not needed for desktop"): beside or under
+   the list there was no room for the preview. It opens on arriving at
+   Public Match; × goes back to the list, and a tap on the small panel by
+   the list ("clicking on the map previews itself") brings it back. */
+const voteSheet = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+let sheetOpen = false;
+function openSheet(m = menu) {
+  sheetOpen = true;
+  m.refresh();
+}
 const othersOnline = () => {
   const me = viewerId(), uid = myUid();
   return onlinePlayers(roster).filter((o) => o.viewerId !== me && !(uid && o.userId === uid));
@@ -894,7 +906,8 @@ function publicView() {
   return { kind: "vote", cands, t: tally(othersOnline(), cands) };
 }
 function voteRows(v) {
-  if (v?.kind !== "vote") return [];
+  // a phone votes on the sheet, not in the list
+  if (voteSheet || v?.kind !== "vote") return [];
   return v.cands.map((id) => {
     const n = v.t.votes.get(id) || 0;
     return {
@@ -939,17 +952,27 @@ function paintVote(hot) {
   if (hot !== undefined) voteHot = hot;
   if (!voteView) return;
   const p = window.TrollrunnerAccounts?.getCachedProfile?.();
-  renderPanel(voteHost, { ...voteView, hot: voteHot, me: p?.username || "You" });
+  const go = sheetOpen && findRow(voteView);
+  renderPanel(voteHost, { ...voteView, hot: voteHot, me: p?.username || "You", sheet: go && { label: go.label, value: go.value } });
 }
 function showVote(v) {
   voteView = v || null;
+  if (!voteView) sheetOpen = false;
   voteHost.hidden = !voteView;
+  voteHost.classList.toggle("is-sheet", sheetOpen);
+  voteHost.classList.toggle("is-tap", voteSheet && !sheetOpen);
+  // the radio's button sits where the sheet's × is (style.css)
+  document.body.classList.toggle("to-vote-sheet", !!voteView && sheetOpen);
   root.classList.toggle("has-vote", !!voteView);
   if (voteView) paintVote();
   else if (lobby.mode) { leaveLobby(); pushActivity(); }
 }
-// A card is a vote too.
+// A card is a vote too; on the sheet, × and the go button. On a phone the
+// small panel is one big button that opens the sheet.
 voteHost.addEventListener("click", (e) => {
+  if (voteSheet && !sheetOpen) { openSheet(); return; }
+  if (e.target.closest(".to-mv-close")) { sheetOpen = false; menu.refresh(); return; }
+  if (e.target.closest(".to-mv-go")) { findRow(voteView).onSelect(null, menu); return; }
   const li = e.target.closest("li[data-map]");
   if (li) castVote(li.dataset.map);
 });
@@ -970,7 +993,11 @@ const menu = createBo2Menu(nav, {
   onScreen(id, s, m) {
     // A screen's enter() runs once on arrival (e.g. pick a versus mode for
     // Public Match), then the screen re-renders from the updated lobby.
-    if (id !== lastScreen) { lastScreen = id; if (s.enter) { s.enter(); m.refresh(); return; } }
+    if (id !== lastScreen) {
+      lastScreen = id;
+      sheetOpen = voteSheet && id === "public";
+      if (s.enter) { s.enter(); m.refresh(); return; }
+    }
     if (s.panel && s.panel !== lastPanel) { lastPanel = s.panel; rail(s.panel); }
     root.dataset.screen = id;
     // the dock (Emote, Chat, Barracks, Options) is the top menu's only:

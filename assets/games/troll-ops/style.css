@@ -3763,6 +3763,10 @@ div.to-bo2-party-row.is-other { cursor: default; }
 .to-mv-cards li.is-lead i { color: var(--bo2-ink); }
 .to-mv-lobby { margin: 12px 0 0; font-size: 14px; line-height: 1.45; color: var(--bo2-soft); }
 .to-mv-lobby b { color: var(--bo2-gold); font-weight: 500; }
+/* Public Match's list goes without the line describing each button, on
+   every device (user, 2026-10-22: "we dont need the extra texts for each
+   button", "from game modes to find match", "not just on phones") */
+.to-bo2[data-screen="public"] .tr-menu-desc { display: none; }
 @media (max-width: 1199px) {
   .to-bo2-vote { left: var(--bo2-col); right: 48px; }
   .to-bo2.has-vote .to-bo2-party { visibility: hidden; }
@@ -3772,6 +3776,55 @@ div.to-bo2-party-row.is-other { cursor: default; }
   .to-bo2.has-vote .to-bo2-party { visibility: hidden; }
   /* clear of the list's description line, which wraps on a phone */
   .to-bo2 .to-bo2-vote { margin-top: 18px; max-height: calc(100% - 56px - env(safe-area-inset-top) - var(--menu-h, 300px) - 26px - var(--foot-h, 42px) - 30px); }
+}
+/* Phones and tablets: the small panel by the list opens the vote as a sheet
+   over the whole lobby (menu-bo2.js voteSheet). Upright it's one column, the
+   go button at the foot; sideways the preview takes the left and the three
+   maps stack on the right. */
+.to-bo2-vote.is-tap { cursor: pointer; }
+.to-bo2-vote.is-tap header b::after { content: " · tap to open"; font: 12px "DM Mono", monospace; letter-spacing: 0; text-transform: none; color: var(--bo2-gold); }
+.to-bo2-vote.is-tap:active { border-color: var(--bo2-gold); }
+.to-bo2 .to-bo2-vote.is-sheet {
+  position: absolute; inset: 0; margin: 0; max-height: none; z-index: 30;
+  display: flex; flex-direction: column; gap: 10px; overflow-y: auto;
+  padding: max(14px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: #080301; border: 0; border-radius: 0; box-shadow: none;
+}
+.to-bo2 .to-bo2-vote.is-sheet[hidden] { display: none; }
+body.to-vote-sheet #to-title:not([hidden]) ~ .to-radio { visibility: hidden; }
+.to-bo2-vote.is-sheet header { align-items: center; }
+.to-bo2-vote.is-sheet header .to-mv-clock { margin-left: auto; }
+.to-mv-close {
+  width: 40px; height: 40px; flex: none; padding: 0; border: 1px solid rgba(243,236,228,.22); border-radius: 50%;
+  background: rgba(0,0,0,.4); color: var(--bo2-ink); font-size: 26px; line-height: 1; cursor: pointer;
+}
+.to-bo2-vote.is-sheet .to-mv-big { display: block; margin: 0; }
+.to-bo2-vote.is-sheet :is(.to-mv-cards, .to-mv-lobby) { margin: 0; }
+.to-bo2-vote.is-sheet .to-mv-lobby { font-size: 13px; }
+.to-mv-foot { margin-top: auto; }
+.to-mv-go {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 52px; padding: 0 18px;
+  border: 0; border-radius: 12px; background: #ff8a1f; color: #1a0b00; cursor: pointer;
+  font: 600 20px Oswald, sans-serif; letter-spacing: .04em; text-transform: uppercase;
+}
+.to-mv-go small { font: 500 13px "DM Mono", monospace; letter-spacing: 0; text-transform: none; color: #3a1d05; }
+.to-mv-go:active { background: #d96f0f; }
+@media (orientation: landscape) {
+  .to-bo2 .to-bo2-vote.is-sheet {
+    display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "head head" "big cards" "big lobby" "foot foot"; column-gap: 16px; row-gap: 8px;
+  }
+  .to-bo2-vote.is-sheet header { grid-area: head; }
+  .to-bo2-vote.is-sheet .to-mv-big { grid-area: big; display: flex; flex-direction: column; min-height: 0; }
+  .to-bo2-vote.is-sheet .to-mv-big img { flex: 1; min-height: 0; aspect-ratio: auto; }
+  .to-bo2-vote.is-sheet .to-mv-big figcaption { margin-top: 6px; }
+  .to-bo2-vote.is-sheet .to-mv-cards { grid-area: cards; grid-template-columns: 1fr; gap: 6px; align-content: start; min-height: 0; overflow-y: auto; }
+  .to-bo2-vote.is-sheet .to-mv-cards li { display: flex; align-items: center; }
+  .to-bo2-vote.is-sheet .to-mv-cards img { width: 40%; flex: none; }
+  .to-bo2-vote.is-sheet .to-mv-cards span { min-width: 0; }
+  .to-bo2-vote.is-sheet .to-mv-lobby { grid-area: lobby; font-size: 12px; line-height: 1.35; }
+  .to-bo2-vote.is-sheet .to-mv-foot { grid-area: foot; margin: 0; }
+  .to-bo2-vote.is-sheet .to-mv-go { min-height: 44px; }
 }
 /* The operator stands in the right half, beside the list. */
 /* (to the screen's edges below and to the right: a smaller box cut the

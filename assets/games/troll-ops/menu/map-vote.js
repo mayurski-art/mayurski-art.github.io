@@ -109,6 +109,13 @@ export function renderPanel(host, view) {
     html = `<header><b>Map</b></header>`
       + `<figure class="to-mv-big">${shot(view.map, "560px")}<figcaption><b>${esc(MAPS[view.map]?.name || view.map)}</b><small>This mode always plays here</small></figcaption></figure>`;
   }
+  /* A phone shows it as a sheet over the lobby (menu-bo2.js): a close
+     button, and the lobby's go button at the foot. */
+  if (view.sheet && html) {
+    const { label, value } = view.sheet;
+    html = html.replace("</header>", `<button type="button" class="to-mv-close" aria-label="Close the map vote">&times;</button></header>`)
+      + `<footer class="to-mv-foot"><button type="button" class="to-mv-go">${esc(label)}${value ? `<small>${esc(value)}</small>` : ""}</button></footer>`;
+  }
   host.innerHTML = html;
   for (const img of host.querySelectorAll("img")) img.addEventListener("error", () => img.remove());
 }
