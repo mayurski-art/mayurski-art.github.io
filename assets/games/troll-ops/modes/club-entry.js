@@ -31,9 +31,9 @@
    `rp.door` (Trolling Loud), only in Socialize. */
 
 import * as THREE from "three";
-import { rpExtras } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8";
+import { rpExtras } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9";
 import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1";
-import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8";
+import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9";
 import { myCardData } from "../progression/profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zh1-zc1-zc2-nf1-or1-nb2";
 import { renderClubId, paintMiniLicence } from "../view/club-id-card.js?v=cid1-cid2-th2";
 import { isOwner } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
@@ -84,7 +84,20 @@ export const club = {
 };
 const ME = { me: true };
 
-const door = () => (game.isSocial() ? game.builtMap?.map?.rp?.door : null) || null;
+/* The door's frame: the numbers below are Trolling Loud's (its street lies
+   +z of its door); a map whose door faces another way turns them with its
+   door's `frame` { s: 1 or -1, ox, oz }: world = (ox + s * x, oz + s * z),
+   every yaw turned half round when s is -1 (Kabukigrin's street is -z). */
+const TL_FRAME = { s: 1, ox: 0, oz: 0 };
+let F = TL_FRAME;
+const fx = (x) => F.ox + F.s * x, fz = (z) => F.oz + F.s * z;
+const tlX = (x) => (x - F.ox) * F.s, tlZ = (z) => (z - F.oz) * F.s;
+const fyaw = (y) => (F.s < 0 ? y + Math.PI : y);
+const door = () => {
+  const d = (game.isSocial() ? game.builtMap?.map?.rp?.door : null) || null;
+  F = d?.frame ?? TL_FRAME;
+  return d;
+};
 const now = () => performance.now() / 1000;
 const yawTo = (fx, fz, tx, tz) => Math.atan2(-(tx - fx), -(tz - fz));
 
@@ -152,7 +165,7 @@ function takeLine(d) {
   if (!T_) return;
   const goers = [];
   T_.list.forEach((n, i) => {
-    if (n.c.role === "Clubgoer" && !n.c.bandana && Math.abs(n.c.z - d.line[0].z) < 0.5 && n.c.x < d.line[0].x + 0.5) goers.push(i);
+    if (n.c.role === "Clubgoer" && !n.c.bandana && d.line.some((q) => Math.hypot(n.c.x - q.x, n.c.z - q.z) < 0.5)) goers.push(i);
   });
   goers.sort((a, b) => T_.list[b].c.x - T_.list[a].c.x);   // nearest the door first
   const inLine = Math.min(goers.length, 6 + (Math.random() < 0.5 ? 1 : 0));
@@ -279,7 +292,7 @@ export function clubHold(dt) {
 
 /* A place in the line; past the rope's end the line just bunches up at it. */
 const slotOf = (d, k) => d.line[Math.max(0, Math.min(k, d.line.length - 1))];
-const floorAt = (d, z) => (z < 22.3 ? d.lobby.y : 0);
+const floorAt = (d, z) => (tlZ(z) < 22.3 ? d.lobby.y : 0);
 function turn(a, b, k) {
   let diff = ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
   return a + diff * Math.min(1, k);
@@ -351,7 +364,7 @@ function stepNpcs(d, dt) {
 function sendIn(e, l, d) {
   e.state = "door"; e.t = 0; e.arm = 0;
   if (!e.n.rig.band) e.n.rig.band = BAND.guest;
-  e.path = [d.mouth, { x: d.lobby.x + (Math.random() - 0.5) * 2, z: d.lobby.z + 1.5 }];
+  e.path = [d.mouth, { x: d.lobby.x + (Math.random() - 0.5) * 2, z: d.lobby.z + F.s * 1.5 }];
   l.who = null; l.t = 0;
 }
 
@@ -527,7 +540,7 @@ function startKick(li, who) {
     tc: 0, li, oi, who, me: who === ME, yaw0: who === ME ? game.look.yaw : who.n ? who.n.yaw : who.rp.yaw, from: {}, cues: {},
     B0: { x: l.x, z: l.z },
     // Thrown from the middle of the alley, a step in from the lane.
-    P1: { x: l.x * 0.35, z: 27.5 },
+    P1: { x: fx(tlX(l.x) * 0.35), z: fz(27.5) },
     // Your bouncer takes the side of you he's on; the other one comes round.
     sideS: l.b ? Math.sign(l.b.x - l.x) || 1 : 1,
   };
@@ -550,8 +563,8 @@ function endKick() {
   club.lane = -1;
   club.kick = null;
   // Sat on the curb where you landed, looking back at the door.
-  game.move.reset(K.P1.x, K.P1.z + 1.1, 0);
-  game.look.yaw = 0;
+  game.move.reset(K.P1.x, K.P1.z + F.s * 1.1, 0);
+  game.look.yaw = fyaw(0);
   game.look.pitch = 0.06;
   club.sit = 1;
   if (game.localRig) game.localRig.root.rotation.x = 0;
@@ -568,7 +581,7 @@ function endKick() {
 const _kb = { x: 0, y: 0, z: 0, yaw: 0, lie: 0 };
 export function kickBody(K, tc, o = _kb) {
   const { B0, P1 } = K;
-  o.yaw = turn(K.yaw0, Math.PI, smooth((tc - KICK.grab) / 0.4));   // turned round to face the street
+  o.yaw = turn(K.yaw0, fyaw(Math.PI), smooth((tc - KICK.grab) / 0.4));   // turned round to face the street
   o.lie = 0;
   if (tc < KICK.carry) {
     o.x = B0.x; o.z = B0.z;
@@ -580,15 +593,15 @@ export function kickBody(K, tc, o = _kb) {
   } else if (tc < KICK.fly) {
     // One swing back toward the door, and forward.
     const s = Math.sin(Math.PI * (tc - KICK.swing) / (KICK.fly - KICK.swing));
-    o.x = P1.x; o.z = P1.z - 0.42 * s; o.y = LIFT - 0.1 * s;
+    o.x = P1.x; o.z = P1.z - F.s * 0.42 * s; o.y = LIFT - 0.1 * s;
   } else {
     const u = Math.min(1, (tc - KICK.fly) / (KICK.land - KICK.fly));
     const th = (Math.PI / 2 - 0.03) * smooth(u);
     const hy = LIFT + HIP + (LIE_Y - LIFT - HIP) * u + 0.75 * 4 * u * (1 - u);
     // Thrown forward and flopping over backwards: the hips sail on, the
     // head comes back toward the door.
-    const hz = P1.z + 0.9 * u;
-    o.x = P1.x; o.y = hy - HIP * Math.cos(th); o.z = hz + HIP * Math.sin(th);
+    const hz = P1.z + F.s * 0.9 * u;
+    o.x = P1.x; o.y = hy - HIP * Math.cos(th); o.z = hz + F.s * HIP * Math.sin(th);
     o.lie = th;
     // A bounce off the pavement.
     if (tc > KICK.land) o.y += Math.sin(Math.min(1, (tc - KICK.land) / 0.3) * Math.PI) * 0.05;
@@ -681,10 +694,10 @@ function poseKicker(l, n, rig, dt) {
       head = 0.12;
     } else {
       // Round behind you to your other side, at a jog.
-      const r = alongPath([from, { x: K.B0.x, z: K.B0.z + 1.1 }, { x: K.B0.x + side * SIDE, z: K.B0.z }], Math.max(0, tc - 0.1) * 4.6);
+      const r = alongPath([from, { x: K.B0.x, z: K.B0.z + F.s * 1.1 }, { x: K.B0.x + side * SIDE, z: K.B0.z }], Math.max(0, tc - 0.1) * 4.6);
       n.x = r.x; n.z = r.z;
       moving = !r.done;
-      yaw = r.done ? Math.PI : r.yaw;
+      yaw = r.done ? fyaw(Math.PI) : r.yaw;
       // His way round passes the camera's shoulder: out of the shot while
       // he's right on the lens.
       const cam = game.camera.position;
@@ -696,7 +709,7 @@ function poseKicker(l, n, rig, dt) {
     const k = smooth((tc - KICK.grab) / 0.3);
     if (shaker) { n.x = from.x + (sx - from.x) * k; n.z = from.z + (sz - from.z) * k; }
     else { n.x = sx; n.z = sz; }
-    yaw = shaker ? turn(yawTo(from.x, from.z, K.B0.x, K.B0.z), Math.PI, k) : Math.PI;
+    yaw = shaker ? turn(yawTo(from.x, from.z, K.B0.x, K.B0.z), fyaw(Math.PI), k) : fyaw(Math.PI);
     moving = (tc > KICK.carry && tc < KICK.swing) || (shaker && k > 0.05 && k < 0.95);
     grip = tc < KICK.fly ? smooth((tc - KICK.grab - 0.1) / 0.25) : Math.max(0, 1 - (tc - KICK.fly) / 0.2);
     head = tc > KICK.fly ? 0.3 : 0.1;
@@ -839,13 +852,15 @@ const pathLen = (pts) => pts.reduce((s, p, i) => (i ? s + Math.hypot(p.x - pts[i
    kick-out, the curb and the walk off, in seconds from the start. */
 function bandanaPlan(ev, d, li, skip = false) {
   const l = club.lanes[li] || d.lanes[li];
-  const up = [d.arrive, { x: -6, z: 27 }, { x: l.x, z: 25.8 }, { x: l.x, z: l.z }];
+  // (the alley's corner on the way up and down: a map's own, else Trolling Loud's)
+  const via = d.bandana ?? { in: { x: fx(-6), z: fz(27) }, out: { x: fx(-8), z: fz(28.2) } };
+  const up = [d.arrive, via.in, { x: l.x, z: fz(25.8) }, { x: l.x, z: l.z }];
   const tA = pathLen(up) / WALK;
   const tK = tA + T.bandanaLook;
-  const curb = { x: l.x * 0.35, z: 27.5 + 1.1 };   // where the kick-out lands him (startKick P1)
+  const curb = { x: fx(tlX(l.x) * 0.35), z: fz(27.5 + 1.1) };   // where the kick-out lands him (startKick P1)
   const from = skip ? { x: l.x, z: l.z } : curb;
   const tL = skip ? tK : tK + KICK_WALL + T.bandanaSit;
-  const off = [from, { x: -8, z: 28.2 }, d.arrive];
+  const off = [from, via.out, d.arrive];
   // The lane's held for him a second before the alley's shared leg ends
   // (where his way to either lane parts), so a change of lane doesn't move him.
   const tR = pathLen(up.slice(0, 2)) / WALK - 1;
@@ -927,7 +942,7 @@ function stepBandana(d, dt) {
     n.x = l.x; n.z = l.z;
     n.yaw = turn(n.yaw, l.yaw, Math.min(1, dt * 8));
   } else if (ev.phase === "curb") {
-    n.x = ev.curb.x; n.z = ev.curb.z; n.yaw = 0;
+    n.x = ev.curb.x; n.z = ev.curb.z; n.yaw = fyaw(0);
   }
   n.c.y = floorAt(d, n.z);
   if (game.townNpcs?.view) n.zone = game.townNpcs.view.zoneOf(n.x, n.c.y + 1, n.z);
@@ -1312,7 +1327,7 @@ function poseBouncer(l, lulz, n, rig, dt) {
   if (a.act === "kick") { poseKicker(l, n, rig, dt); return; }
   const p = rig.parts;
   const hook = lulz ? rope.hand() : null;
-  let yawT = n.home?.yaw ?? Math.PI;
+  let yawT = n.home?.yaw ?? fyaw(Math.PI);
   // A step over to the hook and back (and back to his post after a
   // kick-out).
   let away = false;
@@ -1527,10 +1542,10 @@ const rope = {
     for (const e of club.npcs) if (e.state === "door") return true;
     for (const R of club.remotes.values()) {
       const q = R.rp.pos;
-      if (R.ph === "walk" || (R.p.wb > 0 && Math.abs(q.x - d.mouth.x) < 2.6 && q.z > 21.4 && q.z < 24.6)) return true;
+      if (R.ph === "walk" || (R.p.wb > 0 && Math.abs(q.x - d.mouth.x) < 2.6 && tlZ(q.z) > 21.4 && tlZ(q.z) < 24.6)) return true;
     }
     const p = game.move.pos;
-    if (bandNow() > BAND.none && !clubHolds() && Math.abs(p.x - d.mouth.x) < 2.6 && p.z > 21.4 && p.z < 24.6) return true;
+    if (bandNow() > BAND.none && !clubHolds() && Math.abs(p.x - d.mouth.x) < 2.6 && tlZ(p.z) > 21.4 && tlZ(p.z) < 24.6) return true;
     return false;
   },
   step(d, dt) {
