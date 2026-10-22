@@ -7,6 +7,7 @@
 //   white sign on its box, the white spill on the pavement; its sound
 //   (streetSound), the balls' rattle and the machines' jingles out of the
 //   glass, fighting the club's bass across the line.
+//   B side's street props: the ramen stall's noren, menu and warm light.
 
 import * as THREE from "three";
 import { place } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1";
@@ -200,7 +201,89 @@ function tickerTexture() {
 
 /* ------------------------------------------------------------ build */
 
+/* ------------------------------------------------------------ B side */
+
+/* The ramen stall on the konbini's blank north wall (3.5 e), as built in
+   Studio (Kabukigrin_Live.BStreet.Ramen): the boards at z 30.94, the
+   counter to 1.02, the noren's rod at y 2.22, z 30.34, a lantern at each
+   end; the tanuki by the koban and the capsule toys by B Main's vending
+   machines are Studio's generated props. */
+export const RAMEN = { x0: 19.05, x1: 22.95, wall: 30.935, rod: { y: 2.2, z: 30.31 }, lanterns: [[18.95, 1.95, 30.4], [23.05, 1.95, 30.4]] };
+const SERIF = "'Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',serif";
+
+// indigo cotton in four panels, slit to just under the rod, らーめん in
+// white across them, a white band at the hem
+function norenTexture(n) {
+  const W = 1024, H = 128 * 2.4 | 0;
+  const c = canvas(W, H), g = c.getContext("2d");
+  g.clearRect(0, 0, W, H);
+  const pw = W / n;
+  for (let i = 0; i < n; i++) {
+    const x = i * pw + 3;
+    const cloth = g.createLinearGradient(0, 0, 0, H);
+    cloth.addColorStop(0, "#1a2a5a"); cloth.addColorStop(1, "#14224a");
+    g.fillStyle = cloth; g.fillRect(x, 0, pw - 6, H);
+    // the weave and a fold shadow down each panel
+    g.fillStyle = "rgba(0,0,0,.16)"; g.fillRect(x + pw * 0.62, 0, pw * 0.12, H);
+    g.fillStyle = "rgba(255,255,255,.85)"; g.fillRect(x, H - 22, pw - 6, 8);
+  }
+  g.fillStyle = "#f4f0e6"; g.textAlign = "center"; g.textBaseline = "middle";
+  g.font = `700 ${Math.round(H * 0.46)}px ${SERIF}`;
+  ["ら", "ー", "め", "ん"].forEach((ch, i) => {
+    if (ch === "ー") { g.fillRect((i + 0.5) * pw - H * 0.17, H * 0.43, H * 0.34, H * 0.06); return; }
+    g.fillText(ch, (i + 0.5) * pw, H * 0.45);
+  });
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
+// the menu: paper tags pinned in a row on the boards, brushed black
+// with the price in red
+const MENU = [["醤油", "800"], ["味噌", "850"], ["塩", "800"], ["豚骨", "900"], ["替玉", "150"], ["餃子", "400"], ["ビール", "600"]];
+function menuTexture() {
+  const W = 1024, H = 256, n = MENU.length, tw = W / n;
+  const c = canvas(W, H), g = c.getContext("2d");
+  g.clearRect(0, 0, W, H);
+  const r = rng(5);
+  MENU.forEach(([name, yen], i) => {
+    const x = i * tw + 8, tilt = (r() - 0.5) * 0.05;
+    g.save(); g.translate(x + tw / 2 - 8, H / 2); g.rotate(tilt);
+    g.fillStyle = "#efe6cc"; g.fillRect(-tw / 2 + 8, -H / 2 + 6, tw - 16, H - 12);
+    g.fillStyle = "rgba(90,60,20,.14)"; g.fillRect(-tw / 2 + 8, H / 2 - 30, tw - 16, 24);
+    g.fillStyle = "#151515"; g.textAlign = "center"; g.textBaseline = "top";
+    const chars = [...name], size = Math.min(56, (H - 90) / chars.length);
+    g.font = `700 ${size}px ${SERIF}`;
+    chars.forEach((ch, k) => g.fillText(ch, 0, -H / 2 + 20 + k * size));
+    g.fillStyle = "#b8141c"; g.font = `700 30px ${JP}`; g.textBaseline = "bottom";
+    g.fillText(yen, 0, H / 2 - 14);
+    g.restore();
+  });
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
+function buildRamen(root, N, M) {
+  const R = RAMEN, w = R.x1 - R.x0, cx = (R.x0 + R.x1) / 2;
+  // the noren off the rod, facing the plaza (-z), lit from the stall behind
+  const nh = 0.48;
+  root.add(new THREE.Mesh(place(new THREE.PlaneGeometry(w, nh), { x: cx, y: R.rod.y - nh / 2, z: R.rod.z, ry: Math.PI }),
+    new THREE.MeshStandardMaterial({ map: norenTexture(4), transparent: true, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.95, emissive: 0x18203a, emissiveIntensity: 0.6 })));
+  // the menu tags over the counter
+  root.add(new THREE.Mesh(place(new THREE.PlaneGeometry(2.9, 0.62), { x: cx, y: 1.62, z: R.wall - 0.006, ry: Math.PI }),
+    new THREE.MeshStandardMaterial({ map: menuTexture(), transparent: true, alphaTest: 0.5, roughness: 0.9, emissive: 0xffe0b0, emissiveMap: null, emissiveIntensity: 0.12 })));
+  // the warm light of the stall: up the boards, over the counter, a pool
+  // in front, and each lantern's halo (steady)
+  N.quad(M.neonHalo, cx, 1.35, R.wall - 0.01, w + 0.6, 2.2, { ry: Math.PI, color: 0xffb070, k: 0.18, beat: 0 });
+  N.quad(M.neonHalo, cx, 0.02, R.wall - 1.3, w + 1.2, 2.6, { rx: -Math.PI / 2, color: 0xffa060, k: 0.16, beat: 0 });
+  for (const [x, y, z] of R.lanterns) N.quad(M.neonHalo, x, y, z - 0.18, 0.9, 0.9, { ry: Math.PI, color: 0xff5a30, k: 0.35, beat: 0 });
+}
+
 export function buildStreet({ root, N, M }) {
+  buildRamen(root, N, M);
   const P = PACHINKO;
   // the floor through the glass, either side of the doors, and through the
   // doors' own glass; each run picks up the tile where the last left off

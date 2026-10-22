@@ -35,7 +35,7 @@ import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier,
 import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5";
 import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8";
 import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9";
-import { buildStreet, streetSound } from "./kabukigrin-street.js?v=kb10-kb11";
+import { buildStreet, streetSound } from "./kabukigrin-street.js?v=kb10-kb11-kb12";
 
 const URL_GLB = new URL("../models/", import.meta.url).href;
 const loader = new GLTFLoader();
