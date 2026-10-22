@@ -3,7 +3,7 @@
 // draws models/<glb>.glb and lays these still colliders: [x, z, w, d, h, y, pen];
 // moves and rp: what Studio moved (see trollcity-studio.js).
 export const TC_LAYOUT = {
-  glb: "tc-town", v: "e81f2758",
+  glb: "tc-town", v: "331a1b25",
   colliders: [
     [-48,-8.3,8,2.6,0.3,0,6],
     [-40,-8.3,8,2.6,0.3,0,6],
