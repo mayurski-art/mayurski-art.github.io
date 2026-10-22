@@ -35,10 +35,13 @@ export function isPublicRoom(room) {
   return publicRuns.has(room);
 }
 
-/* What this tab is doing, for the presence channel. */
+/* What this tab is doing, for the presence channel. In the Public Match
+   lobby, its vote and readiness (menu/map-vote.js, set by menu-bo2.js). */
+let lobbyActivity = () => null;
+export function setLobbyActivity(fn) { lobbyActivity = fn; }
 function activity() {
   const s = game.gameState;
-  if (s !== "playing" && s !== "paused") return { game: "tf", state: "menu" };
+  if (s !== "playing" && s !== "paused") return lobbyActivity() || { game: "tf", state: "menu" };
   const mode = game.currentMode();
   const room = game.net?.connected ? game.net.room : null;
   const map = game.loadedMapId || null;
@@ -51,18 +54,21 @@ function activity() {
 }
 
 let presence = null;
+const tick = () => { try { presence?.setActivity(activity()); } catch { /* the menu still works */ } };
 export function startOnline(p) {
   presence = p;
-  const tick = () => { try { presence.setActivity(activity()); } catch { /* the menu still works */ } };
   tick();
   setInterval(tick, TICK_MS);
 }
+/* Now, not on the next tick: a vote or a ready shows up straight away. */
+export const pushActivity = tick;
 
 /* One line on what someone is up to, for the Who's Online list. */
 export function describe(a) {
   if (!a) return "On trollrunner.net";
   if (a.game !== "tf") return "On trollrunner.net";
   if (a.state === "menu") return "In the Troll Warfare menu";
+  if (a.state === "lobby") return `In the ${a.modeName || "Public Match"} lobby${a.ready ? " (ready)" : ""}`;
   const where = a.mapName ? ` on ${a.mapName}` : "";
   const wave = a.state === "zombies" && a.wave ? ` · round ${a.wave}` : "";
   if (!a.room) return `Playing ${a.modeName || "solo"}${where}${wave} (solo)`;

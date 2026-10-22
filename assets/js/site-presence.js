@@ -47,6 +47,7 @@ function cleanActivity(a) {
     game: str(a.game, 16), state: str(a.state, 12), mode: str(a.mode, 16), modeName: str(a.modeName, 32),
     map: str(a.map, 24), mapName: str(a.mapName, 32), room, pub: !!a.pub && !!room,
     wave: Math.max(0, Math.min(999, a.wave | 0)), max: Math.max(0, Math.min(200, a.max | 0)),
+    ready: !!a.ready,   // in Troll Forces' Public Match lobby (menu/map-vote.js)
   };
 }
 

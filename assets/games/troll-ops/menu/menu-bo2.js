@@ -16,7 +16,7 @@ import { createMapMode } from "../../../js/troll-map-mode.js?v=to-bo2d";
 import { joinSitePresence, viewerId } from "../../../js/site-presence.js?v=to-bo2d-ol1-iv1";
 import { initInvites, invitePlayer } from "./invites.js?v=iv1-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2";
 import { initPublicChat } from "./public-chat.js?v=pch1-nb2-pc2-gf1-sc1-tw1";
-import { startOnline, onlinePlayers, serverList, joinServer, describe } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2";
+import { startOnline, onlinePlayers, serverList, joinServer, describe, setLobbyActivity, pushActivity } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2";
 import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
 
 import { fetchRecord, formatPlayed } from "../progression/record.js?v=rec1-or1";
@@ -37,6 +37,7 @@ const lbProvider = makeTrollOpsProvider();
 import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perksInTier, perkUnlocked, perkIconSvg } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1";
 import { STREAK_DEFS } from "../streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1";
 import { renderClassPreview } from "./class-preview.js?v=cp1-rb4-hp1-bx1";
+import { lobby, enterLobby, leaveLobby, lobbyActivity, round, candidates, tally, renderPanel, tickClock } from "./map-vote.js?v=mv1";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
    calling cards and the private-match maps. */
@@ -554,11 +555,16 @@ const screens = {
     });
     return { title: "Who's Online", panel: "deploy", groups: [rows, [back("Back to the main menu.")]].filter((g) => g.length) };
   },
-  public: () => ({
-    title: "Public Match", panel: "deploy",
-    enter: () => { ensureGroup("versus", "tdm"); clearRoom(); },
-    groups: [modeItems("versus"), [heroRow(), mapRow()].filter(Boolean), [deployRow("Find Match", "Join the public room for this mode."), back("Back to the main menu.")]],
-  }),
+  /* The pre-match lobby (menu/map-vote.js): the mode, the map vote, and
+     Find Match, which readies you up when others are in the lobby. */
+  public: () => {
+    const v = publicView();
+    return {
+      title: "Public Match", panel: "deploy", vote: v,
+      enter: () => { ensureGroup("versus", "tdm"); clearRoom(); },
+      groups: [modeItems("versus"), [heroRow(), ...voteRows(v)].filter(Boolean), [findRow(v), back("Back to the main menu.")]],
+    };
+  },
   /* One public hangout room: pick a map (whoever is already there decides
      the room's map), then walk round it, chat and emote. No fighting. */
   social: () => ({
@@ -858,6 +864,105 @@ function charRoom() {
   pf.classList.toggle("char-beside", pf.clientHeight - (56 + menuH + 8 + partyH) - (footH + 24) < CHAR_ROOM);
 }
 
+/* ── The map vote (menu/map-vote.js): Public Match's lobby ───────────── */
+/* The panel stands in the lobby's middle, where the operator used to. */
+const voteHost = document.createElement("section");
+voteHost.className = "to-bo2-vote";
+voteHost.setAttribute("aria-label", "Map vote");
+voteHost.hidden = true;
+root.appendChild(voteHost);
+let voteView = null, voteHot = null;
+const othersOnline = () => {
+  const me = viewerId(), uid = myUid();
+  return onlinePlayers(roster).filter((o) => o.viewerId !== me && !(uid && o.userId === uid));
+};
+/* What the lobby shows for the mode picked: its live match, its one map, or
+   this round's vote. */
+function publicView() {
+  const mode = currentModeBtn()?.dataset.mode;
+  if (!mode) return null;
+  enterLobby(mode);
+  const live = serverList(roster).find((s) => s.mode === mode && s.players.length);
+  if (live) return { kind: "live", server: live };
+  const pool = $$("#to-lo-maps .to-lo-map").filter((b) => !isLocked(b) && !REWARD_MAPS[b.dataset.map]).map((b) => b.dataset.map);
+  const forced = game.currentMode?.()?.forceMap;
+  if (mapForced() || pool.length < 2) return { kind: "fixed", map: forced || $("#to-lo-maps .to-lo-map.is-active")?.dataset.map || pool[0] };
+  const r = round();
+  lobby.idx = r.idx;
+  const cands = candidates(mode, pool, r.idx);
+  if (lobby.vote && !cands.includes(lobby.vote)) lobby.vote = null;
+  return { kind: "vote", cands, t: tally(othersOnline(), cands) };
+}
+function voteRows(v) {
+  if (v?.kind !== "vote") return [];
+  return v.cands.map((id) => {
+    const n = v.t.votes.get(id) || 0;
+    return {
+      id: `vote-${id}`, label: MAPS[id]?.name || id, voteMap: id, on: lobby.vote === id,
+      value: `${n} vote${n === 1 ? "" : "s"}`,
+      desc: lobby.vote === id ? "Your vote. Pick another to change it." : "Vote for this map. The most votes when the clock runs out wins.",
+      onSelect: (_, m) => castVote(id, m),
+    };
+  });
+}
+function castVote(id, m = menu) {
+  lobby.vote = id;
+  pushActivity();
+  m.refresh();
+}
+function findRow(v) {
+  if (v?.kind === "live") return deployRow("Join Match", `Join the match on ${v.server.mapName || "its map"}.`);
+  if (v?.kind !== "vote") return deployRow("Find Match", "Join the public room for this mode.");
+  if (!v.t.inLobby.length) return { ...deployRow("Find Match", "Nobody else in the lobby: in you go, on your vote (or the top map)."), onSelect: () => dropIn(lobby.vote || v.t.winner) };
+  return {
+    id: "deploy", tier: "primary", label: lobby.ready ? "Cancel" : "Find Match",
+    value: `${v.t.ready} ready`,
+    desc: lobby.ready ? "Not ready after all: stay in the lobby." : "Ready up. Everyone ready drops in together on the winning map when the vote ends.",
+    onSelect: (_, m) => {
+      if (!othersOnline().some((p) => p.activity?.state === "lobby" && p.activity.mode === lobby.mode)) { dropIn(lobby.vote || v.t.winner); return; }
+      lobby.ready = !lobby.ready;
+      pushActivity();
+      m.refresh();
+    },
+  };
+}
+/* Into the mode's public room on map `id`: the lobby's own map button, then
+   its start, the way Find Match always went. */
+function dropIn(id) {
+  const b = id && $(`#to-lo-maps .to-lo-map[data-map="${id}"]`);
+  if (b && !isOn(b) && !isLocked(b)) b.click();
+  leaveLobby();
+  const s = startBtn();
+  if (s && !s.disabled) s.click();
+}
+function paintVote(hot) {
+  if (hot !== undefined) voteHot = hot;
+  if (!voteView) return;
+  const p = window.TrollrunnerAccounts?.getCachedProfile?.();
+  renderPanel(voteHost, { ...voteView, hot: voteHot, me: p?.username || "You" });
+}
+function showVote(v) {
+  voteView = v || null;
+  voteHost.hidden = !voteView;
+  root.classList.toggle("has-vote", !!voteView);
+  if (voteView) paintVote();
+  else if (lobby.mode) { leaveLobby(); pushActivity(); }
+}
+// A card is a vote too.
+voteHost.addEventListener("click", (e) => {
+  const li = e.target.closest("li[data-map]");
+  if (li) castVote(li.dataset.map);
+});
+/* The clock; and when a round ends, everyone ready goes in on its winner
+   (counted on the round that ended), then the next round's three come up. */
+setInterval(() => {
+  if (title.hidden || menu.current() !== "public" || voteView?.kind !== "vote") return;
+  tickClock(voteHost);
+  if (round().idx === lobby.idx) return;
+  if (lobby.ready) { dropIn(tally(othersOnline(), voteView.cands).winner); return; }
+  menu.refresh();
+}, 250);
+
 /* ── The menu ─────────────────────────────────────────────────────────── */
 let lastPanel = null, lastScreen = null;
 const menu = createBo2Menu(nav, {
@@ -886,6 +991,7 @@ const menu = createBo2Menu(nav, {
       window.TrollLeaderboard?.mount?.("troll-ops", "#to-bo2-lb");
     }
     shot.hidden = id !== "maps";
+    showVote(id === "public" ? s.vote : null);
     if (id !== "barracks") clanEditing = false;
     cardHost.hidden = !s.card;
     root.classList.toggle("has-card", !!s.card);
@@ -913,6 +1019,8 @@ const menu = createBo2Menu(nav, {
     if (pt && it && (it.perkId || it.id === "pk-none")) renderPerk(it.perkId || null, +pt[1]);
     // Create a Class: the class you're on, all of it (class-preview.js).
     if (lastScreen === "classlist" && it?.classIdx != null) renderClassPreview(classHost, game.loadout, it.classIdx);
+    // The map vote: the map you're on, big.
+    if (lastScreen === "public" && voteView?.kind === "vote") paintVote(it?.voteMap);
     if (!it) return;
     if (it.mapId) {
       const img = $("img", shot);
@@ -1132,10 +1240,11 @@ const presence = joinSitePresence({
   onSync: (r) => {
     roster = r;
     renderParty();
-    if (menu.current() === "online" && !title.hidden) menu.refresh();
+    if (["online", "public"].includes(menu.current()) && !title.hidden) menu.refresh();
   },
 });
 roster = presence.roster();
+setLobbyActivity(() => lobbyActivity(currentModeBtn() ? text($("span", currentModeBtn())) : ""));
 startOnline(presence);
 // Invites (menu/invites.js) on the same channel, the cards' Invite button
 initInvites(presence);

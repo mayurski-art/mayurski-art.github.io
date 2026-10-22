@@ -3732,6 +3732,47 @@ div.to-bo2-party-row.is-other { cursor: default; }
 .to-bo2-mapshot { margin: 0; }
 .to-bo2-mapshot img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; }
 .to-bo2-mapshot figcaption { margin-top: 10px; color: var(--bo2-soft); font-size: 15px; }
+/* The map vote (menu/map-vote.js): Public Match's lobby, in the middle where
+   the operator stood, the party column beside it. Short of room, it takes the
+   detail pane's place and the party steps aside (the panel lists the lobby). */
+.to-bo2-vote {
+  position: absolute; left: 560px; right: calc(72px + min(340px, 30%)); top: 100px; z-index: 3;
+  max-height: calc(100% - 100px - var(--foot-h, 60px) - 50px); overflow-y: auto; overscroll-behavior: contain;
+  padding: 16px 18px; box-sizing: border-box; color: var(--bo2-ink);
+  background: rgba(10,4,2,.82); border: 1px solid rgba(243,236,228,.14); border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.5);
+}
+.to-bo2-vote[hidden] { display: none; }
+.to-bo2-vote header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.to-bo2-vote header b { font: 500 18px Oswald, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--bo2-dim); }
+.to-mv-clock { font: 600 18px "DM Mono", monospace; color: var(--bo2-gold); }
+.to-mv-big { margin: 12px 0 0; }
+.to-mv-big img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; background: rgba(0,0,0,.4); }
+.to-mv-big figcaption { display: flex; align-items: baseline; gap: 10px; margin-top: 8px; }
+.to-mv-big figcaption b { font: 500 22px Oswald, sans-serif; letter-spacing: .03em; }
+.to-mv-big figcaption small { font: 12px "DM Mono", monospace; color: var(--bo2-hot); }
+.to-mv-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0 0; padding: 0; list-style: none; }
+.to-mv-cards li { position: relative; overflow: hidden; cursor: pointer; border: 1px solid rgba(243,236,228,.18); border-radius: 10px; background: rgba(0,0,0,.35); }
+.to-mv-cards img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.to-mv-cards span { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px 9px; }
+.to-mv-cards b { font: 500 15px Oswald, sans-serif; letter-spacing: .03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.to-mv-cards i { font: normal 12px "DM Mono", monospace; color: var(--bo2-dim); }
+.to-mv-cards em { position: absolute; left: 0; bottom: 0; height: 3px; width: calc(var(--p, 0) * 100%); background: var(--bo2-hot); transition: width .3s; }
+.to-mv-cards li:hover, .to-mv-cards li.is-hot { border-color: rgba(243,236,228,.6); }
+.to-mv-cards li.is-mine { border-color: var(--bo2-gold); box-shadow: inset 0 0 0 1px var(--bo2-gold); }
+.to-mv-cards li.is-mine i::after { content: " · your vote"; color: var(--bo2-gold); }
+.to-mv-cards li.is-lead i { color: var(--bo2-ink); }
+.to-mv-lobby { margin: 12px 0 0; font-size: 14px; line-height: 1.45; color: var(--bo2-soft); }
+.to-mv-lobby b { color: var(--bo2-gold); font-weight: 500; }
+@media (max-width: 1199px) {
+  .to-bo2-vote { left: var(--bo2-col); right: 48px; }
+  .to-bo2.has-vote .to-bo2-party { visibility: hidden; }
+}
+@media (max-height: 520px) and (min-aspect-ratio: 9/10) { .to-bo2.has-vote .to-bo2-party { visibility: hidden; } .to-mv-big { display: none; } }
+@container cab (max-aspect-ratio: 9/10) {
+  .to-bo2.has-vote .to-bo2-party { visibility: hidden; }
+  /* clear of the list's description line, which wraps on a phone */
+  .to-bo2 .to-bo2-vote { margin-top: 18px; max-height: calc(100% - 56px - env(safe-area-inset-top) - var(--menu-h, 300px) - 26px - var(--foot-h, 42px) - 30px); }
+}
 /* The operator stands in the right half, beside the list. */
 /* (to the screen's edges below and to the right: a smaller box cut the
    operator off mid-screen when zoomed; the menu and roster sit above it) */
@@ -3852,7 +3893,7 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
   .to-bo2-party-lbl { font-size: 14px; }
   .to-bo2-party-row { min-height: 30px; }
   .to-bo2-party-row b { font-size: 16px; }
-  .to-bo2-detail, .to-bo2-panel { right: max(20px, env(safe-area-inset-right)); top: 54px; max-height: calc(100% - 54px - var(--foot-h, 36px) - 20px); padding: 12px 14px; }
+  .to-bo2-detail, .to-bo2-panel, .to-bo2-vote { left: var(--bo2-col); right: max(20px, env(safe-area-inset-right)); top: 54px; max-height: calc(100% - 54px - var(--foot-h, 36px) - 20px); padding: 12px 14px; }
   /* the gun stands in the right column, the detail pane under it */
   #to-title.is-bo2 .to-pf > .to-gun-view.is-hero { display: block; left: var(--bo2-col); right: max(20px, env(safe-area-inset-right)); top: 54px; height: 38cqh; }
   .to-bo2.has-gun .to-bo2-detail { top: calc(54px + 38cqh + 8px); max-height: calc(100% - 54px - 38cqh - 8px - var(--foot-h, 36px) - 20px); }
@@ -3885,7 +3926,7 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
   /* with a detail pane open, the list keeps to the top part and scrolls */
   .to-bo2.has-detail .to-bo2-menu { max-height: 40%; }
   .to-bo2-party { left: 20px; right: 20px; width: auto; bottom: auto; top: calc(56px + env(safe-area-inset-top) + var(--menu-h, 300px) + 8px); }
-  .to-bo2-detail, .to-bo2-panel { left: 12px; right: 12px; top: calc(56px + env(safe-area-inset-top) + var(--menu-h, 300px) + 8px); bottom: auto; max-height: calc(100% - 56px - env(safe-area-inset-top) - var(--menu-h, 300px) - 8px - var(--foot-h, 42px) - 30px); padding: 12px; }
+  .to-bo2-detail, .to-bo2-panel, .to-bo2-vote { left: 12px; right: 12px; top: calc(56px + env(safe-area-inset-top) + var(--menu-h, 300px) + 8px); bottom: auto; max-height: calc(100% - 56px - env(safe-area-inset-top) - var(--menu-h, 300px) - 8px - var(--foot-h, 42px) - 30px); padding: 12px; }
   #to-title.is-bo2 .to-bo2-detail .to-lo-detail { background: none; border: 0; padding: 0; box-shadow: none; }
   .to-bo2-panel { bottom: auto; }
   /* the gun under the list, the detail pane under the gun */
