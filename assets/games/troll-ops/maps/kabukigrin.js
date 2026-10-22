@@ -10,7 +10,12 @@
 //                           sites, ropes, stairs) and the lights
 // So the map is the Studio layout's, the look Grinjuku's: a chunk is lit by
 // its own GLB's bake and retextured as that GLB is (map-models.js).
-// Kept as kabukigrin_wip (out of the vote pool) until phase 6.
+// On top of that the club's live layer, in code (club-live.js, as Trolling
+// Loud's): the dance floor over its mirror pit, the DJ, the ceiling, the
+// chandelier and ball, the bottle wall, the lasers, the clock and the
+// booth's track; the seam pieces the street sees (the marquee, the kanji
+// strip, the LED windows on Mid Bottom) and the two video screens
+// (video-wall.js). Kept as kabukigrin_wip (out of the vote pool) until phase 6.
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -19,6 +24,10 @@ import { KB_LAYOUT } from "./kabukigrin-layout.js?v=kb0-kb1-kb2-kb3";
 import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1";
 import { loadBake } from "./battlefield-props.js?v=sr1-or1";
 import { applyBakedLightMap, retexture } from "./surface-textures.js?v=hg6e-sr1-or1";
+import { Kit, place, surfMat, texMat } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1";
+import { Neon, neonMat, clubFx, cutRects, slatTexture, mosaicTexture } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1";
+import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4";
+import { videoScreen } from "./video-wall.js?v=vw1-kb4";
 
 const URL_GLB = new URL("../models/", import.meta.url).href;
 const loader = new GLTFLoader();
@@ -37,6 +46,264 @@ const SITES = byKind("site").map(([n, m]) => ({ id: n.replace(/^Site_/, ""), x: 
 // itself, not a two-step kerb
 const STAIRS = byKind("stair").sort(([a], [b]) => num(a) - num(b)).map(([, m]) => ({ a: { x: m.p[0], y: m.p[1], z: m.p[2] }, b: { x: m.to[0], y: m.to[1], z: m.to[2] } }));
 const ROPES = byKind("rope").sort(([a], [b]) => num(a) - num(b)).map(([, m]) => ({ x: m.p[0], z: m.p[2], y0: m.p[1], y1: m.top, dir: m.dir || "+z" }));
+
+/* ============================================================== the club
+
+   Where the club stands (doc 3.1): the hall is Grinjuku's A site, the DJ on
+   the west wall looking east across the floor to the mezzanine (A Heaven),
+   the bar under the mezzanine's overhang. club-live.js builds from this. */
+const HALL = { x0: -31.7, x1: -14.4, z0: 4.4, z1: 23.6 };
+const DANCE = { x0: -27, x1: -17, z0: 10, z1: 20 };
+const PLAN = {
+  FL: 0, TOP: 7.4, ROOF: 8.0, HALL, DANCE, DC: { x: -22, z: 15 },
+  STAGE: { x0: -31.7, x1: -28, z0: 10, z1: 20, top: 0.45 },
+  BPM: 128, djFace: "+x", djWall: -31.65, deck: { x: -29.6, z: 15 }, speaker: [-29.6, 2.2, 15],
+  orbitY: 5.2,
+  muffle: (p) => muffle(p),
+};
+const CLUB = clubEngine(PLAN);
+
+/* The booth heard from p (doc 3.2): full in the hall, softer on the
+   mezzanine, muffled in the back of house, through the walls on A Main,
+   in the Sewers and Mid Bottom, nothing on B side. */
+function muffle(p) {
+  const inR = (x0, x1, z0, z1) => p.x > x0 && p.x < x1 && p.z > z0 && p.z < z1;
+  if (p.y < PLAN.TOP && inR(HALL.x0, HALL.x1, HALL.z0, HALL.z1)) return [16000, 1];
+  if (p.y < PLAN.TOP && inR(-14.4, -6, 4, 24)) return [5000, 0.9];
+  if (inR(-32, -6, 24, 34)) return [1400, 0.85];
+  if (p.x < 7) return [360, 0.9];
+  return [200, 0];
+}
+
+/* A neon sign from a canvas of Japanese text, one character per row when
+   `vertical`. Its own material (one draw call). */
+function jpSign(text, { vertical = false, color = "#3ff0ff", size = 112 } = {}) {
+  const chars = [...text], n = chars.length;
+  const c = document.createElement("canvas");
+  c.width = Math.round(vertical ? size * 1.25 : size * (n + 0.6));
+  c.height = Math.round(vertical ? size * (n + 0.4) : size * 1.4);
+  const g = c.getContext("2d");
+  g.font = `900 ${size}px 'Hiragino Sans','Yu Gothic','Meiryo','Noto Sans JP','Noto Sans CJK JP',sans-serif`;
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.fillStyle = color;
+  g.shadowColor = color;
+  g.shadowBlur = size * 0.22;
+  chars.forEach((ch, i) => {
+    if (!vertical) { g.fillText(ch, size * (0.8 + i), c.height / 2); return; }
+    // the long-vowel bar turns upright in vertical writing
+    const y = size * (0.7 + i);
+    if (ch === "ー") g.fillRect(c.width / 2 - size * 0.06, y - size * 0.4, size * 0.12, size * 0.8);
+    else g.fillText(ch, c.width / 2, y);
+  });
+  const map = new THREE.CanvasTexture(c);
+  map.colorSpace = THREE.SRGBColorSpace;
+  return { mat: neonMat({ map, transparent: true, key: `kb-${text}` }), aspect: c.width / c.height };
+}
+
+/* Cut the dance floor's rectangle out of everything flat at y 0 in `obj`
+   (the town's floors, the game's ground plane), so the mirror pit under
+   the glass shows through. Triangles that cross the edge are clipped;
+   every attribute is carried over. */
+function cutDanceFloor(obj, R = DANCE) {
+  obj.updateMatrixWorld(true);
+  const meshes = [];
+  obj.traverse((o) => { if (o.isMesh) meshes.push(o); });
+  const box = new THREE.Box3();
+  for (const o of meshes) {
+    box.setFromObject(o);
+    if (box.max.x < R.x0 || box.min.x > R.x1 || box.max.z < R.z0 || box.min.z > R.z1 || box.min.y > 0.06 || box.max.y < -0.06) continue;
+    const src = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+    src.applyMatrix4(o.matrixWorld);
+    const names = Object.keys(src.attributes), A = names.map((k) => src.attributes[k]);
+    const sizes = A.map((a) => a.itemSize), width = sizes.reduce((a, b) => a + b, 0);
+    const vert = (i) => {
+      const v = new Float32Array(width);
+      let w = 0;
+      for (const a of A) for (let c = 0; c < a.itemSize; c++) v[w++] = a.getComponent(i, c);
+      return v;
+    };
+    // the part of polygon `poly` where f(v) >= 0 (f linear in position)
+    const clip = (poly, f) => {
+      const out = [];
+      for (let i = 0; i < poly.length; i++) {
+        const a = poly[i], b = poly[(i + 1) % poly.length], fa = f(a), fb = f(b);
+        if (fa >= 0) out.push(a);
+        if ((fa >= 0) !== (fb >= 0)) {
+          const t = fa / (fa - fb), v = new Float32Array(width);
+          for (let k = 0; k < width; k++) v[k] = a[k] + (b[k] - a[k]) * t;
+          out.push(v);
+        }
+      }
+      return out;
+    };
+    const west = (v) => R.x0 - v[0], east = (v) => v[0] - R.x1;
+    const inX = (p) => clip(clip(p, (v) => v[0] - R.x0), (v) => R.x1 - v[0]);
+    const kept = [];
+    let cut = false;
+    for (let t = 0; t < src.attributes.position.count; t += 3) {
+      const tri = [vert(t), vert(t + 1), vert(t + 2)];
+      const xs = tri.map((v) => v[0]), zs = tri.map((v) => v[2]);
+      if (!tri.every((v) => Math.abs(v[1]) < 0.06) || Math.max(...xs) <= R.x0 || Math.min(...xs) >= R.x1 || Math.max(...zs) <= R.z0 || Math.min(...zs) >= R.z1) { kept.push(tri); continue; }
+      cut = true;
+      for (const p of [clip(tri, west), clip(tri, east), clip(inX(tri), (v) => R.z0 - v[2]), clip(inX(tri), (v) => v[2] - R.z1)]) {
+        for (let i = 1; i + 1 < p.length; i++) kept.push([p[0], p[i], p[i + 1]]);
+      }
+    }
+    if (!cut) { src.dispose(); continue; }
+    const g = new THREE.BufferGeometry();
+    let off = 0;
+    names.forEach((k, ai) => {
+      const size = sizes[ai], arr = new Float32Array(kept.length * 3 * size);
+      let w = 0;
+      for (const tri of kept) for (const v of tri) for (let c = 0; c < size; c++) arr[w++] = v[off + c];
+      g.setAttribute(k, new THREE.Float32BufferAttribute(arr, size));
+      off += size;
+    });
+    g.applyMatrix4(o.matrixWorld.clone().invert());
+    g.computeBoundingSphere();
+    o.geometry.dispose();
+    o.geometry = g;
+    src.dispose();
+  }
+}
+
+/* Grinjuku's own street dressing where the club's walls now are: the
+   shop signs, awnings and lightboxes on the facades that became the hall's
+   walls, and the blade sign on Mid Bottom's wall where the club's trollface
+   goes. Every triangle wholly inside a box goes; Studio's new pieces (their
+   key ends "|n") stay. */
+const CLEAR = [
+  [-31.75, -14.4, 0.05, 7.45, 3.9, 5.6],     // the hall's north wall, inside
+  [-31.75, -30.7, 0.05, 7.45, 4, 23.8],      // its west wall, behind the DJ
+  [-31.75, -14.4, 0.05, 7.45, 23, 24.1],     // its south wall
+  [-14.7, -13.6, 0.05, 3.6, 4, 23.8],        // the bar's wall under the mezzanine, its parapet's signs
+  [-6.2, -4.4, 0.05, 8.8, 13.6, 14.4],       // the blade sign on Mid Bottom's wall
+];
+function clearForClub(scene) {
+  scene.traverse((o) => {
+    if (!o.isMesh) return;
+    let q = o;
+    while (q && !q.userData.tc) q = q.parent;
+    if (/\|n$/.test(q?.userData.tc || o.name)) return;
+    const g = o.geometry, P = g.attributes.position;
+    const I = g.index ?? { count: P.count, getX: (i) => i };
+    o.updateMatrixWorld(true);
+    const v = new THREE.Vector3(), keep = [];
+    const inBox = (i) => {
+      v.fromBufferAttribute(P, i).applyMatrix4(o.matrixWorld);
+      return CLEAR.findIndex(([x0, x1, y0, y1, z0, z1]) => v.x >= x0 && v.x <= x1 && v.y >= y0 && v.y <= y1 && v.z >= z0 && v.z <= z1);
+    };
+    let dropped = 0;
+    for (let t = 0; t < I.count; t += 3) {
+      const a = inBox(I.getX(t));
+      if (a >= 0 && a === inBox(I.getX(t + 1)) && a === inBox(I.getX(t + 2))) { dropped++; continue; }
+      keep.push(I.getX(t), I.getX(t + 1), I.getX(t + 2));
+    }
+    if (dropped) g.setIndex(keep);
+  });
+}
+
+function buildClub(api) {
+  const S = newState();
+  const root = new THREE.Group();
+  api.prop(root);
+  root.castShadow = false;
+  const K = new Kit(api, root);
+  const N = new Neon(root);
+  const HN = new Neon(root);        // the hall's ceiling neon: mirrored in the dance floor
+  const M = clubMaterials();
+  const lights = [];
+
+  clubInterior(K);
+  danceFloor(K, M, N, PLAN, { edgeY: 0.01 });
+  djStage(K, M, N, HN, S, PLAN, { stage: false, wall: { w: 10, h: 5.5 }, arches: { a: 6.8, h: 7.0, n: 5, step: 0.35, drop: 0.24 } });
+  hallCeiling(K, M, N, HN, PLAN, PLAN.TOP - 0.3);
+  chandelier(K, M, HN, S, PLAN, { top: 6.9, ball: { y: 5.75, r: 0.5 } });
+  // the bottles on the back bar under the mezzanine (Studio's counter and cabinet)
+  bottleWall(K, M, S, { x: -14.45, back: -14.42, z0: 8.4, z1: 16, y: 0, rows: 2, glow: { h: 1.7, y: 2.05 }, ghostH: 1.75 });
+
+  /* ---- the marquee over the main door, facing up A Main (doc 3.2) */
+  K.box(M.blackGloss, -26, 3.95, 3.45, 5.0, 1.25, 0.5);
+  K.box(M.gold, -26, 3.93, 3.45, 5.06, 0.04, 0.54);
+  sign(S, N, M, "logo", -26, 4.575, 3.18, 0.9, { ry: Math.PI, group: 1, halo: 0xff3fb4, haloK: 0.35, beat: 0.35 });
+  for (let i = 0; i < 24; i++) {
+    N.add(M.neon, new THREE.SphereGeometry(0.035, 6, 4).translate(-28.4 + i * 0.208, 3.95, 3.19), { color: 0xffd080, k: 2.2, chase: 1, phase: i / 24, beat: 0.2 });
+  }
+  const tokyo = jpSign("東京", { color: "#ffffff", size: 96 });
+  N.quad(tokyo.mat, -26, 3.67, 3.66, 0.4 * tokyo.aspect, 0.4, { ry: Math.PI, k: 1.2, beat: 0.1 });
+
+  /* ---- the kanji strip on the front corner: a blade sign reading downward,
+     cyan and steady (the street's neon is calm) */
+  const strip = jpSign("トローリング・ラウド", { vertical: true, color: "#3ff0ff" });
+  const sh = 5.4, sw = sh * strip.aspect;
+  K.box(M.blackMetal, -30.9, 2.42, 3.25, 0.1, sh + 0.16, sw + 0.16);
+  for (const [dx, ry] of [[0.06, Math.PI / 2], [-0.06, -Math.PI / 2]]) N.quad(strip.mat, -30.9 + dx, 2.5 + sh / 2, 3.25, sw, sh, { ry, k: 1.15, beat: 0 });
+
+  /* ---- the east wall on Mid Bottom: six LED windows pulsing on the kick,
+     the big cyan trollface between them */
+  for (const z of [5.6, 8.4, 11.2, 16.8, 19.6, 22.4]) {
+    K.box(M.blackMetal, -5.99, 3.3, z, 0.04, 1.3, 1.7);
+    K.add(M.crystal, place(new THREE.PlaneGeometry(1.6, 1.2), { x: -5.96, y: 3.95, z, ry: Math.PI / 2 }), { shadow: false });
+  }
+  sign(S, N, M, "trollCyan", -5.95, 5.5, 14, 3.3, { ry: Math.PI / 2, group: 2, halo: 0x3ff0ff, haloK: 0.25, beat: 0.4 });
+
+  /* ---- the lights (doc 3.3, placed in Studio): the dance floor's rides
+     round the ball; the club's kick on the beat, the bar and back don't */
+  const AMP = { "#ff2ab4": 0.25, "#3ff0ff": 0.25, "#a060ff": 0.15, "#ff3a8a": 0.2 };
+  for (const [x, y, z, hex, power, range] of L.lights) {
+    const dance = hex === "#ff2ab4";
+    addLight(S, lights, new THREE.Color(hex), power, range, x, y, z, { amp: AMP[hex] ?? 0.04, ...(dance && { hue: 0.92, orbit: 0 }) });
+  }
+
+  K.flush();
+  N.flush();
+  HN.flush();
+  for (const l of lights) root.add(l);
+  finishClub(root, M, HN, S, CLUB);
+
+  /* ---- the video screens: the club's over the Sewers' mouth on A Main,
+     the Alta screen on the east block's corner over the forecourt */
+  api.prop(videoScreen({ w: 12, h: 4, px: [768, 256], x: -23.3, y: 5.3, z: -2, ry: -Math.PI / 2 })).castShadow = false;
+  // (east of the corner's blade signs at x 14, over the shop signs)
+  api.prop(videoScreen({ w: 6.67, h: 4, px: [640, 384], x: 19.3, y: 5.6, z: -32.3, ry: Math.PI, offset: 17.3 })).castShadow = false;
+}
+
+/* The hall's inside (doc 3.4): Trolling Loud's slatted walls with the red
+   wash, laid on the inner face of every wall Studio built (so each doorway
+   stays open), the west edge wall behind the DJ; teal mosaic on the bar's
+   wall under the mezzanine; mirror-black marble round the dance floor;
+   a dark ceiling. */
+function clubInterior(K) {
+  const slats = clubFx(texMat(slatTexture(), { tile: 1.2, rough: 0.6, bounce: 0.1 }), { wash: { color: 0xff2a3a, top: 3.2, strength: 0.65 }, disco: true });
+  const mosaic = clubFx(texMat(mosaicTexture(), { tile: 1.4, rough: 0.3, metal: 0.2, bounce: 0.4 }), { wash: { color: 0x20ffd0, top: 3, strength: 0.25 } });
+  const marble = clubFx(surfMat("marble", 0x17131c, { mix: 0.04, tile: 3, rough: 0.28 }), { disco: true });
+  Object.assign(marble, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+  const ceiling = new THREE.MeshStandardMaterial({ color: 0x0b0a0e, roughness: 0.95 });
+  const panel = (mat, x, z, len, y0, y1, ry) => {
+    if (len < 0.05 || y1 - y0 < 0.05) return;
+    K.add(mat, place(new THREE.PlaneGeometry(len, y1 - y0), { x, y: (y0 + y1) / 2, z, ry }), { shadow: false });
+  };
+  const { x0, x1, z0, z1 } = HALL, top = PLAN.TOP;
+  // the front (z 3.9) and back (z 24) walls: a panel on each Studio piece
+  for (const [x, z, w, d, h, y] of L.colliders) {
+    if (x - w / 2 < x0 - 0.05 || x + w / 2 > x1 + 0.45 || h < 0.5) continue;
+    const ya = Math.max(0, y), yb = Math.min(top, y + h);
+    if (Math.abs(z - 3.9) < 0.05) panel(slats, x, z + d / 2 + 0.01, w, ya, yb, 0);
+    if (Math.abs(z - 24) < 0.05) panel(slats, x, z - d / 2 - 0.01, w, ya, yb, Math.PI);
+  }
+  // the Sewers block's face (Grinjuku's, no collider of Studio's): the front wall east of the doors
+  panel(slats, (-23 + x1) / 2, 4.01, x1 + 23, 0, top, 0);
+  // the west edge wall, behind the DJ and its crystal wall
+  panel(slats, x0 + 0.04, (z0 + z1) / 2, z1 - z0 + 0.6, 0, top, Math.PI / 2);
+  // the bar's wall: the mezzanine's face, either side of the back bar
+  for (const [za, zb] of [[z0 - 0.3, 8.4], [16, z1 + 0.2]]) panel(mosaic, -14.01, (za + zb) / 2, zb - za, 0, PLAN.ROOF - 5, -Math.PI / 2);
+  // the floor round the dance floor, and the ceiling
+  for (const [a0, a1, b0, b1] of cutRects(x0, x1, z0 - 0.3, z1 + 0.2, [[DANCE.x0, DANCE.x1, DANCE.z0, DANCE.z1]])) {
+    K.add(marble, place(new THREE.PlaneGeometry(a1 - a0, b1 - b0), { x: (a0 + a1) / 2, y: 0.004, z: (b0 + b1) / 2, rx: -Math.PI / 2 }), { shadow: false });
+  }
+  K.add(ceiling, place(new THREE.PlaneGeometry(x1 - x0, z1 - z0 + 0.5), { x: (x0 + x1) / 2, y: top - 0.01, z: (z0 + z1) / 2, rx: Math.PI / 2 }), { shadow: false });
+}
 
 /* The Studio town: each mesh gets its GLB's material, light map and texture. */
 function loadTown(api) {
@@ -62,6 +329,8 @@ function loadTown(api) {
         if (bake) applyBakedLightMap(o, bake, BAKED[file]);
       }
       retexture(gltf.scene, RETEXTURE);
+      cutDanceFloor(gltf.scene);
+      clearForClub(gltf.scene);
       api.prop(gltf.scene);
     });
   }, undefined, (e) => console.warn("Kabukigrin: the Studio town didn't load", e));
@@ -72,12 +341,12 @@ function buildKabukigrin(api) {
   api.stairLinks.push(...STAIRS.map((s) => ({ a: { ...s.a }, b: { ...s.b } })));
   for (const r of ROPES) api.rope(r.x, r.z, r.y0, r.y1, { dir: r.dir, ghost: true });
   loadTown(api);
-  // the club's lights (doc 3.3): Grinjuku's own are baked into its models
-  for (const [x, y, z, hex, power, range] of L.lights) {
-    const l = new THREE.PointLight(new THREE.Color(hex), power, range, 1.6);
-    l.position.set(x, y, z);
-    api.prop(l).castShadow = false;
-  }
+  // the game's ground plane (made before build) gets the same hole
+  const probe = api.prop(new THREE.Group()), top = probe.parent;
+  top.remove(probe);
+  const ground = top.children.find((o) => o.isMesh && o.geometry.type === "PlaneGeometry");
+  if (ground) cutDanceFloor(ground);
+  buildClub(api);
   // the far city: drawn by the game, not part of the Studio town
   mapModel(api, "gj-skyline", { x: 0, z: 0, castShadow: false });
 }
@@ -102,5 +371,9 @@ export const KABUKIGRIN = {
   dress: DRESS,
   bombSites: SITES,
   spawns: SPAWNS,
-  debug: () => ({ ropes: ROPES.map((r) => ({ ...r })), sites: SITES.map((s) => ({ ...s })) }),
+  onShot: CLUB.onShot,
+  attachAudio: CLUB.attachAudio,
+  attachMusic: CLUB.attachMusic,
+  onFrame: CLUB.onFrame,
+  debug: () => ({ ...CLUB.debug(), ropes: ROPES.map((r) => ({ ...r })), sites: SITES.map((s) => ({ ...s })) }),
 };

@@ -13,6 +13,8 @@
 //   speaker           [x, y, z] the booth's sound comes from
 //   muffle(p)         [lowpass Hz, gain] for the booth heard from p
 //   onCam(S, pos)     optional, every frame with the camera's position
+//   djFace            "+z" (default) or "+x": the way the DJ looks
+//   orbitY            the height of the lights riding round the ball (6.3)
 //
 // and its materials M (trollingloud.js materials(): neon, neonSign,
 // neonHalo, neonTile, danceGlass, black, blackGloss, gold, steel, cases,
@@ -21,8 +23,11 @@
 // Radio), into trollingloud-kit.js U, which every neon tube and LED reads.
 
 import * as THREE from "three";
-import { place, bottlesTexture } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1";
-import { U, skipOverride, signUV, signAspect } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1";
+import { place, bottlesTexture, glowTexture } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1";
+import {
+  U, skipOverride, signUV, signAspect, neonMat, ledMat,
+  signsTexture, tileGlowTexture, fringeTexture, beamTexture, facetTexture, djTexture,
+} from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1";
 import { BEATS } from "../sound/music-beats.js?v=bg1-sg1-zr10-jb1-nh1-hl1-or1";
 
 /* A build's live state: the lobby's map thumbnails and the preloader also
@@ -36,6 +41,33 @@ export function newState() {
     ballBoost: 0, ballRot: 0, dropUntil: 0, last: 0, cam: new THREE.Vector3(0, -99, 0),
     radioKick: 0, bassAvg: 0, freq: null,
     song: null, level: 1,   // a song with a beat grid driving the clock (onFrame)
+  };
+}
+
+/* The materials the builders draw with, for a map that has no club of its
+   own to take them from (trollingloud.js materials() makes the same). */
+export function clubMaterials() {
+  const std = (color, rough = 0.8, metal = 0, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal, ...extra });
+  const glow = (color, k = 1) => new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(k), toneMapped: false });
+  return {
+    gold: std(0xc8a050, 0.32, 0.35, { emissive: 0x2a1c06 }),
+    blackMetal: std(0x111114, 0.32, 0.6),
+    blackGloss: std(0x08080a, 0.12, 0.3),
+    steel: std(0x6a6c74, 0.38, 0.7),
+    chrome: std(0xb0b4bc, 0.18, 0.85, { emissive: 0x101014 }),
+    cases: std(0x15151a, 0.55, 0.3),
+    danceGlass: new THREE.MeshStandardMaterial({ color: 0x07040c, roughness: 0.06, metalness: 0.3, transparent: true, opacity: 0.8 }),
+    black: new THREE.MeshBasicMaterial({ color: 0x000000 }),
+    backlight: glow(0xffa848, 1.15),
+    dj: new THREE.MeshBasicMaterial({ map: djTexture(), transparent: true, alphaTest: 0.3, side: THREE.DoubleSide, color: 0xd8d0e0 }),
+    neon: neonMat(),
+    neonSign: neonMat({ map: signsTexture(), transparent: true, side: THREE.DoubleSide, key: "sign" }),
+    neonHalo: neonMat({ map: glowTexture(), additive: true, side: THREE.DoubleSide, key: "halo" }),
+    neonTile: neonMat({ map: tileGlowTexture(), additive: true, key: "tile" }),
+    crystal: ledMat("crystal"),
+    fringe: new THREE.MeshBasicMaterial({ map: fringeTexture(), color: new THREE.Color(0x9a88ff).multiplyScalar(1.25), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false }),
+    ball: new THREE.MeshStandardMaterial({ map: facetTexture(), roughness: 0.2, metalness: 0.75, emissive: 0x8a8aa8, emissiveMap: facetTexture() }),
+    beam: new THREE.MeshBasicMaterial({ map: beamTexture(), vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false }),
   };
 }
 
@@ -131,8 +163,9 @@ function rayToHall(P, a) {
 
 /* ============================================================== builders */
 
-/* The dance floor: black glass over a mirror pit, LED tiles. */
-export function danceFloor(K, M, N, P) {
+/* The dance floor: black glass over a mirror pit, LED tiles. `edgeY`: the
+   lit edge's height, on the step down (0.18) or flush with the floor. */
+export function danceFloor(K, M, N, P, { edgeY = 0.18 } = {}) {
   const { HALL, DANCE, DC } = P;
   K.add(M.danceGlass, place(new THREE.PlaneGeometry(DANCE.x1 - DANCE.x0, DANCE.z1 - DANCE.z0), { x: DC.x, y: 0.0, z: DC.z, rx: -Math.PI / 2 }), { shadow: false });
   // the pit under it: black all round, deep enough to hold the reflection
@@ -150,51 +183,85 @@ export function danceFloor(K, M, N, P) {
   }
   // a lit edge where the dance floor steps down
   for (const [x, z, w, d] of [[DC.x, DANCE.z0 - 0.01, nx, 0.02], [DC.x, DANCE.z1 + 0.01, nx, 0.02], [DANCE.x0 - 0.01, DC.z, 0.02, nz], [DANCE.x1 + 0.01, DC.z, 0.02, nz]]) {
-    N.bar(M.neon, x, 0.18, z, w, 0.03, d, {}, { color: 0x3ff0ff, k: 2.2, chase: 1, chaseLen: 4, beat: 0.4 });
+    N.bar(M.neon, x, edgeY, z, w, 0.03, d, {}, { color: 0x3ff0ff, k: 2.2, chase: 1, chaseLen: 4, beat: 0.4 });
   }
 }
 
 /* The DJ: stage, the crystal LED wall, the nested light arches framing it
-   (`arches` {a, h}: the outer arch's half-width and top), the booth and
-   the troll DJ bobbing on the beat, the big trollface over the wall. */
-export function djStage(K, M, N, HN, S, P, { arches = { a: 9.4, h: 8.15 }, wall = { w: 14, h: 6.2 } } = {}) {
+   (`arches` {a, h, n, step, drop}: the outer arch's half-width and top, how
+   many, and how much each next one is narrower and lower), the booth and
+   the troll DJ bobbing on the beat, the big trollface over the wall.
+   `P.djFace` is the way the DJ looks across the floor: "+z" (default) or
+   "+x". `stage: false` when the map already has the stage's block. */
+export function djStage(K, M, N, HN, S, P, { arches = {}, wall = { w: 14, h: 6.2 }, stage = true } = {}) {
   const { FL, STAGE, djWall, deck } = P;
-  K.solid((STAGE.x0 + STAGE.x1) / 2, (STAGE.z0 + STAGE.z1) / 2, STAGE.x1 - STAGE.x0, STAGE.z1 - STAGE.z0, STAGE.top - FL, { y: FL, mat: M.blackGloss });
-  N.bar(M.neon, (STAGE.x0 + STAGE.x1) / 2, STAGE.top - 0.06, STAGE.z1 + 0.005, STAGE.x1 - STAGE.x0, 0.03, 0.01, {}, { color: 0xff3fb4, k: 2.2, chase: 0.8, beat: 0.5 });
+  const { a: A0 = 9.4, h: H0 = 8.15, n: AN = 6, step = 0.45, drop = 0.26 } = arches;
+  // u runs along the wall, n out of it toward the floor: X(u, n) is the
+  // world [x, z] (a size's [along, out] too)
+  const side = P.djFace === "+x";
+  const X = side ? (u, n) => [n, u] : (u, n) => [u, n];
+  const ry = side ? Math.PI / 2 : 0;
+  const du = side ? deck.z : deck.x, dn = side ? deck.x : deck.z;
+  const [s0, s1, front] = side ? [STAGE.z0, STAGE.z1, STAGE.x1] : [STAGE.x0, STAGE.x1, STAGE.z1];
+  if (stage) K.solid((STAGE.x0 + STAGE.x1) / 2, (STAGE.z0 + STAGE.z1) / 2, STAGE.x1 - STAGE.x0, STAGE.z1 - STAGE.z0, STAGE.top - FL, { y: FL, mat: M.blackGloss });
+  {
+    const [x, z] = X((s0 + s1) / 2, front + 0.005), [w, d] = X(s1 - s0, 0.01);
+    N.bar(M.neon, x, STAGE.top - 0.06, z, w, 0.03, d, {}, { color: 0xff3fb4, k: 2.2, chase: 0.8, beat: 0.5 });
+  }
   // the crystal LED wall (image 5)
-  K.add(M.crystal, place(new THREE.PlaneGeometry(wall.w, wall.h), { x: deck.x, y: STAGE.top + wall.h / 2, z: djWall + 0.02 }), { shadow: false });
+  {
+    const [x, z] = X(du, djWall + 0.02);
+    K.add(M.crystal, place(new THREE.PlaneGeometry(wall.w, wall.h), { x, y: STAGE.top + wall.h / 2, z, ry }), { shadow: false });
+  }
   // nested light arches framing it, red and gold LED points (image 5)
-  for (let i = 0; i < 6; i++) {
-    const a = arches.a - i * 0.45, h = arches.h - i * 0.26, z = djWall - 0.15 + 0.4 + i * 0.38, y0 = STAGE.top;
+  for (let i = 0; i < AN; i++) {
+    const a = A0 - i * step, h = H0 - i * drop, n = djWall - 0.15 + 0.4 + i * 0.38, y0 = STAGE.top;
     const pts = [];
     for (let k = 0; k <= 20; k++) {
       const t = Math.PI * (k / 20);
-      pts.push([deck.x - Math.cos(t) * a, y0 + Math.sin(t) * (h - y0), z]);
+      const [x, z] = X(du - Math.cos(t) * a, n);
+      pts.push([x, y0 + Math.sin(t) * (h - y0), z]);
     }
     HN.tube(M.neon, pts, { r: 0.045, color: i % 2 ? 0xff3a3a : 0xffb84a, k: 2.0, chase: 0.65, chaseLen: 2.5, phase0: i * 0.3, beat: 0.35 });
   }
   // the booth
-  const dx = deck.x, dz = deck.z;
-  K.solid(dx, dz, 5.2, 0.9, 1.1, { y: STAGE.top, pen: 3, mat: M.blackGloss });
-  K.box(M.gold, dx, STAGE.top + 1.1, dz, 5.3, 0.04, 1.0);
-  for (const x of [-1.5, 1.5]) {
-    K.cyl(M.steel, dx + x, STAGE.top + 1.14, dz - 0.05, 0.33, 0.33, 0.04, 20);
-    K.cyl(M.blackGloss, dx + x, STAGE.top + 1.18, dz - 0.05, 0.3, 0.3, 0.015, 20);
+  const at = (u, n) => X(du + u, dn + n);
+  const box = (m, u, y, n, w, h, d) => { const [x, z] = at(u, n), [ww, dd] = X(w, d); K.box(m, x, y, z, ww, h, dd); };
+  {
+    const [x, z] = at(0, 0), [w, d] = X(5.2, 0.9);
+    K.solid(x, z, w, d, 1.1, { y: STAGE.top, pen: 3, mat: M.blackGloss });
   }
-  K.box(M.cases, dx, STAGE.top + 1.14, dz - 0.1, 0.8, 0.08, 0.5);
-  N.bar(M.neon, dx, STAGE.top + 0.15, dz + 0.46, 5.0, 0.05, 0.01, {}, { color: 0x3ff0ff, k: 2.4, chase: 0.9, beat: 0.6 });
-  sign(S, N, M, "dj", dx, STAGE.top + 0.62, dz + 0.465, 0.62, { group: 13 });
+  box(M.gold, 0, STAGE.top + 1.1, 0, 5.3, 0.04, 1.0);
+  for (const u of [-1.5, 1.5]) {
+    const [x, z] = at(u, -0.05);
+    K.cyl(M.steel, x, STAGE.top + 1.14, z, 0.33, 0.33, 0.04, 20);
+    K.cyl(M.blackGloss, x, STAGE.top + 1.18, z, 0.3, 0.3, 0.015, 20);
+  }
+  box(M.cases, 0, STAGE.top + 1.14, -0.1, 0.8, 0.08, 0.5);
+  {
+    const [x, z] = at(0, 0.46), [w, d] = X(5.0, 0.01);
+    N.bar(M.neon, x, STAGE.top + 0.15, z, w, 0.05, d, {}, { color: 0x3ff0ff, k: 2.4, chase: 0.9, beat: 0.6 });
+  }
+  {
+    const [x, z] = at(0, 0.465);
+    sign(S, N, M, "dj", x, STAGE.top + 0.62, z, 0.62, { group: 13, ry });
+  }
   // the troll DJ, bobbing on the beat
   {
     const g = new THREE.PlaneGeometry(1.4, 1.75);
     const dj = new THREE.Mesh(g, M.dj);
-    dj.position.set(dx, STAGE.top + 1.4, dz - 0.7);
+    const [x, z] = at(0, -0.7);
+    dj.position.set(x, STAGE.top + 1.4, z);
+    if (side) dj.rotation.y = ry;
     S.dj = dj;
     S.djY = dj.position.y;
     K.root.add(dj);
   }
   // the big trollface over the crystal wall
-  sign(S, N, M, "trollCyan", dx, STAGE.top + 4.2, djWall + 0.06, 3.3, { group: 4, halo: 0x3ff0ff, haloK: 0.25, beat: 0.4 });
+  {
+    const [x, z] = X(du, djWall + 0.06);
+    sign(S, N, M, "trollCyan", x, STAGE.top + 4.2, z, 3.3, { group: 4, halo: 0x3ff0ff, haloK: 0.25, beat: 0.4, ry });
+  }
 }
 
 /* The hall's ceiling at `y`: a neon starburst round the skylight (image
@@ -258,12 +325,13 @@ export function chandelier(K, M, HN, S, P, { top = 7.9, ball: { y: BY = 6.75, r:
 
 /* The back bar's bottles: lit from behind (`back`, the wall's face), three
    shelves at `x` along z0..z1 from the floor `y`, every 0.8 m of shelf a
-   segment a bullet empties. Faces -x (the bar on the east wall). */
-export function bottleWall(K, M, S, { x, back, z0, z1, y }) {
-  K.add(M.backlight, place(new THREE.PlaneGeometry(z1 - z0, 2.6), { x: back, y: y + 2.5, z: (z0 + z1) / 2, ry: -Math.PI / 2 }), { shadow: false });
+   segment a bullet empties. Faces -x (the bar on the east wall). Under a
+   low ceiling: fewer `rows`, a shorter `glow` {h, y} and ghost wall `ghostH`. */
+export function bottleWall(K, M, S, { x, back, z0, z1, y, rows = 3, glow = { h: 2.6, y: 2.5 }, ghostH = 2.8 }) {
+  K.add(M.backlight, place(new THREE.PlaneGeometry(z1 - z0, glow.h), { x: back, y: y + glow.y, z: (z0 + z1) / 2, ry: -Math.PI / 2 }), { shadow: false });
   const segs = [];
   let seg = 0;
-  for (let row = 0; row < 3; row++) {
+  for (let row = 0; row < rows; row++) {
     const yy = y + 1.25 + row * 0.85;
     K.box(M.blackGloss, x + 0.1, yy - 0.03, (z0 + z1) / 2, 0.5, 0.03, z1 - z0);
     for (let z = z0; z < z1 - 0.01; z += 0.8) {
@@ -283,8 +351,8 @@ export function bottleWall(K, M, S, { x, back, z0, z1, y }) {
   bm.castShadow = false;
   K.root.add(bm);
   // a ghost wall in front of the bottles so a shot stops on the shelf
-  K.api.ghostBox(x + 0.1, (z0 + z1) / 2, 0.08, z1 - z0, 2.8, { y: y + 1.0, pen: 0.4 });
-  S.shelf = { x0: x - 0.25, x1: x + 0.5, y0: y + 1.1, y1: y + 3.9, z0, z1 };
+  K.api.ghostBox(x + 0.1, (z0 + z1) / 2, 0.08, z1 - z0, ghostH, { y: y + 1.0, pen: 0.4 });
+  S.shelf = { x0: x - 0.25, x1: x + 0.5, y0: y + 1.1, y1: y + 1.1 + ghostH, z0, z1 };
 }
 
 /* After the flush: the reflection (the ceiling neon HN, the crystal wall,
@@ -410,7 +478,7 @@ export function clubEngine(P) {
       L.l.intensity = L.base * (0.6 + 0.4 * S.level) * (1 + L.amp * (kick - 0.35));
       if (L.orbit !== null) {
         const a = L.orbit - S.ballRot;
-        L.l.position.set(U.uBall.value.x + Math.cos(a) * 1.3, 6.3, U.uBall.value.z + Math.sin(a) * 1.3);
+        L.l.position.set(U.uBall.value.x + Math.cos(a) * 1.3, P.orbitY ?? 6.3, U.uBall.value.z + Math.sin(a) * 1.3);
       }
       if (L.hue !== null) L.l.color.copy(_c.setHSL((L.hue + bp / 64) % 1, 1, 0.6));
     }
@@ -465,7 +533,8 @@ export function clubEngine(P) {
     }
     // the DJ's decks: a scratch, the track drops out for a bar
     const top = P.STAGE.top;
-    if (Math.abs(p.x - P.deck.x) < 2.7 && Math.abs(p.z - P.deck.z) < 0.55 && p.y > top + 0.9 && p.y < top + 1.4) {
+    const [au, an] = P.djFace === "+x" ? [p.z - P.deck.z, p.x - P.deck.x] : [p.x - P.deck.x, p.z - P.deck.z];
+    if (Math.abs(au) < 2.7 && Math.abs(an) < 0.55 && p.y > top + 0.9 && p.y < top + 1.4) {
       if (S.dropUntil < now) {
         S.dropUntil = now + 4 / BPS;
         sfx("scratch", p);
