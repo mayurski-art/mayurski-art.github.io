@@ -469,6 +469,7 @@ Map rules:
 
 ## 5. Shipped log (newest first; one line each, details in git)
 - **2026-10-22** (-rz1) Phone rotation: the match view resizes once the size settles (view/resize.js, out of game.js), not on each of iOS's resize events mid-turn; 3 render-target reallocations -> 1 per rotation (user: iPhone "kicked out" after the rotate card, likely iOS killing the tab on the memory spike; not checked on a real iPhone). Test: headless iPhone portrait -> TDM -> landscape.
+- **2026-10-22** (-tcp1) Troll City: the north telegraph line (6 poles on the saloon kerb, their wires, the crossroads and out-of-town runs) set aside in Studio (ServerStorage.TC_SetAside.NorthPoles) and re-exported; the south line stays.
 - **2026-10-22** (-tm7) Trolling Loud back on ACES (tone: "aces") with its old exposure and grade, undoing -tm4.
 - **2026-10-22** (-tm6) Hollowgrin back on ACES (tone: "aces") with its old grade, undoing -tm3: the user preferred the ACES night.
 - **2026-10-22** (-tm5) A map can keep ACES: `tone: "aces"` (GradePass.setLook sets grade, exposure and tone mapping; out of game.js).
