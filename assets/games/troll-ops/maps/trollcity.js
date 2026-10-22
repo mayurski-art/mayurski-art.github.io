@@ -2361,9 +2361,14 @@ export const TROLLCITY = {
   // The bots keep to the town (maps.js arena.botEdge): its streets and back
   // lots, the corral, the town hall, the chapel and Boot Hill, the spawns
   // past the square. The desert out to the train loop is yours alone; spread
-  // over all of it the bots hardly met.
-  botEdge: [[-64, -55], [72, -55], [72, -24], [112, -24], [112, 24], [72, 24], [72, 52], [108, 52], [108, 94],
-    [78, 94], [78, 76], [-62, 76], [-62, 60], [-100, 60], [-100, 34], [-64, 34]],
+  // over all of it the bots hardly met. It hugs the town hall's back, Boot
+  // Hill and the east lots past the railway: the sand strips past them held
+  // nothing to fight over.
+  botEdge: [[-64, -55], [62, -55], [62, -24], [106, -24], [106, 24], [72, 24], [72, 52], [108, 52], [108, 72], [104, 72], [104, 91],
+    [78, 91], [78, 76], [-62, 76], [-62, 60], [-100, 60], [-100, 34], [-64, 34]],
+  // ten bots over a town this big rarely met: they head for posts less and
+  // hunt more (maps.js arena.botPostOdds)
+  botPostOdds: 0.75,
   playerSpawn: { x: -20, z: 0 },
   // Mid-afternoon on the plains: a high warm sun, a pale dusty sky going
   // gold at the horizon, scattered fair-weather cloud.
