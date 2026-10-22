@@ -31,11 +31,11 @@ import { loadBake } from "./battlefield-props.js?v=sr1-or1";
 import { applyBakedLightMap, retexture } from "./surface-textures.js?v=hg6e-sr1-or1";
 import { Kit, place, surfMat, texMat } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1";
 import { U, Neon, neonMat, clubFx, cutRects, slatTexture, mosaicTexture } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1";
-import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4-kb6";
+import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4-kb6-kb11";
 import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5";
 import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8";
 import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9";
-import { buildStreet } from "./kabukigrin-street.js?v=kb10";
+import { buildStreet, streetSound } from "./kabukigrin-street.js?v=kb10-kb11";
 
 const URL_GLB = new URL("../models/", import.meta.url).href;
 const loader = new GLTFLoader();
@@ -449,7 +449,8 @@ export const KABUKIGRIN = {
   onShot: (p) => { if (!roomsShot(p)) CLUB.onShot(p); },
   attachAudio: CLUB.attachAudio,
   attachMusic: CLUB.attachMusic,
-  onFrame: CLUB.onFrame,
+  // the club's clock and lights, then the pachinko parlour's din
+  onFrame: (f) => { CLUB.onFrame(f); streetSound(CLUB.sfx, f?.live); },
   /* Socialize (doc 4.1): DJ Lulz at the booth, requests from the floor in
      front of the stage; the door, the crowd and the seats */
   dj: { name: "DJ Lulz", spot: { x: -27.3, z: 15, y: 0, reach: 3.4 }, club: { ...HALL, top: PLAN.TOP }, input: CLUB.songInput },

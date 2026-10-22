@@ -700,6 +700,16 @@ export function clubEngine(P) {
       noiseHit(ctx, t, out, { type: "highpass", freq: 3200, dur: 0.35, peak: 0.45 });
       for (let i = 0; i < 4; i++) tone(ctx, t + i * 0.03, out, { f0: 2400 + Math.random() * 2600, dur: 0.25, peak: 0.06 });
     }
+    // Kabukigrin's pachinko parlour (kabukigrin-street.js): a handful of
+    // steel balls rattling down the pins, and a machine's jingle
+    if (kind === "balls") {
+      noiseHit(ctx, t, out, { type: "bandpass", freq: 5200 + Math.random() * 2500, q: 2.5, dur: 0.06, peak: 0.07 });
+      for (let i = 0; i < 3; i++) tone(ctx, t + Math.random() * 0.12, out, { f0: 3800 + Math.random() * 2400, dur: 0.07, peak: 0.025 });
+    }
+    if (kind === "jingle") {
+      const root = [523, 587, 659, 698][Math.floor(Math.random() * 4)];
+      [1, 1.25, 1.5, 2, 1.5, 2].forEach((m, i) => tone(ctx, t + i * 0.09, out, { type: "square", f0: root * m, dur: 0.11, peak: 0.03 }));
+    }
     if (kind === "scratch") {
       tone(ctx, t, out, { type: "sawtooth", f0: 300, f1: 900, dur: 0.12, peak: 0.18, slide: 0.1 });
       tone(ctx, t + 0.12, out, { type: "sawtooth", f0: 900, f1: 200, dur: 0.18, peak: 0.18, slide: 0.16 });

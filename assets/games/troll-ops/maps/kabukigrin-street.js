@@ -4,11 +4,13 @@
 //   the pachinko parlour on A Main's west wall, across the line from the
 //   club: the machine floor through its glass (rows of cabinets, their
 //   screens and lamps flickering, the balls falling), the steady red and
-//   white sign on its box, the white spill on the pavement.
+//   white sign on its box, the white spill on the pavement; its sound
+//   (streetSound), the balls' rattle and the machines' jingles out of the
+//   glass, fighting the club's bass across the line.
 
 import * as THREE from "three";
 import { place } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1";
-import { neonMat } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1";
+import { U, neonMat } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1";
 
 const canvas = (w, h) => {
   const c = document.createElement("canvas");
@@ -226,4 +228,24 @@ export function buildStreet({ root, N, M }) {
   // the white spill on the wet pavement, and a strip of it up the glass
   N.quad(M.neonHalo, -30.4, 0.02, (P.z0 + P.z1) / 2, 2.8, P.z1 - P.z0 + 1, { rx: -Math.PI / 2, color: 0xfff2ea, k: 0.16, beat: 0 });
   N.quad(M.neonHalo, -30.6, 0.025, P.door, 2.2, 3.6, { rx: -Math.PI / 2, color: 0xffe8f0, k: 0.12, beat: 0 });
+}
+
+/* ------------------------------------------------------------ sound */
+
+// The parlour's din, each frame of a live map: rattles from along the
+// glass (more the nearer you are), a jingle every few seconds; each one
+// a panned one-shot from the club's own sfx, so it sits in the street
+const HEAR = 24;
+let nextBalls = 0, nextJingle = 0;
+export function streetSound(sfx, live) {
+  if (!live || !sfx) return;
+  const P = PACHINKO, cam = U.uPlayer.value;
+  const z = Math.min(P.z1, Math.max(P.z0, cam.z)), d = Math.hypot(cam.x - P.x, cam.z - z);
+  const now = performance.now() / 1000;
+  if (d > HEAR) { nextBalls = nextJingle = now; return; }
+  const at = () => ({ x: P.x + 0.3, y: 1.1 + Math.random() * 0.8, z: P.z0 + Math.random() * (P.z1 - P.z0) });
+  // (a few at most after a stall, never a burst)
+  if (nextBalls < now - 0.5) nextBalls = now;
+  while (nextBalls < now) { sfx("balls", at()); nextBalls += 0.06 + Math.random() * 0.14; }
+  if (nextJingle < now) { sfx("jingle", at()); nextJingle = now + 3 + Math.random() * 5; }
 }
