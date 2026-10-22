@@ -135,6 +135,7 @@ import { atPiano, bar, barSipK, docSpots, holdSeat, npcYieldKey, onBarMessage, p
 import { SWIVEL_TAP, localBlockT, localHeld, localLower, localReloadK, noteLocalDeath, noteRigShot, placeDeathCamera, swivel, swivelK, swivelTaps, syncLocalRigHeld, trySwivel, updateEmoteCamera, updateLocalRig, updateSwivel, updateThirdPersonCamera } from "./view/third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mg1-kb12";
 import { endCandleCharge, hudCache, regenPlayer, updatePlayer, initPlayerUpdate } from "./view/player-update.js?v=pu1-si1-mb1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-zj1-rs1-ob1-kc1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-bc1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-bz1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mg1-kb12";
 import { _armDir, _armFrom, _armTo, _meleeViewE, _meleeViewQ, applyMeleeInspect, applyReaperInspect, inspectArms, inspectDur, inspectPose, inspectProgress, landDipMag, landDipT, meleeHands, pfArms, placeRodWatch, poseMeleeArms, poseSaberArms, restoreMeleeHands, startInspect, stretchBetween, updateWeaponView, initWeaponView } from "./view/weapon-view.js?v=wv1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-kb9-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1";
+import { initSunShadow, fitSunShadow, updateSunShadow } from "./view/sun-shadow.js?v=ss1";
 import { makeSsao } from "./view/ssao.js?v=ao1-zr10-ao2";
 import { CharInkPass } from "./view/char-ink.js?v=ci1-ci2-ci3-ci4-ci5-rb4-rb5-mg1";
 import { fpEmoteArmsOn, poseFreeArms, socialArms, updateFpEmoteView } from "./view/fp-emote.js?v=fe1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mg1-kb12";
@@ -1428,8 +1429,6 @@ renderLobbyRoster();
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.5;
@@ -1497,18 +1496,7 @@ const hemi = new THREE.HemisphereLight(0xb9d4ff, 0x39432c, 1.1);
 scene.add(hemi);
 const ambient = new THREE.AmbientLight(0xffffff, 0.55);
 scene.add(ambient);
-const sun = new THREE.DirectionalLight(0xfff2d8, 2.2);
-sun.position.set(30, 45, -20);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.left = -40;
-sun.shadow.camera.right = 40;
-sun.shadow.camera.top = 40;
-sun.shadow.camera.bottom = -40;
-sun.shadow.camera.far = 120;
-sun.shadow.bias = -0.0015;
-scene.add(sun);
-scene.add(sun.target);
+const sun = initSunShadow(renderer, scene);
 
 // -------------------- map --------------------
 
@@ -1551,17 +1539,7 @@ function applyEnvironment(map) {
   camera.updateProjectionMatrix();
   sky.scale.setScalar((camera.far * 0.9) / 250);
 
-  sun.color.set(map.sun.color);
-  sun.intensity = map.sun.intensity;
-  sun.position.set(...map.sun.pos);
-
-  // Keep the shadow frustum tight around whatever this map actually spans.
-  const span = Math.max(map.bounds.maxX - map.bounds.minX, map.bounds.maxZ - map.bounds.minZ) * 0.62;
-  sun.shadow.camera.left = -span;
-  sun.shadow.camera.right = span;
-  sun.shadow.camera.top = span;
-  sun.shadow.camera.bottom = -span;
-  sun.shadow.camera.updateProjectionMatrix();
+  fitSunShadow(map);
 
   hemi.color.set(map.hemi.sky);
   hemi.groundColor.set(map.hemi.ground);
@@ -2583,6 +2561,7 @@ function animate() {
   }
 
   sky.position.copy(camera.position);
+  updateSunShadow(camera.position);
   // The BO2 menu's planet (menu-bo2.js) covers the whole lobby: skip
   // drawing the arena nobody can see behind it.
   // Nor anything under the loading screen until the match is set up there.
