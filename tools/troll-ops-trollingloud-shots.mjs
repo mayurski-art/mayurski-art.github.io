@@ -102,6 +102,21 @@ if (process.env.TIER) await page.evaluate((tier) => {
   }
 }, process.env.TIER);
 
+// SHOOT="x,y,z;x,y,z": a round into each point (the map's onShot), then the
+// shot-out sign groups and the rooms' state; the shots below show them out
+if (process.env.SHOOT) {
+  const pts = process.env.SHOOT.split(";").map((p) => p.split(",").map(Number));
+  const res = await page.evaluate(async (pts) => {
+    const m = window.__trollOps.builtMap().map;
+    for (const [x, y, z] of pts) m.onShot({ x, y, z });
+    // (the shot-out state reaches the shader on the club's next tick)
+    for (let i = 0; i < 3; i++) await new Promise((r) => requestAnimationFrame(r));
+    const d = m.debug?.() || {};
+    return { out: (d.kill || []).map((k, g) => (k ? g : 0)).filter(Boolean), rooms: d.rooms || null };
+  }, pts);
+  console.log(`shot ${pts.length}: sign groups out ${JSON.stringify(res.out)}${res.rooms ? `, rooms ${JSON.stringify(res.rooms)}` : ""}`);
+}
+
 for (const id of ids) {
   const data = await page.evaluate(async (v) => {
     const T = window.__trollOps, R = T.renderer, C = T.composer, cam = T.camera;
