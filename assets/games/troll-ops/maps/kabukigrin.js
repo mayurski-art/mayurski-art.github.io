@@ -66,16 +66,44 @@ const PLAN = {
 };
 const CLUB = clubEngine(PLAN);
 
-/* The booth heard from p (doc 3.2): full in the hall, softer on the
-   mezzanine, muffled in the back of house, through the walls on A Main,
-   in the Sewers and Mid Bottom, nothing on B side. */
+/* The booth heard from p (doc 3.2), [lowpass Hz, gain]: full in the hall,
+   a little softer on the open mezzanine, through a wall in the office, the
+   tatami room and the back of house, further off in the yard, through the
+   front wall on A Main, faint in the Sewers and Mid Bottom, nothing on B
+   side (the yokocho included). Near an open doorway into the hall the hall
+   leaks out: the closer, the brighter, so walking in through the main door
+   or the back doors opens the sound up gradually, not at a line. */
+const ZONES = [
+  // [x0, x1, z0, z1, y0, y1, Hz, gain]
+  [HALL.x0, HALL.x1, 4.1, 24, -1, PLAN.TOP, 16000, 1],   // (to the walls' middles: no gap in a doorway)
+  [-14.4, -6, 4, 19, 2.5, PLAN.TOP, 9000, 0.95],       // the mezzanine, open over the hall
+  [-14.4, -6, 19, 24, 2.5, PLAN.TOP, 2200, 0.8],       // the manager's office, the mirror between
+  [-10, -6, 8, 11.6, -1, 2.5, 1800, 0.7],              // the riser off Mid Bottom
+  [-31.7, -24.15, 24.2, 29.85, -1, 6, 1600, 0.8],      // the tatami room
+  [-32, -6, 24, 34, -1, 6, 1300, 0.8],                 // the kitchen, green room and office stair
+  [-32, -6, 34, 42, -1, 9, 520, 0.6],                  // the loading yard
+  [-32, -14.4, -32, 4.4, -1, 9, 380, 0.85],            // A Main, the front wall between
+  [-14.4, 7, -42, 42, -1, 9, 300, 0.55],               // the Sewers, Mid Bottom, the mid
+];
+// the doorways: [x, y, z, what leaks through: Hz, gain]; the hall's, and the yard's from the back of house
+const DOORS = [
+  [-27.6, 1.5, 3.9, 16000, 0.95], [-27, 1.4, 24, 16000, 0.95], [-16, 1.4, 24, 16000, 0.95], [-12, 4.3, 24, 16000, 0.95], [-12, 4.3, 19, 16000, 0.95],
+  [-27.5, 1.5, 34, 1300, 0.8], [-15.5, 1.5, 34, 1300, 0.8],
+];
 function muffle(p) {
-  const inR = (x0, x1, z0, z1) => p.x > x0 && p.x < x1 && p.z > z0 && p.z < z1;
-  if (p.y < PLAN.TOP && inR(HALL.x0, HALL.x1, HALL.z0, HALL.z1)) return [16000, 1];
-  if (p.y < PLAN.TOP && inR(-14.4, -6, 4, 24)) return [5000, 0.9];
-  if (inR(-32, -6, 24, 34)) return [1400, 0.85];
-  if (p.x < 7) return [360, 0.9];
-  return [200, 0];
+  const z = ZONES.find(([x0, x1, z0, z1, y0, y1]) => p.x >= x0 && p.x <= x1 && p.z >= z0 && p.z <= z1 && p.y >= y0 && p.y < y1);
+  if (!z) return [200, 0];   // B side: the club is a block away
+  let [hz, k] = z.slice(6);
+  if (hz >= 16000) return [hz, k];
+  // the louder room through each doorway, falling off over a few metres
+  let out = hz;
+  for (const [x, y, dz, dHz, dK] of DOORS) {
+    if (dHz <= hz) continue;
+    const leak = 1 / (1 + (Math.hypot(p.x - x, (p.y - y) * 1.5, p.z - dz) / 3.6) ** 2);
+    out = Math.max(out, Math.exp(Math.log(hz) + (Math.log(dHz) - Math.log(hz)) * leak));
+    k = Math.max(k, dK * leak);
+  }
+  return [Math.round(out), k];
 }
 
 /* A neon sign from a canvas of Japanese text, one character per row when
@@ -239,6 +267,17 @@ function buildClub(api) {
   }
   const tokyo = jpSign("東京", { color: "#ffffff", size: 96 });
   N.quad(tokyo.mat, -26, 3.67, 3.66, 0.4 * tokyo.aspect, 0.4, { ry: Math.PI, k: 1.2, beat: 0.1 });
+
+  /* ---- the light leak (doc 3.2): the floor's pink and the DJ wall's cyan
+     out of each doorway, on the beat: a pool on A Main's wet street in front
+     of the main door and a haze in the doorway, pools through the back doors
+     on the tatami and the green room's floor */
+  const pool = (x, y, z, w, d, color, k, beat) => N.quad(M.neonHalo, x, y, z, w, d, { rx: -Math.PI / 2, color, k, beat });
+  pool(-27.6, 0.025, 1.6, 6.2, 5.2, 0xff2ab4, 0.34, 0.85);
+  pool(-27.2, 0.03, 2.6, 3.4, 2.6, 0x3ff0ff, 0.16, 0.6);
+  N.quad(M.neonHalo, -27.6, 1.7, 3.86, 4.6, 3.6, { ry: Math.PI, color: 0xff3fb4, k: 0.12, beat: 0.6 });
+  pool(-27, 0.32, 25.3, 2.8, 2.2, 0xff2ab4, 0.18, 0.7);
+  pool(-16, 0.025, 25.3, 2.8, 2.2, 0xff2ab4, 0.2, 0.7);
 
   /* ---- the kanji strip on the front corner: a blade sign reading downward,
      cyan and steady (the street's neon is calm) */
