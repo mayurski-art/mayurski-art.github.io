@@ -60,6 +60,20 @@ const res = await page.evaluate(async (tag) => {
       built.map.onShot({ x: -13.88, y: 4.6, z: 21.2 });
       rooms = built.map.debug().rooms;
     }
+    // the booth heard along the seam (phase 4): A Main, in the main door,
+    // across the hall, out the west back door, through the tatami room to the yard
+    let seam = null;
+    const mAt = built.map.debug?.().muffleAt;
+    if (rooms && mAt) {
+      const W = [[-27.4, 1, -20], [-27.6, 1.5, 0], [-27.6, 1.5, 6], [-22, 1.5, 15], [-27, 1.5, 21], [-27, 1.5, 27], [-27, 1.5, 32], [-27.5, 1.5, 38]];
+      seam = [];
+      for (let i = 0; i + 1 < W.length; i++) {
+        const [a, b] = [W[i], W[i + 1]], n = Math.ceil(Math.hypot(b[0] - a[0], b[2] - a[2]) / 0.5);
+        for (let k = 0; k < n; k++) { const t = k / n; seam.push([a[2] + (b[2] - a[2]) * t, mAt(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t)]); }
+      }
+      seam.ends = { aMainFar: mAt(-27.4, 1, -25), hall: mAt(-22, 1.5, 15), vip: mAt(-29.5, 1.5, 28.5), yard: mAt(-27.5, 1.5, 39), bSide: built.map.debug().muffleAt(20, 1, 15) };
+      seam = { pts: seam, ends: seam.ends };
+    }
     const box = (c) => [...c.min.toArray(), ...c.max.toArray(), c.pen ?? null].map((v) => (typeof v === "number" ? r4(v) : v)).join(",");
     return {
       colliders: colliders.filter((c) => !c.live).map(box).sort(),
@@ -68,7 +82,7 @@ const res = await page.evaluate(async (tag) => {
       spawns: built.map.spawns.map((s) => s.map(r4).join(",")),
       sites: (built.map.bombSites || []).map((s) => `${s.id}:${r4(s.x)},${r4(s.z)}`),
       playerSpawn: [r4(built.map.playerSpawn.x), r4(built.map.playerSpawn.z)].join(","),
-      tris, meshes, lit, textured, glow, rooms,
+      tris, meshes, lit, textured, glow, rooms, seam,
     };
   };
   return { gj: await one("grinjuku"), kb: await one("kabukigrin_wip") };
@@ -96,6 +110,16 @@ if (kb.rooms) {
   console.log(`${R.koi.cracked ? "ok  " : "FAIL"} the koi tank cracks where it's shot (${R.koi.cracked} star)`);
   console.log(`${R.mirror.broken ? "ok  " : "FAIL"} the office's mirror shatters`);
   if (!R.koi.cracked || !R.mirror.broken) fails++;
+}
+if (kb.seam) {
+  const { pts, ends } = kb.seam;
+  // half a metre never changes the sound by more than half an octave of cutoff
+  let worst = 1, at = null;
+  for (let i = 1; i < pts.length; i++) { const r = Math.max(pts[i][1], pts[i - 1][1]) / Math.min(pts[i][1], pts[i - 1][1]); if (r > worst) { worst = r; at = pts[i][0]; } }
+  const ok = (c, what) => { console.log(`${c ? "ok  " : "FAIL"} ${what}`); if (!c) fails++; };
+  ok(worst < 1.42, `walking the seam the booth opens up gradually (worst step x${worst.toFixed(2)} at z ${at})`);
+  ok(ends.hall >= 16000 && ends.aMainFar < 600 && ends.vip < 4000 && ends.yard < 1500 && ends.bSide <= 200,
+    `full in the hall, muffled outside: ${JSON.stringify(ends)}`);
 }
 // standing at all: something to stand on and somewhere to spawn, whatever the phase
 if (REPORT) {
