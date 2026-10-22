@@ -18,7 +18,7 @@ const OUT = path.join(ROOT, process.env.OUT || ".claude/club-shots");
 fs.mkdirSync(OUT, { recursive: true });
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css",
   ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp",
-  ".glb": "model/gltf-binary", ".mp3": "audio/mpeg", ".svg": "image/svg+xml", ".gif": "image/gif" };
+  ".glb": "model/gltf-binary", ".mp3": "audio/mpeg", ".svg": "image/svg+xml", ".gif": "image/gif", ".mp4": "video/mp4" };
 const server = http.createServer((req, res) => {
   const p = path.join(ROOT, decodeURIComponent(new URL(req.url, "http://x").pathname));
   if (!p.startsWith(ROOT) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) { res.writeHead(404); return res.end(); }
@@ -59,6 +59,8 @@ const KB_VIEWS = {
   midbottom: [3.5, 1.8, 20, -6, 4.6, 12, 74],
   midwall:   [3, 3.2, 14, -6, 5, 14, 82],
   corner:    [-24, 2, 13, -30.5, 4.5, 4.1, 80],
+  poleScreen: [-19.5, 1.8, 15, -18.7, 4.3, 4.06, 62],
+  swishScreen: [-21, 1.8, 13, -21.5, 4.3, 23.76, 62],
 };
 const MAP = process.env.MAP || "trollingloud";
 if (/^kabukigrin/.test(MAP)) { for (const k of Object.keys(VIEWS)) delete VIEWS[k]; Object.assign(VIEWS, KB_VIEWS); }
