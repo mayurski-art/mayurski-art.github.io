@@ -52,6 +52,14 @@ const res = await page.evaluate(async (tag) => {
       if (m.map) textured += (g.index ? g.index.count : g.attributes.position.count) / 3;
       if (m.emissive && m.emissive.getHex() !== 0) glow += (g.index ? g.index.count : g.attributes.position.count) / 3;
     });
+    // the borrowed rooms' shootables (phase 3b): a round into the koi tank's
+    // glass and one into the office's mirror from the hall
+    let rooms = null;
+    if (built.map.debug?.().rooms) {
+      built.map.onShot({ x: -31.25, y: 1.6, z: 27.4 });
+      built.map.onShot({ x: -13.88, y: 4.6, z: 21.2 });
+      rooms = built.map.debug().rooms;
+    }
     const box = (c) => [...c.min.toArray(), ...c.max.toArray(), c.pen ?? null].map((v) => (typeof v === "number" ? r4(v) : v)).join(",");
     return {
       colliders: colliders.filter((c) => !c.live).map(box).sort(),
@@ -60,7 +68,7 @@ const res = await page.evaluate(async (tag) => {
       spawns: built.map.spawns.map((s) => s.map(r4).join(",")),
       sites: (built.map.bombSites || []).map((s) => `${s.id}:${r4(s.x)},${r4(s.z)}`),
       playerSpawn: [r4(built.map.playerSpawn.x), r4(built.map.playerSpawn.z)].join(","),
-      tris, meshes, lit, textured, glow,
+      tris, meshes, lit, textured, glow, rooms,
     };
   };
   return { gj: await one("grinjuku"), kb: await one("kabukigrin_wip") };
@@ -83,6 +91,12 @@ const near = (a, b, tol) => Math.abs(a - b) <= Math.max(1, b * tol);
 check(near(kb.tris, gj.tris, 0.002), "town triangles", `${kb.tris} vs ${gj.tris}`);
 for (const k of ["lit", "textured", "glow"]) check(near(kb[k], gj[k], 0.002), `${k} triangles`, `${kb[k]} vs ${gj[k]}`);
 console.log(`meshes drawn: ${kb.meshes} (Grinjuku ${gj.meshes})`);
+if (kb.rooms) {
+  const R = kb.rooms;
+  console.log(`${R.koi.cracked ? "ok  " : "FAIL"} the koi tank cracks where it's shot (${R.koi.cracked} star)`);
+  console.log(`${R.mirror.broken ? "ok  " : "FAIL"} the office's mirror shatters`);
+  if (!R.koi.cracked || !R.mirror.broken) fails++;
+}
 // standing at all: something to stand on and somewhere to spawn, whatever the phase
 if (REPORT) {
   if (!kb.colliders.length || kb.spawns.length < 2 || !kb.tris) { console.log("FAIL the map doesn't stand: no colliders, spawns or town"); fails++; }

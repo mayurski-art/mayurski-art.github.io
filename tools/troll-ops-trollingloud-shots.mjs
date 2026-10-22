@@ -61,6 +61,13 @@ const KB_VIEWS = {
   corner:    [-24, 2, 13, -30.5, 4.5, 4.1, 80],
   poleScreen: [-19.5, 1.8, 15, -18.7, 4.3, 4.06, 62],
   swishScreen: [-21, 1.8, 13, -21.5, 4.3, 23.76, 62],
+  // the borrowed rooms (phase 3b)
+  vip:       [-24.8, 1.9, 26.2, -31.5, 1.4, 27.4, 78],
+  vipHall:   [-26.5, 1.7, 19, -29, 1.9, 24.2, 70],
+  office:    [-10.6, 4.7, 23.2, -14, 4.3, 20.6, 76],
+  mirror:    [-22, 2.4, 17.5, -13.9, 4.6, 21.6, 60],
+  yokocho:   [7.5, 1.6, -3, 23, 1.3, -3, 74],
+  yokoBar:   [12.6, 1.6, -2.4, 9, 1.3, -3.9, 72],
 };
 const MAP = process.env.MAP || "trollingloud";
 if (/^kabukigrin/.test(MAP)) { for (const k of Object.keys(VIEWS)) delete VIEWS[k]; Object.assign(VIEWS, KB_VIEWS); }
