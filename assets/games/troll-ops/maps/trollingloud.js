@@ -23,7 +23,7 @@
 //
 // One clock runs the club: 128 BPM, every neon tube, the dance floor, the
 // LED walls, the lasers and the fourteen real lights kick on its beat
-// (trollingloud-kit.js U). The club's own track plays from the DJ booth,
+// (club-live.js, into trollingloud-kit.js U). The club's own track plays from the DJ booth,
 // muffled through the walls; start Troll Radio and the lights follow your
 // song instead, on its real beat grid (music-beats.js). In Socialize DJ Lulz
 // spins the radio's tracks for the whole room and takes requests at the
@@ -37,15 +37,15 @@
 // here at load; nothing adds one at runtime (light-pool.js).
 
 import * as THREE from "three";
-import { rng, Kit, place, surfMat, texMat, tex, canvasTex, glowTexture, bottlesTexture, boardsTexture } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1";
+import { rng, Kit, place, surfMat, texMat, tex, canvasTex, glowTexture, boardsTexture } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1";
 import {
-  T, U, neonMat, Neon, skipOverride, ledMat, clubFx, wall, lining, cutRects, deck, glassRail,
-  signsTexture, signUV, signAspect, quiltTexture, crocTexture, mosaicTexture, slatTexture, tileGlowTexture,
+  T, U, neonMat, Neon, ledMat, clubFx, wall, lining, cutRects, deck, glassRail,
+  signsTexture, signAspect, quiltTexture, crocTexture, mosaicTexture, slatTexture, tileGlowTexture,
   fringeTexture, beamTexture, facetTexture, windowsTexture, speakerTexture, djTexture, flagTexture, busTexture,
 } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1";
-import { BEATS } from "../sound/music-beats.js?v=bg1-sg1-zr10-jb1-nh1-hl1-or1";
 import { pickOutfit } from "../characters/outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1-or1";
 import { buildKitchen, kitchenMaterials, hopBackLight, PASS_HATCH } from "./trollingloud-kitchen.js?v=kt1-bw2-tcs1";
+import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine } from "./club-live.js?v=cl1";
 
 /* ============================================================== the plan */
 
@@ -77,33 +77,21 @@ const FIRE_N = { xFoot: -7, z: -23.1, w: 1.6, steps: 15, rise: 0.3, run: 0.3 }; 
 const SERV_HOLE = [27.75, 29.85, SERV.zFoot - SERV.steps * SERV.run, SERV.zFoot + 0.4];
 const ROOF_HOLE = [-29.85, -27.75, ROOFST.zFoot - ROOFST.steps * ROOFST.run, ROOFST.zFoot + 0.4];
 
-const BPM = 128, BPS = BPM / 60;
+const BPM = 128;
 
 export const TL_FLOORS = { ground: 0, upper: UP, roof: ROOF };
 export function tlFloorOf(y) { return y < 2.4 ? "ground" : y < 6.8 ? "upper" : "roof"; }
 
 const ZSPAWNS = [];
 
-/* ======================================================= live state
-
-   Module state for the build being SHOWN: the lobby's map thumbnails and
-   the preloader also run build(), so each build keeps its own state and
-   the ticker (it only runs while its mesh is drawn) makes it the active
-   one. onShot, onFrame and the sound all act on ACTIVE. */
-let ACTIVE = null;
-let AUDIO = null;
-let MUSIC = null;
-
-function newState() {
-  return {
-    lights: [], signs: [], bottles: null, ball: null, ballMirror: null, lasers: null, dj: null,
-    kill: new Float32Array(16), flick: new Float32Array(16),
-    gone: { value: new Float32Array(64) }, goneUntil: new Float32Array(64), bottleSegs: [],
-    ballBoost: 0, ballRot: 0, dropUntil: 0, last: 0, cam: new THREE.Vector3(0, -99, 0),
-    radioKick: 0, bassAvg: 0, freq: null,
-    song: null, level: 1,   // a song with a beat grid driving the clock (onFrame)
-  };
-}
+/* The club's live layer (club-live.js): where it stands here, and its
+   clock, shots and sound, acting on the build being shown. */
+const PLAN = {
+  FL, TOP, ROOF, HALL, DANCE, DC, STAGE, BPM,
+  djWall: HALL.z0 + T / 2, deck: { x: 0, z: -14.25 }, speaker: [0, 2.2, -14.5],
+  muffle: (p) => muffle(p), onCam: hopBackLight,
+};
+const CLUB = clubEngine(PLAN);
 
 /* ============================================================ materials */
 
@@ -197,23 +185,6 @@ function materials() {
   M.windows.userData.tile = 18;
   M.windowsNear.userData.tile = 14;
   return M;
-}
-
-/* The bottles behind the bar: alpha-cut rows, lit from behind, split
-   into shelf segments a bullet can empty one at a time (uGone). */
-function bottleMat(gone) {
-  const m = new THREE.MeshStandardMaterial({ map: bottlesTexture(), alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.2, metalness: 0.1, emissive: 0xffffff, emissiveIntensity: 0.55, emissiveMap: bottlesTexture() });
-  m.onBeforeCompile = (sh) => {
-    sh.uniforms.uGone = gone;
-    sh.vertexShader = sh.vertexShader
-      .replace("#include <common>", "#include <common>\nattribute float aSeg;\nvarying float vSeg;")
-      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvSeg = aSeg;");
-    sh.fragmentShader = sh.fragmentShader
-      .replace("#include <common>", "#include <common>\nvarying float vSeg;\nuniform float uGone[64];")
-      .replace("#include <clipping_planes_fragment>", "#include <clipping_planes_fragment>\nif (uGone[int(vSeg + 0.5)] > 0.5) discard;");
-  };
-  m.customProgramCacheKey = () => "tl-bottles";
-  return m;
 }
 
 /* ================================================================ helpers */
@@ -342,16 +313,6 @@ function speakers(K, M, x, z, { y = FL, n = 2, face = 1, w = 1.1, d = 0.9 } = {}
 function batten(K, M, x, y, z, len = 1.4, alongX = true) {
   K.box(M.steel, x, y - 0.06, z, alongX ? len : 0.14, 0.06, alongX ? 0.14 : len, {}, { shadow: false });
   K.box(M.fluor, x, y - 0.1, z, alongX ? len - 0.06 : 0.08, 0.04, alongX ? 0.08 : len - 0.06, {}, { shadow: false });
-}
-
-/* A neon sign from the atlas, `h` tall, facing `ry` (0 = +z). `group`
-   makes it shootable (it shorts out for a few seconds). */
-function sign(S, N, M, name, x, y, z, h, { ry = 0, group = 0, beat = 0.18, chase = 0, halo = null, haloK = 0.3 } = {}) {
-  const w = h * signAspect(name);
-  const nx = Math.sin(ry), nz = Math.cos(ry);
-  N.quad(M.neonSign, x, y, z, w, h, { ry, uv: signUV(name), group, beat, chase, k: 1.15 });
-  if (halo) N.quad(M.neonHalo, x - nx * 0.02, y, z - nz * 0.02, w * 1.25, h * 1.7, { ry, color: halo, k: haloK, group, beat: 0.35 });
-  if (group) S.signs.push({ group, x, y, z, w, h, ry });
 }
 
 /* ================================================================ the shell */
@@ -578,59 +539,9 @@ function steelStair(K, M, x, zFoot, st, y0, dir) {
 /* =================================================================== the hall */
 
 function hall(K, M, N, HN, S, lights) {
-  /* ---- the dance floor: black glass over a mirror pit, LED tiles */
-  K.add(M.danceGlass, place(new THREE.PlaneGeometry(DANCE.x1 - DANCE.x0, DANCE.z1 - DANCE.z0), { x: DC.x, y: 0.0, z: DC.z, rx: -Math.PI / 2 }), { shadow: false });
-  // the pit under it: black all round, deep enough to hold the reflection
-  const PIT = 12;
-  K.box(M.black, 0, -PIT - 0.1, (HALL.z0 + HALL.z1) / 2, HALL.x1 - HALL.x0 + 2, 0.1, HALL.z1 - HALL.z0 + 2, {}, { shadow: false });
-  for (const [x, z, w, d] of [[HALL.x0 - 1, 0, 0.1, 40], [HALL.x1 + 1, 0, 0.1, 40], [0, HALL.z0 - 1, 32, 0.1], [0, HALL.z1 + 1, 32, 0.1]]) {
-    K.box(M.black, x, -PIT, z === 0 ? (HALL.z0 + HALL.z1) / 2 : z, w, PIT - 0.02, d, {}, { shadow: false });
-  }
-  for (let i = 0; i < 14; i++) for (let j = 0; j < 14; j++) {
-    const x = DANCE.x0 + 0.5 + i, z = DANCE.z0 + 0.5 + j;
-    const pal = [0xff2ab4, 0x3ff0ff, 0x8a4aff, 0xff2ab4];
-    const r = Math.hypot(x - DC.x, z - DC.z);
-    N.quad(M.neonTile, x, 0.012, z, 0.96, 0.96, { rx: -Math.PI / 2, color: pal[(i + j) % 4], k: 0.42, chase: 0.75, phase: -r * 0.18, beat: 0.6, rip: 1 });
-  }
-  // a lit edge where the dance floor steps down
-  for (const [x, z, w, d] of [[DC.x, DANCE.z0 - 0.01, 14, 0.02], [DC.x, DANCE.z1 + 0.01, 14, 0.02], [DANCE.x0 - 0.01, DC.z, 0.02, 14], [DANCE.x1 + 0.01, DC.z, 0.02, 14]]) {
-    N.bar(M.neon, x, 0.18, z, w, 0.03, d, {}, { color: 0x3ff0ff, k: 2.2, chase: 1, chaseLen: 4, beat: 0.4 });
-  }
-
-  /* ---- the DJ: stage, booth, crystal wall, arches */
-  K.solid((STAGE.x0 + STAGE.x1) / 2, (STAGE.z0 + STAGE.z1) / 2, STAGE.x1 - STAGE.x0, STAGE.z1 - STAGE.z0, STAGE.top - FL, { y: FL, mat: M.blackGloss });
-  N.bar(M.neon, 0, STAGE.top - 0.06, STAGE.z1 + 0.005, STAGE.x1 - STAGE.x0, 0.03, 0.01, {}, { color: 0xff3fb4, k: 2.2, chase: 0.8, beat: 0.5 });
-  // the crystal LED wall (image 5)
-  K.add(M.crystal, place(new THREE.PlaneGeometry(14, 6.2), { x: 0, y: STAGE.top + 3.1, z: HALL.z0 + T / 2 + 0.02 }), { shadow: false });
-  // nested light arches framing it, red and gold LED points (image 5)
-  for (let i = 0; i < 6; i++) {
-    const a = 9.4 - i * 0.45, h = 8.15 - i * 0.26, z = HALL.z0 + 0.4 + i * 0.38, y0 = STAGE.top;
-    const pts = [];
-    for (let k = 0; k <= 20; k++) {
-      const t = Math.PI * (k / 20);
-      pts.push([-Math.cos(t) * a, y0 + Math.sin(t) * (h - y0), z]);
-    }
-    HN.tube(M.neon, pts, { r: 0.045, color: i % 2 ? 0xff3a3a : 0xffb84a, k: 2.0, chase: 0.65, chaseLen: 2.5, phase0: i * 0.3, beat: 0.35 });
-  }
-  // the booth
-  K.solid(0, -14.25, 5.2, 0.9, 1.1, { y: STAGE.top, pen: 3, mat: M.blackGloss });
-  K.box(M.gold, 0, STAGE.top + 1.1, -14.25, 5.3, 0.04, 1.0);
-  for (const x of [-1.5, 1.5]) {
-    K.cyl(M.steel, x, STAGE.top + 1.14, -14.3, 0.33, 0.33, 0.04, 20);
-    K.cyl(M.blackGloss, x, STAGE.top + 1.18, -14.3, 0.3, 0.3, 0.015, 20);
-  }
-  K.box(M.cases, 0, STAGE.top + 1.14, -14.35, 0.8, 0.08, 0.5);
-  N.bar(M.neon, 0, STAGE.top + 0.15, -13.79, 5.0, 0.05, 0.01, {}, { color: 0x3ff0ff, k: 2.4, chase: 0.9, beat: 0.6 });
-  sign(S, N, M, "dj", 0, STAGE.top + 0.62, -13.785, 0.62, { group: 13 });
-  // the troll DJ, bobbing on the beat
-  {
-    const g = new THREE.PlaneGeometry(1.4, 1.75);
-    const dj = new THREE.Mesh(g, M.dj);
-    dj.position.set(0, STAGE.top + 1.4, -14.95);
-    S.dj = dj;
-    S.djY = dj.position.y;
-    K.root.add(dj);
-  }
+  /* ---- the dance floor, the DJ: stage, booth, crystal wall, arches (club-live.js) */
+  danceFloor(K, M, N, PLAN);
+  djStage(K, M, N, HN, S, PLAN);
   // speaker stacks and line arrays
   for (const s of [-1, 1]) {
     speakers(K, M, s * 7.0, -15.6, { n: 2, face: 1 });
@@ -639,63 +550,11 @@ function hall(K, M, N, HN, S, lights) {
     }
     K.box(M.blackMetal, s * 7.0, 7.62, -15.2, 0.05, TOP - 7.62, 0.05);
   }
-  // the big trollface over the crystal wall
-  sign(S, N, M, "trollCyan", 0, STAGE.top + 4.2, HALL.z0 + T / 2 + 0.06, 3.3, { group: 4, halo: 0x3ff0ff, haloK: 0.25, beat: 0.4 });
 
-  /* ---- the ceiling: neon starburst round the skylight (image 1), a ring
-     of moving heads (image 5) */
-  const y = TOP - 0.3;
-  HN.tube(M.neon, ringPts(5.4, y, 48), { closed: true, r: 0.05, color: 0xff3fb4, k: 2.6, chase: 0.8, chaseLen: 4, beat: 0.4 });
-  const petals = 16;
-  for (let i = 0; i < petals; i++) {
-    const a = (i / petals) * Math.PI * 2;
-    const rOut = rayToHall(a) - 0.6;
-    const tw = 0.26, d = 0.16;
-    const P = (r, ang, yy = y) => [DC.x + Math.cos(ang) * r, yy, DC.z + Math.sin(ang) * r];
-    const mid = 5.6 + (rOut - 5.6) * 0.55;
-    const pts = [P(5.6, a - d), P(mid, a - d * 1.8 + tw), P(rOut, a + tw * 0.9, y - 0.25), P(mid, a + d * 1.8 + tw), P(5.6, a + d)];
-    HN.tube(M.neon, pts, { r: 0.035, color: i % 2 ? 0x9fd8ff : 0xb07aff, k: 2.4, chase: 0.9, chaseLen: 5, phase0: i * 0.13, beat: 0.3 });
-  }
-  K.add(M.blackMetal, place(new THREE.TorusGeometry(7.4, 0.12, 6, 48), { x: DC.x, y: y - 0.4, z: DC.z, rx: Math.PI / 2 }), { shadow: false });
-  for (let i = 0; i < 16; i++) {
-    const a = (i / 16) * Math.PI * 2;
-    const hx = DC.x + Math.cos(a) * 7.4, hz = DC.z + Math.sin(a) * 7.4;
-    K.box(M.blackMetal, hx, y - 0.95, hz, 0.28, 0.42, 0.28, { ry: -a });
-    N.add(M.neon, place(new THREE.CircleGeometry(0.1, 10), { x: hx, y: y - 0.96, z: hz, rx: Math.PI / 2 }), { color: i % 3 ? 0xffffff : 0xffd080, k: 2.4, beat: 0.7, chase: 0.5, phase: i / 16 });
-  }
-
-  /* ---- the fringe chandelier and the mirror ball (image 2) */
-  const top = 7.9;
-  K.add(M.gold, place(new THREE.TorusGeometry(3.4, 0.07, 6, 48), { x: DC.x, y: top, z: DC.z, rx: Math.PI / 2 }), { shadow: false });
-  for (const [r, h] of [[3.4, 1.9], [2.9, 1.55], [2.4, 1.2]]) {
-    const g = new THREE.CylinderGeometry(r, r, h, 48, 1, true);
-    const uv = g.attributes.uv;
-    for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * Math.round((2 * Math.PI * r) / 1.5));
-    const m = new THREE.Mesh(place(g, { x: DC.x, y: top - h / 2, z: DC.z }), M.fringe);
-    m.renderOrder = 2;
-    skipOverride(m);
-    K.root.add(m);
-    S.fringe = (S.fringe || []).concat(m);
-  }
-  for (let i = 0; i < 48; i++) {
-    const a = (i / 48) * Math.PI * 2;
-    HN.add(M.neon, place(new THREE.SphereGeometry(0.06, 6, 4), { x: DC.x + Math.cos(a) * 3.5, y: top + 0.05, z: DC.z + Math.sin(a) * 3.5 }), { color: 0xff3020, k: 2.6, chase: 0.8, phase: i / 12, beat: 0.5 });
-  }
-  for (let i = 0; i < 4; i++) {
-    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
-    K.box(M.blackMetal, DC.x + Math.cos(a) * 3.4, top, DC.z + Math.sin(a) * 3.4, 0.03, ROOF - 0.1 - top, 0.03, {}, { shadow: false });
-  }
-  // the ball: a collider so it can be shot (its rod holds it up)
-  const BY = 6.75, BR = 0.55;
-  K.api.ghostBox(DC.x, DC.z, BR * 2, BR * 2, BR * 2, { y: BY - BR, pen: 0.5 });
-  K.api.ghostBox(DC.x, DC.z, 0.06, 0.06, ROOF - 0.1 - (BY - BR), { y: BY - BR, pen: 0.2 });
-  K.box(M.chrome, DC.x, BY + BR - 0.05, DC.z, 0.03, ROOF - 0.1 - (BY + BR - 0.05), 0.03, {}, { shadow: false });
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(BR, 24, 16), M.ball);
-  ball.position.set(DC.x, BY, DC.z);
-  K.root.add(ball);
-  S.ball = ball;
-  U.uBall.value.set(DC.x, BY, DC.z);
-  S.ballBox = { x: DC.x, y: BY, z: DC.z, r: BR + 0.2 };
+  /* ---- the ceiling: neon starburst, moving heads; the fringe chandelier and
+     the mirror ball (club-live.js) */
+  hallCeiling(K, M, N, HN, PLAN, TOP - 0.3);
+  chandelier(K, M, HN, S, PLAN);
 
   /* ---- booths under and on the mezzanine, cocktail tables */
   for (const s of [-1, 1]) {
@@ -727,32 +586,6 @@ function hall(K, M, N, HN, S, lights) {
   addLight(S, lights, 0xffd8f0, 16, 12, 0, 3.4, -12.6, { amp: 0.2 });
   addLight(S, lights, 0x9a60ff, 14, 16, -11.7, 7.6, -2, { amp: 0.15 });
   addLight(S, lights, 0x9a60ff, 14, 16, 11.7, 7.6, -2, { amp: 0.15 });
-}
-
-function ringPts(r, y, n) {
-  const out = [];
-  for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2;
-    out.push([DC.x + Math.cos(a) * r, y, DC.z + Math.sin(a) * r]);
-  }
-  return out;
-}
-
-/* How far a ray from the dance floor's centre at angle `a` runs before it
-   meets the hall's walls. */
-function rayToHall(a) {
-  const c = Math.cos(a), s = Math.sin(a);
-  const tx = c > 0 ? (HALL.x1 - 0.5 - DC.x) / c : c < 0 ? (HALL.x0 + 0.5 - DC.x) / c : Infinity;
-  const tz = s > 0 ? (HALL.z1 - 0.5 - DC.z) / s : s < 0 ? (HALL.z0 + 0.5 - DC.z) / s : Infinity;
-  return Math.min(tx, tz);
-}
-
-function addLight(S, lights, color, power, range, x, y, z, { hue = null, amp = 0.2, orbit = null } = {}) {
-  const l = new THREE.PointLight(color, power, range, 1.6);
-  l.position.set(x, y, z);
-  l.castShadow = false;
-  lights.push(l);
-  S.lights.push({ l, base: power, hue, amp, orbit });
 }
 
 /* ==================================================== the rooms off the hall */
@@ -794,31 +627,7 @@ function bar(K, M, N, S, lights) {
   for (let z = z0 + 0.5; z < z1; z += 0.95) stool(K, M, cx - 1.05, z);
   // the back bar: a cabinet, three rows of bottles lit from behind
   K.solid(29.5, (z0 + z1) / 2, 0.6, z1 - z0, 1.0, { y: FL, pen: 3, mat: M.barWood });
-  K.add(M.backlight, place(new THREE.PlaneGeometry(z1 - z0, 2.6), { x: B.x1 - T / 2 - 0.03, y: FL + 2.5, z: (z0 + z1) / 2, ry: -Math.PI / 2 }), { shadow: false });
-  const segs = [];
-  let seg = 0;
-  for (let row = 0; row < 3; row++) {
-    const yy = FL + 1.25 + row * 0.85;
-    K.box(M.blackGloss, 29.55, yy - 0.03, (z0 + z1) / 2, 0.5, 0.03, z1 - z0);
-    for (let z = z0; z < z1 - 0.01; z += 0.8) {
-      const g = new THREE.PlaneGeometry(0.8, 0.62);
-      const uv = g.attributes.uv;
-      const u0 = ((seg * 0.37) % 1) * 0.6;
-      for (let i = 0; i < uv.count; i++) uv.setX(i, u0 + uv.getX(i) * 0.4);
-      place(g, { x: 29.45, y: yy + 0.31, z: z + 0.4, ry: -Math.PI / 2 });
-      const n = g.attributes.position.count;
-      g.setAttribute("aSeg", new THREE.Float32BufferAttribute(new Float32Array(n).fill(seg), 1));
-      segs.push(g);
-      S.bottleSegs.push({ seg, x: 29.45, y: yy + 0.31, z: z + 0.4 });
-      seg++;
-    }
-  }
-  const bm = new THREE.Mesh(mergeAll(segs), bottleMat(S.gone));
-  bm.castShadow = false;
-  K.root.add(bm);
-  // a ghost wall in front of the bottles so a shot stops on the shelf
-  K.api.ghostBox(29.55, (z0 + z1) / 2, 0.08, z1 - z0, 2.8, { y: FL + 1.0, pen: 0.4 });
-  S.shelf = { x0: 29.2, x1: 29.95, y0: FL + 1.1, y1: FL + 3.9, z0, z1 };
+  bottleWall(K, M, S, { x: 29.45, back: B.x1 - T / 2 - 0.03, z0, z1, y: FL });
   // pendants over the counter
   for (let z = z0 + 1; z < z1; z += 2.5) {
     K.box(M.blackMetal, cx, 3.6, z, 0.01, TOP - 3.6, 0.01, {}, { shadow: false });
@@ -852,25 +661,6 @@ function bar(K, M, N, S, lights) {
   sign(S, N, M, "umad", B.x1 - T / 2 - 0.06, 5.7, 2, 1.6, { ry: -Math.PI / 2, group: 5, halo: 0xffa020 });
   sign(S, N, M, "bar", 22, 6.0, -9 + T / 2 + 0.04, 1.2, { group: 8, halo: 0xffa020 });
   addLight(S, lights, 0xffa848, 30, 24, 22, 4.6, 2, { amp: 0.12 });
-}
-
-function mergeAll(list) {
-  const geos = list.map((g) => (g.index ? g.toNonIndexed() : g));
-  const total = geos.reduce((n, g) => n + g.attributes.position.count, 0);
-  const out = new THREE.BufferGeometry();
-  for (const name of ["position", "normal", "uv", "aSeg"]) {
-    const size = geos[0].attributes[name].itemSize;
-    const arr = new Float32Array(total * size);
-    let o = 0;
-    for (const g of geos) {
-      arr.set(g.attributes[name].array, o);
-      o += g.attributes[name].array.length;
-    }
-    out.setAttribute(name, new THREE.Float32BufferAttribute(arr, size));
-  }
-  for (const g of list.concat(geos)) g.dispose();
-  out.computeBoundingSphere();
-  return out;
 }
 
 function lobby(K, M, N, S, lights) {
@@ -1405,56 +1195,8 @@ function buildTrollingLoud(api) {
   HN.flush();
   for (const l of lights) root.add(l);
 
-  /* ---- the reflection: the ceiling neon, the crystal wall, the ball,
-     mirrored under the glass floor */
-  const mirror = new THREE.Group();
-  mirror.scale.y = -1;
-  for (const m of HN.meshes) mirror.add(new THREE.Mesh(m.geometry, m.material));
-  for (const m of root.children) {
-    if (m.isMesh && (m.material === M.crystal || m.material === M.fringe)) mirror.add(new THREE.Mesh(m.geometry, m.material));
-  }
-  S.ballMirror = new THREE.Mesh(S.ball.geometry, M.ball);
-  S.ballMirror.position.copy(S.ball.position);
-  mirror.add(S.ballMirror);
-  root.add(mirror);
-
-  /* ---- the lasers, bursting out of the mirror ball and turning with it */
-  {
-    const geos = [];
-    const cols = [0x3aff7a, 0x3ff0ff, 0x3aff7a, 0xff3fb4];
-    const BALL_Y = S.ball.position.y, N_BEAMS = 14;
-    for (let i = 0; i < N_BEAMS; i++) {
-      const yaw = (i / N_BEAMS) * Math.PI * 2, pitch = -(0.16 + (i % 4) * 0.12);
-      const len = Math.min(24, (BALL_Y - 0.1) / Math.sin(-pitch));
-      for (const rx of [0, Math.PI / 2]) {
-        const g = new THREE.PlaneGeometry(len, 0.07);
-        g.translate(len / 2, 0, 0);
-        g.rotateX(rx);
-        g.rotateZ(pitch);
-        g.rotateY(-Math.PI / 2 - yaw);
-        const n = g.attributes.position.count, c = new THREE.Color(cols[i % cols.length]).multiplyScalar(1.4);
-        const arr = new Float32Array(n * 3);
-        for (let k = 0; k < n; k++) { arr[k * 3] = c.r; arr[k * 3 + 1] = c.g; arr[k * 3 + 2] = c.b; }
-        g.setAttribute("color", new THREE.Float32BufferAttribute(arr, 3));
-        geos.push(g.toNonIndexed());
-      }
-    }
-    const lasers = new THREE.Mesh(mergeLasers(geos), M.beam);
-    lasers.position.copy(S.ball.position);
-    lasers.renderOrder = 3;
-    lasers.frustumCulled = false;
-    skipOverride(lasers);
-    root.add(lasers);
-    S.lasers = lasers;
-  }
-
-  /* ---- the club clock: one invisible mesh whose draw hook runs it */
-  const tg = new THREE.BufferGeometry();
-  tg.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(9), 3));
-  const ticker = new THREE.Mesh(tg, M.black);
-  ticker.frustumCulled = false;
-  ticker.onBeforeRender = (r, sc, cam) => tick(S, cam);
-  root.add(ticker);
+  /* ---- the reflection, the lasers, the clock (club-live.js) */
+  finishClub(root, M, HN, S, CLUB);
 
   /* ---- zombie entry points: the street ends, the yard, the side alleys,
      the upstairs rooms, over the roof's parapets */
@@ -1463,232 +1205,6 @@ function buildTrollingLoud(api) {
   }
   for (const [x, z] of [[-21, -12], [-26, -16], [26, -13.5], [22, -16], [0, -19.6], [-12, 20.6], [-4, 15]]) ZSPAWNS.push({ x, y: UP, z });
   for (const [x, z] of [[-28.6, -20.6], [28.6, -20.6], [-28.6, 20.6], [28.6, 20.6], [-28.6, 0], [28.6, 0]]) ZSPAWNS.push({ x, y: ROOF, z, rise: true });
-}
-
-function mergeLasers(geos) {
-  const total = geos.reduce((n, g) => n + g.attributes.position.count, 0);
-  const out = new THREE.BufferGeometry();
-  for (const name of ["position", "uv", "color"]) {
-    const size = geos[0].attributes[name].itemSize;
-    const arr = new Float32Array(total * size);
-    let o = 0;
-    for (const g of geos) { arr.set(g.attributes[name].array, o); o += g.attributes[name].array.length; }
-    out.setAttribute(name, new THREE.Float32BufferAttribute(arr, size));
-  }
-  return out;
-}
-
-/* ============================================================ the clock */
-
-const _c = new THREE.Color();
-function tick(S, cam) {
-  ACTIVE = S;
-  if (cam.isPerspectiveCamera) {
-    U.uPlayer.value.copy(cam.position);
-    S.cam.copy(cam.position);
-    hopBackLight(S, cam.position);
-  }
-  const now = performance.now() / 1000;
-  if (now - S.last < 0.004) return;
-  const dt = Math.min(0.1, S.last ? now - S.last : 0.016);
-  S.last = now;
-
-  // the beat: the song's own grid when there is one (DJ Lulz, or your radio),
-  // else the radio's kick off the analyser, else the club's 128 BPM clock
-  let bp = now * BPS;
-  let kick = Math.exp(-(bp % 1) * 5.0);
-  let level = 1;
-  const sg = S.song;
-  if (sg) {
-    const g = sg.grid, t = sg.t + (now - sg.at);
-    const f = (t - g.offset) * (g.bpm / 60), i = Math.floor(f);
-    bp = f - g.down;   // whole bars land on the song's one
-    if (f >= 0 && i < g.kick.length) {
-      kick = Math.exp(-(f - i) * 5.0) * (0.25 + 0.75 * (+g.kick[i] || 0) / 9);
-      level = 0.15 + 0.85 * (+g.level[i] || 0) / 9;
-    } else { kick = 0; level = 0.15; }
-  } else if (S.radioOn) kick = S.radioKick;
-  if (S.dropUntil > now) kick = (S.dropUntil - now) < 0.12 ? 1.4 : 0.05;
-  S.level += (level - S.level) * Math.min(1, dt * 4);
-  U.uTime.value = now;
-  U.uBeatPos.value = bp;
-  U.uKick.value = kick;
-  U.uLevel.value = S.level;
-
-  // the mirror ball: turning, faster for a while after it's shot
-  S.ballBoost = Math.max(0, S.ballBoost - dt / 4);
-  S.ballRot += dt * (0.32 + S.ballBoost * 2.6);
-  U.uBallRot.value = S.ballRot;
-  U.uDisco.value = 0.5 + S.ballBoost * 0.9 + kick * 0.12;
-  if (S.ball) { S.ball.rotation.y = -S.ballRot; S.ballMirror.rotation.y = -S.ballRot; }
-
-  // the lasers sweep
-  if (S.lasers) {
-    S.lasers.rotation.y = -S.ballRot;
-    S.lasers.rotation.x = Math.sin(now * 0.21) * 0.05;
-    S.lasers.material.opacity = 0.55 + 0.45 * kick;
-  }
-  // the DJ bobs
-  if (S.dj) { S.dj.position.y = S.djY + kick * 0.05; S.dj.rotation.z = Math.sin(bp * Math.PI) * 0.035; }
-
-  // the real lights: a gentle kick, the hall's three drifting round the wheel
-  for (const L of S.lights) {
-    L.l.intensity = L.base * (0.6 + 0.4 * S.level) * (1 + L.amp * (kick - 0.35));
-    if (L.orbit !== null) {
-      const a = L.orbit - S.ballRot;
-      L.l.position.set(U.uBall.value.x + Math.cos(a) * 1.3, 6.3, U.uBall.value.z + Math.sin(a) * 1.3);
-    }
-    if (L.hue !== null) L.l.color.copy(_c.setHSL((L.hue + bp / 64) % 1, 1, 0.6));
-  }
-
-  // shot-out signs: dark, then a stutter as they relight
-  for (let g = 1; g < 16; g++) {
-    const left = S.kill[g] - now;
-    U.uKill.value[g] = left <= 0 ? 0 : left < 0.7 ? (Math.sin(now * 60 + g) > 0 ? 1 : 0.2) : 1;
-  }
-  // bottles come back after a while
-  const gone = S.gone.value;
-  for (let i = 0; i < 64; i++) if (gone[i] && now > S.goneUntil[i]) gone[i] = 0;
-}
-
-/* ============================================================ answering shots */
-
-function onShot(p) {
-  const S = ACTIVE;
-  if (!S) return;
-  const now = performance.now() / 1000;
-  // the mirror ball
-  const b = S.ballBox;
-  if (b && Math.hypot(p.x - b.x, p.y - b.y, p.z - b.z) < b.r + 0.15) {
-    S.ballBoost = 1;
-    sfx("tink", p);
-    return;
-  }
-  // a sign
-  for (const s of S.signs) {
-    const dx = p.x - s.x, dz = p.z - s.z;
-    const c = Math.cos(s.ry), sn = Math.sin(s.ry);
-    const u = dx * c - dz * sn, n = dx * sn + dz * c;
-    if (Math.abs(u) < s.w / 2 + 0.15 && Math.abs(p.y - s.y) < s.h / 2 + 0.15 && Math.abs(n) < 0.45) {
-      if (S.kill[s.group] < now) sfx("zap", p);
-      S.kill[s.group] = now + 3.2;
-      return;
-    }
-  }
-  // the bottles
-  const sh = S.shelf;
-  if (sh && p.x > sh.x0 && p.x < sh.x1 && p.y > sh.y0 && p.y < sh.y1 && p.z > sh.z0 && p.z < sh.z1) {
-    let best = null, bd = 0.6;
-    for (const g of S.bottleSegs) {
-      const d = Math.hypot(p.y - g.y, p.z - g.z);
-      if (d < bd && !S.gone.value[g.seg]) { bd = d; best = g; }
-    }
-    if (best) {
-      S.gone.value[best.seg] = 1;
-      S.goneUntil[best.seg] = now + 25;
-      sfx("shatter", p);
-    }
-    return;
-  }
-  // the DJ's decks: a scratch, the track drops out for a bar
-  if (Math.abs(p.x) < 2.7 && p.z > -14.8 && p.z < -13.7 && p.y > STAGE.top + 0.9 && p.y < STAGE.top + 1.4) {
-    if (S.dropUntil < now) {
-      S.dropUntil = now + 4 / BPS;
-      sfx("scratch", p);
-    }
-  }
-}
-
-/* ============================================================ the sound
-
-   The club's track: kick, clap, hats, an offbeat bass and a chord stab,
-   scheduled a little ahead on the game's audio context in step with the
-   light clock, through a lowpass (the walls between you and the booth)
-   into a panner at the booth. Fades out when you're not in a match, and
-   while Troll Radio plays (the lights follow the radio then). */
-const SND = { bus: null, song: null, lp: null, pan: null, noise: null, next: 0, gain: 0 };
-
-function ensureSound() {
-  const a = AUDIO;
-  if (!a?.ctx || !a.master) return null;
-  if (SND.ctx === a.ctx) return a.ctx;
-  const ctx = a.ctx;
-  SND.ctx = ctx;
-  SND.bus = ctx.createGain();
-  SND.bus.gain.value = 0;
-  SND.lp = ctx.createBiquadFilter();
-  SND.lp.type = "lowpass";
-  SND.lp.frequency.value = 900;
-  SND.pan = ctx.createPanner();
-  SND.pan.panningModel = "equalpower";
-  SND.pan.distanceModel = "inverse";
-  SND.pan.refDistance = 7;
-  SND.pan.rolloffFactor = 0.7;
-  SND.pan.maxDistance = 120;
-  if (SND.pan.positionX) { SND.pan.positionX.value = 0; SND.pan.positionY.value = 2.2; SND.pan.positionZ.value = -14.5; }
-  else SND.pan.setPosition(0, 2.2, -14.5);
-  // DJ Lulz's record (dj-lulz.js plugs its <audio> in here): the same
-  // booth, the same walls
-  SND.song = ctx.createGain();
-  SND.song.gain.value = 0;
-  SND.bus.connect(SND.lp);
-  SND.song.connect(SND.lp);
-  SND.lp.connect(SND.pan);
-  SND.pan.connect(a.master);
-  const len = ctx.sampleRate;
-  SND.noise = ctx.createBuffer(1, len, ctx.sampleRate);
-  const d = SND.noise.getChannelData(0);
-  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-  SND.next = 0;
-  return ctx;
-}
-
-// A minor, four bars: A, A, F, G (bass roots, Hz); the stab chords
-const ROOTS = [55, 55, 43.65, 49];
-const STABS = [[220, 261.6, 329.6], [220, 261.6, 329.6], [174.6, 220, 261.6], [196, 246.9, 293.7]];
-
-function noiseHit(ctx, t, dest, { type = "highpass", freq = 7000, q = 0.7, dur = 0.05, peak = 0.3 }) {
-  const src = ctx.createBufferSource();
-  src.buffer = SND.noise;
-  const f = ctx.createBiquadFilter();
-  f.type = type; f.frequency.value = freq; f.Q.value = q;
-  const g = ctx.createGain();
-  g.gain.setValueAtTime(peak, t);
-  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  src.connect(f); f.connect(g); g.connect(dest);
-  src.start(t, Math.random() * 0.5);
-  src.stop(t + dur + 0.02);
-}
-
-function tone(ctx, t, dest, { type = "sine", f0, f1 = f0, dur, peak, slide = dur }) {
-  const o = ctx.createOscillator();
-  o.type = type;
-  o.frequency.setValueAtTime(f0, t);
-  if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + slide);
-  const g = ctx.createGain();
-  g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(peak, t + 0.005);
-  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  o.connect(g); g.connect(dest);
-  o.start(t);
-  o.stop(t + dur + 0.02);
-}
-
-/* Schedule every 16th note between `from` and `to` (in beats). */
-function scheduleTrack(ctx, fromBeat, toBeat, perfNow, ctxNow) {
-  const S = ACTIVE;
-  for (let n = Math.ceil(fromBeat * 4); n < toBeat * 4; n++) {
-    const beat = n / 4;
-    const t = ctxNow + (beat / BPS - perfNow);
-    if (t < ctxNow) continue;
-    if (S && S.dropUntil > perfNow && beat / BPS < S.dropUntil) continue;
-    const step = n % 16, bar = Math.floor(n / 16) % 4;
-    if (step % 4 === 0) tone(ctx, t, SND.bus, { f0: 150, f1: 42, dur: 0.32, peak: 0.9, slide: 0.12 });
-    if (step === 4 || step === 12) noiseHit(ctx, t, SND.bus, { type: "bandpass", freq: 1500, q: 0.9, dur: 0.14, peak: 0.35 });
-    if (step % 4 === 2) noiseHit(ctx, t, SND.bus, { freq: 7500, dur: 0.05, peak: 0.16 });
-    if (step % 4 === 2 || step % 8 === 3) tone(ctx, t, SND.bus, { type: "sawtooth", f0: ROOTS[bar] * (step === 14 ? 2 : 1), dur: 0.18, peak: 0.16 });
-    if (step === 0 && bar % 2 === 0) for (const f of STABS[bar]) tone(ctx, t, SND.bus, { type: "square", f0: f, dur: 0.22, peak: 0.035 });
-  }
 }
 
 /* Where you are decides how muffled the booth is: the hall open, the
@@ -1703,71 +1219,6 @@ function muffle(p) {
     return nextDoor ? [2200, 0.85] : [800, 0.8];
   }
   return [360, 1.25];
-}
-
-/* `song` { src, t, dj }: what's playing (DJ Lulz's record, or your radio)
-   and how far in. With a beat grid the clock runs on it (tick); `dj` says
-   it's DJ Lulz's, playing through the booth here. */
-function onFrame({ live = false, radio = false, song = null } = {}) {
-  const S = ACTIVE;
-  if (S) {
-    const grid = song && BEATS[song.src];
-    S.song = grid ? { grid, t: song.t, at: performance.now() / 1000 } : null;
-    S.radioOn = !!radio && !!MUSIC?.analyser;
-    if (S.radioOn) {
-      const an = MUSIC.analyser;
-      S.freq ??= new Uint8Array(an.frequencyBinCount);
-      an.getByteFrequencyData(S.freq);
-      const bass = (S.freq[0] + S.freq[1] + S.freq[2]) / 3 / 255;
-      S.bassAvg += (bass - S.bassAvg) * 0.08;
-      const k = Math.min(1, Math.max(0, (bass - S.bassAvg) * 7));
-      S.radioKick = Math.max(k, S.radioKick * 0.88);
-    }
-  }
-  const ctx = ensureSound();
-  if (!ctx) return;
-  const dj = !!song?.dj;
-  const want = live && !radio && !dj && S ? 0.42 : 0;
-  const perfNow = performance.now() / 1000, ctxNow = ctx.currentTime;
-  if (S) {
-    const [freq, k] = muffle(S.cam);
-    SND.lp.frequency.setTargetAtTime(freq, ctxNow, 0.12);
-    SND.bus.gain.setTargetAtTime(want * k, ctxNow, 0.25);
-    SND.song.gain.setTargetAtTime(live && dj ? k : 0, ctxNow, 0.25);
-  } else {
-    SND.bus.gain.setTargetAtTime(0, ctxNow, 0.25);
-    SND.song.gain.setTargetAtTime(0, ctxNow, 0.25);
-  }
-  SND.gain = want;
-  if (!want) { SND.next = 0; return; }
-  const nowBeat = perfNow * BPS, ahead = nowBeat + 0.25 * BPS;
-  const from = Math.max(SND.next || nowBeat, nowBeat);
-  if (ahead > from) { scheduleTrack(ctx, from, ahead, perfNow, ctxNow); SND.next = ahead; }
-}
-
-/* One-off sounds where a shot landed. */
-function sfx(kind, p) {
-  const a = AUDIO;
-  if (!a?.ctx || !a.master || !a.enabled) return;
-  const ctx = a.ctx, t = ctx.currentTime;
-  const out = ctx.createPanner();
-  out.panningModel = "equalpower"; out.refDistance = 3; out.rolloffFactor = 1.2;
-  if (out.positionX) { out.positionX.value = p.x; out.positionY.value = p.y; out.positionZ.value = p.z; } else out.setPosition(p.x, p.y, p.z);
-  out.connect(a.master);
-  if (!SND.noise) ensureSound();
-  if (kind === "tink") for (const f of [2600, 3400, 4100]) tone(ctx, t + Math.random() * 0.04, out, { f0: f, dur: 0.5, peak: 0.08 });
-  if (kind === "zap") {
-    tone(ctx, t, out, { type: "square", f0: 120, f1: 60, dur: 0.25, peak: 0.12 });
-    noiseHit(ctx, t, out, { type: "bandpass", freq: 3000, dur: 0.18, peak: 0.25 });
-  }
-  if (kind === "shatter") {
-    noiseHit(ctx, t, out, { type: "highpass", freq: 3200, dur: 0.35, peak: 0.45 });
-    for (let i = 0; i < 4; i++) tone(ctx, t + i * 0.03, out, { f0: 2400 + Math.random() * 2600, dur: 0.25, peak: 0.06 });
-  }
-  if (kind === "scratch") {
-    tone(ctx, t, out, { type: "sawtooth", f0: 300, f1: 900, dur: 0.12, peak: 0.18, slide: 0.1 });
-    tone(ctx, t + 0.12, out, { type: "sawtooth", f0: 900, f1: 200, dur: 0.18, peak: 0.18, slide: 0.16 });
-  }
 }
 
 /* ============================================================ the crowd
@@ -1999,10 +1450,10 @@ export const TROLLINGLOUD = {
   grade: { shadows: 0x200a30, shadowsAmt: 0.1, highlights: 0xff70d0, highlightsAmt: 0.05, sat: 1.1, contrast: 1.08 },
   viewFar: 420,
   build: buildTrollingLoud,
-  onShot,
-  attachAudio: (a) => { AUDIO = a; },
-  attachMusic: (m) => { MUSIC = m; },
-  onFrame,
+  onShot: CLUB.onShot,
+  attachAudio: CLUB.attachAudio,
+  attachMusic: CLUB.attachMusic,
+  onFrame: CLUB.onFrame,
   // Socialize: DJ Lulz takes requests here (dj-lulz.js). `spot` is where you
   // stand to ask, in front of the booth; `input` is where his record plugs
   // in (the booth's muffled, placed chain), null before the audio exists.
@@ -2010,24 +1461,15 @@ export const TROLLINGLOUD = {
     name: "DJ Lulz",
     spot: { x: 0, z: -12.9, y: FL, reach: 3.4 },
     club: { ...B, top: ROOF },
-    input: () => (ensureSound() ? SND.song : null),
+    input: CLUB.songInput,
   },
   // Socialize: the crowd (town-npcs.js), dancing on the club's clock; no
   // shadows (indoors under neon that casts none), drawn room by room
   // the kitchen's swing doors (view/swing-doors.js swings them)
-  doors: () => ACTIVE?.doors ?? [],
+  doors: () => CLUB.active()?.doors ?? [],
   rp: { npcs: () => clubNpcs(), seats: () => SEATS, arm: () => ARM_TABLES, beat: () => U.uBeatPos.value, npcShadows: false, view: CLUB_VIEW, door: { ...DOOR, zoneOf: entryZoneOf } },
   // for tools/troll-ops-trollingloud-test.mjs
-  debug: () => ({
-    active: !!ACTIVE, lights: ACTIVE?.lights.length ?? 0, ballBoost: ACTIVE?.ballBoost ?? 0,
-    kill: Array.from(U.uKill.value), beat: U.uBeatPos.value, gone: Array.from(ACTIVE?.gone.value ?? []).filter(Boolean).length,
-    lp: SND.lp ? SND.lp.frequency.value : null, busGain: SND.bus ? SND.bus.gain.value : null, want: SND.gain,
-    signs: (ACTIVE?.signs ?? []).map((s) => ({ g: s.group, x: s.x, y: s.y, z: s.z, ry: s.ry })),
-    shelf: ACTIVE?.shelf ?? null, radioOn: !!ACTIVE?.radioOn,
-    song: ACTIVE?.song ? { bpm: ACTIVE.song.grid.bpm, t: ACTIVE.song.t } : null,
-    kick: U.uKick.value, level: U.uLevel.value, songGain: SND.song ? SND.song.gain.value : null,
-    muffleAt: (x, y, z) => muffle({ x, y, z })[0],
-  }),
+  debug: CLUB.debug,
   // Team spawns: the south alley under the scaffold, the north yard under
   // the dock shed.
   spawns: [[-26, 31.4], [-18, 31.4], [-10, 31.4], [-3.5, 31.4], [3.5, 31.4], [10, 31.4], [18, 31.4], [26, 31.4],
