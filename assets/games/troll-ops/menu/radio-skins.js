@@ -136,9 +136,8 @@ export const SKINS = {
   },
   don: {
     cls: "fm fm-don", label: "Black tie radio",
-    // The user's tuxedo-and-rose troll goes in ui/radio-don.jpg; until it's
-    // saved the slot shows nothing (radio.js drops an image that fails).
-    html: fm("don", `<img data-src="assets/games/troll-ops/ui/radio-don.jpg" alt="" draggable="false">`),
+    // The user's tuxedo-and-rose troll (ui/radio-don.png), used as given.
+    html: fm("don", `<img data-src="assets/games/troll-ops/ui/radio-don.png" alt="" draggable="false">`),
     viz: ["#8b5cf6", "#d9b25f"],
   },
 };
