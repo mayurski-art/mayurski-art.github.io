@@ -78,7 +78,7 @@ export class WeaponInspector {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMapping = THREE.NeutralToneMapping;   // as the game renderer (-tm2)
     this.renderer.toneMappingExposure = 1.7;
 
     this.scene = new THREE.Scene();
