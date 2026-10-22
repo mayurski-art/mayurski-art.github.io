@@ -4,7 +4,7 @@
 // markers: every Studio marker by name ({ kind, p: [x, y, z], yaw?, size?,
 // top?, dir?, to?, label?, team? }); lights: [x, y, z, "#rrggbb", power, range].
 export const KB_LAYOUT = {
-  glb: "kb-town", v: "79317be1",
+  glb: "kb-town", v: "2a5745b8",
   colliders: [
     [0,-42.1,65,0.8,8,0,20],
     [0,42.1,65,0.8,8,0,20],
@@ -133,6 +133,7 @@ export const KB_LAYOUT = {
     [-19.7,22.45,0.6,0.6,0.75,0,2],
     [-6.8,15.5,0.9,3,0.8,3,3],
     [-8.5,33.35,3,0.9,0.8,0,3],
+    [-31.46,-15.25,0.52,18.7,3.5,0,20],
     [-30.75,3.9,1.9,0.4,8,0,20],
     [-24.2,3.9,2.4,0.4,8,0,20],
     [-27.6,3.9,4.4,0.4,4.6,3.4,20],

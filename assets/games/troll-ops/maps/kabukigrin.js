@@ -16,7 +16,8 @@
 // booth's track; the seam pieces the street sees (the marquee, the kanji
 // strip, the LED windows on Mid Bottom) and the two video screens
 // (video-wall.js); the borrowed rooms' live bits (kabukigrin-rooms.js: the
-// yokocho, the tatami VIP and its koi tank, the office's one-way mirror).
+// yokocho, the tatami VIP and its koi tank, the office's one-way mirror);
+// the street's (kabukigrin-street.js: the pachinko parlour on A Main).
 // In Socialize (kabukigrin-social.js): the door on A Main, the line, DJ Lulz
 // at the booth, the crowd in the club and on the street, the seats.
 // Kept as kabukigrin_wip (out of the vote pool) until phase 6.
@@ -24,7 +25,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { GRINJUKU } from "./grinjuku.js?v=gj1-sr1-or1";
-import { KB_LAYOUT } from "./kabukigrin-layout.js?v=kb0-kb1-kb2-kb3-kb5-kb6-kb9";
+import { KB_LAYOUT } from "./kabukigrin-layout.js?v=kb0-kb1-kb2-kb3-kb5-kb6-kb9-kb10";
 import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1";
 import { loadBake } from "./battlefield-props.js?v=sr1-or1";
 import { applyBakedLightMap, retexture } from "./surface-textures.js?v=hg6e-sr1-or1";
@@ -34,6 +35,7 @@ import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier,
 import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5";
 import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8";
 import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9";
+import { buildStreet } from "./kabukigrin-street.js?v=kb10";
 
 const URL_GLB = new URL("../models/", import.meta.url).href;
 const loader = new GLTFLoader();
@@ -217,6 +219,7 @@ const CLEAR = [
   [-24.6, -22.85, 2.7, 8.6, -8.35, 3.25],    // the A Main screen's footprint: the windows, lightboxes and shop signs on that face
   [15.8, 22.8, 3.45, 7.75, -32.6, -31.85],   // the Alta screen's
   [-31.75, -24.2, 0.31, 6.0, 24.2, 29.85],   // the tatami room's inside: the backs' windows and signs on the edge wall
+  [-31.75, -29.9, 0.05, 5.42, -24.6, -5.9],  // the pachinko parlour's front (3.5 a): the shopfronts it took over
 ];
 function clearForClub(scene) {
   scene.traverse((o) => {
@@ -309,6 +312,8 @@ function buildClub(api) {
 
   // the borrowed rooms (doc 3.5 b, c, d): Studio's walls, these their insides
   buildRooms({ root, K, N, M, S, jpSign, sfx: CLUB.sfx });
+  // and the street's (doc 3.5 a): the pachinko parlour across the line
+  buildStreet({ root, N, M });
 
   K.flush();
   N.flush();
