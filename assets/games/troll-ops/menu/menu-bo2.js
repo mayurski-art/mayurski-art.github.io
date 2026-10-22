@@ -11,7 +11,7 @@
    (#to-pf-center) moves into the right-hand detail pane, with the parts
    that became lists hidden by CSS. */
 
-import { createBo2Menu } from "../../../js/bo2-menu.js?v=to-ft2-tb1-nd1";
+import { createBo2Menu } from "../../../js/bo2-menu.js?v=to-ft2-tb1-nd1-ul1";
 import { createMapMode } from "../../../js/troll-map-mode.js?v=to-bo2d";
 import { joinSitePresence, viewerId } from "../../../js/site-presence.js?v=to-bo2d-ol1-iv1-mv1";
 import { initInvites, invitePlayer } from "./invites.js?v=iv1-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1";
@@ -219,7 +219,7 @@ const strongOf = (b) => text($("strong", b)) || text($("span", b)) || text(b);
 function modeItems(group, after) {
   return modeButtons(group).map((b) => ({
     id: `mode-${b.dataset.mode}`, label: text($("span", b)), desc: b.title, on: isOn(b),
-    disabled: isLocked(b), value: b.dataset.lock || "",
+    disabled: isLocked(b), value: b.dataset.lock || "", need: b.dataset.lock ? `Unlocks at ${b.dataset.lock}.` : "",
     onSelect: (_, m) => { b.click(); m.refresh(); if (after) after(); },
   }));
 }
@@ -249,13 +249,14 @@ const deployRow = (label, desc) => ({
 // (`valueFor`, not `valueOf`: destructuring `valueOf` off an options object
 // that doesn't set it picks up Object.prototype.valueOf, and calling that
 // threw, so Face never opened.)
-function optionScreen(titleText, buttons, { valueFor, descOf, preview = false } = {}) {
+function optionScreen(titleText, buttons, { valueFor, descOf, needOf, preview = false } = {}) {
   return {
     title: titleText,
     groups: [
       buttons.map((b, i) => ({
         id: `o-${i}`, label: strongOf(b), on: isOn(b), disabled: isLocked(b),
         value: valueFor ? valueFor(b) : "", desc: descOf ? descOf(b) : (b.title || ""), card: preview ? b : undefined,
+        need: needOf && isLocked(b) ? needOf(b) : "",
         onSelect: (_, m) => { b.click(); m.back(); },
       })),
       [{ id: "back", label: "Back", desc: "Keep what you have.", onSelect: (_, m) => m.back() }],
@@ -275,6 +276,7 @@ function perkScreen(tier) {
         return {
           id: `pk-${id}`, perkId: id, label: def.name, on: cur === id, disabled: !open,
           value: open ? "" : `LV ${def.rank}`, desc: open ? def.blurb : `${def.blurb} Unlocks at level ${def.rank}.`,
+          need: open ? "" : `Unlocks at level ${def.rank}.`,
           onSelect: (_, m) => { L.setClassPerk(tier, id); m.back(); },
         };
       }),
@@ -479,8 +481,8 @@ const screens = {
       enter: () => { clanEditing = false; previewCard = null; loadRecord(); },
       groups: [
         [
-          { id: "b-card", label: "Calling Card", value: signedIn ? cardById(card).name : "", disabled: !signedIn, desc: signedIn ? "The banner behind your name." : guest, go: "cards" },
-          { id: "b-clan", label: "Clan Tag", value: signedIn ? (clan ? `[${clan}]` : "None") : "", disabled: !signedIn, desc: signedIn ? "Up to 4 letters or numbers, shown as [TAG] name everywhere." : guest, onSelect: () => editClan() },
+          { id: "b-card", label: "Calling Card", value: signedIn ? cardById(card).name : "", disabled: !signedIn, desc: signedIn ? "The banner behind your name." : guest, need: signedIn ? "" : "Sign in to set it.", go: "cards" },
+          { id: "b-clan", label: "Clan Tag", value: signedIn ? (clan ? `[${clan}]` : "None") : "", disabled: !signedIn, desc: signedIn ? "Up to 4 letters or numbers, shown as [TAG] name everywhere." : guest, need: signedIn ? "" : "Sign in to set it.", onSelect: () => editClan() },
           { id: "b-rewards", label: "Prestige Rewards", desc: "What each prestige unlocks.", go: "rewards" },
           { id: "b-record", label: "Combat Record", desc: "Your lifetime K/D, W/L, accuracy and more, across every match.", go: "record" },
         ],
@@ -516,7 +518,7 @@ const screens = {
           return {
             id: `card-${c.id}`, label: c.name, cardId: c.id, on: c.id === mine,
             value: c.id === mine ? "Wearing" : open ? "" : `Locked`,
-            desc: open ? c.desc : `Unlocks at ${pname}.`,
+            desc: open ? c.desc : `Unlocks at ${pname}.`, need: open ? "" : `Unlocks at ${pname}.`,
             onSelect: async (_, m) => {
               if (!open) { setStatus(`${c.name} unlocks at ${pname}.`); return; }
               if (c.id === mine) { m.back(); return; }
@@ -629,6 +631,7 @@ const screens = {
       // Socialize is the versus maps only (no prestige reward maps).
       $$("#to-lo-maps .to-lo-map").filter((b) => currentModeBtn()?.dataset.mode !== "social" || !REWARD_MAPS[b.dataset.map]).map((b) => ({
         id: `map-${b.dataset.map}`, label: text($(".to-map-name", b)), desc: text($(".to-map-tag", b)), on: isOn(b), mapId: b.dataset.map,
+        need: isLocked(b) ? text($(".to-map-tag", b)) : "",
         // A locked prestige map stays reachable so its reason can be read.
         value: isLocked(b) ? "Locked" : "",
         onSelect: (_, m) => { if (isLocked(b)) { setStatus(text($(".to-map-tag", b))); return; } b.click(); m.back(); },
@@ -699,7 +702,7 @@ const screens = {
         const lv = sub.match(/level (\d+)/i);
         return {
           id: `w-${i}`, label: strongOf(b), on: isOn(b), disabled: isLocked(b), card: b,
-          value: lv ? `LV ${lv[1]}` : sub, desc: lv ? `Unlocks at level ${lv[1]}.` : sub,
+          value: lv ? `LV ${lv[1]}` : sub, desc: lv ? `Unlocks at level ${lv[1]}.` : sub, need: lv ? `Unlocks at level ${lv[1]}.` : "",
           onSelect: (_, m) => { b.click(); m.backTo("class"); },
         };
       }),
@@ -735,6 +738,7 @@ const screens = {
         cards.map((b, i) => ({
           id: `ss-${i}`, label: strongOf(b), on: isOn(b), disabled: isLocked(b), card: b,
           value: text($("span", b)), desc: text($("em", b)),
+          need: isLocked(b) ? `Unlocks at level ${text($("span", b)).replace(/^LV\s*/i, "")}.` : "",
           onSelect: (_, m) => { b.click(); m.refresh(); },
         })),
         [back("Back to the class.")],
@@ -761,12 +765,13 @@ const screens = {
   bodies: () => {
     const s = optionScreen("Body", $$("#to-cos-body [data-body]").filter(bodyMatches), {
       descOf: (b) => (isLocked(b) ? "Locked: for the holder of this TROLLS NFT." : b.dataset.body ? "This TROLLS look, every match. Everyone sees it." : "The classic stick troll."),
+      needOf: () => "For the holder of this TROLLS NFT.",
     });
     s.enter = () => { bodyQuery = bodySearch.value = ""; };
     if (!s.groups[0].length) s.groups[0] = [{ id: "o-none", label: "No match", disabled: true, desc: `No TROLLS body matches "${bodyQuery.trim()}".` }];
     return s;
   },
-  faces: () => optionScreen("Face", $("#to-cos-body .to-cos-face:not([data-wrist]):not([data-body])"), { descOf: (b) => (isLocked(b) ? "Off while you wear a TROLLS body: it has its own head." : "Everyone in the match sees it.") }),
+  faces: () => optionScreen("Face", $("#to-cos-body .to-cos-face:not([data-wrist]):not([data-body])"), { descOf: (b) => (isLocked(b) ? "Off while you wear a TROLLS body: it has its own head." : "Everyone in the match sees it."), needOf: () => "Off while you wear a TROLLS body." }),
   wrists: () => optionScreen("Wrist", $$("#to-cos-body [data-wrist]"), { descOf: (b) => (b.dataset.wrist ? "On your left wrist, every match." : "A bare wrist.") }),
   leaders: () => ({
     title: "Leaderboards", panel: "deploy", detail: true, lb: true,
@@ -819,7 +824,10 @@ const optionScreens = new Proxy(screens, {
     }
     if (g) {
       const row = $$("#to-lo-gear .to-lo-gearrow")[+g[1]];
-      if (row) return () => optionScreen(text($(".to-lo-slot-label", row)), $$(".to-lo-gear", row), { valueFor: (b) => text($("span", b)), preview: true });
+      if (row) return () => optionScreen(text($(".to-lo-slot-label", row)), $$(".to-lo-gear", row), {
+        valueFor: (b) => text($("span", b)), preview: true,
+        needOf: (b) => `Unlocks at level ${text($("span", b)).replace(/^LV\s*/i, "")}.`,
+      });
     }
     return undefined;
   },
