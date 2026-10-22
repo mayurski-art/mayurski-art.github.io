@@ -1,12 +1,12 @@
 // Troll Forces in-game radio: play, seek, EQ, shuffle, playlist, usable from
 // the lobby and carried into the match (music.js). The look is a skin
-// (radio-skins.js): Grinspace, Pink or Black tie, picked from the chips on
-// the radio and remembered. The station is named after the map and mode
+// (radio-skins.js): the girl radio or the male one, flipped with the round
+// button by the red X and remembered. The station is named after the map and mode
 // you're on ("Grin Beach FM · Team Deathmatch").
 
 import { EQ_BANDS, EQ_RANGE } from "../sound/music.js?v=to-gs1-sg1-zr10-jb1-nh1-hl1-or1";
 import { game } from "../core/state.js?v=st1";
-import { SKINS, SKIN_IDS } from "./radio-skins.js?v=rs1";
+import { SKINS, SKIN_IDS } from "./radio-skins.js?v=rs2";
 import { MODES } from "../modes/modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1-or1-ffa1-dom1-gf1-tg1";
 import { MAPS } from "../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1-bw2-bt1-wf1-wf2-zf1-bp1-is1-gf1-tg1-tcs1";
 
@@ -48,7 +48,7 @@ export function initRadioWidget() {
   const panel = document.getElementById("to-radio-panel");
   if (!toggle || !panel) return;
 
-  let skin = "grin";
+  let skin = "girl";
   try { if (SKIN_IDS.includes(localStorage.getItem(SKIN_KEY))) skin = localStorage.getItem(SKIN_KEY); } catch { /* private mode */ }
 
   let ui = null;        // the mounted skin's elements
@@ -178,17 +178,13 @@ export function initRadioWidget() {
       for (const b of [ui.play, ui.prev, ui.next, ui.stop, ui.shuffle, ui.seek]) b.disabled = true;
     }
 
-    // Skin chips.
-    panel.querySelectorAll(".rs-chip").forEach((c) => {
-      const on = c.dataset.skin === id;
-      c.setAttribute("aria-checked", String(on));
-      c.tabIndex = on ? 0 : -1;
-      c.addEventListener("click", () => {
-        if (c.dataset.skin === skin) return;
-        try { localStorage.setItem(SKIN_KEY, c.dataset.skin); } catch { /* private mode */ }
-        mount(c.dataset.skin);
-        panel.querySelector(`.rs-chip[data-skin="${c.dataset.skin}"]`)?.focus();
-      });
+    // The round button: across to the other radio, focus staying on the
+    // same button in the new skin.
+    panel.querySelector(".rs-swap")?.addEventListener("click", (e) => {
+      const to = e.currentTarget.dataset.skin;
+      try { localStorage.setItem(SKIN_KEY, to); } catch { /* private mode */ }
+      mount(to);
+      panel.querySelector(".rs-swap")?.focus();
     });
 
     history.length = 0;

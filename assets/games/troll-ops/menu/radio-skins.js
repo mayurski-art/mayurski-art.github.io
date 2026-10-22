@@ -17,14 +17,16 @@ const ICON = {
   shuffle: `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 4h3l6 8h3v-2l3 3-3 3v-2h-4L3 6H1zM10 4h3V2l3 3-3 3V6h-2l-1.6 2.1-1.2-1.6z"/></svg>`,
 };
 
-export const SKIN_IDS = ["grin", "girl", "don"];
-const SKIN_NAMES = { grin: "Grinspace", girl: "Pink", don: "Black tie" };
+/* The two the player switches between. Grinspace stays mountable for
+   anyone who saved it, with a button across to the girl radio. */
+export const SKIN_IDS = ["girl", "don"];
 
-/* The three round chips that switch skins; the same in every skin. */
-const skinPicker = (cls) => `
-  <div class="${cls}" role="radiogroup" aria-label="Radio skin">
-    ${SKIN_IDS.map((id) => `<button type="button" class="rs-chip rs-chip-${id}" data-skin="${id}" role="radio" aria-label="${SKIN_NAMES[id]} skin"></button>`).join("")}
-  </div>`;
+/* One round button that flips to the other radio: black on the girl
+   radio (to the male one), pink on the male radio (back to the girl). */
+const swap = (to, cls) => {
+  const label = to === "don" ? "Switch to the male radio" : "Switch to the girl radio";
+  return `<button type="button" class="rs-swap rs-swap-${to} ${cls}" data-skin="${to}" aria-label="${label}" title="${label}"></button>`;
+};
 
 const grin = `
   <div class="gs-wing gs-wing-l">
@@ -74,7 +76,7 @@ const grin = `
     </div>
     <div class="gs-pods" aria-hidden="true"><i></i><i></i><i></i></div>
   </div>
-  ${skinPicker("rs-skins gs-skins")}`;
+  ${swap("girl", "gs-swap")}`;
 
 /* The pink and black-tie skins share one window layout; only the art, the
    palette and a couple of decorations differ. */
@@ -87,7 +89,7 @@ const fm = (skin, art) => `
     <div class="fm-bar">
       <img class="fm-logo" src="assets/images/wallpaper/trollface%20transparent.png" alt="" draggable="false">
       <div class="fm-titles"><b data-station>Troll Warfare FM</b><small data-station-mode></small></div>
-      ${skinPicker("rs-skins fm-skins")}
+      ${swap(skin === "girl" ? "don" : "girl", "fm-swap")}
       <button type="button" class="fm-x" id="to-radio-close" aria-label="Close radio">×</button>
     </div>
 
