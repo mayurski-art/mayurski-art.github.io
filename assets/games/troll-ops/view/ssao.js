@@ -15,12 +15,23 @@ export function makeSsao(scene, camera) {
   ssao.minDistance = 0.001;
   ssao.maxDistance = 0.15;
   ssao.output = SSAOPass.OUTPUT.Default;
-  ssao.overrideVisibility = function () {
+  hideSeeThrough(ssao);
+  return ssao;
+}
+
+/* three r186's AO passes hide what they skip in _overrideVisibility, pushing
+   each object they hid on _visibilityCache (an array) for
+   _restoreVisibility to show again; r160's was overrideVisibility over a
+   Map, and the old override of that name stopped being called. */
+export function hideSeeThrough(pass) {
+  pass._overrideVisibility = function () {
     const cache = this._visibilityCache;
     this.scene.traverse((o) => {
-      cache.set(o, o.visible);
-      if (o.isPoints || o.isLine || o.isSprite || (o.isMesh && seeThrough(o.material))) o.visible = false;
+      if (!o.visible) return;
+      if (o.isPoints || o.isLine || o.isLine2 || o.isSprite || (o.isMesh && seeThrough(o.material))) {
+        o.visible = false;
+        cache.push(o);
+      }
     });
   };
-  return ssao;
 }
