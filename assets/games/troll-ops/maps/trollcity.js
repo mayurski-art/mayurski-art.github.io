@@ -39,7 +39,7 @@ import { LoopPath, Train } from "./train.js?v=tr1b7-or1";
 import { buildTrainBoard } from "./train-board.js?v=tb1-bt1-tcs1";
 import { studioTown, loadStudioTown, setMoves, moveRp, moveFresh, movePoint, moveGeo, moveLive } from "./trollcity-studio.js?v=ts1-tcs1-tcp1-tx1-trk1-ch1";
 import { buildChapel } from "./trollcity-chapel.js?v=tch1-tcs1-tcs2-mg1-tx1-ch1";
-import { buildHall, HALL, PLAZA, COMPUTERS } from "./trollcity-hall.js?v=th1-tcs1-tx1-ch1";
+import { buildHall, HALL, PLAZA, COMPUTERS } from "./trollcity-hall.js?v=th1-tcs1-tx1-ch1-jb1";
 import { buildEast, EAST } from "./trollcity-east.js?v=te1-tcs1-tx1-ch1";
 
 // 248 x 200 m since the redesign (doc "Troll City redesign in Roblox Studio"):
@@ -188,7 +188,8 @@ export function tcFloorOf(y) { return y >= 2.4 ? "upper" : "ground"; }
 /* An axis-aligned wall of thickness `t`: `axis` "x" runs west-east at
    z = `at`, "z" runs north-south at x = `at`, from `a` to `b`. `holes` cut
    doors and windows: [{ c, w, spans: [[lo, hi], ...] }], heights relative to
-   `y`; a span from 0 is a door. Around each opening go a frame (`trim`), a
+   `y`; a span from 0 is a door; `bare` leaves one unframed and unglazed
+   (a gap something else fills: the jail cells' weak patch). Around each opening go a frame (`trim`), a
    glazed pane on windows (`glass`), and a sill step on doors when the room
    has a raised floor (`sill`). `lining` faces the inside (toward -`out`)
    with a second material: wallpaper on plank walls. `inset` stops the
@@ -220,14 +221,14 @@ function wall(K, M, { axis, at, a, b, y = 0, h, t = T, mat, pen = 8, holes = [],
       const door = sLo < 0.05;
       const [cx, cz] = at2(hole.c, at);
       if (door && sill) K.solid(cx, cz, X ? hole.w : t, X ? t : hole.w, sill, { y, pen: 8, mat: M.floor });
-      if (!door && glass) {
+      if (!door && glass && !hole.bare) {
         const g = new THREE.PlaneGeometry(hole.w, sHi - sLo);
         K.add(M.glass, place(g, { x: cx, y: y + (sLo + sHi) / 2, z: cz, ry: X ? 0 : Math.PI / 2 }), { shadow: false });
         // mullions: a cross of glazing bars
         K.box(M.trimDark, cx, y + sLo, cz, X ? 0.04 : 0.05, sHi - sLo, X ? 0.05 : 0.04);
         K.box(M.trimDark, cx, y + (sLo + sHi) / 2 - 0.02, cz, X ? hole.w : 0.05, 0.04, X ? 0.05 : hole.w);
       }
-      if (!trim) continue;
+      if (!trim || hole.bare) continue;
       const fw = 0.12, depth = t + 0.08;
       for (const side of [-1, 1]) {
         const [x, z] = at2(hole.c + side * (hole.w / 2 + fw / 2 - 0.02), at);

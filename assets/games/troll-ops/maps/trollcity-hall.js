@@ -23,6 +23,7 @@
 import * as THREE from "three";
 import { Kit, place, prismGeo, surfMat, canvasTex, texMat, rng, chair as kitChair, chandelier, hitchRail, bollard, streetLamp, sconce } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1";
 import { floorTexture } from "./chapel-art.js?v=ca1-tcs1";
+import { buildJailWall, BREACH } from "./trollcity-jailwall.js?v=jb1";
 
 export const HALL = { x0: 80, x1: 104, z0: -16, z1: 16, top: 8.5 };
 const T = 0.3;                                  // wall thickness
@@ -32,6 +33,11 @@ const ZC = -6, ZS = 6;                          // the front hall between the cl
 const PORT = { x0: 77, col: 77.5, z: [-6, -3.6, -1.2, 1.2, 3.6, 6], half: 7.2 };
 const STAIR = { x: 84.6, z: -5.2, w: 1.1, steps: 14, run: 0.3 };
 const CELLS = { x: 98.6, edges: [ZJ + T / 2, 5.5, 8.85, 12.2, HALL.z1 - T] };
+// cell i's inside, between its dividers, and where its weak patch sits (beside the bunk)
+const cellSpan = (i) => {
+  const z0 = CELLS.edges[i] + (i ? 0.125 : 0), z1 = CELLS.edges[i + 1] - (i < 3 ? 0.125 : 0);
+  return { z0, z1, zc: (z0 + z1) / 2, breach: (z0 + z1) / 2 + 0.9 };
+};
 export const PLAZA = { x0: 64, x1: 76, z0: -9.6, z1: 9.6 };
 // the clerk's office's three Troll-o-Graphs (made in Studio: Props/TrollOGraph_*),
 // backs to its south wall: hold X in front of one (modes/social-computers.js).
@@ -144,7 +150,9 @@ export function buildHall(api, root, M, H) {
   wall(K, M, { ...outer, h: U, axis: "x", at: C.z1 - T / 2, a: XB, b: C.x1, out: 1, lining: M.brickPale, glass: false, holes: [win(94.5, 0.6, 2.6, 3.4), win(97, 0.6, 2.6, 3.4)] });
   wall(K, M, { ...outer, h: U, axis: "z", at: C.x1 - T / 2, a: IN.z0, b: ZJ, out: 1, lining: M.damask, holes: [-13, -9, -5, -1].map((c) => win(c, GW, 1.3, 3.5)) });
   const cellMid = [0, 1, 2, 3].map((i) => (CELLS.edges[i] + CELLS.edges[i + 1]) / 2);
-  wall(K, M, { ...outer, h: U, axis: "z", at: C.x1 - T / 2, a: ZJ, b: IN.z1, out: 1, lining: M.brickPale, glass: false, holes: cellMid.map((c) => win(c, 0.6, 2.6, 3.4)) });
+  // the cells' back wall: a barred window each, and the gap the jailbreak's brick plug fills (trollcity-jailwall.js)
+  const breaches = [0, 1, 2, 3].map((i) => ({ c: cellSpan(i).breach, w: BREACH.w, spans: [[0, BREACH.h]], bare: true }));
+  wall(K, M, { ...outer, h: U, axis: "z", at: C.x1 - T / 2, a: ZJ, b: IN.z1, out: 1, lining: M.brickPale, glass: false, holes: [...cellMid.map((c) => win(c, 0.6, 2.6, 3.4)), ...breaches] });
   // upstairs: U .. top. The chamber's windows and balcony doors on the west,
   // the courtroom's high windows north and east; the shut rooms get false ones
   wall(K, M, { ...upper, axis: "z", at: C.x0 + T / 2, a: IN.z0, b: ZC, out: -1 });
@@ -434,7 +442,7 @@ export function buildHall(api, root, M, H) {
   {
     const cx0 = CELLS.x;
     for (let i = 0; i < 4; i++) {
-      const z0 = CELLS.edges[i] + (i ? 0.125 : 0), z1 = CELLS.edges[i + 1] - (i < 3 ? 0.125 : 0), zc = (z0 + z1) / 2;
+      const { z0, z1, zc, breach } = cellSpan(i);
       // bars across the front, the door standing open
       const dr = { c: zc + 0.8, w: 1.0 };
       for (const [a, b] of runsOf(z0, z1, [[dr.c - dr.w / 2, dr.c + dr.w / 2]])) {
@@ -465,10 +473,11 @@ export function buildHall(api, root, M, H) {
       });
       K.box(M.blackIron, cx0, F + 2.8, zc, 0.1, 0.1, z1 - z0);
       // a cot (the bunk itself is made in Studio: Props/JailBunk_*; here only
-      // its collider), a bucket, a trollface scratched on the wall
+      // its collider), a bucket, and on the back wall the jailbreak's chalk trollface
       K.api.ghostBox(IN.x1 - 0.6, zc - 0.6, 0.9, 2.0, 0.5, { y: F, pen: 1 });
       K.cyl(M.steel, cx0 + 0.8, F, zc - 1.1, 0.16, 0.14, 0.3, 10);
-      K.add(M.trollPaint, place(new THREE.PlaneGeometry(0.7, 0.7), { x: IN.x1 - 0.04, y: F + 1.7, z: zc + 0.55, ry: -Math.PI / 2 }), { shadow: false });
+      J.cells[i].wall = buildJailWall(K.api, root, { x: IN.x1 - 0.022, outerX: C.x1, zc, win: { z: cellMid[i], w: 0.6, y0: 2.6, y1: 3.4 },
+        breachC: breach, brick: HM.brick, lining: M.brickPale });
     }
     for (const z of CELLS.edges.slice(1, 4)) K.solid((cx0 + IN.x1) / 2, z, IN.x1 - cx0, 0.25, U - 0.3 - F, { y: F, mat: M.brickPale });
     K.box(M.blackIron, cx0, F + 2.85, (ZJ + IN.z1) / 2, 0.14, 0.1, IN.z1 - ZJ - T / 2);

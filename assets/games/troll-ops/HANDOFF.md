@@ -468,6 +468,7 @@ Map rules:
 ---
 
 ## 5. Shipped log (newest first; one line each, details in git)
+- **2026-10-22** (-jb1) Troll City jailbreak step 1: each jail cell's back wall carries a chalk trollface tracing (the real line art) with 8 critical spots, and beside the bunk a 1.0 x 2.3 m weak brick patch (a bare hole in wall() plus a plug and collider, invisible from outside) that blows out later (maps/trollcity-jailwall.js, J.cells[i].wall). Not playable yet: gun, firing, breakout, heat and rejoin come in steps 2-5. Tests: cell + outside shots, trollcity-contract --moved, import-check --load.
 - **2026-10-22** (-rz1) Phone rotation: the match view resizes once the size settles (view/resize.js, out of game.js), not on each of iOS's resize events mid-turn; 3 render-target reallocations -> 1 per rotation (user: iPhone "kicked out" after the rotate card, likely iOS killing the tab on the memory spike; not checked on a real iPhone). Test: headless iPhone portrait -> TDM -> landscape.
 - **2026-10-22** (-ch1) Troll City table chairs face their tables (kit tableSet ry was -a-PI/2, backs to the table; now PI/2-a): fixed in code AND turned in Studio (30 chairs, 9 table sets), so pieces still match and seats keep facing in.
 - **2026-10-22** (-bt3) Troll City bot routes (finishes WIP bc52899c): botEdge pulled in to the town hall's back, Boot Hill and the railway strip east of x 62; botPostOdds 0.75. bot-floors trollcity passes: 0-1 near-empty districts (was 3-6), 37-44 kills (36 needed).
