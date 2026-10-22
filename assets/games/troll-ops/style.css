@@ -3679,15 +3679,6 @@ body.to-touch-play .to-ss-sky { width: calc(24px * var(--k)); height: calc(24px 
 .to-bo2-party-item { display: flex; align-items: center; gap: 8px; }
 .to-bo2-party-item .to-bo2-party-row { flex: 1; min-width: 0; }
 .tf-btn--secondary.to-bo2-party-invite { flex-shrink: 0; min-height: 32px; padding: 0 12px; border-radius: 8px; font-size: 13px; }
-.to-bo2-chatcard { margin-top: auto; padding: 12px 14px; border-radius: 14px; background: rgba(16,9,5,.88); border: 1px solid rgba(243,236,228,.12); }
-.to-bo2-chatcard header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.to-bo2-chatcard header > b { font: 500 15px Oswald, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--bo2-dim); }
-.to-bo2-chatcard .to-bo2-chat { min-height: 36px; padding: 0 14px; }
-.to-bo2-chatcard-log { margin: 8px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 14px; line-height: 1.35; color: var(--bo2-ink); }
-.to-bo2-chatcard-log li { overflow-wrap: anywhere; }
-.to-bo2-chatcard-log b { color: var(--bo2-gold); }
-.to-bo2-chatcard-log img { display: block; width: 110px; margin-top: 3px; border-radius: 6px; }
-.to-bo2-chatcard-log .is-empty { color: var(--bo2-dim); font-size: 13px; }
 .to-bo2.has-detail .to-bo2-party, body.is-map .to-bo2-party { visibility: hidden; }
 .to-bo2-party-lbl { font: 500 17px Oswald, sans-serif; letter-spacing: .04em; text-shadow: 0 1px 6px rgba(0,0,0,.9); }
 .to-bo2-party-lbl span { color: var(--bo2-dim); }
@@ -3773,7 +3764,14 @@ div.to-bo2-party-row.is-other { cursor: default; }
 /* Barracks and Options sit beside it, the same pill (menu-bo2.js openQuick). */
 .to-bo2-anim, .to-bo2-quick { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 14px; border: 1px solid rgba(243,236,228,.35); border-radius: 10px; background: rgba(3,1,1,.45); color: var(--bo2-soft); font: 15px "DM Sans", sans-serif; cursor: pointer; white-space: nowrap; }
 .to-bo2-foot > div:first-child { margin-right: auto; }
-.to-bo2-foot > button + button { margin-left: -16px; }
+.to-bo2-foot > button + button, .to-bo2-foot > button + .to-bo2-optcol { margin-left: -16px; }
+/* The public chat: a small chat icon standing on Options (user, 2026-10-22) */
+.to-bo2-optcol { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.to-bo2-quick.to-bo2-chat { justify-content: center; width: 40px; min-height: 40px; padding: 0; }
+.to-bo2-chat svg { width: 20px; height: 20px; fill: currentColor; }
+.to-bo2-chat .to-pchat-badge { position: absolute; top: -7px; right: -7px; }
+/* the operator stands only in Cosmetics now, so its Emote pill shows there */
+.to-bo2:is([data-screen="cosmetics"], [data-screen="bodies"], [data-screen="faces"], [data-screen="wrists"]) .to-bo2-foot .to-char-emote:not([hidden]) { display: flex; }
 /* the Emote pill, moved into the row (menu-bo2.js): the same pill */
 .to-bo2-foot .to-char-emote { position: static; transform: none; min-height: 44px; padding: 0 18px 0 12px; border: 1px solid rgba(243,236,228,.35); border-radius: 12px; background: rgba(3,1,1,.45); color: var(--bo2-soft); font: 15px "DM Sans", sans-serif; letter-spacing: 0; text-transform: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
 .to-bo2-foot .to-char-emote:hover, .to-bo2-foot .to-char-emote[aria-expanded="true"] { color: var(--bo2-ink); border-color: var(--bo2-ink); }
@@ -3861,13 +3859,12 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
   /* below the party box: at 96px a narrow phone stood the head on "Log in to keep your XP" */
   #to-title.is-bo2 .to-char-view { left: 50%; right: 0; top: 124px; bottom: 16px; --char-shift: 0; }
   .to-bo2-party { bottom: 70px; }
-  .to-bo2-chatcard-log { display: none; }
   /* no room under its feet in this short box: the pill stands to its left */
   #to-title.is-bo2 .to-char-emote { left: 18%; }
   .to-bo2-foot { left: max(44px, env(safe-area-inset-left)); right: max(20px, env(safe-area-inset-right)); bottom: 8px; gap: 14px; align-items: center; }
   .to-bo2-online { font-size: 22px; }
   :is(.to-bo2-anim, .to-bo2-quick), .to-bo2-foot .to-char-emote { min-height: 30px; font-size: 13px; padding: 0 10px; }
-  .to-bo2-foot > button + button { margin-left: -8px; }   /* 6px apart at this gap */
+  .to-bo2-foot > button + button, .to-bo2-foot > button + .to-bo2-optcol { margin-left: -8px; }   /* 6px apart at this gap */
 }
 /* sideways: the radio up in the corner, above the detail pane */
 @media (max-height: 520px) and (min-aspect-ratio: 9/10) {
@@ -3888,8 +3885,6 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
   /* with a detail pane open, the list keeps to the top part and scrolls */
   .to-bo2.has-detail .to-bo2-menu { max-height: 40%; }
   .to-bo2-party { left: 20px; right: 20px; width: auto; bottom: auto; top: calc(56px + env(safe-area-inset-top) + var(--menu-h, 300px) + 8px); }
-  .to-bo2-chatcard { margin-top: 8px; }
-  .to-bo2-chatcard-log { display: none; }
   .to-bo2-detail, .to-bo2-panel { left: 12px; right: 12px; top: calc(56px + env(safe-area-inset-top) + var(--menu-h, 300px) + 8px); bottom: auto; max-height: calc(100% - 56px - env(safe-area-inset-top) - var(--menu-h, 300px) - 8px - var(--foot-h, 42px) - 30px); padding: 12px; }
   #to-title.is-bo2 .to-bo2-detail .to-lo-detail { background: none; border: 0; padding: 0; box-shadow: none; }
   .to-bo2-panel { bottom: auto; }
@@ -3912,7 +3907,7 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
      pills under it, Emote as its icon (aria-label "Emotes") */
   .to-bo2-foot { flex-wrap: wrap; justify-content: flex-end; row-gap: 10px; }
   .to-bo2-foot > div:first-child { flex-basis: 100%; }
-  .to-bo2-foot > button + button { margin-left: -18px; }
+  .to-bo2-foot > button + button, .to-bo2-foot > button + .to-bo2-optcol { margin-left: -18px; }
   .to-bo2-foot .to-char-emote span { display: none; }
 }
 @media (hover: none) { .to-bo2-back kbd { display: none; } .to-bo2-back { min-height: 44px; font: 600 16px Oswald, sans-serif; letter-spacing: .06em; text-transform: uppercase; } }

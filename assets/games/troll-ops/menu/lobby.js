@@ -95,7 +95,8 @@ function mountGunView(panel) {
    per-panel box — it's a free-floating hero shot over the whole lobby
    (see .to-char-view), so showing it for a panel is just an on/off flag. */
 function mountCharView(panel) {
-  charInspectorLive = !!(charView && (panel === "deploy" || panel === "cosmetics"));
+  // Cosmetics only (user, 2026-10-22): the lobby's middle is the map preview.
+  charInspectorLive = !!(charView && panel === "cosmetics");
   if (charView) charView.style.display = charInspectorLive ? "" : "none";
   if (!charInspectorLive) menuEmoteWheel?.close(true);
 }

@@ -15,7 +15,7 @@ import { createBo2Menu } from "../../../js/bo2-menu.js?v=to-ft2-tb1";
 import { createMapMode } from "../../../js/troll-map-mode.js?v=to-bo2d";
 import { joinSitePresence, viewerId } from "../../../js/site-presence.js?v=to-bo2d-ol1-iv1";
 import { initInvites, invitePlayer } from "./invites.js?v=iv1-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2";
-import { initPublicChat, setChatPreview } from "./public-chat.js?v=pch1-nb2-pc2-gf1-sc1-tw1";
+import { initPublicChat } from "./public-chat.js?v=pch1-nb2-pc2-gf1-sc1-tw1";
 import { startOnline, onlinePlayers, serverList, joinServer, describe } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2";
 import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
 
@@ -98,10 +98,6 @@ root.innerHTML = `
     <span class="to-bo2-party-lbl"></span>
     <button type="button" class="to-bo2-party-row"><i class="to-bo2-lv"></i><b class="to-bo2-name">Guest</b></button>
     <span class="to-bo2-xp"></span>
-    <section class="to-bo2-chatcard" aria-label="Public chat">
-      <header><b>Public chat</b><button type="button" class="tf-btn tf-btn--secondary to-bo2-quick to-bo2-chat">Open<b class="to-pchat-badge" hidden></b></button></header>
-      <ol class="to-bo2-chatcard-log"></ol>
-    </section>
   </aside>
   <section class="to-bo2-detail" aria-live="polite">
     <figure class="to-bo2-mapshot" hidden><img alt=""><figcaption></figcaption></figure>
@@ -115,7 +111,10 @@ root.innerHTML = `
       <button type="button" class="to-bo2-back"><kbd>Esc</kbd>Back</button>
     </div>
     <button type="button" class="tf-btn tf-btn--secondary to-bo2-quick" data-go="barracks">Barracks</button>
-    <button type="button" class="tf-btn tf-btn--secondary to-bo2-quick" data-go="options">Options</button>
+    <div class="to-bo2-optcol">
+      <button type="button" class="tf-btn tf-btn--secondary to-bo2-quick to-bo2-chat" title="Public chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4A1.5 1.5 0 0 1 4 14.5z"/></svg><b class="to-pchat-badge" hidden></b></button>
+      <button type="button" class="tf-btn tf-btn--secondary to-bo2-quick" data-go="options">Options</button>
+    </div>
   </footer>`;
 pf.prepend(root);
 const nav = $(".to-bo2-menu", root);
@@ -141,7 +140,7 @@ const clanIn = $("input", clanForm);
 let clanEditing = false, previewCard = null;
 const myUid = () => { const p = window.TrollrunnerAccounts?.getCachedProfile?.(); return p?.id || p?.userId || null; };
 const setStatus = (t) => { $(".to-bo2-status", root).textContent = t; };
-// The site presence roster, kept current below (Who's Online, Server Browser).
+// The site presence roster, kept current below (the party column, Who's Online).
 let roster = { members: [], guests: [] };
 
 function renderCardHost() {
@@ -385,7 +384,6 @@ const screens = {
     groups: [
       [
         { id: "public", label: "Public Match", tier: "primary", desc: "Drop into a versus room with whoever is online. Bots fill the gaps.", go: "public" },
-        { id: "servers", label: "Server Browser", value: () => serverValue(), desc: "Every public server, live: who's in it and what they're playing. Pick one to join, Zombies runs too.", go: "servers" },
         { id: "social", label: "Socialize", desc: "Hang out in Troll City or at Trolling Loud with whoever is online. No guns, just emotes and chat.", go: "social" },
         { id: "solo", label: "Solo Play", desc: "Ops, Zombies or the Test Range. Just you.", go: "solo" },
         { id: "zombies", label: "Zombies", desc: "The hub: step on a map's pad, up to four of you go in together against the horde.", go: "zombies" },
@@ -398,9 +396,9 @@ const screens = {
         canPrestige() && { id: "prestige", label: "Prestige", value: nextPrestigeName(), desc: "You're at level 69. Go back to level 1 for a new prestige.", go: "prestige" },
       ].filter(Boolean),
       [
-        { id: "online", label: "Who's Online", value: () => `${onlinePlayers(roster).length}`, desc: "Everyone on trollrunner.net right now, players and guests, and what they're up to.", go: "online" },
+        // Who's Online and the Server Browser went (user, 2026-10-22): who's on
+        // is the party column on the right, and the home page has the Troll Map.
         { id: "leaders", label: "Leaderboards", desc: "This week's and this month's best trolls.", go: "leaders" },
-        { id: "map", label: "Troll Map", desc: "This planet is the troll map. Spin it, find your city, see who is out there.", go: "map" },
       ],
       [
         // Options and the Barracks sit in the footer now, by the Animations
@@ -534,27 +532,9 @@ const screens = {
       ],
     };
   },
-  /* The public servers (menu/online.js): busiest first, then each mode's
-     public room nobody is in yet. Live: the list redraws as people come and
-     go. A Zombies run already on lets you in when its round ends. */
-  servers: () => ({
-    title: "Server Browser", panel: "deploy",
-    groups: [
-      serverList(roster).map((s) => {
-        const n = s.players.length;
-        const where = [s.mapName, s.wave ? `round ${s.wave}` : ""].filter(Boolean).join(" · ");
-        return {
-          id: `srv-${s.room}`, label: s.modeName, value: n ? `${n} in` : "Empty",
-          desc: n ? `${where ? where + ". " : ""}${s.players.slice(0, 6).join(", ")}${n > 6 ? ` and ${n - 6} more` : ""}.${s.mode === "zombies" && s.wave ? " You spawn in when the round ends." : ""}`
-            : "Nobody in yet. Start it and whoever joins plays with you.",
-          onSelect: () => { if (joinServer(s)) setStatus(`Joining ${s.modeName}…`); },
-        };
-      }),
-      [back("Back to the main menu.")],
-    ],
-  }),
-  /* Everyone online (menu/online.js): accounts, then guests. Someone in a
-     public server: select to join them; an account: their profile card. */
+  /* Everyone online (menu/online.js): accounts, then guests, past what the
+     party column holds ("+N more online"). Someone in a public server:
+     select to join them; an account: their profile card. */
   online: () => {
     const me = (() => { try { return localStorage.getItem("trollrunner_viewer_id_v1"); } catch { return null; } })();
     const servers = serverList(roster);
@@ -1053,7 +1033,7 @@ function renderPartyOthers() {
 /* On a small screen the list stops short of the controls below it (the
    online count, the Animations switch, the Emote button: user's rule, no
    overlapping UI text); the rows that don't fit fold into "+N more". */
-const PARTY_BELOW = [".to-bo2-online", ".to-bo2-foot .to-bo2-quick", "#to-char-emote", ".to-bo2-chatcard"];
+const PARTY_BELOW = [".to-bo2-online", ".to-bo2-foot .to-bo2-quick", "#to-char-emote", ".to-bo2-chat"];
 function fitPartyList(setMore) {
   const list = partyList.getBoundingClientRect();
   if (!list.height) return;
@@ -1145,18 +1125,14 @@ const net = $("#to-net-status");
 let netBase = text(net);
 if (net) new MutationObserver(() => { const t = text(net); $(".to-bo2-status", root).textContent = t !== netBase ? t : ""; }).observe(net, { childList: true, characterData: true, subtree: true });
 
-/* Who's online and the servers (menu/online.js): the presence roster, kept
-   current; the two screens and the main menu's counts redraw with it. */
-function serverValue() {
-  const n = serverList(roster).filter((s) => s.players.length).length;
-  return n ? `${n} live` : "";
-}
+/* Who's online (menu/online.js): the presence roster, kept current; the
+   party column and the overflow list redraw with it. */
 const presence = joinSitePresence({
   onCount: (n) => { $(".to-bo2-online", root).textContent = `${n} Online`; },
   onSync: (r) => {
     roster = r;
     renderParty();
-    if (["servers", "online", "main"].includes(menu.current()) && !title.hidden) menu.refresh();
+    if (menu.current() === "online" && !title.hidden) menu.refresh();
   },
 });
 roster = presence.roster();
@@ -1164,10 +1140,10 @@ startOnline(presence);
 // Invites (menu/invites.js) on the same channel, the cards' Invite button
 initInvites(presence);
 setInviteHandler(invitePlayer);
-// The public chat (menu/public-chat.js): its pill in the footer, for
-// everyone, guests too; it opens while the menu's up
+// The public chat (menu/public-chat.js): a chat icon over Options (user,
+// 2026-10-22: the card was too big), for everyone, guests too; it opens
+// while the menu's up
 initPublicChat({ presence, pill: $(".to-bo2-chat", root), viewerId, canOpen: () => !title.hidden, matchChat: () => game.chat });
-setChatPreview($(".to-bo2-chatcard-log", root));
 // The count opens the list.
 {
   const online = $(".to-bo2-online", root);
