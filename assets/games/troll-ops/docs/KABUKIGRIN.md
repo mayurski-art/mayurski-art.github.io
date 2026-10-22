@@ -236,7 +236,10 @@ the rope test are untouched.
   and the fish scatter), one cocktail table's worth of neon. The VIP band
   (reserved in CLUB-ENTRY.md) opens it; the owner band too. In versus it's
   a room on the defenders' side with one door and a shoot-through window
-  onto the hall. Skyscraper's tatami; Coastline's aquarium.
+  onto the hall. (As built, phase 3b: two doors, the hall's west back door
+  and one to the kitchen in line with it, since the room sits on the
+  kitchen -> hall route and that route had to stay.) Skyscraper's tatami;
+  Coastline's aquarium.
 - **(d) The manager's office** — the mezzanine's south end (x -14 .. -6,
   z 20 .. 24, over the back-of-house doors): a desk, a safe, monitors
   showing the dance floor cams, and a **one-way mirror window** 4 x 1.2 at

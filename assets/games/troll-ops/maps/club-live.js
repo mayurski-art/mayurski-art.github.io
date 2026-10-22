@@ -358,8 +358,9 @@ export function bottleWall(K, M, S, { x, back, z0, z1, y, rows = 3, glow = { h: 
 /* After the flush: the reflection (the ceiling neon HN, the crystal wall,
    the fringe and the ball mirrored under the glass floor), the lasers
    bursting out of the ball and turning with it, and the clock: one
-   invisible mesh whose draw hook runs `club.tick`. */
-export function finishClub(root, M, HN, S, club) {
+   invisible mesh whose draw hook runs `club.tick`. `clip` ({ x0, x1, z0,
+   z1 }): the room the beams stop at the walls of, where rooms lie past them. */
+export function finishClub(root, M, HN, S, club, { clip = null } = {}) {
   const mirror = new THREE.Group();
   mirror.scale.y = -1;
   for (const m of HN.meshes) mirror.add(new THREE.Mesh(m.geometry, m.material));
@@ -390,6 +391,15 @@ export function finishClub(root, M, HN, S, club) {
         g.setAttribute("color", new THREE.Float32BufferAttribute(arr, 3));
         geos.push(g.toNonIndexed());
       }
+    }
+    if (clip) {
+      M.beam.onBeforeCompile = (sh) => {
+        sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec2 vClipXZ;")
+          .replace("#include <project_vertex>", "#include <project_vertex>\nvClipXZ = (modelMatrix * vec4(transformed, 1.0)).xz;");
+        sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec2 vClipXZ;")
+          .replace("void main() {", `void main() {\n  if (vClipXZ.x < ${clip.x0.toFixed(2)} || vClipXZ.x > ${clip.x1.toFixed(2)} || vClipXZ.y < ${clip.z0.toFixed(2)} || vClipXZ.y > ${clip.z1.toFixed(2)}) discard;`);
+      };
+      M.beam.customProgramCacheKey = () => `beam-clip-${clip.x0},${clip.x1},${clip.z0},${clip.z1}`;
     }
     const lasers = new THREE.Mesh(mergeLasers(geos), M.beam);
     lasers.position.copy(S.ball.position);
@@ -698,6 +708,8 @@ export function clubEngine(P) {
 
   return {
     tick, onShot, onFrame,
+    // a shot answered by the map's own pieces sounds the same (kabukigrin-rooms.js)
+    sfx,
     attachAudio: (a) => { AUDIO = a; },
     attachMusic: (m) => { MUSIC = m; },
     active: () => ACTIVE,

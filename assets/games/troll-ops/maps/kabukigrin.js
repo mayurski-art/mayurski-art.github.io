@@ -15,19 +15,22 @@
 // chandelier and ball, the bottle wall, the lasers, the clock and the
 // booth's track; the seam pieces the street sees (the marquee, the kanji
 // strip, the LED windows on Mid Bottom) and the two video screens
-// (video-wall.js). Kept as kabukigrin_wip (out of the vote pool) until phase 6.
+// (video-wall.js); the borrowed rooms' live bits (kabukigrin-rooms.js: the
+// yokocho, the tatami VIP and its koi tank, the office's one-way mirror).
+// Kept as kabukigrin_wip (out of the vote pool) until phase 6.
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { GRINJUKU } from "./grinjuku.js?v=gj1-sr1-or1";
-import { KB_LAYOUT } from "./kabukigrin-layout.js?v=kb0-kb1-kb2-kb3-kb5";
+import { KB_LAYOUT } from "./kabukigrin-layout.js?v=kb0-kb1-kb2-kb3-kb5-kb6";
 import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1";
 import { loadBake } from "./battlefield-props.js?v=sr1-or1";
 import { applyBakedLightMap, retexture } from "./surface-textures.js?v=hg6e-sr1-or1";
 import { Kit, place, surfMat, texMat } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1";
 import { Neon, neonMat, clubFx, cutRects, slatTexture, mosaicTexture } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1";
-import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4";
+import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4-kb6";
 import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5";
+import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6";
 
 const URL_GLB = new URL("../models/", import.meta.url).href;
 const loader = new GLTFLoader();
@@ -182,6 +185,7 @@ const CLEAR = [
   [-6.2, -4.4, 0.05, 8.8, 13.6, 14.4],       // the blade sign on Mid Bottom's wall
   [-24.6, -22.85, 2.7, 8.6, -8.35, 3.25],    // the A Main screen's footprint: the windows, lightboxes and shop signs on that face
   [15.8, 22.8, 3.45, 7.75, -32.6, -31.85],   // the Alta screen's
+  [-31.75, -24.2, 0.31, 6.0, 24.2, 29.85],   // the tatami room's inside: the backs' windows and signs on the edge wall
 ];
 function clearForClub(scene) {
   scene.traverse((o) => {
@@ -259,11 +263,15 @@ function buildClub(api) {
     addLight(S, lights, new THREE.Color(hex), power, range, x, y, z, { amp: AMP[hex] ?? 0.04, ...(dance && { hue: 0.92, orbit: 0 }) });
   }
 
+  // the borrowed rooms (doc 3.5 b, c, d): Studio's walls, these their insides
+  buildRooms({ root, K, N, M, jpSign, sfx: CLUB.sfx });
+
   K.flush();
   N.flush();
   HN.flush();
   for (const l of lights) root.add(l);
-  finishClub(root, M, HN, S, CLUB);
+  // (the lasers stop at the hall's walls: the tatami room and the office lie past them)
+  finishClub(root, M, HN, S, CLUB, { clip: { x0: HALL.x0, x1: -13.7, z0: 3.9, z1: 24 } });
 
   /* ---- the video screens, Times Square billboards (refs/times-square-
      screens-*.jpg): each in a housing built out from its facade past every
@@ -298,8 +306,9 @@ function clubInterior(K) {
   };
   const { x0, x1, z0, z1 } = HALL, top = PLAN.TOP;
   // the front (z 3.9) and back (z 24) walls: a panel on each Studio piece
-  for (const [x, z, w, d, h, y] of L.colliders) {
-    if (x - w / 2 < x0 - 0.05 || x + w / 2 > x1 + 0.45 || h < 0.5) continue;
+  for (const [x, z, w, d, h, y, pen] of L.colliders) {
+    // (not the glass: the tatami room's window onto the hall)
+    if (x - w / 2 < x0 - 0.05 || x + w / 2 > x1 + 0.45 || h < 0.5 || pen < 1) continue;
     const ya = Math.max(0, y), yb = Math.min(top, y + h);
     if (Math.abs(z - 3.9) < 0.05) panel(slats, x, z + d / 2 + 0.01, w, ya, yb, 0);
     if (Math.abs(z - 24) < 0.05) panel(slats, x, z - d / 2 - 0.01, w, ya, yb, Math.PI);
@@ -383,9 +392,10 @@ export const KABUKIGRIN = {
   dress: DRESS,
   bombSites: SITES,
   spawns: SPAWNS,
-  onShot: CLUB.onShot,
+  // the koi tank and the office's mirror first, then the club's signs and bottles
+  onShot: (p) => { if (!roomsShot(p)) CLUB.onShot(p); },
   attachAudio: CLUB.attachAudio,
   attachMusic: CLUB.attachMusic,
   onFrame: CLUB.onFrame,
-  debug: () => ({ ...CLUB.debug(), ropes: ROPES.map((r) => ({ ...r })), sites: SITES.map((s) => ({ ...s })) }),
+  debug: () => ({ ...CLUB.debug(), rooms: roomsDebug(), ropes: ROPES.map((r) => ({ ...r })), sites: SITES.map((s) => ({ ...s })) }),
 };
