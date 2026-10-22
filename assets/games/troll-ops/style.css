@@ -4177,7 +4177,6 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
 .to-pchat-log li.is-me b { color: #ffcf8a; }
 .to-pchat-log li time { margin-left: 8px; font: 11px "DM Mono", monospace; color: #8d7f72; }
 .to-pchat-log li p { margin: 2px 0 0; overflow-wrap: anywhere; line-height: 1.35; }
-.to-pchat-log li.to-pchat-empty { color: #c9b8a6; }
 .to-pchat-form { display: flex; gap: 8px; padding: 10px 14px 0; }
 .to-pchat-form input { flex: 1; min-width: 0; min-height: 40px; padding: 0 10px; border-radius: 8px; border: 1px solid rgba(243,236,228,.25); background: rgba(0,0,0,.35); color: #f3ece4; font: 15px "DM Sans", sans-serif; }
 .to-pchat-form input:focus { outline: none; border-color: #ff8a1f; }

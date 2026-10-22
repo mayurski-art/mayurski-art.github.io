@@ -147,7 +147,6 @@ export function makeTrollOpsProvider() {
         weekLabel: periodLabel(period, now),
         resetsIn: timeLeft(period, now),
         countdown: () => timeLeft(period),
-        emptyText: `No plays yet this ${period} — be the first on the board.`,
         footNote: `Live — every logged-in player's matches this ${period}, added up. Resets ${period === "month" ? "on the 1st" : "every Monday"}.`,
         loggedIn: !!myId,
       };
