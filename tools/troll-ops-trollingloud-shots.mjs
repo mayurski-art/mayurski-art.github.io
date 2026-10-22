@@ -14,7 +14,7 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const OUT = path.join(ROOT, ".claude/club-shots");
+const OUT = path.join(ROOT, process.env.OUT || ".claude/club-shots");
 fs.mkdirSync(OUT, { recursive: true });
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css",
   ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp",
@@ -46,9 +46,24 @@ const VIEWS = {
   siteA:    [-27.5, 3.5, 11.5, -19.6, 0.3, 8.25, 80],
   siteB:    [27.5, 3.5, 11.5, 16, 0.3, 8.3, 80],
 };
+// Kabukigrin's club on Grinjuku's A side, and the street that sees it
+const KB_VIEWS = {
+  hall:      [-15.2, 4.6, 14.5, -29, 2.2, 15, 74],
+  floor:     [-19, 1.7, 21.5, -28, 2.6, 11, 78],
+  dj:        [-21, 1.7, 15, -31.6, 3.0, 15, 76],
+  bar:       [-22, 1.8, 18, -14.4, 1.8, 11, 74],
+  ceiling:   [-22, 1.6, 19, -22, 7.0, 13, 84],
+  marquee:   [-27, 1.8, -14, -26.5, 3.8, 4, 66],
+  screen:    [-28.5, 1.8, -18, -23, 5.3, -2, 70],
+  alta:      [12, 1.8, -40, 17, 4.8, -32, 72],
+  midbottom: [3.5, 1.8, 20, -6, 4.6, 12, 74],
+  midwall:   [3, 3.2, 14, -6, 5, 14, 82],
+  corner:    [-24, 2, 13, -30.5, 4.5, 4.1, 80],
+};
+const MAP = process.env.MAP || "trollingloud";
+if (/^kabukigrin/.test(MAP)) { for (const k of Object.keys(VIEWS)) delete VIEWS[k]; Object.assign(VIEWS, KB_VIEWS); }
 if (process.env.VIEW) VIEWS.custom = process.env.VIEW.split(",").map(Number);
 const ids = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(VIEWS);
-const MAP = process.env.MAP || "trollingloud";
 
 const browser = await chromium.launch({ args: [`--use-angle=${process.env.ANGLE || "d3d11"}`, "--enable-unsafe-swiftshader", "--autoplay-policy=no-user-gesture-required"] });
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });

@@ -236,7 +236,7 @@ for (const map of maps) {
     await T.startGame(); if (T.isStaging()) T.endStaging();
     T.player.maxHp = T.player.hp = 1e9;
   }, map);
-  await new Promise((r) => setTimeout(r, 6000));
+  await new Promise((r) => setTimeout(r, +(process.env.SETTLE || 6000)));   // SETTLE=ms for a map that loads slowly
   console.log(`\n${map}`);
   for (const [x, y, z, fx, fz, secs, label, check] of [[0, 0, 0, 0, 1, 1.5, "warm-up", () => true], ...RUNS[map]]) {
     const r = await page.evaluate(async ([x, y, z, fx, fz, secs, step]) => {
