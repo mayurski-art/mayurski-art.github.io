@@ -678,6 +678,151 @@ function poseCigar(rig, t) {
   done(rig);
 }
 
+/* Chug (user, 2026-10-22: "drinking a beer emote after drinking from the
+   beer mug the character gets super excited ... and throws the mug"). A
+   frothy mug comes up in the right fist; head back, three big gulps, the
+   mug tipping further each time as the beer goes down. The back of the
+   left hand wipes the mouth, then he goes off: both arms up, two hops, a
+   fist pump, head shaking. A big overhand wind-up and the mug flies,
+   tumbling, about 4 m ahead and smashes (glass and foam). For everyone, on
+   every body. Blocky and inked like the cigar. The flight is drawn in root
+   space from the emote clock, so every client sees the same throw. */
+const CHUG = {
+  seconds: 6.2, release: 4.72, land: 5.42,
+  gulps: [[0.75, 1.25], [1.3, 1.8], [1.85, 2.35]],
+  // the mug's turn in the fist: upright, and tipped to the lips (radians about the hand's x)
+  upright: [0, PI / 2, 0], tip: 1.35,
+  fly: { from: [0.24, 1.95, -0.35], to: [0.35, 0.06, -4.0], peak: 1.1 },
+};
+const CHUG_COLOURS = { glass: 0xd8eef0, beer: 0xe09a1a, foam: 0xfff6e0, band: 0x8a5a2b };
+let chugGeo = null;
+function chugBox(colour, w, h, d, x, y, z, g, opts = {}) {
+  chugGeo ||= Object.assign(new THREE.BoxGeometry(1, 1, 1), { userData: { shared: true } });
+  const mat = colour instanceof THREE.Material ? colour : new THREE.MeshToonMaterial({ color: colour, ...opts });
+  const m = new THREE.Mesh(chugGeo, mat);
+  m.scale.set(w, h, d); m.position.set(x, y, z);
+  g.add(m);
+  if (!opts.transparent) {
+    const ink = new THREE.Mesh(chugGeo, INK_MAT);
+    ink.scale.set(w + 0.008, h + 0.008, d + 0.008); ink.position.copy(m.position);
+    g.add(ink);
+  }
+  return m;
+}
+/* The mug: the handle at the origin (in the fist), the body out along +x,
+   its mouth up +y. `beer` is the fill (scaled down as it's drunk). */
+function makeMug() {
+  const g = new THREE.Group(), W = 0.085, H = 0.13, X = 0.075;
+  g.userData.beer = chugBox(CHUG_COLOURS.beer, W - 0.012, H - 0.03, W - 0.012, X, -0.005, 0, g);
+  chugBox(new THREE.MeshToonMaterial({ color: CHUG_COLOURS.glass, transparent: true, opacity: 0.35, depthWrite: false }), W, H, W, X, 0, 0, g, { transparent: true });
+  g.userData.foam = chugBox(CHUG_COLOURS.foam, W + 0.006, 0.026, W + 0.006, X, H / 2 + 0.006, 0, g);
+  chugBox(CHUG_COLOURS.band, W + 0.004, 0.012, W + 0.004, X, -H / 2 + 0.006, 0, g);
+  chugBox(CHUG_COLOURS.glass, 0.016, 0.085, 0.018, 0, 0, 0, g);            // the grip
+  chugBox(CHUG_COLOURS.glass, 0.03, 0.014, 0.018, 0.018, 0.04, 0, g);     // its arms to the body
+  chugBox(CHUG_COLOURS.glass, 0.03, 0.014, 0.018, 0.018, -0.04, 0, g);
+  return g;
+}
+/* The smash: amber glass shards and foam, thrown out from where it lands. */
+function chugSmash() {
+  const g = new THREE.Group();
+  for (let i = 0; i < 9; i++) {
+    const foam = i % 3 === 2;
+    const m = new THREE.Mesh(foam ? _smokeGeo : (chugGeo ||= Object.assign(new THREE.BoxGeometry(1, 1, 1), { userData: { shared: true } })),
+      new THREE.MeshBasicMaterial({ color: foam ? CHUG_COLOURS.foam : i % 2 ? CHUG_COLOURS.glass : CHUG_COLOURS.beer, transparent: true, depthWrite: false }));
+    const a = (i / 9) * PI * 2 + 0.4;
+    m.userData.dir = new THREE.Vector3(Math.cos(a), 0.9 + (i % 4) * 0.35, Math.sin(a));
+    g.add(m);
+  }
+  return g;
+}
+const _chT = new THREE.Vector3(), _chL = new THREE.Vector3(), _chA = new THREE.Vector3(), _chB = new THREE.Vector3();
+const _chPoleR = new THREE.Vector3(1, -0.6, 0.3), _chPoleL = new THREE.Vector3(-1, -0.6, 0.3), _chPoleUp = new THREE.Vector3(1, 0.2, 0.6), _chPoleUpL = new THREE.Vector3(-1, 0.2, 0.6);
+function poseChug(rig, t) {
+  const p = rig.parts, s = rig.scale, w = rig.blocky ? 1.35 : 1;
+  base(rig);
+  const side = p.headPivot.scale.x < 0 ? -1 : 1;
+  // the drink: up to the lips, held there through the gulps
+  const lift = env(t, 0.1, 0.5, 2.4, 2.75);
+  const atMouth = env(t, 0.4, 0.7, 2.35, 2.6);
+  const gulp = CHUG.gulps.reduce((m, [a, b]) => Math.max(m, env(t, a, a + 0.12, b - 0.15, b)), 0);
+  const drunk = clamp01((t - CHUG.gulps[0][0]) / (CHUG.gulps[2][1] - CHUG.gulps[0][0]));
+  // the wipe, the hype, the wind-up, the throw and the follow-through
+  const wipe = env(t, 2.45, 2.65, 2.8, 3.0);
+  const hype = env(t, 2.85, 3.1, 4.0, 4.2);
+  const wind = env(t, 4.0, 4.45, 4.55, 4.7);
+  const thrown = t >= CHUG.release;
+  const follow = env(t, 4.6, 4.75, 4.95, 5.3);
+  const cheer = env(t, 5.2, 5.5, 5.95, 6.2);
+  const hops = [[3.0, 3.38], [3.45, 3.83]].reduce((m, [a, b]) => Math.max(m, t > a && t < b ? Math.sin(((t - a) / (b - a)) * PI) : 0), 0);
+  const shake = hype * Math.sin(t * 16);
+  // body: lean back to drink, bounce on the hops, coil and uncoil for the throw
+  p.hips.position.y = rig.hipY + hops * 0.24 * s;
+  p.legL.rotation.x = 0.55 * hops; p.legR.rotation.x = 0.45 * hops;
+  p.kneeL.rotation.x = -1.0 * hops; p.kneeR.rotation.x = -0.9 * hops;
+  p.torso.rotation.x = -0.14 * atMouth - 0.08 * hype - 0.1 * wind + 0.28 * follow - 0.06 * cheer;
+  p.torso.rotation.y = 0.45 * wind - 0.4 * follow;
+  head(rig, 0.55 * atMouth + 0.12 * gulp + 0.25 * hype + 0.3 * cheer, 0.35 * shake + 0.3 * wind, 0.15 * shake);
+  // the right hand: hanging -> chest -> lips -> overhead -> behind the head -> out ahead
+  _chT.set(0.3 * s, -0.62 * s, 0.02 * s);
+  _chT.lerp(_chA.set(0.14 * w * s, -0.3 * s, -0.3 * s), lift);
+  if (atMouth > 0) _chT.lerp(facePoint(rig, 0.18 * side, -0.55, 0.2 * s), atMouth);
+  _chT.lerp(_chA.set(0.22 * w * s, (0.62 + 0.06 * Math.sin(t * 16)) * s, -0.06 * s), hype);
+  _chT.lerp(_chA.set(0.3 * w * s, 0.42 * s, 0.3 * s), wind);
+  _chT.lerp(_chA.set(0.12 * w * s, -0.1 * s, -0.6 * s), follow);
+  _chT.lerp(_chA.set(0.26 * w * s, 0.62 * s, -0.08 * s), cheer);
+  reachHand(rig, 1, _chT, hype + wind + cheer > 0.4 ? _chPoleUp : _chPoleR);
+  setHandPose(rig, 1, !thrown && lift + hype + wind > 0.2 ? "fist" : cheer > 0.4 ? "fist" : "open");
+  // the left hand: the back of it across the mouth, then fist pumps up high
+  _chL.set(-0.3 * s, -0.62 * s, 0.02 * s);
+  if (wipe > 0) _chL.lerp(facePoint(rig, -0.05 * side + 0.25 * side * (wipe - 0.5), -0.55, 0.16 * s), wipe);
+  const pump = 0.5 + 0.5 * Math.sin((t - 3.0) * 13);
+  _chL.lerp(_chA.set(-0.24 * w * s, (0.38 + 0.24 * pump) * s, -0.06 * s), hype);
+  _chL.lerp(_chA.set(-0.26 * w * s, 0.62 * s, -0.08 * s), cheer);
+  reachHand(rig, -1, _chL, hype + cheer > 0.4 ? _chPoleUpL : _chPoleL);
+  setHandPose(rig, -1, wipe > 0.3 || hype + cheer > 0.3 ? "fist" : "open");
+  // the mug in the fist: upright, tipped to the lips on the gulps
+  const handPt = p.wristR.parent;
+  const mug = emoteBit(rig, "chugMug", handPt, makeMug);
+  mug.visible = t >= 0.15 && !thrown;
+  mug.position.set(0, 0, 0);
+  mug.rotation.set(CHUG.upright[0] - CHUG.tip * atMouth * (0.55 + 0.45 * drunk), CHUG.upright[1], CHUG.upright[2]);
+  mug.scale.setScalar(s * (rig.blocky ? 1.6 : 1.2));
+  mug.userData.beer.scale.y = (0.13 - 0.03) * Math.max(0.08, 1 - drunk);
+  mug.userData.beer.position.y = -0.065 + 0.015 + mug.userData.beer.scale.y / 2;
+  mug.userData.foam.visible = drunk < 0.85;
+  // the throw: out of the hand, tumbling end over end along an arc
+  const fly = emoteBit(rig, "chugFly", rig.root, makeMug);
+  const k = (t - CHUG.release) / (CHUG.land - CHUG.release);
+  fly.visible = k >= 0 && k < 1;
+  if (fly.visible) {
+    const F = CHUG.fly;
+    _chA.set(F.from[0] * w, F.from[1], F.from[2]).multiplyScalar(s);
+    _chB.set(F.to[0] * w, F.to[1], F.to[2]).multiplyScalar(s);
+    fly.position.lerpVectors(_chA, _chB, k);
+    fly.position.y += Math.sin(k * PI) * F.peak * s - k * k * 0.0;
+    fly.rotation.set(-k * PI * 3, 0.6, k * 1.2);
+    fly.scale.setScalar(s * (rig.blocky ? 1.6 : 1.2));
+    fly.userData.beer.scale.y = 0.008; fly.userData.foam.visible = false;
+  }
+  // the smash
+  const smash = emoteBit(rig, "chugSmash", rig.root, chugSmash);
+  const u = (t - CHUG.land) / 0.6;
+  smash.visible = u >= 0 && u < 1;
+  if (smash.visible) {
+    const F = CHUG.fly;
+    smash.position.set(F.to[0] * w * s, F.to[1] * s, F.to[2] * s);
+    smash.children.forEach((m, i) => {
+      const d = m.userData.dir, r = (0.2 + 0.8 * u) * s;
+      m.position.set(d.x * r, Math.max(0, d.y * u * 0.7 - 1.6 * u * u) * s, d.z * r);
+      const big = m.geometry === _smokeGeo ? (0.07 + 0.16 * u) : 0.055 * (1 - 0.4 * u);
+      m.scale.setScalar(big * s);
+      m.rotation.set(u * 9 + i, u * 7, 0);
+      m.material.opacity = 1 - u * u;
+    });
+  }
+  done(rig);
+}
+
 /* Crutches (user, 2026-10-16): hobbling on a pair of crutches, the left
    leg hurt and tucked up. Loops until you move: the crutches swing ahead
    and plant, the body swings through on the good leg with a hop, the
@@ -865,6 +1010,7 @@ export const EMOTES = [
   { id: "gum", name: "Bubblegum", kind: "tp", pose: poseGum, seconds: GUM.seconds, token: 989 },
   { id: "crutches", name: "Crutches", kind: "tp", pose: poseCrutches, seconds: CRUTCH.seconds },
   { id: "cigar", name: "Cigar", kind: "tp", pose: poseCigar, seconds: CIGAR.seconds, token: 1272 },
+  { id: "chug", name: "Chug", kind: "tp", pose: poseChug, seconds: CHUG.seconds },
 ];
 
 export const DEFAULT_EMOTE_SECONDS = 8;

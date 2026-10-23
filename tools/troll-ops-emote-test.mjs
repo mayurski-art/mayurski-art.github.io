@@ -307,6 +307,28 @@ await A.evaluate(() => { window.__trollOps.setEmote(-1); const A = window.Trollr
 await sleep(500);
 check("cigar: gone once it stops", await A.evaluate(() => { const r = window.__trollOps.localRig; return !r.cigarMouth?.visible && !r.cigarHand?.visible && !r.cigarSmoke?.visible; }));
 
+// Chug (user, 2026-10-22): for everyone. The mug in the fist while he
+// drinks, out of the hand and in the air after the throw, smashed on the
+// ground, and nothing left once it stops. (Each probe sets the clock, then
+// waits 0.3 s of play.)
+const CHUG = await A.evaluate(() => window.__trollOps.emoteWheel.slices.findIndex((b) => b.textContent.includes("Chug")));
+check("chug: on the wheel's list, after the cigar", CHUG > CIG, `slot ${CHUG}`);
+check("chug: on a guest's wheel", await A.evaluate((i) => { const w = window.__trollOps.emoteWheel; w.layout(); return w.shown.includes(i); }, CHUG));
+await A.evaluate((i) => window.__trollOps.setEmote(i), CHUG);
+const chugAt = (t) => A.evaluate(async (t) => {
+  window.__trollOps.emote().t = t;
+  await new Promise((r) => setTimeout(r, 300));
+  const rig = window.__trollOps.localRig;
+  return { mug: !!rig.chugMug?.visible, fly: !!rig.chugFly?.visible, smash: !!rig.chugSmash?.visible };
+}, t);
+const chDrink = await chugAt(1.3), chFly = await chugAt(4.75), chSmash = await chugAt(5.25);
+check("chug: the mug in the fist while he drinks", chDrink.mug && !chDrink.fly && !chDrink.smash, JSON.stringify(chDrink));
+check("chug: the mug in the air after the throw", chFly.fly && !chFly.mug, JSON.stringify(chFly));
+check("chug: smashed on the ground", chSmash.smash && !chSmash.fly && !chSmash.mug, JSON.stringify(chSmash));
+await A.evaluate(() => window.__trollOps.setEmote(-1));
+await sleep(500);
+check("chug: gone once it stops", await A.evaluate(() => { const r = window.__trollOps.localRig; return !r.chugMug?.visible && !r.chugFly?.visible && !r.chugSmash?.visible; }));
+
 check("no page errors", errors.length === 0, errors.join(" | "));
 await browser.close();
 server.close();
