@@ -6,3 +6,6 @@ assets/images/wallpaper-src/*
 assets/images/trollrunner-appicons-*.jpg
 
 __pycache__/
+
+# Screenshots the headless tests write; local self-checks, not shipped.
+tools/.*-shots/
