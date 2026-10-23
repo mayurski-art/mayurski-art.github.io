@@ -72,6 +72,10 @@ const HG_DISTRICTS = {
   square: [-14, 14, -10, 14], graveyard: [-36, -14, -32, 14], corn: [14, 51, -30, 14],
   lane: [-30, 51, 14, 45],
 };
+/* Troll City by name: St. Grinsworth's chapel (trollcity-chapel.js CHAPEL,
+   its tower to the west and apse to the east). */
+const TC_DISTRICTS = { chapel: [77, 109, 60, 72] };
+const NAMED = { hollowgrin: HG_DISTRICTS, trollcity: TC_DISTRICTS };
 // (main before the fix, 3 x 120 s: chapel 0, hollow 0, creek 0, park 5.3%)
 const HG_FAR = { chapel: 0.1, hollow: 0.1, creek: 0.3, park: 15, lane: 8 };
 
@@ -141,13 +145,15 @@ for (const id of mapIds) {
     const ground = bm.spawnPoints.filter((p) => (p.y || 0) < 0.5);
     const spawnPts = ground.length ? ground : bm.spawnPoints;
     let mgr0Places = null;
-    let totals = { t: 0, up: 0, cells: new Array(nx * nz).fill(0), named: {}, kills: 0, ms: 0, levels: {}, upPerBot: [], posts: { up: 0, upArrived: 0, ground: 0, groundArrived: 0, failed: {}, died: 0, byNamed: {} }, fighting: 0 };
+    let totals = { t: 0, up: 0, cells: new Array(nx * nz).fill(0), named: {}, kills: 0, ms: 0, levels: {}, upPerBot: [], posts: { up: 0, upArrived: 0, ground: 0, groundArrived: 0, failed: {}, died: 0, byNamed: {}, byDistrict: {} }, fighting: 0 };
     const namedOf = (x, z) => { for (const [n, [x0, x1, z0, z1]] of Object.entries(HG || {})) if (x >= x0 && x < x1 && z >= z0 && z < z1) return n; return "?"; };
-    const tally = (p, k) => { if (id !== "hollowgrin") return; const n = namedOf(p.x, p.z); const e = totals.posts.byNamed[n] || (totals.posts.byNamed[n] = [0, 0]); e[k]++; };
+    const tally = (p, k) => { if (!HG) return;
+      if (k === 0 && mgr0Places) { const d = mgr0Places.districtOf(p.x, p.z); totals.posts.byDistrict[d] = (totals.posts.byDistrict[d] || 0) + 1; } const n = namedOf(p.x, p.z); const e = totals.posts.byNamed[n] || (totals.posts.byNamed[n] = [0, 0]); e[k]++; };
     for (let seed = 0; seed < SEEDS; seed++) {
       const mgr = new BotManager();
       mgr.rebuildNav(colliders, arena, 0);
       mgr.prepPlaces?.(stairs);   // as game.js does at map load
+      mgr0Places = mgr.places;
       const spawnFor = (team, botId) => {
         // a ground spawn away from the other side, like game.js botSpawn
         const foes = mgr.bots.filter((b) => b.alive && b.team !== team && b.id !== botId);
@@ -204,7 +210,7 @@ for (const id of mapIds) {
             totals.levels[lv] = (totals.levels[lv] || 0) + DT;
           }
           totals.cells[cellOf(b.pos.x, b.pos.z)] += DT;
-          if (HG && id === "hollowgrin") {
+          if (HG) {
             for (const [n, [x0, x1, z0, z1]] of Object.entries(HG)) {
               if (b.pos.x >= x0 && b.pos.x < x1 && b.pos.z >= z0 && b.pos.z < z1) { totals.named[n] = (totals.named[n] || 0) + DT; break; }
             }
@@ -224,12 +230,13 @@ for (const id of mapIds) {
       grid: `${nx}x${nz}`, districts: liveShares,
       named: Object.fromEntries(Object.entries(totals.named).map(([k, v]) => [k, share(v)])),
       kills: totals.kills,
-      places: mgr0Places && { upper: mgr0Places.upper.length, ground: mgr0Places.ground.length, ms: +(mgr0Places.buildMs || 0).toFixed(1) },
+      places: mgr0Places && { upper: mgr0Places.upper.length, ground: mgr0Places.ground.length, ms: +(mgr0Places.buildMs || 0).toFixed(1),
+        ...(HG && { named: mgr0Places.all.reduce((o, p) => { const n = namedOf(p.x, p.z); if (n !== "?") o[n] = (o[n] || 0) + 1; return o; }, {}) }) },
       posts: totals.posts, fighting: share(totals.fighting),
       maxTickMs: +(totals.maxTick || 0).toFixed(1),
       msPerBotSec: +(totals.ms / (SECS * SEEDS * 10)).toFixed(3),
     };
-  }, { id, mods, SECS, SEEDS, HG: HG_DISTRICTS });
+  }, { id, mods, SECS, SEEDS, HG: NAMED[id] });
   results.push(res);
 
   const live = res.districts.filter((v) => v != null);
@@ -240,8 +247,10 @@ for (const id of mapIds) {
   console.log(`${"".padEnd(13)} districts ${res.grid} ${JSON.stringify(res.districts)}  near-empty ${empty}/${live.length}  kills ${res.kills}  ${res.msPerBotSec} ms/bot-s  slowest tick ${res.maxTickMs} ms`);
   const ps = res.posts;
   console.log(`${"".padEnd(13)} posts ${JSON.stringify(res.places)}  up ${ps.upArrived}/${ps.up} reached, ground ${ps.groundArrived}/${ps.ground}  died on the way ${ps.died}  in sight of a foe ${res.fighting}%  failed ${JSON.stringify(Object.entries(ps.failed).sort((a, b) => b[1] - a[1]).slice(0, 6))}`);
-  if (id === "hollowgrin") console.log(`${"".padEnd(13)} posts picked/reached by district ${JSON.stringify(res.posts.byNamed)}`);
-  if (id === "hollowgrin") console.log(`${"".padEnd(13)} named ${JSON.stringify(res.named)}`);
+  if (NAMED[id]) console.log(`${"".padEnd(13)} posts picked/reached by district ${JSON.stringify(res.posts.byNamed)}`);
+  if (NAMED[id]) console.log(`${"".padEnd(13)} named ${JSON.stringify(res.named)}`);
+  if (NAMED[id]) { const v = Object.values(res.posts.byDistrict).sort((a, b) => a - b);
+    console.log(`${"".padEnd(13)} post picks per bot district: median ${v[v.length >> 1]}, of ${v.length} ${JSON.stringify(res.posts.byDistrict)}`); }
 
   if (res.hasUpper) {
     // (main before the fix: 0-8%, most maps under 1%; now 9-43%)
