@@ -21,7 +21,7 @@
 // board, the cells and their doors.
 
 import * as THREE from "three";
-import { Kit, place, prismGeo, surfMat, canvasTex, texMat, rng, chair as kitChair, chandelier, hitchRail, bollard, streetLamp, sconce } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1";
+import { Kit, place, prismGeo, surfMat, canvasTex, texMat, rng, chair as kitChair, chandelier, hitchRail, bollard, streetLamp, sconce } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1";
 import { floorTexture } from "./chapel-art.js?v=ca1-tcs1";
 import { buildJailWall, BREACH } from "./trollcity-jailwall.js?v=jb1-jb3-jb6-sp1";
 

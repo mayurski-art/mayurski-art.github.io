@@ -16,7 +16,7 @@
 // these are the town's own false fronts, signs, porches and doors.
 
 import * as THREE from "three";
-import { Kit, place, rng, chair as kitChair, chandelier, sconce, streetLamp, telegraphPole, barrel, crate, hitchRail, trough } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1";
+import { Kit, place, rng, chair as kitChair, chandelier, sconce, streetLamp, telegraphPole, barrel, crate, hitchRail, trough } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1";
 
 export const EAST = { n: { x0: 35, x1: 70 }, s: { x0: 43, x1: 70 } };
 

@@ -50,6 +50,15 @@ export const SURFACES = {
   // paint tints it, as the code-drawn boards were)
   dryground: lazySet("dryground", ["ao"]),
   wplanks: lazySet("wplanks", ["ao"]),
+  // Poly Haven (CC0), 1k, for Kabukigrin (user, 2026-10-23: "like how we
+  // made the changes in troll city"; set B of two tried): clean_asphalt,
+  // interlocking_concrete_pavers, grey_plaster_02, terrazzo_tiles. The
+  // fronts' and floors' colour made grey so the paint under them still
+  // decides the colour.
+  kbasph: lazySet("kbasph", ["ao"]),
+  kbpave: lazySet("kbpave", ["ao"]),
+  kbfront: lazySet("kbfront", ["ao"]),
+  kbfloor: lazySet("kbfloor", ["ao"]),
 };
 
 /* Builds one tinted, textured MeshStandardMaterial from a SURFACES entry,
@@ -190,6 +199,8 @@ export function retexture(obj, mapping) {
     const textured = buildSurfaceMaterial(surface, color, repeat, n.material.lightMap || null, mix);
     if (!textured) return;
     textured.lightMapIntensity = n.material.lightMapIntensity;
+    // a vertex-painted material (Grinjuku's GS_Paint) keeps its paint
+    textured.vertexColors = !!n.material.vertexColors;
     n.material = textured;
   });
 }

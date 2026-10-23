@@ -24,24 +24,62 @@
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { GRINJUKU } from "./grinjuku.js?v=gj1-sr1-or1-tx1-sp1";
+import { GRINJUKU } from "./grinjuku.js?v=gj1-sr1-or1-tx1-sp1-kbt1";
 import { KB_LAYOUT } from "./kabukigrin-layout.js?v=kb0-kb1-kb2-kb3-kb5-kb6-kb9-kb10-sp1";
-import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1";
-import { loadBake } from "./battlefield-props.js?v=sr1-or1-tx1-sp1";
-import { applyBakedLightMap, retexture } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1";
-import { Kit, place, surfMat, texMat } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1";
-import { U, Neon, neonMat, clubFx, cutRects, slatTexture, mosaicTexture } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1-ch1-sp1";
-import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4-kb6-kb11-tx1-ch1-sp1-hh1-yb1";
-import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5-tx1-ch1-sp1";
-import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8-tx1-ch1-sp1";
-import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9-tx1-ch1-sp1";
-import { buildStreet, streetSound } from "./kabukigrin-street.js?v=kb10-kb11-kb12-tx1-ch1-sp1";
-import { buildTrain, trainFrame } from "./kabukigrin-train.js?v=kb14-sp1";
+import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1";
+import { loadBake } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1";
+import { applyBakedLightMap, retexture, SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1";
+import { Kit, place, surfMat, texMat } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1";
+import { U, Neon, neonMat, clubFx, cutRects, slatTexture, mosaicTexture } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1-ch1-sp1-kbt1";
+import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4-kb6-kb11-tx1-ch1-sp1-hh1-yb1-kbt1";
+import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5-tx1-ch1-sp1-kbt1";
+import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8-tx1-ch1-sp1-kbt1";
+import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9-tx1-ch1-sp1-kbt1";
+import { buildStreet, streetSound } from "./kabukigrin-street.js?v=kb10-kb11-kb12-tx1-ch1-sp1-kbt1";
+import { buildTrain, trainFrame } from "./kabukigrin-train.js?v=kb14-sp1-kbt1";
 
 const URL_GLB = new URL("../models/", import.meta.url).href;
 const loader = new GLTFLoader();
 // the GLBs whose chunks are light-mapped, and how strongly (battlefield-props BAKED)
 const BAKED = { "gj-shell": Math.PI, "gj-props": Math.PI, "gj-skyline": Math.PI };
+/* Photo surfaces (user, 2026-10-23: as Troll City got): the street, the
+   pavements and the floors from the Poly Haven sets in surface-textures.js,
+   and on the painted fronts a detail of the front set (below). */
+const KB_RETEXTURE = {
+  ...RETEXTURE,
+  GS_Pavement: ["kbpave", 0.5],
+  GS_FloorConc: ["kbfloor", 0.3],
+};
+/* GS_Paint is every flat-painted face in the town (map_kit.py folds them
+   into one vertex-coloured material): fronts, signs, window panels and the
+   road's paint. A photo can't replace it, so its walls only get the front
+   set's grain and relief over the paint (`amt`), by the world normal: the
+   floors, the lane lines and the crossings stay as painted. */
+function paintDetail(mat, surface, repeat, amt) {
+  const s = SURFACES[surface];
+  if (!s || mat.userData.kbDetail) return;
+  mat.userData.kbDetail = true;
+  const tex = [s.color.clone(), s.normal.clone()];
+  for (const t of tex) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat, repeat); t.needsUpdate = true; }
+  mat.normalMap = tex[1];
+  mat.normalScale = new THREE.Vector2(0.8, 0.8);
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uDetail = { value: tex[0] };
+    sh.uniforms.uDetailAmt = { value: amt };
+    sh.vertexShader = sh.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying float vWall;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvWall = 1.0 - smoothstep(0.35, 0.6, abs(normalize(mat3(modelMatrix) * objectNormal).y));");
+    sh.fragmentShader = sh.fragmentShader
+      .replace("#include <common>", "#include <common>\nuniform sampler2D uDetail;\nuniform float uDetailAmt;\nvarying float vWall;")
+      .replace("#include <color_fragment>", `#include <color_fragment>
+  float kbD = dot(texture2D(uDetail, vNormalMapUv).rgb, vec3(0.333));
+  diffuseColor.rgb *= mix(1.0, 0.55 + 0.9 * kbD, uDetailAmt * vWall);`)
+      .replace("#include <normal_fragment_maps>", `vec3 kbN = normal;
+#include <normal_fragment_maps>
+  normal = normalize(mix(kbN, normal, vWall));`);
+  };
+  mat.needsUpdate = true;
+}
 
 const L = KB_LAYOUT;
 const byKind = (kind) => Object.entries(L.markers).filter(([, m]) => m.kind === kind);
@@ -400,7 +438,8 @@ function loadTown(api) {
         const bake = bakeOf.get(file);
         if (bake) applyBakedLightMap(o, bake, BAKED[file]);
       }
-      retexture(gltf.scene, RETEXTURE);
+      retexture(gltf.scene, KB_RETEXTURE);
+      gltf.scene.traverse((o) => { if (o.isMesh && o.material?.name === "GS_Paint") paintDetail(o.material, "kbfront", 0.45, 0.7); });
       cutDanceFloor(gltf.scene);
       clearForClub(gltf.scene);
       api.prop(gltf.scene);
@@ -448,6 +487,8 @@ const cast = () => (CAST ??= kbNpcs({ DC: PLAN.DC, DANCE, deck: PLAN.deck }));
 
 export const KABUKIGRIN = {
   ...GRINJUKU,
+  // the street: the photo asphalt, Grinjuku's lane lines printed on it at the old texture's brightness
+  ground: { ...GRINJUKU.ground, surface: "kbasph" },
   name: "Kabukigrin",
   blurb: "Kabukicho after midnight. Trolling Loud's Tokyo branch on one side of the street, the alleys on the other, and a bomb site on the dance floor.",
   playerSpawn: { x: PLAYER[0], z: PLAYER[2] },

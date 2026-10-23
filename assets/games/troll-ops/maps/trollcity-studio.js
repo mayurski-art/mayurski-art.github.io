@@ -27,7 +27,7 @@
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { Kit, matsByKey } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1";
+import { Kit, matsByKey } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1";
 import { TC_LAYOUT } from "./trollcity-layout.js?v=tl1-tcs1-tcp1-trk1-ch1-sp1";
 
 const URL_GLB = new URL("../models/", import.meta.url).href;
