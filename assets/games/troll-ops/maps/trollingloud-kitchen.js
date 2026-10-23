@@ -20,7 +20,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { place, texMat, canvasTex } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1";
+import { place, texMat, canvasTex } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1";
 
 /* The room's inside faces (walls are 0.3 thick on lines x 14, 30, z -22, -9). */
 export const KITCHEN = { x0: 14.15, x1: 29.85, z0: -21.85, z1: -9.15 };

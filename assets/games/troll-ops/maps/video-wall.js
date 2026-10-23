@@ -13,7 +13,7 @@
 // into the canvas so the LED rows and the credit sit on it).
 
 import * as THREE from "three";
-import { SIGNS, signsTexture } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1-ch1";
+import { SIGNS, signsTexture } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1-ch1-sp1";
 
 const FPS = 10;
 const FLASH = 2 / FPS;   // the white flash between clips

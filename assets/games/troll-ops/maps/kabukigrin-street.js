@@ -14,8 +14,8 @@
 //   changes.
 
 import * as THREE from "three";
-import { place } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1";
-import { U, neonMat } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1-ch1";
+import { place } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1";
+import { U, neonMat } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1-ch1-sp1";
 
 const canvas = (w, h) => {
   const c = document.createElement("canvas");

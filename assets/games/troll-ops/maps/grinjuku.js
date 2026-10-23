@@ -6,7 +6,7 @@
 // sky and lighting. Everything you see is models/build_grinjuku.blender.py.
 
 import { GJ, grinjukuLayout } from "./grinjuku-layout.js?v=gj1-or1";
-import { mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1";
+import { mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1";
 
 const LAYOUT = grinjukuLayout();
 

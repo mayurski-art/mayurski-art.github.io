@@ -37,15 +37,15 @@
 // here at load; nothing adds one at runtime (light-pool.js).
 
 import * as THREE from "three";
-import { rng, Kit, place, surfMat, texMat, tex, canvasTex, glowTexture, boardsTexture } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1";
+import { rng, Kit, place, surfMat, texMat, tex, canvasTex, glowTexture, boardsTexture } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1";
 import {
   T, U, neonMat, Neon, ledMat, clubFx, wall, lining, cutRects, deck, glassRail,
   signsTexture, signAspect, quiltTexture, crocTexture, mosaicTexture, slatTexture, tileGlowTexture,
   fringeTexture, beamTexture, facetTexture, windowsTexture, speakerTexture, djTexture, flagTexture, busTexture,
-} from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1-ch1";
+} from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1-ch1-sp1";
 import { pickOutfit } from "../characters/outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1-or1";
-import { buildKitchen, kitchenMaterials, hopBackLight, PASS_HATCH } from "./trollingloud-kitchen.js?v=kt1-bw2-tcs1-tx1-ch1";
-import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine } from "./club-live.js?v=cl1-kb4-kb6-kb11-tx1-ch1";
+import { buildKitchen, kitchenMaterials, hopBackLight, PASS_HATCH } from "./trollingloud-kitchen.js?v=kt1-bw2-tcs1-tx1-ch1-sp1";
+import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine } from "./club-live.js?v=cl1-kb4-kb6-kb11-tx1-ch1-sp1";
 
 /* ============================================================== the plan */
 
