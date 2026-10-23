@@ -20,7 +20,7 @@
 // the street's (kabukigrin-street.js: the pachinko parlour on A Main).
 // In Socialize (kabukigrin-social.js): the door on A Main, the line, DJ Lulz
 // at the booth, the crowd in the club and on the street, the seats.
-// Kept as kabukigrin_wip (out of the vote pool) until phase 6.
+// In the vote pool since phase 6 (it was kabukigrin_wip while it was built).
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";

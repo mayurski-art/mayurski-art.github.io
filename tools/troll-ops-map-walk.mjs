@@ -216,7 +216,7 @@ await ctx.route(/supabase/, (r) => r.abort());
 // walls A site into a club: every way into the hall is a doorway now. A
 // Ramps' deck went with the club's front wall (it stood in front of the
 // pole dancer's screen), so its route goes too
-RUNS.kabukigrin_wip = [...RUNS.grinjuku.filter((r) => r[6] !== "A Ramps steps -> deck"),
+RUNS.kabukigrin = [...RUNS.grinjuku.filter((r) => r[6] !== "A Ramps steps -> deck"),
   [-27.6, 0, -2, 0, 1, 3.5, "A Main -> the club's main door", (r) => r.end[2] > 7],
   [-27, 0, 29, 0, -1, 3, "kitchen -> hall (west back door)", (r) => r.end[2] < 21],
   [-16, 0, 29, 0, -1, 3, "green room -> hall (east back door)", (r) => r.end[2] < 21],

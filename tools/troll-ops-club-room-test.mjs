@@ -24,7 +24,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
-// MAP=<id>: another club map (kabukigrin_wip); Trolling Loud by default
+// MAP=<id>: another club map (kabukigrin); Trolling Loud by default
 const MAP = process.env.MAP || "trollingloud";
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");

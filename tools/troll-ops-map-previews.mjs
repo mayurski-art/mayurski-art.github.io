@@ -52,6 +52,7 @@ const VIEWS = {
   trollcity: [-30, 6.2, 0.4, 44, 5.5, 0, 60],   // down Main Street: the saloon, the bank, the courthouse dome
   trollingloud: [0.5, 1.75, 5.5, 0, 3.8, -15, 76],   // the dance floor: the ball, the arches, the crystal wall, the DJ
   grinjuku: [0, 2.6, -37, 0, 3.4, -12, 70],   // up Mid Top through the torii: lantern strings, kanban, the post office
+  kabukigrin: [-25.2, 2.0, -29, -28.3, 4.0, 4, 72],   // up A Main: the pachinko parlour's SLOT 777, the club's marquee at the end of the line
   trollface: [18, 385, 232, 18, -12, 20, 44],   // Trollface Island (Troll Royale): the whole island from high off the south, the lake its grin
 };
 // Maps that only build in their own mode (the island is a prestige reward map

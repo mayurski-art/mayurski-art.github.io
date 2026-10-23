@@ -21,13 +21,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
-// MAP=<id>: another club map (kabukigrin_wip); Trolling Loud by default
+// MAP=<id>: another club map (kabukigrin); Trolling Loud by default
 const MAP = process.env.MAP || "trollingloud";
 // where A and B stand on the floor, at the booth (and facing it), and the
 // two shots' spots, each map's own
 const SPOT = {
   trollingloud: { a: [3, 4], b: [-3, 4], booth: [0, -12.6, 0], floor: [0, 6.5, 0], deck: [0, -9.5, 0] },
-  kabukigrin_wip: { a: [-21, 12], b: [-21, 18], booth: [-27.3, 15, Math.PI / 2], floor: [-19, 15, Math.PI / 2], deck: [-25.5, 15, Math.PI / 2] },
+  kabukigrin: { a: [-21, 12], b: [-21, 18], booth: [-27.3, 15, Math.PI / 2], floor: [-19, 15, Math.PI / 2], deck: [-25.5, 15, Math.PI / 2] },
 }[MAP];
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");

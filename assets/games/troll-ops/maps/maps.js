@@ -1888,8 +1888,8 @@ MAPS.trollingloud = TROLLINGLOUD;
 // both Heavens.
 MAPS.grinjuku = GRINJUKU;
 // Grinjuku with a nightclub in its A side, laid out in Roblox Studio
-// (docs/KABUKIGRIN.md): out of the vote pool while it's built.
-MAPS.kabukigrin_wip = KABUKIGRIN;
+// (docs/KABUKIGRIN.md): versus and S&D, and Socialize; no Zombies.
+MAPS.kabukigrin = KABUKIGRIN;
 // Troll Royale's own map: 400 m across, far too big for the versus modes, so
 // it stays out of MAP_IDS (the vote pool).
 MAPS.trollface = TROLLFACE_ISLAND;

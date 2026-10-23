@@ -35,7 +35,7 @@ const { chromium } = require("playwright");
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SHOTS = path.join(ROOT, "tools", ".club-shots");
-// MAP=<id>: another club map (kabukigrin_wip); Trolling Loud by default
+// MAP=<id>: another club map (kabukigrin); Trolling Loud by default
 const MAP = process.env.MAP || "trollingloud";
 // the rooms the bands are tried in, each map's own: VIP, back of house, the
 // street, a side way in to the main floor, the lobby
@@ -44,7 +44,7 @@ const SPOT = {
   // on the street; lane0: the first lane's x)
   trollingloud: { vip: [-22, 0.3, 3], back: [0, 0.3, -20], street: [0, 0, 27], side: [24, 0.3, 17], lobby: [0, 0.3, 18],
     curb: (z) => z > 27, alley: (z) => z > 25, lane0: -3.3, mouth: [0, 23.4], across: "z" },
-  kabukigrin_wip: { vip: [-28, 0.35, 27], back: [-22, 0.05, 32], street: [-27.6, 0, -4], side: [-8, 0.05, 10], lobby: [-27, 0.05, 7],
+  kabukigrin: { vip: [-28, 0.35, 27], back: [-22, 0.05, 32], street: [-27.6, 0, -4], side: [-8, 0.05, 10], lobby: [-27, 0.05, 7],
     curb: (z) => z < -1.5, alley: (z) => z < 0, lane0: -29.9, mouth: [-27.6, 3], across: "x" },
 }[MAP];
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css",
