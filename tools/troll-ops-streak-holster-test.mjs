@@ -191,8 +191,8 @@ const lsFired = await until(() => !window.__trollOps.streaks.ready("airstrike") 
 const lsBack = await until(() => window.__trollOps.player.holding === "melee", 15000);
 await sleep(400);
 await shot(page, "5-airstrike-d-back.png");
-check("Lightning Strike off melee: holster, dive, map, strike, melee back",
-  ls.holstered && ls.up && ls.dive && lsOpen && lsFired && lsBack, JSON.stringify({ ...ls, lsOpen, lsFired, lsBack, ...(await view()) }));
+check("Lightning Strike off melee: holster, map (no dive), strike, melee back",
+  ls.holstered && ls.up && !ls.dive && lsOpen && lsFired && lsBack, JSON.stringify({ ...ls, lsOpen, lsFired, lsBack, ...(await view()) }));
 await sleep(4000);   // let the bombs land
 const lsDied = await page.evaluate((d) => window.__trollOps.player.deaths > d, deaths0);
 check("...and the strike didn't land on us", !lsDied);
@@ -273,7 +273,7 @@ const ccBack = await until(() => window.__trollOps.player.holding !== "streak", 
 const ccBanked = (await cpCharges()) === cp0;   // the one granted for it, still there
 check("...cancelled off the secondary: still banked, back on the secondary", ccBack && ccBanked, JSON.stringify({ ccBack, ccBanked, ...(await view()) }));
 
-// Lightning Strike: tablet dive, the map, three marks, back on the secondary.
+// Lightning Strike: the map (no dive), three marks, back on the secondary.
 const lsOn = await fromSecondary();
 const deaths1 = await page.evaluate(() => window.__trollOps.player.deaths);
 await page.evaluate(() => { const T = window.__trollOps; T.streaks.grant("airstrike"); T.callStreak("airstrike"); });
@@ -288,8 +288,8 @@ const sFired = await until(() => !window.__trollOps.streaks.ready("airstrike") &
 const sBack = await until(() => window.__trollOps.player.holding !== "streak", 15000) && await onSecondary();
 await sleep(400);
 await shot(page, "6-airstrike-c-back.png");
-check("Lightning Strike off the secondary: dive, map, strike, back on the secondary",
-  lsOn && sUp && sDive && sOpen && sFired && sBack, JSON.stringify({ lsOn, sUp, sDive, sOpen, sFired, sBack, ...(await view()) }));
+check("Lightning Strike off the secondary: map (no dive), strike, back on the secondary",
+  lsOn && sUp && !sDive && sOpen && sFired && sBack, JSON.stringify({ lsOn, sUp, sDive, sOpen, sFired, sBack, ...(await view()) }));
 await sleep(4000);   // let the bombs land
 check("...and that strike didn't land on us either", !(await page.evaluate((d) => window.__trollOps.player.deaths > d, deaths1)));
 

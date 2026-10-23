@@ -162,7 +162,7 @@ check("Swivel left: a spin that comes out ~0.9 m to the left", sw.ok && sw.done 
 const sw2 = await page.evaluate(() => { const T = window.__trollOps; T.move.velocity.set(0, 0, 0); return T.trySwivel(1); });
 check("no swivel standing still (needs a forward run)", sw2 === false);
 
-// --- Tablet dive into Lightning Strike's map
+// --- Lightning Strike's map: straight up, no dive into the tablet (user, 2026-10-23)
 const dive = await page.evaluate(async () => {
   const T = window.__trollOps;
   T.streaks.grant("airstrike");
@@ -175,7 +175,7 @@ const dive = await page.evaluate(async () => {
   T.cancelMark();
   return { started, open, flash, maxDip: +maxDip.toFixed(2) };
 });
-check("Lightning Strike: the view dives into the tablet, then the map opens", dive.started && dive.open && dive.flash && dive.maxDip > 0.2, dive);
+check("Lightning Strike: the map opens at once, no dive", !dive.started && dive.open && dive.maxDip === 0, dive);
 
 // --- Dragonfire
 await page.evaluate(() => {

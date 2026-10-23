@@ -293,12 +293,13 @@ export function callStreak(id) {
   // cancelling mid-mark must not eat the reward.
   if (id === "airstrike") {
     // BO2's Lightning Strike: up comes the tablet, you mark three spots on
-    // the overhead map. Nothing is spent until the third is marked.
+    // the overhead map. Nothing is spent until the third is marked. Straight
+    // onto the map, no dive down into the tablet first (user, 2026-10-23).
     game.markingStreak = id;
     game.cancelCook();
     updateStreakHud();
     game.beginStreakHold(0, "tablet", "strike");
-    game.startTabletDive(0.95, () => { if (game.markingStreak === "airstrike") game.openStrikeTablet(); });
+    game.openStrikeTablet();
     return;
   }
   if (id === "carepackage") {
