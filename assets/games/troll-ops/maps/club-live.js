@@ -28,7 +28,7 @@ import {
   U, skipOverride, signUV, signAspect, neonMat, ledMat,
   signsTexture, tileGlowTexture, fringeTexture, beamTexture, facetTexture, djTexture,
 } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1-ch1-sp1";
-import { BEATS } from "../sound/music-beats.js?v=bg1-sg1-zr10-jb1-nh1-hl1-or1-hh1";
+import { BEATS } from "../sound/music-beats.js?v=bg1-sg1-zr10-jb1-nh1-hl1-or1-hh1-yb1";
 
 /* A build's live state: the lobby's map thumbnails and the preloader also
    run build(), so each build keeps its own and the ticker (it only runs

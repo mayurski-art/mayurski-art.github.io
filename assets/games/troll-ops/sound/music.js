@@ -27,6 +27,7 @@ const TRACKS = [
   { title: "Natural Habitat (feat. Ken Carson)", artist: "070 Shake, Ken Carson", src: "assets/games/troll-ops/music/natural-habitat.mp3" },
   { title: "Headlines", artist: "Drake", src: "assets/games/troll-ops/music/headlines.mp3" },
   { title: "Hold That Heat (feat. Travis Scott)", artist: "Southside, Future", src: "assets/games/troll-ops/music/hold-that-heat.mp3" },
+  { title: "Breathe", artist: "Yeat", src: "assets/games/troll-ops/music/breathe.mp3" },
 ];
 
 // v2 made shuffle the default. The old key saved `shuffle: false` for everyone
