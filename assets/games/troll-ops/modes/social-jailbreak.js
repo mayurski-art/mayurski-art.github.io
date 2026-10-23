@@ -11,14 +11,20 @@
 // (rpBusy.gun), not a punch, a sip or the piano. Each shot goes to the room
 // (`jb` rp messages), so everyone hears it and sees the hole in that cell.
 // A cell's wall comes back fresh a minute after it empties.
+//
+// Out through the wall you're on the run for two minutes (social-jail.js
+// heatUntil): any townsfolk, worker or lawman who has you in sight for a
+// moment (facing you, close enough, nothing between), or a player sheriff
+// near you, and the sheriff takes you back to the cells, the gun found.
 
 import { game } from "../core/state.js?v=st1";
 import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1";
 import { touchState } from "../input/touch.js?v=in1-th2-bp1-bf1-pd1-nf1-fs1";
-import { rpBusy, rpExtras, rpListeners } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mg1-kb12-tm2-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb2-jb3";
-import { cellsOf, jailed } from "./social-jail.js?v=sj1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mg1-kb12-tm2-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb2-jb3";
+import { rpBusy, rpExtras, rpListeners } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mg1-kb12-tm2-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb2-jb3-jb4";
+import { cellsOf, jailed, onTheRun, JAIL_T } from "./social-jail.js?v=sj1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mg1-kb12-tm2-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb2-jb3-jb4";
 import { makeHandCannon } from "./jailbreak-gun.js?v=jb4-jb3";
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1-gf1-tg1";
+import { townArrest } from "./social-sheriff.js?v=sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mg1-kb12-tm2-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb2-jb3-jb4";
 import * as THREE from "three";
 
 export const JB = {
@@ -166,6 +172,69 @@ function boom(c) {
   else game.audio.explosion?.(1, at);
 }
 
+/* ------------------------------------------------- on the run: the heat */
+
+export const HEAT = {
+  sight: 16,         // m: a townsperson facing you sees you this far
+  lawSight: 24,      // m: the sheriff and his deputy, further (a player sheriff too)
+  cone: 0.34,        // cos of the half-angle they look across (~70 degrees)
+  lawCone: 0.0,      // the law looks wider (~90 degrees)
+  spotSecs: 0.7,     // in sight this long and you're caught
+  checkEvery: 0.15,  // s between sight checks
+};
+const LAW = new Set(["Sheriff", "Deputy"]);
+const _from = new THREE.Vector3(), _dir = new THREE.Vector3();
+/* Can (x, eyeY, z) see us? Nothing solid between their eyes and our chest. */
+function clearLine(x, eyeY, z) {
+  const p = game.move.pos;
+  _from.set(x, eyeY, z);
+  _dir.set(p.x - x, p.y + 1.2 - eyeY, p.z - z);
+  const d = _dir.length();
+  if (d < 0.01) return true;
+  _dir.divideScalar(d);
+  return raycastWorld(game.colliders, _from, _dir, d) >= d - 0.35;
+}
+/* Who has us in sight right now: a name, or null. */
+export function seenBy() {
+  const p = game.move.pos;
+  for (const n of game.townNpcs?.list || []) {
+    if (n.off) continue;
+    const law = LAW.has(n.c.role);
+    const dx = p.x - n.x, dz = p.z - n.z, d = Math.hypot(dx, dz);
+    if (d > (law ? HEAT.lawSight : HEAT.sight) || d < 0.01) continue;
+    // NPC yaw is the camera's convention: they face (-sin yaw, -cos yaw)
+    const facing = (dx * -Math.sin(n.yaw) + dz * -Math.cos(n.yaw)) / d;
+    if (facing < (law ? HEAT.lawCone : HEAT.cone)) continue;
+    if (clearLine(n.x, (n.c.y ?? 0) + 1.6, n.z)) return n.c.name;
+  }
+  for (const peer of game.net?.peers?.values?.() || []) {
+    if (game.isBotPeer(peer) || peer.role !== "sheriff") continue;
+    const rp = game.remotes?.byId?.get(peer.id);
+    if (!rp) continue;
+    if (Math.hypot(rp.pos.x - p.x, rp.pos.z - p.z) > HEAT.lawSight) continue;
+    if (clearLine(rp.pos.x, rp.pos.y + 1.6, rp.pos.z)) return peer.name || "The sheriff";
+  }
+  return null;
+}
+const heat = { t: 0, check: 0, who: null, spot: 0, warned: false, caughtAt: -1e9 };
+function updateHeat(dt) {
+  if (!onTheRun() || !game.player.alive) { heat.spot = 0; heat.who = null; heat.warned = false; return; }
+  heat.check -= dt;
+  if (heat.check <= 0) { heat.check = HEAT.checkEvery; heat.who = seenBy(); }
+  if (heat.who) {
+    if (!heat.warned) { showWaveBanner(`${heat.who} is looking your way`, 900); heat.warned = true; }
+    heat.spot += dt;
+  } else { heat.spot = Math.max(0, heat.spot - dt * 0.5); if (heat.spot <= 0) heat.warned = false; }
+  if (heat.spot >= HEAT.spotSecs) {
+    const who = heat.who;
+    jailed.heatUntil = 0;
+    heat.spot = 0; heat.warned = false;
+    heat.caughtAt = performance.now();
+    showWaveBanner(`${who} spotted you. Back to the cells`, 2600);
+    townArrest(`Caught on the run by ${who}`, JAIL_T.maxSecs);
+  }
+}
+
 /* First person: the revolver up in the right hand, the left out of the way. */
 export function jailbreakArms() {
   if (!jb.gun) return null;
@@ -196,7 +265,14 @@ export function updateJailbreak(dt) {
   if (jb.sentence !== jailed.me) {
     putAway();
     Object.assign(jb, { sentence: jailed.me, taken: false, lost: false, cleared: false });
+    // brought back after being caught on the run: they found the gun
+    if (jailed.me && performance.now() - heat.caughtAt < 90000) {
+      Object.assign(jb, { taken: true, lost: true });
+      cellState(jailed.me.ci).taken = true;
+      showWaveBanner("They found the hand cannon. No way out this time: serve it all", 3200);
+    }
   }
+  updateHeat(dt);
   if (jb.gun && (!myCell() || !game.player.alive)) putAway();
   if (jb.gun) {
     jb.kick = Math.max(0, jb.kick - dt * 5);
@@ -272,5 +348,5 @@ rpExtras.push(takeAction);
 
 // headless tests reach in here (tools/troll-ops-jailbreak-test.mjs)
 if (typeof window !== "undefined" && /[?&]tohooks=1/.test(location.search)) {
-  window.__trollJailbreak = { JB, jb, takeGun, shoot, under };
+  window.__trollJailbreak = { JB, jb, takeGun, shoot, under, HEAT, heat, seenBy };
 }
