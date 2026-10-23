@@ -1033,6 +1033,84 @@ def build_venice(P, G):
     b.finish("gb-venice.glb")
 
 
+# --- Grin Beach 5c: the board you ride. One board in its own frame (no light
+# bake: it moves), the deck up, the nose at -z (a player's facing at yaw 0),
+# the bottom at y 0. A white board: social-surf.js tints each rider's.
+SURF_L, SURF_W, SURF_T = 2.3, 0.56, 0.075
+
+
+def build_surfboard():
+    b = Builder()
+    base = mat("GV_SurfBase", 0xf6f2ea, 0.3)
+    rail = mat("GV_SurfRail", 0xd8d2c4, 0.35)
+    wood = mat("GV_Stringer", 0x8a5a32, 0.6)
+    pad = mat("GV_DeckPad", 0x26262a, 0.95)
+    fin = mat("GV_Fin", 0x3a3e44, 0.4)
+    L, W, T = SURF_L, SURF_W, SURF_T
+    n = 28
+
+    def rocker(z):
+        # nose lift (z -L/2) a lot, tail kick (z +L/2) a little
+        u = (z + L / 2) / L
+        return 0.13 * (1 - u) ** 2.6 + 0.045 * u ** 3.2
+
+    def halfw(t):
+        return W / 2 * (math.sin(math.pi * (0.02 + 0.96 * t)) ** 0.5) * (1.0 - 0.22 * t) + 0.004
+
+    def thick(t):
+        return T * (0.35 + 0.65 * math.sin(math.pi * (0.03 + 0.94 * t)) ** 0.6)
+
+    rows = []
+    for i in range(n + 1):
+        t = i / n
+        z = -L / 2 + L * t
+        rows.append((z, halfw(t), thick(t), rocker(z)))
+    # the hull: for each row, a rounded rail section (deck crown, soft rail,
+    # flat-ish bottom) as k points across
+    K = 10
+    sec = []
+    for j in range(K):
+        a = math.pi * 2 * j / K
+        sec.append((math.cos(a), math.sin(a)))
+    pts, faces = [], []
+    for (z, w, th, ry) in rows:
+        for (cx, sy) in sec:
+            y = ry + th / 2 + (th / 2) * (sy if sy > 0 else sy * 0.75)
+            x = w * (abs(cx) ** 0.55) * (1 if cx >= 0 else -1)
+            pts.append((x, y, z))
+    for i in range(n):
+        for j in range(K):
+            a, bb = i * K + j, i * K + (j + 1) % K
+            c, d = (i + 1) * K + (j + 1) % K, (i + 1) * K + j
+            faces.append([a, bb, c, d])
+    faces.append([j for j in range(K)][::-1])
+    faces.append([n * K + j for j in range(K)])
+    b.poly(base, pts, faces)
+    # the rails' paint band is the base; a stringer down the deck, a pad on the tail
+    def deck_y(z):
+        i = min(n - 1, max(0, int((z + L / 2) / L * n)))
+        return rows[i][3] + rows[i][2]
+    for i in range(1, n - 1):
+        z0 = -L / 2 + L * i / n
+        z1 = -L / 2 + L * (i + 1) / n
+        y = (deck_y(z0) + deck_y(z1)) / 2
+        b.box(wood, 0.012, 0.004, (z1 - z0) * 1.02, 0, y - 0.001, (z0 + z1) / 2, rx=math.atan2(deck_y(z1) - deck_y(z0), z1 - z0) * -1)
+    for i in range(6):
+        z = L / 2 - 0.12 - 0.07 * i
+        t = (z + L / 2) / L
+        w = halfw(t) * 1.6
+        b.box(pad, w, 0.01, 0.062, 0, deck_y(z) - 0.002, z)
+    b.box(pad, 0.32, 0.03, 0.045, 0, deck_y(L / 2 - 0.1) + 0.004, L / 2 - 0.1)   # the kick
+    # three fins under the tail: a thruster
+    for (fx, fz, sz) in ((0.0, L / 2 - 0.13, 1.0), (-0.19, L / 2 - 0.3, 0.85), (0.19, L / 2 - 0.3, 0.85)):
+        yb = rocker(fz)
+        fp = [(fx, yb, fz - 0.11 * sz), (fx, yb, fz + 0.02 * sz), (fx, yb - 0.12 * sz, fz + 0.05 * sz), (fx, yb - 0.05 * sz, fz - 0.02 * sz)]
+        e = 0.006
+        q = [(x - e, y, z) for (x, y, z) in fp] + [(x + e, y, z) for (x, y, z) in fp]
+        b.poly(fin, q, [[0, 1, 2, 3], [7, 6, 5, 4], [0, 4, 5, 1], [1, 5, 6, 2], [2, 6, 7, 3], [3, 7, 4, 0]])
+    b.finish("gb-surfboard.glb", bake=False)
+
+
 def main():
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
@@ -1046,7 +1124,8 @@ def main():
                 "shops": lambda: build_shops(P, G), "towers": lambda: build_towers(P, G),
                 "beach": lambda: build_beach(P, G), "bluffs": lambda: build_bluffs(P, G),
                 "boardwalk": lambda: build_boardwalk(P, G),
-                "venice": lambda: build_venice(P, G)}
+                "venice": lambda: build_venice(P, G),
+                "surfboard": build_surfboard}
     only = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     built = [k for k in builders if not only or k in only]
     for k in built:

@@ -99,6 +99,13 @@ export function beachNpcs() {
     }
   }
 
+  /* ---- out in the lineup: four on boards, taking turns on the sets (5c,
+     modes/social-surf.js drives them: `line` the way each rides, `surfAt`
+     his place in the 40 s cycle) */
+  for (const [x, z, line, at] of [[-30, -38, -1, 0], [6, -37, 1, 10], [30, -39, 1, 20], [52, -38, -1, 30]]) {
+    extra("Surfer", "surf", { x, z, y: 0, yaw: Math.PI }, { line, surfAt: at, board: (at / 10) | 0 });
+  }
+
   /* ---- in the bleachers: two at each court, a seat apart */
   const taken = new Set();
   const sit = (i, act, more) => {

@@ -29,8 +29,8 @@ import {
 import { gsModel, mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1";
 import { buildDustbowlCity, CITY_PALMS } from "./dustbowl-city.js?v=db5-sr1-or1-tx1-sp1-kbt1";
 import { buildSurfStrip } from "./surf-sea.js?v=gb1";
-import { buildVenice, VENICE_PALMS, VENICE_SPAWNS } from "./grinbeach-venice.js?v=gb1";
-import { beachNpcs, beachFreeSeats } from "./grinbeach-social.js?v=gb3-rh1";
+import { buildVenice, VENICE_PALMS, VENICE_SPAWNS, RACKS } from "./grinbeach-venice.js?v=gb1";
+import { beachNpcs, beachFreeSeats } from "./grinbeach-social.js?v=gb3-rh1-gb4";
 import { dressMap, beachWaterMaterial, palmTrees, shopSignMaterial, beachMural, rangeBoardMaterial } from "./map-dressing.js?v=hg6e-sr1-or1";
 
 /* ------------------------------------------------------------ surface PBR */
@@ -1852,6 +1852,8 @@ MAPS.grinbeach.rp = {
   npcs: () => beachNpcs(),
   seats: () => beachFreeSeats(beachNpcs()),
   npcShadows: true,
+  // the surfboard racks (5c, modes/social-surf.js): hold X at one for a board
+  surf: () => ({ racks: RACKS }),
 };
 MAPS.grinbeach.dress = {
   seed: 83,
