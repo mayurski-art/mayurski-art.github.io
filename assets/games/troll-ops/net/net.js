@@ -134,8 +134,9 @@ export class Net {
     this.stetson = 0;   // a hat from Kek & Sons (modes/social-shop.js)
     this.horse = 0; this.horseGait = 0; this.horseYaw = 0; this.saddles = 0;   // on a horse (modes/social-horses.js)
     this.surf = 0; this.surfYaw = 0; this.surfColor = 0;   // on a surfboard at Grin Beach (modes/social-surf.js)
-    this.hoopBall = null; this.hoopMove = 0; this.hoopAt = 0;
-    this.tennisClip = 0; this.tennisAt = 0;   // a racket in hand at Troll Beach: its clip + 1, from when (modes/social-tennis.js)   // a basketball in hand at Troll Beach (modes/social-hoops.js)
+    this.hoopBall = null; this.hoopMove = 0; this.hoopAt = 0;   // a basketball in hand at Troll Beach (modes/social-hoops.js)
+    this.tennisClip = 0; this.tennisAt = 0;   // a racket in hand at Troll Beach: its clip + 1, from when (modes/social-tennis.js)
+    this.vballClip = 0; this.vballAt = 0;   // in a volleyball game at Troll Beach: the clip + 1, from when (modes/social-vball.js)
     this.bandSong = 0; this.bandAt = 0; this.bandAuto = 0;   // the saloon band (modes/social-band.js)
     this._acc = 0;
     this._out = [];
@@ -383,6 +384,8 @@ export class Net {
         p.hoopBall = typeof m.hb === "string" ? m.hb.slice(0, 48) : null; p.hoopMove = Math.max(-32, Math.min(32, m.hm | 0)); p.hoopAt = Number.isFinite(+m.ha) ? +m.ha : 0;
         // a racket (modes/social-tennis.js): its clip + 1 (0: none), its start (room ms)
         p.tennisClip = Math.max(0, Math.min(32, m.tr | 0)); p.tennisAt = Number.isFinite(+m.ta) ? +m.ta : 0;
+        // in a volleyball game (modes/social-vball.js): the clip + 1 (0: not playing), its start (room ms)
+        p.vballClip = Math.max(0, Math.min(32, m.vc | 0)); p.vballAt = Number.isFinite(+m.va) ? +m.va : 0;
         // the saloon band (modes/social-band.js): the song they started (+1), when (room ms), their part on auto
         p.bandSong = Math.max(0, Math.min(999, m.bs | 0)); p.bandAt = Number.isFinite(+m.ba) ? +m.ba : 0; p.bandAuto = !!m.bz;
         p.jail = Math.max(0, Math.min(9, m.jl | 0));
@@ -599,6 +602,7 @@ export class Net {
         ho: this.horse || undefined, hg: this.horse ? this.horseGait : undefined, hy: this.horse ? this.horseYaw : undefined, hs: this.saddles || undefined,
         sf: this.surf || undefined, sy: this.surf ? this.surfYaw : undefined, sc: this.surf ? this.surfColor : undefined,
         tr: this.tennisClip || undefined, ta: this.tennisClip ? this.tennisAt : undefined,
+        vc: this.vballClip || undefined, va: this.vballClip ? this.vballAt : undefined,
         hb: this.hoopBall || undefined, hm: this.hoopMove || undefined, ha: this.hoopMove ? this.hoopAt : undefined,
         bs: this.bandSong || undefined, ba: this.bandSong ? this.bandAt : undefined, bz: this.bandAuto || undefined,
       });

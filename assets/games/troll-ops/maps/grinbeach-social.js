@@ -76,10 +76,11 @@ export function beachNpcs() {
   /* ---- the lifeguard, up the tower by the volleyball court */
   add("Lifeguard Lenny", "Lifeguard", "guard", { x: 14, z: -17.2, y: TOWER_DECK, yaw: 0 });
 
-  /* ---- volleyball: two a side, the net across z -12 */
+  /* ---- volleyball: two a side, the net across z -12 (5d, modes/social-vball.js:
+     `vball` is how good; two of them fill in a 2v2) */
   const vx = (VB[0] + VB[1]) / 2;
-  for (const [dx, z, yaw] of [[-2, -16.5, FACE_YAW["+z"]], [2, -15.8, FACE_YAW["+z"]], [-2.2, -7.8, FACE_YAW["-z"]], [1.8, -8.4, FACE_YAW["-z"]]]) {
-    extra("Baller", "ready", { x: vx + dx, z, y: 0, yaw });
+  for (const [dx, z, yaw, skill] of [[-2, -16.5, FACE_YAW["+z"], 0.6], [2, -15.8, FACE_YAW["+z"], 0.7], [-2.2, -7.8, FACE_YAW["-z"], 0.55], [1.8, -8.4, FACE_YAW["-z"], 0.75]]) {
+    extra("Baller", "ready", { x: vx + dx, z, y: 0, yaw }, { vball: { skill } });
   }
   /* ---- the shootaround under the south hoop: the regulars you run it
      with (5d, modes/hoops-game.js: `hoops` is how good, how they play) */

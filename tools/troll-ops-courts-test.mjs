@@ -19,8 +19,11 @@
 //         for the serve, the serve in, a rally (A's timed stroke goes over
 //         and the pro returns it), faults (two = a double fault, a point),
 //         7 wins and moves the ladder; B sees the match and the pro.
+//   vball: A starts a game at the ball, B joins: 2v2 with two NPCs; the
+//         serve goes over, the NPCs pass, set and hit it back; a ball down
+//         on a side is the other side's point; 15 wins; B sees the score.
 //
-// Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-courts-test.mjs [gear] [hoops] [game] [tennis]
+// Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-courts-test.mjs [gear] [hoops] [game] [tennis] [vball]
 
 import http from "node:http";
 import fs from "node:fs";
@@ -120,7 +123,7 @@ const modUrl = (page, file) => page.evaluate((file) => {
 
 const A = await open("A", "baller_a");
 await join(A);
-const B = want("hoops") || want("game") || want("tennis") ? await open("B", "watcher_b") : null;
+const B = want("hoops") || want("game") || want("tennis") || want("vball") ? await open("B", "watcher_b") : null;
 if (B) await join(B);
 await pumpAll(B ? [A, B] : [A], 5000);
 const both = B ? [A, B] : [A];
@@ -500,6 +503,58 @@ if (want("tennis")) {
   await pumpAll(both, 6500);
   t = await TS(A);
   check("the match ends, the pro goes back", !t.s && !t.npcs.length, JSON.stringify({ s: t.s, npcs: t.npcs }));
+}
+
+if (want("vball")) {
+  const VS = (p) => p.evaluate(() => window.__trollVball.state());
+  const putAt = (p, x, z, yaw = 0) => p.evaluate(({ x, z, yaw }) => { const T = window.__trollOps; T.move.reset(x, z, 0.02); T.look.yaw = yaw; T.look.pitch = 0; }, { x, z, yaw });
+  const key = async (p, k, ms) => { await p.keyboard.down(k); await pumpAll(both, ms); await p.keyboard.up(k); };
+  const until = async (fn, ms = 9000) => { const t0 = Date.now(); let g; while (Date.now() - t0 < ms) { g = await VS(A); if (fn(g)) return g; await pumpAll(both, 120); } return g; };
+  const L = await A.evaluate(() => window.__trollOps.builtMap().map.rp.courts());
+  const spot = L.vball.rack;
+  await A.evaluate(() => { window.__trollVball.VM.calm = true; window.__trollTennis && (window.__trollTennis.T.racket = false); });
+  await putAt(A, spot.x + 0.8, spot.z, Math.PI / 2);
+  await putAt(B, spot.x + 0.8, spot.z + 0.9, Math.PI / 2);
+  await pumpAll(both, 500);
+  const pr = await A.evaluate(() => window.__trollOps.rp().prompt || "");
+  check("at the ball: play beach volleyball", /beach volleyball/i.test(pr), pr);
+  for (let i = 0; i < 3 && !(await VS(A)).s; i++) await key(A, "x", 1300);
+  await pumpAll(both, 500);
+  const prB = await B.evaluate(() => window.__trollOps.rp().prompt || "");
+  check("B at the ball: join", /play volleyball with/i.test(prB), prB);
+  await key(B, "x", 1300);
+  let v = await until((x) => x.s?.phase === "serve");
+  const idA = await A.evaluate(() => window.__trollOps.net.id), idB = await B.evaluate(() => window.__trollOps.net.id);
+  const flat = v.s?.teams?.flat() || [];
+  check("2v2: A and B on opposite sides, two NPCs filling", flat.includes(idA) && flat.includes(idB) && flat.filter((x) => /^npc/.test(x)).length === 2 && v.s.teams[0].length === 2 && v.s.teams[1].length === 2, JSON.stringify(v.s?.teams));
+  // let a few rallies play out (the NPCs serve and play; A and B stand)
+  const t0 = Date.now();
+  let touches = new Set();
+  while (Date.now() - t0 < 30000) {
+    v = await VS(A);
+    if (v.s?.server === idA && v.s.phase === "serve") {
+      await A.evaluate(() => window.__trollVball.tossNow());
+      await pumpAll(both, 420);
+      await A.evaluate(() => window.__trollVball.serveNow());
+    }
+    if (v.s?.server === idB && v.s.phase === "serve") {
+      await B.evaluate(() => window.__trollVball.tossNow());
+      await pumpAll(both, 420);
+      await B.evaluate(() => window.__trollVball.serveNow());
+    }
+    for (const b of v.balls) if (b.kind) touches.add(b.kind);
+    if ((v.s?.score[0] || 0) + (v.s?.score[1] || 0) >= 3) break;
+    await pumpAll(both, 150);
+  }
+  check("rallies get played: serves go over, points get scored", (v.s?.score[0] || 0) + (v.s?.score[1] || 0) >= 2, JSON.stringify({ score: v.s?.score, touches: [...touches] }));
+  check("the NPCs pass, set or hit", ["bump", "set", "spike"].some((k) => touches.has(k)), JSON.stringify([...touches]));
+  await camShot(A, "vball", [L.layout.vb[1] + 4, 3, -12], [3, 1.2, -12]);
+  // 15 wins
+  await A.evaluate(() => { const s = window.__trollVball.VM.s; s.score = [14, 5]; s.phase = "rally"; window.__trollVball.point(0, "KILL"); });
+  await pumpAll(both, 800);
+  v = await VS(A);
+  const vb = await VS(B);
+  check("15 wins it; B sees it", v.s?.phase === "over" && v.s.winner === 0 && vb.s?.score[0] === 15, JSON.stringify({ a: v.s, b: vb.s?.score }));
 }
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));

@@ -312,6 +312,56 @@ export const CLIPS = {
     { t: 0.75, pose: add(stance(0.45, -10), { armR: [42, 0, -4], elbowR: [72, 0, -18], armL: [46, 0, 14], elbowL: [80, 0, 30] }) },
   ] },
 
+  // ---------------------------------------------------------- volleyball
+  // Facing the net (-z). Contacts are marked.
+
+  // ready: low, weight forward, the platform half made
+  "vb-ready": { length: 0.8, loop: true, meta: "loop 0.8 s: low, arms out front", keys: [
+    { t: 0, pose: add(stance(0.7, -18), { armR: [32, 0, -8], elbowR: [30, 0, 0], armL: [32, 0, 8], elbowL: [30, 0, 0] }) },
+    { t: 0.4, pose: add(stance(0.8, -20), { armR: [34, 0, -8], elbowR: [32, 0, 0], armL: [34, 0, 8], elbowL: [32, 0, 0] }) },
+    { t: 0.8, pose: add(stance(0.7, -18), { armR: [32, 0, -8], elbowR: [30, 0, 0], armL: [32, 0, 8], elbowL: [30, 0, 0] }) },
+  ] },
+  // the bump: arms locked into a platform, legs drive up through the ball
+  "vb-bump": { length: 0.6, meta: "one shot 0.6 s: platform 0.1, contact 0.22, hold", keys: [
+    { t: 0, pose: add(stance(0.7, -18), { armR: [32, 0, -8], elbowR: [30, 0, 0], armL: [32, 0, 8], elbowL: [30, 0, 0] }) },
+    { t: 0.1, pose: add(stance(0.9, -22), { armR: [42, 0, -20], elbowR: [2, 0, 0], wristR: [-20, 0, 0], armL: [42, 0, 20], elbowL: [2, 0, 0], wristL: [-20, 0, 0] }) },
+    { t: 0.22, markers: ["contact"], ease: "out", pose: add(stance(0.4, -10), { armR: [62, 0, -20], elbowR: [2, 0, 0], wristR: [-20, 0, 0], armL: [62, 0, 20], elbowL: [2, 0, 0], wristL: [-20, 0, 0] }) },
+    { t: 0.6, pose: add(stance(0.6, -14), { armR: [40, 0, -8], elbowR: [30, 0, 0], armL: [40, 0, 8], elbowL: [30, 0, 0] }) },
+  ] },
+  // the set: hands up at the forehead in a window, pushed up and out
+  "vb-set": { length: 0.6, meta: "one shot 0.6 s: window 0.12, contact 0.26, extend", keys: [
+    { t: 0, pose: add(stance(0.6, -10), { armR: [32, 0, -8], elbowR: [30, 0, 0], armL: [32, 0, 8], elbowL: [30, 0, 0] }) },
+    { t: 0.12, pose: add(stance(0.7, 2), { headPivot: [-14, 0, 0] }, { armR: [148, 0, 10], elbowR: [105, 0, 0], wristR: [-40, 0, 0], armL: [148, 0, -10], elbowL: [105, 0, 0], wristL: [-40, 0, 0] }) },
+    { t: 0.26, markers: ["contact"], ease: "out", pose: add(stance(0.2, 4), { headPivot: [-14, 0, 0] }, { armR: [172, 0, 8], elbowR: [20, 0, 0], wristR: [10, 0, 0], armL: [172, 0, -8], elbowL: [20, 0, 0], wristL: [10, 0, 0] }) },
+    { t: 0.6, pose: add(stance(0.5, -6), { armR: [60, 0, 10], elbowR: [30, 0, 0], armL: [60, 0, -10], elbowL: [30, 0, 0] }) },
+  ] },
+  // the spike: arms back on the gather, both swing up on the jump, the
+  // hitting arm cocks and snaps through the ball
+  "vb-spike": { length: 0.95, meta: "one shot 0.95 s: arms back 0.14, up 0.34, contact 0.5, down", keys: [
+    { t: 0, pose: add(stance(0.5, -14), { armR: [32, 0, -8], elbowR: [30, 0, 0], armL: [32, 0, 8], elbowL: [30, 0, 0] }) },
+    { t: 0.14, pose: add(stance(0.95, -26), { armR: [-50, 0, 10], elbowR: [10, 0, 0], armL: [-50, 0, -10], elbowL: [10, 0, 0] }) },
+    { t: 0.34, pose: add(stance(0.05, 8), { ankleR: [35, 0, 0], ankleL: [35, 0, 0], kneeL: [-40, 0, 0] }, { armL: [170, 0, -10], elbowL: [10, 0, 0], armR: [150, 0, 45], elbowR: [125, 0, 0], wristR: [-30, 0, 0] }) },
+    { t: 0.5, markers: ["contact"], ease: "out", pose: add(stance(0.1, -10), { kneeL: [-50, 0, 0], kneeR: [-30, 0, 0] }, { armL: [60, 0, -30], elbowL: [40, 0, 0], armR: [176, 0, 4], elbowR: [4, 0, 0], wristR: [60, 0, 0] }) },
+    { t: 0.75, pose: add(stance(0.5, -24), { armL: [20, 0, -20], elbowL: [40, 0, 0], armR: [35, 0, -30], elbowR: [20, 0, 0] }) },
+    { t: 0.95, pose: add(stance(0.6, -14), { armR: [32, 0, -8], elbowR: [30, 0, 0], armL: [32, 0, 8], elbowL: [30, 0, 0] }) },
+  ] },
+  // the block: hands up and over the net, the wrists pressed forward
+  "vb-block": { length: 0.75, meta: "one shot 0.75 s: load, hands over the net 0.3, down", keys: [
+    { t: 0, pose: add(stance(0.5, -8), { armR: [120, 0, 15], elbowR: [70, 0, 0], armL: [120, 0, -15], elbowL: [70, 0, 0] }) },
+    { t: 0.12, pose: add(stance(0.9, -10), { armR: [110, 0, 15], elbowR: [80, 0, 0], armL: [110, 0, -15], elbowL: [80, 0, 0] }) },
+    { t: 0.3, markers: ["block"], ease: "out", pose: add(stance(0, -6), { ankleR: [35, 0, 0], ankleL: [35, 0, 0] }, { armR: [165, 0, 8], elbowR: [4, 0, 0], wristR: [40, 0, 0], armL: [165, 0, -8], elbowL: [4, 0, 0], wristL: [40, 0, 0] }) },
+    { t: 0.55, pose: add(stance(0.2, -4), { armR: [160, 0, 10], elbowR: [10, 0, 0], armL: [160, 0, -10], elbowL: [10, 0, 0] }) },
+    { t: 0.75, pose: add(stance(0.6, -8), { armR: [120, 0, 15], elbowR: [70, 0, 0], armL: [120, 0, -15], elbowL: [70, 0, 0] }) },
+  ] },
+  // the serve: a float serve, the toss out in front, the arm through
+  "vb-serve": { length: 1.0, meta: "one shot 1.0 s: toss 0.22 (the ball leaves the hand), cock 0.4, contact 0.56", keys: [
+    { t: 0, pose: add(stance(0.2, -6), { torso: [-6, -25, 0] }, { armL: [70, 0, 10], elbowL: [30, 0, 0], armR: [30, 0, 20], elbowR: [40, 0, 0] }) },
+    { t: 0.22, markers: ["toss"], pose: add(stance(0.25, 0), { torso: [0, -28, 0] }, { armL: [150, 0, -6], elbowL: [10, 0, 0], armR: [120, 0, 40], elbowR: [110, 0, 0] }) },
+    { t: 0.4, pose: add(stance(0.3, 6), { torso: [6, -32, 0] }, { armL: [100, 0, -10], elbowL: [20, 0, 0], armR: [155, 0, 45], elbowR: [130, 0, 0], wristR: [-20, 0, 0] }) },
+    { t: 0.56, markers: ["contact"], ease: "out", pose: add(stance(0.15, -6), { torso: [-6, 5, 0] }, { armL: [40, 0, -20], elbowL: [30, 0, 0], armR: [172, 0, 6], elbowR: [6, 0, 0], wristR: [0, 0, 0] }) },
+    { t: 1.0, pose: add(stance(0.5, -12), { armR: [60, 0, 10], elbowR: [30, 0, 0], armL: [40, 0, -10], elbowL: [30, 0, 0] }) },
+  ] },
+
   // the axis probe, for checking which way a joint turns
   probe: { length: 1, meta: "axis probe", keys: [
     { t: 0, pose: { armR: [90, 0, 0], armL: [0, 0, 90] } },
