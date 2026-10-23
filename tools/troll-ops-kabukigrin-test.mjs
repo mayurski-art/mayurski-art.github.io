@@ -106,7 +106,14 @@ const sameList = (k) => {
   check(!lost.length && !extra.length && gj[k].length === kb[k].length, `${k} (${kb[k].length}, Grinjuku ${gj[k].length})`,
     lost.length || extra.length ? `${lost.length} only on Grinjuku, ${extra.length} only on Kabukigrin; e.g. ${[...lost.slice(0, 2), ...extra.slice(0, 2)].join(" | ")}` : "");
 };
-for (const k of ["ropes", "stairs"]) sameList(k);
+sameList("ropes");
+// stairs: B side's and the middle's, east of x -6 (the A Ramps steps went with the club, phase 3)
+{
+  const east = (st) => Math.min(+st.split(",")[0], +st.split(",")[3]) >= -6;
+  const a = gj.stairs.filter(east), b = new Set(kb.stairs.filter(east));
+  const lost = a.filter((x) => !b.has(x));
+  check(!lost.length, `stairs east of x -6 (${a.length} of Grinjuku's)`, lost.length ? `${lost.length} gone, e.g. ${lost.slice(0, 2).join(" | ")}` : "");
+}
 // B side: every Grinjuku collider wholly east of x -6 still there; new ones listed
 {
   const east = (b) => +b.split(",")[0] >= -6;
