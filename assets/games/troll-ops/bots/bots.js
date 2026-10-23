@@ -1515,7 +1515,11 @@ export class BotManager {
     const src = this.fieldSrc, a = src.arena;
     const places = { stairs, upper: [], ground: [], all: [], crowd: new Map(), claims: new Map(), heat: new Map(), crowdT: 0,
       postOdds: a.botPostOdds ?? 1,   // (maps.js) the map's share of posts against hunts
-      districtOf: (x, z) => Math.floor((x - a.minX) / DISTRICT) + 64 * Math.floor((z - a.minZ) / DISTRICT) };
+      districtOf: (x, z) => {
+        // a room the map names (arena.botRooms) is a district of its own
+        const r = a.botRooms?.findIndex(([x0, x1, z0, z1]) => x >= x0 && x < x1 && z >= z0 && z < z1) ?? -1;
+        return r >= 0 ? -1 - r : Math.floor((x - a.minX) / DISTRICT) + 64 * Math.floor((z - a.minZ) / DISTRICT);
+      } };
     this.places = places;
     if (a.navCell >= 1) return places;
     const t0 = performance.now();
@@ -1644,6 +1648,21 @@ export class BotManager {
       if (had && had.d <= d) continue;
       if (!fits(q.x, 0, q.z) || groundHeightAt(cols, q.x, q.z, 0.5, BOT_RADIUS * 0.8) > 0.3) continue;
       sq.set(key, { d, q });
+    }
+    // A named room (arena.botRooms) the squares missed, or whose spot lost
+    // to the street outside: its open spot nearest its middle.
+    for (const [x0, x1, z0, z1] of a.botRooms || []) {
+      const inRoom = (q) => q.x >= x0 && q.x < x1 && q.z >= z0 && q.z < z1;
+      if ([...sq.values()].some(({ q }) => inRoom(q))) continue;
+      let best = null, bd = Infinity;
+      for (const k of cells) {
+        const q = centre(g, k);
+        if (!inRoom(q)) continue;
+        const d = Math.hypot(q.x - (x0 + x1) / 2, q.z - (z0 + z1) / 2) + (oldOpen(q.x, q.z) ? 0 : 2);
+        if (d >= bd || !fits(q.x, 0, q.z) || groundHeightAt(cols, q.x, q.z, 0.5, BOT_RADIUS * 0.8) > 0.3) continue;
+        bd = d; best = q;
+      }
+      if (best) sq.set(`room${x0},${z0}`, { d: bd, q: best });
     }
     for (const { q } of sq.values()) {
       places.ground.push({ id: `post-g${places.ground.length}`, x: q.x, y: 0, z: q.z, district: places.districtOf(q.x, q.z) });

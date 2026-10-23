@@ -2114,6 +2114,9 @@ export function buildMap(id, { colliders, arena }) {
   // how often the bots head for a post rather than hunt (bots.js), 1 = as
   // everywhere: a town too big for ten bots to meet in hunts more
   arena.botPostOdds = map.botPostOdds ?? 1;
+  // rooms the bots count as districts of their own ([x0, x1, z0, z1], bots.js
+  // placesFor): Troll City's chapel, not a corner of four street blocks
+  arena.botRooms = map.botRooms || null;
   arena.wade = map.wade || null;
   arena.navCell = map.navCell || null;
   // Climbing ropes (api.rope): the movement controller reads them here.

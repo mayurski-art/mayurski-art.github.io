@@ -38,7 +38,7 @@ import {
 import { LoopPath, Train } from "./train.js?v=tr1b7-or1";
 import { buildTrainBoard } from "./train-board.js?v=tb1-bt1-tcs1";
 import { studioTown, loadStudioTown, setMoves, moveRp, moveFresh, movePoint, moveGeo, moveLive } from "./trollcity-studio.js?v=ts1-tcs1-tcp1-tx1-trk1-ch1";
-import { buildChapel } from "./trollcity-chapel.js?v=tch1-tcs1-tcs2-mg1-tx1-ch1";
+import { buildChapel, CHAPEL, CHAPEL_TOWER } from "./trollcity-chapel.js?v=tch1-tcs1-tcs2-mg1-tx1-ch1";
 import { buildHall, HALL, PLAZA, COMPUTERS } from "./trollcity-hall.js?v=th1-tcs1-tx1-ch1-jb1";
 import { buildEast, EAST } from "./trollcity-east.js?v=te1-tcs1-tx1-ch1";
 
@@ -2370,6 +2370,10 @@ export const TROLLCITY = {
   // ten bots over a town this big rarely met: they head for posts less and
   // hunt more (maps.js arena.botPostOdds)
   botPostOdds: 0.75,
+  // St. Grinsworth's, tower to apse, is a district of its own (maps.js
+  // arena.botRooms): split over four street blocks, its post came up a
+  // quarter as often as theirs and the bots hardly went in
+  botRooms: [[CHAPEL_TOWER.x0, CHAPEL.x1 + 4.5, CHAPEL.z0, CHAPEL.z1]],
   playerSpawn: { x: -20, z: 0 },
   // Mid-afternoon on the plains: a high warm sun, a pale dusty sky going
   // gold at the horizon, scattered fair-weather cloud.
