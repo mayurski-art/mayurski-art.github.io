@@ -81,10 +81,15 @@ export function beachNpcs() {
   for (const [dx, z, yaw] of [[-2, -16.5, FACE_YAW["+z"]], [2, -15.8, FACE_YAW["+z"]], [-2.2, -7.8, FACE_YAW["-z"]], [1.8, -8.4, FACE_YAW["-z"]]]) {
     extra("Baller", "ready", { x: vx + dx, z, y: 0, yaw });
   }
-  /* ---- the shootaround under the south hoop */
-  for (const [dx, z] of [[0, -12.5], [-3.2, -14.6], [3.4, -13.8]]) {
+  /* ---- the shootaround under the south hoop: the regulars you run it
+     with (5d, modes/hoops-game.js: `hoops` is how good, how they play) */
+  for (const [dx, z, skill] of [[0, -12.5, 0.5], [-3.2, -14.6, 0.58], [3.4, -13.8, 0.65]]) {
     const x = COURT.x + dx;
-    extra("Baller", "ready", { x, z, y: 0.05, yaw: Math.atan2(x - COURT.x, z - COURT.hoopZ[0]) });
+    extra("Baller", "ready", { x, z, y: 0.05, yaw: Math.atan2(x - COURT.x, z - COURT.hoopZ[0]) }, { hoops: { skill, style: "all" } });
+  }
+  /* ---- the legends, waiting on the west sideline for next */
+  for (const [name, z, hoops] of [["Hoops Hank", -15.4, { skill: 0.72, style: "post" }], ["Crossover Carla", -16.5, { skill: 0.85, style: "handles" }], ["Big Grin", -17.6, { skill: 0.8, style: "dunk" }]]) {
+    add(name, "Baller", "ready", { x: 40.7, z, y: 0.05, yaw: FACE_YAW["+x"] }, { hoops, build: name === "Big Grin" ? 1.25 : 1 });
   }
   /* ---- tennis: one on each baseline */
   for (const [z, yaw] of [[TENNIS.z - TENNIS.dl - 0.7, FACE_YAW["+z"]], [TENNIS.z + TENNIS.dl + 0.7, FACE_YAW["-z"]]]) {

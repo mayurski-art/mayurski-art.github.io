@@ -19,6 +19,13 @@
 // - The ball after a shot is the court ball (court-ball.js): the same
 //   flight, rattle and bounce on every screen. Walk over it or jump at it
 //   to grab it; two grabs at once, the lower id keeps it.
+// - Without the ball: hold the size-up for a defensive stance; fire near
+//   a ball handler pokes at it (a steal, or a step beaten); jump at a shot
+//   in its first moments to block it. A defender close in front of a
+//   shooter narrows their green (more if he's up). E passes to the
+//   teammate you look nearest.
+// - hoops-game.js (the game to 11, the NPC ballers) listens through
+//   hoopsHooks and says when a shot may go up, who defends, who's a mate.
 //
 // The clips are TF_Rig's in Roblox Studio (tools/troll-ops-hoops-poses.mjs,
 // characters/clips/hoop-*.json); a left-handed move plays its right-handed
@@ -26,16 +33,17 @@
 //
 // The wire: the state packet's `hb` (the ball we hold), `hm` (the clip:
 // index + 1, negative mirrored), `ha` (its start, room ms); rp "hb"
-// messages: launch { id, L }, grab { id, at }, state { id, L } (the ball's
-// keeper repeats its last launch every few seconds for late joiners),
-// gone { id }.
+// messages: launch { id, L, by }, grab { id, at, by }, state { id, L } (the
+// ball's keeper repeats its last launch every few seconds for late
+// joiners), steal { id, L, by }, gone { id }. `by` is an NPC ("npc4") the
+// sender drives, or the sender.
 
 import * as THREE from "three";
 import { game } from "../core/state.js?v=st1";
 import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1";
-import { bar, rpExtras, rpListeners, seated } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mg1-kb12-tm2-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb2-jb3-jb4-jb5-jb6-sp1-hh1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6";
+import { bar, rpExtras, rpListeners, seated } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mg1-kb12-tm2-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb2-jb3-jb4-jb5-jb6-sp1-hh1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7";
 import { peerPosers } from "../net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1";
-import { localPosers } from "../view/third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6";
+import { localPosers } from "../view/third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7";
 import { resolveCircle } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1";
 import { loadClip, sampleClip, applyClip, CLIP_SPINE, CLIP_ARM_L, CLIP_ARM_R } from "../characters/clips.js?v=rc1";
 import { loadModel } from "../maps/battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1";
@@ -83,6 +91,8 @@ export const H = {
   size: { on: false, yaw: 0, pitch: 0, sx: 0, sy: 0, path: null },
   clip: "hoop-hold", clipAt: 0, mirror: false,   // what our body plays, from when (room ms)
   seq: 0, feedback: null, last: null,
+  act: null,       // without the ball: { clip, t, dur } the stance, a poke, a block
+  beaten: 0,       // s left of a whiffed poke (a step slow)
 };
 /* Every ball on the court: id -> { id, mesh, holder, sim, keeper, grab, seen, shooter, pts, hoopT } */
 export const balls = new Map();
@@ -95,6 +105,16 @@ const courtWorld = (S) => {
 const myId = () => game.net?.id || "me";
 const send = (m) => game.net?.publishRp?.({ k: "hb", ...m });
 export const hoopsActive = () => !!H.ball || !!H.shot;
+/* What the game on top (hoops-game.js) hears and decides. */
+export const hoopsHooks = {
+  onScore: [], onGrab: [], onShot: [], onMove: [], onLaunch: [], onSteal: [], onFrame: [],
+  canShoot: () => true,         // false during a check
+  defenders: () => [],          // [{ x, z, jump }]: who contests our shot
+  mates: () => [],              // [{ id, x, z }]: who we can pass to
+  stealOdds: () => 1,           // (ball) a multiplier on a poke's odds
+};
+const fireHooks = (list, ...a) => { for (const fn of list) fn(...a); };
+const isNpc = (id) => typeof id === "string" && /^npc\d+$/.test(id);
 /* On court with a ball, or just shot it: the over-the-shoulder camera. */
 export const hoopsView = () => game.isSocial() && (!!H.ball || (!!H.shot && H.shot.t < 1.6));
 
@@ -173,7 +193,7 @@ function onEvents(b, evs) {
         showWaveBanner(`${word}  +${b.pts}`, 1500);
         H.last = { made: true, clean: e.clean, pts: b.pts };
       }
-      game.hoops?.onScore?.(b, e);
+      fireHooks(hoopsHooks.onScore, b, e);
     }
   }
 }
@@ -188,6 +208,8 @@ function hoopsAction() {
   const S = spots();
   if (!S || !game.player.alive || seated) return null;
   if (!nearCart(S)) return null;
+  // just taken: the same held X does not put it straight back
+  if (H.ball && performance.now() - (H.takenAt || 0) < 1500) return null;
   if (H.ball) return { key: "hoops:rack", label: "Put the ball back on the cart", ctx: "Cart", time: HOOPS.takeTime, done: () => rackBall() };
   if (bar.role) return { key: "hoops:busy", info: true, label: "One job at a time" };
   if (balls.size >= HOOPS.maxBalls) return { key: "hoops:empty", info: true, label: "The cart's empty: grab one off the court" };
@@ -197,7 +219,7 @@ function takeBall() {
   const id = `${myId()}-${++H.seq}`;
   const b = ballFor(id);
   b.holder = myId(); b.sim = null; b.keeper = myId();
-  H.ball = id; H.hand = 1; H.live = false; H.move = null; H.shot = null;
+  H.ball = id; H.hand = 1; H.live = false; H.move = null; H.shot = null; H.takenAt = performance.now();
   setClip("hoop-hold");
   if (!H.taught) {
     H.taught = true;
@@ -264,7 +286,7 @@ function startMove(name) {
   H.stamina = Math.max(0, H.stamina - def.cost);
   setClip(def.clip, H.hand < 0);
   H.clipAt = roomNow();
-  game.hoops?.onMove?.(name, def);
+  fireHooks(hoopsHooks.onMove, name, def);
 }
 
 /* ------------------------------------------------------------- the shot */
@@ -296,14 +318,21 @@ function startShot(S) {
   const mirror = kind === "layup" && side < -0.2;
   // the green: narrower far out, on the move, fading away, tired
   const away = sp > 0.6 && toward < -0.4;
-  const w = HOOPS.window * Math.max(0.45, Math.min(1.15, 1.25 - 0.07 * d)) * (sp > 1 ? 0.8 : 1) * (away ? 0.75 : 1) * (0.6 + 0.4 * H.stamina);
-  H.shot = { kind, t: 0, rim, d, w, released: kind !== "jumper", rel: null, launched: false, mirror, start: { x: p.x, y: p.y, z: p.z }, to, jumped: false, fade: away };
+  // a hand in the face: a defender close, between us and the rim
+  let contest = 0;
+  for (const df of hoopsHooks.defenders()) {
+    const dx = df.x - p.x, dz = df.z - p.z, dd = Math.hypot(dx, dz);
+    if (dd > 1.6 || dd < 0.01 || (dx * to.x + dz * to.z) / dd < 0.2) continue;
+    contest = Math.max(contest, Math.min(1, (1.6 - dd) / 1.1 + (df.jump ? 0.35 : 0)));
+  }
+  const w = HOOPS.window * Math.max(0.45, Math.min(1.15, 1.25 - 0.07 * d)) * (sp > 1 ? 0.8 : 1) * (away ? 0.75 : 1) * (0.6 + 0.4 * H.stamina) * (1 - 0.55 * contest);
+  H.shot = { kind, t: 0, rim, d, w, contest, released: kind !== "jumper", rel: null, launched: false, mirror, start: { x: p.x, y: p.y, z: p.z }, to, jumped: false, fade: away };
   H.move = null;
   setClip(kind === "jumper" ? "hoop-jumper" : kind === "layup" ? "hoop-layup" : "hoop-dunk", mirror);
   if (kind === "layup") m.impulse(to.x * Math.min(3.2, d * 1.3), 4.4, to.z * Math.min(3.2, d * 1.3), 0.55);
   if (kind === "dunk") H.stamina = Math.max(0, H.stamina - 0.15);
   H.lastShot = kind;
-  game.hoops?.onShot?.(H.shot);
+  fireHooks(hoopsHooks.onShot, H.shot);
 }
 /* Let go of fire: the jumper's release is now. */
 function releaseShot(at) {
@@ -345,7 +374,7 @@ function launchShot(S, s) {
     // backspin: the top of the ball turning back toward the shooter
     const spin = [dz * 18, 0, -dx * 18];
     L = solveShot(W, from, s.rim, apex, spin, at);
-    const g = s.kind === "jumper" ? grade(s) : { e: 0, word: "", eff: (Math.random() - 0.5) * (s.fade ? 1.2 : 0.7) };
+    const g = s.kind === "jumper" ? grade(s) : { e: 0, word: "", eff: (Math.random() - 0.5) * (s.fade ? 1.2 : 0.7) * (1 + 3 * (s.contest || 0)) };
     if (s.kind === "jumper") { H.feedback = { word: g.word, t: 0, e: g.e }; }
     if (g.eff) {
       const k = 1 + 0.011 * Math.max(-6, Math.min(6, g.eff));
@@ -361,6 +390,7 @@ function launchShot(S, s) {
   b.pts = Math.hypot(s.start.x - s.rim.x, s.start.z - s.rim.z) >= HOOPS.arc ? 2 : 1;
   b.sentAt = b.launchedAt = performance.now();
   send({ e: "launch", id: b.id, L, pts: b.pts, dunk: b.dunk ? 1 : 0 });
+  fireHooks(hoopsHooks.onLaunch, b);
   H.ball = null; H.live = false;
   s.launched = true;
 }
@@ -390,7 +420,7 @@ export function hoopsHold(dt) {
 
 /* ------------------------------------------------------------ each frame */
 
-let fireWas = false, jumpWas = false;
+let fireWas = false, jumpWas = false, passWas = false;
 const _bp = new THREE.Vector3();
 export function updateHoops(dt) {
   const S = spots();
@@ -399,6 +429,7 @@ export function updateHoops(dt) {
     H.ball = null; H.shot = null; H.move = null;
     if (game.net) game.net.hoopBall = null;
     meterHud(null);
+    fireHooks(hoopsHooks.onFrame, dt, null);
     return;
   }
   const now = performance.now(), rnow = roomNow();
@@ -451,8 +482,15 @@ export function updateHoops(dt) {
       else if (H.move.t > H.move.def.dur * 0.6) H.queued = name;   // the combo
     }
     if (!H.move) setClip(!H.live ? "hoop-hold" : H.hand > 0 ? "hoop-dribble-r" : "hoop-dribble-l");
-    if (fire && !fireWas && !H.move) startShot(S);
+    if (fire && !fireWas && !H.move && hoopsHooks.canShoot()) startShot(S);
+    const pass = game.keys.has("KeyE") || (gp && game.gamepadState.reload);
+    if (pass && !passWas && !H.move && H.ball) passBall(S);
+    passWas = pass;
   }
+  // ---- without the ball: the stance, the poke, the block
+  if (!H.ball && !H.shot && game.player.alive && onCourt(S)) defend(S, dt, fire && !fireWas, jump && !jumpWas, (game.isTouch && touchState.ads) || (gp && game.gamepadState.ads) || game.adsHeld || game.keys.has("KeyQ"));
+  else if (H.act && !H.ball && !H.shot) H.act = null;
+  if (H.beaten > 0) { H.beaten -= dt; game.move.velocity.x *= 0.6; game.move.velocity.z *= 0.6; }
   // the shot, rising
   if (H.shot) {
     const s = H.shot;
@@ -480,6 +518,7 @@ export function updateHoops(dt) {
     if (b.sim) {
       const evs = advanceBall(b.sim, rnow);
       if (evs.length) onEvents(b, evs);
+      if (!b.sim) continue;   // a make handed it to someone (the game's check)
       if (b.hoopT != null && b.hoopT < 0.6) { b.hoopT += dt; swishNet(b.hoop, b.hoopT / 0.45); }
       if (b.mesh) {
         b.mesh.position.set(b.sim.p[0], b.sim.p[1], b.sim.p[2]);
@@ -494,10 +533,12 @@ export function updateHoops(dt) {
         const p = game.move.pos, bp = b.sim.p;
         const up = game.move.grounded ? HOOPS.grabUp : HOOPS.grabJump;
         const ours = b.shooter === myId() && now - (b.launchedAt || 0) < 900;
-        if (!ours && Math.hypot(bp[0] - p.x, bp[2] - p.z) < HOOPS.grabR && bp[1] < p.y + up && bp[1] > p.y - 0.2) grabBall(b);
+        // on its way down, or low: a shot going up is a block, not a catch
+        const falling = b.sim.v[1] < 0.5 || bp[1] < 1.6;
+        if (!ours && falling && Math.hypot(bp[0] - p.x, bp[2] - p.z) < HOOPS.grabR && bp[1] < p.y + up && bp[1] > p.y - 0.2) grabBall(b);
       }
     }
-    if (b.holder && b.holder !== myId() && !game.net?.peers?.get(b.holder)) b.holder = null;
+    if (b.holder && b.holder !== myId() && !isNpc(b.holder) && !game.net?.peers?.get(b.holder)) b.holder = null;
     // a ball nobody's kept for a while (its keeper left) goes
     if (b.keeper && b.keeper !== myId() && !b.holder && now - b.seen > 9000) dropBall(b.id);
   }
@@ -506,11 +547,12 @@ export function updateHoops(dt) {
   if (game.net) {
     game.net.hoopBall = H.ball;
     const i = CLIP_IDS.indexOf(H.clip);
-    game.net.hoopMove = H.ball || H.shot ? (i + 1) * (H.mirror ? -1 : 1) : 0;
+    game.net.hoopMove = H.ball || H.shot || H.act ? (i + 1) * (H.mirror ? -1 : 1) : 0;
     game.net.hoopAt = H.clipAt;
   }
   if (H.feedback) H.feedback.t += dt;
   meterHud(H.shot?.kind === "jumper" ? H.shot : null);
+  fireHooks(hoopsHooks.onFrame, dt, S);
 }
 function grabBall(b) {
   b.holder = myId(); b.sim = null; b.grab = { by: myId(), at: roomNow() };
@@ -519,8 +561,143 @@ function grabBall(b) {
   H.clipAt = roomNow();
   H.grabT = performance.now();
   send({ e: "grab", id: b.id, at: b.grab.at });
-  game.hoops?.onGrab?.(b);
+  fireHooks(hoopsHooks.onGrab, b, myId());
 }
+
+/* ------------------------------------------- passing, defence, the API */
+
+const onCourt = (S) => {
+  const c = S.layout.court, p = game.move.pos;
+  return Math.abs(p.x - c.x) < c.w / 2 + 1 && Math.abs(p.z - c.z) < c.d / 2 + 1;
+};
+/* E: a chest pass to the mate we're looking nearest, flat and quick;
+   anyone in the way can pick it off. */
+function passBall() {
+  const mates = hoopsHooks.mates();
+  if (!mates.length) return;
+  const p = game.move.pos, f = fwdOf(game.look.yaw);
+  let best = null, bs = -2;
+  for (const m of mates) {
+    const dx = m.x - p.x, dz = m.z - p.z, d = Math.hypot(dx, dz) || 1;
+    const a = (dx * f.x + dz * f.z) / d;
+    if (a > bs) { bs = a; best = { ...m, d }; }
+  }
+  if (!best || bs < -0.2) return;
+  const b = balls.get(H.ball);
+  if (!b) return;
+  const hp = handPos(game.localRig, 1);
+  const from = [hp.x, Math.max(1.0, hp.y), hp.z];
+  const speed = 9.5, t = Math.max(0.15, best.d / speed), dy = 1.25 - from[1];
+  const v = [(best.x - from[0]) / t, (dy + 0.5 * 9.81 * t * t) / t, (best.z - from[2]) / t];
+  setBallLaunch(b.id, makeLaunch(from, v, [0, 0, 0], roomNow(), myId()), { pass: true });
+  H.act = { clip: "hoop-pass", t: 0, dur: 0.4 };
+  setClip("hoop-pass");
+}
+/* Off the ball: the stance (size-up held), a poke at a handler in reach,
+   a jump to block a shot that's just gone up. */
+function defend(S, dt, poke, hop, stance) {
+  const a = H.act;
+  if (a) {
+    a.t += dt;
+    if (a.clip === "hoop-block" && a.t > 0.1 && a.t < 0.55) tryBlock(S);
+    if (a.t >= a.dur) H.act = null;
+  }
+  if (!H.act && poke) {
+    H.act = { clip: "hoop-steal", t: 0, dur: 0.4 };
+    setClip("hoop-steal");
+    trySteal(S);
+  } else if (!H.act && hop) {
+    H.act = { clip: "hoop-block", t: 0, dur: 0.7 };
+    setClip("hoop-block");
+  } else if (!H.act && stance) {
+    H.act = { clip: "hoop-stance", t: 0, dur: 0.12, stance: true };
+    if (H.clip !== "hoop-stance") setClip("hoop-stance");
+  }
+}
+/* The poke: a ball in someone's hands, in reach and in front. Better odds
+   at one standing holding it, worse mid-move. */
+function trySteal(S) {
+  const me = game.move.pos, f = fwdOf(game.look.yaw);
+  for (const b of balls.values()) {
+    if (!b.holder || b.holder === myId() || !b.mesh) continue;
+    const bp = b.mesh.position, dx = bp.x - me.x, dz = bp.z - me.z, d = Math.hypot(dx, dz);
+    if (d > 1.45 || (dx * f.x + dz * f.z) / (d || 1) < 0.25) continue;
+    const peer = game.net?.peers?.get(b.holder);
+    const name = peer ? CLIP_IDS[Math.abs(peer.hoopMove | 0) - 1] : null;
+    const mid = !!name && /cross|behind|hesi|spin|stepback/.test(name);
+    const odds = 0.3 * (mid ? 0.4 : 1) * (name === "hoop-hold" ? 1.3 : 1) * hoopsHooks.stealOdds(b);
+    if (Math.random() < odds) {
+      const L = makeLaunch([bp.x, Math.max(0.4, bp.y), bp.z], [-dx / d * 1.5, 2.2, -dz / d * 1.5], [0, 0, 0], roomNow(), myId());
+      b.sim = newBall(courtWorld(S), L); b.holder = null; b.keeper = myId(); b.shooter = null; b.pts = 0; b.sentAt = performance.now();
+      send({ e: "steal", id: b.id, L });
+      fireHooks(hoopsHooks.onSteal, b, myId());
+      showWaveBanner("STEAL", 900);
+    } else H.beaten = 0.45;
+    return;
+  }
+}
+/* A shot in its first moments, at a hand: swatted away. */
+const _h2 = new THREE.Vector3();
+function tryBlock() {
+  const rig = game.localRig;
+  const hr = handPos(rig, 1, _hand).clone(), hl = handPos(rig, -1, _h2);
+  const now = roomNow();
+  for (const b of balls.values()) {
+    if (!b.sim || b.sim.rest || b.blocked || b.shooter === myId() || b.pass) continue;
+    if (now - b.sim.launch.at > 450) continue;
+    const bp = b.sim.p;
+    _w.set(bp[0], bp[1], bp[2]);
+    if (Math.min(hr.distanceTo(_w), hl.distanceTo(_w)) > 0.45) continue;
+    const me = game.move.pos, dx = bp[0] - me.x, dz = bp[2] - me.z, n = Math.hypot(dx, dz) || 1;
+    const v = b.sim.v;
+    const L = makeLaunch([bp[0], bp[1], bp[2]], [-v[0] * 0.3 + dx / n * 2.6, -1.4, -v[2] * 0.3 + dz / n * 2.6], [0, 0, 0], roomNow(), myId());
+    setBallLaunch(b.id, L, { block: true });
+    showWaveBanner("BLOCKED", 900);
+    return;
+  }
+}
+/* For the game (and its NPCs): put a ball in flight from here (a shot, a
+   pass, a block, a tip), as its keeper. */
+export function setBallLaunch(id, L, meta = {}) {
+  const S = spots();
+  if (!S) return null;
+  const b = ballFor(id);
+  b.sim = newBall(courtWorld(S), L);
+  b.holder = null; b.keeper = myId(); b.shooter = meta.by || L.by || myId();
+  b.pts = meta.pts || 0; b.dunk = !!meta.dunk; b.pass = !!meta.pass; b.blocked = !!meta.block;
+  b.sentAt = b.launchedAt = performance.now();
+  if (H.ball === id) { H.ball = null; H.move = null; }
+  send({ e: "launch", id, L, pts: b.pts, dunk: b.dunk ? 1 : 0, pass: b.pass ? 1 : 0, block: b.blocked ? 1 : 0, by: meta.by });
+  fireHooks(hoopsHooks.onLaunch, b);
+  return b;
+}
+/* A ball into our hands (a check, the game's first possession). */
+export function giveBall(id) {
+  const b = ballFor(id);
+  b.holder = myId(); b.sim = null; b.keeper = myId(); b.grab = { by: myId(), at: roomNow() };
+  H.ball = id; H.live = false; H.hand = 1; H.move = null; H.shot = null; H.act = null;
+  setClip("hoop-hold");
+  send({ e: "grab", id, at: b.grab.at });
+}
+/* An NPC we drive picks a ball up (or is handed it). */
+export function npcTakes(id, npc) {
+  const b = ballFor(id);
+  b.holder = npc; b.sim = null; b.keeper = myId(); b.grab = { by: npc, at: roomNow() };
+  if (H.ball === id) { H.ball = null; H.move = null; H.shot = null; }
+  send({ e: "grab", id, at: b.grab.at, by: npc });
+  fireHooks(hoopsHooks.onGrab, b, npc);
+}
+/* An NPC we drive pokes it loose. */
+export function npcSteals(id, npc, L) {
+  const b = balls.get(id);
+  const S = spots();
+  if (!b || !S) return;
+  b.sim = newBall(courtWorld(S), L); b.holder = null; b.keeper = myId(); b.shooter = null; b.pts = 0; b.sentAt = performance.now();
+  if (H.ball === id) { H.ball = null; H.move = null; H.shot = null; showWaveBanner("STRIPPED", 1000); }
+  send({ e: "steal", id, L, by: npc });
+  fireHooks(hoopsHooks.onSteal, b, npc);
+}
+export { poseHoop, ballInHands, ballFor, dropBall, handPos, clipLen, courtWorld, MOVES, spots as hoopSpots };
 
 /* ------------------------------------------------------------- the wire */
 
@@ -539,15 +716,30 @@ rpListeners.push((p, m) => {
     const S = spots();
     if (!S) return;
     b.sim = newBall(courtWorld(S), makeLaunch(L.p.map(Number), L.v.map(Number), L.w.map(Number), +L.at || roomNow(), String(L.by || p.id)));
-    b.holder = null; b.keeper = p.id; b.shooter = String(L.by || p.id); b.pts = m.pts | 0 || 1; b.dunk = !!m.dunk;
-    if (H.ball === id) { H.ball = null; }   // they took it off us (a steal, phase 3)
+    b.holder = null; b.keeper = p.id; b.shooter = String(m.by || L.by || p.id); b.pts = m.pts | 0; b.dunk = !!m.dunk; b.pass = !!m.pass;
+    b.blocked = m.e === "launch" && !!m.block;
+    if (H.ball === id) { H.ball = null; H.move = null; }
+    fireHooks(hoopsHooks.onLaunch, b);
+    if (m.block && b.shooter !== myId()) showWaveBanner("BLOCKED", 900);
+  } else if (m.e === "steal") {
+    const L = m.L;
+    if (!L || !Array.isArray(L.p) || !Array.isArray(L.v)) return;
+    const S = spots();
+    if (!S) return;
+    const by = isNpc(m.by) ? m.by : p.id;
+    if (H.ball === id) { H.ball = null; H.move = null; H.shot = null; showWaveBanner("STRIPPED", 1000); }
+    b.sim = newBall(courtWorld(S), makeLaunch(L.p.map(Number), L.v.map(Number), [0, 0, 0], +L.at || roomNow(), by));
+    b.holder = null; b.keeper = p.id; b.shooter = null; b.pts = 0;
+    fireHooks(hoopsHooks.onSteal, b, by);
   } else if (m.e === "grab") {
     const at = +m.at || roomNow();
+    const by = isNpc(m.by) ? m.by : p.id;
     // two grabs at once: the lower id keeps it
-    if (b.grab && Math.abs(b.grab.at - at) < 400 && b.grab.by < p.id) return;
-    b.grab = { by: p.id, at };
-    b.holder = p.id; b.sim = null; b.keeper = p.id;
+    if (b.grab && b.grab.by !== by && Math.abs(b.grab.at - at) < 400 && b.grab.by < by) return;
+    b.grab = { by, at };
+    b.holder = by; b.sim = null; b.keeper = p.id;
     if (H.ball === id) { H.ball = null; H.shot = null; H.move = null; }
+    fireHooks(hoopsHooks.onGrab, b, by);
   }
 });
 
@@ -589,7 +781,7 @@ function ballInHands(rig, name, t, mirror, hand, out) {
 }
 
 localPosers.push((rig) => {
-  if (!game.isSocial() || (!H.ball && !H.shot)) return;
+  if (!game.isSocial() || (!H.ball && !H.shot && !H.act)) return;
   const t = (roomNow() - H.clipAt) / 1000 * (H.clip.startsWith("hoop-dribble") && game.move.sprinting ? HOOPS.dribble / HOOPS.sprintDribble : 1);
   const full = FULL_BODY.has(H.clip) || !game.move.moving;
   if (!poseHoop(rig, H.clip, t, H.mirror, full)) return;
@@ -665,7 +857,7 @@ rpExtras.push(hoopsAction);
 
 if (typeof window !== "undefined" && /[?&]tohooks=1/.test(location.search)) {
   window.__trollHoops = {
-    HOOPS, MOVES, H, balls, takeBall, rackBall, startMove, startShot: () => spots() && startShot(spots()), releaseShot, grade, CLIP_IDS,
+    HOOPS, MOVES, H, balls, takeBall, rackBall, startMove, startShot: () => spots() && hoopsHooks.canShoot() && startShot(spots()), releaseShot, grade, CLIP_IDS,
     clips: () => Object.keys(CLIPS),
     state: () => ({ ball: H.ball, hand: H.hand, live: H.live, clip: H.clip, mirror: H.mirror, move: H.move?.name || null, shot: H.shot ? { kind: H.shot.kind, t: +H.shot.t.toFixed(2), w: +H.shot.w.toFixed(3), launched: H.shot.launched } : null,
       lastMove: H.lastMove || null, lastShot: H.lastShot || null, stamina: +H.stamina.toFixed(2), feedback: H.feedback?.word || null, last: H.last, balls: [...balls.values()].map((b) => ({ id: b.id, holder: b.holder, flying: !!b.sim && !b.sim.rest, rest: !!b.sim?.rest, p: b.sim ? b.sim.p.map((v) => +v.toFixed(2)) : null, events: b.sim ? b.sim.events.map((e) => e.kind) : [] })) }),

@@ -5111,3 +5111,12 @@ body.to-aboard #to-touch-endstreak { display: none !important; }
 .to-hoop-meter[data-grade="b"] .to-hoop-meter__word { color: #ff8a6a; }
 .to-hoop-meter[hidden] { display: none; }
 @media (max-width: 760px) { .to-hoop-meter { left: calc(50% + 52px); top: 34%; transform: scale(0.85); transform-origin: top left; } }
+/* The game score card (modes/hoops-game.js): top centre, possession lit. */
+.to-hoop-card { position: fixed; left: 50%; top: 58px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 6px 14px; border-radius: 12px; background: rgba(18, 18, 22, 0.78); box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.25); font: 700 14px/1 "DM Sans", system-ui, sans-serif; color: #f2f2ea; pointer-events: none; z-index: 30; white-space: nowrap; }
+.to-hoop-card b { font: 800 20px/1 "DM Mono", ui-monospace, monospace; min-width: 1.4em; text-align: center; }
+.to-hoop-card i { font-style: normal; font-size: 11px; letter-spacing: 0.08em; color: #ffd23a; }
+.to-hoop-card__team { max-width: 9em; overflow: hidden; text-overflow: ellipsis; opacity: 0.75; }
+.to-hoop-card__team.is-poss { opacity: 1; }
+.to-hoop-card__team.is-poss::after { content: " CF"; color: #ff9500; font-size: 10px; }
+.to-hoop-card[hidden] { display: none; }
+@media (max-width: 760px) { .to-hoop-card { top: 44px; font-size: 12px; gap: 7px; padding: 5px 10px; } .to-hoop-card__team { max-width: 6em; } }

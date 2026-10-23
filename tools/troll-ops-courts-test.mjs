@@ -8,8 +8,14 @@
 //         the green (EXCELLENT, a make on both screens at the same step), a
 //         late one (graded late), a sprint at the rim (a dunk through), and
 //         picks up the loose ball.
+//   game: A runs it at the board vs the next NPC on the ladder: teams form,
+//         the ball's checked to A (no shot till it's live), a make from the
+//         top is 2 and A keeps it, the NPC gets a possession and shoots, a
+//         score without taking it back doesn't count, 11 wins and moves the
+//         ladder; B sees the game, the NPC and the card; B joins A's next
+//         game (1v1, two players); the 3-point contest counts its makes.
 //
-// Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-courts-test.mjs [gear] [hoops]
+// Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-courts-test.mjs [gear] [hoops] [game]
 
 import http from "node:http";
 import fs from "node:fs";
@@ -108,7 +114,7 @@ const modUrl = (page, file) => page.evaluate((file) => {
 
 const A = await open("A", "baller_a");
 await join(A);
-const B = want("hoops") ? await open("B", "watcher_b") : null;
+const B = want("hoops") || want("game") ? await open("B", "watcher_b") : null;
 if (B) await join(B);
 await pumpAll(B ? [A, B] : [A], 5000);
 const both = B ? [A, B] : [A];
@@ -220,6 +226,8 @@ if (want("hoops")) {
   const shotBall = s.balls.find((b) => !b.holder);
   check("released on the set point: EXCELLENT", s.feedback === "EXCELLENT", s.feedback);
   check("the free throw goes in", shotBall?.events.includes("score"), JSON.stringify(shotBall?.events));
+  // B may be a frame or two behind under load
+  for (let i = 0; i < 15; i++) { if (await B.evaluate((id) => !!window.__trollHoops.balls.get(id)?.sim, shotBall?.id)) break; await pumpAll(both, 200); }
   const onB = await B.evaluate((id) => { const b = window.__trollHoops.balls.get(id); return b?.sim ? { n: b.sim.events.map((e) => e.kind + "@" + e.n) } : null; }, shotBall?.id);
   const onA = await A.evaluate((id) => { const b = window.__trollHoops.balls.get(id); return b?.sim ? { n: b.sim.events.map((e) => e.kind + "@" + e.n) } : null; }, shotBall?.id);
   check("B saw the same flight, step for step", onB && onA && onB.n.slice(0, 3).join() === onA.n.slice(0, 3).join(), `A ${onA?.n.slice(0, 3)} | B ${onB?.n.slice(0, 3)}`);
@@ -260,6 +268,131 @@ if (want("hoops")) {
   const dunked = s.balls.find((b) => b.events.includes("score") && b.id !== shotBall?.id) || s.balls.find((b) => b.events.includes("score"));
   check("sprinting at the rim it's a dunk, and it goes down", s.lastShot === "dunk" && s.last?.made, JSON.stringify({ kind: s.lastShot, last: s.last, balls: s.balls.map((b) => b.events.join(",")) }));
   await camShot(B, "hoops-B-view", [52, 2.4, rimZ + 6], [48, 1.5, rimZ + 1]);
+}
+
+if (want("game")) {
+  const GS = (p) => p.evaluate(() => window.__trollHoopsGame.state());
+  const HS = (p) => p.evaluate(() => window.__trollHoops.state());
+  const putAt = (p, x, z, yaw = 0) => p.evaluate(({ x, z, yaw }) => { const T = window.__trollOps; T.move.reset(x, z, 0.06); T.look.yaw = yaw; T.look.pitch = 0; }, { x, z, yaw });
+  const key = async (p, k, ms) => { await p.keyboard.down(k); await pumpAll(both, ms); await p.keyboard.up(k); };
+  /* wait (pumping both tabs) till the game on A says so */
+  const until = async (fn, ms = 9000) => { const t0 = Date.now(); let g; while (Date.now() - t0 < ms) { g = await GS(A); if (fn(g)) return g; await pumpAll(both, 150); } return g; };
+  const L = await A.evaluate(() => window.__trollOps.builtMap().map.rp.courts());
+  const rim = L.layout.rims[0], board = L.hoops.board;
+  await A.evaluate(() => { window.__trollHoopsGame.setLadder(0); window.__trollHoopsGame.G.calm = true; });
+  // 1. run it
+  await putAt(A, board.x - 1.2, board.z - 0.8, Math.PI / 2);
+  await pumpAll(both, 500);
+  const pr = await A.evaluate(() => window.__trollOps.rp().prompt || "");
+  check("at the board (south side): run it vs the next baller", /run it: 1v1 to 11 vs/i.test(pr), pr);
+  // hold X till it takes (slow headless frames stretch the hold)
+  for (let i = 0; i < 3 && !(await GS(A)).s; i++) await key(A, "x", 1400);
+  let g = await GS(A);
+  check("a game is waiting for players", !!g.s && (g.s.phase === "wait" || g.s.phase === "check"), JSON.stringify(g.s));
+  g = await until((x) => x.s?.phase === "check");
+  check("nobody came: A vs an NPC, the ball checked to A", g.s?.teams[0][0] && /^npc/.test(g.s?.teams[1][0] || "") && g.s.phase === "check" && g.s.holder === g.s.teams[0][0], JSON.stringify(g.s));
+  // hold the check open while we try (slow frames could let it go live first)
+  await A.evaluate(() => { window.__trollHoopsGame.G.s.checkAt = Date.now() + 1e9; });
+  let h = await HS(A);
+  check("A has the game ball at the top", h.ball === g.s?.id + "-b", JSON.stringify({ ball: h.ball }));
+  await A.evaluate(() => { window.__trollHoops.H.autoRelease = 0.44; window.__trollHoops.startShot(); });
+  h = await HS(A);
+  check("no shot before it's checked", !h.shot, JSON.stringify(h.shot));
+  await A.evaluate(() => { window.__trollHoopsGame.G.s.checkAt = 0; });
+  g = await until((x) => x.s?.phase === "live");
+  check("then it's live", g.s?.phase === "live", g.s?.phase);
+  // the NPC on defence stands between A and the rim
+  const npc = g.npcs[0];
+  const me = await A.evaluate(() => ({ x: window.__trollOps.move.pos.x, z: window.__trollOps.move.pos.z }));
+  check("the NPC guards A, between him and the rim", npc && npc.z < me.z && Math.abs(npc.x - me.x) < 1.6, JSON.stringify({ npc, me }));
+  await followShot(A, "game-check", [2.6, 1.6, 2.6], [0, 1.0, -1.6]);
+  await followOff(A);
+  // 2. a make from the top: 2, and A keeps it
+  await A.evaluate(() => { window.__trollHoops.H.autoRelease = 0.44; window.__trollHoops.startShot(); });
+  await pumpAll(both, 3200);
+  g = await GS(A);
+  check("a make from the top is 2, and A checks it again", g.s?.score[0] === 2 && g.s.poss === 0 && (g.s.phase === "check" || g.s.phase === "live"), JSON.stringify(g.s));
+  // B sees it
+  const gb = await GS(B);
+  check("B sees the game and the NPC", gb.s?.score[0] === 2 && gb.shown.length === 1, JSON.stringify({ s: gb.s?.score, shown: gb.shown }));
+  await camShot(B, "game-B", [rim.x + 6, 2.6, rim.z + 10], [rim.x, 1.2, rim.z + 5]);
+  // 3. the NPC's ball: it attacks and shoots
+  await A.evaluate(() => window.__trollHoopsGame.check(1));
+  await pumpAll(both, 1900);
+  let npcShot = null;
+  for (let i = 0; i < 40 && !npcShot; i++) {
+    await pumpAll(both, 300);
+    g = await GS(A);
+    h = await HS(A);
+    npcShot = g.npcs.find((n) => n.shot) || h.balls.find((b) => b.flying && /^npc/.test(b.id) === false && b.events.length) || (g.s?.score[1] > 0 ? "scored" : null) || (g.s?.poss === 0 && g.s.phase !== "check" ? "rebound" : null);
+  }
+  check("with the ball, the NPC attacks and puts up a shot", !!npcShot, JSON.stringify({ npcs: g.npcs, s: g.s }));
+  await pumpAll(both, 2500);
+  // 4. take it back: a defensive board, a score from inside the arc doesn't count
+  await A.evaluate(() => window.__trollHoopsGame.check(0));
+  await until((x) => x.s?.phase === "live");
+  await putAt(A, rim.x, rim.z + 4.6, 0);
+  await pumpAll([A], 200);
+  await A.evaluate(() => { window.__trollHoopsGame.G.s.clear = false; });
+  const before = (await GS(A)).s.score.slice();
+  await A.evaluate(() => { window.__trollHoops.H.autoRelease = 0.44; window.__trollHoops.startShot(); });
+  await pumpAll(both, 3000);
+  g = await GS(A);
+  check("not taken back: the make doesn't count, their ball", g.s?.score[0] === before[0] && g.s.poss === 1, JSON.stringify({ before, s: g.s }));
+  // 5. game point
+  await A.evaluate(() => { const s = window.__trollHoopsGame.G.s; s.score = [10, 3]; window.__trollHoopsGame.check(0); });
+  await until((x) => x.s?.phase === "live");
+  await putAt(A, rim.x, rim.z + 4.6, 0);
+  await pumpAll([A], 200);
+  await A.evaluate(() => { window.__trollHoops.H.autoRelease = 0.44; window.__trollHoops.startShot(); });
+  await pumpAll(both, 3000);
+  g = await GS(A);
+  const lad = await A.evaluate(() => window.__trollHoopsGame.ladder());
+  check("11 wins it, and the ladder moves up", g.s?.phase === "over" && g.s.winner === 0 && g.s.score[0] === 11 && lad === 1, JSON.stringify({ s: g.s, lad }));
+  await shot(A, "game-over");
+  await pumpAll(both, 6500);
+  g = await GS(A);
+  check("the game ends, the NPC goes back", !g.s && !g.npcs.length, JSON.stringify(g));
+  // 6. B joins A's next game
+  await putAt(A, board.x - 1.2, board.z - 0.8, Math.PI / 2);
+  await putAt(B, board.x - 1.2, board.z - 1.6, Math.PI / 2);
+  await pumpAll(both, 500);
+  for (let i = 0; i < 3 && (await GS(A)).s?.phase !== "wait"; i++) await key(A, "x", 1300);
+  await pumpAll(both, 600);
+  const prB = await B.evaluate(() => window.__trollOps.rp().prompt || "");
+  check("B at the board: join A's game", /join .*game/i.test(prB), prB);
+  await key(B, "x", 1400);
+  await pumpAll(both, 4000);
+  g = await GS(A);
+  const idB = await B.evaluate(() => window.__trollOps.net.id);
+  const dbg = await A.evaluate(() => ({ joiners: window.__trollHoopsGame.G.s?.joiners, id: window.__trollHoopsGame.G.s?.id }));
+  const dbgB = await B.evaluate(() => ({ id: window.__trollHoopsGame.G.s?.id, phase: window.__trollHoopsGame.G.s?.phase }));
+  check("two players: 1v1, A against B", g.s?.teams[1][0] === idB && g.s.teams[0].length === 1, JSON.stringify({ teams: g.s?.teams, dbg, dbgB, idB }));
+  await pumpAll(both, 1000);
+  // A walks off: end it from the host side
+  await A.evaluate(() => { const s = window.__trollHoopsGame.G.s; if (s) { s.phase = "over"; s.winner = 0; s.overAt = 0; } });
+  await pumpAll(both, 1500);
+  // 7. the 3-point contest
+  await putAt(A, board.x - 1.2, board.z + 0.9, Math.PI / 2);
+  await pumpAll(both, 500);
+  const pr3 = await A.evaluate(() => window.__trollOps.rp().prompt || "");
+  check("north side of the board: the 3-point contest", /3-point contest/i.test(pr3), pr3);
+  await key(A, "x", 900);
+  await pumpAll([A], 600);
+  h = await HS(A);
+  let c = (await GS(A)).contest;
+  check("on the first spot with a ball", !!h.ball && c?.rack === 0, JSON.stringify({ ball: h.ball, c }));
+  await followShot(A, "contest", [1.8, 1.6, 2.2], [0, 1.2, -2]);
+  await followOff(A);
+  for (let i = 0; i < 3; i++) {
+    for (let k = 0; k < 20; k++) { const st = await HS(A); if (st.ball && !st.shot) break; await pumpAll([A], 200); }
+    await A.evaluate(() => { window.__trollHoops.H.autoRelease = 0.44; window.__trollHoops.startShot(); });
+    await pumpAll([A], 1200);
+  }
+  await pumpAll([A], 1500);
+  c = (await GS(A)).contest;
+  check("perfect releases from the corner count", c && c.score >= 2 && c.shot === 3, JSON.stringify(c));
+  await A.evaluate(() => window.__trollHoopsGame.finishContest());
 }
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
