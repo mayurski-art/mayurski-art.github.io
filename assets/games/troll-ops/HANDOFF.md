@@ -14,7 +14,7 @@ Design docs live next to this file: `ROYALE-ISLAND.md` (Trollface Island map pas
 
 ### Tasks to do, in order (updated 2026-10-15)
 Start each session on a fresh branch or worktree from origin/main.
-0. **Button redesign** (doc: claude.ai/code/artifact/155e6ccf-d906-40da-82b6-be82466ddded, decisions in it): five phases, phase 5 the Phantom Forces style in-match public chatbox (T). Then the NFT outline breaks where pieces touch.
+0. **Beer emote** (user, 2026-10-22): the character drinks from a beer mug, then gets super excited and throws the mug. The mug can come from saloon-bar.js `buildDrink`. (The button redesign is done: all five phases are on main, -tb1 to -lb1, public chat on U. Still left from it: the NFT outline breaks where pieces touch.)
 1. **Stylised realism follow-ups** (live -sr1; how a map is baked, the lessons: `REALISM.md`):
    - Re-render the map-select previews (`tools/troll-ops-map-previews.mjs <map>` for the 7 baked maps) and bump each one's `SHOT_V` in map-load-screen.js; they still show the old lighting.
    - Bake Trollface Island the same way (placements, `bake_every_model`, ground bake, `BAKED`, hemi/ambient halved, before/after shots).
