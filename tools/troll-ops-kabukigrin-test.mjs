@@ -3,10 +3,14 @@
 // colliders, ropes, spawns, sites, stair links, and the drawn town (its
 // triangles, how many meshes are light-mapped, retextured, glowing).
 //
-//   node tools/troll-ops-kabukigrin-test.mjs           (phase 0: the export
-//        of an untouched place must match Grinjuku exactly)
-//   node tools/troll-ops-kabukigrin-test.mjs --report  (later phases: print
-//        the differences and check only that the map builds and stands)
+//   node tools/troll-ops-kabukigrin-test.mjs           (phase 6: what the doc
+//        keeps Grinjuku's must still be: spawns, sites, the player spawn,
+//        both ropes, the stair links, and every collider east of x -6 (B
+//        side, section 5: "B everything: untouched"; dressing added there is
+//        listed, not failed). The town's triangles are printed, not checked:
+//        the A side is a club now.)
+//   node tools/troll-ops-kabukigrin-test.mjs --report  (print the
+//        differences and check only that the map builds and stands)
 import { createRequire } from "node:module";
 import { ROOT, serve } from "./troll-ops-map-capture.mjs";
 import fs from "node:fs";
@@ -85,7 +89,10 @@ const res = await page.evaluate(async (tag) => {
       tris, meshes, lit, textured, glow, rooms, seam,
     };
   };
-  return { gj: await one("grinjuku"), kb: await one("kabukigrin_wip") };
+  // (kabukigrin_wip until phase 6 dropped the _wip)
+  const { MAP_IDS } = await import(`/assets/games/troll-ops/maps/maps.js?v=${tag}`);
+  const kbId = (MAP_IDS || []).includes("kabukigrin") ? "kabukigrin" : "kabukigrin_wip";
+  return { gj: await one("grinjuku"), kb: await one(kbId) };
 }, mapsTag);
 await browser.close();
 server.close();
@@ -99,11 +106,17 @@ const sameList = (k) => {
   check(!lost.length && !extra.length && gj[k].length === kb[k].length, `${k} (${kb[k].length}, Grinjuku ${gj[k].length})`,
     lost.length || extra.length ? `${lost.length} only on Grinjuku, ${extra.length} only on Kabukigrin; e.g. ${[...lost.slice(0, 2), ...extra.slice(0, 2)].join(" | ")}` : "");
 };
-for (const k of ["colliders", "ropes", "stairs"]) sameList(k);
+for (const k of ["ropes", "stairs"]) sameList(k);
+// B side: every Grinjuku collider wholly east of x -6 still there; new ones listed
+{
+  const east = (b) => +b.split(",")[0] >= -6;
+  const a = gj.colliders.filter(east), b = new Set(kb.colliders.filter(east));
+  const lost = a.filter((x) => !b.has(x)), extra = [...b].filter((x) => !a.includes(x));
+  check(!lost.length, `B side colliders east of x -6 (${a.length} of Grinjuku's)`, lost.length ? `${lost.length} gone, e.g. ${lost.slice(0, 3).join(" | ")}` : "");
+  if (extra.length) console.log(`info B side adds ${extra.length} collider(s): ${extra.slice(0, 4).join(" | ")}`);
+}
 for (const k of ["spawns", "sites", "playerSpawn"]) check(JSON.stringify(gj[k]) === JSON.stringify(kb[k]), k, JSON.stringify(kb[k]) === JSON.stringify(gj[k]) ? "" : `${JSON.stringify(kb[k])} vs ${JSON.stringify(gj[k])}`);
-const near = (a, b, tol) => Math.abs(a - b) <= Math.max(1, b * tol);
-check(near(kb.tris, gj.tris, 0.002), "town triangles", `${kb.tris} vs ${gj.tris}`);
-for (const k of ["lit", "textured", "glow"]) check(near(kb[k], gj[k], 0.002), `${k} triangles`, `${kb[k]} vs ${gj[k]}`);
+console.log(`info town triangles ${kb.tris} (Grinjuku ${gj.tris}); lit ${kb.lit}, textured ${kb.textured}, glowing ${kb.glow}`);
 console.log(`meshes drawn: ${kb.meshes} (Grinjuku ${gj.meshes})`);
 if (kb.rooms) {
   const R = kb.rooms;
