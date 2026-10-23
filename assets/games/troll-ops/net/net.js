@@ -129,6 +129,8 @@ export class Net {
     this.club = { wb: 0, cq: 0, ce: null, fc: null };
     this.trainAt = null;   // riding the Grin Express (modes/social-train.js)
     this.cuff = 0; this.jail = 0; this.wanted = null;   // Troll City's law (modes/social-sheriff.js)
+    this.jailbreak = 0;   // the cell whose wall we blew out + 1 (modes/social-jailbreak.js)
+    this.heat = 0;        // 1: escaped, on the run (modes/social-jail.js)
     this.stetson = 0;   // a hat from Kek & Sons (modes/social-shop.js)
     this.horse = 0; this.horseGait = 0; this.horseYaw = 0; this.saddles = 0;   // on a horse (modes/social-horses.js)
     this.bandSong = 0; this.bandAt = 0; this.bandAuto = 0;   // the saloon band (modes/social-band.js)
@@ -375,6 +377,8 @@ export class Net {
         // the saloon band (modes/social-band.js): the song they started (+1), when (room ms), their part on auto
         p.bandSong = Math.max(0, Math.min(999, m.bs | 0)); p.bandAt = Number.isFinite(+m.ba) ? +m.ba : 0; p.bandAuto = !!m.bz;
         p.jail = Math.max(0, Math.min(9, m.jl | 0));
+        p.jailbreak = Math.max(0, Math.min(9, m.jb | 0));
+        p.heat = (m.hr | 0) === 1;
         p.wanted = typeof m.wl === "string" ? m.wl.slice(0, 80) : null;
         p.body = typeof m.bd === "string" ? m.bd.slice(0, 16) : null;   // a realistic body (cop-bodies.js)
         p.downed = Math.max(0, Math.min(2, m.dn | 0));   // Zombies co-op: 1 down, 2 bled out (modes/zombies/coop.js)
@@ -578,6 +582,8 @@ export class Net {
         // (1, or 2 being arrested by the town), the cell we're in + 1, the
         // sheriff's wanted board ("id:crime;...")
         cf: this.cuff || undefined, jl: this.jail || undefined, wl: this.wanted || undefined,
+        jb: this.jailbreak || undefined,   // the cell whose back wall we blew out + 1, for a minute (social-jailbreak.js)
+        hr: this.heat || undefined,   // escaped and on the run (social-jail.js)
         pk: this.perks || undefined,   // perks others must know about (perks.js WIRE_PERKS bits; combat/perk-carry.js sets it)
         dn: local.downed || undefined,   // Zombies co-op: 1 down, 2 bled out
         mt: this.stetson || undefined,   // a hat from Kek & Sons (modes/social-shop.js)

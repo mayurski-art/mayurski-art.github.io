@@ -39,7 +39,7 @@ import { LoopPath, Train } from "./train.js?v=tr1b7-or1";
 import { buildTrainBoard } from "./train-board.js?v=tb1-bt1-tcs1";
 import { studioTown, loadStudioTown, setMoves, moveRp, moveFresh, movePoint, moveGeo, moveLive } from "./trollcity-studio.js?v=ts1-tcs1-tcp1-tx1-trk1-ch1";
 import { buildChapel, CHAPEL, CHAPEL_TOWER } from "./trollcity-chapel.js?v=tch1-tcs1-tcs2-mg1-tx1-ch1";
-import { buildHall, HALL, PLAZA, COMPUTERS } from "./trollcity-hall.js?v=th1-tcs1-tx1-ch1-jb1";
+import { buildHall, HALL, PLAZA, COMPUTERS } from "./trollcity-hall.js?v=th1-tcs1-tx1-ch1-jb1-jb3-jb6";
 import { buildEast, EAST } from "./trollcity-east.js?v=te1-tcs1-tx1-ch1";
 
 // 248 x 200 m since the redesign (doc "Troll City redesign in Roblox Studio"):
@@ -220,7 +220,7 @@ function wall(K, M, { axis, at, a, b, y = 0, h, t = T, mat, pen = 8, holes = [],
     for (const [sLo, sHi] of spans) {
       const door = sLo < 0.05;
       const [cx, cz] = at2(hole.c, at);
-      if (door && sill) K.solid(cx, cz, X ? hole.w : t, X ? t : hole.w, sill, { y, pen: 8, mat: M.floor });
+      if (door && sill && !hole.bare) K.solid(cx, cz, X ? hole.w : t, X ? t : hole.w, sill, { y, pen: 8, mat: M.floor });
       if (!door && glass && !hole.bare) {
         const g = new THREE.PlaneGeometry(hole.w, sHi - sLo);
         K.add(M.glass, place(g, { x: cx, y: y + (sLo + sHi) / 2, z: cz, ry: X ? 0 : Math.PI / 2 }), { shadow: false });
