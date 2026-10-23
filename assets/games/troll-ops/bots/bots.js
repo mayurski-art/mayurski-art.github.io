@@ -167,7 +167,7 @@ const DISTRICT = 20;               // metres: the squares crowding is counted in
 const POST_HEAT = 5;
 const POST_HEAT_KEEP = 0.99;       // per half second: about a minute's half-life
 const UPPER_Y = 1.5;               // feet this high: off the ground floor
-const REST_HOLD = [8, 16];         // seconds sat in a pew or knelt at a rail (arena.botRests)
+const REST_HOLD = [5, 9];          // seconds sat in a pew or knelt at a rail (arena.botRests); longer cost Troll City a fifth of its kills
 const POST_STILL = 4;              // holding a post, got under 1.5 m in this long: the hold ends
 
 /* Anything tall standing at body height on this spot? */
