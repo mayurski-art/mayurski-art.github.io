@@ -219,8 +219,8 @@ MODES.social = {
   // Only the maps built for hanging out (user, 2026-10-07); the other maps
   // stay open to every other mode. Its own list, not a mapPool: the room
   // still follows its host's map.
-  maps: ["trollcity", "trollingloud", "kabukigrin"],
-  blurb: "Hang out in Troll City, at Trolling Loud or in Kabukigrin with whoever is online. No guns, just emotes and chat.",
+  maps: ["trollcity", "trollingloud", "kabukigrin", "grinbeach"],
+  blurb: "Hang out in Troll City, at Trolling Loud, in Kabukigrin or on Grin Beach with whoever is online. No guns, just emotes and chat.",
 };
 
 /* The Zombies hub (Zombie Rush P5, modes/zombies/hub.js): where Zombies
