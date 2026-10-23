@@ -200,7 +200,7 @@ MODES.royale_mini = {
   royale: true,
   noStreaks: true,
   forceMap: "grinbeach",
-  blurb: "Troll Royale on Grin Beach: ten trolls, a five-minute zone. Last troll standing wins.",
+  blurb: "Troll Royale on Troll Beach: ten trolls, a five-minute zone. Last troll standing wins.",
 };
 
 /* Socialize (user, 2026-10-04): one public hangout room, no fighting. Walk
@@ -220,7 +220,7 @@ MODES.social = {
   // stay open to every other mode. Its own list, not a mapPool: the room
   // still follows its host's map.
   maps: ["trollcity", "trollingloud", "kabukigrin", "grinbeach"],
-  blurb: "Hang out in Troll City, at Trolling Loud, in Kabukigrin or on Grin Beach with whoever is online. No guns, just emotes and chat.",
+  blurb: "Hang out in Troll City, at Trolling Loud, in Kabukigrin or on Troll Beach with whoever is online. No guns, just emotes and chat.",
 };
 
 /* The Zombies hub (Zombie Rush P5, modes/zombies/hub.js): where Zombies

@@ -867,7 +867,7 @@ export function shopSignMaterial(text, color) {
 }
 
 /* The mural on the lot's back wall (inner face z 30.6): a sunset over the
-   waves, palm silhouettes, GRIN BEACH in surf lettering and the grin,
+   waves, palm silhouettes, TROLL BEACH in surf lettering and the grin,
    weathered. One canvas on one plane. */
 export function beachMural() {
   const W = 2048, H = 268;
@@ -903,14 +903,14 @@ export function beachMural() {
     }
   };
   palmS(120, 220, 30); palmS(260, 170, -20); palmS(1880, 230, -34); palmS(1990, 160, 18);
-  // GRIN BEACH
+  // TROLL BEACH (the map was Grin Beach till 2026-10-23)
   g.font = "900 150px 'Arial Black', Impact, sans-serif";
   g.textAlign = "center"; g.textBaseline = "middle";
   g.lineJoin = "round";
-  g.lineWidth = 22; g.strokeStyle = "#1a1030"; g.strokeText("GRIN BEACH", 820, 130);
+  g.lineWidth = 22; g.strokeStyle = "#1a1030"; g.strokeText("TROLL BEACH", 820, 130, 1080);
   const tg = g.createLinearGradient(0, 60, 0, 200);
   tg.addColorStop(0, "#ffe25a"); tg.addColorStop(1, "#ff6a3a");
-  g.fillStyle = tg; g.fillText("GRIN BEACH", 820, 130);
+  g.fillStyle = tg; g.fillText("TROLL BEACH", 820, 130, 1080);
   // the grin, on the sun side
   g.save(); g.translate(1700, 120); g.scale(0.7, 0.7);
   g.fillStyle = "#fffaf0"; g.strokeStyle = "#1a1030"; g.lineWidth = 9;

@@ -72,7 +72,7 @@ let info = await page.evaluate(() => {
     alive: T.royaleAliveList().length, bots: T.bots.count,
   };
 });
-check("Royale loads Grin Beach", info.map === "grinbeach", info.map);
+check("Royale loads Troll Beach", info.map === "grinbeach", info.map);
 check("floor loot is spread over the map", info.items >= 30 && info.items <= 120 && info.kinds.gun > 5 && info.kinds.plate > 0 && info.kinds.heal > 0 && info.kinds.ammo > 0, JSON.stringify({ n: info.items, ...info.kinds }));
 check("you land with only a pistol", info.primary === "sixtynine" && !info.secondary, `${info.primary} / ${info.secondary}`);
 check("zone HUD up, team score hidden", info.hud && !info.teams && /Zone 1/.test(info.text) && /left/.test(info.text), info.text);
