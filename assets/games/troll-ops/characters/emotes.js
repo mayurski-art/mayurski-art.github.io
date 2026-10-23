@@ -711,15 +711,58 @@ function chugBox(colour, w, h, d, x, y, z, g, opts = {}) {
 }
 /* The mug: the handle at the origin (in the fist), the body out along +x,
    its mouth up +y. `beer` is the fill (scaled down as it's drunk). */
+/* The stein (user, 2026-10-23: the boxy one didn't read as a mug): a round,
+   thick-walled glass with the amber beer showing through, a heavy base, a
+   foam head swelling over the rim with a drip down the side, and a chunky
+   D-handle, inked. The handle's grip at the origin (in the fist), the
+   glass out along +x, its mouth up +y. `beer` is the fill (its height is
+   scaled as it's drunk, from the floor of the glass up). */
+const MUG = { r: 0.05, h: 0.15, base: 0.018, handle: 0.038 };
+let mugParts = null;
 function makeMug() {
-  const g = new THREE.Group(), W = 0.085, H = 0.13, X = 0.075;
-  g.userData.beer = chugBox(CHUG_COLOURS.beer, W - 0.012, H - 0.03, W - 0.012, X, -0.005, 0, g);
-  chugBox(new THREE.MeshToonMaterial({ color: CHUG_COLOURS.glass, transparent: true, opacity: 0.35, depthWrite: false }), W, H, W, X, 0, 0, g, { transparent: true });
-  g.userData.foam = chugBox(CHUG_COLOURS.foam, W + 0.006, 0.026, W + 0.006, X, H / 2 + 0.006, 0, g);
-  chugBox(CHUG_COLOURS.band, W + 0.004, 0.012, W + 0.004, X, -H / 2 + 0.006, 0, g);
-  chugBox(CHUG_COLOURS.glass, 0.016, 0.085, 0.018, 0, 0, 0, g);            // the grip
-  chugBox(CHUG_COLOURS.glass, 0.03, 0.014, 0.018, 0.018, 0.04, 0, g);     // its arms to the body
-  chugBox(CHUG_COLOURS.glass, 0.03, 0.014, 0.018, 0.018, -0.04, 0, g);
+  if (!mugParts) {
+    const cyl = (rt, rb, h) => new THREE.CylinderGeometry(rt, rb, h, 18);
+    mugParts = {
+      wall: cyl(MUG.r, MUG.r * 0.96, MUG.h), base: cyl(MUG.r * 0.97, MUG.r, MUG.base),
+      beer: cyl(MUG.r * 0.86, MUG.r * 0.82, 1).translate(0, 0.5, 0),
+      foam: cyl(MUG.r * 1.03, MUG.r * 0.9, 0.03), bubble: new THREE.SphereGeometry(1, 12, 8),
+      handle: new THREE.TorusGeometry(MUG.handle, 0.011, 8, 16, PI),
+      glass: new THREE.MeshToonMaterial({ color: CHUG_COLOURS.glass, transparent: true, opacity: 0.18, depthWrite: false }),
+      glassSolid: new THREE.MeshToonMaterial({ color: 0xc6e2e6 }),
+      beerMat: new THREE.MeshToonMaterial({ color: 0xc8780a, emissive: 0x6a3000 }),
+      foamMat: new THREE.MeshToonMaterial({ color: CHUG_COLOURS.foam }),
+    };
+    for (const o of Object.values(mugParts)) o.userData.shared = true;
+  }
+  const P = mugParts, g = new THREE.Group(), X = MUG.r + MUG.handle * 0.95;
+  const add = (geo, mat, x, y, ink = 1.07, z = 0) => {
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(x, y, z);
+    g.add(m);
+    if (ink) { const o = new THREE.Mesh(geo, INK_MAT); o.position.copy(m.position); o.scale.setScalar(ink); g.add(o); m.userData.ink = o; }
+    return m;
+  };
+  const floor = -MUG.h / 2 + MUG.base;
+  g.userData.beer = add(P.beer, P.beerMat, X, floor, 0);
+  g.userData.beerFloor = floor;
+  g.userData.beerFull = MUG.h - MUG.base - 0.012;
+  add(P.wall, P.glass, X, 0, 1.06);
+  add(P.base, P.glassSolid, X, -MUG.h / 2 + MUG.base / 2, 1.08);
+  // the head: a cap over the rim, froth swelling up and a drip down the side
+  const foam = new THREE.Group();
+  const cap = new THREE.Mesh(P.foam, P.foamMat); foam.add(cap);
+  const capInk = new THREE.Mesh(P.foam, INK_MAT); capInk.scale.setScalar(1.08); foam.add(capInk);
+  for (const [x, y, z, r] of [[0.012, 0.018, 0.008, 0.026], [-0.016, 0.016, -0.01, 0.022], [0.004, 0.024, -0.016, 0.02], [-0.006, 0.014, 0.02, 0.018]]) {
+    const b = new THREE.Mesh(P.bubble, P.foamMat); b.position.set(x, y, z); b.scale.setScalar(r); foam.add(b);
+  }
+  const drip = new THREE.Mesh(P.bubble, P.foamMat); drip.position.set(MUG.r * 0.7, -0.03, MUG.r * 0.72); drip.scale.set(0.011, 0.03, 0.011); foam.add(drip);
+  foam.position.set(X, MUG.h / 2 + 0.006, 0);
+  g.add(foam);
+  g.userData.foam = foam;
+  // the D-handle: a half ring off the glass's side, its middle in the fist
+  const h = add(P.handle, P.glassSolid, X - MUG.r, 0, 0);
+  h.rotation.z = PI / 2;
+  const hInk = new THREE.Mesh(P.handle, INK_MAT); hInk.position.copy(h.position); hInk.rotation.copy(h.rotation); hInk.scale.set(1.04, 1.04, 1.6); g.add(hInk);
   return g;
 }
 /* The smash: amber glass shards and foam, thrown out from where it lands. */
@@ -787,9 +830,9 @@ function poseChug(rig, t) {
   mug.position.set(0, 0, 0);
   mug.rotation.set(CHUG.upright[0] - CHUG.tip * atMouth * (0.55 + 0.45 * drunk), CHUG.upright[1], CHUG.upright[2]);
   mug.scale.setScalar(s * (rig.blocky ? 1.6 : 1.2));
-  mug.userData.beer.scale.y = (0.13 - 0.03) * Math.max(0.08, 1 - drunk);
-  mug.userData.beer.position.y = -0.065 + 0.015 + mug.userData.beer.scale.y / 2;
+  mug.userData.beer.scale.y = mug.userData.beerFull * Math.max(0.06, 1 - drunk);
   mug.userData.foam.visible = drunk < 0.85;
+  mug.userData.foam.position.y = mug.userData.beerFloor + mug.userData.beer.scale.y + 0.006;
   // the throw: out of the hand, tumbling end over end along an arc
   const fly = emoteBit(rig, "chugFly", rig.root, makeMug);
   const k = (t - CHUG.release) / (CHUG.land - CHUG.release);
@@ -802,7 +845,7 @@ function poseChug(rig, t) {
     fly.position.y += Math.sin(k * PI) * F.peak * s - k * k * 0.0;
     fly.rotation.set(-k * PI * 3, 0.6, k * 1.2);
     fly.scale.setScalar(s * (rig.blocky ? 1.6 : 1.2));
-    fly.userData.beer.scale.y = 0.008; fly.userData.foam.visible = false;
+    fly.userData.beer.scale.y = 0.006; fly.userData.foam.visible = false;
   }
   // the smash
   const smash = emoteBit(rig, "chugSmash", rig.root, chugSmash);
