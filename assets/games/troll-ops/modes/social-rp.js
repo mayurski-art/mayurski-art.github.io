@@ -26,7 +26,7 @@ import { game } from "../core/state.js?v=st1";
 import { padButtonName } from "../menu/controller-layout.js?v=cl7-pd1-or1";
 import { setFireIcon } from "../view/touch-icons.js?v=ti1-zc2";
 import { InstrumentPanel } from "../menu/instrument-panel.js?v=ip1-bw2";
-import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mg1-kb12-tm2-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1";
+import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mg1-kb12-tm2-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb2";
 
 export const bar = {
   drink: null,      // { kind: "beer"|"whiskey", sips }
@@ -99,7 +99,7 @@ export const rpExtras = [];
 export const rpListeners = [];
 /* ...and whether one has fire for itself right now (fists up in a fight:
    fire is a punch, not a sip or the piano). */
-export const rpBusy = { fists: false, arm: false };   // arm: at an arm-wrestling table, fire pushes (modes/arm-wrestle.js)
+export const rpBusy = { fists: false, arm: false, gun: false };   // arm: at an arm-wrestling table, fire pushes (modes/arm-wrestle.js); gun: the jailbreak revolver (modes/social-jailbreak.js)
 /* On a horse (modes/social-horses.js sets it): the hands are on the reins. */
 export const rpRide = { on: false };
 /* ...and the hold-X actions that only show when nothing else here does (the
@@ -619,7 +619,7 @@ export function updateBar(dt) {
 
   // A sip: fire, one at a time. The drink goes down halfway through it.
   const fireNow = !game.localPauseOnly && !game.emoteWheel.isOpen && (game.mouseDown || (game.isTouch && touchState.firing) || (game.gamepadState.connected && game.gamepadState.firing));
-  if (rpBusy.fists || rpBusy.arm) { /* fists up: fire is a punch (social-duel.js), or a push (arm-wrestle.js) */ }
+  if (rpBusy.fists || rpBusy.arm || rpBusy.gun) { /* fists up: fire is a punch (social-duel.js), a push (arm-wrestle.js) or a shot (social-jailbreak.js) */ }
   else if (fireNow && !bar.fireWas && atPiano() && !piano.panel?.isOpen && game.player.alive) togglePiano();   // at the piano, fire plays
   else if (fireNow && !bar.fireWas && bar.drink?.sips > 0 && bar.sipT <= 0 && game.player.alive) {
     bar.sipT = SIP_TIME; bar.sipDone = false;
@@ -704,7 +704,7 @@ export function updateBar(dt) {
   document.body.classList.toggle("to-social-armed", !game.socialUnarmed());
   // the fire button shows what fire does here (view/touch-icons.js)
   if (game.isTouch) {
-    const fire = !game.socialUnarmed() ? "bullet" : rpBusy.fists ? "fist" : atPiano() ? "keys"
+    const fire = !game.socialUnarmed() || rpBusy.gun ? "bullet" : rpBusy.fists ? "fist" : atPiano() ? "keys"
       : bar.drink ? (bar.drink.kind === "whiskey" ? "shot" : "sip") : "bullet";
     setFireIcon(fire, [game.els.touchFire, game.els.touchFireL]);
   }
