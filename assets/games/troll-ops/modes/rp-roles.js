@@ -10,6 +10,7 @@
 
 import * as THREE from "three";
 import { TUNES } from "../sound/songs.js?v=sg1-bw2";
+import { reachHand, setHandPose } from "../characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1";
 export { TUNES };
 
 /* The jobs. One player each; `npc` is the townsfolk role that steps off
@@ -63,6 +64,45 @@ export function poseSeated(rig, seatY, tuck = 0) {
   rig.body?.update?.();
 }
 const _hip = new THREE.Vector3();
+
+/* Hands placed by reach (chest space: +x the right side, -z in front), the
+   elbows toward the pole. Stick and blocky bodies alike. */
+const _hand = new THREE.Vector3(), _pole = new THREE.Vector3();
+function hands(rig, at, pole) {
+  for (const side of [-1, 1]) {
+    reachHand(rig, side, _hand.set(side * at[0], at[1], at[2]).multiplyScalar(rig.scale || 1), _pole.set(side * pole[0], pole[1], pole[2]));
+    setHandPose(rig, side, "open");
+  }
+}
+
+/* Sat with the hands resting on the thighs (after poseSeated). */
+export function poseLapHands(rig) {
+  hands(rig, [0.17, -0.5, -0.32], [0.6, -0.2, 0.8]);
+  rig.body?.update?.();
+}
+
+/* After poseHumanoid: knelt upright, knees on `kneelY` (world), the hands
+   together under the chin and the head bowed (`t` seconds: a slow nod). */
+export function posePraying(rig, kneelY, t = 0) {
+  const p = rig.parts;
+  p.legL.rotation.set(0.05, 0, 0.05);
+  p.legR.rotation.set(0.05, 0, -0.05);
+  p.kneeL.rotation.set(-1.5, 0, 0);
+  p.kneeR.rotation.set(-1.5, 0, 0);
+  p.ankleL.rotation.set(0, 0, 0);
+  p.ankleR.rotation.set(0, 0, 0);
+  p.torso.rotation.x = 0;
+  p.spine.rotation.x = 0;
+  p.chest.rotation.x = 0;
+  hands(rig, [0.03, -0.06, -0.27], [0.8, -1, 0.3]);
+  const bow = -0.45 + Math.sin(t * 0.7) * 0.05;
+  p.neckPivot?.rotation.set(bow * 0.4, 0, 0);
+  p.headPivot?.rotation.set(bow * 0.6, 0, 0);
+  rig.root.updateMatrixWorld(true);
+  p.kneeL.getWorldPosition(_hip);
+  rig.root.position.y += kneelY + 0.06 - _hip.y;
+  rig.body?.update?.();
+}
 
 /* Both hands working the keys (`t` seconds, `seed` keeps players apart). */
 export function posePianoArms(rig, t, seed = 0, playing = true) {

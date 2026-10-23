@@ -19,7 +19,7 @@ import { applyHeroBody, syncHeroBody } from "../characters/hero-bodies.js?v=umb3
 import { applyCopBody, syncCopBody } from "../characters/cop-bodies.js?v=cb2-sb2c2m1-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1";
 import { playerIconCanvas } from "../progression/rank-icons.js?v=rk1-or1";
 import { buildDrink, drinkFromCode, drinkMax, FILL_TIME, mountDrink, poseDrinkArm } from "../maps/saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1";
-import { poseSeated, posePianoArms, roleLabel } from "../modes/rp-roles.js?v=rp1b7-cd1-sh1-dj2-or1-bw2";
+import { poseSeated, poseLapHands, posePraying, posePianoArms, roleLabel } from "../modes/rp-roles.js?v=rp1b7-cd1-sh1-dj2-or1-bw2";
 import { peerHas } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1";
 import { wearBlocky } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-hl1-mg1";
 
@@ -795,7 +795,9 @@ export class RemotePlayer {
     // "the heads of the troll bots seem to be flopping up and down"), so a
     // stop only counts once it has held for STOP_HOLD.
     if (b.moving) this.stopT = 0; else this.stopT = (this.stopT || 0) + dt;
-    const moving = (!!b.moving || this.stopT < STOP_HOLD) && b.stance !== "rope" && aboard?.seatY == null;
+    // a bot sat in a chapel pew or knelt at its rail (bots.js rest)
+    const resting = b.stance === "sit" || b.stance === "pray";
+    const moving = (!!b.moving || this.stopT < STOP_HOLD) && b.stance !== "rope" && !resting && aboard?.seatY == null;
     // Same 4.2 m/s reference speed used to drive the phase rate above,
     // reused here as the 0..1 intensity that scales stride/arm-swing/lean
     // so a jog and a sprint are visibly different gaits, not just the same
@@ -884,6 +886,15 @@ export class RemotePlayer {
       poseSeated(this.rig, seat.y, seat.kind === "stool" ? 0.55 : 0);
     }
     if (aboard?.seatY != null) poseSeated(this.rig, aboard.seatY, 0.1);
+    // a bot in a pew (the seat 0.45 above its feet) or at the rail (on the
+    // kneeler's velvet): its gun put away
+    if (resting && !seat && this.alive) {
+      this.restT = (this.restT || 0) + dt;
+      if (b.stance === "sit") { poseSeated(this.rig, this.pos.y + 0.45); poseLapHands(this.rig); }
+      else posePraying(this.rig, this.pos.y + 0.09, this.restT);
+      if (this.weaponMesh) this.weaponMesh.visible = false;
+      this.bodyPose.gait = false;
+    }
     rollRig(this.rig, roll);
     // Socialize fist fights (modes/social-duel.js): their jab, or flat out
     if (!seat && !em) poseDuelPeer(this.rig, this.peer);
