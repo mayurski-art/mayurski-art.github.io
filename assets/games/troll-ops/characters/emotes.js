@@ -780,6 +780,35 @@ function chugSmash() {
 }
 const _chT = new THREE.Vector3(), _chL = new THREE.Vector3(), _chA = new THREE.Vector3(), _chB = new THREE.Vector3();
 const _chPoleR = new THREE.Vector3(1, -0.6, 0.3), _chPoleL = new THREE.Vector3(-1, -0.6, 0.3), _chPoleUp = new THREE.Vector3(1, 0.2, 0.6), _chPoleUpL = new THREE.Vector3(-1, 0.2, 0.6);
+/* Where the mug sits at the lips (world space, into _lipPos/_lipQuat: its
+   origin is the handle's grip): its mouth on the trollface's mouth, its
+   axis tipped `tilt` radians back from the head's up towards the face (0
+   upright, PI/2 lying level, more and the base is above the rim), the
+   glass across the front of the face and the handle out to the right. */
+const _lipPos = new THREE.Vector3(), _lipQuat = new THREE.Quaternion(), _lipA = new THREE.Vector3(), _lipB = new THREE.Vector3();
+const _lipQA = new THREE.Quaternion(), _lipQB = new THREE.Quaternion(), _lipS = new THREE.Vector3(), _lipM = new THREE.Matrix4();
+const _lipUp = new THREE.Vector3(), _lipFwd = new THREE.Vector3(), _lipX = new THREE.Vector3(), _lipY = new THREE.Vector3(), _lipZ = new THREE.Vector3();
+function chugLipPose(rig, side, size, tilt) {
+  const head = rig.parts.head, g = head.geometry.parameters;
+  rig.root.updateMatrixWorld(true);
+  head.matrixWorld.decompose(_lipA, _lipQA, _lipS);
+  // the mouth: low on the grin, just off the front of the head
+  _lipB.set(0, -0.5 * g.height / 2, (g.depth || 0) / 2);
+  head.localToWorld(_lipB);
+  _lipUp.set(0, 1, 0).applyQuaternion(_lipQA);
+  _lipFwd.set(0, 0, 1).applyQuaternion(_lipQA);
+  _lipB.addScaledVector(_lipFwd, 0.02 * size);
+  // the mug's own axes: up (base to rim) tipped towards the face, across
+  // (handle to glass) from the right cheek to the left
+  _lipY.copy(_lipUp).multiplyScalar(Math.cos(tilt)).addScaledVector(_lipFwd, -Math.sin(tilt));
+  _lipX.set(-side, 0, 0).applyQuaternion(_lipQA);
+  _lipZ.crossVectors(_lipX, _lipY);
+  _lipM.makeBasis(_lipX, _lipY, _lipZ);
+  _lipQuat.setFromRotationMatrix(_lipM);
+  // the rim's middle on the mouth: back from it to the grip
+  _lipA.set(MUG.r + MUG.handle * 0.95, MUG.h / 2, 0).multiplyScalar(size).applyQuaternion(_lipQuat);
+  _lipPos.copy(_lipB).sub(_lipA);
+}
 function poseChug(rig, t) {
   const p = rig.parts, s = rig.scale, w = rig.blocky ? 1.35 : 1;
   base(rig);
@@ -805,10 +834,17 @@ function poseChug(rig, t) {
   p.torso.rotation.x = -0.14 * atMouth - 0.08 * hype - 0.1 * wind + 0.28 * follow - 0.06 * cheer;
   p.torso.rotation.y = 0.45 * wind - 0.4 * follow;
   head(rig, 0.55 * atMouth + 0.12 * gulp + 0.25 * hype + 0.3 * cheer, 0.35 * shake + 0.3 * wind, 0.15 * shake);
+  // At the lips the mug is placed off the face, not the fist: the rim on
+  // the mouth, the glass out in front of the face with its handle at the
+  // right cheek, tipped back further on each gulp so the base swings up and
+  // out (user, 2026-10-23: "the way the mug is poured to the mouth" was
+  // off). The fist goes to that handle.
+  const mugSize = s * (rig.blocky ? 1.6 : 1.2);
+  if (atMouth > 0) chugLipPose(rig, side, mugSize * p.wristR.parent.getWorldScale(_chB).x, 0.95 + 0.95 * drunk + 0.12 * gulp);
   // the right hand: hanging -> chest -> lips -> overhead -> behind the head -> out ahead
   _chT.set(0.3 * s, -0.62 * s, 0.02 * s);
   _chT.lerp(_chA.set(0.14 * w * s, -0.3 * s, -0.3 * s), lift);
-  if (atMouth > 0) _chT.lerp(facePoint(rig, 0.18 * side, -0.55, 0.2 * s), atMouth);
+  if (atMouth > 0) _chT.lerp(p.chest.worldToLocal(_chB.copy(_lipPos)), atMouth);
   _chT.lerp(_chA.set(0.22 * w * s, (0.62 + 0.06 * Math.sin(t * 16)) * s, -0.06 * s), hype);
   _chT.lerp(_chA.set(0.3 * w * s, 0.42 * s, 0.3 * s), wind);
   _chT.lerp(_chA.set(0.12 * w * s, -0.1 * s, -0.6 * s), follow);
@@ -828,8 +864,20 @@ function poseChug(rig, t) {
   const mug = emoteBit(rig, "chugMug", handPt, makeMug);
   mug.visible = t >= 0.15 && !thrown;
   mug.position.set(0, 0, 0);
-  mug.rotation.set(CHUG.upright[0] - CHUG.tip * atMouth * (0.55 + 0.45 * drunk), CHUG.upright[1], CHUG.upright[2]);
-  mug.scale.setScalar(s * (rig.blocky ? 1.6 : 1.2));
+  mug.rotation.set(...CHUG.upright);
+  mug.scale.setScalar(mugSize);
+  if (atMouth > 0) {
+    // blended from riding the fist to its place at the lips (world space,
+    // then back into the hand's own space)
+    rig.root.updateMatrixWorld(true);
+    mug.updateMatrixWorld(true);
+    mug.matrixWorld.decompose(_lipA, _lipQA, _lipS);
+    _lipA.lerp(_lipPos, atMouth);
+    _lipQA.slerp(_lipQuat, atMouth);
+    handPt.matrixWorld.decompose(_lipB, _lipQB, _lipS);
+    mug.position.copy(handPt.worldToLocal(_lipA));
+    mug.quaternion.copy(_lipQB.invert().multiply(_lipQA));
+  }
   mug.userData.beer.scale.y = mug.userData.beerFull * Math.max(0.06, 1 - drunk);
   mug.userData.foam.visible = drunk < 0.85;
   mug.userData.foam.position.y = mug.userData.beerFloor + mug.userData.beer.scale.y + 0.006;
