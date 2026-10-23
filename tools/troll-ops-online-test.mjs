@@ -1,9 +1,10 @@
-// Troll Forces menu: Who's Online and the Server Browser (menu/online.js).
+// Troll Forces menu: who's online and the public servers (menu/online.js).
 // Supabase is blocked, so the roster is just this tab; joining is tried on
 // a PRIVATE code dressed as a server (never a public room).
-//   1. The main menu has both; the count in the corner opens Who's Online,
-//      which lists us as a guest with what we're doing.
-//   2. The Server Browser lists each mode's public room by default.
+//   1. The main menu has neither row (user, 2026-10-22: the party column
+//      shows who's on); the count in the corner opens Who's Online, which
+//      lists us as a guest with what we're doing.
+//   2. serverList has each mode's public room by default.
 //   3. Joining a server from the list puts us in its room, on its mode.
 //
 //   NODE_PATH=<checkout>/node_modules node tools/troll-ops-online-test.mjs
@@ -41,8 +42,7 @@ const items = () => page.evaluate(() => [...document.querySelectorAll(".tr-menu-
 
 // ---- 1
 const main = await items();
-check(main.some((t) => t.startsWith("Server Browser")), "main menu: Server Browser", main.slice(0, 8).join(" | "));
-check(main.some((t) => t.startsWith("Who's Online")), "main menu: Who's Online");
+check(!main.some((t) => /^(Server Browser|Who's Online|Troll Map)/.test(t)), "main menu: no Server Browser, Who's Online or Troll Map", main.join(" | "));
 await page.click(".to-bo2-online");
 await sleep(300);
 const cur = await page.evaluate(() => window.__toBo2.menu.current());
@@ -51,9 +51,12 @@ check(cur === "online", "the Online count opens Who's Online", cur);
 check(online.some((t) => /Guest\d{3} \(you\)/.test(t)), "...listing us, as a guest", online.slice(0, 4).join(" | "));
 
 // ---- 2
-await page.evaluate(() => window.__toBo2.menu.go("servers"));
-await sleep(300);
-const servers = await items();
+const servers = await page.evaluate(async () => {
+  const src = await (await fetch("/assets/games/troll-ops/menu/menu-bo2.js")).text();
+  const i = src.indexOf("./online.js?v=");
+  const O = await import("/assets/games/troll-ops/menu/" + src.slice(i + 2, src.indexOf(String.fromCharCode(34), i)));
+  return O.serverList({ members: [], guests: [] }).map((s) => s.modeName);
+});
 for (const name of ["Team Deathmatch", "Zombies"]) check(servers.some((t) => t.startsWith(name)), `servers: ${name}'s public room`, servers.slice(0, 12).join(" | "));
 
 // ---- 3

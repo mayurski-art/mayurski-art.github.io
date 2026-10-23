@@ -57,7 +57,7 @@ function build() {
     + `<button type="button" class="to-pchat-close" aria-label="Close the chat">×</button></header>`
     + `<ol class="to-pchat-log" aria-live="polite"></ol>`
     + `<div class="to-pchat-gifs" hidden role="group" aria-label="Send a GIF">${GIFS.map((g) => `<button type="button" data-gif="${g.id}"><img src="${gifSrc(g.id)}" alt="${esc(g.label)}" loading="lazy"></button>`).join("")}</div>`
-    + `<form class="to-pchat-form"><input type="text" maxlength="${CHAT.max}" autocomplete="off" enterkeyhint="send" placeholder="Say something to everyone online" aria-label="Message">`
+    + `<form class="to-pchat-form"><input type="text" maxlength="${CHAT.max}" autocomplete="off" enterkeyhint="send" aria-label="Message">`
     + `<button type="button" class="to-pchat-gifbtn" aria-expanded="false" aria-label="Send a GIF">GIF</button>`
     + `<button type="submit">Send</button></form>`
     + `<p class="to-pchat-note"></p>`;
@@ -106,9 +106,8 @@ function setMuted(on) {
 function render() {
   if (!chat.panel) return;
   const log = chat.panel.querySelector(".to-pchat-log");
-  log.innerHTML = chat.msgs.length
-    ? chat.msgs.map((m) => `<li class="${m.me ? "is-me" : ""}"><b>${esc(m.name)}</b><time>${time(m.at)}</time>${m.text ? `<p>${esc(m.text)}</p>` : ""}${m.gif ? `<img class="to-pchat-gif" src="${gifSrc(m.gif)}" alt="GIF: ${esc(gifOf(m.gif).label)}">` : ""}</li>`).join("")
-    : `<li class="to-pchat-empty">Nobody's said anything yet. Say hi: everyone on Troll Warfare sees it, guests too.</li>`;
+  // (an empty chat is just empty: no "Nobody's said anything yet" line, user 2026-10-22)
+  log.innerHTML = chat.msgs.map((m) => `<li class="${m.me ? "is-me" : ""}"><b>${esc(m.name)}</b><time>${time(m.at)}</time>${m.text ? `<p>${esc(m.text)}</p>` : ""}${m.gif ? `<img class="to-pchat-gif" src="${gifSrc(m.gif)}" alt="GIF: ${esc(gifOf(m.gif).label)}">` : ""}</li>`).join("");
   log.scrollTop = log.scrollHeight;
   const n = chat.presence?.count?.() || 1;
   chat.panel.querySelector(".to-pchat-who").textContent = `${n} online`;

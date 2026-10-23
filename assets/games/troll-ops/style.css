@@ -3679,15 +3679,6 @@ body.to-touch-play .to-ss-sky { width: calc(24px * var(--k)); height: calc(24px 
 .to-bo2-party-item { display: flex; align-items: center; gap: 8px; }
 .to-bo2-party-item .to-bo2-party-row { flex: 1; min-width: 0; }
 .tf-btn--secondary.to-bo2-party-invite { flex-shrink: 0; min-height: 32px; padding: 0 12px; border-radius: 8px; font-size: 13px; }
-.to-bo2-chatcard { margin-top: auto; padding: 12px 14px; border-radius: 14px; background: rgba(16,9,5,.88); border: 1px solid rgba(243,236,228,.12); }
-.to-bo2-chatcard header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.to-bo2-chatcard header > b { font: 500 15px Oswald, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--bo2-dim); }
-.to-bo2-chatcard .to-bo2-chat { min-height: 36px; padding: 0 14px; }
-.to-bo2-chatcard-log { margin: 8px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 14px; line-height: 1.35; color: var(--bo2-ink); }
-.to-bo2-chatcard-log li { overflow-wrap: anywhere; }
-.to-bo2-chatcard-log b { color: var(--bo2-gold); }
-.to-bo2-chatcard-log img { display: block; width: 110px; margin-top: 3px; border-radius: 6px; }
-.to-bo2-chatcard-log .is-empty { color: var(--bo2-dim); font-size: 13px; }
 .to-bo2.has-detail .to-bo2-party, body.is-map .to-bo2-party { visibility: hidden; }
 .to-bo2-party-lbl { font: 500 17px Oswald, sans-serif; letter-spacing: .04em; text-shadow: 0 1px 6px rgba(0,0,0,.9); }
 .to-bo2-party-lbl span { color: var(--bo2-dim); }
@@ -3740,7 +3731,92 @@ div.to-bo2-party-row.is-other { cursor: default; }
 .to-bo2.has-lb #to-pf-center, .to-bo2[data-screen="maps"] #to-pf-center { display: none !important; }
 .to-bo2-mapshot { margin: 0; }
 .to-bo2-mapshot img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; }
-.to-bo2-mapshot figcaption { margin-top: 10px; color: var(--bo2-soft); font-size: 15px; }
+/* The map vote (menu/map-vote.js): Public Match's lobby, in the middle where
+   the operator stood, the party column beside it. Short of room, it takes the
+   detail pane's place and the party steps aside (the panel lists the lobby). */
+.to-bo2-vote {
+  position: absolute; left: 560px; right: calc(72px + min(340px, 30%)); top: 100px; z-index: 3;
+  max-height: calc(100% - 100px - var(--foot-h, 60px) - 50px); overflow-y: auto; overscroll-behavior: contain;
+  padding: 16px 18px; box-sizing: border-box; color: var(--bo2-ink);
+  background: rgba(10,4,2,.82); border: 1px solid rgba(243,236,228,.14); border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.5);
+}
+.to-bo2-vote[hidden] { display: none; }
+.to-bo2-vote header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.to-bo2-vote header b { font: 500 18px Oswald, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--bo2-dim); }
+.to-mv-clock { font: 600 18px "DM Mono", monospace; color: var(--bo2-gold); }
+.to-mv-big { margin: 12px 0 0; }
+.to-mv-big img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; background: rgba(0,0,0,.4); }
+.to-mv-big figcaption { display: flex; align-items: baseline; gap: 10px; margin-top: 8px; }
+.to-mv-big figcaption b { font: 500 22px Oswald, sans-serif; letter-spacing: .03em; }
+.to-mv-big figcaption small { font: 12px "DM Mono", monospace; color: var(--bo2-hot); }
+.to-mv-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0 0; padding: 0; list-style: none; }
+.to-mv-cards li { position: relative; overflow: hidden; cursor: pointer; border: 1px solid rgba(243,236,228,.18); border-radius: 10px; background: rgba(0,0,0,.35); }
+.to-mv-cards img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.to-mv-cards span { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px 9px; }
+.to-mv-cards b { font: 500 15px Oswald, sans-serif; letter-spacing: .03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.to-mv-cards i { font: normal 12px "DM Mono", monospace; color: var(--bo2-dim); }
+.to-mv-cards em { position: absolute; left: 0; bottom: 0; height: 3px; width: calc(var(--p, 0) * 100%); background: var(--bo2-hot); transition: width .3s; }
+.to-mv-cards li:hover, .to-mv-cards li.is-hot { border-color: rgba(243,236,228,.6); }
+.to-mv-cards li.is-mine { border-color: var(--bo2-gold); box-shadow: inset 0 0 0 1px var(--bo2-gold); }
+.to-mv-cards li.is-mine i::after { content: " · your vote"; color: var(--bo2-gold); }
+.to-mv-cards li.is-lead i { color: var(--bo2-ink); }
+@media (max-width: 1199px) {
+  .to-bo2-vote { left: var(--bo2-col); right: 48px; }
+  .to-bo2.has-vote .to-bo2-party { visibility: hidden; }
+}
+@media (max-height: 520px) and (min-aspect-ratio: 9/10) { .to-bo2.has-vote .to-bo2-party { visibility: hidden; } .to-mv-big { display: none; } }
+@container cab (max-aspect-ratio: 9/10) {
+  .to-bo2.has-vote .to-bo2-party { visibility: hidden; }
+  /* clear of the list's description line, which wraps on a phone */
+  .to-bo2 .to-bo2-vote { margin-top: 18px; max-height: calc(100% - 56px - env(safe-area-inset-top) - var(--menu-h, 300px) - 26px - var(--foot-h, 42px) - 30px); }
+}
+/* Phones and tablets: the small panel by the list opens the vote as a sheet
+   over the whole lobby (menu-bo2.js voteSheet). Upright it's one column, the
+   go button at the foot; sideways the preview takes the left and the three
+   maps stack on the right. */
+.to-bo2-vote.is-tap { cursor: pointer; }
+.to-bo2-vote.is-tap header b::after { content: " · tap to open"; font: 12px "DM Mono", monospace; letter-spacing: 0; text-transform: none; color: var(--bo2-gold); }
+.to-bo2-vote.is-tap:active { border-color: var(--bo2-gold); }
+.to-bo2 .to-bo2-vote.is-sheet {
+  position: absolute; inset: 0; margin: 0; max-height: none; z-index: 30;
+  display: flex; flex-direction: column; gap: 10px; overflow-y: auto;
+  padding: max(14px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: #080301; border: 0; border-radius: 0; box-shadow: none;
+}
+.to-bo2 .to-bo2-vote.is-sheet[hidden] { display: none; }
+body.to-vote-sheet #to-title:not([hidden]) ~ .to-radio { visibility: hidden; }
+.to-bo2-vote.is-sheet header { align-items: center; }
+.to-bo2-vote.is-sheet header .to-mv-clock { margin-left: auto; }
+.to-mv-close {
+  width: 40px; height: 40px; flex: none; padding: 0; border: 1px solid rgba(243,236,228,.22); border-radius: 50%;
+  background: rgba(0,0,0,.4); color: var(--bo2-ink); font-size: 26px; line-height: 1; cursor: pointer;
+}
+.to-bo2-vote.is-sheet .to-mv-big { display: block; margin: 0; }
+.to-bo2-vote.is-sheet .to-mv-cards { margin: 0; }
+.to-mv-foot { margin-top: auto; }
+.to-mv-go {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 52px; padding: 0 18px;
+  border: 0; border-radius: 12px; background: #ff8a1f; color: #1a0b00; cursor: pointer;
+  font: 600 20px Oswald, sans-serif; letter-spacing: .04em; text-transform: uppercase;
+}
+.to-mv-go small { font: 500 13px "DM Mono", monospace; letter-spacing: 0; text-transform: none; color: #3a1d05; }
+.to-mv-go:active { background: #d96f0f; }
+@media (orientation: landscape) {
+  .to-bo2 .to-bo2-vote.is-sheet {
+    display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: "head head" "big cards" "foot foot"; column-gap: 16px; row-gap: 8px;
+  }
+  .to-bo2-vote.is-sheet header { grid-area: head; }
+  .to-bo2-vote.is-sheet .to-mv-big { grid-area: big; display: flex; flex-direction: column; min-height: 0; }
+  .to-bo2-vote.is-sheet .to-mv-big img { flex: 1; min-height: 0; aspect-ratio: auto; }
+  .to-bo2-vote.is-sheet .to-mv-big figcaption { margin-top: 6px; }
+  .to-bo2-vote.is-sheet .to-mv-cards { grid-area: cards; grid-template-columns: 1fr; gap: 6px; align-content: start; min-height: 0; overflow-y: auto; }
+  .to-bo2-vote.is-sheet .to-mv-cards li { display: flex; align-items: center; }
+  .to-bo2-vote.is-sheet .to-mv-cards img { width: 40%; flex: none; }
+  .to-bo2-vote.is-sheet .to-mv-cards span { min-width: 0; }
+  .to-bo2-vote.is-sheet .to-mv-foot { grid-area: foot; margin: 0; }
+  .to-bo2-vote.is-sheet .to-mv-go { min-height: 44px; }
+}
 /* The operator stands in the right half, beside the list. */
 /* (to the screen's edges below and to the right: a smaller box cut the
    operator off mid-screen when zoomed; the menu and roster sit above it) */
@@ -3773,7 +3849,14 @@ div.to-bo2-party-row.is-other { cursor: default; }
 /* Barracks and Options sit beside it, the same pill (menu-bo2.js openQuick). */
 .to-bo2-anim, .to-bo2-quick { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 14px; border: 1px solid rgba(243,236,228,.35); border-radius: 10px; background: rgba(3,1,1,.45); color: var(--bo2-soft); font: 15px "DM Sans", sans-serif; cursor: pointer; white-space: nowrap; }
 .to-bo2-foot > div:first-child { margin-right: auto; }
-.to-bo2-foot > button + button { margin-left: -16px; }
+.to-bo2-foot > button + button, .to-bo2-foot > button + .to-bo2-optcol { margin-left: -16px; }
+/* The public chat: a small chat icon standing on Options (user, 2026-10-22) */
+.to-bo2-optcol { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.to-bo2-quick.to-bo2-chat { justify-content: center; width: 40px; min-height: 40px; padding: 0; }
+.to-bo2-chat svg { width: 20px; height: 20px; fill: currentColor; }
+.to-bo2-chat .to-pchat-badge { position: absolute; top: -7px; right: -7px; }
+/* the operator stands only in Cosmetics now, so its Emote pill shows there */
+.to-bo2:is([data-screen="cosmetics"], [data-screen="bodies"], [data-screen="faces"], [data-screen="wrists"]) .to-bo2-foot .to-char-emote:not([hidden]) { display: flex; }
 /* the Emote pill, moved into the row (menu-bo2.js): the same pill */
 .to-bo2-foot .to-char-emote { position: static; transform: none; min-height: 44px; padding: 0 18px 0 12px; border: 1px solid rgba(243,236,228,.35); border-radius: 12px; background: rgba(3,1,1,.45); color: var(--bo2-soft); font: 15px "DM Sans", sans-serif; letter-spacing: 0; text-transform: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
 .to-bo2-foot .to-char-emote:hover, .to-bo2-foot .to-char-emote[aria-expanded="true"] { color: var(--bo2-ink); border-color: var(--bo2-ink); }
@@ -3844,7 +3927,6 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
   .to-bo2-menu .tr-menu-title { font-size: 24px; margin-bottom: 2px; }
   .to-bo2-menu .tr-menu-item { min-height: 24px; line-height: 24px; font-size: 16px; }
   .to-bo2-menu .tr-menu-group { padding-bottom: 4px; }
-  .to-bo2-menu .tr-menu-desc { font-size: 13px; min-height: 0; margin-top: 6px; }
   /* A row scrolled half out of the list fades away whole: the 24px rows left
      a sliver of capitals showing right on top of the description. */
   .to-bo2-menu .tr-menu-groups.fade-b { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 34px), transparent calc(100% - 8px)); mask-image: linear-gradient(to bottom, #000 calc(100% - 34px), transparent calc(100% - 8px)); }
@@ -3854,20 +3936,19 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
   .to-bo2-party-lbl { font-size: 14px; }
   .to-bo2-party-row { min-height: 30px; }
   .to-bo2-party-row b { font-size: 16px; }
-  .to-bo2-detail, .to-bo2-panel { right: max(20px, env(safe-area-inset-right)); top: 54px; max-height: calc(100% - 54px - var(--foot-h, 36px) - 20px); padding: 12px 14px; }
+  .to-bo2-detail, .to-bo2-panel, .to-bo2-vote { left: var(--bo2-col); right: max(20px, env(safe-area-inset-right)); top: 54px; max-height: calc(100% - 54px - var(--foot-h, 36px) - 20px); padding: 12px 14px; }
   /* the gun stands in the right column, the detail pane under it */
   #to-title.is-bo2 .to-pf > .to-gun-view.is-hero { display: block; left: var(--bo2-col); right: max(20px, env(safe-area-inset-right)); top: 54px; height: 38cqh; }
   .to-bo2.has-gun .to-bo2-detail { top: calc(54px + 38cqh + 8px); max-height: calc(100% - 54px - 38cqh - 8px - var(--foot-h, 36px) - 20px); }
   /* below the party box: at 96px a narrow phone stood the head on "Log in to keep your XP" */
   #to-title.is-bo2 .to-char-view { left: 50%; right: 0; top: 124px; bottom: 16px; --char-shift: 0; }
   .to-bo2-party { bottom: 70px; }
-  .to-bo2-chatcard-log { display: none; }
   /* no room under its feet in this short box: the pill stands to its left */
   #to-title.is-bo2 .to-char-emote { left: 18%; }
   .to-bo2-foot { left: max(44px, env(safe-area-inset-left)); right: max(20px, env(safe-area-inset-right)); bottom: 8px; gap: 14px; align-items: center; }
   .to-bo2-online { font-size: 22px; }
   :is(.to-bo2-anim, .to-bo2-quick), .to-bo2-foot .to-char-emote { min-height: 30px; font-size: 13px; padding: 0 10px; }
-  .to-bo2-foot > button + button { margin-left: -8px; }   /* 6px apart at this gap */
+  .to-bo2-foot > button + button, .to-bo2-foot > button + .to-bo2-optcol { margin-left: -8px; }   /* 6px apart at this gap */
 }
 /* sideways: the radio up in the corner, above the detail pane */
 @media (max-height: 520px) and (min-aspect-ratio: 9/10) {
@@ -3884,13 +3965,10 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
   .to-bo2-menu .tr-menu-title { font-size: 32px; margin-bottom: 2px; }
   .to-bo2-menu .tr-menu-item { min-height: 29px; line-height: 29px; font-size: 19px; }
   .to-bo2-menu .tr-menu-group { padding-bottom: 6px; }
-  .to-bo2-menu .tr-menu-desc { font-size: 14px; min-height: 40px; }
   /* with a detail pane open, the list keeps to the top part and scrolls */
   .to-bo2.has-detail .to-bo2-menu { max-height: 40%; }
   .to-bo2-party { left: 20px; right: 20px; width: auto; bottom: auto; top: calc(56px + env(safe-area-inset-top) + var(--menu-h, 300px) + 8px); }
-  .to-bo2-chatcard { margin-top: 8px; }
-  .to-bo2-chatcard-log { display: none; }
-  .to-bo2-detail, .to-bo2-panel { left: 12px; right: 12px; top: calc(56px + env(safe-area-inset-top) + var(--menu-h, 300px) + 8px); bottom: auto; max-height: calc(100% - 56px - env(safe-area-inset-top) - var(--menu-h, 300px) - 8px - var(--foot-h, 42px) - 30px); padding: 12px; }
+  .to-bo2-detail, .to-bo2-panel, .to-bo2-vote { left: 12px; right: 12px; top: calc(56px + env(safe-area-inset-top) + var(--menu-h, 300px) + 8px); bottom: auto; max-height: calc(100% - 56px - env(safe-area-inset-top) - var(--menu-h, 300px) - 8px - var(--foot-h, 42px) - 30px); padding: 12px; }
   #to-title.is-bo2 .to-bo2-detail .to-lo-detail { background: none; border: 0; padding: 0; box-shadow: none; }
   .to-bo2-panel { bottom: auto; }
   /* the gun under the list, the detail pane under the gun */
@@ -3912,7 +3990,7 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
      pills under it, Emote as its icon (aria-label "Emotes") */
   .to-bo2-foot { flex-wrap: wrap; justify-content: flex-end; row-gap: 10px; }
   .to-bo2-foot > div:first-child { flex-basis: 100%; }
-  .to-bo2-foot > button + button { margin-left: -18px; }
+  .to-bo2-foot > button + button, .to-bo2-foot > button + .to-bo2-optcol { margin-left: -18px; }
   .to-bo2-foot .to-char-emote span { display: none; }
 }
 @media (hover: none) { .to-bo2-back kbd { display: none; } .to-bo2-back { min-height: 44px; font: 600 16px Oswald, sans-serif; letter-spacing: .06em; text-transform: uppercase; } }
@@ -4099,7 +4177,6 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
 .to-pchat-log li.is-me b { color: #ffcf8a; }
 .to-pchat-log li time { margin-left: 8px; font: 11px "DM Mono", monospace; color: #8d7f72; }
 .to-pchat-log li p { margin: 2px 0 0; overflow-wrap: anywhere; line-height: 1.35; }
-.to-pchat-log li.to-pchat-empty { color: #c9b8a6; }
 .to-pchat-form { display: flex; gap: 8px; padding: 10px 14px 0; }
 .to-pchat-form input { flex: 1; min-width: 0; min-height: 40px; padding: 0 10px; border-radius: 8px; border: 1px solid rgba(243,236,228,.25); background: rgba(0,0,0,.35); color: #f3ece4; font: 15px "DM Sans", sans-serif; }
 .to-pchat-form input:focus { outline: none; border-color: #ff8a1f; }
@@ -4234,7 +4311,6 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
   color: #f3ece4; background: rgba(255,255,255,.06); border: 1px solid rgba(243,236,228,.2);
 }
 .to-bo2-card-share button:hover, .to-bo2-card-share button:focus-visible { color: #ff8a1f; border-color: #ff8a1f; outline: none; }
-.to-bo2-cardnote { margin: 12px 0 0; font-size: 14px; color: var(--bo2-soft); }
 .to-bo2-clan { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
 .to-bo2-clan label { font: 500 15px Oswald, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--bo2-soft); }
 .to-bo2-clan input {

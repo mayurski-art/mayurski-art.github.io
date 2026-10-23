@@ -2,7 +2,7 @@
 //
 // Three tabs in one headless browser share the public QSOC room over
 // BroadcastChannel (Supabase blocked):
-//   1. Socialize sits under Public Match (after the Server Browser). A (troll_runner) deploys
+//   1. Socialize sits under Public Match. A (troll_runner) deploys
 //      from the menu, B (another account) joins with a different map picked
 //      and lands on A's map. No bots, nobody can be hurt, no gun, emotes
 //      reach the other tab.
@@ -89,7 +89,6 @@ const B = await open("B", "someone_else");
 // ── 1. The menu entry and the hangout ─────────────────────────────────────
 const labels = await A.evaluate(() => [...document.querySelectorAll(".tr-menu-item")].map((b) => b.textContent.trim().toLowerCase()));
 const pub = labels.findIndex((l) => l.startsWith("public match"));
-// the Server Browser (menu/menu-bo2.js) sits between the two
 const next = labels.slice(pub + 1).find((l) => !l.startsWith("server browser"));
 check("Socialize sits under Public Match", pub >= 0 && next?.startsWith("socialize"), labels.slice(0, 4).join(" / "));
 

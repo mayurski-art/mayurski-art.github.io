@@ -1,6 +1,8 @@
 /* A Black Ops 2 style menu: a plain, left-aligned stacked text list in a
-   condensed sans, items in small clusters, the highlighted item orange with
-   a one-line description under the list, and drill-down screens with Back.
+   condensed sans, items in small clusters, the highlighted item orange, and
+   drill-down screens with Back. Each item's description goes to screen
+   readers only (user, 2026-10-22: "theres a lot fo description lines on
+   the website so be sure to find them and remove them").
    Shared by the trollrunner.net home and the Troll Forces menu.
 
    createBo2Menu(nav, { screens, start, keys, onScreen }) -> api
@@ -8,6 +10,7 @@
        screen: { title, groups: [[item, ...], ...], back?: false }
        item:   { id, label, desc, value?, go?: screenId, href?, newTab?,
                  onSelect?(item, api), disabled?, on? (ticked),
+                 need? (what unlocks a locked row, shown under the list),
                  tier?: "primary" (the row gets .is-primary: the page styles it) }
      keys: true to drive it from the keyboard (arrows / W S, Enter, Esc or
        Backspace for Back) while no text field has focus.
@@ -15,9 +18,9 @@
        with -1/+1; a click or Enter steps it with +1.
    api: go(id), back(), refresh(), current(), highlight(id), destroy()
 
-   Phones have no hover, so the first tap highlights a row and shows its
-   description and a second tap opens it. Keyboard users and mice open on
-   the first press. */
+   Phones have no hover, so the first tap highlights a row (and whatever
+   the page previews for it) and a second tap opens it. Keyboard users and
+   mice open on the first press. */
 
 const CSS = `
 .tr-menu{display:flex;flex-direction:column;align-items:flex-start;color:#f3ece4}
@@ -34,13 +37,15 @@ const CSS = `
 .tr-menu-item[aria-disabled="true"]{color:#8f7f70;cursor:default}
 .tr-menu-item:focus{outline:none}
 .tr-menu-item:focus-visible{outline:2px solid var(--tr-menu-accent,#ff8a1f);outline-offset:2px}
-.tr-menu-desc{margin:6px 0 0;max-width:400px;min-height:44px;font:15px/1.45 "DM Sans",system-ui,sans-serif;color:#e2d6c8;text-shadow:0 1px 6px rgba(0,0,0,.95)}
-.tr-menu-desc:not(:empty)::before{content:"\\25B8\\00a0\\00a0";color:var(--tr-menu-accent,#ff8a1f)}
+.tr-menu-desc{position:absolute;width:1px;height:1px;margin:0;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+.tr-menu-need{flex-shrink:0;margin:6px 0 0;max-width:400px;font:15px/1.45 "DM Sans",system-ui,sans-serif;color:#e2d6c8;text-shadow:0 1px 6px rgba(0,0,0,.95)}
+.tr-menu-need:empty{display:none}
+.tr-menu-need::before{content:"\\25B8\\00a0\\00a0";color:var(--tr-menu-accent,#ff8a1f)}
 @media (hover:none),(max-width:600px){
   .tr-menu-title{font-size:34px}
   .tr-menu-item{min-height:44px;line-height:44px;font-size:21px}
   .tr-menu-group{padding-bottom:8px}
-  .tr-menu-desc{font-size:14px;min-height:40px}
+  .tr-menu-need{font-size:14px}
 }
 `;
 
@@ -71,7 +76,14 @@ export function createBo2Menu(nav, { screens, start = "main", keys = false, onSc
   const desc = document.createElement("p");
   desc.className = "tr-menu-desc";
   desc.setAttribute("aria-live", "polite");
-  nav.replaceChildren(title, list, desc);
+  // What a locked row needs (a level, a prestige, signing in) does show
+  // (user: "if the description is that a certain level is needed or
+  // something then keep that"). The description already says it to screen
+  // readers.
+  const need = document.createElement("p");
+  need.className = "tr-menu-need";
+  need.setAttribute("aria-hidden", "true");
+  nav.replaceChildren(title, list, desc, need);
 
   const touch = window.matchMedia("(hover: none)").matches;
   let stack = [];          // screen ids walked through, for Back
@@ -90,6 +102,7 @@ export function createBo2Menu(nav, { screens, start = "main", keys = false, onSc
     buttons.forEach((b, i) => b.classList.toggle("is-hot", i === hot));
     const it = items[hot];
     desc.textContent = it ? (it.desc || "") : "";
+    need.textContent = it ? (it.need || "") : "";
     if (onHot) onHot(it || null, api);
   }
 

@@ -11,32 +11,33 @@
    (#to-pf-center) moves into the right-hand detail pane, with the parts
    that became lists hidden by CSS. */
 
-import { createBo2Menu } from "../../../js/bo2-menu.js?v=to-ft2-tb1";
+import { createBo2Menu } from "../../../js/bo2-menu.js?v=to-ft2-tb1-nd1-ul1";
 import { createMapMode } from "../../../js/troll-map-mode.js?v=to-bo2d";
-import { joinSitePresence, viewerId } from "../../../js/site-presence.js?v=to-bo2d-ol1-iv1";
-import { initInvites, invitePlayer } from "./invites.js?v=iv1-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mg1-kb12-tm2-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb2-jb3-jb4-jb5-jb6";
-import { initPublicChat, setChatPreview } from "./public-chat.js?v=pch1-nb2-pc2-gf1-sc1-tw1";
-import { startOnline, onlinePlayers, serverList, joinServer, describe } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-kb12-tm2-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb2-jb3-jb4-jb5-jb6";
+import { joinSitePresence, viewerId } from "../../../js/site-presence.js?v=to-bo2d-ol1-iv1-mv1";
+import { initInvites, invitePlayer } from "./invites.js?v=iv1-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2";
+import { initPublicChat } from "./public-chat.js?v=pch1-nb2-pc2-gf1-sc1-tw1-nd2";
+import { startOnline, onlinePlayers, serverList, joinServer, describe, setLobbyActivity, pushActivity } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2";
 import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
 
 import { fetchRecord, formatPlayed } from "../progression/record.js?v=rec1-or1";
 import { WEAPON_DEFS } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withClan } from "../progression/calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
-import { renderCard, myCardData, openProfileCard, openGuestCard, setInviteHandler } from "../progression/profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zh1-zc1-zc2-nf1-or1-nb2";
+import { renderCard, myCardData, openProfileCard, openGuestCard, setInviteHandler } from "../progression/profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zh1-zc1-zc2-nf1-or1-nb2-nd2";
 import { shareCardOnX, saveCardPhoto } from "./card-share.js?v=cs1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-tw1";
 import { FINISHES } from "../characters/skins.js?v=p5-wb1-or1";
 import { MAPS, REWARD_MAPS } from "../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1-bw2-bt1-wf1-wf2-zf1-bp1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6";
 import { setMapShot } from "../maps/map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1-sr1-ug5-or1";
 import { leaveToArcade, initExitLinks } from "./exit-links.js?v=ex1-cl1";
 import { game } from "../core/state.js?v=st1";
-import { inviteLink, prepareHubEntry } from "../modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mg1-kb12-tm2-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb2-jb3-jb4-jb5-jb6";
-import { openKiosk } from "../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mg1-kb12-tm2-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb2-jb3-jb4-jb5-jb6";
+import { inviteLink, prepareHubEntry } from "../modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2";
+import { openKiosk } from "../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2";
 import { credits } from "../modes/zombies/credits.js?v=zc1-zc2";
-import { makeTrollOpsProvider } from "../progression/leaderboard-rows.js?v=lr1-zh1-or1";
+import { makeTrollOpsProvider } from "../progression/leaderboard-rows.js?v=lr1-zh1-or1-nd2";
 const lbProvider = makeTrollOpsProvider();
 import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perksInTier, perkUnlocked, perkIconSvg } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1";
 import { STREAK_DEFS } from "../streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1";
-import { renderClassPreview } from "./class-preview.js?v=cp1-rb4-hp1-bx1-mg1";
+import { renderClassPreview } from "./class-preview.js?v=cp1-rb4-hp1-bx1";
+import { lobby, enterLobby, leaveLobby, lobbyActivity, round, candidates, tally, renderPanel, tickClock } from "./map-vote.js?v=mv1-vs1-vt2";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
    calling cards and the private-match maps. */
@@ -98,13 +99,9 @@ root.innerHTML = `
     <span class="to-bo2-party-lbl"></span>
     <button type="button" class="to-bo2-party-row"><i class="to-bo2-lv"></i><b class="to-bo2-name">Guest</b></button>
     <span class="to-bo2-xp"></span>
-    <section class="to-bo2-chatcard" aria-label="Public chat">
-      <header><b>Public chat</b><button type="button" class="tf-btn tf-btn--secondary to-bo2-quick to-bo2-chat">Open<b class="to-pchat-badge" hidden></b></button></header>
-      <ol class="to-bo2-chatcard-log"></ol>
-    </section>
   </aside>
   <section class="to-bo2-detail" aria-live="polite">
-    <figure class="to-bo2-mapshot" hidden><img alt=""><figcaption></figcaption></figure>
+    <figure class="to-bo2-mapshot" hidden><img alt=""></figure>
     <div class="to-bo2-lb" hidden></div>
   </section>
   <footer class="to-bo2-foot">
@@ -115,7 +112,10 @@ root.innerHTML = `
       <button type="button" class="to-bo2-back"><kbd>Esc</kbd>Back</button>
     </div>
     <button type="button" class="tf-btn tf-btn--secondary to-bo2-quick" data-go="barracks">Barracks</button>
-    <button type="button" class="tf-btn tf-btn--secondary to-bo2-quick" data-go="options">Options</button>
+    <div class="to-bo2-optcol">
+      <button type="button" class="tf-btn tf-btn--secondary to-bo2-quick to-bo2-chat" title="Public chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4A1.5 1.5 0 0 1 4 14.5z"/></svg><b class="to-pchat-badge" hidden></b></button>
+      <button type="button" class="tf-btn tf-btn--secondary to-bo2-quick" data-go="options">Options</button>
+    </div>
   </footer>`;
 pf.prepend(root);
 const nav = $(".to-bo2-menu", root);
@@ -129,7 +129,7 @@ title.classList.add("is-bo2");
 const cardHost = document.createElement("div");
 cardHost.className = "to-bo2-card";
 cardHost.hidden = true;
-cardHost.innerHTML = `<div class="to-bo2-card-slot"></div><p class="to-bo2-cardnote" hidden></p>`
+cardHost.innerHTML = `<div class="to-bo2-card-slot"></div>`
   + `<div class="to-bo2-card-share" hidden><button type="button" data-act="share">Share on X</button><button type="button" data-act="photo">Save as photo</button></div>`
   + `<form class="to-bo2-clan" hidden><label for="to-bo2-clan-in">Clan tag</label>`
   + `<input id="to-bo2-clan-in" maxlength="4" autocomplete="off" spellcheck="false" aria-describedby="to-bo2-clan-help">`
@@ -141,7 +141,7 @@ const clanIn = $("input", clanForm);
 let clanEditing = false, previewCard = null;
 const myUid = () => { const p = window.TrollrunnerAccounts?.getCachedProfile?.(); return p?.id || p?.userId || null; };
 const setStatus = (t) => { $(".to-bo2-status", root).textContent = t; };
-// The site presence roster, kept current below (Who's Online, Server Browser).
+// The site presence roster, kept current below (the party column, Who's Online).
 let roster = { members: [], guests: [] };
 
 function renderCardHost() {
@@ -151,9 +151,6 @@ function renderCardHost() {
   if (clanEditing) d.clan = cleanClan(clanIn.value);
   $(".to-bo2-card-slot", cardHost).innerHTML = renderCard(d);
   shownCard = d;
-  const note = $(".to-bo2-cardnote", cardHost);
-  note.hidden = !previewCard;
-  note.textContent = previewCard ? cardById(previewCard).desc : "";
   clanForm.hidden = !clanEditing;
   // Share / save: your own card, signed in, in the Barracks proper.
   $(".to-bo2-card-share", cardHost).hidden = lastScreen !== "barracks" || clanEditing || d.guest;
@@ -222,7 +219,7 @@ const strongOf = (b) => text($("strong", b)) || text($("span", b)) || text(b);
 function modeItems(group, after) {
   return modeButtons(group).map((b) => ({
     id: `mode-${b.dataset.mode}`, label: text($("span", b)), desc: b.title, on: isOn(b),
-    disabled: isLocked(b), value: b.dataset.lock || "",
+    disabled: isLocked(b), value: b.dataset.lock || "", need: b.dataset.lock ? `Unlocks at ${b.dataset.lock}.` : "",
     onSelect: (_, m) => { b.click(); m.refresh(); if (after) after(); },
   }));
 }
@@ -252,13 +249,14 @@ const deployRow = (label, desc) => ({
 // (`valueFor`, not `valueOf`: destructuring `valueOf` off an options object
 // that doesn't set it picks up Object.prototype.valueOf, and calling that
 // threw, so Face never opened.)
-function optionScreen(titleText, buttons, { valueFor, descOf, preview = false } = {}) {
+function optionScreen(titleText, buttons, { valueFor, descOf, needOf, preview = false } = {}) {
   return {
     title: titleText,
     groups: [
       buttons.map((b, i) => ({
         id: `o-${i}`, label: strongOf(b), on: isOn(b), disabled: isLocked(b),
         value: valueFor ? valueFor(b) : "", desc: descOf ? descOf(b) : (b.title || ""), card: preview ? b : undefined,
+        need: needOf && isLocked(b) ? needOf(b) : "",
         onSelect: (_, m) => { b.click(); m.back(); },
       })),
       [{ id: "back", label: "Back", desc: "Keep what you have.", onSelect: (_, m) => m.back() }],
@@ -278,6 +276,7 @@ function perkScreen(tier) {
         return {
           id: `pk-${id}`, perkId: id, label: def.name, on: cur === id, disabled: !open,
           value: open ? "" : `LV ${def.rank}`, desc: open ? def.blurb : `${def.blurb} Unlocks at level ${def.rank}.`,
+          need: open ? "" : `Unlocks at level ${def.rank}.`,
           onSelect: (_, m) => { L.setClassPerk(tier, id); m.back(); },
         };
       }),
@@ -385,7 +384,6 @@ const screens = {
     groups: [
       [
         { id: "public", label: "Public Match", tier: "primary", desc: "Drop into a versus room with whoever is online. Bots fill the gaps.", go: "public" },
-        { id: "servers", label: "Server Browser", value: () => serverValue(), desc: "Every public server, live: who's in it and what they're playing. Pick one to join, Zombies runs too.", go: "servers" },
         { id: "social", label: "Socialize", desc: "Hang out in Troll City or at Trolling Loud with whoever is online. No guns, just emotes and chat.", go: "social" },
         { id: "solo", label: "Solo Play", desc: "Ops, Zombies or the Test Range. Just you.", go: "solo" },
         { id: "zombies", label: "Zombies", desc: "The hub: step on a map's pad, up to four of you go in together against the horde.", go: "zombies" },
@@ -398,9 +396,9 @@ const screens = {
         canPrestige() && { id: "prestige", label: "Prestige", value: nextPrestigeName(), desc: "You're at level 69. Go back to level 1 for a new prestige.", go: "prestige" },
       ].filter(Boolean),
       [
-        { id: "online", label: "Who's Online", value: () => `${onlinePlayers(roster).length}`, desc: "Everyone on trollrunner.net right now, players and guests, and what they're up to.", go: "online" },
+        // Who's Online and the Server Browser went (user, 2026-10-22): who's on
+        // is the party column on the right, and the home page has the Troll Map.
         { id: "leaders", label: "Leaderboards", desc: "This week's and this month's best trolls.", go: "leaders" },
-        { id: "map", label: "Troll Map", desc: "This planet is the troll map. Spin it, find your city, see who is out there.", go: "map" },
       ],
       [
         // Options and the Barracks sit in the footer now, by the Animations
@@ -483,8 +481,8 @@ const screens = {
       enter: () => { clanEditing = false; previewCard = null; loadRecord(); },
       groups: [
         [
-          { id: "b-card", label: "Calling Card", value: signedIn ? cardById(card).name : "", disabled: !signedIn, desc: signedIn ? "The banner behind your name." : guest, go: "cards" },
-          { id: "b-clan", label: "Clan Tag", value: signedIn ? (clan ? `[${clan}]` : "None") : "", disabled: !signedIn, desc: signedIn ? "Up to 4 letters or numbers, shown as [TAG] name everywhere." : guest, onSelect: () => editClan() },
+          { id: "b-card", label: "Calling Card", value: signedIn ? cardById(card).name : "", disabled: !signedIn, desc: signedIn ? "The banner behind your name." : guest, need: signedIn ? "" : "Sign in to set it.", go: "cards" },
+          { id: "b-clan", label: "Clan Tag", value: signedIn ? (clan ? `[${clan}]` : "None") : "", disabled: !signedIn, desc: signedIn ? "Up to 4 letters or numbers, shown as [TAG] name everywhere." : guest, need: signedIn ? "" : "Sign in to set it.", onSelect: () => editClan() },
           { id: "b-rewards", label: "Prestige Rewards", desc: "What each prestige unlocks.", go: "rewards" },
           { id: "b-record", label: "Combat Record", desc: "Your lifetime K/D, W/L, accuracy and more, across every match.", go: "record" },
         ],
@@ -520,7 +518,7 @@ const screens = {
           return {
             id: `card-${c.id}`, label: c.name, cardId: c.id, on: c.id === mine,
             value: c.id === mine ? "Wearing" : open ? "" : `Locked`,
-            desc: open ? c.desc : `Unlocks at ${pname}.`,
+            desc: open ? c.desc : `Unlocks at ${pname}.`, need: open ? "" : `Unlocks at ${pname}.`,
             onSelect: async (_, m) => {
               if (!open) { setStatus(`${c.name} unlocks at ${pname}.`); return; }
               if (c.id === mine) { m.back(); return; }
@@ -534,27 +532,9 @@ const screens = {
       ],
     };
   },
-  /* The public servers (menu/online.js): busiest first, then each mode's
-     public room nobody is in yet. Live: the list redraws as people come and
-     go. A Zombies run already on lets you in when its round ends. */
-  servers: () => ({
-    title: "Server Browser", panel: "deploy",
-    groups: [
-      serverList(roster).map((s) => {
-        const n = s.players.length;
-        const where = [s.mapName, s.wave ? `round ${s.wave}` : ""].filter(Boolean).join(" · ");
-        return {
-          id: `srv-${s.room}`, label: s.modeName, value: n ? `${n} in` : "Empty",
-          desc: n ? `${where ? where + ". " : ""}${s.players.slice(0, 6).join(", ")}${n > 6 ? ` and ${n - 6} more` : ""}.${s.mode === "zombies" && s.wave ? " You spawn in when the round ends." : ""}`
-            : "Nobody in yet. Start it and whoever joins plays with you.",
-          onSelect: () => { if (joinServer(s)) setStatus(`Joining ${s.modeName}…`); },
-        };
-      }),
-      [back("Back to the main menu.")],
-    ],
-  }),
-  /* Everyone online (menu/online.js): accounts, then guests. Someone in a
-     public server: select to join them; an account: their profile card. */
+  /* Everyone online (menu/online.js): accounts, then guests, past what the
+     party column holds ("+N more online"). Someone in a public server:
+     select to join them; an account: their profile card. */
   online: () => {
     const me = (() => { try { return localStorage.getItem("trollrunner_viewer_id_v1"); } catch { return null; } })();
     const servers = serverList(roster);
@@ -574,11 +554,16 @@ const screens = {
     });
     return { title: "Who's Online", panel: "deploy", groups: [rows, [back("Back to the main menu.")]].filter((g) => g.length) };
   },
-  public: () => ({
-    title: "Public Match", panel: "deploy",
-    enter: () => { ensureGroup("versus", "tdm"); clearRoom(); },
-    groups: [modeItems("versus"), [heroRow(), mapRow()].filter(Boolean), [deployRow("Find Match", "Join the public room for this mode."), back("Back to the main menu.")]],
-  }),
+  /* The pre-match lobby (menu/map-vote.js): the mode, the map vote, and
+     Find Match, which readies you up when others are in the lobby. */
+  public: () => {
+    const v = publicView();
+    return {
+      title: "Public Match", panel: "deploy", vote: v,
+      enter: () => { ensureGroup("versus", "tdm"); clearRoom(); },
+      groups: [modeItems("versus"), [heroRow(), ...voteRows(v)].filter(Boolean), [findRow(v), back("Back to the main menu.")]],
+    };
+  },
   /* One public hangout room: pick a map (whoever is already there decides
      the room's map), then walk round it, chat and emote. No fighting. */
   social: () => ({
@@ -646,6 +631,7 @@ const screens = {
       // Socialize is the versus maps only (no prestige reward maps).
       $$("#to-lo-maps .to-lo-map").filter((b) => currentModeBtn()?.dataset.mode !== "social" || !REWARD_MAPS[b.dataset.map]).map((b) => ({
         id: `map-${b.dataset.map}`, label: text($(".to-map-name", b)), desc: text($(".to-map-tag", b)), on: isOn(b), mapId: b.dataset.map,
+        need: isLocked(b) ? text($(".to-map-tag", b)) : "",
         // A locked prestige map stays reachable so its reason can be read.
         value: isLocked(b) ? "Locked" : "",
         onSelect: (_, m) => { if (isLocked(b)) { setStatus(text($(".to-map-tag", b))); return; } b.click(); m.back(); },
@@ -716,7 +702,7 @@ const screens = {
         const lv = sub.match(/level (\d+)/i);
         return {
           id: `w-${i}`, label: strongOf(b), on: isOn(b), disabled: isLocked(b), card: b,
-          value: lv ? `LV ${lv[1]}` : sub, desc: lv ? `Unlocks at level ${lv[1]}.` : sub,
+          value: lv ? `LV ${lv[1]}` : sub, desc: lv ? `Unlocks at level ${lv[1]}.` : sub, need: lv ? `Unlocks at level ${lv[1]}.` : "",
           onSelect: (_, m) => { b.click(); m.backTo("class"); },
         };
       }),
@@ -752,6 +738,7 @@ const screens = {
         cards.map((b, i) => ({
           id: `ss-${i}`, label: strongOf(b), on: isOn(b), disabled: isLocked(b), card: b,
           value: text($("span", b)), desc: text($("em", b)),
+          need: isLocked(b) ? `Unlocks at level ${text($("span", b)).replace(/^LV\s*/i, "")}.` : "",
           onSelect: (_, m) => { b.click(); m.refresh(); },
         })),
         [back("Back to the class.")],
@@ -778,12 +765,13 @@ const screens = {
   bodies: () => {
     const s = optionScreen("Body", $$("#to-cos-body [data-body]").filter(bodyMatches), {
       descOf: (b) => (isLocked(b) ? "Locked: for the holder of this TROLLS NFT." : b.dataset.body ? "This TROLLS look, every match. Everyone sees it." : "The classic stick troll."),
+      needOf: () => "For the holder of this TROLLS NFT.",
     });
     s.enter = () => { bodyQuery = bodySearch.value = ""; };
     if (!s.groups[0].length) s.groups[0] = [{ id: "o-none", label: "No match", disabled: true, desc: `No TROLLS body matches "${bodyQuery.trim()}".` }];
     return s;
   },
-  faces: () => optionScreen("Face", $("#to-cos-body .to-cos-face:not([data-wrist]):not([data-body])"), { descOf: (b) => (isLocked(b) ? "Off while you wear a TROLLS body: it has its own head." : "Everyone in the match sees it.") }),
+  faces: () => optionScreen("Face", $("#to-cos-body .to-cos-face:not([data-wrist]):not([data-body])"), { descOf: (b) => (isLocked(b) ? "Off while you wear a TROLLS body: it has its own head." : "Everyone in the match sees it."), needOf: () => "Off while you wear a TROLLS body." }),
   wrists: () => optionScreen("Wrist", $$("#to-cos-body [data-wrist]"), { descOf: (b) => (b.dataset.wrist ? "On your left wrist, every match." : "A bare wrist.") }),
   leaders: () => ({
     title: "Leaderboards", panel: "deploy", detail: true, lb: true,
@@ -836,7 +824,10 @@ const optionScreens = new Proxy(screens, {
     }
     if (g) {
       const row = $$("#to-lo-gear .to-lo-gearrow")[+g[1]];
-      if (row) return () => optionScreen(text($(".to-lo-slot-label", row)), $$(".to-lo-gear", row), { valueFor: (b) => text($("span", b)), preview: true });
+      if (row) return () => optionScreen(text($(".to-lo-slot-label", row)), $$(".to-lo-gear", row), {
+        valueFor: (b) => text($("span", b)), preview: true,
+        needOf: (b) => `Unlocks at level ${text($("span", b)).replace(/^LV\s*/i, "")}.`,
+      });
     }
     return undefined;
   },
@@ -857,7 +848,6 @@ function umbBanner(it) {
     img.hidden = false;
     img.alt = "U Mad Bro? heroes: Troll Knight, Troll Hunter, Super Troll, Troll Metamorphosis and the Trollernaut";
     img.src = UMB_BANNERS[umbIdx];
-    $("figcaption", shot).textContent = it.desc || "";
     if (!umbTimer) umbTimer = setInterval(() => { umbIdx = (umbIdx + 1) % UMB_BANNERS.length; img.src = UMB_BANNERS[umbIdx]; }, 4500);
   } else if (root.classList.contains("is-umb")) {
     clearInterval(umbTimer); umbTimer = 0;
@@ -878,6 +868,127 @@ function charRoom() {
   pf.classList.toggle("char-beside", pf.clientHeight - (56 + menuH + 8 + partyH) - (footH + 24) < CHAR_ROOM);
 }
 
+/* ── The map vote (menu/map-vote.js): Public Match's lobby ───────────── */
+/* The panel stands in the lobby's middle, where the operator used to. */
+const voteHost = document.createElement("section");
+voteHost.className = "to-bo2-vote";
+voteHost.setAttribute("aria-label", "Map vote");
+voteHost.hidden = true;
+root.appendChild(voteHost);
+let voteView = null, voteHot = null;
+/* Phones and tablets get it as a sheet over the whole lobby instead (user,
+   2026-10-22: "for the map preview and voting system on mobile devices we
+   should have a popup screen", "not needed for desktop"): beside or under
+   the list there was no room for the preview. A tap on the small panel by
+   the list opens it ("clicking on the map previews itself"), never just
+   arriving at Public Match ("which shouldnt happen"); × goes back. */
+const voteSheet = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+let sheetOpen = false;
+function openSheet(m = menu) {
+  sheetOpen = true;
+  m.refresh();
+}
+const othersOnline = () => {
+  const me = viewerId(), uid = myUid();
+  return onlinePlayers(roster).filter((o) => o.viewerId !== me && !(uid && o.userId === uid));
+};
+/* What the lobby shows for the mode picked: its live match, its one map, or
+   this round's vote. */
+function publicView() {
+  const mode = currentModeBtn()?.dataset.mode;
+  if (!mode) return null;
+  enterLobby(mode);
+  const live = serverList(roster).find((s) => s.mode === mode && s.players.length);
+  if (live) return { kind: "live", server: live };
+  const pool = $$("#to-lo-maps .to-lo-map").filter((b) => !isLocked(b) && !REWARD_MAPS[b.dataset.map]).map((b) => b.dataset.map);
+  const forced = game.currentMode?.()?.forceMap;
+  if (mapForced() || pool.length < 2) return { kind: "fixed", map: forced || $("#to-lo-maps .to-lo-map.is-active")?.dataset.map || pool[0] };
+  const r = round();
+  lobby.idx = r.idx;
+  const cands = candidates(mode, pool, r.idx);
+  if (lobby.vote && !cands.includes(lobby.vote)) lobby.vote = null;
+  return { kind: "vote", cands, t: tally(othersOnline(), cands) };
+}
+function voteRows(v) {
+  // a phone votes on the sheet, not in the list
+  if (voteSheet || v?.kind !== "vote") return [];
+  return v.cands.map((id) => {
+    const n = v.t.votes.get(id) || 0;
+    return {
+      id: `vote-${id}`, label: MAPS[id]?.name || id, voteMap: id, on: lobby.vote === id,
+      value: `${n} vote${n === 1 ? "" : "s"}`,
+      desc: lobby.vote === id ? "Your vote. Pick another to change it." : "Vote for this map. The most votes when the clock runs out wins.",
+      onSelect: (_, m) => castVote(id, m),
+    };
+  });
+}
+function castVote(id, m = menu) {
+  lobby.vote = id;
+  pushActivity();
+  m.refresh();
+}
+function findRow(v) {
+  if (v?.kind === "live") return deployRow("Join Match", `Join the match on ${v.server.mapName || "its map"}.`);
+  if (v?.kind !== "vote") return deployRow("Find Match", "Join the public room for this mode.");
+  if (!v.t.inLobby.length) return { ...deployRow("Find Match", "Nobody else in the lobby: in you go, on your vote (or the top map)."), onSelect: () => dropIn(lobby.vote || v.t.winner) };
+  return {
+    id: "deploy", tier: "primary", label: lobby.ready ? "Cancel" : "Find Match",
+    value: `${v.t.ready} ready`,
+    desc: lobby.ready ? "Not ready after all: stay in the lobby." : "Ready up. Everyone ready drops in together on the winning map when the vote ends.",
+    onSelect: (_, m) => {
+      if (!othersOnline().some((p) => p.activity?.state === "lobby" && p.activity.mode === lobby.mode)) { dropIn(lobby.vote || v.t.winner); return; }
+      lobby.ready = !lobby.ready;
+      pushActivity();
+      m.refresh();
+    },
+  };
+}
+/* Into the mode's public room on map `id`: the lobby's own map button, then
+   its start, the way Find Match always went. */
+function dropIn(id) {
+  const b = id && $(`#to-lo-maps .to-lo-map[data-map="${id}"]`);
+  if (b && !isOn(b) && !isLocked(b)) b.click();
+  leaveLobby();
+  const s = startBtn();
+  if (s && !s.disabled) s.click();
+}
+function paintVote(hot) {
+  if (hot !== undefined) voteHot = hot;
+  if (!voteView) return;
+  const go = sheetOpen && findRow(voteView);
+  renderPanel(voteHost, { ...voteView, hot: voteHot, sheet: go && { label: go.label, value: go.value } });
+}
+function showVote(v) {
+  voteView = v || null;
+  if (!voteView) sheetOpen = false;
+  voteHost.hidden = !voteView;
+  voteHost.classList.toggle("is-sheet", sheetOpen);
+  voteHost.classList.toggle("is-tap", voteSheet && !sheetOpen);
+  // the radio's button sits where the sheet's × is (style.css)
+  document.body.classList.toggle("to-vote-sheet", !!voteView && sheetOpen);
+  root.classList.toggle("has-vote", !!voteView);
+  if (voteView) paintVote();
+  else if (lobby.mode) { leaveLobby(); pushActivity(); }
+}
+// A card is a vote too; on the sheet, × and the go button. On a phone the
+// small panel is one big button that opens the sheet.
+voteHost.addEventListener("click", (e) => {
+  if (voteSheet && !sheetOpen) { openSheet(); return; }
+  if (e.target.closest(".to-mv-close")) { sheetOpen = false; menu.refresh(); return; }
+  if (e.target.closest(".to-mv-go")) { findRow(voteView).onSelect(null, menu); return; }
+  const li = e.target.closest("li[data-map]");
+  if (li) castVote(li.dataset.map);
+});
+/* The clock; and when a round ends, everyone ready goes in on its winner
+   (counted on the round that ended), then the next round's three come up. */
+setInterval(() => {
+  if (title.hidden || menu.current() !== "public" || voteView?.kind !== "vote") return;
+  tickClock(voteHost);
+  if (round().idx === lobby.idx) return;
+  if (lobby.ready) { dropIn(tally(othersOnline(), voteView.cands).winner); return; }
+  menu.refresh();
+}, 250);
+
 /* ── The menu ─────────────────────────────────────────────────────────── */
 let lastPanel = null, lastScreen = null;
 const menu = createBo2Menu(nav, {
@@ -885,7 +996,11 @@ const menu = createBo2Menu(nav, {
   onScreen(id, s, m) {
     // A screen's enter() runs once on arrival (e.g. pick a versus mode for
     // Public Match), then the screen re-renders from the updated lobby.
-    if (id !== lastScreen) { lastScreen = id; if (s.enter) { s.enter(); m.refresh(); return; } }
+    if (id !== lastScreen) {
+      lastScreen = id;
+      sheetOpen = false;
+      if (s.enter) { s.enter(); m.refresh(); return; }
+    }
     if (s.panel && s.panel !== lastPanel) { lastPanel = s.panel; rail(s.panel); }
     root.dataset.screen = id;
     // the dock (Emote, Chat, Barracks, Options) is the top menu's only:
@@ -906,6 +1021,7 @@ const menu = createBo2Menu(nav, {
       window.TrollLeaderboard?.mount?.("troll-ops", "#to-bo2-lb");
     }
     shot.hidden = id !== "maps";
+    showVote(id === "public" ? s.vote : null);
     if (id !== "barracks") clanEditing = false;
     cardHost.hidden = !s.card;
     root.classList.toggle("has-card", !!s.card);
@@ -933,11 +1049,12 @@ const menu = createBo2Menu(nav, {
     if (pt && it && (it.perkId || it.id === "pk-none")) renderPerk(it.perkId || null, +pt[1]);
     // Create a Class: the class you're on, all of it (class-preview.js).
     if (lastScreen === "classlist" && it?.classIdx != null) renderClassPreview(classHost, game.loadout, it.classIdx);
+    // The map vote: the map you're on, big.
+    if (lastScreen === "public" && voteView?.kind === "vote") paintVote(it?.voteMap);
     if (!it) return;
     if (it.mapId) {
       const img = $("img", shot);
       setMapShot(img, it.mapId, `${Math.ceil(shot.parentElement?.clientWidth || 640)}px`);
-      $("figcaption", shot).textContent = it.desc || "";
     }
     // Previews: the old picker cards (streaks, weapons, melee, throwables)
     // show their model on focus; off them, the preview goes back to your pick.
@@ -1053,7 +1170,7 @@ function renderPartyOthers() {
 /* On a small screen the list stops short of the controls below it (the
    online count, the Animations switch, the Emote button: user's rule, no
    overlapping UI text); the rows that don't fit fold into "+N more". */
-const PARTY_BELOW = [".to-bo2-online", ".to-bo2-foot .to-bo2-quick", "#to-char-emote", ".to-bo2-chatcard"];
+const PARTY_BELOW = [".to-bo2-online", ".to-bo2-foot .to-bo2-quick", "#to-char-emote", ".to-bo2-chat"];
 function fitPartyList(setMore) {
   const list = partyList.getBoundingClientRect();
   if (!list.height) return;
@@ -1145,29 +1262,26 @@ const net = $("#to-net-status");
 let netBase = text(net);
 if (net) new MutationObserver(() => { const t = text(net); $(".to-bo2-status", root).textContent = t !== netBase ? t : ""; }).observe(net, { childList: true, characterData: true, subtree: true });
 
-/* Who's online and the servers (menu/online.js): the presence roster, kept
-   current; the two screens and the main menu's counts redraw with it. */
-function serverValue() {
-  const n = serverList(roster).filter((s) => s.players.length).length;
-  return n ? `${n} live` : "";
-}
+/* Who's online (menu/online.js): the presence roster, kept current; the
+   party column and the overflow list redraw with it. */
 const presence = joinSitePresence({
   onCount: (n) => { $(".to-bo2-online", root).textContent = `${n} Online`; },
   onSync: (r) => {
     roster = r;
     renderParty();
-    if (["servers", "online", "main"].includes(menu.current()) && !title.hidden) menu.refresh();
+    if (["online", "public"].includes(menu.current()) && !title.hidden) menu.refresh();
   },
 });
 roster = presence.roster();
+setLobbyActivity(() => lobbyActivity(currentModeBtn() ? text($("span", currentModeBtn())) : ""));
 startOnline(presence);
 // Invites (menu/invites.js) on the same channel, the cards' Invite button
 initInvites(presence);
 setInviteHandler(invitePlayer);
-// The public chat (menu/public-chat.js): its pill in the footer, for
-// everyone, guests too; it opens while the menu's up
+// The public chat (menu/public-chat.js): a chat icon over Options (user,
+// 2026-10-22: the card was too big), for everyone, guests too; it opens
+// while the menu's up
 initPublicChat({ presence, pill: $(".to-bo2-chat", root), viewerId, canOpen: () => !title.hidden, matchChat: () => game.chat });
-setChatPreview($(".to-bo2-chatcard-log", root));
 // The count opens the list.
 {
   const online = $(".to-bo2-online", root);
