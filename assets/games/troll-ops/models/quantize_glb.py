@@ -28,7 +28,7 @@ COUNT = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4, "MAT4": 16}
 
 
 def textured_names():
-    src = open(os.path.join(HERE, "..", "map-models.js"), encoding="utf8").read()
+    src = open(os.path.join(HERE, "..", "maps", "map-models.js"), encoding="utf8").read()
     block = src[src.index("export const RETEXTURE"):]
     block = block[:block.index("};")]
     return set(re.findall(r"^\s*(\w+):\s*\[", block, re.M))
