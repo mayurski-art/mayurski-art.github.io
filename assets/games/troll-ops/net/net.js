@@ -134,6 +134,7 @@ export class Net {
     this.stetson = 0;   // a hat from Kek & Sons (modes/social-shop.js)
     this.horse = 0; this.horseGait = 0; this.horseYaw = 0; this.saddles = 0;   // on a horse (modes/social-horses.js)
     this.surf = 0; this.surfYaw = 0; this.surfColor = 0;   // on a surfboard at Grin Beach (modes/social-surf.js)
+    this.hoopBall = null; this.hoopMove = 0; this.hoopAt = 0;   // a basketball in hand at Troll Beach (modes/social-hoops.js)
     this.bandSong = 0; this.bandAt = 0; this.bandAuto = 0;   // the saloon band (modes/social-band.js)
     this._acc = 0;
     this._out = [];
@@ -377,6 +378,8 @@ export class Net {
         p.horseYaw = Number.isFinite(+m.hy) ? +m.hy : 0; p.saddles = (m.hs | 0) & 0xffff;
         // on a surfboard (modes/social-surf.js): carrying 1, paddling 2, popping up 3, riding 4, wiped out 5; the board yaw and colour
         p.surf = Math.max(0, Math.min(5, m.sf | 0)); p.surfYaw = Number.isFinite(+m.sy) ? +m.sy : 0; p.surfColor = Math.max(0, Math.min(7, m.sc | 0));
+        // a basketball (modes/social-hoops.js): the ball's id, the clip (index + 1, negative mirrored), its start (room ms)
+        p.hoopBall = typeof m.hb === "string" ? m.hb.slice(0, 48) : null; p.hoopMove = Math.max(-32, Math.min(32, m.hm | 0)); p.hoopAt = Number.isFinite(+m.ha) ? +m.ha : 0;
         // the saloon band (modes/social-band.js): the song they started (+1), when (room ms), their part on auto
         p.bandSong = Math.max(0, Math.min(999, m.bs | 0)); p.bandAt = Number.isFinite(+m.ba) ? +m.ba : 0; p.bandAuto = !!m.bz;
         p.jail = Math.max(0, Math.min(9, m.jl | 0));
@@ -592,6 +595,7 @@ export class Net {
         mt: this.stetson || undefined,   // a hat from Kek & Sons (modes/social-shop.js)
         ho: this.horse || undefined, hg: this.horse ? this.horseGait : undefined, hy: this.horse ? this.horseYaw : undefined, hs: this.saddles || undefined,
         sf: this.surf || undefined, sy: this.surf ? this.surfYaw : undefined, sc: this.surf ? this.surfColor : undefined,
+        hb: this.hoopBall || undefined, hm: this.hoopMove || undefined, ha: this.hoopMove ? this.hoopAt : undefined,
         bs: this.bandSong || undefined, ba: this.bandSong ? this.bandAt : undefined, bz: this.bandAuto || undefined,
       });
     }

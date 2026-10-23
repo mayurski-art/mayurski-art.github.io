@@ -5097,3 +5097,17 @@ body.to-aboard #to-touch-swap,
 body.to-aboard #to-touch-admire,
 body.to-aboard #to-touch-streak,
 body.to-aboard #to-touch-endstreak { display: none !important; }
+
+/* Troll Beach hoops (modes/social-hoops.js): the 2K shot meter, a bar beside
+   the player that fills as they rise; the green band is the window. */
+.to-hoop-meter { position: fixed; left: calc(50% + 74px); top: 40%; width: 64px; height: 150px; pointer-events: none; z-index: 30; }
+.to-hoop-meter__bar { position: absolute; left: 0; top: 0; width: 14px; height: 150px; border-radius: 7px; background: rgba(12, 12, 16, 0.62); box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.75); overflow: hidden; }
+.to-hoop-meter__green { position: absolute; left: 0; width: 100%; background: #34c759; opacity: 0.85; }
+.to-hoop-meter__fill { position: absolute; left: 3px; right: 3px; bottom: 0; border-radius: 4px; background: #f2f2ea; }
+.to-hoop-meter.is-done .to-hoop-meter__fill { background: #ffd23a; }
+.to-hoop-meter__word { position: absolute; left: 22px; top: -4px; font: 800 13px/1.15 "DM Sans", system-ui, sans-serif; letter-spacing: 0.04em; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); white-space: nowrap; }
+.to-hoop-meter[data-grade="x"] .to-hoop-meter__word { color: #34c759; }
+.to-hoop-meter[data-grade="g"] .to-hoop-meter__word { color: #b8f0c4; }
+.to-hoop-meter[data-grade="b"] .to-hoop-meter__word { color: #ff8a6a; }
+.to-hoop-meter[hidden] { display: none; }
+@media (max-width: 760px) { .to-hoop-meter { left: calc(50% + 52px); top: 34%; transform: scale(0.85); transform-origin: top left; } }
