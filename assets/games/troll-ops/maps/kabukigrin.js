@@ -36,6 +36,7 @@ import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5-tx1-ch1";
 import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8-tx1-ch1";
 import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9-tx1-ch1";
 import { buildStreet, streetSound } from "./kabukigrin-street.js?v=kb10-kb11-kb12-tx1-ch1";
+import { buildTrain, trainFrame } from "./kabukigrin-train.js?v=kb14";
 
 const URL_GLB = new URL("../models/", import.meta.url).href;
 const loader = new GLTFLoader();
@@ -314,6 +315,7 @@ function buildClub(api) {
   buildRooms({ root, K, N, M, S, jpSign, sfx: CLUB.sfx });
   // and the street's (doc 3.5 a): the pachinko parlour across the line
   buildStreet({ root, N, M });
+  buildTrain(root);
 
   K.flush();
   N.flush();
@@ -457,8 +459,8 @@ export const KABUKIGRIN = {
   onShot: (p) => { if (!roomsShot(p)) CLUB.onShot(p); },
   attachAudio: CLUB.attachAudio,
   attachMusic: CLUB.attachMusic,
-  // the club's clock and lights, then the pachinko parlour's din
-  onFrame: (f) => { CLUB.onFrame(f); streetSound(CLUB.sfx, f?.live); },
+  // the club's clock and lights, the pachinko parlour's din, the train
+  onFrame: (f) => { CLUB.onFrame(f); streetSound(CLUB.sfx, f?.live); trainFrame(CLUB.sfx, f?.live ? U.uPlayer.value : null); },
   /* Socialize (doc 4.1): DJ Lulz at the booth, requests from the floor in
      front of the stage; the door, the crowd and the seats */
   dj: { name: "DJ Lulz", spot: { x: -27.3, z: 15, y: 0, reach: 3.4 }, club: { ...HALL, top: PLAN.TOP }, input: CLUB.songInput },
