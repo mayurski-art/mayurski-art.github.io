@@ -3,6 +3,7 @@
 // next door holds the zone and loot it runs on.
 
 import { hashSeed, seededRng, RoyaleZone, ROYALE, LootField, lootSpots, ZoneVisual, ITEM_NAMES, gunDisplayName, POI_TIERS, poiTierAt } from "./royale-zone.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1-fl1-or1-rt1-ut1-gf1-tg1-rb4-hp1-bx1-mg1-sp1";
+import { ChestField, chestSpots, CHEST_REACH, CHEST_OPEN_TIME } from "./royale-chests.js?v=ch1";
 import { groundHeightAt } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1";
 import { floorAt } from "../core/ground-field.js?v=gf1-tg1";
 import { insidePolygon } from "../maps/edge.js?v=or1";
@@ -15,7 +16,7 @@ import { WEAPON_DEFS, WeaponState } from "../weapons/weapons.js?v=p5bm-wst-hf1-f
 import { defaultLoadoutFor } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1-gf1-tg1";
 import { game } from "../core/state.js?v=st1";
-import { updateDropCine, dropCineEye, dropCineLean, dropCineZoom, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1";
+import { updateDropCine, dropCineEye, dropCineLean, dropCineZoom, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1";
 import { playSfx, preloadSfx } from "../sound/sfx-files.js?v=dc4";
 import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose } from "./royale-fall.js?v=dc3-dc4-rf1-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1";
 
@@ -58,8 +59,9 @@ export function setupRoyale(seed = royaleSeed()) {
   const loot = new LootField(game.scene);
   const spots = lootSpots(game.colliders, bounds, rng, { ok: map.edge ? dry : null, perSqM: map.royale?.lootPerSqM, pois });
   loot.spawnSeeded(spots.concat(map.royale?.lootExtra || []), rng, royaleGround);
+  const chests = map.royale?.chests && pois ? matchChests(map, seed, dry) : null;
   royale = {
-    seed, zone, loot, visual: new ZoneVisual(game.scene),
+    seed, zone, loot, chests, visual: new ZoneVisual(game.scene),
     t: 0, live: false, peak: 0, place: 0, over: false, endT: 0,
     stageKey: "", zoneAcc: 0, act: null, spectate: null, outShown: false,
     noises: [],   // recent gunfire { x, z, t }, for bots to third-party
@@ -75,6 +77,43 @@ export function setupRoyale(seed = royaleSeed()) {
 }
 
 /* Aboard before the green light: free to walk the hold, nothing can be hurt. */
+/* The chests this match (royale-chests.js): the map's spots (worked out
+   once a map, they're the same every match), half of each place's picked
+   by the match seed. */
+function matchChests(map, seed, dry) {
+  const pois = map.royale.pois;
+  map._chestSpots ||= map.royale.chestSpots || chestSpots(game.colliders, map.bounds, pois, { ok: map.edge ? dry : null });
+  const rng = seededRng((seed ^ 0x9e3779b9) >>> 0);
+  const byPoi = new Map();
+  for (const s of map._chestSpots) { if (!byPoi.has(s.poi)) byPoi.set(s.poi, []); byPoi.get(s.poi).push(s); }
+  const picked = [];
+  for (const list of byPoi.values()) {
+    const l = list.slice();
+    for (let i = l.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [l[i], l[j]] = [l[j], l[i]]; }
+    picked.push(...l.slice(0, Math.ceil(l.length / 2)));
+  }
+  return new ChestField(game.scene, seed, picked, pois, royaleGround);
+}
+
+/* The closed chest you're standing at, for the hold-X prompt (combat/weapons.js). */
+export function royaleChestNear() {
+  return royale?.chests && game.player.alive && royale.live ? royale.chests.nearest(game.move.pos.x, game.move.pos.z, CHEST_REACH) : null;
+}
+export { CHEST_OPEN_TIME };
+
+/* Open a chest: ours (or a bot's we host) goes out on the wire; the wire's
+   just opens it here. Its three items land in front of it with the same ids
+   everywhere. */
+export function royaleOpenChest(c, mine = true) {
+  const items = royale?.chests?.open(c.id ?? c);
+  if (!items) return false;
+  const at = royale.chests.byId.get(c.id ?? c);
+  for (const it of items) royale.loot.add(it);
+  if (mine) game.net.publishLoot({ k: "chest", c: at.id });
+  game.audio.chestOpen?.({ x: at.x, y: at.y + 0.4, z: at.z });
+  return true;
+}
+
 export function inSkyLobby() { return !!royale?.drop && royale.drop.phase === "lobby" && game.isStaging(); }
 /* The pre-match countdown freezes you, except aboard. */
 export function stageFrozen() { return game.isStaging() && !inSkyLobby(); }
@@ -634,6 +673,8 @@ export function teardownRoyale() {
   setPlayerGlider(false);
   royale.visual.dispose();
   royale.loot.clear();
+  royale.chests?.dispose();
+  game.audio.chestHumAt?.(-1, null);
   royale = null;
   game.els.cringe?.classList.remove("is-on");
   if (game.els.royaleAct) game.els.royaleAct.hidden = true;
@@ -672,6 +713,7 @@ export function updateRoyale(dt) {
   const s = r.zone.state(r.t);
   r.visual.update(s, r.t);
   r.loot.update(dt, game.camera, game.player.alive ? game.move.pos : game.camera.position);
+  r.chests?.update(dt, game.camera.position, game.player.alive && r.me === "ground" ? game.move.pos : null, game.audio);
 
   const alive = royaleAliveList();
   if (r.live) r.peak = Math.max(r.peak, alive.length);
@@ -871,6 +913,8 @@ function initRoyaleBot(b) {
   b.heals = 0;
   b.act = null;
   b.lootId = null;
+  b.chestId = null;
+  b.chestT = 0;
   b.flee = null;
   b.sparedAt = b.calmAt = 0;
 }
@@ -935,6 +979,35 @@ function royaleBotLoot(b, circle) {
   return best;
 }
 
+/* The chest a bot is heading for: its pick while it's still shut, else the
+   nearest shut one in the circle no other bot has called, while it's still
+   short of a good gun or plates (a chest is all upgrades). */
+const BOT_CHEST_SEARCH = 45;   // metres
+function royaleBotChest(b, circle) {
+  const chests = royale.chests;
+  if (!chests) return null;
+  if (b.chestId != null) {
+    const c = chests.byId.get(b.chestId);
+    if (c && !c.open) return c;
+    b.chestId = null;
+    b.chestT = 0;
+  }
+  if (botArmed(b) && b.gunRarity >= 3 && (b.plates | 0) >= ROYALE.carryPlates) return null;
+  if (royale.t < (b.chestRetry || 0)) return null;
+  const called = new Set();
+  for (const o of game.bots.bots) if (o !== b && o.alive && o.chestId != null) called.add(o.chestId);
+  let best = null, bestD = BOT_CHEST_SEARCH;
+  for (const c of chests.chests) {
+    if (c.open || called.has(c.id) || c.y > 0.5) continue;
+    if (Math.hypot(c.x - circle.x, c.z - circle.z) > circle.r) continue;
+    const d = Math.hypot(c.x - b.pos.x, c.z - b.pos.z);
+    if (d < bestD) { best = c; bestD = d; }
+  }
+  b.chestId = best ? best.id : null;
+  if (!best) b.chestRetry = royale.t + LOOT_RETRY * 2 * (0.8 + Math.random() * 0.4);
+  return best;
+}
+
 function crowdKey(x, z) { return Math.floor(x / LOOT_CROWD_CELL) * 4096 + Math.floor(z / LOOT_CROWD_CELL); }
 
 /* The newest gunfire an armed bot can hear that isn't its own. */
@@ -975,6 +1048,12 @@ export function royaleBotObjective(b) {
   const flee = royaleBotFlee(b, area);
   if (flee) return flee;
   const it = royaleBotLoot(b, area);
+  // A chest beats the floor unless the floor's a lot nearer.
+  const ch = royaleBotChest(b, area);
+  if (ch && (!it || Math.hypot(ch.x - b.pos.x, ch.z - b.pos.z) < Math.hypot(it.x - b.pos.x, it.z - b.pos.z) + 10)) {
+    b.lootId = null;
+    return { id: `chest-${ch.id}`, x: ch.x, z: ch.z, radius: 0.9, urgent: !botArmed(b) || Math.hypot(ch.x - b.pos.x, ch.z - b.pos.z) < 8 };
+  }
   // Without a real gun, getting one beats trading pistol shots.
   if (it) {
     const d = Math.hypot(it.x - b.pos.x, it.z - b.pos.z);
@@ -1041,6 +1120,15 @@ function royaleBotRoam(b, c, phase) {
    nobody is in sight. */
 function updateRoyaleBot(b, dt) {
   if (!b.royaleInit) initRoyaleBot(b);
+  // At its chest: the same second's hold as ours, then the loot is on the floor.
+  if (b.chestId != null) {
+    const c = royale.chests?.byId.get(b.chestId);
+    if (!c || c.open) { b.chestId = null; b.chestT = 0; }
+    else if (Math.hypot(c.x - b.pos.x, c.z - b.pos.z) < BOT_LOOT_REACH + 0.3) {
+      b.chestT += dt;
+      if (b.chestT >= CHEST_OPEN_TIME) { royaleOpenChest(c); b.chestId = null; b.chestT = 0; }
+    } else b.chestT = 0;
+  }
   if (b.lootId) {
     const it = royale.loot.items.get(b.lootId);
     if (!it) b.lootId = null;
@@ -1182,6 +1270,7 @@ export function onRoyaleLoot(p, m) {
   if (!royale) return;
   if (m.k === "take") royale.loot.take(String(m.i));
   else if (m.k === "add" && m.item && typeof m.item.id === "string") royale.loot.add(m.item);
+  else if (m.k === "chest" && Number.isInteger(m.c)) royaleOpenChest(m.c, false);
 }
 
 function royaleTake(it) {
