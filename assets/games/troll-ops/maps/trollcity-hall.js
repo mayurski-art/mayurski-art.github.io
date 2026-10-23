@@ -23,7 +23,7 @@
 import * as THREE from "three";
 import { Kit, place, prismGeo, surfMat, canvasTex, texMat, rng, chair as kitChair, chandelier, hitchRail, bollard, streetLamp, sconce } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1";
 import { floorTexture } from "./chapel-art.js?v=ca1-tcs1";
-import { buildJailWall, BREACH } from "./trollcity-jailwall.js?v=jb1";
+import { buildJailWall, BREACH } from "./trollcity-jailwall.js?v=jb1-jb3";
 
 export const HALL = { x0: 80, x1: 104, z0: -16, z1: 16, top: 8.5 };
 const T = 0.3;                                  // wall thickness
@@ -36,7 +36,7 @@ const CELLS = { x: 98.6, edges: [ZJ + T / 2, 5.5, 8.85, 12.2, HALL.z1 - T] };
 // cell i's inside, between its dividers, and where its weak patch sits (beside the bunk)
 const cellSpan = (i) => {
   const z0 = CELLS.edges[i] + (i ? 0.125 : 0), z1 = CELLS.edges[i + 1] - (i < 3 ? 0.125 : 0);
-  return { z0, z1, zc: (z0 + z1) / 2, breach: (z0 + z1) / 2 + 0.9 };
+  return { z0, z1, zc: (z0 + z1) / 2, breach: (z0 + z1) / 2 + 0.75 };
 };
 export const PLAZA = { x0: 64, x1: 76, z0: -9.6, z1: 9.6 };
 // the clerk's office's three Troll-o-Graphs (made in Studio: Props/TrollOGraph_*),
@@ -477,7 +477,7 @@ export function buildHall(api, root, M, H) {
       K.api.ghostBox(IN.x1 - 0.6, zc - 0.6, 0.9, 2.0, 0.5, { y: F, pen: 1 });
       K.cyl(M.steel, cx0 + 0.8, F, zc - 1.1, 0.16, 0.14, 0.3, 10);
       J.cells[i].wall = buildJailWall(K.api, root, { x: IN.x1 - 0.022, outerX: C.x1, zc, win: { z: cellMid[i], w: 0.6, y0: 2.6, y1: 3.4 },
-        breachC: breach, brick: HM.brick, lining: M.brickPale });
+        breachC: breach, brick: HM.brick, lining: M.brickPale, cellZ: [z0, z1] });
     }
     for (const z of CELLS.edges.slice(1, 4)) K.solid((cx0 + IN.x1) / 2, z, IN.x1 - cx0, 0.25, U - 0.3 - F, { y: F, mat: M.brickPale });
     K.box(M.blackIron, cx0, F + 2.85, (ZJ + IN.z1) / 2, 0.14, 0.1, IN.z1 - ZJ - T / 2);

@@ -3,7 +3,9 @@
 // no gun to take; locked up, hold X at the bunk and the revolver's in hand,
 // fire is the shot; eight clean hits clear the wall; in a second cell one
 // miss loses the try (gun gone, no second take, the face greyed); a cell's
-// wall comes back fresh after it empties.
+// wall comes back fresh after it empties. Eight hits blow the patch out (a
+// second player in the room sees it), and walking out through it is an
+// escape: free, with no grace from the cuffs.
 //
 // Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-jailbreak-test.mjs
 
@@ -32,9 +34,10 @@ const BASE = `http://localhost:${server.address().port}`;
 
 let failures = 0;
 const check = (name, ok, detail = "") => { console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  (${detail})` : ""}`); if (!ok) failures++; };
-async function pump(page, ms) {
+const pages = [];
+async function pump(_page, ms) {   // every tab, so the watcher's frames run too
   const t0 = Date.now();
-  while (Date.now() - t0 < ms) await page.screenshot({ type: "jpeg", quality: 10 }).catch(() => {});
+  while (Date.now() - t0 < ms) for (const p of pages) await p.screenshot({ type: "jpeg", quality: 10 }).catch(() => {});
 }
 
 const browser = await chromium.launch({ args: ["--use-angle=d3d11", "--ignore-gpu-blocklist", "--autoplay-policy=no-user-gesture-required",
@@ -42,12 +45,14 @@ const browser = await chromium.launch({ args: ["--use-angle=d3d11", "--ignore-gp
 const ctx = await browser.newContext({ viewport: { width: 960, height: 600 } });
 await ctx.route(/supabase/, (r) => r.abort());
 const errors = [];
+async function openJoin(name) {
 const page = await ctx.newPage();
-page.on("pageerror", (e) => errors.push(e.message));
-await page.addInitScript(() => {
-  const fake = { getCachedProfile: () => ({ username: "jailbreak_a", tags: [] }) };
+pages.push(page);
+page.on("pageerror", (e) => errors.push(`${name}: ${e.message}`));
+await page.addInitScript((name) => {
+  const fake = { getCachedProfile: () => ({ username: name, tags: [] }) };
   Object.defineProperty(window, "TrollrunnerAccounts", { configurable: true, get: () => fake, set: () => {} });
-});
+}, name);
 await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 420000 });
 await page.waitForFunction(() => !!window.__trollOps && !!window.__trollSheriff && !!window.__trollJailbreak, null, { timeout: 420000 });
 await page.evaluate(async () => {
@@ -59,7 +64,16 @@ await page.evaluate(async () => {
 });
 await page.waitForFunction(() => !window.__trollOps.loadState().open, null, { timeout: 420000 });
 await page.evaluate(() => { window.__trollOps.els.pause.hidden = true; });
+return page;
+}
+// A breaks out; B, in the same room, watches the wall
+const page = await openJoin("jailbreak_a");
+const watcher = await openJoin("jailbreak_b");
 await pump(page, 3000);
+const wallOn = (pg, ci) => pg.evaluate((ci) => {
+  const c = window.__trollOps.builtMap().map.rp.jail().cells[ci];
+  return { state: c.wall.state, plug: c.wall.breach && window.__trollOps.colliders.some((k) => k.min.y < -50 && Math.abs((k.min.z + k.max.z) / 2 - (c.wall.breach.z0 + c.wall.breach.z1) / 2) < 0.05) };
+}, ci);
 
 const state = () => page.evaluate(() => {
   const T = window.__trollOps, B = window.__trollJailbreak, S = window.__trollSheriff;
@@ -155,6 +169,37 @@ for (const [k, q] of spots0.entries()) {
 s = await state();
 check("eight clean hits: every spot hit", s.walls2[0].hit === 8, JSON.stringify(s.walls2[0]));
 check("...the try cleared, the gun put away, nothing lost", s.cleared && !s.gun && !s.lost);
+let w = await wallOn(page, 0);
+check("the patch blows out: broken, its collider gone", w.state === "broken" && w.plug, JSON.stringify(w));
+check("...on the wire: jb = cell + 1", (await page.evaluate(() => window.__trollOps.net?.jailbreak)) === 1);
+await pump(page, 2000);
+w = await wallOn(watcher, 0);
+check("the other player sees it blown too", w.state === "broken" && w.plug, JSON.stringify(w));
+await page.evaluate(() => {
+  const T = window.__trollOps, c = T.builtMap().map.rp.jail().cells[0];
+  T.move.reset(c.wall.rect.x - 2.4, c.z, c.y);
+  const bz = (c.wall.breach.z0 + c.wall.breach.z1) / 2;
+  T.look.yaw = Math.atan2(-2.4, -(bz - c.z)); T.look.pitch = -0.05;
+});
+await pump(page, 500);
+await page.screenshot({ path: path.join(SHOTS, "cell0-blown.jpg"), type: "jpeg", quality: 85 });
+// out through the gap
+await page.evaluate(() => {
+  const T = window.__trollOps, c = T.builtMap().map.rp.jail().cells[0];
+  T.move.reset(c.wall.rect.x - 0.7, (c.wall.breach.z0 + c.wall.breach.z1) / 2, c.y);
+  T.look.yaw = -Math.PI / 2; T.look.pitch = 0;
+});
+await pump(page, 300);
+await page.keyboard.down("w");
+await pump(page, 2200);
+await page.keyboard.up("w");
+await pump(page, 400);
+const out = await page.evaluate(() => {
+  const T = window.__trollOps, S = window.__trollSheriff;
+  return { x: T.move.pos.x, jailed: !!S.jailed.me, escaped: S.jailed.escapedAt > 0, cooling: performance.now() < S.jailed.coolUntil };
+});
+check("walked out through the gap into the desert", out.x > 104.3, JSON.stringify(out));
+check("...that's an escape: free, and no grace from the cuffs", !out.jailed && out.escaped && !out.cooling, JSON.stringify(out));
 
 // cell 1: one hit, then a miss on the bare brick in the tracing's top corner
 await page.evaluate(() => { window.__trollSheriff.jailed.me = null; });
@@ -189,10 +234,13 @@ s = await state();
 check("hitting the same X twice is a miss", s.lost && s.walls2[2].hit === 1, JSON.stringify(s.walls2[2]));
 
 // out, and a minute later the walls come back
-await page.evaluate(() => { window.__trollSheriff.jailed.me = null; window.__trollJailbreak.JB.resetSecs = 1; });
+await page.evaluate(() => { window.__trollSheriff.jailed.me = null; const B = window.__trollJailbreak; B.JB.resetSecs = 1; if (B.jb.broke) B.jb.broke.until = 0; });
+await watcher.evaluate(() => { window.__trollJailbreak.JB.resetSecs = 1; });
 await pump(page, 2500);
 s = await state();
 check("empty cells' walls come back fresh", s.walls2.every((w) => w.state === "whole" && w.hit === 0) && s.under.every(Boolean), JSON.stringify(s.walls2));
+w = await wallOn(watcher, 0);
+check("...the blown one too, for the other player", w.state === "whole" && !w.plug, JSON.stringify(w));
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 await browser.close(); server.close();
