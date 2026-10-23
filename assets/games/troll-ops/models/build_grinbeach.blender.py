@@ -843,7 +843,7 @@ def build_venice(P, G):
             ring(b, V["line"], cx, Y, rimz, r3, a0=ang, a1=math.pi - ang, seg=70)
         else:
             ring(b, V["line"], cx, Y, rimz, r3, a0=math.pi + ang, a1=math.tau - ang, seg=70)
-        # pole behind the baseline, the arm, the board, the rim and its net
+        # pole behind the baseline, the arm, the board, the rim
         pz = bz - s * 1.1
         b.box(V["post"], 0.3, 0.25, 0.3, cx, 0.0, pz, bevel=0.03)
         b.cyl(V["post"], 0.1, (cx, 0.0, pz), (cx, 3.55, pz), seg=14)
@@ -856,12 +856,7 @@ def build_venice(P, G):
             b.box(V["vinyl"], 0.05, 0.45, 0.012, kx, 3.0, hz + s * 0.006)
         ring(b, V["rim"], cx, RIM_Y, rimz, 0.23, w=0.02, seg=24, h=0.02)
         b.box(V["rim"], 0.12, 0.03, 0.16, cx, RIM_Y, hz + s * 0.08)
-        for i in range(12):
-            a = i / 12 * math.tau
-            top = (cx + 0.23 * math.cos(a), RIM_Y, rimz + 0.23 * math.sin(a))
-            bot = (cx + 0.14 * math.cos(a + 0.5), RIM_Y - 0.42, rimz + 0.14 * math.sin(a + 0.5))
-            b.cyl(V["netw"], 0.006, top, bot, seg=4, smooth=False)
-        ring(b, V["netw"], cx, RIM_Y - 0.42, rimz, 0.14, w=0.01, seg=16, h=0.01)
+        # the net is its own model (gb-hoopnet.glb, Troll Beach 5d): it swishes
     for fz in (cz - cd / 2 - 0.2, cz + cd / 2 + 0.2):                         # fence posts + rails
         x = cx - cw / 2
         while x <= cx + cw / 2 + 0.01:
@@ -1111,6 +1106,254 @@ def build_surfboard():
     b.finish("gb-surfboard.glb", bake=False)
 
 
+# --- Troll Beach 5d: the court gear (modes/court-ball.js plays with these).
+# Each is its own small unbaked GLB the game places and moves: the three
+# balls (centred, at their real size), the racket (grip at the origin, head
+# up +y, face toward +z), the hoop net (its rim at the origin, so the game
+# can flare it on a swish), the basketball cart, the tennis hopper, the
+# scoreboard A-frame (its board a canvas the game writes).
+
+def sphere_faces(rows=24, cols=48):
+    """A lat-long unit sphere: points, quads (tris at the poles), and each
+    face's centre normal."""
+    pts = [(0.0, 1.0, 0.0)]
+    for i in range(1, rows):
+        a = math.pi * i / rows
+        for j in range(cols):
+            t = math.tau * j / cols
+            pts.append((math.sin(a) * math.cos(t), math.cos(a), math.sin(a) * math.sin(t)))
+    pts.append((0.0, -1.0, 0.0))
+    last = len(pts) - 1
+    faces = []
+
+    def ring_i(i, j):
+        return 1 + (i - 1) * cols + (j % cols)
+    for j in range(cols):
+        faces.append([0, ring_i(1, j + 1), ring_i(1, j)])
+    for i in range(1, rows - 1):
+        for j in range(cols):
+            faces.append([ring_i(i, j), ring_i(i, j + 1), ring_i(i + 1, j + 1), ring_i(i + 1, j)])
+    for j in range(cols):
+        faces.append([last, ring_i(rows - 1, j), ring_i(rows - 1, j + 1)])
+    cents = []
+    for f in faces:
+        c = [sum(pts[k][a] for k in f) / len(f) for a in range(3)]
+        n = math.sqrt(sum(x * x for x in c)) or 1.0
+        cents.append((c[0] / n, c[1] / n, c[2] / n))
+    return pts, faces, cents
+
+
+def painted_ball(b, r, paint, rows=24, cols=48, at=(0.0, 0.0, 0.0)):
+    """A ball of radius r at `at`; paint(n) picks each face's material from
+    its normal (seams, panels)."""
+    pts, faces, cents = sphere_faces(rows, cols)
+    P = [(at[0] + x * r, at[1] + y * r, at[2] + z * r) for (x, y, z) in pts]
+    groups = {}
+    for f, n in zip(faces, cents):
+        groups.setdefault(paint(n), []).append(f)
+    for m, fs in groups.items():
+        for f in b.poly(m, P, fs):
+            f.smooth = True
+
+
+def basketball_paint(leather, seam, w=0.045):
+    def paint(n):
+        x, y, z = n
+        # the two great circles, and the two curved seams round the ends
+        if abs(x) < w or abs(y) < w:
+            return seam
+        if abs(abs(z) - (0.62 + 0.3 * x * x)) < w * 0.9:
+            return seam
+        return leather
+    return paint
+
+
+def build_basketball():
+    b = Builder()
+    painted_ball(b, 0.12, basketball_paint(mat("GV_BallOrange", 0xd8652a, 0.75), mat("GV_BallSeam", 0x1a1412, 0.6), 0.028), 48, 96)
+    b.finish("gb-basketball.glb", bake=False)
+
+
+def build_tennisball():
+    b = Builder()
+    felt = mat("GV_Felt", 0xd8ee3a, 0.95)
+    seam = mat("GV_FeltSeam", 0xf4f4ea, 0.8)
+
+    def paint(n):
+        x, y, z = n
+        # the seam: one closed saddle curve round the ball
+        return seam if abs(y - 0.82 * (x * x - z * z)) < 0.06 else felt
+    painted_ball(b, 0.0335, paint, 20, 40)
+    b.finish("gb-tennisball.glb", bake=False)
+
+
+def build_volleyball():
+    b = Builder()
+    cols = [mat("GV_VBWhite", 0xf4f2ea, 0.7), mat("GV_VBBlue", 0x2a58c8, 0.7), mat("GV_VBYellow", 0xf2c81e, 0.7)]
+    seam = mat("GV_VBSeam", 0x6a6a70, 0.7)
+
+    def paint(n):
+        # 18 panels: six groups of three strips, a group round each axis
+        # direction, the strips across the next axis along
+        a = max(range(3), key=lambda i: abs(n[i]))
+        s = 0 if n[a] > 0 else 1
+        k = (a + 1 + s) % 3
+        u = n[k] / max(1e-6, abs(n[a]))
+        if abs(abs(u) - 0.36) < 0.05:
+            return seam
+        others = sorted(abs(n[i]) for i in range(3) if i != a)
+        if abs(n[a]) - others[-1] < 0.035:
+            return seam
+        strip = 0 if u < -0.36 else 1 if u < 0.36 else 2
+        return cols[(strip + a + s) % 3]
+    painted_ball(b, 0.105, paint, 32, 64)
+    b.finish("gb-volleyball.glb", bake=False)
+
+
+def build_racket():
+    b = Builder()
+    frame = mat("GV_RacketFrame", 0x1c1c22, 0.35, 0.3)
+    accent = mat("GV_RacketAccent", 0xe8402a, 0.4)
+    grip = mat("GV_RacketGrip", 0xf2f0ea, 0.9)
+    string = mat("GV_String", 0xe8e2c8, 0.6)
+    # the grip (0 .. 0.19), the throat's V to the head, the head an oval
+    # 0.25 x 0.32 centred at y 0.52; the face toward +z
+    b.cyl(grip, 0.016, (0, -0.005, 0), (0, 0.19, 0), seg=8, smooth=False)
+    b.cyl(frame, 0.018, (0, -0.012, 0), (0, -0.004, 0), seg=8)
+    hx, hy, hc = 0.125, 0.16, 0.52
+    for s in (-1, 1):
+        b.bar(frame, (0, 0.19, 0), (s * 0.07, hc - hy * 0.92, 0), 0.014, 0.02)
+    n = 36
+    ring_pts = []
+    for i in range(n):
+        a = math.tau * i / n
+        ring_pts.append((hx * math.sin(a), hc + hy * math.cos(a)))
+    for i in range(n):
+        (x0, y0), (x1, y1) = ring_pts[i], ring_pts[(i + 1) % n]
+        b.bar(accent if 7 <= i <= 11 or 25 <= i <= 29 else frame, (x0, y0, 0), (x1, y1, 0), 0.015, 0.022)
+    b.bar(frame, (-0.07, hc - hy * 0.92, 0), (0.07, hc - hy * 0.92, 0), 0.012, 0.02)   # the throat bridge
+
+    # strings: 16 mains (up), 19 crosses
+    def span_x(y):
+        u = (y - hc) / hy
+        return hx * math.sqrt(max(0.0, 1 - u * u)) - 0.008
+
+    def span_y(x):
+        u = x / hx
+        return hy * math.sqrt(max(0.0, 1 - u * u)) - 0.008
+    for i in range(16):
+        x = -hx * 0.86 + hx * 1.72 * i / 15
+        h = span_y(x)
+        b.box(string, 0.0016, 2 * h, 0.0016, x, hc - h, 0)
+    for i in range(19):
+        y = hc - hy * 0.9 + hy * 1.8 * i / 18
+        w = span_x(y)
+        b.box(string, 2 * w, 0.0016, 0.0016, 0, y - 0.0008, 0)
+    b.finish("gb-racket.glb", bake=False)
+
+
+def build_hoopnet():
+    """The net under a rim: the rim's centre at the origin, 12 cords down to
+    a ring 0.14 across 0.42 below, crossed into the diamond weave. The game
+    flares and stretches it (its scale) when a shot drops through."""
+    b = Builder()
+    net = mat("GV_Net", 0xf0f0ea, 0.9)
+    N, D, R0, R1, rows = 12, 0.42, 0.225, 0.14, 4
+
+    def pt(i, k):
+        u = k / rows
+        r = R0 + (R1 - R0) * u
+        a = math.tau * (i + 0.5 * (k % 2)) / N
+        return (r * math.cos(a), -D * u, r * math.sin(a))
+    # each knot ties to the two knots below it, half a cell either side
+    for k in range(rows):
+        for i in range(N):
+            a = pt(i, k)
+            for c in ((pt(i, k + 1), pt(i - 1, k + 1)) if k % 2 == 0 else (pt(i, k + 1), pt(i + 1, k + 1))):
+                b.cyl(net, 0.005, a, c, seg=4, smooth=False)
+    ring(b, net, 0, -D, 0, R1, w=0.01, seg=16, h=0.01)
+    b.finish("gb-hoopnet.glb", bake=False)
+
+
+def build_ballcart():
+    """A basketball cart: a two-shelf steel rack on castors, five balls on
+    each shelf. Its long side along x, centred, on the ground."""
+    b = Builder()
+    steel = mat("GV_CartSteel", 0x3a3e44, 0.4, 0.6)
+    paint = basketball_paint(mat("GV_BallOrange", 0xd8652a, 0.75), mat("GV_BallSeam", 0x1a1412, 0.6), 0.07)
+    W, D = 1.3, 0.42
+    for sx in (-W / 2, W / 2):
+        for sz in (-D / 2, D / 2):
+            b.cyl(steel, 0.016, (sx, 0.09, sz), (sx, 1.05, sz), seg=8)
+            b.cyl(steel, 0.04, (sx, 0.04, sz - 0.02), (sx, 0.04, sz + 0.02), seg=10)
+    for y in (0.3, 0.72):
+        for sz in (-D / 2, D / 2):
+            b.cyl(steel, 0.012, (-W / 2, y, sz), (W / 2, y, sz), seg=6)
+        for k in range(6):
+            x = -W / 2 + W * k / 5
+            b.cyl(steel, 0.008, (x, y - 0.03, -D / 2), (x, y - 0.03, D / 2), seg=5)
+        for k in range(5):
+            x = -W / 2 + 0.13 + (W - 0.26) * k / 4
+            painted_ball(b, 0.12, paint, 12, 24, at=(x, y + 0.1, 0.0))
+    for sz in (-D / 2, D / 2):
+        b.cyl(steel, 0.016, (-W / 2, 1.05, sz), (W / 2, 1.05, sz), seg=8)
+    b.finish("gb-ballcart.glb", bake=False)
+
+
+def build_hopper():
+    """A tennis-ball hopper: a wire basket on crossed legs, heaped with
+    balls. Centred, on the ground."""
+    b = Builder()
+    wire = mat("GV_HopperWire", 0x2c2e32, 0.4, 0.6)
+    felt = mat("GV_Felt", 0xd8ee3a, 0.95)
+    S, H = 0.32, 0.55
+    for sx in (-1, 1):
+        b.cyl(wire, 0.008, (sx * S / 2, 0.0, -S / 2), (sx * -S / 2, H, S / 2), seg=5)
+        b.cyl(wire, 0.008, (sx * S / 2, 0.0, S / 2), (sx * -S / 2, H, -S / 2), seg=5)
+    corners = ((-S / 2, -S / 2), (S / 2, -S / 2), (S / 2, S / 2), (-S / 2, S / 2))
+    for y in (H, H + 0.12, H + 0.24):
+        for k in range(4):
+            a, c = corners[k], corners[(k + 1) % 4]
+            b.cyl(wire, 0.006, (a[0], y, a[1]), (c[0], y, c[1]), seg=4)
+    for k in range(5):
+        x = -S / 2 + S * k / 4
+        for (p0, p1) in (((x, -S / 2), (x, -S / 2)), ((x, S / 2), (x, S / 2)), ((-S / 2, x), (-S / 2, x)), ((S / 2, x), (S / 2, x))):
+            b.cyl(wire, 0.005, (p0[0], H, p0[1]), (p1[0], H + 0.24, p1[1]), seg=4)
+        b.cyl(wire, 0.005, (x, H, -S / 2), (x, H, S / 2), seg=4)
+    for sx in (-1, 1):
+        b.cyl(wire, 0.008, (sx * S / 2, H + 0.24, 0), (sx * S / 2, H + 0.62, 0), seg=5)
+    b.cyl(wire, 0.012, (-S / 2, H + 0.62, 0), (S / 2, H + 0.62, 0), seg=6)
+    rnd = random.Random(5)
+    for layer in range(4):
+        for i in range(5):
+            for j in range(5):
+                if layer == 3 and rnd.random() < 0.5:
+                    continue
+                x = -S / 2 + 0.035 + (S - 0.07) * i / 4 + rnd.uniform(-0.01, 0.01)
+                z = -S / 2 + 0.035 + (S - 0.07) * j / 4 + rnd.uniform(-0.01, 0.01)
+                y = H + 0.04 + layer * 0.062 + rnd.uniform(-0.005, 0.005)
+                painted_ball(b, 0.0335, lambda n: felt, 6, 10, at=(x, y, z))
+    b.finish("gb-hopper.glb", bake=False)
+
+
+def build_scoreboard():
+    """A chalkboard on an A-frame of weathered 2x4s; the slate (1.4 x 0.9,
+    its centre 1.30 up, its face at z 0.036 toward +z) is left blank: the
+    game hangs a canvas on it."""
+    b = Builder()
+    wood = mat("GV_StallWood", 0xb08454, 0.85)
+    dark = mat("GV_StallWoodDark", 0x7a5634, 0.9)
+    slate = mat("GV_Slate", 0x24302a, 0.9)
+    for sx in (-0.8, 0.8):
+        b.bar(wood, (sx, 0.0, -0.32), (sx, 2.35, 0.0), 0.08, 0.05)
+        b.bar(wood, (sx, 0.0, 0.32), (sx, 2.35, 0.0), 0.08, 0.05)
+    b.box(dark, 1.56, 1.04, 0.05, 0, 0.78, 0.0)
+    b.box(slate, 1.4, 0.9, 0.012, 0, 0.85, 0.03)
+    b.box(dark, 1.62, 0.07, 0.12, 0, 0.75, 0.06)          # the chalk ledge
+    b.box(wood, 1.7, 0.09, 0.06, 0, 2.3, 0.0)             # the header
+    b.finish("gb-scoreboard.glb", bake=False)
+
+
 def main():
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
@@ -1125,7 +1368,10 @@ def main():
                 "beach": lambda: build_beach(P, G), "bluffs": lambda: build_bluffs(P, G),
                 "boardwalk": lambda: build_boardwalk(P, G),
                 "venice": lambda: build_venice(P, G),
-                "surfboard": build_surfboard}
+                "surfboard": build_surfboard,
+                "basketball": build_basketball, "tennisball": build_tennisball,
+                "volleyball": build_volleyball, "racket": build_racket, "hoopnet": build_hoopnet,
+                "ballcart": build_ballcart, "hopper": build_hopper, "scoreboard": build_scoreboard}
     only = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     built = [k for k in builders if not only or k in only]
     for k in built:

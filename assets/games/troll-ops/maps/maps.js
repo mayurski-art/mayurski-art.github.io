@@ -30,6 +30,7 @@ import { gsModel, mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-g
 import { buildDustbowlCity, CITY_PALMS } from "./dustbowl-city.js?v=db5-sr1-or1-tx1-sp1-kbt1";
 import { buildSurfStrip } from "./surf-sea.js?v=gb1";
 import { buildVenice, VENICE_PALMS, VENICE_SPAWNS, RACKS } from "./grinbeach-venice.js?v=gb1-tb1";
+import { buildCourtGear, courtSpots } from "./grinbeach-courts.js?v=gb5";
 import { beachNpcs, beachFreeSeats } from "./grinbeach-social.js?v=gb3-rh1-gb4-tb1";
 import { dressMap, beachWaterMaterial, palmTrees, shopSignMaterial, beachMural, rangeBoardMaterial } from "./map-dressing.js?v=hg6e-sr1-or1-tb1";
 
@@ -1683,6 +1684,8 @@ export const MAPS = {
       }
       // the new strips (Grin Beach 5a, grinbeach-venice.js)
       buildVenice(api);
+      // the court gear (Troll Beach 5d, grinbeach-courts.js): nets, cart, hopper, scoreboards
+      buildCourtGear(api);
     },
     // Spawns hug the lot and the far sand corners — never the pier, which is
     // the contested lane, and never inside a shop.
@@ -1854,6 +1857,8 @@ MAPS.grinbeach.rp = {
   npcShadows: true,
   // the surfboard racks (5c, modes/social-surf.js): hold X at one for a board
   surf: () => ({ racks: RACKS }),
+  // the courts (5d, modes/court-*.js): where the balls are, the scoreboards
+  courts: () => courtSpots(),
 };
 MAPS.grinbeach.dress = {
   seed: 83,
