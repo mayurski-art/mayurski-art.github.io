@@ -7,7 +7,11 @@
 //   white sign on its box, the white spill on the pavement; its sound
 //   (streetSound), the balls' rattle and the machines' jingles out of the
 //   glass, fighting the club's bass across the line.
-//   B side's street props: the ramen stall's noren, menu and warm light.
+//   B side's street props: the ramen stall's noren, menu and warm light;
+//   a glazed tanuki by the koban's door; a capsule-toy rack beside B
+//   Main's vending machine. A band poster on A Main's vending machine.
+//   None has a collider (doc 3.5 e: no colliders over 0.6 m), so no route
+//   changes.
 
 import * as THREE from "three";
 import { place } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1";
@@ -282,8 +286,158 @@ function buildRamen(root, N, M) {
   for (const [x, y, z] of R.lanterns) N.quad(M.neonHalo, x, y, z - 0.18, 0.9, 0.9, { ry: Math.PI, color: 0xff5a30, k: 0.35, beat: 0 });
 }
 
+/* ------------------------------------------------------------ the tanuki */
+
+// Grinjuku's koban (grinjuku-layout.js: 4 x 2 at 0, 31.5, its glass door
+// on the +z face): the tanuki stands to the door's right, facing the yard
+const TANUKI = { x: 1.45, z: 32.95, ry: 0 };
+function buildTanuki(root) {
+  const g = new THREE.Group();
+  const glaze = (c, rough = 0.32) => new THREE.MeshStandardMaterial({ color: c, roughness: rough, metalness: 0 });
+  const brown = glaze(0x8a5a32), belly = glaze(0xe0b47a), dark = glaze(0x3a2414), straw = glaze(0xb8925a, 0.85);
+  const white = glaze(0xf2ece0, 0.25), black = glaze(0x0c0a08, 0.2), red = glaze(0xa8221a, 0.4);
+  const ball = (m, r, x, y, z, sx = 1, sy = 1, sz = 1) => {
+    const o = new THREE.Mesh(new THREE.SphereGeometry(r, 18, 14), m);
+    o.position.set(x, y, z); o.scale.set(sx, sy, sz); g.add(o); return o;
+  };
+  const cyl = (m, r0, r1, h, x, y, z, rx = 0, rz = 0, seg = 14) => {
+    const o = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, h, seg), m);
+    o.position.set(x, y, z); o.rotation.set(rx, 0, rz); g.add(o); return o;
+  };
+  cyl(dark, 0.32, 0.3, 0.06, 0, 0.03, 0, 0, 0, 20);              // the plinth
+  ball(brown, 0.13, -0.13, 0.1, 0.06, 1, 0.6, 1.3);              // feet
+  ball(brown, 0.13, 0.13, 0.1, 0.06, 1, 0.6, 1.3);
+  ball(brown, 0.27, 0, 0.36, 0, 1.05, 1.0, 0.95);                // the body
+  ball(belly, 0.22, 0, 0.33, 0.1, 1, 0.95, 0.75);                // the famous belly
+  ball(brown, 0.17, 0, 0.7, 0.02, 1.05, 0.95, 1);                // the head
+  ball(belly, 0.085, 0, 0.66, 0.15, 1, 0.75, 1);                 // muzzle
+  ball(black, 0.03, 0, 0.68, 0.23);                              // nose
+  for (const sx of [-1, 1]) {
+    ball(dark, 0.05, sx * 0.075, 0.73, 0.14, 1.2, 0.9, 0.6);     // the mask round each eye
+    ball(white, 0.032, sx * 0.07, 0.74, 0.165);
+    ball(black, 0.016, sx * 0.068, 0.742, 0.19);
+    ball(brown, 0.05, sx * 0.12, 0.84, 0, 1, 1, 0.6);            // ears
+  }
+  // the straw kasa, pushed back
+  straw.side = THREE.DoubleSide;
+  const hat = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.12, 20, 1, true), straw);
+  hat.position.set(0, 0.86, -0.04); hat.rotation.x = -0.25; g.add(hat);
+  cyl(straw, 0.08, 0.06, 0.05, 0, 0.9, -0.05, -0.25);
+  // the sake flask in the right hand, the ledger in the left
+  cyl(white, 0.065, 0.05, 0.2, 0.25, 0.32, 0.12, 0, -0.2);
+  cyl(white, 0.022, 0.022, 0.06, 0.27, 0.45, 0.12, 0, -0.2);
+  const label = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.09), red);
+  label.position.set(0.26, 0.32, 0.186); label.rotation.y = 0.1; g.add(label);
+  ball(brown, 0.06, 0.22, 0.38, 0.12);                           // its paw round the neck
+  const book = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.14, 0.03), straw);
+  book.position.set(-0.24, 0.34, 0.13); book.rotation.set(0.1, 0.3, 0.2); g.add(book);
+  ball(brown, 0.06, -0.21, 0.36, 0.12);
+  ball(brown, 0.07, 0, 0.18, -0.26, 0.8, 0.8, 1.4);              // the tail
+  g.position.set(TANUKI.x, 0, TANUKI.z);
+  g.rotation.y = TANUKI.ry;
+  g.scale.setScalar(1.15);
+  g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  root.add(g);
+}
+
+/* ------------------------------------------------------------ the gacha rack */
+
+// B Main's vending machine (grinjuku-layout.js, mirrored: x 23 .. 23.9,
+// z -14 .. -12, facing +x): the rack stands south of it, its back to the
+// same wall, two tiers of four machines
+const GACHA = { x: 23.0, z0: -15.75, z1: -14.1, h: 1.62, d: 0.46 };
+const CAPS = ["#ff4a7a", "#4ad2ff", "#ffd84a", "#7ae05a", "#c27aff", "#ff9a3a", "#f4f4f4"];
+const TOYS = [["GRIN", "トロル"], ["KEK", "けけ"], ["U MAD", "まど"], ["LULZ", "るるず"], ["DOGE", "ドージ"], ["PEPE", "ぺぺ"], ["RAMEN", "らーめん"], ["NEKO", "ねこ"]];
+function gachaTexture() {
+  // one machine a column, two tiers: a header card, the capsule window, the
+  // coin plate and handle; drawn once, the window lit
+  const W = 1024, H = 1024, cw = W / 4, ch = H / 2, r = rng(77);
+  const c = canvas(W, H), g = c.getContext("2d");
+  for (let tier = 0; tier < 2; tier++) for (let i = 0; i < 4; i++) {
+    const x = i * cw, y = tier * ch, [en, jp] = TOYS[tier * 4 + i], hue = CAPS[(tier * 4 + i) % CAPS.length];
+    g.fillStyle = "#d8d8dc"; g.fillRect(x + 4, y + 4, cw - 8, ch - 8);
+    // the header card
+    g.fillStyle = hue; g.fillRect(x + 12, y + 12, cw - 24, ch * 0.24);
+    g.fillStyle = "#141418"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.font = `900 ${Math.round(ch * 0.085)}px ${JP}`; g.fillText(en, x + cw / 2, y + 12 + ch * 0.085);
+    g.font = `700 ${Math.round(ch * 0.06)}px ${JP}`; g.fillText(jp, x + cw / 2, y + 12 + ch * 0.18);
+    // the window full of capsules
+    const wx = x + 18, wy = y + ch * 0.29, ww = cw - 36, wh = ch * 0.4;
+    g.fillStyle = "#3a4048"; g.fillRect(wx, wy, ww, wh);
+    for (let k = 0; k < 26; k++) {
+      const cx = wx + 14 + r() * (ww - 28), cy = wy + wh - 12 - Math.pow(r(), 0.6) * (wh - 24), rr = 12 + r() * 4;
+      g.fillStyle = CAPS[(r() * CAPS.length) | 0]; g.beginPath(); g.arc(cx, cy, rr, Math.PI, 0); g.fill();
+      g.fillStyle = "rgba(255,255,255,.75)"; g.beginPath(); g.arc(cx, cy, rr, 0, Math.PI); g.fill();
+    }
+    g.fillStyle = "rgba(255,255,255,.18)"; g.fillRect(wx + 8, wy + 6, ww * 0.2, wh - 12);
+    // the coin plate: price, slot, handle
+    g.fillStyle = "#9aa0a8"; g.fillRect(x + 22, y + ch * 0.72, cw - 44, ch * 0.2);
+    g.fillStyle = "#c81e2a"; g.font = `900 ${Math.round(ch * 0.06)}px ${JP}`; g.fillText("¥300", x + cw * 0.32, y + ch * 0.78);
+    g.fillStyle = "#2a2a30"; g.fillRect(x + cw * 0.62, y + ch * 0.75, 8, 22);
+    g.fillStyle = "#e8e8ec"; g.beginPath(); g.arc(x + cw / 2, y + ch * 0.86, 18, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#6a7078"; g.fillRect(x + cw / 2 - 18, y + ch * 0.855, 36, 6);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+function buildGacha(root, N, M) {
+  const G = GACHA, w = G.z1 - G.z0, cz = (G.z0 + G.z1) / 2;
+  const body = new THREE.MeshStandardMaterial({ color: 0x9a1e2a, roughness: 0.5, metalness: 0.2 });
+  root.add(new THREE.Mesh(place(new THREE.BoxGeometry(G.d, G.h, w), { x: G.x + G.d / 2, y: G.h / 2, z: cz }), body));
+  // the machines' faces, a hair proud of the cabinet, the windows lit a little
+  const map = gachaTexture();
+  const face = new THREE.MeshStandardMaterial({ map, emissiveMap: map, emissive: 0xffffff, emissiveIntensity: 0.18, roughness: 0.35 });
+  root.add(new THREE.Mesh(place(new THREE.PlaneGeometry(w - 0.06, G.h - 0.3), { x: G.x + G.d + 0.004, y: (G.h - 0.3) / 2 + 0.04, z: cz, ry: Math.PI / 2 }), face));
+  const sign = canvas(512, 96), sg = sign.getContext("2d");
+  sg.fillStyle = "#fff4d8"; sg.fillRect(0, 0, 512, 96);
+  sg.fillStyle = "#c81e2a"; sg.textAlign = "center"; sg.textBaseline = "middle";
+  sg.font = `900 54px ${JP}`; sg.fillText("ガチャガチャ", 256, 50);
+  const st = new THREE.CanvasTexture(sign); st.colorSpace = THREE.SRGBColorSpace;
+  N.quad(neonMat({ map: st, key: "kb-gacha" }), G.x + G.d + 0.006, G.h - 0.13, cz, w - 0.08, 0.22, { ry: Math.PI / 2, k: 0.9, beat: 0 });
+  N.quad(M.neonHalo, G.x + G.d + 0.9, 0.02, cz, 1.6, w + 0.8, { rx: -Math.PI / 2, color: 0xfff0e0, k: 0.1, beat: 0 });
+}
+
+/* ------------------------------------------------------------ the poster */
+
+// A Main's vending machine (x -23.9 .. -23, z -14 .. -12): Trolling Loud
+// Tokyo's lineup pasted on its north side, facing the line
+function posterTexture() {
+  const W = 512, H = 720, c = canvas(W, H), g = c.getContext("2d");
+  const bg = g.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, "#2a0638"); bg.addColorStop(0.6, "#7a0a5a"); bg.addColorStop(1, "#ff3a8a");
+  g.fillStyle = bg; g.fillRect(0, 0, W, H);
+  // a sunburst behind the title
+  g.save(); g.translate(W / 2, H * 0.36); g.fillStyle = "rgba(255,210,90,.16)";
+  for (let i = 0; i < 18; i++) { g.rotate(Math.PI / 9); g.beginPath(); g.moveTo(0, 0); g.lineTo(-40, -420); g.lineTo(40, -420); g.fill(); }
+  g.restore();
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = "#fff4d0"; g.font = `900 76px ${JP}`; g.fillText("TROLLING", W / 2, 120); g.fillText("LOUD", W / 2, 200);
+  g.fillStyle = "#3ff0ff"; g.font = `900 54px ${JP}`; g.fillText("東京", W / 2, 278);
+  g.fillStyle = "#fff"; g.font = `700 34px ${JP}`;
+  ["DJ LULZ", "KEK MACHINE", "THE U MAD BROS", "GRIN 777"].forEach((n, i) => g.fillText(n, W / 2, 380 + i * 48));
+  g.fillStyle = "#ffd23a"; g.font = `900 30px ${JP}`; g.fillText("毎晩 · ALL NIGHT · 歌舞伎グリン", W / 2, 640);
+  // pasted on: a couple of creases and a torn corner
+  g.strokeStyle = "rgba(0,0,0,.18)"; g.lineWidth = 3;
+  g.beginPath(); g.moveTo(0, 300); g.lineTo(W, 330); g.moveTo(180, 0); g.lineTo(200, H); g.stroke();
+  g.globalCompositeOperation = "destination-out";
+  g.beginPath(); g.moveTo(W, H); g.lineTo(W - 70, H); g.lineTo(W, H - 50); g.fill();
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+function buildPoster(root) {
+  root.add(new THREE.Mesh(place(new THREE.PlaneGeometry(0.62, 0.87), { x: -23.45, y: 1.05, z: -11.995, rz: 0.03 }),
+    new THREE.MeshStandardMaterial({ map: posterTexture(), transparent: true, alphaTest: 0.5, roughness: 0.75 })));
+}
+
 export function buildStreet({ root, N, M }) {
   buildRamen(root, N, M);
+  buildTanuki(root);
+  buildGacha(root, N, M);
+  buildPoster(root);
   const P = PACHINKO;
   // the floor through the glass, either side of the doors, and through the
   // doors' own glass; each run picks up the tile where the last left off

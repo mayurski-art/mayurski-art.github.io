@@ -429,7 +429,15 @@ const DRESS = (() => {
     const area = e.area ? [].concat(e.area).filter((a) => a !== "aSite") : rest;
     return area.length ? { ...e, area } : null;
   };
-  return { ...d, decals: d.decals.map(keep).filter(Boolean), clutter: d.clutter.map(keep).filter(Boolean) };
+  // A Main's puddles go pink (doc 5): the club's marquee and the pachinko
+  // sign in them, a magenta cast to the water
+  const decals = d.decals.map(keep).filter(Boolean).flatMap((e) => {
+    if (e.cell !== "puddle" || !e.area.includes("aMain")) return [e];
+    const rest = e.area.filter((a) => a !== "aMain");
+    const share = Math.round(e.n / e.area.length) + 3;
+    return [...(rest.length ? [{ ...e, area: rest, n: e.n - share + 3 }] : []), { ...e, area: ["aMain"], n: share, color: 0x2e0a26, alpha: 0.78 }];
+  });
+  return { ...d, decals, clutter: d.clutter.map(keep).filter(Boolean) };
 })();
 
 // the crowd: the same every build (seeded), made once
@@ -439,7 +447,7 @@ const cast = () => (CAST ??= kbNpcs({ DC: PLAN.DC, DANCE, deck: PLAN.deck }));
 export const KABUKIGRIN = {
   ...GRINJUKU,
   name: "Kabukigrin",
-  blurb: "Shinjuku's neon on one side, a nightclub on the other.",
+  blurb: "Kabukicho after midnight. Trolling Loud's Tokyo branch on one side of the street, the alleys on the other, and a bomb site on the dance floor.",
   playerSpawn: { x: PLAYER[0], z: PLAYER[2] },
   build: buildKabukigrin,
   dress: DRESS,
