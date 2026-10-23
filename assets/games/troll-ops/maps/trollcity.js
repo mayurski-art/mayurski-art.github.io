@@ -1748,7 +1748,7 @@ function buildRoundLoopTrack(K, M) {
    own group with its own colliders, so train.js can run it round the loop. */
 const TRAIN_STATE = { train: null, board: null };
 /* St. Grinsworth's (trollcity-chapel.js): the loft stair's ends, for the zombies' links. */
-const CHAPEL_STATE = { stair: null, preacher: null };
+const CHAPEL_STATE = { stair: null, preacher: null, rests: [] };
 /* The chapel's townsfolk: the preacher at the pulpit (built after the Studio
    town, so never moved with it). */
 function chapelNpcs() {
@@ -2325,6 +2325,7 @@ function buildTrollCity(api) {
   SEATS.push(...chapel.seats);
   CHAPEL_STATE.stair = chapel.stair;
   CHAPEL_STATE.preacher = chapel.preacher;
+  CHAPEL_STATE.rests = chapel.rests;
   // and the town hall (trollcity-hall.js), the same way: it fills the
   // sheriff's and the jail's spots, its seats join the rest
   const hall = buildHall(api, root, M, { wall, railing, wallPic, sign, signBoard, slabWithHole, stove, rifleRack, counter, FLOOR, UPPER_Y, sheriff: SHERIFF, jail: JAIL });
@@ -2374,6 +2375,9 @@ export const TROLLCITY = {
   // arena.botRooms): split over four street blocks, its post came up a
   // quarter as often as theirs and the bots hardly went in
   botRooms: [[CHAPEL_TOWER.x0, CHAPEL.x1 + 4.5, CHAPEL.z0, CHAPEL.z1]],
+  // and inside it the bots sit in the pews or come forth to pray at the
+  // rail (user, 2026-10-22; maps.js arena.botRests)
+  botRests: () => CHAPEL_STATE.rests,
   playerSpawn: { x: -20, z: 0 },
   // Mid-afternoon on the plains: a high warm sun, a pale dusty sky going
   // gold at the horizon, scattered fair-weather cloud.

@@ -292,7 +292,7 @@ export function buildChapel(api, root, M, H) {
   }
 
   /* ---- the pews, dark oak with carved ends, facing east; their seats */
-  const seats = [];
+  const seats = [], rests = [];
   {
     const endShape = new THREE.Shape();
     endShape.moveTo(0.56, 0);
@@ -320,6 +320,8 @@ export function buildChapel(api, root, M, H) {
           // two seats a pew, the aisle end and the middle, facing the altar;
           // you get up into the aisle
           for (const d of [0.7, 2.1]) seats.push({ x: x + 0.03, z: aisle + s * d, y: F + 0.45, floor: F, yaw: -Math.PI / 2, kind: "pew", stand: { x, z: CZ + s * 0.45 } });
+          // a bot sits in every other row's aisle end a while (bots.js rest)
+          if (rows.indexOf(x) % 2 === 0) rests.push({ act: "sit", x, z: CZ + s * 0.45, y: F, at: { x: x + 0.03, z: aisle + s * 0.7 }, yaw: -Math.PI / 2, w: 1 });
         }
         const x0 = rows[0] - 0.32, x1 = rows[rows.length - 1] + 0.3;
         K.api.ghostBox((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, 1.2, { y: F, pen: 1.5 });
@@ -531,8 +533,12 @@ export function buildChapel(api, root, M, H) {
   K.flush();
   // everything here is live: drawn by code, not in Studio, never moved
   for (const c of api.colliders.slice(c0)) c.live = true;
+  // and comes forth to kneel at the rail, knees on its velvet: walked up
+  // to from the chancel, then in to it (the odds weigh against the pews)
+  for (const dz of [-2.6, -1.5, 1.5, 2.6]) rests.push({ act: "pray", x: RAIL_X - 0.8, z: CZ + dz, y: CH, at: { x: RAIL_X - 0.35, z: CZ + dz }, yaw: -Math.PI / 2, w: 3 });
   return {
     seats,
+    rests,
     preacher: { x: pulpit.x + 0.05, z: pulpit.z + 0.95, y: CH, yaw: Math.PI / 2 },
     stair: { a: { x: STAIR.x - 0.6, z: STAIR.z }, b: { x: STAIR.x + STAIR.run * STAIR.steps + 0.6, z: STAIR.z } },
   };

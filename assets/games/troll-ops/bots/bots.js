@@ -167,6 +167,7 @@ const DISTRICT = 20;               // metres: the squares crowding is counted in
 const POST_HEAT = 5;
 const POST_HEAT_KEEP = 0.99;       // per half second: about a minute's half-life
 const UPPER_Y = 1.5;               // feet this high: off the ground floor
+const REST_HOLD = [8, 16];         // seconds sat in a pew or knelt at a rail (arena.botRests)
 const POST_STILL = 4;              // holding a post, got under 1.5 m in this long: the hold ends
 
 /* Anything tall standing at body height on this spot? */
@@ -341,6 +342,7 @@ class Bot {
   }
 
   respawn(spawn) {
+    this.rest = null;
     this.pos.set(spawn.x, 0, spawn.z);
     this.climb = null;
     this.windup = null;   // a throw cut short by dying
@@ -380,6 +382,7 @@ class Bot {
      immediately — that's the difference between a bot that eats a flank in
      silence and one that reacts like it's actually being shot at. */
   onDamaged() {
+    this.standUp();
     this.hurtAt = performance.now();
     this.flinchT = 0.35 + Math.random() * 0.25;
     this.strafeDir = -this.strafeDir;
@@ -554,6 +557,10 @@ class Bot {
       }
     }
 
+    // Up out of the pew (or off its knees) the moment there's anything
+    // else to do: someone in sight, the mode wants it, the post's gone.
+    if (this.rest && (best || busy || objective || this.perch?.rest !== this.rest)) this.standUp();
+
     // --- steer
     let desired;
     const objD = objective ? Math.hypot(objective.x - this.pos.x, objective.z - this.pos.z) : Infinity;
@@ -663,7 +670,14 @@ class Bot {
       // Taking the high ground for a while (updatePerch): up there, then
       // hold it, turning to watch the approaches.
       const p = this.perch;
-      if (this.arrivePerch()) {
+      if (p.rest && this.arrivePerch()) {
+        // A pew or the rail (arena.botRests): sat or knelt there, still,
+        // facing the altar, till the hold's up (pinned below, by the physics).
+        if (!this.rest) { this.rest = p.rest; p.hold = between(REST_HOLD); }
+        desired = new THREE.Vector3();
+        this.yaw = p.rest.yaw;
+        if ((p.hold -= dt) <= 0) { this.standUp(); this.perch = null; }
+      } else if (this.arrivePerch()) {
         // Holding it: shuffling about the spot, looking round, the way a
         // KotH bot holds a hill (stood dead still it read as a frozen bot,
         // the gate's bots step among them), never off the edge up high.
@@ -727,7 +741,7 @@ class Bot {
       desired = this.slideDir.clone();
       if (this.slideT <= 0) this.slideT = 0;
     }
-    this.stance = this.climb?.on ? "rope" : this.slideT > 0 ? "slide" : "stand";
+    this.stance = this.rest ? this.rest.act : this.climb?.on ? "rope" : this.slideT > 0 ? "slide" : "stand";
 
     // Wading (a map's shallow water, arena.wade) slows them like it slows you.
     const wading = arena.wade && this.pos.y < 0.5 && insidePolygon(arena.wade, this.pos.x, this.pos.z);
@@ -822,6 +836,13 @@ class Bot {
       this.groundY += (support - this.groundY) * Math.min(1, dt * 9);
     }
     this.pos.y = this.groundY + this.hopY;
+    // Sat in a pew or knelt at the rail: pinned to the spot (a pew row is
+    // one solid box, and the push above would have it out in the aisle).
+    if (this.rest) {
+      this.pos.x = this.rest.at.x; this.pos.z = this.rest.at.z;
+      this.groundY = this.pos.y = this.rest.y;
+      this.vel.set(0, 0, 0);
+    }
 
     // Real ground speed, not "had steering input" — a bot holding its strafe
     // dance to trade shots was reporting `moving: true` every tick (see the
@@ -1315,7 +1336,7 @@ class Bot {
       if (!post) { this.lastPostUp = false; return false; }     // a hunt this time
       places.claims.set(post.id, (places.claims.get(post.id) || 0) + 1);
       this.lastPostUp = post.y >= UPPER_Y;
-      this.perch = { id: post.id, x: post.x, y: post.y, z: post.z, via: post.via, t: 0, arrived: false, static: true,
+      this.perch = { id: post.id, x: post.x, y: post.y, z: post.z, via: post.via, rest: post.rest, t: 0, arrived: false, static: true,
         hold: between(post.y >= UPPER_Y ? POST_HOLD_UP : POST_HOLD_GROUND) };
       return true;
     }
@@ -1344,11 +1365,21 @@ class Bot {
     return true;
   }
 
+  /* Up from a pew or the rail, back where it walked in from (the aisle). */
+  standUp() {
+    const r = this.rest;
+    if (!r) return;
+    this.rest = null;
+    this.pos.x = r.x; this.pos.z = r.z;
+    this.groundY = this.pos.y = r.y;
+  }
+
   /* At its perch or post (marked so from here on)? A post on the ground
-     is a patch of it, not a spot: a few metres off counts. */
+     is a patch of it, not a spot: a few metres off counts; a pew's or a
+     rail's, the spot it gets in from. */
   arrivePerch() {
     const p = this.perch;
-    const r = p.y < UPPER_Y && p.id.startsWith("post-") ? 3 : 1.2;
+    const r = p.rest ? 0.7 : p.y < UPPER_Y && p.id.startsWith("post-") ? 3 : 1.2;
     if (!p.arrived && Math.hypot(p.x - this.pos.x, p.z - this.pos.z) < r && Math.abs(p.y - this.groundY) < 0.6) p.arrived = true;
     return p.arrived;
   }
@@ -1367,12 +1398,13 @@ class Bot {
       if (this.perchFail === p.id) continue;
       const d = Math.hypot(p.x - this.pos.x, p.z - this.pos.z);
       if (d < 6 && Math.abs(p.y - this.groundY) < 1) continue;   // already there
+      if (p.rest && places.claims.get(p.id)) continue;            // a pew seat holds one
       // High ground: the nearest few, not one another bot holds. The
       // ground posts do the spreading out: away from crowds, from
       // districts that have had bots lately, from this one.
       w[i] = 1 / (1 + 3 * (places.claims.get(p.id) || 0)) * (p.y >= UPPER_Y ? 1 / (1 + d / 40)
         : 1 / (1 + 1.2 * (places.crowd.get(p.district) || 0)) / (1 + (places.heat.get(p.district) || 0) / POST_HEAT)
-          / (1 + d / 200) * (p.district === here ? 0.5 : 1) / (places.groundIn?.get(p.district) || 1));
+          / (1 + d / 200) * (p.district === here ? 0.5 : 1) / (places.groundIn?.get(p.district) || 1) * (p.rest?.w ?? 1));
       sum += w[i];
     }
     if (sum <= 0) return null;
@@ -1649,11 +1681,14 @@ export class BotManager {
       if (!fits(q.x, 0, q.z) || groundHeightAt(cols, q.x, q.z, 0.5, BOT_RADIUS * 0.8) > 0.3) continue;
       sq.set(key, { d, q });
     }
+    // Spots a bot sits or kneels at (arena.botRests: Troll City's pews and
+    // communion rail), each a post of its own.
+    const rests = (typeof a.botRests === "function" ? a.botRests() : a.botRests) || [];
     // A named room (arena.botRooms) the squares missed, or whose spot lost
     // to the street outside: its open spot nearest its middle.
     for (const [x0, x1, z0, z1] of a.botRooms || []) {
       const inRoom = (q) => q.x >= x0 && q.x < x1 && q.z >= z0 && q.z < z1;
-      if ([...sq.values()].some(({ q }) => inRoom(q))) continue;
+      if ([...sq.values()].some(({ q }) => inRoom(q)) || rests.some(inRoom)) continue;
       let best = null, bd = Infinity;
       for (const k of cells) {
         const q = centre(g, k);
@@ -1667,6 +1702,7 @@ export class BotManager {
     for (const { q } of sq.values()) {
       places.ground.push({ id: `post-g${places.ground.length}`, x: q.x, y: 0, z: q.z, district: places.districtOf(q.x, q.z) });
     }
+    for (const r of rests) places.ground.push({ id: `post-r${places.ground.length}`, x: r.x, y: r.y, z: r.z, district: places.districtOf(r.x, r.z), rest: r });
     // ground posts a district has: pickPost shares a district's odds out
     // among them, so a corner with one post comes up as often as a street
     // block with six

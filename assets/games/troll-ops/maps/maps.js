@@ -2117,6 +2117,10 @@ export function buildMap(id, { colliders, arena }) {
   // rooms the bots count as districts of their own ([x0, x1, z0, z1], bots.js
   // placesFor): Troll City's chapel, not a corner of four street blocks
   arena.botRooms = map.botRooms || null;
+  // spots the bots sit or kneel at a while ({ act: "sit" | "pray", x, z, y
+  // where they get in from, at: { x, z }, yaw, w odds }, bots.js rest):
+  // Troll City's pews and communion rail
+  arena.botRests = map.botRests || null;
   arena.wade = map.wade || null;
   arena.navCell = map.navCell || null;
   // Climbing ropes (api.rope): the movement controller reads them here.
