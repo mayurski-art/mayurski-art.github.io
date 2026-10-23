@@ -675,6 +675,70 @@ export class GameAudio {
     h.g.gain.setTargetAtTime(0.0001, t + 0.3, 0.06);
   }
 
+  /* Troll Royale's nearest closed chest (modes/royale-chests.js): a soft
+     shimmering chord placed on it, louder as you close in (`level` 0..1),
+     faded out when there's none in earshot (level < 0). One shared voice. */
+  chestHumAt(level, at) {
+    if (!this.ctx) return;
+    const t = this.now;
+    if (level < 0 || !at) {
+      if (this._chestHum) this._chestHum.g.gain.setTargetAtTime(0.0001, t, 0.15);
+      return;
+    }
+    if (!this._ready()) return;
+    if (!this._chestHum) {
+      const g = this.ctx.createGain(), trem = this.ctx.createOscillator(), tremGain = this.ctx.createGain(), mix = this.ctx.createGain();
+      g.gain.value = 0.0001;
+      // A major chord, slightly detuned, with a slow wobble through it.
+      for (const f of [523.25, 659.25, 783.99, 1046.5]) {
+        const o = this.ctx.createOscillator();
+        o.type = "sine"; o.frequency.value = f * (1 + (Math.random() - 0.5) * 0.004);
+        o.connect(mix); o.start(t);
+      }
+      mix.gain.value = 0.6;
+      trem.frequency.value = 5.5; tremGain.gain.value = 0.4;
+      trem.connect(tremGain).connect(mix.gain); trem.start(t);
+      const p = this._dest(at);
+      p.refDistance = 2; p.rolloffFactor = 1.4;
+      mix.connect(g).connect(p);
+      this._chestHum = { g, p };
+    }
+    const h = this._chestHum;
+    if (h.p.positionX) {
+      h.p.positionX.setTargetAtTime(at.x, t, 0.05);
+      h.p.positionY.setTargetAtTime(at.y, t, 0.05);
+      h.p.positionZ.setTargetAtTime(at.z, t, 0.05);
+    } else {
+      h.p.setPosition(at.x, at.y, at.z);
+    }
+    h.g.gain.cancelScheduledValues(t);
+    h.g.gain.setTargetAtTime(0.015 + level * level * 0.05, t, 0.1);
+    h.g.gain.setTargetAtTime(0.0001, t + 0.4, 0.15);
+  }
+
+  /* A chest's lid popping open: a wooden thunk and a rising sparkle. */
+  chestOpen(at) {
+    if (!this._ready()) return;
+    const t = this.now, dest = this._dest(at);
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = "triangle";
+    o.frequency.setValueAtTime(180, t);
+    o.frequency.exponentialRampToValueAtTime(70, t + 0.12);
+    g.gain.setValueAtTime(0.28, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+    o.connect(g).connect(dest);
+    o.start(t); o.stop(t + 0.18);
+    [784, 988, 1175, 1568, 1976].forEach((f, i) => {
+      const s = this.ctx.createOscillator(), sg = this.ctx.createGain(), at0 = t + 0.06 + i * 0.055;
+      s.type = "sine"; s.frequency.value = f;
+      sg.gain.setValueAtTime(0.0001, at0);
+      sg.gain.exponentialRampToValueAtTime(0.09, at0 + 0.01);
+      sg.gain.exponentialRampToValueAtTime(0.0001, at0 + 0.35);
+      s.connect(sg).connect(dest);
+      s.start(at0); s.stop(at0 + 0.4);
+    });
+  }
+
   /* Troll Royale's C-130, from inside: four turboprops through the hull, a
      drone with the props' beat in it, dull with the door shut and brighter
      open (`open` 0..1); the wind roars in as the ramp comes down (`wind`
