@@ -4,11 +4,14 @@
 // square with the face cut out by alphaTest), the loot beams and glass all
 // counted as solid squares there, so High drew a faint see-through box round
 // every face and floor gun (user 2026-10-12). Anything see-through is left
-// out of that pass, so only solid geometry casts the shading.
+// out of that pass, so only solid geometry casts the shading. So is neon
+// (trollingloud-kit.js neonMat): it glows, it takes no shade, and its
+// geometry has no normals, so in the pass it read as fully occluded and an
+// opaque sign (Kabukigrin's pachinko SLOT 777) drew black on High.
 import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
 import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
 
-const seeThrough = (m) => Array.isArray(m) ? m.some(seeThrough) : !!m && (m.transparent || m.alphaTest > 0);
+const seeThrough = (m) => Array.isArray(m) ? m.some(seeThrough) : !!m && (m.transparent || m.alphaTest > 0 || !!m.userData?.neon);
 
 export function makeSsao(scene, camera) {
   const ssao = new SSAOPass(scene, camera, 1, 1);
