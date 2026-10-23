@@ -21,6 +21,10 @@
 // shaken now and then), chop (a knife on the board), wash (both hands in the
 // sink, a rack lifted out), expo (at the pass: plates slid along, the bell
 // rung), carry (a runner on a path with a tray of food).
+// The beach (Grin Beach): lie (flat on the back on a towel or a lounger,
+// sunbathing; `towel` lays one under him), lift (dumbbell curls at Muscle
+// Beach), ready (a player's stance on a court, weight on the toes, waiting
+// on the ball).
 //
 // Optional per NPC: `height`, `build` (a bouncer's shoulders), `dance`
 // (which of DANCES), `zone` (its room, if not where it stands), `outfit`
@@ -32,7 +36,7 @@ import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, gaitFromVelocity, DANCES, reachHand, setHandPose } from "../characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1";
 import { buildDrink, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1";
 import { SmithWork } from "./smithy.js?v=sm1b7b7dc2f1m1-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1";
-import { wearOutfit } from "../characters/outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1-or1";
+import { wearOutfit } from "../characters/outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1-or1-gb3";
 import { holdInstrument, poseInstrument } from "../characters/instruments.js?v=in1-bw2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1";
 
 const WALK_MPS = 1.25;
@@ -42,7 +46,7 @@ const FAR = 85;      // hidden past this
 const TAG_RANGE = 12; // name tags only inside this
 /* Background extras go untagged: only someone with a job to roleplay (the
    barkeep, the sheriff, the doctor...) wears a name. */
-const UNTAGGED = new Set(["Townsfolk", "Drifter", "Barfly", "Regular", "Gambler", "Clubgoer", "Raver", "VIP"]);
+const UNTAGGED = new Set(["Townsfolk", "Drifter", "Barfly", "Regular", "Gambler", "Clubgoer", "Raver", "VIP", "Beachgoer", "Surfer", "Lifter", "Baller"]);
 /* Each dance's own time per beat of the music (character.js DANCES: bounce,
    floss, headbang, wave) and where in it the hit lands, so a beat-locked
    dancer drops, swings or nods on the beat. */
@@ -74,8 +78,21 @@ function kitchenProp(act) {
       for (let i = 0; i < 5; i++) box(0xf0c450, 0.01, 0.01, 0.07, x + 0.04 + (i % 3) * 0.015, 0.075, z - 0.02 + i * 0.01, 0.6, 0).rotation.y = i * 0.7;
     }
     for (let i = 0; i < 4; i++) { const w = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), propMat(0xb8481a, 0.5, 0)); w.scale.set(1.6, 0.75, 1); w.position.set(0.13 + (i % 2) * 0.05, 0.03, -0.1 + Math.floor(i / 2) * 0.05); g.add(w); }
+  } else if (act === "lift") {   // a dumbbell: the handle through the fist, a bell either side
+    box(0x2a2c30, 0.15, 0.025, 0.025, 0, 0, 0, 0.5, 0.6);
+    for (const x of [-0.085, 0.085]) box(0x3a3c40, 0.04, 0.09, 0.09, x, 0, 0, 0.5, 0.6);
   } else return null;
   g.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+  return g;
+}
+/* A beach towel laid under a sunbather (`towel`: its colour), and its stripe. */
+function beachTowel(color) {
+  const g = new THREE.Group();
+  const t = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.012, 1.9), propMat(color, 0.95, 0));
+  const band = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.014, 0.16), propMat(0xf4efe4, 0.95, 0));
+  for (const z of [-0.7, 0.7]) { const b = band.clone(); b.position.z = z; g.add(b); }
+  g.add(t);
+  g.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = true; } });
   return g;
 }
 
@@ -152,6 +169,19 @@ export class TownNpcs {
       if (c.act === "carry") { prop.position.set(0, -0.3 * k, -0.42 * k); rig.parts.chest.add(prop); }
       else rig.parts.gripR.add(prop);
       n.prop = prop;
+      if (c.act === "lift") { const l = prop.clone(); l.position.set(0, -0.03 * k, -0.03 * k); rig.parts.handL.add(l); }
+    }
+    if (c.act === "lie") {
+      // flat on his back, the head where he faces (the tilt after the yaw)
+      rig.root.rotation.order = "YXZ";
+      if (c.towel) {
+        const t = beachTowel(c.towel);
+        // the body runs from the feet (the root) toward the face
+        t.position.set(c.x - Math.sin(c.yaw ?? 0) * 0.85, 0.012, c.z - Math.cos(c.yaw ?? 0) * 0.85);
+        t.rotation.y = c.yaw ?? 0;
+        this.scene.add(t);
+        n.towel = t;
+      }
     }
     if (c.path) {
       // Where on the loop they start (`at`, 0..1 of its length).
@@ -414,6 +444,49 @@ export class TownNpcs {
         p.headPivot.rotation.x = 0.35;
         break;
       }
+      case "lie": {
+        // Sunbathing: on the back, arms loose at the sides or folded under
+        // the head, one knee up on some; a slow breath.
+        rig.root.rotation.x = -Math.PI / 2;
+        rig.root.position.y += 0.14 * (rig.scale || 1);
+        if (n.seed > 0.5) {
+          p.armL.rotation.set(2.75, 0, 0.55); p.elbowL.rotation.set(2.1, 0, 0);
+          p.armR.rotation.set(2.75, 0, -0.55); p.elbowR.rotation.set(2.1, 0, 0);
+        } else {
+          p.armL.rotation.set(0.05, 0, 0.3); p.elbowL.rotation.set(0.15, 0, 0);
+          p.armR.rotation.set(0.05, 0, -0.3); p.elbowR.rotation.set(0.15, 0, 0);
+        }
+        if (n.seed > 0.3 && n.seed < 0.7) { p.legL.rotation.set(0.75, 0, 0.05); p.kneeL.rotation.set(-1.4, 0, 0); }
+        p.chest.rotation.x = 0.03 * sw(0.9);
+        p.headPivot.rotation.x = -0.15;
+        break;
+      }
+      case "lift": {
+        // Curls at Muscle Beach: one arm up as the other comes down, a breath
+        // between sets.
+        const set = (t % 14) < 10;
+        const u = set ? 0.5 + 0.5 * sw(2.6) : 0.1;
+        p.armR.rotation.set(0.12, 0, -0.12); p.elbowR.rotation.set(0.15 + 2.0 * u, 0, 0);
+        p.armL.rotation.set(0.12, 0, 0.12); p.elbowL.rotation.set(0.15 + 2.0 * (set ? 1 - u : 0.1), 0, 0);
+        p.chest.rotation.x -= 0.06;
+        p.headPivot.rotation.x = set ? 0 : 0.3;
+        break;
+      }
+      case "ready": {
+        // On the court: knees bent, leaning in, hands up in front, a bounce
+        // on the toes, the head following the play.
+        const b = 0.04 * (0.5 + 0.5 * sw(5));
+        p.legL.rotation.set(0.45, 0, 0.12); p.kneeL.rotation.set(-0.8, 0, 0);
+        p.legR.rotation.set(0.45, 0, -0.12); p.kneeR.rotation.set(-0.8, 0, 0);
+        p.ankleL.rotation.set(0.35, 0, 0); p.ankleR.rotation.set(0.35, 0, 0);
+        p.torso.rotation.x = -0.35;
+        p.armL.rotation.set(0.9, 0, 0.25); p.elbowL.rotation.set(0.9, 0, 0);
+        p.armR.rotation.set(0.9, 0, -0.25); p.elbowR.rotation.set(0.9, 0, 0);
+        p.headPivot.rotation.x = -0.15;   // up off the lean, on the ball
+        p.headPivot.rotation.y = sw(0.5) * 0.4;
+        rig.root.position.y -= (0.1 - b) * (rig.scale || 1);
+        break;
+      }
       case "walk": {
         // Stopped: look about, and now and then wave at the street.
         if (!n.moving) {
@@ -530,6 +603,7 @@ export class TownNpcs {
       n.smith?.dispose();
       n.tag?.material.map?.dispose();
       n.tag?.material.dispose();
+      n.towel?.parent?.remove(n.towel);
     }
     this.list.length = 0;
   }

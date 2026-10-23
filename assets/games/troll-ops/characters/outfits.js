@@ -366,6 +366,8 @@ const NEON = [0xff3fb4, 0x3ff0ff, 0x9dff3a, 0xb35cff, 0xfff03a, 0xff7a2a];
 const STREET = [0x111114, 0xf2f2f2, 0x2a3f8a, 0x8a1a2a, 0x3a5a3a, 0x6a6a72, 0xd8c8a8, 0x1c2a4a];
 const DENIM = [0x2d4a7a, 0x1e2f52, 0x3c5f94, 0x111114, 0x2a2a30];
 const LUX = [0x111114, 0xf2efe6, 0x8a0c1e, 0xd9a93c, 0x20203a];
+// Grin Beach: board-short and towel colours, sun-bleached
+const BEACH = [0xff5a6a, 0x3ab0e8, 0xf2c232, 0x5ad88a, 0xff8a3a, 0x2ac8c0, 0xf2f2f2, 0xe86aa8];
 
 /* An outfit for a guest of `role` (Clubgoer, Raver, VIP), from a 0..1 seed:
    ravers in neon, clubgoers in street clothes, VIPs dressed up. */
@@ -377,6 +379,15 @@ export function pickOutfit(role, seed) {
     if (r() < 0.45) return { top: ["dress", of([0x111114, 0xd9a93c, 0x8a0c1e, 0xf2efe6, 0xb35cff])], shades: r() < 0.4 ? 0xd9a93c : null, chain: r() < 0.5 };
     const jacket = of(LUX);
     return { top: [r() < 0.6 ? "suit" : "jacket", jacket], bottom: ["pants", jacket === 0xf2efe6 ? 0xf2efe6 : 0x111114], shades: r() < 0.55 ? 0xd9a93c : null, chain: r() < 0.7 };
+  }
+  if (role === "Beachgoer") {
+    // tank or tee (a sundress on some), shorts, shades on most, a bucket hat or a cap on some
+    if (r() < 0.2) return { top: ["dress", of(BEACH)], hat: r() < 0.4 ? ["bucket", of(BEACH)] : null, shades: of([0x111114, 0x111114, ...BEACH]), chain: false };
+    return {
+      top: [of(["tank", "tank", "tee"]), of(BEACH)], bottom: ["shorts", of([...BEACH, 0x2d4a7a, 0x111114])],
+      hat: r() < 0.45 ? [of(["bucket", "cap", "cap"]), of([...BEACH, 0xf2f2f2])] : null,
+      shades: r() < 0.7 ? of([0x111114, 0x111114, 0xd9a93c, ...NEON.slice(0, 2)]) : null, chain: r() < 0.15,
+    };
   }
   if (role === "Raver") {
     const top = of(["tank", "tee", "tank", "tee", "hoodie"]);

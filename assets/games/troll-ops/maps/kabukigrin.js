@@ -34,7 +34,7 @@ import { U, Neon, neonMat, clubFx, cutRects, slatTexture, mosaicTexture } from "
 import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4-kb6-kb11-tx1-ch1-sp1-hh1-yb1-kbt1";
 import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5-tx1-ch1-sp1-kbt1";
 import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8-tx1-ch1-sp1-kbt1";
-import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9-tx1-ch1-sp1-kbt1";
+import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9-tx1-ch1-sp1-kbt1-gb3";
 import { buildStreet, streetSound } from "./kabukigrin-street.js?v=kb10-kb11-kb12-tx1-ch1-sp1-kbt1";
 import { buildTrain, trainFrame } from "./kabukigrin-train.js?v=kb14-sp1-kbt1";
 

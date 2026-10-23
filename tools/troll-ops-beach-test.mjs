@@ -10,6 +10,8 @@
 // - the wade zone covers the surf and stops at the seawall
 // - gb-venice loads; every spawn (the 5 new ones too) stands clear of every
 //   collider and inside the bounds
+// - 5b: the Socialize cast is 20+, every one inside the bounds, nobody
+//   standing (or walking) inside a collider, the bleachers' seats free
 import { createRequire } from "node:module";
 import { ROOT, serve } from "./troll-ops-map-capture.mjs";
 import fs from "node:fs";
@@ -65,6 +67,20 @@ const res = await page.evaluate(async (tag) => {
   const blocked = (x, z) => colliders.find((c) => c.min.y < 1.2 && c.max.y > 0.3 && x > c.min.x - 0.35 && x < c.max.x + 0.35 && z > c.min.z - 0.35 && z < c.max.z + 0.35);
   const badSpawns = built.map.spawns.filter(([x, z]) => blocked(x, z) || x < b.minX || x > b.maxX || z < b.minZ || z > b.maxZ)
     .map(([x, z]) => { const c = blocked(x, z); return [x, z, c ? [c.min.x, c.min.z, c.max.x, c.max.z].map((v) => +v.toFixed(2)) : "out"]; });
+  // the cast (5b): where each stands, or every corner of a walker's path
+  const rp = built.map.rp;
+  const cast = rp?.npcs?.() || [];
+  const at = (c) => (c.path ? c.path.map(([x, z]) => [x, z, c.y ?? 0]) : [[c.x, c.z, c.y ?? 0]]);
+  const inside = (x, y, z) => colliders.find((c) => c.min.y < y + 1.2 && c.max.y > y + 0.3 && x > c.min.x - 0.25 && x < c.max.x + 0.25 && z > c.min.z - 0.25 && z < c.max.z + 0.25);
+  const badCast = [];
+  for (const c of cast) {
+    for (const [x, y, z] of at(c)) {
+      const out = x < b.minX || x > b.maxX || z < b.minZ || z > b.maxZ;
+      const hit = c.sit || c.act === "lie" ? null : inside(x, y, z);
+      if (out || hit) badCast.push([c.name, x, z, out ? "out" : [hit.min.x, hit.min.y, hit.min.z, hit.max.x, hit.max.y, hit.max.z].map((v) => +v.toFixed(2))]);
+    }
+  }
+  const castInfo = { n: cast.length, roles: [...new Set(cast.map((c) => c.role))], acts: [...new Set(cast.map((c) => c.act))], bad: badCast, free: rp?.seats?.().length ?? 0 };
   // the walls that close the map reach its edges
   const wall = (fn) => colliders.some(fn);
   return {
@@ -79,7 +95,7 @@ const res = await page.evaluate(async (tag) => {
     sea: { maxH, maxStep, dry },
     wade: wade ? { surf: inPoly(wade, 20, -30) && inPoly(wade, -50, -40), sand: inPoly(wade, 20, -18) || inPoly(wade, 0, 5) } : null,
     venice: models().has("gb-venice"),
-    spawns: built.map.spawns.length, badSpawns,
+    spawns: built.map.spawns.length, badSpawns, cast: castInfo,
   };
 }, mapsTag);
 
@@ -95,6 +111,9 @@ check(res.sea.dry === 0, "flat on the sand side", String(res.sea.dry));
 check(!!res.wade && res.wade.surf && !res.wade.sand, "wade over the surf only", JSON.stringify(res.wade));
 check(res.venice, "gb-venice loads");
 check(res.spawns === 13 && !res.badSpawns.length, "13 spawns, all clear", JSON.stringify(res.badSpawns));
+check(res.cast.n >= 20, "a cast of 20+", `${res.cast.n}: ${res.cast.acts.join(",")}`);
+check(!res.cast.bad.length, "the cast stands clear and in bounds", JSON.stringify(res.cast.bad));
+check(res.cast.free >= 36, "bleacher seats left for players", String(res.cast.free));
 check(!errors.length, "no page errors", errors.slice(0, 3).join(" | "));
 console.log(failed ? `FAIL (${failed})` : "PASS");
 await browser.close();
