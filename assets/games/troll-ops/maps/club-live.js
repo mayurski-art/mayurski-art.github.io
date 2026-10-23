@@ -710,6 +710,13 @@ export function clubEngine(P) {
       const root = [523, 587, 659, 698][Math.floor(Math.random() * 4)];
       [1, 1.25, 1.5, 2, 1.5, 2].forEach((m, i) => tone(ctx, t + i * 0.09, out, { type: "square", f0: root * m, dur: 0.11, peak: 0.03 }));
     }
+    // Kabukigrin's train going over (kabukigrin-train.js): a low wheel roar
+    // and the rail joints' knock, a beat every 0.3 s it's near
+    if (kind === "rumble") {
+      noiseHit(ctx, t, out, { type: "lowpass", freq: 140, dur: 0.45, peak: 0.32 });
+      tone(ctx, t, out, { type: "sine", f0: 48, f1: 42, dur: 0.4, peak: 0.12 });
+      if (Math.random() < 0.35) noiseHit(ctx, t + 0.05, out, { type: "bandpass", freq: 420, q: 3, dur: 0.07, peak: 0.12 });
+    }
     if (kind === "scratch") {
       tone(ctx, t, out, { type: "sawtooth", f0: 300, f1: 900, dur: 0.12, peak: 0.18, slide: 0.1 });
       tone(ctx, t + 0.12, out, { type: "sawtooth", f0: 900, f1: 200, dur: 0.18, peak: 0.18, slide: 0.16 });
