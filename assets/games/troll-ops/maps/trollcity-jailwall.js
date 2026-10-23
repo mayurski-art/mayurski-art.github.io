@@ -349,6 +349,7 @@ export function buildJailWall(api, root, { x, outerX, zc, top = 2.55, win, breac
   return {
     spots, rect: { x, z0: zL, z1: zL + FACE.w, y0: yT - FACE.h, y1: yT }, breach, hole: ragged,
     get state() { return state; },
+    get plugSolid() { return col.min.y > -50; },   // the patch still stops you (tests)
     /* Where a round from `from` along `dir` meets the wall, or null. */
     hitPoint(from, dir) {
       if (dir.x <= 1e-4) return null;

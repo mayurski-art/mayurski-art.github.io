@@ -72,7 +72,7 @@ const watcher = await openJoin("jailbreak_b");
 await pump(page, 3000);
 const wallOn = (pg, ci) => pg.evaluate((ci) => {
   const c = window.__trollOps.builtMap().map.rp.jail().cells[ci];
-  return { state: c.wall.state, plug: c.wall.breach && window.__trollOps.colliders.some((k) => k.min.y < -50 && Math.abs((k.min.z + k.max.z) / 2 - (c.wall.breach.z0 + c.wall.breach.z1) / 2) < 0.05) };
+  return { state: c.wall.state, plug: !c.wall.plugSolid };
 }, ci);
 
 const state = () => page.evaluate(() => {
@@ -200,6 +200,83 @@ const out = await page.evaluate(() => {
 });
 check("walked out through the gap into the desert", out.x > 104.3, JSON.stringify(out));
 check("...that's an escape: free, and no grace from the cuffs", !out.jailed && out.escaped && !out.cooling, JSON.stringify(out));
+// on the run: out here in the desert nobody's looking
+const run = () => page.evaluate(() => {
+  const S = window.__trollSheriff, B = window.__trollJailbreak, T = window.__trollOps;
+  return { onRun: performance.now() < S.jailed.heatUntil && !S.jailed.me, jailed: S.jailed.me ? S.jailed.me.ci : -1, noBreak: !!S.jailed.me?.noBreak,
+    caught: B.heat.caughtAt > 0, seen: B.seenBy(), net: T.net?.heat, saved: localStorage.getItem("trollops:jail"), pending: S.jailed.pending };
+});
+let r = await run();
+check("on the run: heat on, on the wire", r.onRun && r.net === 1, JSON.stringify(r));
+await page.evaluate(() => window.__trollOps.move.reset(112, 4, 0));
+await pump(page, 2000);
+r = await run();
+check("...out in the desert nobody sees you", r.onRun && !r.caught && !r.seen, JSON.stringify(r));
+check("...the run is kept for a rejoin", /"heat":[0-9]+/.test(r.saved || ""), String(r.saved));
+// 4 m in front of Sheriff Grimes, wherever he stands: caught
+const grimes = await page.evaluate(() => {
+  const T = window.__trollOps, n = T.townNpcs().list.find((q) => q.c.role === "Sheriff");
+  // in his office, in front of him: the first spot he can see (his own walls and desk aside)
+  let x = 0, z = 0, saw = null;
+  for (const k of [1.2, 1.5, 1.8, 2.2, 2.6, 3]) {
+    x = n.x - Math.sin(n.yaw) * k; z = n.z - Math.cos(n.yaw) * k;
+    T.move.reset(x, z, n.c.y ?? 0);
+    saw = window.__trollJailbreak.seenBy();
+    if (saw) break;
+  }
+  return { x: n.x, z: n.z, yaw: n.yaw, off: !!n.off, me: { x, z }, saw };
+});
+await pump(page, 1800);
+r = await run();
+check("in front of the sheriff: spotted and caught", r.caught && !r.onRun, JSON.stringify({ grimes, ...r }));
+check("...owed even mid-arrest", (r.jailed >= 0) || r.pending > 0, JSON.stringify(r));
+await page.waitForFunction(() => !!window.__trollSheriff.jailed.me, null, { timeout: 30000 }).catch(() => {});
+await pump(page, 800);
+r = await run();
+check("...back in a cell, the gun found (no second try)", r.jailed >= 0 && r.noBreak, JSON.stringify(r));
+s = await state();
+check("...no reach under the bunk this time", s.prompt !== "Reach under the bunk", String(s.prompt));
+// rejoin: the page goes and comes back; the sentence picks up
+const before = await page.evaluate(() => window.__trollSheriff.jailed.me.left);
+await page.evaluate(async () => {
+  const T = window.__trollOps;
+  T.setMode("ops"); T.loadout.mapId = "grinsite";
+  await T.startGame();
+});
+await page.waitForFunction(() => !window.__trollOps.loadState().open, null, { timeout: 420000 });
+await pump(page, 1500);
+const away = await page.evaluate(() => ({ jailed: !!window.__trollSheriff.jailed.me, saved: localStorage.getItem("trollops:jail") }));
+// (a match doesn't run the jail at all: the sentence just waits; what counts is the save)
+check("left Troll City: the sentence kept", /"left":[0-9]+/.test(away.saved || "") && /"noBreak":true/.test(away.saved || ""), JSON.stringify(away));
+await page.evaluate(async () => {
+  const T = window.__trollOps;
+  T.setMode("social"); T.loadout.mapId = "trollcity";
+  await T.startGame();
+});
+await page.waitForFunction(() => !window.__trollOps.loadState().open, null, { timeout: 420000 });
+await page.evaluate(() => { window.__trollOps.els.pause.hidden = true; });
+await pump(page, 3000);
+const back = await page.evaluate(() => ({ ci: window.__trollSheriff.jailed.me?.ci ?? -1, left: window.__trollSheriff.jailed.me?.left ?? 0, noBreak: !!window.__trollSheriff.jailed.me?.noBreak }));
+check("back in Troll City: in a cell again, the time that was left", back.ci >= 0 && back.left > before - 8 && back.left <= before + 5, JSON.stringify({ before, ...back }));
+check("...and still no way out", back.noBreak, JSON.stringify(back));
+// a real rejoin: the tab reloads (the game closed and opened again)
+await pump(page, 2500);   // the save catches up (it's kept rounded to 5 s)
+const saved2 = await page.evaluate(() => JSON.parse(localStorage.getItem("trollops:jail") || "null"));
+await page.reload({ waitUntil: "domcontentloaded", timeout: 420000 });
+await page.waitForFunction(() => !!window.__trollOps && !!window.__trollSheriff && !!window.__trollJailbreak, null, { timeout: 420000 });
+await page.evaluate(async () => {
+  const T = window.__trollOps;
+  T.setLoadWaitMax(8); T.setMode("social"); T.loadout.mapId = "trollcity";
+  await T.startGame();
+});
+await page.waitForFunction(() => !window.__trollOps.loadState().open, null, { timeout: 420000 });
+await page.evaluate(() => { window.__trollOps.els.pause.hidden = true; });
+await pump(page, 3000);
+const reborn = await page.evaluate(() => ({ ci: window.__trollSheriff.jailed.me?.ci ?? -1, left: window.__trollSheriff.jailed.me?.left ?? 0, noBreak: !!window.__trollSheriff.jailed.me?.noBreak }));
+check("reload and rejoin: back in a cell with the time that was saved", reborn.ci >= 0 && saved2 && reborn.left > saved2.left - 6 && reborn.left <= saved2.left, JSON.stringify({ saved2, ...reborn }));
+check("...still no way out", reborn.noBreak, JSON.stringify(reborn));
+await page.evaluate(() => { window.__trollSheriff.jailed.me = null; window.__trollJailbreak.heat.caughtAt = -1e9; localStorage.removeItem("trollops:jail"); });
+await pump(page, 500);
 
 // cell 1: one hit, then a miss on the bare brick in the tracing's top corner
 await page.evaluate(() => { window.__trollSheriff.jailed.me = null; });
