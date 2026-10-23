@@ -39,7 +39,7 @@ const BAKED = new Map([...[
   // Dust Bowl (build_dustbowl.blender.py)
   ...["walls", "north", "centre", "market", "south"].map((n) => `db-${n}`),
   // Grin Beach (build_grinbeach.blender.py)
-  ...["pier", "foodtruck", "shops", "towers", "beach", "bluffs", "boardwalk"].map((n) => `gb-${n}`),
+  ...["pier", "foodtruck", "shops", "towers", "beach", "bluffs", "boardwalk", "venice"].map((n) => `gb-${n}`),
   // Grinjuku (build_grinjuku.blender.py; gj-neon is the light, not baked)
   "gj-shell", "gj-props", "gj-skyline",
   // the Depot (build_depot.blender.py)

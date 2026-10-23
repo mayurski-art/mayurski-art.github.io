@@ -12,22 +12,24 @@ import { makeGroundMaterial } from "../view/shaders.js?v=or1";
 import { groundHeightAt } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1";
 import { setGroundField } from "../core/ground-field.js?v=gf1-tg1";
 import { PENTAGRIN } from "./pentagrin.js?v=hg6e-sr1-or1";
-import { HOLLOWGRIN } from "./hollowgrin.js?v=hg6tc-sb2-sr1-or1-tcs1-tm3-tm6-tx1-sp1-kbt1";
-import { GRINLERIA } from "./grinleria.js?v=hg6e-bl1-bw1-sr1-or1-tx1-sp1-kbt1";
-import { TROLLFACE_ISLAND } from "./trollface-island.js?v=hg6e-pi1-sr1-or1-wf1-wf2-zf1-bp1-is1-tg1-ip1-mg1-tx1-sp1-ch1-kbt1";
-import { TROLLCITY } from "./trollcity.js?v=tc2-wst-sb1-rp1-dj1-fu1b7b7d-tc3-cd1-sh1-zr10-hr2-zp1-sr1-pf1-or1-bw2-bt1-tcs1-tcs2-mg1-tcp1-tx1-trk1-bt3-ch1-jb1-jb3-jb6-sp1-kbt1";
+import { HOLLOWGRIN } from "./hollowgrin.js?v=hg6tc-sb2-sr1-or1-tcs1-tm3-tm6-tx1-sp1-kbt1-gb1";
+import { GRINLERIA } from "./grinleria.js?v=hg6e-bl1-bw1-sr1-or1-tx1-sp1-kbt1-gb1";
+import { TROLLFACE_ISLAND } from "./trollface-island.js?v=hg6e-pi1-sr1-or1-wf1-wf2-zf1-bp1-is1-tg1-ip1-mg1-tx1-sp1-ch1-kbt1-gb1";
+import { TROLLCITY } from "./trollcity.js?v=tc2-wst-sb1-rp1-dj1-fu1b7b7d-tc3-cd1-sh1-zr10-hr2-zp1-sr1-pf1-or1-bw2-bt1-tcs1-tcs2-mg1-tcp1-tx1-trk1-bt3-ch1-jb1-jb3-jb6-sp1-kbt1-gb1";
 import { TROLLINGLOUD } from "./trollingloud.js?v=tl4-fu1c1c2f1m1-tc3-nc1-cd1-sh1-sg1-cw1-zr10-hr2-zp1-jb1-nh1-sr1-hl1-pf1-or1-bw2-bt1-tcs1-cl1-kb4-kb6-kb11-tm4-tm7-tx1-ch1-sp1-hh1-yb1-kbt1";
-import { GRINJUKU } from "./grinjuku.js?v=gj1-sr1-or1-tx1-sp1-kbt1";
-import { KABUKIGRIN } from "./kabukigrin.js?v=kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-mg1-kb12-tx1-ch1-sp1-hh1-yb1-kbt1";
+import { GRINJUKU } from "./grinjuku.js?v=gj1-sr1-or1-tx1-sp1-kbt1-gb1";
+import { KABUKIGRIN } from "./kabukigrin.js?v=kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-mg1-kb12-tx1-ch1-sp1-hh1-yb1-kbt1-gb1";
 import { ZHUB } from "../modes/zombies/hub-hall.js?v=zh1-sr1-or1";
 import { SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1";
-import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer, groundLight } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1";
+import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer, groundLight } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1";
 import {
   portrait, picketFence, mailbox, kiddiePool, houseExterior,
   toyCar, gardenGnome, trashCan, tireSwing, streetlamp,
-} from "./house-props.js?v=hg6e-sb2-sr1-or1-tx1-sp1-kbt1";
-import { gsModel, mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1";
+} from "./house-props.js?v=hg6e-sb2-sr1-or1-tx1-sp1-kbt1-gb1";
+import { gsModel, mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1";
 import { buildDustbowlCity, CITY_PALMS } from "./dustbowl-city.js?v=db5-sr1-or1-tx1-sp1-kbt1";
+import { buildSurfStrip } from "./surf-sea.js?v=gb1";
+import { buildVenice, VENICE_PALMS, VENICE_SPAWNS } from "./grinbeach-venice.js?v=gb1";
 import { dressMap, beachWaterMaterial, palmTrees, shopSignMaterial, beachMural, rangeBoardMaterial } from "./map-dressing.js?v=hg6e-sr1-or1";
 
 /* ------------------------------------------------------------ surface PBR */
@@ -584,7 +586,7 @@ const CG_GROUND = { file: "cg-ground", rect: [-60, -60, 120] };
 // Dust Bowl's (models/bake_map_ground.blender.py)
 const DB_GROUND = { file: "dustbowl-ground", rect: [-48, -48, 96] };
 const CITY_LIGHT = [0, 0, 40];   // where Dust Bowl's city samples it: the whole village
-const GB_GROUND = { file: "grinbeach-ground", rect: [-52, -58, 104] };
+const GB_GROUND = { file: "grinbeach-ground", rect: [-71, -82, 160] };
 const DP_GROUND = { file: "depot-ground", rect: [-40, -40, 80] };
 
 export const MAPS = {
@@ -1351,8 +1353,13 @@ export const MAPS = {
     // east-west across that band — pier (long sightlines, almost no cover),
     // sand (open, scattered low cover) and boardwalk (tight, roofed, the
     // flanking route) — and every spawn sits a few seconds from all three.
-    bounds: { minX: -40, maxX: 40, minZ: -44, maxZ: 32 },
+    // Grin Beach 5a: wider (Muscle Beach and the skate plaza west, the
+    // basketball and tennis courts east) and a deeper lot; the seaward edge
+    // stays, so the pier still ends at it.
+    bounds: { minX: -56, maxX: 74, minZ: -44, maxZ: 40 },
     playerSpawn: { x: 0, z: 28 },
+    // the surf past the seawall: you wade it (slower, no sprint)
+    wade: [[-56, -21], [74, -21], [74, -44], [-56, -44]],
     // Late-afternoon Pacific: the sun is low out over the water, so the pier
     // pilings and lifeguard towers throw long shadows back up the sand.
     //
@@ -1384,9 +1391,9 @@ export const MAPS = {
       // Drawn by gb-bluffs (realism pass): sandstone bluffs close both ends and
       // run out into the sea, the lot's back wall is a painted retaining wall
       // (its mural is a canvas, beachMural).
-      api.box(0, 31.3, 80, 1.4, 6, { ghost: true });
-      api.box(-39.3, -6, 1.4, 76, 6, { ghost: true });
-      api.box(39.3, -6, 1.4, 76, 6, { ghost: true });
+      api.box(9, 39.3, 130, 1.4, 6, { ghost: true });
+      api.box(-55.3, -2.35, 1.4, 83.3, 6, { ghost: true });
+      api.box(73.3, -2.35, 1.4, 83.3, 6, { ghost: true });
       mapModel(api, "gb-bluffs", { x: 0, z: 0 });
       api.prop(beachMural());
 
@@ -1396,13 +1403,22 @@ export const MAPS = {
       // shoreline and hang over the sea. The water is therefore laid *over*
       // that overhang (slightly proud of it) and run out far enough to meet
       // the fog, which hides its far edge.
-      // The sea (phase 5): shallows to deep blue, travelling wave normals and
-      // a foam line washing up to the seawall (map-dressing.js). It starts
-      // under the seawall, so the wall is the tideline.
+      // The surf (Grin Beach 5a, surf-sea.js): from the seawall out 40 m, real
+      // waves on the shared sea clock, a set rolling through once a minute,
+      // foam on the break and the whitewater. Past it, and either side of it,
+      // the flat far sea (map-dressing.js), coloured to meet it.
+      api.prop(buildSurfStrip());
       const sea = beachWaterMaterial({ shore: -21 });
-      const water = new THREE.Mesh(new THREE.PlaneGeometry(260, 200), sea);
+      const water = new THREE.Mesh(new THREE.PlaneGeometry(400, 200), sea);
       water.rotation.x = -Math.PI / 2;
-      water.position.set(0, 0.05, -121);
+      water.position.set(0, 0.05, -161);
+      for (const sx of [-1, 1]) {
+        const side = new THREE.Mesh(new THREE.PlaneGeometry(132, 40), sea);
+        side.rotation.x = -Math.PI / 2;
+        side.position.set(sx * 152, 0.05, -41);
+        side.receiveShadow = true;
+        api.prop(side);
+      }
       water.receiveShadow = true;
       water.onBeforeRender = () => { sea.userData.seaUniforms.uTime.value = performance.now() / 1000; };
       api.prop(water);
@@ -1412,7 +1428,7 @@ export const MAPS = {
       // ocean — the thing that makes this read as a beach at all — into a
       // grey stripe above a wall. The real edge of the arena is `bounds`,
       // which the movement controller clamps to regardless.
-      api.box(0, -21, 80, 0.8, 0.75, { ghost: true, pen: 5 });   // gb-beach: precast blocks, a capped top, weed on the sea face
+      api.box(9, -21, 130, 0.8, 0.75, { ghost: true, pen: 5 });   // gb-beach: precast blocks, a capped top, weed on the sea face
       /* ----------------------------------------------------------- the pier */
       // The long lane. A raised deck running out over the water, high enough
       // to look back down the whole beach. A bait shack partway out keeps the
@@ -1516,7 +1532,8 @@ export const MAPS = {
       }
       for (const [x, z] of [[-33, -20], [34, -24], [-16, 4], [18, -8]]) barrel(api, { x, z });
       // driftwood logs, long and low — the sand lane's prone cover
-      for (const [x, z, w, d] of [[-8, -26, 7, 1], [24, -30, 1, 6], [-28, 2, 6, 1]]) {
+      // ((24, -30) moved to (-46, -17): it lay across the surf)
+      for (const [x, z, w, d] of [[-8, -26, 7, 1], [-46, -17, 6, 1], [-28, 2, 6, 1]]) {
         api.box(x, z, w, d, 0.8, { ghost: true, pen: 1.5 });
       }
 
@@ -1528,11 +1545,12 @@ export const MAPS = {
       const WALK_Y = 0.45;
       // Drawn by gb-boardwalk: gapped deck boards, a fascia on posts, a
       // railing with balusters, plank steps.
-      for (let x = -38; x < 38; x += 8) {
-        api.box(x + 4, 12, 8, 7, WALK_Y, { ghost: true, pen: 3 });
+      for (let x = -54; x < 54; x += 6) {
+        api.box(x + 3, 12, 6, 7, WALK_Y, { ghost: true, pen: 3 });
       }
-      // low rail on the sand side, with gaps at the two stair runs
-      for (const [rx, rw] of [[-27, 22], [0, 14], [27, 22]]) {
+      // low rail on the sand side, with gaps at the two stair runs (the
+      // builder's WALK_RAILS)
+      for (const [rx, rw] of [[-35, 38], [0, 14], [35, 38]]) {
         api.box(rx, 8.7, rw, 0.25, 1, { ghost: true, y: WALK_Y, pen: 1 });
       }
       api.stairs(-15, 7.6, 5, 2, 0.25, 0.6, "+z", { ghost: true });
@@ -1586,24 +1604,25 @@ export const MAPS = {
         roughness: 1,
       });
       for (const t of [lotMat.map, lotMat.normalMap, lotMat.roughnessMap]) {
-        t.repeat.set(16, 3);
+        t.repeat.set(19, 3);
         t.needsUpdate = true;
       }
-      const lot = new THREE.Mesh(new THREE.PlaneGeometry(76, 7), lotMat);
+      // (5a: x -40 .. 54, z 24 .. 38.6, the skate plaza west of it; two rows)
+      const lot = new THREE.Mesh(new THREE.PlaneGeometry(94, 14.6), lotMat);
       lot.rotation.x = -Math.PI / 2;
-      lot.position.set(0, 0.02, 27.5);
+      lot.position.set(7, 0.02, 31.3);
       lot.receiveShadow = true;
       api.prop(lot);
       groundLight(lot, GB_GROUND);
       // parking stripes
-      for (let x = -34; x <= 34; x += 5) {
-        const stripe = new THREE.Mesh(
-          new THREE.PlaneGeometry(0.18, 5),
-          new THREE.MeshStandardMaterial({ color: 0xe6e2d4, roughness: 0.8 }),
-        );
-        stripe.rotation.x = -Math.PI / 2;
-        stripe.position.set(x, 0.03, 27.5);
-        api.prop(stripe);
+      const stripeMat = new THREE.MeshStandardMaterial({ color: 0xe6e2d4, roughness: 0.8 });
+      for (const sz of [27.5, 35.5]) {
+        for (let x = -34; x <= 52; x += 5) {
+          const stripe = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 5), stripeMat);
+          stripe.rotation.x = -Math.PI / 2;
+          stripe.position.set(x, 0.03, sz);
+          api.prop(stripe);
+        }
       }
       // shipping containers parked along the lot — the hard cover on this side
       shippingContainer(api, { x: -20, z: 26, rot: 0 });
@@ -1616,6 +1635,12 @@ export const MAPS = {
       api.ghostBox(0, 26.3, 6, 2.4, 3, { pen: 4 });
       mapModel(api, "gb-foodtruck", { x: 0, z: 26.3, rot: Math.PI });
       for (const [x, z] of [[-6, 24.5], [28, 24.5]]) trashCan(api, { x, z });
+      // the back row, nose to the retaining wall
+      for (const [x, paint] of [[-26.5, "blue"], [8.5, "red"], [43.5, "red"]]) {
+        api.ghostBox(x, 35.5, 4, 2, 1.4, { pen: 2 });
+        mapModel(api, `cg-car-${paint}`, { x, z: 35.5, rot: x < 20 ? 0 : Math.PI });
+      }
+      shippingContainer(api, { x: -9, z: 36, rot: 0 });
 
       // Service stairs up to the shop roofs, at the two ends of the row.
       // A stacked container is 2.6m and the roof deck sits at 3.4m — an 0.8m
@@ -1643,7 +1668,7 @@ export const MAPS = {
       // palmTrees: leaning ringed trunks, drooping feathered fronds), framing
       // the lane without blocking shots through it. The collider is the
       // trunk's base, as before.
-      const PALMS = [[-34, 7], [-20, 7], [-6, 7], [8, 7], [22, 7], [35, 7]];
+      const PALMS = [[-34, 7], [-20, 7], [-6, 7], [8, 7], [22, 7], [35, 7], ...VENICE_PALMS];
       for (const [px, pz] of PALMS) api.cylinder(px, pz, 0.32, 5.5, { ghost: true, pen: 2 });
       const palmRoot = new THREE.Group();
       api.prop(palmRoot);
@@ -1651,14 +1676,16 @@ export const MAPS = {
       groundLight(palmRoot, GB_GROUND);
       // streetlamps down the lot, and floodlights at the far corners so the
       // sand does not go flat at its edges
-      for (const [x, z] of [[-24, 23.5], [0, 23.5], [24, 23.5]]) streetlamp(api, { x, z, rot: 0 });
+      for (const [x, z] of [[-24, 23.5], [0, 23.5], [24, 23.5], [46, 23.5]]) streetlamp(api, { x, z, rot: 0 });
       for (const [x, z] of [[-36, -20], [36, -20]]) {
         api.floodlight(x, z, new THREE.Vector3(0, 0, -8), 0xffe2b0);
       }
+      // the new strips (Grin Beach 5a, grinbeach-venice.js)
+      buildVenice(api);
     },
-    // Spawns hug the lot and the two far sand corners — never the pier,
-    // which is the contested lane, and never inside a shop.
-    spawns: [[-34, 28], [34, 28], [0, 29], [-36, -18], [36, -18], [-20, 24], [20, 28], [0, -14]],
+    // Spawns hug the lot and the far sand corners — never the pier, which is
+    // the contested lane, and never inside a shop.
+    spawns: [[-34, 28], [34, 28], [0, 29], [-36, -18], [36, -18], [-20, 24], [20, 28], [0, -14], ...VENICE_SPAWNS],
   },
 
 };
@@ -1820,8 +1847,9 @@ MAPS.culdegrin.dress = {
 };
 MAPS.grinbeach.dress = {
   seed: 83,
-  areas: { beach: [-38, -20.2, 38, 8.2], shore: [-38, -20.2, 38, -15], dune: [-38, 3, 38, 8.4], lot: [-38, 24, 38, 31], walk: [-38, 8.8, 38, 15.2, 0.45] },
-  avoid: [[-18.5, -44, -7.5, -4]],   // the pier and its ramps
+  areas: { beach: [-54, -20.2, 72, 8.2], shore: [-54, -20.2, 72, -15], dune: [-54, 3, 72, 8.4], lot: [-38, 24, 52, 38], walk: [-52, 8.8, 52, 15.2, 0.45] },
+  // the pier and its ramps, Muscle Beach, the skate plaza, the two courts
+  avoid: [[-18.5, -44, -7.5, -4], [-55, -11, -41, 3], [-55, 16.5, -41, 30.5], [40.5, -20, 55.5, 8], [56.5, -20.5, 72.5, 11.5]],
   decals: [
     { cell: "ripples", n: 60, area: "beach", size: [3, 6], color: 0x8a7450, alpha: 0.35 },
     { cell: "steps", n: 40, area: "beach", size: [1, 1.4], stretch: 2.4, color: 0x7a6040, alpha: 0.35 },
@@ -1831,7 +1859,7 @@ MAPS.grinbeach.dress = {
   ],
   place: [
     // the tideline: seaweed and shell grit along the foot of the seawall
-    ...Array.from({ length: 13 }, (_, i) => ({ cell: "wrack", x: -36 + i * 6 + (((i * 37) % 5) - 2) * 0.4, z: -19.6 - (i % 3) * 0.3, w: 6.5, d: 1.4, color: 0x3a3a24, alpha: 0.75 })),
+    ...Array.from({ length: 21 }, (_, i) => ({ cell: "wrack", x: -51 + i * 6 + (((i * 37) % 5) - 2) * 0.4, z: -19.6 - (i % 3) * 0.3, w: 6.5, d: 1.4, color: 0x3a3a24, alpha: 0.75 })),
     { cell: "grin", x: 6, z: -8, size: 4.5, rot: 0.4, color: 0x7a5a36, alpha: 0.45 },    // drawn in the sand
     { cell: "oil", x: 0, z: 26.3, size: 2.4, color: SOOT, alpha: 0.6 },                  // under the food truck
   ],

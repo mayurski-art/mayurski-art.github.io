@@ -117,6 +117,9 @@ const RUNS = {
   [-6.2, 0, -13.4, 0, -1, 3.5, "east ramp up", (r) => r.maxY >= 3.0],
   [-6.2, 3.1, -19.9, -1, 0, 2, "east ramp top -> onto deck", (r) => r.end[0] < -9 && r.end[1] > 3],
   [-13, 3.1, -8, 0, -1, 8, "deck run to the end", (r) => r.end[2] < -40 && r.end[2] > -44.1 && r.end[1] > 3],
+  [-38, 0, -4, -1, 0, 6, "in through the Muscle Beach gate", (r) => r.end[0] < -43],
+  [36, 0, 3, 1, 0, 8, "onto the basketball court", (r) => r.end[0] > 42],
+  [55.5, 0, 2.5, 1, 0, 5, "in through the tennis gate", (r) => r.end[0] > 59],
   ],
   // The Grinleria (grinleria-layout.js): escalators, the bridges, the
   // balustrades, and the doors that make its flanks (shop links, a stock

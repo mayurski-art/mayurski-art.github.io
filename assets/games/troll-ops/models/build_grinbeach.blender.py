@@ -19,6 +19,15 @@ import random  # noqa: E402
 from mathutils import Vector  # noqa: E402
 
 PIER_Y = 2.6
+# The map's extent (maps.js grinbeach bounds, Grin Beach 5a): the west edge
+# at -WEST_X, the east at EAST_X (wider: the tennis court), side walls 0.7
+# inside them, the back wall at BACK_Z, the boardwalk to +-WALK_X.
+WEST_X = 56.0
+EAST_X = 74.0
+MID_X = (EAST_X - WEST_X) / 2              # the centre of the span
+SPAN_X = WEST_X + EAST_X
+BACK_Z = 39.3
+WALK_X = 54.0
 PIER_X = -13
 DECK_TOP = PIER_Y + 0.5
 Z0, Z1 = -6.0, -44.0
@@ -396,7 +405,7 @@ def build_towers(P, G):
 
 UMBRELLAS = [(-24, -18, 8), (4, -20, 190), (32, -14, 45), (-6, -4, 320)]
 FIRE = [(-23, -1.5), (20, -20), (10, 8)]
-DRIFT = [(-8, -26, 7, 1), (24, -30, 1, 6), (-28, 2, 6, 1)]
+DRIFT = [(-8, -26, 7, 1), (-46, -17, 6, 1), (-28, 2, 6, 1)]   # (24,-30) moved off the surf
 
 
 def build_beach(P, G):
@@ -483,31 +492,32 @@ def build_beach(P, G):
         b.box(G["trim"], 0.05, 0.95, 0.03, ax, 1.48, -12)
     # the seawall (collider 80 x 0.8 x 0.75 at z -21): precast blocks with
     # joints, a rounded cap, weed and wet staining on the sea face
-    x = -40.0
-    while x < 40 - 0.01:
-        L = min(2.5, 40 - x)
+    x = -WEST_X
+    while x < EAST_X - 0.01:
+        L = min(2.5, EAST_X - x)
         b.box(P["precast"], L - 0.03, 0.62, 0.8, x + L / 2, 0, -21)
         b.box(P["precast"], L - 0.03, 0.13, 0.86, x + L / 2, 0.62, -21, bevel=0.04)
         x += L
-    b.box(G["algae"], 80, 0.28, 0.02, 0, 0, -21.41)
-    b.box(P["wet"], 80, 0.18, 0.02, 0, 0.28, -21.41)
+    b.box(G["algae"], SPAN_X, 0.28, 0.02, MID_X, 0, -21.41)
+    b.box(P["wet"], SPAN_X, 0.18, 0.02, MID_X, 0.28, -21.41)
     b.finish("gb-beach.glb")
 
 
 def build_bluffs(P, G):
-    """The two side walls (x +-39.3, 1.4 thick, 6 tall, z -44 .. 32) become
+    """The two side walls (x -WEST_X + 0.7, EAST_X - 0.7, 1.4 thick, 6 tall, z -44 .. BACK_Z) become
     sandstone bluffs running out into the sea; the back wall (z 31.3) a
     painted retaining wall with a cap and pilasters (the mural is JS)."""
     b = Builder()
     rng = random.Random(9)
     for sx in (-1, 1):
+        SIDE_X = (WEST_X if sx < 0 else EAST_X) - 0.7
         z = -48.0
         k = 0
-        while z < 34:
+        while z < BACK_Z + 2.7:
             d = rng.uniform(3.0, 5.0)
             h = rng.uniform(6.2, 7.6) if z > -22 else rng.uniform(6.1, 6.8)
             w = rng.uniform(3.6, 5.2)
-            cx = sx * (38.55 + w / 2 - 0.05)
+            cx = sx * (SIDE_X - 0.75 + w / 2 - 0.05)
             b.lump(G["sand"], w, h, d + 0.8, cx, -0.3, z + d / 2, seed=k, rnd=0.35, jitter=0.12, ry=rng.uniform(-0.15, 0.15))
             if rng.random() < 0.7:
                 b.lump(G["sand"], w * 0.7, h * 0.45, d * 0.6, cx + sx * 0.8, h - 0.8, z + d / 2 + rng.uniform(-0.5, 0.5), seed=k + 50)
@@ -518,36 +528,39 @@ def build_bluffs(P, G):
             k += 1
         # boulders at the foot, half in the sand
         for j in range(10):
-            zz = rng.uniform(-44, 26)
+            zz = rng.uniform(-44, BACK_Z - 6)
             s = rng.uniform(0.6, 1.3)
-            b.lump(G["sand"], s * 1.4, s, s * 1.2, sx * rng.uniform(38.0, 38.4), -0.15, zz, seed=200 + j)
+            b.lump(G["sand"], s * 1.4, s, s * 1.2, sx * rng.uniform(SIDE_X - 1.3, SIDE_X - 0.9), -0.15, zz, seed=200 + j)
     # back wall
-    b.box(G["wall"], 80, 6, 1.4, 0, 0, 31.3)
-    b.box(G["trim"], 80.4, 0.25, 1.7, 0, 6, 31.3)
-    for k in range(11):
-        b.box(G["trim"], 0.7, 6.0, 1.6, -40 + k * 8, 0, 31.3)
-    b.box(P["wet"], 80, 0.35, 0.02, 0, 0, 30.59)
+    b.box(G["wall"], SPAN_X, 6, 1.4, MID_X, 0, BACK_Z)
+    b.box(G["trim"], SPAN_X + 0.4, 0.25, 1.7, MID_X, 6, BACK_Z)
+    for k in range(int(SPAN_X / 8) + 1):
+        b.box(G["trim"], 0.7, 6.0, 1.6, -WEST_X + k * 8, 0, BACK_Z)
+    b.box(P["wet"], SPAN_X, 0.35, 0.02, MID_X, 0, BACK_Z - 0.71)
     b.finish("gb-bluffs.glb")
 
 
+WALK_RAILS = ((-(WALK_X + 16) / 2, WALK_X - 16), (0, 14), ((WALK_X + 16) / 2, WALK_X - 16))   # maps.js: the same runs
+
+
 def build_boardwalk(P, G):
-    """api.box(x+4, 12, 8, 7, 0.45) sections x -38 .. 38 (z 8.5 .. 15.5), the
-    sand-side rail (z 8.7, 0.25 thick, 1 tall at y .45) with gaps at x +-15,
-    and the 2-step stairs there."""
+    """api.box(x+3, 12, 6, 7, 0.45) sections x -WALK_X .. WALK_X (z 8.5 .. 15.5),
+    the sand-side rail (z 8.7, 0.25 thick, 1 tall at y .45) with gaps at x
+    +-15, and the 2-step stairs there."""
     b = Builder()
     rng = random.Random(3)
     y = 0.45
-    b.box(G["under"], 76, 0.33, 7, 0, 0, 12)
-    x = -38.0
-    while x < 38 - 0.01:
+    b.box(G["under"], WALK_X * 2, 0.33, 7, 0, 0, 12)
+    x = -WALK_X
+    while x < WALK_X - 0.01:
         w = 0.17
         b.box(G["deck"], w - 0.018, 0.1, 7.0, x + w / 2, y - 0.1, 12 + rng.uniform(-0.02, 0.02))
         x += w
-    b.box(G["deck"], 76, 0.36, 0.06, 0, 0.06, 8.52)       # fascia board on the sand side
-    for xx in range(-38, 39, 2):
+    b.box(G["deck"], WALK_X * 2, 0.36, 0.06, 0, 0.06, 8.52)       # fascia board on the sand side
+    for xx in range(-int(WALK_X), int(WALK_X) + 1, 2):
         b.box(G["post"], 0.16, 0.42, 0.16, xx, 0, 8.6)
     # the rail: posts every 2 m, top + mid rails, balusters
-    for (rx, rw) in ((-27, 22), (0, 14), (27, 22)):
+    for (rx, rw) in WALK_RAILS:
         x0, x1 = rx - rw / 2, rx + rw / 2
         xx = x0
         while xx <= x1 + 0.01:
@@ -570,6 +583,456 @@ def build_boardwalk(P, G):
     b.finish("gb-boardwalk.glb")
 
 
+# ----------------------------------------------------------------------------
+# Grin Beach 5a, "Venice": the strips the bigger map added. grinbeach-venice.js
+# lays the same layout's colliders: change one, change the other.
+
+MUSCLE = (-48.0, -4.0, 13.0, 12.0)        # centre x, z, width (x), depth (z)
+SKATE = (-48.0, 23.5, 13.0, 13.0)
+COURT = (48.0, -6.0, 14.0, 26.0)          # the basketball court's slab
+COURT_LINES = (41.5, 54.5, -18.5, 6.5)    # its painted boundary
+HOOP_Z = (-17.8, 5.8)                     # the backboards' faces (rims 0.38 in front)
+RIM_Y = 3.05
+STALLS = [(41.5, "ice"), (46.5, "tees"), (51.5, "shades"), (-42.0, "henna"), (-48.0, "psychic")]
+STALL_Z = 14.2
+VB = (-1.0, 7.0, -19.5, -4.5)             # volleyball court lines (x0, x1, z0, z1)
+RACKS = [(-28.0, 6.5), (10.0, -19.4)]
+# the tennis court (user, 2026-10-23: "do both", the map wider for it): a
+# full-size court (doubles lines 10.97 x 23.77, the net across z) on an
+# acrylic slab with 2 m round it, fenced, past the basketball court
+TENNIS = (64.5, -6.1, 15.0, 27.8)          # the slab: centre x, z, width (x), depth (z)
+TENNIS_GATES = (("w", 1.0, 4.0), ("n", 61.0, 64.0))   # fence gaps: side, from, to
+
+
+def pal_venice():
+    return {
+        "pad": mat("GV_Pad", 0xa8a49a, 0.95),
+        "pad_dk": mat("GV_PadDark", 0x8c887e, 0.95),
+        "mat": mat("GV_RubberMat", 0x2a2a2c, 0.95),
+        "blue": mat("GV_RailBlue", 0x2f6cc8, 0.45, 0.2),
+        "chrome": mat("GV_Chrome", 0xc8ccd0, 0.25, 0.85),
+        "iron": mat("GV_Iron", 0x2a2c30, 0.5, 0.6),
+        "plate_red": mat("GV_PlateRed", 0xb8262a, 0.6),
+        "vinyl": mat("GV_Vinyl", 0x1c1c22, 0.7),
+        "asphalt": mat("GV_Asphalt", 0x55585c, 0.95),
+        "court_green": mat("GV_CourtGreen", 0x3e7a5a, 0.85),
+        "court_blue": mat("GV_CourtBlue", 0x2e5f9e, 0.85),
+        "line": mat("GV_Line", 0xf2f0e8, 0.8),
+        "board": mat("GV_Backboard", 0xf4f4f0, 0.35),
+        "rim": mat("GV_Rim", 0xe0561e, 0.4, 0.5),
+        "netw": mat("GV_Net", 0xf0f0ea, 0.9),
+        "post": mat("GV_PostGrey", 0x6c7176, 0.4, 0.6),
+        "alu": mat("GV_Alu", 0xb8bcc0, 0.35, 0.7),
+        "granite": mat("GV_Granite", 0x9a948c, 0.7),
+        "coping": mat("GV_Coping", 0xb0b4b8, 0.3, 0.8),
+        "ramp": mat("GV_RampPaint", 0x5a6670, 0.8),
+        "tape": mat("GV_VBTape", 0x2f7ad8, 0.8),
+        "canvas_a": mat("GV_CanopyWhite", 0xf2efe6, 0.85),
+        "canopies": [mat("GV_CanopyRed", 0xe2483a, 0.85), mat("GV_CanopyTeal", 0x2aa8a0, 0.85),
+                     mat("GV_CanopyYellow", 0xf2b52e, 0.85), mat("GV_CanopyPink", 0xe86aa8, 0.85),
+                     mat("GV_CanopyPurple", 0x8a5ad8, 0.85)],
+        "wood": mat("GV_StallWood", 0xb08454, 0.85),
+        "wood_dk": mat("GV_StallWoodDark", 0x7a5634, 0.9),
+        "cups": [mat("GV_SyrupRed", 0xe8304a, 0.4), mat("GV_SyrupBlue", 0x2f8ae8, 0.4), mat("GV_SyrupGreen", 0x3ac85a, 0.4)],
+        "tee": [mat("GV_TeeWhite", 0xf2f0ea, 0.9), mat("GV_TeeBlack", 0x1e1e22, 0.9),
+                mat("GV_TeeTeal", 0x2ab0a8, 0.9), mat("GV_TeeOrange", 0xf08a2a, 0.9)],
+        "lens": mat("GV_Lens", 0x101418, 0.1, 0.6),
+        "crystal": mat("GV_Crystal", 0x9ad8f0, 0.05, 0.1, 0x6ab8e8, 0.6),
+        "boards": [mat("GV_SurfA", 0xf4ead2, 0.35), mat("GV_SurfB", 0x3ab8d8, 0.35), mat("GV_SurfC", 0xf0702a, 0.35),
+                   mat("GV_SurfD", 0xf2d23a, 0.35), mat("GV_SurfE", 0xe84a7a, 0.35)],
+    }
+
+
+def ring(b, m, cx, y, cz, r, w=0.08, seg=40, a0=0.0, a1=math.tau, h=0.006):
+    """A painted arc on the ground (or a hoop): short boxes round a circle."""
+    n = max(3, int(seg * abs(a1 - a0) / math.tau))
+    for i in range(n):
+        a = a0 + (a1 - a0) * (i + 0.5) / n
+        L = r * abs(a1 - a0) / n * 1.06
+        b.box(m, L, h, w, cx + r * math.cos(a), y, cz + r * math.sin(a), ry=-a + math.pi / 2)
+
+
+def line(b, m, x0, z0, x1, z1, y=0.06, w=0.08):
+    L = math.hypot(x1 - x0, z1 - z0)
+    b.box(m, L, 0.006, w, (x0 + x1) / 2, y, (z0 + z1) / 2, ry=-math.atan2(z1 - z0, x1 - x0))
+
+
+def fence_run(b, V, x0, z0, x1, z1, h=1.0, gaps=()):
+    """Blue tube rails (Muscle Beach): posts every ~2 m, two rails, open
+    over `gaps` ((a, b) fractions along the run)."""
+    L = math.hypot(x1 - x0, z1 - z0)
+    spans = [(0.0, 1.0)]
+    for (ga, gb) in gaps:
+        out = []
+        for (sa, sb) in spans:
+            if gb <= sa or ga >= sb:
+                out.append((sa, sb))
+                continue
+            if ga > sa:
+                out.append((sa, ga))
+            if gb < sb:
+                out.append((gb, sb))
+        spans = out
+    for (sa, sb) in spans:
+        pa = (x0 + (x1 - x0) * sa, z0 + (z1 - z0) * sa)
+        pb = (x0 + (x1 - x0) * sb, z0 + (z1 - z0) * sb)
+        n = max(1, round(L * (sb - sa) / 2.0))
+        for i in range(n + 1):
+            k = i / n
+            px, pz = pa[0] + (pb[0] - pa[0]) * k, pa[1] + (pb[1] - pa[1]) * k
+            b.cyl(V["blue"], 0.045, (px, 0.06, pz), (px, h, pz), seg=10)
+            b.cyl(V["blue"], 0.06, (px, h, pz), (px, h + 0.05, pz), seg=10)
+        for y in (h - 0.02, h * 0.5):
+            b.cyl(V["blue"], 0.035, (pa[0], y, pa[1]), (pb[0], y, pb[1]), seg=10)
+
+
+def barbell(b, V, x, y, z, along_x=True, plates=2):
+    a = (x - 1.1, y, z) if along_x else (x, y, z - 1.1)
+    c = (x + 1.1, y, z) if along_x else (x, y, z + 1.1)
+    b.cyl(V["chrome"], 0.016, a, c, seg=10)
+    for s in (-1, 1):
+        for k in range(plates):
+            off = 0.72 + k * 0.07
+            p0 = (x + s * off, y, z) if along_x else (x, y, z + s * off)
+            p1 = (x + s * (off + 0.055), y, z) if along_x else (x, y, z + s * (off + 0.055))
+            b.cyl(V["plate_red"] if k == 0 else V["iron"], 0.225 - k * 0.05, p0, p1, seg=20)
+
+
+def bench(b, V, x, z):
+    """A flat bench (along z) with its rack at the head and the bar racked."""
+    b.box(V["vinyl"], 0.32, 0.1, 1.25, x, 0.38, z, bevel=0.03)
+    b.box(V["iron"], 0.12, 0.38, 1.05, x, 0.0, z)
+    for px in (-0.55, 0.55):
+        b.box(V["iron"], 0.07, 1.15, 0.07, x + px, 0.0, z - 0.45)
+        b.box(V["iron"], 0.07, 0.07, 0.16, x + px, 1.0, z - 0.4)
+    barbell(b, V, x, 1.1, z - 0.38)
+
+
+def surfboard(b, m, M, L=2.1, W=0.52, T=0.07):
+    """A board's outline (nose and tail rounded, widest a little forward),
+    extruded T thick, placed by the 4x4 matrix M: local x across, y up
+    through the deck, z nose to tail."""
+    n = 18
+    half = []
+    for i in range(n + 1):
+        t = i / n
+        z = -L / 2 + L * t
+        w = W / 2 * (math.sin(math.pi * (0.04 + 0.92 * t)) ** 0.55) * (1.0 - 0.18 * t)
+        half.append((z, w))
+    outline = [(w, z) for z, w in half] + [(-w, z) for z, w in half[::-1]]
+    k = len(outline)
+    pts = [tuple(M @ Vector((x, -T / 2, z))) for x, z in outline] + [tuple(M @ Vector((x, T / 2, z))) for x, z in outline]
+    faces = [list(range(k)), list(range(2 * k - 1, k - 1, -1))]
+    for i in range(k):
+        j = (i + 1) % k
+        faces.append([i, j, k + j, k + i])
+    b.poly(m, pts, faces)
+
+
+def build_venice(P, G):
+    import mathutils
+    V = pal_venice()
+    b = Builder()
+
+    # --- Muscle Beach: a fenced concrete pit of iron on the west strip
+    mx, mz, mw, md = MUSCLE
+    b.box(V["pad_dk"], mw + 0.3, 0.05, md + 0.3, mx, 0.0, mz)
+    b.box(V["pad"], mw, 0.06, md, mx, 0.0, mz)
+    b.box(V["mat"], 6.5, 0.03, 4.0, -50.0, 0.06, -7.2)
+    b.box(V["mat"], 3.0, 0.03, 3.0, -46.0, 0.06, -7.0)
+    x0, x1, z0, z1 = mx - mw / 2, mx + mw / 2, mz - md / 2, mz + md / 2
+    fence_run(b, V, x0, z0, x1, z0)
+    fence_run(b, V, x0, z1, x1, z1, gaps=((0.42, 0.62),))          # north: to the boardwalk
+    fence_run(b, V, x0, z0, x0, z1)
+    fence_run(b, V, x1, z0, x1, z1, gaps=((0.38, 0.62),))          # east: in from the sand
+    # the arch over the east gate (its sign board is a canvas in JS)
+    for gz in (mz - 1.6, mz + 1.6):
+        b.box(V["blue"], 0.18, 3.4, 0.18, x1, 0.0, gz, bevel=0.02)
+    b.box(V["blue"], 0.22, 0.22, 3.6, x1, 3.3, mz, bevel=0.02)
+    # benches with racked bars, a squat cage, a pull-up / rings frame,
+    # dumbbells on an A-frame, plates on a tree
+    for bx in (-52.0, -49.5):
+        bench(b, V, bx, -7.0)
+    cx, cz = -46.0, -7.0
+    for (dx, dz) in ((-0.6, -0.6), (0.6, -0.6), (-0.6, 0.6), (0.6, 0.6)):
+        b.box(V["iron"], 0.08, 2.3, 0.08, cx + dx, 0.06, cz + dz)
+    for (a, c) in (((-0.6, -0.6), (0.6, -0.6)), ((-0.6, 0.6), (0.6, 0.6)), ((-0.6, -0.6), (-0.6, 0.6)), ((0.6, -0.6), (0.6, 0.6))):
+        b.bar(V["iron"], (cx + a[0], 2.32, cz + a[1]), (cx + c[0], 2.32, cz + c[1]), 0.08)
+    for dx in (-0.6, 0.6):
+        b.box(V["iron"], 0.12, 0.05, 0.2, cx + dx, 1.4, cz - 0.5)
+    barbell(b, V, cx, 1.47, cz - 0.5, along_x=True, plates=3)
+    fx, fz = -51.5, -1.0
+    for dz in (-1.6, 1.6):
+        b.cyl(V["iron"], 0.06, (fx, 0.06, fz + dz), (fx, 2.9, fz + dz), seg=12)
+        b.box(V["iron"], 0.5, 0.06, 0.5, fx, 0.06, fz + dz)
+    b.cyl(V["chrome"], 0.025, (fx, 2.75, fz - 1.7), (fx, 2.75, fz + 1.7), seg=10)
+    for rz in (fz - 0.25, fz + 0.25):
+        b.cyl(V["netw"], 0.008, (fx, 2.74, rz), (fx, 1.8, rz), seg=4)
+        ring(b, V["wood"], fx, 1.62, rz, 0.1, w=0.03, seg=14, h=0.03)
+    b.cyl(V["chrome"], 0.025, (fx, 2.1, fz + 0.6), (fx, 2.1, fz + 1.5), seg=10)
+    dx_, dz_ = -45.5, 0.5
+    b.box(V["iron"], 2.4, 0.06, 0.5, dx_, 0.75, dz_)
+    for sx in (-1.1, 1.1):
+        b.bar(V["iron"], (dx_ + sx, 0.06, dz_ - 0.3), (dx_ + sx, 0.78, dz_), 0.06)
+        b.bar(V["iron"], (dx_ + sx, 0.06, dz_ + 0.3), (dx_ + sx, 0.78, dz_), 0.06)
+    for k in range(7):
+        x = dx_ - 1.0 + k * 0.33
+        r = 0.07 + 0.012 * k
+        b.cyl(V["chrome"], 0.015, (x, 0.81 + r, dz_ - 0.19), (x, 0.81 + r, dz_ + 0.19), seg=8)
+        for s in (-1, 1):
+            b.cyl(V["iron"], r, (x, 0.81 + r, dz_ + s * 0.12), (x, 0.81 + r, dz_ + s * 0.19), seg=10)
+    tx, tz = -53.0, 1.0
+    b.cyl(V["iron"], 0.05, (tx, 0.06, tz), (tx, 1.2, tz), seg=8)
+    b.box(V["iron"], 0.6, 0.05, 0.6, tx, 0.06, tz)
+    for k, y in enumerate((0.35, 0.65, 0.95)):
+        for s in (-1, 1):
+            b.cyl(V["iron"], 0.02, (tx, y, tz), (tx + s * 0.22, y, tz), seg=6)
+            b.cyl(V["plate_red"] if k == 0 else V["iron"], 0.2 - k * 0.04, (tx + s * 0.08, y, tz), (tx + s * 0.13, y, tz), seg=18)
+
+    # --- the skate plaza: a ledge, a rail, a funbox with banks, a quarter pipe
+    sx_, sz_, sw, sd = SKATE
+    b.box(V["pad"], sw, 0.08, sd, sx_, 0.0, sz_, bevel=0.03)
+    for k in range(1, 6):
+        zz = sz_ - sd / 2 + k * sd / 6
+        line(b, V["pad_dk"], sx_ - sw / 2, zz, sx_ + sw / 2, zz, y=0.081, w=0.03)
+    b.box(V["granite"], 6.0, 0.45, 0.6, -47.0, 0.08, 19.5, bevel=0.03)        # the ledge
+    b.box(V["coping"], 6.0, 0.04, 0.08, -47.0, 0.53, 19.22)
+    for px in (-46.5, -42.8):                                                  # the rail
+        b.cyl(V["iron"], 0.04, (px, 0.08, 26.5), (px, 0.78, 26.5), seg=10)
+    b.cyl(V["coping"], 0.035, (-46.8, 0.8, 26.5), (-42.5, 0.8, 26.5), seg=10)
+    fbx, fbz = -49.0, 24.0                                                     # the funbox
+    b.box(V["ramp"], 3.0, 0.42, 2.0, fbx, 0.08, fbz, bevel=0.02)
+    for s in (-1, 1):
+        b.box(V["coping"], 3.0, 0.04, 0.06, fbx, 0.5, fbz + s * 1.0)
+        e = fbx + s * 1.5
+        b.prism(V["ramp"], [(e, 0.08), (e + s * 1.6, 0.08), (e, 0.5)], fbz - 1.0, fbz + 1.0, axis="z")
+    prof = [(-52.4, 0.08)]                                                     # the quarter pipe
+    for i in range(1, 9):
+        a = (i / 8) * (math.pi / 2) * 0.86
+        prof.append((-52.4 - 1.9 * math.sin(a), 0.08 + 1.9 * (1 - math.cos(a))))
+    lipx, lipy = prof[-1]
+    prof += [(-54.5, lipy), (-54.5, 0.08)]
+    b.prism(V["ramp"], prof, 18.0, 29.0, axis="z")
+    b.cyl(V["coping"], 0.04, (lipx, lipy, 18.0), (lipx, lipy, 29.0), seg=10)
+
+    # --- the basketball court (east strip): asphalt, green paint, blue keys,
+    # white lines, two hoops, posts for the fence (its chain link is JS)
+    cx, cz, cw, cd = COURT
+    b.box(V["asphalt"], cw + 1.0, 0.05, cd + 1.0, cx, 0.0, cz)
+    lx0, lx1, lz0, lz1 = COURT_LINES
+    b.box(V["court_green"], lx1 - lx0, 0.006, lz1 - lz0, (lx0 + lx1) / 2, 0.05, (lz0 + lz1) / 2)
+    for (bz, s) in ((lz0, 1), (lz1, -1)):
+        b.box(V["court_blue"], 4.9, 0.006, 5.8, cx, 0.056, bz + s * 2.9)
+    Y = 0.062
+    for (a, c) in (((lx0, lz0), (lx1, lz0)), ((lx0, lz1), (lx1, lz1)), ((lx0, lz0), (lx0, lz1)), ((lx1, lz0), (lx1, lz1)), ((lx0, cz), (lx1, cz))):
+        line(b, V["line"], a[0], a[1], c[0], c[1], y=Y)
+    ring(b, V["line"], cx, Y, cz, 1.8)
+    for (bz, s, hz) in ((lz0, 1, HOOP_Z[0]), (lz1, -1, HOOP_Z[1])):
+        ft = bz + s * 5.8
+        for kx in (cx - 2.45, cx + 2.45):
+            line(b, V["line"], kx, bz, kx, ft, y=Y)
+        line(b, V["line"], cx - 2.45, ft, cx + 2.45, ft, y=Y)
+        ring(b, V["line"], cx, Y, ft, 1.8, a0=(0.0 if s > 0 else math.pi), a1=(math.pi if s > 0 else math.tau))
+        rimz = hz + s * 0.38
+        r3, cxl = 6.0, lx1 - 0.6 - cx
+        corner = math.sqrt(max(0.0, r3 * r3 - cxl * cxl))
+        for kx in (lx0 + 0.6, lx1 - 0.6):
+            line(b, V["line"], kx, bz, kx, rimz + s * corner, y=Y)
+        ang = math.acos(min(1.0, cxl / r3))
+        if s > 0:
+            ring(b, V["line"], cx, Y, rimz, r3, a0=ang, a1=math.pi - ang, seg=70)
+        else:
+            ring(b, V["line"], cx, Y, rimz, r3, a0=math.pi + ang, a1=math.tau - ang, seg=70)
+        # pole behind the baseline, the arm, the board, the rim and its net
+        pz = bz - s * 1.1
+        b.box(V["post"], 0.3, 0.25, 0.3, cx, 0.0, pz, bevel=0.03)
+        b.cyl(V["post"], 0.1, (cx, 0.0, pz), (cx, 3.55, pz), seg=14)
+        b.bar(V["post"], (cx, 3.45, pz), (cx, 3.45, hz - s * 0.05), 0.1)
+        b.box(V["board"], 1.8, 1.05, 0.05, cx, 2.9, hz - s * 0.025, bevel=0.01)
+        b.box(V["line"], 1.84, 0.05, 0.07, cx, 3.93, hz - s * 0.025)
+        for y in (3.0, 3.4):
+            b.box(V["vinyl"], 0.59, 0.05, 0.012, cx, y, hz + s * 0.006)
+        for kx in (cx - 0.295, cx + 0.295):
+            b.box(V["vinyl"], 0.05, 0.45, 0.012, kx, 3.0, hz + s * 0.006)
+        ring(b, V["rim"], cx, RIM_Y, rimz, 0.23, w=0.02, seg=24, h=0.02)
+        b.box(V["rim"], 0.12, 0.03, 0.16, cx, RIM_Y, hz + s * 0.08)
+        for i in range(12):
+            a = i / 12 * math.tau
+            top = (cx + 0.23 * math.cos(a), RIM_Y, rimz + 0.23 * math.sin(a))
+            bot = (cx + 0.14 * math.cos(a + 0.5), RIM_Y - 0.42, rimz + 0.14 * math.sin(a + 0.5))
+            b.cyl(V["netw"], 0.006, top, bot, seg=4, smooth=False)
+        ring(b, V["netw"], cx, RIM_Y - 0.42, rimz, 0.14, w=0.01, seg=16, h=0.01)
+    for fz in (cz - cd / 2 - 0.2, cz + cd / 2 + 0.2):                         # fence posts + rails
+        x = cx - cw / 2
+        while x <= cx + cw / 2 + 0.01:
+            b.cyl(V["post"], 0.045, (x, 0.0, fz), (x, 3.4, fz), seg=10)
+            x += 2.0
+        for y in (3.38, 0.12):
+            b.cyl(V["post"], 0.03, (cx - cw / 2, y, fz), (cx + cw / 2, y, fz), seg=8)
+    for k in range(3):                                                         # bleachers, west side
+        bx = 38.0 + k * 0.85
+        y = 0.4 + k * 0.42
+        b.box(V["alu"], 0.34, 0.05, 12.0, bx + 0.1, y, -7.0, bevel=0.01)
+        b.box(V["alu"], 0.22, 0.04, 12.0, bx - 0.25, y - 0.22, -7.0)
+    for z in (-12.8, -7.0, -1.2):
+        b.bar(V["post"], (37.7, 0.0, z), (40.2, 1.35, z), 0.06)
+        b.bar(V["post"], (40.2, 0.0, z), (40.2, 1.35, z), 0.06)
+        b.bar(V["post"], (37.9, 0.0, z), (37.9, 0.42, z), 0.06)
+
+    # --- vendor stalls along the boardwalk's new ends: a counter, posts,
+    # a striped canopy, and what they sell (the signs are JS)
+    WY = 0.45
+    for i, (sxp, kind) in enumerate(STALLS):
+        can = V["canopies"][i % len(V["canopies"])]
+        b.box(V["wood"], 2.6, 0.95, 0.9, sxp, WY, STALL_Z, bevel=0.02)
+        b.box(V["wood_dk"], 2.7, 0.06, 1.0, sxp, WY + 0.95, STALL_Z)
+        for (dx, dz) in ((-1.3, -0.55), (1.3, -0.55), (-1.3, 0.8), (1.3, 0.8)):
+            b.box(V["wood_dk"], 0.08, 2.3 if dz < 0 else 2.6, 0.08, sxp + dx, WY, STALL_Z + dz)
+        for k in range(8):
+            x = sxp - 1.4 + (k + 0.5) * 0.35
+            m_ = can if k % 2 == 0 else V["canvas_a"]
+            b.box(m_, 0.35, 0.05, 1.7, x, WY + 2.42, STALL_Z + 0.12, rx=0.16)
+            b.box(m_, 0.35, 0.24, 0.03, x, WY + 2.12, STALL_Z - 0.74)
+        top = WY + 1.01
+        if kind == "ice":
+            for k in range(9):
+                x = sxp - 1.0 + (k % 5) * 0.48
+                z = STALL_Z - 0.15 + (k // 5) * 0.3
+                b.cyl(V["canvas_a"], 0.06, (x, top, z), (x, top + 0.13, z), seg=10, r2=0.075)
+                b.lump(V["cups"][k % 3], 0.15, 0.1, 0.15, x, top + 0.12, z, seed=k, rnd=0.6)
+            b.box(V["chrome"], 0.5, 0.45, 0.45, sxp + 0.9, top, STALL_Z + 0.2, bevel=0.03)
+        elif kind == "tees":
+            b.cyl(V["chrome"], 0.02, (sxp - 1.25, WY + 2.0, STALL_Z - 0.5), (sxp + 1.25, WY + 2.0, STALL_Z - 0.5), seg=8)
+            for k in range(6):
+                x = sxp - 1.05 + k * 0.42
+                t = V["tee"][k % 4]
+                b.box(t, 0.36, 0.5, 0.03, x, WY + 1.45, STALL_Z - 0.5)
+                b.box(t, 0.58, 0.14, 0.03, x, WY + 1.81, STALL_Z - 0.5)
+            for k in range(4):
+                b.box(V["tee"][k], 0.34, 0.06, 0.3, sxp - 0.8 + k * 0.5, top, STALL_Z + 0.05)
+        elif kind == "shades":
+            b.box(V["wood_dk"], 0.5, 1.1, 0.12, sxp, top, STALL_Z - 0.1)
+            for row in range(4):
+                for col in range(2):
+                    x, y = sxp - 0.12 + col * 0.24, top + 0.2 + row * 0.24
+                    for s in (-1, 1):
+                        b.cyl(V["lens"], 0.04, (x + s * 0.045, y, STALL_Z - 0.165), (x + s * 0.045, y, STALL_Z - 0.18), seg=10)
+                    b.box(V["vinyl"], 0.2, 0.012, 0.012, x, y + 0.03, STALL_Z - 0.18)
+        elif kind == "henna":
+            for k in range(3):
+                b.box(V["canvas_a"], 0.5, 0.008, 0.35, sxp - 0.7 + k * 0.7, top, STALL_Z)
+            b.box(V["wood"], 0.45, 0.45, 0.45, sxp, WY, STALL_Z - 1.2)
+        elif kind == "psychic":
+            b.box(V["canopies"][4], 2.4, 0.02, 0.8, sxp, top, STALL_Z)
+            b.cyl(V["iron"], 0.1, (sxp, top, STALL_Z), (sxp, top + 0.1, STALL_Z), seg=12, r2=0.06)
+            b.lump(V["crystal"], 0.28, 0.28, 0.28, sxp, top + 0.08, STALL_Z, seed=3, rnd=1.0, jitter=0.0)
+
+    # --- volleyball: tape lines round the court, a referee's chair, bleachers
+    vx0, vx1, vz0, vz1 = VB
+    for (a, c) in (((vx0, vz0), (vx1, vz0)), ((vx0, vz1), (vx1, vz1)), ((vx0, vz0), (vx0, vz1)), ((vx1, vz0), (vx1, vz1))):
+        line(b, V["tape"], a[0], a[1], c[0], c[1], y=0.012, w=0.06)
+    rcx, rcz = 8.9, -10.6
+    for (dx, dz) in ((-0.35, -0.35), (0.35, -0.35), (-0.35, 0.35), (0.35, 0.35)):
+        b.bar(V["alu"], (rcx + dx * 1.3, 0.0, rcz + dz * 1.3), (rcx + dx * 0.6, 1.9, rcz + dz * 0.6), 0.05)
+    b.box(V["wood"], 0.6, 0.06, 0.6, rcx, 1.9, rcz)
+    b.box(V["wood"], 0.6, 0.5, 0.06, rcx, 1.96, rcz + 0.28)
+    for k in range(5):
+        b.bar(V["alu"], (rcx - 0.4, 0.35 * k + 0.2, rcz - 0.42), (rcx + 0.4, 0.35 * k + 0.2, rcz - 0.42), 0.03)
+    for k in range(3):
+        b.box(V["alu"], 0.3, 0.05, 4.8, 9.7 + k * 0.6, 0.4 + k * 0.38, -7.0, bevel=0.01)
+    for z in (-9.2, -4.8):
+        b.bar(V["post"], (9.5, 0.0, z), (11.1, 1.2, z), 0.05)
+        b.bar(V["post"], (11.1, 0.0, z), (11.1, 1.2, z), 0.05)
+
+    # --- the tennis court: green slab, blue court, white lines, the net on
+    # its posts, an umpire's chair, players' benches, fence posts (the chain
+    # link is JS) and bleachers outside the north fence
+    tx, tz, tw, td = TENNIS
+    b.box(V["asphalt"], tw + 0.4, 0.05, td + 0.4, tx, 0.0, tz)
+    b.box(V["court_green"], tw, 0.006, td, tx, 0.05, tz)
+    dw, dl, sw_ = 10.97 / 2, 23.77 / 2, 8.23 / 2
+    b.box(V["court_blue"], dw * 2, 0.006, dl * 2, tx, 0.053, tz)
+    Y = 0.059
+    for kx in (tx - dw, tx + dw, tx - sw_, tx + sw_):                          # side lines
+        line(b, V["line"], kx, tz - dl, kx, tz + dl, y=Y, w=0.05)
+    for kz in (tz - dl, tz + dl):                                              # baselines + centre marks
+        line(b, V["line"], tx - dw, kz, tx + dw, kz, y=Y, w=0.08)
+        line(b, V["line"], tx, kz, tx, kz - math.copysign(0.1, kz - tz), y=Y, w=0.05)
+    for kz in (tz - 6.4, tz + 6.4):                                            # service lines
+        line(b, V["line"], tx - sw_, kz, tx + sw_, kz, y=Y, w=0.05)
+    line(b, V["line"], tx, tz - 6.4, tx, tz + 6.4, y=Y, w=0.05)               # centre service line
+    for px in (tx - dw - 0.914, tx + dw + 0.914):                             # net posts
+        b.cyl(V["post"], 0.05, (px, 0.0, tz), (px, 1.07, tz), seg=12)
+        b.cyl(V["post"], 0.06, (px, 1.07, tz), (px, 1.1, tz), seg=12)
+    nl = tx - dw - 0.914, tx + dw + 0.914
+    for i in range(24):                                                        # the net sags to 0.914
+        a, c = i / 24, (i + 1) / 24
+        xa, xc = nl[0] + (nl[1] - nl[0]) * a, nl[0] + (nl[1] - nl[0]) * c
+        ya = 1.07 - 0.156 * (1 - (2 * a - 1) ** 2)
+        yc = 1.07 - 0.156 * (1 - (2 * c - 1) ** 2)
+        xm, ym = (xa + xc) / 2, (ya + yc) / 2
+        b.box(V["vinyl"], xc - xa + 0.01, ym - 0.08, 0.012, xm, 0.08, tz)     # the mesh (dark)
+        b.box(V["netw"], xc - xa + 0.01, 0.06, 0.02, xm, ym - 0.06, tz)       # the white band
+    b.box(V["netw"], 0.05, 0.914 - 0.08, 0.016, tx, 0.08, tz)                 # the centre strap
+    ux = tx + dw + 1.6                                                         # umpire's chair, east
+    for (dx, dz) in ((-0.35, -0.35), (0.35, -0.35), (-0.35, 0.35), (0.35, 0.35)):
+        b.bar(V["alu"], (ux + dx * 1.2, 0.05, tz + dz * 1.2), (ux + dx * 0.6, 1.8, tz + dz * 0.6), 0.05)
+    b.box(V["wood"], 0.6, 0.06, 0.6, ux, 1.8, tz)
+    b.box(V["wood"], 0.06, 0.5, 0.6, ux + 0.28, 1.86, tz)
+    for k in range(5):
+        b.bar(V["alu"], (ux + 0.42, 0.33 * k + 0.2, tz - 0.4), (ux + 0.42, 0.33 * k + 0.2, tz + 0.4), 0.03)
+    for bz in (tz - 2.2, tz + 2.2):                                            # players' benches, west
+        bx = tx - dw - 1.2
+        b.box(V["wood"], 0.45, 0.06, 1.8, bx, 0.45, bz, bevel=0.01)
+        for dz in (-0.75, 0.75):
+            b.box(V["iron"], 0.4, 0.45, 0.06, bx, 0.05, bz + dz)
+    x0, x1, z0, z1 = tx - tw / 2, tx + tw / 2, tz - td / 2, tz + td / 2       # fence posts + rails
+    for (side, fixed, a0, a1, along_x) in (("s", z0, x0, x1, True), ("n", z1, x0, x1, True), ("w", x0, z0, z1, False), ("e", x1, z0, z1, False)):
+        spans = [(a0, a1)]
+        for g in TENNIS_GATES:
+            if g[0] == side:
+                spans = [s_ for sp in spans for s_ in ((sp[0], g[1]), (g[2], sp[1]))]
+        for (sa, sb) in spans:
+            n = max(1, round((sb - sa) / 2.5))
+            for i in range(n + 1):
+                a = sa + (sb - sa) * i / n
+                p = (a, fixed) if along_x else (fixed, a)
+                b.cyl(V["post"], 0.045, (p[0], 0.0, p[1]), (p[0], 3.4, p[1]), seg=10)
+            pa = (sa, fixed) if along_x else (fixed, sa)
+            pb = (sb, fixed) if along_x else (fixed, sb)
+            for y in (3.38, 0.12):
+                b.cyl(V["post"], 0.03, (pa[0], y, pa[1]), (pb[0], y, pb[1]), seg=8)
+    for k in range(3):                                                         # bleachers, north
+        bz = z1 + 1.2 + k * 0.85
+        y = 0.4 + k * 0.42
+        b.box(V["alu"], 9.0, 0.05, 0.34, tx, y, bz + 0.1, bevel=0.01)
+        b.box(V["alu"], 9.0, 0.04, 0.22, tx, y - 0.22, bz - 0.25)
+    for x in (tx - 4.3, tx, tx + 4.3):
+        b.bar(V["post"], (x, 0.0, z1 + 0.9), (x, 1.35, z1 + 3.4), 0.06)
+        b.bar(V["post"], (x, 0.0, z1 + 3.4), (x, 1.35, z1 + 3.4), 0.06)
+        b.bar(V["post"], (x, 0.0, z1 + 1.1), (x, 0.42, z1 + 1.1), 0.06)
+
+    # --- surfboard racks (5c uses them): an A-frame of 2x4s, boards on edge
+    for (rx, rz) in RACKS:
+        for dx in (-1.3, 1.3):
+            b.bar(V["wood_dk"], (rx + dx, 0.0, rz - 0.5), (rx + dx, 1.35, rz), 0.08)
+            b.bar(V["wood_dk"], (rx + dx, 0.0, rz + 0.5), (rx + dx, 1.35, rz), 0.08)
+        b.bar(V["wood_dk"], (rx - 1.45, 1.35, rz), (rx + 1.45, 1.35, rz), 0.08)
+        for s in (-1, 1):
+            b.bar(V["wood_dk"], (rx - 1.45, 0.3, rz + s * 0.39), (rx + 1.45, 0.3, rz + s * 0.39), 0.06)
+        for k in range(6):
+            s = -1 if k % 2 == 0 else 1
+            x = rx - 1.05 + k * 0.42
+            L = 2.0 + 0.15 * (k % 3)
+            # tail on the sand outside the frame, the deck leaning on the ridge
+            a = math.atan2(0.74, 1.3)
+            M = (mathutils.Matrix.Translation((x, 0.05 + L / 2 * math.cos(a), rz + s * 0.8 - s * (L / 2) * math.sin(a)))
+                 @ mathutils.Matrix.Rotation(-s * a, 4, "X")
+                 @ mathutils.Matrix.Rotation(math.pi / 2, 4, "X"))
+            surfboard(b, V["boards"][k % 5], M, L=L)
+    b.finish("gb-venice.glb")
+
+
 def main():
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
@@ -582,7 +1045,8 @@ def main():
     builders = {"pier": lambda: build_pier(P), "foodtruck": lambda: build_foodtruck(P),
                 "shops": lambda: build_shops(P, G), "towers": lambda: build_towers(P, G),
                 "beach": lambda: build_beach(P, G), "bluffs": lambda: build_bluffs(P, G),
-                "boardwalk": lambda: build_boardwalk(P, G)}
+                "boardwalk": lambda: build_boardwalk(P, G),
+                "venice": lambda: build_venice(P, G)}
     only = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     built = [k for k in builders if not only or k in only]
     for k in built:
