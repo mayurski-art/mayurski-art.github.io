@@ -15,7 +15,7 @@
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
+import { mergeVertices, mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1";
 import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1-gt1-fg2-bd1-mj1-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-sf1-hl1-mg1-sp1";
 import { addRim } from "../view/rim-light.js?v=sr1";
@@ -1592,6 +1592,107 @@ function reliefHead(rig) {
     };
     return [g];
   });
+}
+
+/* The relief head on a plain stick rig (user, 2026-10-23: every NPC's
+   trollface the NFT character's, "that three-dimensional look"): the
+   townsfolk (maps/town-npcs.js), the Royale crew and the bots. The same
+   head as reliefHead, without the body's traits; every rig shares its
+   geometry and, per face drawing, one material, so a crowd of a hundred
+   adds two meshes a head and no new shaders. A rig faded out (the board's
+   opacity under 1) gets a material of its own for the while.
+   setReliefFace(rig, false) puts the flat board back; rig.reliefFace.near(false)
+   shows the board for the while (far off, where the two look the same). */
+const reliefLooks = new Map();     // the board's art -> the face's toon material
+const flippedFaces = new WeakMap();
+// the head's ink, face rim and skull as one mesh (one draw a head, not two)
+const reliefInks = new WeakMap();
+const reliefInk = (pieces) => {
+  if (!reliefInks.has(pieces)) {
+    const inks = pieces.map(({ geo, hull, mat }) => {
+      const h = mat === "trollface" ? rimInk(hull, geo) : hull;
+      const g = new THREE.BufferGeometry().setAttribute("position", h.attributes.position).setAttribute("normal", h.attributes.normal);
+      if (h.index) g.setIndex(h.index);
+      return g;
+    });
+    const merged = mergeGeometries(inks, false);
+    merged.userData.shared = true;
+    reliefInks.set(pieces, merged);
+  }
+  return reliefInks.get(pieces);
+};
+const reliefLook = (art) => {
+  if (!reliefLooks.has(art)) {
+    const m = new THREE.MeshToonMaterial({ map: art, emissive: 0xffffff, emissiveMap: art, emissiveIntensity: 0.22,
+      gradientMap: CLOTH_TONES, transparent: true, alphaTest: 0.3 });
+    m.userData.shared = true;
+    reliefLooks.set(art, m);
+  }
+  return reliefLooks.get(art);
+};
+const skinLook = (() => { let m = null; return () => { if (!m) { m = toon(SKIN); m.userData.shared = true; } return m; }; })();
+export function setReliefFace(rig, on = true) {
+  if (!on === !rig.reliefFace) return rig.reliefFace?.ready ?? Promise.resolve();
+  const board = rig.parts.head;
+  if (!on) { rig.reliefFace.off(); rig.reliefFace = null; return Promise.resolve(); }
+  let g = null, gone = false;
+  const mask = board.layers.mask;
+  const r = (rig.reliefFace = {
+    isNear: true,
+    near(on) {
+      if (on === r.isNear) return;
+      r.isNear = on;
+      if (!g) return;   // (it's on once the head loads)
+      g.visible = on;
+      if (on) board.layers.disableAll(); else board.layers.mask = mask;
+    },
+    off() {
+      gone = true;
+      if (!g) return;
+      board.remove(g);
+      board.layers.mask = mask;
+      g.userData.own?.dispose();
+    },
+  });
+  r.ready = loadPieces(glb(HEAD_MODELS.relief.file)).then((pieces) => {
+    if (gone) return;
+    g = new THREE.Group();
+    g.name = "relief-face";
+    g.rotation.y = -board.rotation.y;
+    g.scale.setScalar(rig.scale);
+    for (const { geo, mat } of pieces) {
+      const face = mat === "trollface";
+      let use = geo;
+      if (face) {
+        // glTF's V runs from the top; the board's art is a flipY texture
+        if (!flippedFaces.has(geo)) {
+          const f = geo.clone(), uv = f.attributes.uv;
+          for (let i = 0; i < uv.count; i++) uv.setY(i, 1 - uv.getY(i));
+          f.userData.shared = true;
+          flippedFaces.set(geo, f);
+        }
+        use = flippedFaces.get(geo);
+      }
+      const m = new THREE.Mesh(use, face ? reliefLook(board.material.map) : skinLook());
+      if (face) m.onBeforeRender = () => {
+        const bm = board.material;
+        if (bm.opacity < 1 || !bm.depthWrite) {
+          const own = (g.userData.own ||= reliefLook(bm.map).clone());
+          if (own.map !== bm.map) { own.map = own.emissiveMap = bm.map; own.needsUpdate = true; }
+          own.opacity = bm.opacity;
+          own.depthWrite = bm.depthWrite;
+          m.material = own;
+        } else m.material = reliefLook(bm.map);
+      };
+      m.castShadow = true;
+      g.add(m);
+    }
+    g.add(new THREE.Mesh(reliefInk(pieces), armInk));
+    board.add(g);
+    g.visible = r.isNear;
+    if (r.isNear) board.layers.disableAll();
+  });
+  return r.ready;
 }
 
 /* The muscular torso (models/build_blocky_torso.blender.py -> blocky/torso-muscle.glb):

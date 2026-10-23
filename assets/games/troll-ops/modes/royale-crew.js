@@ -27,6 +27,7 @@ import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, reachHand } from ".
 import { poseSeated } from "./rp-roles.js?v=rp1b7-cd1-sh1-dj2-or1-bw2-sp1";
 import { SEAT_SPOTS } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1-tx1-sp1-kbt1-gb1";
 import { oxygenMask } from "./royale-mask.js?v=dc1";
+import { setReliefFace } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-hl1-mg1-sp1-rh1";
 
 /* Beats on the drop clock (royale-cine.js CINE has yours). */
 export const CREW = {
@@ -93,6 +94,7 @@ function ensureCrew() {
   const make = (seed) => {
     const rig = buildHumanoid(mat, { height: 1.8, gun: false });
     rig.styleSeed = seed;
+    setReliefFace(rig);   // the NFT body's 3D trollface head (blocky-body.js)
     rig.root.visible = false;
     rig.root.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
     game.scene.add(rig.root);
@@ -103,7 +105,7 @@ function ensureCrew() {
   mate.mask = oxygenMask().clone();
   mate.mask.visible = false;
   mate.mask.scale.setScalar(2.2);
-  mate.mask.position.set(0, 0.14, -0.06);
+  mate.mask.position.set(0, 0.14, -0.06 - 0.085 * mate.rig.scale);   // out over the relief face's dome
   mate.rig.parts.headPivot.add(mate.mask);
   crew = { jm: make(7), mate };
   return crew;

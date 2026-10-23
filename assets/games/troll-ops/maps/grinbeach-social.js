@@ -7,7 +7,7 @@
 // and maps.js's: change one, change the other.
 
 import { rng } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1";
-import { pickOutfit } from "../characters/outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1-or1-gb3";
+import { pickOutfit } from "../characters/outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1-or1-gb3-rh1";
 import { STALLS, STALL_Z, COURT, TENNIS, VB, RACKS } from "./grinbeach-venice.js?v=gb1";
 
 // the camera's yaw facing each way (0 faces -z, +PI/2 faces -x)

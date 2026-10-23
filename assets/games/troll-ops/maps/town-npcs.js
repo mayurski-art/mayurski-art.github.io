@@ -36,7 +36,8 @@ import * as THREE from "three";
 import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, gaitFromVelocity, DANCES, reachHand, setHandPose } from "../characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1";
 import { buildDrink, mountDrink, poseDrinkArm } from "./saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1";
 import { SmithWork } from "./smithy.js?v=sm1b7b7dc2f1m1-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1";
-import { wearOutfit } from "../characters/outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1-or1-gb3";
+import { setReliefFace } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-hl1-mg1-sp1-rh1";
+import { wearOutfit } from "../characters/outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1-or1-gb3-rh1";
 import { holdInstrument, poseInstrument } from "../characters/instruments.js?v=in1-bw2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1";
 
 const WALK_MPS = 1.25;
@@ -44,6 +45,7 @@ const _lean = new THREE.Vector3(), _poleL = new THREE.Vector3(-1, -1, 0.3);
 const NEAR = 40;     // full rate inside this
 const FAR = 85;      // hidden past this
 const TAG_RANGE = 12; // name tags only inside this
+const RELIEF_RANGE = 30; // the 3D head inside this, the flat board past it
 /* Background extras go untagged: only someone with a job to roleplay (the
    barkeep, the sheriff, the doctor...) wears a name. */
 const UNTAGGED = new Set(["Townsfolk", "Drifter", "Barfly", "Regular", "Gambler", "Clubgoer", "Raver", "VIP", "Beachgoer", "Surfer", "Lifter", "Baller"]);
@@ -150,6 +152,7 @@ export class TownNpcs {
     const rig = buildHumanoid(this.material, { height: c.height ?? 1.72 + seed * 0.16, build: c.build ?? 1, gun: false });
     rig.face = `${c.act === "drink" && seed > 0.75 ? "sad" : "grin"}:og`;
     if (c.outfit) wearOutfit(rig, c.outfit);   // dressed for the night (outfits.js)
+    setReliefFace(rig);   // the NFT body's 3D trollface head (blocky-body.js)
     const tag = UNTAGGED.has(c.role) ? null : npcTag(`${c.name} · ${c.role}`);
     // Above the head either way: sitting drops the whole body, tag and all.
     if (tag) { tag.position.y = 2.2; rig.root.add(tag); }
@@ -250,6 +253,7 @@ export class TownNpcs {
       n.rig.root.visible = !hidden;
       // Tags only up close, so a full room doesn't turn into a wall of names.
       if (n.tag) n.tag.visible = d < TAG_RANGE;
+      n.rig.reliefFace?.near(d < RELIEF_RANGE);
       n.t += dt;
       if (n.override) { if (!hidden) this.poseOverride(n, dt); continue; }
       if (WALKERS.has(n.c.act)) this.walk(n, dt);
