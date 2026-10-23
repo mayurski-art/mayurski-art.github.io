@@ -14,8 +14,13 @@
 //         score without taking it back doesn't count, 11 wins and moves the
 //         ladder; B sees the game, the NPC and the card; B joins A's next
 //         game (1v1, two players); the 3-point contest counts its makes.
+//   tennis: A takes a racket (B sees it in A's hand); a practice serve off
+//         the toss lands in the deuce box; a match vs the club pro: placed
+//         for the serve, the serve in, a rally (A's timed stroke goes over
+//         and the pro returns it), faults (two = a double fault, a point),
+//         7 wins and moves the ladder; B sees the match and the pro.
 //
-// Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-courts-test.mjs [gear] [hoops] [game]
+// Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-courts-test.mjs [gear] [hoops] [game] [tennis]
 
 import http from "node:http";
 import fs from "node:fs";
@@ -106,6 +111,7 @@ const followShot = async (page, name, from, at) => {
   await shot(page, name);
 };
 const followOff = (page) => page.evaluate(() => { window.__courtCam = null; });
+const HSafe = (p) => p.evaluate(() => window.__trollHoops?.state?.() || null);
 // the module URLs the game itself imports (same tags, so the same instances)
 const modUrl = (page, file) => page.evaluate((file) => {
   const all = performance.getEntriesByType("resource").map((e) => e.name);
@@ -114,7 +120,7 @@ const modUrl = (page, file) => page.evaluate((file) => {
 
 const A = await open("A", "baller_a");
 await join(A);
-const B = want("hoops") || want("game") ? await open("B", "watcher_b") : null;
+const B = want("hoops") || want("game") || want("tennis") ? await open("B", "watcher_b") : null;
 if (B) await join(B);
 await pumpAll(B ? [A, B] : [A], 5000);
 const both = B ? [A, B] : [A];
@@ -393,6 +399,107 @@ if (want("game")) {
   c = (await GS(A)).contest;
   check("perfect releases from the corner count", c && c.score >= 2 && c.shot === 3, JSON.stringify(c));
   await A.evaluate(() => window.__trollHoopsGame.finishContest());
+}
+
+if (want("tennis")) {
+  const TS = (p) => p.evaluate(() => window.__trollTennis.state());
+  const putAt = (p, x, z, yaw = 0) => p.evaluate(({ x, z, yaw }) => { const T = window.__trollOps; T.move.reset(x, z, 0.06); T.look.yaw = yaw; T.look.pitch = 0; }, { x, z, yaw });
+  const key = async (p, k, ms) => { await p.keyboard.down(k); await pumpAll(both, ms); await p.keyboard.up(k); };
+  const until = async (fn, ms = 9000) => { const t0 = Date.now(); let g; while (Date.now() - t0 < ms) { g = await TS(A); if (fn(g)) return g; await pumpAll(both, 120); } return g; };
+  const L = await A.evaluate(() => window.__trollOps.builtMap().map.rp.courts());
+  const C = L.layout.tennis, hop = L.tennis.rack;
+  await A.evaluate(() => { window.__trollTennis.setLadder(0); window.__trollTennis.M.calm = true; });
+  // 1. a racket
+  if ((await HSafe(A))?.ball) await A.evaluate(() => window.__trollHoops.rackBall?.());
+  await putAt(A, hop.x + 1.0, hop.z + 0.5, Math.PI / 2);
+  await pumpAll(both, 500);
+  let pr = await A.evaluate(() => window.__trollOps.rp().prompt || "");
+  check("at the hopper: take a racket", /take a racket/i.test(pr), pr);
+  for (let i = 0; i < 3 && !(await TS(A)).racket; i++) await key(A, "x", 1200);
+  let t = await TS(A);
+  check("A has a racket", t.racket, JSON.stringify({ racket: t.racket }));
+  await pumpAll(both, 1200);
+  const idA = await A.evaluate(() => window.__trollOps.net.id);
+  const seen = await B.evaluate((id) => { const p = window.__trollOps.net.peers.get(id); return { tr: p?.tennisClip | 0 }; }, idA);
+  check("B sees A's racket", seen.tr > 0, JSON.stringify(seen));
+  // 2. a practice serve from the deuce side of the near baseline
+  await putAt(A, C.x + 1.2, C.z + C.dl + 0.4, 0);
+  await pumpAll([A], 300);
+  await A.evaluate(() => window.__trollTennis.tossNow());
+  await followShot(A, "tennis-toss", [2.4, 1.6, 1.6], [0, 1.6, -1]);
+  for (let i = 0; i < 30; i++) { const y = await A.evaluate(() => { const T = window.__trollTennis; const b = [...T.tballs.values()].find((x) => x.toss); return b?.sim ? b.sim.v[1] : -1; }); if (y < 0.4) break; await pumpAll([A], 16); }
+  await A.evaluate(() => window.__trollTennis.hitServe("flat", 0));   // a clean toss: no scatter
+  await followShot(A, "tennis-serve", [2.4, 1.6, 1.6], [0, 1.6, -1]);
+  await followOff(A);
+  await pumpAll(both, 2200);
+  t = await TS(A);
+  const sv = t.balls.find((b) => b.serve);
+  const first = await A.evaluate((id) => window.__trollTennis.tballs.get(id)?.sim?.events.find((e) => e.kind === "bounce")?.p, sv?.id);
+  const inBox = first && first[0] < C.x + 0.05 && first[0] > C.x - 4.15 && first[2] < C.z && first[2] > C.z - 6.45;
+  check("the practice serve lands in the deuce box", !!inBox, JSON.stringify({ first, events: sv?.events }));
+  // 3. a match vs the club pro
+  const chair = { x: C.x + C.dw + 1.6, z: C.z };
+  await putAt(A, chair.x - 1.4, chair.z, -Math.PI / 2);
+  await pumpAll(both, 500);
+  pr = await A.evaluate(() => window.__trollOps.rp().prompt || "");
+  check("at the chair: play the club pro", /play .*tiebreak to 7/i.test(pr), pr);
+  for (let i = 0; i < 3 && !(await TS(A)).s; i++) await key(A, "x", 1300);
+  t = await until((x) => x.s?.phase === "serve");
+  check("A vs the pro: a point is set to serve", t.s?.phase === "serve" && /^npc/.test(t.s.players[1] || ""), JSON.stringify(t.s));
+  const pos = await A.evaluate(() => ({ x: window.__trollOps.move.pos.x, z: window.__trollOps.move.pos.z }));
+  check("A is placed behind the near baseline", pos.z > C.z + C.dl, JSON.stringify(pos));
+  // play the point: serve if it's ours, then hit what comes, timed
+  let rally = { aHits: 0, npcHits: 0 };
+  const playPoint = async () => {
+    let me = await until((x) => x.s?.phase === "serve", 6000);
+    const t0 = Date.now();
+    if (me.s?.server === idA) {
+      await A.evaluate(() => window.__trollTennis.tossNow());
+      for (let i = 0; i < 30; i++) { const y = await A.evaluate(() => { const b = [...window.__trollTennis.tballs.values()].find((x) => x.toss); return b?.sim ? b.sim.v[1] : -1; }); if (y < 0.4) break; await pumpAll([A], 16); }
+      await A.evaluate(() => window.__trollTennis.hitServe("flat"));
+    }
+    while (Date.now() - t0 < 14000) {
+      const inc = await A.evaluate(() => window.__trollTennis.incoming());
+      if (inc && inc.in > 0.3 && inc.in < 0.55) {
+        await A.evaluate(() => window.__trollTennis.swing("top"));
+        await pumpAll(both, 700);
+      } else await pumpAll(both, 60);
+      me = await TS(A);
+      for (const b of me.balls) { if (b.hitter === idA && !b.serve && !b.toss) rally.aHit = true; if (/^npc/.test(b.hitter || "")) rally.npcHit = true; }
+      if (me.s?.phase === "point" || me.s?.phase === "over") return me;
+    }
+    return me;
+  };
+  t = await playPoint();
+  for (let i = 0; i < 3 && !(rally.aHit && rally.npcHit) && t.s?.phase !== "over"; i++) t = await playPoint();
+  check("a rally: A's timed stroke goes back and the pro returns", rally.npcHit && (rally.aHit || t.s?.score?.some((x) => x > 0)), JSON.stringify({ rally, s: t.s }));
+  await camShot(B, "tennis-B", [C.x + C.dw + 3, 3.2, C.z + 4], [C.x, 0.8, C.z]);
+  // 4. faults
+  await until((x) => x.s?.phase === "serve", 6000);
+  await A.evaluate(() => { const s = window.__trollTennis.M.s; s.server = s.players[0]; s.serveNo = 1; s.phase = "serve"; s.seq++; });
+  await pumpAll(both, 400);
+  const before = (await TS(A)).s.score.slice();
+  for (const k of [1, 2]) {
+    await A.evaluate(() => window.__trollTennis.tossNow());
+    await pumpAll([A], 300);
+    const deuce = (await TS(A)).s?.deuce;
+    await A.evaluate(({ x, z }) => window.__trollTennis.serveTo(x, z), { x: C.x + (deuce ? 3 : -3), z: C.z - 3 });   // the wrong box
+    await pumpAll(both, 1500);
+  }
+  t = await TS(A);
+  check("two serves out of the box: a double fault, the pro's point", t.s && t.s.score[1] === before[1] + 1, JSON.stringify({ before, s: t.s, calls: await A.evaluate(() => window.__trollTennis.M.calls) }));
+  // 5. set point and the win
+  await until((x) => x.s?.phase === "serve", 6000);
+  await A.evaluate(() => { window.__trollTennis.M.s.score = [6, 2]; window.__trollTennis.award(0, "WINNER"); });
+  await pumpAll(both, 800);
+  t = await TS(A);
+  const lad = await A.evaluate(() => window.__trollTennis.ladder());
+  check("7 wins the tiebreak and the ladder moves up", t.s?.phase === "over" && t.s.winner === 0 && lad === 1, JSON.stringify({ s: t.s, lad }));
+  const tb = await B.evaluate(() => window.__trollTennis.state());
+  check("B sees the match and the pro", !!tb.s && tb.s.score[0] === 7, JSON.stringify(tb.s));
+  await pumpAll(both, 6500);
+  t = await TS(A);
+  check("the match ends, the pro goes back", !t.s && !t.npcs.length, JSON.stringify({ s: t.s, npcs: t.npcs }));
 }
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));

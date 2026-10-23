@@ -9,7 +9,7 @@
 //
 // Usage: node tools/troll-ops-court-ball-test.mjs
 
-import { newBall, stepBall, advanceBall, makeLaunch, hoopsWorld, tennisWorld, vballWorld, solveShot, HZ } from "../assets/games/troll-ops/modes/court-ball.js";
+import { newBall, stepBall, advanceBall, makeLaunch, hoopsWorld, tennisWorld, vballWorld, solveShot, solveDrive, HZ } from "../assets/games/troll-ops/modes/court-ball.js";
 
 // copies of maps/grinbeach-venice.js (it imports three, node can't load it)
 const COURT = { x: 48, z: -6, w: 14, d: 26, lines: [41.5, 54.5, -18.5, 6.5], hoopZ: [-17.8, 5.8], rimY: 3.05 };
@@ -112,6 +112,18 @@ const firstBounce = (b) => b.events.find((e) => e.kind === "bounce");
     if (kinds(b).includes("cord")) cord = true;
   }
   check("a ball skimming the tape clips the cord", cord);
+}
+
+// 4b. the stroke solver lands a drive, a slice and a lob on the spot
+{
+  const from = [TENNIS.x - 2, 1.0, base - 0.5], spot = [TENNIS.x + 2.5, 0, TENNIS.z - TENNIS.dl + 2.5];
+  for (const [name, speed, spin, lob] of [["topspin", 26, [-220, 0, 0], false], ["slice", 20, [140, 0, 0], false], ["lob", 19, [-60, 0, 0], true]]) {
+    const L = solveDrive(T, from, spot, speed, spin, 0, lob);
+    const b = run(T, L, 4);
+    const e = firstBounce(b);
+    const miss = e ? Math.hypot(e.p[0] - spot[0], e.p[2] - spot[2]) : 99;
+    check(`the solver lands a ${name} within 0.4 m of the spot, over the net`, miss < 0.4 && !kinds(b).slice(0, kinds(b).indexOf("bounce")).includes("net"), `off by ${miss.toFixed(2)} m, ${kinds(b).slice(0, 3)}`);
+  }
 }
 
 // 5. volleyball on sand

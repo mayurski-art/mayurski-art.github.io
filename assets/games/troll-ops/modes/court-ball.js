@@ -344,3 +344,28 @@ export function solveShot(world, p, rim, apex, spin, at) {
   }
   return best;
 }
+
+/* A drive that comes down at a spot on the ground: the pace is the
+   stroke's (`speed`), the launch angle is found by bisection, with the
+   ball's spin, drag and all (nets left out: clearing it is the stroke's
+   business). The low arc for drives and serves, the high one for a lob.
+   Returns the launch. */
+export function solveDrive(world, p, target, speed, spin, at, lob = false) {
+  const dx = target[0] - p[0], dz = target[2] - p[2], d = Math.hypot(dx, dz) || 0.01;
+  const ux = dx / d, uz = dz / d;
+  const bare = { ...world, rims: [], boxes: [], nets: [] };
+  const vel = (a) => [ux * speed * Math.cos(a), speed * Math.sin(a), uz * speed * Math.cos(a)];
+  // how far along the line it first comes down, launched at angle a
+  const reach = (a) => {
+    const b = newBall(bare, makeLaunch(p, vel(a), spin, at));
+    for (let i = 0; i < HZ * 5 && !b.events.length; i++) stepBall(b);
+    const e = b.events[0];
+    return e ? (e.p[0] - p[0]) * ux + (e.p[2] - p[2]) * uz : 1e9;
+  };
+  let lo = lob ? 0.55 : -0.35, hi = lob ? 1.4 : 0.7;
+  for (let it = 0; it < 22; it++) {
+    const mid = (lo + hi) / 2;
+    if ((reach(mid) < d) !== lob) lo = mid; else hi = mid;
+  }
+  return makeLaunch(p, vel((lo + hi) / 2), spin, at);
+}

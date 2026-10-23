@@ -91,9 +91,10 @@ export function beachNpcs() {
   for (const [name, z, hoops] of [["Hoops Hank", -15.4, { skill: 0.72, style: "post" }], ["Crossover Carla", -16.5, { skill: 0.85, style: "handles" }], ["Big Grin", -17.6, { skill: 0.8, style: "dunk" }]]) {
     add(name, "Baller", "ready", { x: 40.7, z, y: 0.05, yaw: FACE_YAW["+x"] }, { hoops, build: name === "Big Grin" ? 1.25 : 1 });
   }
-  /* ---- tennis: one on each baseline */
-  for (const [z, yaw] of [[TENNIS.z - TENNIS.dl - 0.7, FACE_YAW["+z"]], [TENNIS.z + TENNIS.dl + 0.7, FACE_YAW["-z"]]]) {
-    extra("Baller", "ready", { x: TENNIS.x + 1.5, z, y: 0.05, yaw });
+  /* ---- tennis: the club pros, one on each baseline (5d, modes/social-tennis.js:
+     `tennis` is how good) */
+  for (const [name, z, yaw, skill] of [["Deuce Dominguez", TENNIS.z - TENNIS.dl - 0.7, FACE_YAW["+z"], 0.7], ["Ace Alvarez", TENNIS.z + TENNIS.dl + 0.7, FACE_YAW["-z"], 0.9]]) {
+    add(name, "Baller", "ready", { x: TENNIS.x + 1.5, z, y: 0.05, yaw }, { tennis: { skill } });
   }
 
   /* ---- the surfers, by the racks, looking at the sets */
