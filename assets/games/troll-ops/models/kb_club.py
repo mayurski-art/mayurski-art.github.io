@@ -103,6 +103,7 @@ class Registry:
         self.props = []        # {id, lo, hi, on}  (on: the prop it stands on)
         self.colliders = []    # [x, z, w, d, h, y, pen]
         self.faces = []        # {id, owner, c, n, u, w, h}
+        self.cash = []         # [x, y, z, ry]: the notes on the floor (club-live.js's money lands there)
         self._open = None
 
     def begin(self, b, pid, on=None):
@@ -926,7 +927,10 @@ def scatter_floor(b, P, R, rng, pid, rect, n_cash, n_confetti, n_litter, y=0.0, 
     for _ in range(n_cash):
         p = spot()
         if p:
-            flat(b, P["note"] if rng.random() < 0.75 else P["note_b"], p[0], y + 0.006, p[1], 0.16, 0.076, rng.uniform(0, math.pi))
+            m = P["note"] if rng.random() < 0.75 else P["note_b"]
+            ry = rng.uniform(0, math.pi)
+            flat(b, m, p[0], y + 0.006, p[1], 0.16, 0.076, ry)
+            R.cash.append([round(p[0], 3), round(y + 0.006, 3), round(p[1], 3), round(ry, 3)])
     conf = [P["white"], P["red"], P["brass"], P["note_b"], P["leather"]]
     for _ in range(n_confetti):
         p = spot()

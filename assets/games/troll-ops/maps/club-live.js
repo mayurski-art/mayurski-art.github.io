@@ -29,6 +29,7 @@ import {
   signsTexture, tileGlowTexture, fringeTexture, beamTexture, facetTexture, djTexture,
 } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1-ch1-sp1-kbt1";
 import { BEATS } from "../sound/music-beats.js?v=bg1-sg1-zr10-jb1-nh1-hl1-or1-hh1-yb1";
+import { moneyTick, moneyDebug } from "./club-money.js?v=mn1";
 
 /* A build's live state: the lobby's map thumbnails and the preloader also
    run build(), so each build keeps its own and the ticker (it only runs
@@ -449,7 +450,7 @@ export function clubEngine(P) {
     // else the radio's kick off the analyser, else the club's own clock
     let bp = now * BPS;
     let kick = Math.exp(-(bp % 1) * 5.0);
-    let level = 1;
+    let level = 1, songLevel = null;
     const sg = S.song;
     if (sg) {
       const g = sg.grid, t = sg.t + (now - sg.at);
@@ -458,7 +459,8 @@ export function clubEngine(P) {
       if (f >= 0 && i < g.kick.length) {
         kick = Math.exp(-(f - i) * 5.0) * (0.25 + 0.75 * (+g.kick[i] || 0) / 9);
         level = 0.15 + 0.85 * (+g.level[i] || 0) / 9;
-      } else { kick = 0; level = 0.15; }
+        songLevel = (+g.level[i] || 0) / 9;
+      } else { kick = 0; level = 0.15; songLevel = 0; }
     } else if (S.radioOn) kick = S.radioKick;
     if (S.dropUntil > now) kick = (S.dropUntil - now) < 0.12 ? 1.4 : 0.05;
     S.level += (level - S.level) * Math.min(1, dt * 4);
@@ -480,6 +482,8 @@ export function clubEngine(P) {
       S.lasers.rotation.x = Math.sin(now * 0.21) * 0.05;
       S.lasers.material.opacity = 0.55 + 0.45 * kick;
     }
+    // money over the floor on the drops (club-money.js; a map that asked for it)
+    moneyTick(S, now, dt, bp, songLevel);
     // the DJ bobs
     if (S.dj) { S.dj.position.y = S.djY + kick * 0.05; S.dj.rotation.z = Math.sin(bp * Math.PI) * 0.035; }
 
@@ -743,6 +747,7 @@ export function clubEngine(P) {
         song: A?.song ? { bpm: A.song.grid.bpm, t: A.song.t } : null,
         kick: U.uKick.value, level: U.uLevel.value, songGain: SND.song ? SND.song.gain.value : null,
         muffleAt: (x, y, z) => P.muffle({ x, y, z })[0],
+        money: moneyDebug(A),
       };
     },
   };
