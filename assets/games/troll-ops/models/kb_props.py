@@ -38,20 +38,13 @@ CODE_FACES = [
     {"id": "window-tatami", "owner": "code", "c": [-29.95, 2.0, 23.79], "n": [0, 0, -1], "u": [-1, 0, 0], "w": 3.5, "h": 1.0},
     {"id": "mirror-office", "owner": "code", "c": [-13.86, 4.6, 21.6], "n": [-1, 0, 0], "u": [0, 0, 1], "w": 3.6, "h": 1.2},
     {"id": "door-office", "owner": "code", "c": [-12.0, 4.2, 18.89], "n": [0, 0, -1], "u": [-1, 0, 0], "w": 1.6, "h": 2.4},
-    {"id": "drape-n", "owner": "hero", "c": [-31.04, 3.7, 9.0], "n": [1, 0, 0], "u": [0, 0, -1], "w": 2.0, "h": 6.6},
-    {"id": "drape-s", "owner": "hero", "c": [-31.04, 3.7, 21.0], "n": [1, 0, 0], "u": [0, 0, -1], "w": 2.0, "h": 6.6},
     {"id": "door-riser", "owner": "code", "c": [-6.0, 1.5, 9.8], "n": [1, 0, 0], "u": [0, 0, -1], "w": 3.6, "h": 3.0},
 ]
 
 
 # Known, and left for the user to decide (the obstruction test prints them,
 # doesn't fail on them): a pair here is never a Blender prop.
-KNOWN = [
-    {"face": "window-tatami", "prop": "hero:2771c445",
-     "why": "Studio's south DJ drape (z 20 .. 22) hangs 0.6 m off the west wall, 1.8 m from the tatami window's "
-            "west end: from the hall's north end it hides the window's westmost 0.6 m. A curtain can't hang "
-            "flatter; moving it opens the LED wall's south edge."},
-]
+KNOWN = []
 
 # Where a player stands to look at them (the obstruction test's eye points:
 # a 1 m grid, 1.6 m up, none inside a collider)

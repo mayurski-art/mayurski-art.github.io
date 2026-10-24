@@ -46,13 +46,7 @@
    "y": 0.0
   }
  ],
- "known": [
-  {
-   "face": "window-tatami",
-   "prop": "hero:2771c445",
-   "why": "Studio's south DJ drape (z 20 .. 22) hangs 0.6 m off the west wall, 1.8 m from the tatami window's west end: from the hall's north end it hides the window's westmost 0.6 m. A curtain can't hang flatter; moving it opens the LED wall's south edge."
-  }
- ],
+ "known": [],
  "faces": [
   {
    "id": "screen-pole",
@@ -326,48 +320,6 @@
    ],
    "w": 1.6,
    "h": 2.4
-  },
-  {
-   "id": "drape-n",
-   "owner": "hero",
-   "c": [
-    -31.04,
-    3.7,
-    9.0
-   ],
-   "n": [
-    1,
-    0,
-    0
-   ],
-   "u": [
-    0,
-    0,
-    -1
-   ],
-   "w": 2.0,
-   "h": 6.6
-  },
-  {
-   "id": "drape-s",
-   "owner": "hero",
-   "c": [
-    -31.04,
-    3.7,
-    21.0
-   ],
-   "n": [
-    1,
-    0,
-    0
-   ],
-   "u": [
-    0,
-    0,
-    -1
-   ],
-   "w": 2.0,
-   "h": 6.6
   },
   {
    "id": "door-riser",
@@ -2065,34 +2017,6 @@
     -9.4,
     3.95,
     23.75
-   ],
-   "on": null
-  },
-  {
-   "id": "hero:2771c445",
-   "lo": [
-    -31.65,
-    0.4,
-    8
-   ],
-   "hi": [
-    -31.05,
-    7,
-    10
-   ],
-   "on": null
-  },
-  {
-   "id": "hero:2771c445",
-   "lo": [
-    -31.65,
-    0.4,
-    20
-   ],
-   "hi": [
-    -31.05,
-    7,
-    22
    ],
    "on": null
   },

@@ -350,7 +350,7 @@ function clubInterior(K) {
    its GLB's bake, the club's pieces as their Studio keys say; then the
    photo surfaces and the fronts' grain. */
 const MODELS = { "kb-shell": "gj-shell", "kb-props": "gj-props", "kb-neon": null };
-const MODELS_V = "kbb4";
+const MODELS_V = "kbb5";
 function loadModels(api) {
   // settles once every model is placed (or failed): the wet floors' probes wait for it
   return Promise.all(Object.entries(MODELS).map(([file, gj]) => new Promise((done) => {

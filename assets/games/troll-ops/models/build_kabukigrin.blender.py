@@ -634,17 +634,20 @@ VALANCE = (5.98, 7.36)   # where the DJ's valance hangs (Studio had it 5 .. 7, o
 
 
 def remodelled(h):
-    """Is generated piece `h` one Blender models now (phase 1)? The hall's
-    booths and their tables, its bar stools, the mezzanine's sound desk."""
+    """Is generated piece `h` left out of the build? The ones Blender models
+    now (phase 1): the hall's booths and their tables, its bar stools, the
+    mezzanine's sound desk; and the DJ wall's two red drapes (user,
+    2026-10-24: "no drapes"; the south one hid the tatami window's end)."""
     k, lo = h["key"], h["lo"]
-    return k in ("gen:7524a13f", "gen:8180f38e") or (k == "gen:b05ec518" and lo[0] < -5)         or (k == "gen:9bd833bb" and lo[1] > 2.9)
+    return (k in ("gen:7524a13f", "gen:8180f38e", "gen:2771c445") or (k == "gen:b05ec518" and lo[0] < -5)
+            or (k == "gen:9bd833bb" and lo[1] > 2.9))
 
 
 def hero_part():
-    """Studio's generate_mesh pieces (the marquee box, the kanji panels, the DJ
-    drapes, the office's, the tatami room's and the yokocho's pieces) from the
-    Studio export, kb-town.glb, with their textures; light-map UVs for the
-    bake. The pieces Blender models now are left out."""
+    """Studio's generate_mesh pieces (the marquee box, the kanji panels, the
+    office's, the tatami room's and the yokocho's pieces) from the Studio
+    export, kb-town.glb, with their textures; light-map UVs for the bake.
+    The pieces left out (remodelled) aren't imported."""
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=os.path.join(HERE, "kb-town.glb"))
     new = [ob for ob in bpy.data.objects if ob not in before]
