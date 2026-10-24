@@ -10,7 +10,7 @@
 
 import * as THREE from "three";
 import { loadModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1";
-import { COURT, TENNIS, VB, RIMS } from "./grinbeach-venice.js?v=gb1-tb1-tb2";
+import { COURT, TENNIS, VB, RIMS } from "./grinbeach-venice.js?v=gb1-tb1-tb2-kbb2";
 
 const G = { ghost: true };
 const VX = (VB[0] + VB[1]) / 2;

@@ -75,6 +75,12 @@ STUDIO_CUT = [
     (7.95, 21.55, 2.25, 2.37, -4.05, -1.95),      # the strip lights under B's lintel
 ]
 
+# Phase 1: the Grinjuku pieces the club's props take the place of
+PHASE1_CUT = [
+    (-14.05, -13.65, 2.99, 4.07, 3.96, 17.04),     # the parapet on the hall side of the mezzanine: a glass rail now
+    (-12.66, -11.14, 2.99, 4.3, 13.54, 14.86),     # the AC unit on the mezzanine: road cases now
+]
+
 
 def kb_has(s):
     """Is Grinjuku solid `s` still a collider in Kabukigrin's layout?"""
@@ -87,7 +93,18 @@ def kb_has(s):
 
 # ------------------------------------------------------------- export
 
-def to_object(b, name):
+def kb_paint():
+    """The club's flat paint: like GS_Paint (vertex colours) but its own
+    material, so it never shares Grinjuku's baked GS_Paint in the game."""
+    m = bpy.data.materials.get("KB_Paint")
+    if m:
+        return m
+    m = paint_material().copy()
+    m.name = "KB_Paint"
+    return m
+
+
+def to_object(b, name, paint=None):
     """map_kit Builder.finish up to the object (box UVs, paint folded into
     GS_Paint, game to Blender axes), without exporting: the same steps in the
     same order, so the mesh is the one finish() would bake."""
@@ -102,11 +119,11 @@ def to_object(b, name):
             c = loop.vert.co
             loop[uv].uv = (c.z, c.y) if ax == 0 else (c.x, c.z) if ax == 1 else (c.x, c.y)
     col = bm.loops.layers.float_color.new("Col")
-    paint_idx = b._mi(paint_material())
+    paint_idx = b._mi(paint or paint_material())
     white = (1.0, 1.0, 1.0, 1.0)
     for f in bm.faces:
         m = b.mats[f.material_index]
-        if m.name == "GS_Paint" or m.get("gs_keep"):
+        if m.name in ("GS_Paint", "KB_Paint") or m.get("gs_keep"):
             c = white
         else:
             c = (*hexlin(m["gs_hex"]), 1.0)
@@ -181,7 +198,7 @@ def cut_club(obj, gone=()):
             continue
         if all(abs(p[1]) < 0.02 for p in P):
             continue
-        if any(inside(P, b) for b in CLEAR) or any(inside(P, b) for b in STUDIO_CUT):
+        if any(inside(P, b) for b in CLEAR) or any(inside(P, b) for b in STUDIO_CUT) or any(inside(P, b) for b in PHASE1_CUT):
             dead.append(f)
     bmesh.ops.delete(bm, geom=list(set(dead)), context="FACES")
     # the dance floor: clip the ground's faces at its four edges, then drop inside
@@ -255,44 +272,31 @@ def club_material(name, color, rough, metal, emit=None, strength=1.0):
     return m
 
 
-def texture_average(key):
-    """A generated piece's texture, averaged to one linear colour."""
-    path = os.path.join(HERE, "kb-hero", key[4:] + ".jpg")
-    if not os.path.exists(path):
-        return hexlin(0x808080)
-    img = bpy.data.images.load(path)
-    px = list(img.pixels)
-    n = len(px) // 4
-    srgb = [sum(px[c::4]) / n for c in range(3)]
-    bpy.data.images.remove(img)
-    return tuple(v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4 for v in srgb)
+# the Studio boxes the club's props draw now (phase 1): the stage and its
+# step, the bar counter, and the counter's glow and tile top
+MODELLED_COLLIDERS = {154, 155, 156}
+
+
+def modelled_box(p):
+    if p["collider"] in MODELLED_COLLIDERS:
+        return True
+    x, z, w, d, h, y = p["b"]
+    return abs(x + 15.9) < 0.01 and abs(z - 12.2) < 0.01 and p["mat"] in ("GJ_NeonViolet", "GS_Tile")
 
 
 def club_part(glb):
     """The club's still pieces for one GLB, plain: every Part Studio added (a
-    box; on a collider, the collider's own numbers) in its material and tint,
-    and in kb-props the generate_mesh hero pieces as boxes in their texture's
-    average colour (their meshes come back through Blender later)."""
+    box; on a collider, the collider's own numbers) in its material and tint."""
     b = Builder()
     n = 0
     for p in CLUB["boxes"]:
-        if CLUB_GLB[p["file"]] != glb:
+        if CLUB_GLB[p["file"]] != glb or modelled_box(p):
             continue
         x, z, w, d, h, y = p["b"]
         name = f"glb:{p['file']}:{p['mat']}|{p['tint']}|{1 if p['shadow'] else 0}|n"
         m = club_material(name, hexlin(int(p["tint"], 16)), p["rough"], p["metal"], p["emit"], p["emitStrength"])
         b.box(m, w, h, d, x, y, z)
         n += 1
-    if glb == "kb-props":
-        avg = {}
-        for hp in CLUB["heroes"]:
-            key = hp["key"]
-            if key not in avg:
-                avg[key] = club_material(f"{key}||1", texture_average(key), 0.85, 0.0)
-            lo, hi = hp["lo"], hp["hi"]
-            b.box(avg[key], max(hi[0] - lo[0], 0.02), max(hi[1] - lo[1], 0.02), max(hi[2] - lo[2], 0.02),
-                  (lo[0] + hi[0]) / 2, lo[1], (lo[2] + hi[2]) / 2)
-            n += 1
     if not n:
         return None
     o = to_object(b, "kb")
@@ -365,17 +369,158 @@ def main():
     cut_club(o)
     out.append(export([o] + [c for c in [club_part("kb-neon")] if c], "kb-neon.glb"))
     out.append(props_part())
-    quantize_glb.main(out)
+    quantize_glb.main(out, positions=True)
 
 
 def props_part():
-    """kb-props: gj-props.glb as built and baked, the club cut out of it."""
+    """kb-props: gj-props.glb as built and baked, the club cut out of it; the
+    club's Parts; Studio's generated hero pieces."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.gltf(filepath=os.path.join(HERE, "gj-props.glb"))
     o = [ob for ob in bpy.context.scene.objects if ob.type == "MESH"][0]
     o.name = "gj"
     cut_club(o, gone_props())
-    return export([o] + [c for c in [club_part("kb-props")] if c], "kb-props.glb")
+    props = props_object()
+    return export([o] + [c for c in [club_part("kb-props"), hero_part(), props] if c], "kb-props.glb")
+
+
+def props_object():
+    """The club's props (kb_club.py, placed in kb_props.py) as one object,
+    "kbp", their registry written out: the prop colliders for the game,
+    the faces and bounds for the obstruction test."""
+    import kb_props
+    b, R = kb_props.place()
+    write_registry(R)
+    o = to_object(b, "kbp", paint=kb_paint())
+    from bake_kit import _lightmap_uv
+    bpy.ops.object.select_all(action="DESELECT")
+    o.select_set(True)
+    bpy.context.view_layer.objects.active = o
+    _lightmap_uv(o, 4.0 / 2048)
+    o.data.uv_layers.active = o.data.uv_layers["UVMap"]
+    print(f"  kb-props: the club's props, {len(o.data.polygons)} faces, {len(R.props)} props, {len(R.colliders)} colliders")
+    return o
+
+
+def write_registry(R):
+    """maps/kabukigrin-props.js (the colliders the props need) and
+    models/kabukigrin-faces.json (faces that must stay in view, every
+    prop's bounds); prints the props whose bounds cross."""
+    js = os.path.join(HERE, "..", "maps", "kabukigrin-props.js")
+    NL = chr(10)
+    rows = ("," + NL).join("    [" + ",".join(f"{v:g}" for v in c) + "]" for c in R.colliders)
+    lines = [
+        "// Written by models/build_kabukigrin.blender.py: the colliders Kabukigrin's",
+        "// Blender props need (anything over 0.6 m, a shelf that sticks out), on top",
+        "// of the Studio layout's (kabukigrin-layout.js): [x, z, w, d, h, y, pen].",
+        "export const KB_PROPS = {",
+        "  colliders: [",
+        rows + ",",
+        "  ],",
+        "};",
+        "",
+    ]
+    with open(js, "w", newline=NL) as f:
+        f.write(NL.join(lines))
+    import kb_props
+    faces = kb_props.CODE_FACES + R.faces
+    heroes = []
+    for h in CLUB["heroes"]:
+        if remodelled(h):
+            continue
+        lo, hi = list(h["lo"]), list(h["hi"])
+        if h["key"] == "gen:e26da464":
+            lo[1], hi[1] = VALANCE    # raised (hero_part)
+        heroes.append({"id": f"hero:{h['key'][4:]}", "lo": lo, "hi": hi, "on": None})
+    with open(os.path.join(HERE, "kabukigrin-faces.json"), "w", newline=NL) as f:
+        json.dump({"eyes": kb_props.EYES, "known": kb_props.KNOWN, "faces": faces, "props": R.props + heroes}, f, indent=1)
+    # the overlap pass: no two props' bounds cross, unless one stands on the other
+    # (the floor's scatter and the wall slats span whole rooms: their own
+    # placement keeps them off the furniture)
+    solid = [p for p in R.props if not p["id"].startswith(("cash-", "floor-", "slats-"))]
+    bad = []
+    for i, a in enumerate(solid):
+        for c in solid[i + 1:]:
+            if a.get("on") == c["id"] or c.get("on") == a["id"] or (a.get("on") and a.get("on") == c.get("on")):
+                continue
+            if all(a["lo"][k] < c["hi"][k] - 0.003 and c["lo"][k] < a["hi"][k] - 0.003 for k in range(3)):
+                bad.append((a["id"], c["id"]))
+    print(f"  registry: {len(R.colliders)} colliders, {len(faces)} faces, {len(R.props)} props; overlaps: {len(bad)}")
+    heavy = sorted(R.props, key=lambda p: -p.get("tris", 0))[:12]
+    print("  heaviest: " + ", ".join(f"{p['id']} {p.get('tris', 0)}" for p in heavy))
+    for a, c in bad:
+        print(f"    OVERLAP {a} x {c}")
+
+
+HERO_KEEP = 0.15
+VALANCE = (5.98, 7.36)   # where the DJ's valance hangs (Studio had it 5 .. 7, over the LED wall)   # the share of a generated piece's triangles kept
+
+
+def remodelled(h):
+    """Is generated piece `h` one Blender models now (phase 1)? The hall's
+    booths and their tables, its bar stools, the mezzanine's sound desk."""
+    k, lo = h["key"], h["lo"]
+    return k in ("gen:7524a13f", "gen:8180f38e") or (k == "gen:b05ec518" and lo[0] < -5)         or (k == "gen:9bd833bb" and lo[1] > 2.9)
+
+
+def hero_part():
+    """Studio's generate_mesh pieces (the marquee box, the kanji panels, the DJ
+    drapes, the office's, the tatami room's and the yokocho's pieces) from the
+    Studio export, kb-town.glb, with their textures; light-map UVs for the
+    bake. The pieces Blender models now are left out."""
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=os.path.join(HERE, "kb-town.glb"))
+    new = [ob for ob in bpy.data.objects if ob not in before]
+    heroes = [ob for ob in new if ob.type == "MESH" and any(m and m.name.startswith("gen:") for m in ob.data.materials)]
+    for ob in new:
+        if ob not in heroes:
+            bpy.data.objects.remove(ob)
+    if not heroes:
+        return None
+    drop = [(h["lo"], h["hi"]) for h in CLUB["heroes"] if remodelled(h)]
+    bpy.ops.object.select_all(action="DESELECT")
+    for ob in heroes:
+        ob.select_set(True)
+    bpy.context.view_layer.objects.active = heroes[0]
+    if len(heroes) > 1:
+        bpy.ops.object.join()
+    o = bpy.context.view_layer.objects.active
+    o.name = "hero"
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    gone = []
+    for f in bm.faces:
+        c = game(f.calc_center_median())
+        if any(all(lo[a] - 0.01 <= c[a] <= hi[a] + 0.01 for a in range(3)) for lo, hi in drop):
+            gone.append(f)
+    bmesh.ops.delete(bm, geom=gone, context="FACES")
+    # Studio's valance over the DJ hung 5 .. 7 m, over the LED wall's top
+    # metre (it ends at 5.95; rule 9): squashed up between the wall's top and
+    # the hall's ceiling, so it frames the wall instead
+    vi = next((i for i, m in enumerate(o.data.materials) if m and m.name.startswith("gen:e26da464")), None)
+    if vi is not None:
+        vs = {v for f in bm.faces if f.material_index == vi for v in f.verts}
+        for v in vs:
+            y = v.co.z    # Blender z is the game's y
+            v.co.z = VALANCE[0] + (y - 5.0) * (VALANCE[1] - VALANCE[0]) / 2.0
+        print(f"  kb-props: the DJ valance raised to {VALANCE[0]} .. {VALANCE[1]} m ({len(vs)} corners)")
+    bm.to_mesh(o.data)
+    bm.free()
+    # generate_mesh pieces are dense (1,900 triangles on a flat kanji panel):
+    # a quarter of them keeps the shapes and the pictures, at a quarter of
+    # the download
+    n0 = len(o.data.polygons)
+    dec = o.modifiers.new("decimate", "DECIMATE")
+    dec.decimate_type = "COLLAPSE"
+    dec.ratio = HERO_KEEP
+    bpy.ops.object.modifier_apply(modifier=dec.name)
+    print(f"  kb-props: hero pieces decimated {n0} -> {len(o.data.polygons)} faces")
+    from bake_kit import _lightmap_uv
+    _lightmap_uv(o, 4.0 / 1024)
+    o.data.uv_layers.active = o.data.uv_layers[0]
+    print(f"  kb-props: Studio's hero pieces, {len(o.data.polygons)} faces ({len(gone)} left out: Blender's now)")
+    return o
 
 
 if __name__ == "__main__":

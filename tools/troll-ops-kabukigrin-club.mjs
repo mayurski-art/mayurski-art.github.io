@@ -1,15 +1,15 @@
-// One-off (Kabukigrin in Blender, phase 0): pulls the club's Studio parts out
-// of models/kb-town.glb (the last Studio export) into
+// Kabukigrin in Blender: lists the club's Studio pieces in models/kb-town.glb
+// (the last Studio export, kept as the source of Studio's pieces) into
 // models/kabukigrin-club.json for build_kabukigrin.blender.py:
 //   boxes:  the new Parts ("|n" meshes; Studio writes each Part as 12
 //           triangles, every one an axis-aligned box): centre-bottom and size,
 //           the Grinjuku material it took, its tint, roughness, metalness and
 //           glow; a box within 2 cm of a collider takes the collider's numbers
 //           (the colliders are the truth) and its index
-//   heroes: the generate_mesh pieces ("gen:"), as their bounding boxes (the
-//          meshes come back as OBJ through Blender in a later phase); their
-//          textures go to models/kb-hero/<key>.jpg (the build tints each
-//          box with its texture's average colour)
+//   heroes: the generate_mesh pieces ("gen:", one mesh per texture, split
+//           into pieces: triangles sharing a corner), each piece's bounds.
+//           The build imports their meshes from kb-town.glb itself and leaves
+//           out the pieces Blender now models (by these bounds).
 //
 //   node tools/troll-ops-kabukigrin-club.mjs
 import fs from "node:fs";
@@ -71,8 +71,6 @@ for (const nd of j.nodes) {
     for (const i of idx) tri.push(base + i);
   }
   if (isHero) {
-    // one mesh per texture: split it into its pieces (triangles sharing a
-    // corner), each piece its bounding box
     for (const piece of pieces(P, tri)) {
       const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
       for (const i of piece) for (let a = 0; a < 3; a++) { lo[a] = Math.min(lo[a], P[i * 3 + a]); hi[a] = Math.max(hi[a], P[i * 3 + a]); }
@@ -97,18 +95,6 @@ for (const nd of j.nodes) {
     if (ci >= 0) b = L.colliders[ci].slice(0, 6);
     // [x, z, w, d, h, y] like a collider
     boxes.push({ ...look, b: b.map(r3), collider: ci >= 0 ? ci : null });
-  }
-}
-// the generated pieces' textures
-fs.mkdirSync(path.join(M, "kb-hero"), { recursive: true });
-const { j: kj } = read(path.join(M, "kb-town.glb"));
-{
-  const b = fs.readFileSync(path.join(M, "kb-town.glb")), jl = b.readUInt32LE(12), bin = b.subarray(20 + jl + 8);
-  for (const m of kj.materials || []) {
-    const ti = m.pbrMetallicRoughness?.baseColorTexture?.index;
-    if (!m.name.startsWith("gen:") || ti === undefined) continue;
-    const bv = kj.bufferViews[kj.images[kj.textures[ti].source].bufferView];
-    fs.writeFileSync(path.join(M, "kb-hero", m.name.slice(4) + ".jpg"), bin.subarray(bv.byteOffset || 0, (bv.byteOffset || 0) + bv.byteLength));
   }
 }
 const out = path.join(M, "kabukigrin-club.json");

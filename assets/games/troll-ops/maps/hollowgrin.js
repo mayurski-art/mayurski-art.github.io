@@ -37,8 +37,8 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { SURFACES, retexture } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1";
-import { portrait } from "./house-props.js?v=hg6e-sb2-sr1-or1-tx1-sp1-kbt1-gb1";
-import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1";
+import { portrait } from "./house-props.js?v=hg6e-sb2-sr1-or1-tx1-sp1-kbt1-gb1-kbb2";
+import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2";
 import { loadModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1";
 import { buildChapel } from "./hollowgrin-chapel.js?v=hg6tc-or1-tcs1";
 import { roseTexture } from "./chapel-art.js?v=ca1-tcs1";

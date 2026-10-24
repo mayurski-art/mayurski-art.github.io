@@ -9,20 +9,24 @@ dependencies (plain Python):
     except TEXCOORD_1, the baked light map's (bake_kit.py), which every
     material keeps, as normalized unsigned shorts
 
-Positions stay float. Byte normals need KHR_mesh_quantization, which
+Positions stay float, unless main(..., positions=True) (Kabukigrin's build):
+then each mesh's positions are 16-bit normalized round its centre, the
+node's translation and uniform scale undoing it (uniform, so normals need
+nothing): 84 m across in 1.3 mm steps. Byte normals need KHR_mesh_quantization, which
 three.js's GLTFLoader supports; it is added to extensionsUsed/Required.
 A model that is already quantized is left alone.
 
   python quantize_glb.py gl-shell.glb gl-shops.glb ...
 """
 import json
+import math
 import os
 import re
 import struct
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-FLOAT, BYTE, UBYTE, USHORT, UINT = 5126, 5120, 5121, 5123, 5125
+FLOAT, BYTE, UBYTE, SHORT, USHORT, UINT = 5126, 5120, 5121, 5122, 5123, 5125
 SIZE = {5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4}
 COUNT = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4, "MAT4": 16}
 
@@ -72,7 +76,7 @@ def accessor_values(j, bin_, ai):
     return out
 
 
-def main(paths):
+def main(paths, positions=False):
     keep_uv = textured_names()
     for path in paths:
         j, bin_ = read_glb(path)
@@ -145,32 +149,74 @@ def main(paths):
                              "normalized": True, "count": a["count"], "type": "VEC3"})
             return len(new_accs) - 1
 
-        for mesh in j["meshes"]:
+        # positions=True: each mesh's frame (centre, half-size)
+        frames = {}
+        if positions:
+            for mi, mesh in enumerate(j["meshes"]):
+                lo, hi = [math.inf] * 3, [-math.inf] * 3
+                for prim in mesh["primitives"]:
+                    a = j["accessors"][prim["attributes"]["POSITION"]]
+                    for k in range(3):
+                        lo[k], hi[k] = min(lo[k], a["min"][k]), max(hi[k], a["max"][k])
+                frames[mi] = ([(lo[k] + hi[k]) / 2 for k in range(3)], max((hi[k] - lo[k]) / 2 for k in range(3)) or 1.0)
+
+        def position_accessor(ai, mi):
+            c, s = frames[mi]
+            vals = accessor_values(j, bin_, ai)
+            data = bytearray()
+            lo, hi = [32767] * 3, [-32767] * 3
+            for v in vals:
+                q = [max(-32767, min(32767, round((v[k] - c[k]) / s * 32767))) for k in range(3)]
+                for k in range(3):
+                    lo[k], hi[k] = min(lo[k], q[k]), max(hi[k], q[k])
+                data += struct.pack("<hhhh", *q, 0)
+            new_accs.append({"bufferView": add_view(bytes(data), stride=8, target=34962), "componentType": SHORT,
+                             "normalized": True, "count": len(vals), "type": "VEC3", "min": lo, "max": hi})
+            return len(new_accs) - 1
+
+        for mi, mesh in enumerate(j["meshes"]):
             for prim in mesh["primitives"]:
                 mat = j["materials"][prim["material"]]["name"] if "material" in prim else ""
                 # a piece named by its Studio key ("glb:<model>:<material>|<tint>|...",
                 # Kabukigrin's club) is textured as its material is
                 if mat.startswith("glb:"):
                     mat = mat.split("|")[0].split(":")[-1]
+                # a material with its own picture keeps its UVs whatever its name
+                pbr = j["materials"][prim["material"]].get("pbrMetallicRoughness", {}) if "material" in prim else {}
+                own_map = "baseColorTexture" in pbr
                 attrs = {}
                 for k, ai in prim["attributes"].items():
-                    if k == "COLOR_0":
+                    if k == "POSITION" and positions:
+                        attrs[k] = position_accessor(ai, mi)
+                    elif k == "COLOR_0":
                         attrs[k] = color_accessor(ai)
                     elif k == "NORMAL":
                         attrs[k] = normal_accessor(ai)
                     elif k == "TEXCOORD_1":
                         attrs[k] = uv01_accessor(ai)
-                    elif k.startswith("TEXCOORD") and mat not in keep_uv:
+                    elif k.startswith("TEXCOORD") and mat not in keep_uv and not own_map:
                         continue
                     else:
                         attrs[k] = copy_accessor(ai, target=34962)
                 prim["attributes"] = attrs
                 if "indices" in prim:
                     prim["indices"] = copy_accessor(prim["indices"], target=34963)
+        # an embedded picture (Kabukigrin's Studio pieces) keeps its bytes in a
+        # view of its own
+        for img in j.get("images", []):
+            if "bufferView" in img:
+                v = j["bufferViews"][img["bufferView"]]
+                o = v.get("byteOffset", 0)
+                img["bufferView"] = add_view(bytes(bin_[o:o + v["byteLength"]]))
         # anything else that points at accessors (animations, skins) we don't
         # make; refuse rather than corrupt
-        assert not j.get("animations") and not j.get("skins") and not j.get("images"), \
-            "animated, skinned or image-carrying GLBs are not handled"
+        assert not j.get("animations") and not j.get("skins"), \
+            "animated or skinned GLBs are not handled"
+        for node in j.get("nodes", []):
+            if "mesh" in node and node["mesh"] in frames:
+                assert not any(k in node for k in ("translation", "rotation", "scale", "matrix")), "a placed node"
+                c, s = frames[node["mesh"]]
+                node["translation"], node["scale"] = c, [s, s, s]
         j["accessors"] = new_accs
         j["bufferViews"] = new_views
         j["buffers"] = [{"byteLength": len(new_bin)}]

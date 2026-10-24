@@ -21,7 +21,7 @@ import { mergeGeometries, mergeVertices } from "three/addons/utils/BufferGeometr
 import { insidePolygon, clampInsidePolygon } from "./edge.js?v=or1";
 import { SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1";
 import { lakeWaterMaterial, fallsTexture } from "./lake-water.js?v=wf2";
-import { mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1";
+import { mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2";
 import { ISLAND_SOLIDS } from "./trollface-island-colliders.js?v=is1-ip1-mg1-sp1";
 import { ISLAND_GROUND } from "./trollface-island-ground.js?v=tg1";
 import { ISLAND_PROPS } from "./trollface-island-props.js?v=ip1-mg1-sp1";

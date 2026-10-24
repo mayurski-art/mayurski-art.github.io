@@ -4,7 +4,8 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url); // run with NODE_PATH=<checkout>/node_modules
 const { chromium } = require("playwright");
-// ROOT_DIR=<another checkout> shoots that build (a before set); WAIT=<ms>
+// ROOT_DIR=<another checkout> shoots that build (a before set); GFX=high pins the
+// graphics tier (compare sets shot at the same one); WAIT=<ms>
 // for maps that stream in slowly (Hollowgrin needs ~20 s)
 const ROOT = process.env.ROOT_DIR || path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp", ".glb": "model/gltf-binary", ".svg": "image/svg+xml", ".gif": "image/gif", ".mp3": "audio/mpeg" };
@@ -32,7 +33,7 @@ for (const [id, views] of Object.entries(VIEWS)) {
   page.on("pageerror", (e) => console.log("ERR", id, e.message));
   await page.goto(`${BASE}/troll-ops.html?tohooks=1${process.env.QUERY ? "&" + process.env.QUERY : ""}`, { waitUntil: "domcontentloaded", timeout: 90000 });
   await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 60000 });
-  await page.evaluate(async ([id, mode]) => {
+  await page.evaluate(async ([id, mode, gfx]) => {
     const T = window.__trollOps;
     if (mode === "view") {   // View mode (owner only): no bots, HUD or viewmodel in the shot
       window.TrollrunnerAccounts = window.TrollrunnerAccounts || {};
@@ -40,12 +41,15 @@ for (const [id, views] of Object.entries(VIEWS)) {
       window.dispatchEvent(new Event("trollrunner:auth-changed"));
     }
     T.settings.viewMode = mode === "view"; T.setMode("ops"); T.loadout.mapId = id;
+    // GFX=high|medium|low pins the graphics tier: on "auto" a heavier build
+    // can drop a tier mid-run (MSAA off), so before/after sets wouldn't compare
+    if (gfx) T.settings.gfx = gfx;
     await T.startGame(); if (T.isStaging()) T.endStaging();
     T.player.maxHp = T.player.hp = 1e9;
     const st = document.createElement("style");
     st.textContent = "body *:not(canvas):not(main):not(section):not(.arcade-shell) { visibility: hidden !important; } canvas { visibility: visible !important; } .to-minimap { display:none !important }";
     document.head.appendChild(st);
-  }, [id, process.env.MODE || "ops"]);
+  }, [id, process.env.MODE || "ops", process.env.GFX || ""]);
   await new Promise((r) => setTimeout(r, Number(process.env.WAIT) || 6000));
   for (const [x, y, z, lx, ly, lz, tag] of views) {
     await page.evaluate(([x, y, z, lx, ly, lz]) => {
