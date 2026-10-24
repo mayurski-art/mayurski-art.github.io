@@ -62,11 +62,13 @@ const pad = await page.evaluate(() => {
   lobby.querySelector('.to-pad-picker [data-family="xbox"]').click();
   const xb = lobby.querySelector(".to-pad-svg").textContent;
   return { hosts: hosts.length, svgs: document.querySelectorAll(".to-pad-svg").length, ps: ps.includes("✕") && ps.includes("R2"), xbox: xb.includes("RT") && xb.includes("LB"),
-    emote: xb.includes("Emote wheel") && xb.includes("LS + RS") && xb.includes("swivel left") };
+    // Black Ops 2 pad (-pd1): L3 sprints, R3 melees, d-pad left taps to
+    // inspect and holds for the emote wheel (both-sticks emotes are gone)
+    emote: xb.includes("click: sprint") && xb.includes("click: melee") && xb.includes("hold: emote wheel") };
 });
 check("controller layout drawn in lobby Settings and the Esc menu", pad.hosts === 2 && pad.svgs === 2, pad);
 check("button names follow the pad family (PlayStation / Xbox)", pad.ps && pad.xbox, pad);
-check("controller: both sticks = emotes, one stick = swivel", pad.emote);
+check("controller: L3 sprint, R3 melee, d-pad left hold = emote wheel", pad.emote);
 await page.evaluate(() => window.__trollOps.showLobbyPanel("controls"));
 await sleep(400);
 if (SHOT) await page.screenshot({ path: `${SHOT}/fx3-controls.png` });
