@@ -177,13 +177,49 @@ function makeIdTarget() {
   return t;
 }
 
+/* ── What the scene hides ──────────────────────────────────────────────── */
+// In a match the ids are masked by the scene's depth first (an id behind a
+// wall or a gun becomes nothing). The scene's depth is multisampled (MSAA,
+// game.js), and its resolve takes one sample, not the pixel's centre: on a
+// join it's often the neighbouring piece's depth, the head where the id
+// says neck, the arm where it says torso. Tested on its own that hid every
+// other pixel along the join, and the line there came out as dashes and
+// specks (user, 2026-10-16: "the outline breaks where pieces touch"). So a
+// pixel is hidden only when the scene is nearer than every piece of the
+// body round it: a wall or a gun is, the body's own next piece is not.
+const seenShader = {
+  uniforms: { tId: { value: null }, tIdDepth: { value: null }, tSceneDepth: { value: null },
+    resolution: { value: new THREE.Vector2(1, 1) }, cameraNear: { value: 0.1 }, cameraFar: { value: 1000 } },
+  vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `
+    #include <packing>
+    varying vec2 vUv;
+    uniform sampler2D tId, tIdDepth, tSceneDepth;
+    uniform float cameraNear, cameraFar;
+    uniform vec2 resolution;
+    float viewZ(float d) { return -perspectiveDepthToViewZ(d, cameraNear, cameraFar); }
+    void main() {
+      vec4 c = texture2D(tId, vUv);
+      gl_FragColor = c;
+      if (c.r + c.g == 0.0) return;
+      float sz = viewZ(texture2D(tSceneDepth, vUv).x);
+      // (no id round it: the cleared depth, far off)
+      float z = viewZ(texture2D(tIdDepth, vUv).x);
+      if (sz >= z - 0.03) return;
+      // (the resolve's sample lies inside the pixel: the 8 next to it cover it)
+      for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++)
+        z = min(z, viewZ(texture2D(tIdDepth, vUv + vec2(float(i), float(j)) / resolution).x));
+      if (sz < z - 0.03) gl_FragColor = vec4(0.0);
+    }`,
+};
+
 /* ── The edge shader ───────────────────────────────────────────────────── */
 // overlay: write the ink alone (alpha), for drawing over a canvas; else mix
-// it into tColor. useScene: hide ids behind the scene's own depth.
+// it into tColor. tId: the ids, or in a match what the scene leaves of them.
 const edgeShader = (overlay) => ({
   uniforms: {
-    tColor: { value: null }, tId: { value: null }, tIdDepth: { value: null }, tSceneDepth: { value: null },
-    useScene: { value: 0 }, resolution: { value: new THREE.Vector2(1, 1) }, cameraNear: { value: 0.1 }, cameraFar: { value: 1000 },
+    tColor: { value: null }, tId: { value: null }, tIdDepth: { value: null },
+    resolution: { value: new THREE.Vector2(1, 1) }, cameraNear: { value: 0.1 }, cameraFar: { value: 1000 },
     inkColor: { value: new THREE.Color(INK.color) }, widthM: { value: INK.width }, minPx: { value: INK.minPx }, maxPx: { value: INK.maxPx }, fold: { value: INK.fold },
     inner: { value: INK.inner }, innerAlpha: { value: INK.innerAlpha },
     tanHalfFov: { value: 0.5 },
@@ -192,8 +228,8 @@ const edgeShader = (overlay) => ({
   fragmentShader: `
     #include <packing>
     varying vec2 vUv;
-    uniform sampler2D tColor, tId, tIdDepth, tSceneDepth;
-    uniform float useScene, cameraNear, cameraFar, widthM, minPx, maxPx, fold, tanHalfFov, inner, innerAlpha;
+    uniform sampler2D tColor, tId, tIdDepth;
+    uniform float cameraNear, cameraFar, widthM, minPx, maxPx, fold, tanHalfFov, inner, innerAlpha;
     uniform vec2 resolution;
     uniform vec3 inkColor;
     float viewZ(float d) { return -perspectiveDepthToViewZ(d, cameraNear, cameraFar); }
@@ -203,10 +239,6 @@ const edgeShader = (overlay) => ({
       float id = floor(c.r * 255.0 + 0.5) + floor(c.g * 255.0 + 0.5) * 256.0;
       if (id < 0.5) { z = 1e9; return 0.0; }
       z = viewZ(texture2D(tIdDepth, uv).x);
-      if (useScene > 0.5) {
-        float sz = viewZ(texture2D(tSceneDepth, uv).x);
-        if (sz < z - 0.03) { z = sz; return 0.0; }   // something's in front: no piece here
-      }
       return id;
     }
     void main() {
@@ -273,25 +305,40 @@ export class CharInkPass extends Pass {
     this.camera = camera;
     this.needsSwap = false;
     this.ids = makeIdTarget();
+    this.seen = new THREE.WebGLRenderTarget(1, 1, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false });
+    this.seenMat = new THREE.ShaderMaterial({ ...seenShader, depthTest: false, depthWrite: false });
+    this.seenQuad = new FullScreenQuad(this.seenMat);
     this.out = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
     this.mat = new THREE.ShaderMaterial({ ...edgeShader(false), depthTest: false, depthWrite: false });
     this.quad = new FullScreenQuad(this.mat);
     this.copyMat = new THREE.ShaderMaterial({ ...copyShader, depthTest: false, depthWrite: false });
     this.copy = new FullScreenQuad(this.copyMat);
   }
-  setSize(w, h) { this.ids.setSize(w, h); this.out.setSize(w, h); this.mat.uniforms.resolution.value.set(w, h); }
+  setSize(w, h) {
+    this.ids.setSize(w, h); this.seen.setSize(w, h); this.out.setSize(w, h);
+    this.mat.uniforms.resolution.value.set(w, h); this.seenMat.uniforms.resolution.value.set(w, h);
+  }
   render(renderer, writeBuffer, readBuffer) {
     if (!inkActive()) return;   // no TROLLS body about: nothing to do
     drawIds(renderer, this.scene, this.camera, this.ids);
-    const u = this.mat.uniforms;
-    u.tColor.value = readBuffer.texture;
+    const u = this.mat.uniforms, near = this.camera.near, far = this.camera.far;
     u.tId.value = this.ids.texture;
+    if (readBuffer.depthTexture) {
+      const s = this.seenMat.uniforms;
+      s.tId.value = this.ids.texture;
+      s.tIdDepth.value = this.ids.depthTexture;
+      s.tSceneDepth.value = readBuffer.depthTexture;
+      s.cameraNear.value = near;
+      s.cameraFar.value = far;
+      renderer.setRenderTarget(this.seen);
+      this.seenQuad.render(renderer);
+      u.tId.value = this.seen.texture;
+    }
+    u.tColor.value = readBuffer.texture;
     u.tIdDepth.value = this.ids.depthTexture;
-    u.tSceneDepth.value = readBuffer.depthTexture;
-    u.useScene.value = readBuffer.depthTexture ? 1 : 0;
     styleInk(u);
-    u.cameraNear.value = this.camera.near;
-    u.cameraFar.value = this.camera.far;
+    u.cameraNear.value = near;
+    u.cameraFar.value = far;
     u.tanHalfFov.value = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) / (this.camera.zoom || 1);
     renderer.setRenderTarget(this.out);
     this.quad.render(renderer);
@@ -299,7 +346,10 @@ export class CharInkPass extends Pass {
     renderer.setRenderTarget(readBuffer);
     this.copy.render(renderer);
   }
-  dispose() { this.ids.dispose(); this.out.dispose(); this.mat.dispose(); this.quad.dispose(); this.copyMat.dispose(); this.copy.dispose(); }
+  dispose() {
+    this.ids.dispose(); this.seen.dispose(); this.out.dispose(); this.mat.dispose(); this.quad.dispose();
+    this.seenMat.dispose(); this.seenQuad.dispose(); this.copyMat.dispose(); this.copy.dispose();
+  }
 }
 
 /* In the menu: over what the renderer just drew to its canvas (no walls
