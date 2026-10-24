@@ -34,7 +34,7 @@ import { loadBake } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1";
 import { applyBakedLightMap, retexture, SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1";
 import { Kit, place, surfMat, texMat } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1";
 import { U, Neon, neonMat, clubFx, cutRects, slatTexture, mosaicTexture } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1-ch1-sp1-kbt1";
-import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4-kb6-kb11-tx1-ch1-sp1-hh1-yb1-kbt1";
+import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4-kb6-kb11-tx1-ch1-sp1-hh1-yb1-kbt1-dj2";
 import { wetFloor, hangProbe } from "./wet-floor.js?v=wf1";
 import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5-tx1-ch1-sp1-kbt1";
 import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8-tx1-ch1-sp1-kbt1";
@@ -215,7 +215,7 @@ function buildClub(api) {
 
   clubInterior(K);
   danceFloor(K, M, N, PLAN, { edgeY: 0.01 });
-  djStage(K, M, N, HN, S, PLAN, { stage: false, wall: { w: 10, h: 5.5 }, arches: { a: 6.8, h: 7.0, n: 5, step: 0.35, drop: 0.24 } });
+  djStage(K, M, N, HN, S, PLAN, { stage: false, booth: false, wall: { w: 10, h: 5.5 }, arches: { a: 6.8, h: 7.0, n: 5, step: 0.35, drop: 0.24 } });
   hallCeiling(K, M, N, HN, PLAN, PLAN.TOP - 0.3);
   chandelier(K, M, HN, S, PLAN, { top: 6.9, ball: { y: 5.75, r: 0.5 } });
   // the bottles on the back bar under the mezzanine (Studio's counter and cabinet)

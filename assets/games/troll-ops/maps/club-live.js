@@ -192,8 +192,10 @@ export function danceFloor(K, M, N, P, { edgeY = 0.18 } = {}) {
    many, and how much each next one is narrower and lower), the booth and
    the troll DJ bobbing on the beat, the big trollface over the wall.
    `P.djFace` is the way the DJ looks across the floor: "+z" (default) or
-   "+x". `stage: false` when the map already has the stage's block. */
-export function djStage(K, M, N, HN, S, P, { arches = {}, wall = { w: 14, h: 6.2 }, stage = true } = {}) {
+   "+x". `stage: false` when the map already has the stage's block;
+   `booth: false` leaves the booth's front bare (no DJ LULZ sign, no cyan
+   strip at its foot). */
+export function djStage(K, M, N, HN, S, P, { arches = {}, wall = { w: 14, h: 6.2 }, stage = true, booth = true } = {}) {
   const { FL, STAGE, djWall, deck } = P;
   const { a: A0 = 9.4, h: H0 = 8.15, n: AN = 6, step = 0.45, drop = 0.26 } = arches;
   // u runs along the wall, n out of it toward the floor: X(u, n) is the
@@ -238,13 +240,11 @@ export function djStage(K, M, N, HN, S, P, { arches = {}, wall = { w: 14, h: 6.2
     K.cyl(M.blackGloss, x, STAGE.top + 1.18, z, 0.3, 0.3, 0.015, 20);
   }
   box(M.cases, 0, STAGE.top + 1.14, -0.1, 0.8, 0.08, 0.5);
-  {
+  if (booth) {
     const [x, z] = at(0, 0.46), [w, d] = X(5.0, 0.01);
     N.bar(M.neon, x, STAGE.top + 0.15, z, w, 0.05, d, {}, { color: 0x3ff0ff, k: 2.4, chase: 0.9, beat: 0.6 });
-  }
-  {
-    const [x, z] = at(0, 0.465);
-    sign(S, N, M, "dj", x, STAGE.top + 0.62, z, 0.62, { group: 13, ry });
+    const [sx, sz] = at(0, 0.465);
+    sign(S, N, M, "dj", sx, STAGE.top + 0.62, sz, 0.62, { group: 13, ry });
   }
   // the troll DJ, bobbing on the beat
   {
