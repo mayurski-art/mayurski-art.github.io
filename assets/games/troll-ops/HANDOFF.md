@@ -14,6 +14,7 @@ Design docs live next to this file: `ROYALE-ISLAND.md` (Trollface Island map pas
 
 ### Tasks to do, in order (updated 2026-10-15)
 Start each session on a fresh branch or worktree from origin/main.
+0. **Kabukigrin in Blender** (doc APPROVED 2026-10-23, all six decisions: https://claude.ai/artifact/ESCtEQZrXQ3MFZZg9MjWsw). Every still piece of the map modelled in Blender down to the small props (bottles, cash, confetti), then baked; `models/build_kabukigrin.blender.py` replaces kb-town.glb; Studio keeps layout drags and generate_mesh hero pieces (as OBJ into the build); the live layer stays code. Phase 0 = the builder reproducing today's shapes from `kabukigrin-layout.js` + the Grinjuku builders, colliders byte-identical, under 8 MB. Then club, street, behind the hall, the bake (14 fixed lights), ship under 12 MB. One build session for the whole map, user review of shots between phases. CLAUDE.md rule 9 (nothing blocks anything) applies to every prop.
 1. **Stylised realism follow-ups** (live -sr1; how a map is baked, the lessons: `REALISM.md`):
    - Hollowgrin's map shot is still the old one: its re-render came out a green blur (the camera's VIEWS spot sits inside something since the -tm3 relight); fix the spot, re-render, bump `SHOT_V`.
    - Not scheduled (user 2026-10-23: "the graphics are good as they are"): baking Trollface Island.
