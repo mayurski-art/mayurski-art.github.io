@@ -25,7 +25,7 @@ import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withCl
 import { renderCard, myCardData, openProfileCard, openGuestCard, setInviteHandler } from "../progression/profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zh1-zc1-zc2-nf1-or1-nb2-nd2";
 import { shareCardOnX, saveCardPhoto } from "./card-share.js?v=cs1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-tw1";
 import { FINISHES } from "../characters/skins.js?v=p5-wb1-or1";
-import { MAPS, REWARD_MAPS } from "../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1-bw2-bt1-wf1-wf2-zf1-bp1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2";
+import { MAPS, REWARD_MAPS } from "../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1-bw2-bt1-wf1-wf2-zf1-bp1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1";
 import { setMapShot } from "../maps/map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1-sr1-ug5-or1-sp1-pv1";
 import { leaveToArcade, initExitLinks } from "./exit-links.js?v=ex1-cl1";
 import { game } from "../core/state.js?v=st1";
@@ -37,7 +37,7 @@ const lbProvider = makeTrollOpsProvider();
 import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perksInTier, perkUnlocked, perkIconSvg } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1";
 import { STREAK_DEFS } from "../streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1";
 import { renderClassPreview } from "./class-preview.js?v=cp1-rb4-hp1-bx1-sp1";
-import { lobby, enterLobby, leaveLobby, lobbyActivity, round, candidates, tally, renderPanel, tickClock } from "./map-vote.js?v=mv1-vs1-vt2-sp1-hh1-yb1-pv1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2";
+import { lobby, enterLobby, leaveLobby, lobbyActivity, round, candidates, tally, renderPanel, tickClock } from "./map-vote.js?v=mv1-vs1-vt2-sp1-hh1-yb1-pv1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
    calling cards and the private-match maps. */

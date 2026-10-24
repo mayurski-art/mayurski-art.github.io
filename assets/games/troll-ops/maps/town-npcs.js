@@ -450,17 +450,22 @@ export class TownNpcs {
       }
       case "lie": {
         // Sunbathing: on the back, arms loose at the sides or folded under
-        // the head, one knee up on some; a slow breath.
+        // the head, one knee up on some; a slow breath. On the back x-
+        // swings a limb up toward the sky, and torso x+ sits up. On a
+        // lounger (`recline`: its backrest angle) the torso lies up the
+        // backrest and the legs stay flat on the seat.
         rig.root.rotation.x = -Math.PI / 2;
         rig.root.position.y += 0.14 * (rig.scale || 1);
         if (n.seed > 0.5) {
-          p.armL.rotation.set(2.75, 0, 0.55); p.elbowL.rotation.set(2.1, 0, 0);
-          p.armR.rotation.set(2.75, 0, -0.55); p.elbowR.rotation.set(2.1, 0, 0);
+          // the upper arms overhead, the hands folded back under the head
+          p.armL.rotation.set(-2.75, 0, 0.55); p.elbowL.rotation.set(-2.1, 0, 0);
+          p.armR.rotation.set(-2.75, 0, -0.55); p.elbowR.rotation.set(-2.1, 0, 0);
         } else {
           p.armL.rotation.set(0.05, 0, 0.3); p.elbowL.rotation.set(0.15, 0, 0);
           p.armR.rotation.set(0.05, 0, -0.3); p.elbowR.rotation.set(0.15, 0, 0);
         }
-        if (n.seed > 0.3 && n.seed < 0.7) { p.legL.rotation.set(0.75, 0, 0.05); p.kneeL.rotation.set(-1.4, 0, 0); }
+        if (n.c.recline) p.torso.rotation.x = n.c.recline;
+        else if (n.seed > 0.3 && n.seed < 0.7) { p.legL.rotation.set(-0.75, 0, 0.05); p.kneeL.rotation.set(1.4, 0, 0); }
         p.chest.rotation.x = 0.03 * sw(0.9);
         p.headPivot.rotation.x = -0.15;
         break;

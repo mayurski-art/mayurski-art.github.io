@@ -59,9 +59,11 @@ export function beachNpcs() {
   extra("Beachgoer", "phone", { x: STALLS[1][0] - 0.4, z: STALL_Z - 1.15, y: WALK_Y, yaw: FACE_YAW["+z"] });
 
   /* ---- sunbathers: one on each lounger (gb-beach: beside each umbrella,
-     the backrest toward the sea), two on towels on the open sand */
+     the backrest toward the sea, 0.9 rad up from its hinge 0.62 m seaward
+     of the seat's middle), two on towels on the open sand. The feet sit
+     where the back lands on the backrest (checked in a side-on shot). */
   for (const [ux, uz] of [[-24, -18], [4, -20], [32, -14], [-6, -4]]) {
-    extra("Beachgoer", "lie", { x: ux + 1.0, z: uz + 0.6 + 0.75, y: 0.37, yaw: FACE_YAW["-z"] });
+    extra("Beachgoer", "lie", { x: ux + 1.0, z: uz + 0.6 + 0.55, y: 0.37, yaw: FACE_YAW["-z"] }, { recline: 0.9 });
   }
   for (const [x, z, yaw] of [[-19.5, -13.2, -0.3], [19.5, -11.0, 0.25], [-40.5, -14.5, 0.1]]) {
     extra("Beachgoer", "lie", { x, z, y: 0.02, yaw }, { towel: TOWELS[Math.floor(R() * TOWELS.length)] });
