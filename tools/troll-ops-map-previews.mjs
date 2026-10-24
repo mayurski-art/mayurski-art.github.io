@@ -46,7 +46,7 @@ const VIEWS = {
   dustbowl:  [33, 18, 33, -2, 0, -2, 55],
   depot:     [-25, 7.5, 19, 6, 1, -6, 68],
   culdegrin: [4, 26, 38, 0, 0, -4, 55],
-  grinbeach: [40, 22, 30, -6, 0, -10, 55],
+  grinbeach: [14, 30, 44, 26, 0, -12, 62],   // over the shops, turned east so the low sun glows by the pier: towers, volleyball, hoops, tennis
   hollowgrin: [38, 26, 34, 74, 3, -6, 62],   // the Grinmoor Fair: mansion, fountain, Ferris wheel, coaster
   grinleria: [22.5, 6.3, -1.2, -6, 2.0, 2.2, 72],
   trollcity: [-30, 6.2, 0.4, 44, 5.5, 0, 60],   // down Main Street: the saloon, the bank, the courthouse dome
@@ -58,6 +58,8 @@ const VIEWS = {
 // Maps that only build in their own mode (the island is a prestige reward map
 // in versus, so tdm falls back to the first map).
 const MODE = { trollface: "royale" };
+// Maps that need longer than 6 s to finish loading (the bigger Troll Beach).
+const LOAD_WAIT = { grinbeach: 40000 };
 // VIEW=x,y,z,lx,ly,lz,fov overrides the camera and TAG=<name> renames the
 // master (no webp), for trying framings.
 const TRY = process.env.VIEW?.split(",").map(Number);
@@ -81,7 +83,7 @@ for (const id of ids) {
     await T.startGame();
     if (T.isStaging()) T.endStaging();
   }, { map: id, mode: MODE[id] || "tdm" });
-  await new Promise((r) => setTimeout(r, +(process.env.WAIT || (MODE[id] ? 15000 : 6000))));   // models + textures stream in
+  await new Promise((r) => setTimeout(r, +(process.env.WAIT || LOAD_WAIT[id] || (MODE[id] ? 15000 : 6000))));   // models + textures stream in
   const data = await page.evaluate(async (v) => {
     const T = window.__trollOps, R = T.renderer, C = T.composer, cam = T.camera;
     const W = 3840, H = 2160;
