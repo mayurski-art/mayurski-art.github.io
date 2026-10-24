@@ -5,7 +5,8 @@
 //   2. Wade past the seawall: on the board, paddling (eye low); W paddles;
 //      B sees the paddle under A.
 //   3. On a swell's face heading in: Space pops up, then rides; angled down
-//      the line it carries you a fair way; B sees A riding.
+//      the line it carries you a fair way; B sees A riding. (2b: paddling,
+//      the head is up off the deck; 3b: a wipeout splashes, for B too.)
 //   4. C slides off: standing in the water, the board under the arm.
 //   5. Back at the rack: put it back, no board.
 //   Shots in tools/.surf-shots (third person) to judge the poses.
@@ -154,6 +155,9 @@ check("W paddles out", s.z < z0 - 2.5, `${z0.toFixed(1)} -> ${s.z}`);
 b = await seen(B, idA);
 check("B sees A paddling, on a board", b.surf === 2 && b.board && b.gap > 0.5 && b.gap < 1.2, JSON.stringify(b));
 await camShot(B, "2-paddle", [s.x + 3.5, 0, s.z + 2.5], [s.x, 0, s.z]);
+await camShot(B, "2b-paddle-behind", [s.x + 0.3, 0, s.z + 3.4], [s.x, 0, s.z - 1]);
+const arch = await B.evaluate((id) => { const r = window.__trollOps.remotes.byId.get(id).rig, V = new (r.root.position.constructor)(); r.root.updateMatrixWorld(true); const hy = r.parts.head.getWorldPosition(V).y, cy = r.parts.hips.getWorldPosition(V).y; return { head: +hy.toFixed(2), hips: +cy.toFixed(2), up: +(hy - cy).toFixed(2) }; }, idA);
+check("paddling, the head is up off the deck (shows from behind)", arch.up > 0.12 && arch.up < 0.5, JSON.stringify(arch));
 
 // ── 3. Catch a wave, pop up, ride ────────────────────────────────────────
 // on the face of the next set, 14 m out, heading in, already paddling
@@ -206,6 +210,20 @@ await A.keyboard.up("w");
 check("stood up and rode", rodeState && eyes.every((e) => e > 1.1), JSON.stringify(eyes.slice(0, 3)));
 check("a ride of 10 m or more", maxRide >= 10, `${maxRide.toFixed?.(1) ?? maxRide} m, last ${JSON.stringify(s.last)}`);
 check("the board stays on the water", Math.abs(s.y - 0.04) < 1.2, String(s.y));
+
+// ── 3b. A wipeout splashes (here, and on B's screen) ─────────────────────
+s = await S(A);
+if (s.state !== 2) { await A.evaluate(() => window.__trollSurf.toPaddle()); await pumpAll([A], 300); s = await S(A); }
+// B in place first, then A goes in, and the shot while the crown is up
+await B.evaluate(({ x, z }) => { const T = window.__trollOps; T.move.reset(x + 3, z + 3, 0); T.look.yaw = Math.atan2(3, 3); T.look.pitch = -0.12; }, { x: s.x, z: s.z });
+await pumpAll([A, B], 400);
+await A.evaluate(() => window.__trollSurf.wipe("Wiped out!"));
+const splashA = await A.evaluate(() => window.__trollSurfSplash.fired());
+for (let i = 0; i < 12 && !(await B.evaluate(() => window.__trollSurfSplash.fired())); i++) await pumpAll([A, B], 60);
+await shot(B, "3b-wipe");
+const splashB = await B.evaluate(() => window.__trollSurfSplash.fired());
+check("a wipeout throws a splash (A sees it, B sees it)", splashA > 0 && splashB > 0, JSON.stringify({ splashA, splashB }));
+await pumpAll([A, B], 1500);
 
 // ── 4. Slide off ─────────────────────────────────────────────────────────
 s = await S(A);

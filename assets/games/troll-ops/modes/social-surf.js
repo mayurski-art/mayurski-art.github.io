@@ -7,7 +7,7 @@
 // shoreward; aim down the line (along the wave) for speed. Ride it in and
 // the banner says how far you went. Fall behind the crest and the wave
 // leaves you; hit a piling or go straight back over the lip and you wipe
-// out. C slides you off into the water. The poses are the TF_Rig clips made
+// out (a splash: surf-splash.js). C slides you off into the water. The poses are the TF_Rig clips made
 // in Roblox Studio (characters/clips/surf-*.json).
 //
 // The water is surf-sea.js: seaHeight() is what the shader draws, and the
@@ -29,6 +29,7 @@ import { groundHeightAt, resolveCircle } from "../core/movement.js?v=umb2-sb2-gj
 import { loadClip, sampleClip } from "../characters/clips.js?v=rc1";
 import { loadModel } from "../maps/battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1";
 import { SURF, WAVES, SEA_CLOCK, seaHeight, seaSlope } from "../maps/surf-sea.js?v=gb1";
+import { surfSplash, updateSurfSplash } from "./surf-splash.js?v=sp2";
 
 export const SURFING = {
   reach: 2.4,                 // m from a rack to take a board
@@ -40,6 +41,7 @@ export const SURFING = {
   catchBand: [6, 21],         // m out: where a swell can be caught
   catchH: 0.2, catchFace: [0.2, 4], catchSpeed: 0.9,   // m lifted, m ahead of the crest, m/s
   popTime: 0.55, wipeTime: 1.2, grace: 1.4,
+  arch: [0.18, 0.16, 0.32],   // rad added to torso, chest, neck paddling (the head up)
   rideMax: 9, rideFric: 0.22, pump: 1.4, rideMin: 1.0,
   gravity: 9.8 * 0.65,
   nose: 0.85,                 // m: board centre to the head, paddling
@@ -331,6 +333,7 @@ function wipe(msg) {
   surf.ride = null;
   surf.heard.wipe++;
   setState(ST.wipe);
+  surfSplash(surf.x, surf.y, surf.z);
   showWaveBanner(msg, 1500);
   game.audio?.step?.({ x: surf.x, y: surf.y, z: surf.z }, 0.2);
 }
@@ -407,8 +410,11 @@ function driveNpcs() {
 
 /* After the walk (player-update.js): carrying into the surf puts you on the
    board; the wire; the boards of everyone else are posed by peerPosers. */
-let lastOut = -99;
+let lastOut = -99, lastFrame = 0;
 export function updateSurf() {
+  const now = performance.now();
+  updateSurfSplash(Math.min(0.1, (now - (lastFrame || now)) / 1000));
+  lastFrame = now;
   const R = spots();
   if (!R) {
     if (surf.state) setState(ST.none);
@@ -450,6 +456,13 @@ function poseRider(rig, state, t, bx, by, bz, yaw, pitch, roll) {
   if (state === ST.paddle) { rig.root.rotation.x = pitch; rig.root.rotation.z = roll; }
   else if (state === ST.ride) rig.root.rotation.z = roll * 0.6;
   if (!poseClip(rig, state, t)) return;
+  // Paddling, the back arches and the head comes up off the deck, looking
+  // ahead: real paddlers do, and from behind the trollface then shows over
+  // the shoulders instead of sinking into the water.
+  if (state === ST.paddle) {
+    const p = rig.parts;
+    p.torso?.rotateX(SURFING.arch[0]); p.chest?.rotateX(SURFING.arch[1]); p.neckPivot?.rotateX(SURFING.arch[2]);
+  }
   rig.root.updateMatrixWorld(true);
   rig.body?.update?.();
 }
@@ -476,6 +489,7 @@ peerPosers.push((rp, dt) => {
     return;
   }
   // a state change starts its clip over
+  const fell = rp.surfSt !== st && st === ST.wipe;
   if (rp.surfSt !== st) { rp.surfSt = st; rp.surfT = 0; }
   rp.surfT = (rp.surfT || 0) + (dt || 0);
   const yaw = p.surfYaw ?? 0, f = fwd(yaw);
@@ -485,6 +499,7 @@ peerPosers.push((rp, dt) => {
   const by = waterY(bx, bz, t) - 0.02;
   const fs = seaSlope(bx, bz, t, _sl);
   const pitch = Math.atan(fs.x * f.x + fs.z * f.z), roll = Math.atan(-fs.x * f.z + fs.z * f.x);
+  if (fell) surfSplash(bx, by, bz);
   poseRider(rp.rig, st, st === ST.paddle || st === ST.ride ? performance.now() / 1000 : rp.surfT, bx, by, bz, yaw, pitch, roll);
   if (b) placeBoard(b, bx, by, bz, yaw, pitch, roll);
 });
@@ -522,7 +537,7 @@ rpLast.push(dropAction);
 
 if (typeof window !== "undefined" && /[?&]tohooks=1/.test(location.search)) {
   window.__trollSurf = {
-    SURFING, ST, surf, grab, toPaddle, standUp, crestOffset, boards, npcSurfAt,
+    SURFING, ST, surf, grab, toPaddle, standUp, wipe, crestOffset, boards, npcSurfAt,
     clips: () => Object.keys(CLIPS),
     state: () => ({ state: surf.state, x: +surf.x.toFixed(2), y: +surf.y.toFixed(2), z: +surf.z.toFixed(2), yaw: +surf.yaw.toFixed(2), s: +surf.s.toFixed(2),
       out: +outAt(surf.z).toFixed(2), crest: +crestOffset(surf.x, surf.z, SEA_CLOCK()).toFixed(2), eye: game.move.eyeHeight, pos: game.move.pos.toArray().map((v) => +v.toFixed(2)),
