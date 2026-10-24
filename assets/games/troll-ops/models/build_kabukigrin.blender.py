@@ -24,6 +24,7 @@ bake yet: phase 4).
 The playable layout is the contract: nothing here moves a collider.
 """
 import importlib.util
+import inspect
 import json
 import math
 import os
@@ -42,6 +43,7 @@ _sp = importlib.util.spec_from_file_location("build_grinjuku", os.path.join(HERE
 G = importlib.util.module_from_spec(_sp)
 _sp.loader.exec_module(G)
 G_lantern = G.lantern   # (Kabukigrin hangs its own: kb_lantern)
+G_glyphs_on_board, G_kanban, G_shopfront = G.glyphs_on_board, G.kanban, G.shopfront   # (and letters its signs)
 
 KB = json.load(open(os.path.join(HERE, "kabukigrin-layout.json")))
 CLUB = json.load(open(os.path.join(HERE, "kabukigrin-club.json")))
@@ -116,9 +118,126 @@ def is_old_cap(P):
     """Is a face (game points) one of the old lantern caps' (a cylinder of
     that radius round that axis, between those heights)?"""
     for (x, z, r, y0, y1) in LANTERN_CAPS:
-        if all(y0 - 0.002 <= p[1] <= y1 + 0.002 for p in P) and                 all(abs(math.hypot(p[0] - x, p[2] - z) - r) < 0.004 or math.hypot(p[0] - x, p[2] - z) < 0.004 for p in P):
+        if (all(y0 - 0.002 <= p[1] <= y1 + 0.002 for p in P)
+                and all(abs(math.hypot(p[0] - x, p[2] - z) - r) < 0.004 or math.hypot(p[0] - x, p[2] - z) < 0.004 for p in P)):
             return True
     return False
+
+
+# Grinjuku's signs carry made-up glyphs (glyph_strokes); Kabukigrin's say
+# real Japanese (user, 2026-10-24). The glyphs are still drawn, so the shell
+# stays gj-shell face for face and the builder's rng runs as it did, then
+# cut after the unwrap (GLYPH_CUT: thin game boxes round each board's glyph
+# plane); each board goes to maps/kabukigrin-sign-data.js (SIGNS), where
+# kabukigrin-signs.js letters it: [kind, x, y, z, nx, nz, size, slots,
+# ink, glow, shop], "row" left to right, "col" top to bottom.
+SIGNS = []
+GLYPH_CUT = []
+_shop = [None]
+
+
+def cleared(x, y, z):
+    """Is (x, y, z) in a box the club cleared of Grinjuku (CLEAR,
+    STUDIO_CUT, PHASE1_CUT)? A sign or a shop there was cut with it."""
+    return any(b[0] <= x <= b[1] and b[2] <= y <= b[3] and b[4] <= z <= b[5] for b in CLEAR + STUDIO_CUT + PHASE1_CUT)
+
+
+def _sign(kind, p, n, g, slots, m, shop):
+    if cleared(*p):
+        return
+    SIGNS.append([kind, round(p[0], 3), round(p[1], 3), round(p[2], 3), n[0], n[1], round(g, 3), slots,
+                  int(m["gs_hex"]), 1 if m.name.startswith("GJ_Neon") else 0, shop])
+
+
+def _cut(face, ta, tb, y0, y1, o, dt=0.0):
+    """A thin game box round the plane `o` out of `face`, t ta..tb (or, dt
+    set, round the plane across t at ta, o from o .. tb)."""
+    pad = 0.004
+    if dt:
+        (xa, za), (xb, zb) = face.world(ta, o), face.world(ta, tb)
+    else:
+        (xa, za), (xb, zb) = face.world(ta, o), face.world(tb, o)
+    GLYPH_CUT.append((min(xa, xb) - pad, max(xa, xb) + pad, y0 - pad, y1 + pad, min(za, zb) - pad, max(za, zb) + pad))
+
+
+def _normal(face, along=0):
+    """The face's outward normal (along=0), or +-1 along its run, as (x, z)."""
+    if along:
+        return (along, 0) if face.ax == "x" else (0, along)
+    return (0, face.n) if face.ax == "x" else (face.n, 0)
+
+
+def kb_glyphs_on_board(b, m, face, t0, t1, y0, y1, o, rng, cols=None):
+    G_glyphs_on_board(b, m, face, t0, t1, y0, y1, o, rng, cols)
+    h = y1 - y0
+    g = h * 0.78
+    n = cols or max(1, int((t1 - t0) / (g * 1.15)))
+    span = n * g * 1.15
+    start = (t0 + t1) / 2 - span / 2 + g * 0.075
+    _cut(face, start - 0.01, start + span, y0, y1, o + 0.012)
+    x, z = face.world((t0 + t1) / 2, o + 0.014)
+    shop = _shop[0] or inspect.stack()[1].function
+    _sign("row", (x, y0 + h * 0.11 + g / 2, z), _normal(face), g, n, m, shop)
+
+
+def kb_kanban(sh, ne, P, face, t, y0, height, rng, out=1.0):
+    # what the kanban will pick, peeked: a lightbox (dark glyphs) or a dark
+    # board with neon ones
+    st = rng.getstate()
+    lightbox = rng.random() < 0.4
+    if lightbox:
+        rng.choice(["lightbox", "lightbox_r", "lightbox_y", "lightbox_b"])
+        ink = P["sign_back"]
+    else:
+        ink = P[G.neon_pick(rng)]
+    rng.setstate(st)
+    G_kanban(sh, ne, P, face, t, y0, height, rng, out)
+    w, o0 = 0.26, 0.12
+    g = out * 0.7
+    n = max(2, int((height - 0.3) / (g * 1.1)))
+    top = y0 + height - 0.18 - 0.1 * g
+    bot = y0 + height - 0.18 - n * g * 1.1
+    oc = o0 + out / 2
+    for side in (-1, 1):
+        ts = t + side * (w / 2 + 0.012)
+        _cut(face, ts, o0 + (out - g) / 2 + g + 0.01, bot, top, o0 + (out - g) / 2 - 0.01, dt=1)
+        x, z = face.world(t + side * (w / 2 + 0.014), oc)
+        _sign("col", (x, (top + bot) / 2, z), _normal(face, side), g, n, ink, "kanban")
+
+
+# the ramen shops: their fronts built properly (kb_street.py), in the bay
+# Grinjuku's shopfront left between its pilasters, its insides cut (RAMEN_CUT)
+RAMEN = []
+RAMEN_CUT = []
+
+
+def kb_shopfront(sh, ne, P, face, t0, t1, kind, rng):
+    xm, zm = face.world((t0 + t1) / 2, 0.0)
+    if kind == "ramen" and not cleared(xm, 1.0, zm):
+        RAMEN.append((face, t0, t1))
+        a, c = t0 + 0.35, t1 - 0.35
+        (xa, za), (xb, zb) = face.world(a, -0.075), face.world(c, 0.06)
+        RAMEN_CUT.append((min(xa, xb) - 0.005, max(xa, xb) + 0.005, -0.01, 2.62, min(za, zb) - 0.005, max(za, zb) + 0.005))
+    _shop[0] = kind
+    try:
+        G_shopfront(sh, ne, P, face, t0, t1, kind, rng)
+    finally:
+        _shop[0] = None
+
+
+def is_glyph(P):
+    return any(inside(P, b) for b in GLYPH_CUT) or any(inside(P, b) for b in RAMEN_CUT)
+
+
+def write_signs():
+    path = os.path.join(HERE, "..", "maps", "kabukigrin-sign-data.js")
+    rows = ",\n".join("  " + json.dumps(s, ensure_ascii=False) for s in SIGNS)
+    with open(path, "w", encoding="utf8", newline="\n") as f:
+        f.write("// Written by models/build_kabukigrin.blender.py: the street's sign boards,\n"
+                "// lettered by kabukigrin-signs.js. [kind, x, y, z, nx, nz, size, slots,\n"
+                "// ink, glow, shop]. Don't edit by hand.\n"
+                f"export const KB_SIGNS = [\n{rows},\n];\n")
+    print(f"  signs: {len(SIGNS)} boards ({sum(s[0] == 'col' for s in SIGNS)} kanban faces), {len(GLYPH_CUT)} glyph cuts")
 
 
 def kb_has(s):
@@ -237,7 +356,7 @@ def cut_club(obj, gone=()):
             continue
         if all(abs(p[1]) < 0.02 for p in P):
             continue
-        if LANTERN_CAPS and is_old_cap(P):
+        if (LANTERN_CAPS and is_old_cap(P)) or is_glyph(P):
             dead.append(f)
             continue
         if any(inside(P, b) for b in CLEAR) or any(inside(P, b) for b in STUDIO_CUT) or any(inside(P, b) for b in PHASE1_CUT):
@@ -367,6 +486,7 @@ def grinjuku_part(P):
     UVs its bake was made on."""
     G.NEONB = Builder()
     G.lantern = kb_lantern
+    G.glyphs_on_board, G.kanban, G.shopfront = kb_glyphs_on_board, kb_kanban, kb_shopfront
     sh = Builder()
     G.facades(sh, G.NEONB, P)
     G.post_office(sh, G.NEONB, P)
@@ -412,6 +532,7 @@ def main():
     cut_club(o)
     out.append(export([o] + [c for c in [club_part("kb-neon")] if c], "kb-neon.glb"))
     out.append(props_part())
+    write_signs()
     quantize_glb.main(out, positions=True)
 
 
@@ -432,7 +553,16 @@ def props_object():
     "kbp", their registry written out: the prop colliders for the game,
     the faces and bounds for the obstruction test."""
     import kb_props
+    import kb_street
+    import random
     b, R = kb_props.place()
+    P = kb_street.ramen_palette(kb_props.K.palette())
+    rng = random.Random(30)
+    for i, (face, t0, t1) in enumerate(RAMEN):
+        # drawn 0.11 m out: some shops' bays are closed at the facade's plane
+        # (a terrace's, a block's face across them), the recessed ones lose nothing
+        kb_street.ramen_front(kb_street.Out(face, 0.11), b, P, R, f"ramen-{i}", t0, t1, rng, SIGNS)
+    print(f"  kb-props: {len(RAMEN)} ramen fronts")
     write_registry(R)
     o = to_object(b, "kbp", paint=kb_paint())
     from bake_kit import _lightmap_uv

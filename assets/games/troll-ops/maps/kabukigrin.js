@@ -26,10 +26,10 @@
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { GRINJUKU } from "./grinjuku.js?v=gj1-sr1-or1-tx1-sp1-kbt1-gb1-kbb2";
+import { GRINJUKU } from "./grinjuku.js?v=gj1-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1";
 import { KB_LAYOUT } from "./kabukigrin-layout.js?v=kb0-kb1-kb2-kb3-kb5-kb6-kb9-kb10-sp1";
 import { KB_PROPS } from "./kabukigrin-props.js?v=kbp1-kbb2";
-import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2";
+import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1";
 import { loadBake } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1";
 import { applyBakedLightMap, retexture, SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1";
 import { Kit, place, surfMat, texMat } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1";
@@ -40,6 +40,7 @@ import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5-tx1-ch1-sp1-kbt1";
 import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8-tx1-ch1-sp1-kbt1";
 import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9-tx1-ch1-sp1-kbt1-gb3-rh1";
 import { buildStreet, streetSound } from "./kabukigrin-street.js?v=kb10-kb11-kb12-tx1-ch1-sp1-kbt1";
+import { buildSigns } from "./kabukigrin-signs.js?v=ks1-kbs1";
 import { buildTrain, trainFrame } from "./kabukigrin-train.js?v=kb14-sp1-kbt1";
 
 const URL_GLB = new URL("../models/", import.meta.url).href;
@@ -270,6 +271,8 @@ function buildClub(api) {
   buildRooms({ root, K, N, M, S, jpSign, sfx: CLUB.sfx });
   // and the street's (doc 3.5 a): the pachinko parlour across the line
   buildStreet({ root, N, M });
+  // the shop signs, lettered in Japanese (the build cut Grinjuku's made-up glyphs)
+  root.add(buildSigns());
   buildTrain(root);
 
   K.flush();
@@ -342,7 +345,7 @@ function clubInterior(K) {
    its GLB's bake, the club's pieces as their Studio keys say; then the
    photo surfaces and the fronts' grain. */
 const MODELS = { "kb-shell": "gj-shell", "kb-props": "gj-props", "kb-neon": null };
-const MODELS_V = "kbb3";
+const MODELS_V = "kbb4";
 function loadModels(api) {
   // settles once every model is placed (or failed): the wet floors' probes wait for it
   return Promise.all(Object.entries(MODELS).map(([file, gj]) => new Promise((done) => {

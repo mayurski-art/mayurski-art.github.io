@@ -44,7 +44,8 @@ for (const [map, x, z, lx, lz] of ids.map((id) => { const v = views[id][0]; retu
   await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 90000 });
   await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 60000 });
   await page.evaluate(async (map) => { const T = window.__trollOps; T.setMode("ops"); T.loadout.mapId = map; await T.startGame(); if (T.isStaging()) T.endStaging(); T.player.maxHp = T.player.hp = 1e9; }, map);
-  await new Promise((r) => setTimeout(r, 7000));
+  // SETTLE=ms: longer for a map whose models, probes and atlases land late (Kabukigrin)
+  await new Promise((r) => setTimeout(r, +(process.env.SETTLE || 7000)));
   const r = await page.evaluate(async ([x, z, lx, lz]) => {
     const T = window.__trollOps;
     T.move.pos.set(x, T.move.pos.y, z);

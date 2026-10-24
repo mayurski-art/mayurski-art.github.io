@@ -52,6 +52,7 @@ export const RETEXTURE = {
   GS_Deck: ["wood", 0.8],
   // Kabukigrin's club props (models/kb_club.py): the dark wood
   KB_Wood: ["wood", 1.2, 0.0],
+  KB_StreetWood: ["wood", 1.2, 0.0],
   // Hollowgrin (hg-*): granite tombs, a red barn, the candy shop. A third
   // value is how far the paint is lifted toward white (default 0.55): the
   // barn red and the shop purple stay strong at 0.2-0.3. Painted boards use
