@@ -41,6 +41,7 @@ from map_kit import Builder, hexlin, paint_material  # noqa: E402
 _sp = importlib.util.spec_from_file_location("build_grinjuku", os.path.join(HERE, "build_grinjuku.blender.py"))
 G = importlib.util.module_from_spec(_sp)
 _sp.loader.exec_module(G)
+G_lantern = G.lantern   # (Kabukigrin hangs its own: kb_lantern)
 
 KB = json.load(open(os.path.join(HERE, "kabukigrin-layout.json")))
 CLUB = json.load(open(os.path.join(HERE, "kabukigrin-club.json")))
@@ -80,6 +81,44 @@ PHASE1_CUT = [
     (-14.05, -13.65, 2.99, 4.07, 3.96, 17.04),     # the parapet on the hall side of the mezzanine: a glass rail now
     (-12.66, -11.14, 2.99, 4.3, 13.54, 14.86),     # the AC unit on the mezzanine: road cases now
 ]
+
+
+# Grinjuku hangs a lantern at each end of an izakaya's or ramen shop's sign
+# band, 0.3 m out and 2.58 .. 3.0 m up: in front of the band (2.78 .. 3.33,
+# 0.25 deep), rule 9 (user, 2026-10-24). Kabukigrin's hang lower, on the
+# pilasters either side of the shop, under the band, lantern and caps all in
+# kb-neon (no bake). The shell still draws the old caps where they were, so
+# it stays gj-shell face for face (the gj bake fits it), and cut_club drops
+# them after the unwrap: LANTERN_CAPS (game x, z, radius, y0, y1).
+LANTERN_CAPS = []
+_lanterns = []
+
+
+def kb_lantern(ne, sh, P, face, t, y, o, white=False, r=0.18, h=0.42):
+    G_lantern(_Discard(), sh, P, face, t, y, o, white, r, h)
+    x, z = face.world(t, o)
+    LANTERN_CAPS.append((x, z, r * 0.7, y - h - 0.06, y + 0.06))
+    # shopfront hangs them in pairs, at a + 0.25 then c - 0.25; the
+    # pilasters' middles are 0.425 further out (pad 0.35)
+    _lanterns.append(t)
+    left = len(_lanterns) % 2 == 1
+    if not left:
+        assert t > _lanterns[-2], "lanterns not in pairs"
+    tt = t - 0.425 if left else t + 0.425
+    r2, h2, top = 0.16, 0.38, 2.62
+    x, z = face.world(tt, o)
+    ne.cyl(P["lantern_w" if white else "lantern"], r2, (x, top - h2, z), (x, top, z), seg=10)
+    ne.cyl(P["black"], r2 * 0.7, (x, top, z), (x, top + 0.06, z), seg=10)
+    ne.cyl(P["black"], r2 * 0.7, (x, top - h2 - 0.06, z), (x, top - h2, z), seg=10)
+
+
+def is_old_cap(P):
+    """Is a face (game points) one of the old lantern caps' (a cylinder of
+    that radius round that axis, between those heights)?"""
+    for (x, z, r, y0, y1) in LANTERN_CAPS:
+        if all(y0 - 0.002 <= p[1] <= y1 + 0.002 for p in P) and                 all(abs(math.hypot(p[0] - x, p[2] - z) - r) < 0.004 or math.hypot(p[0] - x, p[2] - z) < 0.004 for p in P):
+            return True
+    return False
 
 
 def kb_has(s):
@@ -197,6 +236,9 @@ def cut_club(obj, gone=()):
             dead.append(f)
             continue
         if all(abs(p[1]) < 0.02 for p in P):
+            continue
+        if LANTERN_CAPS and is_old_cap(P):
+            dead.append(f)
             continue
         if any(inside(P, b) for b in CLEAR) or any(inside(P, b) for b in STUDIO_CUT) or any(inside(P, b) for b in PHASE1_CUT):
             dead.append(f)
@@ -324,6 +366,7 @@ def grinjuku_part(P):
     order, which changes every run, so a redrawn gj-props never matches the
     UVs its bake was made on."""
     G.NEONB = Builder()
+    G.lantern = kb_lantern
     sh = Builder()
     G.facades(sh, G.NEONB, P)
     G.post_office(sh, G.NEONB, P)

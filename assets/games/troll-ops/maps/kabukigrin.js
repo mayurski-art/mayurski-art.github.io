@@ -285,7 +285,10 @@ function buildClub(api) {
      signs in its way cleared (build_kabukigrin CLEAR). The club's over the Sewers' mouth on
      A Main, short of the marquee; the Alta screen on the east block's
      corner over the forecourt */
-  api.prop(videoScreen({ w: 11.2, h: 5.6, px: [768, 384], x: -24.62, y: 5.65, z: -2.6, ry: -Math.PI / 2, frame: 1.6 })).castShadow = false;
+  // (flat to its wall, x -23.1, in a 0.32 m bezel: what stood proud of the
+  // facade behind it is cut away in the build (CLEAR), and a deep housing
+  // stood across A Main seen down the street; user, 2026-10-24)
+  api.prop(videoScreen({ w: 11.2, h: 5.6, px: [768, 384], x: -23.45, y: 5.65, z: -2.6, ry: -Math.PI / 2, frame: 0.32 })).castShadow = false;
   // (east of the corner's blade signs at x 14, over the shop signs)
   api.prop(videoScreen({ w: 6.67, h: 4, px: [640, 384], x: 19.3, y: 5.6, z: -33.3, ry: Math.PI, offset: 17.3, frame: 1.28 })).castShadow = false;
   // and the hall's two, facing each other over the dance floor: the pole
@@ -339,7 +342,7 @@ function clubInterior(K) {
    its GLB's bake, the club's pieces as their Studio keys say; then the
    photo surfaces and the fronts' grain. */
 const MODELS = { "kb-shell": "gj-shell", "kb-props": "gj-props", "kb-neon": null };
-const MODELS_V = "kbb2";
+const MODELS_V = "kbb3";
 function loadModels(api) {
   // settles once every model is placed (or failed): the wet floors' probes wait for it
   return Promise.all(Object.entries(MODELS).map(([file, gj]) => new Promise((done) => {
