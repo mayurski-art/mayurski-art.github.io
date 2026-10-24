@@ -35,6 +35,7 @@ import { applyBakedLightMap, retexture, SURFACES } from "./surface-textures.js?v
 import { Kit, place, surfMat, texMat } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1";
 import { U, Neon, neonMat, clubFx, cutRects, slatTexture, mosaicTexture } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1-ch1-sp1-kbt1";
 import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4-kb6-kb11-tx1-ch1-sp1-hh1-yb1-kbt1";
+import { wetFloor, hangProbe } from "./wet-floor.js?v=wf1";
 import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5-tx1-ch1-sp1-kbt1";
 import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8-tx1-ch1-sp1-kbt1";
 import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9-tx1-ch1-sp1-kbt1-gb3-rh1";
@@ -103,6 +104,8 @@ const ROPES = byKind("rope").sort(([a], [b]) => num(a) - num(b)).map(([, m]) => 
    the west wall looking east across the floor to the mezzanine (A Heaven),
    the bar under the mezzanine's overhang. club-live.js builds from this. */
 const HALL = { x0: -31.7, x1: -14.4, z0: 4.4, z1: 23.6 };
+// A Main's street, as Grinjuku's dressing names it: [x0, z0, x1, z1]
+const A_MAIN = GRINJUKU.dress.areas.aMain;
 const DANCE = { x0: -27, x1: -17, z0: 10, z1: 20 };
 const PLAN = {
   FL: 0, TOP: 7.4, ROOF: 8.0, HALL, DANCE, DC: { x: -22, z: 15 },
@@ -302,6 +305,9 @@ function clubInterior(K) {
   const mosaic = clubFx(texMat(mosaicTexture(), { tile: 1.4, rough: 0.3, metal: 0.2, bounce: 0.4 }), { wash: { color: 0x20ffd0, top: 3, strength: 0.25 } });
   const marble = clubFx(surfMat("marble", 0x17131c, { mix: 0.04, tile: 3, rough: 0.28 }), { disco: true });
   Object.assign(marble, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+  // spilt drinks on it (doc phase 1): pools near-mirror, the rest a touch glossier
+  wetFloor(marble, { rect: [HALL.x0, HALL.z0 - 0.3, HALL.x1, HALL.z1 + 0.2], cover: 0.4, scale: 1.6, edge: 0.4, pool: 0.03, dry: 0.75, dark: 0.8, env: 0.45, clamp: 0.6,
+    probe: { at: [-23, 1.2, 14], box: [HALL.x0, -0.1, HALL.z0 - 0.3, HALL.x1, PLAN.TOP, HALL.z1 + 0.2] } });
   const ceiling = new THREE.MeshStandardMaterial({ color: 0x0b0a0e, roughness: 0.95 });
   const panel = (mat, x, z, len, y0, y1, ry) => {
     if (len < 0.05 || y1 - y0 < 0.05) return;
@@ -335,7 +341,8 @@ function clubInterior(K) {
 const MODELS = { "kb-shell": "gj-shell", "kb-props": "gj-props", "kb-neon": null };
 const MODELS_V = "kbb2";
 function loadModels(api) {
-  for (const [file, gj] of Object.entries(MODELS)) {
+  // settles once every model is placed (or failed): the wet floors' probes wait for it
+  return Promise.all(Object.entries(MODELS).map(([file, gj]) => new Promise((done) => {
     loader.load(`${URL_GLB}${file}.glb?v=${MODELS_V}`, (gltf) => {
       const baked = [];
       gltf.scene.traverse((o) => {
@@ -368,9 +375,9 @@ function loadModels(api) {
         for (const o of wood) clubFx(o.material, { wash: { color: 0xff2a3a, top: 3.2, strength: 0.5 } });
         gltf.scene.traverse((o) => { if (o.isMesh && o.material?.name === "GS_Paint") paintDetail(o.material, "kbfront", 0.45, 0.7); });
         api.prop(gltf.scene);
-      });
-    }, undefined, (e) => console.warn(`Kabukigrin: ${file} didn't load`, e));
-  }
+      }).finally(done);
+    }, undefined, (e) => { console.warn(`Kabukigrin: ${file} didn't load`, e); done(); });
+  })));
 }
 
 function buildKabukigrin(api) {
@@ -379,13 +386,24 @@ function buildKabukigrin(api) {
   for (const [x, z, w, d, h, y, pen] of KB_PROPS.colliders) api.ghostBox(x, z, w, d, h, { y, pen });
   api.stairLinks.push(...STAIRS.map((s) => ({ a: { ...s.a }, b: { ...s.b } })));
   for (const r of ROPES) api.rope(r.x, r.z, r.y0, r.y1, { dir: r.dir, ghost: true });
-  loadModels(api);
+  const models = loadModels(api);
   // the game's ground plane (made before build) gets the dance floor's hole
   const probe = api.prop(new THREE.Group()), top = probe.parent;
   top.remove(probe);
   const ground = top.children.find((o) => o.isMesh && o.geometry.type === "PlaneGeometry");
-  if (ground) groundHole(ground);
+  if (ground) {
+    groundHole(ground);
+    // A Main's rain (doc phase 1): pools and run-off on its asphalt, the
+    // marquee and the pachinko sign caught in them
+    wetFloor(ground.material, { rect: A_MAIN, cover: 0.5, scale: 2.6, edge: 1.2, pool: 0.04, dry: 0.85, dark: 0.68, env: 1.0,
+      probe: { at: [(A_MAIN[0] + A_MAIN[2]) / 2, 1.6, -14], box: [A_MAIN[0] - 0.6, -0.1, A_MAIN[1] - 4, A_MAIN[2] + 0.6, 22, A_MAIN[3] + 4] } });
+  }
   buildClub(api);
+  // each wet floor's reflection probe, on one mesh of it
+  const wet = new Set();
+  top.traverse((o) => {
+    if (o.isMesh && o.material?.userData?.wetProbe && !wet.has(o.material)) { wet.add(o.material); hangProbe(o, { when: models }); }
+  });
   // the far city: drawn by the game, not part of the Studio town
   mapModel(api, "gj-skyline", { x: 0, z: 0, castShadow: false });
 }
