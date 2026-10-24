@@ -867,8 +867,8 @@ export function shopSignMaterial(text, color) {
 }
 
 /* The mural on the lot's back wall (inner face z 30.6): a sunset over the
-   waves, palm silhouettes, TROLL BEACH in surf lettering and the grin,
-   weathered. One canvas on one plane. */
+   waves, palm silhouettes, TROLL BEACH in surf lettering, weathered
+   (no grin face on it: user, 2026-10-23). One canvas on one plane. */
 export function beachMural() {
   const W = 2048, H = 268;
   const c = document.createElement("canvas");
@@ -878,8 +878,8 @@ export function beachMural() {
   const sky = g.createLinearGradient(0, 0, 0, H);
   sky.addColorStop(0, "#2f5fa8"); sky.addColorStop(0.45, "#f08a6a"); sky.addColorStop(0.75, "#ffd08a");
   g.fillStyle = sky; g.fillRect(0, 0, W, H);
-  g.fillStyle = "#fff0c0"; g.beginPath(); g.arc(1500, 168, 70, 0, Math.PI * 2); g.fill();
-  for (let k = 0; k < 6; k++) { g.fillStyle = "rgba(255,240,200,0.5)"; g.fillRect(1420, 120 + k * 16, 160, 5); }
+  g.fillStyle = "#fff0c0"; g.beginPath(); g.arc(1600, 168, 70, 0, Math.PI * 2); g.fill();
+  for (let k = 0; k < 6; k++) { g.fillStyle = "rgba(255,240,200,0.5)"; g.fillRect(1520, 120 + k * 16, 160, 5); }
   // waves
   for (let row = 0; row < 3; row++) {
     g.fillStyle = ["#2a8ab8", "#1f6f9f", "#16557f"][row];
@@ -907,20 +907,10 @@ export function beachMural() {
   g.font = "900 150px 'Arial Black', Impact, sans-serif";
   g.textAlign = "center"; g.textBaseline = "middle";
   g.lineJoin = "round";
-  g.lineWidth = 22; g.strokeStyle = "#1a1030"; g.strokeText("TROLL BEACH", 820, 130, 1080);
+  g.lineWidth = 22; g.strokeStyle = "#1a1030"; g.strokeText("TROLL BEACH", 900, 130, 1080);
   const tg = g.createLinearGradient(0, 60, 0, 200);
   tg.addColorStop(0, "#ffe25a"); tg.addColorStop(1, "#ff6a3a");
-  g.fillStyle = tg; g.fillText("TROLL BEACH", 820, 130, 1080);
-  // the grin, on the sun side
-  g.save(); g.translate(1700, 120); g.scale(0.7, 0.7);
-  g.fillStyle = "#fffaf0"; g.strokeStyle = "#1a1030"; g.lineWidth = 9;
-  g.beginPath(); g.ellipse(0, 0, 104, 96, 0, 0, Math.PI * 2); g.fill(); g.stroke();
-  g.beginPath(); g.moveTo(-76, 8); g.quadraticCurveTo(0, 104, 78, 0); g.lineTo(-76, 8); g.fillStyle = "#fff"; g.fill(); g.stroke();
-  for (let k = 0; k < 7; k++) { const x = -58 + k * 19; g.lineWidth = 6; g.beginPath(); g.moveTo(x, 10); g.lineTo(x + 2, 36 + Math.sin(k / 6 * Math.PI) * 16); g.stroke(); }
-  g.lineWidth = 7;
-  for (const ex of [-40, 40]) { g.beginPath(); g.ellipse(ex, -40, 20, 10, ex < 0 ? 0.25 : -0.25, 0, Math.PI * 2); g.stroke(); }
-  g.beginPath(); g.moveTo(-66, -66); g.lineTo(-20, -56); g.moveTo(66, -66); g.lineTo(20, -56); g.stroke();
-  g.restore();
+  g.fillStyle = tg; g.fillText("TROLL BEACH", 900, 130, 1080);
   // weathering: chips and a dirty bottom edge
   for (let k = 0; k < 900; k++) { g.fillStyle = `rgba(240,232,220,${0.15 + r() * 0.4})`; const d = 1 + r() * 4; g.fillRect(r() * W, r() * H, d, d); }
   const dirt = g.createLinearGradient(0, H - 50, 0, H);

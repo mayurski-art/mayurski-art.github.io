@@ -13,7 +13,7 @@ import { groundHeightAt } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1
 import { setGroundField } from "../core/ground-field.js?v=gf1-tg1";
 import { PENTAGRIN } from "./pentagrin.js?v=hg6e-sr1-or1";
 import { HOLLOWGRIN } from "./hollowgrin.js?v=hg6tc-sb2-sr1-or1-tcs1-tm3-tm6-tx1-sp1-kbt1-gb1";
-import { GRINLERIA } from "./grinleria.js?v=hg6e-bl1-bw1-sr1-or1-tx1-sp1-kbt1-gb1-tb1";
+import { GRINLERIA } from "./grinleria.js?v=hg6e-bl1-bw1-sr1-or1-tx1-sp1-kbt1-gb1-tb1-tb2";
 import { TROLLFACE_ISLAND } from "./trollface-island.js?v=hg6e-pi1-sr1-or1-wf1-wf2-zf1-bp1-is1-tg1-ip1-mg1-tx1-sp1-ch1-kbt1-gb1";
 import { TROLLCITY } from "./trollcity.js?v=tc2-wst-sb1-rp1-dj1-fu1b7b7d-tc3-cd1-sh1-zr10-hr2-zp1-sr1-pf1-or1-bw2-bt1-tcs1-tcs2-mg1-tcp1-tx1-trk1-bt3-ch1-jb1-jb3-jb6-sp1-kbt1-gb1";
 import { TROLLINGLOUD } from "./trollingloud.js?v=tl4-fu1c1c2f1m1-tc3-nc1-cd1-sh1-sg1-cw1-zr10-hr2-zp1-jb1-nh1-sr1-hl1-pf1-or1-bw2-bt1-tcs1-cl1-kb4-kb6-kb11-tm4-tm7-tx1-ch1-sp1-hh1-yb1-kbt1-gb3-rh1";
@@ -29,10 +29,10 @@ import {
 import { gsModel, mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1";
 import { buildDustbowlCity, CITY_PALMS } from "./dustbowl-city.js?v=db5-sr1-or1-tx1-sp1-kbt1";
 import { buildSurfStrip } from "./surf-sea.js?v=gb1";
-import { buildVenice, VENICE_PALMS, VENICE_SPAWNS, RACKS } from "./grinbeach-venice.js?v=gb1-tb1";
-import { buildCourtGear, courtSpots } from "./grinbeach-courts.js?v=gb5";
-import { beachNpcs, beachFreeSeats } from "./grinbeach-social.js?v=gb3-rh1-gb4-tb1-gb7-gb8-gb9";
-import { dressMap, beachWaterMaterial, palmTrees, shopSignMaterial, beachMural, rangeBoardMaterial } from "./map-dressing.js?v=hg6e-sr1-or1-tb1";
+import { buildVenice, VENICE_PALMS, VENICE_SPAWNS, RACKS } from "./grinbeach-venice.js?v=gb1-tb1-tb2";
+import { buildCourtGear, courtSpots } from "./grinbeach-courts.js?v=gb5-tb2";
+import { beachNpcs, beachFreeSeats } from "./grinbeach-social.js?v=gb3-rh1-gb4-tb1-gb7-gb8-gb9-tb2";
+import { dressMap, beachWaterMaterial, palmTrees, shopSignMaterial, beachMural, rangeBoardMaterial } from "./map-dressing.js?v=hg6e-sr1-or1-tb1-tb2";
 
 /* ------------------------------------------------------------ surface PBR */
 // SURFACES (the CC0 tileable texture sets) now lives in surface-textures.js,
