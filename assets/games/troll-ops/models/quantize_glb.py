@@ -148,6 +148,10 @@ def main(paths):
         for mesh in j["meshes"]:
             for prim in mesh["primitives"]:
                 mat = j["materials"][prim["material"]]["name"] if "material" in prim else ""
+                # a piece named by its Studio key ("glb:<model>:<material>|<tint>|...",
+                # Kabukigrin's club) is textured as its material is
+                if mat.startswith("glb:"):
+                    mat = mat.split("|")[0].split(":")[-1]
                 attrs = {}
                 for k, ai in prim["attributes"].items():
                     if k == "COLOR_0":

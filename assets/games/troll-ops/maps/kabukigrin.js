@@ -1,15 +1,17 @@
 // Troll Forces — "Kabukigrin" (doc docs/KABUKIGRIN.md): Grinjuku with
 // Trolling Loud's Tokyo branch in its A side. Laid out in Roblox Studio
-// (Kabukigrin (edit).rbxl) and brought back by
-// tools/troll-ops-map-from-studio.mjs --map kabukigrin --write as two files:
-//   models/kb-town.glb      every still piece, one mesh per material, named
-//                           "<key>|<tint>|<shadow>": a Grinjuku chunk's key
-//                           is "glb:<its GLB>:<its material>" and it carries
-//                           that GLB's material, its light-map UVs and paint
-//   kabukigrin-layout.js    the colliders, the markers by name (spawns,
-//                           sites, ropes, stairs) and the lights
-// So the map is the Studio layout's, the look Grinjuku's: a chunk is lit by
-// its own GLB's bake and retextured as that GLB is (map-models.js).
+// (Kabukigrin (edit).rbxl); tools/troll-ops-map-from-studio.mjs --map
+// kabukigrin --write brings back kabukigrin-layout.js: the colliders, the
+// markers by name (spawns, sites, ropes, stairs) and the lights.
+// Every still piece is Blender's since 2026-10-24 (Kabukigrin in Blender,
+// claude.ai/artifact/ESCtEQZrXQ3MFZZg9MjWsw): models/build_kabukigrin.blender.py
+// draws kb-shell, kb-props and kb-neon from the layout. In each, the mesh
+// "gj" is Grinjuku's part (its own builders; gj-shell's and gj-props' bakes
+// light it), the club cut out of it (the props Studio removed, the street
+// dressing behind the club's walls, the dance floor's hole); the mesh "kb"
+// is the club's, every material named by its Studio key
+// ("glb:<gj model>:<material>|<tint>|<shadow>|n", "gen:<hash>||1"), so it
+// is shaded and retextured as that GLB's material (map-models.js).
 // On top of that the club's live layer, in code (club-live.js, as Trolling
 // Loud's): the dance floor over its mirror pit, the DJ, the ceiling, the
 // chandelier and ball, the bottle wall, the lasers, the clock and the
@@ -176,113 +178,24 @@ function jpSign(text, { vertical = false, color = "#3ff0ff", size = 112 } = {}) 
   return { mat: neonMat({ map, transparent: true, key: `kb-${text}` }), aspect: c.width / c.height };
 }
 
-/* Cut the dance floor's rectangle out of everything flat at y 0 in `obj`
-   (the town's floors, the game's ground plane), so the mirror pit under
-   the glass shows through. Triangles that cross the edge are clipped;
-   every attribute is carried over. */
-function cutDanceFloor(obj, R = DANCE) {
-  obj.updateMatrixWorld(true);
-  const meshes = [];
-  obj.traverse((o) => { if (o.isMesh) meshes.push(o); });
-  const box = new THREE.Box3();
-  for (const o of meshes) {
-    box.setFromObject(o);
-    if (box.max.x < R.x0 || box.min.x > R.x1 || box.max.z < R.z0 || box.min.z > R.z1 || box.min.y > 0.06 || box.max.y < -0.06) continue;
-    const src = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
-    src.applyMatrix4(o.matrixWorld);
-    const names = Object.keys(src.attributes), A = names.map((k) => src.attributes[k]);
-    const sizes = A.map((a) => a.itemSize), width = sizes.reduce((a, b) => a + b, 0);
-    const vert = (i) => {
-      const v = new Float32Array(width);
-      let w = 0;
-      for (const a of A) for (let c = 0; c < a.itemSize; c++) v[w++] = a.getComponent(i, c);
-      return v;
-    };
-    // the part of polygon `poly` where f(v) >= 0 (f linear in position)
-    const clip = (poly, f) => {
-      const out = [];
-      for (let i = 0; i < poly.length; i++) {
-        const a = poly[i], b = poly[(i + 1) % poly.length], fa = f(a), fb = f(b);
-        if (fa >= 0) out.push(a);
-        if ((fa >= 0) !== (fb >= 0)) {
-          const t = fa / (fa - fb), v = new Float32Array(width);
-          for (let k = 0; k < width; k++) v[k] = a[k] + (b[k] - a[k]) * t;
-          out.push(v);
-        }
-      }
-      return out;
-    };
-    const west = (v) => R.x0 - v[0], east = (v) => v[0] - R.x1;
-    const inX = (p) => clip(clip(p, (v) => v[0] - R.x0), (v) => R.x1 - v[0]);
-    const kept = [];
-    let cut = false;
-    for (let t = 0; t < src.attributes.position.count; t += 3) {
-      const tri = [vert(t), vert(t + 1), vert(t + 2)];
-      const xs = tri.map((v) => v[0]), zs = tri.map((v) => v[2]);
-      if (!tri.every((v) => Math.abs(v[1]) < 0.06) || Math.max(...xs) <= R.x0 || Math.min(...xs) >= R.x1 || Math.max(...zs) <= R.z0 || Math.min(...zs) >= R.z1) { kept.push(tri); continue; }
-      cut = true;
-      for (const p of [clip(tri, west), clip(tri, east), clip(inX(tri), (v) => R.z0 - v[2]), clip(inX(tri), (v) => v[2] - R.z1)]) {
-        for (let i = 1; i + 1 < p.length; i++) kept.push([p[0], p[i], p[i + 1]]);
-      }
-    }
-    if (!cut) { src.dispose(); continue; }
-    const g = new THREE.BufferGeometry();
-    let off = 0;
-    names.forEach((k, ai) => {
-      const size = sizes[ai], arr = new Float32Array(kept.length * 3 * size);
-      let w = 0;
-      for (const tri of kept) for (const v of tri) for (let c = 0; c < size; c++) arr[w++] = v[off + c];
-      g.setAttribute(k, new THREE.Float32BufferAttribute(arr, size));
-      off += size;
-    });
-    g.applyMatrix4(o.matrixWorld.clone().invert());
-    g.computeBoundingSphere();
-    o.geometry.dispose();
-    o.geometry = g;
-    src.dispose();
-  }
-}
-
-/* Grinjuku's own street dressing where the club's walls now are: the
-   shop signs, awnings and lightboxes on the facades that became the hall's
-   walls, and the blade sign on Mid Bottom's wall where the club's trollface
-   goes. Every triangle wholly inside a box goes (bar the ground's, flat at
-   y 0); Studio's new pieces (their
-   key ends "|n") and its generated props ("gen:") stay. */
-const CLEAR = [
-  [-31.75, -14.25, -0.01, 7.45, 3.9, 5.6],   // the hall's north wall, inside, down to the floor
-  [-31.75, -30.7, 0.05, 7.45, 4, 23.8],      // its west wall, behind the DJ
-  [-31.75, -14.4, 0.05, 7.45, 23, 24.1],     // its south wall
-  [-14.7, -13.6, 0.05, 3.6, 4, 23.8],        // the bar's wall under the mezzanine, its parapet's signs
-  [-6.2, -4.4, 0.05, 8.8, 13.6, 14.4],       // the blade sign on Mid Bottom's wall
-  [-24.6, -22.85, 2.7, 8.6, -8.35, 3.25],    // the A Main screen's footprint: the windows, lightboxes and shop signs on that face
-  [15.8, 22.8, 3.45, 7.75, -32.6, -31.85],   // the Alta screen's
-  [-31.75, -24.2, 0.31, 6.0, 24.2, 29.85],   // the tatami room's inside: the backs' windows and signs on the edge wall
-  [-31.75, -29.9, 0.05, 5.42, -24.6, -5.9],  // the pachinko parlour's front (3.5 a): the shopfronts it took over
-];
-function clearForClub(scene) {
-  scene.traverse((o) => {
-    if (!o.isMesh) return;
-    let q = o;
-    while (q && !q.userData.tc) q = q.parent;
-    if (/\|n$|^gen:/.test(q?.userData.tc || o.name)) return;
-    const g = o.geometry, P = g.attributes.position;
-    const I = g.index ?? { count: P.count, getX: (i) => i };
-    o.updateMatrixWorld(true);
-    const v = new THREE.Vector3(), keep = [];
-    const inBox = (i) => {
-      v.fromBufferAttribute(P, i).applyMatrix4(o.matrixWorld);
-      return CLEAR.findIndex(([x0, x1, y0, y1, z0, z1]) => v.x >= x0 && v.x <= x1 && v.y >= y0 && v.y <= y1 && v.z >= z0 && v.z <= z1);
-    };
-    const flat = (t) => [0, 1, 2].every((k) => Math.abs(v.fromBufferAttribute(P, I.getX(t + k)).applyMatrix4(o.matrixWorld).y) < 0.02);
-    let dropped = 0;
-    for (let t = 0; t < I.count; t += 3) {
-      const a = inBox(I.getX(t));
-      if (a >= 0 && a === inBox(I.getX(t + 1)) && a === inBox(I.getX(t + 2)) && !flat(t)) { dropped++; continue; }
-      keep.push(I.getX(t), I.getX(t + 1), I.getX(t + 2));
-    }
-    if (dropped) g.setIndex(keep);
-  });
+/* The dance floor's hole in the game's ground plane (made before build,
+   one quad): the mirror pit under the glass shows through. Everything else
+   at y 0 is Blender's, which leaves the hole itself. Same UVs as the plane
+   (the ground bake projects by world x/z: applyGroundLightMap). */
+function groundHole(ground, R = DANCE) {
+  const g = ground.geometry, P = g.attributes.position;
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (let i = 0; i < P.count; i++) { x0 = Math.min(x0, P.getX(i)); x1 = Math.max(x1, P.getX(i)); y0 = Math.min(y0, P.getY(i)); y1 = Math.max(y1, P.getY(i)); }
+  ground.updateMatrixWorld(true);
+  const inv = ground.matrixWorld.clone().invert(), v = new THREE.Vector3();
+  const local = (x, z) => { v.set(x, 0, z).applyMatrix4(inv); return new THREE.Vector2(v.x, v.y); };
+  const shape = new THREE.Shape([new THREE.Vector2(x0, y0), new THREE.Vector2(x1, y0), new THREE.Vector2(x1, y1), new THREE.Vector2(x0, y1)]);
+  shape.holes.push(new THREE.Path([local(R.x0, R.z0), local(R.x0, R.z1), local(R.x1, R.z1), local(R.x1, R.z0)]));
+  const hole = new THREE.ShapeGeometry(shape);
+  const H = hole.attributes.position, uv = hole.attributes.uv;
+  for (let i = 0; i < H.count; i++) uv.setXY(i, (H.getX(i) - x0) / (x1 - x0), (H.getY(i) - y0) / (y1 - y0));
+  g.dispose();
+  ground.geometry = hole;
 }
 
 function buildClub(api) {
@@ -365,7 +278,7 @@ function buildClub(api) {
   /* ---- the video screens, Times Square billboards (refs/times-square-
      screens-*.jpg): each in a housing built out from its facade past every
      window frame, ledge and sign on it, so nothing stands in front, the shop
-     signs in its way cleared (CLEAR). The club's over the Sewers' mouth on
+     signs in its way cleared (build_kabukigrin CLEAR). The club's over the Sewers' mouth on
      A Main, short of the marquee; the Alta screen on the east block's
      corner over the forecourt */
   api.prop(videoScreen({ w: 11.2, h: 5.6, px: [768, 384], x: -24.62, y: 5.65, z: -2.6, ry: -Math.PI / 2, frame: 1.6 })).castShadow = false;
@@ -415,48 +328,50 @@ function clubInterior(K) {
   K.add(ceiling, place(new THREE.PlaneGeometry(x1 - x0, z1 - z0 + 0.5), { x: (x0 + x1) / 2, y: top - 0.01, z: (z0 + z1) / 2, rx: Math.PI / 2 }), { shadow: false });
 }
 
-/* The Studio town: each mesh gets its GLB's material, light map and texture. */
-function loadTown(api) {
-  loader.load(`${URL_GLB}${L.glb}.glb?v=${L.v}`, (gltf) => {
-    const todo = [];
-    gltf.scene.traverse((o) => {
-      if (!o.isMesh) return;
-      let q = o;
-      while (q && !q.userData.tc) q = q.parent;
-      const [key, , shadow] = (q?.userData.tc || o.name).split("|");
-      const [kind, file, name] = key.split(":");
-      if (kind !== "glb") return;
-      o.material.name = name;   // retexture's rules go by the Blender name
-      o.castShadow = shadow !== "0" && file !== "gj-neon";
-      o.receiveShadow = true;
-      todo.push([o, file]);
-    });
-    const files = [...new Set(todo.map(([, f]) => f))];
-    Promise.all(files.map((f) => (BAKED[f] ? loadBake(f) : Promise.resolve(null)))).then((bakes) => {
-      const bakeOf = new Map(files.map((f, i) => [f, bakes[i]]));
-      for (const [o, file] of todo) {
-        const bake = bakeOf.get(file);
-        if (bake) applyBakedLightMap(o, bake, BAKED[file]);
-      }
-      retexture(gltf.scene, KB_RETEXTURE);
-      gltf.scene.traverse((o) => { if (o.isMesh && o.material?.name === "GS_Paint") paintDetail(o.material, "kbfront", 0.45, 0.7); });
-      cutDanceFloor(gltf.scene);
-      clearForClub(gltf.scene);
-      api.prop(gltf.scene);
-    });
-  }, undefined, (e) => console.warn("Kabukigrin: the Studio town didn't load", e));
+/* The Blender models (build_kabukigrin.blender.py): Grinjuku's part lit by
+   its GLB's bake, the club's pieces as their Studio keys say; then the
+   photo surfaces and the fronts' grain. */
+const MODELS = { "kb-shell": "gj-shell", "kb-props": "gj-props", "kb-neon": null };
+const MODELS_V = "kbb1";
+function loadModels(api) {
+  for (const [file, gj] of Object.entries(MODELS)) {
+    loader.load(`${URL_GLB}${file}.glb?v=${MODELS_V}`, (gltf) => {
+      const baked = [];
+      gltf.scene.traverse((o) => {
+        if (!o.isMesh) return;
+        o.receiveShadow = true;
+        const key = o.material.name;
+        if (/^(glb|gen):/.test(key)) {
+          // a club piece: "<kind>:<gj model>:<material>|<tint>|<shadow>..."
+          const [k, , shadow] = key.split("|");
+          const [kind, src, name] = k.split(":");
+          if (kind === "glb") o.material.name = name;   // retexture's rules go by the Blender name
+          o.castShadow = shadow !== "0" && src !== "gj-neon";
+          return;
+        }
+        o.castShadow = file !== "kb-neon";
+        if (gj) baked.push(o);
+      });
+      (gj ? loadBake(gj) : Promise.resolve(null)).then((bake) => {
+        if (bake) for (const o of baked) applyBakedLightMap(o, bake, BAKED[gj]);
+        retexture(gltf.scene, KB_RETEXTURE);
+        gltf.scene.traverse((o) => { if (o.isMesh && o.material?.name === "GS_Paint") paintDetail(o.material, "kbfront", 0.45, 0.7); });
+        api.prop(gltf.scene);
+      });
+    }, undefined, (e) => console.warn(`Kabukigrin: ${file} didn't load`, e));
+  }
 }
 
 function buildKabukigrin(api) {
   for (const [x, z, w, d, h, y, pen] of L.colliders) api.ghostBox(x, z, w, d, h, { y, pen });
   api.stairLinks.push(...STAIRS.map((s) => ({ a: { ...s.a }, b: { ...s.b } })));
   for (const r of ROPES) api.rope(r.x, r.z, r.y0, r.y1, { dir: r.dir, ghost: true });
-  loadTown(api);
-  // the game's ground plane (made before build) gets the same hole
+  loadModels(api);
+  // the game's ground plane (made before build) gets the dance floor's hole
   const probe = api.prop(new THREE.Group()), top = probe.parent;
   top.remove(probe);
   const ground = top.children.find((o) => o.isMesh && o.geometry.type === "PlaneGeometry");
-  if (ground) cutDanceFloor(ground);
+  if (ground) groundHole(ground);
   buildClub(api);
   // the far city: drawn by the game, not part of the Studio town
   mapModel(api, "gj-skyline", { x: 0, z: 0, castShadow: false });

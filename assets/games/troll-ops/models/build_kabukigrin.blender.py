@@ -43,6 +43,7 @@ G = importlib.util.module_from_spec(_sp)
 _sp.loader.exec_module(G)
 
 KB = json.load(open(os.path.join(HERE, "kabukigrin-layout.json")))
+CLUB = json.load(open(os.path.join(HERE, "kabukigrin-club.json")))
 GJ_RES = 2048   # gj-shell-bake.webp and gj-props-bake.webp: the unwrap's margin is 4 texels of it
 
 # the dance floor over the mirror pit (kabukigrin.js DANCE)
@@ -60,6 +61,18 @@ CLEAR = [
     (15.8, 22.8, 3.45, 7.75, -32.6, -31.85),
     (-31.75, -24.2, 0.31, 6.0, 24.2, 29.85),
     (-31.75, -29.9, 0.05, 5.42, -24.6, -5.9),
+]
+
+# What else Studio deleted from Grinjuku by hand (found by diffing kb-town's
+# Grinjuku chunks against gj-*: no moves, only these): same rule as CLEAR
+STUDIO_CUT = [
+    # the bike rack (bikes -31.2, 24) past its collider: Studio sliced it at a
+    # part's edge, leaving half wheels in the west wall; the whole rack goes
+    (-32.05, -30.35, -0.01, 1.0, 21.9, 26.1),
+    (-24.55, -22.95, -0.01, 2.8, 3.6, 7.55),      # by the Sewers' mouth on A Main, under the club's screen
+    (-24.05, -17.95, -0.01, 3.05, 30.9, 33.1),    # the backs' stall (its collider kept: the yard's counter)
+    (-18.45, -14.05, 2.75, 3.4, 3.95, 4.3),       # a lightbox on the hall's front wall
+    (7.95, 21.55, 2.25, 2.37, -4.05, -1.95),      # the strip lights under B's lintel
 ]
 
 
@@ -133,28 +146,43 @@ def game(v):
     return v.x, v.z, -v.y
 
 
-def cut_club(obj, gone_tag=None):
-    """Takes the club out of a Grinjuku model, after its unwrap: the removed
-    props' faces (tagged `gone_tag` while drawing), the CLEAR boxes and the
+def gone_props():
+    """The footprints of the Grinjuku props Studio removed (their colliders are
+    gone from Kabukigrin's layout), as boxes (game x0, x1, y0, y1, z0, z1):
+    a prop stays inside its collider's footprint, its roof and sign up to
+    about 2.6 m (build_grinjuku's rule)."""
+    out = []
+    for s in G.SOLIDS:
+        if s["k"] in G.PROPS and not kb_has(s):
+            y = s.get("y", 0)
+            out.append((s["x"] - s["w"] / 2 - 0.08, s["x"] + s["w"] / 2 + 0.08, y - 0.01, y + max(s["h"], 2.4) + 0.6,
+                        s["z"] - s["d"] / 2 - 0.08, s["z"] + s["d"] / 2 + 0.08))
+    return out
+
+
+def inside(P, box):
+    x0, x1, y0, y1, z0, z1 = box
+    return all(x0 <= p[0] <= x1 and y0 <= p[1] <= y1 and z0 <= p[2] <= z1 for p in P)
+
+
+def cut_club(obj, gone=()):
+    """Takes the club out of a Grinjuku model: the removed props (`gone`:
+    their footprints, every face wholly inside one), the CLEAR boxes and the
     dance floor's hole (the flat ground in DANCE, clipped at its edges)."""
     me = obj.data
     bm = bmesh.new()
     bm.from_mesh(me)
     # (faces, not triangles: the exporter then splits them as it split gj-*)
-    tag = bm.faces.layers.int.get("kb_gone")
     dead = []
     for f in bm.faces:
-        if tag is not None and f[tag]:
+        P = [game(v.co) for v in f.verts]
+        if any(inside(P, b) for b in gone):
             dead.append(f)
             continue
-        P = [game(v.co) for v in f.verts]
-        flat0 = all(abs(p[1]) < 0.02 for p in P)
-        if flat0:
+        if all(abs(p[1]) < 0.02 for p in P):
             continue
-        for (x0, x1, y0, y1, z0, z1) in CLEAR:
-            if all(x0 <= p[0] <= x1 and y0 <= p[1] <= y1 and z0 <= p[2] <= z1 for p in P):
-                dead.append(f)
-                break
+        if any(inside(P, b) for b in CLEAR) or any(inside(P, b) for b in STUDIO_CUT):
+            dead.append(f)
     bmesh.ops.delete(bm, geom=list(set(dead)), context="FACES")
     # the dance floor: clip the ground's faces at its four edges, then drop inside
     x0, x1, z0, z1 = DANCE
@@ -170,19 +198,17 @@ def cut_club(obj, gone_tag=None):
             break
         geom = list({e for f in fs for e in f.edges}) + fs + list({v for f in fs for v in f.verts})
         bmesh.ops.bisect_plane(bm, geom=geom, plane_co=co, plane_no=no, dist=1e-5)
-    inside = []
+    hole = []
     for f in bm.faces:
         if not all(abs(v.co.z) < 0.06 for v in f.verts):
             continue
         c = f.calc_center_median()
         if x0 < c.x < x1 and z0 < -c.y < z1:
-            inside.append(f)
-    bmesh.ops.delete(bm, geom=inside, context="FACES")
-    if tag is not None:
-        bm.faces.layers.int.remove(tag)
+            hole.append(f)
+    bmesh.ops.delete(bm, geom=hole, context="FACES")
     bm.to_mesh(me)
     bm.free()
-    print(f"  {obj.name}: cut {len(set(dead))} club faces, {len(inside)} dance-floor faces")
+    print(f"  {obj.name}: cut {len(set(dead))} club faces, {len(hole)} dance-floor faces")
 
 
 def export(objs, filename):
@@ -201,6 +227,85 @@ def export(objs, filename):
     return path
 
 
+# ------------------------------------------------------------- the club
+
+# which GLB a club piece goes in, by the Grinjuku model whose material it took
+CLUB_GLB = {"gj-shell": "kb-shell", "gj-props": "kb-props", "gj-neon": "kb-neon"}
+
+
+def club_material(name, color, rough, metal, emit=None, strength=1.0):
+    """A club piece's material, named by its key in the old Studio export
+    ("glb:<gj model>:<material>|<tint>|<shadow>|n", "gen:<hash>||1"), so the
+    game lights, shades and retextures it as it did. Kept as it is (never
+    folded into GS_Paint)."""
+    m = bpy.data.materials.get(name)
+    if m:
+        return m
+    m = bpy.data.materials.new(name)
+    m["gs_hex"] = 0xffffff
+    m["gs_keep"] = True
+    m.use_nodes = True
+    b = m.node_tree.nodes.get("Principled BSDF")
+    b.inputs["Base Color"].default_value = (*color, 1.0)
+    b.inputs["Roughness"].default_value = rough
+    b.inputs["Metallic"].default_value = metal
+    if emit:
+        b.inputs["Emission Color"].default_value = (*emit[:3], 1.0)
+        b.inputs["Emission Strength"].default_value = strength
+    return m
+
+
+def texture_average(key):
+    """A generated piece's texture, averaged to one linear colour."""
+    path = os.path.join(HERE, "kb-hero", key[4:] + ".jpg")
+    if not os.path.exists(path):
+        return hexlin(0x808080)
+    img = bpy.data.images.load(path)
+    px = list(img.pixels)
+    n = len(px) // 4
+    srgb = [sum(px[c::4]) / n for c in range(3)]
+    bpy.data.images.remove(img)
+    return tuple(v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4 for v in srgb)
+
+
+def club_part(glb):
+    """The club's still pieces for one GLB, plain: every Part Studio added (a
+    box; on a collider, the collider's own numbers) in its material and tint,
+    and in kb-props the generate_mesh hero pieces as boxes in their texture's
+    average colour (their meshes come back through Blender later)."""
+    b = Builder()
+    n = 0
+    for p in CLUB["boxes"]:
+        if CLUB_GLB[p["file"]] != glb:
+            continue
+        x, z, w, d, h, y = p["b"]
+        name = f"glb:{p['file']}:{p['mat']}|{p['tint']}|{1 if p['shadow'] else 0}|n"
+        m = club_material(name, hexlin(int(p["tint"], 16)), p["rough"], p["metal"], p["emit"], p["emitStrength"])
+        b.box(m, w, h, d, x, y, z)
+        n += 1
+    if glb == "kb-props":
+        avg = {}
+        for hp in CLUB["heroes"]:
+            key = hp["key"]
+            if key not in avg:
+                avg[key] = club_material(f"{key}||1", texture_average(key), 0.85, 0.0)
+            lo, hi = hp["lo"], hp["hi"]
+            b.box(avg[key], max(hi[0] - lo[0], 0.02), max(hi[1] - lo[1], 0.02), max(hi[2] - lo[2], 0.02),
+                  (lo[0] + hi[0]) / 2, lo[1], (lo[2] + hi[2]) / 2)
+            n += 1
+    if not n:
+        return None
+    o = to_object(b, "kb")
+    from bake_kit import _lightmap_uv
+    bpy.ops.object.select_all(action="DESELECT")
+    o.select_set(True)
+    bpy.context.view_layer.objects.active = o
+    _lightmap_uv(o, 4.0 / 1024)
+    o.data.uv_layers.active = o.data.uv_layers["UVMap"]
+    print(f"  {glb}: {n} club pieces")
+    return o
+
+
 # ------------------------------------------------------------- the Grinjuku part
 
 class _Discard(Builder):
@@ -208,8 +313,12 @@ class _Discard(Builder):
 
 
 def grinjuku_part(P):
-    """Grinjuku's shell, props and neon, drawn by its own functions, in its
-    own order (the neon's draws interleave: shell, props, skyline)."""
+    """Grinjuku's shell and neon, drawn by its own functions in its own order
+    (the neon's draws interleave: shell, props, skyline). The props are drawn
+    too, for their glow, but kb-props takes Grinjuku's from gj-props.glb
+    itself (props_part): map_kit's lump() jitters its corners in a set's
+    order, which changes every run, so a redrawn gj-props never matches the
+    UVs its bake was made on."""
     G.NEONB = Builder()
     sh = Builder()
     G.facades(sh, G.NEONB, P)
@@ -219,22 +328,14 @@ def grinjuku_part(P):
     G.ground_paint(sh, P)
 
     pr = Builder()
-    gone = pr.bm.faces.layers.int.new("kb_gone")
     removed = 0
     for s in G.SOLIDS:
         fn = G.PROPS.get(s["k"])
         if not fn:
             continue
-        if kb_has(s):
-            fn(pr, G.NEONB, P, s)
-            continue
-        # drawn (the unwrap needs the whole model) and tagged to go; its glow dropped
-        before = set(pr.bm.faces)
-        fn(pr, _Discard(), P, s)
-        for f in pr.bm.faces:
-            if f not in before:
-                f[gone] = 1
-        removed += 1
+        # a removed prop's glow goes with it
+        fn(pr, G.NEONB if kb_has(s) else _Discard(), P, s)
+        removed += not kb_has(s)
     G.ropes_geo(pr, P)
     G.wires(pr, G.NEONB, P)
     print(f"  props: {removed} Grinjuku props left out (their colliders are gone)")
@@ -246,7 +347,7 @@ def grinjuku_part(P):
         G.build_skyline(P)
     finally:
         Builder.finish = finish
-    return sh, pr, G.NEONB
+    return sh, G.NEONB
 
 
 def main():
@@ -254,17 +355,27 @@ def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     P = G.gj_palette()
     print("Kabukigrin layout", KB.get("hash"), len(KB["colliders"]), "colliders")
-    sh, pr, ne = grinjuku_part(P)
+    sh, ne = grinjuku_part(P)
     out = []
-    for b, name in ((sh, "kb-shell"), (pr, "kb-props")):
-        o = to_object(b, "gj")
-        unwrap(o)
-        cut_club(o)
-        out.append(export([o], name + ".glb"))
+    o = to_object(sh, "gj")
+    unwrap(o)
+    cut_club(o)
+    out.append(export([o] + [c for c in [club_part("kb-shell")] if c], "kb-shell.glb"))
     o = to_object(ne, "gj")
     cut_club(o)
-    out.append(export([o], "kb-neon.glb"))
+    out.append(export([o] + [c for c in [club_part("kb-neon")] if c], "kb-neon.glb"))
+    out.append(props_part())
     quantize_glb.main(out)
+
+
+def props_part():
+    """kb-props: gj-props.glb as built and baked, the club cut out of it."""
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    bpy.ops.import_scene.gltf(filepath=os.path.join(HERE, "gj-props.glb"))
+    o = [ob for ob in bpy.context.scene.objects if ob.type == "MESH"][0]
+    o.name = "gj"
+    cut_club(o, gone_props())
+    return export([o] + [c for c in [club_part("kb-props")] if c], "kb-props.glb")
 
 
 if __name__ == "__main__":

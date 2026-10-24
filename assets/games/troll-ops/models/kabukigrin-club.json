@@ -1,0 +1,3062 @@
+{
+ "from": "kb-town.glb",
+ "boxes": [
+  {
+   "file": "gj-neon",
+   "mat": "GJ_NeonPink",
+   "tint": "ff3fb5",
+   "shadow": true,
+   "rough": 0.30000001192092896,
+   "metal": 0,
+   "emit": [
+    1,
+    0.04970656707882881,
+    0.4564110338687897
+   ],
+   "emitStrength": 3,
+   "b": [
+    -31.3,
+    14,
+    0.2,
+    19.2,
+    0.15,
+    7
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-neon",
+   "mat": "GJ_NeonPink",
+   "tint": "ff3fb5",
+   "shadow": true,
+   "rough": 0.30000001192092896,
+   "metal": 0,
+   "emit": [
+    1,
+    0.04970656707882881,
+    0.4564110338687897
+   ],
+   "emitStrength": 3,
+   "b": [
+    -22.8,
+    23.5,
+    17.2,
+    0.2,
+    0.15,
+    7
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-neon",
+   "mat": "GJ_NeonPink",
+   "tint": "ff3fb5",
+   "shadow": true,
+   "rough": 0.30000001192092896,
+   "metal": 0,
+   "emit": [
+    1,
+    0.04970656707882881,
+    0.4564110338687897
+   ],
+   "emitStrength": 3,
+   "b": [
+    -14.425,
+    12.2,
+    0.05,
+    7.6,
+    0.1,
+    2.3
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-neon",
+   "mat": "GJ_NeonPink",
+   "tint": "ff3fb5",
+   "shadow": true,
+   "rough": 0.30000001192092896,
+   "metal": 0,
+   "emit": [
+    1,
+    0.04970656707882881,
+    0.4564110338687897
+   ],
+   "emitStrength": 3,
+   "b": [
+    -27.6,
+    3.65,
+    4.6,
+    0.1,
+    0.15,
+    3.4
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-neon",
+   "mat": "GJ_NeonViolet",
+   "tint": "af6bff",
+   "shadow": true,
+   "rough": 0.30000001192092896,
+   "metal": 0,
+   "emit": [
+    0.43415364623069763,
+    0.1441284716129303,
+    1
+   ],
+   "emitStrength": 3,
+   "b": [
+    -15.9,
+    12.2,
+    1.2,
+    7.8,
+    0.06,
+    1
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-neon",
+   "mat": "GJ_NeonViolet",
+   "tint": "af6bff",
+   "shadow": true,
+   "rough": 0.30000001192092896,
+   "metal": 0,
+   "emit": [
+    0.43415364623069763,
+    0.1441284716129303,
+    1
+   ],
+   "emitStrength": 3,
+   "b": [
+    -10.15,
+    16.1,
+    6.7,
+    0.2,
+    0.1,
+    7.25
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-neon",
+   "mat": "GJ_Screen",
+   "tint": "7ad8ff",
+   "shadow": true,
+   "rough": 0.30000001192092896,
+   "metal": 0,
+   "emit": [
+    0.12971562101534673,
+    0.5676814226923668,
+    0.8999999761581421
+   ],
+   "emitStrength": 1,
+   "b": [
+    -27.3,
+    4.3,
+    8.2,
+    0.2,
+    0.15,
+    7
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-neon",
+   "mat": "GJ_Screen",
+   "tint": "7ad8ff",
+   "shadow": true,
+   "rough": 0.30000001192092896,
+   "metal": 0,
+   "emit": [
+    0.12971562101534673,
+    0.5676814226923668,
+    0.8999999761581421
+   ],
+   "emitStrength": 1,
+   "b": [
+    -28,
+    15,
+    0.04,
+    10,
+    0.05,
+    0.4
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-neon",
+   "mat": "GJ_StripLight",
+   "tint": "edf4ff",
+   "shadow": true,
+   "rough": 0.20000000298023224,
+   "metal": 0,
+   "emit": [
+    0.8069522380828857,
+    0.9046611785888672,
+    1
+   ],
+   "emitStrength": 1.2999999523162842,
+   "b": [
+    -22.15,
+    27.5,
+    3.7,
+    0.2,
+    0.1,
+    5.85
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-neon",
+   "mat": "GJ_StripLight",
+   "tint": "edf4ff",
+   "shadow": true,
+   "rough": 0.20000000298023224,
+   "metal": 0,
+   "emit": [
+    0.8069522380828857,
+    0.9046611785888672,
+    1
+   ],
+   "emitStrength": 1.2999999523162842,
+   "b": [
+    -25.5,
+    31.5,
+    7,
+    0.2,
+    0.1,
+    5.85
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-neon",
+   "mat": "GJ_StripLight",
+   "tint": "edf4ff",
+   "shadow": true,
+   "rough": 0.20000000298023224,
+   "metal": 0,
+   "emit": [
+    0.8069522380828857,
+    0.9046611785888672,
+    1
+   ],
+   "emitStrength": 1.2999999523162842,
+   "b": [
+    -12.5,
+    27.5,
+    11,
+    0.2,
+    0.1,
+    5.85
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-neon",
+   "mat": "GJ_StripLight",
+   "tint": "edf4ff",
+   "shadow": true,
+   "rough": 0.20000000298023224,
+   "metal": 0,
+   "emit": [
+    0.8069522380828857,
+    0.9046611785888672,
+    1
+   ],
+   "emitStrength": 1.2999999523162842,
+   "b": [
+    -12.5,
+    31.5,
+    11,
+    0.2,
+    0.1,
+    5.85
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Slab",
+   "tint": "727275",
+   "shadow": true,
+   "rough": 0.9200000166893005,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -18.85,
+    13.95,
+    25.7,
+    20.5,
+    0.6,
+    7.4
+   ],
+   "collider": 131
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Slab",
+   "tint": "727275",
+   "shadow": true,
+   "rough": 0.9200000166893005,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -18.75,
+    29.2,
+    25.9,
+    10,
+    0.4,
+    6
+   ],
+   "collider": 142
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Slab",
+   "tint": "727275",
+   "shadow": true,
+   "rough": 0.9200000166893005,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -30.35,
+    34,
+    2.7,
+    0.4,
+    6,
+    0
+   ],
+   "collider": 143
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Slab",
+   "tint": "727275",
+   "shadow": true,
+   "rough": 0.9200000166893005,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -21.5,
+    34,
+    9,
+    0.4,
+    6,
+    0
+   ],
+   "collider": 144
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Slab",
+   "tint": "727275",
+   "shadow": true,
+   "rough": 0.9200000166893005,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -9.9,
+    34,
+    8.2,
+    0.4,
+    6,
+    0
+   ],
+   "collider": 145
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Slab",
+   "tint": "727275",
+   "shadow": true,
+   "rough": 0.9200000166893005,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -27.5,
+    34,
+    3,
+    0.4,
+    3,
+    3
+   ],
+   "collider": 146
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Slab",
+   "tint": "727275",
+   "shadow": true,
+   "rough": 0.9200000166893005,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -15.5,
+    34,
+    3,
+    0.4,
+    3,
+    3
+   ],
+   "collider": 147
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Slab",
+   "tint": "727275",
+   "shadow": true,
+   "rough": 0.9200000166893005,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -6,
+    25.6,
+    0.4,
+    2.8,
+    6,
+    0
+   ],
+   "collider": 148
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Slab",
+   "tint": "727275",
+   "shadow": true,
+   "rough": 0.9200000166893005,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -6,
+    31.9,
+    0.4,
+    3.8,
+    6,
+    0
+   ],
+   "collider": 149
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Slab",
+   "tint": "727275",
+   "shadow": true,
+   "rough": 0.9200000166893005,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -6,
+    28.5,
+    0.4,
+    3,
+    3,
+    3
+   ],
+   "collider": 150
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Slab",
+   "tint": "727275",
+   "shadow": true,
+   "rough": 0.9200000166893005,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -20,
+    25.3,
+    0.4,
+    2.2,
+    6,
+    0
+   ],
+   "collider": 151
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Slab",
+   "tint": "727275",
+   "shadow": true,
+   "rough": 0.9200000166893005,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -20,
+    29.9,
+    0.4,
+    2.2,
+    6,
+    0
+   ],
+   "collider": 152
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Slab",
+   "tint": "727275",
+   "shadow": true,
+   "rough": 0.9200000166893005,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -20,
+    27.6,
+    0.4,
+    2.4,
+    3.2,
+    2.8
+   ],
+   "collider": 153
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "0c0c0f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.45,
+    27.1,
+    0.5,
+    4.8,
+    0.5,
+    0.3
+   ],
+   "collider": 162
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "0c0c0f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.45,
+    27.1,
+    0.5,
+    4.96,
+    0.12,
+    2.3
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "0c0c0f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.45,
+    24.66,
+    0.5,
+    0.08,
+    1.5,
+    0.8
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "0c0c0f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.45,
+    29.54,
+    0.5,
+    0.08,
+    1.5,
+    0.8
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "0c0c0f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.225,
+    27.1,
+    0.05,
+    4.8,
+    0.06,
+    0.8
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "0c0c0f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    15,
+    -3,
+    15.6,
+    0.02,
+    0.02,
+    2.31
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "0e0e12",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.46,
+    -15.25,
+    0.52,
+    18.5,
+    0.56,
+    2.74
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "121216",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.66,
+    -15.25,
+    0.12,
+    18.5,
+    5.3,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "121216",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.335,
+    -24.375,
+    0.77,
+    0.45,
+    5.42,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "121216",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.335,
+    -6.125,
+    0.77,
+    0.45,
+    5.42,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "1c110c",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    9,
+    -3.97,
+    2.06,
+    0.06,
+    0.45,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "1c110c",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    11.5,
+    -2.03,
+    2.06,
+    0.06,
+    0.45,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "1c110c",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    14,
+    -3.97,
+    2.06,
+    0.06,
+    0.45,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "1c110c",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    16.5,
+    -2.03,
+    2.06,
+    0.06,
+    0.45,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "1c110c",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    19,
+    -3.97,
+    2.06,
+    0.06,
+    0.45,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "1c110c",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    21.3,
+    -2.03,
+    2.06,
+    0.06,
+    0.45,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "28262b",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -24,
+    27.175,
+    0.3,
+    5.95,
+    6,
+    0
+   ],
+   "collider": 158
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "28262b",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -29.95,
+    30,
+    3.5,
+    0.3,
+    6,
+    0
+   ],
+   "collider": 159
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "28262b",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -24.975,
+    30,
+    1.65,
+    0.3,
+    6,
+    0
+   ],
+   "collider": 160
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "28262b",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -27,
+    30,
+    2.4,
+    0.3,
+    3.4,
+    2.6
+   ],
+   "collider": 161
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "28262b",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -13.4,
+    19,
+    1.2,
+    0.2,
+    4.4,
+    3
+   ],
+   "collider": 163
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "28262b",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -8.75,
+    19,
+    4.9,
+    0.2,
+    4.4,
+    3
+   ],
+   "collider": 164
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "28262b",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -12,
+    19,
+    1.6,
+    0.2,
+    2,
+    5.4
+   ],
+   "collider": 165
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "28262b",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -13.85,
+    19.45,
+    0.3,
+    0.7,
+    3.4,
+    4
+   ],
+   "collider": 166
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "28262b",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -13.85,
+    23.6,
+    0.3,
+    0.4,
+    3.4,
+    4
+   ],
+   "collider": 167
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "28262b",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -13.85,
+    21.6,
+    0.3,
+    3.6,
+    2.2,
+    5.2
+   ],
+   "collider": 168
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "28282e",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.47,
+    -15.25,
+    0.5,
+    18.5,
+    0.28,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    7.91,
+    -3.94,
+    0.12,
+    0.12,
+    2.4,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    10.09,
+    -3.94,
+    0.12,
+    0.12,
+    2.4,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    9,
+    -3.94,
+    2.3,
+    0.12,
+    0.3,
+    1.95
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    9,
+    -3.96,
+    2.06,
+    0.08,
+    0.06,
+    1
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    10.41,
+    -2.06,
+    0.12,
+    0.12,
+    2.4,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    12.59,
+    -2.06,
+    0.12,
+    0.12,
+    2.4,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    11.5,
+    -2.06,
+    2.3,
+    0.12,
+    0.3,
+    1.95
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    11.5,
+    -2.04,
+    2.06,
+    0.08,
+    0.06,
+    1
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    12.91,
+    -3.94,
+    0.12,
+    0.12,
+    2.4,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    15.09,
+    -3.94,
+    0.12,
+    0.12,
+    2.4,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    14,
+    -3.94,
+    2.3,
+    0.12,
+    0.3,
+    1.95
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    14,
+    -3.96,
+    2.06,
+    0.08,
+    0.06,
+    1
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    15.41,
+    -2.06,
+    0.12,
+    0.12,
+    2.4,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    17.59,
+    -2.06,
+    0.12,
+    0.12,
+    2.4,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    16.5,
+    -2.06,
+    2.3,
+    0.12,
+    0.3,
+    1.95
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    16.5,
+    -2.04,
+    2.06,
+    0.08,
+    0.06,
+    1
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    17.91,
+    -3.94,
+    0.12,
+    0.12,
+    2.4,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    20.09,
+    -3.94,
+    0.12,
+    0.12,
+    2.4,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    19,
+    -3.94,
+    2.3,
+    0.12,
+    0.3,
+    1.95
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    19,
+    -3.96,
+    2.06,
+    0.08,
+    0.06,
+    1
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    20.21,
+    -2.06,
+    0.12,
+    0.12,
+    2.4,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    22.39,
+    -2.06,
+    0.12,
+    0.12,
+    2.4,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    21.3,
+    -2.06,
+    2.3,
+    0.12,
+    0.3,
+    1.95
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "2b190f",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    21.3,
+    -2.04,
+    2.06,
+    0.08,
+    0.06,
+    1
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "332123",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -6.15,
+    14,
+    0.3,
+    20,
+    1.2,
+    6.2
+   ],
+   "collider": 132
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "332123",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -29.95,
+    24,
+    3.5,
+    0.4,
+    1.5,
+    0
+   ],
+   "collider": 133
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "332123",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -21.5,
+    24,
+    8.6,
+    0.4,
+    7.4,
+    0
+   ],
+   "collider": 134
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "332123",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -14.4,
+    24,
+    0.8,
+    0.4,
+    7.4,
+    0
+   ],
+   "collider": 135
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "332123",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -27,
+    24,
+    2.4,
+    0.4,
+    4.6,
+    2.8
+   ],
+   "collider": 136
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "332123",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -16,
+    24,
+    2.4,
+    0.4,
+    4.6,
+    2.8
+   ],
+   "collider": 137
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "332123",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -13.5,
+    24,
+    1,
+    0.4,
+    3.4,
+    4
+   ],
+   "collider": 138
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "332123",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -8.65,
+    24,
+    4.7,
+    0.4,
+    3.4,
+    4
+   ],
+   "collider": 139
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "332123",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -12,
+    24,
+    2,
+    0.4,
+    1.8,
+    5.6
+   ],
+   "collider": 140
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "332123",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -29.95,
+    24,
+    3.5,
+    0.4,
+    4.9,
+    2.5
+   ],
+   "collider": 141
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "3d2619",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -29.85,
+    15,
+    3.7,
+    10,
+    0.45,
+    0
+   ],
+   "collider": 154
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "3d2619",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -27.8,
+    15,
+    0.4,
+    8,
+    0.22,
+    0
+   ],
+   "collider": 155
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "3d2619",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -15.9,
+    12.2,
+    1,
+    7.6,
+    1.1,
+    0
+   ],
+   "collider": 156
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "3d2619",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -14.2,
+    12.2,
+    0.4,
+    7.6,
+    2.6,
+    0
+   ],
+   "collider": 157
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "780e18",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31,
+    -15.25,
+    1.2,
+    2.4,
+    0.02,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-props",
+   "mat": "GS_Timber",
+   "tint": "b01420",
+   "shadow": true,
+   "rough": 0.800000011920929,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.37,
+    -15.25,
+    0.7,
+    18.5,
+    1.7,
+    3.55
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Brick",
+   "tint": "6b3333",
+   "shadow": true,
+   "rough": 0.8999999761581421,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -30.75,
+    3.9,
+    1.9,
+    0.4,
+    8,
+    0
+   ],
+   "collider": 128
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Brick",
+   "tint": "6b3333",
+   "shadow": true,
+   "rough": 0.8999999761581421,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -24.2,
+    3.9,
+    2.4,
+    0.4,
+    8,
+    0
+   ],
+   "collider": 129
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Brick",
+   "tint": "6b3333",
+   "shadow": true,
+   "rough": 0.8999999761581421,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -27.6,
+    3.9,
+    4.4,
+    0.4,
+    4.6,
+    3.4
+   ],
+   "collider": 130
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Brick",
+   "tint": "6b4c2d",
+   "shadow": true,
+   "rough": 0.8999999761581421,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    22.525,
+    -3.725,
+    0.55,
+    0.45,
+    0.45,
+    0
+   ],
+   "collider": 169
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Brick",
+   "tint": "7a1822",
+   "shadow": true,
+   "rough": 0.8999999761581421,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -29.9,
+    25.2,
+    0.5,
+    0.5,
+    0.07,
+    0.3
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Brick",
+   "tint": "7a1822",
+   "shadow": true,
+   "rough": 0.8999999761581421,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -29.9,
+    26.6,
+    0.5,
+    0.5,
+    0.07,
+    0.3
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Brick",
+   "tint": "7a1822",
+   "shadow": true,
+   "rough": 0.8999999761581421,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -29.9,
+    27.6,
+    0.5,
+    0.5,
+    0.07,
+    0.3
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Brick",
+   "tint": "7a1822",
+   "shadow": true,
+   "rough": 0.8999999761581421,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -29.9,
+    29,
+    0.5,
+    0.5,
+    0.07,
+    0.3
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Brick",
+   "tint": "7a1822",
+   "shadow": true,
+   "rough": 0.8999999761581421,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -24.9,
+    26,
+    0.5,
+    0.5,
+    0.07,
+    0.3
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Brick",
+   "tint": "7a1822",
+   "shadow": true,
+   "rough": 0.8999999761581421,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -24.9,
+    28,
+    0.5,
+    0.5,
+    0.07,
+    0.3
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_PlasterLight",
+   "tint": "d6a848",
+   "shadow": true,
+   "rough": 0.8999999761581421,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31,
+    -15.25,
+    0.1,
+    18.5,
+    0.08,
+    3.55
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Tile",
+   "tint": "c4c6cc",
+   "shadow": true,
+   "rough": 0.44999998807907104,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.435,
+    -15.25,
+    0.57,
+    18.5,
+    0.25,
+    3.3
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Tile",
+   "tint": "c4c6cc",
+   "shadow": true,
+   "rough": 0.44999998807907104,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.31,
+    -15.25,
+    0.82,
+    18.7,
+    0.17,
+    5.25
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Tile",
+   "tint": "c4c6cc",
+   "shadow": true,
+   "rough": 0.44999998807907104,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.5,
+    -21.85,
+    0.44,
+    0.16,
+    2.46,
+    0.28
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Tile",
+   "tint": "c4c6cc",
+   "shadow": true,
+   "rough": 0.44999998807907104,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.5,
+    -19.55,
+    0.44,
+    0.16,
+    2.46,
+    0.28
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Tile",
+   "tint": "c4c6cc",
+   "shadow": true,
+   "rough": 0.44999998807907104,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.5,
+    -17.25,
+    0.44,
+    0.16,
+    2.46,
+    0.28
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Tile",
+   "tint": "c4c6cc",
+   "shadow": true,
+   "rough": 0.44999998807907104,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.5,
+    -12.65,
+    0.44,
+    0.16,
+    2.46,
+    0.28
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Tile",
+   "tint": "c4c6cc",
+   "shadow": true,
+   "rough": 0.44999998807907104,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.5,
+    -10.35,
+    0.44,
+    0.16,
+    2.46,
+    0.28
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Tile",
+   "tint": "c4c6cc",
+   "shadow": true,
+   "rough": 0.44999998807907104,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.5,
+    -8.05,
+    0.44,
+    0.16,
+    2.46,
+    0.28
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Tile",
+   "tint": "c4c6cc",
+   "shadow": true,
+   "rough": 0.44999998807907104,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.42,
+    -16.785,
+    0.6,
+    0.17,
+    2.74,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Tile",
+   "tint": "c4c6cc",
+   "shadow": true,
+   "rough": 0.44999998807907104,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.42,
+    -13.715,
+    0.6,
+    0.17,
+    2.74,
+    0
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Tile",
+   "tint": "c4c6cc",
+   "shadow": true,
+   "rough": 0.44999998807907104,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.42,
+    -15.25,
+    0.6,
+    2.9,
+    0.16,
+    2.58
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Tile",
+   "tint": "c4c6cc",
+   "shadow": true,
+   "rough": 0.44999998807907104,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -31.55,
+    -15.25,
+    0.1,
+    0.06,
+    2.58,
+    0.02
+   ],
+   "collider": null
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Tile",
+   "tint": "ccccc6",
+   "shadow": true,
+   "rough": 0.44999998807907104,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -21,
+    32,
+    6,
+    2,
+    3,
+    0
+   ],
+   "collider": 74
+  },
+  {
+   "file": "gj-shell",
+   "mat": "GS_Tile",
+   "tint": "ccccc6",
+   "shadow": true,
+   "rough": 0.44999998807907104,
+   "metal": 0,
+   "emit": null,
+   "emitStrength": 1,
+   "b": [
+    -15.9,
+    12.2,
+    1.2,
+    7.8,
+    0.06,
+    1.1
+   ],
+   "collider": null
+  }
+ ],
+ "heroes": [
+  {
+   "key": "gen:08d292ae",
+   "lo": [
+    -10.3,
+    3,
+    22.95
+   ],
+   "hi": [
+    -9.4,
+    3.95,
+    23.75
+   ],
+   "tris": 1308
+  },
+  {
+   "key": "gen:2771c445",
+   "lo": [
+    -31.65,
+    0.4,
+    8
+   ],
+   "hi": [
+    -31.05,
+    7,
+    10
+   ],
+   "tris": 2980
+  },
+  {
+   "key": "gen:2771c445",
+   "lo": [
+    -31.65,
+    0.4,
+    20
+   ],
+   "hi": [
+    -31.05,
+    7,
+    22
+   ],
+   "tris": 2980
+  },
+  {
+   "key": "gen:2fcd6415",
+   "lo": [
+    -13.55,
+    3,
+    20.7
+   ],
+   "hi": [
+    -12.85,
+    3.78,
+    22.5
+   ],
+   "tris": 1118
+  },
+  {
+   "key": "gen:3c8b07ca",
+   "lo": [
+    -30.97,
+    7.287,
+    2.85
+   ],
+   "hi": [
+    -30.83,
+    7.786,
+    3.65
+   ],
+   "tris": 1910
+  },
+  {
+   "key": "gen:3c8b07ca",
+   "lo": [
+    -30.97,
+    6.768,
+    2.85
+   ],
+   "hi": [
+    -30.83,
+    7.267,
+    3.65
+   ],
+   "tris": 1910
+  },
+  {
+   "key": "gen:3c8b07ca",
+   "lo": [
+    -30.97,
+    6.248,
+    2.85
+   ],
+   "hi": [
+    -30.83,
+    6.748,
+    3.65
+   ],
+   "tris": 1910
+  },
+  {
+   "key": "gen:3c8b07ca",
+   "lo": [
+    -30.97,
+    5.729,
+    2.85
+   ],
+   "hi": [
+    -30.83,
+    6.228,
+    3.65
+   ],
+   "tris": 1910
+  },
+  {
+   "key": "gen:3c8b07ca",
+   "lo": [
+    -30.97,
+    5.21,
+    2.85
+   ],
+   "hi": [
+    -30.83,
+    5.709,
+    3.65
+   ],
+   "tris": 1910
+  },
+  {
+   "key": "gen:3c8b07ca",
+   "lo": [
+    -30.97,
+    4.691,
+    2.85
+   ],
+   "hi": [
+    -30.83,
+    5.19,
+    3.65
+   ],
+   "tris": 1910
+  },
+  {
+   "key": "gen:3c8b07ca",
+   "lo": [
+    -30.97,
+    4.172,
+    2.85
+   ],
+   "hi": [
+    -30.83,
+    4.671,
+    3.65
+   ],
+   "tris": 1910
+  },
+  {
+   "key": "gen:3c8b07ca",
+   "lo": [
+    -30.97,
+    3.652,
+    2.85
+   ],
+   "hi": [
+    -30.83,
+    4.152,
+    3.65
+   ],
+   "tris": 1910
+  },
+  {
+   "key": "gen:3c8b07ca",
+   "lo": [
+    -30.97,
+    3.133,
+    2.85
+   ],
+   "hi": [
+    -30.83,
+    3.632,
+    3.65
+   ],
+   "tris": 1910
+  },
+  {
+   "key": "gen:3c8b07ca",
+   "lo": [
+    -30.97,
+    2.614,
+    2.85
+   ],
+   "hi": [
+    -30.83,
+    3.113,
+    3.65
+   ],
+   "tris": 1910
+  },
+  {
+   "key": "gen:7524a13f",
+   "lo": [
+    -23.25,
+    0,
+    4.15
+   ],
+   "hi": [
+    -20.75,
+    1.2,
+    4.95
+   ],
+   "tris": 2342
+  },
+  {
+   "key": "gen:7524a13f",
+   "lo": [
+    -24.55,
+    0,
+    23
+   ],
+   "hi": [
+    -22.05,
+    1.2,
+    23.8
+   ],
+   "tris": 2342
+  },
+  {
+   "key": "gen:7524a13f",
+   "lo": [
+    -20.95,
+    0,
+    23
+   ],
+   "hi": [
+    -18.45,
+    1.2,
+    23.8
+   ],
+   "tris": 2342
+  },
+  {
+   "key": "gen:8180f38e",
+   "lo": [
+    -22.35,
+    0,
+    5.15
+   ],
+   "hi": [
+    -21.65,
+    0.75,
+    5.85
+   ],
+   "tris": 510
+  },
+  {
+   "key": "gen:8180f38e",
+   "lo": [
+    -23.65,
+    0,
+    22.1
+   ],
+   "hi": [
+    -22.95,
+    0.75,
+    22.8
+   ],
+   "tris": 510
+  },
+  {
+   "key": "gen:8180f38e",
+   "lo": [
+    -20.05,
+    0,
+    22.1
+   ],
+   "hi": [
+    -19.35,
+    0.75,
+    22.8
+   ],
+   "tris": 510
+  },
+  {
+   "key": "gen:81f619eb",
+   "lo": [
+    22.334,
+    0.45,
+    -3.913
+   ],
+   "hi": [
+    22.686,
+    0.65,
+    -3.522
+   ],
+   "tris": 1996
+  },
+  {
+   "key": "gen:905397e2",
+   "lo": [
+    -30.5,
+    0.3,
+    25.5
+   ],
+   "hi": [
+    -29.3,
+    0.65,
+    26.3
+   ],
+   "tris": 790
+  },
+  {
+   "key": "gen:905397e2",
+   "lo": [
+    -30.5,
+    0.3,
+    27.9
+   ],
+   "hi": [
+    -29.3,
+    0.65,
+    28.7
+   ],
+   "tris": 790
+  },
+  {
+   "key": "gen:905397e2",
+   "lo": [
+    -25.35,
+    0.3,
+    26.4
+   ],
+   "hi": [
+    -24.45,
+    0.65,
+    27.6
+   ],
+   "tris": 790
+  },
+  {
+   "key": "gen:9bd833bb",
+   "lo": [
+    -7.25,
+    3,
+    14
+   ],
+   "hi": [
+    -6.35,
+    3.8,
+    17
+   ],
+   "tris": 1660
+  },
+  {
+   "key": "gen:9bd833bb",
+   "lo": [
+    -6.564,
+    3.418,
+    14.216
+   ],
+   "hi": [
+    -6.509,
+    3.557,
+    16.784
+   ],
+   "tris": 124
+  },
+  {
+   "key": "gen:9bd833bb",
+   "lo": [
+    -10,
+    0,
+    32.9
+   ],
+   "hi": [
+    -7,
+    0.8,
+    33.8
+   ],
+   "tris": 1660
+  },
+  {
+   "key": "gen:9bd833bb",
+   "lo": [
+    -9.784,
+    0.418,
+    33.586
+   ],
+   "hi": [
+    -7.216,
+    0.557,
+    33.641
+   ],
+   "tris": 124
+  },
+  {
+   "key": "gen:b05ec518",
+   "lo": [
+    -17.043,
+    0,
+    8.807
+   ],
+   "hi": [
+    -16.656,
+    0.76,
+    9.193
+   ],
+   "tris": 800
+  },
+  {
+   "key": "gen:b05ec518",
+   "lo": [
+    -17.051,
+    0,
+    10.1
+   ],
+   "hi": [
+    -16.651,
+    0.76,
+    10.499
+   ],
+   "tris": 800
+  },
+  {
+   "key": "gen:b05ec518",
+   "lo": [
+    -17.031,
+    0,
+    11.421
+   ],
+   "hi": [
+    -16.67,
+    0.76,
+    11.779
+   ],
+   "tris": 800
+  },
+  {
+   "key": "gen:b05ec518",
+   "lo": [
+    -17.033,
+    0,
+    12.717
+   ],
+   "hi": [
+    -16.668,
+    0.76,
+    13.084
+   ],
+   "tris": 800
+  },
+  {
+   "key": "gen:b05ec518",
+   "lo": [
+    -17.052,
+    0,
+    13.998
+   ],
+   "hi": [
+    -16.647,
+    0.76,
+    14.402
+   ],
+   "tris": 800
+  },
+  {
+   "key": "gen:b05ec518",
+   "lo": [
+    -17.034,
+    0,
+    15.318
+   ],
+   "hi": [
+    -16.665,
+    0.76,
+    15.684
+   ],
+   "tris": 800
+  },
+  {
+   "key": "gen:b05ec518",
+   "lo": [
+    8.27,
+    0,
+    -3.861
+   ],
+   "hi": [
+    8.63,
+    0.68,
+    -3.5
+   ],
+   "tris": 800
+  },
+  {
+   "key": "gen:b05ec518",
+   "lo": [
+    9.354,
+    0,
+    -3.878
+   ],
+   "hi": [
+    9.747,
+    0.68,
+    -3.484
+   ],
+   "tris": 800
+  },
+  {
+   "key": "gen:b05ec518",
+   "lo": [
+    10.749,
+    0,
+    -2.522
+   ],
+   "hi": [
+    11.152,
+    0.68,
+    -2.117
+   ],
+   "tris": 800
+  },
+  {
+   "key": "gen:b05ec518",
+   "lo": [
+    11.856,
+    0,
+    -2.515
+   ],
+   "hi": [
+    12.245,
+    0.68,
+    -2.124
+   ],
+   "tris": 800
+  },
+  {
+   "key": "gen:b05ec518",
+   "lo": [
+    13.269,
+    0,
+    -3.86
+   ],
+   "hi": [
+    13.631,
+    0.68,
+    -3.5
+   ],
+   "tris": 800
+  },
+  {
+   "key": "gen:b05ec518",
+   "lo": [
+    14.37,
+    0,
+    -3.861
+   ],
+   "hi": [
+    14.73,
+    0.68,
+    -3.499
+   ],
+   "tris": 800
+  },
+  {
+   "key": "gen:b05ec518",
+   "lo": [
+    15.765,
+    0,
+    -2.504
+   ],
+   "hi": [
+    16.134,
+    0.68,
+    -2.137
+   ],
+   "tris": 800
+  },
+  {
+   "key": "gen:b05ec518",
+   "lo": [
+    16.85,
+    0,
+    -2.519
+   ],
+   "hi": [
+    17.249,
+    0.68,
+    -2.121
+   ],
+   "tris": 800
+  },
+  {
+   "key": "gen:b05ec518",
+   "lo": [
+    18.249,
+    0,
+    -3.881
+   ],
+   "hi": [
+    18.652,
+    0.68,
+    -3.479
+   ],
+   "tris": 800
+  },
+  {
+   "key": "gen:b05ec518",
+   "lo": [
+    19.358,
+    0,
+    -3.872
+   ],
+   "hi": [
+    19.743,
+    0.68,
+    -3.489
+   ],
+   "tris": 800
+  },
+  {
+   "key": "gen:b05ec518",
+   "lo": [
+    20.571,
+    0,
+    -2.501
+   ],
+   "hi": [
+    20.929,
+    0.68,
+    -2.139
+   ],
+   "tris": 800
+  },
+  {
+   "key": "gen:b05ec518",
+   "lo": [
+    21.669,
+    0,
+    -2.5
+   ],
+   "hi": [
+    22.031,
+    0.68,
+    -2.141
+   ],
+   "tris": 800
+  },
+  {
+   "key": "gen:bc34ced3",
+   "lo": [
+    7.84,
+    1.8,
+    -3.16
+   ],
+   "hi": [
+    8.16,
+    2.28,
+    -2.84
+   ],
+   "tris": 1112
+  },
+  {
+   "key": "gen:bc34ced3",
+   "lo": [
+    9.84,
+    1.8,
+    -3.16
+   ],
+   "hi": [
+    10.161,
+    2.28,
+    -2.839
+   ],
+   "tris": 1112
+  },
+  {
+   "key": "gen:bc34ced3",
+   "lo": [
+    11.841,
+    1.8,
+    -3.16
+   ],
+   "hi": [
+    12.16,
+    2.28,
+    -2.84
+   ],
+   "tris": 1112
+  },
+  {
+   "key": "gen:bc34ced3",
+   "lo": [
+    13.839,
+    1.8,
+    -3.161
+   ],
+   "hi": [
+    14.161,
+    2.28,
+    -2.839
+   ],
+   "tris": 1112
+  },
+  {
+   "key": "gen:bc34ced3",
+   "lo": [
+    15.841,
+    1.8,
+    -3.159
+   ],
+   "hi": [
+    16.158,
+    2.28,
+    -2.841
+   ],
+   "tris": 1112
+  },
+  {
+   "key": "gen:bc34ced3",
+   "lo": [
+    17.841,
+    1.8,
+    -3.159
+   ],
+   "hi": [
+    18.159,
+    2.28,
+    -2.841
+   ],
+   "tris": 1112
+  },
+  {
+   "key": "gen:bc34ced3",
+   "lo": [
+    19.839,
+    1.8,
+    -3.161
+   ],
+   "hi": [
+    20.161,
+    2.28,
+    -2.839
+   ],
+   "tris": 1112
+  },
+  {
+   "key": "gen:bc34ced3",
+   "lo": [
+    21.84,
+    1.8,
+    -3.16
+   ],
+   "hi": [
+    22.16,
+    2.28,
+    -2.84
+   ],
+   "tris": 1112
+  },
+  {
+   "key": "gen:d581f78d",
+   "lo": [
+    -28.6,
+    3.275,
+    3.195
+   ],
+   "hi": [
+    -23.4,
+    4.625,
+    3.745
+   ],
+   "tris": 616
+  },
+  {
+   "key": "gen:e26da464",
+   "lo": [
+    -31.63,
+    5,
+    9.2
+   ],
+   "hi": [
+    -31.13,
+    7,
+    20.8
+   ],
+   "tris": 3992
+  }
+ ]
+}
