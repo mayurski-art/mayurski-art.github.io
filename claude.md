@@ -82,3 +82,10 @@ These rules hold for every session that touches the game:
    landed task.
 8. New code goes in the folder that owns it, never into game.js. game.js
    only ever gets smaller.
+9. Nothing blocks anything, on every map (user, 2026-10-23). No prop,
+   sign, frame, ledge or awning stands in front of a screen, a sign, a
+   window, a doorway or another prop's face from any eye point a player
+   can reach, and props never intersect each other. Check it before
+   showing the work: raycast from a grid of eye points to a grid on the
+   face, then shoot it head-on and from two angles. Anything in the way is
+   removed, moved or redesigned, never flush-mounted behind proud pieces.
