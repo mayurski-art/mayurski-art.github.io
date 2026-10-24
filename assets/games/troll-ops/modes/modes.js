@@ -45,7 +45,7 @@ export const MODES = {
     pvp: false,
     zombies: true,
     // Maps with a zombieLayout(); the map card's Change picks between them.
-    mapPool: ["pentagrin", "hollowgrin", "trollcity", "trollingloud"],
+    mapPool: ["pentagrin", "hollowgrin", "trollcity"],
     blurb: "Pepe and trollface, round after round, and they do not stop coming.",
   },
 
@@ -219,8 +219,8 @@ MODES.social = {
   // Only the maps built for hanging out (user, 2026-10-07); the other maps
   // stay open to every other mode. Its own list, not a mapPool: the room
   // still follows its host's map.
-  maps: ["trollcity", "trollingloud", "kabukigrin", "grinbeach"],
-  blurb: "Hang out in Troll City, at Trolling Loud, in Kabukigrin or on Troll Beach with whoever is online. No guns, just emotes and chat.",
+  maps: ["trollcity", "kabukigrin", "grinbeach"],
+  blurb: "Hang out in Troll City, in Kabukigrin or on Troll Beach with whoever is online. No guns, just emotes and chat.",
 };
 
 /* The Zombies hub (Zombie Rush P5, modes/zombies/hub.js): where Zombies

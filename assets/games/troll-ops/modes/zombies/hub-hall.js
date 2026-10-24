@@ -18,7 +18,6 @@ export const HUB = {
     { id: "p1", map: "pentagrin", x: -15, z: -6, w: 6, d: 5 },
     { id: "p2", map: "hollowgrin", x: -8.4, z: -6, w: 6, d: 5 },
     { id: "p3", map: "trollcity", x: 8.4, z: -6, w: 6, d: 5 },
-    { id: "p4", map: "trollingloud", x: 15, z: -6, w: 6, d: 5 },
   ],
   private: { id: "priv", x: -15, z: 8, w: 5, d: 5 },
   // the sign over a pad's back edge, facing the room
