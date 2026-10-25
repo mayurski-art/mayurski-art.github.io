@@ -48,9 +48,10 @@ import { buildTrain, trainFrame } from "./kabukigrin-train.js?v=kb14-sp1-kbt1";
 const URL_GLB = new URL("../models/", import.meta.url).href;
 const loader = new GLTFLoader();
 // the GLBs that are light-mapped, and how strongly (battlefield-props BAKED)
-const BAKED = { "kb-shell": Math.PI, "kb-props": Math.PI, "gj-skyline": Math.PI };
-// the ground's light (models/bake_map_ground.blender.py kabukigrin 1.7 40)
-const GROUND_BAKE = { file: "kabukigrin-ground", rect: [-56, -56, 112] };
+// (Kabukigrin's hold half the light, so lamp-lit walls don't clip: build_kabukigrin BAKE_SCALE)
+const BAKED = { "kb-shell": 2 * Math.PI, "kb-props": 2 * Math.PI };
+// the ground's light, at half too (models/bake_map_ground.blender.py kabukigrin 1.7 40 0.5)
+const GROUND_BAKE = { file: "kabukigrin-ground", rect: [-56, -56, 112], intensity: 2 * Math.PI };
 // The layout's lights the bake leaves live (build_kabukigrin LIVE_LIGHTS), by
 // x, z: the borrowed rooms', whose insides are drawn here, unbaked (the green
 // room, the tatami room, the office). The rest are in the light maps.
@@ -367,7 +368,7 @@ function clubInterior(K) {
    wall's cyan run along the hall's walls as the old live lights put them. */
 function floorLight(mesh, bake, [push, k]) {
   const g = mesh.geometry, P = g.attributes.position, N = g.attributes.normal;
-  if (!push) return applyGroundLightMap(mesh, bake, GROUND_BAKE.rect, Math.PI * k);
+  if (!push) return applyGroundLightMap(mesh, bake, GROUND_BAKE.rect, GROUND_BAKE.intensity * k);
   const [x0, z0, size] = GROUND_BAKE.rect;
   mesh.updateWorldMatrix(true, false);
   const nm = new THREE.Matrix3().getNormalMatrix(mesh.matrixWorld);
@@ -379,14 +380,14 @@ function floorLight(mesh, bake, [push, k]) {
     uv[2 * i + 1] = (v.z + n.z * push - z0) / size;
   }
   g.setAttribute("uv1", new THREE.BufferAttribute(uv, 2));
-  applyBakedLightMap(mesh, bake, Math.PI * k);
+  applyBakedLightMap(mesh, bake, GROUND_BAKE.intensity * k);
 }
 
 /* The Blender models (build_kabukigrin.blender.py): each lit by its own
    bake (kb-neon is the light, not lit), the club's pieces as their Studio
    keys say; then the photo surfaces and the fronts' grain. */
 const MODELS = ["kb-shell", "kb-props", "kb-neon"];
-const MODELS_V = "kbb8";
+const MODELS_V = "kbb9";
 function loadModels(api) {
   // settles once every model is placed (or failed): the wet floors' probes wait for it
   return Promise.all(MODELS.map((file) => new Promise((done) => {

@@ -486,6 +486,9 @@ def cut_boxes(obj, boxes):
 BAKE_SKY = (0x6a5aa8, 0x3a1a4a, 1.7)
 BAKE_GROUND = 0x2a2a30
 LAMP_W = 40
+# the light maps hold half the light (kabukigrin.js lights them at 2 PI): the
+# club's lamp-lit walls and bar run past 1, which an 8-bit image would clip
+BAKE_SCALE = 0.5
 # the borrowed rooms' lights stay live (kabukigrin.js LIVE_LIGHTS: their
 # insides are drawn in code, unbaked): the green room, the tatami room, the office
 LIVE_LIGHTS = {(-13, 29), (-28, 27), (-10, 21.5)}
@@ -549,7 +552,7 @@ def bake(objs, name, res=2048):
                           if n != name and os.path.exists(os.path.join(HERE, n + ".glb"))])
     lights = [((x, y, z), col, inten * LAMP_W, 0.15) for (x, y, z, col, inten, _d) in spec["lights"]]
     bake_lightmap(objs, os.path.join(HERE, name + "-bake.webp"), res=res, samples=128, sky=BAKE_SKY,
-                  ground=BAKE_GROUND, lights=lights, blur=1, occluders=spec.get("occluders", ()))
+                  ground=BAKE_GROUND, lights=lights, blur=1, occluders=spec.get("occluders", ()), scale=BAKE_SCALE)
     remove_context(ctx)
     for m in set(bpy.data.materials) - before:
         bpy.data.materials.remove(m)
