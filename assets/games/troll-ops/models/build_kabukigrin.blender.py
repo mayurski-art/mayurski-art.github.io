@@ -641,15 +641,16 @@ def main():
                 "lanterns": STREET["lanterns"], "signs": SIGNS}
         json.dump(dump, open(os.environ["KB_STREET_DUMP"], "w"))
         return
+    import kb_street
     out = []
     o = to_object(sh, "gj")
     unwrap(o)
     cut_club(o)
-    cut_boxes(o, PARLOUR_CUT)
+    cut_boxes(o, PARLOUR_CUT + kb_street.BAND_CUTS)
     out.append(export([o] + [c for c in [club_part("kb-shell")] if c], "kb-shell.glb"))
     o = to_object(ne, "gj")
     cut_club(o)
-    cut_boxes(o, PARLOUR_CUT)
+    cut_boxes(o, PARLOUR_CUT + kb_street.BAND_CUTS)
     out.append(export([o] + [c for c in [club_part("kb-neon")] if c], "kb-neon.glb"))
     out.append(props_part())
     write_signs()
@@ -708,6 +709,7 @@ def props_object():
     kb_street.furnish(b, P, R, STREET, S, random.Random(31))
     hp = kb_street.street_palette(P)
     kb_street.ramen_stall(b, hp, R)
+    kb_street.band_ends(b, hp, R)
     for s in G.SOLIDS:
         if s["k"] == "truck" and kb_has(s):
             kb_street.kei_truck(b, hp, R, f"kei-{s['side'].lower()}", s["x"] - math.copysign(0.08, s["x"]), s["z"],   # (its mirrors off the pachinko glass's front: rule 9)

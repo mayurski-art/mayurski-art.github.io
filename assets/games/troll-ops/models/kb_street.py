@@ -210,13 +210,28 @@ EYES = [
 ]
 
 
-# Studio's club front against Grinjuku's sign bands at A Main's mouth (both
-# on main before phase 3; found once the bands were registered): left for
-# the user to decide (CLAUDE.md rule 9), not moved here
-KNOWN = [
-    {"face": "band:24", "prop": "hero:3c8b07ca", "why": "the club's katakana blade sign on the corner pier stands 0.4 m proud of the pachinko building's band's last 0.8 m"},
-    {"face": "band:66", "prop": "hero:d581f78d", "why": "the club's marquee ends 0.1 m off the east band's north end, over its top 0.1 m"},
+# Grinjuku's sign bands at A Main's mouth cut back clear of Studio's club
+# front (rule 9; user: "fix them"): the pachinko building's band stops short
+# of the club's katakana blade sign (z 2.85), the east band short of the
+# marquee (z 3.195). Cut from kb-shell and kb-neon after the unwrap (game x0,
+# x1, y0, y1, z0, z1; clear of the wall and the pilasters behind), the open
+# ends capped in kb-props (band_ends)
+BAND_CUTS = [
+    (-31.64, -31.3, 2.745, 3.39, 2.8, 3.95),
+    (-23.4, -23.06, 2.745, 3.39, 3.15, 4.2),
 ]
+KNOWN = []
+
+
+def band_ends(b, P, R):
+    """The caps on the cut bands' ends, facing the club (+z)."""
+    for i, (x0, x1, y0, y1, z0, z1) in enumerate(BAND_CUTS):
+        wx = -31.7 if x0 < -27 else -23.0                     # the wall the band stands on
+        fx = wx + (0.3 if wx < -27 else -0.3)                 # its front
+        a, c = min(wx, fx), max(wx, fx)
+        R.begin(b, f"band-end{i}")
+        _facing(b, P["black"], [(a, 2.75, z0), (c, 2.75, z0), (c, 3.37, z0), (a, 3.37, z0)], (0, 0, 1))
+        R.end()
 
 
 def street_palette(P):
@@ -384,15 +399,24 @@ def street_space(ST, SIGNS, CLUB, KB, cleared, extra_faces, R):
         if kind in ("izakaya", "ramen"):
             lo, hi = fbox(face, t0 + 0.35, t1 - 0.35, 1.7, 2.45, 0.0, 0.06)
             S.add(lo, hi, "noren")
+        g0, g1 = t0, t1                                          # (the glass keeps the whole run)
+        for x0, x1, y0, y1, z0, z1 in BAND_CUTS:                # (cut back clear of the club's front)
+            fx, _ = face.world(mid, 0.2)
+            if x0 <= fx <= x1:
+                za, zb = face.world(t0, 0.0)[1], face.world(t1, 0.0)[1]
+                if min(za, zb) < z0 < max(za, zb):
+                    tc = t0 + (z0 - za) / (zb - za) * (t1 - t0)
+                    t0, t1 = (t0, tc) if za < zb else (tc, t1)
+                    mid = (t0 + t1) / 2
         bx, bz = face.world(mid, 0.31 if kind in ("pachinko", "karaoke") else 0.26)
         c = (bx, (2.78 + top) / 2, bz)
         R.face(f"band:{i}", "gj", c, n, t1 - t0 - 0.2, top - 2.78)
         S.front(f"band:{i}", c, n, t1 - t0 - 0.2, top - 2.78)
         nf += 1
         if kind not in ("shutter", "ramen"):          # (a ramen bay's glass is cut: its front is ramen_front's)
-            gx, gz = face.world(mid, 0.0)
-            R.face(f"glass:{i}", "gj", (gx, 1.5, gz), n, t1 - t0 - 0.7, 2.2)
-            S.front(f"glass:{i}", (gx, 1.5, gz), n, t1 - t0 - 0.7, 2.2)
+            gx, gz = face.world((g0 + g1) / 2, 0.0)
+            R.face(f"glass:{i}", "gj", (gx, 1.5, gz), n, g1 - g0 - 0.7, 2.2)
+            S.front(f"glass:{i}", (gx, 1.5, gz), n, g1 - g0 - 0.7, 2.2)
             nf += 1
     for s in SIGNS:
         kind, x, y, z, nx, nz, g, slots = s[:8]
