@@ -20,6 +20,9 @@ const { chromium } = require("playwright");
 const REPORT = process.argv.includes("--report");
 
 const mapsTag = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/game.js"), "utf8").match(/"\.\/maps\/maps\.js\?v=([^"]+)"/)[1];
+// Grinjuku is no longer a map (-dm1): its layout comes from grinjuku.js, at
+// the tag Kabukigrin imports it with (one module instance)
+const gjTag = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/maps/kabukigrin.js"), "utf8").match(/"\.\/grinjuku\.js\?v=([^"]+)"/)[1];
 const server = await serve(0, undefined, "none");
 const browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 const page = await browser.newPage();
@@ -29,8 +32,13 @@ page.on("console", (m) => { if (m.type() === "warning" && /Kabukigrin/.test(m.te
 // no Supabase, no live room: this page only builds maps
 await page.route(/supabase/, (r) => r.abort());
 await page.goto(`http://127.0.0.1:${server.address().port}/__export.html`);
-const res = await page.evaluate(async (tag) => {
-  const { buildMap } = await import(`/assets/games/troll-ops/maps/maps.js?v=${tag}`);
+const res = await page.evaluate(async ([tag, gjTag]) => {
+  const { buildMap, MAPS } = await import(`/assets/games/troll-ops/maps/maps.js?v=${tag}`);
+  const { GRINJUKU } = await import(`/assets/games/troll-ops/maps/grinjuku.js?v=${gjTag}`);
+  // (buildMap falls back to Grinsite on an id it doesn't know: Grinjuku goes
+  // in for this page only, under an id the game never uses)
+  if (!GRINJUKU) throw new Error("grinjuku.js exports no GRINJUKU");
+  MAPS.__grinjuku = GRINJUKU;
   const r4 = (v) => Math.round(v * 1e3) / 1e3;
   const one = async (id) => {
     const colliders = [], arena = {};
@@ -92,8 +100,10 @@ const res = await page.evaluate(async (tag) => {
   // (kabukigrin_wip until phase 6 dropped the _wip)
   const { MAP_IDS } = await import(`/assets/games/troll-ops/maps/maps.js?v=${tag}`);
   const kbId = (MAP_IDS || []).includes("kabukigrin") ? "kabukigrin" : "kabukigrin_wip";
-  return { gj: await one("grinjuku"), kb: await one(kbId) };
-}, mapsTag);
+  const gj = await one("__grinjuku");
+  delete MAPS.__grinjuku;
+  return { gj, kb: await one(kbId) };
+}, [mapsTag, gjTag]);
 await browser.close();
 server.close();
 
