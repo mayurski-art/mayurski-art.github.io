@@ -225,7 +225,9 @@ export async function enterMatch(mapHint = null) {
   game.loadScreen.progress(0.88);
   game.loadScreen.status("Warming up");
   const dressed = dressLocalRig();
-  await warmShaders();
+  // (never more than WARM_MS: it is only a head start, and a download a
+  // phone leaves hanging held the screen at 88 % for good)
+  await within(warmShaders(), WARM_MS);
   if (seq !== loadSeq) return;
   game.loadScreen.status("Dressing your troll");
   await dressed;
@@ -390,6 +392,10 @@ function startMatchIntro(kind) {
    kept (never drawn) until the next warm-up, because three frees a shader
    once the last material using it is disposed, and every weapon swap
    disposes the gun it puts away. */
+/* The warm-up waits this long at most, each of its models this long to
+   arrive; what it misses compiles on the frame it first appears. */
+const WARM_MS = 20000, WARM_MODEL_MS = 8000;
+const within = (p, ms, late = undefined) => Promise.race([p, new Promise((r) => setTimeout(() => r(late), ms))]);
 const WARM_MODELS = ["care-package", "helicopter", "hunter-drone", "recon-drone", "strike-jet", "k9-dog", "vtol-warship"];
 let warmKeep = [];                 // last warm-up's stand-ins, holding their shaders
 const warmedGuns = new Set();      // gunWarmKey()s those stand-ins cover
@@ -485,7 +491,7 @@ export async function warmShaders() {
   ensureStrikeTablet();
   game.scene.add(stand);
   try {
-    const models = (await Promise.all(WARM_MODELS.map((m) => loadModel(m).catch(() => null)))).filter(Boolean);
+    const models = (await Promise.all(WARM_MODELS.map((m) => within(loadModel(m).catch(() => null), WARM_MODEL_MS, null)))).filter(Boolean);
     // zombies: the blood pool and the neck stump of a headshot kill
     if (game.isZombies()) models.push(...goreStandIns());
     for (const m of models) stand.add(m);
