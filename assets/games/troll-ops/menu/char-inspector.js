@@ -187,7 +187,14 @@ export class CharacterInspector {
     this.zoomTarget = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
   }
 
+  /* A match frees this preview's GPU memory (its WebGL context: lobby.js
+     sleepMenuGl, at startGame); the next tick back on the menu restores it
+     and three uploads the scene again. */
+  sleep() { if (this.asleep) return; this.asleep = true; this.renderer.forceContextLoss(); }
+  wake() { if (!this.asleep) return; this.asleep = false; this.renderer.forceContextRestore(); }
+
   tick(dt) {
+    this.wake();
     const w = this.canvas.clientWidth;
     const h = this.canvas.clientHeight;
     if (!w || !h) return;                    // panel is hidden — nothing to draw

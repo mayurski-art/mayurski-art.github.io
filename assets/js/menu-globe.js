@@ -105,7 +105,10 @@ function loadLib() {
 function webglOk() {
   try {
     const c = document.createElement("canvas");
-    return !!(c.getContext("webgl2") || c.getContext("webgl"));
+    const gl = c.getContext("webgl2") || c.getContext("webgl");
+    // a probe only: its context goes straight back (phones have few)
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
+    return !!gl;
   } catch { return false; }
 }
 
@@ -381,6 +384,7 @@ export function mountMenuBackdrop(host) {
   // page reads black and white. Show the stand-in planet meanwhile, and build
   // a fresh map if the context isn't restored soon.
   let relost = 0;
+  let released = null;   // the view a released map (pause(true)) comes back to
   function rebuild(maplibregl) {
     if (dead || !map) return;
     const view = { center: map.getCenter(), zoom: map.getZoom(), padding: map.getPadding() };
@@ -643,10 +647,25 @@ export function mountMenuBackdrop(host) {
     // markFace(pin | null): ring the troll whose card is open.
     // screenPoint(lat, lng): { x, y } on screen, or null on the far side.
     enterMap, exitMap, flyTo, refreshPins, setPicker, setDraft, markFace, screenPoint,
-    pause() { paused = true; if (raf) cancelAnimationFrame(raf); raf = 0; root.style.visibility = "hidden"; },
+    // pause(true) also frees the map's WebGL context (a phone in a match
+    // needs the GPU memory); resume() builds the map again where it was.
+    pause(release = false) {
+      paused = true; if (raf) cancelAnimationFrame(raf); raf = 0; root.style.visibility = "hidden";
+      if (release && map && !mapMode) {
+        released = { center: map.getCenter(), zoom: map.getZoom(), padding: map.getPadding() };
+        try { map.remove(); } catch {}
+        map = null;
+      }
+    },
     // One last frame at dt 0 when freezing; the loop restarts when thawed.
     setStill(on) { still = reduced || !!on; root.classList.toggle("is-still", !!on); last = 0; run(); },
-    resume() { paused = false; root.style.visibility = ""; run(); },
+    resume() {
+      paused = false; root.style.visibility = ""; run();
+      if (!released) return;
+      const view = released;
+      released = null;
+      loadLib().then((maplibregl) => { if (!dead && !map) { makeMap(maplibregl, view); renderFaces(); } }).catch(() => {});
+    },
     destroy() { dead = true; ro.disconnect(); if (raf) cancelAnimationFrame(raf); if (map) map.remove(); map = null; root.remove(); },
   };
 }

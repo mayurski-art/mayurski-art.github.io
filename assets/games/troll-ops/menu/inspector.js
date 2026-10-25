@@ -14,7 +14,7 @@ import * as THREE from "three";
 import { buildWeaponMesh } from "../weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1-rt1-ut1-rb4-hp1-bx1-mg1-sp1";
 import { buildMeleeMesh } from "../weapons/gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1-rb4-hp1-bx1-mg1-sp1";
 import { buildThrowable, modelKind } from "../combat/throwable-models.js?v=tm1-th2";
-import { loadModel } from "../maps/battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-kbk2";
+import { loadModel } from "../maps/battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2";
 import { buildDragonfireModel } from "../streaks/dragonfire-drone.js?v=df3-sb2-or1";
 import { buildSamTurretModel } from "../streaks/sam-turret.js?v=sam1-fj1-or1";
 
@@ -262,7 +262,14 @@ export class WeaponInspector {
     this.camera.updateProjectionMatrix();
   }
 
+  /* A match frees this preview's GPU memory (its WebGL context: lobby.js
+     sleepMenuGl, at startGame); the next tick back on the menu restores it
+     and three uploads the scene again. */
+  sleep() { if (this.asleep) return; this.asleep = true; this.renderer.forceContextLoss(); }
+  wake() { if (!this.asleep) return; this.asleep = false; this.renderer.forceContextRestore(); }
+
   tick(dt) {
+    this.wake();
     if (!this.mesh) return;
 
     const w = this.canvas.clientWidth;
