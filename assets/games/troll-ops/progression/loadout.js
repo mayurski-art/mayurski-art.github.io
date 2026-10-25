@@ -132,10 +132,27 @@ function paintGearLock(b, slot, label, def) {
     `${label}: ${def.name} — ${unlocked ? def.blurb : `locked until level ${def.rank}`}`);
 }
 
+/* How a gun fires, in words (no fireMode: one shot a pull, as
+   view/player-update.js fires it). */
+export function fireModeLabel(def) {
+  switch (def?.fireMode) {
+    case "auto": return "Automatic";
+    case "burst": return `${def.burst || 3}-round burst`;
+    case "bolt": return "Bolt-action";
+    case "pump": return "Pump-action";
+    case "charge": return "Charge shot";
+    default: return "Semi-automatic";
+  }
+}
+
 export class Loadout {
   constructor(els, onChange) {
     this.els = els;
     this.onChange = onChange || (() => {});
+    // the gun the detail panel shows (renderDetail)
+    this.detailId = null;
+    window.addEventListener("trollforces:preview-end", () => this.endDetailPreview());
+    els.list?.addEventListener("mouseleave", () => this.endDetailPreview());
     // Hovering a weapon, melee or throwable in the menu previews it (set by
     // menu/lobby.js); the row's focus event carries it.
     this.onPreview = null;
@@ -658,6 +675,31 @@ export class Loadout {
     }
   }
 
+  /* The detail panel: name, blurb, how it fires and the stat bars, for the
+     equipped gun or the one being previewed (back to the equipped one when
+     the preview ends: off the list, or the menu's trollforces:preview-end). */
+  renderDetail(def) {
+    if (!def || !this.els.stats) return;
+    this.els.name.textContent = def.name;
+    this.els.blurb.textContent = def.blurb || "";
+    this.els.stats.innerHTML = "";
+    const mode = document.createElement("p");
+    mode.className = "to-lo-firemode";
+    mode.textContent = fireModeLabel(def);
+    this.els.stats.appendChild(mode);
+    for (const [label, value] of Object.entries(statBars(def))) {
+      if (label.startsWith("_")) continue;
+      const row = document.createElement("div");
+      row.className = "to-lo-stat";
+      row.innerHTML = `<span>${label}</span><i><b style="width:${Math.round(value * 100)}%"></b></i>`;
+      this.els.stats.appendChild(row);
+    }
+    this.detailId = def.id;
+  }
+  endDetailPreview() {
+    if (this.detailId !== this.activeId) this.renderDetail(this.resolvedActive);
+  }
+
   /* Selected state plus the per-card stat deltas, recomputed whenever the
      weapon or any other slot changes — a compensator's recoil cut reads
      differently on an LMG than on an SMG, and stacking a grip changes what
@@ -826,7 +868,15 @@ export class Loadout {
       b.setAttribute("aria-pressed", String(id === this.activeId));
       b.innerHTML = `<strong>${w.name}</strong><span>${unlocked ? `${w.damage} dmg · ${w.rpm} rpm` : lockText}</span>`;
       if (!unlocked) b.setAttribute("aria-label", `${w.name}, locked, ${lockText.toLowerCase()}`);
-      b.addEventListener("focus", () => this.onPreview?.(resolveWeapon(id, wearable(this.attachmentsFor(id)))));
+      // The preview and the stats both follow the gun you're on (user,
+      // 2026-10-25: "so should the stats of that weapon")
+      const preview = () => {
+        const d = resolveWeapon(id, wearable(this.attachmentsFor(id)));
+        this.onPreview?.(d);
+        this.renderDetail(d);
+      };
+      b.addEventListener("focus", preview);
+      b.addEventListener("mouseenter", preview);
       b.addEventListener("click", () => {
         this.activeId = id;
         this.persist();
@@ -836,18 +886,7 @@ export class Loadout {
     }
 
     // --- detail panel
-    this.els.name.textContent = def.name;
-    this.els.blurb.textContent = def.blurb || "";
-
-    const bars = statBars(def);
-    this.els.stats.innerHTML = "";
-    for (const [label, value] of Object.entries(bars)) {
-      if (label.startsWith("_")) continue;
-      const row = document.createElement("div");
-      row.className = "to-lo-stat";
-      row.innerHTML = `<span>${label}</span><i><b style="width:${Math.round(value * 100)}%"></b></i>`;
-      this.els.stats.appendChild(row);
-    }
+    this.renderDetail(def);
 
     this.renderAtts();
     this.renderSkins();
@@ -868,7 +907,7 @@ export class Loadout {
     }
 
     this.renderGear();
-    this.renderSummary(def, bars, rank);
+    this.renderSummary(def, statBars(def), rank);
   }
 
   /* The always-visible readout down the right: what you are dropping in with,
