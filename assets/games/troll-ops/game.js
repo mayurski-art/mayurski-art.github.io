@@ -72,7 +72,8 @@ import { ImpactShader, makeMuzzleFlashMaterial } from "./view/shaders.js?v=or1";
 import { ImpactFx } from "./view/impact-fx.js?v=zr4-or1";
 import { initResize } from "./view/resize.js?v=rz1";
 import { capTextures } from "./view/texture-budget.js?v=pm1";
-import { maxPixelRatio, SHADOW_MAX, CANVAS_MSAA } from "./view/render-budget.js?v=pm1";
+import { maxPixelRatio, CANVAS_MSAA, GFX, GFX_TIERS, CLUTTER_SHARE, MSAA_SAMPLES } from "./view/render-budget.js?v=pm1";
+import { guardContext } from "./view/context-guard.js?v=pm1";
 import { LightPool } from "./maps/light-pool.js?v=or1";
 import { loadModel } from "./maps/battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1";
 import { kickCurve } from "./weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
@@ -1437,6 +1438,8 @@ renderer.toneMapping = THREE.NeutralToneMapping;   // truer colour than ACES, wh
 renderer.toneMappingExposure = 1.5;
 initWorldEnv(renderer);
 capTextures(renderer);
+// a lost context comes back on Low, and Auto stays there this session
+guardContext(renderer, { onRestore() { gfxCeiling = GFX_TIERS.length - 1; gfxApplied = null; setAutoTier("low"); } });
 els.cabinet.appendChild(renderer.domElement);
 renderer.domElement.style.position = "absolute";
 renderer.domElement.style.inset = "0";
@@ -2079,12 +2082,6 @@ const resize = initResize({ cabinet: els.cabinet, renderer, composer, passes: [b
    lit shader (the 2 s freezes light-pool.js exists to stop), whereas
    toggling a pass or resizing the shadow map is free to do mid-match.
    Purely local: nothing here is sent over the wire. */
-const GFX_TIERS = ["high", "medium", "low"];
-const GFX = {
-  high:   { ssao: true,  bloom: true,  shadowSize: 2048 },
-  medium: { ssao: false, bloom: true,  shadowSize: 2048 },
-  low:    { ssao: false, bloom: false, shadowSize: 1024 },
-};
 const GFX_AUTO_KEY = "trollops:gfx-auto";
 // Auto starts wherever it settled last time on this device, so a laptop that
 // always ends up on Low doesn't spend the first minute of every match lagging.
@@ -2102,10 +2099,7 @@ function gfxTier() {
 }
 
 /* Map clutter (instanced tufts, bushes, flowers: userData.clutter = full
-   count) drawn in proportion to the graphics tier, so phones get a lighter
-   map (map detail pass). Instances are placed in random order, so any
-   leading share is spread evenly. */
-const CLUTTER_SHARE = { low: 0.15, medium: 0.35, high: 0.55 };
+   count) drawn in proportion to the graphics tier (CLUTTER_SHARE). */
 function applyClutter() {
   const tier = gfxTier();
   const share = CLUTTER_SHARE[tier] ?? 1;
@@ -2114,10 +2108,6 @@ function applyClutter() {
   builtMap?.root?.traverse((o) => { if (o.userData.clutter) o.count = Math.max(1, Math.round(o.userData.clutter * (o.userData.clutterShare?.[tier] ?? share))); });
 }
 
-/* MSAA on the composer's targets per tier. Phones keep 2 even on Low:
-   sharpness was the complaint there, and a phone's tiled GPU resolves MSAA
-   cheaply. A laptop on Low drops it, since that's a struggling iGPU. */
-const MSAA_SAMPLES = { high: 4, medium: 2, low: isTouch ? 2 : 0 };
 function setComposerSamples(n) {
   for (const rt of [composer.renderTarget1, composer.renderTarget2]) {
     if (rt.samples === n) continue;
@@ -2141,9 +2131,8 @@ function applyGraphics() {
   ssao.enabled = cfg.ssao;
   bloom.enabled = cfg.bloom;
   setComposerSamples(MSAA_SAMPLES[tier] ?? 2);
-  const shadowSize = Math.min(cfg.shadowSize, SHADOW_MAX);
-  if (sun.shadow.mapSize.x !== shadowSize) {
-    sun.shadow.mapSize.set(shadowSize, shadowSize);
+  if (sun.shadow.mapSize.x !== cfg.shadowSize) {
+    sun.shadow.mapSize.set(cfg.shadowSize, cfg.shadowSize);
     sun.shadow.map?.dispose();
     sun.shadow.map = null;   // three rebuilds it at the new size next frame
   }
