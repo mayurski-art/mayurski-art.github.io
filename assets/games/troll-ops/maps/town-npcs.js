@@ -14,7 +14,8 @@
 // wipe (a rag on the bar), hammer (the anvil), brush (a horse), count
 // (money or goods on a counter), tend (the doctor over the exam table),
 // guard (arms folded, looking round), sit-read (feet up, reading), walk
-// (round a path, stopping to look about; `pace` walks it back and forth),
+// (round a path, stopping to look about; `pace` walks it back and forth;
+// a corner [x, z, y] sets the floor's height there),
 // phone (waiting in a line: thumbing a phone, looking up now and then),
 // smith (anvil, forge and quench barrel, with the tools: smithy.js).
 // The kitchen (Trolling Loud): cook (a spatula at the range, the pan
@@ -292,6 +293,8 @@ export class TownNpcs {
     const k = n.segT / n.lens[n.seg];
     n.x = a[0] + (b[0] - a[0]) * k;
     n.z = a[1] + (b[1] - a[1]) * k;
+    // a corner may give its floor's height ([x, z, y]: up a step, into a room)
+    if (a.length > 2 || b.length > 2) n.y = (a[2] ?? n.c.y ?? 0) + ((b[2] ?? n.c.y ?? 0) - (a[2] ?? n.c.y ?? 0)) * k;
     n.yaw = Math.atan2(-(b[0] - a[0]), -(b[1] - a[1]));
     n.moving = true;
   }
@@ -328,7 +331,7 @@ export class TownNpcs {
     const t = n.t;
     const moving = (WALKERS.has(c.act) || c.act === "smith") && n.moving;
     if (moving) n.phase += dt * gaitPhaseRate(WALK_MPS);
-    rig.root.position.set(n.x, c.y ?? 0, n.z);
+    rig.root.position.set(n.x, n.y ?? c.y ?? 0, n.z);
     aimRig(rig, n.yaw, dt, { snap: true, moving });
 
     if (c.act === "dance") {
