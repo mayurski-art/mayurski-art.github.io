@@ -7,11 +7,20 @@
 // Online, the roster and chat. An invite is a message on the site-wide
 // presence channel (assets/js/site-presence.js send/on) to that viewer:
 //   - in a match with a room, it's that room (its mode and map);
-//   - in the menu, we start a private match in the lobby's mode on a fresh
-//     code, and the invite is to that.
+//   - in the menu, it's to our party (user, 2026-10-25: "it shouldnt
+//     automatically start a game. it should bring them into the lobby and
+//     then the host can decide from there"): nothing starts. Whoever joins
+//     waits in their own menu, in our party, and when we start a match,
+//     any match, the party follows us into its room.
 // The one invited gets a card at the top of the screen, "<name> invited you
 // to <mode>": Join (out of whatever match they're in, into ours) or Not now.
 // Who sent it is read off the roster (presence nameOf), never the message.
+//
+// The party is messages on the same channel: party-join (to the host),
+// party-go (the host's room, once its match is up), party-leave (either
+// way). The host's room box takes the party's code, so a match it starts
+// is private to the party unless it picks a public one; either way the
+// party is told the room it really landed in.
 
 import { game } from "../core/state.js?v=st1";
 import { MODES } from "../modes/modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1";
@@ -19,7 +28,6 @@ import { MAPS } from "../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-
 import { makeRoomCode } from "../net/net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10-hr2-zp1-rs1-dj2-pl2-nf1-or1-bw2-bt1-dom1-jb3-jb4-sp1-gb4-gb6-gb8-gb9";
 import { joinServer } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1";
 import { viewerId } from "../../../js/site-presence.js?v=to-bo2d-ol1-iv1-mv1-wo1";
-import { closeProfileCard } from "../progression/profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zh1-zc1-zc2-nf1-or1-nb2-nd2";
 
 const INVITE = {
   seconds: 30,      // how long an invite card stays up
@@ -40,7 +48,7 @@ function where() {
     return { room, mode: game.modeId, map: game.loadedMapId || null };
   }
   const mode = MODES[game.modeId]?.name && game.modePicked ? game.modeId : "tdm";
-  return { room: makeRoomCode(), mode, map: null, start: true };
+  return { room: hostParty().room, mode, map: null, party: true };
 }
 
 /* Invite `target` ({ viewerId, name }). Returns a line for the card's
@@ -53,15 +61,102 @@ export function invitePlayer(target) {
   const w = where();
   if (w.error) return w.error;
   lastTo.set(target.viewerId, t);
-  presence.send("invite", { to: target.viewerId, room: w.room, mode: w.mode, map: w.map });
-  if (w.start) {
-    // From the menu: into our private match first, so the room's there
-    // when they join it. The card goes (the match is starting under it).
-    closeProfileCard();
-    joinServer({ room: w.room, mode: w.mode, map: null }, { listed: false });
-    return `Invite sent to ${target.name}. Starting your private ${MODES[w.mode].name} match.`;
+  presence.send("invite", { to: target.viewerId, room: w.room, mode: w.mode, map: w.map, party: !!w.party });
+  if (w.party) {
+    party.invited.add(target.viewerId);
+    return `Invite sent to ${target.name}. They'll wait in your party until you start a match.`;
   }
   return `Invite sent to ${target.name}.`;
+}
+
+/* ── The party ────────────────────────────────────────────────────────── */
+// host: our own party (room, invited, members: viewerIds); in: the one
+// we're waiting in ({ host viewerId, room, mode }). One or the other.
+const party = { room: null, invited: new Set(), members: new Set(), sentRoom: null, in: null };
+function hostParty() {
+  if (party.in) leaveParty(false);
+  if (!party.room) party.room = makeRoomCode();
+  return party;
+}
+function leaveParty(tell = true) {
+  if (party.in) {
+    if (tell) presence?.send("party-leave", { to: party.in.host });
+    party.in = null;
+  }
+  renderParty();
+}
+function dropMembers() {
+  for (const m of party.members) presence?.send("party-leave", { to: m });
+  party.members.clear(); party.invited.clear(); party.room = null; party.sentRoom = null;
+  renderParty();
+}
+/* Once our match is up, the party is told its room (and again if we move
+   to another one); back in the menu, they wait for the next. */
+function partyTick() {
+  if (party.in) {
+    // the host went offline: the party's over
+    if (!presence?.nameOf(party.in.host)) { party.in = null; renderParty(); }
+    return;
+  }
+  for (const m of [...party.members]) if (!presence?.nameOf(m)) party.members.delete(m);
+  if (!party.members.size) { if (party.room && !party.invited.size) party.room = null; renderParty(); return; }
+  const room = playing() && game.net?.connected ? game.net.room : null;
+  if (!room) { party.sentRoom = null; renderParty(); return; }
+  if (room === party.sentRoom) return;
+  party.sentRoom = room;
+  for (const m of party.members) presence.send("party-go", { to: m, room, mode: game.modeId, map: game.loadedMapId || null });
+  renderParty();
+}
+function onPartyJoin(d, from) {
+  if (d.to !== viewerId() || !party.invited.has(from)) return;
+  party.members.add(from);
+  // our next match is the party's room (lobby.js reads the box on input)
+  if (!playing() && game.els.room) {
+    game.els.room.value = party.room;
+    game.els.room.dispatchEvent(new Event("input"));
+  }
+  renderParty();
+  partyTick();
+}
+function onPartyGo(d, from) {
+  if (d.to !== viewerId() || !party.in || from !== party.in.host || !ROOM.test(String(d.room)) || !MODES[d.mode]) return;
+  if (playing() && game.net?.room === d.room) return;
+  if (d.map != null && !MAPS[d.map]) d.map = null;
+  join(d);
+}
+function onPartyLeave(d, from) {
+  if (d.to !== viewerId()) return;
+  if (party.in && from === party.in.host) { party.in = null; renderParty(); return; }
+  party.members.delete(from);
+  renderParty();
+}
+
+/* The party, under the Who's Online column: who's in it, and for a
+   member, who we're waiting on and a Leave. */
+let partyEl = null;
+function renderParty() {
+  if (!partyEl) {
+    partyEl = document.createElement("div");
+    partyEl.className = "to-party";
+    partyEl.setAttribute("role", "status");
+    partyEl.setAttribute("aria-live", "polite");
+    partyEl.innerHTML = `<p class="to-party-text"></p><button type="button" class="tf-btn tf-btn--secondary to-party-leave">Leave party</button>`;
+    partyEl.querySelector(".to-party-leave").addEventListener("click", () => { if (party.in) leaveParty(); else dropMembers(); });
+  }
+  const list = document.querySelector(".to-bo2-party-others");
+  if (list && partyEl.parentNode !== list.parentNode) list.before(partyEl);
+  const names = [...party.members].map((m) => presence?.nameOf(m)?.name).filter(Boolean);
+  const text = partyEl.querySelector(".to-party-text");
+  const leave = partyEl.querySelector(".to-party-leave");
+  if (party.in) {
+    const host = presence?.nameOf(party.in.host)?.name || "the host";
+    text.textContent = `In ${host}'s party. Waiting for them to start a match.`;
+    leave.textContent = "Leave party";
+  } else if (names.length) {
+    text.textContent = `Your party: ${names.join(", ")}. Start any match and they come with you.`;
+    leave.textContent = "Disband";
+  }
+  partyEl.hidden = playing() || !(party.in || names.length);
 }
 
 /* ── The card the invited player sees ─────────────────────────────────── */
@@ -73,7 +168,7 @@ document.addEventListener("keydown", (e) => {
   e.preventDefault();
   const d = pending;
   hide();
-  join(d);
+  accept(d);
 }, true);
 function show(who, d) {
   if (!card) {
@@ -90,8 +185,8 @@ function show(who, d) {
   p.replaceChildren();
   const b = document.createElement("b");
   b.textContent = who.name;
-  p.append(b, ` invited you to ${mode}${map ? ` on ${map}` : ""}.`);
-  card.querySelector('[data-act="join"]').onclick = () => { hide(); join(d); };
+  p.append(b, d.party ? ` invited you to their party. They'll pick the match.` : ` invited you to ${mode}${map ? ` on ${map}` : ""}.`);
+  card.querySelector('[data-act="join"]').onclick = () => { hide(); accept(d); };
   card.querySelector('[data-act="no"]').onclick = hide;
   pending = d;
   // the key hint, while the mouse can't reach the buttons
@@ -120,6 +215,20 @@ async function join(d) {
   joinServer({ room: d.room, mode: d.mode, map: d.map }, { listed: false });
 }
 
+/* Join pressed: a match's invite goes into it; a party's into the party,
+   back to the menu if we're in a match, to wait for the host. */
+async function accept(d) {
+  if (!d.party) { join(d); return; }
+  if (playing()) {
+    game.els.quitBtn?.click();
+    for (let i = 0; i < 40 && playing(); i++) await new Promise((r) => setTimeout(r, 50));
+  }
+  if (party.members.size) dropMembers();
+  party.in = { host: d.from, room: d.room, mode: d.mode };
+  presence.send("party-join", { to: d.from });
+  renderParty();
+}
+
 function onInvite(d, from) {
   if (d.to !== viewerId() || !ROOM.test(String(d.room)) || !MODES[d.mode]) return;
   if (d.map != null && !MAPS[d.map]) d.map = null;
@@ -128,12 +237,17 @@ function onInvite(d, from) {
   const t = performance.now();
   if (t - (lastFrom.get(from) || -1e9) < INVITE.again * 1000) return;
   lastFrom.set(from, t);
-  // already in that room: nothing to join
+  // already in that room or that party: nothing to join
   if (playing() && game.net?.room === d.room) return;
-  show(who, d);
+  if (d.party && party.in?.host === from) return;
+  show(who, { ...d, party: !!d.party, from });
 }
 
 export function initInvites(p) {
   presence = p;
   p.on?.("invite", onInvite);
+  p.on?.("party-join", onPartyJoin);
+  p.on?.("party-go", onPartyGo);
+  p.on?.("party-leave", onPartyLeave);
+  setInterval(partyTick, 1000);
 }
