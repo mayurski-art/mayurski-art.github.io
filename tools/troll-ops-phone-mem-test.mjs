@@ -7,6 +7,7 @@
 //   NODE_PATH=<checkout>/node_modules node tools/troll-ops-phone-mem-test.mjs [mapId] [--ipad] [--list]
 //   SETTLE=ms   how long the map gets to stream in (default 25000)
 //   --list      print the 30 biggest textures in the game's context
+//   --shot=dir  save what the phone sees, before and after the lost context
 //
 // Checks (FAIL lines, exit 1): textures, and everything, in the game's
 // context under the phone budget; no image over 1024 on a side (render
@@ -32,7 +33,11 @@ const BASE = `http://localhost:${server.address().port}`;
 const args = process.argv.slice(2);
 const MAP = args.find((a) => !a.startsWith("--")) || "kabukigrin";
 const IPAD = args.includes("--ipad"), LIST = args.includes("--list");
-const BUDGET = { texMB: 220, totalMB: 300, maxSide: 1024 };
+const SHOT = args.find((a) => a.startsWith("--shot="))?.slice(7);
+if (SHOT) fs.mkdirSync(SHOT, { recursive: true });
+const shot = (name) => SHOT && page.screenshot({ path: path.join(SHOT, `${IPAD ? "ipad" : "iphone"}-${MAP}-${name}.png`) });
+// (an iPad has 4 GB or more, and draws a bigger screen: a little more room)
+const BUDGET = { texMB: 220, totalMB: IPAD ? 340 : 300, maxSide: 1024 };
 const device = IPAD
   ? { viewport: { width: 1366, height: 1024 }, deviceScaleFactor: 2, userAgent: "Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1" }
   : { viewport: { width: 844, height: 390 }, deviceScaleFactor: 3, userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1" };
@@ -154,7 +159,9 @@ console.log(`dropped on purpose: ${dropped?.split("/").pop()}`);
 check(body.token === 1718 && body.done, `the player's TROLLS body whole when the loading screen came down (${JSON.stringify(body)})`);
 
 // a lost context (iOS drops it under memory pressure): the game must come back drawing
-const lost = await page.evaluate(async () => {
+await shot("match");
+const guardTag = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/game.js"), "utf8").match(/view\/context-guard\.js\?v=([^"]+)"/)[1];
+const lost = await page.evaluate(async (guardTag) => {
   const T = window.__trollOps, gl = T.renderer.getContext(), ext = gl.getExtension("WEBGL_lose_context");
   if (!ext) return { skipped: true };
   ext.loseContext();
@@ -163,9 +170,13 @@ const lost = await page.evaluate(async () => {
   await new Promise((r) => setTimeout(r, 4000));
   let frames = 0; const t0 = performance.now();
   await new Promise((done) => { const f = () => { frames++; if (performance.now() - t0 < 1500) requestAnimationFrame(f); else done(); }; requestAnimationFrame(f); });
-  return { lost: gl.isContextLost(), state: T.state?.() ?? null, tier: T.gfx().tier, frames, restored: T.contextRestores?.() ?? 0 };
-});
-check(lost.skipped || (!lost.lost && lost.restored > 0 && lost.frames > 3), `back from a lost context (${JSON.stringify(lost)})`);
+  const { contextGuard } = await import(`/assets/games/troll-ops/view/context-guard.js?v=${guardTag}`);
+  T.renderer.info.reset();
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  return { lost: gl.isContextLost(), tier: T.gfx().tier, frames, restored: contextGuard.restored, drawCalls: T.renderer.info.render.calls, textures: T.renderer.info.memory.textures, note: document.querySelector("[role=status]")?.hidden ?? null };
+}, guardTag);
+await shot("restored");
+check(lost.skipped || (!lost.lost && lost.restored > 0 && lost.tier === "low" && lost.drawCalls > 0 && lost.textures > 20), `back from a lost context (${JSON.stringify(lost)})`);
 // back on the menu the previews and the planet come back (they slept for the match)
 const back = await page.evaluate(async () => {
   const T = window.__trollOps;
