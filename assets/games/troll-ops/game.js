@@ -71,6 +71,7 @@ import { updateHub } from "./modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-
 import { ImpactShader, makeMuzzleFlashMaterial } from "./view/shaders.js?v=or1";
 import { ImpactFx } from "./view/impact-fx.js?v=zr4-or1";
 import { initResize } from "./view/resize.js?v=rz1";
+import { capTextures } from "./view/texture-budget.js?v=pm1";
 import { LightPool } from "./maps/light-pool.js?v=or1";
 import { loadModel } from "./maps/battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1";
 import { kickCurve } from "./weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1";
@@ -1434,6 +1435,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.NeutralToneMapping;   // truer colour than ACES, which pushed everything warm (-tm1)
 renderer.toneMappingExposure = 1.5;
 initWorldEnv(renderer);
+capTextures(renderer);
 els.cabinet.appendChild(renderer.domElement);
 renderer.domElement.style.position = "absolute";
 renderer.domElement.style.inset = "0";

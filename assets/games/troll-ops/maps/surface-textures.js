@@ -5,11 +5,13 @@
 
 import * as THREE from "three";
 import { useWorldEnv } from "../view/environment.js?v=sr1";
+import { shrinkTexture } from "../view/texture-budget.js?v=pm1";
 
 const TEX_LOADER = new THREE.TextureLoader();
 const TEX_BASE = new URL("../textures/", import.meta.url);
 function loadTex(name, srgb) {
-  const t = TEX_LOADER.load(new URL(name, TEX_BASE).href);
+  // (on a phone drawn down to 512 when it lands: view/texture-budget.js)
+  const t = TEX_LOADER.load(new URL(name, TEX_BASE).href, shrinkTexture);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   return t;
