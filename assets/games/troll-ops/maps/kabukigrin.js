@@ -38,7 +38,7 @@ import { U, Neon, neonMat, clubFx, cutRects, slatTexture, mosaicTexture } from "
 import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4-kb6-kb11-tx1-ch1-sp1-hh1-yb1-kbt1-dj2-mn1-gr1-pm1";
 import { wetFloor, hangProbe } from "./wet-floor.js?v=wf1";
 import { moneyRain } from "./club-money.js?v=mn1";
-import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5-tx1-ch1-sp1-kbt1-pm1";
+import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5-tx1-ch1-sp1-kbt1-pm1-kco1";
 import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8-tx1-ch1-sp1-kbt1-pm1";
 import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9-tx1-ch1-sp1-kbt1-gb3-rh1-kb3-pm1";
 import { buildStreet, lightParlour, parlourColliders, parlourWall, MACHINES, PARLOUR, PLAY, streetSound } from "./kabukigrin-street.js?v=kb10-kb11-kb12-tx1-ch1-sp1-kbt1-kb3-pm1";
@@ -314,9 +314,9 @@ function buildClub(api) {
   // (east of the corner's blade signs at x 14, over the shop signs)
   api.prop(videoScreen({ w: 6.67, h: 4, px: [640, 384], x: 19.3, y: 5.6, z: -33.3, ry: Math.PI, offset: 17.3, frame: 1.28 })).castShadow = false;
   // and the hall's two, facing each other over the dance floor: the pole
-  // dancer on the front wall (the Sewers block's face), @SwishPng's leaping
-  // trolls on the back wall's solid run
-  api.prop(videoScreen({ w: 5.6, h: 3.15, px: [768, 432], x: -19.9, y: 5.1, z: 4.06, ry: 0, clips: ["pole"] })).castShadow = false;
+  // dancer then @Troll_'s coin on the front wall (the Sewers block's face),
+  // @SwishPng's leaping trolls on the back wall's solid run
+  api.prop(videoScreen({ w: 5.6, h: 3.15, px: [768, 432], x: -19.9, y: 5.1, z: 4.06, ry: 0, clips: ["pole", "coin"], fps: 24 })).castShadow = false;
   api.prop(videoScreen({ w: 6.4, h: 3.6, px: [640, 360], x: -21.5, y: 4.3, z: 23.76, ry: Math.PI, clips: ["swish"], fps: 24 })).castShadow = false;
 }
 

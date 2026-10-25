@@ -9,8 +9,9 @@
 // frame. The street's clips draw from the neon sign atlas
 // (trollingloud-kit.js) and plain canvas shapes: nothing to download. The
 // club's two inside play their own lists: the pole dancer (one cut-out PNG,
-// spun in canvas) and @SwishPng's leaping trolls (a small muted MP4, drawn
-// into the canvas so the LED rows and the credit sit on it).
+// spun in canvas) then @Troll_'s coin popping out of a pinch, and
+// @SwishPng's leaping trolls (small muted MP4s, drawn into the canvas so the
+// LED rows and the credit sit on them).
 
 import * as THREE from "three";
 import { SIGNS, signsTexture } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1-ch1-sp1-kbt1-pm1";
@@ -26,19 +27,31 @@ const atlas = () => signsTexture().image;
 
 // the club screens' footage, fetched the first time a screen shows it
 const TEX = new URL("../textures/", import.meta.url).href;
-let dancer = null, leap = null;
+let dancer = null;
+const videos = {};
 const dancerImg = () => {
   if (!dancer) { dancer = new Image(); dancer.src = `${TEX}screen-pole-dancer.png`; }
   return dancer.complete && dancer.naturalWidth ? dancer : null;
 };
-const leapVideo = () => {
-  if (!leap) {
-    leap = Object.assign(document.createElement("video"), { src: `${TEX}screen-swish-leap.mp4`, muted: true, loop: true, playsInline: true, preload: "auto" });
-    leap.setAttribute("muted", "");
+// (fetched when its screen is built, played from the first time it shows,
+// so the clip doesn't open on black while it loads)
+const loopVideo = (file, play = true) => {
+  let v = videos[file];
+  if (!v) {
+    v = videos[file] = Object.assign(document.createElement("video"), { src: `${TEX}${file}`, muted: true, loop: true, playsInline: true, preload: "auto" });
+    v.setAttribute("muted", "");
   }
-  if (leap.paused) leap.play().catch(() => {});
-  return leap.readyState >= 2 ? leap : null;
+  if (play && v.paused) v.play().catch(() => {});
+  return v.readyState >= 2 ? v : null;
 };
+/* A looping video filling the screen, its artist credited bottom right. */
+function videoClip(g, w, h, file, credit) {
+  g.fillStyle = "#000";
+  g.fillRect(0, 0, w, h);
+  const v = loopVideo(file);
+  if (v) g.drawImage(v, 0, 0, w, h);
+  glowText(g, credit, w * 0.97, h * 0.92, h * 0.05, "#ffffff", { align: "right", weight: 700, blur: 0.15, alpha: 0.8 });
+}
 // the dancer cut-out: where the pole ran through it (px), of its 434 x 296
 const DANCER_POLE = 251.5;
 
@@ -236,14 +249,11 @@ const CLIPS = [
     }
     if (!front) pole();
   } },
+  // after the dancer: @Troll_'s trollface coin popping out of a pinch, a
+  // 1.1 s loop played six times
+  { id: "coin", s: 6.6, video: "screen-troll-coin.mp4", draw(g, w, h) { videoClip(g, w, h, this.video, "art @Troll_"); } },
   // the club's other: @SwishPng's leaping trolls on the beach, as it is
-  { id: "swish", s: 22, draw(g, w, h) {
-    g.fillStyle = "#000";
-    g.fillRect(0, 0, w, h);
-    const v = leapVideo();
-    if (v) g.drawImage(v, 0, 0, w, h);
-    glowText(g, "art @SwishPng", w * 0.97, h * 0.92, h * 0.05, "#ffffff", { align: "right", weight: 700, blur: 0.15, alpha: 0.8 });
-  } },
+  { id: "swish", s: 22, video: "screen-swish-leap.mp4", draw(g, w, h) { videoClip(g, w, h, this.video, "art @SwishPng"); } },
 ];
 // what the street's screens play
 const STREET = ["umad", "dj", "stickers", "ticker", "logo"];
@@ -270,6 +280,7 @@ function clipAt(list, t) {
    street's list by default) at `fps`. Returns the group. */
 export function videoScreen({ w, h, px, x, y, z, ry = 0, offset = 0, frame = 0.25, inset = 0, clips = STREET, fps = FPS }) {
   const list = clips.map((id) => CLIPS.find((c) => c.id === id));
+  for (const c of list) if (c.video) loopVideo(c.video, false);
   const c = document.createElement("canvas");
   [c.width, c.height] = px;
   const g = c.getContext("2d");
