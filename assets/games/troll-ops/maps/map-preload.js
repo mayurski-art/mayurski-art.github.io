@@ -21,6 +21,18 @@
 // Shaders stay compiled because the throwaway's materials are never
 // disposed: three only frees a program when the last material using it is
 // disposed.
+//
+// Downloads in the menu (user, 2026-10-25: "asset loading in the
+// background"): while the menu is up, the files a match needs are fetched
+// into the cache, two at a time at low priority: first the gear every match
+// draws (prefetch-manifest.json "gear": the guns, the class and streak
+// models, the characters and NFT bodies; tools/troll-ops-gear-manifest.mjs),
+// then each map's, the map last played first. Nothing is built, decoded or sent to
+// the GPU (building every map in the menu lagged it, 2026-10-03), so Find
+// Match then reads them off the device. The asset service worker (sw.js)
+// keeps the models and pictures between visits. Paused off the menu (the
+// loading screen and the match have the network) and in a hidden tab; data
+// saver and 2g get nothing.
 
 import * as THREE from "three";
 
@@ -28,6 +40,10 @@ const KEEP_BUILT = 3;          // finished builds held for loadMap to adopt
 const SETTLE_MS = 350;         // the loading manager must stay idle this long
 const MAX_WAIT_MS = 45000;     // give up waiting on a download that never ends
 const PARK_Y = -600;           // out of every camera's sight
+const MANIFEST_URL = new URL("../prefetch-manifest.json", import.meta.url);
+const SITE = new URL("../../../../", import.meta.url);   // the manifest's paths are site-relative
+const LAST_KEY = "tf-last-map";   // the map last played: downloaded first
+const DOWNLOADS = 2;              // files in flight at once
 
 /* Count what three's loaders have in flight. Every GLTFLoader and
    TextureLoader in the game uses the default manager. */
@@ -50,7 +66,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const frame = () => new Promise((r) => (document.hidden ? setTimeout(r, 16) : requestAnimationFrame(() => r())));
 
 /* `getLive()` returns `{ id, root }` of the map currently in the scene. */
-export function createMapPreloader({ renderer, scene, camera, buildMap, maps, ids, getLive, canRun = () => true, compileScene }) {
+export function createMapPreloader({ renderer, scene, camera, buildMap, maps, ids, getLive, canRun = () => true, inMenu = () => false, compileScene }) {
   // game.js passes compileScene so the compile matches how the world is
   // really drawn (into the composer's buffer, not straight to the screen).
   const compile = compileScene || (() => (renderer.compileAsync ? renderer.compileAsync(scene, camera) : renderer.compile(scene, camera)));
@@ -176,9 +192,39 @@ export function createMapPreloader({ renderer, scene, camera, buildMap, maps, id
     b.root.traverse((o) => { if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose(); });
   }
 
+  /* The menu's downloads (see the top). Waits while off the menu or hidden,
+     so it never competes with a map being loaded for real. */
+  async function downloadInMenu() {
+    const c = navigator.connection;
+    if (c?.saveData || /(^|-)2g$/.test(c?.effectiveType || "")) return;
+    let manifest;
+    try { manifest = await (await fetch(MANIFEST_URL, { priority: "low" })).json(); } catch { return; }
+    let last = null;
+    try { last = localStorage.getItem(LAST_KEY); } catch { /* private mode */ }
+    const order = [...new Set(["gear", last, ...ids].filter((id) => id && manifest[id]))];
+    const seen = new Set();
+    const queued = order.flatMap((id) => manifest[id]).filter((p) => !seen.has(p) && seen.add(p));
+    const ready = async () => { while (!inMenu() || document.hidden || busy) await sleep(1000); };
+    const worker = async () => {
+      while (queued.length) {
+        await ready();
+        const url = new URL(queued.shift(), SITE);
+        try { await (await fetch(url, { priority: "low", credentials: "same-origin" })).arrayBuffer(); } catch { /* the match fetches it then */ }
+      }
+    };
+    await Promise.all(Array.from({ length: DOWNLOADS }, worker));
+    api.downloaded = true;
+  }
+  // a few seconds after the page settles, when the browser is idle
+  const startDownloads = () => setTimeout(() => (window.requestIdleCallback || setTimeout)(() => downloadInMenu(), { timeout: 5000 }), 4000);
+  if (document.readyState === "complete") startDownloads();
+  else addEventListener("load", startDownloads, { once: true });
+
   const api = {
+    downloaded: false,   // every map's files fetched (tests)
     /* Queue a map; resolves when it is ready. Re-queuing a ready map is free. */
     preload(id) {
+      try { localStorage.setItem(LAST_KEY, id); } catch { /* private mode */ }
       queue = queue.then(() => run(id));
       return queue;
     },

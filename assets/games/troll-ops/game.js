@@ -1627,7 +1627,7 @@ const mapPreload = createMapPreloader({
   getLive: () => (builtMap ? { id: loadedMapId, root: builtMap.root } : null),
   // Off-map builds never compile behind a live match, only in the menu or
   // under the loading screen.
-  canRun: () => gameState === "menu" || loadScreen.isOpen,
+  canRun: () => gameState === "menu" || loadScreen.isOpen, inMenu: () => gameState === "menu" && !loadScreen.isOpen,
 });
 window.__trollPreload = mapPreload;
 
