@@ -40,6 +40,10 @@ const browser = await chromium.launch({ args: ["--use-angle=d3d11", "--ignore-gp
 const ctx = await browser.newContext({ ...device, isMobile: true, hasTouch: true });
 // never a live room (CLAUDE.md troll-ops rule 2)
 await ctx.route(/supabase/, (r) => r.abort());
+// the body's first piece download fails, as a phone under pressure drops one:
+// the body must still be whole when the match goes live (blocky-body.js retry)
+let dropped = null;
+await ctx.route(/\/models\/blocky\//,(r) => { if (dropped) return r.continue(); dropped = r.request().url(); return r.abort(); });
 const page = await ctx.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
@@ -113,13 +117,22 @@ const menu = await page.evaluate(() => window.__mem());
 console.log(`menu: ${menu.length} contexts, ${menu.reduce((a, c) => a + c.texMB + c.bufMB + c.rbMB + c.fbMB, 0).toFixed(0)} MB`);
 
 // the match, as Find Match runs it (enterMatch: the load screen, then live)
-const gameCtx = await page.evaluate(async (map) => {
+// wearing a TROLLS body (#1718's, the blocky one), as its holder would
+const blockyTag = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/view/third-person.js"), "utf8").match(/blocky-body\.js\?v=([^"]+)"/)[1];
+const [gameCtx, body] = await page.evaluate(async ([map, blockyTag]) => {
   const T = window.__trollOps;
+  (await import(`/assets/games/troll-ops/characters/blocky-body.js?v=${blockyTag}`)).ownBody.want = "trolls-1718";
   T.setMode("ops"); T.loadout.mapId = map;
   await T.startGame();
+  // the moment the loading screen comes down: is the body whole?
+  const t0 = performance.now();
+  while (T.loadState().open && performance.now() - t0 < 120000) await new Promise((r) => setTimeout(r, 100));
+  const b = T.localRig.blocky;
+  const body = { token: b?.token ?? 0, done: !!b?.done };
   if (T.isStaging()) T.endStaging();
-  return window.__ctxs.findIndex((c) => c.canvas === T.renderer.domElement);
-}, MAP);
+  T.player.maxHp = T.player.hp = 1e9;   // alive for the lost-context check
+  return [window.__ctxs.findIndex((c) => c.canvas === T.renderer.domElement), body];
+}, [MAP, blockyTag]);
 await new Promise((r) => setTimeout(r, +(process.env.SETTLE || 25000)));
 const m = await page.evaluate(() => window.__mem());
 const g = m[gameCtx];
@@ -137,8 +150,8 @@ const maxSide = await page.evaluate((id) => Math.max(0, ...[...window.__ctxs[id]
 check(maxSide <= BUDGET.maxSide, `largest image side ${maxSide} <= ${BUDGET.maxSide}`);
 const others = m.filter((c) => c.id !== gameCtx && !c.lost && (c.texMB + c.bufMB + c.rbMB > 0.5 || c.fbMB > 0.5));
 check(others.length === 0, `no other WebGL context holding memory in the match (${others.length})`);
-const body = await page.evaluate(() => window.__trollOps.bodyState?.() ?? null);
-check(body?.ready === true, `the player's body built when the match went live (${JSON.stringify(body)})`);
+console.log(`dropped on purpose: ${dropped?.split("/").pop()}`);
+check(body.token === 1718 && body.done, `the player's TROLLS body whole when the loading screen came down (${JSON.stringify(body)})`);
 
 // a lost context (iOS drops it under memory pressure): the game must come back drawing
 const lost = await page.evaluate(async () => {
