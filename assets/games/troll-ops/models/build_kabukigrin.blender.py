@@ -109,6 +109,7 @@ def kb_lantern(ne, sh, P, face, t, y, o, white=False, r=0.18, h=0.42):
     tt = t - 0.425 if left else t + 0.425
     r2, h2, top = 0.16, 0.38, 2.62
     x, z = face.world(tt, o)
+    STREET["lanterns"].append((x, z, r2, top - h2 - 0.06, top + 0.06))
     ne.cyl(P["lantern_w" if white else "lantern"], r2, (x, top - h2, z), (x, top, z), seg=10)
     ne.cyl(P["black"], r2 * 0.7, (x, top, z), (x, top + 0.06, z), seg=10)
     ne.cyl(P["black"], r2 * 0.7, (x, top - h2 - 0.06, z), (x, top - h2, z), seg=10)
@@ -191,6 +192,7 @@ def kb_kanban(sh, ne, P, face, t, y0, height, rng, out=1.0):
     else:
         ink = P[G.neon_pick(rng)]
     rng.setstate(st)
+    STREET["kanban"].append((face, t, y0, height, out))
     G_kanban(sh, ne, P, face, t, y0, height, rng, out)
     w, o0 = 0.26, 0.12
     g = out * 0.7
@@ -218,11 +220,54 @@ def kb_shopfront(sh, ne, P, face, t0, t1, kind, rng):
         a, c = t0 + 0.35, t1 - 0.35
         (xa, za), (xb, zb) = face.world(a, -0.075), face.world(c, 0.06)
         RAMEN_CUT.append((min(xa, xb) - 0.005, max(xa, xb) + 0.005, -0.01, 2.62, min(za, zb) - 0.005, max(za, zb) + 0.005))
+    STREET["shops"].append((face, t0, t1, kind))
     _shop[0] = kind
     try:
         G_shopfront(sh, ne, P, face, t0, t1, kind, rng)
     finally:
         _shop[0] = None
+
+
+# Phase 3, the street: what Grinjuku's builders put on each street face, as
+# they draw it (none of these wrappers touches the rng, so the shell stays
+# gj-shell face for face), for kb_street.py to fit its furniture round:
+# the buildings, their shops, everything on the floors above (windows, AC
+# units, balconies, ledges) and the new lanterns
+STREET = {"buildings": [], "shops": [], "upper": [], "lanterns": [], "kanban": []}
+G_building, G_upper_floors = G.building, G.upper_floors
+
+
+def kb_building(sh, ne, P, face, t0, t1, base_y, top, depth, rng, street, style=None):
+    STREET["buildings"].append((face, t0, t1, base_y, top, street))
+    return G_building(sh, ne, P, face, t0, t1, base_y, top, depth, rng, street, style)
+
+
+class _Rec:
+    """A face that draws as the face it wraps and notes every piece:
+    (face, what, t0, t1, y, h, o0, o1)."""
+
+    def __init__(self, face, P):
+        self.f, self.P = face, P
+        self.ax, self.at, self.t0, self.n = face.ax, face.at, face.t0, face.n
+
+    def world(self, t, o):
+        return self.f.world(t, o)
+
+    def box(self, b, m, t0, t1, y, h, o0, o1):
+        self.f.box(b, m, t0, t1, y, h, o0, o1)
+        what = "ac" if m is self.P["ac"] else "balcony" if (m is self.P["sill"] and max(o0, o1) > 0.5) else "box"
+        STREET["upper"].append((self.f, what, min(t0, t1), max(t0, t1), y, h, min(o0, o1), max(o0, o1)))
+
+    def quad(self, b, m, t0, t1, y, h, o):
+        self.f.quad(b, m, t0, t1, y, h, o)
+        STREET["upper"].append((self.f, "window", min(t0, t1), max(t0, t1), y, h, 0.0, o))
+
+    def cyl_out(self, b, m, r, t, y, o0, o1, seg=10):
+        self.f.cyl_out(b, m, r, t, y, o0, o1, seg)
+
+
+def kb_upper_floors(sh, ne, P, face, t0, t1, y0, top, mat_wall, rng, windows="punched"):
+    return G_upper_floors(sh, ne, P, _Rec(face, P), t0, t1, y0, top, mat_wall, rng, windows)
 
 
 def is_glyph(P):
@@ -321,6 +366,11 @@ def game(v):
     return v.x, v.z, -v.y
 
 
+# phase 3: the Grinjuku props Kabukigrin draws again at prop level, at the
+# same colliders (kb_street.py): cut from gj-props like the removed ones
+REDRAWN = {"truck", "crates"}
+
+
 def gone_props():
     """The footprints of the Grinjuku props Studio removed (their colliders are
     gone from Kabukigrin's layout), as boxes (game x0, x1, y0, y1, z0, z1):
@@ -328,7 +378,7 @@ def gone_props():
     about 2.6 m (build_grinjuku's rule)."""
     out = []
     for s in G.SOLIDS:
-        if s["k"] in G.PROPS and not kb_has(s):
+        if s["k"] in G.PROPS and (not kb_has(s) or s["k"] in REDRAWN):
             y = s.get("y", 0)
             out.append((s["x"] - s["w"] / 2 - 0.08, s["x"] + s["w"] / 2 + 0.08, y - 0.01, y + max(s["h"], 2.4) + 0.6,
                         s["z"] - s["d"] / 2 - 0.08, s["z"] + s["d"] / 2 + 0.08))
@@ -387,6 +437,55 @@ def cut_club(obj, gone=()):
     bm.to_mesh(me)
     bm.free()
     print(f"  {obj.name}: cut {len(set(dead))} club faces, {len(hole)} dance-floor faces")
+
+
+# Phase 3: the pachinko parlour's room behind Studio's glass (kb_street
+# PARLOUR): Grinjuku's facade there and the building's inside cut open after
+# the unwrap, the ground kept (game x0, x1, y0, y1, z0, z1)
+PARLOUR_CUT = [
+    (-31.78, -31.45, 0.03, 2.75, -24.15, -6.35),     # the facade's plane, to the glass's head
+    (-35.7, -31.7, 0.03, 3.05, -24.15, -6.35),       # the building's inside, the room's height
+]
+
+
+def cut_boxes(obj, boxes):
+    """Opens boxes in a model: faces that cross a box are bisected at its
+    planes (UVs interpolate, as the dance floor's cut), then every face whose
+    middle is inside goes. The ground (flat at y 0) is kept."""
+    me = obj.data
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    gone = 0
+    for x0, x1, y0, y1, z0, z1 in boxes:
+        lo, hi = (x0, -z1, y0), (x1, -z0, y1)          # Blender: x, y = -game z, z = game y
+
+        def crossing():
+            out = []
+            for f in bm.faces:
+                if all(v.co.z < 0.03 for v in f.verts):
+                    continue
+                if all(min(v.co[a] for v in f.verts) < hi[a] and max(v.co[a] for v in f.verts) > lo[a] for a in range(3)):
+                    out.append(f)
+            return out
+        for a in range(3):
+            for val in (lo[a], hi[a]):
+                fs = crossing()
+                if not fs:
+                    break
+                co, no = [0, 0, 0], [0, 0, 0]
+                co[a], no[a] = val, 1
+                geom = list({e for f in fs for e in f.edges}) + fs + list({v for f in fs for v in f.verts})
+                bmesh.ops.bisect_plane(bm, geom=geom, plane_co=co, plane_no=no, dist=1e-5)
+        dead = []
+        for f in bm.faces:
+            c = f.calc_center_median()
+            if all(lo[a] + 1e-4 < c[a] < hi[a] - 1e-4 for a in range(3)) and not all(v.co.z < 0.03 for v in f.verts):
+                dead.append(f)
+        bmesh.ops.delete(bm, geom=dead, context="FACES")
+        gone += len(dead)
+    bm.to_mesh(me)
+    bm.free()
+    print(f"  {obj.name}: {gone} faces cut for the parlour")
 
 
 def export(objs, filename):
@@ -456,6 +555,15 @@ def club_part(glb):
         x, z, w, d, h, y = p["b"]
         name = f"glb:{p['file']}:{p['mat']}|{p['tint']}|{1 if p['shadow'] else 0}|n"
         m = club_material(name, hexlin(int(p["tint"], 16)), p["rough"], p["metal"], p["emit"], p["emitStrength"])
+        if p["mat"] == "GS_Timber" and abs(x + 31.66) < 0.01 and abs(z + 15.25) < 0.01 and h > 5:
+            # the pachinko front's backing: open now over the glass (the
+            # parlour's room is behind it), kept under it and over its head
+            b.box(m, w, 0.28, d, x, 0.0, z)
+            b.box(m, w, h - 2.74, d, x, 2.74, z)
+            n += 1
+            continue
+        if p["mat"] == "GS_Tile" and abs(x + 31.55) < 0.01 and abs(z + 15.25) < 0.01 and d < 0.1:
+            continue        # the doors' meeting mullion: they slide open now (code), it'd stand in the doorway
         b.box(m, w, h, d, x, y, z)
         n += 1
     if not n:
@@ -487,6 +595,7 @@ def grinjuku_part(P):
     G.NEONB = Builder()
     G.lantern = kb_lantern
     G.glyphs_on_board, G.kanban, G.shopfront = kb_glyphs_on_board, kb_kanban, kb_shopfront
+    G.building, G.upper_floors = kb_building, kb_upper_floors
     sh = Builder()
     G.facades(sh, G.NEONB, P)
     G.post_office(sh, G.NEONB, P)
@@ -501,7 +610,7 @@ def grinjuku_part(P):
         if not fn:
             continue
         # a removed prop's glow goes with it
-        fn(pr, G.NEONB if kb_has(s) else _Discard(), P, s)
+        fn(pr, G.NEONB if kb_has(s) and s["k"] not in REDRAWN else _Discard(), P, s)
         removed += not kb_has(s)
     G.ropes_geo(pr, P)
     G.wires(pr, G.NEONB, P)
@@ -523,13 +632,24 @@ def main():
     P = G.gj_palette()
     print("Kabukigrin layout", KB.get("hash"), len(KB["colliders"]), "colliders")
     sh, ne = grinjuku_part(P)
+    if os.environ.get("KB_STREET_DUMP"):
+        # what the street's faces carry, for planning (no export)
+        f2 = lambda f: [f.ax, round(f.at, 3), round(f.t0, 3), f.n]   # noqa: E731
+        dump = {"buildings": [[f2(f), *[round(v, 3) for v in r]] for f, *r in STREET["buildings"]],
+                "shops": [[f2(f), round(a, 3), round(c, 3), k] for f, a, c, k in STREET["shops"]],
+                "upper": [[f2(f), w, *[round(v, 3) for v in r]] for f, w, *r in STREET["upper"]],
+                "lanterns": STREET["lanterns"], "signs": SIGNS}
+        json.dump(dump, open(os.environ["KB_STREET_DUMP"], "w"))
+        return
     out = []
     o = to_object(sh, "gj")
     unwrap(o)
     cut_club(o)
+    cut_boxes(o, PARLOUR_CUT)
     out.append(export([o] + [c for c in [club_part("kb-shell")] if c], "kb-shell.glb"))
     o = to_object(ne, "gj")
     cut_club(o)
+    cut_boxes(o, PARLOUR_CUT)
     out.append(export([o] + [c for c in [club_part("kb-neon")] if c], "kb-neon.glb"))
     out.append(props_part())
     write_signs()
@@ -545,7 +665,27 @@ def props_part():
     o.name = "gj"
     cut_club(o, gone_props())
     props = props_object()
-    return export([o] + [c for c in [club_part("kb-props"), hero_part(), props] if c], "kb-props.glb")
+    return export([o] + [c for c in [club_part("kb-props"), hero_part(), props, parlour_object()] if c], "kb-props.glb")
+
+
+def parlour_object():
+    """The pachinko parlour's room (kb_street.py): its own object and paint,
+    KB_Parlour, which the game lights from inside."""
+    import kb_club
+    import kb_street
+    b, R = Builder(), kb_club.Registry()
+    kb_street.pachinko_parlour(b, kb_club.palette(), R)
+    m = bpy.data.materials.get("KB_Parlour") or kb_paint().copy()
+    m.name = "KB_Parlour"
+    o = to_object(b, "kbpachi", paint=m)
+    from bake_kit import _lightmap_uv
+    bpy.ops.object.select_all(action="DESELECT")
+    o.select_set(True)
+    bpy.context.view_layer.objects.active = o
+    _lightmap_uv(o, 4.0 / 1024)
+    o.data.uv_layers.active = o.data.uv_layers["UVMap"]
+    print(f"  kb-props: the pachinko parlour, {len(o.data.polygons)} faces")
+    return o
 
 
 def props_object():
@@ -563,6 +703,17 @@ def props_object():
         # (a terrace's, a block's face across them), the recessed ones lose nothing
         kb_street.ramen_front(kb_street.Out(face, 0.11), b, P, R, f"ramen-{i}", t0, t1, rng, SIGNS)
     print(f"  kb-props: {len(RAMEN)} ramen fronts")
+    # phase 3: the street's furniture, fitted round what is on the Mains' walls
+    S = kb_street.street_space(STREET, SIGNS, CLUB, KB, cleared, kb_street.STREET_CODE_FACES, R)
+    kb_street.furnish(b, P, R, STREET, S, random.Random(31))
+    hp = kb_street.street_palette(P)
+    kb_street.ramen_stall(b, hp, R)
+    for s in G.SOLIDS:
+        if s["k"] == "truck" and kb_has(s):
+            kb_street.kei_truck(b, hp, R, f"kei-{s['side'].lower()}", s["x"] - math.copysign(0.08, s["x"]), s["z"],   # (its mirrors off the pachinko glass's front: rule 9)
+                                s.get("f", 0) or 0, random.Random(int(s["x"])))
+        if s["k"] == "crates" and kb_has(s):
+            kb_street.crate_stack(b, hp, R, f"crates-{int(s['x'])}-{int(s['z'])}", s["x"], s["z"], s["w"], s["d"], s["h"], s.get("f", 0) or 0, random.Random(int(s["x"] * 7 + s["z"])))
     write_registry(R)
     o = to_object(b, "kbp", paint=kb_paint())
     from bake_kit import _lightmap_uv
@@ -600,6 +751,7 @@ def write_registry(R):
     with open(js, "w", newline=NL) as f:
         f.write(NL.join(lines))
     import kb_props
+    import kb_street
     faces = kb_props.CODE_FACES + R.faces
     heroes = []
     for h in CLUB["heroes"]:
@@ -610,7 +762,7 @@ def write_registry(R):
             lo[1], hi[1] = VALANCE    # raised (hero_part)
         heroes.append({"id": f"hero:{h['key'][4:]}", "lo": lo, "hi": hi, "on": None})
     with open(os.path.join(HERE, "kabukigrin-faces.json"), "w", newline=NL) as f:
-        json.dump({"eyes": kb_props.EYES, "known": kb_props.KNOWN, "faces": faces, "props": R.props + heroes}, f, indent=1)
+        json.dump({"eyes": kb_props.EYES + kb_street.EYES, "known": kb_props.KNOWN + kb_street.KNOWN, "faces": faces, "props": R.props + heroes}, f, indent=1)
     # the overlap pass: no two props' bounds cross, unless one stands on the other
     # (the floor's scatter and the wall slats span whole rooms: their own
     # placement keeps them off the furniture)

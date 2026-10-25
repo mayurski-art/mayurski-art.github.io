@@ -2,8 +2,8 @@
 // a, e, f; phase 6). Their frames are Studio's (kb-town.glb); what's drawn
 // here is what Studio can't hold:
 //   the pachinko parlour on A Main's west wall, across the line from the
-//   club: the machine floor through its glass (rows of cabinets, their
-//   screens and lamps flickering, the balls falling), the steady red and
+//   club: the machine floor through its glass (Blender's room, lit from
+//   inside, its screens running: lightParlour), the steady red and
 //   white sign on its box, the white spill on the pavement; its sound
 //   (streetSound), the balls' rattle and the machines' jingles out of the
 //   glass, fighting the club's bass across the line.
@@ -31,120 +31,106 @@ const JP = "'Hiragino Sans','Yu Gothic','Meiryo','Noto Sans JP','Noto Sans CJK J
    sliding doors at z -15.25, the sign box's face at x -31.02. */
 export const PACHINKO = { x: -31.6, z0: -24.15, z1: -6.35, door: -15.25, doorW: 3.24, y0: 0.28, y1: 2.74, ticker: { x: -31.195, y0: 2.82, y1: 3.22 }, sign: { x: -31.015, y0: 3.63, y1: 5.25, z0: -24.5, z1: -6 } };
 
+/* ------------------------------------------------------------ inside
+
+   In Socialize you walk in (user, 2026-10-24: "the pachinko should be
+   playable and npcs and users should be able to enter in and out of its
+   building"): the room Blender builds behind the glass (kb_street.py
+   PARLOUR, the same numbers), its floor a step up, six islands of eight
+   machines, a stool at each. Its colliders replace the layout's edge wall
+   and the front's box there; the doorway keeps one (`pachinkoDoor`), so in
+   versus and S&D the doors stay shut and A Main plays as it always has.
+   modes/social-pachinko.js takes it away, widens the bounds over the room
+   (`minX`), slides the doors open and says who's playing which machine. */
+export const PARLOUR = { front: -31.72, back: -35.6, z0: -24.15, z1: -6.35, floor: 0.28, door: [-16.87, -13.63], minX: -36.0,
+  islands: [-21.85, -19.55, -17.25, -12.65, -10.35, -8.05] };
+// each machine: its screen (x, z), which way it faces (s: +-z), its stool's z
+export const MACHINES = [];
+for (const zi of PARLOUR.islands) for (const s of [-1, 1]) for (let j = 0; j < 4; j++) MACHINES.push({ x: -32.6 - (j + 0.5) * 0.55, z: zi + s * 0.423, s, stool: zi + s * 0.8 });
+
+// the layout's two colliders the room opens: the west edge wall, the front's box
+export const parlourWall = ([x, z, w, d, h]) => (x === -32.1 && w === 0.8 && h === 8) || (x === -31.46 && z === -15.25);
+export function parlourColliders(api) {
+  const P = PARLOUR, [d0, d1] = P.door;
+  const box = (x0, x1, z0, z1, h, y = 0, pen = 20) => api.ghostBox((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, h, { y, pen });
+  // the edge wall either side of the room, and over it
+  box(-32.5, -31.7, -42.5, P.z0 - 0.3, 8);
+  box(-32.5, -31.7, P.z1 + 0.3, 42.5, 8);
+  box(-32.5, -31.7, P.z0 - 0.3, P.z1 + 0.3, 4.8, 3.2);
+  // the front: glass either side of the doors, the header over them, the step in
+  box(P.front, -31.2, -24.6, d0, 3.5);
+  box(P.front, -31.2, d1, -5.9, 3.5);
+  box(P.front, -31.2, d0, d1, 0.92, 2.58);
+  box(P.front, -31.2, d0, d1, P.floor);
+  // the room: its floor, back and end walls, the islands
+  box(P.back, P.front, P.z0, P.z1, P.floor);
+  box(P.back - 0.3, P.back, P.z0 - 0.3, P.z1 + 0.3, 3.2);
+  box(P.back - 0.3, P.front, P.z0 - 0.3, P.z0, 3.2);
+  box(P.back - 0.3, P.front, P.z1, P.z1 + 0.3, 3.2);
+  for (const zi of P.islands) box(-34.8, -32.6, zi - 0.45, zi + 0.45, 2.0, P.floor, 4);
+  // the doors, shut (Socialize opens them); a fresh build plays nothing
+  Object.assign(PLAY, { open: false, mine: -1, onJackpot: null });
+  PLAY.others.clear();
+  PLAY.jack.clear();
+  const door = box(P.front, -31.2, d0, d1, 2.3, P.floor, 6);
+  door.pachinkoDoor = true;
+  return door;
+}
+
+// Who's playing: `open` (the doors), `mine` (our machine), `others` (the
+// room's players and the NPCs at machines); `onJackpot` our hit's banner.
+// The screens read uPlay: a machine in play spins faster, a hit runs the
+// rainbow for 4 s.
+export const PLAY = { open: false, mine: -1, others: new Set(), onJackpot: null, jack: new Map() };
+const uPlay = { value: Array.from({ length: 8 }, () => new THREE.Vector4(0, 0, -99, 0)) };
+
 /* ------------------------------------------------------------ the floor */
 
-// one tile of the machine floor, TILE m wide: eight cabinets in a row
-// facing the street, a dimmer row past them, the ceiling's light strips
-// and the red carpet; their screens, top lamps and balls are redrawn live
-const TILE = 4.0, PX = 256;   // px a metre
-const HUES = ["#ff2a6a", "#3ff0ff", "#ffd23a", "#7aff5a", "#b070ff", "#ff8a2a"];
-function machineFloor() {
-  const W = TILE * PX, H = Math.round((PACHINKO.y1 - PACHINKO.y0) * PX);
-  const r = rng(41);
-  const back = canvas(W, H), b = back.getContext("2d");
-  // the room: a bright ceiling, mirror-panelled walls, the carpet
-  const wall = b.createLinearGradient(0, 0, 0, H);
-  wall.addColorStop(0, "#d8ccd0");
-  wall.addColorStop(0.16, "#a89aa4");
-  wall.addColorStop(0.55, "#5a3a50");
-  wall.addColorStop(1, "#2a0c18");
-  b.fillStyle = wall;
-  b.fillRect(0, 0, W, H);
-  for (let i = 0; i < 6; i++) { b.fillStyle = "rgba(255,250,245,.9)"; b.fillRect(i * W / 6 + 30, 8, W / 6 - 60, 9); }
-  b.fillStyle = "rgba(255,240,250,.35)";
-  for (let i = 0; i < 9; i++) b.fillRect(i * W / 9 + 18, 46, W / 9 - 36, 6);
-  // the far row: small, dim, the same bright tops
-  const far = { y: H * 0.2, h: H * 0.28, w: W / 14 };
-  for (let i = 0; i < 14; i++) {
-    const x = i * far.w;
-    b.fillStyle = "#3a2a34"; b.fillRect(x + 4, far.y, far.w - 8, far.h);
-    b.fillStyle = HUES[i % HUES.length]; b.globalAlpha = 0.55; b.fillRect(x + 10, far.y + far.h * 0.32, far.w - 20, far.h * 0.3); b.globalAlpha = 1;
-    b.fillStyle = "#fff3c0"; b.fillRect(x + 6, far.y, far.w - 12, 7);
+// The machine floor behind the glass is Blender's (build_kabukigrin:
+// kb_street.py PARLOUR, the "kbpachi" object in kb-props): six islands of
+// machines run back from the glass, one behind each mullion. A parlour is
+// lit like noon, so its paint (KB_Parlour) carries its own light; every
+// machine's screen (KB_PachiScreen) runs through the colours on its own
+// clock, the reels rolling, a white flash on a hit.
+const PARLOUR_GLOW = 0.6;
+export function lightParlour(scene) {
+  scene.traverse((o) => {
+    const m = o.isMesh && o.material;
+    if (!m || m.userData.parlour) return;
+    if (m.name === "KB_Parlour") {
+      m.userData.parlour = true;
+      m.onBeforeCompile = (sh) => {
+        sh.fragmentShader = sh.fragmentShader.replace("#include <emissivemap_fragment>",
+          `#include <emissivemap_fragment>\n  totalEmissiveRadiance += diffuseColor.rgb * ${PARLOUR_GLOW.toFixed(2)};`);
+      };
+      m.needsUpdate = true;
+    } else if (m.name === "KB_PachiScreen") {
+      m.userData.parlour = true;
+      m.onBeforeCompile = (sh) => {
+        sh.uniforms.uTime = U.uTime;
+        sh.uniforms.uPlay = uPlay;
+        sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vPachi;")
+          .replace("#include <project_vertex>", "#include <project_vertex>\n  vPachi = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+        // one machine: its slot along the island (0.55 m), its screen's plane
+        sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec3 vPachi;\nuniform float uTime;\nuniform vec4 uPlay[8];")
+          .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>
+  float h = fract(sin(dot(vec2(floor((vPachi.x + 32.6) / 0.55), vPachi.z), vec2(12.9898, 78.233))) * 43758.5453);
+  float on = 0.0, jt = -99.0;
+  for (int i = 0; i < 8; i++) {
+    vec4 p = uPlay[i];
+    if (p.w > 0.5 && abs(vPachi.x - p.x) < 0.2 && abs(vPachi.z - p.y) < 0.05) { on = 1.0; jt = p.z; }
   }
-  // the carpet: red, a gold diamond
-  b.fillStyle = "#6a0c1c"; b.fillRect(0, H * 0.9, W, H * 0.1);
-  b.strokeStyle = "rgba(230,180,80,.35)"; b.lineWidth = 2;
-  for (let x = -40; x < W + 40; x += 40) { b.beginPath(); b.moveTo(x, H); b.lineTo(x + 20, H * 0.9); b.lineTo(x + 40, H); b.stroke(); }
-
-  // the near row: eight cabinets, chrome and gold, each a ball field over a
-  // screen over the tray
-  const cab = { w: W / 8, y: H * 0.17, h: H * 0.74 };
-  const cabs = [];
-  for (let i = 0; i < 8; i++) {
-    const x = i * cab.w, hue = HUES[(i * 5) % HUES.length];
-    const g = b.createLinearGradient(x, 0, x + cab.w, 0);
-    g.addColorStop(0, "#9aa0b0"); g.addColorStop(0.06, "#2a2430"); g.addColorStop(0.5, "#4a3a4a"); g.addColorStop(0.94, "#2a2430"); g.addColorStop(1, "#9aa0b0");
-    b.fillStyle = g; b.fillRect(x + 6, cab.y, cab.w - 12, cab.h);
-    // the colour trim down both sides and the gold band under the lamp
-    b.fillStyle = hue; b.globalAlpha = 0.8;
-    b.fillRect(x + 10, cab.y + 8, 6, cab.h * 0.7); b.fillRect(x + cab.w - 16, cab.y + 8, 6, cab.h * 0.7);
-    b.globalAlpha = 1;
-    b.fillStyle = "#c8a040"; b.fillRect(x + 6, cab.y + cab.h * 0.06, cab.w - 12, 5);
-    // the ball field: a round window of pins
-    const fx = x + cab.w / 2, fy = cab.y + cab.h * 0.3, fr = cab.w * 0.38;
-    b.fillStyle = "#e8f0ff"; b.beginPath(); b.arc(fx, fy, fr + 5, 0, 7); b.fill();
-    b.fillStyle = "#1a2a4a"; b.beginPath(); b.arc(fx, fy, fr, 0, 7); b.fill();
-    b.fillStyle = "rgba(220,230,255,.8)";
-    for (let k = 0; k < 40; k++) { const a = r() * 7, d = Math.sqrt(r()) * fr * 0.9; b.fillRect(fx + Math.cos(a) * d, fy + Math.sin(a) * d, 2, 2); }
-    // the tray and the handle
-    b.fillStyle = "#2a2a30"; b.fillRect(x + 12, cab.y + cab.h * 0.74, cab.w - 24, cab.h * 0.08);
-    b.fillStyle = "#c0c4cc";
-    for (let k = 0; k < 14; k++) { b.beginPath(); b.arc(x + 20 + r() * (cab.w - 40), cab.y + cab.h * 0.77, 3, 0, 7); b.fill(); }
-    b.fillStyle = "#1a1a1a"; b.beginPath(); b.arc(x + cab.w * 0.8, cab.y + cab.h * 0.88, 9, 0, 7); b.fill();
-    cabs.push({ x, fx, fy, fr, hue, ph: r() * 7, sp: 0.6 + r() * 0.8, balls: Array.from({ length: 5 }, () => ({ a: r() * 7, d: r(), v: 0.4 + r() * 0.5 })) });
-  }
-  // players on their stools: the back of a head and shoulders, here and there
-  for (const i of [1, 4, 6]) {
-    const x = i * cab.w + cab.w / 2, y = H;
-    b.fillStyle = "#120a10";
-    b.beginPath(); b.ellipse(x, y, cab.w * 0.44, H * 0.16, 0, Math.PI, 0); b.fill();
-    b.fillRect(x - cab.w * 0.07, y - H * 0.2, cab.w * 0.14, H * 0.06);
-    b.beginPath(); b.ellipse(x, y - H * 0.25, cab.w * 0.15, cab.w * 0.18, 0, 0, 7); b.fill();
-  }
-  // the glass: a cool sheen down from the top, two streaks across it
-  b.globalCompositeOperation = "lighter";
-  const gl = b.createLinearGradient(0, 0, 0, H);
-  gl.addColorStop(0, "rgba(120,140,170,.18)"); gl.addColorStop(0.4, "rgba(0,0,0,0)");
-  b.fillStyle = gl; b.fillRect(0, 0, W, H);
-  b.fillStyle = "rgba(200,220,255,.07)";
-  for (const s of [0.18, 0.62]) { b.beginPath(); b.moveTo(W * s, 0); b.lineTo(W * s + 90, 0); b.lineTo(W * s - 60, H); b.lineTo(W * s - 150, H); b.fill(); }
-  b.globalCompositeOperation = "source-over";
-
-  const c = canvas(W, H), g = c.getContext("2d");
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.anisotropy = 4;
-  let last = -1;
-  function draw(now) {
-    if (now - last < 0.125) return;   // 8 fps is plenty through glass
-    last = now;
-    g.drawImage(back, 0, 0);
-    for (const m of cabs) {
-      const sy = cab.y + cab.h * 0.5, sw = cab.w - 30, sh = cab.h * 0.2;
-      // the screen: a colour that runs round, the reels, a flash now and then
-      const t = now * m.sp + m.ph, flash = Math.sin(t * 3) > 0.92;
-      g.fillStyle = flash ? "#ffffff" : HUES[Math.floor(t) % HUES.length];
-      g.fillRect(m.x + 15, sy, sw, sh);
-      g.fillStyle = "rgba(0,0,0,.45)"; g.fillRect(m.x + 15, sy + sh * 0.25, sw, sh * 0.5);
-      g.fillStyle = "#fff"; g.font = `900 ${Math.round(sh * 0.42)}px ${JP}`; g.textAlign = "center"; g.textBaseline = "middle";
-      const reel = (k) => (Math.floor(t * 4 + k * 1.7) % 9) + 1;
-      g.fillText(flash ? "777" : `${reel(0)}${reel(1)}${reel(2)}`, m.x + cab.w / 2, sy + sh / 2);
-      // the top lamp
-      g.fillStyle = Math.sin(t * 5) > 0 ? m.hue : "#fff3c0";
-      g.fillRect(m.x + 10, cab.y - 10, cab.w - 20, 12);
-      // the balls, falling through the pins
-      g.fillStyle = "#f4f6ff";
-      for (const ball of m.balls) {
-        const d = (ball.d + now * ball.v) % 1;
-        const bx = m.fx + Math.sin(ball.a + d * 9) * m.fr * 0.5, by = m.fy - m.fr * 0.85 + d * m.fr * 1.7;
-        g.beginPath(); g.arc(bx, by, 3.5, 0, 7); g.fill();
-      }
+  float t = uTime * (0.6 + h * 0.8) * (1.0 + on * 3.0) + h * 7.0;
+  vec3 hue = 0.5 + 0.5 * cos(6.2832 * (floor(t) / 6.0 + vec3(0.0, 0.33, 0.67)));
+  float reel = 0.7 + 0.3 * step(0.4, fract(vPachi.y * 9.0 - t * 2.0));
+  vec3 lit = mix(hue * reel, vec3(1.0), step(0.93, sin(t * 3.0))) * (1.1 + on * 0.4);
+  float hit = step(jt, uTime) * clamp(1.0 - (uTime - jt) / 4.0, 0.0, 1.0);
+  vec3 rainbow = 0.5 + 0.5 * cos(6.2832 * (uTime * 3.0 + vPachi.y * 5.0 + vec3(0.0, 0.33, 0.67)));
+  totalEmissiveRadiance = mix(lit, rainbow * 1.8, step(0.01, hit));`);
+      };
+      m.needsUpdate = true;
     }
-    tex.needsUpdate = true;
-  }
-  draw(0);
-  return { tex, draw };
+  });
 }
 
 /* ------------------------------------------------------------ the sign */
@@ -209,10 +195,11 @@ function tickerTexture() {
 
 /* The ramen stall on the konbini's blank north wall (3.5 e), as built in
    Studio (Kabukigrin_Live.BStreet.Ramen): the boards at z 30.94, the
-   counter to 1.02, the noren's rod at y 2.22, z 30.34, a lantern at each
+   counter to 1.02, the noren's rod at z 30.34 (raised to y 2.38 under the
+   Blender stall's fascia, its hem over the menu: rule 9), a lantern at each
    end; the tanuki by the koban and the capsule toys by B Main's vending
    machines are Studio's generated props. */
-export const RAMEN = { x0: 19.05, x1: 22.95, wall: 30.935, rod: { y: 2.2, z: 30.31 }, lanterns: [[18.95, 1.95, 30.4], [23.05, 1.95, 30.4]] };
+export const RAMEN = { x0: 19.05, x1: 22.95, wall: 30.935, rod: { y: 2.38, z: 30.31 }, lanterns: [[18.95, 1.95, 30.4], [23.05, 1.95, 30.4]] };
 const SERIF = "'Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',serif";
 
 // indigo cotton in four panels, slit to just under the rod, らーめん in
@@ -276,8 +263,8 @@ function buildRamen(root, N, M) {
   const nh = 0.48;
   root.add(new THREE.Mesh(place(new THREE.PlaneGeometry(w, nh), { x: cx, y: R.rod.y - nh / 2, z: R.rod.z, ry: Math.PI }),
     new THREE.MeshStandardMaterial({ map: norenTexture(4), transparent: true, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.95, emissive: 0x18203a, emissiveIntensity: 0.6 })));
-  // the menu tags over the counter
-  root.add(new THREE.Mesh(place(new THREE.PlaneGeometry(2.9, 0.62), { x: cx, y: 1.62, z: R.wall - 0.006, ry: Math.PI }),
+  // the menu tags over the counter (their top under the noren's hem: rule 9)
+  root.add(new THREE.Mesh(place(new THREE.PlaneGeometry(2.34, 0.5), { x: cx, y: 1.58, z: R.wall - 0.006, ry: Math.PI }),
     new THREE.MeshStandardMaterial({ map: menuTexture(), transparent: true, alphaTest: 0.5, roughness: 0.9, emissive: 0xffe0b0, emissiveMap: null, emissiveIntensity: 0.12 })));
   // the warm light of the stall: up the boards, over the counter, a pool
   // in front, and each lantern's halo (steady)
@@ -439,20 +426,6 @@ export function buildStreet({ root, N, M }) {
   buildGacha(root, N, M);
   buildPoster(root);
   const P = PACHINKO;
-  // the floor through the glass, either side of the doors, and through the
-  // doors' own glass; each run picks up the tile where the last left off
-  const floor = machineFloor();
-  const glass = new THREE.MeshBasicMaterial({ map: floor.tex, color: 0xb4b0b0, toneMapped: false });
-  const runs = [[P.z0, P.door - P.doorW / 2], [P.door - P.doorW / 2 + 0.17, P.door + P.doorW / 2 - 0.17], [P.door + P.doorW / 2, P.z1]];
-  for (const [z0, z1] of runs) {
-    const w = z1 - z0, geo = new THREE.PlaneGeometry(w, P.y1 - P.y0);
-    // (turned to face the street, the plane's u runs from z1 towards z0)
-    const uv = geo.attributes.uv, u0 = (P.z1 - z1) / TILE;
-    for (let i = 0; i < uv.count; i++) uv.setX(i, u0 + uv.getX(i) * w / TILE);
-    const m = new THREE.Mesh(place(geo, { x: P.x + 0.012, y: (P.y0 + P.y1) / 2, z: (z0 + z1) / 2, ry: Math.PI / 2 }), glass);
-    m.onBeforeRender = () => floor.draw(performance.now() / 1000);
-    root.add(m);
-  }
   // the ticker along the header, scrolling at a walk
   const T = P.ticker, tw = P.z1 - P.z0 + 1.4, th = T.y1 - T.y0, tick = tickerTexture();
   tick.repeat.x = tw / (th * 2048 / 64);
@@ -462,6 +435,24 @@ export function buildStreet({ root, N, M }) {
   // the sign, steady (no beat: the street's neon is calm)
   const S = P.sign, sw = S.z1 - S.z0, sh = S.y1 - S.y0;
   N.quad(neonMat({ map: signTexture(sw, sh), key: "kb-pachinko" }), S.x, (S.y0 + S.y1) / 2, (S.z0 + S.z1) / 2, sw, sh, { ry: Math.PI / 2, k: 1.05, beat: 0 });
+  // the automatic doors: two glass leaves in steel frames, shut; in
+  // Socialize they slide back behind the glass (PLAY.open: streetSound)
+  const [d0, d1] = PARLOUR.door, half = (d1 - d0) / 2;
+  const frame = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, roughness: 0.35, metalness: 0.6 });
+  const pane = new THREE.MeshStandardMaterial({ color: 0x9ab8c8, roughness: 0.05, transparent: true, opacity: 0.22, depthWrite: false });
+  DOORS.length = 0;
+  for (const [k, z] of [[-1, d0 + half / 2], [1, d1 - half / 2]]) {
+    const g = new THREE.Group();
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.02, 2.24, half - 0.06), pane));
+    for (const [w, h, y, dz] of [[0.05, 0.06, 1.12, 0], [0.05, 0.06, -1.12, 0], [0.05, 2.3, 0, (half - 0.04) / 2], [0.05, 2.3, 0, -(half - 0.04) / 2]]) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, dz ? 0.04 : half), frame);
+      m.position.set(0, y, dz);
+      g.add(m);
+    }
+    g.position.set(-31.66, PARLOUR.floor + 1.15, z);
+    root.add(g);
+    DOORS.push({ g, z, k, slide: 0 });
+  }
   // the white spill on the wet pavement, and a strip of it up the glass
   N.quad(M.neonHalo, -30.4, 0.02, (P.z0 + P.z1) / 2, 2.8, P.z1 - P.z0 + 1, { rx: -Math.PI / 2, color: 0xfff2ea, k: 0.16, beat: 0 });
   N.quad(M.neonHalo, -30.6, 0.025, P.door, 2.2, 3.6, { rx: -Math.PI / 2, color: 0xffe8f0, k: 0.12, beat: 0 });
@@ -472,15 +463,60 @@ export function buildStreet({ root, N, M }) {
 // The parlour's din, each frame of a live map: rattles from along the
 // glass (more the nearer you are), a jingle every few seconds; each one
 // a panned one-shot from the club's own sfx, so it sits in the street
+/* The machines in play (PLAY, set by modes/social-pachinko.js): onto the
+   screens' uniform, ours first; each hits now and then (about once a
+   minute: the rainbow on its screen, and for ours the fanfare and the
+   banner); ours rattles with the balls we're firing. */
+const JACKPOT = { every: 60, show: 4 };
+function playing(sfx, now, dt) {
+  const t = U.uTime.value;
+  const list = PLAY.mine >= 0 ? [PLAY.mine, ...[...PLAY.others].filter((k) => k !== PLAY.mine)] : [...PLAY.others];
+  for (let i = 0; i < uPlay.value.length; i++) {
+    const k = list[i], v = uPlay.value[i];
+    if (k == null) { v.w = 0; continue; }
+    const m = MACHINES[k];
+    let jt = PLAY.jack.get(k) ?? -99;
+    // a hit, rolled each frame
+    if (t - jt > JACKPOT.show && Math.random() < dt / JACKPOT.every) {
+      jt = t;
+      PLAY.jack.set(k, jt);
+      if (k === PLAY.mine) {
+        PLAY.onJackpot?.();
+        if (sfx) for (let j = 0; j < 4; j++) setTimeout(() => sfx("jingle", { x: m.x, y: 1.6, z: m.z }), j * 260);
+      }
+    }
+    v.set(m.x, m.z, jt, 1);
+  }
+  if (PLAY.mine >= 0 && sfx) {
+    const m = MACHINES[PLAY.mine];
+    if (nextMine < now - 0.3) nextMine = now;
+    while (nextMine < now) { sfx("balls", { x: m.x, y: 1.4, z: m.z }); nextMine += 0.05 + Math.random() * 0.06; }
+  }
+}
+
 const HEAR = 24;
-let nextBalls = 0, nextJingle = 0;
+const DOORS = [];
+let nextBalls = 0, nextJingle = 0, nextMine = 0, lastT = 0;
 export function streetSound(sfx, live) {
-  if (!live || !sfx) return;
+  if (!live) return;
   const P = PACHINKO, cam = U.uPlayer.value;
-  const z = Math.min(P.z1, Math.max(P.z0, cam.z)), d = Math.hypot(cam.x - P.x, cam.z - z);
-  const now = performance.now() / 1000;
+  const now = performance.now() / 1000, dt = Math.min(0.1, now - (lastT || now));
+  lastT = now;
+  // the doors: open in Socialize, sliding a leaf's width back behind the glass
+  for (const d of DOORS) {
+    d.slide += ((PLAY.open ? 1 : 0) - d.slide) * Math.min(1, dt * 3);
+    d.g.position.z = d.z + d.k * d.slide * ((PARLOUR.door[1] - PARLOUR.door[0]) / 2 - 0.05);
+    d.g.position.x = -31.66 - d.slide * 0.05;
+  }
+  playing(sfx, now, dt);
+  if (!sfx) return;
+  const inside = cam.x < PARLOUR.front;
+  const z = Math.min(P.z1, Math.max(P.z0, cam.z)), d = inside ? 0 : Math.hypot(cam.x - P.x, cam.z - z);
   if (d > HEAR) { nextBalls = nextJingle = now; return; }
-  const at = () => ({ x: P.x + 0.3, y: 1.1 + Math.random() * 0.8, z: P.z0 + Math.random() * (P.z1 - P.z0) });
+  // (inside, the din comes from the machines round you; outside, out of the glass)
+  const at = inside
+    ? () => { const m = MACHINES[Math.floor(Math.random() * MACHINES.length)]; return { x: m.x, y: 1.5, z: m.z }; }
+    : () => ({ x: P.x + 0.3, y: 1.1 + Math.random() * 0.8, z: P.z0 + Math.random() * (P.z1 - P.z0) });
   // (a few at most after a stall, never a burst)
   if (nextBalls < now - 0.5) nextBalls = now;
   while (nextBalls < now) { sfx("balls", at()); nextBalls += 0.06 + Math.random() * 0.14; }

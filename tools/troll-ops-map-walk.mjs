@@ -228,6 +228,10 @@ RUNS.kabukigrin = [...RUNS.grinjuku.filter((r) => r[6] !== "A Ramps steps -> dec
   [-2, 0, 28.5, -1, 0, 3, "the backs -> green room (east door)", (r) => r.end[0] < -9],
   [-22, 0, 27.6, 1, 0, 2.5, "kitchen -> green room (partition door)", (r) => r.end[0] > -17],
   [-27.6, 0, 12, 0, -1, 3.5, "hall -> A Main (out the main door)", (r) => r.end[2] < 0],
+  // phase 3: both Mains end to end past the street furniture (poles, bollards, kei trucks)
+  [24.5, 0, -30, 0, 1, 6, "down B Main", (r) => r.end[2] > -2],
+  [24.5, 0, 1, 0, -1, 6, "up B Main", (r) => r.end[2] < -26],
+  [-24.5, 0, 1, 0, -1, 6, "up A Main", (r) => r.end[2] < -26],
 ];
 const maps = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(RUNS);
 let fails = 0;

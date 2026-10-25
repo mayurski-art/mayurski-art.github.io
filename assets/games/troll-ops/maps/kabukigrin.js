@@ -28,7 +28,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { GRINJUKU } from "./grinjuku.js?v=gj1-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1";
 import { KB_LAYOUT } from "./kabukigrin-layout.js?v=kb0-kb1-kb2-kb3-kb5-kb6-kb9-kb10-sp1";
-import { KB_PROPS } from "./kabukigrin-props.js?v=kbp1-kbb2-mn1";
+import { KB_PROPS } from "./kabukigrin-props.js?v=kbp1-kbb2-mn1-kb3";
 import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1";
 import { loadBake } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1";
 import { applyBakedLightMap, retexture, SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1";
@@ -39,8 +39,8 @@ import { wetFloor, hangProbe } from "./wet-floor.js?v=wf1";
 import { moneyRain } from "./club-money.js?v=mn1";
 import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5-tx1-ch1-sp1-kbt1";
 import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8-tx1-ch1-sp1-kbt1";
-import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9-tx1-ch1-sp1-kbt1-gb3-rh1";
-import { buildStreet, streetSound } from "./kabukigrin-street.js?v=kb10-kb11-kb12-tx1-ch1-sp1-kbt1";
+import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9-tx1-ch1-sp1-kbt1-gb3-rh1-kb3";
+import { buildStreet, lightParlour, parlourColliders, parlourWall, MACHINES, PARLOUR, PLAY, streetSound } from "./kabukigrin-street.js?v=kb10-kb11-kb12-tx1-ch1-sp1-kbt1-kb3";
 import { buildSigns } from "./kabukigrin-signs.js?v=ks1-kbs1";
 import { buildTrain, trainFrame } from "./kabukigrin-train.js?v=kb14-sp1-kbt1";
 
@@ -350,7 +350,7 @@ function clubInterior(K) {
    its GLB's bake, the club's pieces as their Studio keys say; then the
    photo surfaces and the fronts' grain. */
 const MODELS = { "kb-shell": "gj-shell", "kb-props": "gj-props", "kb-neon": null };
-const MODELS_V = "kbb5";
+const MODELS_V = "kbb6";
 function loadModels(api) {
   // settles once every model is placed (or failed): the wet floors' probes wait for it
   return Promise.all(Object.entries(MODELS).map(([file, gj]) => new Promise((done) => {
@@ -383,6 +383,7 @@ function loadModels(api) {
         const wood = [];
         gltf.scene.traverse((o) => { if (o.isMesh && o.material?.name === "KB_Wood") wood.push(o); });
         retexture(gltf.scene, KB_RETEXTURE);
+        lightParlour(gltf.scene);
         for (const o of wood) clubFx(o.material, { wash: { color: 0xff2a3a, top: 3.2, strength: 0.5 } });
         gltf.scene.traverse((o) => { if (o.isMesh && o.material?.name === "GS_Paint") paintDetail(o.material, "kbfront", 0.45, 0.7); });
         api.prop(gltf.scene);
@@ -392,7 +393,13 @@ function loadModels(api) {
 }
 
 function buildKabukigrin(api) {
-  for (const [x, z, w, d, h, y, pen] of L.colliders) api.ghostBox(x, z, w, d, h, { y, pen });
+  // (the pachinko parlour's room opens the edge wall and its front: its own
+  // colliders, the doors shut but in Socialize: kabukigrin-street.js)
+  for (const c of L.colliders) {
+    const [x, z, w, d, h, y, pen] = c;
+    if (!parlourWall(c)) api.ghostBox(x, z, w, d, h, { y, pen });
+  }
+  parlourColliders(api);
   // and what the Blender props need (build_kabukigrin.blender.py)
   for (const [x, z, w, d, h, y, pen] of KB_PROPS.colliders) api.ghostBox(x, z, w, d, h, { y, pen });
   api.stairLinks.push(...STAIRS.map((s) => ({ a: { ...s.a }, b: { ...s.b } })));
@@ -469,6 +476,8 @@ export const KABUKIGRIN = {
     npcShadows: false,
     view: KB_VIEW,
     door: KB_DOOR,
+    // the pachinko parlour (modes/social-pachinko.js): its machines, who plays, its bounds
+    pachinko: () => ({ machines: MACHINES, play: PLAY, minX: PARLOUR.minX }),
   },
   debug: () => ({ ...CLUB.debug(), rooms: roomsDebug(), ropes: ROPES.map((r) => ({ ...r })), sites: SITES.map((s) => ({ ...s })) }),
 };
