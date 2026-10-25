@@ -11,7 +11,7 @@
 // club's two inside play their own lists: the pole dancer (one cut-out PNG,
 // spun in canvas) then @Troll_'s coin popping out of a pinch, and
 // @SwishPng's leaping trolls (small muted MP4s, drawn into the canvas so the
-// LED rows and the credit sit on them).
+// LED rows sit on them).
 
 import * as THREE from "three";
 import { SIGNS, signsTexture } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1-ch1-sp1-kbt1-pm1";
@@ -44,13 +44,12 @@ const loopVideo = (file, play = true) => {
   if (play && v.paused) v.play().catch(() => {});
   return v.readyState >= 2 ? v : null;
 };
-/* A looping video filling the screen, its artist credited bottom right. */
-function videoClip(g, w, h, file, credit) {
+/* A looping video filling the screen (no credit drawn on it: user, 2026-10-25). */
+function videoClip(g, w, h, file) {
   g.fillStyle = "#000";
   g.fillRect(0, 0, w, h);
   const v = loopVideo(file);
   if (v) g.drawImage(v, 0, 0, w, h);
-  glowText(g, credit, w * 0.97, h * 0.92, h * 0.05, "#ffffff", { align: "right", weight: 700, blur: 0.15, alpha: 0.8 });
 }
 // the dancer cut-out: where the pole ran through it (px), of its 434 x 296
 const DANCER_POLE = 251.5;
@@ -251,9 +250,9 @@ const CLIPS = [
   } },
   // after the dancer: @Troll_'s trollface coin popping out of a pinch, a
   // 1.1 s loop played six times
-  { id: "coin", s: 6.6, video: "screen-troll-coin.mp4", draw(g, w, h) { videoClip(g, w, h, this.video, "art @Troll_"); } },
+  { id: "coin", s: 6.6, video: "screen-troll-coin.mp4", draw(g, w, h) { videoClip(g, w, h, this.video); } },
   // the club's other: @SwishPng's leaping trolls on the beach, as it is
-  { id: "swish", s: 22, video: "screen-swish-leap.mp4", draw(g, w, h) { videoClip(g, w, h, this.video, "art @SwishPng"); } },
+  { id: "swish", s: 22, video: "screen-swish-leap.mp4", draw(g, w, h) { videoClip(g, w, h, this.video); } },
 ];
 // what the street's screens play
 const STREET = ["umad", "dj", "stickers", "ticker", "logo"];
