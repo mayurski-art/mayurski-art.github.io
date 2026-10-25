@@ -2,7 +2,8 @@
 
 User's call (2026-10-09): during the Royale countdown, C-130 Hercules fly in
 toward the island from all round, the cargo door opens, and the players and
-the NPCs drop out. 12 planes in one wave, 9 trolls each, no shooting aboard.
+the NPCs drop out. 8 planes in one wave (12 until the user cut Royale to 69
+players, 2026-10-25), 9 trolls each, no shooting aboard.
 Hold reference: `refs/c130-hold-ref.jpg`. Airframe traced from Wikimedia
 Commons C-130 photographs (side and three-quarter).
 
@@ -14,7 +15,7 @@ Commons C-130 photographs (side and three-quarter).
    on its own seeded bearing and joins a stacked holding circle over the
    island: radius 300 m, altitudes 330 + 12·i m, 40 m/s.
 3. **T−40 s** The upper cargo door swings up and you watch the others circle.
-4. **T−8 s** The red jump light comes on and the planes break onto twelve
+4. **T−8 s** The red jump light comes on and the planes break onto eight
    straight runs across the island.
 5. **T=0** The ramp lowers and the light goes green. You walk off the ramp,
    or Space runs you out. The bots go in a stick, one every 0.6 s. Past the

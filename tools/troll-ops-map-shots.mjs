@@ -40,7 +40,13 @@ for (const [id, views] of Object.entries(VIEWS)) {
       window.TrollrunnerAccounts.getCachedProfile = () => ({ username: "troll_runner" });
       window.dispatchEvent(new Event("trollrunner:auth-changed"));
     }
-    T.settings.viewMode = mode === "view"; T.setMode("ops"); T.loadout.mapId = id;
+    T.settings.viewMode = mode === "view";
+    // Trollface Island only exists in Troll Royale (buildMap falls back to
+    // Grinsite for it elsewhere): Royale with no bots and no drop, the zone
+    // and the loot beams hidden below
+    const royale = id === "trollface";
+    if (royale) { T.DROP.enabled = false; if (T.els.noBots) T.els.noBots.checked = true; }
+    T.setMode(royale ? "royale" : "ops"); T.loadout.mapId = id;
     // GFX=high|medium|low pins the graphics tier: on "auto" a heavier build
     // can drop a tier mid-run (MSAA off), so before/after sets wouldn't compare
     if (gfx) T.settings.gfx = gfx;
@@ -59,6 +65,15 @@ for (const [id, views] of Object.entries(VIEWS)) {
       const dx = lx - ex, dy = ly - ey, dz = lz - ez;
       T.look.yaw = Math.atan2(-dx, -dz);
       T.look.pitch = Math.atan2(dy, Math.hypot(dx, dz));
+      // Troll Royale (set up once the match is live): no zone wall, loot
+      // beams or hands in the shot
+      const roy = T.royale?.();
+      if (roy) {
+        if (roy.visual?.group?.parent) roy.visual.group.parent.remove(roy.visual.group);
+        for (const m of [roy.loot?.beams, roy.loot?.rings]) if (m) m.visible = false;
+        for (const it of roy.loot?.items?.values?.() || []) if (it.mesh) it.mesh.visible = false;
+        for (const p of T.composer?.passes || []) if (p.constructor.name === "ViewmodelPass") p.enabled = false;
+      }
     }, [x, y, z, lx, ly, lz]);
     await new Promise((r) => setTimeout(r, y > 6 ? 120 : 700));
     await page.screenshot({ path: `${process.env.OUT || "."}/${id}-${tag}.jpg`, type: "jpeg", quality: 80 });

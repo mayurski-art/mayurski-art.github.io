@@ -126,9 +126,10 @@ try {
     });
     await page.click("#tm-board-btn");
     check(await shown(page, "#tm-board"), "the trophy opens the board");
-    await page.waitForFunction(() => document.querySelector("#lb-root table, #lb-root .lb-table"), null, { timeout: 8000 }).catch(() => {});
-    const heads = await page.evaluate(() => [...document.querySelectorAll("#lb-root th")].map(t => t.textContent.trim()));
-    check(heads.includes("Best") && heads.includes("Level"), `it shows the Troll Man board (${heads.join(", ")})`);
+    // the board in the game's own look (game.js renderBoardPanel), not the engine's table
+    await page.waitForFunction(() => document.querySelector("#lb-root .tm-hi-week"), null, { timeout: 8000 }).catch(() => {});
+    const panel = await page.evaluate(() => ({ week: !!document.querySelector("#lb-root .tm-hi-week"), table: !!document.querySelector("#lb-root table"), text: document.querySelector("#lb-root").textContent }));
+    check(panel.week && !panel.table && /RESETS IN/.test(panel.text), `it shows the Troll Man high scores (${panel.text.slice(0, 80)})`);
     if (SHOTS) await page.screenshot({ path: path.join(OUT, "tm-p6-board.png") });
     await page.keyboard.press("Enter");                               // focus is on the close button
     check(!(await shown(page, "#tm-board")) && await tm(page, () => window.__tm.state) === "title", "Enter on the x closes it, without starting a game");
@@ -147,10 +148,17 @@ try {
     const rec = await page.evaluate(() => ({ r: window.__records, score: window.__tm.score }));
     check(rec.r.length === 1 && rec.r[0][0] === "troll-man" && rec.r[0][1].score === rec.score && rec.r[0][1].level === 1, `1-player game over goes to the board (${JSON.stringify(rec.r)})`);
     // (the backend is blocked, so the engine falls back to this device's cache once the fetch fails)
-    const rowsText = () => page.evaluate(() => [...document.querySelectorAll("#lb-root tr")].map(t => t.textContent.replace(/\s+/g, " ").trim()).join(" | "));
+    const rowsText = () => page.evaluate(() => [...document.querySelectorAll("#lb-root li")].map(t => t.textContent.replace(/\s+/g, " ").trim()).join(" | "));
     await page.waitForFunction(s => document.querySelector("#lb-root").textContent.includes("YOU") && document.querySelector("#lb-root").textContent.includes(s), String(rec.score), { timeout: 10000 }).catch(() => {});
     const you = await rowsText();
     check(you.includes(String(rec.score)), `the score shows on this device's board (${you.slice(0, 120)})`);
+    // back on the title, the attract loop's HIGH SCORES page carries it too
+    await page.waitForFunction(() => window.__tm.state === "title" && window.__tm.stateTime >= 9, null, { timeout: 30000 }).catch(() => {});
+    const hi = await tm(page, () => ({ st: window.__tm.state, t: window.__tm.stateTime, rows: (window.__tm.hiScores?.entries || []).map(e => [e.rank, e.score, !!e.you]) }));
+    check(hi.st === "title" && hi.t >= 8 && hi.rows.some(r => r[1] === rec.score && r[2]), `the title's HIGH SCORES page has it (${JSON.stringify(hi)})`);
+    if (SHOTS) await page.screenshot({ path: path.join(OUT, "tm-hi-attract.png") });
+    await page.click("#tm-board-btn");
+    if (SHOTS) await page.screenshot({ path: path.join(OUT, "tm-hi-panel.png") });
     await ctx.close();
   }
   {

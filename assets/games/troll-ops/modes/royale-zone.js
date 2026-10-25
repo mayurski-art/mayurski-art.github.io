@@ -160,27 +160,64 @@ export class RoyaleZone {
   static outside(s, x, z) { return Math.hypot(x - s.x, z - s.z) > s.r; }
 }
 
-/* The wall (a tall glowing cylinder you can see across the map) and the
-   next circle marked on the ground. No lights: see light-pool.js. */
-const CRINGE = new THREE.Color(0x7dff4a);
+/* The wall: a violet storm band you can see across the map (user
+   2026-10-25: the green stripes were "quite tacky"; the storm look picked
+   from three mocks). Clouds drift up it, a bright rim marks the ground where
+   it hurts, and it hangs on below y 0 so over a floating island's edge it is
+   a curtain into the void, not a band in the sky. One shader, no lights
+   (light-pool.js). The next circle is marked on the ground. */
+const STORM_DEEP = new THREE.Color(0x381a6b), STORM_LIT = new THREE.Color(0x9e6bf2), STORM_RIM = new THREE.Color(0xebd9ff);
+/* The storm's clouds: four octaves of tileable value noise baked once into
+   a 128 px texture, so the wall reads one texel a pixel (the same noise worked
+   out per pixel slowed a headless frame enough to fail the plate and Hopium
+   timings). */
+let STORM_NOISE = null;
+function stormNoise() {
+  if (STORM_NOISE) return STORM_NOISE;
+  const N = 128, data = new Uint8Array(N * N * 4), rnd = seededRng(0x5707);
+  const oct = [16, 32, 64, 128].map((p) => ({ p, v: Float32Array.from({ length: p * p }, () => rnd()) }));
+  const lerp = (a, b, t) => a + (b - a) * t, fade = (t) => t * t * (3 - 2 * t);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    let sum = 0, amp = 0.5;
+    for (const { p, v } of oct) {
+      const fx = (x / N) * p, fy = (y / N) * p, ix = Math.floor(fx), iy = Math.floor(fy), tx = fade(fx - ix), ty = fade(fy - iy);
+      const at = (i, j) => v[((j % p) + p) % p * p + ((i % p) + p) % p];
+      sum += amp * lerp(lerp(at(ix, iy), at(ix + 1, iy), tx), lerp(at(ix, iy + 1), at(ix + 1, iy + 1), tx), ty);
+      amp *= 0.5;
+    }
+    const k = (y * N + x) * 4, c = Math.round(Math.min(1, sum / 0.9375) * 255);
+    data[k] = data[k + 1] = data[k + 2] = c; data[k + 3] = 255;
+  }
+  const tex = new THREE.DataTexture(data, N, N);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.magFilter = tex.minFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
+  return (STORM_NOISE = tex);
+}
 export class ZoneVisual {
   constructor(scene) {
     this.scene = scene;
     this.group = new THREE.Group();
-    const wallGeo = new THREE.CylinderGeometry(1, 1, 60, 96, 1, true);
-    wallGeo.translate(0, 26, 0);
+    const wallGeo = new THREE.CylinderGeometry(1, 1, 110, 128, 1, true);
+    wallGeo.translate(0, 5, 0);   // y -50 .. 60
     this.wallMat = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false,
-      uniforms: { uTime: { value: 0 }, uColor: { value: CRINGE.clone() }, uAlpha: { value: 1 } },
+      uniforms: {
+        uTime: { value: 0 }, uAlpha: { value: 1 }, uNoise: { value: stormNoise() },
+        uDeep: { value: STORM_DEEP.clone() }, uLit: { value: STORM_LIT.clone() }, uRim: { value: STORM_RIM.clone() },
+      },
       vertexShader: `varying vec2 vUv; varying float vY;
         void main() { vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vY = w.y; gl_Position = projectionMatrix * viewMatrix * w; }`,
-      fragmentShader: `uniform float uTime; uniform vec3 uColor; uniform float uAlpha; varying vec2 vUv; varying float vY;
+      fragmentShader: `uniform float uTime; uniform float uAlpha; uniform vec3 uDeep; uniform vec3 uLit; uniform vec3 uRim; uniform sampler2D uNoise;
+        varying vec2 vUv; varying float vY;
         void main() {
-          float band = 0.5 + 0.5 * sin(vUv.x * 380.0 + vY * 0.9 - uTime * 2.2);
-          float fade = smoothstep(58.0, 6.0, vY) * smoothstep(-5.0, 1.0, vY);
-          float base = mix(0.16, 0.34, band);
-          float foot = smoothstep(4.0, 0.0, vY) * 0.35;
-          gl_FragColor = vec4(uColor * (0.9 + band * 0.3), (base * fade + foot) * uAlpha);
+          // 160 noise cells round the wall (the texture tiles 10 times), drifting up
+          float c = texture2D(uNoise, vec2(vUv.x * 10.0 + uTime * 0.003, vY * 0.0056 - uTime * 0.0075)).r;
+          float fade = smoothstep(60.0, 8.0, vY) * smoothstep(-50.0, -20.0, vY);
+          vec3 col = mix(uDeep, uLit, smoothstep(0.35, 0.8, c));
+          float rim = smoothstep(1.6, 0.0, abs(vY));
+          col = mix(col, uRim, rim * 0.8);
+          gl_FragColor = vec4(col, ((0.22 + 0.28 * c) * fade + rim * 0.55) * uAlpha);
         }`,
     });
     this.wall = new THREE.Mesh(wallGeo, this.wallMat);

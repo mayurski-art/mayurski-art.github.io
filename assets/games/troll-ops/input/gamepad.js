@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import { padEmotePressed } from "../menu/controller-layout.js?v=cl7-pd1-or1-pd2";
 import { game } from "../core/state.js?v=st1";
-import { nuke, callNuke } from "../streaks/nuke.js?v=tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2";
+import { nuke, callNuke } from "../streaks/nuke.js?v=tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1";
 import { freeLook } from "../view/free-look.js?v=nf1";
 
 
@@ -126,12 +126,25 @@ export function pollGamepad(dt) {
 
   // The strike tablet takes the pad: either stick aims, A / R2 marks,
   // B undoes (and cancels with nothing marked). Nothing else fires.
+  // D-pad right: a tap marks too, a hold cancels (calling.js
+  // updateStreakControl), counted only from a press made with the tablet up.
+  // The press that opened it is still down on the first frames, and this
+  // branch used to leave endStreak at that press's "held" for as long as the
+  // tablet was up, so the hold timer ran out and cancelled the strike by
+  // itself (user, 2026-10-25: "when u click right d pad it sort of
+  // autocancels").
   if (game.strikeTablet?.isOpen) {
     game.strikeTablet.stick(game.gamepadState.moveX + lookX, game.gamepadState.moveY + lookY, dt);
     game.gamepadState.lookDX = 0; game.gamepadState.lookDY = 0;
     game.gamepadState.moveX = 0; game.gamepadState.moveY = 0;
     if (pressedEdge(0) || pressedEdge(7)) game.strikeTablet.place();
     if (pressedEdge(1)) game.strikeTablet.undo();
+    if (pressedEdge(15)) game.streakEnd.padAt = performance.now();
+    if (game.gpPrev[15] && !btn(15) && game.streakEnd.padAt) {
+      if (performance.now() - game.streakEnd.padAt < 300) game.strikeTablet.place();
+      game.streakEnd.padAt = 0;
+    }
+    game.gamepadState.endStreak = !game.localPauseOnly && btn(15) && !!game.streakEnd.padAt;
     game.gamepadState.firing = false; game.gamepadState.jump = false; game.gamepadState.ads = false;
     game.gpPrev = {};
     for (let i = 0; i < gp.buttons.length; i++) game.gpPrev[i] = btn(i);

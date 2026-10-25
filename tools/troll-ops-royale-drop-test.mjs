@@ -105,7 +105,7 @@ await page.waitForFunction(() => window.__trollOps.planes()?.hold?.plane, null, 
 let s = await state();
 check("you start aboard your C-130, standing in the ghost hold", s.me === "aboard" && s.phase === "lobby" && Math.abs(s.y - s.ghostY) < 1, JSON.stringify({ me: s.me, phase: s.phase, y: +s.y.toFixed(1) }));
 check("the hold's colliders are laid (floor, walls, roof, the shut ramp)", s.highColliders >= 10, `${s.highColliders}`);
-check("everyone's aboard: 100 trolls, 99 bots in their seats", s.trolls === 100 && s.airborne === 99 && s.aboardBots === 99, JSON.stringify({ trolls: s.trolls, airborne: s.airborne, seated: s.aboardBots }));
+check("everyone's aboard: 69 trolls, 68 bots in their seats", s.trolls === 69 && s.airborne === 68 && s.aboardBots === 68, JSON.stringify({ trolls: s.trolls, airborne: s.airborne, seated: s.aboardBots }));
 check("you're plane 1, seat 1 (the only human)", s.plane === 0 && s.seat === 0, JSON.stringify({ plane: s.plane, seat: s.seat }));
 const sq = await page.evaluate(() => {
   const T = window.__trollOps, sq = T.planes();
@@ -123,7 +123,7 @@ const sq = await page.evaluate(() => {
   for (let i = 0; i < bearings.length; i++) maxGap = Math.max(maxGap, ((bearings[(i + 1) % bearings.length] - bearings[i]) + Math.PI * 2) % (Math.PI * 2) || Math.PI * 2);
   return { n: fl.length, minGap, at, maxGapDeg: maxGap * 180 / Math.PI, over: fl.every((f) => f.over && f.tOut > f.tIn), parts: sq.parts.length, seats: sq.hold.seats.filter(Boolean).length };
 });
-check("twelve planes, instanced (one InstancedMesh per part)", sq.n === 12 && sq.parts >= 4 && sq.parts <= 10, JSON.stringify({ n: sq.n, parts: sq.parts }));
+check("eight planes, instanced (one InstancedMesh per part)", sq.n === 8 && sq.parts >= 4 && sq.parts <= 10, JSON.stringify({ n: sq.n, parts: sq.parts }));
 check("the planes never come within 18 m of each other (each flies its own height)", sq.minGap > 18, `${sq.minGap.toFixed(0)} m at t ${sq.at}`);
 check("they come in from all round the compass", sq.maxGapDeg < 100, `largest gap ${sq.maxGapDeg.toFixed(0)}°`);
 check("every drop run crosses the island", sq.over, "");
@@ -212,7 +212,7 @@ check("you land on the island, on your feet", (await onIsland(s)) && s.y < 45 &&
 check("no glider, no damage from the fall", !drop.glide && drop.landHp === 100, JSON.stringify(drop));
 await page.waitForFunction(() => { const T = window.__trollOps; return T.royale().live && T.royale().drop.phase === "done" && T.bots.bots.every((b) => !b.alive || !b.airborne); }, null, { timeout: 150000 }).catch(() => {});
 s = await state();
-check("every bot jumps and lands, the zone goes live, the planes go", s.live && s.phase === "done" && s.airborne === 0 && s.botsOff === 0 && s.botsHigh === 0 && s.trolls >= 90,
+check("every bot jumps and lands, the zone goes live, the planes go", s.live && s.phase === "done" && s.airborne === 0 && s.botsOff === 0 && s.botsHigh === 0 && s.trolls >= 62,
   JSON.stringify({ live: s.live, phase: s.phase, airborne: s.airborne, stuckHigh: s.botsOff, high: s.botsHigh, trolls: s.trolls }));
 const botsOnIsland = await page.evaluate(async () => {
   const { ISLAND_EDGE } = await import("/assets/games/troll-ops/maps/trollface-island.js?v=ti3");
