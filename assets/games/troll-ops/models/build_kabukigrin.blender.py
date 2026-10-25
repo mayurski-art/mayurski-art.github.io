@@ -11,15 +11,16 @@ then shrinks them with quantize_glb.py. The far city stays gj-skyline.
 
 Phase 0 (the builder): the Grinjuku part is drawn by Grinjuku's own
 functions (build_grinjuku.blender.py), so it is gj-shell / gj-props / gj-neon
-triangle for triangle; its light-map UVs are unwrapped on the WHOLE model the
-way bake_kit does it, which gives gj-shell's and gj-props' UVs byte for byte,
-so their bakes (gj-shell-bake.webp, gj-props-bake.webp) still light it. Only
-then is the club cut out of it: the props Studio removed (their colliders are
+triangle for triangle. Then the club is cut out of it: the props Studio removed (their colliders are
 gone from kabukigrin-layout.js), the street dressing where the club's walls
 are (CLEAR, was kabukigrin.js clearForClub), and the dance floor's hole over
 the mirror pit (DANCE, was cutDanceFloor). Those cut parts are objects named
-"gj" in each GLB; the club's own geometry goes in objects named "kb" (no
-bake yet: phase 4).
+"gj" in each GLB; the club's own geometry goes in objects named "kb".
+
+Phase 4 (the bake): each of kb-shell and kb-props is light-mapped as one
+atlas over all its objects (bake()), the rest of the map standing round it
+and the fixed lights in (bake_lamps); kabukigrin-placements.json, written
+here, lists both for bake_map_ground.blender.py too.
 
 The playable layout is the contract: nothing here moves a collider.
 """
@@ -47,7 +48,6 @@ G_glyphs_on_board, G_kanban, G_shopfront = G.glyphs_on_board, G.kanban, G.shopfr
 
 KB = json.load(open(os.path.join(HERE, "kabukigrin-layout.json")))
 CLUB = json.load(open(os.path.join(HERE, "kabukigrin-club.json")))
-GJ_RES = 2048   # gj-shell-bake.webp and gj-props-bake.webp: the unwrap's margin is 4 texels of it
 
 # the dance floor over the mirror pit (kabukigrin.js DANCE)
 DANCE = (-27.0, -17.0, 10.0, 20.0)
@@ -352,15 +352,6 @@ def to_object(b, name, paint=None):
     return obj
 
 
-def unwrap(obj):
-    from bake_kit import _lightmap_uv
-    bpy.ops.object.select_all(action="DESELECT")
-    obj.select_set(True)
-    bpy.context.view_layer.objects.active = obj
-    _lightmap_uv(obj, 4.0 / GJ_RES)
-    obj.data.uv_layers.active = obj.data.uv_layers["UVMap"]
-
-
 def game(v):
     """Blender (x, y, z) -> game (x, y-up, z)."""
     return v.x, v.z, -v.y
@@ -486,6 +477,84 @@ def cut_boxes(obj, boxes):
     bm.to_mesh(me)
     bm.free()
     print(f"  {obj.name}: {gone} faces cut for the parlour")
+
+
+# ------------------------------------------------------------- the bake (phase 4)
+
+# Grinjuku's night sky and asphalt (build_grinjuku's bake, maps hemi sky and
+# sky horizon); 40 W a candela, as there
+BAKE_SKY = (0x6a5aa8, 0x3a1a4a, 1.7)
+BAKE_GROUND = 0x2a2a30
+LAMP_W = 40
+# the borrowed rooms' lights stay live (kabukigrin.js LIVE_LIGHTS: their
+# insides are drawn in code, unbaked): the green room, the tatami room, the office
+LIVE_LIGHTS = {(-13, 29), (-28, 27), (-10, 21.5)}
+# Grinjuku's A site and A Heaven lights, which the club's took the place of,
+# and its Vents light, which Kabukigrin turns lantern red (its own in the
+# layout). Its A rope room's (the riser now) and the Sewers' stay: the doc
+# counted them replaced, but nothing of the club's lights either, and gj-shell's
+# bake carried them into Kabukigrin until now
+GJ_REPLACED = {(-22, 12), (-9, 18), (15, -3)}
+# the live lights fell off as 1 / d^1.6 (club-live.js addLight), a baked lamp
+# as 1 / d^2: the club's are turned up to light the hall's walls as they did
+CLUB_LAMP_K = 2.0
+# what the game draws over the bake in code, which must shade it: the hall's
+# ceiling (kabukigrin.js clubInterior), as boxes (w, h, d, x, y, z)
+BAKE_OCCLUDERS = [(17.3, 0.3, 19.2, -23.05, 7.4, 14.0)]
+
+
+def bake_lamps():
+    """The fixed lights: the doc's 14 (3.3: the club's six and the layout's
+    red Vents light, Grinjuku's other seven) and the two of Grinjuku's that
+    kept the riser and the Sewers lit. [x, y, z, colour, intensity, distance]
+    as the placements file has them."""
+    out = []
+    for x, y, z, hexc, power, rng in KB["lights"]:
+        if (x, z) not in LIVE_LIGHTS:
+            out.append([x, y, z, int(hexc[1:], 16), round(power * CLUB_LAMP_K, 3), rng])
+    gj = json.load(open(os.path.join(HERE, "grinjuku-placements.json")))["lights"]
+    out += [L for L in gj if (L[0], L[2]) not in GJ_REPLACED]
+    assert len(out) == 16, f"{len(out)} lamps"
+    return out
+
+
+def write_placements():
+    """models/kabukigrin-placements.json, as tools/troll-ops-map-placements.mjs
+    writes it for a map that places its models with mapModel (Kabukigrin loads
+    its own): what stands round each model while it bakes, and the ground
+    bake's (bake_map_ground.blender.py) models and lamps."""
+    spec = {"map": "kabukigrin", "bounds": {"minX": -32, "maxX": 32, "minZ": -42, "maxZ": 42},
+            "sky": [BAKE_SKY[0], BAKE_SKY[1]], "ground": BAKE_GROUND,
+            "placements": [[n, 0, 0, 0, 0, 1, 1, 1] for n in ("kb-shell", "kb-props", "kb-neon", "gj-skyline")],
+            "lights": bake_lamps(), "occluders": BAKE_OCCLUDERS}
+    with open(os.path.join(HERE, "kabukigrin-placements.json"), "w", newline="\n") as f:
+        json.dump(spec, f, indent=1)
+        f.write("\n")
+    return spec
+
+
+def bake(objs, name, res=2048):
+    """One light map for a GLB's objects (one atlas: their materials are
+    shared), the rest of the map standing round them, the lamps in.
+    KB_BAKE=0 skips it, for a quick look at the geometry (its light map is then wrong)."""
+    if os.environ.get("KB_BAKE") == "0":
+        return
+    from bake_kit import bake_lightmap, import_context, remove_context
+    spec = json.load(open(os.path.join(HERE, "kabukigrin-placements.json")))
+    # (the context's materials and pictures go after too: the club's pieces
+    # find their materials by name, and a GLB's would be found first)
+    before, pics = set(bpy.data.materials), set(bpy.data.images)
+    ctx = import_context([(os.path.join(HERE, n + ".glb"), x, z, yaw, y, (sx, sy, sz))
+                          for (n, x, y, z, yaw, sx, sy, sz) in spec["placements"]
+                          if n != name and os.path.exists(os.path.join(HERE, n + ".glb"))])
+    lights = [((x, y, z), col, inten * LAMP_W, 0.15) for (x, y, z, col, inten, _d) in spec["lights"]]
+    bake_lightmap(objs, os.path.join(HERE, name + "-bake.webp"), res=res, samples=128, sky=BAKE_SKY,
+                  ground=BAKE_GROUND, lights=lights, blur=1, occluders=spec.get("occluders", ()))
+    remove_context(ctx)
+    for m in set(bpy.data.materials) - before:
+        bpy.data.materials.remove(m)
+    for i in set(bpy.data.images) - pics:
+        bpy.data.images.remove(i)
 
 
 def export(objs, filename):
@@ -642,12 +711,14 @@ def main():
         json.dump(dump, open(os.environ["KB_STREET_DUMP"], "w"))
         return
     import kb_street
+    write_placements()
     out = []
     o = to_object(sh, "gj")
-    unwrap(o)
     cut_club(o)
     cut_boxes(o, PARLOUR_CUT + kb_street.BAND_CUTS)
-    out.append(export([o] + [c for c in [club_part("kb-shell")] if c], "kb-shell.glb"))
+    objs = [o] + [c for c in [club_part("kb-shell")] if c]
+    bake(objs, "kb-shell")
+    out.append(export(objs, "kb-shell.glb"))
     o = to_object(ne, "gj")
     cut_club(o)
     cut_boxes(o, PARLOUR_CUT + kb_street.BAND_CUTS)
@@ -666,7 +737,9 @@ def props_part():
     o.name = "gj"
     cut_club(o, gone_props())
     props = props_object()
-    return export([o] + [c for c in [club_part("kb-props"), hero_part(), props, parlour_object()] if c], "kb-props.glb")
+    objs = [o] + [c for c in [club_part("kb-props"), hero_part(), props, parlour_object()] if c]
+    bake(objs, "kb-props")
+    return export(objs, "kb-props.glb")
 
 
 def parlour_object():

@@ -5,9 +5,10 @@
 // markers by name (spawns, sites, ropes, stairs) and the lights.
 // Every still piece is Blender's since 2026-10-24 (Kabukigrin in Blender,
 // claude.ai/artifact/ESCtEQZrXQ3MFZZg9MjWsw): models/build_kabukigrin.blender.py
-// draws kb-shell, kb-props and kb-neon from the layout. In each, the mesh
-// "gj" is Grinjuku's part (its own builders; gj-shell's and gj-props' bakes
-// light it), the club cut out of it (the props Studio removed, the street
+// draws kb-shell, kb-props and kb-neon from the layout, and bakes kb-shell's
+// and kb-props' light (phase 4: kb-shell-bake, kb-props-bake, one atlas a
+// GLB, the fixed lights in it). In each, the mesh "gj" is Grinjuku's
+// part (its own builders), the club cut out of it (the props Studio removed, the street
 // dressing behind the club's walls, the dance floor's hole); the mesh "kb"
 // is the club's, every material named by its Studio key
 // ("glb:<gj model>:<material>|<tint>|<shadow>|n", "gen:<hash>||1"), so it
@@ -31,7 +32,7 @@ import { KB_LAYOUT } from "./kabukigrin-layout.js?v=kb0-kb1-kb2-kb3-kb5-kb6-kb9-
 import { KB_PROPS } from "./kabukigrin-props.js?v=kbp1-kbb2-mn1-kb3";
 import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1";
 import { loadBake } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1";
-import { applyBakedLightMap, retexture, SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1";
+import { applyBakedLightMap, applyGroundLightMap, retexture, SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1";
 import { Kit, place, surfMat, texMat } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1";
 import { U, Neon, neonMat, clubFx, cutRects, slatTexture, mosaicTexture } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1-ch1-sp1-kbt1";
 import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4-kb6-kb11-tx1-ch1-sp1-hh1-yb1-kbt1-dj2-mn1-gr1";
@@ -46,8 +47,14 @@ import { buildTrain, trainFrame } from "./kabukigrin-train.js?v=kb14-sp1-kbt1";
 
 const URL_GLB = new URL("../models/", import.meta.url).href;
 const loader = new GLTFLoader();
-// the GLBs whose chunks are light-mapped, and how strongly (battlefield-props BAKED)
-const BAKED = { "gj-shell": Math.PI, "gj-props": Math.PI, "gj-skyline": Math.PI };
+// the GLBs that are light-mapped, and how strongly (battlefield-props BAKED)
+const BAKED = { "kb-shell": Math.PI, "kb-props": Math.PI, "gj-skyline": Math.PI };
+// the ground's light (models/bake_map_ground.blender.py kabukigrin 1.7 40)
+const GROUND_BAKE = { file: "kabukigrin-ground", rect: [-56, -56, 112] };
+// The layout's lights the bake leaves live (build_kabukigrin LIVE_LIGHTS), by
+// x, z: the borrowed rooms', whose insides are drawn here, unbaked (the green
+// room, the tatami room, the office). The rest are in the light maps.
+const LIVE_LIGHTS = [[-13, 29], [-28, 27], [-10, 21.5]];
 /* Photo surfaces (user, 2026-10-23: as Troll City got): the street, the
    pavements and the floors from the Poly Haven sets in surface-textures.js,
    and on the painted fronts a detail of the front set (below). */
@@ -215,7 +222,7 @@ function buildClub(api) {
   const M = clubMaterials();
   const lights = [];
 
-  clubInterior(K);
+  const hall = clubInterior(K);
   danceFloor(K, M, N, PLAN, { edgeY: 0.01 });
   djStage(K, M, N, HN, S, PLAN, { stage: false, booth: false, wall: { w: 10, h: 5.5 }, arches: { a: 6.8, h: 7.0, n: 5, step: 0.35, drop: 0.24 } });
   hallCeiling(K, M, N, HN, PLAN, PLAN.TOP - 0.3);
@@ -264,10 +271,11 @@ function buildClub(api) {
   }
   sign(S, N, M, "trollCyan", -5.95, 5.5, 14, 3.3, { ry: Math.PI / 2, group: 2, halo: 0x3ff0ff, haloK: 0.25, beat: 0.4 });
 
-  /* ---- the lights (doc 3.3, placed in Studio): the dance floor's rides
-     round the ball; the club's kick on the beat, the bar and back don't */
+  /* ---- the lights (doc 3.3, placed in Studio): baked since phase 4, but
+     the borrowed rooms' (LIVE_LIGHTS), which keep a little kick */
   const AMP = { "#ff2ab4": 0.25, "#3ff0ff": 0.25, "#a060ff": 0.15, "#ff3a8a": 0.2 };
   for (const [x, y, z, hex, power, range] of L.lights) {
+    if (!LIVE_LIGHTS.some(([lx, lz]) => lx === x && lz === z)) continue;
     const dance = hex === "#ff2ab4";
     addLight(S, lights, new THREE.Color(hex), power, range, x, y, z, { amp: AMP[hex] ?? 0.04, ...(dance && { hue: 0.92, orbit: 0 }) });
   }
@@ -284,6 +292,11 @@ function buildClub(api) {
   N.flush();
   HN.flush();
   for (const l of lights) root.add(l);
+  // the hall's panels drawn here take the floor's baked light in front of them
+  loadBake(GROUND_BAKE.file).then((bake) => root.traverse((o) => {
+    const k = o.isMesh && hall.get(o.material);
+    if (k) floorLight(o, bake, k);
+  }));
   // (the lasers stop at the hall's walls: the tatami room and the office lie past them)
   finishClub(root, M, HN, S, CLUB, { clip: { x0: HALL.x0, x1: -13.7, z0: 3.9, z1: 24 } });
 
@@ -344,21 +357,45 @@ function clubInterior(K) {
     K.add(marble, place(new THREE.PlaneGeometry(a1 - a0, b1 - b0), { x: (a0 + a1) / 2, y: 0.004, z: (b0 + b1) / 2, rx: -Math.PI / 2 }), { shadow: false });
   }
   K.add(ceiling, place(new THREE.PlaneGeometry(x1 - x0, z1 - z0 + 0.5), { x: (x0 + x1) / 2, y: top - 0.01, z: (z0 + z1) / 2, rx: Math.PI / 2 }), { shadow: false });
+  // each material's floor light (floorLight): how far in front, how strong
+  return new Map([[slats, [1.2, 1]], [mosaic, [1.2, 1]], [marble, [0, 1]], [ceiling, [0, 0.5]]]);
 }
 
-/* The Blender models (build_kabukigrin.blender.py): Grinjuku's part lit by
-   its GLB's bake, the club's pieces as their Studio keys say; then the
-   photo surfaces and the fronts' grain. */
-const MODELS = { "kb-shell": "gj-shell", "kb-props": "gj-props", "kb-neon": null };
-const MODELS_V = "kbb7";
+/* A wall or ceiling drawn here, lit by the ground bake: each corner takes
+   the floor's light `push` metres in front of it (the floor at the wall's
+   foot is in the wall's own shadow), so the dance floor's pink and the DJ
+   wall's cyan run along the hall's walls as the old live lights put them. */
+function floorLight(mesh, bake, [push, k]) {
+  const g = mesh.geometry, P = g.attributes.position, N = g.attributes.normal;
+  if (!push) return applyGroundLightMap(mesh, bake, GROUND_BAKE.rect, Math.PI * k);
+  const [x0, z0, size] = GROUND_BAKE.rect;
+  mesh.updateWorldMatrix(true, false);
+  const nm = new THREE.Matrix3().getNormalMatrix(mesh.matrixWorld);
+  const v = new THREE.Vector3(), n = new THREE.Vector3(), uv = new Float32Array(P.count * 2);
+  for (let i = 0; i < P.count; i++) {
+    v.fromBufferAttribute(P, i).applyMatrix4(mesh.matrixWorld);
+    n.fromBufferAttribute(N, i).applyMatrix3(nm).normalize();
+    uv[2 * i] = (v.x + n.x * push - x0) / size;
+    uv[2 * i + 1] = (v.z + n.z * push - z0) / size;
+  }
+  g.setAttribute("uv1", new THREE.BufferAttribute(uv, 2));
+  applyBakedLightMap(mesh, bake, Math.PI * k);
+}
+
+/* The Blender models (build_kabukigrin.blender.py): each lit by its own
+   bake (kb-neon is the light, not lit), the club's pieces as their Studio
+   keys say; then the photo surfaces and the fronts' grain. */
+const MODELS = ["kb-shell", "kb-props", "kb-neon"];
+const MODELS_V = "kbb8";
 function loadModels(api) {
   // settles once every model is placed (or failed): the wet floors' probes wait for it
-  return Promise.all(Object.entries(MODELS).map(([file, gj]) => new Promise((done) => {
+  return Promise.all(MODELS.map((file) => new Promise((done) => {
     loader.load(`${URL_GLB}${file}.glb?v=${MODELS_V}`, (gltf) => {
       const baked = [];
       gltf.scene.traverse((o) => {
         if (!o.isMesh) return;
         o.receiveShadow = true;
+        if (BAKED[file]) baked.push(o);
         // which part of the GLB: "gj" (Grinjuku's, baked), "kb" (Studio's
         // Parts), "hero" (Studio's generated pieces), "kbp" (the club's props)
         let part = o;
@@ -374,10 +411,9 @@ function loadModels(api) {
           return;
         }
         o.castShadow = file !== "kb-neon";
-        if (gj) baked.push(o);
       });
-      (gj ? loadBake(gj) : Promise.resolve(null)).then((bake) => {
-        if (bake) for (const o of baked) applyBakedLightMap(o, bake, BAKED[gj]);
+      (BAKED[file] ? loadBake(file) : Promise.resolve(null)).then((bake) => {
+        if (bake) for (const o of baked) applyBakedLightMap(o, bake, BAKED[file]);
         // the club's dark wood (the slats, the bar's front) takes the hall's
         // red wash, as the slatted panels behind it do (clubInterior)
         const wood = [];
@@ -453,6 +489,22 @@ export const KABUKIGRIN = {
   ...GRINJUKU,
   // the street: the photo asphalt, Grinjuku's lane lines printed on it at the old texture's brightness
   ground: { ...GRINJUKU.ground, surface: "kbasph" },
+  // the bake (phase 4): the ground's own, and hemi and ambient halved again,
+  // the club's lights being in the light maps now
+  groundBake: GROUND_BAKE,
+  hemi: { ...GRINJUKU.hemi, intensity: 0.55 },
+  ambient: { ...GRINJUKU.ambient, intensity: 0.11 },
+  // (a touch more exposure: the streets came out a tenth darker on half the hemi)
+  exposure: 1.4,
+  grade: { ...GRINJUKU.grade },
+  /* Haze (view/post-look.js; doc phase 4: neon reads better through it): a
+     low fog on the hall's floor, as off a smoke machine, thinning up to the
+     mezzanine, and a ground haze on the wet Mains */
+  haze: [
+    { box: [HALL.x0, 0, HALL.z0, -6, PLAN.TOP, HALL.z1], color: 0x40183c, density: 0.05, falloff: 2.2, edge: 0.3 },
+    { box: [A_MAIN[0], 0, A_MAIN[1], A_MAIN[2], 3, A_MAIN[3]], color: 0x2c1c44, density: 0.08, falloff: 0.8, edge: 1.5 },
+    { box: [23.3, 0, -31.6, 31.4, 3, 3.6], color: 0x2c1c44, density: 0.07, falloff: 0.8, edge: 1.5 },
+  ],
   name: "Kabukigrin",
   blurb: "Kabukicho after midnight. Trolling Loud's Tokyo branch on one side of the street, the alleys on the other, and a bomb site on the dance floor.",
   playerSpawn: { x: PLAYER[0], z: PLAYER[2] },
