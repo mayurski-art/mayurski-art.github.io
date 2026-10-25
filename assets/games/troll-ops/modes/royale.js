@@ -45,6 +45,12 @@ export function setupRoyale(seed = royaleSeed()) {
   // (Trollface Island), and keep circles and loot on land.
   const onLand = (x, z) => (!map.edge || insidePolygon(map.edge, x, z));
   const dry = (x, z) => onLand(x, z) && (!map.wade || !insidePolygon(map.wade, x, z));
+  // Doorways the map keeps clear (map.royale.keepClear: [x0, z0, x1, z1] in
+  // front of and just inside each door): no floor loot or chest stands in one.
+  const clear = map.royale?.keepClear?.length ? map.royale.keepClear : null;
+  const spotOk = map.edge || clear
+    ? (x, z) => (!map.edge || dry(x, z)) && !(clear && clear.some(([a, b, c, d]) => x >= a && x <= c && z >= b && z <= d))
+    : null;
   // Circle centres stay on dry land too: a final circle in the lake is a
   // slow wade for everyone.
   // Points of interest (ROYALE-ISLAND.md): the loot gathers there, and the
@@ -57,9 +63,9 @@ export function setupRoyale(seed = royaleSeed()) {
   } : null;
   const zone = new RoyaleZone(bounds, rng, map.royale?.phases || ROYALE.phases, map.edge ? dry : null, nearPoi);
   const loot = new LootField(game.scene);
-  const spots = lootSpots(game.colliders, bounds, rng, { ok: map.edge ? dry : null, perSqM: map.royale?.lootPerSqM, pois });
+  const spots = lootSpots(game.colliders, bounds, rng, { ok: spotOk, perSqM: map.royale?.lootPerSqM, pois });
   loot.spawnSeeded(spots.concat(map.royale?.lootExtra || []), rng, royaleGround);
-  const chests = map.royale?.chests && pois ? matchChests(map, seed, dry) : null;
+  const chests = map.royale?.chests && pois ? matchChests(map, seed, spotOk) : null;
   royale = {
     seed, zone, loot, chests, visual: new ZoneVisual(game.scene),
     t: 0, live: false, peak: 0, place: 0, over: false, endT: 0,
@@ -80,9 +86,9 @@ export function setupRoyale(seed = royaleSeed()) {
 /* The chests this match (royale-chests.js): the map's spots (worked out
    once a map, they're the same every match), half of each place's picked
    by the match seed. */
-function matchChests(map, seed, dry) {
+function matchChests(map, seed, ok) {
   const pois = map.royale.pois;
-  map._chestSpots ||= map.royale.chestSpots || chestSpots(game.colliders, map.bounds, pois, { ok: map.edge ? dry : null });
+  map._chestSpots ||= map.royale.chestSpots || chestSpots(game.colliders, map.bounds, pois, { ok });
   const rng = seededRng((seed ^ 0x9e3779b9) >>> 0);
   const byPoi = new Map();
   for (const s of map._chestSpots) { if (!byPoi.has(s.poi)) byPoi.set(s.poi, []); byPoi.get(s.poi).push(s); }
