@@ -1111,7 +1111,7 @@ export const TROLLFACE_ISLAND = {
   viewFar: 1000,  // 400 m across, and seen from the sky lobby 330 m up (game.js applyEnvironment)
   // Troll Royale on the full island: the design doc's players and timings.
   royale: {
-    players: 100,         // real players each take one bot's place
+    players: 69,          // real players each take one bot's place (user 2026-10-25: 69, was 100)
     lootPerSqM: 1 / 233,   // ~220 items: per m2 of open ground (1 / 175 before the chests took a quarter of it; the props cover a sixth)
     chests: true,          // ~60 gold chests a match at the places (modes/royale-chests.js)
     // Where the loot gathers, and the extra spots up on decks (ROYALE-ISLAND.md).
