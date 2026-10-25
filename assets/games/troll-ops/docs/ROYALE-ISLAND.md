@@ -88,3 +88,44 @@ zone.
 2. Cover pass and lake boardwalks.
 3. The five new POIs.
 4. Pacing, the option you pick.
+
+## Blender build-out: style sheet (phase 0, 2026-10-25)
+
+The island's Blender build (doc "Troll Forces: Trollface Island in Blender",
+builder `models/build_trollface_island.blender.py`, kit `models/tf_kit.py`)
+keeps to this sheet from phase 1 on. Refs: `refs/island/` (the overview,
+Troll City, Troll Peak, Rage Ranch, Lighthouse Point).
+
+- **Look.** Low-poly faceted, night-lit: flat-shaded rock and ground with
+  visible facets, bevelled edges on built things (0.02-0.05 m), no smooth
+  shading except on cylinders and the dome. Every place reads as one
+  silhouette from 330 m (the dome, the mountain, the bowl, the gate, the
+  pyramid, the lighthouse, the cooling towers) and keeps it in its far shell.
+- **Materials.** One vertex-painted TF_Paint for every flat colour (map_kit
+  folds them); photo surfaces only from the shared set (GS_Tile, GS_Plank,
+  GS_Marble, GS_Concrete, the rock, sand, grass and dirt sets), plus one
+  decal and graffiti atlas and two trim sheets (phase 1). Emissive only on
+  real light sources and signs, never a whole wall. Nothing new unless a
+  phase argues for it in its review.
+- **Palette.** Troll City blue 0x3a9ee6 / 0x7b98e0 / 0x86c4ee and yellow
+  0xf2cf4a with 0xfff1c2 windows; the Peak's purple 0x7b5cc7 family with
+  snow; the Portal's green glow; wood 0x8a6a3e-0x5c4327; red barn 0xa8322a;
+  lighthouse white with a 0xd23b2f band. Grass and sand stay the ground
+  shader's.
+- **Prop scale.** A door is 2.2 x 1.0 m, a table 0.75 m high, a crate 0.9 m,
+  a bottle 0.3 m, a car 4.4 x 1.8 x 1.5 m, a lamp post 4 m, a sign board at
+  2.4-3.0 m. Props cluster inside a place's ring; between places only the
+  cover kit (hedgerows 1.1 m, dry-stone walls 1.0 m, fences 1.2 m, boulder
+  groups 1-2.5 m) and instanced clutter.
+- **Graffiti and motif.** The trollface recurs on purpose at five places
+  (the dome, the Portal's gate, a city mosaic, the Peak hut's window, the
+  Ranch's scarecrow and barn, the Shop's neon as an outline) and nowhere
+  else; graffiti tags at most one per wall face, none on a sign or screen.
+- **Rule 9 checklist per place.** Every sign, screen, window, doorway and
+  lit face registered (`Registry.face`); raycast from the eye grid round
+  the place; shot head-on and from two angles; no prop bounds crossing
+  another's unless it stands on it; nothing flush-mounted behind a proud
+  piece.
+- **Budget per place.** Hot 1.2 MB, mid 0.6 MB, minor 0.3 MB, new 0.4 MB;
+  one material set shared; a far shell past 120 m; 14 MB for the whole
+  island's GLBs plus bakes.
