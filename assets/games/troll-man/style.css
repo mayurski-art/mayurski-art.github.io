@@ -257,6 +257,21 @@ body {
 }
 .tm-board-close:hover, .tm-board-close:focus-visible { border-color: rgba(33, 33, 222, 0.7); outline: none; }
 .tm-board .lb-root { background: rgba(0, 0, 0, 0.35); }
+/* the HIGH SCORES table (game.js renderBoardPanel): the attract page, in markup */
+.tm-hi-week { margin: 0 0 10px; font: 8px/1.6 var(--arcade); color: #999; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.tm-hi-week span { color: #777; }
+.tm-hi { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.tm-hi-row { display: grid; grid-template-columns: 4.5em 7em 1fr 3.5em; gap: 10px; align-items: baseline; font: 11px/1.4 var(--arcade); color: var(--c); }
+.tm-hi-score { text-align: right; }
+.tm-hi-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-hi-name i { font-style: normal; font-size: 8px; color: #000; background: var(--gold); padding: 1px 3px; vertical-align: 1px; }
+.tm-hi-lv { text-align: right; color: #777; font-size: 9px; }
+.tm-hi-row.is-you { color: var(--gold); animation: tm-hi-blink .6s steps(1) infinite; }
+@keyframes tm-hi-blink { 50% { color: #fff; } }
+@media (prefers-reduced-motion: reduce) { .tm-hi-row.is-you { animation: none; } }
+.tm-hi-note { margin: 12px 0 0; font: 8px/1.8 var(--arcade); color: #999; }
+.tm-hi-note strong { color: #ffb8ae; font-weight: normal; }
+@media (max-width: 420px) { .tm-hi-row { grid-template-columns: 3.6em 5.6em 1fr; font-size: 9px; } .tm-hi-lv { display: none; } }
 .tm-board .lb-table { min-width: 0; }
 
 @media (prefers-reduced-motion: reduce) {

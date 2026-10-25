@@ -623,6 +623,7 @@
   function setState(s) {
     state = s; stateTime = 0;
     if (s === "dying") deathSounded = false;
+    if (s === "title") loadHiScores();   // fresh for the attract loop's HIGH SCORES page
   }
 
   // ---- Pen release -------------------------------------------------------------
@@ -1095,7 +1096,24 @@
   function reportScore() {
     if (demo || numPlayers !== 1 || !window.TrollLeaderboard) return;
     try { window.TrollLeaderboard.record("troll-man", { score, level }); } catch (_) { /* never break the game */ }
+    loadHiScores();
   }
+
+  // This week's top ten (the shared engine's board, TrollLeaderboard.board),
+  // drawn the cabinet's way: the attract loop's HIGH SCORES page and the
+  // trophy panel (user, 2026-10-25: "create the leaderboard using UI
+  // relevant to this game"). null until it first arrives.
+  let hiScores = null;
+  async function loadHiScores() {
+    const LB = window.TrollLeaderboard;
+    if (!LB || !LB.board) return;
+    try { hiScores = await LB.board("troll-man"); } catch (_) { /* keep the last one */ }
+    renderBoardPanel();
+  }
+  const RANK_NAMES = ["1ST", "2ND", "3RD", "4TH", "5TH", "6TH", "7TH", "8TH", "9TH", "10TH"];
+  // each rank in a chaser's colour, round and round, the way the cabinet lists its scores
+  const rankColor = i => CHASERS[i % CHASERS.length].color;
+  const hiName = e => String(e.name || "???").toUpperCase().replace(/[^A-Z0-9 _.-]/g, "").slice(0, 10) || "???";
 
   // Intermissions play after clearing these levels, like the original's cut-scenes.
   const INTERMISSION_AFTER = [2, 5, 9, 13, 17];
@@ -1350,7 +1368,34 @@
 
   // Attract screen: the cast, like the original's roll call, in big type so it
   // reads from across the room (and on a laptop).
+  // The attract loop's second page, over the menu: this week's top ten.
+  const HI_FROM = 8;                       // seconds into the title (the roll call is done by 5)
+  function drawHiScores() {
+    text("HIGH SCORES", W / 2, 46, "#ffcc00", 16, "center");
+    text("THIS WEEK", W / 2, 70, "#999", 8, "center");
+    const rows = hiScores?.entries || [];
+    if (!rows.length) {
+      text(hiScores ? "NO SCORES YET" : "LOADING...", W / 2, 180, "#fff", 12, "center");
+      if (hiScores) text("BE THE FIRST TROLL", W / 2, 204, "#ffb8ae", 12, "center");
+    }
+    text("RANK", 40, 96, "#777", 8);
+    text("SCORE", 210, 96, "#777", 8, "right");
+    text("NAME", 236, 96, "#777", 8);
+    rows.forEach((e, i) => {
+      const y = 114 + i * 24;
+      if (stateTime < HI_FROM + 0.3 + i * 0.15) return;          // one line at a time
+      const blink = e.you && Math.floor(stateTime / 0.3) % 2 === 0;
+      const c = e.you ? (blink ? "#fff" : "#ffcc00") : rankColor(i);
+      text(RANK_NAMES[i] || `${i + 1}TH`, 40, y, c, 12);
+      text(String(e.score || 0), 210, y, c, 12, "right");
+      text(hiName(e), 236, y, c, 12);
+    });
+    if (hiScores?.resetsIn) text(`RESETS IN ${String(hiScores.resetsIn).toUpperCase()}`, W / 2, 362, "#777", 8, "center");
+    if (hiScores?.source === "live" && !hiScores.loggedIn) text("LOG IN TO GET ON THE BOARD", W / 2, 378, "#ffb8ae", 8, "center");
+  }
+
   function drawTitle() {
+    if (stateTime >= HI_FROM) { drawHiScores(); drawTitleMenu(); return; }
     text("CHARACTER", W / 2, 50, "#fff", 16, "center");
     CHASERS.forEach((g, i) => {
       const y = 100 + i * 42;
@@ -1372,6 +1417,9 @@
       ctx.drawImage(ICONS[kind], cx - PILL / 2, 362 - PILL / 2);
       text(label, cx, 380, color, 12, "center");
     });
+    drawTitleMenu();
+  }
+  function drawTitleMenu() {
     // the menu: 1 or 2 players, a little trollface pointing at the choice
     ["1 PLAYER", "2 PLAYERS"].forEach((label, i) => {
       const y = 414 + i * 28;
@@ -1584,11 +1632,27 @@
     boardBtn.setAttribute("aria-expanded", String(open));
     if (open) {
       if (state === "play" && !demo) paused = true;
-      if (window.TrollLeaderboard) window.TrollLeaderboard.refresh("troll-man");
+      renderBoardPanel();
+      loadHiScores();
       board.querySelector(".tm-board-close").focus({ preventScroll: true });
     } else {
       canvas.focus({ preventScroll: true });
     }
+  }
+  // The panel's table: the HIGH SCORES page as markup (rank, score, name,
+  // level), each rank in its chaser colour, your row in gold.
+  function renderBoardPanel() {
+    const root = document.getElementById("lb-root");
+    if (!root) return;
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+    const b = hiScores;
+    const rows = (b?.entries || []).map((e, i) => `<li class="tm-hi-row${e.you ? " is-you" : ""}" style="--c:${rankColor(i)}">`
+      + `<span class="tm-hi-rank">${RANK_NAMES[i] || `${i + 1}TH`}</span><span class="tm-hi-score">${esc(e.score || 0)}</span>`
+      + `<span class="tm-hi-name">${esc(hiName(e))}${e.you && hiName(e) !== "YOU" ? " <i>YOU</i>" : ""}</span><span class="tm-hi-lv">L${esc(e.level || 0)}</span></li>`).join("");
+    root.innerHTML = !b ? `<p class="tm-hi-note">LOADING...</p>`
+      : `<p class="tm-hi-week">${esc(String(b.weekLabel || "This week").toUpperCase())} <span>RESETS IN ${esc(String(b.resetsIn || "").toUpperCase())}</span></p>`
+      + (rows ? `<ol class="tm-hi" aria-label="Top ten this week">${rows}</ol>` : `<p class="tm-hi-note">NO SCORES YET. BE THE FIRST TROLL.</p>`)
+      + `<p class="tm-hi-note">Best 1-player score this week. Resets every Monday.${b.source === "live" && !b.loggedIn ? " <strong>Log in</strong> to get on the board." : ""}</p>`;
   }
   if (board && boardBtn) {
     boardBtn.addEventListener("click", () => setBoard(!boardOpen()));
@@ -1855,7 +1919,7 @@
       startFright, setState, taunt, powerUp, steerVector, newGame, startDemo,
       get demo() { return demo; }, get cur() { return cur; }, get numPlayers() { return numPlayers; },
       get slots() { return slots; }, get menuSel() { return menuSel; }, toMenu, get quitArmed() { return quitArmed(); }, get high() { return high; },
-      get stateTime() { return stateTime; },
+      get stateTime() { return stateTime; }, get hiScores() { return hiScores; },
       setLevel(n) { level = n; }, newLevel,
       setLives(n) { lives = n; },
       get paused() { return paused; },

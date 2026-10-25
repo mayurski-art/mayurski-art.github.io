@@ -6,7 +6,7 @@ import { iconFor } from "../weapons/attachment-icons.js?v=or1";
 import { SKIN_BY_ID, skinsFor, skinThumbUrl } from "../characters/skins.js?v=p5-wb1-or1";
 import { getRank, getLevel, getPrestige, PRESTIGE_MASTER, isUnlocked, rankUnlocked, rankProgress, rankXpText, prestigeUnlocked } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1";
 import { playerIconSvg } from "./rank-icons.js?v=rk1-or1";
-import { MAPS, MAP_IDS, REWARD_MAPS, mapSchematic } from "../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1-bw2-bt1-wf1-wf2-zf1-bp1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-tfp1";
+import { MAPS, MAP_IDS, REWARD_MAPS, mapSchematic } from "../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1-bw2-bt1-wf1-wf2-zf1-bp1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1";
 import { MELEE_DEFS, MELEE_IDS, THROWABLE_DEFS, LETHAL_IDS, TACTICAL_IDS } from "../weapons/gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1-rb4-hp1-bx1-mg1-sp1";
 import { PERK_DEFS, validPerks } from "./perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1";
 
@@ -132,10 +132,27 @@ function paintGearLock(b, slot, label, def) {
     `${label}: ${def.name} — ${unlocked ? def.blurb : `locked until level ${def.rank}`}`);
 }
 
+/* How a gun fires, in words (no fireMode: one shot a pull, as
+   view/player-update.js fires it). */
+export function fireModeLabel(def) {
+  switch (def?.fireMode) {
+    case "auto": return "Automatic";
+    case "burst": return `${def.burst || 3}-round burst`;
+    case "bolt": return "Bolt-action";
+    case "pump": return "Pump-action";
+    case "charge": return "Charge shot";
+    default: return "Semi-automatic";
+  }
+}
+
 export class Loadout {
   constructor(els, onChange) {
     this.els = els;
     this.onChange = onChange || (() => {});
+    // the gun the detail panel shows (renderDetail)
+    this.detailId = null;
+    window.addEventListener("trollforces:preview-end", () => this.endDetailPreview());
+    els.list?.addEventListener("mouseleave", () => this.endDetailPreview());
     // Hovering a weapon, melee or throwable in the menu previews it (set by
     // menu/lobby.js); the row's focus event carries it.
     this.onPreview = null;
@@ -658,6 +675,31 @@ export class Loadout {
     }
   }
 
+  /* The detail panel: name, blurb, how it fires and the stat bars, for the
+     equipped gun or the one being previewed (back to the equipped one when
+     the preview ends: off the list, or the menu's trollforces:preview-end). */
+  renderDetail(def) {
+    if (!def || !this.els.stats) return;
+    this.els.name.textContent = def.name;
+    this.els.blurb.textContent = def.blurb || "";
+    this.els.stats.innerHTML = "";
+    const mode = document.createElement("p");
+    mode.className = "to-lo-firemode";
+    mode.textContent = fireModeLabel(def);
+    this.els.stats.appendChild(mode);
+    for (const [label, value] of Object.entries(statBars(def))) {
+      if (label.startsWith("_")) continue;
+      const row = document.createElement("div");
+      row.className = "to-lo-stat";
+      row.innerHTML = `<span>${label}</span><i><b style="width:${Math.round(value * 100)}%"></b></i>`;
+      this.els.stats.appendChild(row);
+    }
+    this.detailId = def.id;
+  }
+  endDetailPreview() {
+    if (this.detailId !== this.activeId) this.renderDetail(this.resolvedActive);
+  }
+
   /* Selected state plus the per-card stat deltas, recomputed whenever the
      weapon or any other slot changes — a compensator's recoil cut reads
      differently on an LMG than on an SMG, and stacking a grip changes what
@@ -826,7 +868,15 @@ export class Loadout {
       b.setAttribute("aria-pressed", String(id === this.activeId));
       b.innerHTML = `<strong>${w.name}</strong><span>${unlocked ? `${w.damage} dmg · ${w.rpm} rpm` : lockText}</span>`;
       if (!unlocked) b.setAttribute("aria-label", `${w.name}, locked, ${lockText.toLowerCase()}`);
-      b.addEventListener("focus", () => this.onPreview?.(resolveWeapon(id, wearable(this.attachmentsFor(id)))));
+      // The preview and the stats both follow the gun you're on (user,
+      // 2026-10-25: "so should the stats of that weapon")
+      const preview = () => {
+        const d = resolveWeapon(id, wearable(this.attachmentsFor(id)));
+        this.onPreview?.(d);
+        this.renderDetail(d);
+      };
+      b.addEventListener("focus", preview);
+      b.addEventListener("mouseenter", preview);
       b.addEventListener("click", () => {
         this.activeId = id;
         this.persist();
@@ -836,18 +886,7 @@ export class Loadout {
     }
 
     // --- detail panel
-    this.els.name.textContent = def.name;
-    this.els.blurb.textContent = def.blurb || "";
-
-    const bars = statBars(def);
-    this.els.stats.innerHTML = "";
-    for (const [label, value] of Object.entries(bars)) {
-      if (label.startsWith("_")) continue;
-      const row = document.createElement("div");
-      row.className = "to-lo-stat";
-      row.innerHTML = `<span>${label}</span><i><b style="width:${Math.round(value * 100)}%"></b></i>`;
-      this.els.stats.appendChild(row);
-    }
+    this.renderDetail(def);
 
     this.renderAtts();
     this.renderSkins();
@@ -868,7 +907,7 @@ export class Loadout {
     }
 
     this.renderGear();
-    this.renderSummary(def, bars, rank);
+    this.renderSummary(def, statBars(def), rank);
   }
 
   /* The always-visible readout down the right: what you are dropping in with,
