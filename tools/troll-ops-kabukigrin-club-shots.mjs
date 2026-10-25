@@ -1,9 +1,9 @@
-// Trolling Loud: screenshots of the club's key spots through the game's own
+// Kabukigrin's club: screenshots of its key spots through the game's own
 // renderer and post chain, plus draw calls / triangles / lights per view.
 // Writes .claude/club-shots/<view>.png (kept out of git).
 //
-// Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-trollingloud-shots.mjs [view ...]
-// MAP=<id> (default trollingloud), TIER=low|medium|high, ANGLE=swiftshader.
+// Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-kabukigrin-club-shots.mjs [view ...]
+// MAP=<id> (default kabukigrin), TIER=low|medium|high, ANGLE=swiftshader.
 
 import http from "node:http";
 import fs from "node:fs";
@@ -28,26 +28,9 @@ const server = http.createServer((req, res) => {
 await new Promise((r) => server.listen(0, r));
 const BASE = `http://localhost:${server.address().port}`;
 
-// [camera x, y, z, look-at x, y, z, fov]
+// [camera x, y, z, look-at x, y, z, fov]: Kabukigrin's club on Grinjuku's A
+// side, and the street that sees it
 const VIEWS = {
-  hall:     [0, 6.3, 11.6, 0, 3.2, -15, 72],
-  floor:    [0.5, 1.7, 5.5, 0, 3.6, -15, 78],
-  ceiling:  [4, 1.7, 3, 0, 7.6, -4, 80],
-  vip:      [-15.6, 1.8, 11.5, -25, 4.2, -3, 78],
-  bar:      [16, 1.8, 11.5, 28.5, 2.8, -5, 76],
-  mezz:     [-11.7, 6.2, 11.2, -10.5, 5.2, -15, 74],
-  lobby:    [0, 1.7, 21.3, 0, 2.0, 13, 78],
-  terrace:  [10.5, 6.2, 21.2, -3, 7.2, 13, 76],
-  roof:     [22, 11, 19, -5, 9, -14, 70],
-  alley:    [-16, 1.7, 31, 4, 4.5, 22, 72],
-  door:     [7, 1.8, 29, -6, 1.2, 22.5, 66],
-  yard:     [-22, 2, -31.5, 10, 2.5, -24, 70],
-  aerial:   [48, 34, 52, 0, 3, 0, 55],
-  siteA:    [-27.5, 3.5, 11.5, -19.6, 0.3, 8.25, 80],
-  siteB:    [27.5, 3.5, 11.5, 16, 0.3, 8.3, 80],
-};
-// Kabukigrin's club on Grinjuku's A side, and the street that sees it
-const KB_VIEWS = {
   hall:      [-15.2, 4.6, 14.5, -29, 2.2, 15, 74],
   floor:     [-19, 1.7, 21.5, -28, 2.6, 11, 78],
   dj:        [-21, 1.7, 15, -31.6, 3.0, 15, 76],
@@ -75,8 +58,7 @@ const KB_VIEWS = {
   sofaMezz:  [-11.6, 4.7, 12.5, -6.8, 3.5, 15.5, 70],
   door:      [-27.6, 1.7, -8, -27.6, 1.4, 3, 70],
 };
-const MAP = process.env.MAP || "trollingloud";
-if (/^kabukigrin/.test(MAP)) { for (const k of Object.keys(VIEWS)) delete VIEWS[k]; Object.assign(VIEWS, KB_VIEWS); }
+const MAP = process.env.MAP || "kabukigrin";
 if (process.env.VIEW) VIEWS.custom = process.env.VIEW.split(",").map(Number);
 const ids = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(VIEWS);
 
@@ -97,6 +79,8 @@ await page.evaluate(async ({ map, tier, mode }) => {
   await T.startGame();
   if (T.isStaging()) T.endStaging();
 }, { map: MAP, tier: process.env.TIER || null, mode: process.env.MODE || "tdm" });
+// the map built and its models streamed in (Kabukigrin's glbs outlast a fixed sleep)
+await page.waitForFunction(() => !!window.__trollOps.builtMap()?.map && !window.__trollOps.loadState().open, null, { timeout: 240000 });
 await new Promise((r) => setTimeout(r, +(process.env.WAIT || 5000)));
 // the tier's passes (game.js GFX: medium drops SSAO, low drops bloom too),
 // set directly in case applyGraphics hasn't run since the setting changed

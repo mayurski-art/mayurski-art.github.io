@@ -1,6 +1,6 @@
-// Trolling Loud's DJ Lulz (dj-lulz.js), in Socialize, with two players.
+// Kabukigrin's DJ Lulz (dj-lulz.js), in Socialize, with two players.
 //
-//   1. A (in first, so the queue's keeper) and B hang out on Trolling Loud:
+//   1. A (in first, so the queue's keeper) and B hang out in the club:
 //      DJ Lulz starts a record, both hear it at the same place, and the
 //      club's clock runs on its beat grid (the BPM is the record's).
 //   2. B walks to the booth: hold X offers a request; the panel opens
@@ -21,12 +21,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
-// MAP=<id>: another club map (kabukigrin); Trolling Loud by default
-const MAP = process.env.MAP || "trollingloud";
+// MAP=<id>: another club map, once there is one (add its SPOT); Kabukigrin
+// by default (it took over from Trolling Loud as the club, 2026-10-24)
+const MAP = process.env.MAP || "kabukigrin";
 // where A and B stand on the floor, at the booth (and facing it), and the
 // two shots' spots, each map's own
 const SPOT = {
-  trollingloud: { a: [3, 4], b: [-3, 4], booth: [0, -12.6, 0], floor: [0, 6.5, 0], deck: [0, -9.5, 0] },
   kabukigrin: { a: [-21, 12], b: [-21, 18], booth: [-27.3, 15, Math.PI / 2], floor: [-19, 15, Math.PI / 2], deck: [-25.5, 15, Math.PI / 2] },
 }[MAP];
 const require = createRequire(import.meta.url);
