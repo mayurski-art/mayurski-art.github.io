@@ -70,7 +70,7 @@ const loadBakeTexture = (name) => (BAKED.has(name) ? loadBake(name) : Promise.re
    at = [x, z, r] lights it all with the ground's average light round that
    spot instead (a prop standing on the ground; its materials must be its
    own, as an unbaked loadModel copy's are). intensity defaults to BAKED's. */
-export function groundLight(obj, groundBake, at = null, intensity = Math.PI) {
+export function groundLight(obj, groundBake, at = null, intensity = groundBake?.intensity ?? Math.PI) {
   if (!groundBake) return;
   loadBake(groundBake.file).then((tex) => {
     const spot = at && groundLightAt(tex, groundBake.rect, at);
