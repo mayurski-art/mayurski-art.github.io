@@ -10,6 +10,7 @@
 // is the street (the yard is open to the backs, so it's street too).
 
 import { rng } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1";
+import { MACHINES, PARLOUR } from "./kabukigrin-street.js?v=kb10-kb11-kb12-tx1-ch1-sp1-kbt1-kb3";
 import { pickOutfit } from "../characters/outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1-or1-gb3-rh1";
 
 // the camera's yaw facing each way (0 faces -z, +PI/2 faces -x)
@@ -19,7 +20,9 @@ const MEZZ = 3, STAGE_TOP = 0.45, TATAMI = 0.3, STOOL = 0.76;
 /* ------------------------------------------------------------ the rooms */
 export function kbZone(x, y, z) {
   // A Main, the lane the club's door opens onto: it and the hall see each other
+  // (the pachinko parlour off its west side is part of it: its doors stand open)
   if (x >= -32 && x <= -14.4 && z >= -32 && z < 3.9) return "aMain";
+  if (x >= PARLOUR.back && x < -32 && z >= PARLOUR.z0 && z <= PARLOUR.z1) return "aMain";
   if (x < -32 || x > -6 || z < 3.9 || z > 34) return "street";
   if (z > 24) return x < -24.15 && z < 29.85 ? "vip" : "back";
   if (x > -14.2 && y > MEZZ - 0.5) return z > 19 ? "office" : "mezz";
@@ -106,6 +109,14 @@ for (const [x, side] of YOKO_BARS) {
   for (const dx of [-0.55, 0.55]) seatAt(x + dx, side > 0 ? -3.68 : -2.32, 0.68, 0, side > 0 ? 0 : Math.PI, "stool", 0.5);
 }
 
+// the pachinko parlour's stools (kabukigrin-street.js MACHINES): sit and you play
+// the machine in front (modes/social-pachinko.js); you get up into the aisle
+const PACHI_SEAT = PARLOUR.floor + 0.58;
+for (const [k, m] of MACHINES.entries()) {
+  KB_SEATS.push({ x: m.x, z: m.stool, y: PACHI_SEAT, floor: PARLOUR.floor, yaw: m.s > 0 ? 0 : Math.PI, kind: "pachinko", machine: k,
+    label: "Play pachinko", stand: { x: m.x, z: m.stool + m.s * 0.5 } });
+}
+
 /* ------------------------------------------------------------ the crowd
 
    ~80 in the club (Trolling Loud's density in a hall half its size), ~25 on
@@ -123,7 +134,7 @@ export function kbNpcs({ DC, DANCE, deck }) {
   const sit = (i, role, act, more) => {
     const s = KB_SEATS[i];
     taken.add(i);
-    extra(role, act, { x: s.x, z: s.z, y: s.y, yaw: s.yaw, sit: true, ...(s.kind === "stool" && { stool: true }) }, more);
+    extra(role, act, { x: s.x, z: s.z, y: s.y, yaw: s.yaw, sit: true, ...((s.kind === "stool" || s.kind === "pachinko") && { stool: true }) }, more);
   };
   const seatsOf = (kind, pred = () => true) => KB_SEATS.map((s, i) => [s, i]).filter(([s]) => s.kind === kind && pred(s)).map(([, i]) => i);
 
@@ -203,6 +214,16 @@ export function kbNpcs({ DC, DANCE, deck }) {
   extra("Clubgoer", "phone", { x: 24.4, z: -13, y: 0, yaw: FACE_YAW["+x"], sit: true });
   seatsOf("stool", (s) => s.x > 7).forEach((i, k) => { if (k % 3 !== 1) sit(i, "Barfly", "drink", k % 4 ? {} : { drink: "whiskey" }); });
   for (const [x, z, yaw] of [[-30.4, -12, -0.4], [-30.8, -16, 2.8], [-26, -20, 0.3], [-25.4, -20.6, -2.7]]) extra("Clubgoer", "phone", { x, z, y: 0, yaw });
+
+  /* ---- the pachinko parlour: a dozen at the machines, the floor man, and
+     people going in and out of its doors off A Main (round the islands by
+     the corridors at the glass and the back wall, never down an aisle of stools) */
+  seatsOf("pachinko").filter((i, k) => (k * 7) % 4 === 1).forEach((i, k) => sit(i, "Clubgoer", k % 3 ? "tend" : "phone"));
+  add("Pachi Pete", "Floor staff", "count", { x: -35.2, z: -15.9, y: PARLOUR.floor, yaw: FACE_YAW["+x"] });
+  const F = PARLOUR.floor, dz = (PARLOUR.door[0] + PARLOUR.door[1]) / 2;
+  extra("Clubgoer", "walk", { y: 0, path: [[-25.0, -26, 0], [-29.9, -22.5, 0], [-30.4, -15.6, 0], [-31.5, -15.6, F], [-32.15, -15.6, F], [-32.15, -23.4, F], [-34.6, -23.4, F]], pace: true, at: 0.1 });
+  extra("Clubgoer", "walk", { y: 0, path: [[-26.8, -9, 0], [-30.4, dz + 0.5, 0], [-31.5, dz + 0.5, F], [-35.2, dz + 0.5, F], [-35.2, -9.2, F]], pace: true, at: 0.55 });
+  extra("Clubgoer", "walk", { y: 0, path: [[-29.6, -26.5, 0], [-30.6, dz - 0.6, 0], [-31.5, dz - 0.6, F], [-32.15, dz - 0.6, F], [-32.15, -6.8, F], [-34.6, -6.8, F]], pace: true, at: 0.8 });
 
   /* ---- the guy who didn't read the sign (club-entry.js, "the bandana guy"):
      off where the newcomers come from. Last, so no one else's index moves. */

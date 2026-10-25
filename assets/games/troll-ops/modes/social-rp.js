@@ -476,7 +476,7 @@ function rpAction() {
   const i = nearestSeat();
   if (i >= 0) {
     const s = rpSeats()[i];
-    return { key: `seat:${i}`, label: s.kind === "piano" ? "Sit at the piano" : "Sit down", ctx: "Sit", time: 0.3, done: () => sitDown(i) };
+    return { key: `seat:${i}`, label: s.kind === "piano" ? "Sit at the piano" : s.label || "Sit down", ctx: "Sit", time: 0.3, done: () => sitDown(i) };
   }
   for (const f of rpLast) { const a = f(); if (a) return a; }
   return null;
