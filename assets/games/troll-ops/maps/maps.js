@@ -16,10 +16,8 @@ import { HOLLOWGRIN } from "./hollowgrin.js?v=hg6tc-sb2-sr1-or1-tcs1-tm3-tm6-tx1
 import { GRINLERIA } from "./grinleria.js?v=hg6e-bl1-bw1-sr1-or1-tx1-sp1-kbt1-gb1-tb1-tb2-kbb2-kbs1";
 import { TROLLFACE_ISLAND } from "./trollface-island.js?v=hg6e-pi1-sr1-or1-wf1-wf2-zf1-bp1-is1-tg1-ip1-mg1-tx1-sp1-ch1-kbt1-gb1-kbb2-kbs1";
 import { TROLLCITY } from "./trollcity.js?v=tc2-wst-sb1-rp1-dj1-fu1b7b7d-tc3-cd1-sh1-zr10-hr2-zp1-sr1-pf1-or1-bw2-bt1-tcs1-tcs2-mg1-tcp1-tx1-trk1-bt3-ch1-jb1-jb3-jb6-sp1-kbt1-gb1";
-import { TROLLINGLOUD } from "./trollingloud.js?v=tl4-fu1c1c2f1m1-tc3-nc1-cd1-sh1-sg1-cw1-zr10-hr2-zp1-jb1-nh1-sr1-hl1-pf1-or1-bw2-bt1-tcs1-cl1-kb4-kb6-kb11-tm4-tm7-tx1-ch1-sp1-hh1-yb1-kbt1-gb3-rh1-dj2-mn1";
-import { GRINJUKU } from "./grinjuku.js?v=gj1-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1";
-import { KABUKIGRIN } from "./kabukigrin.js?v=kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-mg1-kb12-tx1-ch1-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-kbb1-kbb2-wf1-dj2-kbb3-kbs1-mn1-nd1";
-import { ZHUB } from "../modes/zombies/hub-hall.js?v=zh1-sr1-or1";
+import { KABUKIGRIN } from "./kabukigrin.js?v=kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-mg1-kb12-tx1-ch1-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-kbb1-kbb2-wf1-dj2-kbb3-kbs1-mn1-nd1-gr1";
+import { ZHUB } from "../modes/zombies/hub-hall.js?v=zh1-sr1-or1-dm1";
 import { SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1";
 import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer, groundLight } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1";
 import {
@@ -1925,13 +1923,10 @@ MAPS.trollcity.dress = {
     { kind: "paper", n: 10, area: ["street", "plaza"], size: [0.6, 1], colors: [0xd8c8a0, 0xc8b890] },
   ],
 };
-// The neon nightclub: versus, S&D and Zombies, like Troll City.
-MAPS.trollingloud = TROLLINGLOUD;
-// Shinjuku at night (after VALORANT's Split): versus and S&D, ropes up to
-// both Heavens.
-MAPS.grinjuku = GRINJUKU;
-// Grinjuku with a nightclub in its A side, laid out in Roblox Studio
-// (docs/KABUKIGRIN.md): versus and S&D, and Socialize; no Zombies.
+// Shinjuku at night with a nightclub in its A side, laid out in Roblox
+// Studio (docs/KABUKIGRIN.md): versus and S&D, and Socialize; no Zombies.
+// It builds on Grinjuku (grinjuku.js), which is no longer a map of its own,
+// and took over from Trolling Loud as the club (user, 2026-10-24).
 MAPS.kabukigrin = KABUKIGRIN;
 // Troll Royale's own map: 400 m across, far too big for the versus modes, so
 // it stays out of MAP_IDS (the vote pool).

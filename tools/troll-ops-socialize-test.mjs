@@ -100,7 +100,7 @@ await A.evaluate(() => window.__toBo2.menu.go("maps"));
 await sleep(200);
 const socMaps = await A.evaluate(() => [...document.querySelectorAll(".tr-menu-item")].map((b) => b.textContent.trim().toLowerCase()));
 const mapRows = socMaps.filter((l) => !/^(keep this map|back)/.test(l));
-check("its map list is Troll City, Trolling Loud, Kabukigrin and Troll Beach", mapRows.length === 4 && [/troll city/, /trolling loud/, /kabukigrin/, /troll beach/].every((re) => mapRows.some((l) => re.test(l))), socMaps.join(" / "));
+check("its map list is Troll City, Kabukigrin and Troll Beach", mapRows.length === 3 && [/troll city/, /kabukigrin/, /troll beach/].every((re) => mapRows.some((l) => re.test(l))), socMaps.join(" / "));
 await A.evaluate(() => window.__toBo2.menu.back());
 await sleep(200);
 await A.evaluate(() => [...document.querySelectorAll(".tr-menu-item")].find((b) => /^hang out/i.test(b.textContent.trim()))?.click());

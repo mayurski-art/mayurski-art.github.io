@@ -1,14 +1,17 @@
-// Trolling Loud: the club's own systems, in the real game.
+// Kabukigrin's club: its own systems (club-live.js), in the real game.
 //   - the map builds with at most 14 real lights, and the count never changes
 //   - the beat clock advances
-//   - shots: a sign shorts out and relights, the ball spins up, a bottle
-//     breaks, nothing throws
+//   - shots: a sign in the hall shorts out and relights, the ball spins up,
+//     a bottle breaks, nothing throws
 //   - the DJ's track: on in a match, muffled outside the hall, off under
 //     the radio
-//   - Zombies: they reach a player on every floor (ground, mezzanine, roof)
+//   - search & destroy: site A on the dance floor, site B across the street
+// The spots come from the map itself (its debug(), the ball in the scene),
+// so moving a sign or the shelf doesn't break the test. Kabukigrin has no
+// Zombies, so (unlike Trolling Loud's test, which this replaced) there's no
+// zombie routing. Socialize and the DJ: troll-ops-dj-test.mjs.
 //
-// Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-trollingloud-test.mjs
-// SKIP_Z=1 skips the (slow) zombie routing.
+// Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-kabukigrin-club-test.mjs
 
 import http from "node:http";
 import fs from "node:fs";
@@ -37,6 +40,7 @@ await ctx.route(/supabase/, (r) => r.abort());
 let fails = 0;
 const check = (ok, what, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${what}${extra ? "  " + extra : ""}`); if (!ok) fails++; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const MAPS_JS = "/assets/games/troll-ops/maps/maps.js";
 
 async function open(mode) {
   const page = await ctx.newPage();
@@ -48,7 +52,7 @@ async function open(mode) {
     const T = window.__trollOps;
     T.setMode(mode);
     if (T.els.noBots) T.els.noBots.checked = true;
-    if (mode === "zombies") T.loadout.poolMapId = "trollingloud"; else T.loadout.mapId = "trollingloud";
+    T.loadout.mapId = "kabukigrin";
     await T.startGame();
     if (T.isStaging?.()) T.endStaging();
     T.player.maxHp = T.player.hp = 1e9;
@@ -56,6 +60,8 @@ async function open(mode) {
   // the map, built (a fixed sleep wasn't enough on a busy box)
   await page.waitForFunction(() => !!window.__trollOps.builtMap()?.map, null, { timeout: 240000 });
   await sleep(5000);
+  // (waitForFunction needs a plain predicate: an async one returns a Promise, which is truthy at once)
+  await page.evaluate(async (u) => { window.__kb = (await import(u)).MAPS.kabukigrin; }, MAPS_JS);
   return { page, errors };
 }
 
@@ -64,17 +70,15 @@ async function open(mode) {
   console.log("--- versus");
   const { page, errors } = await open("tdm");
   const lightCount = () => page.evaluate(() => { let n = 0; window.__trollOps.scene.traverse((o) => { if (o.isPointLight || o.isSpotLight) n++; }); return n; });
-  const dbg = () => page.evaluate(async () => (await import("/assets/games/troll-ops/maps/maps.js")).MAPS.trollingloud.debug());
-  // (waitForFunction needs a plain predicate: an async one returns a Promise, which is truthy at once)
-  await page.evaluate(async () => { window.__tl = (await import("/assets/games/troll-ops/maps/maps.js")).MAPS.trollingloud; });
-  await page.waitForFunction(() => { const d = window.__tl.debug(); return d.active && d.beat > 0; }, null, { timeout: 60000 });
+  const dbg = () => page.evaluate(() => { const { muffleAt, ...d } = window.__kb.debug(); return d; });
+  await page.waitForFunction(() => { const d = window.__kb.debug(); return d.active && d.beat > 0; }, null, { timeout: 60000 });
   await sleep(1000);
   const d0 = await dbg();
   check(d0.lights > 0 && d0.lights <= 14, "the map makes at most 14 lights", `${d0.lights}`);
   const n0 = await lightCount();
   // the beat, read in-page across 2 s of real time (no stale read across awaits)
   const beats = await page.evaluate(async () => {
-    const M = (await import("/assets/games/troll-ops/maps/maps.js")).MAPS.trollingloud;
+    const M = window.__kb;
     const frame = () => new Promise((r) => requestAnimationFrame(r));
     await frame(); await frame();
     const a = M.debug().beat, t0 = performance.now();
@@ -87,47 +91,57 @@ async function open(mode) {
   const bpm = beats.db / beats.s * 60;
   check(Math.abs(bpm - 128) < 8, "the beat advances at 128 BPM", `${bpm.toFixed(1)} BPM`);
 
-  // shots, straight through the map hook the bullets use
+  // shots, straight through the map hook the bullets use, at spots the map reports
   const shot = await page.evaluate(async () => {
-    const M = (await import("/assets/games/troll-ops/maps/maps.js")).MAPS.trollingloud;
-    const sign = M.debug().signs.find((s) => s.g === 5);           // "u mad?" over the bar
+    const M = window.__kb, T = window.__trollOps;
+    const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const hall = M.dj.club;
+    const inHall = (p) => p.x > hall.x0 && p.x < hall.x1 && p.z > hall.z0 && p.z < hall.z1;
+    const sign = M.debug().signs.find(inHall);
     M.onShot({ x: sign.x, y: sign.y, z: sign.z });
-    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-    const signOut = M.debug().kill[5];
-    M.onShot({ x: 0, y: 6.75, z: -3 });                            // the mirror ball
-    const ball = M.debug().ballBoost;
+    await frame();
+    const signOut = M.debug().kill[sign.g];
+    // the mirror ball: the sphere over the dance floor (its reflection hangs below the floor)
+    let ball = null;
+    T.scene.traverse((o) => {
+      if (ball || !o.isMesh || o.geometry?.type !== "SphereGeometry") return;
+      const p = o.getWorldPosition(o.position.clone());
+      if (p.y > 2 && inHall(p) && o.geometry.parameters.radius < 2) ball = { x: p.x, y: p.y, z: p.z };
+    });
+    if (ball) M.onShot(ball);
+    const boost = M.debug().ballBoost;
+    // a bottle: along the shelf until one breaks
     const sh = M.debug().shelf;
-    M.onShot({ x: 29.6, y: sh.y0 + 0.6, z: 1.6 });                 // a bottle
+    for (let z = sh.z0 + 0.1; z < sh.z1 && !M.debug().gone; z += 0.2) M.onShot({ x: (sh.x0 + sh.x1) / 2, y: sh.y0 + 0.6, z });
     const gone = M.debug().gone;
-    M.onShot({ x: 0.3, y: 1.6, z: -14.0 });                        // the decks
-    return { signOut, ball, gone, group: sign.g };
+    M.onShot({ x: M.dj.spot.x, y: 1.6, z: M.dj.spot.z });           // the decks
+    return { signOut, ball, boost, gone, group: sign.g };
   });
-  check(shot.signOut === 1, "a shot sign goes dark");
-  check(shot.ball > 0.9, "the mirror ball spins up when shot");
+  check(shot.signOut === 1, "a shot sign in the hall goes dark", `group ${shot.group}`);
+  check(!!shot.ball && shot.boost > 0.9, "the mirror ball spins up when shot", JSON.stringify(shot.ball));
   check(shot.gone === 1, "a shot bottle breaks");
   await sleep(4000);
-  const back = await page.evaluate(async () => (await import("/assets/games/troll-ops/maps/maps.js")).MAPS.trollingloud.debug().kill[5]);
+  const back = await page.evaluate((g) => window.__kb.debug().kill[g], shot.group);
   check(back === 0, "the sign relights");
   check((await lightCount()) === n0, "the light count never changed", `${n0}`);
 
-  // the track: on in the hall, muffled out in the alley, off under the radio
+  // the track: on in the hall, muffled out on A Main, off under the radio
   const snd = await page.evaluate(async () => {
-    const T = window.__trollOps;
-    const M = (await import("/assets/games/troll-ops/maps/maps.js")).MAPS.trollingloud;
+    const T = window.__trollOps, M = window.__kb, h = M.dj.club;
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     // (headless, the camera can sit on the intro shot, so the zones are read
     // straight off the muffle map rather than from wherever the camera is)
     await wait(1500);
-    const hall = { want: M.debug().want, lp: M.debug().muffleAt(0, 1.9, 4) };
-    const alley = { lp: M.debug().muffleAt(0, 1.7, 30) };
+    const hall = { want: M.debug().want, lp: M.debug().muffleAt((h.x0 + h.x1) / 2, 1.9, (h.z0 + h.z1) / 2) };
+    const street = { lp: M.debug().muffleAt(h.x1 + 4.4, 1.7, (h.z0 + h.z1) / 2) };
     M.onFrame({ live: true, radio: true });
     const radio = { want: M.debug().want };
-    return { hall, alley, radio, ctx: !!T.audio?.ctx };
+    return { hall, street, radio, ctx: !!T.audio?.ctx };
   });
   if (snd.hall.lp === null) console.log("SKIP the track (no audio context in this browser)");
   else {
     check(snd.hall.want > 0, "the DJ's track plays in a match");
-    check(snd.alley.lp < snd.hall.lp, "it's muffled outside the hall", `${Math.round(snd.hall.lp)} Hz -> ${Math.round(snd.alley.lp)} Hz`);
+    check(snd.street.lp < snd.hall.lp, "it's muffled outside the hall", `${Math.round(snd.hall.lp)} Hz -> ${Math.round(snd.street.lp)} Hz`);
     check(snd.radio.want === 0, "it stops under the radio");
   }
   check(errors.length === 0, "no page errors", errors.slice(0, 3).join(" | "));
@@ -135,56 +149,26 @@ async function open(mode) {
 }
 
 /* ------------------------------------------------------- search & destroy */
-// pickBombSites works the sites out from the spawn halves; they should land
-// in the two side rooms on the ground floor: the VIP lounge (west) and the
-// bar (east), one each, both inside the club.
+// The sites are placed in Studio (kabukigrin.js SITES): A on the club's dance
+// floor, B across the street on the B side. The game must use those two, on
+// the ground.
 {
   console.log("--- search & destroy");
   const { page, errors } = await open("snd");
   const r = await page.evaluate(async () => {
-    const T = window.__trollOps;
+    const T = window.__trollOps, M = window.__kb;
     const { groundHeightAt } = await import("/assets/games/troll-ops/core/movement.js");
-    return T.bombSites().map((s) => ({ ...s, y: groundHeightAt(typeof T.colliders === "function" ? T.colliders() : T.colliders, s.x, s.z, 3) }));
+    const col = typeof T.colliders === "function" ? T.colliders() : T.colliders;
+    return { game: T.bombSites().map((s) => ({ ...s, y: groundHeightAt(col, s.x, s.z, 3) })), map: M.debug().sites, hall: M.dj.club };
   });
-  console.log("sites", JSON.stringify(r));
-  const room = (s) => Math.abs(s.x) > 14.5 && Math.abs(s.x) < 29.5 && s.z > -7 && s.z < 13 ? (s.x < 0 ? "VIP" : "bar") : null;
-  for (const s of r) check(!!room(s) && Math.abs(s.y - 0.3) < 0.05, `site ${s.id} is on the club floor in the VIP or the bar`, `(${s.x}, ${s.y?.toFixed(2)}, ${s.z}) ${room(s) || "outside"}`);
-  check(r.length === 2 && room(r[0]) && room(r[1]) && room(r[0]) !== room(r[1]), "one site in each room");
-  check(errors.length === 0, "no page errors", errors.slice(0, 3).join(" | "));
-  await page.close();
-}
-
-/* ---------------------------------------------------------------- zombies */
-if (!process.env.SKIP_Z) {
-  console.log("--- zombies");
-  const { page, errors } = await open("zombies");
-  await page.waitForFunction(() => !!window.__trollOps.zdir(), null, { timeout: 120000 });
-  // stand still on each floor; at least one zombie must reach you
-  for (const [name, x, y, z] of [["ground (bar)", 21.5, 0.3, 6], ["mezzanine", -11.7, 4.5, 4.5], ["roof", 10, 9.0, -2]]) {
-    const r = await page.evaluate(async ({ x, y, z }) => {
-      const T = window.__trollOps;
-      const zd = T.zdir();
-      zd.clear();
-      zd.startRound(4);
-      T.move.pos.set(x, y, z);
-      T.player.maxHp = T.player.hp = 1e9;
-      const t0 = performance.now();
-      let best = 99;
-      while (performance.now() - t0 < 150000) {
-        T.move.pos.set(x, y, z);
-        for (const q of zd.zombies) {
-          if (!q.alive || q.dying) continue;
-          const p = q.mesh.position;
-          const d = Math.hypot(p.x - x, p.z - z);
-          if (Math.abs(p.y - y) < 1.2) best = Math.min(best, d);
-        }
-        if (best < 2.5) break;
-        await new Promise((r) => setTimeout(r, 500));
-      }
-      return { best: +best.toFixed(1), s: ((performance.now() - t0) / 1000).toFixed(0) };
-    }, { x, y, z });
-    check(r.best < 2.5, `zombies reach a player on the ${name}`, `closest ${r.best} m after ${r.s} s`);
-  }
+  console.log("sites", JSON.stringify(r.game));
+  const at = (id) => r.game.find((s) => s.id === id);
+  const placed = r.map.every((m) => { const g = at(m.id); return g && Math.hypot(g.x - m.x, g.z - m.z) < 0.5; });
+  check(r.game.length === 2 && placed, "the game plays the map's two sites", JSON.stringify(r.map));
+  const A = at("A"), B = at("B"), h = r.hall;
+  check(!!A && A.x > h.x0 && A.x < h.x1 && A.z > h.z0 && A.z < h.z1, "site A is in the club", A && `(${A.x}, ${A.z})`);
+  check(!!B && B.x > 0, "site B is across the street", B && `(${B.x}, ${B.z})`);
+  for (const s of r.game) check(Math.abs(s.y - (r.map.find((m) => m.id === s.id)?.y ?? 0)) < 0.1, `site ${s.id} is on the ground`, `y ${s.y?.toFixed(2)}`);
   check(errors.length === 0, "no page errors", errors.slice(0, 3).join(" | "));
   await page.close();
 }

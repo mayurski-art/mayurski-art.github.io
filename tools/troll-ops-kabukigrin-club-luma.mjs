@@ -1,4 +1,4 @@
-// Trolling Loud: can you see a player? For each spot, a player body (the
+// Kabukigrin's club: can you see a player? For each spot, a player body (the
 // same near-black operator material remote players wear) stands there and
 // the view is rendered twice, with and without it. The pixels that change
 // are the body; the same pixels in the empty render are what is behind it.
@@ -6,7 +6,7 @@
 // the head (pixels it brightened) and the limbs (pixels it darkened) are
 // scored apart, each as brighter / darker mean luma. Target: either >= 1.6.
 //
-// Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-trollingloud-luma.mjs
+// Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-kabukigrin-club-luma.mjs
 // TIER=low turns SSAO and bloom off. Writes <spot>[-tier].png (with the body)
 // to .claude/club-shots/luma/.
 
@@ -36,19 +36,18 @@ const BASE = `http://localhost:${server.address().port}`;
 // [name, body x, feet y, z, camera x, z]: the camera stands at eye height on
 // the body's floor and looks at its chest
 const SPOTS = [
-  ["dance floor (DJ line)", 0, 0, -8, 0, -2],
-  ["dance floor", 3, 0, -8, 3, -2],
-  ["hall booths", -11, 0.3, 6, -11, -0.5],
-  ["bar (site B)", 16, 0.3, 8.3, 16, 2.3],
-  ["VIP (site A)", -19.6, 0.3, 8.25, -19.6, 2.3],
-  ["green room", -20, 0.3, -18, -20, -11],
-  ["lobby", 0, 0.3, 17, 0, 21.5],
-  ["mezzanine", -11.7, 4.5, 4.5, -11.7, -1.5],
-  ["terrace", 4, 4.5, 19, -2, 19],
-  ["roof", 10, 9, -2, 16, -2],
-  ["alley", 0, 0, 27.5, -6, 27.5],
-  ["alley spawn (scaffold)", 6, 0, 31.4, 0, 31.4],
-  ["yard", 0, 0, -30, -6, -30],
+  ["dance floor (DJ line)", -26.5, 0, 15, -20.5, 15],
+  ["dance floor", -22, 0, 11, -18.5, 11],
+  ["site A (dance floor)", -22, 0, 15, -16, 18],
+  ["bar", -18.2, 0, 13, -23, 13],
+  ["booths", -21.5, 0, 21.5, -21.5, 16.5],
+  ["VIP", -28, 0.3, 25, -26, 23.5],
+  ["mezzanine (A Heaven)", -9, 3, 15, -12.5, 12.5],
+  ["office", -12.5, 3, 21.5, -10.6, 23.2],
+  ["A Main", -27, 0, -5, -27, -12],
+  ["mid", -3, 0, 14, 3.5, 20],
+  ["yokocho", 18, 0, -3, 12, -3],
+  ["site B", 22, 0, 15, 16, 15],
 ];
 const TIER = process.env.TIER || null;
 
@@ -64,10 +63,12 @@ await page.evaluate(async (tier) => {
   if (tier) T.settings.gfx = tier;
   T.setMode("tdm");
   if (T.els.noBots) T.els.noBots.checked = true;
-  T.loadout.mapId = "trollingloud";
+  T.loadout.mapId = "kabukigrin";
   await T.startGame();
   if (T.isStaging()) T.endStaging();
 }, TIER);
+// the map built and its models streamed in (Kabukigrin's glbs outlast a fixed sleep)
+await page.waitForFunction(() => !!window.__trollOps.builtMap()?.map && !window.__trollOps.loadState().open, null, { timeout: 240000 });
 await new Promise((r) => setTimeout(r, 5000));
 await page.evaluate(async (tier) => {
   const T = window.__trollOps;

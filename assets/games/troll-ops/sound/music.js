@@ -28,6 +28,7 @@ const TRACKS = [
   { title: "Headlines", artist: "Drake", src: "assets/games/troll-ops/music/headlines.mp3" },
   { title: "Hold That Heat (feat. Travis Scott)", artist: "Southside, Future", src: "assets/games/troll-ops/music/hold-that-heat.mp3" },
   { title: "Breathe", artist: "Yeat", src: "assets/games/troll-ops/music/breathe.mp3" },
+  { title: "Griddlë (feat. Don Toliver)", artist: "Yeat", src: "assets/games/troll-ops/music/griddle.mp3" },
 ];
 
 // v2 made shuffle the default. The old key saved `shuffle: false` for everyone

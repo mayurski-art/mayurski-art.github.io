@@ -402,12 +402,12 @@ Map rules:
 - `socialize-test` (3 tabs)
 - `bar-test`
 - `rp-test`
-- `dj-test` (2 players, SHOTS=dir)
-- `club-crowd-test` (Trolling Loud's crowd). Shots: `MODE=social node tools/troll-ops-trollingloud-shots.mjs [views]`, `VIEW=x,y,z,lx,ly,lz,fov` for a custom camera.
+- `dj-test` (Kabukigrin, 2 players, SHOTS=dir)
+- `club-crowd-test` (Trolling Loud's crowd). Shots: `MODE=social node tools/troll-ops-kabukigrin-club-shots.mjs [views]`, `VIEW=x,y,z,lx,ly,lz,fov` for a custom camera.
 
 **Maps**
-- `trollingloud-test` (SKIP_Z=1)
-- `trollingloud-shots` (TIER=low)
+- `kabukigrin-club-test`
+- `kabukigrin-club-shots` (TIER=low), `kabukigrin-club-luma`
 - `map-audit` (Pentagrin's 4 unused spawns are a known FAIL)
 - `map-walk` (STEP=1)
 - `map-shots` (MODE=view)
@@ -452,7 +452,7 @@ Map rules:
 - royale-bots "most picked something up"
 - view-mode "W + Space flies"
 - the sync Infection step is flaky
-- Flaky, pass alone: input-test "look pad turns", killcam-test (slow load), throw-test's two-tab `ck` checks, club-entry-test "both bouncers carry you", trollingloud-test "zombies reach a player on the ground (bar)" (~1 run in 3, main too), bot-head-test (runs close to its 0.28 limit)
+- Flaky, pass alone: input-test "look pad turns", killcam-test (slow load), throw-test's two-tab `ck` checks, club-entry-test "both bouncers carry you", bot-head-test (runs close to its 0.28 limit)
 
 **Tools**
 - `static-serve.mjs [port]`
@@ -635,6 +635,8 @@ Map rules:
 - **2026-10-14** (-br1, LIVE main 1641012b; gate not run, user said push) Black Ops 2 reloads for the SMGs (MP7, Vector, PDW-57), LMGs (Colt = HAMR, M60 = Mk 48, RPK = QBB) and pistols (Five-seven, KAP-40, slide racked to finish an empty one), from BO2 footage; procedural drum mags keep their roll through any reload. Tests: arreload (361), pistols, smgs.
 
 - **2026-10-14** (-sr1; stylised realism) Env map from the sky, a post-tonemap grade per map, the gun drawn inside the composer, a sun-coloured rim on characters; Cycles light-map bakes (sky, bounce, lamps; runtime lamps removed) for Cul-de-Grin, Grin Site, Dust Bowl, Grin Beach, Grinjuku, the Depot and the Grinleria, grades for the rest (how a map is baked, and the lessons: REALISM.md; krypto2009 eggs still wait on photos); wear decals and glossy puddles. Tests: input, menu, killcam, rope, view-mode, remote-body, fps, every map's bots move.
+- **2026-10-24** (tools only) The club tests on Kabukigrin, since Trolling Loud is no longer a map: trollingloud-test/-shots/-luma are now kabukigrin-club-test/-shots/-luma (spots read off the map; S&D checks the Studio sites; no Zombies section, Kabukigrin has none), dj-test defaults to Kabukigrin, shots and luma wait for the models to stream in. Tests: kabukigrin-club-test, dj-test, shots, luma (dance floor 1.24 and A Main 1.58 under the 1.6 visibility target).
+- **2026-10-24** (-gr1) Radio: Griddlë (Yeat feat. Don Toliver), beat grid 135 BPM, the first song added with tools/troll-ops-add-song.mjs (one command per song from now on). Tests: radio-check.
 - **2026-10-22** (-yb1) Radio: Breathe (Yeat), beat grid 118 BPM. Tests: dj, menu, trollingloud.
 - **2026-10-22** (-hh1) Radio: Hold That Heat (Southside, Future feat. Travis Scott), beat grid 130 BPM. Tests: dj, menu, trollingloud.
 - **2026-10-15** (-hl1) Radio: Headlines (Drake), beat grid 152 BPM. Tests: dj, menu, trollingloud.
@@ -729,3 +731,4 @@ Map rules:
 - **2026-09-29** Trollface Island Royale + sky lobby, bus, glider; Chainsaw, Reaper's Grin; K9, VTOL Warship, Swarm, Counter-UAV; HUD layout editor.
 - **2026-09-28** Troll Royale 1-2; Trollsaber; Green Candles redesign; Grinmington 870; BO2 medals; HUD cleanup; Trolls vs Jeets.
 - **2026-09-27 and earlier** PF arms and feel; duo/1P/3P emotes; match chat and profiles; Vice Grin; Hollowgrin + multi-map zombies; emote wheel; two-hand hold; the "Troll Forces" rename; BO2 streak overhaul; graphics tiers; inspects; light pool; touch HUD; skin editor; Infection; third-person camera; the 6 PvP maps; Pentagrin zombies.
+- **2026-10-24** (-dm1) Grinjuku and Trolling Loud are no longer maps (user: Kabukigrin replaces them): out of MAPS, the Zombies pool and hub pad, Socialize, the map shots; trollingloud.js + its kitchen deleted, grinjuku.js kept as Kabukigrin's base. (-pv3) Kabukigrin's map shot re-rendered from the crossing up A Main with the real Japanese signs and the wet street, on its own SHOT_V tag

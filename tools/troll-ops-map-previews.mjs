@@ -50,16 +50,14 @@ const VIEWS = {
   hollowgrin: [38, 26, 34, 74, 3, -6, 62],   // the Grinmoor Fair: mansion, fountain, Ferris wheel, coaster
   grinleria: [22.5, 6.3, -1.2, -6, 2.0, 2.2, 72],
   trollcity: [-30, 6.2, 0.4, 44, 5.5, 0, 60],   // down Main Street: the saloon, the bank, the courthouse dome
-  trollingloud: [0.5, 1.75, 5.5, 0, 3.8, -15, 76],   // the dance floor: the ball, the arches, the crystal wall, the DJ
-  grinjuku: [0, 2.6, -37, 0, 3.4, -12, 70],   // up Mid Top through the torii: lantern strings, kanban, the post office
-  kabukigrin: [-25.2, 2.0, -29, -28.3, 4.0, 4, 72],   // up A Main: the pachinko parlour's SLOT 777, the club's marquee at the end of the line
+  kabukigrin: [-27.4, 2.4, -35.5, -28.1, 5.0, 4, 60],   // up A Main from the crossing: both near shop bands lettered, the snack bar neon, SLOT 777, the wet street, the club at the end
   trollface: [18, 385, 232, 18, -12, 20, 44],   // Trollface Island (Troll Royale): the whole island from high off the south, the lake its grin
 };
 // Maps that only build in their own mode (the island is a prestige reward map
 // in versus, so tdm falls back to the first map).
 const MODE = { trollface: "royale" };
 // Maps that need longer than 6 s to finish loading (the bigger Troll Beach).
-const LOAD_WAIT = { grinbeach: 40000 };
+const LOAD_WAIT = { grinbeach: 40000, kabukigrin: 15000 };   // Kabukigrin: the wet street's reflections
 // VIEW=x,y,z,lx,ly,lz,fov overrides the camera and TAG=<name> renames the
 // master (no webp), for trying framings.
 const TRY = process.env.VIEW?.split(",").map(Number);

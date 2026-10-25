@@ -98,7 +98,7 @@ const wa = await where(a), wb = await where(b);
 check(wa.map === "The Hub" && wb.map === "The Hub", "both are in The Hub", `${wa.map} / ${wb.map}`);
 check(wa.room === HUBROOM && wb.room === HUBROOM, "on the private hub code", `${wa.room} / ${wb.room}`);
 const signs = await R(a, () => Object.keys(window.__trollHub.signs() || {}).length);
-check(signs === 5, "five pad signs", String(signs));
+check(signs === 4, "four pad signs (three maps and the private pad)", String(signs));
 check(await R(a, () => !document.querySelector(".zhb")?.hidden), "the hub HUD shows");
 // the boards: this week's Zombies rows, best wave and kills summed per player
 await R(a, () => window.__trollHub.setBoardRows([
