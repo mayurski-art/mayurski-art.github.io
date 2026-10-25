@@ -98,7 +98,8 @@ export const STREAK_DEFS = {
     cost: 500,
     rank: 22,
     duration: 90,
-    blurb: "Set down an anti-air turret. It locks onto enemy aircraft and fires missiles until they're gone. Enemies can shoot it. Lasts 90 seconds.",
+    cooldown: 60,      // user: it had none (everything past Lightning Strike gets one)
+    blurb: "Set down an anti-air turret. It locks onto enemy aircraft and fires missiles until they're gone. Enemies can shoot it. Lasts 90 seconds. 60 second cooldown before the next one.",
   },
   k9: {
     id: "k9",
