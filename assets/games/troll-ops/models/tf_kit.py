@@ -184,9 +184,10 @@ class Registry:
     def overlaps(self):
         """Pairs of props whose bounds cross, unless one stands on the other."""
         bad = []
+        on = lambda p: p["on"] if isinstance(p["on"], (list, tuple)) else (p["on"],)      # noqa: E731
         for i, a in enumerate(self.props):
             for c in self.props[i + 1:]:
-                if a["on"] == c["id"] or c["on"] == a["id"]:
+                if a["id"] == c["id"] or c["id"] in on(a) or a["id"] in on(c):     # one prop in pieces, or stood on
                     continue
                 if all(a["lo"][k] < c["hi"][k] - 0.005 and c["lo"][k] < a["hi"][k] - 0.005 for k in range(3)):
                     bad.append((a["id"], c["id"]))

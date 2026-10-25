@@ -25,6 +25,8 @@ import { mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-k
 import { ISLAND_SOLIDS } from "./trollface-island-colliders.js?v=is1-ip1-mg1-sp1";
 import { ISLAND_GROUND } from "./trollface-island-ground.js?v=tg1";
 import { ISLAND_PROPS } from "./trollface-island-props.js?v=ip1-mg1-sp1";
+import { TF_BUILT } from "./trollface-island-built.js?v=tfb1";
+import { buildIslandSigns } from "./trollface-island-signs.js?v=tfs1";
 import { buildIslandProps } from "./island-props.js?v=ip1-mg1-tx1-sp1-kbt1-pm1";
 import { sampleField } from "../core/ground-field.js?v=gf1-tg1";
 
@@ -88,6 +90,8 @@ const LOOT_EXTRA = [
   { x: LANDMARKS.boat.x + 7, z: LANDMARKS.boat.z, y: 1.32 },
   { x: BRIDGE_MID - 14, z: LANDMARKS.bridge.z, y: 0.66 },
   { x: BRIDGE_MID + 6, z: LANDMARKS.bridge.z, y: 0.66 },
+  // the rebuilt places' floors, roofs and balconies (the Blender build's)
+  ...Object.values(TF_BUILT).flatMap((p) => p.loot),
 ];
 
 /* The ground's hills, sculpted in Studio (phase 3 of the doc "Troll Royale
@@ -626,7 +630,7 @@ function buildTrollfaceIsland(mapApi) {
   const top = shapeOf(ISLAND_EDGE);
   top.holes.push(shapeOf([...LAKE_HOLE].reverse()));
   // The plazas too (paved below): no grass under them to fight with.
-  const PLAZAS = [[L.city.x, L.city.z, 76, 46], [L.skate.x, L.skate.z, 62, 38], [L.gallery.x, L.gallery.z, 34, 32], [L.shop.x, L.shop.z + 2, 40, 24]];
+  const PLAZAS = [[L.city.x, L.city.z, 80, 80], [L.skate.x, L.skate.z, 62, 38], [L.gallery.x, L.gallery.z, 34, 32], [L.shop.x, L.shop.z + 2, 40, 24]];
   for (const [x, z, w, d] of PLAZAS) top.holes.push(shapeOf([[x - w / 2, z - d / 2], [x - w / 2, z + d / 2], [x + w / 2, z + d / 2], [x + w / 2, z - d / 2]]));
   const slab = new THREE.ExtrudeGeometry(top, { depth: CLIFF_DEPTH, bevelEnabled: false, curveSegments: 1 });
   slab.rotateX(-Math.PI / 2);
@@ -714,30 +718,19 @@ function buildTrollfaceIsland(mapApi) {
     mapModel(api, "tf-memelab", { x, z });
   }
 
-  // Troll City: the black trollface dome among blue and yellow towers, some
-  // with a lobby you can run through. Drawn by tf-city + tf-cityface
-  // (models/build_island.blender.py, its TOWERS list copies these numbers).
+  // A place a tf_<area>.py module rebuilt (models/build_trollface_island.blender.py)
+  // brings its own colliders, in trollface-island-built.js: laid here for the
+  // colliders tool, as the kit's are (in the game the data file has them).
+  const built = (key) => { for (const [bx, bz, w, d, h, y, pen] of TF_BUILT[key].colliders) api.ghostBox(bx, bz, w, d, h, { y, pen }); };
+
+  // Troll City: the black trollface dome in a square, the main street round
+  // it, eight shops you can walk into and two towers behind. Drawn by
+  // tf-city-p1 (models/tf_city.py; a rebuilt place's GLB gets a new name a
+  // phase, since the asset service worker re-checks art daily) + tf-cityface.
   {
     const { x, z } = L.city;
-    K.disc(x, z, 11, 5, null);                                              // the dome's drum...
-    K.disc(x, z, 8, 5.5, null, { y: 5 });                                   // ...and its crown
-    const tower = (dx, dz, w, d, h, doors) => {
-      if (doors) {
-        K.room(x + dx, z + dz, w, d, 4, null, doors);
-        K.box(x + dx, z + dz, w, d, h - 4, null, { y: 4 });
-        K.box(x + dx - w / 4, z + dz, 1, 1, 4, null);                      // a pillar for cover inside
-      } else K.box(x + dx, z + dz, w, d, h, null);
-    };
-    tower(-24, -2, 9, 9, 18, [["e", 0, 3], ["s", 0, 3]]);
-    tower(-22, 11, 8, 8, 12);
-    tower(-33, 6, 8, 10, 24, [["n", 0, 3], ["e", 1, 2.6]]);
-    tower(4, -17, 10, 8, 22, [["s", 0, 3], ["w", 0, 2.6]]);
-    tower(15, -15, 5, 5, 40);
-    tower(-6, -18, 8, 7, 16);
-    tower(22, 4, 9, 9, 20, [["w", 0, 3], ["s", 2, 2.6]]);
-    tower(31, -5, 8, 8, 14);
-    tower(27, 14, 8, 8, 10, [["n", 0, 3]]);
-    mapModel(api, "tf-city", { x, z });
+    built("city");
+    mapModel(api, "tf-city-p1", { x, z });
     mapModel(api, "tf-cityface", { x, z });
   }
 
@@ -794,19 +787,13 @@ function buildTrollfaceIsland(mapApi) {
 
   // Troll Peak: a terraced purple mountain, stairs round it from terrace to
   // terrace, and a snowy summit with the flag you can't climb.
+  // Terraces [22, 4.62], [15, 8.58], [9, 12.21] with their three flights,
+  // then the summit's three bands with switchback flights up to the hut at
+  // 30 m. Drawn by tf-peak-p1 (models/tf_peak.py), its colliders the build's.
   {
     const { x, z } = L.peak;
-    // Terraces: [radius, top]. Each ring is as wide as the flight up to the
-    // next is long (0.5 m a step), so no flight overhangs the ring below.
-    const tiers = [[22, 4.62], [15, 8.58], [9, 12.21]];
-    // Drawn by tf-peak (models/build_island.blender.py: TIERS, the summit,
-    // the flag and these three flights step for step).
-    for (const [rad, top] of tiers) K.disc(x, z, rad - 0.6, top, null, { visual: false });
-    K.disc(x, z, 7.6, 26, null, { y: 12.21, visual: false });
-    K.stairs(x, z + 21.4, 0, 1, 0, 4.62, 4, null);
-    K.stairs(x + 14.4, z, 1, 0, 4.62, 8.58, 4, null);
-    K.stairs(x, z - 8.4, 0, -1, 8.58, 12.21, 4, null);
-    mapModel(api, "tf-peak", { x, z });
+    built("peak");
+    mapModel(api, "tf-peak-p1", { x, z });
   }
 
   // The Cave: a rock mound with a tunnel through it (in from the south), and
@@ -1080,9 +1067,25 @@ function dressIsland(api, root, K, M, r, clear) {
     g.translate(l.x + dx, 0.05, l.z + dz);
     grins.push(g);
   }
+  // ...and the motif where the doc puts it: the Peak hut's round window
+  // (lit from inside, the grin on the glass) and a mosaic on the blue
+  // tower's north wall, facing the square (tf_city.py leaves that face bare)
+  {
+    const [wx, wy, wz] = TF_BUILT.peak.window;
+    const g = new THREE.PlaneGeometry(1.15, 1.15);
+    g.translate(wx, wy, wz);
+    grins.push(g);
+    const m = new THREE.PlaneGeometry(5, 5);
+    m.rotateY(Math.PI);
+    m.translate(L.city.x - 12, 5.2, L.city.z + 28.5 - 0.06);
+    grins.push(m);
+  }
   const gm = new THREE.Mesh(mergeGeometries(grins, false), grinMat);
   gm.renderOrder = 1;
   root.add(gm);
+
+  // the rebuilt places' sign boards, lettered (trollface-island-signs.js)
+  root.add(buildIslandSigns(Object.values(TF_BUILT).flatMap((p) => p.signs)));
 }
 
 export const TROLLFACE_ISLAND = {
