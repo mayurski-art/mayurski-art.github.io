@@ -11,7 +11,8 @@
   LB.register({
     gameId: "troll-man",
     gameName: "Troll Man",
-    mount: "#lb-root",
+    // no mount: game.js draws the board itself, the cabinet's way
+    // (TrollLeaderboard.board, the HIGH SCORES page and the trophy panel)
 
     blank: () => ({ score: 0, level: 0, games: 0 }),
     reduce: (you, ev) => {

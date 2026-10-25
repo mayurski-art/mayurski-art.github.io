@@ -359,6 +359,14 @@
     try { g.provider.recordEvent(ev); } catch (_) { /* never break a game */ }
     refresh(g);
   }
+  /* This week's board for a game, ranked and cut to its boardSize, for a
+     game that draws it in its own style (Troll Man's high-score screen):
+     { weekLabel, weekId, resetsIn, source, loggedIn, entries: [{ rank, name, you, ...stats }] }. */
+  async function board(gameId) {
+    const g = get(gameId); if (!g) return null;
+    const b = await g.provider.getBoard();
+    return Object.assign({}, b, { entries: rankEntries(g.config, b.entries).slice(0, g.config.boardSize || 10) });
+  }
   function setProvider(gameId, p) { const g = get(gameId); if (g && p) { g.provider = p; refresh(g); } }
   function configure(gameId, partial) {
     const g = get(gameId); if (!g || !partial) return;
@@ -443,7 +451,7 @@
 
   window.TrollLeaderboard = {
     __engine: true,
-    register, mount, record, refresh: id => refresh(get(id)),
+    register, mount, record, refresh: id => refresh(get(id)), board,
     setProvider, configure, setPlayerName, mountArcadeBoard,
     // shared helpers exposed for configs / tests
     weekId, weekLabel, weekWindow, timeLeft, hashStr, rng: mulberry32, hashColor,
