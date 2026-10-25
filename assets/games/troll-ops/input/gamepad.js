@@ -126,12 +126,25 @@ export function pollGamepad(dt) {
 
   // The strike tablet takes the pad: either stick aims, A / R2 marks,
   // B undoes (and cancels with nothing marked). Nothing else fires.
+  // D-pad right: a tap marks too, a hold cancels (calling.js
+  // updateStreakControl), counted only from a press made with the tablet up.
+  // The press that opened it is still down on the first frames, and this
+  // branch used to leave endStreak at that press's "held" for as long as the
+  // tablet was up, so the hold timer ran out and cancelled the strike by
+  // itself (user, 2026-10-25: "when u click right d pad it sort of
+  // autocancels").
   if (game.strikeTablet?.isOpen) {
     game.strikeTablet.stick(game.gamepadState.moveX + lookX, game.gamepadState.moveY + lookY, dt);
     game.gamepadState.lookDX = 0; game.gamepadState.lookDY = 0;
     game.gamepadState.moveX = 0; game.gamepadState.moveY = 0;
     if (pressedEdge(0) || pressedEdge(7)) game.strikeTablet.place();
     if (pressedEdge(1)) game.strikeTablet.undo();
+    if (pressedEdge(15)) game.streakEnd.padAt = performance.now();
+    if (game.gpPrev[15] && !btn(15) && game.streakEnd.padAt) {
+      if (performance.now() - game.streakEnd.padAt < 300) game.strikeTablet.place();
+      game.streakEnd.padAt = 0;
+    }
+    game.gamepadState.endStreak = !game.localPauseOnly && btn(15) && !!game.streakEnd.padAt;
     game.gamepadState.firing = false; game.gamepadState.jump = false; game.gamepadState.ads = false;
     game.gpPrev = {};
     for (let i = 0; i < gp.buttons.length; i++) game.gpPrev[i] = btn(i);
