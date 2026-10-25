@@ -2,7 +2,7 @@
 Troll Forces — a map's ground light map (stylised realism, REALISM.md).
 
 Run with:
-  blender --background --python bake_map_ground.blender.py -- <mapId> [sky strength] [lamp watts a candela]
+  blender --background --python bake_map_ground.blender.py -- <mapId> [sky strength] [lamp watts a candela] [scale]
 
 Reads <mapId>-placements.json (tools/troll-ops-map-placements.mjs: every
 model the map places, its bounds and bake colours), stands the finished
@@ -27,6 +27,7 @@ def main():
     map_id = args[0]
     strength = float(args[1]) if len(args) > 1 else 1.0   # as the builder's bake_every_model sky
     lamp_w = float(args[2]) if len(args) > 2 else 0.0      # as its lamps=: the map's point lights baked in
+    scale = float(args[3]) if len(args) > 3 else 1.0       # stored as light * scale (groundBake.intensity PI / scale)
     with open(os.path.join(OUT_DIR, map_id + "-placements.json")) as f:
         spec = json.load(f)
     bpy.ops.object.select_all(action="SELECT")
@@ -46,7 +47,7 @@ def main():
                 res=2048 if size > 64 else 1024, samples=128,
                 sky=(up or 0x8aa2cc, horizon or up or 0x8aa2cc, strength), color=spec["ground"] or 0x808080, blur=2,
                 lights=[((x, y, z), col, inten * lamp_w, 0.15) for (x, y, z, col, inten, _d) in spec.get("lights", [])] if lamp_w else (),
-                occluders=spec.get("occluders", ()))   # (what the game draws in code over the ground: a ceiling)
+                occluders=spec.get("occluders", ()), scale=scale)   # (what the game draws in code over the ground: a ceiling)
     remove_context(ctx)
     print("GROUND BAKE", map_id, "rect: [%g, %g, %g]" % rect)
 

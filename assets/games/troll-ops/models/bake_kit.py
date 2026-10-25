@@ -17,6 +17,9 @@ bake = {
   "ground": 0x8faa70,               # the bounce plane's colour (None: no plane)
   "lights": [((x, y, z), 0xffcf9a, watts, radius), ...],   # GAME coordinates
   "blur": 1,                        # masked blur radius in pixels (bake noise)
+  "scale": 1.0,                     # stored as light * scale (0.5: lamp-lit surfaces
+                                    # up to 2 before the 8-bit image clips; the game
+                                    # then lights it at PI / scale)
   "occluders": [(w, h, d, x, y, z), ...],   # boxes that block light, not baked
                                     # (floors the game builds in JS, say)
 }
@@ -192,7 +195,7 @@ def remove_context(objs):
 
 
 def bake_ground(path, rect, res=2048, samples=128, sky=(0x8aa2cc, 0x6f8a55, 1.0), color=0x8faa70,
-                lights=(), blur=1, occluders=()):
+                lights=(), blur=1, occluders=(), scale=1.0):
     """The light on the ground at y 0 over rect = (x0, z0, size) in GAME
     coordinates. Image u runs with x, v with z (glTF's top-down v: the
     game reads it as u = (x - x0) / size, v = (z - z0) / size)."""
@@ -212,14 +215,14 @@ def bake_ground(path, rect, res=2048, samples=128, sky=(0x8aa2cc, 0x6f8a55, 1.0)
     me.materials.append(m)
     ob = bpy.data.objects.new("GS_GroundBake", me)
     bpy.context.scene.collection.objects.link(ob)
-    bake_lightmap(ob, path, res=res, samples=samples, sky=sky, ground=None, lights=lights, blur=blur, occluders=occluders, uv=False)
+    bake_lightmap(ob, path, res=res, samples=samples, sky=sky, ground=None, lights=lights, blur=blur, occluders=occluders, scale=scale, uv=False)
     bpy.data.objects.remove(ob)
     bpy.data.meshes.remove(me)
     bpy.data.materials.remove(m)
 
 
 def bake_lightmap(obj, path, res=1024, samples=128, sky=(0x8aa2cc, 0x6f8a55, 1.0),
-                  ground=0x8faa70, lights=(), blur=1, occluders=(), uv=True):
+                  ground=0x8faa70, lights=(), blur=1, occluders=(), uv=True, scale=1.0):
     """obj may be a list of objects: baked together into one image, on one
     shared unwrap (their materials may be shared)."""
     objs = list(obj) if isinstance(obj, (list, tuple)) else [obj]
@@ -268,7 +271,7 @@ def bake_lightmap(obj, path, res=1024, samples=128, sky=(0x8aa2cc, 0x6f8a55, 1.0
     px = np.empty(res * res * 4, dtype=np.float32)
     img.pixels.foreach_get(px)
     px = px.reshape(-1, 4)
-    lit = px[:, :3].copy()
+    lit = px[:, :3] * scale
     # a byte image's pixels are stored as given: encode sRGB here
     c = np.clip(lit, 0.0, 1.0)
     px[:, :3] = np.where(c <= 0.0031308, c * 12.92, 1.055 * np.power(c, 1 / 2.4) - 0.055)
