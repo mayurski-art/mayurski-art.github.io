@@ -81,13 +81,20 @@ export function joinSitePresence({ onCount = null, onSync = null } = {}) {
     byViewer.forEach((e) => {
       const uid = UUID.test(String(e.userId || "")) ? e.userId : null;
       if (uid && e.username) {
-        members.set(uid, { userId: uid, viewerId: e.viewerId, username: String(e.username).slice(0, 20), level: Math.max(1, e.level || 1), avatarUrl: e.avatarUrl || null, activeWindow: e.activeWindow === "games" ? "games" : null, activity: cleanActivity(e.activity) });
+        members.set(uid, { userId: uid, viewerId: e.viewerId, username: String(e.username).slice(0, 20), level: Math.max(1, e.level || 1), avatarUrl: e.avatarUrl || null, activeWindow: e.activeWindow === "games" ? "games" : null, activity: cleanActivity(e.activity), ...where(e) });
       } else guests.push(e);
     });
     guests.sort((a, b) => String(a.onlineAt).localeCompare(String(b.onlineAt)) || String(a.viewerId).localeCompare(String(b.viewerId)));
-    return { members: [...members.values()], guests: guests.map((g, i) => ({ viewerId: g.viewerId, label: `Guest${String(i + 1).padStart(3, "0")}`, activity: cleanActivity(g.activity) })) };
+    return { members: [...members.values()], guests: guests.map((g, i) => ({ viewerId: g.viewerId, label: `Guest${String(i + 1).padStart(3, "0")}`, activity: cleanActivity(g.activity), ...where(g) })) };
   }
   const count = () => { const r = roster(); return Math.max(1, r.members.length + r.guests.length); };
+  /* Where a viewer's tab is: every client on the channel sends its
+     hostname and path (this file, troll-presence.js, world.html,
+     desktop.html, trolltruths.com's Presence.tsx). */
+  const where = (e) => ({
+    host: typeof e.host === "string" ? e.host.toLowerCase().slice(0, 64) : null,
+    path: typeof e.path === "string" ? e.path.slice(0, 64) : null,
+  });
   window.getViewerRoster = roster;
 
   const sync = () => {

@@ -63,24 +63,57 @@ export function startOnline(p) {
 /* Now, not on the next tick: a vote or a ready shows up straight away. */
 export const pushActivity = tick;
 
-/* One line on what someone is up to, for the Who's Online list. */
-export function describe(a) {
-  if (!a) return "On trollrunner.net";
-  if (a.game !== "tf") return "On trollrunner.net";
+/* Where on the network a tab outside Troll Forces is (user, 2026-10-25:
+   "see what other players are doing ... playing a certain game or even on
+   a different website like trolltruths.com"), from the host and page every
+   presence client sends. */
+const SITES = {
+  "trolltruths.com": "On trolltruths.com", "terminal.trollrunner.net": "On trolltruths.com",
+  "maps.trollrunner.net": "On Troll Maps", "stickers.trollrunner.net": "Looking at the stickers",
+};
+const PAGES = [
+  [/troll-ops|^\/tf\//, "In Troll Forces"],
+  [/troll-kombat/, "Playing Troll Kombat"],
+  [/troll-man/, "Playing Troll Man"],
+  [/sabers/, "Playing Grin Sabers"],
+  [/trollus/, "Playing Troll Us"],
+  [/world/, "On Trollface Island"],
+  [/games/, "In the arcade"],
+  [/stickers/, "Looking at the stickers"],
+  [/maps/, "On Troll Maps"],
+  [/pfp/, "In PFP Studio"],
+  [/chat/, "In TROLLCHAT"],
+  [/desktop/, "On the desktop"],
+];
+function placeOf(host, path) {
+  const h = (host || "").replace(/^www\./, "");
+  if (SITES[h]) return SITES[h];
+  if (h && !/(^|\.)trollrunner\.net$|github\.io$|^localhost$|^127\.0\.0\.1$/.test(h)) return `On ${h}`;
+  const p = (path || "/").toLowerCase();
+  for (const [re, line] of PAGES) if (re.test(p)) return line;
+  return "On the trollrunner.net home page";
+}
+
+/* One line on what someone is up to, for the Who's Online list. `o` is
+   their roster entry (its host and page), for when they aren't in a
+   Troll Forces tab. */
+export function describe(a, o = null) {
+  if (!a || a.game !== "tf") return placeOf(o?.host, o?.path);
   if (a.state === "menu") return "In the Troll Warfare menu";
   if (a.state === "lobby") return `In the ${a.modeName || "Public Match"} lobby${a.ready ? " (ready)" : ""}`;
   const where = a.mapName ? ` on ${a.mapName}` : "";
   const wave = a.state === "zombies" && a.wave ? ` · round ${a.wave}` : "";
   if (!a.room) return `Playing ${a.modeName || "solo"}${where}${wave} (solo)`;
-  if (!a.pub) return `In a private match`;
+  // (a private code stays off the wire; what they're playing doesn't)
+  if (!a.pub) return `Playing ${a.modeName || "a match"}${where}${wave} (private)`;
   return `Playing ${a.modeName}${where}${wave}`;
 }
 
 /* Everyone online, accounts first, each with what they're doing. */
 export function onlinePlayers(roster) {
   const out = [];
-  for (const m of roster?.members || []) out.push({ key: m.userId, name: m.username, guest: false, level: m.level, userId: m.userId, viewerId: m.viewerId, activity: m.activity });
-  for (const g of roster?.guests || []) out.push({ key: g.viewerId, name: g.label, guest: true, viewerId: g.viewerId, activity: g.activity });
+  for (const m of roster?.members || []) out.push({ key: m.userId, name: m.username, guest: false, level: m.level, userId: m.userId, viewerId: m.viewerId, activity: m.activity, host: m.host, path: m.path });
+  for (const g of roster?.guests || []) out.push({ key: g.viewerId, name: g.label, guest: true, viewerId: g.viewerId, activity: g.activity, host: g.host, path: g.path });
   return out;
 }
 
