@@ -241,7 +241,12 @@ for (const map of maps) {
   await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 90000 });
   await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 60000 });
   await page.evaluate(async (map) => {
-    const T = window.__trollOps; T.setMode("ops"); T.loadout.mapId = map;
+    const T = window.__trollOps;
+    // Trollface Island only exists in Troll Royale (buildMap falls back to
+    // Grinsite for it elsewhere): Royale with no bots and no drop
+    const royale = map === "trollface";
+    if (royale) { T.DROP.enabled = false; if (T.els.noBots) T.els.noBots.checked = true; }
+    T.setMode(royale ? "royale" : "ops"); T.loadout.mapId = map;
     await T.startGame(); if (T.isStaging()) T.endStaging();
     T.player.maxHp = T.player.hp = 1e9;
   }, map);
