@@ -46,6 +46,11 @@ export function showSumGun() {
   sumInspector.show(def);
 }
 export let inspectorLive = false;
+/* The menu's previews give their WebGL contexts back for the match (a
+   phone's GPU memory is the map's then); each wakes on its next menu tick. */
+export function sleepMenuGl() {
+  for (const v of [inspector, sumInspector, charInspector]) v?.sleep();
+}
 
 const charView = document.getElementById("to-char-view");
 const charCanvas = document.getElementById("to-char-canvas");

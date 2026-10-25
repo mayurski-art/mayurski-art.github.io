@@ -12,6 +12,7 @@
    that became lists hidden by CSS. */
 
 import { createBo2Menu } from "../../../js/bo2-menu.js?v=to-ft2-tb1-nd1-ul1";
+import { TOUCH } from "../view/texture-budget.js?v=pm1";
 import { createMapMode } from "../../../js/troll-map-mode.js?v=to-bo2d";
 import { joinSitePresence, viewerId } from "../../../js/site-presence.js?v=to-bo2d-ol1-iv1-mv1";
 import { initInvites, invitePlayer } from "./invites.js?v=iv1-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1";
@@ -1353,13 +1354,13 @@ idle(async () => {
     backdrop = mountMenuBackdrop($(".to-bo2-bg", root));
     if (animOff) backdrop.setStill?.(true);
     coverOn(!title.hidden);
-    if (title.hidden) backdrop.pause();
+    if (title.hidden) backdrop.pause(TOUCH);
   } catch (e) { console.warn("[menu-bo2] backdrop", e); }
 });
 new MutationObserver(() => {
   const showing = !title.hidden;
   if (!showing) $(".tr-pincard", root)?.setAttribute("hidden", "");
-  if (backdrop) { showing ? backdrop.resume() : backdrop.pause(); coverOn(showing); }
+  if (backdrop) { showing ? backdrop.resume() : backdrop.pause(TOUCH); coverOn(showing); }
   if (showing) { renderParty(); menu.refresh(); }
 }).observe(title, { attributes: true, attributeFilter: ["hidden"] });
 document.addEventListener("visibilitychange", () => {
