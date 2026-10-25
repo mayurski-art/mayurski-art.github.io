@@ -296,12 +296,28 @@ export function placeDeathCamera() {
   game.camera.lookAt(_deathCamAt);
 }
 
+const localBodyToken = () => (!game.localRig.heroBodyId && !game.localRig.copBodyId ? bodyToken(ownBody.want) : 0);
+/* Your body put on under the map's loading screen (match-start.js), so a
+   TROLLS body is whole when the match goes live rather than building in
+   front of you; settles when it's on, or after `ms` whatever happens.
+   A dropped download waits out blocky-body.js's retry (it takes the
+   half-built body off 1.5 s later) and puts it on again. */
+export async function dressLocalRig(ms = 12000) {
+  const end = performance.now() + ms;
+  const timeout = new Promise((r) => setTimeout(() => r(true), ms));
+  for (;;) {
+    const ok = await Promise.race([wearBlocky(game.localRig, localBodyToken()).then(() => true, () => false), timeout]);
+    if (ok || performance.now() >= end) return;
+    await new Promise((r) => setTimeout(r, 1700));
+  }
+}
+
 export function updateLocalRig(dt) {
   if (!game.player.alive && game.gameState === "playing" && !royaleSpectating()) { updateLocalDeadBody(); return; }
   game.localRig.root.position.set(game.move.pos.x, game.move.pos.y, game.move.pos.z);
   // The TROLLS body (cosmetics.js, locked to its token's holder; menu/lobby.js
   // sets ownBody), never under a hero or cop body.
-  wearBlocky(game.localRig, !game.localRig.heroBodyId && !game.localRig.copBodyId ? bodyToken(ownBody.want) : 0);
+  wearBlocky(game.localRig, localBodyToken());
   // The body follows the aim a beat behind; the head leads the turn.
   const rolling = royaleRolling();
   // Under the glider the body hangs the way the wing flies, not where you look.

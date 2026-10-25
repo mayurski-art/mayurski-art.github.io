@@ -414,7 +414,7 @@ function loadPieces(url) {
       out.push({ name: named.name, geo, hull, mat: o.material?.name || "", map: o.material?.map || null, alphaTest: o.material?.alphaTest || 0 });
     });
     return out;
-  }));
+  }).catch((e) => { pieceSets.delete(url); throw e; }));   // a retry downloads it again
   return pieceSets.get(url);
 }
 const INK_PUSH = 0.0055;
@@ -2013,6 +2013,15 @@ export function wearBlocky(rig, token) {
     restore = applyBlocky(rig, { garment: tokenLook(token).garment });
     // the edge ink (view/char-ink.js) once its pieces are on
     return restore.loaded.then(() => { if (!gone) tagInk(rig); });
+  });
+  /* b.done once every piece is on. A phone under memory pressure can drop
+     a download and leave the body half built (2026-10-25): it comes off and
+     goes on again, up to twice, the next wearBlocky call (each frame for
+     your own rig) starting it over. */
+  b.ready.then(() => { b.done = true; rig.blockyTries = 0; }, (e) => {
+    console.warn("[blocky] the body's pieces didn't load", e);
+    if (gone || (rig.blockyTries = (rig.blockyTries || 0) + 1) > 2) return;
+    setTimeout(() => { if (rig.blocky === b) { rig.blocky = null; b.off(); } }, 1500);
   });
   return b.ready;
 }
