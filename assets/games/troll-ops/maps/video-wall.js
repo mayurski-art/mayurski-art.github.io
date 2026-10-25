@@ -54,6 +54,47 @@ function videoClip(g, w, h, file) {
 // the dancer cut-out: where the pole ran through it (px), of its 434 x 296
 const DANCER_POLE = 251.5;
 
+// What the street's screens quote (user, 2026-10-25: the price and the
+// NFTs, as trolltruths.com's ticker shows them): $TROLL from DexScreener
+// (its deepest pair, the way the terminal's /api/troll-price picks it) once
+// a minute, the TROLLS floor from trolltruths.com's own API (OpenSea wants a
+// key) every five. Fetched from the first screen built that quotes them;
+// a dash until a number arrives, the last good number after a failed poll.
+const TROLL_MINT = "5UUH9RTDiSpq6HKS6bp4NdU9PNJpXRXuiw6ShBTBhgH2";
+const market = { price: null, change: null, floorEth: null, floorUsd: null, started: false };
+function marketFeed() {
+  if (market.started || typeof fetch !== "function") return market;
+  market.started = true;
+  const poll = (url, every, take) => {
+    const tick = async () => {
+      try { const r = await fetch(url); if (r.ok) take(await r.json()); } catch {}
+      setTimeout(tick, every);
+    };
+    tick();
+  };
+  poll(`https://api.dexscreener.com/latest/dex/tokens/${TROLL_MINT}`, 60e3, (d) => {
+    let best = null, liq = -1;
+    for (const p of d?.pairs || []) {
+      const v = Number(p.priceUsd), l = Number(p.liquidity?.usd ?? 0);
+      if (v > 0 && l > liq) { liq = l; best = p; }
+    }
+    if (!best) return;
+    market.price = Number(best.priceUsd);
+    const c = Number(best.priceChange?.h24);
+    market.change = Number.isFinite(c) ? c : null;
+  });
+  poll("https://trolltruths.com/api/troll-nft", 300e3, (d) => {
+    if (!(d?.floorEth > 0)) return;
+    market.floorEth = d.floorEth;
+    market.floorUsd = d.floorUsd > 0 ? d.floorUsd : null;
+  });
+  return market;
+}
+const MONO = "'DM Mono','JetBrains Mono',Consolas,monospace";
+const fmtPrice = (p) => p == null ? "—" : p >= 1 ? `$${p.toFixed(2)}` : p >= 0.01 ? `$${p.toFixed(4)}` : `$${p.toPrecision(3)}`;
+const fmtPct = (c) => c == null ? "" : `${c >= 0 ? "▲" : "▼"} ${Math.abs(c).toFixed(2)}%`;
+const upDown = (c) => c != null && c < 0 ? "#ff3a5a" : "#3aff7a";
+
 /* Blit a sign from the atlas, centred on cx, cy, `h` tall. */
 function blit(g, name, cx, cy, h, alpha = 1) {
   const [x0, y0, x1, y1] = SIGNS[name].r;
@@ -125,35 +166,38 @@ const CLIPS = [
     blit(g, "dj", w / 2, h * 0.47, h * 0.3 * (1 + 0.04 * kick), ease((t - 0.3) / 0.5));
     glowText(g, "TROLLING LOUD 東京", w / 2, h * 0.78, h * 0.1, "#ffb02e", { font: JP, alpha: ease((t - 1) / 0.5) });
   } },
-  { id: "stickers", s: 9, draw(g, w, h, t) {
-    bg(g, w, h, "#101418", "#1c1c1e");
-    g.strokeStyle = "rgba(255,255,255,0.06)";
-    g.lineWidth = 1;
-    for (let x = 0; x < w; x += h / 10) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); }
-    for (let y = 0; y < h; y += h / 10) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
-    glowText(g, "TROLL RUNNER", w * 0.05, h * 0.16, h * 0.12, "#ffffff", { align: "left", alpha: ease(t / 0.4) });
-    glowText(g, "stickers dropped across the Inland Empire", w * 0.05, h * 0.29, h * 0.06, "#c8c8d0", { align: "left", weight: 500, blur: 0.1, alpha: ease((t - 0.3) / 0.4) });
-    // the cities, one pin each as the run goes by
-    const PINS = [["Fontana", "#5856d6", 0.32, 0.5], ["Rialto", "#ff2d55", 0.44, 0.42], ["Rancho Cucamonga", "#ff9500", 0.22, 0.62], ["Chino Hills", "#007aff", 0.14, 0.82], ["Riverside", "#34c759", 0.56, 0.78]];
-    // the route between them
-    g.strokeStyle = "rgba(255,255,255,0.35)";
-    g.setLineDash([h * 0.02, h * 0.02]);
-    g.lineWidth = Math.max(2, h * 0.008);
-    g.beginPath();
-    PINS.forEach(([, , px, py], i) => { if (t > 1 + i * 1.1) (i ? g.lineTo : g.moveTo).call(g, w * px, h * py); });
-    g.stroke();
-    g.setLineDash([]);
-    PINS.forEach(([name, col, px, py], i) => {
-      const p = ease((t - 1 - i * 1.1) / 0.35);
-      if (p <= 0) return;
-      const x = w * px, y = h * py, r = h * 0.035 * p;
-      g.fillStyle = col;
-      g.shadowColor = col; g.shadowBlur = h * 0.04;
-      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
-      g.shadowBlur = 0;
-      glowText(g, name, x + h * 0.06, y, h * 0.055, col, { align: "left", weight: 700, blur: 0.15, alpha: p });
+  // the terminal's quote card (trolltruths.com): $TROLL and the TROLLS floor
+  // typed out line by line, the trollface watching from the right
+  { id: "market", s: 10, market: true, draw(g, w, h, t) {
+    const m = marketFeed();
+    g.fillStyle = "#050507";
+    g.fillRect(0, 0, w, h);
+    g.fillStyle = "rgba(255,255,255,0.025)";
+    for (let y = 0; y < h; y += 4) g.fillRect(0, y, w, 1);
+    blit(g, "trollCyan", w * 0.82, h * 0.5, h * 0.56 * (1 + 0.02 * Math.sin(t * BEAT * Math.PI)), 0.9);
+    // each line types in at 28 chars a second, 1.1 s apart, in the left
+    // 60 % of the screen (the face has the rest)
+    const LINES = [
+      ["> $TROLL", h * 0.075, "#e8e8ec", 500],
+      [fmtPrice(m.price), h * 0.17, upDown(m.change), 500],
+      [`${fmtPct(m.change) || "—"} · 24h · solana`, h * 0.065, upDown(m.change), 400],
+      ["> TROLLS on ETH · floor", h * 0.075, "#e8e8ec", 500],
+      [m.floorEth == null ? "—" : `${m.floorEth.toFixed(4)} Ξ${m.floorUsd ? ` · $${Math.round(m.floorUsd)}` : ""}`, h * 0.11, "#c9b8ff", 500],
+      ["opensea · trollsoneth", h * 0.055, "#8a8a95", 400],
+    ];
+    let y = h * 0.12, last = null;
+    LINES.forEach(([text, size, color, weight], i) => {
+      const n = Math.floor((t - i * 1.1) * 28);
+      if (n > 0) {
+        const shown = text.slice(0, n);
+        glowText(g, shown, w * 0.05, y, size, color, { font: MONO, weight, align: "left", blur: 0.12 });
+        g.font = `${weight} ${size}px ${MONO}`;
+        last = [w * 0.05 + g.measureText(shown).width, y, size];
+      }
+      y += size * 1.25 + h * 0.02;
     });
-    glowText(g, "u mad you missed one?", w * 0.95, h * 0.9, h * 0.065, "#ffb02e", { align: "right", alpha: ease((t - 6.8) / 0.5) });
+    // the cursor, on the line being typed or blinking after the last
+    if (last && Math.sin(t * 8) > -0.2) { g.fillStyle = "#e8e8ec"; g.fillRect(last[0] + last[2] * 0.15, last[1] - last[2] * 0.5, last[2] * 0.55, last[2]); }
   } },
   { id: "ticker", s: 8, draw(g, w, h, t) {
     bg(g, w, h, "#03100a", "#061a10");
@@ -175,13 +219,15 @@ const CLIPS = [
     }
     g.fillStyle = "rgba(0,0,0,0.55)";
     g.fillRect(0, 0, w, h * 0.3);
-    const pct = (4.2 + 0.7 * Math.sin(t * 1.3)).toFixed(2);
-    glowText(g, "$TROLL", w * 0.05, h * 0.15, h * 0.15, "#3aff7a", { align: "left" });
-    glowText(g, `▲ ${pct}%`, w * 0.95, h * 0.15, h * 0.13, "#3aff7a", { align: "right" });
+    // (the live quote, as the market card's; the candles are decoration)
+    const m = marketFeed();
+    // (sized for the Alta's 640 x 384: the two never meet)
+    glowText(g, `$TROLL ${fmtPrice(m.price)}`, w * 0.05, h * 0.15, h * 0.11, "#3aff7a", { align: "left" });
+    glowText(g, fmtPct(m.change), w * 0.95, h * 0.15, h * 0.11, upDown(m.change), { align: "right" });
     // the crawl along the bottom
     g.fillStyle = "#0a0a0a";
     g.fillRect(0, h * 0.86, w, h * 0.14);
-    const crawl = "  $TROLL ▲ green candles only   ·   jeets ▼   ·   trolls ▲   ·   number go up   ·   ";
+    const crawl = `  $TROLL ${m.change != null && m.change < 0 ? "▼ dip, buy the dip" : "▲ green candles only"}   ·   jeets ▼   ·   trolls ▲   ·   number go up   ·   `;
     g.font = `700 ${h * 0.08}px ${EN}`;
     const cwid = g.measureText(crawl).width;
     g.fillStyle = "#ffd84a";
@@ -255,7 +301,7 @@ const CLIPS = [
   { id: "swish", s: 22, video: "screen-swish-leap.mp4", draw(g, w, h) { videoClip(g, w, h, this.video); } },
 ];
 // what the street's screens play
-const STREET = ["umad", "dj", "stickers", "ticker", "logo"];
+const STREET = ["umad", "dj", "market", "ticker", "logo"];
 
 /* Which of `list`'s clips, and how far in, `t` seconds into the loop; null
    in a flash (a one-clip list just loops, no flash). */
@@ -280,6 +326,7 @@ function clipAt(list, t) {
 export function videoScreen({ w, h, px, x, y, z, ry = 0, offset = 0, frame = 0.25, inset = 0, clips = STREET, fps = FPS }) {
   const list = clips.map((id) => CLIPS.find((c) => c.id === id));
   for (const c of list) if (c.video) loopVideo(c.video, false);
+  if (list.some((c) => c.market)) marketFeed();
   const c = document.createElement("canvas");
   [c.width, c.height] = px;
   const g = c.getContext("2d");
