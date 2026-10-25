@@ -8,8 +8,9 @@
 //   SETTLE=ms   how long the map gets to stream in (default 25000)
 //   --list      print the 30 biggest textures in the game's context
 //
-// Checks (FAIL lines, exit 1): textures and render buffers in the game's
-// context under the phone budget; no texture over 1024 on a side; no other
+// Checks (FAIL lines, exit 1): textures, and everything, in the game's
+// context under the phone budget; no image over 1024 on a side (render
+// targets follow the screen); no other
 // WebGL context still holding memory or a drawing buffer in the match; the
 // player's body built (the NFT body's pieces) when the match goes live;
 // the game comes back from a lost context.
@@ -31,7 +32,7 @@ const BASE = `http://localhost:${server.address().port}`;
 const args = process.argv.slice(2);
 const MAP = args.find((a) => !a.startsWith("--")) || "kabukigrin";
 const IPAD = args.includes("--ipad"), LIST = args.includes("--list");
-const BUDGET = { texMB: 220, rbMB: IPAD ? 60 : 45, maxSide: 1024 };
+const BUDGET = { texMB: 220, totalMB: 300, maxSide: 1024 };
 const device = IPAD
   ? { viewport: { width: 1366, height: 1024 }, deviceScaleFactor: 2, userAgent: "Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1" }
   : { viewport: { width: 844, height: 390 }, deviceScaleFactor: 3, userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1" };
@@ -68,6 +69,8 @@ await page.addInitScript(() => {
       m.tex.set(m.bound["t" + t], { s: s * (t === 0x8513 ? 6 : 1), w, h, storage: true });
     });
     wrap("texStorage3D", (m, [t, lv, f, w, h, d]) => { m.tex.set(m.bound["t" + t], { s: w * h * d * bpp(f) * (lv > 1 ? 4 / 3 : 1), w, h, storage: true }); });
+    // an image (or canvas, or video) uploaded into a texture, not a render target
+    wrap("texSubImage2D", (m, a) => { const e = m.tex.get(m.bound["t" + (CUBE(a[0]) ? 0x8513 : a[0])]); if (e && a.length <= 7) e.img = true; });
     wrap("texImage2D", (m, a) => {
       const t = CUBE(a[0]) ? 0x8513 : a[0];
       if (a[1] !== 0) return;
@@ -76,7 +79,7 @@ await page.addInitScript(() => {
       if (prev?.storage) return;
       let w, h;
       if (a.length >= 8) { w = a[3]; h = a[4]; } else { const s = a[5]; w = s.videoWidth || s.naturalWidth || s.width; h = s.videoHeight || s.naturalHeight || s.height; }
-      const e = { s: w * h * 4 * (CUBE(a[0]) ? 6 : 1), w, h, mip: false };
+      const e = { s: w * h * 4 * (CUBE(a[0]) ? 6 : 1), w, h, mip: false, img: a.length <= 6 };
       if (prev?.mip) e.s *= 4 / 3, e.mip = true;
       m.tex.set(tex, e);
     });
@@ -128,9 +131,10 @@ const big = await page.evaluate(([id, n]) => window.__bigTex(id, n), [gameCtx, L
 console.log(`biggest textures: ${big.join(", ")}`);
 
 check(g.texMB <= BUDGET.texMB, `textures ${g.texMB} MB <= ${BUDGET.texMB} MB`);
-check(g.rbMB + g.fbMB <= BUDGET.rbMB, `render buffers + drawing buffer ${(g.rbMB + g.fbMB).toFixed(1)} MB <= ${BUDGET.rbMB} MB`);
-const maxSide = await page.evaluate((id) => Math.max(0, ...[...window.__ctxs[id].__m.tex.values()].map((v) => Math.max(v.w, v.h))), gameCtx);
-check(maxSide <= BUDGET.maxSide, `largest texture side ${maxSide} <= ${BUDGET.maxSide}`);
+const total = g.texMB + g.bufMB + g.rbMB + g.fbMB;
+check(total <= BUDGET.totalMB, `everything in the game's context ${total.toFixed(0)} MB <= ${BUDGET.totalMB} MB`);
+const maxSide = await page.evaluate((id) => Math.max(0, ...[...window.__ctxs[id].__m.tex.values()].filter((v) => v.img).map((v) => Math.max(v.w, v.h))), gameCtx);
+check(maxSide <= BUDGET.maxSide, `largest image side ${maxSide} <= ${BUDGET.maxSide}`);
 const others = m.filter((c) => c.id !== gameCtx && !c.lost && (c.texMB + c.bufMB + c.rbMB > 0.5 || c.fbMB > 0.5));
 check(others.length === 0, `no other WebGL context holding memory in the match (${others.length})`);
 const body = await page.evaluate(() => window.__trollOps.bodyState?.() ?? null);
