@@ -9,12 +9,13 @@
 // digit 0-9 per beat: the low end's punch and the overall loudness) }.
 // The club (trollingloud.js) reads the song's clock against that grid, so the
 // floor flashes on the real kick even through a wall or with the volume off.
-// Run it again after adding a track to music.js.
+// Run it again after adding a track to music.js, or with --only <file.mp3>
+// to analyse just the new one (troll-ops-add-song.mjs does that for you).
 
 import { execFileSync } from "node:child_process";
 import { readdirSync, writeFileSync } from "node:fs";
 import { join, dirname, basename } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DIR = join(ROOT, "assets/games/troll-ops/music");
@@ -182,8 +183,15 @@ function track(file) {
   return { bpm: +best.bpm.toFixed(3), offset: +best.off.toFixed(3), down, dur: +dur.toFixed(2), kick, level, hold };
 }
 
+// --only <file.mp3>: analyse just that track and keep every other grid as is.
+const oi = process.argv.indexOf("--only");
+const only = oi >= 0 ? basename(process.argv[oi + 1] || "") : null;
 const out = {};
-for (const f of readdirSync(DIR).filter((n) => n.endsWith(".mp3")).sort()) {
+if (only) {
+  const { BEATS } = await import(`${pathToFileURL(OUT).href}?t=${Date.now()}`);
+  Object.assign(out, BEATS);
+}
+for (const f of readdirSync(DIR).filter((n) => n.endsWith(".mp3") && (!only || n === only)).sort()) {
   const r = track(join(DIR, f));
   const { hold, ...data } = r;
   out[`assets/games/troll-ops/music/${f}`] = data;
