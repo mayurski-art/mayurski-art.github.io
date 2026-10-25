@@ -45,7 +45,8 @@ def main():
     bake_ground(os.path.join(OUT_DIR, map_id + "-ground-bake.webp"), rect,
                 res=2048 if size > 64 else 1024, samples=128,
                 sky=(up or 0x8aa2cc, horizon or up or 0x8aa2cc, strength), color=spec["ground"] or 0x808080, blur=2,
-                lights=[((x, y, z), col, inten * lamp_w, 0.15) for (x, y, z, col, inten, _d) in spec.get("lights", [])] if lamp_w else ())
+                lights=[((x, y, z), col, inten * lamp_w, 0.15) for (x, y, z, col, inten, _d) in spec.get("lights", [])] if lamp_w else (),
+                occluders=spec.get("occluders", ()))   # (what the game draws in code over the ground: a ceiling)
     remove_context(ctx)
     print("GROUND BAKE", map_id, "rect: [%g, %g, %g]" % rect)
 

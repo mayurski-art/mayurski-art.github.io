@@ -106,10 +106,21 @@ def _occluder(w, h, d, x, y, z):
 
 
 def _lightmap_uv(obj, margin):
-    me = obj.data
-    uv = me.uv_layers.new(name="Lightmap")
-    me.uv_layers.active = uv
-    bpy.context.view_layer.objects.active = obj
+    """A new "Lightmap" UV layer on obj, unwrapped and packed. obj may be a
+    list: the objects are unwrapped together into one square (one atlas for a
+    GLB of several meshes), each object's second layer reused if it has one."""
+    objs = obj if isinstance(obj, (list, tuple)) else [obj]
+    bpy.ops.object.select_all(action="DESELECT")
+    for o in objs:
+        me = o.data
+        if len(objs) > 1 and len(me.uv_layers) >= 2:
+            uv = me.uv_layers[1]
+            uv.name = "Lightmap"
+        else:
+            uv = me.uv_layers.new(name="Lightmap")
+        me.uv_layers.active = uv
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = objs[0]
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
     bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.0, area_weight=0.0,
@@ -181,7 +192,7 @@ def remove_context(objs):
 
 
 def bake_ground(path, rect, res=2048, samples=128, sky=(0x8aa2cc, 0x6f8a55, 1.0), color=0x8faa70,
-                lights=(), blur=1):
+                lights=(), blur=1, occluders=()):
     """The light on the ground at y 0 over rect = (x0, z0, size) in GAME
     coordinates. Image u runs with x, v with z (glTF's top-down v: the
     game reads it as u = (x - x0) / size, v = (z - z0) / size)."""
@@ -201,7 +212,7 @@ def bake_ground(path, rect, res=2048, samples=128, sky=(0x8aa2cc, 0x6f8a55, 1.0)
     me.materials.append(m)
     ob = bpy.data.objects.new("GS_GroundBake", me)
     bpy.context.scene.collection.objects.link(ob)
-    bake_lightmap(ob, path, res=res, samples=samples, sky=sky, ground=None, lights=lights, blur=blur, uv=False)
+    bake_lightmap(ob, path, res=res, samples=samples, sky=sky, ground=None, lights=lights, blur=blur, occluders=occluders, uv=False)
     bpy.data.objects.remove(ob)
     bpy.data.meshes.remove(me)
     bpy.data.materials.remove(m)
@@ -209,6 +220,10 @@ def bake_ground(path, rect, res=2048, samples=128, sky=(0x8aa2cc, 0x6f8a55, 1.0)
 
 def bake_lightmap(obj, path, res=1024, samples=128, sky=(0x8aa2cc, 0x6f8a55, 1.0),
                   ground=0x8faa70, lights=(), blur=1, occluders=(), uv=True):
+    """obj may be a list of objects: baked together into one image, on one
+    shared unwrap (their materials may be shared)."""
+    objs = list(obj) if isinstance(obj, (list, tuple)) else [obj]
+    obj = objs[0]
     scene = bpy.context.scene
     scene.render.engine = "CYCLES"
     scene.cycles.device = "CPU"
@@ -223,24 +238,26 @@ def bake_lightmap(obj, path, res=1024, samples=128, sky=(0x8aa2cc, 0x6f8a55, 1.0
         _occluder(*o)
     if res == "auto":
         # by the model's size: ~25 texels a metre on a crate, coarser on big ones
-        size = max(obj.dimensions)
+        size = max(max(o.dimensions) for o in objs)
         res = 256 if size < 3 else 512 if size < 8 else 1024 if size < 24 else 2048
     if uv:
-        _lightmap_uv(obj, 4.0 / res)   # ~4 texels between islands
+        _lightmap_uv(objs if len(objs) > 1 else obj, 4.0 / res)   # ~4 texels between islands
     else:
-        obj.data.uv_layers.active = obj.data.uv_layers["Lightmap"]
+        for o in objs:
+            o.data.uv_layers.active = o.data.uv_layers["Lightmap"]
 
     name = obj.name + "-bake"
     img = bpy.data.images.new(name, res, res, alpha=True, float_buffer=True)
     img.generated_color = (0, 0, 0, 0)
     nodes = []
-    for m in obj.data.materials:
+    for m in {m for o in objs for m in o.data.materials if m}:
         n = m.node_tree.nodes.new("ShaderNodeTexImage")
         n.image = img
         m.node_tree.nodes.active = n
         nodes.append((m, n))
     bpy.ops.object.select_all(action="DESELECT")
-    obj.select_set(True)
+    for o in objs:
+        o.select_set(True)
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.bake(type="DIFFUSE", pass_filter={"DIRECT", "INDIRECT"}, margin=4, use_clear=False,
                         target="IMAGE_TEXTURES")
@@ -270,7 +287,8 @@ def bake_lightmap(obj, path, res=1024, samples=128, sky=(0x8aa2cc, 0x6f8a55, 1.0
     # active/first layer: TEXCOORD_0 for the photo textures)
     for m, n in nodes:
         m.node_tree.nodes.remove(n)
-    obj.data.uv_layers.active = obj.data.uv_layers["UVMap"]
+    for o in objs:
+        o.data.uv_layers.active = o.data.uv_layers[0]
     bpy.data.images.remove(img)
     bpy.data.images.remove(out)
     for d in _TEMP:
