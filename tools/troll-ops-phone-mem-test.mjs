@@ -153,6 +153,18 @@ const lost = await page.evaluate(async () => {
   return { lost: gl.isContextLost(), state: T.state?.() ?? null, tier: T.gfx().tier, frames, restored: T.contextRestores?.() ?? 0 };
 });
 check(lost.skipped || (!lost.lost && lost.restored > 0 && lost.frames > 3), `back from a lost context (${JSON.stringify(lost)})`);
+// back on the menu the previews and the planet come back (they slept for the match)
+const back = await page.evaluate(async () => {
+  const T = window.__trollOps;
+  T.els.quitBtn.click();
+  await new Promise((r) => setTimeout(r, 4000));
+  T.showLobbyPanel("loadout");
+  await new Promise((r) => setTimeout(r, 4000));
+  const gun = window.__ctxs.find((c) => c.canvas.id === "to-gun-canvas");
+  const globe = window.__ctxs.filter((c) => /maplibre/i.test(c.canvas.className));
+  return { menu: !T.els.title.hidden, gunAwake: !!gun && !gun.isContextLost(), globeLive: globe.some((c) => !c.isContextLost() && c.canvas.isConnected) };
+});
+check(back.menu && back.gunAwake && back.globeLive, `the menu's previews and planet back after the match (${JSON.stringify(back)})`);
 check(errors.length === 0, `no page errors${errors.length ? ": " + errors.slice(0, 3).join(" | ") : ""}`);
 
 await browser.close(); server.close();
