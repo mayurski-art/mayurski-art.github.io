@@ -247,6 +247,13 @@ def main():
     # 16-bit positions too (phase 7, the 14 MB budget), not the roads': their
     # paint lies 4 mm over the asphalt and 440 m in 16 bits is 6.7 mm
     quantize_glb.positions_only([p for p in paths if "tf-roads" not in p])
+    # surfaces that would z-fight pulled apart (zlift_glb.py: the fountain's
+    # water on its basin, the roads' paint, decals on floors), till none move
+    import zlift_glb
+    for p in paths:
+        for _ in range(6):
+            if not zlift_glb.lift(p):
+                break
     for row in tf_kit.Report.rows:
         row[3] = os.path.getsize(os.path.join(HERE, row[0] + ".glb"))
     total = sum(r[3] for r in tf_kit.Report.rows)
