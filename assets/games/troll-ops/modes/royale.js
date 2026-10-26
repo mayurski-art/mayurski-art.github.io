@@ -19,6 +19,7 @@ import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-a
 import { game } from "../core/state.js?v=st1";
 import { updateDropCine, dropCineEye, dropCineLean, dropCineZoom, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2";
 import { playSfx, preloadSfx } from "../sound/sfx-files.js?v=dc4";
+import { royaleRecordReset, royaleRecordTick, stopRoyaleRecord } from "./royale-record.js?v=rrc1";
 import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose } from "./royale-fall.js?v=dc3-dc4-rf1-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2";
 
 // Phase 1 ("Mini Royale"): solo, one life, loot only, the Cringe closing in,
@@ -38,6 +39,7 @@ function royaleGround(x, z) { return groundHeightAt(game.colliders, x, z, floorA
 export function setupRoyale(seed = royaleSeed()) {
   teardownRoyale();
   resetRoyalePace();
+  royaleRecordReset();   // last match's clip goes (royale-record.js)
   preloadSfx();   // the drop's clips (sound/sfx-files.js), in well before the scene
   const rng = seededRng(seed);
   const map = game.builtMap.map;
@@ -666,6 +668,7 @@ function royaleLateSpectate() {
 }
 
 export function teardownRoyale() {
+  stopRoyaleRecord("end");   // (already stopped at a death or a finish; this is the match ended from outside)
   document.body.classList.remove("to-aboard");   // the plane's trimmed touch HUD (view/player-update.js)
   resetDropCine();
   endFallShow();
@@ -715,6 +718,7 @@ export function ordinal(n) {
 export function updateRoyale(dt) {
   const r = royale;
   if (!r) return;
+  royaleRecordTick();   // "Record my match": starts as staging ends
   updateRoyaleDropWorld(dt);
   if (r.live && !r.over) r.t += dt;
   updateBoat(r.t, r.loot);   // Trollface Island's Boat round the lake, and whoever is aboard (royale-boat.js)
@@ -832,6 +836,7 @@ export function updateRoyale(dt) {
 function finishRoyale(alive) {
   const r = royale;
   r.over = true;
+  stopRoyaleRecord(game.player.alive ? "win" : "end");
   hideSpectateHud();
   const won = game.player.alive;
   const place = won ? 1 : (r.place || r.peak);
@@ -845,6 +850,7 @@ function finishRoyale(alive) {
 /* Out of the match: where we finished, and everything we carried on the floor. */
 export function royaleOnDeath() {
   const r = royale;
+  stopRoyaleRecord("death");
   r.place = royaleAliveList().length + 1;
   r.act = null;
   // Out for good: nothing left to protect (its pill hung over the spectator view).
