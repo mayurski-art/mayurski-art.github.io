@@ -3,6 +3,7 @@
 // next door holds the zone and loot it runs on.
 
 import { hashSeed, seededRng, RoyaleZone, ROYALE, LootField, lootSpots, ZoneVisual, ITEM_NAMES, gunDisplayName, POI_TIERS, poiTierAt } from "./royale-zone.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1-fl1-or1-rt1-ut1-gf1-tg1-rb4-hp1-bx1-mg1-sp1-zw1";
+import { updateBoat } from "./royale-boat.js?v=tfb1";
 import { ChestField, chestSpots, CHEST_REACH, CHEST_OPEN_TIME } from "./royale-chests.js?v=ch1-zw1";
 import { groundHeightAt } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1";
 import { floorAt } from "../core/ground-field.js?v=gf1-tg1";
@@ -716,6 +717,7 @@ export function updateRoyale(dt) {
   if (!r) return;
   updateRoyaleDropWorld(dt);
   if (r.live && !r.over) r.t += dt;
+  updateBoat(r.t, r.loot);   // Trollface Island's Boat round the lake, and whoever is aboard (royale-boat.js)
   const s = r.zone.state(r.t);
   r.visual.update(s, r.t);
   r.loot.update(dt, game.camera, game.player.alive ? game.move.pos : game.camera.position);

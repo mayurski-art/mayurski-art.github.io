@@ -206,8 +206,9 @@ const RUNS = {
   [125.7, 0, -53.5, -1, 0, 14, "skate: through the small bowl", (r) => r.end[0] < 113 && r.maxY >= 1.1],
   [157.7, 0, -85.1, -1, 0, 6, "skate: in the snack shack's door", (r) => r.end[0] < 152],
   [-61, 0, 77.8, 1, 0, 15, "bridge: across the river, dry", (r) => r.end[0] > 0],
-  [85, 0, 16.3, 1, 0, 7, "boat: up the stern steps onto the deck", (r) => r.maxY >= 2.6 && r.end[0] > 92],
-  [99.6, 2.7, 16.3, -1, 0, 5, "boat: down the companionway into the hold", (r) => r.end[1] < 0.7 && r.end[1] > 0.5],
+  // (the Boat sails: the walk holds it at its mooring, on its loop at z 15)
+  [85.1, 0, 15, 1, 0, 7, "boat: up the stern steps onto the deck", (r) => r.maxY >= 2.6 && r.end[0] > 92],
+  [99.7, 2.7, 15, -1, 0, 5, "boat: down the companionway into the hold", (r) => r.end[1] < 0.7 && r.end[1] > 0.5],
   [-72.5, 0, -48.6, -1, 0, 3, "tree: up the stair round the trunk", (r) => r.maxY >= 0.6],
   [-104.4, 0, -41.5, 0, 1, 8, "dock: along the jetty", (r) => r.end[2] > -20 && r.maxY >= 0.6],
   [-102.6, 0.66, -18.1, 1, 0, 9, "dock: along the arm to the lamp", (r) => r.end[0] > -80],
@@ -290,6 +291,8 @@ for (const map of maps) {
   for (const [x, y, z, fx, fz, secs, label, check] of [[0, 0, 0, 0, 1, 1.5, "warm-up", () => true], ...RUNS[map]]) {
     const r = await page.evaluate(async ([x, y, z, fx, fz, secs, step]) => {
       const T = window.__trollOps;
+      const boat = T.builtMap()?.map?.boat?.();   // Trollface Island's Boat: held at its mooring
+      if (boat) boat.hold = 0;
       T.keys.clear();
       T.move.pos.set(x, y, z); T.move.velocity?.set(0, 0, 0);
       await new Promise((r) => setTimeout(r, 400));

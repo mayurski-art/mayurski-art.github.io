@@ -30,6 +30,7 @@ import { TF_BUILT } from "./trollface-island-built.js?v=tfb1-tfp1-tfp2-tfp3-tfp4
 import { buildIslandSigns } from "./trollface-island-signs.js?v=tfs1-tfp1";
 import { buildIslandProps } from "./island-props.js?v=ip1-mg1-tx1-sp1-kbt1-pm1";
 import { sampleField } from "../core/ground-field.js?v=gf1-tg1";
+import { Boat, BOAT_ARCHES } from "./trollface-boat.js?v=tfb1";
 
 const BOUNDS = { minX: -205, maxX: 205, minZ: -155, maxZ: 155 };
 
@@ -52,6 +53,7 @@ const LAKE_PCT = [[22.8, 35.9], [24.1, 35.9], [27.5, 37.9], [31.3, 38.4], [41.3,
   [45, 77.3], [37.2, 72.2], [37.2, 70.7], [39.4, 67.2], [40.9, 63.1], [39.1, 60.1], [33.1, 56.6], [32.5, 54.5], [30.6, 53.5],
   [25, 48], [24.1, 44.9], [24.1, 43.4], [24.7, 42.4], [22.8, 38.9], [22.5, 36.4]];
 export const ISLAND_LAKE = polyP(LAKE_PCT);
+export { BOAT_ARCHES };   // the layout tool hands them to the builder (the boardwalks' arches)
 const RIVER_MOUTH = [P(37.2, 72.2), P(45.6, 77.3)];   // where the river goes over the cliff
 const LAKE_FACE = [92, 30];                         // the lake bed's trollface, centred in the main basin
 
@@ -122,13 +124,11 @@ export const LANDMARKS = {
   plant: { x: 35, z: -130, r: 30, name: "Problem Plant", tier: "mid" },
   gas: { x: 85, z: 125, r: 21, name: "Grin Gas", tier: "mid" },
 };
-// Floor loot the nav grid can't place: up on the Boat's deck and the Bridge
-// (`y` is the deck: the bots' grid is ground floor only, so bots leave these).
+// Floor loot the nav grid can't place: up on the Bridge (`y` is the deck:
+// the bots' grid is ground floor only, so bots leave these). The Boat's deck
+// and hold loot is its build's (TF_BUILT.boat.loot), and sails with it.
 const BRIDGE_MID = (P(37.6, 0)[0] + P(49.9, 0)[0]) / 2;
 const LOOT_EXTRA = [
-  { x: LANDMARKS.boat.x - 6, z: LANDMARKS.boat.z, y: 1.32 },
-  { x: LANDMARKS.boat.x - 1.5, z: LANDMARKS.boat.z + 1.6, y: 1.32 },
-  { x: LANDMARKS.boat.x + 7, z: LANDMARKS.boat.z, y: 1.32 },
   { x: BRIDGE_MID - 14, z: LANDMARKS.bridge.z, y: 0.66 },
   { x: BRIDGE_MID + 6, z: LANDMARKS.bridge.z, y: 0.66 },
   // the rebuilt places' floors, roofs and balconies (the Blender build's)
@@ -145,6 +145,7 @@ const GROUND_FIELD = (() => {
 })();
 const groundY = (x, z) => sampleField(GROUND_FIELD, x, z);
 
+let BOAT = null;            // the Boat, sailing (built with the map)
 const CLIFF_DEPTH = 46;
 // the ground bake's square [x0, z0, size] (bake_map_ground.blender.py prints it)
 const GROUND_BAKE_RECT = [-220, -220, 440];
@@ -927,15 +928,18 @@ function buildTrollfaceIsland(mapApi) {
     mapModel(api, "tf-tree-p3", { x, z });
   }
 
-  // The Boat: a sailing smack aground in the lake, the deck 2.7 m up by the
-  // stern steps, the wheelhouse and the hold you go down into. Drawn by
-  // tf-boat-p3 and tf-boatface (the figurehead).
-  {
+  // The Boat: a sailing smack, the deck 2.7 m up by the stern steps, the
+  // wheelhouse and the hold you go down into. Drawn by tf-boat-p3,
+  // tf-boatface (the figurehead) and its folding rig. In a match it sails
+  // round the lake (trollface-boat.js, modes/royale-boat.js), its colliders
+  // with it; built from code (the tools) it stays where it was built.
+  BOAT = null;
+  if (fromCode) {
     const { x, z } = L.boat;
     built("boat");
     mapModel(api, "tf-boat-p3", { x, z });
     mapModel(api, "tf-boatface", { x, z });
-  }
+  } else BOAT = new Boat(root, mapApi, L.boat, TF_BUILT.boat.colliders);
 
   // The Gallery: the glass pyramid (the lobby: the ticket desk, the gift
   // shop, the white trollface bust), a hall either side with framed memes and
@@ -1017,7 +1021,8 @@ function buildTrollfaceIsland(mapApi) {
 
   dressIsland(api, root, K, M, r, clear);
   K.flush();
-  if (!fromCode) for (const c of ISLAND_SOLIDS) mapApi.ghostBox(c.x, c.z, c.w, c.d, c.h, { y: c.y, pen: c.pen });
+  // (the Boat's are laid by the Boat, in pieces it moves)
+  if (!fromCode) for (const c of ISLAND_SOLIDS) if (c.n !== "boat") mapApi.ghostBox(c.x, c.z, c.w, c.d, c.h, { y: c.y, pen: c.pen });
 }
 
 /* Instanced clutter, paddocks, signposts, billboards, graffiti (phase 2). */
@@ -1212,6 +1217,7 @@ export const TROLLFACE_ISLAND = {
   // stylised realism (view/grade-pass.js): hard sun in space: cold shade, clean highs
   grade: { shadows: 0x101a40, shadowsAmt: 0.08, highlights: 0xfff0d0, highlightsAmt: 0.05, sat: 1.08, contrast: 1.05 },
   build: buildTrollfaceIsland,
+  boat: () => BOAT,           // modes/royale-boat.js sails it
   groundField: GROUND_FIELD,   // the hills (core/ground-field.js reads it while the map is live)
   spawns: SPAWNS,
   edge: ISLAND_EDGE,
