@@ -156,7 +156,7 @@ const res = await page.evaluate(async ([tag, id, spec, DEPTH]) => {
   }
   const family = (owner) => {
     const out = new Set([owner]);
-    for (const p of props) if (p.on === owner || p.id.startsWith(owner + "-")) out.add(p.id);
+    for (const p of props) if ((Array.isArray(p.on) ? p.on.includes(owner) : p.on === owner) || p.id.startsWith(owner + "-")) out.add(p.id);
     return out;
   };
   const report = [];

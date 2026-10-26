@@ -53,13 +53,41 @@ const LAKE_PCT = [[22.8, 35.9], [24.1, 35.9], [27.5, 37.9], [31.3, 38.4], [41.3,
 export const ISLAND_LAKE = polyP(LAKE_PCT);
 const RIVER_MOUTH = [P(37.2, 72.2), P(45.6, 77.3)];   // where the river goes over the cliff
 
-// The winding road across the north (Meme Lab to the Observatory), its
-// switchback down to the city, and the sand path round the south and east.
-const NORTH_ROAD = polyP([[24, 17], [27.5, 14.5], [31.3, 10.1], [41.3, 8.1], [56.3, 7.7], [67.5, 9.1], [69, 12.1], [67.8, 15.2]]);
-const SWITCHBACK = polyP([[29.4, 19.2], [30.6, 14.1], [37.5, 11.7], [43.1, 12.5], [41.3, 15.1], [35.6, 16.1], [32.8, 19.2], [36.3, 24.2]]);
+// The 6 m road network (doc "Trollface Island in Blender", phase 3; metres,
+// x east, z south), drawn as asphalt by tf-roads-p3 (models/tf_roads.py) and
+// flattened under (tools/troll-ops-island-ground-flatten.mjs): the north
+// road from Meme Lab past the city and the Problem Plant to the Observatory,
+// down between the Peak and the Skate Bowl, round the east past Lighthouse
+// Point, the Market, Grin Gas and the Shop to the Bridge; the shore road
+// from the Ranch past the Dock, under Old Tree, past the Cave's mouth and
+// the Peak's foot; the west arm to the Ranch and Lulz Lodge; the city
+// road down to its west entrance; the Gallery's spur off the Bridge.
+export const ROAD_NET = {
+  north: [[-122, -128], [-112, -128], [-100, -124], [-80, -131], [-40, -136], [29, -138], [75, -135], [84, -126], [90, -112], [97, -100], [97, -37], [140, -37], [160, -36], [167, -20], [167, 0], [166, 20], [164, 36], [158, 50], [150, 62], [135, 68], [110, 70], [92, 72], [95, 92], [88, 112], [60, 112], [40, 100], [12, 92], [10, 78], [1.2, 78]],
+  west: [[-100, -124], [-110, -110], [-125, -95], [-150, -75], [-170, -58], [-180, -45], [-172, -30], [-160, -12], [-145, 5], [-135, 10], [-118, 16], [-106, 16]],
+  shore: [[-180, -45], [-170, -56], [-150, -58], [-125, -56], [-104, -56], [-90, -57], [-70, -57], [-55, -50], [-45, -41], [-36, -29], [-30, -18], [-20, -12], [-5, -9], [20, -5], [45, -8], [80, -8], [97, -12], [97, -37]],
+  city: [[-100, -124], [-92, -108], [-86, -96], [-84, -87], [-84, -57]],
+  cityin: [[-84, -87], [-64, -87]],
+  gallery: [[-58, 78], [-72, 74], [-86, 69], [-96, 66]],
+};
+// Parking spots for the vehicles doc: [x, z, yaw (deg, the nose)], a bay
+// 5 x 2.6 m beside the road; painted by tf-roads-p3.
+export const PARKING = [
+  [-80, -92, 90], [-80, -82, 90],              // the city's west entrance
+  [101.5, -60, 0], [101.5, -66, 0],            // the Skate Bowl's west door
+  [161.5, 20, 0],                              // Lighthouse Point
+  [140, 63.5, 240], [130, 72.5, 60],           // the Marketplace
+  [84, 116.5, 180], [78, 116.5, 180],          // Grin Gas
+  [40, 95.5, 180],                             // the Shop's back
+  [-88, 73.5, 110],                            // the Gallery's spur
+  [-140, 12.5, 290],                           // Lulz Lodge
+  [-166, -62, 160],                            // Rage Ranch
+  [-104, -51.5, 270],                          // the Dock
+];
+const NORTH_ROAD = ROAD_NET.north;
 const SOUTH_WEST_PATH = polyP([[27, 57], [32.5, 62], [37, 66.5], [37.6, 68.5]]);
 const SOUTH_EAST_PATH = polyP([[49.9, 68.5], [55, 72.2], [65, 72.4], [74, 68.5], [79.5, 62.5], [85.6, 52.8], [86.4, 43.3], [85, 38.8], [82, 36.6]]);
-const ROADS = [NORTH_ROAD, SWITCHBACK, SOUTH_WEST_PATH, SOUTH_EAST_PATH];
+export const ROADS = [...Object.values(ROAD_NET), SOUTH_WEST_PATH, SOUTH_EAST_PATH];
 
 // The landmarks, where the map draws them, and how much room each keeps clear
 // of scattered cover and landing spots. `tier` is Troll Royale's (royale.js
@@ -282,7 +310,12 @@ function spreadSpawns(n) {
   }
   return out;
 }
-const SPAWNS = spreadSpawns(20);
+// The twenty are the contract's (studio/trollface-island/contract.json): spread
+// once over the open ground of the old paths, frozen when phase 3 laid the
+// road network over the island (spreading again on the new roads moved them).
+const SPAWNS = [[17, -113], [161, 133], [-187, -41], [-49, 73], [173, -47], [-109, -137], [59, 1], [-67, -35], [53, 115], [113, -119],
+  [-133, 37], [155, 43], [-127, -71], [5, -47], [95, -53], [95, 67], [-43, -131], [11, 67], [-121, -17], [107, 121]];
+void spreadSpawns;
 
 /* ======================================================================
    Map detail pass, phase 2 (2026-10-01): the island's ground and dressing.
@@ -782,48 +815,49 @@ function buildTrollfaceIsland(mapApi) {
     mapModel(api, "tf-peak-p1", { x, z });
   }
 
-  // The Cave: a rock mound with a tunnel through it (in from the south), and
-  // a side chamber off the tunnel. Drawn by tf-cave.
+  // The roads: the asphalt, its paint and the parking bays, mile posts,
+  // power poles along the north road, two wrecks, the bus shelter at the
+  // Market, and the two lake boardwalks. Drawn by tf-roads-p3
+  // (models/tf_roads.py) at the island's origin, its colliders the build's.
+  {
+    built("roads");
+    mapModel(api, "tf-roads-p3", { x: 0, z: 0 });
+  }
+
+  // The Cave: the teal rock mound with the tunnel north to south through it
+  // and the back chamber east of it (the pool, the campfire, the carts).
+  // Drawn by tf-cave-p3 (models/tf_lake.py), its colliders the build's.
   {
     const { x, z } = L.cave;
-    K.box(x - 6.5, z, 8, 22, 6, null);                                           // west
-    K.box(x + 6.5, z - 7, 8, 8, 6, null);                                        // east, split
-    K.box(x + 6.5, z + 7, 8, 8, 6, null);
-    K.box(x + 9.25, z, 2.5, 6, 6, null);
-    K.box(x, z, 5, 22, 2.8, null, { y: 3.2 });                                   // roofs
-    K.box(x + 5.25, z, 5.5, 6, 2.8, null, { y: 3.2 });
-    mapModel(api, "tf-cave", { x, z });
+    built("cave");
+    mapModel(api, "tf-cave-p3", { x, z });
   }
 
-  // The Dock: a jetty out into the lake, turning east. Drawn by tf-dock (its
-  // origin is the jetty's shore end, x0 z0).
+  // The Dock: the jetty out into the lake turning east, the bait shop and
+  // the boat shed on the shore, the slipway, boats tied up. Drawn by
+  // tf-dock-p3 (its origin is the jetty's shore end, x0 z0).
   {
-    const [x0] = P(27, 0), [, z0] = P(0, 36), [, z1] = P(0, 42), [x1] = P(33, 0);
-    K.box(x0, z0 - 0.5, 3.6, 1, 0.33, null);
-    K.box(x0, (z0 + z1) / 2, 3.6, z1 - z0, 0.66, null);
-    K.box((x0 + x1) / 2 + 1.8, z1 + 1.8 - 1.8, x1 - x0, 3.6, 0.66, null);
-    K.box(x1 - 2, z1, 1.4, 1.4, 1.1, null, { y: 0.66 });                      // a crate
-    mapModel(api, "tf-dock", { x: x0, z: z0 });
+    const [x0] = P(27, 0), [, z0] = P(0, 36);
+    built("dock");
+    mapModel(api, "tf-dock-p3", { x: x0, z: z0 });
   }
 
-  // Old Tree: the big one on the sand by the dock, a tyre swing off its long
-  // branch. Drawn by tf-tree.
+  // Old Tree: grown big, the plank stair round the trunk up to the
+  // treehouse, the tyre swing, the picnic table. Drawn by tf-tree-p3.
   {
     const { x, z } = L.tree;
-    K.cyl(x, z, 0.8, 5, null, { segs: 8 });
-    mapModel(api, "tf-tree", { x, z });
+    built("tree");
+    mapModel(api, "tf-tree-p3", { x, z });
   }
 
-  // The Boat: a sailboat on the lake; steps up the stern, a cabin on deck.
-  // Drawn by tf-boat.
+  // The Boat: a sailing smack aground in the lake, the deck 2.7 m up by the
+  // stern steps, the wheelhouse and the hold you go down into. Drawn by
+  // tf-boat-p3 and tf-boatface (the figurehead).
   {
     const { x, z } = L.boat;
-    K.box(x, z, 17, 5.6, 1.32, null);
-    api.ghostBox(x + 10, z, 3, 3.2, 1.32, { pen: 1.2 });                      // the pointed bow
-    K.stairs(x - 8.5, z, -1, 0, 0, 1.32, 2.4, null);
-    K.box(x + 3, z, 5, 3.6, 1.9, null, { y: 1.32 });                         // the cabin
-    K.cyl(x - 1, z, 0.25, 18, null, { y: 1.32, segs: 8 });
-    mapModel(api, "tf-boat", { x, z });
+    built("boat");
+    mapModel(api, "tf-boat-p3", { x, z });
+    mapModel(api, "tf-boatface", { x, z });
   }
 
   // The Gallery: a glass pyramid over a plinth, doors north and south.
@@ -866,17 +900,12 @@ function buildTrollfaceIsland(mapApi) {
     mapModel(api, "tf-market", { x, z });
   }
 
-  // The Bridge: over the river on the south path, rails both sides. Drawn by
-  // tf-bridge (its origin is the deck's middle).
+  // The Bridge: the plank bridge over the river roofed over, a toll booth
+  // at each end. Drawn by tf-bridge-p3 (its origin is the deck's middle).
   {
     const [xa] = P(37.6, 0), [xb] = P(49.9, 0), { z } = L.bridge;
-    const len = xb - xa, mid = (xa + xb) / 2;
-    K.box(xa - 0.5, z, 1, 5, 0.33, null);
-    K.box(xb + 0.5, z, 1, 5, 0.33, null);
-    K.box(mid, z, len, 5, 0.66, null);
-    K.box(mid, z - 2.4, len, 0.2, 0.9, null, { y: 0.66 });
-    K.box(mid, z + 2.4, len, 0.2, 0.9, null, { y: 0.66 });
-    mapModel(api, "tf-bridge", { x: mid, z });
+    built("bridge");
+    mapModel(api, "tf-bridge-p3", { x: (xa + xb) / 2, z });
   }
 
   /* ---- cover: trees, bushes, boulders, walls, crates, hay, logs, barrels,
@@ -1016,7 +1045,7 @@ function dressIsland(api, root, K, M, r, clear) {
   // billboards by the roads: the key art, the sad troll, the key art again
   const loader = new THREE.TextureLoader();
   const art = (file) => { const t = loader.load(new URL(`../ui/${file}`, import.meta.url).href); t.colorSpace = THREE.SRGBColorSpace; return t; };
-  const billboards = [[NORTH_ROAD, 4, "troll-forces-key-art.jpg", 7.5, 4.2], [SOUTH_EAST_PATH, 3, "trollface-sad.png", 4.5, 4.5], [SWITCHBACK, 2, "troll-forces-key-art.jpg", 7.5, 4.2]];
+  const billboards = [[NORTH_ROAD, 4, "troll-forces-key-art.jpg", 7.5, 4.2], [SOUTH_EAST_PATH, 3, "trollface-sad.png", 4.5, 4.5], [ROAD_NET.west, 2, "troll-forces-key-art.jpg", 7.5, 4.2]];
   for (const [road, idx, file, w, h] of billboards) {
     const [ax, az] = road[idx], [bx, bz] = road[idx + 1];
     const len = Math.hypot(bx - ax, bz - az), tx = (bx - ax) / len, tz = (bz - az) / len;

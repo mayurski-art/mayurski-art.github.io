@@ -47,11 +47,14 @@ import tf_city  # noqa: E402
 import tf_peak  # noqa: E402
 import tf_portal  # noqa: E402
 import tf_skate  # noqa: E402
+import tf_lake  # noqa: E402
+import tf_roads  # noqa: E402
 
-BUILT = ("city", "peak", "skate", "portal")        # the places a tf_<area>.py module draws (their colliders are the build's)
+BUILT = ("city", "peak", "skate", "portal", "cave", "dock", "tree", "boat", "bridge", "roads")        # the places a tf_<area>.py module draws (their colliders are the build's)
 # a rebuilt place's GLB gets a new name (the asset service worker re-checks
 # art daily: an old name would reach returning players a visit late)
-GLB_NAME = {"city": "tf-city-p1", "peak": "tf-peak-p1", "skate": "tf-skate-p2", "portal": "tf-portal-p2"}
+GLB_NAME = {"city": "tf-city-p1", "peak": "tf-peak-p1", "skate": "tf-skate-p2", "portal": "tf-portal-p2",
+            "cave": "tf-cave-p3", "dock": "tf-dock-p3", "tree": "tf-tree-p3", "boat": "tf-boat-p3", "bridge": "tf-bridge-p3", "roads": "tf-roads-p3"}
 
 LAYOUT = json.load(open(os.path.join(HERE, "trollface-island-layout.json")))
 
@@ -68,6 +71,8 @@ def origins():
     o["bridge"] = ((P(37.6, 0)[0] + P(49.9, 0)[0]) / 2, 0.0, L["bridge"]["z"])   # the deck's middle
     o["cityface"] = o["city"]
     o["portalface"] = o["portal"]
+    o["boatface"] = o["boat"]
+    o["roads"] = (0.0, 0.0, 0.0)
     return o
 
 
@@ -159,7 +164,7 @@ def write_built(built):
 
 
 LANDMARKS = ["city", "cityface", "peak", "gallery", "shop",
-             "memelab", "observatory", "portal", "portalface", "skate", "cave", "dock", "tree", "boat", "market", "bridge"]
+             "memelab", "observatory", "portal", "portalface", "skate", "boatface", "roads", "cave", "dock", "tree", "boat", "market", "bridge"]
 
 
 def main():
@@ -200,9 +205,10 @@ def main():
         "gallery": lambda: OLD.build_gallery(Pal), "shop": lambda: OLD.build_shop(Pal),
         "memelab": lambda: OLD.build_memelab(Pal), "observatory": lambda: OLD.build_observatory(Pal), "portal": lambda: modern("portal", tf_portal),
         "portalface": lambda: tf_portal.portal_face(OLD.GLB, Pal),
-        "skate": lambda: modern("skate", tf_skate), "cave": lambda: OLD.build_cave(Pal), "dock": lambda: OLD.build_dock(Pal),
-        "tree": lambda: OLD.build_tree(Pal), "boat": lambda: OLD.build_boat(Pal), "market": lambda: OLD.build_market(Pal),
-        "bridge": lambda: OLD.build_bridge(Pal),
+        "skate": lambda: modern("skate", tf_skate), "cave": lambda: modern("cave", tf_lake.CAVE), "dock": lambda: modern("dock", tf_lake.DOCK),
+        "tree": lambda: modern("tree", tf_lake.TREE), "boat": lambda: modern("boat", tf_lake.BOAT),
+        "boatface": lambda: tf_lake.boat_face(OLD.GLB, Pal), "market": lambda: OLD.build_market(Pal),
+        "bridge": lambda: modern("bridge", tf_lake.BRIDGE), "roads": lambda: modern("roads", tf_roads),
     }
     for k in want:
         print(f"-- {k}")
@@ -218,7 +224,9 @@ def main():
         # the model sits inside its place's ring (the contract: each
         # landmark's model stays inside its ring), with the two whose origin
         # is off-centre measured from the place
-        place = LAYOUT["places"][{"cityface": "city", "portalface": "portal"}.get(k, k)]
+        place = LAYOUT["places"].get({"cityface": "city", "portalface": "portal", "boatface": "boat"}.get(k, k))
+        if place is None:       # the roads span the island
+            continue
         r_in = max(abs(lo[0] + ox - place["x"]), abs(hi[0] + ox - place["x"]), abs(lo[2] + oz - place["z"]), abs(hi[2] + oz - place["z"]))
         if r_in > place["r"] + 2.5:
             print(f"   NOTE {k}: model reaches {r_in:.1f} m from the place's centre, ring {place['r']} m")
