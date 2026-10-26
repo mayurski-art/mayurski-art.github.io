@@ -545,6 +545,10 @@ function jumpOut() {
   // The fall's opening show (royale-fall.js) has the camera and the stick
   // for its first seconds; its end puts up the fly banner.
   startFallShow(back, game.look.yaw, game.move.pos, _exitVel);
+  // The show keeps the way you went out; your look comes out of it facing
+  // north, so the trollface reads upright below you, as it did from the
+  // plane (every run flies south: going out facing the hold faced south).
+  game.look.yaw = 0;
   // The slipstream as you go, and the wind of the fall from then on.
   playSfx("gust", { gain: 0.8 });
   r.windRush = playSfx("wind-rush", { gain: 0.15, loop: true }) || null;

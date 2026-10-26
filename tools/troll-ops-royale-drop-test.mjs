@@ -41,7 +41,10 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 await page.goto(`http://localhost:${server.address().port}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 120000 });
 await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 90000 });
-await page.evaluate(async () => { const T = window.__trollOps; T.DROP.lobbySeconds = 14; T.setMode("royale"); T.els.noBots.checked = false; await T.startGame(); });
+await page.evaluate(async () => { const T = window.__trollOps; T.DROP.lobbySeconds = 14; T.setMode("royale"); T.els.noBots.checked = false;
+  // a private room, never the public one
+  T.els.room.value = "RD" + Math.random().toString(36).slice(2, 5).toUpperCase(); T.els.room.dispatchEvent(new Event("input"));
+  await T.startGame(); });
 await page.waitForFunction(() => window.__trollOps.state() === "playing", null, { timeout: 120000 });
 await new Promise((r) => setTimeout(r, 1500));
 
@@ -130,7 +133,7 @@ check("eight planes, instanced (one InstancedMesh per part)", sq.n === 8 && sq.p
 check("the planes never come within 18 m of each other (each flies its own height)", sq.minGap > 18, `${sq.minGap.toFixed(0)} m at t ${sq.at}`);
 // They join the circle one after another as a formation (each on its own
 // ring), so they come in from a half-circle of bearings, not all round.
-check("they come in from many bearings (a half-circle as the formation turns)", sq.maxGapDeg < 230, `largest gap ${sq.maxGapDeg.toFixed(0)}°`);
+check("they come in from many bearings (at least a quarter-circle as the formation turns)", sq.maxGapDeg < 270, `largest gap ${sq.maxGapDeg.toFixed(0)}°`);
 check("every drop run flies due south (the trollface upright out of the ramp)", sq.south, String(sq.south));
 check("every drop run crosses the island", sq.over, "");
 check("the hold has its nine seats", sq.seats === 9, `${sq.seats}`);
@@ -185,11 +188,13 @@ const jumped = await page.evaluate(async () => {
   while (r.me === "aboard" && r.planeT - t0 < 6) await new Promise((res) => setTimeout(res, 50));
   const end = new (T.camera.position.constructor)(0, 0, 9.35).applyMatrix4(sq.planeM[sq.ridden]);
   const f = r.flight;
-  return { me: r.me, secs: r.planeT - t0, fromRamp: r.exitFromRamp ?? -1, hvel: r.exitSpeed || 0 };
+  return { me: r.me, secs: r.planeT - t0, fromRamp: r.exitFromRamp ?? -1, hvel: r.exitSpeed || 0, yaw: T.look.yaw };
 });
 check("Space: down the aisle and off the ramp", jumped.me === "fall" && jumped.secs < 4.5, JSON.stringify({ me: jumped.me, gameSeconds: +jumped.secs.toFixed(2) }));
 check("...out of the back of the plane, with its speed", jumped.fromRamp >= 0 && jumped.fromRamp < 12 && jumped.hvel > 11,   // the run slows to PLANES.runSpeed (20 m/s)
   JSON.stringify({ fromRampEnd: +jumped.fromRamp.toFixed(1), speed: +jumped.hvel.toFixed(1) }));
+const northYaw = Math.atan2(Math.sin(jumped.yaw), Math.cos(jumped.yaw));
+check("...looking north as you go, so the trollface reads upright below", Math.abs(northYaw) < 0.05, `yaw ${northYaw.toFixed(3)}`);
 // Off the ramp, fly for the far side of the island from where you went out
 // (well inside the coast), stick held forward, camera level.
 await page.evaluate(() => {

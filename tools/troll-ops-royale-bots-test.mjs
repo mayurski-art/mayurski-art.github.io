@@ -52,7 +52,8 @@ async function start(mode, players = null) {
     else if (T.__players0) T.ROYALE.players = T.__players0;
     T.loadout.mapId = "grinbeach";   // TDM baseline on the same map
     T.setMode(mode);
-    T.els.room.value = mode === "royale_mini" ? "QTRM" : ""; T.els.room.dispatchEvent(new Event("input"));
+    // always a private room, never the public one
+    T.els.room.value = mode === "royale_mini" ? "QTRM" : "RB" + Math.random().toString(36).slice(2, 5).toUpperCase(); T.els.room.dispatchEvent(new Event("input"));
     if (T.els.noBots) T.els.noBots.checked = false;
     await T.startGame();
   }, { mode, players });
