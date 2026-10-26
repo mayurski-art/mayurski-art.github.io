@@ -9,7 +9,7 @@
 // Colliders stay in maps.js, copied from each approved blockout, so a layout
 // plays exactly as it was walk-tested. These helpers only draw.
 
-import { placeModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7";
+import { placeModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8";
 
 /* Blender material name -> [surface, tiles per metre]. Must match TEXTURED
    in models/map_kit.py: anything else was merged into flat vertex-coloured

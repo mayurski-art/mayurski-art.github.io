@@ -5,7 +5,7 @@
 // keep Gun Game and One in the Chamber from leaking special cases into the
 // main loop.
 
-import { FlowField } from "../bots/nav.js?v=ti1-bs1b7d-fl1-or1-gf1-tg1";
+import { FlowField } from "../bots/nav.js?v=ti1-bs1b7d-fl1-or1-gf1-tg1-tfb8";
 
 export const MODES = {
   ops: {

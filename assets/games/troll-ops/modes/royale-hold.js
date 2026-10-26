@@ -15,7 +15,7 @@
 // matrix instead. Ghost point -> plane-local = ghost - origin.
 
 import * as THREE from "three";
-import { loadModel } from "../maps/battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7";
+import { loadModel } from "../maps/battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8";
 
 export const HOLD = {
   halfW: 1.56,          // the walls at the floor
