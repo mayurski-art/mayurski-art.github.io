@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self';">
+  <meta http-equiv="refresh" content="0; url=/troll-ops.html?mode=royale">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="canonical" href="https://trollrunner.net/royale">
+  <title>Troll Royale | Troll Runner Arcade</title>
+</head>
+<body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#0a0c0a;color:#fff;font-family:system-ui,sans-serif;">
+  <script>
+    // trollrunner.net/royale: the short link to Troll Royale. GitHub Pages
+    // is static, so /royale needs a real file; this bounces to the game with
+    // ?mode=royale (Royale picked in the mode list), keeping any other query
+    // or #hash, and the game puts /royale back in the address bar.
+    var q = location.search ? location.search.replace(/^\?/, "&") : "";
+    location.replace('/troll-ops.html?mode=royale' + q + location.hash);
+  </script>
+  <p>Loading Troll Royale… if nothing happens, <a href="/troll-ops.html?mode=royale" style="color:#8fe36a;">play here</a>.</p>
+</body>
+</html>

@@ -47,6 +47,11 @@ export function buildModeButtons() {
       game.els.loMode.appendChild(b);
     }
   }
+  // A short link picked the mode (trollrunner.net/royale: ?mode=royale, read
+  // by troll-ops.html before the address bar drops it): start on it, once.
+  const start = MODES[window.__tfStartMode];
+  window.__tfStartMode = null;
+  if (start && !start.hidden && !modeLocked(start)) { game.modeId = start.id; game.modePicked = true; }
   renderModes();
 }
 
