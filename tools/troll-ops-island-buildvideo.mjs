@@ -313,6 +313,11 @@ const draws = STATES.map((st, i) => {
     `drawtext=${font}:text='${esc(st.sub)}':fontcolor=0xe8dcc8:fontsize=31:line_spacing=10:text_align=C:boxborderw=14:${on}:x=(w-text_w)/2:y=h-${SUB_TOP}`,
   ].join(",");
 }).filter(Boolean).join(",");
-execFileSync(FFMPEG, ["-loglevel", "error", "-y", "-framerate", String(FPS), "-i", path.join(DIR, "%05d.jpg"),
-  "-vf", `${draws},format=yuv420p`, "-c:v", "libx264", "-crf", "24", "-preset", "slow", "-movflags", "+faststart", OUT]);
-console.log(`${frame} frames (${(frame / FPS).toFixed(1)} s) -> ${OUT}`);
+// and a copy with no text at all, to caption again elsewhere (user, 2026-10-26:
+// "you could make the video without the texts incase i want to change it")
+const CLEAN = OUT.replace(/\.mp4$/, "") + "-no-text.mp4";
+for (const [vf, out] of [[`${draws},format=yuv420p`, OUT], ["format=yuv420p", CLEAN]]) {
+  execFileSync(FFMPEG, ["-loglevel", "error", "-y", "-framerate", String(FPS), "-i", path.join(DIR, "%05d.jpg"),
+    "-vf", vf, "-c:v", "libx264", "-crf", "24", "-preset", "slow", "-movflags", "+faststart", out]);
+}
+console.log(`${frame} frames (${(frame / FPS).toFixed(1)} s) -> ${OUT}, ${CLEAN}`);
