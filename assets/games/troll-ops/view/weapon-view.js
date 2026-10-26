@@ -12,10 +12,11 @@ import { ownBody, fpArmLook } from "../characters/blocky-body.js?v=bk1-cw1-zr10-
 import { bodyToken } from "../characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1-em2-nb2-pc2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-sf1-mg1-sp1";
 import { cosmetics } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-sbolt1";
 import { soulBlazerReloadPose, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth, updateSoulBlazerView, soulBlazerInspect, SB_INSPECT_CUES } from "../weapons/soul-blazer.js?v=sb1-or1";
-import { placePistolSlide } from "./pistol-action.js?v=ps1-wb1-br1-or1";
-import { placeBolt, boltGunPose, frameBolt } from "./rifle-action.js?v=ra1-wb1-or1-sbolt1";
+import { boltGunPose, frameBolt } from "./rifle-action.js?v=ra1-wb1-or1-sbolt1";
+import { updateGunAction } from "./gun-action.js?v=ga1";
+import { ejectBrass, updateBrass } from "./brass.js?v=bs1";
 import { updateSniperScope } from "./sniper-scope.js?v=ss1-wb1";
-import { hasArReload, applyArReload, arReloadBeats, arSlideAt, easeCutReload } from "./ar-reload.js?v=ar1-br1-or1";
+import { hasArReload, applyArReload, arReloadBeats, easeCutReload } from "./ar-reload.js?v=ar1-br1-or1";
 import { chargedShotDef } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-sbolt1";
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1-gf1-tg1-sbolt1";
 import { STANCE } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1";
@@ -1455,20 +1456,19 @@ export function updateWeaponView(dt) {
     easeCutReload(mesh, dt, arLastT >= 0 && arLastT < 0.97);   // cut short: ease back, don't jump
   }
   arLastT = rl.arT;
-  // A pistol works its slide (pistol-action.js); the empty reload ends on
-  // the slide slamming home, with a little kick (a BO2 pistol reload: as
-  // the hand racks it, ar-reload.js arSlideAt).
-  if (mesh.userData.pistolAction) {
-    const admire = game.inspectT > 0 && game.player.holding === "gun" ? inspectProgress() : -1;
-    const arSlide = rl.arT >= 0 ? arSlideAt(w) : null;
-    if (placePistolSlide(mesh, w, arSlide != null ? rl.arT : (rl.magT ?? -1), admire, arSlide ?? undefined) === "release") {
-      game.audio.slideRelease();
-      w.viewKickPitch += 0.012;
-    }
+  // The gun's mechanism (gun-action.js): a pistol's slide (the empty reload
+  // ends on it slamming home, with a little kick), a bolt rifle's bolt, and
+  // an arsenal v2 gun's carrier, dust cover, trigger, catch and charging
+  // handle, with brass out of the port.
+  const admire = game.inspectT > 0 && game.player.holding === "gun" ? inspectProgress() : -1;
+  const act = updateGunAction(mesh, w, dt, rl, admire);
+  if (act.release) {
+    game.audio.slideRelease();
+    w.viewKickPitch += 0.012;
   }
-  // A bolt rifle works its bolt after each shot (rifle-action.js).
-  const boltBeat = placeBolt(mesh, w, rl.magT ?? -1);
-  if (boltBeat) game.audio.boltBeat(boltBeat);
+  if (act.boltBeat) game.audio.boltBeat(act.boltBeat);
+  if (act.eject) ejectBrass(mesh, mesh.userData.brass, mesh.userData.gunParts?.Carrier?.node.material?.envMap ?? null);
+  updateBrass(dt);
   updateGreenCandles(mesh, w, rl.magT ?? -1, dt);
   placeReloadShell(mesh, rl.shellT ?? -1, rl.portShell ?? -1);
   placePump(mesh, w, rl.rack ?? -1, rl.pumpBack ?? null);
