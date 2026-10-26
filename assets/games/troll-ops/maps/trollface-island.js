@@ -113,6 +113,12 @@ export const LANDMARKS = {
   shop: lm(58.5, 68.5, 19, "U Mad Bro Shop", "mid"),
   market: lm(82, 74, 26, "The Marketplace", "mid"),
   bridge: lm(43.7, 68.5, 6, "The Bridge", "minor"),
+  // phase 5 of the Blender doc: the five new places (centres in metres, the 2026-10-19 redesign's)
+  ranch: { x: -180, z: -45, r: 39, name: "Rage Ranch", tier: "mid" },
+  lodge: { x: -145, z: 5, r: 31, name: "Lulz Lodge", tier: "minor" },
+  light: { x: 160, z: 20, r: 18, name: "Lighthouse Point", tier: "minor" },
+  plant: { x: 35, z: -130, r: 30, name: "Problem Plant", tier: "mid" },
+  gas: { x: 85, z: 125, r: 21, name: "Grin Gas", tier: "mid" },
 };
 // Floor loot the nav grid can't place: up on the Boat's deck and the Bridge
 // (`y` is the deck: the bots' grid is ground floor only, so bots leave these).
@@ -950,6 +956,26 @@ function buildTrollfaceIsland(mapApi) {
     const { x, z } = L.market;
     built("market");
     mapModel(api, "tf-market-p4", { x, z });
+  }
+
+  // The five new places (phase 5): Rage Ranch, Lulz Lodge, Lighthouse Point,
+  // Problem Plant, Grin Gas. Drawn by tf-<place>-p5 (models/tf_new.py), their
+  // colliders the build's; the lamp room's and the diner's glass the map's,
+  // the Ranch's scarecrow wears the trollface (TF_BUILT.ranch.face: x, y, z, size, turn).
+  for (const k of ["ranch", "lodge", "light", "plant", "gas"]) {
+    const { x, z } = L[k];
+    built(k);
+    panes(k);
+    mapModel(api, `tf-${k}-p5`, { x, z });
+  }
+  {
+    const [fx, fy, fz, fs, fry] = TF_BUILT.ranch.face;
+    const face = new THREE.PlaneGeometry(fs, fs);
+    face.rotateY(fry);
+    face.translate(fx, fy, fz);
+    const tex = new THREE.TextureLoader().load(new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    root.add(new THREE.Mesh(face, new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide })));
   }
 
   // The Bridge: the plank bridge over the river roofed over, a toll booth

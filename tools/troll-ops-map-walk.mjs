@@ -220,6 +220,20 @@ const RUNS = {
   [73.3, 4.3, -99.5, 1, 0, 4, "observatory: into the dome", (r) => r.end[0] > 76.2 && r.end[1] >= 4.2],
   [151.3, 0, 101.7, 0, 1, 4, "market: up the steps onto the quay", (r) => r.maxY >= 0.85],
   [-91, 0, 45.3, 1, 0, 4, "gallery: from the lobby into the east hall", (r) => r.end[0] > -84.5],
+  // phase 5: the new places. Lighthouse Point's tower stands at (174.6, 28),
+  // its floor 0.3 up, ten flights clockwise round the core to the lamp room at 15.3
+  [-170, 0, -43, 1, 0, 3, "ranch: in through the barn's west doors", (r) => r.end[0] > -164.5],
+  [-164, 0, -47.15, 1, 0, 5, "ranch: up the stair to the hayloft", (r) => r.maxY >= 2.7],
+  [-140.5, 0, -11.5, 0, -1, 3, "lodge: into a cabin", (r) => r.end[2] < -16],
+  [-122, 0, -0.5, 1, 0, 4, "lodge: out along the jetty", (r) => r.end[0] > -117 && r.maxY >= 0.55],
+  [169, 0, 28, 1, 0, 3, "lighthouse: in through the door", (r) => r.end[0] > 171.3],
+  [172.7, 0.3, 26.1, 1, 0, 3, "lighthouse: up the first flight", (r) => r.maxY >= 1.7],
+  [176.5, 13.8, 26.1, 0, 1, 3, "lighthouse: the last flight into the lamp room", (r) => r.end[1] >= 15.2],
+  [172.6, 15.3, 28, -1, 0, 3, "lighthouse: out onto the gallery, its rail holds", (r) => r.end[0] < 171 && r.end[0] > 168.8 && r.end[1] >= 15.2],
+  [59.7, 0, -131.5, 0, 1, 6, "plant: up the stair to the turbine hall's roof", (r) => r.maxY >= 5.9],
+  [21.76, 0, -128.83, -0.195, 0.981, 3, "plant: in between the cooling tower's legs and out", (r) => r.end[2] > -116],
+  [73.4, 0, 118, 0, 1, 3, "gas: into the diner", (r) => r.end[2] > 123.5],
+  [102.5, 0, 119, 0, 1, 5, "gas: through the car wash", (r) => r.end[2] > 131],
   ],
 };
 

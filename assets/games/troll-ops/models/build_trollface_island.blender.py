@@ -18,7 +18,8 @@ functions (build_island.blender.py), triangle for triangle, through
 tf_kit.TFBuilder so each GLB carries the bake's second UV set; the three
 GLBs nothing loaded (tf-bus, tf-busface, tf-skybox) are no longer written.
 Each later phase replaces a place's old function with a tf_<area>.py module:
-phase 1, Troll City (tf_city.py) and Troll Peak (tf_peak.py).
+phase 1, Troll City (tf_city.py) and Troll Peak (tf_peak.py); phase 5 adds
+the five new places (tf_new.py).
 
 The playable layout is the contract (trollface-island-layout.json): nothing
 here moves a place, the coast, the lake or the ground field. A rebuilt
@@ -51,14 +52,17 @@ import tf_lake  # noqa: E402
 import tf_roads  # noqa: E402
 import tf_coast  # noqa: E402
 import tf_mid  # noqa: E402
+import tf_new  # noqa: E402
 
-BUILT = ("city", "peak", "skate", "portal", "cave", "dock", "tree", "boat", "bridge", "roads", "shop", "memelab", "gallery", "observatory", "market")        # the places a tf_<area>.py module draws (their colliders are the build's)
+BUILT = ("city", "peak", "skate", "portal", "cave", "dock", "tree", "boat", "bridge", "roads", "shop", "memelab", "gallery", "observatory", "market",
+         "ranch", "lodge", "light", "plant", "gas")        # the places a tf_<area>.py module draws (their colliders are the build's)
 # a rebuilt place's GLB gets a new name (the asset service worker re-checks
 # art daily: an old name would reach returning players a visit late)
 GLB_NAME = {"city": "tf-city-p1", "peak": "tf-peak-p1", "skate": "tf-skate-p2", "portal": "tf-portal-p2",
             "cave": "tf-cave-p3", "dock": "tf-dock-p3", "tree": "tf-tree-p3", "boat": "tf-boat-p3", "bridge": "tf-bridge-p3", "roads": "tf-roads-p4", "coast": "tf-coast-p3",
             "shop": "tf-shop-p4", "memelab": "tf-memelab-p4",
-            "gallery": "tf-gallery-p4", "observatory": "tf-observatory-p4", "market": "tf-market-p4"}
+            "gallery": "tf-gallery-p4", "observatory": "tf-observatory-p4", "market": "tf-market-p4",
+            "ranch": "tf-ranch-p5", "lodge": "tf-lodge-p5", "light": "tf-light-p5", "plant": "tf-plant-p5", "gas": "tf-gas-p5"}
 
 LAYOUT = json.load(open(os.path.join(HERE, "trollface-island-layout.json")))
 
@@ -149,7 +153,7 @@ def write_built(built):
         out.append("    signs: [")
         out.append(("," + NL).join("      " + json.dumps(s, separators=(",", ":")) for s in v["signs"]) + ("," if v["signs"] else ""))
         out.append("    ],")
-        for key in ("window", "door", "neon", "swirl", "busts", "glass"):
+        for key in ("window", "door", "neon", "swirl", "busts", "glass", "face"):
             if key in v:
                 out.append(f"    {key}: {json.dumps(v[key])},")
         out.append("  },")
@@ -160,7 +164,8 @@ def write_built(built):
 
 
 LANDMARKS = ["city", "cityface", "peak", "gallery", "shop",
-             "memelab", "observatory", "portal", "portalface", "skate", "boatface", "roads", "coast", "cave", "dock", "tree", "boat", "market", "bridge"]
+             "memelab", "observatory", "portal", "portalface", "skate", "boatface", "roads", "coast", "cave", "dock", "tree", "boat", "market", "bridge",
+             "ranch", "lodge", "light", "plant", "gas"]
 
 
 def main():
@@ -207,7 +212,9 @@ def main():
         "skate": lambda: modern("skate", tf_skate), "cave": lambda: modern("cave", tf_lake.CAVE), "dock": lambda: modern("dock", tf_lake.DOCK),
         "tree": lambda: modern("tree", tf_lake.TREE), "boat": lambda: modern("boat", tf_lake.BOAT),
         "boatface": lambda: tf_lake.boat_face(OLD.GLB, Pal), "market": lambda: modern("market", tf_mid.MARKET),
-        "bridge": lambda: modern("bridge", tf_lake.BRIDGE), "roads": lambda: modern("roads", tf_roads), "coast": lambda: tf_coast.build(tf_kit.TFBuilder(), {**Pal, **tf_coast.palette()}, R, (0.0, 0.0)),
+        "bridge": lambda: modern("bridge", tf_lake.BRIDGE),
+        "ranch": lambda: modern("ranch", tf_new.RANCH), "lodge": lambda: modern("lodge", tf_new.LODGE), "light": lambda: modern("light", tf_new.LIGHT),
+        "plant": lambda: modern("plant", tf_new.PLANT), "gas": lambda: modern("gas", tf_new.GAS), "roads": lambda: modern("roads", tf_roads), "coast": lambda: tf_coast.build(tf_kit.TFBuilder(), {**Pal, **tf_coast.palette()}, R, (0.0, 0.0)),
     }
     for k in want:
         print(f"-- {k}")
