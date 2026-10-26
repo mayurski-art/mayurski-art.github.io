@@ -6,7 +6,7 @@
 // that frame; same origin, so ask the arcade to close the frame instead.
 //
 // "Troll Forces home" (the pause menu and the game-over screen) reloads the
-// game onto its main menu (trollrunner.net/tf). From the pause menu it leaves
+// game onto its main menu (trollrunner.net/warfare). From the pause menu it leaves
 // the match first, the way "Leave match" does, so the match's XP is banked.
 
 export function leaveToArcade(e) {

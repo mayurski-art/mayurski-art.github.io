@@ -13,13 +13,14 @@
   <meta name="apple-mobile-web-app-title" content="Troll Warfare">
   <link rel="apple-touch-icon" href="assets/images/icons/app/apple-touch-icon.png">
   <script>
-    // trollrunner.net/tf is the game's short link (tf/index.html bounces
-    // here). Show it in the address bar too: /tf has no trailing slash, so
-    // every page-relative URL still resolves from the site root. Not inside
-    // the arcade's full-screen frame, and not on a local test server (no /tf).
+    // trollrunner.net/warfare is the game's short link (warfare/index.html
+    // bounces here; so does the old /tf). Show it in the address bar too:
+    // /warfare has no trailing slash, so every page-relative URL still
+    // resolves from the site root. Not inside the arcade's full-screen frame,
+    // and not on a local test server (no /warfare).
     if (window.top === window && location.pathname.endsWith("/troll-ops.html") &&
         ["localhost", "127.0.0.1", "[::1]"].indexOf(location.hostname) < 0) {
-      try { history.replaceState(history.state, "", "/tf" + location.search + location.hash); } catch (e) { /* file:// */ }
+      try { history.replaceState(history.state, "", "/warfare" + location.search + location.hash); } catch (e) { /* file:// */ }
     }
   </script>
   <meta name="description" content="Troll Warfare: a Phantom Forces-style shooter in the Troll Runner Arcade. Twenty-plus weapons with attachments, projectile ballistics, sliding, vaulting and weapon pickups, and waves of trollface grunts that keep coming.">
