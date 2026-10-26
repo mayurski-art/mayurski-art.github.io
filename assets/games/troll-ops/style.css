@@ -1300,12 +1300,16 @@ body.to-social:not(.to-social-armed) #to-touch-interact { display: none !importa
   opacity: .78; transition: opacity .15s;
 }
 .to-gear-chip:hover, .to-gear-chip.is-active { opacity: 1; }
+/* The chip's key on the device in use (Royale's Plates / Hopium: 4 / 5, or
+   the d-pad's arrows on a pad): a bright keycap, readable at a glance. */
 .to-gear-chip b {
-  font-size: 9px; letter-spacing: .06em; color: #0d1210;
-  background: #9aa596; border-radius: 3px; padding: 1px 4px;
+  min-width: 9px; text-align: center;
+  font-size: 10px; font-weight: 700; letter-spacing: .02em; color: #0d1210;
+  background: #eef3ea; border-radius: 3px; padding: 1px 4px;
+  box-shadow: 0 1px 0 rgba(0,0,0,.5);
 }
 .to-gear-chip i { font-style: normal; color: #7fe066; font-weight: 700; }
-.to-gear-chip.is-empty { opacity: .4; }
+.to-gear-chip.is-empty { opacity: .55; }
 .to-gear-chip.is-active { border-color: #7fe066; background: rgba(127,224,102,.16); }
 
 /* Cook meter: how much fuse is left while a grenade is still in your hand. */

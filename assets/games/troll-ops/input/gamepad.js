@@ -24,7 +24,7 @@ import { freeLook } from "../view/free-look.js?v=nf1";
    The 1–14 ladder is BO2's, 3 (Medium) its default. */
 // Hooks other systems hand the pad: zombies = the Zombie Rush HUD's buy /
 // deploy controls (view/zombies-hud.js fills it in).
-export const padHooks = { zombies: null };
+export const padHooks = { zombies: null, royale: null };
 export const PAD_SENS_MULT = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.3, 3.6, 4];
 export const PAD_SENS_NAMES = { 1: "Low", 3: "Medium", 5: "High", 7: "Very High", 9: "Insane" };
 const PAD_LOOK_DEADZONE = 0.1;
@@ -205,12 +205,16 @@ export function pollGamepad(dt) {
     }
     if (game.gpPrev[14] && !btn(14)) { if (dpadLeftT >= 0) game.startInspect(); dpadLeftT = -1; }
     // Zombie Rush: d-pad up buys / deploys the highlighted card, down walks
-    // the highlight (view/zombies-hud.js); everywhere else up and down
-    // scroll the scorestreaks.
+    // the highlight (view/zombies-hud.js); Troll Royale (no streaks): up
+    // puts on a plate, down takes Hopium (modes/royale.js); everywhere else
+    // up and down scroll the scorestreaks.
     const zp = padHooks.zombies?.active() ? padHooks.zombies : null;
+    const rp = !zp && padHooks.royale?.active() ? padHooks.royale : null;
     if (zp) {
       if (pressedEdge(12)) zp.useStart();
       if (game.gpPrev[12] && !btn(12)) zp.useEnd();
+    } else if (rp) {
+      if (pressedEdge(12)) rp.plate();
     } else if (pressedEdge(12)) game.cycleSelectedStreak(-1);   // D-pad up -> previous scorestreak
     // Emote wheel open (both sticks, above): the right stick points at a
     // slice instead of turning the view, Cross/A plays it, Circle/B closes.
@@ -239,7 +243,7 @@ export function pollGamepad(dt) {
 
     // D-pad down: the next ready streak d-pad right will fire (up, above,
     // goes back) — a pick, not a use, the way BO2 scrolls its streak column.
-    if (pressedEdge(13)) { if (zp) zp.next(); else game.cycleSelectedStreak(1); }
+    if (pressedEdge(13)) { if (zp) zp.next(); else if (rp) rp.heal(); else game.cycleSelectedStreak(1); }
     // D-pad right fires whichever streak is selected (a hero's ability in
     // Umbrella Academy). In a streak, it's the hold-to-end
     // (updateStreakControl); a quick tap while marking still confirms the
