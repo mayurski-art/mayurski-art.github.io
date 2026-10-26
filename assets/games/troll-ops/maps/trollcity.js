@@ -38,7 +38,7 @@ import {
 import { LoopPath, Train } from "./train.js?v=tr1b7-or1";
 import { buildTrainBoard } from "./train-board.js?v=tb1-bt1-tcs1";
 import { studioTown, loadStudioTown, setMoves, moveRp, moveFresh, movePoint, moveGeo, moveLive } from "./trollcity-studio.js?v=ts1-tcs1-tcp1-tx1-trk1-ch1-sp1-kbt1-pm1";
-import { buildChapel, CHAPEL, CHAPEL_TOWER } from "./trollcity-chapel.js?v=tch1-tcs1-tcs2-mg1-tx1-ch1-sp1-kbt1-gb1-pm1-kbk2";
+import { buildChapel, CHAPEL, CHAPEL_TOWER } from "./trollcity-chapel.js?v=tch1-tcs1-tcs2-mg1-tx1-ch1-sp1-kbt1-gb1-pm1-kbk2-tfp7";
 import { buildHall, HALL, PLAZA, COMPUTERS } from "./trollcity-hall.js?v=th1-tcs1-tx1-ch1-jb1-jb3-jb6-sp1-kbt1-pm1";
 import { buildEast, EAST } from "./trollcity-east.js?v=te1-tcs1-tx1-ch1-sp1-kbt1-pm1";
 
