@@ -46,6 +46,7 @@ export const SYNCED_KEYS = [
   "trollops:botStreaks",
   "trollops:radio-v2",
   "trollops:zombies",              // Zombies Credits, guns, kit levels (modes/zombies/credits.js)
+  "trollops:wxp",                  // weapon XP, a level per gun (progression/weapon-xp.js)
   "trollops:jail",                 // a Troll City sentence still owed (modes/social-jail.js): rejoining doesn't skip it
 ];
 const SYNCED = new Set(SYNCED_KEYS);
