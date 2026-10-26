@@ -52,6 +52,7 @@ const LAKE_PCT = [[22.8, 35.9], [24.1, 35.9], [27.5, 37.9], [31.3, 38.4], [41.3,
   [25, 48], [24.1, 44.9], [24.1, 43.4], [24.7, 42.4], [22.8, 38.9], [22.5, 36.4]];
 export const ISLAND_LAKE = polyP(LAKE_PCT);
 const RIVER_MOUTH = [P(37.2, 72.2), P(45.6, 77.3)];   // where the river goes over the cliff
+const LAKE_FACE = [92, 30];                         // the lake bed's trollface, centred in the main basin
 
 // The 6 m road network (doc "Trollface Island in Blender", phase 3; metres,
 // x east, z south), drawn as asphalt by tf-roads-p3 (models/tf_roads.py) and
@@ -87,7 +88,10 @@ export const PARKING = [
 const NORTH_ROAD = ROAD_NET.north;
 const SOUTH_WEST_PATH = polyP([[27, 57], [32.5, 62], [37, 66.5], [37.6, 68.5]]);
 const SOUTH_EAST_PATH = polyP([[49.9, 68.5], [55, 72.2], [65, 72.4], [74, 68.5], [79.5, 62.5], [85.6, 52.8], [86.4, 43.3], [85, 38.8], [82, 36.6]]);
-export const ROADS = [...Object.values(ROAD_NET), SOUTH_WEST_PATH, SOUTH_EAST_PATH];
+// The road network replaces the old sand paths (the Bridge spur and the east
+// road run where they did); the billboard still stands by the old east path.
+export const ROADS = Object.values(ROAD_NET);
+void SOUTH_WEST_PATH;
 
 // The landmarks, where the map draws them, and how much room each keeps clear
 // of scattered cover and landing spots. `tier` is Troll Royale's (royale.js
@@ -703,6 +707,36 @@ function buildTrollfaceIsland(mapApi) {
   waterMesh.renderOrder = 2;
   waterMesh.onBeforeRender = lakeWater.userData.tick;
   root.add(waterMesh);
+  // The trollface in the lake (the overview art): the real artwork's ink as
+  // pale sand-bar lines on the water over the main basin, the face 58 m wide.
+  {
+    const img = new Image();
+    img.onload = () => {
+      const W = 512, H = Math.round(512 * img.height / img.width);
+      const c = document.createElement("canvas");
+      c.width = W; c.height = H;
+      const g = c.getContext("2d");
+      g.drawImage(img, 0, 0, W, H);
+      const px = g.getImageData(0, 0, W, H), d = px.data;
+      for (let k = 0; k < d.length; k += 4) {
+        const lum = (d[k] * 0.3 + d[k + 1] * 0.59 + d[k + 2] * 0.11) / 255;
+        const ink = d[k + 3] > 128 ? Math.max(0, Math.min(1, (0.6 - lum) / 0.45)) : 0;
+        d[k] = 214; d[k + 1] = 238; d[k + 2] = 226;
+        d[k + 3] = Math.round(ink * 150 + (d[k + 3] > 128 ? 18 : 0));
+      }
+      g.putImageData(px, 0, 0);
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const fw = 58, fh = fw * H / W;
+      const geo = new THREE.PlaneGeometry(fw, fh);
+      geo.rotateX(-Math.PI / 2);
+      geo.translate(LAKE_FACE[0], WATER_Y + 0.015, LAKE_FACE[1]);
+      const face = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.9 }));
+      face.renderOrder = 3;
+      root.add(face);
+    };
+    img.src = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
+  }
   // The waterfall: a sheet hanging off the cliff where the river meets it,
   // its streaks pouring down.
   {
@@ -814,6 +848,12 @@ function buildTrollfaceIsland(mapApi) {
     built("peak");
     mapModel(api, "tf-peak-p1", { x, z });
   }
+
+  // The coast: rock outcrops hung on the cliff all round, sand shelves where
+  // the art has beach, tall crags under the Portal and the Gallery. Drawn by
+  // tf-coast-p3 (models/tf_coast.py) at the island's origin; all of it below
+  // the rim and outside the edge, so no colliders.
+  mapModel(api, "tf-coast-p3", { x: 0, z: 0 });
 
   // The roads: the asphalt, its paint and the parking bays, mile posts,
   // power poles along the north road, two wrecks, the bus shelter at the

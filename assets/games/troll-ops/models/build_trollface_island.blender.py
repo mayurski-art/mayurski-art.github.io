@@ -49,12 +49,13 @@ import tf_portal  # noqa: E402
 import tf_skate  # noqa: E402
 import tf_lake  # noqa: E402
 import tf_roads  # noqa: E402
+import tf_coast  # noqa: E402
 
 BUILT = ("city", "peak", "skate", "portal", "cave", "dock", "tree", "boat", "bridge", "roads")        # the places a tf_<area>.py module draws (their colliders are the build's)
 # a rebuilt place's GLB gets a new name (the asset service worker re-checks
 # art daily: an old name would reach returning players a visit late)
 GLB_NAME = {"city": "tf-city-p1", "peak": "tf-peak-p1", "skate": "tf-skate-p2", "portal": "tf-portal-p2",
-            "cave": "tf-cave-p3", "dock": "tf-dock-p3", "tree": "tf-tree-p3", "boat": "tf-boat-p3", "bridge": "tf-bridge-p3", "roads": "tf-roads-p3"}
+            "cave": "tf-cave-p3", "dock": "tf-dock-p3", "tree": "tf-tree-p3", "boat": "tf-boat-p3", "bridge": "tf-bridge-p3", "roads": "tf-roads-p3", "coast": "tf-coast-p3"}
 
 LAYOUT = json.load(open(os.path.join(HERE, "trollface-island-layout.json")))
 
@@ -73,6 +74,7 @@ def origins():
     o["portalface"] = o["portal"]
     o["boatface"] = o["boat"]
     o["roads"] = (0.0, 0.0, 0.0)
+    o["coast"] = (0.0, 0.0, 0.0)
     return o
 
 
@@ -164,7 +166,7 @@ def write_built(built):
 
 
 LANDMARKS = ["city", "cityface", "peak", "gallery", "shop",
-             "memelab", "observatory", "portal", "portalface", "skate", "boatface", "roads", "cave", "dock", "tree", "boat", "market", "bridge"]
+             "memelab", "observatory", "portal", "portalface", "skate", "boatface", "roads", "coast", "cave", "dock", "tree", "boat", "market", "bridge"]
 
 
 def main():
@@ -208,7 +210,7 @@ def main():
         "skate": lambda: modern("skate", tf_skate), "cave": lambda: modern("cave", tf_lake.CAVE), "dock": lambda: modern("dock", tf_lake.DOCK),
         "tree": lambda: modern("tree", tf_lake.TREE), "boat": lambda: modern("boat", tf_lake.BOAT),
         "boatface": lambda: tf_lake.boat_face(OLD.GLB, Pal), "market": lambda: OLD.build_market(Pal),
-        "bridge": lambda: modern("bridge", tf_lake.BRIDGE), "roads": lambda: modern("roads", tf_roads),
+        "bridge": lambda: modern("bridge", tf_lake.BRIDGE), "roads": lambda: modern("roads", tf_roads), "coast": lambda: tf_coast.build(tf_kit.TFBuilder(), {**Pal, **tf_coast.palette()}, R, (0.0, 0.0)),
     }
     for k in want:
         print(f"-- {k}")
@@ -219,7 +221,7 @@ def main():
             continue
         name, tris, verts, _b, lo, hi = tf_kit.Report.rows[-1]
         ox, oy, oz = O[k]
-        if k not in BUILT:      # a modern place registers its own props
+        if k not in BUILT and k != "coast":      # a modern place registers its own props; the coast hangs outside the play area
             R.prop(f"landmark:{k}", [lo[0] + ox, lo[1] + oy, lo[2] + oz], [hi[0] + ox, hi[1] + oy, hi[2] + oz], tris=tris)
         # the model sits inside its place's ring (the contract: each
         # landmark's model stays inside its ring), with the two whose origin
