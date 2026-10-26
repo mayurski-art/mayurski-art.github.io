@@ -118,6 +118,17 @@ class Peak:
             if hw > 0.4:
                 self.col(0, zm, hw * 2, z1 - z0, h, y, pen)
 
+    def skirt(self, r_bot, r_top, y0, y1, zmax=None):
+        """A leaning crag wall's lower two thirds as wider discs (user,
+        2026-10-25: "im actually able to enter inside of it a little"): the
+        wall leans from r_bot at its foot to r_top at its top, so a disc at
+        the top radius alone let a troll walk ~1.4 m into the rock. Each
+        slice takes the wall's radius at the slice's foot, 0.15 m in."""
+        H = y1 - y0
+        for k in range(2):
+            r = r_bot + (r_top - r_bot) * k / 3 - 0.15
+            self.disc_cols(r, y0 + H * k / 3, H / 3, zmax=zmax, strip=1.2)
+
 
 # ------------------------------------------------------------- rock
 
@@ -385,12 +396,16 @@ def build(b, P, R, origin):
         b.lump(P["turf_dk"] if tier == 0 else P["turf"], rng.uniform(2, 4), 0.25, rng.uniform(1.5, 3), r * math.cos(a), TIERS[tier][1] - 0.05, r * math.sin(a), seed=50 + k, rnd=0.3, jitter=0.2)
     # the summit's three bands, flat on the south where the flights run, the
     # lip of the top platform, the top itself
+    rocks = []         # the crags and boulders drawn as lumps, for their colliders
     for k, (y0, y1, r0, r1, zf) in enumerate(BANDS):
         crag_ring(b, rng, P["peak_dk"] if k == 0 else P["peak"], P["peak_lt"] if k < 2 else P["snow"], r0 + 0.5, r1, y0 - 0.3, y1, seg=18, jit=0.8, zflat=zf, top=(k < 2))
         for j in range(4):                                                         # crags leaning off the band's far side
             a = math.pi + (j - 1.5) * 0.7 + rng.uniform(-0.2, 0.2)
             r = (r0 + r1) / 2 - 0.3
-            b.lump(P["peak_dk"], 2.4, rng.uniform(1.6, 2.8), 1.8, r * math.cos(a), y0 + rng.uniform(0.5, 3.0), r * math.sin(a), seed=120 + k * 4 + j, rnd=0.6, jitter=0.2, ry=a)
+            h, y = rng.uniform(1.6, 2.8), y0 + rng.uniform(0.5, 3.0)
+            b.lump(P["peak_dk"], 2.4, h, 1.8, r * math.cos(a), y, r * math.sin(a), seed=120 + k * 4 + j, rnd=0.6, jitter=0.2, ry=a)
+            if r * math.sin(a) < zf - 1.2:                                        # clear of the flights along the flat face
+                rocks.append((r * math.cos(a), r * math.sin(a), 1.9, 1.9, h, y))
     crag_ring(b, rng, P["peak"], P["snow"], LIP_R - 0.4, LIP_R, TOP - 0.5, TOP, seg=20, jit=0.25)
     for k in range(6):                                                             # snow crags on the top bands
         a = rng.uniform(math.pi * 0.6, math.pi * 1.9)
@@ -404,6 +419,7 @@ def build(b, P, R, origin):
         r = TIERS[0][0] + rng.uniform(0.6, 1.4)
         s = rng.uniform(1.0, 1.8)
         b.lump(P["peak_dk"], s * 1.4, s * 0.8, s, r * math.cos(a), -0.2, r * math.sin(a), seed=20 + k, rnd=0.6, ry=a)
+        rocks.append((r * math.cos(a), r * math.sin(a), s * 1.1, s * 1.1, s * 0.8 - 0.2, 0.0))
     # the balconies: a rock slab with a crag under it, cantilevered off the band
     for k, ((x0, x1), (z0, z1), top) in enumerate(LEDGES):
         cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
@@ -424,10 +440,16 @@ def build(b, P, R, origin):
     C.end()
     # the terraces', the bands' and the flights' colliders (the balconies'
     # and the props' are registered where they are drawn)
+    base = 0.0
     for i, (rad, top) in enumerate(TIERS):
         C.disc_cols(rad - 0.6, 0.0, top, strip=3.0 if i < 2 else 1.2)      # the third terrace's ring is the walk to the first flight
+        C.skirt(rad + 0.8, rad - 0.6, base, top)
+        base = top
     for (y0, y1, r0, r1, zf) in BANDS:
         C.disc_cols(r0, y0, y1 - y0, zmax=zf, strip=1.2)
+        C.skirt(r0 + 0.5, r1, y0, y1, zmax=zf)
+    for (x, z, w, d, h, y) in rocks:
+        C.col(x, z, w, d, h, y, 1.5)
     C.disc_cols(LIP_R, TOP - 0.4, 0.4, strip=1.2)
     for (sx, sz, w, d, h, y0) in steps:
         C.col(sx, sz, w, d, h, y0, 0.9)

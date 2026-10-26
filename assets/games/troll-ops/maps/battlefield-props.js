@@ -45,6 +45,16 @@ const BAKED = new Map([...[
   // the Depot (build_depot.blender.py)
   ...["shell", "racks", "catwalk", "office", "bay"].map((n) => `dp-${n}`),
 ].map((n) => [n, Math.PI]),
+  // Trollface Island (models/bake_trollface_island.blender.py, its places
+  // built by build_trollface_island.blender.py; the three trollhead faces and
+  // the coast unbaked: its cliffs hang below the bake's ground, out in the
+  // sun). A fifth down: at full the Skate Bowl clipped; the Peak, all
+  // white snow in the sun, under a third (its cap clipped 13% of the
+  // summit view at 0.8, 7% at 0.5).
+  ["tf-peak-p1", Math.PI * 0.3],
+  ...["city-p1", "skate-p2", "portal-p2", "cave-p3", "dock-p3", "tree-p3", "boat-p3",
+    "bridge-p3", "roads-p4", "shop-p4", "memelab-p4", "gallery-p4", "observatory-p4",
+    "market-p4", "ranch-p5", "lodge-p5", "light-p5", "plant-p5", "gas-p5"].map((n) => [`tf-${n}`, Math.PI * 0.8]),
   // the Grinleria (build_grinleria.blender.py): its 15 lamps in a closed
   // white mall bake hot, so a quarter down
   ...["shell", "outside", "atrium", "falls", "wings", "trollhead", "shops"].map((n) => [`gl-${n}`, Math.PI * 0.75]),

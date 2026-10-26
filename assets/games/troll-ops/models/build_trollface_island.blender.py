@@ -18,7 +18,8 @@ functions (build_island.blender.py), triangle for triangle, through
 tf_kit.TFBuilder so each GLB carries the bake's second UV set; the three
 GLBs nothing loaded (tf-bus, tf-busface, tf-skybox) are no longer written.
 Each later phase replaces a place's old function with a tf_<area>.py module:
-phase 1, Troll City (tf_city.py) and Troll Peak (tf_peak.py).
+phase 1, Troll City (tf_city.py) and Troll Peak (tf_peak.py); phase 5 adds
+the five new places (tf_new.py).
 
 The playable layout is the contract (trollface-island-layout.json): nothing
 here moves a place, the coast, the lake or the ground field. A rebuilt
@@ -50,12 +51,18 @@ import tf_skate  # noqa: E402
 import tf_lake  # noqa: E402
 import tf_roads  # noqa: E402
 import tf_coast  # noqa: E402
+import tf_mid  # noqa: E402
+import tf_new  # noqa: E402
 
-BUILT = ("city", "peak", "skate", "portal", "cave", "dock", "tree", "boat", "bridge", "roads")        # the places a tf_<area>.py module draws (their colliders are the build's)
+BUILT = ("city", "peak", "skate", "portal", "cave", "dock", "tree", "boat", "bridge", "roads", "shop", "memelab", "gallery", "observatory", "market",
+         "ranch", "lodge", "light", "plant", "gas")        # the places a tf_<area>.py module draws (their colliders are the build's)
 # a rebuilt place's GLB gets a new name (the asset service worker re-checks
 # art daily: an old name would reach returning players a visit late)
 GLB_NAME = {"city": "tf-city-p1", "peak": "tf-peak-p1", "skate": "tf-skate-p2", "portal": "tf-portal-p2",
-            "cave": "tf-cave-p3", "dock": "tf-dock-p3", "tree": "tf-tree-p3", "boat": "tf-boat-p3", "bridge": "tf-bridge-p3", "roads": "tf-roads-p3", "coast": "tf-coast-p3"}
+            "cave": "tf-cave-p3", "dock": "tf-dock-p3", "tree": "tf-tree-p3", "boat": "tf-boat-p3", "bridge": "tf-bridge-p3", "roads": "tf-roads-p4", "coast": "tf-coast-p3",
+            "shop": "tf-shop-p4", "memelab": "tf-memelab-p4",
+            "gallery": "tf-gallery-p4", "observatory": "tf-observatory-p4", "market": "tf-market-p4",
+            "ranch": "tf-ranch-p5", "lodge": "tf-lodge-p5", "light": "tf-light-p5", "plant": "tf-plant-p5", "gas": "tf-gas-p5"}
 
 LAYOUT = json.load(open(os.path.join(HERE, "trollface-island-layout.json")))
 
@@ -78,21 +85,12 @@ def origins():
     return o
 
 
-# Faces drawn by the map's code that must stay in view (rule 9): the Shop's
-# neon sign and the Meme Lab's swirl (maps/trollface-island.js; the Portal's
-# door is registered by tf_portal.py, which places it).
-# Each is owned by the landmark it sits in, whose own frame (the gate's
-# coils round the door, the ring round the swirl) is not an obstruction.
+# Faces drawn by the map's code that must stay in view (rule 9): none left
+# here. The modules that place them register them: the Portal's door
+# (tf_portal.py), the Shop's neon and the Meme Lab's swirl (tf_mid.py), each
+# owned by the prop it sits on.
 def code_faces():
-    L = LAYOUT["places"]
-    s, m = L["shop"], L["memelab"]
-    import math
-    sw = (math.sin(-0.6), 0.0, math.cos(-0.6))          # the swirl's CircleGeometry turned -0.6 about y
-    return [
-        {"id": "shop-neon", "owner": "landmark:shop", "c": [s["x"], 8.1, s["z"] + 7.6], "n": [0, 0, 1], "u": [1, 0, 0], "w": 13.6, "h": 5.4},
-        {"id": "memelab-swirl", "owner": "landmark:memelab", "c": [m["x"] - 2, 8.02, m["z"] - 1], "n": [round(sw[0], 4), 0, round(sw[2], 4)],
-         "u": [round(-sw[2], 4), 0, round(sw[0], 4)], "w": 10.6, "h": 10.6},
-    ]
+    return []          # phase 4: tf_mid.py registers the Shop's neon and the Meme Lab's swirl with their places
 
 
 # Where a player stands to look at them: the dry ground round each place
@@ -155,7 +153,7 @@ def write_built(built):
         out.append("    signs: [")
         out.append(("," + NL).join("      " + json.dumps(s, separators=(",", ":")) for s in v["signs"]) + ("," if v["signs"] else ""))
         out.append("    ],")
-        for key in ("window", "door"):
+        for key in ("window", "door", "neon", "swirl", "busts", "glass", "face"):
             if key in v:
                 out.append(f"    {key}: {json.dumps(v[key])},")
         out.append("  },")
@@ -166,7 +164,8 @@ def write_built(built):
 
 
 LANDMARKS = ["city", "cityface", "peak", "gallery", "shop",
-             "memelab", "observatory", "portal", "portalface", "skate", "boatface", "roads", "coast", "cave", "dock", "tree", "boat", "market", "bridge"]
+             "memelab", "observatory", "portal", "portalface", "skate", "boatface", "roads", "coast", "cave", "dock", "tree", "boat", "market", "bridge",
+             "ranch", "lodge", "light", "plant", "gas"]
 
 
 def main():
@@ -193,24 +192,33 @@ def main():
     def modern(k, mod):
         P = dict(Pal)
         P.update(mod.palette())
-        n0, f0 = len(R.colliders), len(R.faces)
+        n0, f0, p0 = len(R.colliders), len(R.faces), len(R.props)
         extra = mod.build(tf_kit.TFBuilder(), P, R, (O[k][0], O[k][2]))
+        # each prop and face says whose it is: a partial rebuild's faces.json
+        # can then be merged into the last full one place by place
+        for e in R.faces[f0:] + R.props[p0:]:
+            e["place"] = k
         built[k] = {"colliders": R.colliders[n0:], "loot": list(mod.LOOT), "signs": list(mod.SIGNS),
                     "clear": door_clear(R.faces[f0:])}
         if k == "peak":
             built[k]["window"] = [round(v, 2) for v in extra]
         if k == "portal":
             built[k]["door"] = extra["door"]
+        built[k].update(getattr(mod, "EXTRA", {}))
+        if getattr(mod, "GLASS", None):
+            built[k]["glass"] = list(mod.GLASS)
 
     builders = {
         "city": lambda: modern("city", tf_city), "cityface": lambda: OLD.build_city_face(Pal), "peak": lambda: modern("peak", tf_peak),
-        "gallery": lambda: OLD.build_gallery(Pal), "shop": lambda: OLD.build_shop(Pal),
-        "memelab": lambda: OLD.build_memelab(Pal), "observatory": lambda: OLD.build_observatory(Pal), "portal": lambda: modern("portal", tf_portal),
+        "gallery": lambda: modern("gallery", tf_mid.GALLERY), "shop": lambda: modern("shop", tf_mid.SHOP),
+        "memelab": lambda: modern("memelab", tf_mid.LAB), "observatory": lambda: modern("observatory", tf_mid.OBS), "portal": lambda: modern("portal", tf_portal),
         "portalface": lambda: tf_portal.portal_face(OLD.GLB, Pal),
         "skate": lambda: modern("skate", tf_skate), "cave": lambda: modern("cave", tf_lake.CAVE), "dock": lambda: modern("dock", tf_lake.DOCK),
         "tree": lambda: modern("tree", tf_lake.TREE), "boat": lambda: modern("boat", tf_lake.BOAT),
-        "boatface": lambda: tf_lake.boat_face(OLD.GLB, Pal), "market": lambda: OLD.build_market(Pal),
-        "bridge": lambda: modern("bridge", tf_lake.BRIDGE), "roads": lambda: modern("roads", tf_roads), "coast": lambda: tf_coast.build(tf_kit.TFBuilder(), {**Pal, **tf_coast.palette()}, R, (0.0, 0.0)),
+        "boatface": lambda: tf_lake.boat_face(OLD.GLB, Pal), "market": lambda: modern("market", tf_mid.MARKET),
+        "bridge": lambda: modern("bridge", tf_lake.BRIDGE),
+        "ranch": lambda: modern("ranch", tf_new.RANCH), "lodge": lambda: modern("lodge", tf_new.LODGE), "light": lambda: modern("light", tf_new.LIGHT),
+        "plant": lambda: modern("plant", tf_new.PLANT), "gas": lambda: modern("gas", tf_new.GAS), "roads": lambda: modern("roads", tf_roads), "coast": lambda: tf_coast.build(tf_kit.TFBuilder(), {**Pal, **tf_coast.palette()}, R, (0.0, 0.0)),
     }
     for k in want:
         print(f"-- {k}")
@@ -233,7 +241,19 @@ def main():
         if r_in > place["r"] + 2.5:
             print(f"   NOTE {k}: model reaches {r_in:.1f} m from the place's centre, ring {place['r']} m")
     paths = [os.path.join(HERE, GLB_NAME.get(k, f"tf-{k}") + ".glb") for k in want]
+    if "boat" in want:          # the Boat's folding rig (tf_lake.RIG_GLBS)
+        paths += [os.path.join(HERE, n) for n in tf_lake.RIG_GLBS]
     quantize_glb.main(paths)
+    # 16-bit positions too (phase 7, the 14 MB budget), not the roads': their
+    # paint lies 4 mm over the asphalt and 440 m in 16 bits is 6.7 mm
+    quantize_glb.positions_only([p for p in paths if "tf-roads" not in p])
+    # surfaces that would z-fight pulled apart (zlift_glb.py: the fountain's
+    # water on its basin, the roads' paint, decals on floors), till none move
+    import zlift_glb
+    for p in paths:
+        for _ in range(6):
+            if not zlift_glb.lift(p):
+                break
     for row in tf_kit.Report.rows:
         row[3] = os.path.getsize(os.path.join(HERE, row[0] + ".glb"))
     total = sum(r[3] for r in tf_kit.Report.rows)

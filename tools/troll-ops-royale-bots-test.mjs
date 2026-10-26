@@ -62,12 +62,15 @@ async function start(mode, players = null) {
 }
 const botState = () => page.evaluate(() => {
   const T = window.__trollOps;
-  return T.bots.bots.map((b) => ({ id: b.id, alive: b.alive, w: b.weaponId, r: b.gunRarity, plates: b.plates | 0, heals: b.heals | 0, armor: b.armor | 0, x: b.pos.x, z: b.pos.z, loot: b.lootId }));
+  return T.bots.bots.map((b) => ({ id: b.id, alive: b.alive, w: b.weaponId, side: b.secondaryId, r: b.gunRarity, plates: b.plates | 0, heals: b.heals | 0, armor: b.armor | 0, x: b.pos.x, z: b.pos.z, loot: b.lootId }));
 });
 
 await start("royale_mini");
 let bs = await botState();
-check("bots land with only a pistol", bs.length === 9 && bs.every((b) => b.w === "sixtynine" && b.r == null), JSON.stringify(bs.map((b) => b.w)));
+// (a bot that lands on a floor gun has it the moment the match is live (Trollface
+// Island phase 5's new places put loot by the landing spots): the pistol is then
+// its sidearm and the gun has a rarity, which only the floor's guns do)
+check("bots land with only a pistol", bs.length === 9 && bs.every((b) => b.side === "sixtynine" && (b.w === "sixtynine" ? b.r == null : b.r != null)) && bs.filter((b) => b.w !== "sixtynine").length <= 2, JSON.stringify(bs.map((b) => b.w)));
 const loot0 = await page.evaluate(() => window.__trollOps.royale().loot.items.size);
 
 // Let them play the opening (zone 1 waits 45 s): loot, plate up.

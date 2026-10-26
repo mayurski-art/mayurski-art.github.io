@@ -78,7 +78,8 @@ const got = await page.evaluate(async (MOVEMENT_TAG) => {
   // Each data-file collider present in the game (same AABB to 1 cm).
   const key = (x0, y0, z0, x1, y1, z1) => [x0, y0, z0, x1, y1, z1].map((v) => Math.round(v * 100)).join(",");
   const inGame = new Set(cols.map((c) => key(c.min.x, c.min.y, c.min.z, c.max.x, c.max.y, c.max.z)));
-  const missing = ISLAND_SOLIDS.filter((c) => !inGame.has(key(c.x - c.w / 2, c.y, c.z - c.d / 2, c.x + c.w / 2, c.y + c.h, c.z + c.d / 2))).length;
+  // (the Boat's are laid in pieces that sail with it: troll-ops-royale-boat-test.mjs)
+  const missing = ISLAND_SOLIDS.filter((c) => c.n !== "boat" && !inGame.has(key(c.x - c.w / 2, c.y, c.z - c.d / 2, c.x + c.w / 2, c.y + c.h, c.z + c.d / 2))).length;
   // A landmark's colliders sit by its ring (centre within r + 6 m).
   const strays = ISLAND_SOLIDS.filter((c) => c.n !== "ground" && m.LANDMARKS[c.n] && Math.hypot(c.x - m.LANDMARKS[c.n].x, c.z - m.LANDMARKS[c.n].z) > m.LANDMARKS[c.n].r + 6)
     .map((c) => c.n);

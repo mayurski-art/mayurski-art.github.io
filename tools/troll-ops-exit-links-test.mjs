@@ -1,5 +1,6 @@
 // Troll Forces exit links test: trollrunner.net/warfare (warfare/index.html, and the old /tf) lands on
-// the game; opened from the arcade (games.html's full-screen frame), the
+// the game, and trollrunner.net/royale (royale/index.html) on it with Troll Royale picked;
+// opened from the arcade (games.html's full-screen frame), the
 // game's Arcade link closes the frame instead of loading the arcade inside
 // it; the pause menu and game-over buttons go to the game's own home.
 // Supabase is blocked: the page must never join the live public room.
@@ -45,6 +46,17 @@ await page.goto(`${BASE}/warfare/`, { waitUntil: "domcontentloaded", timeout: 12
 await page.waitForURL(/troll-ops\.html/, { timeout: 30000 });
 await page.waitForFunction(() => !!document.getElementById("to-title"), null, { timeout: 120000 });
 check("/warfare lands on the game", /\/troll-ops\.html$/.test(new URL(page.url()).pathname), page.url());
+
+// 1b. /royale/ lands on the game with Troll Royale picked in the mode list.
+const roy = await ctx.newPage();
+roy.on("pageerror", (e) => errors.push(e.message));
+await roy.goto(`${BASE}/royale/?room=y`, { waitUntil: "domcontentloaded", timeout: 120000 });
+await roy.waitForURL(/troll-ops\.html/, { timeout: 30000 });
+check("/royale lands on the game with ?mode=royale, keeping ?room=", /\/troll-ops\.html\?mode=royale&room=y$/.test(roy.url()), roy.url());
+await roy.waitForFunction(() => !!document.querySelector('#to-lo-mode [data-mode="royale"]'), null, { timeout: 120000 });
+const picked = await roy.evaluate(() => ({ on: document.querySelector('#to-lo-mode [data-mode="royale"]').classList.contains("is-active"), start: !document.getElementById("to-start-btn")?.disabled }));
+check("/royale starts with Troll Royale picked", picked.on, JSON.stringify(picked));
+await roy.close();
 
 // 2. The home buttons.
 const homes = await page.evaluate(() => ["to-exit-btn", "to-go-home-btn"].map((id) => {

@@ -33,6 +33,7 @@ world x/z (surface-textures.js applyGroundLightMap).
 import bpy
 import math
 import numpy as np
+from mathutils import Matrix
 from map_kit import hexlin
 
 _TEMP = []   # objects/data made for one bake, removed after it
@@ -174,12 +175,13 @@ def import_context(placements):
         before = set(bpy.data.objects)
         bpy.ops.import_scene.gltf(filepath=path)
         new = [o for o in bpy.data.objects if o not in before]
+        # the placement on top of the model's own node transform (a GLB with
+        # 16-bit positions keeps its centre and size there: quantize_glb.py)
+        place = (Matrix.Translation((x, -z, y)) @ Matrix.Rotation(rot, 4, "Z")   # game yaw about +y = Blender +z
+                 @ Matrix.Diagonal((sx, sz, sy, 1.0)))                           # game (x, y, z) -> Blender (x, z, y)
         for o in new:
             if o.parent is None:
-                o.location = (x, -z, y)
-                o.rotation_mode = "XYZ"
-                o.rotation_euler = (0.0, 0.0, rot)   # game yaw about +y = Blender +z
-                o.scale = (sx, sz, sy)               # game (x, y, z) -> Blender (x, z, y)
+                o.matrix_world = place @ o.matrix_world
             o.select_set(False)
         objs += new
     return objs

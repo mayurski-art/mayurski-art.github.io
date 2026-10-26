@@ -25,6 +25,12 @@ const ZONES = [
   { name: "city", x: -36.3, z: -86.9, r: 41, square: true },     // phase 1: the block's pavements reach 40 m each way
   { name: "peak", x: 56.8, z: -43.4, r: 33 },                    // phase 1: the pines on the skirts
   { name: "dock", x: -102, z: -45, r: 13 },                      // phase 3: the bait shop and the boat shed on the shore
+  { name: "market", x: 145.3, z: 97.7, r: 27 },                 // phase 4: the hall, the quay and the square (the sculpt had a 3 m hill here)
+  { name: "ranch", x: -160, z: -38, r: 26, square: true },       // phase 5: the barn, the farmhouse, the field east of the junction
+  { name: "lodge", x: -137, z: 0, r: 25 },                       // phase 5: the cabins round the pit, the tents
+  { name: "light", x: 160, z: 22, r: 15 },                       // phase 5: the tower's plinth, the keeper's house
+  { name: "plant", x: 37, z: -119, r: 27, square: true },        // phase 5: the towers, the hall, the pond
+  { name: "gas", x: 85, z: 126, r: 22, square: true },           // phase 5: the forecourt, the diner, the car wash
 ];
 const EASE = 10;
 // The roads (phase 3): every road in the layout is flat for ROAD_HW each side

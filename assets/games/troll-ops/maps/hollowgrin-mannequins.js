@@ -16,7 +16,7 @@
 // Placed like the chapel module: hollowgrin.js passes nightFx in (H), so
 // this file never imports that module back.
 
-import { loadModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2";
+import { loadModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8";
 
 const W = -Math.PI / 2, E = Math.PI / 2, N = Math.PI, S = 0;   // facing: west (-x), east (+x), N = -z (toward the manor), S = +z (toward the lane's houses)
 

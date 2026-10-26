@@ -262,8 +262,13 @@ export function createMapPreloader({ renderer, scene, camera, buildMap, maps, id
       }
       return out;
     },
-    /* loadMap built `id` itself (nothing preloaded): it's in the scene now. */
-    noteLive(id) { if (state.get(id)?.state === "idle") api.preload(id); },
+    /* loadMap built `id` itself (nothing preloaded): it's in the scene now.
+       A map the menu never preloads (Trollface Island, Royale's) is still
+       the one last played: its manifest files download first next time. */
+    noteLive(id) {
+      if (!state.has(id)) { try { localStorage.setItem(LAST_KEY, id); } catch { /* private mode */ } return; }
+      if (state.get(id).state === "idle") api.preload(id);
+    },
     status(id) { return state.get(id) || { state: "idle", progress: 0 }; },
     get current() { return current; },
     get busy() { return busy > 0; },

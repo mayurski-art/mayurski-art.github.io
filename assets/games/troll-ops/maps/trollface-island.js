@@ -21,14 +21,16 @@ import { mergeGeometries, mergeVertices } from "three/addons/utils/BufferGeometr
 import { insidePolygon, clampInsidePolygon } from "./edge.js?v=or1";
 import { SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-pm1";
 import { lakeWaterMaterial, fallsTexture } from "./lake-water.js?v=wf2";
-import { mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2";
-import { ISLAND_SOLIDS } from "./trollface-island-colliders.js?v=is1-ip1-mg1-sp1-tfp1-tfp2-tfp3";
-import { ISLAND_GROUND } from "./trollface-island-ground.js?v=tg1-tfp1-tfp3";
-import { ISLAND_PROPS } from "./trollface-island-props.js?v=ip1-mg1-sp1-tfp3";
-import { TF_BUILT } from "./trollface-island-built.js?v=tfb1-tfp1-tfp2-tfp3";
+import { loadBake } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8";
+import { mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8";
+import { ISLAND_SOLIDS } from "./trollface-island-colliders.js?v=is1-ip1-mg1-sp1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8";
+import { ISLAND_GROUND } from "./trollface-island-ground.js?v=tg1-tfp1-tfp3-tfp4-tfp7-tfb8";
+import { ISLAND_PROPS } from "./trollface-island-props.js?v=ip1-mg1-sp1-tfp3-tfp7-tfb8";
+import { TF_BUILT } from "./trollface-island-built.js?v=tfb1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8";
 import { buildIslandSigns } from "./trollface-island-signs.js?v=tfs1-tfp1";
 import { buildIslandProps } from "./island-props.js?v=ip1-mg1-tx1-sp1-kbt1-pm1";
 import { sampleField } from "../core/ground-field.js?v=gf1-tg1";
+import { Boat, BOAT_ARCHES } from "./trollface-boat.js?v=tfb1-tfb8";
 
 const BOUNDS = { minX: -205, maxX: 205, minZ: -155, maxZ: 155 };
 
@@ -51,38 +53,41 @@ const LAKE_PCT = [[22.8, 35.9], [24.1, 35.9], [27.5, 37.9], [31.3, 38.4], [41.3,
   [45, 77.3], [37.2, 72.2], [37.2, 70.7], [39.4, 67.2], [40.9, 63.1], [39.1, 60.1], [33.1, 56.6], [32.5, 54.5], [30.6, 53.5],
   [25, 48], [24.1, 44.9], [24.1, 43.4], [24.7, 42.4], [22.8, 38.9], [22.5, 36.4]];
 export const ISLAND_LAKE = polyP(LAKE_PCT);
+export { BOAT_ARCHES };   // the layout tool hands them to the builder (the boardwalks' arches)
 const RIVER_MOUTH = [P(37.2, 72.2), P(45.6, 77.3)];   // where the river goes over the cliff
 const LAKE_FACE = [92, 30];                         // the lake bed's trollface, centred in the main basin
 
 // The 6 m road network (doc "Trollface Island in Blender", phase 3; metres,
-// x east, z south), drawn as asphalt by tf-roads-p3 (models/tf_roads.py) and
+// x east, z south), drawn as asphalt by tf-roads-p4 (models/tf_roads.py) and
 // flattened under (tools/troll-ops-island-ground-flatten.mjs): the north
 // road from Meme Lab past the city and the Problem Plant to the Observatory,
 // down between the Peak and the Skate Bowl, round the east past Lighthouse
 // Point, the Market, Grin Gas and the Shop to the Bridge; the shore road
 // from the Ranch past the Dock, under Old Tree, past the Cave's mouth and
-// the Peak's foot; the west arm to the Ranch and Lulz Lodge; the city
+// the Peak's foot (it leaves the west arm north of the Ranch, so the
+// two never run side by side); the west arm to the Ranch and Lulz Lodge; the city
 // road down to its west entrance; the Gallery's spur off the Bridge.
 export const ROAD_NET = {
   north: [[-122, -128], [-112, -128], [-100, -124], [-80, -131], [-40, -136], [29, -138], [75, -135], [84, -126], [90, -112], [97, -100], [97, -37], [140, -37], [160, -36], [167, -20], [167, 0], [166, 20], [164, 36], [158, 50], [150, 62], [135, 68], [110, 70], [92, 72], [95, 92], [88, 112], [60, 112], [40, 100], [12, 92], [10, 78], [1.2, 78]],
   west: [[-100, -124], [-110, -110], [-125, -95], [-150, -75], [-170, -58], [-180, -45], [-172, -30], [-160, -12], [-145, 5], [-135, 10], [-118, 16], [-106, 16]],
-  shore: [[-180, -45], [-170, -56], [-150, -58], [-125, -56], [-104, -56], [-90, -57], [-70, -57], [-55, -50], [-45, -41], [-36, -29], [-30, -18], [-20, -12], [-5, -9], [20, -5], [45, -8], [80, -8], [97, -12], [97, -37]],
+  shore: [[-170, -58], [-150, -58], [-125, -56], [-104, -56], [-90, -57], [-70, -57], [-55, -50], [-45, -41], [-36, -29], [-30, -18], [-20, -12], [-5, -9], [20, -5], [45, -8], [80, -8], [97, -12], [97, -37]],
   city: [[-100, -124], [-92, -108], [-86, -96], [-84, -87], [-84, -57]],
   cityin: [[-84, -87], [-64, -87]],
   gallery: [[-58, 78], [-72, 74], [-86, 69], [-96, 66]],
 };
 // Parking spots for the vehicles doc: [x, z, yaw (deg, the nose)], a bay
-// 5 x 2.6 m beside the road; painted by tf-roads-p3.
+// 5 x 2.6 m beside the road; painted by tf-roads-p4.
 export const PARKING = [
   [-80, -92, 90], [-80, -82, 90],              // the city's west entrance
   [101.5, -60, 0], [101.5, -66, 0],            // the Skate Bowl's west door
   [161.5, 20, 0],                              // Lighthouse Point
   [140, 63.5, 240], [130, 72.5, 60],           // the Marketplace
   [84, 116.5, 180], [78, 116.5, 180],          // Grin Gas
-  [40, 95.5, 180],                             // the Shop's back
+  [40, 95.5, 180],                             // the Shop, by the road
+  [43.6, 88.8, 90], [46.4, 88.8, 90], [49.2, 88.8, 90], [52, 88.8, 90],   // the Shop's car park (tf_mid.py SHOP_BAYS)
   [-88, 73.5, 110],                            // the Gallery's spur
   [-140, 12.5, 290],                           // Lulz Lodge
-  [-166, -62, 160],                            // Rage Ranch
+  [-163, -52.1, 90],                           // Rage Ranch, beside the shore road west of the barn
   [-104, -51.5, 270],                          // the Dock
 ];
 const NORTH_ROAD = ROAD_NET.north;
@@ -112,14 +117,18 @@ export const LANDMARKS = {
   shop: lm(58.5, 68.5, 19, "U Mad Bro Shop", "mid"),
   market: lm(82, 74, 26, "The Marketplace", "mid"),
   bridge: lm(43.7, 68.5, 6, "The Bridge", "minor"),
+  // phase 5 of the Blender doc: the five new places (centres in metres, the 2026-10-19 redesign's)
+  ranch: { x: -180, z: -45, r: 39, name: "Rage Ranch", tier: "mid" },
+  lodge: { x: -145, z: 5, r: 31, name: "Lulz Lodge", tier: "minor" },
+  light: { x: 160, z: 20, r: 18, name: "Lighthouse Point", tier: "minor" },
+  plant: { x: 35, z: -130, r: 30, name: "Problem Plant", tier: "mid" },
+  gas: { x: 85, z: 125, r: 21, name: "Grin Gas", tier: "mid" },
 };
-// Floor loot the nav grid can't place: up on the Boat's deck and the Bridge
-// (`y` is the deck: the bots' grid is ground floor only, so bots leave these).
+// Floor loot the nav grid can't place: up on the Bridge (`y` is the deck:
+// the bots' grid is ground floor only, so bots leave these). The Boat's deck
+// and hold loot is its build's (TF_BUILT.boat.loot), and sails with it.
 const BRIDGE_MID = (P(37.6, 0)[0] + P(49.9, 0)[0]) / 2;
 const LOOT_EXTRA = [
-  { x: LANDMARKS.boat.x - 6, z: LANDMARKS.boat.z, y: 1.32 },
-  { x: LANDMARKS.boat.x - 1.5, z: LANDMARKS.boat.z + 1.6, y: 1.32 },
-  { x: LANDMARKS.boat.x + 7, z: LANDMARKS.boat.z, y: 1.32 },
   { x: BRIDGE_MID - 14, z: LANDMARKS.bridge.z, y: 0.66 },
   { x: BRIDGE_MID + 6, z: LANDMARKS.bridge.z, y: 0.66 },
   // the rebuilt places' floors, roofs and balconies (the Blender build's)
@@ -136,7 +145,10 @@ const GROUND_FIELD = (() => {
 })();
 const groundY = (x, z) => sampleField(GROUND_FIELD, x, z);
 
+let BOAT = null;            // the Boat, sailing (built with the map)
 const CLIFF_DEPTH = 46;
+// the ground bake's square [x0, z0, size] (bake_map_ground.blender.py prints it)
+const GROUND_BAKE_RECT = [-220, -220, 440];
 const WATER_Y = 0.34;       // the lake's surface; its floor is the island top (y 0)
 const RISE = 0.33;          // stair steps: under movement.js STEP_UP (0.36)
 
@@ -383,12 +395,14 @@ export function groundMask() {
         sand = Math.max(sand, smooth(3, -1, Math.max(dx, dz)));
       }
       let path = smooth(4.4, 1.8, roadDistance(x, z));
+      let place = 0;                     // inside a place's ring: built-on ground, no bare rock (phase 4: the Market's old hill)
       for (const l of Object.values(L)) {
         const d = Math.hypot(x - l.x, z - l.z) - l.r * 0.85;
         path = Math.max(path, smooth(7, 0, Math.abs(d)) * 0.55);
+        place = Math.max(place, smooth(l.r * 1.15, l.r * 0.9, Math.hypot(x - l.x, z - l.z)));
       }
       const nb = big(x, z), ns = small(x, z);
-      const rock = smooth(0.66, 0.8, nb) * (1 - path) * smooth(8, 16, edgeDistance(x, z)) * (inLake ? 0 : 1);
+      const rock = smooth(0.66, 0.8, nb) * (1 - path) * (1 - place) * smooth(8, 16, edgeDistance(x, z)) * (inLake ? 0 : 1);
       data[o] = Math.round(sand * 255);
       data[o + 1] = Math.round(path * 255);
       data[o + 2] = Math.round(rock * 255);
@@ -619,21 +633,11 @@ function portalDoorTexture() {
   return doorTex;
 }
 
-/* A trollface grin sprayed on the ground (decal texture). */
-function grinTexture() {
-  const c = document.createElement("canvas");
-  c.width = c.height = 256;
-  const g = c.getContext("2d");
-  g.strokeStyle = "rgba(255,255,255,0.92)"; g.lineCap = "round"; g.lineJoin = "round";
-  g.lineWidth = 9;
-  g.beginPath(); g.ellipse(128, 132, 104, 96, 0, 0, Math.PI * 2); g.stroke();             // face
-  g.lineWidth = 8;
-  g.beginPath(); g.moveTo(52, 140); g.quadraticCurveTo(128, 236, 206, 132); g.lineTo(52, 140); g.stroke();   // the grin
-  for (let k = 0; k < 7; k++) { const x = 70 + k * 19; g.beginPath(); g.moveTo(x, 142); g.lineTo(x + 2, 168 + Math.sin(k / 6 * Math.PI) * 16); g.stroke(); }
-  g.lineWidth = 7;
-  for (const ex of [88, 168]) { g.beginPath(); g.ellipse(ex, 92, 20, 10, ex < 128 ? 0.25 : -0.25, 0, Math.PI * 2); g.stroke(); }
-  g.beginPath(); g.moveTo(62, 66); g.lineTo(108, 76); g.moveTo(194, 66); g.lineTo(148, 76); g.stroke();      // brows
-  const t = new THREE.CanvasTexture(c);
+/* The real trollface art (never a hand-drawn stand-in: user, 2026-10-26,
+   "Its not actually the trollface"), for the Peak hut's window and the
+   blue tower's mosaic. */
+function trollfaceArt() {
+  const t = new THREE.TextureLoader().load(new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
@@ -686,7 +690,33 @@ function buildTrollfaceIsland(mapApi) {
   // the same (world-space mask); the slab is sunk in depth, so where a
   // hill meets it at y 0 the hill wins.
   const hills = hillGeometry();
-  if (hills) root.add(Object.assign(new THREE.Mesh(hills, groundMaterial(ground.userData.mask)), { receiveShadow: true }));
+  const hillMesh = hills && Object.assign(new THREE.Mesh(hills, groundMaterial(ground.userData.mask)), { receiveShadow: true });
+  if (hillMesh) root.add(hillMesh);
+  // Phase 6: the ground's light map (models/bake_map_ground.blender.py
+  // trollface: the sky on the meadow round every place, seen from above),
+  // projected onto the slab and the hills by world x/z
+  loadBake("trollface-ground").then((tex) => {
+    if (!tex) return;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.channel = 1;
+    tex.flipY = false;
+    const [x0, z0, size] = GROUND_BAKE_RECT;
+    for (const mesh of [island, hillMesh]) {
+      if (!mesh) continue;
+      const pos = mesh.geometry.attributes.position, uv = new Float32Array(pos.count * 2), v = new THREE.Vector3();
+      mesh.updateWorldMatrix(true, false);
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
+        uv[2 * i] = (v.x - x0) / size;
+        uv[2 * i + 1] = (v.z - z0) / size;
+      }
+      mesh.geometry.setAttribute("uv1", new THREE.BufferAttribute(uv, 2));
+      const m = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+      m.lightMap = tex;
+      m.lightMapIntensity = Math.PI;
+      m.needsUpdate = true;
+    }
+  });
   const under = new THREE.ConeGeometry(150, 70, 9);
   under.rotateX(Math.PI);
   under.scale(1.25, 1, 0.9);
@@ -768,27 +798,36 @@ function buildTrollfaceIsland(mapApi) {
 
   /* ---- landmarks (grey boxes, sized for play) ---------------------------- */
 
-  // Meme Lab: the blue ring portal on its platform, with the solar panel.
-  // Drawn by tf-memelab (models/build_island.blender.py); the swirl is a
-  // canvas.
-  {
-    const { x, z } = L.memelab;
-    K.box(x, z, 18, 12, 1.32, null);
-    K.stairs(x, z + 6, 0, 1, 0, 1.32, 4, null);
-    K.stairs(x + 9, z, 1, 0, 0, 1.32, 4, null);
-    const swirl = new THREE.CircleGeometry(5.3, 48);
-    swirl.rotateY(-0.6);
-    swirl.translate(x - 2, 1.32 + 6.7, z - 1);
-    K.add(swirl, new THREE.MeshBasicMaterial({ map: swirlTexture(), side: THREE.DoubleSide }));
-    K.box(x - 2, z - 1, 2.4, 1.6, 1.4, null, { y: 1.32 });                  // the ring's foot
-    K.box(x + 5, z + 1.5, 1, 1, 1.4, null, { y: 1.32 });                    // the panel's stand
-    mapModel(api, "tf-memelab", { x, z });
-  }
-
   // A place a tf_<area>.py module rebuilt (models/build_trollface_island.blender.py)
   // brings its own colliders, in trollface-island-built.js: laid here for the
   // colliders tool, as the kit's are (in the game the data file has them).
   const built = (key) => { for (const [bx, bz, w, d, h, y, pen] of TF_BUILT[key].colliders) api.ghostBox(bx, bz, w, d, h, { y, pen }); };
+  // Glass a rebuilt place's build wrote (TF_BUILT[key].glass: centre, width,
+  // height, its outward normal): drawn here, as the GLBs have no alpha.
+  const panes = (key) => {
+    for (const [cx, cy, cz, w, h, nx, nz] of TF_BUILT[key].glass || []) {
+      const g = new THREE.PlaneGeometry(w, h);
+      g.rotateY(Math.atan2(nx, nz));
+      g.translate(cx, cy, cz);
+      K.add(g, M.glass);
+    }
+  };
+
+  // Meme Lab: the blue portal ring on its deck, turned to the road, and the
+  // two-floor glass lab beside it. Drawn by tf-memelab-p4 (models/tf_mid.py),
+  // its colliders the build's; the swirl is a canvas where the build put the
+  // ring (TF_BUILT.memelab.swirl: centre x, y, z, radius, its turn).
+  {
+    const { x, z } = L.memelab;
+    built("memelab");
+    panes("memelab");
+    const [sx, sy, sz, sr, sry] = TF_BUILT.memelab.swirl;
+    const swirl = new THREE.CircleGeometry(sr, 48);
+    swirl.rotateY(sry);
+    swirl.translate(sx, sy, sz);
+    K.add(swirl, new THREE.MeshBasicMaterial({ map: swirlTexture(), side: THREE.DoubleSide }));
+    mapModel(api, "tf-memelab-p4", { x, z });
+  }
 
   // Troll City: the black trollface dome in a square, the main street round
   // it, eight shops you can walk into and two towers behind. Drawn by
@@ -801,15 +840,14 @@ function buildTrollfaceIsland(mapApi) {
     mapModel(api, "tf-cityface", { x, z });
   }
 
-  // The Observatory: a grey-blue house under a white dome, the telescope out
-  // of it. Drawn by tf-observatory.
+  // The Observatory: the house with the chart desk, the steel stair up its
+  // west wall to the catwalk round the dome, the dome you walk into with the
+  // yellow telescope out of its slit, the radio mast. Drawn by
+  // tf-observatory-p4 (models/tf_mid.py), its colliders the build's.
   {
     const { x, z } = L.observatory;
-    K.room(x, z, 14, 14, 6, null, [["s", 0, 3], ["n", 2, 2.6]]);
-    K.box(x, z, 14.6, 14.6, 0.5, null, { y: 6 });
-    K.disc(x, z, 5.4, 5, null, { y: 6.5, visual: false });
-    K.box(x - 2, z - 2, 3, 3, 1.2, null);                                   // the mount, inside
-    mapModel(api, "tf-observatory", { x, z });
+    built("observatory");
+    mapModel(api, "tf-observatory-p4", { x, z });
   }
 
   // The Portal: the sandy rock with the lab bunker inside it (a blast door
@@ -857,11 +895,11 @@ function buildTrollfaceIsland(mapApi) {
 
   // The roads: the asphalt, its paint and the parking bays, mile posts,
   // power poles along the north road, two wrecks, the bus shelter at the
-  // Market, and the two lake boardwalks. Drawn by tf-roads-p3
+  // Market, and the two lake boardwalks. Drawn by tf-roads-p4
   // (models/tf_roads.py) at the island's origin, its colliders the build's.
   {
     built("roads");
-    mapModel(api, "tf-roads-p3", { x: 0, z: 0 });
+    mapModel(api, "tf-roads-p4", { x: 0, z: 0 });
   }
 
   // The Cave: the teal rock mound with the tunnel north to south through it
@@ -890,54 +928,78 @@ function buildTrollfaceIsland(mapApi) {
     mapModel(api, "tf-tree-p3", { x, z });
   }
 
-  // The Boat: a sailing smack aground in the lake, the deck 2.7 m up by the
-  // stern steps, the wheelhouse and the hold you go down into. Drawn by
-  // tf-boat-p3 and tf-boatface (the figurehead).
-  {
+  // The Boat: a sailing smack, the deck 2.7 m up by the stern steps, the
+  // wheelhouse and the hold you go down into. Drawn by tf-boat-p3,
+  // tf-boatface (the figurehead) and its folding rig. In a match it sails
+  // round the lake (trollface-boat.js, modes/royale-boat.js), its colliders
+  // with it; built from code (the tools) it stays where it was built.
+  BOAT = null;
+  if (fromCode) {
     const { x, z } = L.boat;
     built("boat");
     mapModel(api, "tf-boat-p3", { x, z });
     mapModel(api, "tf-boatface", { x, z });
-  }
+  } else BOAT = new Boat(root, mapApi, L.boat, TF_BUILT.boat.colliders);
 
-  // The Gallery: a glass pyramid over a plinth, doors north and south.
+  // The Gallery: the glass pyramid (the lobby: the ticket desk, the gift
+  // shop, the white trollface bust), a hall either side with framed memes and
+  // busts, the sculpture court north. Drawn by tf-gallery-p4 (models/tf_mid.py),
+  // its colliders the build's; the band's glass and the pyramid cone are
+  // here, the busts hg-trollbust (Hollowgrin's carving) where the build put
+  // their plinths (TF_BUILT.gallery.busts: x, y, z, turn, scale).
   {
     const { x, z } = L.gallery;
-    // Glass here (the walls are its colliders); frames, floor, plinths, art,
-    // ropes and spotlights are tf-gallery (models/build_island.blender.py).
-    K.room(x, z, 26, 26, 3.4, M.glass, [["s", 0, 3.4], ["n", 0, 3.4]]);
-    const pyr = new THREE.ConeGeometry(26 / Math.SQRT2, 14.6, 4, 1, true);   // base on the walls, apex at 18
+    built("gallery");
+    panes("gallery");
+    const pyr = new THREE.ConeGeometry(26 / Math.SQRT2, 14.6, 4, 1, true);   // base on the band, apex at 18
     pyr.rotateY(Math.PI / 4);
     pyr.translate(x, 3.4 + 7.3, z);
     K.add(pyr, M.glass);
-    for (const [dx, dz] of [[-6, -5], [6, -5], [0, 4], [-7, 7], [7, 7]]) K.box(x + dx, z + dz, 1.6, 1.6, 1.3, null);   // plinths
-    mapModel(api, "tf-gallery", { x, z });
-    // the centrepiece: the white trollface bust (Hollowgrin's Meme Gallery
-    // carving) on the middle plinth, facing the south door
-    mapModel(api, "hg-trollbust", { x, z: z + 4, y: 1.3, scale: 0.9 });
+    mapModel(api, "tf-gallery-p4", { x, z });
+    for (const [bx, by, bz, rot, scale] of TF_BUILT.gallery.busts) mapModel(api, "hg-trollbust", { x: bx, z: bz, y: by, rot, scale });
   }
 
-  // The U Mad Bro Shop: a big store with its sign lit up on the roof.
+  // The U Mad Bro Shop: the big store, its car park, the loading bay, the
+  // stair to the roof. Drawn by tf-shop-p4 (models/tf_mid.py), its colliders
+  // the build's; the sign's neon lettering is a canvas on its black board
+  // (TF_BUILT.shop.neon: centre x, y, z, width, height).
   {
     const { x, z } = L.shop;
-    // Drawn by tf-shop (models/build_island.blender.py); the sign's neon
-    // lettering is a canvas on its black board, over the front doors.
-    K.room(x, z, 26, 14, 6.5, null, [["s", 0, 4], ["n", -6, 3], ["e", 0, 2.6]]);
-    K.box(x, z, 26.6, 14.6, 0.5, null, { y: 6.5 });
-    for (let i = 0; i < 3; i++) K.box(x - 7 + i * 7, z - 2, 4.5, 1.2, 1.8, null);   // shelves
-    K.box(x + 8, z + 3.5, 5, 1.4, 1.1, null);                                // the counter
-    mapModel(api, "tf-shop", { x, z });
-    const sign = new THREE.PlaneGeometry(13.6, 5.4);
-    sign.translate(x, 8.1, z + 7.6);
+    built("shop");
+    mapModel(api, "tf-shop-p4", { x, z });
+    const [nx, ny, nz, nw, nh] = TF_BUILT.shop.neon;
+    const sign = new THREE.PlaneGeometry(nw, nh);
+    sign.translate(nx, ny, nz);
     K.add(sign, new THREE.MeshBasicMaterial({ map: neonSignTexture(), transparent: true, depthWrite: false }));
   }
 
-  // The Marketplace: a line of stalls under bright canopies and fairy lights.
-  // Drawn by tf-market.
+  // The Marketplace: the covered hall with its stalls, canopy stalls in the
+  // square, the fountain, the noodle cart, and the fish market up on the
+  // quay. Drawn by tf-market-p4 (models/tf_mid.py), its colliders the build's.
   {
     const { x, z } = L.market;
-    for (let t = 0; t < 6; t++) K.box(x - 20 + t * 8, z + 12 - t * 5, 4.4, 2, 1.1, null);
-    mapModel(api, "tf-market", { x, z });
+    built("market");
+    mapModel(api, "tf-market-p4", { x, z });
+  }
+
+  // The five new places (phase 5): Rage Ranch, Lulz Lodge, Lighthouse Point,
+  // Problem Plant, Grin Gas. Drawn by tf-<place>-p5 (models/tf_new.py), their
+  // colliders the build's; the lamp room's and the diner's glass the map's,
+  // the Ranch's scarecrow wears the trollface (TF_BUILT.ranch.face: x, y, z, size, turn).
+  for (const k of ["ranch", "lodge", "light", "plant", "gas"]) {
+    const { x, z } = L[k];
+    built(k);
+    panes(k);
+    mapModel(api, `tf-${k}-p5`, { x, z });
+  }
+  {
+    const [fx, fy, fz, fs, fry] = TF_BUILT.ranch.face;
+    const face = new THREE.PlaneGeometry(fs, fs);
+    face.rotateY(fry);
+    face.translate(fx, fy, fz);
+    const tex = new THREE.TextureLoader().load(new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    root.add(new THREE.Mesh(face, new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide })));
   }
 
   // The Bridge: the plank bridge over the river roofed over, a toll booth
@@ -959,7 +1021,8 @@ function buildTrollfaceIsland(mapApi) {
 
   dressIsland(api, root, K, M, r, clear);
   K.flush();
-  if (!fromCode) for (const c of ISLAND_SOLIDS) mapApi.ghostBox(c.x, c.z, c.w, c.d, c.h, { y: c.y, pen: c.pen });
+  // (the Boat's are laid by the Boat, in pieces it moves)
+  if (!fromCode) for (const c of ISLAND_SOLIDS) if (c.n !== "boat") mapApi.ghostBox(c.x, c.z, c.w, c.d, c.h, { y: c.y, pen: c.pen });
 }
 
 /* Instanced clutter, paddocks, signposts, billboards, graffiti (phase 2). */
@@ -1111,18 +1174,11 @@ function dressIsland(api, root, K, M, r, clear) {
     root.add(new THREE.Mesh(face, new THREE.MeshStandardMaterial({ map: art(file), roughness: 0.6 })));
   }
 
-  // grin graffiti sprayed on the plazas
-  const grinMat = new THREE.MeshBasicMaterial({ map: grinTexture(), transparent: true, depthWrite: false, opacity: 0.85,
+  const grinMat = new THREE.MeshBasicMaterial({ map: trollfaceArt(), transparent: true, depthWrite: false,
     polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const grins = [];
-  for (const [l, dx, dz, s] of [[L.city, 14, 12, 7], [L.skate, -7.5, 0.5, 6], [L.gallery, 8, -9, 5], [L.shop, -12, 6, 5]]) {
-    const g = new THREE.PlaneGeometry(s, s);
-    g.rotateX(-Math.PI / 2);
-    g.rotateY(r() * 6);
-    g.translate(l.x + dx, 0.05, l.z + dz);
-    grins.push(g);
-  }
-  // ...and the motif where the doc puts it: the Peak hut's round window
+  // the trollface where the doc puts it (the hand-drawn grins sprayed on
+  // the plazas are gone: user, 2026-10-26): the Peak hut's round window
   // (lit from inside, the grin on the glass) and a mosaic on the blue
   // tower's north wall, facing the square (tf_city.py leaves that face bare)
   {
@@ -1155,11 +1211,13 @@ export const TROLLFACE_ISLAND = {
   fog: { color: 0x0b1330, density: 0.0011 },
   ground: { colorA: 0x6fd490, colorB: 0x5aa84d, grid: 0x74c864 },
   sun: { color: 0xfff1d6, intensity: 2.5, pos: [-60, 90, -40] },
-  hemi: { sky: 0xcfe6ff, ground: 0x4f7a45, intensity: 0.75 },
-  ambient: { color: 0xffffff, intensity: 0.28 },
+  // the sky is in the light maps now (phase 6): the hemisphere at about half
+  hemi: { sky: 0xcfe6ff, ground: 0x4f7a45, intensity: 0.4 },
+  ambient: { color: 0xffffff, intensity: 0.28 },   // kept: the rooms the sky can't reach have only this
   // stylised realism (view/grade-pass.js): hard sun in space: cold shade, clean highs
   grade: { shadows: 0x101a40, shadowsAmt: 0.08, highlights: 0xfff0d0, highlightsAmt: 0.05, sat: 1.08, contrast: 1.05 },
   build: buildTrollfaceIsland,
+  boat: () => BOAT,           // modes/royale-boat.js sails it
   groundField: GROUND_FIELD,   // the hills (core/ground-field.js reads it while the map is live)
   spawns: SPAWNS,
   edge: ISLAND_EDGE,

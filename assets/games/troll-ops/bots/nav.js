@@ -62,6 +62,9 @@ export class FlowField {
      wide block finds no cell at all and the walkers chasing it stand at its
      foot (Grin Beach). */
   constructor(colliders, bounds, floorY, { needSupport = false, cell = CELL, pad = 0.35, step = 1.0, template = null, blockBy = "overlap", snap = 0 } = {}) {
+    // a grid made once stands still: nothing that moves (Trollface Island's
+    // Boat, maps/trollface-boat.js) is in it
+    if (colliders) colliders = colliders.filter((c) => !c.moving);
     if (template) {
       this.snapR = template.snapR;
       this.cell = template.cell;
