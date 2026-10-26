@@ -31,7 +31,7 @@ import { buildIslandSigns } from "./trollface-island-signs.js?v=tfs1-tfp1";
 import { buildIslandProps } from "./island-props.js?v=ip1-mg1-tx1-sp1-kbt1-pm1-ss1-ss2-ss3";
 import { sampleField } from "../core/ground-field.js?v=gf1-tg1";
 import { Boat, BOAT_ARCHES } from "./trollface-boat.js?v=tfb1-tfb8-ss1-ss2-ss3";
-import { animateIslandModel } from "./trollface-anim.js?v=ta1";
+import { animateIslandModel } from "./trollface-anim.js?v=ta1-ta2";
 
 const BOUNDS = { minX: -205, maxX: 205, minZ: -155, maxZ: 155 };
 
