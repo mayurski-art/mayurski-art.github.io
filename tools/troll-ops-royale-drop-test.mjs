@@ -121,11 +121,17 @@ const sq = await page.evaluate(() => {
   const bearings = fl.map((f) => Math.atan2(f.S.z, f.S.x)).sort((a, b) => a - b);
   let maxGap = 0;
   for (let i = 0; i < bearings.length; i++) maxGap = Math.max(maxGap, ((bearings[(i + 1) % bearings.length] - bearings[i]) + Math.PI * 2) % (Math.PI * 2) || Math.PI * 2);
-  return { n: fl.length, minGap, at, maxGapDeg: maxGap * 180 / Math.PI, over: fl.every((f) => f.over && f.tOut > f.tIn), parts: sq.parts.length, seats: sq.hold.seats.filter(Boolean).length };
+  // Every run flies due south, so out of the ramp (aft) you look north at
+  // the island the right way up (user, 2026-10-26).
+  const south = fl.every((f) => f.dir.z > 0.999);
+  return { south, n: fl.length, minGap, at, maxGapDeg: maxGap * 180 / Math.PI, over: fl.every((f) => f.over && f.tOut > f.tIn), parts: sq.parts.length, seats: sq.hold.seats.filter(Boolean).length };
 });
 check("eight planes, instanced (one InstancedMesh per part)", sq.n === 8 && sq.parts >= 4 && sq.parts <= 10, JSON.stringify({ n: sq.n, parts: sq.parts }));
 check("the planes never come within 18 m of each other (each flies its own height)", sq.minGap > 18, `${sq.minGap.toFixed(0)} m at t ${sq.at}`);
-check("they come in from all round the compass", sq.maxGapDeg < 100, `largest gap ${sq.maxGapDeg.toFixed(0)}°`);
+// They join the circle one after another as a formation (each on its own
+// ring), so they come in from a half-circle of bearings, not all round.
+check("they come in from many bearings (a half-circle as the formation turns)", sq.maxGapDeg < 230, `largest gap ${sq.maxGapDeg.toFixed(0)}°`);
+check("every drop run flies due south (the trollface upright out of the ramp)", sq.south, String(sq.south));
 check("every drop run crosses the island", sq.over, "");
 check("the hold has its nine seats", sq.seats === 9, `${sq.seats}`);
 await new Promise((r) => setTimeout(r, 2500));   // past the room's peer-map reset
