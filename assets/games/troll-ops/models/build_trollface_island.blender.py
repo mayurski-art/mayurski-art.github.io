@@ -238,6 +238,9 @@ def main():
             print(f"   NOTE {k}: model reaches {r_in:.1f} m from the place's centre, ring {place['r']} m")
     paths = [os.path.join(HERE, GLB_NAME.get(k, f"tf-{k}") + ".glb") for k in want]
     quantize_glb.main(paths)
+    # 16-bit positions too (phase 7, the 14 MB budget), not the roads': their
+    # paint lies 4 mm over the asphalt and 440 m in 16 bits is 6.7 mm
+    quantize_glb.positions_only([p for p in paths if "tf-roads" not in p])
     for row in tf_kit.Report.rows:
         row[3] = os.path.getsize(os.path.join(HERE, row[0] + ".glb"))
     total = sum(r[3] for r in tf_kit.Report.rows)

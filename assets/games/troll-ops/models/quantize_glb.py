@@ -14,9 +14,13 @@ then each mesh's positions are 16-bit normalized round its centre, the
 node's translation and uniform scale undoing it (uniform, so normals need
 nothing): 84 m across in 1.3 mm steps. Byte normals need KHR_mesh_quantization, which
 three.js's GLTFLoader supports; it is added to extensionsUsed/Required.
-A model that is already quantized is left alone.
+A model that is already quantized is left alone; positions_only() then
+quantizes just its float positions, the same way, every other view kept byte
+for byte (Trollface Island's places, after their bakes: the bake UVs and so
+the light maps are untouched).
 
   python quantize_glb.py gl-shell.glb gl-shops.glb ...
+  python quantize_glb.py --positions tf-city-p1.glb ...
 """
 import json
 import math
@@ -226,5 +230,73 @@ def main(paths, positions=False):
         print(f"{os.path.basename(path)}: {before} -> {os.path.getsize(path)} bytes")
 
 
+def positions_only(paths):
+    for path in paths:
+        j, bin_ = read_glb(path)
+        before = os.path.getsize(path)
+        meshes = {}
+        for mi, mesh in enumerate(j["meshes"]):
+            accs = [prim["attributes"]["POSITION"] for prim in mesh["primitives"]]
+            if all(j["accessors"][ai]["componentType"] == FLOAT for ai in accs):
+                meshes[mi] = accs
+        if not meshes:
+            print(path, "positions already quantized")
+            continue
+        new_bin = bytearray()
+        moved = {}
+
+        def put(data):
+            while len(new_bin) % 4:
+                new_bin.append(0)
+            o = len(new_bin)
+            new_bin.extend(data)
+            return o
+
+        float_views = {j["accessors"][ai]["bufferView"] for accs in meshes.values() for ai in accs}
+        views = []
+        for vi, v in enumerate(j["bufferViews"]):
+            if vi in float_views:
+                continue
+            o = v.get("byteOffset", 0)
+            nv = dict(v, byteOffset=put(bin_[o:o + v["byteLength"]]))
+            moved[vi] = len(views)
+            views.append(nv)
+        for img in j.get("images", []):
+            if "bufferView" in img:
+                img["bufferView"] = moved[img["bufferView"]]
+        for a in j["accessors"]:
+            if a.get("bufferView") in moved:
+                a["bufferView"] = moved[a["bufferView"]]
+        for node in j.get("nodes", []):
+            if node.get("mesh") not in meshes:
+                continue
+            assert not any(k in node for k in ("translation", "rotation", "scale", "matrix")), "a placed node"
+            accs = meshes[node["mesh"]]
+            lo = [min(j["accessors"][ai]["min"][k] for ai in accs) for k in range(3)]
+            hi = [max(j["accessors"][ai]["max"][k] for ai in accs) for k in range(3)]
+            c = [(lo[k] + hi[k]) / 2 for k in range(3)]
+            sc = max((hi[k] - lo[k]) / 2 for k in range(3)) or 1.0
+            for ai in dict.fromkeys(accs):
+                vals = accessor_values(j, bin_, ai)
+                data = bytearray()
+                qlo, qhi = [32767] * 3, [-32767] * 3
+                for v in vals:
+                    q = [max(-32767, min(32767, round((v[k] - c[k]) / sc * 32767))) for k in range(3)]
+                    for k in range(3):
+                        qlo[k], qhi[k] = min(qlo[k], q[k]), max(qhi[k], q[k])
+                    data += struct.pack("<hhhh", *q, 0)
+                views.append({"buffer": 0, "byteOffset": put(bytes(data)), "byteLength": len(data), "byteStride": 8, "target": 34962})
+                j["accessors"][ai] = {"bufferView": len(views) - 1, "componentType": SHORT, "normalized": True,
+                                      "count": len(vals), "type": "VEC3", "min": qlo, "max": qhi}
+            node["translation"], node["scale"] = c, [sc, sc, sc]
+        j["bufferViews"] = views
+        j["buffers"] = [{"byteLength": len(new_bin)}]
+        write_glb(path, j, bytes(new_bin))
+        print(f"{os.path.basename(path)}: {before} -> {os.path.getsize(path)} bytes (positions)")
+
+
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    if sys.argv[1:2] == ["--positions"]:
+        positions_only(sys.argv[2:])
+    else:
+        main(sys.argv[1:])
