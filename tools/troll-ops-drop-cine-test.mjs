@@ -127,7 +127,9 @@ const snap = (page, target = -Infinity, max = 70000) => page.evaluate(async ({ u
     photo: !!cine.dropCinePhoto().visible, photoK: cine.dropCinePhotoK(), caress: cine.dropCineCaress(),
     ipod: !!cine.dropCineIpod().visible, ipodK: cine.dropCineIpodK(),
     song: cine.dropCineSong(), opener: cine.dropOpener(),
-    music: m ? { playing: !!m.playing, index: m.order[m.pos], vol: m.el.volume, base: m.volume, paused: m.el.paused, at: m.el.currentTime, tracks: m.tracks.length } : null,
+    music: m ? { playing: !!m.playing, index: m.order[m.pos], vol: m.el.volume, base: m.volume, paused: m.el.paused, at: m.el.currentTime, tracks: m.tracks.length,
+      bud: m.graph?.bud ? { gain: +m.graph.bud.gain.gain.value.toFixed(3), lp: Math.round(m.graph.bud.lp.frequency.value), hp: Math.round(m.graph.bud.hp.frequency.value) } : null } : null,
+    buds: cine.dropCineBuds?.() ?? null,
     x: game.move.pos.x, z: game.move.pos.z, yaw: game.look.yaw, pitch: game.look.pitch,
     seatYaw: r?.drop?.hold?.seats?.[r.seat]?.yaw ?? null,
     body: document.body.classList.contains("to-dropcine"),
@@ -467,6 +469,8 @@ await shot(b, "ipod-playing.png");
 s = await until(b, -23);
 check(s.music.at > 0.5, "and it keeps going", `at=${s.music.at.toFixed(2)} s`);
 check(s.pitch > -0.2, "head up, listening", `pitch=${s.pitch.toFixed(2)}`);
+check(s.buds?.l === 1 && s.buds?.r === 1, "both earbuds in", JSON.stringify(s.buds));
+check(!s.music.bud || (s.music.bud.gain > 0.95 && s.music.bud.lp > 15000), "in your ears: the song full and close (no leak filter)", JSON.stringify(s.music.bud));
 check(s.memory < 0.05, "no warm edges on the music path", `memory=${s.memory.toFixed(2)}`);
 await shot(b, "ipod-listen.png");
 // He cuts in at T-22: the song plays on (user: "the music ... cuts off too
@@ -476,6 +480,8 @@ for (s = await until(b, -22.05); s.t < -21.3; s = await st(b)) { if (s.sub) line
 check(/Hey\. Mask on, troll/.test(line), "T-22: he cuts in", line);
 s = await until(b, -20.7);
 check(s.song && !s.music.paused && s.music.index === 2, "the song plays on after he cuts in", JSON.stringify(s.music));
+check(s.buds?.l === 0 && s.buds?.r === 0, "the earbuds are out (to hear him)", JSON.stringify(s.buds));
+check(!s.music.bud || (s.music.bud.gain < 0.4 && s.music.bud.gain > 0.1 && s.music.bud.lp < 5000 && s.music.bud.hp > 300), "out: a quiet, tinny leak, still audible", JSON.stringify(s.music.bud));
 check(s.kind === "mask" && !s.ipod, "the hands go to the mask", JSON.stringify({ kind: s.kind, ipod: s.ipod }));
 s = await until(b, -13.6);
 check(s.on && s.holding === "none" && !s.ipod, "T-14: up, hands empty", JSON.stringify({ on: s.on, holding: s.holding }));
@@ -488,6 +494,7 @@ check(s.song?.fading && !s.music.paused && s.music.vol < s.music.base, "out of t
 s = await until(b, 4.2, 30000);
 check(!s.song && s.music.paused, "the song's stopped once it's faded", JSON.stringify(s.music));
 check(Math.abs(s.music.vol - s.music.base) < 0.01, "the radio's volume put back", `vol=${s.music.vol.toFixed(2)}`);
+check(!s.music.bud || (s.music.bud.gain > 0.95 && s.music.bud.lp > 15000), "...and its sound (no leak filter left on)", JSON.stringify(s.music.bud));
 check(s.music.playing === before.playing && s.music.index === before.index, "the radio as it was before", JSON.stringify({ before, now: s.music }));
 await b.close();
 
