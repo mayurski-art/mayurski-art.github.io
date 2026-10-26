@@ -187,7 +187,8 @@ const RUNS = {
   ],
   // Trollface Island (trollface-island.js). Landmark centres: peak (56.8, -43.4),
   // cave (-9.1, -32.6), portal (120.8, -100.6), skate (131.7, -61.5), bridge z 77.8 from x -56.3 to
-  // -0.5, boat (99.9, 16.3), gallery (-99, 45.3), shop (38.6, 77.8).
+  // -0.5, boat (99.9, 16.3), gallery (-99, 45.3), shop (38.6, 77.8), memelab (-127.1, -114),
+  // observatory (81.7, -99.5), market (145.3, 97.7).
   trollface: [  [56.8, 0, -12, 0, -1, 4, "peak: up to the first terrace", (r) => r.maxY >= 4.5],
   [77.6, 4.7, -43.4, -1, 0, 4, "peak: first terrace -> second", (r) => r.maxY >= 8.4],
   [56.8, 8.7, -57.6, 0, 1, 4, "peak: second terrace -> third", (r) => r.maxY >= 12],
@@ -212,6 +213,13 @@ const RUNS = {
   [-102.6, 0.66, -18.1, 1, 0, 9, "dock: along the arm to the lamp", (r) => r.end[0] > -80],
   [-99, 0, 64, 0, -1, 4, "gallery: in the south door", (r) => r.end[2] < 56],
   [38.6, 0, 90, 0, -1, 4, "shop: in the front door", (r) => r.end[2] < 83],
+  [26, 0, -43.4, 1, 0, 4, "peak: the rock stops you at its foot", (r) => r.end[0] < 34.3],
+  [23.65, 0, 80.8, 0, -1, 8, "shop: up the west stair to the roof", (r) => r.maxY >= 6.5],
+  [-131.6, 0, -110.05, -1, 0, 5, "meme lab: up the stair to the upper floor", (r) => r.maxY >= 3.5],
+  [71.75, 0, -96.5, 0, -1, 6, "observatory: up the west stair to the catwalk", (r) => r.maxY >= 4.2],
+  [73.3, 4.3, -99.5, 1, 0, 4, "observatory: into the dome", (r) => r.end[0] > 76.2 && r.end[1] >= 4.2],
+  [151.3, 0, 101.7, 0, 1, 4, "market: up the steps onto the quay", (r) => r.maxY >= 0.85],
+  [-91, 0, 45.3, 1, 0, 4, "gallery: from the lobby into the east hall", (r) => r.end[0] > -84.5],
   ],
 };
 

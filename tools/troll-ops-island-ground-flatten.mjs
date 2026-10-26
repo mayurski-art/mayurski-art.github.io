@@ -25,6 +25,7 @@ const ZONES = [
   { name: "city", x: -36.3, z: -86.9, r: 41, square: true },     // phase 1: the block's pavements reach 40 m each way
   { name: "peak", x: 56.8, z: -43.4, r: 33 },                    // phase 1: the pines on the skirts
   { name: "dock", x: -102, z: -45, r: 13 },                      // phase 3: the bait shop and the boat shed on the shore
+  { name: "market", x: 145.3, z: 97.7, r: 27 },                 // phase 4: the hall, the quay and the square (the sculpt had a 3 m hill here)
 ];
 const EASE = 10;
 // The roads (phase 3): every road in the layout is flat for ROAD_HW each side

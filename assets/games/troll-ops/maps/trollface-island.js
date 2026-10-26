@@ -55,7 +55,7 @@ const RIVER_MOUTH = [P(37.2, 72.2), P(45.6, 77.3)];   // where the river goes ov
 const LAKE_FACE = [92, 30];                         // the lake bed's trollface, centred in the main basin
 
 // The 6 m road network (doc "Trollface Island in Blender", phase 3; metres,
-// x east, z south), drawn as asphalt by tf-roads-p3 (models/tf_roads.py) and
+// x east, z south), drawn as asphalt by tf-roads-p4 (models/tf_roads.py) and
 // flattened under (tools/troll-ops-island-ground-flatten.mjs): the north
 // road from Meme Lab past the city and the Problem Plant to the Observatory,
 // down between the Peak and the Skate Bowl, round the east past Lighthouse
@@ -72,14 +72,15 @@ export const ROAD_NET = {
   gallery: [[-58, 78], [-72, 74], [-86, 69], [-96, 66]],
 };
 // Parking spots for the vehicles doc: [x, z, yaw (deg, the nose)], a bay
-// 5 x 2.6 m beside the road; painted by tf-roads-p3.
+// 5 x 2.6 m beside the road; painted by tf-roads-p4.
 export const PARKING = [
   [-80, -92, 90], [-80, -82, 90],              // the city's west entrance
   [101.5, -60, 0], [101.5, -66, 0],            // the Skate Bowl's west door
   [161.5, 20, 0],                              // Lighthouse Point
   [140, 63.5, 240], [130, 72.5, 60],           // the Marketplace
   [84, 116.5, 180], [78, 116.5, 180],          // Grin Gas
-  [40, 95.5, 180],                             // the Shop's back
+  [40, 95.5, 180],                             // the Shop, by the road
+  [43.6, 88.8, 90], [46.4, 88.8, 90], [49.2, 88.8, 90], [52, 88.8, 90],   // the Shop's car park (tf_mid.py SHOP_BAYS)
   [-88, 73.5, 110],                            // the Gallery's spur
   [-140, 12.5, 290],                           // Lulz Lodge
   [-166, -62, 160],                            // Rage Ranch
@@ -383,12 +384,14 @@ export function groundMask() {
         sand = Math.max(sand, smooth(3, -1, Math.max(dx, dz)));
       }
       let path = smooth(4.4, 1.8, roadDistance(x, z));
+      let place = 0;                     // inside a place's ring: built-on ground, no bare rock (phase 4: the Market's old hill)
       for (const l of Object.values(L)) {
         const d = Math.hypot(x - l.x, z - l.z) - l.r * 0.85;
         path = Math.max(path, smooth(7, 0, Math.abs(d)) * 0.55);
+        place = Math.max(place, smooth(l.r * 1.15, l.r * 0.9, Math.hypot(x - l.x, z - l.z)));
       }
       const nb = big(x, z), ns = small(x, z);
-      const rock = smooth(0.66, 0.8, nb) * (1 - path) * smooth(8, 16, edgeDistance(x, z)) * (inLake ? 0 : 1);
+      const rock = smooth(0.66, 0.8, nb) * (1 - path) * (1 - place) * smooth(8, 16, edgeDistance(x, z)) * (inLake ? 0 : 1);
       data[o] = Math.round(sand * 255);
       data[o + 1] = Math.round(path * 255);
       data[o + 2] = Math.round(rock * 255);
@@ -768,27 +771,36 @@ function buildTrollfaceIsland(mapApi) {
 
   /* ---- landmarks (grey boxes, sized for play) ---------------------------- */
 
-  // Meme Lab: the blue ring portal on its platform, with the solar panel.
-  // Drawn by tf-memelab (models/build_island.blender.py); the swirl is a
-  // canvas.
-  {
-    const { x, z } = L.memelab;
-    K.box(x, z, 18, 12, 1.32, null);
-    K.stairs(x, z + 6, 0, 1, 0, 1.32, 4, null);
-    K.stairs(x + 9, z, 1, 0, 0, 1.32, 4, null);
-    const swirl = new THREE.CircleGeometry(5.3, 48);
-    swirl.rotateY(-0.6);
-    swirl.translate(x - 2, 1.32 + 6.7, z - 1);
-    K.add(swirl, new THREE.MeshBasicMaterial({ map: swirlTexture(), side: THREE.DoubleSide }));
-    K.box(x - 2, z - 1, 2.4, 1.6, 1.4, null, { y: 1.32 });                  // the ring's foot
-    K.box(x + 5, z + 1.5, 1, 1, 1.4, null, { y: 1.32 });                    // the panel's stand
-    mapModel(api, "tf-memelab", { x, z });
-  }
-
   // A place a tf_<area>.py module rebuilt (models/build_trollface_island.blender.py)
   // brings its own colliders, in trollface-island-built.js: laid here for the
   // colliders tool, as the kit's are (in the game the data file has them).
   const built = (key) => { for (const [bx, bz, w, d, h, y, pen] of TF_BUILT[key].colliders) api.ghostBox(bx, bz, w, d, h, { y, pen }); };
+  // Glass a rebuilt place's build wrote (TF_BUILT[key].glass: centre, width,
+  // height, its outward normal): drawn here, as the GLBs have no alpha.
+  const panes = (key) => {
+    for (const [cx, cy, cz, w, h, nx, nz] of TF_BUILT[key].glass || []) {
+      const g = new THREE.PlaneGeometry(w, h);
+      g.rotateY(Math.atan2(nx, nz));
+      g.translate(cx, cy, cz);
+      K.add(g, M.glass);
+    }
+  };
+
+  // Meme Lab: the blue portal ring on its deck, turned to the road, and the
+  // two-floor glass lab beside it. Drawn by tf-memelab-p4 (models/tf_mid.py),
+  // its colliders the build's; the swirl is a canvas where the build put the
+  // ring (TF_BUILT.memelab.swirl: centre x, y, z, radius, its turn).
+  {
+    const { x, z } = L.memelab;
+    built("memelab");
+    panes("memelab");
+    const [sx, sy, sz, sr, sry] = TF_BUILT.memelab.swirl;
+    const swirl = new THREE.CircleGeometry(sr, 48);
+    swirl.rotateY(sry);
+    swirl.translate(sx, sy, sz);
+    K.add(swirl, new THREE.MeshBasicMaterial({ map: swirlTexture(), side: THREE.DoubleSide }));
+    mapModel(api, "tf-memelab-p4", { x, z });
+  }
 
   // Troll City: the black trollface dome in a square, the main street round
   // it, eight shops you can walk into and two towers behind. Drawn by
@@ -801,15 +813,14 @@ function buildTrollfaceIsland(mapApi) {
     mapModel(api, "tf-cityface", { x, z });
   }
 
-  // The Observatory: a grey-blue house under a white dome, the telescope out
-  // of it. Drawn by tf-observatory.
+  // The Observatory: the house with the chart desk, the steel stair up its
+  // west wall to the catwalk round the dome, the dome you walk into with the
+  // yellow telescope out of its slit, the radio mast. Drawn by
+  // tf-observatory-p4 (models/tf_mid.py), its colliders the build's.
   {
     const { x, z } = L.observatory;
-    K.room(x, z, 14, 14, 6, null, [["s", 0, 3], ["n", 2, 2.6]]);
-    K.box(x, z, 14.6, 14.6, 0.5, null, { y: 6 });
-    K.disc(x, z, 5.4, 5, null, { y: 6.5, visual: false });
-    K.box(x - 2, z - 2, 3, 3, 1.2, null);                                   // the mount, inside
-    mapModel(api, "tf-observatory", { x, z });
+    built("observatory");
+    mapModel(api, "tf-observatory-p4", { x, z });
   }
 
   // The Portal: the sandy rock with the lab bunker inside it (a blast door
@@ -857,11 +868,11 @@ function buildTrollfaceIsland(mapApi) {
 
   // The roads: the asphalt, its paint and the parking bays, mile posts,
   // power poles along the north road, two wrecks, the bus shelter at the
-  // Market, and the two lake boardwalks. Drawn by tf-roads-p3
+  // Market, and the two lake boardwalks. Drawn by tf-roads-p4
   // (models/tf_roads.py) at the island's origin, its colliders the build's.
   {
     built("roads");
-    mapModel(api, "tf-roads-p3", { x: 0, z: 0 });
+    mapModel(api, "tf-roads-p4", { x: 0, z: 0 });
   }
 
   // The Cave: the teal rock mound with the tunnel north to south through it
@@ -900,44 +911,45 @@ function buildTrollfaceIsland(mapApi) {
     mapModel(api, "tf-boatface", { x, z });
   }
 
-  // The Gallery: a glass pyramid over a plinth, doors north and south.
+  // The Gallery: the glass pyramid (the lobby: the ticket desk, the gift
+  // shop, the white trollface bust), a hall either side with framed memes and
+  // busts, the sculpture court north. Drawn by tf-gallery-p4 (models/tf_mid.py),
+  // its colliders the build's; the band's glass and the pyramid cone are
+  // here, the busts hg-trollbust (Hollowgrin's carving) where the build put
+  // their plinths (TF_BUILT.gallery.busts: x, y, z, turn, scale).
   {
     const { x, z } = L.gallery;
-    // Glass here (the walls are its colliders); frames, floor, plinths, art,
-    // ropes and spotlights are tf-gallery (models/build_island.blender.py).
-    K.room(x, z, 26, 26, 3.4, M.glass, [["s", 0, 3.4], ["n", 0, 3.4]]);
-    const pyr = new THREE.ConeGeometry(26 / Math.SQRT2, 14.6, 4, 1, true);   // base on the walls, apex at 18
+    built("gallery");
+    panes("gallery");
+    const pyr = new THREE.ConeGeometry(26 / Math.SQRT2, 14.6, 4, 1, true);   // base on the band, apex at 18
     pyr.rotateY(Math.PI / 4);
     pyr.translate(x, 3.4 + 7.3, z);
     K.add(pyr, M.glass);
-    for (const [dx, dz] of [[-6, -5], [6, -5], [0, 4], [-7, 7], [7, 7]]) K.box(x + dx, z + dz, 1.6, 1.6, 1.3, null);   // plinths
-    mapModel(api, "tf-gallery", { x, z });
-    // the centrepiece: the white trollface bust (Hollowgrin's Meme Gallery
-    // carving) on the middle plinth, facing the south door
-    mapModel(api, "hg-trollbust", { x, z: z + 4, y: 1.3, scale: 0.9 });
+    mapModel(api, "tf-gallery-p4", { x, z });
+    for (const [bx, by, bz, rot, scale] of TF_BUILT.gallery.busts) mapModel(api, "hg-trollbust", { x: bx, z: bz, y: by, rot, scale });
   }
 
-  // The U Mad Bro Shop: a big store with its sign lit up on the roof.
+  // The U Mad Bro Shop: the big store, its car park, the loading bay, the
+  // stair to the roof. Drawn by tf-shop-p4 (models/tf_mid.py), its colliders
+  // the build's; the sign's neon lettering is a canvas on its black board
+  // (TF_BUILT.shop.neon: centre x, y, z, width, height).
   {
     const { x, z } = L.shop;
-    // Drawn by tf-shop (models/build_island.blender.py); the sign's neon
-    // lettering is a canvas on its black board, over the front doors.
-    K.room(x, z, 26, 14, 6.5, null, [["s", 0, 4], ["n", -6, 3], ["e", 0, 2.6]]);
-    K.box(x, z, 26.6, 14.6, 0.5, null, { y: 6.5 });
-    for (let i = 0; i < 3; i++) K.box(x - 7 + i * 7, z - 2, 4.5, 1.2, 1.8, null);   // shelves
-    K.box(x + 8, z + 3.5, 5, 1.4, 1.1, null);                                // the counter
-    mapModel(api, "tf-shop", { x, z });
-    const sign = new THREE.PlaneGeometry(13.6, 5.4);
-    sign.translate(x, 8.1, z + 7.6);
+    built("shop");
+    mapModel(api, "tf-shop-p4", { x, z });
+    const [nx, ny, nz, nw, nh] = TF_BUILT.shop.neon;
+    const sign = new THREE.PlaneGeometry(nw, nh);
+    sign.translate(nx, ny, nz);
     K.add(sign, new THREE.MeshBasicMaterial({ map: neonSignTexture(), transparent: true, depthWrite: false }));
   }
 
-  // The Marketplace: a line of stalls under bright canopies and fairy lights.
-  // Drawn by tf-market.
+  // The Marketplace: the covered hall with its stalls, canopy stalls in the
+  // square, the fountain, the noodle cart, and the fish market up on the
+  // quay. Drawn by tf-market-p4 (models/tf_mid.py), its colliders the build's.
   {
     const { x, z } = L.market;
-    for (let t = 0; t < 6; t++) K.box(x - 20 + t * 8, z + 12 - t * 5, 4.4, 2, 1.1, null);
-    mapModel(api, "tf-market", { x, z });
+    built("market");
+    mapModel(api, "tf-market-p4", { x, z });
   }
 
   // The Bridge: the plank bridge over the river roofed over, a toll booth
