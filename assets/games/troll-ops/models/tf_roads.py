@@ -5,8 +5,9 @@ road network (maps/trollface-island.js ROAD_NET, 6 m wide, flattened under
 by tools/troll-ops-island-ground-flatten.mjs) and its parking spots:
 
   the asphalt ribbon of every road 3.5 cm over the ground, a white edge line
-  each side, the centre line dashed; the parking bays outlined beside the
-  road where PARKING puts them
+  each side, the centre line dashed, the paint stopping short of every
+  junction and a round patch of asphalt filling the junction's corners; the
+  parking bays outlined beside the road where PARKING puts them
   mile posts every 100 m along the north and the shore roads, power poles
   along the north road with their wires sagging pole to pole, two wrecked
   cars in the gaps (cover), the bus shelter at the Marketplace junction
@@ -44,7 +45,9 @@ SIGNS = []
 
 def palette():
     return {
-        "asphalt": mat("GS_Asphalt", 0xffffff, 0.9),
+        # plain asphalt: the photo set (GS_Asphalt) carries its own lane
+        # lines, which ran across the island's roads at every angle
+        "asphalt": mat("TF_Asphalt", 0x3b3e44, 0.92),
         "paint": mat("TF_RoadPaint", 0xf0eee6, 0.6),
         "paint_y": mat("TF_RoadPaintYellow", 0xf2cf4a, 0.6),
         "post": mat("TF_MilePost", 0xf4f4f0, 0.6),
@@ -154,21 +157,68 @@ def length(pts):
 
 # ------------------------------------------------------------- the roads
 
+def seg_dist(x, z, a, c):
+    ex, ez = c[0] - a[0], c[1] - a[1]
+    t = max(0.0, min(1.0, ((x - a[0]) * ex + (z - a[1]) * ez) / ((ex * ex + ez * ez) or 1.0)))
+    return math.hypot(x - (a[0] + ex * t), z - (a[1] + ez * t))
+
+
+def junctions(road_list):
+    """Where a road's corner or end lies on another road: the junctions."""
+    out = []
+    for i, road in enumerate(road_list):
+        for (x, z) in road:
+            for j, other in enumerate(road_list):
+                if j != i and any(seg_dist(x, z, a, c) < 1.0 for a, c in zip(other, other[1:])):
+                    if all(math.hypot(x - jx, z - jz) > 3.0 for (jx, jz) in out):
+                        out.append((x, z))
+                    break
+    return out
+
+
+JUNCTION_CLEAR = ROAD_W * 0.95          # no paint this close to a junction
+
+
 def roads(N, LAYOUT):
     b, P = N.b, N.P
-    for k, road in enumerate(LAYOUT["roads"]):
+    nets = LAYOUT["roads"]
+    J = junctions(nets)
+    top = ROAD_Y + 0.0012 * len(nets)
+    for k, road in enumerate(nets):
         pts = densify(road, 3.0)
         y = ROAD_Y + 0.0012 * k                        # each road a hair higher: no shimmer where they meet
         if len(pts) < 2:
             continue
         ribbon(b, P["asphalt"], pts, ROAD_W / 2, ROAD_W / 2, y)
-        for side in (1, -1):
-            ribbon(b, P["paint"], pts, side * (ROAD_W / 2 - 0.25) + 0.05, -side * (ROAD_W / 2 - 0.25) + 0.05, y + 0.004)
+        others = [o for o in nets if o is not road]
+
+        def clear(x, z):
+            # no paint near a junction, nor where another road runs over this one
+            return (all(math.hypot(x - jx, z - jz) > JUNCTION_CLEAR for (jx, jz) in J)
+                    and all(seg_dist(x, z, a, c) > ROAD_W * 0.8 for o in others for a, c in zip(o, o[1:])))
+        # the edge lines, in runs between the junctions
+        fine = densify(road, 0.75)
+        run = []
+        for q in fine + [None]:
+            if q is not None and clear(*q):
+                run.append(q)
+                continue
+            if len(run) >= 2:
+                for side in (1, -1):
+                    ribbon(b, P["paint"], run, side * (ROAD_W / 2 - 0.25) + 0.05, -side * (ROAD_W / 2 - 0.25) + 0.05, top + 0.004)
+            run = []
         s, total = 1.5, length(road)
         while s < total - 1.2:
             (x, z), (dx, dz) = along(road, s)
-            flat(b, P["paint"], x, y + 0.004, z, 1.6, 0.14, -math.atan2(dz, dx))
+            if clear(x, z):
+                flat(b, P["paint"], x, top + 0.004, z, 1.6, 0.14, -math.atan2(dz, dx))
             s += 3.6
+    # the junctions: a round patch of asphalt over the roads' meeting corners
+    for (x, z) in J:
+        n = 20
+        R_ = ROAD_W * 0.62
+        verts = [(x, top + 0.001, z)] + [(x + R_ * math.cos(2 * math.pi * i / n), top + 0.001, z + R_ * math.sin(2 * math.pi * i / n)) for i in range(n)]
+        orient(b, b.poly(P["asphalt"], verts, [[0, 1 + i, 1 + (i + 1) % n] for i in range(n)]), (0, 1, 0))
     # the parking bays: an outline 5 x 2.6, the nose along yaw
     for (x, z, yaw) in LAYOUT.get("parking", []):
         ry = math.radians(yaw)
