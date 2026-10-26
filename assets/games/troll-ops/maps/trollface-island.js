@@ -629,21 +629,11 @@ function portalDoorTexture() {
   return doorTex;
 }
 
-/* A trollface grin sprayed on the ground (decal texture). */
-function grinTexture() {
-  const c = document.createElement("canvas");
-  c.width = c.height = 256;
-  const g = c.getContext("2d");
-  g.strokeStyle = "rgba(255,255,255,0.92)"; g.lineCap = "round"; g.lineJoin = "round";
-  g.lineWidth = 9;
-  g.beginPath(); g.ellipse(128, 132, 104, 96, 0, 0, Math.PI * 2); g.stroke();             // face
-  g.lineWidth = 8;
-  g.beginPath(); g.moveTo(52, 140); g.quadraticCurveTo(128, 236, 206, 132); g.lineTo(52, 140); g.stroke();   // the grin
-  for (let k = 0; k < 7; k++) { const x = 70 + k * 19; g.beginPath(); g.moveTo(x, 142); g.lineTo(x + 2, 168 + Math.sin(k / 6 * Math.PI) * 16); g.stroke(); }
-  g.lineWidth = 7;
-  for (const ex of [88, 168]) { g.beginPath(); g.ellipse(ex, 92, 20, 10, ex < 128 ? 0.25 : -0.25, 0, Math.PI * 2); g.stroke(); }
-  g.beginPath(); g.moveTo(62, 66); g.lineTo(108, 76); g.moveTo(194, 66); g.lineTo(148, 76); g.stroke();      // brows
-  const t = new THREE.CanvasTexture(c);
+/* The real trollface art (never a hand-drawn stand-in: user, 2026-10-26,
+   "Its not actually the trollface"), for the Peak hut's window and the
+   blue tower's mosaic. */
+function trollfaceArt() {
+  const t = new THREE.TextureLoader().load(new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
@@ -1150,18 +1140,11 @@ function dressIsland(api, root, K, M, r, clear) {
     root.add(new THREE.Mesh(face, new THREE.MeshStandardMaterial({ map: art(file), roughness: 0.6 })));
   }
 
-  // grin graffiti sprayed on the plazas
-  const grinMat = new THREE.MeshBasicMaterial({ map: grinTexture(), transparent: true, depthWrite: false, opacity: 0.85,
+  const grinMat = new THREE.MeshBasicMaterial({ map: trollfaceArt(), transparent: true, depthWrite: false,
     polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const grins = [];
-  for (const [l, dx, dz, s] of [[L.city, 14, 12, 7], [L.skate, -7.5, 0.5, 6], [L.gallery, 8, -9, 5], [L.shop, -12, 6, 5]]) {
-    const g = new THREE.PlaneGeometry(s, s);
-    g.rotateX(-Math.PI / 2);
-    g.rotateY(r() * 6);
-    g.translate(l.x + dx, 0.05, l.z + dz);
-    grins.push(g);
-  }
-  // ...and the motif where the doc puts it: the Peak hut's round window
+  // the trollface where the doc puts it (the hand-drawn grins sprayed on
+  // the plazas are gone: user, 2026-10-26): the Peak hut's round window
   // (lit from inside, the grin on the glass) and a mosaic on the blue
   // tower's north wall, facing the square (tf_city.py leaves that face bare)
   {
