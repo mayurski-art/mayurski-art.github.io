@@ -34,7 +34,16 @@ export const controls = new EventTarget();
    lock can carry a huge bogus delta (dropped below). */
 export let lockChangedAt = 0;
 
-export const keys = new Set();
+/* The keys held now, plus `tapped(code)`: was it pressed since the last
+   ask? A press shorter than a slow frame (down and up between two frames)
+   is gone from the held set by the time the frame looks; a tap isn't. */
+class KeySet extends Set {
+  constructor() { super(); this.taps = new Set(); }
+  add(code) { if (!this.has(code)) this.taps.add(code); return super.add(code); }
+  clear() { this.taps.clear(); super.clear(); }
+  tapped(code) { const t = this.taps.has(code); this.taps.delete(code); return t; }
+}
+export const keys = new KeySet();
 // Belt and braces for style.css's no-select rule: no drag of any image or
 // link, no selection start or long-press menu outside a typing field.
 const typingField = (t) => !!t?.closest?.("input, textarea, [contenteditable='true']");

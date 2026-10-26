@@ -248,7 +248,11 @@ export function updatePlayer(dt) {
   // In the plane only what works there shows: move, look, Emote, POV (style.css body.to-aboard).
   const aboard = royaleAboard();
   if (aboard !== aboardHud) { aboardHud = aboard; document.body.classList.toggle("to-aboard", aboard); }
-  if (royaleAboard()) updateAboardPlayer(dt, !frozen && ((game.isTouch && touchState.jump) || (gp && game.gamepadState.jump) || game.keys.has("Space")));
+  // Space tapped since the last frame counts too (keys.tapped): a quick
+  // press during a slow frame at the green was lost, and the jumpmaster put
+  // you out at the coast ~5 s later instead.
+  const spaceTap = game.keys.tapped ? game.keys.tapped("Space") : false;
+  if (royaleAboard()) updateAboardPlayer(dt, !frozen && ((game.isTouch && touchState.jump) || (gp && game.gamepadState.jump) || game.keys.has("Space") || spaceTap));
 
   // fist fights with the townsfolk (Socialize): after we've moved, so a
   // bump reads our speed and a knock-down holds us where we fell
