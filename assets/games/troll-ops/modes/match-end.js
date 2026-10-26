@@ -195,9 +195,23 @@ export function endMatch(title, opts = {}) {
 }
 
 
-const INTERMISSION = 20;          // seconds between matches
+const INTERMISSION = 20;          // seconds of map vote between matches
 const VOTE_CANDIDATES = 3;
 export let voteOptions = [];
+/* The vote's winner once its clock runs out. The next match doesn't start on
+   its own (user: "dont auto start another match after one has ended"): it
+   waits here, the room still up, till the player presses Drop in again. */
+let heldMap = null;
+export const matchHeld = () => heldMap != null;
+
+/* "Next map — 20s" while the vote runs, "Next map — <name>" once it's settled. */
+function setVoteHead(mapId) {
+  const head = document.querySelector(".to-vote-head");
+  if (!head) return;
+  if (mapId) { head.textContent = `Next map — ${MAPS[mapId]?.name || mapId}`; game.els.voteClock = null; return; }
+  head.innerHTML = `Next map — <span id="to-vote-clock">${INTERMISSION}</span>s`;
+  game.els.voteClock = head.querySelector("span");
+}
 
 /* The three maps on offer. Derived from the room code and the match count so
    every client lands on the same shortlist without anyone hosting the vote. */
@@ -218,10 +232,12 @@ function pickVoteOptions() {
 }
 
 export function startIntermission() {
+  heldMap = null;
   game.matchesPlayed++;
   game.net.clearVotes();
   voteOptions = pickVoteOptions();
   game.intermissionT = INTERMISSION;
+  setVoteHead(null);
   renderVote();
   game.els.intermission.hidden = false;
   setNetStatus(`Match over · next map in ${INTERMISSION}s`, "live");
@@ -260,6 +276,7 @@ export function renderVote() {
 
 export function cancelIntermission() {
   game.intermissionT = 0;
+  heldMap = null;
   voteOptions = [];
   game.net.clearVotes();
   if (game.els.intermission) game.els.intermission.hidden = true;
@@ -271,18 +288,34 @@ export function updateIntermission(dt) {
   game.intermissionT -= dt;
   if (game.els.voteClock) game.els.voteClock.textContent = String(Math.max(0, Math.ceil(game.intermissionT)));
   if (game.intermissionT > 0) return;
-
   game.intermissionT = 0;
-  game.els.intermission.hidden = true;
 
-  // Everyone tallies the same votes, so everyone loads the same map.
+  // Everyone tallies the same votes, so everyone lands on the same map.
   const winner = game.net.voteWinner() || voteOptions[0] || game.loadout.mapId;
   game.net.clearVotes();
+  if (!game.net.active) {
+    game.els.intermission.hidden = true;
+    setNetStatus("Match over. Pick a mode to drop in again.");
+    return;
+  }
+  // The vote is settled: show just the winner and wait for the player.
+  heldMap = winner;
+  voteOptions = [winner];
+  renderVote();
+  setVoteHead(winner);
+  setNetStatus("Match over · Drop in again when you're ready", "live");
+}
 
-  if (!game.net.active) { setNetStatus("Match over. Pick a mode to drop in again."); return; }
-
+/* Drop in again during the vote or after it: straight into the map the vote
+   is on (or landed on). False when no next match is waiting. */
+export function joinNextMatch() {
+  if (game.intermissionT <= 0 && heldMap == null) return false;
+  const winner = heldMap || game.net.voteWinner() || voteOptions[0] || game.loadout.mapId;
+  cancelIntermission();
+  if (!game.net.active) { setNetStatus("Match over. Pick a mode to drop in again."); return true; }
   game.loadout.mapId = winner;
   game.els.gameover.hidden = true;
   game.roomMapHint = null;
   game.enterMatch(winner);
+  return true;
 }
