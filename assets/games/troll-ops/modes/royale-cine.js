@@ -13,7 +13,8 @@
 //                    music: the iPod out, the wired earbuds in, a Troll
 //                    Radio song you picked, play, and you listen
 //   T-16           the jumpmaster cuts in; your head comes up, the photo
-//                  or the iPod goes back in the pocket, the song fades
+//                  or the iPod goes back in the pocket; the song plays on
+//                  to the green and fades as you go out of the plane
 //   T-15 .. T-12   he tells you to mask up; your hands
 //                  bring the oxygen mask to your face, the view darkens
 //   T-12 .. T-9    three slow breaths, the visor fogging on each
@@ -55,7 +56,6 @@ export const CINE = {
   buds: [-26.4, -25.8],       // music: the earbuds in
   press: [-25.6, -25.2],      // the thumb on play
   playAt: -25.4,              // the song starts
-  fade: [-22, -21.3],         // and fades when he cuts in
   release: 0,       // the green: hands you back, at the ramp
   stand: [-14, -13.45],      // seatbelt off, up on your feet
   walkFrom: -13.4,          // down the aisle to the ramp
@@ -161,6 +161,8 @@ export function dropCineMaskK() { return maskK(); }
 /* A new match: nothing carried over. */
 export function resetDropCine() {
   if (cine.on) finish();
+  // A new match: a song still fading out of the last one stops now.
+  if (cine.songOut) { clearInterval(cine.songOut.timer); const s = cine.songOut.s; cine.songOut = null; stopSong(s); }
   cine.tailUntil = null;
   cine.path = null;
   hideCrew();
@@ -331,7 +333,7 @@ function finish() {
   oxygenMask().visible = false;
   familyPhoto().visible = false;
   ipod().visible = false;
-  stopSong();
+  endSong();
   document.body.classList.remove("to-dropcine");
   showUi(false);
 }
@@ -495,12 +497,9 @@ function music(t) {
   drawIpod(dev, { mode: playing ? "playing" : "list", tracks, index: opener.track, t: Math.max(0, t - CINE.playAt) });
   const pk = (t - CINE.press[0]) / (CINE.press[1] - CINE.press[0]);
   pressIpod(dev, pk > 0 && pk < 1 ? Math.sin(pk * Math.PI) : 0);
-  if (playing && !cine.song && t < CINE.fade[1]) startSong();
-  if (cine.song && t >= CINE.fade[0]) {
-    const k = Math.min(1, (t - CINE.fade[0]) / (CINE.fade[1] - CINE.fade[0]));
-    if (game.music) game.music.el.volume = cine.song.vol * (1 - k);
-    if (k >= 1) stopSong();
-  }
+  // The song plays on through the whole scene (it used to fade out when he
+  // cut in, ~22 s early); it fades as you go out of the plane (endSong).
+  if (playing && !cine.song && !cine.songOut && t < CINE.release) startSong();
 }
 function startSong() {
   const m = game.music;
@@ -508,9 +507,24 @@ function startSong() {
   cine.song = { vol: m.volume, prevPlaying: m.playing, prevIndex: m.order[m.pos], prevPos: m.pos };
   m.playIndex(opener.track);
 }
-function stopSong() {
-  const s = cine.song, m = game.music;
+/* The scene's over (the shove, or a death): the song fades out over
+   SONG_OUT s, into the fall, then the radio goes back to how it was. */
+const SONG_OUT = 3;
+function endSong(now = false) {
+  const s = cine.song;
+  if (!s) return;
   cine.song = null;
+  clearInterval(cine.songOut?.timer);
+  if (now || !game.music || s.vol == null) { cine.songOut = null; stopSong(s); return; }
+  const t0 = performance.now(), el = game.music.el, from = el.volume;
+  const out = cine.songOut = { s, timer: setInterval(() => {
+    const k = Math.min(1, (performance.now() - t0) / (SONG_OUT * 1000));
+    el.volume = from * (1 - k * k * (3 - 2 * k));
+    if (k >= 1) { clearInterval(out.timer); if (cine.songOut === out) cine.songOut = null; stopSong(s); }
+  }, 40) };
+}
+function stopSong(s) {
+  const m = game.music;
   if (!s || !m || s.vol == null) return;
   m.stop();
   m.el.volume = m.volume;
@@ -519,7 +533,7 @@ function stopSong() {
   if (s.prevPlaying && s.prevIndex != null) m.playIndex(s.prevIndex);
   else if (s.prevPos != null) { m.pos = s.prevPos; m._loadCurrent(false); }
 }
-export function dropCineSong() { return cine.song ? { index: opener.track, playing: !!game.music?.playing } : null; }
+export function dropCineSong() { return cine.song || cine.songOut ? { index: opener.track, playing: !!game.music?.playing, fading: !!cine.songOut } : null; }
 
 // ---- the opener card (the lobby): photo or music, and which song
 
