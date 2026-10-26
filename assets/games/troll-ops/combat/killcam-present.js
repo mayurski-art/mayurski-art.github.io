@@ -161,7 +161,7 @@ function buildKillcamGun(wid, skin = null) {
   disposeKillcamGun();
   const def = WEAPON_DEFS[wid];
   if (!def) return;
-  killcamGun = stripLights(buildWeaponMesh(def, { skin }));
+  killcamGun = stripLights(buildWeaponMesh(def, { skin, lod: 1 }));
   killcamGun.traverse((o) => { if (o.userData.hand) o.visible = false; });
   game.weaponScene.add(killcamGun);
 }

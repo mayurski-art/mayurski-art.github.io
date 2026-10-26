@@ -507,7 +507,7 @@ export class RemotePlayer {
     }
     const def = WEAPON_DEFS[weaponId];
     if (!def) return;
-    const mesh = mergeHeld(stripLights(buildWeaponMesh(def, { skin })));
+    const mesh = mergeHeld(stripLights(buildWeaponMesh(def, { skin, lod: 1 })));
     mountHeldWeapon(this.rig, mesh);
     this.weaponMesh = mesh;
   }

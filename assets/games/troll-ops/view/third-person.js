@@ -465,7 +465,7 @@ export function syncLocalRigHeld(hold, def) {
     localHeld.mesh = null;
   }
   if (hold === "gun" && def) {
-    localHeld.mesh = stripLights(buildWeaponMesh(def));
+    localHeld.mesh = stripLights(buildWeaponMesh(def, { lod: 1 }));
     mountHeldWeapon(game.localRig, localHeld.mesh);
   } else if (hold === "melee" && game.player.melee?.def) {
     // No first-person hands on it: the body's own mitt holds it.
