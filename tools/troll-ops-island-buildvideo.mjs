@@ -55,7 +55,7 @@ const STATES = [
     secs: 9, rise: ["city", "peak"], hero: "city", azA: 0.55, azB: 0.35, wide: [10, -65, 150, 95] },
   { sha: "e35870b8", caption: "Phase 2: the Skate Bowl and the Portal",
     sub: "The east side fills in: the Skate Bowl's ramps and floor,\nand the Portal standing beside it.",
-    secs: 9, rise: ["skate", "portal"], hero: "skate", azA: -1.25, azB: -1.0, wide: [125, -80, 120, 80] },
+    secs: 9, rise: ["skate", "portal"], hero: "skate", azA: 1.75, azB: -1.0, wide: [125, -80, 120, 80] },
   { sha: "88efa3cb", caption: "Phase 3: the lake, its five places and the roads",
     sub: "The Cave, the Dock, Old Tree, the Bridge and the Boat go up round the lake;\nroads now join every place, and the coast closes the island.",
     secs: 9, rise: ["cave", "dock", "tree", "boat", "bridge"], fade: ["roads", "coast"], hero: "boat", azA: -0.75, azB: -0.85, wide: [20, 0, 210, 140] },
