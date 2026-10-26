@@ -27,7 +27,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { useWorldEnv } from "../view/environment.js?v=sr1-ss1-ss2";
+import { useWorldEnv } from "../view/environment.js?v=sr1-ss1-ss2-ss3";
 
 /* ------------------------------------------------------------- the atlas */
 // 4 x 4 cells of 256 px. Most are drawn white on clear so each decal is
