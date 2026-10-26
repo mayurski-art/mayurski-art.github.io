@@ -7,7 +7,7 @@
 // size and format, so a material switching to it keeps its compiled program.
 
 import * as THREE from "three";
-import { SKY_UNIFORMS, SKY_VERTEX, SKY_FRAGMENT, skyMat } from "./sky.js?v=sr1";
+import { SKY_UNIFORMS, SKY_VERTEX, SKY_FRAGMENT, skyMat } from "./sky.js?v=sr1-ss1";
 
 let pmrem = null, envMat = null, envScene = null, envRT = null;
 let worldEnv = null;

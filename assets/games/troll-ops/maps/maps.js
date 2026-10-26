@@ -12,25 +12,25 @@ import { makeGroundMaterial } from "../view/shaders.js?v=or1";
 import { groundHeightAt } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1";
 import { setGroundField } from "../core/ground-field.js?v=gf1-tg1";
 import { PENTAGRIN } from "./pentagrin.js?v=hg6e-sr1-or1";
-import { HOLLOWGRIN } from "./hollowgrin.js?v=hg6tc-sb2-sr1-or1-tcs1-tm3-tm6-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8";
-import { GRINLERIA } from "./grinleria.js?v=hg6e-bl1-bw1-sr1-or1-tx1-sp1-kbt1-gb1-tb1-tb2-kbb2-kbs1-pm1-kbk2-tfp7-tfb8";
-import { TROLLFACE_ISLAND } from "./trollface-island.js?v=hg6e-pi1-sr1-or1-wf1-wf2-zf1-bp1-is1-tg1-ip1-mg1-tx1-sp1-ch1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-zw1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1";
-import { TROLLCITY } from "./trollcity.js?v=tc2-wst-sb1-rp1-dj1-fu1b7b7d-tc3-cd1-sh1-zr10-hr2-zp1-sr1-pf1-or1-bw2-bt1-tcs1-tcs2-mg1-tcp1-tx1-trk1-bt3-ch1-jb1-jb3-jb6-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8";
-import { KABUKIGRIN } from "./kabukigrin.js?v=kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-mg1-kb12-tx1-ch1-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-kbb1-kbb2-wf1-dj2-kbb3-kbs1-mn1-nd1-gr1-kbk1-pm1-kbk2-kco1-tfp7-tfb8";
+import { HOLLOWGRIN } from "./hollowgrin.js?v=hg6tc-sb2-sr1-or1-tcs1-tm3-tm6-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1";
+import { GRINLERIA } from "./grinleria.js?v=hg6e-bl1-bw1-sr1-or1-tx1-sp1-kbt1-gb1-tb1-tb2-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1";
+import { TROLLFACE_ISLAND } from "./trollface-island.js?v=hg6e-pi1-sr1-or1-wf1-wf2-zf1-bp1-is1-tg1-ip1-mg1-tx1-sp1-ch1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-zw1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1";
+import { TROLLCITY } from "./trollcity.js?v=tc2-wst-sb1-rp1-dj1-fu1b7b7d-tc3-cd1-sh1-zr10-hr2-zp1-sr1-pf1-or1-bw2-bt1-tcs1-tcs2-mg1-tcp1-tx1-trk1-bt3-ch1-jb1-jb3-jb6-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1";
+import { KABUKIGRIN } from "./kabukigrin.js?v=kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-mg1-kb12-tx1-ch1-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-kbb1-kbb2-wf1-dj2-kbb3-kbs1-mn1-nd1-gr1-kbk1-pm1-kbk2-kco1-tfp7-tfb8-ss1";
 import { ZHUB } from "../modes/zombies/hub-hall.js?v=zh1-sr1-or1-dm1";
-import { SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-pm1";
-import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer, groundLight } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8";
+import { SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-pm1-ss1";
+import { crateStack, barrel, sandbagWall, chainBarricade, shippingContainer, groundLight } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1";
 import {
   portrait, picketFence, mailbox, kiddiePool, houseExterior,
   toyCar, gardenGnome, trashCan, tireSwing, streetlamp,
-} from "./house-props.js?v=hg6e-sb2-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8";
-import { gsModel, mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8";
-import { buildDustbowlCity, CITY_PALMS } from "./dustbowl-city.js?v=db5-sr1-or1-tx1-sp1-kbt1-pm1";
+} from "./house-props.js?v=hg6e-sb2-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1";
+import { gsModel, mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1";
+import { buildDustbowlCity, CITY_PALMS } from "./dustbowl-city.js?v=db5-sr1-or1-tx1-sp1-kbt1-pm1-ss1";
 import { buildSurfStrip } from "./surf-sea.js?v=gb1";
-import { buildVenice, VENICE_PALMS, VENICE_SPAWNS, RACKS } from "./grinbeach-venice.js?v=gb1-tb1-tb2-kbb2-kbs1-pm1-kbk2-tfp7-tfb8";
-import { buildCourtGear, courtSpots } from "./grinbeach-courts.js?v=gb5-tb2-kbb2-kbs1-pm1-kbk2-tfp7-tfb8";
-import { beachNpcs, beachFreeSeats } from "./grinbeach-social.js?v=gb3-rh1-gb4-tb1-gb7-gb8-gb9-tb2-bl1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8";
-import { dressMap, beachWaterMaterial, palmTrees, shopSignMaterial, beachMural, rangeBoardMaterial } from "./map-dressing.js?v=hg6e-sr1-or1-tb1-tb2";
+import { buildVenice, VENICE_PALMS, VENICE_SPAWNS, RACKS } from "./grinbeach-venice.js?v=gb1-tb1-tb2-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1";
+import { buildCourtGear, courtSpots } from "./grinbeach-courts.js?v=gb5-tb2-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1";
+import { beachNpcs, beachFreeSeats } from "./grinbeach-social.js?v=gb3-rh1-gb4-tb1-gb7-gb8-gb9-tb2-bl1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1";
+import { dressMap, beachWaterMaterial, palmTrees, shopSignMaterial, beachMural, rangeBoardMaterial } from "./map-dressing.js?v=hg6e-sr1-or1-tb1-tb2-ss1";
 
 /* ------------------------------------------------------------ surface PBR */
 // SURFACES (the CC0 tileable texture sets) now lives in surface-textures.js,

@@ -16,7 +16,7 @@
 // asphalt), doc phase 1: "strong specular, roughness that varies".
 
 import * as THREE from "three";
-import { useWorldEnv } from "../view/environment.js?v=sr1";
+import { useWorldEnv } from "../view/environment.js?v=sr1-ss1";
 
 const f = (v) => Number(v).toFixed(4);
 const v3 = (a) => `vec3(${a.map(f).join(", ")})`;

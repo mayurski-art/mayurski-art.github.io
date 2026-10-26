@@ -97,7 +97,11 @@ export const sky = new THREE.Mesh(new THREE.SphereGeometry(250, 24, 16), skyMat)
 // bigger than the dome (Trollface Island) never looks past its edge.
 sky.renderOrder = -1;
 sky.frustumCulled = false;
-sky.onBeforeRender = () => { skyMat.uniforms.uTime.value = performance.now() / 1000; };
+sky.onBeforeRender = () => {
+  const now = performance.now() / 1000;
+  skyMat.uniforms.uTime.value = now;
+  if (meteors) updateMeteors(now);
+};
 
 /* The map's sky: gradient, sun disc and glow (a map without `sky.sun` has
    none: indoors, night), horizon haze, clouds. The disc sits where the sun
@@ -129,9 +133,11 @@ let starField = null;
 function setStarField(on) {
   if (!on) {
     if (starField) { sky.remove(starField); starField.geometry.dispose(); starField.material.dispose(); starField = null; }
+    if (meteors) { sky.remove(meteors.mesh); meteors.mesh.geometry.dispose(); meteors.mesh.material.dispose(); meteors = null; }
     return;
   }
   if (starField) return;
+  makeMeteors();
   const N = 5200, pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
   let s = 0x5eed;
   const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
@@ -154,4 +160,55 @@ function setStarField(on) {
   starField = new THREE.Points(geo, new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, vertexColors: true, fog: false, depthWrite: false, transparent: true, opacity: 0.95 }));
   starField.renderOrder = -1;
   sky.add(starField);
+}
+
+/* Shooting stars over a space sky (user, 2026-10-26: "we should also add
+   shooting stars in the game"): a few at a time, one every few seconds, each
+   a bright head with a fading tail sweeping a short arc across the upper
+   sky, just inside the stars. Additive triangles on the dome, on the sky's
+   own clock (performance.now), so they cost nothing to light. */
+const METEORS = 3, METEOR_R = 235;
+let meteors = null;
+function makeMeteors() {
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(METEORS * 9), 3));
+  geo.setAttribute("color", new THREE.BufferAttribute(new Float32Array(METEORS * 9), 3));
+  const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, side: THREE.DoubleSide }));
+  mesh.renderOrder = -1;
+  mesh.frustumCulled = false;
+  sky.add(mesh);
+  // staggered so the first comes soon after the map loads
+  meteors = { mesh, list: Array.from({ length: METEORS }, (_, i) => ({ t0: -1, dur: 0, next: i * 2.5 + 0.5, a: new THREE.Vector3(), b: new THREE.Vector3() })) };
+}
+const _d = new THREE.Vector3(), _t = new THREE.Vector3(), _s = new THREE.Vector3();
+function updateMeteors(now) {
+  const pos = meteors.mesh.geometry.attributes.position, col = meteors.mesh.geometry.attributes.color;
+  meteors.list.forEach((m, i) => {
+    if (m.next != null) { m.t0 = now + m.next; m.next = null; }   // the first: once the clock is known
+    if (m.dur && now > m.t0 + m.dur) { m.t0 = now + 2 + Math.random() * 5; m.dur = 0; }   // gone: the next in 2-7 s
+    if (!m.dur && now >= m.t0) {
+      // a start high in the sky and a way across it, along the dome
+      const az = Math.random() * Math.PI * 2, el = 0.35 + Math.random() * 0.75;
+      m.a.set(Math.cos(az) * Math.cos(el), Math.sin(el), Math.sin(az) * Math.cos(el));
+      _s.set(Math.random() - 0.5, -0.35 - Math.random() * 0.4, Math.random() - 0.5);
+      m.b.copy(_s).addScaledVector(m.a, -_s.dot(m.a)).normalize();   // tangent, heading down-sky
+      m.dur = 0.9 + Math.random() * 0.7;
+      m.sweep = 0.4 + Math.random() * 0.3;
+    }
+    const u = m.dur ? (now - m.t0) / m.dur : -1;
+    for (let k = 0; k < 9; k++) { pos.array[i * 9 + k] = 0; col.array[i * 9 + k] = 0; }
+    if (u < 0 || u > 1) return;
+    const th = m.sweep * u, tail = Math.min(th, m.sweep * 0.5), fade = Math.sin(Math.PI * u);
+    _d.copy(m.a).multiplyScalar(Math.cos(th)).addScaledVector(m.b, Math.sin(th));            // the head
+    _t.copy(m.a).multiplyScalar(Math.cos(th - tail)).addScaledVector(m.b, Math.sin(th - tail));   // the tail's end
+    const tb = _s.copy(m.b).multiplyScalar(Math.cos(th)).addScaledVector(m.a, -Math.sin(th));    // the way it goes
+    const side = tb.cross(_d).normalize().multiplyScalar(1.4);
+    const o = i * 9;
+    pos.array.set([_d.x * METEOR_R + side.x, _d.y * METEOR_R + side.y, _d.z * METEOR_R + side.z,
+      _d.x * METEOR_R - side.x, _d.y * METEOR_R - side.y, _d.z * METEOR_R - side.z,
+      _t.x * METEOR_R, _t.y * METEOR_R, _t.z * METEOR_R], o);
+    col.array.set([fade, fade * 0.97, fade * 0.9, fade, fade * 0.97, fade * 0.9, 0, 0, 0], o);
+  });
+  pos.needsUpdate = true;
+  col.needsUpdate = true;
 }

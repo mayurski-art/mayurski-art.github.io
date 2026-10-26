@@ -7,8 +7,8 @@
 // change the other.
 
 import * as THREE from "three";
-import { mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8";
-import { shopSignMaterial } from "./map-dressing.js?v=hg6e-sr1-or1-tb1-tb2";
+import { mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1";
+import { shopSignMaterial } from "./map-dressing.js?v=hg6e-sr1-or1-tb1-tb2-ss1";
 
 export const MUSCLE = { x: -48, z: -4, w: 13, d: 12 };
 export const SKATE = { x: -48, z: 23.5, w: 13, d: 13 };
