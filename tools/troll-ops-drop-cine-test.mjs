@@ -457,8 +457,8 @@ const before = s.music;
 s = await until(b, -27.5);
 check(s.on && s.kind === "ipod", "T-28: the iPod is in the hands", JSON.stringify({ on: s.on, kind: s.kind }));
 // (Sampled late on a busy machine the song may be on already: then it
-// mustn't have started before the press, T-19.4, by its own clock.)
-check(!s.song || s.music.at <= s.t + 19.4 + 0.3, "nothing playing before play's pressed", "t=" + s.t?.toFixed(2) + " song at " + s.music?.at?.toFixed(2));
+// mustn't have started before play, T-25.4 (CINE.playAt), by its own clock.)
+check(!s.song || s.music.at <= s.t + 25.4 + 0.3, "nothing playing before play's pressed", "t=" + s.t?.toFixed(2) + " song at " + s.music?.at?.toFixed(2));
 s = await until(b, -26.4);
 check(s.ipod && s.ipodK > 0.9 && !s.photo, "the iPod is up, no photo", `k=${s.ipodK.toFixed(2)}`);
 await shot(b, "ipod-list.png");
