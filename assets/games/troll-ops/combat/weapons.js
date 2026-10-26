@@ -83,8 +83,9 @@ export function fireOnce(shot = null) {
   breakSpawnGuard();
   game.audio.shot(def);
   // Camera shake per shot, shaped by the weapon's shake stats and its
-  // attachments. Shouldering the gun steadies it, as with the recoil.
-  game.kickFireShake(def, 1 - w.adsT * 0.35);
+  // attachments. Shouldering the gun steadies it, as with the recoil, and
+  // a scope's zoom doesn't magnify it (w.adsKick).
+  game.kickFireShake(def, (1 - w.adsT * 0.35) * w.adsKick);
   game.muzzleFlashT = 0.045;
   game.muzzleLight.intensity = 0.35;
   game.muzzleMat.uniforms.uColor.value.setHex(def.muzzleColor ?? 0xfff2c0);
@@ -106,7 +107,9 @@ export function fireOnce(shot = null) {
 
   // Part of the kick is permanent climb the player has to pull back down —
   // that's what makes recoil control a skill rather than a wait.
-  game.look.pitch = Math.min(game.PITCH_LIMIT, game.look.pitch + def.recoilKickPitch * 0.35 * (1 - w.adsT * 0.35));
+  // Through an ACOG the climb is trimmed by its zoom, so it rises as far up
+  // the screen (and takes as much stick to pull down) as on iron sights.
+  game.look.pitch = Math.min(game.PITCH_LIMIT, game.look.pitch + def.recoilKickPitch * 0.35 * (1 - w.adsT * 0.35) * w.adsKick);
 
   const pellets = def.pellets || 1;
   const origin = new THREE.Vector3();
