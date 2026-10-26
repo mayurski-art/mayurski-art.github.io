@@ -876,7 +876,8 @@ HI = False
 # read them by name under the gun's prefix). kind: "slide" moves along
 # axis by travel (metres, + = toward the tail), "hinge" turns about axis by
 # travel (radians).
-MOVING = ("Carrier", "Charge", "DustCover", "Trigger", "Catch", "Selector", "Mag", "Bolt")
+MOVING = ("Carrier", "Charge", "DustCover", "Trigger", "Catch", "Selector", "Mag", "Bolt",
+          "BipodL", "BipodR", "Stock")   # (legs and a folding stock: posed, not cycled)
 # Hand and effect points beside P_Grip / P_Support / P_Muzzle / P_Aim /
 # P_Under / P_Rail. (The plan named the hand targets P_Charge / P_Catch, the
 # same names as the parts; a glTF scene wants them unique.)
