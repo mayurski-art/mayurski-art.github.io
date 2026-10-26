@@ -205,7 +205,7 @@ const jpg = await page.evaluate(async ({ W, H }) => {
   x.fillText("TROLL FORCES  ·  SOCIALIZE  ·  VERSUS  ·  ZOMBIES", W / 2, H - 92 * u);
   x.font = `500 ${26 * u}px 'DM Sans'`;
   x.fillStyle = "#f6e7c4";
-  x.fillText("Play free at trollrunner.net/tf", W / 2, H - 52 * u);
+  x.fillText("Play free at trollrunner.net/warfare", W / 2, H - 52 * u);
   x.shadowColor = "transparent";
   // the sticker, bottom left
   {

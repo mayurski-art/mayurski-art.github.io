@@ -1,4 +1,4 @@
-// Troll Forces exit links test: trollrunner.net/tf (tf/index.html) lands on
+// Troll Forces exit links test: trollrunner.net/warfare (warfare/index.html, and the old /tf) lands on
 // the game; opened from the arcade (games.html's full-screen frame), the
 // game's Arcade link closes the frame instead of loading the arcade inside
 // it; the pause menu and game-over buttons go to the game's own home.
@@ -33,13 +33,18 @@ const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
 await ctx.route(/supabase/, (r) => r.abort());
 const errors = [];
 
-// 1. /tf/ bounces to the game.
+// 1. /warfare/ (and the old /tf/) bounce to the game.
+const old = await ctx.newPage();
+await old.goto(`${BASE}/tf/?room=x`, { waitUntil: "domcontentloaded", timeout: 120000 });
+await old.waitForURL(/troll-ops\.html/, { timeout: 30000 });
+check("old /tf still lands on the game, keeping ?room=", /\/troll-ops\.html\?room=x$/.test(old.url()), old.url());
+await old.close();
 const page = await ctx.newPage();
 page.on("pageerror", (e) => errors.push(e.message));
-await page.goto(`${BASE}/tf/`, { waitUntil: "domcontentloaded", timeout: 120000 });
+await page.goto(`${BASE}/warfare/`, { waitUntil: "domcontentloaded", timeout: 120000 });
 await page.waitForURL(/troll-ops\.html/, { timeout: 30000 });
 await page.waitForFunction(() => !!document.getElementById("to-title"), null, { timeout: 120000 });
-check("/tf lands on the game", /\/troll-ops\.html$/.test(new URL(page.url()).pathname), page.url());
+check("/warfare lands on the game", /\/troll-ops\.html$/.test(new URL(page.url()).pathname), page.url());
 
 // 2. The home buttons.
 const homes = await page.evaluate(() => ["to-exit-btn", "to-go-home-btn"].map((id) => {
