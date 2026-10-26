@@ -10,7 +10,7 @@ import { drawTabletScreen } from "../streaks/streak-device.js?v=to-df1-or1";
 import { handMaterials, buildHumanHand, inkOutline, placeHand, poseHumanHand, handWrist } from "../weapons/hand-model.js?v=to-grip2-or1-hp1-bx1";
 import { game } from "../core/state.js?v=st1";
 import { nuke, nukeDevice, nukeLeft, NUKE } from "../streaks/nuke.js?v=tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2";
-import { dropCineMask, dropCineMaskK, dropCinePhoto, dropCinePhotoK, dropCineIpod, dropCineIpodK } from "../modes/royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2";
+import { dropCineMask, dropCineMaskK, dropCinePhoto, dropCinePhotoK, dropCineIpod, dropCineIpodK, dropCineIpodCord } from "../modes/royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2";
 import { drawNukeScreen, setNukeControls } from "../streaks/nuke-device.js?v=tn1";
 
 let streakSprintT = 0;
@@ -130,6 +130,9 @@ export function updateStreakView(dt) {
       IPOD_DOWN.z + (IPOD_UP.z - IPOD_DOWN.z) * e);
     mesh.rotation.set(-1.1 + (IPOD_TILT + 1.1) * e, -0.3 * (1 - e), 0.06 + 0.3 * (1 - e));
     mesh.visible = k > 0.01;
+    // The earbuds' cord up to your ears, and a hand off to a bud when it
+    // goes in or comes out (moves the grips, so before the arms).
+    if (mesh.visible) dropCineIpodCord(mesh);
     poseStreakArms(mesh.visible ? mesh : null, "side", dt, 0);
     return;
   }

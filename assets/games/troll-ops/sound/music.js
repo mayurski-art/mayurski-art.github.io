@@ -40,6 +40,10 @@ const LEGACY_KEY = "trollops:radio";
 export const EQ_BANDS = [32, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 export const EQ_RANGE = 12;
 const clampDb = (v) => Math.max(-EQ_RANGE, Math.min(EQ_RANGE, Number(v) || 0));
+// The earbuds stage (setEarbuds): in your ears it passes everything; out,
+// hanging at your chest, what leaks from them is thin and quiet.
+const BUD_IN = { hp: 10, lp: 22000, tin: 0, gain: 1 };
+const BUD_OUT = { hp: 620, lp: 3200, tin: 6, gain: 0.26 };
 
 export class GameMusic {
   constructor() {
@@ -65,6 +69,7 @@ export class GameMusic {
     this.eq = EQ_BANDS.map((_, i) => clampDb(saved.eq?.[i] ?? 0));
     this.balance = Math.max(-1, Math.min(1, saved.balance ?? 0));
     this.graph = null;         // Web Audio chain, built on the first Play
+    this.earbuds = 1;          // setEarbuds: 1 in (as it always was), 0 hanging out
 
     this.el.addEventListener("ended", () => this.next());
     this.onchange = null; // set by the UI layer to repaint on track/play changes
@@ -97,14 +102,52 @@ export class GameMusic {
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 256;
       analyser.smoothingTimeConstant = 0.72;
+      // The earbuds (setEarbuds): see-through while they're in, the leak
+      // off buds hanging at your chest once they're out.
+      const bud = {
+        hp: ctx.createBiquadFilter(), lp: ctx.createBiquadFilter(), tin: ctx.createBiquadFilter(), gain: ctx.createGain(),
+      };
+      bud.hp.type = "highpass"; bud.hp.frequency.value = BUD_IN.hp; bud.hp.Q.value = 0.7;
+      bud.lp.type = "lowpass"; bud.lp.frequency.value = BUD_IN.lp; bud.lp.Q.value = 0.7;
+      bud.tin.type = "peaking"; bud.tin.frequency.value = 2400; bud.tin.Q.value = 1.3; bud.tin.gain.value = BUD_IN.tin;
+      bud.gain.gain.value = BUD_IN.gain;
       let node = src;
       for (const f of filters) { node.connect(f); node = f; }
       if (pan) { node.connect(pan); node = pan; }
+      for (const f of [bud.hp, bud.lp, bud.tin, bud.gain]) { node.connect(f); node = f; }
       node.connect(analyser);
       analyser.connect(ctx.destination);
-      this.graph = { ctx, filters, pan, analyser };
+      this.graph = { ctx, filters, pan, analyser, bud };
+      this._applyEarbuds(0);
     } catch { this.graph = null; }
     return this.graph;
+  }
+
+  /* The earbuds (Royale's drop cinematic, modes/royale-cine.js): 1 in your
+     ears (the song close, full and dry: the chain untouched), 0 out and
+     hanging at your chest (a quiet, tinny leak: no bass, no top, a nasal
+     bump at 2.4 kHz, a quarter of the level), in between as they come out.
+     Glided, not stepped (`tc` s), so a frame's change never clicks. */
+  setEarbuds(k, tc = 0.05) {
+    k = Math.max(0, Math.min(1, k));
+    if (Math.abs(k - this.earbuds) < 0.002) return;
+    this.earbuds = k;
+    this._applyEarbuds(tc);
+  }
+  _applyEarbuds(tc) {
+    const b = this.graph?.bud;
+    if (!b) return;
+    const out = 1 - this.earbuds, now = this.graph.ctx.currentTime;
+    const glide = (p, v) => {
+      if (!tc) { p.cancelScheduledValues(0); p.value = v; return; }
+      if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(now); else p.cancelScheduledValues(now);
+      p.setTargetAtTime(v, now, tc);
+    };
+    // Frequencies glide on a log scale (what the ear hears as even).
+    glide(b.hp.frequency, BUD_IN.hp * Math.pow(BUD_OUT.hp / BUD_IN.hp, out));
+    glide(b.lp.frequency, BUD_IN.lp * Math.pow(BUD_OUT.lp / BUD_IN.lp, out));
+    glide(b.tin.gain, BUD_IN.tin + (BUD_OUT.tin - BUD_IN.tin) * out);
+    glide(b.gain.gain, BUD_IN.gain + (BUD_OUT.gain - BUD_IN.gain) * out);
   }
 
   get analyser() { return this.graph?.analyser || null; }

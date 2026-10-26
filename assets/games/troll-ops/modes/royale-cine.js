@@ -13,7 +13,8 @@
 //                    music: the iPod out, the wired earbuds in, a Troll
 //                    Radio song you picked, play, and you listen
 //   T-16           the jumpmaster cuts in; your head comes up, the photo
-//                  or the iPod goes back in the pocket, the song fades
+//                  or the iPod goes back in the pocket; the song plays on
+//                  to the green and fades as you go out of the plane
 //   T-15 .. T-12   he tells you to mask up; your hands
 //                  bring the oxygen mask to your face, the view darkens
 //   T-12 .. T-9    three slow breaths, the visor fogging on each
@@ -37,7 +38,7 @@ import { beginStreakHold, endStreakHold } from "../streaks/hold.js?v=sh1-if1-fu1
 import { SEAT_SPOTS } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
 import { oxygenMask } from "./royale-mask.js?v=dc1";
 import { familyPhoto, setPhotoThumb } from "./royale-photo.js?v=dc1-ph1-op1";
-import { ipod, drawIpod, pressIpod } from "./royale-ipod.js?v=dc1";
+import { ipod, drawIpod, pressIpod, layoutIpodCord } from "./royale-ipod.js?v=dc1";
 import { updateCrew, hideCrew, crewSeat, yourRampPath, pathAt, paceFor, CREW } from "./royale-crew.js?v=dc2-rf1-ls1-rr1-ld2-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-tx1-sp1-kbt1-gb1-rh1-ci6-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
 import { playSfx } from "../sound/sfx-files.js?v=dc4";
 
@@ -52,10 +53,11 @@ export const CINE = {
   seatBy: -36.6,              // ...there by now (sooner if you're close)
   sitTime: 0.7,               // turning round and sitting down
   cardFrom: -35.6,            // seated: the opener's card comes up
-  buds: [-26.4, -25.8],       // music: the earbuds in
+  buds: [-26.45, -26.0, -25.6],   // music: the earbuds in, the left hand then the right
+  budsOut: [-22.0, -21.4],        // ...and out, both hands, to hear him (they hang at your chest)
+  ipodAway: [-21.4, -21.0],       // then the iPod back in the pocket
   press: [-25.6, -25.2],      // the thumb on play
   playAt: -25.4,              // the song starts
-  fade: [-22, -21.3],         // and fades when he cuts in
   release: 0,       // the green: hands you back, at the ramp
   stand: [-14, -13.45],      // seatbelt off, up on your feet
   walkFrom: -13.4,          // down the aisle to the ramp
@@ -127,8 +129,32 @@ export function dropCineOn() { return cine.on; }
 /* The photo or the iPod: 0 in the pocket .. 1 up in front of you. */
 function propK(t) {
   if (!cine.on) return 0;
-  return smooth(CINE.photoOut[0], CINE.photoOut[1], t) * (1 - smooth(CINE.photoAway[0], CINE.photoAway[1], t));
+  const away = cine.pick === "music" ? CINE.ipodAway : CINE.photoAway;   // the buds come out first
+  return smooth(CINE.photoOut[0], CINE.photoOut[1], t) * (1 - smooth(away[0], away[1], t));
 }
+/* The earbuds (music): s 0 hanging at your chest .. 1 in that ear, reach 0
+   the hand on the iPod .. 1 at that bud, [left, right]. In, one hand at a
+   time, before you press play; out, both hands together, when the
+   jumpmaster cuts in, and they stay out (the song still leaking from them). */
+const _buds = { s: [0, 0], reach: [0, 0], sway: 0 };
+function bump(a, b, t) { const w = b - a; return smooth(a, a + 0.35 * w, t) * (1 - smooth(b - 0.3 * w, b, t)); }
+export function budState(t = cine.t) {
+  const [a, m, b] = CINE.buds, [oa, ob] = CINE.budsOut, w = ob - oa;
+  const out = 1 - smooth(oa + 0.35 * w, oa + 0.65 * w, t);
+  _buds.s[0] = smooth(a + 0.3 * (m - a), m - 0.25 * (m - a), t) * out;
+  _buds.s[1] = smooth(m + 0.3 * (b - m), b - 0.25 * (b - m), t) * out;
+  const o = bump(oa, ob, t);
+  _buds.reach[0] = Math.max(bump(a, m, t), o);
+  _buds.reach[1] = Math.max(bump(m, b, t), o);
+  _buds.sway = t;
+  return _buds;
+}
+/* How far in your ears the song is (the music's earbuds stage): both buds. */
+export function budsInK(t = cine.t) { const s = budState(t).s; return (s[0] + s[1]) / 2; }
+/* streak-view.js, once the iPod's posed: lay the cord to your ears. */
+export function dropCineIpodCord(dev) { if (cine.pick === "music") layoutIpodCord(dev, budState(cine.t)); }
+/* Tests: the buds now. */
+export function dropCineBuds() { const s = budState(cine.t); return { l: +s.s[0].toFixed(2), r: +s.s[1].toFixed(2), reachL: +s.reach[0].toFixed(2), reachR: +s.reach[1].toFixed(2) }; }
 export function photoK(t = cine.t) { return cine.pick === "photo" ? propK(t) : 0; }
 export function ipodK(t = cine.t) { return cine.pick === "music" ? propK(t) : 0; }
 /* Where you're looking at it (head down), 0..1, until he cuts in. */
@@ -161,6 +187,8 @@ export function dropCineMaskK() { return maskK(); }
 /* A new match: nothing carried over. */
 export function resetDropCine() {
   if (cine.on) finish();
+  // A new match: a song still fading out of the last one stops now.
+  if (cine.songOut) { clearInterval(cine.songOut.timer); const s = cine.songOut.s; cine.songOut = null; stopSong(s); }
   cine.tailUntil = null;
   cine.path = null;
   hideCrew();
@@ -331,7 +359,7 @@ function finish() {
   oxygenMask().visible = false;
   familyPhoto().visible = false;
   ipod().visible = false;
-  stopSong();
+  endSong();
   document.body.classList.remove("to-dropcine");
   showUi(false);
 }
@@ -430,8 +458,9 @@ function cues(t) {
   once("photo-out", CINE.photoOut[0] + 0.1, paperRustle);
   once("photo-away", CINE.photoAway[0], paperRustle);
   if (cine.pick === "music") {
-    once("bud-l", CINE.buds[0] + 0.1, budIn);
-    once("bud-r", CINE.buds[1] - 0.15, budIn);
+    once("bud-l", CINE.buds[1] - 0.12, budIn);
+    once("bud-r", CINE.buds[2] - 0.1, budIn);
+    once("bud-out", CINE.budsOut[0] + 0.5 * (CINE.budsOut[1] - CINE.budsOut[0]), budOut);
     once("click", CINE.press[0] + 0.15, wheelClick);
   }
   once("seal", CINE.raise[1] - 0.05, maskHiss);
@@ -451,6 +480,11 @@ function budIn() {
   const a = audio(); if (!a) return;
   a._noise({ duration: 0.08, gain: 0.08, type: "lowpass", freq: 500 });
   a._noise({ duration: 0.03, gain: 0.04, type: "highpass", freq: 3000, delay: 0.05 });
+}
+function budOut() {
+  const a = audio(); if (!a) return;
+  for (const d of [0, 0.06]) a._noise({ duration: 0.05, gain: 0.07, type: "lowpass", freq: 650, delay: d });   // the pop out of each ear
+  a._noise({ duration: 0.18, gain: 0.025, type: "highpass", freq: 2600, delay: 0.1 });                     // the cord dropping
 }
 function wheelClick() {
   const a = audio(); if (!a) return;
@@ -495,11 +529,17 @@ function music(t) {
   drawIpod(dev, { mode: playing ? "playing" : "list", tracks, index: opener.track, t: Math.max(0, t - CINE.playAt) });
   const pk = (t - CINE.press[0]) / (CINE.press[1] - CINE.press[0]);
   pressIpod(dev, pk > 0 && pk < 1 ? Math.sin(pk * Math.PI) : 0);
-  if (playing && !cine.song && t < CINE.fade[1]) startSong();
-  if (cine.song && t >= CINE.fade[0]) {
-    const k = Math.min(1, (t - CINE.fade[0]) / (CINE.fade[1] - CINE.fade[0]));
-    if (game.music) game.music.el.volume = cine.song.vol * (1 - k);
-    if (k >= 1) stopSong();
+  // The song plays on through the whole scene (it used to fade out when he
+  // cut in, ~22 s early); it fades as you go out of the plane (endSong).
+  if (playing && !cine.song && !cine.songOut && t < CINE.release) startSong();
+  // Through the earbuds: close and full while they're in your ears; once
+  // they're out, the thin leak off them hanging at your chest, still there
+  // under the jumpmaster (sound/music.js setEarbuds).
+  const m = game.music;
+  if (cine.song && m && cine.song.vol != null) {
+    const k = budsInK(t);
+    if (m.graph?.bud) m.setEarbuds(k);
+    else m.el.volume = cine.song.vol * (0.25 + 0.75 * k);   // no Web Audio: quieter at least
   }
 }
 function startSong() {
@@ -508,18 +548,34 @@ function startSong() {
   cine.song = { vol: m.volume, prevPlaying: m.playing, prevIndex: m.order[m.pos], prevPos: m.pos };
   m.playIndex(opener.track);
 }
-function stopSong() {
-  const s = cine.song, m = game.music;
+/* The scene's over (the shove, or a death): the song fades out over
+   SONG_OUT s, into the fall, then the radio goes back to how it was. */
+const SONG_OUT = 3;
+function endSong(now = false) {
+  const s = cine.song;
+  if (!s) return;
   cine.song = null;
+  clearInterval(cine.songOut?.timer);
+  if (now || !game.music || s.vol == null) { cine.songOut = null; stopSong(s); return; }
+  const t0 = performance.now(), el = game.music.el, from = el.volume;
+  const out = cine.songOut = { s, timer: setInterval(() => {
+    const k = Math.min(1, (performance.now() - t0) / (SONG_OUT * 1000));
+    el.volume = from * (1 - k * k * (3 - 2 * k));
+    if (k >= 1) { clearInterval(out.timer); if (cine.songOut === out) cine.songOut = null; stopSong(s); }
+  }, 40) };
+}
+function stopSong(s) {
+  const m = game.music;
   if (!s || !m || s.vol == null) return;
   m.stop();
   m.el.volume = m.volume;
+  m.setEarbuds?.(1, 0);   // the radio back as it sounds (no leak filter)
   // The radio was on before: back to what it was playing. Off: back on
   // its own track, still off.
   if (s.prevPlaying && s.prevIndex != null) m.playIndex(s.prevIndex);
   else if (s.prevPos != null) { m.pos = s.prevPos; m._loadCurrent(false); }
 }
-export function dropCineSong() { return cine.song ? { index: opener.track, playing: !!game.music?.playing } : null; }
+export function dropCineSong() { return cine.song || cine.songOut ? { index: opener.track, playing: !!game.music?.playing, fading: !!cine.songOut } : null; }
 
 // ---- the opener card (the lobby): photo or music, and which song
 

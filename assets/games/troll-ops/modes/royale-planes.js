@@ -85,62 +85,81 @@ function runDist(t) {
 
 /* The twelve flights, from the seed. `centre` {x, z}; `edge` the island
    outline (the run's over-land window comes from it). */
+/* Every drop run flies due south over the island (+z, map north behind
+   it), so looking out of the open ramp, aft, you look north: Trollface
+   Island the right way up, the face's forehead at the top and its chin at
+   the bottom, as the map draws it (user, 2026-10-26: "the map which is
+   trollface shaped should be facing in front not the face being
+   sideways"). The runs used to point at the middle from wherever each
+   plane's slot was when it broke off the circle, any way round the compass.
+
+   So the circle is flown as a formation: each plane on its own ring (the
+   east lanes outside, the west inside, so the right turn off the circle
+   keeps them in order), every ring turning at the same rate, and each
+   plane leaves it at its own gate angle north-west of the island, timed so
+   its break into its south lane is a ~40 m/s curve. */
+const RUN_DIR = new THREE.Vector3(0, 0, 1);   // due south
+const RUN_FROM = 260;    // m north of the island's middle the run starts (its north coast is ~150)
+const RING_PER_LANE = 0.5;   // ring radius change per metre of lane offset
+/* The gate angle (circle frame: x = cos, z = sin, so north is -PI/2) on
+   ring `R` whose break to lane `x` is `len` m long: searched, it's cheap. */
+function gateFor(cx, cz, R, x, len) {
+  const B = new THREE.Vector3(), m0 = new THREE.Vector3(), Q = new THREE.Vector3(cx + x, 0, cz - RUN_FROM), m1 = RUN_DIR.clone().multiplyScalar(len);
+  const p = new THREE.Vector3(), prev = new THREE.Vector3();
+  let best = -2.2, bestErr = Infinity;
+  for (let th = -3.1; th < -1.2; th += 0.01) {
+    B.set(cx + Math.cos(th) * R, 0, cz + Math.sin(th) * R);
+    m0.set(-Math.sin(th), 0, Math.cos(th)).multiplyScalar(len);
+    let L = 0;
+    prev.copy(B);
+    for (let u = 1; u <= 40; u++) { hermite(p, B, m0, Q, m1, u / 40); L += p.distanceTo(prev); prev.copy(p); }
+    if (Math.abs(L - len) < bestErr) { bestErr = Math.abs(L - len); best = th; }
+  }
+  return best;
+}
+
 export function planFlights(seed, centre, edge) {
   const rng = seededRng((seed ^ 0xc130) >>> 0);
   const P = PLANES, w = P.speed / P.orbitR;
-  // Which slot of the circle each plane takes: arriving in order, they come
-  // in from all round the compass. Of a few seeded shuffles, the one that
-  // leaves the smallest hole in the compass.
-  const rot0 = rng() * TAU;
   const shuffle = () => {
     const a = [...Array(P.count).keys()];
     for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
     return a;
   };
-  const entry = (k, i) => rot0 + (TAU * k) / P.count + w * (P.firstArrive + i * P.arriveEvery + 90);
-  const hole = (sl) => {
-    const b = sl.map((k, i) => ((entry(k, i) % TAU) + TAU) % TAU).sort((x, y) => x - y);
-    let g = 0;
-    for (let i = 0; i < b.length; i++) g = Math.max(g, ((b[(i + 1) % b.length] - b[i]) + TAU) % TAU || TAU);
-    return g;
-  };
-  let slots = shuffle();
-  for (let n = 0; n < 24; n++) { const s2 = shuffle(); if (hole(s2) < hole(slots)) slots = s2; }
-  // The runs fan out across the island, one lane each, so they don't all
-  // pass over the middle together (and each flies its own height).
+  // Each plane's height (its own, so crossings pass clear) and its lane
+  // across the island, from the seed.
+  const slots = shuffle();
   const lanes = shuffle();
+  const brk = -P.breakAt;   // seconds the break takes (to t 0)
+  const brkLen = P.speed * brk;
   const flights = [];
   for (let i = 0; i < P.count; i++) {
     const k = slots[i];
     const tA = P.firstArrive + i * P.arriveEvery;
     const alt = P.baseAlt + P.altStep * k;
-    // The slot's angle at time t: every slot turns at w together.
-    const slotAngle = (t) => rot0 + (TAU * k) / P.count + w * (t + 90);
+    const lateral = ((lanes[i] + 0.5) / P.count - 0.5) * 2 * P.fan;   // + east
+    const R = P.orbitR + lateral * RING_PER_LANE;
+    const gate = gateFor(centre.x, centre.z, R, lateral, brkLen);
+    // Its angle on its ring at time t: at the gate as the break starts.
+    const slotAngle = (t) => gate + w * (t - P.breakAt);
+    const ring = (a, y, out = new THREE.Vector3()) => out.set(centre.x + Math.cos(a) * R, y, centre.z + Math.sin(a) * R);
     const th = slotAngle(tA);
-    const E = new THREE.Vector3(centre.x + Math.cos(th) * P.orbitR, alt, centre.z + Math.sin(th) * P.orbitR);
+    const E = ring(th, alt);
     const T = new THREE.Vector3(-Math.sin(th), 0, Math.cos(th));   // the circle's way round (+angle)
     // Inbound from behind the slot and well out, a little lower.
     const beta = th - 0.9 - rng() * 0.3;
-    const S = new THREE.Vector3(centre.x + Math.cos(beta) * (P.orbitR + P.inbound), alt - 25, centre.z + Math.sin(beta) * (P.orbitR + P.inbound));
+    const S = new THREE.Vector3(centre.x + Math.cos(beta) * (R + P.inbound), alt - 25, centre.z + Math.sin(beta) * (R + P.inbound));
     const inLen = S.distanceTo(E) * 1.12;
     const inDur = inLen / P.speed;
     const m0 = E.clone().sub(S).normalize().multiplyScalar(inLen);
     const m1 = T.clone().multiplyScalar(inLen);
-    // The break: off the circle at breakAt toward a point near the middle.
-    const phB = slotAngle(P.breakAt);
-    const B = new THREE.Vector3(centre.x + Math.cos(phB) * P.orbitR, alt, centre.z + Math.sin(phB) * P.orbitR);
-    const TB = new THREE.Vector3(-Math.sin(phB), 0, Math.cos(phB));
-    const brk = -P.breakAt;   // seconds the break takes (to t 0)
-    const toMid = new THREE.Vector3(centre.x - B.x, 0, centre.z - B.z).normalize();
-    const lateral = ((lanes[i] + 0.5) / P.count - 0.5) * 2 * P.fan;
-    const K = new THREE.Vector3(centre.x - toMid.z * lateral, alt, centre.z + toMid.x * lateral);
-    const d0 = K.clone().sub(B).normalize();
-    const Q = B.clone().addScaledVector(TB, P.speed * brk * 0.35).addScaledVector(d0, P.speed * brk * 0.6);
-    Q.y = alt;
-    const dir = K.clone().sub(Q).setY(0).normalize();
-    const brkLen = P.speed * brk;
+    // The break: off the ring at the gate, round to the south into its lane.
+    const B = ring(gate, alt);
+    const TB = new THREE.Vector3(-Math.sin(gate), 0, Math.cos(gate));
+    const Q = new THREE.Vector3(centre.x + lateral, alt, centre.z - RUN_FROM);
+    const dir = RUN_DIR.clone();
     const f = {
-      i, slot: k, tA, alt, cx: centre.x, cz: centre.z, S, E, m0, m1, inDur, slotAngle, B, TB, Q, dir, brkLen,
+      i, slot: k, tA, alt, R, cx: centre.x, cz: centre.z, S, E, m0, m1, inDur, slotAngle, B, TB, Q, dir, brkLen,
       mb0: TB.clone().multiplyScalar(brkLen), mb1: dir.clone().multiplyScalar(brkLen),
       tIn: 0, tOut: 0, over: false,
     };
@@ -185,7 +204,7 @@ export function flightPos(f, t, out = new THREE.Vector3()) {
   }
   if (t < P.breakAt) {
     const a = f.slotAngle(t);
-    return out.set(f.cx + Math.cos(a) * P.orbitR, f.alt, f.cz + Math.sin(a) * P.orbitR);
+    return out.set(f.cx + Math.cos(a) * f.R, f.alt, f.cz + Math.sin(a) * f.R);
   }
   if (t < 0) return hermite(out, f.B, f.mb0, f.Q, f.mb1, (t - P.breakAt) / -P.breakAt);
   out.copy(f.Q).addScaledVector(f.dir, runDist(t));

@@ -60,18 +60,28 @@ export function ipod() {
   g.userData.centre = centre;
   g.userData.centreZ = centre.position.z;
 
-  // The earbuds' cord out of the jack, up and out of view (to your ears).
+  // The earbuds' cord out of the jack, up under your chin to the Y, and a
+  // branch up each side of your jaw to the bud in that ear (or, buds out,
+  // to the buds hanging at your chest). Laid each frame by layoutIpodCord,
+  // from where the iPod is in your hands to where your ears are.
   const jack = new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0035, 0.01, 10), cord);
   jack.position.set(W * 0.3, H / 2 + 0.004, 0);
   g.add(jack);
-  const curve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(W * 0.3, H / 2 + 0.008, 0),
-    new THREE.Vector3(W * 0.34, H / 2 + 0.05, 0.01),
-    new THREE.Vector3(W * 0.2, H / 2 + 0.12, 0.04),
-    new THREE.Vector3(0.0, H / 2 + 0.24, 0.08),
-  ]);
-  const wire = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, 0.0012, 6, false), cord);
-  g.add(wire);
+  const wires = [0, 1, 2].map(() => { const m = new THREE.Mesh(new THREE.BufferGeometry(), cord); g.add(m); return m; });
+  // The Y's slider, and the buds: a round white head and its stem.
+  const slider = new THREE.Mesh(new THREE.CylinderGeometry(0.0022, 0.0022, 0.009, 8), cord);
+  g.add(slider);
+  const buds = [0, 1].map(() => {
+    const b = new THREE.Group();
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.0075, 14, 10), white);
+    head.scale.set(1, 1, 0.75);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.0028, 0.0022, 0.016, 8), white);
+    stem.position.y = -0.011;
+    b.add(head, stem);
+    g.add(b);
+    return b;
+  });
+  g.userData.cord = { wires, slider, buds };
 
   const anchor = (x, inward) => {
     const a = new THREE.Object3D();
@@ -80,12 +90,78 @@ export function ipod() {
     return a;
   };
   g.userData.anchors = { right: anchor(W / 2, -1), left: anchor(-W / 2, 1) };
+  g.userData.grips = { right: g.userData.anchors.right.position.clone(), left: g.userData.anchors.left.position.clone() };
   g.add(g.userData.anchors.right, g.userData.anchors.left);
   g.userData.screen = { canvas, ctx: canvas.getContext("2d"), tex };
   g.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = false; } });
   g.visible = false;
   built = g;
   return g;
+}
+
+/* Where things are in the hands' frame (the viewmodel's: the eye at the
+   origin, looking down -z, metres). Your ears, just behind the eye and a
+   little under it; the buds hanging at your chest once they're out; the
+   cord's Y under your chin (buds in) or at your breastbone (out). [left, right]. */
+const EAR = [new THREE.Vector3(-0.074, -0.035, 0.03), new THREE.Vector3(0.074, -0.035, 0.03)];
+const JAW = [new THREE.Vector3(-0.062, -0.085, -0.07), new THREE.Vector3(0.062, -0.085, -0.07)];
+const HANG = [new THREE.Vector3(-0.03, -0.3, -0.17), new THREE.Vector3(0.035, -0.31, -0.165)];
+const Y_IN = new THREE.Vector3(0.0, -0.1, -0.2), Y_OUT = new THREE.Vector3(0.0, -0.22, -0.18);
+const _inv = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Vector3(), _y = new THREE.Vector3();
+const _bud = [new THREE.Vector3(), new THREE.Vector3()];
+const ease = (k) => k * k * (3 - 2 * k);
+
+/* The earbuds and their cord, from the iPod's jack to your ears. `st`:
+   { s: [l, r] 0 hanging at your chest .. 1 in that ear, reach: [l, r] 0 the
+   hand on the iPod .. 1 at that bud (putting it in, taking it out),
+   sway } . Call after the iPod's pose is set (streak-view.js); moves the
+   hands' anchors, so before the arms are posed. */
+export function layoutIpodCord(dev, st) {
+  const c = dev.userData.cord;
+  dev.updateMatrix();
+  _inv.copy(dev.matrix).invert();   // the hands' frame -> the iPod's
+  const sway = st.sway || 0;
+  let sIn = 0;
+  for (let i = 0; i < 2; i++) {
+    const s = ease(Math.min(1, Math.max(0, st.s[i])));
+    sIn += s / 2;
+    // In the ear, or hanging, swinging a little with the plane; on the way,
+    // an arc out from the face (not through your jaw).
+    _p.copy(HANG[i]); _p.x += Math.sin(sway * 1.3 + i) * 0.006; _p.z += Math.sin(sway + i * 2) * 0.008;
+    _bud[i].lerpVectors(_p, EAR[i], s);
+    _bud[i].x += (i ? 1 : -1) * Math.sin(s * Math.PI) * 0.05;
+    _bud[i].z -= Math.sin(s * Math.PI) * 0.06;
+    const b = c.buds[i];
+    b.position.copy(_bud[i]).applyMatrix4(_inv);
+    // The stem down along the cord: the bud's up is the iPod-frame up of the hands' frame.
+    b.quaternion.copy(dev.quaternion).invert();
+    // A hand going for this bud: its grip slides from the iPod to the bud.
+    const side = i ? "right" : "left";
+    const r = Math.min(1, Math.max(0, st.reach[i]));
+    dev.userData.anchors[side].position.lerpVectors(dev.userData.grips[side], _q.copy(_bud[i]).applyMatrix4(_inv), ease(r));
+  }
+  // The Y under the chin while they're in, lower once they're out.
+  _y.lerpVectors(Y_OUT, Y_IN, sIn);
+  const yLocal = _y.clone().applyMatrix4(_inv);
+  c.slider.position.copy(yLocal);
+  c.slider.quaternion.copy(dev.quaternion).invert();
+  // The trunk: out of the jack, curling over the iPod's top corner and
+  // down its side behind it (not across the screen), then to the Y.
+  const jack = new THREE.Vector3(W * 0.3, H / 2 + 0.008, 0);
+  const lift = new THREE.Vector3(W * 0.42, H / 2 + 0.022, -0.004);
+  const side = new THREE.Vector3(W * 0.68, H * 0.1, -0.014);
+  const low = new THREE.Vector3(W * 0.62, -H * 0.42, -0.012);
+  setTube(c.wires[0], [jack, lift, side, low, yLocal]);
+  // The branches: from the Y past the jaw (while they're in) to each bud.
+  for (let i = 0; i < 2; i++) {
+    const bud = _bud[i].clone().applyMatrix4(_inv);
+    const jaw = _p.lerpVectors(_y, _bud[i], 0.5).lerp(JAW[i], sIn).clone().applyMatrix4(_inv);
+    setTube(c.wires[i + 1], [yLocal, jaw, bud]);
+  }
+}
+function setTube(mesh, pts) {
+  mesh.geometry.dispose();
+  mesh.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, 0.0011, 5, false);
 }
 
 /* The thumb on the centre button: 0..1. */
