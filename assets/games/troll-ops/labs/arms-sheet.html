@@ -77,6 +77,7 @@ function stats(mesh) {
 // from above, and a macro on the receiver (around the grip, behind the mag)
 function frame(mesh, view) {
   const box = new THREE.Box3();
+  mesh.updateMatrixWorld(true);
   mesh.traverse((o) => { if (o.isMesh && shown(o, mesh)) box.expandByObject(o); });
   const c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
   const L = Math.max(s.x, s.y, s.z);
@@ -90,10 +91,27 @@ function frame(mesh, view) {
   }
 }
 
+// any angle round the gun (or round its sight only): yaw 0 = from its
+// right side, 90 = from the muzzle; pitch up from level
+function orbit(mesh, yaw, pitch, only) {
+  const box = new THREE.Box3();
+  const root = only === "sight" ? mesh.userData.sight : mesh;
+  if (!root) return false;
+  mesh.updateMatrixWorld(true);
+  root.traverse((o) => { if (o.isMesh && shown(o, mesh)) box.expandByObject(o); });
+  const c = box.getCenter(new THREE.Vector3()), L = box.getSize(new THREE.Vector3()).length();
+  const y = THREE.MathUtils.degToRad(yaw), p = THREE.MathUtils.degToRad(pitch);
+  const d = L * (only ? 1.6 : 1.2);
+  cam.position.set(c.x + d * Math.cos(p) * Math.cos(y), c.y + d * Math.sin(p), c.z - d * Math.cos(p) * Math.sin(y));
+  cam.lookAt(c);
+  return true;
+}
+
 let current = null;
-async function build(id, lod) {
+async function build(id, lod, optic) {
   if (current) scene.remove(current);
   const def = defOf(id);
+  if (optic) def.attachments = { ...def.attachments, optic };
   current = buildWeaponMesh(def, { lod });
   current.traverse((o) => { if (o.userData.hand) o.visible = false; });
   scene.add(current);
@@ -118,6 +136,13 @@ window.sheet = {
   async shoot(id, view, lod = 0) {
     const m = await build(id, lod);
     frame(m, view);
+    renderer.render(scene, cam);
+    return renderer.domElement.toDataURL("image/png");
+  },
+  /* opts: { optic, only: "sight", lod } */
+  async orbit(id, yaw, pitch, opts = {}) {
+    const m = await build(id, opts.lod ?? 0, opts.optic);
+    if (!orbit(m, yaw, pitch, opts.only)) return null;
     renderer.render(scene, cam);
     return renderer.domElement.toDataURL("image/png");
   },
