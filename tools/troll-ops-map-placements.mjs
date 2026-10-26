@@ -45,7 +45,9 @@ for (const id of ids) {
     window.TrollrunnerAccounts = window.TrollrunnerAccounts || {};
     window.TrollrunnerAccounts.getCachedProfile = () => ({ username: "troll_runner" });
     window.dispatchEvent(new Event("trollrunner:auth-changed"));
-    T.settings.viewMode = true; T.setMode("ops"); T.loadout.mapId = id;
+    T.settings.viewMode = true; T.loadout.mapId = id;
+    // Trollface Island is Royale's only (in ops, and in view mode, it falls back to Grinsite): no bots, no drop
+    if (id === "trollface") { T.settings.viewMode = false; T.DROP.enabled = false; T.setMode("royale"); if (T.els.noBots) T.els.noBots.checked = true; } else T.setMode("ops");
     await T.startGame(); if (T.isStaging()) T.endStaging();
   }, id);
   // models stream in after the build: wait until the count holds still
@@ -83,6 +85,9 @@ for (const id of ids) {
       lights,
     };
   }, [id, MAPS_URL]);
+  // Royale preloads the scorestreak models (care package, drones, jets) into
+  // the map's root: not the island's, so not in its bakes
+  if (id === "trollface") out.placements = out.placements.filter((p) => /^(tf|hg)-/.test(p[0]));
   const file = path.join(MODELS, `${id}-placements.json`);
   fs.writeFileSync(file, JSON.stringify({ map: id, ...out }, null, 1) + "\n");
   console.log(`${id}: ${out.placements.length} placements, ${out.lights.length} lamps -> ${path.relative(ROOT, file)}`);

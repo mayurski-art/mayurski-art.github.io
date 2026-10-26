@@ -21,6 +21,7 @@ import { mergeGeometries, mergeVertices } from "three/addons/utils/BufferGeometr
 import { insidePolygon, clampInsidePolygon } from "./edge.js?v=or1";
 import { SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-pm1";
 import { lakeWaterMaterial, fallsTexture } from "./lake-water.js?v=wf2";
+import { loadBake } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2";
 import { mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2";
 import { ISLAND_SOLIDS } from "./trollface-island-colliders.js?v=is1-ip1-mg1-sp1-tfp1-tfp2-tfp3-tfp4";
 import { ISLAND_GROUND } from "./trollface-island-ground.js?v=tg1-tfp1-tfp3-tfp4";
@@ -145,6 +146,8 @@ const GROUND_FIELD = (() => {
 const groundY = (x, z) => sampleField(GROUND_FIELD, x, z);
 
 const CLIFF_DEPTH = 46;
+// the ground bake's square [x0, z0, size] (bake_map_ground.blender.py prints it)
+const GROUND_BAKE_RECT = [-220, -220, 440];
 const WATER_Y = 0.34;       // the lake's surface; its floor is the island top (y 0)
 const RISE = 0.33;          // stair steps: under movement.js STEP_UP (0.36)
 
@@ -686,7 +689,33 @@ function buildTrollfaceIsland(mapApi) {
   // the same (world-space mask); the slab is sunk in depth, so where a
   // hill meets it at y 0 the hill wins.
   const hills = hillGeometry();
-  if (hills) root.add(Object.assign(new THREE.Mesh(hills, groundMaterial(ground.userData.mask)), { receiveShadow: true }));
+  const hillMesh = hills && Object.assign(new THREE.Mesh(hills, groundMaterial(ground.userData.mask)), { receiveShadow: true });
+  if (hillMesh) root.add(hillMesh);
+  // Phase 6: the ground's light map (models/bake_map_ground.blender.py
+  // trollface: the sky on the meadow round every place, seen from above),
+  // projected onto the slab and the hills by world x/z
+  loadBake("trollface-ground").then((tex) => {
+    if (!tex) return;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.channel = 1;
+    tex.flipY = false;
+    const [x0, z0, size] = GROUND_BAKE_RECT;
+    for (const mesh of [island, hillMesh]) {
+      if (!mesh) continue;
+      const pos = mesh.geometry.attributes.position, uv = new Float32Array(pos.count * 2), v = new THREE.Vector3();
+      mesh.updateWorldMatrix(true, false);
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
+        uv[2 * i] = (v.x - x0) / size;
+        uv[2 * i + 1] = (v.z - z0) / size;
+      }
+      mesh.geometry.setAttribute("uv1", new THREE.BufferAttribute(uv, 2));
+      const m = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+      m.lightMap = tex;
+      m.lightMapIntensity = Math.PI;
+      m.needsUpdate = true;
+    }
+  });
   const under = new THREE.ConeGeometry(150, 70, 9);
   under.rotateX(Math.PI);
   under.scale(1.25, 1, 0.9);

@@ -44,6 +44,11 @@ const BAKED = new Map([...[
   "gj-shell", "gj-props", "gj-skyline",
   // the Depot (build_depot.blender.py)
   ...["shell", "racks", "catwalk", "office", "bay"].map((n) => `dp-${n}`),
+  // Trollface Island (models/bake_trollface_island.blender.py, its places
+  // built by build_trollface_island.blender.py; the three trollhead faces unbaked)
+  "tf-city-p1", "tf-peak-p1", "tf-skate-p2", "tf-portal-p2", "tf-cave-p3", "tf-dock-p3", "tf-tree-p3", "tf-boat-p3",
+  "tf-bridge-p3", "tf-coast-p3", "tf-roads-p4", "tf-shop-p4", "tf-memelab-p4", "tf-gallery-p4", "tf-observatory-p4",
+  "tf-market-p4", "tf-ranch-p5", "tf-lodge-p5", "tf-light-p5", "tf-plant-p5", "tf-gas-p5",
 ].map((n) => [n, Math.PI]),
   // the Grinleria (build_grinleria.blender.py): its 15 lamps in a closed
   // white mall bake hot, so a quarter down
