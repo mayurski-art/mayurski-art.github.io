@@ -41,7 +41,7 @@ from mathutils import Vector
 from map_kit import mat
 from tf_city import flat, quad
 from tf_portal import rock_face
-from tf_skate import stairs
+from tf_skate import stairs, RISE, RUN
 import tf_kit
 
 WATER_Y = 0.34
@@ -808,6 +808,9 @@ DK = 2.7                       # the deck
 HOLD_Y = 0.55                  # the hold's floor (a player wades below 0.5 in the lake)
 HATCH = (-5.9, -0.8, -0.7, 0.7)          # a metre past the stair foot: headroom to step off it under the deck          # x0, x1, z0, z1 of the companionway
 HOUSE = (2.0, 6.6, -1.7, 1.7, 2.3)       # x0, x1, z0, z1, wall height
+GANGWAY = 1.2                  # half the stern steps' width: the opening in the stern's bulwark
+STERN_X0, STERN_X1 = -8.52, -7.86        # the stern's bulwark, the hull's skin in to the sides' inner face
+CHEEK = 0.14                   # the stern steps' side panels
 # The rig folds for the boardwalks' arches (maps/trollface-boat.js): the
 # mast above its tabernacle, the sail and the boom are GLBs of their own in
 # the Boat's frame (the map moves them; the sail furls onto the boom, the boom
@@ -837,6 +840,8 @@ def boat_build(b, P, R, origin):
     for k in range(len(rings) - 1):
         for i in range(n):
             j = (i + 1) % n
+            if k == 0 and i == n - 1:
+                continue        # the stern's bulwark: solid pieces either side of the gangway (below)
             faces.append([k * n + i, k * n + j, (k + 1) * n + j, (k + 1) * n + i])
             mats.append(bands[k])
     faces.append([4 * n + i for i in range(n)][::-1])
@@ -854,6 +859,14 @@ def boat_build(b, P, R, origin):
         (x0, z0), (x1, z1) = PLAN[i], PLAN[i + 1]
         b.bar(P["deck"], (x0, DK + 0.88, z0 * 0.97), (x1, DK + 0.88, z1 * 0.97), 0.3, 0.08)
         b.bar(P["stripe"], (x0, DK - 0.1, z0 * 1.01), (x1, DK - 0.1, z1 * 1.01), 0.1, 0.12)
+    # the stern's bulwark (user: "the stairs should not be open at the back
+    # end of the boat"): solid either side of the gangway the stern steps
+    # come up through, capped like the sides (it was the hull's outer skin
+    # only, see-through from the deck, and stood across the stair head)
+    for s in (-1, 1):
+        b.box(P["hull"], STERN_X1 - STERN_X0, 0.9, 2.75 - GANGWAY, (STERN_X0 + STERN_X1) / 2, DK, s * (GANGWAY + 2.75) / 2)
+        b.box(P["deck"], STERN_X1 - STERN_X0 + 0.1, 0.08, 2.85 - GANGWAY + 0.04, (STERN_X0 + STERN_X1) / 2, DK + 0.84,
+              s * (GANGWAY - 0.04 + 2.85) / 2)
     # the deck: planked, with the hatch's hole and the hold's floor under it
     hx0, hx1, hz0, hz1 = HATCH
     for (x0, x1, z0, z1) in ((-8.7, hx0, -3.0, 3.0), (hx1, 12.6, -3.0, 3.0), (hx0, hx1, -3.0, hz0), (hx0, hx1, hz1, 3.0)):
@@ -883,13 +896,24 @@ def boat_build(b, P, R, origin):
         C.col((hx0 + hx1) / 2, zz, hx1 - hx0 + 0.24, 0.12, 0.5, DK, 1)
     # the companionway down into the hold, the stern steps up from the water
     stairs(C, P["deck"], hx1, 0, -1, 0, HOLD_Y, DK, 1.2)
-    stairs(C, P["deck"], -8.5, 0, -1, 0, 0.0, DK, 2.4)
+    stairs(C, P["deck"], -8.5, 0, -1, 0, 0.0, DK, 2 * GANGWAY)
+    for s in (-1, 1):       # the stern's bulwark either side of the gangway
+        C.col_box(STERN_X0, STERN_X1, *sorted((s * GANGWAY, s * 2.5)), 0.9, DK)
+    # the stern steps' sides, closed (they were open, a rope rail each side):
+    # a panel each side in the hull's colour from the water up to 0.9 m over
+    # the steps' nosings, capped in teak like the bulwark it runs into; its
+    # colliders step down with the stair, so nobody walks or falls off its sides
+    steps = math.ceil(DK / RISE - 1e-6)
+    x_end = -8.5 - steps * RUN
     C.begin("stern-rails", on="hull")
     for s in (-1, 1):
-        b.cyl(P["mast"], 0.03, (-8.6, DK, s * 1.25), (-8.6, DK + 1.0, s * 1.25), seg=6)
-        b.cyl(P["mast"], 0.03, (-12.9, 0.0, s * 1.25), (-12.9, 1.0, s * 1.25), seg=6)
-        b.bar(P["mast"], (-8.6, DK + 1.0, s * 1.25), (-12.9, 1.0, s * 1.25), 0.03)
+        z0, z1 = sorted((s * GANGWAY, s * (GANGWAY + CHEEK)))
+        b.prism(P["hull"], [(-8.53, -0.3), (x_end, -0.3), (x_end, 0.9), (-8.53, DK + 0.9)], z0, z1, axis="z")
+        b.bar(P["deck"], (-8.53, DK + 0.9, s * (GANGWAY + CHEEK / 2)), (x_end - 0.03, 0.9, s * (GANGWAY + CHEEK / 2)), CHEEK + 0.06, 0.08)
     C.end()
+    for s in (-1, 1):
+        for i in range(steps):
+            C.col(-8.5 - (i + 0.5) * RUN, s * (GANGWAY + CHEEK / 2), RUN, CHEEK, DK + 0.9 - i * RISE, 0.0)
     # the wheelhouse: in by the aft door, windows forward and to the sides
     wx0, wx1, wz0, wz1, wh = HOUSE
     C.begin("wheelhouse", on="hull")
