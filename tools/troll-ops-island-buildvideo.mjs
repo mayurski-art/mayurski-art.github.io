@@ -16,6 +16,14 @@
 //
 //   NODE_PATH=<main checkout>/node_modules node tools/troll-ops-island-buildvideo.mjs [--only N] [--out file.mp4]
 //
+// --clip: instead, 20 s of the finished island (user, 2026-10-26: "a ... clip
+// of the final version of the island zooming and that the parts to the island
+// are animated", "the boat sailing through, the observatory should animate
+// the telescope, should see a shooting star maybe, building lights flashing",
+// 20 s): HEAD, no text, four 5 s shots on one steady clock: a push in over
+// the island under a shooting star, the telescope tilting, Troll City's
+// beacons and screens, the Boat folding its mast under an arch (island-final.mp4).
+//
 // Royale mode, no bots, no drop, graphics High, the zone and loot hidden;
 // Supabase blocked (never a public room). FFMPEG=<path> if ffmpeg isn't on
 // PATH; FONT=<ttf> for the caption (default Georgia).
@@ -38,8 +46,9 @@ const FONT = (process.env.FONT || "C:/Windows/Fonts/georgia.ttf").replace(/\\/g,
 const W = 1920, H = 1080, FPS = 30;
 const common = execFileSync("git", ["rev-parse", "--git-common-dir"], { cwd: ROOT, encoding: "utf8" }).trim();
 const MAIN = path.resolve(ROOT, common, "..");
-const DIR = path.join(MAIN, ".claude/island-timelapse/build");
-const OUT = opt("--out", path.join(MAIN, ".claude/island-timelapse/island-build.mp4"));
+const CLIP = args.includes("--clip");
+const DIR = path.join(MAIN, ".claude/island-timelapse", CLIP ? "clip" : "build");
+const OUT = opt("--out", path.join(MAIN, ".claude/island-timelapse", CLIP ? "island-final.mp4" : "island-build.mp4"));
 
 // The island after each phase: the commit, its caption (the phase and its
 // goal), its seconds, the places it rebuilt (they rise; the models it
@@ -105,6 +114,7 @@ function heroMoves(state, top) {
 }
 const mix = (a, b, u) => a + (b - a) * u;
 const camAt = ([m0, m1], u) => [...m0.p.map((v, i) => mix(v, m1.p[i], u)), ...m0.t.map((v, i) => mix(v, m1.t[i], u)), mix(m0.fov, m1.fov, u)];
+const RUN = CLIP ? [{ sha: "HEAD", caption: null, secs: 20, clip: true }] : STATES;
 const total = STATES.reduce((s, st) => s + st.secs, 0);
 if (Math.abs(total - 60) > 0.01) throw new Error(`the states add up to ${total} s, not 60`);   // (user, 2026-10-26: a minute)
 
@@ -223,6 +233,32 @@ async function film(state, index, files, frames0) {
   }, state);
   console.log(`state ${index} (${state.sha} ${sha.slice(0, 8)}): rising ${Object.keys(groups).join(" ") || "-"}; fading ${(state.fade || []).join(" ") || "-"}`);
 
+  // the clip: one clock for everything that moves. performance.now (the
+  // lake, the falls, the sky, the lights, the telescope) runs on from the
+  // page's own time, never back; the Boat is held at its own time, set so it
+  // starts furling for an arch a second into the last shot
+  const clipT0 = state.clip ? await page.evaluate(async () => {
+    const url = (re) => performance.getEntriesByType("resource").map((e) => e.name).find((u) => re.test(u));
+    const { game } = await import(url(/\/core\/state\.js/));
+    window.__tfSky = await import(url(/\/view\/sky\.js/));
+    const boat = game.builtMap.map.boat();
+    window.__tfBoat = boat;
+    window.__vt = 0;
+    window.__vtBase = performance.now() / 1000 + 1;
+    performance.now = () => (window.__vtBase + window.__vt) * 1000;
+    // the first arch after the Boat is under way: where it starts to fold, and
+    // the middle of its time folded (under the arch)
+    let prev = 1, rise = null, full = null;
+    for (let t = 10; t < 400; t += 0.05) {
+      const f = boat.foldAt(boat.distanceAt(t));
+      if (rise == null && prev < 0.01 && f >= 0.01) rise = t;
+      if (rise != null && full == null && f > 0.99) full = t;
+      if (full != null && f < 0.99) return [rise - 15.8, (full + t) / 2];
+      prev = f;
+    }
+    return [30, 50];
+  }) : 0;
+
   // the schedule: shot A (wide) builds every group but the hero's, shot B (close) the hero's
   const n = Math.round(state.secs * FPS);
   const nA = state.hero ? Math.round(n * 0.52) : n;
@@ -237,7 +273,8 @@ async function film(state, index, files, frames0) {
   for (let f = 0; f < n; f++) {
     const t = f / n;
     let cam;
-    if (state.orbit) {
+    if (state.clip) cam = null;   // laid out in the page, on the Boat as it sails
+    else if (state.orbit) {
       // the finale: round the lake, coming down, the Boat sailing
       const o = state.orbit, u = ease(f / n) * 0.85 + (f / n) * 0.15, a = mix(o.a[0], o.a[1], u);
       cam = [o.c[0] + Math.sin(a) * o.r, mix(o.h[0], o.h[1], u), o.c[1] + Math.cos(a) * o.r, ...o.t, 48];
@@ -251,8 +288,39 @@ async function film(state, index, files, frames0) {
     }
     const fade = ease(f / (nA * 0.6));
     const bakeK = state.bake ? ease((f - n * 0.15) / (n * 0.6)) : 1;
-    const url = await page.evaluate(async ([cam, levels, fade, bakeK, W, H]) => {
+    const clip = state.clip ? [f / FPS, ...clipT0] : null;
+    const url = await page.evaluate(async ([cam, levels, fade, bakeK, W, H, clip]) => {
       const T = window.__trollOps, R = T.renderer, C = T.composer, c = T.camera, A = window.__tfBuild;
+      if (clip) {
+        // four 5 s shots, each eased from one camera to the next; the Boat
+        // sails all through on its own time
+        const [vt, boatT0, archT] = clip, B = window.__tfBoat, shot = Math.min(3, Math.floor(vt / 5)), u0 = (vt - shot * 5) / 5;
+        const u = u0 * u0 * (3 - 2 * u0), k = (a, b) => a + (b - a) * u;
+        const poseAt = (bt) => { B.hold = bt; B.update(bt); return { ...B.pose }; };
+        if (shot === 3) {
+          // the Boat coming up to the arch, from out past it on the water, the
+          // arch between us: the sail furls, the boom drops, the mast lies down
+          const at = poseAt(archT);
+          const off = (p, d, back) => [p.x + Math.sin(p.ry) * d - Math.cos(p.ry) * back, p.z + Math.cos(p.ry) * d + Math.sin(p.ry) * back];
+          const [ax, az] = off(at, 20, -34), [bx, bz] = off(at, 15, -27);
+          const p = poseAt(boatT0 + vt);
+          cam = [k(ax, bx), k(12, 9), k(az, bz), p.x, 5, p.z, 46];
+        } else {
+          poseAt(boatT0 + vt);
+          cam = [
+            [60, 120, 330, 15, 25, -10, 50, 25, 62, 205, 15, 6, -10, 46],             // in over the island, the sky above it
+            [93, 11.5, -79, 80.3, 8.6, -99.5, 34, 87, 12.5, -81, 80.3, 8.6, -99.5, 32],   // the telescope in its slit
+            [12, 44, -28, -36, 18, -87, 50, -2, 36, -42, -36, 16, -87, 50],             // Troll City's beacons and screens
+          ][shot].reduce((o, v, i, all) => (i < 7 ? [...o, k(v, all[i + 7])] : o), []);
+        }
+        // the shooting star: into the first shot's sky, up and left of centre,
+        // going across the frame to the right (user: "across not straight down")
+        if (vt === 0) {
+          const fx = cam[3] - cam[0], fz = cam[5] - cam[2], L = Math.hypot(fx, fz), rx = -fz / L, rz = fx / L;
+          window.__tfSky.aimShootingStar({ x: fx / L - rx * 0.4, y: 0.16, z: fz / L - rz * 0.4 }, 1.2, { x: rx, y: -0.12, z: rz });
+        }
+        window.__vt = vt;
+      }
       for (const rt of [C.renderTarget1, C.renderTarget2]) if (rt.samples !== 4) { rt.samples = 4; rt.dispose(); }
       return await new Promise((done) => requestAnimationFrame(() => {
         for (const [k, g] of Object.entries(A.groups)) g.plane.constant = levels[k];
@@ -261,8 +329,11 @@ async function film(state, index, files, frames0) {
         c.fov = cam[6]; c.aspect = W / H; c.near = 0.1; c.far = 2000;
         c.position.set(cam[0], cam[1], cam[2]); c.lookAt(cam[3], cam[4], cam[5]);
         c.updateProjectionMatrix(); c.updateMatrixWorld(true);
-        R.setPixelRatio(1); R.setSize(W, H, false);
-        C.setPixelRatio?.(1); C.setSize(W, H);
+        // the clip at twice the size, scaled down by ffmpeg: no sparkling stars
+        // or shimmering edges as the camera moves (user: "some flickering")
+        const ss = clip ? 2 : 1;
+        R.setPixelRatio(ss); R.setSize(W, H, false);
+        C.setPixelRatio?.(ss); C.setSize(W, H);
         for (const p of C.passes) for (const k of ["uHitFlash", "uLowHp", "uAberration", "uSuppress"]) if (p.uniforms?.[k]) p.uniforms[k].value = 0;
         for (const p of C.passes) if (p.constructor.name === "ViewmodelPass") p.enabled = false;
         const roy = T.royale?.();
@@ -274,7 +345,7 @@ async function film(state, index, files, frames0) {
         C.render(1 / 30);
         done(R.domElement.toDataURL("image/jpeg", 0.93));
       }));
-    }, [cam, levels, fade, bakeK, W, H]);
+    }, [cam, levels, fade, bakeK, W, H, clip]);
     fs.writeFileSync(path.join(DIR, `${String(frames0 + f).padStart(5, "0")}.jpg`), Buffer.from(url.split(",")[1], "base64"));
   }
   await browser.close(); server.close();
@@ -288,10 +359,10 @@ if (only == null && !cutOnly) for (const f of fs.readdirSync(DIR)) if (f.endsWit
 const files = new GitFiles(ROOT);
 let frame = 0;
 const marks = [];
-for (let i = 0; i < STATES.length; i++) {
-  const n = Math.round(STATES[i].secs * FPS);
+for (let i = 0; i < RUN.length; i++) {
+  const n = Math.round(RUN[i].secs * FPS);
   if (cutOnly || (only != null && +only !== i)) { marks.push([frame, n]); frame += n; continue; }
-  await film(STATES[i], i, files, frame);
+  await film(RUN[i], i, files, frame);
   marks.push([frame, n]);
   frame += n;
 }
@@ -302,7 +373,7 @@ if (only != null) { console.log(`state ${only} filmed (frames in ${DIR}); run wi
 // on dark boxes so they read over the busy island
 const SUB_TOP = 150;     // px from the bottom to the subheader's two lines
 const esc = (s) => s.replace(/\\/g, "\\\\").replace(/'/g, "\u2019").replace(/:/g, "\\:");
-const draws = STATES.map((st, i) => {
+const draws = RUN.map((st, i) => {
   if (!st.caption) return null;
   const t0 = marks[i][0] / FPS, t1 = (marks[i][0] + marks[i][1]) / FPS;
   const alpha = `if(lt(t,${t0 + 0.35}),(t-${t0})/0.35,if(gt(t,${t1 - 0.35}),(${t1}-t)/0.35,1))`;
@@ -316,8 +387,8 @@ const draws = STATES.map((st, i) => {
 // and a copy with no text at all, to caption again elsewhere (user, 2026-10-26:
 // "you could make the video without the texts incase i want to change it")
 const CLEAN = OUT.replace(/\.mp4$/, "") + "-no-text.mp4";
-for (const [vf, out] of [[`${draws},format=yuv420p`, OUT], ["format=yuv420p", CLEAN]]) {
+for (const [vf, out] of CLIP ? [[`scale=${W}:${H}:flags=lanczos,format=yuv420p`, OUT]] : [[`${draws},format=yuv420p`, OUT], ["format=yuv420p", CLEAN]]) {
   execFileSync(FFMPEG, ["-loglevel", "error", "-y", "-framerate", String(FPS), "-i", path.join(DIR, "%05d.jpg"),
     "-vf", vf, "-c:v", "libx264", "-crf", "24", "-preset", "slow", "-movflags", "+faststart", out]);
 }
-console.log(`${frame} frames (${(frame / FPS).toFixed(1)} s) -> ${OUT}, ${CLEAN}`);
+console.log(`${frame} frames (${(frame / FPS).toFixed(1)} s) -> ${OUT}${CLIP ? "" : `, ${CLEAN}`}`);
