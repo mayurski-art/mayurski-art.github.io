@@ -1503,7 +1503,7 @@ export class BotManager {
         // big map (Troll Royale's island) stays small.
         let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
         for (const c of src.colliders) {
-          if (Math.abs(c.max.y - level) > 0.45) continue;
+          if (c.moving || Math.abs(c.max.y - level) > 0.45) continue;
           x0 = Math.min(x0, c.min.x); x1 = Math.max(x1, c.max.x);
           z0 = Math.min(z0, c.min.z); z1 = Math.max(z1, c.max.z);
         }

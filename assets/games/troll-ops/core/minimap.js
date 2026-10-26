@@ -46,6 +46,7 @@ export function buildMinimapBase() {
   ctx.lineWidth = 1;
   for (const c of game.colliders) {
     if (c.min.y > 1.6) continue;           // overhead structures aren't walls
+    if (c.moving) continue;                // nor what sails off (the Boat)
     const [x0, z0] = mapToMinimap(c.min.x, c.min.z);
     const [x1, z1] = mapToMinimap(c.max.x, c.max.z);
     ctx.fillRect(x0, z0, Math.max(1, x1 - x0), Math.max(1, z1 - z0));

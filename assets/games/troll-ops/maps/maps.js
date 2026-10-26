@@ -2068,7 +2068,7 @@ export function findStairs(colliders, known = []) {
   // Something tall at a walker's body height here (a wall, a rail).
   const blockedAt = (x, y, z) => {
     for (const c of colliders) {
-      if (c.max.y <= y + 0.45 || c.min.y >= y + 1.7) continue;
+      if (c.moving || c.max.y <= y + 0.45 || c.min.y >= y + 1.7) continue;   // (the Boat sails off: no stairs on it)
       if (x > c.min.x - 0.25 && x < c.max.x + 0.25 && z > c.min.z - 0.25 && z < c.max.z + 0.25) return true;
     }
     return false;
@@ -2076,7 +2076,7 @@ export function findStairs(colliders, known = []) {
   const supportAt = (x, z, ceiling) => {
     let best = 0;
     for (const c of colliders) {
-      if (c.max.y > ceiling + 1e-3) continue;
+      if (c.moving || c.max.y > ceiling + 1e-3) continue;
       if (x < c.min.x - 0.2 || x > c.max.x + 0.2 || z < c.min.z - 0.2 || z > c.max.z + 0.2) continue;
       if (c.max.y > best) best = c.max.y;
     }
