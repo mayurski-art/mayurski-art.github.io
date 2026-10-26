@@ -188,6 +188,11 @@ export const SECONDARY_CLASSES = ["sidearm", "launcher"];
    attachments still trim each gun from there. */
 export const RECOIL_SCALE = 0.7;
 
+/* How far into the aim a bolt gun stays while its bolt is worked: under
+   the sniper scope's fade (view/sniper-scope.js FADE_FROM 0.78), so the
+   overlay lifts and the gun and hands show. */
+export const BOLT_ADS = 0.62;
+
 function mk(cls, o) {
   const d = { ...COMMON, ...CLASS_BASE[cls], ...o, cls };
   d.recoilKickPitch *= RECOIL_SCALE;
@@ -764,8 +769,12 @@ export class WeaponState {
     // ADS blend
     const wantAds = adsHeld && canAds && !this.reloading;
     const adsSpeed = (this.adsMult || 1) / Math.max(0.05, def.adsTime);   // adsMult: Dexterity (view/player-update.js)
-    this.adsT += (wantAds ? 1 : -1) * adsSpeed * dt;
-    this.adsT = Math.max(0, Math.min(1, this.adsT));
+    // Working a bolt brings the gun partly down out of the scope, so the
+    // hand on the bolt is seen (user, 2026-10-26); back up once it locks.
+    const adsTop = def.fireMode === "bolt" && this.pumpT > 0 ? BOLT_ADS : 1;
+    const adsGoal = wantAds ? adsTop : 0;
+    const adsStep = adsSpeed * dt;
+    this.adsT = this.adsT < adsGoal ? Math.min(adsGoal, this.adsT + adsStep) : Math.max(adsGoal, this.adsT - adsStep);
     this.ads = this.adsT > 0.5;
 
     // Spread: hip and ADS are two separate cones and `adsT` blends between
