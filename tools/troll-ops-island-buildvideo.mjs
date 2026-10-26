@@ -234,27 +234,29 @@ async function film(state, index, files, frames0) {
 
 fs.mkdirSync(DIR, { recursive: true });
 const only = opt("--only");
-if (only == null) for (const f of fs.readdirSync(DIR)) if (f.endsWith(".jpg")) fs.unlinkSync(path.join(DIR, f));
+const cutOnly = process.argv.includes("--cut");   // re-cut the video from the frames already filmed
+if (only == null && !cutOnly) for (const f of fs.readdirSync(DIR)) if (f.endsWith(".jpg")) fs.unlinkSync(path.join(DIR, f));
 const files = new GitFiles(ROOT);
 let frame = 0;
 const marks = [];
 for (let i = 0; i < STATES.length; i++) {
   const n = Math.round(STATES[i].secs * FPS);
-  if (only != null && +only !== i) { marks.push([frame, n]); frame += n; continue; }
+  if (cutOnly || (only != null && +only !== i)) { marks.push([frame, n]); frame += n; continue; }
   await film(STATES[i], i, files, frame);
   marks.push([frame, n]);
   frame += n;
 }
 files.close();
 if (only != null) { console.log(`state ${only} filmed (frames in ${DIR}); run without --only for the video`); process.exit(0); }
-// the captions: each phase's, faded in and out, at the bottom, in Georgia
+// the captions: each phase's, faded in and out, at the bottom, in Georgia, on a
+// dark box so they read over the busy island
 const esc = (s) => s.replace(/\\/g, "\\\\").replace(/'/g, "\u2019").replace(/:/g, "\\:");
 const draws = STATES.map((st, i) => {
   if (!st.caption) return null;
   const t0 = marks[i][0] / FPS, t1 = (marks[i][0] + marks[i][1]) / FPS;
   const alpha = `if(lt(t,${t0 + 0.35}),(t-${t0})/0.35,if(gt(t,${t1 - 0.35}),(${t1}-t)/0.35,1))`;
-  return `drawtext=fontfile='${FONT.replace(/:/g, "\\:")}':text='${esc(st.caption)}':fontcolor=0xfff4e2:fontsize=58:shadowcolor=black@0.55:shadowx=0:shadowy=3:x=(w-text_w)/2:y=h-text_h-72:enable='between(t,${t0},${t1})':alpha='${alpha}'`;
+  return `drawtext=fontfile='${FONT.replace(/:/g, "\\:")}':text='${esc(st.caption)}':fontcolor=0xfff4e2:fontsize=58:shadowcolor=black@0.55:shadowx=0:shadowy=3:box=1:boxcolor=black@0.4:boxborderw=22:x=(w-text_w)/2:y=h-text_h-72:enable='between(t,${t0},${t1})':alpha='${alpha}'`;
 }).filter(Boolean).join(",");
 execFileSync(FFMPEG, ["-loglevel", "error", "-y", "-framerate", String(FPS), "-i", path.join(DIR, "%05d.jpg"),
-  "-vf", `${draws},format=yuv420p`, "-c:v", "libx264", "-crf", "18", "-preset", "slow", "-movflags", "+faststart", OUT]);
+  "-vf", `${draws},format=yuv420p`, "-c:v", "libx264", "-crf", "24", "-preset", "slow", "-movflags", "+faststart", OUT]);
 console.log(`${frame} frames (${(frame / FPS).toFixed(1)} s) -> ${OUT}`);
