@@ -63,8 +63,8 @@ const info = await page.evaluate(async () => {
     open: cs.filter((c) => c.open).length,
     // the doorways the map keeps clear (map.royale.keepClear): no chest spot, no floor loot
     clear: (map.royale.keepClear || []).length,
-    inDoor: (map._chestSpots || []).concat([...r.loot.items.values()].filter((it) => (it.y ?? it.mesh?.position.y ?? 0) < 0.2))
-      .filter((p) => (map.royale.keepClear || []).some(([a, b, c, d]) => p.x >= a && p.x <= c && p.z >= b && p.z <= d)).length,
+    inDoorAt: (map._chestSpots || []).map((p) => ({ ...p, k: "chest" })).concat([...r.loot.items.values()].filter((it) => (it.y ?? it.mesh?.position.y ?? 0) < 0.2))
+      .filter((p) => (map.royale.keepClear || []).some(([a, b, c, d]) => p.x >= a && p.x <= c && p.z >= b && p.z <= d)).map((p) => [p.k, +p.x.toFixed(1), +p.z.toFixed(1)]),
   };
 });
 check("Troll Royale on Trollface Island", info.map === "trollface", info.map);
@@ -74,7 +74,7 @@ check("every hot place has a chest", info.hotEmpty.length === 0, info.hotEmpty.j
 check("no chest in the sea or the lake", info.wet === 0, `${info.wet}`);
 // the band grew with the lake's five places (Trollface Island phase 3) and their deck loot
 check("floor loot thinned by about a quarter", info.loot >= 190 && info.loot <= 285, `${info.loot} items`);
-check("no chest or floor loot in a doorway", info.clear >= 11 && info.inDoor === 0, `${info.inDoor} in ${info.clear} doorways`);
+check("no chest or floor loot in a doorway", info.clear >= 11 && info.inDoorAt.length === 0, `${info.inDoorAt.length} in ${info.clear} doorways ${JSON.stringify(info.inDoorAt.slice(0, 3))}`);
 check("every chest starts shut", info.open === 0, `${info.open} open`);
 
 // Nobody shoots, bots stand still: this part is about us.

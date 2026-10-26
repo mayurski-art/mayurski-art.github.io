@@ -392,11 +392,11 @@ def ranch_build(b, P, R, origin):
     fx, fz = (f0 + f1) / 2, (g0 + g1) / 2
     box_shed(C, "farmhouse", fx, fz, f1 - f0, g1 - g0, FH,
              [("w", fz, 1.2, 2.3), ("n", fx + 2.6, 1.1, 2.2)],
-             [("w", fz - 2.2, 1.2, 1.0, 2.2), ("w", fz + 2.2, 1.2, 1.0, 2.2), ("s", fx - 2.0, 1.4, 1.0, 2.2), ("e", fz, 1.4, 1.0, 2.2)],
+             [("w", fz - 2.2, 1.2, 1.0, 2.2), ("w", fz + 2.2, 1.2, 1.0, 2.2), ("s", fx - 2.0, 1.4, 1.0, 2.2)],
              "farm_wall", "farm_roof", t=0.22)
     C.containers = ("farmhouse",)
     for (x0_, z0_, x1_, z1_, n) in ((f0, fz - 2.8, f0, fz - 1.6, (-1, 0)), (f0, fz + 1.6, f0, fz + 2.8, (-1, 0)),
-                                    (fx - 2.7, g1, fx - 1.3, g1, (0, 1)), (f1, fz - 0.7, f1, fz + 0.7, (1, 0))):
+                                    (fx - 2.7, g1, fx - 1.3, g1, (0, 1))):
         glass(C, x0_ + n[0] * 0.13, z0_ + n[1] * 0.13, x1_ + n[0] * 0.13, z1_ + n[1] * 0.13, 1.0, 2.2, n)
     C.begin("farm-kitchen")
     b.box(P["wood"], 3.0, 0.9, 0.6, fx + 2.0, 0, g0 + 0.55)
@@ -430,13 +430,6 @@ def ranch_build(b, P, R, origin):
     C.col(f0 - 1.1, fz, 2.4, 7.0, 0.15, 2.7, 3)
     for zz in (fz - 3.1, fz + 3.1):
         C.col(f0 - 1.9, zz, 0.14, 0.14, 2.6, 0.25, 1)
-    C.begin("rocker", on="porch")
-    b.box(P["wood_dk"], 0.55, 0.06, 0.55, f0 - 1.2, 0.7, fz - 2.5)
-    b.box(P["wood_dk"], 0.06, 0.6, 0.55, f0 - 0.95, 0.75, fz - 2.5)
-    for s in (-0.25, 0.25):
-        b.box(P["wood_dk"], 0.7, 0.05, 0.05, f0 - 1.2, 0.27, fz - 2.5 + s)
-        b.box(P["wood_dk"], 0.05, 0.45, 0.05, f0 - 1.2, 0.27, fz - 2.5 + s)
-    C.end()
     # the field: furrows, the crop, a fence round it with a gate on the yard side
     a0, a1, c0, c1 = FIELD
     C.begin("field")
@@ -644,7 +637,7 @@ def lodge_build(b, P, R, origin):
     cabins = [("cabin0", px - 9.0, pz - 1.0, "e"), ("cabin1", px - 4.0, pz - 8.5, "s"), ("cabin2", px + 5.0, pz - 8.5, "s"), ("cabin3", px + 10.0, pz - 1.0, "w")]
     for pid, x, z, face in cabins:
         log_cabin(C, pid, x, z, face)
-    C.loot(px - 4.0, 0.0, pz - 8.5)
+    C.loot(px - 4.0, 0.0, pz - 9.7)            # at the back of cabin1, out of its door's keep-clear
     # the notice board by the road, LULZ LODGE over it
     C.begin("notice-board")
     for s in (-1.1, 1.1):
@@ -727,15 +720,15 @@ def lodge_build(b, P, R, origin):
         b.poly(P["ink"], [(fx_ + 0.35 * s, 0.01, fz_ + 0.35 * c), (fx_ - 0.35 * s, 0.01, fz_ - 0.35 * c), (fx_, 0.9, fz_)], [[0, 1, 2]])
         C.end()
         C.col(tx, tz, 2.6 * abs(c) + 2.2 * abs(s), 2.6 * abs(s) + 2.2 * abs(c), 1.3, 0, 1)
-    C.begin("clothes-line")
-    for xx in (5.5, 13.0):
-        b.cyl(P["wood_dk"], 0.06, (xx, 0, 18.6), (xx, 1.9, 18.6), seg=6)
-    b.bar(P["rope"], (5.5, 1.85, 18.6), (13.0, 1.85, 18.6), 0.02)
+    C.begin("clothes-line")          # beside the wash block, not in front of its door
+    for zz in (17.5, 25.0):
+        b.cyl(P["wood_dk"], 0.06, (15.5, 0, zz), (15.5, 1.9, zz), seg=6)
+    b.bar(P["rope"], (15.5, 1.85, 17.5), (15.5, 1.85, 25.0), 0.02)
     for k, m in enumerate(("flannel", "white", "denim", "poster_y")):
-        b.box(P[m], 0.6, 0.7, 0.02, 6.6 + k * 1.6, 1.15, 18.6)
+        b.box(P[m], 0.02, 0.7, 0.6, 15.5, 1.15, 18.6 + k * 1.6)
     C.end()
-    C.col(5.5, 18.6, 0.14, 0.14, 1.9, 0, 1)
-    C.col(13.0, 18.6, 0.14, 0.14, 1.9, 0, 1)
+    C.col(15.5, 17.5, 0.14, 0.14, 1.9, 0, 1)
+    C.col(15.5, 25.0, 0.14, 0.14, 1.9, 0, 1)
     lamp_post(C, "lodge-lamp0", -2.0, -6.5, 0.0)
     lamp_post(C, "lodge-lamp1", 18.0, 2.0, math.pi)
     b.finish("tf-lodge-p5.glb")
@@ -967,8 +960,8 @@ def light_build(b, P, R, origin):
     # south to the tower, his table, bed and stove
     hx, hz = 12.5, -8.5
     box_shed(C, "keeper", hx, hz, 5.4, 5.4, 2.9, [("s", hx - 0.8, 1.1, 2.2)],
-             [("e", hz, 1.4, 1.0, 2.1), ("n", hx + 0.6, 1.4, 1.0, 2.1)], "cottage", "slate", t=0.25)
-    glass(C, hx + 2.7 + 0.13, hz - 0.7, hx + 2.7 + 0.13, hz + 0.7, 1.0, 2.1, (1, 0))
+             [("w", hz, 1.4, 1.0, 2.1), ("n", hx + 0.6, 1.4, 1.0, 2.1)], "cottage", "slate", t=0.25)
+    glass(C, hx - 2.7 - 0.13, hz - 0.7, hx - 2.7 - 0.13, hz + 0.7, 1.0, 2.1, (-1, 0))
     glass(C, hx - 0.1, hz - 2.7 - 0.13, hx + 1.3, hz - 2.7 - 0.13, 1.0, 2.1, (0, -1))
     C.containers = ("keeper",)
     C.begin("keeper-table")
@@ -1162,9 +1155,9 @@ def plant_build(b, P, R, origin):
     # the control room: a low block with the big window over the yard, the desk of dials
     c0, c1, d0, d1, CH = CTRL
     ccx, ccz = (c0 + c1) / 2, (d0 + d1) / 2
-    box_shed(C, "control-room", ccx, ccz, c1 - c0, d1 - d0, CH, [("e", ccz, 1.2, 2.3)], [("w", ccz, 4.0, 1.2, 2.6)],
+    box_shed(C, "control-room", ccx, ccz, c1 - c0, d1 - d0, CH, [("e", ccz, 1.2, 2.3)], [("s", ccx, 4.0, 1.2, 2.6)],
              "concrete", "concrete_dk", t=0.3, roof_pitch=False)
-    glass(C, c0 - 0.02, ccz - 2.0, c0 - 0.02, ccz + 2.0, 1.2, 2.6, (-1, 0))
+    glass(C, ccx - 2.0, d1 + 0.02, ccx + 2.0, d1 + 0.02, 1.2, 2.6, (0, 1))
     C.containers = ("plant-yard", "control-room")
     C.begin("control-desk")
     b.box(P["concrete_dk"], 0.9, 0.85, 4.2, c0 + 1.0, 0, ccz)
@@ -1230,20 +1223,20 @@ def plant_build(b, P, R, origin):
     for (x_, z_, w_, d_) in ((-8.0, 21.2, 14.0, 0.4), (-8.0, 25.6, 14.0, 0.4), (-15.0, 23.4, 0.4, 4.0), (-1.0, 23.4, 0.4, 4.0)):
         C.col(x_, z_, w_, d_, 0.5, 0, 1)
     # the forklift, drums, the pylons
-    C.begin("forklift")
-    b.box(P["hazard"], 2.2, 1.0, 1.2, 4.5, 0.3, -0.4 + 7.4 - 4.0)
-    b.box(P["ink"], 0.6, 0.8, 1.1, 3.6, 0.3, 3.0)
-    for (lx, lz) in ((3.8, 2.5), (3.8, 3.5), (5.2, 2.5), (5.2, 3.5)):
+    C.begin("forklift")              # parked south of the hall's loading door and the transformer fence
+    b.box(P["hazard"], 2.2, 1.0, 1.2, 4.5, 0.3, -2.6)
+    b.box(P["ink"], 0.6, 0.8, 1.1, 3.6, 0.3, -2.6)
+    for (lx, lz) in ((3.8, -3.1), (3.8, -2.1), (5.2, -3.1), (5.2, -2.1)):
         b.cyl(P["tyre"], 0.3, (lx, 0.3, lz - 0.1), (lx, 0.3, lz + 0.1), seg=10)
     for s in (-0.55, 0.55):
-        b.box(P["ink"], 0.08, 2.4, 0.08, 5.65, 0.1, 3.0 + s)
+        b.box(P["ink"], 0.08, 2.4, 0.08, 5.65, 0.1, -2.6 + s)
     for s in (-0.35, 0.35):
-        b.box(P["steel"], 1.1, 0.06, 0.14, 6.25, 0.15, 3.0 + s)
-    b.box(P["ink"], 1.6, 0.06, 1.2, 4.6, 2.1, 3.0)
-    for (lx, lz) in ((3.9, 2.45), (3.9, 3.55), (5.3, 2.45), (5.3, 3.55)):
+        b.box(P["steel"], 1.1, 0.06, 0.14, 6.25, 0.15, -2.6 + s)
+    b.box(P["ink"], 1.6, 0.06, 1.2, 4.6, 2.1, -2.6)
+    for (lx, lz) in ((3.9, -3.15), (3.9, -2.15), (5.3, -3.15), (5.3, -2.15)):
         b.box(P["ink"], 0.06, 0.8, 0.06, lx, 1.3, lz)
     C.end()
-    C.col(4.8, 3.0, 3.2, 1.3, 2.2, 0, 1)
+    C.col(4.8, -2.6, 3.2, 1.3, 2.2, 0, 1)
     for k, (dx_, dz_, m) in enumerate(((-12.5, 0.0, "drum_y"), (-11.8, 0.6, "drum_y"), (-12.6, 1.2, "drum_b"), (24.8, 12.0, "drum_r"))):
         drum(C, f"plant-drum{k}", dx_, dz_, m)
     pylon(C, "pylon-west", -24.0, -1.0, ry=math.pi / 2)
