@@ -39,14 +39,32 @@ const _head = new THREE.Vector3();
 const _up = new THREE.Vector3();
 
 /* Out of the plane (royale.js jumpOut): `back` whether you went out facing
-   into the hold, `yaw` your facing (world), `at` where you left it and
-   `vel` how fast (the plane's way). */
-export function startFallShow(back, yaw, at, vel) {
+   into the hold, `yaw` your facing (world), `at` where you left it,
+   `vel` how fast (the plane's way) and `centre` the island's middle {x, z}. */
+export function startFallShow(back, yaw, at, vel, centre) {
   const h = Math.hypot(vel.x, vel.z) || 1;
   // The ramp shot's spot: hung in the sky where you went out, a little aft
   // and above (the planes behind come through 20 m up or down, not here).
   const exit = new THREE.Vector3(at.x - (vel.x / h) * 4, at.y + 3, at.z - (vel.z / h) * 4);
-  show = { t: 0, back, yaw, exit, holdT: 0, view: -1 };
+  show = { t: 0, back, yaw, exit, holdT: 0, view: -1, centre, look0: { yaw: game.look.yaw, pitch: game.look.pitch } };
+}
+
+/* The show hands the camera back looking down at the island, north up so
+   the trollface reads the right way (user: "the final orientation actually
+   faces the opposite direction basically seeing space"). The camera sits
+   behind you along the look (royale.js placeDropCamera), so its line through
+   you is pitched to land on the island's middle when that's ahead (north);
+   when it's under you or behind, nearly straight down. A look you lined up
+   yourself while the show ran stays yours. */
+function aimAtIsland(c, look0) {
+  const turned = Math.abs(Math.atan2(Math.sin(game.look.yaw - look0.yaw), Math.cos(game.look.yaw - look0.yaw)));
+  if (turned > 0.1 || Math.abs(game.look.pitch - look0.pitch) > 0.1) return;
+  const pos = game.move.pos;
+  game.look.yaw = 0;
+  if (!c) { game.look.pitch = -1.2; return; }
+  const ahead = pos.z - c.z;                // m north to the middle
+  const pitch = ahead > 1 ? -Math.atan2(Math.max(20, pos.y), ahead) : -1.4;
+  game.look.pitch = Math.max(-1.4, Math.min(-0.6, pitch));
 }
 export function endFallShow() {
   show = null;
@@ -74,7 +92,7 @@ export function updateFallShow(dt) {
   show.t += dt;
   if (was >= FALL_SHOW) return false;
   for (const c of [...FALL_CUTS, FALL_SHOW]) if (was < c && show.t >= c && !playSfx("whoosh", { gain: 0.5 })) game.audio.swing?.();
-  if (show.t >= FALL_SHOW) game.showWaveBanner("Push forward to fly — look down to dive", 1800);
+  if (show.t >= FALL_SHOW) { aimAtIsland(show.centre, show.look0); game.showWaveBanner("Push forward to fly — look down to dive", 1800); }
   return show.t < FALL_SHOW;
 }
 
