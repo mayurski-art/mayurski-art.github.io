@@ -823,6 +823,48 @@ PLAN = [(-8.5, -2.9), (-6.0, -3.2), (5.5, -3.2), (8.5, -2.8), (10.6, -1.9), (12.
         (12.1, 0.95), (10.6, 1.9), (8.5, 2.8), (5.5, 3.2), (-6.0, 3.2), (-8.5, 2.9)]
 
 
+# The trollface art's silhouette (its alpha, troll-greencandles/character/
+# trollface_operator_trollface transparent.png): the radius to its edge every
+# 360/64 degrees round its centre, counter-clockwise from the art's right, y
+# up, the longest 1 (the jaw, down to the left)
+TROLL_OUTLINE = [0.957, 0.99, 0.988, 0.955, 0.915, 0.895, 0.9, 0.909, 0.908, 0.889, 0.847, 0.8, 0.765, 0.74, 0.722, 0.712,
+                 0.708, 0.709, 0.714, 0.724, 0.739, 0.76, 0.782, 0.806, 0.831, 0.846, 0.842, 0.851, 0.882, 0.886, 0.867, 0.838,
+                 0.802, 0.776, 0.771, 0.788, 0.823, 0.873, 0.934, 0.984, 1.0, 0.984, 0.948, 0.9, 0.851, 0.807, 0.771, 0.742,
+                 0.722, 0.709, 0.694, 0.678, 0.669, 0.669, 0.676, 0.69, 0.71, 0.733, 0.76, 0.788, 0.809, 0.826, 0.851, 0.9]
+
+
+def sail_mark(b, m, head, clew, tack_y, band, margin=0.35, height=2.5):
+    """The sail's blue mark (user: "fix the alignment of the blue trollface
+    silhouette that is on the flag of the boat"): the trollface's own
+    silhouette, upright, centred on the cloth between two of the sail's lines
+    (`band`, y) and `margin` in from the luff and the leech (the old blob sat
+    over the leech and ran off the cloth). One each side of the sail, so it
+    reads the right way round from both (the far one mirrored); each sinks
+    into the cloth (+-0.03) and stands 2 cm proud of it."""
+    n = len(TROLL_OUTLINE)
+    pts = [(math.cos(2 * math.pi * k / n) * r, math.sin(2 * math.pi * k / n) * r) for k, r in enumerate(TROLL_OUTLINE)]
+    mx0, mx1 = min(p[0] for p in pts), max(p[0] for p in pts)
+    my0, my1 = min(p[1] for p in pts), max(p[1] for p in pts)
+    luff, lo, hi = head[0], band[0], band[1]
+    yc = (lo + hi) / 2
+    ex, ey = clew[0] - head[0], clew[1] - head[1]
+    el = math.hypot(ex, ey)
+    side = lambda x, y: ((x - head[0]) * ey - (y - head[1]) * ex) / el      # noqa: E731  (distance off the leech)
+    cloth = 1 if side(luff, tack_y) > 0 else -1
+    leech_x = head[0] + ex * (head[1] - yc) / (head[1] - clew[1])
+    xc = (luff + leech_x) / 2
+    s = height / (my1 - my0)
+    while True:
+        out = [(xc + (px - (mx0 + mx1) / 2) * s, yc + (py - (my0 + my1) / 2) * s) for px, py in pts]
+        mirror = [(2 * xc - x, y) for x, y in out][::-1]
+        if all(x <= luff - margin and lo + 0.1 <= y <= hi - 0.1 and side(x, y) * cloth >= margin for x, y in out + mirror):
+            break
+        s *= 0.97
+    print(f"   sail mark: {(mx1 - mx0) * s:.2f} x {(my1 - my0) * s:.2f} m at x {xc:.2f}, y {yc:.2f}")
+    b.prism(m, out, 0.02, 0.05, axis="z")
+    b.prism(m, mirror, -0.05, -0.02, axis="z")
+
+
 def boat_build(b, P, R, origin):
     C = Site(b, P, R, origin, 23)
     C.container = "hull"
@@ -991,12 +1033,9 @@ def boat_build(b, P, R, origin):
     for y in (DK + 8.0, DK + 11.5, DK + 14.5):
         xl = mx - 0.25 - 6.75 * (DK + 16.8 - y) / (DK + 16.8 - boom_y)
         b.bar(P["sail_line"], (mx - 0.3, y, 0), (xl + 0.15, y - 0.05, 0), 0.09, 0.05)
-    blob = []
-    for i in range(12):
-        a = 2 * math.pi * i / 12
-        r = 1.4 * (1 + 0.14 * math.sin(3 * a + 0.7) + rng.uniform(-0.05, 0.05))
-        blob.append((mx - 3.4 + r * 1.1 * math.cos(a), DK + 9.0 + r * 0.85 * math.sin(a)))
-    b.prism(P["logo"], blob, -0.045, 0.045, axis="z")
+    for _ in range(12):
+        rng.uniform(-0.05, 0.05)     # the old blob's draws: the rest of the Boat keeps its random picks
+    sail_mark(b, P["logo"], (mx - 0.25, DK + 16.8), (mx - 7.0, boom_y + 0.2), boom_y + 0.15, (DK + 8.0, DK + 11.5))
     b = C.b
     for (rig, name) in zip((mast, sail, boom), RIG_GLBS):
         rig.finish(name)
