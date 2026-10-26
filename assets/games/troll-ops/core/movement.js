@@ -83,14 +83,21 @@ export function resolveCircle(colliders, pos, radius, feetY, headroom = 2, stepU
     } else if (d2 <= 1e-6) {
       // Centre is inside the box, so there's no push direction to derive —
       // leave by the nearest face instead of always heading +x, which can't
-      // escape a wall that spans that axis.
-      const toMinX = pos.x - c.min.x, toMaxX = c.max.x - pos.x;
-      const toMinZ = pos.z - c.min.z, toMaxZ = c.max.z - pos.z;
-      const m = Math.min(toMinX, toMaxX, toMinZ, toMaxZ);
-      if (m === toMinX) pos.x = c.min.x - radius;
-      else if (m === toMaxX) pos.x = c.max.x + radius;
-      else if (m === toMinZ) pos.z = c.min.z - radius;
-      else pos.z = c.max.z + radius;
+      // escape a wall that spans that axis. A face that opens straight into
+      // the next block of the same run (a flight's steps overhead as you
+      // climb under them, a wall cut into pieces) is no way out: it shoved
+      // you along the run, box after box, sometimes metres. (Only a way out
+      // not much further than the nearest: never a jump across a big box.)
+      const exits = [
+        [pos.x - c.min.x, c.min.x - radius, pos.z],
+        [c.max.x - pos.x, c.max.x + radius, pos.z],
+        [pos.z - c.min.z, pos.x, c.min.z - radius],
+        [c.max.z - pos.z, pos.x, c.max.z + radius],
+      ].sort((a, b) => a[0] - b[0]);
+      const open = exits.find(([m, x, z]) => m <= exits[0][0] + 2 * radius && !colliders.some((o) => o !== c && o.max.y > feetY + stepUp && o.min.y <= feetY + headroom
+        && x > o.min.x && x < o.max.x && z > o.min.z && z < o.max.z)) || exits[0];
+      pos.x = open[1];
+      pos.z = open[2];
     }
   }
 }
@@ -456,15 +463,22 @@ export class MovementController {
     }
 
     // ---- integrate
+    // Standing on a floor, a step is measured from that floor, not from
+    // where this frame's gravity has already pulled the feet (g * dt^2: 6 mm
+    // at 60 fps, 55 mm at the 20 fps a slow frame is clamped to, which took
+    // the 0.36 m step under the 0.31-0.33 m risers of most of Trollface
+    // Island's flights, so they turned into walls whenever the frame rate dipped).
+    const feetFrom = this.pos.y, wasGrounded = this.grounded;
     this.velocity.y -= this.tuning.GRAVITY * dt;
     if (this.glide && input.jump && !this.grounded && this.velocity.y < -GLIDE_FALL) this.velocity.y = -GLIDE_FALL;
     this.pos.x += this.velocity.x * dt;
     this.pos.z += this.velocity.z * dt;
     this.pos.y += this.velocity.y * dt;
+    const feet = wasGrounded ? Math.max(this.pos.y, feetFrom) : this.pos.y;
 
-    this.resolveHorizontal(this.pos, this.pos.y);
+    this.resolveHorizontal(this.pos, feet);
 
-    const support = this.groundHeightAt(this.pos.x, this.pos.z, this.pos.y + STEP_UP);
+    const support = this.groundHeightAt(this.pos.x, this.pos.z, feet + STEP_UP);
     // `justLanded`/`landSpeed` are a one-frame edge the caller reads and the
     // caller is responsible for clearing — GRAVITY-scale falls only, so a
     // stair-step or the tail end of a crouch doesn't also read as a landing.

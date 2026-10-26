@@ -281,6 +281,9 @@ for (const map of maps) {
     // Trollface Island only exists in Troll Royale (buildMap falls back to
     // Grinsite for it elsewhere): Royale with no bots and no drop
     const royale = map === "trollface";
+    // a private room, never the public one
+    T.els.room.value = "MW" + Math.random().toString(36).slice(2, 5).toUpperCase();
+    T.els.room.dispatchEvent(new Event("input"));
     if (royale) { T.DROP.enabled = false; if (T.els.noBots) T.els.noBots.checked = true; }
     T.setMode(royale ? "royale" : "ops"); T.loadout.mapId = map;
     await T.startGame(); if (T.isStaging()) T.endStaging();

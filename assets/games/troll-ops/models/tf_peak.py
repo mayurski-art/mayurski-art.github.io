@@ -450,7 +450,13 @@ def build(b, P, R, origin):
         C.skirt(r0 + 0.5, r1, y0, y1, zmax=zf)
     for (x, z, w, d, h, y) in rocks:
         C.col(x, z, w, d, h, y, 1.5)
-    C.disc_cols(LIP_R, TOP - 0.4, 0.4, strip=1.2)
+    # the top's lip, cut at the last flight's face like the band under it: a
+    # full disc roofed the flight's upper steps 0.4 under the top, and a
+    # climber's head hit it six steps short (only the crag ring is drawn
+    # there); a landing off the flight's top instead
+    lx, lz = FLIGHTS[2][0], FLIGHTS[2][1]
+    C.disc_cols(LIP_R, TOP - 0.4, 0.4, zmax=BANDS[2][4], strip=1.2)
+    C.col(lx + 0.45, lz + 0.05, 0.9, STAIR_W + 0.1, 0.4, TOP - 0.4)
     for (sx, sz, w, d, h, y0) in steps:
         C.col(sx, sz, w, d, h, y0, 0.9)
     # on top: the hut, the flagpole, the bell; the telescope on the west balcony
