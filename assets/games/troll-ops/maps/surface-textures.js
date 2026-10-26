@@ -4,7 +4,7 @@
 // the sets it uses.
 
 import * as THREE from "three";
-import { useWorldEnv } from "../view/environment.js?v=sr1-ss1";
+import { useWorldEnv } from "../view/environment.js?v=sr1-ss1-ss2";
 import { shrinkTexture } from "../view/texture-budget.js?v=pm1";
 
 const TEX_LOADER = new THREE.TextureLoader();

@@ -187,9 +187,9 @@ function updateMeteors(now) {
     if (m.next != null) { m.t0 = now + m.next; m.next = null; }   // the first: once the clock is known
     if (m.dur && now > m.t0 + m.dur) { m.t0 = now + 2 + Math.random() * 5; m.dur = 0; }   // gone: the next in 2-7 s
     if (!m.dur && now >= m.t0) {
-      // a start high in the sky and a way across it, along the dome
+      // a start high in the sky (or where a scene aimed it) and a way across it, along the dome
       const az = Math.random() * Math.PI * 2, el = 0.35 + Math.random() * 0.75;
-      m.a.set(Math.cos(az) * Math.cos(el), Math.sin(el), Math.sin(az) * Math.cos(el));
+      if (m.aim) { m.a.copy(m.aim).normalize(); m.aim = null; } else m.a.set(Math.cos(az) * Math.cos(el), Math.sin(el), Math.sin(az) * Math.cos(el));
       _s.set(Math.random() - 0.5, -0.35 - Math.random() * 0.4, Math.random() - 0.5);
       m.b.copy(_s).addScaledVector(m.a, -_s.dot(m.a)).normalize();   // tangent, heading down-sky
       m.dur = 0.9 + Math.random() * 0.7;
@@ -211,4 +211,17 @@ function updateMeteors(now) {
   });
   pos.needsUpdate = true;
   col.needsUpdate = true;
+}
+
+/* A scene (a cutscene, the island's video) can have the next shooting star
+   start in `dir` (a world direction) `inSecs` from now; a sky without stars
+   has none. */
+export function aimShootingStar(dir, inSecs = 0) {
+  if (!meteors) return false;
+  const m = meteors.list[0];
+  m.aim = new THREE.Vector3(dir.x, dir.y, dir.z);
+  m.next = null;
+  m.dur = 0;
+  m.t0 = performance.now() / 1000 + inSecs;
+  return true;
 }
