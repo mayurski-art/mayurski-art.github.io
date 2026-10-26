@@ -23,7 +23,10 @@ export const ATTACHMENTS = {
               mods: { adsFovMult: { set: 0.74 }, adsTime: { mul: 1.03 } } },
     coyote: { name: "Coyote", desc: "More zoom, a little slower", sight: "reddot",
               mods: { adsFovMult: { set: 0.62 }, adsTime: { mul: 1.09 } } },
-    acog:   { name: "ACOG 4x", desc: "Mid-range glass, slow to raise", sight: "scope",
+    // kickByZoom: the same kick looked ~2.5x bigger through the ACOG than on
+    // the irons (user: "the recoil on the weapons with the acog scope is
+    // too much"); resolveWeapon trims it by the zoom.
+    acog:   { name: "ACOG 4x", desc: "Mid-range glass, slow to raise", sight: "scope", kickByZoom: true,
               mods: { adsFovMult: { set: 0.34 }, adsTime: { mul: 1.24 }, adsMoveMult: { mul: 0.9 } } },
     scope8: { name: "Sniper scope 8x", desc: "Long glass, heavy to swing", sight: "scope",
               mods: { adsFovMult: { set: 0.18 }, adsTime: { mul: 1.5 }, adsMoveMult: { mul: 0.78 } } },
@@ -158,6 +161,10 @@ export function fitLoadout(weaponId, loadout) {
   return out;
 }
 
+/* The viewmodel lens at full ADS: the ACOG's (attachment-models.js
+   buildAcog's adsWeaponFov) and the plain sights' (game.js). */
+const ACOG_VIEW_FOV = 30, IRON_VIEW_FOV = 50;
+
 /* Apply a loadout's attachment mods to a base weapon, returning a new def.
    The base defs are never mutated — WeaponState takes the resolved copy. */
 export function resolveWeapon(weaponId, loadout = DEFAULT_LOADOUT) {
@@ -177,6 +184,13 @@ export function resolveWeapon(weaponId, loadout = DEFAULT_LOADOUT) {
       if (op.set != null) def[field] = op.set;
       else if (op.mul != null) def[field] = cur * op.mul;
       else if (op.add != null) def[field] = cur + op.add;
+    }
+    if (att.kickByZoom) {
+      // The camera's kick, scaled by how much more this glass zooms than the
+      // gun's own sights; the gun's kick by how much narrower its viewmodel
+      // lens is than the irons' (game.js: the optic's adsWeaponFov, else 50).
+      def.adsKickScale = Math.min(1, def.adsFovMult / base.adsFovMult);
+      def.adsGunKickScale = Math.tan((ACOG_VIEW_FOV / 2) * Math.PI / 180) / Math.tan((IRON_VIEW_FOV / 2) * Math.PI / 180);
     }
   }
   def.shake = shakeAmount(def);
