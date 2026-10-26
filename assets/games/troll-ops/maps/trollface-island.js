@@ -1206,8 +1206,9 @@ export const TROLLFACE_ISLAND = {
   fog: { color: 0x0b1330, density: 0.0011 },
   ground: { colorA: 0x6fd490, colorB: 0x5aa84d, grid: 0x74c864 },
   sun: { color: 0xfff1d6, intensity: 2.5, pos: [-60, 90, -40] },
-  hemi: { sky: 0xcfe6ff, ground: 0x4f7a45, intensity: 0.75 },
-  ambient: { color: 0xffffff, intensity: 0.28 },
+  // the sky is in the light maps now (phase 6): the hemisphere at about half
+  hemi: { sky: 0xcfe6ff, ground: 0x4f7a45, intensity: 0.4 },
+  ambient: { color: 0xffffff, intensity: 0.28 },   // kept: the rooms the sky can't reach have only this
   // stylised realism (view/grade-pass.js): hard sun in space: cold shade, clean highs
   grade: { shadows: 0x101a40, shadowsAmt: 0.08, highlights: 0xfff0d0, highlightsAmt: 0.05, sat: 1.08, contrast: 1.05 },
   build: buildTrollfaceIsland,
