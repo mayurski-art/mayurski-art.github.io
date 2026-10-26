@@ -24,6 +24,7 @@ const JUMP_SPEED = 7.0;
 const GLIDE_FALL = 2.6;   // m/s: Super Troll's slow fall with jump held
 const RADIUS = 0.35;
 const STEP_UP = 0.36;        // ledges at or below this are walked over, not blocked
+const SUBSTEP = 0.15;        // m: the longest move between two wall checks (well under RADIUS)
 
 const SLIDE_BOOST = 1.55;    // multiplier on entry speed
 const SLIDE_TIME = 0.85;
@@ -471,12 +472,21 @@ export class MovementController {
     const feetFrom = this.pos.y, wasGrounded = this.grounded;
     this.velocity.y -= this.tuning.GRAVITY * dt;
     if (this.glide && input.jump && !this.grounded && this.velocity.y < -GLIDE_FALL) this.velocity.y = -GLIDE_FALL;
-    this.pos.x += this.velocity.x * dt;
-    this.pos.z += this.velocity.z * dt;
     this.pos.y += this.velocity.y * dt;
     const feet = wasGrounded ? Math.max(this.pos.y, feetFrom) : this.pos.y;
 
-    this.resolveHorizontal(this.pos, feet);
+    // The move goes in steps of SUBSTEP or less, each pushed out of the
+    // walls: in one jump a sprint (8.8 m/s on Trollface Island) or a slide
+    // or dive (up to ~14 m/s) covers 0.44-0.7 m in a slow frame, enough to
+    // carry the centre past the middle of a thin wall (the Boat's wheelhouse
+    // is 0.12 m), which then pushed it out the far side.
+    const mx = this.velocity.x * dt, mz = this.velocity.z * dt;
+    const steps = Math.max(1, Math.ceil(Math.hypot(mx, mz) / SUBSTEP));
+    for (let i = 0; i < steps; i++) {
+      this.pos.x += mx / steps;
+      this.pos.z += mz / steps;
+      this.resolveHorizontal(this.pos, feet);
+    }
 
     const support = this.groundHeightAt(this.pos.x, this.pos.z, feet + STEP_UP);
     // `justLanded`/`landSpeed` are a one-frame edge the caller reads and the
