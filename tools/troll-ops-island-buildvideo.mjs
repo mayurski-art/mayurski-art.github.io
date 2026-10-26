@@ -1,7 +1,8 @@
 // Trollface Island's build video (user, 2026-10-25: "i want the timelapse to
 // look like the place was being upgraded in real time but fast forward. And
 // showing various angles close up and far sighted. The entire video so all
-// phases combined should be 40 seconds long"; "i dont want to see any texts
+// phases combined should be 40 seconds long", then 2026-10-26: "make it a 1
+// minute video actually", better angles, no hand-drawn grins); "i dont want to see any texts
 // in the video" other than the phase number and its goal, at the bottom of
 // the frame, in the font of the game's place titles, Georgia).
 //
@@ -46,25 +47,66 @@ const OUT = opt("--out", path.join(MAIN, ".claude/island-timelapse/island-build.
 // the wide shot's centre, radius and height. Phase 0 (the builder) changed
 // nothing on screen.
 const STATES = [
-  { sha: "21ff7ed8", caption: null, secs: 2.5, wide: [0, 0, 290, 175] },
-  { sha: "47d672e1", caption: "Phase 1: Troll City and Troll Peak", secs: 6, rise: ["city", "peak"], hero: "city", wide: [10, -65, 150, 95] },
-  { sha: "e35870b8", caption: "Phase 2: the Skate Bowl and the Portal", secs: 6, rise: ["skate", "portal"], hero: "skate", wide: [125, -80, 120, 80] },
-  { sha: "88efa3cb", caption: "Phase 3: the lake places and the roads", secs: 6, rise: ["cave", "dock", "tree", "boat", "bridge"], fade: ["roads", "coast"], hero: "boat", wide: [20, 0, 210, 140] },
-  { sha: "bd8e7612", caption: "Phase 4: the five mid places", secs: 6, rise: ["shop", "memelab", "gallery", "observatory", "market"], hero: "market", wide: [20, 10, 230, 150] },
-  { sha: opt("--p5", "HEAD"), caption: "Phase 5: the five new places", secs: 6, rise: ["ranch", "lodge", "light", "plant", "gas"], hero: "ranch", wide: [0, 0, 270, 170] },
-  { sha: opt("--p6", "HEAD"), caption: "Phase 6: the light bake", secs: 3.5, bake: true, wide: [0, 0, 250, 150] },
-  { sha: opt("--p7", "HEAD"), caption: "Phase 7: ready to ship", secs: 4, orbit: true, wide: [0, 0, 230, 120] },
+  { sha: "21ff7ed8", caption: "Phase 0: the bare island",
+    sub: "The ground, the lake and the coastline, and the Blender pipeline\nthat builds every place from here on.",
+    secs: 3, wide: [0, 0, 290, 175], moves: [{ p: [60, 360, 420], t: [20, 0, 0], fov: 44 }, { p: [35, 175, 235], t: [20, 0, -5], fov: 46 }] },
+  { sha: "47d672e1", caption: "Phase 1: Troll City and Troll Peak",
+    sub: "The island's first two places go up: Troll City round its fountain plaza and blue tower,\nand Troll Peak, the island's high point, with its hut on the summit.",
+    secs: 9, rise: ["city", "peak"], hero: "city", azA: 0.55, azB: 0.35, wide: [10, -65, 150, 95] },
+  { sha: "e35870b8", caption: "Phase 2: the Skate Bowl and the Portal",
+    sub: "The east side fills in: the Skate Bowl's ramps and floor,\nand the Portal standing beside it.",
+    secs: 9, rise: ["skate", "portal"], hero: "skate", azA: -1.25, azB: -1.0, wide: [125, -80, 120, 80] },
+  { sha: "88efa3cb", caption: "Phase 3: the lake, its five places and the roads",
+    sub: "The Cave, the Dock, Old Tree, the Bridge and the Boat go up round the lake;\nroads now join every place, and the coast closes the island.",
+    secs: 9, rise: ["cave", "dock", "tree", "boat", "bridge"], fade: ["roads", "coast"], hero: "boat", azA: -0.75, azB: -0.85, wide: [20, 0, 210, 140] },
+  { sha: "bd8e7612", caption: "Phase 4: the Shop, Marketplace, Gallery, Meme Lab and Observatory",
+    sub: "Five places fill the middle of the island: more buildings to loot,\nmore cover to fight from, and somewhere at the end of every road.",
+    secs: 9, rise: ["shop", "memelab", "gallery", "observatory", "market"], hero: "market", azA: 1.9, azB: -2.3, wide: [20, 10, 230, 150] },
+  { sha: opt("--p5", "HEAD"), caption: "Phase 5: Rage Ranch, Lulz Lodge, Lighthouse Point, Problem Plant, Grin Gas",
+    sub: "Five new places out by the coast: the island's 19 places are all in,\nwith their loot and the zone's phases re-laid round them.",
+    secs: 9, rise: ["ranch", "lodge", "light", "plant", "gas"], hero: "ranch", azA: -2.6, azB: 0.9, wide: [0, 0, 270, 170] },
+  { sha: opt("--p6", "HEAD"), caption: "Phase 6: sunlight and shadows baked in",
+    sub: "Light maps bake the sun, the sky and the bounced light into every place:\nbrighter outside, darker indoors, and no slower to run.",
+    secs: 5, bake: true, wide: [0, 0, 250, 150], moves: [{ p: [-45, 22, 112], t: [-30, 12, -70], fov: 52 }, { p: [22, 28, 106], t: [0, 14, -75], fov: 52 }] },
+  { sha: opt("--p7", "HEAD"), caption: "Phase 7: the Boat sets sail, ready to ship",
+    sub: "The Boat sails round the whole lake under arched boardwalks, with you aboard;\nthe flickering roads and fountains are fixed, and every test passes.",
+    secs: 7, orbit: { c: [45, 25], r: 150, a: [2.3, 3.25], h: [72, 52], t: [35, 0, 5] }, wide: [0, 0, 230, 120] },
 ];
-// where the close shot looks: the hero place's centre and the camera's offset from it
-const HERO = {
-  city: { at: [-36.3, 8, -86.9], from: [30, 22, 38] },
-  skate: { at: [131.7, 2, -61.5], from: [-34, 16, 30] },
-  boat: { at: [99.9, 3, 16.3], from: [-26, 10, 24] },
-  market: { at: [145.3, 3, 97.7], from: [-30, 14, -26] },
-  ranch: { at: [-158, 4, -40], from: [26, 16, 30] },
+// the places' centres and rings (models/trollface-island-layout.json): the
+// camera's moves are laid round them
+const PLACES = {
+  memelab: [-127.1, -114, 14], city: [-36.3, -86.9, 40], observatory: [81.7, -99.5, 13], portal: [120.8, -100.6, 19],
+  skate: [131.7, -61.5, 36], peak: [56.8, -43.4, 33], cave: [-9.1, -32.6, 17], dock: [-104.4, -34.4, 7], tree: [-74.5, -46.3, 8],
+  boat: [99.9, 16.3, 9], gallery: [-99, 45.3, 19], shop: [38.6, 77.8, 19], market: [145.3, 97.7, 26], bridge: [-28.6, 77.8, 6],
+  ranch: [-180, -45, 39], lodge: [-145, 5, 31], light: [160, 20, 18], plant: [35, -130, 30], gas: [85, 125, 21],
 };
+const along = (a, d) => [Math.sin(a) * d, Math.cos(a) * d];
+/* The wide shot: a crane that pushes in over the phase's part of the island
+   from azA, the horizon and the sky beyond it. */
+function wideMoves(state) {
+  const ps = (state.rise || []).map((k) => PLACES[k]);
+  const cx = ps.reduce((a, p) => a + p[0], 0) / ps.length, cz = ps.reduce((a, p) => a + p[1], 0) / ps.length;
+  const R = Math.max(...ps.map((p) => Math.hypot(p[0] - cx, p[1] - cz) + p[2])) + 25;
+  const [sx, sz] = along(state.azA, R * 1.3), [ex, ez] = along(state.azA + 0.38, R * 0.92);
+  return [{ p: [cx + sx, R * 0.55, cz + sz], t: [cx, 0, cz], fov: 50 }, { p: [cx + ex, R * 0.33, cz + ez], t: [cx, 4, cz], fov: 50 }];
+}
+/* The close shot: a low dolly round the hero place from azB, tilting up as
+   it rises out of the ground (`top`: how tall it stands). */
+function heroMoves(state, top) {
+  const [x, z, r] = PLACES[state.hero];
+  // turned on from azB till neither end stands in another place's ring
+  const clear = (px, pz) => Object.entries(PLACES).every(([k, [qx, qz, qr]]) => k === state.hero || Math.hypot(px - qx, pz - qz) > qr + 8);
+  let az = state.azB;
+  for (let k = 0; k < 24; k++, az += 0.26) {
+    const [sx, sz] = along(az, r * 1.55 + 12), [ex, ez] = along(az + 0.6, r * 1.45 + 12);
+    if (k < 23 && !(clear(x + sx, z + sz) && clear(x + ex, z + ez))) continue;
+    return [{ p: [x + sx, 10, z + sz], t: [x, top * 0.2, z], fov: 58 }, { p: [x + ex, 12 + top * 0.3, z + ez], t: [x, top * 0.5, z], fov: 54 }];
+  }
+}
+const mix = (a, b, u) => a + (b - a) * u;
+const camAt = ([m0, m1], u) => [...m0.p.map((v, i) => mix(v, m1.p[i], u)), ...m0.t.map((v, i) => mix(v, m1.t[i], u)), mix(m0.fov, m1.fov, u)];
 const total = STATES.reduce((s, st) => s + st.secs, 0);
-if (Math.abs(total - 40) > 0.01) throw new Error(`the states add up to ${total} s, not 40`);
+if (Math.abs(total - 60) > 0.01) throw new Error(`the states add up to ${total} s, not 60`);   // (user, 2026-10-26: a minute)
 
 // ---- git as a file server: `git cat-file --batch`, one request at a time
 class GitFiles {
@@ -133,6 +175,20 @@ async function film(state, index, files, frames0) {
   const groups = await page.evaluate(async (state) => {
     const T = window.__trollOps, THREE = await import("three");
     T.renderer.localClippingEnabled = true;
+    // (the old commits' hand-drawn grin: the user had it removed from the game,
+    // so it is out of the video too. Its plaza decals go; the Peak hut's window
+    // and the blue tower's mosaic get the real trollface art, as now)
+    const art = new THREE.TextureLoader().load("/assets/images/wallpaper/trollface%20transparent.png");
+    art.colorSpace = THREE.SRGBColorSpace;
+    T.scene.traverse((o) => {
+      const m = o.isMesh && o.material;
+      if (!m?.isMeshBasicMaterial || !m.map?.isCanvasTexture || m.map.image?.width !== 256 || Math.abs(m.opacity - 0.85) > 1e-3) return;
+      const g = o.geometry, pos = g.attributes.position, idx = g.index ? [...g.index.array] : [...Array(pos.count).keys()];
+      const keep = [];
+      for (let i = 0; i < idx.length; i += 3) if (![0, 1, 2].every((j) => pos.getY(idx[i + j]) < 0.3)) keep.push(idx[i], idx[i + 1], idx[i + 2]);
+      g.setIndex(keep);
+      o.material = new THREE.MeshBasicMaterial({ map: art, transparent: true, depthWrite: false, side: m.side });
+    });
     const placeOf = (name) => {
       if (name === "hg-trollbust") return "gallery";
       const m = /^tf-([a-z]+?)(face)?(-p\d)?$/.exec(name || "");
@@ -181,20 +237,13 @@ async function film(state, index, files, frames0) {
   for (let f = 0; f < n; f++) {
     const t = f / n;
     let cam;
-    const [wx, wz, wr, wh] = state.wide;
-    if (f < nA || !state.hero) {
-      // the wide shot: a slow arc round the phase's part of the island
-      const u = f / (state.hero ? nA : n);
-      const a = 0.9 + index * 0.7 + u * (state.orbit ? 1.1 : 0.45);
-      cam = [wx + Math.sin(a) * wr, wh - u * 12, wz + Math.cos(a) * wr, wx, 0, wz, 46];
-    } else {
-      // the close fly-by: past the hero place, low, turning round it
-      const h = HERO[state.hero], u = (f - nA) / (n - nA);
-      const a = (u - 0.5) * 0.7;
-      const [ox, oy, oz] = h.from;
-      const c = Math.cos(a), s = Math.sin(a);
-      cam = [h.at[0] + ox * c + oz * s, h.at[1] + oy - u * 4, h.at[2] - ox * s + oz * c, h.at[0], h.at[1], h.at[2], 55];
-    }
+    if (state.orbit) {
+      // the finale: round the lake, coming down, the Boat sailing
+      const o = state.orbit, u = ease(f / n) * 0.85 + (f / n) * 0.15, a = mix(o.a[0], o.a[1], u);
+      cam = [o.c[0] + Math.sin(a) * o.r, mix(o.h[0], o.h[1], u), o.c[1] + Math.cos(a) * o.r, ...o.t, 48];
+    } else if (state.moves) cam = camAt(state.moves, ease(f / n));
+    else if (f < nA || !state.hero) cam = camAt(wideMoves(state), ease(f / nA));
+    else cam = camAt(heroMoves(state, Math.max(4, groups[state.hero]?.[1] || 10)), ease((f - nA) / (n - nA)));
     const levels = {};
     for (const [k, [lo, hi]] of Object.entries(groups)) {
       const [f0, f1] = plan[k] || [0, 1];
@@ -248,14 +297,21 @@ for (let i = 0; i < STATES.length; i++) {
 }
 files.close();
 if (only != null) { console.log(`state ${only} filmed (frames in ${DIR}); run without --only for the video`); process.exit(0); }
-// the captions: each phase's, faded in and out, at the bottom, in Georgia, on a
-// dark box so they read over the busy island
+// the captions: each phase's title and, under it, its subheader (what it built
+// and improved, user, 2026-10-26), faded in and out, at the bottom, in Georgia,
+// on dark boxes so they read over the busy island
+const SUB_TOP = 150;     // px from the bottom to the subheader's two lines
 const esc = (s) => s.replace(/\\/g, "\\\\").replace(/'/g, "\u2019").replace(/:/g, "\\:");
 const draws = STATES.map((st, i) => {
   if (!st.caption) return null;
   const t0 = marks[i][0] / FPS, t1 = (marks[i][0] + marks[i][1]) / FPS;
   const alpha = `if(lt(t,${t0 + 0.35}),(t-${t0})/0.35,if(gt(t,${t1 - 0.35}),(${t1}-t)/0.35,1))`;
-  return `drawtext=fontfile='${FONT.replace(/:/g, "\\:")}':text='${esc(st.caption)}':fontcolor=0xfff4e2:fontsize=58:shadowcolor=black@0.55:shadowx=0:shadowy=3:box=1:boxcolor=black@0.4:boxborderw=22:x=(w-text_w)/2:y=h-text_h-72:enable='between(t,${t0},${t1})':alpha='${alpha}'`;
+  const font = `fontfile='${FONT.replace(/:/g, "\\:")}'`;
+  const on = `shadowcolor=black@0.55:shadowx=0:shadowy=2:box=1:boxcolor=black@0.4:enable='between(t,${t0},${t1})':alpha='${alpha}'`;
+  return [
+    `drawtext=${font}:text='${esc(st.caption)}':fontcolor=0xfff4e2:fontsize=50:boxborderw=18:${on}:x=(w-text_w)/2:y=h-${SUB_TOP + 46}-text_h`,
+    `drawtext=${font}:text='${esc(st.sub)}':fontcolor=0xe8dcc8:fontsize=31:line_spacing=10:text_align=C:boxborderw=14:${on}:x=(w-text_w)/2:y=h-${SUB_TOP}`,
+  ].join(",");
 }).filter(Boolean).join(",");
 execFileSync(FFMPEG, ["-loglevel", "error", "-y", "-framerate", String(FPS), "-i", path.join(DIR, "%05d.jpg"),
   "-vf", `${draws},format=yuv420p`, "-c:v", "libx264", "-crf", "24", "-preset", "slow", "-movflags", "+faststart", OUT]);
