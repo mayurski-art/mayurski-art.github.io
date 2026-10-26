@@ -745,44 +745,30 @@ function buildTrollfaceIsland(mapApi) {
     mapModel(api, "tf-observatory", { x, z });
   }
 
-  // The Portal: the stone gateway on a sandy rock plateau. Drawn by
-  // tf-portal; the green door is a canvas.
+  // The Portal: the sandy rock with the lab bunker inside it (a blast door
+  // in its west face), the stone arch on its dais with the trollface carved
+  // over the door. Drawn by tf-portal-p2 and tf-portalface (models/tf_portal.py),
+  // its colliders the build's; the green door is a canvas where the build
+  // put it (TF_BUILT.portal.door: centre x, y, z, width, height).
   {
     const { x, z } = L.portal;
-    K.box(x, z, 26, 20, 2.31, null);
-    K.stairs(x - 4, z + 10, 0, 1, 0, 2.31, 4, null);
-    K.stairs(x - 13, z + 4, -1, 0, 0, 2.31, 4, null);
-    K.box(x + 2, z - 5, 12, 7, 4.62, null, { y: 0 });
-    K.stairs(x + 2, z - 1.5, 0, 1, 2.31, 4.62, 3.4, null);
-    K.box(x - 1.5, z - 5, 1, 1, 8, null, { y: 4.62 });
-    K.box(x + 5.5, z - 5, 1, 1, 8, null, { y: 4.62 });
-    K.box(x + 2, z - 5, 8, 1, 1, null, { y: 12.62 });
-    const door = new THREE.PlaneGeometry(6, 8);
-    door.translate(x + 2, 4.62 + 4, z - 5);
+    built("portal");
+    const [dx, dy, dz, dw, dh] = TF_BUILT.portal.door;
+    const door = new THREE.PlaneGeometry(dw, dh);
+    door.translate(dx, dy, dz);
     K.add(door, new THREE.MeshBasicMaterial({ map: portalDoorTexture(), side: THREE.DoubleSide }));
-    for (const [dx, dz, s] of [[-10, -7, 2.2], [9, 6, 1.8], [11, -8, 2.6], [-7, 7, 1.5]]) {
-      api.ghostBox(x + dx, z + dz, s * 1.6, s * 1.6, s * 1.2, { y: 2.31, pen: 6 });
-    }
-    mapModel(api, "tf-portal", { x, z });
+    mapModel(api, "tf-portal-p2", { x, z });
+    mapModel(api, "tf-portalface", { x, z });
   }
 
-  // Skate Bowl: a walled concrete park, ramps, rails and ledges inside, a
-  // little stand on the north rim. Drawn by tf-skate.
+  // Skate Bowl: the walled park with the big and the small bowl, the
+  // half-pipe, the quarter pipe, the funbox, rails and ledges, the snack
+  // shack on the north rim. Drawn by tf-skate-p2 (models/tf_skate.py), its
+  // colliders the build's.
   {
     const { x, z } = L.skate;
-    K.room(x, z, 60, 36, 1.1, null, [["s", -12, 6], ["w", 4, 6], ["e", 0, 6], ["n", 16, 5]]);
-    // Two funboxes: stairs up both ends of a raised deck.
-    for (const [dx, dz] of [[-14, -4], [12, 6]]) {
-      K.box(x + dx, z + dz, 10, 5, 1.65, null);
-      K.stairs(x + dx - 5, z + dz, -1, 0, 0, 1.65, 5, null);
-      K.stairs(x + dx + 5, z + dz, 1, 0, 0, 1.65, 5, null);
-    }
-    K.box(x + 2, z - 8, 12, 0.4, 0.7, null);                                 // rails
-    K.box(x - 4, z + 10, 10, 0.4, 0.7, null);
-    K.box(x + 20, z - 8, 6, 3, 1, null);                                     // ledges
-    K.box(x - 22, z + 9, 3, 7, 1, null);
-    for (let t = 0; t < 3; t++) K.box(x - 6, z - 19.5 - t * 1.4, 26, 1.4, 0.66 * (t + 1), null);
-    mapModel(api, "tf-skate", { x, z });
+    built("skate");
+    mapModel(api, "tf-skate-p2", { x, z });
   }
 
   // Troll Peak: a terraced purple mountain, stairs round it from terrace to
@@ -1060,7 +1046,7 @@ function dressIsland(api, root, K, M, r, clear) {
   const grinMat = new THREE.MeshBasicMaterial({ map: grinTexture(), transparent: true, depthWrite: false, opacity: 0.85,
     polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const grins = [];
-  for (const [l, dx, dz, s] of [[L.city, 14, 12, 7], [L.skate, -18, 10, 6], [L.gallery, 8, -9, 5], [L.shop, -12, 6, 5]]) {
+  for (const [l, dx, dz, s] of [[L.city, 14, 12, 7], [L.skate, -7.5, 0.5, 6], [L.gallery, 8, -9, 5], [L.shop, -12, 6, 5]]) {
     const g = new THREE.PlaneGeometry(s, s);
     g.rotateX(-Math.PI / 2);
     g.rotateY(r() * 6);
@@ -1120,6 +1106,8 @@ export const TROLLFACE_ISLAND = {
     // Where the loot gathers, and the extra spots up on decks (ROYALE-ISLAND.md).
     pois: Object.values(LANDMARKS),
     lootExtra: LOOT_EXTRA,
+    // the rebuilt places' doorways: no chest or floor loot stands in one
+    keepClear: Object.values(TF_BUILT).flatMap((p) => p.clear || []),
     phases: [
       // ~14 min to the last circle (user, 2026-10-18: a solo match against
       // 99 bots done inside 15 minutes, the killing gradual)

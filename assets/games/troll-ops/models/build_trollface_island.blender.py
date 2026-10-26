@@ -45,11 +45,13 @@ import bpy  # noqa: E402
 import tf_kit  # noqa: E402
 import tf_city  # noqa: E402
 import tf_peak  # noqa: E402
+import tf_portal  # noqa: E402
+import tf_skate  # noqa: E402
 
-BUILT = ("city", "peak")        # the places a tf_<area>.py module draws (their colliders are the build's)
+BUILT = ("city", "peak", "skate", "portal")        # the places a tf_<area>.py module draws (their colliders are the build's)
 # a rebuilt place's GLB gets a new name (the asset service worker re-checks
 # art daily: an old name would reach returning players a visit late)
-GLB_NAME = {"city": "tf-city-p1", "peak": "tf-peak-p1"}
+GLB_NAME = {"city": "tf-city-p1", "peak": "tf-peak-p1", "skate": "tf-skate-p2", "portal": "tf-portal-p2"}
 
 LAYOUT = json.load(open(os.path.join(HERE, "trollface-island-layout.json")))
 
@@ -65,21 +67,22 @@ def origins():
     o["dock"] = (P(27, 0)[0], 0.0, P(0, 36)[1])                    # the jetty's shore end
     o["bridge"] = ((P(37.6, 0)[0] + P(49.9, 0)[0]) / 2, 0.0, L["bridge"]["z"])   # the deck's middle
     o["cityface"] = o["city"]
+    o["portalface"] = o["portal"]
     return o
 
 
 # Faces drawn by the map's code that must stay in view (rule 9): the Shop's
-# neon sign, the Portal's door, the Meme Lab's swirl (maps/trollface-island.js).
+# neon sign and the Meme Lab's swirl (maps/trollface-island.js; the Portal's
+# door is registered by tf_portal.py, which places it).
 # Each is owned by the landmark it sits in, whose own frame (the gate's
 # coils round the door, the ring round the swirl) is not an obstruction.
 def code_faces():
     L = LAYOUT["places"]
-    s, p, m = L["shop"], L["portal"], L["memelab"]
+    s, m = L["shop"], L["memelab"]
     import math
     sw = (math.sin(-0.6), 0.0, math.cos(-0.6))          # the swirl's CircleGeometry turned -0.6 about y
     return [
         {"id": "shop-neon", "owner": "landmark:shop", "c": [s["x"], 8.1, s["z"] + 7.6], "n": [0, 0, 1], "u": [1, 0, 0], "w": 13.6, "h": 5.4},
-        {"id": "portal-door", "owner": "landmark:portal", "c": [p["x"] + 2, 8.62, p["z"] - 5], "n": [0, 0, 1], "u": [1, 0, 0], "w": 6.0, "h": 8.0},
         {"id": "memelab-swirl", "owner": "landmark:memelab", "c": [m["x"] - 2, 8.02, m["z"] - 1], "n": [round(sw[0], 4), 0, round(sw[2], 4)],
          "u": [round(-sw[2], 4), 0, round(sw[0], 4)], "w": 10.6, "h": 10.6},
     ]
@@ -105,6 +108,22 @@ def check_layout_fresh():
     print("Trollface Island layout", LAYOUT["hash"], len(LAYOUT["colliders"]), "colliders,", len(LAYOUT["places"]), "places")
 
 
+def door_clear(faces):
+    """Royale's keep-clear rects ([x0, z0, x1, z1], map metres) for a place's
+    doorways: 3 m out in front of each door face and 2 m in behind it, half a
+    metre wider than the door each side; no chest or floor loot lands there."""
+    out = []
+    for f in faces:
+        if not (f["id"].startswith("door:") or f["id"].endswith("-door")):
+            continue
+        (cx, _, cz), (nx, _, nz), (ux, _, uz) = f["c"], f["n"], f["u"]
+        hw = f["w"] / 2 + 0.5
+        pts = [(cx + ux * a + nx * d, cz + uz * a + nz * d) for a in (-hw, hw) for d in (-2.0, 3.0)]
+        out.append([round(min(p[0] for p in pts), 2), round(min(p[1] for p in pts), 2),
+                    round(max(p[0] for p in pts), 2), round(max(p[1] for p in pts), 2)])
+    return out
+
+
 def write_built(built):
     """maps/trollface-island-built.js: what the map lays for a rebuilt place
     besides its GLB: its colliders [x, z, w, d, h, y, pen], its deck loot
@@ -115,7 +134,8 @@ def write_built(built):
     out = ["// Written by models/build_trollface_island.blender.py: what the map lays for",
            "// a place its tf_<area>.py module rebuilt, besides its GLB. Colliders are",
            "// [x, z, w, d, h, y, pen] in map metres (they replace the map's old code for",
-           "// that place), loot the deck spots up on floors and roofs, signs the boards",
+           "// that place), loot the deck spots up on floors and roofs, clear the rects",
+           "// in front of doors Royale keeps chests and floor loot out of, signs the boards",
            "// trollface-island-signs.js letters. Don't edit by hand.",
            "export const TF_BUILT = {"]
     for k, v in built.items():
@@ -124,11 +144,13 @@ def write_built(built):
         out.append(("," + NL).join("      [" + ",".join(f"{x:g}" for x in c) + "]" for c in v["colliders"]) + ",")
         out.append("    ],")
         out.append("    loot: [" + ", ".join(json.dumps(s, separators=(",", ":")) for s in v["loot"]) + "],")
+        out.append("    clear: [" + ", ".join(json.dumps(r, separators=(",", ":")) for r in v["clear"]) + "],")
         out.append("    signs: [")
         out.append(("," + NL).join("      " + json.dumps(s, separators=(",", ":")) for s in v["signs"]) + ("," if v["signs"] else ""))
         out.append("    ],")
-        if "window" in v:
-            out.append(f"    window: {json.dumps(v['window'])},")
+        for key in ("window", "door"):
+            if key in v:
+                out.append(f"    {key}: {json.dumps(v[key])},")
         out.append("  },")
     out.append("};")
     with open(path, "w", newline=NL) as f:
@@ -137,7 +159,7 @@ def write_built(built):
 
 
 LANDMARKS = ["city", "cityface", "peak", "gallery", "shop",
-             "memelab", "observatory", "portal", "skate", "cave", "dock", "tree", "boat", "market", "bridge"]
+             "memelab", "observatory", "portal", "portalface", "skate", "cave", "dock", "tree", "boat", "market", "bridge"]
 
 
 def main():
@@ -164,17 +186,21 @@ def main():
     def modern(k, mod):
         P = dict(Pal)
         P.update(mod.palette())
-        n0 = len(R.colliders)
+        n0, f0 = len(R.colliders), len(R.faces)
         extra = mod.build(tf_kit.TFBuilder(), P, R, (O[k][0], O[k][2]))
-        built[k] = {"colliders": R.colliders[n0:], "loot": list(mod.LOOT), "signs": list(mod.SIGNS)}
+        built[k] = {"colliders": R.colliders[n0:], "loot": list(mod.LOOT), "signs": list(mod.SIGNS),
+                    "clear": door_clear(R.faces[f0:])}
         if k == "peak":
             built[k]["window"] = [round(v, 2) for v in extra]
+        if k == "portal":
+            built[k]["door"] = extra["door"]
 
     builders = {
         "city": lambda: modern("city", tf_city), "cityface": lambda: OLD.build_city_face(Pal), "peak": lambda: modern("peak", tf_peak),
         "gallery": lambda: OLD.build_gallery(Pal), "shop": lambda: OLD.build_shop(Pal),
-        "memelab": lambda: OLD.build_memelab(Pal), "observatory": lambda: OLD.build_observatory(Pal), "portal": lambda: OLD.build_portal(Pal),
-        "skate": lambda: OLD.build_skate(Pal), "cave": lambda: OLD.build_cave(Pal), "dock": lambda: OLD.build_dock(Pal),
+        "memelab": lambda: OLD.build_memelab(Pal), "observatory": lambda: OLD.build_observatory(Pal), "portal": lambda: modern("portal", tf_portal),
+        "portalface": lambda: tf_portal.portal_face(OLD.GLB, Pal),
+        "skate": lambda: modern("skate", tf_skate), "cave": lambda: OLD.build_cave(Pal), "dock": lambda: OLD.build_dock(Pal),
         "tree": lambda: OLD.build_tree(Pal), "boat": lambda: OLD.build_boat(Pal), "market": lambda: OLD.build_market(Pal),
         "bridge": lambda: OLD.build_bridge(Pal),
     }
@@ -192,7 +218,7 @@ def main():
         # the model sits inside its place's ring (the contract: each
         # landmark's model stays inside its ring), with the two whose origin
         # is off-centre measured from the place
-        place = LAYOUT["places"]["city" if k == "cityface" else k]
+        place = LAYOUT["places"][{"cityface": "city", "portalface": "portal"}.get(k, k)]
         r_in = max(abs(lo[0] + ox - place["x"]), abs(hi[0] + ox - place["x"]), abs(lo[2] + oz - place["z"]), abs(hi[2] + oz - place["z"]))
         if r_in > place["r"] + 2.5:
             print(f"   NOTE {k}: model reaches {r_in:.1f} m from the place's centre, ring {place['r']} m")

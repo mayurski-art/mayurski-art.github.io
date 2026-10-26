@@ -61,6 +61,10 @@ const info = await page.evaluate(async () => {
     wet: cs.filter((c) => !insidePolygon(map.edge, c.x, c.z) || insidePolygon(map.wade, c.x, c.z)).length,
     hotEmpty: hot.filter(([p]) => !cs.some((c) => Math.hypot(c.x - p.x, c.z - p.z) < p.r + 3)).map(([p]) => p.name),
     open: cs.filter((c) => c.open).length,
+    // the doorways the map keeps clear (map.royale.keepClear): no chest spot, no floor loot
+    clear: (map.royale.keepClear || []).length,
+    inDoor: (map._chestSpots || []).concat([...r.loot.items.values()].filter((it) => (it.y ?? it.mesh?.position.y ?? 0) < 0.2))
+      .filter((p) => (map.royale.keepClear || []).some(([a, b, c, d]) => p.x >= a && p.x <= c && p.z >= b && p.z <= d)).length,
   };
 });
 check("Troll Royale on Trollface Island", info.map === "trollface", info.map);
@@ -69,6 +73,7 @@ check("about 60 chests this match", info.n >= 45 && info.n <= 75, `${info.n}`);
 check("every hot place has a chest", info.hotEmpty.length === 0, info.hotEmpty.join(", "));
 check("no chest in the sea or the lake", info.wet === 0, `${info.wet}`);
 check("floor loot thinned by about a quarter", info.loot >= 190 && info.loot <= 260, `${info.loot} items`);
+check("no chest or floor loot in a doorway", info.clear >= 11 && info.inDoor === 0, `${info.inDoor} in ${info.clear} doorways`);
 check("every chest starts shut", info.open === 0, `${info.open} open`);
 
 // Nobody shoots, bots stand still: this part is about us.

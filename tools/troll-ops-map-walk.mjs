@@ -186,7 +186,7 @@ const RUNS = {
   [60, 0, -14, 1, 0, 4, "coaster: along the walkway behind the stalls", (r) => r.end[0] > 70],
   ],
   // Trollface Island (trollface-island.js). Landmark centres: peak (56.8, -43.4),
-  // cave (-9.1, -32.6), portal (120.8, -100.6), bridge z 77.8 from x -56.3 to
+  // cave (-9.1, -32.6), portal (120.8, -100.6), skate (131.7, -61.5), bridge z 77.8 from x -56.3 to
   // -0.5, boat (99.9, 16.3), gallery (-99, 45.3), shop (38.6, 77.8).
   trollface: [  [56.8, 0, -12, 0, -1, 4, "peak: up to the first terrace", (r) => r.maxY >= 4.5],
   [77.6, 4.7, -43.4, -1, 0, 4, "peak: first terrace -> second", (r) => r.maxY >= 8.4],
@@ -196,7 +196,13 @@ const RUNS = {
   [50.3, 24.1, -38.4, 1, 0, 6, "peak: west balcony -> the hut", (r) => r.maxY >= 29.9],
   [-9.1, 0, -16, 0, -1, 7, "cave: through the tunnel", (r) => r.end[2] < -45],
   [116.8, 0, -85.8, 0, -1, 4, "portal: up onto the plateau", (r) => r.maxY >= 2.2],
-  [122.8, 2.4, -95, 0, -1, 3, "portal: up to the door", (r) => r.maxY >= 4.5],
+  [122.8, 3.0, -99.0, 0, -1, 4, "portal: up the dais to the door", (r) => r.maxY >= 4.4],
+  [101.8, 0, -98.4, 1, 0, 8, "portal: in through the blast door", (r) => r.end[0] > 110],
+  [100.8, 0, -102.1, 1, 0, 6, "portal: up the west flight", (r) => r.maxY >= 2.9],
+  [124.7, 0, -65.5, 1, 0, 30, "skate: over the big bowl and out", (r) => r.end[0] > 153 && r.maxY >= 1.7],
+  [128.7, 0, -50.5, 1, 0, 30, "skate: along the half-pipe, deck to deck", (r) => r.end[0] > 156 && r.maxY >= 2.3],
+  [125.7, 0, -53.5, -1, 0, 14, "skate: through the small bowl", (r) => r.end[0] < 113 && r.maxY >= 1.1],
+  [157.7, 0, -85.1, -1, 0, 6, "skate: in the snack shack's door", (r) => r.end[0] < 152],
   [-61, 0, 77.8, 1, 0, 15, "bridge: across the river, dry", (r) => r.end[0] > 0],
   [85, 0, 16.3, 1, 0, 5, "boat: up onto the deck", (r) => r.maxY >= 1.2],
   [-99, 0, 64, 0, -1, 4, "gallery: in the south door", (r) => r.end[2] < 56],
