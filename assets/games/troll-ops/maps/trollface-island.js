@@ -31,6 +31,7 @@ import { buildIslandSigns } from "./trollface-island-signs.js?v=tfs1-tfp1";
 import { buildIslandProps } from "./island-props.js?v=ip1-mg1-tx1-sp1-kbt1-pm1-ss1";
 import { sampleField } from "../core/ground-field.js?v=gf1-tg1";
 import { Boat, BOAT_ARCHES } from "./trollface-boat.js?v=tfb1-tfb8-ss1";
+import { animateIslandModel } from "./trollface-anim.js?v=ta1";
 
 const BOUNDS = { minX: -205, maxX: 205, minZ: -155, maxZ: 155 };
 
@@ -649,7 +650,12 @@ function buildTrollfaceIsland(mapApi) {
   // tools/troll-ops-island-colliders.mjs (islandCollidersFromCode), which
   // turns that into the file; in the game their calls go nowhere.
   const fromCode = !!mapApi.islandCollidersFromCode;
-  const api = fromCode ? mapApi : Object.assign(Object.create(mapApi), { ghostBox() { return null; } });
+  // (every place model goes through trollface-anim.js as it is placed: the
+  // telescope, the blinking beacons and the lit screens move)
+  const api = fromCode ? mapApi : Object.assign(Object.create(mapApi), {
+    ghostBox() { return null; },
+    prop(o) { mapApi.prop(o); animateIslandModel(o); },
+  });
   const root = new THREE.Group();
   api.prop(root);
   const K = new GreyKit(api, root);
