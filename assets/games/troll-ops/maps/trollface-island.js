@@ -655,7 +655,6 @@ function buildTrollfaceIsland(mapApi) {
   const K = new GreyKit(api, root);
   const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.9, ...o });
   const M = {
-    cliff: std(0x3b404b),
     lakebed: std(0xb8a878, { roughness: 1 }),   // sand, under the shallows' see-through water
     falls: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, side: THREE.DoubleSide, depthWrite: false }),
     greyDark: std(0x8b8f98, { roughness: 0.85 }),
@@ -717,11 +716,8 @@ function buildTrollfaceIsland(mapApi) {
       m.needsUpdate = true;
     }
   });
-  const under = new THREE.ConeGeometry(150, 70, 9);
-  under.rotateX(Math.PI);
-  under.scale(1.25, 1, 0.9);
-  under.translate(0, -CLIFF_DEPTH - 35, 0);
-  root.add(new THREE.Mesh(under, M.cliff));
+  // (no rock cone under the island: its flat dark faces stuck out past the
+  // cliffs, user 2026-10-26 "not that dark slab"; the slab's own floor closes it)
 
   const bed = new THREE.ShapeGeometry(shapeOf(ISLAND_LAKE));
   bed.rotateX(-Math.PI / 2);
