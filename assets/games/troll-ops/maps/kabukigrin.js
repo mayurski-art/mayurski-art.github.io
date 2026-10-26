@@ -27,23 +27,23 @@
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { GRINJUKU } from "./grinjuku.js?v=gj1-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3";
+import { GRINJUKU } from "./grinjuku.js?v=gj1-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
 import { KB_LAYOUT } from "./kabukigrin-layout.js?v=kb0-kb1-kb2-kb3-kb5-kb6-kb9-kb10-sp1";
 import { KB_PROPS } from "./kabukigrin-props.js?v=kbp1-kbb2-mn1-kb3";
-import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3";
-import { loadBake } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3";
-import { applyBakedLightMap, applyGroundLightMap, retexture, SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-pm1-ss1-ss2-ss3";
-import { Kit, place, surfMat, texMat } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3";
-import { U, Neon, neonMat, clubFx, cutRects, slatTexture, mosaicTexture } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3";
-import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4-kb6-kb11-tx1-ch1-sp1-hh1-yb1-kbt1-dj2-mn1-gr1-pm1-ss1-ss2-ss3";
-import { wetFloor, hangProbe } from "./wet-floor.js?v=wf1-ss1-ss2-ss3";
+import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
+import { loadBake } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
+import { applyBakedLightMap, applyGroundLightMap, retexture, SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2";
+import { Kit, place, surfMat, texMat } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2";
+import { U, Neon, neonMat, clubFx, cutRects, slatTexture, mosaicTexture } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2";
+import { newState, sign, addLight, danceFloor, djStage, hallCeiling, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4-kb6-kb11-tx1-ch1-sp1-hh1-yb1-kbt1-dj2-mn1-gr1-pm1-ss1-ss2-ss3-tfm2";
+import { wetFloor, hangProbe } from "./wet-floor.js?v=wf1-ss1-ss2-ss3-tfm2";
 import { moneyRain } from "./club-money.js?v=mn1";
-import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5-tx1-ch1-sp1-kbt1-pm1-kco1-ss1-ss2-ss3";
-import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3";
-import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9-tx1-ch1-sp1-kbt1-gb3-rh1-kb3-pm1-ss1-ss2-ss3";
-import { buildStreet, lightParlour, parlourColliders, parlourWall, MACHINES, PARLOUR, PLAY, streetSound } from "./kabukigrin-street.js?v=kb10-kb11-kb12-tx1-ch1-sp1-kbt1-kb3-pm1-ss1-ss2-ss3";
+import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5-tx1-ch1-sp1-kbt1-pm1-kco1-ss1-ss2-ss3-tfm2";
+import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2";
+import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9-tx1-ch1-sp1-kbt1-gb3-rh1-kb3-pm1-ss1-ss2-ss3-tfm2";
+import { buildStreet, lightParlour, parlourColliders, parlourWall, MACHINES, PARLOUR, PLAY, streetSound } from "./kabukigrin-street.js?v=kb10-kb11-kb12-tx1-ch1-sp1-kbt1-kb3-pm1-ss1-ss2-ss3-tfm2";
 import { buildSigns } from "./kabukigrin-signs.js?v=ks1-kbs1";
-import { buildTrain, trainFrame } from "./kabukigrin-train.js?v=kb14-sp1-kbt1-pm1-ss1-ss2-ss3";
+import { buildTrain, trainFrame } from "./kabukigrin-train.js?v=kb14-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2";
 
 const URL_GLB = new URL("../models/", import.meta.url).href;
 const loader = new GLTFLoader();

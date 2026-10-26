@@ -18,8 +18,8 @@
 
 import * as THREE from "three";
 import { GL, STORES, WINGS, STALLS, KIOSKS, grinleriaLayout } from "./grinleria-layout.js?v=bw1-or1";
-import { mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3";
-import { palmTrees } from "./map-dressing.js?v=hg6e-sr1-or1-tb1-tb2-ss1-ss2-ss3";
+import { mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
+import { palmTrees } from "./map-dressing.js?v=hg6e-sr1-or1-tb1-tb2-ss1-ss2-ss3-tfm2";
 
 const TROLLFACE_URL = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
 

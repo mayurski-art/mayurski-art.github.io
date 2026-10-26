@@ -34,13 +34,13 @@ import {
   wheel, wagon, horse, cactus, steerSkull, rock,
   tableSet as kitTableSet, chair as kitChair, stool as kitStool, piano as kitPiano,
   chandelier, sconce, railFence, picketFence, hayBale, log, coffin, framedPicture, artTexture, artAspect, resetMatKeys,
-} from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3";
+} from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2";
 import { LoopPath, Train } from "./train.js?v=tr1b7-or1";
 import { buildTrainBoard } from "./train-board.js?v=tb1-bt1-tcs1";
-import { studioTown, loadStudioTown, setMoves, moveRp, moveFresh, movePoint, moveGeo, moveLive } from "./trollcity-studio.js?v=ts1-tcs1-tcp1-tx1-trk1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3";
-import { buildChapel, CHAPEL, CHAPEL_TOWER } from "./trollcity-chapel.js?v=tch1-tcs1-tcs2-mg1-tx1-ch1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3";
-import { buildHall, HALL, PLAZA, COMPUTERS } from "./trollcity-hall.js?v=th1-tcs1-tx1-ch1-jb1-jb3-jb6-sp1-kbt1-pm1-ss1-ss2-ss3";
-import { buildEast, EAST } from "./trollcity-east.js?v=te1-tcs1-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3";
+import { studioTown, loadStudioTown, setMoves, moveRp, moveFresh, movePoint, moveGeo, moveLive } from "./trollcity-studio.js?v=ts1-tcs1-tcp1-tx1-trk1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2";
+import { buildChapel, CHAPEL, CHAPEL_TOWER } from "./trollcity-chapel.js?v=tch1-tcs1-tcs2-mg1-tx1-ch1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
+import { buildHall, HALL, PLAZA, COMPUTERS } from "./trollcity-hall.js?v=th1-tcs1-tx1-ch1-jb1-jb3-jb6-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2";
+import { buildEast, EAST } from "./trollcity-east.js?v=te1-tcs1-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2";
 
 // 248 x 200 m since the redesign (doc "Troll City redesign in Roblox Studio"):
 // Main Street on z 0, the square on x 0, Second Street on z 66

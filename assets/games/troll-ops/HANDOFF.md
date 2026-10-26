@@ -26,6 +26,14 @@ Start each session on a fresh branch or worktree from origin/main.
 
 **References (local only, git-ignored, in the MAIN checkout's `assets/games/troll-ops/refs/`):** `zombie-rush/` (the user's Roblox screenshots, named, plus `originals/`), `zombies-clips/clip1.mp4, clip2.mp4` (gameplay recordings), `pf-reloads/BRIEF.md` (the BO2 reload brief).
 
+### After-action report + weapon levels (live 2026-10-26, -aar1/-bp2/-aar2)
+The Call of Duty results screen for PvP (Ops and Zombies keep the plain card). `modes/after-action.js`: a result banner, then SUMMARY (rank card whose XP bar animates across level-ups, up to four gun cards with their own level bars and pictures from `view/zombies-thumbs.js`, an 8-stat grid), SCOREBOARD (the Tab board as it ended), MAP.
+- Weapon XP: `progression/weapon-xp.js`, a level 1-30 per gun (kill 25, headshot +10, assist 10; PvP only; 100 to LV 2, 19,140 to 30). Key `trollops:wxp`, cloud-synced; guests in memory. Nothing is unlocked by it yet: attachments and camos per weapon level are the obvious next step.
+- `combat/match-log.js`: where this match's kills, deaths and assists happened (x/y/z + the shot's other end). Fed from scoring.js and damage.js, reset in beginMatch.
+- The MAP tab is a drafting sheet (`view/aar-blueprint.js`) over a real plan of the level (`view/blueprint-capture.js`): an ortho top-down render (normals + height passes) traced into outlines, creases, 1 m contours and height tone; maps up to 150 m are cut like a floor plan 2.4 m over the fight's floor, with the colliders the cut slices hatched. Captured once after endMatch's teardown (no bots in it), 2.6 s later or when the tab opens (~0.5-0.9 s). Sheet: grid, dimension ticks, north arrow, scale bar, title block; marks numbered, shot lines with arrowheads; filter chips, Heat, a timeline to scrub or play back, a hover card.
+- Test: `tools/troll-ops-aar-test.mjs` (PHONE=1 too): weapon-xp, match-log, a made-up TDM's report, and a real offline TDM on Cul-de-Grin ended through endMatch.
+- Not yet: checked in a real online match. Kabukigrin's single-sided walls trace as broken lines (the hatched colliders fill them in).
+
 ### Zombie Rush (P1-P7 built)
 Zombies rebuilt to play like Roblox's Zombie Rush Survival: a 3D hub, then a co-op 1-4 wave run with cash, upgrades, deployables and bosses, then Credits between runs. Plan: `C:\Users\mayur\.claude\plans\ok-just-switched-buzzing-magpie.md`. P1-P4 shipped (part 5).
 - **The hub (P5):** `MODES.zhub` (social + `hub`, hidden, room QZHB, never owner-switched), map `zhub.js` (`HUB`: pads, private pad, kiosks, boards), logic `modes/zombies/hub.js`.

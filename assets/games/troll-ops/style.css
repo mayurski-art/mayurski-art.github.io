@@ -799,6 +799,185 @@ body.to-social:not(.to-social-armed) #to-touch-interact { display: none !importa
 .to-go-stats {
   display: flex; gap: 26px; margin: 4px 0 10px;
 }
+
+/* ---------- After-action report (modes/after-action.js) ---------- */
+/* The Call of Duty results screen: a result banner, three tabs, a dark card.
+   The title above it is hidden: the banner is the title. */
+.to-gameover-inner:has(.to-aar:not([hidden])) > h2 { display: none; }
+.to-aar {
+  width: min(760px, 100%); display: flex; flex-direction: column; gap: 10px;
+  text-align: left; font-family: "Oswald", sans-serif; color: #e6ede2;
+}
+.to-aar-head {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 16px 12px;
+  border-radius: 12px; background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  border: 1px solid rgba(255,255,255,.1); position: relative; overflow: hidden;
+}
+.to-aar-head::before {
+  content: ""; position: absolute; inset: 0 0 auto; height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.5), transparent);
+}
+.to-aar[data-result="won"] .to-aar-head::before { background: linear-gradient(90deg, transparent, #7fe066, transparent); }
+.to-aar[data-result="lost"] .to-aar-head::before { background: linear-gradient(90deg, transparent, #ff6b5c, transparent); }
+.to-aar-result { font-size: 30px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #f2f5ee; line-height: 1.1; }
+.to-aar[data-result="won"] .to-aar-result { color: #9fe88a; }
+.to-aar[data-result="lost"] .to-aar-result { color: #ff9f8c; }
+.to-aar-score { display: flex; align-items: baseline; gap: 10px; font-size: 16px; letter-spacing: .06em; text-transform: uppercase; }
+.to-aar-score b { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.to-aar-vs { color: #6f7a6b; }
+.to-aar-meta { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #93a08c; }
+.to-aar-tabs { display: flex; gap: 4px; justify-content: center; }
+.to-aar-tab {
+  font: inherit; font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+  padding: 7px 18px; border-radius: 8px; cursor: pointer; color: #9aa596;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+  transition: background .14s, border-color .14s, color .14s;
+}
+.to-aar-tab:hover { color: #dfe6da; border-color: rgba(255,255,255,.25); }
+.to-aar-tab[aria-selected="true"] { color: #eaf5e4; background: rgba(127,224,102,.14); border-color: #7fe066; }
+.to-aar-tab:focus-visible { outline: 2px solid #7fe066; outline-offset: 1px; }
+.to-aar-pane { display: flex; flex-direction: column; gap: 10px; }
+.to-aar-pane[hidden] { display: none; }
+.to-aar-label { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: #93a08c; }
+.to-aar-gain { font-size: 13px; letter-spacing: .06em; color: #7fe066; margin-left: auto; white-space: nowrap; }
+.to-aar-empty { margin: 0; padding: 10px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: #6f7a6b; text-align: center; }
+
+/* The rank card: icon, level, the XP bar that fills while you watch. */
+.to-aar-rank {
+  display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 14px; align-items: center;
+  padding: 12px 16px; border-radius: 12px;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+}
+.to-aar-rank-icon svg { display: block; width: 56px; height: 56px; }
+.to-aar-rank-body { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.to-aar-rank-row, .to-aar-gun-row { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.to-aar-level { font-size: 26px; font-weight: 700; color: #f2f5ee; line-height: 1; font-variant-numeric: tabular-nums; }
+.to-aar-bar { height: 9px; border-radius: 5px; overflow: hidden; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.1); }
+.to-aar-fill {
+  display: block; height: 100%; width: 0; border-radius: 4px;
+  background: linear-gradient(90deg, #4fb63c, #9fe88a); box-shadow: 0 0 10px rgba(127,224,102,.5);
+  transition: width .9s cubic-bezier(.2,.7,.2,1);
+}
+.to-aar-fill.is-snap { transition: none; }
+.to-aar-bar.is-gun .to-aar-fill { background: linear-gradient(90deg, #d19a1a, #ffd166); box-shadow: 0 0 10px rgba(245,184,46,.45); }
+.to-aar-rank-foot { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #93a08c; }
+.to-aar-levelup, .to-aar-gun-up { color: #ffd166; font-weight: 600; }
+.to-aar-gun-up { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; }
+
+/* Weapon cards: the gun's picture, its level and its bar. */
+.to-aar-weapons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.to-aar-gun {
+  display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px; align-items: center;
+  padding: 8px 12px 8px 8px; border-radius: 10px;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+}
+.to-aar-gun-pic {
+  aspect-ratio: 16 / 9; border-radius: 6px; background: #0b0f14; display: grid; place-items: center; overflow: hidden;
+}
+.to-aar-gun-pic img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.to-aar-gun-ph { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #6f7a6b; text-align: center; padding: 4px; }
+.to-aar-gun-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.to-aar-gun-name { font-size: 15px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: #f3ead2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.to-aar-gun-cls { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: #93a08c; margin-left: auto; white-space: nowrap; }
+.to-aar-gun-level { font-size: 18px; font-weight: 700; color: #ffd166; line-height: 1; font-variant-numeric: tabular-nums; }
+.to-aar-gun .to-aar-gain { color: #ffd166; margin-left: 0; }
+.to-aar-gun-kills { margin-left: auto; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #93a08c; white-space: nowrap; }
+
+/* The stat grid. */
+.to-aar-stats {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;
+}
+.to-aar-stats div {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; border-radius: 8px;
+  background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
+}
+.to-aar-stats strong { font-size: 20px; color: #7fe066; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.to-aar-stats span { font-size: 10px; color: #93a08c; text-transform: uppercase; letter-spacing: .08em; }
+
+/* The scoreboard tab reuses the Tab board's rows, parked in the flow. */
+.to-aar-board {
+  padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+  font-family: "DM Mono", monospace; font-size: 12px; color: #dfe6da;
+}
+
+/* The blueprint map (view/aar-blueprint.js): a drafting sheet, its tools, its title block. */
+.to-aar-map { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.to-bp-tools, .to-bp-time, .to-bp-block, .to-bp-sheet { width: min(560px, 100%, 64vh); }
+.to-bp-tools { display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+.to-bp-chips { display: flex; gap: 5px; flex-wrap: wrap; }
+.to-bp-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; cursor: pointer;
+  font: 600 10.5px "Oswald", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #8fa3b8;
+  background: rgba(120,180,240,.05); border: 1px solid rgba(170,215,255,.18);
+  transition: background .14s, border-color .14s, color .14s, opacity .14s;
+}
+.to-bp-chip b { color: #e6f1ff; font-variant-numeric: tabular-nums; }
+.to-bp-chip i { display: inline-block; width: 9px; height: 9px; }
+.to-bp-chip[aria-pressed="false"] { opacity: .45; }
+.to-bp-chip[aria-pressed="true"] { color: #d6e8fb; border-color: rgba(170,215,255,.45); background: rgba(120,180,240,.1); }
+.to-bp-chip:focus-visible, .to-bp-play:focus-visible, .to-bp-scrub:focus-visible { outline: 2px solid #9fd0ff; outline-offset: 2px; }
+.to-bp-chip.is-kill i { background: #7fe066; transform: rotate(45deg) scale(.85); }
+.to-bp-chip.is-death i { border: 1.5px solid #ff6b5c; border-radius: 50%; background: linear-gradient(45deg, transparent 44%, #ff6b5c 44%, #ff6b5c 56%, transparent 56%); }
+.to-bp-chip.is-assist i { border: 2px solid #f5b82e; border-radius: 50%; }
+.to-bp-chip.is-lines i { height: 0; width: 14px; border-top: 1.5px dashed #9fd0ff; }
+.to-bp-chip.is-heat[aria-pressed="true"] { color: #ffe1c2; border-color: rgba(255,150,90,.6); background: rgba(255,120,60,.14); }
+/* The sheet sizes the square; the canvas only fills it, so its pixel size never feeds back into the layout. */
+.to-bp-sheet { position: relative; aspect-ratio: 1; }
+/* .to-cabinet canvas stretches every canvas to its box; this one keeps its square. */
+.to-cabinet .to-aar-blueprint {
+  position: absolute; inset: 0; box-sizing: border-box;
+  display: block; width: 100%; height: 100%; border-radius: 6px; cursor: crosshair;
+  border: 1px solid rgba(170,215,255,.4);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.5), 0 18px 40px rgba(0,0,0,.55);
+}
+.to-bp-tip {
+  position: absolute; z-index: 2; pointer-events: none; display: flex; flex-direction: column; gap: 1px; min-width: 96px;
+  padding: 6px 9px; border-radius: 6px; background: rgba(5,14,26,.94); border: 1px solid rgba(170,215,255,.4);
+  font: 500 11px "DM Mono", monospace; color: #cfe3f7; box-shadow: 0 6px 18px rgba(0,0,0,.5);
+}
+.to-bp-tip[hidden] { display: none; }
+.to-bp-tip b { font: 700 12px "Oswald", sans-serif; letter-spacing: .1em; text-transform: uppercase; }
+.to-bp-tip b.is-kill { color: #9fe88a; }
+.to-bp-tip b.is-death { color: #ff9f8c; }
+.to-bp-tip b.is-assist { color: #ffd166; }
+.to-bp-tip em { font-style: normal; color: #e6f1ff; }
+.to-bp-tip small { color: #8fa3b8; font-size: 10px; }
+.to-bp-time { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.to-bp-play {
+  width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 11px; line-height: 1; color: #d6e8fb;
+  background: rgba(120,180,240,.1); border: 1px solid rgba(170,215,255,.45);
+}
+.to-bp-play:hover { background: rgba(120,180,240,.2); }
+.to-bp-scrub { width: 100%; accent-color: #9fd0ff; }
+.to-bp-clock { font: 500 12px "DM Mono", monospace; color: #cfe3f7; font-variant-numeric: tabular-nums; min-width: 3.2em; text-align: right; }
+.to-bp-block {
+  display: grid; grid-template-columns: 1.4fr 1.2fr 1fr .8fr; border: 1px solid rgba(170,215,255,.4); border-radius: 4px;
+  background: rgba(8,22,40,.7);
+}
+.to-bp-block div { display: flex; flex-direction: column; gap: 1px; padding: 5px 9px; min-width: 0; }
+.to-bp-block div + div { border-left: 1px solid rgba(170,215,255,.25); }
+.to-bp-block span { font: 500 8.5px "DM Mono", monospace; letter-spacing: .12em; text-transform: uppercase; color: #6f8aa6; }
+.to-bp-block b { font: 600 12px "Oswald", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: #d6e8fb; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Short screens (a phone on its side): the report tightens and the sheet takes the height.
+   The tools stay one row across the card, beside nothing taller than they are. */
+@media (max-height: 500px) {
+  .to-aar { gap: 6px; }
+  .to-aar-head { padding: 5px 12px 6px; }
+  .to-aar-result { font-size: 18px; }
+  .to-aar-score { font-size: 12px; } .to-aar-score b { font-size: 15px; }
+  .to-aar-tab { padding: 4px 12px; font-size: 11px; }
+  .to-bp-tools, .to-bp-time, .to-bp-block { width: min(560px, 100%); }
+  .to-bp-sheet { width: min(560px, 100%, 78vh); }
+  .to-bp-chip { padding: 3px 8px; font-size: 9.5px; }
+}
+
+@media (max-width: 760px) {
+  .to-aar-weapons { grid-template-columns: 1fr; }
+  .to-aar-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .to-aar-result { font-size: 22px; }
+  .to-aar-rank { grid-template-columns: 44px minmax(0, 1fr); gap: 10px; }
+  .to-aar-rank-icon svg { width: 44px; height: 44px; }
+}
 .to-go-stats div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .to-go-stats strong { font-size: 26px; font-family: "Oswald", sans-serif; color: #7fe066; }
 .to-go-stats span { font-size: 10.5px; color: #93a08c; text-transform: uppercase; letter-spacing: .06em; }

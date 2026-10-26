@@ -6,9 +6,9 @@
 // games (5d) take them over. The layout numbers are grinbeach-venice.js's
 // and maps.js's: change one, change the other.
 
-import { rng } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3";
+import { rng } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2";
 import { pickOutfit } from "../characters/outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1-or1-gb3-rh1";
-import { STALLS, STALL_Z, COURT, TENNIS, VB, RACKS } from "./grinbeach-venice.js?v=gb1-tb1-tb2-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3";
+import { STALLS, STALL_Z, COURT, TENNIS, VB, RACKS } from "./grinbeach-venice.js?v=gb1-tb1-tb2-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
 
 // the camera's yaw facing each way (0 faces -z, +PI/2 faces -x)
 const FACE_YAW = { "+z": Math.PI, "-z": 0, "+x": -Math.PI / 2, "-x": Math.PI / 2 };
