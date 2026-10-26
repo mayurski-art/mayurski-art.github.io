@@ -77,6 +77,9 @@ for (const id of ids) {
     if (mode === "royale") T.DROP.enabled = false;   // no sky lobby, no bus
     T.setMode(mode);
     if (T.els.noBots) T.els.noBots.checked = true;
+    // a private room, never the public one
+    T.els.room.value = "PV" + Math.random().toString(36).slice(2, 5).toUpperCase();
+    T.els.room.dispatchEvent(new Event("input"));
     T.loadout.mapId = map;
     await T.startGame();
     if (T.isStaging()) T.endStaging();
