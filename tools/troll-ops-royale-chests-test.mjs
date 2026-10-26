@@ -72,7 +72,8 @@ check("about 120 chest spots on the island", info.spots >= 100 && info.spots <= 
 check("about 60 chests this match", info.n >= 45 && info.n <= 75, `${info.n}`);
 check("every hot place has a chest", info.hotEmpty.length === 0, info.hotEmpty.join(", "));
 check("no chest in the sea or the lake", info.wet === 0, `${info.wet}`);
-check("floor loot thinned by about a quarter", info.loot >= 190 && info.loot <= 260, `${info.loot} items`);
+// the band grew with the lake's five places (Trollface Island phase 3) and their deck loot
+check("floor loot thinned by about a quarter", info.loot >= 190 && info.loot <= 285, `${info.loot} items`);
 check("no chest or floor loot in a doorway", info.clear >= 11 && info.inDoor === 0, `${info.inDoor} in ${info.clear} doorways`);
 check("every chest starts shut", info.open === 0, `${info.open} open`);
 
