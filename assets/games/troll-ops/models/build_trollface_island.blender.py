@@ -192,8 +192,12 @@ def main():
     def modern(k, mod):
         P = dict(Pal)
         P.update(mod.palette())
-        n0, f0 = len(R.colliders), len(R.faces)
+        n0, f0, p0 = len(R.colliders), len(R.faces), len(R.props)
         extra = mod.build(tf_kit.TFBuilder(), P, R, (O[k][0], O[k][2]))
+        # each prop and face says whose it is: a partial rebuild's faces.json
+        # can then be merged into the last full one place by place
+        for e in R.faces[f0:] + R.props[p0:]:
+            e["place"] = k
         built[k] = {"colliders": R.colliders[n0:], "loot": list(mod.LOOT), "signs": list(mod.SIGNS),
                     "clear": door_clear(R.faces[f0:])}
         if k == "peak":
@@ -237,6 +241,8 @@ def main():
         if r_in > place["r"] + 2.5:
             print(f"   NOTE {k}: model reaches {r_in:.1f} m from the place's centre, ring {place['r']} m")
     paths = [os.path.join(HERE, GLB_NAME.get(k, f"tf-{k}") + ".glb") for k in want]
+    if "boat" in want:          # the Boat's folding rig (tf_lake.RIG_GLBS)
+        paths += [os.path.join(HERE, n) for n in tf_lake.RIG_GLBS]
     quantize_glb.main(paths)
     # 16-bit positions too (phase 7, the 14 MB budget), not the roads': their
     # paint lies 4 mm over the asphalt and 440 m in 16 bits is 6.7 mm

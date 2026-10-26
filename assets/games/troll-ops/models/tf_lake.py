@@ -42,6 +42,7 @@ from map_kit import mat
 from tf_city import flat, quad
 from tf_portal import rock_face
 from tf_skate import stairs
+import tf_kit
 
 WATER_Y = 0.34
 LOOT = []
@@ -807,6 +808,14 @@ DK = 2.7                       # the deck
 HOLD_Y = 0.55                  # the hold's floor (a player wades below 0.5 in the lake)
 HATCH = (-5.9, -0.8, -0.7, 0.7)          # a metre past the stair foot: headroom to step off it under the deck          # x0, x1, z0, z1 of the companionway
 HOUSE = (2.0, 6.6, -1.7, 1.7, 2.3)       # x0, x1, z0, z1, wall height
+# The rig folds for the boardwalks' arches (maps/trollface-boat.js): the
+# mast above its tabernacle, the sail and the boom are GLBs of their own in
+# the Boat's frame (the map moves them; the sail furls onto the boom, the boom
+# drops onto the wheelhouse roof, the mast swings aft about MAST_PIVOT)
+MAST_X, TABERNACLE = 8.2, 3.0
+MAST_PIVOT = (MAST_X, DK + TABERNACLE)
+BOOM_Y = DK + 4.6
+RIG_GLBS = ("tf-boatmast-p3.glb", "tf-boatsail-p3.glb", "tf-boatboom-p3.glb")
 PLAN = [(-8.5, -2.9), (-6.0, -3.2), (5.5, -3.2), (8.5, -2.8), (10.6, -1.9), (12.1, -0.95), (12.9, 0.0),
         (12.1, 0.95), (10.6, 1.9), (8.5, 2.8), (5.5, 3.2), (-6.0, 3.2), (-8.5, 2.9)]
 
@@ -897,7 +906,7 @@ def boat_build(b, P, R, origin):
     b.box(P["house_tr"], wx1 - wx0 + 0.4, 0.14, wz1 - wz0 + 0.4, (wx0 + wx1) / 2, DK + wh, 0, bevel=0.03)
     b.box(P["house_tr"], wx1 - wx0 + 0.1, 0.1, wz1 - wz0 + 0.1, (wx0 + wx1) / 2, DK - 0.02, 0)
     b.cyl(P["steel_dk"], 0.08, (wx1 - 0.6, DK + wh, 0.9), (wx1 - 0.6, DK + wh + 1.3, 0.9), seg=8)       # the exhaust
-    b.cyl(P["pole"], 0.02, (wx0 + 0.5, DK + wh, -1.0), (wx0 + 0.5, DK + wh + 2.2, -1.0), seg=5)         # the aerial
+    b.cyl(P["pole"], 0.02, (wx0 + 0.5, DK + wh, -1.0), (wx0 + 0.5, DK + wh + 1.4, -1.0), seg=5)         # the aerial (under the arches)
     sphere(b, P["lamp"], (wx1 - 1.2, DK + wh + 0.3, 0.0), 0.16, seg=8, ring=5)
     C.end()
     C.col((wx0 + wx1) / 2, wz0 + t / 2, wx1 - wx0, t, wh, DK, 3)
@@ -925,14 +934,23 @@ def boat_build(b, P, R, origin):
     b.cyl(P["leather"], 0.2, (wx0 + 1.2, DK + 0.65, -0.9), (wx0 + 1.2, DK + 0.73, -0.9), seg=10)
     C.end()
     C.loot(wx0 + 1.4, DK, 0.9)
-    # the mast with the sail and its blue mark, forward of the wheelhouse
-    mx = 8.2
-    C.begin("hull")             # the mast, sail and stays span the boat: a piece of the hull prop
-    b.cyl(P["mast"], 0.18, (mx, DK, 0), (mx, DK + 17.0, 0), seg=10, r2=0.11)
-    sphere(b, P["lamp"], (mx, DK + 17.15, 0), 0.14, seg=8, ring=5)
-    b.bar(P["mast"], (mx, DK + 10.5, -1.5), (mx, DK + 10.5, 1.5), 0.09)
-    boom_y = DK + 4.6
-    b.cyl(P["mast"], 0.1, (mx - 0.2, boom_y, 0), (mx - 7.2, boom_y + 0.1, 0), seg=8)
+    # the mast with the sail and its blue mark, forward of the wheelhouse: the
+    # tabernacle on the deck (the hull's), the rig in three GLBs that fold
+    mx = MAST_X
+    C.begin("hull")             # the tabernacle: a piece of the hull prop
+    b.cyl(P["mast"], 0.18, (mx, DK, 0), (mx, DK + TABERNACLE, 0), seg=10, r2=0.17)
+    for s_ in (-1, 1):
+        b.box(P["steel_dk"], 0.5, TABERNACLE + 0.1, 0.06, mx, DK, s_ * 0.21)
+    C.end()
+    mast, sail, boom = (tf_kit.TFBuilder() for _ in range(3))
+    mast.cyl(P["mast"], 0.17, (mx, DK + TABERNACLE, 0), (mx, DK + 17.0, 0), seg=10, r2=0.11)
+    sphere(mast, P["lamp"], (mx, DK + 17.15, 0), 0.14, seg=8, ring=5)
+    mast.bar(P["mast"], (mx, DK + 10.5, -1.5), (mx, DK + 10.5, 1.5), 0.09)
+    for s_ in (-1, 1):
+        mast.bar(P["ink"], (mx, DK + 16.7, 0), (mx, DK + 10.5, s_ * 1.5), 0.03)
+    boom_y = BOOM_Y
+    boom.cyl(P["mast"], 0.1, (mx - 0.2, boom_y, 0), (mx - 7.2, boom_y + 0.1, 0), seg=8)
+    b = sail                    # the sail, its lines and its mark
 
     def leech(p, q, bulge, steps=6):
         out = []
@@ -955,13 +973,10 @@ def boat_build(b, P, R, origin):
         r = 1.4 * (1 + 0.14 * math.sin(3 * a + 0.7) + rng.uniform(-0.05, 0.05))
         blob.append((mx - 3.4 + r * 1.1 * math.cos(a), DK + 9.0 + r * 0.85 * math.sin(a)))
     b.prism(P["logo"], blob, -0.045, 0.045, axis="z")
-    b.bar(P["ink"], (mx, DK + 16.9, 0), (12.6, DK + 0.9, 0), 0.035)                # forestay
-    b.bar(P["ink"], (mx, DK + 16.9, 0), (-8.2, DK + 0.9, 0), 0.035)                # backstay
-    for s in (-1, 1):
-        b.bar(P["ink"], (mx, DK + 16.7, 0), (mx, DK + 10.5, s * 1.5), 0.03)
-        b.bar(P["ink"], (mx, DK + 10.5, s * 1.5), (mx - 0.2, DK + 0.9, s * 2.9), 0.03)
-    C.end()
-    C.col(mx, 0, 0.4, 0.4, 17.0, DK, 1)
+    b = C.b
+    for (rig, name) in zip((mast, sail, boom), RIG_GLBS):
+        rig.finish(name)
+    C.col(mx, 0, 0.4, 0.4, TABERNACLE, DK, 1)
     # deck gear: the winch at the bow, barrels, nets, fish boxes, floats, the life ring, buoys
     C.begin("winch", on="hull")
     b.box(P["steel_dk"], 1.2, 0.25, 0.9, 10.2, DK, 0)

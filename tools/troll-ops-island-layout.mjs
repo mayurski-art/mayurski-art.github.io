@@ -63,6 +63,7 @@ const data = await page.evaluate(async () => {
     places,
     roads: (m.ROADS || []).map(poly),
     parking: (m.PARKING || []).map(([x, z, yaw]) => [r3(x), r3(z), yaw]),
+    boatArches: (m.BOAT_ARCHES || []).map(([x, z]) => [r3(x), r3(z)]),   // the Boat's loop over the boardwalks (maps/trollface-boat.js)
     spawns: I.spawns.map(([x, z]) => [r3(x), r3(z)]),
     lootExtra: I.royale.lootExtra,
     royale: { players: I.royale.players, lootPerSqM: I.royale.lootPerSqM, chests: I.royale.chests, phases: I.royale.phases },
