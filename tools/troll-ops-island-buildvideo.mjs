@@ -68,7 +68,7 @@ const STATES = [
   { sha: opt("--p6", "HEAD"), caption: "Phase 6: sunlight and shadows baked in",
     sub: "Light maps bake the sun, the sky and the bounced light into every place:\nbrighter outside, darker indoors, and no slower to run.",
     secs: 5, bake: true, wide: [0, 0, 250, 150], moves: [{ p: [-45, 22, 112], t: [-30, 12, -70], fov: 52 }, { p: [22, 28, 106], t: [0, 14, -75], fov: 52 }] },
-  { sha: opt("--p7", "HEAD"), caption: "Phase 7: the Boat sets sail, ready to ship",
+  { sha: opt("--p7", "HEAD"), caption: "Phase 7: the Boat sets sail",
     sub: "The Boat sails round the whole lake under arched boardwalks, with you aboard;\nthe flickering roads and fountains are fixed, and every test passes.",
     secs: 7, orbit: { c: [45, 25], r: 150, a: [2.3, 3.25], h: [72, 52], t: [35, 0, 5] }, wide: [0, 0, 230, 120] },
 ];
