@@ -1788,6 +1788,17 @@
         animation: ta-toast-in 0.18s ease; cursor: pointer; }
       .ta-toast strong { display: block; color: #4dff73; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 2px; }
       @keyframes ta-toast-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+      /* XP earned: bare text at the lower centre of the screen, no box. */
+      .ta-xp-root { position: fixed; left: 50%; bottom: calc(16vh + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+        z-index: 99995; display: grid; justify-items: center; gap: 6px; pointer-events: none; }
+      .ta-xp-pop { text-align: center; white-space: nowrap; color: #fff; font-family: 'Space Grotesk', system-ui, Arial, sans-serif;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.55); animation: ta-xp-pop 2.6s ease forwards; }
+      .ta-xp-pop strong { display: block; color: #ffd84d; font-size: 26px; font-weight: 700; letter-spacing: 0.02em; line-height: 1.1; }
+      .ta-xp-pop span { display: block; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.9; }
+      @keyframes ta-xp-pop { 0% { opacity: 0; transform: translateY(10px); } 12%, 75% { opacity: 1; transform: translateY(0); }
+        100% { opacity: 0; transform: translateY(-14px); } }
+      @media (prefers-reduced-motion: reduce) { .ta-xp-pop { animation: ta-xp-fade 2.6s linear forwards; } }
+      @keyframes ta-xp-fade { 0%, 75% { opacity: 1; } 100% { opacity: 0; } }
     `;
     document.head.appendChild(style);
   }
@@ -2118,11 +2129,28 @@
     return source ? `${label} (${source})` : label;
   }
 
-  // Small local toast for "you just earned XP" — every subdomain gets this
-  // for free since troll-accounts.js loads on all of them.
+  // "You just earned XP" — every subdomain gets this for free since
+  // troll-accounts.js loads on all of them. Just the text, lower centre of
+  // the screen, no box around it.
   function showXpToast(amount, eventType) {
     if (!amount) return;
-    showLocalToast(`+${amount} XP`, XP_EVENT_LABELS[eventType] || eventType);
+    ensureModalStyles();
+    let root = document.getElementById('ta-xp-root');
+    if (!root) {
+      root = document.createElement('div');
+      root.id = 'ta-xp-root';
+      root.className = 'ta-xp-root';
+      root.setAttribute('role', 'status');
+      root.setAttribute('aria-live', 'polite');
+      document.body.appendChild(root);
+    }
+    const pop = document.createElement('div');
+    pop.className = 'ta-xp-pop';
+    pop.innerHTML = '<strong></strong><span></span>';
+    pop.querySelector('strong').textContent = `+${amount} XP`;
+    pop.querySelector('span').textContent = XP_EVENT_LABELS[eventType] || eventType;
+    root.appendChild(pop);
+    window.setTimeout(() => pop.remove(), 2700);
   }
 
   async function openProfile() {
