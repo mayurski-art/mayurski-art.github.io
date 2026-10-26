@@ -27,6 +27,13 @@ const COMMON = {
   //   shakeJolt    how sharp each shot's punch is: the roll, the buzz and
   //                the gun's knock back into the shoulder (a suppressor)
   shakeScale: 1, shakeVert: 1, shakeSide: 1, shakeRecover: 1, shakeJolt: 1,
+  // Aimed through magnifying glass (the ACOG, attachments.js), the same
+  // angle of kick fills more of the screen. These scale it at full ADS so
+  // the climb looks as big as on the gun's iron sights:
+  //   adsKickScale     the camera: the climb, the kick and the shake
+  //   adsGunKickScale  the gun in your hands, seen through the narrower
+  //                    viewmodel lens
+  adsKickScale: 1, adsGunKickScale: 1,
 };
 
 const CLASS_BASE = {
@@ -593,6 +600,11 @@ export class WeaponState {
 
   get fireInterval() { return 60 / this.def.rpm; }
 
+  /* The scope's kick trims (def.adsKickScale / adsGunKickScale), blended in
+     with the ADS raise: 1 at the hip, the full trim once aimed. */
+  get adsKick() { return 1 - (1 - (this.def.adsKickScale ?? 1)) * this.adsT; }
+  get adsGunKick() { return 1 - (1 - (this.def.adsGunKickScale ?? 1)) * this.adsT; }
+
   canFire() {
     return !this.reloading && this.fireCooldown <= 0 && this.ammoInMag > 0 && this.pumpT <= 0;
   }
@@ -741,16 +753,18 @@ export class WeaponState {
     // Shouldering the weapon steadies it: aimed fire kicks less than hipfire.
     const steady = (1 - this.adsT * 0.35) * kick;
     const yawKick = ((Math.random() * 2 - 1) * this.def.recoilKickYawRand + this.def.recoilKickYaw) * steady;
-    this.recoilPitch += this.def.recoilKickPitch * steady;
-    this.recoilYaw += yawKick;
+    // A scope's zoom magnifies the kick on screen; adsKick takes it back out.
+    const cam = this.adsKick;
+    this.recoilPitch += this.def.recoilKickPitch * steady * cam;
+    this.recoilYaw += yawKick * cam;
     // The gun in your hands takes the same shake profile as the camera: a
     // vertical grip holds the muzzle down, a brake stops it wandering, a
     // suppressor softens the knock back into the shoulder.
-    const d = this.def;
-    this.viewKickPitch += d.recoilKickPitch * 1.8 * steady * d.shakeVert;
-    this.viewKickYaw += yawKick * 1.6 * d.shakeSide;
-    this.viewKickKnockback += d.recoilKickKnockback * steady * d.shakeJolt;
-    this.viewKickRoll += d.recoilKickPitch * 1.4 * steady * d.shakeJolt * (Math.random() < 0.5 ? -1 : 1);
+    const d = this.def, gun = steady * this.adsGunKick;
+    this.viewKickPitch += d.recoilKickPitch * 1.8 * gun * d.shakeVert;
+    this.viewKickYaw += yawKick * this.adsGunKick * 1.6 * d.shakeSide;
+    this.viewKickKnockback += d.recoilKickKnockback * gun * d.shakeJolt;
+    this.viewKickRoll += d.recoilKickPitch * 1.4 * gun * d.shakeJolt * (Math.random() < 0.5 ? -1 : 1);
     this.spread = Math.min(this.def.spreadMax, this.spread + this.def.spreadPerShot);
   }
 

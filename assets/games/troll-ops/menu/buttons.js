@@ -18,10 +18,11 @@ import { dropPerks } from "../combat/perk-carry.js?v=pk1-cl1-bp1-fj1-zh1-zc1-zc2
 
 export function initMenuButtons() {
   game.els.startBtn.addEventListener("click", game.startGame);
-  /* Mid-intermission this means "don't make me wait", not "reconnect" — the
-     room is still up, so drop straight into the map the vote is currently on. */
+  /* Between matches in a room this means "next match", not "reconnect" — the
+     room is still up, so drop straight into the map the vote is on (the next
+     match never starts without this press). */
   game.els.retryBtn.addEventListener("click", () => {
-    if (game.intermissionT > 0) { game.intermissionT = 0.0001; return; }
+    if (game.joinNextMatch()) return;
     // Socialize room: same idea, straight back to the hangout.
     if (game.socialReturnSeq != null) { returnToSocial(); return; }
     // A run from the Zombies hub: back to the hub (modes/zombies/hub.js).
