@@ -61,12 +61,13 @@ const LAKE_FACE = [92, 30];                         // the lake bed's trollface,
 // down between the Peak and the Skate Bowl, round the east past Lighthouse
 // Point, the Market, Grin Gas and the Shop to the Bridge; the shore road
 // from the Ranch past the Dock, under Old Tree, past the Cave's mouth and
-// the Peak's foot; the west arm to the Ranch and Lulz Lodge; the city
+// the Peak's foot (it leaves the west arm north of the Ranch, so the
+// two never run side by side); the west arm to the Ranch and Lulz Lodge; the city
 // road down to its west entrance; the Gallery's spur off the Bridge.
 export const ROAD_NET = {
   north: [[-122, -128], [-112, -128], [-100, -124], [-80, -131], [-40, -136], [29, -138], [75, -135], [84, -126], [90, -112], [97, -100], [97, -37], [140, -37], [160, -36], [167, -20], [167, 0], [166, 20], [164, 36], [158, 50], [150, 62], [135, 68], [110, 70], [92, 72], [95, 92], [88, 112], [60, 112], [40, 100], [12, 92], [10, 78], [1.2, 78]],
   west: [[-100, -124], [-110, -110], [-125, -95], [-150, -75], [-170, -58], [-180, -45], [-172, -30], [-160, -12], [-145, 5], [-135, 10], [-118, 16], [-106, 16]],
-  shore: [[-180, -45], [-170, -56], [-150, -58], [-125, -56], [-104, -56], [-90, -57], [-70, -57], [-55, -50], [-45, -41], [-36, -29], [-30, -18], [-20, -12], [-5, -9], [20, -5], [45, -8], [80, -8], [97, -12], [97, -37]],
+  shore: [[-170, -58], [-150, -58], [-125, -56], [-104, -56], [-90, -57], [-70, -57], [-55, -50], [-45, -41], [-36, -29], [-30, -18], [-20, -12], [-5, -9], [20, -5], [45, -8], [80, -8], [97, -12], [97, -37]],
   city: [[-100, -124], [-92, -108], [-86, -96], [-84, -87], [-84, -57]],
   cityin: [[-84, -87], [-64, -87]],
   gallery: [[-58, 78], [-72, 74], [-86, 69], [-96, 66]],
@@ -83,7 +84,7 @@ export const PARKING = [
   [43.6, 88.8, 90], [46.4, 88.8, 90], [49.2, 88.8, 90], [52, 88.8, 90],   // the Shop's car park (tf_mid.py SHOP_BAYS)
   [-88, 73.5, 110],                            // the Gallery's spur
   [-140, 12.5, 290],                           // Lulz Lodge
-  [-166, -62, 160],                            // Rage Ranch
+  [-163, -52.1, 90],                           // Rage Ranch, beside the shore road west of the barn
   [-104, -51.5, 270],                          // the Dock
 ];
 const NORTH_ROAD = ROAD_NET.north;
