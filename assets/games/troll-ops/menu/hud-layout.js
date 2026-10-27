@@ -28,6 +28,8 @@ const TOUCH = [
   ["to-touch-melee", "Melee"],
   ["to-touch-nade", "Lethal"],
   ["to-touch-tac", "Tactical"],
+  ["to-touch-plate", "Cope Plate"],
+  ["to-touch-heal", "Hopium"],
   ["to-touch-interact", "Interact"],
   ["to-touch-swap", "Swap / pick up"],
   ["to-touch-streak", "Streak"],

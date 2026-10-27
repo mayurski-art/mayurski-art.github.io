@@ -3321,6 +3321,29 @@ body.to-touch-play .to-touch-tac::after {
   background: #7fe066; color: #0d1410;
   font: 700 calc(9px * var(--k))/calc(15px * var(--k)) "DM Mono", monospace;
 }
+/* Troll Royale's Cope Plate and Hopium (the chips are hidden on touch, so
+   these are the only way to use them): finger-sized, side by side just
+   above the health bar, left of centre: between the move stick's half and
+   the right thumb's cluster, over nothing you hold (the look pad under
+   them only loses a thumb-width). The picture, the count on the badge;
+   dimmed when there's none or it can't be used now (full armour / health). */
+.to-touch-plate, .to-touch-heal { display: none; }
+body.to-touch-play .to-touch-plate, body.to-touch-play .to-touch-heal {
+  display: flex; bottom: calc(var(--sb) + 46px * var(--k));
+  width: calc(48px * var(--k)); height: calc(48px * var(--k));
+}
+body.to-touch-play .to-touch-plate { left: calc(50% - 112px * var(--k)); }
+body.to-touch-play .to-touch-heal { left: calc(50% - 56px * var(--k)); }
+.to-touch-plate[hidden], .to-touch-heal[hidden] { display: none !important; }
+body.to-touch-play .to-touch-plate::after,
+body.to-touch-play .to-touch-heal::after {
+  content: "×" attr(data-n);
+  position: absolute; right: calc(-4px * var(--k)); bottom: calc(-3px * var(--k));
+  min-width: calc(17px * var(--k)); height: calc(15px * var(--k)); padding: 0 calc(3px * var(--k)); border-radius: 99px;
+  background: #eef3ea; color: #0d1410;
+  font: 700 calc(9px * var(--k))/calc(15px * var(--k)) "DM Mono", monospace;
+}
+body.to-touch-play .to-touch-plate.is-unusable, body.to-touch-play .to-touch-heal.is-unusable { opacity: .45; }
 body.to-touch-play .to-touch-interact {
   left: auto; right: calc(var(--sr) + 204px * var(--k)); bottom: calc(var(--sb) + 152px * var(--k));
 }

@@ -17,7 +17,7 @@ import { WEAPON_DEFS, WeaponState } from "../weapons/weapons.js?v=p5bm-wst-hf1-f
 import { defaultLoadoutFor } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1";
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1-gf1-tg1-rfx1";
 import { game } from "../core/state.js?v=st1";
-import { setGearChip } from "../view/gear-chips.js?v=gc1-rfx2";
+import { setGearChip, setTouchItem } from "../view/gear-chips.js?v=gc1-rfx2";
 import { padHooks } from "../input/gamepad.js?v=in1-fu1b7-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-zp1-aa0-pd1-nf1-or1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-spd1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2";
 import { updateDropCine, dropCineEye, dropCineLean, dropCineZoom, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2";
 import { playSfx, preloadSfx } from "../sound/sfx-files.js?v=dc4";
@@ -725,6 +725,7 @@ export function updateRoyale(dt) {
   const r = royale;
   if (!r) return;
   royaleRecordTick();   // "Record my match": starts as staging ends
+  if (game.isTouch) updateTouchGear();
   updateRoyaleDropWorld(dt);
   if (r.live && !r.over) r.t += dt;
   updateBoat(r.t, r.loot);   // Trollface Island's Boat round the lake, and whoever is aboard (royale-boat.js)
@@ -1401,6 +1402,7 @@ export function updateRoyaleGear() {
   game.els.armor.hidden = !on;
   game.els.gearPlates.hidden = !on;
   game.els.gearHeals.hidden = !on;
+  updateTouchGear();
   if (!on) return;
   [...game.els.armor.children].forEach((seg, i) => {
     seg.style.setProperty("--p", Math.max(0, Math.min(1, (game.player.armor - i * ROYALE.plateHp) / ROYALE.plateHp)).toFixed(3));
@@ -1409,6 +1411,32 @@ export function updateRoyaleGear() {
   // 4 / 5 on a keyboard, the d-pad's up / down on a pad (view/gear-chips.js).
   setGearChip(game.els.gearPlates, { slot: "plates", id: "plate", name: ITEM_NAMES.plate, count: game.player.plates });
   setGearChip(game.els.gearHeals, { slot: "heals", id: "heal", name: ITEM_NAMES.heal, count: game.player.heals });
+}
+
+/* Touch: the Cope Plate and Hopium buttons (the chips are hidden on a
+   phone): the picture, the count, dimmed when there's none or it can't be
+   used right now (armour or health full, or already busy). Every frame in
+   Royale (health comes and goes without a gear redraw); a no-op off touch. */
+const touchGear = { plate: null, heal: null };
+function updateTouchGear() {
+  touchGear.plate ||= document.getElementById("to-touch-plate");
+  touchGear.heal ||= document.getElementById("to-touch-heal");
+  const on = !!royale;
+  for (const kind of ["plate", "heal"]) {
+    const b = touchGear[kind];
+    if (!b) continue;
+    if (b.hidden === on) b.hidden = !on;
+    if (!on) continue;
+    setTouchItem(b, kind);
+    const n = kind === "plate" ? game.player.plates : game.player.heals;
+    if (b.dataset.n !== String(n)) {
+      b.dataset.n = String(n);
+      b.setAttribute("aria-label", `${kind === "plate" ? "Put on a Cope Plate" : "Use Hopium"} (${n} left)`);
+    }
+    const full = kind === "plate" ? game.player.armor >= ROYALE.maxArmor : game.player.hp >= game.player.maxHp;
+    b.classList.toggle("is-empty", n <= 0);
+    b.classList.toggle("is-unusable", n > 0 && (full || !!royale.act || !game.player.alive));
+  }
 }
 
 /* Spectating: keep watching someone while they're alive; our killer first. */
@@ -1506,6 +1534,12 @@ export function initRoyale() {
   // Touch: the plate and Hopium chips are buttons.
   game.els.gearPlates?.addEventListener("click", () => startRoyaleAct("plate"));
   game.els.gearHeals?.addEventListener("click", () => startRoyaleAct("heal"));
+  // ...and on a phone, where the chips are hidden, their own touch buttons.
+  // A press acts at once (the touch layer's buttons don't wait for a click),
+  // and stops there so the look pad under it doesn't take the touch too.
+  for (const [id, kind] of [["to-touch-plate", "plate"], ["to-touch-heal", "heal"]]) {
+    document.getElementById(id)?.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); startRoyaleAct(kind); });
+  }
   // A pad: the d-pad's up and down (input/gamepad.js; Royale has no streaks to scroll).
   padHooks.royale = { active: () => !!royale && game.player.alive && game.gameState === "playing", plate: () => startRoyaleAct("plate"), heal: () => startRoyaleAct("heal") };
 }
