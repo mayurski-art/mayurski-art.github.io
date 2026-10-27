@@ -22,6 +22,7 @@
 // them back: the import tags (?v=) would make a second copy of that module.
 
 import * as THREE from "three";
+import { bellToll, organChord } from "./hollowgrin-chapel-sound.js?v=hgb2";
 import { floorTexture, runnerTexture, ceilingTexture, friezeTexture, lancetTexture, domeTexture, apseWallTexture, sunburstTexture, frontalTexture, rulesTexture, lanternTexture, archFill, inward, quad, band } from "./chapel-art.js?v=ca1-tcs1";
 
 export const CHAPEL = { x0: -49.5, x1: -39, z0: -5, z1: 8.5, h: 7.6 };
@@ -60,7 +61,7 @@ const EAST_DOOR = { w: 2.2, h: 3.75 };
 /* ================================================================== build */
 
 export function buildChapel(api, K, M, SP, root, lights, H) {
-  const { place, wall, rodGeo, prismGeo, candle, jack, headstoneGeo, signTexture, surfMat, texMat, flickerMat, rng, ZSPAWNS, hgModel, ticker, ghostTroll } = H;
+  const { place, wall, rodGeo, prismGeo, candle, jack, headstoneGeo, signTexture, surfMat, texMat, flickerMat, rng, ZSPAWNS, hgModel, ticker, ghostTroll, audio } = H;
   const C = CHAPEL;
   const R = rng(2027);
   const CM = {
@@ -374,8 +375,8 @@ export function buildChapel(api, K, M, SP, root, lights, H) {
   }
   K.add(new THREE.MeshBasicMaterial({ map: signTexture(["ST. GRINSWORTH'S"], { bg: "#141018", fg: "#e8c868", edge: "#5a2a1a" }), color: 0xffffff }),
     place(new THREE.PlaneGeometry(2.6, 0.42), { x: C.x1 + 0.02, y: 4.16, z: CZ, ry: Math.PI / 2 }), { shadow: false });
-  buildTower(api, K, M, SP, root, { place, wall, rodGeo, candle, hgModel, ticker, signTexture });
-  buildOrgan(api, K, M, root, { hgModel, ticker, ghostTroll });
+  buildTower(api, K, M, SP, root, { place, wall, rodGeo, candle, hgModel, ticker, signTexture, audio });
+  buildOrgan(api, K, M, root, { hgModel, ticker, ghostTroll, audio });
 
   /* ---- the one light, warm, and dust in it */
   const l = new THREE.PointLight(0xffc890, 14, 22, 2);
@@ -450,7 +451,7 @@ function clockTexture() {
   return t;
 }
 
-function buildTower(api, K, M, SP, root, { wall, rodGeo, candle, hgModel, ticker, signTexture, place }) {
+function buildTower(api, K, M, SP, root, { wall, rodGeo, candle, hgModel, ticker, signTexture, place, audio }) {
   const TW = CHAPEL_TOWER, C = CHAPEL;
   const tx = (TW.x0 + TW.x1) / 2, tz = (TW.z0 + TW.z1) / 2;
   hgModel(api, "hg-chapel-tower");
@@ -537,9 +538,18 @@ function buildTower(api, K, M, SP, root, { wall, rodGeo, candle, hgModel, ticker
     bats.push({ bat, wings, r: 2.6 + (i % 4) * 0.9, h: 15.5 + ((i * 1.7) % 6), w: (i % 2 ? 1 : -1) * (0.5 + (i % 3) * 0.18), p: i * 0.7 });
   }
 
-  root.add(ticker(() => {
+  // a toll where the swing turns (the clapper on the lip), as loud as you're near
+  let lastBell = 0, lastVel = 0;
+  root.add(ticker((renderer, scene, camera) => {
     const now = performance.now() / 1000;
     const { bell, clapper } = tollAt(Date.now() / 1000);
+    const vel = bell - lastBell;
+    if (Math.abs(bell) > 0.35 && ((lastVel > 0 && vel <= 0) || (lastVel < 0 && vel >= 0))) {
+      const d = camera.position.distanceTo(pivot.position);
+      bellToll(audio(), 0.55 / (1 + (d / 14) ** 2));
+    }
+    lastBell = bell;
+    if (vel !== 0) lastVel = vel;
     pivot.rotation.z = bell;
     clap.rotation.z = clapper;
     rope.position.y = 0.4 * (bell / TOLL.max);
@@ -572,7 +582,7 @@ export function organAt(t) {
   return { s, playing, fade, chord: playing ? Math.floor(s / ORGAN_PLAY.chord) : -1 };
 }
 
-function buildOrgan(api, K, M, root, { hgModel, ticker, ghostTroll }) {
+function buildOrgan(api, K, M, root, { hgModel, ticker, ghostTroll, audio }) {
   const O = ORGAN, Cn = ORGAN_CONSOLE, B = ORGAN_BENCH;
   hgModel(api, "hg-organ");
   K.solid((O.x0 + O.x1) / 2, (O.z0 + O.z1) / 2, O.x1 - O.x0, O.z1 - O.z0, O.h, { pen: 8 });
@@ -619,7 +629,7 @@ function buildOrgan(api, K, M, root, { hgModel, ticker, ghostTroll }) {
   const op = { body: body.opacity, face: face.opacity };
 
   let last = -2;
-  root.add(ticker(() => {
+  root.add(ticker((renderer, scene, camera) => {
     const { fade, chord } = organAt(Date.now() / 1000);
     ghost.visible = fade > 0.01;
     body.opacity = op.body * fade;
@@ -627,6 +637,10 @@ function buildOrgan(api, K, M, root, { hgModel, ticker, ghostTroll }) {
     ghost.position.y = 0.12 + Math.sin(performance.now() / 600) * 0.03;
     if (chord === last) return;
     last = chord;
+    if (chord >= 0) {
+      const d = Math.hypot(camera.position.x - (O.x0 + O.x1) / 2, camera.position.y - 2, camera.position.z - (O.z0 + O.z1) / 2);
+      organChord(audio(), chord, 0.4 / (1 + (d / 8) ** 2), ORGAN_PLAY.chord);
+    }
     const pressed = new Set();
     if (chord >= 0) {
       // three or four keys a hand, from the chord's number (the same for everyone)
