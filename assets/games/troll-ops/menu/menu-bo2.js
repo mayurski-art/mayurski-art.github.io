@@ -1071,9 +1071,6 @@ const menu = createBo2Menu(nav, {
     // the dock (Emote, Chat, Barracks, Options) is the top menu's only:
     // inside a screen the footer is Back, nothing else to press
     root.classList.toggle("is-top", id === "main");
-    // Phones size the operator and the detail pane from the list's height.
-    pf.style.setProperty("--menu-h", `${nav.offsetHeight}px`);
-    charRoom();
     screenDetail = !!s.detail || id === "search" || id === "pinsearch";
     root.classList.toggle("has-detail", screenDetail);
     root.classList.toggle("has-gun", !!s.gun);
@@ -1099,6 +1096,12 @@ const menu = createBo2Menu(nav, {
     root.classList.toggle("has-cls", s.cls != null);
     if (s.cls != null) renderClassPreview(classHost, game.loadout, lastHot?.classIdx ?? s.cls);
     renderCardHost();
+    // Phones size the operator and the detail pane from the list's height,
+    // measured once the classes above have sized it (has-detail caps the
+    // list on an upright phone: measured before, Options from Play left a
+    // gap under its list)
+    pf.style.setProperty("--menu-h", `${nav.offsetHeight}px`);
+    charRoom();
     const ownBack = (s.groups || []).flat().some((it) => it && it.id === "back");
     $(".to-bo2-back", root).classList.toggle("is-on", m.depth() > 0 && !ownBack);
     mapMode.onScreen(id, s);
