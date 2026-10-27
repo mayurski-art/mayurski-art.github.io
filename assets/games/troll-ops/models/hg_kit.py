@@ -502,3 +502,129 @@ def pumpkin(b, m, stem, x, y, z, r, ribs=10, squash=0.78, ry=0.0, seg=None, tall
         f.smooth = True
     ty = y + 2 * r * squash * tall - r * 0.12
     b.cyl(stem, r * 0.1, (x, ty, z), (x + rnd.uniform(-0.3, 0.3) * r, ty + r * 0.4, z + rnd.uniform(-0.3, 0.3) * r), seg=5, r2=r * 0.06)
+
+
+# ------------------------------------------------------------ phase 2 shapes
+
+_M32 = 0xFFFFFFFF
+
+
+def js_rng(seed):
+    """hollowgrin.js rng(seed), call for call (mulberry32): a place the JS
+    lays out by its own random stream (the graveyard's stones) is drawn
+    here from the same numbers, so the art lands on the colliders."""
+    a = seed & _M32
+
+    def R():
+        nonlocal a
+        a = (a + 0x6d2b79f5) & _M32
+        t = a
+        t = ((t ^ (t >> 15)) * (t | 1)) & _M32
+        t ^= (t + (((t ^ (t >> 7)) * (t | 61)) & _M32)) & _M32
+        return ((t ^ (t >> 14)) & _M32) / 4294967296
+    return R
+
+
+def slab(b, m, prof, t, x, y, z, ry=0.0, rz=0.0, smooth=False):
+    """A profile (u, v) in the vertical plane, t thick, stood at x, y, z
+    (v = 0 on y) and turned ry about the vertical (ry = 0: the profile runs
+    along x and faces z), then leaned rz about its own along-axis."""
+    n = len(prof)
+    c, s = math.cos(ry), math.sin(ry)
+    cl, sl = math.cos(rz), math.sin(rz)
+    pts = []
+    for side in (-t / 2, t / 2):
+        for u, v in prof:
+            # lean: the profile's v tilts into the thickness direction
+            lu, lv, lw = u, v * cl - side * sl, v * sl + side * cl
+            pts.append((x + lu * c + lw * s, y + lv, z - lu * s + lw * c))
+    faces = [list(range(n))[::-1], [n + i for i in range(n)]]
+    for i in range(n):
+        j = (i + 1) % n
+        faces.append([i, j, n + j, n + i])
+    fs = b.poly(m, pts, faces)
+    if smooth:
+        for f in fs[2:]:
+            f.smooth = True
+    return fs
+
+
+def headstone_profile(w, h, kind):
+    """Eight stones: 0 round top, 1 gothic point, 2 square with shoulders,
+    3 round with a chipped corner, 4 a plain tablet, 5 a wide low stone,
+    6 a cross-topped stone, 7 a round top with a notch."""
+    hw = w / 2
+    if kind == 0 or kind == 3 or kind == 7:
+        pts = [(-hw, 0), (hw, 0)]
+        n = 9
+        for i in range(n + 1):
+            a = math.pi * i / n
+            pts.append((hw * math.cos(a), h - hw + hw * math.sin(a)))
+        if kind == 3:
+            pts = pts[:2] + [(hw, h - hw - 0.1), (hw - 0.14, h - hw + 0.05), (hw - 0.22, h - 0.02)] + pts[6:]
+        if kind == 7:
+            k = len(pts) // 2
+            pts = pts[:k - 1] + [(0.05, h - 0.12), (-0.05, h - 0.12)] + pts[k + 1:]
+        return pts
+    if kind == 1:
+        return [(-hw, 0), (hw, 0), (hw, h - hw * 0.9), (hw * 0.55, h - 0.25), (0, h), (-hw * 0.55, h - 0.25), (-hw, h - hw * 0.9)]
+    if kind == 2:
+        return [(-hw, 0), (hw, 0), (hw, h - 0.3), (hw - 0.12, h - 0.3), (hw - 0.12, h - 0.1), (hw - 0.2, h), (-hw + 0.2, h), (-hw + 0.12, h - 0.1), (-hw + 0.12, h - 0.3), (-hw, h - 0.3)]
+    if kind == 4:
+        return [(-hw, 0), (hw, 0), (hw, h - 0.06), (hw - 0.06, h), (-hw + 0.06, h), (-hw, h - 0.06)]
+    if kind == 5:
+        return [(-hw - 0.1, 0), (hw + 0.1, 0), (hw + 0.1, h * 0.75), (0, h * 0.92), (-hw - 0.1, h * 0.75)]
+    # 6: a cross on a shouldered stone
+    return [(-hw, 0), (hw, 0), (hw, h - 0.42), (0.07, h - 0.42), (0.07, h - 0.24), (0.2, h - 0.24), (0.2, h - 0.14), (0.07, h - 0.14),
+            (0.07, h), (-0.07, h), (-0.07, h - 0.14), (-0.2, h - 0.14), (-0.2, h - 0.24), (-0.07, h - 0.24), (-0.07, h - 0.42), (-hw, h - 0.42)]
+
+
+def branch(b, bark, bark_lt, p0, d, length, r0, depth, rnd, out):
+    """A crooked limb from p0 along d: three bends, tapering, splitting into
+    two or three at its end until depth runs out."""
+    p, r = list(p0), r0
+    for k in range(3):
+        L = length / 3
+        dx, dy, dz = d
+        q = [p[0] + dx * L, p[1] + dy * L, p[2] + dz * L]
+        r1 = r * 0.82
+        b.cyl(bark if depth % 2 else bark_lt, r, tuple(p), tuple(q), seg=6 if r > 0.08 else 4, r2=r1, caps=False)
+        nd = [dx + rnd.uniform(-0.35, 0.35), dy + rnd.uniform(-0.25, 0.3), dz + rnd.uniform(-0.35, 0.35)]
+        n = math.sqrt(sum(c * c for c in nd))
+        d = [c / n for c in nd]
+        p, r = q, r1
+    out.append((tuple(p), r))
+    if depth == 0 or r < 0.025:
+        return
+    for i in range(2 if rnd.random() < 0.6 else 3):
+        a = rnd.uniform(0, 2 * math.pi)
+        spread = rnd.uniform(0.45, 0.8)
+        nd = [d[0] + math.cos(a) * spread, d[1] + rnd.uniform(-0.1, 0.25), d[2] + math.sin(a) * spread]
+        n = math.sqrt(sum(c * c for c in nd))
+        branch(b, bark, bark_lt, p, [c / n for c in nd], length * rnd.uniform(0.55, 0.75), r * rnd.uniform(0.6, 0.8), depth - 1, rnd, out)
+
+
+def dead_tree(b, bark, bark_lt, x, z, h=7.0, r=0.3, seed=1, limbs=3, lean=0.1, R=None, pid=None):
+    """A bare tree: a leaning trunk that forks into crooked limbs. With a
+    Registry, the trunk and the crown register as two props (the crown
+    overhead is never in anything's way on the ground)."""
+    rnd = __import__("random").Random(seed)
+    fork = h * 0.55
+    la = rnd.uniform(0, 2 * math.pi)
+    top = (x + math.cos(la) * lean * fork, fork, z + math.sin(la) * lean * fork)
+    if R:
+        R.begin(b, pid)
+    b.cyl(bark, r, (x, -0.05, z), top, seg=8, r2=r * 0.7, caps=False)
+    b.cyl(bark, r * 1.45, (x, -0.05, z), (x, 0.3, z), seg=8, r2=r * 1.05, caps=False)     # the root flare
+    if R:
+        R.end()
+        R.begin(b, pid + "-crown", on=pid)
+    tips = []
+    for i in range(limbs):
+        a = la + 2 * math.pi * i / limbs + rnd.uniform(-0.4, 0.4)
+        d = [math.cos(a) * 0.7, 0.85, math.sin(a) * 0.7]
+        n = math.sqrt(sum(c * c for c in d))
+        branch(b, bark, bark_lt, top, [c / n for c in d], (h - fork) * 0.9, r * 0.6, 3, rnd, tips)
+    if R:
+        R.end()
+    return tips

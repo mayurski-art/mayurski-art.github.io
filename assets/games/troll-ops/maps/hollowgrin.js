@@ -4051,32 +4051,27 @@ function buildHollowgrin(api) {
   }
 
   /* ------------------------------------------------ the graveyard */
+  // Drawn in Blender (models/hg_graveyard.py, hg-graveyard.glb): the fence
+  // and both gates, the stones, the graves, the monument, the barrow, the
+  // dead trees. Here: the colliders (the stones' come from the random
+  // stream the model reads too, so every call to R stays, drawn or not),
+  // what glows, the epitaphs, the sign, and the mausoleum's inside.
+  hgModel(api, "hg-graveyard");
   {
     // fence: north, east, south, west, with gates
-    ironFence(K, M, { axis: "x", at: -6, a: -35.6, b: -26.6 });
-    ironFence(K, M, { axis: "x", at: -6, a: -23.4, b: -16 });
-    ironFence(K, M, { axis: "x", at: 20, a: -35.6, b: -23.6 });
-    ironFence(K, M, { axis: "x", at: 20, a: -20.4, b: -16 });
-    ironFence(K, M, { axis: "z", at: -16, a: -6, b: 0.4 });
-    ironFence(K, M, { axis: "z", at: -16, a: 3.6, b: 12.4 });
-    ironFence(K, M, { axis: "z", at: -16, a: 15.6, b: 20 });
+    ironFence(K, M, { axis: "x", at: -6, a: -35.6, b: -26.6, draw: false });
+    ironFence(K, M, { axis: "x", at: -6, a: -23.4, b: -16, draw: false });
+    ironFence(K, M, { axis: "x", at: 20, a: -35.6, b: -23.6, draw: false });
+    ironFence(K, M, { axis: "x", at: 20, a: -20.4, b: -16, draw: false });
+    ironFence(K, M, { axis: "z", at: -16, a: -6, b: 0.4, draw: false });
+    ironFence(K, M, { axis: "z", at: -16, a: 3.6, b: 12.4, draw: false });
+    ironFence(K, M, { axis: "z", at: -16, a: 15.6, b: 20, draw: false });
     // (the west side, with its gate out to the chapel, is in buildOutskirts)
-    // the main gate: stone pillars, an iron arch, and a sign
-    for (const gz of [0.1, 3.9]) {
-      K.solid(-16, gz, 0.6, 0.6, 2.5, { mat: M.stone, pen: 10 });
-      K.box(M.stoneDark, -16, 2.5, gz, 0.75, 0.15, 0.75);
-      K.add(M.stone, place(new THREE.SphereGeometry(0.22, 10, 8), { x: -16, y: 2.8, z: gz }));
-    }
-    K.add(M.iron, place(new THREE.TorusGeometry(1.9, 0.05, 6, 24, Math.PI), { x: -16, y: 2.5, z: 2, ry: Math.PI / 2 }));
+    // the main gate: stone pillars, and the sign on the arch between them
+    for (const gz of [0.1, 3.9]) K.solid(-16, gz, 0.6, 0.6, 2.5, { pen: 10 });
     const gateSign = new THREE.MeshBasicMaterial({ map: signTexture(["REST IN PEPE"], { bg: "#121014", fg: "#9dff7a", edge: "#2a3a24" }), color: 0xd8ffd0 });
     for (const ry of [Math.PI / 2, -Math.PI / 2]) {
       K.add(gateSign, place(new THREE.PlaneGeometry(2.6, 0.5), { x: -16 + (ry > 0 ? 0.04 : -0.04), y: 3.1, z: 2, ry }), { shadow: false });
-    }
-    // open gate leaves swung in against the fence
-    for (const [gz, dir] of [[0.4, -1], [3.6, 1]]) {
-      K.box(M.iron, -16.9, 0.1, gz + dir * 0.05, 1.6, 0.05, 0.04);
-      K.box(M.iron, -16.9, 1.7, gz + dir * 0.05, 1.6, 0.05, 0.04);
-      for (let i = 0; i < 9; i++) K.box(M.iron, -16.2 - i * 0.18, 0.1, gz + dir * 0.05, 0.025, 1.7, 0.025);
     }
 
     // a lantern hung in the gate's arch; candles left burning on graves
@@ -4086,7 +4081,8 @@ function buildHollowgrin(api) {
       candleCluster(K, M, gx + 0.4, 0, gz + 0.15, { n: 3 + (cs % 3), seed: cs++ });
     }
 
-    // headstones in rows, graves running east of each stone
+    // headstones in rows, graves running east of each stone: the colliders,
+    // sized by the same numbers the model is drawn from (hg_graveyard.py)
     const R = rng(66);
     const zs = [-4.5, -2.0, 5.0, 7.5, 10.0, 12.5, 15.0, 17.5];
     const rows = [-33.4, -30.4, -27.2, -22.6, -19.6];
@@ -4098,37 +4094,22 @@ function buildHollowgrin(api) {
         if (x > -31.5 && x < -24.5 && z > 6 && z < 15) continue;     // the mausoleum
         k++;
         const kind = R();
-        const tilt = (R() - 0.5) * 0.14, twist = (R() - 0.5) * 0.12;
+        R();                                                          // (its lean)
+        const twist = (R() - 0.5) * 0.12;
         if (kind < 0.62) {
           const w = 0.62 + R() * 0.2, h = 0.8 + R() * 0.35;
           K.api.ghostBox(x, z, 0.3, w, h, { pen: 3 });
-          K.add(R() < 0.5 ? M.stone : M.stoneDark, place(headstoneGeo(w, h, 0.18), { x, y: 0, z, ry: Math.PI / 2 + twist, rz: 0, rx: 0, sx: 1 }));
-          // tilt by leaning: done as a second rotation pass would skew UVs, so
-          // a gentle lean is folded into the twist instead
+          R();                                                        // (its colour)
           if (k % 2 === 0) decals.push({ x: x + 0.1, z, w, h, cell: k % EPITAPHS.length, twist });
         } else if (kind < 0.84) {
           K.api.ghostBox(x, z, 0.3, 0.7, 1.3, { pen: 3 });
-          K.box(M.stone, x, 0, z, 0.16, 1.3, 0.16, { ry: twist, rz: tilt });
-          K.box(M.stone, x, 0.8, z, 0.16, 0.14, 0.7, { ry: twist, rz: tilt });
-          K.box(M.stoneDark, x, 0, z, 0.4, 0.14, 0.5);
         } else {
           K.api.ghostBox(x, z, 0.45, 0.45, 1.5, { pen: 4 });
-          K.box(M.stoneDark, x, 0, z, 0.55, 0.3, 0.55);
-          K.cyl(M.stone, x, 0.3, z, 0.2, 0.12, 1.1, 4, { ry: Math.PI / 4 });
-          K.cyl(M.stone, x, 1.4, z, 0.12, 0, 0.25, 4, { ry: Math.PI / 4 });
         }
-        // the grave itself: a low curb, or freshly dug and open
+        // the grave itself: freshly dug and open (zombies rise there), or curbed
         const gx = x + 1.05;
-        if (open.has(`${x},${z}`)) {
-          K.box(M.dirt, gx, 0, z, 1.7, 0.08, 0.8, {}, { shadow: false });
-          const mound = new THREE.SphereGeometry(0.5, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2);
-          K.add(M.dirt, place(mound, { x: gx + 0.2, y: 0, z: z + 0.85, sx: 1.6, sy: 0.5, sz: 0.7 }));
-          ZSPAWNS.push({ x: gx, y: 0, z, rise: true });
-        } else if (R() < 0.6) {
-          K.box(M.stoneDark, gx, 0, z - 0.42, 1.8, 0.12, 0.08, {}, { shadow: false });
-          K.box(M.stoneDark, gx, 0, z + 0.42, 1.8, 0.12, 0.08, {}, { shadow: false });
-          K.box(M.stoneDark, gx + 0.86, 0, z, 0.08, 0.12, 0.84, {}, { shadow: false });
-        }
+        if (open.has(`${x},${z}`)) ZSPAWNS.push({ x: gx, y: 0, z, rise: true });
+        else R();                                                     // (a curb or not)
         if (R() < 0.3) candle(K, M, x + 0.3, 0, z + 0.25, { seed: 300 + k, h: 0.14 });
       }
     }
@@ -4141,11 +4122,9 @@ function buildHollowgrin(api) {
       K.add(M.epitaph, place(g, { x: d.x + 0.03, y: d.h * 0.52, z: d.z, ry: Math.PI / 2 + d.twist }), { shadow: false });
     }
 
-    // the monument where the aisle crosses the lane
-    K.solid(-24, 2, 1.3, 1.3, 0.5, { mat: M.stoneDark, pen: 10 });
+    // the monument where the aisle crosses the lane (the weeping angel)
+    K.solid(-24, 2, 1.3, 1.3, 0.5, { pen: 10 });
     K.solid(-24, 2, 0.8, 0.8, 3.4, { y: 0.5, pen: 10 });
-    K.cyl(M.stone, -24, 0.5, 2, 0.5, 0.3, 3.2, 4, { ry: Math.PI / 4 });
-    K.cyl(M.stone, -24, 3.7, 2, 0.32, 0, 0.7, 4, { ry: Math.PI / 4 });
     for (let i = 0; i < 4; i++) candle(K, M, -24 + [-0.5, 0.5, -0.5, 0.5][i], 0.5, 2 + [-0.5, -0.5, 0.5, 0.5][i], { seed: 400 + i, h: 0.22, r: 0.05 });
 
     // the mausoleum: a granite Greek-revival tomb (models/build_hollowgrin
@@ -4184,11 +4163,7 @@ function buildHollowgrin(api) {
     lights.push(ml);
 
     // dead trees inside the fence
-    const t1 = treeGeo(777, { height: 7, r: 0.3, levels: 3 });
-    K.add(M.bark, place(t1, { x: -34.2, z: 6.2 }));
     K.api.ghostBox(-34.2, 6.2, 0.6, 0.6, 4, { pen: 6 });
-    const t2 = treeGeo(778, { height: 6, r: 0.26, levels: 3 });
-    K.add(M.bark, place(t2, { x: -16.9, z: 8.8, ry: 1.3 }));
     K.api.ghostBox(-16.9, 8.8, 0.5, 0.5, 4, { pen: 6 });
   }
 

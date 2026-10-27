@@ -14,6 +14,9 @@ obstruction test's faces, eye regions and prop bounds) and
 hollowgrin-build.json (the layout hash the art was drawn from, every GLB's
 size, triangles and bounds).
 
+Phase 2: the graveyard (hg_graveyard.py, hg-graveyard.glb) and the west
+edge (hg_west.py).
+
 Phase 1: Grinmoor Manor (hg_manor.py, hg-manor.glb) and the square
 (hg_village.py, hg-square.glb), drawn over the JS's colliders; the JS that
 drew them is gone (it keeps the colliders and what glows).
@@ -63,6 +66,7 @@ PARTS = {
     "manor": ("hg_manor", "build_manor", "hg-manor"),
     "square": ("hg_village", "build_square", "hg-square"),
     "oak": ("hg_village", "build_oak", "hg-oak"),
+    "graveyard": ("hg_graveyard", "build_graveyard", "hg-graveyard"),
     "mausoleum": ("village", "build_mausoleum", "hg-mausoleum"),
     "barn": ("village", "build_barn", "hg-barn"),
     "candyshop": ("village", "build_shop", "hg-candyshop"),
@@ -80,7 +84,7 @@ PARTS = {
     "trollbust": ("eggs", None, "hg-trollbust"),
 }
 OWN_FRAME = {"ride", "horse", "pepe", "trollbust"}
-HG_MODULES = {"hg_manor", "hg_village"}
+HG_MODULES = {"hg_manor", "hg_village", "hg_graveyard"}
 
 
 def main():
