@@ -18,6 +18,7 @@ import { posePianoArms, poseSeated } from "../modes/rp-roles.js?v=rp1b7-cd1-sh1-
 import { stripLights, buildWeaponMesh } from "../weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1-rt1-ut1-rb4-hp1-bx1-mg1-sp1";
 import { buildMeleeMesh } from "../weapons/gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1-rb4-hp1-bx1-mg1-sp1";
 import { game } from "../core/state.js?v=st1";
+import { poseUseLocal, clearUseBody } from "../modes/royale-use.js?v=ru1";
 import { throwState, poseThrowBody, clearThrowBody } from "../combat/throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-rfx1";
 import { modelKind } from "../combat/throwable-models.js?v=tm1-th2";
 import { wearBlocky, ownBody } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-hl1-mg1-sp1-rh1-ci6-pm1";
@@ -421,6 +422,10 @@ export function updateLocalRig(dt) {
     clearThrowBody(game.localRig);
     if (game.localThrowT > 0) poseThrowArm(game.localRig, 1 - game.localThrowT / THROW_TIME);
   }
+  // Troll Royale: a plate pressed to the chest, the Hopium into the thigh
+  // (modes/royale-use.js), the gun put away for it.
+  if (!th && poseUseLocal(game.localRig) && localHeld.mesh) localHeld.mesh.visible = false;
+  else if (th) clearUseBody(game.localRig);
   if (game.isSocial()) syncLocalDrink(true);   // the saloon bar: a drink in hand
   // Sat down (rp-roles.js); at the piano, both hands on the keys.
   if (seated && game.isSocial()) {

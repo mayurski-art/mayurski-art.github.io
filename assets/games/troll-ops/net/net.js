@@ -375,6 +375,7 @@ export class Net {
         p.throwCk = typeof m.ck === "string" ? m.ck.slice(0, 16) : null;   // a grenade in hand (combat/throw-anim.js)
         p.trainAt = typeof m.tc === "string" ? m.tc.slice(0, 24) : null;   // riding the Grin Express (modes/social-train.js)
         p.boatAt = typeof m.bt === "string" ? m.bt.slice(0, 16) : null;   // aboard the Boat (modes/royale-boat.js)
+        p.useAct = typeof m.ua === "string" ? m.ua.slice(0, 12) : null;   // Royale: plating up / Hopium (modes/royale-use.js)
         p.cuffed = Math.max(0, Math.min(2, m.cf | 0));   // Troll City's law (modes/social-sheriff.js)
         p.stetson = (m.mt | 0) === 1;   // a hat from Kek & Sons (modes/social-shop.js)
         // on a horse (modes/social-horses.js): which (+1), its gait, its yaw; a horsekeeper's saddles
@@ -593,6 +594,7 @@ export class Net {
         ck: local.throwCk || undefined,   // throw phase:deciseconds:kind
         tc: this.trainAt || undefined,   // on the Grin Express: car:x:z, car-local (modes/social-train.js sets it)
         bt: this.boatAt || undefined,    // aboard the Boat: x:z, boat-local (modes/royale-boat.js sets it)
+        ua: this.useAct || undefined,    // Royale plate / Hopium: "p"|"h":percent:deciseconds (modes/royale.js sets it)
         // Troll City's law (modes/social-sheriff.js, social-jail.js): cuffed
         // (1, or 2 being arrested by the town), the cell we're in + 1, the
         // sheriff's wanted board ("id:crime;...")
@@ -738,6 +740,9 @@ export class Net {
     p.hero = bot.hero || null;   // U Mad Bro? (the wire carries it as hr below)
     p.body = bot.body || null;   // Cops and Robbers police body (bd below)
     p.throwCk = bot.throwCk || null;   // winding up a grenade (ck below)
+    // Royale: plating up or dosing (b.act, modes/royale.js), as modes/royale-use.js useWire
+    const ba = bot.act;
+    p.useAct = ba?.kind && ba.dur > 0 ? `${ba.kind === "plate" ? "p" : "h"}:${Math.round(Math.min(1, ba.t / ba.dur) * 100)}:${Math.round(ba.dur * 10)}` : null;
     // The wire "state" message sets this on every OTHER client (case "state"
     // above); the bot-hosting client never routes its own bots' state through
     // onMessage, so without this line the host's own view of its bots never
@@ -777,6 +782,7 @@ export class Net {
       hr: bot.hero || undefined,
       bd: bot.body || undefined,
       ck: bot.throwCk || undefined,
+      ua: p.useAct || undefined,
     });
   }
 
