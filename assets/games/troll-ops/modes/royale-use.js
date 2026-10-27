@@ -419,7 +419,7 @@ export function poseUseBody(rig, kind, k) {
     u.hop.visible = k < USE.heal.toss;
     u.hop.position.copy(pr);
     u.hop.rotation.set(0.35, 0, 0);   // needle down and a touch forward
-    u.hop.scale.setScalar(0.8 * s);
+    u.hop.scale.setScalar(1.15 * s);   // read at range, like a thrown grenade
   }
 }
 /* Put a body's props away (no act on). */
