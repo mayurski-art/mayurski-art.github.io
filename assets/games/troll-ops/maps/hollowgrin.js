@@ -1452,39 +1452,108 @@ function festoon(K, M, SP, pts, { sag = 0.55, every = 0.75, seed = 1 } = {}) {
   }
 }
 
-/* Orange string lights wound up the square's oak, Christmas-style. The
-   oak is Studio's mesh, so the bark is found where it is: once the model
-   loads, rays cast in at the trunk along a spiral, and the wire and the
-   bulbs go where they hit. */
+/* Orange string lights round the square's oak, wound on by hand: from the
+   roots up as far as a stepladder reaches (about 3.4 m), the turns uneven
+   and closer low down, one loop slipped, the bulbs pointing every which
+   way on their green sockets, a spare tail hanging off the top, and the
+   plug end run along the roots and over the setts to the pumpkin stall.
+   The oak is Studio's mesh, so the bark is found where it is: once the
+   model loads, rays cast in at the trunk give the wire's contact points. */
 const OAK_LIGHTS = [0xff7a1a, 0xffa040, 0xff8c00, 0xffb35a];
-function oakLights(oak, { x = 0, z = 1, y0 = 1.3, y1 = 5.0, turns = 5.5, n = 240 } = {}) {
+function oakLights(oak, { x = 0, z = 1, seed = 7 } = {}) {
   oak.updateMatrixWorld(true);
+  const R = rng(seed);
   const ray = new THREE.Raycaster();
   const o = new THREE.Vector3(), d = new THREE.Vector3();
-  const pts = [];
-  for (let i = 0; i <= n; i++) {
-    const t = i / n, a = t * turns * Math.PI * 2, y = y0 + (y1 - y0) * t;
+  const hitOak = (from, dir, far) => {
+    ray.set(from, dir);
+    ray.far = far;
+    return ray.intersectObject(oak, true)[0];
+  };
+  // the bark at angle a, height y (and the way out from the trunk there)
+  const bark = (a, y) => {
     d.set(-Math.cos(a), 0, -Math.sin(a));
-    o.set(x + Math.cos(a) * 4, y, z + Math.sin(a) * 4);
-    ray.set(o, d);
-    ray.far = 4;
-    const hit = ray.intersectObject(oak, true)[0];
-    if (hit) pts.push({ p: hit.point.clone().addScaledVector(d, -0.04), out: d.clone().negate() });
+    const hit = hitOak(o.set(x + Math.cos(a) * 4, y, z + Math.sin(a) * 4), d, 4);
+    return hit && { p: hit.point.clone().addScaledVector(d, -(0.025 + R() * 0.02)), out: d.clone().negate() };
+  };
+
+  // the wrap: round and up in uneven steps, each turn rising 0.3-0.8 m
+  const wrap = [];
+  let a = -0.42, y = 0.7, rise = 0.32, slip = 0;
+  while (y < 3.4) {
+    const b = bark(a, y + (R() - 0.5) * 0.05);
+    if (b) wrap.push(b);
+    const step = 0.2 + R() * 0.14;
+    const turn = Math.floor(a / (Math.PI * 2));
+    a += step;
+    if (Math.floor(a / (Math.PI * 2)) !== turn) rise = 0.28 + y * 0.1 + R() * 0.25;
+    if (!slip && y > 1.8 && R() < 0.05) slip = 7;        // a loop slipped down the bark
+    y += slip > 0 ? (slip--, -0.035) : (rise * step) / (Math.PI * 2);
   }
+  // the spare tail, hanging off the last turn
+  const last = wrap[wrap.length - 1];
+  for (let i = 1; i <= 4; i++) {
+    wrap.push({ p: last.p.clone().addScaledVector(last.out, 0.03 * i).add(new THREE.Vector3(0, -0.12 * i, 0)), out: last.out });
+  }
+
+  // the plug end: from the first turn down the roots and over the setts to
+  // the stall, lying loose (a little wiggle), clear of the lanterns and the A-board
+  const lead = [];
+  const first = wrap[0].p;
+  const stops = [[first.x, first.z], [3.2, -0.4], [5.0, -1.6], [6.15, -3.25]];
+  const down = new THREE.Vector3(0, -1, 0);
+  for (let s = 1; s < stops.length; s++) {
+    const [ax, az] = stops[s - 1], [bx, bz] = stops[s];
+    const n = Math.max(2, Math.ceil(Math.hypot(bx - ax, bz - az) / 0.25));
+    for (let i = s === 1 ? 1 : 0; i < n; i++) {
+      const t = i / n, w = Math.sin((s * 7 + i) * 0.9) * 0.06;
+      const px = ax + (bx - ax) * t - (bz - az) / n * w * 4, pz = az + (bz - az) * t + (bx - ax) / n * w * 4;
+      const hit = hitOak(o.set(px, 3, pz), down, 3);
+      lead.push(new THREE.Vector3(px, Math.max(0.025, hit ? hit.point.y + 0.025 : 0), pz));
+    }
+  }
+
   const K = new Kit(null, oak), SP = new Sparks();
   const wire = new THREE.MeshStandardMaterial({ color: 0x24382e, roughness: 0.7 });
   const bulb = new THREE.MeshBasicMaterial({ vertexColors: true, color: new THREE.Color(0xffffff).multiplyScalar(1.7) });
-  pts.forEach(({ p, out }, i) => {
-    if (i) K.add(wire, rodGeo(pts[i - 1].p.toArray(), p.toArray(), 0.008, 3), { shadow: false });
-    if (i % 2) return;
-    const col = OAK_LIGHTS[(i / 2) % OAK_LIGHTS.length];
-    const g = new THREE.OctahedronGeometry(0.035).scale(1, 1, 1.9);
-    g.lookAt(out);
-    const c = p.clone().addScaledVector(out, 0.05);
-    g.translate(c.x, c.y, c.z);
-    K.add(bulb, g, { color: col, shadow: false });
-    SP.add(c.x, c.y, c.z, col, { size: 0.28, blink: 0.1 });
+  const cable = (pts) => {
+    for (let i = 1; i < pts.length; i++) K.add(wire, rodGeo(pts[i - 1].toArray(), pts[i].toArray(), 0.008, 3), { shadow: false });
+  };
+  // the wire sags a touch between where it rests on the bark
+  const run = [];
+  wrap.forEach(({ p, out }, i) => {
+    if (i) {
+      const q = wrap[i - 1].p;
+      run.push(q.clone().add(p).multiplyScalar(0.5).addScaledVector(out, 0.012).add(new THREE.Vector3(0, -0.012 - R() * 0.012, 0)));
+    }
+    run.push(p);
   });
+  cable([...lead.slice().reverse(), first, ...run]);
+  K.box(new THREE.MeshStandardMaterial({ color: 0x141416, roughness: 0.6 }), 6.2, 0, -3.3, 0.07, 0.05, 0.12, { ry: 0.6 }, { shadow: false });
+
+  // the bulbs, every 0.26-0.38 m along the wrap, each on its socket at its own angle
+  let next = 0.2, walked = 0, k = 0;
+  const tan = new THREE.Vector3(), dir = new THREE.Vector3();
+  for (let i = 1; i < wrap.length; i++) {
+    const A = wrap[i - 1].p, B = wrap[i].p, len = A.distanceTo(B);
+    while (walked + len >= next) {
+      const t = (next - walked) / len;
+      const p = A.clone().lerp(B, t), out = wrap[i].out;
+      tan.subVectors(B, A).normalize();
+      dir.copy(out).multiplyScalar(0.8).addScaledVector(tan, (R() - 0.5) * 1.2).add(new THREE.Vector3(0, (R() - 0.45) * 1.4, 0)).normalize();
+      const tip = p.clone().addScaledVector(dir, 0.045);
+      K.add(wire, rodGeo(p.toArray(), tip.toArray(), 0.012, 5), { shadow: false });
+      const col = OAK_LIGHTS[k++ % OAK_LIGHTS.length];
+      const g = new THREE.OctahedronGeometry(0.03).scale(1, 1, 1.9);
+      g.lookAt(dir);
+      const c = tip.clone().addScaledVector(dir, 0.045);
+      g.translate(c.x, c.y, c.z);
+      K.add(bulb, g, { color: col, shadow: false });
+      SP.add(c.x, c.y, c.z, col, { size: 0.26, blink: 0.1 });
+      next += 0.26 + R() * 0.12;
+    }
+    walked += len;
+  }
   K.flush();
   oak.add(SP.points(sparkMaterial()));
 }
