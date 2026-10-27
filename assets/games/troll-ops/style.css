@@ -4505,6 +4505,20 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-bo2.is-fn[data-screen="locker"] .tr-menu-item[data-id="classlist"].is-hot { background: #fff; }
 .to-bo2.is-fn[data-screen="locker"] .to-bo2-party { display: none; }
 #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="locker"]) .to-char-view { left: calc(var(--fn-pad) + 456px); right: calc(var(--fn-pad) + 316px); top: var(--fn-top); bottom: 78px; --char-shift: 0; --char-dist: 1.15; }
+/* Quests and Prestige Rewards (phase 5): cards two across, the way a quest
+   page reads. A challenge has a bar (empty to do, full done); a reward
+   unlocked is edged green. */
+.to-bo2.is-fn[data-screen="quests"] .tr-menu-group:nth-child(-n+2):not(:has([data-id="q-guest"], [data-id="back"])),
+.to-bo2.is-fn[data-screen="rewards"] .tr-menu-group:first-child { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.to-bo2.is-fn:is([data-screen="quests"], [data-screen="rewards"]) .tr-menu-item:is([data-id^="q-"]:not([data-id="q-guest"]), [data-id^="rw-"]) {
+  position: relative; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 6px; min-width: 0; min-height: 70px; padding: 9px 11px 15px; line-height: 1.1; border: 1px solid rgba(170,200,255,.18); }
+.to-bo2.is-fn:is([data-screen="quests"], [data-screen="rewards"]) .tr-menu-item:is([data-id^="q-"]:not([data-id="q-guest"]), [data-id^="rw-"]) > span:first-child { font: 800 16px/1.1 var(--fn-ui); letter-spacing: .03em; }
+.to-bo2.is-fn:is([data-screen="quests"], [data-screen="rewards"]) .tr-menu-item:is([data-id^="q-"]:not([data-id="q-guest"]), [data-id^="rw-"]) > small { margin: 0; font-size: 12px; }
+.to-bo2.is-fn:is([data-screen="quests"], [data-screen="rewards"]) .tr-menu-item:is([data-id^="q-"]:not([data-id="q-guest"]), [data-id^="rw-"]) .tr-menu-tick { position: absolute; top: 7px; right: 9px; }
+.to-bo2.is-fn[data-screen="quests"] .tr-menu-item[data-id^="q-"]:not([data-id="q-guest"])::after { content: ""; position: absolute; left: 11px; right: 11px; bottom: 7px; height: 4px; border-radius: 4px;
+  background: linear-gradient(90deg, #4ee6a0 4%, rgba(255,255,255,.18) 4%); }
+.to-bo2.is-fn[data-screen="quests"] .tr-menu-item[data-id^="q-"]:has(.tr-menu-tick)::after { background: #4ee6a0; }
+.to-bo2.is-fn:is([data-screen="quests"], [data-screen="rewards"]) .tr-menu-item:is([data-id^="q-"], [data-id^="rw-"]):has(.tr-menu-tick):not(.is-hot) { border-color: rgba(78,230,160,.6); }
 /* The Locker's pickers: the choices are item cards, two across; the one you
    have is ticked and edged green, a locked one says what unlocks it */
 .to-bo2.is-fn:is([data-screen="classlist"], [data-screen="classes"], [data-screen="weapons"], [data-screen="streaks"], [data-screen="faces"], [data-screen="wrists"], [data-screen="bodies"], [data-screen="cards"], [data-screen="heroes"], [data-screen^="att-"], [data-screen^="gear-"], [data-screen^="perk-"]) .tr-menu-group:first-child { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

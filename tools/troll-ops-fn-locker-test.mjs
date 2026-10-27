@@ -103,6 +103,21 @@ await page.waitForTimeout(700);
 const after = (await tiles())[1]?.find((x) => x.id === "face")?.value;
 check(await cur() === "locker" && !!pick && after?.toLowerCase() === pick.toLowerCase() && after !== before, "a face picked shows on its tile, back in the Locker", JSON.stringify({ before, pick, after }));
 
+// phase 5: Quests and Prestige Rewards read as cards, two across
+for (const [tab, screen, first] of [["quests", "quests", "q-"], ["career", "rewards", "rw-"]]) {
+  await page.click(`.to-fn-tab[data-tab="${tab}"]`);
+  await page.waitForTimeout(500);
+  if (screen !== "quests") await page.evaluate((s) => window.__toBo2.menu.go(s), screen);
+  await page.waitForTimeout(600);
+  const q = await page.evaluate((first) => {
+    const [a, b] = [...document.querySelectorAll(`.to-bo2-menu .tr-menu-item[data-id^="${first}"]`)].map((e) => e.getBoundingClientRect());
+    return { title: document.querySelector(".to-bo2-menu .tr-menu-title").textContent, sameRow: !!b && Math.abs(a.top - b.top) < 1 && b.left > a.right };
+  }, first);
+  check(q.sameRow && (screen !== "quests" || /^Challenges \d+\/\d+$/.test(q.title)), `${screen}: cards two across${screen === "quests" ? ", the title counts what's done" : ""}`, JSON.stringify(q));
+}
+await page.click('.to-fn-tab[data-tab="locker"]');
+await page.waitForTimeout(700);
+
 // 4. phones
 for (const [w, h, name] of [[844, 390, "land"], [390, 844, "up"]]) {
   await page.setViewportSize({ width: w, height: h });

@@ -461,7 +461,7 @@ const screens = {
     const all = Object.values(ACHIEVEMENTS);
     const row = (a) => ({ id: `q-${a.id}`, label: a.name, value: have.has(a.id) ? "Done" : "To do", on: have.has(a.id), desc: a.blurb });
     return {
-      title: "Challenges", panel: "deploy",
+      title: `Challenges ${all.filter((a) => have.has(a.id)).length}/${all.length}`, panel: "deploy",
       groups: [
         all.filter((a) => !have.has(a.id)).map(row),
         all.filter((a) => have.has(a.id)).map(row),
@@ -563,7 +563,7 @@ const screens = {
       groups: [
         rewardLadder().map(({ p, items }) => ({
           id: `rw-${p}`, label: p >= PRESTIGE_MASTER ? "Prestige Master" : `Prestige ${p}`,
-          value: owner || now >= p ? "Unlocked" : "Locked",
+          value: owner || now >= p ? "Unlocked" : "Locked", on: owner || now >= p,
           desc: items.join(" · ") + ".",
         })),
         [back("Back to the Barracks.")],
