@@ -399,7 +399,7 @@ const screens = {
     groups: [
       [
         { id: "public", label: "Public Match", tier: "primary", desc: "Drop into a versus room with whoever is online. Bots fill the gaps.", go: "public" },
-        { id: "social", label: "Socialize", desc: "Hang out in Troll City, Kabukigrin or Troll Beach with whoever is online. No guns, just emotes and chat.", go: "social" },
+        { id: "social", label: "Socialize", desc: "Hang out in Troll City, Kabukigrin, Troll Beach or Undergrin with whoever is online. No guns, just emotes and chat.", go: "social" },
         { id: "solo", label: "Solo Play", desc: "Ops, Zombies or the Test Range. Just you.", go: "solo" },
         { id: "zombies", label: "Zombies", desc: "The hub: step on a map's pad, up to four of you go in together against the horde.", go: "zombies" },
         { id: "private", label: "Private Match", desc: "Make a room code and send it to your friends.", go: "private" },

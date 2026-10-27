@@ -25,7 +25,7 @@ import {
   toyCar, gardenGnome, trashCan, tireSwing, streetlamp,
 } from "./house-props.js?v=hg6e-sb2-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1";
 import { gsModel, mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1";
-import { buildUndergrin } from "./undergrin.js?v=ugb1";
+import { buildUndergrin, UG_BOOTHS } from "./undergrin.js?v=ugb1";
 import { buildDustbowlCity, CITY_PALMS } from "./dustbowl-city.js?v=db5-sr1-or1-tx1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1";
 import { buildSurfStrip } from "./surf-sea.js?v=gb1";
 import { buildVenice, VENICE_PALMS, VENICE_SPAWNS, RACKS } from "./grinbeach-venice.js?v=gb1-tb1-tb2-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1";
@@ -498,6 +498,8 @@ export const MAPS = {
     // seven ug-*.glb (models/build_undergrin.blender.py).
     bounds: { minX: -22, maxX: 22, minZ: -44, maxZ: 44 },
     playerSpawn: { x: 0, z: 37 },
+    // the halls' walk-in Fotoautomats: Socialize's photo booth (modes/photo-booth.js)
+    booths: UG_BOOTHS,
     // The modded full-bright look (UNDERGRIN-METRO.md section 3): no sun, so
     // no shadow pass; flat white ambient does the lighting; the only lights
     // are painted on. A black sky, and just enough fog to soften the bores.
