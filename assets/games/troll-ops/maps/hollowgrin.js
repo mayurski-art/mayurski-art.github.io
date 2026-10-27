@@ -1452,6 +1452,43 @@ function festoon(K, M, SP, pts, { sag = 0.55, every = 0.75, seed = 1 } = {}) {
   }
 }
 
+/* Orange string lights wound up the square's oak, Christmas-style. The
+   oak is Studio's mesh, so the bark is found where it is: once the model
+   loads, rays cast in at the trunk along a spiral, and the wire and the
+   bulbs go where they hit. */
+const OAK_LIGHTS = [0xff7a1a, 0xffa040, 0xff8c00, 0xffb35a];
+function oakLights(oak, { x = 0, z = 1, y0 = 1.3, y1 = 5.0, turns = 5.5, n = 240 } = {}) {
+  oak.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster();
+  const o = new THREE.Vector3(), d = new THREE.Vector3();
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, a = t * turns * Math.PI * 2, y = y0 + (y1 - y0) * t;
+    d.set(-Math.cos(a), 0, -Math.sin(a));
+    o.set(x + Math.cos(a) * 4, y, z + Math.sin(a) * 4);
+    ray.set(o, d);
+    ray.far = 4;
+    const hit = ray.intersectObject(oak, true)[0];
+    if (hit) pts.push({ p: hit.point.clone().addScaledVector(d, -0.04), out: d.clone().negate() });
+  }
+  const K = new Kit(null, oak), SP = new Sparks();
+  const wire = new THREE.MeshStandardMaterial({ color: 0x24382e, roughness: 0.7 });
+  const bulb = new THREE.MeshBasicMaterial({ vertexColors: true, color: new THREE.Color(0xffffff).multiplyScalar(1.7) });
+  pts.forEach(({ p, out }, i) => {
+    if (i) K.add(wire, rodGeo(pts[i - 1].p.toArray(), p.toArray(), 0.008, 3), { shadow: false });
+    if (i % 2) return;
+    const col = OAK_LIGHTS[(i / 2) % OAK_LIGHTS.length];
+    const g = new THREE.OctahedronGeometry(0.035).scale(1, 1, 1.9);
+    g.lookAt(out);
+    const c = p.clone().addScaledVector(out, 0.05);
+    g.translate(c.x, c.y, c.z);
+    K.add(bulb, g, { color: col, shadow: false });
+    SP.add(c.x, c.y, c.z, col, { size: 0.28, blink: 0.1 });
+  });
+  K.flush();
+  oak.add(SP.points(sparkMaterial()));
+}
+
 /* A plain wooden pole for the strings to hang from. */
 function pole(K, M, x, z, h = 4.2) {
   K.solid(x, z, 0.2, 0.2, h, { pen: 3 });
@@ -3879,7 +3916,7 @@ function buildHollowgrin(api) {
   // their colliders, the jack-o'-lanterns, the well's water, the lamp glass
   // and lights, and the words on the chalk board and the notice board.
   hgModel(api, "hg-square");
-  hgModel(api, "hg-oak");
+  hgModel(api, "hg-oak", { then: (oak) => oakLights(oak) });
   {
     // the dead oak (its trunk is 2.5 m across), lanterns past its roots
     K.solid(0, 1, 2.6, 2.6, 6, { pen: 10 });
