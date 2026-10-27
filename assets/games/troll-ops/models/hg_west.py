@@ -10,7 +10,8 @@ of chest tombs as cover (north of the chapel, in the churchyard). Their
 colliders are hollowgrin.js's (WEST_LOOP there), as every collider is.
 
 The witch's hollow: the crooked hut (board walls, a thatch, a chimney, the
-door frames), its shelves, table, the cauldron on its tripod over the fire,
+door frames), its shelves, table, the fire's logs (the cauldron over it is
+Studio's, hg-cauldron.glb),
 a broom, herb bundles, a spell book on a stump, bones, the toadstool ring,
 the pond's stones and reeds, the dead trees. The creek: stones and reeds
 along both banks, a broken rowing boat, a fishing rod on the bank. The
@@ -24,6 +25,7 @@ mist. The pond's stones, the logs, the toadstools and the creek's stones
 come from the JS's random streams (hg_kit.js_rng), the calls in order.
 """
 import math
+import os
 import random
 
 from map_kit import TEXTURED, mat
@@ -289,21 +291,32 @@ def hut(b, P, R, J):
     R.end()
 
 
-def cauldron(b, P, R):
-    """The cauldron: an iron pot with a lip and two ears on a tripod over a
-    fire of logs (the brew, the flames and the glow are the JS's)."""
-    cx, cz = CAULDRON
-    R.begin(b, "west:cauldron")
-    lathe(b, P["iron"], cx, cz, [(0.0, 0), (0.45, 0.02), (0.66, 0.3), (0.7, 0.55), (0.62, 0.8), (0.64, 0.86), (0.7, 0.9), (0.7, 0.94), (0.6, 0.94), (0.6, 0.84)],
-          seg=16, y0=0.15)
-    for s in (-1, 1):
-        ring(b, P["iron"], (cx + s * 0.72, 1.02, cz), 0.07, 0.015, seg=10, tseg=4, axis="z")
-    for i in range(3):
-        a = i / 3 * 2 * math.pi
-        b.cyl(P["iron"], 0.035, (cx + math.cos(a) * 0.55, 0.0, cz + math.sin(a) * 0.55), (cx + math.cos(a) * 0.1, 1.75, cz + math.sin(a) * 0.1), seg=5)
-    b.cyl(P["iron"], 0.025, (cx, 1.75, cz), (cx, 1.1, cz), seg=5)
-    ring(b, P["iron"], (cx, 1.75, cz), 0.08, 0.02, seg=10, tseg=4)
-    R.end()
+CAULDRON_SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "studio", "hollowgrin", "cauldron.glb")
+
+
+def build_cauldron(P, R):
+    """The cauldron is Studio's (the doc's hero pick: generate_mesh, a
+    round-bellied iron pot on three feet, rim, ring handles, soot and dried
+    potion), exported as it came and placed at the fire (1.33 m across, 1.43
+    m tall), plus the bake's UV set, as hg-cauldron.glb. Its brew, flames and
+    glow are hollowgrin.js's."""
+    import bpy
+    from tf_kit import Report, bounds, lightmap_uv
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=CAULDRON_SOURCE)
+    ob = [o for o in bpy.data.objects if o not in before and o.type == "MESH"][0]
+    ob.name = "hg-cauldron"
+    lightmap_uv(ob)
+    game = [(v.co.x, v.co.z, -v.co.y) for v in ob.data.vertices]
+    R.prop("west:cauldron", [min(p[k] for p in game) for k in range(3)], [max(p[k] for p in game) for k in range(3)])
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hg-cauldron.glb")
+    bpy.ops.object.select_all(action="DESELECT")
+    ob.select_set(True)
+    bpy.ops.export_scene.gltf(filepath=path, use_selection=True, export_format="GLB", export_yup=True,
+                              export_image_format="JPEG", export_jpeg_quality=85, export_apply=True)
+    lo, hi = bounds(ob)
+    Report.rows.append(["hg-cauldron", len(ob.data.polygons), len(ob.data.vertices), 0, lo, hi])
+    bpy.data.objects.remove(ob)
 
 
 def toadstools(b, P, R, J):
@@ -360,8 +373,7 @@ def hollow(b, P, R):
     for _ in range(5):                                # the lily pads' turns (the JS draws those)
         J()
     hut(b, P, R, J)
-    cauldron(b, P, R)
-    R.begin(b, "west:cauldron-logs", on="west:cauldron")
+    R.begin(b, "west:cauldron-logs", on="west:cauldron")       # (the pot is Studio's: build_cauldron)
     cx, cz = CAULDRON
     for i in range(5):
         ox, oz, ry = (J() - 0.5) * 0.4, (J() - 0.5) * 0.4, J() * 3

@@ -68,6 +68,7 @@ PARTS = {
     "oak": ("hg_village", "build_oak", "hg-oak"),
     "graveyard": ("hg_graveyard", "build_graveyard", "hg-graveyard"),
     "west": ("hg_west", "build_west", "hg-west"),
+    "cauldron": ("hg_west", "build_cauldron", "hg-cauldron"),
     "garden": ("hg_garden", "build_garden", "hg-garden"),
     "tower": ("hg_chapel", "build_tower", "hg-chapel-tower"),
     "bell": ("hg_chapel", "build_bell", "hg-bell"),

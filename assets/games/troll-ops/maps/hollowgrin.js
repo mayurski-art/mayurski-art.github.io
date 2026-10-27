@@ -40,6 +40,7 @@ import { SURFACES, retexture } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp
 import { portrait } from "./house-props.js?v=hg6e-sb2-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
 import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
 import { loadModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
+import { buildCauldronFx } from "./hollowgrin-cauldron.js?v=hgb2";
 import { buildChapel } from "./hollowgrin-chapel.js?v=hg6tc-or1-tcs1";
 import { roseTexture } from "./chapel-art.js?v=ca1-tcs1";
 import { placeMannequins } from "./hollowgrin-mannequins.js?v=hg6h-sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
@@ -1718,9 +1719,11 @@ function buildOutskirts(api, K, M, SP, root, lights) {
     // the cauldron, bubbling green over a fire
     {
       const cx = -40.5, cz = -33.5;
-      K.api.ghostBox(cx, cz, 1.5, 1.5, 0.95, { pen: 6 });
-      // the pot, its tripod and the logs are the model's (the calls stay)
-      K.add(M.brew, place(new THREE.CircleGeometry(0.6, 20), { x: cx, y: 0.98, z: cz, rx: -Math.PI / 2 }), { shadow: false, phase: 0.2 });
+      // the pot is Studio's (hg-cauldron.glb, 1.43 m tall), the logs under it
+      // the model's (the calls stay); what boils in it and runs out of it is
+      // hollowgrin-cauldron.js's, laid on the pot once it loads
+      hgModel(api, "hg-cauldron", { then: (pot) => buildCauldronFx(root, pot, { x: cx, z: cz, ticker }) });
+      K.api.ghostBox(cx, cz, 1.4, 1.4, 1.4, { pen: 6 });
       for (let i = 0; i < 5; i++) { R(); R(); R(); }
       for (const ry of [0, Math.PI / 3, (2 * Math.PI) / 3]) K.add(M.flame, place(new THREE.PlaneGeometry(0.7, 0.5), { x: cx, y: 0.28, z: cz, ry }), { phase: 0.6, shadow: false });
       K.add(M.greenGlow, place(new THREE.PlaneGeometry(5, 5), { x: cx, y: 0.04, z: cz, rx: -Math.PI / 2 }), { shadow: false, phase: 0.7 });
