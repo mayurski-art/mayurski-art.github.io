@@ -57,7 +57,10 @@ const VIEWS = {
 // in versus, so tdm falls back to the first map).
 const MODE = { trollface: "royale" };
 // Maps that need longer than 6 s to finish loading (the bigger Troll Beach).
-const LOAD_WAIT = { grinbeach: 40000, kabukigrin: 15000 };   // Kabukigrin: the wet street's reflections
+const LOAD_WAIT = { grinbeach: 40000, kabukigrin: 15000, hollowgrin: 45000 };   // Kabukigrin: the wet street's reflections
+// Hollowgrin takes ~30 s to build headless: shot at 6 s it was still the
+// pre-match scene (game.js's default green fog, the menu camera), the "green
+// blur" its loading shot showed since the -tm3 relight
 // VIEW=x,y,z,lx,ly,lz,fov overrides the camera and TAG=<name> renames the
 // master (no webp), for trying framings.
 const TRY = process.env.VIEW?.split(",").map(Number);
