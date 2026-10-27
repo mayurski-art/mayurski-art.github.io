@@ -34,7 +34,7 @@ TEXTURED.update({"HG_Granite", "HG_GraniteDark", "HG_BarnRed", "HG_BarnWood"})
 # the loop (hollowgrin.js WEST_LOOP: the same numbers)
 PATH_X = -37.4
 WALLS = [          # (z0, z1) runs of the low wall, west of the path at x -38.75
-    (-16.0, -11.5), (-10.0, -5.0), (11.0, 13.0), (14.0, 19.0), (20.5, 25.0), (26.5, 28.8)]
+    (-16.0, -11.5), (-10.0, -8.7), (11.0, 13.0), (14.0, 19.0), (20.5, 25.0), (26.5, 28.8)]
 WALL_X, WALL_H, WALL_T = -38.75, 0.6, 0.35
 EAST_WALLS = [(-16.0, -12.0), (14.5, 19.5), (22.0, 27.0)]     # a few on the east side too, at x -36.05
 EAST_X = -36.05

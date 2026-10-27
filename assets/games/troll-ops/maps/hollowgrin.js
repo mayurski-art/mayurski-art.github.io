@@ -170,7 +170,7 @@ const GARDEN_PROPS = {
 };
 const WEST_LOOP = {
   path: -37.4,
-  wallX: -38.75, walls: [[-16, -11.5], [-10, -5], [11, 13], [14, 19], [20.5, 25], [26.5, 28.8]],
+  wallX: -38.75, walls: [[-16, -11.5], [-10, -8.7], [11, 13], [14, 19], [20.5, 25], [26.5, 28.8]],
   eastX: -36.05, eastWalls: [[-16, -12], [14.5, 19.5], [22, 27]],
   wallH: 0.6, wallT: 0.35,
   lych: { z: 9.5, x0: -38.7, x1: -36.1 },
@@ -1665,7 +1665,7 @@ function buildOutskirts(api, K, M, SP, root, lights) {
   }
 
   /* ------------------------------------------- St. Grinsworth's chapel (hollowgrin-chapel.js) */
-  buildChapel(api, K, M, SP, root, lights, { place, wall, rodGeo, prismGeo, candle, jack, headstoneGeo, signTexture, surfMat, texMat, flickerMat, rng, ZSPAWNS });
+  buildChapel(api, K, M, SP, root, lights, { place, wall, rodGeo, prismGeo, candle, jack, headstoneGeo, signTexture, surfMat, texMat, flickerMat, rng, ZSPAWNS, hgModel, ticker });
 
   /* ------------------------------------------- the witch's hollow */
   {
@@ -4638,7 +4638,8 @@ export const HOLLOWGRIN = {
   wade: wadePolygon(),
   // posts for the bots along the west loop (bots.js: arena.botRooms), so the
   // west edge gets its share of the fight
-  botRooms: [[-39, -36, -17, -4], [-50, -39, 8, 20], [-39, -36, 8, 20], [-40, -34, 20, 32], [-51, -39, -12, -3.5],
+  // (the two by the chapel clear its bigger walls and the tower)
+  botRooms: [[-39, -36, -17, -4], [-50, -39, 9.3, 20], [-39, -36, 8, 20], [-40, -34, 20, 32], [-51, -43, -12, -5.8],
     [-44, -39, -28, -18], [-48, -42, 20, 25]],
 
   // For zombies.js: graves and woods on the ground, the manor's upstairs

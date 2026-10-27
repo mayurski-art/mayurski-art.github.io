@@ -25,7 +25,7 @@ import math
 import random
 
 from map_kit import TEXTURED, mat
-from hg_kit import HGBuilder, dead_tree, facing, fbox, js_rng, lathe, pumpkin, quad, ring
+from hg_kit import HGBuilder, dead_tree, facing, fbox, js_rng, lathe, pumpkin, ring, troll_face
 
 TEXTURED.update({"HG_Granite", "HG_GraniteDark", "HG_Brick", "HG_Hedge", "HG_HedgeLight", "HG_HedgeDark"})
 
@@ -150,32 +150,6 @@ def hedges(b, P, R):
         hedge_box(b, P, x - t, x + t, GZ + 1.2, GZ + HALF - t, "+y -x +x -z", 701 + k)
         R.end()
         k += 2
-
-
-def troll_face(b, m, c, r, f, scale=1.0):
-    """The trollface grin and eyes cut into a round head at c, radius r,
-    looking along f (horizontal unit): dark faces just proud of it."""
-    rt = (f[2], 0.0, -f[0])
-    up = (0.0, 1.0, 0.0)
-
-    def at(a, e, rr=r * 1.015):
-        ca, sa, ce, se = math.cos(a), math.sin(a), math.cos(e), math.sin(e)
-        d = [ce * (ca * f[k] + sa * rt[k]) + se * up[k] for k in range(3)]
-        return tuple(c[k] + rr * d[k] for k in range(3))
-    # the grin: a wide crescent, its corners turned up to the cheeks
-    n = 12
-    A = math.radians(68)
-    for i in range(n):
-        a0, a1 = -A + 2 * A * i / n, -A + 2 * A * (i + 1) / n
-        top = lambda a: -0.12 - 0.12 * math.cos(a * 1.2) + 0.18 * (abs(a) / A) ** 3      # noqa: E731
-        bot = lambda a: top(a) - 0.42 * math.cos(a * 1.15) ** 2 - 0.02                    # noqa: E731
-        q = [at(a0, bot(a0)), at(a1, bot(a1)), at(a1, top(a1)), at(a0, top(a0))]
-        facing(b, m, q, tuple(sum(q[j][k] for j in range(4)) / 4 - c[k] for k in range(3)))
-    # the eyes: slanted, narrowed
-    for s in (-1, 1):
-        a0, a1 = s * math.radians(14), s * math.radians(40)
-        q = [at(a0, 0.18), at(a1, 0.26 + 0.04), at(a1, 0.36), at(a0, 0.27)]
-        facing(b, m, q, tuple(sum(q[j][k] for j in range(4)) / 4 - c[k] for k in range(3)))
 
 
 def topiary(b, P, R, x, z, i):

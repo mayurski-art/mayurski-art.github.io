@@ -64,6 +64,8 @@ export const RETEXTURE = {
   HG_Clapboard: ["plaster", 1.0, 0.3],
   HG_Brick: ["brick", 1.1, 0.45],
   HG_Floorboards: ["wood", 0.9, 0.3],
+  // St. Grinsworth's tower: the chapel's warm brick (hollowgrin-chapel.js CM.brick)
+  HG_ChapelBrick: ["brick", 1.2, 0.12],
   // the hedge garden's clipped hedges: the grass photo, kept dark green
   HG_Hedge: ["grass", 0.6, 0.3],
   HG_HedgeLight: ["grass", 0.6, 0.38],
