@@ -374,11 +374,14 @@ class Builder:
             f.smooth = True
         return out
 
-    def finish(self, filename, bake=None):
+    def finish(self, filename, bake=None, uv2=None):
         """Exports the model. `bake` (bake_kit.py) also bakes its light map:
         a second UV layer plus <name>-bake.webp beside the GLB. None takes
         the builder's bake_every_model() settings, False skips it, a dict
-        overrides some of them (samples=512 for a bounce-lit ceiling)."""
+        overrides some of them (samples=512 for a bounce-lit ceiling).
+        `uv2=<res>` with no bake still unwraps the second UV layer, packed
+        for an atlas that size (a map baked later, apart from its build:
+        Undergrin's occlusion)."""
         if bake is None:
             bake = _BAKE["default"]
         elif bake:
@@ -450,6 +453,13 @@ class Builder:
                 bpy.context.view_layer.objects.active = obj
             bake_lightmap(obj, os.path.join(OUT_DIR, name + "-bake.webp"), **bake)
             remove_context(ctx)
+            bpy.ops.object.select_all(action="DESELECT")
+            obj.select_set(True)
+            bpy.context.view_layer.objects.active = obj
+        elif uv2:
+            from bake_kit import _lightmap_uv
+            _lightmap_uv(obj, 4.0 / uv2)   # ~4 texels between islands at that atlas size
+            me.uv_layers.active = me.uv_layers[0]
             bpy.ops.object.select_all(action="DESELECT")
             obj.select_set(True)
             bpy.context.view_layer.objects.active = obj
