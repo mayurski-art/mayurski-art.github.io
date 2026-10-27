@@ -4481,6 +4481,42 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-bo2.is-fn-modes :is(.to-fn-left, .to-fn-play, .to-fn-picker, .to-fn-allmodes, .to-bo2-party),
 #to-title.is-bo2.is-fn:has(.to-bo2.is-fn-modes) :is(.to-char-view, .to-stage) { visibility: hidden; }
 
+/* ── The Locker (phase 4): the class's slots as tiles on the left, your look
+   on the right, you in the middle. menu-bo2.js's locker screen is three
+   groups (class, look, Back); here they are panels. ── */
+.to-bo2.is-fn[data-screen="locker"] .to-bo2-menu { right: var(--fn-pad); width: auto; bottom: 84px; max-height: none; padding: 0; background: none; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; pointer-events: none; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-title { text-shadow: 0 2px 12px rgba(0,0,0,.7); }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-groups { display: grid; grid-template-columns: 440px 1fr 300px; grid-template-rows: auto 1fr; gap: 10px 16px; align-items: start; margin: 0; padding: 0; overflow: visible; -webkit-mask-image: none; mask-image: none; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group { pointer-events: auto; display: grid; gap: 8px; padding: 10px; border: 1px solid var(--fn-line); border-radius: 14px; background: var(--fn-glass-solid); box-shadow: 0 16px 40px rgba(0,0,0,.3); }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(1) { grid-column: 1; grid-row: 1; grid-template-columns: 1fr 1fr; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(2) { grid-column: 3; grid-row: 1 / span 2; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(3) { grid-column: 1; grid-row: 2; justify-self: start; padding: 0; border: 0; background: none; box-shadow: none; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(3) .tr-menu-item:not(.is-hot) { border: 1px solid var(--fn-line); background: var(--fn-glass); }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item { flex-direction: column; align-items: flex-start; justify-content: center; gap: 3px; min-width: 0; min-height: 60px; padding: 7px 12px; line-height: 1.1; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item > span:first-child { font: 800 12px var(--fn-ui); letter-spacing: .1em; color: #a9b8e6; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item > small:not([aria-hidden]) { max-width: 100%; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 800 18px/1.1 var(--fn-ui); letter-spacing: .02em; text-transform: uppercase; color: #fff; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item > small[aria-hidden] { display: none; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item.is-hot > span:first-child { color: #3b4a7d; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item.is-hot > small:not([aria-hidden]) { color: #17224d; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item[aria-disabled="true"] > small:not([aria-hidden]) { color: #8590b3; }
+/* the class's name across the top of its panel, the way a loadout is titled */
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-item[data-id="classlist"] { grid-column: 1 / -1; min-height: 66px; background: rgba(79,216,255,.12); }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-item[data-id="classlist"] > small:not([aria-hidden]) { font: italic 400 28px/1 var(--fn-display); }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-item[data-id="classlist"].is-hot { background: #fff; }
+.to-bo2.is-fn[data-screen="locker"] .to-bo2-party { display: none; }
+#to-title.is-bo2.is-fn:has(.to-bo2[data-screen="locker"]) .to-char-view { left: calc(var(--fn-pad) + 456px); right: calc(var(--fn-pad) + 316px); top: var(--fn-top); bottom: 78px; --char-shift: 0; --char-dist: 1.15; }
+/* The Locker's pickers: the choices are item cards, two across; the one you
+   have is ticked and edged green, a locked one says what unlocks it */
+.to-bo2.is-fn:is([data-screen="classlist"], [data-screen="classes"], [data-screen="weapons"], [data-screen="streaks"], [data-screen="faces"], [data-screen="wrists"], [data-screen="bodies"], [data-screen="cards"], [data-screen="heroes"], [data-screen^="att-"], [data-screen^="gear-"], [data-screen^="perk-"]) .tr-menu-group:first-child { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.to-bo2.is-fn:is([data-screen="classlist"], [data-screen="classes"], [data-screen="weapons"], [data-screen="streaks"], [data-screen="faces"], [data-screen="wrists"], [data-screen="bodies"], [data-screen="cards"], [data-screen="heroes"], [data-screen^="att-"], [data-screen^="gear-"], [data-screen^="perk-"]) .tr-menu-group:first-child .tr-menu-item {
+  position: relative; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 6px; min-width: 0; min-height: 68px; padding: 9px 11px; line-height: 1.1; border: 1px solid rgba(170,200,255,.18); }
+.to-bo2.is-fn:is([data-screen="classlist"], [data-screen="classes"], [data-screen="weapons"], [data-screen="streaks"], [data-screen="faces"], [data-screen="wrists"], [data-screen="bodies"], [data-screen="cards"], [data-screen="heroes"], [data-screen^="att-"], [data-screen^="gear-"], [data-screen^="perk-"]) .tr-menu-group:first-child .tr-menu-item > span:first-child { max-width: calc(100% - 18px); font: 800 16px/1.1 var(--fn-ui); letter-spacing: .03em; overflow-wrap: anywhere; }
+.to-bo2.is-fn:is([data-screen="classlist"], [data-screen="classes"], [data-screen="weapons"], [data-screen="streaks"], [data-screen="faces"], [data-screen="wrists"], [data-screen="bodies"], [data-screen="cards"], [data-screen="heroes"], [data-screen^="att-"], [data-screen^="gear-"], [data-screen^="perk-"]) .tr-menu-group:first-child .tr-menu-item > small { margin: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.to-bo2.is-fn:is([data-screen="classlist"], [data-screen="classes"], [data-screen="weapons"], [data-screen="streaks"], [data-screen="faces"], [data-screen="wrists"], [data-screen="bodies"], [data-screen="cards"], [data-screen="heroes"], [data-screen^="att-"], [data-screen^="gear-"], [data-screen^="perk-"]) .tr-menu-group:first-child .tr-menu-item > small[aria-hidden] { display: none; }
+.to-bo2.is-fn:is([data-screen="classlist"], [data-screen="classes"], [data-screen="weapons"], [data-screen="streaks"], [data-screen="faces"], [data-screen="wrists"], [data-screen="bodies"], [data-screen="cards"], [data-screen="heroes"], [data-screen^="att-"], [data-screen^="gear-"], [data-screen^="perk-"]) .tr-menu-group:first-child .tr-menu-tick { position: absolute; top: 7px; right: 9px; }
+.to-bo2.is-fn:is([data-screen="classlist"], [data-screen="classes"], [data-screen="weapons"], [data-screen="streaks"], [data-screen="faces"], [data-screen="wrists"], [data-screen="bodies"], [data-screen="cards"], [data-screen="heroes"], [data-screen^="att-"], [data-screen^="gear-"], [data-screen^="perk-"]) .tr-menu-group:first-child .tr-menu-item:has(.tr-menu-tick):not(.is-hot) { border-color: rgba(78,230,160,.6); box-shadow: inset 0 0 0 1px rgba(78,230,160,.25); }
+.to-bo2.is-fn:is([data-screen="classlist"], [data-screen="classes"], [data-screen="weapons"], [data-screen="streaks"], [data-screen="faces"], [data-screen="wrists"], [data-screen="bodies"], [data-screen="cards"], [data-screen="heroes"], [data-screen^="att-"], [data-screen^="gear-"], [data-screen^="perk-"]) .tr-menu-group:first-child .tr-menu-item[aria-disabled="true"] > small { color: var(--fn-yellow); }
+
 /* ── The BO2 list, as the glass panel every other screen lives in ── */
 .to-bo2.is-fn[data-screen="main"] .to-bo2-menu { display: none; }
 .to-bo2.is-fn .to-bo2-menu { left: var(--fn-pad); top: var(--fn-top); width: 420px; padding: 16px 18px 6px; box-sizing: border-box;
@@ -4635,6 +4671,19 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-fn-tiles { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: min(44%, 320px); gap: 12px; overflow: auto hidden; scrollbar-width: none; }
   .to-fn-tile-art b { font-size: 22px; }
   .to-fn-tile-n { font-size: 14px; }
+  /* the Locker: three across in the class panel, smaller tiles; the tab
+     bar names the page and takes you back, so no title or Back here */
+  .to-bo2.is-fn[data-screen="locker"] .to-bo2-menu { bottom: 46px; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-title, .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(3) { display: none; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-groups { grid-template-columns: minmax(0, 470px) 1fr 220px; gap: 8px 12px; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-group { gap: 6px; padding: 7px; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(1) { grid-template-columns: repeat(3, 1fr); }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item { min-height: 40px; padding: 4px 9px; gap: 2px; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item > span:first-child { font-size: 10px; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item > small:not([aria-hidden]) { font-size: 14px; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-item[data-id="classlist"] { min-height: 42px; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-item[data-id="classlist"] > small:not([aria-hidden]) { font-size: 20px; }
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="locker"]) .to-char-view { left: calc(var(--fn-pad) + 482px); right: calc(var(--fn-pad) + 232px); bottom: 46px; }
 }
 /* Upright phones: the tabs scroll along the top, the season and level
    under them, who's online, then the mode card and PLAY across the bottom */
@@ -4666,6 +4715,16 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-fn-tiles { grid-template-columns: 1fr 1fr; gap: 12px; }
   .to-fn-tile-art b { font-size: 20px; left: 8px; right: 8px; bottom: 7px; }
   .to-fn-tile-n { font-size: 14px; }
+  /* the Locker: its panels stacked, two tiles across, scrolling; no room
+     for the operator (the Play page drops it too) */
+  .to-bo2.is-fn[data-screen="locker"] .to-bo2-menu { left: 12px; right: 12px; top: calc(56px + env(safe-area-inset-top)); bottom: calc(var(--foot-h, 60px) + 26px + env(safe-area-inset-bottom)); }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-title { font-size: 30px; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-groups { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:is(:nth-child(1), :nth-child(2), :nth-child(3)) { grid-column: auto; grid-row: auto; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(2) { grid-template-columns: 1fr 1fr; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item { min-height: 54px; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item > small:not([aria-hidden]) { font-size: 16px; }
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="locker"]) .to-char-view { display: none; }
   /* no room for who's online beside the cards and lists (it sat over the
      Locker's and the Challenges' rows): "N Online" opens the list, with Invite */
   .to-bo2.is-fn .to-bo2-party { display: none; }
