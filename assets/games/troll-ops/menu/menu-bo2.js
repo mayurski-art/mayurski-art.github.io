@@ -19,7 +19,7 @@ import { initPublicChat } from "./public-chat.js?v=pch1-nb2-pc2-gf1-sc1-tw1-nd2"
 import { startOnline, onlinePlayers, serverList, joinServer, describe, setLobbyActivity, pushActivity } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2";
 import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER, getLevel, rankProgress, rankXpText } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1";
 import { ACHIEVEMENTS } from "../progression/achievements.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1";
-import { mountFnLobby } from "./lobby-fn.js?v=fn1-fn2-rl1-rl2-rl3";
+import { mountFnLobby } from "./lobby-fn.js?v=fn1-fn2-rl1-rl2-rl3-mt1";
 import { openPfpStudio } from "./pfp-studio.js?v=pf1";
 
 import { fetchRecord, formatPlayed } from "../progression/record.js?v=rec1-or1";
@@ -1166,7 +1166,8 @@ function renderPartyOthers() {
   const myViewer = viewerId(), uid = myUid();
   const others = onlinePlayers(roster).filter((o) => o.viewerId !== myViewer && !(uid && o.userId === uid));
   // (the Play page's invite bubbles take theirs from here: lobby.js)
-  dispatchEvent(new CustomEvent("trollforces:online", { detail: others.map(({ viewerId, name, userId }) => ({ viewerId, name, userId })) }));
+  // (and the mode tiles count what they're playing: lobby-fn.js)
+  dispatchEvent(new CustomEvent("trollforces:online", { detail: others.map(({ viewerId, name, userId, activity }) => ({ viewerId, name, userId, activity })) }));
   const shown = others.slice(0, PARTY_MAX - 1);
   partyList.replaceChildren(...shown.map((o) => {
     const item = document.createElement("div");

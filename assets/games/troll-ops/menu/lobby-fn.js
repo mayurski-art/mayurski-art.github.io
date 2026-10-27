@@ -46,6 +46,30 @@ const PLAYLISTS = [
 ];
 const PL_KEY = "tf-fn-playlist";
 
+/* The mode tiles under the lobby (the design doc's phase 3): every way in
+   as a picture, with how many people are in it now. A tile is a playlist
+   (and for Royale, its mode in the Public Match list); `map` is the shot. */
+const TILES = [
+  { id: "royale", label: "Troll Royale", playlist: "public", mode: "royale", map: "trollface" },
+  { id: "public", label: "Public Match", playlist: "public", map: "hollowgrin" },
+  { id: "zombies", label: "Zombies", playlist: "zombies", map: "undergrin" },
+  { id: "social", label: "Socialize", playlist: "social", map: "trollcity" },
+  { id: "solo", label: "Solo Play", playlist: "solo", map: "dustbowl", note: "Just you" },
+  { id: "private", label: "Private Match", playlist: "private", map: "grinsite", note: "Room code" },
+];
+/* Which tile someone online is in, from their presence activity (online.js
+   activity()); null in a menu or another game. */
+function tileOf(a) {
+  if (!a || a.game !== "tf" || a.state === "menu") return null;
+  if (a.state === "lobby") return a.mode === "royale" ? "royale" : "public";
+  if (a.room && !a.pub) return "private";
+  if (!a.room) return "solo";
+  if (a.mode === "royale") return "royale";
+  if (a.state === "zombies" || a.mode === "zhub") return "zombies";
+  if (a.mode === "social") return "social";
+  return "public";
+}
+
 /* The news carousel: what's new, each a way in. */
 const NEWS = [
   { title: "Trollface Island", tag: "New in Royale", map: "trollface", playlist: "public", mode: "royale" },
@@ -147,6 +171,26 @@ export function mountFnLobby(api) {
   picker.innerHTML = `<h2>Pick a mode</h2>${PLAYLISTS.map((p) => `<button type="button" data-pl="${p.id}"><b>${esc(p.label)}</b><small>${esc(p.blurb)}</small></button>`).join("")}`;
   root.appendChild(picker);
 
+  /* ── Play tab, below: every mode as a tile (scroll down, or All modes) ── */
+  const more = document.createElement("button");
+  more.type = "button";
+  more.className = "to-fn-glass to-fn-allmodes";
+  more.setAttribute("aria-expanded", "false");
+  more.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>All modes`;
+  root.appendChild(more);
+  const modes = document.createElement("section");
+  modes.className = "to-fn-modes";
+  modes.setAttribute("role", "dialog");
+  modes.setAttribute("aria-label", "All modes");
+  modes.hidden = true;
+  modes.innerHTML = `
+    <header><h2>Troll Warfare<small>Pick how you play</small></h2>
+      <button type="button" class="to-fn-glass to-fn-modes-x" aria-label="Back to the lobby"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button></header>
+    <div class="to-fn-tiles">${TILES.map((t) => `<button type="button" class="to-fn-tile" data-tile="${t.id}">
+      <span class="to-fn-tile-art"><img alt="" loading="lazy" data-map="${t.map}"><b>${esc(t.label)}</b></span>
+      <span class="to-fn-tile-n"></span></button>`).join("")}</div>`;
+  root.appendChild(modes);
+
   /* ── State ── */
   let playlist = "public";
   try { const v = localStorage.getItem(PL_KEY); if (PLAYLISTS.some((p) => p.id === v)) playlist = v; } catch {}
@@ -205,6 +249,67 @@ export function mountFnLobby(api) {
   }, true);
   // PLAY opens the playlist's own screen: its modes, map vote, and the go button
   $(".to-fn-go", play).addEventListener("click", () => menu.go(playlist));
+
+  /* ── Mode tiles ── */
+  let online = [];
+  const modeBtn = (id) => $(`#to-lo-mode [data-mode="${id}"]`);
+  const royaleOn = () => !!modeBtn("royale")?.classList.contains("is-active");
+  function renderTiles() {
+    const n = {};
+    for (const o of online) { const t = tileOf(o.activity); if (t) n[t] = (n[t] || 0) + 1; }
+    const cur = playlist === "public" && royaleOn() ? "royale" : playlist;
+    for (const b of $$(".to-fn-tile", modes)) {
+      const t = TILES.find((x) => x.id === b.dataset.tile);
+      const lock = t.mode ? modeBtn(t.mode)?.dataset.lock : "";
+      const count = n[t.id] || 0;
+      const line = lock ? `Unlocks at ${lock}` : t.note || (count ? `${count} playing` : "Nobody yet");
+      $(".to-fn-tile-n", b).innerHTML = (t.note || lock ? "" : `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>`) + esc(line);
+      b.classList.toggle("is-on", t.id === cur);
+      b.disabled = !!lock;
+      b.setAttribute("aria-pressed", String(t.id === cur));
+      b.setAttribute("aria-label", `${t.label}: ${line}`);
+    }
+  }
+  function openModes(on) {
+    if (on === !modes.hidden) return;
+    modes.hidden = !on;
+    more.setAttribute("aria-expanded", String(on));
+    root.classList.toggle("is-fn-modes", on);
+    if (on) {
+      openPicker(false);
+      for (const img of $$(".to-fn-tile img", modes)) if (!img.src) setMapShot(img, img.dataset.map, "320px");
+      renderTiles();
+      ($(".to-fn-tile.is-on", modes) || $(".to-fn-tile:not(:disabled)", modes))?.focus();
+    }
+  }
+  more.addEventListener("click", () => openModes(modes.hidden));
+  $(".to-fn-modes-x", modes).addEventListener("click", () => { openModes(false); more.focus(); });
+  modes.addEventListener("click", (e) => {
+    const b = e.target.closest(".to-fn-tile");
+    if (!b || b.disabled) return;
+    const t = TILES.find((x) => x.id === b.dataset.tile);
+    // Royale is a mode in the Public Match list; Public Match leaves it
+    if (t.mode) { const m = modeBtn(t.mode); if (m && !m.disabled) m.click(); }
+    else if (t.id === "public" && royaleOn()) modeBtn("tdm")?.click();
+    setPlaylist(t.playlist);
+    openModes(false);
+    $(".to-fn-go", play).focus();
+  });
+  // scroll down on the Play page for the tiles, up (or Esc) to come back
+  // (on the title, before the operator's view: on Play its wheel is this,
+  // not its zoom)
+  title.addEventListener("wheel", (e) => {
+    if (menu.current() !== "main") return;
+    if (e.target.closest(".to-bo2-party-others, .to-fn-picker, .to-bo2-panel, .tr-pincard")) return;
+    if (e.target.closest(".to-char-view")) e.stopPropagation();
+    if (Math.abs(e.deltaY) < 4) return;
+    if (e.deltaY > 0 && modes.hidden) openModes(true);
+    else if (e.deltaY < 0 && !modes.hidden && !e.target.closest(".to-fn-tiles")?.scrollTop) openModes(false);
+  }, { passive: true, capture: true });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !modes.hidden) { e.preventDefault(); e.stopPropagation(); openModes(false); more.focus(); }
+  }, true);
+  addEventListener("trollforces:online", (e) => { online = e.detail || []; if (!modes.hidden) renderTiles(); });
 
   /* ── Tabs ── */
   function goTab(id) {
@@ -306,7 +411,8 @@ export function mountFnLobby(api) {
     const home = id === "main";
     left.hidden = !home;
     play.hidden = !home;
-    if (!home) openPicker(false);
+    more.hidden = !home;
+    if (!home) { openPicker(false); openModes(false); }
     if (home) { renderPlay(); renderMe(); }
     // the operator on the pad stands on the Play page only (lobby.js)
     dispatchEvent(new Event("trollforces:fn-screen"));
@@ -323,7 +429,7 @@ export function mountFnLobby(api) {
   new MutationObserver(() => { if (!title.hidden) renderMe(); }).observe(title, { attributes: true, attributeFilter: ["hidden"] });
   onScreen();
 
-  return { setPlaylist, playlist: () => playlist, goTab };
+  return { setPlaylist, playlist: () => playlist, goTab, openModes };
 }
 
 /* ── Backdrop: the reel, no WebGL (pick 1). Two layers crossfade; the next
