@@ -59,8 +59,11 @@ function zombiesHtml(d) {
   return `<p class="tf-card-sub">Zombies · all time</p><dl class="tf-card-stats">${cells.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(Number(v).toLocaleString())}</dd></div>`).join("")}</dl>`;
 }
 
+/* The rank column: prestige or rank icon and level. The owner has no level,
+   so no column: the Owner badge rides the name line instead, in front of
+   the clan tag (user, 2026-10-26: the column with only "Owner" in it
+   "looks a bit weird"), and the calling card takes the room. */
 function rankHtml(d) {
-  if (d.owner) return `<i class="is-owner">Owner</i>`;
   if (!d.level) return "";
   const p = d.prestige | 0;
   return `${playerIconSvg(d.level, p, 46)}<b>LV ${d.level}</b>${p > 0 ? `<small>${esc(prestigeName(p))}</small>` : ""}`;
@@ -72,13 +75,14 @@ export function renderCard(d) {
   const card = cardById(d.card);
   const clan = cleanClan(d.clan);
   const emblem = safeUrl(d.avatarUrl) || FALLBACK_EMBLEM;
+  const owner = !!d.owner;
   return `<article class="tf-card" aria-label="${esc(`${clan ? `[${clan}] ` : ""}${d.name}`)}'s profile card">`
-    + `<div class="tf-card-top">`
+    + `<div class="tf-card-top${owner ? " no-rank" : ""}">`
     + `<div class="tf-card-emblem"><img src="${esc(emblem)}" alt=""></div>`
     + `<div class="tf-card-banner" style="background-image:url('${esc(card.src)}')" title="${esc(card.name)}">`
-    + `<div class="tf-card-id">${clan ? `<b class="tf-card-clan">[${esc(clan)}]</b>` : ""}<span class="tf-card-name">${esc(d.name)}</span></div>`
+    + `<div class="tf-card-id">${owner ? `<i class="is-owner tf-card-owner">Owner</i>` : ""}${clan ? `<b class="tf-card-clan">[${esc(clan)}]</b>` : ""}<span class="tf-card-name">${esc(d.name)}</span></div>`
     + `</div>`
-    + `<div class="tf-card-rank">${rankHtml(d)}</div>`
+    + (owner ? "" : `<div class="tf-card-rank">${rankHtml(d)}</div>`)
     + `</div>`
     + statsHtml(d)
     + `</article>`;
