@@ -13,6 +13,7 @@ import { currentWeapon } from "./weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4
 import { resolveWeapon, defaultLoadoutFor } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1";
 import { XP } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1";
 import { game } from "../core/state.js?v=st1";
+import { showElimination, showXpGain } from "../view/xp-callouts.js?v=xc1";
 import { grantNuke, nukeInbound, nukeWonFor } from "../streaks/nuke.js?v=tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1";
 import { scavengerDrop } from "./scavenger.js?v=sv1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1";
 import { addWeaponXp, WXP } from "../progression/weapon-xp.js?v=wx1";
@@ -83,7 +84,7 @@ export function registerDeath(victimName, killerId, weaponId, opts = {}) {
 
     // XP lands per kill, not in a lump at the end — the immediate feedback
     // is most of what makes the grind feel like progress.
-    awardKillXp();
+    awardKillXp(victimName);
     announceStreak(game.player.streak);
     awardScore(SCORE.kill);
 
@@ -159,18 +160,21 @@ export function registerDeath(victimName, killerId, weaponId, opts = {}) {
   }
 }
 
-/* Bank XP mid-match and show it floating up. Only PvP pays as it goes; Ops
-   still settles once at the end via xpForRun, which its wave curve suits. */
+/* Bank XP mid-match and show it at the lower centre (view/xp-callouts.js).
+   Only PvP pays as it goes; Ops still settles once at the end via xpForRun,
+   which its wave curve suits. */
 export function addMatchXp(amount, label) {
   if (!game.isPvp() || amount <= 0) return;
   game.player.matchXp += amount;
-  showXpPopup(amount, label);
+  showXpGain(amount, label);
 }
 
-export function awardKillXp() {
+/* `victim` the name the ELIMINATED callout shows. */
+export function awardKillXp(victim) {
   // The headshot bonus is the Headshot medal's +50 now (medals.js), so the
-  // total is unchanged; this pop is just the kill.
-  addMatchXp(XP.kill, "KILL");
+  // total is unchanged; this XP is just the kill.
+  if (game.isPvp()) showElimination(victim);
+  addMatchXp(XP.kill, "Elimination");
 }
 
 /* Pay into the scorestreak meter. Separate from XP on purpose: XP is
@@ -203,15 +207,6 @@ function announceStreak(n) {
   killstreakUi.medal(`${n} Kill Streak`);
 }
 
-function showXpPopup(amount, label) {
-  if (!game.els.xpPopups) return;
-  const div = document.createElement("div");
-  div.className = "to-xp-pop";
-  div.textContent = label ? `+${amount} · ${label}` : `+${amount}`;
-  game.els.xpPopups.appendChild(div);
-  while (game.els.xpPopups.children.length > 4) game.els.xpPopups.firstChild.remove();
-  setTimeout(() => div.remove(), 1400);
-}
 
 /* Damage we've dealt to each target, so that softening someone up still
    counts when a teammate lands the last shot. Without this, 90 damage and a
