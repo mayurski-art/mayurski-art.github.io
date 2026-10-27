@@ -55,7 +55,8 @@ check(/Chapter One/i.test(season) && /Season: OG/i.test(season), "season card sa
 check(await shown(page, ".to-fn-play") && await shown(page, ".to-fn-go"), "mode card and PLAY show");
 check(!(await shown(page, ".to-bo2-menu")), "the BO2 list is hidden on the Play page");
 check(await page.evaluate(() => !document.body.textContent.includes("\u{1F9CC}")), "no troll emoji anywhere");
-check(await page.evaluate(() => { const i = document.querySelector(".to-fn-bg"); return !!i && /kabukigrin/.test(i.currentSrc || i.src); }), "backdrop is the Kabukigrin still");
+await page.waitForSelector(".to-fn-bg.is-on .to-fn-shot", { timeout: 15000 }).catch(() => {});
+check(await page.evaluate(() => { const i = document.querySelector(".to-fn-bg.is-on .to-fn-shot"); return !!i && /kabukigrin/.test(i.currentSrc || i.src); }), "the backdrop reel opens on Kabukigrin");
 
 // ---- 2
 const want = { locker: "locker", career: "barracks", compete: "leaders", quests: "quests", options: "options" };

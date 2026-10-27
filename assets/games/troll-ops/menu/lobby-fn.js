@@ -1,7 +1,7 @@
 /* Troll Warfare's lobby, Fortnite style (user, 2026-10-26; the design doc
    "Troll Warfare Lobby Redesign", phase 1). A tab bar along the top, glass
-   panels at the sides, the mode card with PLAY bottom right, over a still of
-   Kabukigrin at night.
+   panels at the sides, the mode card with PLAY bottom right, over a reel of
+   the maps (mountReel below).
 
    menu-bo2.js is still the engine: every screen (Public Match, Create a
    Class, the Barracks...) is its list, drawn here as a glass panel. This
@@ -53,7 +53,26 @@ const NEWS = [
   { title: "Troll Beach", tag: "Courts are open", map: "grinbeach", playlist: "social" },
 ];
 
-const BG = (w) => `assets/games/troll-ops/ui/maps/kabukigrin-${w}.webp`;
+/* The backdrop reel (user, 2026-10-26: "a couple of photos of each map and
+   then have an animated loop"): three stills of each map (ui/lobby/,
+   tools/troll-ops-lobby-reel.mjs; Kabukigrin's first is its map-vote still,
+   ui/maps/), each held SHOT_MS with a slow drift, crossfading, maps taking
+   turns; and Kabukigrin's two clips, filmed like a vlog: a walk through the
+   club's crowd, and its big screen up close. */
+const UI = "assets/games/troll-ops/ui";
+const REEL_MAPS = ["trollface", "grinbeach", "trollcity", "hollowgrin", "undergrin", "grinsite", "culdegrin", "dustbowl", "depot", "grinleria", "kabukigrin"];
+const REEL_CLIPS = ["club", "screen"];
+const SHOT_MS = 7000, FADE_MS = 1400;
+const still = (id, n, w) => n ? `${UI}/lobby/${id}-${n}-${w}.webp` : `${UI}/maps/${id}-${w}.webp`;
+const clip = (name) => ({ clip: (w) => `${UI}/lobby/kabukigrin-${name}-${w}` });
+function reelList() {
+  const out = [{ src: (w) => still("kabukigrin", 0, w) }, clip(REEL_CLIPS[0])];
+  for (const n of [1, 2, 3]) {
+    for (const id of REEL_MAPS) if (!(id === "kabukigrin" && n === 3)) out.push({ src: (w) => still(id, n, w) });
+    if (n === 1) out.push(clip(REEL_CLIPS[1]));
+  }
+  return out;
+}
 const FALLBACK_AVATAR = "assets/images/icons/favicon/grin.png";
 
 export function mountFnLobby(api) {
@@ -62,10 +81,7 @@ export function mountFnLobby(api) {
   root.classList.add("is-fn");
   title.classList.add("is-fn");
 
-  /* ── Backdrop: a still, no WebGL (pick 1) ── */
-  const bg = $(".to-bo2-bg", root);
-  bg.innerHTML = `<img class="to-fn-bg" alt="" decoding="async" fetchpriority="high"
-    src="${BG(1280)}" srcset="${BG(1280)} 1280w, ${BG(1920)} 1920w, ${BG(2560)} 2560w" sizes="100vw">`;
+  mountReel($(".to-bo2-bg", root), title);
 
   /* ── Top bar ── */
   const top = document.createElement("header");
@@ -305,4 +321,94 @@ export function mountFnLobby(api) {
   onScreen();
 
   return { setPlaylist, playlist: () => playlist, goTab };
+}
+
+/* ── Backdrop: the reel, no WebGL (pick 1). Two layers crossfade; the next
+   picture is decoded (the clip buffered) before it fades in, and a file
+   that won't load is skipped. It holds while a match is on, the tab is
+   hidden, or Animations is off / the system asks for reduced motion (then
+   a still stays up and the clip is skipped). ── */
+function mountReel(bg, title) {
+  const width = () => (innerWidth * (devicePixelRatio || 1) > 1400 ? 1920 : 1280);
+  const list = reelList();
+  const layers = [0, 1].map(() => {
+    const d = document.createElement("div");
+    d.className = "to-fn-bg";
+    bg.append(d);
+    return d;
+  });
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+  const hold = () => document.body.classList.contains("tf-anim-off") || reduce.matches;
+  const paused = () => title.hidden || document.hidden;
+  let at = -1, front = 0, timer = 0, clip = null, waiting = false, flip = false;
+
+  function load(item) {
+    if (item.src) {
+      const img = new Image();
+      img.alt = "";
+      img.decoding = "async";
+      if (at < 0) img.fetchPriority = "high";
+      img.src = item.src(width());
+      return img.decode().then(() => img, () => null);
+    }
+    const v = document.createElement("video");
+    Object.assign(v, { muted: true, playsInline: true, preload: "auto", disablePictureInPicture: true });
+    v.setAttribute("aria-hidden", "true");
+    v.src = `${item.clip(width())}.${v.canPlayType('video/webm; codecs="vp9"') ? "webm" : "mp4"}`;
+    return new Promise((done) => {
+      const t = setTimeout(() => done(null), 20000);
+      v.addEventListener("canplaythrough", () => { clearTimeout(t); done(v); }, { once: true });
+      v.addEventListener("error", () => { clearTimeout(t); done(null); }, { once: true });
+    });
+  }
+  async function show(k) {
+    k %= list.length;
+    const item = list[k];
+    if (item.clip && hold()) return show(k + 1);
+    const el = await load(item);
+    if (!el) { at = k; return wait(200); }
+    el.className = "to-fn-shot";
+    if (!item.clip && !hold()) {
+      flip = !flip;   // the drift turns the other way each time
+      el.classList.add("is-drift");
+      el.classList.toggle("is-rev", flip);
+    }
+    const back = layers[1 - front];
+    back.replaceChildren(el);
+    back.classList.add("is-on");
+    layers[front].classList.remove("is-on");
+    front = 1 - front;
+    clip?.pause();
+    clip = item.clip ? el : null;
+    at = k;
+    if (clip) {
+      clip.addEventListener("ended", next, { once: true });
+      clip.addEventListener("error", next, { once: true });   // (a clip that won't decode moves on, never freezes the reel)
+      if (paused()) waiting = true;
+      else clip.play().catch(next);
+    } else wait(SHOT_MS);
+  }
+  function wait(ms) { clearTimeout(timer); timer = setTimeout(next, ms); }
+  function next() {
+    if (paused() || hold()) { waiting = true; return; }
+    waiting = false;
+    show(at + 1);
+  }
+  // pause and pick up again with the menu, the tab and the Animations switch
+  function sync() {
+    if (paused() || hold()) {
+      clearTimeout(timer);
+      clip?.pause();
+      waiting = true;
+    } else if (waiting) {
+      waiting = false;
+      if (clip) clip.play().catch(next);
+      else wait(FADE_MS);
+    }
+  }
+  new MutationObserver(sync).observe(title, { attributes: true, attributeFilter: ["hidden"] });
+  new MutationObserver(sync).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  document.addEventListener("visibilitychange", sync);
+  reduce.addEventListener?.("change", sync);
+  show(0);
 }

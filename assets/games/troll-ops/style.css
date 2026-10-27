@@ -4356,7 +4356,14 @@ html, body, body * { scrollbar-width: none !important; }
 html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
 #to-title.is-bo2.is-fn { background: #0b1430; }
 .to-bo2.is-fn [hidden] { display: none !important; }
-.to-fn-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* the backdrop reel (lobby-fn.js mountReel): two layers crossfading */
+.to-fn-bg { position: absolute; inset: 0; overflow: hidden; opacity: 0; transition: opacity 1.4s ease; }
+.to-fn-bg.is-on { opacity: 1; }
+.to-fn-shot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.to-fn-shot.is-drift { animation: to-fn-drift 9s linear both; }
+.to-fn-shot.is-drift.is-rev { animation-name: to-fn-drift-rev; }
+@keyframes to-fn-drift { from { transform: scale(1.03) translateX(-1%); } to { transform: scale(1.1) translateX(1%); } }
+@keyframes to-fn-drift-rev { from { transform: scale(1.1) translateX(1%); } to { transform: scale(1.03) translateX(-1%); } }
 .to-bo2.is-fn .to-bo2-bg::after { content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(180deg, rgba(10,20,64,.6), rgba(10,20,64,.12) 38%, rgba(6,10,36,.78)); }
 .to-fn-glass { background: var(--fn-glass); border: 1px solid var(--fn-line); border-radius: 12px; box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 10px 30px rgba(0,0,0,.25); color: #fff; }
