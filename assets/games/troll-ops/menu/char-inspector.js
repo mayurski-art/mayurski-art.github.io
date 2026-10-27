@@ -16,6 +16,7 @@ import { buildHumanoid, poseHumanoid, aimRig, mountHeldWeapon } from "../charact
 import { buildWeaponMesh } from "../weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1-rt1-ut1-rb4-hp1-bx1-mg1-sp1";
 import { drawInkOverlay } from "../view/char-ink.js?v=ci1-ci2-ci3-ci4-ci5-rb4-rb5-mg1-sp1-ci6";
 import { poseEmoteCode, emoteCode, emoteSeconds } from "../characters/emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-cf1-gs2-lh1-fg2-lp1-fg3-rc1-rc4-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-ht2-bx1-cg1-mg1-sp1-chg1";
+import { wearBlocky } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-hl1-mg1-sp1-rh1-ci6-pm1";
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2.2;
@@ -34,6 +35,36 @@ const PORT_ROLL = 0.5;
 const OPERATOR_MATERIAL = new THREE.MeshStandardMaterial({
   color: 0x0a0a0a, roughness: 0.7, metalness: 0.1,
 });
+
+/* The Play page's stage (user, 2026-10-27, the Fortnite lobby's phase 2):
+   you on a glowing pad in the middle, up to two of your party on the pads
+   either side, a step back and turned a little in. [x, z, yaw] in the
+   rig's space (its feet at y 0). */
+const SLOTS = [[0, 0, 0], [-1.05, -0.55, 0.28], [1.05, -0.55, -0.28]];
+// the pads' glow: a soft disc and a bright rim, drawn once
+function padTexture() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const g = c.getContext("2d"), r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  r.addColorStop(0, "rgba(255,255,255,.55)");
+  r.addColorStop(0.62, "rgba(255,255,255,.28)");
+  r.addColorStop(0.8, "rgba(255,255,255,.95)");
+  r.addColorStop(0.86, "rgba(255,255,255,.35)");
+  r.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = r;
+  g.fillRect(0, 0, 128, 128);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function buildPad(color, size) {
+  const m = new THREE.MeshBasicMaterial({ map: padTexture(), color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
+  const pad = new THREE.Mesh(new THREE.PlaneGeometry(size, size), m);
+  pad.rotation.x = -Math.PI / 2;
+  pad.position.y = 0.005;
+  pad.renderOrder = -1;
+  return pad;
+}
 
 export class CharacterInspector {
   constructor(canvas) {
@@ -92,7 +123,73 @@ export class CharacterInspector {
     this.width = 0;
     this.height = 0;
 
+    // the stage: pads, and the party on them (setStage, setParty)
+    this.stage = false;
+    this.pads = SLOTS.map(([x, z], i) => {
+      const p = buildPad(i ? 0xbcd2ff : 0x4fd8ff, i ? 1.15 : 1.4);
+      p.position.x = x; p.position.z = z;
+      p.visible = false;
+      this.rig.add(p);
+      return p;
+    });
+    this.party = [];        // [{ id, slot, humanoid, key }]
+    this.onAnchors = null;  // (anchors) => ..., each frame on the stage
+    this._v = new THREE.Vector3();
+
     this.bindInput();
+  }
+
+  /* The Play page's stage on or off: the pads, the party, and the camera
+     back far enough for all three (the box's --char-dist, re-read). */
+  setStage(on) {
+    this.stage = !!on;
+    for (const p of this.pads) p.visible = this.stage;
+    for (const m of this.party) m.humanoid.root.visible = this.stage;
+    this.width = 0;   // re-read the box's size and its CSS knobs next tick
+    if (!this.stage) { this.yaw = REST_YAW; this.pitch = REST_PITCH; }
+  }
+
+  /* The party beside you: [{ id, name, face, body (a TROLLS token, 0 the
+     stick) }], two at most, in slot order. A member's operator is rebuilt
+     only when their look changes. */
+  setParty(list) {
+    const want = list.slice(0, 2);
+    const keep = [];
+    for (const m of this.party) {
+      const i = want.findIndex((w) => w.id === m.id);
+      const w = want[i];
+      if (w && m.key === `${w.face}|${w.body}` && m.slot === i + 1) { keep.push(m); continue; }
+      this.rig.remove(m.humanoid.root);
+    }
+    this.party = want.map((w, i) => {
+      const had = keep.find((m) => m.id === w.id);
+      if (had) return had;
+      const h = buildHumanoid(OPERATOR_MATERIAL, { height: 1.8, gun: false });
+      h.noIdleGlance = true;
+      h.face = w.face;
+      if (w.body) wearBlocky(h, w.body);
+      const [x, z, yaw] = SLOTS[i + 1];
+      h.root.position.set(x, 0, z);
+      aimRig(h, FACING + yaw, 0, { snap: true });
+      h.root.visible = this.stage;
+      this.rig.add(h.root);
+      return { id: w.id, slot: i + 1, humanoid: h, key: `${w.face}|${w.body}`, t: Math.random() * 6 };
+    });
+  }
+
+  /* Where each slot's head and feet land in the canvas (CSS px): the name
+     tags and the invite bubbles stand on these (lobby.js). */
+  anchors() {
+    const out = [];
+    const toPx = (x, y, z) => {
+      this._v.set(x, y, z).applyMatrix4(this.rig.matrixWorld).project(this.camera);
+      return { x: (this._v.x + 1) / 2 * this.width, y: (1 - this._v.y) / 2 * this.height };
+    };
+    for (const [x, z] of SLOTS) {
+      const head = toPx(x, 2.02, z), feet = toPx(x, 0, z);
+      out.push({ x: head.x, head: head.y, feet: feet.y });
+    }
+    return out;
   }
 
   bindInput() {
@@ -258,6 +355,20 @@ export class CharacterInspector {
       this.humanoid.body.update();
     }
 
+    // the party: at ease, breathing, each on its own clock
+    for (const m of this.party) {
+      if (!m.humanoid.root.visible) continue;
+      m.t += dt;
+      aimRig(m.humanoid, FACING + SLOTS[m.slot][2], dt);
+      poseHumanoid(m.humanoid, { moving: false, pitch: Math.sin(m.t * 1.3) * 0.015, dt, hold: "none" });
+      m.humanoid.body?.update?.();
+    }
+    // your pad breathes (not with Animations off or reduced motion)
+    if (this.stage) {
+      const still = document.body.classList.contains("tf-anim-off") || matchMedia("(prefers-reduced-motion: reduce)").matches;
+      this.pads[0].material.opacity = still ? 0.9 : 0.78 + 0.22 * Math.sin(this.breathT * 2.1);
+    }
+
     const dist = this.baseDist * (this.distMult || 1) * this.zoom;
     const cp = Math.cos(this.pitch);
     this.camera.position.set(
@@ -271,5 +382,6 @@ export class CharacterInspector {
 
     this.renderer.render(this.scene, this.camera);
     drawInkOverlay(this.renderer, this.scene, this.camera);   // a TROLLS body's edge ink
+    if (this.stage) this.onAnchors?.(this.anchors());
   }
 }

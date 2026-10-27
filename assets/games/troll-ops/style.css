@@ -4450,6 +4450,36 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-fn-picker button:hover, .to-fn-picker button:focus-visible { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.4); }
 .to-fn-picker b { font: 800 18px var(--fn-ui); letter-spacing: .04em; text-transform: uppercase; }
 .to-fn-picker small { font: 500 13px/1.3 var(--fn-ui); color: #c4d1f3; }
+/* All modes: the tile row under the lobby (scroll down, or this button) */
+.to-fn-allmodes { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 4; display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 16px 0 10px;
+  font: 800 16px var(--fn-ui); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.to-fn-allmodes svg, .to-fn-modes-x svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.to-fn-allmodes:hover { background: linear-gradient(180deg, rgba(90,124,214,.7), rgba(34,52,120,.8)); }
+.to-fn-modes { position: absolute; inset: var(--fn-top) 0 0; z-index: 7; display: flex; flex-direction: column; gap: 14px; padding: 6px var(--fn-pad) 24px; box-sizing: border-box;
+  background: linear-gradient(180deg, rgba(14,24,64,.82), rgba(8,14,40,.94)); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+@media (prefers-reduced-motion: no-preference) { .to-fn-modes:not([hidden]) { animation: to-fn-rise .22s ease-out; } }
+@keyframes to-fn-rise { from { transform: translateY(24px); opacity: 0; } }
+.to-fn-modes header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.to-fn-modes h2 { margin: 0; font: italic 400 46px/1 var(--fn-display); text-transform: uppercase; }
+.to-fn-modes h2 small { display: block; width: max-content; margin-top: 8px; padding: 3px 12px; border-radius: 20px; background: rgba(0,0,0,.4); font: italic 800 15px var(--fn-ui); letter-spacing: .04em; color: #dbe4ff; }
+.to-fn-modes-x { display: grid; place-items: center; width: 44px; height: 44px; flex: none; cursor: pointer; }
+.to-fn-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; min-height: 0; overflow-y: auto; padding: 4px; margin: -4px; }
+.to-fn-tile { display: grid; gap: 6px; padding: 0; border: 0; background: none; color: #cfdaf6; text-align: left; cursor: pointer; }
+.to-fn-tile-art { position: relative; display: block; aspect-ratio: 2/1; border-radius: 12px; overflow: hidden; border: 3px solid transparent; background: #1a2550; }
+.to-fn-tile-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.to-fn-tile-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(0,0,0,.7), transparent 55%); }
+.to-fn-tile-art b { position: absolute; left: 12px; right: 12px; bottom: 10px; z-index: 1; font: italic 400 30px/.95 var(--fn-display); text-transform: uppercase; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,.8); }
+.to-fn-tile:hover .to-fn-tile-art, .to-fn-tile:focus-visible .to-fn-tile-art { border-color: rgba(255,255,255,.6); }
+.to-bo2.is-fn .to-fn-tile:focus-visible { outline: none; }
+.to-fn-tile.is-on .to-fn-tile-art { border-color: #fff; box-shadow: 0 0 0 4px rgba(120,190,255,.6); }
+.to-fn-tile-n { display: flex; align-items: center; gap: 6px; font: 700 16px var(--fn-ui); }
+.to-fn-tile-n svg { width: 17px; height: 17px; fill: currentColor; }
+.to-fn-tile:disabled { cursor: default; }
+.to-fn-tile:disabled .to-fn-tile-art { filter: grayscale(1) brightness(.6); }
+.to-fn-tile:disabled .to-fn-tile-n { color: var(--fn-yellow); }
+/* the tiles take the whole page: the lobby behind them steps back */
+.to-bo2.is-fn-modes :is(.to-fn-left, .to-fn-play, .to-fn-picker, .to-fn-allmodes, .to-bo2-party),
+#to-title.is-bo2.is-fn:has(.to-bo2.is-fn-modes) :is(.to-char-view, .to-stage) { visibility: hidden; }
 
 /* ── The BO2 list, as the glass panel every other screen lives in ── */
 .to-bo2.is-fn[data-screen="main"] .to-bo2-menu { display: none; }
@@ -4483,6 +4513,28 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-bo2.is-fn .to-bo2-vote.is-sheet { background: linear-gradient(180deg, #22397a, #0d1640); }
 /* the operator (Cosmetics) stands under the tab bar */
 #to-title.is-bo2.is-fn .to-char-view { top: calc(var(--fn-top) - 8px); }
+/* ...and on the Play page, on its pad between the columns, the party's
+   pads either side (char-inspector.js stage; lobby.js the names and invites) */
+#to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: calc(var(--fn-pad) + 310px); right: calc(var(--fn-pad) + 340px); top: var(--fn-top); bottom: 78px; --char-shift: 0; --char-dist: 1.32; }
+.to-bo2.is-fn[data-screen="main"] .to-bo2-foot .to-char-emote:not([hidden]) { display: flex; }
+.to-stage { position: absolute; inset: 0; pointer-events: none; font-family: var(--fn-ui); }
+.to-stage > * { position: absolute; left: 0; top: 0; pointer-events: auto; }
+.to-stage [hidden] { display: none; }
+.to-stage-tag { display: grid; justify-items: center; gap: 3px; margin: -46px 0 0; translate: -50% 0; text-align: center; white-space: nowrap; pointer-events: none; }
+.to-stage-tag b { padding: 3px 12px; border: 1px solid rgba(255,255,255,.3); border-radius: 7px; background: rgba(22,32,72,.78); color: #fff; font: 800 16px var(--fn-ui); letter-spacing: .03em; }
+.to-stage-tag.is-me b { color: #ffe58a; }
+.to-stage-tag small { padding: 1px 9px; border-radius: 5px; background: rgba(79,216,255,.22); color: #c8f2ff; font: 800 11px var(--fn-ui); letter-spacing: .08em; text-transform: uppercase; }
+.to-stage-tag small:empty { display: none; }
+.to-stage-add { width: 52px; height: 52px; margin: -26px 0 0 -26px; padding: 0; border: 2px solid rgba(255,255,255,.8); border-radius: 50%; background: rgba(12,18,44,.72); color: #fff; cursor: pointer; display: grid; place-items: center; box-shadow: 0 0 18px rgba(120,190,255,.35); }
+.to-stage-add span { font: 600 34px/1 var(--fn-ui); margin-top: -3px; }
+.to-stage-add:hover, .to-stage-add:focus-visible { background: rgba(40,64,140,.9); outline: 2px solid var(--fn-cyan); outline-offset: 2px; }
+.to-stage-bubble { width: 150px; margin: -36px 0 0; translate: -50% -100%; display: grid; gap: 3px; padding: 9px 10px 10px; box-sizing: border-box; text-align: center;
+  border: 1px solid var(--fn-line); border-radius: 12px; background: var(--fn-glass); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); color: #fff; }
+.to-stage-bubble b { font: 800 16px var(--fn-ui); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.to-stage-bubble small { font: 800 11px var(--fn-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--fn-yellow); }
+.to-stage-bubble button { min-height: 32px; border: 0; border-radius: 7px; background: var(--fn-yellow); color: #1b1400; font: 800 13px var(--fn-ui); letter-spacing: .04em; text-transform: uppercase; cursor: pointer; }
+.to-stage-bubble button:disabled { background: rgba(255,255,255,.2); color: #fff; cursor: default; }
+.to-stage-bubble button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .to-bo2.is-fn .to-bo2-vote header b { font: italic 400 22px var(--fn-display); letter-spacing: .02em; color: #fff; }
 .to-bo2.is-fn .to-mv-clock { font: 400 24px var(--fn-display); color: var(--fn-cyan); }
 .to-bo2.is-fn.has-gun .to-bo2-detail { top: calc(var(--fn-top) + 40cqh + 14px); max-height: calc(100% - var(--fn-top) - 124px - 40cqh); }
@@ -4523,6 +4575,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-fn-tab { min-width: 0; padding: 0 10px; font-size: 15px; }
   .to-fn-play, .to-fn-picker { width: 290px; }
   .to-fn-mode-name { font-size: 28px; }
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: calc(var(--fn-pad) + 270px); right: calc(var(--fn-pad) + 300px); }
 }
 /* Sideways phones: everything smaller; news and the challenge list step
    out (the Quests tab has them) */
@@ -4564,11 +4617,32 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-bo2.is-fn[data-screen="main"] .to-bo2-party { bottom: calc(54px + 200px); }
   .to-bo2.is-fn .to-bo2-foot { bottom: 8px; }
   .to-bo2.is-fn .to-bo2-online { padding: 6px 10px; font-size: 14px; }
+  /* the stage between the narrower columns, its names smaller; no bubbles
+     (no room: the "+" opens Who's Online) */
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: calc(var(--fn-pad) + 218px); right: calc(var(--fn-pad) + 258px); top: calc(var(--fn-top) + 34px); bottom: 54px; }
+  .to-stage-tag { margin-top: -34px; }
+  .to-stage-tag b { padding: 2px 8px; font-size: 13px; }
+  .to-stage-tag small { font-size: 9px; }
+  .to-stage-add { width: 40px; height: 40px; margin: -20px 0 0 -20px; }
+  .to-stage-add span { font-size: 26px; }
+  .to-stage-bubble { display: none; }
+  /* the tiles in one row that scrolls sideways */
+  .to-fn-allmodes { bottom: 8px; min-height: 34px; font-size: 14px; }
+  .to-fn-modes { gap: 8px; padding-bottom: 10px; }
+  .to-fn-modes h2 { font-size: 28px; }
+  .to-fn-modes h2 small { margin-top: 4px; font-size: 12px; }
+  .to-fn-modes-x { width: 38px; height: 38px; }
+  .to-fn-tiles { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: min(44%, 320px); gap: 12px; overflow: auto hidden; scrollbar-width: none; }
+  .to-fn-tile-art b { font-size: 22px; }
+  .to-fn-tile-n { font-size: 14px; }
 }
 /* Upright phones: the tabs scroll along the top, the season and level
    under them, who's online, then the mode card and PLAY across the bottom */
 @container cab (max-aspect-ratio: 9/10) {
   .to-bo2.is-fn, #to-title.is-bo2.is-fn .to-pf { --fn-pad: 12px; --bo2-col: 12px; }
+  /* the Play page is a stack of cards here: no room for the stage */
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { display: none; }
+  .to-bo2.is-fn[data-screen="main"] .to-bo2-foot .to-char-emote:not([hidden]) { display: none; }
   .to-fn-top { left: 12px; right: 60px; top: calc(6px + env(safe-area-inset-top)); height: 44px; gap: 6px; }
   .to-fn-ico { display: none; }
   .to-fn-tabs { flex: 1 1 auto; padding: 3px; overflow-x: auto; scrollbar-width: none; }
@@ -4584,8 +4658,17 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-fn-play, .to-fn-picker { left: 12px; right: 12px; width: auto; bottom: calc(var(--foot-h, 60px) + 26px + env(safe-area-inset-bottom)); }
   .to-fn-picker { max-height: 70%; overflow-y: auto; }
   .to-fn-mode-name { font-size: 28px; }
-  /* no room for who's online on Play: "N Online" opens the list, with Invite */
-  .to-bo2.is-fn[data-screen="main"] .to-bo2-party { display: none; }
+  /* All modes sits in the bottom row, between N Online and chat; the tiles
+     two across, scrolling down */
+  .to-fn-allmodes { bottom: calc(22px + env(safe-area-inset-bottom)); min-height: 38px; font-size: 14px; }
+  .to-fn-modes { top: calc(56px + env(safe-area-inset-top)); padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+  .to-fn-modes h2 { font-size: 32px; }
+  .to-fn-tiles { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .to-fn-tile-art b { font-size: 20px; left: 8px; right: 8px; bottom: 7px; }
+  .to-fn-tile-n { font-size: 14px; }
+  /* no room for who's online beside the cards and lists (it sat over the
+     Locker's and the Challenges' rows): "N Online" opens the list, with Invite */
+  .to-bo2.is-fn .to-bo2-party { display: none; }
   .to-bo2.is-fn .tr-menu-title { font-size: 30px; }
   .to-bo2.is-fn .to-bo2-menu { left: 12px; right: 12px; width: auto; padding: 10px 12px 2px; top: calc(56px + env(safe-area-inset-top));
     max-height: calc(100% - 56px - 86px - var(--foot-h, 42px) - 40px - env(safe-area-inset-top)); }
@@ -5389,6 +5472,8 @@ body.to-touch-play .zh.is-downed .zh-col { visibility: hidden; }
   font: 600 11px/1.35 "DM Mono", ui-monospace, monospace; letter-spacing: .02em; color: #e8e8e8; white-space: nowrap;
 }
 .to-fps[hidden] { display: none; }
+/* in the lobby the tab bar has the top: bottom centre, under All modes */
+body:has(#to-title.is-fn:not([hidden])) .to-fps { top: auto; bottom: max(2px, env(safe-area-inset-bottom)); }
 .to-fps[data-band="good"] { color: #7fe066; }
 .to-fps[data-band="ok"] { color: #ffc94d; }
 .to-fps[data-band="bad"] { color: #ff6b5e; }

@@ -3,7 +3,7 @@
 
 import { WeaponInspector } from "./inspector.js?v=hb1-nf-wst-ig1-sb2-if1-wb1-th2-ar1-ar2-cl1-fj1-zr9-zr10-zp1-sr1-or1-rt1-ut1-rb4-hp1-bx1-mg1-tm2-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
 import { CharacterInspector } from "./char-inspector.js?v=hb4-wst-soc1-sb2c2-wb1m1-ar1-ar2-gt1-gt2-bk1-cw1-fj1-zr10-bf1-sr1-br1-or1-nf2-em2-cf1-gs2-ci1-lh1-ci2-ci3-ci4-ci5-fg2-lp1-fg3-rc1-rc4-ls1-rt1-ut1-er1-cl1-rb4-rb5-rb6-hp1-ht1-ht2-bx1-cg1-mg1-tm2-sp1-chg1-ci6-pm1";
-import { CosmeticsPanel, loadCosmetics, bodyToken } from "../characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1-em2-nb2-pc2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-sf1-mg1-sp1";
+import { CosmeticsPanel, loadCosmetics, bodyToken, cleanFaceKey, mayWear } from "../characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1-em2-nb2-pc2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-sf1-mg1-sp1";
 import { EmoteWheel } from "../characters/emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-nb2-pc2-cf1-gs2-lh1-fg2-lp1-fg3-rc1-rc4-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-ht2-bx1-sf1-cg1-mg1-sp1-chg1";
 import { padEmotePressed } from "./controller-layout.js?v=cl7-pd1-or1-pd2";
 import { streakPicker } from "../streaks/calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-fs1-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ls4-gb4-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2";
@@ -13,11 +13,12 @@ import { syncXp } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-a
 import { renderModes, buildModeButtons } from "./mode-picker.js?v=mp1-fu1b7b7d-wb1-ar1-ar2-cl1-bp1-fj1-zr9-zr10-zh1-zc1-zc2-nf1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-sam1-rl1-tfp4-tfp7-tfb8-rfx1";
 import { HERO_IDS, HEROES, saveHero, savedHero } from "../characters/heroes.js?v=umb2-or1";
 import { heroKit, heroActive } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-fs1-ut1-gf1-tg1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ls4-gb4-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2";
-import { SETTINGS_KEY, settings, applySettings } from "./settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3";
-import { BOT_STREAK_KEY } from "../streaks/bot-streaks.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3";
+import { SETTINGS_KEY, settings, applySettings } from "./settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-fp2";
+import { BOT_STREAK_KEY } from "../streaks/bot-streaks.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-fp2";
 import { initCloudSave } from "../net/cloud-save.js?v=cs1b7-zc1-zc2-or1-jb5-sp1";
 import { makeRoomCode } from "../net/net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10-hr2-zp1-rs1-dj2-pl2-nf1-or1-bw2-bt1-dom1-jb3-jb4-sp1-gb4-gb6-gb8-gb9-tfb8-rfx3";
 import { game } from "../core/state.js?v=st1";
+import { setLookSource, partyLookChanged, partyView, invitePlayer } from "./invites.js?v=iv1-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-pty1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2";
 import { wearBlocky, ownBody, prefetchBody } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-hl1-mg1-sp1-rh1-ci6-pm1";
 
 // The tab bar across the top swaps what's under it. "deploy" is the Play
@@ -60,7 +61,9 @@ export const charInspector = charCanvas ? new CharacterInspector(charCanvas) : n
 // the body you wore last starts downloading now: signing in can take a
 // while, and a phone then waited seconds more for the models
 prefetchBody(bodyToken(loadCosmetics().body));
-export const cosmetics = new CosmeticsPanel(document.getElementById("to-cos-body"), (face) => applyOwnFace(face), (body) => applyOwnBody(body));
+export const cosmetics = new CosmeticsPanel(document.getElementById("to-cos-body"), (face) => { applyOwnFace(face); partyLookChanged(); }, (body) => { applyOwnBody(body); partyLookChanged(); });
+// our look, as a party sees it on the pad beside theirs (invites.js)
+setLookSource(() => ({ face: cosmetics.face, body: cosmetics.body }));
 function applyOwnFace(face) {
   if (charInspector) charInspector.humanoid.face = face;
   game.localRig.face = face;   // only ever called on a pick, long after localRig exists
@@ -100,10 +103,110 @@ function mountGunView(panel) {
    per-panel box — it's a free-floating hero shot over the whole lobby
    (see .to-char-view), so showing it for a panel is just an on/off flag. */
 function mountCharView(panel) {
-  // Cosmetics only (user, 2026-10-22): the lobby's middle is the map preview.
-  charInspectorLive = !!(charView && panel === "cosmetics");
+  // Cosmetics (user, 2026-10-22), and the Fortnite lobby's Play page: you on
+  // the pad in the middle, your party either side (user, 2026-10-27)
+  const home = fnHome();
+  charInspectorLive = !!(charView && (panel === "cosmetics" || (panel === "deploy" && home)));
   if (charView) charView.style.display = charInspectorLive ? "" : "none";
+  charInspector?.setStage(home && panel !== "cosmetics");
+  if (charInspectorLive) showParty();
   if (!charInspectorLive) menuEmoteWheel?.close(true);
+  renderStage();
+}
+const fnHome = () => !!document.querySelector('.to-bo2.is-fn[data-screen="main"]');
+// lobby-fn.js says when the menu's screen changes (the panel can stay "deploy")
+addEventListener("trollforces:fn-screen", () => { if (activeLobbyPanel === "deploy" || activeLobbyPanel === "cosmetics") mountCharView(activeLobbyPanel); });
+
+/* The party on the pads beside you (invites.js): their names and looks.
+   A face this build doesn't know is the default one; a TROLLS body only on
+   its holder, as in a match (remote-players.js). */
+function showParty() {
+  if (!charInspector?.stage) return;
+  charInspector.setParty(partyView().people.slice(0, 2).map((p) => {
+    const token = bodyToken(p.look?.body);
+    return { id: p.viewerId, name: p.name, host: p.host, face: cleanFaceKey(p.look?.face), body: token && mayWear(token, p.name) ? token : 0 };
+  }));
+}
+addEventListener("trollforces:party", () => { if (charInspectorLive) showParty(); renderStage(); });
+
+/* Over the stage: a name over each of you, and on an empty pad a "+" (Who's
+   Online) with someone online to invite in a bubble over it (the online
+   list comes from menu-bo2.js, "trollforces:online"). Placed each frame on
+   the slots' heads and feet (char-inspector.js anchors). */
+let online = [];
+const sentTo = new Set();
+const stageEl = charView ? document.createElement("div") : null;
+if (stageEl) {
+  stageEl.className = "to-stage";
+  stageEl.innerHTML = [0, 1, 2].map((i) => `<div class="to-stage-tag${i ? "" : " is-me"}" data-slot="${i}" hidden><b></b><small></small></div>`).join("")
+    + [1, 2].map((i) => `<button type="button" class="to-stage-add" data-slot="${i}" hidden aria-label="Invite someone to your party"><span aria-hidden="true">+</span></button>
+      <div class="to-stage-bubble" data-slot="${i}" hidden><b></b><small>Online</small><button type="button">Invite to party</button></div>`).join("");
+  charView.appendChild(stageEl);
+  stageEl.addEventListener("click", (e) => {
+    if (e.target.closest(".to-stage-add")) { document.querySelector(".to-bo2-online")?.click(); return; }
+    const btn = e.target.closest(".to-stage-bubble button");
+    if (!btn) return;
+    const o = online.find((p) => p.viewerId === btn.dataset.viewer);
+    if (!o) return;
+    const msg = invitePlayer({ viewerId: o.viewerId, name: o.name, userId: o.userId }) || "";
+    btn.title = msg;
+    if (/^Invite sent/.test(msg)) { sentTo.add(o.viewerId); renderStage(); }
+  });
+}
+addEventListener("trollforces:online", (e) => { online = Array.isArray(e.detail) ? e.detail : []; renderStage(); });
+function renderStage() {
+  if (!stageEl) return;
+  const on = !!charInspector?.stage && charInspectorLive;
+  stageEl.hidden = !on;
+  if (!on) return;
+  const v = partyView(), people = v.people.slice(0, 2);
+  const tags = [...stageEl.querySelectorAll(".to-stage-tag")];
+  const me = window.TrollrunnerAccounts?.getCachedProfile?.()?.username;
+  tags[0].querySelector("b").textContent = me ? withClan(me, getMyCard().clan) : "Guest troll";
+  tags[0].querySelector("small").textContent = people.length ? (v.host ? "Party leader" : "In the party") : "";
+  tags[0].hidden = false;
+  const inParty = new Set(people.map((p) => p.viewerId));
+  const free = online.filter((o) => !inParty.has(o.viewerId));
+  let pick = 0;
+  for (const slot of [1, 2]) {
+    const p = people[slot - 1], tag = tags[slot];
+    tag.hidden = !p;
+    if (p) {
+      tag.querySelector("b").textContent = p.name;
+      tag.querySelector("small").textContent = p.host ? "Party leader" : "In your party";
+    }
+    // an empty pad: yours to fill (not in someone else's party: their host invites)
+    const empty = !p && v.host;
+    stageEl.querySelector(`.to-stage-add[data-slot="${slot}"]`).hidden = !empty;
+    const bubble = stageEl.querySelector(`.to-stage-bubble[data-slot="${slot}"]`), o = empty ? free[pick++] : null;
+    bubble.hidden = !o;
+    if (o) {
+      bubble.querySelector("b").textContent = o.name;
+      const btn = bubble.querySelector("button");
+      btn.dataset.viewer = o.viewerId;
+      const sent = sentTo.has(o.viewerId);
+      btn.textContent = sent ? "Invite sent" : "Invite to party";
+      btn.disabled = sent;
+      btn.setAttribute("aria-label", sent ? `Invite sent to ${o.name}` : `Invite ${o.name} to your party`);
+    }
+  }
+}
+if (charInspector) {
+  let last = "";
+  charInspector.onAnchors = (a) => {
+    if (!stageEl || stageEl.hidden) return;
+    const key = a.map((s) => `${s.x | 0},${s.head | 0},${s.feet | 0}`).join(";");
+    if (key === last) return;
+    last = key;
+    for (const el of stageEl.children) {
+      const s = a[+el.dataset.slot];
+      if (!s) continue;
+      // a name over the head; the "+" at the empty pad's middle height, its
+      // bubble standing on it (over the head it ran into the tab bar)
+      const y = el.classList.contains("to-stage-tag") ? s.head : (s.head + s.feet) / 2;
+      el.style.transform = `translate(${s.x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+    }
+  };
 }
 
 /* Emoting in the main menu (user): the same wheel as in a match, played by
