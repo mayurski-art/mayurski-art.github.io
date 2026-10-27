@@ -135,7 +135,7 @@ export function mountFnLobby(api) {
     <div class="to-fn-glass to-fn-season"><b>Chapter One</b><span>Season: OG</span></div>
     <div class="to-fn-news" role="group" aria-roledescription="carousel" aria-label="News">
       ${NEWS.map((n, i) => `<button type="button" class="to-fn-news-card" data-i="${i}" ${i ? "hidden" : ""} aria-label="${esc(`${n.title}: ${n.tag}`)}">
-        <img alt="" loading="lazy" data-map="${n.map}"><em>News</em><b>${esc(n.title)}</b><small>${esc(n.tag)}</small></button>`).join("")}
+        <img alt="" data-map="${n.map}"><em>News</em><b>${esc(n.title)}</b><small>${esc(n.tag)}</small></button>`).join("")}
       <div class="to-fn-pips">${NEWS.map((n, i) => `<button type="button" data-i="${i}" aria-label="News ${i + 1}: ${esc(n.title)}"></button>`).join("")}</div>
     </div>
     <div class="to-fn-pair">
@@ -461,7 +461,16 @@ function mountReel(bg, title) {
       img.decoding = "async";
       if (at < 0) img.fetchPriority = "high";
       img.src = item.src(width());
-      return img.decode().then(() => img, () => null);
+      // loaded, then decoded if the browser will (iOS Safari's decode() can
+      // hang on a picture outside the page: never wait on it alone)
+      return new Promise((done) => {
+        const ok = () => Promise.race([img.decode?.().catch(() => {}), new Promise((r) => setTimeout(r, 600))]).then(() => done(img));
+        if (img.complete && img.naturalWidth) ok();
+        else {
+          img.addEventListener("load", ok, { once: true });
+          img.addEventListener("error", () => done(null), { once: true });
+        }
+      });
     }
     const v = document.createElement("video");
     Object.assign(v, { muted: true, playsInline: true, preload: "auto", disablePictureInPicture: true });

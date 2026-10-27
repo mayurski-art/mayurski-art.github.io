@@ -134,6 +134,16 @@ for (const [w, h] of [[390, 844], [844, 390]]) {
     return { shown: els.length, right: Math.max(0, ...rs.map((r) => r.right)), bottom, overlap, covered, more: document.querySelector(".to-bo2-party-more")?.textContent };
   });
   check(box.right <= w + 0.5 && box.bottom <= h && !box.overlap && !box.covered, `phone ${w}x${h}: party rows on screen, no overlap`, JSON.stringify(box));
+  // upright, the party column is off on every screen (it sat over the
+  // Locker's rows; user, 2026-10-27): "N Online" opens the list
+  if (h > w) {
+    await page.click('.to-fn-tab[data-tab="locker"]');
+    await page.waitForTimeout(500);
+    const party = await page.evaluate(() => [...document.querySelectorAll(".to-bo2-party")].some((e) => e.offsetParent));
+    check(!party, "upright phone, Locker: no party column over the list");
+    await page.click('.to-fn-tab[data-tab="play"]');
+    await page.waitForTimeout(500);
+  }
   await page.screenshot({ path: path.join(SHOTS, `party-phone-${w}x${h}.png`) });
 }
 await page.setViewportSize({ width: 1280, height: 720 });

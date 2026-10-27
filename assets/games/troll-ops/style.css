@@ -4666,8 +4666,9 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-fn-tiles { grid-template-columns: 1fr 1fr; gap: 12px; }
   .to-fn-tile-art b { font-size: 20px; left: 8px; right: 8px; bottom: 7px; }
   .to-fn-tile-n { font-size: 14px; }
-  /* no room for who's online on Play: "N Online" opens the list, with Invite */
-  .to-bo2.is-fn[data-screen="main"] .to-bo2-party { display: none; }
+  /* no room for who's online beside the cards and lists (it sat over the
+     Locker's and the Challenges' rows): "N Online" opens the list, with Invite */
+  .to-bo2.is-fn .to-bo2-party { display: none; }
   .to-bo2.is-fn .tr-menu-title { font-size: 30px; }
   .to-bo2.is-fn .to-bo2-menu { left: 12px; right: 12px; width: auto; padding: 10px 12px 2px; top: calc(56px + env(safe-area-inset-top));
     max-height: calc(100% - 56px - 86px - var(--foot-h, 42px) - 40px - env(safe-area-inset-top)); }
@@ -5471,6 +5472,8 @@ body.to-touch-play .zh.is-downed .zh-col { visibility: hidden; }
   font: 600 11px/1.35 "DM Mono", ui-monospace, monospace; letter-spacing: .02em; color: #e8e8e8; white-space: nowrap;
 }
 .to-fps[hidden] { display: none; }
+/* in the lobby the tab bar has the top: bottom centre, under All modes */
+body:has(#to-title.is-fn:not([hidden])) .to-fps { top: auto; bottom: max(2px, env(safe-area-inset-bottom)); }
 .to-fps[data-band="good"] { color: #7fe066; }
 .to-fps[data-band="ok"] { color: #ffc94d; }
 .to-fps[data-band="bad"] { color: #ff6b5e; }
