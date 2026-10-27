@@ -334,6 +334,9 @@ function clubInterior(K) {
   wetFloor(marble, { rect: [HALL.x0, HALL.z0 - 0.3, HALL.x1, HALL.z1 + 0.2], cover: 0.4, scale: 1.6, edge: 0.4, pool: 0.03, dry: 0.75, dark: 0.8, env: 0.45, clamp: 0.6,
     probe: { at: [-23, 1.2, 14], box: [HALL.x0, -0.1, HALL.z0 - 0.3, HALL.x1, PLAN.TOP, HALL.z1 + 0.2] } });
   const ceiling = new THREE.MeshStandardMaterial({ color: 0x0b0a0e, roughness: 0.95 });
+  // a centimetre off the walls they cover is a hair in depth across the
+  // hall: ahead of the Blender walls under them (and of clubOnTop's) always
+  for (const m of [slats, mosaic, ceiling]) Object.assign(m, { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8 });
   const panel = (mat, x, z, len, y0, y1, ry) => {
     if (len < 0.05 || y1 - y0 < 0.05) return;
     K.add(mat, place(new THREE.PlaneGeometry(len, y1 - y0), { x, y: (y0 + y1) / 2, z, ry }), { shadow: false });
@@ -423,10 +426,42 @@ function loadModels(api) {
         lightParlour(gltf.scene);
         for (const o of wood) clubFx(o.material, { wash: { color: 0xff2a3a, top: 3.2, strength: 0.5 } });
         gltf.scene.traverse((o) => { if (o.isMesh && o.material?.name === "GS_Paint") paintDetail(o.material, "kbfront", 0.45, 0.7); });
+        clubOnTop(gltf.scene);
         api.prop(gltf.scene);
       }).finally(done);
     }, undefined, (e) => { console.warn(`Kabukigrin: ${file} didn't load`, e); done(); });
   })));
+}
+
+/* Where the club was laid over Grinjuku, some of its faces sit on
+   Grinjuku's own (the mezzanine's walls: a fraction of a millimetre
+   apart), and the two took turns showing as the camera moved: whole wall
+   panels flickering (user, 2026-10-26). The club's pieces win the depth
+   test there; a material Grinjuku's part shares is copied first, so
+   Grinjuku keeps its own. */
+function clubOnTop(scene) {
+  const partOf = (o) => { while (o.parent && o.parent !== scene) o = o.parent; return o; };
+  const gjMats = new Set(), club = [];
+  scene.traverse((o) => {
+    if (!o.isMesh) return;
+    if (/^gj/.test(partOf(o).name)) gjMats.add(o.material);
+    else club.push(o);
+  });
+  const copies = new Map();
+  for (const o of club) {
+    let m = o.material;
+    if (gjMats.has(m)) {
+      if (!copies.has(m)) {
+        const c = m.clone();
+        // (clone leaves the shader hooks behind: clubFx, paintDetail)
+        c.onBeforeCompile = m.onBeforeCompile;
+        c.customProgramCacheKey = m.customProgramCacheKey;
+        copies.set(m, c);
+      }
+      m = o.material = copies.get(m);
+    }
+    Object.assign(m, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 });
+  }
 }
 
 function buildKabukigrin(api) {
