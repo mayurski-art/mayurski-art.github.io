@@ -1287,11 +1287,17 @@ body.to-social:not(.to-social-armed) #to-touch-interact { display: none !importa
 .to-lo-gear.is-locked { opacity: .55; cursor: not-allowed; }
 .to-lo-gear.is-locked strong { color: #9aa596; }
 
+/* The gear row's size follows the screen (user: "the size of the icons
+   should be adjusted based on the size of the user's device screens"):
+   --to-gi is one icon's side, ~24 px on a 720p window, ~36 px at 1080p,
+   44 px from 1440p up; the chips' padding, gaps, keycaps and the melee
+   picture all follow it. The streak column above moves up as it grows. */
+.to-hud { --to-gi: clamp(20px, 3.3vh, 44px); }
 /* Sits above the health bar in the bottom-left corner, out of the ammo's way,
    and clear of the radio's button (bottom 16 px + 34 px). */
 .to-hud-gear {
   position: absolute; left: 18px; bottom: 54px; z-index: 12;
-  display: flex; gap: 6px;
+  display: flex; gap: calc(var(--to-gi) * .25);
 }
 .to-gear-chip {
   display: flex; align-items: center; gap: 5px;
@@ -1313,15 +1319,23 @@ body.to-social:not(.to-social-armed) #to-touch-interact { display: none !importa
 /* The item's picture (view/gear-chips.js), one per item carried, stacked
    side by side and overlapping a little so a full load stays compact. The
    melee weapon is drawn across the diagonal, so it gets a bigger square. */
-.to-gear-chip[data-slot] { padding: 2px 7px 2px 6px; gap: 6px; }
+.to-gear-chip[data-slot] {
+  padding: calc(var(--to-gi) * .09) calc(var(--to-gi) * .29) calc(var(--to-gi) * .09) calc(var(--to-gi) * .25);
+  gap: calc(var(--to-gi) * .25); border-radius: calc(var(--to-gi) * .3);
+  font-size: calc(var(--to-gi) * .44);
+}
+.to-gear-chip[data-slot] > b {
+  min-width: calc(var(--to-gi) * .38); font-size: calc(var(--to-gi) * .42);
+  padding: calc(var(--to-gi) * .04) calc(var(--to-gi) * .17); border-radius: calc(var(--to-gi) * .13);
+}
 .to-gear-icons { display: flex; align-items: center; }
 .to-gear-icon {
-  width: 24px; height: 24px; flex: none; display: block;
+  width: var(--to-gi); height: var(--to-gi); flex: none; display: block;
   filter: drop-shadow(0 1px 1px rgba(0,0,0,.55));
   -webkit-user-drag: none; user-select: none;
 }
-.to-gear-icon + .to-gear-icon { margin-left: -3px; }
-#to-gear-melee .to-gear-icon { width: 28px; height: 28px; margin: -2px 0; }
+.to-gear-icon + .to-gear-icon { margin-left: calc(var(--to-gi) * -.12); }
+#to-gear-melee .to-gear-icon { width: calc(var(--to-gi) * 1.17); height: calc(var(--to-gi) * 1.17); margin: calc(var(--to-gi) * -.085) 0; }
 .to-gear-icon.is-ghost { opacity: .35; filter: grayscale(1); }
 .to-gear-chip.is-empty { opacity: .55; }
 .to-gear-chip.is-active { border-color: #7fe066; background: rgba(127,224,102,.16); }
@@ -1628,7 +1642,8 @@ body.to-social:not(.to-social-armed) #to-touch-interact { display: none !importa
 /* In-match scorestreak strip: progress toward the next one, then a slot per
    selected streak that lights up once it's callable. */
 .to-ss-hud {
-  position: absolute; left: 16px; bottom: 96px;
+  /* above the gear row however big the screen makes it (.to-hud --to-gi) */
+  position: absolute; left: 16px; bottom: max(96px, calc(64px + var(--to-gi) * 1.2));
   display: flex; flex-direction: column; gap: 5px;
   pointer-events: none; z-index: 13; width: max-content;
 }
