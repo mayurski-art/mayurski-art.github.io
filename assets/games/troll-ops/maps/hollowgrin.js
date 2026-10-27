@@ -1222,7 +1222,9 @@ const _up = new THREE.Vector3(0, 1, 0);
 function rodGeo(a, b, r, seg = 4) {
   const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b);
   const dir = B.clone().sub(A);
-  const len = dir.length();
+  // a zero-length rod (two equal points) would give NaN normals: keep it a hair long, upright
+  const len = Math.max(dir.length(), 1e-4);
+  if (dir.lengthSq() < 1e-12) dir.copy(_up);
   const g = new THREE.CylinderGeometry(r, r, len, seg, 1, true);
   g.translate(0, len / 2, 0);
   g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(_up, dir.normalize()));
