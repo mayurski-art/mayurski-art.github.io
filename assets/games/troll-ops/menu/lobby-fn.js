@@ -63,6 +63,7 @@ const UI = "assets/games/troll-ops/ui";
 const REEL_MAPS = ["trollface", "grinbeach", "trollcity", "hollowgrin", "undergrin", "grinsite", "culdegrin", "dustbowl", "depot", "grinleria", "kabukigrin"];
 const REEL_CLIPS = ["club", "screen"];
 const SHOT_MS = 7000, FADE_MS = 1400;
+const CLIP_V = "c2";   // bump when the clips are re-rendered (same filenames)
 const still = (id, n, w) => n ? `${UI}/lobby/${id}-${n}-${w}.webp` : `${UI}/maps/${id}-${w}.webp`;
 const clip = (name) => ({ clip: (w) => `${UI}/lobby/kabukigrin-${name}-${w}` });
 function reelList() {
@@ -354,7 +355,7 @@ function mountReel(bg, title) {
     const v = document.createElement("video");
     Object.assign(v, { muted: true, playsInline: true, preload: "auto", disablePictureInPicture: true });
     v.setAttribute("aria-hidden", "true");
-    v.src = `${item.clip(width())}.${v.canPlayType('video/webm; codecs="vp9"') ? "webm" : "mp4"}`;
+    v.src = `${item.clip(width())}.${v.canPlayType('video/webm; codecs="vp9"') ? "webm" : "mp4"}?v=${CLIP_V}`;
     return new Promise((done) => {
       const t = setTimeout(() => done(null), 20000);
       v.addEventListener("canplaythrough", () => { clearTimeout(t); done(v); }, { once: true });

@@ -38,7 +38,15 @@ const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/ja
 const server = http.createServer((req, res) => {
   const p = path.join(ROOT, decodeURIComponent(new URL(req.url, "http://x").pathname));
   if (!p.startsWith(ROOT) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) { res.writeHead(404); return res.end(); }
-  res.writeHead(200, { "content-type": TYPES[path.extname(p)] || "application/octet-stream" });
+  const type = TYPES[path.extname(p)] || "application/octet-stream", size = fs.statSync(p).size;
+  // byte ranges: a video only seeks with them (every seek lands on 0 without)
+  const m = /bytes=(\d*)-(\d*)/.exec(req.headers.range || "");
+  if (m) {
+    const a = m[1] ? +m[1] : 0, b = m[2] ? Math.min(+m[2], size - 1) : size - 1;
+    res.writeHead(206, { "content-type": type, "content-range": `bytes ${a}-${b}/${size}`, "accept-ranges": "bytes", "content-length": b - a + 1 });
+    return fs.createReadStream(p, { start: a, end: b }).pipe(res);
+  }
+  res.writeHead(200, { "content-type": type, "accept-ranges": "bytes", "content-length": size });
   fs.createReadStream(p).pipe(res);
 });
 await new Promise((r) => server.listen(0, r));
@@ -85,13 +93,16 @@ const LOAD_WAIT = { grinbeach: 40000, kabukigrin: 15000, trollface: 15000 };
 //   club    along the front of the stage by the DJ, the dancers facing in
 //   screen  behind the two filming @SwishPng's screen, pushing in over them
 const CLIPS = {
-  club: { from: [-28.0, 1.6, 12.4, -18, 1.75, 16.2], to: [-27.5, 1.6, 17.4, -18, 1.75, 13.4], fov: 64, secs: 14, bob: 1, clear: 1.6 },
-  screen: { from: [-21.6, 1.6, 18.0, -21.5, 3.6, 23.76], to: [-21.4, 2.0, 19.9, -21.5, 3.9, 23.76], fov: 56, secs: 12, bob: 0.35, clear: 3, keep: { z: 20.8, act: "phone" } },
+  club: { from: [-28.0, 1.6, 12.4, -18, 1.75, 16.2], to: [-27.5, 1.6, 17.4, -18, 1.75, 13.4], fov: 64, secs: 14, bob: 1, clear: 1.6, videoAt: 4 },
+  screen: { from: [-21.6, 1.6, 18.0, -21.5, 3.6, 23.76], to: [-21.4, 2.0, 19.9, -21.5, 3.9, 23.76], fov: 56, secs: 12, bob: 0.35, clear: 3, keep: { z: 20.8, act: "phone" }, videoAt: 4 },
 };
 const CLIP_SECS = +process.env.CLIP_SECS || 0;   // (shorter, for a TRY)
 
 const browser = await chromium.launch({ args: [`--use-angle=${process.env.ANGLE || "d3d11"}`, "--enable-unsafe-swiftshader",
-  "--autoplay-policy=no-user-gesture-required", "--disable-background-timer-throttling", "--disable-renderer-backgrounding"] });
+  "--autoplay-policy=no-user-gesture-required", "--disable-background-timer-throttling", "--disable-renderer-backgrounding",
+  // (a paused video off the page gets its decoder suspended: the club's
+  // screens would freeze on one frame in the clips)
+  "--disable-background-media-suspend", "--disable-features=BackgroundMediaSuspend"] });
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
 await ctx.route(/supabase/, (r) => r.abort());
 
@@ -193,7 +204,11 @@ if (cmd === "shots") {
   const name = rest[0] || "club", CLIP = CLIPS[name];
   if (!CLIP) throw new Error(`no clip "${name}": ${Object.keys(CLIPS).join(", ")}`);
   const secs = CLIP_SECS || CLIP.secs;
-  const W = TRY ? 1280 : 1920, H = TRY ? 720 : 1080, FPS = 30, N = Math.round(secs * FPS);
+  // drawn at twice the size (SS) and scaled down at the encode: a fine
+  // pattern far off (the club's slatted pink wall) shimmers frame to frame
+  // at 1:1
+  const SS = +process.env.SS || 2;
+  const W = (TRY ? 1280 : 1920) * SS, H = (TRY ? 720 : 1080) * SS, FPS = 30, N = Math.round(secs * FPS);
   const dir = path.join(TRY ? TRYDIR : MASTER, `${name}-frames`);
   // ENCODE_ONLY=1 re-encodes the frames already in .claude/reel-hq
   if (!process.env.ENCODE_ONLY) {
@@ -210,10 +225,15 @@ if (cmd === "shots") {
     for (const rt of [C.renderTarget1, C.renderTarget2]) if (rt.samples !== 4) { rt.samples = 4; rt.dispose(); }
     const sz = () => { R.setPixelRatio(1); R.setSize(W, H, false); C.setPixelRatio?.(1); C.setSize(W, H); };
     sz();
-    const reel = window.__reel = { k: 0, want: false, shot: null, vids: new Set() };
+    const reel = window.__reel = { k: 0, want: false, shot: null, vids: new Set(), realTimeout: setTimeout.bind(window), realClear: clearTimeout.bind(window) };   // (the timers from before the clock is faked)
     const di = CanvasRenderingContext2D.prototype.drawImage;
     CanvasRenderingContext2D.prototype.drawImage = function (src, ...a) {
-      if (src instanceof HTMLVideoElement && !reel.vids.has(src)) { reel.vids.add(src); src.__t0 = src.currentTime; src.pause(); }
+      if (src instanceof HTMLVideoElement && !reel.vids.has(src)) {
+        reel.vids.add(src); src.__t0 = clip.videoAt ?? src.currentTime; src.pause();
+        // on the page (a corner pixel), so Chrome keeps decoding it
+        src.style.cssText = "position:fixed;left:0;top:0;width:2px;height:2px;opacity:.01;pointer-events:none;z-index:-1";
+        document.body.appendChild(src);
+      }
       return di.call(this, src, ...a);
     };
     HTMLMediaElement.prototype.play = function () { return Promise.resolve(); };
@@ -278,7 +298,13 @@ if (cmd === "shots") {
       await Promise.all([...reel.vids].map((v) => {
         const to = (v.__t0 + t) % (v.duration || 1e9);
         if (Math.abs(v.currentTime - to) < 1e-3) return null;
-        return new Promise((r) => { v.addEventListener("seeked", r, { once: true }); v.currentTime = to; });
+        // seeked, then the frame there decoded and presented (or 1 s, real time)
+        return new Promise((r) => {
+          const done = () => { reel.realClear(t1); r(); };
+          const t1 = reel.realTimeout(done, 1000);   // (the page clock is paused: a real timer)
+          v.addEventListener("seeked", () => (v.requestVideoFrameCallback ? v.requestVideoFrameCallback(done) : done()), { once: true });
+          v.currentTime = to;
+        });
       }));
     }, { k: i / (N - 1), t: i / FPS });
     await page.clock.runFor(1000 / FPS);
@@ -289,7 +315,9 @@ if (cmd === "shots") {
   const vids = await page.evaluate(() => window.__reel.vids.size);
   console.log(`${name}: ${wrote}/${N} frames, ${vids} screen videos stepped, in ${dir}`);
   }
-  const seq = ["-framerate", String(FPS), "-i", path.join(dir, "%05d.jpg")];
+  // from the second frame: the screens' first seek presents a frame late, so
+  // the first one has them black (a flash each time the clip starts)
+  const seq = ["-framerate", String(FPS), "-start_number", "1", "-i", path.join(dir, "%05d.jpg")];
   if (TRY) {
     execFileSync(FFMPEG, ["-v", "error", "-y", ...seq, "-c:v", "libx264", "-crf", "20", "-pix_fmt", "yuv420p", path.join(TRYDIR, `kabukigrin-${name}.mp4`)]);
   } else {
