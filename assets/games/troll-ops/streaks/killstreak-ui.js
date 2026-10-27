@@ -13,6 +13,7 @@
 // in medals.js.
 
 import { badgeSvg, medalDef, medalIcon } from "../progression/medals.js?v=to-medals3-or1";
+import { game } from "../core/state.js?v=st1";
 
 const MULTIKILL_WINDOW = 4000;   // ms — BO2's multikill grace is about this
 
@@ -55,10 +56,13 @@ export class KillstreakUi {
     if (pts > 0) this.onPoints(pts, label);
   }
 
-  /* A medal: counted for the end-of-match list AND popped on screen. */
+  /* A medal: counted for the end-of-match list AND popped on screen, but in
+     Troll Royale (user: "remove the killstreak icons for troll royale only
+     such as headshot longshot double triple quad nuclear etc."), where it's
+     only counted: the points and the after-action list stay. */
   medal(label) {
     this.count(label);
-    this.splash(label);
+    if (!game.isRoyale()) this.splash(label);
   }
 
   /* Everything earned this match, most-earned first, ties in the order
