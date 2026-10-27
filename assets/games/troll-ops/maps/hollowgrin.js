@@ -161,6 +161,13 @@ const POND = { x: -46, z: -20, rx: 5.2, rz: 4.2 };
 // path at x `path` from the graveyard's west gate north to the hollow and
 // south to the bridge, knee-high dry-stone walls along it with gaps, a
 // lychgate on the churchyard's approach, chest tombs as cover.
+// The hedge garden's and glasshouse's new pieces (models/hg_garden.py draws
+// them from the same numbers): their colliders.
+const GARDEN_PROPS = {
+  birdbath: [-27.4, -22.4], sundial: [-20.6, -15.6],
+  busts: [[-16.8, -20.9], [-16.8, -17.1]],
+  potting: [-9.45, -41.7],
+};
 const WEST_LOOP = {
   path: -37.4,
   wallX: -38.75, walls: [[-16, -11.5], [-10, -5], [11, 13], [14, 19], [20.5, 25], [26.5, 28.8]],
@@ -1747,56 +1754,45 @@ function buildOutskirts(api, K, M, SP, root, lights) {
     wall(K, { axis: "x", at: gz0, a: gx0, b: gx1, ...G, holes: nDoors });
     wall(K, { axis: "z", at: gx0, a: gz0, b: gz1, ...G, holes: ewDoor });
     wall(K, { axis: "z", at: gx1, a: gz0, b: gz1, ...G, holes: ewDoor });
+    // (the brick, the iron frame, the beds, the plants, the pumpkin, the
+    // pots and the potting bench: models/hg_garden.py, hg-garden.glb; it
+    // reads this R too, so every call stays). Here: the glass, the
+    // flowers' glow, the festoon.
     const holesOf = (hs) => hs.map((h) => [h.c - h.w / 2, h.c + h.w / 2]);
     const side = (axis, at, a, b, holes) => {
       const gaps = holesOf(holes);
       const pos = (s, w, d) => (axis === "x" ? [s, at, w, d] : [at, s, d, w]);
-      for (const [s, e] of runs(a, b, gaps)) {
-        const [x, z, w, d] = pos((s + e) / 2, e - s, 0.24);
-        K.box(M.brick, x, 0, z, w, 0.7, d);
-      }
-      // mullions every 1.5 m, panes between (some smashed), a transom over doors
-      for (let s = a; s <= b + 0.01; s += 1.5) {
-        const [x, z] = pos(s, 0, 0);
-        K.box(M.iron, x, 0.7, z, 0.07, eave - 0.7, 0.07);
-      }
+      // panes between the mullions (some smashed)
       for (let s = a; s < b - 0.01; s += 1.5) {
         const e = Math.min(b, s + 1.5), c = (s + e) / 2;
         const door = gaps.some(([g0, g1]) => c > g0 - 0.4 && c < g1 + 0.4);
         if (!door && R() < 0.25) continue;
         const [x, z, w, d] = pos(c, e - s - 0.07, 0.02);
         if (door) K.box(M.glass, x, 2.45, z, w, eave - 2.45, d, {}, { shadow: false });
-        else K.box(M.glass, x, 0.7, z, w, eave - 0.7, d, {}, { shadow: false });
+        else K.box(M.glass, x, 0.76, z, w, eave - 0.76, d, {}, { shadow: false });
       }
-      const [x, z, w, d] = pos((a + b) / 2, b - a, 0.1);
-      K.box(M.iron, x, eave - 0.06, z, w, 0.08, d);
     };
     side("x", gz1, gx0, gx1, sDoors);
     side("x", gz0, gx0, gx1, nDoors);
     side("z", gx0, gz0, gz1, ewDoor);
     side("z", gx1, gz0, gz1, ewDoor);
-    // the glass roof on iron rafters
+    // the glass roof (its rafters are the model's)
     const half = (gz1 - gz0) / 2, rise = ridgeY - eave;
     const len = Math.hypot(half, rise), ang = Math.atan2(rise, half);
-    for (let x = gx0; x <= gx1 + 0.01; x += 1.5) {
-      for (const s of [-1, 1]) K.add(M.iron, rodGeo([x, eave, gcz + s * half], [x, ridgeY, gcz], 0.04, 4));
-    }
     for (let x = gx0; x < gx1 - 0.01; x += 1.5) {
       for (const s of [-1, 1]) {
         if (R() < 0.2) continue;
         K.box(M.glass, x + 0.75, eave + rise / 2 - 0.01, gcz + s * half / 2, 1.43, 0.02, len, { rx: s * ang }, { shadow: false });
       }
     }
-    K.box(M.iron, 0, ridgeY - 0.05, gcz, gx1 - gx0, 0.1, 0.1);
     for (const x of [gx0, gx1]) K.add(M.glass, place(prismGeo([[-half, 0], [half, 0], [0, rise]], 0.02), { x, y: eave, z: gcz, ry: Math.PI / 2 }), { shadow: false });
     flat(K, M.stoneDark, 0, gcz, gx1 - gx0 - 0.2, gz1 - gz0 - 0.2, { y: 0.016 });
-    // raised beds of glowing plants
+    // raised beds: the dead plants are the model's, the glowing flowers ours
     for (const [x, z, w, d] of [[-4.7, -40.8, 7, 1.6], [4.7, -40.8, 7, 1.6], [0, -36.3, 10.8, 1.4]]) {
-      K.solid(x, z, w, d, 0.6, { mat: M.brick, pen: 3 });
-      flat(K, M.dirt, x, z, w - 0.2, d - 0.2, { y: 0.61 });
+      K.solid(x, z, w, d, 0.6, { pen: 3 });
       for (let i = 0; i < Math.round(w * 1.6); i++) {
         const px = x - w / 2 + 0.3 + R() * (w - 0.6), pz = z + (R() - 0.5) * (d - 0.4);
-        K.add(M.leaf, place(new THREE.PlaneGeometry(0.6, 0.6), { x: px, y: 0.9, z: pz, ry: R() * 3 }), { shadow: false });
+        R();                  // (the old leaf card's turn)
         if (i % 3 === 0) {
           const col = [0x6aff8c, 0xb070ff, 0xffd27a][i % 3 === 0 ? (i / 3) % 3 : 0];
           K.add(M.bulb, place(new THREE.SphereGeometry(0.07, 6, 4), { x: px, y: 1.15, z: pz }), { color: col, shadow: false });
@@ -1810,6 +1806,8 @@ function buildOutskirts(api, K, M, SP, root, lights) {
     ZSPAWNS.push({ x: 4.2, y: 0, z: -38.5, rise: true });
     // paths from the manor's back doors
     for (const s of [-1, 1]) flat(K, M.dirt, s * 7.25, -31, 2, 6.2);
+    // the potting bench outside the west door
+    K.solid(GARDEN_PROPS.potting[0], GARDEN_PROPS.potting[1], 0.6, 1.8, 0.95, { pen: 4 });
   }
 
   /* ------------------------------------------- Grinmoor Fair (east) */
@@ -4177,8 +4175,16 @@ function buildHollowgrin(api) {
 
   /* ------------------------------------------------ the hedge garden (NW) */
   {
-    const hedge = (x, z, w, d) => K.solid(x, z, w, d, 1.35, { mat: M.hedge, pen: 0.6 });
+    // Drawn in Blender (models/hg_garden.py, hg-garden.glb): the hedges and
+    // their topiary trolls, the fountain, the benches, the birdbath, the
+    // sundial, the busts, the trees. Here: the colliders, the water, the
+    // jack on the fountain, the lanterns, the gravel.
+    hgModel(api, "hg-garden");
+    const hedge = (x, z, w, d) => K.solid(x, z, w, d, 1.35, { pen: 0.6 });
     const cx = -24, cz = -19, half = 6;
+    const gravel = surfMat("dirt", 0x6a6460, { mix: 0.25, tile: 1.4 });
+    flat(K, gravel, cx, cz, 2.4, 2 * half + 1.4, { y: 0.014 });
+    flat(K, gravel, cx, cz, 2 * half + 1.4, 2.4, { y: 0.0145 });
     // lanterns set on the hedge ends either side of each way in
     let ls = 90;
     for (const s of [-1, 1]) {
@@ -4198,23 +4204,18 @@ function buildHollowgrin(api) {
     // the fountain
     K.api.ghostBox(cx, cz, 4.4, 2.6, 0.7, { pen: 8 });
     K.api.ghostBox(cx, cz, 2.6, 4.4, 0.7, { pen: 8 });
-    K.add(M.stone, place(new THREE.CylinderGeometry(2.2, 2.3, 0.7, 24, 1, true), { x: cx, y: 0.35, z: cz }));
-    K.add(M.stone, place(new THREE.CylinderGeometry(1.95, 1.95, 0.7, 24, 1, true), { x: cx, y: 0.35, z: cz }));
-    K.add(M.stoneDark, place(new THREE.RingGeometry(1.95, 2.2, 24), { x: cx, y: 0.71, z: cz, rx: -Math.PI / 2 }));
     K.add(M.water, place(new THREE.CircleGeometry(1.95, 24), { x: cx, y: 0.5, z: cz, rx: -Math.PI / 2 }), { shadow: false });
     K.solid(cx, cz, 0.5, 0.5, 1.6, { pen: 8 });
-    K.cyl(M.stone, cx, 0, cz, 0.3, 0.2, 1.6, 10);
-    K.add(M.stone, place(new THREE.CylinderGeometry(0.9, 0.3, 0.3, 16), { x: cx, y: 1.7, z: cz }));
     jack(K, M, cx, 1.85, cz, { r: 0.34, face: Math.PI * 0.1, seed: 600 });
     // stone benches on the paths
     for (const [bx, bz] of [[-27.6, -15.2], [-20.4, -22.8]]) {
-      K.solid(bx, bz, 1.8, 0.5, 0.5, { mat: M.stone, pen: 6 });
+      K.solid(bx, bz, 1.8, 0.5, 0.5, { pen: 6 });
     }
-    const t3 = treeGeo(901, { height: 8, r: 0.34, levels: 3 });
-    K.add(M.bark, place(t3, { x: -33, z: -12 }));
+    // the birdbath, the sundial, the troll busts at the east way in
+    K.solid(GARDEN_PROPS.birdbath[0], GARDEN_PROPS.birdbath[1], 0.62, 0.62, 0.9, { pen: 6 });
+    K.solid(GARDEN_PROPS.sundial[0], GARDEN_PROPS.sundial[1], 0.45, 0.45, 0.95, { pen: 6 });
+    for (const [bx, bz] of GARDEN_PROPS.busts) K.solid(bx, bz, 0.6, 0.6, 1.75, { pen: 8 });
     K.api.ghostBox(-33, -12, 0.7, 0.7, 4, { pen: 6 });
-    const t4 = treeGeo(902, { height: 7, r: 0.3, levels: 3 });
-    K.add(M.bark, place(t4, { x: -16.5, z: -29.5, ry: 2 }));
     K.api.ghostBox(-16.5, -29.5, 0.6, 0.6, 4, { pen: 6 });
   }
 

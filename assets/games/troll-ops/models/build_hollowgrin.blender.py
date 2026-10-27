@@ -68,6 +68,7 @@ PARTS = {
     "oak": ("hg_village", "build_oak", "hg-oak"),
     "graveyard": ("hg_graveyard", "build_graveyard", "hg-graveyard"),
     "west": ("hg_west", "build_west", "hg-west"),
+    "garden": ("hg_garden", "build_garden", "hg-garden"),
     "mausoleum": ("village", "build_mausoleum", "hg-mausoleum"),
     "barn": ("village", "build_barn", "hg-barn"),
     "candyshop": ("village", "build_shop", "hg-candyshop"),
@@ -85,7 +86,7 @@ PARTS = {
     "trollbust": ("eggs", None, "hg-trollbust"),
 }
 OWN_FRAME = {"ride", "horse", "pepe", "trollbust"}
-HG_MODULES = {"hg_manor", "hg_village", "hg_graveyard", "hg_west"}
+HG_MODULES = {"hg_manor", "hg_village", "hg_graveyard", "hg_west", "hg_garden"}
 
 
 def main():
