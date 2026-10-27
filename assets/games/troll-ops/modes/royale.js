@@ -11,7 +11,7 @@ import { insidePolygon } from "../maps/edge.js?v=or1";
 import { DROP, RoyaleDrop, buildParaglider, Flight } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1-fl1-or1-dc2-dc3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-rb4-hp1-bx1-mg1-tx1-sp1-kbt1-gb1-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2";
 import { Squadron, PLANES, flightPos, flightVel } from "./royale-planes.js?v=pl1-pl2-pi1-sr1-fl1-or1-dc2-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-rb4-hp1-bx1-mg1-tx1-sp1-kbt1-gb1-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2";
 import { SEAT_SPOTS, RAMP_END } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
-import { DROP_BUS, DROP_FALL, DROP_GLIDE, ROLL_TIME, busPlacers } from "../net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2";
+import { DROP_BUS, DROP_FALL, DROP_GLIDE, ROLL_TIME, busPlacers, peerPosers } from "../net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2";
 import * as THREE from "three";
 import { WEAPON_DEFS, WeaponState } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1";
 import { defaultLoadoutFor } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1";
@@ -22,6 +22,7 @@ import { padHooks } from "../input/gamepad.js?v=in1-fu1b7-wb1-th2-ar1-ar2-cl1-bp
 import { updateDropCine, dropCineEye, dropCineLean, dropCineZoom, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2";
 import { playSfx, preloadSfx } from "../sound/sfx-files.js?v=dc4";
 import { royaleRecordReset, royaleRecordTick, stopRoyaleRecord } from "./royale-record.js?v=rrc1-rfx1";
+import { useAnimStart, useAnimTick, useAnimFinish, useAnimCancel, useWire, poseUsePeer } from "./royale-use.js?v=ru1";
 import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose } from "./royale-fall.js?v=dc3-dc4-rf1-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2";
 
 // Phase 1 ("Mini Royale"): solo, one life, loot only, the Cringe closing in,
@@ -685,6 +686,7 @@ export function teardownRoyale() {
     royale.windIn = royale.windRush = null;
   }
   if (!royale) return;
+  cancelRoyaleAct();
   royale.drop?.dispose();
   setPlayerGlider(false);
   royale.visual.dispose();
@@ -858,7 +860,7 @@ export function royaleOnDeath() {
   const r = royale;
   stopRoyaleRecord("death");
   r.place = royaleAliveList().length + 1;
-  r.act = null;
+  cancelRoyaleAct();
   // Out for good: nothing left to protect (its pill hung over the spectator view).
   game.player.spawnGuard = 0;
   game.updateSpawnGuardHud();
@@ -1361,19 +1363,27 @@ export function startRoyaleAct(kind) {
   if (!royale || !game.player.alive || royale.act || game.isStaging()) return;
   if (kind === "plate" && (game.player.plates <= 0 || game.player.armor >= ROYALE.maxArmor)) return;
   if (kind === "heal" && (game.player.heals <= 0 || game.player.hp >= game.player.maxHp)) return;
-  royale.act = { kind, t: 0, dur: kind === "plate" ? ROYALE.plateTime : ROYALE.healTime, rate: (game.player.maxHp - game.player.hp) / ROYALE.healTime };
+  royale.act = { kind, t: 0, dur: kind === "plate" ? ROYALE.plateTime : ROYALE.healTime, rate: (game.player.maxHp - game.player.hp) / ROYALE.healTime,
+    // what was in hand: a swap mid-act puts it away (as a shot does)
+    hold: game.player.holding, slot: game.currentWeaponSlot };
   game.audio.throwGear();
+  useAnimStart(kind, royale.act.dur);   // the rods act it out (royale-use.js)
 }
 
 export function cancelRoyaleAct() {
   if (royale) royale.act = null;
   if (game.els.royaleAct) game.els.royaleAct.hidden = true;
+  useAnimCancel();
+  if (game.net) game.net.useAct = null;
 }
 
 function updateRoyaleAct(dt) {
   const a = royale.act;
-  if (!a || !game.player.alive) { if (a) royale.act = null; game.els.royaleAct.hidden = true; return; }
+  if (!a || !game.player.alive) { if (a) cancelRoyaleAct(); game.els.royaleAct.hidden = true; return; }
+  if (game.player.holding !== a.hold || game.currentWeaponSlot !== a.slot) { cancelRoyaleAct(); return; }
   a.t += dt;
+  useAnimTick(a.t, a.dur);
+  if (game.net) game.net.useAct = useWire(a);   // everyone else sees it (state `ua`)
   const k = Math.min(1, a.t / a.dur);
   if (a.kind === "heal") game.player.hp = Math.min(game.player.maxHp, game.player.hp + a.rate * dt);
   game.els.royaleAct.hidden = false;
@@ -1392,6 +1402,8 @@ function updateRoyaleAct(dt) {
   }
   royale.act = null;
   game.els.royaleAct.hidden = true;
+  useAnimFinish();
+  if (game.net) game.net.useAct = null;
   updateRoyaleGear();
 }
 
@@ -1507,5 +1519,7 @@ export function initRoyale() {
   game.els.gearPlates?.addEventListener("click", () => startRoyaleAct("plate"));
   game.els.gearHeals?.addEventListener("click", () => startRoyaleAct("heal"));
   // A pad: the d-pad's up and down (input/gamepad.js; Royale has no streaks to scroll).
+  // Other players and bots plating up or dosing: the pose and the prop (royale-use.js).
+  peerPosers.push(poseUsePeer);
   padHooks.royale = { active: () => !!royale && game.player.alive && game.gameState === "playing", plate: () => startRoyaleAct("plate"), heal: () => startRoyaleAct("heal") };
 }
