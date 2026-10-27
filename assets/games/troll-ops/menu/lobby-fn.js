@@ -53,7 +53,7 @@ const NEWS = [
   { title: "Troll Beach", tag: "Courts are open", map: "grinbeach", playlist: "social" },
 ];
 
-const BG = "assets/games/troll-ops/ui/maps/kabukigrin";
+const BG = (w) => `assets/games/troll-ops/ui/maps/kabukigrin-${w}.webp`;
 const FALLBACK_AVATAR = "assets/images/icons/favicon/grin.png";
 
 export function mountFnLobby(api) {
@@ -65,7 +65,7 @@ export function mountFnLobby(api) {
   /* ── Backdrop: a still, no WebGL (pick 1) ── */
   const bg = $(".to-bo2-bg", root);
   bg.innerHTML = `<img class="to-fn-bg" alt="" decoding="async" fetchpriority="high"
-    src="${BG}-1280.webp" srcset="${BG}-1280.webp 1280w, ${BG}-1920.webp 1920w, ${BG}-2560.webp 2560w" sizes="100vw">`;
+    src="${BG(1280)}" srcset="${BG(1280)} 1280w, ${BG(1920)} 1920w, ${BG(2560)} 2560w" sizes="100vw">`;
 
   /* ── Top bar ── */
   const top = document.createElement("header");
