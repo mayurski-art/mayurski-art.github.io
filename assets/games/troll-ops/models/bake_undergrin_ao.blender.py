@@ -33,4 +33,7 @@ for name in SIZES:
     objs[name] = [o for o in bpy.data.objects if o not in before and o.type == "MESH"]
     print("imported ug-%s: %d mesh object(s), %d UV layers" % (name, len(objs[name]), len(objs[name][0].data.uv_layers) if objs[name] else 0))
 for name in want:
-    bake_ao(objs[name], os.path.join(HERE, "ug-%s-ao.webp" % name), res=SIZES[name], samples=SAMPLES, distance=DISTANCE)
+    # the occlusion UV set is the last one: the quantized GLBs carry no
+    # first set on their flat-painted faces
+    uvi = len(objs[name][0].data.uv_layers) - 1
+    bake_ao(objs[name], os.path.join(HERE, "ug-%s-ao.webp" % name), res=SIZES[name], samples=SAMPLES, distance=DISTANCE, uv_index=uvi)
