@@ -116,7 +116,9 @@ export function mountFnLobby(api) {
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>
     </button>
     <nav class="to-fn-glass to-fn-tabs" aria-label="Lobby">
+      <kbd class="to-fn-padkey" aria-hidden="true">LB</kbd>
       ${TABS.map((t) => `<button type="button" class="to-fn-tab" data-tab="${t.id}">${t.label}<i class="to-fn-dot" hidden></i></button>`).join("")}
+      <kbd class="to-fn-padkey" aria-hidden="true">RB</kbd>
     </nav>
     <div class="to-fn-me">
       <button type="button" class="to-fn-glass to-fn-lvl" data-act="career" aria-label="Your level">
@@ -158,10 +160,10 @@ export function mountFnLobby(api) {
   play.setAttribute("aria-label", "Mode");
   play.innerHTML = `
     <button type="button" class="to-fn-mode" aria-haspopup="dialog" aria-expanded="false">
-      <b class="to-fn-mode-name"></b><small class="to-fn-mode-sub"></small><span class="to-fn-change">Change mode</span>
+      <b class="to-fn-mode-name"></b><small class="to-fn-mode-sub"></small><span class="to-fn-change"><kbd class="to-fn-padkey" aria-hidden="true">X</kbd>Change mode</span>
     </button>
     <div class="to-fn-map"><img alt="" hidden><div><strong></strong><span></span></div></div>
-    <button type="button" class="to-fn-go">Play</button>`;
+    <button type="button" class="to-fn-go"><kbd class="to-fn-padkey" aria-hidden="true">A</kbd>Play</button>`;
   root.appendChild(play);
   const picker = document.createElement("div");
   picker.className = "to-fn-glass to-fn-picker";
@@ -431,6 +433,67 @@ export function mountFnLobby(api) {
   // coming back from a match: the challenges may have moved
   new MutationObserver(() => { if (!title.hidden) renderMe(); }).observe(title, { attributes: true, attributeFilter: ["hidden"] });
   onScreen();
+
+  /* ── A controller in the lobby (phase 6). LB / RB change tabs; the d-pad or
+     left stick moves, A picks, B goes back. On Play: A is PLAY, X Change
+     mode, down All modes. The lists are menu-bo2.js's, driven with the keys
+     it already takes. The buttons' hints show while a pad is in. ── */
+  const pad = { prev: {}, held: null, next: 0, raf: 0 };
+  const key = (k) => document.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
+  const focusIn = (box, d, cols = 1) => {
+    const all = $$("button:not(:disabled)", box).filter((b) => b.offsetParent);
+    const i = all.indexOf(document.activeElement);
+    const step = d === "up" ? -cols : d === "down" ? cols : d === "left" ? -1 : 1;
+    const to = i < 0 ? all[0] : all[Math.max(0, Math.min(all.length - 1, i + step))];
+    to?.focus();
+  };
+  function padMove(d) {
+    if (!modes.hidden) {
+      const cols = getComputedStyle($(".to-fn-tiles", modes)).gridTemplateColumns.split(" ").filter(Boolean).length || 1;
+      if (d === "up" && $$(".to-fn-tile", modes).indexOf(document.activeElement) < cols) openModes(false);
+      else focusIn($(".to-fn-tiles", modes), d, cols);
+    } else if (!picker.hidden) focusIn(picker, d === "left" ? "up" : d === "right" ? "down" : d);
+    else if (menu.current() === "main") { if (d === "down") openModes(true); }
+    else key({ up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight" }[d]);
+  }
+  function padPress(i) {
+    if (i === 4 || i === 5) {
+      const at = TABS.findIndex((t) => t.id === tab);
+      goTab(TABS[(at + (i === 5 ? 1 : TABS.length - 1)) % TABS.length].id);
+    } else if (i === 1) {
+      if (!modes.hidden) openModes(false);
+      else if (!picker.hidden) openPicker(false);
+      else if (menu.current() !== "main") key("Escape");
+    } else if (i === 0) {
+      const a = document.activeElement;
+      if ((!modes.hidden || !picker.hidden) && a?.closest(".to-fn-modes, .to-fn-picker")) a.click();
+      else if (menu.current() === "main" && modes.hidden && picker.hidden) $(".to-fn-go", play).click();
+      else if (a && $(".to-bo2-menu", root)?.contains(a)) a.click();
+      else key("Enter");
+    } else if (i === 2 && menu.current() === "main" && modes.hidden) openPicker(picker.hidden);
+  }
+  function pollPad() {
+    pad.raf = 0;
+    const gp = [...(navigator.getGamepads?.() || [])].find((p) => p && p.connected);
+    root.classList.toggle("has-pad", !!gp);
+    if (!gp) { pad.prev = {}; return; }
+    pad.raf = requestAnimationFrame(pollPad);
+    // the lobby's only while it's up, and not while the emote wheel has the pad
+    if (title.hidden || $(".to-emote-wheel:not([hidden])")) { pad.prev = {}; pad.held = null; return; }
+    const b = (i) => !!gp.buttons[i]?.pressed;
+    for (const i of [0, 1, 2, 4, 5]) if (b(i) && !pad.prev[i]) padPress(i);
+    const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+    const dir = b(12) || ay < -0.6 ? "up" : b(13) || ay > 0.6 ? "down" : b(14) || ax < -0.6 ? "left" : b(15) || ax > 0.6 ? "right" : null;
+    const now = performance.now();
+    if (dir !== pad.held) { pad.held = dir; if (dir) { padMove(dir); pad.next = now + 380; } }
+    else if (dir && now >= pad.next) { padMove(dir); pad.next = now + 130; }   // held: repeats
+    pad.prev = {};
+    for (const i of [0, 1, 2, 4, 5]) pad.prev[i] = b(i);
+  }
+  const startPad = () => { if (!pad.raf) pad.raf = requestAnimationFrame(pollPad); };
+  addEventListener("gamepadconnected", startPad);
+  new MutationObserver(() => { if (!title.hidden) startPad(); }).observe(title, { attributes: true, attributeFilter: ["hidden"] });
+  startPad();
 
   return { setPlaylist, playlist: () => playlist, goTab, openModes };
 }

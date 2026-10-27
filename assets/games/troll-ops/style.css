@@ -4450,6 +4450,14 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-fn-picker button:hover, .to-fn-picker button:focus-visible { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.4); }
 .to-fn-picker b { font: 800 18px var(--fn-ui); letter-spacing: .04em; text-transform: uppercase; }
 .to-fn-picker small { font: 500 13px/1.3 var(--fn-ui); color: #c4d1f3; }
+/* A controller's buttons, shown only while one is in (lobby-fn.js has-pad) */
+.to-fn-padkey { display: none; }
+.to-bo2.is-fn.has-pad .to-fn-padkey { display: inline-grid; place-items: center; min-width: 26px; height: 22px; padding: 0 5px; box-sizing: border-box; border: 1px solid rgba(255,255,255,.55); border-radius: 6px;
+  background: rgba(0,0,0,.4); color: #fff; font: 800 12px/1 var(--fn-ui); letter-spacing: .02em; }
+.to-bo2.is-fn.has-pad .to-fn-tabs .to-fn-padkey { align-self: center; flex: none; margin: 0 4px; }
+.to-fn-go { position: relative; }
+.to-bo2.is-fn.has-pad .to-fn-go .to-fn-padkey { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); min-width: 32px; height: 32px; border-radius: 50%; border-color: rgba(0,0,0,.35); background: rgba(0,0,0,.18); color: #1b1400; font-size: 16px; }
+.to-bo2.is-fn.has-pad .to-fn-change .to-fn-padkey { margin-right: 6px; vertical-align: 1px; height: 18px; min-width: 20px; font-size: 11px; }
 /* All modes: the tile row under the lobby (scroll down, or this button) */
 .to-fn-allmodes { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 4; display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 16px 0 10px;
   font: 800 16px var(--fn-ui); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
@@ -4505,6 +4513,51 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-bo2.is-fn[data-screen="locker"] .tr-menu-item[data-id="classlist"].is-hot { background: #fff; }
 .to-bo2.is-fn[data-screen="locker"] .to-bo2-party { display: none; }
 #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="locker"]) .to-char-view { left: calc(var(--fn-pad) + 456px); right: calc(var(--fn-pad) + 316px); top: var(--fn-top); bottom: 78px; --char-shift: 0; --char-dist: 1.15; }
+/* ── The in-match Esc menu, in the lobby's look (phase 6): a navy glass
+   panel, the heavy italic title, tabs as the lobby's pills, Resume yellow
+   like PLAY, your class buttons glass with the picked one white. ── */
+#to-pause {
+  --fn-display: Anton, Impact, "Arial Narrow Bold", sans-serif;
+  --fn-ui: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --fn-line: rgba(170,200,255,.36);
+  background: radial-gradient(120% 80% at 50% 0%, rgba(29,47,102,.72), rgba(8,14,40,.86)); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+#to-pause .to-pause-inner { padding: 18px 20px !important; border: 1px solid var(--fn-line); border-radius: 16px; background: linear-gradient(180deg, rgba(48,74,150,.92), rgba(20,32,80,.95)); box-shadow: 0 20px 60px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.16); font-family: var(--fn-ui); }
+#to-pause .to-menu-head h2 { font: italic 400 36px/1 var(--fn-display); letter-spacing: .01em; text-transform: uppercase; color: #fff; }
+#to-pause .to-menu-esc { font: 700 12px var(--fn-ui); letter-spacing: .08em; text-transform: uppercase; color: #c4d1f3; }
+#to-pause .to-menu-tabs { gap: 4px; padding: 4px; border: 1px solid var(--fn-line); border-radius: 12px; background: rgba(10,18,50,.45); }
+#to-pause .to-menu-tab { padding: 8px 10px; border: 0; border-radius: 8px; background: none; color: #eaf0ff; font: 800 15px var(--fn-ui); letter-spacing: .05em; text-transform: uppercase; }
+#to-pause .to-menu-tab:hover { background: rgba(255,255,255,.1); color: #fff; }
+#to-pause .to-menu-tab.is-active { background: #fff; color: #17224d; }
+#to-pause .to-menu-panel { border-color: var(--fn-line); background: rgba(10,18,50,.4); }
+#to-pause .to-set-row { font: 600 14px var(--fn-ui); color: #eef3ff; }
+#to-pause .to-set-row + .to-set-row { border-top-color: rgba(170,200,255,.14); }
+#to-pause .to-set-row output { font: 700 12px var(--fn-ui); color: #c4d1f3; }
+#to-pause .to-set-row :is(input[type="range"], input[type="checkbox"]) { accent-color: #4fd8ff; }
+#to-pause .to-set-row select { background: #16224f; border-color: var(--fn-line); color: #eef3ff; font: 600 13px var(--fn-ui); }
+#to-pause .to-menu-roster { font: 600 14px var(--fn-ui); color: #dbe4ff; }
+#to-pause .to-btn { font-family: var(--fn-ui); font-weight: 800; letter-spacing: .05em; text-transform: uppercase; border-radius: 10px; }
+#to-pause .to-btn-ghost { border: 1px solid var(--fn-line); background: linear-gradient(180deg, rgba(62,92,176,.58), rgba(24,38,92,.72)); color: #fff; }
+#to-pause .to-btn-ghost:hover { background: linear-gradient(180deg, rgba(90,124,214,.7), rgba(34,52,120,.8)); }
+#to-pause .to-menu-classes .to-btn-primary { background: #fff; color: #17224d; box-shadow: none; }
+#to-pause #to-resume-btn { background: linear-gradient(180deg, #ffe45c, #ffc400); color: #1b1400; box-shadow: inset 0 -3px 0 rgba(0,0,0,.15), 0 0 24px rgba(255,210,31,.3); font: italic 400 26px/1 var(--fn-display); letter-spacing: .02em; }
+#to-pause .to-btn-danger { border: 1px solid rgba(255,120,140,.5); background: rgba(120,20,50,.45); color: #ffc2cc; }
+#to-pause .to-btn-danger:hover { background: rgba(150,30,60,.6); }
+#to-pause .to-menu-god { border-color: var(--fn-line); }
+/* short screens (a sideways phone): all of it, Resume too, on screen */
+@media (max-height: 520px) {
+  #to-pause .to-pause-inner { padding: 10px 14px !important; gap: 7px !important; }
+  #to-pause .to-menu-head h2 { font-size: 24px; }
+  #to-pause .to-menu-tabs { padding: 3px; }
+  #to-pause .to-menu-tab { padding: 5px 8px; font-size: 13px; }
+  #to-pause .to-menu-panel { min-height: 0; max-height: 30vh; padding: 4px 10px; }
+  #to-pause .to-set-row { padding: 4px 0; }
+  #to-pause .to-menu-range { margin-bottom: 0; gap: 6px; }
+  #to-pause .to-menu-range .to-btn { padding: 6px 10px; font-size: 12px; }
+  #to-pause .to-menu-actions .to-btn { padding: 8px 12px; font-size: 13px; }
+  #to-pause #to-resume-btn { font-size: 20px; }
+}
+
 /* Quests and Prestige Rewards (phase 5): cards two across, the way a quest
    page reads. A challenge has a bar (empty to do, full done); a reward
    unlocked is edged green. */
@@ -4739,6 +4792,8 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item { min-height: 54px; }
   .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item > small:not([aria-hidden]) { font-size: 16px; }
   #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="locker"]) .to-char-view { display: none; }
+  /* Options' keys, one column (two ran off the right edge) */
+  #to-title.is-bo2.is-fn .to-key-list { grid-template-columns: minmax(0, 1fr); }
   /* no room for who's online beside the cards and lists (it sat over the
      Locker's and the Challenges' rows): "N Online" opens the list, with Invite */
   .to-bo2.is-fn .to-bo2-party { display: none; }
