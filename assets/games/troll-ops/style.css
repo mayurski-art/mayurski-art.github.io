@@ -1287,9 +1287,10 @@ body.to-social:not(.to-social-armed) #to-touch-interact { display: none !importa
 .to-lo-gear.is-locked { opacity: .55; cursor: not-allowed; }
 .to-lo-gear.is-locked strong { color: #9aa596; }
 
-/* Sits above the health bar in the bottom-left corner, out of the ammo's way. */
+/* Sits above the health bar in the bottom-left corner, out of the ammo's way,
+   and clear of the radio's button (bottom 16 px + 34 px). */
 .to-hud-gear {
-  position: absolute; left: 18px; bottom: 44px; z-index: 12;
+  position: absolute; left: 18px; bottom: 54px; z-index: 12;
   display: flex; gap: 6px;
 }
 .to-gear-chip {
@@ -1309,6 +1310,19 @@ body.to-social:not(.to-social-armed) #to-touch-interact { display: none !importa
   box-shadow: 0 1px 0 rgba(0,0,0,.5);
 }
 .to-gear-chip i { font-style: normal; color: #7fe066; font-weight: 700; }
+/* The item's picture (view/gear-chips.js), one per item carried, stacked
+   side by side and overlapping a little so a full load stays compact. The
+   melee weapon is drawn across the diagonal, so it gets a bigger square. */
+.to-gear-chip[data-slot] { padding: 2px 7px 2px 6px; gap: 6px; }
+.to-gear-icons { display: flex; align-items: center; }
+.to-gear-icon {
+  width: 24px; height: 24px; flex: none; display: block;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.55));
+  -webkit-user-drag: none; user-select: none;
+}
+.to-gear-icon + .to-gear-icon { margin-left: -3px; }
+#to-gear-melee .to-gear-icon { width: 28px; height: 28px; margin: -2px 0; }
+.to-gear-icon.is-ghost { opacity: .35; filter: grayscale(1); }
 .to-gear-chip.is-empty { opacity: .55; }
 .to-gear-chip.is-active { border-color: #7fe066; background: rgba(127,224,102,.16); }
 

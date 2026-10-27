@@ -171,7 +171,8 @@ Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. N
 - No first-person hands on guns. The rods act out first-person emotes; a held prop sits where a hand would hold it and the rod tip touches it (lean-cup.js rodTip).
 
 **HUD**
-- No control/key hints while playing. The one exception is Royale's pulsing X / "D-pad →" pickup keycap and the hold-X keycap prompts (bar, DJ).
+- No control/key hints while playing. The exceptions are Royale's pulsing X / "D-pad →" pickup keycap, the hold-X keycap prompts (bar, DJ) and the gear chips' keycaps (user 2026-10-26: "keep the associated keybind").
+- Gear chips are pictures (gear-icons/, rendered by tools/troll-ops-gear-icons.mjs), one per item carried; a new melee/throwable needs its icon rendered and listed in view/gear-chips.js GEAR_ICON_IDS.
 - No Kills counter top-left (Zombies shows Points).
 
 **Gameplay**
@@ -477,6 +478,7 @@ Map rules:
 ---
 
 ## 5. Shipped log (newest first; one line each, details in git)
+- **2026-10-26** Gear chips show pictures, not words (view/gear-chips.js; gear-icons/ from tools/troll-ops-gear-icons.mjs): one icon per item carried, each with its key on the device in use (V / G / 4 / 5; RS RB LB ↑ ↓, PS R3 R1 L1); the Cope Plate and Hopium floor models (modes/royale-loot-models.js). Test: gear-icons-test, royale-gear-keys-test.
 - **2026-10-26** Troll Royale "Record my match" (modes/royale-record.js; user: "allow the option to have the user's gameplay in the royale map saved"): opt-in row under the modes in Public/Private Match while Troll Royale is picked (trollops:royaleRecord; hidden without canvas.captureStream/MediaRecorder); films the canvas (3D view only, no HUD) plus a MediaStreamDestination tap of the master gain, webm vp9/vp8 (+opus), from staging's end (the green light) until you die or the match ends; Save recording on the results screen and in the Esc menu downloads troll-royale-YYYYMMDD-HHMM.webm; the next match frees the blob; a 7 px REC dot while filming. Hooks in royale.js only. Test: tools/troll-ops-royale-record-test.mjs (private room vs bots).
 - **2026-10-24** (-kb3) Kabukigrin phase 3, the street (models/kb_street.py, Blender): drainpipes, wall AC units, power poles + wires + lamps, bollards, manholes, grates, bikes, cones, kei trucks and beer-crate stacks redrawn on Grinjuku's colliders, the B ramen stall; every spot checked against the walls' faces; street glass, bands and blades now registered for rule 9; the two Grinjuku bands at A Main's mouth cut back clear of the club's blade sign and marquee (kb_street.BAND_CUTS, capped; user: "fix them"), no KNOWN left. 7.9 MB with the bakes. Test: obstruction, kabukigrin, map-walk (down/up both Mains), club-entry, socialize, import-check --load, fps (7.8 vs main 6.3), shots .claude/kb-blender/st3.
 - **2026-10-24** (-kb3) Kabukigrin's pachinko parlour (kabukigrin-street.js, modes/social-pachinko.js): a real room behind the glass (6 islands, 48 machines, screens animated); in Socialize the doors slide open, you sit at a machine and play (cosmetic: fast screen, balls, a jackpot ~1/min with banner), 12 NPCs play, 3 walk in and out (town-npcs paths take a height). Versus keeps the doors shut. Test: tools/troll-ops-pachinko-test.mjs, shots .claude/kb-blender/pk1.

@@ -22,6 +22,7 @@ import { CarePackage } from "../streaks/streak-entities.js?v=vsat2-hk1-sr1-or1-t
 import { game } from "../core/state.js?v=st1";
 import { padButtonName } from "../menu/controller-layout.js?v=cl7-pd1-or1-pd2";
 import { contextIcon } from "../view/touch-icons.js?v=ti1-zc2";
+import { setGearChip } from "../view/gear-chips.js?v=gc1";
 import { fireLauncher } from "./launcher.js?v=fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-fs1-ut1-gf1-tg1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ls4-gb4-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1";
 import { throwBusy } from "./throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-rfx1";
 import { reviveInReach } from "../view/revive-ring.js?v=rv1-zp1-bf1";
@@ -492,14 +493,12 @@ export function frozenPlayer() { return !game.player.alive || stageFrozen() || r
 
 export function updateGearHud() {
   const melee = (game.player.melee && game.player.melee.def) || game.loadout.melee;
-  game.els.gearMeleeName.textContent = melee.name;
+  // Pictures, one per item carried, and their keys (view/gear-chips.js).
+  setGearChip(game.els.gearMelee, { slot: "melee", id: melee.id, name: melee.name });
   game.els.gearMelee.classList.toggle("is-active", game.player.holding === "melee");
-  game.els.gearLethalName.textContent = game.loadout.lethal.name;
-  game.els.gearLethalN.textContent = String(game.player.gear.lethal);
-  game.els.gearLethal.classList.toggle("is-empty", game.player.gear.lethal <= 0);
-  game.els.gearTacticalName.textContent = game.loadout.tactical.name;
-  game.els.gearTacticalN.textContent = String(game.player.gear.tactical);
-  game.els.gearTactical.classList.toggle("is-empty", game.player.gear.tactical <= 0);
+  const { lethal, tactical } = game.loadout;
+  setGearChip(game.els.gearLethal, { slot: "lethal", id: lethal.id, name: lethal.name, count: game.player.gear.lethal });
+  setGearChip(game.els.gearTactical, { slot: "tactical", id: tactical.id, name: tactical.name, count: game.player.gear.tactical });
   // One throwable slot: the kind you didn't bring has no chip and no button.
   const offKind = game.loadout.throwKind === "lethal" ? "tactical" : "lethal";
   game.els.gearLethal.classList.toggle("is-uncarried", offKind === "lethal");
