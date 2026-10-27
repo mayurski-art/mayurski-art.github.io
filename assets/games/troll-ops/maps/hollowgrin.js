@@ -3648,8 +3648,8 @@ function buildHollowgrin(api) {
   };
   // the square is cobbled (setts, ring by ring, smaller and darker than the
   // park's), the oak's bed bare earth
-  settsRing(K, new THREE.MeshStandardMaterial({ map: M.setts.map, color: 0x6c6870, roughness: 0.92 }), 0, 1, 2.1, 12.5, { scale: 0.6 });
-  K.add(M.dirt, place(new THREE.CircleGeometry(2.2, 24), { x: 0, y: 0.01, z: 1, rx: -Math.PI / 2 }), { shadow: false });
+  settsRing(K, new THREE.MeshStandardMaterial({ map: M.setts.map, color: 0x6c6870, roughness: 0.92 }), 0, 1, 3.8, 12.5, { scale: 0.6 });
+  K.add(M.dirt, place(new THREE.CircleGeometry(3.9, 32), { x: 0, y: 0.01, z: 1, rx: -Math.PI / 2 }), { shadow: false });
   dirtPlane(0, 22, 4.4, 20);           // south road
   dirtPlane(0, -10, 3.6, 3.2);         // up to the porch
   dirtPlane(-14.5, 2, 5, 3.2);         // west road to the graveyard gate
@@ -3873,18 +3873,20 @@ function buildHollowgrin(api) {
   }
 
   /* ------------------------------------------------ the square */
-  // Drawn in Blender (models/hg_village.py, hg-square.glb): the oak, the
-  // well, the market, the cart, the hay, the lamp posts, the bunting. Here:
+  // Drawn in Blender (models/hg_village.py, hg-square.glb): the well, the
+  // market, the cart, the hay, the lamp posts, the bunting; the dead oak is
+  // Studio's (hg-oak.glb, a generate_mesh tree). Here:
   // their colliders, the jack-o'-lanterns, the well's water, the lamp glass
   // and lights, and the words on the chalk board and the notice board.
   hgModel(api, "hg-square");
+  hgModel(api, "hg-oak");
   {
-    // the dead oak, lanterns round its roots
-    K.solid(0, 1, 1.4, 1.4, 6, { pen: 10 });
+    // the dead oak (its trunk is 2.5 m across), lanterns past its roots
+    K.solid(0, 1, 2.6, 2.6, 6, { pen: 10 });
     let s = 20;
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2 + 0.3;
-      jack(K, M, Math.cos(a) * 1.35, 0, 1 + Math.sin(a) * 1.35, { r: 0.22 + (i % 3) * 0.05, face: Math.atan2(Math.cos(a), Math.sin(a)), seed: s++ });
+      jack(K, M, Math.cos(a) * 3.5, 0, 1 + Math.sin(a) * 3.5, { r: 0.22 + (i % 3) * 0.05, face: Math.atan2(Math.cos(a), Math.sin(a)), seed: s++ });
     }
 
     // the well

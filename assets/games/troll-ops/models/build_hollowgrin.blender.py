@@ -62,6 +62,7 @@ def load(name, filename):
 PARTS = {
     "manor": ("hg_manor", "build_manor", "hg-manor"),
     "square": ("hg_village", "build_square", "hg-square"),
+    "oak": ("hg_village", "build_oak", "hg-oak"),
     "mausoleum": ("village", "build_mausoleum", "hg-mausoleum"),
     "barn": ("village", "build_barn", "hg-barn"),
     "candyshop": ("village", "build_shop", "hg-candyshop"),

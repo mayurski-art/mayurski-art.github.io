@@ -3,8 +3,10 @@ Hollowgrin's village (phase 1: the square half; phase 3 adds the candy shop,
 the barn, the windmill and the south road). hg-square.glb, in map
 coordinates: the well, the pumpkin market (the stall, crates, baskets, the
 scale, the chalk board's frame, the notice board), the hand cart, the hay,
-the four gas lamps, the bunting round the square, and the dead oak with its
-rope swing.
+the four gas lamps and the bunting round the square. The dead oak is its
+own GLB, hg-oak.glb: Studio's generate_mesh tree (the user's pick over a
+Blender one, 2026-10-27), kept as it came at studio/hollowgrin/oak.glb (in
+metres, on the square) and given the bake's UV set here.
 
 Drawn over the colliders maps/hollowgrin.js lays (hollowgrin-layout.json).
 The JS keeps the jack-o'-lanterns, the lamp glass and lights, the well's
@@ -12,21 +14,22 @@ water, the setts and the words (the chalk board and the notices are canvas
 textures it hangs on the frames drawn here).
 """
 import math
+import os
 import random
 
+import bpy
+
 from map_kit import mat
-from hg_kit import HGBuilder, facing, lathe, pumpkin, ring, slates
+from hg_kit import HGBuilder, Report, facing, lathe, pumpkin, ring, slates
 
 WELL = (-8.0, 6.0)
 STALL = (8.0, -4.3)
 CART = (8.8, 9.2)
-OAK = (0.0, 1.0)
 LAMPS = [(-11.0, -8.0), (11.0, 10.5), (-11.0, 11.0), (11.0, -8.5)]
 # hollowgrin.js hayBale() calls in the square: x, z, y, ry
 BALES = [(-6.5, -5.0, 0.0, 0.0), (-6.5, -5.0, 0.75, 0.05), (-5.2, -5.2, 0.0, math.pi / 2), (5.5, 8.6, 0.0, 0.0),
          (-3.8, 12.5, 0.0, math.pi / 2), (-3.8, 13.8, 0.0, math.pi / 2), (12.2, -3.6, 0.0, 0.0), (12.2, -3.6, 0.75, -0.08)]
-# the swing's branch: from the trunk out over the square's south-east
-SWING_BRANCH = ((0.0, 4.3, 1.0), (3.1, 5.0, 2.55))
+OAK_SOURCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "studio", "hollowgrin", "oak.glb")
 
 
 def palette():
@@ -58,9 +61,6 @@ def palette():
         "wicker": mat("HG_Wicker", 0x8a6a3a, 0.95),
         "burlap": mat("HG_Burlap", 0x8a6a42, 1.0),
         "brass": mat("HG_Brass", 0xc8a050, 0.35, 0.4),
-        "bark": mat("HG_OakBark", 0x2e2620, 0.95),
-        "bark_lt": mat("HG_OakBarkLight", 0x3e342c, 0.95),
-        "dirt": mat("HG_RootDirt", 0x3a2e24, 1.0),
         "cork": mat("HG_Cork", 0x7a5a3a, 0.9),
         "paper": mat("HG_NoticePaper", 0xc8bfa4, 0.9),
         "slate": mat("HG_ChalkSlate", 0x1c1f1c, 0.8),
@@ -387,80 +387,29 @@ def gas_lamp(b, P, R, x, z, i):
 
 # ------------------------------------------------------------------ the dead oak
 
-def branch(b, P, p0, d, length, r0, depth, rnd, out):
-    """A crooked limb from p0 along d: three bends, tapering, splitting into
-    two or three at its end until `depth` runs out."""
-    segs = 3
-    p = list(p0)
-    r = r0
-    for k in range(segs):
-        L = length / segs
-        dx, dy, dz = d
-        q = [p[0] + dx * L, p[1] + dy * L, p[2] + dz * L]
-        r1 = r * 0.82
-        b.cyl(P["bark"] if depth % 2 else P["bark_lt"], r, tuple(p), tuple(q), seg=7 if r > 0.08 else 5, r2=r1)
-        # bend
-        nd = [dx + rnd.uniform(-0.35, 0.35), dy + rnd.uniform(-0.25, 0.3), dz + rnd.uniform(-0.35, 0.35)]
-        n = math.sqrt(sum(c * c for c in nd))
-        d = [c / n for c in nd]
-        p, r = q, r1
-    out.append((tuple(p), r))
-    if depth == 0 or r < 0.025:
-        return
-    kids = 2 if rnd.random() < 0.6 else 3
-    for i in range(kids):
-        a = rnd.uniform(0, 2 * math.pi)
-        spread = rnd.uniform(0.45, 0.8)
-        nd = [d[0] + math.cos(a) * spread, d[1] + rnd.uniform(-0.1, 0.25), d[2] + math.sin(a) * spread]
-        n = math.sqrt(sum(c * c for c in nd))
-        branch(b, P, p, [c / n for c in nd], length * rnd.uniform(0.55, 0.75), r * rnd.uniform(0.6, 0.8), depth - 1, rnd, out)
-
-
-def oak(b, P, R):
-    ox, oz = OAK
-    rnd = random.Random(1234)
-    R.begin(b, "square:oak")
-    # the trunk (collider 1.4 square, 6 tall), leaning, splitting at 4.6 m
-    pts = [(ox, 0.0, oz), (ox + 0.08, 1.4, oz - 0.05), (ox + 0.05, 2.8, oz + 0.06), (ox - 0.1, 4.0, oz + 0.02), (ox - 0.15, 4.7, oz)]
-    radii = [0.66, 0.55, 0.5, 0.46, 0.42]
-    for (p, r0), (q, r1) in zip(zip(pts, radii), zip(pts[1:], radii[1:])):
-        b.cyl(P["bark"], r0, p, q, seg=10, r2=r1)
-    # buttress roots, between the jack-o'-lanterns round it
-    for i in range(6):
-        a = (i + 0.5) / 6 * 2 * math.pi + 0.3
-        ca, sa = math.cos(a), math.sin(a)
-        b.cyl(P["bark_lt"], 0.24, (ox + ca * 0.3, 0.55, oz + sa * 0.3), (ox + ca * 1.3, -0.05, oz + sa * 1.3), seg=6, r2=0.06)
-    b.lump(P["dirt"], 3.0, 0.08, 3.0, ox, -0.02, oz, seed=7, rnd=0.9, jitter=0.02)
-    # a knot hole, half way up the south side
-    b.lump(P["soot"] if "soot" in P else P["bark"], 0.22, 0.32, 0.1, ox + 0.05, 2.2, oz + 0.47, seed=2, rnd=0.8, jitter=0.01)
-    tips = []
-    top = pts[-1]
-    R.end()
-    # the crown, its own prop (its bounds start at the fork)
-    R.begin(b, "square:oak-crown", on="square:oak")
-    for i in range(4):
-        a = i / 4 * 2 * math.pi + 0.9
-        d = [math.cos(a) * 0.65, 0.75, math.sin(a) * 0.65]
-        n = math.sqrt(sum(c * c for c in d))
-        branch(b, P, top, [c / n for c in d], 3.6, 0.3, 3, rnd, tips)
-    branch(b, P, (ox - 0.1, 5.6, oz), [0.1, 1.0, -0.1], 3.2, 0.26, 3, rnd, tips)
-    (a0, b0) = SWING_BRANCH
-    v = [b0[k] - a0[k] for k in range(3)]
-    L = math.sqrt(sum(c * c for c in v))
-    b.cyl(P["bark"], 0.24, a0, b0, seg=8, r2=0.11)
-    branch(b, P, b0, [c / L for c in v], 1.6, 0.11, 2, rnd, tips)
-    R.end()
-    # the rope swing: two ropes off the limb, a plank
-    R.begin(b, "square:swing", on="square:oak-crown")
-    pa = [a0[k] + v[k] * 0.62 for k in range(3)]
-    pb = [a0[k] + v[k] * 0.82 for k in range(3)]
-    for p in (pa, pb):
-        b.cyl(P["rope"], 0.018, (p[0], p[1] - 0.2, p[2]), (p[0], 1.08, p[2]), seg=5)
-        ring(b, P["rope"], (p[0], p[1] - 0.04, p[2]), 0.12, 0.02, seg=8, tseg=4, axis="x")
-    mx, mz = (pa[0] + pb[0]) / 2, (pa[2] + pb[2]) / 2
-    ry = -math.atan2(pb[2] - pa[2], pb[0] - pa[0])
-    b.box(P["wood_grey"], math.hypot(pb[0] - pa[0], pb[2] - pa[2]) + 0.2, 0.05, 0.26, mx, 1.03, mz, ry=ry)
-    R.end()
+def build_oak(P, R):
+    """Studio's oak (generate_mesh, textured) as it was exported, plus the
+    bake's UV set, as hg-oak.glb. Its trunk stands on the oak's collider
+    (2.6 m square at 0, 1); its roots and crown register as two props, so
+    the crown overhead doesn't count against what stands under it."""
+    from tf_kit import bounds, lightmap_uv
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=OAK_SOURCE)
+    ob = [o for o in bpy.data.objects if o not in before and o.type == "MESH"][0]
+    ob.name = "hg-oak"
+    lightmap_uv(ob)
+    game = [(v.co.x, v.co.z, -v.co.y) for v in ob.data.vertices]
+    for pid, keep, on in (("square:oak", lambda p: p[1] < 3.0, None), ("square:oak-crown", lambda p: p[1] >= 3.0, "square:oak")):
+        ps = [p for p in game if keep(p)]
+        R.prop(pid, [min(p[k] for p in ps) for k in range(3)], [max(p[k] for p in ps) for k in range(3)], on=on)
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hg-oak.glb")
+    bpy.ops.object.select_all(action="DESELECT")
+    ob.select_set(True)
+    bpy.ops.export_scene.gltf(filepath=path, use_selection=True, export_format="GLB", export_yup=True,
+                              export_image_format="JPEG", export_jpeg_quality=85, export_apply=True)
+    lo, hi = bounds(ob)
+    Report.rows.append(["hg-oak", len(ob.data.polygons), len(ob.data.vertices), 0, lo, hi])
+    bpy.data.objects.remove(ob)
 
 
 def build_square(P, R):
@@ -471,7 +420,6 @@ def build_square(P, R):
     hay(b, P, R)
     for i, (x, z) in enumerate(LAMPS):
         gas_lamp(b, P, R, x, z, i)
-    oak(b, P, R)
     # bunting round the square, lamp to lamp, and off the stall's front posts
     (a, c, d, e) = [(x, 3.5, z) for x, z in LAMPS]   # NW, SE, SW, NE
     rnd = random.Random(3)
