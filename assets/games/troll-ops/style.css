@@ -2012,14 +2012,28 @@ body.to-touch-play .to-ws-guns span { pointer-events: auto; cursor: pointer; pad
   position: absolute; left: 16px; bottom: 16px; z-index: 40;
   font-family: "DM Mono", monospace;
 }
+/* The toggle: the lobby's glass square (2026-10-26), three equalizer bars
+   that bounce while something plays, cyan while the radio is open. */
 .to-radio-toggle {
+  display: grid; place-items: center; padding: 0;
   width: 34px; height: 34px; border-radius: 9px;
-  background: rgba(6,9,7,.6); border: 1px solid rgba(255,255,255,.16);
-  color: #dfe6da; font-size: 15px; line-height: 1;
+  background: linear-gradient(180deg, rgba(62,92,176,.62), rgba(24,38,92,.78)); border: 1px solid rgba(170,200,255,.36);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16);
+  color: #fff; line-height: 1;
   cursor: pointer; pointer-events: auto;
 }
-.to-radio-toggle:hover { border-color: rgba(127,224,102,.45); }
-.to-radio-toggle[aria-expanded="true"] { border-color: #7fe066; color: #7fe066; }
+.to-radio-ico { width: 52%; height: 52%; fill: currentColor; }
+.to-radio-ico rect { transform-box: fill-box; transform-origin: 50% 100%; }
+.to-radio-toggle.is-playing .to-radio-ico rect { animation: to-radio-bar .9s ease-in-out infinite alternate; }
+.to-radio-toggle.is-playing .to-radio-ico rect:nth-child(2) { animation-delay: -.3s; }
+.to-radio-toggle.is-playing .to-radio-ico rect:nth-child(3) { animation-delay: -.6s; }
+@keyframes to-radio-bar { from { transform: scaleY(.35); } to { transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) { .to-radio-toggle .to-radio-ico rect { animation: none !important; } }
+body.tf-anim-off .to-radio-toggle .to-radio-ico rect { animation: none !important; }
+.to-radio-toggle:hover { border-color: rgba(255,255,255,.7); }
+.to-radio-toggle:focus-visible { outline: 3px solid #4fd8ff; outline-offset: 2px; }
+.to-radio-toggle[aria-expanded="true"] { border-color: #4fd8ff; color: #4fd8ff; background: #fff; }
+.to-radio-toggle[aria-expanded="true"] .to-radio-ico { fill: #17224d; }
 
 /* Grinspace: the radio panel, skinned after the old Media Player
    "Headspace" skin. A lime-green CRT with a head underneath (ours is the
@@ -4351,7 +4365,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-bo2.is-fn .to-bo2-brand { display: none; }
 
 /* ── Top bar ── */
-.to-fn-top { position: absolute; left: var(--fn-pad); right: calc(var(--fn-pad) + 54px); top: 22px; z-index: 5; display: flex; align-items: center; gap: 10px; height: 52px; }
+.to-fn-top { position: absolute; left: var(--fn-pad); right: calc(var(--fn-pad) + 62px); top: 22px; z-index: 5; display: flex; align-items: center; gap: 10px; height: 52px; }
 .to-fn-ico { flex: none; width: 52px; height: 52px; display: grid; place-items: center; cursor: pointer; padding: 0; }
 .to-fn-ico svg { width: 22px; height: 22px; fill: #fff; }
 .to-fn-tabs { display: flex; gap: 4px; padding: 5px; height: 100%; box-sizing: border-box; min-width: 0; flex: 0 1 760px; }
@@ -4578,10 +4592,25 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-bo2.is-fn .tr-menu-item { min-height: 40px; line-height: 40px; font-size: 17px; }
   .to-bo2.is-fn .to-bo2-foot { left: 12px; right: 12px; bottom: calc(14px + env(safe-area-inset-bottom)); }
 }
-/* the radio's button, at the end of the top bar */
-#to-title.is-fn:not([hidden]) ~ .to-radio { right: 28px; top: 28px; }
-@media (max-height: 520px) and (min-aspect-ratio: 9/10) { #to-title.is-fn:not([hidden]) ~ .to-radio { right: max(16px, env(safe-area-inset-right)); top: 8px; } }
-@media (max-aspect-ratio: 9/10) { #to-title.is-fn:not([hidden]) ~ .to-radio { right: 12px; top: calc(8px + env(safe-area-inset-top)); bottom: auto; } }
+/* The radio: its button ends the top bar, the same height, and the player
+   drops down under the bar (never over the tabs), its right edge on the
+   page's. */
+#to-title.is-fn:not([hidden]) ~ .to-radio { right: 28px; top: 22px; bottom: auto; left: auto; }
+#to-title.is-fn:not([hidden]) ~ .to-radio .to-radio-toggle { width: 52px; height: 52px; border-radius: 12px; }
+/* (top as a share of the button's box: the skins are zoomed down on small
+   screens, and zoom shrinks a px offset with them, up into the tabs) */
+#to-title.is-fn:not([hidden]) ~ .to-radio .to-radio-panel { top: calc(100% + 10px); right: 0; bottom: auto; left: auto; }
+@container cab (min-width: 761px) and (max-width: 1100px) { #to-title.is-fn:not([hidden]) ~ .to-radio { right: 20px; } }
+@media (max-height: 520px) and (min-aspect-ratio: 9/10) {
+  #to-title.is-fn:not([hidden]) ~ .to-radio { right: max(16px, env(safe-area-inset-right)); top: 8px; }
+  #to-title.is-fn:not([hidden]) ~ .to-radio .to-radio-toggle { width: 38px; height: 38px; border-radius: 10px; }
+}
+@media (max-aspect-ratio: 9/10) {
+  #to-title.is-fn:not([hidden]) ~ .to-radio { right: 12px; top: calc(6px + env(safe-area-inset-top)); }
+  #to-title.is-fn:not([hidden]) ~ .to-radio .to-radio-toggle { width: 44px; height: 44px; border-radius: 12px; }
+  /* the whole player, speakers too, inside the screen's width */
+  #to-title.is-fn:not([hidden]) ~ .to-radio .to-radio-panel.fm { zoom: .46; }
+}
 @container cab (max-aspect-ratio: 9/10) and (max-height: 700px) {
   .to-fn-news { display: none; }
 }

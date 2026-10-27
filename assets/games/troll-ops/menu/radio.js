@@ -82,6 +82,9 @@ export function initRadioWidget() {
     if (!ui) return;
     const m = game.music;
     const t = m.current;
+    // the toggle's bars bounce while something plays, open or not (style.css)
+    toggle.classList.toggle("is-playing", m.playing);
+    toggle.title = t && m.playing ? `Now playing: ${t.title} · ${t.artist}` : "Radio";
     ui.title.textContent = t ? t.title : (m.hasTracks ? "—" : "No tracks loaded");
     ui.artist.textContent = t ? `· ${t.artist}` : "";
     panel.classList.toggle("is-playing", m.playing);
@@ -290,6 +293,12 @@ export function initRadioWidget() {
   panel.addEventListener("keydown", (e) => {
     if (e.key === "Escape") { e.stopPropagation(); setOpen(false); toggle.focus(); }
   });
+  // On the menu it's a popover like the lobby's others: a click anywhere
+  // else puts it away (in a match it stays till you close it).
+  document.addEventListener("pointerdown", (e) => {
+    if (panel.hidden || document.getElementById("to-title")?.hidden) return;
+    if (!e.target.closest?.("#to-radio")) setOpen(false);
+  }, true);   // (capture: the lobby's own handlers stop some of these)
   game.music.onchange = repaint;
 
   mount(skin);
