@@ -58,9 +58,15 @@ def box2(b, m, x0, x1, y0, y1, z0, z1, **kw):
 
 # ------------------------------------------------------------------ the fence
 
+# three stones off their spot (hollowgrin.js `moved`): two off the
+# mausoleum's plinth, one out from in front of its door
+MOVED = {(-30.4, 15.0): 15.25, (-27.2, 15.0): 15.25, (-22.6, 10.0): 9.4}
+
+
 def fence_run(b, P, axis, at, a, b_, h=1.9):
-    """hollowgrin.js ironFence(): two rails, spear-topped bars every 0.16 m
-    leaning a little, a post with a ball every 2.5 m."""
+    """hollowgrin.js ironFence(): two rails, spear-topped bars every 0.2 m
+    leaning a little (four faces each: the ends never show), a post with a
+    ball every 2.5 m."""
     L = b_ - a
     if L < 0.1:
         return
@@ -70,13 +76,19 @@ def fence_run(b, P, axis, at, a, b_, h=1.9):
             box2(b, P["iron"], a, b_, ry, ry + 0.05, at - 0.025, at + 0.025)
         else:
             box2(b, P["iron"], at - 0.025, at + 0.025, ry, ry + 0.05, a, b_)
-    bars = round(L / 0.16)
+    bars = round(L / 0.2)
     for i in range(bars + 1):
         s = a + L * i / bars
         lean = math.sin(s * 1.7) * 0.025
         x, z = (s, at) if axis == "x" else (at, s)
-        b.box(P["iron"], 0.025, h, 0.025, x, 0, z, rx=lean if axis == "x" else 0.0, rz=lean if axis == "z" else 0.0)
-        b.cyl(P["iron"], 0.035, (x, h, z), (x, h + 0.14, z), seg=4, r2=0.0, caps=False)
+        # the top leans across the fence's line by lean * h
+        tx, tz = (x, z + lean * h) if axis == "x" else (x + lean * h, z)
+        e = 0.0125
+        sq = [(-e, -e), (e, -e), (e, e), (-e, e)]
+        for j in range(4):
+            (ax_, az_), (bx_, bz_) = sq[j], sq[(j + 1) % 4]
+            facing(b, P["iron"], [(x + ax_, 0.0, z + az_), (x + bx_, 0.0, z + bz_), (tx + bx_, h, tz + bz_), (tx + ax_, h, tz + az_)], (ax_ + bx_, 0.0, az_ + bz_))
+        b.cyl(P["iron"], 0.035, (tx, h, tz), (tx, h + 0.14, tz), seg=4, r2=0.0, caps=False)
     posts = max(1, round(L / 2.5))
     for i in range(posts + 1):
         s = a + L * i / posts
@@ -128,7 +140,7 @@ def headstone(b, P, R, x, z, w, h, kind, twist, tilt, rnd, k):
     # a plinth under the tablet, lichen on the top of the taller ones
     b.box(P["granite_dk"], 0.3, 0.08, w + 0.12, x, 0, z, ry=twist)
     if rnd.random() < 0.5:
-        b.lump(P["lichen"] if rnd.random() < 0.5 else P["moss"], 0.08, 0.03, w * 0.5, x + 0.0, h - 0.03, z + (rnd.random() - 0.5) * w * 0.4, seed=k, rnd=0.7, jitter=0.01, ry=twist)
+        b.lump(P["lichen"] if rnd.random() < 0.5 else P["moss"], 0.08, 0.03, w * 0.5, x + 0.0, h - 0.03, z + (rnd.random() - 0.5) * w * 0.4, seed=k, rnd=0.7, jitter=0.01, ry=twist, n=2)
     if kind == 2 and rnd.random() < 0.6:        # an urn on a shouldered stone
         lathe(b, m, x, z, [(0.0, 0), (0.1, 0.01), (0.06, 0.05), (0.09, 0.12), (0.11, 0.22), (0.07, 0.3), (0.1, 0.33), (0.0, 0.34)], seg=8, y0=h)
     R.end()
@@ -256,7 +268,7 @@ def skulls(b, P, R):
         for xx in (-29.6, -27.6, -26.2):
             for lv in (0.6, 1.75):
                 if rnd.random() < 0.75:
-                    b.lump(P["bone"], 0.15, 0.14, 0.17, xx + rnd.uniform(-0.1, 0.1), lv + 0.14, zz + s * 0.2, seed=int(xx * 10 + lv * 7), rnd=0.75, jitter=0.01)
+                    b.lump(P["bone"], 0.15, 0.14, 0.17, xx + rnd.uniform(-0.1, 0.1), lv + 0.14, zz + s * 0.2, seed=int(xx * 10 + lv * 7), rnd=0.75, jitter=0.01, n=2)
     R.end()
 
 
@@ -273,9 +285,10 @@ def build_graveyard(P, R):
     J = js_rng(66)
     k = 0
     for x in ROWS:
-        for z in ZS:
-            if -31.5 < x < -24.5 and 6 < z < 15:
+        for z0 in ZS:
+            if -31.5 < x < -24.5 and 6 < z0 < 15:
                 continue
+            z = MOVED.get((x, z0), z0)
             k += 1
             kind = J()
             tilt, twist = (J() - 0.5) * 0.14, (J() - 0.5) * 0.12
@@ -291,14 +304,23 @@ def build_graveyard(P, R):
                 obelisk(b, P, R, x, z, twist, rnd, k)
                 sid = f"graveyard:obelisk-{k}"
             gx = x + 1.05
-            if (x, z) in OPEN:
+            if (x, z0) in OPEN:
                 open_grave(b, P, R, gx, z, rnd, k, sid)
-            elif J() < 0.6:
+            elif J() < 0.6 and not (gx - 1.0 < -23.3 and gx + 1.0 > -31.8 and z - 0.55 < 14.7 and z + 0.55 > 7.3):
                 curb(b, P, R, gx, z, rnd, k, sid)
             J()                                       # (the JS's candle pick)
     angel(b, P, R)
     barrow(b, P, R)
     skulls(b, P, R)
-    for (x, z, seed, h) in ((-34.2, 6.2, 777, 7.0), (-16.9, 8.8, 778, 6.0)):
-        dead_tree(b, P["bark"], P["bark_lt"], x, z, h=h, r=0.3 if h > 6.5 else 0.26, seed=seed, R=R, pid=f"graveyard:tree-{seed}")
+    # (the tree by the west gate takes the first shape whose limbs keep 0.6 m
+    # off the mausoleum and the west loop's lychgate, so it may waive them)
+    keep = [(-31.8, -23.3, 0.0, 5.6, 7.3, 14.7), (-39.3, -35.5, 2.4, 3.9, 8.0, 11.0)]
+    clear = lambda tips: all(not (x0 - 0.6 < px < x1 + 0.6 and y0 - 0.6 < py < y1 + 0.6 and z0 - 0.6 < pz < z1 + 0.6)   # noqa: E731
+                             for (px, py, pz), _r in tips for x0, x1, y0, y1, z0, z1 in keep)
+    for (x, z, seed, h, near) in ((-34.2, 6.2, 777, 7.0, True), (-16.9, 8.8, 778, 6.0, False)):
+        r, s = 0.3 if h > 6.5 else 0.26, seed
+        while near and not clear(dead_tree(None, None, None, x, z, h=h, r=r, seed=s)):
+            s += 1000
+        dead_tree(b, P["bark"], P["bark_lt"], x, z, h=h, r=r, seed=s, R=R, pid=f"graveyard:tree-{seed}",
+                  on=["landmark:mausoleum", "west:lychgate"] if near else None)
     b.finish("hg-graveyard.glb")

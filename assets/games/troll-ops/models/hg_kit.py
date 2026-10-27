@@ -604,21 +604,25 @@ def branch(b, bark, bark_lt, p0, d, length, r0, depth, rnd, out):
         branch(b, bark, bark_lt, p, [c / n for c in nd], length * rnd.uniform(0.55, 0.75), r * rnd.uniform(0.6, 0.8), depth - 1, rnd, out)
 
 
-def dead_tree(b, bark, bark_lt, x, z, h=7.0, r=0.3, seed=1, limbs=3, lean=0.1, R=None, pid=None):
+def dead_tree(b, bark, bark_lt, x, z, h=7.0, r=0.3, seed=1, limbs=3, lean=0.1, R=None, pid=None, on=None):
     """A bare tree: a leaning trunk that forks into crooked limbs. With a
     Registry, the trunk and the crown register as two props (the crown
-    overhead is never in anything's way on the ground)."""
+    overhead is never in anything's way on the ground). `on` waives the
+    bounds check against a prop the caller has checked it clears. With b
+    None it only returns the tips (a dry run)."""
+    if b is None:
+        b = _NoDraw()
     rnd = __import__("random").Random(seed)
     fork = h * 0.55
     la = rnd.uniform(0, 2 * math.pi)
     top = (x + math.cos(la) * lean * fork, fork, z + math.sin(la) * lean * fork)
     if R:
-        R.begin(b, pid)
+        R.begin(b, pid, on=on)
     b.cyl(bark, r, (x, -0.05, z), top, seg=8, r2=r * 0.7, caps=False)
     b.cyl(bark, r * 1.45, (x, -0.05, z), (x, 0.3, z), seg=8, r2=r * 1.05, caps=False)     # the root flare
     if R:
         R.end()
-        R.begin(b, pid + "-crown", on=pid)
+        R.begin(b, pid + "-crown", on=[pid] + (list(on) if isinstance(on, (list, tuple)) else [on] if on else []))
     tips = []
     for i in range(limbs):
         a = la + 2 * math.pi * i / limbs + rnd.uniform(-0.4, 0.4)
@@ -628,3 +632,9 @@ def dead_tree(b, bark, bark_lt, x, z, h=7.0, r=0.3, seed=1, limbs=3, lean=0.1, R
     if R:
         R.end()
     return tips
+
+
+class _NoDraw:
+    """A builder that draws nothing (dead_tree's dry run)."""
+    def cyl(self, *a, **k):
+        pass

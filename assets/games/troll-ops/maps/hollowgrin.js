@@ -157,6 +157,18 @@ const BRIDGE = { x0: -40.4, x1: -34.4 };   // the deck; steps either end
 const CREEK = [[-54, 18.5], [-49, 21.5], [-44.5, 25.5], [-40.6, 30], [-37.8, 34.5], [-37, 39], [-36.4, 48]];
 const CREEK_W = 3.4;
 const POND = { x: -46, z: -20, rx: 5.2, rz: 4.2 };
+// The west loop (models/hg_west.py draws it from the same numbers): a gravel
+// path at x `path` from the graveyard's west gate north to the hollow and
+// south to the bridge, knee-high dry-stone walls along it with gaps, a
+// lychgate on the churchyard's approach, chest tombs as cover.
+const WEST_LOOP = {
+  path: -37.4,
+  wallX: -38.75, walls: [[-16, -11.5], [-10, -5], [11, 13], [14, 19], [20.5, 25], [26.5, 28.8]],
+  eastX: -36.05, eastWalls: [[-16, -12], [14.5, 19.5], [22, 27]],
+  wallH: 0.6, wallT: 0.35,
+  lych: { z: 9.5, x0: -38.7, x1: -36.1 },
+  tombs: [[-46.5, 17.5, 0.1], [-43, 18.6, -0.15], [-45.2, -8.4, 0.2], [-41.4, -9.6, -0.1]],
+};
 
 // Grinmoor Manor's footprint and storeys.
 const MANOR = { x0: -13, x1: 13, z0: -28, z1: -12 };
@@ -1629,6 +1641,22 @@ function buildOutskirts(api, K, M, SP, root, lights) {
   }
   flat(K, M.dirt, -37.2, 2, 4.4, 2.6);
 
+  /* ------------------------------------------- the west loop (hg_west.py draws it) */
+  {
+    const W = WEST_LOOP;
+    const gravel = surfMat("dirt", 0x6a6460, { mix: 0.25, tile: 1.4 });
+    flat(K, gravel, W.path, -7.5, 1.8, 19, { y: 0.014 });
+    flat(K, gravel, W.path, 18.3, 1.8, 30, { y: 0.014 });
+    for (const [z0, z1] of W.walls) K.solid(W.wallX, (z0 + z1) / 2, W.wallT, z1 - z0, W.wallH, { pen: 8 });
+    for (const [z0, z1] of W.eastWalls) K.solid(W.eastX, (z0 + z1) / 2, W.wallT, z1 - z0, W.wallH, { pen: 8 });
+    for (const x of [W.lych.x0, W.lych.x1]) for (const dz of [-0.8, 0.8]) K.solid(x, W.lych.z + dz, 0.22, 0.22, 2.6, { pen: 10 });
+    // the chest tombs: 2.2 x 1.0, 1.2 high, turned a touch
+    for (const [x, z, ry] of W.tombs) {
+      const c = Math.abs(Math.cos(ry)), s = Math.abs(Math.sin(ry));
+      K.solid(x, z, 2.2 * c + 1.0 * s, 2.2 * s + 1.0 * c, 1.2, { pen: 8 });
+    }
+  }
+
   /* ------------------------------------------- St. Grinsworth's chapel (hollowgrin-chapel.js) */
   buildChapel(api, K, M, SP, root, lights, { place, wall, rodGeo, prismGeo, candle, jack, headstoneGeo, signTexture, surfMat, texMat, flickerMat, rng, ZSPAWNS });
 
@@ -1640,9 +1668,10 @@ function buildOutskirts(api, K, M, SP, root, lights) {
     const bank = shape(pondOutline(28, 1.1));
     bank.holes.push(new THREE.Path(pondOutline(28, -0.1).map(([x, z]) => new THREE.Vector2(x, -z))));
     K.add(M.dirt, place(new THREE.ShapeGeometry(bank), { y: 0.022, rx: -Math.PI / 2 }), { shadow: false });
-    for (const [i, [x, z]] of pondOutline(22, 0.6).entries()) {
-      if (i % 2) K.add(M.stoneDark, place(new THREE.DodecahedronGeometry(0.18 + R() * 0.2), { x, y: 0.08, z, sy: 0.6, ry: R() * 6 }));
-      else for (let k = 0; k < 6; k++) K.box(M.stem, x + (R() - 0.5) * 0.5, 0, z + (R() - 0.5) * 0.5, 0.025, 0.7 + R() * 0.6, 0.025, { rz: (R() - 0.5) * 0.3, rx: (R() - 0.5) * 0.3 }, { shadow: false });
+    // the stones and reeds round it: hg_west.py, from these same calls
+    for (let i = 0; i < 22; i++) {
+      if (i % 2) { R(); R(); }
+      else for (let k = 0; k < 6; k++) { R(); R(); R(); R(); R(); }
     }
     for (const [x, z, r] of [[-44, -21.5, 0.4], [-48.6, -18.4, 0.35], [-43.2, -18.6, 0.3], [-45.4, -17.4, 0.32], [-47.5, -19.3, 0.6]]) {
       K.add(M.lily, place(new THREE.CircleGeometry(r, 14, 0.3, Math.PI * 2 - 0.6), { x, y: 0.05, z, rx: -Math.PI / 2, rz: R() * 6 }), { shadow: false });
@@ -1656,20 +1685,19 @@ function buildOutskirts(api, K, M, SP, root, lights) {
     flat(K, M.dirt, -35.5, -19, 10, 2.2);
     flat(K, M.dirt, -44.6, -31, 2, 13);
 
-    // the hut, crooked, with a thatch roof
+    // the hut (hg_west.py draws the boards, the thatch, the chimney, the
+    // shelves, the table and the cauldron): its colliders and what glows
     const hx0 = -47.5, hx1 = -42, hz0 = -42.5, hz1 = -37.5, hh = 2.8, ht = 0.25;
-    const HW = { mat: M.witchWood, trim: M.trimDark, shutter: M.shutter, t: ht, h: hh };
+    const HW = { t: ht, h: hh };
     wall(K, { axis: "x", at: hz0 + ht / 2, a: hx0, b: hx1, out: -1, ...HW, holes: [{ c: -45.5, w: 0.8, spans: [[1.0, 1.8]] }] });
     wall(K, { axis: "x", at: hz1 - ht / 2, a: hx0, b: hx1, out: 1, ...HW, holes: [{ c: -44.6, w: 1.2, spans: [[0, 2.1]] }, { c: -46.6, w: 0.8, spans: [[1.0, 1.8]] }] });
     wall(K, { axis: "z", at: hx0 + ht / 2, a: hz0 + ht, b: hz1 - ht, out: -1, ...HW, holes: [{ c: -40, w: 0.8, spans: [[1.0, 1.8]] }] });
     wall(K, { axis: "z", at: hx1 - ht / 2, a: hz0 + ht, b: hz1 - ht, out: 1, ...HW, holes: [{ c: -41.4, w: 1.2, spans: [[0, 2.1]] }] });
     K.api.ghostBox((hx0 + hx1) / 2, (hz0 + hz1) / 2, 6, 5.5, 0.3, { y: hh, pen: 6 });
-    K.add(M.thatch, place(new THREE.ConeGeometry(4.3, 3.2, 4, 1, true), { x: (hx0 + hx1) / 2, y: hh + 1.5, z: (hz0 + hz1) / 2, ry: Math.PI / 4 + 0.08, rz: 0.06 }));
-    K.cyl(M.brick, -43, hh, -41.6, 0.25, 0.2, 2.6, 6, { rz: -0.1 });
     flat(K, M.floor, (hx0 + hx1) / 2, (hz0 + hz1) / 2, 5, 4.5, { y: 0.018 });
-    // potion shelves along the west wall, glowing
+    // the potions on the west wall's shelves, glowing (the glass necks and
+    // corks over them are the model's)
     for (let s = 0; s < 3; s++) {
-      K.box(M.stairWood, hx0 + 0.45, 0.6 + s * 0.55, -40, 0.35, 0.04, 3.2);
       for (let i = 0; i < 9; i++) {
         const col = [0x6aff8c, 0xb070ff, 0xffa040, 0x5ac8ff][(i + s) % 4];
         const h = 0.16 + R() * 0.14;
@@ -1678,20 +1706,15 @@ function buildOutskirts(api, K, M, SP, root, lights) {
       }
     }
     K.api.ghostBox(hx0 + 0.45, -40, 0.4, 3.3, 2.0, { pen: 2 });
-    K.solid(-45.6, -41.4, 1.2, 0.8, 0.8, { mat: M.stairWood, pen: 1.5 });
+    K.solid(-45.6, -41.4, 1.2, 0.8, 0.8, { pen: 1.5 });
     candle(K, M, -45.8, 0.8, -41.4, { seed: 3300 });
     // the cauldron, bubbling green over a fire
     {
       const cx = -40.5, cz = -33.5;
       K.api.ghostBox(cx, cz, 1.5, 1.5, 0.95, { pen: 6 });
-      K.add(M.iron, place(new THREE.SphereGeometry(0.7, 16, 10, 0, Math.PI * 2, Math.PI * 0.35, Math.PI * 0.65), { x: cx, y: 0.85, z: cz }));
-      K.add(M.iron, place(new THREE.TorusGeometry(0.62, 0.05, 6, 20), { x: cx, y: 0.9, z: cz, rx: Math.PI / 2 }));
-      K.add(M.brew, place(new THREE.CircleGeometry(0.6, 20), { x: cx, y: 0.84, z: cz, rx: -Math.PI / 2 }), { shadow: false, phase: 0.2 });
-      for (let i = 0; i < 3; i++) {
-        const a = (i / 3) * Math.PI * 2;
-        K.box(M.iron, cx + Math.cos(a) * 0.5, 0, cz + Math.sin(a) * 0.5, 0.07, 0.4, 0.07);
-      }
-      for (let i = 0; i < 5; i++) K.cyl(M.bark, cx + (R() - 0.5) * 0.4, 0.04, cz + (R() - 0.5) * 0.4, 0.06, 0.05, 0.8, 5, { rz: Math.PI / 2, ry: R() * 3 });
+      // the pot, its tripod and the logs are the model's (the calls stay)
+      K.add(M.brew, place(new THREE.CircleGeometry(0.6, 20), { x: cx, y: 0.98, z: cz, rx: -Math.PI / 2 }), { shadow: false, phase: 0.2 });
+      for (let i = 0; i < 5; i++) { R(); R(); R(); }
       for (const ry of [0, Math.PI / 3, (2 * Math.PI) / 3]) K.add(M.flame, place(new THREE.PlaneGeometry(0.7, 0.5), { x: cx, y: 0.28, z: cz, ry }), { phase: 0.6, shadow: false });
       K.add(M.greenGlow, place(new THREE.PlaneGeometry(5, 5), { x: cx, y: 0.04, z: cz, rx: -Math.PI / 2 }), { shadow: false, phase: 0.7 });
       SP.swarm(8, cx, cz, 0.8, 0.8, 1.0, 2.4, 0x8cff6a, { size: 0.16, wander: 0.4, blink: 0.8 });
@@ -1700,19 +1723,15 @@ function buildOutskirts(api, K, M, SP, root, lights) {
     {
       const fx = -36.5, fz = -40;
       for (let i = 0; i < 11; i++) {
-        const a = (i / 11) * Math.PI * 2, r = 2.2 + (R() - 0.5) * 0.3, s = 0.6 + R() * 0.6;
-        const x = fx + Math.cos(a) * r, z = fz + Math.sin(a) * r;
-        K.cyl(M.picket, x, 0, z, 0.06 * s, 0.05 * s, 0.35 * s, 6);
-        K.add(M.toadCap, place(new THREE.SphereGeometry(0.2 * s, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), { x, y: 0.33 * s, z, sy: 0.7 }));
+        R(); R();      // (its radius and size: hg_west.py draws the toadstools)
       }
       K.add(M.purpleGlow, place(new THREE.PlaneGeometry(6, 6), { x: fx, y: 0.04, z: fz, rx: -Math.PI / 2 }), { shadow: false, phase: 0.1 });
       SP.swarm(9, fx, fz, 4, 4, 0.3, 1.6, 0xd08cff, { size: 0.2, wander: 0.6, blink: 0.6 });
       ZSPAWNS.push({ x: fx, y: 0, z: fz, rise: true });
     }
     // dead trees
-    for (const [x, z, seed] of [[-49, -30, 4001], [-38.4, -26.5, 4002], [-49.2, -43.2, 4003], [-33.5, -33, 4004]]) {
-      K.add(M.bark, place(treeGeo(seed, { height: 6 + (seed % 3), r: 0.28, levels: 3 }), { x, z, ry: seed }));
-      K.api.ghostBox(x, z, 0.6, 0.6, 4, { pen: 6 });
+    for (const [x, z] of [[-49, -30], [-38.4, -26.5], [-49.2, -43.2], [-33.5, -33]]) {
+      K.api.ghostBox(x, z, 0.6, 0.6, 4, { pen: 6 });   // (hg_west.py draws the tree)
     }
     SP.swarm(12, -42, -36, 14, 12, 0.6, 3, 0x7affd0, { size: 0.3, wander: 1.6, blink: 0.4 });
   }
@@ -2120,42 +2139,25 @@ function buildOutskirts(api, K, M, SP, root, lights) {
     mg.setAttribute("position", new THREE.Float32BufferAttribute(mpos, 3));
     mg.computeVertexNormals();
     K.add(M.dirt, mg, { shadow: false });
-    // stones and reeds along the banks, kept off the bridge
-    for (const bank of [mud.left, mud.right]) {
-      for (let i = 1; i < bank.length; i++) {
-        const [ax, az] = bank[i - 1], [bx, bz] = bank[i];
-        const n = Math.round(Math.hypot(bx - ax, bz - az) / 1.3);
-        for (let k = 0; k < n; k++) {
-          const x = ax + ((bx - ax) * (k + R())) / n, z = az + ((bz - az) * (k + R())) / n;
-          if (x > -42 && x < -33 && z > 32.4 && z < 37.6) continue;
-          if (R() < 0.5) K.add(M.stoneDark, place(new THREE.DodecahedronGeometry(0.15 + R() * 0.2), { x, y: 0.06, z, sy: 0.6, ry: R() * 6 }));
-          else for (let j = 0; j < 5; j++) K.box(M.stem, x + (R() - 0.5) * 0.4, 0, z + (R() - 0.5) * 0.4, 0.025, 0.6 + R() * 0.6, 0.025, { rz: (R() - 0.5) * 0.3 }, { shadow: false });
-        }
-      }
-    }
+    // (the stones and reeds along the banks, the boat and the rod: hg_west.py)
     SP.swarm(12, -43, 27, 10, 14, 0.4, 2, 0xd8ff6a, { size: 0.12, wander: 0.9, blink: 1 });
 
-    // the covered bridge: a deck with steps either end, barn-red walls and a roof
+    // the covered bridge (hg_west.py draws it, and the whole west edge):
+    // the deck, the steps and the walls as colliders; the troll under it
+    // and the signs
+    hgModel(api, "hg-west");
     const { x0: bx0, x1: bx1 } = BRIDGE, bz0 = 33.2, bz1 = 36.8, deck = 0.54, bmid = (bx0 + bx1) / 2;
     K.api.ghostBox(bmid, (bz0 + bz1) / 2, bx1 - bx0, bz1 - bz0, deck, { pen: 8 });
     for (const s of [-1, 1]) {
       const edge = s < 0 ? bx0 : bx1;
-      K.solid(edge + s * 0.3, (bz0 + bz1) / 2, 0.6, bz1 - bz0 - 0.4, 0.36, { mat: M.stairWood, pen: 6 });
-      K.solid(edge + s * 0.9, (bz0 + bz1) / 2, 0.6, bz1 - bz0 - 0.4, 0.18, { mat: M.stairWood, pen: 6 });
+      K.solid(edge + s * 0.3, (bz0 + bz1) / 2, 0.6, bz1 - bz0 - 0.4, 0.36, { pen: 6 });
+      K.solid(edge + s * 0.9, (bz0 + bz1) / 2, 0.6, bz1 - bz0 - 0.4, 0.18, { pen: 6 });
     }
-    K.box(M.stairWood, bmid, 0.4, (bz0 + bz1) / 2, bx1 - bx0, 0.14, bz1 - bz0);
-    K.box(M.iron, bmid, 0, (bz0 + bz1) / 2, bx1 - bx0 - 0.2, 0.4, bz1 - bz0 - 0.8);
-    for (const x of [bx0 + 0.3, bmid, bx1 - 0.3]) for (const z of [bz0 + 0.2, bz1 - 0.2]) K.box(M.bark, x, 0, z, 0.25, 0.42, 0.25);
     // something lives under it
     K.add(M.trollLit, place(new THREE.PlaneGeometry(0.36, 0.36), { x: -38.6, y: 0.18, z: bz0 + 0.12, ry: Math.PI }), { shadow: false });
     for (const z of [bz0 + 0.1, bz1 - 0.1]) {
-      wall(K, { axis: "x", at: z, a: bx0, b: bx1, y: deck, h: 2.4, t: 0.16, mat: M.barn, trim: M.barnTrim, out: z < 35 ? -1 : 1,
+      wall(K, { axis: "x", at: z, a: bx0, b: bx1, y: deck, h: 2.4, t: 0.16, out: z < 35 ? -1 : 1,
         holes: [{ c: bmid - 1.6, w: 1.0, spans: [[1.0, 1.6]] }, { c: bmid + 1.6, w: 1.0, spans: [[1.0, 1.6]] }] });
-    }
-    gableRoof(K, M.roof, null, { x0: bx0 - 0.2, x1: bx1 + 0.2, z0: bz0, z1: bz1, y: deck + 2.4, rise: 1.3, ridge: M.trimDark });
-    for (const x of [bx0 + 0.05, bx1 - 0.05]) {
-      K.add(M.barn, place(prismGeo([[-(bz1 - bz0) / 2 - 0.1, 0], [(bz1 - bz0) / 2 + 0.1, 0], [0, 1.3]], 0.1), { x, y: deck + 2.4, z: (bz0 + bz1) / 2, ry: Math.PI / 2 }));
-      K.box(M.barn, x, deck + 2.15, (bz0 + bz1) / 2, 0.1, 0.25, bz1 - bz0);
     }
     const bridgeSign = sign(["TROLL BRIDGE"], { bg: "#2a120c", fg: "#ffd27a", edge: "#cfc6b4" });
     for (const [x, ry] of [[bx0 - 0.02, -Math.PI / 2], [bx1 + 0.02, Math.PI / 2]]) {
@@ -4088,12 +4090,16 @@ function buildHollowgrin(api) {
     const R = rng(66);
     const zs = [-4.5, -2.0, 5.0, 7.5, 10.0, 12.5, 15.0, 17.5];
     const rows = [-33.4, -30.4, -27.2, -22.6, -19.6];
+    // three stones stand off their spot: two off the mausoleum's plinth, one
+    // out from in front of its door (hg_graveyard.py MOVED: the same)
+    const moved = { "-30.4,15": 15.25, "-27.2,15": 15.25, "-22.6,10": 9.4 };
     const open = new Set(["-33.4,-2", "-30.4,-4.5", "-27.2,17.5", "-22.6,10", "-19.6,-4.5", "-19.6,15", "-22.6,5", "-33.4,17.5"]);
     const decals = [];
     let k = 0;
     for (const x of rows) {
-      for (const z of zs) {
-        if (x > -31.5 && x < -24.5 && z > 6 && z < 15) continue;     // the mausoleum
+      for (const z0 of zs) {
+        if (x > -31.5 && x < -24.5 && z0 > 6 && z0 < 15) continue;   // the mausoleum
+        const z = moved[`${x},${z0}`] ?? z0;
         k++;
         const kind = R();
         R();                                                          // (its lean)
@@ -4110,7 +4116,7 @@ function buildHollowgrin(api) {
         }
         // the grave itself: freshly dug and open (zombies rise there), or curbed
         const gx = x + 1.05;
-        if (open.has(`${x},${z}`)) ZSPAWNS.push({ x: gx, y: 0, z, rise: true });
+        if (open.has(`${x},${z0}`)) ZSPAWNS.push({ x: gx, y: 0, z, rise: true });
         else R();                                                     // (a curb or not)
         if (R() < 0.3) candle(K, M, x + 0.3, 0, z + 0.25, { seed: 300 + k, h: 0.14 });
       }
@@ -4629,6 +4635,10 @@ export const HOLLOWGRIN = {
     [-30, 35], [-18, 35], [-6.5, 35], [6.5, 35], [18, 35], [30, 35], [60.5, 38.2]],
   // the pond and the creek: wade through them
   wade: wadePolygon(),
+  // posts for the bots along the west loop (bots.js: arena.botRooms), so the
+  // west edge gets its share of the fight
+  botRooms: [[-39, -36, -17, -4], [-50, -39, 8, 20], [-39, -36, 8, 20], [-40, -34, 20, 32], [-51, -39, -12, -3.5],
+    [-44, -39, -28, -18], [-48, -42, 20, 25]],
 
   // For zombies.js: graves and woods on the ground, the manor's upstairs
   // windows, and the grand stair joining the two floors.
