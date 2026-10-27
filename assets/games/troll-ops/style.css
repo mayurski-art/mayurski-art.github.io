@@ -4483,6 +4483,28 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-bo2.is-fn .to-bo2-vote.is-sheet { background: linear-gradient(180deg, #22397a, #0d1640); }
 /* the operator (Cosmetics) stands under the tab bar */
 #to-title.is-bo2.is-fn .to-char-view { top: calc(var(--fn-top) - 8px); }
+/* ...and on the Play page, on its pad between the columns, the party's
+   pads either side (char-inspector.js stage; lobby.js the names and invites) */
+#to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: calc(var(--fn-pad) + 310px); right: calc(var(--fn-pad) + 340px); top: var(--fn-top); bottom: 78px; --char-shift: 0; --char-dist: 1.32; }
+.to-bo2.is-fn[data-screen="main"] .to-bo2-foot .to-char-emote:not([hidden]) { display: flex; }
+.to-stage { position: absolute; inset: 0; pointer-events: none; font-family: var(--fn-ui); }
+.to-stage > * { position: absolute; left: 0; top: 0; pointer-events: auto; }
+.to-stage [hidden] { display: none; }
+.to-stage-tag { display: grid; justify-items: center; gap: 3px; margin: -46px 0 0; translate: -50% 0; text-align: center; white-space: nowrap; pointer-events: none; }
+.to-stage-tag b { padding: 3px 12px; border: 1px solid rgba(255,255,255,.3); border-radius: 7px; background: rgba(22,32,72,.78); color: #fff; font: 800 16px var(--fn-ui); letter-spacing: .03em; }
+.to-stage-tag.is-me b { color: #ffe58a; }
+.to-stage-tag small { padding: 1px 9px; border-radius: 5px; background: rgba(79,216,255,.22); color: #c8f2ff; font: 800 11px var(--fn-ui); letter-spacing: .08em; text-transform: uppercase; }
+.to-stage-tag small:empty { display: none; }
+.to-stage-add { width: 52px; height: 52px; margin: -26px 0 0 -26px; padding: 0; border: 2px solid rgba(255,255,255,.8); border-radius: 50%; background: rgba(12,18,44,.72); color: #fff; cursor: pointer; display: grid; place-items: center; box-shadow: 0 0 18px rgba(120,190,255,.35); }
+.to-stage-add span { font: 600 34px/1 var(--fn-ui); margin-top: -3px; }
+.to-stage-add:hover, .to-stage-add:focus-visible { background: rgba(40,64,140,.9); outline: 2px solid var(--fn-cyan); outline-offset: 2px; }
+.to-stage-bubble { width: 150px; margin: -36px 0 0; translate: -50% -100%; display: grid; gap: 3px; padding: 9px 10px 10px; box-sizing: border-box; text-align: center;
+  border: 1px solid var(--fn-line); border-radius: 12px; background: var(--fn-glass); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); color: #fff; }
+.to-stage-bubble b { font: 800 16px var(--fn-ui); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.to-stage-bubble small { font: 800 11px var(--fn-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--fn-yellow); }
+.to-stage-bubble button { min-height: 32px; border: 0; border-radius: 7px; background: var(--fn-yellow); color: #1b1400; font: 800 13px var(--fn-ui); letter-spacing: .04em; text-transform: uppercase; cursor: pointer; }
+.to-stage-bubble button:disabled { background: rgba(255,255,255,.2); color: #fff; cursor: default; }
+.to-stage-bubble button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .to-bo2.is-fn .to-bo2-vote header b { font: italic 400 22px var(--fn-display); letter-spacing: .02em; color: #fff; }
 .to-bo2.is-fn .to-mv-clock { font: 400 24px var(--fn-display); color: var(--fn-cyan); }
 .to-bo2.is-fn.has-gun .to-bo2-detail { top: calc(var(--fn-top) + 40cqh + 14px); max-height: calc(100% - var(--fn-top) - 124px - 40cqh); }
@@ -4523,6 +4545,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-fn-tab { min-width: 0; padding: 0 10px; font-size: 15px; }
   .to-fn-play, .to-fn-picker { width: 290px; }
   .to-fn-mode-name { font-size: 28px; }
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: calc(var(--fn-pad) + 270px); right: calc(var(--fn-pad) + 300px); }
 }
 /* Sideways phones: everything smaller; news and the challenge list step
    out (the Quests tab has them) */
@@ -4564,11 +4587,23 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-bo2.is-fn[data-screen="main"] .to-bo2-party { bottom: calc(54px + 200px); }
   .to-bo2.is-fn .to-bo2-foot { bottom: 8px; }
   .to-bo2.is-fn .to-bo2-online { padding: 6px 10px; font-size: 14px; }
+  /* the stage between the narrower columns, its names smaller; no bubbles
+     (no room: the "+" opens Who's Online) */
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: calc(var(--fn-pad) + 218px); right: calc(var(--fn-pad) + 258px); top: calc(var(--fn-top) + 34px); bottom: 54px; }
+  .to-stage-tag { margin-top: -34px; }
+  .to-stage-tag b { padding: 2px 8px; font-size: 13px; }
+  .to-stage-tag small { font-size: 9px; }
+  .to-stage-add { width: 40px; height: 40px; margin: -20px 0 0 -20px; }
+  .to-stage-add span { font-size: 26px; }
+  .to-stage-bubble { display: none; }
 }
 /* Upright phones: the tabs scroll along the top, the season and level
    under them, who's online, then the mode card and PLAY across the bottom */
 @container cab (max-aspect-ratio: 9/10) {
   .to-bo2.is-fn, #to-title.is-bo2.is-fn .to-pf { --fn-pad: 12px; --bo2-col: 12px; }
+  /* the Play page is a stack of cards here: no room for the stage */
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { display: none; }
+  .to-bo2.is-fn[data-screen="main"] .to-bo2-foot .to-char-emote:not([hidden]) { display: none; }
   .to-fn-top { left: 12px; right: 60px; top: calc(6px + env(safe-area-inset-top)); height: 44px; gap: 6px; }
   .to-fn-ico { display: none; }
   .to-fn-tabs { flex: 1 1 auto; padding: 3px; overflow-x: auto; scrollbar-width: none; }

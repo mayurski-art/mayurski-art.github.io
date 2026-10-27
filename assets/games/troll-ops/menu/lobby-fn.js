@@ -308,6 +308,8 @@ export function mountFnLobby(api) {
     play.hidden = !home;
     if (!home) openPicker(false);
     if (home) { renderPlay(); renderMe(); }
+    // the operator on the pad stands on the Play page only (lobby.js)
+    dispatchEvent(new Event("trollforces:fn-screen"));
   }
   new MutationObserver(onScreen).observe(root, { attributes: true, attributeFilter: ["data-screen"] });
   // the lobby's own lists change under us (a mode or map picked, signing in)
