@@ -88,13 +88,32 @@ const MODE = { trollface: "royale" };
 const LOAD_WAIT = { grinbeach: 40000, kabukigrin: 15000, trollface: 15000 };
 
 // Kabukigrin's clips, filmed like a vlog (user, 2026-10-26: "pretend its a
-// vlog"): the camera goes from A to B (position and look-at) over `secs`,
-// eased, held at phone height with a walker's bob and a hand's sway.
-//   club    along the front of the stage by the DJ, the dancers facing in
-//   screen  behind the two filming @SwishPng's screen, pushing in over them
+// vlog", and 2026-10-27 again): a phone held up while walking, `keys`
+// [second, x, y, z, look x, y, z] joined into one smooth path (the walk,
+// and the turns to look at people), with a walker's bob and a hand's shake
+// on top (`bob`, `shake`). Nobody nearer than `clear` metres (a head
+// filling the lens), but for `keep` (the two filming the screen).
+//   club    off the stage by the DJ, across the floor through the dancers,
+//           a look at the bar and the balcony, up at the screen, back to the DJ
+//   screen  in the crowd filming @SwishPng's screen, the whole loop from its
+//           $TROLL card (videoAt 0), pushing in over the two with phones up
 const CLIPS = {
-  club: { from: [-28.0, 1.6, 12.4, -18, 1.75, 16.2], to: [-27.5, 1.6, 17.4, -18, 1.75, 13.4], fov: 64, secs: 14, bob: 1, clear: 1.6, videoAt: 4 },
-  screen: { from: [-21.6, 1.6, 18.0, -21.5, 3.6, 23.76], to: [-21.4, 2.0, 19.9, -21.5, 3.9, 23.76], fov: 56, secs: 12, bob: 0.35, clear: 3, keep: { z: 20.8, act: "phone" }, videoAt: 4 },
+  club: { fov: 66, secs: 16, bob: 1, shake: 1.4, clear: 0.75, videoAt: 4, keys: [
+    [0, -28.2, 1.62, 13.0, -22, 1.5, 15.2],      // on the stage's edge, the floor in front
+    [3, -26.4, 1.6, 13.6, -24.2, 1.45, 12.2],    // stepping down, turning to a raver on the left
+    [6, -24.4, 1.6, 14.6, -14.5, 3.2, 12.0],     // in the crowd, up at the bar and the balcony
+    [9, -22.8, 1.6, 16.2, -18.5, 1.6, 19.2],     // through them, the dancers on the right
+    [12, -22.2, 1.6, 17.6, -21.5, 3.9, 23.7],    // the screen
+    [16, -23.4, 1.6, 17.0, -29.6, 2.1, 15.0],    // and round to the DJ
+  ] },
+  // (18.4 s: the video's own $TROLL card to its $TROLL logo; black after)
+  screen: { fov: 56, secs: 18.4, bob: 0.35, shake: 1, clear: 1.2, keep: { z: 20.8, act: "phone" }, videoAt: 0, keys: [
+    [0, -22.7, 1.55, 17.4, -21.6, 3.3, 23.76],   // in the crowd, phones up in front
+    [5, -22.2, 1.6, 18.3, -21.5, 3.9, 23.76],    // easing in
+    [10, -21.7, 1.75, 19.2, -21.5, 4.2, 23.76],  // over the two filming
+    [14, -21.3, 1.85, 19.7, -20.9, 4.3, 23.76],  // the screen filling the frame, a glance right
+    [18.4, -21.6, 1.8, 19.5, -21.6, 4.25, 23.76],   // and back, square on for the logo
+  ] },
 };
 const CLIP_SECS = +process.env.CLIP_SECS || 0;   // (shorter, for a TRY)
 
@@ -203,12 +222,16 @@ if (cmd === "shots") {
 } else if (cmd === "clip") {
   const name = rest[0] || "club", CLIP = CLIPS[name];
   if (!CLIP) throw new Error(`no clip "${name}": ${Object.keys(CLIPS).join(", ")}`);
-  const secs = CLIP_SECS || CLIP.secs;
+  // CLIP_JSON='{...}' overrides the clip's fields (a probe: a still camera, say)
+  if (process.env.CLIP_JSON) Object.assign(CLIP, JSON.parse(process.env.CLIP_JSON));
+  // CLIP_FROM + CLIP_SECS: film just that stretch of the path, at its own pace
+  const from = +process.env.CLIP_FROM || 0, secs = CLIP_SECS || CLIP.secs - from;
   // drawn at twice the size (SS) and scaled down at the encode: a fine
   // pattern far off (the club's slatted pink wall) shimmers frame to frame
   // at 1:1
   const SS = +process.env.SS || 2;
-  const W = (TRY ? 1280 : 1920) * SS, H = (TRY ? 720 : 1080) * SS, FPS = 30, N = Math.round(secs * FPS);
+  // (FPS=2 with TRY: a contact sheet of the whole path, for the framing)
+  const W = (TRY ? 1280 : 1920) * SS, H = (TRY ? 720 : 1080) * SS, FPS = (TRY && +process.env.FPS) || 30, N = Math.round(secs * FPS);
   const dir = path.join(TRY ? TRYDIR : MASTER, `${name}-frames`);
   // ENCODE_ONLY=1 re-encodes the frames already in .claude/reel-hq
   if (!process.env.ENCODE_ONLY) {
@@ -220,7 +243,7 @@ if (cmd === "shots") {
   // from there, and the frame is read back in the same call. The screens'
   // videos (video-wall.js draws them onto canvases) are caught at that draw,
   // held, and seeked to each frame's time below.
-  await page.evaluate(({ clip, secs, W, H }) => {
+  await page.evaluate(({ clip, secs, from, W, H }) => {
     const T = window.__trollOps, R = T.renderer, C = T.composer, cam = T.camera;
     for (const rt of [C.renderTarget1, C.renderTarget2]) if (rt.samples !== 4) { rt.samples = 4; rt.dispose(); }
     const sz = () => { R.setPixelRatio(1); R.setSize(W, H, false); C.setPixelRatio?.(1); C.setSize(W, H); };
@@ -241,20 +264,30 @@ if (cmd === "shots") {
     // silent anyway)
     const sv = AudioParam.prototype.setValueAtTime;
     AudioParam.prototype.setValueAtTime = function (v, t) { return Number.isFinite(v) && Number.isFinite(t) ? sv.call(this, v, t) : this; };
-    const ease = (k) => k * k * (3 - 2 * k);
+    // where the camera is `u` seconds in: Catmull-Rom through the keys
+    // (position and look-at alike), so the walk never stops dead at one
+    const keys = clip.keys;
+    const at = (u) => {
+      let i = 0;
+      while (i < keys.length - 2 && u > keys[i + 1][0]) i++;
+      const [a, b] = [keys[i], keys[i + 1]];
+      const s = Math.min(1, Math.max(0, (u - a[0]) / (b[0] - a[0])));
+      const p0 = keys[Math.max(0, i - 1)], p3 = keys[Math.min(keys.length - 1, i + 2)];
+      const cr = (q0, q1, q2, q3) => 0.5 * (2 * q1 + (q2 - q0) * s + (2 * q0 - 5 * q1 + 4 * q2 - q3) * s * s + (3 * q1 - q0 - 3 * q2 + q3) * s * s * s);
+      return [1, 2, 3, 4, 5, 6].map((j) => cr(p0[j], a[j], b[j], p3[j]));
+    };
     const render = C.render.bind(C);
     // the hand: a step's bob (two a second), a slow sway and drift of the
     // aim, a little roll; sums of sines, so it never quite repeats
     const sway = (t) => {
-      const S = (a, f, ph = 0) => a * Math.sin(t * f * Math.PI * 2 + ph);
+      const S = (a, f, ph = 0) => (clip.shake ?? 1) * a * Math.sin(t * f * Math.PI * 2 + ph);
       return {
         x: S(0.018, 0.37) + S(0.008, 1.1, 2), y: clip.bob * 0.022 * Math.abs(Math.sin(t * Math.PI * 1.9)) + S(0.006, 0.6, 1),
         ax: S(0.07, 0.21, 1) + S(0.025, 0.83), ay: S(0.045, 0.29, 3) + S(0.015, 1.3), roll: S(0.012, 0.17) + S(0.005, 0.9, 2),
       };
     };
     C.render = (dt) => {
-      const k = ease(reel.k), h = sway(reel.k * secs);
-      const p = clip.from.map((a, i) => a + (clip.to[i] - a) * k);
+      const u = from + reel.k * secs, h = sway(u), p = at(u);
       if (R.domElement.width !== W) sz();
       cam.fov = clip.fov; cam.aspect = W / H; cam.near = 0.1; cam.far = 2000;
       cam.position.set(p[0] + h.x, p[1] + h.y, p[2]);
@@ -275,12 +308,17 @@ if (cmd === "shots") {
       if (reel.want) { reel.want = false; reel.shot = R.domElement.toDataURL("image/jpeg", 0.95); }
       return out;
     };
-  }, { clip: CLIP, secs, W, H });
+  }, { clip: CLIP, secs, from, W, H });
   // Time is stepped, not run: Playwright's clock moves the page one frame at
   // a time (the crowd, the lights, the lasers), so the clip is smooth at 30
   // fps whatever the GPU manages in real time.
+  // The fake clock's performance.now() starts near 0, behind the real one
+  // the club last ticked at, and its tick waits for time to pass it: the
+  // beat (and every raver dancing on it) held still. Jump past it first.
+  const realNow = await page.evaluate(() => performance.now());
   await page.clock.install();
   await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 2000);
+  await page.clock.fastForward(Math.ceil(realNow) + 1000);
   // run the club until the screens' videos are caught, loaded and drawn (the
   // clip never opens on a black screen), a minute of real time at most
   for (let i = 0, ok = 0; ok < 30 && i < 1800; i++) {
@@ -306,10 +344,19 @@ if (cmd === "shots") {
           v.currentTime = to;
         });
       }));
-    }, { k: i / (N - 1), t: i / FPS });
+    }, { k: i / (N - 1), t: from + i / FPS });
     await page.clock.runFor(1000 / FPS);
     const shot = await page.evaluate(() => { const s = window.__reel.shot; window.__reel.shot = null; return s; });
     if (!shot) { console.log(`frame ${i}: no render`); continue; }
+    // PROBE=1: a dancer's pose and the point lights' total, per frame
+    if (process.env.PROBE) console.log(`frame ${i}`, await page.evaluate(() => {
+      const T = window.__trollOps, n = T.townNpcs?.()?.list.find((x) => x.c.act === "dance");
+      const sig = n ? Object.values(n.rig.parts).reduce((s, o) => s + (o?.rotation ? o.rotation.x + o.rotation.y + o.rotation.z : 0), 0) : null;
+      let lit = 0, cnt = 0;
+      T.scene?.traverse?.((o) => { if (o.isPointLight || o.isSpotLight) { lit += o.visible ? o.intensity : 0; cnt++; } });
+      const d = T.builtMap()?.map?.debug?.() || {};
+      return JSON.stringify({ pose: sig?.toFixed(4), lit: lit.toFixed(2), beat: d.beat?.toFixed(3), kick: d.kick?.toFixed(3), level: d.level?.toFixed(3), song: d.song, now: (performance.now() / 1000).toFixed(3) });
+    }));
     fs.writeFileSync(path.join(dir, `${String(wrote++).padStart(5, "0")}.jpg`), png(shot));
   }
   const vids = await page.evaluate(() => window.__reel.vids.size);

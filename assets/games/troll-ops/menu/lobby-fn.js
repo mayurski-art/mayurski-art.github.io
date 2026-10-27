@@ -63,7 +63,7 @@ const UI = "assets/games/troll-ops/ui";
 const REEL_MAPS = ["trollface", "grinbeach", "trollcity", "hollowgrin", "undergrin", "grinsite", "culdegrin", "dustbowl", "depot", "grinleria", "kabukigrin"];
 const REEL_CLIPS = ["club", "screen"];
 const SHOT_MS = 7000, FADE_MS = 1400;
-const CLIP_V = "c2";   // bump when the clips are re-rendered (same filenames)
+const CLIP_V = "c3";   // bump when the clips are re-rendered (same filenames)
 const still = (id, n, w) => n ? `${UI}/lobby/${id}-${n}-${w}.webp` : `${UI}/maps/${id}-${w}.webp`;
 const clip = (name) => ({ clip: (w) => `${UI}/lobby/kabukigrin-${name}-${w}` });
 function reelList() {
