@@ -7,7 +7,7 @@
 // XP, then what's on screen and where.
 //
 // Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-elim-callout-test.mjs
-// SHOT=<png> saves the screen with both up.
+// SHOT=<png> saves the screen with both up; BURST=<dir> frames of the XP's burst.
 
 import http from "node:http";
 import fs from "node:fs";
@@ -68,6 +68,15 @@ const r = await page.evaluate(async () => {
     oldPop: !!document.querySelector(".to-xp-pop"), banked: T.player.matchXp - xp0 };
 });
 if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT });
+// The burst as an XP gain lands: frames of the lower centre.
+if (process.env.BURST) {
+  await page.waitForTimeout(2600);
+  await page.evaluate(() => window.__trollOps.addMatchXp(10, "Elimination"));
+  for (const ms of [60, 140, 260, 450]) {
+    await page.waitForTimeout(ms === 60 ? 60 : ms - [60, 140, 260, 450][[60, 140, 260, 450].indexOf(ms) - 1]);
+    await page.screenshot({ path: path.join(process.env.BURST, `burst-${ms}.png`), clip: { x: 540, y: 470, width: 200, height: 120 } });
+  }
+}
 check("a kill: ELIMINATED and the name, white, upper case", /Eliminated\s*Sneaky Troll/i.test(r.elimText || "") && r.elimColor === "rgb(255, 255, 255)" && r.elimCase === "uppercase", JSON.stringify({ t: r.elimText, c: r.elimColor }));
 check("...centred just under the crosshair", r.elimBox && Math.abs(r.elimBox.x - r.vw / 2) < 4 && r.elimBox.y > r.vh / 2 && r.elimBox.y < r.vh * 0.6, JSON.stringify(r.elimBox));
 check("the XP: bare text, +10 XP Elimination and +5 XP Assist", r.gains.some((g) => /\+10 XP\s*Elimination/.test(g)) && r.gains.some((g) => /\+5 XP\s*Assist/.test(g)) && r.gainBg === "rgba(0, 0, 0, 0)", JSON.stringify({ g: r.gains, bg: r.gainBg }));

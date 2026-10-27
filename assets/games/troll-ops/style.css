@@ -1483,7 +1483,42 @@ body.to-social:not(.to-social-armed) #to-touch-interact { display: none !importa
   text-shadow: 0 1px 2px rgba(0,0,0,.85), 0 0 10px rgba(0,0,0,.55);
   animation: to-xp-rise 2.2s ease forwards;
 }
-.to-xp-gain strong { display: block; color: #ffd84d; font-size: 22px; font-weight: 700; letter-spacing: .02em; line-height: 1.1; }
+.to-xp-gain strong {
+  position: relative; display: block; color: #ffd84d; font-size: 22px; font-weight: 700; letter-spacing: .02em; line-height: 1.1;
+  animation: to-xp-bang .45s cubic-bezier(.2, 1.6, .4, 1) both;
+}
+/* A small burst as it lands (user: "a slight explosive animation appearance
+   when the xp is earned"): a flash ring blowing outward and a spray of short
+   gold rays behind the number, gone in half a second. */
+.to-xp-gain strong::before, .to-xp-gain strong::after {
+  content: ""; position: absolute; left: 50%; top: 50%; z-index: -1;
+  width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%;
+  pointer-events: none; opacity: 0;
+}
+.to-xp-gain strong::before {
+  border: 2px solid rgba(255, 216, 77, .9);
+  box-shadow: 0 0 12px rgba(255, 190, 60, .7), inset 0 0 10px rgba(255, 240, 180, .6);
+  animation: to-xp-ring .5s ease-out forwards;
+}
+.to-xp-gain strong::after {
+  background: repeating-conic-gradient(from 8deg, rgba(255, 226, 120, .95) 0deg 5deg, transparent 5deg 30deg);
+  -webkit-mask: radial-gradient(circle, transparent 38%, #000 40%, #000 62%, transparent 64%);
+  mask: radial-gradient(circle, transparent 38%, #000 40%, #000 62%, transparent 64%);
+  animation: to-xp-rays .55s ease-out forwards;
+}
+@keyframes to-xp-bang {
+  0% { transform: scale(.4); filter: brightness(2.2); }
+  60% { transform: scale(1.18); filter: brightness(1.4); }
+  100% { transform: none; filter: none; }
+}
+@keyframes to-xp-ring {
+  0% { opacity: 1; transform: scale(.2); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+@keyframes to-xp-rays {
+  0% { opacity: 1; transform: scale(.3) rotate(0deg); }
+  100% { opacity: 0; transform: scale(1.35) rotate(18deg); }
+}
 .to-xp-gain span { display: block; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; opacity: .9; }
 @keyframes to-xp-rise {
   0% { opacity: 0; transform: translateY(10px); }
@@ -1844,6 +1879,7 @@ body.to-touch-play .to-ws-guns span { pointer-events: auto; cursor: pointer; pad
 
 @media (prefers-reduced-motion: reduce) {
   .to-elim, .to-xp-gain { animation: to-xp-fade 2s linear forwards; }
+  .to-xp-gain strong, .to-xp-gain strong::before, .to-xp-gain strong::after { animation: none; }
   .to-medal-pop, .to-ks-ready { animation: none; }
 }
 
