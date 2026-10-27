@@ -87,6 +87,30 @@ export function setGearChip(el, { slot, id, name, count = null }) {
   ensureWatch();
 }
 
+/* Touch: the button for an item shows that item's picture over its line
+   icon (user: "the icons shouldnt just be limited to troll royale only");
+   the SVG comes back for anything without a picture. Counts stay on the
+   button's own badge (data-n). */
+export function setTouchItem(btn, id) {
+  if (!btn) return;
+  const has = HAS_ICON.has(id);
+  if (btn.dataset.item === (has ? id : "")) return;
+  btn.dataset.item = has ? id : "";
+  let img = btn.querySelector(":scope > img.to-touch-item");
+  if (has) {
+    if (!img) {
+      img = document.createElement("img");
+      img.className = "to-touch-item";
+      img.alt = "";   // the button's aria-label names it
+      img.draggable = false;
+      img.width = img.height = 128;
+      btn.append(img);
+    }
+    img.src = gearIconUrl(id);
+  } else img?.remove();
+  btn.classList.toggle("has-item", has);
+}
+
 function inputKind() {
   if (game.gamepadState?.connected) return `pad:${padButtonName(5)}`;   // the family shows in its bumper's name
   return game.isTouch ? "touch" : "keys";
