@@ -13,7 +13,7 @@
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { retexture, applyBakedLightMap, applyGroundLightMap, groundLightAt, applyLightAt } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2";
+import { retexture, applyBakedLightMap, applyBakedAOMap, applyGroundLightMap, groundLightAt, applyLightAt } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2";
 
 const MODEL_BASE = new URL("../models/", import.meta.url).href;
 const loader = new GLTFLoader();
@@ -74,6 +74,16 @@ export function loadBake(name) {
   return bakeCache.get(name);
 }
 const loadBakeTexture = (name) => (BAKED.has(name) ? loadBake(name) : Promise.resolve(null));
+/* models/<name>-ao.webp (bake_kit bake_ao), fetched once (null if missing). */
+const aoCache = new Map();
+export function loadAo(name) {
+  if (!aoCache.has(name)) {
+    aoCache.set(name, new Promise((resolve) => {
+      new THREE.TextureLoader().load(`${MODEL_BASE}${name}-ao.webp`, (tex) => resolve(tex), undefined, () => resolve(null));
+    }));
+  }
+  return aoCache.get(name);
+}
 
 /* Lights a placed flat mesh (or every mesh under an object) with a map's
    ground bake: groundBake = { file, rect } (maps.js), strength as BAKED's.
@@ -148,8 +158,11 @@ export function loadModel(name, mapping = PROP_RETEXTURE) {
 /* Drops a loaded clone into the scene once it resolves. Placement happens
    the instant the promise settles, so the collider (added synchronously,
    below) is live well before the visible mesh streams in. */
-export function placeModel(api, name, { x, z, y = 0, rot = 0, scale = 1, mapping, castShadow = true, groundBake = null, groundAt = null }) {
+export function placeModel(api, name, { x, z, y = 0, rot = 0, scale = 1, mapping, castShadow = true, groundBake = null, groundAt = null, ao = null }) {
   loadModel(name, mapping).then((obj) => {
+    // ao: the model's baked occlusion at this strength (an unbaked model's
+    // clone has its own materials, so each placement can differ)
+    if (ao) loadAo(name).then((tex) => { if (tex) obj.traverse((n) => { if (n.isMesh) applyBakedAOMap(n, tex, ao); }); });
     obj.position.set(x, y, z);
     obj.rotation.y = rot;
     if (Array.isArray(scale)) obj.scale.set(...scale);

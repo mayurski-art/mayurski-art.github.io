@@ -152,7 +152,14 @@
   "assets/games/troll-ops/models/ug-trains.glb",
   "assets/games/troll-ops/models/ug-concourse.glb",
   "assets/games/troll-ops/models/ug-shops.glb",
-  "assets/games/troll-ops/models/ug-plant.glb"
+  "assets/games/troll-ops/models/ug-plant.glb",
+  "assets/games/troll-ops/models/ug-shell-ao.webp",
+  "assets/games/troll-ops/models/ug-platforms-ao.webp",
+  "assets/games/troll-ops/models/ug-escalators-ao.webp",
+  "assets/games/troll-ops/models/ug-trains-ao.webp",
+  "assets/games/troll-ops/models/ug-concourse-ao.webp",
+  "assets/games/troll-ops/models/ug-shops-ao.webp",
+  "assets/games/troll-ops/models/ug-plant-ao.webp"
  ],
  "dustbowl": [
   "assets/games/troll-ops/textures/sand_color.jpg",

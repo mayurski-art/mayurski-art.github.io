@@ -16,6 +16,11 @@ import { mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-k
    concourse U at 6.0 on a 0.4 slab. The south half is the north half turned
    180 degrees about the origin (station(-1) below), so both teams get the
    same map. Flat colours only and no api.lamp: the look is the ambient. */
+/* The occlusion bake's strength (models/bake_undergrin_ao.blender.py, the
+   ug-*-ao.webp atlases; doc decision 1): 0 is the pure flat full-bright
+   station, 1 the full bake. The user picks it on side-by-side shots. */
+export const UG_AO = 0.4;
+
 export const UG = {
   wall: 0xe6e4df, floor: 0xececea, band: 0xc9704e, stripe: 0x2f5fd0, zone: 0xe5b84a, platform: 0xe8e6e0,
   grey: 0x8a8d92, dark: 0x3e4146, train: 0xf2c230, trainBand: 0x1e1e22, trainDoor: 0xf4f4f0, seat: 0x2b4bd6,
@@ -41,7 +46,7 @@ export function buildUndergrin(api) {
   };
   buildUndergrinParts(solid);
   for (const part of ["shell", "platforms", "escalators", "trains", "concourse", "shops", "plant"]) {
-    mapModel(api, `ug-${part}`, { x: 0, z: 0, castShadow: false });
+    mapModel(api, `ug-${part}`, { x: 0, z: 0, castShadow: false, ao: UG_AO });
   }
 }
 
