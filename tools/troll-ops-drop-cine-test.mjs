@@ -71,7 +71,7 @@ const fallSamples = (page, to, max = 20000) => page.evaluate(async ({ u, fl, to,
         const plane = m ? new THREE.Vector3().setFromMatrixPosition(m) : null;
         out.push({ t: fs.t, back: fs.back, shot: fs.shot, view: fs.view, me: T.royale().me, rigVis: rig.visible, camUp: up, face,
           camDist: cam.position.distanceTo(body), camDy: cam.position.y - body.y, camPlane: plane ? cam.position.distanceTo(plane) : null,
-          yaw: game.look.yaw, height: T.royale().flight?.height ?? null,
+          yaw: game.look.yaw, pitch: game.look.pitch, height: T.royale().flight?.height ?? null,
           sub: !!document.querySelector(".to-dropcine-sub.is-on"), bars: !!document.querySelector(".to-dropcine-ui.is-on"),
           hv: Math.hypot(T.royale().flight?.vel.x ?? 0, T.royale().flight?.vel.z ?? 0),
           ...(() => { const p = fall.fallFaceOnScreen(cam); return { faceX: p.x, faceY: p.y, faceZ: p.z }; })() });
@@ -412,7 +412,11 @@ const show = fsm.filter((q) => q.t < 6);
 check(Math.max(...show.filter((q) => q.t > 5.2).map((q) => q.hv)) < 2.5, "no steering in the show (W held)", `${Math.max(...show.filter((q) => q.t > 5.2).map((q) => q.hv)).toFixed(1)} m/s`);
 x = fsm.at(-1);
 check(x.shot === "behind" && x.face < -0.7, "then behind you, belly down", JSON.stringify(x));
-check(Math.abs(x.camDist - 7) < 1.2, "the usual drop camera", `${x.camDist.toFixed(1)} m`);
+// The drop camera orbits 7 m back along your look from 1.4 m up, 1.5 m over
+// it (player-update.js): how far it is from your belly goes with the pitch,
+// and the show hands the look back pitched down at the island (royale-fall.js).
+const dropCamDist = (pitch) => Math.hypot(7 * Math.cos(pitch), 1.9 - 7 * Math.sin(pitch));
+check(Math.abs(x.camDist - dropCamDist(x.pitch)) < 1.2, "the usual drop camera", `${x.camDist.toFixed(1)} m, ${dropCamDist(x.pitch).toFixed(1)} m expected at pitch ${x.pitch.toFixed(2)}`);
 await shot(a, "fall-behind.png");
 // Hold-to-view: crouch held cycles the angles, two seconds each.
 await a.evaluate(() => window.__trollOps.keys.add("KeyC"));
@@ -424,7 +428,7 @@ check(fsm.every((q) => q.height > 80 || q.view === -1), "never under 80 m", "");
 await shot(a, "fall-view.png");
 await a.evaluate(() => window.__trollOps.keys.delete("KeyC"));
 x = (await fallSamples(a, fsm.at(-1).t + 0.3)).at(-1) ?? fsm.at(-1);
-check(x.view === -1 && Math.abs(x.camDist - 7) < 1.2, "let go: back behind you", JSON.stringify(x));
+check(x.view === -1 && Math.abs(x.camDist - dropCamDist(x.pitch)) < 1.2, "let go: back behind you", JSON.stringify(x));
 // Phase 4: the real clips (sound/sfx-files.js), all in and each on its cue.
 const snd = await sfxState(a);
 check(snd.loaded.length === snd.all, "every sound clip loaded", `${snd.loaded.length}/${snd.all}`);
