@@ -17,6 +17,7 @@ import { WEAPON_DEFS, WeaponState } from "../weapons/weapons.js?v=p5bm-wst-hf1-f
 import { defaultLoadoutFor } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1";
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1-gf1-tg1-rfx1";
 import { game } from "../core/state.js?v=st1";
+import { setGearChip } from "../view/gear-chips.js?v=gc1";
 import { padHooks } from "../input/gamepad.js?v=in1-fu1b7-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-zp1-aa0-pd1-nf1-or1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-spd1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1";
 import { updateDropCine, dropCineEye, dropCineLean, dropCineZoom, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1";
 import { playSfx, preloadSfx } from "../sound/sfx-files.js?v=dc4";
@@ -724,7 +725,6 @@ export function updateRoyale(dt) {
   const r = royale;
   if (!r) return;
   royaleRecordTick();   // "Record my match": starts as staging ends
-  updateGearKeys();
   updateRoyaleDropWorld(dt);
   if (r.live && !r.over) r.t += dt;
   updateBoat(r.t, r.loot);   // Trollface Island's Boat round the lake, and whoever is aboard (royale-boat.js)
@@ -1405,32 +1405,10 @@ export function updateRoyaleGear() {
   [...game.els.armor.children].forEach((seg, i) => {
     seg.style.setProperty("--p", Math.max(0, Math.min(1, (game.player.armor - i * ROYALE.plateHp) / ROYALE.plateHp)).toFixed(3));
   });
-  game.els.gearPlatesN.textContent = String(game.player.plates);
-  game.els.gearHealsN.textContent = String(game.player.heals);
-  game.els.gearPlates.classList.toggle("is-empty", game.player.plates <= 0);
-  game.els.gearHeals.classList.toggle("is-empty", game.player.heals <= 0);
-  updateGearKeys();
-}
-
-/* The plate and Hopium chips show their keys on whatever you're playing
-   with (user: "if a controller is connected then the controller keys should
-   show on the screen. if only desktop keyboard is being used then those keys
-   should be seen"): 4 / 5 on a keyboard, the d-pad's up / down on a pad,
-   none on touch (the chips are the buttons there). Royale is already the
-   exception to "no key hints" for its loot. */
-function updateGearKeys() {
-  const plates = game.els.gearPlates;
-  if (!plates) return;
-  const kind = game.gamepadState.connected ? "pad" : game.isTouch ? "touch" : "keys";
-  if (plates.dataset.input === kind) return;
-  for (const [el, key, pad] of [[plates, "4", "↑"], [game.els.gearHeals, "5", "↓"]]) {
-    el.dataset.input = kind;
-    let cap = el.querySelector("b");
-    if (!cap) { cap = document.createElement("b"); cap.setAttribute("aria-hidden", "true"); el.prepend(cap); }
-    cap.hidden = kind === "touch";
-    cap.textContent = kind === "pad" ? pad : key;
-    cap.title = kind === "pad" ? `D-pad ${pad === "↑" ? "up" : "down"}` : `Key ${key}`;
-  }
+  // A picture per plate / dose carried, and the key on the device in use:
+  // 4 / 5 on a keyboard, the d-pad's up / down on a pad (view/gear-chips.js).
+  setGearChip(game.els.gearPlates, { slot: "plates", id: "plate", name: ITEM_NAMES.plate, count: game.player.plates });
+  setGearChip(game.els.gearHeals, { slot: "heals", id: "heal", name: ITEM_NAMES.heal, count: game.player.heals });
 }
 
 /* Spectating: keep watching someone while they're alive; our killer first. */
