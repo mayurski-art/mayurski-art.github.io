@@ -1665,7 +1665,7 @@ function buildOutskirts(api, K, M, SP, root, lights) {
   }
 
   /* ------------------------------------------- St. Grinsworth's chapel (hollowgrin-chapel.js) */
-  buildChapel(api, K, M, SP, root, lights, { place, wall, rodGeo, prismGeo, candle, jack, headstoneGeo, signTexture, surfMat, texMat, flickerMat, rng, ZSPAWNS, hgModel, ticker });
+  buildChapel(api, K, M, SP, root, lights, { place, wall, rodGeo, prismGeo, candle, jack, headstoneGeo, signTexture, surfMat, texMat, flickerMat, rng, ZSPAWNS, hgModel, ticker, ghostTroll });
 
   /* ------------------------------------------- the witch's hollow */
   {

@@ -53,6 +53,10 @@ def palette():
         "bell": mat("HG_BellBronze", 0xa8783a, 0.35, 0.85),
         "verdigris": mat("HG_Bronze", 0x3d6a58, 0.5, 0.6),
         "moss": mat("HG_Moss", 0x3a4a2c, 0.95),
+        "oak_lt": mat("HG_Oak", 0x5a3a24, 0.55),
+        "pewter": mat("HG_Pewter", 0x8a8c90, 0.35, 0.8),
+        "ivory": mat("HG_Ivory", 0xe0d8c0, 0.5),
+        "paper": mat("HG_NoticePaper", 0xc8bfa4, 0.9),
     }
 
 
@@ -357,6 +361,86 @@ def build_clapper(P, R):
     b.cyl(P["iron"], 0.018, (0.0, -0.66 * S, 0.0), (0.0, -0.71 * S, 0.0), seg=5)       # the flight
     R.end(offset=PIVOT)
     b.finish("hg-bell-clapper.glb")
+
+
+# ------------------------------------------------------------------ the organ
+
+# hollowgrin-chapel.js ORGAN: the case against the east wall south of the
+# door, the console before it, the bench the ghost sits on
+ORGAN = {"x0": -40.15, "x1": -39.6, "z0": 4.6, "z1": 7.4, "h": 6.6}
+CONSOLE = {"x0": -40.7, "x1": -40.15, "z0": 5.1, "z1": 6.7, "h": 1.1}
+BENCH = {"x0": -41.3, "x1": -40.9, "z0": 5.3, "z1": 6.5, "h": 0.5}
+
+
+def pipe(b, P, x, z, y0, length, r):
+    """One front pipe: a conical foot, the body, the mouth's dark slot
+    and its gilt lip, facing west."""
+    lathe(b, P["pewter"], x, z, [(0.02, 0.0), (r, 0.22), (r, 0.24)], seg=8, y0=y0, caps=False)
+    b.cyl(P["pewter"], r, (x, y0 + 0.24, z), (x, y0 + length, z), seg=8, caps=False)
+    facing(b, P["dark"], [(x - r - 0.002, y0 + 0.3, z - r * 0.55), (x - r - 0.002, y0 + 0.3, z + r * 0.55),
+                          (x - r - 0.002, y0 + 0.3 + r * 0.9, z + r * 0.55), (x - r - 0.002, y0 + 0.3 + r * 0.9, z - r * 0.55)], (-1, 0, 0))
+    facing(b, P["gilt"], [(x - r - 0.004, y0 + 0.27, z - r * 0.6), (x - r - 0.004, y0 + 0.27, z + r * 0.6),
+                          (x - r - 0.004, y0 + 0.3, z + r * 0.6), (x - r - 0.004, y0 + 0.3, z - r * 0.6)], (-1, 0, 0))
+
+
+def build_organ(P, R):
+    b = HGBuilder()
+    O, Cn, B = ORGAN, CONSOLE, BENCH
+    R.begin(b, "chapel:organ")
+    # the case: an oak base, panelled; the pipe towers stand on it
+    fbox(b, P["oak"], O["x0"], O["x1"], 0.0, 1.1, O["z0"], O["z1"], "-x +y +z -z")
+    for k in range(4):
+        z0 = O["z0"] + 0.12 + k * (O["z1"] - O["z0"] - 0.24) / 4
+        fbox(b, P["oak_lt"], O["x0"] - 0.02, O["x0"], 0.15, 0.95, z0 + 0.06, z0 + (O["z1"] - O["z0"] - 0.24) / 4 - 0.06, "-x +y -y +z -z")
+    fbox(b, P["oak"], O["x0"] - 0.06, O["x1"], 1.1, 1.2, O["z0"] - 0.06, O["z1"] + 0.06, "-x +y -y +z -z")
+    # three towers of pipes, the middle one tallest, the flats between
+    zc = (O["z0"] + O["z1"]) / 2
+    towers = [(O["z0"] + 0.4, 0.75, 3.4), (zc, 0.95, 4.9), (O["z1"] - 0.4, 0.75, 3.4)]
+    flats = [((O["z0"] + 0.4 + 0.375, zc - 0.475), 2.6), ((zc + 0.475, O["z1"] - 0.4 - 0.375), 2.6)]
+    xp = O["x0"] + 0.12
+    for (c, w, top) in towers:
+        n = 5 if w > 0.8 else 4
+        for i in range(n):
+            u = (i - (n - 1) / 2) / max(1, n - 1)
+            length = top - 0.25 - 0.55 * abs(u) * 2
+            pipe(b, P, xp, c + u * (w - 0.18), 1.2, length, 0.075 if w > 0.8 else 0.065)
+        # the tower's shell behind and its cornice, a finial
+        fbox(b, P["oak"], xp + 0.08, O["x1"], 1.2, 1.2 + top, c - w / 2, c + w / 2, "-x -z +z +y")
+        fbox(b, P["oak"], O["x0"] - 0.04, O["x1"], 1.2 + top, 1.32 + top, c - w / 2 - 0.06, c + w / 2 + 0.06, "-x +y -y +z -z")
+        lathe(b, P["gilt"], O["x0"] + 0.2, c, [(0.08, 0.0), (0.05, 0.12), (0.09, 0.2), (0.0, 0.5)], seg=8, y0=1.32 + top)
+    for ((a, e), top) in flats:
+        n = max(3, int((e - a) / 0.13))
+        for i in range(n):
+            u = a + (i + 0.5) * (e - a) / n
+            pipe(b, P, xp, u, 1.2, top - 0.3 - 0.25 * abs((u - (a + e) / 2) / (e - a)) * 2, 0.045)
+        fbox(b, P["oak"], xp + 0.06, O["x1"], 1.2, 1.2 + top, a, e, "-x +y")
+        fbox(b, P["oak"], O["x0"] - 0.03, O["x1"], 1.2 + top, 1.28 + top, a, e, "-x +y -y")
+    # the carved boss over the middle tower: a gilt roundel, a trollface cut in it
+    by = 1.2 + towers[1][2] + 0.75
+    lathe(b, P["gilt"], O["x0"] + 0.15, zc, [(0.0, -0.32), (0.3, -0.3), (0.32, 0.0), (0.3, 0.3), (0.0, 0.32)], seg=14, y0=by)
+    troll_face(b, P["dark"], (O["x0"] + 0.15, by, zc), 0.3, (-1.0, 0.0, 0.0))
+    R.end()
+    # the console: the key desk (its keys are the JS's), stop knobs either side, a music desk
+    R.begin(b, "chapel:organ-console", on="chapel:organ")
+    fbox(b, P["oak"], Cn["x0"], Cn["x1"], 0.0, 0.72, Cn["z0"], Cn["z1"], "-x +y +z -z")
+    for s in (-1, 1):                                 # cheeks either side of the keys
+        z = Cn["z0"] + 0.05 if s < 0 else Cn["z1"] - 0.05
+        fbox(b, P["oak"], Cn["x0"], Cn["x1"], 0.72, Cn["h"], z - 0.05, z + 0.05, "-x +y +z -z")
+        for k in range(6):                            # stop knobs, white faces
+            kz = z - s * 0.0
+            ky = 0.82 + (k % 3) * 0.09
+            kx = Cn["x0"] + 0.18 + (k // 3) * 0.12
+            b.cyl(P["oak_lt"], 0.018, (kx, ky, z - s * 0.05), (kx, ky, z - s * 0.1), seg=6)
+            b.cyl(P["ivory"], 0.022, (kx, ky, z - s * 0.1), (kx, ky, z - s * 0.11), seg=8)
+    fbox(b, P["oak"], Cn["x0"] + 0.3, Cn["x1"], 0.72, Cn["h"] + 0.35, Cn["z0"] + 0.1, Cn["z1"] - 0.1, "-x +y")
+    facing(b, P["paper"], [(Cn["x0"] + 0.295, 1.18, 5.55), (Cn["x0"] + 0.295, 1.18, 6.25), (Cn["x0"] + 0.295, 1.42, 6.25), (Cn["x0"] + 0.295, 1.42, 5.55)], (-1, 0, 0))
+    R.end()
+    R.begin(b, "chapel:organ-bench", on="chapel:organ-console")
+    fbox(b, P["oak"], B["x0"], B["x1"], B["h"] - 0.05, B["h"], B["z0"], B["z1"], "+y -y -x +x +z -z")
+    for z in (B["z0"] + 0.06, B["z1"] - 0.06):
+        fbox(b, P["oak"], B["x0"] + 0.03, B["x1"] - 0.03, 0.0, B["h"] - 0.05, z - 0.03, z + 0.03, "-x +x +z -z")
+    R.end()
+    b.finish("hg-organ.glb")
 
 
 FACES = [

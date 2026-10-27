@@ -72,6 +72,7 @@ PARTS = {
     "tower": ("hg_chapel", "build_tower", "hg-chapel-tower"),
     "bell": ("hg_chapel", "build_bell", "hg-bell"),
     "clapper": ("hg_chapel", "build_clapper", "hg-bell-clapper"),
+    "organ": ("hg_chapel", "build_organ", "hg-organ"),
     "mausoleum": ("village", "build_mausoleum", "hg-mausoleum"),
     "barn": ("village", "build_barn", "hg-barn"),
     "candyshop": ("village", "build_shop", "hg-candyshop"),

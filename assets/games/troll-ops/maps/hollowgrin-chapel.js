@@ -13,7 +13,8 @@
 // (models/hg_chapel.py, hg-chapel-tower.glb: the belfry, the parapet, the
 // spire, the clocks' roundels, troll gargoyles) whose bell swings and
 // tolls, its rope down in the ringing room through the nave's north wall,
-// a clock stuck at thirteen, bats round the belfry. The apse pokes 2.7 m out
+// a clock stuck at thirteen, bats round the belfry; a pipe organ by the
+// east door that a ghost plays (hg-organ.glb). The apse pokes 2.7 m out
 // of the west wall, up against the map's edge (its tiered stone benches cover
 // the line where the edge's ghost wall starts, x = -51). One real light.
 //
@@ -31,6 +32,11 @@ const TOWER_DOOR = { c: -40.8, w: 1.3, h: 2.6 };
 const ROOM_CEIL = 3.0;
 const BELL = { x: -40.8, y: 16.75, z: -6.4 };      // the bell's axle (hg_chapel.py PIVOT)
 const CLOCK = { y: 12.3, r: 0.95 };
+// the organ against the east wall south of the door (hg_chapel.py ORGAN,
+// CONSOLE, BENCH), clear of the south lancet's frame
+const ORGAN = { x0: -40.15, x1: -39.6, z0: 4.6, z1: 7.4, h: 6.6 };
+const ORGAN_CONSOLE = { x0: -40.7, x1: -40.15, z0: 5.1, z1: 6.7, h: 1.1 };
+const ORGAN_BENCH = { x0: -41.3, x1: -40.9, z0: 5.3, z1: 6.5, h: 0.5 };
 const T = 0.6;                                      // wall thickness
 const CZ = (CHAPEL.z0 + CHAPEL.z1) / 2;             // 1.75: down the aisle
 const IN = { x0: CHAPEL.x0 + T, x1: CHAPEL.x1 - T, z0: CHAPEL.z0 + T, z1: CHAPEL.z1 - T };
@@ -44,7 +50,7 @@ const TRUSSES = [-48.2, -45.6, -42.8, -40.1];
 // the 0.5 m gaps between rows were somewhere zombies (who need 1.7 m) could
 // never reach you. The front row stands 1.7 m off the rail for the same reason,
 // and the apse behind the altar is shut off (see buildChapel).
-const PEW_ROWS = { north: [-45.3, -44.25, -43.2, -42.15, -41.1, -40.05], south: [-45.3, -44.25, -41.1, -40.05] };
+const PEW_ROWS = { north: [-45.3, -44.25, -43.2, -42.15, -41.1, -40.05], south: [-45.3, -44.25] };   // (the organ: the south's east end)
 const PEW = { north: [IN.z0 + 0.1, CZ - 0.9], south: [CZ + 0.9, IN.z1 - 0.1] };
 const LANCETS_N = [-47, -44.2], LANCETS_S = [-47.2, -40.9];
 const LANCET = { w: 1.2, lo: 2.0, hi: 5.6 };
@@ -54,7 +60,7 @@ const EAST_DOOR = { w: 2.2, h: 3.75 };
 /* ================================================================== build */
 
 export function buildChapel(api, K, M, SP, root, lights, H) {
-  const { place, wall, rodGeo, prismGeo, candle, jack, headstoneGeo, signTexture, surfMat, texMat, flickerMat, rng, ZSPAWNS, hgModel, ticker } = H;
+  const { place, wall, rodGeo, prismGeo, candle, jack, headstoneGeo, signTexture, surfMat, texMat, flickerMat, rng, ZSPAWNS, hgModel, ticker, ghostTroll } = H;
   const C = CHAPEL;
   const R = rng(2027);
   const CM = {
@@ -369,6 +375,7 @@ export function buildChapel(api, K, M, SP, root, lights, H) {
   K.add(new THREE.MeshBasicMaterial({ map: signTexture(["ST. GRINSWORTH'S"], { bg: "#141018", fg: "#e8c868", edge: "#5a2a1a" }), color: 0xffffff }),
     place(new THREE.PlaneGeometry(2.6, 0.42), { x: C.x1 + 0.02, y: 4.16, z: CZ, ry: Math.PI / 2 }), { shadow: false });
   buildTower(api, K, M, SP, root, { place, wall, rodGeo, candle, hgModel, ticker, signTexture });
+  buildOrgan(api, K, M, root, { hgModel, ticker, ghostTroll });
 
   /* ---- the one light, warm, and dust in it */
   const l = new THREE.PointLight(0xffc890, 14, 22, 2);
@@ -547,5 +554,87 @@ function buildTower(api, K, M, SP, root, { wall, rodGeo, candle, hgModel, ticker
       b.wings[0].rotation.z = f;
       b.wings[1].rotation.z = -f;
     }
+  }));
+}
+
+/* ================================================================== the organ */
+
+/* The ghost at the organ: once every ORGAN_PLAY.every seconds (between the
+   bell's tolls) it fades in at the console and plays for ORGAN_PLAY.len
+   seconds, a chord each ORGAN_PLAY.chord. organAt(t): whether it plays, how
+   far it has faded in, and which chord. */
+export const ORGAN_PLAY = { every: 45, at: 21, len: 9, fade: 1.5, chord: 1.1 };
+export function organAt(t) {
+  const s = ((t % ORGAN_PLAY.every) + ORGAN_PLAY.every) % ORGAN_PLAY.every - ORGAN_PLAY.at;
+  const playing = s >= 0 && s < ORGAN_PLAY.len;
+  const fade = s < -ORGAN_PLAY.fade || s > ORGAN_PLAY.len + ORGAN_PLAY.fade ? 0
+    : s < 0 ? 1 + s / ORGAN_PLAY.fade : s > ORGAN_PLAY.len ? 1 - (s - ORGAN_PLAY.len) / ORGAN_PLAY.fade : 1;
+  return { s, playing, fade, chord: playing ? Math.floor(s / ORGAN_PLAY.chord) : -1 };
+}
+
+function buildOrgan(api, K, M, root, { hgModel, ticker, ghostTroll }) {
+  const O = ORGAN, Cn = ORGAN_CONSOLE, B = ORGAN_BENCH;
+  hgModel(api, "hg-organ");
+  K.solid((O.x0 + O.x1) / 2, (O.z0 + O.z1) / 2, O.x1 - O.x0, O.z1 - O.z0, O.h, { pen: 8 });
+  K.solid((Cn.x0 + Cn.x1) / 2, (Cn.z0 + Cn.z1) / 2, Cn.x1 - Cn.x0, Cn.z1 - Cn.z0, Cn.h, { pen: 4 });
+  K.solid((B.x0 + B.x1) / 2, (B.z0 + B.z1) / 2, B.x1 - B.x0, B.z1 - B.z0, B.h, { pen: 2 });
+
+  /* ---- the keys: two manuals of naturals and sharps, instanced; the ghost
+     presses them */
+  const N = 24, z0 = 5.27, kw = (6.53 - z0) / N;
+  const manuals = [{ x: Cn.x0 + 0.1, y: 0.76 }, { x: Cn.x0 + 0.2, y: 0.84 }];
+  const white = new THREE.InstancedMesh(new THREE.BoxGeometry(0.15, 0.022, kw - 0.004), new THREE.MeshStandardMaterial({ color: 0xe8e0c8, roughness: 0.45 }), N * 2);
+  const sharpsAt = [];
+  for (let i = 0; i < N - 1; i++) if ([0, 1, 3, 4, 5].includes(i % 7)) sharpsAt.push(i);
+  const black = new THREE.InstancedMesh(new THREE.BoxGeometry(0.09, 0.02, kw * 0.55), new THREE.MeshStandardMaterial({ color: 0x141214, roughness: 0.4 }), sharpsAt.length * 2);
+  root.add(white, black);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);
+  const setKeys = (pressed) => {
+    manuals.forEach((mn, k) => {
+      for (let i = 0; i < N; i++) {
+        const down = pressed.has(k * 100 + i);
+        e.set(0, 0, down ? -0.06 : 0);
+        m4.compose(p.set(mn.x, mn.y - (down ? 0.008 : 0), z0 + (i + 0.5) * kw), q.setFromEuler(e), one);
+        white.setMatrixAt(k * N + i, m4);
+      }
+      sharpsAt.forEach((i, j) => {
+        const down = pressed.has(k * 100 + 50 + j);
+        m4.compose(p.set(mn.x + 0.03, mn.y + 0.018 - (down ? 0.008 : 0), z0 + (i + 1) * kw), q.identity(), one);
+        black.setMatrixAt(k * sharpsAt.length + j, m4);
+      });
+    });
+    white.instanceMatrix.needsUpdate = true;
+    black.instanceMatrix.needsUpdate = true;
+  };
+  setKeys(new Set());
+
+  /* ---- the ghost on the bench, its own see-through copies of the mansion's
+     ghost materials (so fading it leaves theirs be) */
+  const body = M.ghostly.clone(), face = M.ghostFace.clone();
+  const ghost = ghostTroll(M, body, face);
+  ghost.position.set((B.x0 + B.x1) / 2, 0.12, (B.z0 + B.z1) / 2);
+  ghost.rotation.y = Math.PI / 2;
+  ghost.scale.set(1, 0.82, 1);
+  root.add(ghost);
+  const op = { body: body.opacity, face: face.opacity };
+
+  let last = -2;
+  root.add(ticker(() => {
+    const { fade, chord } = organAt(Date.now() / 1000);
+    ghost.visible = fade > 0.01;
+    body.opacity = op.body * fade;
+    face.opacity = op.face * fade;
+    ghost.position.y = 0.12 + Math.sin(performance.now() / 600) * 0.03;
+    if (chord === last) return;
+    last = chord;
+    const pressed = new Set();
+    if (chord >= 0) {
+      // three or four keys a hand, from the chord's number (the same for everyone)
+      let h = (chord * 2654435761) >>> 0;
+      const next = () => (h = (h * 1103515245 + 12345) >>> 0) / 4294967296;
+      for (const k of [0, 1]) for (let n = 0; n < 3 + (chord % 2); n++) pressed.add(k * 100 + Math.floor(next() * N));
+      if (next() < 0.6) pressed.add(50 + Math.floor(next() * sharpsAt.length));
+    }
+    setKeys(pressed);
   }));
 }
