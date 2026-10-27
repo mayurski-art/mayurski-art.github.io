@@ -243,5 +243,5 @@ def build_shops(PAL):
     for s in (1, -1):
         for (z0, z1, name) in SHOPS_W:
             dress_shop(b, PAL, name, z0, z1, s)
-    b.finish("ug-shops.glb", bake=False, uv2=1024)
+    b.finish("ug-shops.glb", bake=False, uv2=1024, quantize=True)
 

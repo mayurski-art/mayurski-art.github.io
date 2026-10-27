@@ -162,6 +162,24 @@ def station_shell(b, PAL, s):
         quad4(b, W, pts)
     for (p0, p1) in zip(arcp[:-1], arcp[1:]):
         quad4(b, PAL["salmon"], [(p0[0], p0[1], zt - 0.25), (p1[0], p1[1], zt - 0.25), (p1[0], p1[1], zt + 0.25), (p0[0], p0[1], zt + 0.25)])
+    # phase 1: the archivolt on both faces, a ring of salmon tiles 0.45 deep
+    # with their joints, and a white keystone at the crown, 6 cm proud
+    for nz in (-1, 1):
+        zf = zt + nz * 0.25
+        o = nz * 0.012
+        r0, r1, n = R + 0.02, R + 0.47, 28
+        for i in range(n):
+            a0, a1 = math.pi * i / n, math.pi * (i + 1) / n
+            quad4(b, PAL["salmon"], [(r0 * math.cos(a0), ARCH_SPRING + r0 * math.sin(a0), zf + o), (r1 * math.cos(a0), ARCH_SPRING + r1 * math.sin(a0), zf + o),
+                                     (r1 * math.cos(a1), ARCH_SPRING + r1 * math.sin(a1), zf + o), (r0 * math.cos(a1), ARCH_SPRING + r0 * math.sin(a1), zf + o)])
+        for i in range(1, n):
+            a = math.pi * i / n
+            ca, sa, t = math.cos(a), math.sin(a), 0.012
+            quad4(b, PAL["joint"], [((r0 * ca - t * sa), ARCH_SPRING + r0 * sa + t * ca, zf + 2 * o), ((r1 * ca - t * sa), ARCH_SPRING + r1 * sa + t * ca, zf + 2 * o),
+                                    ((r1 * ca + t * sa), ARCH_SPRING + r1 * sa - t * ca, zf + 2 * o), ((r0 * ca + t * sa), ARCH_SPRING + r0 * sa - t * ca, zf + 2 * o)])
+        ytop = ARCH_SPRING + r1 + 0.02
+        bx(b, PAL["white"], -0.36, 0.36, ARCH_SPRING + r0 - 0.12, ytop, zf, zf + nz * 0.06)
+        bx(b, PAL["lightgrey"], -0.42, 0.42, ytop - 0.08, ytop, zf, zf + nz * 0.08)
     # salmon band and stripe on both faces of the threshold piers
     for (face_z, sign) in ((zt - 0.25 * s, -s), (zt + 0.25 * s, s)):
         for (a, c) in ((-16, -7), (7, 16)):
@@ -226,5 +244,5 @@ def build_shell(PAL):
     bx(b, PAL["mullion"], -10.2, -9.9, ATRIUM_CEIL - 0.45, ATRIUM_CEIL - 0.02, -10.2, 10.2)
     bx(b, PAL["mullion"], 9.9, 10.2, ATRIUM_CEIL - 0.45, ATRIUM_CEIL - 0.02, -10.2, 10.2)
     # the light well's slab edge lining (the slab is cut; this is the reveal's paint)
-    b.finish("ug-shell.glb", bake=False, uv2=2048)
+    b.finish("ug-shell.glb", bake=False, uv2=2048, quantize=True)
 

@@ -41,6 +41,11 @@ const data = await page.evaluate(async (tag) => {
   const colliders = [];
   const arena = {};
   const built = buildMap("undergrin", { colliders, arena });
+  // the Blender props' colliders (maps/undergrin-props.js, written by the
+  // build) come last: the build's own output, so not part of its input
+  const { UG_PROPS } = await import("/assets/games/troll-ops/maps/undergrin-props.js");
+  const props = UG_PROPS.colliders.length;
+  const layout = props ? colliders.slice(0, colliders.length - props) : colliders;
   const r = (v) => Math.round(v * 1000) / 1000;
   const m = MAPS.undergrin;
   return {
@@ -50,7 +55,8 @@ const data = await page.evaluate(async (tag) => {
     playerSpawn: m.playerSpawn,
     bombSites: m.bombSites,
     // [x0, y0, z0, x1, y1, z1, pen]: the game's own boxes, in build order
-    colliders: colliders.map((c) => [r(c.min.x), r(c.min.y), r(c.min.z), r(c.max.x), r(c.max.y), r(c.max.z), c.pen]),
+    props,
+    colliders: layout.map((c) => [r(c.min.x), r(c.min.y), r(c.min.z), r(c.max.x), r(c.max.y), r(c.max.z), c.pen]),
     // every flight's foot and top (api.stairs, plus the flights findStairs
     // found): what the bots plan on
     stairs: built.stairs.map((s) => ({ a: [r(s.a.x), r(s.a.y), r(s.a.z)], b: [r(s.b.x), r(s.b.y), r(s.b.z)], found: !!s.found })),
@@ -60,4 +66,4 @@ await browser.close(); server.close();
 if (errors.length) { console.error(errors.join("\n")); process.exit(1); }
 const out = { hash: HASH, source: hashed, ...data };
 fs.writeFileSync(OUT, JSON.stringify(out, null, 1) + "\n");
-console.log(`wrote ${path.relative(ROOT, OUT)}: ${data.colliders.length} colliders, ${data.stairs.length} stairs links, ${data.spawns.length} spawns, hash ${HASH} (${hashed})`);
+console.log(`wrote ${path.relative(ROOT, OUT)}: ${data.colliders.length} colliders (+${data.props} props'), ${data.stairs.length} stairs links, ${data.spawns.length} spawns, hash ${HASH} (${hashed})`);

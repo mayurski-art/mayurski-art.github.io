@@ -181,10 +181,13 @@ class Registry:
         self.faces.append({"id": fid, "owner": owner, "c": [round(float(v), 3) for v in c], "n": [round(float(v), 3) for v in n],
                            "u": [round(float(v), 3) for v in u], "w": w, "h": h})
 
-    def sign(self, sid, c, n, w, h, text, fg, bg=None):
-        """A sign the game letters at load (maps/undergrin-signs.js, phase 1)."""
-        self.signs.append({"id": sid, "c": [round(float(v), 3) for v in c], "n": [round(float(v), 3) for v in n], "w": w, "h": h,
-                           "text": text, "fg": fg, "bg": bg})
+    def sign(self, sid, c, u, v, w, h, lines, fg, lit=False, align="c", weight=700):
+        """Words the game letters at load (maps/undergrin-signs.js): the text
+        plane's centre c, its right u and up v, the w x h box the lines fit
+        in, the ink as a hex, lit (brighter than white, for the bloom)."""
+        r3 = lambda p: [round(float(x), 4) for x in p]
+        self.signs.append({"id": sid, "c": r3(c), "u": r3(u), "v": r3(v), "w": round(w, 3), "h": round(h, 3),
+                           "lines": list(lines), "fg": int(fg), "lit": bool(lit), "align": align, "weight": weight})
 
 
 REG = Registry()
@@ -258,30 +261,30 @@ def eye_regions():
 
 def write_registry(R):
     """models/undergrin-faces.json (the obstruction test: eyes, faces, every
-    prop's bounds), models/undergrin-signs.json when there are signs, and
-    maps/undergrin-props.js when a prop needs a collider; prints the props
-    whose bounds cross."""
+    prop's bounds), maps/undergrin-sign-data.js (the words the game letters
+    at load) and maps/undergrin-props.js (the colliders the props need, on
+    top of the layout's); prints the props whose bounds cross."""
     NL = chr(10)
     with open(os.path.join(OUT_DIR, "undergrin-faces.json"), "w", newline=NL) as f:
         json.dump({"eyes": eye_regions(), "known": [], "faces": R.faces + doorway_faces(), "props": R.props}, f, indent=1)
-    if R.signs:
-        with open(os.path.join(OUT_DIR, "undergrin-signs.json"), "w", newline=NL) as f:
-            json.dump({"signs": R.signs}, f, indent=1)
-    if R.colliders:
-        js = os.path.join(OUT_DIR, "..", "maps", "undergrin-props.js")
-        rows = ("," + NL).join("    [" + ",".join(f"{v:g}" for v in c) + "]" for c in R.colliders)
-        with open(js, "w", newline=NL) as f:
-            f.write(NL.join([
-                "// Written by models/build_undergrin.blender.py: the colliders Undergrin's",
-                "// Blender props need (anything over 0.6 m), on top of the layout's",
-                "// (maps/undergrin.js): [x, z, w, d, h, y, pen].",
-                "export const UG_PROPS = {",
-                "  colliders: [",
-                rows + ",",
-                "  ],",
-                "};",
-                "",
-            ]))
+    maps_dir = os.path.join(OUT_DIR, "..", "maps")
+    with open(os.path.join(maps_dir, "undergrin-sign-data.js"), "w", newline=NL, encoding="utf-8") as f:
+        f.write(NL.join([
+            "// Written by models/build_undergrin.blender.py: Undergrin's signs, lettered",
+            "// at load by undergrin-signs.js. c: the text plane's centre, u its right,",
+            "// v its up, w x h the box the lines fit in, fg the ink. Don't edit by hand.",
+            "export const UG_SIGNS = [",
+        ] + ["  " + json.dumps(s, ensure_ascii=False, separators=(",", ":")) + "," for s in R.signs] + ["];", ""]))
+    rows = [("    [" + ",".join(f"{v:g}" for v in c) + "],") for c in R.colliders]
+    with open(os.path.join(maps_dir, "undergrin-props.js"), "w", newline=NL) as f:
+        f.write(NL.join([
+            "// Written by models/build_undergrin.blender.py: the colliders Undergrin's",
+            "// Blender props need (anything over 0.6 m that today's layout has no",
+            "// solid for), added after the layout's (maps/undergrin.js): [x, z, w, d,",
+            "// h, y, pen]. Don't edit by hand.",
+            "export const UG_PROPS = {",
+            "  colliders: [",
+        ] + rows + ["  ],", "};", ""]))
     # the overlap pass: no two props' bounds cross, unless one stands on the other
     bad = []
     for i, a in enumerate(R.props):
@@ -312,6 +315,8 @@ def ug_palette():
         "pfloor": mat("UG_PlatformFloor", 0xe8e6e0, 0.8),
         "yellow": mat("UG_Zone", 0xe5b84a, 0.7),
         "salmon": mat("UG_Salmon", 0xc9704e, 0.85),
+        "joint": mat("UG_TileJoint", 0xa95a3c, 0.85),
+        "floorline": mat("UG_FloorLine", 0xc6c6c1, 0.8),
         "stripe": mat("UG_Stripe", 0x2f5fd0, 0.6),
         "grey": mat("UG_Grey", 0x8a8d92, 0.8),
         "dark": mat("UG_Dark", 0x3e4146, 0.7),
@@ -507,6 +512,32 @@ def text(b, m, s, c, normal, h, o=0.012, align="c", up=None):
     for (_k, i0, i1, j0, j1) in rects2(grid):
         rect(b, m, org, Uv, Vv, i0 * cell, i1 * cell, (7 - j1) * cell, (7 - j0) * cell)
     return W
+
+
+def hexof(PAL, k):
+    """A palette key's (or a hex's) colour as an int."""
+    return int(PAL[k]["gs_hex"]) if isinstance(k, str) else int(k)
+
+
+def sign(b, PAL, c, normal, w, h, lines, fg="white", bg=None, lit=False, o=0.012, align="c", weight=700,
+         up=None, pad=None, sid=None, face="wall"):
+    """Real words on a sign (doc decision 8): the backing panel (bg, a
+    palette key, or none) in the GLB, the lettering recorded for
+    maps/undergrin-signs.js to draw at load in a DIN stack, fitted to the
+    w x h box less `pad`. face: the owner the obstruction test files it
+    under ("wall", "@self" inside a prop, None: not a face)."""
+    if isinstance(lines, str):
+        lines = [lines]
+    if pad is None:
+        pad = min(0.08, 0.12 * h)
+    Uv, Vv = frame(normal, up)
+    if bg is not None:
+        panel(b, PAL[bg], c, normal, w, h, o=o, up=up)
+    tc = Vector(c) + Vector(normal) * (o + 0.006)
+    sid = sid or "sign@%.1f,%.1f,%.1f" % tuple(c)
+    REG.sign(sid, tc, Uv, Vv, w - 2 * pad, h - 2 * pad, lines, hexof(PAL, fg), lit, align, weight)
+    if face:
+        REG.face(sid, face, c, normal, w, h)
 
 
 _IMG = {}
@@ -740,10 +771,11 @@ def roundel(b, PAL, c, normal, r=0.5, label="UNDERGRIN"):
     """The UNDERGRIN roundel: red ring, blue bar, white lettering (none on
     the small ones)."""
     REG.face("roundel@%.1f,%.1f,%.1f" % tuple(c), "wall", c, normal, 2 * r, 2 * r)
-    ring(b, PAL["roundel"], c, normal, r * 0.62, r, seg=16, o=0.015)
+    ring(b, PAL["roundel"], c, normal, r * 0.62, r, seg=24, o=0.015)
     panel(b, PAL["roundelblue"], c, normal, r * 2.3, r * 0.42, o=0.03)
     if label and r >= 0.4:
-        text(b, PAL["white"], label, c, normal, r * 0.26, o=0.045)
+        sign(b, PAL, c, normal, r * 2.3, r * 0.42, [label], o=0.03, weight=700, pad=r * 0.06, face=None,
+             sid="roundel@%.1f,%.1f,%.1f" % tuple(c))
 
 
 def tube_light(b, PAL, x, z, y, along="x", L=1.2):
@@ -753,12 +785,25 @@ def tube_light(b, PAL, x, z, y, along="x", L=1.2):
         rect(b, PAL["tube"], (x - 0.08, y, z - L / 2), (1, 0, 0), (0, 0, 1), 0, 0.16, 0, L)
 
 
-def exit_sign(b, PAL, c, normal, w=0.7):
-    """EXIT: a dark box with green lit lettering, hung flat on a wall or
-    from a ceiling bracket."""
-    REG.face("exit@%.1f,%.1f,%.1f" % tuple(c), "wall", c, normal, w, w * 0.4)
-    panel(b, PAL["black"], c, normal, w, w * 0.4, o=0.0)
-    text(b, PAL["exit"], "EXIT", c, normal, w * 0.26, o=0.012)
+def exit_sign(b, PAL, c, normal, w=0.9, word="Ausgang"):
+    """The way out: a dark box, a lit green running arrow and the word in
+    green, flat on a wall over a door (Ausgang; the bores' say Notausgang)."""
+    h = min(w * 0.4, 0.3)
+    REG.face("exit@%.1f,%.1f,%.1f" % tuple(c), "wall", c, normal, w, h)
+    Uv, Vv = frame(normal)
+    cc = Vector(c)
+    # the box, proud of the wall, with a bevelled rim
+    nn = Vector(normal)
+    a, bb = cc - Uv * (w / 2) - Vv * (h / 2), cc + Uv * (w / 2) + Vv * (h / 2) + nn * 0.05
+    bx(b, PAL["dark"], a.x, bb.x, a.y, bb.y, a.z, bb.z)
+    panel(b, PAL["black"], c, normal, w - 0.03, h - 0.03, o=0.052)
+    # the arrow at the left end, the word to its right
+    ax = cc - Uv * (w / 2 - h * 0.55) + nn * 0.056
+    rect(b, PAL["exit"], ax, Uv, Vv, -h * 0.28, h * 0.12, -h * 0.07, h * 0.07)
+    quad4(b, PAL["exit"], [ax + Uv * (h * 0.12) + Vv * (h * 0.22), ax + Uv * (h * 0.12) - Vv * (h * 0.22), ax + Uv * (h * 0.34)])
+    tw = w - h * 1.1
+    sign(b, PAL, cc + Uv * (h * 0.55 - 0.0), normal, tw, h, [word], fg="exit", lit=True, o=0.052, align="c", pad=h * 0.16,
+         face=None, sid="exit@%.1f,%.1f,%.1f" % tuple(c))
 
 
 def vault_y(x, span=16.0, rise=3.0, y0=HALL_WALL):
@@ -769,49 +814,32 @@ def vault_y(x, span=16.0, rise=3.0, y0=HALL_WALL):
 
 @registered("bench")
 def bench(b, PAL, x, z, y, along="x", L=2.4, back=1):
-    """Blue slatted bench on black legs, 2.4 long (the Metro one); `back`
-    is the side (+-1 across it) its back is on."""
-    if back < 0:
-        # draw it turned: mirror the across offsets
-        return _bench_flip(b, PAL, x, z, y, along, L)
-    w = L if along == "x" else 0.55
-    d = 0.55 if along == "x" else L
-    if along == "x":
-        bx(b, PAL["bench"], x - L / 2, x + L / 2, y + 0.42, y + 0.47, z - 0.28, z + 0.28)
-    else:
-        bx(b, PAL["bench"], x - 0.28, x + 0.28, y + 0.42, y + 0.47, z - L / 2, z + L / 2)
-    # back slats
-    if along == "x":
-        bx(b, PAL["bench"], x - L / 2, x + L / 2, y + 0.6, y + 0.9, z + 0.22, z + 0.28)
-    else:
-        bx(b, PAL["bench"], x + 0.22, x + 0.28, y + 0.6, y + 0.9, z - L / 2, z + L / 2)
-    for s in (-1, 1):
-        if along == "x":
-            lx = x + s * (L / 2 - 0.3)
-            bx(b, PAL["black"], lx - 0.04, lx + 0.04, y, y + 0.42, z - 0.25, z + 0.25)
-            bx(b, PAL["black"], lx - 0.04, lx + 0.04, y + 0.42, y + 0.95, z + 0.2, z + 0.28)
-        else:
-            lz = z + s * (L / 2 - 0.3)
-            bx(b, PAL["black"], x - 0.25, x + 0.25, y, y + 0.42, lz - 0.04, lz + 0.04)
-            bx(b, PAL["black"], x + 0.2, x + 0.28, y + 0.42, y + 0.95, lz - 0.04, lz + 0.04)
+    """The Metro's blue bench, 2.4 long, inside 0.56 x 0.95: four seat
+    slats and three back slats on black steel frames (a leg, a back
+    upright and a seat rail at each end, on a foot). `back` is the side
+    (+-1 across it) its back is on."""
+    sg = 1 if back >= 0 else -1
 
-
-def _bench_flip(b, PAL, x, z, y, along, L):
-    if along == "x":
-        bx(b, PAL["bench"], x - L / 2, x + L / 2, y + 0.42, y + 0.47, z - 0.28, z + 0.28)
-        bx(b, PAL["bench"], x - L / 2, x + L / 2, y + 0.6, y + 0.9, z - 0.28, z - 0.22)
-    else:
-        bx(b, PAL["bench"], x - 0.28, x + 0.28, y + 0.42, y + 0.47, z - L / 2, z + L / 2)
-        bx(b, PAL["bench"], x - 0.28, x - 0.22, y + 0.6, y + 0.9, z - L / 2, z + L / 2)
-    for s in (-1, 1):
+    def B(m, a0, a1, y0, y1, c0, c1):
+        # a along the bench, c across it (toward the back when positive)
+        c0, c1 = sorted((sg * c0, sg * c1))
         if along == "x":
-            lx = x + s * (L / 2 - 0.3)
-            bx(b, PAL["black"], lx - 0.04, lx + 0.04, y, y + 0.42, z - 0.25, z + 0.25)
-            bx(b, PAL["black"], lx - 0.04, lx + 0.04, y + 0.42, y + 0.95, z - 0.28, z - 0.2)
+            bx(b, m, x + a0, x + a1, y + y0, y + y1, z + c0, z + c1)
         else:
-            lz = z + s * (L / 2 - 0.3)
-            bx(b, PAL["black"], x - 0.25, x + 0.25, y, y + 0.42, lz - 0.04, lz + 0.04)
-            bx(b, PAL["black"], x - 0.28, x - 0.2, y + 0.42, y + 0.95, lz - 0.04, lz + 0.04)
+            bx(b, m, x + c0, x + c1, y + y0, y + y1, z + a0, z + a1)
+    half = L / 2
+    for k in range(4):
+        c0 = -0.28 + k * 0.125
+        B(PAL["bench"], -half, half, 0.42, 0.465, c0, c0 + 0.105)
+    for k in range(3):
+        y0 = 0.56 + k * 0.125
+        B(PAL["bench"], -half, half, y0, y0 + 0.095, 0.2, 0.235)
+    for sx in (-1, 1):
+        a = sx * (half - 0.3)
+        B(PAL["black"], a - 0.03, a + 0.03, 0.0, 0.42, -0.24, -0.2)      # the front leg
+        B(PAL["black"], a - 0.03, a + 0.03, 0.0, 0.95, 0.235, 0.28)      # the back upright
+        B(PAL["black"], a - 0.03, a + 0.03, 0.38, 0.42, -0.26, 0.235)    # the seat rail
+        B(PAL["black"], a - 0.04, a + 0.04, 0.0, 0.02, -0.28, 0.28)      # the foot
 
 
 def steps_x(b, PAL, x0, x1, z_foot, n, rise, run, direction, y0, m=None, nosing=True):
@@ -862,3 +890,213 @@ def rail_run(b, PAL, a, c, y, h=1.1, m=None, posts=2.0):
     b.bar(m, (a.x, y + h - 0.025, a.z), (c.x, y + h - 0.025, c.z), 0.05)
     b.bar(m, (a.x, y + h * 0.5, a.z), (c.x, y + h * 0.5, c.z), 0.035)
 
+
+# ------------------------------------------------- station furniture (phase 1)
+
+def collide(x0, x1, y0, y1, z0, z1, pen=3):
+    """A collider by extents for a prop today's layout has no solid for
+    (maps/undergrin-props.js)."""
+    x0, x1 = sorted((x0, x1))
+    y0, y1 = sorted((y0, y1))
+    z0, z1 = sorted((z0, z1))
+    REG.collider((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, y1 - y0, y0, pen)
+
+
+def wall_box(c, normal, w, h, d):
+    """Extents of a w x h box d deep standing out of the wall at c (c on
+    the wall plane, centred on the box's back), for bx() or collide()."""
+    Uv, Vv = frame(normal)
+    a = Vector(c) - Uv * (w / 2) - Vv * (h / 2)
+    e = Vector(c) + Uv * (w / 2) + Vv * (h / 2) + Vector(normal) * d
+    return (a.x, e.x, a.y, e.y, a.z, e.z)
+
+
+def wbx(b, m, c, normal, w, h, d, o=0.0):
+    """A box d deep out of the wall, its back o off the wall plane."""
+    x0, x1, y0, y1, z0, z1 = wall_box(Vector(c) + Vector(normal) * o, normal, w, h, d)
+    bx(b, m, x0, x1, y0, y1, z0, z1)
+
+
+def poster_frame(b, PAL, c, normal, w, h, t=0.05, d=0.035):
+    """The aluminium snap frame round a poster (c, w, h: the poster's), a
+    bar t wide just outside each edge, d proud of the wall."""
+    Uv, Vv = frame(normal)
+    for (du, dv, ww, hh) in ((0, (h + t) / 2, w + 2 * t, t), (0, -(h + t) / 2, w + 2 * t, t),
+                             ((w + t) / 2, 0, t, h), (-(w + t) / 2, 0, t, h)):
+        wbx(b, PAL["steel"], Vector(c) + Uv * du + Vv * dv, normal, ww, hh, d)
+
+
+@registered("bin")
+def litter_bin(b, PAL, x, z, y, collide_it=True):
+    """The orange station bin: a 0.44 drum on a black plinth, a dark rim
+    and a hooded top with the slot, 0.9 tall."""
+    b.cyl(PAL["black"], 0.2, (x, y, z), (x, y + 0.08, z), seg=12)
+    b.cyl(PAL["orange"], 0.22, (x, y + 0.08, z), (x, y + 0.78, z), seg=16)
+    b.cyl(PAL["dark"], 0.23, (x, y + 0.5, z), (x, y + 0.54, z), seg=16)
+    b.cyl(PAL["dark"], 0.225, (x, y + 0.78, z), (x, y + 0.84, z), seg=16)
+    b.cyl(PAL["orange"], 0.18, (x, y + 0.84, z), (x, y + 0.9, z), seg=16)
+    disc(b, PAL["black"], (x, y + 0.901, z), (0, 1, 0), 0.1, seg=12)
+    if collide_it:
+        collide(x - 0.23, x + 0.23, y, y + 0.9, z - 0.23, z + 0.23)
+
+
+@registered("sos")
+def sos_pillar(b, PAL, x, z, y, facing):
+    """A Notruf / Information column: a dark 0.3 square post 2.2 tall, a
+    red head lettered SOS on all four sides, the call panel with its two
+    buttons and the speaker grille on the face. facing: (nx, nz)."""
+    nx, nz = facing
+    bx(b, PAL["dark"], x - 0.15, x + 0.15, y, y + 1.85, z - 0.15, z + 0.15)
+    bx(b, PAL["roundel"], x - 0.17, x + 0.17, y + 1.85, y + 2.2, z - 0.17, z + 0.17)
+    for (ax, az) in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        sign(b, PAL, (x + ax * 0.17, y + 2.025, z + az * 0.17), (ax, 0, az), 0.34, 0.3, ["SOS"], fg="white", o=0.004, weight=800,
+             pad=0.04, face=None, sid="sos@%.1f,%.1f/%+d%+d" % (x, z, ax, az))
+    c = (x + nx * 0.15, y + 1.35, z + nz * 0.15)
+    n = (nx, 0, nz)
+    panel(b, PAL["lightgrey"], c, n, 0.24, 0.5, o=0.004)
+    Uv, Vv = frame(n)
+    for (dv, col, word) in ((0.12, "roundel", "Notruf"), (-0.04, "stripe", "Info")):
+        disc(b, PAL[col], Vector(c) + Vv * dv, n, 0.045, seg=12, o=0.01)
+        sign(b, PAL, Vector(c) + Vv * (dv - 0.075), n, 0.22, 0.05, [word], fg="black", o=0.006, pad=0.004, face=None,
+             sid="sos@%.1f,%.1f/%s" % (x, z, word))
+    for k in range(4):
+        rect(b, PAL["black"], Vector(c) + Vector(n) * 0.008, Uv, Vv, -0.07, 0.07, -0.2 + k * 0.025, -0.19 + k * 0.025)
+    REG.face("sos@%.1f,%.1f" % (x, z), "@self", c, n, 0.24, 0.5)
+    collide(x - 0.17, x + 0.17, y, y + 2.2, z - 0.17, z + 0.17)
+
+
+@registered("extinguisher")
+def extinguisher_cabinet(b, PAL, c, normal):
+    """A red wall cabinet 0.45 x 0.8, 0.2 deep, with a window onto the
+    extinguisher, the Feuerlöscher plate over it. c: the cabinet's back
+    centre on the wall."""
+    n = Vector(normal)
+    wbx(b, PAL["red"], c, normal, 0.45, 0.8, 0.2)
+    Uv, Vv = frame(normal)
+    face_c = Vector(c) + n * 0.2
+    panel(b, PAL["glass"], face_c + Vv * 0.04, normal, 0.32, 0.56, o=0.004)
+    # the extinguisher behind the glass: a red bottle and its black valve
+    rect(b, PAL["roundel"], face_c + n * 0.006, Uv, Vv, -0.07, 0.07, -0.22, 0.2)
+    rect(b, PAL["black"], face_c + n * 0.008, Uv, Vv, -0.03, 0.03, 0.2, 0.28)
+    sign(b, PAL, Vector(c) + Vv * 0.52, normal, 0.45, 0.14, ["Feuerlöscher"], fg="white", bg="red", o=0.02, pad=0.02,
+         face="@self", sid="extinguisher@%.1f,%.1f,%.1f" % tuple(c))
+    x0, x1, y0, y1, z0, z1 = wall_box(c, normal, 0.45, 0.8, 0.2)
+    collide(x0, x1, y0, y1, z0, z1, pen=2)
+
+
+@registered("hydrant")
+def hose_cabinet(b, PAL, c, normal):
+    """A Wandhydrant: a red cabinet 0.8 x 1.0, 0.25 deep, its door framed,
+    the hose reel seen through a round window, the plate on the door."""
+    n = Vector(normal)
+    wbx(b, PAL["red"], c, normal, 0.8, 1.0, 0.25)
+    Uv, Vv = frame(normal)
+    fc = Vector(c) + n * 0.25
+    for (du, dv, ww, hh) in ((0, 0.47, 0.8, 0.06), (0, -0.47, 0.8, 0.06), (0.37, 0, 0.06, 1.0), (-0.37, 0, 0.06, 1.0)):
+        panel(b, PAL["roundel"], fc + Uv * du + Vv * dv, normal, ww, hh, o=0.003)
+    disc(b, PAL["glass"], fc + Vv * 0.1, normal, 0.24, seg=20, o=0.004)
+    ring(b, PAL["roundel"], fc + Vv * 0.1, normal, 0.08, 0.2, seg=20, o=0.006)
+    rect(b, PAL["steel"], fc + n * 0.006, Uv, Vv, 0.28, 0.32, -0.12, 0.04)
+    sign(b, PAL, fc - Vv * 0.3, normal, 0.6, 0.16, ["Wandhydrant"], fg="red", bg="white", o=0.004, pad=0.02,
+         face="@self", sid="hydrant@%.1f,%.1f,%.1f" % tuple(c))
+    x0, x1, y0, y1, z0, z1 = wall_box(c, normal, 0.8, 1.0, 0.25)
+    collide(x0, x1, y0, y1, z0, z1, pen=2)
+
+
+def speaker(b, PAL, c, normal):
+    """A PA speaker high on a wall: a white box on a bracket, tilted face
+    down in spirit, a black grille."""
+    wbx(b, PAL["steel"], c, normal, 0.06, 0.06, 0.12)
+    wbx(b, PAL["white"], c, normal, 0.22, 0.32, 0.14, o=0.12)
+    Uv, Vv = frame(normal)
+    fc = Vector(c) + Vector(normal) * 0.26
+    for k in range(6):
+        rect(b, PAL["black"], fc + Vector(normal) * 0.002, Uv, Vv, -0.08, 0.08, -0.12 + k * 0.045, -0.1 + k * 0.045)
+
+
+def cctv(b, PAL, c, normal):
+    """A camera dome on a wall arm: the arm, the mount and a dark dome."""
+    n = Vector(normal)
+    wbx(b, PAL["white"], c, normal, 0.12, 0.12, 0.04)
+    p0, p1 = Vector(c) + n * 0.04, Vector(c) + n * 0.32
+    b.bar(PAL["white"], tuple(p0), tuple(p1), 0.05)
+    b.cyl(PAL["white"], 0.1, tuple(p1 + Vector((0, 0.02, 0))), tuple(p1 - Vector((0, 0.05, 0))), seg=12)
+    b.cyl(PAL["black"], 0.09, tuple(p1 - Vector((0, 0.05, 0))), tuple(p1 - Vector((0, 0.15, 0))), seg=12, r2=0.04)
+
+
+def _joints(b, m, org, Uv, Vv, lo, hi, y0, y1, da, dy, gaps, t):
+    """Lines every dy up and every da along a wall, between lo..hi along Uv
+    from org (org on the floor plane), y0..y1; gaps: (a, b, top) spans a
+    doorway cuts below `top`."""
+    def spans(yy):
+        out = [(lo, hi)]
+        for (ga, gb, top) in gaps:
+            if yy < top:
+                nxt = []
+                for (p, q) in out:
+                    if gb <= p or ga >= q:
+                        nxt.append((p, q))
+                        continue
+                    if p < ga:
+                        nxt.append((p, ga))
+                    if gb < q:
+                        nxt.append((gb, q))
+                out = nxt
+        return out
+    k = 1
+    while y0 + k * dy < y1 - 1e-3:
+        yy = y0 + k * dy
+        for (p, q) in spans(yy):
+            rect(b, m, org, Uv, Vv, p, q, yy - t / 2, yy + t / 2)
+        k += 1
+    k = 1
+    while lo + k * da < hi - 1e-3:
+        aa = lo + k * da
+        ys = max([y0] + [top for (ga, gb, top) in gaps if ga - t < aa < gb + t])
+        if ys < y1:
+            rect(b, m, org, Uv, Vv, aa - t / 2, aa + t / 2, ys, y1)
+        k += 1
+
+
+def joints_z(b, m, x, nx, y0, y1, z0, z1, dz, dy, doors=(), t=0.012, o=0.013):
+    """Tile joints on a wall at x facing +-x (nx), z0..z1, y0..y1; doors:
+    (zc, w, top) as band_z's."""
+    n = (nx, 0, 0)
+    Uv, Vv = frame(n)
+    org = Vector((x + nx * o, 0.0, 0.0))
+    a = lambda zz: Uv.z * zz
+    lo, hi = sorted((a(z0), a(z1)))
+    gaps = [tuple(sorted((a(zc - w / 2), a(zc + w / 2)))) + (top,) for (zc, w, top) in doors]
+    _joints(b, m, org, Uv, Vv, lo, hi, y0, y1, dz, dy, gaps, t)
+
+
+def joints_x(b, m, z, nz, y0, y1, x0, x1, dx, dy, doors=(), t=0.012, o=0.013):
+    """The same on a wall at z facing +-z, x0..x1."""
+    n = (0, 0, nz)
+    Uv, Vv = frame(n)
+    org = Vector((0.0, 0.0, z + nz * o))
+    a = lambda xx: Uv.x * xx
+    lo, hi = sorted((a(x0), a(x1)))
+    gaps = [tuple(sorted((a(xc - w / 2), a(xc + w / 2)))) + (top,) for (xc, w, top) in doors]
+    _joints(b, m, org, Uv, Vv, lo, hi, y0, y1, dx, dy, gaps, t)
+
+
+@registered("pigeon")
+def pigeon(b, PAL, x, z, y, heading=0.0):
+    """A pigeon on a beam: grey body, a darker head, the tail, pink feet;
+    heading turns it about y (0: beak to +x)."""
+    ca, sa = math.cos(heading), math.sin(heading)
+
+    def P(ax, ay, az):
+        return (x + ax * ca - az * sa, y + ay, z + ax * sa + az * ca)
+
+    def box(m, a0, a1, y0, y1, c0, c1):
+        pts = [P(a, yy, c) for a in (a0, a1) for yy in (y0, y1) for c in (c0, c1)]
+        xs, ys, zs = zip(*pts)
+        bx(b, m, min(xs), max(xs), min(ys), max(ys), min(zs), max(zs))
+    box(PAL["grey"], -0.12, 0.1, 0.04, 0.17, -0.06, 0.06)     # body
+    box(PAL["dark"], 0.07, 0.15, 0.15, 0.23, -0.04, 0.04)     # head
+    box(PAL["orange"], 0.15, 0.18, 0.18, 0.2, -0.012, 0.012)  # beak
+    box(PAL["dark"], -0.22, -0.12, 0.09, 0.13, -0.04, 0.04)   # tail
+    box(PAL["pink"], -0.01, 0.02, 0.0, 0.04, -0.035, -0.015)  # feet
+    box(PAL["pink"], -0.01, 0.02, 0.0, 0.04, 0.015, 0.035)

@@ -112,5 +112,5 @@ def build_trains(PAL):
         for cz in CAR_Z:
             troll_poster(b, PAL, (s * (TRAIN_X[0] + 0.1), P + 2.07, s * (cz - 2.0)), (s, 0, 0), 0.6, 0.4, PAL["stripe"], cells=16, o=0.0)
             troll_poster(b, PAL, (s * (TRAIN_X[1] - 0.1), P + 2.07, s * (cz + 2.0)), (-s, 0, 0), 0.6, 0.4, PAL["salmon"], cells=16, o=0.0)
-    b.finish("ug-trains.glb", bake=False, uv2=1024)
+    b.finish("ug-trains.glb", bake=False, uv2=1024, quantize=True)
 

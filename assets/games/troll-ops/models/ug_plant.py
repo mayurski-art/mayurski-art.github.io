@@ -146,5 +146,5 @@ def build_plant(PAL):
     for s in (1, -1):
         corridor_props(b, PAL, s)
         bore_props(b, PAL, s)
-    b.finish("ug-plant.glb", bake=False, uv2=1024)
+    b.finish("ug-plant.glb", bake=False, uv2=1024, quantize=True)
 

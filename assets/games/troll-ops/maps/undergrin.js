@@ -7,6 +7,8 @@
 // Moved out of maps.js in phase 0 (2026-10-27), unchanged.
 
 import { mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1";
+import { UG_PROPS } from "./undergrin-props.js?v=ugp1";
+import { buildUndergrinSigns } from "./undergrin-signs.js?v=ugs1";
 
 /* Undergrin (2026-10-15): a Phantom Forces "Metro (2025)" station in the
    modded full-bright look, UNDERGRIN-METRO.md. Every number here is the
@@ -20,6 +22,26 @@ import { mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-k
    ug-*-ao.webp atlases; doc decision 1): 0 is the pure flat full-bright
    station, 1 the full bake. The user picks it on side-by-side shots. */
 export const UG_AO = 0.4;
+
+/* The walk-in Fotoautomat in each hall (north half's numbers; the south's
+   is turned 180 degrees about the origin): its outer walls, the doorway on
+   its south face. UG_BOOTHS: where Socialize's photo booth
+   (modes/photo-booth.js) takes your pictures, per half: the floor inside,
+   the camera in the back wall and where it looks, the spot you stand on
+   (the footprints, a metre from the lens) and the way it faces. */
+export const UG_BOOTH = { x0: -7.6, x1: -5.2, z0: -21.2, z1: -19.0, door0: -7.45, door1: -6.3 };
+export const UG_BOOTHS = [1, -1].map((s) => {
+  const B = UG_BOOTH, U = 6.0, cx = (B.x0 + B.x1) / 2;
+  const P = (x, y, z) => [s * x, y, s * z];
+  const xs = [s * (B.x0 + 0.08), s * (B.x1 - 0.08)].sort((a, b) => a - b);
+  const zs = [s * (B.z0 + 0.08), s * (B.z1 - 0.08)].sort((a, b) => a - b);
+  return {
+    id: s > 0 ? "north" : "south", floor: U,
+    x0: xs[0], x1: xs[1], z0: zs[0], z1: zs[1],
+    cam: P(cx, U + 1.62, B.z0 + 0.12), look: P(cx, U + 1.48, B.z1),
+    spot: P(cx, U, B.z0 + 1.2), yaw: s > 0 ? 0 : Math.PI,
+  };
+});
 
 export const UG = {
   wall: 0xe6e4df, floor: 0xececea, band: 0xc9704e, stripe: 0x2f5fd0, zone: 0xe5b84a, platform: 0xe8e6e0,
@@ -45,9 +67,14 @@ export function buildUndergrin(api) {
     try { return api.stairs(...args); } finally { api.box = realBox; }
   };
   buildUndergrinParts(solid);
+  // the Blender props' own colliders (bins, cabinets, columns), after the
+  // layout's so the layout dump can leave them out (it is the build's input)
+  for (const [x, z, w, d, h, y, pen] of UG_PROPS.colliders) api.ghostBox(x, z, w, d, h, { y, pen });
   for (const part of ["shell", "platforms", "escalators", "trains", "concourse", "shops", "plant"]) {
     mapModel(api, `ug-${part}`, { x: 0, z: 0, castShadow: false, ao: UG_AO });
   }
+  // the signs' words, lettered in German at load (undergrin-signs.js)
+  api.prop(buildUndergrinSigns());
 }
 
 function buildUndergrinParts(api) {
@@ -225,7 +252,19 @@ function buildUndergrinParts(api) {
     B(-16.6, -16, -16, 16, 10, 15, UG.wall);                              // atrium wall above the shop row
     // hall furniture: benches, a photo booth and ticket machines by the escalator top
     for (const m of [1, -1]) B(m * -11.2, -30.3, m * -8.8, -29.7, U, U + 0.5, UG.bench, { pen: 1.5 });
-    B(-6.75, -20.75, -5.25, -19.25, U, U + 2.3, UG.dark, { pen: 3 });
+    // the Fotoautomat, walk-in (user, 2026-10-27: "users should be able to
+    // enter inside of it"): 2.4 x 2.2 x 2.5, walls 0.08, a 1.15 doorway on
+    // its south face (the curtain gathered at its west jamb), a roof
+    {
+      const [x0, x1, z0, z1, t, h] = [UG_BOOTH.x0, UG_BOOTH.x1, UG_BOOTH.z0, UG_BOOTH.z1, 0.08, U + 2.5];
+      B(x0, z0, x1, z0 + t, U, h, UG.dark, { pen: 3 });                     // back
+      B(x0, z0, x0 + t, z1, U, h, UG.dark, { pen: 3 });                     // west
+      B(x1 - t, z0, x1, z1, U, h, UG.dark, { pen: 3 });                     // east
+      B(x0, z1 - t, UG_BOOTH.door0, z1, U, h, UG.dark, { pen: 3 });          // the doorway's west jamb
+      B(UG_BOOTH.door1, z1 - t, x1, z1, U, h, UG.dark, { pen: 3 });          // the front panel east of it
+      B(UG_BOOTH.door0, z1 - t, UG_BOOTH.door1, z1, U + 2.1, h, UG.dark, { pen: 3 });   // the header
+      B(x0, z0, x1, z1, h - 0.08, h, UG.dark, { pen: 3 });                  // the roof
+    }
     for (const x of [5.6, 6.6]) B(x, -20.3, x + 0.8, -19.7, U, U + 1.9, UG.grey, { pen: 3 });
     // atrium, this half: the gate line at z -12, its staffed boxes, a bench, the light-well rails
     for (const x of [-7, -4.2, -1.4, 1.4, 4.2, 7]) B(x - 0.15, -12.6, x + 0.15, -11.4, U, U + 1.0, UG.grey, { pen: 2 });

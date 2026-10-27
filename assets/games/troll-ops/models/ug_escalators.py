@@ -79,5 +79,5 @@ def build_escalators(PAL):
     b = Builder()
     for s in (1, -1):
         station_escalators(b, PAL, s)
-    b.finish("ug-escalators.glb", bake=False, uv2=1024)
+    b.finish("ug-escalators.glb", bake=False, uv2=1024, quantize=True)
 

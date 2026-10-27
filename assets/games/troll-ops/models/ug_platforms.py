@@ -70,5 +70,5 @@ def build_platforms(PAL):
         station_platforms(b, PAL, s)
     # the plant room floor
     bx(b, PAL["floor"], -9.75, 9.75, T, T + 0.02, -8, 8)
-    b.finish("ug-platforms.glb", bake=False, uv2=1024)
+    b.finish("ug-platforms.glb", bake=False, uv2=1024, quantize=True)
 
