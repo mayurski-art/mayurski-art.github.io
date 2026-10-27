@@ -11,7 +11,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { hashSeed, seededRng, rollGun, RARITIES } from "./royale-zone.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1-fl1-or1-rt1-ut1-gf1-tg1-rb4-hp1-bx1-mg1-sp1-zw1-tfb8-rfx1";
+import { hashSeed, seededRng, rollGun, RARITIES } from "./royale-zone.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1-fl1-or1-rt1-ut1-gf1-tg1-rb4-hp1-bx1-mg1-sp1-zw1-tfb8-rfx1-rfx2";
 import { FlowField } from "../bots/nav.js?v=ti1-bs1b7d-fl1-or1-gf1-tg1-tfb8";
 
 export const CHEST_OPEN_TIME = 1;     // seconds of holding X
