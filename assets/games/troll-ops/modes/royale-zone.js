@@ -18,6 +18,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { WEAPON_DEFS } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1";
 import { buildWeaponMesh, stripLights } from "../weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1-rt1-ut1-rb4-hp1-bx1-mg1-sp1";
 import { SLOTS, defaultLoadoutFor, fitsFor, resolveWeapon } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1";
+import { buildLootModel } from "./royale-loot-models.js?v=rlm1";
 import { FlowField } from "../bots/nav.js?v=ti1-bs1b7d-fl1-or1-gf1-tg1-tfb8";
 
 /* ---- tuning ------------------------------------------------------------ */
@@ -362,15 +363,12 @@ const _beamTex = (() => {
   return t;
 })();
 
+// The Cope Plate and the Hopium are models (royale-loot-models.js).
 const _itemGeo = {
-  plate: new THREE.BoxGeometry(0.34, 0.05, 0.44),
-  heal: new THREE.CylinderGeometry(0.08, 0.08, 0.3, 14),
   ammo: new THREE.BoxGeometry(0.36, 0.2, 0.22),
   ring: new THREE.RingGeometry(0.34, 0.42, 32),
 };
 const _itemMat = {
-  plate: new THREE.MeshStandardMaterial({ color: 0x5b7fa6, roughness: 0.45, metalness: 0.2, emissive: 0x16304f, emissiveIntensity: 0.6 }),
-  heal: new THREE.MeshStandardMaterial({ color: 0x55ff7a, roughness: 0.3, emissive: 0x1d8a33, emissiveIntensity: 0.9 }),
   ammo: new THREE.MeshStandardMaterial({ color: 0x6b6a3a, roughness: 0.8 }),
 };
 for (const g of Object.values(_itemGeo)) g.userData.shared = true;
@@ -486,9 +484,18 @@ export class LootField {
       : it.k === "plate" ? 0x7fb2ff : it.k === "heal" ? 0x55ff7a : 0xd9d27a);
     it.beamH = it.k === "gun" ? 2.6 + (it.r | 0) * 0.5 : 1.4;
     if (it.k !== "gun") {
-      const body = new THREE.Mesh(_itemGeo[it.k], _itemMat[it.k]);
-      body.position.y = it.k === "plate" ? 0.2 : 0.22;
-      if (it.k === "heal") body.rotation.z = 0.2;
+      const model = buildLootModel(it.k);
+      let body;
+      if (model) {
+        // update() spins this round y; the lean lives on the model inside so
+        // it turns with the spin: the plate leans back to show its face, the
+        // injector tips over a little.
+        body = new THREE.Group();
+        if (it.k === "plate") model.rotation.x = -0.32;
+        else model.rotation.z = 0.5;
+        body.add(model);
+      } else body = new THREE.Mesh(_itemGeo[it.k], _itemMat[it.k]);
+      body.position.y = 0.22;
       group.add(body);
       it.body = body;
     }
