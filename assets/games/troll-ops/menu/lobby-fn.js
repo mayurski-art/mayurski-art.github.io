@@ -101,7 +101,7 @@ function reelList() {
 const FALLBACK_AVATAR = "assets/images/icons/favicon/grin.png";
 
 export function mountFnLobby(api) {
-  const { root, menu, openQuick, getLevel, getPrestige, rankProgress, rankXpText, PRESTIGE_MASTER, setMapShot, ACHIEVEMENTS } = api;
+  const { root, menu, openQuick, socialMaps = [], getLevel, getPrestige, rankProgress, rankXpText, PRESTIGE_MASTER, setMapShot, ACHIEVEMENTS } = api;
   const title = $("#to-title");
   root.classList.add("is-fn");
   title.classList.add("is-fn");
@@ -210,7 +210,10 @@ export function mountFnLobby(api) {
     $(".to-fn-mode-name", play).textContent = p.label;
     $(".to-fn-mode-sub", play).textContent = (p.id === "public" || p.id === "solo" ? modeIn(p.group) : null) || p.sub;
     const map = $(".to-fn-map", play), img = $("img", map);
-    const active = $("#to-lo-maps .to-lo-map.is-active");
+    let active = $("#to-lo-maps .to-lo-map.is-active");
+    // Socialize plays only its own maps: a pick outside them gets its first
+    // (loadout.js versusMapId), so the card names that one
+    if (p.id === "social" && socialMaps.length && !socialMaps.includes(active?.dataset.map)) active = $(`#to-lo-maps [data-map="${socialMaps[0]}"]`);
     let name = "", sub = "";
     if (p.id === "public") { name = "Map vote"; sub = "Vote with the lobby"; }
     else if (p.id === "zombies") { name = "The hub"; sub = "A pad for every map"; }

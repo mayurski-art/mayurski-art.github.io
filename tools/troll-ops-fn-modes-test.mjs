@@ -130,12 +130,17 @@ await page.click('.to-fn-tile[data-tile="public"]');
 await page.waitForTimeout(400);
 c = await card();
 check(c.pl === "public" && /Team Deathmatch/.test(c.sub || ""), "Public Match takes it back to Team Deathmatch", JSON.stringify(c));
+// (with a map picked that Socialize doesn't play: the card names the one
+// it will, Troll City, never Grin Site)
+await page.evaluate(() => document.querySelector('#to-lo-maps [data-map="grinsite"]')?.click());
 await page.click(".to-fn-allmodes");
 await page.waitForTimeout(400);
 await page.click('.to-fn-tile[data-tile="social"]');
 await page.waitForTimeout(400);
 c = await card();
+const socMap = await page.evaluate(() => document.querySelector(".to-fn-map strong")?.textContent);
 check(c.pl === "social" && c.name === "Socialize", "Socialize sets Socialize", JSON.stringify(c));
+check(socMap === "Troll City", "and its map is a Socialize map (Troll City), not the versus pick", socMap);
 check(await page.evaluate(() => window.__trollOps.state()) === "menu", "and nothing starts");
 
 // 4. scroll and Esc
