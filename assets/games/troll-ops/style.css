@@ -3251,6 +3251,15 @@ body.to-touch-play .to-touch-btn {
 /* Icons, not words, on every touch button (user, 2026-09-28). */
 .to-touch-btn svg { width: 50%; height: 50%; pointer-events: none; display: block; }
 body.to-touch-play .to-touch-fire svg { width: 42%; height: 42%; }
+/* Melee, lethal, tactical (and Royale's plate / Hopium): the carried item's
+   own picture (gear-icons/, view/gear-chips.js setTouchItem) instead of the
+   line icon, which stays as the fallback. */
+.to-touch-item { display: none; }
+.to-touch-btn.has-item > svg { display: none; }
+.to-touch-btn.has-item > .to-touch-item {
+  display: block; width: 74%; height: 74%; pointer-events: none;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); -webkit-user-drag: none; user-select: none;
+}
 body.to-touch-play .to-touch-btn.is-held { background: rgba(255,255,255,.3); transform: scale(.94); }
 body.to-touch-play .to-touch-btn.is-empty { opacity: .4; }
 /* AIM: a scope ring behind the label, lit green while toggled on. */
