@@ -223,6 +223,20 @@ if (swapped) check("cancel (a swap mid-Hopium): act gone, no injector, no cap, n
 else console.log("SKIP  cancel by swap (nothing to swap to in this loadout)");
 await page.evaluate(() => { const T = window.__trollOps, G = window.__G; if (G.player.holding !== "gun") T.setHolding("gun"); });
 
+/* ------------------------------- 4b. the phone's touch buttons start it too */
+for (const [id, kind] of [["to-touch-plate", "plate"], ["to-touch-heal", "heal"]]) {
+  await prime();
+  const started = await page.evaluate(async (id) => {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
+    await new Promise((r) => setTimeout(r, 350));
+    return { act: window.__trollOps.royale().act?.kind || null, anim: window.__U.useAnim.kind };
+  }, id);
+  check(`the touch button #${id} starts the ${kind} animation`, started?.act === kind && started?.anim === kind, JSON.stringify(started));
+}
+await prime();
+
 /* ---------------------------------------------------- 5. third person */
 // A bot plating up / dosing: frozen mid-act, pinned in place 3 m in front of
 // us at a three-quarter angle (a rAF loop holds it and us still for the shot).
