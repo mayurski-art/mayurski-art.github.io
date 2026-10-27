@@ -18,6 +18,10 @@
 // a corner [x, z, y] sets the floor's height there),
 // phone (waiting in a line: thumbing a phone, looking up now and then),
 // smith (anvil, forge and quench barrel, with the tools: smithy.js).
+// roam (`stops`: [{ x, z, act, secs, dance, yaw }]): stand at a stop doing
+// its act (dance, phone...) for about `secs`, then walk to the next one,
+// round the list (a clubber who dances a while, steps off the floor to film
+// the DJ, then finds another spot).
 // The kitchen (Trolling Loud): cook (a spatula at the range, the pan
 // shaken now and then), chop (a knife on the board), wash (both hands in the
 // sink, a rack lifted out), expo (at the pass: plates slid along, the bell
@@ -203,6 +207,12 @@ export class TownNpcs {
       while (d > lens[n.seg]) { d -= lens[n.seg]; n.seg = (n.seg + 1) % nSeg; }
       n.segT = d;
     }
+    if (c.stops) {
+      // a roamer starts at its first stop, part way through its time there
+      const s0 = c.stops[0];
+      n.x = s0.x; n.z = s0.z; n.yaw = s0.yaw ?? n.yaw;
+      n.stop = 0; n.leg = null; n.wait = s0.secs * (0.2 + seed * 0.8);
+    }
     // A walker keeps to one room (its path's first corner says which)
     const at = c.path ? c.path[0] : [n.x, n.z];
     n.zone = c.zone ?? (this.view ? this.view.zoneOf(at[0], c.y ?? 0, at[1]) : null);
@@ -257,7 +267,8 @@ export class TownNpcs {
       n.rig.reliefFace?.near(d < RELIEF_RANGE);
       n.t += dt;
       if (n.override) { if (!hidden) this.poseOverride(n, dt); continue; }
-      if (WALKERS.has(n.c.act)) this.walk(n, dt);
+      if (n.c.stops) this.roam(n, dt);
+      else if (WALKERS.has(n.c.act)) this.walk(n, dt);
       n.smith?.step(dt, hidden ? Infinity : d, audio);
       if (hidden) continue;
       // Far off, pose a few times a second instead of every frame.
@@ -267,6 +278,32 @@ export class TownNpcs {
       this.pose(n, n.poseAcc);
       n.poseAcc = 0;
     }
+  }
+
+  /* A roamer (`stops`): its time at a stop runs down, then it walks
+     straight to the next stop, a touch slower than a walker. */
+  roam(n, dt) {
+    const stops = n.c.stops;
+    if (!n.leg) {
+      n.moving = false;
+      if ((n.wait -= dt) > 0) return;
+      const next = (n.stop + 1) % stops.length, b = stops[next];
+      n.leg = { ax: n.x, az: n.z, bx: b.x, bz: b.z, len: Math.hypot(b.x - n.x, b.z - n.z), s: 0, next };
+      n.yaw = Math.atan2(-(b.x - n.x), -(b.z - n.z));
+    }
+    const L = n.leg;
+    L.s = Math.min(L.len, L.s + WALK_MPS * 0.85 * dt);
+    const k = L.len ? L.s / L.len : 1;
+    n.x = L.ax + (L.bx - L.ax) * k;
+    n.z = L.az + (L.bz - L.az) * k;
+    n.moving = true;
+    if (L.s < L.len) return;
+    // there: face the stop's way and stay a while (a bit more or less each time)
+    const s = stops[n.stop = L.next];
+    n.leg = null;
+    n.moving = false;
+    if (s.yaw != null) n.yaw = s.yaw;
+    n.wait = s.secs * (0.75 + 0.5 * hash01(n.c.name + n.t));
   }
 
   walk(n, dt) {
@@ -329,13 +366,16 @@ export class TownNpcs {
     rig.root.rotation.x = 0; rig.root.rotation.z = 0;   // up again after a fight that floored him
     const p = rig.parts;
     const t = n.t;
-    const moving = (WALKERS.has(c.act) || c.act === "smith") && n.moving;
+    // a roamer does its stop's act there, and walks between
+    const stop = c.stops?.[n.stop];
+    const act = c.stops ? (n.leg ? "walk" : stop.act) : c.act;
+    const moving = (WALKERS.has(act) || act === "smith") && n.moving;
     if (moving) n.phase += dt * gaitPhaseRate(WALK_MPS);
     rig.root.position.set(n.x, n.y ?? c.y ?? 0, n.z);
     aimRig(rig, n.yaw, dt, { snap: true, moving });
 
-    if (c.act === "dance") {
-      const i = c.dance ?? Math.floor(n.seed * DANCES.length) % DANCES.length;
+    if (act === "dance") {
+      const i = (stop ? stop.dance : c.dance) ?? Math.floor(n.seed * DANCES.length) % DANCES.length;
       // On the music's beat if the map has one (a whole beat in for some,
       // so the two-beat moves don't all sway the same way)
       const b = this.beat?.();
@@ -344,13 +384,13 @@ export class TownNpcs {
       return;
     }
     poseHumanoid(rig, {
-      phase: n.phase, moving, pitch: c.act === "sit-read" || c.act === "count" || c.act === "tend" ? -0.35 : 0,
+      phase: n.phase, moving, pitch: act === "sit-read" || act === "count" || act === "tend" ? -0.35 : 0,
       lower: 0, strafe: 0, forward: 1, speed: moving ? 0.3 : 0, mps: moving ? WALK_MPS : 0, dt, hold: "none",
     });
 
     if (c.sit) this.sit(n);
     const sw = (rate, off = 0) => Math.sin(t * rate + n.seed * 6 + off);
-    switch (c.act) {
+    switch (act) {
       case "drink": {
         // A sip every 6-9 s: up, hold, down.
         const cyc = 6 + n.seed * 3, u = (t % cyc) / cyc;
