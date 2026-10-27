@@ -1106,13 +1106,15 @@ function gasLamp(K, M, x, z, { lights = null, draw = true } = {}) {
 }
 
 /* Crooked iron fence with spear-top bars: `len` along `axis` from (x, z).
-   Collider-wise it stops bodies and barely touches a bullet. */
-function ironFence(K, M, { axis, at, a, b, h = 1.9 }) {
+   Collider-wise it stops bodies and barely touches a bullet. `draw: false`
+   lays the collider alone (the graveyard's fence is hg_graveyard.py's). */
+function ironFence(K, M, { axis, at, a, b, h = 1.9, draw = true }) {
   const len = b - a;
   if (len < 0.1) return;
   const c = (a + b) / 2;
   const cx = axis === "x" ? c : at, cz = axis === "x" ? at : c;
   K.api.ghostBox(cx, cz, axis === "x" ? len : 0.12, axis === "x" ? 0.12 : len, h, { pen: 0.25 });
+  if (!draw) return;
   const pos = (s) => (axis === "x" ? [s, at] : [at, s]);
   for (const ry of [0.35, h - 0.3]) {
     const [x, z] = pos(c);
@@ -1618,11 +1620,11 @@ function buildOutskirts(api, K, M, SP, root, lights) {
   const R = rng(2026);
 
   /* ------------------------------------------- graveyard west gate */
-  ironFence(K, M, { axis: "z", at: -35.6, a: -6, b: 0.4 });
-  ironFence(K, M, { axis: "z", at: -35.6, a: 3.6, b: 20 });
+  // (the fence and the pillars are hg_graveyard.py's)
+  ironFence(K, M, { axis: "z", at: -35.6, a: -6, b: 0.4, draw: false });
+  ironFence(K, M, { axis: "z", at: -35.6, a: 3.6, b: 20, draw: false });
   for (const gz of [0.1, 3.9]) {
-    K.solid(-35.6, gz, 0.6, 0.6, 2.3, { mat: M.stone, pen: 10 });
-    K.box(M.stoneDark, -35.6, 2.3, gz, 0.75, 0.15, 0.75);
+    K.solid(-35.6, gz, 0.6, 0.6, 2.3, { pen: 10 });
     jack(K, M, -35.6, 2.45, gz, { r: 0.24, face: -Math.PI / 2, seed: 3000 + gz * 10, glow: false });
   }
   flat(K, M.dirt, -37.2, 2, 4.4, 2.6);

@@ -85,16 +85,18 @@ def fence_run(b, P, axis, at, a, b_, h=1.9):
         lathe(b, P["iron"], x, z, [(0.0, 0), (0.06, 0.02), (0.07, 0.07), (0.05, 0.12), (0.0, 0.14)], seg=8, y0=h + 0.12)
 
 
-def gate(b, P, R, x, z0, z1, h, arch, leaves):
+def gate(b, P, R, x, z0, z1, h, arch, leaves, balls=True):
     """A gate in the fence: stone pillars with caps and balls at z0 and z1,
-    an iron arch over (the main gate), the leaves swung in against the fence."""
+    an iron arch over (the main gate), the leaves swung in against the fence.
+    No balls on the west gate: hollowgrin.js sets a jack on each cap."""
     for gz in (z0, z1):
         R.begin(b, f"graveyard:pillar-{x}-{gz}", on="graveyard:fence")
         b.box(P["granite"], 0.6, h, 0.6, x, 0, gz)
         for y in (0.45, 1.3):          # ashlar joints
             box2(b, P["granite_dk"], x - 0.305, x + 0.305, y, y + 0.02, gz - 0.305, gz + 0.305)
         b.box(P["granite_dk"], 0.75, 0.15, 0.75, x, h, gz, bevel=0.02)
-        lathe(b, P["granite"], x, gz, [(0.0, 0), (0.18, 0.02), (0.22, 0.12), (0.2, 0.26), (0.12, 0.36), (0.0, 0.4)], seg=10, y0=h + 0.15)
+        if balls:
+            lathe(b, P["granite"], x, gz, [(0.0, 0), (0.18, 0.02), (0.22, 0.12), (0.2, 0.26), (0.12, 0.36), (0.0, 0.4)], seg=10, y0=h + 0.15)
         R.end()
     if arch:
         R.begin(b, "graveyard:gate-arch", on=[f"graveyard:pillar-{x}-{z0}", f"graveyard:pillar-{x}-{z1}", "graveyard:fence"])
@@ -106,7 +108,7 @@ def gate(b, P, R, x, z0, z1, h, arch, leaves):
         R.end()
     if leaves:
         for gz, d in ((z0 + 0.3, -1), (z1 - 0.3, 1)):
-            R.begin(b, f"graveyard:gate-leaf-{d}", on=[f"graveyard:pillar-{x}-{round(gz - d * 0.3, 1)}", "graveyard:fence"])
+            R.begin(b, f"graveyard:gate-leaf-{d}", on=[f"graveyard:pillar-{x}-{round(gz + d * 0.3, 1)}", "graveyard:fence"])
             lx = x - 0.9
             for y in (0.1, 1.7):
                 box2(b, P["iron"], lx - 0.8, lx + 0.8, y, y + 0.05, gz + d * 0.05 - 0.02, gz + d * 0.05 + 0.02)
@@ -266,7 +268,7 @@ def build_graveyard(P, R):
         fence_run(b, P, axis, at, a, b_)
         R.end()
     gate(b, P, R, -16.0, 0.1, 3.9, 2.5, arch=True, leaves=True)
-    gate(b, P, R, -35.6, 0.1, 3.9, 2.3, arch=False, leaves=False)
+    gate(b, P, R, -35.6, 0.1, 3.9, 2.3, arch=False, leaves=False, balls=False)
     # the stones, in the JS's order and from its numbers (hollowgrin.js: rng(66))
     J = js_rng(66)
     k = 0
