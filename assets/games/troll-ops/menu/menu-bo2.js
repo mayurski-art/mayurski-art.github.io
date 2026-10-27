@@ -14,12 +14,12 @@
 import { createBo2Menu } from "../../../js/bo2-menu.js?v=to-ft2-tb1-nd1-ul1";
 import { createMapMode } from "../../../js/troll-map-mode.js?v=to-bo2d";
 import { joinSitePresence, viewerId } from "../../../js/site-presence.js?v=to-bo2d-ol1-iv1-mv1-wo1";
-import { initInvites, invitePlayer } from "./invites.js?v=iv1-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-pty1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-hgb1";
+import { initInvites, invitePlayer } from "./invites.js?v=iv1-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-pty1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1";
 import { initPublicChat } from "./public-chat.js?v=pch1-nb2-pc2-gf1-sc1-tw1-nd2";
-import { startOnline, onlinePlayers, serverList, joinServer, describe, setLobbyActivity, pushActivity } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-hgb1";
+import { startOnline, onlinePlayers, serverList, joinServer, describe, setLobbyActivity, pushActivity } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1";
 import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER, getLevel, rankProgress, rankXpText } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1";
 import { ACHIEVEMENTS } from "../progression/achievements.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1";
-import { mountFnLobby } from "./lobby-fn.js?v=fn1-fn2-rl1-rl2-rl3-mt1-sm1-ip1";
+import { mountFnLobby } from "./lobby-fn.js?v=fn1-fn2-rl1-rl2-rl3-mt1-sm1-ip1-fn6";
 import { openPfpStudio } from "./pfp-studio.js?v=pf1";
 
 import { fetchRecord, formatPlayed } from "../progression/record.js?v=rec1-or1";
@@ -28,13 +28,13 @@ import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withCl
 import { renderCard, myCardData, openProfileCard, openGuestCard, setInviteHandler } from "../progression/profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zh1-zc1-zc2-nf1-or1-nb2-nd2-rfx1-bk1";
 import { shareCardOnX, saveCardPhoto } from "./card-share.js?v=cs1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-tw1-rfx1-bk1";
 import { FINISHES } from "../characters/skins.js?v=p5-wb1-or1";
-import { MAPS, REWARD_MAPS } from "../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1-bw2-bt1-wf1-wf2-zf1-bp1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-rm1-kzf1-hgb1";
+import { MAPS, REWARD_MAPS } from "../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1-bw2-bt1-wf1-wf2-zf1-bp1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-rm1-kzf1";
 import { MODES } from "../modes/modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-tfb8";
 import { setMapShot } from "../maps/map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1-sr1-ug5-or1-sp1-pv1-tb3-pv2-dm1-kbk2-tfp7-tfb8-rfx2-hgm1";
 import { leaveToArcade, initExitLinks } from "./exit-links.js?v=ex1-cl1";
 import { game } from "../core/state.js?v=st1";
-import { inviteLink, prepareHubEntry } from "../modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-hgb1";
-import { openKiosk } from "../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-hgb1";
+import { inviteLink, prepareHubEntry } from "../modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1";
+import { openKiosk } from "../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1";
 import { credits } from "../modes/zombies/credits.js?v=zc1-zc2";
 import { recordSupported, recordPref, setRecordPref } from "../modes/royale-record.js?v=rrc1-rfx1";
 import { makeTrollOpsProvider } from "../progression/leaderboard-rows.js?v=lr1-zh1-or1-nd2";
@@ -42,7 +42,7 @@ const lbProvider = makeTrollOpsProvider();
 import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perksInTier, perkUnlocked, perkIconSvg } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1";
 import { STREAK_DEFS } from "../streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1-sam1-rfx1";
 import { renderClassPreview } from "./class-preview.js?v=cp1-rb4-hp1-bx1-sp1-sam1-rfx1";
-import { lobby, enterLobby, leaveLobby, lobbyActivity, round, candidates, tally, renderPanel, tickClock } from "./map-vote.js?v=mv1-vs1-vt2-sp1-hh1-yb1-pv1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-tb3-pv2-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-rfx2-rm1-kzf1-hgm1-hgb1";
+import { lobby, enterLobby, leaveLobby, lobbyActivity, round, candidates, tally, renderPanel, tickClock } from "./map-vote.js?v=mv1-vs1-vt2-sp1-hh1-yb1-pv1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-tb3-pv2-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-rfx2-rm1-kzf1-hgm1";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
    calling cards and the private-match maps. */
@@ -425,15 +425,30 @@ const screens = {
   }),
   /* The Fortnite lobby's tabs (menu/lobby-fn.js): Locker gathers what you
      wear and carry; Career is the Barracks; Quests the achievements. */
+  /* The Locker (the lobby redesign, phase 4): every slot you fill, around
+     your operator. The class's slots are the class screen's own rows; one
+     that drills on through the class (a gun, its attachments) goes there
+     first, so its Back comes home to the class. lobby-fn.js and the CSS lay
+     the groups out as tiles: the class on the left, your look on the right. */
   locker: () => {
     const signedIn = !!window.TrollrunnerAccounts?.getCachedProfile?.();
+    const cls = screens.class().groups.flat();
+    const slot = (id) => {
+      let it = cls.find((x) => x.id === id);
+      if (!it.value) it = { ...it, value: id === "streaks" ? "Pick three" : "None" };   // (a tile is never blank)
+      return it.onSelect ? { ...it, go: undefined, onSelect: (item, m) => { m.go("class"); it.onSelect(item, m); } } : it;
+    };
+    const look = screens.cosmetics().groups[0];
     return {
       title: "Locker", panel: "deploy",
       groups: [
         [
-          { id: "class", label: "Create a Class", value: () => game.loadout?.className || "", desc: "Five classes: guns, attachments, melee, a throwable, three scorestreaks and three perks.", go: "classlist" },
-          { id: "cosmetics", label: "Cosmetics", desc: "Your trollface: body, expression and wrist.", go: "cosmetics" },
-          { id: "cards", label: "Calling Card", value: signedIn ? cardById(getMyCard().card).name : "", disabled: !signedIn, desc: signedIn ? "The banner behind your name." : "Sign in to set it. Guests don't keep a card.", need: signedIn ? "" : "Sign in to set it.", go: "cards" },
+          { id: "classlist", label: "Class", value: () => game.loadout?.className || "", desc: "Five classes: guns, attachments, melee, a throwable, three scorestreaks and three perks.", go: "classlist" },
+          ...["primary", "secondary", "atts", "melee", "throwable", "perk-0", "perk-1", "perk-2", "streaks"].map(slot),
+        ],
+        [
+          ...look,
+          { id: "cards", label: "Calling Card", value: signedIn ? cardById(getMyCard().card).name : "Sign in", disabled: !signedIn, desc: signedIn ? "The banner behind your name." : "Sign in to set it. Guests don't keep a card.", need: signedIn ? "" : "Sign in to set it.", go: "cards" },
         ],
         [back("Back to Play.")],
       ],
@@ -446,7 +461,7 @@ const screens = {
     const all = Object.values(ACHIEVEMENTS);
     const row = (a) => ({ id: `q-${a.id}`, label: a.name, value: have.has(a.id) ? "Done" : "To do", on: have.has(a.id), desc: a.blurb });
     return {
-      title: "Challenges", panel: "deploy",
+      title: `Challenges ${all.filter((a) => have.has(a.id)).length}/${all.length}`, panel: "deploy",
       groups: [
         all.filter((a) => !have.has(a.id)).map(row),
         all.filter((a) => have.has(a.id)).map(row),
@@ -548,7 +563,7 @@ const screens = {
       groups: [
         rewardLadder().map(({ p, items }) => ({
           id: `rw-${p}`, label: p >= PRESTIGE_MASTER ? "Prestige Master" : `Prestige ${p}`,
-          value: owner || now >= p ? "Unlocked" : "Locked",
+          value: owner || now >= p ? "Unlocked" : "Locked", on: owner || now >= p,
           desc: items.join(" · ") + ".",
         })),
         [back("Back to the Barracks.")],
@@ -1056,9 +1071,6 @@ const menu = createBo2Menu(nav, {
     // the dock (Emote, Chat, Barracks, Options) is the top menu's only:
     // inside a screen the footer is Back, nothing else to press
     root.classList.toggle("is-top", id === "main");
-    // Phones size the operator and the detail pane from the list's height.
-    pf.style.setProperty("--menu-h", `${nav.offsetHeight}px`);
-    charRoom();
     screenDetail = !!s.detail || id === "search" || id === "pinsearch";
     root.classList.toggle("has-detail", screenDetail);
     root.classList.toggle("has-gun", !!s.gun);
@@ -1084,6 +1096,12 @@ const menu = createBo2Menu(nav, {
     root.classList.toggle("has-cls", s.cls != null);
     if (s.cls != null) renderClassPreview(classHost, game.loadout, lastHot?.classIdx ?? s.cls);
     renderCardHost();
+    // Phones size the operator and the detail pane from the list's height,
+    // measured once the classes above have sized it (has-detail caps the
+    // list on an upright phone: measured before, Options from Play left a
+    // gap under its list)
+    pf.style.setProperty("--menu-h", `${nav.offsetHeight}px`);
+    charRoom();
     const ownBack = (s.groups || []).flat().some((it) => it && it.id === "back");
     $(".to-bo2-back", root).classList.toggle("is-on", m.depth() > 0 && !ownBack);
     mapMode.onScreen(id, s);
