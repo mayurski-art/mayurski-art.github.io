@@ -12,13 +12,14 @@
    that became lists hidden by CSS. */
 
 import { createBo2Menu } from "../../../js/bo2-menu.js?v=to-ft2-tb1-nd1-ul1";
-import { TOUCH } from "../view/texture-budget.js?v=pm1";
 import { createMapMode } from "../../../js/troll-map-mode.js?v=to-bo2d";
 import { joinSitePresence, viewerId } from "../../../js/site-presence.js?v=to-bo2d-ol1-iv1-mv1-wo1";
 import { initInvites, invitePlayer } from "./invites.js?v=iv1-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-pty1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3";
 import { initPublicChat } from "./public-chat.js?v=pch1-nb2-pc2-gf1-sc1-tw1-nd2";
 import { startOnline, onlinePlayers, serverList, joinServer, describe, setLobbyActivity, pushActivity } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3";
-import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1";
+import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER, getLevel, rankProgress, rankXpText } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1";
+import { ACHIEVEMENTS } from "../progression/achievements.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1";
+import { mountFnLobby } from "./lobby-fn.js?v=fn1";
 
 import { fetchRecord, formatPlayed } from "../progression/record.js?v=rec1-or1";
 import { WEAPON_DEFS } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1";
@@ -388,6 +389,7 @@ const back = (desc = "Back.") => ({ id: "back", label: "Back", desc, onSelect: (
 /* Empty the room code: public rooms and solo play never take one along. */
 const clearRoom = () => { const r = $("#to-room"); if (r && r.value) { r.value = ""; r.dispatchEvent(new Event("input", { bubbles: true })); } };
 const zombiesPicked = () => currentModeBtn()?.dataset.mode === "zombies";
+const toArcade = () => { if (!leaveToArcade()) window.location.href = "index.html?open=arcade"; };
 
 const screens = {
   main: () => ({
@@ -415,10 +417,42 @@ const screens = {
         // Options and the Barracks sit in the footer now, by the Animations
         // switch, and your name opens the Barracks (user, 2026-10-15: Options
         // was "buried in all that scrolling down").
-        { id: "arcade", label: "Arcade", desc: "Back to the Troll Runner arcade.", onSelect: () => { if (!leaveToArcade()) window.location.href = "index.html?open=arcade"; } },
+        { id: "arcade", label: "Arcade", desc: "Back to the Troll Runner arcade.", onSelect: toArcade },
       ],
     ],
   }),
+  /* The Fortnite lobby's tabs (menu/lobby-fn.js): Locker gathers what you
+     wear and carry; Career is the Barracks; Quests the achievements. */
+  locker: () => {
+    const signedIn = !!window.TrollrunnerAccounts?.getCachedProfile?.();
+    return {
+      title: "Locker", panel: "deploy",
+      groups: [
+        [
+          { id: "class", label: "Create a Class", value: () => game.loadout?.className || "", desc: "Five classes: guns, attachments, melee, a throwable, three scorestreaks and three perks.", go: "classlist" },
+          { id: "cosmetics", label: "Cosmetics", desc: "Your trollface: body, expression and wrist.", go: "cosmetics" },
+          { id: "cards", label: "Calling Card", value: signedIn ? cardById(getMyCard().card).name : "", disabled: !signedIn, desc: signedIn ? "The banner behind your name." : "Sign in to set it. Guests don't keep a card.", need: signedIn ? "" : "Sign in to set it.", go: "cards" },
+        ],
+        [back("Back to Play.")],
+      ],
+    };
+  },
+  quests: () => {
+    let have = new Set();
+    try { have = new Set(JSON.parse(localStorage.getItem("trollops:achievements")) || []); } catch {}
+    const signedIn = !!window.TrollrunnerAccounts?.getCachedProfile?.();
+    const all = Object.values(ACHIEVEMENTS);
+    const row = (a) => ({ id: `q-${a.id}`, label: a.name, value: have.has(a.id) ? "Done" : "To do", on: have.has(a.id), desc: a.blurb });
+    return {
+      title: "Challenges", panel: "deploy",
+      groups: [
+        all.filter((a) => !have.has(a.id)).map(row),
+        all.filter((a) => have.has(a.id)).map(row),
+        signedIn ? [] : [{ id: "q-guest", label: "Sign in to keep them", desc: "Guests' challenges reset when the tab closes.", onSelect: () => $("#to-pf-profile")?.click() }],
+        [back("Back to Play.")],
+      ].filter((g) => g.length),
+    };
+  },
   /* Prestige confirm, the way BO2 asks. Only the Troll Forces level resets:
      the account level and every unlock stay. */
   prestige: () => {
@@ -496,7 +530,9 @@ const screens = {
           { id: "b-clan", label: "Clan Tag", value: signedIn ? (clan ? `[${clan}]` : "None") : "", disabled: !signedIn, desc: signedIn ? "Up to 4 letters or numbers, shown as [TAG] name everywhere." : guest, need: signedIn ? "" : "Sign in to set it.", onSelect: () => editClan() },
           { id: "b-rewards", label: "Prestige Rewards", desc: "What each prestige unlocks.", go: "rewards" },
           { id: "b-record", label: "Combat Record", desc: "Your lifetime K/D, W/L, accuracy and more, across every match.", go: "record" },
-        ],
+          // BO2: at the level cap the Prestige option appears (it was on the main list)
+          canPrestige() && { id: "prestige", label: "Prestige", value: nextPrestigeName(), desc: "You're at level 69. Go back to level 1 for a new prestige.", go: "prestige" },
+        ].filter(Boolean),
         [back("Back to the main menu.")],
       ],
     };
@@ -812,7 +848,7 @@ const screens = {
       ].filter(Boolean),
       [
         { id: "anim", label: "Animations", value: () => (animOff ? "Off" : "On"), adjust: () => toggleAnim(),
-          desc: "The spinning planet and the asteroids. Off is easier on a slow laptop." },
+          desc: "The menu's moving parts: the news cards turning, the glow. Off is easier on a slow laptop." },
         { id: "hud", label: "HUD layout", desc: "Move the buttons and the HUD.", onSelect: () => $("#to-pfp-controls [data-hud-layout]")?.click() },
         back("Back to the main menu."),
       ],
@@ -1181,7 +1217,7 @@ function renderPartyOthers() {
 /* On a small screen the list stops short of the controls below it (the
    online count, the Animations switch, the Emote button: user's rule, no
    overlapping UI text); the rows that don't fit fold into "+N more". */
-const PARTY_BELOW = [".to-bo2-online", ".to-bo2-foot .to-bo2-quick", "#to-char-emote", ".to-bo2-chat"];
+const PARTY_BELOW = [".to-bo2-online", ".to-bo2-foot .to-bo2-quick", "#to-char-emote", ".to-bo2-chat", ".to-fn-play"];
 function fitPartyList(setMore) {
   const list = partyList.getBoundingClientRect();
   if (!list.height) return;
@@ -1355,30 +1391,25 @@ function toggleAnim() {
 }
 applyAnim();
 
-/* ── The planet: lazy, and paused whenever the lobby isn't showing ───── */
-const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 300));
+/* ── The backdrop is a still now (menu/lobby-fn.js); the molten planet
+   (menu-globe.js) stays the trollrunner.net home's. While the menu covers
+   the screen the game skips drawing its scene (game.js, to-bo2-cover). ── */
 function coverOn(on) { document.body.classList.toggle("to-bo2-cover", on); }
-idle(async () => {
-  try {
-    const { mountMenuBackdrop } = await import("../../../js/menu-globe.js?v=to-bo2g-pm1");
-    backdrop = mountMenuBackdrop($(".to-bo2-bg", root));
-    if (animOff) backdrop.setStill?.(true);
-    coverOn(!title.hidden);
-    if (title.hidden) backdrop.pause(TOUCH);
-  } catch (e) { console.warn("[menu-bo2] backdrop", e); }
-});
+coverOn(!title.hidden);
 new MutationObserver(() => {
   const showing = !title.hidden;
   if (!showing) $(".tr-pincard", root)?.setAttribute("hidden", "");
-  if (backdrop) { showing ? backdrop.resume() : backdrop.pause(TOUCH); coverOn(showing); }
+  coverOn(showing);
   if (showing) { renderParty(); menu.refresh(); }
 }).observe(title, { attributes: true, attributeFilter: ["hidden"] });
-document.addEventListener("visibilitychange", () => {
-  if (!backdrop || title.hidden) return;
-  document.hidden ? backdrop.pause() : backdrop.resume();
+
+/* ── The Fortnite lobby around the list (menu/lobby-fn.js) ── */
+const fn = mountFnLobby({
+  root, menu, openQuick, toArcade, setStatus, setMapShot,
+  getLevel, getPrestige, rankProgress, rankXpText, PRESTIGE_MASTER, ACHIEVEMENTS,
 });
 
 // An invite link (?zhub=ROOM&party=CODE): open on Zombies, ready to go.
-if (inviteLink) menu.go("zombies");
+if (inviteLink) { fn.setPlaylist("zombies"); menu.go("zombies"); }
 
-window.__toBo2 = { menu, get backdrop() { return backdrop; } };   // for headless tests
+window.__toBo2 = { menu, fn, get backdrop() { return backdrop; } };   // for headless tests
