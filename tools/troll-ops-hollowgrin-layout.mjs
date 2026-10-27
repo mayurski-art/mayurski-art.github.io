@@ -30,7 +30,8 @@ const CHECK = process.argv.includes("--check");
 // changed since the layout file was written (re-run this tool first)
 const SOURCES = ["maps/hollowgrin.js", "maps/hollowgrin-chapel.js", "maps/hollowgrin-mannequins.js"];
 const srcHash = crypto.createHash("sha1");
-for (const f of SOURCES) srcHash.update(fs.readFileSync(path.join(ROOT, "assets/games/troll-ops", f)));
+// line endings dropped: a CRLF checkout and an LF one hash the same
+for (const f of SOURCES) srcHash.update(fs.readFileSync(path.join(ROOT, "assets/games/troll-ops", f), "utf8").replace(/\r\n/g, "\n"));
 const SOURCE_HASH = srcHash.digest("hex").slice(0, 12);
 
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp", ".glb": "model/gltf-binary", ".svg": "image/svg+xml", ".gif": "image/gif", ".mp3": "audio/mpeg" };

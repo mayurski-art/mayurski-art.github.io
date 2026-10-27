@@ -1,8 +1,13 @@
 """
 Troll Forces — Hollowgrin's village buildings (map detail pass phase 6a).
 
-Run with (no names = all):
-  blender --background --python build_hollowgrin.blender.py -- mausoleum barn shop
+Since phase 0 of the Blender build-out (doc "Troll Forces: Hollowgrin in
+Blender") this is a module: build_hollowgrin.blender.py imports it and runs
+its builds through hg_kit's builder (bake UVs, the size report). It retires
+once the hg_*.py modules draw these three buildings (phases 2 and 3).
+
+Old standalone run (no names = all; no bake UVs):
+  blender --background --python hg_legacy_village.py -- mausoleum barn shop
 
 Writes hg-mausoleum.glb, hg-barn.glb, hg-candyshop.glb in MAP coordinates
 (placed at the origin), drawn over the colliders hollowgrin.js already
