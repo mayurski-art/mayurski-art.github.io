@@ -28,6 +28,19 @@ const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+/* The modules under the tags the game itself imports them with (any other
+   tag loads a second copy with its own, empty state; the cache cascade
+   changes the tags): royale-use.js as modes/royale.js has it, weapons.js as
+   royale-use.js has it. */
+function tagIn(file, spec) {
+  const src = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops", file), "utf8");
+  const at = src.indexOf(`${spec}?v=`);
+  return at < 0 ? "" : src.slice(at + spec.length + 3, src.indexOf('"', at));
+}
+const GAME_TAGS = {
+  use: `/assets/games/troll-ops/modes/royale-use.js?v=${tagIn("modes/royale.js", "./royale-use.js")}`,
+  weapons: `/assets/games/troll-ops/combat/weapons.js?v=${tagIn("modes/royale-use.js", "../combat/weapons.js")}`,
+};
 const SHOTS = process.env.SHOTS || null;
 if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css",
@@ -70,13 +83,13 @@ await page.evaluate(async () => {
 await page.waitForFunction(() => window.__trollOps.state() === "playing" && !window.__trollOps.loadState().open, null, { timeout: 240000 });
 await page.evaluate(() => { const T = window.__trollOps; if (T.isStaging()) T.endStaging(); });
 await page.waitForFunction(() => !window.__trollOps.isStaging(), null, { timeout: 30000 });
-await page.evaluate(async () => {
+await page.evaluate(async (tags) => {
   const T = window.__trollOps;
   T.player.spawnGuard = 1e9;   // bots leave us be
   window.__G = (await import("/assets/games/troll-ops/core/state.js?v=st1")).game;
-  window.__U = await import("/assets/games/troll-ops/modes/royale-use.js?v=ru1");
-  window.__W = await import("/assets/games/troll-ops/combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2");
-});
+  window.__U = await import(tags.use);
+  window.__W = await import(tags.weapons);
+}, GAME_TAGS);
 await sleep(1500);
 
 const prime = () => page.evaluate(() => {
