@@ -15,9 +15,10 @@ pools; the stem on the north coast, past the village's wall.
 
 The look (user, 2026-10-28): "the orange border of the island should have a
 strong bright hue to it and the island should appear dark from looking down
-while in the plane". So the land is dark, the rind round the coast (a raised
-band and the top of the cliff) glows a strong orange, the brew glows green;
-under the rind the cliff is dark rock, hung with outcrops like the top
+while in the plane", the orange "like the ground ... a realistic look". So
+the land is dark, the rind is ground: a bright orange beach round the coast
+where the top side has sand, orange soil down the top of the cliff; the brew
+glows green; under the soil the cliff is dark rock, hung with outcrops like the top
 side's coast (tf_coast.py), 46 m down to the island's floor.
 """
 import json
@@ -30,13 +31,13 @@ from mathutils import geometry, Vector
 from map_kit import TEXTURED, mat
 from hg_kit import HGBuilder, facing
 
-TEXTURED.update({"HG_IslandGrass", "HG_IslandRock"})
+TEXTURED.update({"HG_IslandGrass", "HG_IslandRock", "HG_IslandSand", "HG_IslandSoil"})
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 LAND_Y = -0.04        # a hair under the game's ground plane (which covers the village)
-LIP = 0.35            # the rind band's height over the land
-BAND = 8.0            # the rind band's width
-RIND_H = 4.5          # how far the glowing rind runs down the cliff
+LIP = 0.03            # the beach a hair over the land (it lies over the land's rim)
+BAND = 8.0            # the beach's width (it wanders 0.75 to 1.25 of it)
+RIND_H = 2.5          # the orange soil at the top of the cliff, rock under it
 CLIFF = 46.0          # the cliff, as the top side's
 POOL = 0.9            # how far the brew sits under the land
 STEP = 2.5            # the coast resampled to this, for the walls and the band
@@ -46,9 +47,11 @@ def palette():
     return {
         "land": mat("HG_IslandGrass", 0x1c2416, 0.97),
         "rib": mat("HG_IslandRib", 0x0e140c, 0.97),
-        "rind": mat("HG_IslandRind", 0xff6a12, 0.55, emit=0xff4a00, emit_strength=2.4),
-        "rind2": mat("HG_IslandRindDark", 0xe85a0c, 0.55, emit=0xe03800, emit_strength=2.1),
-        "lip": mat("HG_IslandRindLip", 0xff8a2a, 0.5, emit=0xff5500, emit_strength=2.6),
+        # the rind is ground, the top side's beach in pumpkin orange (user,
+        # 2026-10-28: "orange like the ground ... give it a realistic look");
+        # a faint warmth of its own so it keeps its hue under the moon
+        "sand": mat("HG_IslandSand", 0xff6a00, 0.95, emit=0xd84400, emit_strength=1.1),
+        "soil": mat("HG_IslandSoil", 0xc85208, 0.95, emit=0x983000, emit_strength=0.6),
         "rock": mat("HG_IslandRock", 0x2e2a28, 0.95),
         "rock_dk": mat("HG_IslandRockDark", 0x1a1716, 0.95),
         "belly": mat("HG_IslandBelly", 0x120f0e, 0.97),
@@ -130,6 +133,12 @@ def build_island(P, R):
     pools = [ccw([tuple(p) for p in S["mouth"]])] + [ccw([tuple(p) for p in e]) for e in S["eyes"]] + [ccw([tuple(p) for p in S["nose"]])]
     edge = resample(coast, STEP)
     band = inset(edge, BAND)
+    # a natural inner edge: the beach wanders wider and narrower
+    run = 0.0
+    for i, (a, c) in enumerate(zip(edge, edge[1:] + edge[:1])):
+        k = 1.0 + 0.15 * math.sin(run / 23.0) + 0.1 * math.sin(run / 7.3 + 1.7)
+        band[i] = (a[0] + (band[i][0] - a[0]) * k, a[1] + (band[i][1] - a[1]) * k)
+        run += math.hypot(c[0] - a[0], c[1] - a[1])
 
     # the land: dark, the pools cut out of it (the band lies over its rim)
     flat(b, P["land"], coast, pools, LAND_Y)
@@ -141,17 +150,13 @@ def build_island(P, R):
             n = outward(a, c)
             wall(b, P["bank"], a, c, LAND_Y - POOL, LAND_Y, (-n[0], 0, -n[2]))   # facing into the pool
 
-    # the rind: a raised band round the coast and the top of the cliff, a
-    # strong bright orange, ribbed (two hues, a rib every ~7 m)
-    run = 0.0
+    # the rind: an orange beach round the coast, flush with the land, and
+    # orange soil down the top of the cliff, rock under it
     for i, (a, c) in enumerate(zip(edge, edge[1:] + edge[:1])):
         ia, ic = band[i], band[(i + 1) % len(band)]
         n = outward(a, c)
-        hue = P["rind"] if int(run / 7.0) % 2 == 0 else P["rind2"]
-        run += math.hypot(c[0] - a[0], c[1] - a[1])
-        facing(b, P["lip"], [(a[0], LAND_Y + LIP, a[1]), (c[0], LAND_Y + LIP, c[1]), (ic[0], LAND_Y + LIP, ic[1]), (ia[0], LAND_Y + LIP, ia[1])], (0, 1, 0))
-        wall(b, P["lip"], ia, ic, LAND_Y, LAND_Y + LIP, (-n[0], 0, -n[2]))
-        wall(b, hue, a, c, -RIND_H, LAND_Y + LIP, n)
+        facing(b, P["sand"], [(a[0], LAND_Y + LIP, a[1]), (c[0], LAND_Y + LIP, c[1]), (ic[0], LAND_Y + LIP, ic[1]), (ia[0], LAND_Y + LIP, ia[1])], (0, 1, 0))
+        wall(b, P["soil"], a, c, -RIND_H, LAND_Y + LIP, n)
         wall(b, P["rock"], a, c, -CLIFF, -RIND_H, n)
     facing_floor = [(x, -CLIFF, z) for x, z in coast]
     loops = [[Vector((x, z, 0.0)) for x, z in coast]]

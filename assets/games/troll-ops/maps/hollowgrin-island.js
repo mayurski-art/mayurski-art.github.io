@@ -18,6 +18,8 @@ import * as THREE from "three";
 const JSON_URL = new URL("../models/hollowgrin-island.json", import.meta.url).href;
 const HAZE_FADE = [30, 110];   // camera height (m): the ground haze full below, gone above
 const PLANE_PAD = 2;           // the ground plane's margin round the play area here
+// the rind's ground (hg_island.py): Blender material -> [colour, warmth, its strength]
+const RIND = { HG_IslandSand: [0xffa448, 0xff8a1c, 0.4], HG_IslandSoil: [0xd88a3a, 0xc06414, 0.25] };
 
 function inside(poly, x, z) {
   let c = false;
@@ -107,6 +109,19 @@ export function islandScenery(scene, { load, bounds, bakeRect, haze }) {
         const [a, b] = HAZE_FADE, k = Math.min(1, Math.max(0, (camera.position.y - a) / (b - a)));
         haze.value.x = hazeK * (1 - k * k * (3 - 2 * k));
       };
+    });
+    // the rind is pumpkin-orange ground: the retexture's sand and dirt keep
+    // their grain but come back pale, so the hue goes back on, with a little
+    // warmth of its own through the same grain to hold it under the moon
+    land.traverse((n) => {
+      const hue = n.isMesh && RIND[n.userData.blenderMat];
+      if (!hue) return;
+      const m = n.material;
+      m.color.setHex(hue[0]);
+      m.emissive.setHex(hue[1]);
+      m.emissiveMap = m.map;
+      m.emissiveIntensity = hue[2];
+      m.needsUpdate = true;
     });
     group.add(land);
     // the woods ring's trees off the cliff, out of the brew, clear of the stem
