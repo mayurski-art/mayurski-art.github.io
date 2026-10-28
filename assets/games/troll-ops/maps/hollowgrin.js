@@ -173,6 +173,13 @@ const GARDEN_PROPS = {
 // them): their colliders, [x, z, w, d, h].
 const SHOP_PROPS = [[-1.95, 26.55, 0.5, 0.5, 1.47], [-10.3, 23.1, 0.56, 2.6, 0.85]];
 const BARN_PROPS = [[26.4, 21.36, 1.8, 1.25, 0.7], [18.5, 21.25, 1.85, 1.3, 0.75], [28.3, 24.1, 0.5, 1.2, 0.5]];
+// The windmill's (millstone, ladder, flour sacks, crates) and the south
+// road's (the coffin, the hay wagon, the fingerpost, the milestone).
+const MILL_PROPS = [[25.55, -22, 0.55, 1.25, 1.2], [30.45, -21.62, 0.6, 0.55, 1.6], [26.8, -19.6, 1.1, 0.7, 0.8], [29.4, -19.6, 1.3, 0.75, 1.15]];
+const SOUTH_PROPS = [[6.4, 21.1, 0.7, 0.8, 1.3], [-14.5, 29.6, 3.6, 2.0, 2.0], [4.4, 28.6, 0.2, 0.2, 2.6], [-3.55, 19, 0.3, 0.5, 0.75]];
+// the fingerpost (hg_village.SIGNPOST, FINGERS): words, direction, board foot
+const SIGNPOST = [4.4, 28.6];
+const SIGNPOST_FINGERS = [["GRINMOOR FAIR", 1, 0, 2.2], ["ST GRINSWORTH'S", -1, 0, 1.92], ["THE MANOR", 0, -1, 1.64]];
 const WEST_LOOP = {
   path: -37.4,
   wallX: -38.75, walls: [[-16, -11.5], [-10, -8.7], [11, 13], [14, 19], [20.5, 25], [26.5, 28.8]],
@@ -4323,35 +4330,20 @@ function buildHollowgrin(api) {
 
   /* ------------------------------------------------ the windmill (NE) */
   {
+    // a smock mill on a brick base, its cap, fantail, door and windows, and
+    // round its foot the sacks, crates, millstone, ladder and bales
+    // (hg-windmill); the sails are their own model, turned here
     const wx = 28, wz = -22;
     K.solid(wx, wz, 4, 4, 7, { pen: 10 });
-    K.add(M.siding, place(new THREE.CylinderGeometry(1.7, 2.6, 7, 8), { x: wx, y: 3.5, z: wz, ry: Math.PI / 8 }));
-    K.add(M.roof, place(new THREE.ConeGeometry(2.1, 2.4, 8), { x: wx, y: 8.2, z: wz, ry: Math.PI / 8 }));
-    K.box(M.trimDark, wx, 0, wz + 2.35, 1.2, 2.2, 0.2);
-    K.add(M.winGlow, place(new THREE.PlaneGeometry(0.5, 0.8), { x: wx, y: 5, z: wz + 2.02, rx: -0.12 }), { shadow: false });
-    // the sails turn, slowly, on their own mesh
+    hgModel(api, "hg-windmill");
     const sails = new THREE.Group();
-    const sailMat = M.stairWood;
-    for (let i = 0; i < 4; i++) {
-      const arm = new THREE.Group();
-      arm.rotation.z = (i * Math.PI) / 2;
-      const spar = new THREE.Mesh(new THREE.BoxGeometry(0.16, 4.8, 0.12), sailMat);
-      spar.position.y = 2.4;
-      arm.add(spar);
-      const lattice = new THREE.Mesh(new THREE.BoxGeometry(1.0, 3.4, 0.04), M.burlap);
-      lattice.position.set(0.55, 3.0, 0);
-      arm.add(lattice);
-      sails.add(arm);
-    }
-    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.5, 10), M.iron);
-    hub.rotation.x = Math.PI / 2;
-    sails.add(hub);
     sails.position.set(wx, 7.6, wz + 2.3);
     sails.rotation.x = -0.12;
-    sails.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-    hub.onBeforeRender = () => { sails.rotation.z = -performance.now() / 1000 * 0.35; };
     root.add(sails);
-    for (const [dx, dz] of [[-3.4, 1.4], [-3.2, 2.6], [3.5, -1.2]]) hayBale(K, M, wx + dx, wz + dz, { ry: dx * 0.2 });
+    hgModel(api, "hg-windmill-sails", { parent: sails, then: (obj) => obj.traverse((o) => { if (o.isMesh) o.castShadow = true; }) });
+    root.add(ticker(() => { sails.rotation.z = -performance.now() / 1000 * 0.35; }));
+    for (const [dx, dz, ry] of [[-3.4, 0.8, Math.PI / 2], [-3.25, 2.25, Math.PI / 2 + 0.06], [3.5, -1.2, 0.7]]) hayBale(K, M, wx + dx, wz + dz, { ry, draw: false });
+    for (const [x, z, w, d, h] of MILL_PROPS) K.api.ghostBox(x, z, w, d, h, { pen: 2 });
   }
 
   /* ------------------------------------------------ the candy shop (S) */
@@ -4472,43 +4464,45 @@ function buildHollowgrin(api) {
   /* ------------------------------------------------ the south road */
   {
     // the hearse, nose north, back hatch open with a coffin sliding out
+    // (hg-southroad draws it and everything else here; this keeps the
+    // colliders, the headlamps' glass, the jacks and the words)
     const hx = 6.4, hz = 18.2;
-    K.api.ghostBox(hx, hz, 2.0, 5.4, 1.55, { pen: 3 });
-    K.box(M.car, hx, 0.35, hz, 1.95, 0.7, 5.4);
-    K.box(M.car, hx, 1.05, hz + 0.6, 1.8, 0.75, 3.9);
-    K.box(M.glassDark, hx, 1.12, hz - 1.43, 1.7, 0.55, 0.05, { rx: 0.35 });
-    for (const s of [-1, 1]) {
-      K.box(M.glassDark, hx + s * 0.905, 1.15, hz - 0.6, 0.02, 0.5, 1.1);
-      K.box(M.fabric, hx + s * 0.905, 1.12, hz + 1.2, 0.02, 0.55, 2.2);
-      K.box(M.chrome, hx + s * 0.91, 1.1, hz + 1.2, 0.03, 0.05, 2.4);
-      for (const wz of [-1.8, 1.8]) K.add(M.trimDark, place(new THREE.CylinderGeometry(0.38, 0.38, 0.25, 14), { x: hx + s * 0.92, y: 0.38, z: hz + wz, rz: Math.PI / 2 }));
-    }
-    K.box(M.chrome, hx, 0.35, hz - 2.72, 1.9, 0.18, 0.06);
+    K.api.ghostBox(hx, hz, 2.0, 5.4, 1.7, { pen: 3 });
     K.box(M.lampGlass, hx - 0.7, 0.62, hz - 2.72, 0.3, 0.12, 0.03, {}, { shadow: false });
     K.box(M.lampGlass, hx + 0.7, 0.62, hz - 2.72, 0.3, 0.12, 0.03, {}, { shadow: false });
-    K.box(M.car, hx, 1.8, hz + 2.95, 1.8, 0.06, 1.0, { rx: -1.1 });
-    K.add(M.stairWood, place(prismGeo([[-0.3, -1.0], [0.3, -1.0], [0.4, 0.4], [0, 1.0], [-0.4, 0.4]], 0.45), { x: hx, y: 0.95, z: hz + 2.6, rx: Math.PI / 2 - 0.18 }));
-    jack(K, M, hx - 0.4, 1.8, hz + 1.4, { r: 0.26, face: -Math.PI / 2, seed: 1300 });
+    jack(K, M, hx - 0.4, 1.7, hz + 1.4, { r: 0.26, face: -Math.PI / 2, seed: 1300 });
+    hgModel(api, "hg-southroad");
 
-    // road gate at the south edge
+    // road gate at the south edge: stone piers, a jack on each cap
     for (const gx of [-3, 3]) {
-      K.solid(gx, 31.2, 0.8, 0.8, 2.4, { mat: M.stone, pen: 10 });
-      K.add(M.stone, place(new THREE.SphereGeometry(0.3, 10, 8), { x: gx, y: 2.65, z: 31.2 }));
+      K.solid(gx, 31.2, 0.8, 0.8, 2.4, { pen: 10 });
       jack(K, M, gx, 2.4, 31.2, { r: 0.3, face: Math.PI, seed: 1310 + gx, glow: false });
     }
-    // low stone walls and a toolshed for the south-west corner
-    K.solid(-18, 24, 0.7, 5, 1.0, { mat: M.stone, pen: 8 });
-    K.solid(13.4, 23.6, 0.7, 4, 1.0, { mat: M.stone, pen: 8 });
-    K.solid(-27, 26, 4, 3, 2.6, { mat: M.siding, pen: 8 });
-    K.box(M.roof, -27, 2.6, 26, 4.5, 0.18, 3.5, { rx: 0.15 });
-    K.box(M.trimDark, -27, 0, 24.47, 1.1, 2.0, 0.05);
-    hayBale(K, M, -21, 28.6, {});
-    hayBale(K, M, -21, 28.6, { y: 0.75, ry: 0.1 });
+    // low dry-stone walls and a toolshed for the south-west corner
+    K.solid(-18, 24, 0.7, 5, 1.0, { pen: 8 });
+    K.solid(13.4, 23.6, 0.7, 4, 1.0, { pen: 8 });
+    K.solid(-27, 26, 4, 3, 2.6, { pen: 8 });
+    hayBale(K, M, -21, 28.6, { draw: false });
+    hayBale(K, M, -21, 28.6, { y: 0.75, ry: 0.1, draw: false });
     jack(K, M, -21, 1.5, 28.6, { r: 0.28, face: Math.PI, seed: 1400 });
-    hayBale(K, M, 9.5, 27.5, { ry: Math.PI / 2 });
-    // lamps down the road (bulbs only)
-    gasLamp(K, M, 3.2, 15.5);
-    gasLamp(K, M, -3.2, 26);
+    hayBale(K, M, 9.5, 27.5, { ry: Math.PI / 2, draw: false });
+    // lamps down the road (bulbs only), the coffin, the hay wagon, the
+    // fingerpost and the milestone
+    gasLamp(K, M, 3.2, 15.5, { draw: false });
+    gasLamp(K, M, 3.2, 24.5, { draw: false });
+    for (const [x, z, w, d, h] of SOUTH_PROPS) K.api.ghostBox(x, z, w, d, h, { pen: 2 });
+    // the fingers' words, both sides, and the milestone's
+    const painted = (lines, o) => new THREE.MeshStandardMaterial({ map: signTexture(lines, o), roughness: 0.85 });
+    const [px, pz] = SIGNPOST;
+    for (const [words, dx, dz, y] of SIGNPOST_FINGERS) {
+      const mat = painted([words], { bg: "#d8ccb0", fg: "#1c1414", edge: "#1c1414" });
+      for (const s of [-1, 1]) {
+        const nx = -dz * s, nz = dx * s;
+        K.add(mat, place(new THREE.PlaneGeometry(0.9, 0.16), { x: px + dx * 0.56 + nx * 0.026, y: y + 0.11, z: pz + dz * 0.56 + nz * 0.026, ry: Math.atan2(nx, nz) }), { shadow: false });
+      }
+    }
+    K.add(painted(["HOLLOWGRIN", "½ MILE"], { w: 512, h: 384, bg: "#8a8478", fg: "#2a2622", edge: "#8a8478" }),
+      place(new THREE.PlaneGeometry(0.32, 0.24), { x: -3.55 + 0.115, y: 0.5, z: 19, ry: Math.PI / 2 }), { shadow: false });
     // lanterns lining the road
     let s = 1500;
     for (const z of [13, 17, 21, 25, 29]) {

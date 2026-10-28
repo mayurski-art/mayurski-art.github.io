@@ -1,6 +1,7 @@
 """
 Hollowgrin's village (phase 1: the square half; phase 3 adds the candy shop,
-the barn, the windmill and the south road). hg-square.glb, in map
+the barn, the windmill and the south road: hg-barn.glb, hg-candyshop.glb,
+hg-windmill.glb, hg-windmill-sails.glb, hg-southroad.glb). hg-square.glb, in map
 coordinates: the well, the pumpkin market (the stall, crates, baskets, the
 scale, the chalk board's frame, the notice board), the hand cart, the hay,
 the four gas lamps and the bunting round the square. The dead oak is its
@@ -20,7 +21,7 @@ import random
 import bpy
 
 from map_kit import TEXTURED, mat
-from hg_kit import HGBuilder, Report, Wall, facing, gable_prism, lathe, pumpkin, ring, slates
+from hg_kit import HGBuilder, Report, Wall, facing, fbox, gable_prism, lathe, pumpkin, ring, slates
 
 TEXTURED.update({"HG_GraniteDark", "HG_BarnRed", "HG_BarnWood", "HG_Clapboard", "HG_Brick", "HG_Floorboards", "HG_Granite"})
 
@@ -350,46 +351,51 @@ def cart(b, P, R):
     R.end()
 
 
+def bale(b, P, rnd, x, z, y, ry, seed):
+    """A hay bale (1.3 x 0.75 x 0.85, the JS's hayBale), its straws and twine."""
+    w, h, d = 1.3, 0.75, 0.85
+    b.lump(P["hay"], w, h, d, x, y, z, ry=ry, seed=seed, rnd=0.12, jitter=0.025)
+    c, s = math.cos(ry), math.sin(ry)
+
+    def at(lx, ly, lz):
+        return (x + lx * c + lz * s, y + ly, z - lx * s + lz * c)
+    # straws: short tilted blades over every face but the bottom
+    for k in range(46):
+        f = rnd.randrange(5)
+        u, v = rnd.uniform(-0.45, 0.45), rnd.uniform(0.08, 0.92)
+        ln, tilt = rnd.uniform(0.08, 0.2), rnd.uniform(-0.9, 0.9)
+        col = P["hay_dk"] if rnd.random() < 0.45 else P["hay"]
+        if f < 2:                         # the long faces
+            sd = 1 if f else -1
+            p0 = at(u * w, v * h, sd * (d / 2 + 0.01))
+            p1 = at(u * w + math.cos(tilt) * ln, v * h + math.sin(tilt) * ln, sd * (d / 2 + 0.03))
+            n = (s * sd, 0.0, c * sd)
+        elif f < 4:                       # the ends
+            sd = 1 if f == 3 else -1
+            p0 = at(sd * (w / 2 + 0.01), v * h, u * d)
+            p1 = at(sd * (w / 2 + 0.03), v * h + math.sin(tilt) * ln, u * d + math.cos(tilt) * ln)
+            n = (c * sd, 0.0, -s * sd)
+        else:                             # the top
+            p0 = at(u * w, h + 0.012, (v - 0.5) * d)
+            p1 = at(u * w + math.cos(tilt) * ln, h + 0.03, (v - 0.5) * d + math.sin(tilt) * ln)
+            n = (0.0, 1.0, 0.0)
+        ex, ez = p1[0] - p0[0], p1[2] - p0[2]
+        el = math.hypot(ex, ez) or 1.0
+        wx, wz = -ez / el * 0.012, ex / el * 0.012
+        wy = 0.012 if f < 4 and abs(ex) + abs(ez) < 0.02 else 0.0
+        facing(b, col, [(p0[0] - wx, p0[1] - wy, p0[2] - wz), (p0[0] + wx, p0[1] + wy, p0[2] + wz),
+                        (p1[0] + wx, p1[1] + wy, p1[2] + wz), (p1[0] - wx, p1[1] - wy, p1[2] - wz)], n)
+    for t in (-0.32, 0.32):
+        px, pz = x + t * c, z - t * s
+        b.box(P["twine"], 0.03, h + 0.02, d + 0.03, px, y - 0.005, pz, ry=ry)
+
+
 def hay(b, P, R):
     rnd = random.Random(77)
     for i, (x, z, y, ry) in enumerate(BALES):
         # stacked, or end to end with the one before (4 and 5)
         R.begin(b, f"square:bale-{i}", on=f"square:bale-{i - 1}" if y > 0 or i == 5 else None)
-        w, h, d = 1.3, 0.75, 0.85
-        b.lump(P["hay"], w, h, d, x, y, z, ry=ry, seed=i + 90, rnd=0.12, jitter=0.025)
-        c, s = math.cos(ry), math.sin(ry)
-
-        def at(lx, ly, lz):
-            return (x + lx * c + lz * s, y + ly, z - lx * s + lz * c)
-        # straws: short tilted blades over every face but the bottom
-        for k in range(46):
-            f = rnd.randrange(5)
-            u, v = rnd.uniform(-0.45, 0.45), rnd.uniform(0.08, 0.92)
-            ln, tilt = rnd.uniform(0.08, 0.2), rnd.uniform(-0.9, 0.9)
-            col = P["hay_dk"] if rnd.random() < 0.45 else P["hay"]
-            if f < 2:                         # the long faces
-                sd = 1 if f else -1
-                p0 = at(u * w, v * h, sd * (d / 2 + 0.01))
-                p1 = at(u * w + math.cos(tilt) * ln, v * h + math.sin(tilt) * ln, sd * (d / 2 + 0.03))
-                n = (s * sd, 0.0, c * sd)
-            elif f < 4:                       # the ends
-                sd = 1 if f == 3 else -1
-                p0 = at(sd * (w / 2 + 0.01), v * h, u * d)
-                p1 = at(sd * (w / 2 + 0.03), v * h + math.sin(tilt) * ln, u * d + math.cos(tilt) * ln)
-                n = (c * sd, 0.0, -s * sd)
-            else:                             # the top
-                p0 = at(u * w, h + 0.012, (v - 0.5) * d)
-                p1 = at(u * w + math.cos(tilt) * ln, h + 0.03, (v - 0.5) * d + math.sin(tilt) * ln)
-                n = (0.0, 1.0, 0.0)
-            ex, ez = p1[0] - p0[0], p1[2] - p0[2]
-            el = math.hypot(ex, ez) or 1.0
-            wx, wz = -ez / el * 0.012, ex / el * 0.012
-            wy = 0.012 if f < 4 and abs(ex) + abs(ez) < 0.02 else 0.0
-            facing(b, col, [(p0[0] - wx, p0[1] - wy, p0[2] - wz), (p0[0] + wx, p0[1] + wy, p0[2] + wz),
-                            (p1[0] + wx, p1[1] + wy, p1[2] + wz), (p1[0] - wx, p1[1] - wy, p1[2] - wz)], n)
-        for t in (-0.32, 0.32):
-            px, pz = x + t * c, z - t * s
-            b.box(P["twine"], 0.03, h + 0.02, d + 0.03, px, y - 0.005, pz, ry=ry)
+        bale(b, P, rnd, x, z, y, ry, i + 90)
         R.end()
         # loose straw on the ground round the bottom bales (flat: no prop)
         if y == 0:
@@ -399,8 +405,8 @@ def hay(b, P, R):
                 b.box(P["hay"], rnd.uniform(0.15, 0.35), 0.008, 0.012, x + math.cos(a) * r, 0.0, z + math.sin(a) * r, ry=rnd.uniform(0, 3.1))
 
 
-def gas_lamp(b, P, R, x, z, i):
-    R.begin(b, f"square:lamp-{i}")
+def gas_lamp(b, P, R, x, z, i, area="square"):
+    R.begin(b, f"{area}:lamp-{i}")
     lathe(b, P["iron"], x, z, [(0.24, 0), (0.24, 0.12), (0.19, 0.18), (0.19, 0.38), (0.13, 0.48), (0.1, 0.56), (0.11, 0.62), (0.08, 0.7)], seg=12)
     # the fluted shaft (collider 0.24 square, 3.0 tall)
     n = 8
@@ -1069,3 +1075,632 @@ def shop_props(b, P, R):
     cobweb(b, P["web"], (-10.59, 3.34, 21.41), (1, -0.3, 0), (0, -0.3, 1), 0.55, 11)
     cobweb(b, P["web"], (-1.41, 3.34, 21.41), (-1, -0.3, 0), (0, -0.3, 1), 0.5, 12)
     R.end()
+
+
+# ------------------------------------------------------------------ the windmill
+
+MILL = (28.0, -22.0)                 # hollowgrin.js: the solid 4 x 4 x 7 under it
+HUB = (28.0, 7.6, -19.7)             # the sails' group in the JS, tilted back 0.12
+TILT = 0.12
+OCT = math.cos(math.pi / 8)
+# hollowgrin.js MILL_PROPS' pieces, and the bales its hayBale() calls lay
+MILL_BALES = [(24.6, -21.2, math.pi / 2), (24.75, -19.75, math.pi / 2 + 0.06), (31.5, -23.2, 0.7)]
+
+
+def mill_apo(y):
+    """The tower's apothem (centre to a face) at height y: the brick base
+    near plumb to 2.3 m, then the smock's taper to the curb at 7."""
+    if y <= 2.3:
+        return 2.0 - 0.06 * y / 2.3
+    return 1.82 - (y - 2.3) * 0.52 / 4.7
+
+
+def oct_pt(apo, ang, y, c=MILL):
+    r = apo / OCT
+    return (c[0] + r * math.cos(ang), y, c[1] + r * math.sin(ang))
+
+
+def on_face(k, u, y, out=0.0):
+    """A point on the tower's face k (its normal at k * 45 degrees from +x,
+    2 = south): u along the face, `out` off it."""
+    phi = k * math.pi / 4
+    a = mill_apo(y) + out
+    return (MILL[0] + a * math.cos(phi) - u * math.sin(phi), y, MILL[1] + a * math.sin(phi) + u * math.cos(phi))
+
+
+def oct_shell(b, m, y0, y1, a0, a1, c=MILL):
+    for k in range(8):
+        phi = k * math.pi / 4
+        p, q = phi - math.pi / 8, phi + math.pi / 8
+        facing(b, m, [oct_pt(a0, p, y0, c), oct_pt(a0, q, y0, c), oct_pt(a1, q, y1, c), oct_pt(a1, p, y1, c)], (math.cos(phi), 0, math.sin(phi)))
+
+
+def oct_ring(b, m, y, a_out, a_in, up=1, c=MILL):
+    """A flat octagonal annulus at y (a ledge's top, a band's underside)."""
+    for k in range(8):
+        phi = k * math.pi / 4
+        p, q = phi - math.pi / 8, phi + math.pi / 8
+        facing(b, m, [oct_pt(a_out, p, y, c), oct_pt(a_out, q, y, c), oct_pt(a_in, q, y, c), oct_pt(a_in, p, y, c)], (0, up, 0))
+
+
+def mill_window(b, P, k, yc, w, h, glass):
+    """A four-pane window on face k: glass, a frame, a cross of glazing bars."""
+    o = 0.04
+    facing(b, glass, [on_face(k, -w / 2, yc - h / 2, o), on_face(k, w / 2, yc - h / 2, o), on_face(k, w / 2, yc + h / 2, o), on_face(k, -w / 2, yc + h / 2, o)],
+           (math.cos(k * math.pi / 4), 0, math.sin(k * math.pi / 4)))
+    f = 0.075
+    for u in (-w / 2 - f / 2, w / 2 + f / 2):
+        b.bar(P["trim"], on_face(k, u, yc - h / 2 - f, o + 0.03), on_face(k, u, yc + h / 2 + f, o + 0.03), f, 0.06)
+    for y in (yc - h / 2 - f / 2, yc + h / 2 + f / 2):
+        b.bar(P["trim"], on_face(k, -w / 2 - f, y, o + 0.03), on_face(k, w / 2 + f, y, o + 0.03), 0.06, f)
+    b.bar(P["trim"], on_face(k, 0.0, yc - h / 2, o + 0.015), on_face(k, 0.0, yc + h / 2, o + 0.015), 0.03, 0.03)
+    b.bar(P["trim"], on_face(k, -w / 2, yc, o + 0.015), on_face(k, w / 2, yc, o + 0.015), 0.03, 0.03)
+    # the sill, a little proud
+    b.bar(P["trim"], on_face(k, -w / 2 - 0.12, yc - h / 2 - f - 0.03, o + 0.07), on_face(k, w / 2 + 0.12, yc - h / 2 - f - 0.03, o + 0.07), 0.12, 0.05)
+
+
+def build_windmill(P, R):
+    """The windmill (phase 3): a weatherboarded smock on a brick base, its
+    corner posts, windows (the south one lit), the door, the ogee cap with
+    its finial, the windshaft out to the sails (hg-windmill-sails, turned by
+    the JS) and the fantail at the back. Round its foot: flour sacks and
+    crates by the door, a millstone against the west face, a ladder up the
+    east one, the JS's three hay bales. hollowgrin.js lays the props'
+    colliders (MILL_PROPS)."""
+    b = HGBuilder()
+    MP = mill_palette()
+    cx, cz = MILL
+    R.begin(b, "east:windmill")
+    # the brick base, a granite plinth and the string course over it
+    oct_shell(b, P["brick"], 0.0, 2.3, mill_apo(0.0), mill_apo(2.3))
+    oct_shell(b, P["granite_dk"], 0.0, 0.32, 2.035, 2.03)
+    oct_ring(b, P["granite_dk"], 0.32, 2.035, mill_apo(0.32))
+    oct_shell(b, P["granite"], 2.22, 2.4, 2.05, 2.05)
+    oct_ring(b, P["granite"], 2.22, 2.05, mill_apo(2.22), up=-1)
+    oct_ring(b, P["granite"], 2.4, 2.05, mill_apo(2.4))
+    # the smock: a backing shell, then lapped boards, each course's foot proud
+    oct_shell(b, MP["board_dk"], 2.4, 7.0, mill_apo(2.4), mill_apo(7.0))
+    y, course = 2.4, (7.0 - 2.4) / 19
+    rnd = random.Random(5)
+    for i in range(19):
+        for k in range(8):
+            phi = k * math.pi / 4
+            p, q = phi - math.pi / 8, phi + math.pi / 8
+            m = MP["board"] if rnd.random() < 0.8 else MP["board2"]
+            facing(b, m, [oct_pt(mill_apo(y) + 0.03, p, y), oct_pt(mill_apo(y) + 0.03, q, y),
+                          oct_pt(mill_apo(y + course), q, y + course), oct_pt(mill_apo(y + course), p, y + course)], (math.cos(phi), 0, math.sin(phi)))
+        y += course
+    # corner posts
+    for k in range(8):
+        a = k * math.pi / 4 + math.pi / 8
+        b.bar(P["trim"], oct_pt(mill_apo(2.4) + 0.03, a, 2.4), oct_pt(mill_apo(7.0) + 0.03, a, 7.0), 0.1, 0.1)
+    # windows: the south one lit (the JS's old glow), the rest dark
+    mill_window(b, P, 2, 5.0, 0.5, 0.62, P["warm"])
+    mill_window(b, P, 4, 4.5, 0.46, 0.58, P["glass"])
+    mill_window(b, P, 6, 3.6, 0.46, 0.58, P["glass"])
+    mill_window(b, P, 6, 1.35, 0.5, 0.6, P["glass"])
+    # the door in the base, south: planks, a frame, a granite lintel, strap hinges
+    k, n = 2, (0, 0, 1)
+    for i in range(5):
+        u0 = -0.5 + i * 0.2
+        facing(b, MP["door"] if i % 2 else P["wood_dk"], [on_face(k, u0 + 0.005, 0.0, 0.03), on_face(k, u0 + 0.195, 0.0, 0.03),
+                                                            on_face(k, u0 + 0.195, 1.95, 0.03), on_face(k, u0 + 0.005, 1.95, 0.03)], n)
+    for yy in (0.35, 1.55):
+        b.bar(P["iron"], on_face(k, -0.5, yy, 0.05), on_face(k, 0.2, yy, 0.05), 0.04, 0.05)
+    b.bar(P["wood_dk"], on_face(k, -0.45, 0.4, 0.045), on_face(k, 0.45, 1.5, 0.045), 0.08, 0.03)
+    for u in (-0.56, 0.56):
+        b.bar(P["trim"], on_face(k, u, 0.0, 0.05), on_face(k, u, 2.0, 0.05), 0.12, 0.08)
+    b.box(P["granite"], 1.4, 0.2, 0.16, cx, 2.0, cz + mill_apo(2.0) + 0.06)
+    b.cyl(P["brass"], 0.03, on_face(k, 0.38, 1.0, 0.04), on_face(k, 0.38, 1.0, 0.1), seg=8)
+    # the curb, the ogee cap and its finial
+    oct_shell(b, MP["cap"], 6.95, 7.12, 1.42, 1.42)
+    oct_ring(b, MP["cap"], 6.95, 1.42, mill_apo(6.95), up=-1)
+    lathe(b, MP["cap"], cx, cz, [(1.44, 0.0), (1.5, 0.1), (1.48, 0.2), (1.4, 0.42), (1.2, 0.78), (0.92, 1.08), (0.64, 1.3),
+                                 (0.42, 1.46), (0.24, 1.6), (0.12, 1.72), (0.1, 1.82)], seg=16, y0=7.1)
+    for r, y0 in ((1.51, 7.18), (1.45, 7.36)):
+        ring(b, P["trim"], (cx, y0, cz), r, 0.025, seg=24, tseg=4)
+    lathe(b, P["brass"], cx, cz, [(0.002, 0.0), (0.12, 0.06), (0.15, 0.15), (0.12, 0.24), (0.04, 0.3), (0.05, 0.42), (0.002, 0.5)], seg=12, y0=8.9)
+    # the windshaft, out of the cap's front, tilted up to the hub
+    f = (0.0, math.sin(TILT), math.cos(TILT))
+    at = lambda s: (HUB[0] + f[0] * s, HUB[1] + f[1] * s, HUB[2] + f[2] * s)    # noqa: E731
+    b.cyl(MP["shaft"], 0.17, at(-2.3), at(-0.28), seg=12)
+    for s in (-1.1, -0.6):
+        ring(b, P["iron"], at(s), 0.175, 0.025, seg=14, tseg=4, axis="z")
+    # the fantail at the back: two struts, a frame, six vanes about a hub
+    fh = (cx, 8.3, cz - 2.55)
+    for sx in (-1, 1):
+        b.bar(MP["shaft"], (cx + sx * 0.55, 7.25, cz - 1.25), (cx + sx * 0.12, fh[1] - 0.05, fh[2]), 0.07, 0.07)
+        b.bar(MP["shaft"], (cx + sx * 0.5, 8.1, cz - 1.0), (cx + sx * 0.12, fh[1] + 0.05, fh[2]), 0.06, 0.06)
+    b.cyl(P["iron"], 0.09, (fh[0], fh[1], fh[2] - 0.1), (fh[0], fh[1], fh[2] + 0.1), seg=10)
+    for i in range(6):
+        a = i * math.pi / 3 + 0.3
+        d = (math.cos(a), math.sin(a))
+        b.bar(P["trim"], (fh[0] + d[0] * 0.08, fh[1] + d[1] * 0.08, fh[2]), (fh[0] + d[0] * 0.78, fh[1] + d[1] * 0.78, fh[2]), 0.035, 0.035)
+        e = (-d[1], d[0])
+        pts = [(fh[0] + d[0] * r + e[0] * w, fh[1] + d[1] * r + e[1] * w, fh[2] + w * 0.6) for r, w in ((0.25, -0.08), (0.78, -0.13), (0.78, 0.13), (0.25, 0.08))]
+        facing(b, MP["vane"], pts, (0, 0, 1))
+        facing(b, MP["vane"], [(p[0], p[1], p[2] - 0.01) for p in pts], (0, 0, -1))
+    R.end()
+
+    # flour sacks stacked by the door, west of it
+    R.begin(b, "east:mill-sacks", on="east:windmill")
+    for i, (x, y, z, r) in enumerate(((26.55, 0.0, -19.62, 0.2), (27.15, 0.0, -19.6, -0.1), (26.85, 0.38, -19.6, 0.05),
+                                      (26.5, 0.0, -19.25, 1.6))):
+        b.lump(MP["flour"], 0.55, 0.42, 0.4, x, y, z, seed=60 + i, rnd=0.75, jitter=0.05, ry=r)
+        c, s = math.cos(r), math.sin(r)
+        b.cyl(P["twine"], 0.05, (x + c * 0.23, y + 0.28, z - s * 0.23), (x + c * 0.29, y + 0.33, z - s * 0.29), seg=6)
+    # a dusting of flour where one has split
+    b.lump(MP["flour"], 0.4, 0.03, 0.25, 27.35, 0.0, -19.25, seed=66, rnd=0.9, jitter=0.01, n=2)
+    R.end()
+    # crates by the door, east of it
+    R.begin(b, "east:mill-crates", on="east:windmill")
+    crate(b, P, 29.15, 0.0, -19.62, 0.72, 0.55, 0.62, 0.08, open_top=False)
+    crate(b, P, 29.2, 0.55, -19.6, 0.66, 0.5, 0.58, -0.12, open_top=False)
+    crate(b, P, 29.82, 0.0, -19.55, 0.5, 0.42, 0.5, 0.35, open_top=True)
+    for i in range(3):
+        b.lump(MP["flour"], 0.3, 0.14, 0.24, 29.82 + (i - 1) * 0.1, 0.36, -19.55 + (i % 2) * 0.06, seed=70 + i, rnd=0.7, jitter=0.02, n=2)
+    R.end()
+    # a millstone leant on the west face: its eye, the dressing's furrows
+    R.begin(b, "east:millstone", on="east:windmill")
+    al = 0.22
+    ax, au = (math.cos(al), -math.sin(al), 0.0), (math.sin(al), math.cos(al), 0.0)
+    C = (25.68, 0.6 * math.cos(al) + 0.03, -22.0)
+    b.cyl(MP["millstone"], 0.6, (C[0] - ax[0] * 0.11, C[1] - ax[1] * 0.11, C[2]), (C[0] + ax[0] * 0.11, C[1] + ax[1] * 0.11, C[2]), seg=22)
+    b.cyl(P["recess"], 0.1, (C[0] - ax[0] * 0.115, C[1] - ax[1] * 0.115, C[2]), (C[0] + ax[0] * 0.115, C[1] + ax[1] * 0.115, C[2]), seg=10)
+    for i in range(10):
+        a = i * math.pi / 5
+        v = (au[0] * math.cos(a), au[1] * math.cos(a), math.sin(a))
+        p0 = (C[0] - ax[0] * 0.112 + v[0] * 0.16, C[1] - ax[1] * 0.112 + v[1] * 0.16, C[2] + v[2] * 0.16)
+        w = (au[0] * math.cos(a + 0.5), au[1] * math.cos(a + 0.5), math.sin(a + 0.5))
+        p1 = (C[0] - ax[0] * 0.112 + w[0] * 0.56, C[1] - ax[1] * 0.112 + w[1] * 0.56, C[2] + w[2] * 0.56)
+        b.bar(P["recess"], p0, p1, 0.03, 0.01)
+    R.end()
+    # a ladder up the east face, its foot in the grass
+    R.begin(b, "east:mill-ladder", on="east:windmill")
+    lz, foot, top = -21.62, (30.78, 0.0), (mill_apo(4.6) + cx + 0.06, 4.6)
+    for s in (-0.21, 0.21):
+        b.bar(MP["ladder"], (foot[0], foot[1], lz + s), (top[0], top[1], lz + s * 0.9), 0.06, 0.045)
+    for i in range(1, 15):
+        t = i / 15
+        x, yy = foot[0] + (top[0] - foot[0]) * t, foot[1] + (top[1] - foot[1]) * t
+        b.cyl(MP["ladder"], 0.018, (x, yy, lz - 0.21 + 0.02 * t), (x, yy, lz + 0.21 - 0.02 * t), seg=6)
+    R.end()
+    # the JS's hay bales (their colliders are its)
+    hrnd = random.Random(78)
+    for i, (x, z, ry) in enumerate(MILL_BALES):
+        R.begin(b, f"east:mill-bale-{i}")
+        bale(b, P, hrnd, x, z, 0.0, ry, 120 + i)
+        R.end()
+    b.finish("hg-windmill.glb")
+
+
+def mill_palette():
+    return {
+        "board": mat("HG_MillBoard", 0xc9c2b2, 0.85),
+        "board2": mat("HG_MillBoard2", 0xb3ab9a, 0.88),
+        "board_dk": mat("HG_MillBoardDark", 0x3a3630, 0.9),
+        "cap": mat("HG_MillCap", 0x2c2a30, 0.55, 0.15),
+        "shaft": mat("HG_MillShaft", 0x4a3828, 0.8),
+        "vane": mat("HG_MillVane", 0xd0c8b8, 0.8),
+        "door": mat("HG_MillDoor", 0x5a3e2a, 0.8),
+        "flour": mat("HG_FlourSack", 0xa89e88, 1.0),
+        "millstone": mat("HG_Millstone", 0x8c8478, 0.95),
+        "ladder": mat("HG_LadderWood", 0x7a6248, 0.85),
+        "sailwood": mat("HG_SailWood", 0xb8b0a0, 0.85),
+        "cloth": mat("HG_SailCloth", 0x9a8e74, 1.0),
+    }
+
+
+def build_sails(P, R):
+    """The four sails about the hub (origin), in the plane z = 0, facing +z:
+    the canister, two stocks through it, on each arm the sail bars between
+    the hemlock and the trailing stile. Two carry their canvas, torn; two
+    have it furled along the stock. The JS spins it about z."""
+    b = HGBuilder()
+    MP = mill_palette()
+    rnd = random.Random(17)
+    b.box(P["iron"], 0.44, 0.44, 0.6, 0.0, -0.22, 0.0)
+    b.cyl(P["iron"], 0.16, (0.0, 0.0, 0.3), (0.0, 0.0, 0.42), seg=12)
+    for i in range(4):
+        a = i * math.pi / 2 + 0.2
+        d, t = (math.cos(a), math.sin(a)), (-math.sin(a), math.cos(a))
+        zs = 0.12 if i % 2 == 0 else -0.12
+        p = lambda r, u, z=0.0: (d[0] * r + t[0] * u, d[1] * r + t[1] * u, zs + z)    # noqa: E731
+        b.bar(MP["sailwood"], p(0.2, 0.0), p(4.9, 0.0), 0.15, 0.13)
+        r0, r1, n = 1.0, 4.82, 11
+        for u, w in ((-0.3, 0.06), (0.45, 0.04), (1.15, 0.06)):
+            b.bar(MP["sailwood"], p(r0, u, 0.1), p(r1, u, 0.1), w, w)
+        rs = [r0 + (r1 - r0) * k / n for k in range(n + 1)]
+        for r in rs:
+            b.bar(MP["sailwood"], p(r, -0.33, 0.1), p(r, 1.18, 0.1), 0.045, 0.045)
+        if i % 2 == 0:
+            # canvas between the bars, a panel or two torn away, one flapping
+            for k in range(n):
+                if rnd.random() < 0.22:
+                    continue
+                lo, hi = rs[k] + 0.03, rs[k + 1] - 0.03
+                flap = 0.18 if rnd.random() < 0.15 else 0.0
+                pts = [p(lo, 0.02, 0.06), p(lo, 1.12, 0.06), p(hi, 1.12, 0.06 + flap), p(hi, 0.02, 0.06 + flap)]
+                facing(b, MP["cloth"], pts, (0, 0, 1))
+                facing(b, MP["cloth"], [(q[0], q[1], q[2] - 0.008) for q in pts], (0, 0, -1))
+        else:
+            # furled: the canvas rolled along the stock, tied at three points
+            b.cyl(MP["cloth"], 0.085, p(1.15, 0.12, 0.12), p(4.6, 0.12, 0.12), seg=8)
+            for r in (1.6, 2.9, 4.2):
+                ring(b, P["rope"], p(r, 0.12, 0.12), 0.09, 0.015, seg=8, tseg=3,
+                     axis="x" if abs(d[0]) > 0.7 else "y")
+    b.finish("hg-windmill-sails.glb")
+    R.prop("east:windmill-sails", (HUB[0] - 4.95, HUB[1] - 4.95, HUB[2] - 0.3), (HUB[0] + 4.95, HUB[1] + 4.95, HUB[2] + 0.75), on="east:windmill")
+
+
+# ------------------------------------------------------------------ the south road
+
+HEARSE = (6.4, 18.2)                 # hollowgrin.js: nose north, its ghostBox 2.0 x 5.4 x 1.7
+WAGON = (-14.5, 29.6)
+SIGNPOST = (4.4, 28.6)
+# the signpost's fingers: words, direction (x, z), height of the board's foot
+FINGERS = [("fair", (1.0, 0.0), 2.2), ("chapel", (-1.0, 0.0), 1.92), ("manor", (0.0, -1.0), 1.64)]
+MILESTONE = (-3.55, 19.0)
+ROAD_BALES = [(-21.0, 28.6, 0.0, 0.0), (-21.0, 28.6, 0.75, 0.1), (9.5, 27.5, 0.0, math.pi / 2)]
+
+
+def road_palette():
+    return {
+        "black": mat("HG_HearseBlack", 0x0d0d11, 0.22, 0.35),
+        "chrome": mat("HG_Chrome", 0xc8ccd2, 0.18, 0.9),
+        "tyre": mat("HG_Tyre", 0x141414, 0.9),
+        "whitewall": mat("HG_Whitewall", 0xd8d4c8, 0.7),
+        "landau": mat("HG_Landau", 0x1a1418, 0.85),
+        "curtain": mat("HG_Curtain", 0x3a1a3c, 0.9),
+        "tail": mat("HG_TailLight", 0x801010, 0.4, 0.0, 0x701010, 0.8),
+        "coffin": mat("HG_CoffinWood", 0x7a4426, 0.35),
+        "shed": mat("HG_ShedBoard", 0x5e584e, 0.92),
+        "tin": mat("HG_RustTin", 0x6a4a36, 0.75, 0.35),
+        "grass": mat("HG_VergeGrass", 0x45552a, 0.95),
+        "grass2": mat("HG_VergeGrassDry", 0x7a6e40, 0.95),
+        "post": mat("HG_PostWood", 0x4e4032, 0.85),
+        "finger": mat("HG_FingerBoard", 0xd8ccb0, 0.8),
+        "milestone": mat("HG_MilestoneStone", 0x8a8478, 0.95),
+        "wallstone": mat("HG_FieldStone", 0x6a6660, 0.95),
+        "wallstone2": mat("HG_FieldStone2", 0x55524c, 0.95),
+    }
+
+
+def hull(b, m, prof, x, half):
+    """A body from its side profile [(z, y)], its half-width half(y) about x."""
+    n = len(prof)
+    pts = [(x - half(y), y, z) for z, y in prof] + [(x + half(y), y, z) for z, y in prof]
+    faces = [list(range(n)), list(range(2 * n - 1, n - 1, -1))]
+    for i in range(n):
+        j = (i + 1) % n
+        faces.append([i, j, n + j, n + i])
+    return b.poly(m, pts, faces)
+
+
+def arch(zc, yc, r, steps=8):
+    """A wheel arch's points, rear foot to front foot, over the top."""
+    return [(zc + r * math.cos(math.pi * k / steps), yc + r * math.sin(math.pi * k / steps)) for k in range(steps + 1)]
+
+
+def hearse(b, P, RP, R):
+    """A long black fifties hearse, nose north: fins, chrome, whitewalls,
+    landau bars on its curtained flanks, the back hatch up and a coffin
+    sliding out over the bumper."""
+    hx, hz = HEARSE
+    R.begin(b, "south:hearse")
+    # the lower body (wheel arches cut) and the glasshouse over it
+    body = [(-2.62, 0.3), (-2.7, 0.42), (-2.72, 0.72), (-2.6, 0.84), (-1.5, 0.93), (2.4, 0.96), (2.62, 1.08), (2.77, 1.07),
+            (2.79, 0.8), (2.74, 0.42), (2.62, 0.3), (2.24, 0.3)]
+    body += arch(1.76, 0.38, 0.47) + [(1.29, 0.3), (-1.29, 0.3)] + arch(-1.76, 0.38, 0.47) + [(-2.24, 0.3)]
+    hull(b, RP["black"], [(hz + z, y) for z, y in body], hx, lambda y: 0.975 - max(0.0, 0.5 - y) * 0.12)
+    cab = [(-1.5, 0.93), (-0.95, 1.6), (-0.8, 1.7), (2.45, 1.7), (2.62, 1.6), (2.62, 0.96)]
+    cw = lambda y: 0.93 - (y - 0.95) * 0.12        # noqa: E731
+    hull(b, RP["black"], [(hz + z, y) for z, y in cab], hx, cw)
+    # glass: the windscreen, the front doors' windows
+    wl = math.hypot(0.55, 0.67)
+    nz, ny = -0.67 / wl * 0.012, 0.55 / wl * 0.012
+    facing(b, P["glass"], [(hx - 0.78, 0.99 + ny, hz - 1.45 + nz), (hx + 0.78, 0.99 + ny, hz - 1.45 + nz),
+                           (hx + 0.74, 1.56 + ny, hz - 0.99 + nz), (hx - 0.74, 1.56 + ny, hz - 0.99 + nz)], (0, 0.6, -0.8))
+    for s in (-1, 1):
+        sx = hx + s * (cw(1.3) + 0.006)
+        facing(b, P["glass"], [(sx, 1.03, hz - 0.9), (sx, 1.03, hz + 0.32), (sx, 1.56, hz + 0.32), (sx, 1.56, hz - 0.72)], (s, 0, 0))
+        # the flank behind: landau leather, the S-shaped landau iron, a curtained oval
+        lx = hx + s * (cw(1.3) + 0.004)
+        facing(b, RP["landau"], [(lx, 1.0, hz + 0.42), (lx, 1.0, hz + 2.56), (lx, 1.64, hz + 2.48), (lx, 1.64, hz + 0.42)], (s, 0, 0))
+        facing(b, RP["curtain"], [(lx + s * 0.003, 1.18, hz + 0.65), (lx + s * 0.003, 1.18, hz + 1.25), (lx + s * 0.003, 1.48, hz + 1.25), (lx + s * 0.003, 1.48, hz + 0.65)], (s, 0, 0))
+        ox = lx + s * 0.012
+        S = [(1.55, 1.52), (1.75, 1.5), (1.88, 1.38), (1.95, 1.27), (2.05, 1.16), (2.25, 1.12), (2.42, 1.16)]
+        for (z0, y0), (z1, y1) in zip(S, S[1:]):
+            b.bar(RP["chrome"], (ox, y0, hz + z0), (ox, y1, hz + z1), 0.025, 0.035)
+        # chrome: a belt strip, the door handle, the sill
+        b.bar(RP["chrome"], (hx + s * 0.982, 0.82, hz - 2.4), (hx + s * 0.982, 0.86, hz + 2.6), 0.012, 0.025)
+        b.box(RP["chrome"], 0.02, 0.025, 0.12, hx + s * 0.985, 0.88, hz + 0.25)
+        # the wheels: tyre, whitewall, hub cap
+        for wz in (-1.76, 1.76):
+            b.cyl(RP["tyre"], 0.38, (hx + s * 0.7, 0.38, hz + wz), (hx + s * 0.95, 0.38, hz + wz), seg=18)
+            ring(b, RP["whitewall"], (hx + s * 0.953, 0.38, hz + wz), 0.27, 0.035, seg=18, tseg=4, axis="x")
+            b.cyl(RP["chrome"], 0.18, (hx + s * 0.95, 0.38, hz + wz), (hx + s * 0.975, 0.38, hz + wz), seg=14)
+            b.cyl(RP["chrome"], 0.05, (hx + s * 0.975, 0.38, hz + wz), (hx + s * 1.0, 0.38, hz + wz), seg=8)
+        # tail lights in the fins
+        b.cyl(RP["tail"], 0.045, (hx + s * 0.9, 0.98, hz + 2.7), (hx + s * 0.9, 1.0, hz + 2.8), seg=8)
+    # the nose: grille, bezels round the JS's lamps, bumpers, the ornament
+    b.box(P["recess"], 1.1, 0.2, 0.03, hx, 0.47, hz - 2.735)
+    for i in range(9):
+        b.box(RP["chrome"], 0.025, 0.2, 0.04, hx - 0.48 + i * 0.12, 0.47, hz - 2.74)
+    for s in (-1, 1):
+        b.box(RP["chrome"], 0.36, 0.18, 0.025, hx + s * 0.7, 0.59, hz - 2.705)
+    for zb, yb in ((-2.78, 0.3), (2.84, 0.32)):
+        b.bar(RP["chrome"], (hx - 1.0, yb + 0.08, hz + zb), (hx + 1.0, yb + 0.08, hz + zb), 0.12, 0.15)
+    b.bar(RP["chrome"], (hx, 0.86, hz - 2.5), (hx, 0.95, hz - 2.3), 0.03, 0.04)
+    # the open back: dark inside, a chrome frame, the hatch up on its hinge
+    facing(b, P["recess"], [(hx - 0.78, 0.97, hz + 2.625), (hx + 0.78, 0.97, hz + 2.625), (hx + 0.74, 1.6, hz + 2.625), (hx - 0.74, 1.6, hz + 2.625)], (0, 0, 1))
+    for s in (-1, 1):
+        b.bar(RP["chrome"], (hx + s * 0.8, 0.96, hz + 2.63), (hx + s * 0.76, 1.62, hz + 2.63), 0.04, 0.03)
+    hinge, tip = (hx, 1.68, hz + 2.6), (hx, 2.0, hz + 3.26)
+    b.bar(RP["black"], hinge, tip, 1.72, 0.045)
+    b.bar(P["glass"], (hx, 1.72, hz + 2.75), (hx, 1.94, hz + 3.2), 1.3, 0.05)
+    R.end()
+    # the coffin, half out, tilted down over the bumper, its lid askew
+    R.begin(b, "south:coffin", on="south:hearse")
+    t = 0.2
+    O = (hx, 1.06, hz + 2.3)
+    V, W = (0.0, -math.sin(t), math.cos(t)), (0.0, math.cos(t), math.sin(t))
+    L = lambda u, v, w: (O[0] + u, O[1] + V[1] * v + W[1] * w, O[2] + V[2] * v + W[2] * w)    # noqa: E731
+    out = [(-0.2, -1.0), (0.2, -1.0), (0.3, 0.42), (0.24, 1.0), (-0.24, 1.0), (-0.3, 0.42)]
+    n = len(out)
+
+    def slab_(m, w0, w1, du=0.0, dv=0.0):
+        pts = [L(u + du, v + dv, w0) for u, v in out] + [L(u + du, v + dv, w1) for u, v in out]
+        fs = [list(range(n - 1, -1, -1)), list(range(n, 2 * n))] + [[i, (i + 1) % n, n + (i + 1) % n, n + i] for i in range(n)]
+        b.poly(m, pts, fs)
+    slab_(RP["coffin"], 0.0, 0.34)
+    slab_(RP["coffin"], 0.345, 0.42, du=0.04, dv=0.08)
+    for s in (-1, 1):
+        for v in (-0.5, 0.1, 0.65):
+            b.bar(P["brass"], L(s * 0.31, v - 0.12, 0.17), L(s * 0.31, v + 0.12, 0.17), 0.025, 0.03)
+    b.bar(P["brass"], L(0.04, 0.3, 0.425), L(0.04, 0.62, 0.425), 0.03, 0.01)
+    b.bar(P["brass"], L(-0.07, 0.46, 0.425), L(0.15, 0.46, 0.425), 0.03, 0.01)
+    R.end()
+
+
+def gate_pier(b, P, R, x, z, i):
+    """A stone pier at the south gate (its solid 0.8 square, 2.4 tall; the
+    JS's jack sits on its cap)."""
+    R.begin(b, f"south:gate-{i}")
+    rnd = random.Random(300 + i)
+    y = 0.0
+    while y < 2.1:
+        h = min(rnd.uniform(0.26, 0.34), 2.1 - y)
+        b.box(P["granite"] if rnd.random() < 0.7 else P["granite_dk"], 0.8, h - 0.012, 0.8, x, y, z)
+        b.box(P["joint"], 0.79, 0.012, 0.79, x, y + h - 0.012, z)
+        y += h
+    b.box(P["granite_dk"], 0.96, 0.12, 0.96, x, 2.1, z)
+    b.frustum(P["granite_dk"], 0.96, 0.96, 0.62, 0.62, 2.22, 2.4, x=x, z=z)
+    R.end()
+
+
+def toolshed(b, P, RP, R):
+    """The toolshed in the south-west corner (its solid 4 x 3 x 2.6):
+    weathered boards and battens, a rusted tin roof falling to the back, a
+    braced door north, a window east, a scythe against the wall."""
+    x0, x1, z0, z1, h = -29.0, -25.0, 24.5, 27.5, 2.6
+    R.begin(b, "south:shed")
+    fbox(b, RP["shed"], x0, x1, 0.0, h, z0, z1, "+x -x +z -z")
+    for x in [x0 + 0.1 + k * 0.38 for k in range(11)]:
+        for zz, s in ((z0, -1), (z1, 1)):
+            b.box(RP["shed"], 0.06, h + (0.25 if zz == z0 else 0.0), 0.03, x, 0.0, zz + s * 0.015)
+    for z in [z0 + 0.1 + k * 0.4 for k in range(8)]:
+        for xx, s in ((x0, -1), (x1, 1)):
+            b.box(RP["shed"], 0.03, h + 0.25 * (z1 - z) / (z1 - z0), 0.06, xx + s * 0.015, 0.0, z)
+    # the roof, high at the door, falling south: corrugations as ribs
+    y_n, y_s = h + 0.3, h - 0.05
+    facing(b, RP["tin"], [(x0 - 0.2, y_n, z0 - 0.3), (x1 + 0.2, y_n, z0 - 0.3), (x1 + 0.2, y_s, z1 + 0.3), (x0 - 0.2, y_s, z1 + 0.3)], (0, 1, 0.1))
+    facing(b, RP["tin"], [(x0 - 0.2, y_n - 0.03, z0 - 0.3), (x1 + 0.2, y_n - 0.03, z0 - 0.3), (x1 + 0.2, y_s - 0.03, z1 + 0.3), (x0 - 0.2, y_s - 0.03, z1 + 0.3)], (0, -1, -0.1))
+    for k in range(17):
+        x = x0 - 0.15 + k * 0.27
+        b.bar(RP["tin"], (x, y_n + 0.015, z0 - 0.3), (x, y_s + 0.015, z1 + 0.3), 0.05, 0.03)
+    # the gable infill over the walls under the roof's fall
+    for xx, s in ((x0, -1), (x1, 1)):
+        facing(b, RP["shed"], [(xx, h, z0), (xx, y_n - 0.03, z0), (xx, y_s - 0.03, z1), (xx, h, z1)], (s, 0, 0))
+    facing(b, RP["shed"], [(x0, h, z0), (x1, h, z0), (x1, y_n - 0.03, z0), (x0, y_n - 0.03, z0)], (0, 0, -1))
+    # the door: planks, a Z brace, hinges, a latch
+    dx = -27.0
+    for i in range(5):
+        b.box(P["wood_dk"] if i % 2 else RP["post"], 0.21, 2.0, 0.04, dx - 0.44 + i * 0.22, 0.0, z0 - 0.05)
+    for yy in (0.25, 1.75):
+        b.box(RP["post"], 1.1, 0.14, 0.04, dx, yy, z0 - 0.09)
+    b.bar(RP["post"], (dx - 0.45, 0.4, z0 - 0.09), (dx + 0.45, 1.72, z0 - 0.09), 0.12, 0.035)
+    for yy in (0.3, 1.8):
+        b.box(P["iron"], 0.35, 0.05, 0.015, dx - 0.4, yy, z0 - 0.11)
+    b.box(P["iron"], 0.04, 0.12, 0.04, dx + 0.42, 1.0, z0 - 0.11)
+    # a window east, dark, four panes
+    wz = 26.0
+    facing(b, P["glass"], [(x1 + 0.03, 1.2, wz - 0.35), (x1 + 0.03, 1.2, wz + 0.35), (x1 + 0.03, 1.8, wz + 0.35), (x1 + 0.03, 1.8, wz - 0.35)], (1, 0, 0))
+    for zz in (wz - 0.39, wz + 0.39):
+        b.box(P["trim"], 0.06, 0.74, 0.07, x1 + 0.05, 1.13, zz)
+    for yy in (1.13, 1.8):
+        b.box(P["trim"], 0.06, 0.07, 0.85, x1 + 0.05, yy, wz)
+    b.box(P["trim"], 0.04, 0.6, 0.03, x1 + 0.045, 1.2, wz)
+    b.box(P["trim"], 0.04, 0.03, 0.7, x1 + 0.045, 1.49, wz)
+    R.end()
+    # a scythe against the east wall, north of the window
+    R.begin(b, "south:shed-scythe", on="south:shed")
+    sx, sz = x1 + 0.12, 25.0
+    b.cyl(P["handle"], 0.022, (sx + 0.25, 0.0, sz), (sx, 1.75, sz - 0.08), seg=6)
+    for yy in (0.75, 1.2):
+        b.cyl(P["handle"], 0.016, (sx + 0.25 - 0.25 * yy / 1.75, yy, sz - 0.08 * yy / 1.75), (sx + 0.3 - 0.25 * yy / 1.75, yy + 0.02, sz - 0.08 * yy / 1.75 + 0.14), seg=5)
+    blade = [(sx + 0.02, 1.72, sz - 0.08), (sx + 0.06, 1.78, sz + 0.25), (sx + 0.08, 1.66, sz + 0.62), (sx + 0.05, 1.7, sz + 0.25)]
+    facing(b, P["tool"], blade, (1, 0, 0))
+    facing(b, P["tool"], [(p[0] - 0.01, p[1], p[2]) for p in blade], (-1, 0, 0))
+    R.end()
+
+
+def hay_wagon(b, P, RP, R):
+    """A hay wagon (its ghostBox 3.6 x 2.0 x 2.0), shafts west and down:
+    the bed on two beams, flared hay ladders, a heaped load, four spoked
+    wheels (the front pair smaller)."""
+    cx, cz = WAGON
+    R.begin(b, "south:wagon")
+    W, Wd = P["wood"], P["wood_dk"]
+    for dz in (-0.5, 0.5):
+        box2(b, Wd, cx - 1.6, cx + 1.6, 0.68, 0.82, cz + dz - 0.07, cz + dz + 0.07)
+    z = cz - 0.75
+    while z < cz + 0.74:
+        box2(b, W, cx - 1.65, cx + 1.65, 0.82, 0.88, z + 0.005, z + 0.145)
+        z += 0.15
+    for s in (-1, 1):
+        b.bar(Wd, (cx - 1.65, 0.95, cz + s * 0.78), (cx + 1.65, 0.95, cz + s * 0.78), 0.07, 0.07)
+        b.bar(Wd, (cx - 1.65, 1.68, cz + s * 0.98), (cx + 1.65, 1.68, cz + s * 0.98), 0.07, 0.07)
+        for k in range(12):
+            x = cx - 1.6 + k * 0.29
+            b.bar(W, (x, 0.88, cz + s * 0.76), (x, 1.7, cz + s * 0.99), 0.045, 0.045)
+        # the end ladders, taller
+        ex = cx + s * 1.68
+        for zz in (-0.75, -0.25, 0.25, 0.75):
+            b.bar(W, (ex, 0.85, cz + zz), (ex + s * 0.08, 2.05, cz + zz * 1.15), 0.05, 0.05)
+        b.bar(Wd, (ex + s * 0.08, 2.0, cz - 0.95), (ex + s * 0.08, 2.0, cz + 0.95), 0.06, 0.06)
+    # the load: a heaped mound, wisps over the rails
+    b.lump(P["hay"], 3.2, 0.95, 1.85, cx, 0.88, cz, seed=211, rnd=0.35, jitter=0.06, flat_base=True)
+    for i, (dx, dz, w) in enumerate(((-0.8, -0.2, 1.4), (0.6, 0.25, 1.5), (0.0, 0.0, 1.2))):
+        b.lump(P["hay"], w, 0.42, 1.0, cx + dx, 1.62, cz + dz, seed=212 + i, rnd=0.6, jitter=0.06, flat_base=False)
+    rnd = random.Random(213)
+    for k in range(26):
+        x = cx + rnd.uniform(-1.5, 1.5)
+        s = rnd.choice((-1, 1))
+        y0 = rnd.uniform(1.25, 1.65)
+        p0, p1 = (x, y0, cz + s * 0.94), (x + rnd.uniform(-0.12, 0.12), y0 - rnd.uniform(0.15, 0.3), cz + s * 1.02)
+        facing(b, P["hay_dk"] if k % 2 else P["hay"], [(p0[0] - 0.012, p0[1], p0[2]), (p0[0] + 0.012, p0[1], p0[2]), (p1[0] + 0.012, p1[1], p1[2]), (p1[0] - 0.012, p1[1], p1[2])], (0, 0, s))
+    # the wheels: rear big, front small, on iron axles
+    for wx, r in ((cx + 1.1, 0.55), (cx - 1.1, 0.42)):
+        b.cyl(P["iron"], 0.04, (wx, r, cz - 0.98), (wx, r, cz + 0.98), seg=6)
+        for s in (-1, 1):
+            c = (wx, r, cz + s * 0.9)
+            ring(b, P["iron"], c, r, 0.035, seg=22, tseg=4, axis="z")
+            ring(b, Wd, c, r - 0.05, 0.04, seg=20, tseg=4, axis="z")
+            b.cyl(Wd, 0.1, (wx, r, c[2] - 0.08), (wx, r, c[2] + 0.08), seg=10)
+            for k in range(10):
+                a = k / 10 * 2 * math.pi
+                b.cyl(W, 0.018, (wx + math.cos(a) * 0.09, r + math.sin(a) * 0.09, c[2]), (wx + math.cos(a) * (r - 0.07), r + math.sin(a) * (r - 0.07), c[2]), seg=4)
+    # the shafts, down in the grass to the west, a swingletree
+    for dz in (-0.32, 0.32):
+        b.cyl(Wd, 0.04, (cx - 1.5, 0.55, cz + dz), (cx - 3.25, 0.07, cz + dz * 1.5), seg=6)
+    b.cyl(Wd, 0.035, (cx - 1.85, 0.45, cz - 0.5), (cx - 1.85, 0.45, cz + 0.5), seg=6)
+    R.end()
+
+
+def signpost(b, P, RP, R):
+    """A fingerpost where the road meets the lane: a post, a cap, three
+    pointed boards (the fair east, the chapel west, the manor north) that
+    the JS letters (SIGNPOST_FINGERS)."""
+    x, z = SIGNPOST
+    R.begin(b, "south:signpost")
+    b.box(RP["post"], 0.13, 2.62, 0.13, x, 0.0, z)
+    b.frustum(RP["post"], 0.2, 0.2, 0.02, 0.02, 2.62, 2.8, x=x, z=z)
+    b.box(RP["post"], 0.17, 0.05, 0.17, x, 2.6, z)
+    for name, (dx, dz), y in FINGERS:
+        # the board: its own profile (a point at the far end), 0.045 thick
+        prof = [(0.07, 0.0), (1.05, 0.0), (1.2, 0.11), (1.05, 0.22), (0.07, 0.22)]
+        nx, nz = -dz, dx
+        pts = [(x + dx * r + nx * s * 0.0225, y + v, z + dz * r + nz * s * 0.0225) for s in (-1, 1) for r, v in prof]
+        k = len(prof)
+        b.poly(RP["finger"], pts, [list(range(k)), list(range(2 * k - 1, k - 1, -1))] + [[i, (i + 1) % k, k + (i + 1) % k, k + i] for i in range(k)])
+        b.bar(RP["post"], (x + dx * 0.08, y + 0.11, z + dz * 0.08), (x + dx * 0.02, y + 0.11, z + dz * 0.02), 0.06, 0.24)
+    R.end()
+
+
+def milestone(b, P, RP, R):
+    """A milestone on the west verge, its face to the road (the JS letters
+    it): a round-headed stone, a little sunk and leaning."""
+    x, z = MILESTONE
+    R.begin(b, "south:milestone")
+    prof = [(-0.2, 0.0), (0.2, 0.0), (0.2, 0.52)] + [(0.2 * math.cos(a), 0.52 + 0.2 * math.sin(a)) for a in [math.pi * k / 8 for k in range(1, 8)]] + [(-0.2, 0.52)]
+    k = len(prof)
+    pts = [(x + s * 0.11, v, z + u) for s in (-1, 1) for u, v in prof]
+    b.poly(RP["milestone"], pts, [list(range(k)), list(range(2 * k - 1, k - 1, -1))] + [[i, (i + 1) % k, k + (i + 1) % k, k + i] for i in range(k)])
+    b.lump(P["moss"], 0.3, 0.06, 0.5, x, 0.0, z, seed=330, rnd=0.8, jitter=0.02, n=2)
+    R.end()
+
+
+def verges(b, P, RP):
+    """Grass tufts and a few stones along the road's edges, clear of the
+    JS's jack-o'-lanterns (x +-2.6) and the lamps. Flat: no props."""
+    rnd = random.Random(340)
+    jacks = [(-2.6, z) for z in (13, 17, 21, 25, 29)] + [(2.6, z + 1.5) for z in (13, 17, 21, 25, 29)] + [(3.2, 15.5), (3.2, 24.5), MILESTONE]
+    for s in (-1, 1):
+        z = 12.4
+        while z < 30.4:
+            z += rnd.uniform(0.5, 1.1)
+            x = s * rnd.uniform(2.15, 2.4)
+            if s < 0 and 20.6 < z < 27.9:          # the candy shop stands over the road's west edge
+                continue
+            if any(abs(x - jx) < 0.55 and abs(z - jz) < 0.55 for jx, jz in jacks):
+                continue
+            if rnd.random() < 0.15:
+                b.lump(RP["wallstone"], rnd.uniform(0.12, 0.22), 0.08, rnd.uniform(0.1, 0.18), x, 0.0, z, seed=int(z * 10), rnd=0.8, jitter=0.02, n=2)
+                continue
+            for k in range(7):
+                a = rnd.uniform(0, 2 * math.pi)
+                ln = rnd.uniform(0.18, 0.34)
+                lean = rnd.uniform(0.15, 0.5)
+                p0 = (x + math.cos(a) * 0.04, 0.0, z + math.sin(a) * 0.04)
+                p1 = (p0[0] + math.cos(a) * ln * lean, ln, p0[2] + math.sin(a) * ln * lean)
+                e = (-math.sin(a) * 0.02, math.cos(a) * 0.02)
+                m = RP["grass2"] if rnd.random() < 0.4 else RP["grass"]
+                pts = [(p0[0] - e[0], 0.0, p0[2] - e[1]), (p0[0] + e[0], 0.0, p0[2] + e[1]), (p1[0], p1[1], p1[2])]
+                n = (math.cos(a + math.pi / 2), 0.0, math.sin(a + math.pi / 2))
+                for want in (n, (-n[0], 0.0, -n[2])):
+                    vs = [b.bm.verts.new(p) for p in pts]
+                    f = b.bm.faces.new(vs)
+                    f.material_index = b._mi(m)
+                    nn = f.normal
+                    if nn.x * want[0] + nn.z * want[2] < 0:
+                        f.normal_flip()
+
+
+def build_road(P, R):
+    """The south road (phase 3): the hearse and its coffin, the gate's piers,
+    the low dry-stone walls, the toolshed, two gas lamps, the hay wagon, a
+    fingerpost and a milestone, tufts along the verges, the JS's hay bales.
+    hollowgrin.js keeps the colliders (SOUTH_PROPS for the new pieces), the
+    jack-o'-lanterns, the lamps' glass and the words."""
+    from hg_west import drystone
+    b = HGBuilder()
+    RP = road_palette()
+    P = {**P, **RP}
+    hearse(b, P, RP, R)
+    for i, gx in enumerate((-3.0, 3.0)):
+        gate_pier(b, P, R, gx, 31.2, i)
+    drystone(b, P, R, "south:wall-w", -18.0, 21.5, 26.5, h=1.0, t=0.7, seed=351)
+    drystone(b, P, R, "south:wall-e", 13.4, 21.6, 25.6, h=1.0, t=0.7, seed=352)
+    toolshed(b, P, RP, R)
+    for i, (x, z) in enumerate(((3.2, 15.5), (3.2, 24.5))):
+        gas_lamp(b, P, R, x, z, i, area="south")
+    hay_wagon(b, P, RP, R)
+    signpost(b, P, RP, R)
+    milestone(b, P, RP, R)
+    hrnd = random.Random(79)
+    for i, (x, z, y, ry) in enumerate(ROAD_BALES):
+        R.begin(b, f"south:bale-{i}", on="south:bale-0" if y > 0 else None)
+        bale(b, P, hrnd, x, z, y, ry, 140 + i)
+        R.end()
+    verges(b, P, RP)
+    for face in SOUTH_FACES:
+        R.face(*face)
+    b.finish("hg-southroad.glb")
+
+
+def _finger_faces():
+    out = []
+    x, z = SIGNPOST
+    for name, (dx, dz), y in FINGERS:
+        nx, nz = -dz, dx
+        c = (x + dx * 0.56, y + 0.11, z + dz * 0.56)
+        for s in (-1, 1):
+            out.append((f"sign:finger-{name}-{'ab'[s > 0]}", "south:signpost", (c[0] + nx * s * 0.026, c[1], c[2] + nz * s * 0.026), (nx * s, 0, nz * s), 0.9, 0.16))
+    return out
+
+
+# The words the JS paints on the fingerpost and the milestone (rule 9).
+SOUTH_FACES = _finger_faces() + [
+    ("sign:milestone", "south:milestone", (MILESTONE[0] + 0.115, 0.5, MILESTONE[1]), (1, 0, 0), 0.32, 0.24),
+]
