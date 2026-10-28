@@ -3,6 +3,8 @@
 //
 // Usage: node tools/troll-ops-optic-shots.mjs [gun:optic ...]   (default: trollboy:acog)
 //   OUT=<dir> (default .claude/optic-shots)
+//   TROLL=1: the trollface reticle on (a level-12 account stubbed), plus an
+//   -ads-hit shot with a target box lined up 3 m ahead
 
 import http from "node:http";
 import fs from "node:fs";
@@ -37,6 +39,11 @@ for (const [gun, optic] of combos) {
   page.on("pageerror", (e) => console.log("pageerror", e.message));
   await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 60000 });
+  if (process.env.TROLL) await page.evaluate(() => {
+    localStorage.setItem("trollops:reticle", "troll");
+    const A = window.TrollrunnerAccounts || (window.TrollrunnerAccounts = {});
+    A.getCachedProfile = () => ({ username: "reticle-test", level: 12, xp: 9000 });
+  });
   await page.evaluate(async ([gun, optic]) => {
     const T = window.__trollOps;
     T.loadout.weaponId = gun;
@@ -65,6 +72,18 @@ for (const [gun, optic] of combos) {
   await page.evaluate(() => window.__trollOps.setAds(true));
   await sleep(1500);
   await page.screenshot({ path: path.join(OUT, `${gun}-${optic}-ads.png`) });
+  if (process.env.TROLL) {
+    await page.evaluate(() => {
+      const T = window.__trollOps, THREE = T.THREE, cam = T.camera;
+      const box = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1));
+      const o = cam.getWorldPosition(new THREE.Vector3()), d = cam.getWorldDirection(new THREE.Vector3());
+      box.position.copy(o).addScaledVector(d, 3);
+      box.updateMatrixWorld(true);
+      T.remotes.hitMeshes = () => [box];
+    });
+    await sleep(500);
+    await page.screenshot({ path: path.join(OUT, `${gun}-${optic}-ads-hit.png`) });
+  }
   await page.evaluate(() => window.__trollOps.setAds(false));
   console.log(`${gun}:${optic}`, JSON.stringify(info));
   await page.close();
