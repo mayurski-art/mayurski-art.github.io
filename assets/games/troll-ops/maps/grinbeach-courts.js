@@ -10,7 +10,7 @@
 
 import * as THREE from "three";
 import { loadModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
-import { COURT, TENNIS, VB, RIMS } from "./grinbeach-venice.js?v=gb1-tb1-tb2-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1-hgb5-hgb6";
+import { COURT, TENNIS, VB, RIMS } from "./grinbeach-venice.js?v=gb1-tb1-tb2-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1-hgb5-hgb6-hgb8";
 
 const G = { ghost: true };
 const VX = (VB[0] + VB[1]) / 2;

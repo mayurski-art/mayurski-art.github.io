@@ -6,7 +6,7 @@
 // has moved on since the dump). Doc: Troll Forces: Undergrin in Blender.
 // Moved out of maps.js in phase 0 (2026-10-27), unchanged.
 
-import { mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1-hgb5-hgb6";
+import { mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1-hgb5-hgb6-hgb8";
 import { UG_PROPS } from "./undergrin-props.js?v=ugp1-ug1-ug2-ug3-ugm1";
 import { buildUndergrinSigns } from "./undergrin-signs.js?v=ugs1-ug1-ug2-ug3-ugm1";
 
