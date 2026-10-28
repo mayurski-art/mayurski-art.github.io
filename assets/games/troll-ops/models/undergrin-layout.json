@@ -1,5 +1,5 @@
 {
- "hash": "27bfa3c3622d",
+ "hash": "8709de66cc06",
  "source": "maps/undergrin.js",
  "bounds": {
   "minX": -22,
@@ -107,7 +107,7 @@
    "z": 24
   }
  ],
- "props": 28,
+ "props": 46,
  "colliders": [
   [
    -23.5,

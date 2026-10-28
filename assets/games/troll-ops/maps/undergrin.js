@@ -7,8 +7,8 @@
 // Moved out of maps.js in phase 0 (2026-10-27), unchanged.
 
 import { mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1";
-import { UG_PROPS } from "./undergrin-props.js?v=ugp1-ug1";
-import { buildUndergrinSigns } from "./undergrin-signs.js?v=ugs1-ug1";
+import { UG_PROPS } from "./undergrin-props.js?v=ugp1-ug1-ug2";
+import { buildUndergrinSigns } from "./undergrin-signs.js?v=ugs1-ug1-ug2";
 
 /* Undergrin (2026-10-15): a Phantom Forces "Metro (2025)" station in the
    modded full-bright look, UNDERGRIN-METRO.md. Every number here is the

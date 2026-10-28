@@ -10,7 +10,7 @@
 // the build's 5 x 7 pixel lettering, where it is right.
 
 import * as THREE from "three";
-import { UG_SIGNS } from "./undergrin-sign-data.js?v=ugs1-ug1";
+import { UG_SIGNS } from "./undergrin-sign-data.js?v=ugs1-ug1-ug2";
 
 // Bahnschrift is Windows' DIN; Apple's DIN Alternate; then condensed sans
 const DIN = "Bahnschrift, 'DIN Alternate', 'DIN Condensed', 'D-DIN', 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif";

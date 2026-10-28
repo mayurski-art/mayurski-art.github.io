@@ -25,7 +25,7 @@ import {
   toyCar, gardenGnome, trashCan, tireSwing, streetlamp,
 } from "./house-props.js?v=hg6e-sb2-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1";
 import { gsModel, mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1";
-import { buildUndergrin, UG_BOOTHS } from "./undergrin.js?v=ugb1-ug1";
+import { buildUndergrin, UG_BOOTHS } from "./undergrin.js?v=ugb1-ug1-ug2";
 import { buildDustbowlCity, CITY_PALMS } from "./dustbowl-city.js?v=db5-sr1-or1-tx1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1";
 import { buildSurfStrip } from "./surf-sea.js?v=gb1";
 import { buildVenice, VENICE_PALMS, VENICE_SPAWNS, RACKS } from "./grinbeach-venice.js?v=gb1-tb1-tb2-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1";
