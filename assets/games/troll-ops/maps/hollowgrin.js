@@ -182,6 +182,9 @@ const SIGNPOST = [4.4, 28.6];
 const SIGNPOST_FINGERS = [["GRINMOOR FAIR", 1, 0, 2.2], ["ST GRINSWORTH'S", -1, 0, 1.92], ["THE MANOR", 0, -1, 1.64]];
 // the wheelbarrow at the pumpkin patch's east edge (hg_fields.BARROW): x, z
 const FIELD_BARROW = [33.2, 7.0];
+// Trick-or-Treat Lane (hg_lane): the mailboxes (x from each house's middle, z), the houses with a bike
+const LANE_MAILBOX = [1.05, 36.5];
+const LANE_BIKES = [0, 3];
 const WEST_LOOP = {
   path: -37.4,
   wallX: -38.75, walls: [[-16, -11.5], [-10, -8.7], [11, 13], [14, 19], [20.5, 25], [26.5, 28.8]],
@@ -1633,11 +1636,12 @@ function gableRoof(K, roof, end, { x0, x1, z0, z1, y, rise, over = 0.35, endT = 
 }
 
 /* A picket fence along x at `z` from a to b, with gaps. Stops bodies only. */
-function picketFence(K, M, z, a, b, gaps = []) {
+function picketFence(K, M, z, a, b, gaps = [], { draw = true } = {}) {
   for (const [s, e] of runs(a, b, gaps)) {
     const len = e - s, c = (s + e) / 2;
     if (len < 0.2) continue;
     K.api.ghostBox(c, z, len, 0.1, 0.95, { pen: 0.3 });
+    if (!draw) continue;
     for (const y of [0.3, 0.68]) K.box(M.picket, c, y, z + 0.03, len, 0.07, 0.03);
     for (let x = s + 0.08; x < e; x += 0.17) {
       K.box(M.picket, x, 0, z, 0.08, 0.86, 0.025, {}, { shadow: false });
@@ -2001,6 +2005,7 @@ function buildOutskirts(api, K, M, SP, root, lights) {
 
   /* ------------------------------------------- Trick-or-Treat Lane */
   {
+    hgModel(api, "hg-lane");
     flat(K, M.dirt, 0, 35, 112, 3.2, { y: 0.014 });
     flat(K, M.dirt, 0, 32.6, 4.4, 1.8, { y: 0.013 });
     const sidings = [M.sidingA, M.sidingB, M.sidingC];
@@ -2019,29 +2024,37 @@ function buildOutskirts(api, K, M, SP, root, lights) {
           if (lit) SP.add(mid + dx, y + 0.65, zf - 0.4, 0xffb060, { size: 1.2, blink: 0 });
         }
       }
-      K.box(M.trimDark, mid, 0.3, zf - 0.03, 1.1, 2.2, 0.06);
-      // the porch: deck, posts, a little roof, a lantern
-      K.solid(mid, 39.1, 4.2, 1.4, 0.3, { mat: M.stairWood, pen: 4 });
-      for (const s of [-1, 1]) K.solid(mid + s * 1.95, 38.55, 0.14, 0.14, 2.3, { y: 0.3, mat: M.trim, pen: 2 });
-      K.box(M.roof, mid, 2.55, 39.0, 4.6, 0.12, 1.9, { rx: 0.14 });
+      // the porch (deck, steps, posts, railings, roof), the door, the fence
+      // and gate, the mailbox, the bowl, webs and tombstones are hg-lane's;
+      // the colliders, the lantern and the lit jack stay here
+      K.solid(mid, 39.1, 4.2, 1.4, 0.3, { pen: 4 });
+      for (const s of [-1, 1]) K.solid(mid + s * 1.95, 38.55, 0.14, 0.14, 2.3, { y: 0.3, pen: 2 });
       K.box(M.lampGlass, mid + 0.85, 1.9, zf - 0.08, 0.16, 0.26, 0.12, {}, { shadow: false });
       SP.add(mid + 0.85, 2.03, zf - 0.2, 0xffb86a, { size: 0.9, blink: 0.05 });
       jack(K, M, mid - 1.4, 0.3, 38.7, { r: 0.26, face: Math.PI, seed: 5000 + i * 3 });
-      jack(K, M, mid + 1.5, 0.3, 38.8, { r: 0.21, face: Math.PI, seed: 5001 + i * 3, glow: false });
       flat(K, M.dirt, mid, 37.7, 1.1, 1.4, { y: 0.013 });
-      picketFence(K, M, 36.95, xa - 0.4, xb + 0.4, [[mid - 0.6, mid + 0.6]]);
+      picketFence(K, M, 36.95, xa - 0.4, xb + 0.4, [[mid - 0.6, mid + 0.6]], { draw: false });
+      K.api.ghostBox(mid + LANE_MAILBOX[0], LANE_MAILBOX[1], 0.25, 0.5, 1.25, { pen: 1 });
+      if (LANE_BIKES.includes(i)) K.api.ghostBox(mid - 2.6, 37.25, 1.75, 0.55, 1.0, { pen: 1 });
       // decor, house by house
       if (i % 3 === 0) {
+        // sheet ghosts on threads from the porch roof (hg-ghost), turning
+        // and swaying a little in the wind
         for (const s of [-1, 1]) {
-          const gx = mid + s * 1.1;
-          K.add(M.ghost, place(new THREE.ConeGeometry(0.34, 0.95, 10, 1, true), { x: gx, y: 1.85, z: 38.6 }), { shadow: false });
-          K.add(M.ghost, place(new THREE.SphereGeometry(0.2, 10, 8), { x: gx, y: 2.25, z: 38.6 }), { shadow: false });
-          K.box(M.trimDark, gx, 2.35, 38.6, 0.01, 0.2, 0.01, {}, { shadow: false });
+          const gx = mid + s * 1.1, g = new THREE.Group();
+          g.position.set(gx, 2.53, 38.6);
+          root.add(g);
+          hgModel(api, "hg-ghost", { parent: g });
+          const ph = gx * 1.7;
+          root.add(ticker(() => {
+            const t = performance.now() / 1000;
+            g.rotation.z = Math.sin(t * 0.9 + ph) * 0.07;
+            g.rotation.x = Math.sin(t * 0.7 + ph * 2) * 0.05;
+            g.rotation.y = Math.sin(t * 0.3 + ph) * 0.35;
+          }));
         }
       } else if (i % 3 === 1) {
-        for (const [dx, dz] of [[-2.4, 37.8], [-1.6, 38.1], [2.1, 37.7]]) {
-          K.add(M.trim, place(headstoneGeo(0.5, 0.65, 0.08), { x: mid + dx, z: dz, ry: (R() - 0.5) * 0.4, rz: (R() - 0.5) * 0.2 }));
-        }
+        for (let k = 0; k < 6; k++) R();   // the yard stones are hg-lane's: keep the stream's place
       } else {
         const sx = mid + 1.2, sy = h + 1.1, sz = zf + 0.7;
         K.add(M.car, place(new THREE.SphereGeometry(0.6, 12, 8), { x: sx, y: sy, z: sz, sz: 1.3 }));
@@ -2118,14 +2131,14 @@ function buildOutskirts(api, K, M, SP, root, lights) {
     {
       for (const [x, model] of [[-3.3, "hg-trollbust"], [3.3, "hg-pepe"]]) {
         K.add(M.purpleDisc, place(new THREE.CircleGeometry(1.25, 28), { x, y: 0.015, z: 38.3, rx: -Math.PI / 2 }), { shadow: false });
-        K.solid(x, 38.3, 1.1, 0.9, 1.0, { mat: M.plinth, pen: 8 });
+        K.solid(x, 38.3, 1.1, 0.9, 1.0, { pen: 8 });
         K.add(sign(["MEME GALLERY"], { w: 512, h: 128, bg: "#08080a", fg: "#ff3ad0", edge: "#08080a" }), place(new THREE.PlaneGeometry(0.9, 0.22), { x, y: 0.7, z: 37.84, ry: Math.PI }), { shadow: false });
         mapModel(api, model, { x, z: 38.3, y: 1.0, rot: Math.PI, scale: 0.95 });
         K.api.ghostBox(x, 38.3, 1.0, 0.8, 1.1, { y: 1.0, pen: 4 });
         K.add(M.purpleGlow, place(new THREE.PlaneGeometry(3.4, 3.4), { x, y: 0.03, z: 38.3, rx: -Math.PI / 2 }), { shadow: false, phase: x });
         for (const s of [-1, 1]) SP.add(x + s * 0.55, 0.2, 37.7, 0xc040ff, { size: 1.0, blink: 0.1 });
       }
-      picketFence(K, M, 36.95, -6.4, 6.4, [[-0.7, 0.7]]);
+      picketFence(K, M, 36.95, -6.4, 6.4, [[-0.7, 0.7]], { draw: false });
       const banner = sign(["MEME GALLERY"], { w: 1024, h: 256, bg: "#050506", fg: "#ff3ad0", edge: "#050506" });
       for (const x of [-3.4, 3.4]) K.add(banner, place(new THREE.PlaneGeometry(2.4, 0.6), { x, y: 0.5, z: 36.9, ry: Math.PI }), { shadow: false });
     }
