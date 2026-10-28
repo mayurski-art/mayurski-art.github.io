@@ -180,6 +180,8 @@ const SOUTH_PROPS = [[6.4, 21.1, 0.7, 0.8, 1.3], [-14.5, 29.6, 3.6, 2.0, 2.0], [
 // the fingerpost (hg_village.SIGNPOST, FINGERS): words, direction, board foot
 const SIGNPOST = [4.4, 28.6];
 const SIGNPOST_FINGERS = [["GRINMOOR FAIR", 1, 0, 2.2], ["ST GRINSWORTH'S", -1, 0, 1.92], ["THE MANOR", 0, -1, 1.64]];
+// the wheelbarrow at the pumpkin patch's east edge (hg_fields.BARROW): x, z
+const FIELD_BARROW = [33.2, 7.0];
 const WEST_LOOP = {
   path: -37.4,
   wallX: -38.75, walls: [[-16, -11.5], [-10, -8.7], [11, 13], [14, 19], [20.5, 25], [26.5, 28.8]],
@@ -4244,73 +4246,56 @@ function buildHollowgrin(api) {
       [28, [[-9.5, -1.2], [0.8, 3]]],
       [31, [[-9.5, -5.5], [-3.5, 3]]],
     ];
+    // the stalks on their ridges, the split-rail fence, the pumpkins, the
+    // giants, the bonfire's ring and logs, its bales and the barrow are
+    // hg-fields; the scarecrow is Studio's (hg-scarecrow)
+    hgModel(api, "hg-fields");
+    hgModel(api, "hg-scarecrow");
+    // down each row's middle, between the model's stalks, the painted corn
+    // that makes the row a wall
     const R = rng(808);
     for (const [x, segs] of rows) {
       for (const [a, b] of segs) {
         K.api.ghostBox(x, (a + b) / 2, 1.3, b - a, 2.5, { pen: 0.35 });
-        K.box(M.dirt, x, 0, (a + b) / 2, 1.5, 0.12, b - a + 0.2, {}, { shadow: false });
-        for (let z = a + 0.3; z < b; z += 0.55) {
-          for (const dx of [-0.35, 0.35]) {
-            const px = x + dx + (R() - 0.5) * 0.2, pz = z + (R() - 0.5) * 0.25;
-            const h = 2.3 + R() * 0.5, ry = R() * Math.PI;
-            for (const extra of [0, Math.PI / 2]) {
-              K.add(M.corn, place(new THREE.PlaneGeometry(1.0, h), { x: px, y: h / 2, z: pz, ry: ry + extra }));
-            }
-          }
+        for (let z = a + 0.4; z < b - 0.2; z += 0.6) {
+          const px = x + (R() - 0.5) * 0.15, pz = z + (R() - 0.5) * 0.2;
+          const h = 2.2 + R() * 0.4, ry = R() * Math.PI;
+          for (const extra of [0, Math.PI / 2]) K.add(M.corn, place(new THREE.PlaneGeometry(0.9, h), { x: px, y: h / 2, z: pz, ry: ry + extra }));
         }
       }
     }
     // rail fence along the north edge of the field, with gaps
-    for (const [a, b] of [[15, 20.5], [23, 29.5], [32, 36]]) {
-      const c = (a + b) / 2;
-      K.api.ghostBox(c, -12.5, b - a, 0.12, 1.1, { pen: 0.4 });
-      for (const y of [0.45, 0.95]) K.box(M.stairWood, c, y, -12.5, b - a, 0.1, 0.06);
-      for (let x = a; x <= b + 0.01; x += 1.8) K.box(M.stairWood, x, 0, -12.5, 0.12, 1.15, 0.12);
-    }
+    for (const [a, b] of [[15, 20.5], [23, 29.5], [32, 36]]) K.api.ghostBox((a + b) / 2, -12.5, b - a, 0.12, 1.1, { pen: 0.4 });
 
     // the patch: pumpkins on vines, three giants you can hide behind
-    // the big one's carved, grinning back toward town
+    // the big one's carved, grinning back toward town (its jack is ours)
     const giants = [[20, 7.5, 0.95], [30.5, 11, 1.15], [25, 16, 0.9]];
     for (const [x, z, r] of giants) {
       K.api.ghostBox(x, z, r * 1.7, r * 1.7, r * 1.45, { pen: 3 });
-      jack(K, M, x, 0, z, { r, face: -Math.PI / 2, carved: r > 1, seed: Math.round(x * 13 + z) });
+      if (r > 1) jack(K, M, x, 0, z, { r, face: -Math.PI / 2, carved: true, seed: Math.round(x * 13 + z) });
     }
+    // the carved ones glow here; hg_fields.patch_spots draws the rest from
+    // the same stream (keep the two in step)
     const P = rng(4242);
-    const avoid = [[17.8, 12.8, 3.4], [26, 8, 1.2], ...giants.map(([x, z, r]) => [x, z, r + 0.8])];
+    const avoid = [[17.8, 12.8, 3.4], [26, 8, 1.2], [23.5, 6.3, 0.8], [FIELD_BARROW[0], FIELD_BARROW[1], 1.4], ...giants.map(([x, z, r]) => [x, z, r + 0.8])];
     for (let i = 0; i < 70; i++) {
       const x = 14.5 + P() * 20.5, z = 5.2 + P() * 12.3;
       if (avoid.some(([ax, az, ar]) => Math.hypot(x - ax, z - az) < ar)) continue;
       const r = 0.18 + P() * 0.22;
       const carved = P() < 0.12;
-      jack(K, M, x, 0, z, { r, carved, face: -Math.PI / 2 + (P() - 0.5), seed: 700 + i, glow: carved });
-      if (P() < 0.6) {
-        K.add(M.leaf, place(new THREE.PlaneGeometry(1.2, 1.2), { x: x + (P() - 0.5), y: 0.03 + i * 0.0004, z: z + (P() - 0.5), rx: -Math.PI / 2, rz: P() * 6 }), { shadow: false });
-      }
+      const face = -Math.PI / 2 + (P() - 0.5);
+      if (carved) jack(K, M, x, 0, z, { r, carved, face, seed: 700 + i, glow: true });
     }
     ZSPAWNS.push({ x: 23, y: 0, z: 11, rise: true }, { x: 32.5, y: 0, z: 15.5, rise: true }, { x: 16.6, y: 0, z: 7.4, rise: true });
 
-    // the scarecrow: a post, a cross-bar, a burlap coat, a lantern for a head
-    const sx = 26, sz = 8;
-    K.solid(sx, sz, 0.25, 0.25, 2.6, { pen: 2 });
-    K.box(M.stairWood, sx, 0, sz, 0.14, 2.3, 0.14);
-    K.box(M.stairWood, sx, 1.75, sz, 0.1, 0.1, 2.0);
-    K.add(M.burlap, place(prismGeo([[-0.45, 0], [0.45, 0], [0.3, 0.85], [-0.3, 0.85]], 0.35), { x: sx, y: 1.0, z: sz, ry: Math.PI / 2 }));
-    for (const s of [-1, 1]) K.add(M.burlap, place(new THREE.PlaneGeometry(0.9, 0.35), { x: sx, y: 1.72, z: sz + s * 0.55, ry: Math.PI / 2, rz: s * 0.1 }));
-    jack(K, M, sx, 2.02, sz, { r: 0.3, face: -Math.PI / 2, seed: 999, glow: false });
-    K.add(M.trimDark, place(new THREE.ConeGeometry(0.45, 0.5, 12), { x: sx, y: 2.72, z: sz }));
-    K.add(M.trimDark, place(new THREE.CylinderGeometry(0.62, 0.62, 0.03, 16), { x: sx, y: 2.5, z: sz }));
+    // the scarecrow's post
+    K.solid(26, 8, 0.25, 0.25, 2.6, { pen: 2 });
+    // the wheelbarrow of pumpkins at the patch's east edge
+    K.api.ghostBox(FIELD_BARROW[0] + 0.04, FIELD_BARROW[1] + 0.16, 1.2, 2.1, 0.75, { pen: 2 });
 
     // the bonfire, with bales round it to sit on
     const bx = 17.8, bz = 12.8;
     K.api.ghostBox(bx, bz, 2.0, 2.0, 0.45, { pen: 8 });
-    for (let i = 0; i < 10; i++) {
-      const a = (i / 10) * Math.PI * 2;
-      K.add(M.stoneDark, place(new THREE.DodecahedronGeometry(0.28), { x: bx + Math.cos(a) * 0.95, y: 0.2, z: bz + Math.sin(a) * 0.95, sy: 0.75, ry: a }));
-    }
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2;
-      K.cyl(M.bark, bx + Math.cos(a) * 0.3, 0.05, bz + Math.sin(a) * 0.3, 0.09, 0.07, 1.1, 6, { rx: Math.cos(a + 1.57) * 0.9, rz: -Math.sin(a + 1.57) * 0.9, ry: 0 });
-    }
     K.box(M.ember, bx, 0.02, bz, 0.9, 0.12, 0.9, { ry: 0.4 }, { shadow: false });
     for (let i = 0; i < 5; i++) {
       const s = 1 - i * 0.12;
@@ -4324,7 +4309,7 @@ function buildHollowgrin(api) {
     bl.userData.flicker = 2;
     lights.push(bl);
     for (const [dx, dz, ry] of [[-2.6, 0, Math.PI / 2], [2.6, 0.2, Math.PI / 2], [0, 2.7, 0], [0.3, -2.6, 0]]) {
-      hayBale(K, M, bx + dx, bz + dz, { ry });
+      hayBale(K, M, bx + dx, bz + dz, { ry, draw: false });
     }
   }
 
