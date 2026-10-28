@@ -73,6 +73,12 @@ export const RETEXTURE = {
   GF_Clapboard: ["plaster", 1.0, 0.45],
   GF_Rock: ["rock", 0.5, 0.4],
   GF_RockDark: ["rock", 0.5, 0.3],
+  // the woods ring (models/hg_woods.py): the field-stone wall, the trees' bark
+  HG_FieldRock: ["rock", 0.9, 0.35],
+  HG_FieldRockDark: ["rock", 0.9, 0.25],
+  HG_Bark: ["wood", 0.8, 0.1],
+  HG_WoodsPine: ["grass", 0.8, 0.1],
+  HG_WoodsPineLight: ["grass", 0.8, 0.14],
 };
 
 /* Drops models/<file>.glb at (x, y, z), turned `rot` radians about y.

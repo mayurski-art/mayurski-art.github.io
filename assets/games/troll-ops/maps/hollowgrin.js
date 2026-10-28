@@ -904,60 +904,75 @@ function carvePatchGeo(r, ribs, squash) {
   return g;
 }
 
-/* A dead tree: crooked branches that fork and thin out. */
-function treeGeo(seed, { height = 6, r = 0.3, levels = 3, spread = 0.75, lean = 0.12 } = {}) {
-  const R = rng(seed);
-  const parts = [];
-  const up = new THREE.Vector3(0, 1, 0);
-  const seg = (a, b, r0, r1) => {
-    const dir = new THREE.Vector3().subVectors(b, a);
-    const len = dir.length();
-    const geo = new THREE.CylinderGeometry(r1, r0, len, r0 > 0.08 ? 7 : 5, 1, true);
-    geo.translate(0, len / 2, 0);
-    geo.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, dir.normalize()));
-    geo.translate(a.x, a.y, a.z);
-    parts.push(geo);
+/* The woods round the outside of the wall: hg-woodkit.glb's pieces,
+   instanced along the ring from one seeded stream (the same woods for
+   everyone). Dead trees in front, dark pines behind, and between them
+   stumps, fallen logs, roots, bramble against the wall, toadstools, and
+   crows perched on the stumps and logs. All outside the line: no shadows
+   cast (they cost more than they show there), none of them a collider. */
+function woods(kit, root) {
+  kit.updateMatrixWorld(true);
+  const T = rng(99);
+  const spots = new Map();
+  const put = (name, x, z, s, y = 0, ry = T() * 6.28) => {
+    if (!spots.has(name)) spots.set(name, []);
+    spots.get(name).push([x, z, ry, s, y]);
   };
-  const grow = (p, dir, len, rad, depth) => {
-    let cur = p.clone();
-    const d = dir.clone();
-    const n = depth === levels ? 4 : 3;
+  // a point on the ring, `out` metres past the line
+  const ring = (out) => {
+    const t = T() * 4;
+    if (t < 1) return [THREE.MathUtils.lerp(BOUNDS.minX - 14, BOUNDS.maxX + 14, t), BOUNDS.minZ - out];
+    if (t < 2) return [THREE.MathUtils.lerp(BOUNDS.minX - 14, BOUNDS.maxX + 14, t - 1), BOUNDS.maxZ + out];
+    if (t < 3) return [BOUNDS.minX - out, THREE.MathUtils.lerp(BOUNDS.minZ, BOUNDS.maxZ, t - 2)];
+    return [BOUNDS.maxX + out, THREE.MathUtils.lerp(BOUNDS.minZ, BOUNDS.maxZ, t - 3)];
+  };
+  // clear of the lane's west end, the creek's bed and the chapel's apse
+  const clear = (x, z, r) => !(x < BOUNDS.minX && z > LANE.z0 - 1.5 - r && z < LANE.z1 + 1.5 + r)
+    && creekDist(x, z) > CREEK_W + r
+    && !(x < BOUNDS.minX && x > BOUNDS.minX - 6 - r && z > -3 - r && z < 7 + r);
+  const scatter = (n, out0, out1, r, fn) => {
     for (let i = 0; i < n; i++) {
-      d.add(new THREE.Vector3((R() - 0.5) * 0.55, (R() - 0.35) * 0.3, (R() - 0.5) * 0.55)).normalize();
-      const nxt = cur.clone().addScaledVector(d, len / n);
-      seg(cur, nxt, rad * (1 - (i / n) * 0.5), rad * (1 - ((i + 1) / n) * 0.5));
-      cur = nxt;
-      // a side shoot partway up the thick limbs
-      if (depth >= 2 && i === 1 && R() < 0.6) {
-        const side = randomSide(d, 0.9 + R() * 0.5, R);
-        grow(cur, side, len * 0.45, rad * 0.45, depth - 2);
-      }
-    }
-    if (depth <= 0) return;
-    const kids = depth === levels ? 3 : 2 + (R() < 0.4 ? 1 : 0);
-    for (let k = 0; k < kids; k++) {
-      grow(cur, randomSide(d, spread * (0.6 + R() * 0.7), R), len * (0.58 + R() * 0.2), rad * 0.52, depth - 1);
+      const [x, z] = ring(out0 + Math.pow(T(), 0.8) * (out1 - out0));
+      if (clear(x, z, r)) fn(x, z);
     }
   };
-  const trunkDir = new THREE.Vector3((R() - 0.5) * lean * 2, 1, (R() - 0.5) * lean * 2).normalize();
-  grow(new THREE.Vector3(0, -0.3, 0), trunkDir, height * 0.45, r, levels);
-  // roots flaring into the ground
-  for (let k = 0; k < 4; k++) {
-    const a = k * Math.PI / 2 + R();
-    seg(new THREE.Vector3(0, 0.5, 0), new THREE.Vector3(Math.cos(a) * r * 3, -0.1, Math.sin(a) * r * 3), r * 0.7, r * 0.15);
-  }
-  const g = mergeGeometries(parts.map((q) => q.toNonIndexed()), false);
-  parts.forEach((q) => q.dispose());
-  return g;
-}
+  const top = (name) => new THREE.Box3().setFromObject(kit.getObjectByName(name)).max.y;
+  scatter(200, 1.8, 11, 0.6, (x, z) => put(`tree${Math.floor(T() * 4)}`, x, z, 0.85 + T() * 0.45));
+  scatter(190, 7, 22, 1.2, (x, z) => put(`pine${Math.floor(T() * 2)}`, x, z, 0.8 + T() * 0.5));
+  scatter(120, 1.15, 3.2, 0.8, (x, z) => put(`bramble${Math.floor(T() * 2)}`, x, z, 0.8 + T() * 0.6));
+  scatter(40, 2.2, 10, 1.0, (x, z) => put("roots0", x, z, 0.8 + T() * 0.5));
+  scatter(42, 1.8, 10, 2.4, (x, z) => put("toad0", x, z, 0.8 + T() * 0.6));
+  const perches = [];
+  scatter(46, 1.8, 10, 0.6, (x, z) => {
+    const k = Math.floor(T() * 2);
+    put(`stump${k}`, x, z, 1);
+    perches.push([x, z, top(`stump${k}`)]);
+  });
+  scatter(34, 2.8, 11, 2.4, (x, z) => {
+    const k = Math.floor(T() * 2);
+    put(`log${k}`, x, z, 1);
+    perches.push([x, z, top(`log${k}`) - 0.05]);
+  });
+  for (const [x, z, y] of perches) if (T() < 0.3) put("crow0", x, z, 0.9 + T() * 0.3, y);
 
-function randomSide(d, tilt, R) {
-  const a = R() * Math.PI * 2;
-  const perp = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
-  perp.addScaledVector(d, -perp.dot(d)).normalize();
-  const out = d.clone().multiplyScalar(Math.cos(tilt)).addScaledVector(perp, Math.sin(tilt));
-  if (out.y < -0.15) out.y = -0.15;
-  return out.normalize();
+  for (const [name, list] of spots) {
+    const node = kit.getObjectByName(name);
+    node.traverse((m) => {
+      if (!m.isMesh) return;
+      const inst = new THREE.InstancedMesh(m.geometry, m.material, list.length);
+      const local = m.matrixWorld;
+      list.forEach(([x, z, ry, sc, y], i) => {
+        _e.set(0, ry, 0);
+        _q.setFromEuler(_e);
+        _m4.compose(_p.set(x, y, z), _q, _s.set(sc, sc * (0.9 + (i % 3) * 0.1), sc)).multiply(local);
+        inst.setMatrixAt(i, _m4);
+      });
+      inst.computeBoundingSphere();
+      inst.castShadow = false;
+      inst.receiveShadow = true;
+      root.add(inst);
+    });
+  }
 }
 
 /* A headstone with a rounded top, as an extruded outline. */
@@ -3658,7 +3673,6 @@ function buildHollowgrin(api) {
     trimDark: new THREE.MeshStandardMaterial({ color: 0x2b2420, roughness: 0.7 }),
     shutter: new THREE.MeshStandardMaterial({ color: 0x1f2a24, roughness: 0.85 }),
     iron: new THREE.MeshStandardMaterial({ color: 0x1b1b21, roughness: 0.55, metalness: 0.35 }),
-    bark: surfMat("wood", 0x2e2620, { mix: 0.12, tile: 0.8 }),
     dirt: surfMat("dirt", 0x4a3a2c, { mix: 0.08, tile: 2.5 }),
     hay: texMat(hayTexture(), { color: 0xd8c08a, rough: 1 }),
     pumpkin: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, color: 0xffffff }),
@@ -3779,65 +3793,11 @@ function buildHollowgrin(api) {
 
   /* ------------------------------------------------------- boundary */
   api.ghostWalls((BOUNDS.minX + BOUNDS.maxX) / 2, (BOUNDS.minZ + BOUNDS.maxZ) / 2, BOUNDS.maxX - BOUNDS.minX + 2.8, BOUNDS.maxZ - BOUNDS.minZ + 2.8, 8, 1.4);
-  // A crumbling field-stone wall just outside the line, then the woods.
-  {
-    const R = rng(4);
-    // gaps where the lane runs out east and west and the creek in and out
-    const lane = [LANE.z0 - 0.4, LANE.z1 + 0.4];
-    const run = (axis, at, a, b, gaps = []) => {
-      let s = a;
-      while (s < b) {
-        const len = Math.min(b - s, 2 + R() * 3.5);
-        const open = gaps.some(([g0, g1]) => s < g1 && s + len > g0);
-        if (R() > 0.12 && !open) {
-          const h = 0.7 + R() * 0.6;
-          const c = s + len / 2;
-          const x = axis === "x" ? c : at, z = axis === "x" ? at : c;
-          K.box(M.stoneDark, x, 0, z, axis === "x" ? len : 0.7, h, axis === "x" ? 0.7 : len, { ry: (R() - 0.5) * 0.04 });
-        }
-        s += len + 0.05;
-      }
-    };
-    run("x", BOUNDS.minZ - 0.6, BOUNDS.minX - 1, BOUNDS.maxX + 1);
-    run("x", BOUNDS.maxZ + 0.6, BOUNDS.minX - 1, BOUNDS.maxX + 1, [[-38.9, -33.6]]);
-    run("z", BOUNDS.minX - 0.6, BOUNDS.minZ, BOUNDS.maxZ, [lane, [16.5, 23.5], [-1.6, 5.6]]);   // the chapel's apse
-    run("z", BOUNDS.maxX + 0.6, BOUNDS.minZ, BOUNDS.maxZ);
-
-    // The woods: four tree shapes, instanced round the outside.
-    const variants = [11, 23, 37, 51].map((s, i) => treeGeo(s, { height: 7 + i, r: 0.28 + i * 0.03, levels: 3 }));
-    for (const v of variants) metreUVs(v, M.bark.userData.tile);
-    const spots = [];
-    const T = rng(99);
-    for (let i = 0; i < 185; i++) {
-      // walk the perimeter, pushed out 1.5-13 m
-      const t = T() * 4;
-      const out = 1.6 + Math.pow(T(), 0.7) * 12;
-      let x, z;
-      if (t < 1) { x = THREE.MathUtils.lerp(BOUNDS.minX - 10, BOUNDS.maxX + 10, t); z = BOUNDS.minZ - out; }
-      else if (t < 2) { x = THREE.MathUtils.lerp(BOUNDS.minX - 10, BOUNDS.maxX + 10, t - 1); z = BOUNDS.maxZ + out; }
-      else if (t < 3) { z = THREE.MathUtils.lerp(BOUNDS.minZ, BOUNDS.maxZ, t - 2); x = BOUNDS.minX - out; }
-      else { z = THREE.MathUtils.lerp(BOUNDS.minZ, BOUNDS.maxZ, t - 3); x = BOUNDS.maxX + out; }
-      const keep = [T() * 6.28, 0.85 + T() * 0.5, Math.floor(T() * 4)];
-      // clear the lane's west end and the creek's bed
-      if (x < BOUNDS.minX && z > LANE.z0 - 1.5 && z < LANE.z1 + 1.5) continue;
-      if (creekDist(x, z) < CREEK_W) continue;
-      if (x < BOUNDS.minX && x > BOUNDS.minX - 6 && z > -3 && z < 7) continue;   // behind the chapel's apse
-      spots.push([x, z, ...keep]);
-    }
-    variants.forEach((geo, vi) => {
-      const mine = spots.filter((s) => s[4] === vi);
-      const inst = new THREE.InstancedMesh(geo, M.bark, mine.length);
-      mine.forEach(([x, z, ry, sc], i) => {
-        _e.set(0, ry, 0);
-        _q.setFromEuler(_e);
-        _m4.compose(_p.set(x, 0, z), _q, _s.set(sc, sc * (0.9 + (i % 3) * 0.1), sc));
-        inst.setMatrixAt(i, _m4);
-      });
-      inst.castShadow = false;   // outside the bounds: their shadows cost more than they show
-      inst.receiveShadow = true;
-      root.add(inst);
-    });
-  }
+  // A crumbling field-stone wall just outside the line, then the woods:
+  // models/hg_woods.py draws the wall (hg-woods.glb) and the woods' pieces
+  // (hg-woodkit.glb), which woods() sets round the ring.
+  hgModel(api, "hg-woods");
+  hgModel(api, "hg-woodkit", { parent: new THREE.Group(), then: (kit) => woods(kit, root) });
 
   /* ------------------------------------------------ Grinmoor Manor */
   // Drawn in Blender (models/hg_manor.py, hg-manor.glb, phase 1 of the
