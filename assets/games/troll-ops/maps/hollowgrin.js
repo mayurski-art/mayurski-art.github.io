@@ -29,9 +29,11 @@
 // a material is merged into one mesh (Kit.flush), so the whole village costs
 // a few dozen draws. Colliders are plain AABBs through api.ghostBox, laid by
 // the same helpers that lay the visible pieces, so the two can't drift.
-// Light is mostly emissive (carved pumpkins, candles, windows, bulbs) with
-// twelve real point lights, all built here at load: nothing adds a light at
-// runtime (see light-pool.js for why that matters). The glows (bulb halos,
+// Light is mostly emissive (carved pumpkins, candles, windows, bulbs) and the
+// light bake (models/bake_hollowgrin.blender.py: the night sky and ten fixed
+// lamps in every model and the ground), with four real point lights where
+// characters fight under a lamp, all built here at load: nothing adds a light
+// at runtime (see light-pool.js for why that matters). The glows (bulb halos,
 // fireflies, wisps) are one Points draw, animated in its vertex shader.
 
 import * as THREE from "three";
@@ -1138,10 +1140,9 @@ function hayBale(K, M, x, z, { y = 0, ry = 0, collide = true, draw = true } = {}
   if (draw) K.box(M.hay, x, y, z, w, h, d, { ry });
 }
 
-/* A gas lamp on a post; `light` adds a real one (there are only two).
-   `draw: false` keeps the glass and leaves the iron to the model (the
-   square's, hg_village.py). */
-function gasLamp(K, M, x, z, { lights = null, draw = true } = {}) {
+/* A gas lamp on a post (its light is in the bake). `draw: false` keeps the
+   glass and leaves the iron to the model (the square's, hg_village.py). */
+function gasLamp(K, M, x, z, { draw = true } = {}) {
   K.solid(x, z, 0.24, 0.24, 3.0, { pen: 3 });
   if (draw) {
     K.cyl(M.iron, x, 0, z, 0.14, 0.09, 3.0, 8);
@@ -1151,11 +1152,6 @@ function gasLamp(K, M, x, z, { lights = null, draw = true } = {}) {
     K.cyl(M.iron, x, 3.68, z, 0.2, 0.02, 0.28, 4, { ry: Math.PI / 4 });
   }
   K.box(M.lampGlass, x, 3.06, z, 0.34, 0.56, 0.34, {}, { shadow: false });
-  if (lights) {
-    const l = new THREE.PointLight(0xffb86a, 9, 16, 2);
-    l.position.set(x, 3.3, z);
-    lights.push(l);
-  }
   K.sparks?.add(x, 3.3, z, 0xffb86a, { size: 1.4, blink: 0.05 });
 }
 
@@ -2107,9 +2103,6 @@ function buildOutskirts(api, K, M, SP, root, lights) {
       K.add(sign(["THE TROLL HOUSE"], { bg: "#120c10", fg: "#ffffff", edge: "#e0662f" }), place(new THREE.PlaneGeometry(3.2, 0.55), { x: 0, y: 2.85, z: tz0 - 0.02, ry: Math.PI }), { shadow: false });
       K.add(sign(["U MAD?"], { w: 512, h: 256, bg: "#6a4a2c", fg: "#1a120c", edge: "#3a2614" }), place(new THREE.PlaneGeometry(1.2, 0.6), { x: 0, y: 0.02, z: tz0 - 0.55, rx: -Math.PI / 2, rz: Math.PI }), { shadow: false });
       K.solid(0, tz0 - 0.4, 1.8, 0.5, 0.18, { mat: M.stairWood, pen: 4 });
-      const l = new THREE.PointLight(0xffb070, 8, 12, 2);
-      l.position.set(0, 2.9, 42.2);
-      lights.push(l);
     }
     // the Meme Gallery in its front yard
     {
@@ -2456,9 +2449,6 @@ function buildPark(api, K, M, SP, root, lights) {
       jack(K, M, x, 0, z, { r: k ? 0.55 : 0.68, face: Math.atan2(Math.cos(a), Math.sin(a)), seed: 6300 + k });
       K.api.ghostBox(x, z, k ? 1.0 : 1.2, k ? 1.0 : 1.2, k ? 0.85 : 1.05, { pen: 2 });
     }
-    const l = new THREE.PointLight(0xff8a5a, 7, 15, 2);
-    l.position.set(fx - 1.5, 2.6, fz);
-    lights.push(l);
 
     // benches facing the fountain, lamp posts with banners
     hgModel(api, "hg-plaza");
@@ -3057,10 +3047,6 @@ function buildMansion(api, K, M, SP, root, lights) {
       candle(K, M, cx + Math.cos(a) * 0.75, 3.07, cz + Math.sin(a) * 0.75, { h: 0.14, seed: 7300 + i });
       SP.add(cx + Math.cos(a) * 0.75, 3.3, cz + Math.sin(a) * 0.75, 0xffc070, { size: 0.7, blink: 0.1 });
     }
-    const l = new THREE.PointLight(0xffd0a0, 6, 12, 2);
-    l.position.set(cx, 2.8, cz);
-    l.userData.flicker = 1.3;
-    lights.push(l);
     K.add(M.ember, place(new THREE.PlaneGeometry(0.9, 0.55), { x: 69.5, y: F + 0.3, z: 25.84 }), { shadow: false });
     K.add(M.glow, place(new THREE.PlaneGeometry(2.8, 2.8), { x: 69.5, y: F + 0.02, z: 26.6, rx: -Math.PI / 2 }), { shadow: false, phase: 0.6 });
     const dancers = [];
@@ -3826,18 +3812,11 @@ function buildHollowgrin(api) {
       const a = (i / 8) * Math.PI * 2;
       candle(K, M, Math.cos(a) * 0.75, cy + 0.02, cz + Math.sin(a) * 0.75, { seed: 40 + i });
     }
-    const l = new THREE.PointLight(0xffb070, 16, 20, 2);
-    l.position.set(0, cy - 0.3, cz);
-    lights.push(l);
 
     // parlour: the fireplace's embers and glow, the sofa, the sheeted armchair
     const fx = x0 + WALL_T + 0.35, fz = -25;
     K.solid(fx, fz, 0.7, 2.4, 1.5, { pen: 8 });
     K.box(M.ember, fx - 0.27, 0.1, fz, 0.02, 0.6, 0.85, {}, { shadow: false });
-    const fl = new THREE.PointLight(0xff6a1f, 5, 9, 2);
-    fl.position.set(fx + 1.0, 0.8, fz);
-    fl.userData.flicker = 1;
-    lights.push(fl);
     K.solid(-8.6, -21.2, 2.4, 0.9, 0.85, { pen: 1.5 });
     K.solid(-11.2, -18, 0.9, 0.9, 0.9, { pen: 1.5 });
     portrait(api, { x: -5.2, y: 2.0, z: -21, facing: "w", hue: 280 });
@@ -3954,8 +3933,8 @@ function buildHollowgrin(api) {
     K.api.ghostBox(cx, cz, 3.4, 1.7, 1.25, { pen: 2 });
     for (let i = 0; i < 7; i++) jack(K, M, cx - 1.2 + (i % 4) * 0.8, 0.68, cz - 0.4 + Math.floor(i / 4) * 0.8, { r: 0.3, carved: i === 2, face: Math.PI, seed: 260 + i, glow: false });
 
-    gasLamp(K, M, -11, -8, { lights, draw: false });
-    gasLamp(K, M, 11, 10.5, { lights, draw: false });
+    gasLamp(K, M, -11, -8, { draw: false });
+    gasLamp(K, M, 11, 10.5, { draw: false });
     gasLamp(K, M, -11, 11, { draw: false });
     gasLamp(K, M, 11, -8.5, { draw: false });
   }
@@ -4258,9 +4237,6 @@ function buildHollowgrin(api) {
       const hue = new THREE.Color().setHSL(C(), 0.8, 0.55);
       K.add(M.candy, place(new THREE.SphereGeometry(0.08, 6, 4), { x: -3 + (C() - 0.5) * 0.8, y: 0.62 + C() * 0.08, z: 23.6 + (C() - 0.5) * 0.8 }), { color: hue.getHex(), shadow: false });
     }
-    const cl = new THREE.PointLight(0xff9a6a, 7, 11, 2);
-    cl.position.set(-6, 2.7, 24.3);
-    lights.push(cl);
     let s = 1100;
     for (const [x, z, r] of [[-7.2, 20.4, 0.3], [-4.8, 20.3, 0.25], [-10.6, 20.4, 0.28], [-1.4, 20.5, 0.22]]) jack(K, M, x, 0, z, { r, face: Math.PI, seed: s++ });
     // a lantern on a bracket by the back door
@@ -4324,9 +4300,6 @@ function buildHollowgrin(api) {
       K.add(M.trimDark, place(new THREE.TorusGeometry(0.45, 0.05, 6, 14), { x: cw.x + wx, y: 0.45, z: cw.z + wz }));
     }
     for (let i = 0; i < 3; i++) hayBale(K, M, cw.x - 0.9 + i * 0.9, cw.z, { y: 0.67, ry: Math.PI / 2, collide: false });
-    const bl = new THREE.PointLight(0xffb070, 8, 14, 2);
-    bl.position.set(23, 3.8, 24.5);
-    lights.push(bl);
     K.cyl(M.iron, 23, 3.9, 24.5, 0.01, 0.01, 0.5, 4);
     K.box(M.lampGlass, 23, 3.55, 24.5, 0.2, 0.3, 0.2, {}, { shadow: false });
     jack(K, M, 20.6, 0, 19.4, { r: 0.33, face: Math.PI, seed: 1200 });
@@ -4501,10 +4474,12 @@ export const HOLLOWGRIN = {
   // ACES, not the Neutral every other map uses: its toe sinks the moonlit
   // fill's purple shade to near black; under Neutral it read as haze (-tm6).
   tone: "aces",
-  hemi: { sky: 0x6c78c0, ground: 0x3a2a24, intensity: 1.25 },
-  ambient: { color: 0x6a5a8a, intensity: 0.35 },
-  // Stylised realism (view/grade-pass.js): a hand-lit night map, so no bakes,
-  // just the grade: moonlit blue in the shade, the string lights' warmth in
+  // halved for the light bake: the sky's light is in the models and the
+  // ground now (models/bake_hollowgrin.blender.py)
+  hemi: { sky: 0x6c78c0, ground: 0x3a2a24, intensity: 0.62 },
+  ambient: { color: 0x6a5a8a, intensity: 0.18 },
+  groundBake: { file: "hollowgrin-ground", rect: [-66, -84, 168] },
+  // Stylised realism (view/grade-pass.js): the light bake, and the grade: moonlit blue in the shade, the string lights' warmth in
   // the highs, a touch more colour and punch.
   grade: { shadows: 0x1a2448, shadowsAmt: 0.1, highlights: 0xffb070, highlightsAmt: 0.08, sat: 1.1, contrast: 1.07 },
   build: buildHollowgrin,

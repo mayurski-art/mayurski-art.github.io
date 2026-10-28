@@ -58,6 +58,9 @@ const BAKED = new Map([...[
   // the Grinleria (build_grinleria.blender.py): its 15 lamps in a closed
   // white mall bake hot, so a quarter down
   ...["shell", "outside", "atrium", "falls", "wings", "trollhead", "shops"].map((n) => [`gl-${n}`, Math.PI * 0.75]),
+  // Hollowgrin (models/bake_hollowgrin.blender.py): the night sky and ten
+  // lamps, every model the builder draws with bake UVs
+  ...["hg-barn","hg-bell","hg-bell-clapper","hg-candyshop","hg-carousel","hg-carousel-ride","hg-cauldron","hg-chapel-tower","hg-coaster","hg-fair","hg-fields","hg-fountain","hg-garden","hg-graveyard","hg-ground","hg-lane","hg-manor","hg-mansion","hg-mausoleum","hg-moat","hg-mountain","hg-oak","hg-organ","hg-pepe","hg-plaza","hg-scarecrow","hg-skull","hg-southroad","hg-square","hg-stalls","hg-west","hg-wheelbase","hg-windmill","hg-windmill-sails","hg-woods"].map((n) => [n, Math.PI]),
 ]);
 /* models/<name>-bake.webp, fetched once (null if it's missing). */
 export function loadBake(name) {
