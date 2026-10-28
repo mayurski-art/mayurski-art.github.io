@@ -166,7 +166,14 @@ export class RoyaleZone {
    from three mocks). Clouds drift up it, a bright rim marks the ground where
    it hurts, and it hangs on below y 0 so over a floating island's edge it is
    a curtain into the void, not a band in the sky. One shader, no lights
-   (light-pool.js). The next circle is marked on the ground. */
+   (light-pool.js). The next circle is marked on the ground.
+   Like Fortnite's storm (user 2026-10-28: "should not be restricted"), the
+   wall climbs into the sky and the storm fills everything outside it: haze
+   layers over the whole world, cut round the circle, so from the plane the
+   land outside the eye lies under purple and on the ground it hangs over you. */
+const STORM_TOP = 520;                       // the wall's top (it fades out well before)
+const STORM_LAYERS = [1.5, 7, 16];           // the haze sheets' heights (m): a low storm bank
+const STORM_REACH = 260;                     // how far past the circle it runs (the land, not the void past it)
 const STORM_DEEP = new THREE.Color(0x381a6b), STORM_LIT = new THREE.Color(0x9e6bf2), STORM_RIM = new THREE.Color(0xebd9ff);
 /* The storm's clouds: four octaves of tileable value noise baked once into
    a 128 px texture, so the wall reads one texel a pixel (the same noise worked
@@ -199,8 +206,8 @@ export class ZoneVisual {
   constructor(scene) {
     this.scene = scene;
     this.group = new THREE.Group();
-    const wallGeo = new THREE.CylinderGeometry(1, 1, 110, 128, 1, true);
-    wallGeo.translate(0, 5, 0);   // y -50 .. 60
+    const wallGeo = new THREE.CylinderGeometry(1, 1, STORM_TOP + 50, 128, 1, true);
+    wallGeo.translate(0, (STORM_TOP - 50) / 2, 0);   // y -50 .. STORM_TOP
     this.wallMat = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false,
       uniforms: {
@@ -214,7 +221,7 @@ export class ZoneVisual {
         void main() {
           // 160 noise cells round the wall (the texture tiles 10 times), drifting up
           float c = texture2D(uNoise, vec2(vUv.x * 10.0 + uTime * 0.003, vY * 0.0056 - uTime * 0.0075)).r;
-          float fade = smoothstep(60.0, 8.0, vY) * smoothstep(-50.0, -20.0, vY);
+          float fade = mix(1.0, 0.55, smoothstep(10.0, 120.0, vY)) * smoothstep(${STORM_TOP.toFixed(1)}, ${(STORM_TOP * 0.45).toFixed(1)}, vY) * smoothstep(-50.0, -20.0, vY);
           vec3 col = mix(uDeep, uLit, smoothstep(0.35, 0.8, c));
           float rim = smoothstep(1.6, 0.0, abs(vY));
           col = mix(col, uRim, rim * 0.8);
@@ -231,7 +238,37 @@ export class ZoneVisual {
     this.next.rotation.x = -Math.PI / 2;
     this.next.position.y = 0.06;
     this.next.renderOrder = 7;
-    this.group.add(this.wall, this.next);
+    // the storm outside the wall: flat sheets of the same clouds over the
+    // whole world, nothing inside the circle (uC, uR: the circle, in world x/z)
+    this.hazeMat = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false,
+      uniforms: {
+        uTime: this.wallMat.uniforms.uTime, uNoise: this.wallMat.uniforms.uNoise,
+        uC: { value: new THREE.Vector2() }, uR: { value: 0 }, uAlpha: this.wallMat.uniforms.uAlpha,
+        uDeep: this.wallMat.uniforms.uDeep, uLit: this.wallMat.uniforms.uLit,
+      },
+      vertexShader: `varying vec3 vW;
+        void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+      fragmentShader: `uniform float uTime; uniform float uAlpha; uniform float uR; uniform vec2 uC; uniform vec3 uDeep; uniform vec3 uLit; uniform sampler2D uNoise;
+        varying vec3 vW;
+        void main() {
+          float d = length(vW.xz - uC) - uR;
+          if (d < 0.0) discard;
+          float c = texture2D(uNoise, vW.xz * 0.006 + vec2(uTime * 0.004, vW.y * 0.01 - uTime * 0.002)).r;
+          vec3 col = mix(uDeep, uLit, smoothstep(0.3, 0.85, c));
+          float reach = smoothstep(${STORM_REACH.toFixed(1)}, ${(STORM_REACH * 0.6).toFixed(1)}, d);
+          gl_FragColor = vec4(col, (0.07 + 0.13 * c) * smoothstep(0.0, 6.0, d) * reach * uAlpha);
+        }`,
+    });
+    const sheet = new THREE.PlaneGeometry(1600, 1600).rotateX(-Math.PI / 2);
+    this.haze = STORM_LAYERS.map((y) => {
+      const m = new THREE.Mesh(sheet, this.hazeMat);
+      m.position.y = y;
+      m.frustumCulled = false;
+      m.renderOrder = 8;
+      return m;
+    });
+    this.group.add(this.wall, this.next, ...this.haze);
     scene.add(this.group);
   }
 
@@ -240,6 +277,9 @@ export class ZoneVisual {
     this.wall.position.set(s.x, 0, s.z);
     this.wall.scale.set(Math.max(0.5, s.r), 1, Math.max(0.5, s.r));
     this.wall.visible = s.r > 0.3;
+    this.hazeMat.uniforms.uC.value.set(s.x, s.z);
+    this.hazeMat.uniforms.uR.value = Math.max(0, s.r);
+    for (const h of this.haze) h.position.set(s.x, h.position.y, s.z);
     const n = s.next;
     this.next.visible = !!n && n.r > 0.3;
     if (n) {
@@ -251,7 +291,7 @@ export class ZoneVisual {
 
   dispose() {
     this.scene.remove(this.group);
-    disposeLater(this.wall.geometry, this.wallMat, this.next.geometry, this.next.material);
+    disposeLater(this.wall.geometry, this.wallMat, this.next.geometry, this.next.material, this.haze[0].geometry, this.hazeMat);
   }
 }
 
