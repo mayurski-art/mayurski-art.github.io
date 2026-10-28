@@ -375,11 +375,16 @@ class Builder:
             f.smooth = True
         return out
 
-    def finish(self, filename, bake=None):
+    def finish(self, filename, bake=None, uv2=None, quantize=False):
         """Exports the model. `bake` (bake_kit.py) also bakes its light map:
         a second UV layer plus <name>-bake.webp beside the GLB. None takes
         the builder's bake_every_model() settings, False skips it, a dict
-        overrides some of them (samples=512 for a bounce-lit ceiling)."""
+        overrides some of them (samples=512 for a bounce-lit ceiling).
+        `uv2=<res>` with no bake still unwraps the second UV layer, packed
+        for an atlas that size (a map baked later, apart from its build:
+        Undergrin's occlusion). `quantize` shrinks the file with
+        KHR_mesh_quantization (glb_quantize.py: 16-bit positions, 8-bit
+        normals, no first UV set on untextured faces)."""
         if bake is None:
             bake = _BAKE["default"]
         elif bake:
@@ -454,10 +459,22 @@ class Builder:
             bpy.ops.object.select_all(action="DESELECT")
             obj.select_set(True)
             bpy.context.view_layer.objects.active = obj
+        elif uv2:
+            from bake_kit import _lightmap_uv
+            _lightmap_uv(obj, 4.0 / uv2)   # ~4 texels between islands at that atlas size
+            me.uv_layers.active = me.uv_layers[0]
+            bpy.ops.object.select_all(action="DESELECT")
+            obj.select_set(True)
+            bpy.context.view_layer.objects.active = obj
         path = os.path.join(OUT_DIR, filename)
         bpy.ops.export_scene.gltf(filepath=path, use_selection=True, export_format="GLB",
                                   export_yup=True, export_apply=True)
         print("Exported", path, len(me.vertices), "verts")
+        if quantize:
+            from glb_quantize import quantize_glb
+            size = os.path.getsize(path)
+            quantize_glb(path)
+            print("Quantized %s: %.3f -> %.3f MB" % (filename, size / 1e6, os.path.getsize(path) / 1e6))
         bpy.data.objects.remove(obj)
         bpy.data.meshes.remove(me)
 

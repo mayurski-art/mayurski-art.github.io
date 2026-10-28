@@ -114,6 +114,22 @@ function buildSurfaceMaterial(surface, color, repeat = 1, bakedLightMap = null, 
    The bakes are light only (models/bake_kit.py: sky, bounce and lamps, no
    colour), and three ADDS a light map to the indirect light, so a baked map
    turns its hemisphere and ambient down instead (REALISM.md). */
+/* A baked ambient-occlusion map (models/bake_kit.py bake_ao: linear, on
+   the same second UV set as a light map) multiplied into the indirect light
+   at `intensity` (0 = none, 1 = the full bake): Undergrin's flat full-bright
+   paint keeps every open face its own colour and only the corners darken. */
+export function applyBakedAOMap(mesh, ao, intensity = 1) {
+  const geo = mesh.geometry;
+  if (!ao || !geo || !geo.attributes.uv1) return false;
+  ao.colorSpace = THREE.NoColorSpace;
+  ao.channel = 1;
+  ao.flipY = false;
+  mesh.material.aoMap = ao;
+  mesh.material.aoMapIntensity = intensity;
+  mesh.material.needsUpdate = true;
+  return true;
+}
+
 export function applyBakedLightMap(mesh, bake, intensity = 1) {
   const geo = mesh.geometry;
   if (!bake || !geo || !geo.attributes.uv1) return false;

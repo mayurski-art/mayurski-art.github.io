@@ -39,7 +39,7 @@ const tabOf = (id) => TAB_OF[id] || (/^(att|gear|perk)-\d+$/.test(id) ? "locker"
    the lobby's mode group, so the card can name the mode picked in it. */
 const PLAYLISTS = [
   { id: "public", label: "Public Match", group: "versus", sub: "Team Deathmatch", blurb: "A versus room with whoever is online. Bots fill the gaps." },
-  { id: "social", label: "Socialize", group: "social", sub: "Hang out", blurb: "Troll City, Kabukigrin or Troll Beach. No guns, just emotes and chat." },
+  { id: "social", label: "Socialize", group: "social", sub: "Hang out", blurb: "Troll City, Kabukigrin, Troll Beach or Undergrin. No guns, just emotes and chat." },
   { id: "solo", label: "Solo Play", group: "solo", sub: "Ops", blurb: "Ops, Zombies or the Test Range. Just you." },
   { id: "zombies", label: "Zombies", group: "hub", sub: "The hub", blurb: "Step on a map's pad. Up to four of you go in against the horde." },
   { id: "private", label: "Private Match", group: "versus", sub: "Room code", blurb: "Make a room code and send it to your friends." },

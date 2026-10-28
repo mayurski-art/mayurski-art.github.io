@@ -9,7 +9,7 @@
 // Colliders stay in maps.js, copied from each approved blockout, so a layout
 // plays exactly as it was walk-tested. These helpers only draw.
 
-import { placeModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
+import { placeModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 
 /* Blender material name -> [surface, tiles per metre]. Must match TEXTURED
    in models/map_kit.py: anything else was merged into flat vertex-coloured
@@ -80,8 +80,8 @@ export const RETEXTURE = {
    `castShadow: false` suits maps under a roof: the sun can't reach inside,
    and casting still draws every mesh a second time in the shadow pass.
    `groundBake`: a flat model lit by the map's ground bake (maps.js). */
-export function mapModel(api, file, { x, z, y = 0, rot = 0, scale = 1, castShadow = true, groundBake = null }) {
-  placeModel(api, file, { x, z, y, rot, scale, castShadow, mapping: RETEXTURE, groundBake });
+export function mapModel(api, file, { x, z, y = 0, rot = 0, scale = 1, castShadow = true, groundBake = null, ao = null }) {
+  placeModel(api, file, { x, z, y, rot, scale, castShadow, mapping: RETEXTURE, groundBake, ao });
 }
 
 /* Grin Site's models are gs-<name>. */

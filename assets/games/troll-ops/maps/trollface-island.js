@@ -19,18 +19,18 @@
 import * as THREE from "three";
 import { mergeGeometries, mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import { insidePolygon, clampInsidePolygon } from "./edge.js?v=or1";
-import { SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2";
+import { SURFACES } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 import { lakeWaterMaterial, fallsTexture } from "./lake-water.js?v=wf2";
-import { loadBake } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
-import { mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2";
+import { loadBake } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
+import { mapModel } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1";
 import { ISLAND_SOLIDS } from "./trollface-island-colliders.js?v=is1-ip1-mg1-sp1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-rfx1";
 import { ISLAND_GROUND } from "./trollface-island-ground.js?v=tg1-tfp1-tfp3-tfp4-tfp7-tfb8";
 import { ISLAND_PROPS } from "./trollface-island-props.js?v=ip1-mg1-sp1-tfp3-tfp7-tfb8";
 import { TF_BUILT } from "./trollface-island-built.js?v=tfb1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-rfx1";
 import { buildIslandSigns } from "./trollface-island-signs.js?v=tfs1-tfp1";
-import { buildIslandProps } from "./island-props.js?v=ip1-mg1-tx1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2";
+import { buildIslandProps } from "./island-props.js?v=ip1-mg1-tx1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 import { sampleField } from "../core/ground-field.js?v=gf1-tg1";
-import { Boat, BOAT_ARCHES } from "./trollface-boat.js?v=tfb1-tfb8-ss1-ss2-ss3-tfm2-hgb2";
+import { Boat, BOAT_ARCHES } from "./trollface-boat.js?v=tfb1-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1";
 import { animateIslandModel } from "./trollface-anim.js?v=ta1-ta2-tfm2";
 
 const BOUNDS = { minX: -205, maxX: 205, minZ: -155, maxZ: 155 };

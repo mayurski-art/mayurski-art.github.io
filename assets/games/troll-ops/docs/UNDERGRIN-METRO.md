@@ -1,5 +1,7 @@
 # Undergrin redesign: a Metro (2025) station — DESIGN DOC, awaiting the user's OK
 
+> **Superseded for the build (2026-10-28).** This doc set the layout, which still stands (`maps/undergrin.js`). The station was then rebuilt prop by prop in Blender from a second doc, *Troll Forces: Undergrin in Blender* (https://claude.ai/artifact/M7gvL8E3RboNCNp3PMkePM): the module builder in `models/ug_*.py`, the layout file `models/undergrin-layout.json`, the occlusion bake at 0.4, German signs lettered at load. Read that doc for how the station is built now; the build notes below (sections on `build_undergrin.blender.py` and `maps.js`) are out of date.
+
 Drafted 2026-10-07. Nothing in this doc is built yet. The user asked for a
 redesign of Undergrin "inspired by Phantom Forces' Metro" and sent a clip of
 the newer **Metro (2025)** map played through the *fleasion* mod (flat

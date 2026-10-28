@@ -267,16 +267,30 @@ def bake_lightmap(obj, path, res=1024, samples=128, sky=(0x8aa2cc, 0x6f8a55, 1.0
     bpy.ops.object.bake(type="DIFFUSE", pass_filter={"DIRECT", "INDIRECT"}, margin=4, use_clear=False,
                         target="IMAGE_TEXTURES")
     _masked_blur(img, blur)
+    _save_webp(img, path, res, scale)
 
-    # save as an 8-bit sRGB WebP (three reads it back as sRGB colour)
-    out = bpy.data.images.new(name + "-8", res, res, alpha=False, float_buffer=False)
+    # leave the model as it was, plus its Lightmap UV (UVMap stays the
+    # active/first layer: TEXCOORD_0 for the photo textures)
+    for m, n in nodes:
+        m.node_tree.nodes.remove(n)
+    for o in objs:
+        o.data.uv_layers.active = o.data.uv_layers[0]
+    bpy.data.images.remove(img)
+    _clear_temp()
+
+
+def _save_webp(img, path, res, scale=1.0, srgb=True):
+    """An 8-bit WebP of a float bake: sRGB-encoded light (three reads it
+    back as colour), or linear values as they are (an occlusion map)."""
+    scene = bpy.context.scene
+    out = bpy.data.images.new(img.name + "-8", res, res, alpha=False, float_buffer=False)
     px = np.empty(res * res * 4, dtype=np.float32)
     img.pixels.foreach_get(px)
     px = px.reshape(-1, 4)
     lit = px[:, :3] * scale
-    # a byte image's pixels are stored as given: encode sRGB here
     c = np.clip(lit, 0.0, 1.0)
-    px[:, :3] = np.where(c <= 0.0031308, c * 12.92, 1.055 * np.power(c, 1 / 2.4) - 0.055)
+    # a byte image's pixels are stored as given: encode sRGB here
+    px[:, :3] = np.where(c <= 0.0031308, c * 12.92, 1.055 * np.power(c, 1 / 2.4) - 0.055) if srgb else c
     px[:, 3] = 1.0
     out.pixels.foreach_set(px.ravel())
     out.filepath_raw = path
@@ -287,15 +301,10 @@ def bake_lightmap(obj, path, res=1024, samples=128, sky=(0x8aa2cc, 0x6f8a55, 1.0
     print("Baked", path, "max %.2f mean %.3f clipped %.1f%%" % (
         float(lit.max()), float(baked.mean()) if len(baked) else 0.0,
         100.0 * float((baked.max(axis=1) > 1.0).mean()) if len(baked) else 0.0))
-
-    # leave the model as it was, plus its Lightmap UV (UVMap stays the
-    # active/first layer: TEXCOORD_0 for the photo textures)
-    for m, n in nodes:
-        m.node_tree.nodes.remove(n)
-    for o in objs:
-        o.data.uv_layers.active = o.data.uv_layers[0]
-    bpy.data.images.remove(img)
     bpy.data.images.remove(out)
+
+
+def _clear_temp():
     for d in _TEMP:
         if isinstance(d, bpy.types.Object):
             bpy.data.objects.remove(d)
@@ -307,3 +316,47 @@ def bake_lightmap(obj, path, res=1024, samples=128, sky=(0x8aa2cc, 0x6f8a55, 1.0
         elif isinstance(d, bpy.types.Light):
             bpy.data.lights.remove(d)
     _TEMP.clear()
+
+
+def bake_ao(obj, path, res=1024, samples=64, distance=2.0, blur=1, uv_index=1):
+    """An ambient-occlusion bake (Cycles AO, no light at all) of obj (or a
+    list of objects, into one image) on its uv_index UV layer (the
+    "Lightmap" / TEXCOORD_1 set), saved LINEAR as <path>: 1 on an open face,
+    darker in corners and under props within `distance` metres. Everything
+    else in the scene occludes. The game multiplies it into the indirect
+    light at the map's strength (surface-textures.js applyBakedAOMap)."""
+    objs = list(obj) if isinstance(obj, (list, tuple)) else [obj]
+    obj = objs[0]
+    scene = bpy.context.scene
+    scene.render.engine = "CYCLES"
+    scene.cycles.device = "CPU"
+    scene.cycles.samples = samples
+    scene.view_settings.view_transform = "Standard"
+    _world(0xffffff, 0xffffff, 1.0)
+    scene.world.light_settings.distance = distance
+    for o in objs:
+        o.data.uv_layers.active = o.data.uv_layers[uv_index]
+    name = obj.name + "-ao"
+    img = bpy.data.images.new(name, res, res, alpha=True, float_buffer=True)
+    img.generated_color = (0, 0, 0, 0)
+    nodes = []
+    for m in {m for o in objs for m in o.data.materials if m}:
+        if not m.use_nodes:
+            m.use_nodes = True
+        n = m.node_tree.nodes.new("ShaderNodeTexImage")
+        n.image = img
+        m.node_tree.nodes.active = n
+        nodes.append((m, n))
+    bpy.ops.object.select_all(action="DESELECT")
+    for o in objs:
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.bake(type="AO", margin=4, use_clear=False, target="IMAGE_TEXTURES")
+    _masked_blur(img, blur)
+    _save_webp(img, path, res, 1.0, srgb=False)
+    for m, n in nodes:
+        m.node_tree.nodes.remove(n)
+    for o in objs:
+        o.data.uv_layers.active = o.data.uv_layers[0]
+    bpy.data.images.remove(img)
+    _clear_temp()
