@@ -180,14 +180,32 @@ kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgb
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.home-news{background:rgba(3,1,1,.88)}}
 .home-news[hidden]{display:none}
 .news-head{margin:0;font:700 clamp(36px,4.4vw,72px)/1 var(--display);letter-spacing:.04em;text-transform:uppercase;color:var(--ink);text-shadow:0 4px 20px rgba(0,0,0,.6)}
-.news-stage{display:flex;align-items:center;gap:clamp(14px,3vw,40px)}
+.news-stage{display:grid;grid-template-areas:"prev card next" ". dots .";align-items:center;column-gap:clamp(14px,3vw,40px);row-gap:16px}
+.news-card{grid-area:card;touch-action:pan-y}
+#news-prev{grid-area:prev}
+#news-next{grid-area:next}
+.news-dots{grid-area:dots;display:flex;justify-content:center;gap:4px}
+.news-dots[hidden]{display:none}
+/* 24px hit area, 10px dot; the current one is a long gold pill, so it
+   doesn't rely on colour alone. */
+.news-dot{display:grid;place-items:center;width:24px;height:24px;padding:0;border:0;background:none;cursor:pointer}
+.news-dot::before{content:"";width:10px;height:10px;border-radius:999px;background:rgba(243,236,228,.4);transition:width .2s ease,background .2s ease}
+.news-dot[aria-current]::before{width:26px;background:var(--gold)}
+.news-dot[aria-current]{width:38px}
+.news-dot:hover::before{background:var(--ink)}
+.news-dot[aria-current]:hover::before{background:var(--gold)}
+.news-dot:focus-visible{outline:2px solid var(--hot);outline-offset:1px;border-radius:999px}
 .news-card{container-type:inline-size;position:relative;display:grid;grid-template-columns:40% 1fr;width:min(52vw,760px);min-width:520px;aspect-ratio:562/337;
   border-radius:10px;overflow:hidden;background:var(--ink);color:var(--void);box-shadow:0 30px 80px rgba(0,0,0,.6)}
 .news-art{position:relative;z-index:1;margin-right:-9cqi;overflow:visible}
 .news-art::before{content:"";position:absolute;inset:0;border-radius:0 22cqi 22cqi 0/0 50% 50% 0;background:radial-gradient(circle at 30% 30%,#3a1a0c,#120603 70%);overflow:hidden}
 /* the hot arc riding the curve, like the reference's stroke */
-.news-art::after{content:"";position:absolute;inset:-6% -2.2cqi -6% 0;border-radius:0 24cqi 24cqi 0/0 50% 50% 0;border:3px solid transparent;border-right-color:var(--hot);border-top-color:var(--hot);opacity:.85;pointer-events:none;clip-path:inset(0 0 45% 0)}
+.news-art::after{content:"";position:absolute;inset:-6% -2.2cqi -6% 0;border-radius:0 24cqi 24cqi 0/0 50% 50% 0;border:3px solid transparent;border-right-color:var(--news-accent,var(--hot));border-top-color:var(--news-accent,var(--hot));opacity:.85;pointer-events:none;clip-path:inset(0 0 45% 0);filter:drop-shadow(0 0 6px var(--news-accent,var(--hot)))}
 .news-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%;border-radius:0 22cqi 22cqi 0/0 50% 50% 0}
+/* Settles the art into the card: darker toward the curve and the floor,
+   so no picture's bright edge fights the cream panel. */
+.news-shade{position:absolute;inset:0;border-radius:0 22cqi 22cqi 0/0 50% 50% 0;pointer-events:none;
+  background:linear-gradient(90deg,rgba(3,1,1,0) 55%,rgba(3,1,1,.4)),linear-gradient(180deg,rgba(3,1,1,0) 65%,rgba(3,1,1,.35))}
 .news-text{display:flex;flex-direction:column;padding:7cqi 6cqi 5cqi 13cqi;min-width:0}
 .news-text h3{margin:0 0 3.4cqi;font:700 max(20px,4.8cqi)/1.05 var(--display);letter-spacing:.05em;text-transform:uppercase}
 .news-body p{margin:0 0 2.6cqi;font:400 max(13px,2.25cqi)/1.5 var(--body);color:#2a1d14}
@@ -207,18 +225,27 @@ kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgb
 .news-close:focus-visible{outline:2px solid var(--hot);outline-offset:3px}
 @media (hover:none){.news-close kbd{display:none}.news-close{min-height:44px;font:600 16px var(--display);letter-spacing:.06em;text-transform:uppercase}}
 @media (max-height:520px) and (min-aspect-ratio:9/10){
-  .home-news{padding:12px 16px 52px;gap:10px}
-  .news-head{font-size:30px}
-  .news-card{width:min(62vw,560px);min-width:0}
+  /* A short screen: the card takes the height that's left (heading above,
+     the dots on the Back line below) and a wider share of the width. */
+  .home-news{justify-content:flex-start;padding:10px 16px 0;gap:8px}
+  .news-head{font-size:26px}
+  .news-stage{row-gap:0}
+  .news-card{width:min(72vw,620px);min-width:0;aspect-ratio:auto;height:calc(100dvh - 100px)}
+  .news-text{padding:18px 22px 16px 13cqi}
+  .news-text h3{font-size:22px;margin-bottom:10px}
+  .news-body p{margin-bottom:8px}
+  .news-tag{margin-bottom:10px}
+  .news-dots{position:fixed;left:0;right:0;bottom:12px}
   .news-close{left:max(44px,env(safe-area-inset-left));bottom:10px}
 }
 /* Upright phones: art on top, words below, arrows under the card. */
 @media (max-aspect-ratio:9/10){
   .home-news{justify-content:flex-start;padding:calc(28px + env(safe-area-inset-top)) 16px calc(84px + env(safe-area-inset-bottom));overflow:auto}
-  .news-stage{flex-wrap:wrap;justify-content:center;width:100%;max-width:520px;gap:14px}
-  .news-card{order:-1;flex:1 0 100%;width:100%;min-width:0;aspect-ratio:auto;grid-template-columns:1fr;grid-template-rows:clamp(150px,26vh,220px) auto}
+  .news-stage{grid-template-areas:"card card card" "prev dots next";grid-template-columns:auto 1fr auto;width:100%;max-width:520px;gap:14px}
+  .news-card{width:100%;min-width:0;aspect-ratio:auto;grid-template-columns:1fr;grid-template-rows:clamp(150px,26vh,220px) auto}
   .news-art{margin:0 0 -28px}
-  .news-art::before,.news-art img{border-radius:0 0 50% 50%/0 0 28px 28px}
+  .news-art::before,.news-art img,.news-shade{border-radius:0 0 50% 50%/0 0 28px 28px}
+  .news-shade{background:linear-gradient(180deg,rgba(3,1,1,0) 55%,rgba(3,1,1,.35))}
   .news-art::after{display:none}
   .news-text{padding:40px 20px 20px}
   .news-text h3{font-size:26px;margin-bottom:12px}
@@ -227,7 +254,7 @@ kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgb
   .news-more{margin-top:16px}
   .news-close{left:20px;bottom:calc(20px + env(safe-area-inset-bottom))}
 }
-@media (prefers-reduced-motion:reduce){.home-live i,.home-donate{animation:none}.home-tile,.home-tile img{transition:none}.news-more,.news-arrow{transition:none}}
+@media (prefers-reduced-motion:reduce){.home-live i,.home-donate{animation:none}.home-tile,.home-tile img{transition:none}.news-more,.news-arrow,.news-dot::before{transition:none}}
 </style>
 <!-- Tab icon: the trollface spins grin <-> sad, like trolltruths.com -->
 <link rel="icon" type="image/png" href="/assets/images/icons/favicon/grin.png">
@@ -275,7 +302,7 @@ kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgb
     <div class="news-stage">
       <button type="button" class="news-arrow" id="news-prev" aria-label="Previous story" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M13 3 6 10l7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <article class="news-card">
-        <div class="news-art"><img id="news-img" alt=""></div>
+        <div class="news-art"><img id="news-img" alt=""><span class="news-shade" aria-hidden="true"></span></div>
         <div class="news-text">
           <h3 id="news-title"></h3>
           <div class="news-body" id="news-body"></div>
@@ -284,6 +311,7 @@ kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgb
         </div>
       </article>
       <button type="button" class="news-arrow" id="news-next" aria-label="Next story" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 3 7 7-7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <div class="news-dots" id="news-dots" hidden></div>
     </div>
     <button type="button" class="news-close" id="news-close"><kbd>Esc</kbd>Back</button>
   </section>
@@ -358,10 +386,170 @@ const isTrollRunner = () => String(accounts()?.getCachedProfile?.()?.username ||
 
 const soon = () => (isTrollRunner() ? {} : { disabled: true, value: 'Soon', desc: 'Not open yet. Still cooking.' });
 
+/* ── News (HANDOFF.md) ─────────────────────────────────────────────────
+   Placeholder stories until the troll_news table lands (step 4). Opened
+   from the News menu item or #news. Above the menu: its first screen
+   reads NEWS. */
+const NEWS = [
+  {
+    id: 'v1-wip',
+    title: 'Version 1.0 is cooking',
+    body: [
+      'trollrunner.net is getting rebuilt from the ground up. New menu, new arcade, same grin.',
+      "Some doors are still locked while we hang the paint. Poke around anyway, then tell us what's broken.",
+    ],
+    tag: 'Work in progress',
+    // In-game art, cropped to its subject (assets/images/news/). focus is
+    // the object-position that keeps the subject in both the tall desktop
+    // pane and the wide phone strip; accent colours the arc.
+    image: 'assets/images/news/v1-forces.webp',
+    alt: 'Four Troll Forces trollfaces on Trollface Island, one holding a red saber',
+    focus: '43% 26%',
+    accent: '#ff453a',
+    href: 'troll-ops.html',
+  },
+  {
+    id: 'arcade-ladder',
+    title: 'The weekly ladder',
+    body: [
+      'Every game in the arcade feeds one leaderboard. Top trolls reset every week.',
+      'Climb it, screenshot it, rub it in.',
+    ],
+    tag: '',
+    image: 'assets/images/news/ladder-champion.webp',
+    alt: 'A muscled trollface champion with a diamond fist',
+    focus: '55% 22%',
+    accent: '#ffd27a',
+    go: 'leaderboard',   // a menu screen instead of a page
+  },
+  {
+    id: 'stickers',
+    title: 'Print, cut, slap',
+    body: [
+      'The sticker sheets are up. Print them at home and leave a grin somewhere it shouldn\'t be.',
+    ],
+    tag: 'New sheets',
+    image: 'assets/images/news/stickers-umadbro.webp',
+    alt: 'The U mad bro sticker: a grinning trollface wired with electrodes',
+    focus: '52% 66%',
+    accent: '#b6ff3b',
+    href: 'stickers.html',
+  },
+];
+const newsEl = $('home-news');
+const newsCard = newsEl.querySelector('.news-card');
+const reduceMotion = matchMedia('(prefers-reduced-motion:reduce)');
+let newsIdx = 0;
+let newsReturn = null;
+function renderNews(dir = 0) {
+  const s = NEWS[newsIdx];
+  $('news-title').textContent = s.title;
+  $('news-body').replaceChildren(...s.body.map((t) => Object.assign(document.createElement('p'), { textContent: t })));
+  $('news-tag').textContent = s.tag || '';
+  const img = $('news-img');
+  img.src = s.image;
+  img.alt = s.alt || '';
+  img.style.objectPosition = s.focus || '50% 30%';
+  newsCard.style.setProperty('--news-accent', s.accent || 'var(--hot)');
+  const more = $('news-more');
+  more.hidden = !s.href && !s.go;
+  const href = s.href || '#';
+  more.href = href;
+  const external = /^https?:/i.test(href) && !href.startsWith(location.origin);
+  more.target = external ? '_blank' : '';
+  more.rel = external ? 'noopener noreferrer' : '';
+  const many = NEWS.length > 1;
+  $('news-prev').hidden = $('news-next').hidden = $('news-dots').hidden = !many;
+  $('news-dots').querySelectorAll('button').forEach((d, i) => {
+    if (i === newsIdx) d.setAttribute('aria-current', 'true'); else d.removeAttribute('aria-current');
+  });
+  if (dir && newsCard.animate) {
+    const from = reduceMotion.matches ? { opacity: 0 } : { opacity: 0, transform: `translateX(${dir * 28}px)` };
+    newsCard.animate([from, { opacity: 1, transform: 'none' }], { duration: 220, easing: 'ease-out' });
+  }
+}
+function goNews(i, dir) {
+  newsIdx = (i + NEWS.length) % NEWS.length;
+  renderNews(dir);
+}
+$('news-dots').replaceChildren(...NEWS.map((s, i) => {
+  const d = document.createElement('button');
+  d.type = 'button';
+  d.className = 'news-dot';
+  d.setAttribute('aria-label', `Story ${i + 1} of ${NEWS.length}: ${s.title}`);
+  d.addEventListener('click', () => { if (i !== newsIdx) goNews(i, i > newsIdx ? 1 : -1); });
+  return d;
+}));
+function openNews() {
+  if (!NEWS.length) return;
+  newsReturn = document.activeElement;
+  newsIdx = 0;
+  renderNews();
+  NEWS.forEach((s) => { new Image().src = s.image; });   // paging never waits on art
+  newsEl.hidden = false;
+  (newsEl.querySelector('.news-more:not([hidden])') || $('news-close')).focus();
+}
+function closeNews() {
+  if (newsEl.hidden) return;
+  newsEl.hidden = true;
+  if (location.hash === '#news') history.replaceState(null, '', location.pathname + location.search);
+  (newsReturn && newsReturn !== document.body ? newsReturn : nav.querySelector('.tr-menu-item'))?.focus?.();
+}
+$('news-close').addEventListener('click', closeNews);
+$('news-more').addEventListener('click', (e) => {
+  const go = NEWS[newsIdx].go;
+  if (!go) return;
+  e.preventDefault();
+  closeNews();
+  menu.go(go);
+});
+$('news-prev').addEventListener('click', () => goNews(newsIdx - 1, -1));
+$('news-next').addEventListener('click', () => goNews(newsIdx + 1, 1));
+newsEl.addEventListener('click', (e) => { if (e.target === newsEl) closeNews(); });
+// Swipe the card. No pointer capture (it retargets the click to the card);
+// a swipe eats the click that follows it so READ MORE doesn't fire.
+{
+  let x0 = null, swiped = false;
+  newsCard.addEventListener('pointerdown', (e) => { x0 = e.clientX; swiped = false; });
+  newsCard.addEventListener('pointerup', (e) => {
+    if (x0 === null || NEWS.length < 2) return;
+    const dx = e.clientX - x0;
+    x0 = null;
+    if (Math.abs(dx) < 40) return;
+    swiped = true;
+    goNews(newsIdx + (dx < 0 ? 1 : -1), dx < 0 ? 1 : -1);
+  });
+  newsCard.addEventListener('pointercancel', () => { x0 = null; });
+  newsCard.addEventListener('click', (e) => { if (swiped) { e.preventDefault(); swiped = false; } }, true);
+}
+// Capture phase: while the card is up, keys don't reach the menu behind it.
+window.addEventListener('keydown', (e) => {
+  if (newsEl.hidden) return;
+  if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); closeNews(); return; }
+  if (e.key === 'Tab') {
+    const f = [...newsEl.querySelectorAll('button:not([hidden]),a[href]:not([hidden])')].filter((el) => !el.closest('[hidden]'));
+    const i = f.indexOf(document.activeElement);
+    if (e.shiftKey ? i <= 0 : i === f.length - 1) { e.preventDefault(); f[e.shiftKey ? f.length - 1 : 0].focus(); }
+    return;
+  }
+  if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && NEWS.length > 1) {
+    e.preventDefault();
+    const dir = e.key === 'ArrowLeft' ? -1 : 1;
+    goNews(newsIdx + dir, dir);
+  }
+  e.stopImmediatePropagation();   // the focused button still gets its own Enter/Space
+}, true);
+const newsFromHash = () => { if (location.hash === '#news') openNews(); };
+window.addEventListener('hashchange', newsFromHash);
+newsFromHash();
+
 const screens = {
   main: () => ({
     title: 'Main Menu',
     groups: [
+      NEWS.length ? [
+        { id: 'news', label: 'News', desc: NEWS[0].title, onSelect: () => openNews() },
+      ] : [],
       [
         { id: 'arcade', label: 'Arcade', desc: 'Troll Warfare, Troll Kombat and the weekly ladder.', go: 'arcade' },
         { id: 'terminal', label: 'Terminal', desc: 'The Trollface Terminal. The archive, the riddles, the transmissions.', href: 'https://trolltruths.com', newTab: true },
@@ -525,73 +713,6 @@ $('admin-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') goTo
   else if (go[open] && (open !== 'about' || isTrollRunner())) menu.go(go[open]);
   else if (href[open]) location.replace(href[open]);
 })();
-
-/* ── News (HANDOFF.md) ─────────────────────────────────────────────────
-   Step 1: one placeholder story, opened by #news. Stories move to the
-   troll_news table in step 4. */
-const NEWS = [
-  {
-    id: 'v1-wip',
-    title: 'Version 1.0 is cooking',
-    body: [
-      'trollrunner.net is getting rebuilt from the ground up. New menu, new arcade, same grin.',
-      "Some doors are still locked while we hang the paint. Poke around anyway, then tell us what's broken.",
-    ],
-    tag: 'Work in progress',
-    image: 'assets/animations/troll-gamewithmefigure.png',
-    href: 'troll-ops.html',
-  },
-];
-const newsEl = $('home-news');
-let newsIdx = 0;
-let newsReturn = null;
-function renderNews() {
-  const s = NEWS[newsIdx];
-  $('news-title').textContent = s.title;
-  $('news-body').replaceChildren(...s.body.map((t) => Object.assign(document.createElement('p'), { textContent: t })));
-  $('news-tag').textContent = s.tag || '';
-  $('news-img').src = s.image;
-  const more = $('news-more');
-  more.hidden = !s.href;
-  if (s.href) {
-    more.href = s.href;
-    const external = /^https?:/i.test(s.href) && !s.href.startsWith(location.origin);
-    more.target = external ? '_blank' : '';
-    more.rel = external ? 'noopener noreferrer' : '';
-  }
-  const many = NEWS.length > 1;
-  $('news-prev').hidden = $('news-next').hidden = !many;
-}
-function openNews() {
-  if (!NEWS.length) return;
-  newsReturn = document.activeElement;
-  renderNews();
-  newsEl.hidden = false;
-  (newsEl.querySelector('.news-more:not([hidden])') || $('news-close')).focus();
-}
-function closeNews() {
-  if (newsEl.hidden) return;
-  newsEl.hidden = true;
-  if (location.hash === '#news') history.replaceState(null, '', location.pathname + location.search);
-  newsReturn?.focus?.();
-}
-$('news-close').addEventListener('click', closeNews);
-newsEl.addEventListener('click', (e) => { if (e.target === newsEl) closeNews(); });
-// Capture phase: while the card is up, keys don't reach the menu behind it.
-window.addEventListener('keydown', (e) => {
-  if (newsEl.hidden) return;
-  if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); closeNews(); return; }
-  if (e.key === 'Tab') {
-    const f = [...newsEl.querySelectorAll('button:not([hidden]),a[href]:not([hidden])')];
-    const i = f.indexOf(document.activeElement);
-    if (e.shiftKey ? i <= 0 : i === f.length - 1) { e.preventDefault(); f[e.shiftKey ? f.length - 1 : 0].focus(); }
-    return;
-  }
-  e.stopImmediatePropagation();   // the focused button still gets its own Enter/Space
-}, true);
-const newsFromHash = () => { if (location.hash === '#news') openNews(); };
-window.addEventListener('hashchange', newsFromHash);
-newsFromHash();
 
 /* ── Boot: menu first, then the network, then the planet ──────────────── */
 function bootLater() {

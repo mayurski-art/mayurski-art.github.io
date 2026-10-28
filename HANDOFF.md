@@ -49,6 +49,27 @@ arrows sit outside the card; the lobby behind it blurs and dims.
 - Art: trollface artwork only (assets/animations, assets/images/icons,
   assets/pfp). Never the troll emoji (CLAUDE.md).
 
+### Story art (user, 2026-10-28: "rendered based on context and also
+in game appearances and well thought out in design")
+- Every story's picture shows what the story is about, in the game's own
+  look: Troll Forces key art, lobby scenes (ui/lobby), skins, TROLLS
+  bodies, sticker sheets. No unrelated memes or generic art.
+- Crop each source to its subject and save it as a small webp in
+  `assets/images/news/` (crops made with a throwaway Playwright canvas
+  script; ~70–190 KB each). Keep logos, QR codes and other cards out of
+  the crop.
+- Per story: `image`, `alt`, `focus` (object-position that keeps the
+  subject in both the tall desktop pane and the wide phone strip), and
+  `accent` (arc colour, taken from the art: saber red, champion gold,
+  U-mad-bro green).
+- `.news-shade` darkens the art toward the curve and the floor so it
+  sits in the card.
+- Next level (not built): a fresh in-game render per story (character
+  on a transparent background, posed for the story) that breaks out
+  over the curve like the reference's soldier. The tools/troll-ops-*-
+  shots.mjs scripts already stage solo, Supabase-blocked scenes; one
+  made for news art would write straight to assets/images/news/.
+
 ### Behaviour
 - Arrow keys / swipe (pointer events, 40px threshold) change stories;
   wraps around.
@@ -113,3 +134,7 @@ placeholder story (the link keeps working afterwards).
 
 ## Shipped log
 (one line per landed task)
+- 2026-10-28 step 1: static news card, #news (site-news 92d2cb84)
+- 2026-10-28 steps 2-3: carousel (arrows, keys, swipe, dots), News menu
+  item, focus back to the menu, 3 placeholder stories with in-game art
+  (site-news)
