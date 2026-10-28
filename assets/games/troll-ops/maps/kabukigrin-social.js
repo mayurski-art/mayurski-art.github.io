@@ -149,20 +149,34 @@ export function kbNpcs({ DC, DANCE, deck }) {
   add("Brick", "Bouncer", "guard", { x: -25.2, z: 5.0, y: 0, yaw: 0.4 }, guard);
 
   /* ---- the dance floor: the go-go dancer on the podium, the crowd facing
-     the DJ on the west wall, the hype man on the stage */
+     the DJ on the west wall, the hype man on the stage. Twelve keep their
+     spot; six roam (user, 2026-10-26: "not all of them needs to be in that
+     same spot"): dance a while, step off to the floor's edge and film the
+     DJ, then find another spot (town-npcs.js `stops`). */
   add("Glitter", "Go-go dancer", "dance", { x: DC.x, z: DC.z, y: 0.28, yaw: FACE_YAW["-x"] }, { dance: 3 });
   add("Hype Hank", "Hype man", "dance", { x: -29.2, z: 12.2, y: STAGE_TOP, yaw: FACE_YAW["+x"] }, { dance: 2 });
   const R = rng(43);
   const spots = [];
-  for (let tries = 0; spots.length < 18 && tries < 500; tries++) {
+  for (let tries = 0; spots.length < 24 && tries < 800; tries++) {
     const x = DANCE.x0 + 0.7 + R() * (DANCE.x1 - DANCE.x0 - 1.4), z = DANCE.z0 + 0.7 + R() * (DANCE.z1 - DANCE.z0 - 1.4);
     if (Math.hypot(x - DC.x, z - DC.z) < 1.7) continue;
     if (spots.some((s) => Math.hypot(s.x - x, s.z - z) < 1.2)) continue;
     spots.push({ x, z });
   }
-  for (const s of spots) {
+  const faceDeck = (p) => Math.atan2(p.x - deck.x, p.z - deck.z);
+  for (const s of spots.slice(0, 12)) {
     const to = R() < 0.7 ? { x: deck.x, z: deck.z } : { x: DC.x + (R() - 0.5) * 4, z: DC.z + (R() - 0.5) * 4 };
     extra("Raver", "dance", { x: s.x, z: s.z, y: 0, yaw: Math.atan2(s.x - to.x, s.z - to.z) }, { dance: Math.floor(R() * 4) });
+  }
+  // the floor's edge, clear of the booths, the stools and the standing crowd
+  const RIM = [[-25.8, 8.5], [-23.2, 8.5], [-20.2, 8.5], [-27.2, 21.5], [-23.7, 21.5], [-19.6, 21.5]].map(([x, z]) => ({ x, z }));
+  for (let i = 0; i < 6; i++) {
+    const a = spots[12 + i], b = spots[18 + i], rim = RIM[(i * 5) % 6];
+    if (!a || !b) break;
+    const stop = (p, act, secs) => ({ x: p.x, z: p.z, act, secs, yaw: faceDeck(p), dance: Math.floor(R() * 4) });
+    extra("Raver", "roam", { x: a.x, z: a.z, y: 0, yaw: faceDeck(a) }, {
+      stops: [stop(a, "dance", 14 + R() * 10), stop(rim, "phone", 7 + R() * 5), stop(b, "dance", 14 + R() * 10)],
+    });
   }
 
   /* ---- the booths (two of three places taken), the bar, the edges */

@@ -782,7 +782,7 @@ def build_stalls(P):
 def _hollowgrin_kit():
     """The village builder's Wall helpers (it only runs its main() as a script)."""
     import importlib.util
-    spec = importlib.util.spec_from_file_location("hg_kit", os.path.join(OUT_DIR, "build_hollowgrin.blender.py"))
+    spec = importlib.util.spec_from_file_location("hg_legacy_village", os.path.join(OUT_DIR, "hg_legacy_village.py"))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -1266,4 +1266,7 @@ def main():
         quantize_glb.main([os.path.join(OUT_DIR, FILES[n])])
 
 
-main()
+# build_hollowgrin.blender.py imports this file for its builds (phase 0 of the
+# Blender build-out); run alone it still builds all ten GLBs (no bake UVs)
+if __name__ == "__main__":
+    main()

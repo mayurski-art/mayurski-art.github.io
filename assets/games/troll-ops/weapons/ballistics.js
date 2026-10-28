@@ -17,7 +17,7 @@
 import * as THREE from "three";
 import { makeTracerMaterial } from "../view/shaders.js?v=or1";
 import { groundField, terrainHit } from "../core/ground-field.js?v=gf1-tg1";
-import { computeDamage } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1";
+import { computeDamage } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1";
 
 const DROP = 9.81;          // m/s^2 applied to bullets
 const MAX_LIFE = 3.0;       // seconds before a stray round is culled

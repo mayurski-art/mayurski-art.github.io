@@ -18,7 +18,7 @@
 
 import * as THREE from "three";
 import { buildGripHand, buildSupportHand } from "./hand-model.js?v=to-grip2-or1-hp1-bx1";
-import { OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS, railSection } from "./attachment-models.js?v=fg1-wst-or1-rt1-lz1-ret1-ret2";
+import { OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS, railSection } from "./attachment-models.js?v=fg1-wst-or1-rt1-lz1-ret1-ret2-mrg1";
 
 const parse = (s) => s.trim().split(/\s+/).map((p) => p.split(",").map(Number));
 

@@ -5,7 +5,7 @@
 //
 // `d` is the card's data, the same shape renderCard() takes (profile-card.js).
 
-import { cardById, cleanClan } from "../progression/calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1";
+import { cardById, cleanClan } from "../progression/calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1";
 import { playerIconCanvas, prestigeName } from "../progression/rank-icons.js?v=rk1-or1";
 
 const GAME_URL = "https://trollrunner.net/warfare";
@@ -62,12 +62,44 @@ function fitText(g, text, maxW) {
   return `${t}…`;
 }
 
+/* The Owner badge (style.css .is-owner) at x, its middle on cy; returns its
+   width. The crowned troll in a ring, OWNER in gold. */
+function ownerBadge(g, x, cy, ownerIcon) {
+  const bw = 168, bh = 44, by = cy - bh / 2;
+  g.save();
+  g.shadowColor = "transparent";
+  roundRect(g, x, by, bw, bh, bh / 2);
+  const og = g.createLinearGradient(x, by, x + bw, by + bh);
+  og.addColorStop(0, "#3b2700"); og.addColorStop(1, "#150c00");
+  g.fillStyle = og; g.fill();
+  g.shadowColor = "rgba(255,190,40,.45)"; g.shadowBlur = 18;
+  g.lineWidth = 2; g.strokeStyle = "#ffcf4d"; g.stroke();
+  g.restore();
+  const ir = 17, ix = x + 4 + ir;
+  g.save();
+  g.shadowColor = "transparent";
+  g.beginPath(); g.arc(ix, cy, ir, 0, Math.PI * 2); g.fillStyle = "#2a1a4a"; g.fill(); g.clip();
+  if (ownerIcon) { const sz = ir * 2 * 1.9; g.drawImage(ownerIcon, ix - sz / 2, cy - ir - sz * 0.28 + ir * 0.6, sz, sz * ownerIcon.height / ownerIcon.width); }
+  g.restore();
+  g.save();
+  g.shadowColor = "transparent";
+  g.beginPath(); g.arc(ix, cy, ir, 0, Math.PI * 2); g.lineWidth = 2; g.strokeStyle = "#ffcf4d"; g.stroke();
+  g.font = '700 22px Oswald, "Arial Narrow", sans-serif';
+  g.fillStyle = "#ffd76a"; g.textAlign = "left"; g.textBaseline = "middle";
+  if ("letterSpacing" in g) g.letterSpacing = "3px";
+  g.fillText("OWNER", ix + ir + 12, cy + 1);
+  g.restore();
+  return bw;
+}
+
 /* The card at 2x the Barracks size (1520 wide), on its dark plate with the
    site's name along the bottom. Resolves to a PNG blob. */
 async function drawCard(d, withAvatar) {
   await document.fonts?.ready;
-  const W = 1520, PAD = 40, GAP = 12, RANK = 200;
-  const H_TOP = (W - 2 * PAD - RANK - 2 * GAP) / 4;           // emblem square, banner 3:1
+  // (the owner has no rank column: the badge rides the name line, as on
+  // the card itself, profile-card.js)
+  const W = 1520, PAD = 40, GAP = 12, RANK = d.owner ? 0 : 200;
+  const H_TOP = (W - 2 * PAD - RANK - (d.owner ? 1 : 2) * GAP) / 4;   // emblem square, banner 3:1
   const STATS_Y = PAD + H_TOP + 16, STATS_H = 104;
   const H = STATS_Y + (d.record ? STATS_H : 0) + 70;
   const c = document.createElement("canvas");
@@ -103,37 +135,17 @@ async function drawCard(d, withAvatar) {
   const clan = cleanClan(d.clan);
   let tx = bx + 20;
   const ty = PAD + H_TOP - 18;
+  if (d.owner) tx += ownerBadge(g, tx, ty - 18, ownerIcon) + 14;
   if (clan) { g.fillStyle = "#ffd27a"; const t = `[${clan}] `; g.fillText(t, tx, ty); tx += g.measureText(t).width; }
   g.fillStyle = "#f3ece4";
   g.fillText(fitText(g, d.name, bx + bw - 20 - tx), tx, ty);
   g.restore();
-  // rank: the Owner badge, or the rank icon and level
+  // rank: the rank icon and level (the owner has none: see the name line)
   const rg = g.createLinearGradient(0, PAD, 0, PAD + H_TOP);
   rg.addColorStop(0, "#2a1608"); rg.addColorStop(1, "#0d0603");
-  panel(g, rx, PAD, RANK, H_TOP, rg);
+  if (!d.owner) panel(g, rx, PAD, RANK, H_TOP, rg);
   const cx = rx + RANK / 2, cy = PAD + H_TOP / 2;
-  if (d.owner) {
-    const bw2 = 168, bh = 44, bx2 = cx - bw2 / 2, by = cy - bh / 2;
-    g.save();
-    roundRect(g, bx2, by, bw2, bh, bh / 2);
-    const og = g.createLinearGradient(bx2, by, bx2 + bw2, by + bh);
-    og.addColorStop(0, "#3b2700"); og.addColorStop(1, "#150c00");
-    g.fillStyle = og; g.fill();
-    g.shadowColor = "rgba(255,190,40,.45)"; g.shadowBlur = 18;
-    g.lineWidth = 2; g.strokeStyle = "#ffcf4d"; g.stroke();
-    g.restore();
-    const ir = 17, ix = bx2 + 4 + ir, iy = cy;
-    g.save();
-    g.beginPath(); g.arc(ix, iy, ir, 0, Math.PI * 2); g.fillStyle = "#2a1a4a"; g.fill(); g.clip();
-    if (ownerIcon) { const s = ir * 2 * 1.9; g.drawImage(ownerIcon, ix - s / 2, iy - ir - s * 0.28 + ir * 0.6, s, s * ownerIcon.height / ownerIcon.width); }
-    g.restore();
-    g.beginPath(); g.arc(ix, iy, ir, 0, Math.PI * 2); g.lineWidth = 2; g.strokeStyle = "#ffcf4d"; g.stroke();
-    g.font = '700 22px Oswald, "Arial Narrow", sans-serif';
-    g.fillStyle = "#ffd76a"; g.textAlign = "left"; g.textBaseline = "middle";
-    if ("letterSpacing" in g) g.letterSpacing = "3px";
-    g.fillText("OWNER", ix + ir + 12, cy + 1);
-    if ("letterSpacing" in g) g.letterSpacing = "0px";
-  } else if (d.level) {
+  if (!d.owner && d.level) {
     const p = d.prestige | 0;
     // the canvas icon: an SVG can't load its own troll art inside a canvas
     const icon = await playerIconCanvas(d.level, p, false).catch(() => null);

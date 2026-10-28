@@ -4356,7 +4356,14 @@ html, body, body * { scrollbar-width: none !important; }
 html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
 #to-title.is-bo2.is-fn { background: #0b1430; }
 .to-bo2.is-fn [hidden] { display: none !important; }
-.to-fn-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* the backdrop reel (lobby-fn.js mountReel): two layers crossfading */
+.to-fn-bg { position: absolute; inset: 0; overflow: hidden; opacity: 0; transition: opacity 1.4s ease; }
+.to-fn-bg.is-on { opacity: 1; }
+.to-fn-shot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.to-fn-shot.is-drift { animation: to-fn-drift 9s linear both; }
+.to-fn-shot.is-drift.is-rev { animation-name: to-fn-drift-rev; }
+@keyframes to-fn-drift { from { transform: scale(1.03) translateX(-1%); } to { transform: scale(1.1) translateX(1%); } }
+@keyframes to-fn-drift-rev { from { transform: scale(1.1) translateX(1%); } to { transform: scale(1.03) translateX(-1%); } }
 .to-bo2.is-fn .to-bo2-bg::after { content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(180deg, rgba(10,20,64,.6), rgba(10,20,64,.12) 38%, rgba(6,10,36,.78)); }
 .to-fn-glass { background: var(--fn-glass); border: 1px solid var(--fn-line); border-radius: 12px; box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 10px 30px rgba(0,0,0,.25); color: #fff; }
@@ -4443,6 +4450,139 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-fn-picker button:hover, .to-fn-picker button:focus-visible { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.4); }
 .to-fn-picker b { font: 800 18px var(--fn-ui); letter-spacing: .04em; text-transform: uppercase; }
 .to-fn-picker small { font: 500 13px/1.3 var(--fn-ui); color: #c4d1f3; }
+/* A controller's buttons, shown only while one is in (lobby-fn.js has-pad) */
+.to-fn-padkey { display: none; }
+.to-bo2.is-fn.has-pad .to-fn-padkey { display: inline-grid; place-items: center; min-width: 26px; height: 22px; padding: 0 5px; box-sizing: border-box; border: 1px solid rgba(255,255,255,.55); border-radius: 6px;
+  background: rgba(0,0,0,.4); color: #fff; font: 800 12px/1 var(--fn-ui); letter-spacing: .02em; }
+.to-bo2.is-fn.has-pad .to-fn-tabs .to-fn-padkey { align-self: center; flex: none; margin: 0 4px; }
+.to-fn-go { position: relative; }
+.to-bo2.is-fn.has-pad .to-fn-go .to-fn-padkey { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); min-width: 32px; height: 32px; border-radius: 50%; border-color: rgba(0,0,0,.35); background: rgba(0,0,0,.18); color: #1b1400; font-size: 16px; }
+.to-bo2.is-fn.has-pad .to-fn-change .to-fn-padkey { margin-right: 6px; vertical-align: 1px; height: 18px; min-width: 20px; font-size: 11px; }
+/* All modes: the tile row under the lobby (scroll down, or this button) */
+.to-fn-allmodes { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 4; display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 16px 0 10px;
+  font: 800 16px var(--fn-ui); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.to-fn-allmodes svg, .to-fn-modes-x svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.to-fn-allmodes:hover { background: linear-gradient(180deg, rgba(90,124,214,.7), rgba(34,52,120,.8)); }
+.to-fn-modes { position: absolute; inset: var(--fn-top) 0 0; z-index: 7; display: flex; flex-direction: column; gap: 14px; padding: 6px var(--fn-pad) 24px; box-sizing: border-box;
+  background: linear-gradient(180deg, rgba(14,24,64,.82), rgba(8,14,40,.94)); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+@media (prefers-reduced-motion: no-preference) { .to-fn-modes:not([hidden]) { animation: to-fn-rise .22s ease-out; } }
+@keyframes to-fn-rise { from { transform: translateY(24px); opacity: 0; } }
+.to-fn-modes header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.to-fn-modes h2 { margin: 0; font: italic 400 46px/1 var(--fn-display); text-transform: uppercase; }
+.to-fn-modes h2 small { display: block; width: max-content; margin-top: 8px; padding: 3px 12px; border-radius: 20px; background: rgba(0,0,0,.4); font: italic 800 15px var(--fn-ui); letter-spacing: .04em; color: #dbe4ff; }
+.to-fn-modes-x { display: grid; place-items: center; width: 44px; height: 44px; flex: none; cursor: pointer; }
+.to-fn-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; min-height: 0; overflow-y: auto; padding: 4px; margin: -4px; }
+.to-fn-tile { display: grid; gap: 6px; padding: 0; border: 0; background: none; color: #cfdaf6; text-align: left; cursor: pointer; }
+.to-fn-tile-art { position: relative; display: block; aspect-ratio: 2/1; border-radius: 12px; overflow: hidden; border: 3px solid transparent; background: #1a2550; }
+.to-fn-tile-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.to-fn-tile-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(0,0,0,.7), transparent 55%); }
+.to-fn-tile-art b { position: absolute; left: 12px; right: 12px; bottom: 10px; z-index: 1; font: italic 400 30px/.95 var(--fn-display); text-transform: uppercase; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,.8); }
+.to-fn-tile:hover .to-fn-tile-art, .to-fn-tile:focus-visible .to-fn-tile-art { border-color: rgba(255,255,255,.6); }
+.to-bo2.is-fn .to-fn-tile:focus-visible { outline: none; }
+.to-fn-tile.is-on .to-fn-tile-art { border-color: #fff; box-shadow: 0 0 0 4px rgba(120,190,255,.6); }
+.to-fn-tile-n { display: flex; align-items: center; gap: 6px; font: 700 16px var(--fn-ui); }
+.to-fn-tile-n svg { width: 17px; height: 17px; fill: currentColor; }
+.to-fn-tile:disabled { cursor: default; }
+.to-fn-tile:disabled .to-fn-tile-art { filter: grayscale(1) brightness(.6); }
+.to-fn-tile:disabled .to-fn-tile-n { color: var(--fn-yellow); }
+/* the tiles take the whole page: the lobby behind them steps back */
+.to-bo2.is-fn-modes :is(.to-fn-left, .to-fn-play, .to-fn-picker, .to-fn-allmodes, .to-bo2-party),
+#to-title.is-bo2.is-fn:has(.to-bo2.is-fn-modes) :is(.to-char-view, .to-stage) { visibility: hidden; }
+
+/* ── The Locker (phase 4): the class's slots as tiles on the left, your look
+   on the right, you in the middle. menu-bo2.js's locker screen is three
+   groups (class, look, Back); here they are panels. ── */
+.to-bo2.is-fn[data-screen="locker"] .to-bo2-menu { right: var(--fn-pad); width: auto; bottom: 84px; max-height: none; padding: 0; background: none; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; pointer-events: none; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-title { text-shadow: 0 2px 12px rgba(0,0,0,.7); }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-groups { display: grid; grid-template-columns: 440px 1fr 300px; grid-template-rows: auto 1fr; gap: 10px 16px; align-items: start; margin: 0; padding: 0; overflow: visible; -webkit-mask-image: none; mask-image: none; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group { pointer-events: auto; display: grid; gap: 8px; padding: 10px; border: 1px solid var(--fn-line); border-radius: 14px; background: var(--fn-glass-solid); box-shadow: 0 16px 40px rgba(0,0,0,.3); }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(1) { grid-column: 1; grid-row: 1; grid-template-columns: 1fr 1fr; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(2) { grid-column: 3; grid-row: 1 / span 2; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(3) { grid-column: 1; grid-row: 2; justify-self: start; padding: 0; border: 0; background: none; box-shadow: none; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(3) .tr-menu-item:not(.is-hot) { border: 1px solid var(--fn-line); background: var(--fn-glass); }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item { flex-direction: column; align-items: flex-start; justify-content: center; gap: 3px; min-width: 0; min-height: 60px; padding: 7px 12px; line-height: 1.1; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item > span:first-child { font: 800 12px var(--fn-ui); letter-spacing: .1em; color: #a9b8e6; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item > small:not([aria-hidden]) { max-width: 100%; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 800 18px/1.1 var(--fn-ui); letter-spacing: .02em; text-transform: uppercase; color: #fff; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item > small[aria-hidden] { display: none; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item.is-hot > span:first-child { color: #3b4a7d; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item.is-hot > small:not([aria-hidden]) { color: #17224d; }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item[aria-disabled="true"] > small:not([aria-hidden]) { color: #8590b3; }
+/* the class's name across the top of its panel, the way a loadout is titled */
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-item[data-id="classlist"] { grid-column: 1 / -1; min-height: 66px; background: rgba(79,216,255,.12); }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-item[data-id="classlist"] > small:not([aria-hidden]) { font: italic 400 28px/1 var(--fn-display); }
+.to-bo2.is-fn[data-screen="locker"] .tr-menu-item[data-id="classlist"].is-hot { background: #fff; }
+.to-bo2.is-fn[data-screen="locker"] .to-bo2-party { display: none; }
+#to-title.is-bo2.is-fn:has(.to-bo2[data-screen="locker"]) .to-char-view { left: calc(var(--fn-pad) + 456px); right: calc(var(--fn-pad) + 316px); top: var(--fn-top); bottom: 78px; --char-shift: 0; --char-dist: 1.15; }
+/* ── The in-match Esc menu, in the lobby's look (phase 6): a navy glass
+   panel, the heavy italic title, tabs as the lobby's pills, Resume yellow
+   like PLAY, your class buttons glass with the picked one white. ── */
+#to-pause {
+  --fn-display: Anton, Impact, "Arial Narrow Bold", sans-serif;
+  --fn-ui: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --fn-line: rgba(170,200,255,.36);
+  background: radial-gradient(120% 80% at 50% 0%, rgba(29,47,102,.72), rgba(8,14,40,.86)); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+#to-pause .to-pause-inner { padding: 18px 20px !important; border: 1px solid var(--fn-line); border-radius: 16px; background: linear-gradient(180deg, rgba(48,74,150,.92), rgba(20,32,80,.95)); box-shadow: 0 20px 60px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.16); font-family: var(--fn-ui); }
+#to-pause .to-menu-head h2 { font: italic 400 36px/1 var(--fn-display); letter-spacing: .01em; text-transform: uppercase; color: #fff; }
+#to-pause .to-menu-esc { font: 700 12px var(--fn-ui); letter-spacing: .08em; text-transform: uppercase; color: #c4d1f3; }
+#to-pause .to-menu-tabs { gap: 4px; padding: 4px; border: 1px solid var(--fn-line); border-radius: 12px; background: rgba(10,18,50,.45); }
+#to-pause .to-menu-tab { padding: 8px 10px; border: 0; border-radius: 8px; background: none; color: #eaf0ff; font: 800 15px var(--fn-ui); letter-spacing: .05em; text-transform: uppercase; }
+#to-pause .to-menu-tab:hover { background: rgba(255,255,255,.1); color: #fff; }
+#to-pause .to-menu-tab.is-active { background: #fff; color: #17224d; }
+#to-pause .to-menu-panel { border-color: var(--fn-line); background: rgba(10,18,50,.4); }
+#to-pause .to-set-row { font: 600 14px var(--fn-ui); color: #eef3ff; }
+#to-pause .to-set-row + .to-set-row { border-top-color: rgba(170,200,255,.14); }
+#to-pause .to-set-row output { font: 700 12px var(--fn-ui); color: #c4d1f3; }
+#to-pause .to-set-row :is(input[type="range"], input[type="checkbox"]) { accent-color: #4fd8ff; }
+#to-pause .to-set-row select { background: #16224f; border-color: var(--fn-line); color: #eef3ff; font: 600 13px var(--fn-ui); }
+#to-pause .to-menu-roster { font: 600 14px var(--fn-ui); color: #dbe4ff; }
+#to-pause .to-btn { font-family: var(--fn-ui); font-weight: 800; letter-spacing: .05em; text-transform: uppercase; border-radius: 10px; }
+#to-pause .to-btn-ghost { border: 1px solid var(--fn-line); background: linear-gradient(180deg, rgba(62,92,176,.58), rgba(24,38,92,.72)); color: #fff; }
+#to-pause .to-btn-ghost:hover { background: linear-gradient(180deg, rgba(90,124,214,.7), rgba(34,52,120,.8)); }
+#to-pause .to-menu-classes .to-btn-primary { background: #fff; color: #17224d; box-shadow: none; }
+#to-pause #to-resume-btn { background: linear-gradient(180deg, #ffe45c, #ffc400); color: #1b1400; box-shadow: inset 0 -3px 0 rgba(0,0,0,.15), 0 0 24px rgba(255,210,31,.3); font: italic 400 26px/1 var(--fn-display); letter-spacing: .02em; }
+#to-pause .to-btn-danger { border: 1px solid rgba(255,120,140,.5); background: rgba(120,20,50,.45); color: #ffc2cc; }
+#to-pause .to-btn-danger:hover { background: rgba(150,30,60,.6); }
+#to-pause .to-menu-god { border-color: var(--fn-line); }
+/* short screens (a sideways phone): all of it, Resume too, on screen */
+@media (max-height: 520px) {
+  #to-pause .to-pause-inner { padding: 10px 14px !important; gap: 7px !important; }
+  #to-pause .to-menu-head h2 { font-size: 24px; }
+  #to-pause .to-menu-tabs { padding: 3px; }
+  #to-pause .to-menu-tab { padding: 5px 8px; font-size: 13px; }
+  #to-pause .to-menu-panel { min-height: 0; max-height: 30vh; padding: 4px 10px; }
+  #to-pause .to-set-row { padding: 4px 0; }
+  #to-pause .to-menu-range { margin-bottom: 0; gap: 6px; }
+  #to-pause .to-menu-range .to-btn { padding: 6px 10px; font-size: 12px; }
+  #to-pause .to-menu-actions .to-btn { padding: 8px 12px; font-size: 13px; }
+  #to-pause #to-resume-btn { font-size: 20px; }
+}
+
+/* Quests and Prestige Rewards (phase 5): cards two across, the way a quest
+   page reads. A challenge has a bar (empty to do, full done); a reward
+   unlocked is edged green. */
+.to-bo2.is-fn[data-screen="quests"] .tr-menu-group:nth-child(-n+2):not(:has([data-id="q-guest"], [data-id="back"])),
+.to-bo2.is-fn[data-screen="rewards"] .tr-menu-group:first-child { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.to-bo2.is-fn:is([data-screen="quests"], [data-screen="rewards"]) .tr-menu-item:is([data-id^="q-"]:not([data-id="q-guest"]), [data-id^="rw-"]) {
+  position: relative; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 6px; min-width: 0; min-height: 70px; padding: 9px 11px 15px; line-height: 1.1; border: 1px solid rgba(170,200,255,.18); }
+.to-bo2.is-fn:is([data-screen="quests"], [data-screen="rewards"]) .tr-menu-item:is([data-id^="q-"]:not([data-id="q-guest"]), [data-id^="rw-"]) > span:first-child { font: 800 16px/1.1 var(--fn-ui); letter-spacing: .03em; }
+.to-bo2.is-fn:is([data-screen="quests"], [data-screen="rewards"]) .tr-menu-item:is([data-id^="q-"]:not([data-id="q-guest"]), [data-id^="rw-"]) > small { margin: 0; font-size: 12px; }
+.to-bo2.is-fn:is([data-screen="quests"], [data-screen="rewards"]) .tr-menu-item:is([data-id^="q-"]:not([data-id="q-guest"]), [data-id^="rw-"]) .tr-menu-tick { position: absolute; top: 7px; right: 9px; }
+.to-bo2.is-fn[data-screen="quests"] .tr-menu-item[data-id^="q-"]:not([data-id="q-guest"])::after { content: ""; position: absolute; left: 11px; right: 11px; bottom: 7px; height: 4px; border-radius: 4px;
+  background: linear-gradient(90deg, #4ee6a0 4%, rgba(255,255,255,.18) 4%); }
+.to-bo2.is-fn[data-screen="quests"] .tr-menu-item[data-id^="q-"]:has(.tr-menu-tick)::after { background: #4ee6a0; }
+.to-bo2.is-fn:is([data-screen="quests"], [data-screen="rewards"]) .tr-menu-item:is([data-id^="q-"], [data-id^="rw-"]):has(.tr-menu-tick):not(.is-hot) { border-color: rgba(78,230,160,.6); }
+/* The Locker's pickers: the choices are item cards, two across; the one you
+   have is ticked and edged green, a locked one says what unlocks it */
+.to-bo2.is-fn:is([data-screen="classlist"], [data-screen="classes"], [data-screen="weapons"], [data-screen="streaks"], [data-screen="faces"], [data-screen="wrists"], [data-screen="bodies"], [data-screen="cards"], [data-screen="heroes"], [data-screen^="att-"], [data-screen^="gear-"], [data-screen^="perk-"]) .tr-menu-group:first-child { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.to-bo2.is-fn:is([data-screen="classlist"], [data-screen="classes"], [data-screen="weapons"], [data-screen="streaks"], [data-screen="faces"], [data-screen="wrists"], [data-screen="bodies"], [data-screen="cards"], [data-screen="heroes"], [data-screen^="att-"], [data-screen^="gear-"], [data-screen^="perk-"]) .tr-menu-group:first-child .tr-menu-item {
+  position: relative; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 6px; min-width: 0; min-height: 68px; padding: 9px 11px; line-height: 1.1; border: 1px solid rgba(170,200,255,.18); }
+.to-bo2.is-fn:is([data-screen="classlist"], [data-screen="classes"], [data-screen="weapons"], [data-screen="streaks"], [data-screen="faces"], [data-screen="wrists"], [data-screen="bodies"], [data-screen="cards"], [data-screen="heroes"], [data-screen^="att-"], [data-screen^="gear-"], [data-screen^="perk-"]) .tr-menu-group:first-child .tr-menu-item > span:first-child { max-width: calc(100% - 18px); font: 800 16px/1.1 var(--fn-ui); letter-spacing: .03em; overflow-wrap: anywhere; }
+.to-bo2.is-fn:is([data-screen="classlist"], [data-screen="classes"], [data-screen="weapons"], [data-screen="streaks"], [data-screen="faces"], [data-screen="wrists"], [data-screen="bodies"], [data-screen="cards"], [data-screen="heroes"], [data-screen^="att-"], [data-screen^="gear-"], [data-screen^="perk-"]) .tr-menu-group:first-child .tr-menu-item > small { margin: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.to-bo2.is-fn:is([data-screen="classlist"], [data-screen="classes"], [data-screen="weapons"], [data-screen="streaks"], [data-screen="faces"], [data-screen="wrists"], [data-screen="bodies"], [data-screen="cards"], [data-screen="heroes"], [data-screen^="att-"], [data-screen^="gear-"], [data-screen^="perk-"]) .tr-menu-group:first-child .tr-menu-item > small[aria-hidden] { display: none; }
+.to-bo2.is-fn:is([data-screen="classlist"], [data-screen="classes"], [data-screen="weapons"], [data-screen="streaks"], [data-screen="faces"], [data-screen="wrists"], [data-screen="bodies"], [data-screen="cards"], [data-screen="heroes"], [data-screen^="att-"], [data-screen^="gear-"], [data-screen^="perk-"]) .tr-menu-group:first-child .tr-menu-tick { position: absolute; top: 7px; right: 9px; }
+.to-bo2.is-fn:is([data-screen="classlist"], [data-screen="classes"], [data-screen="weapons"], [data-screen="streaks"], [data-screen="faces"], [data-screen="wrists"], [data-screen="bodies"], [data-screen="cards"], [data-screen="heroes"], [data-screen^="att-"], [data-screen^="gear-"], [data-screen^="perk-"]) .tr-menu-group:first-child .tr-menu-item:has(.tr-menu-tick):not(.is-hot) { border-color: rgba(78,230,160,.6); box-shadow: inset 0 0 0 1px rgba(78,230,160,.25); }
+.to-bo2.is-fn:is([data-screen="classlist"], [data-screen="classes"], [data-screen="weapons"], [data-screen="streaks"], [data-screen="faces"], [data-screen="wrists"], [data-screen="bodies"], [data-screen="cards"], [data-screen="heroes"], [data-screen^="att-"], [data-screen^="gear-"], [data-screen^="perk-"]) .tr-menu-group:first-child .tr-menu-item[aria-disabled="true"] > small { color: var(--fn-yellow); }
 
 /* ── The BO2 list, as the glass panel every other screen lives in ── */
 .to-bo2.is-fn[data-screen="main"] .to-bo2-menu { display: none; }
@@ -4476,6 +4616,28 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-bo2.is-fn .to-bo2-vote.is-sheet { background: linear-gradient(180deg, #22397a, #0d1640); }
 /* the operator (Cosmetics) stands under the tab bar */
 #to-title.is-bo2.is-fn .to-char-view { top: calc(var(--fn-top) - 8px); }
+/* ...and on the Play page, on its pad between the columns, the party's
+   pads either side (char-inspector.js stage; lobby.js the names and invites) */
+#to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: calc(var(--fn-pad) + 310px); right: calc(var(--fn-pad) + 340px); top: var(--fn-top); bottom: 78px; --char-shift: 0; --char-dist: 1.32; }
+.to-bo2.is-fn[data-screen="main"] .to-bo2-foot .to-char-emote:not([hidden]) { display: flex; }
+.to-stage { position: absolute; inset: 0; pointer-events: none; font-family: var(--fn-ui); }
+.to-stage > * { position: absolute; left: 0; top: 0; pointer-events: auto; }
+.to-stage [hidden] { display: none; }
+.to-stage-tag { display: grid; justify-items: center; gap: 3px; margin: -46px 0 0; translate: -50% 0; text-align: center; white-space: nowrap; pointer-events: none; }
+.to-stage-tag b { padding: 3px 12px; border: 1px solid rgba(255,255,255,.3); border-radius: 7px; background: rgba(22,32,72,.78); color: #fff; font: 800 16px var(--fn-ui); letter-spacing: .03em; }
+.to-stage-tag.is-me b { color: #ffe58a; }
+.to-stage-tag small { padding: 1px 9px; border-radius: 5px; background: rgba(79,216,255,.22); color: #c8f2ff; font: 800 11px var(--fn-ui); letter-spacing: .08em; text-transform: uppercase; }
+.to-stage-tag small:empty { display: none; }
+.to-stage-add { width: 52px; height: 52px; margin: -26px 0 0 -26px; padding: 0; border: 2px solid rgba(255,255,255,.8); border-radius: 50%; background: rgba(12,18,44,.72); color: #fff; cursor: pointer; display: grid; place-items: center; box-shadow: 0 0 18px rgba(120,190,255,.35); }
+.to-stage-add span { font: 600 34px/1 var(--fn-ui); margin-top: -3px; }
+.to-stage-add:hover, .to-stage-add:focus-visible { background: rgba(40,64,140,.9); outline: 2px solid var(--fn-cyan); outline-offset: 2px; }
+.to-stage-bubble { width: 150px; margin: -36px 0 0; translate: -50% -100%; display: grid; gap: 3px; padding: 9px 10px 10px; box-sizing: border-box; text-align: center;
+  border: 1px solid var(--fn-line); border-radius: 12px; background: var(--fn-glass); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); color: #fff; }
+.to-stage-bubble b { font: 800 16px var(--fn-ui); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.to-stage-bubble small { font: 800 11px var(--fn-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--fn-yellow); }
+.to-stage-bubble button { min-height: 32px; border: 0; border-radius: 7px; background: var(--fn-yellow); color: #1b1400; font: 800 13px var(--fn-ui); letter-spacing: .04em; text-transform: uppercase; cursor: pointer; }
+.to-stage-bubble button:disabled { background: rgba(255,255,255,.2); color: #fff; cursor: default; }
+.to-stage-bubble button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .to-bo2.is-fn .to-bo2-vote header b { font: italic 400 22px var(--fn-display); letter-spacing: .02em; color: #fff; }
 .to-bo2.is-fn .to-mv-clock { font: 400 24px var(--fn-display); color: var(--fn-cyan); }
 .to-bo2.is-fn.has-gun .to-bo2-detail { top: calc(var(--fn-top) + 40cqh + 14px); max-height: calc(100% - var(--fn-top) - 124px - 40cqh); }
@@ -4516,6 +4678,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-fn-tab { min-width: 0; padding: 0 10px; font-size: 15px; }
   .to-fn-play, .to-fn-picker { width: 290px; }
   .to-fn-mode-name { font-size: 28px; }
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: calc(var(--fn-pad) + 270px); right: calc(var(--fn-pad) + 300px); }
 }
 /* Sideways phones: everything smaller; news and the challenge list step
    out (the Quests tab has them) */
@@ -4557,11 +4720,45 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-bo2.is-fn[data-screen="main"] .to-bo2-party { bottom: calc(54px + 200px); }
   .to-bo2.is-fn .to-bo2-foot { bottom: 8px; }
   .to-bo2.is-fn .to-bo2-online { padding: 6px 10px; font-size: 14px; }
+  /* the stage between the narrower columns, its names smaller; no bubbles
+     (no room: the "+" opens Who's Online) */
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: calc(var(--fn-pad) + 218px); right: calc(var(--fn-pad) + 258px); top: calc(var(--fn-top) + 34px); bottom: 54px; }
+  .to-stage-tag { margin-top: -34px; }
+  .to-stage-tag b { padding: 2px 8px; font-size: 13px; }
+  .to-stage-tag small { font-size: 9px; }
+  .to-stage-add { width: 40px; height: 40px; margin: -20px 0 0 -20px; }
+  .to-stage-add span { font-size: 26px; }
+  .to-stage-bubble { display: none; }
+  /* the tiles in one row that scrolls sideways */
+  .to-fn-allmodes { bottom: 8px; min-height: 34px; font-size: 14px; }
+  .to-fn-modes { gap: 8px; padding-bottom: 10px; }
+  .to-fn-modes h2 { font-size: 28px; }
+  .to-fn-modes h2 small { margin-top: 4px; font-size: 12px; }
+  .to-fn-modes-x { width: 38px; height: 38px; }
+  .to-fn-tiles { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: min(44%, 320px); gap: 12px; overflow: auto hidden; scrollbar-width: none; }
+  .to-fn-tile-art b { font-size: 22px; }
+  .to-fn-tile-n { font-size: 14px; }
+  /* the Locker: three across in the class panel, smaller tiles; the tab
+     bar names the page and takes you back, so no title or Back here */
+  .to-bo2.is-fn[data-screen="locker"] .to-bo2-menu { bottom: 46px; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-title, .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(3) { display: none; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-groups { grid-template-columns: minmax(0, 470px) 1fr 220px; gap: 8px 12px; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-group { gap: 6px; padding: 7px; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(1) { grid-template-columns: repeat(3, 1fr); }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item { min-height: 40px; padding: 4px 9px; gap: 2px; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item > span:first-child { font-size: 10px; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item > small:not([aria-hidden]) { font-size: 14px; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-item[data-id="classlist"] { min-height: 42px; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-item[data-id="classlist"] > small:not([aria-hidden]) { font-size: 20px; }
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="locker"]) .to-char-view { left: calc(var(--fn-pad) + 482px); right: calc(var(--fn-pad) + 232px); bottom: 46px; }
 }
 /* Upright phones: the tabs scroll along the top, the season and level
    under them, who's online, then the mode card and PLAY across the bottom */
 @container cab (max-aspect-ratio: 9/10) {
   .to-bo2.is-fn, #to-title.is-bo2.is-fn .to-pf { --fn-pad: 12px; --bo2-col: 12px; }
+  /* the Play page is a stack of cards here: no room for the stage */
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { display: none; }
+  .to-bo2.is-fn[data-screen="main"] .to-bo2-foot .to-char-emote:not([hidden]) { display: none; }
   .to-fn-top { left: 12px; right: 60px; top: calc(6px + env(safe-area-inset-top)); height: 44px; gap: 6px; }
   .to-fn-ico { display: none; }
   .to-fn-tabs { flex: 1 1 auto; padding: 3px; overflow-x: auto; scrollbar-width: none; }
@@ -4577,8 +4774,29 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-fn-play, .to-fn-picker { left: 12px; right: 12px; width: auto; bottom: calc(var(--foot-h, 60px) + 26px + env(safe-area-inset-bottom)); }
   .to-fn-picker { max-height: 70%; overflow-y: auto; }
   .to-fn-mode-name { font-size: 28px; }
-  /* no room for who's online on Play: "N Online" opens the list, with Invite */
-  .to-bo2.is-fn[data-screen="main"] .to-bo2-party { display: none; }
+  /* All modes sits in the bottom row, between N Online and chat; the tiles
+     two across, scrolling down */
+  .to-fn-allmodes { bottom: calc(22px + env(safe-area-inset-bottom)); min-height: 38px; font-size: 14px; }
+  .to-fn-modes { top: calc(56px + env(safe-area-inset-top)); padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+  .to-fn-modes h2 { font-size: 32px; }
+  .to-fn-tiles { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .to-fn-tile-art b { font-size: 20px; left: 8px; right: 8px; bottom: 7px; }
+  .to-fn-tile-n { font-size: 14px; }
+  /* the Locker: its panels stacked, two tiles across, scrolling; no room
+     for the operator (the Play page drops it too) */
+  .to-bo2.is-fn[data-screen="locker"] .to-bo2-menu { left: 12px; right: 12px; top: calc(56px + env(safe-area-inset-top)); bottom: calc(var(--foot-h, 60px) + 26px + env(safe-area-inset-bottom)); }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-title { font-size: 30px; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-groups { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:is(:nth-child(1), :nth-child(2), :nth-child(3)) { grid-column: auto; grid-row: auto; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(2) { grid-template-columns: 1fr 1fr; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item { min-height: 54px; }
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item > small:not([aria-hidden]) { font-size: 16px; }
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="locker"]) .to-char-view { display: none; }
+  /* Options' keys, one column (two ran off the right edge) */
+  #to-title.is-bo2.is-fn .to-key-list { grid-template-columns: minmax(0, 1fr); }
+  /* no room for who's online beside the cards and lists (it sat over the
+     Locker's and the Challenges' rows): "N Online" opens the list, with Invite */
+  .to-bo2.is-fn .to-bo2-party { display: none; }
   .to-bo2.is-fn .tr-menu-title { font-size: 30px; }
   .to-bo2.is-fn .to-bo2-menu { left: 12px; right: 12px; width: auto; padding: 10px 12px 2px; top: calc(56px + env(safe-area-inset-top));
     max-height: calc(100% - 56px - 86px - var(--foot-h, 42px) - 40px - env(safe-area-inset-top)); }
@@ -4701,7 +4919,34 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .tf-card-rank > svg { flex: none; width: min(64px, 78%); height: auto; filter: drop-shadow(0 2px 3px rgba(0,0,0,.7)); }
 .tf-card-rank > b { font: 600 15px "DM Mono", monospace; color: #ffd27a; }
 .tf-card-rank > small { font: 10px "DM Mono", monospace; color: #c9b8a6; line-height: 1.1; }
-.tf-card-rank > .is-owner { font-size: 10px; padding-right: 8px; }
+/* PFP Studio over the menu (menu/pfp-studio.js): a glass bar with Back,
+   the site's studio filling the rest */
+.to-pfp-studio {
+  position: fixed; inset: 0; z-index: 2147483000; display: flex; flex-direction: column;
+  background: #0b1430; font-family: "Barlow Semi Condensed", "DM Sans", system-ui, sans-serif;
+}
+.to-pfp-bar {
+  flex: none; display: flex; align-items: center; gap: 14px; min-width: 0;
+  padding: calc(10px + env(safe-area-inset-top)) 16px 10px; color: #fff;
+  background: linear-gradient(180deg, rgba(40,70,160,.85), rgba(20,36,96,.85));
+  border-bottom: 1px solid rgba(255,255,255,.18);
+}
+.to-pfp-bar b { font: 400 22px/1 Anton, Oswald, sans-serif; letter-spacing: .02em; text-transform: uppercase; white-space: nowrap; }
+.to-pfp-bar span { font-size: 14px; opacity: .8; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.to-pfp-bar em { font-style: normal; color: #ffd21f; }
+.to-pfp-back {
+  flex: none; min-height: 40px; padding: 0 18px; border-radius: 10px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.12); color: #fff;
+  font: 700 15px/1 "Barlow Semi Condensed", sans-serif; letter-spacing: .06em; text-transform: uppercase;
+}
+.to-pfp-back:hover, .to-pfp-back:focus-visible { background: #fff; color: #0b1430; outline: none; }
+.to-pfp-frame { flex: 1; width: 100%; border: 0; background: #0b1430; }
+@media (max-width: 560px) { .to-pfp-bar span { display: none; } }
+
+/* the owner's card: no rank column, the badge in front of the clan tag */
+.tf-card-top.no-rank { --h: calc((100cqw - var(--gap)) / 4); grid-template-columns: var(--h) calc(var(--h) * 3); }
+.tf-card-id > .tf-card-owner { flex: none; align-self: center; font-size: clamp(9px, 2.2cqw, 12px); }
+.tf-card-id > .tf-card-owner::before { width: clamp(15px, 3.6cqw, 20px); height: clamp(15px, 3.6cqw, 20px); }
 .tf-card-stats {
   display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin: 8px 0 0;
 }
@@ -5355,6 +5600,8 @@ body.to-touch-play .zh.is-downed .zh-col { visibility: hidden; }
   font: 600 11px/1.35 "DM Mono", ui-monospace, monospace; letter-spacing: .02em; color: #e8e8e8; white-space: nowrap;
 }
 .to-fps[hidden] { display: none; }
+/* in the lobby the tab bar has the top: bottom centre, under All modes */
+body:has(#to-title.is-fn:not([hidden])) .to-fps { top: auto; bottom: max(2px, env(safe-area-inset-bottom)); }
 .to-fps[data-band="good"] { color: #7fe066; }
 .to-fps[data-band="ok"] { color: #ffc94d; }
 .to-fps[data-band="bad"] { color: #ff6b5e; }

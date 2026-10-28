@@ -292,13 +292,14 @@ class Builder:
             faces.append([i, j, n + j, n + i])
         return self.poly(m, pts, faces)
 
-    def lump(self, m, w, h, d, x, y, z, seed=0, rnd=0.45, jitter=0.1, ry=0.0, flat_base=True):
+    def lump(self, m, w, h, d, x, y, z, seed=0, rnd=0.45, jitter=0.1, ry=0.0, flat_base=True, n=3):
         """Boulder / sack / tarp: a subdivided box pushed toward a sphere and
-        jittered, sized w x h x d with its bottom on y (like box)."""
+        jittered, sized w x h x d with its bottom on y (like box). `n` cuts
+        per face edge (2 for small stones: 48 triangles, not 108)."""
         import random
         r = random.Random(seed)
-        # a 3x3-per-face subdivided unit cube, verts shared along the seams
-        N = 3
+        # an n x n-per-face subdivided unit cube, verts shared along the seams
+        N = n
         pool = {}
 
         def vert(p):

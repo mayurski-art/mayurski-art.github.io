@@ -29,7 +29,7 @@ export const MANNEQUINS = [
   ["priest", -48.25, 0.3, 5.15, E, [1.65, 1.6, 1.9], [-0.475, 0.45]],
   ["beggar", -46.95, 0, 5.55, W, [1.7, 1.5, 1.35], [0.5, 0.1]],
   ["pew_woman", -44.27, 0, -0.5, W, null],
-  ["pew_man", -41.12, 0, 4.4, W, null],
+  ["pew_man", -44.27, 0, 4.4, W, null],     // (the south's east rows made way for the organ)
   // Trick-or-Treat Lane: porches at z 38.4..39.8 (deck 0.3), gates at x = mid, fence z 36.95
   ["mom", 16.7, 0.3, 38.95, N, [0.6, 0.6, 1.75]],
   ["kid_ghost", 15.0, 0, 36.25, S, [0.75, 0.75, 1.3]],

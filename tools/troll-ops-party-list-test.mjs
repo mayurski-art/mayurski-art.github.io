@@ -104,11 +104,19 @@ await page.waitForTimeout(300);
 s = await read();
 check(s.label === "3 Players (8 Max)" && !s.rows.some((r) => r.includes("player_2")), "someone goes offline: they drop off", JSON.stringify(s));
 
-// ten others: seven beside you, the rest a "+3 more online" line
+// ten others: up to seven beside you, as many as fit above the Play page's
+// mode card (the Fortnite lobby, phase 1), the rest a "+N more online" line
 await roster([myRow, ...Array.from({ length: 8 }, (_, i) => member(i + 1)), guest(1), guest(2)]);
 await page.waitForTimeout(300);
 s = await read();
-check(s.label === "8 Players (8 Max)" && s.rows.length === 7 && s.more === "+3 more online", "ten others: 8 Players, 7 rows, +3 more online", JSON.stringify(s));
+const moreN = +(/\+(\d+) more/.exec(s.more || "")?.[1] || 0);
+check(s.label === "8 Players (8 Max)" && s.rows.length >= 3 && s.rows.length <= 7 && s.rows.length + moreN === 10, "ten others: 8 Players, the rows that fit, the rest in +N more online", JSON.stringify({ rows: s.rows.length, more: s.more }));
+const clear = await page.evaluate(() => {
+  const card = document.querySelector(".to-fn-play")?.getBoundingClientRect();
+  const last = [...document.querySelectorAll(".to-bo2-party-others > *")].pop()?.getBoundingClientRect();
+  return { card: card?.top ?? null, last: last?.bottom ?? null };
+});
+check(clear.card == null || (clear.last != null && clear.last <= clear.card), "the list stops above the mode card", JSON.stringify(clear));
 await page.screenshot({ path: path.join(SHOTS, "party-full.png") });
 // on a phone: the rows stay on screen and don't overlap each other
 for (const [w, h] of [[390, 844], [844, 390]]) {
@@ -126,6 +134,16 @@ for (const [w, h] of [[390, 844], [844, 390]]) {
     return { shown: els.length, right: Math.max(0, ...rs.map((r) => r.right)), bottom, overlap, covered, more: document.querySelector(".to-bo2-party-more")?.textContent };
   });
   check(box.right <= w + 0.5 && box.bottom <= h && !box.overlap && !box.covered, `phone ${w}x${h}: party rows on screen, no overlap`, JSON.stringify(box));
+  // upright, the party column is off on every screen (it sat over the
+  // Locker's rows; user, 2026-10-27): "N Online" opens the list
+  if (h > w) {
+    await page.click('.to-fn-tab[data-tab="locker"]');
+    await page.waitForTimeout(500);
+    const party = await page.evaluate(() => [...document.querySelectorAll(".to-bo2-party")].some((e) => e.offsetParent));
+    check(!party, "upright phone, Locker: no party column over the list");
+    await page.click('.to-fn-tab[data-tab="play"]');
+    await page.waitForTimeout(500);
+  }
   await page.screenshot({ path: path.join(SHOTS, `party-phone-${w}x${h}.png`) });
 }
 await page.setViewportSize({ width: 1280, height: 720 });

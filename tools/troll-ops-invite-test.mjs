@@ -99,27 +99,34 @@ const gc = await page.evaluate(() => {
   return { shown: !!o && !o.hidden, invite: !o?.querySelector('[data-act="invite"]').hidden, full: !o?.querySelector('[data-act="full"]').hidden, name: o?.querySelector(".tf-card-name")?.textContent };
 });
 check(gc.shown && gc.invite && !gc.full && /Guest/.test(gc.name || ""), "a guest's card: their name and Invite, no Full profile", JSON.stringify(gc));
-// Invite from the menu: the invite goes out and we start our private match on that code
+// Invite from the menu: a party invite (user, 2026-10-25: "it shouldnt
+// automatically start a game"), our look with it; nothing starts
 await page.click('.tf-card-overlay [data-act="invite"]');
 await page.waitForTimeout(300);
 const sent1 = await page.evaluate(() => ({ sent: window.__sent.filter((m) => m.k === "invite"), status: document.querySelector(".tf-card-status")?.textContent }));
 const inv = sent1.sent[0]?.d;
-check(inv && inv.to === "g-1" && /^[A-Z0-9]{5}$/.test(inv.room) && inv.mode, "Invite sends the guest an invite to a fresh private code", JSON.stringify(sent1));
+check(inv && inv.to === "g-1" && /^[A-Z0-9]{5}$/.test(inv.room) && inv.mode && inv.party === true, "Invite sends the guest a party invite to a fresh private code", JSON.stringify(sent1));
+check(!!inv?.look?.face, "with our look (the lobby stands us on their pad)", JSON.stringify(inv?.look));
 check(/Invite sent/.test(sent1.status || ""), "the card says it went", sent1.status);
 await page.click('.tf-card-overlay [data-act="close"]').catch(() => {});
-await page.waitForFunction(() => ["playing", "paused"].includes(window.__trollOps.state()), null, { timeout: 60000 }).catch(() => {});
-const st = await page.evaluate(() => ({ state: window.__trollOps.state(), room: window.__trollOps.els.room.value }));
-check(["playing", "paused"].includes(st.state) && st.room === inv?.room, "and we're in a match on that code", JSON.stringify(st));
+await page.waitForTimeout(500);
+check(await page.evaluate(() => window.__trollOps.state()) === "menu", "and no match starts: we wait in the menu");
 // (online.js at the tag the menu imports it with: one module, one publicRuns)
 const ONLINE = "/assets/games/troll-ops/menu/" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/menu/menu-bo2.js"), "utf8").match(/online\.js\?v=[^"]+/)[0];
 const listed = await page.evaluate(async ([room, url]) => (await import(url)).isPublicRoom(room), [inv?.room, ONLINE]);
 check(!listed, "an invite's room is never listed as a public server");
+// they take it: in our party, our next match on its code, on the pad beside us
+await page.evaluate(() => window.__presence.deliver({ k: "party-join", from: "g-1", d: { to: "me-1", look: { face: "sad:og", body: "" } } }));
+await page.waitForTimeout(400);
+const pj = await page.evaluate(() => ({ room: window.__trollOps.els.room.value, party: document.querySelector(".to-party-text")?.textContent || "", pad: document.querySelector('.to-stage-tag[data-slot="1"]:not([hidden]) b')?.textContent || "", state: window.__trollOps.state() }));
+check(pj.room === inv?.room && /Your party/.test(pj.party) && pj.state === "menu", "they join: in the party, our room box on its code, still in the menu", JSON.stringify(pj));
+check(pj.pad.length > 0, "and they stand on the pad beside us", pj.pad);
 
-// 3. In a match, an invite from someone: Join leaves this match and goes to theirs
+// 3. An invite to a match: Join takes us into their room
 await deliver("v-2", { to: "me-1", room: "QRSTU", mode: "tdm", map: null });
 await page.waitForTimeout(200);
-check((await card()).shown, "an invite reaches us mid-match");
-// (the mouse is the game's mid-match: J takes it)
+check((await card()).shown, "a match invite reaches us");
+// (J takes it, as mid-match where the mouse is the game's)
 await page.keyboard.press("KeyJ");
 await page.waitForFunction(() => window.__trollOps.els.room.value === "QRSTU" && window.__trollOps.state() !== "menu", null, { timeout: 60000 }).catch(() => {});
 const j = await page.evaluate(() => ({ state: window.__trollOps.state(), room: window.__trollOps.els.room.value }));

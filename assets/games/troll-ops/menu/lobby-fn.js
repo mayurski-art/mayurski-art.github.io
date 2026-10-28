@@ -1,7 +1,7 @@
 /* Troll Warfare's lobby, Fortnite style (user, 2026-10-26; the design doc
    "Troll Warfare Lobby Redesign", phase 1). A tab bar along the top, glass
-   panels at the sides, the mode card with PLAY bottom right, over a still of
-   Kabukigrin at night.
+   panels at the sides, the mode card with PLAY bottom right, over a reel of
+   the maps (mountReel below).
 
    menu-bo2.js is still the engine: every screen (Public Match, Create a
    Class, the Barracks...) is its list, drawn here as a glass panel. This
@@ -46,6 +46,30 @@ const PLAYLISTS = [
 ];
 const PL_KEY = "tf-fn-playlist";
 
+/* The mode tiles under the lobby (the design doc's phase 3): every way in
+   as a picture, with how many people are in it now. A tile is a playlist
+   (and for Royale, its mode in the Public Match list); `map` is the shot. */
+const TILES = [
+  { id: "royale", label: "Troll Royale", playlist: "public", mode: "royale", map: "trollface" },
+  { id: "public", label: "Public Match", playlist: "public", map: "hollowgrin" },
+  { id: "zombies", label: "Zombies", playlist: "zombies", map: "undergrin" },
+  { id: "social", label: "Socialize", playlist: "social", map: "trollcity" },
+  { id: "solo", label: "Solo Play", playlist: "solo", map: "dustbowl", note: "Just you" },
+  { id: "private", label: "Private Match", playlist: "private", map: "grinsite", note: "Room code" },
+];
+/* Which tile someone online is in, from their presence activity (online.js
+   activity()); null in a menu or another game. */
+function tileOf(a) {
+  if (!a || a.game !== "tf" || a.state === "menu") return null;
+  if (a.state === "lobby") return a.mode === "royale" ? "royale" : "public";
+  if (a.room && !a.pub) return "private";
+  if (!a.room) return "solo";
+  if (a.mode === "royale") return "royale";
+  if (a.state === "zombies" || a.mode === "zhub") return "zombies";
+  if (a.mode === "social") return "social";
+  return "public";
+}
+
 /* The news carousel: what's new, each a way in. */
 const NEWS = [
   { title: "Trollface Island", tag: "New in Royale", map: "trollface", playlist: "public", mode: "royale" },
@@ -53,19 +77,36 @@ const NEWS = [
   { title: "Troll Beach", tag: "Courts are open", map: "grinbeach", playlist: "social" },
 ];
 
-const BG = (w) => `assets/games/troll-ops/ui/maps/kabukigrin-${w}.webp`;
+/* The backdrop reel (user, 2026-10-26: "a couple of photos of each map and
+   then have an animated loop"): three stills of each map (ui/lobby/,
+   tools/troll-ops-lobby-reel.mjs; Kabukigrin's first is its map-vote still,
+   ui/maps/), each held SHOT_MS with a slow drift, crossfading, maps taking
+   turns; and Kabukigrin's two clips, filmed like a vlog: a walk through the
+   club's crowd, and its big screen up close. */
+const UI = "assets/games/troll-ops/ui";
+const REEL_MAPS = ["trollface", "grinbeach", "trollcity", "hollowgrin", "undergrin", "grinsite", "culdegrin", "dustbowl", "depot", "grinleria", "kabukigrin"];
+const REEL_CLIPS = ["club", "screen"];
+const SHOT_MS = 7000, FADE_MS = 1400;
+const CLIP_V = "c3";   // bump when the clips are re-rendered (same filenames)
+const still = (id, n, w) => n ? `${UI}/lobby/${id}-${n}-${w}.webp` : `${UI}/maps/${id}-${w}.webp`;
+const clip = (name) => ({ clip: (w) => `${UI}/lobby/kabukigrin-${name}-${w}` });
+function reelList() {
+  const out = [{ src: (w) => still("kabukigrin", 0, w) }, clip(REEL_CLIPS[0])];
+  for (const n of [1, 2, 3]) {
+    for (const id of REEL_MAPS) if (!(id === "kabukigrin" && n === 3)) out.push({ src: (w) => still(id, n, w) });
+    if (n === 1) out.push(clip(REEL_CLIPS[1]));
+  }
+  return out;
+}
 const FALLBACK_AVATAR = "assets/images/icons/favicon/grin.png";
 
 export function mountFnLobby(api) {
-  const { root, menu, openQuick, getLevel, getPrestige, rankProgress, rankXpText, PRESTIGE_MASTER, setMapShot, ACHIEVEMENTS } = api;
+  const { root, menu, openQuick, socialMaps = [], getLevel, getPrestige, rankProgress, rankXpText, PRESTIGE_MASTER, setMapShot, ACHIEVEMENTS } = api;
   const title = $("#to-title");
   root.classList.add("is-fn");
   title.classList.add("is-fn");
 
-  /* ── Backdrop: a still, no WebGL (pick 1) ── */
-  const bg = $(".to-bo2-bg", root);
-  bg.innerHTML = `<img class="to-fn-bg" alt="" decoding="async" fetchpriority="high"
-    src="${BG(1280)}" srcset="${BG(1280)} 1280w, ${BG(1920)} 1920w, ${BG(2560)} 2560w" sizes="100vw">`;
+  mountReel($(".to-bo2-bg", root), title);
 
   /* ── Top bar ── */
   const top = document.createElement("header");
@@ -75,7 +116,9 @@ export function mountFnLobby(api) {
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>
     </button>
     <nav class="to-fn-glass to-fn-tabs" aria-label="Lobby">
+      <kbd class="to-fn-padkey" aria-hidden="true">LB</kbd>
       ${TABS.map((t) => `<button type="button" class="to-fn-tab" data-tab="${t.id}">${t.label}<i class="to-fn-dot" hidden></i></button>`).join("")}
+      <kbd class="to-fn-padkey" aria-hidden="true">RB</kbd>
     </nav>
     <div class="to-fn-me">
       <button type="button" class="to-fn-glass to-fn-lvl" data-act="career" aria-label="Your level">
@@ -94,7 +137,7 @@ export function mountFnLobby(api) {
     <div class="to-fn-glass to-fn-season"><b>Chapter One</b><span>Season: OG</span></div>
     <div class="to-fn-news" role="group" aria-roledescription="carousel" aria-label="News">
       ${NEWS.map((n, i) => `<button type="button" class="to-fn-news-card" data-i="${i}" ${i ? "hidden" : ""} aria-label="${esc(`${n.title}: ${n.tag}`)}">
-        <img alt="" loading="lazy" data-map="${n.map}"><em>News</em><b>${esc(n.title)}</b><small>${esc(n.tag)}</small></button>`).join("")}
+        <img alt="" data-map="${n.map}"><em>News</em><b>${esc(n.title)}</b><small>${esc(n.tag)}</small></button>`).join("")}
       <div class="to-fn-pips">${NEWS.map((n, i) => `<button type="button" data-i="${i}" aria-label="News ${i + 1}: ${esc(n.title)}"></button>`).join("")}</div>
     </div>
     <div class="to-fn-pair">
@@ -117,10 +160,10 @@ export function mountFnLobby(api) {
   play.setAttribute("aria-label", "Mode");
   play.innerHTML = `
     <button type="button" class="to-fn-mode" aria-haspopup="dialog" aria-expanded="false">
-      <b class="to-fn-mode-name"></b><small class="to-fn-mode-sub"></small><span class="to-fn-change">Change mode</span>
+      <b class="to-fn-mode-name"></b><small class="to-fn-mode-sub"></small><span class="to-fn-change"><kbd class="to-fn-padkey" aria-hidden="true">X</kbd>Change mode</span>
     </button>
     <div class="to-fn-map"><img alt="" hidden><div><strong></strong><span></span></div></div>
-    <button type="button" class="to-fn-go">Play</button>`;
+    <button type="button" class="to-fn-go"><kbd class="to-fn-padkey" aria-hidden="true">A</kbd>Play</button>`;
   root.appendChild(play);
   const picker = document.createElement("div");
   picker.className = "to-fn-glass to-fn-picker";
@@ -129,6 +172,26 @@ export function mountFnLobby(api) {
   picker.hidden = true;
   picker.innerHTML = `<h2>Pick a mode</h2>${PLAYLISTS.map((p) => `<button type="button" data-pl="${p.id}"><b>${esc(p.label)}</b><small>${esc(p.blurb)}</small></button>`).join("")}`;
   root.appendChild(picker);
+
+  /* ── Play tab, below: every mode as a tile (scroll down, or All modes) ── */
+  const more = document.createElement("button");
+  more.type = "button";
+  more.className = "to-fn-glass to-fn-allmodes";
+  more.setAttribute("aria-expanded", "false");
+  more.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>All modes`;
+  root.appendChild(more);
+  const modes = document.createElement("section");
+  modes.className = "to-fn-modes";
+  modes.setAttribute("role", "dialog");
+  modes.setAttribute("aria-label", "All modes");
+  modes.hidden = true;
+  modes.innerHTML = `
+    <header><h2>Troll Warfare<small>Pick how you play</small></h2>
+      <button type="button" class="to-fn-glass to-fn-modes-x" aria-label="Back to the lobby"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button></header>
+    <div class="to-fn-tiles">${TILES.map((t) => `<button type="button" class="to-fn-tile" data-tile="${t.id}">
+      <span class="to-fn-tile-art"><img alt="" loading="lazy" data-map="${t.map}"><b>${esc(t.label)}</b></span>
+      <span class="to-fn-tile-n"></span></button>`).join("")}</div>`;
+  root.appendChild(modes);
 
   /* ── State ── */
   let playlist = "public";
@@ -149,7 +212,10 @@ export function mountFnLobby(api) {
     $(".to-fn-mode-name", play).textContent = p.label;
     $(".to-fn-mode-sub", play).textContent = (p.id === "public" || p.id === "solo" ? modeIn(p.group) : null) || p.sub;
     const map = $(".to-fn-map", play), img = $("img", map);
-    const active = $("#to-lo-maps .to-lo-map.is-active");
+    let active = $("#to-lo-maps .to-lo-map.is-active");
+    // Socialize plays only its own maps: a pick outside them gets its first
+    // (loadout.js versusMapId), so the card names that one
+    if (p.id === "social" && socialMaps.length && !socialMaps.includes(active?.dataset.map)) active = $(`#to-lo-maps [data-map="${socialMaps[0]}"]`);
     let name = "", sub = "";
     if (p.id === "public") { name = "Map vote"; sub = "Vote with the lobby"; }
     else if (p.id === "zombies") { name = "The hub"; sub = "A pad for every map"; }
@@ -188,6 +254,67 @@ export function mountFnLobby(api) {
   }, true);
   // PLAY opens the playlist's own screen: its modes, map vote, and the go button
   $(".to-fn-go", play).addEventListener("click", () => menu.go(playlist));
+
+  /* ── Mode tiles ── */
+  let online = [];
+  const modeBtn = (id) => $(`#to-lo-mode [data-mode="${id}"]`);
+  const royaleOn = () => !!modeBtn("royale")?.classList.contains("is-active");
+  function renderTiles() {
+    const n = {};
+    for (const o of online) { const t = tileOf(o.activity); if (t) n[t] = (n[t] || 0) + 1; }
+    const cur = playlist === "public" && royaleOn() ? "royale" : playlist;
+    for (const b of $$(".to-fn-tile", modes)) {
+      const t = TILES.find((x) => x.id === b.dataset.tile);
+      const lock = t.mode ? modeBtn(t.mode)?.dataset.lock : "";
+      const count = n[t.id] || 0;
+      const line = lock ? `Unlocks at ${lock}` : t.note || (count ? `${count} playing` : "Nobody yet");
+      $(".to-fn-tile-n", b).innerHTML = (t.note || lock ? "" : `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>`) + esc(line);
+      b.classList.toggle("is-on", t.id === cur);
+      b.disabled = !!lock;
+      b.setAttribute("aria-pressed", String(t.id === cur));
+      b.setAttribute("aria-label", `${t.label}: ${line}`);
+    }
+  }
+  function openModes(on) {
+    if (on === !modes.hidden) return;
+    modes.hidden = !on;
+    more.setAttribute("aria-expanded", String(on));
+    root.classList.toggle("is-fn-modes", on);
+    if (on) {
+      openPicker(false);
+      for (const img of $$(".to-fn-tile img", modes)) if (!img.src) setMapShot(img, img.dataset.map, "320px");
+      renderTiles();
+      ($(".to-fn-tile.is-on", modes) || $(".to-fn-tile:not(:disabled)", modes))?.focus();
+    }
+  }
+  more.addEventListener("click", () => openModes(modes.hidden));
+  $(".to-fn-modes-x", modes).addEventListener("click", () => { openModes(false); more.focus(); });
+  modes.addEventListener("click", (e) => {
+    const b = e.target.closest(".to-fn-tile");
+    if (!b || b.disabled) return;
+    const t = TILES.find((x) => x.id === b.dataset.tile);
+    // Royale is a mode in the Public Match list; Public Match leaves it
+    if (t.mode) { const m = modeBtn(t.mode); if (m && !m.disabled) m.click(); }
+    else if (t.id === "public" && royaleOn()) modeBtn("tdm")?.click();
+    setPlaylist(t.playlist);
+    openModes(false);
+    $(".to-fn-go", play).focus();
+  });
+  // scroll down on the Play page for the tiles, up (or Esc) to come back
+  // (on the title, before the operator's view: on Play its wheel is this,
+  // not its zoom)
+  title.addEventListener("wheel", (e) => {
+    if (menu.current() !== "main") return;
+    if (e.target.closest(".to-bo2-party-others, .to-fn-picker, .to-bo2-panel, .tr-pincard")) return;
+    if (e.target.closest(".to-char-view")) e.stopPropagation();
+    if (Math.abs(e.deltaY) < 4) return;
+    if (e.deltaY > 0 && modes.hidden) openModes(true);
+    else if (e.deltaY < 0 && !modes.hidden && !e.target.closest(".to-fn-tiles")?.scrollTop) openModes(false);
+  }, { passive: true, capture: true });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !modes.hidden) { e.preventDefault(); e.stopPropagation(); openModes(false); more.focus(); }
+  }, true);
+  addEventListener("trollforces:online", (e) => { online = e.detail || []; if (!modes.hidden) renderTiles(); });
 
   /* ── Tabs ── */
   function goTab(id) {
@@ -289,8 +416,11 @@ export function mountFnLobby(api) {
     const home = id === "main";
     left.hidden = !home;
     play.hidden = !home;
-    if (!home) openPicker(false);
+    more.hidden = !home;
+    if (!home) { openPicker(false); openModes(false); }
     if (home) { renderPlay(); renderMe(); }
+    // the operator on the pad stands on the Play page only (lobby.js)
+    dispatchEvent(new Event("trollforces:fn-screen"));
   }
   new MutationObserver(onScreen).observe(root, { attributes: true, attributeFilter: ["data-screen"] });
   // the lobby's own lists change under us (a mode or map picked, signing in)
@@ -304,5 +434,165 @@ export function mountFnLobby(api) {
   new MutationObserver(() => { if (!title.hidden) renderMe(); }).observe(title, { attributes: true, attributeFilter: ["hidden"] });
   onScreen();
 
-  return { setPlaylist, playlist: () => playlist, goTab };
+  /* ── A controller in the lobby (phase 6). LB / RB change tabs; the d-pad or
+     left stick moves, A picks, B goes back. On Play: A is PLAY, X Change
+     mode, down All modes. The lists are menu-bo2.js's, driven with the keys
+     it already takes. The buttons' hints show while a pad is in. ── */
+  const pad = { prev: {}, held: null, next: 0, raf: 0 };
+  const key = (k) => document.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
+  const focusIn = (box, d, cols = 1) => {
+    const all = $$("button:not(:disabled)", box).filter((b) => b.offsetParent);
+    const i = all.indexOf(document.activeElement);
+    const step = d === "up" ? -cols : d === "down" ? cols : d === "left" ? -1 : 1;
+    const to = i < 0 ? all[0] : all[Math.max(0, Math.min(all.length - 1, i + step))];
+    to?.focus();
+  };
+  function padMove(d) {
+    if (!modes.hidden) {
+      const cols = getComputedStyle($(".to-fn-tiles", modes)).gridTemplateColumns.split(" ").filter(Boolean).length || 1;
+      if (d === "up" && $$(".to-fn-tile", modes).indexOf(document.activeElement) < cols) openModes(false);
+      else focusIn($(".to-fn-tiles", modes), d, cols);
+    } else if (!picker.hidden) focusIn(picker, d === "left" ? "up" : d === "right" ? "down" : d);
+    else if (menu.current() === "main") { if (d === "down") openModes(true); }
+    else key({ up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight" }[d]);
+  }
+  function padPress(i) {
+    if (i === 4 || i === 5) {
+      const at = TABS.findIndex((t) => t.id === tab);
+      goTab(TABS[(at + (i === 5 ? 1 : TABS.length - 1)) % TABS.length].id);
+    } else if (i === 1) {
+      if (!modes.hidden) openModes(false);
+      else if (!picker.hidden) openPicker(false);
+      else if (menu.current() !== "main") key("Escape");
+    } else if (i === 0) {
+      const a = document.activeElement;
+      if ((!modes.hidden || !picker.hidden) && a?.closest(".to-fn-modes, .to-fn-picker")) a.click();
+      else if (menu.current() === "main" && modes.hidden && picker.hidden) $(".to-fn-go", play).click();
+      else if (a && $(".to-bo2-menu", root)?.contains(a)) a.click();
+      else key("Enter");
+    } else if (i === 2 && menu.current() === "main" && modes.hidden) openPicker(picker.hidden);
+  }
+  function pollPad() {
+    pad.raf = 0;
+    const gp = [...(navigator.getGamepads?.() || [])].find((p) => p && p.connected);
+    root.classList.toggle("has-pad", !!gp);
+    if (!gp) { pad.prev = {}; return; }
+    pad.raf = requestAnimationFrame(pollPad);
+    // the lobby's only while it's up, and not while the emote wheel has the pad
+    if (title.hidden || $(".to-emote-wheel:not([hidden])")) { pad.prev = {}; pad.held = null; return; }
+    const b = (i) => !!gp.buttons[i]?.pressed;
+    for (const i of [0, 1, 2, 4, 5]) if (b(i) && !pad.prev[i]) padPress(i);
+    const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+    const dir = b(12) || ay < -0.6 ? "up" : b(13) || ay > 0.6 ? "down" : b(14) || ax < -0.6 ? "left" : b(15) || ax > 0.6 ? "right" : null;
+    const now = performance.now();
+    if (dir !== pad.held) { pad.held = dir; if (dir) { padMove(dir); pad.next = now + 380; } }
+    else if (dir && now >= pad.next) { padMove(dir); pad.next = now + 130; }   // held: repeats
+    pad.prev = {};
+    for (const i of [0, 1, 2, 4, 5]) pad.prev[i] = b(i);
+  }
+  const startPad = () => { if (!pad.raf) pad.raf = requestAnimationFrame(pollPad); };
+  addEventListener("gamepadconnected", startPad);
+  new MutationObserver(() => { if (!title.hidden) startPad(); }).observe(title, { attributes: true, attributeFilter: ["hidden"] });
+  startPad();
+
+  return { setPlaylist, playlist: () => playlist, goTab, openModes };
+}
+
+/* ── Backdrop: the reel, no WebGL (pick 1). Two layers crossfade; the next
+   picture is decoded (the clip buffered) before it fades in, and a file
+   that won't load is skipped. It holds while a match is on, the tab is
+   hidden, or Animations is off / the system asks for reduced motion (then
+   a still stays up and the clip is skipped). ── */
+function mountReel(bg, title) {
+  const width = () => (innerWidth * (devicePixelRatio || 1) > 1400 ? 1920 : 1280);
+  const list = reelList();
+  const layers = [0, 1].map(() => {
+    const d = document.createElement("div");
+    d.className = "to-fn-bg";
+    bg.append(d);
+    return d;
+  });
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+  const hold = () => document.body.classList.contains("tf-anim-off") || reduce.matches;
+  const paused = () => title.hidden || document.hidden;
+  let at = -1, front = 0, timer = 0, clip = null, waiting = false, flip = false;
+
+  function load(item) {
+    if (item.src) {
+      const img = new Image();
+      img.alt = "";
+      img.decoding = "async";
+      if (at < 0) img.fetchPriority = "high";
+      img.src = item.src(width());
+      // loaded, then decoded if the browser will (iOS Safari's decode() can
+      // hang on a picture outside the page: never wait on it alone)
+      return new Promise((done) => {
+        const ok = () => Promise.race([img.decode?.().catch(() => {}), new Promise((r) => setTimeout(r, 600))]).then(() => done(img));
+        if (img.complete && img.naturalWidth) ok();
+        else {
+          img.addEventListener("load", ok, { once: true });
+          img.addEventListener("error", () => done(null), { once: true });
+        }
+      });
+    }
+    const v = document.createElement("video");
+    Object.assign(v, { muted: true, playsInline: true, preload: "auto", disablePictureInPicture: true });
+    v.setAttribute("aria-hidden", "true");
+    v.src = `${item.clip(width())}.${v.canPlayType('video/webm; codecs="vp9"') ? "webm" : "mp4"}?v=${CLIP_V}`;
+    return new Promise((done) => {
+      const t = setTimeout(() => done(null), 20000);
+      v.addEventListener("canplaythrough", () => { clearTimeout(t); done(v); }, { once: true });
+      v.addEventListener("error", () => { clearTimeout(t); done(null); }, { once: true });
+    });
+  }
+  async function show(k) {
+    k %= list.length;
+    const item = list[k];
+    if (item.clip && hold()) return show(k + 1);
+    const el = await load(item);
+    if (!el) { at = k; return wait(200); }
+    el.className = "to-fn-shot";
+    if (!item.clip && !hold()) {
+      flip = !flip;   // the drift turns the other way each time
+      el.classList.add("is-drift");
+      el.classList.toggle("is-rev", flip);
+    }
+    const back = layers[1 - front];
+    back.replaceChildren(el);
+    back.classList.add("is-on");
+    layers[front].classList.remove("is-on");
+    front = 1 - front;
+    clip?.pause();
+    clip = item.clip ? el : null;
+    at = k;
+    if (clip) {
+      clip.addEventListener("ended", next, { once: true });
+      clip.addEventListener("error", next, { once: true });   // (a clip that won't decode moves on, never freezes the reel)
+      if (paused()) waiting = true;
+      else clip.play().catch(next);
+    } else wait(SHOT_MS);
+  }
+  function wait(ms) { clearTimeout(timer); timer = setTimeout(next, ms); }
+  function next() {
+    if (paused() || hold()) { waiting = true; return; }
+    waiting = false;
+    show(at + 1);
+  }
+  // pause and pick up again with the menu, the tab and the Animations switch
+  function sync() {
+    if (paused() || hold()) {
+      clearTimeout(timer);
+      clip?.pause();
+      waiting = true;
+    } else if (waiting) {
+      waiting = false;
+      if (clip) clip.play().catch(next);
+      else wait(FADE_MS);
+    }
+  }
+  new MutationObserver(sync).observe(title, { attributes: true, attributeFilter: ["hidden"] });
+  new MutationObserver(sync).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  document.addEventListener("visibilitychange", sync);
+  reduce.addEventListener?.("change", sync);
+  show(0);
 }
