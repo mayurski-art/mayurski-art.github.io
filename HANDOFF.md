@@ -46,29 +46,41 @@ arrows sit outside the card; the lobby behind it blurs and dims.
 - Arrows: 44px white circles with a dark chevron, `aria-label`
   "Previous story" / "Next story". Hidden when there's one story.
 - Dots under the card for story count/position (also keyboard focusable).
-- Art: trollface artwork only (assets/animations, assets/images/icons,
-  assets/pfp). Never the troll emoji (CLAUDE.md).
+- Art: rendered from the game (Story art, below). Never the troll
+  emoji (CLAUDE.md).
 
-### Story art (user, 2026-10-28: "rendered based on context and also
-in game appearances and well thought out in design")
-- Every story's picture shows what the story is about, in the game's own
-  look: Troll Forces key art, lobby scenes (ui/lobby), skins, TROLLS
-  bodies, sticker sheets. No unrelated memes or generic art.
-- Crop each source to its subject and save it as a small webp in
-  `assets/images/news/` (crops made with a throwaway Playwright canvas
-  script; ~70–190 KB each). Keep logos, QR codes and other cards out of
-  the crop.
-- Per story: `image`, `alt`, `focus` (object-position that keeps the
-  subject in both the tall desktop pane and the wide phone strip), and
-  `accent` (arc colour, taken from the art: saber red, champion gold,
-  U-mad-bro green).
-- `.news-shade` darkens the art toward the curve and the floor so it
-  sits in the card.
-- Next level (not built): a fresh in-game render per story (character
-  on a transparent background, posed for the story) that breaks out
-  over the curve like the reference's soldier. The tools/troll-ops-*-
-  shots.mjs scripts already stage solo, Supabase-blocked scenes; one
-  made for news art would write straight to assets/images/news/.
+### Story art (user, 2026-10-28: "dont use preexisting images ... high
+quality rendered based images based on context and also in game
+appearances and well thought out in design")
+- Never pre-existing pictures. Every story's art is rendered from the
+  game for that story: `tools/news-art.mjs` opens the map through the
+  real game (private room, no bots, Supabase blocked), builds the cast
+  from the game's own modules (TROLLS bodies with their ink, weapons and
+  finishes, emotes), stands them on the real ground, and renders through
+  the game's post chain. Writes `assets/images/news/<id>.webp` (1600
+  square, the scene) and `<id>-hero.webp` (the lead, cut from the same
+  frame by a mask, transparent round it).
+- `TRY=1 node tools/news-art.mjs <id>` renders every framing in `cams`
+  small to .claude/news-try/ for picking; the first is the one rendered
+  for real. `FIND=<map> [FIND_BOX=x0,z0,x1,z1]` lists the map's posts,
+  containers and tall meshes to stage on.
+- Each shot is written in STORIES with why it fits the copy. Now:
+  v1-forces (the Troll Runner's TROLLS #1718 leading a squad down
+  Culdegrin at sunset), ladder-champion (the winner on a Grinsite
+  container with the Gold Grin rifle, one loser sad, one with the L),
+  stickers-slap (the Runner slapping a sticker onto Culdegrin's
+  sticker-bombed glass panel).
+- The card: `image`, `hero`, `alt`, `focus` (object-position measured
+  from where the hero sits, so the tall desktop pane and the wide phone
+  strip both keep them), `accent` (from the scene). The hero layer sits
+  in the scene's box, unclipped, so they break out over the curve;
+  `.news-shade` settles the scene into the card.
+- Gotchas: the wave and high-five emotes raise the arm forward, not to
+  the side, so pose "slap" sets the arm by hand (rotation z lifts it
+  sideways, 1.9 rad is level; the tool tries both arms and signs). The
+  "frame" on Culdegrin's centre line is glass. Further back than z -1 in
+  the Grinsite yard the camera is inside a container. A screenshot of
+  the Browser pane right after paging can show a stale blank card.
 
 ### Behaviour
 - Arrow keys / swipe (pointer events, 40px threshold) change stories;
@@ -136,5 +148,6 @@ placeholder story (the link keeps working afterwards).
 (one line per landed task)
 - 2026-10-28 step 1: static news card, #news (site-news 92d2cb84)
 - 2026-10-28 steps 2-3: carousel (arrows, keys, swipe, dots), News menu
-  item, focus back to the menu, 3 placeholder stories with in-game art
-  (site-news)
+  item, focus back to the menu, 3 placeholder stories (site-news a01de97c)
+- 2026-10-28 story art rendered from the game (tools/news-art.mjs), hero
+  cut-outs breaking out over the curve (site-news)
