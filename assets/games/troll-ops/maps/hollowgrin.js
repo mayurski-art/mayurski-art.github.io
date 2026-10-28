@@ -42,6 +42,7 @@ import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1
 import { loadModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 import { buildCauldronFx } from "./hollowgrin-cauldron.js?v=hgb2";
 import { buildChapel } from "./hollowgrin-chapel.js?v=hg6tc-or1-tcs1-hgb2";
+import { bandOrgan, wheelCreak, coasterRattle } from "./hollowgrin-fair-sound.js?v=hgb4";
 import { roseTexture } from "./chapel-art.js?v=ca1-tcs1";
 import { placeMannequins } from "./hollowgrin-mannequins.js?v=hg6h-sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1";
 
@@ -185,6 +186,8 @@ const FIELD_BARROW = [33.2, 7.0];
 // Trick-or-Treat Lane (hg_lane): the mailboxes (x from each house's middle, z), the houses with a bike
 const LANE_MAILBOX = [1.05, 36.5];
 const LANE_BIKES = [0, 3];
+// the midway's popcorn cart (models/hg_fair.py POPCORN)
+const MIDWAY_POPCORN = [46.6, 27.6];
 const WEST_LOOP = {
   path: -37.4,
   wallX: -38.75, walls: [[-16, -11.5], [-10, -8.7], [11, 13], [14, 19], [20.5, 25], [26.5, 28.8]],
@@ -1834,16 +1837,16 @@ function buildOutskirts(api, K, M, SP, root, lights) {
 
   /* ------------------------------------------- Grinmoor Fair (east) */
   {
+    // the arch, booths, ticket booth, high striker, tent, carts and the
+    // festoon poles are modelled (models/hg_fair.py); the words, bulbs,
+    // glows, the whack-a-troll heads and the crystal ball are ours
+    hgModel(api, "hg-fair", { wash: { color: 0xff5a3a, top: 2.5, strength: 0.06 } });
     flat(K, M.dirt, 39.2, -3.5, 3.4, 73);
     flat(K, M.dirt, 28.6, 4.1, 17.4, 1.8);
     // the entrance arch
-    for (const z of [2.3, 5.9]) {
-      K.solid(37.3, z, 0.4, 0.4, 4.2, { mat: M.barn, pen: 6 });
-      K.add(M.gold, place(new THREE.SphereGeometry(0.22, 10, 8), { x: 37.3, y: 4.4, z }));
-    }
-    K.box(M.barn, 37.3, 3.5, 4.1, 0.2, 0.85, 4.2);
+    for (const z of [2.3, 5.9]) K.solid(37.3, z, 0.4, 0.4, 4.2, { pen: 6 });
     const fairSign = sign(["GRINMOOR FAIR"], { bg: "#1a0c14", fg: "#ffcf5a", edge: "#c0283a" });
-    for (const [x, ry] of [[37.18, -Math.PI / 2], [37.42, Math.PI / 2]]) K.add(fairSign, place(new THREE.PlaneGeometry(3.9, 0.72), { x, y: 3.92, z: 4.1, ry }), { shadow: false });
+    for (const [x, ry] of [[37.08, -Math.PI / 2], [37.52, Math.PI / 2]]) K.add(fairSign, place(new THREE.PlaneGeometry(3.9, 0.72), { x, y: 3.92, z: 4.1, ry }), { shadow: false });
     festoon(K, M, SP, [[37.3, 4.5, 2.3], [37.3, 4.5, 5.9]], { sag: 0.25, every: 0.4, seed: 3 });
 
     // the carousel
@@ -1896,25 +1899,28 @@ function buildOutskirts(api, K, M, SP, root, lights) {
       const l = new THREE.PointLight(0xffc070, 10, 16, 2);
       l.position.set(cx, 3.4, cz);
       lights.push(l);
+      // its band organ, heard round the midway
+      const organ = bandOrgan();
+      root.add(ticker((renderer, scene, camera) => {
+        const d = Math.hypot(camera.position.x - cx, camera.position.y - 3, camera.position.z - cz);
+        organ.update(AUDIO, 0.35 / (1 + (d / 10) ** 2));
+      }));
     }
 
     // the game booths, facing west onto the midway
-    const booth = (z0, z1, title, stripes) => {
+    const booth = (z0, z1, title) => {
       const mz = (z0 + z1) / 2, d = z1 - z0;
-      K.solid(49.5, mz, 0.2, d, 3, { mat: M.stairWood, pen: 8 });
-      for (const z of [z0 + 0.1, z1 - 0.1]) K.solid(47.8, z, 3.6, 0.2, 2.6, { mat: M.stairWood, pen: 8 });
-      K.solid(46.25, mz, 0.5, d - 0.4, 1.0, { mat: M.barn, pen: 2 });
-      K.box(stripes, 47.7, 2.6, mz, 4.0, 0.05, d + 0.3, { rz: -0.14 });
-      K.add(stripes, place(new THREE.PlaneGeometry(d + 0.3, 0.45), { x: 45.75, y: 2.45, z: mz, ry: -Math.PI / 2 }), { shadow: false });
+      K.solid(49.5, mz, 0.2, d, 3, { pen: 8 });
+      for (const z of [z0 + 0.1, z1 - 0.1]) K.solid(47.8, z, 3.6, 0.2, 2.6, { pen: 8 });
+      K.solid(46.25, mz, 0.5, d - 0.4, 1.0, { pen: 2 });
       K.add(sign([title], { bg: "#1a0c14", fg: "#ffcf5a", edge: "#7a2ab8" }), place(new THREE.PlaneGeometry(d - 0.8, 0.6), { x: 45.7, y: 3.1, z: mz, ry: -Math.PI / 2 }), { shadow: false });
-      festoon(K, M, SP, [[45.8, 2.75, z0 + 0.2], [45.8, 2.75, z1 - 0.2]], { sag: 0.15, every: 0.45, seed: Math.round(z0) });
+      festoon(K, M, SP, [[45.62, 2.5, z0 + 0.2], [45.62, 2.5, z1 - 0.2]], { sag: 0.15, every: 0.45, seed: Math.round(z0) });
       K.box(M.lampGlass, 47.6, 2.35, mz, 0.08, 0.05, d - 0.8, {}, { shadow: false });
       K.add(M.glow, place(new THREE.PlaneGeometry(3.4, d), { x: 47.8, y: 0.03, z: mz, rx: -Math.PI / 2 }), { shadow: false, phase: 0.2 });
     };
-    booth(6.8, 11.2, "WHACK-A-TROLL", M.awningRed);
-    booth(14.4, 18.8, "RING TOSS", M.awningPurple);
-    // whack-a-troll: the mole board, and troll heads popping out of it
-    K.box(M.trimDark, 47.8, 0, 9, 1.2, 0.95, 3.6);
+    booth(6.8, 11.2, "WHACK-A-TROLL");
+    booth(14.4, 18.8, "RING TOSS");
+    // whack-a-troll: troll heads popping out of the model's cabinet
     const heads = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.42, 0.42), M.trollLit, 6);
     root.add(heads);
     heads.frustumCulled = false;
@@ -1924,82 +1930,59 @@ function buildOutskirts(api, K, M, SP, root, lights) {
         const k = Math.max(0, Math.sin(t * (1.6 + i * 0.37) + i * 2.1));
         _e.set(0, -Math.PI / 2, 0);
         _q.setFromEuler(_e);
-        _m4.compose(_p.set(47.15, 0.98 + 0.45 * k, 7.6 + i * 0.56), _q, _s.set(1, 1, 1));
+        _m4.compose(_p.set(47.45, 0.98 + 0.45 * k, 7.6 + i * 0.56), _q, _s.set(1, 1, 1));
         heads.setMatrixAt(i, _m4);
       }
       heads.instanceMatrix.needsUpdate = true;
     };
     heads.onBeforeRender();
-    K.box(M.barn, 46.9, 1.0, 9, 0.12, 0.3, 3.6);
-    // ring toss: bottles on tiers, rings on the counter
-    for (let tier = 0; tier < 3; tier++) {
-      K.box(M.stairWood, 48.2 + tier * 0.4, 0, 16.6, 0.4, 0.9 + tier * 0.3, 3.4);
-      for (let i = 0; i < 8; i++) {
-        const col = new THREE.Color().setHSL(R(), 0.7, 0.45).getHex();
-        K.add(M.candy, place(new THREE.CylinderGeometry(0.05, 0.09, 0.32, 8), { x: 48.2 + tier * 0.4, y: 0.9 + tier * 0.3 + 0.16, z: 15.2 + i * 0.4 }), { color: col, shadow: false });
-      }
-    }
-    for (let i = 0; i < 5; i++) K.add(M.candy, place(new THREE.TorusGeometry(0.12, 0.02, 4, 12), { x: 46.25 + (R() - 0.5) * 0.2, y: 1.02, z: 15.4 + i * 0.5, rx: Math.PI / 2 }), { color: [0xff3a5a, 0xffd23a, 0x3ad0ff][i % 3], shadow: false });
+    // (the ring toss's bottles and rings are the model's: the old ones' turns)
+    for (let k = 0; k < 29; k++) R();
 
     // the candy-apple cart
     {
       const x = 43.2, z = 24;
       K.api.ghostBox(x, z, 1.8, 1.0, 1.0, { pen: 2 });
-      K.box(M.barn, x, 0.35, z, 1.8, 0.65, 1.0);
-      for (const dz of [-0.55, 0.55]) K.add(M.trimDark, place(new THREE.TorusGeometry(0.3, 0.04, 6, 14), { x: x - 0.4, y: 0.3, z: z + dz }));
-      for (let i = 0; i < 12; i++) {
-        const ax = x - 0.7 + (i % 6) * 0.28, az = z - 0.2 + Math.floor(i / 6) * 0.4;
-        K.add(M.candy, place(new THREE.SphereGeometry(0.09, 8, 6), { x: ax, y: 1.09, z: az }), { color: 0xb8101e, shadow: false });
-        K.box(M.stairWood, ax, 1.15, az, 0.015, 0.16, 0.015, {}, { shadow: false });
-      }
-      for (const [dx, dz] of [[-0.85, -0.45], [0.85, -0.45], [-0.85, 0.45], [0.85, 0.45]]) K.box(M.iron, x + dx, 1.0, z + dz, 0.04, 1.2, 0.04);
-      K.box(M.awningRed, x, 2.2, z, 2.1, 0.04, 1.3);
       SP.add(x, 2.0, z, 0xffd27a, { size: 0.8, blink: 0.1 });
+    }
+    // the popcorn cart, its case lit
+    {
+      const [x, z] = MIDWAY_POPCORN;
+      K.api.ghostBox(x, z, 0.9, 0.7, 1.9, { pen: 2 });
+      SP.add(x, 1.25, z, 0xffd27a, { size: 0.7, blink: 0.1 });
     }
     // the ticket booth, with the second easter egg on its north side
     {
       const x = 36.2, z = 7.6;
-      K.solid(x, z, 1.6, 1.6, 2.4, { mat: M.barn, pen: 8 });
-      K.add(M.roof, place(new THREE.ConeGeometry(1.4, 1.1, 4), { x, y: 2.95, z, ry: Math.PI / 4 }));
+      K.solid(x, z, 1.6, 1.6, 2.4, { pen: 8 });
       K.add(M.winGlow, place(new THREE.PlaneGeometry(0.8, 0.6), { x: x - 0.81, y: 1.4, z, ry: -Math.PI / 2 }), { shadow: false });
       K.add(sign(["TICKETS"], { w: 512, h: 128, bg: "#1a0c14", fg: "#ffcf5a", edge: "#c0283a" }), place(new THREE.PlaneGeometry(1.2, 0.3), { x: x - 0.82, y: 2.0, z, ry: -Math.PI / 2 }), { shadow: false });
       K.add(M.posterPaint, place(new THREE.PlaneGeometry(1.42, 0.8), { x, y: 1.35, z: z - 0.82, ry: Math.PI }), { shadow: false });
-      K.box(M.gold, x, 0.91, z - 0.81, 1.56, 0.07, 0.04);
-      K.box(M.gold, x, 1.74, z - 0.81, 1.56, 0.07, 0.04);
     }
     // the high striker
     {
       const x = 42.5, z = -17;
-      K.solid(x, z, 1.2, 1.2, 0.3, { mat: M.stairWood, pen: 6 });
+      K.solid(x, z, 1.2, 1.2, 0.3, { pen: 6 });
       K.solid(x, z, 0.35, 0.35, 5.6, { y: 0.3, pen: 6 });
-      K.box(M.awningRed, x - 0.18, 0.3, z, 0.02, 5.3, 0.3, {}, { shadow: false });
-      K.box(M.barnTrim, x, 0.3, z, 0.3, 5.3, 0.25);
-      K.add(M.gold, place(new THREE.SphereGeometry(0.28, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), { x, y: 5.75, z, rx: Math.PI }));
-      K.box(M.candy, x - 0.2, 1.6, z, 0.12, 0.12, 0.16, {}, { color: 0xff3a3a });
       K.add(sign(["TEST YOUR LULZ"], { bg: "#1a0c14", fg: "#ff5a6a", edge: "#ffd23a" }), place(new THREE.PlaneGeometry(2.6, 0.5), { x: x - 0.2, y: 6.3, z, ry: -Math.PI / 2 }), { shadow: false });
-      K.box(M.stairWood, x - 0.9, 0, z + 0.7, 0.07, 1.1, 0.07, { rz: 0.35 });
-      K.box(M.stairWood, x - 1.08, 1.02, z + 0.7, 0.32, 0.2, 0.2, { rz: 0.35 });
       SP.add(x, 5.6, z, 0xffd27a, { size: 0.9, blink: 0.3 });
     }
     // Madame Lulz's fortune tent
     {
       const x = 45.5, z = -30, r = 2.4;
-      K.add(M.awningPurple, place(new THREE.CylinderGeometry(r, r, 2.2, 14, 1, true, Math.PI * 1.5 + 0.32, Math.PI * 2 - 0.64), { x, y: 1.1, z }));
-      K.add(M.awningPurple, place(new THREE.ConeGeometry(r + 0.25, 2.0, 14, 1, true), { x, y: 3.2, z }));
-      K.add(M.gold, place(new THREE.SphereGeometry(0.15, 8, 6), { x, y: 4.3, z }));
       K.api.ghostBox(x, z - r, r * 2, 0.2, 2.2, { pen: 1 });
       K.api.ghostBox(x, z + r, r * 2, 0.2, 2.2, { pen: 1 });
       K.api.ghostBox(x + r, z, 0.2, r * 2, 2.2, { pen: 1 });
       for (const s of [-1, 1]) K.api.ghostBox(x - r, z + s * 1.5, 0.2, 1.8, 2.2, { pen: 1 });
-      K.solid(x + 0.6, z, 1.0, 1.0, 0.8, { mat: M.fabric, pen: 1.5 });
+      K.solid(x + 0.6, z, 1.0, 1.0, 0.8, { pen: 1.5 });
       K.add(M.bulb, place(new THREE.SphereGeometry(0.2, 14, 10), { x: x + 0.6, y: 1.0, z }), { color: 0xc89aff, shadow: false });
       K.add(M.purpleGlow, place(new THREE.PlaneGeometry(4, 4), { x, y: 0.04, z, rx: -Math.PI / 2 }), { shadow: false, phase: 0.4 });
       SP.add(x + 0.6, 1.0, z, 0xb070ff, { size: 1.4, blink: 0.3 });
-      K.add(sign(["MADAME LULZ"], { bg: "#140a1c", fg: "#d8a6ff", edge: "#ffcf5a" }), place(new THREE.PlaneGeometry(2.2, 0.45), { x: x - r - 0.05, y: 2.45, z, ry: -Math.PI / 2 }), { shadow: false });
+      K.add(sign(["MADAME LULZ"], { bg: "#140a1c", fg: "#d8a6ff", edge: "#ffcf5a" }), place(new THREE.PlaneGeometry(2.2, 0.45), { x: x - r - 0.3, y: 2.52, z, ry: -Math.PI / 2 }), { shadow: false });
     }
     // string lights zig-zagging down the midway
-    const fpts = [[37.6, -36], [41.4, -30], [37.6, -24], [41.4, -18], [37.6, -12], [37.6, 0], [41.4, 12], [37.6, 24], [41.4, 30]];
-    for (const [x, z] of fpts) pole(K, M, x, z);
+    const fpts = [[37.6, -36], [41.4, -26.6], [37.6, -24], [41.4, -18], [37.6, -12], [37.6, 0], [41.4, 12], [37.6, 24], [41.4, 30]];
+    for (const [x, z] of fpts) K.solid(x, z, 0.2, 0.2, 4.2, { pen: 3 });
     festoon(K, M, SP, fpts.map(([x, z]) => [x, 4.0, z]), { seed: 11 });
   }
 
@@ -2618,6 +2601,15 @@ function buildPark(api, K, M, SP, root, lights) {
       }
       cabins.instanceMatrix.needsUpdate = true;
     };
+    // the axle creaks now and then, heard from round the plaza
+    let creakAt = 0;
+    root.add(ticker((renderer, scene, camera) => {
+      const t = performance.now() / 1000;
+      if (t < creakAt) return;
+      creakAt = t + 4 + Math.random() * 4;
+      const d = Math.hypot(camera.position.x - fx, camera.position.y - hub, camera.position.z - fz);
+      wheelCreak(AUDIO, 0.3 / (1 + (d / 14) ** 2));
+    }));
     cabins.onBeforeRender();
   }
 
@@ -3181,7 +3173,8 @@ function buildMansion(api, K, M, SP, root, lights) {
 const LOG_PATH = [[67.5, 41.1], [55.6, 41.1], [55.6, 15.1], [82.0, 15.1], [82.0, 31.2]];
 
 function buildMountain(api, K, M, SP, root, lights) {
-  hgModel(api, "hg-mountain", { wash: { color: 0x3a6aff, top: 9, strength: 0.13 } });
+  hgModel(api, "hg-mountain", { wash: { color: 0x8a8aff, top: 9, strength: 0.04 } });
+  hgModel(api, "hg-skull");
   hgModel(api, "hg-moat");
 
   /* ---- the rock and the cave path through it */
@@ -3200,9 +3193,10 @@ function buildMountain(api, K, M, SP, root, lights) {
     const [sx, sy, sz, yaw] = MOUNT_SKULL;
     const S = (lx, ly, lz) => [sx + lx * Math.cos(yaw) + lz * Math.sin(yaw), sy + ly, sz - lx * Math.sin(yaw) + lz * Math.cos(yaw)];
     for (const s of [-1, 1]) {
-      const [x, y, z] = S(s * 0.95, 1.5, 2.0);
-      K.add(M.skullEye, place(new THREE.SphereGeometry(0.34, 14, 10), { x, y, z }), { shadow: false, phase: s * 0.1 });
-      SP.add(x, y, z, 0xff2a1a, { size: 5, blink: 0.35 });
+      // in the Studio skull's sockets (models/hg_park.py SKULL_SCALE, SKULL_BASE)
+      const [x, y, z] = S(s * 0.85, 4.7, 2.4);
+      K.add(M.skullEye, place(new THREE.SphereGeometry(0.32, 14, 10), { x, y, z }), { shadow: false, phase: s * 0.1 });
+      SP.add(x, y, z, 0xff2a1a, { size: 4, blink: 0.35 });
     }
   }
 
@@ -3479,31 +3473,27 @@ function buildCoaster(api, K, M, SP, root, lights) {
     // 2 m clear of the stalls' backs, so there's a walkway between
     const st = { x0: 55.5, x1: 68.5, zN: -20.9, zS: -16.1, y: 1.2 };
     const cx = (st.x0 + st.x1) / 2, w = st.x1 - st.x0;
-    K.solid(cx, -20.15, w, 1.5, st.y, { mat: M.stationDeck, pen: 8 });
-    K.solid(cx, -16.85, w, 1.5, st.y, { mat: M.stationDeck, pen: 8 });
+    // drawn by hg-coaster (models/hg_park.py build_coaster): the colliders here
+    hgModel(api, "hg-coaster");
+    K.solid(cx, -20.15, w, 1.5, st.y, { pen: 8 });
+    K.solid(cx, -16.85, w, 1.5, st.y, { pen: 8 });
     for (const z of [-20.9, -16.1]) {
-      for (const x of [st.x0 + 0.2, cx, st.x1 - 0.2]) K.solid(x, z, 0.25, 0.25, 4.2, { mat: M.support, pen: 6 });
+      for (const x of [st.x0 + 0.2, cx, st.x1 - 0.2]) K.solid(x, z, 0.25, 0.25, 4.2, { pen: 6 });
     }
-    K.solid(cx, -18.5, w + 0.6, 5.6, 0.25, { y: 4.2, mat: M.stationRoof, pen: 6 });
-    K.box(M.track, cx, 4.45, -18.5, w + 0.7, 0.35, 5.7);
+    K.solid(cx, -18.5, w + 0.6, 5.6, 0.25, { y: 4.2, pen: 6 });
     // steps up to each platform from the west end, a gate rail on the track side
     for (const z of [-20.15, -16.85]) {
-      for (let k = 0; k < 3; k++) K.solid(st.x0 - 0.2 - (2 - k) * 0.4, z, 0.4, 1.5, 0.3 * (k + 1), { mat: M.stationDeck, pen: 6 });   // 0.3 m rises
+      for (let k = 0; k < 3; k++) K.solid(st.x0 - 0.2 - (2 - k) * 0.4, z, 0.4, 1.5, 0.3 * (k + 1), { pen: 6 });   // 0.3 m rises
     }
     for (const z of [-19.45, -17.55]) {
       K.api.ghostBox(cx, z, w, 0.08, 1.0, { y: st.y, pen: 0.3 });
-      K.box(M.gold, cx, st.y + 0.95, z, w, 0.06, 0.06);
-      for (let x = st.x0 + 0.5; x < st.x1; x += 1.3) K.box(M.gold, x, st.y, z, 0.05, 0.95, 0.05, {}, { shadow: false });
     }
     const title = sign(["THE GRINDER"], { bg: "#0a1a1c", fg: "#7affe0", edge: "#ffb347" });
     for (const [z, ry] of [[-21.32, Math.PI], [-15.68, 0]]) K.add(title, place(new THREE.PlaneGeometry(6.4, 0.8), { x: cx, y: 5.2, z, ry }), { shadow: false });
-    for (const z of [-21.36, -15.64]) K.box(M.track, cx, 4.75, z, 6.8, 0.95, 0.06);
     // the queue maze north of it: switchback rails, posts with bulbs
     for (const [z, a, b] of [[-22.6, 57.5, 68.5], [-24.0, 55.5, 66.5], [-25.4, 57.5, 68.5]]) {
       K.api.ghostBox((a + b) / 2, z, b - a, 0.08, 1.0, { pen: 0.3 });
-      for (const y of [0.5, 0.95]) K.box(M.iron, (a + b) / 2, y, z, b - a, 0.05, 0.05, {}, { shadow: false });
       for (let x = a; x <= b + 0.01; x += 2.2) {
-        K.box(M.iron, x, 0, z, 0.08, 1.05, 0.08);
         K.add(M.bulb, place(new THREE.OctahedronGeometry(0.06), { x, y: 1.12, z }), { color: BULBS[Math.round(x) % 4], shadow: false });
       }
     }
@@ -3516,33 +3506,16 @@ function buildCoaster(api, K, M, SP, root, lights) {
   {
     const D = COASTER_DECK, S = COASTER_STAIR;
     const dcx = (D.x0 + D.x1) / 2, dcz = (D.z0 + D.z1) / 2;
-    K.solid(dcx, dcz, D.x1 - D.x0, D.z1 - D.z0, 0.25, { y: D.y - 0.25, mat: M.stationDeck, pen: 6 });
-    for (const x of [D.x0 + 0.15, D.x1 - 0.15]) for (const z of [D.z0 + 0.15, D.z1 - 0.15]) K.solid(x, z, 0.24, 0.24, D.y - 0.25, { mat: M.support, pen: 6 });
+    K.solid(dcx, dcz, D.x1 - D.x0, D.z1 - D.z0, 0.25, { y: D.y - 0.25, pen: 6 });
+    for (const x of [D.x0 + 0.15, D.x1 - 0.15]) for (const z of [D.z0 + 0.15, D.z1 - 0.15]) K.solid(x, z, 0.24, 0.24, D.y - 0.25, { pen: 6 });
     const rail = { y: D.y, pen: 0.3 };
     K.api.ghostBox(dcx, D.z0 + 0.03, D.x1 - D.x0, 0.08, 1.05, rail);
     K.api.ghostBox(D.x0 + 0.03, dcz, 0.08, D.z1 - D.z0, 1.05, rail);
     K.api.ghostBox(D.x1 - 0.03, dcz, 0.08, D.z1 - D.z0, 1.05, rail);
     for (const [a, b] of [[D.x0, S.x0], [S.x1, D.x1]]) K.api.ghostBox((a + b) / 2, D.z1 - 0.03, b - a, 0.08, 1.05, rail);
-    for (const [ax, az, bx, bz] of [[D.x0, D.z0, D.x1, D.z0], [D.x0, D.z0, D.x0, D.z1], [D.x1, D.z0, D.x1, D.z1], [D.x0, D.z1, S.x0, D.z1], [S.x1, D.z1, D.x1, D.z1]]) {
-      const len = Math.hypot(bx - ax, bz - az), cxx = (ax + bx) / 2, czz = (az + bz) / 2;
-      for (const y of [0.5, 1.0]) K.box(M.yellow, cxx, D.y + y, czz, Math.max(0.05, Math.abs(bx - ax)), 0.05, Math.max(0.05, Math.abs(bz - az)), {}, { shadow: false });
-      for (let k = 0; k <= Math.round(len); k++) {
-        K.box(M.yellow, ax + ((bx - ax) * k) / Math.max(1, Math.round(len)), D.y, az + ((bz - az) * k) / Math.max(1, Math.round(len)), 0.06, 1.05, 0.06, {}, { shadow: false });
-      }
-    }
     api.stairs((S.x0 + S.x1) / 2, S.zFoot, S.x1 - S.x0, S.steps, S.rise, S.run, "-z", { ghost: true });
-    for (let i = 0; i < S.steps; i++) {
-      const top = S.rise * (i + 1), zc = S.zFoot - S.run * (i + 0.5);
-      K.box(M.stationDeck, (S.x0 + S.x1) / 2, top - 0.06, zc, S.x1 - S.x0, 0.06, S.run + 0.02, {}, { shadow: false });
-    }
-    for (const x of [S.x0, S.x1]) {
-      K.add(M.support, rodGeo([x, 0, S.zFoot + 0.1], [x, S.rise * S.steps, S.zFoot - S.run * S.steps], 0.05, 4));
-      K.add(M.yellow, rodGeo([x, 1.0, S.zFoot], [x, S.rise * S.steps + 1.0, S.zFoot - S.run * S.steps], 0.025, 4), { shadow: false });
-    }
-    K.box(M.track, (S.x0 + S.x1) / 2, 0, (S.zFoot + S.zFoot - S.run * S.steps) / 2, S.x1 - S.x0 - 0.1, 0.02, S.run * S.steps, {}, { shadow: false });
-    // a flood lamp on the deck and a warning sign
-    K.cyl(M.support, D.x1 - 0.3, D.y, D.z0 + 0.3, 0.06, 0.05, 2.6, 6);
-    K.box(M.lampGlass, D.x1 - 0.3, D.y + 2.6, D.z0 + 0.5, 0.4, 0.3, 0.08, {}, { shadow: false });
+    // the flood lamp's glass (its pole and head are hg-coaster's) and a warning sign
+    K.box(M.lampGlass, D.x1 - 0.3, D.y + 2.44, D.z0 + 0.49, 0.38, 0.3, 0.02, {}, { shadow: false });
     SP.add(D.x1 - 0.3, D.y + 2.75, D.z0 + 0.55, 0xfff0c8, { size: 2.2, blink: 0.02 });
     K.add(sign(["STAFF ONLY", "BRAKE RUN"], { w: 512, h: 256, bg: "#e8dcc0", fg: "#8a1a1a", edge: "#8a1a1a" }),
       place(new THREE.PlaneGeometry(0.8, 0.4), { x: (S.x0 + S.x1) / 2, y: 1.6, z: S.zFoot + 0.25 }), { shadow: false });
@@ -3593,9 +3566,22 @@ function buildCoaster(api, K, M, SP, root, lights) {
       _q.setFromRotationMatrix(m3);
       _p.addScaledVector(uv, -0.05);
     };
-    cars.onBeforeRender = () => {
+    // the rattle rides with the head car: speed from how far it moved since
+    // the last frame, the lift where the speed table has the chain
+    const rattle = coasterRattle();
+    let lastHead = 0, lastT = 0;
+    cars.onBeforeRender = (renderer, scene, camera) => {
       const t = (performance.now() / 1000) % CYCLE;
       const head = sAt(t);
+      if (camera) {
+        const dt = t - lastT, ds = (((head - lastHead) % L) + L) % L;
+        const v = dt > 0 && dt < 0.5 ? ds / dt : 0;
+        lastHead = head; lastT = t;
+        frameAt(head);
+        const i = Math.floor((((head % L) + L) % L) / L * N) % N;
+        const lift = speed[i] === 3.2;
+        rattle.update(AUDIO, 0.5 / (1 + (camera.position.distanceTo(_p) / 14) ** 2), v, lift);
+      }
       for (let k = 0; k < 4; k++) {
         frameAt(head - k * 1.95);
         _m4.compose(_p, _q, _s.set(1, 1, 1));
@@ -3610,16 +3596,9 @@ function buildCoaster(api, K, M, SP, root, lights) {
      then falls */
   {
     const [tx, tz] = COASTER_TOWER, H = 30;
-    K.solid(tx, tz, 3.2, 3.2, 1.0, { mat: M.concrete, pen: 10 });
+    K.solid(tx, tz, 3.2, 3.2, 1.0, { pen: 10 });
     K.api.ghostBox(tx, tz, 1.6, 1.6, H, { y: 1.0, pen: 1.2 });
-    for (const [dx, dz] of [[-0.7, -0.7], [0.7, -0.7], [-0.7, 0.7], [0.7, 0.7]]) K.cyl(M.support, tx + dx, 1.0, tz + dz, 0.12, 0.1, H - 1, 6);
-    for (let y = 2; y < H; y += 2) {
-      for (const [ax, az, bx, bz] of [[-0.7, -0.7, 0.7, -0.7], [0.7, -0.7, 0.7, 0.7], [0.7, 0.7, -0.7, 0.7], [-0.7, 0.7, -0.7, -0.7]]) {
-        K.add(M.support, rodGeo([tx + ax, y, tz + az], [tx + bx, y + 2, tz + bz], 0.04, 4), { shadow: false });
-      }
-    }
-    K.box(M.track, tx, H, tz, 2.6, 0.6, 2.6);
-    K.cyl(M.track, tx, H + 0.6, tz, 0.9, 0.2, 1.6, 8);
+    // the mast, its bracing and the machine house are hg-coaster's
     for (let i = 0; i < 16; i++) {
       const a = (i / 16) * Math.PI * 2, x = tx + Math.cos(a) * 1.4, z = tz + Math.sin(a) * 1.4;
       K.add(M.bulb, place(new THREE.OctahedronGeometry(0.08), { x, y: H + 0.3, z }), { color: BULBS[i % 4], shadow: false });

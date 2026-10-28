@@ -61,8 +61,6 @@ CODE_FACES = [
     ["sign:st-grinsworths", "chapel", (-38.97, 4.16, 2.0), (1, 0, 0), 2.6, 0.42],
     ["sign:rest-in-pepe-east", "graveyard-gate", (-15.95, 3.1, 2.0), (1, 0, 0), 2.6, 0.5],
     ["sign:rest-in-pepe-west", "graveyard-gate", (-16.05, 3.1, 2.0), (-1, 0, 0), 2.6, 0.5],
-    ["sign:grinmoor-fair-east", "midway-arch", (37.43, 3.92, 4.1), (1, 0, 0), 3.9, 0.72],
-    ["sign:grinmoor-fair-west", "midway-arch", (37.17, 3.92, 4.1), (-1, 0, 0), 3.9, 0.72],
 ]
 
 
