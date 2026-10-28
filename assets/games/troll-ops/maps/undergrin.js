@@ -70,8 +70,16 @@ export function buildUndergrin(api) {
   // the Blender props' own colliders (bins, cabinets, columns), after the
   // layout's so the layout dump can leave them out (it is the build's input)
   for (const [x, z, w, d, h, y, pen] of UG_PROPS.colliders) api.ghostBox(x, z, w, d, h, { y, pen });
+  // the 3 cm tile lines are under a texel of the occlusion atlas (they
+  // baked half black): no bake on them. applyBakedAOMap skips a mesh
+  // without uv1, and runs after api.prop (Blender doc phase 4).
+  const placing = Object.create(api);
+  placing.prop = (obj) => {
+    obj.traverse((o) => { if (o.isMesh && o.material?.name === "UG_FloorLine") o.geometry.deleteAttribute("uv1"); });
+    return api.prop(obj);
+  };
   for (const part of ["shell", "platforms", "escalators", "trains", "concourse", "shops", "plant"]) {
-    mapModel(api, `ug-${part}`, { x: 0, z: 0, castShadow: false, ao: UG_AO });
+    mapModel(placing, `ug-${part}`, { x: 0, z: 0, castShadow: false, ao: UG_AO });
   }
   // the signs' words, lettered in German at load (undergrin-signs.js)
   api.prop(buildUndergrinSigns());

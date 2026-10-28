@@ -316,7 +316,11 @@ def ug_palette():
         "yellow": mat("UG_Zone", 0xe5b84a, 0.7),
         "salmon": mat("UG_Salmon", 0xc9704e, 0.85),
         "joint": mat("UG_TileJoint", 0xa95a3c, 0.85),
-        "floorline": mat("UG_FloorLine", 0xc6c6c1, 0.8),
+        # kept as its own material (doc phase 4): a 3 cm line is under a
+        # texel of the occlusion atlas and baked half black; maps/undergrin.js
+        # leaves these out of the bake (the floor under them is open anyway);
+        # GS_Paint finish (0.6, 0.1), as they had folded into it
+        "floorline": keep(mat("UG_FloorLine", 0xc6c6c1, 0.6, 0.1)),
         "stripe": mat("UG_Stripe", 0x2f5fd0, 0.6),
         "grey": mat("UG_Grey", 0x8a8d92, 0.8),
         "dark": mat("UG_Dark", 0x3e4146, 0.7),
@@ -371,6 +375,11 @@ def ug_palette():
         "cross": mat("UG_GreenCross", 0x30e060, 0.3, 0.0, 0x30e060, 1.2),
         "headlight": mat("UG_Headlight", 0xfff4d8, 0.2, 0.0, 0xfff4d8, 1.0),
     }
+
+
+def keep(m):
+    m["gs_keep"] = True
+    return m
 
 
 # ---------------------------------------------------------------- helpers
