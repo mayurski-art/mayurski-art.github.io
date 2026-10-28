@@ -90,6 +90,8 @@ export function setupRoyale(seed = royaleSeed()) {
     royale.me = "aboard";
     royale.fogBase = map.royale?.dropFog ? game.scene.fog.density : 0;
   }
+  // what a map shows round its play area for Royale only (Hollowgrin's island)
+  royale.scenery = map.royale?.scenery?.(game.scene) || null;
 }
 
 /* The outline the drop keeps fallers inside and loot and circles on: the
@@ -706,6 +708,8 @@ export function teardownRoyale() {
   resetDropCine();
   endFallShow();
   if (royale) {
+    royale.scenery?.dispose();
+    royale.scenery = null;
     royale.pushed = null;
     royale.windIn?.stop(0.2);
     royale.windRush?.stop(0.2);
