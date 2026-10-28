@@ -50,11 +50,46 @@ function reticleMat(color) {
 /* A reticle drawn over everything is only right looking through the glass:
    from the hip, in third person, on someone else's gun or on loot it
    floated over the optic (and over walls). Hidden until the viewmodel is
-   aimed (view/weapon-view.js fadeOpticGlass). */
-function sightMark(o) {
-  o.userData.reticle = true;
+   aimed (view/weapon-view.js fadeOpticGlass). `kind`: "classic" for the
+   optic's own reticle (it gives way to the trollface one when that's on),
+   "troll-idle" / "troll-hit" for the trollface pair (trollMarks), nothing
+   for what's always there aimed in (the ACOG's housing). */
+function sightMark(o, kind = true) {
+  o.userData.reticle = kind;
   o.visible = false;
   return o;
+}
+
+/* The trollface reticle (view/troll-reticle.js): the troll fist, and "get
+   trolled" for an enemy in the sights, `w` wide at the reticle's plane,
+   centred on the aim point. One texture each, shared by every optic. */
+const TROLL_RETICLE_TEX = {};
+const UNIT_PLANE = new THREE.PlaneGeometry(1, 1);
+function trollReticleTex(kind, file) {
+  let t = TROLL_RETICLE_TEX[kind];
+  if (!t) {
+    t = TROLL_RETICLE_TEX[kind] = { meshes: [], tex: null };
+    t.tex = new THREE.TextureLoader().load(new URL(`../ui/reticles/${file}`, import.meta.url).href, (tex) => {
+      for (const [m, w] of t.meshes) m.scale.set(w, w * tex.image.height / tex.image.width, 1);
+      t.meshes = [];   // only the ones built before it loaded wait on it
+    });
+    t.tex.colorSpace = THREE.SRGBColorSpace;
+    t.tex.anisotropy = 4;
+  }
+  return t;
+}
+function trollMarks(w) {
+  const out = [];
+  for (const [kind, file] of [["troll-idle", "troll-fist.png"], ["troll-hit", "get-trolled.png"]]) {
+    const t = trollReticleTex(kind, file);
+    const m = new THREE.Mesh(UNIT_PLANE, new THREE.MeshBasicMaterial({ map: t.tex, transparent: true, depthTest: false, depthWrite: false }));
+    const img = t.tex.image;
+    m.scale.set(w, img?.width ? w * img.height / img.width : w, 1);   // its own shape once loaded
+    if (!img?.width) t.meshes.push([m, w]);
+    m.renderOrder = 11;
+    out.push(sightMark(m, kind));
+  }
+  return out;
 }
 
 /* The other way round: a part between the eye and the lens (an eyecup, the
@@ -171,7 +206,8 @@ function buildReflex() {
   const dot = new THREE.Mesh(new THREE.CircleGeometry(0.0022, 12), reticleMat(0xff2a2a));
   dot.position.z = 0.004;
   dot.renderOrder = 10;
-  g.add(sightMark(dot));
+  g.add(sightMark(dot, "classic"));
+  for (const t of trollMarks(0.026)) { t.position.z = 0.004; g.add(t); }
 
   // Body block below the glass holds the battery + brightness rocker.
   const body = box(0.04, 0.016, 0.042, shell);
@@ -214,7 +250,8 @@ function buildCoyote() {
   const dot = new THREE.Mesh(new THREE.CircleGeometry(0.0024, 12), reticleMat(0xff3322));
   dot.position.z = -len / 2 + 0.006;
   dot.renderOrder = 10;
-  g.add(sightMark(dot));
+  g.add(sightMark(dot, "classic"));
+  for (const t of trollMarks(0.012)) { t.position.z = -len / 2 + 0.006; g.add(t); }
 
   // Brightness turret on top, killflash-style shade on the objective.
   const t = turret(0.009, 0.016, M.knob());
@@ -274,7 +311,8 @@ function buildAcog() {
   g.add(sightMark(housing));
   const ret = acogReticle();
   ret.position.z = glassZ;
-  g.add(sightMark(ret));
+  g.add(sightMark(ret, "classic"));
+  for (const t of trollMarks(0.0065)) { t.position.z = glassZ; g.add(t); }
 
   // Fibre-optic light pipe: the amber stripe running along the top.
   const pipe = tube(0.0035, 0.0035, len * 0.62, new THREE.MeshStandardMaterial({
@@ -407,7 +445,7 @@ function buildScope8() {
   cross.add(hLine, vLine);
   cross.position.z = -len / 2 - bellLen - 0.004;
   cross.renderOrder = 10;
-  g.add(sightMark(cross));
+  g.add(sightMark(cross, "classic"));   // its trollface one is the scope overlay's (view/sniper-scope.js)
 
   // Magnification ring + both turrets — the details that say "8x".
   const magRing = sleeve(r * 1.25, r * 1.25, 0.016, M.knob(), 20);
