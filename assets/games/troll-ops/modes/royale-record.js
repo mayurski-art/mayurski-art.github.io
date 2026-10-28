@@ -137,6 +137,12 @@ function drawScope(ctx, W, H) {
   ctx.beginPath();
   ctx.arc(cx, cy, 99.4 * u, 0, Math.PI * 2);
   ctx.stroke();
+  // the trollface reticle on the centre, when it's on (9% of the lens)
+  const troll = scopeEl.querySelector(".to-scope-troll:not([hidden])");
+  if (troll?.complete && troll.naturalWidth) {
+    const tw = D * 0.09, th = tw * troll.naturalHeight / troll.naturalWidth;
+    ctx.drawImage(troll, cx - tw / 2, cy - th / 2, tw, th);
+  }
   ctx.restore();
 }
 
