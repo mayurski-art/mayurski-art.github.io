@@ -55,9 +55,11 @@ def palette():
         "pleaf_dry": mat("HG_PumpkinLeafDry", 0x847a3e, 0.95),
         "rail": mat("HG_FenceRail", 0x6e665a, 0.9),
         "rail_dk": mat("HG_FenceRailDark", 0x4e473e, 0.9),
-        "pkf1": mat("HG_PatchPumpkin1", 0xd4520e, 0.6),
-        "pkf2": mat("HG_PatchPumpkin2", 0xe26618, 0.6),
-        "cinder": mat("HG_PumpkinCinderella", 0xc2461c, 0.6),
+        # yellower than the market's: the purple haze over the patch turns a red orange pink
+        "pkf1": mat("HG_PatchPumpkin1", 0xf28e12, 0.6),
+        "pkf2": mat("HG_PatchPumpkin2", 0xf8a41c, 0.6),
+        "pkf3": mat("HG_PatchPumpkin3", 0xe8800e, 0.6),
+        "cinder": mat("HG_PumpkinCinderella", 0xe47012, 0.6),
         "jarrah": mat("HG_PumpkinJarrahdale", 0x7c8a86, 0.65),
         "giant": mat("HG_PumpkinGiant", 0xd8823a, 0.6),
         "fstone": mat("HG_FireStone", 0x5c5850, 0.9),
@@ -189,7 +191,7 @@ def fence(b, P, R):
 # ------------------------------------------------------------------ the patch
 
 KINDS = {   # kind: material, ribs, squash, wart, size factor
-    "orange": (("pkf1", "pkf2", "pk3"), (9, 10, 11), 0.78, 0.0, 1.0),
+    "orange": (("pkf1", "pkf2", "pkf3"), (9, 10, 11), 0.78, 0.0, 1.0),
     "ghost": (("ghost",), (10, 12), 0.72, 0.0, 0.95),
     "warty": (("gourd_g",), (9, 10), 0.8, 0.09, 0.85),
     "cinder": (("cinder",), (12, 14), 0.52, 0.0, 1.15),
