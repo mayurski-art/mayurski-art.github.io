@@ -9,7 +9,7 @@ import { groundHeightAt } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1
 import { floorAt } from "../core/ground-field.js?v=gf1-tg1";
 import { insidePolygon } from "../maps/edge.js?v=or1";
 import { DROP, RoyaleDrop, buildParaglider, Flight } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1-fl1-or1-dc2-dc3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-rb4-hp1-bx1-mg1-tx1-sp1-kbt1-gb1-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1-ugb1-ug1-ugm1-mrc1-hgb6";
-import { Squadron, PLANES, flightPos, flightVel } from "./royale-planes.js?v=pl1-pl2-pi1-sr1-fl1-or1-dc2-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-rb4-hp1-bx1-mg1-tx1-sp1-kbt1-gb1-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1-ugb1-ug1-ugm1-mrc1-hgb6";
+import { Squadron, PLANES, flightPos, flightVel, tunePlanes } from "./royale-planes.js?v=pl1-pl2-pi1-sr1-fl1-or1-dc2-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-rb4-hp1-bx1-mg1-tx1-sp1-kbt1-gb1-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1-ugb1-ug1-ugm1-mrc1-hgb6";
 import { SEAT_SPOTS, RAMP_END } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
 import { DROP_BUS, DROP_FALL, DROP_GLIDE, ROLL_TIME, busPlacers, peerPosers } from "../net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6";
 import * as THREE from "three";
@@ -47,15 +47,16 @@ export function setupRoyale(seed = royaleSeed()) {
   const rng = seededRng(seed);
   const map = game.builtMap.map;
   const bounds = map.bounds;
+  const edge = royaleEdge();
   // A map can bring its own players, zone timings and loot density
   // (Trollface Island), and keep circles and loot on land.
-  const onLand = (x, z) => (!map.edge || insidePolygon(map.edge, x, z));
+  const onLand = (x, z) => (!edge || insidePolygon(edge, x, z));
   const dry = (x, z) => onLand(x, z) && (!map.wade || !insidePolygon(map.wade, x, z));
   // Doorways the map keeps clear (map.royale.keepClear: [x0, z0, x1, z1] in
   // front of and just inside each door): no floor loot or chest stands in one.
   const clear = map.royale?.keepClear?.length ? map.royale.keepClear : null;
-  const spotOk = map.edge || clear
-    ? (x, z) => (!map.edge || dry(x, z)) && !(clear && clear.some(([a, b, c, d]) => x >= a && x <= c && z >= b && z <= d))
+  const spotOk = edge || clear
+    ? (x, z) => (!edge || dry(x, z)) && !(clear && clear.some(([a, b, c, d]) => x >= a && x <= c && z >= b && z <= d))
     : null;
   // Circle centres stay on dry land too: a final circle in the lake is a
   // slow wade for everyone.
@@ -67,7 +68,7 @@ export function setupRoyale(seed = royaleSeed()) {
     for (const p of pois) { const t = POI_TIERS[p.tier]; if (t) s = Math.max(s, t.zone * Math.max(0, 1 - Math.hypot(x - p.x, z - p.z) / (p.r + 30))); }
     return s;
   } : null;
-  const zone = new RoyaleZone(bounds, rng, map.royale?.phases || ROYALE.phases, map.edge ? dry : null, nearPoi);
+  const zone = new RoyaleZone(bounds, rng, map.royale?.phases || ROYALE.phases, edge ? dry : null, nearPoi);
   const loot = new LootField(game.scene);
   const spots = lootSpots(game.colliders, bounds, rng, { ok: spotOk, perSqM: map.royale?.lootPerSqM, pois });
   loot.spawnSeeded(spots.concat(map.royale?.lootExtra || []), rng, royaleGround);
@@ -81,11 +82,36 @@ export function setupRoyale(seed = royaleSeed()) {
     planeT: -DROP.lobbySeconds, plane: 0, seat: 0, autoRun: false,
   };
   royale.visual.update(zone.state(0), 0);
-  // Trollface Island opens aboard the C-130s (royale-drop.js, PLANES.md).
-  if (DROP.enabled && map.edge) {
-    royale.drop = new RoyaleDrop({ scene: game.scene, colliders: game.colliders, edge: map.edge, bounds }, seed);
+  // Trollface Island opens aboard the C-130s (royale-drop.js, PLANES.md);
+  // so does a map with a royale.edge (Hollowgrin), on its own planes.
+  if (DROP.enabled && edge) {
+    tunePlanes(map.royale?.planes);
+    royale.drop = new RoyaleDrop({ scene: game.scene, colliders: game.colliders, edge, bounds }, seed);
     royale.me = "aboard";
+    royale.fogBase = map.royale?.dropFog ? game.scene.fog.density : 0;
   }
+}
+
+/* The outline the drop keeps fallers inside and loot and circles on: the
+   map's own (the island's coast), else its royale one (Hollowgrin's
+   bounds: its invisible walls reach the sky, so a parachute slides along
+   them and comes down inside). */
+function royaleEdge() {
+  const map = game.builtMap.map;
+  return map.edge || map.royale?.edge || null;
+}
+
+/* A map with thick fog (Hollowgrin's night) thins it for the ride down
+   (map.royale.dropFog), so the ground shows from the plane; it thickens
+   back as you come down, all the way by 25 m up. */
+function updateDropFog() {
+  const r = royale, base = r.fogBase;
+  if (!base) return;
+  const thin = game.builtMap.map.royale.dropFog;
+  const y = game.camera.position.y;
+  const k = r.me === "ground" ? 1 : Math.min(1, Math.max(0, (90 - y) / 65));
+  game.scene.fog.density = thin + (base - thin) * k;
+  if (r.me === "ground" && k === 1) r.fogBase = 0;
 }
 
 /* Aboard before the green light: free to walk the hold, nothing can be hurt. */
@@ -354,7 +380,7 @@ export function greenLight() {
     // minutes we went from 100 people to 10").
     const floor = [...r.loot.items.values()].filter((it) => (it.y || 0) < 0.5);   // not the decks
     const spots = floor.length ? floor : game.builtMap.spawnPoints?.length ? game.builtMap.spawnPoints : [{ x: 0, z: 0 }];
-    const landAt = botLandings(spots, game.bots.bots, d.squadron, game.builtMap.map.edge, game.builtMap.map.royale?.pois);
+    const landAt = botLandings(spots, game.bots.bots, d.squadron, royaleEdge(), game.builtMap.map.royale?.pois);
     for (const b of game.bots.bots) {
       const bd = b.drop;
       if (!bd || bd.state !== "aboard") continue;
@@ -442,7 +468,7 @@ function updateRoyaleDropWorld(dt) {
         b.pos.set(0, 0, RAMP_END + 0.6).applyMatrix4(d.squadron.planeM[bd.plane]);
         flightVel(f, t, _exitVel);
         _exitVel.y = -3;
-        bd.flight = new Flight(b.pos, game.builtMap.map.edge, { glider: false, steer: BOT_FALL_STEER, vel: _exitVel });
+        bd.flight = new Flight(b.pos, royaleEdge(), { glider: false, steer: BOT_FALL_STEER, vel: _exitVel });
         bd.state = "fly";
         b.dropCode = DROP_FALL;
         if (bd.tx == null) { bd.tx = b.pos.x; bd.tz = b.pos.z; }
@@ -539,7 +565,7 @@ function jumpOut() {
   // The look turns with the plane, so the view out of the back carries on.
   game.look.yaw += new THREE.Euler().setFromQuaternion(_q, "YXZ").y;
   game.localRig.root.rotation.set(0, game.localRig.root.rotation.y, 0);
-  r.flight = new Flight(_v, game.builtMap.map.edge, { glider: false, track: true, vel: _exitVel });
+  r.flight = new Flight(_v, royaleEdge(), { glider: false, track: true, vel: _exitVel });
   r.me = "fall";
   r.autoRun = false;
   r.pushed = null;
@@ -729,6 +755,7 @@ export function updateRoyale(dt) {
   royaleRecordTick();   // "Record my match": starts as staging ends
   if (game.isTouch) updateTouchGear();
   updateRoyaleDropWorld(dt);
+  updateDropFog();
   if (r.live && !r.over) r.t += dt;
   updateBoat(r.t, r.loot);   // Trollface Island's Boat round the lake, and whoever is aboard (royale-boat.js)
   const s = r.zone.state(r.t);
