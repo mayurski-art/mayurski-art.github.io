@@ -100,11 +100,12 @@ PARTS = {
     "woods": ("hg_woods", "build_woods", "hg-woods"),
     "woodkit": ("hg_woods", "build_woodkit", "hg-woodkit"),
     "ground": ("hg_ground", "build_ground", "hg-ground"),
+    "island": ("hg_island", "build_island", "hg-island"),
     "pepe": ("eggs", "build_pepe", "hg-pepe"),
     "trollbust": ("eggs", None, "hg-trollbust"),
 }
 OWN_FRAME = {"ride", "horse", "pepe", "trollbust"}
-HG_MODULES = {"hg_manor", "hg_village", "hg_graveyard", "hg_west", "hg_garden", "hg_chapel", "hg_fields", "hg_lane", "hg_fair", "hg_park", "hg_woods", "hg_ground"}
+HG_MODULES = {"hg_manor", "hg_village", "hg_graveyard", "hg_west", "hg_garden", "hg_chapel", "hg_fields", "hg_lane", "hg_fair", "hg_park", "hg_woods", "hg_ground", "hg_island"}
 
 
 def main():

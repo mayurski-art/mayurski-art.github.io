@@ -87,6 +87,9 @@ export const RETEXTURE = {
   HG_Gravel: ["dirt", 0.7, 0.35],
   HG_GravelVerge: ["dirt", 0.55, 0.14],
   HG_Kerb: ["rock", 0.9, 0.4],
+  // Troll Royale's island round Hollowgrin (models/hg_island.py): dark grass, the cliff's rock
+  HG_IslandGrass: ["grass", 0.25, 0.25],
+  HG_IslandRock: ["rock", 0.12],
 };
 
 /* Drops models/<file>.glb at (x, y, z), turned `rot` radians about y.

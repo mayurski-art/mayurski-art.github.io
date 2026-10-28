@@ -44,6 +44,7 @@ import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1
 import { loadModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
 import { buildCauldronFx } from "./hollowgrin-cauldron.js?v=hgb2";
 import { buildChapel } from "./hollowgrin-chapel.js?v=hg6tc-or1-tcs1-hgb2-hgb6";
+import { islandScenery } from "./hollowgrin-island.js?v=hgi1";
 import { bandOrgan, wheelCreak, coasterRattle } from "./hollowgrin-fair-sound.js?v=hgb4";
 import { roseTexture } from "./chapel-art.js?v=ca1-tcs1";
 import { placeMannequins } from "./hollowgrin-mannequins.js?v=hg6h-sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1-hgb6";
@@ -272,10 +273,17 @@ function nightFx(mat) {
 /* A modelled building (models/build_hollowgrin.blender.py), in map
    coordinates. `wash` tints its materials; `bounce` lifts the named
    (Blender) materials' own texture, for interiors the moon can't reach. */
-function hgModel(api, name, { wash = null, bounce = {}, parent = null, then = null } = {}) {
+/* A model, retextured, its meshes tagged with their Blender material. */
+function hgLoad(name) {
   return loadModel(name, {}).then((obj) => {
     obj.traverse((n) => { if (n.isMesh) n.userData.blenderMat = n.material.name; });
     retexture(obj, RETEXTURE);
+    return obj;
+  });
+}
+
+function hgModel(api, name, { wash = null, bounce = {}, parent = null, then = null } = {}) {
+  return hgLoad(name).then((obj) => {
     obj.traverse((n) => {
       if (!n.isMesh) return;
       const m = n.material;
@@ -972,6 +980,7 @@ function woods(kit, root) {
       inst.computeBoundingSphere();
       inst.castShadow = false;
       inst.receiveShadow = true;
+      inst.userData.woodsSpots = list.map(([x, z]) => [x, z]);   // (Royale's island takes some away)
       root.add(inst);
     });
   }
@@ -4517,7 +4526,16 @@ export const HOLLOWGRIN = {
     // three planes (27 seats) on a circle round the village, lower, and a
     // slow run so it's over Hollowgrin's 90 m for the whole jump
     planes: { count: 3, orbitR: 170, baseAlt: 140, altStep: 12, fan: 40, runSpeed: 12, runFrom: 110, lookIn: 30, inbound: 350 },
-    dropFog: 0.004,   // the night's fog (0.016) hides the ground from 140 m up
+    dropFog: 0.002,   // the night's fog (0.016) hides the ground from 140 m up
+    // the island round it, Trollface Island's underside as a Halloween
+    // trollface pumpkin, seen from the planes and the fall
+    // (hollowgrin-island.js; scenery, never walked on)
+    scenery: (scene) => islandScenery(scene, {
+      bounds: BOUNDS,
+      bakeRect: HOLLOWGRIN.groundBake.rect,
+      haze: GROUND_FOG,
+      load: (name) => hgLoad(name).then((obj) => { obj.traverse((n) => { if (n.isMesh) nightFx(n.material); }); return obj; }),
+    }),
   },
   // The scatter in every place (map-dressing.js, laid after the build so it
   // keeps clear of every collider and spawn): fallen leaves, sweet
