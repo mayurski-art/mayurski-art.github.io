@@ -17,9 +17,9 @@
 
 import * as THREE from "three";
 import { insidePolygon } from "../maps/edge.js?v=or1";
-import { seededRng } from "./royale-zone.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1-fl1-or1-rt1-ut1-gf1-tg1-rb4-hp1-bx1-mg1-sp1-zw1-tfb8-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1";
-import { loadModel } from "../maps/battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
-import { Hold, HOLD, RAMP_END, holdDaylight } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
+import { seededRng } from "./royale-zone.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1-fl1-or1-rt1-ut1-gf1-tg1-rb4-hp1-bx1-mg1-sp1-zw1-tfb8-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1-mrc1-hgb8";
+import { loadModel } from "../maps/battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
+import { Hold, HOLD, RAMP_END, holdDaylight } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
 
 export const PLANES = {
   count: 8,           // 8 x 9 = 72 seats for Trollface Island's 69 (user 2026-10-25; 12 for 100 before)
@@ -48,8 +48,15 @@ export const PLANES = {
   climb: 5,           // m/s up after the run
   gone: 45,           // the squadron is out of sight
   bank: 0.55,         // how much of a real coordinated turn's bank to show
+  runFrom: 260,       // m north of the island's middle the run starts (its north coast is ~150)
+  lookIn: 150,        // m over land mid look down through the ramp (LOOK_AT): looking aft,
+                      // most of the island is behind and below you
 };
 if (typeof window !== "undefined" && window.__trollPlanesTune) Object.assign(PLANES, window.__trollPlanesTune);
+const PLANE_DEFAULTS = { ...PLANES };
+/* A map's own planes (map.royale.planes: a smaller circle, lower, fewer
+   planes over a small map), over the island's; each match sets them. */
+export function tunePlanes(over) { Object.assign(PLANES, PLANE_DEFAULTS, over || {}); }
 
 const TAU = Math.PI * 2;
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -71,8 +78,6 @@ const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
 
 const LOOK_AT = 3.9;   // s before the green: the middle of the look down (royale-cine.js CINE.lookDown)
 const LAND_LEFT = 6;   // s over the island after the green, at least (nine out at stickEvery, and room)
-const LOOK_IN = 150;   // m over land mid look down through the ramp (LOOK_AT): looking aft,
-                       // most of the island is behind and below you
 /* The run slows for the drop, the way jump planes do (40 m/s easing to
    runSpeed), so the island takes ~15 s to cross: time to be well over it at
    the look down and still have it under you for the jump. Metres along the
@@ -99,12 +104,11 @@ function runDist(t) {
    plane leaves it at its own gate angle north-west of the island, timed so
    its break into its south lane is a ~40 m/s curve. */
 const RUN_DIR = new THREE.Vector3(0, 0, 1);   // due south
-const RUN_FROM = 260;    // m north of the island's middle the run starts (its north coast is ~150)
 const RING_PER_LANE = 0.5;   // ring radius change per metre of lane offset
 /* The gate angle (circle frame: x = cos, z = sin, so north is -PI/2) on
    ring `R` whose break to lane `x` is `len` m long: searched, it's cheap. */
 function gateFor(cx, cz, R, x, len) {
-  const B = new THREE.Vector3(), m0 = new THREE.Vector3(), Q = new THREE.Vector3(cx + x, 0, cz - RUN_FROM), m1 = RUN_DIR.clone().multiplyScalar(len);
+  const B = new THREE.Vector3(), m0 = new THREE.Vector3(), Q = new THREE.Vector3(cx + x, 0, cz - PLANES.runFrom), m1 = RUN_DIR.clone().multiplyScalar(len);
   const p = new THREE.Vector3(), prev = new THREE.Vector3();
   let best = -2.2, bestErr = Infinity;
   for (let th = -3.1; th < -1.2; th += 0.01) {
@@ -156,7 +160,7 @@ export function planFlights(seed, centre, edge) {
     // The break: off the ring at the gate, round to the south into its lane.
     const B = ring(gate, alt);
     const TB = new THREE.Vector3(-Math.sin(gate), 0, Math.cos(gate));
-    const Q = new THREE.Vector3(centre.x + lateral, alt, centre.z - RUN_FROM);
+    const Q = new THREE.Vector3(centre.x + lateral, alt, centre.z - P.runFrom);
     const dir = RUN_DIR.clone();
     const f = {
       i, slot: k, tA, alt, R, cx: centre.x, cz: centre.z, S, E, m0, m1, inDur, slotAngle, B, TB, Q, dir, brkLen,
@@ -171,14 +175,14 @@ export function planFlights(seed, centre, edge) {
         const d = runDist(t), x = Q.x + dir.x * d, z = Q.z + dir.z * d;
         const on = insidePolygon(edge, x, z);
         if (on && tin < 0) tin = t;
-        if (on && deep < 0 && d - runDist(tin) >= LOOK_IN) deep = t;
+        if (on && deep < 0 && d - runDist(tin) >= P.lookIn) deep = t;
         if (!on && tin >= 0) { tout = t; break; }
       }
       f.over = tin >= 0;
       const end = tout > 0 ? tout : tin >= 0 ? 30 : 8;
       // Each plane runs `lead` seconds ahead of the drop clock, so it's
       // already over land when you look down through the open ramp before
-      // the green (user, 2026-10-18: see the island, then jump): LOOK_IN m
+      // the green (user, 2026-10-18: see the island, then jump): lookIn m
       // in at the look (T-2), but never so far in that less than LAND_LEFT
       // s over the island is left after the green for everyone to go.
       f.lead = f.over ? Math.max(0, Math.min((deep >= 0 ? deep : tin) + LOOK_AT, end - LAND_LEFT)) : 0;

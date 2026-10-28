@@ -9,7 +9,7 @@
 // Colliders stay in maps.js, copied from each approved blockout, so a layout
 // plays exactly as it was walk-tested. These helpers only draw.
 
-import { placeModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
+import { placeModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
 
 /* Blender material name -> [surface, tiles per metre]. Must match TEXTURED
    in models/map_kit.py: anything else was merged into flat vertex-coloured
@@ -73,6 +73,25 @@ export const RETEXTURE = {
   GF_Clapboard: ["plaster", 1.0, 0.45],
   GF_Rock: ["rock", 0.5, 0.4],
   GF_RockDark: ["rock", 0.5, 0.3],
+  // the woods ring (models/hg_woods.py): the field-stone wall, the trees' bark
+  HG_FieldRock: ["rock", 0.9, 0.35],
+  HG_FieldRockDark: ["rock", 0.9, 0.25],
+  HG_Bark: ["wood", 0.8, 0.1],
+  HG_WoodsPine: ["grass", 0.8, 0.1],
+  HG_WoodsPineLight: ["grass", 0.8, 0.14],
+  // the ground (models/hg_ground.py): the paths, their verges and ruts, the
+  // gravel, the setts' kerbs (the setts themselves wear hollowgrin.js's texture)
+  HG_Dirt: ["dirt", 0.4, 0.22],
+  HG_Verge: ["dirt", 0.4, 0.18],
+  HG_Rut: ["dirt", 0.4, 0.12],
+  HG_Gravel: ["dirt", 0.7, 0.35],
+  HG_GravelVerge: ["dirt", 0.55, 0.14],
+  HG_Kerb: ["rock", 0.9, 0.4],
+  // Troll Royale's island round Hollowgrin (models/hg_island.py): dark grass, the cliff's rock
+  HG_IslandGrass: ["grass", 0.25, 0.25],
+  HG_IslandRock: ["rock", 0.12],
+  HG_IslandSand: ["sand", 0.3],
+  HG_IslandSoil: ["dirt", 0.3],
 };
 
 /* Drops models/<file>.glb at (x, y, z), turned `rot` radians about y.
@@ -80,8 +99,8 @@ export const RETEXTURE = {
    `castShadow: false` suits maps under a roof: the sun can't reach inside,
    and casting still draws every mesh a second time in the shadow pass.
    `groundBake`: a flat model lit by the map's ground bake (maps.js). */
-export function mapModel(api, file, { x, z, y = 0, rot = 0, scale = 1, castShadow = true, groundBake = null }) {
-  placeModel(api, file, { x, z, y, rot, scale, castShadow, mapping: RETEXTURE, groundBake });
+export function mapModel(api, file, { x, z, y = 0, rot = 0, scale = 1, castShadow = true, groundBake = null, ao = null }) {
+  placeModel(api, file, { x, z, y, rot, scale, castShadow, mapping: RETEXTURE, groundBake, ao });
 }
 
 /* Grin Site's models are gs-<name>. */

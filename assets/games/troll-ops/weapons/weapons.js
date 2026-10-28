@@ -8,7 +8,10 @@
 const COMMON = {
   headshotMult: 2.0,
   spreadRecoverRate: 6.5,
-  recoilKickYawRand: 0.012,
+  // Sideways wander per shot. CoD-style recoil is mostly a climb you pull
+  // down with a little left/right; 0.012 outweighed most guns' own drift
+  // and scattered long-range bursts (user, 2026-10-28).
+  recoilKickYawRand: 0.006,
   bobSpeed: 10,
   swaySpeed: 1.5,
   pellets: 1,
@@ -769,7 +772,10 @@ export class WeaponState {
     this.viewKickYaw += yawKick * this.adsGunKick * 1.6 * d.shakeSide;
     this.viewKickKnockback += d.recoilKickKnockback * gun * d.shakeJolt;
     this.viewKickRoll += d.recoilKickPitch * 1.4 * gun * d.shakeJolt * (Math.random() < 0.5 ? -1 : 1);
-    this.spread = Math.min(this.def.spreadMax, this.spread + this.def.spreadPerShot);
+    // Bloom is a hipfire thing: down the sights a burst stays nearly as
+    // tight as its first round, so long range is about pulling the climb
+    // down, not luck (CoD feel, user 2026-10-28).
+    this.spread = Math.min(this.def.spreadMax, this.spread + this.def.spreadPerShot * (1 - 0.9 * this.adsT));
   }
 
   update(dt, { moving, sprinting, grounded, jumping, adsHeld, canAds }) {
@@ -796,8 +802,11 @@ export class WeaponState {
     if (moving) hipTarget = Math.max(hipTarget, def.spreadMoving);
     if (!grounded || jumping) hipTarget = Math.max(hipTarget, def.spreadJump);
 
+    // Walking while aimed costs nothing, as in CoD; sprinting still does.
+    // The old 1.45 walk penalty plus per-shot bloom put a walking rifle's
+    // burst ~1.4 m off at 60 m (user, 2026-10-28).
     let adsTarget = def.spreadAds;
-    if (moving) adsTarget *= sprinting ? 2.2 : 1.45;
+    if (moving && sprinting) adsTarget *= 2.2;
     if (!grounded || jumping) adsTarget *= 3.5;
 
     const targetBase = hipTarget + (adsTarget - hipTarget) * this.adsT;

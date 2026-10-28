@@ -29,21 +29,25 @@
 // a material is merged into one mesh (Kit.flush), so the whole village costs
 // a few dozen draws. Colliders are plain AABBs through api.ghostBox, laid by
 // the same helpers that lay the visible pieces, so the two can't drift.
-// Light is mostly emissive (carved pumpkins, candles, windows, bulbs) with
-// twelve real point lights, all built here at load: nothing adds a light at
-// runtime (see light-pool.js for why that matters). The glows (bulb halos,
+// Light is mostly emissive (carved pumpkins, candles, windows, bulbs) and the
+// light bake (models/bake_hollowgrin.blender.py: the night sky and ten fixed
+// lamps in every model and the ground), with four real point lights where
+// characters fight under a lamp, all built here at load: nothing adds a light
+// at runtime (see light-pool.js for why that matters). The glows (bulb halos,
 // fireflies, wisps) are one Points draw, animated in its vertex shader.
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { SURFACES, retexture } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2";
-import { portrait } from "./house-props.js?v=hg6e-sb2-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2";
-import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2";
-import { loadModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
+import { SURFACES, retexture } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
+import { portrait } from "./house-props.js?v=hg6e-sb2-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1-hgb5-hgb6-hgb8";
+import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1-hgb5-hgb6-hgb8";
+import { loadModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
 import { buildCauldronFx } from "./hollowgrin-cauldron.js?v=hgb2";
-import { buildChapel } from "./hollowgrin-chapel.js?v=hg6tc-or1-tcs1-hgb2";
+import { buildChapel } from "./hollowgrin-chapel.js?v=hg6tc-or1-tcs1-hgb2-hgb6";
+import { islandScenery } from "./hollowgrin-island.js?v=hgi1-hgb8";
+import { bandOrgan, wheelCreak, coasterRattle } from "./hollowgrin-fair-sound.js?v=hgb4";
 import { roseTexture } from "./chapel-art.js?v=ca1-tcs1";
-import { placeMannequins } from "./hollowgrin-mannequins.js?v=hg6h-sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2";
+import { placeMannequins } from "./hollowgrin-mannequins.js?v=hg6h-sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1-hgb6";
 
 export const HG_FLOORS = { ground: 0, upper: 3.6, loft: 2.4, wheel: 6.0, mansion: 4.2, brake: 9.0 };
 // The barn's loft (x 17.35..20.4 over the west end) is its own floor: by
@@ -185,6 +189,8 @@ const FIELD_BARROW = [33.2, 7.0];
 // Trick-or-Treat Lane (hg_lane): the mailboxes (x from each house's middle, z), the houses with a bike
 const LANE_MAILBOX = [1.05, 36.5];
 const LANE_BIKES = [0, 3];
+// the midway's popcorn cart (models/hg_fair.py POPCORN)
+const MIDWAY_POPCORN = [46.6, 27.6];
 const WEST_LOOP = {
   path: -37.4,
   wallX: -38.75, walls: [[-16, -11.5], [-10, -8.7], [11, 13], [14, 19], [20.5, 25], [26.5, 28.8]],
@@ -267,10 +273,17 @@ function nightFx(mat) {
 /* A modelled building (models/build_hollowgrin.blender.py), in map
    coordinates. `wash` tints its materials; `bounce` lifts the named
    (Blender) materials' own texture, for interiors the moon can't reach. */
-function hgModel(api, name, { wash = null, bounce = {}, parent = null, then = null } = {}) {
+/* A model, retextured, its meshes tagged with their Blender material. */
+function hgLoad(name) {
   return loadModel(name, {}).then((obj) => {
     obj.traverse((n) => { if (n.isMesh) n.userData.blenderMat = n.material.name; });
     retexture(obj, RETEXTURE);
+    return obj;
+  });
+}
+
+function hgModel(api, name, { wash = null, bounce = {}, parent = null, then = null } = {}) {
+  return hgLoad(name).then((obj) => {
     obj.traverse((n) => {
       if (!n.isMesh) return;
       const m = n.material;
@@ -901,60 +914,76 @@ function carvePatchGeo(r, ribs, squash) {
   return g;
 }
 
-/* A dead tree: crooked branches that fork and thin out. */
-function treeGeo(seed, { height = 6, r = 0.3, levels = 3, spread = 0.75, lean = 0.12 } = {}) {
-  const R = rng(seed);
-  const parts = [];
-  const up = new THREE.Vector3(0, 1, 0);
-  const seg = (a, b, r0, r1) => {
-    const dir = new THREE.Vector3().subVectors(b, a);
-    const len = dir.length();
-    const geo = new THREE.CylinderGeometry(r1, r0, len, r0 > 0.08 ? 7 : 5, 1, true);
-    geo.translate(0, len / 2, 0);
-    geo.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, dir.normalize()));
-    geo.translate(a.x, a.y, a.z);
-    parts.push(geo);
+/* The woods round the outside of the wall: hg-woodkit.glb's pieces,
+   instanced along the ring from one seeded stream (the same woods for
+   everyone). Dead trees in front, dark pines behind, and between them
+   stumps, fallen logs, roots, bramble against the wall, toadstools, and
+   crows perched on the stumps and logs. All outside the line: no shadows
+   cast (they cost more than they show there), none of them a collider. */
+function woods(kit, root) {
+  kit.updateMatrixWorld(true);
+  const T = rng(99);
+  const spots = new Map();
+  const put = (name, x, z, s, y = 0, ry = T() * 6.28) => {
+    if (!spots.has(name)) spots.set(name, []);
+    spots.get(name).push([x, z, ry, s, y]);
   };
-  const grow = (p, dir, len, rad, depth) => {
-    let cur = p.clone();
-    const d = dir.clone();
-    const n = depth === levels ? 4 : 3;
+  // a point on the ring, `out` metres past the line
+  const ring = (out) => {
+    const t = T() * 4;
+    if (t < 1) return [THREE.MathUtils.lerp(BOUNDS.minX - 14, BOUNDS.maxX + 14, t), BOUNDS.minZ - out];
+    if (t < 2) return [THREE.MathUtils.lerp(BOUNDS.minX - 14, BOUNDS.maxX + 14, t - 1), BOUNDS.maxZ + out];
+    if (t < 3) return [BOUNDS.minX - out, THREE.MathUtils.lerp(BOUNDS.minZ, BOUNDS.maxZ, t - 2)];
+    return [BOUNDS.maxX + out, THREE.MathUtils.lerp(BOUNDS.minZ, BOUNDS.maxZ, t - 3)];
+  };
+  // clear of the lane's west end, the creek's bed and the chapel's apse
+  const clear = (x, z, r) => !(x < BOUNDS.minX && z > LANE.z0 - 1.5 - r && z < LANE.z1 + 1.5 + r)
+    && creekDist(x, z) > CREEK_W + r
+    && !(x < BOUNDS.minX && x > BOUNDS.minX - 6 - r && z > -3 - r && z < 7 + r);
+  const scatter = (n, out0, out1, r, fn) => {
     for (let i = 0; i < n; i++) {
-      d.add(new THREE.Vector3((R() - 0.5) * 0.55, (R() - 0.35) * 0.3, (R() - 0.5) * 0.55)).normalize();
-      const nxt = cur.clone().addScaledVector(d, len / n);
-      seg(cur, nxt, rad * (1 - (i / n) * 0.5), rad * (1 - ((i + 1) / n) * 0.5));
-      cur = nxt;
-      // a side shoot partway up the thick limbs
-      if (depth >= 2 && i === 1 && R() < 0.6) {
-        const side = randomSide(d, 0.9 + R() * 0.5, R);
-        grow(cur, side, len * 0.45, rad * 0.45, depth - 2);
-      }
-    }
-    if (depth <= 0) return;
-    const kids = depth === levels ? 3 : 2 + (R() < 0.4 ? 1 : 0);
-    for (let k = 0; k < kids; k++) {
-      grow(cur, randomSide(d, spread * (0.6 + R() * 0.7), R), len * (0.58 + R() * 0.2), rad * 0.52, depth - 1);
+      const [x, z] = ring(out0 + Math.pow(T(), 0.8) * (out1 - out0));
+      if (clear(x, z, r)) fn(x, z);
     }
   };
-  const trunkDir = new THREE.Vector3((R() - 0.5) * lean * 2, 1, (R() - 0.5) * lean * 2).normalize();
-  grow(new THREE.Vector3(0, -0.3, 0), trunkDir, height * 0.45, r, levels);
-  // roots flaring into the ground
-  for (let k = 0; k < 4; k++) {
-    const a = k * Math.PI / 2 + R();
-    seg(new THREE.Vector3(0, 0.5, 0), new THREE.Vector3(Math.cos(a) * r * 3, -0.1, Math.sin(a) * r * 3), r * 0.7, r * 0.15);
-  }
-  const g = mergeGeometries(parts.map((q) => q.toNonIndexed()), false);
-  parts.forEach((q) => q.dispose());
-  return g;
-}
+  const top = (name) => new THREE.Box3().setFromObject(kit.getObjectByName(name)).max.y;
+  scatter(200, 1.8, 11, 0.6, (x, z) => put(`tree${Math.floor(T() * 4)}`, x, z, 0.85 + T() * 0.45));
+  scatter(190, 7, 22, 1.2, (x, z) => put(`pine${Math.floor(T() * 2)}`, x, z, 0.8 + T() * 0.5));
+  scatter(120, 1.15, 3.2, 0.8, (x, z) => put(`bramble${Math.floor(T() * 2)}`, x, z, 0.8 + T() * 0.6));
+  scatter(40, 2.2, 10, 1.0, (x, z) => put("roots0", x, z, 0.8 + T() * 0.5));
+  scatter(42, 1.8, 10, 2.4, (x, z) => put("toad0", x, z, 0.8 + T() * 0.6));
+  const perches = [];
+  scatter(46, 1.8, 10, 0.6, (x, z) => {
+    const k = Math.floor(T() * 2);
+    put(`stump${k}`, x, z, 1);
+    perches.push([x, z, top(`stump${k}`)]);
+  });
+  scatter(34, 2.8, 11, 2.4, (x, z) => {
+    const k = Math.floor(T() * 2);
+    put(`log${k}`, x, z, 1);
+    perches.push([x, z, top(`log${k}`) - 0.05]);
+  });
+  for (const [x, z, y] of perches) if (T() < 0.3) put("crow0", x, z, 0.9 + T() * 0.3, y);
 
-function randomSide(d, tilt, R) {
-  const a = R() * Math.PI * 2;
-  const perp = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
-  perp.addScaledVector(d, -perp.dot(d)).normalize();
-  const out = d.clone().multiplyScalar(Math.cos(tilt)).addScaledVector(perp, Math.sin(tilt));
-  if (out.y < -0.15) out.y = -0.15;
-  return out.normalize();
+  for (const [name, list] of spots) {
+    const node = kit.getObjectByName(name);
+    node.traverse((m) => {
+      if (!m.isMesh) return;
+      const inst = new THREE.InstancedMesh(m.geometry, m.material, list.length);
+      const local = m.matrixWorld;
+      list.forEach(([x, z, ry, sc, y], i) => {
+        _e.set(0, ry, 0);
+        _q.setFromEuler(_e);
+        _m4.compose(_p.set(x, y, z), _q, _s.set(sc, sc * (0.9 + (i % 3) * 0.1), sc)).multiply(local);
+        inst.setMatrixAt(i, _m4);
+      });
+      inst.computeBoundingSphere();
+      inst.castShadow = false;
+      inst.receiveShadow = true;
+      inst.userData.woodsSpots = list.map(([x, z]) => [x, z]);   // (Royale's island takes some away)
+      root.add(inst);
+    });
+  }
 }
 
 /* A headstone with a rounded top, as an extruded outline. */
@@ -1120,10 +1149,9 @@ function hayBale(K, M, x, z, { y = 0, ry = 0, collide = true, draw = true } = {}
   if (draw) K.box(M.hay, x, y, z, w, h, d, { ry });
 }
 
-/* A gas lamp on a post; `light` adds a real one (there are only two).
-   `draw: false` keeps the glass and leaves the iron to the model (the
-   square's, hg_village.py). */
-function gasLamp(K, M, x, z, { lights = null, draw = true } = {}) {
+/* A gas lamp on a post (its light is in the bake). `draw: false` keeps the
+   glass and leaves the iron to the model (the square's, hg_village.py). */
+function gasLamp(K, M, x, z, { draw = true } = {}) {
   K.solid(x, z, 0.24, 0.24, 3.0, { pen: 3 });
   if (draw) {
     K.cyl(M.iron, x, 0, z, 0.14, 0.09, 3.0, 8);
@@ -1133,11 +1161,6 @@ function gasLamp(K, M, x, z, { lights = null, draw = true } = {}) {
     K.cyl(M.iron, x, 3.68, z, 0.2, 0.02, 0.28, 4, { ry: Math.PI / 4 });
   }
   K.box(M.lampGlass, x, 3.06, z, 0.34, 0.56, 0.34, {}, { shadow: false });
-  if (lights) {
-    const l = new THREE.PointLight(0xffb86a, 9, 16, 2);
-    l.position.set(x, 3.3, z);
-    lights.push(l);
-  }
   K.sparks?.add(x, 3.3, z, 0xffb86a, { size: 1.4, blink: 0.05 });
 }
 
@@ -1666,14 +1689,10 @@ function buildOutskirts(api, K, M, SP, root, lights) {
     K.solid(-35.6, gz, 0.6, 0.6, 2.3, { pen: 10 });
     jack(K, M, -35.6, 2.45, gz, { r: 0.24, face: -Math.PI / 2, seed: 3000 + gz * 10, glow: false });
   }
-  flat(K, M.dirt, -37.2, 2, 4.4, 2.6);
 
   /* ------------------------------------------- the west loop (hg_west.py draws it) */
   {
     const W = WEST_LOOP;
-    const gravel = surfMat("dirt", 0x6a6460, { mix: 0.25, tile: 1.4 });
-    flat(K, gravel, W.path, -7.5, 1.8, 19, { y: 0.014 });
-    flat(K, gravel, W.path, 18.3, 1.8, 30, { y: 0.014 });
     for (const [z0, z1] of W.walls) K.solid(W.wallX, (z0 + z1) / 2, W.wallT, z1 - z0, W.wallH, { pen: 8 });
     for (const [z0, z1] of W.eastWalls) K.solid(W.eastX, (z0 + z1) / 2, W.wallT, z1 - z0, W.wallH, { pen: 8 });
     for (const x of [W.lych.x0, W.lych.x1]) for (const dz of [-0.8, 0.8]) K.solid(x, W.lych.z + dz, 0.22, 0.22, 2.6, { pen: 10 });
@@ -1708,9 +1727,6 @@ function buildOutskirts(api, K, M, SP, root, lights) {
     SP.swarm(14, POND.x, POND.z, 12, 10, 0.4, 2, 0xd8ff6a, { size: 0.12, wander: 0.9, blink: 1 });
     ZSPAWNS.push({ x: -43, y: 0, z: -19.5, rise: true });
 
-    // paths: from the hedge garden's west gap, and from the pond to the hut
-    flat(K, M.dirt, -35.5, -19, 10, 2.2);
-    flat(K, M.dirt, -44.6, -31, 2, 13);
 
     // the hut (hg_west.py draws the boards, the thatch, the chimney, the
     // shelves, the table and the cauldron): its colliders and what glows
@@ -1826,24 +1842,20 @@ function buildOutskirts(api, K, M, SP, root, lights) {
     SP.swarm(10, 0, gcz, 16, 7, 0.8, 2.6, 0xd8ff6a, { size: 0.12, wander: 0.8, blink: 1 });
     K.add(M.greenGlow, place(new THREE.PlaneGeometry(16, 8), { x: 0, y: 0.03, z: gcz, rx: -Math.PI / 2 }), { shadow: false, phase: 0.5 });
     ZSPAWNS.push({ x: 4.2, y: 0, z: -38.5, rise: true });
-    // paths from the manor's back doors
-    for (const s of [-1, 1]) flat(K, M.dirt, s * 7.25, -31, 2, 6.2);
     // the potting bench outside the west door
     K.solid(GARDEN_PROPS.potting[0], GARDEN_PROPS.potting[1], 0.6, 1.8, 0.95, { pen: 4 });
   }
 
   /* ------------------------------------------- Grinmoor Fair (east) */
   {
-    flat(K, M.dirt, 39.2, -3.5, 3.4, 73);
-    flat(K, M.dirt, 28.6, 4.1, 17.4, 1.8);
+    // the arch, booths, ticket booth, high striker, tent, carts and the
+    // festoon poles are modelled (models/hg_fair.py); the words, bulbs,
+    // glows, the whack-a-troll heads and the crystal ball are ours
+    hgModel(api, "hg-fair", { wash: { color: 0xff5a3a, top: 2.5, strength: 0.06 } });
     // the entrance arch
-    for (const z of [2.3, 5.9]) {
-      K.solid(37.3, z, 0.4, 0.4, 4.2, { mat: M.barn, pen: 6 });
-      K.add(M.gold, place(new THREE.SphereGeometry(0.22, 10, 8), { x: 37.3, y: 4.4, z }));
-    }
-    K.box(M.barn, 37.3, 3.5, 4.1, 0.2, 0.85, 4.2);
+    for (const z of [2.3, 5.9]) K.solid(37.3, z, 0.4, 0.4, 4.2, { pen: 6 });
     const fairSign = sign(["GRINMOOR FAIR"], { bg: "#1a0c14", fg: "#ffcf5a", edge: "#c0283a" });
-    for (const [x, ry] of [[37.18, -Math.PI / 2], [37.42, Math.PI / 2]]) K.add(fairSign, place(new THREE.PlaneGeometry(3.9, 0.72), { x, y: 3.92, z: 4.1, ry }), { shadow: false });
+    for (const [x, ry] of [[37.08, -Math.PI / 2], [37.52, Math.PI / 2]]) K.add(fairSign, place(new THREE.PlaneGeometry(3.9, 0.72), { x, y: 3.92, z: 4.1, ry }), { shadow: false });
     festoon(K, M, SP, [[37.3, 4.5, 2.3], [37.3, 4.5, 5.9]], { sag: 0.25, every: 0.4, seed: 3 });
 
     // the carousel
@@ -1896,25 +1908,28 @@ function buildOutskirts(api, K, M, SP, root, lights) {
       const l = new THREE.PointLight(0xffc070, 10, 16, 2);
       l.position.set(cx, 3.4, cz);
       lights.push(l);
+      // its band organ, heard round the midway
+      const organ = bandOrgan();
+      root.add(ticker((renderer, scene, camera) => {
+        const d = Math.hypot(camera.position.x - cx, camera.position.y - 3, camera.position.z - cz);
+        organ.update(AUDIO, 0.35 / (1 + (d / 10) ** 2));
+      }));
     }
 
     // the game booths, facing west onto the midway
-    const booth = (z0, z1, title, stripes) => {
+    const booth = (z0, z1, title) => {
       const mz = (z0 + z1) / 2, d = z1 - z0;
-      K.solid(49.5, mz, 0.2, d, 3, { mat: M.stairWood, pen: 8 });
-      for (const z of [z0 + 0.1, z1 - 0.1]) K.solid(47.8, z, 3.6, 0.2, 2.6, { mat: M.stairWood, pen: 8 });
-      K.solid(46.25, mz, 0.5, d - 0.4, 1.0, { mat: M.barn, pen: 2 });
-      K.box(stripes, 47.7, 2.6, mz, 4.0, 0.05, d + 0.3, { rz: -0.14 });
-      K.add(stripes, place(new THREE.PlaneGeometry(d + 0.3, 0.45), { x: 45.75, y: 2.45, z: mz, ry: -Math.PI / 2 }), { shadow: false });
+      K.solid(49.5, mz, 0.2, d, 3, { pen: 8 });
+      for (const z of [z0 + 0.1, z1 - 0.1]) K.solid(47.8, z, 3.6, 0.2, 2.6, { pen: 8 });
+      K.solid(46.25, mz, 0.5, d - 0.4, 1.0, { pen: 2 });
       K.add(sign([title], { bg: "#1a0c14", fg: "#ffcf5a", edge: "#7a2ab8" }), place(new THREE.PlaneGeometry(d - 0.8, 0.6), { x: 45.7, y: 3.1, z: mz, ry: -Math.PI / 2 }), { shadow: false });
-      festoon(K, M, SP, [[45.8, 2.75, z0 + 0.2], [45.8, 2.75, z1 - 0.2]], { sag: 0.15, every: 0.45, seed: Math.round(z0) });
+      festoon(K, M, SP, [[45.62, 2.5, z0 + 0.2], [45.62, 2.5, z1 - 0.2]], { sag: 0.15, every: 0.45, seed: Math.round(z0) });
       K.box(M.lampGlass, 47.6, 2.35, mz, 0.08, 0.05, d - 0.8, {}, { shadow: false });
       K.add(M.glow, place(new THREE.PlaneGeometry(3.4, d), { x: 47.8, y: 0.03, z: mz, rx: -Math.PI / 2 }), { shadow: false, phase: 0.2 });
     };
-    booth(6.8, 11.2, "WHACK-A-TROLL", M.awningRed);
-    booth(14.4, 18.8, "RING TOSS", M.awningPurple);
-    // whack-a-troll: the mole board, and troll heads popping out of it
-    K.box(M.trimDark, 47.8, 0, 9, 1.2, 0.95, 3.6);
+    booth(6.8, 11.2, "WHACK-A-TROLL");
+    booth(14.4, 18.8, "RING TOSS");
+    // whack-a-troll: troll heads popping out of the model's cabinet
     const heads = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.42, 0.42), M.trollLit, 6);
     root.add(heads);
     heads.frustumCulled = false;
@@ -1924,90 +1939,65 @@ function buildOutskirts(api, K, M, SP, root, lights) {
         const k = Math.max(0, Math.sin(t * (1.6 + i * 0.37) + i * 2.1));
         _e.set(0, -Math.PI / 2, 0);
         _q.setFromEuler(_e);
-        _m4.compose(_p.set(47.15, 0.98 + 0.45 * k, 7.6 + i * 0.56), _q, _s.set(1, 1, 1));
+        _m4.compose(_p.set(47.45, 0.98 + 0.45 * k, 7.6 + i * 0.56), _q, _s.set(1, 1, 1));
         heads.setMatrixAt(i, _m4);
       }
       heads.instanceMatrix.needsUpdate = true;
     };
     heads.onBeforeRender();
-    K.box(M.barn, 46.9, 1.0, 9, 0.12, 0.3, 3.6);
-    // ring toss: bottles on tiers, rings on the counter
-    for (let tier = 0; tier < 3; tier++) {
-      K.box(M.stairWood, 48.2 + tier * 0.4, 0, 16.6, 0.4, 0.9 + tier * 0.3, 3.4);
-      for (let i = 0; i < 8; i++) {
-        const col = new THREE.Color().setHSL(R(), 0.7, 0.45).getHex();
-        K.add(M.candy, place(new THREE.CylinderGeometry(0.05, 0.09, 0.32, 8), { x: 48.2 + tier * 0.4, y: 0.9 + tier * 0.3 + 0.16, z: 15.2 + i * 0.4 }), { color: col, shadow: false });
-      }
-    }
-    for (let i = 0; i < 5; i++) K.add(M.candy, place(new THREE.TorusGeometry(0.12, 0.02, 4, 12), { x: 46.25 + (R() - 0.5) * 0.2, y: 1.02, z: 15.4 + i * 0.5, rx: Math.PI / 2 }), { color: [0xff3a5a, 0xffd23a, 0x3ad0ff][i % 3], shadow: false });
+    // (the ring toss's bottles and rings are the model's: the old ones' turns)
+    for (let k = 0; k < 29; k++) R();
 
     // the candy-apple cart
     {
       const x = 43.2, z = 24;
       K.api.ghostBox(x, z, 1.8, 1.0, 1.0, { pen: 2 });
-      K.box(M.barn, x, 0.35, z, 1.8, 0.65, 1.0);
-      for (const dz of [-0.55, 0.55]) K.add(M.trimDark, place(new THREE.TorusGeometry(0.3, 0.04, 6, 14), { x: x - 0.4, y: 0.3, z: z + dz }));
-      for (let i = 0; i < 12; i++) {
-        const ax = x - 0.7 + (i % 6) * 0.28, az = z - 0.2 + Math.floor(i / 6) * 0.4;
-        K.add(M.candy, place(new THREE.SphereGeometry(0.09, 8, 6), { x: ax, y: 1.09, z: az }), { color: 0xb8101e, shadow: false });
-        K.box(M.stairWood, ax, 1.15, az, 0.015, 0.16, 0.015, {}, { shadow: false });
-      }
-      for (const [dx, dz] of [[-0.85, -0.45], [0.85, -0.45], [-0.85, 0.45], [0.85, 0.45]]) K.box(M.iron, x + dx, 1.0, z + dz, 0.04, 1.2, 0.04);
-      K.box(M.awningRed, x, 2.2, z, 2.1, 0.04, 1.3);
       SP.add(x, 2.0, z, 0xffd27a, { size: 0.8, blink: 0.1 });
+    }
+    // the popcorn cart, its case lit
+    {
+      const [x, z] = MIDWAY_POPCORN;
+      K.api.ghostBox(x, z, 0.9, 0.7, 1.9, { pen: 2 });
+      SP.add(x, 1.25, z, 0xffd27a, { size: 0.7, blink: 0.1 });
     }
     // the ticket booth, with the second easter egg on its north side
     {
       const x = 36.2, z = 7.6;
-      K.solid(x, z, 1.6, 1.6, 2.4, { mat: M.barn, pen: 8 });
-      K.add(M.roof, place(new THREE.ConeGeometry(1.4, 1.1, 4), { x, y: 2.95, z, ry: Math.PI / 4 }));
+      K.solid(x, z, 1.6, 1.6, 2.4, { pen: 8 });
       K.add(M.winGlow, place(new THREE.PlaneGeometry(0.8, 0.6), { x: x - 0.81, y: 1.4, z, ry: -Math.PI / 2 }), { shadow: false });
       K.add(sign(["TICKETS"], { w: 512, h: 128, bg: "#1a0c14", fg: "#ffcf5a", edge: "#c0283a" }), place(new THREE.PlaneGeometry(1.2, 0.3), { x: x - 0.82, y: 2.0, z, ry: -Math.PI / 2 }), { shadow: false });
       K.add(M.posterPaint, place(new THREE.PlaneGeometry(1.42, 0.8), { x, y: 1.35, z: z - 0.82, ry: Math.PI }), { shadow: false });
-      K.box(M.gold, x, 0.91, z - 0.81, 1.56, 0.07, 0.04);
-      K.box(M.gold, x, 1.74, z - 0.81, 1.56, 0.07, 0.04);
     }
     // the high striker
     {
       const x = 42.5, z = -17;
-      K.solid(x, z, 1.2, 1.2, 0.3, { mat: M.stairWood, pen: 6 });
+      K.solid(x, z, 1.2, 1.2, 0.3, { pen: 6 });
       K.solid(x, z, 0.35, 0.35, 5.6, { y: 0.3, pen: 6 });
-      K.box(M.awningRed, x - 0.18, 0.3, z, 0.02, 5.3, 0.3, {}, { shadow: false });
-      K.box(M.barnTrim, x, 0.3, z, 0.3, 5.3, 0.25);
-      K.add(M.gold, place(new THREE.SphereGeometry(0.28, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), { x, y: 5.75, z, rx: Math.PI }));
-      K.box(M.candy, x - 0.2, 1.6, z, 0.12, 0.12, 0.16, {}, { color: 0xff3a3a });
       K.add(sign(["TEST YOUR LULZ"], { bg: "#1a0c14", fg: "#ff5a6a", edge: "#ffd23a" }), place(new THREE.PlaneGeometry(2.6, 0.5), { x: x - 0.2, y: 6.3, z, ry: -Math.PI / 2 }), { shadow: false });
-      K.box(M.stairWood, x - 0.9, 0, z + 0.7, 0.07, 1.1, 0.07, { rz: 0.35 });
-      K.box(M.stairWood, x - 1.08, 1.02, z + 0.7, 0.32, 0.2, 0.2, { rz: 0.35 });
       SP.add(x, 5.6, z, 0xffd27a, { size: 0.9, blink: 0.3 });
     }
     // Madame Lulz's fortune tent
     {
       const x = 45.5, z = -30, r = 2.4;
-      K.add(M.awningPurple, place(new THREE.CylinderGeometry(r, r, 2.2, 14, 1, true, Math.PI * 1.5 + 0.32, Math.PI * 2 - 0.64), { x, y: 1.1, z }));
-      K.add(M.awningPurple, place(new THREE.ConeGeometry(r + 0.25, 2.0, 14, 1, true), { x, y: 3.2, z }));
-      K.add(M.gold, place(new THREE.SphereGeometry(0.15, 8, 6), { x, y: 4.3, z }));
       K.api.ghostBox(x, z - r, r * 2, 0.2, 2.2, { pen: 1 });
       K.api.ghostBox(x, z + r, r * 2, 0.2, 2.2, { pen: 1 });
       K.api.ghostBox(x + r, z, 0.2, r * 2, 2.2, { pen: 1 });
       for (const s of [-1, 1]) K.api.ghostBox(x - r, z + s * 1.5, 0.2, 1.8, 2.2, { pen: 1 });
-      K.solid(x + 0.6, z, 1.0, 1.0, 0.8, { mat: M.fabric, pen: 1.5 });
+      K.solid(x + 0.6, z, 1.0, 1.0, 0.8, { pen: 1.5 });
       K.add(M.bulb, place(new THREE.SphereGeometry(0.2, 14, 10), { x: x + 0.6, y: 1.0, z }), { color: 0xc89aff, shadow: false });
       K.add(M.purpleGlow, place(new THREE.PlaneGeometry(4, 4), { x, y: 0.04, z, rx: -Math.PI / 2 }), { shadow: false, phase: 0.4 });
       SP.add(x + 0.6, 1.0, z, 0xb070ff, { size: 1.4, blink: 0.3 });
-      K.add(sign(["MADAME LULZ"], { bg: "#140a1c", fg: "#d8a6ff", edge: "#ffcf5a" }), place(new THREE.PlaneGeometry(2.2, 0.45), { x: x - r - 0.05, y: 2.45, z, ry: -Math.PI / 2 }), { shadow: false });
+      K.add(sign(["MADAME LULZ"], { bg: "#140a1c", fg: "#d8a6ff", edge: "#ffcf5a" }), place(new THREE.PlaneGeometry(2.2, 0.45), { x: x - r - 0.3, y: 2.52, z, ry: -Math.PI / 2 }), { shadow: false });
     }
     // string lights zig-zagging down the midway
-    const fpts = [[37.6, -36], [41.4, -30], [37.6, -24], [41.4, -18], [37.6, -12], [37.6, 0], [41.4, 12], [37.6, 24], [41.4, 30]];
-    for (const [x, z] of fpts) pole(K, M, x, z);
+    const fpts = [[37.6, -36], [41.4, -26.6], [37.6, -24], [41.4, -18], [37.6, -12], [37.6, 0], [41.4, 12], [37.6, 24], [41.4, 30]];
+    for (const [x, z] of fpts) K.solid(x, z, 0.2, 0.2, 4.2, { pen: 3 });
     festoon(K, M, SP, fpts.map(([x, z]) => [x, 4.0, z]), { seed: 11 });
   }
 
   /* ------------------------------------------- Trick-or-Treat Lane */
   {
     hgModel(api, "hg-lane");
-    flat(K, M.dirt, 0, 35, 112, 3.2, { y: 0.014 });
-    flat(K, M.dirt, 0, 32.6, 4.4, 1.8, { y: 0.013 });
     const sidings = [M.sidingA, M.sidingB, M.sidingC];
     const houses = [[-49.5, -42.5], [-31, -24], [-19.5, -12.5], [12.5, 19.5], [24, 31], [39, 46]];
     houses.forEach(([xa, xb], i) => {
@@ -2032,7 +2022,6 @@ function buildOutskirts(api, K, M, SP, root, lights) {
       K.box(M.lampGlass, mid + 0.85, 1.9, zf - 0.08, 0.16, 0.26, 0.12, {}, { shadow: false });
       SP.add(mid + 0.85, 2.03, zf - 0.2, 0xffb86a, { size: 0.9, blink: 0.05 });
       jack(K, M, mid - 1.4, 0.3, 38.7, { r: 0.26, face: Math.PI, seed: 5000 + i * 3 });
-      flat(K, M.dirt, mid, 37.7, 1.1, 1.4, { y: 0.013 });
       picketFence(K, M, 36.95, xa - 0.4, xb + 0.4, [[mid - 0.6, mid + 0.6]], { draw: false });
       K.api.ghostBox(mid + LANE_MAILBOX[0], LANE_MAILBOX[1], 0.25, 0.5, 1.25, { pen: 1 });
       if (LANE_BIKES.includes(i)) K.api.ghostBox(mid - 2.6, 37.25, 1.75, 0.55, 1.0, { pen: 1 });
@@ -2123,9 +2112,6 @@ function buildOutskirts(api, K, M, SP, root, lights) {
       K.add(sign(["THE TROLL HOUSE"], { bg: "#120c10", fg: "#ffffff", edge: "#e0662f" }), place(new THREE.PlaneGeometry(3.2, 0.55), { x: 0, y: 2.85, z: tz0 - 0.02, ry: Math.PI }), { shadow: false });
       K.add(sign(["U MAD?"], { w: 512, h: 256, bg: "#6a4a2c", fg: "#1a120c", edge: "#3a2614" }), place(new THREE.PlaneGeometry(1.2, 0.6), { x: 0, y: 0.02, z: tz0 - 0.55, rx: -Math.PI / 2, rz: Math.PI }), { shadow: false });
       K.solid(0, tz0 - 0.4, 1.8, 0.5, 0.18, { mat: M.stairWood, pen: 4 });
-      const l = new THREE.PointLight(0xffb070, 8, 12, 2);
-      l.position.set(0, 2.9, 42.2);
-      lights.push(l);
     }
     // the Meme Gallery in its front yard
     {
@@ -2236,8 +2222,8 @@ function buildOutskirts(api, K, M, SP, root, lights) {
 /* ================================================== the Grinmoor Fair park */
 
 /* Granite setts, four courses to the texture, each a row of stones of
-   uneven length that wraps left to right; laid in rings round the fountain
-   (settsRing) and in straight runs (settsRect). One course is 0.42 m. */
+   uneven length that wraps left to right. One course is 0.42 m; the setts
+   themselves are models/hg_ground.py's (its UVs lay the courses). */
 function settsTexture() {
   return tex("setts", () => canvasTex(512, 512, (g, w, h) => {
     const R = rng(77);
@@ -2271,41 +2257,6 @@ function settsTexture() {
   }, { repeat: true }));
 }
 
-/* Rings of setts from r0 out to r1 round (cx, cz), each course its own ring
-   with a whole number of texture repeats round it, so it closes cleanly. */
-function settsRing(K, mat, cx, cz, r0, r1, { y = 0.016, scale = 1 } = {}) {
-  const pos = [], uv = [], nrm = [];
-  const band = 0.42 * scale;
-  for (let k = 0; r0 + k * band < r1 - 0.01; k++) {
-    const ri = r0 + k * band, ro = Math.min(r1, ri + band);
-    const reps = Math.max(1, Math.round((2 * Math.PI * (ri + ro) / 2) / (3.4 * scale)));
-    const seg = Math.max(24, Math.ceil((2 * Math.PI * ro) / 0.5));
-    const v0 = (k % 4) / 4, v1 = v0 + (ro - ri) / band / 4;
-    for (let i = 0; i < seg; i++) {
-      const a0 = (i / seg) * Math.PI * 2, a1 = ((i + 1) / seg) * Math.PI * 2;
-      const u0 = (i / seg) * reps, u1 = ((i + 1) / seg) * reps;
-      const P = (r, a) => [cx + Math.cos(a) * r, y, cz + Math.sin(a) * r];
-      const quad = [[P(ri, a0), u0, v0], [P(ri, a1), u1, v0], [P(ro, a1), u1, v1], [P(ri, a0), u0, v0], [P(ro, a1), u1, v1], [P(ro, a0), u0, v1]];
-      for (const [p, u, v] of quad) { pos.push(...p); uv.push(u, v); nrm.push(0, 1, 0); }
-    }
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute("normal", new THREE.Float32BufferAttribute(nrm, 3));
-  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
-  K.add(mat, g, { shadow: false });
-}
-
-/* A straight run of setts, courses along x. */
-function settsRect(K, mat, x0, x1, z0, z1, { y = 0.017 } = {}) {
-  const g = new THREE.PlaneGeometry(x1 - x0, z1 - z0);
-  const uv = g.attributes.uv.array, pos = g.attributes.position.array;
-  for (let i = 0; i < uv.length / 2; i++) {
-    uv[i * 2] = (pos[i * 3] + (x0 + x1) / 2) / 3.4;
-    uv[i * 2 + 1] = (pos[i * 3 + 1] - (z0 + z1) / 2) / 1.68;
-  }
-  K.add(mat, place(g, { x: (x0 + x1) / 2, y, z: (z0 + z1) / 2, rx: -Math.PI / 2 }), { shadow: false });
-}
 
 /* Soft rings of light on black: the fountain water's moving sparkle. */
 function rippleTexture() {
@@ -2471,9 +2422,6 @@ function buildPark(api, K, M, SP, root, lights) {
       }
       K.add(M.gold, place(new THREE.TorusGeometry(0.28, 0.025, 5, 16), { x: (x0 + x1) / 2, y: 1.6, z }), { shadow: false });
     }
-    // the way in from the old midway, paved from the gate to the plaza
-    flat(K, M.dirt, 45.7, gz, 9.6, 3.2, { y: 0.013 });
-    settsRect(K, M.setts, x - 0.6, PLAZA.x - PLAZA.r + 0.4, GATE.z0 - 0.2, GATE.z1 + 0.2);
     K.add(sign(["STAFF ONLY"], { w: 512, h: 128, bg: "#e8dcc0", fg: "#8a1a1a", edge: "#8a1a1a" }),
       place(new THREE.PlaneGeometry(0.9, 0.24), { x: x - 0.37, y: 1.6, z: -37.15, ry: -Math.PI / 2 }), { shadow: false });
   }
@@ -2481,11 +2429,6 @@ function buildPark(api, K, M, SP, root, lights) {
   /* ------------------------------------------- the plaza and its fountain */
   {
     const { x: fx, z: fz, r } = PLAZA;
-    settsRing(K, M.setts, fx, fz, 3.6, r);
-    // a paved way on to the wheel's boarding steps, and to the stalls' alley
-    settsRect(K, M.setts, fx + r - 0.5, BOARDING.x0 - 1.2, GATE.z0 + 0.4, GATE.z1 - 0.4);
-    flat(K, M.dirt, 61.65, -8.6, 2.5, 6.2, { y: 0.013 });
-
     hgModel(api, "hg-fountain", { wash: { color: 0xff7a5a, top: 1.6, strength: 0.07 } });
     discCollider(api, fx, fz, 3.75, 1.12, { pen: 0.4 });   // the curb and its fence
     discCollider(api, fx, fz, 2.1, 1.8, { pen: 6 });       // the first bowl
@@ -2515,9 +2458,6 @@ function buildPark(api, K, M, SP, root, lights) {
       jack(K, M, x, 0, z, { r: k ? 0.55 : 0.68, face: Math.atan2(Math.cos(a), Math.sin(a)), seed: 6300 + k });
       K.api.ghostBox(x, z, k ? 1.0 : 1.2, k ? 1.0 : 1.2, k ? 0.85 : 1.05, { pen: 2 });
     }
-    const l = new THREE.PointLight(0xff8a5a, 7, 15, 2);
-    l.position.set(fx - 1.5, 2.6, fz);
-    lights.push(l);
 
     // benches facing the fountain, lamp posts with banners
     hgModel(api, "hg-plaza");
@@ -2618,6 +2558,15 @@ function buildPark(api, K, M, SP, root, lights) {
       }
       cabins.instanceMatrix.needsUpdate = true;
     };
+    // the axle creaks now and then, heard from round the plaza
+    let creakAt = 0;
+    root.add(ticker((renderer, scene, camera) => {
+      const t = performance.now() / 1000;
+      if (t < creakAt) return;
+      creakAt = t + 4 + Math.random() * 4;
+      const d = Math.hypot(camera.position.x - fx, camera.position.y - hub, camera.position.z - fz);
+      wheelCreak(AUDIO, 0.3 / (1 + (d / 14) ** 2));
+    }));
     cabins.onBeforeRender();
   }
 
@@ -3107,10 +3056,6 @@ function buildMansion(api, K, M, SP, root, lights) {
       candle(K, M, cx + Math.cos(a) * 0.75, 3.07, cz + Math.sin(a) * 0.75, { h: 0.14, seed: 7300 + i });
       SP.add(cx + Math.cos(a) * 0.75, 3.3, cz + Math.sin(a) * 0.75, 0xffc070, { size: 0.7, blink: 0.1 });
     }
-    const l = new THREE.PointLight(0xffd0a0, 6, 12, 2);
-    l.position.set(cx, 2.8, cz);
-    l.userData.flicker = 1.3;
-    lights.push(l);
     K.add(M.ember, place(new THREE.PlaneGeometry(0.9, 0.55), { x: 69.5, y: F + 0.3, z: 25.84 }), { shadow: false });
     K.add(M.glow, place(new THREE.PlaneGeometry(2.8, 2.8), { x: 69.5, y: F + 0.02, z: 26.6, rx: -Math.PI / 2 }), { shadow: false, phase: 0.6 });
     const dancers = [];
@@ -3181,12 +3126,12 @@ function buildMansion(api, K, M, SP, root, lights) {
 const LOG_PATH = [[67.5, 41.1], [55.6, 41.1], [55.6, 15.1], [82.0, 15.1], [82.0, 31.2]];
 
 function buildMountain(api, K, M, SP, root, lights) {
-  hgModel(api, "hg-mountain", { wash: { color: 0x3a6aff, top: 9, strength: 0.13 } });
+  hgModel(api, "hg-mountain", { wash: { color: 0x8a8aff, top: 9, strength: 0.04 } });
+  hgModel(api, "hg-skull");
   hgModel(api, "hg-moat");
 
   /* ---- the rock and the cave path through it */
   for (const [cx, cz, w, d, y0, top] of mountainCells()) K.api.ghostBox(cx, cz, w, d, top - y0, { y: y0, pen: 12 });
-  for (const [x0, x1, z0, z1] of MOUNT_TUNNEL) flat(K, M.dirt, (x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, { y: 0.014 });
   lantern(K, M, 74.4, 2.3, 35.1, { hang: 0.8, floor: 0, seed: 8000, pool: 3 });
   lantern(K, M, 75.1, 2.3, 31.6, { hang: 0.8, floor: 0, seed: 8001, pool: 3 });
   K.add(M.greenGlow, place(new THREE.PlaneGeometry(3, 3), { x: 75.1, y: 0.03, z: 33.6, rx: -Math.PI / 2 }), { shadow: false, phase: 0.3 });
@@ -3200,9 +3145,10 @@ function buildMountain(api, K, M, SP, root, lights) {
     const [sx, sy, sz, yaw] = MOUNT_SKULL;
     const S = (lx, ly, lz) => [sx + lx * Math.cos(yaw) + lz * Math.sin(yaw), sy + ly, sz - lx * Math.sin(yaw) + lz * Math.cos(yaw)];
     for (const s of [-1, 1]) {
-      const [x, y, z] = S(s * 0.95, 1.5, 2.0);
-      K.add(M.skullEye, place(new THREE.SphereGeometry(0.34, 14, 10), { x, y, z }), { shadow: false, phase: s * 0.1 });
-      SP.add(x, y, z, 0xff2a1a, { size: 5, blink: 0.35 });
+      // in the Studio skull's sockets (models/hg_park.py SKULL_SCALE, SKULL_BASE)
+      const [x, y, z] = S(s * 0.85, 4.7, 2.4);
+      K.add(M.skullEye, place(new THREE.SphereGeometry(0.32, 14, 10), { x, y, z }), { shadow: false, phase: s * 0.1 });
+      SP.add(x, y, z, 0xff2a1a, { size: 4, blink: 0.35 });
     }
   }
 
@@ -3244,8 +3190,6 @@ function buildMountain(api, K, M, SP, root, lights) {
       box(a1 + 0.3, a1 + 0.9, 0.27);
       for (const s of [-1, 1]) box(a0 - 0.3, a1 + 0.3, 1.0, MOAT_DECK_Y, 0.08, s * (w / 2 - 0.05), 0.3);
     }
-    // the lane carries on over its bridge to the mountain\x27s cave
-    flat(K, M.dirt, (57.8 + 72.7) / 2, 35, 72.7 - 57.8, 3.2, { y: 0.014 });
   }
 
   /* ---- posts along the banks: corn husks, a pumpkin, a lantern glow */
@@ -3479,31 +3423,27 @@ function buildCoaster(api, K, M, SP, root, lights) {
     // 2 m clear of the stalls' backs, so there's a walkway between
     const st = { x0: 55.5, x1: 68.5, zN: -20.9, zS: -16.1, y: 1.2 };
     const cx = (st.x0 + st.x1) / 2, w = st.x1 - st.x0;
-    K.solid(cx, -20.15, w, 1.5, st.y, { mat: M.stationDeck, pen: 8 });
-    K.solid(cx, -16.85, w, 1.5, st.y, { mat: M.stationDeck, pen: 8 });
+    // drawn by hg-coaster (models/hg_park.py build_coaster): the colliders here
+    hgModel(api, "hg-coaster");
+    K.solid(cx, -20.15, w, 1.5, st.y, { pen: 8 });
+    K.solid(cx, -16.85, w, 1.5, st.y, { pen: 8 });
     for (const z of [-20.9, -16.1]) {
-      for (const x of [st.x0 + 0.2, cx, st.x1 - 0.2]) K.solid(x, z, 0.25, 0.25, 4.2, { mat: M.support, pen: 6 });
+      for (const x of [st.x0 + 0.2, cx, st.x1 - 0.2]) K.solid(x, z, 0.25, 0.25, 4.2, { pen: 6 });
     }
-    K.solid(cx, -18.5, w + 0.6, 5.6, 0.25, { y: 4.2, mat: M.stationRoof, pen: 6 });
-    K.box(M.track, cx, 4.45, -18.5, w + 0.7, 0.35, 5.7);
+    K.solid(cx, -18.5, w + 0.6, 5.6, 0.25, { y: 4.2, pen: 6 });
     // steps up to each platform from the west end, a gate rail on the track side
     for (const z of [-20.15, -16.85]) {
-      for (let k = 0; k < 3; k++) K.solid(st.x0 - 0.2 - (2 - k) * 0.4, z, 0.4, 1.5, 0.3 * (k + 1), { mat: M.stationDeck, pen: 6 });   // 0.3 m rises
+      for (let k = 0; k < 3; k++) K.solid(st.x0 - 0.2 - (2 - k) * 0.4, z, 0.4, 1.5, 0.3 * (k + 1), { pen: 6 });   // 0.3 m rises
     }
     for (const z of [-19.45, -17.55]) {
       K.api.ghostBox(cx, z, w, 0.08, 1.0, { y: st.y, pen: 0.3 });
-      K.box(M.gold, cx, st.y + 0.95, z, w, 0.06, 0.06);
-      for (let x = st.x0 + 0.5; x < st.x1; x += 1.3) K.box(M.gold, x, st.y, z, 0.05, 0.95, 0.05, {}, { shadow: false });
     }
     const title = sign(["THE GRINDER"], { bg: "#0a1a1c", fg: "#7affe0", edge: "#ffb347" });
     for (const [z, ry] of [[-21.32, Math.PI], [-15.68, 0]]) K.add(title, place(new THREE.PlaneGeometry(6.4, 0.8), { x: cx, y: 5.2, z, ry }), { shadow: false });
-    for (const z of [-21.36, -15.64]) K.box(M.track, cx, 4.75, z, 6.8, 0.95, 0.06);
     // the queue maze north of it: switchback rails, posts with bulbs
     for (const [z, a, b] of [[-22.6, 57.5, 68.5], [-24.0, 55.5, 66.5], [-25.4, 57.5, 68.5]]) {
       K.api.ghostBox((a + b) / 2, z, b - a, 0.08, 1.0, { pen: 0.3 });
-      for (const y of [0.5, 0.95]) K.box(M.iron, (a + b) / 2, y, z, b - a, 0.05, 0.05, {}, { shadow: false });
       for (let x = a; x <= b + 0.01; x += 2.2) {
-        K.box(M.iron, x, 0, z, 0.08, 1.05, 0.08);
         K.add(M.bulb, place(new THREE.OctahedronGeometry(0.06), { x, y: 1.12, z }), { color: BULBS[Math.round(x) % 4], shadow: false });
       }
     }
@@ -3516,33 +3456,16 @@ function buildCoaster(api, K, M, SP, root, lights) {
   {
     const D = COASTER_DECK, S = COASTER_STAIR;
     const dcx = (D.x0 + D.x1) / 2, dcz = (D.z0 + D.z1) / 2;
-    K.solid(dcx, dcz, D.x1 - D.x0, D.z1 - D.z0, 0.25, { y: D.y - 0.25, mat: M.stationDeck, pen: 6 });
-    for (const x of [D.x0 + 0.15, D.x1 - 0.15]) for (const z of [D.z0 + 0.15, D.z1 - 0.15]) K.solid(x, z, 0.24, 0.24, D.y - 0.25, { mat: M.support, pen: 6 });
+    K.solid(dcx, dcz, D.x1 - D.x0, D.z1 - D.z0, 0.25, { y: D.y - 0.25, pen: 6 });
+    for (const x of [D.x0 + 0.15, D.x1 - 0.15]) for (const z of [D.z0 + 0.15, D.z1 - 0.15]) K.solid(x, z, 0.24, 0.24, D.y - 0.25, { pen: 6 });
     const rail = { y: D.y, pen: 0.3 };
     K.api.ghostBox(dcx, D.z0 + 0.03, D.x1 - D.x0, 0.08, 1.05, rail);
     K.api.ghostBox(D.x0 + 0.03, dcz, 0.08, D.z1 - D.z0, 1.05, rail);
     K.api.ghostBox(D.x1 - 0.03, dcz, 0.08, D.z1 - D.z0, 1.05, rail);
     for (const [a, b] of [[D.x0, S.x0], [S.x1, D.x1]]) K.api.ghostBox((a + b) / 2, D.z1 - 0.03, b - a, 0.08, 1.05, rail);
-    for (const [ax, az, bx, bz] of [[D.x0, D.z0, D.x1, D.z0], [D.x0, D.z0, D.x0, D.z1], [D.x1, D.z0, D.x1, D.z1], [D.x0, D.z1, S.x0, D.z1], [S.x1, D.z1, D.x1, D.z1]]) {
-      const len = Math.hypot(bx - ax, bz - az), cxx = (ax + bx) / 2, czz = (az + bz) / 2;
-      for (const y of [0.5, 1.0]) K.box(M.yellow, cxx, D.y + y, czz, Math.max(0.05, Math.abs(bx - ax)), 0.05, Math.max(0.05, Math.abs(bz - az)), {}, { shadow: false });
-      for (let k = 0; k <= Math.round(len); k++) {
-        K.box(M.yellow, ax + ((bx - ax) * k) / Math.max(1, Math.round(len)), D.y, az + ((bz - az) * k) / Math.max(1, Math.round(len)), 0.06, 1.05, 0.06, {}, { shadow: false });
-      }
-    }
     api.stairs((S.x0 + S.x1) / 2, S.zFoot, S.x1 - S.x0, S.steps, S.rise, S.run, "-z", { ghost: true });
-    for (let i = 0; i < S.steps; i++) {
-      const top = S.rise * (i + 1), zc = S.zFoot - S.run * (i + 0.5);
-      K.box(M.stationDeck, (S.x0 + S.x1) / 2, top - 0.06, zc, S.x1 - S.x0, 0.06, S.run + 0.02, {}, { shadow: false });
-    }
-    for (const x of [S.x0, S.x1]) {
-      K.add(M.support, rodGeo([x, 0, S.zFoot + 0.1], [x, S.rise * S.steps, S.zFoot - S.run * S.steps], 0.05, 4));
-      K.add(M.yellow, rodGeo([x, 1.0, S.zFoot], [x, S.rise * S.steps + 1.0, S.zFoot - S.run * S.steps], 0.025, 4), { shadow: false });
-    }
-    K.box(M.track, (S.x0 + S.x1) / 2, 0, (S.zFoot + S.zFoot - S.run * S.steps) / 2, S.x1 - S.x0 - 0.1, 0.02, S.run * S.steps, {}, { shadow: false });
-    // a flood lamp on the deck and a warning sign
-    K.cyl(M.support, D.x1 - 0.3, D.y, D.z0 + 0.3, 0.06, 0.05, 2.6, 6);
-    K.box(M.lampGlass, D.x1 - 0.3, D.y + 2.6, D.z0 + 0.5, 0.4, 0.3, 0.08, {}, { shadow: false });
+    // the flood lamp's glass (its pole and head are hg-coaster's) and a warning sign
+    K.box(M.lampGlass, D.x1 - 0.3, D.y + 2.44, D.z0 + 0.49, 0.38, 0.3, 0.02, {}, { shadow: false });
     SP.add(D.x1 - 0.3, D.y + 2.75, D.z0 + 0.55, 0xfff0c8, { size: 2.2, blink: 0.02 });
     K.add(sign(["STAFF ONLY", "BRAKE RUN"], { w: 512, h: 256, bg: "#e8dcc0", fg: "#8a1a1a", edge: "#8a1a1a" }),
       place(new THREE.PlaneGeometry(0.8, 0.4), { x: (S.x0 + S.x1) / 2, y: 1.6, z: S.zFoot + 0.25 }), { shadow: false });
@@ -3593,9 +3516,22 @@ function buildCoaster(api, K, M, SP, root, lights) {
       _q.setFromRotationMatrix(m3);
       _p.addScaledVector(uv, -0.05);
     };
-    cars.onBeforeRender = () => {
+    // the rattle rides with the head car: speed from how far it moved since
+    // the last frame, the lift where the speed table has the chain
+    const rattle = coasterRattle();
+    let lastHead = 0, lastT = 0;
+    cars.onBeforeRender = (renderer, scene, camera) => {
       const t = (performance.now() / 1000) % CYCLE;
       const head = sAt(t);
+      if (camera) {
+        const dt = t - lastT, ds = (((head - lastHead) % L) + L) % L;
+        const v = dt > 0 && dt < 0.5 ? ds / dt : 0;
+        lastHead = head; lastT = t;
+        frameAt(head);
+        const i = Math.floor((((head % L) + L) % L) / L * N) % N;
+        const lift = speed[i] === 3.2;
+        rattle.update(AUDIO, 0.5 / (1 + (camera.position.distanceTo(_p) / 14) ** 2), v, lift);
+      }
       for (let k = 0; k < 4; k++) {
         frameAt(head - k * 1.95);
         _m4.compose(_p, _q, _s.set(1, 1, 1));
@@ -3610,16 +3546,9 @@ function buildCoaster(api, K, M, SP, root, lights) {
      then falls */
   {
     const [tx, tz] = COASTER_TOWER, H = 30;
-    K.solid(tx, tz, 3.2, 3.2, 1.0, { mat: M.concrete, pen: 10 });
+    K.solid(tx, tz, 3.2, 3.2, 1.0, { pen: 10 });
     K.api.ghostBox(tx, tz, 1.6, 1.6, H, { y: 1.0, pen: 1.2 });
-    for (const [dx, dz] of [[-0.7, -0.7], [0.7, -0.7], [-0.7, 0.7], [0.7, 0.7]]) K.cyl(M.support, tx + dx, 1.0, tz + dz, 0.12, 0.1, H - 1, 6);
-    for (let y = 2; y < H; y += 2) {
-      for (const [ax, az, bx, bz] of [[-0.7, -0.7, 0.7, -0.7], [0.7, -0.7, 0.7, 0.7], [0.7, 0.7, -0.7, 0.7], [-0.7, 0.7, -0.7, -0.7]]) {
-        K.add(M.support, rodGeo([tx + ax, y, tz + az], [tx + bx, y + 2, tz + bz], 0.04, 4), { shadow: false });
-      }
-    }
-    K.box(M.track, tx, H, tz, 2.6, 0.6, 2.6);
-    K.cyl(M.track, tx, H + 0.6, tz, 0.9, 0.2, 1.6, 8);
+    // the mast, its bracing and the machine house are hg-coaster's
     for (let i = 0; i < 16; i++) {
       const a = (i / 16) * Math.PI * 2, x = tx + Math.cos(a) * 1.4, z = tz + Math.sin(a) * 1.4;
       K.add(M.bulb, place(new THREE.OctahedronGeometry(0.08), { x, y: H + 0.3, z }), { color: BULBS[i % 4], shadow: false });
@@ -3659,6 +3588,7 @@ function buildHollowgrin(api) {
   const root = new THREE.Group();
   api.prop(root);
   root.castShadow = false;
+  queueMicrotask(() => root.parent?.traverse((n) => { if (n.name?.startsWith("dress-")) nightFx(n.material); }));
   const K = new Kit(api, root);
   const lights = [];
   const SP = new Sparks();
@@ -3679,7 +3609,6 @@ function buildHollowgrin(api) {
     trimDark: new THREE.MeshStandardMaterial({ color: 0x2b2420, roughness: 0.7 }),
     shutter: new THREE.MeshStandardMaterial({ color: 0x1f2a24, roughness: 0.85 }),
     iron: new THREE.MeshStandardMaterial({ color: 0x1b1b21, roughness: 0.55, metalness: 0.35 }),
-    bark: surfMat("wood", 0x2e2620, { mix: 0.12, tile: 0.8 }),
     dirt: surfMat("dirt", 0x4a3a2c, { mix: 0.08, tile: 2.5 }),
     hay: texMat(hayTexture(), { color: 0xd8c08a, rough: 1 }),
     pumpkin: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, color: 0xffffff }),
@@ -3780,85 +3709,28 @@ function buildHollowgrin(api) {
   M.support.userData.wash = { color: 0x3aff8a, top: 6, strength: 0.08 };
 
   /* --------------------------------------------------------- the ground */
-  // Dirt paths and the square laid over the grass, a hair above it.
-  const dirtPlane = (x, z, w, d, ry = 0) => {
-    const g = new THREE.PlaneGeometry(w, d);
-    K.add(M.dirt, place(g, { x, y: 0.012, z, rx: -Math.PI / 2, ry }), { shadow: false });
-  };
-  // the square is cobbled (setts, ring by ring, smaller and darker than the
-  // park's), the oak's bed bare earth
-  settsRing(K, new THREE.MeshStandardMaterial({ map: M.setts.map, color: 0x6c6870, roughness: 0.92 }), 0, 1, 3.8, 12.5, { scale: 0.6 });
-  K.add(M.dirt, place(new THREE.CircleGeometry(3.9, 32), { x: 0, y: 0.01, z: 1, rx: -Math.PI / 2 }), { shadow: false });
-  dirtPlane(0, 22, 4.4, 20);           // south road
-  dirtPlane(0, -10, 3.6, 3.2);         // up to the porch
-  dirtPlane(-14.5, 2, 5, 3.2);         // west road to the graveyard gate
-  dirtPlane(15.5, 2, 9, 3.4);          // east road to the patch
-  dirtPlane(-24, 7, 1.8, 26);          // graveyard aisle
-  dirtPlane(-25, 2, 18, 2.6);          // graveyard lane
-  dirtPlane(-24, -19, 2.4, 12);        // garden paths
-  dirtPlane(-24, -19, 12, 2.4);
+  // The paths, the gravel and the setts (models/hg_ground.py, hg-ground.glb),
+  // a hair over the grass. The setts wear the canvas texture here: the
+  // park's, and the square's smaller, darker one.
+  const squareSetts = new THREE.MeshStandardMaterial({ map: M.setts.map, color: 0x6c6870, roughness: 0.92 });
+  hgModel(api, "hg-ground", {
+    then: (obj) => obj.traverse((n) => {
+      if (!n.isMesh) return;
+      const m = { HG_Setts: M.setts, HG_SettsSquare: squareSetts }[n.userData.blenderMat];
+      if (!m) return;
+      nightFx(m);
+      n.material = m;
+      n.receiveShadow = true;
+    }),
+  });
 
   /* ------------------------------------------------------- boundary */
   api.ghostWalls((BOUNDS.minX + BOUNDS.maxX) / 2, (BOUNDS.minZ + BOUNDS.maxZ) / 2, BOUNDS.maxX - BOUNDS.minX + 2.8, BOUNDS.maxZ - BOUNDS.minZ + 2.8, 8, 1.4);
-  // A crumbling field-stone wall just outside the line, then the woods.
-  {
-    const R = rng(4);
-    // gaps where the lane runs out east and west and the creek in and out
-    const lane = [LANE.z0 - 0.4, LANE.z1 + 0.4];
-    const run = (axis, at, a, b, gaps = []) => {
-      let s = a;
-      while (s < b) {
-        const len = Math.min(b - s, 2 + R() * 3.5);
-        const open = gaps.some(([g0, g1]) => s < g1 && s + len > g0);
-        if (R() > 0.12 && !open) {
-          const h = 0.7 + R() * 0.6;
-          const c = s + len / 2;
-          const x = axis === "x" ? c : at, z = axis === "x" ? at : c;
-          K.box(M.stoneDark, x, 0, z, axis === "x" ? len : 0.7, h, axis === "x" ? 0.7 : len, { ry: (R() - 0.5) * 0.04 });
-        }
-        s += len + 0.05;
-      }
-    };
-    run("x", BOUNDS.minZ - 0.6, BOUNDS.minX - 1, BOUNDS.maxX + 1);
-    run("x", BOUNDS.maxZ + 0.6, BOUNDS.minX - 1, BOUNDS.maxX + 1, [[-38.9, -33.6]]);
-    run("z", BOUNDS.minX - 0.6, BOUNDS.minZ, BOUNDS.maxZ, [lane, [16.5, 23.5], [-1.6, 5.6]]);   // the chapel's apse
-    run("z", BOUNDS.maxX + 0.6, BOUNDS.minZ, BOUNDS.maxZ);
-
-    // The woods: four tree shapes, instanced round the outside.
-    const variants = [11, 23, 37, 51].map((s, i) => treeGeo(s, { height: 7 + i, r: 0.28 + i * 0.03, levels: 3 }));
-    for (const v of variants) metreUVs(v, M.bark.userData.tile);
-    const spots = [];
-    const T = rng(99);
-    for (let i = 0; i < 185; i++) {
-      // walk the perimeter, pushed out 1.5-13 m
-      const t = T() * 4;
-      const out = 1.6 + Math.pow(T(), 0.7) * 12;
-      let x, z;
-      if (t < 1) { x = THREE.MathUtils.lerp(BOUNDS.minX - 10, BOUNDS.maxX + 10, t); z = BOUNDS.minZ - out; }
-      else if (t < 2) { x = THREE.MathUtils.lerp(BOUNDS.minX - 10, BOUNDS.maxX + 10, t - 1); z = BOUNDS.maxZ + out; }
-      else if (t < 3) { z = THREE.MathUtils.lerp(BOUNDS.minZ, BOUNDS.maxZ, t - 2); x = BOUNDS.minX - out; }
-      else { z = THREE.MathUtils.lerp(BOUNDS.minZ, BOUNDS.maxZ, t - 3); x = BOUNDS.maxX + out; }
-      const keep = [T() * 6.28, 0.85 + T() * 0.5, Math.floor(T() * 4)];
-      // clear the lane's west end and the creek's bed
-      if (x < BOUNDS.minX && z > LANE.z0 - 1.5 && z < LANE.z1 + 1.5) continue;
-      if (creekDist(x, z) < CREEK_W) continue;
-      if (x < BOUNDS.minX && x > BOUNDS.minX - 6 && z > -3 && z < 7) continue;   // behind the chapel's apse
-      spots.push([x, z, ...keep]);
-    }
-    variants.forEach((geo, vi) => {
-      const mine = spots.filter((s) => s[4] === vi);
-      const inst = new THREE.InstancedMesh(geo, M.bark, mine.length);
-      mine.forEach(([x, z, ry, sc], i) => {
-        _e.set(0, ry, 0);
-        _q.setFromEuler(_e);
-        _m4.compose(_p.set(x, 0, z), _q, _s.set(sc, sc * (0.9 + (i % 3) * 0.1), sc));
-        inst.setMatrixAt(i, _m4);
-      });
-      inst.castShadow = false;   // outside the bounds: their shadows cost more than they show
-      inst.receiveShadow = true;
-      root.add(inst);
-    });
-  }
+  // A crumbling field-stone wall just outside the line, then the woods:
+  // models/hg_woods.py draws the wall (hg-woods.glb) and the woods' pieces
+  // (hg-woodkit.glb), which woods() sets round the ring.
+  hgModel(api, "hg-woods");
+  hgModel(api, "hg-woodkit", { parent: new THREE.Group(), then: (kit) => woods(kit, root) });
 
   /* ------------------------------------------------ Grinmoor Manor */
   // Drawn in Blender (models/hg_manor.py, hg-manor.glb, phase 1 of the
@@ -3949,18 +3821,11 @@ function buildHollowgrin(api) {
       const a = (i / 8) * Math.PI * 2;
       candle(K, M, Math.cos(a) * 0.75, cy + 0.02, cz + Math.sin(a) * 0.75, { seed: 40 + i });
     }
-    const l = new THREE.PointLight(0xffb070, 16, 20, 2);
-    l.position.set(0, cy - 0.3, cz);
-    lights.push(l);
 
     // parlour: the fireplace's embers and glow, the sofa, the sheeted armchair
     const fx = x0 + WALL_T + 0.35, fz = -25;
     K.solid(fx, fz, 0.7, 2.4, 1.5, { pen: 8 });
     K.box(M.ember, fx - 0.27, 0.1, fz, 0.02, 0.6, 0.85, {}, { shadow: false });
-    const fl = new THREE.PointLight(0xff6a1f, 5, 9, 2);
-    fl.position.set(fx + 1.0, 0.8, fz);
-    fl.userData.flicker = 1;
-    lights.push(fl);
     K.solid(-8.6, -21.2, 2.4, 0.9, 0.85, { pen: 1.5 });
     K.solid(-11.2, -18, 0.9, 0.9, 0.9, { pen: 1.5 });
     portrait(api, { x: -5.2, y: 2.0, z: -21, facing: "w", hue: 280 });
@@ -4077,8 +3942,8 @@ function buildHollowgrin(api) {
     K.api.ghostBox(cx, cz, 3.4, 1.7, 1.25, { pen: 2 });
     for (let i = 0; i < 7; i++) jack(K, M, cx - 1.2 + (i % 4) * 0.8, 0.68, cz - 0.4 + Math.floor(i / 4) * 0.8, { r: 0.3, carved: i === 2, face: Math.PI, seed: 260 + i, glow: false });
 
-    gasLamp(K, M, -11, -8, { lights, draw: false });
-    gasLamp(K, M, 11, 10.5, { lights, draw: false });
+    gasLamp(K, M, -11, -8, { draw: false });
+    gasLamp(K, M, 11, 10.5, { draw: false });
     gasLamp(K, M, -11, 11, { draw: false });
     gasLamp(K, M, 11, -8.5, { draw: false });
   }
@@ -4213,9 +4078,6 @@ function buildHollowgrin(api) {
     hgModel(api, "hg-garden");
     const hedge = (x, z, w, d) => K.solid(x, z, w, d, 1.35, { pen: 0.6 });
     const cx = -24, cz = -19, half = 6;
-    const gravel = surfMat("dirt", 0x6a6460, { mix: 0.25, tile: 1.4 });
-    flat(K, gravel, cx, cz, 2.4, 2 * half + 1.4, { y: 0.014 });
-    flat(K, gravel, cx, cz, 2 * half + 1.4, 2.4, { y: 0.0145 });
     // lanterns set on the hedge ends either side of each way in
     let ls = 90;
     for (const s of [-1, 1]) {
@@ -4384,9 +4246,6 @@ function buildHollowgrin(api) {
       const hue = new THREE.Color().setHSL(C(), 0.8, 0.55);
       K.add(M.candy, place(new THREE.SphereGeometry(0.08, 6, 4), { x: -3 + (C() - 0.5) * 0.8, y: 0.62 + C() * 0.08, z: 23.6 + (C() - 0.5) * 0.8 }), { color: hue.getHex(), shadow: false });
     }
-    const cl = new THREE.PointLight(0xff9a6a, 7, 11, 2);
-    cl.position.set(-6, 2.7, 24.3);
-    lights.push(cl);
     let s = 1100;
     for (const [x, z, r] of [[-7.2, 20.4, 0.3], [-4.8, 20.3, 0.25], [-10.6, 20.4, 0.28], [-1.4, 20.5, 0.22]]) jack(K, M, x, 0, z, { r, face: Math.PI, seed: s++ });
     // a lantern on a bracket by the back door
@@ -4450,9 +4309,6 @@ function buildHollowgrin(api) {
       K.add(M.trimDark, place(new THREE.TorusGeometry(0.45, 0.05, 6, 14), { x: cw.x + wx, y: 0.45, z: cw.z + wz }));
     }
     for (let i = 0; i < 3; i++) hayBale(K, M, cw.x - 0.9 + i * 0.9, cw.z, { y: 0.67, ry: Math.PI / 2, collide: false });
-    const bl = new THREE.PointLight(0xffb070, 8, 14, 2);
-    bl.position.set(23, 3.8, 24.5);
-    lights.push(bl);
     K.cyl(M.iron, 23, 3.9, 24.5, 0.01, 0.01, 0.5, 4);
     K.box(M.lampGlass, 23, 3.55, 24.5, 0.2, 0.3, 0.2, {}, { shadow: false });
     jack(K, M, 20.6, 0, 19.4, { r: 0.33, face: Math.PI, seed: 1200 });
@@ -4627,13 +4483,90 @@ export const HOLLOWGRIN = {
   // ACES, not the Neutral every other map uses: its toe sinks the moonlit
   // fill's purple shade to near black; under Neutral it read as haze (-tm6).
   tone: "aces",
-  hemi: { sky: 0x6c78c0, ground: 0x3a2a24, intensity: 1.25 },
-  ambient: { color: 0x6a5a8a, intensity: 0.35 },
-  // Stylised realism (view/grade-pass.js): a hand-lit night map, so no bakes,
-  // just the grade: moonlit blue in the shade, the string lights' warmth in
+  // halved for the light bake: the sky's light is in the models and the
+  // ground now (models/bake_hollowgrin.blender.py)
+  hemi: { sky: 0x6c78c0, ground: 0x3a2a24, intensity: 0.62 },
+  ambient: { color: 0x6a5a8a, intensity: 0.18 },
+  groundBake: { file: "hollowgrin-ground", rect: [-66, -84, 168] },
+  // Stylised realism (view/grade-pass.js): the light bake, and the grade: moonlit blue in the shade, the string lights' warmth in
   // the highs, a touch more colour and punch.
   grade: { shadows: 0x1a2448, shadowsAmt: 0.1, highlights: 0xffb070, highlightsAmt: 0.08, sat: 1.1, contrast: 1.07 },
   build: buildHollowgrin,
+  viewFar: 400,   // Troll Royale's planes circle 170 m out and 140 m up
+  // Troll Royale on Hollowgrin ("Troll Royale: Two Worlds": the island's
+  // underside), the map as it is: the drop comes in over it on three planes
+  // and its walls reach the sky (royale.edge: a parachute slides along them
+  // and comes down inside). A small arena: 24 trolls, ~7 minutes of zone.
+  royale: {
+    players: 24,
+    edge: [[BOUNDS.minX + 0.5, BOUNDS.minZ + 0.5], [BOUNDS.maxX - 0.5, BOUNDS.minZ + 0.5],
+      [BOUNDS.maxX - 0.5, BOUNDS.maxZ - 0.5], [BOUNDS.minX + 0.5, BOUNDS.maxZ - 0.5]],
+    lootPerSqM: 1 / 120,
+    chests: true,
+    pois: [
+      { x: 0, z: -24, r: 14, name: "Grinmoor Manor", tier: "hot" },
+      { x: 0, z: 1, r: 12, name: "The Square", tier: "hot" },
+      { x: 63, z: 2.5, r: 10, name: "Grinmoor Fair", tier: "hot" },
+      { x: -25, z: 5, r: 10, name: "The Graveyard", tier: "mid" },
+      { x: -44, z: 2, r: 8, name: "St. Grinsworth's", tier: "mid" },
+      { x: 25, z: 0, r: 10, name: "The Pumpkin Patch", tier: "mid" },
+      { x: 40, z: -6, r: 10, name: "The Old Midway", tier: "mid" },
+      { x: 0, z: 38, r: 14, name: "Trick-or-Treat Lane", tier: "mid" },
+      { x: 69, z: 24, r: 8, name: "U Mad Mansion", tier: "mid" },
+      { x: -42, z: -32, r: 9, name: "The Witch's Hollow", tier: "minor" },
+      { x: 21, z: 25, r: 8, name: "The Barn", tier: "minor" },
+    ],
+    phases: [
+      { wait: 90, close: 45, frac: 0.6, dps: 1 },
+      { wait: 70, close: 35, frac: 0.35, dps: 2 },
+      { wait: 50, close: 30, frac: 0.2, dps: 4 },
+      { wait: 35, close: 25, frac: 0.1, dps: 7 },
+      { wait: 25, close: 20, frac: 0, dps: 12 },
+    ],
+    // three planes (27 seats) on a circle round the village, lower, and a
+    // slow run so it's over Hollowgrin's 90 m for the whole jump
+    planes: { count: 3, orbitR: 170, baseAlt: 140, altStep: 12, fan: 40, runSpeed: 12, runFrom: 110, lookIn: 30, inbound: 350 },
+    dropFog: 0.002,   // the night's fog (0.016) hides the ground from 140 m up
+    // the island round it, Trollface Island's underside as a Halloween
+    // trollface pumpkin, seen from the planes and the fall
+    // (hollowgrin-island.js; scenery, never walked on)
+    scenery: (scene) => islandScenery(scene, {
+      bounds: BOUNDS,
+      bakeRect: HOLLOWGRIN.groundBake.rect,
+      haze: GROUND_FOG,
+      load: (name) => hgLoad(name).then((obj) => { obj.traverse((n) => { if (n.isMesh) nightFx(n.material); }); return obj; }),
+    }),
+  },
+  // The scatter in every place (map-dressing.js, laid after the build so it
+  // keeps clear of every collider and spawn): fallen leaves, sweet
+  // wrappers, little pumpkins, burnt-out candles, weeds along the walls.
+  // Seeded afresh each time the map loads: never the same twice (it is only
+  // decoration, so players needn't agree on it).
+  dress: {
+    seed: (Math.random() * 1e9) >>> 0,
+    spawnPad: 2,
+    areas: {
+      village: [-34, -44, 34, 32], west: [-50, -44, -35, 44], lane: [-50, 32, 56, 44],
+      midway: [35, -44, 50, 32], park: [52, -44, 86, 44],
+      square: [-12, -11, 12, 13], graveyard: [-33, -12, -16, 16], patch: [16, -12, 34, 12],
+    },
+    avoid: [[-5, -16, 5, 4], [-46.5, -23.5, -41, -16.5]],      // (the oak's bed and the pond)
+    decals: [
+      { cell: "leaves", n: 160, size: [0.8, 1.8], color: 0xffffff, alpha: 0.75 },
+      { cell: "leaves", n: 50, area: ["square", "graveyard"], size: [1, 2.2], color: 0xffffff, alpha: 0.8 },
+      { cell: "dirt", n: 40, size: [1.5, 3.5], color: 0x2a2018, alpha: 0.35 },
+    ],
+    clutter: [
+      { kind: "leafpile", n: 50, size: [0.5, 1.1], colors: [0x8a3a14, 0x6a2a10, 0xa8541c, 0x5a3418, 0x8a6a1c] },
+      { kind: "wrapper", n: 240, size: [0.9, 1.3], colors: [0xe8302a, 0xff8a1a, 0x8a2ad8, 0x2ad86a, 0xffd21a, 0x1a8aff, 0xf4f0e8] },
+      { kind: "wrapper", n: 90, area: ["lane", "square"], size: [0.9, 1.3], colors: [0xe8302a, 0xff8a1a, 0x8a2ad8, 0xffd21a] },
+      { kind: "gourd", n: 70, size: [0.14, 0.26], colors: [0xe8701a, 0xd85a14, 0xf08a2a, 0xd8c8a0, 0x6a8a3a] },
+      { kind: "gourd", n: 30, area: ["patch", "lane"], size: [0.16, 0.3], colors: [0xe8701a, 0xf08a2a] },
+      { kind: "candle", n: 34, area: ["graveyard", "square", "lane"], size: [0.07, 0.14], colors: [0xe8dcc0, 0xd8ccb0, 0x2a2626] },
+      { kind: "weed", n: 220, area: ["village", "west", "park", "midway"], size: [0.6, 1.1], colors: [0x6a7a3a, 0x8a8a4a, 0x5a6a30] },
+      { kind: "pebble", n: 90, size: [0.1, 0.3], colors: [0x6e6a62, 0x5a5650, 0x7a746a] },
+    ],
+  },
   onShot: (p) => { for (const f of SHOT_HOOKS) f(p); },
   // the game's mixer, for the mansion's scare sting
   attachAudio: (a) => { AUDIO = a; },

@@ -13,7 +13,7 @@
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { retexture, applyBakedLightMap, applyGroundLightMap, groundLightAt, applyLightAt } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2";
+import { retexture, applyBakedLightMap, applyBakedAOMap, applyGroundLightMap, groundLightAt, applyLightAt } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 
 const MODEL_BASE = new URL("../models/", import.meta.url).href;
 const loader = new GLTFLoader();
@@ -58,6 +58,9 @@ const BAKED = new Map([...[
   // the Grinleria (build_grinleria.blender.py): its 15 lamps in a closed
   // white mall bake hot, so a quarter down
   ...["shell", "outside", "atrium", "falls", "wings", "trollhead", "shops"].map((n) => [`gl-${n}`, Math.PI * 0.75]),
+  // Hollowgrin (models/bake_hollowgrin.blender.py): the night sky and ten
+  // lamps, every model the builder draws with bake UVs
+  ...["hg-barn","hg-bell","hg-bell-clapper","hg-candyshop","hg-carousel","hg-carousel-ride","hg-cauldron","hg-chapel-tower","hg-coaster","hg-fair","hg-fields","hg-fountain","hg-garden","hg-graveyard","hg-ground","hg-lane","hg-manor","hg-mansion","hg-mausoleum","hg-moat","hg-mountain","hg-oak","hg-organ","hg-pepe","hg-plaza","hg-scarecrow","hg-skull","hg-southroad","hg-square","hg-stalls","hg-west","hg-wheelbase","hg-windmill","hg-windmill-sails","hg-woods"].map((n) => [n, Math.PI]),
 ]);
 /* models/<name>-bake.webp, fetched once (null if it's missing). */
 export function loadBake(name) {
@@ -74,6 +77,16 @@ export function loadBake(name) {
   return bakeCache.get(name);
 }
 const loadBakeTexture = (name) => (BAKED.has(name) ? loadBake(name) : Promise.resolve(null));
+/* models/<name>-ao.webp (bake_kit bake_ao), fetched once (null if missing). */
+const aoCache = new Map();
+export function loadAo(name) {
+  if (!aoCache.has(name)) {
+    aoCache.set(name, new Promise((resolve) => {
+      new THREE.TextureLoader().load(`${MODEL_BASE}${name}-ao.webp`, (tex) => resolve(tex), undefined, () => resolve(null));
+    }));
+  }
+  return aoCache.get(name);
+}
 
 /* Lights a placed flat mesh (or every mesh under an object) with a map's
    ground bake: groundBake = { file, rect } (maps.js), strength as BAKED's.
@@ -148,8 +161,11 @@ export function loadModel(name, mapping = PROP_RETEXTURE) {
 /* Drops a loaded clone into the scene once it resolves. Placement happens
    the instant the promise settles, so the collider (added synchronously,
    below) is live well before the visible mesh streams in. */
-export function placeModel(api, name, { x, z, y = 0, rot = 0, scale = 1, mapping, castShadow = true, groundBake = null, groundAt = null }) {
+export function placeModel(api, name, { x, z, y = 0, rot = 0, scale = 1, mapping, castShadow = true, groundBake = null, groundAt = null, ao = null }) {
   loadModel(name, mapping).then((obj) => {
+    // ao: the model's baked occlusion at this strength (an unbaked model's
+    // clone has its own materials, so each placement can differ)
+    if (ao) loadAo(name).then((tex) => { if (tex) obj.traverse((n) => { if (n.isMesh) applyBakedAOMap(n, tex, ao); }); });
     obj.position.set(x, y, z);
     obj.rotation.y = rot;
     if (Array.isArray(scale)) obj.scale.set(...scale);

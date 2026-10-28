@@ -507,6 +507,62 @@ function kind(name) {
       mat = lambert({ side: THREE.DoubleSide });
       break;
     }
+    case "wrapper": {         // a sweet's twist wrapper: the sweet in a fold, a frilled end each side
+      const mid = new THREE.CylinderGeometry(0.5, 0.5, 1, 6);
+      mid.rotateZ(Math.PI / 2); mid.scale(0.05, 0.022, 0.03);
+      const parts = [mid];
+      for (const s of [-1, 1]) {
+        const end = new THREE.ConeGeometry(0.5, 1, 5, 1, true);
+        end.rotateZ(s * Math.PI / 2); end.scale(0.03, 0.006, 0.04); end.translate(s * 0.04, 0, 0);
+        parts.push(end);
+      }
+      geo = merge(parts); geo.translate(0, 0.011, 0);
+      mat = lambert({ side: THREE.DoubleSide }); tilt = 0.5;
+      break;
+    }
+    case "gourd": {           // a little pumpkin, 1 m across at size 1: ribbed, squat, a dark stem
+      const body = new THREE.SphereGeometry(0.5, 14, 9);
+      const p = body.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+        const rib = 1 - 0.07 * Math.abs(Math.sin(Math.atan2(z, x) * 5));
+        p.setXYZ(i, x * rib, y * 0.72 * (1 - 0.15 * Math.max(0, y * 2) ** 6), z * rib);
+      }
+      body.translate(0, 0.34, 0);
+      const stem = new THREE.CylinderGeometry(0.035, 0.055, 0.16, 5);
+      stem.rotateZ(0.25); stem.translate(0.02, 0.73, 0);
+      const parts = [body, stem];
+      geo = merge(parts);
+      // the stem a dark brown under any instance colour
+      const n = geo.attributes.position.count, cols = new Float32Array(n * 3).fill(1), nb = flat(body).attributes.position.count;
+      for (let i = nb; i < n; i++) cols.set([0.22, 0.18, 0.1], i * 3);
+      geo.setAttribute("color", new THREE.BufferAttribute(cols, 3));
+      geo.computeVertexNormals();
+      mat = lambert({ vertexColors: true }); tilt = 0.2; sink = 0.02;
+      break;
+    }
+    case "candle": {          // a burnt-down church candle, 1 m tall at size 1, wax run down its side
+      const stick = new THREE.CylinderGeometry(0.2, 0.22, 1, 8);
+      stick.translate(0, 0.5, 0);
+      const pool = new THREE.CylinderGeometry(0.42, 0.46, 0.06, 9);
+      pool.translate(0, 0.03, 0);
+      const parts = [stick, pool];
+      for (let k = 0; k < 3; k++) {
+        const drip = new THREE.CapsuleGeometry(0.05, 0.3 + r() * 0.3, 2, 4);
+        const a = k * 2.1 + r();
+        drip.translate(Math.cos(a) * 0.2, 0.55 + r() * 0.2, Math.sin(a) * 0.2);
+        parts.push(drip);
+      }
+      const wick = new THREE.CylinderGeometry(0.02, 0.02, 0.12, 4);
+      wick.translate(0, 1.06, 0);
+      parts.push(wick);
+      geo = merge(parts);
+      const n = geo.attributes.position.count, cols = new Float32Array(n * 3).fill(1), nw = flat(wick).attributes.position.count;
+      for (let i = n - nw; i < n; i++) cols.set([0.08, 0.07, 0.06], i * 3);
+      geo.setAttribute("color", new THREE.BufferAttribute(cols, 3));
+      mat = lambert({ vertexColors: true });
+      break;
+    }
     default: throw new Error(`map-dressing: no clutter kind "${name}"`);
   }
   geo.computeBoundingSphere();

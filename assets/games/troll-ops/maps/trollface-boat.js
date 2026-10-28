@@ -22,8 +22,8 @@
 // for an arch (tf_lake.py RIG_GLBS): the sail furls onto the boom, the boom
 // drops onto the wheelhouse roof, the mast swings aft about its tabernacle.
 import * as THREE from "three";
-import { loadModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
-import { RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2";
+import { loadModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
+import { RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1-hgb5-hgb6-hgb8";
 
 export const BOAT_LOOP = [[-32, 15], [-14, 15], [-4.79, 15], [4, 15], [30, 17], [66, 15], [77.79, 15], [88, 15], [104, 15],
   [118, 15], [125.5, 17.2], [131, 23.25], [133, 31.5], [131, 39.75], [125.5, 45.8], [118, 48], [100, 48], [80.75, 48],

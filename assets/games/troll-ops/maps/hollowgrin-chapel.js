@@ -378,10 +378,7 @@ export function buildChapel(api, K, M, SP, root, lights, H) {
   buildTower(api, K, M, SP, root, { place, wall, rodGeo, candle, hgModel, ticker, signTexture, audio });
   buildOrgan(api, K, M, root, { hgModel, ticker, ghostTroll, audio });
 
-  /* ---- the one light, warm, and dust in it */
-  const l = new THREE.PointLight(0xffc890, 14, 22, 2);
-  l.position.set(-45.2, C.h - 1.0, CZ);
-  lights.push(l);
+  /* ---- dust in the window's light (the light is the bake's) */
   SP.swarm(8, -44, CZ, 8, 7, 1.2, 5, 0xffe0a0, { size: 0.18, wander: 1.0, blink: 0.3 });
 
   /* ---- the churchyard, out of the side door */
