@@ -2,9 +2,13 @@
 Undergrin's plant room, service corridors and bore props (ug-plant.glb):
 the generator, switch cabinets, cable drums, the pump skid, the dado and
 conduit, lockers, the fuse cabinet, the works trolleys and signal
-cabinets. See ug_kit.py.
+cabinets; phase 3 of "Troll Forces: Undergrin in Blender" adds German
+plates (Technikraum, Zu den Gleisen, Hochspannung, Erste Hilfe), a valve
+drop, Feuerlöscher cabinets, the Dienstplan board, the bores' bulkhead
+lamps, cable runs and km plates, all on the walls. See ug_kit.py.
 """
 from ug_kit import *  # noqa: F401,F403
+from ug_concourse import arrow_sign  # noqa: E402
 
 
 # ================================================================== PLANT
@@ -67,12 +71,10 @@ def plant_half(b, PAL, s):
         b.cyl(PAL["steel"], 0.12, (X(px), 4.6, Z(-7.8)), (X(px), 4.6, Z(0)), seg=8)
         b.cyl(PAL["stripe"], 0.08, (X(px), 4.3, Z(-7.8)), (X(px), 4.3, Z(0)), seg=6)
     bx(b, PAL["grey"], X(-9.7), X(9.7), 4.9, 5.2, Z(-7.6), Z(-7.3))
-    # PLANT ROOM by the door
+    # Technikraum by the door (phase 3: in German, lettered at load)
     nrm = (0, 0, s)
-    panel(b, PAL["nosing"], (X(-3.0), 2.0, Z(-7.99)), nrm, 0.9, 0.5, o=0.0)
-    REG.face("plantsign@%.0f,%.1f" % (X(-3.0), Z(-8)), "wall", (X(-3.0), 2.0, Z(-7.99)), nrm, 0.9, 0.5)
-    text(b, PAL["black"], "PLANT", (X(-3.0), 2.12, Z(-7.99)), nrm, 0.14, o=0.012)
-    text(b, PAL["black"], "ROOM", (X(-3.0), 1.9, Z(-7.99)), nrm, 0.14, o=0.012)
+    sign(b, PAL, (X(-3.0), 2.0, Z(-7.99)), nrm, 0.9, 0.5, ["Technikraum", "nur Personal"], fg="black", bg="nosing", o=0.0, pad=0.05,
+         sid="plantsign@%.0f,%.1f" % (X(-3.0), Z(-8)))
 
 
 def plant_room(b, PAL):
@@ -107,10 +109,9 @@ def corridor_props(b, PAL, s):
     b.cyl(PAL["nosing"], 0.25, (X(-16.5), y, Z(-11.5)), (X(-16.5), y + 0.4, Z(-11.5)), seg=10)
     b.cyl(PAL["steel"], 0.015, (X(-16.5), y + 0.4, Z(-11.5)), (X(-16.4), y + 1.4, Z(-11.6)), seg=4)
     REG.end()
-    # a sign: PLATFORM via the bore door, an arrow
-    panel(b, PAL["roundelblue"], (X(-15.75), 2.6, Z(-6)), (-s, 0, 0), 1.6, 0.3, o=0.01)
-    REG.face("tracksign@%.2f,%.0f" % (X(-15.75), Z(-6)), "wall", (X(-15.75), 2.6, Z(-6)), (-s, 0, 0), 1.6, 0.3)
-    text(b, PAL["white"], "TRACK", (X(-15.75), 2.6, Z(-6)), (-s, 0, 0), 0.16, o=0.02)
+    # over the bore door: Zu den Gleisen, straight on (phase 3: in German)
+    arrow_sign(b, PAL, (X(-15.75), 2.75, Z(-6)), (-s, 0, 0), 1.8, 0.4, ["Zu den Gleisen"], "up", o=0.01,
+               sid="tracksign@%.2f,%.0f" % (X(-15.75), Z(-6)))
 
 
 def bore_props(b, PAL, s):
@@ -140,11 +141,117 @@ def bore_props(b, PAL, s):
     REG.end()
 
 
+# ================================================================ phase 3
+
+def warning_plate(b, PAL, c, normal, word, sid):
+    """The yellow lightning triangle with its word under it, flat on a
+    cabinet door or a wall."""
+    Uv, Vv = frame(normal)
+    cc = Vector(c) + Vector(normal) * 0.006
+    quad4(b, PAL["black"], [cc - Uv * 0.13 - Vv * 0.09, cc + Uv * 0.13 - Vv * 0.09, cc + Vv * 0.14])
+    cc2 = cc + Vector(normal) * 0.002
+    quad4(b, PAL["nosing"], [cc2 - Uv * 0.1 - Vv * 0.07, cc2 + Uv * 0.1 - Vv * 0.07, cc2 + Vv * 0.105])
+    cc3 = cc2 + Vector(normal) * 0.002
+    quad4(b, PAL["black"], [cc3 - Uv * 0.01 + Vv * 0.07, cc3 + Uv * 0.025 + Vv * 0.07, cc3 + Uv * 0.0 - Vv * 0.04])
+    sign(b, PAL, Vector(c) - Vv * 0.17, normal, 0.36, 0.07, [word], fg="black", bg="nosing", o=0.006, pad=0.005, face=None, sid=sid)
+
+
+def first_aid(b, PAL, c, normal):
+    """Erste Hilfe: a green wall box with the white cross, its word above."""
+    wbx(b, PAL["green"], c, normal, 0.4, 0.35, 0.14)
+    fc = Vector(c) + Vector(normal) * 0.14
+    panel(b, PAL["white"], fc, normal, 0.2, 0.06, o=0.003)
+    panel(b, PAL["white"], fc, normal, 0.06, 0.2, o=0.003)
+    sign(b, PAL, Vector(c) + Vector((0, 0.27, 0)), normal, 0.5, 0.12, ["Erste Hilfe"], fg="white", bg="green", o=0.004, pad=0.01,
+         sid="firstaid@%.1f,%.1f,%.1f" % tuple(c))
+    x0, x1, y0, y1, z0, z1 = wall_box(c, normal, 0.4, 0.35, 0.14)
+    collide(x0, x1, y0, y1, z0, z1, pen=2)
+
+
+def valve_drop(b, PAL, x, z, nx, y_top, y_bot, y_wheel):
+    """A pipe dropping down a wall from the run under the ceiling, a red
+    handwheel on it, a bracket top and bottom."""
+    b.cyl(PAL["steel"], 0.06, (x, y_bot, z), (x, y_top, z), seg=8)
+    for yy in (y_bot + 0.2, y_top - 0.3):
+        bx(b, PAL["dark"], min(x, x - nx * 0.15), max(x, x - nx * 0.15), yy - 0.03, yy + 0.03, z - 0.04, z + 0.04)
+    b.cyl(PAL["red"], 0.05, (x, y_wheel, z), (x + nx * 0.18, y_wheel, z), seg=6)
+    ring(b, PAL["red"], (x + nx * 0.18, y_wheel, z), (nx, 0, 0), 0.13, 0.17, seg=14)
+    for k in range(2):
+        a = k * math.pi / 2
+        p0 = Vector((x + nx * 0.18, y_wheel + math.cos(a) * 0.15, z + math.sin(a) * 0.15))
+        p1 = Vector((x + nx * 0.18, y_wheel - math.cos(a) * 0.15, z - math.sin(a) * 0.15))
+        b.bar(PAL["red"], tuple(p0), tuple(p1), 0.025)
+    b.cyl(PAL["steel"], 0.09, (x, y_bot, z), (x, y_bot + 0.08, z), seg=8)
+
+
+def bore_lamp(b, PAL, x, z, nx, y=2.0):
+    """A bulkhead lamp on a tunnel wall: a dark cage, the lit lens."""
+    wbx(b, PAL["dark"], (x, y, z), (nx, 0, 0), 0.34, 0.18, 0.09)
+    panel(b, PAL["headlight"], (x + nx * 0.09, y, z), (nx, 0, 0), 0.26, 0.11, o=0.003)
+    for du in (-0.06, 0.06):
+        rect(b, PAL["dark"], (x + nx * 0.095, 0, 0), *frame((nx, 0, 0)), *sorted((-nx * (z + du - 0.008), -nx * (z + du + 0.008))), y - 0.055, y + 0.055)
+
+
+def plant_phase3(b, PAL, s):
+    """Phase 3 of the doc, the plant room's walls only (the floor seen from
+    the light well's rail stays as it was: the room is the KOTH hill):
+    warning plates on the switch cabinets, a valve drop, Erste Hilfe, a
+    Feuerlöscher cabinet, the Ausgang over the door; the corridor's
+    Feuerlöscher, Dienstplan board and wall pipes; the bores' bulkhead
+    lamps, cable runs and distance plates."""
+    X = lambda x: s * x
+    Z = lambda z: s * z
+    for (xa, xb) in ((-7.0, -5.0), (4.0, 6.0)):
+        xc = (xa + xb) / 2
+        warning_plate(b, PAL, (X(xc), 0.95, Z(-7.1)), (0, 0, s), "Hochspannung", "hv@%.0f,%.1f" % (X(xc), Z(-7.1)))
+    valve_drop(b, PAL, X(9.6), Z(-6.4), -s, 4.6, 0.4, 1.35)
+    first_aid(b, PAL, (X(9.75), 1.6, Z(-1.6)), (-s, 0, 0))
+    extinguisher_cabinet(b, PAL, (X(-9.75), 1.3, Z(-1.6)), (s, 0, 0))
+    exit_sign(b, PAL, (X(0), 2.85, Z(-7.7)), (0, 0, s), w=1.2)
+    # the corridor (x -22..-15.75, z -12..0 at T), on the outer wall past the purple room's
+    # stair (x -21..-18, z -10..-4): behind it they would be out of sight
+    extinguisher_cabinet(b, PAL, (X(-22), 1.3, Z(-1.1)), (s, 0, 0))
+    REG.begin(b, "dienstplan@%.1f,%.1f" % (X(-22), Z(-2.6)))
+    wbx(b, PAL["frame"], (X(-22), 1.65, Z(-2.6)), (s, 0, 0), 0.95, 0.65, 0.03)
+    panel(b, PAL["oak"], (X(-22), 1.65, Z(-2.6)), (s, 0, 0), 0.85, 0.55, o=0.032)
+    for (du, dv, w, h) in ((-0.22, 0.08, 0.2, 0.28), (0.02, 0.1, 0.2, 0.28), (0.25, 0.04, 0.2, 0.28), (-0.1, -0.17, 0.28, 0.14)):
+        Uv, Vv = frame((s, 0, 0))
+        panel(b, PAL["white"], Vector((X(-22), 1.65, Z(-2.6))) + Uv * du + Vv * dv, (s, 0, 0), w, h, o=0.036)
+    REG.end()
+    sign(b, PAL, (X(-22), 2.1, Z(-2.6)), (s, 0, 0), 0.95, 0.16, ["Dienstplan"], fg="black", o=0.034, pad=0.01,
+         sid="dienstplan@%.1f,%.1f/t" % (X(-22), Z(-2.6)))
+    for yy in (2.75, 2.92):
+        b.cyl(PAL["steel"], 0.05, (X(-21.9), yy, Z(-11.9)), (X(-21.9), yy, Z(-0.1)), seg=8)
+    # the bores, z -14..0 of this half: lamps and cables on all four tunnel walls, clear of the doors
+    walls = [(-14.24, 1, [(-6.9, -5.1)]), (-10.04, -1, [(-4.9, -3.1)]), (10.04, 1, []), (14.24, -1, [])]
+    for (wx, nx, doors) in walls:
+        for z in (-12.5, -9.0, -1.5):
+            if any(d0 - 0.4 < z < d1 + 0.4 for (d0, d1) in doors):
+                continue
+            bore_lamp(b, PAL, X(wx), Z(z), s * nx)
+        spans, za = [], -14.0
+        for (d0, d1) in doors:
+            spans.append((za, d0 - 0.1))
+            za = d1 + 0.1
+        spans.append((za, 0.0))
+        for (z0, z1) in spans:
+            for k, yy in enumerate((1.32, 1.42, 1.52)):
+                b.cyl(PAL["black"] if k != 1 else PAL["dark"], 0.03, (X(wx + nx * 0.05), yy, Z(z0)), (X(wx + nx * 0.05), yy, Z(z1)), seg=6)
+            zz = z0 + 0.6
+            while zz < z1 - 0.3:
+                bx(b, PAL["grey"], *sorted((X(wx), X(wx + nx * 0.09))), 1.26, 1.58, *sorted((Z(zz) - 0.02, Z(zz) + 0.02)))
+                zz += 1.5
+    for (wx, nx, km) in ((-10.04, -1, "3,8"), (10.04, 1, "3,8")):
+        sign(b, PAL, (X(wx), 1.9, Z(-7.0)), (s * nx, 0, 0), 0.4, 0.22, ["km " + km], fg="black", bg="white", o=0.004, pad=0.02,
+             sid="km@%.1f,%.1f" % (X(wx), Z(-7.0)))
+
+
 def build_plant(PAL):
     b = Builder()
     plant_room(b, PAL)  # (both halves)
     for s in (1, -1):
         corridor_props(b, PAL, s)
         bore_props(b, PAL, s)
+        plant_phase3(b, PAL, s)
     b.finish("ug-plant.glb", bake=False, uv2=1024, quantize=True)
 
