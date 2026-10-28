@@ -61,16 +61,26 @@ function sightMark(o, kind = true) {
 }
 
 /* The trollface reticle (view/troll-reticle.js): the troll fist, and "get
-   trolled" for an enemy in the sights, `w` wide at the reticle's plane,
-   centred on the aim point. One texture each, shared by every optic. */
+   trolled" for an enemy in the sights, centred on the aim point. One
+   texture each, shared by every optic.
+   Sized by the angle it covers, so it reads the same through every optic:
+   TROLL_RETICLE_SCREEN of the screen's height (a CoD emblem reticle's
+   size), but never more than TROLL_RETICLE_WINDOW of the sight's own window,
+   so there's always target round it (the reflex's small window). The eye
+   distance and lens fov are the optic's own (userData.adsDistance and
+   adsWeaponFov, else view/weapon-view.js's 0.46 m and 50 degrees), so
+   addTrollMarks runs once those are set. view/sniper-scope.js sizes the 8x
+   overlay's to the same TROLL_RETICLE_SCREEN. */
+const TROLL_RETICLE_SCREEN = 0.045;
+const TROLL_RETICLE_WINDOW = 0.4;
 const TROLL_RETICLE_TEX = {};
 const UNIT_PLANE = new THREE.PlaneGeometry(1, 1);
 function trollReticleTex(kind, file) {
   let t = TROLL_RETICLE_TEX[kind];
   if (!t) {
     t = TROLL_RETICLE_TEX[kind] = { meshes: [], tex: null };
-    t.tex = new THREE.TextureLoader().load(new URL(`../ui/reticles/${file}`, import.meta.url).href, (tex) => {
-      for (const [m, w] of t.meshes) m.scale.set(w, w * tex.image.height / tex.image.width, 1);
+    t.tex = new THREE.TextureLoader().load(new URL(`../ui/reticles/${file}?v=hd1`, import.meta.url).href, (tex) => {
+      for (const [m, h] of t.meshes) m.scale.set(h * tex.image.width / tex.image.height, h, 1);
       t.meshes = [];   // only the ones built before it loaded wait on it
     });
     t.tex.colorSpace = THREE.SRGBColorSpace;
@@ -78,18 +88,22 @@ function trollReticleTex(kind, file) {
   }
   return t;
 }
-function trollMarks(w) {
-  const out = [];
+/* `g` the optic (adsDistance / adsWeaponFov set), `z` the reticle's plane
+   in it, `window` the height of the glass you look through there. */
+function addTrollMarks(g, z, window) {
+  const eye = (g.userData.adsDistance ?? 0.46) - z;
+  const screenH = 2 * eye * Math.tan(((g.userData.adsWeaponFov ?? 50) * Math.PI) / 360);
+  const h = Math.min(TROLL_RETICLE_SCREEN * screenH, TROLL_RETICLE_WINDOW * window);
   for (const [kind, file] of [["troll-idle", "troll-fist.png"], ["troll-hit", "get-trolled.png"]]) {
     const t = trollReticleTex(kind, file);
     const m = new THREE.Mesh(UNIT_PLANE, new THREE.MeshBasicMaterial({ map: t.tex, transparent: true, depthTest: false, depthWrite: false }));
     const img = t.tex.image;
-    m.scale.set(w, img?.width ? w * img.height / img.width : w, 1);   // its own shape once loaded
-    if (!img?.width) t.meshes.push([m, w]);
+    m.scale.set(img?.width ? h * img.width / img.height : h, h, 1);   // its own shape once loaded
+    if (!img?.width) t.meshes.push([m, h]);
+    m.position.z = z;
     m.renderOrder = 11;
-    out.push(sightMark(m, kind));
+    g.add(sightMark(m, kind));
   }
-  return out;
 }
 
 /* The other way round: a part between the eye and the lens (an eyecup, the
@@ -207,7 +221,6 @@ function buildReflex() {
   dot.position.z = 0.004;
   dot.renderOrder = 10;
   g.add(sightMark(dot, "classic"));
-  for (const t of trollMarks(0.026)) { t.position.z = 0.004; g.add(t); }
 
   // Body block below the glass holds the battery + brightness rocker.
   const body = box(0.04, 0.016, 0.042, shell);
@@ -221,6 +234,7 @@ function buildReflex() {
   g.userData.aimOffsetY = 0.048;   // glass centre above the rail surface
   g.add(opticMount(mountDrop(0.048), 0.03, [-0.012, 0.012], M.rail(), 0.016));
   g.userData.lengthZ = 0.05;
+  addTrollMarks(g, 0.004, 0.03);   // the glass is 3 cm tall
   return g;
 }
 
@@ -251,7 +265,6 @@ function buildCoyote() {
   dot.position.z = -len / 2 + 0.006;
   dot.renderOrder = 10;
   g.add(sightMark(dot, "classic"));
-  for (const t of trollMarks(0.0075)) { t.position.z = -len / 2 + 0.006; g.add(t); }
 
   // Aimed in, the tube and its rings, turret and shade step aside (hipOnly)
   // like the ACOG's, and the dot floats in a clear lens in a round housing,
@@ -276,6 +289,7 @@ function buildCoyote() {
   // the screen's height in its housing (the ACOG's is bigger: it's the 4x).
   g.userData.adsDistance = 0.1;
   g.userData.adsWeaponFov = 36;
+  addTrollMarks(g, -len / 2 + 0.006, 2 * COYOTE_VIEW.lens);
   return g;
 }
 
@@ -318,7 +332,6 @@ function buildAcog() {
   const ret = acogReticle();
   ret.position.z = glassZ;
   g.add(sightMark(ret, "classic"));
-  for (const t of trollMarks(0.0065)) { t.position.z = glassZ; g.add(t); }
 
   // Fibre-optic light pipe: the amber stripe running along the top.
   const pipe = tube(0.0035, 0.0035, len * 0.62, new THREE.MeshStandardMaterial({
@@ -340,6 +353,7 @@ function buildAcog() {
   // screen's height, the housing ring most of the rest.
   g.userData.adsDistance = 0.1;
   g.userData.adsWeaponFov = 30;
+  addTrollMarks(g, glassZ, 2 * ACOG_VIEW.lens);
   return g;
 }
 

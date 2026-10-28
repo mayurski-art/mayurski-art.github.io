@@ -169,6 +169,22 @@ const GARDEN_PROPS = {
   busts: [[-16.8, -20.9], [-16.8, -17.1]],
   potting: [-9.45, -41.7],
 };
+// The candy shop's and the barn's new pieces (models/hg_village.py draws
+// them): their colliders, [x, z, w, d, h].
+const SHOP_PROPS = [[-1.95, 26.55, 0.5, 0.5, 1.47], [-10.3, 23.1, 0.56, 2.6, 0.85]];
+const BARN_PROPS = [[26.4, 21.36, 1.8, 1.25, 0.7], [18.5, 21.25, 1.85, 1.3, 0.75], [28.3, 24.1, 0.5, 1.2, 0.5]];
+// The windmill's (millstone, ladder, flour sacks, crates) and the south
+// road's (the coffin, the hay wagon, the fingerpost, the milestone).
+const MILL_PROPS = [[25.55, -22, 0.55, 1.25, 1.2], [30.45, -21.62, 0.6, 0.55, 1.6], [26.8, -19.6, 1.1, 0.7, 0.8], [29.4, -19.6, 1.3, 0.75, 1.15]];
+const SOUTH_PROPS = [[6.4, 21.1, 0.7, 0.8, 1.3], [-14.5, 29.6, 3.6, 2.0, 2.0], [4.4, 28.6, 0.2, 0.2, 2.6], [-3.55, 19, 0.3, 0.5, 0.75]];
+// the fingerpost (hg_village.SIGNPOST, FINGERS): words, direction, board foot
+const SIGNPOST = [4.4, 28.6];
+const SIGNPOST_FINGERS = [["GRINMOOR FAIR", 1, 0, 2.2], ["ST GRINSWORTH'S", -1, 0, 1.92], ["THE MANOR", 0, -1, 1.64]];
+// the wheelbarrow at the pumpkin patch's east edge (hg_fields.BARROW): x, z
+const FIELD_BARROW = [33.2, 7.0];
+// Trick-or-Treat Lane (hg_lane): the mailboxes (x from each house's middle, z), the houses with a bike
+const LANE_MAILBOX = [1.05, 36.5];
+const LANE_BIKES = [0, 3];
 const WEST_LOOP = {
   path: -37.4,
   wallX: -38.75, walls: [[-16, -11.5], [-10, -8.7], [11, 13], [14, 19], [20.5, 25], [26.5, 28.8]],
@@ -1620,11 +1636,12 @@ function gableRoof(K, roof, end, { x0, x1, z0, z1, y, rise, over = 0.35, endT = 
 }
 
 /* A picket fence along x at `z` from a to b, with gaps. Stops bodies only. */
-function picketFence(K, M, z, a, b, gaps = []) {
+function picketFence(K, M, z, a, b, gaps = [], { draw = true } = {}) {
   for (const [s, e] of runs(a, b, gaps)) {
     const len = e - s, c = (s + e) / 2;
     if (len < 0.2) continue;
     K.api.ghostBox(c, z, len, 0.1, 0.95, { pen: 0.3 });
+    if (!draw) continue;
     for (const y of [0.3, 0.68]) K.box(M.picket, c, y, z + 0.03, len, 0.07, 0.03);
     for (let x = s + 0.08; x < e; x += 0.17) {
       K.box(M.picket, x, 0, z, 0.08, 0.86, 0.025, {}, { shadow: false });
@@ -1988,6 +2005,7 @@ function buildOutskirts(api, K, M, SP, root, lights) {
 
   /* ------------------------------------------- Trick-or-Treat Lane */
   {
+    hgModel(api, "hg-lane");
     flat(K, M.dirt, 0, 35, 112, 3.2, { y: 0.014 });
     flat(K, M.dirt, 0, 32.6, 4.4, 1.8, { y: 0.013 });
     const sidings = [M.sidingA, M.sidingB, M.sidingC];
@@ -2006,29 +2024,37 @@ function buildOutskirts(api, K, M, SP, root, lights) {
           if (lit) SP.add(mid + dx, y + 0.65, zf - 0.4, 0xffb060, { size: 1.2, blink: 0 });
         }
       }
-      K.box(M.trimDark, mid, 0.3, zf - 0.03, 1.1, 2.2, 0.06);
-      // the porch: deck, posts, a little roof, a lantern
-      K.solid(mid, 39.1, 4.2, 1.4, 0.3, { mat: M.stairWood, pen: 4 });
-      for (const s of [-1, 1]) K.solid(mid + s * 1.95, 38.55, 0.14, 0.14, 2.3, { y: 0.3, mat: M.trim, pen: 2 });
-      K.box(M.roof, mid, 2.55, 39.0, 4.6, 0.12, 1.9, { rx: 0.14 });
+      // the porch (deck, steps, posts, railings, roof), the door, the fence
+      // and gate, the mailbox, the bowl, webs and tombstones are hg-lane's;
+      // the colliders, the lantern and the lit jack stay here
+      K.solid(mid, 39.1, 4.2, 1.4, 0.3, { pen: 4 });
+      for (const s of [-1, 1]) K.solid(mid + s * 1.95, 38.55, 0.14, 0.14, 2.3, { y: 0.3, pen: 2 });
       K.box(M.lampGlass, mid + 0.85, 1.9, zf - 0.08, 0.16, 0.26, 0.12, {}, { shadow: false });
       SP.add(mid + 0.85, 2.03, zf - 0.2, 0xffb86a, { size: 0.9, blink: 0.05 });
       jack(K, M, mid - 1.4, 0.3, 38.7, { r: 0.26, face: Math.PI, seed: 5000 + i * 3 });
-      jack(K, M, mid + 1.5, 0.3, 38.8, { r: 0.21, face: Math.PI, seed: 5001 + i * 3, glow: false });
       flat(K, M.dirt, mid, 37.7, 1.1, 1.4, { y: 0.013 });
-      picketFence(K, M, 36.95, xa - 0.4, xb + 0.4, [[mid - 0.6, mid + 0.6]]);
+      picketFence(K, M, 36.95, xa - 0.4, xb + 0.4, [[mid - 0.6, mid + 0.6]], { draw: false });
+      K.api.ghostBox(mid + LANE_MAILBOX[0], LANE_MAILBOX[1], 0.25, 0.5, 1.25, { pen: 1 });
+      if (LANE_BIKES.includes(i)) K.api.ghostBox(mid - 2.6, 37.25, 1.75, 0.55, 1.0, { pen: 1 });
       // decor, house by house
       if (i % 3 === 0) {
+        // sheet ghosts on threads from the porch roof (hg-ghost), turning
+        // and swaying a little in the wind
         for (const s of [-1, 1]) {
-          const gx = mid + s * 1.1;
-          K.add(M.ghost, place(new THREE.ConeGeometry(0.34, 0.95, 10, 1, true), { x: gx, y: 1.85, z: 38.6 }), { shadow: false });
-          K.add(M.ghost, place(new THREE.SphereGeometry(0.2, 10, 8), { x: gx, y: 2.25, z: 38.6 }), { shadow: false });
-          K.box(M.trimDark, gx, 2.35, 38.6, 0.01, 0.2, 0.01, {}, { shadow: false });
+          const gx = mid + s * 1.1, g = new THREE.Group();
+          g.position.set(gx, 2.53, 38.6);
+          root.add(g);
+          hgModel(api, "hg-ghost", { parent: g });
+          const ph = gx * 1.7;
+          root.add(ticker(() => {
+            const t = performance.now() / 1000;
+            g.rotation.z = Math.sin(t * 0.9 + ph) * 0.07;
+            g.rotation.x = Math.sin(t * 0.7 + ph * 2) * 0.05;
+            g.rotation.y = Math.sin(t * 0.3 + ph) * 0.35;
+          }));
         }
       } else if (i % 3 === 1) {
-        for (const [dx, dz] of [[-2.4, 37.8], [-1.6, 38.1], [2.1, 37.7]]) {
-          K.add(M.trim, place(headstoneGeo(0.5, 0.65, 0.08), { x: mid + dx, z: dz, ry: (R() - 0.5) * 0.4, rz: (R() - 0.5) * 0.2 }));
-        }
+        for (let k = 0; k < 6; k++) R();   // the yard stones are hg-lane's: keep the stream's place
       } else {
         const sx = mid + 1.2, sy = h + 1.1, sz = zf + 0.7;
         K.add(M.car, place(new THREE.SphereGeometry(0.6, 12, 8), { x: sx, y: sy, z: sz, sz: 1.3 }));
@@ -2105,14 +2131,14 @@ function buildOutskirts(api, K, M, SP, root, lights) {
     {
       for (const [x, model] of [[-3.3, "hg-trollbust"], [3.3, "hg-pepe"]]) {
         K.add(M.purpleDisc, place(new THREE.CircleGeometry(1.25, 28), { x, y: 0.015, z: 38.3, rx: -Math.PI / 2 }), { shadow: false });
-        K.solid(x, 38.3, 1.1, 0.9, 1.0, { mat: M.plinth, pen: 8 });
+        K.solid(x, 38.3, 1.1, 0.9, 1.0, { pen: 8 });
         K.add(sign(["MEME GALLERY"], { w: 512, h: 128, bg: "#08080a", fg: "#ff3ad0", edge: "#08080a" }), place(new THREE.PlaneGeometry(0.9, 0.22), { x, y: 0.7, z: 37.84, ry: Math.PI }), { shadow: false });
         mapModel(api, model, { x, z: 38.3, y: 1.0, rot: Math.PI, scale: 0.95 });
         K.api.ghostBox(x, 38.3, 1.0, 0.8, 1.1, { y: 1.0, pen: 4 });
         K.add(M.purpleGlow, place(new THREE.PlaneGeometry(3.4, 3.4), { x, y: 0.03, z: 38.3, rx: -Math.PI / 2 }), { shadow: false, phase: x });
         for (const s of [-1, 1]) SP.add(x + s * 0.55, 0.2, 37.7, 0xc040ff, { size: 1.0, blink: 0.1 });
       }
-      picketFence(K, M, 36.95, -6.4, 6.4, [[-0.7, 0.7]]);
+      picketFence(K, M, 36.95, -6.4, 6.4, [[-0.7, 0.7]], { draw: false });
       const banner = sign(["MEME GALLERY"], { w: 1024, h: 256, bg: "#050506", fg: "#ff3ad0", edge: "#050506" });
       for (const x of [-3.4, 3.4]) K.add(banner, place(new THREE.PlaneGeometry(2.4, 0.6), { x, y: 0.5, z: 36.9, ry: Math.PI }), { shadow: false });
     }
@@ -4233,73 +4259,56 @@ function buildHollowgrin(api) {
       [28, [[-9.5, -1.2], [0.8, 3]]],
       [31, [[-9.5, -5.5], [-3.5, 3]]],
     ];
+    // the stalks on their ridges, the split-rail fence, the pumpkins, the
+    // giants, the bonfire's ring and logs, its bales and the barrow are
+    // hg-fields; the scarecrow is Studio's (hg-scarecrow)
+    hgModel(api, "hg-fields");
+    hgModel(api, "hg-scarecrow");
+    // down each row's middle, between the model's stalks, the painted corn
+    // that makes the row a wall
     const R = rng(808);
     for (const [x, segs] of rows) {
       for (const [a, b] of segs) {
         K.api.ghostBox(x, (a + b) / 2, 1.3, b - a, 2.5, { pen: 0.35 });
-        K.box(M.dirt, x, 0, (a + b) / 2, 1.5, 0.12, b - a + 0.2, {}, { shadow: false });
-        for (let z = a + 0.3; z < b; z += 0.55) {
-          for (const dx of [-0.35, 0.35]) {
-            const px = x + dx + (R() - 0.5) * 0.2, pz = z + (R() - 0.5) * 0.25;
-            const h = 2.3 + R() * 0.5, ry = R() * Math.PI;
-            for (const extra of [0, Math.PI / 2]) {
-              K.add(M.corn, place(new THREE.PlaneGeometry(1.0, h), { x: px, y: h / 2, z: pz, ry: ry + extra }));
-            }
-          }
+        for (let z = a + 0.4; z < b - 0.2; z += 0.6) {
+          const px = x + (R() - 0.5) * 0.15, pz = z + (R() - 0.5) * 0.2;
+          const h = 2.2 + R() * 0.4, ry = R() * Math.PI;
+          for (const extra of [0, Math.PI / 2]) K.add(M.corn, place(new THREE.PlaneGeometry(0.9, h), { x: px, y: h / 2, z: pz, ry: ry + extra }));
         }
       }
     }
     // rail fence along the north edge of the field, with gaps
-    for (const [a, b] of [[15, 20.5], [23, 29.5], [32, 36]]) {
-      const c = (a + b) / 2;
-      K.api.ghostBox(c, -12.5, b - a, 0.12, 1.1, { pen: 0.4 });
-      for (const y of [0.45, 0.95]) K.box(M.stairWood, c, y, -12.5, b - a, 0.1, 0.06);
-      for (let x = a; x <= b + 0.01; x += 1.8) K.box(M.stairWood, x, 0, -12.5, 0.12, 1.15, 0.12);
-    }
+    for (const [a, b] of [[15, 20.5], [23, 29.5], [32, 36]]) K.api.ghostBox((a + b) / 2, -12.5, b - a, 0.12, 1.1, { pen: 0.4 });
 
     // the patch: pumpkins on vines, three giants you can hide behind
-    // the big one's carved, grinning back toward town
+    // the big one's carved, grinning back toward town (its jack is ours)
     const giants = [[20, 7.5, 0.95], [30.5, 11, 1.15], [25, 16, 0.9]];
     for (const [x, z, r] of giants) {
       K.api.ghostBox(x, z, r * 1.7, r * 1.7, r * 1.45, { pen: 3 });
-      jack(K, M, x, 0, z, { r, face: -Math.PI / 2, carved: r > 1, seed: Math.round(x * 13 + z) });
+      if (r > 1) jack(K, M, x, 0, z, { r, face: -Math.PI / 2, carved: true, seed: Math.round(x * 13 + z) });
     }
+    // the carved ones glow here; hg_fields.patch_spots draws the rest from
+    // the same stream (keep the two in step)
     const P = rng(4242);
-    const avoid = [[17.8, 12.8, 3.4], [26, 8, 1.2], ...giants.map(([x, z, r]) => [x, z, r + 0.8])];
+    const avoid = [[17.8, 12.8, 3.4], [26, 8, 1.2], [23.5, 6.3, 0.8], [FIELD_BARROW[0], FIELD_BARROW[1], 1.4], ...giants.map(([x, z, r]) => [x, z, r + 0.8])];
     for (let i = 0; i < 70; i++) {
       const x = 14.5 + P() * 20.5, z = 5.2 + P() * 12.3;
       if (avoid.some(([ax, az, ar]) => Math.hypot(x - ax, z - az) < ar)) continue;
       const r = 0.18 + P() * 0.22;
       const carved = P() < 0.12;
-      jack(K, M, x, 0, z, { r, carved, face: -Math.PI / 2 + (P() - 0.5), seed: 700 + i, glow: carved });
-      if (P() < 0.6) {
-        K.add(M.leaf, place(new THREE.PlaneGeometry(1.2, 1.2), { x: x + (P() - 0.5), y: 0.03 + i * 0.0004, z: z + (P() - 0.5), rx: -Math.PI / 2, rz: P() * 6 }), { shadow: false });
-      }
+      const face = -Math.PI / 2 + (P() - 0.5);
+      if (carved) jack(K, M, x, 0, z, { r, carved, face, seed: 700 + i, glow: true });
     }
     ZSPAWNS.push({ x: 23, y: 0, z: 11, rise: true }, { x: 32.5, y: 0, z: 15.5, rise: true }, { x: 16.6, y: 0, z: 7.4, rise: true });
 
-    // the scarecrow: a post, a cross-bar, a burlap coat, a lantern for a head
-    const sx = 26, sz = 8;
-    K.solid(sx, sz, 0.25, 0.25, 2.6, { pen: 2 });
-    K.box(M.stairWood, sx, 0, sz, 0.14, 2.3, 0.14);
-    K.box(M.stairWood, sx, 1.75, sz, 0.1, 0.1, 2.0);
-    K.add(M.burlap, place(prismGeo([[-0.45, 0], [0.45, 0], [0.3, 0.85], [-0.3, 0.85]], 0.35), { x: sx, y: 1.0, z: sz, ry: Math.PI / 2 }));
-    for (const s of [-1, 1]) K.add(M.burlap, place(new THREE.PlaneGeometry(0.9, 0.35), { x: sx, y: 1.72, z: sz + s * 0.55, ry: Math.PI / 2, rz: s * 0.1 }));
-    jack(K, M, sx, 2.02, sz, { r: 0.3, face: -Math.PI / 2, seed: 999, glow: false });
-    K.add(M.trimDark, place(new THREE.ConeGeometry(0.45, 0.5, 12), { x: sx, y: 2.72, z: sz }));
-    K.add(M.trimDark, place(new THREE.CylinderGeometry(0.62, 0.62, 0.03, 16), { x: sx, y: 2.5, z: sz }));
+    // the scarecrow's post
+    K.solid(26, 8, 0.25, 0.25, 2.6, { pen: 2 });
+    // the wheelbarrow of pumpkins at the patch's east edge
+    K.api.ghostBox(FIELD_BARROW[0] + 0.04, FIELD_BARROW[1] + 0.16, 1.2, 2.1, 0.75, { pen: 2 });
 
     // the bonfire, with bales round it to sit on
     const bx = 17.8, bz = 12.8;
     K.api.ghostBox(bx, bz, 2.0, 2.0, 0.45, { pen: 8 });
-    for (let i = 0; i < 10; i++) {
-      const a = (i / 10) * Math.PI * 2;
-      K.add(M.stoneDark, place(new THREE.DodecahedronGeometry(0.28), { x: bx + Math.cos(a) * 0.95, y: 0.2, z: bz + Math.sin(a) * 0.95, sy: 0.75, ry: a }));
-    }
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2;
-      K.cyl(M.bark, bx + Math.cos(a) * 0.3, 0.05, bz + Math.sin(a) * 0.3, 0.09, 0.07, 1.1, 6, { rx: Math.cos(a + 1.57) * 0.9, rz: -Math.sin(a + 1.57) * 0.9, ry: 0 });
-    }
     K.box(M.ember, bx, 0.02, bz, 0.9, 0.12, 0.9, { ry: 0.4 }, { shadow: false });
     for (let i = 0; i < 5; i++) {
       const s = 1 - i * 0.12;
@@ -4313,41 +4322,26 @@ function buildHollowgrin(api) {
     bl.userData.flicker = 2;
     lights.push(bl);
     for (const [dx, dz, ry] of [[-2.6, 0, Math.PI / 2], [2.6, 0.2, Math.PI / 2], [0, 2.7, 0], [0.3, -2.6, 0]]) {
-      hayBale(K, M, bx + dx, bz + dz, { ry });
+      hayBale(K, M, bx + dx, bz + dz, { ry, draw: false });
     }
   }
 
   /* ------------------------------------------------ the windmill (NE) */
   {
+    // a smock mill on a brick base, its cap, fantail, door and windows, and
+    // round its foot the sacks, crates, millstone, ladder and bales
+    // (hg-windmill); the sails are their own model, turned here
     const wx = 28, wz = -22;
     K.solid(wx, wz, 4, 4, 7, { pen: 10 });
-    K.add(M.siding, place(new THREE.CylinderGeometry(1.7, 2.6, 7, 8), { x: wx, y: 3.5, z: wz, ry: Math.PI / 8 }));
-    K.add(M.roof, place(new THREE.ConeGeometry(2.1, 2.4, 8), { x: wx, y: 8.2, z: wz, ry: Math.PI / 8 }));
-    K.box(M.trimDark, wx, 0, wz + 2.35, 1.2, 2.2, 0.2);
-    K.add(M.winGlow, place(new THREE.PlaneGeometry(0.5, 0.8), { x: wx, y: 5, z: wz + 2.02, rx: -0.12 }), { shadow: false });
-    // the sails turn, slowly, on their own mesh
+    hgModel(api, "hg-windmill");
     const sails = new THREE.Group();
-    const sailMat = M.stairWood;
-    for (let i = 0; i < 4; i++) {
-      const arm = new THREE.Group();
-      arm.rotation.z = (i * Math.PI) / 2;
-      const spar = new THREE.Mesh(new THREE.BoxGeometry(0.16, 4.8, 0.12), sailMat);
-      spar.position.y = 2.4;
-      arm.add(spar);
-      const lattice = new THREE.Mesh(new THREE.BoxGeometry(1.0, 3.4, 0.04), M.burlap);
-      lattice.position.set(0.55, 3.0, 0);
-      arm.add(lattice);
-      sails.add(arm);
-    }
-    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.5, 10), M.iron);
-    hub.rotation.x = Math.PI / 2;
-    sails.add(hub);
     sails.position.set(wx, 7.6, wz + 2.3);
     sails.rotation.x = -0.12;
-    sails.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-    hub.onBeforeRender = () => { sails.rotation.z = -performance.now() / 1000 * 0.35; };
     root.add(sails);
-    for (const [dx, dz] of [[-3.4, 1.4], [-3.2, 2.6], [3.5, -1.2]]) hayBale(K, M, wx + dx, wz + dz, { ry: dx * 0.2 });
+    hgModel(api, "hg-windmill-sails", { parent: sails, then: (obj) => obj.traverse((o) => { if (o.isMesh) o.castShadow = true; }) });
+    root.add(ticker(() => { sails.rotation.z = -performance.now() / 1000 * 0.35; }));
+    for (const [dx, dz, ry] of [[-3.4, 0.8, Math.PI / 2], [-3.25, 2.25, Math.PI / 2 + 0.06], [3.5, -1.2, 0.7]]) hayBale(K, M, wx + dx, wz + dz, { ry, draw: false });
+    for (const [x, z, w, d, h] of MILL_PROPS) K.api.ghostBox(x, z, w, d, h, { pen: 2 });
   }
 
   /* ------------------------------------------------ the candy shop (S) */
@@ -4398,6 +4392,9 @@ function buildHollowgrin(api) {
     // a lantern on a bracket by the back door
     lantern(K, M, -2.45, 2.2, 27.88, { hang: 0.5, seed: 77, pool: 2.2 });
     K.box(M.iron, -2.45, 2.72, 27.7, 0.03, 0.03, 0.4);
+    // phase 3's props (hg_village.shop_props): the gumball machine by the
+    // back door, the rack of sweet bins under the west window
+    for (const [x, z, w, d, h] of SHOP_PROPS) K.api.ghostBox(x, z, w, d, h, { pen: 2 });
   }
 
   /* ------------------------------------------------ the barn (SE) */
@@ -4429,6 +4426,9 @@ function buildHollowgrin(api) {
     hayBale(K, M, 19.4, 20.85, { y: LOFT.y });
     hayBale(K, M, 18.3, 27.6, { y: LOFT.y, ry: 0.1 });
     hayBale(K, M, 18.3, 27.6, { y: LOFT.y + 0.75, ry: -0.08, collide: false });
+    // phase 3's props (hg_village.barn_props): the wheelbarrow, the feed
+    // sacks under the loft, the east stall's trough
+    for (const [x, z, w, d, h] of BARN_PROPS) K.api.ghostBox(x, z, w, d, h, { pen: 2 });
     // a lantern hung over the loft, another by the west door
     lantern(K, M, 18.9, 3.25, 24.5, { hang: 1.1, floor: LOFT.y, seed: 75, pool: 2.4 });
     lantern(K, M, 16.62, 2.3, 22.6, { hang: 0.55, seed: 76, pool: 2.2 });
@@ -4462,43 +4462,45 @@ function buildHollowgrin(api) {
   /* ------------------------------------------------ the south road */
   {
     // the hearse, nose north, back hatch open with a coffin sliding out
+    // (hg-southroad draws it and everything else here; this keeps the
+    // colliders, the headlamps' glass, the jacks and the words)
     const hx = 6.4, hz = 18.2;
-    K.api.ghostBox(hx, hz, 2.0, 5.4, 1.55, { pen: 3 });
-    K.box(M.car, hx, 0.35, hz, 1.95, 0.7, 5.4);
-    K.box(M.car, hx, 1.05, hz + 0.6, 1.8, 0.75, 3.9);
-    K.box(M.glassDark, hx, 1.12, hz - 1.43, 1.7, 0.55, 0.05, { rx: 0.35 });
-    for (const s of [-1, 1]) {
-      K.box(M.glassDark, hx + s * 0.905, 1.15, hz - 0.6, 0.02, 0.5, 1.1);
-      K.box(M.fabric, hx + s * 0.905, 1.12, hz + 1.2, 0.02, 0.55, 2.2);
-      K.box(M.chrome, hx + s * 0.91, 1.1, hz + 1.2, 0.03, 0.05, 2.4);
-      for (const wz of [-1.8, 1.8]) K.add(M.trimDark, place(new THREE.CylinderGeometry(0.38, 0.38, 0.25, 14), { x: hx + s * 0.92, y: 0.38, z: hz + wz, rz: Math.PI / 2 }));
-    }
-    K.box(M.chrome, hx, 0.35, hz - 2.72, 1.9, 0.18, 0.06);
+    K.api.ghostBox(hx, hz, 2.0, 5.4, 1.7, { pen: 3 });
     K.box(M.lampGlass, hx - 0.7, 0.62, hz - 2.72, 0.3, 0.12, 0.03, {}, { shadow: false });
     K.box(M.lampGlass, hx + 0.7, 0.62, hz - 2.72, 0.3, 0.12, 0.03, {}, { shadow: false });
-    K.box(M.car, hx, 1.8, hz + 2.95, 1.8, 0.06, 1.0, { rx: -1.1 });
-    K.add(M.stairWood, place(prismGeo([[-0.3, -1.0], [0.3, -1.0], [0.4, 0.4], [0, 1.0], [-0.4, 0.4]], 0.45), { x: hx, y: 0.95, z: hz + 2.6, rx: Math.PI / 2 - 0.18 }));
-    jack(K, M, hx - 0.4, 1.8, hz + 1.4, { r: 0.26, face: -Math.PI / 2, seed: 1300 });
+    jack(K, M, hx - 0.4, 1.7, hz + 1.4, { r: 0.26, face: -Math.PI / 2, seed: 1300 });
+    hgModel(api, "hg-southroad");
 
-    // road gate at the south edge
+    // road gate at the south edge: stone piers, a jack on each cap
     for (const gx of [-3, 3]) {
-      K.solid(gx, 31.2, 0.8, 0.8, 2.4, { mat: M.stone, pen: 10 });
-      K.add(M.stone, place(new THREE.SphereGeometry(0.3, 10, 8), { x: gx, y: 2.65, z: 31.2 }));
+      K.solid(gx, 31.2, 0.8, 0.8, 2.4, { pen: 10 });
       jack(K, M, gx, 2.4, 31.2, { r: 0.3, face: Math.PI, seed: 1310 + gx, glow: false });
     }
-    // low stone walls and a toolshed for the south-west corner
-    K.solid(-18, 24, 0.7, 5, 1.0, { mat: M.stone, pen: 8 });
-    K.solid(13.4, 23.6, 0.7, 4, 1.0, { mat: M.stone, pen: 8 });
-    K.solid(-27, 26, 4, 3, 2.6, { mat: M.siding, pen: 8 });
-    K.box(M.roof, -27, 2.6, 26, 4.5, 0.18, 3.5, { rx: 0.15 });
-    K.box(M.trimDark, -27, 0, 24.47, 1.1, 2.0, 0.05);
-    hayBale(K, M, -21, 28.6, {});
-    hayBale(K, M, -21, 28.6, { y: 0.75, ry: 0.1 });
+    // low dry-stone walls and a toolshed for the south-west corner
+    K.solid(-18, 24, 0.7, 5, 1.0, { pen: 8 });
+    K.solid(13.4, 23.6, 0.7, 4, 1.0, { pen: 8 });
+    K.solid(-27, 26, 4, 3, 2.6, { pen: 8 });
+    hayBale(K, M, -21, 28.6, { draw: false });
+    hayBale(K, M, -21, 28.6, { y: 0.75, ry: 0.1, draw: false });
     jack(K, M, -21, 1.5, 28.6, { r: 0.28, face: Math.PI, seed: 1400 });
-    hayBale(K, M, 9.5, 27.5, { ry: Math.PI / 2 });
-    // lamps down the road (bulbs only)
-    gasLamp(K, M, 3.2, 15.5);
-    gasLamp(K, M, -3.2, 26);
+    hayBale(K, M, 9.5, 27.5, { ry: Math.PI / 2, draw: false });
+    // lamps down the road (bulbs only), the coffin, the hay wagon, the
+    // fingerpost and the milestone
+    gasLamp(K, M, 3.2, 15.5, { draw: false });
+    gasLamp(K, M, 3.2, 24.5, { draw: false });
+    for (const [x, z, w, d, h] of SOUTH_PROPS) K.api.ghostBox(x, z, w, d, h, { pen: 2 });
+    // the fingers' words, both sides, and the milestone's
+    const painted = (lines, o) => new THREE.MeshStandardMaterial({ map: signTexture(lines, o), roughness: 0.85 });
+    const [px, pz] = SIGNPOST;
+    for (const [words, dx, dz, y] of SIGNPOST_FINGERS) {
+      const mat = painted([words], { bg: "#d8ccb0", fg: "#1c1414", edge: "#1c1414" });
+      for (const s of [-1, 1]) {
+        const nx = -dz * s, nz = dx * s;
+        K.add(mat, place(new THREE.PlaneGeometry(0.9, 0.16), { x: px + dx * 0.56 + nx * 0.026, y: y + 0.11, z: pz + dz * 0.56 + nz * 0.026, ry: Math.atan2(nx, nz) }), { shadow: false });
+      }
+    }
+    K.add(painted(["HOLLOWGRIN", "½ MILE"], { w: 512, h: 384, bg: "#8a8478", fg: "#2a2622", edge: "#8a8478" }),
+      place(new THREE.PlaneGeometry(0.32, 0.24), { x: -3.55 + 0.115, y: 0.5, z: 19, ry: Math.PI / 2 }), { shadow: false });
     // lanterns lining the road
     let s = 1500;
     for (const z of [13, 17, 21, 25, 29]) {
