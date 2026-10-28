@@ -84,10 +84,11 @@ PARTS = {
     "scarecrow": ("hg_fields", "build_scarecrow", "hg-scarecrow"),
     "lane": ("hg_lane", "build_lane", "hg-lane"),
     "ghost": ("hg_lane", "build_ghost", "hg-ghost"),
-    "carousel": ("park", "build_carousel", "hg-carousel"),
-    "ride": ("park", "build_ride", "hg-carousel-ride"),
-    "horse": ("park", "build_horse", "hg-horse"),
-    "fountain": ("park", "build_fountain", "hg-fountain"),
+    "fair": ("hg_fair", "build_fair", "hg-fair"),
+    "carousel": ("hg_fair", "build_carousel", "hg-carousel"),
+    "ride": ("hg_fair", "build_ride", "hg-carousel-ride"),
+    "horse": ("hg_fair", "build_horse", "hg-horse"),
+    "fountain": ("hg_park", "build_fountain", "hg-fountain"),
     "plaza": ("park", "build_plaza", "hg-plaza"),
     "wheelbase": ("park", "build_wheel", "hg-wheelbase"),
     "stalls": ("park", "build_stalls", "hg-stalls"),
@@ -98,7 +99,7 @@ PARTS = {
     "trollbust": ("eggs", None, "hg-trollbust"),
 }
 OWN_FRAME = {"ride", "horse", "pepe", "trollbust"}
-HG_MODULES = {"hg_manor", "hg_village", "hg_graveyard", "hg_west", "hg_garden", "hg_chapel", "hg_fields", "hg_lane"}
+HG_MODULES = {"hg_manor", "hg_village", "hg_graveyard", "hg_west", "hg_garden", "hg_chapel", "hg_fields", "hg_lane", "hg_fair", "hg_park"}
 
 
 def main():
