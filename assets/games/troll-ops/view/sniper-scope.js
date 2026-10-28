@@ -10,7 +10,7 @@
 // With the trollface reticle on (view/troll-reticle.js) the troll fist
 // sits on the crosshair's centre, and "get trolled" while an enemy is in it.
 
-import { TROLL_RETICLE_URLS } from "./troll-reticle.js?v=tr1";
+import { TROLL_RETICLE_URLS } from "./troll-reticle.js?v=tr1-ret1";
 
 const FADE_FROM = 0.78;              // adsT where the scope starts to cover
 const HIDE_GUN_AT = 0.9;             // overlay strength that hides the gun
