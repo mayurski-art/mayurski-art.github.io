@@ -33,7 +33,7 @@ for (const [id, views] of Object.entries(VIEWS)) {
   page.on("pageerror", (e) => console.log("ERR", id, e.message));
   await page.goto(`${BASE}/troll-ops.html?tohooks=1${process.env.QUERY ? "&" + process.env.QUERY : ""}`, { waitUntil: "domcontentloaded", timeout: 90000 });
   await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 60000 });
-  await page.evaluate(async ([id, mode, gfx]) => {
+  await page.evaluate(async ([id, mode, gfx, royaleMode]) => {
     const T = window.__trollOps;
     if (mode === "view") {   // View mode (owner only): no bots, HUD or viewmodel in the shot
       window.TrollrunnerAccounts = window.TrollrunnerAccounts || {};
@@ -44,9 +44,11 @@ for (const [id, views] of Object.entries(VIEWS)) {
     // Trollface Island only exists in Troll Royale (buildMap falls back to
     // Grinsite for it elsewhere): Royale with no bots and no drop, the zone
     // and the loot beams hidden below
-    const royale = id === "trollface";
+    // ROYALE=<mode> shoots another map in a Royale mode (royale_hollowgrin:
+    // the pumpkin round Hollowgrin only shows there)
+    const royale = id === "trollface" || !!royaleMode;
     if (royale) { T.DROP.enabled = false; if (T.els.noBots) T.els.noBots.checked = true; }
-    T.setMode(royale ? "royale" : "ops"); T.loadout.mapId = id;
+    T.setMode(royaleMode || (royale ? "royale" : "ops")); T.loadout.mapId = id;
     // GFX=high|medium|low pins the graphics tier: on "auto" a heavier build
     // can drop a tier mid-run (MSAA off), so before/after sets wouldn't compare
     if (gfx) T.settings.gfx = gfx;
@@ -55,7 +57,9 @@ for (const [id, views] of Object.entries(VIEWS)) {
     const st = document.createElement("style");
     st.textContent = "body *:not(canvas):not(main):not(section):not(.arcade-shell) { visibility: hidden !important; } canvas { visibility: visible !important; } .to-minimap { display:none !important }";
     document.head.appendChild(st);
-  }, [id, process.env.MODE || "ops", process.env.GFX || ""]);
+  }, [id, process.env.MODE || "ops", process.env.GFX || "", process.env.ROYALE || ""]);
+  // FOG=<density> sets the fog for the shots (the sky views a drop sees)
+  if (process.env.FOG) await page.evaluate((d) => { window.__trollOps.scene.fog.density = d; }, +process.env.FOG);
   await new Promise((r) => setTimeout(r, Number(process.env.WAIT) || 6000));
   for (const [x, y, z, lx, ly, lz, tag] of views) {
     await page.evaluate(([x, y, z, lx, ly, lz]) => {
