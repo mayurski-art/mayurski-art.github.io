@@ -35,6 +35,21 @@ import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallSh
 
 export let royale = null;
 
+/* Which side of the island this match is on (MODES.royale.sides): the
+   room's, once the host has said (its stage notes carry the map:
+   match-start.js followsHostMap), else a coin toss, held for the match (the
+   match count) so every look during its loading agrees. A test page
+   (?tohooks=1) stays on the top side unless it sets window.__royaleSide:
+   the royale tests were all written for Trollface Island. */
+let tossed = null;   // { n: the match count it was tossed for, i }
+const TEST_PAGE = /[?&]tohooks=1/.test(location.search);
+export function pickSide(sides, roomMapId = null) {
+  if (sides.includes(roomMapId)) return roomMapId;
+  if (TEST_PAGE) return sides.includes(window.__royaleSide) ? window.__royaleSide : sides[0];
+  if (tossed?.n !== game.matchesPlayed) tossed = { n: game.matchesPlayed, i: Math.floor(Math.random() * sides.length) };
+  return sides[tossed.i % sides.length];
+}
+
 function royaleSeed() { return hashSeed(`${game.net.room || "solo"}:${game.matchesPlayed}:royale`); }
 
 function royaleGround(x, z) { return groundHeightAt(game.colliders, x, z, floorAt(x, z) + 0.8, 0.3) ?? 0; }

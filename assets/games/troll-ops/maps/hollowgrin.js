@@ -4526,6 +4526,7 @@ export const HOLLOWGRIN = {
     // three planes (27 seats) on a circle round the village, lower, and a
     // slow run so it's over Hollowgrin's 90 m for the whole jump
     planes: { count: 3, orbitR: 170, baseAlt: 140, altStep: 12, fan: 40, runSpeed: 12, runFrom: 110, lookIn: 30, inbound: 350 },
+    dropLine: "the underside: Hollowgrin",   // the drop's banner (match-start.js)
     dropFog: 0.002,   // the night's fog (0.016) hides the ground from 140 m up
     // the island round it, Trollface Island's underside as a Halloween
     // trollface pumpkin, seen from the planes and the fall

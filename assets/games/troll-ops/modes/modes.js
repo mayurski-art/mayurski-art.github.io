@@ -170,7 +170,9 @@ MODES.umb = {
 };
 
 /* Battle royale: solo, one life, loot only, a closing zone, last troll
-   standing, on Trollface Island. Rules live in game.js (updateRoyale), the
+   standing, on Trollface Island or its underside, Hollowgrin ("Two
+   Worlds", phase 2): `sides`, one a match (royale.js pickSide; a room
+   plays its host's). `forceMap` stays the top side, for the menu's card. Rules live in game.js (updateRoyale), the
    zone/loot in royale.js. */
 MODES.royale = {
   id: "royale",
@@ -185,6 +187,7 @@ MODES.royale = {
   // lasted 2 minutes and 38 seconds").
   noBotNades: true,
   forceMap: "trollface",
+  sides: ["trollface", "hollowgrin"],
   blurb: "A hundred trolls, one floating island. Land with a pistol, loot the rest, stay out of the Cringe.",
 };
 
@@ -204,8 +207,8 @@ MODES.royale_mini = {
 };
 
 /* Troll Royale on Hollowgrin ("Troll Royale: Two Worlds", phase 1: the
-   island's underside). Hidden for now: the royale tests' fixture until a
-   match can start on either side. */
+   island's underside), always: the royale tests' fixture (Troll Royale
+   itself lands on either side). */
 MODES.royale_hollowgrin = {
   hidden: true,
   id: "royale_hollowgrin",

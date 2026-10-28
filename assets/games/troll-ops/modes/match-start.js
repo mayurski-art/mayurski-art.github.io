@@ -73,7 +73,7 @@ export function followsHostMap(m) {
   if (!m.map || !MAPS[m.map] || m.mode !== game.modeId || !game.isNet()) return false;
   const mode = game.currentMode();
   // Zombies co-op picks from a pool too, but everyone plays the host's pick
-  if (mode.forceMap || (mode.mapPool && !game.zombieCoop)) return false;
+  if ((mode.forceMap && !mode.sides?.includes(m.map)) || (mode.mapPool && !game.zombieCoop)) return false;   // (Royale: the host's side)
   // The host's map, not just any older player's: a tab stuck on its loading
   // screen used to drag everyone onto its map (net.hostId).
   const p = game.net.peers.get(m.id);
@@ -572,7 +572,7 @@ export function endStaging() {
   game.player.spawnGuard = game.isPvp() ? game.SPAWN_GUARD : 0;
   updateSpawnGuardHud();
   if (royale?.drop) greenLight();
-  else if (royale) { royale.live = true; royale.t = 0; showWaveBanner("DROP IN — last troll standing wins", 1800); }
+  else if (royale) { royale.live = true; royale.t = 0; showWaveBanner(`DROP IN — ${game.builtMap.map.royale?.dropLine || "last troll standing wins"}`, 1800); }
   else if (game.isPvp() && !game.isSnd()) showWaveBanner("FIGHT", 1100);
   game.audio.stageTick(false, true);   // GO: the long buzzer
   // The horde/zombie clock — and the first wave banner — start now, not when
