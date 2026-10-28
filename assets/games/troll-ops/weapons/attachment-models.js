@@ -578,9 +578,10 @@ function buildLaserUnit() {
   bezel.rotation.x = Math.PI / 2;
   bezel.position.z = -0.032;
   g.add(bezel);
-  const lens = new THREE.Mesh(new THREE.CircleGeometry(0.0055, 12), reticleMat(0xff3b30));
+  // Lit, but depth tested: on reticleMat it drew through the gun, a second
+  // red dot on the stock next to the sight's own.
+  const lens = new THREE.Mesh(new THREE.CircleGeometry(0.0055, 12), new THREE.MeshBasicMaterial({ color: 0xff3b30 }));
   lens.position.z = -0.0365;
-  lens.renderOrder = 9;
   g.add(lens);
   // Activation pad + cable tail running back along the rail.
   const pad = box(0.018, 0.008, 0.014, M.rubber());
