@@ -79,6 +79,14 @@ export const RETEXTURE = {
   HG_Bark: ["wood", 0.8, 0.1],
   HG_WoodsPine: ["grass", 0.8, 0.1],
   HG_WoodsPineLight: ["grass", 0.8, 0.14],
+  // the ground (models/hg_ground.py): the paths, their verges and ruts, the
+  // gravel, the setts' kerbs (the setts themselves wear hollowgrin.js's texture)
+  HG_Dirt: ["dirt", 0.4, 0.22],
+  HG_Verge: ["dirt", 0.4, 0.18],
+  HG_Rut: ["dirt", 0.4, 0.12],
+  HG_Gravel: ["dirt", 0.7, 0.35],
+  HG_GravelVerge: ["dirt", 0.55, 0.14],
+  HG_Kerb: ["rock", 0.9, 0.4],
 };
 
 /* Drops models/<file>.glb at (x, y, z), turned `rot` radians about y.

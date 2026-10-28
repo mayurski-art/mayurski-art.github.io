@@ -1684,14 +1684,10 @@ function buildOutskirts(api, K, M, SP, root, lights) {
     K.solid(-35.6, gz, 0.6, 0.6, 2.3, { pen: 10 });
     jack(K, M, -35.6, 2.45, gz, { r: 0.24, face: -Math.PI / 2, seed: 3000 + gz * 10, glow: false });
   }
-  flat(K, M.dirt, -37.2, 2, 4.4, 2.6);
 
   /* ------------------------------------------- the west loop (hg_west.py draws it) */
   {
     const W = WEST_LOOP;
-    const gravel = surfMat("dirt", 0x6a6460, { mix: 0.25, tile: 1.4 });
-    flat(K, gravel, W.path, -7.5, 1.8, 19, { y: 0.014 });
-    flat(K, gravel, W.path, 18.3, 1.8, 30, { y: 0.014 });
     for (const [z0, z1] of W.walls) K.solid(W.wallX, (z0 + z1) / 2, W.wallT, z1 - z0, W.wallH, { pen: 8 });
     for (const [z0, z1] of W.eastWalls) K.solid(W.eastX, (z0 + z1) / 2, W.wallT, z1 - z0, W.wallH, { pen: 8 });
     for (const x of [W.lych.x0, W.lych.x1]) for (const dz of [-0.8, 0.8]) K.solid(x, W.lych.z + dz, 0.22, 0.22, 2.6, { pen: 10 });
@@ -1726,9 +1722,6 @@ function buildOutskirts(api, K, M, SP, root, lights) {
     SP.swarm(14, POND.x, POND.z, 12, 10, 0.4, 2, 0xd8ff6a, { size: 0.12, wander: 0.9, blink: 1 });
     ZSPAWNS.push({ x: -43, y: 0, z: -19.5, rise: true });
 
-    // paths: from the hedge garden's west gap, and from the pond to the hut
-    flat(K, M.dirt, -35.5, -19, 10, 2.2);
-    flat(K, M.dirt, -44.6, -31, 2, 13);
 
     // the hut (hg_west.py draws the boards, the thatch, the chimney, the
     // shelves, the table and the cauldron): its colliders and what glows
@@ -1844,8 +1837,6 @@ function buildOutskirts(api, K, M, SP, root, lights) {
     SP.swarm(10, 0, gcz, 16, 7, 0.8, 2.6, 0xd8ff6a, { size: 0.12, wander: 0.8, blink: 1 });
     K.add(M.greenGlow, place(new THREE.PlaneGeometry(16, 8), { x: 0, y: 0.03, z: gcz, rx: -Math.PI / 2 }), { shadow: false, phase: 0.5 });
     ZSPAWNS.push({ x: 4.2, y: 0, z: -38.5, rise: true });
-    // paths from the manor's back doors
-    for (const s of [-1, 1]) flat(K, M.dirt, s * 7.25, -31, 2, 6.2);
     // the potting bench outside the west door
     K.solid(GARDEN_PROPS.potting[0], GARDEN_PROPS.potting[1], 0.6, 1.8, 0.95, { pen: 4 });
   }
@@ -1856,8 +1847,6 @@ function buildOutskirts(api, K, M, SP, root, lights) {
     // festoon poles are modelled (models/hg_fair.py); the words, bulbs,
     // glows, the whack-a-troll heads and the crystal ball are ours
     hgModel(api, "hg-fair", { wash: { color: 0xff5a3a, top: 2.5, strength: 0.06 } });
-    flat(K, M.dirt, 39.2, -3.5, 3.4, 73);
-    flat(K, M.dirt, 28.6, 4.1, 17.4, 1.8);
     // the entrance arch
     for (const z of [2.3, 5.9]) K.solid(37.3, z, 0.4, 0.4, 4.2, { pen: 6 });
     const fairSign = sign(["GRINMOOR FAIR"], { bg: "#1a0c14", fg: "#ffcf5a", edge: "#c0283a" });
@@ -2004,8 +1993,6 @@ function buildOutskirts(api, K, M, SP, root, lights) {
   /* ------------------------------------------- Trick-or-Treat Lane */
   {
     hgModel(api, "hg-lane");
-    flat(K, M.dirt, 0, 35, 112, 3.2, { y: 0.014 });
-    flat(K, M.dirt, 0, 32.6, 4.4, 1.8, { y: 0.013 });
     const sidings = [M.sidingA, M.sidingB, M.sidingC];
     const houses = [[-49.5, -42.5], [-31, -24], [-19.5, -12.5], [12.5, 19.5], [24, 31], [39, 46]];
     houses.forEach(([xa, xb], i) => {
@@ -2030,7 +2017,6 @@ function buildOutskirts(api, K, M, SP, root, lights) {
       K.box(M.lampGlass, mid + 0.85, 1.9, zf - 0.08, 0.16, 0.26, 0.12, {}, { shadow: false });
       SP.add(mid + 0.85, 2.03, zf - 0.2, 0xffb86a, { size: 0.9, blink: 0.05 });
       jack(K, M, mid - 1.4, 0.3, 38.7, { r: 0.26, face: Math.PI, seed: 5000 + i * 3 });
-      flat(K, M.dirt, mid, 37.7, 1.1, 1.4, { y: 0.013 });
       picketFence(K, M, 36.95, xa - 0.4, xb + 0.4, [[mid - 0.6, mid + 0.6]], { draw: false });
       K.api.ghostBox(mid + LANE_MAILBOX[0], LANE_MAILBOX[1], 0.25, 0.5, 1.25, { pen: 1 });
       if (LANE_BIKES.includes(i)) K.api.ghostBox(mid - 2.6, 37.25, 1.75, 0.55, 1.0, { pen: 1 });
@@ -2234,8 +2220,8 @@ function buildOutskirts(api, K, M, SP, root, lights) {
 /* ================================================== the Grinmoor Fair park */
 
 /* Granite setts, four courses to the texture, each a row of stones of
-   uneven length that wraps left to right; laid in rings round the fountain
-   (settsRing) and in straight runs (settsRect). One course is 0.42 m. */
+   uneven length that wraps left to right. One course is 0.42 m; the setts
+   themselves are models/hg_ground.py's (its UVs lay the courses). */
 function settsTexture() {
   return tex("setts", () => canvasTex(512, 512, (g, w, h) => {
     const R = rng(77);
@@ -2269,41 +2255,6 @@ function settsTexture() {
   }, { repeat: true }));
 }
 
-/* Rings of setts from r0 out to r1 round (cx, cz), each course its own ring
-   with a whole number of texture repeats round it, so it closes cleanly. */
-function settsRing(K, mat, cx, cz, r0, r1, { y = 0.016, scale = 1 } = {}) {
-  const pos = [], uv = [], nrm = [];
-  const band = 0.42 * scale;
-  for (let k = 0; r0 + k * band < r1 - 0.01; k++) {
-    const ri = r0 + k * band, ro = Math.min(r1, ri + band);
-    const reps = Math.max(1, Math.round((2 * Math.PI * (ri + ro) / 2) / (3.4 * scale)));
-    const seg = Math.max(24, Math.ceil((2 * Math.PI * ro) / 0.5));
-    const v0 = (k % 4) / 4, v1 = v0 + (ro - ri) / band / 4;
-    for (let i = 0; i < seg; i++) {
-      const a0 = (i / seg) * Math.PI * 2, a1 = ((i + 1) / seg) * Math.PI * 2;
-      const u0 = (i / seg) * reps, u1 = ((i + 1) / seg) * reps;
-      const P = (r, a) => [cx + Math.cos(a) * r, y, cz + Math.sin(a) * r];
-      const quad = [[P(ri, a0), u0, v0], [P(ri, a1), u1, v0], [P(ro, a1), u1, v1], [P(ri, a0), u0, v0], [P(ro, a1), u1, v1], [P(ro, a0), u0, v1]];
-      for (const [p, u, v] of quad) { pos.push(...p); uv.push(u, v); nrm.push(0, 1, 0); }
-    }
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute("normal", new THREE.Float32BufferAttribute(nrm, 3));
-  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
-  K.add(mat, g, { shadow: false });
-}
-
-/* A straight run of setts, courses along x. */
-function settsRect(K, mat, x0, x1, z0, z1, { y = 0.017 } = {}) {
-  const g = new THREE.PlaneGeometry(x1 - x0, z1 - z0);
-  const uv = g.attributes.uv.array, pos = g.attributes.position.array;
-  for (let i = 0; i < uv.length / 2; i++) {
-    uv[i * 2] = (pos[i * 3] + (x0 + x1) / 2) / 3.4;
-    uv[i * 2 + 1] = (pos[i * 3 + 1] - (z0 + z1) / 2) / 1.68;
-  }
-  K.add(mat, place(g, { x: (x0 + x1) / 2, y, z: (z0 + z1) / 2, rx: -Math.PI / 2 }), { shadow: false });
-}
 
 /* Soft rings of light on black: the fountain water's moving sparkle. */
 function rippleTexture() {
@@ -2469,9 +2420,6 @@ function buildPark(api, K, M, SP, root, lights) {
       }
       K.add(M.gold, place(new THREE.TorusGeometry(0.28, 0.025, 5, 16), { x: (x0 + x1) / 2, y: 1.6, z }), { shadow: false });
     }
-    // the way in from the old midway, paved from the gate to the plaza
-    flat(K, M.dirt, 45.7, gz, 9.6, 3.2, { y: 0.013 });
-    settsRect(K, M.setts, x - 0.6, PLAZA.x - PLAZA.r + 0.4, GATE.z0 - 0.2, GATE.z1 + 0.2);
     K.add(sign(["STAFF ONLY"], { w: 512, h: 128, bg: "#e8dcc0", fg: "#8a1a1a", edge: "#8a1a1a" }),
       place(new THREE.PlaneGeometry(0.9, 0.24), { x: x - 0.37, y: 1.6, z: -37.15, ry: -Math.PI / 2 }), { shadow: false });
   }
@@ -2479,11 +2427,6 @@ function buildPark(api, K, M, SP, root, lights) {
   /* ------------------------------------------- the plaza and its fountain */
   {
     const { x: fx, z: fz, r } = PLAZA;
-    settsRing(K, M.setts, fx, fz, 3.6, r);
-    // a paved way on to the wheel's boarding steps, and to the stalls' alley
-    settsRect(K, M.setts, fx + r - 0.5, BOARDING.x0 - 1.2, GATE.z0 + 0.4, GATE.z1 - 0.4);
-    flat(K, M.dirt, 61.65, -8.6, 2.5, 6.2, { y: 0.013 });
-
     hgModel(api, "hg-fountain", { wash: { color: 0xff7a5a, top: 1.6, strength: 0.07 } });
     discCollider(api, fx, fz, 3.75, 1.12, { pen: 0.4 });   // the curb and its fence
     discCollider(api, fx, fz, 2.1, 1.8, { pen: 6 });       // the first bowl
@@ -3194,7 +3137,6 @@ function buildMountain(api, K, M, SP, root, lights) {
 
   /* ---- the rock and the cave path through it */
   for (const [cx, cz, w, d, y0, top] of mountainCells()) K.api.ghostBox(cx, cz, w, d, top - y0, { y: y0, pen: 12 });
-  for (const [x0, x1, z0, z1] of MOUNT_TUNNEL) flat(K, M.dirt, (x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, { y: 0.014 });
   lantern(K, M, 74.4, 2.3, 35.1, { hang: 0.8, floor: 0, seed: 8000, pool: 3 });
   lantern(K, M, 75.1, 2.3, 31.6, { hang: 0.8, floor: 0, seed: 8001, pool: 3 });
   K.add(M.greenGlow, place(new THREE.PlaneGeometry(3, 3), { x: 75.1, y: 0.03, z: 33.6, rx: -Math.PI / 2 }), { shadow: false, phase: 0.3 });
@@ -3253,8 +3195,6 @@ function buildMountain(api, K, M, SP, root, lights) {
       box(a1 + 0.3, a1 + 0.9, 0.27);
       for (const s of [-1, 1]) box(a0 - 0.3, a1 + 0.3, 1.0, MOAT_DECK_Y, 0.08, s * (w / 2 - 0.05), 0.3);
     }
-    // the lane carries on over its bridge to the mountain\x27s cave
-    flat(K, M.dirt, (57.8 + 72.7) / 2, 35, 72.7 - 57.8, 3.2, { y: 0.014 });
   }
 
   /* ---- posts along the banks: corn husks, a pumpkin, a lantern glow */
@@ -3773,23 +3713,20 @@ function buildHollowgrin(api) {
   M.support.userData.wash = { color: 0x3aff8a, top: 6, strength: 0.08 };
 
   /* --------------------------------------------------------- the ground */
-  // Dirt paths and the square laid over the grass, a hair above it.
-  const dirtPlane = (x, z, w, d, ry = 0) => {
-    const g = new THREE.PlaneGeometry(w, d);
-    K.add(M.dirt, place(g, { x, y: 0.012, z, rx: -Math.PI / 2, ry }), { shadow: false });
-  };
-  // the square is cobbled (setts, ring by ring, smaller and darker than the
-  // park's), the oak's bed bare earth
-  settsRing(K, new THREE.MeshStandardMaterial({ map: M.setts.map, color: 0x6c6870, roughness: 0.92 }), 0, 1, 3.8, 12.5, { scale: 0.6 });
-  K.add(M.dirt, place(new THREE.CircleGeometry(3.9, 32), { x: 0, y: 0.01, z: 1, rx: -Math.PI / 2 }), { shadow: false });
-  dirtPlane(0, 22, 4.4, 20);           // south road
-  dirtPlane(0, -10, 3.6, 3.2);         // up to the porch
-  dirtPlane(-14.5, 2, 5, 3.2);         // west road to the graveyard gate
-  dirtPlane(15.5, 2, 9, 3.4);          // east road to the patch
-  dirtPlane(-24, 7, 1.8, 26);          // graveyard aisle
-  dirtPlane(-25, 2, 18, 2.6);          // graveyard lane
-  dirtPlane(-24, -19, 2.4, 12);        // garden paths
-  dirtPlane(-24, -19, 12, 2.4);
+  // The paths, the gravel and the setts (models/hg_ground.py, hg-ground.glb),
+  // a hair over the grass. The setts wear the canvas texture here: the
+  // park's, and the square's smaller, darker one.
+  const squareSetts = new THREE.MeshStandardMaterial({ map: M.setts.map, color: 0x6c6870, roughness: 0.92 });
+  hgModel(api, "hg-ground", {
+    then: (obj) => obj.traverse((n) => {
+      if (!n.isMesh) return;
+      const m = { HG_Setts: M.setts, HG_SettsSquare: squareSetts }[n.userData.blenderMat];
+      if (!m) return;
+      nightFx(m);
+      n.material = m;
+      n.receiveShadow = true;
+    }),
+  });
 
   /* ------------------------------------------------------- boundary */
   api.ghostWalls((BOUNDS.minX + BOUNDS.maxX) / 2, (BOUNDS.minZ + BOUNDS.maxZ) / 2, BOUNDS.maxX - BOUNDS.minX + 2.8, BOUNDS.maxZ - BOUNDS.minZ + 2.8, 8, 1.4);
@@ -4152,9 +4089,6 @@ function buildHollowgrin(api) {
     hgModel(api, "hg-garden");
     const hedge = (x, z, w, d) => K.solid(x, z, w, d, 1.35, { pen: 0.6 });
     const cx = -24, cz = -19, half = 6;
-    const gravel = surfMat("dirt", 0x6a6460, { mix: 0.25, tile: 1.4 });
-    flat(K, gravel, cx, cz, 2.4, 2 * half + 1.4, { y: 0.014 });
-    flat(K, gravel, cx, cz, 2 * half + 1.4, 2.4, { y: 0.0145 });
     // lanterns set on the hedge ends either side of each way in
     let ls = 90;
     for (const s of [-1, 1]) {
