@@ -14,6 +14,13 @@ obstruction test's faces, eye regions and prop bounds) and
 hollowgrin-build.json (the layout hash the art was drawn from, every GLB's
 size, triangles and bounds).
 
+Phase 2: the graveyard (hg_graveyard.py, hg-graveyard.glb) and the west
+edge (hg_west.py).
+
+Phase 1: Grinmoor Manor (hg_manor.py, hg-manor.glb) and the square
+(hg_village.py, hg-square.glb), drawn over the JS's colliders; the JS that
+drew them is gone (it keeps the colliders and what glows).
+
 Phase 0 (the builder): the 15 GLBs are drawn by the old builders' own
 functions, triangle for triangle (hg_legacy_village.py: the mausoleum, barn
 and candy shop; build_grinmoor.blender.py: the park; the eggs script: the
@@ -27,6 +34,7 @@ The playable layout is the contract (hollowgrin-layout.json): the colliders
 stay the JS's, and nothing here moves one. The build refuses to run when the
 map's JS changed since the layout file was checked.
 """
+import importlib
 import importlib.util
 import json
 import os
@@ -53,10 +61,29 @@ def load(name, filename):
 
 # name -> (module key, function, GLB). Map-coordinate GLBs register their
 # bounds as a prop (landmark:<name>); the four in their own frames don't.
+# The hg_*.py modules (phase 1 on) register their own props and faces.
 PARTS = {
+    "manor": ("hg_manor", "build_manor", "hg-manor"),
+    "square": ("hg_village", "build_square", "hg-square"),
+    "oak": ("hg_village", "build_oak", "hg-oak"),
+    "graveyard": ("hg_graveyard", "build_graveyard", "hg-graveyard"),
+    "west": ("hg_west", "build_west", "hg-west"),
+    "cauldron": ("hg_west", "build_cauldron", "hg-cauldron"),
+    "garden": ("hg_garden", "build_garden", "hg-garden"),
+    "tower": ("hg_chapel", "build_tower", "hg-chapel-tower"),
+    "bell": ("hg_chapel", "build_bell", "hg-bell"),
+    "clapper": ("hg_chapel", "build_clapper", "hg-bell-clapper"),
+    "organ": ("hg_chapel", "build_organ", "hg-organ"),
     "mausoleum": ("village", "build_mausoleum", "hg-mausoleum"),
-    "barn": ("village", "build_barn", "hg-barn"),
-    "candyshop": ("village", "build_shop", "hg-candyshop"),
+    "barn": ("hg_village", "build_barn", "hg-barn"),
+    "candyshop": ("hg_village", "build_shop", "hg-candyshop"),
+    "windmill": ("hg_village", "build_windmill", "hg-windmill"),
+    "sails": ("hg_village", "build_sails", "hg-windmill-sails"),
+    "southroad": ("hg_village", "build_road", "hg-southroad"),
+    "fields": ("hg_fields", "build_fields", "hg-fields"),
+    "scarecrow": ("hg_fields", "build_scarecrow", "hg-scarecrow"),
+    "lane": ("hg_lane", "build_lane", "hg-lane"),
+    "ghost": ("hg_lane", "build_ghost", "hg-ghost"),
     "carousel": ("park", "build_carousel", "hg-carousel"),
     "ride": ("park", "build_ride", "hg-carousel-ride"),
     "horse": ("park", "build_horse", "hg-horse"),
@@ -71,6 +98,7 @@ PARTS = {
     "trollbust": ("eggs", None, "hg-trollbust"),
 }
 OWN_FRAME = {"ride", "horse", "pepe", "trollbust"}
+HG_MODULES = {"hg_manor", "hg_village", "hg_graveyard", "hg_west", "hg_garden", "hg_chapel", "hg_fields", "hg_lane"}
 
 
 def main():
@@ -95,6 +123,10 @@ def main():
         if k == "trollbust":       # Grinleria's trollhead, exported by itself (no bake UVs)
             E.GLB.build_trollhead(E.GLB.mall_palette(), width=1.5, res=150, front=0.62, back=0.55, carve=0.06, name="hg-trollbust",
                                   place=(0.0, 0.0, 0.0, 0.0, -0.05, 0.0), colors=(0xf6f6f2, 0xe9e9e4, 0x121212), moss_on=False)
+        elif mk in HG_MODULES:
+            mod = importlib.import_module(mk)
+            getattr(mod, fn)(mod.palette(), R)
+            continue
         elif mk == "eggs":
             getattr(E, fn)()
         else:
@@ -106,8 +138,11 @@ def main():
         if k not in OWN_FRAME:
             R.prop(f"landmark:{k}", lo, hi, tris=tris)
 
+    # the hg_*.py GLBs also get 16-bit positions (Kabukigrin's): a manor
+    # 40 m across in 0.6 mm steps
     paths = [os.path.join(HERE, PARTS[k][2] + ".glb") for k in want]
-    quantize_glb.main(paths)
+    quantize_glb.main([p for k, p in zip(want, paths) if PARTS[k][0] not in HG_MODULES])
+    quantize_glb.main([p for k, p in zip(want, paths) if PARTS[k][0] in HG_MODULES], positions=True)
     for row in tf_kit.Report.rows:
         row[3] = os.path.getsize(os.path.join(HERE, row[0] + ".glb"))
     rows = tf_kit.Report.rows

@@ -4558,6 +4558,23 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   #to-pause #to-resume-btn { font-size: 20px; }
 }
 
+/* The item cards' pictures (menu-bo2.js `pic`): faces, wrists and bodies
+   (their cosmetics thumbnails), streak badges, perk icons, calling cards.
+   On top of the card, the name under it. Off on any other screen. */
+.tr-menu-pic { display: none; }
+.to-bo2.is-fn:is([data-screen="weapons"], [data-screen="streaks"], [data-screen="faces"], [data-screen="wrists"], [data-screen="bodies"], [data-screen="cards"], [data-screen^="perk-"]) .tr-menu-group:first-child .tr-menu-item:has(.tr-menu-pic) { justify-content: flex-start; min-height: 120px; }
+.to-bo2.is-fn:is([data-screen="weapons"], [data-screen="streaks"], [data-screen="faces"], [data-screen="wrists"], [data-screen="bodies"], [data-screen="cards"], [data-screen^="perk-"]) .tr-menu-pic {
+  order: -1; display: flex; align-items: center; justify-content: center; align-self: stretch; height: 64px; margin: -1px -3px 2px; overflow: hidden; border-radius: 8px; background: rgba(5,10,35,.35); color: #4fd8ff; }
+.to-bo2.is-fn .tr-menu-item.is-hot .tr-menu-pic { background: rgba(23,34,77,.12); color: #17224d; }
+.to-bo2.is-fn .tr-menu-item[aria-disabled="true"] .tr-menu-pic { filter: grayscale(1); opacity: .55; }
+.to-bo2.is-fn .tr-menu-pic > img { width: 100%; height: 100%; object-fit: cover; }
+/* a gun on a light backdrop (the dark ones vanished on the card), whole */
+.to-bo2.is-fn[data-screen="weapons"] .tr-menu-pic { padding: 5px 8px; box-sizing: border-box; background: radial-gradient(closest-side, rgba(200,220,255,.62), rgba(120,150,220,.2)); }
+.to-bo2.is-fn[data-screen="weapons"] .tr-menu-pic > img { object-fit: contain; }
+.to-bo2.is-fn .tr-menu-pic > svg { width: 46px; height: 46px; }
+.to-bo2.is-fn .tr-menu-pic .to-ss-icon { width: 46px; height: 46px; opacity: 1; color: inherit; }
+.to-bo2.is-fn .tr-menu-pic .to-cos-thumb { width: 100%; height: 100%; }
+
 /* Quests and Prestige Rewards (phase 5): cards two across, the way a quest
    page reads. A challenge has a bar (empty to do, full done); a reward
    unlocked is edged green. */
@@ -4751,6 +4768,9 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-bo2.is-fn[data-screen="locker"] .tr-menu-item[data-id="classlist"] { min-height: 42px; }
   .to-bo2.is-fn[data-screen="locker"] .tr-menu-item[data-id="classlist"] > small:not([aria-hidden]) { font-size: 20px; }
   #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="locker"]) .to-char-view { left: calc(var(--fn-pad) + 482px); right: calc(var(--fn-pad) + 232px); bottom: 46px; }
+  /* the item cards' pictures shorter, so more cards fit */
+  .to-bo2.is-fn .tr-menu-item .tr-menu-pic { height: 44px; }
+  .to-bo2.is-fn:is([data-screen]) .tr-menu-group:first-child .tr-menu-item:has(.tr-menu-pic) { min-height: 96px; }
 }
 /* Upright phones: the tabs scroll along the top, the season and level
    under them, who's online, then the mode card and PLAY across the bottom */

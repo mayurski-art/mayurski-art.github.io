@@ -13,7 +13,7 @@
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { retexture, applyBakedLightMap, applyBakedAOMap, applyGroundLightMap, groundLightAt, applyLightAt } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1";
+import { retexture, applyBakedLightMap, applyBakedAOMap, applyGroundLightMap, groundLightAt, applyLightAt } from "./surface-textures.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 
 const MODEL_BASE = new URL("../models/", import.meta.url).href;
 const loader = new GLTFLoader();

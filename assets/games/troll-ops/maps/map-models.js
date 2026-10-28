@@ -9,7 +9,7 @@
 // Colliders stay in maps.js, copied from each approved blockout, so a layout
 // plays exactly as it was walk-tested. These helpers only draw.
 
-import { placeModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1";
+import { placeModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 
 /* Blender material name -> [surface, tiles per metre]. Must match TEXTURED
    in models/map_kit.py: anything else was merged into flat vertex-coloured
@@ -64,6 +64,12 @@ export const RETEXTURE = {
   HG_Clapboard: ["plaster", 1.0, 0.3],
   HG_Brick: ["brick", 1.1, 0.45],
   HG_Floorboards: ["wood", 0.9, 0.3],
+  // St. Grinsworth's tower: the chapel's warm brick (hollowgrin-chapel.js CM.brick)
+  HG_ChapelBrick: ["brick", 1.2, 0.12],
+  // the hedge garden's clipped hedges: the grass photo, kept dark green
+  HG_Hedge: ["grass", 0.6, 0.3],
+  HG_HedgeLight: ["grass", 0.6, 0.38],
+  HG_HedgeDark: ["grass", 0.6, 0.2],
   GF_Clapboard: ["plaster", 1.0, 0.45],
   GF_Rock: ["rock", 0.5, 0.4],
   GF_RockDark: ["rock", 0.5, 0.3],

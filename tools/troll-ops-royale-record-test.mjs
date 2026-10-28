@@ -1,9 +1,11 @@
 // Troll Royale "Record my match" (modes/royale-record.js): the menu row shows
 // under the modes while Troll Royale is picked, the canvas is filmed from the
-// moment staging ends, the recorder stops the moment you die, and Save
-// recording (Esc menu while spectating, the results screen after) downloads a
-// non-empty .webm named troll-royale-YYYYMMDD-HHMM.webm. The next match frees
-// the clip. Private room, solo against bots.
+// moment staging ends onto a recording canvas the window's size (each game
+// frame copied in, the sniper scope drawn over it while aimed), the recorder
+// stops the moment you die, and Save recording (Esc menu while spectating,
+// the results screen after) downloads a non-empty clip named
+// troll-royale-YYYYMMDD-HHMM.mp4 (or .webm where the browser has no H.264
+// recorder). The next match frees the clip. Private room, solo against bots.
 //
 // Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-royale-record-test.mjs
 
@@ -12,6 +14,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { execFileSync } from "node:child_process";
 
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
@@ -54,8 +57,10 @@ const menu = await page.evaluate(async () => {
   const navText = () => [...document.querySelectorAll(".to-bo2-panel button, nav button, [role=menu] button, button")].map((b) => b.textContent.trim());
   const clickText = (t) => { const b = [...document.querySelectorAll("button")].find((x) => x.offsetParent && x.textContent.trim().startsWith(t)); b?.click(); return !!b; };
   const out = { supported: R.recordSupported() };
-  out.openedPrivate = clickText("Private Match");
+  // the Fortnite-style lobby has no Private Match button on top: the screen itself
+  window.__toBo2.menu.go("private");
   await new Promise((r) => setTimeout(r, 300));
+  out.openedPrivate = [...document.querySelectorAll("*")].some((x) => x.offsetParent && x.children.length === 0 && x.textContent.trim() === "Private Match");
   out.tdmRow = navText().some((t) => t.startsWith("Record my match"));
   out.pickedRoyale = clickText("Troll Royale");
   await new Promise((r) => setTimeout(r, 300));
@@ -97,7 +102,38 @@ const live = await REC();
 check("filming starts as the match goes live", live.recording, `${live.mime}`);
 check("a REC dot is up, and nothing else", await page.evaluate(() => { const d = document.querySelector(".to-rec-dot"); return !!d && !d.hidden && d.textContent === ""; }));
 
+check("the recording canvas is the window's size", live.size?.w === 960 && live.size?.h === 540, JSON.stringify(live.size));
+
+// ---- aim the sniper: the scope is in the footage
+// a Deadpan DSR off the floor (the game's own copy of weapons.js: its tag from game.js)
+const weaponsTag = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/game.js"), "utf8").match(/\/weapons\/weapons\.js\?v=([\w-]+)/)[1];
+const gun = await page.evaluate(async (tag) => {
+  const T = window.__trollOps;
+  const { WEAPON_DEFS } = await import(`/assets/games/troll-ops/weapons/weapons.js?v=${tag}`);
+  T.royalePickupGun({ id: -1, k: "gun", def: WEAPON_DEFS.deadpan, r: 0 });
+  return T.currentWeapon()?.def.id;
+}, weaponsTag);
+await sleep(800);
+await page.evaluate(() => window.__trollOps.setAds(true));
+await sleep(1500);
+const scoped = await page.evaluate(() => {
+  const T = window.__trollOps, c = window.__trollRoyaleRecord.recCanvas();
+  const px = (x, y) => [...c.getContext("2d").getImageData(x, y, 1, 1).data.slice(0, 3)];
+  const el = document.querySelector(".to-scope");
+  return { scopeKey: T.activeWeaponMesh()?.userData.scopeKey, ads: T.currentWeapon().adsT, overlay: el && getComputedStyle(el).opacity,
+    corner: px(20, 20), edge: px(80, 270), centre: px(480, 200) };
+});
+const black = (p) => p.every((v) => v < 12);
+check("the sniper is in hand and aimed in", scoped.scopeKey === "scope8" && scoped.ads > 0.99 && +scoped.overlay > 0.99, JSON.stringify({ gun, ...scoped }));
+check("the clip shows the scope: black outside the lens, the view inside", black(scoped.corner) && black(scoped.edge) && !black(scoped.centre), JSON.stringify(scoped));
+await page.evaluate(() => window.__trollOps.setAds(false));
+await sleep(1000);
+const unscoped = await page.evaluate(() => { const c = window.__trollRoyaleRecord.recCanvas(); return [...c.getContext("2d").getImageData(20, 20, 1, 1).data.slice(0, 3)]; });
+check("aimed out, the scope leaves the footage", !black(unscoped), JSON.stringify(unscoped));
+
 await sleep(4000);   // play a few seconds (bots move, the zone runs)
+const fr = await REC();
+check("a frame recorded per game frame", fr.frames > 60, `${fr.frames} frames`);
 
 // ---- kill the player
 const death = await page.evaluate(() => {
@@ -113,13 +149,15 @@ check("the recorder stops the moment you die", !death.recording && death.dot ===
 await page.waitForFunction(() => !!window.__trollRoyaleRecord.royaleRecordState().clip, null, { timeout: 10000 }).catch(() => {});
 const after = await REC();
 check("a clip is waiting, cut at the death", after.clip?.reason === "death" && after.clip.size > 20000, JSON.stringify(after.clip));
-check("it's named troll-royale-YYYYMMDD-HHMM.webm", /^troll-royale-\d{8}-\d{4}\.webm$/.test(after.clip?.name || ""), after.clip?.name);
+check("it's named troll-royale-YYYYMMDD-HHMM.mp4 or .webm, matching its type", /^troll-royale-\d{8}-\d{4}\.(mp4|webm)$/.test(after.clip?.name || "")
+  && after.clip.name.endsWith(after.clip.type === "video/mp4" ? ".mp4" : ".webm"), `${after.clip?.name} ${after.clip?.type}`);
 const head = await page.evaluate(async () => {
   const b = window.__trollRoyaleRecord.clipBlob();
-  const u = new Uint8Array(await b.slice(0, 4).arrayBuffer());
-  return { type: b.type, ebml: [...u].map((x) => x.toString(16).padStart(2, "0")).join("") };
+  const u = new Uint8Array(await b.slice(0, 8).arrayBuffer());
+  return { type: b.type, hex: [...u].map((x) => x.toString(16).padStart(2, "0")).join("") };
 });
-check("it's a WebM (EBML header)", head.type === "video/webm" && head.ebml === "1a45dfa3", JSON.stringify(head));
+const container = head.type === "video/mp4" ? head.hex.slice(8) === "66747970" : head.hex.startsWith("1a45dfa3");
+check(`it's a real ${head.type} (${head.type === "video/mp4" ? "ftyp box" : "EBML header"})`, container, JSON.stringify(head));
 await sleep(1500);
 const later = await REC();
 check("spectating doesn't add to it", later.clip?.size === after.clip?.size && !later.recording, `${after.clip?.size} -> ${later.clip?.size}`);
@@ -131,6 +169,11 @@ const [dl1] = await Promise.all([page.waitForEvent("download", { timeout: 10000 
 const p1 = await dl1.path();
 const size1 = p1 ? fs.statSync(p1).size : 0;
 check("Save recording downloads the clip", dl1.suggestedFilename() === after.clip.name && size1 === after.clip.size, `${dl1.suggestedFilename()} ${size1} bytes`);
+// the file itself, where ffprobe is on the PATH: 960x540, not the render's size
+let probe = null;
+try { probe = execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name,width,height", "-of", "csv=p=0", p1], { encoding: "utf8" }).trim(); } catch {}
+if (probe) check("the saved clip decodes at 960x540", /,960,540$/.test(probe), probe);
+else console.log("skip  ffprobe not found: the clip's size wasn't decoded");
 await page.evaluate(() => window.__trollOps.closePauseMenu());
 
 // ---- the results screen
@@ -141,7 +184,7 @@ check("results screen: a Save recording button", go.screen && go.shown, JSON.str
 const [dl2] = await Promise.all([page.waitForEvent("download", { timeout: 10000 }), page.click("#to-gameover .to-rec-save")]);
 const p2 = await dl2.path();
 const bytes = p2 ? fs.readFileSync(p2) : Buffer.alloc(0);
-check("the results-screen save is the same non-empty webm", bytes.length === after.clip.size && bytes.subarray(0, 4).toString("hex") === "1a45dfa3", `${bytes.length} bytes`);
+check("the results-screen save is the same non-empty clip", bytes.length === after.clip.size && bytes.subarray(0, 8).toString("hex") === head.hex, `${bytes.length} bytes`);
 
 // ---- the next match frees it
 const freed = await page.evaluate(async () => {
