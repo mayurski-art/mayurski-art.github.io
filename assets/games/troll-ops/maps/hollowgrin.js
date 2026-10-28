@@ -42,7 +42,7 @@ import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1
 import { loadModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
 import { buildCauldronFx } from "./hollowgrin-cauldron.js?v=hgb2";
 import { buildChapel } from "./hollowgrin-chapel.js?v=hg6tc-or1-tcs1-hgb2";
-import { bandOrgan } from "./hollowgrin-fair-sound.js?v=hgb4";
+import { bandOrgan, wheelCreak } from "./hollowgrin-fair-sound.js?v=hgb4";
 import { roseTexture } from "./chapel-art.js?v=ca1-tcs1";
 import { placeMannequins } from "./hollowgrin-mannequins.js?v=hg6h-sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2";
 
@@ -2601,6 +2601,15 @@ function buildPark(api, K, M, SP, root, lights) {
       }
       cabins.instanceMatrix.needsUpdate = true;
     };
+    // the axle creaks now and then, heard from round the plaza
+    let creakAt = 0;
+    root.add(ticker((renderer, scene, camera) => {
+      const t = performance.now() / 1000;
+      if (t < creakAt) return;
+      creakAt = t + 4 + Math.random() * 4;
+      const d = Math.hypot(camera.position.x - fx, camera.position.y - hub, camera.position.z - fz);
+      wheelCreak(AUDIO, 0.3 / (1 + (d / 14) ** 2));
+    }));
     cabins.onBeforeRender();
   }
 

@@ -1,7 +1,7 @@
 // Troll Forces — Hollowgrin: the fair's ride sounds, made in WebAudio through
 // the game's own mixer (hollowgrin.js attachAudio), each heard louder the
 // closer the camera is (hollowgrin.js works out the gain and calls these):
-// the carousel's band organ.
+// the carousel's band organ and the Ferris wheel's creak.
 
 const midiHz = (n) => 440 * 2 ** ((n - 69) / 12);
 
@@ -81,4 +81,78 @@ export function bandOrgan() {
       }
     },
   };
+}
+
+/* The Ferris wheel's creak: iron rubbing iron at the axle, a resonant
+   squeal that rises and sags over a low groan, a knock to start it. */
+let NOISE = null;
+function noise(ctx) {
+  if (NOISE && NOISE.sampleRate === ctx.sampleRate) return NOISE;
+  const len = ctx.sampleRate * 2;
+  NOISE = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = NOISE.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  return NOISE;
+}
+
+export function wheelCreak(audio, gain) {
+  const ctx = audio?.ctx, out = audio?.master;
+  if (!ctx || !out || gain < 0.005) return;
+  const t = ctx.currentTime, dur = 1.1 + Math.random() * 0.5, f0 = 380 + Math.random() * 120;
+  const g = ctx.createGain();
+  g.gain.value = gain;
+  g.connect(out);
+  // the squeal: two resonances of the same rub, swelling and fading
+  for (const [mult, amp, q] of [[1, 0.9, 22], [2.07, 0.3, 30]]) {
+    const n = ctx.createBufferSource();
+    n.buffer = noise(ctx);
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.Q.value = q;
+    bp.frequency.setValueAtTime(f0 * mult, t);
+    bp.frequency.linearRampToValueAtTime(f0 * 1.35 * mult, t + dur * 0.45);
+    bp.frequency.linearRampToValueAtTime(f0 * 0.9 * mult, t + dur);
+    const a = ctx.createGain();
+    a.gain.setValueAtTime(0.0001, t);
+    a.gain.exponentialRampToValueAtTime(amp * 3, t + dur * 0.3);
+    a.gain.exponentialRampToValueAtTime(amp * 1.5, t + dur * 0.7);
+    a.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    n.connect(bp);
+    bp.connect(a);
+    a.connect(g);
+    n.start(t, Math.random());
+    n.stop(t + dur + 0.05);
+  }
+  // the groan under it
+  const o = ctx.createOscillator();
+  o.type = "sawtooth";
+  o.frequency.setValueAtTime(64, t);
+  o.frequency.linearRampToValueAtTime(52, t + dur);
+  const lp = ctx.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.value = 260;
+  const ag = ctx.createGain();
+  ag.gain.setValueAtTime(0.0001, t);
+  ag.gain.exponentialRampToValueAtTime(0.22, t + 0.25);
+  ag.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.2);
+  o.connect(lp);
+  lp.connect(ag);
+  ag.connect(g);
+  o.start(t);
+  o.stop(t + dur + 0.25);
+  // the knock that sets it off
+  const k = ctx.createBufferSource();
+  k.buffer = noise(ctx);
+  const hp = ctx.createBiquadFilter();
+  hp.type = "bandpass";
+  hp.frequency.value = 900;
+  hp.Q.value = 4;
+  const kg = ctx.createGain();
+  kg.gain.setValueAtTime(0.5, t);
+  kg.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+  k.connect(hp);
+  hp.connect(kg);
+  kg.connect(g);
+  k.start(t);
+  k.stop(t + 0.1);
 }
