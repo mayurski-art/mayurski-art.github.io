@@ -5622,6 +5622,10 @@ body.to-touch-play .zh.is-downed .zh-col { visibility: hidden; }
 .to-fps[hidden] { display: none; }
 /* in the lobby the tab bar has the top: bottom centre, under All modes */
 body:has(#to-title.is-fn:not([hidden])) .to-fps { top: auto; bottom: max(2px, env(safe-area-inset-bottom)); }
+/* a sideways phone has no room under All modes (it sat on it): just over it */
+@media (max-height: 520px) and (min-aspect-ratio: 9/10) {
+  body:has(#to-title.is-fn:not([hidden])) .to-fps { bottom: calc(max(8px, env(safe-area-inset-bottom)) + 40px); }
+}
 .to-fps[data-band="good"] { color: #7fe066; }
 .to-fps[data-band="ok"] { color: #ffc94d; }
 .to-fps[data-band="bad"] { color: #ff6b5e; }
