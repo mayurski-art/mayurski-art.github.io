@@ -42,6 +42,7 @@ import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1
 import { loadModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
 import { buildCauldronFx } from "./hollowgrin-cauldron.js?v=hgb2";
 import { buildChapel } from "./hollowgrin-chapel.js?v=hg6tc-or1-tcs1-hgb2";
+import { bandOrgan } from "./hollowgrin-fair-sound.js?v=hgb4";
 import { roseTexture } from "./chapel-art.js?v=ca1-tcs1";
 import { placeMannequins } from "./hollowgrin-mannequins.js?v=hg6h-sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2";
 
@@ -1898,6 +1899,12 @@ function buildOutskirts(api, K, M, SP, root, lights) {
       const l = new THREE.PointLight(0xffc070, 10, 16, 2);
       l.position.set(cx, 3.4, cz);
       lights.push(l);
+      // its band organ, heard round the midway
+      const organ = bandOrgan();
+      root.add(ticker((renderer, scene, camera) => {
+        const d = Math.hypot(camera.position.x - cx, camera.position.y - 3, camera.position.z - cz);
+        organ.update(AUDIO, 0.35 / (1 + (d / 10) ** 2));
+      }));
     }
 
     // the game booths, facing west onto the midway
