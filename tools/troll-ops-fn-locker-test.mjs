@@ -93,6 +93,12 @@ const before = (await tiles())[1].find((x) => x.id === "face").value;
 await tile("face");
 await page.waitForTimeout(600);
 check(await cur() === "faces", "Face opens its picker", await cur());
+const pics = await page.evaluate(() => {
+  const cards = [...document.querySelectorAll(".to-bo2-menu .tr-menu-group:first-child .tr-menu-item")];
+  const shown = cards.filter((b) => { const p = b.querySelector(".tr-menu-pic"); const im = p?.querySelector("img"); return p && p.offsetHeight > 30 && (!im || im.naturalWidth > 0); });
+  return { cards: cards.length, shown: shown.length, above: shown.every((b) => b.querySelector(".tr-menu-pic").getBoundingClientRect().bottom <= b.querySelector("span").getBoundingClientRect().top + 1) };
+});
+check(pics.cards > 0 && pics.shown === pics.cards && pics.above, "every face card has its picture, over its name", JSON.stringify(pics));
 const pick = await page.evaluate(() => {
   const b = [...document.querySelectorAll(".to-bo2-menu .tr-menu-group:first-child .tr-menu-item:not([aria-disabled])")].find((e) => !e.querySelector(".tr-menu-tick"));
   const name = b?.querySelector("span").textContent;

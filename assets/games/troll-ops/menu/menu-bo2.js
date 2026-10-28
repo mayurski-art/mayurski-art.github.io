@@ -270,6 +270,7 @@ function optionScreen(titleText, buttons, { valueFor, descOf, needOf, preview = 
       buttons.map((b, i) => ({
         id: `o-${i}`, label: strongOf(b), on: isOn(b), disabled: isLocked(b),
         value: valueFor ? valueFor(b) : "", desc: descOf ? descOf(b) : (b.title || ""), card: preview ? b : undefined,
+        pic: () => b.querySelector(".to-cos-thumb"),
         need: needOf && isLocked(b) ? needOf(b) : "",
         onSelect: (_, m) => { b.click(); m.back(); },
       })),
@@ -288,7 +289,7 @@ function perkScreen(tier) {
       perksInTier(tier).map((id) => {
         const def = PERK_DEFS[id], open = perkUnlocked(id);
         return {
-          id: `pk-${id}`, perkId: id, label: def.name, on: cur === id, disabled: !open,
+          id: `pk-${id}`, perkId: id, label: def.name, on: cur === id, disabled: !open, pic: perkIconSvg(id),
           value: open ? "" : `LV ${def.rank}`, desc: open ? def.blurb : `${def.blurb} Unlocks at level ${def.rank}.`,
           need: open ? "" : `Unlocks at level ${def.rank}.`,
           onSelect: (_, m) => { L.setClassPerk(tier, id); m.back(); },
@@ -581,7 +582,7 @@ const screens = {
           const pname = c.prestige >= PRESTIGE_MASTER ? "Prestige Master" : `Prestige ${c.prestige}`;
           // Locked cards stay in the list so you can preview what's coming.
           return {
-            id: `card-${c.id}`, label: c.name, cardId: c.id, on: c.id === mine,
+            id: `card-${c.id}`, label: c.name, cardId: c.id, on: c.id === mine, pic: `<img src="${c.src}" alt="" loading="lazy">`,
             value: c.id === mine ? "Wearing" : open ? "" : `Locked`,
             desc: open ? c.desc : `Unlocks at ${pname}.`, need: open ? "" : `Unlocks at ${pname}.`,
             onSelect: async (_, m) => {
@@ -801,7 +802,7 @@ const screens = {
       title: `Scorestreaks ${picked}/3`, panel: "streaks", detail: true, gun: true,
       groups: [
         cards.map((b, i) => ({
-          id: `ss-${i}`, label: strongOf(b), on: isOn(b), disabled: isLocked(b), card: b,
+          id: `ss-${i}`, label: strongOf(b), on: isOn(b), disabled: isLocked(b), card: b, pic: () => b.querySelector(".to-ss-icon"),
           value: text($("span", b)), desc: text($("em", b)),
           need: isLocked(b) ? `Unlocks at level ${text($("span", b)).replace(/^LV\s*/i, "")}.` : "",
           onSelect: (_, m) => { b.click(); m.refresh(); },
@@ -1068,6 +1069,19 @@ const menu = createBo2Menu(nav, {
     }
     if (s.panel && s.panel !== lastPanel) { lastPanel = s.panel; rail(s.panel); }
     root.dataset.screen = id;
+    // the Locker's item cards wear their picture (an item's `pic`: markup,
+    // or the lobby element it's copied from), after the name so the name
+    // stays the row's first span
+    for (const it of (s.groups || []).flat()) {
+      const p = it?.pic && (typeof it.pic === "function" ? it.pic() : it.pic);
+      const b = p && nav.querySelector(`.tr-menu-item[data-id="${CSS.escape(it.id)}"]`);
+      if (!b || $(".tr-menu-pic", b)) continue;
+      const box = document.createElement("i");
+      box.className = "tr-menu-pic";
+      box.setAttribute("aria-hidden", "true");
+      if (typeof p === "string") box.innerHTML = p; else box.append(p.cloneNode(true));
+      b.append(box);
+    }
     // the dock (Emote, Chat, Barracks, Options) is the top menu's only:
     // inside a screen the footer is Back, nothing else to press
     root.classList.toggle("is-top", id === "main");
