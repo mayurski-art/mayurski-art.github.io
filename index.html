@@ -172,7 +172,93 @@ kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgb
   .home-donate i{font-size:11px}
   .home-panel{left:12px;right:12px;width:auto;top:calc(60px + env(safe-area-inset-top) + var(--menu-h,320px) + 10px);bottom:auto;max-height:calc(100% - 60px - env(safe-area-inset-top) - var(--menu-h,320px) - 10px - var(--foot-h,58px) - 34px - env(safe-area-inset-bottom));padding:18px}
 }
-@media (prefers-reduced-motion:reduce){.home-live i,.home-donate{animation:none}.home-tile,.home-tile img{transition:none}}
+/* News: a lobby-style card over the blurred home (HANDOFF.md). Sizes come
+   from the reference shot: the card is ~52% of the screen's width, 562:337,
+   art ~40% of it; type inside scales with the card (cqi). */
+.home-news{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(14px,3vh,30px);padding:24px 16px 84px;
+  background:rgba(3,1,1,.55);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.home-news{background:rgba(3,1,1,.88)}}
+.home-news[hidden]{display:none}
+.news-head{margin:0;font:700 clamp(36px,4.4vw,72px)/1 var(--display);letter-spacing:.04em;text-transform:uppercase;color:var(--ink);text-shadow:0 4px 20px rgba(0,0,0,.6)}
+.news-stage{display:grid;grid-template-areas:"prev card next" ". dots .";align-items:center;column-gap:clamp(14px,3vw,40px);row-gap:16px}
+.news-card{grid-area:card;touch-action:pan-y}
+#news-prev{grid-area:prev}
+#news-next{grid-area:next}
+.news-dots{grid-area:dots;display:flex;justify-content:center;gap:4px}
+.news-dots[hidden]{display:none}
+/* 24px hit area, 10px dot; the current one is a long gold pill, so it
+   doesn't rely on colour alone. */
+.news-dot{display:grid;place-items:center;width:24px;height:24px;padding:0;border:0;background:none;cursor:pointer}
+.news-dot::before{content:"";width:10px;height:10px;border-radius:999px;background:rgba(243,236,228,.4);transition:width .2s ease,background .2s ease}
+.news-dot[aria-current]::before{width:26px;background:var(--gold)}
+.news-dot[aria-current]{width:38px}
+.news-dot:hover::before{background:var(--ink)}
+.news-dot[aria-current]:hover::before{background:var(--gold)}
+.news-dot:focus-visible{outline:2px solid var(--hot);outline-offset:1px;border-radius:999px}
+.news-card{container-type:inline-size;position:relative;display:grid;grid-template-columns:40% 1fr;width:min(52vw,760px);min-width:520px;aspect-ratio:562/337;
+  border-radius:10px;overflow:hidden;background:var(--ink);color:var(--void);box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.news-art{position:relative;z-index:1;margin-right:-9cqi;overflow:visible}
+.news-art::before{content:"";position:absolute;inset:0;border-radius:0 22cqi 22cqi 0/0 50% 50% 0;background:radial-gradient(circle at 30% 30%,#3a1a0c,#120603 70%);overflow:hidden}
+/* the hot arc riding the curve, like the reference's stroke */
+.news-art::after{content:"";position:absolute;inset:-6% -2.2cqi -6% 0;border-radius:0 24cqi 24cqi 0/0 50% 50% 0;border:3px solid transparent;border-right-color:var(--news-accent,var(--hot));border-top-color:var(--news-accent,var(--hot));opacity:.85;pointer-events:none;clip-path:inset(0 0 45% 0);filter:drop-shadow(0 0 6px var(--news-accent,var(--hot)))}
+.news-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%;border-radius:0 22cqi 22cqi 0/0 50% 50% 0}
+/* Settles the art into the card: darker toward the curve and the floor,
+   so no picture's bright edge fights the cream panel. */
+.news-shade{position:absolute;inset:0;border-radius:0 22cqi 22cqi 0/0 50% 50% 0;pointer-events:none;
+  background:linear-gradient(90deg,rgba(3,1,1,0) 55%,rgba(3,1,1,.4)),linear-gradient(180deg,rgba(3,1,1,0) 65%,rgba(3,1,1,.35))}
+/* The story's lead, cut from the same frame (tools/news-art.mjs) and laid
+   over it in the same box: unclipped, so they break out over the curve. */
+.news-art img.news-hero{border-radius:0;z-index:1;pointer-events:none;filter:drop-shadow(0 6px 10px rgba(3,1,1,.35))}
+.news-art img.news-hero[hidden]{display:none}
+.news-text{position:relative;z-index:2;display:flex;flex-direction:column;padding:7cqi 6cqi 5cqi 13cqi;min-width:0}
+.news-text h3{margin:0 0 3.4cqi;font:700 max(20px,4.8cqi)/1.05 var(--display);letter-spacing:.05em;text-transform:uppercase}
+.news-body p{margin:0 0 2.6cqi;font:400 max(13px,2.25cqi)/1.5 var(--body);color:#2a1d14}
+.news-tag{margin:1cqi 0 4cqi;font:700 max(12px,2.1cqi)/1.3 var(--body);letter-spacing:.02em;text-transform:uppercase}
+.news-tag:empty{display:none}
+.news-more{align-self:flex-end;margin-top:auto;display:inline-flex;align-items:center;min-height:44px;padding:0 max(18px,4cqi);border-radius:999px;background:var(--gold);color:var(--void);
+  font:600 max(14px,2.8cqi)/1 var(--display);letter-spacing:.06em;text-transform:uppercase;text-decoration:none;box-shadow:0 6px 16px rgba(120,60,0,.25);transition:transform .15s ease,background .15s ease}
+.news-more:hover,.news-more:focus-visible{color:var(--void);background:#ffdf9c;transform:translateY(-1px)}
+.news-more:focus-visible{outline:2px solid var(--void);outline-offset:3px}
+.news-more[hidden]{display:none}
+.news-arrow{flex:none;display:grid;place-items:center;width:46px;height:46px;padding:0;border:0;border-radius:50%;background:#fff;color:var(--void);cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.5);transition:transform .15s ease}
+.news-arrow:hover{transform:scale(1.08)}
+.news-arrow:focus-visible{outline:2px solid var(--hot);outline-offset:3px}
+.news-arrow svg{width:20px;height:20px}
+.news-arrow[hidden]{display:none}
+.news-close{position:absolute;left:96px;bottom:34px;display:flex;align-items:center;gap:8px;padding:0;border:0;background:none;color:var(--soft);font:15px var(--body);cursor:pointer}
+.news-close:focus-visible{outline:2px solid var(--hot);outline-offset:3px}
+@media (hover:none){.news-close kbd{display:none}.news-close{min-height:44px;font:600 16px var(--display);letter-spacing:.06em;text-transform:uppercase}}
+@media (max-height:520px) and (min-aspect-ratio:9/10){
+  /* A short screen: the card takes the height that's left (heading above,
+     the dots on the Back line below) and a wider share of the width. */
+  .home-news{justify-content:flex-start;padding:10px 16px 0;gap:8px}
+  .news-head{font-size:26px}
+  .news-stage{row-gap:0}
+  .news-card{width:min(72vw,620px);min-width:0;aspect-ratio:auto;height:calc(100dvh - 100px)}
+  .news-text{padding:18px 22px 16px 13cqi}
+  .news-text h3{font-size:22px;margin-bottom:10px}
+  .news-body p{margin-bottom:8px}
+  .news-tag{margin-bottom:10px}
+  .news-dots{position:fixed;left:0;right:0;bottom:12px}
+  .news-close{left:max(44px,env(safe-area-inset-left));bottom:10px}
+}
+/* Upright phones: art on top, words below, arrows under the card. */
+@media (max-aspect-ratio:9/10){
+  .home-news{justify-content:flex-start;padding:calc(28px + env(safe-area-inset-top)) 16px calc(84px + env(safe-area-inset-bottom));overflow:auto}
+  .news-stage{grid-template-areas:"card card card" "prev dots next";grid-template-columns:auto 1fr auto;width:100%;max-width:520px;gap:14px}
+  .news-card{width:100%;min-width:0;aspect-ratio:auto;grid-template-columns:1fr;grid-template-rows:clamp(150px,26vh,220px) auto}
+  .news-art{margin:0 0 -28px}
+  .news-art::before,.news-art img,.news-shade{border-radius:0 0 50% 50%/0 0 28px 28px}
+  .news-shade{background:linear-gradient(180deg,rgba(3,1,1,0) 55%,rgba(3,1,1,.35))}
+  .news-art::after{display:none}
+  .news-text{padding:40px 20px 20px}
+  .news-text h3{font-size:26px;margin-bottom:12px}
+  .news-body p{font-size:15px;margin-bottom:10px}
+  .news-tag{font-size:13px}
+  .news-more{margin-top:16px}
+  .news-close{left:20px;bottom:calc(20px + env(safe-area-inset-bottom))}
+}
+@media (prefers-reduced-motion:reduce){.home-live i,.home-donate{animation:none}.home-tile,.home-tile img{transition:none}.news-more,.news-arrow,.news-dot::before{transition:none}}
 </style>
 <!-- Tab icon: the trollface spins grin <-> sad, like trolltruths.com -->
 <link rel="icon" type="image/png" href="/assets/images/icons/favicon/grin.png">
@@ -213,6 +299,25 @@ kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgb
   <section class="home-panel" id="panel-lb" aria-label="Leaderboard" hidden>
     <h2>Top trolls this week</h2>
     <div id="arcade-lb-root" class="lb-root"><p class="lb-foot">Loading leaderboard…</p></div>
+  </section>
+
+  <section class="home-news" id="home-news" role="dialog" aria-modal="true" aria-labelledby="news-title" hidden>
+    <h2 class="news-head">News</h2>
+    <div class="news-stage">
+      <button type="button" class="news-arrow" id="news-prev" aria-label="Previous story" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M13 3 6 10l7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <article class="news-card">
+        <div class="news-art"><img id="news-img" alt=""><span class="news-shade" aria-hidden="true"></span><img class="news-hero" id="news-hero" alt="" hidden></div>
+        <div class="news-text">
+          <h3 id="news-title"></h3>
+          <div class="news-body" id="news-body"></div>
+          <p class="news-tag" id="news-tag"></p>
+          <a class="news-more" id="news-more" href="#">Read more</a>
+        </div>
+      </article>
+      <button type="button" class="news-arrow" id="news-next" aria-label="Next story" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 3 7 7-7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <div class="news-dots" id="news-dots" hidden></div>
+    </div>
+    <button type="button" class="news-close" id="news-close"><kbd>Esc</kbd>Back</button>
   </section>
 
   <footer class="home-foot">
@@ -285,10 +390,233 @@ const isTrollRunner = () => String(accounts()?.getCachedProfile?.()?.username ||
 
 const soon = () => (isTrollRunner() ? {} : { disabled: true, value: 'Soon', desc: 'Not open yet. Still cooking.' });
 
+/* ── News (HANDOFF.md) ─────────────────────────────────────────────────
+   The stories live in Supabase's troll_news (admin.html's News view,
+   assets/supabase/troll_news.sql); these are the launch stories, shown
+   until it answers and whenever it can't. Opened from the News menu item
+   or #news. Above the menu: its first screen reads NEWS. */
+let NEWS = [
+  {
+    id: 'v1-wip',
+    title: 'Version 1.0 is cooking',
+    body: [
+      'trollrunner.net is getting rebuilt from the ground up. New menu, new arcade, same grin.',
+      "Some doors are still locked while we hang the paint. Poke around anyway, then tell us what's broken.",
+    ],
+    tag: 'Work in progress',
+    // Rendered in the game for the story (tools/news-art.mjs): image is
+    // the scene, hero the lead cut out of the same frame, laid over the
+    // curve so they break out of the art. focus is the object-position
+    // that keeps the subject in both the tall desktop pane and the wide
+    // phone strip; accent, taken from the scene, colours the arc.
+    image: 'assets/images/news/v1-forces.webp',
+    hero: 'assets/images/news/v1-forces-hero.webp',
+    alt: 'The Troll Runner leading a Troll Forces squad down a suburban street at sunset, rifle at port arms',
+    focus: '64% 56%',
+    accent: '#ff9a6b',
+    href: 'troll-ops.html',
+  },
+  {
+    id: 'arcade-ladder',
+    title: 'The weekly ladder',
+    body: [
+      'Every game in the arcade feeds one leaderboard. Top trolls reset every week.',
+      'Climb it, screenshot it, rub it in.',
+    ],
+    tag: '',
+    image: 'assets/images/news/ladder-champion.webp',
+    hero: 'assets/images/news/ladder-champion-hero.webp',
+    alt: "The week's winner on top of a shipping container with a gold rifle, two beaten trolls below, one sad, one with an L on their forehead",
+    focus: '50% 40%',
+    accent: '#ffd27a',
+    go: 'leaderboard',   // a menu screen instead of a page
+  },
+  {
+    id: 'stickers',
+    title: 'Print, cut, slap',
+    body: [
+      'The sticker sheets are up. Print them at home and leave a grin somewhere it shouldn\'t be.',
+    ],
+    tag: 'New sheets',
+    image: 'assets/images/news/stickers-slap.webp',
+    hero: 'assets/images/news/stickers-slap-hero.webp',
+    alt: 'The Troll Runner slapping a trollface sticker onto a glass panel already covered in them',
+    focus: '52% 88%',
+    accent: '#8cff2e',
+    href: 'stickers.html',
+  },
+];
+const newsEl = $('home-news');
+const newsCard = newsEl.querySelector('.news-card');
+const reduceMotion = matchMedia('(prefers-reduced-motion:reduce)');
+let newsIdx = 0;
+let newsReturn = null;
+function renderNews(dir = 0) {
+  const s = NEWS[newsIdx];
+  $('news-title').textContent = s.title;
+  $('news-body').replaceChildren(...s.body.map((t) => Object.assign(document.createElement('p'), { textContent: t })));
+  $('news-tag').textContent = s.tag || '';
+  const img = $('news-img');
+  img.src = s.image;
+  img.alt = s.alt || '';
+  img.style.objectPosition = s.focus || '50% 30%';
+  const hero = $('news-hero');
+  hero.hidden = !s.hero;
+  if (s.hero) { hero.src = s.hero; hero.style.objectPosition = img.style.objectPosition; }
+  newsCard.style.setProperty('--news-accent', s.accent || 'var(--hot)');
+  const more = $('news-more');
+  more.hidden = !s.href && !s.go;
+  const href = s.href || '#';
+  more.href = href;
+  const external = /^https?:/i.test(href) && !href.startsWith(location.origin);
+  more.target = external ? '_blank' : '';
+  more.rel = external ? 'noopener noreferrer' : '';
+  const many = NEWS.length > 1;
+  $('news-prev').hidden = $('news-next').hidden = $('news-dots').hidden = !many;
+  $('news-dots').querySelectorAll('button').forEach((d, i) => {
+    if (i === newsIdx) d.setAttribute('aria-current', 'true'); else d.removeAttribute('aria-current');
+  });
+  if (dir && newsCard.animate) {
+    const from = reduceMotion.matches ? { opacity: 0 } : { opacity: 0, transform: `translateX(${dir * 28}px)` };
+    newsCard.animate([from, { opacity: 1, transform: 'none' }], { duration: 220, easing: 'ease-out' });
+  }
+}
+function goNews(i, dir) {
+  newsIdx = (i + NEWS.length) % NEWS.length;
+  renderNews(dir);
+}
+function buildNewsDots() {
+  $('news-dots').replaceChildren(...NEWS.map((s, i) => {
+    const d = document.createElement('button');
+    d.type = 'button';
+    d.className = 'news-dot';
+    d.setAttribute('aria-label', `Story ${i + 1} of ${NEWS.length}: ${s.title}`);
+    d.addEventListener('click', () => { if (i !== newsIdx) goNews(i, i > newsIdx ? 1 : -1); });
+    return d;
+  }));
+}
+buildNewsDots();
+/* The live stories: published ones, pinned first, then newest, the top
+   five. An empty answer means no news (the menu item goes); a failed one
+   (no table yet, offline) keeps the launch stories. */
+async function loadNews() {
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/troll_news?select=id,title,body,tag,image,hero,alt,focus,accent,href,go&published=eq.true&order=pinned.desc,published_at.desc,created_at.desc&limit=5`,
+      { cache: 'no-store', headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } });
+    if (!r.ok) return;
+    const rows = await r.json();
+    if (!Array.isArray(rows)) return;
+    NEWS = rows.map((s) => ({
+      id: s.id, title: s.title, body: String(s.body || '').split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
+      tag: s.tag || '', image: s.image, hero: s.hero || null, alt: s.alt || '', focus: s.focus, accent: s.accent,
+      // (the table's checks already refuse anything else; this is a second lock)
+      href: /^(https:\/\/|\/|[a-z0-9][^:]*$)/i.test(s.href || '') ? s.href : null,
+      go: ['arcade', 'leaderboard', 'map'].includes(s.go) ? s.go : null,
+    }));
+    newsIdx = Math.min(newsIdx, Math.max(0, NEWS.length - 1));
+    buildNewsDots();
+    if (!NEWS.length) closeNews(); else if (!newsEl.hidden) renderNews();
+    menu.refresh();
+    setTimeout(autoOpenNews, 900);   // the menu paints first
+  } catch {}
+}
+/* Once a visit (user, 2026-10-28: "a one time thing when users are on
+   the website unless they exit out of the site"): the card opens by
+   itself when someone arrives, and not again while they browse the site
+   and come back to the home page; closing the site and coming back later
+   shows it again. sessionStorage is exactly that span (one tab, until
+   it's closed). Only from the table's answer (never the launch stories),
+   and never over something else: the site lock, the accounts window, a
+   screen or panel off the main menu, a ?open= deep link (that visit
+   still counts as unseen). No storage (blocked): never, rather than on
+   every page load. */
+const NEWS_SHOWN_KEY = 'tr_news_shown';
+function newsShown() {
+  try { return sessionStorage.getItem(NEWS_SHOWN_KEY) === '1'; } catch { return null; }
+}
+function markNewsShown() {
+  try { sessionStorage.setItem(NEWS_SHOWN_KEY, '1'); } catch {}
+}
+function autoOpenNews() {
+  if (newsShown() !== false || !NEWS.length || !newsEl.hidden) return;
+  const covered = document.querySelector('.site-lock-overlay.is-visible')
+    || document.getElementById('troll-accounts-modal')?.offsetParent
+    || menu.depth() > 0 || document.body.classList.contains('has-panel')
+    || new URLSearchParams(location.search).has('open');
+  if (!covered) openNews();
+}
+function openNews(start = 0) {
+  if (!NEWS.length) return;
+  newsReturn = document.activeElement;
+  newsIdx = Math.min(start, NEWS.length - 1);
+  renderNews();
+  NEWS.forEach((s) => { new Image().src = s.image; if (s.hero) new Image().src = s.hero; });   // paging never waits on art
+  newsEl.hidden = false;
+  markNewsShown();   // opened either way (button or by itself): this visit has seen it
+  (newsEl.querySelector('.news-more:not([hidden])') || $('news-close')).focus();
+}
+function closeNews() {
+  if (newsEl.hidden) return;
+  newsEl.hidden = true;
+  if (location.hash === '#news') history.replaceState(null, '', location.pathname + location.search);
+  (newsReturn && newsReturn !== document.body ? newsReturn : nav.querySelector('.tr-menu-item'))?.focus?.();
+}
+$('news-close').addEventListener('click', closeNews);
+$('news-more').addEventListener('click', (e) => {
+  const go = NEWS[newsIdx].go;
+  if (!go) return;
+  e.preventDefault();
+  closeNews();
+  menu.go(go);
+});
+$('news-prev').addEventListener('click', () => goNews(newsIdx - 1, -1));
+$('news-next').addEventListener('click', () => goNews(newsIdx + 1, 1));
+newsEl.addEventListener('click', (e) => { if (e.target === newsEl) closeNews(); });
+// Swipe the card. No pointer capture (it retargets the click to the card);
+// a swipe eats the click that follows it so READ MORE doesn't fire.
+{
+  let x0 = null, swiped = false;
+  newsCard.addEventListener('pointerdown', (e) => { x0 = e.clientX; swiped = false; });
+  newsCard.addEventListener('pointerup', (e) => {
+    if (x0 === null || NEWS.length < 2) return;
+    const dx = e.clientX - x0;
+    x0 = null;
+    if (Math.abs(dx) < 40) return;
+    swiped = true;
+    goNews(newsIdx + (dx < 0 ? 1 : -1), dx < 0 ? 1 : -1);
+  });
+  newsCard.addEventListener('pointercancel', () => { x0 = null; });
+  newsCard.addEventListener('click', (e) => { if (swiped) { e.preventDefault(); swiped = false; } }, true);
+}
+// Capture phase: while the card is up, keys don't reach the menu behind it.
+window.addEventListener('keydown', (e) => {
+  if (newsEl.hidden) return;
+  if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); closeNews(); return; }
+  if (e.key === 'Tab') {
+    const f = [...newsEl.querySelectorAll('button:not([hidden]),a[href]:not([hidden])')].filter((el) => !el.closest('[hidden]'));
+    const i = f.indexOf(document.activeElement);
+    if (e.shiftKey ? i <= 0 : i === f.length - 1) { e.preventDefault(); f[e.shiftKey ? f.length - 1 : 0].focus(); }
+    return;
+  }
+  if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && NEWS.length > 1) {
+    e.preventDefault();
+    const dir = e.key === 'ArrowLeft' ? -1 : 1;
+    goNews(newsIdx + dir, dir);
+  }
+  e.stopImmediatePropagation();   // the focused button still gets its own Enter/Space
+}, true);
+const newsFromHash = () => { if (location.hash === '#news') openNews(); };
+window.addEventListener('hashchange', newsFromHash);
+newsFromHash();
+loadNews();   // (resolves after this script has run, so the menu exists by then)
+
 const screens = {
   main: () => ({
     title: 'Main Menu',
     groups: [
+      NEWS.length ? [
+        { id: 'news', label: 'News', desc: NEWS[0].title, onSelect: () => openNews() },
+      ] : [],
       [
         { id: 'arcade', label: 'Arcade', desc: 'Troll Warfare, Troll Kombat and the weekly ladder.', go: 'arcade' },
         { id: 'terminal', label: 'Terminal', desc: 'The Trollface Terminal. The archive, the riddles, the transmissions.', href: 'https://trolltruths.com', newTab: true },
