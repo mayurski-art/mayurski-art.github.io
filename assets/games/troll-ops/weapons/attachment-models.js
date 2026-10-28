@@ -50,10 +50,67 @@ function reticleMat(color) {
 /* A reticle drawn over everything is only right looking through the glass:
    from the hip, in third person, on someone else's gun or on loot it
    floated over the optic (and over walls). Hidden until the viewmodel is
-   aimed (view/weapon-view.js fadeOpticGlass). */
-function sightMark(o) {
-  o.userData.reticle = true;
+   aimed (view/weapon-view.js fadeOpticGlass). `kind`: "classic" for the
+   optic's own reticle (it gives way to the trollface one when that's on),
+   "troll-idle" / "troll-hit" for the trollface pair (trollMarks), nothing
+   for what's always there aimed in (the ACOG's housing). */
+function sightMark(o, kind = true) {
+  o.userData.reticle = kind;
   o.visible = false;
+  return o;
+}
+
+/* The trollface reticle (view/troll-reticle.js): the troll fist, and "get
+   trolled" for an enemy in the sights, centred on the aim point. One
+   texture each, shared by every optic.
+   Sized by the angle it covers, so it reads the same through every optic:
+   TROLL_RETICLE_SCREEN of the screen's height (a CoD emblem reticle's
+   size), but never more than TROLL_RETICLE_WINDOW of the sight's own window,
+   so there's always target round it (the reflex's small window). The eye
+   distance and lens fov are the optic's own (userData.adsDistance and
+   adsWeaponFov, else view/weapon-view.js's 0.46 m and 50 degrees), so
+   addTrollMarks runs once those are set. view/sniper-scope.js sizes the 8x
+   overlay's to the same TROLL_RETICLE_SCREEN. */
+const TROLL_RETICLE_SCREEN = 0.045;
+const TROLL_RETICLE_WINDOW = 0.4;
+const TROLL_RETICLE_TEX = {};
+const UNIT_PLANE = new THREE.PlaneGeometry(1, 1);
+function trollReticleTex(kind, file) {
+  let t = TROLL_RETICLE_TEX[kind];
+  if (!t) {
+    t = TROLL_RETICLE_TEX[kind] = { meshes: [], tex: null };
+    t.tex = new THREE.TextureLoader().load(new URL(`../ui/reticles/${file}?v=hd1`, import.meta.url).href, (tex) => {
+      for (const [m, h] of t.meshes) m.scale.set(h * tex.image.width / tex.image.height, h, 1);
+      t.meshes = [];   // only the ones built before it loaded wait on it
+    });
+    t.tex.colorSpace = THREE.SRGBColorSpace;
+    t.tex.anisotropy = 4;
+  }
+  return t;
+}
+/* `g` the optic (adsDistance / adsWeaponFov set), `z` the reticle's plane
+   in it, `window` the height of the glass you look through there. */
+function addTrollMarks(g, z, window) {
+  const eye = (g.userData.adsDistance ?? 0.46) - z;
+  const screenH = 2 * eye * Math.tan(((g.userData.adsWeaponFov ?? 50) * Math.PI) / 360);
+  const h = Math.min(TROLL_RETICLE_SCREEN * screenH, TROLL_RETICLE_WINDOW * window);
+  for (const [kind, file] of [["troll-idle", "troll-fist.png"], ["troll-hit", "get-trolled.png"]]) {
+    const t = trollReticleTex(kind, file);
+    const m = new THREE.Mesh(UNIT_PLANE, new THREE.MeshBasicMaterial({ map: t.tex, transparent: true, depthTest: false, depthWrite: false }));
+    const img = t.tex.image;
+    m.scale.set(img?.width ? h * img.width / img.height : h, h, 1);   // its own shape once loaded
+    if (!img?.width) t.meshes.push([m, h]);
+    m.position.z = z;
+    m.renderOrder = 11;
+    g.add(sightMark(m, kind));
+  }
+}
+
+/* The other way round: a part between the eye and the lens (an eyecup, the
+   tube) that the viewmodel hides once aimed (view/weapon-view.js
+   fadeOpticGlass), so it doesn't fill the screen. Everywhere else, shown. */
+function hipOnly(o) {
+  o.userData.hipOnly = true;
   return o;
 }
 
@@ -163,7 +220,7 @@ function buildReflex() {
   const dot = new THREE.Mesh(new THREE.CircleGeometry(0.0022, 12), reticleMat(0xff2a2a));
   dot.position.z = 0.004;
   dot.renderOrder = 10;
-  g.add(sightMark(dot));
+  g.add(sightMark(dot, "classic"));
 
   // Body block below the glass holds the battery + brightness rocker.
   const body = box(0.04, 0.016, 0.042, shell);
@@ -177,6 +234,7 @@ function buildReflex() {
   g.userData.aimOffsetY = 0.048;   // glass centre above the rail surface
   g.add(opticMount(mountDrop(0.048), 0.03, [-0.012, 0.012], M.rail(), 0.016));
   g.userData.lengthZ = 0.05;
+  addTrollMarks(g, 0.004, 0.03);   // the glass is 3 cm tall
   return g;
 }
 
@@ -189,41 +247,49 @@ function buildCoyote() {
 
   const body = sleeve(r, r, len, shell, 18);
   body.rotation.x = Math.PI / 2;
-  g.add(body);
+  g.add(hipOnly(body));
 
   // Flared objective + eyepiece rings so the tube has ends, not flat cuts.
   for (const [z, rr] of [[-len / 2, r * 1.14], [len / 2, r * 1.1]]) {
     const ring = sleeve(rr, rr, 0.007, shell, 18);
     ring.rotation.x = Math.PI / 2;
     ring.position.z = z;
-    g.add(ring);
+    g.add(hipOnly(ring));
   }
 
   const glass = new THREE.Mesh(new THREE.CircleGeometry(r * 0.92, 18), glassMat(0x2b5f72));
   glass.position.z = -len / 2 + 0.004;
   g.add(glass);
 
-  const dot = new THREE.Mesh(new THREE.CircleGeometry(0.0024, 12), reticleMat(0xff3322));
+  const dot = new THREE.Mesh(new THREE.CircleGeometry(0.00095, 24), reticleMat(0xff3322));   // ~2 MOA at the eye
   dot.position.z = -len / 2 + 0.006;
   dot.renderOrder = 10;
-  g.add(sightMark(dot));
+  g.add(sightMark(dot, "classic"));
+
+  // Aimed in, the tube and its rings, turret and shade step aside (hipOnly)
+  // like the ACOG's, and the dot floats in a clear lens in a round housing,
+  // not at the end of a black double-ringed tunnel.
+  const housing = opticHousing(COYOTE_VIEW);
+  housing.position.z = -len / 2 + 0.0045;
+  g.add(sightMark(housing));
 
   // Brightness turret on top, killflash-style shade on the objective.
   const t = turret(0.009, 0.016, M.knob());
   t.position.set(0, r + 0.007, 0.006);   // sits ON the tube, clear of the view
-  g.add(t);
+  g.add(hipOnly(t));
   const shade = sleeve(r * 1.16, r * 1.16, 0.014, shell, 18);
   shade.rotation.x = Math.PI / 2;
   shade.position.z = -len / 2 - 0.007;
-  g.add(shade);
+  g.add(hipOnly(shade));
 
   g.userData.aimOffsetY = 0.053;
   g.add(opticMount(mountDrop(0.053), 0.026, [-0.016, 0.016], M.rail(), r * 0.95));
   g.userData.lengthZ = 0.09;
-  // Aimed, the glass sits this far in front of the eye (the default is 0.46,
-  // which left the tube a pinhole) with the viewmodel lens narrowed to match.
-  g.userData.adsDistance = 0.2;
-  g.userData.adsWeaponFov = 44;
+  // Aimed, the glass sits this far in front of the eye, the lens about half
+  // the screen's height in its housing (the ACOG's is bigger: it's the 4x).
+  g.userData.adsDistance = 0.1;
+  g.userData.adsWeaponFov = 36;
+  addTrollMarks(g, -len / 2 + 0.006, 2 * COYOTE_VIEW.lens);
   return g;
 }
 
@@ -238,7 +304,7 @@ function buildAcog() {
   // Tapered body — wide objective, narrow eyepiece.
   const body = sleeve(0.019, 0.028, len, shell, 18);
   body.rotation.x = -Math.PI / 2;   // wide end forward (-Z)
-  g.add(body);
+  g.add(hipOnly(body));
 
   const bell = sleeve(0.031, 0.031, 0.012, shell, 18);
   bell.rotation.x = Math.PI / 2;
@@ -254,14 +320,18 @@ function buildAcog() {
   const cup = sleeve(0.022, 0.017, 0.018, rubber, 16);
   cup.rotation.x = Math.PI / 2;
   cup.position.z = len / 2 + 0.008;
-  g.add(cup);
+  g.add(hipOnly(cup));
 
-  // Chevron reticle, illuminated amber like the real fibre-optic element.
-  const chev = new THREE.Mesh(new THREE.ConeGeometry(0.004, 0.006, 3), reticleMat(0xffb020));
-  chev.rotation.x = Math.PI / 2;
-  chev.position.z = -len / 2;
-  chev.renderOrder = 10;
-  g.add(sightMark(chev));
+  // Aimed in, the eyecup, tube, light pipe and turret step aside (hipOnly)
+  // and the eye sees what a real ACOG shows: a big clear lens in a round
+  // housing, and the TA31's amber chevron on a post with drop ticks.
+  const glassZ = -len / 2 - 0.009;
+  const housing = opticHousing(ACOG_VIEW);
+  housing.position.z = glassZ + 0.0005;
+  g.add(sightMark(housing));
+  const ret = acogReticle();
+  ret.position.z = glassZ;
+  g.add(sightMark(ret, "classic"));
 
   // Fibre-optic light pipe: the amber stripe running along the top.
   const pipe = tube(0.0035, 0.0035, len * 0.62, new THREE.MeshStandardMaterial({
@@ -269,20 +339,94 @@ function buildAcog() {
   }), 8);
   pipe.rotation.x = Math.PI / 2;
   pipe.position.set(0, 0.024, 0.004);
-  g.add(pipe);
+  g.add(hipOnly(pipe));
 
   const t = turret(0.008, 0.013, M.knob());
   t.position.set(0.02, 0.012, len * 0.2);
   t.rotation.z = -Math.PI / 2;
-  g.add(t);
+  g.add(hipOnly(t));
 
   g.userData.aimOffsetY = 0.056;
   g.add(opticMount(mountDrop(0.056), 0.03, [-0.02, 0.022], M.rail(), 0.021));
   g.userData.lengthZ = 0.14;
-  // Real ACOG eye relief is short; up close the objective fills the view.
-  g.userData.adsDistance = 0.14;
+  // Real ACOG eye relief is short; up close the lens fills ~60% of the
+  // screen's height, the housing ring most of the rest.
+  g.userData.adsDistance = 0.1;
   g.userData.adsWeaponFov = 30;
+  addTrollMarks(g, glassZ, 2 * ACOG_VIEW.lens);
   return g;
+}
+
+/* The aimed-in views, at the objective glass: lens radius, housing's outer. */
+const ACOG_VIEW = { lens: 0.027, outer: 0.042 };
+const COYOTE_VIEW = { lens: 0.0193, outer: 0.0255 };
+
+/* An optic's aimed-in housing (`view`: lens and outer radius), one disc
+   drawn as a texture so every edge is smooth: clear in the middle, a soft
+   dark falloff into the lens edge, a thin bevel catching light, the matte
+   housing, and a feathered outer edge. */
+function opticHousing(view) {
+  const m = new THREE.Mesh(new THREE.CircleGeometry(view.outer, 96), opticHousingMat(view.lens / view.outer));
+  m.renderOrder = 9;
+  return m;
+}
+const housingTex = new Map();
+function opticHousingMat(lens) {
+  let tex = housingTex.get(lens);
+  if (!tex) {
+    const S = 512, c = document.createElement("canvas");
+    c.width = c.height = S;
+    const x = c.getContext("2d"), h = S / 2;
+    const gr = x.createRadialGradient(h, h, 0, h, h, h);
+    gr.addColorStop(0, "rgba(0,0,0,0)");
+    gr.addColorStop(lens - 0.08, "rgba(0,0,0,0)");
+    gr.addColorStop(lens - 0.03, "rgba(4,5,6,0.3)");
+    gr.addColorStop(lens - 0.008, "rgba(4,5,6,0.9)");
+    gr.addColorStop(lens, "rgba(52,56,60,1)");          // the bevel's lit edge
+    gr.addColorStop(lens + 0.025, "rgba(16,17,19,1)");
+    gr.addColorStop(0.96, "rgba(11,12,13,1)");
+    gr.addColorStop(1, "rgba(11,12,13,0)");
+    x.fillStyle = gr;
+    x.fillRect(0, 0, S, S);
+    tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    housingTex.set(lens, tex);
+  }
+  return new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide });
+}
+
+/* TA31 reticle: an amber chevron whose tip is the aim point, a thin dark
+   post under it, and bullet-drop ticks narrowing down the post. */
+function acogReticle() {
+  const r = new THREE.Group();
+  const amber = reticleMat(0xff8a00);
+  const dark = reticleMat(0x111111);
+  const w = 0.0022, hgt = 0.002, t = 0.0008;   // half-width, height, arm thickness
+  const s = new THREE.Shape();
+  s.moveTo(0, 0);
+  s.lineTo(w, -hgt);
+  s.lineTo(w - t * 1.25, -hgt);
+  s.lineTo(0, -t * 1.6);
+  s.lineTo(-(w - t * 1.25), -hgt);
+  s.lineTo(-w, -hgt);
+  s.closePath();
+  const chev = new THREE.Mesh(new THREE.ShapeGeometry(s), amber);
+  chev.renderOrder = 11;
+  r.add(chev);
+  const line = 0.00026;
+  const postTop = -hgt - 0.0005, postLen = 0.017;
+  const post = new THREE.Mesh(new THREE.PlaneGeometry(line, postLen), dark);
+  post.position.y = postTop - postLen / 2;
+  post.renderOrder = 10;
+  r.add(post);
+  [0.0024, 0.002, 0.0016, 0.0012, 0.0009].forEach((half, i) => {
+    const tick = new THREE.Mesh(new THREE.PlaneGeometry(half * 2, line), dark);
+    tick.position.y = postTop - 0.0026 * (i + 1);
+    tick.renderOrder = 10;
+    r.add(tick);
+  });
+  return r;
 }
 
 /* Sniper scope 8x: long, slim, ringed — the silhouette people read as
@@ -329,7 +473,7 @@ function buildScope8() {
   cross.add(hLine, vLine);
   cross.position.z = -len / 2 - bellLen - 0.004;
   cross.renderOrder = 10;
-  g.add(sightMark(cross));
+  g.add(sightMark(cross, "classic"));   // its trollface one is the scope overlay's (view/sniper-scope.js)
 
   // Magnification ring + both turrets — the details that say "8x".
   const magRing = sleeve(r * 1.25, r * 1.25, 0.016, M.knob(), 20);
@@ -578,9 +722,10 @@ function buildLaserUnit() {
   bezel.rotation.x = Math.PI / 2;
   bezel.position.z = -0.032;
   g.add(bezel);
-  const lens = new THREE.Mesh(new THREE.CircleGeometry(0.0055, 12), reticleMat(0xff3b30));
+  // Lit, but depth tested: on reticleMat it drew through the gun, a second
+  // red dot on the stock next to the sight's own.
+  const lens = new THREE.Mesh(new THREE.CircleGeometry(0.0055, 12), new THREE.MeshBasicMaterial({ color: 0xff3b30 }));
   lens.position.z = -0.0365;
-  lens.renderOrder = 9;
   g.add(lens);
   // Activation pad + cable tail running back along the rail.
   const pad = box(0.018, 0.008, 0.014, M.rubber());

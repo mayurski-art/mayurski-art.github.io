@@ -14,34 +14,35 @@
 import { createBo2Menu } from "../../../js/bo2-menu.js?v=to-ft2-tb1-nd1-ul1";
 import { createMapMode } from "../../../js/troll-map-mode.js?v=to-bo2d";
 import { joinSitePresence, viewerId } from "../../../js/site-presence.js?v=to-bo2d-ol1-iv1-mv1-wo1";
-import { initInvites, invitePlayer } from "./invites.js?v=iv1-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-pty1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2";
+import { initInvites, invitePlayer } from "./invites.js?v=iv1-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-pty1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1";
 import { initPublicChat } from "./public-chat.js?v=pch1-nb2-pc2-gf1-sc1-tw1-nd2";
-import { startOnline, onlinePlayers, serverList, joinServer, describe, setLobbyActivity, pushActivity } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2";
-import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER, getLevel, rankProgress, rankXpText } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1";
-import { ACHIEVEMENTS } from "../progression/achievements.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1";
+import { startOnline, onlinePlayers, serverList, joinServer, describe, setLobbyActivity, pushActivity } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1";
+import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER, getLevel, rankProgress, rankXpText } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1";
+import { ACHIEVEMENTS } from "../progression/achievements.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1";
 import { mountFnLobby } from "./lobby-fn.js?v=fn1-fn2-rl1-rl2-rl3-mt1-sm1-ip1-fn6";
 import { openPfpStudio } from "./pfp-studio.js?v=pf1";
 
 import { fetchRecord, formatPlayed } from "../progression/record.js?v=rec1-or1";
-import { WEAPON_DEFS } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1";
-import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withClan } from "../progression/calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1";
-import { renderCard, myCardData, openProfileCard, openGuestCard, setInviteHandler } from "../progression/profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zh1-zc1-zc2-nf1-or1-nb2-nd2-rfx1-bk1";
-import { shareCardOnX, saveCardPhoto } from "./card-share.js?v=cs1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-tw1-rfx1-bk1";
+import { WEAPON_DEFS } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1";
+import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withClan } from "../progression/calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1";
+import { renderCard, myCardData, openProfileCard, openGuestCard, setInviteHandler } from "../progression/profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zh1-zc1-zc2-nf1-or1-nb2-nd2-rfx1-ret1-mrg1";
+import { shareCardOnX, saveCardPhoto } from "./card-share.js?v=cs1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-tw1-rfx1-bk1-mrg1";
 import { FINISHES } from "../characters/skins.js?v=p5-wb1-or1";
 import { MAPS, REWARD_MAPS } from "../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1-bw2-bt1-wf1-wf2-zf1-bp1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-rm1-kzf1-hgb1-hgb2";
 import { MODES } from "../modes/modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-tfb8";
 import { setMapShot } from "../maps/map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1-sr1-ug5-or1-sp1-pv1-tb3-pv2-dm1-kbk2-tfp7-tfb8-rfx2-hgm1";
 import { leaveToArcade, initExitLinks } from "./exit-links.js?v=ex1-cl1";
 import { game } from "../core/state.js?v=st1";
-import { inviteLink, prepareHubEntry } from "../modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2";
-import { openKiosk } from "../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2";
+import { inviteLink, prepareHubEntry } from "../modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1";
+import { openKiosk } from "../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1";
 import { credits } from "../modes/zombies/credits.js?v=zc1-zc2";
-import { recordSupported, recordPref, setRecordPref } from "../modes/royale-record.js?v=rrc1-rfx1";
+import { TROLL_RETICLE_LEVEL, trollReticleUnlocked, trollReticlePref, setTrollReticlePref } from "../view/troll-reticle.js?v=tr1-ret1-mrg1-hd1";
+import { recordSupported, recordPref, setRecordPref } from "../modes/royale-record.js?v=rrc1-rfx1-rr2-ret1-mrg1-hd1";
 import { makeTrollOpsProvider } from "../progression/leaderboard-rows.js?v=lr1-zh1-or1-nd2";
 const lbProvider = makeTrollOpsProvider();
-import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perksInTier, perkUnlocked, perkIconSvg } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1";
-import { STREAK_DEFS } from "../streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1-sam1-rfx1";
-import { renderClassPreview } from "./class-preview.js?v=cp1-rb4-hp1-bx1-sp1-sam1-rfx1";
+import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perksInTier, perkUnlocked, perkIconSvg } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1";
+import { STREAK_DEFS } from "../streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1-sam1-rfx1-ret1-mrg1";
+import { renderClassPreview } from "./class-preview.js?v=cp1-rb4-hp1-bx1-sp1-sam1-rfx1-mrg1";
 import { lobby, enterLobby, leaveLobby, lobbyActivity, round, candidates, tally, renderPanel, tickClock } from "./map-vote.js?v=mv1-vs1-vt2-sp1-hh1-yb1-pv1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-tb3-pv2-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-rfx2-rm1-kzf1-hgm1-hgb1-hgb2";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
@@ -270,6 +271,7 @@ function optionScreen(titleText, buttons, { valueFor, descOf, needOf, preview = 
       buttons.map((b, i) => ({
         id: `o-${i}`, label: strongOf(b), on: isOn(b), disabled: isLocked(b),
         value: valueFor ? valueFor(b) : "", desc: descOf ? descOf(b) : (b.title || ""), card: preview ? b : undefined,
+        pic: () => b.querySelector(".to-cos-thumb"),
         need: needOf && isLocked(b) ? needOf(b) : "",
         onSelect: (_, m) => { b.click(); m.back(); },
       })),
@@ -288,7 +290,7 @@ function perkScreen(tier) {
       perksInTier(tier).map((id) => {
         const def = PERK_DEFS[id], open = perkUnlocked(id);
         return {
-          id: `pk-${id}`, perkId: id, label: def.name, on: cur === id, disabled: !open,
+          id: `pk-${id}`, perkId: id, label: def.name, on: cur === id, disabled: !open, pic: perkIconSvg(id),
           value: open ? "" : `LV ${def.rank}`, desc: open ? def.blurb : `${def.blurb} Unlocks at level ${def.rank}.`,
           need: open ? "" : `Unlocks at level ${def.rank}.`,
           onSelect: (_, m) => { L.setClassPerk(tier, id); m.back(); },
@@ -448,6 +450,12 @@ const screens = {
         ],
         [
           ...look,
+          trollReticleUnlocked()
+            ? { id: "reticle", label: "Reticle", value: () => (trollReticlePref() ? "Trollface" : "Classic"),
+              desc: "Trollface: the troll fist in every optic, the reflex too, flipping to Get Trolled when an enemy's in your sights.",
+              adjust: () => setTrollReticlePref(!trollReticlePref()) }
+            : { id: "reticle", label: "Reticle", value: "Classic", disabled: true, need: `Unlocks at level ${TROLL_RETICLE_LEVEL}.`,
+              desc: `The trollface reticle unlocks at level ${TROLL_RETICLE_LEVEL}. Troll Royale's sniper scopes wear it for everyone.` },
           { id: "cards", label: "Calling Card", value: signedIn ? cardById(getMyCard().card).name : "Sign in", disabled: !signedIn, desc: signedIn ? "The banner behind your name." : "Sign in to set it. Guests don't keep a card.", need: signedIn ? "" : "Sign in to set it.", go: "cards" },
         ],
         [back("Back to Play.")],
@@ -581,7 +589,7 @@ const screens = {
           const pname = c.prestige >= PRESTIGE_MASTER ? "Prestige Master" : `Prestige ${c.prestige}`;
           // Locked cards stay in the list so you can preview what's coming.
           return {
-            id: `card-${c.id}`, label: c.name, cardId: c.id, on: c.id === mine,
+            id: `card-${c.id}`, label: c.name, cardId: c.id, on: c.id === mine, pic: `<img src="${c.src}" alt="" loading="lazy">`,
             value: c.id === mine ? "Wearing" : open ? "" : `Locked`,
             desc: open ? c.desc : `Unlocks at ${pname}.`, need: open ? "" : `Unlocks at ${pname}.`,
             onSelect: async (_, m) => {
@@ -765,8 +773,11 @@ const screens = {
       $$("#to-lo-list .to-lo-weapon").map((b, i) => {
         const sub = text($("span", b));
         const lv = sub.match(/level (\d+)/i);
+        // its picture (tools/troll-ops-weapon-thumbs.mjs), found by its name
+        const gid = Object.keys(WEAPON_DEFS).find((k) => WEAPON_DEFS[k].name === strongOf(b));
         return {
           id: `w-${i}`, label: strongOf(b), on: isOn(b), disabled: isLocked(b), card: b,
+          pic: gid ? `<img src="assets/games/troll-ops/ui/weapons/${gid}.webp?v=wt1" alt="">` : null,
           value: lv ? `LV ${lv[1]}` : sub, desc: lv ? `Unlocks at level ${lv[1]}.` : sub, need: lv ? `Unlocks at level ${lv[1]}.` : "",
           onSelect: (_, m) => { b.click(); m.backTo("class"); },
         };
@@ -801,7 +812,7 @@ const screens = {
       title: `Scorestreaks ${picked}/3`, panel: "streaks", detail: true, gun: true,
       groups: [
         cards.map((b, i) => ({
-          id: `ss-${i}`, label: strongOf(b), on: isOn(b), disabled: isLocked(b), card: b,
+          id: `ss-${i}`, label: strongOf(b), on: isOn(b), disabled: isLocked(b), card: b, pic: () => b.querySelector(".to-ss-icon"),
           value: text($("span", b)), desc: text($("em", b)),
           need: isLocked(b) ? `Unlocks at level ${text($("span", b)).replace(/^LV\s*/i, "")}.` : "",
           onSelect: (_, m) => { b.click(); m.refresh(); },
@@ -1068,6 +1079,19 @@ const menu = createBo2Menu(nav, {
     }
     if (s.panel && s.panel !== lastPanel) { lastPanel = s.panel; rail(s.panel); }
     root.dataset.screen = id;
+    // the Locker's item cards wear their picture (an item's `pic`: markup,
+    // or the lobby element it's copied from), after the name so the name
+    // stays the row's first span
+    for (const it of (s.groups || []).flat()) {
+      const p = it?.pic && (typeof it.pic === "function" ? it.pic() : it.pic);
+      const b = p && nav.querySelector(`.tr-menu-item[data-id="${CSS.escape(it.id)}"]`);
+      if (!b || $(".tr-menu-pic", b)) continue;
+      const box = document.createElement("i");
+      box.className = "tr-menu-pic";
+      box.setAttribute("aria-hidden", "true");
+      if (typeof p === "string") box.innerHTML = p; else box.append(p.cloneNode(true));
+      b.append(box);
+    }
     // the dock (Emote, Chat, Barracks, Options) is the top menu's only:
     // inside a screen the footer is Back, nothing else to press
     root.classList.toggle("is-top", id === "main");

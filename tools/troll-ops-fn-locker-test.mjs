@@ -1,7 +1,7 @@
 // Troll Warfare's lobby, phase 4: the Locker (menu-bo2.js locker screen,
 // style.css). Offline: Supabase is blocked; nothing starts a match.
 //   1. The Locker is your class's slots (Class, Primary ... Scorestreaks) on
-//      the left and your look (Body, Face, Wrist, Calling Card) on the right,
+//      the left and your look (Body, Face, Wrist, Reticle, Calling Card) on the right,
 //      each tile with what's in it; you stand between them.
 //   2. A gun tile goes through the class: Primary, a weapon, and Back from
 //      the class comes home to the Locker.
@@ -65,7 +65,7 @@ await page.waitForTimeout(900);
 let t = await tiles();
 check(await cur() === "locker", "the Locker tab opens the Locker");
 check(t[0]?.map((x) => x.id).join() === "classlist,primary,secondary,atts,melee,throwable,perk-0,perk-1,perk-2,streaks", "the class panel: Class and its nine slots", t[0]?.map((x) => x.id).join());
-check(t[1]?.map((x) => x.id).join() === "body,face,wrist,cards", "the look panel: Body, Face, Wrist, Calling Card", t[1]?.map((x) => x.id).join());
+check(t[1]?.map((x) => x.id).join() === "body,face,wrist,reticle,cards", "the look panel: Body, Face, Wrist, Reticle, Calling Card", t[1]?.map((x) => x.id).join());
 check([...t[0], ...t[1]].every((x) => x.value.trim()), "every tile says what's in it", JSON.stringify([...t[0], ...t[1]].filter((x) => !x.value.trim())));
 let L = await layout(1280, 720);
 check(L.operator && !L.underOp, "you stand between the panels", JSON.stringify(L));
@@ -81,6 +81,9 @@ await page.waitForTimeout(600);
 check(await cur() === "weapons", "then its weapons", await cur());
 const grid = await page.evaluate(() => { const [a, b] = [...document.querySelectorAll(".to-bo2-menu .tr-menu-group:first-child .tr-menu-item")].map((e) => e.getBoundingClientRect()); return { cols: getComputedStyle(document.querySelector(".to-bo2-menu .tr-menu-group:first-child")).gridTemplateColumns.split(" ").length, sameRow: Math.abs(a.top - b.top) < 1 && b.left > a.right }; });
 check(grid.cols === 2 && grid.sameRow, "the weapons are item cards, two across", JSON.stringify(grid));
+await page.waitForFunction(() => [...document.querySelectorAll(".to-bo2-menu .tr-menu-group:first-child .tr-menu-pic img")].every((i) => i.complete), null, { timeout: 15000 }).catch(() => {});
+const guns = await page.evaluate(() => { const c = [...document.querySelectorAll(".to-bo2-menu .tr-menu-group:first-child .tr-menu-item")]; return { cards: c.length, drawn: c.filter((b) => b.querySelector(".tr-menu-pic img")?.naturalWidth > 0).length }; });
+check(guns.cards > 0 && guns.drawn === guns.cards, "every weapon card shows its gun", JSON.stringify(guns));
 await page.evaluate(() => document.querySelector('.to-bo2-menu .tr-menu-item:not([aria-disabled])').click());
 await page.waitForTimeout(600);
 check(await cur() === "class", "a pick lands in the class", await cur());
@@ -93,6 +96,12 @@ const before = (await tiles())[1].find((x) => x.id === "face").value;
 await tile("face");
 await page.waitForTimeout(600);
 check(await cur() === "faces", "Face opens its picker", await cur());
+const pics = await page.evaluate(() => {
+  const cards = [...document.querySelectorAll(".to-bo2-menu .tr-menu-group:first-child .tr-menu-item")];
+  const shown = cards.filter((b) => { const p = b.querySelector(".tr-menu-pic"); const im = p?.querySelector("img"); return p && p.offsetHeight > 30 && (!im || im.naturalWidth > 0); });
+  return { cards: cards.length, shown: shown.length, above: shown.every((b) => b.querySelector(".tr-menu-pic").getBoundingClientRect().bottom <= b.querySelector("span").getBoundingClientRect().top + 1) };
+});
+check(pics.cards > 0 && pics.shown === pics.cards && pics.above, "every face card has its picture, over its name", JSON.stringify(pics));
 const pick = await page.evaluate(() => {
   const b = [...document.querySelectorAll(".to-bo2-menu .tr-menu-group:first-child .tr-menu-item:not([aria-disabled])")].find((e) => !e.querySelector(".tr-menu-tick"));
   const name = b?.querySelector("span").textContent;
