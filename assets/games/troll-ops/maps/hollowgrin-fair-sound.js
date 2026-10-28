@@ -1,7 +1,8 @@
 // Troll Forces — Hollowgrin: the fair's ride sounds, made in WebAudio through
 // the game's own mixer (hollowgrin.js attachAudio), each heard louder the
 // closer the camera is (hollowgrin.js works out the gain and calls these):
-// the carousel's band organ and the Ferris wheel's creak.
+// the carousel's band organ, the Ferris wheel's creak and the coaster's
+// rattle.
 
 const midiHz = (n) => 440 * 2 ** ((n - 69) / 12);
 
@@ -155,4 +156,66 @@ export function wheelCreak(audio, gain) {
   kg.connect(g);
   k.start(t);
   k.stop(t + 0.1);
+}
+
+/* The coaster's rattle, riding with the train: a rumble that grows with
+   its speed, the wheels clicking over the rail joints faster as it drops,
+   and the chain dogs' slow, heavy clack up the lift hill. update() each
+   frame with the train's speed (m/s) and whether it is on the lift. */
+export function coasterRattle() {
+  let bus = null, rumble = null, nextClick = 0;
+  const click = (ctx, t, hz, amp, len) => {
+    const n = ctx.createBufferSource();
+    n.buffer = noise(ctx);
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = hz * (0.9 + Math.random() * 0.2);
+    bp.Q.value = 3;
+    const a = ctx.createGain();
+    a.gain.setValueAtTime(amp, t);
+    a.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    n.connect(bp);
+    bp.connect(a);
+    a.connect(bus);
+    n.start(t, Math.random());
+    n.stop(t + len + 0.02);
+  };
+  return {
+    update(audio, gain, speed, lift) {
+      const ctx = audio?.ctx, out = audio?.master;
+      if (!ctx || !out) return;
+      if (!bus || bus.context !== ctx) {
+        bus = ctx.createGain();
+        bus.connect(out);
+        const n = ctx.createBufferSource();
+        n.buffer = noise(ctx);
+        n.loop = true;
+        const lp = ctx.createBiquadFilter();
+        lp.type = "lowpass";
+        lp.frequency.value = 420;
+        rumble = ctx.createGain();
+        rumble.gain.value = 0;
+        n.connect(lp);
+        lp.connect(rumble);
+        rumble.connect(bus);
+        n.start();
+        nextClick = ctx.currentTime;
+      }
+      const now = ctx.currentTime;
+      bus.gain.setTargetAtTime(gain, now, 0.08);
+      rumble.gain.setTargetAtTime(Math.min(1, speed / 16) * 0.55, now, 0.15);
+      if (speed < 0.5 || gain < 0.003) {
+        nextClick = Math.max(nextClick, now);
+        return;
+      }
+      const every = lift ? 0.17 : Math.min(0.3, Math.max(0.045, 1.4 / speed));
+      while (nextClick < now + 0.15) {
+        if (nextClick >= now - 0.02) {
+          if (lift) click(ctx, nextClick, 520, 0.7, 0.07);
+          else click(ctx, nextClick, 1700, 0.35, 0.03);
+        }
+        nextClick += every;
+      }
+    },
+  };
 }

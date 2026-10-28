@@ -42,7 +42,7 @@ import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1
 import { loadModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2";
 import { buildCauldronFx } from "./hollowgrin-cauldron.js?v=hgb2";
 import { buildChapel } from "./hollowgrin-chapel.js?v=hg6tc-or1-tcs1-hgb2";
-import { bandOrgan, wheelCreak } from "./hollowgrin-fair-sound.js?v=hgb4";
+import { bandOrgan, wheelCreak, coasterRattle } from "./hollowgrin-fair-sound.js?v=hgb4";
 import { roseTexture } from "./chapel-art.js?v=ca1-tcs1";
 import { placeMannequins } from "./hollowgrin-mannequins.js?v=hg6h-sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2";
 
@@ -3566,9 +3566,22 @@ function buildCoaster(api, K, M, SP, root, lights) {
       _q.setFromRotationMatrix(m3);
       _p.addScaledVector(uv, -0.05);
     };
-    cars.onBeforeRender = () => {
+    // the rattle rides with the head car: speed from how far it moved since
+    // the last frame, the lift where the speed table has the chain
+    const rattle = coasterRattle();
+    let lastHead = 0, lastT = 0;
+    cars.onBeforeRender = (renderer, scene, camera) => {
       const t = (performance.now() / 1000) % CYCLE;
       const head = sAt(t);
+      if (camera) {
+        const dt = t - lastT, ds = (((head - lastHead) % L) + L) % L;
+        const v = dt > 0 && dt < 0.5 ? ds / dt : 0;
+        lastHead = head; lastT = t;
+        frameAt(head);
+        const i = Math.floor((((head % L) + L) % L) / L * N) % N;
+        const lift = speed[i] === 3.2;
+        rattle.update(AUDIO, 0.5 / (1 + (camera.position.distanceTo(_p) / 14) ** 2), v, lift);
+      }
       for (let k = 0; k < 4; k++) {
         frameAt(head - k * 1.95);
         _m4.compose(_p, _q, _s.set(1, 1, 1));
