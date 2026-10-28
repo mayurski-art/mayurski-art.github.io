@@ -510,8 +510,10 @@ export const MAPS = {
     sun: { color: 0xffffff, intensity: 0, pos: [0, 30, 0] },
     hemi: { sky: 0xffffff, ground: 0xd8d8d8, intensity: 0.5 },
     ambient: { color: 0xffffff, intensity: 1.35 },
-    // Paint this bright crosses the bloom threshold on its own; only the
-    // painted-on lights may glow.
+    // No glow: the modded look is flat. Checked in the Blender doc's phase 4
+    // against no bloom: at 2.0 nothing blooms; from 1.6 down only the
+    // emissives do (no paint, even at 1.0), but at 1.3 the train's ceiling
+    // strips white the carriage out and the hall pendants blob.
     bloom: { threshold: 2.0 },
     build(api) { buildUndergrin(api); },
     // Section 5: nine a side, three of them on the concourse (y 6); the south
