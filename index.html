@@ -391,10 +391,11 @@ const isTrollRunner = () => String(accounts()?.getCachedProfile?.()?.username ||
 const soon = () => (isTrollRunner() ? {} : { disabled: true, value: 'Soon', desc: 'Not open yet. Still cooking.' });
 
 /* ── News (HANDOFF.md) ─────────────────────────────────────────────────
-   Placeholder stories until the troll_news table lands (step 4). Opened
-   from the News menu item or #news. Above the menu: its first screen
-   reads NEWS. */
-const NEWS = [
+   The stories live in Supabase's troll_news (admin.html's News view,
+   assets/supabase/troll_news.sql); these are the launch stories, shown
+   until it answers and whenever it can't. Opened from the News menu item
+   or #news. Above the menu: its first screen reads NEWS. */
+let NEWS = [
   {
     id: 'v1-wip',
     title: 'Version 1.0 is cooking',
@@ -484,14 +485,40 @@ function goNews(i, dir) {
   newsIdx = (i + NEWS.length) % NEWS.length;
   renderNews(dir);
 }
-$('news-dots').replaceChildren(...NEWS.map((s, i) => {
-  const d = document.createElement('button');
-  d.type = 'button';
-  d.className = 'news-dot';
-  d.setAttribute('aria-label', `Story ${i + 1} of ${NEWS.length}: ${s.title}`);
-  d.addEventListener('click', () => { if (i !== newsIdx) goNews(i, i > newsIdx ? 1 : -1); });
-  return d;
-}));
+function buildNewsDots() {
+  $('news-dots').replaceChildren(...NEWS.map((s, i) => {
+    const d = document.createElement('button');
+    d.type = 'button';
+    d.className = 'news-dot';
+    d.setAttribute('aria-label', `Story ${i + 1} of ${NEWS.length}: ${s.title}`);
+    d.addEventListener('click', () => { if (i !== newsIdx) goNews(i, i > newsIdx ? 1 : -1); });
+    return d;
+  }));
+}
+buildNewsDots();
+/* The live stories: published ones, pinned first, then newest, the top
+   five. An empty answer means no news (the menu item goes); a failed one
+   (no table yet, offline) keeps the launch stories. */
+async function loadNews() {
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/troll_news?select=id,title,body,tag,image,hero,alt,focus,accent,href,go&published=eq.true&order=pinned.desc,published_at.desc,created_at.desc&limit=5`,
+      { cache: 'no-store', headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } });
+    if (!r.ok) return;
+    const rows = await r.json();
+    if (!Array.isArray(rows)) return;
+    NEWS = rows.map((s) => ({
+      id: s.id, title: s.title, body: String(s.body || '').split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
+      tag: s.tag || '', image: s.image, hero: s.hero || null, alt: s.alt || '', focus: s.focus, accent: s.accent,
+      // (the table's checks already refuse anything else; this is a second lock)
+      href: /^(https:\/\/|\/|[a-z0-9][^:]*$)/i.test(s.href || '') ? s.href : null,
+      go: ['arcade', 'leaderboard', 'map'].includes(s.go) ? s.go : null,
+    }));
+    newsIdx = Math.min(newsIdx, Math.max(0, NEWS.length - 1));
+    buildNewsDots();
+    if (!NEWS.length) closeNews(); else if (!newsEl.hidden) renderNews();
+    menu.refresh();
+  } catch {}
+}
 function openNews() {
   if (!NEWS.length) return;
   newsReturn = document.activeElement;
@@ -554,6 +581,7 @@ window.addEventListener('keydown', (e) => {
 const newsFromHash = () => { if (location.hash === '#news') openNews(); };
 window.addEventListener('hashchange', newsFromHash);
 newsFromHash();
+loadNews();   // (resolves after this script has run, so the menu exists by then)
 
 const screens = {
   main: () => ({

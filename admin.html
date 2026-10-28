@@ -660,6 +660,23 @@
       .analytics-chart { grid-auto-columns: minmax(38px, 1fr); }
       .payout-actions input[type="text"] { width: 100%; }
     }
+    /* ================= HOME NEWS ================= */
+    .news-admin-art { display: grid; grid-template-columns: 132px 1fr; gap: 16px; margin-top: 14px; align-items: start; }
+    /* the card's art pane in miniature: same focus, same hero layer */
+    .news-admin-thumb { position: relative; width: 132px; height: 164px; border-radius: 0 40px 40px 0 / 0 50% 50% 0; overflow: hidden; background: #ffffff0d; border: 1px solid var(--glass-stroke); }
+    .news-admin-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .news-admin-thumb img[src=""], .news-admin-thumb img:not([src]) { display: none; }
+    .news-admin-check { display: inline-flex; align-items: center; gap: 8px; margin: 10px 18px 0 0; cursor: pointer; }
+    .news-admin-check input { width: auto; margin: 0; }
+    input[type="range"] { padding: 0; height: 28px; background: none; border: 0; }
+    input[type="color"] { padding: 4px; height: 40px; cursor: pointer; }
+    .news-admin-list { display: grid; gap: 10px; margin-top: 14px; }
+    .news-admin-item { display: grid; grid-template-columns: 64px 1fr auto; gap: 14px; align-items: center; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--glass-stroke); background: #ffffff08; }
+    .news-admin-item img { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; }
+    .news-admin-item h4 { margin: 0 0 4px; font-size: 15px; }
+    .news-admin-item p { margin: 0; font-size: 12.5px; color: var(--fg-faint); }
+    .news-admin-item.is-draft { opacity: .6; }
+    .news-admin-item.is-editing { border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
   </style>
 <script src="/assets/js/no-zoom.js?v=1"></script>
 </head>
@@ -679,6 +696,7 @@
 
         <p class="group">Content</p>
         <a class="nav-link" href="#updates" data-view="updates" data-title="Updates &amp; archives">Updates<span class="nav-dot"></span></a>
+        <a class="nav-link" href="#news" data-view="news" data-title="Home news">News<span class="nav-dot"></span></a>
         <a class="nav-link" href="#feedback" data-view="feedback" data-title="Feedback inbox">Feedback<span class="nav-dot"></span></a>
 
         <p class="group">Community</p>
@@ -851,6 +869,103 @@
               <div class="preview-shell">
                 <div id="preview"></div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- HOME NEWS (troll_news, assets/supabase/troll_news.sql) ---------- -->
+        <section class="view" data-view="news" aria-label="Home news">
+          <div class="workspace">
+            <div class="card editor-card">
+              <div class="card-head">
+                <div>
+                  <h2 id="news-form-title">New story</h2>
+                  <p class="card-sub">The NEWS card on the home page. Pinned first, then newest; the top five show.</p>
+                </div>
+              </div>
+              <div class="field">
+                <label for="n-title">Headline</label>
+                <input id="n-title" maxlength="80" placeholder="Version 1.0 is cooking">
+              </div>
+              <div class="field">
+                <label for="n-body">Body</label>
+                <textarea id="n-body" maxlength="1200" placeholder="Two short paragraphs. A blank line starts the next one."></textarea>
+              </div>
+              <div class="field">
+                <label for="n-tag">Tag line</label>
+                <input id="n-tag" maxlength="60" placeholder="Updated based on community feedback">
+                <p class="field-hint">Optional. Shows in bold caps under the body.</p>
+              </div>
+              <div class="field">
+                <label for="n-art">Art</label>
+                <input id="n-art" list="n-art-list" placeholder="v1-forces">
+                <datalist id="n-art-list"></datalist>
+                <p class="field-hint">A render from <code>tools/news-art.mjs</code>: <code>assets/images/news/&lt;art&gt;.webp</code>, and its <code>-hero.webp</code> cut-out when there is one.</p>
+              </div>
+              <div class="news-admin-art">
+                <div class="news-admin-thumb" id="n-thumb"><img id="n-thumb-img" alt=""><img id="n-thumb-hero" alt=""></div>
+                <div class="news-admin-art-fields">
+                  <div class="field">
+                    <label for="n-focus-x">Focus left / right</label>
+                    <input id="n-focus-x" type="range" min="0" max="100" value="50">
+                  </div>
+                  <div class="field">
+                    <label for="n-focus-y">Focus up / down</label>
+                    <input id="n-focus-y" type="range" min="0" max="100" value="50">
+                  </div>
+                  <div class="field">
+                    <label for="n-accent">Arc colour</label>
+                    <input id="n-accent" type="color" value="#ff8a1f">
+                  </div>
+                  <label class="news-admin-check"><input id="n-hero" type="checkbox" checked> Hero cut-out</label>
+                </div>
+              </div>
+              <div class="field">
+                <label for="n-alt">Art description</label>
+                <input id="n-alt" maxlength="240" placeholder="What the picture shows, for screen readers">
+              </div>
+              <div class="field">
+                <label for="n-link">Read more opens</label>
+                <select id="n-link">
+                  <option value="">Nothing (no button)</option>
+                  <option value="href">A page or link</option>
+                  <option value="go:arcade">The Arcade menu</option>
+                  <option value="go:leaderboard">The Leaderboard</option>
+                  <option value="go:map">The Troll Map</option>
+                </select>
+              </div>
+              <div class="field" id="n-href-field" hidden>
+                <label for="n-href">Page or link</label>
+                <input id="n-href" maxlength="300" placeholder="troll-ops.html or https://…">
+              </div>
+              <div class="field">
+                <label for="n-date">Date</label>
+                <input id="n-date" type="date">
+              </div>
+              <div class="row">
+                <label class="news-admin-check"><input id="n-pinned" type="checkbox"> Pinned</label>
+                <label class="news-admin-check"><input id="n-published" type="checkbox" checked> Published</label>
+              </div>
+              <div class="row">
+                <button id="n-save" type="button">Save story</button>
+                <button id="n-new" class="secondary" type="button">New story</button>
+                <button id="n-delete" class="danger" type="button" hidden>Delete</button>
+              </div>
+              <p id="n-status" class="status-line"></p>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <h2>Stories</h2>
+                  <p class="card-sub">In the order the home page shows them. Drafts stay here until published.</p>
+                </div>
+                <div class="pill-row">
+                  <span class="pill" id="news-count-pill">0 live</span>
+                </div>
+              </div>
+              <div class="row"><button id="news-refresh" class="secondary" type="button">Refresh</button></div>
+              <div id="news-list" class="news-admin-list"></div>
             </div>
           </div>
         </section>
@@ -3479,6 +3594,175 @@ Fixed some admin system bugs.`,
           window.addEventListener('beforeunload', () => client.removeChannel(ch));
         }
       } catch {}
+    })();
+
+    /* ---- Home news (troll_news; assets/supabase/troll_news.sql). Reads
+       with the admin token too, so drafts show; writes need it (RLS:
+       troll_is_admin()). The art is a render from tools/news-art.mjs. ---- */
+    (function () {
+      const $n = (id) => document.getElementById(id);
+      const listEl = $n('news-list'), statusEl = $n('n-status');
+      if (!listEl || !statusEl) return;
+      // the renders in assets/images/news/ (tools/news-art.mjs STORIES)
+      const ART = ['v1-forces', 'ladder-champion', 'stickers-slap'];
+      $n('n-art-list').innerHTML = ART.map((a) => `<option value="${a}">`).join('');
+      let stories = [];
+      let editing = null;   // the id being edited, null for a new one
+
+      const setStatus = (message, mode) => { statusEl.textContent = message; statusEl.dataset.mode = mode || ''; };
+      const slug = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'story';
+      const artOf = (path) => (String(path || '').match(/^assets\/images\/news\/([a-z0-9-]+)\.(webp|jpg|png)$/) || [])[1] || '';
+
+      // (adminRpcHeaders falls back to the anon key, and RLS turns an anon
+      // write into a silent no-op: so check for the admin token itself, and
+      // treat a write that comes back with no row as refused)
+      async function headers(write) {
+        if (write) {
+          let token = null;
+          try { token = await window.TrollrunnerAdminAuth?.getAccessToken?.(); } catch {}
+          if (!token) throw new Error('No admin session yet. Sign in as admin, then try again.');
+        }
+        const h = await adminRpcHeaders();
+        if (write) h.Prefer = 'return=representation';
+        return h;
+      }
+      const refused = 'Supabase saved nothing: your admin session may have expired. Sign in as admin again.';
+
+      async function load() {
+        if (!isSupabaseConfigured()) { setStatus('Supabase is not configured.', 'locked'); return; }
+        try {
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/troll_news?select=*&order=pinned.desc,published_at.desc,created_at.desc`, { cache: 'no-store', headers: await headers(false) });
+          if (!r.ok) throw new Error(await parseSupabaseError(r));
+          stories = await r.json();
+          render();
+          if (!statusEl.dataset.mode || statusEl.dataset.mode === 'locked') setStatus(`${stories.length} stor${stories.length === 1 ? 'y' : 'ies'} loaded.`, 'open');
+        } catch (err) {
+          setStatus(`Could not load news: ${err.message} (run assets/supabase/troll_news.sql if you haven't yet)`, 'locked');
+        }
+      }
+
+      function render() {
+        const live = stories.filter((s) => s.published);
+        $n('news-count-pill').textContent = `${Math.min(5, live.length)} live${stories.length > live.length ? `, ${stories.length - live.length} draft` : ''}`;
+        if (!stories.length) { listEl.innerHTML = '<p>No stories yet. The home page hides News until there is one.</p>'; return; }
+        let shown = 0;
+        listEl.innerHTML = stories.map((s) => {
+          const onHome = s.published && shown++ < 5;
+          const state = !s.published ? 'Draft' : onHome ? 'On the home page' : 'Published, below the top five';
+          return `<div class="news-admin-item${s.published ? '' : ' is-draft'}${s.id === editing ? ' is-editing' : ''}">
+            <img src="${escapeHtml(s.image)}" alt="" style="object-position:${escapeHtml(s.focus)}">
+            <div><h4>${s.pinned ? 'Pinned · ' : ''}${escapeHtml(s.title)}</h4><p>${escapeHtml(s.published_at)} · ${state}</p></div>
+            <button class="secondary" type="button" data-edit="${escapeHtml(s.id)}">Edit</button>
+          </div>`;
+        }).join('');
+      }
+
+      function preview() {
+        const art = $n('n-art').value.trim();
+        const focus = `${$n('n-focus-x').value}% ${$n('n-focus-y').value}%`;
+        const img = $n('n-thumb-img'), hero = $n('n-thumb-hero');
+        img.src = art ? `assets/images/news/${art}.webp` : '';
+        hero.src = art && $n('n-hero').checked ? `assets/images/news/${art}-hero.webp` : '';
+        img.style.objectPosition = hero.style.objectPosition = focus;
+        $n('n-thumb').style.borderColor = $n('n-accent').value;
+      }
+
+      function fill(s) {
+        editing = s ? s.id : null;
+        $n('news-form-title').textContent = s ? 'Edit story' : 'New story';
+        $n('n-title').value = s?.title || '';
+        $n('n-body').value = s?.body || '';
+        $n('n-tag').value = s?.tag || '';
+        $n('n-art').value = artOf(s?.image);
+        $n('n-hero').checked = s ? !!s.hero : true;
+        const [fx, fy] = String(s?.focus || '50% 50%').split(' ').map((v) => parseInt(v, 10));
+        $n('n-focus-x').value = fx; $n('n-focus-y').value = fy;
+        $n('n-accent').value = s?.accent || '#ff8a1f';
+        $n('n-alt').value = s?.alt || '';
+        $n('n-link').value = s?.go ? `go:${s.go}` : s?.href ? 'href' : '';
+        $n('n-href').value = s?.href || '';
+        $n('n-href-field').hidden = $n('n-link').value !== 'href';
+        $n('n-date').value = s?.published_at || new Date().toISOString().slice(0, 10);
+        $n('n-pinned').checked = !!s?.pinned;
+        $n('n-published').checked = s ? !!s.published : true;
+        $n('n-delete').hidden = !s;
+        preview();
+        render();
+      }
+
+      async function save() {
+        const title = $n('n-title').value.trim(), art = $n('n-art').value.trim();
+        if (!title) { setStatus('Give the story a headline.', 'locked'); return; }
+        if (!/^[a-z0-9-]+$/.test(art)) { setStatus('Pick the art: a render name like v1-forces.', 'locked'); return; }
+        const link = $n('n-link').value;
+        const row = {
+          title,
+          body: $n('n-body').value.trim(),
+          tag: $n('n-tag').value.trim(),
+          image: `assets/images/news/${art}.webp`,
+          hero: $n('n-hero').checked ? `assets/images/news/${art}-hero.webp` : null,
+          alt: $n('n-alt').value.trim(),
+          focus: `${$n('n-focus-x').value}% ${$n('n-focus-y').value}%`,
+          accent: $n('n-accent').value,
+          href: link === 'href' ? ($n('n-href').value.trim() || null) : null,
+          go: link.startsWith('go:') ? link.slice(3) : null,
+          pinned: $n('n-pinned').checked,
+          published: $n('n-published').checked,
+          published_at: $n('n-date').value || new Date().toISOString().slice(0, 10),
+        };
+        if (link === 'href' && !row.href) { setStatus('Add the page or link Read more opens.', 'locked'); return; }
+        $n('n-save').disabled = true;
+        try {
+          let r;
+          if (editing) {
+            r = await fetch(`${SUPABASE_URL}/rest/v1/troll_news?id=eq.${encodeURIComponent(editing)}`, { method: 'PATCH', headers: await headers(true), body: JSON.stringify(row) });
+          } else {
+            // a new id from the headline, numbered if it's taken
+            let id = slug(title), n = 2;
+            while (stories.some((s) => s.id === id)) id = `${slug(title).slice(0, 44)}-${n++}`;
+            r = await fetch(`${SUPABASE_URL}/rest/v1/troll_news`, { method: 'POST', headers: await headers(true), body: JSON.stringify({ id, ...row }) });
+          }
+          if (!r.ok) throw new Error(await parseSupabaseError(r));
+          const [savedRow] = await r.json();
+          if (!savedRow) throw new Error(refused);
+          setStatus(`Saved "${title}".`, 'open');
+          await load();
+          fill(stories.find((s) => s.id === savedRow?.id) || null);
+        } catch (err) {
+          setStatus(`Save failed: ${err.message}`, 'locked');
+        } finally {
+          $n('n-save').disabled = false;
+        }
+      }
+
+      async function remove() {
+        if (!editing) return;
+        const s = stories.find((x) => x.id === editing);
+        if (!confirm(`Delete "${s?.title || editing}" for good? Unpublish it instead to keep it as a draft.`)) return;
+        try {
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/troll_news?id=eq.${encodeURIComponent(editing)}`, { method: 'DELETE', headers: await headers(true) });
+          if (!r.ok) throw new Error(await parseSupabaseError(r));
+          if (!(await r.json()).length) throw new Error(refused);
+          setStatus('Deleted.', 'open');
+          await load();
+          fill(null);
+        } catch (err) {
+          setStatus(`Delete failed: ${err.message}`, 'locked');
+        }
+      }
+
+      listEl.addEventListener('click', (e) => {
+        const id = e.target.closest('[data-edit]')?.dataset.edit;
+        if (id) fill(stories.find((s) => s.id === id));
+      });
+      for (const id of ['n-art', 'n-focus-x', 'n-focus-y', 'n-accent', 'n-hero']) $n(id).addEventListener('input', preview);
+      $n('n-link').addEventListener('change', () => { $n('n-href-field').hidden = $n('n-link').value !== 'href'; });
+      $n('n-save').addEventListener('click', () => void save());
+      $n('n-new').addEventListener('click', () => fill(null));
+      $n('n-delete').addEventListener('click', () => void remove());
+      $n('news-refresh').addEventListener('click', () => void load());
+      fill(null);
+      load().then(() => { if (statusEl.dataset.mode === 'locked') setTimeout(() => void load(), 1200); });
     })();
   </script>
 </body>

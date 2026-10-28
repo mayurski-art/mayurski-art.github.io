@@ -105,28 +105,27 @@ writers (admin.html, both site-lock.js copies, troll-notis.js,
 world.html) each read that whole row and write it back, so two saves
 at once can drop one; news shouldn't ride on that.
 - SQL file: `assets/supabase/troll_news.sql` (run once in the Supabase
-  SQL editor). Public SELECT of published rows; insert/update/delete
-  only where `troll_is_admin()` (from troll_admin_lockdown.sql).
-- admin.html gets a "News" view: list, add/edit (title, body, tag,
-  image path, link, published date, pinned, published), delete. It
-  writes with the admin session token it already uses.
-- Home reads it with the anon key it already has.
+  SQL editor, after troll_admin_lockdown.sql). Anyone reads published
+  rows; insert/update/delete only where `troll_is_admin()`. Checks: art
+  only from `assets/images/news/`, href only a site page or https (never
+  javascript:), go only arcade/leaderboard/map, accent/focus formats.
+  Seeds the three launch stories (a re-run never overwrites edits).
+- admin.html "News" view (#news): the list in home-page order (drafts
+  dimmed, which five are live), and a form: headline, body (blank line =
+  new paragraph), tag, art (a tools/news-art.mjs render name, with a
+  live crop preview), focus sliders, arc colour, hero on/off, alt, Read
+  more (nothing / a page or link / Arcade / Leaderboard / Map), date,
+  pinned, published; save, delete. Writes check for the admin token
+  itself (adminRpcHeaders falls back to the anon key) and treat a write
+  that returns no row as refused (RLS makes anon writes silent no-ops).
+- Home reads it with the anon key: published, pinned first, newest,
+  five. No table yet or the request fails: the launch stories in
+  index.html stay. An empty table: no News item at all. Links are
+  re-checked on the page too.
 
-Story shape:
-```json
-{
-  "id": "2026-10-v1-launch",
-  "title": "A troll's welcome",
-  "body": ["First paragraph.", "Second paragraph."],
-  "tag": "Updated based on community feedback",
-  "image": "assets/animations/troll-lel_transparent.gif",
-  "href": "troll-ops.html",
-  "publishedAt": "2026-10-21",
-  "pinned": false
-}
-```
-Order: pinned first, then newest `publishedAt`. Show at most 5.
-No stories → the menu item and auto-open both stay hidden.
+Row: `id` (slug from the headline), `title`, `body`, `tag`, `image`,
+`hero`, `alt`, `focus`, `accent`, `href` | `go`, `pinned`, `published`,
+`published_at`.
 
 ### Build order
 1. Static markup + CSS with one hard-coded story; check desktop,
@@ -136,8 +135,11 @@ No stories → the menu item and auto-open both stay hidden.
 4. troll_news.sql + admin.html News view + home reads the table.
 5. Auto-open once per new story.
 
-Until step 4, `#news` on the home page URL opens the box with a
-placeholder story (the link keeps working afterwards).
+`#news` on the home page URL opens the box.
+
+To go live: run `assets/supabase/troll_news.sql` once in the Supabase
+SQL editor (until then the home page shows the launch stories), then
+merge site-news.
 
 ### Open questions for the user
 - Real stories and art for launch (placeholders until then).
@@ -150,4 +152,6 @@ placeholder story (the link keeps working afterwards).
 - 2026-10-28 steps 2-3: carousel (arrows, keys, swipe, dots), News menu
   item, focus back to the menu, 3 placeholder stories (site-news a01de97c)
 - 2026-10-28 story art rendered from the game (tools/news-art.mjs), hero
-  cut-outs breaking out over the curve (site-news)
+  cut-outs breaking out over the curve (site-news cbabe88a)
+- 2026-10-28 step 4: troll_news table (SQL not yet run), admin.html
+  News view, home reads it with the launch stories as fallback (site-news)
