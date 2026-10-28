@@ -2,7 +2,7 @@
 // the gun, melee and streak meshes in hand, the muzzle flash, akimbo and hellfire.
 
 import * as THREE from "three";
-import { setWeaponEnvMap, preloadWeaponModels, hasDetailedModel, buildWeaponMesh } from "../weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1-rt1-ut1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1";
+import { setWeaponEnvMap, preloadWeaponModels, hasDetailedModel, buildWeaponMesh } from "../weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1-rt1-ut1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1";
 import { setSaberEnvMap, preloadTrollsaber } from "../weapons/trollsaber.js?v=ts4-ig1-or1";
 import { setHalloweenEnvMap, preloadHalloweenMelee } from "../weapons/melee-models.js?v=hw2-or1";
 import { setHeroEnvMap } from "../characters/hero-bodies.js?v=umb3g-nf-wst-ig1-soc1c2f1m1u-th2-gt1-gt2-cw1-zr9-zr10-zp1-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1";

@@ -5,9 +5,9 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 
 import { WeaponState, WEAPON_DEFS, chargedShotDef } from "./weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1";
-import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1-rt1-ut1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1";
-import { WeaponInspector } from "./menu/inspector.js?v=hb1-nf-wst-ig1-sb2-if1-wb1-th2-ar1-ar2-cl1-fj1-zr9-zr10-zp1-sr1-or1-rt1-ut1-rb4-hp1-bx1-mg1-tm2-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-lz1-ret1-ret2-mrg1";
-import { CharacterInspector } from "./menu/char-inspector.js?v=hb4-wst-soc1-sb2c2-wb1m1-ar1-ar2-gt1-gt2-bk1-cw1-fj1-zr10-bf1-sr1-br1-or1-nf2-em2-cf1-gs2-ci1-lh1-ci2-ci3-ci4-ci5-fg2-lp1-fg3-rc1-rc4-ls1-rt1-ut1-er1-cl1-rb4-rb5-rb6-hp1-ht1-ht2-bx1-cg1-mg1-tm2-sp1-chg1-ci6-pm1-lz1-ret1-ret2-mrg1";
+import { buildWeaponMesh, stripLights, preloadWeaponModels, setWeaponEnvMap, hasDetailedModel } from "./weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1-rt1-ut1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1";
+import { WeaponInspector } from "./menu/inspector.js?v=hb1-nf-wst-ig1-sb2-if1-wb1-th2-ar1-ar2-cl1-fj1-zr9-zr10-zp1-sr1-or1-rt1-ut1-rb4-hp1-bx1-mg1-tm2-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-lz1-ret1-ret2-mrg1-hd1";
+import { CharacterInspector } from "./menu/char-inspector.js?v=hb4-wst-soc1-sb2c2-wb1m1-ar1-ar2-gt1-gt2-bk1-cw1-fj1-zr10-bf1-sr1-br1-or1-nf2-em2-cf1-gs2-ci1-lh1-ci2-ci3-ci4-ci5-fg2-lp1-fg3-rc1-rc4-ls1-rt1-ut1-er1-cl1-rb4-rb5-rb6-hp1-ht1-ht2-bx1-cg1-mg1-tm2-sp1-chg1-ci6-pm1-lz1-ret1-ret2-mrg1-hd1";
 import { Loadout } from "./progression/loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-gj1-fu1b7b7dc1c2-wb1m1-tc3-nc1-th2-ar2-cd1-sh1-cl1-bp1-sg1-bw1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-jb1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-nf1-or1-bw2-bt1-wf1-wf2-zf1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-rb4-hp1-bx1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-hvs1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-ret1-mrg1";
 import { StreakPicker } from "./streaks/streak-picker.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1-sam1-rfx1-ret1-mrg1";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1-sam1-rfx1-ret1-mrg1";
@@ -57,7 +57,7 @@ import { resolveWeapon, defaultLoadoutFor } from "./weapons/attachments.js?v=cg1
 import { GameAudio } from "./sound/audio.js?v=zr4-hf1-wb1-th2-zr9-zr10-zp1-ar1-pl2-or1-bz1-ch1";
 import { MapAmbience } from "./sound/ambience.js?v=amb1-wst-tl1-gj1-ug5-or1";
 import { insidePolygon } from "./maps/edge.js?v=or1";
-import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./modes/royale-zone.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1-fl1-or1-rt1-ut1-gf1-tg1-rb4-hp1-bx1-mg1-sp1-zw1-tfb8-rfx1-rfx2-lz1-ret1-ret2-mrg1";
+import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./modes/royale-zone.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1-fl1-or1-rt1-ut1-gf1-tg1-rb4-hp1-bx1-mg1-sp1-zw1-tfb8-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1";
 import { GameMusic, EQ_BANDS, EQ_RANGE } from "./sound/music.js?v=to-gs1-sg1-zr10-jb1-nh1-hl1-or1-hh1-yb1-gr1-rfx1";
 import { DjLulz } from "./maps/dj-lulz.js?v=dj1-sg1-zr10-dj2-jb1-hl1-or1-hh1-yb1-gr1";
 import { stage, rise, damp, smoothstep } from "./characters/anim-curves.js?v=or1";
@@ -88,14 +88,14 @@ import { setSaberEnvMap, preloadTrollsaber, SaberTrail } from "./weapons/trollsa
 import { createAkimboView, AKIMBO_INSPECT_TIME } from "./weapons/akimbo-view.js?v=ak1-wst-or1";
 import { createKeyboardRepair, KB_SHIELD, KB_GLANCE } from "./weapons/keyboard-repair.js?v=kr15-or1";
 import { RangeSet } from "./maps/range.js?v=or1";
-import { PickupSystem, SwapHold } from "./combat/pickups.js?v=sw1-wst-sb2-wb1-ar1-ar2-fj1-br1-or1-rt1-ut1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1";
+import { PickupSystem, SwapHold } from "./combat/pickups.js?v=sw1-wst-sb2-wb1-ar1-ar2-fj1-br1-or1-rt1-ut1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1";
 import { HudLayout } from "./menu/hud-layout.js?v=hl3-pd1-nf1-or1-rfx3";
 import { initCloudSave } from "./net/cloud-save.js?v=cs1b7-zc1-zc2-or1-jb5-sp1";
 import { ControllerLayout, padEmotePressed } from "./menu/controller-layout.js?v=cl7-pd1-or1-pd2";
 import { CosmeticsPanel, cleanFaceKey, loadCosmetics } from "./characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1-em2-nb2-pc2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-sf1-mg1-sp1";
 import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./streaks/dragonfire-drone.js?v=df3-sb2-or1";
 import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./streaks/sam-turret.js?v=sam1-fj1-or1";
-import { DROP, RoyaleDrop, Flight, buildParaglider } from "./modes/royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1-fl1-or1-dc2-dc3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-rb4-hp1-bx1-mg1-tx1-sp1-kbt1-gb1-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1";
+import { DROP, RoyaleDrop, Flight, buildParaglider } from "./modes/royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1-fl1-or1-dc2-dc3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-rb4-hp1-bx1-mg1-tx1-sp1-kbt1-gb1-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1";
 import { preloadHalloweenMelee, setHalloweenEnvMap } from "./weapons/melee-models.js?v=hw2-or1";
 import {
   HellfireFx, updateSoulBlazerView, soulBlazerShot, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth,
