@@ -57,6 +57,14 @@ function sightMark(o) {
   return o;
 }
 
+/* The other way round: a part between the eye and the lens (an eyecup, the
+   tube) that the viewmodel hides once aimed (view/weapon-view.js
+   fadeOpticGlass), so it doesn't fill the screen. Everywhere else, shown. */
+function hipOnly(o) {
+  o.userData.hipOnly = true;
+  return o;
+}
+
 function box(w, h, d, mat) { return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); }
 function tube(rt, rb, h, mat, seg = 16) { return new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat); }
 
@@ -238,7 +246,7 @@ function buildAcog() {
   // Tapered body — wide objective, narrow eyepiece.
   const body = sleeve(0.019, 0.028, len, shell, 18);
   body.rotation.x = -Math.PI / 2;   // wide end forward (-Z)
-  g.add(body);
+  g.add(hipOnly(body));
 
   const bell = sleeve(0.031, 0.031, 0.012, shell, 18);
   bell.rotation.x = Math.PI / 2;
@@ -254,14 +262,19 @@ function buildAcog() {
   const cup = sleeve(0.022, 0.017, 0.018, rubber, 16);
   cup.rotation.x = Math.PI / 2;
   cup.position.z = len / 2 + 0.008;
-  g.add(cup);
+  g.add(hipOnly(cup));
 
-  // Chevron reticle, illuminated amber like the real fibre-optic element.
-  const chev = new THREE.Mesh(new THREE.ConeGeometry(0.004, 0.006, 3), reticleMat(0xffb020));
-  chev.rotation.x = Math.PI / 2;
-  chev.position.z = -len / 2;
-  chev.renderOrder = 10;
-  g.add(sightMark(chev));
+  // Aimed in, the eyecup, tube, light pipe and turret step aside (hipOnly)
+  // and the eye sees what a real ACOG shows: a big clear lens in a round
+  // housing, and the TA31's amber chevron on a post with drop ticks.
+  const glassZ = -len / 2 - 0.009;
+  const housing = new THREE.Mesh(new THREE.CircleGeometry(ACOG_VIEW.outer, 96), acogHousingMat());
+  housing.position.z = glassZ + 0.0005;
+  housing.renderOrder = 9;
+  g.add(sightMark(housing));
+  const ret = acogReticle();
+  ret.position.z = glassZ;
+  g.add(sightMark(ret));
 
   // Fibre-optic light pipe: the amber stripe running along the top.
   const pipe = tube(0.0035, 0.0035, len * 0.62, new THREE.MeshStandardMaterial({
@@ -269,20 +282,85 @@ function buildAcog() {
   }), 8);
   pipe.rotation.x = Math.PI / 2;
   pipe.position.set(0, 0.024, 0.004);
-  g.add(pipe);
+  g.add(hipOnly(pipe));
 
   const t = turret(0.008, 0.013, M.knob());
   t.position.set(0.02, 0.012, len * 0.2);
   t.rotation.z = -Math.PI / 2;
-  g.add(t);
+  g.add(hipOnly(t));
 
   g.userData.aimOffsetY = 0.056;
   g.add(opticMount(mountDrop(0.056), 0.03, [-0.02, 0.022], M.rail(), 0.021));
   g.userData.lengthZ = 0.14;
-  // Real ACOG eye relief is short; up close the objective fills the view.
-  g.userData.adsDistance = 0.14;
+  // Real ACOG eye relief is short; up close the lens fills ~60% of the
+  // screen's height, the housing ring most of the rest.
+  g.userData.adsDistance = 0.1;
   g.userData.adsWeaponFov = 30;
   return g;
+}
+
+/* The ACOG's aimed-in view, at the objective glass (radius 0.027). */
+const ACOG_VIEW = { lens: 0.027, outer: 0.042 };
+
+/* One disc drawn as a texture, so every edge is smooth: clear in the
+   middle, a soft dark falloff into the lens edge, a thin bevel catching
+   light, the matte housing, and a feathered outer edge. */
+let acogHousingTex = null;
+function acogHousingMat() {
+  if (!acogHousingTex) {
+    const S = 512, c = document.createElement("canvas");
+    c.width = c.height = S;
+    const x = c.getContext("2d"), h = S / 2;
+    const lens = ACOG_VIEW.lens / ACOG_VIEW.outer;
+    const gr = x.createRadialGradient(h, h, 0, h, h, h);
+    gr.addColorStop(0, "rgba(0,0,0,0)");
+    gr.addColorStop(lens - 0.08, "rgba(0,0,0,0)");
+    gr.addColorStop(lens - 0.03, "rgba(4,5,6,0.3)");
+    gr.addColorStop(lens - 0.008, "rgba(4,5,6,0.9)");
+    gr.addColorStop(lens, "rgba(52,56,60,1)");          // the bevel's lit edge
+    gr.addColorStop(lens + 0.025, "rgba(16,17,19,1)");
+    gr.addColorStop(0.96, "rgba(11,12,13,1)");
+    gr.addColorStop(1, "rgba(11,12,13,0)");
+    x.fillStyle = gr;
+    x.fillRect(0, 0, S, S);
+    acogHousingTex = new THREE.CanvasTexture(c);
+    acogHousingTex.colorSpace = THREE.SRGBColorSpace;
+    acogHousingTex.anisotropy = 4;
+  }
+  return new THREE.MeshBasicMaterial({ map: acogHousingTex, transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide });
+}
+
+/* TA31 reticle: an amber chevron whose tip is the aim point, a thin dark
+   post under it, and bullet-drop ticks narrowing down the post. */
+function acogReticle() {
+  const r = new THREE.Group();
+  const amber = reticleMat(0xff8a00);
+  const dark = reticleMat(0x111111);
+  const w = 0.0022, hgt = 0.002, t = 0.0008;   // half-width, height, arm thickness
+  const s = new THREE.Shape();
+  s.moveTo(0, 0);
+  s.lineTo(w, -hgt);
+  s.lineTo(w - t * 1.25, -hgt);
+  s.lineTo(0, -t * 1.6);
+  s.lineTo(-(w - t * 1.25), -hgt);
+  s.lineTo(-w, -hgt);
+  s.closePath();
+  const chev = new THREE.Mesh(new THREE.ShapeGeometry(s), amber);
+  chev.renderOrder = 11;
+  r.add(chev);
+  const line = 0.00026;
+  const postTop = -hgt - 0.0005, postLen = 0.017;
+  const post = new THREE.Mesh(new THREE.PlaneGeometry(line, postLen), dark);
+  post.position.y = postTop - postLen / 2;
+  post.renderOrder = 10;
+  r.add(post);
+  [0.0024, 0.002, 0.0016, 0.0012, 0.0009].forEach((half, i) => {
+    const tick = new THREE.Mesh(new THREE.PlaneGeometry(half * 2, line), dark);
+    tick.position.y = postTop - 0.0026 * (i + 1);
+    tick.renderOrder = 10;
+    r.add(tick);
+  });
+  return r;
 }
 
 /* Sniper scope 8x: long, slim, ringed — the silhouette people read as
