@@ -3593,6 +3593,7 @@ function buildHollowgrin(api) {
   const root = new THREE.Group();
   api.prop(root);
   root.castShadow = false;
+  queueMicrotask(() => root.parent?.traverse((n) => { if (n.name?.startsWith("dress-")) nightFx(n.material); }));
   const K = new Kit(api, root);
   const lights = [];
   const SP = new Sparks();
@@ -4507,6 +4508,36 @@ export const HOLLOWGRIN = {
   // the highs, a touch more colour and punch.
   grade: { shadows: 0x1a2448, shadowsAmt: 0.1, highlights: 0xffb070, highlightsAmt: 0.08, sat: 1.1, contrast: 1.07 },
   build: buildHollowgrin,
+  // The scatter in every place (map-dressing.js, laid after the build so it
+  // keeps clear of every collider and spawn): fallen leaves, sweet
+  // wrappers, little pumpkins, burnt-out candles, weeds along the walls.
+  // Seeded afresh each time the map loads: never the same twice (it is only
+  // decoration, so players needn't agree on it).
+  dress: {
+    seed: (Math.random() * 1e9) >>> 0,
+    spawnPad: 2,
+    areas: {
+      village: [-34, -44, 34, 32], west: [-50, -44, -35, 44], lane: [-50, 32, 56, 44],
+      midway: [35, -44, 50, 32], park: [52, -44, 86, 44],
+      square: [-12, -11, 12, 13], graveyard: [-33, -12, -16, 16], patch: [16, -12, 34, 12],
+    },
+    avoid: [[-5, -16, 5, 4], [-46.5, -23.5, -41, -16.5]],      // (the oak's bed and the pond)
+    decals: [
+      { cell: "leaves", n: 160, size: [0.8, 1.8], color: 0xffffff, alpha: 0.75 },
+      { cell: "leaves", n: 50, area: ["square", "graveyard"], size: [1, 2.2], color: 0xffffff, alpha: 0.8 },
+      { cell: "dirt", n: 40, size: [1.5, 3.5], color: 0x2a2018, alpha: 0.35 },
+    ],
+    clutter: [
+      { kind: "leafpile", n: 50, size: [0.5, 1.1], colors: [0x8a3a14, 0x6a2a10, 0xa8541c, 0x5a3418, 0x8a6a1c] },
+      { kind: "wrapper", n: 240, size: [0.9, 1.3], colors: [0xe8302a, 0xff8a1a, 0x8a2ad8, 0x2ad86a, 0xffd21a, 0x1a8aff, 0xf4f0e8] },
+      { kind: "wrapper", n: 90, area: ["lane", "square"], size: [0.9, 1.3], colors: [0xe8302a, 0xff8a1a, 0x8a2ad8, 0xffd21a] },
+      { kind: "gourd", n: 70, size: [0.14, 0.26], colors: [0xe8701a, 0xd85a14, 0xf08a2a, 0xd8c8a0, 0x6a8a3a] },
+      { kind: "gourd", n: 30, area: ["patch", "lane"], size: [0.16, 0.3], colors: [0xe8701a, 0xf08a2a] },
+      { kind: "candle", n: 34, area: ["graveyard", "square", "lane"], size: [0.07, 0.14], colors: [0xe8dcc0, 0xd8ccb0, 0x2a2626] },
+      { kind: "weed", n: 220, area: ["village", "west", "park", "midway"], size: [0.6, 1.1], colors: [0x6a7a3a, 0x8a8a4a, 0x5a6a30] },
+      { kind: "pebble", n: 90, size: [0.1, 0.3], colors: [0x6e6a62, 0x5a5650, 0x7a746a] },
+    ],
+  },
   onShot: (p) => { for (const f of SHOT_HOOKS) f(p); },
   // the game's mixer, for the mansion's scare sting
   attachAudio: (a) => { AUDIO = a; },
