@@ -1,7 +1,11 @@
 """
 Undergrin's escalators and stairs (ug-escalators.glb): both escalator
 pairs with their balustrades, the well rails, the side stairs, the purple
-and red steel stairs, the light-well rails. See ug_kit.py.
+and red steel stairs, the light-well rails; from phase 2 of "Troll Forces:
+Undergrin in Blender" the treads' cleats and yellow edges, the steel
+skirts, the combs' teeth, the lit strips under the handrails and down the
+divider, the Rechts stehen / Bitte festhalten plates and the Not-Halt
+buttons. See ug_kit.py.
 """
 from ug_kit import *  # noqa: F401,F403
 
@@ -21,9 +25,24 @@ def escalator_lane(b, PAL, xc, w, z_foot, n, rise, run, s, y0):
         hrect(b, PAL["dark"], xc - half + 0.1, xc + half - 0.1, za, za + s * run, yt)
         rect(b, PAL["black"], (xc - half + 0.1, yt - rise, za), (1, 0, 0), (0, 1, 0), 0, w - 0.2, 0, rise)
         hrect(b, PAL["nosing"], xc - half + 0.1, xc + half - 0.1, za, za + s * 0.06, yt + 0.004)
+        # the cleats: grooves down the tread, yellow demarcation at each side
+        for k in range(1, 9):
+            gx = xc - half + 0.1 + k * (w - 0.2) / 9
+            hrect(b, PAL["grey"], gx - 0.008, gx + 0.008, za + s * 0.07, za + s * run, yt + 0.003)
+        for e in (-1, 1):
+            ex = xc + e * (half - 0.14)
+            hrect(b, PAL["nosing"], ex - 0.03, ex + 0.03, za + s * 0.07, za + s * run, yt + 0.004)
+    # the steel skirts between the treads and the balustrades, along the slope
+    prof = [(z_foot - s * 0.8, y0), (z_foot - s * 0.8, y0 + 0.12), (z_foot, y0 + 0.12), (z_top - s * run, top + 0.12),
+            (z_top + s * 1.5, top + 0.12), (z_top + s * 1.5, top), (z_top, top - 0.3), (z_foot + s * run, y0)]
+    for (xa, xb) in ((xc - half, xc - half + 0.1), (xc + half - 0.1, xc + half)):
+        b.prism(PAL["steel"], prof, xa, xb, axis="x")
     # comb plates (the top one on the slab's landing, z -18.5..-17)
     bx(b, PAL["steel"], xc - half + 0.1, xc + half - 0.1, y0, y0 + 0.02, z_foot, z_foot - s * 0.8)
     bx(b, PAL["steel"], xc - half + 0.1, xc + half - 0.1, top, top + 0.02, z_top, z_top + s * 1.5)
+    # the combs' yellow teeth where the treads go under
+    hrect(b, PAL["nosing"], xc - half + 0.1, xc + half - 0.1, *sorted((z_foot, z_foot - s * 0.08)), y0 + 0.022)
+    hrect(b, PAL["nosing"], xc - half + 0.1, xc + half - 0.1, *sorted((z_top, z_top + s * 0.08)), top + 0.022)
 
 
 def escalator_sides(b, PAL, s, z_foot, n, rise, run, y0):
@@ -41,6 +60,13 @@ def escalator_sides(b, PAL, s, z_foot, n, rise, run, y0):
         b.prism(PAL["steel"], cap, min(s * xa, s * xb), max(s * xa, s * xb), axis="x")
     for x in (-2.6, -1.2, 1.2, 2.6):
         b.cyl(PAL["black"], 0.045, (s * x, lo + 0.06, z_foot), (s * x, hi + 0.06, z_top), seg=6)
+        # the lit strip under the handrail, on the face toward the lane
+        f = 1 if x in (-2.6, 1.2) else -1          # the lane is at +x of -2.6 and 1.2
+        xf = s * x + s * f * 0.004
+        quad4(b, PAL["tube"], [Vector((xf, lo - 0.16, z_foot)), Vector((xf, hi - 0.16, z_top)), Vector((xf, hi - 0.1, z_top)), Vector((xf, lo - 0.1, z_foot))][::(1 if s * f > 0 else -1)])
+    # the divider's lit spine down its middle
+    quad4(b, PAL["tube"], [Vector((-0.08, lo + 0.034, z_foot + s * 0.3)), Vector((0.08, lo + 0.034, z_foot + s * 0.3)),
+                           Vector((0.08, hi + 0.034, z_top - s * 0.3)), Vector((-0.08, hi + 0.034, z_top - s * 0.3))][::(1 if s > 0 else -1)])
 
 
 def station_escalators(b, PAL, s):
@@ -50,6 +76,18 @@ def station_escalators(b, PAL, s):
     for xc in ESC["x"]:
         escalator_lane(b, PAL, X(xc), ESC["w"], Z(ESC["foot"]), ESC["n"], ESC["rise"], ESC["run"], s, P)
     escalator_sides(b, PAL, s, Z(ESC["foot"]), ESC["n"], ESC["rise"], ESC["run"], P)
+    # the plates on the divider's ends, and a Not-Halt on each outer newel at the foot
+    z_top = ESC["foot"] + ESC["run"] * ESC["n"]
+    sign(b, PAL, (X(0), P + 0.95, Z(ESC["foot"])), (0, 0, -s), 1.9, 0.42, ["Rechts stehen,", "links gehen"], fg="white",
+         bg="roundelblue", o=0.004, pad=0.04, sid="esc@%.0f/foot" % Z(ESC["foot"]))
+    sign(b, PAL, (X(0), U + 0.85, Z(z_top)), (0, 0, s), 1.9, 0.36, ["Bitte festhalten"], fg="white", bg="roundelblue",
+         o=0.004, pad=0.04, sid="esc@%.0f/top" % Z(z_top))
+    for x in (-2.75, 2.75):
+        c = (X(x), P + 0.95, Z(ESC["foot"]))
+        panel(b, PAL["yellow"], c, (0, 0, -s), 0.2, 0.26, o=0.004)
+        disc(b, PAL["roundel"], (X(x), P + 0.99, Z(ESC["foot"])), (0, 0, -s), 0.055, seg=12, o=0.008)
+        sign(b, PAL, (X(x), P + 0.875, Z(ESC["foot"])), (0, 0, -s), 0.2, 0.06, ["Not-Halt"], fg="black", o=0.008, pad=0.005,
+             face=None, sid="esc@%.1f,%.0f/nothalt" % (X(x), Z(ESC["foot"])))
     # the well rails round the escalator well at the concourse: west, east and north edges
     a, c, d, e = ESC_WELL
     rail_run(b, PAL, (X(a - 0.05), Z(d - 0.05)), (X(a - 0.05), Z(e)), U)

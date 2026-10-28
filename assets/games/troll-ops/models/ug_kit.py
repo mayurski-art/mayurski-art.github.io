@@ -329,6 +329,8 @@ def ug_palette():
         "band": mat("UG_WindowBand", 0x1e1e22, 0.4),
         "door": mat("UG_TrainDoor", 0xf4f4f0, 0.5),
         "seat": mat("UG_Seat", 0x2b4bd6, 0.9),
+        "liner": mat("UG_TrainLiner", 0xe9e5d8, 0.7),
+        "seam": mat("UG_SeatSeam", 0x1d3399, 0.9),
         "bench": mat("UG_Bench", 0x2d50d8, 0.8),
         "wood": mat("UG_EscWood", 0x7a5a3a, 0.8),
         "nosing": mat("UG_Nosing", 0xe8ad22, 0.6),
@@ -840,6 +842,33 @@ def bench(b, PAL, x, z, y, along="x", L=2.4, back=1):
         B(PAL["black"], a - 0.03, a + 0.03, 0.0, 0.95, 0.235, 0.28)      # the back upright
         B(PAL["black"], a - 0.03, a + 0.03, 0.38, 0.42, -0.26, 0.235)    # the seat rail
         B(PAL["black"], a - 0.04, a + 0.04, 0.0, 0.02, -0.28, 0.28)      # the foot
+
+
+@registered("bench2")
+def double_bench(b, PAL, x, z, y, L=2.4):
+    """Two benches back to back as one piece, along x (phase 2: the island's
+    pair overlapped 12 cm): four seat slats a side round one shared back of
+    three slats a side on centre uprights, the layout's 1.0 deep block."""
+    half = L / 2
+    for sg in (-1, 1):
+        for k in range(4):
+            c0 = 0.1 + k * 0.1
+            z0, z1 = sorted((z + sg * c0, z + sg * (c0 + 0.085)))
+            bx(b, PAL["bench"], x - half, x + half, y + 0.42, y + 0.465, z0, z1)
+        for k in range(3):
+            y0 = 0.56 + k * 0.125
+            z0, z1 = sorted((z + sg * 0.035, z + sg * 0.07))
+            bx(b, PAL["bench"], x - half, x + half, y + y0, y + y0 + 0.095, z0, z1)
+        for sx in (-1, 1):
+            a = x + sx * (half - 0.3)
+            z0, z1 = sorted((z + sg * 0.42, z + sg * 0.46))
+            bx(b, PAL["black"], a - 0.03, a + 0.03, y, y + 0.42, z0, z1)         # the front legs
+            z0, z1 = sorted((z + sg * 0.03, z + sg * 0.48))
+            bx(b, PAL["black"], a - 0.03, a + 0.03, y + 0.38, y + 0.42, z0, z1)  # the seat rails
+    for sx in (-1, 1):
+        a = x + sx * (half - 0.3)
+        bx(b, PAL["black"], a - 0.03, a + 0.03, y, y + 0.95, z - 0.03, z + 0.03)    # the shared upright
+        bx(b, PAL["black"], a - 0.04, a + 0.04, y, y + 0.02, z - 0.48, z + 0.48)    # the foot
 
 
 def steps_x(b, PAL, x0, x1, z_foot, n, rise, run, direction, y0, m=None, nosing=True):

@@ -1,5 +1,5 @@
 """
-Undergrin's concourse and platform furniture (ug-concourse.glb). Phase 1 of
+Undergrin's concourse furniture (ug-concourse.glb). Phase 1 of
 "Troll Forces: Undergrin in Blender" builds the concourse at prop level: the
 atrium (the Abfahrt board, the ticket gates and their Aufsicht boxes, the
 information desk, the Grin-Kiosk, the light well's kerb, the clock, the
@@ -7,9 +7,8 @@ pendants, the floor's tile lines) and both halls (the Liniennetz board, the
 Fotoautomat, the Fahrkarten machines, the safety cabinets, the SOS columns,
 bins, speakers, cameras, two pigeons). Every sign's words are real German,
 lettered at load (ug_kit sign(), maps/undergrin-signs.js); the board's LED
-rows keep the 5 x 7 pixel font. The platform level's furniture here (tube
-lights, name boards, benches, vending) is phase 2's; it gets its German
-words now. See ug_kit.py.
+rows keep the 5 x 7 pixel font. The platform level's furniture moved to
+ug_platforms in phase 2. See ug_kit.py.
 """
 from ug_kit import *  # noqa: F401,F403
 
@@ -494,70 +493,6 @@ def door_frame(b, PAL, x, nx, zc, y, w=1.8, h=DOOR_H):
     bx(b, PAL["dark"], x0, x1, y0, y1, z0, z1)
 
 
-# ============================================================ the platforms
-
-def platform_level(b, PAL, s):
-    """Tube lights, name boards, roundels, posters, benches, vending: phase
-    2's furniture, in German from phase 1."""
-    X = lambda x: s * x
-    Z = lambda z: s * z
-    for row_x in (-18.0, -12.0, 0.0, 12.0, 18.0):
-        for k in range(10):
-            z = -42.4 + k * 3.2
-            if abs(row_x) < 1 and -28 < z < -17:
-                continue
-            tube_light(b, PAL, X(row_x), Z(z), SLAB0 - 0.33 - 0.02, along="x", L=1.5)
-    for z in (-12, -6, -1):
-        for side in ("W", "E"):
-            tube_light(b, PAL, X(BORE_CX[side]), Z(z), 3.9, along="z", L=1.0)
-    tube_light(b, PAL, X(0), Z(-11), 2.95, along="z", L=1.2)
-    for z in (-10, -3):
-        tube_light(b, PAL, X(-19), Z(z), SLAB0 - 0.02, along="x", L=1.2)
-    for (x, z) in ((-6, -5), (6, -5), (-6, -1.5), (6, -1.5)):
-        tube_light(b, PAL, X(x), Z(z), SLAB0 - 0.02, along="x", L=1.2)
-    for (xw, nx) in ((-22, 1), (22, -1)):
-        nrm = (s * nx, 0, 0)
-        for zc in (-33.6, -20):
-            sign(b, PAL, (X(xw), 2.5, Z(zc)), nrm, 3.0, 0.5, ["Undergrin"], fg="white", bg="roundelblue", o=0.02,
-                 sid="nameboard@%.0f,%.1f" % (X(xw), Z(zc)))
-        roundel(b, PAL, (X(xw), 2.5, Z(-27.6)), nrm, r=0.55)
-        troll_poster(b, PAL, (X(xw), 2.4, Z(-30.6)), nrm, 1.0, 1.4, PAL["salmon"] if nx > 0 else PAL["stripe"], cells=22, o=0.02)
-        panel(b, PAL["stripe"] if nx > 0 else PAL["salmon"], (X(xw), 2.4, Z(-23)), nrm, 1.0, 1.4, o=0.02)
-        REG.face("poster@%.0f,%.1f,%.0f" % (X(xw), 2.4, Z(-23)), "wall", (X(xw), 2.4, Z(-23)), nrm, 1.0, 1.4)
-        sign(b, PAL, (X(xw), 2.75, Z(-23)), nrm, 0.8, 0.5, ["GRINLINE"], fg="black", bg="white", o=0.03, face=None,
-             sid="poster@%.0f,%.1f,%.0f/t" % (X(xw), 2.4, Z(-23)))
-        panel(b, PAL["cream"], (X(xw), 2.1, Z(-16.5)), nrm, 1.0, 1.4, o=0.02)
-        REG.face("poster@%.0f,%.1f,%.1f" % (X(xw), 2.1, Z(-16.5)), "wall", (X(xw), 2.1, Z(-16.5)), nrm, 1.0, 1.4)
-        # Bitte zurückbleiben, as the trolls say it
-        for (yy, word, col) in ((2.45, "Bitte", "black"), (2.1, "zurück-", "black"), (1.75, "grinsen", "salmon")):
-            sign(b, PAL, (X(xw), yy, Z(-16.5)), nrm, 0.9, 0.32, [word], fg=col, o=0.03, face=None,
-                 sid="poster@%.0f,%.1f,%.1f/%s" % (X(xw), 2.1, Z(-16.5), word))
-        for zb in (-34, -20):
-            bench(b, PAL, X(xw + nx * 0.9), Z(zb), P, along="z", L=1.8, back=-s * nx)
-        vz = Z(-25)
-        REG.begin(b, "vending@%.1f,%.0f" % (X(xw + nx * 0.8), vz))
-        REG.face("vending@%.1f,%.0f" % (X(xw + nx * 0.8), vz), "@self", (X(xw + nx * 1.2), P + 1.3, vz), nrm, 0.7, 1.4)
-        bx(b, PAL["red"], X(xw + nx * 0.4), X(xw + nx * 1.2), P, P + 2.0, vz - 0.5, vz + 0.5)
-        panel(b, PAL["screen"], (X(xw + nx * 1.2), P + 1.25, vz), nrm, 0.6, 0.9, o=0.01)
-        sign(b, PAL, (X(xw + nx * 1.2), P + 1.82, vz), nrm, 0.7, 0.18, ["GRINK"], fg="white", o=0.012, face=None,
-             sid="vending@%.1f,%.0f/name" % (X(xw + nx * 0.8), vz))
-        REG.end()
-    roundel(b, PAL, (X(0), 3.3, Z(-44)), (0, 0, s), r=0.8)
-    sign(b, PAL, (X(0), 2.0, Z(-44)), (0, 0, s), 3.6, 0.6, ["Undergrin"], fg="white", o=0.02, sid="endname@%.0f" % Z(-44))
-    exit_sign(b, PAL, (X(12), 3.0, Z(-44)), (0, 0, s))
-    exit_sign(b, PAL, (X(-19.5), 3.2, Z(-44)), (0, 0, s))
-    hanging_sign(b, PAL, (X(0), SLAB0 - 1.0, Z(-31)), "z", 3.0, ["GRINLINE"], SLAB0 - 0.34)
-    hanging_sign(b, PAL, (X(0), SLAB0 - 1.0, Z(-15.5)), "z", 3.0, ["Technikraum"], SLAB0 - 0.34)
-    exit_sign(b, PAL, (X(0), 2.6, Z(-14)), (0, 0, -s))
-    bench(b, PAL, X(0), Z(-32.22), P, along="x", back=s)
-    bench(b, PAL, X(0), Z(-31.78), P, along="x", back=-s)
-    for x in (-6, 6):
-        bench(b, PAL, X(x), Z(-28), P, along="z", L=2.0, back=s * (1 if x > 0 else -1))
-    for (cxp, cz) in COLS:
-        if cz == -22:
-            roundel(b, PAL, (X(cxp) - s * (1 if cxp > 0 else -1) * 0.35, 2.4, Z(cz)), (-s * (1 if cxp > 0 else -1), 0, 0), r=0.3)
-
-
 # ================================================================ the hall
 
 def hall(b, PAL, s):
@@ -699,7 +634,6 @@ def floor_lines(b, PAL):
 def build_concourse(PAL):
     b = Builder()
     for s in (1, -1):
-        platform_level(b, PAL, s)
         hall(b, PAL, s)
         atrium(b, PAL, s)
     info_desk(b, PAL, -9, 0, U)

@@ -20,7 +20,7 @@ sys.path.insert(0, HERE)
 from bake_kit import bake_ao  # noqa: E402
 
 # atlas size per GLB (the build packs its UV set for the same size)
-SIZES = {"shell": 2048, "concourse": 2048, "platforms": 1024, "escalators": 1024, "trains": 1024, "shops": 1024, "plant": 1024}
+SIZES = {"shell": 2048, "concourse": 2048, "platforms": 2048, "escalators": 1024, "trains": 2048, "shops": 1024, "plant": 1024}
 DISTANCE = 2.0   # m: how far a corner or a prop darkens the faces round it
 SAMPLES = 64
 
