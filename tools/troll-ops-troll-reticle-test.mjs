@@ -118,10 +118,18 @@ await page.evaluate(() => {
   T.remotes.__hm = T.remotes.hitMeshes;
   T.remotes.hitMeshes = () => [box];
 });
-await sleep(400);
+await page.waitForFunction(() => {
+  let on = false;
+  window.__trollOps.activeWeaponMesh().traverse((o) => { if (o.userData.reticle === "troll-hit" && o.visible) on = true; });
+  return on;
+}, null, { timeout: 5000 }).catch(() => {});
 const hit = await shown();
 await page.evaluate(() => { const T = window.__trollOps; T.remotes.hitMeshes = T.remotes.__hm; });
-await sleep(400);
+await page.waitForFunction(() => {
+  let on = false;
+  window.__trollOps.activeWeaponMesh().traverse((o) => { if (o.userData.reticle === "troll-idle" && o.visible) on = true; });
+  return on;
+}, null, { timeout: 5000 }).catch(() => {});
 const after = await shown();
 await page.evaluate(() => localStorage.removeItem("trollops:reticle"));
 await page.waitForFunction(() => {

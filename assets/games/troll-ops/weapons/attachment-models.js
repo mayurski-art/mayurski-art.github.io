@@ -233,42 +233,49 @@ function buildCoyote() {
 
   const body = sleeve(r, r, len, shell, 18);
   body.rotation.x = Math.PI / 2;
-  g.add(body);
+  g.add(hipOnly(body));
 
   // Flared objective + eyepiece rings so the tube has ends, not flat cuts.
   for (const [z, rr] of [[-len / 2, r * 1.14], [len / 2, r * 1.1]]) {
     const ring = sleeve(rr, rr, 0.007, shell, 18);
     ring.rotation.x = Math.PI / 2;
     ring.position.z = z;
-    g.add(ring);
+    g.add(hipOnly(ring));
   }
 
   const glass = new THREE.Mesh(new THREE.CircleGeometry(r * 0.92, 18), glassMat(0x2b5f72));
   glass.position.z = -len / 2 + 0.004;
   g.add(glass);
 
-  const dot = new THREE.Mesh(new THREE.CircleGeometry(0.0024, 12), reticleMat(0xff3322));
+  const dot = new THREE.Mesh(new THREE.CircleGeometry(0.00095, 24), reticleMat(0xff3322));   // ~2 MOA at the eye
   dot.position.z = -len / 2 + 0.006;
   dot.renderOrder = 10;
   g.add(sightMark(dot, "classic"));
-  for (const t of trollMarks(0.012)) { t.position.z = -len / 2 + 0.006; g.add(t); }
+  for (const t of trollMarks(0.0075)) { t.position.z = -len / 2 + 0.006; g.add(t); }
+
+  // Aimed in, the tube and its rings, turret and shade step aside (hipOnly)
+  // like the ACOG's, and the dot floats in a clear lens in a round housing,
+  // not at the end of a black double-ringed tunnel.
+  const housing = opticHousing(COYOTE_VIEW);
+  housing.position.z = -len / 2 + 0.0045;
+  g.add(sightMark(housing));
 
   // Brightness turret on top, killflash-style shade on the objective.
   const t = turret(0.009, 0.016, M.knob());
   t.position.set(0, r + 0.007, 0.006);   // sits ON the tube, clear of the view
-  g.add(t);
+  g.add(hipOnly(t));
   const shade = sleeve(r * 1.16, r * 1.16, 0.014, shell, 18);
   shade.rotation.x = Math.PI / 2;
   shade.position.z = -len / 2 - 0.007;
-  g.add(shade);
+  g.add(hipOnly(shade));
 
   g.userData.aimOffsetY = 0.053;
   g.add(opticMount(mountDrop(0.053), 0.026, [-0.016, 0.016], M.rail(), r * 0.95));
   g.userData.lengthZ = 0.09;
-  // Aimed, the glass sits this far in front of the eye (the default is 0.46,
-  // which left the tube a pinhole) with the viewmodel lens narrowed to match.
-  g.userData.adsDistance = 0.2;
-  g.userData.adsWeaponFov = 44;
+  // Aimed, the glass sits this far in front of the eye, the lens about half
+  // the screen's height in its housing (the ACOG's is bigger: it's the 4x).
+  g.userData.adsDistance = 0.1;
+  g.userData.adsWeaponFov = 36;
   return g;
 }
 
@@ -305,9 +312,8 @@ function buildAcog() {
   // and the eye sees what a real ACOG shows: a big clear lens in a round
   // housing, and the TA31's amber chevron on a post with drop ticks.
   const glassZ = -len / 2 - 0.009;
-  const housing = new THREE.Mesh(new THREE.CircleGeometry(ACOG_VIEW.outer, 96), acogHousingMat());
+  const housing = opticHousing(ACOG_VIEW);
   housing.position.z = glassZ + 0.0005;
-  housing.renderOrder = 9;
   g.add(sightMark(housing));
   const ret = acogReticle();
   ret.position.z = glassZ;
@@ -337,19 +343,26 @@ function buildAcog() {
   return g;
 }
 
-/* The ACOG's aimed-in view, at the objective glass (radius 0.027). */
+/* The aimed-in views, at the objective glass: lens radius, housing's outer. */
 const ACOG_VIEW = { lens: 0.027, outer: 0.042 };
+const COYOTE_VIEW = { lens: 0.0193, outer: 0.0255 };
 
-/* One disc drawn as a texture, so every edge is smooth: clear in the
-   middle, a soft dark falloff into the lens edge, a thin bevel catching
-   light, the matte housing, and a feathered outer edge. */
-let acogHousingTex = null;
-function acogHousingMat() {
-  if (!acogHousingTex) {
+/* An optic's aimed-in housing (`view`: lens and outer radius), one disc
+   drawn as a texture so every edge is smooth: clear in the middle, a soft
+   dark falloff into the lens edge, a thin bevel catching light, the matte
+   housing, and a feathered outer edge. */
+function opticHousing(view) {
+  const m = new THREE.Mesh(new THREE.CircleGeometry(view.outer, 96), opticHousingMat(view.lens / view.outer));
+  m.renderOrder = 9;
+  return m;
+}
+const housingTex = new Map();
+function opticHousingMat(lens) {
+  let tex = housingTex.get(lens);
+  if (!tex) {
     const S = 512, c = document.createElement("canvas");
     c.width = c.height = S;
     const x = c.getContext("2d"), h = S / 2;
-    const lens = ACOG_VIEW.lens / ACOG_VIEW.outer;
     const gr = x.createRadialGradient(h, h, 0, h, h, h);
     gr.addColorStop(0, "rgba(0,0,0,0)");
     gr.addColorStop(lens - 0.08, "rgba(0,0,0,0)");
@@ -361,11 +374,12 @@ function acogHousingMat() {
     gr.addColorStop(1, "rgba(11,12,13,0)");
     x.fillStyle = gr;
     x.fillRect(0, 0, S, S);
-    acogHousingTex = new THREE.CanvasTexture(c);
-    acogHousingTex.colorSpace = THREE.SRGBColorSpace;
-    acogHousingTex.anisotropy = 4;
+    tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    housingTex.set(lens, tex);
   }
-  return new THREE.MeshBasicMaterial({ map: acogHousingTex, transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide });
+  return new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide });
 }
 
 /* TA31 reticle: an amber chevron whose tip is the aim point, a thin dark
