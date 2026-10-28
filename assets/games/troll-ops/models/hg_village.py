@@ -19,8 +19,10 @@ import random
 
 import bpy
 
-from map_kit import mat
-from hg_kit import HGBuilder, Report, facing, lathe, pumpkin, ring, slates
+from map_kit import TEXTURED, mat
+from hg_kit import HGBuilder, Report, Wall, facing, gable_prism, lathe, pumpkin, ring, slates
+
+TEXTURED.update({"HG_GraniteDark", "HG_BarnRed", "HG_BarnWood", "HG_Clapboard", "HG_Brick", "HG_Floorboards", "HG_Granite"})
 
 WELL = (-8.0, 6.0)
 STALL = (8.0, -4.3)
@@ -64,6 +66,41 @@ def palette():
         "cork": mat("HG_Cork", 0x7a5a3a, 0.9),
         "paper": mat("HG_NoticePaper", 0xc8bfa4, 0.9),
         "slate": mat("HG_ChalkSlate", 0x1c1f1c, 0.8),
+        # phase 3's props in the barn and the candy shop
+        "crow": mat("HG_Crow", 0x111118, 0.6),
+        "beak": mat("HG_Beak", 0x3a3020, 0.6),
+        "sack": mat("HG_Burlap", 0x8a7450, 1.0),
+        "pail": mat("HG_Galvanised", 0x8a9096, 0.45, 0.5),
+        "water": mat("HG_TroughWater", 0x1a2a2a, 0.08, 0.2),
+        "web": mat("HG_Web", 0xc8c8d0, 0.9, 0.0, 0x606070, 0.3),
+        "gumred": mat("HG_GumRed", 0xb81c24, 0.4, 0.2),
+        "paper_w": mat("HG_StickPaper", 0xeee8d8, 0.9),
+        "kraft": mat("HG_Kraft", 0xa8865a, 0.95),
+        # the barn's and the candy shop's (phase 3, from hg_legacy_village.py)
+        "granite": mat("HG_Granite", 0x8c8c94, 0.9),
+        "granite_dk": mat("HG_GraniteDark", 0x5a5a62, 0.9),
+        "joint": mat("HG_Joint", 0x2a2a30, 0.95),
+        "bronze": mat("HG_Bronze", 0x3d6a58, 0.45, 0.3),
+        "bronze_dk": mat("HG_BronzeDark", 0x26402f, 0.5, 0.3),
+        "recess": mat("HG_Recess", 0x26262c, 0.95),
+        "barn": mat("HG_BarnRed", 0xc8382c, 0.85),
+        "barnwood": mat("HG_BarnWood", 0x8a6a48, 0.85),
+        "trim": mat("HG_TrimWhite", 0xd9d2c2, 0.75),
+        "roofmetal": mat("HG_RoofMetal", 0x4a524e, 0.5, 0.25),
+        "roofrib": mat("HG_RoofRib", 0x5c6662, 0.45, 0.25),
+        "clap": mat("HG_Clapboard", 0x5b3a6e, 0.8),
+        "shoptrim": mat("HG_ShopTrim", 0xe0762a, 0.65),
+        "shopdark": mat("HG_ShopDark", 0x2a1832, 0.7),
+        "brick": mat("HG_Brick", 0x8a4a3a, 0.9),
+        "floor": mat("HG_Floorboards", 0x6a4a30, 0.8),
+        "wainscot": mat("HG_Wainscot", 0x4a2e22, 0.6),
+        "tin": mat("HG_Tin", 0xc8c0a8, 0.5, 0.2),
+        "tar": mat("HG_Tar", 0x1e1e22, 0.95),
+        "glass": mat("HG_GlassDark", 0x1a2028, 0.1),
+        "warm": mat("HG_WarmGlass", 0xffd08a, 0.3, 0.0, 0xffb860, 1.6),
+        "lamp": mat("HG_Lamp", 0xfff0c8, 0.2, 0.0, 0xffd890, 3.0),
+        "tool": mat("HG_ToolSteel", 0x6a6e74, 0.5, 0.3),
+        "handle": mat("HG_Handle", 0x8a6a40, 0.8),
     }
 
 
@@ -444,3 +481,591 @@ FACES = [
     ("sign:market-a-board-w", "square:a-board", (STALL[0] - 1.9 - 0.22, 0.5, STALL[1] + 2.35), (-1, 0, 0), 0.54, 0.74),
     ("sign:notice-board", "square:notice-board", (STALL[0], 1.6, STALL[1] - 0.9 - 0.13), (0, 0, -1), 1.6, 0.95),
 ]
+
+
+# ------------------------------------------------------------------ barn
+
+def build_barn(P, Rg):
+    """Over: walls x 17..29, z 20..29 (0.35 thick, 4.4 tall); ceiling slab
+    12.4 x 9.4 x 0.3 at y 4.4; the loft deck x 17.35..20.4, z 20.35..28.65
+    at 2.4 and its stair (x 20.9, z 21 -> 24.36, 8 x 0.3); openings as in
+    hollowgrin.js (north door 4 x 3.6, west door 3 x 2.2 + loft window)."""
+    b = HGBuilder()
+    rng = random.Random(23)
+    Rg.begin(b, "south:barn")
+    R, Wd, T = P["barn"], P["barnwood"], P["trim"]
+    x0, x1, z0, z1, h, t = 17.0, 29.0, 20.0, 29.0, 4.4, 0.35
+    walls = [
+        Wall("x", z0 + t / 2, x0, x1, h, t, out=-1, holes=[{"c": 23, "w": 4, "spans": [(0, 3.6)]}]),
+        Wall("x", z1 - t / 2, x0, x1, h, t, out=1, holes=[{"c": 20, "w": 1.2, "spans": [(1.8, 2.8)]},
+                                                          {"c": 26, "w": 1.2, "spans": [(1.8, 2.8)]}]),
+        Wall("z", x0 + t / 2, z0 + t, z1 - t, h, t, out=-1, holes=[{"c": 24.5, "w": 3, "spans": [(0, 2.2)]},
+                                                                  {"c": 22.0, "w": 1.4, "spans": [(3.0, 4.25)]}]),
+        Wall("z", x1 - t / 2, z0 + t, z1 - t, h, t, out=1, holes=[{"c": 26, "w": 1.6, "spans": [(0, 2.4)]},
+                                                                 {"c": 22.5, "w": 1.2, "spans": [(1.8, 2.8)]}]),
+    ]
+    for w in walls:
+        w.solid(b, R, inner=Wd, split=0.45)
+        w.battens(b, R, 0.42, y0=0.3)
+        w.casings(b, T, fw=0.12)
+        w.casings(b, Wd, fw=0.08, sill=False, side=-1)
+    # the corners the walls leave open on the long sides
+    for cx in (x0 + t / 2, x1 - t / 2):
+        for cz in (z0 + t / 2, z1 - t / 2):
+            b.box(R, t, h, t, cx, 0, cz)
+    # foundation course, corner boards, a sill board
+    for (cx, cz, w_, d_) in ((23, z0 - 0.03, 12.2, 0.12), (23, z1 + 0.03, 12.2, 0.12),
+                             (x0 - 0.03, 24.5, 0.12, 9.2), (x1 + 0.03, 24.5, 0.12, 9.2)):
+        b.box(P["granite_dk"], w_, 0.3, d_, cx, 0, cz)
+    for cx, sx in ((x0, -1), (x1, 1)):
+        for cz, sz in ((z0, -1), (z1, 1)):
+            b.box(T, 0.16, h - 0.3, 0.05, cx - sx * 0.08 + sx * 0.0, 0.3, cz + sz * 0.03)
+            b.box(T, 0.05, h - 0.3, 0.16, cx + sx * 0.03, 0.3, cz - sz * 0.08)
+    # gambrel roof along x: eaves z 19.6 / 29.4 at 4.4, breaks z 21.5 / 27.5
+    # at 6.4, ridge z 24.5 at 7.7
+    ridge = 24.5
+    rx0, rx1 = x0 - 0.35, x1 + 0.35
+    RL = rx1 - rx0
+    rcx = (rx0 + rx1) / 2
+    planes = []
+    for s in (-1, 1):
+        planes.append(((ridge + s * 4.9, 4.4), (ridge + s * 3.0, 6.4)))
+        planes.append(((ridge + s * 3.0, 6.4), (ridge, 7.7)))
+    for (za, ya), (zb, yb) in planes:
+        L = math.hypot(zb - za, yb - ya) + 0.06
+        ang = math.atan2(yb - ya, zb - za)
+        zc, yc = (za + zb) / 2, (ya + yb) / 2
+        b.box(P["roofmetal"], RL, 0.08, L, rcx, yc - 0.04 + 0.05, zc, rx=-ang)
+        xx = rx0 + 0.25
+        while xx < rx1:
+            b.box(P["roofrib"], 0.035, 0.05, L, xx, yc + 0.06, zc, rx=-ang)
+            xx += 0.48
+    b.box(P["roofrib"], RL + 0.04, 0.12, 0.34, rcx, 7.68, ridge)
+    # gable ends: siding pentagons, rake boards, fascia
+    gable = [(z0 - 0.0 + 0.0, 4.4), (z1, 4.4), (ridge + 3.0, 6.4 - 0.0), (ridge, 7.7), (ridge - 3.0, 6.4)]
+    gprof = [(z0 + 0.0, 0), (z1, 0), (ridge + 3.0 - 0.1, 2.0 - 0.1), (ridge, 3.3 - 0.08), (ridge - 3.0 + 0.1, 2.0 - 0.1)]
+    for gx in (x0, x1):
+        b.prism(R, [(zz, 4.4 + yy) for zz, yy in gprof], gx - 0.02 if gx == x0 else gx - t + 0.02,
+                gx + t - 0.02 if gx == x0 else gx + 0.02, axis="x")
+        out = -1 if gx == x0 else 1
+        zz = z0 + 0.3
+        while zz < z1 - 0.1:
+            top = 4.4 + (2.0 * max(0.0, min(1.0, (zz - z0 + 0.4) / 1.9)) if zz < ridge - 3.0 else
+                         2.0 + 1.3 * (zz - (ridge - 3.0)) / 3.0 if zz < ridge else
+                         2.0 + 1.3 * ((ridge + 3.0) - zz) / 3.0 if zz < ridge + 3.0 else
+                         2.0 * max(0.0, min(1.0, (z1 + 0.4 - zz) / 1.9)))
+            if top - 4.4 > 0.2:
+                b.box(R, 0.03, top - 4.4 - 0.12, 0.07, gx + out * 0.015, 4.4, zz)
+            zz += 0.42
+        for (za, ya), (zb, yb) in planes:
+            L = math.hypot(zb - za, yb - ya) + 0.04
+            ang = math.atan2(yb - ya, zb - za)
+            b.box(T, 0.06, 0.2, L, gx + out * 0.4, (ya + yb) / 2 - 0.08, (za + zb) / 2, rx=-ang)
+        b.box(T, 0.04, 0.14, z1 - z0 + 0.1, gx + out * 0.03, 4.3, (z0 + z1) / 2)
+    for s in (-1, 1):
+        b.box(T, RL + 0.04, 0.22, 0.05, rcx, 4.22, ridge + s * 4.92)
+        b.box(T, RL, 0.06, 0.38, rcx, 4.38, ridge + s * 4.75)
+    # cupola + weathervane on the ridge
+    cx = 23.0
+    b.box(T, 1.2, 0.5, 1.2, cx, 7.4, ridge)
+    b.box(R, 1.0, 0.75, 1.0, cx, 7.9, ridge)
+    for side in range(4):
+        a = side * math.pi / 2
+        for k in range(5):
+            yy = 7.98 + k * 0.12
+            ox, oz = math.cos(a) * 0.51, math.sin(a) * 0.51
+            b.box(T, 0.62 if side % 2 == 1 else 0.03, 0.025, 0.03 if side % 2 == 1 else 0.62,
+                  cx + ox, yy, ridge + oz, rx=0.4 if side % 2 == 1 else 0.0, rz=0.4 if side % 2 == 0 else 0.0)
+    b.box(T, 1.15, 0.06, 1.15, cx, 8.65, ridge)
+    b.poly(P["roofmetal"], [(cx - 0.65, 8.71, ridge - 0.65), (cx + 0.65, 8.71, ridge - 0.65), (cx + 0.65, 8.71, ridge + 0.65),
+                           (cx - 0.65, 8.71, ridge + 0.65), (cx, 9.3, ridge)],
+           [[0, 1, 4], [1, 2, 4], [2, 3, 4], [3, 0, 4], [3, 2, 1, 0]])
+    I = P["iron"]
+    b.cyl(I, 0.02, (cx, 9.3, ridge), (cx, 10.3, ridge), seg=6)
+    b.cyl(I, 0.05, (cx, 9.55, ridge), (cx, 9.6, ridge), seg=10)
+    for (dx, dz) in ((0.32, 0), (-0.32, 0), (0, 0.32), (0, -0.32)):
+        b.bar(I, (cx, 9.7, ridge), (cx + dx, 9.7, ridge + dz), 0.015)
+    b.bar(I, (cx - 0.45, 10.05, ridge), (cx + 0.45, 10.05, ridge), 0.02)
+    b.poly(I, [(cx + 0.45, 9.97, ridge), (cx + 0.62, 10.05, ridge), (cx + 0.45, 10.13, ridge)], [[0, 1, 2]])
+    b.box(I, 0.2, 0.2, 0.012, cx - 0.4, 9.98, ridge)
+    # (the little troll head on the vane: a flat disc, the JS paints the face)
+    b.cyl(I, 0.12, (cx - 0.05, 10.25, ridge - 0.006), (cx - 0.05, 10.25, ridge + 0.006), seg=14)
+    # hay-loft door + hoist beam high on the east gable
+    gx = x1 + 0.04
+    b.box(R, 0.06, 1.5, 1.4, gx, 4.75, ridge)
+    b.box(T, 0.07, 0.1, 1.5, gx + 0.01, 4.7, ridge)
+    b.box(T, 0.07, 0.1, 1.5, gx + 0.01, 6.2, ridge)
+    for s in (-1, 1):
+        b.box(T, 0.07, 1.6, 0.1, gx + 0.01, 4.7, ridge + s * 0.7)
+    for r in (0.82, -0.82):
+        b.box(T, 0.075, 1.75, 0.09, gx + 0.012, 4.6, ridge, rx=r)
+    b.box(Wd, 1.6, 0.18, 0.18, x1 + 0.6, 7.05, ridge)
+    b.cyl(I, 0.09, (x1 + 1.25, 6.86, ridge - 0.03), (x1 + 1.25, 6.86, ridge + 0.03), seg=12)
+    b.cyl(P["rope"], 0.015, (x1 + 1.34, 6.86, ridge), (x1 + 1.34, 4.4, ridge), seg=5)
+    b.lump(P["hay"], 0.55, 0.4, 0.45, x1 + 1.34, 4.0, ridge, seed=3, rnd=0.3, jitter=0.03, flat_base=False)
+    # sliding doors hung off a track over the north opening, slid aside
+    b.box(I, 8.4, 0.12, 0.08, 23, 3.72, z0 - 0.08)
+    b.box(T, 8.6, 0.2, 0.04, 23, 3.84, z0 - 0.05)
+    for cxd in (20.0, 26.0):
+        zf = z0 - 0.17
+        b.box(R, 2.0, 3.55, 0.07, cxd, 0.08, zf)
+        b.box(T, 2.04, 0.13, 0.05, cxd, 0.08, zf - 0.05)
+        b.box(T, 2.04, 0.13, 0.05, cxd, 3.5, zf - 0.05)
+        b.box(T, 2.04, 0.12, 0.05, cxd, 1.8, zf - 0.05)
+        for s in (-1, 1):
+            b.box(T, 0.13, 3.55, 0.05, cxd + s * 0.955, 0.08, zf - 0.05)
+        for (ylo, yhi) in ((0.21, 1.8), (1.92, 3.5)):
+            L = math.hypot(1.78, yhi - ylo)
+            ang = math.atan2(yhi - ylo, 1.78)
+            for s in (-1, 1):
+                b.box(T, L, 0.1, 0.045, cxd, (ylo + yhi) / 2 - 0.05, zf - 0.07, rz=s * ang)
+        for s in (-1, 1):
+            b.cyl(I, 0.07, (cxd + s * 0.6, 3.78, zf), (cxd + s * 0.6, 3.78, zf - 0.08), seg=10)
+        b.box(I, 0.04, 0.3, 0.06, cxd + 0.85, 1.2, zf - 0.08)
+    # the west door: a smaller pair of hinged doors swung flat
+    for s in (-1, 1):
+        zc = 24.5 + s * 2.25
+        xf = x0 - 0.08
+        b.box(R, 0.06, 2.15, 1.45, xf, 0.05, zc)
+        b.box(T, 0.04, 0.1, 1.45, xf - 0.04, 1.05, zc)
+        for r in (0.98, -0.98):
+            b.box(T, 0.04, 2.3, 0.09, xf - 0.045, 0.0, zc, rx=r * 0.55)
+    # windows: muntins in the open frames (no glass: an old barn)
+    for w in walls:
+        for hole in w.holes:
+            for lo, hi in hole["spans"]:
+                if lo < 0.05:
+                    continue
+                c = hole["c"]
+                w.slab(b, T, c - 0.025, c + 0.025, lo, hi, w.at, 0.05)
+                w.slab(b, T, c - hole["w"] / 2, c + hole["w"] / 2, (lo + hi) / 2 - 0.025, (lo + hi) / 2 + 0.025, w.at, 0.05)
+    # inside: ceiling boards on joists, posts and beams, the loft
+    b.box(Wd, x1 - x0 - 2 * t, 0.04, z1 - z0 - 2 * t, 23, 4.36, 24.5)
+    xx = x0 + 0.9
+    while xx < x1 - 0.5:
+        b.box(Wd, 0.14, 0.22, z1 - z0 - 2 * t, xx, 4.14, 24.5)
+        xx += 1.2
+    lx0, lx1, lz0, lz1, ly = x0 + t, 20.4, z0 + t, z1 - t, 2.4
+    b.box(Wd, lx1 - lx0, 0.06, lz1 - lz0, (lx0 + lx1) / 2, ly - 0.06, (lz0 + lz1) / 2)
+    zz = lz0 + 0.5
+    while zz < lz1:
+        b.box(Wd, lx1 - lx0, 0.18, 0.1, (lx0 + lx1) / 2, ly - 0.24, zz)
+        zz += 0.8
+    b.box(Wd, 0.2, 0.25, lz1 - lz0, lx1 - 0.1, ly - 0.31, (lz0 + lz1) / 2)
+    for pz in (lz0 + 0.12, lz1 - 0.12):
+        b.box(Wd, 0.2, ly - 0.06, 0.2, lx1 - 0.1, 0, pz)
+    # loft rail (the JS collider is a railing along x 20.4 with a gap at the stair)
+    for (za, zb) in ((lz0, 27.1),):
+        n = max(2, int((zb - za) / 1.2) + 1)
+        for i in range(n):
+            pz = za + 0.05 + (zb - za - 0.1) * i / (n - 1)
+            b.box(Wd, 0.08, 1.0, 0.08, lx1 - 0.04, ly, pz)
+        b.box(Wd, 0.09, 0.08, zb - za, lx1 - 0.04, ly + 0.95, (za + zb) / 2)
+        b.box(Wd, 0.06, 0.07, zb - za, lx1 - 0.04, ly + 0.5, (za + zb) / 2)
+    # the stair: climbs west along the south wall straight onto the loft;
+    # plank treads + risers, boxed in underneath (its collider is solid to
+    # the floor), a short landing, a handrail on the open (north) side
+    sz = 27.7
+    for k in range(8):
+        top = 0.3 * (k + 1)
+        xc = 24.4 - 0.42 * (k + 0.5)
+        b.box(Wd, 0.4, 0.05, 1.0, xc, top - 0.05, sz)
+        b.box(Wd, 0.03, 0.26, 0.98, xc + 0.2, top - 0.3, sz)
+    for zz in (sz - 0.48, sz + 0.48):
+        b.poly(Wd, [(24.4, 0, zz), (21.04, 0, zz), (21.04, 2.38, zz), (24.4, 0.28, zz)], [[0, 1, 2, 3]])
+        b.poly(Wd, [(24.4, 0, zz), (24.4, 0.28, zz), (21.04, 2.38, zz), (21.04, 0, zz)], [[0, 1, 2, 3]])
+    b.box(Wd, 0.64, 0.06, 1.0, 20.72, 2.34, sz)
+    b.box(Wd, 0.64, 2.34, 0.04, 20.72, 0, sz - 0.48)
+    b.bar(Wd, (24.3, 1.25, sz - 0.48), (21.1, 3.35, sz - 0.48), 0.06)
+    for k in (0, 3, 6):
+        b.box(Wd, 0.06, 0.95, 0.06, 24.4 - 0.42 * (k + 0.5), 0.3 * (k + 1), sz - 0.48)
+    # stalls along the east wall: low plank partitions (decor: under 1.1 m)
+    for pz in (23.3, 24.9):
+        b.box(Wd, 2.0, 1.05, 0.08, 27.75, 0, pz)
+        b.box(Wd, 0.12, 1.25, 0.12, 26.8, 0, pz)
+    # tools hung on the north wall, a lantern hook, a saddle on a rail
+    for i, (tx, kind) in enumerate(((18.0, "fork"), (18.5, "rake"), (19.0, "shovel"), (27.2, "fork"), (28.0, "scythe"))):
+        zz = z0 + t + 0.06
+        b.cyl(P["handle"], 0.025, (tx, 0.5, zz), (tx + 0.08, 2.1, zz), seg=6)
+        if kind == "fork":
+            for d in (-0.08, 0, 0.08):
+                b.cyl(P["tool"], 0.008, (tx + d, 0.18, zz), (tx + d, 0.5, zz), seg=4)
+            b.box(P["tool"], 0.2, 0.03, 0.02, tx, 0.48, zz)
+        elif kind == "rake":
+            b.box(P["tool"], 0.4, 0.04, 0.03, tx, 0.48, zz)
+            for d in range(-4, 5):
+                b.box(P["tool"], 0.01, 0.07, 0.01, tx + d * 0.045, 0.41, zz)
+        elif kind == "shovel":
+            b.box(P["tool"], 0.24, 0.32, 0.02, tx, 0.18, zz)
+        else:
+            b.bar(P["tool"], (tx + 0.08, 2.1, zz), (tx + 0.62, 1.95, zz), 0.03, 0.12)
+    b.box(Wd, 0.1, 0.1, 1.4, x1 - t - 0.06, 1.2, 27.0)
+    b.lump(P["wainscot"], 0.5, 0.35, 0.6, x1 - t - 0.25, 1.25, 27.0, seed=9, rnd=0.5, jitter=0.03)
+    Rg.end()
+    barn_props(b, P, Rg)
+    b.finish("hg-barn.glb")
+
+
+# ------------------------------------------------------------- candy shop
+
+def build_shop(P, Rg):
+    """Over: walls x -11..-1, z 21..27.5 (0.4 thick, 3.4 tall); roof slab
+    10.6 x 7.1 x 0.3 at 3.4; false front 10.2 x 1.8 x 0.3 at z 21.1;
+    counter (-8.4, 25.1) 2.8 x 0.8 x 1.05; shelves (-7.6, 27.0) 4.6 x 0.5 x 2.2;
+    bay knee wall (-9, 20.72) 2.0 x 0.55 x 0.9."""
+    b = HGBuilder()
+    rng = random.Random(41)
+    Rg.begin(b, "south:candyshop")
+    C, OT, D, BR = P["clap"], P["shoptrim"], P["shopdark"], P["brick"]
+    x0, x1, z0, z1, h, t = -11.0, -1.0, 21.0, 27.5, 3.4, 0.4
+    front = Wall("x", z0 + 0.2, x0, x1, h, t, out=-1, holes=[
+        {"c": -6, "w": 1.8, "spans": [(0, 2.5)]}, {"c": -9, "w": 2.2, "spans": [(0.9, 2.3)]},
+        {"c": -2.9, "w": 1.8, "spans": [(0.9, 2.3)]}])
+    back = Wall("x", z1 - 0.2, x0, x1, h, t, out=1, holes=[
+        {"c": -3.5, "w": 1.6, "spans": [(0, 2.4)]}, {"c": -8.5, "w": 1.4, "spans": [(1.0, 2.2)]}])
+    west = Wall("z", x0 + 0.2, z0 + 0.4, z1 - 0.4, h, t, out=-1, holes=[{"c": 24.2, "w": 1.6, "spans": [(1.0, 2.3)]}])
+    east = Wall("z", x1 - 0.2, z0 + 0.4, z1 - 0.4, h, t, out=1, holes=[{"c": 24.2, "w": 1.4, "spans": [(1.0, 2.3)]}])
+    front.solid(b, D, inner=P["wainscot"], split=0.3)
+    front.laps(b, C, every=0.19, y0=0.85)
+    for w in (back, west, east):
+        w.solid(b, BR, inner=P["paper"], split=0.6)
+    # brick: soldier-course heads + stone sills on the brick walls' windows
+    for w in (back, west, east):
+        for hole in w.holes:
+            for lo, hi in hole["spans"]:
+                c = hole["c"]
+                k = -hole["w"] / 2 - 0.06
+                while k < hole["w"] / 2 + 0.06:
+                    w.slab(b, BR, c + k, c + k + 0.075, hi, hi + 0.24, w.face(0.012), 0.025)
+                    k += 0.085
+                if lo > 0.05:
+                    w.slab(b, P["granite"], c - hole["w"] / 2 - 0.1, c + hole["w"] / 2 + 0.1, lo - 0.08, lo, w.face(0.05), 0.1)
+        w.casings(b, D, fw=0.07, proud=0.03, sill=False)
+    # parapet + coping on the sides and back, tar roof, chimney
+    for (cx, cz, w_, d_) in ((-6, z1 - 0.2, 10.0, 0.4), (x0 + 0.2, 24.25, 0.4, 6.5), (x1 - 0.2, 24.25, 0.4, 6.5)):
+        b.box(BR, w_, 0.5, d_, cx, 3.7, cz)
+        b.box(P["granite"], w_ + 0.1, 0.07, d_ + 0.1, cx, 4.2, cz)
+    b.box(P["tar"], 9.6, 0.02, 6.0, -6, 3.7, 24.3)
+    b.box(BR, 0.7, 1.6, 0.6, -9.6, 3.7, 26.6)
+    b.box(P["granite"], 0.8, 0.08, 0.7, -9.6, 5.3, 26.6)
+    b.cyl(P["iron"], 0.12, (-3.0, 3.72, 25.0), (-3.0, 4.3, 25.0), seg=10)
+    b.cyl(P["iron"], 0.2, (-3.0, 4.3, 25.0), (-3.0, 4.42, 25.0), seg=10, r2=0.05)
+    # the storefront: pilasters, kick panels, door + transom, cornice band
+    zf = z0 - 0.0
+    for px in (-10.82, -7.4, -4.65, -1.18):
+        b.box(OT, 0.34, 3.0, 0.12, px, 0, zf - 0.04)
+        b.box(OT, 0.42, 0.14, 0.16, px, 0, zf - 0.06)
+        b.box(OT, 0.42, 0.16, 0.16, px, 2.9, zf - 0.06)
+    for (c, w_) in ((-2.9, 1.8),):
+        b.box(D, w_ + 0.2, 0.85, 0.06, c, 0, zf - 0.03)
+        b.box(OT, w_ - 0.2, 0.5, 0.03, c, 0.18, zf - 0.07)
+    front.casings(b, OT, fw=0.1, proud=0.05)
+    b.box(P["warm"], 1.6, 0.48, 0.03, -6, 2.62, zf - 0.0)
+    b.box(OT, 1.8, 0.06, 0.06, -6, 2.58, zf - 0.04)
+    b.box(OT, 1.8, 0.06, 0.06, -6, 3.1, zf - 0.04)
+    for k in (-0.4, 0.0, 0.4):
+        b.box(OT, 0.04, 0.48, 0.05, -6 + k, 2.62, zf - 0.03)
+    # display-window muntins (no glass: open, as before)
+    for c, w_ in ((-2.9, 1.8),):
+        b.box(OT, 0.04, 1.4, 0.04, c - w_ / 6, 0.9, zf + 0.0)
+        b.box(OT, 0.04, 1.4, 0.04, c + w_ / 6, 0.9, zf + 0.0)
+        b.box(OT, w_, 0.04, 0.04, c, 1.95, zf + 0.0)
+    # the door leaf, swung in against the wall
+    b.box(D, 0.9, 2.4, 0.05, -6.45 - 0.45 + 0.45, 0.02, zf + 0.62)
+    b.box(P["warm"], 0.6, 0.9, 0.06, -6.45, 1.2, zf + 0.62)
+    b.box(OT, 0.04, 0.04, 0.12, -6.05, 1.1, zf + 0.62)
+    # the bay window: knee wall, angled sides, mullions, a copper cap
+    bz = z0 - 0.55
+    pts = [(-10.1, z0), (-9.65, bz), (-8.35, bz), (-7.9, z0)]
+    prof = [(p[0], p[1]) for p in pts]
+    for (yy0, yy1, m) in ((0.0, 0.88, C), (0.88, 0.95, OT), (2.3, 2.38, OT)):
+        vs = [(x, yy0, z) for x, z in prof] + [(x, yy1, z) for x, z in prof]
+        b.poly(m, vs, [[0, 1, 2, 3], [7, 6, 5, 4], [0, 4, 5, 1], [1, 5, 6, 2], [2, 6, 7, 3]])
+    for (xa, za) in pts:
+        b.box(OT, 0.07, 1.36, 0.07, xa, 0.95, za)
+    for xa in (-9.22, -8.78):
+        b.box(OT, 0.04, 1.36, 0.04, xa, 0.95, bz)
+    capv = [(-10.25, 2.38, z0), (-9.72, 2.38, bz - 0.12), (-8.28, 2.38, bz - 0.12), (-7.75, 2.38, z0),
+            (-9.6, 2.62, z0), (-8.4, 2.62, z0)]
+    b.poly(P["bronze"], capv, [[0, 1, 4], [1, 2, 5, 4], [2, 3, 5]])
+    # candy jars stacked in the bay (painted: bright lids, coloured fills)
+    for i, xj in enumerate((-9.55, -9.2, -8.85, -8.5)):
+        for row, (yj, zj) in enumerate(((0.95, bz + 0.18), (1.25, bz + 0.38))):
+            col = [0xff4a7a, 0x5ad0ff, 0xffd23a, 0x8aff6a, 0xc07aff, 0xff8a3a][(i * 2 + row) % 6]
+            jar = mat("HG_Jar%d" % ((i * 2 + row) % 6), col, 0.3, 0.0, col, 0.25)
+            b.cyl(jar, 0.11, (xj, yj, zj), (xj, yj + 0.24, zj), seg=10)
+            b.cyl(P["brass"], 0.08, (xj, yj + 0.24, zj), (xj, yj + 0.29, zj), seg=10)
+    b.box(P["wainscot"], 1.3, 0.04, 0.5, -9, 0.95, bz + 0.27)
+    # false front: lap boards, a sign frame, brackets, a heavy cornice
+    ffz = z0 + 0.1
+    for k in range(9):
+        yy = h + k * 0.2
+        b.box(C, 10.2, 0.22, 0.3, -6, yy, ffz, rx=0.0)
+        b.box(C, 10.22, 0.03, 0.32, -6, yy + 0.19, ffz)
+    b.box(D, 7.8, 1.65, 0.06, -6, h + 0.08, ffz - 0.16)
+    for yy in (h + 0.04, h + 1.7):
+        b.box(OT, 8.1, 0.12, 0.1, -6, yy, ffz - 0.18)
+    for xx in (-9.98, -2.02):
+        b.box(OT, 0.12, 1.78, 0.1, xx, h + 0.04, ffz - 0.18)
+    b.box(OT, 10.6, 0.16, 0.5, -6, h + 1.8, ffz)
+    b.box(OT, 10.8, 0.1, 0.62, -6, h + 1.96, ffz)
+    b.box(D, 10.3, 0.22, 0.12, -6, h + 1.55, ffz - 0.2)
+    xx = -10.8
+    while xx <= -1.15:
+        b.prism(OT, [(ffz - 0.15, h + 1.55), (ffz - 0.45, h + 1.8), (ffz - 0.15, h + 1.8)], xx - 0.05, xx + 0.05, axis="x")
+        xx += 0.6
+    for xx in (-10.6, -1.4):
+        b.cyl(OT, 0.09, (xx, h + 2.06, ffz), (xx, h + 2.4, ffz), seg=10, r2=0.02)
+    # the storefront cornice band over the shopfront (the roof slab's edge)
+    b.box(D, 10.6, 0.3, 0.12, -6, 3.4, z0 - 0.05)
+    b.box(OT, 10.7, 0.06, 0.2, -6, 3.37, z0 - 0.08)
+    # inside: floorboards, wainscot + chair rail, pressed-tin ceiling
+    b.box(P["floor"], 9.2, 0.02, 5.7, -6, 0, 24.25)
+    for (cx, cz, w_, d_) in ((-6, z1 - t - 0.02, 9.2, 0.04), (x0 + t + 0.02, 24.25, 0.04, 5.7), (x1 - t - 0.02, 24.25, 0.04, 5.7)):
+        b.box(P["wainscot"], w_, 1.0, d_, cx, 0, cz)
+        b.box(OT, w_ + (0.04 if w_ > 1 else 0.02), 0.06, d_ + (0.02 if w_ > 1 else 0.04), cx, 1.0, cz)
+    b.box(P["tin"], 9.2, 0.02, 5.7, -6, 3.37, 24.25)
+    for i in range(10):
+        b.box(P["brass"], 0.04, 0.02, 5.7, -10.6 + i * 1.0 + 0.5, 3.35, 24.25)
+    for i in range(6):
+        b.box(P["brass"], 9.2, 0.02, 0.04, -6, 3.35, z0 + t + 0.5 + i * 1.0)
+    # the glass counter: wood plinth, dark glass, a brass rail, scale + till
+    cx, cz = -8.4, 25.1
+    b.box(P["wainscot"], 2.8, 0.4, 0.8, cx, 0, cz, bevel=0.01)
+    b.box(P["glass"], 2.7, 0.55, 0.72, cx, 0.4, cz)
+    b.box(P["warm"], 2.6, 0.03, 0.6, cx, 0.62, cz)
+    b.box(P["wainscot"], 2.9, 0.08, 0.86, cx, 0.95, cz, bevel=0.01)
+    b.box(P["brass"], 2.8, 0.03, 0.03, cx, 0.6, cz - 0.38)
+    b.cyl(P["brass"], 0.14, (cx - 0.8, 1.03, cz), (cx - 0.8, 1.06, cz), seg=14)
+    b.cyl(P["brass"], 0.03, (cx - 0.8, 1.06, cz), (cx - 0.8, 1.35, cz), seg=6)
+    b.cyl(P["brass"], 0.16, (cx - 0.8, 1.35, cz), (cx - 0.8, 1.4, cz), seg=14, r2=0.2)
+    b.box(P["brass"], 0.4, 0.3, 0.35, cx + 0.7, 1.03, cz)
+    b.box(P["brass"], 0.42, 0.05, 0.25, cx + 0.7, 1.33, cz - 0.05, rx=0.4)
+    # shelving behind (JS jars sit on these boards)
+    sx, sz = -7.6, 27.0
+    for s in (-1, 1):
+        b.box(P["wainscot"], 0.06, 2.2, 0.5, sx + s * 2.27, 0, sz)
+    for k in range(4):
+        b.box(P["wainscot"], 4.6, 0.04, 0.42, sx, 0.41 + k * 0.62, sz - 0.04)
+    b.box(OT, 4.7, 0.12, 0.52, sx, 2.2, sz)
+    # the pendant lamp
+    b.cyl(P["iron"], 0.008, (-6, 3.37, 24.3), (-6, 2.85, 24.3), seg=4)
+    b.cyl(P["bronze_dk"], 0.06, (-6, 2.85, 24.3), (-6, 2.6, 24.3), seg=12, r2=0.3)
+    b.cyl(P["lamp"], 0.09, (-6, 2.55, 24.3), (-6, 2.68, 24.3), seg=10)
+    Rg.end()
+    shop_props(b, P, Rg)
+    b.finish("hg-candyshop.glb")
+
+
+CANDY = [0xff4a7a, 0x5ad0ff, 0xffd23a, 0x8aff6a, 0xc07aff, 0xff8a3a]
+
+
+def candy_mats():
+    return [mat("HG_Candy%d" % i, c, 0.4, 0.0, c, 0.05) for i, c in enumerate(CANDY)]
+
+
+def sweet(b, m, x, y, z, ry, s=1.0):
+    """A wrapped sweet: a little bar with a twist at each end."""
+    b.box(m, 0.07 * s, 0.03 * s, 0.035 * s, x, y, z, ry=ry)
+    for e in (-1, 1):
+        dx, dz = math.cos(ry) * e * 0.05 * s, -math.sin(ry) * e * 0.05 * s
+        b.box(m, 0.03 * s, 0.025 * s, 0.045 * s, x + dx, y + 0.003, z + dz, ry=ry)
+
+
+def cobweb(b, m, c, u, v, size, seed):
+    """A corner's cobweb: spokes out from the corner along the wall faces
+    u and v (unit vectors in the two walls), three sagging rings of thread."""
+    rnd = random.Random(seed)
+    n = 6
+    spokes = []
+    for i in range(n):
+        t = i / (n - 1)
+        d = (u[0] * (1 - t) + v[0] * t, u[1] * (1 - t) + v[1] * t, u[2] * (1 - t) + v[2] * t)
+        L = size * (0.8 + rnd.random() * 0.3)
+        spokes.append((d, L))
+        b.bar(m, c, (c[0] + d[0] * L, c[1] + d[1] * L, c[2] + d[2] * L), 0.006)
+    for k in (0.35, 0.62, 0.88):
+        for i in range(n - 1):
+            (d0, L0), (d1, L1) = spokes[i], spokes[i + 1]
+            p = (c[0] + d0[0] * L0 * k, c[1] + d0[1] * L0 * k - 0.02 * k, c[2] + d0[2] * L0 * k)
+            q = (c[0] + d1[0] * L1 * k, c[1] + d1[1] * L1 * k - 0.02 * k, c[2] + d1[2] * L1 * k)
+            b.bar(m, p, q, 0.005)
+
+
+def crow(b, P, x, y, z, ry, seed):
+    """A crow perched (feet at y), facing ry."""
+    m = P["crow"]
+    c, s = math.cos(ry), math.sin(ry)
+    at = lambda f, up, side=0.0: (x + c * f + s * side, y + up, z - s * f + c * side)
+    b.lump(m, 0.16, 0.16, 0.3, x, y + 0.05, z, seed=seed, rnd=0.8, jitter=0.01, ry=ry, n=2)
+    hx, hy, hz = at(0.15, 0.17)
+    b.lump(m, 0.1, 0.1, 0.1, hx, hy, hz, seed=seed + 1, rnd=0.9, jitter=0.005, ry=ry, n=2)
+    b.bar(P["beak"], at(0.19, 0.215), at(0.27, 0.205), 0.025, 0.02)
+    b.bar(m, at(-0.12, 0.13), at(-0.3, 0.09), 0.08, 0.015)
+    for sd in (-0.035, 0.035):
+        b.bar(P["beak"], at(0.0, 0.0, sd), at(0.0, 0.06, sd), 0.012)
+
+
+def sack(b, P, x, y, z, ry, seed, w=0.55):
+    b.lump(P["sack"], w, 0.42, w * 0.72, x, y, z, seed=seed, rnd=0.55, jitter=0.03, ry=ry)
+    # the tied neck
+    c, s = math.cos(ry), math.sin(ry)
+    b.cyl(P["twine"], 0.05, (x + c * w * 0.42, y + 0.28, z - s * w * 0.42), (x + c * w * 0.52, y + 0.33, z - s * w * 0.52), seg=6)
+
+
+def pail(b, P, x, z, r=0.15, h=0.3, y=0.0, full=None):
+    lathe(b, P["pail"], x, z, [(r * 0.78, 0.0), (r, h), (r * 0.94, h)], seg=12, y0=y, caps=False)
+    lathe(b, P["pail"], x, z, [(0.002, 0.004), (r * 0.78, 0.004)], seg=12, y0=y, caps=False)
+    ring(b, P["iron"], (x, y + h, z), r, 0.008, seg=14, tseg=4)
+    ring(b, P["iron"], (x, y + h * 0.75, z), r * 1.05, 0.06, seg=10, tseg=4, axis="x", arc=math.pi)
+    if full:
+        b.cyl(full, r * 0.92, (x, y + h * 0.7, z), (x, y + h * 0.72, z), seg=12)
+
+
+def barn_props(b, P, R):
+    """The barn dressed (phase 3): a wheelbarrow of hay by the north door,
+    feed sacks under the loft, the east stall's trough with a pail and a milk
+    can, a pitchfork against the stall post, cobwebs in the corners, a cart
+    wheel against the north wall outside, crows on the ridge. hollowgrin.js
+    lays the barrow's, sacks' and trough's colliders."""
+    W = P["barnwood"]
+    # the wheelbarrow, east of the north door, nosed into the corner
+    R.begin(b, "south:barn-barrow", on="south:barn")
+    bx, bz, ry = 26.6, 21.3, 0.3
+    c, s = math.cos(ry), math.sin(ry)
+    at = lambda f, side, y: (bx + c * f + s * side, y, bz - s * f + c * side)
+    tray = [at(-0.45, -0.32, 0.38), at(0.35, -0.32, 0.38), at(0.5, -0.38, 0.62), at(-0.55, -0.42, 0.66),
+            at(-0.45, 0.32, 0.38), at(0.35, 0.32, 0.38), at(0.5, 0.38, 0.62), at(-0.55, 0.42, 0.66)]
+    b.poly(P["pail"], tray, [[0, 1, 5, 4], [0, 3, 2, 1], [4, 5, 6, 7], [1, 2, 6, 5], [0, 4, 7, 3]])
+    for sd in (-0.3, 0.3):
+        b.bar(W, at(0.55, sd * 0.5, 0.3), at(-1.05, sd, 0.62), 0.045)
+        b.bar(W, at(-0.35, sd, 0.4), at(-0.4, sd, 0.0), 0.04)
+    wx, wy, wz = at(0.62, 0.0, 0.2)
+    ring(b, P["iron"], (wx, wy, wz), 0.18, 0.035, seg=16, tseg=5, axis="x" if abs(s) > 0.7 else "z")
+    b.cyl(P["iron"], 0.03, at(0.62, -0.05, 0.2), at(0.62, 0.05, 0.2), seg=6)
+    b.lump(P["hay"], 0.85, 0.32, 0.62, bx - c * 0.05, 0.52, bz + s * 0.05, seed=31, rnd=0.6, jitter=0.05, ry=ry, flat_base=False)
+    R.end()
+    # feed sacks under the loft, west of the north door
+    R.begin(b, "south:barn-sacks", on="south:barn")
+    for i, (x, y, z, r) in enumerate(((17.95, 0.0, 20.95, 0.2), (18.55, 0.0, 21.05, -0.15), (19.15, 0.0, 20.9, 0.1),
+                                      (18.25, 0.36, 21.0, 1.3), (18.85, 0.36, 20.98, 1.7), (17.95, 0.0, 21.55, 1.5))):
+        sack(b, P, x, y, z, r, 40 + i)
+    R.end()
+    # the east stall: a trough along the wall, a pail, a milk can
+    R.begin(b, "south:barn-trough", on="south:barn")
+    tx, tz = 28.3, 24.1
+    b.box(W, 0.06, 0.48, 1.2, tx - 0.22, 0.0, tz)
+    b.box(W, 0.06, 0.48, 1.2, tx + 0.22, 0.0, tz)
+    b.box(W, 0.5, 0.06, 1.2, tx, 0.06, tz)
+    for e in (-1, 1):
+        b.box(W, 0.5, 0.48, 0.06, tx, 0.0, tz + e * 0.57)
+    b.box(P["water"], 0.38, 0.02, 1.08, tx, 0.36, tz)
+    pail(b, P, 27.25, 24.45, full=P["water"])
+    lathe(b, P["pail"], 27.15, 23.65, [(0.16, 0.0), (0.17, 0.42), (0.1, 0.5), (0.1, 0.58), (0.12, 0.6)], seg=12)
+    R.end()
+    # a pitchfork against the stall post
+    R.begin(b, "south:barn-fork", on="south:barn")
+    b.cyl(P["handle"], 0.022, (26.55, 0.05, 22.95), (26.74, 1.45, 23.22), seg=6)
+    for d in (-0.06, 0.0, 0.06):
+        b.cyl(P["tool"], 0.008, (26.5 + d * 0.2, 0.02, 22.88 + d), (26.55, 0.33, 22.95 + d * 0.4), seg=4)
+    R.end()
+    # cobwebs in the corners under the ceiling
+    R.begin(b, "south:barn-webs", on="south:barn")
+    for (cx, cz, ux, vz) in ((17.36, 28.64, 1, -1), (28.64, 28.64, -1, -1), (28.64, 20.36, -1, 1)):
+        cobweb(b, P["web"], (cx, 4.34, cz), (ux, -0.35, 0), (0, -0.35, vz), 0.7, int(cx * 10))
+    R.end()
+    # a cart wheel leant on the north wall, west of the doors
+    R.begin(b, "south:barn-wheel", on="south:barn")
+    wc = (18.6, 0.56, 19.72)
+    ring(b, W, wc, 0.52, 0.04, seg=18, tseg=5, axis="z")
+    for k in range(8):
+        a = k * math.pi / 4
+        b.bar(W, (wc[0], wc[1], wc[2]), (wc[0] + math.cos(a) * 0.5, wc[1] + math.sin(a) * 0.5, wc[2]), 0.03)
+    b.cyl(P["iron"], 0.07, (wc[0], wc[1], wc[2] - 0.06), (wc[0], wc[1], wc[2] + 0.06), seg=10)
+    R.end()
+    # crows on the ridge and the hoist beam
+    R.begin(b, "south:barn-crows", on="south:barn")
+    for i, (x, y, z, r) in enumerate(((18.6, 7.74, 24.5, 1.2), (19.3, 7.74, 24.52, -2.0), (27.4, 7.74, 24.48, 0.4), (29.7, 7.14, 24.5, 2.9))):
+        crow(b, P, x, y, z, r, 90 + i)
+    R.end()
+
+
+def shop_props(b, P, R):
+    """The candy shop dressed (phase 3): a gumball machine by the back door,
+    a rack of sweet bins under the west window, a jar of lollipops, paper
+    bags and loose sweets on the counter, sweets spilled on the floor,
+    cobwebs in two corners. hollowgrin.js lays the machine's and the rack's
+    colliders; the jars on the shelves and the candy cauldron stay its."""
+    rnd = random.Random(401)
+    CM = candy_mats()
+    W = P["wainscot"]
+    # the gumball machine
+    R.begin(b, "south:shop-gumball", on="south:candyshop")
+    gx, gz = -1.95, 26.55
+    lathe(b, P["gumred"], gx, gz, [(0.22, 0.0), (0.22, 0.05), (0.06, 0.08), (0.04, 0.12), (0.04, 0.72), (0.09, 0.75)], seg=14)
+    b.box(P["gumred"], 0.26, 0.22, 0.26, gx, 0.75, gz)
+    b.box(P["brass"], 0.1, 0.07, 0.02, gx, 0.85, gz - 0.13)
+    b.cyl(P["brass"], 0.025, (gx, 0.87, gz - 0.14), (gx, 0.87, gz - 0.18), seg=8)
+    ring(b, P["brass"], (gx, 0.98, gz), 0.12, 0.012, seg=14, tseg=4)
+    n = 46
+    for i in range(n):
+        yy = 1 - 2 * (i + 0.5) / n
+        rr = math.sqrt(1 - yy * yy)
+        a = i * 2.39996
+        px, py, pz = gx + math.cos(a) * rr * 0.17, 1.17 + yy * 0.17, gz + math.sin(a) * rr * 0.17
+        b.lump(CM[i % len(CM)], 0.07, 0.07, 0.07, px, py - 0.035, pz, seed=i, rnd=1.0, jitter=0.0, flat_base=False, n=2)
+    ring(b, P["brass"], (gx, 1.35, gz), 0.1, 0.012, seg=14, tseg=4)
+    lathe(b, P["gumred"], gx, gz, [(0.11, 1.34), (0.11, 1.38), (0.05, 1.42), (0.025, 1.47)], seg=12)
+    R.end()
+    # the rack of bins along the west wall, under the window's sill
+    R.begin(b, "south:shop-bins", on="south:candyshop")
+    rx0, rx1, rz0, rz1 = -10.58, -10.02, 21.8, 24.4
+    b.box(W, rx1 - rx0, 0.04, rz1 - rz0, (rx0 + rx1) / 2, 0.42, (rz0 + rz1) / 2)
+    for zz in (rz0 + 0.03, rz1 - 0.03):
+        b.box(W, rx1 - rx0, 0.85, 0.05, (rx0 + rx1) / 2, 0.0, zz)
+    b.box(W, 0.05, 0.85, rz1 - rz0, rx0 + 0.03, 0.0, (rz0 + rz1) / 2)
+    nb = 4
+    for tier, (y0, x_in, h) in enumerate(((0.0, 0.0, 0.4), (0.46, 0.18, 0.36))):
+        for k in range(nb):
+            za = rz0 + 0.06 + k * (rz1 - rz0 - 0.12) / nb
+            zb = za + (rz1 - rz0 - 0.12) / nb - 0.04
+            bx0 = rx0 + 0.06 + x_in
+            # the bin: open front, a little lower than its back
+            b.box(W, rx1 - bx0, 0.03, zb - za, (bx0 + rx1) / 2, y0, (za + zb) / 2)
+            b.box(W, rx1 - bx0, h, 0.025, (bx0 + rx1) / 2, y0, za)
+            b.box(W, rx1 - bx0, h, 0.025, (bx0 + rx1) / 2, y0, zb)
+            b.box(W, 0.025, h * 0.6, zb - za, rx1 - 0.0125, y0, (za + zb) / 2)
+            m = CM[(k + tier * 2) % len(CM)]
+            b.lump(m, rx1 - bx0 - 0.06, h * 0.55, zb - za - 0.06, (bx0 + rx1) / 2 - 0.01, y0 + 0.03, (za + zb) / 2,
+                   seed=k * 7 + tier, rnd=0.4, jitter=0.02, flat_base=True, n=2)
+            for j in range(5):
+                sweet(b, CM[(k + j) % len(CM)], bx0 + 0.08 + rnd.random() * (rx1 - bx0 - 0.16), y0 + h * 0.55 + 0.02,
+                      za + 0.06 + rnd.random() * (zb - za - 0.12), rnd.random() * 3.1)
+    R.end()
+    # the counter top: a jar of lollipops, a stack of paper bags, loose sweets
+    R.begin(b, "south:shop-counter-goods", on=["south:candyshop"])
+    jx, jz, top = -8.55, 25.25, 1.03
+    lathe(b, P["glass"], jx, jz, [(0.09, 0.0), (0.1, 0.02), (0.1, 0.2), (0.07, 0.22)], seg=12, y0=top, caps=False)
+    for i in range(7):
+        a = i * 0.9
+        tip = (jx + math.cos(a) * 0.09, top + 0.42 + (i % 2) * 0.05, jz + math.sin(a) * 0.09)
+        b.cyl(P["paper_w"], 0.006, (jx + math.cos(a) * 0.02, top + 0.05, jz + math.sin(a) * 0.02), tip, seg=4)
+        b.cyl(CM[i % len(CM)], 0.055, (tip[0] - 0.008, tip[1], tip[2]), (tip[0] + 0.008, tip[1], tip[2]), seg=12)
+    for k in range(4):
+        b.box(P["kraft"], 0.2, 0.012, 0.13, -8.12, top + k * 0.013, 24.95, ry=k * 0.08)
+    b.box(P["kraft"], 0.15, 0.24, 0.09, -7.88, top, 25.3, ry=0.2)
+    for i in range(9):
+        sweet(b, CM[i % len(CM)], -8.9 + rnd.random() * 0.75, top + 0.003, 24.85 + rnd.random() * 0.45, rnd.random() * 3.1)
+    R.end()
+    # sweets spilled on the floor in front of the counter and the bins
+    R.begin(b, "south:shop-spill", on=["south:candyshop", "south:shop-bins"])
+    for i in range(14):
+        x = -9.9 + rnd.random() * 2.8 if i % 2 else -9.95 + rnd.random() * 0.6
+        z = 24.1 + rnd.random() * 0.5 if i % 2 else 22.0 + rnd.random() * 2.2
+        sweet(b, CM[i % len(CM)], x, 0.022, z, rnd.random() * 3.1)
+    R.end()
+    # cobwebs high in two corners
+    R.begin(b, "south:shop-webs", on="south:candyshop")
+    cobweb(b, P["web"], (-10.59, 3.34, 21.41), (1, -0.3, 0), (0, -0.3, 1), 0.55, 11)
+    cobweb(b, P["web"], (-1.41, 3.34, 21.41), (-1, -0.3, 0), (0, -0.3, 1), 0.5, 12)
+    R.end()

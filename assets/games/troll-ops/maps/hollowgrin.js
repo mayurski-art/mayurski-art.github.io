@@ -169,6 +169,10 @@ const GARDEN_PROPS = {
   busts: [[-16.8, -20.9], [-16.8, -17.1]],
   potting: [-9.45, -41.7],
 };
+// The candy shop's and the barn's new pieces (models/hg_village.py draws
+// them): their colliders, [x, z, w, d, h].
+const SHOP_PROPS = [[-1.95, 26.55, 0.5, 0.5, 1.47], [-10.3, 23.1, 0.56, 2.6, 0.85]];
+const BARN_PROPS = [[26.4, 21.36, 1.8, 1.25, 0.7], [18.5, 21.25, 1.85, 1.3, 0.75], [28.3, 24.1, 0.5, 1.2, 0.5]];
 const WEST_LOOP = {
   path: -37.4,
   wallX: -38.75, walls: [[-16, -11.5], [-10, -8.7], [11, 13], [14, 19], [20.5, 25], [26.5, 28.8]],
@@ -4398,6 +4402,9 @@ function buildHollowgrin(api) {
     // a lantern on a bracket by the back door
     lantern(K, M, -2.45, 2.2, 27.88, { hang: 0.5, seed: 77, pool: 2.2 });
     K.box(M.iron, -2.45, 2.72, 27.7, 0.03, 0.03, 0.4);
+    // phase 3's props (hg_village.shop_props): the gumball machine by the
+    // back door, the rack of sweet bins under the west window
+    for (const [x, z, w, d, h] of SHOP_PROPS) K.api.ghostBox(x, z, w, d, h, { pen: 2 });
   }
 
   /* ------------------------------------------------ the barn (SE) */
@@ -4429,6 +4436,9 @@ function buildHollowgrin(api) {
     hayBale(K, M, 19.4, 20.85, { y: LOFT.y });
     hayBale(K, M, 18.3, 27.6, { y: LOFT.y, ry: 0.1 });
     hayBale(K, M, 18.3, 27.6, { y: LOFT.y + 0.75, ry: -0.08, collide: false });
+    // phase 3's props (hg_village.barn_props): the wheelbarrow, the feed
+    // sacks under the loft, the east stall's trough
+    for (const [x, z, w, d, h] of BARN_PROPS) K.api.ghostBox(x, z, w, d, h, { pen: 2 });
     // a lantern hung over the loft, another by the west door
     lantern(K, M, 18.9, 3.25, 24.5, { hang: 1.1, floor: LOFT.y, seed: 75, pool: 2.4 });
     lantern(K, M, 16.62, 2.3, 22.6, { hang: 0.55, seed: 76, pool: 2.2 });

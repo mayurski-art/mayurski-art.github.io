@@ -4834,22 +4834,127 @@
    "tris": 7050
   },
   {
-   "id": "landmark:barn",
+   "id": "south:barn",
    "lo": [
     16.57,
     0.0,
-    19.514
+    19.5137
    ],
    "hi": [
     30.615,
     10.37,
-    29.486
+    29.4863
    ],
    "on": null,
-   "tris": 7079
+   "tris": 7131
   },
   {
-   "id": "landmark:candyshop",
+   "id": "south:barn-barrow",
+   "lo": [
+    25.4993,
+    -0.015,
+    20.7892
+   ],
+   "hi": [
+    27.4073,
+    0.856,
+    21.9177
+   ],
+   "on": "south:barn",
+   "tris": 346
+  },
+  {
+   "id": "south:barn-sacks",
+   "lo": [
+    17.6642,
+    0.0,
+    20.6624
+   ],
+   "hi": [
+    19.4651,
+    0.801,
+    21.8293
+   ],
+   "on": "south:barn",
+   "tris": 768
+  },
+  {
+   "id": "south:barn-trough",
+   "lo": [
+    26.98,
+    0.0,
+    23.48
+   ],
+   "hi": [
+    28.55,
+    0.6,
+    24.7
+   ],
+   "on": "south:barn",
+   "tris": 496
+  },
+  {
+   "id": "south:barn-fork",
+   "lo": [
+    26.4802,
+    0.0175,
+    22.8124
+   ],
+   "hi": [
+    26.7592,
+    1.4546,
+    23.2416
+   ],
+   "on": "south:barn",
+   "tris": 56
+  },
+  {
+   "id": "south:barn-webs",
+   "lo": [
+    17.3561,
+    4.0768,
+    20.357
+   ],
+   "hi": [
+    28.6439,
+    4.3438,
+    28.643
+   ],
+   "on": "south:barn",
+   "tris": 756
+  },
+  {
+   "id": "south:barn-wheel",
+   "lo": [
+    18.04,
+    0.0085,
+    19.66
+   ],
+   "hi": [
+    19.16,
+    1.1115,
+    19.78
+   ],
+   "on": "south:barn",
+   "tris": 312
+  },
+  {
+   "id": "south:barn-crows",
+   "lo": [
+    18.4462,
+    7.14,
+    24.2438
+   ],
+   "hi": [
+    30.0019,
+    8.015,
+    24.7827
+   ],
+   "on": "south:barn",
+   "tris": 576
+  },
+  {
+   "id": "south:candyshop",
    "lo": [
     -11.4,
     0.0,
@@ -4861,7 +4966,87 @@
     27.6
    ],
    "on": null,
-   "tris": 4686
+   "tris": 4734
+  },
+  {
+   "id": "south:shop-gumball",
+   "lo": [
+    -2.17,
+    0.0,
+    26.3355
+   ],
+   "hi": [
+    -1.73,
+    1.47,
+    26.7645
+   ],
+   "on": "south:candyshop",
+   "tris": 2740
+  },
+  {
+   "id": "south:shop-bins",
+   "lo": [
+    -10.58,
+    0.0,
+    21.8
+   ],
+   "hi": [
+    -10.02,
+    0.85,
+    24.4
+   ],
+   "on": "south:candyshop",
+   "tris": 2256
+  },
+  {
+   "id": "south:shop-counter-goods",
+   "lo": [
+    -8.8457,
+    1.03,
+    24.7892
+   ],
+   "hi": [
+    -7.7976,
+    1.555,
+    25.3926
+   ],
+   "on": [
+    "south:candyshop"
+   ],
+   "tris": 848
+  },
+  {
+   "id": "south:shop-spill",
+   "lo": [
+    -9.8811,
+    0.022,
+    22.5832
+   ],
+   "hi": [
+    -7.2775,
+    0.052,
+    24.6537
+   ],
+   "on": [
+    "south:candyshop",
+    "south:shop-bins"
+   ],
+   "tris": 504
+  },
+  {
+   "id": "south:shop-webs",
+   "lo": [
+    -10.594,
+    3.1589,
+    21.407
+   ],
+   "hi": [
+    -1.406,
+    3.3439,
+    21.9478
+   ],
+   "on": "south:candyshop",
+   "tris": 504
   },
   {
    "id": "landmark:carousel",

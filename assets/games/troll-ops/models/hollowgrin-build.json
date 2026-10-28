@@ -1,5 +1,5 @@
 {
- "layout": "88f9bf540aa2",
+ "layout": "be2c8fd8edbb",
  "glbs": {
   "hg-manor": {
    "bytes": 2330724,
@@ -170,11 +170,11 @@
    ]
   },
   "hg-barn": {
-   "bytes": 433516,
-   "tris": 7079,
+   "bytes": 499268,
+   "tris": 10381,
    "lo": [
     16.57,
-    0,
+    -0.015,
     19.514
    ],
    "hi": [
@@ -184,8 +184,8 @@
    ]
   },
   "hg-candyshop": {
-   "bytes": 287140,
-   "tris": 4686,
+   "bytes": 516796,
+   "tris": 11538,
    "lo": [
     -11.4,
     0,
