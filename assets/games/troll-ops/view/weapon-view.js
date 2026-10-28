@@ -1305,17 +1305,25 @@ function updateLaserBeam(mesh, w) {
    tint sat between the eye and the target once aimed. Clear it as the gun
    comes up; the reticle draws on its own material and stays lit. */
 function fadeOpticGlass(mesh, adsT) {
-  let mats = mesh.userData.glassMats, marks = mesh.userData.reticles;
+  let mats = mesh.userData.glassMats, marks = mesh.userData.reticles, hip = mesh.userData.hipParts;
   if (!mats) {
-    mats = []; marks = [];
-    mesh.traverse((o) => { if (o.material?.userData?.isGlass) mats.push(o.material); if (o.userData.reticle) marks.push(o); });
+    mats = []; marks = []; hip = [];
+    mesh.traverse((o) => {
+      if (o.material?.userData?.isGlass) mats.push(o.material);
+      if (o.userData.reticle) marks.push(o);
+      if (o.userData.hipOnly) hip.push(o);
+    });
     mesh.userData.glassMats = mats;
     mesh.userData.reticles = marks;
+    mesh.userData.hipParts = hip;
   }
   for (const m of mats) m.opacity = m.userData.baseOpacity * (1 - 0.9 * adsT);
-  // The reticle only once you're looking through it (attachment-models.js sightMark).
-  const fp = game.weaponRig.visible && !game.settings.thirdPerson && !game.emoteIsTp();
-  for (const o of marks) o.visible = fp && adsT > 0.6;
+  // The reticle only once you're looking through it (attachment-models.js
+  // sightMark), and the parts between the eye and the lens (hipOnly: an
+  // eyecup, the tube) step aside then, or they fill the screen.
+  const aimed = game.weaponRig.visible && !game.settings.thirdPerson && !game.emoteIsTp() && adsT > 0.6;
+  for (const o of marks) o.visible = aimed;
+  for (const o of hip) o.visible = !aimed;
 }
 
 export function updateWeaponView(dt) {
