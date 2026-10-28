@@ -10,7 +10,7 @@
 // "AMP_DSR-1_Koalorka.jpg" (the DSR-1, the DSR 50's parent, with the 50's
 // big brake); Ballista and XPR-50, Black Ops 2's own renders.
 
-import { buildTraced } from "./weapon-traced.js?v=tr1-wb1-or1-rt1-rb4-hp1-bx1-mg1";
+import { buildTraced } from "./weapon-traced.js?v=tr1-wb1-or1-rt1-rb4-hp1-bx1-mg1-lz1-ret1-ret2-mrg1";
 
 /* ---------------------------------------------------------------- the data */
 

@@ -1,7 +1,7 @@
 // Troll Warfare's lobby, phase 4: the Locker (menu-bo2.js locker screen,
 // style.css). Offline: Supabase is blocked; nothing starts a match.
 //   1. The Locker is your class's slots (Class, Primary ... Scorestreaks) on
-//      the left and your look (Body, Face, Wrist, Calling Card) on the right,
+//      the left and your look (Body, Face, Wrist, Reticle, Calling Card) on the right,
 //      each tile with what's in it; you stand between them.
 //   2. A gun tile goes through the class: Primary, a weapon, and Back from
 //      the class comes home to the Locker.
@@ -65,7 +65,7 @@ await page.waitForTimeout(900);
 let t = await tiles();
 check(await cur() === "locker", "the Locker tab opens the Locker");
 check(t[0]?.map((x) => x.id).join() === "classlist,primary,secondary,atts,melee,throwable,perk-0,perk-1,perk-2,streaks", "the class panel: Class and its nine slots", t[0]?.map((x) => x.id).join());
-check(t[1]?.map((x) => x.id).join() === "body,face,wrist,cards", "the look panel: Body, Face, Wrist, Calling Card", t[1]?.map((x) => x.id).join());
+check(t[1]?.map((x) => x.id).join() === "body,face,wrist,reticle,cards", "the look panel: Body, Face, Wrist, Reticle, Calling Card", t[1]?.map((x) => x.id).join());
 check([...t[0], ...t[1]].every((x) => x.value.trim()), "every tile says what's in it", JSON.stringify([...t[0], ...t[1]].filter((x) => !x.value.trim())));
 let L = await layout(1280, 720);
 check(L.operator && !L.underOp, "you stand between the panels", JSON.stringify(L));

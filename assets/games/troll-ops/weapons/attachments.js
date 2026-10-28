@@ -5,7 +5,7 @@
 // use `set` for zoom because the sight decides magnification, so bolting an
 // ACOG onto a sniper shouldn't stack into an absurd fraction.
 
-import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1";
+import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1";
 
 export const SLOTS = ["optic", "barrel", "underbarrel", "ammo"];
 
@@ -81,7 +81,6 @@ const DELTA_FIELDS = [
   { field: "adsTime",          label: "ADS",       better: "down", spoken: "aim-down-sights speed" },
   { field: "spreadBase",       label: "Hipfire",   better: "down" },
   { field: "penetration",      label: "Pierce",    better: "up" },
-  { field: "muzzleVelocity",   label: "Velocity",  better: "up" },
   { field: "magSize",          label: "Ammo",      better: "up" },
 ];
 

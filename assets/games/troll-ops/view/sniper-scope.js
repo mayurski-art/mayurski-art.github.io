@@ -6,6 +6,11 @@
 //
 // It lives as the HUD's bottom layer, so it hides with the HUD (menus,
 // death) and sits under the ammo and score.
+//
+// With the trollface reticle on (view/troll-reticle.js) the troll fist
+// sits on the crosshair's centre, and "get trolled" while an enemy is in it.
+
+import { TROLL_RETICLE_URLS } from "./troll-reticle.js?v=tr1-ret1-mrg1";
 
 const FADE_FROM = 0.78;              // adsT where the scope starts to cover
 const HIDE_GUN_AT = 0.9;             // overlay strength that hides the gun
@@ -16,6 +21,7 @@ const CSS = `
   border-radius: 50%; box-shadow: 0 0 0 100vmax #000;
   background: radial-gradient(circle, rgba(140,170,200,0.05) 0%, transparent 50%, rgba(0,0,0,0.45) 80%, rgba(0,0,0,0.95) 95%, #000 100%); }
 .to-scope-lens svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.to-scope-troll { position: absolute; left: 50%; top: 50%; width: 9%; height: auto; transform: translate(-50%, -50%); }
 `;
 
 function svg() {
@@ -41,6 +47,8 @@ function svg() {
 
 let root = null;
 let hidGun = null;
+let trollImgs = [];
+let shownSkin = null;
 
 function mount() {
   const hud = document.getElementById("to-hud");
@@ -51,7 +59,10 @@ function mount() {
   root = document.createElement("div");
   root.className = "to-scope";
   root.setAttribute("aria-hidden", "true");
-  root.innerHTML = `<div class="to-scope-lens">${svg()}</div>`;
+  root.innerHTML = `<div class="to-scope-lens">${svg()}`
+    + `<img class="to-scope-troll" data-skin="idle" src="${TROLL_RETICLE_URLS.idle}" alt="" hidden>`
+    + `<img class="to-scope-troll" data-skin="hit" src="${TROLL_RETICLE_URLS.hit}" alt="" hidden></div>`;
+  trollImgs = [...root.querySelectorAll(".to-scope-troll")];
   hud.prepend(root);
   return root;
 }
@@ -59,9 +70,10 @@ function mount() {
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
 /* Called once a frame by weapon-view.js after the gun and arms are posed.
-   `firstPerson` is false in third person, the killcam and dead. Returns
-   the overlay's strength, 0..1. */
-export function updateSniperScope(mesh, arms, w, holdingGun, firstPerson) {
+   `firstPerson` is false in third person, the killcam and dead. `skin`:
+   the trollface reticle, null / "idle" / "hit" (view/troll-reticle.js).
+   Returns the overlay's strength, 0..1. */
+export function updateSniperScope(mesh, arms, w, holdingGun, firstPerson, skin = null) {
   const scoped = holdingGun && firstPerson && mesh?.userData.scopeKey === "scope8";
   const t = scoped ? clamp01((w.adsT - FADE_FROM) / (1 - FADE_FROM)) : 0;
   const k = t * t * (3 - 2 * t);
@@ -70,6 +82,11 @@ export function updateSniperScope(mesh, arms, w, holdingGun, firstPerson) {
     if (el) {
       el.style.display = k > 0 ? "block" : "none";
       el.style.opacity = k.toFixed(3);
+      const want = k > 0 ? skin : null;
+      if (want !== shownSkin) {
+        shownSkin = want;
+        for (const img of trollImgs) img.hidden = img.dataset.skin !== want;
+      }
     }
   }
   // Through the glass the gun and hands are gone; give them back after.
