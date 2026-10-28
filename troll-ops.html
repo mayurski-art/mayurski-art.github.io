@@ -13,6 +13,18 @@
   <meta name="apple-mobile-web-app-title" content="Troll Warfare">
   <link rel="apple-touch-icon" href="assets/images/icons/app/apple-touch-icon.png">
   <script>
+    // ?diag=1 (core/diag.js): from the first moment, every load that fails
+    // and every error logged goes in window.__tfDiag for the panel to show.
+    if (/[?&]diag=1/.test(location.search)) {
+      window.__tfDiag = [];
+      var dg = function (s) { window.__tfDiag.push(new Date().toISOString().slice(11, 19) + " " + String(s).slice(0, 260)); if (window.__tfDiag.length > 200) window.__tfDiag.shift(); };
+      addEventListener("error", function (e) { var t = e.target; if (t && t !== window && (t.src || t.href)) dg("load failed: " + (t.currentSrc || t.src || t.href)); else if (e.message) dg("error: " + e.message + " @" + (e.filename || "").split("/").pop() + ":" + e.lineno); }, true);
+      addEventListener("unhandledrejection", function (e) { dg("rejected: " + (e.reason && (e.reason.message || e.reason))); });
+      ["error", "warn"].forEach(function (k) { var o = console[k]; console[k] = function () { var s = Array.prototype.map.call(arguments, function (a) { return a && a.message ? a.message : typeof a === "object" ? (function () { try { return JSON.stringify(a); } catch (x) { return String(a); } })() : String(a); }).join(" "); if (!/toNonIndexed|THREE\.Clock|X4122/.test(s)) dg(k + ": " + s); return o.apply(this, arguments); }; });
+      addEventListener("DOMContentLoaded", function () { import("./assets/games/troll-ops/core/diag.js?v=dg1"); });
+    }
+  </script>
+  <script>
     // trollrunner.net/warfare is the game's short link (warfare/index.html
     // bounces here; so does the old /tf). Show it in the address bar too:
     // /warfare has no trailing slash, so every page-relative URL still
