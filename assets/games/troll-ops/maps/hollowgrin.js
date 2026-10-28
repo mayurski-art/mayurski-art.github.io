@@ -4483,6 +4483,42 @@ export const HOLLOWGRIN = {
   // the highs, a touch more colour and punch.
   grade: { shadows: 0x1a2448, shadowsAmt: 0.1, highlights: 0xffb070, highlightsAmt: 0.08, sat: 1.1, contrast: 1.07 },
   build: buildHollowgrin,
+  viewFar: 400,   // Troll Royale's planes circle 170 m out and 140 m up
+  // Troll Royale on Hollowgrin ("Troll Royale: Two Worlds": the island's
+  // underside), the map as it is: the drop comes in over it on three planes
+  // and its walls reach the sky (royale.edge: a parachute slides along them
+  // and comes down inside). A small arena: 24 trolls, ~7 minutes of zone.
+  royale: {
+    players: 24,
+    edge: [[BOUNDS.minX + 0.5, BOUNDS.minZ + 0.5], [BOUNDS.maxX - 0.5, BOUNDS.minZ + 0.5],
+      [BOUNDS.maxX - 0.5, BOUNDS.maxZ - 0.5], [BOUNDS.minX + 0.5, BOUNDS.maxZ - 0.5]],
+    lootPerSqM: 1 / 120,
+    chests: true,
+    pois: [
+      { x: 0, z: -24, r: 14, name: "Grinmoor Manor", tier: "hot" },
+      { x: 0, z: 1, r: 12, name: "The Square", tier: "hot" },
+      { x: 63, z: 2.5, r: 10, name: "Grinmoor Fair", tier: "hot" },
+      { x: -25, z: 5, r: 10, name: "The Graveyard", tier: "mid" },
+      { x: -44, z: 2, r: 8, name: "St. Grinsworth's", tier: "mid" },
+      { x: 25, z: 0, r: 10, name: "The Pumpkin Patch", tier: "mid" },
+      { x: 40, z: -6, r: 10, name: "The Old Midway", tier: "mid" },
+      { x: 0, z: 38, r: 14, name: "Trick-or-Treat Lane", tier: "mid" },
+      { x: 69, z: 24, r: 8, name: "U Mad Mansion", tier: "mid" },
+      { x: -42, z: -32, r: 9, name: "The Witch's Hollow", tier: "minor" },
+      { x: 21, z: 25, r: 8, name: "The Barn", tier: "minor" },
+    ],
+    phases: [
+      { wait: 90, close: 45, frac: 0.6, dps: 1 },
+      { wait: 70, close: 35, frac: 0.35, dps: 2 },
+      { wait: 50, close: 30, frac: 0.2, dps: 4 },
+      { wait: 35, close: 25, frac: 0.1, dps: 7 },
+      { wait: 25, close: 20, frac: 0, dps: 12 },
+    ],
+    // three planes (27 seats) on a circle round the village, lower, and a
+    // slow run so it's over Hollowgrin's 90 m for the whole jump
+    planes: { count: 3, orbitR: 170, baseAlt: 140, altStep: 12, fan: 40, runSpeed: 12, runFrom: 110, lookIn: 30, inbound: 350 },
+    dropFog: 0.004,   // the night's fog (0.016) hides the ground from 140 m up
+  },
   // The scatter in every place (map-dressing.js, laid after the build so it
   // keeps clear of every collider and spawn): fallen leaves, sweet
   // wrappers, little pumpkins, burnt-out candles, weeds along the walls.

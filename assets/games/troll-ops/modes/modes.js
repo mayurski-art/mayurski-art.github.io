@@ -203,6 +203,22 @@ MODES.royale_mini = {
   blurb: "Troll Royale on Troll Beach: ten trolls, a five-minute zone. Last troll standing wins.",
 };
 
+/* Troll Royale on Hollowgrin ("Troll Royale: Two Worlds", phase 1: the
+   island's underside). Hidden for now: the royale tests' fixture until a
+   match can start on either side. */
+MODES.royale_hollowgrin = {
+  hidden: true,
+  id: "royale_hollowgrin",
+  name: "Troll Royale: Hollowgrin",
+  short: "Royale: Hollowgrin",
+  pvp: true, ffa: true,
+  royale: true,
+  noStreaks: true,
+  noBotNades: true,
+  forceMap: "hollowgrin",
+  blurb: "Troll Royale on Hollowgrin, the island's underside: 24 trolls, the walls reach the sky.",
+};
+
 /* Socialize (user, 2026-10-04): one public hangout room, no fighting. Walk
    the map, chat and emote; no guns, no damage, no streaks, no bots, no
    clock. Everyone is on one side so duo emotes work with anyone. The owner
