@@ -81,7 +81,6 @@ const DELTA_FIELDS = [
   { field: "adsTime",          label: "ADS",       better: "down", spoken: "aim-down-sights speed" },
   { field: "spreadBase",       label: "Hipfire",   better: "down" },
   { field: "penetration",      label: "Pierce",    better: "up" },
-  { field: "muzzleVelocity",   label: "Velocity",  better: "up" },
   { field: "magSize",          label: "Ammo",      better: "up" },
 ];
 

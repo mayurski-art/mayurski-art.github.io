@@ -97,7 +97,11 @@ const CLASS_BASE = {
     fireMode: "bolt", rpm: 48, damage: 90,
     falloffStart: 70, falloffEnd: 150, falloffMin: 0.85,
     magSize: 5, reserveMax: 40, reloadTime: 2.6,
-    spreadBase: 0.008, spreadMoving: 0.04, spreadAds: 0.0008, spreadJump: 0.075,
+    // Scoped all the way in, a sniper puts the round on the crosshair, as in
+    // CoD: 0.0008 rad of cone was ~12 cm at 150 m, half a head. Quickscopes
+    // still blend from the hip cone (adsT), and moving or jumping widens
+    // nothing aimed (0 x any multiplier).
+    spreadBase: 0.008, spreadMoving: 0.04, spreadAds: 0, spreadJump: 0.075,
     spreadPerShot: 0.05, spreadMax: 0.13,
     recoilKickPitch: 0.07, recoilKickYaw: 0.01, recoilRecover: 5.5, recoilKickKnockback: 0.085,
     adsTime: 0.34, adsFovMult: 0.4, adsMoveMult: 0.5,

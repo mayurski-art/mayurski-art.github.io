@@ -1,9 +1,13 @@
 // Troll Forces — projectile ballistics.
 //
-// Bullets are real projectiles, not hitscan: they carry a muzzle velocity,
-// drop under gravity, and take time to reach the target, so you lead moving
-// targets at range. This is the single biggest thing that makes a shooter
-// read as Phantom Forces rather than a generic FPS.
+// Your bullets are hitscan, the way Call of Duty's are (user, 2026-10-27:
+// long-range headshots asked you to lead and hold over): a round lands on
+// whatever is under the crosshair the frame it's fired, through walls it
+// can punch, with its tracer drawn flying the line afterwards. Rounds that
+// are meant to be seen in the air stay real projectiles with a velocity and
+// drop: launchers, charged bolts, anything slower than HITSCAN_MIN_SPEED or
+// with its own gravityScale (isHitscan). Other people's rounds are cosmetic
+// either way: their shooter's client decided the hit.
 //
 // World collision uses the AABB collider list directly (analytic slab test)
 // rather than mesh raycasting — it's far cheaper per bullet, and the slab
@@ -18,6 +22,16 @@ import { computeDamage } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-f
 const DROP = 9.81;          // m/s^2 applied to bullets
 const MAX_LIFE = 3.0;       // seconds before a stray round is culled
 const STEP = 1 / 120;       // fixed integration step, so travel is framerate-independent
+const HITSCAN_MIN_SPEED = 300;   // m/s: a round slower than this is a projectile you watch fly
+const HITSCAN_RANGE = 1500;      // metres a hitscan round reaches (past any map)
+const HITSCAN_SEGMENTS = 8;      // walls one round can try to punch through in its frame
+
+/* Does this round land instantly? Guns and pistols, shotguns' pellets:
+   yes. Launchers, charged bolts, lobbed or burning rounds: no. */
+export function isHitscan(def) {
+  return (def.muzzleVelocity || 700) >= HITSCAN_MIN_SPEED && def.gravityScale == null
+    && !def.hellfire && !def.candleShot && !def.explosive;
+}
 
 // Segment vs AABB (slab method). `dir` must be normalized, `len` in metres.
 // Returns { t0, t1 } as distances along the segment, or null on a miss.
@@ -171,6 +185,7 @@ export class BulletSystem {
       this.bullets.splice(i >= 0 ? i : 0, 1);
     }
     const speed = def.muzzleVelocity || 700;
+    const hitscan = !cosmetic && isHitscan(def);
     this.bullets.push({
       pos: origin.clone(),
       vel: dir.clone().multiplyScalar(speed),
@@ -180,11 +195,28 @@ export class BulletSystem {
       pen: cosmetic ? 0 : (def.penetration != null ? def.penetration : 1),
       dist: 0,
       life: MAX_LIFE,
-      acc: 0,
+      // hitscan: the whole line is resolved on the next update, in up to
+      // HITSCAN_SEGMENTS straight segments (one per wall it punches)
+      acc: hitscan ? STEP * HITSCAN_SEGMENTS : 0,
+      hitscan,
+      straight: false,   // a hitscan round's drawn tracer: no drop
+      origin: hitscan ? origin.clone() : null,
       cosmetic,
       range: cosmetic && range > 0 ? range : 0,
       trail: def.hellfire ? origin.clone() : null,   // where its fire trail last reached
     });
+  }
+
+  /* A hitscan round has already landed: fly a cosmetic copy down the same
+     line to where it stopped, so it still reads as a shot. It strikes
+     nothing (its impact was drawn at the hit). */
+  drawHitscan(b) {
+    const dir = b.vel.clone().normalize();
+    const range = Math.min(HITSCAN_RANGE, b.origin.distanceTo(b.pos));
+    if (range < 1) return;
+    this.spawn({ origin: b.origin, dir, def: b.def, ownerId: b.ownerId, cosmetic: true, range });
+    const t = this.bullets[this.bullets.length - 1];
+    if (t?.cosmetic) t.straight = true;
   }
 
   candleFor(i) {
@@ -249,8 +281,11 @@ export class BulletSystem {
             || (b.pos.y > 60 && b.vel.y > 0))) { dead = true; break; }
 
         from.copy(b.pos);
-        b.vel.y -= DROP * (b.def.gravityScale ?? 1) * STEP;
-        to.copy(b.pos).addScaledVector(b.vel, STEP);
+        if (b.hitscan) to.copy(b.pos).addScaledVector(b.vel, HITSCAN_RANGE / b.vel.length());
+        else {
+          if (!b.straight) b.vel.y -= DROP * (b.def.gravityScale ?? 1) * STEP;
+          to.copy(b.pos).addScaledVector(b.vel, STEP);
+        }
         dir.subVectors(to, from);
         let len = dir.length();
         if (len < 1e-6) { b.pos.copy(to); continue; }
@@ -299,6 +334,7 @@ export class BulletSystem {
           const dist = b.dist + actorT;
           const damage = computeDamage(b.def, dist, isHead) * b.damageScale;
           onActorHit?.(actorHit, { damage, isHead, point, dir: dir.clone(), distance: dist });
+          b.pos.copy(point);   // where it stopped (a hitscan round's tracer flies to here)
           dead = true;
           break;
         }
@@ -306,6 +342,7 @@ export class BulletSystem {
         if (groundT === first) {
           const point = from.clone().addScaledVector(dir, groundT);
           onWorldHit?.(point, b.cosmetic, { normal: new THREE.Vector3(0, 1, 0), dir: dir.clone(), ground: true, def: b.def });
+          b.pos.copy(point);
           dead = true;
           break;
         }
@@ -316,7 +353,7 @@ export class BulletSystem {
         if (b.cosmetic) { dead = true; break; }
         const thickness = Math.max(0.05, wallExit - wallT);
         const cost = thickness * wallPen;
-        if (cost > b.pen) { dead = true; break; }
+        if (cost > b.pen) { b.pos.copy(point); dead = true; break; }
         b.pen -= cost;
         // Penetrating costs damage proportional to what the wall ate.
         b.damageScale *= Math.max(0.25, 1 - cost * 0.5);
@@ -324,7 +361,13 @@ export class BulletSystem {
         b.pos.copy(from).addScaledVector(dir, wallExit + 0.02);
       }
 
-      if (dead) { onTrace?.(b, null); this.bullets.splice(i, 1); continue; }
+      if (b.hitscan && !dead) dead = true;   // its line is resolved: whatever it didn't hit, it missed
+      if (dead) {
+        onTrace?.(b, null);
+        this.bullets.splice(i, 1);
+        if (b.hitscan) this.drawHitscan(b);
+        continue;
+      }
     }
 
     // --- tracers: one per live bullet, trailing behind it
