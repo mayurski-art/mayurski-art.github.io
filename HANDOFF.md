@@ -25,10 +25,17 @@ arrows sit outside the card; the lobby behind it blurs and dims.
   one `<section class="home-news" hidden>` beside the other
   `.home-panel`s; CSS and JS inline with the rest.
 - Opens:
-  1. Automatically once per new story: compare the newest story id to
-     `localStorage['tr_news_seen']` (wrapped in try/catch).
-  2. From a new main-menu item `News` (first item, desc = newest
-     headline), via the bo2-menu `go: 'news'` screen like Leaderboard.
+  1. By itself once a visit (user, 2026-10-28: "a one time thing when
+     users are on the website unless they exit out of the site", and not
+     again "when users return to the website without exiting"):
+     `sessionStorage['tr_news_shown']`, set whenever the card opens.
+     Browsing the site and coming back, or reloading: shut. Closing the
+     tab and coming back: it opens again. Only after troll_news answers,
+     ~0.9 s after the menu paints, never over the site lock, the accounts
+     window, a screen or panel off the main menu, or a ?open= deep link.
+     Storage blocked: never by itself.
+  2. From the main-menu item `News` (first item, desc = newest headline),
+     or `#news` on the URL.
 - Closes on Esc (reuse the existing `home-back` handler), the Back
   button, or a click on the dimmed backdrop.
 
@@ -133,7 +140,7 @@ Row: `id` (slug from the headline), `title`, `body`, `tag`, `image`,
 2. Carousel (arrows, keys, swipe, dots) with 3 placeholder stories.
 3. Menu item + Esc/Back wiring + focus handling.
 4. troll_news.sql + admin.html News view + home reads the table.
-5. Auto-open once per new story.
+5. Opens by itself once a visit (done).
 
 `#news` on the home page URL opens the box.
 
@@ -143,7 +150,6 @@ merge site-news.
 
 ### Open questions for the user
 - Real stories and art for launch (placeholders until then).
-- Should the auto-open happen at all, or menu-only?
 - READ MORE targets: a page per story, or a single news.html list?
 
 ## Shipped log
@@ -153,5 +159,6 @@ merge site-news.
   item, focus back to the menu, 3 placeholder stories (site-news a01de97c)
 - 2026-10-28 story art rendered from the game (tools/news-art.mjs), hero
   cut-outs breaking out over the curve (site-news cbabe88a)
-- 2026-10-28 step 4: troll_news table (SQL not yet run), admin.html
-  News view, home reads it with the launch stories as fallback (site-news)
+- 2026-10-28 step 4: troll_news table (SQL run), admin.html News view,
+  home reads it with the launch stories as fallback (main 7d35a209)
+- 2026-10-28 step 5: the card opens by itself once a visit (site-news)

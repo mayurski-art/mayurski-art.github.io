@@ -517,15 +517,42 @@ async function loadNews() {
     buildNewsDots();
     if (!NEWS.length) closeNews(); else if (!newsEl.hidden) renderNews();
     menu.refresh();
+    setTimeout(autoOpenNews, 900);   // the menu paints first
   } catch {}
 }
-function openNews() {
+/* Once a visit (user, 2026-10-28: "a one time thing when users are on
+   the website unless they exit out of the site"): the card opens by
+   itself when someone arrives, and not again while they browse the site
+   and come back to the home page; closing the site and coming back later
+   shows it again. sessionStorage is exactly that span (one tab, until
+   it's closed). Only from the table's answer (never the launch stories),
+   and never over something else: the site lock, the accounts window, a
+   screen or panel off the main menu, a ?open= deep link (that visit
+   still counts as unseen). No storage (blocked): never, rather than on
+   every page load. */
+const NEWS_SHOWN_KEY = 'tr_news_shown';
+function newsShown() {
+  try { return sessionStorage.getItem(NEWS_SHOWN_KEY) === '1'; } catch { return null; }
+}
+function markNewsShown() {
+  try { sessionStorage.setItem(NEWS_SHOWN_KEY, '1'); } catch {}
+}
+function autoOpenNews() {
+  if (newsShown() !== false || !NEWS.length || !newsEl.hidden) return;
+  const covered = document.querySelector('.site-lock-overlay.is-visible')
+    || document.getElementById('troll-accounts-modal')?.offsetParent
+    || menu.depth() > 0 || document.body.classList.contains('has-panel')
+    || new URLSearchParams(location.search).has('open');
+  if (!covered) openNews();
+}
+function openNews(start = 0) {
   if (!NEWS.length) return;
   newsReturn = document.activeElement;
-  newsIdx = 0;
+  newsIdx = Math.min(start, NEWS.length - 1);
   renderNews();
   NEWS.forEach((s) => { new Image().src = s.image; if (s.hero) new Image().src = s.hero; });   // paging never waits on art
   newsEl.hidden = false;
+  markNewsShown();   // opened either way (button or by itself): this visit has seen it
   (newsEl.querySelector('.news-more:not([hidden])') || $('news-close')).focus();
 }
 function closeNews() {
