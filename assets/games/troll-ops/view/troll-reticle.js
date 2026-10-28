@@ -17,8 +17,8 @@ import { game } from "../core/state.js?v=st1";
 const PREF_KEY = "trollops:reticle";
 export const TROLL_RETICLE_LEVEL = 10;
 export const TROLL_RETICLE_URLS = {
-  idle: new URL("../ui/reticles/troll-fist.png", import.meta.url).href,
-  hit: new URL("../ui/reticles/get-trolled.png", import.meta.url).href,
+  idle: new URL("../ui/reticles/troll-fist.png?v=hd1", import.meta.url).href,
+  hit: new URL("../ui/reticles/get-trolled.png?v=hd1", import.meta.url).href,
 };
 
 export function trollReticleUnlocked() {
