@@ -766,8 +766,11 @@ const screens = {
       $$("#to-lo-list .to-lo-weapon").map((b, i) => {
         const sub = text($("span", b));
         const lv = sub.match(/level (\d+)/i);
+        // its picture (tools/troll-ops-weapon-thumbs.mjs), found by its name
+        const gid = Object.keys(WEAPON_DEFS).find((k) => WEAPON_DEFS[k].name === strongOf(b));
         return {
           id: `w-${i}`, label: strongOf(b), on: isOn(b), disabled: isLocked(b), card: b,
+          pic: gid ? `<img src="assets/games/troll-ops/ui/weapons/${gid}.webp?v=wt1" alt="">` : null,
           value: lv ? `LV ${lv[1]}` : sub, desc: lv ? `Unlocks at level ${lv[1]}.` : sub, need: lv ? `Unlocks at level ${lv[1]}.` : "",
           onSelect: (_, m) => { b.click(); m.backTo("class"); },
         };
