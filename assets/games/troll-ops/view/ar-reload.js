@@ -261,6 +261,9 @@ const SPECS = {
     fetch: LEFT_HAND, present: [-0.1, -0.25, -0.53],
     finish: { pose: pose([0.06, -0.13, -0.55], [0.15, 0.95, -0.25], [0.95, -0.1, 0.3]), handle: [0, 0.014, 0.07], pull: [0, 0.014, 0.1], sound: null },
   },
+  // Problem 416 (arsenal v2, models/build_problem416.blender.py): the M4
+  // family's stand; the empty reload ends on a palm slap of its P_Catch.
+  problem416: { template: "ar" },
 };
 
 /* Archetypes (DESIGN-ARSENAL.md #6): a gun's spec can be { template, ...

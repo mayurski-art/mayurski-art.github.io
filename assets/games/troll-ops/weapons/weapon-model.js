@@ -16,7 +16,7 @@ import { PISTOL_BUILDERS } from "./weapon-pistols.js?v=ps1-wb1-or1-rt1-rb4-hp1-b
 import { SNIPER_BUILDERS } from "./weapon-snipers.js?v=sn2-wb1-or1-rt1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1-mrg3";
 import { SMG_BUILDERS } from "./weapon-smgs.js?v=sm1-wb1-or1-rt1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1-mrg3";
 import { AR_BUILDERS } from "./weapon-ars.js?v=ar1-ar2-or1-rt1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1-mrg3";
-import { finishDef } from "../characters/skins.js?v=p5-wb1-or1";
+import { finishDef, skinDef } from "../characters/skins.js?v=p5-wb1-or1";
 import { rigSoulBlazer, SB_INSPECT_KEYS } from "./soul-blazer.js?v=sb1-or1";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { shrinkTexture } from "../view/texture-budget.js?v=pm1";
@@ -155,6 +155,14 @@ const DETAILED = {
     // third-person body rests the leather pad (not the tail) on its shoulder.
     hip: [0.13, 0.06, -0.1], butt: [-0.06, -0.30, 0.307],
     glow: [],
+  },
+  // Arsenal v2's Problem 416 (models/build_problem416.blender.py, baked by
+  // bake_kit.bake_gun): kit maps, moving parts, LOD1. A banner skin still
+  // wears the panelled weapon-416.js model (its atlas is drawn for it).
+  problem416: {
+    url: new URL("../models/problem416.glb?v=pf1", import.meta.url).href,
+    kit: "problem416", p: "PF", device: "PF_Hider", rake: -0.37, railY: 0.035, adsDistance: null,
+    glow: [], brass: "556",
   },
   salt: {
     url: new URL("../models/ar-salt.glb?v=ar2", import.meta.url).href,
@@ -1213,8 +1221,8 @@ function applyFinish(root, fin) {
 
 function buildBaseMesh(def, skin, lod = 0) {
   // an arsenal v2 gun (its own DETAILED entry with a kit) wins over any
-  // older builder for the same id
-  if (DETAILED[def.id]?.kit && detailedTemplates.has(def.id)) {
+  // older builder for the same id, unless it wears a banner skin
+  if (DETAILED[def.id]?.kit && detailedTemplates.has(def.id) && !skinDef(skin ?? def.attachments?.skin ?? null, def.id)) {
     const l1 = lod === 1 && detailedLod1.get(def.id);
     return buildDetailed(def, DETAILED[def.id], l1 || detailedTemplates.get(def.id), l1 ? 1 : 0);
   }
