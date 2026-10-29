@@ -832,11 +832,16 @@ export function swapRoyaleSide(to) {
   r.carry = { to, i: 2, x: +x.toFixed(2), z: +z.toFixed(2), shift: phases.slice(0, 2).reduce((a, p) => a + p.wait + p.close, 0) - at };
   sideWorld(r.carry);
   r.scenery = map.royale?.scenery?.(game.scene) || null;
+  // onto a smaller side (Hollowgrin's walls): everyone round the carried
+  // circle as they stood round the old one, the spacing shrunk to fit; one
+  // by one at the walls they all came down in a heap there
+  const B = map.bounds, k = Math.min(1, (Math.min(B.maxX - B.minX, B.maxZ - B.minZ) / 2 - 4) / Math.max(1, s.r));
+  const ring = k < 1 ? { ox: s.x, oz: s.z, x: r.carry.x, z: r.carry.z, k } : null;
   if (me) {
-    const p = setDownAt(from, to, me[0], me[1]);
+    const p = setDownAt(from, to, me[0], me[1], ring);
     game.move.reset(p.x, p.z, p.y);
   }
-  for (const [b, bx, bz] of bots) setBotDown(b, setDownAt(from, to, bx, bz));
+  for (const [b, bx, bz] of bots) setBotDown(b, setDownAt(from, to, bx, bz, ring));
   // the others' last places are on the old side: start their tracks again
   for (const rp of game.remotes.byId.values()) if (rp.peer?.snaps) rp.peer.snaps.length = 0;
 }
@@ -853,10 +858,15 @@ function sideWorld(carry) {
   r.swappedAt = performance.now();
 }
 
-/* Where someone at (x, z) on `from` stands on `to`: the matching spot, on
-   open ground. */
-function setDownAt(from, to, x, z) {
-  const [mx, mz] = matchingSpot(from, to, x, z);
+/* Where someone at (x, z) on `from` stands on `to`: the matching spot (or
+   round the carried circle: `ring`, swapRoyaleSide), on open ground. */
+function setDownAt(from, to, x, z, ring = null) {
+  let [mx, mz] = matchingSpot(from, to, x, z);
+  if (ring) {
+    const B = game.builtMap.map.bounds;
+    mx = Math.min(B.maxX - 3, Math.max(B.minX + 3, ring.x + (x - ring.ox) * ring.k));
+    mz = Math.min(B.maxZ - 3, Math.max(B.minZ + 3, ring.z + (z - ring.oz) * ring.k));
+  }
   const o = findOpenGround(game.colliders, game.builtMap.map.bounds, mx, mz, 0.6);
   return { x: o.x, z: o.z, y: royaleGround(o.x, o.z) };
 }
@@ -885,7 +895,11 @@ export function updateRoyale(dt) {
   if (game.isTouch) updateTouchGear();
   updateRoyaleDropWorld(dt);
   updateDropFog();
-  if (r.live && !r.over) r.t += dt;
+  // the match's time: in a room the wall clock since the room went live
+  // (liveAt is the same on every tab), so every tab has one storm; summed
+  // frames are capped, so a slow tab's ran behind (a whole circle by the
+  // flip). Alone, the frames: a pause stops it.
+  if (r.live && !r.over) r.t = r.liveAt && game.isNet() && game.net.active ? Math.max(r.t, (Date.now() - r.liveAt) / 1000) : r.t + dt;
   const turnTo = updateRoyaleFlip(r, dt);   // Two Worlds: the intro and the flip (royale-flip.js)
   if (turnTo) swapRoyaleSide(turnTo);
   // the other side's files, into the cache well before the island turns over
