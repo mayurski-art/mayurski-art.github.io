@@ -91,6 +91,10 @@ check("the woods stop you: trees, stumps, logs, the wall and the stem are collid
 check("the floor loot reaches the woods", setup.lootOut > 15, `${setup.lootOut} of ${setup.loot} out past the village`);
 check("the first circle takes in the woods", setup.zoneR > 120, `r ${setup.zoneR}`);
 
+// The storm runs on the wall clock, and a slow renderer takes minutes to
+// get this far: held back, or every circle has closed by the landing.
+await page.evaluate(() => { const z = window.__trollOps.royale().zone; z.phases = z.phases.map((p) => ({ ...p, wait: p.wait * 100 })); });
+
 // Off the ramp, then over the north-west woods (the fall's opening show is
 // hands off, straight down, and on a slow renderer it lasts most of the
 // fall: the faller is moved across rather than steered): you come down there.
@@ -142,7 +146,9 @@ check("... and stays inside it, finding their way about", bots2.every(([x, z]) =
 // all. (openIsland on a stand-in village: one of its walls, one house.)
 const closed = await page.evaluate(async (B) => {
   const T = window.__trollOps, V = T.THREE.Vector3;
-  const m = await import(new URL("assets/games/troll-ops/maps/hollowgrin-island.js?v=hgi1-hgb8-tw1-op1", location.href).href);
+  // (its own copy of the module, off any tag: its shapes fetched afresh)
+  const m = await import(new URL("assets/games/troll-ops/maps/hollowgrin-island.js?v=test", location.href).href);
+  await m.islandShapes();
   const wall = { min: new V(B.minX - 1.4, 0, B.minZ - 1.4), max: new V(B.maxX + 1.4, 8, B.minZ), pen: 0.9 };
   const house = { min: new V(0, 0, 0), max: new V(4, 3, 4), pen: 4 };
   const village = [house, wall], ar = { ...B, edge: null };
