@@ -8,8 +8,9 @@
 // death) and sits under the ammo and score.
 //
 // With the trollface reticle on (view/troll-reticle.js) the troll fist
-// sits on the crosshair's centre, and "get trolled" while an enemy is in it,
-// 4.5% of the screen's height like the optics' (attachment-models.js
+// hangs just under the crosshair's centre, never over it (the target stays
+// in view), and "get trolled" while an enemy is in it, 4.5% of the
+// screen's height like the optics' (attachment-models.js
 // TROLL_RETICLE_SCREEN): the lens is 98% of it, so 4.6% of the lens.
 
 import { TROLL_RETICLE_URLS } from "./troll-reticle.js?v=tr1-ret1-mrg1-hd1-mrc1-tw1";
@@ -23,7 +24,7 @@ const CSS = `
   border-radius: 50%; box-shadow: 0 0 0 100vmax #000;
   background: radial-gradient(circle, rgba(140,170,200,0.05) 0%, transparent 50%, rgba(0,0,0,0.45) 80%, rgba(0,0,0,0.95) 95%, #000 100%); }
 .to-scope-lens svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.to-scope-troll { position: absolute; left: 50%; top: 50%; height: 4.6%; width: auto; transform: translate(-50%, -50%); }
+.to-scope-troll { position: absolute; left: 50%; top: 51%; height: 4.6%; width: auto; transform: translateX(-50%); }
 `;
 
 function svg() {

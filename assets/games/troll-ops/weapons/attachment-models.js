@@ -61,19 +61,38 @@ function sightMark(o, kind = true) {
 }
 
 /* The trollface reticle (view/troll-reticle.js): the troll fist, and "get
-   trolled" for an enemy in the sights, centred on the aim point. One
-   texture each, shared by every optic.
+   trolled" for an enemy in the sights. The aim point is a red dot and the
+   art hangs just under it, so it never covers what you're shooting at
+   (centred, it hid the target: user, 2026-10-29). One texture each, shared
+   by every optic.
    Sized by the angle it covers, so it reads the same through every optic:
    TROLL_RETICLE_SCREEN of the screen's height (a CoD emblem reticle's
    size), but never more than TROLL_RETICLE_WINDOW of the sight's own window,
-   so there's always target round it (the reflex's small window). The eye
+   so the art under the dot still fits the reflex's small window. The dot is
+   TROLL_DOT_SCREEN of the screen, a red dot sight's. The eye
    distance and lens fov are the optic's own (userData.adsDistance and
    adsWeaponFov, else view/weapon-view.js's 0.46 m and 50 degrees), so
    addTrollMarks runs once those are set. view/sniper-scope.js sizes the 8x
    overlay's to the same TROLL_RETICLE_SCREEN. */
 const TROLL_RETICLE_SCREEN = 0.045;
-const TROLL_RETICLE_WINDOW = 0.4;
+const TROLL_RETICLE_WINDOW = 0.3;
+const TROLL_DOT_SCREEN = 0.009;
 const TROLL_RETICLE_TEX = {};
+let trollDotTex = null;
+function trollDot() {
+  if (!trollDotTex) {
+    const c = document.createElement("canvas");
+    c.width = c.height = 64;
+    const x = c.getContext("2d");
+    x.fillStyle = "rgba(0,0,0,0.75)";   // a dark rim so it reads on snow and sky
+    x.beginPath(); x.arc(32, 32, 31, 0, Math.PI * 2); x.fill();
+    x.fillStyle = "#ff2a2a";
+    x.beginPath(); x.arc(32, 32, 22, 0, Math.PI * 2); x.fill();
+    trollDotTex = new THREE.CanvasTexture(c);
+    trollDotTex.colorSpace = THREE.SRGBColorSpace;
+  }
+  return trollDotTex;
+}
 const UNIT_PLANE = new THREE.PlaneGeometry(1, 1);
 function trollReticleTex(kind, file) {
   let t = TROLL_RETICLE_TEX[kind];
@@ -94,15 +113,22 @@ function addTrollMarks(g, z, window) {
   const eye = (g.userData.adsDistance ?? 0.46) - z;
   const screenH = 2 * eye * Math.tan(((g.userData.adsWeaponFov ?? 50) * Math.PI) / 360);
   const h = Math.min(TROLL_RETICLE_SCREEN * screenH, TROLL_RETICLE_WINDOW * window);
+  const dot = Math.min(TROLL_DOT_SCREEN * screenH, 0.05 * window);
   for (const [kind, file] of [["troll-idle", "troll-fist.png"], ["troll-hit", "get-trolled.png"]]) {
     const t = trollReticleTex(kind, file);
+    const mark = new THREE.Group();
+    mark.position.z = z;
     const m = new THREE.Mesh(UNIT_PLANE, new THREE.MeshBasicMaterial({ map: t.tex, transparent: true, depthTest: false, depthWrite: false }));
     const img = t.tex.image;
     m.scale.set(img?.width ? h * img.width / img.height : h, h, 1);   // its own shape once loaded
     if (!img?.width) t.meshes.push([m, h]);
-    m.position.z = z;
+    m.position.y = -(dot / 2 + h * 0.15 + h / 2);   // its top a little under the dot
     m.renderOrder = 11;
-    g.add(sightMark(m, kind));
+    const d = new THREE.Mesh(UNIT_PLANE, new THREE.MeshBasicMaterial({ map: trollDot(), transparent: true, depthTest: false, depthWrite: false }));
+    d.scale.set(dot, dot, 1);
+    d.renderOrder = 12;
+    mark.add(m, d);
+    g.add(sightMark(mark, kind));
   }
 }
 
