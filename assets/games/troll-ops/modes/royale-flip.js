@@ -26,7 +26,7 @@
 import * as THREE from "three";
 import { game } from "../core/state.js?v=st1";
 import { clampInsidePolygon } from "../maps/edge.js?v=or1";
-import { islandShapes } from "../maps/hollowgrin-island.js?v=hgi1-hgb8-tw1-op1";
+import { islandShapes } from "../maps/hollowgrin-island.js?v=hgi1-hgb8-tw1-op1-hgo1";
 
 const FACE_URL = (side) => new URL(`../ui/flip/${side}.webp`, import.meta.url).href;
 const FACE_BOX_URL = new URL("../ui/flip/box.json", import.meta.url).href;

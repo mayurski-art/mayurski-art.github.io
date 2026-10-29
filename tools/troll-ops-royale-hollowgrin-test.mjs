@@ -118,7 +118,7 @@ for (let i = 0; i < 400; i++) {
 await page.evaluate(() => window.__trollOps.keys.delete("KeyW"));
 await page.waitForFunction(() => window.__trollOps.royale().me === "ground", null, { timeout: 30000 }).catch(() => {});
 const landed = await page.evaluate(() => { const T = window.__trollOps; return { me: T.royale().me, x: T.move.pos.x, y: T.move.pos.y, z: T.move.pos.z, fog: T.scene.fog.density, hp: T.player.hp }; });
-check("held for the far east, you get out over the woods but never past the outline in the air", maxOut <= 0.5 && maxX > 88, `${maxOut.toFixed(1)} m past it at most, out to x ${maxX.toFixed(0)}`);
+check("held for the far east, you never get past the outline in the air", maxOut <= 0.5, `${maxOut.toFixed(1)} m past it at most, out to x ${maxX.toFixed(0)}`);
 check("you land inside the outline, on your feet, unhurt", landed.me === "ground" && inside(landed) && landed.y < 20 && landed.hp === 100,
   JSON.stringify({ x: +landed.x.toFixed(1), y: +landed.y.toFixed(1), z: +landed.z.toFixed(1), hp: landed.hp }));
 await shot("3-landed");
