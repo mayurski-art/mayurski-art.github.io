@@ -4788,8 +4788,34 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
    under them, who's online, then the mode card and PLAY across the bottom */
 @container cab (max-aspect-ratio: 9/10) {
   .to-bo2.is-fn, #to-title.is-bo2.is-fn .to-pf { --fn-pad: max(12px, calc(var(--fn-safe-x) + 8px)); --bo2-col: var(--fn-pad); }
-  /* the Play page is a stack of cards here: no room for the stage */
-  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { display: none; }
+  /* the stage in the band between the level cards and the mode card (user,
+     2026-10-28: "a preview of the troll character portrait version"): the
+     season on one line, no news, the level cards and the mode card shorter
+     to make room; the box starts 50 px under the cards (your name sits
+     over your head, above the box) and ends 8 px over the mode card (224
+     px tall). Names smaller, no bubbles (the "+" opens Who's Online) */
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: 0; right: 0; --char-shift: 0; --char-dist: 1;
+    top: calc(58px + env(safe-area-inset-top) + 36px + 8px + 56px + 50px);
+    bottom: calc(var(--foot-h, 60px) + 26px + env(safe-area-inset-bottom) + 224px + 8px); }
+  .to-fn-season { display: flex; justify-content: center; align-items: baseline; gap: 10px; height: 36px; padding: 0 10px; box-sizing: border-box; }
+  .to-fn-season b { font-size: 12px; }
+  .to-fn-season span { font-size: 22px; }
+  .to-fn-news { display: none; }
+  .to-fn-pair { height: 56px; }
+  .to-fn-rank { padding: 6px 10px; }
+  .to-fn-ring { width: 44px; height: 44px; }
+  .to-fn-ring b { width: 34px; height: 34px; font-size: 17px; }
+  .to-fn-medal { gap: 1px; padding: 4px; }
+  .to-fn-medal i { width: 16px; height: 16px; margin-bottom: 2px; }
+  .to-fn-play { gap: 6px; padding: 8px; }
+  .to-fn-mode { padding: 7px 10px 6px; }
+  .to-fn-go { min-height: 54px; }
+  .to-stage-tag { margin-top: -30px; }
+  .to-stage-tag b { padding: 2px 9px; font-size: 14px; }
+  .to-stage-tag small { font-size: 9px; }
+  .to-stage-add { width: 44px; height: 44px; margin: -22px 0 0 -22px; }
+  .to-stage-add span { font-size: 28px; }
+  .to-stage-bubble { display: none; }
   .to-bo2.is-fn[data-screen="main"] .to-bo2-foot .to-char-emote:not([hidden]) { display: none; }
   .to-fn-top { left: 12px; right: 60px; top: calc(6px + env(safe-area-inset-top)); height: 44px; gap: 6px; }
   .to-fn-ico { display: none; }
@@ -4799,9 +4825,6 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-fn-lvl { display: none; }
   .to-fn-avatar { width: 44px; height: 44px; }
   .to-fn-left { left: 12px; right: 12px; width: auto; top: calc(58px + env(safe-area-inset-top)); bottom: auto; gap: 8px; }
-  .to-fn-season { padding: 6px; }
-  .to-fn-season span { font-size: 26px; }
-  .to-fn-news { height: 110px; }
   .to-fn-quests { display: none; }
   .to-fn-play, .to-fn-picker { left: 12px; right: 12px; width: auto; bottom: calc(var(--foot-h, 60px) + 26px + env(safe-area-inset-bottom)); }
   .to-fn-picker { max-height: 70%; overflow-y: auto; }
@@ -4815,7 +4838,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-fn-tile-art b { font-size: 20px; left: 8px; right: 8px; bottom: 7px; }
   .to-fn-tile-n { font-size: 14px; }
   /* the Locker: its panels stacked, two tiles across, scrolling; no room
-     for the operator (the Play page drops it too) */
+     for the operator */
   .to-bo2.is-fn[data-screen="locker"] .to-bo2-menu { left: 12px; right: 12px; top: calc(56px + env(safe-area-inset-top)); bottom: calc(var(--foot-h, 60px) + 26px + env(safe-area-inset-bottom)); }
   .to-bo2.is-fn[data-screen="locker"] .tr-menu-title { font-size: 30px; }
   .to-bo2.is-fn[data-screen="locker"] .tr-menu-groups { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
