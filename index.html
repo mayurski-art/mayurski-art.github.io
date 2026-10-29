@@ -629,14 +629,15 @@ const screens = {
       ] : [],
     ],
   }),
-  // Grin Sabers and Troll Us aren't open yet (user, 2026-10-20): listed for
+  // Grin Sabers and Troll Us aren't open yet (user, 2026-10-20), nor is
+  // Troll Kombat (user, 2026-10-29): listed for
   // everyone but only troll_runner can open them (pages: owner-gate.js).
   arcade: () => ({
     title: 'Arcade',
     groups: [
       [
         { id: 'a-forces', label: 'Troll Warfare', desc: 'Online PvP, Zombies and Troll Royale. The big one.', href: 'troll-ops.html' },
-        { id: 'a-kombat', label: 'Troll Kombat', desc: 'Two-player fighting. Pepe, Doge and the gladiator.', href: 'troll-kombat' },
+        { id: 'a-kombat', label: 'Troll Kombat', desc: 'Two-player fighting. Pepe, Doge and the gladiator.', href: 'troll-kombat', ...soon() },
         { id: 'a-trollman', label: 'Troll Man', desc: 'Eat the dots, dodge the memes. The arcade classic, trolled.', href: 'troll-man' },
         { id: 'a-sabers', label: 'Grin Sabers', desc: 'Saber duels for trollfaces. Block it, disarm them, bonk them.', href: 'sabers', ...soon() },
         { id: 'a-trollus', label: 'Troll Us', desc: 'Among Us, but everyone is a trollface. Very sus.', href: 'trollus', ...soon() },
