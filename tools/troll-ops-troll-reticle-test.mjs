@@ -64,6 +64,14 @@ const rules = await page.evaluate(async (tag) => {
   out.royaleSniper = R.trollReticleOn(sniper, true);
   out.royaleAr = R.trollReticleOn(ar, true);
   out.royaleIron = R.trollReticleOn(sniper, false);
+  rowText()?.click();   // Classic, from the row below the level
+  await new Promise((r) => setTimeout(r, 200));
+  out.lockedClassicRow = rowText()?.textContent.trim();
+  out.royaleClassic = R.trollReticleOn(sniper, true);
+  window.__toBo2.menu.go("options");
+  await new Promise((r) => setTimeout(r, 200));
+  out.optionsRow = rowText()?.textContent.trim();
+  localStorage.setItem("trollops:reticle", "troll");
   T.setMode(mode || "tdm");
   // level 12
   const A = window.TrollrunnerAccounts || (window.TrollrunnerAccounts = {});
@@ -79,8 +87,10 @@ const rules = await page.evaluate(async (tag) => {
   return out;
 }, tag);
 check("a guest (level 1) hasn't unlocked it, even picked", !rules.guestUnlocked && !rules.guestAr, JSON.stringify(rules));
-check("Locker: a Reticle row, locked on Classic", /^Reticle\s*Classic/.test(rules.lockedRow || "") && rules.lockedDisabled, rules.lockedRow);
+check("Locker, below the level: the Reticle row is open, on Royale snipers", /^Reticle.*Royale snipers/.test(rules.lockedRow || "") && !rules.lockedDisabled, rules.lockedRow);
 check("Troll Royale: a sniper's scope wears it at any level, an AR doesn't, irons never", rules.royaleSniper && !rules.royaleAr && !rules.royaleIron, JSON.stringify(rules));
+check("below the level, Classic picked: Royale's snipers get their own scope back", /Classic/.test(rules.lockedClassicRow || "") && rules.royaleClassic === false, rules.lockedClassicRow);
+check("Options has the Reticle row too", /^Reticle/.test(rules.optionsRow || ""), rules.optionsRow);
 check("level 12: unlocked, and picked it's on every optic", rules.l12Unlocked && rules.l12Ar, JSON.stringify(rules));
 check("level 12: the Locker row is open and shows it picked", /Reticle/.test(rules.openRow || "") && /Trollface/.test(rules.openRow || ""), rules.openRow);
 check("Classic picked: off", rules.offAr === false);

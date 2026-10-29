@@ -4,7 +4,9 @@
 // Earned at level 10 (progression getRank, so it never relocks after a
 // prestige) and picked in the Locker (menu/menu-bo2.js, Reticle): from then
 // on every optic wears it, the reflex included, in every mode. Troll Royale's
-// sniper scopes wear it for everyone, whatever their level.
+// sniper scopes wear it for everyone, whatever their level, unless they
+// picked Classic (the Reticle row, in the Locker and in Options: user,
+// 2026-10-29, "I don't see the option to switch to a regular reticle").
 //
 // The 3D optics carry it as hidden reticle variants (weapons/attachment-
 // models.js sightMark "troll-idle" / "troll-hit"); the 8x scope's overlay
@@ -24,18 +26,30 @@ export const TROLL_RETICLE_URLS = {
 export function trollReticleUnlocked() {
   try { return getRank() >= TROLL_RETICLE_LEVEL; } catch { return false; }
 }
-/* What the player picked: "troll" or "classic" (the optic's own). */
+/* What the player picked: "troll", "classic" (the optic's own, Royale's
+   snipers too) or nothing yet (classic, but Royale's snipers wear it). */
+function pref() {
+  try { return localStorage.getItem(PREF_KEY); } catch { return null; }
+}
 export function trollReticlePref() {
-  try { return localStorage.getItem(PREF_KEY) === "troll"; } catch { return false; }
+  return pref() === "troll";
 }
 export function setTrollReticlePref(on) {
-  try { on ? localStorage.setItem(PREF_KEY, "troll") : localStorage.removeItem(PREF_KEY); } catch {}
+  try { localStorage.setItem(PREF_KEY, on ? "troll" : "classic"); } catch {}
+}
+/* The Reticle row: below the level it only decides Royale's snipers. */
+export function trollReticleLabel() {
+  if (trollReticleUnlocked()) return trollReticlePref() ? "Trollface" : "Classic";
+  return pref() === "classic" ? "Classic" : "Royale snipers";
+}
+export function toggleTrollReticle() {
+  setTrollReticlePref(trollReticleUnlocked() ? !trollReticlePref() : pref() === "classic");
 }
 
 /* Does this gun's sight wear it right now? `w` the WeaponState, `optic`
    whether the gun has glass that can carry it (iron sights can't). */
 export function trollReticleOn(w, optic) {
-  if (!optic) return false;
+  if (!optic || pref() === "classic") return false;
   if (game.modeId === "royale" && w?.def?.cls === "sniper") return true;
   return trollReticlePref() && trollReticleUnlocked();
 }
