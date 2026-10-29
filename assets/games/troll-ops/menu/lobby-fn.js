@@ -101,7 +101,7 @@ function reelList() {
 const FALLBACK_AVATAR = "assets/images/icons/favicon/grin.png";
 
 export function mountFnLobby(api) {
-  const { root, menu, openQuick, socialMaps = [], getLevel, getPrestige, rankProgress, rankXpText, PRESTIGE_MASTER, setMapShot, ACHIEVEMENTS } = api;
+  const { root, menu, openQuick, royaleSide, switchRoyaleSide, socialMaps = [], getLevel, getPrestige, rankProgress, rankXpText, PRESTIGE_MASTER, setMapShot, ACHIEVEMENTS } = api;
   const title = $("#to-title");
   root.classList.add("is-fn");
   title.classList.add("is-fn");
@@ -217,15 +217,28 @@ export function mountFnLobby(api) {
     // (loadout.js versusMapId), so the card names that one
     if (p.id === "social" && socialMaps.length && !socialMaps.includes(active?.dataset.map)) active = $(`#to-lo-maps [data-map="${socialMaps[0]}"]`);
     let name = "", sub = "";
-    if (p.id === "public") { name = "Map vote"; sub = "Vote with the lobby"; }
+    // Troll Royale: the side you start on (royale-side.js), not a vote
+    const side = p.id === "public" && $('#to-lo-mode [data-mode="royale"]')?.classList.contains("is-active") && royaleSide?.();
+    if (side) { name = side.name; sub = `${side.tag === "Default" ? "Default island" : side.tag} · change`; }
+    else if (p.id === "public") { name = "Map vote"; sub = "Vote with the lobby"; }
     else if (p.id === "zombies") { name = "The hub"; sub = "A pad for every map"; }
     else if (active) { name = text($(".to-map-name", active)); sub = p.id === "social" ? "Join whoever's there" : "Your map"; }
     $("strong", map).textContent = name;
     $("span", map).textContent = sub;
-    const mapId = p.id !== "public" && p.id !== "zombies" ? active?.dataset.map : null;
+    const mapId = side ? side.id : p.id !== "public" && p.id !== "zombies" ? active?.dataset.map : null;
     img.hidden = !mapId;
     if (mapId && img.dataset.map !== mapId) { img.dataset.map = mapId; setMapShot(img, mapId, "120px"); }
     map.hidden = !name;
+    // Royale: the card switches the side (the Island row in Public Match does too)
+    map.classList.toggle("is-side", !!side);
+    if (side) { map.setAttribute("role", "button"); map.tabIndex = 0; map.setAttribute("aria-label", `Island: ${side.name}, ${side.tag}. Switch side`); }
+    else { map.removeAttribute("role"); map.removeAttribute("tabindex"); map.removeAttribute("aria-label"); }
+  }
+  window.addEventListener("tf-royale-side", () => renderPlay());
+  {
+    const map = $(".to-fn-map", play), flip = () => { if (map.classList.contains("is-side")) switchRoyaleSide?.(); };
+    map.addEventListener("click", flip);
+    map.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } });
   }
   function setPlaylist(id) {
     playlist = id;

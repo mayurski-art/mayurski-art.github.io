@@ -5,6 +5,7 @@ import { MODES, MODE_IDS } from "../modes/modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t6
 import { prestigeUnlocked } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1";
 import { streaksAllowed } from "../streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1-sam1-rfx1-ret1-mrg1-mrc1";
 import { game } from "../core/state.js?v=st1";
+import { sidePref } from "../modes/royale-side.js?v=rs1";
 
 /* The Play tab's mode list: versus modes first, then the solo ones, each a
    full-width row with a tick on the one you're deploying into. */
@@ -127,7 +128,9 @@ export function renderModes() {
   if (ssSoloNote) ssSoloNote.hidden = allowed;
   if (game.els.ssPicker) game.els.ssPicker.hidden = !allowed;
   // Zombies and the range bring their own map, so the card just names it.
-  game.loadout.setForcedMap(game.currentMode().forceMap || null);
+  // (Troll Royale: the side you picked, royale-side.js)
+  const m = game.currentMode();
+  game.loadout.setForcedMap(m.sides ? sidePref(m.sides) : m.forceMap || null);
   game.loadout.setMapPool(game.currentMode().mapPool || null);
   game.loadout.setMapAllow(game.currentMode().maps || null);
   game.renderLobbyRoster();   // no-ops until the lobby is ready

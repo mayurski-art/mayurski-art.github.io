@@ -4445,6 +4445,9 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-fn-mode-sub { font: 800 15px var(--fn-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--fn-yellow); }
 .to-fn-change { margin-top: 4px; font: 700 12px var(--fn-ui); letter-spacing: .08em; text-transform: uppercase; color: #c4d1f3; }
 .to-fn-map { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 10px; border-radius: 9px; background: rgba(255,255,255,.12); }
+/* Troll Royale: the card switches the side you start on (menu/lobby-fn.js) */
+.to-fn-map.is-side { cursor: pointer; touch-action: manipulation; }
+.to-fn-map.is-side:hover, .to-fn-map.is-side:focus-visible { background: rgba(255,255,255,.2); outline: none; }
 .to-fn-map img { width: 76px; height: 44px; flex: none; object-fit: cover; border-radius: 6px; }
 .to-fn-map strong { display: block; font: 800 16px/1.15 var(--fn-ui); }
 .to-fn-map span { font: 700 12px var(--fn-ui); letter-spacing: .06em; text-transform: uppercase; color: #c4d1f3; }

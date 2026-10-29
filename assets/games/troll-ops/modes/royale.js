@@ -24,6 +24,7 @@ import { playSfx, preloadSfx } from "../sound/sfx-files.js?v=dc4";
 import { royaleRecordReset, royaleRecordTick, stopRoyaleRecord } from "./royale-record.js?v=rrc1-rfx1-rr2-ret1-mrg1-hd1";
 import { useAnimStart, useAnimTick, useAnimFinish, useAnimCancel, useWire, poseUsePeer } from "./royale-use.js?v=ru1-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9";
 import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose } from "./royale-fall.js?v=dc3-dc4-rf1-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8";
+import { sidePref } from "./royale-side.js?v=rs1";
 import { updateRoyaleFlip, flipCineOn, resetRoyaleFlip, flipAt, matchingSpot } from "./royale-flip.js?v=rf1-hgb9";
 import { findOpenGround } from "./modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-tfb8-ug1-ugm1-hgb8-hgb9";
 
@@ -39,17 +40,13 @@ export let royale = null;
 
 /* Which side of the island this match is on (MODES.royale.sides): the
    room's, once the host has said (its stage notes carry the map:
-   match-start.js followsHostMap), else a coin toss, held for the match (the
-   match count) so every look during its loading agrees. A test page
-   (?tohooks=1) stays on the top side unless it sets window.__royaleSide:
-   the royale tests were all written for Trollface Island. */
-let tossed = null;   // { n: the match count it was tossed for, i }
-const TEST_PAGE = /[?&]tohooks=1/.test(location.search);
+   match-start.js followsHostMap), else your pick in the lobby
+   (royale-side.js; it was a coin toss; unpicked, the default island). A
+   test page (?tohooks=1) can set window.__royaleSide instead. */
 export function pickSide(sides, roomMapId = null) {
   if (sides.includes(roomMapId)) return roomMapId;
-  if (TEST_PAGE) return sides.includes(window.__royaleSide) ? window.__royaleSide : sides[0];
-  if (tossed?.n !== game.matchesPlayed) tossed = { n: game.matchesPlayed, i: Math.floor(Math.random() * sides.length) };
-  return sides[tossed.i % sides.length];
+  if (/[?&]tohooks=1/.test(location.search) && sides.includes(window.__royaleSide)) return window.__royaleSide;
+  return sidePref(sides);
 }
 
 function royaleSeed() { return hashSeed(`${game.net.room || "solo"}:${game.matchesPlayed}:royale`); }
