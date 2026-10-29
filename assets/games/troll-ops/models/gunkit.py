@@ -899,8 +899,19 @@ def finish_v2(P, hi=None, smooth_angle=34):
 
 
 def _apply_cutters(ob, cutters, pivot):
+    """cutters: bmesh solids, or (bmesh, key) to give the cut's walls and
+    floor that material (a pocket in a black grip stays black); a plain
+    one takes the part's first material."""
     bm = bmesh.new()
+    keyed = any(isinstance(c, tuple) for c in cutters)
     for c in cutters:
+        if isinstance(c, tuple):
+            c, key = c
+            if M[key] not in list(ob.data.materials):
+                ob.data.materials.append(M[key])
+            idx = list(ob.data.materials).index(M[key])
+            for f in c.faces:
+                f.material_index = idx
         tmp = bpy.data.meshes.new("cut_tmp")
         c.to_mesh(tmp)
         bm.from_mesh(tmp)
@@ -911,14 +922,20 @@ def _apply_cutters(ob, cutters, pivot):
     me = bpy.data.meshes.new(ob.name + "_cut")
     bm.to_mesh(me)
     bm.free()
+    if keyed:
+        for m in ob.data.materials:
+            me.materials.append(m)
     co = bpy.data.objects.new(ob.name + "_cut", me)
     scene.collection.objects.link(co)
+    bpy.context.view_layer.update()      # ob.location was just set: matrix_world is stale till now
     co.matrix_world = ob.matrix_world.copy()
     bo = ob.modifiers.new("cut", "BOOLEAN")
     bo.operation = "DIFFERENCE"
     bo.solver = "EXACT"
     bo.use_self = True
     bo.object = co
+    if keyed:
+        bo.material_mode = "TRANSFER"
     bpy.context.view_layer.objects.active = ob
     bpy.ops.object.modifier_apply(modifier=bo.name)
     bpy.data.objects.remove(co)
