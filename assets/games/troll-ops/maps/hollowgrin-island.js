@@ -14,12 +14,17 @@
 // land from the sky).
 
 import * as THREE from "three";
+import { lakeWaterMaterial } from "./lake-water.js?v=wf2";
 
 const JSON_URL = new URL("../models/hollowgrin-island.json", import.meta.url).href;
 const HAZE_FADE = [30, 110];   // camera height (m): the ground haze full below, gone above
 const PLANE_PAD = 2;           // the ground plane's margin round the play area here
 // the rind's ground (hg_island.py): Blender material -> [colour, warmth, its strength]
-const RIND = { HG_IslandSand: [0xffa448, 0xff8a1c, 0.4], HG_IslandSoil: [0xd88a3a, 0xc06414, 0.25] };
+// (the warmth low: at 0.4 the beach glowed like a neon line, user 2026-10-28)
+const RIND = { HG_IslandSand: [0xf2a85a, 0xd07a20, 0.2], HG_IslandSoil: [0xc8823e, 0x9a4e12, 0.12] };
+// the pools' water (lake-water.js colours) and the low glow of the brew in it:
+// dark as night water is, the green in its shallows and froth
+const BREW = { shallow: 0x23401a, deep: 0x050c06, sand: 0x141a0e, foam: 0x8fb86a, glow: 0x1c6a12, glowK: 0.1, bed: 0x080c06 };
 
 function inside(poly, x, z) {
   let c = false;
@@ -93,6 +98,7 @@ export function islandScenery(scene, { load, bounds, bakeRect, haze }) {
   group.name = "hg-island";
   scene.add(group);
   const hiddenRing = [];   // [InstancedMesh, index, matrix] the ring trees taken away
+  const brews = [];        // the pools' water
   const hazeK = haze.value.x;
   let gone = false, untrim = () => {};
   Promise.all([load("hg-island"), load("hg-woodkit"), fetch(JSON_URL).then((r) => r.json())]).then(([land, kit, S]) => {
@@ -124,6 +130,36 @@ export function islandScenery(scene, { load, bounds, bakeRect, haze }) {
       m.needsUpdate = true;
     });
     group.add(land);
+    // the brew: the model's flat glowing green read as plastic from the
+    // plane (user, 2026-10-28: "doesnt look realistic"), so each pool gets
+    // the top side's lake water (lake-water.js) in a witch's brew's colours,
+    // murky green going black in the deep, a sickly froth at the edge, a
+    // low glow of its own; the model's sheet stays under it as the bed
+    land.updateMatrixWorld(true);
+    let bedY = null;
+    land.traverse((n) => {
+      if (!n.isMesh || n.userData.blenderMat !== "HG_IslandBrew") return;
+      // the bed: dark mud, its neon gone (it lit the water up from below)
+      n.material.color.setHex(BREW.bed);
+      n.material.emissive.setHex(BREW.glow);
+      n.material.emissiveIntensity = BREW.glowK;
+      n.geometry.computeBoundingBox();
+      bedY = Math.max(bedY ?? -Infinity, _p.copy(n.geometry.boundingBox.max).applyMatrix4(n.matrixWorld).y);
+    });
+    if (bedY != null) {
+      for (const pool of pools) {
+        const shape = new THREE.Shape(pool.map(([x, z]) => new THREE.Vector2(x, -z)));
+        const geo = new THREE.ShapeGeometry(shape).rotateX(-Math.PI / 2).translate(0, bedY + 0.06, 0);
+        const mat = lakeWaterMaterial(pool, BREW);
+        mat.emissive.setHex(BREW.glow);
+        mat.emissiveIntensity = BREW.glowK;
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.renderOrder = 2;
+        mesh.onBeforeRender = mat.userData.tick;
+        group.add(mesh);
+        brews.push(mesh);
+      }
+    }
     // the woods ring's trees off the cliff, out of the brew, clear of the stem
     scene.traverse((o) => {
       const spots = o.isInstancedMesh && o.userData.woodsSpots;
@@ -189,6 +225,8 @@ export function islandScenery(scene, { load, bounds, bakeRect, haze }) {
       for (const [o, i, keep] of hiddenRing) { o.setMatrixAt(i, keep); o.instanceMatrix.needsUpdate = true; }
       hiddenRing.length = 0;
       untrim();
+      for (const m of brews) { m.geometry.dispose(); m.material.dispose(); }
+      brews.length = 0;
       haze.value.x = hazeK;
       scene.remove(group);
     },
