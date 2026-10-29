@@ -110,12 +110,14 @@ function trollReticleTex(kind, file) {
   return t;
 }
 /* `g` the optic (adsDistance / adsWeaponFov set), `z` the reticle's plane
-   in it, `window` the height of the glass you look through there. */
-function addTrollMarks(g, z, window) {
+   in it, `window` the height of the glass you look through there.
+   `dotOnly`: just the dot, no art (the reflex's window is too small for
+   both: user, 2026-10-29, "for reflex there shouldnt be both"). */
+function addTrollMarks(g, z, window, dotOnly = false) {
   const eye = (g.userData.adsDistance ?? 0.46) - z;
   const screenH = 2 * eye * Math.tan(((g.userData.adsWeaponFov ?? 50) * Math.PI) / 360);
   const h = Math.min(TROLL_RETICLE_SCREEN * screenH, TROLL_RETICLE_WINDOW * window);
-  const dot = Math.min(TROLL_DOT_SCREEN * screenH, 0.25 * window);
+  const dot = Math.min(TROLL_DOT_SCREEN * screenH, (dotOnly ? 0.4 : 0.25) * window);
   for (const [kind, file] of [["troll-idle", "troll-fist.png"], ["troll-hit", "get-trolled.png"]]) {
     const t = trollReticleTex(kind, file);
     const mark = new THREE.Group();
@@ -129,7 +131,8 @@ function addTrollMarks(g, z, window) {
     const d = new THREE.Mesh(UNIT_PLANE, new THREE.MeshBasicMaterial({ map: trollDot(), transparent: true, depthTest: false, depthWrite: false }));
     d.scale.set(dot, dot, 1);
     d.renderOrder = 12;
-    mark.add(m, d);
+    if (dotOnly) mark.add(d);
+    else mark.add(m, d);
     g.add(sightMark(mark, kind));
   }
 }
@@ -262,7 +265,7 @@ function buildReflex() {
   g.userData.aimOffsetY = 0.048;   // glass centre above the rail surface
   g.add(opticMount(mountDrop(0.048), 0.03, [-0.012, 0.012], M.rail(), 0.016));
   g.userData.lengthZ = 0.05;
-  addTrollMarks(g, 0.004, 0.03);   // the glass is 3 cm tall
+  addTrollMarks(g, 0.004, 0.03, true);   // the glass is 3 cm tall
   return g;
 }
 
