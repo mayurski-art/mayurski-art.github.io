@@ -467,7 +467,10 @@ def surface_group(surface):
     pn.inputs["Detail"].default_value = 12.0
     pn.inputs["Roughness"].default_value = 0.65
     L.new(tc.outputs["Object"], pn.inputs["Vector"])
-    patch = math("MULTIPLY", remap(pn.outputs["Fac"], 0.66, 0.69), gi.outputs["Patches"], clamp=True)
+    # (more Patches: more and bigger flecks; none at 0)
+    on = math("MINIMUM", math("MULTIPLY", gi.outputs["Patches"], 10.0), 1.0)
+    lvl = math("ADD", math("SUBTRACT", pn.outputs["Fac"], 0.72), math("MULTIPLY", gi.outputs["Patches"], 0.16))
+    patch = math("MULTIPLY", math("MULTIPLY", lvl, 40.0, clamp=True), on)
     wear = math("MAXIMUM", wear, patch)
     # cavities: AO of the part itself (its neighbours are other bakes)
     ao = N.new("ShaderNodeAmbientOcclusion")

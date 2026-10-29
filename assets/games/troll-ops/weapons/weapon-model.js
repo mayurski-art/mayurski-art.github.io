@@ -160,7 +160,7 @@ const DETAILED = {
   // bake_kit.bake_gun): kit maps, moving parts, LOD1. A banner skin still
   // wears the panelled weapon-416.js model (its atlas is drawn for it).
   problem416: {
-    url: new URL("../models/problem416.glb?v=pf1", import.meta.url).href,
+    url: new URL("../models/problem416.glb?v=pf2", import.meta.url).href,
     kit: "problem416", p: "PF", device: "PF_Hider", rake: -0.37, railY: 0.035, adsDistance: null,
     glow: [], brass: "556",
   },
@@ -187,7 +187,7 @@ const detailedLod1 = new Map();
    moving parts (P_Carrier ...) carry their motion as extras (tf_part,
    tf_kind, tf_axis, tf_travel) for view/gun-action.js. */
 const kitUrl = (kit, file) => new URL(`../models/${kit}${file}?v=${KIT_VER[kit] ?? 1}`, import.meta.url).href;
-const KIT_VER = {};
+const KIT_VER = { problem416: "pf2" };
 function loadDetailed(id, cfg) {
   const lod0 = new GLTFLoader().loadAsync(cfg.url).then((gltf) => {
     detailedTemplates.set(id, prepDetailed(gltf.scene, cfg));

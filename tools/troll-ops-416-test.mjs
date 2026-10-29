@@ -2,7 +2,8 @@
 // 5; models/build_problem416.blender.py). The arms test's checks on the
 // real gun in its own slot: the baked GLB with its maps on one shared
 // material and its moving parts; a shot cycles the carrier, pops the dust
-// cover, pulls the trigger and throws brass; the last round locks the
+// cover hangs open as in the concepts (part of the body), the trigger
+// pulls and brass flies; the last round locks the
 // carrier back with the catch up; the empty reload's hand reaches the catch
 // and the carrier slams home under the slap; a tactical reload leaves it
 // alone; brass keeps to its pool; the reflex sits on the rail and the irons
@@ -119,14 +120,14 @@ const info = await page.evaluate(async () => {
   };
 });
 check("the 416 builds from the baked GLB with its moving parts and points",
-  info.parts.join() === "Carrier,Catch,Charge,DustCover,Trigger" && info.eject && info.charge && info.catch && info.mag && info.grip && info.lod === 0, JSON.stringify(info));
-check("every baked surface shares one material with base, ORM and normal maps",
-  info.kitMeshes >= 7 && info.shared && info.maps?.[0] === 1024 && info.maps[1] === 1024 && info.maps[2] === true
+  info.parts.join() === "Carrier,Catch,Charge,Trigger" && info.eject && info.charge && info.catch && info.mag && info.grip && info.lod === 0, JSON.stringify(info));
+check("every baked surface shares one material with 2048 base, ORM and normal maps",
+  info.kitMeshes >= 7 && info.shared && info.maps?.[0] === 2048 && info.maps[1] === 2048 && info.maps[2] === true
   && info.maps[3] === "srgb" && info.maps[4] === "" && info.maps[5] === false, JSON.stringify(info));
 check("a reflex sits on the rail", info.sight, JSON.stringify(info));
 await shot(page, "416-0-hip.png");
 
-// 2. one shot: carrier back and home, cover open, trigger pulled and back, brass
+// 2. one shot: carrier back and home, trigger pulled and back, brass
 const cyc = await page.evaluate(async (BR) => {
   const T = window.__trollOps, w = T.currentWeapon(), m = T.activeWeaponMesh(), P = m.userData.gunParts;
   const { liveBrass } = await import(BR);
@@ -144,13 +145,12 @@ const cyc = await page.evaluate(async (BR) => {
   }
   a().hold = 0.5;
   for (let i = 0; i < 2; i++) await new Promise((r) => requestAnimationFrame(r));
-  const home = { carrier: k(P.Carrier), trigger: k(P.Trigger), cover: k(P.DustCover) };
+  const home = { carrier: k(P.Carrier), trigger: k(P.Trigger) };
   a().hold = null;
   return { seen, home, ammo: w.ammoInMag };
 }, BR);
 check("a shot runs the carrier back and home", cyc.seen.carrier > 0.95 && Math.abs(cyc.home.carrier) < 0.01, JSON.stringify(cyc));
 check("a shot pulls the trigger and lets it go", cyc.seen.trigger > 0.95 && Math.abs(cyc.home.trigger) < 0.01, JSON.stringify(cyc));
-check("the first shot pops the dust cover and it stays open", cyc.home.cover > 0.99, JSON.stringify(cyc));
 check("a shot throws brass", cyc.seen.brass >= 1, JSON.stringify(cyc));
 
 // the fire cycle strip
@@ -274,7 +274,9 @@ const lod = await page.evaluate(async (WM) => {
   for (const o of meshes) tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
   return { lod: g.userData.lod, nodes: meshes.length, tris, parts: !!g.userData.gunParts, map: meshes[0]?.material?.map?.source?.data?.width ?? null };
 }, WM);
-check("everyone else gets the LOD1: one node, no moving parts, under 6k tris", lod.lod === 1 && lod.nodes <= 2 && !lod.parts && lod.tris < 6000, JSON.stringify(lod));
+// (no tri budget on the 416: the user, 2026-10-29; the LOD1 stays one node
+// and a quarter of the viewmodel's tris)
+check("everyone else gets the LOD1: one node, no moving parts, a quarter of the tris", lod.lod === 1 && lod.nodes <= 2 && !lod.parts && lod.tris < 30000, JSON.stringify(lod));
 await page.evaluate(() => window.__trollOps.toggleThirdPerson());
 await sleep(1500);
 await shot(page, "416-2-3p.png");
