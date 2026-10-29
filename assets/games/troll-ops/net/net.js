@@ -804,6 +804,7 @@ export class Net {
       ...(seed != null ? { sd: seed } : {}),
       ms: this.modeSeq || undefined,
     });
+    this.flush();   // now, not batched: a peer takes `left` as of when it lands (Royale's flip is timed off it)
   }
 
   /* Troll Royale, to one newcomer: where the match already is (a "stage"

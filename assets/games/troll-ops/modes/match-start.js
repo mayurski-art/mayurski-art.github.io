@@ -247,6 +247,7 @@ export function releaseLoad(left = 0) {
   loadHold = false;
   loadWarm = false;
   loadTarget = null;
+  stageWall = 0;
   if (left > 0 && isStaging()) { game.stageT = left; stageShown = -1; }
   game.loadScreen.hide();
   game.calibratePadRest();   // nobody should be pushing the stick on the loading screen
@@ -317,6 +318,8 @@ let introPending = null;         // "full" | "short": starts on the first un-hel
 let introDelay = 0;              // ...a beat in, once respawned bots have been placed
 let stageShown = -1;             // last whole second painted, so we only touch the DOM on a change
 let stagePub = 0;                // throttle on republishing it
+let stageWall = 0;               // performance.now() at the last tick: the countdown runs on real time (0 = restart)
+let stageLeft = 0;               // stageT as that tick left it
 
 export function isStaging() { return game.stageT > 0; }
 
@@ -535,6 +538,7 @@ export function beginStaging(seconds = STAGE_SECONDS) {
   game.stageT = seconds;
   stageShown = -1;
   stagePub = 0;
+  stageWall = 0;
   // Solo play always "owns" its own clock; PvP re-derives ownership every
   // publish tick in updateStaging() rather than latching a one-time guess
   // here — a peer's `hello` can land a beat after this runs, and a stale
@@ -602,7 +606,16 @@ export function updateStaging(dt) {
   // The first tick the clock actually runs (not under the loading screen),
   // so the cinematic is squeezed into whatever is really left.
   if (introPending && (introDelay -= dt) <= 0) { const k = introPending; introPending = null; startMatchIntro(k); }
-  game.stageT -= dt;
+  // Real time, not the frame's dt (capped at 0.05): a tab drawing slow frames
+  // counted down slow and hit zero late, so its Royale green (and the
+  // island's flip, timed off it) landed up to a second behind the room's.
+  // A count set since the last tick (the owner's, adopted: game.js onStage)
+  // is as of now; taking the time since that tick off it as well counted a
+  // long frame twice and put this tab's zero early for good.
+  const now = performance.now(), adopted = game.stageT !== stageLeft;
+  game.stageT -= !stageWall ? dt : adopted ? 0 : (now - stageWall) / 1000;   // (uncapped: a long hitch is real time too)
+  stageWall = now;
+  stageLeft = game.stageT;
   if (game.matchIntro.active) game.matchIntro.setClock(game.stageT);
 
   // Only the owner publishes, ~3×/sec, so a client that joins or reloads
