@@ -199,14 +199,17 @@ export const SECONDARY_CLASSES = ["sidearm", "launcher"];
 /* Every gun's recoil kick, scaled at once (user, 2026-10-13: a tester
    found the recoil too much; 1 = as each gun lists it). The climb you pull
    down, the camera kick and the gun's punch in your hands all follow it;
-   attachments still trim each gun from there. */
-export const RECOIL_SCALE = 0.7;
+   attachments still trim each gun from there. 0 (user, 2026-10-28: "still
+   way too much recoil ... remove all recoil on all weapons for now"): no
+   climb, no kick, no shake, no knockback, on every gun. */
+export const RECOIL_SCALE = 0;
 
 function mk(cls, o) {
   const d = { ...COMMON, ...CLASS_BASE[cls], ...o, cls };
   d.recoilKickPitch *= RECOIL_SCALE;
   d.recoilKickYaw *= RECOIL_SCALE;
   d.recoilKickYawRand *= RECOIL_SCALE;
+  d.recoilKickKnockback *= RECOIL_SCALE;
   return d;
 }
 
