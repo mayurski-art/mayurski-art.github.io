@@ -18,7 +18,7 @@
 
 import * as THREE from "three";
 import { buildGripHand, buildSupportHand } from "./hand-model.js?v=to-grip2-or1-hp1-bx1";
-import { OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS, railSection } from "./attachment-models.js?v=fg1-wst-or1-rt1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-rx1";
+import { OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS, railSection } from "./attachment-models.js?v=fg1-wst-or1-rt1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1-mrg3";
 
 const parse = (s) => s.trim().split(/\s+/).map((p) => p.split(",").map(Number));
 
@@ -167,7 +167,7 @@ export function buildTraced(def, spec, env, { fallbackOptic = null } = {}) {
     knob.position.set(spec.body.w / 2 + 0.02, Y(spec.bolt.y) - 0.008, 0.004);
     bolt.add(stem, knob);
     root.add(bolt);
-    u.boltAction = { bolt, restZ: bolt.position.z, travel: 0.07 };
+    u.boltAction = { bolt, knob, restZ: bolt.position.z, travel: 0.07 };
   }
 
   // --- rail (where the trace has none) and the hands
@@ -187,6 +187,8 @@ export function buildTraced(def, spec, env, { fallbackOptic = null } = {}) {
   hand.rotation.x = 0.32;
   root.add(hand);
   u.gripPos = hand.position.clone();
+  // a bolt gun's trigger hand leaves the grip to work the bolt (rifle-action.js)
+  if (u.boltAction) Object.assign(u.boltAction, { hand, handRest: { position: hand.position.clone(), quaternion: hand.quaternion.clone() } });
   const hgTop = Y(spec.hand.top), hgBottom = Y(spec.hand.bottom);
   const supportHandPos = new THREE.Vector3(0, hgTop + 0.028, Z(spec.hand.x));
   const support = buildSupportHand(1.5);

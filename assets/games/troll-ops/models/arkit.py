@@ -196,6 +196,23 @@ def pins(P, R, pts, hw):
             local_lathe(P, (sx * (hw - 0.0005), R.Y(py), R.Z(px)), (sx, 0, 0), [(0, 0.0030), (0.0010, 0.0027), (0.0014, 0.0)], "steel", segs=10)
 
 
+def outline_m(R, poly):
+    """A traced outline (pixels) in game metres, [(z, y)], for
+    gunkit.section_body."""
+    return [(R.Z(px), R.Y(py)) for px, py in poly]
+
+
+def anchors_v2(prefix, R, s, eject, charge_hand, catch_hand):
+    """anchors() plus the v2 points (gunkit.POINTS), each (px, py) on the
+    traced reference or a game-space (x, y, z) tuple: where brass leaves
+    the port and where a hand goes to work the charging handle and the
+    bolt catch."""
+    y = anchors(prefix, R, s)
+    for name, p in (("Eject", eject), ("ChargeHand", charge_hand), ("CatchHand", catch_hand)):
+        empty(prefix + "_" + name, tuple(R.P(*p)) if len(p) == 2 else tuple(p))
+    return y
+
+
 def finish_and_export(prefix, body, out_glb, render_views=None):
     body.finish(bevel=0.0004, bevel_segs=1)
     gk.export(out_glb, prefix)
