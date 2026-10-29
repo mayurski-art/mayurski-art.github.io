@@ -562,6 +562,7 @@ export function endStaging() {
   // Already ended. (The sky lobby hides the countdown card, so a hidden card
   // alone doesn't mean that there.)
   if (game.stageT <= 0 && game.els.staging.hidden && royale?.drop?.phase !== "lobby") return;
+  const over = Math.max(0, -game.stageT);   // how far past zero this frame ran (Royale's live moment, below)
   game.stageT = 0;
   game.spawnOpening = false;
   introPending = null;
@@ -571,8 +572,8 @@ export function endStaging() {
   // The opening seconds still deserve the cover a respawn gets.
   game.player.spawnGuard = game.isPvp() ? game.SPAWN_GUARD : 0;
   updateSpawnGuardHud();
-  if (royale?.drop) greenLight();
-  else if (royale) { royale.live = true; royale.t = 0; showWaveBanner(`DROP IN — ${game.builtMap.map.royale?.dropLine || "last troll standing wins"}`, 1800); }
+  if (royale?.drop) { royale.greenAt = Date.now() - over * 1000; greenLight(); }   // the green on the wall clock, which every tab shares (royale-flip.js)
+  else if (royale) { royale.live = true; royale.t = 0; royale.liveAt = Date.now() - over * 1000; showWaveBanner(`DROP IN — ${game.builtMap.map.royale?.dropLine || "last troll standing wins"}`, 1800); }
   else if (game.isPvp() && !game.isSnd()) showWaveBanner("FIGHT", 1100);
   game.audio.stageTick(false, true);   // GO: the long buzzer
   // The horde/zombie clock — and the first wave banner — start now, not when

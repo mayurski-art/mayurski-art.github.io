@@ -16,7 +16,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const OFFSET = [9, 87];   // the blueprint's Hollowgrin box (x -60..78, z -132..-42) onto its bounds (-51..87, -45..45)
+const OFFSET = [9, 87];
+const PLAY = [-51, 87, -45, 45];   // Hollowgrin's bounds (maps/hollowgrin.js BOUNDS): minX, maxX, minZ, maxZ, its own coords   // the blueprint's Hollowgrin box (x -60..78, z -132..-42) onto its bounds (-51..87, -45..45)
 
 // the coast: maps/trollface-island.js ISLAND_EDGE, its % points into metres
 const src = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/maps/trollface-island.js"), "utf8");
@@ -52,6 +53,7 @@ const mv = ([x, z]) => [+(x + OFFSET[0]).toFixed(2), +(z + OFFSET[1]).toFixed(2)
 const out = {
   note: "Hollowgrin Island (Troll Royale: Two Worlds), in Hollowgrin's map metres; tools/troll-ops-hollowgrin-island-shapes.mjs",
   offset: OFFSET,
+  play: PLAY,
   coast: coast.map(mv),
   mouth: mouth.map(mv),
   eyes: eyes.map((e) => e.map(mv)),

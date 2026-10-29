@@ -24,6 +24,7 @@ import { playSfx, preloadSfx } from "../sound/sfx-files.js?v=dc4";
 import { royaleRecordReset, royaleRecordTick, stopRoyaleRecord } from "./royale-record.js?v=rrc1-rfx1-rr2-ret1-mrg1-hd1";
 import { useAnimStart, useAnimTick, useAnimFinish, useAnimCancel, useWire, poseUsePeer } from "./royale-use.js?v=ru1-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8";
 import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose } from "./royale-fall.js?v=dc3-dc4-rf1-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8";
+import { updateRoyaleFlip, flipCineOn, resetRoyaleFlip } from "./royale-flip.js?v=rf1";
 
 // Phase 1 ("Mini Royale"): solo, one life, loot only, the Cringe closing in,
 // last troll standing. royale.js has the zone, the loot and their visuals;
@@ -171,7 +172,7 @@ export function royaleOpenChest(c, mine = true) {
 
 export function inSkyLobby() { return !!royale?.drop && royale.drop.phase === "lobby" && game.isStaging(); }
 /* The pre-match countdown freezes you, except aboard. */
-export function stageFrozen() { return game.isStaging() && !inSkyLobby(); }
+export function stageFrozen() { return (game.isStaging() && !inSkyLobby()) || flipCineOn(); }   // (and through the island's flip: royale-flip.js)
 /* In the air: the drop owns movement and the camera. */
 export function royaleDropView() { return !!royale?.drop && game.player.alive && (royale.me === "fall" || royale.me === "glide"); }
 /* In your plane's hold (before the green light and after it, till you're
@@ -362,6 +363,7 @@ const _sndAt = new THREE.Vector3();
 export function updateSkyLobby(dt) {
   const r = royale, t = r.planeT;
   r.loot.update(dt, game.camera, game.move.pos);
+  updateRoyaleFlip(r, dt);   // Two Worlds: the island turning to this match's side (royale-flip.js)
   // The host keeps its bots in their seats and on the wire: the room
   // connecting can reset the peer map they're mirrored into, and nothing
   // else re-publishes them before the green.
@@ -470,6 +472,9 @@ function updateRoyaleDropWorld(dt) {
   if (!r.live && t > d.squadron.lastOut() + 1) {
     r.live = true;
     r.t = 0;
+    // the flip's clock (royale-flip.js): the green on the wall clock plus the
+    // schedule, not this tab's drop clock (it sums capped frames, so runs slow)
+    r.liveAt = (r.greenAt ?? Date.now() - t * 1000) + (d.squadron.lastOut() + 1) * 1000;
     game.showWaveBanner("Everyone's out — last troll standing wins", 1800);
   }
   if (!game.net.isBotHost()) return;
@@ -697,7 +702,7 @@ export function applyRoyaleCatchUp() {
   const r = royale, d = r.drop;
   d.runT = Math.min(+c.bt + late, ROYALE_BOX_GONE);
   r.planeT = d.runT;
-  if (c.lv) { r.live = true; r.t = (+c.rt || 0) + late; }
+  if (c.lv) { r.live = true; r.t = (+c.rt || 0) + late; r.liveAt = Date.now() - r.t * 1000; }   // (the flip's clock: royale-flip.js)
   const f = d.squadron.riddenFlight();
   if (f && d.runT < f.tOut - 2) r.me = "aboard";
   else royaleLateSpectate();
@@ -721,6 +726,7 @@ export function teardownRoyale() {
   stopRoyaleRecord("end");   // (already stopped at a death or a finish; this is the match ended from outside)
   document.body.classList.remove("to-aboard");   // the plane's trimmed touch HUD (view/player-update.js)
   resetDropCine();
+  resetRoyaleFlip();
   endFallShow();
   if (royale) {
     royale.scenery?.dispose();
@@ -776,6 +782,7 @@ export function updateRoyale(dt) {
   updateRoyaleDropWorld(dt);
   updateDropFog();
   if (r.live && !r.over) r.t += dt;
+  updateRoyaleFlip(r, dt);   // Two Worlds: the intro and the flip (royale-flip.js)
   updateBoat(r.t, r.loot);   // Trollface Island's Boat round the lake, and whoever is aboard (royale-boat.js)
   const s = r.zone.state(r.t);
   r.visual.update(s, r.t);
@@ -1275,6 +1282,7 @@ function botCalm(b) {
   return now - b.killedAt < 50000 + (h % 1000) * 30;   // 50-80 s
 }
 export function royaleBotSight(b) {
+  if (flipCineOn()) return 0;   // everyone is held through the flip: nobody shoots
   // Someone shooting at it gets noticed whatever the range.
   if (b.hurtAt && performance.now() - b.hurtAt < 3000) return 45;
   if (botCalm(b)) return UNARMED_SIGHT;
