@@ -1091,7 +1091,7 @@
     setState("ready");
   }
 
-  // The weekly board (assets/games/troll-man/leaderboard.js) takes 1-player games
+  // The all-time board (assets/games/troll-man/leaderboard.js) takes 1-player games
   // only: a hot-seat game is two people on one account.
   function reportScore() {
     if (demo || numPlayers !== 1 || !window.TrollLeaderboard) return;
@@ -1099,7 +1099,7 @@
     loadHiScores();
   }
 
-  // This week's top ten (the shared engine's board, TrollLeaderboard.board),
+  // The all-time top ten (the shared engine's board, TrollLeaderboard.board),
   // drawn the cabinet's way: the attract loop's HIGH SCORES page and the
   // trophy panel (user, 2026-10-25: "create the leaderboard using UI
   // relevant to this game"). null until it first arrives.
@@ -1110,10 +1110,17 @@
     try { hiScores = await LB.board("troll-man"); } catch (_) { /* keep the last one */ }
     renderBoardPanel();
   }
+  // logging in from the panel puts you on the board straight away
+  window.addEventListener("trollrunner:auth-changed", () => loadHiScores());
   const RANK_NAMES = ["1ST", "2ND", "3RD", "4TH", "5TH", "6TH", "7TH", "8TH", "9TH", "10TH"];
+  const ordinal = n => {
+    const t = n % 100, s = t >= 11 && t <= 13 ? "TH" : ["TH", "ST", "ND", "RD"][n % 10] || "TH";
+    return `${n}${s}`;
+  };
   // each rank in a chaser's colour, round and round, the way the cabinet lists its scores
   const rankColor = i => CHASERS[i % CHASERS.length].color;
-  const hiName = e => String(e.name || "???").toUpperCase().replace(/[^A-Z0-9 _.-]/g, "").slice(0, 10) || "???";
+  // 10 letters fit the canvas page; the panel shows up to 20 and ellipsises the rest
+  const hiName = (e, max = 10) => String(e.name || "???").toUpperCase().replace(/[^A-Z0-9 _.-]/g, "").slice(0, max) || "???";
 
   // Intermissions play after clearing these levels, like the original's cut-scenes.
   const INTERMISSION_AFTER = [2, 5, 9, 13, 17];
@@ -1368,11 +1375,11 @@
 
   // Attract screen: the cast, like the original's roll call, in big type so it
   // reads from across the room (and on a laptop).
-  // The attract loop's second page, over the menu: this week's top ten.
+  // The attract loop's second page, over the menu: the all-time top ten.
   const HI_FROM = 8;                       // seconds into the title (the roll call is done by 5)
   function drawHiScores() {
     text("HIGH SCORES", W / 2, 46, "#ffcc00", 16, "center");
-    text("THIS WEEK", W / 2, 70, "#999", 8, "center");
+    text(hiScores?.players ? `ALL TIME  ${hiScores.players} TROLL${hiScores.players === 1 ? "" : "S"}` : "ALL TIME", W / 2, 70, "#999", 8, "center");
     const rows = hiScores?.entries || [];
     if (!rows.length) {
       text(hiScores ? "NO SCORES YET" : "LOADING...", W / 2, 180, "#fff", 12, "center");
@@ -1390,7 +1397,8 @@
       text(String(e.score || 0), 210, y, c, 12, "right");
       text(hiName(e), 236, y, c, 12);
     });
-    if (hiScores?.resetsIn) text(`RESETS IN ${String(hiScores.resetsIn).toUpperCase()}`, W / 2, 362, "#777", 8, "center");
+    const you = hiScores?.you;
+    if (you && you.rank > rows.length) text(`YOU  ${ordinal(you.rank)}  ${you.score || 0}`, W / 2, 362, "#ffcc00", 8, "center");
     if (hiScores?.source === "live" && !hiScores.loggedIn) text("LOG IN TO GET ON THE BOARD", W / 2, 378, "#ffb8ae", 8, "center");
   }
 
@@ -1639,20 +1647,49 @@
       canvas.focus({ preventScroll: true });
     }
   }
-  // The panel's table: the HIGH SCORES page as markup (rank, score, name,
-  // level), each rank in its chaser colour, your row in gold.
+  // The panel: the top three on a podium (the trollface sprite on each step,
+  // 1st in the middle and tallest), 4th-10th below as cabinet rows with a
+  // trail of dots from name to score, then your own best and rank.
   function renderBoardPanel() {
     const root = document.getElementById("lb-root");
     if (!root) return;
     const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+    const num = n => Number(n || 0).toLocaleString("en-US");
     const b = hiScores;
-    const rows = (b?.entries || []).map((e, i) => `<li class="tm-hi-row${e.you ? " is-you" : ""}" style="--c:${rankColor(i)}">`
-      + `<span class="tm-hi-rank">${RANK_NAMES[i] || `${i + 1}TH`}</span><span class="tm-hi-score">${esc(e.score || 0)}</span>`
-      + `<span class="tm-hi-name">${esc(hiName(e))}${e.you && hiName(e) !== "YOU" ? " <i>YOU</i>" : ""}</span><span class="tm-hi-lv">L${esc(e.level || 0)}</span></li>`).join("");
-    root.innerHTML = !b ? `<p class="tm-hi-note">LOADING...</p>`
-      : `<p class="tm-hi-week">${esc(String(b.weekLabel || "This week").toUpperCase())} <span>RESETS IN ${esc(String(b.resetsIn || "").toUpperCase())}</span></p>`
-      + (rows ? `<ol class="tm-hi" aria-label="Top ten this week">${rows}</ol>` : `<p class="tm-hi-note">NO SCORES YET. BE THE FIRST TROLL.</p>`)
-      + `<p class="tm-hi-note">Best 1-player score this week. Resets every Monday.${b.source === "live" && !b.loggedIn ? " <strong>Log in</strong> to get on the board." : ""}</p>`;
+    if (!b) { root.innerHTML = `<p class="tm-hi-note">LOADING...</p>`; return; }
+    const entries = b.entries || [];
+    const youTag = e => (e.you && hiName(e) !== "YOU" ? ` <i>YOU</i>` : "");
+    const sprite = `<img class="tm-pod-face" src="${SPRITE_DIR}trollface-f1-32.png?v=tm-p2" alt="" width="32" height="32">`;
+    const podium = [0, 1, 2].map(i => {
+      const e = entries[i];
+      if (!e) return `<li class="tm-pod tm-pod-${i + 1} is-empty" aria-hidden="true"><span class="tm-pod-name">???</span><span class="tm-pod-step"><b>${RANK_NAMES[i]}</b></span></li>`;
+      return `<li class="tm-pod tm-pod-${i + 1}${e.you ? " is-you" : ""}">${sprite}`
+        + `<span class="tm-pod-name" title="${esc(hiName(e, 20))}">${esc(hiName(e, 20))}${youTag(e)}</span>`
+        + `<span class="tm-pod-score">${num(e.score)}</span>`
+        + `<span class="tm-pod-step"><b>${RANK_NAMES[i]}</b><small>LEVEL ${esc(e.level || 0)}</small></span></li>`;
+    }).join("");
+    const rest = entries.slice(3).map((e, j) => {
+      const i = j + 3;
+      return `<li class="tm-hi-row${e.you ? " is-you" : ""}" style="--c:${rankColor(i)}">`
+        + `<span class="tm-hi-rank">${RANK_NAMES[i] || ordinal(i + 1)}</span>`
+        + `<span class="tm-hi-name">${esc(hiName(e, 20))}${youTag(e)}</span><span class="tm-hi-dots" aria-hidden="true"></span>`
+        + `<span class="tm-hi-score">${num(e.score)}</span><span class="tm-hi-lv">L${esc(e.level || 0)}</span></li>`;
+    }).join("");
+    const me = b.you;
+    const login = b.source === "live" && !b.loggedIn && window.TrollrunnerAccounts?.openLogin;
+    const youBox = me
+      ? `<p class="tm-you"><span>YOUR BEST</span><strong>${num(me.score)}</strong><span>${ordinal(me.rank)} OF ${b.players}</span></p>`
+      : "";
+    const stats = b.players ? `${b.players} TROLL${b.players === 1 ? "" : "S"} · ${num(b.plays)} GAME${b.plays === 1 ? "" : "S"}` : "";
+    root.innerHTML = `<p class="tm-hi-meta"><span>ALL TIME</span><span>${stats}</span></p>`
+      + (entries.length
+        ? `<ol class="tm-podium" aria-label="Top three">${podium}</ol>`
+          + (rest ? `<ol class="tm-hi" start="4" aria-label="Fourth to tenth">${rest}</ol>` : "")
+        : `<p class="tm-hi-empty">NO SCORES YET.<br>BE THE FIRST TROLL.</p>`)
+      + youBox
+      + (login ? `<button type="button" class="tm-login">LOG IN TO GET ON THE BOARD</button>` : "")
+      + `<p class="tm-hi-note">Best 1-player score, all time. Never resets.</p>`;
+    root.querySelector(".tm-login")?.addEventListener("click", () => window.TrollrunnerAccounts.openLogin("login"));
   }
   if (board && boardBtn) {
     boardBtn.addEventListener("click", () => setBoard(!boardOpen()));

@@ -233,7 +233,7 @@ body {
 .tm-splash:focus-visible .tm-splash-cta { outline: 2px solid var(--gold); outline-offset: 6px; }
 @keyframes tm-blink { 50% { opacity: 0; } }
 
-/* ---- The weekly board -------------------------------------------------------------- */
+/* ---- The all-time board ------------------------------------------------------------ */
 .tm-board {
   position: fixed; inset: 0; z-index: 30;
   display: grid; place-items: center;
@@ -256,22 +256,82 @@ body {
   background: transparent; color: var(--ink); font-size: 22px; line-height: 1; cursor: pointer;
 }
 .tm-board-close:hover, .tm-board-close:focus-visible { border-color: rgba(33, 33, 222, 0.7); outline: none; }
-.tm-board .lb-root { background: rgba(0, 0, 0, 0.35); }
-/* the HIGH SCORES table (game.js renderBoardPanel): the attract page, in markup */
-.tm-hi-week { margin: 0 0 10px; font: 8px/1.6 var(--arcade); color: #999; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-.tm-hi-week span { color: #777; }
-.tm-hi { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.tm-hi-row { display: grid; grid-template-columns: 4.5em 7em 1fr 3.5em; gap: 10px; align-items: baseline; font: 11px/1.4 var(--arcade); color: var(--c); }
-.tm-hi-score { text-align: right; }
+.tm-board .lb-root { padding: 0; background: none; border: 0; border-radius: 0; overflow: visible; }
+/* the engine hides per-game boards on phones (inline ones crowd the game);
+   this one is a pop-up on demand, so it shows everywhere */
+.tm-board .tm-board-card:has(#lb-root) { display: flex; }
+.tm-board #lb-root { display: block; }
+.tm-board-head h2 { display: flex; align-items: center; gap: 10px; font-size: 15px; letter-spacing: 1px; text-shadow: 0 0 12px rgba(255, 204, 0, 0.45); }
+/* the HIGH SCORES panel (game.js renderBoardPanel): podium, rows, your best */
+.tm-hi-meta { margin: 0; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font: 8px/1.6 var(--arcade); color: #8a8aa8; }
+.tm-hi-meta span:first-child { color: var(--cyan); }
+
+.tm-podium {
+  list-style: none; margin: 14px 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(3, 1fr); align-items: end; gap: 8px;
+}
+.tm-pod { --c: #c9d1e0; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; text-align: center; }
+.tm-pod-1 { --c: var(--gold); order: 2; }
+.tm-pod-2 { --c: #c9d1e0; order: 1; }
+.tm-pod-3 { --c: #e08a4a; order: 3; }
+.tm-pod-face { width: 40px; height: 40px; image-rendering: pixelated; filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.25)); }
+.tm-pod-1 .tm-pod-face { width: 56px; height: 56px; animation: tm-pod-bob 1.2s steps(2) infinite; }
+@keyframes tm-pod-bob { 50% { transform: translateY(-3px); } }
+.tm-pod-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 9px/1.4 var(--arcade); color: var(--ink); }
+.tm-pod-name i { font-style: normal; font-size: 7px; color: #000; background: var(--gold); padding: 1px 3px; vertical-align: 1px; }
+.tm-pod-score { font: 12px/1 var(--arcade); color: var(--c); }
+.tm-pod-1 .tm-pod-score { font-size: 15px; text-shadow: 0 0 10px rgba(255, 204, 0, 0.5); }
+.tm-pod-step {
+  width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 6px;
+  padding-top: 10px; height: 54px;
+  border: 2px solid var(--c); border-bottom: 0; border-radius: 8px 8px 0 0;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 22%, transparent), rgba(0, 0, 0, 0) 90%);
+}
+.tm-pod-1 .tm-pod-step { height: 78px; }
+.tm-pod-3 .tm-pod-step { height: 40px; }
+.tm-pod-step b { font: 11px/1 var(--arcade); color: var(--c); font-weight: normal; }
+.tm-pod-step small { font: 7px/1 var(--arcade); color: #8a8aa8; }
+.tm-pod.is-empty { opacity: 0.35; }
+.tm-pod.is-empty .tm-pod-step { border-style: dashed; }
+.tm-pod.is-you .tm-pod-name { color: var(--gold); }
+.tm-podium { border-bottom: 2px solid var(--maze); }
+
+.tm-hi { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 4px; }
+.tm-hi-row {
+  display: grid; grid-template-columns: 4.2em minmax(0, auto) minmax(12px, 1fr) auto 2.6em; gap: 8px; align-items: center;
+  padding: 7px 8px; border-radius: 6px; font: 10px/1.4 var(--arcade); color: var(--c);
+}
+.tm-hi-row:nth-child(odd) { background: rgba(33, 33, 222, 0.12); }
 .tm-hi-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tm-hi-name i { font-style: normal; font-size: 8px; color: #000; background: var(--gold); padding: 1px 3px; vertical-align: 1px; }
-.tm-hi-lv { text-align: right; color: #777; font-size: 9px; }
-.tm-hi-row.is-you { color: var(--gold); animation: tm-hi-blink .6s steps(1) infinite; }
+.tm-hi-name i { font-style: normal; font-size: 7px; color: #000; background: var(--gold); padding: 1px 3px; vertical-align: 1px; }
+/* the maze's dots, leading the eye from name to score */
+.tm-hi-dots { height: 4px; background: radial-gradient(circle, #ffb8ae 1.5px, transparent 2px) 0 50% / 10px 4px repeat-x; opacity: 0.55; }
+.tm-hi-score { text-align: right; }
+.tm-hi-lv { text-align: right; color: #77779a; font-size: 8px; }
+.tm-hi-row.is-you { color: var(--gold); outline: 1px solid rgba(255, 204, 0, 0.5); animation: tm-hi-blink .6s steps(1) infinite; }
 @keyframes tm-hi-blink { 50% { color: #fff; } }
-@media (prefers-reduced-motion: reduce) { .tm-hi-row.is-you { animation: none; } }
-.tm-hi-note { margin: 12px 0 0; font: 8px/1.8 var(--arcade); color: #999; }
-.tm-hi-note strong { color: #ffb8ae; font-weight: normal; }
-@media (max-width: 420px) { .tm-hi-row { grid-template-columns: 3.6em 5.6em 1fr; font-size: 9px; } .tm-hi-lv { display: none; } }
+
+.tm-you {
+  margin: 14px 0 0; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  border: 2px solid var(--gold); border-radius: 10px; background: rgba(255, 204, 0, 0.08);
+  font: 8px/1.4 var(--arcade); color: #c8b46a;
+}
+.tm-you strong { font: 14px/1 var(--arcade); color: var(--gold); font-weight: normal; }
+.tm-login {
+  margin: 14px 0 0; width: 100%; padding: 12px; cursor: pointer;
+  border: 2px solid #ffb8ae; border-radius: 10px; background: rgba(255, 184, 174, 0.08);
+  font: 9px/1.4 var(--arcade); color: #ffb8ae;
+}
+.tm-login:hover, .tm-login:focus-visible { background: rgba(255, 184, 174, 0.18); outline: none; }
+.tm-hi-empty { margin: 28px 0 14px; text-align: center; font: 11px/2 var(--arcade); color: #fff; }
+.tm-hi-note { margin: 12px 0 0; font: 7px/1.8 var(--arcade); color: #77779a; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .tm-hi-row.is-you, .tm-pod-1 .tm-pod-face { animation: none; } }
+@media (max-width: 420px) {
+  .tm-hi-row { grid-template-columns: 4.2em minmax(0, auto) minmax(8px, 1fr) auto; font-size: 9px; }
+  .tm-hi-lv { display: none; }
+  .tm-pod-name { font-size: 8px; }
+  .tm-pod-score { font-size: 10px; } .tm-pod-1 .tm-pod-score { font-size: 12px; }
+}
 .tm-board .lb-table { min-width: 0; }
 
 @media (prefers-reduced-motion: reduce) {
