@@ -405,9 +405,10 @@ def surface_group(surface):
     ng = bpy.data.node_groups.new(name, "ShaderNodeTree")
     _sock(ng, "Color", "NodeSocketColor", default=(*hexlin(d["color"]), 1))
     _sock(ng, "Wear Color", "NodeSocketColor", default=(*hexlin(d["wear"]), 1))
-    for n in ("Roughness", "Metallic", "Wear Roughness", "Wear Metallic", "Wear", "Grain"):
+    for n in ("Roughness", "Metallic", "Wear Roughness", "Wear Metallic", "Wear", "Grain", "Patches"):
         _sock(ng, n, "NodeSocketFloat", default={"Roughness": d["rough"], "Metallic": d["metal"], "Wear Roughness": d["wear_rough"],
-                                                 "Wear Metallic": d["wear_metal"], "Wear": d["amount"], "Grain": d["grain"]}[n])
+                                                 "Wear Metallic": d["wear_metal"], "Wear": d["amount"], "Grain": d["grain"],
+                                                 "Patches": 0.0}[n])
     for n, k in (("Base Color", "NodeSocketColor"), ("ORM", "NodeSocketColor"), ("Roughness", "NodeSocketFloat"), ("Metallic", "NodeSocketFloat")):
         _sock(ng, n, k, io="OUTPUT")
     N, L = ng.nodes, ng.links
@@ -459,6 +460,15 @@ def surface_group(surface):
     # paint chips: the edge mask broken up by the fine noise, scaled by Wear
     chips = remap(math("MULTIPLY", edge, math("ADD", 0.35, math("MULTIPLY", fine.outputs["Fac"], 1.3))), 0.42, 0.62)
     wear = math("MULTIPLY", chips, gi.outputs["Wear"], clamp=True)
+    # Patches (0 = none): chips anywhere on a face, not only its edges (a
+    # hard-used paint job), from a mid-size noise thresholded into flecks
+    pn = N.new("ShaderNodeTexNoise")
+    pn.inputs["Scale"].default_value = 140.0
+    pn.inputs["Detail"].default_value = 12.0
+    pn.inputs["Roughness"].default_value = 0.65
+    L.new(tc.outputs["Object"], pn.inputs["Vector"])
+    patch = math("MULTIPLY", remap(pn.outputs["Fac"], 0.66, 0.69), gi.outputs["Patches"], clamp=True)
+    wear = math("MAXIMUM", wear, patch)
     # cavities: AO of the part itself (its neighbours are other bakes)
     ao = N.new("ShaderNodeAmbientOcclusion")
     ao.only_local = True
