@@ -40,7 +40,7 @@ for (const [gun, optic] of combos) {
   await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 60000 });
   if (process.env.TROLL) await page.evaluate(() => {
-    localStorage.setItem("trollops:reticle", "troll");
+    localStorage.setItem("trollops:reticle-v2", "troll");
     const A = window.TrollrunnerAccounts || (window.TrollrunnerAccounts = {});
     A.getCachedProfile = () => ({ username: "reticle-test", level: 12, xp: 9000 });
   });

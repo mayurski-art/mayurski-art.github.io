@@ -3,10 +3,10 @@
 //
 // Earned at level 10 (progression getRank, so it never relocks after a
 // prestige) and picked in the Locker (menu/menu-bo2.js, Reticle): from then
-// on every optic wears it, the reflex included, in every mode. Troll Royale's
-// sniper scopes wear it for everyone, whatever their level, unless they
-// picked Classic (the Reticle row, in the Locker and in Options: user,
-// 2026-10-29, "I don't see the option to switch to a regular reticle").
+// on every optic wears it, the reflex included, in every mode. Below the
+// level, picking it puts it on Troll Royale's sniper scopes only. Classic
+// (each optic's own) is the default for everyone (user, 2026-10-29: "by
+// default the regular reticles should be shown").
 //
 // The 3D optics carry it as hidden reticle variants (weapons/attachment-
 // models.js sightMark "troll-idle" / "troll-hit"); the 8x scope's overlay
@@ -16,7 +16,8 @@
 import { getRank } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1";
 import { game } from "../core/state.js?v=st1";
 
-const PREF_KEY = "trollops:reticle";
+// -v2: a fresh key, so everyone starts back on Classic once.
+const PREF_KEY = "trollops:reticle-v2";
 export const TROLL_RETICLE_LEVEL = 10;
 export const TROLL_RETICLE_URLS = {
   idle: new URL("../ui/reticles/troll-fist.png?v=hd1", import.meta.url).href,
@@ -26,8 +27,7 @@ export const TROLL_RETICLE_URLS = {
 export function trollReticleUnlocked() {
   try { return getRank() >= TROLL_RETICLE_LEVEL; } catch { return false; }
 }
-/* What the player picked: "troll", "classic" (the optic's own, Royale's
-   snipers too) or nothing yet (classic, but Royale's snipers wear it). */
+/* What the player picked: "troll", "classic" or nothing yet (classic). */
 function pref() {
   try { return localStorage.getItem(PREF_KEY); } catch { return null; }
 }
@@ -40,18 +40,18 @@ export function setTrollReticlePref(on) {
 /* The Reticle row: below the level it only decides Royale's snipers. */
 export function trollReticleLabel() {
   if (trollReticleUnlocked()) return trollReticlePref() ? "Trollface" : "Classic";
-  return pref() === "classic" ? "Classic" : "Royale snipers";
+  return trollReticlePref() ? "Royale snipers" : "Classic";
 }
 export function toggleTrollReticle() {
-  setTrollReticlePref(trollReticleUnlocked() ? !trollReticlePref() : pref() === "classic");
+  setTrollReticlePref(!trollReticlePref());
 }
 
 /* Does this gun's sight wear it right now? `w` the WeaponState, `optic`
    whether the gun has glass that can carry it (iron sights can't). */
 export function trollReticleOn(w, optic) {
-  if (!optic || pref() === "classic") return false;
+  if (!optic || !trollReticlePref()) return false;
   if (game.modeId === "royale" && w?.def?.cls === "sniper") return true;
-  return trollReticlePref() && trollReticleUnlocked();
+  return trollReticleUnlocked();
 }
 
 /* null (the optic's own reticle), "idle" (the fist) or "hit" (an enemy in

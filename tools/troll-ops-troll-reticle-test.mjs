@@ -52,8 +52,13 @@ const rules = await page.evaluate(async (tag) => {
   const R = await import(`/assets/games/troll-ops/view/troll-reticle.js?v=${tag}`);
   const T = window.__trollOps;
   const sniper = { def: { cls: "sniper" } }, ar = { def: { cls: "assault" } };
-  localStorage.setItem("trollops:reticle", "troll");
-  const out = { guestUnlocked: R.trollReticleUnlocked(), guestAr: R.trollReticleOn(ar, true) };
+  localStorage.removeItem("trollops:reticle-v2");
+  const m0 = T.modeId;
+  T.setMode("royale");
+  const defaultRoyaleSniper = R.trollReticleOn(sniper, true);
+  T.setMode(m0 || "tdm");
+  localStorage.setItem("trollops:reticle-v2", "troll");
+  const out = { defaultRoyaleSniper, guestUnlocked: R.trollReticleUnlocked(), guestAr: R.trollReticleOn(ar, true) };
   window.__toBo2.menu.go("locker");
   await new Promise((r) => setTimeout(r, 200));
   const rowText = () => [...document.querySelectorAll("button")].find((b) => b.offsetParent && b.textContent.trim().startsWith("Reticle"));
@@ -71,7 +76,7 @@ const rules = await page.evaluate(async (tag) => {
   window.__toBo2.menu.go("options");
   await new Promise((r) => setTimeout(r, 200));
   out.optionsRow = rowText()?.textContent.trim();
-  localStorage.setItem("trollops:reticle", "troll");
+  localStorage.setItem("trollops:reticle-v2", "troll");
   T.setMode(mode || "tdm");
   // level 12
   const A = window.TrollrunnerAccounts || (window.TrollrunnerAccounts = {});
@@ -81,11 +86,12 @@ const rules = await page.evaluate(async (tag) => {
   window.__toBo2.menu.go("cosmetics"); window.__toBo2.menu.go("locker");
   await new Promise((r) => setTimeout(r, 200));
   out.openRow = rowText()?.textContent.trim();
-  localStorage.removeItem("trollops:reticle");
+  localStorage.removeItem("trollops:reticle-v2");
   out.offAr = R.trollReticleOn(ar, true);
-  localStorage.setItem("trollops:reticle", "troll");
+  localStorage.setItem("trollops:reticle-v2", "troll");
   return out;
 }, tag);
+check("nothing picked: Classic everywhere, Royale snipers too", rules.defaultRoyaleSniper === false, JSON.stringify(rules));
 check("a guest (level 1) hasn't unlocked it, even picked", !rules.guestUnlocked && !rules.guestAr, JSON.stringify(rules));
 check("Locker, below the level: the Reticle row is open, on Royale snipers", /^Reticle.*Royale snipers/.test(rules.lockedRow || "") && !rules.lockedDisabled, rules.lockedRow);
 check("Troll Royale: a sniper's scope wears it at any level, an AR doesn't, irons never", rules.royaleSniper && !rules.royaleAr && !rules.royaleIron, JSON.stringify(rules));
@@ -141,7 +147,7 @@ await page.waitForFunction(() => {
   return on;
 }, null, { timeout: 5000 }).catch(() => {});
 const after = await shown();
-await page.evaluate(() => localStorage.removeItem("trollops:reticle"));
+await page.evaluate(() => localStorage.removeItem("trollops:reticle-v2"));
 await page.waitForFunction(() => {
   let on = false;
   window.__trollOps.activeWeaponMesh().traverse((o) => { if (o.userData.reticle === "classic" && o.visible) on = true; });
