@@ -114,10 +114,12 @@ root.innerHTML = `
   </section>
   <footer class="to-bo2-foot">
     <div>
-      <div class="to-bo2-online">1 Online</div>
+      <div class="to-bo2-onrow">
+        <div class="to-bo2-online">1 Online</div>
+        <button type="button" class="to-bo2-back"><kbd>Esc</kbd>Back</button>
+      </div>
       <span class="to-bo2-status"></span>
       <span class="to-bo2-dl" aria-live="polite"><i></i><b></b></span>
-      <button type="button" class="to-bo2-back"><kbd>Esc</kbd>Back</button>
     </div>
     <button type="button" class="tf-btn tf-btn--secondary to-bo2-quick" data-go="barracks">Barracks</button>
     <div class="to-bo2-optcol">
@@ -397,7 +399,7 @@ function selectRow(id, label, desc) {
     },
   };
 }
-/* The trollface reticle or the optic's own, in the Locker and in Options
+/* The trollface reticle or the optic's own, in the Locker and the class
    (view/troll-reticle.js). Below the level it's open too: it can put it on
    Troll Royale's sniper scopes, the only ones that wear it then. */
 function reticleRow() {
@@ -776,6 +778,7 @@ const screens = {
         }),
         [
           { id: "streaks", label: "Scorestreaks", value: streaks.length ? `${streaks.length}/3` : "", desc: streaks.join(" · ") || "Pick three. Kills, assists and objectives build the meter.", go: "streaks" },
+          reticleRow(),
           { id: "rename", label: "Rename", value: L.className, desc: "Up to 16 letters. Enter saves, Esc cancels.", onSelect: () => renameClass() },
         ],
         [back("Back to your classes.")],
@@ -896,7 +899,6 @@ const screens = {
       [
         checkRow("to-set-invert-lobby", "Invert look", "Flip up and down."),
         checkRow("to-set-minimap-lobby", "Minimap", "The radar in the corner."),
-        reticleRow(),
         checkRow("to-set-fps-lobby", "Show FPS", "Frame rate in the top corner."),
         selectRow("to-set-botskill", "Bot skill", "Veteran bots give +10% XP."),
         checkRow("to-set-viewmode-lobby", "View mode", "Just look at the maps, no fighting."),
@@ -916,30 +918,38 @@ const screens = {
   }),
   ...mapMode.screens,
 };
+/* Back is the footer's button beside the online count on every screen
+   (user, 2026-10-29), never a row at the foot of the list. */
+const noBackRow = (f) => f && ((...a) => {
+  const s = f(...a);
+  if (!s?.groups) return s;
+  return { ...s, groups: s.groups.map((g) => g.filter((it) => it?.id !== "back")).filter((g) => g.length) };
+});
 // Dynamic option sub-screens (att-0.., gear-0..) resolve from the live DOM.
 const optionScreens = new Proxy(screens, {
-  get(t, id) {
-    if (id in t) return t[id];
-    const a = /^att-(\d+)$/.exec(id), g = /^gear-(\d+)$/.exec(id), p = /^perk-([012])$/.exec(id);
-    if (p) return () => perkScreen(+p[1]);
-    if (a) {
-      const slotEl = $$("#to-lo-atts .to-lo-slot")[+a[1]];
-      if (slotEl) return () => optionScreen(text($(".to-lo-slot-label", slotEl)), $$(".to-lo-att, button", slotEl), {
-        descOf: (b) => text($("small", b)) || b.title,
-        valueFor: (b) => $$(".to-att-delta b", b).map(text).join(" "),
-      });
-    }
-    if (g) {
-      const row = $$("#to-lo-gear .to-lo-gearrow")[+g[1]];
-      if (row) return () => optionScreen(text($(".to-lo-slot-label", row)), $$(".to-lo-gear", row), {
-        valueFor: (b) => text($("span", b)), preview: true,
-        needOf: (b) => `Unlocks at level ${text($("span", b)).replace(/^LV\s*/i, "")}.`,
-      });
-    }
-    return undefined;
-  },
+  get(t, id) { return noBackRow(screenFor(t, id)); },
   has(t, id) { return id in t || /^(att|gear|perk)-\d+$/.test(id); },
 });
+function screenFor(t, id) {
+  if (id in t) return t[id];
+  const a = /^att-(\d+)$/.exec(id), g = /^gear-(\d+)$/.exec(id), p = /^perk-([012])$/.exec(id);
+  if (p) return () => perkScreen(+p[1]);
+  if (a) {
+    const slotEl = $$("#to-lo-atts .to-lo-slot")[+a[1]];
+    if (slotEl) return () => optionScreen(text($(".to-lo-slot-label", slotEl)), $$(".to-lo-att, button", slotEl), {
+      descOf: (b) => text($("small", b)) || b.title,
+      valueFor: (b) => $$(".to-att-delta b", b).map(text).join(" "),
+    });
+  }
+  if (g) {
+    const row = $$("#to-lo-gear .to-lo-gearrow")[+g[1]];
+    if (row) return () => optionScreen(text($(".to-lo-slot-label", row)), $$(".to-lo-gear", row), {
+      valueFor: (b) => text($("span", b)), preview: true,
+      needOf: (b) => `Unlocks at level ${text($("span", b)).replace(/^LV\s*/i, "")}.`,
+    });
+  }
+  return undefined;
+}
 
 /* U Mad Bro? teaser: while its mode row is hot (locked or not), the detail
    pane shows the hero banners, the two album-cover parodies taking turns.

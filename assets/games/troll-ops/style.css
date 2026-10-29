@@ -4168,7 +4168,8 @@ body.to-vote-sheet #to-title:not([hidden]) ~ .to-radio { visibility: hidden; }
 .to-bo2-dl.is-on { display: block; }
 .to-bo2-dl i { display: block; width: 220px; max-width: 60vw; height: 3px; margin-bottom: 6px; border-radius: 2px; background: linear-gradient(90deg, var(--bo2-hot) calc(var(--p, 0) * 100%), rgba(243,236,228,.18) 0); }
 .to-bo2-dl.is-done i { background: linear-gradient(90deg, var(--bo2-gold) calc(var(--p, 0) * 100%), rgba(243,236,228,.18) 0); }
-.to-bo2-back { display: none; align-items: center; gap: 8px; margin-top: 10px; padding: 0; border: 0; background: none; color: var(--bo2-soft); font: 15px "DM Sans", sans-serif; cursor: pointer; }
+.to-bo2-onrow { display: flex; align-items: center; gap: 18px; }   /* the online count, Back to its right */
+.to-bo2-back { display: none; align-items: center; gap: 8px; padding: 0; border: 0; background: none; color: var(--bo2-soft); font: 15px "DM Sans", sans-serif; cursor: pointer; }
 .to-bo2-back.is-on { display: flex; }
 /* Animations switch (menu-bo2.js), where the key hints used to be. */
 /* Cosmetics > Body search (menu-bo2.js bodySearch), over the list. */
@@ -4690,7 +4691,8 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
    for the old Barracks and Options pills */
 .to-bo2.is-fn .to-bo2-foot { left: var(--fn-pad); right: var(--fn-pad); bottom: calc(22px + var(--fn-safe-b)); align-items: flex-end; }
 .to-bo2.is-fn .to-bo2-online { display: inline-block; padding: 9px 16px; border: 1px solid var(--fn-line); border-radius: 10px; background: var(--fn-glass); font: 800 18px/1 var(--fn-ui); letter-spacing: .06em; text-transform: uppercase; text-shadow: none; }
-.to-bo2.is-fn .to-bo2-back { margin-top: 8px; min-height: 40px; padding: 0 14px; border: 1px solid var(--fn-line); border-radius: 10px; background: var(--fn-glass); color: #fff; font: 800 16px var(--fn-ui); letter-spacing: .06em; text-transform: uppercase; }
+.to-bo2.is-fn .to-bo2-onrow { gap: 10px; }
+.to-bo2.is-fn .to-bo2-back { min-height: 40px; padding: 0 14px; border: 1px solid var(--fn-line); border-radius: 10px; background: var(--fn-glass); color: #fff; font: 800 16px var(--fn-ui); letter-spacing: .06em; text-transform: uppercase; }
 .to-bo2.is-fn .to-bo2-status, .to-bo2.is-fn .to-bo2-dl { font: 700 13px var(--fn-ui); text-shadow: 0 1px 6px rgba(0,0,0,.8); }
 .to-bo2.is-fn .to-bo2-foot .to-bo2-quick[data-go] { display: none; }
 .to-bo2.is-fn .to-bo2-foot .to-bo2-quick, .to-bo2.is-fn .to-bo2-foot .to-char-emote { border-color: var(--fn-line); border-radius: 10px; background: var(--fn-glass); color: #fff; font: 800 15px var(--fn-ui); letter-spacing: .05em; text-transform: uppercase; }

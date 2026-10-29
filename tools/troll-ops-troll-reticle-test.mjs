@@ -75,7 +75,10 @@ const rules = await page.evaluate(async (tag) => {
   out.royaleClassic = R.trollReticleOn(sniper, true);
   window.__toBo2.menu.go("options");
   await new Promise((r) => setTimeout(r, 200));
-  out.optionsRow = rowText()?.textContent.trim();
+  out.optionsRow = rowText()?.textContent.trim() ?? null;
+  window.__toBo2.menu.go("classlist"); window.__toBo2.menu.go("class");
+  await new Promise((r) => setTimeout(r, 200));
+  out.classRow = rowText()?.textContent.trim();
   localStorage.setItem("trollops:reticle-v2", "troll");
   T.setMode(mode || "tdm");
   // level 12
@@ -96,7 +99,7 @@ check("a guest (level 1) hasn't unlocked it, even picked", !rules.guestUnlocked 
 check("Locker, below the level: the Reticle row is open, on Royale snipers", /^Reticle.*Royale snipers/.test(rules.lockedRow || "") && !rules.lockedDisabled, rules.lockedRow);
 check("Troll Royale: a sniper's scope wears it at any level, an AR doesn't, irons never", rules.royaleSniper && !rules.royaleAr && !rules.royaleIron, JSON.stringify(rules));
 check("below the level, Classic picked: Royale's snipers get their own scope back", /Classic/.test(rules.lockedClassicRow || "") && rules.royaleClassic === false, rules.lockedClassicRow);
-check("Options has the Reticle row too", /^Reticle/.test(rules.optionsRow || ""), rules.optionsRow);
+check("the Reticle row is in the class, not in Options (user, 2026-10-29)", /^Reticle/.test(rules.classRow || "") && rules.optionsRow == null, JSON.stringify({ classRow: rules.classRow, optionsRow: rules.optionsRow }));
 check("level 12: unlocked, and picked it's on every optic", rules.l12Unlocked && rules.l12Ar, JSON.stringify(rules));
 check("level 12: the Locker row is open and shows it picked", /Reticle/.test(rules.openRow || "") && /Trollface/.test(rules.openRow || ""), rules.openRow);
 check("Classic picked: off", rules.offAr === false);
