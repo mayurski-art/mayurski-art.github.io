@@ -274,9 +274,9 @@ const lod = await page.evaluate(async (WM) => {
   for (const o of meshes) tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
   return { lod: g.userData.lod, nodes: meshes.length, tris, parts: !!g.userData.gunParts, map: meshes[0]?.material?.map?.source?.data?.width ?? null };
 }, WM);
-// (no tri budget on the 416: the user, 2026-10-29; the LOD1 stays one node
-// and a quarter of the viewmodel's tris)
-check("everyone else gets the LOD1: one node, no moving parts, a quarter of the tris", lod.lod === 1 && lod.nodes <= 2 && !lod.parts && lod.tris < 30000, JSON.stringify(lod));
+// (first person has no tri budget; everyone else keeps the design's ~6k:
+// the user, 2026-10-29, "more emphasis in first person POV than third")
+check("everyone else gets the LOD1: one node, no moving parts, about 6k tris", lod.lod === 1 && lod.nodes <= 2 && !lod.parts && lod.tris < 8000, JSON.stringify(lod));
 await page.evaluate(() => window.__trollOps.toggleThirdPerson());
 await sleep(1500);
 await shot(page, "416-2-3p.png");

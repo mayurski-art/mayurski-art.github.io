@@ -69,6 +69,12 @@ BO2 tracks, a lighter third-person model.
 Green Candles (93k) and the Soul Blazer (77k) are over and get a pass in
 Phase 3.
 
+**First person over third (user, 2026-10-29):** the gun in your own hands
+carries the detail and has no hard budget (the Problem 416: 88k tris, 2048
+maps); what everyone else sees (third person, remote players, the killcam)
+stays light, the LOD1 column above. More in first person, less for others,
+is the rule, not a compromise.
+
 ## 3. Shared form language (from the four concepts)
 
 What makes the concepts read as one game:

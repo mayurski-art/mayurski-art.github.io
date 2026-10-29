@@ -492,7 +492,10 @@ VIEWS = {
 
 if BAKE:
     render = {"dir": os.environ.get("PF_RENDER_DIR", os.path.join(HERE, "_renders")), "views": VIEWS} if "render" in ARGS else None
-    bake_kit.bake_gun(recipe, "problem416", PFX, HERE, render=render, res=2048, margin_px=6)
+    # First person carries the detail (88k tris, 2048 maps); everyone else
+    # sees the LOD1 at the design's third-person budget (~6k tris, 256 px):
+    # the user, 2026-10-29, "more emphasis in first person POV than third"
+    bake_kit.bake_gun(recipe, "problem416", PFX, HERE, render=render, res=2048, margin_px=6, lod_ratio=0.07)
 else:
     gk.HI = "hi" in ARGS
     recipe()
