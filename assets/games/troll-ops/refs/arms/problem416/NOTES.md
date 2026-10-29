@@ -1,9 +1,9 @@
 # Problem 416: references (DESIGN-ARSENAL.md §4 step 0)
 
 The target look is the user's concept renders (2026-10-29), in this folder:
-`concept-1-left-34.jpg` (left 3/4), `concept-2-receiver-closeup.jpg` (the
+`concept-1-right-34-foregrip.jpg` (right 3/4, with a vertical foregrip), `concept-2-receiver-closeup.jpg` (the
 right side of the receiver: port, forward assist, controls, wear) and
-`concept-3-right-34.jpg` (right 3/4). Still wanted: a clean side-on HK416
+`concept-3-right-34.jpg` (right 3/4, OD grip). Still wanted: a clean side-on HK416
 photo (`side.jpg`, Wikimedia Commons) for proportions.
 
 Prompt they were made from: "Studio product render of a modern AR-style
