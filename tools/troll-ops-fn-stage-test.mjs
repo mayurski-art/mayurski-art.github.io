@@ -11,7 +11,9 @@
 //   4. Away from Play (Locker) the stage goes; Cosmetics has the operator
 //      without it; Play brings it back.
 //   5. Nothing on the stage overlaps the left column, the mode card or the
-//      party column (desktop and a landscape phone); no page errors.
+//      party column (desktop, a landscape phone and an upright one, where
+//      the stage sits between the level cards and the mode card:
+//      troll-ops-fn-portrait-test measures it); no page errors.
 // Screenshots: .claude/run/stage-*.png
 //
 //   NODE_PATH=<checkout>/node_modules node tools/troll-ops-fn-stage-test.mjs
@@ -158,7 +160,8 @@ await ctx.close();
 ({ ctx, page } = await open({ width: 390, height: 844 }));
 await page.evaluate(() => window.__toBo2.menu.backTo("main"));
 await sleep(800);
-check(!(await shown(page, ".to-stage > :not([hidden])")) && !(await shown(page, "#to-char-canvas")), "upright phone: no stage (the Play page is a stack of cards)");
+check(await shown(page, ".to-stage") === 1 && await shown(page, "#to-char-canvas") === 1, "upright phone: the stage shows");
+await noOverlap(page, "upright phone");
 await page.screenshot({ path: path.join(SHOTS, "stage-phone-up.png") });
 await ctx.close();
 
