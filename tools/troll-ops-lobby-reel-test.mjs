@@ -8,6 +8,8 @@
 //   3. Animations off holds the picture (nothing changes in 9 s), and on
 //      again it moves on.
 //   4. A hidden menu (a match on) pauses the clip.
+//   5. Halloween (?season=halloween; 1-4 run with ?season=off): every
+//      Halloween still is there, the reel opens on the first and plays no clip.
 //
 //   NODE_PATH=<checkout>/node_modules node tools/troll-ops-lobby-reel-test.mjs
 import http from "node:http"; import fs from "node:fs"; import path from "node:path";
@@ -59,7 +61,7 @@ await ctx.route(/supabase/, (r) => r.abort());
 const page = await ctx.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
-await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 120000 });
+await page.goto(`${BASE}/troll-ops.html?tohooks=1&season=off`, { waitUntil: "domcontentloaded", timeout: 120000 });
 await page.waitForFunction(() => !!window.__trollOps && !!window.__toBo2?.fn, null, { timeout: 180000 });
 const front = () => page.evaluate(() => {
   const e = document.querySelector(".to-fn-bg.is-on .to-fn-shot");
@@ -98,6 +100,19 @@ check((await front())?.src === held, "Animations off holds the picture");
 await page.evaluate(() => document.body.classList.remove("tf-anim-off"));
 await sleep(3500);
 check((await front())?.src !== held, "Animations on again moves on", (await front())?.src);
+
+// ---- 5
+const spooky = JSON.parse(src.match(/const HALLOWEEN = (\[[^\]]*\])/)[1]);
+const gone = spooky.flatMap((n) => [1280, 1920].map((w) => `lobby/halloween/${n}-${w}.webp`)).filter((f) => !fs.existsSync(path.join(UI, f)));
+check(spooky.length >= 5 && !gone.length, `every Halloween still is there (${spooky.length} x 2 sizes)`, gone.join(", "));
+await page.goto(`${BASE}/troll-ops.html?tohooks=1&season=halloween`, { waitUntil: "domcontentloaded", timeout: 120000 });
+await page.waitForFunction(() => !!window.__trollOps && !!window.__toBo2?.fn, null, { timeout: 180000 });
+await page.waitForSelector(".to-fn-bg.is-on .to-fn-shot", { timeout: 15000 }).catch(() => {});
+const h1 = await front();
+check(h1?.tag === "IMG" && h1.src.includes(`lobby/halloween/${spooky[0]}-`), "Halloween: opens on the first Halloween still", h1?.src);
+await sleep(9000);
+const h2 = await front();
+check(h2?.tag === "IMG" && /lobby\/halloween\//.test(h2.src) && h2.src !== h1?.src && !(await page.$(".to-fn-bg video")), "Halloween: the next Halloween still, no clip", h2?.src);
 
 check(!errors.length, "no page errors", errors.slice(0, 3).join(" | "));
 await browser.close();

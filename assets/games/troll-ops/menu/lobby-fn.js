@@ -91,7 +91,20 @@ const SHOT_MS = 7000, FADE_MS = 1400;
 const CLIP_V = "c3";   // bump when the clips are re-rendered (same filenames)
 const still = (id, n, w) => n ? `${UI}/lobby/${id}-${n}-${w}.webp` : `${UI}/maps/${id}-${w}.webp`;
 const clip = (name) => ({ clip: (w) => `${UI}/lobby/kabukigrin-${name}-${w}` });
+/* Halloween (user, 2026-10-29: the lobby "to be halloween vibes"): through
+   October and the first days of November the reel is the maps' Halloween
+   stills only (ui/lobby/halloween/, the user's own Halloween edits of the
+   reel's stills, each in its still's place), no clips. ?season=halloween or
+   ?season=off forces it either way (the tests). */
+const HALLOWEEN = ["culdegrin-1", "grinleria-1", "grinbeach-1", "dustbowl-1", "depot-1"];
+function halloween() {
+  const force = new URLSearchParams(location.search).get("season");
+  if (force) return force === "halloween";
+  const d = new Date();
+  return d.getMonth() === 9 || (d.getMonth() === 10 && d.getDate() <= 5);
+}
 function reelList() {
+  if (halloween()) return HALLOWEEN.map((n) => ({ src: (w) => `${UI}/lobby/halloween/${n}-${w}.webp` }));
   const out = [{ src: (w) => still("kabukigrin", 0, w) }, clip(REEL_CLIPS[0])];
   for (const n of [1, 2, 3]) {
     for (const id of REEL_MAPS) if (!(id === "kabukigrin" && n === 3)) out.push({ src: (w) => still(id, n, w) });
