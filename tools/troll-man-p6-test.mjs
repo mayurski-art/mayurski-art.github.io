@@ -1,4 +1,4 @@
-// Troll Man phase 6 test: the poster loading screen, the weekly board, OG tags, the hub card.
+// Troll Man phase 6 test: the poster loading screen, the all-time board, OG tags, the hub card.
 // Supabase is blocked, so nothing here touches the live leaderboard.
 //   node tools/troll-man-p6-test.mjs [--shots]
 import { spawn } from "node:child_process";
@@ -115,7 +115,7 @@ try {
     await ctx.close();
   }
 
-  // ---- the weekly board ----------------------------------------------------------------------
+  // ---- the all-time board ----------------------------------------------------------------------
   {
     const { page, ctx } = await open("?debug");
     await page.waitForFunction(() => window.TrollLeaderboard);
@@ -127,9 +127,9 @@ try {
     await page.click("#tm-board-btn");
     check(await shown(page, "#tm-board"), "the trophy opens the board");
     // the board in the game's own look (game.js renderBoardPanel), not the engine's table
-    await page.waitForFunction(() => document.querySelector("#lb-root .tm-hi-week"), null, { timeout: 8000 }).catch(() => {});
-    const panel = await page.evaluate(() => ({ week: !!document.querySelector("#lb-root .tm-hi-week"), table: !!document.querySelector("#lb-root table"), text: document.querySelector("#lb-root").textContent }));
-    check(panel.week && !panel.table && /RESETS IN/.test(panel.text), `it shows the Troll Man high scores (${panel.text.slice(0, 80)})`);
+    await page.waitForFunction(() => document.querySelector("#lb-root .tm-hi-meta"), null, { timeout: 8000 }).catch(() => {});
+    const panel = await page.evaluate(() => ({ meta: !!document.querySelector("#lb-root .tm-hi-meta"), table: !!document.querySelector("#lb-root table"), text: document.querySelector("#lb-root").textContent }));
+    check(panel.meta && !panel.table && /ALL TIME/.test(panel.text) && !/RESETS/.test(panel.text), `it shows the Troll Man high scores (${panel.text.slice(0, 80)})`);
     if (SHOTS) await page.screenshot({ path: path.join(OUT, "tm-p6-board.png") });
     await page.keyboard.press("Enter");                               // focus is on the close button
     check(!(await shown(page, "#tm-board")) && await tm(page, () => window.__tm.state) === "title", "Enter on the x closes it, without starting a game");
@@ -149,9 +149,9 @@ try {
     check(rec.r.length === 1 && rec.r[0][0] === "troll-man" && rec.r[0][1].score === rec.score && rec.r[0][1].level === 1, `1-player game over goes to the board (${JSON.stringify(rec.r)})`);
     // (the backend is blocked, so the engine falls back to this device's cache once the fetch fails)
     const rowsText = () => page.evaluate(() => [...document.querySelectorAll("#lb-root li")].map(t => t.textContent.replace(/\s+/g, " ").trim()).join(" | "));
-    await page.waitForFunction(s => document.querySelector("#lb-root").textContent.includes("YOU") && document.querySelector("#lb-root").textContent.includes(s), String(rec.score), { timeout: 10000 }).catch(() => {});
+    await page.waitForFunction(s => document.querySelector("#lb-root").textContent.includes("YOU") && document.querySelector("#lb-root").textContent.includes(s), rec.score.toLocaleString("en-US"), { timeout: 10000 }).catch(() => {});
     const you = await rowsText();
-    check(you.includes(String(rec.score)), `the score shows on this device's board (${you.slice(0, 120)})`);
+    check(you.includes(rec.score.toLocaleString("en-US")), `the score shows on this device's board (${you.slice(0, 120)})`);
     // back on the title, the attract loop's HIGH SCORES page carries it too
     await page.waitForFunction(() => window.__tm.state === "title" && window.__tm.stateTime >= 9, null, { timeout: 30000 }).catch(() => {});
     const hi = await tm(page, () => ({ st: window.__tm.state, t: window.__tm.stateTime, rows: (window.__tm.hiScores?.entries || []).map(e => [e.rank, e.score, !!e.you]) }));
@@ -159,6 +159,17 @@ try {
     if (SHOTS) await page.screenshot({ path: path.join(OUT, "tm-hi-attract.png") });
     await page.click("#tm-board-btn");
     if (SHOTS) await page.screenshot({ path: path.join(OUT, "tm-hi-panel.png") });
+    await ctx.close();
+  }
+  {
+    // all time: a score cached in an earlier week still counts (user, 2026-10-28: "dont reset the leaderboard")
+    const { page, ctx } = await open("?debug");
+    await page.waitForFunction(() => window.TrollLeaderboard);
+    await page.evaluate(() => localStorage.setItem("tk_lb_troll-man_v1", JSON.stringify({ weekId: "2026-W40", name: "YOU", score: 4321, level: 3, games: 2, _played: true })));
+    await page.click("#tm-board-btn");
+    await page.waitForFunction(() => document.querySelector("#lb-root .tm-pod-1"), null, { timeout: 10000 }).catch(() => {});
+    const old = await page.evaluate(() => ({ first: document.querySelector("#lb-root .tm-pod-1")?.textContent || "", you: document.querySelector("#lb-root .tm-you")?.textContent || "" }));
+    check(/4,321/.test(old.first) && /LEVEL 3/.test(old.first) && /1ST OF 1/.test(old.you), `an earlier week's best is still on the podium (${JSON.stringify(old)})`);
     await ctx.close();
   }
   {
