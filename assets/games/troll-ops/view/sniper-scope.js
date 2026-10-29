@@ -12,7 +12,7 @@
 // 4.5% of the screen's height like the optics' (attachment-models.js
 // TROLL_RETICLE_SCREEN): the lens is 98% of it, so 4.6% of the lens.
 
-import { TROLL_RETICLE_URLS } from "./troll-reticle.js?v=tr1-ret1-mrg1-hd1-mrc1";
+import { TROLL_RETICLE_URLS } from "./troll-reticle.js?v=tr1-ret1-mrg1-hd1-mrc1-tw1";
 
 const FADE_FROM = 0.78;              // adsT where the scope starts to cover
 const HIDE_GUN_AT = 0.9;             // overlay strength that hides the gun

@@ -11,7 +11,7 @@
 // shows it as a picture (view/sniper-scope.js). view/weapon-view.js decides
 // which, once a frame, from trollReticleSkin().
 
-import { getRank } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1";
+import { getRank } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1";
 import { game } from "../core/state.js?v=st1";
 
 const PREF_KEY = "trollops:reticle";

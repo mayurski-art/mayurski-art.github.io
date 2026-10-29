@@ -15,11 +15,11 @@
 // isn't you to play: on an account's card, and on the guest card
 // (openGuestCard) a guest's name opens, since guests have no profile.
 
-import { getLevel, getPrestige, isOwner, tfLevelForXp } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1";
+import { getLevel, getPrestige, isOwner, tfLevelForXp } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1";
 import { playerIconSvg, prestigeName } from "./rank-icons.js?v=rk1-or1";
 import { fetchRecord } from "./record.js?v=rec1-or1";
 import { zombiesAllTime } from "./leaderboard-rows.js?v=lr1-zh1-or1-nd2";
-import { cardById, fetchCard, getMyCard, cleanClan } from "./calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1";
+import { cardById, fetchCard, getMyCard, cleanClan } from "./calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1";
 
 const FALLBACK_EMBLEM = new URL("../../../images/wallpaper/trollface transparent.png", import.meta.url).href;
 
