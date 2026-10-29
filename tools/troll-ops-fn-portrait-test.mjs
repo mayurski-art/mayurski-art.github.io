@@ -10,7 +10,8 @@
 //      name) overlaps the top bar, the season and level cards, the mode
 //      card, PLAY, All modes or the bottom row, or leaves the safe area.
 //   3. With a party member: their name and operator fit the same way.
-//   4. Sideways and desktop: the view's box as before this change.
+//   4. Sideways and desktop: the view's box pinned (moved down 16 / 6 px
+//      by the Fortnite top band, -fnu2: the tabs hang under it).
 // Screenshots: .claude/run/portrait-*.png
 //
 //   NODE_PATH=<checkout>/node_modules node tools/troll-ops-fn-portrait-test.mjs
@@ -114,8 +115,8 @@ for (const c of [
 
 // ---- 4 (the boxes the sideways and desktop layouts had before)
 for (const c of [
-  { name: "sideways", w: 844, h: 390, insets: { top: 0, left: 47, right: 47, bottom: 21 }, want: [273, 88, 258, 227] },
-  { name: "desktop", w: 1280, h: 720, insets: null, want: [338, 92, 574, 550] },
+  { name: "sideways", w: 844, h: 390, insets: { top: 0, left: 47, right: 47, bottom: 21 }, want: [273, 94, 258, 221] },
+  { name: "desktop", w: 1280, h: 720, insets: null, want: [338, 108, 574, 534] },
 ]) {
   const { ctx, page } = await open(c);
   const v = (await boxes(page, "#to-char-view"))[0];
