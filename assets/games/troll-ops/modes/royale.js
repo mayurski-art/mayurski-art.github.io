@@ -24,7 +24,8 @@ import { playSfx, preloadSfx } from "../sound/sfx-files.js?v=dc4";
 import { royaleRecordReset, royaleRecordTick, stopRoyaleRecord } from "./royale-record.js?v=rrc1-rfx1-rr2-ret1-mrg1-hd1";
 import { useAnimStart, useAnimTick, useAnimFinish, useAnimCancel, useWire, poseUsePeer } from "./royale-use.js?v=ru1-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9";
 import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose } from "./royale-fall.js?v=dc3-dc4-rf1-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8";
-import { updateRoyaleFlip, flipCineOn, resetRoyaleFlip } from "./royale-flip.js?v=rf1-hgb9";
+import { updateRoyaleFlip, flipCineOn, resetRoyaleFlip, flipAt, matchingSpot } from "./royale-flip.js?v=rf1-hgb9";
+import { findOpenGround } from "./modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-tfb8-ug1-ugm1-hgb8-hgb9";
 
 // Phase 1 ("Mini Royale"): solo, one life, loot only, the Cringe closing in,
 // last troll standing. royale.js has the zone, the loot and their visuals;
@@ -60,7 +61,33 @@ export function setupRoyale(seed = royaleSeed()) {
   resetRoyalePace();
   royaleRecordReset();   // last match's clip goes (royale-record.js)
   preloadSfx();   // the drop's clips (sound/sfx-files.js), in well before the scene
-  const rng = seededRng(seed);
+  const map = game.builtMap.map;
+  const edge = royaleEdge();
+  const { zone, loot, chests } = royaleWorld(seed, seededRng(seed));
+  royale = {
+    seed, zone, loot, chests, players: map.royale?.players || ROYALE.players, visual: new ZoneVisual(game.scene),
+    t: 0, live: false, peak: 0, place: 0, over: false, endT: 0,
+    stageKey: "", zoneAcc: 0, act: null, spectate: null, outShown: false,
+    noises: [],   // recent gunfire { x, z, t }, for bots to third-party
+    drop: null, me: "ground", flight: null,
+    planeT: -DROP.lobbySeconds, plane: 0, seat: 0, autoRun: false,
+  };
+  royale.visual.update(zone.state(0), 0);
+  // Trollface Island opens aboard the C-130s (royale-drop.js, PLANES.md);
+  // so does a map with a royale.edge (Hollowgrin), on its own planes.
+  if (DROP.enabled && edge) {
+    tunePlanes(map.royale?.planes);
+    royale.drop = new RoyaleDrop({ scene: game.scene, colliders: game.colliders, edge, bounds: map.bounds }, seed);
+    royale.me = "aboard";
+    royale.fogBase = map.royale?.dropFog ? game.scene.fog.density : 0;
+  }
+  // what a map shows round its play area for Royale only (Hollowgrin's island)
+  royale.scenery = map.royale?.scenery?.(game.scene) || null;
+}
+
+/* The loaded map's zone, floor loot and chests for a match, off `rng`
+   (the match's, or the swap's: swapRoyaleSide). `carry`: RoyaleZone's. */
+function royaleWorld(seed, rng, carry = null) {
   const map = game.builtMap.map;
   const bounds = map.bounds;
   const edge = royaleEdge();
@@ -84,30 +111,12 @@ export function setupRoyale(seed = royaleSeed()) {
     for (const p of pois) { const t = POI_TIERS[p.tier]; if (t) s = Math.max(s, t.zone * Math.max(0, 1 - Math.hypot(x - p.x, z - p.z) / (p.r + 30))); }
     return s;
   } : null;
-  const zone = new RoyaleZone(bounds, rng, map.royale?.phases || ROYALE.phases, edge ? dry : null, nearPoi);
+  const zone = new RoyaleZone(bounds, rng, map.royale?.phases || ROYALE.phases, edge ? dry : null, nearPoi, carry);
   const loot = new LootField(game.scene);
   const spots = lootSpots(game.colliders, bounds, rng, { ok: spotOk, perSqM: map.royale?.lootPerSqM, pois });
   loot.spawnSeeded(spots.concat(map.royale?.lootExtra || []), rng, royaleGround);
   const chests = map.royale?.chests && pois ? matchChests(map, seed, spotOk) : null;
-  royale = {
-    seed, zone, loot, chests, visual: new ZoneVisual(game.scene),
-    t: 0, live: false, peak: 0, place: 0, over: false, endT: 0,
-    stageKey: "", zoneAcc: 0, act: null, spectate: null, outShown: false,
-    noises: [],   // recent gunfire { x, z, t }, for bots to third-party
-    drop: null, me: "ground", flight: null,
-    planeT: -DROP.lobbySeconds, plane: 0, seat: 0, autoRun: false,
-  };
-  royale.visual.update(zone.state(0), 0);
-  // Trollface Island opens aboard the C-130s (royale-drop.js, PLANES.md);
-  // so does a map with a royale.edge (Hollowgrin), on its own planes.
-  if (DROP.enabled && edge) {
-    tunePlanes(map.royale?.planes);
-    royale.drop = new RoyaleDrop({ scene: game.scene, colliders: game.colliders, edge, bounds }, seed);
-    royale.me = "aboard";
-    royale.fogBase = map.royale?.dropFog ? game.scene.fog.density : 0;
-  }
-  // what a map shows round its play area for Royale only (Hollowgrin's island)
-  royale.scenery = map.royale?.scenery?.(game.scene) || null;
+  return { zone, loot, chests };
 }
 
 /* The outline the drop keeps fallers inside and loot and circles on: the
@@ -693,6 +702,7 @@ export function applyRoyaleCatchUp() {
   const late = (performance.now() - c.at) / 1000;
   if (performance.now() - c.at > 30000) return;   // stale: from some older match
   if (c.sd && (c.sd >>> 0) !== royale.seed) setupRoyale(c.sd >>> 0);
+  if (c.fl?.to === game.loadedMapId) { royale.flipped = royale.swapped = true; sideWorld(c.fl); }   // after the island turned over (swapRoyaleSide)
   // Board again now the room is known (at the start we may not have heard
   // from everyone yet, and would have taken someone else's seat).
   const s = boardRoyale();
@@ -702,7 +712,11 @@ export function applyRoyaleCatchUp() {
   const r = royale, d = r.drop;
   d.runT = Math.min(+c.bt + late, ROYALE_BOX_GONE);
   r.planeT = d.runT;
-  if (c.lv) { r.live = true; r.t = (+c.rt || 0) + late; r.liveAt = Date.now() - r.t * 1000; }   // (the flip's clock: royale-flip.js)
+  if (c.gt != null) r.greenAt = Date.now() - (+c.gt + late) * 1000;   // the host's green, so the flip lands with theirs (royale-flip.js)
+  if (c.lv) {
+    r.live = true; r.t = (+c.rt || 0) + late;
+    r.liveAt = c.gt != null ? r.greenAt + (d.squadron.lastOut() + 1) * 1000 : Date.now() - r.t * 1000;
+  }
   const f = d.squadron.riddenFlight();
   if (f && d.runT < f.tOut - 2) r.me = "aboard";
   else royaleLateSpectate();
@@ -774,6 +788,99 @@ export function ordinal(n) {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
+/* How many trolls the match is for: the map it started on's (the island
+   turning over brings a smaller or bigger map, not new bots: game.js botTarget). */
+export function royalePlayers() { return royale?.players || game.builtMap?.map?.royale?.players || ROYALE.players; }
+
+/* Someone arrived after the sky lobby: the host tells them where the
+   Royale is, the island's turn included (game.js onHello). */
+export function royaleHello(p) {
+  if (!royale?.drop || game.gameState !== "playing" || game.isStaging() || game.isBotPeer(p) || !game.net.isBotHost()) return;
+  const d = royale.drop;
+  // last: seconds since the green on the wall clock (royale.t and runT sum capped frames, so lag it)
+  game.net.publishRoyaleCatchUp(p.id, royale.seed, d.phase === "run" ? d.runT : ROYALE_BOX_GONE, royale.t, royale.live, royale.carry,
+    royale.greenAt ? (Date.now() - royale.greenAt) / 1000 : null);
+}
+
+/* ---- Two Worlds: the island turns over (royale-flip.js) ------------------- */
+
+const SWAP_QUIET = 1500;   // ms after the swap: loot notes from the old side are dropped (its ids repeat on this one)
+
+/* Under the flip, the world itself turns over: the other side's map loads
+   in place of this one, the storm's third circle comes across (its centre
+   the same point of the island), the floor loot and chests are that
+   side's, fresh, and everyone standing is set down at the matching spot.
+   What you carry stays yours. Every tab does it at the same moment off the
+   shared clock (royale-flip.js), so nothing goes on the wire: the host
+   sets its bots down, everyone else sees them arrive. */
+export function swapRoyaleSide(to) {
+  const r = royale, from = game.loadedMapId;
+  if (!r || !to || to === from || !game.currentMode()?.sides?.includes(to)) return;
+  const s = r.zone.state(r.t), at = r.flipT ?? flipAt(r);
+  const me = game.player.alive ? [game.move.pos.x, game.move.pos.z] : null;
+  const bots = game.net.isBotHost() ? game.bots.bots.filter((b) => b.alive).map((b) => [b, b.pos.x, b.pos.z]) : [];
+  cancelRoyaleAct();
+  setPlayerGlider(false);
+  r.me = "ground";
+  r.flight = null;
+  r.fogBase = 0;
+  r.drop?.dispose();   // (kept, done: a joiner's catch-up still reads it)
+  r.scenery?.dispose();
+  r.scenery = null;
+  game.loadMap(to);
+  const map = game.builtMap.map;
+  const phases = map.royale?.phases || ROYALE.phases;
+  const [x, z] = matchingSpot(from, to, s.x, s.z);
+  // this side's third circle starts as the old side's second closed
+  r.carry = { to, i: 2, x: +x.toFixed(2), z: +z.toFixed(2), shift: phases.slice(0, 2).reduce((a, p) => a + p.wait + p.close, 0) - at };
+  sideWorld(r.carry);
+  r.scenery = map.royale?.scenery?.(game.scene) || null;
+  if (me) {
+    const p = setDownAt(from, to, me[0], me[1]);
+    game.move.reset(p.x, p.z, p.y);
+  }
+  for (const [b, bx, bz] of bots) setBotDown(b, setDownAt(from, to, bx, bz));
+  // the others' last places are on the old side: start their tracks again
+  for (const rp of game.remotes.byId.values()) if (rp.peer?.snaps) rp.peer.snaps.length = 0;
+}
+
+/* This side's zone, floor loot and chests, the carried circle in its zone
+   (a joiner after the flip makes the same, from the host's `carry`). */
+function sideWorld(carry) {
+  const r = royale;
+  r.loot.clear();
+  r.chests?.dispose();
+  game.audio.chestHumAt?.(-1, null);
+  Object.assign(r, royaleWorld(r.seed, seededRng(hashSeed(`${r.seed}:${carry.to}`)), carry));
+  r.carry = carry;
+  r.swappedAt = performance.now();
+}
+
+/* Where someone at (x, z) on `from` stands on `to`: the matching spot, on
+   open ground. */
+function setDownAt(from, to, x, z) {
+  const [mx, mz] = matchingSpot(from, to, x, z);
+  const o = findOpenGround(game.colliders, game.builtMap.map.bounds, mx, mz, 0.6);
+  return { x: o.x, z: o.z, y: royaleGround(o.x, o.z) };
+}
+
+/* A living bot moved: its place and everything it was finding its way to (Bot.respawn's, less the refills). */
+function setBotDown(b, p) {
+  b.pos.set(p.x, p.y, p.z);
+  b.groundY = p.y;
+  b.vel.set(0, 0, 0);
+  b.rest = b.climb = b.roam = b.perch = b.stairPlan = b.noRoute = b.navY = b.navLevel = null;
+  b.prevTargetPos = b.lastTargetId = null;
+  b.stuckTotal = 0;
+  b.acquireT = 0;
+  b.resetMoves();
+  b.drop = null;
+  b.airborne = false;
+  b.act = null;
+  b.lootId = b.chestId = null;
+  b.lootRetry = b.chestRetry = 0;
+}
+
 export function updateRoyale(dt) {
   const r = royale;
   if (!r) return;
@@ -782,7 +889,10 @@ export function updateRoyale(dt) {
   updateRoyaleDropWorld(dt);
   updateDropFog();
   if (r.live && !r.over) r.t += dt;
-  updateRoyaleFlip(r, dt);   // Two Worlds: the intro and the flip (royale-flip.js)
+  const turnTo = updateRoyaleFlip(r, dt);   // Two Worlds: the intro and the flip (royale-flip.js)
+  if (turnTo) swapRoyaleSide(turnTo);
+  // the other side's files, into the cache well before the island turns over
+  if (r.live && !r.warmed && game.currentMode()?.sides) { r.warmed = true; game.mapPreload?.warm(game.currentMode().sides.find((id) => id !== game.loadedMapId)); }
   updateBoat(r.t, r.loot);   // Trollface Island's Boat round the lake, and whoever is aboard (royale-boat.js)
   const s = r.zone.state(r.t);
   r.visual.update(s, r.t);
@@ -1345,6 +1455,7 @@ export function royaleBotDamage(b, dmg) {
 /* Someone else's pickup or drop. */
 export function onRoyaleLoot(p, m) {
   if (!royale) return;
+  if (royale.swappedAt && performance.now() - royale.swappedAt < SWAP_QUIET) return;   // the old side's (swapRoyaleSide)
   if (m.k === "take") royale.loot.take(String(m.i));
   else if (m.k === "add" && m.item && typeof m.item.id === "string") royale.loot.add(m.item);
   else if (m.k === "chest" && Number.isInteger(m.c)) royaleOpenChest(m.c, false);

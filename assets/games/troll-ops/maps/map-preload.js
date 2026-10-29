@@ -220,8 +220,27 @@ export function createMapPreloader({ renderer, scene, camera, buildMap, maps, id
   if (document.readyState === "complete") startDownloads();
   else addEventListener("load", startDownloads, { once: true });
 
+  const warmed = new Map();   // map id -> its warm() promise
   const api = {
     downloaded: false,   // every map's files fetched (tests)
+    /* Fetch one map's files into the cache, low priority, in a match too
+       (Troll Royale's other side, before the island turns over: royale.js).
+       Builds nothing. Resolves once they're in. */
+    warm(id) {
+      if (!warmed.has(id)) warmed.set(id, (async () => {
+        let manifest;
+        try { manifest = await (await fetch(MANIFEST_URL, { priority: "low" })).json(); } catch { return; }
+        const queued = [...(manifest[id] || [])];
+        const worker = async () => {
+          while (queued.length) {
+            const url = new URL(queued.shift(), SITE);
+            try { await (await fetch(url, { priority: "low", credentials: "same-origin" })).arrayBuffer(); } catch { /* fetched again on the swap */ }
+          }
+        };
+        await Promise.all(Array.from({ length: DOWNLOADS }, worker));
+      })());
+      return warmed.get(id);
+    },
     /* Queue a map; resolves when it is ready. Re-queuing a ready map is free. */
     preload(id) {
       try { localStorage.setItem(LAST_KEY, id); } catch { /* private mode */ }

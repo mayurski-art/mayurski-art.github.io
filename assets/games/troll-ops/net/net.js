@@ -809,8 +809,8 @@ export class Net {
   /* Troll Royale, to one newcomer: where the match already is (a "stage"
      at 0 carrying the seed, the belt clock and the match clock), so they
      don't sit out a sky lobby of their own while everyone else plays. */
-  publishRoyaleCatchUp(to, seed, beltT, matchT, live) {
-    this.send({ t: "stage", id: this.id, to, left: 0, sd: seed, bt: round2(beltT), rt: round2(matchT), lv: live ? 1 : 0 });
+  publishRoyaleCatchUp(to, seed, beltT, matchT, live, flip = null, greenT = null) {
+    this.send({ t: "stage", id: this.id, to, left: 0, sd: seed, bt: round2(beltT), rt: round2(matchT), lv: live ? 1 : 0, fl: flip || undefined, gt: greenT == null ? undefined : round2(greenT) });
   }
 
   /* To one newcomer: the map and mode the room is playing (a "stage" at 0,

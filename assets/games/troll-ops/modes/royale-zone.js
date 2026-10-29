@@ -108,8 +108,13 @@ export class RoyaleZone {
   /* `prefer(x, z)`: a score; the last circles (a fifth of the map or less)
      take the best of six good spots, so the endgame is somewhere with cover
      (Trollface Island: its points of interest), not open meadow. */
-  constructor(bounds, rng, phases = ROYALE.phases, onLand = null, prefer = null) {
+  /* `carry` { i, x, z, shift } (Two Worlds: the island turned over mid-
+     match, royale.js swapRoyaleSide): circle i is centred on x, z, the old
+     side's circle brought across, and the zone's clock runs `shift` s
+     ahead or behind the match's, so this side's phase i + 1 starts then. */
+  constructor(bounds, rng, phases = ROYALE.phases, onLand = null, prefer = null, carry = null) {
     this.phases = phases;
+    this.shift = carry?.shift || 0;
     const cx = (bounds.minX + bounds.maxX) / 2, cz = (bounds.minZ + bounds.maxZ) / 2;
     const r0 = Math.hypot(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ) / 2 + 2;
     // Circles shrink against the map's own size, not the corner-to-corner
@@ -134,6 +139,10 @@ export class RoyaleZone {
         if (sc > bestS) { bestS = sc; bx = x; bz = z; }
       }
       if (found) { x = bx; z = bz; }
+      if (carry && this.circles.length === carry.i) {
+        x = THREE.MathUtils.clamp(carry.x, bounds.minX + r * 0.5, bounds.maxX - r * 0.5);
+        z = THREE.MathUtils.clamp(carry.z, bounds.minZ + r * 0.5, bounds.maxZ - r * 0.5);
+      }
       this.circles.push({ x, z, r });
     }
     this.length = phases.reduce((s, p) => s + p.wait + p.close, 0);
@@ -141,6 +150,7 @@ export class RoyaleZone {
 
   /* `t`: seconds since the match went live. */
   state(t) {
+    t += this.shift;
     let t0 = 0;
     for (let i = 0; i < this.phases.length; i++) {
       const ph = this.phases[i], a = this.circles[i], b = this.circles[i + 1];

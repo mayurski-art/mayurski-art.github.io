@@ -1,23 +1,21 @@
 // Troll Royale: Two Worlds, phase 3 — the flip cinematic (doc "Troll
 // Royale: Two Worlds", https://claude.ai/artifact/H3TtEw5CjmuMpWTBfjPyez).
-// A small model of the whole island, both faces, rolls over 180 degrees in
-// an orbit shot, your marker on it, so you see where you'll come down.
-//
-// It plays twice in a match on both sides (MODES.royale.sides):
-//   the intro   at the start of the plane's lobby, the island turning from
-//               the other face to the one this match is on
-//   the flip    once the second storm circle has closed (8:00 on Trollface
-//               Island), from this face to the other
-// Both run off clocks every client already shares (the drop clock
-// royale.planeT; for the flip, the wall clock since the match went live,
+// A small model of the whole island, both faces, turns over 180 degrees like
+// a page in a book, the camera still and facing it, your marker on it, so
+// you see where you'll come down. Once a match (MODES.royale.sides), when
+// the second storm circle has closed (8:00 on Trollface Island), from this
+// face to the other. It runs off a clock every client already shares (the
+// wall clock since the match went live,
 // which every tab hits together off the owner's countdown: royale.t adds up
 // frame time, so a slow tab's falls behind), so every tab rolls together and
-// nothing goes on the wire. Phase 3 is the cinematic alone: you come back
-// to the world you left; the swap under it is phase 4.
+// nothing goes on the wire. Under the flip, at SWAP_AT (the camera is on the
+// model), the world itself turns over: royale.js swapRoyaleSide loads the
+// other side's map and sets everyone down at the matching spot (phase 4).
+// That happens on every tab, the dead and the late included, cinematic or not.
 //
 //   0    .. 0.5   fade to black      5.4 .. 7.6  hold on the new face
 //   0.5  .. 1.0   fade in on it       7.6 .. 8.1  fade to black
-//   1.0  .. 1.8   hold, orbiting      8.1         back to you
+//   1.0  .. 1.8   hold                8.1         back to you
 //   1.8  .. 5.4   the roll            8.1 .. 8.8  fade in
 //
 // The faces are the real islands shot straight down from the game
@@ -42,14 +40,24 @@ export const FLIP = {
   scale: 1 / 8,              // the model to the island
   thick: 46,                 // the island's rock between its faces (m, full size)
   stage: new THREE.Vector3(0, 2400, 0),   // where the model hangs, far over the map
-  orbit: { dist: 54, height: 24, spin: 0.12 },
+  orbit: { dist: 34, height: 15, spin: 0 },   // close, the model most of the screen (user, 2026-10-28: "closer to the users screens")
+  swapAt: 0.6,               // the world swaps under the model (s into the flip)
 };
 
-const cine = { kind: null, t: 0, from: null, to: null, yaw0: 0, banner: false, introDone: false };
+const cine = { kind: null, t: 0, from: null, to: null, yaw0: 0, banner: false };
 let model = null;   // { root, turn, slabs: { side: Group }, markers: { side: Mesh }, island }
 let loading = null;
+let island = null, islandLoad = null;   // models/hollowgrin-island.json (the coast, the play box, the offset)
+
+/* The island's shapes, fetched once (the model and the swap both use them). */
+function loadIsland() {
+  islandLoad ||= fetch(ISLAND_URL).then((r) => r.json()).then((j) => { island = j; SIDE_OFFSET.hollowgrin = j.offset; return j; })
+    .catch(() => { islandLoad = null; return null; });
+  return islandLoad;
+}
 let veil = null;
 
+const _axis = new THREE.Vector3();
 const smooth = (a, b, x) => { const k = Math.min(1, Math.max(0, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
 
 /* On while either cinematic has the camera (input is held: royale.js stageFrozen). */
@@ -73,31 +81,36 @@ export function flipAt(r) {
 function sides() { return game.currentMode()?.sides || null; }
 function otherSide(side) { return sides()?.find((s) => s !== side) || side; }
 
-/* Each frame, from updateRoyale. */
+/* Each frame, from updateRoyale. Returns the side to swap the world to, the
+   one frame it's time (royale.js swapRoyaleSide), else null. */
 export function updateRoyaleFlip(r, dt) {
   const both = sides();
-  if (!both || !r || (TEST_PAGE && !Number.isFinite(window.__flipAt))) { endCine(); return; }
+  if (!both || !r || (TEST_PAGE && !Number.isFinite(window.__flipAt))) { endCine(); return null; }
   const here = game.loadedMapId;
-  // the intro: from when this tab first sees the plane's lobby (a joiner
-  // with under 50 s of it left skips it: the drop's own scene comes at -42)
-  if (r.drop && !cine.introDone && game.isStaging() && r.planeT != null) {
-    if (r.planeT0 == null) r.planeT0 = r.planeT < -50 ? r.planeT : -Infinity;
-    const t = r.planeT - r.planeT0;
-    if (!cine.kind && t >= 0 && t < 1) startCine("intro", otherSide(here), here, t);
-    if (cine.kind === "intro") cine.t = t;
-  }
   // the flip: the match's time passes the second circle
-  const at = flipAt(r), now = r.liveAt ? (Date.now() - r.liveAt) / 1000 : r.t;
+  if (r.live && !r.flipped) loadIsland();
+  const at = r.flipT ?? flipAt(r), now = r.liveAt ? (Date.now() - r.liveAt) / 1000 : r.t;   // (held once it fires: the swap brings the other side's phases)
   if (r.live && !r.over && !r.flipped && now >= at) {
     r.flipped = true;
+    r.flipT = at;
     if (game.player.alive && now - at < 1) startCine("flip", here, otherSide(here), now - at);
   }
   if (cine.kind === "flip") cine.t = now - at;
   if (cine.kind) {
     tick();
-    if (cine.t >= FLIP.len) { if (cine.kind === "intro") cine.introDone = true; endCine(); }
+    if (cine.t >= FLIP.len) endCine();
   }
   void dt;
+  if (!r.flipped || r.swapped || now < at + FLIP.swapAt || (!island && islandLoad)) return null;
+  r.swapped = true;
+  return otherSide(here);
+}
+
+/* Where (x, z) on side `from` comes down on side `to`, in that side's map
+   metres: the same point of the island, kept inside Hollowgrin's walls. */
+export function matchingSpot(from, to, x, z) {
+  const [ix, iz] = landingSpot(from, to, x, z), o = SIDE_OFFSET[to] || [0, 0];
+  return [ix + o[0], iz + o[1]];
 }
 
 function startCine(kind, from, to, t) {
@@ -105,7 +118,7 @@ function startCine(kind, from, to, t) {
   cine.from = from;
   cine.to = to;
   cine.t = t;
-  cine.yaw0 = game.look.yaw + Math.PI * 0.85;
+  cine.yaw0 = 0;   // from the south, north up: the faces read like the minimap
   cine.banner = false;
   ensureModel();
   hideOwnView(true);
@@ -127,11 +140,8 @@ export function endCine() {
   hideOwnView(false);
 }
 
-/* A match over: the next one plays its intro again. */
-export function resetRoyaleFlip() {
-  endCine();
-  cine.introDone = false;
-}
+/* A match over. */
+export function resetRoyaleFlip() { endCine(); }
 
 function tick() {
   // the veil: black between the world and the model
@@ -140,17 +150,21 @@ function tick() {
   showVeil(dark);
   if (!cine.banner && cine.t >= FLIP.roll[0]) {
     cine.banner = true;
-    const names = { trollface: "Trollface Island", hollowgrin: "the underside: Hollowgrin" };
-    game.showWaveBanner(cine.kind === "intro" ? `Tonight: ${names[cine.to] || cine.to}` : "The island turns over", 2600);
+    game.showWaveBanner("The island turns over", 2600);
   }
   if (!model?.island) return;
   model.root.visible = flipCineOn();
+  // one turn, like a page in a book (user, 2026-10-28: "just one forward
+  // facing horizontal flip", "like as if you are flipping a page in a
+  // book"): the camera holds still, facing it, and it turns over side to
+  // side round the axis running away from the camera, the spine's
   const a = Math.PI * smooth(FLIP.roll[0], FLIP.roll[1], cine.t);
-  model.turn.rotation.x = a;
+  _axis.set(Math.sin(cine.yaw0), 0, Math.cos(cine.yaw0));
+  model.turn.quaternion.setFromAxisAngle(_axis, a);
   const second = a > Math.PI / 2;
   for (const [side, slab] of Object.entries(model.slabs)) {
     slab.visible = side === (second ? cine.to : cine.from);
-    slab.rotation.x = second ? -Math.PI : 0;
+    slab.quaternion.setFromAxisAngle(_axis, second ? -Math.PI : 0);   // (the far face, the right way up once over)
   }
   // your marker: where you are now on the face you leave, where you'll come
   // down on the one you go to (into Hollowgrin's walls, if that's it)
@@ -167,7 +181,7 @@ function toIsland(side, x, z) { const o = SIDE_OFFSET[side] || [0, 0]; return [x
    island, kept inside the play area there (Hollowgrin is walled). */
 function landingSpot(from, to, x, z) {
   let [ix, iz] = toIsland(from, x, z);
-  const play = model.island.play;
+  const play = island?.play;
   if (to === "hollowgrin" && play) {
     const o = SIDE_OFFSET.hollowgrin;
     ix = Math.min(play[1] - 3, Math.max(play[0] + 3, ix + o[0])) - o[0];
@@ -197,8 +211,7 @@ function showVeil(k) {
 /* The model: built once, the first time a cinematic needs it. */
 function ensureModel() {
   if (model || loading) return;
-  loading = Promise.all([fetch(ISLAND_URL).then((r) => r.json()), fetch(FACE_BOX_URL).then((r) => r.json())]).then(([island, box]) => {
-    SIDE_OFFSET.hollowgrin = island.offset;
+  loading = Promise.all([loadIsland(), fetch(FACE_BOX_URL).then((r) => r.json())]).then(([island, box]) => {
     const root = new THREE.Group();
     root.name = "royale-flip";
     root.position.copy(FLIP.stage);

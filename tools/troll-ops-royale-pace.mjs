@@ -6,6 +6,8 @@
 // (nnMed: median metres to the nearest bot; nn10: bots within 10 m of one).
 //
 // Usage: node tools/troll-ops-royale-pace.mjs [match seconds, default 300]
+// FLIP=<match seconds>: Two Worlds' flip then (royale-flip.js; 480 is the
+// real one on Trollface Island), so the curve shows the match after the swap.
 
 import http from "node:http";
 import fs from "node:fs";
@@ -18,6 +20,7 @@ const { chromium } = require("playwright");
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const UNTIL = Number(process.argv[2] || 300);
+const FLIP = Number(process.env.FLIP || NaN);
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css",
   ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp",
   ".glb": "model/gltf-binary", ".mp3": "audio/mpeg", ".svg": "image/svg+xml", ".gif": "image/gif" };
@@ -35,6 +38,7 @@ const page = await browser.newPage({ viewport: { width: 640, height: 360 } });
 await page.route(/supabase/, (r) => r.abort());
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
+if (Number.isFinite(FLIP)) await page.addInitScript((f) => { window.__flipAt = f; }, FLIP);
 await page.goto(`http://localhost:${server.address().port}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 120000 });
 await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 90000 });
 await page.evaluate(async () => { const T = window.__trollOps; T.setMode("royale"); await T.startGame(); });
@@ -77,9 +81,9 @@ for (let i = 0; i < 4000; i++) {
     const ex = { nnMed: Math.round(nn[nn.length >> 1]), nn10: nn.filter((d) => d < 10).length, seeing, hurt, armed, spared, low };
     const P = window.__pace, ttk = (P.ttk || []).map((x) => x[0]).sort((a, b) => a - b), hn = (P.ttk || []).map((x) => x[1]).sort((a, b) => a - b);
     const fights = Object.values(P.first || {}).filter((f) => performance.now() / 1000 - f.last < 8).length;
-    return { t: Math.round(r.t), live: r.live, alive, causes: P.causes, me: r.me, hits: P.hits | 0, fights, ttkMed: ttk[ttk.length >> 1], hitsMed: hn[hn.length >> 1], phase: r.zone?.state?.(r.t)?.phase, ex };
+    return { t: Math.round(r.t), live: r.live, alive, causes: P.causes, me: r.me, hits: P.hits | 0, fights, ttkMed: ttk[ttk.length >> 1], hitsMed: hn[hn.length >> 1], phase: r.zone?.state?.(r.t)?.phase, map: T.loadedMapId(), ex };
   });
-  if (s && s.live && s.t >= lastT + (s.t < 60 ? 5 : 15)) { lastT = s.t; console.log(`t=${String(s.t).padStart(4)}s  bots alive ${String(s.alive).padStart(3)}  kills ${JSON.stringify(s.causes)}  hits ${s.hits}  under fire now ${s.fights}  ttk med ${s.ttkMed}s/${s.hitsMed} hits  phase ${s.phase}  ${JSON.stringify(s.ex)}`); }
+  if (s && s.live && s.t >= lastT + (s.t < 60 ? 5 : 15)) { lastT = s.t; console.log(`t=${String(s.t).padStart(4)}s  bots alive ${String(s.alive).padStart(3)}  kills ${JSON.stringify(s.causes)}  hits ${s.hits}  under fire now ${s.fights}  ttk med ${s.ttkMed}s/${s.hitsMed} hits  phase ${s.phase}  ${s.map}  ${JSON.stringify(s.ex)}`); }
   if (s && s.t >= UNTIL) break;
   if (s && s.live && s.t >= 30 && !printedLog) {
     printedLog = true;
