@@ -4741,7 +4741,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-fn-left { gap: 0; }
 .to-fn-season { display: flex; align-items: baseline; gap: 10px; padding: 8px 14px 7px; text-align: left; border: 0; background: #0c1331; box-shadow: none; }
 .to-fn-season span { font: 400 30px/1 var(--fn-display); letter-spacing: .01em; }
-.to-fn-season b { font: 700 13px var(--fn-ui); letter-spacing: .14em; color: #9fb2e4; }
+.to-fn-season b { font: 800 14px var(--fn-ui); letter-spacing: .12em; color: var(--fn-cyan); }
 .to-fn-pair { grid-template-columns: minmax(0, 1fr); gap: 0; }
 .to-fn-pair > * { border: 0; box-shadow: none; }
 .to-fn-rank { --p: 0; display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 14px; padding: 12px 14px 14px; background: rgba(20,28,60,.92); }
