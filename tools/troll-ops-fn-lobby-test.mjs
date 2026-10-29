@@ -38,7 +38,8 @@ async function open(viewport) {
   await ctx.route(/supabase/, (r) => r.abort());
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 120000 });
+  // (season=off: the year-round reel, which opens on Kabukigrin)
+  await page.goto(`${BASE}/troll-ops.html?tohooks=1&season=off`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.waitForFunction(() => !!window.__trollOps && !!window.__toBo2?.fn, null, { timeout: 180000 });
   await sleep(500);
   return { ctx, page };

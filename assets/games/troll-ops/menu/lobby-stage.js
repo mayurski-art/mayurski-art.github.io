@@ -4,23 +4,14 @@
 // realistic ... similar to fortnite", with the Season 1 and Season 6 lobbies
 // as the look): each of you stands on a round stone plinth, its top an inset
 // that glows (yours purple, the party's teal) with a faint column of light
-// rising off it; and through Halloween a few jack-o'-lanterns and candles
-// stand in front of the plinths, the candles flickering. All of it built
-// here from three.js shapes and canvas textures, no files.
+// rising off it. Built here from three.js shapes and canvas textures, no
+// files. (No pumpkins or candles on the stage: the user, 2026-10-29, "the
+// background image takes care of the overall halloween theme".)
 //
 // Plinths sit under the feet (their tops at y 0, the rig's floor), so the
 // operators and the names over them don't move.
 
 import * as THREE from "three";
-
-/* Halloween: through October and to 5 November, as the backdrop reel
-   (lobby-fn.js); ?season=halloween / ?season=off force it. */
-export function halloween() {
-  const force = new URLSearchParams(location.search).get("season");
-  if (force) return force === "halloween";
-  const d = new Date();
-  return d.getMonth() === 9 || (d.getMonth() === 10 && d.getDate() <= 5);
-}
 
 const canvasTex = (w, h, draw, srgb = true) => {
   const c = document.createElement("canvas");
@@ -144,138 +135,4 @@ export function buildPlinth(r, color) {
   group.add(drum, lip, inset, shine, column);
   group.userData = { shine, column, inset };
   return group;
-}
-
-/* A jack-o'-lantern: a ribbed, squashed ball, its carved face glowing.
-   Two maps off one drawing: the skin (orange, the cuts dark at their
-   edges) and the glow (the cuts only). SphereGeometry's u 0.25 faces +z,
-   the camera. */
-function carve(g, w, h) {
-  const cx = w * 0.25, cy = h * 0.52, k = 1.7;
-  const tri = (x, y, s) => { g.beginPath(); g.moveTo(x - s, y + s * 0.6); g.lineTo(x + s, y + s * 0.6); g.lineTo(x, y - s * 0.75); g.closePath(); g.fill(); };
-  tri(cx - 30 * k, cy - 20 * k, 15 * k);
-  tri(cx + 30 * k, cy - 20 * k, 15 * k);
-  tri(cx, cy + 2 * k, 8 * k);
-  g.beginPath();
-  g.moveTo(cx - 52 * k, cy + 16 * k);
-  g.quadraticCurveTo(cx, cy + 66 * k, cx + 52 * k, cy + 16 * k);
-  g.quadraticCurveTo(cx, cy + 40 * k, cx - 52 * k, cy + 16 * k);
-  g.fill();
-}
-let skinTex = null, faceTex = null;
-function skin() {
-  if (skinTex) return skinTex;
-  skinTex = canvasTex(512, 256, (g, w, h) => {
-    g.fillStyle = "#e0701c";
-    g.fillRect(0, 0, w, h);
-    // darker toward the top and bottom
-    const v = g.createLinearGradient(0, 0, 0, h);
-    v.addColorStop(0, "rgba(90,30,0,.45)"); v.addColorStop(0.3, "rgba(0,0,0,0)"); v.addColorStop(0.75, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(70,20,0,.55)");
-    g.fillStyle = v; g.fillRect(0, 0, w, h);
-    // the cuts: a dark rind round each, the hole itself the glow's
-    g.fillStyle = "#3a1200";
-    g.save(); g.translate(w * 0.25, h * 0.52); g.scale(1.12, 1.12); g.translate(-w * 0.25, -h * 0.52); carve(g, w, h); g.restore();
-    g.fillStyle = "#ffd25a";
-    carve(g, w, h);
-  });
-  return skinTex;
-}
-function face() {
-  if (faceTex) return faceTex;
-  faceTex = canvasTex(512, 256, (g, w, h) => {
-    g.fillStyle = "#000";
-    g.fillRect(0, 0, w, h);
-    g.fillStyle = "#fff0a0";
-    carve(g, w, h);
-  });
-  return faceTex;
-}
-function pumpkin(size) {
-  const geo = new THREE.SphereGeometry(1, 32, 20);
-  const p = geo.attributes.position;
-  for (let i = 0; i < p.count; i++) {
-    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-    const a = Math.atan2(z, x), rib = 1 - 0.07 * Math.pow(Math.abs(Math.cos(a * 4)), 0.6);
-    p.setXYZ(i, x * rib, y * 0.78 * (y > 0.9 ? 0.92 : 1), z * rib);
-  }
-  geo.computeVertexNormals();
-  const m = new THREE.MeshStandardMaterial({ map: skin(), roughness: 0.55, emissive: 0xffb040, emissiveMap: face(), emissiveIntensity: 2.4 });
-  const body = new THREE.Mesh(geo, m);
-  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 0.3, 8), new THREE.MeshStandardMaterial({ color: 0x5a4a22, roughness: 0.9 }));
-  stem.position.y = 0.86;
-  stem.rotation.z = 0.2;
-  const g = new THREE.Group();
-  g.add(body, stem);
-  g.scale.setScalar(size);
-  g.position.y = size * 0.75;
-  return g;
-}
-
-/* A candle: wax, a wick, a flame that flickers (tick). */
-let flameTex = null;
-function flame() {
-  if (flameTex) return flameTex;
-  flameTex = canvasTex(64, 128, (g, w, h) => {
-    const r = g.createRadialGradient(w / 2, h * 0.7, 2, w / 2, h * 0.62, w * 0.5);
-    r.addColorStop(0, "rgba(255,250,220,1)");
-    r.addColorStop(0.35, "rgba(255,200,90,.9)");
-    r.addColorStop(0.7, "rgba(255,120,30,.35)");
-    r.addColorStop(1, "rgba(255,80,0,0)");
-    g.fillStyle = r;
-    g.beginPath();
-    g.ellipse(w / 2, h * 0.62, w * 0.42, h * 0.38, 0, 0, Math.PI * 2);
-    g.fill();
-  });
-  return flameTex;
-}
-const WAX = new THREE.MeshStandardMaterial({ color: 0xefe2c4, roughness: 0.7, emissive: 0xffb860, emissiveIntensity: 0.12 });
-function candle(h, r) {
-  const g = new THREE.Group();
-  const wax = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.05, h, 12), WAX);
-  wax.position.y = h / 2;
-  const f = new THREE.Sprite(new THREE.SpriteMaterial({ map: flame(), color: 0xffffff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
-  f.scale.set(r * 2.6, r * 5, 1);
-  f.position.y = h + r * 2;
-  g.add(wax, f);
-  g.userData.flame = f;
-  return g;
-}
-
-/* Halloween in front of the plinths, in the rig's space (the plinths at
-   x 0 and +-1.05; the camera in front, +z): pumpkins at the front corners
-   and outside the party's plinths, candles in clusters between. */
-const PUMPKINS = [[-0.62, 0.62, 0.17, 0.5], [0.66, 0.58, 0.14, -0.4], [-1.62, 0.05, 0.2, 0.7], [1.6, 0.0, 0.17, -0.6], [0.36, 0.86, 0.09, -0.2]];
-const CANDLES = [[-0.36, 0.8], [-0.28, 0.9], [-0.45, 0.92], [0.18, 0.95], [0.5, 0.86], [0.6, 0.98], [-1.38, 0.38], [-1.28, 0.5], [-1.5, 0.5], [1.32, 0.42], [1.44, 0.52], [1.25, 0.56], [-0.86, 0.36], [0.9, 0.34]];
-export function buildHalloween() {
-  const group = new THREE.Group();
-  const r = rng(23), flames = [];
-  for (const [x, z, s, yaw] of PUMPKINS) {
-    const p = pumpkin(s);
-    p.position.x = x; p.position.z = z;
-    p.rotation.y = yaw;
-    group.add(p);
-  }
-  for (const [x, z] of CANDLES) {
-    const c = candle(0.06 + r() * 0.14, 0.022 + r() * 0.014);
-    c.position.set(x, 0, z);
-    group.add(c);
-    flames.push({ f: c.userData.flame, base: c.userData.flame.scale.clone(), ph: r() * 10 });
-  }
-  // the warm light they throw on your legs and the plinths' fronts
-  const warm = new THREE.PointLight(0xff8a2a, 1.6, 3.2, 1.6);
-  warm.position.set(0, 0.25, 0.9);
-  group.add(warm);
-  let t = 0;
-  return {
-    group,
-    tick(dt, still) {
-      if (still) return;
-      t += dt;
-      for (const { f, base, ph } of flames) {
-        const k = 1 + 0.12 * Math.sin(t * 13 + ph) + 0.08 * Math.sin(t * 29 + ph * 2);
-        f.scale.set(base.x * (2 - k) ** 0.5, base.y * k, 1);
-      }
-      warm.intensity = 1.6 + 0.18 * Math.sin(t * 11) + 0.1 * Math.sin(t * 23);
-    },
-  };
 }
