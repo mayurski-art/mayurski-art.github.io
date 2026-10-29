@@ -572,7 +572,7 @@ def _one_kit_slot(o, kit):
     me.polygons.foreach_set("material_index", idx)
 
 
-def _atlas(objs, margin):
+def _atlas(objs, margin, method="SCALED"):
     bpy.ops.object.select_all(action="DESELECT")
     for o in objs:
         uv = o.data.uv_layers.get("UVMap") or o.data.uv_layers.new(name="UVMap")
@@ -585,7 +585,7 @@ def _atlas(objs, margin):
                              correct_aspect=True, scale_to_bounds=False)
     bpy.ops.uv.select_all(action="SELECT")
     bpy.ops.uv.average_islands_scale()
-    bpy.ops.uv.pack_islands(rotate=True, margin=margin)
+    bpy.ops.uv.pack_islands(rotate=True, margin=margin, margin_method=method)
     bpy.ops.object.mode_set(mode="OBJECT")
 
 
@@ -631,10 +631,12 @@ def _tris(objs):
     return out
 
 
-def bake_gun(recipe, gun_id, prefix, out_dir, res=1024, lod_res=256, lod_ratio=0.25, samples=16, render=None):
+def bake_gun(recipe, gun_id, prefix, out_dir, res=1024, lod_res=256, lod_ratio=0.25, samples=16, render=None, margin_px=None):
     """recipe(): builds the gun's Parts and empties with gunkit (reading
     gunkit.HI). render: gunkit.render_views' views, rendered after export
-    with the baked maps on (a check, not shipped)."""
+    with the baked maps on (a check, not shipped). margin_px: the gap
+    between UV islands in texels (default: 2 % scaled per island, which
+    starves a gun of many small islands, a rail's teeth, of texels)."""
     import gunkit as gk
     import json
     scene = bpy.context.scene
@@ -661,7 +663,10 @@ def bake_gun(recipe, gun_id, prefix, out_dir, res=1024, lod_res=256, lod_ratio=0
     kit.node_tree.nodes.get("Principled BSDF").inputs["Base Color"].default_value = (0.5, 0.5, 0.5, 1)
     for o in low:
         _one_kit_slot(o, kit)
-    _atlas(low, 0.02)
+    if margin_px is None:
+        _atlas(low, 0.02)
+    else:
+        _atlas(low, margin_px / res, "FRACTION")
 
     scene.render.engine = "CYCLES"
     scene.cycles.device = "CPU"
