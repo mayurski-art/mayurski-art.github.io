@@ -14,7 +14,7 @@
 // screen's height (TROLL_RETICLE_SCREEN), the dot 2.6% (TROLL_DOT_SCREEN);
 // the lens is 98% of the screen, so 4.6% and 2.65% of the lens.
 
-import { TROLL_RETICLE_URLS } from "./troll-reticle.js?v=tr1-ret1-mrg1-hd1-mrc1-tw1-rt2-rd1";
+import { TROLL_RETICLE_URLS } from "./troll-reticle.js?v=tr1-ret1-mrg1-hd1-mrc1-tw1-rt2-rd1-ars1";
 
 const FADE_FROM = 0.78;              // adsT where the scope starts to cover
 const HIDE_GUN_AT = 0.9;             // overlay strength that hides the gun

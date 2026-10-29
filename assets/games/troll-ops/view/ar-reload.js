@@ -90,10 +90,19 @@ function build(s, empty) {
   k.hand.push([T.gone + 0.02, { at: "mag" }], [T.seat, { at: "mag" }], [T.seat + 0.03, { at: "mag" }]);
   if (empty) {
     const f = s.finish;
-    k.hand.push([T.reach, { at: "gun", v: f.handle }], [T.work - 0.02, { at: "gun", v: f.handle }],
-      [T.work + 0.02, { at: "gun", v: f.pull }], [T.done, { at: "gun", v: f.handle }], [T.home, { at: "guard" }]);
+    // v2 (DESIGN-ARSENAL.md #6): finish.part "charge" | "catch" sends the
+    // hand to the gun's own P_ChargeHand / P_CatchHand point and works the
+    // part (gun-action.js reads partState); handle / pull stay the fallback
+    // for a gun without the points.
+    const at = (v, pull) => (f.part ? { at: "part", part: f.part, v, pull } : { at: "gun", v });
+    k.hand.push([T.reach, at(f.handle, 0)], [T.work - 0.02, at(f.handle, 0)],
+      [T.work + 0.02, at(f.pull, 1)], [T.done, at(f.handle, 0)], [T.home, { at: "guard" }]);
     if (f.sound) k.beats.push([T.work, f.sound]);   // (a pistol's is its slide: arSlideAt)
     k.slideAt = T.work + 0.02;
+    // a charging handle comes back with the hand and the carrier rides
+    // home when it's let go; a catch drops the carrier under the slap
+    k.part = { name: f.part ?? (f.sound === "slap" ? "catch" : "charge"), grab: T.work - 0.02, pull: T.work + 0.02, done: T.done,
+      releaseAt: f.part === "charge" || (!f.part && f.sound === "rack") ? T.done : T.work };
   } else {
     k.hand.push([T.home, { at: "guard" }]);
   }
@@ -254,14 +263,61 @@ const SPECS = {
   },
 };
 
-const TRACKS = {};
-for (const [id, s] of Object.entries(SPECS)) {
-  TRACKS[id] = { tac: build(s, false), empty: build(s, true), palm: s.palm ?? "base", slide: s.finish.sound == null };
+/* Archetypes (DESIGN-ARSENAL.md #6): a gun's spec can be { template, ...
+   overrides } and lists only what differs (finish merges key by key).
+   Each is the BO2 family above it was drawn from. The pump and tube guns
+   load shell by shell (weapons.js shellReload, weapon-view.js) and the bolt
+   guns chamber on rifle-action.js's cycle, so their templates here cover
+   only a detachable-mag variant (the bolt sniper's mag swap). */
+const TEMPLATES = {
+  ar: { ...SPECS.lmao, finish: { ...SPECS.lmao.finish, part: "catch" } },                    // M4 family: slap the catch
+  bullpup: { ...SPECS.kek, finish: { ...SPECS.kek.finish, part: "charge" } },                // forward handle, mag at the tail
+  akRock: { ...SPECS.coalface, finish: { ...SPECS.coalface.finish, part: "charge" } },       // rocked in, racked across
+  battle: { ...SPECS.mald, finish: { ...SPECS.mald.finish, part: "charge" } },               // SCAR / FAL side handle
+  smg: { ...SPECS.snicker, finish: { ...SPECS.snicker.finish, part: "charge" } },
+  beltLmg: { ...SPECS.bellylaugh },
+  drumLmg: { ...SPECS.coltlmg, finish: { ...SPECS.coltlmg.finish, part: "charge" } },
+  pistol: { ...SPECS.sixtynine },
+  semiSniper: { ...SPECS.mald, finish: { ...SPECS.mald.finish, part: "charge" } },          // rack the handle on empty
+  boltMag: { ...SPECS.lmao, finish: { ...SPECS.lmao.finish, part: null, sound: null } },    // the bolt does the rest
+};
+function resolve(s) {
+  if (!s.template) return s;
+  const t = TEMPLATES[s.template];
+  if (!t) throw new Error(`ar-reload: no template ${s.template}`);
+  return { ...t, ...s, finish: { ...t.finish, ...(s.finish ?? {}) } };
 }
+
+const TRACKS = {};
+function addTrack(key, spec) {
+  const s = resolve(spec);
+  TRACKS[key] = { tac: build(s, false), empty: build(s, true), palm: s.palm ?? "base", slide: s.finish.sound == null && !s.finish.part };
+}
+for (const [id, s] of Object.entries(SPECS)) addTrack(id, s);
+
+/* A gun session's reload added at run time (or a test's): keyed like SPECS
+   (model.build or id). */
+export function registerArReload(key, spec) { addTrack(key, spec); }
 
 /* A gun's reload: the traced BO2 guns by model.build, the rest by id. */
 const trackOf = (def) => TRACKS[def?.model?.build] ?? TRACKS[def?.id];
 export const hasArReload = (def) => !!trackOf(def);
+
+/* The empty reload's mechanism at progress `t`: how far the charging
+   handle is pulled (0..1), how far the catch is pressed (0..1), and when
+   the carrier is let go home. Zeros outside an empty reload. */
+const _ps = { charge: 0, press: 0, releaseAt: null };
+export function arPartState(w, t) {
+  _ps.charge = _ps.press = 0;
+  _ps.releaseAt = null;
+  const p = w.reloadWasEmpty ? trackOf(w.def)?.empty.part : null;
+  if (!p || t < 0) return _ps;
+  _ps.releaseAt = p.releaseAt;
+  const k = t < p.grab ? 0 : t < p.pull ? smoothstep((t - p.grab) / (p.pull - p.grab)) : t < p.done ? 1 - smoothstep((t - p.pull) / (p.done - p.pull)) : 0;
+  if (p.name === "charge") _ps.charge = k;
+  else _ps.press = t >= p.grab ? Math.min(1, (t - p.grab) / (p.pull - p.grab)) : 0;
+  return _ps;
+}
 
 /* An empty pistol reload: when (reload progress) the hand racks the slide
    and it drops home. null for anything else. */
@@ -396,6 +452,19 @@ function handPoint(mesh, mag, key, out, palm) {
     }
     mesh.parent.worldToLocal(mag.localToWorld(out.set(0, (palm === "top" ? mag.userData.arTop : mag.userData.arBase) * 0.92, 0)));
     return out;
+  }
+  if (key.at === "part") {
+    // the gun's own hand point, moved with the part it works (the charging
+    // handle comes back under the hand; a catch takes a press)
+    const pt = mesh.userData.gunPoints?.[key.part];
+    if (!pt) return key.v ? gunToCam(mesh, out.set(...key.v)) : out.copy(mesh.position);
+    out.copy(pt);
+    if (key.pull) {
+      const ch = mesh.userData.gunParts?.Charge;
+      if (key.part === "charge" && ch?.kind === "slide") out[ch.axis] += ch.travel;
+      else if (key.part === "catch") out.y -= 0.006;
+    }
+    return gunToCam(mesh, out);
   }
   if (key.at === "gun" && key.v) return gunToCam(mesh, out.set(...key.v));
   if (key.at === "cam" && key.v) return out.set(...key.v);

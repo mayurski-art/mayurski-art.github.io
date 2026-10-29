@@ -9,16 +9,17 @@ import { buildGripHand, buildSupportHand } from "./hand-model.js?v=to-grip2-or1-
 import {
   OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS,
   buildIronRear, buildIronFront, railSection,
-} from "./attachment-models.js?v=fg1-wst-or1-rt1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1";
-import { build416 } from "./weapon-416.js?v=cg1-wst-wb1-or1-rt1-rb4-hp1-bx1-mg1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1";
+} from "./attachment-models.js?v=fg1-wst-or1-rt1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1";
+import { build416 } from "./weapon-416.js?v=cg1-wst-wb1-or1-rt1-rb4-hp1-bx1-mg1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1";
 import { buildRevolverPair } from "./revolvers.js?v=rv2-wst-or1";
-import { PISTOL_BUILDERS } from "./weapon-pistols.js?v=ps1-wb1-or1-rt1-rb4-hp1-bx1-mg1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1";
-import { SNIPER_BUILDERS } from "./weapon-snipers.js?v=sn2-wb1-or1-rt1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1";
-import { SMG_BUILDERS } from "./weapon-smgs.js?v=sm1-wb1-or1-rt1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1";
-import { AR_BUILDERS } from "./weapon-ars.js?v=ar1-ar2-or1-rt1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1";
+import { PISTOL_BUILDERS } from "./weapon-pistols.js?v=ps1-wb1-or1-rt1-rb4-hp1-bx1-mg1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1";
+import { SNIPER_BUILDERS } from "./weapon-snipers.js?v=sn2-wb1-or1-rt1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1";
+import { SMG_BUILDERS } from "./weapon-smgs.js?v=sm1-wb1-or1-rt1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1";
+import { AR_BUILDERS } from "./weapon-ars.js?v=ar1-ar2-or1-rt1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1";
 import { finishDef } from "../characters/skins.js?v=p5-wb1-or1";
 import { rigSoulBlazer, SB_INSPECT_KEYS } from "./soul-blazer.js?v=sb1-or1";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { shrinkTexture } from "../view/texture-budget.js?v=pm1";
 
 const MATS = {
   body:   () => new THREE.MeshStandardMaterial({ color: 0x4a4f48, roughness: 0.4, metalness: 0.7 }),
@@ -73,10 +74,7 @@ export function preloadWeaponModels() {
       sbTemplate = prepSoulBlazer(gltf.scene);
       return true;
     }).catch((e) => { console.warn("[weapons] soul blazer model failed", e); return false; });
-    const dt = Object.entries(DETAILED).map(([id, cfg]) => new GLTFLoader().loadAsync(cfg.url).then((gltf) => {
-      detailedTemplates.set(id, prepDetailed(gltf.scene, cfg));
-      return true;
-    }).catch((e) => { console.warn(`[weapons] ${id} model failed`, e); return false; }));
+    const dt = Object.entries(DETAILED).map(([id, cfg]) => loadDetailed(id, cfg));
     gcLoading = Promise.all([gc, gm, sbl, ...dt]).then((r) => r.some(Boolean));
   }
   return gcLoading;
@@ -170,6 +168,68 @@ const DETAILED = {
   },
 };
 const detailedTemplates = new Map();
+const detailedLod1 = new Map();
+
+/* Arsenal v2 guns (DESIGN-ARSENAL.md; models/bake_kit.py bake_gun) set
+   `kit: "<file id>"`: models/<id>.glb's baked surfaces share one material,
+   "<P>_Kit", which gets models/<id>-base.webp (sRGB), -orm.webp (AO,
+   roughness, metalness) and -nrm.webp (tangent normals) here, and
+   models/<id>-lod1.glb (one node, 256 px maps) is what third person, other
+   players and the killcam draw (buildWeaponMesh(def, { lod: 1 })). Its
+   moving parts (P_Carrier ...) carry their motion as extras (tf_part,
+   tf_kind, tf_axis, tf_travel) for view/gun-action.js. */
+const kitUrl = (kit, file) => new URL(`../models/${kit}${file}?v=${KIT_VER[kit] ?? 1}`, import.meta.url).href;
+const KIT_VER = {};
+function loadDetailed(id, cfg) {
+  const lod0 = new GLTFLoader().loadAsync(cfg.url).then((gltf) => {
+    detailedTemplates.set(id, prepDetailed(gltf.scene, cfg));
+    return true;
+  }).catch((e) => { console.warn(`[weapons] ${id} model failed`, e); return false; });
+  if (!cfg.kit) return lod0;
+  const lod1 = new GLTFLoader().loadAsync(kitUrl(cfg.kit, "-lod1.glb")).then((gltf) => {
+    detailedLod1.set(id, prepDetailed(gltf.scene, cfg));
+  }).catch((e) => console.warn(`[weapons] ${id} lod1 failed`, e));
+  return Promise.all([lod0, lod1]).then(([ok]) => ok);
+}
+
+/* A gun added at run time (a gun session's model before its DETAILED entry
+   lands, or a test piece): loads it under `id`; the next build of that
+   weapon uses it. */
+export function registerDetailed(id, cfg) {
+  DETAILED[id] = cfg;
+  return loadDetailed(id, cfg);
+}
+
+// The baked maps, shared by every build of a gun (one set per kit and lod).
+const kitMats = new Map();
+const _texLoader = new THREE.TextureLoader();
+function kitTexture(kit, file, srgb, side) {
+  const t = _texLoader.load(kitUrl(kit, file), (tx) => shrinkTexture(tx, side));
+  t.flipY = false;                                   // glTF's UV convention
+  t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  t.anisotropy = 4;
+  t.userData.shared = true;
+  return t;
+}
+function kitMaterial(cfg, lod) {
+  const key = `${cfg.kit}:${lod}`;
+  let m = kitMats.get(key);
+  if (!m) {
+    const pre = lod ? "-lod1" : "";
+    const side = lod ? 256 : 512;                    // on touch (texture-budget.js)
+    const orm = kitTexture(cfg.kit, `${pre}-orm.webp`, false, side);
+    m = new THREE.MeshStandardMaterial({
+      name: `${cfg.p}_Kit`,
+      map: kitTexture(cfg.kit, `${pre}-base.webp`, true, side),
+      aoMap: orm, roughnessMap: orm, metalnessMap: orm, roughness: 1, metalness: 1,
+      normalMap: kitTexture(cfg.kit, `${pre}-nrm.webp`, false, side),
+    });
+    m.userData.shared = true;
+    kitMats.set(key, m);
+  }
+  if (weaponEnvMap && m.envMap !== weaponEnvMap) { m.envMap = weaponEnvMap; m.envMapIntensity = 0.8; m.needsUpdate = true; }
+  return m;
+}
 
 function prepDetailed(scene, cfg) {
   scene.traverse((o) => {
@@ -182,22 +242,27 @@ function prepDetailed(scene, cfg) {
   return scene;
 }
 
-function buildDetailed(def, cfg, template) {
+const V2_POINTS = ["Eject", "ChargeHand", "CatchHand"];
+function buildDetailed(def, cfg, template, lod = 0) {
   const P = cfg.p;
   const src = template.clone(true);
   const root = new THREE.Group();
   const at = (n) => src.getObjectByName(`${P}_${n}`)?.position.clone();
   const grip = at("Grip"), support = at("Support"), muzzle = at("Muzzle");
   const aim = at("Aim"), under = at("Under"), rail = at("Rail");
-  const empties = new Set(["Grip", "Support", "Muzzle", "Aim", "Under", "Rail"].map((n) => `${P}_${n}`));
+  const points = Object.fromEntries(V2_POINTS.map((n) => [n, at(n)]));
+  const empties = new Set(["Grip", "Support", "Muzzle", "Aim", "Under", "Rail", ...V2_POINTS].map((n) => `${P}_${n}`));
   for (const c of [...src.children]) if (!empties.has(c.name)) root.add(c);
 
   // Own materials per gun (the game disposes them on a swap), with studio
-  // reflections for the metals; the glow materials breathe.
+  // reflections for the metals; the glow materials breathe. A kit gun's
+  // baked surfaces share one material and its maps.
   const clones = new Map();
   const glows = [];
+  const kitName = `${P}_Kit`;
   root.traverse((o) => {
     if (!o.isMesh) return;
+    if (cfg.kit && o.material.name === kitName) { o.material = kitMaterial(cfg, lod); return; }
     let m = clones.get(o.material);
     if (!m) {
       m = o.material.clone();
@@ -220,10 +285,27 @@ function buildDetailed(def, cfg, template) {
 
   const u = root.userData;
   const mag = root.getObjectByName(`${P}_Mag`);
-  u.magMesh = mag;
-  u.magazinePoint = mag.position.clone();
-  u.magRestRotationX = mag.rotation.x;
-  u.magRestRotationZ = mag.rotation.z;
+  if (mag) {
+    u.magMesh = mag;
+    u.magazinePoint = mag.position.clone();
+    u.magRestRotationX = mag.rotation.x;
+    u.magRestRotationZ = mag.rotation.z;
+  }
+  // v2: the moving parts and their points (view/gun-action.js, brass.js,
+  // ar-reload.js's charge / catch keys). The LOD1 has none: one node.
+  const parts = {};
+  root.traverse((o) => {
+    const d = o.userData;
+    if (!d.tf_part || d.tf_part === "Mag") return;
+    parts[d.tf_part] = { node: o, kind: d.tf_kind, axis: d.tf_axis, travel: d.tf_travel,
+      pos: o.position.clone(), rot: o.rotation.clone() };
+  });
+  if (Object.keys(parts).length) {
+    u.gunParts = parts;
+    u.gunPoints = { eject: points.Eject ?? null, charge: points.ChargeHand ?? null, catch: points.CatchHand ?? null };
+    u.brass = cfg.brass ?? "556";
+  }
+  u.lod = lod;
 
   // Hidden hand meshes: the PF arms and the third-person rig aim at them.
   const hand = buildGripHand(1);
@@ -931,12 +1013,14 @@ export function stripLights(obj) {
   return obj;
 }
 
-export function buildWeaponMesh(def, { skin } = {}) {
+/* `lod` 1: the lighter copy for everyone but you (third person, other
+   players, the killcam); guns without one build as usual. */
+export function buildWeaponMesh(def, { skin, lod = 0 } = {}) {
   // A gun with its own finish (the Prestige 7 gold gun) always wears it.
   const fin = finishDef(def.ownFinish || (skin ?? def.attachments?.skin ?? null));
-  if (!fin) return buildBaseMesh(def, skin);
+  if (!fin) return buildBaseMesh(def, skin, lod);
   // A finish goes over the factory gun ("" = no banner skin).
-  return applyFinish(buildBaseMesh(def, ""), fin);
+  return applyFinish(buildBaseMesh(def, "", lod), fin);
 }
 
 /* ---- Finishes (skins.js FINISHES) ----------------------------------------
@@ -1127,7 +1211,13 @@ function applyFinish(root, fin) {
   return root;
 }
 
-function buildBaseMesh(def, skin) {
+function buildBaseMesh(def, skin, lod = 0) {
+  // an arsenal v2 gun (its own DETAILED entry with a kit) wins over any
+  // older builder for the same id
+  if (DETAILED[def.id]?.kit && detailedTemplates.has(def.id)) {
+    const l1 = lod === 1 && detailedLod1.get(def.id);
+    return buildDetailed(def, DETAILED[def.id], l1 || detailedTemplates.get(def.id), l1 ? 1 : 0);
+  }
   if (def.id === "problem416") return build416(def, skin ?? def.attachments?.skin ?? null);
   // a pair of revolvers, one per hand (revolvers.js)
   if (def.akimbo) return buildRevolverPair(def, { env: weaponEnvMap || metalStudio() });
