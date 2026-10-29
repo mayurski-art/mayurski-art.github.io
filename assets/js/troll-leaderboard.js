@@ -103,10 +103,16 @@
   const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
   const keyFor = cfg => cfg.storageKey || ("tk_lb_" + cfg.gameId + "_v1");
 
+  // cfg.allTime: the board never resets (Troll Man's, user 2026-10-28: "dont
+  // reset the leaderboard") — every play ever, each player's best.
+  const periodOf = cfg => cfg.allTime
+    ? { weekId: "all-time", weekLabel: "All time", resetsIn: "" }
+    : { weekId: weekId(), weekLabel: weekLabel(), resetsIn: timeLeft() };
+
   function loadYou(cfg) {
     const wid = weekId();
     let d = lsGet(keyFor(cfg));
-    if (!d || d.weekId !== wid) d = Object.assign({ weekId: wid, name: cfg.playerName || "YOU" }, cfg.blank ? cfg.blank() : {});
+    if (!d || (!cfg.allTime && d.weekId !== wid)) d = Object.assign({ weekId: wid, name: cfg.playerName || "YOU" }, cfg.blank ? cfg.blank() : {});
     if (cfg.playerName && cfg.playerName !== "YOU") d.name = cfg.playerName;
     return d;
   }
@@ -121,10 +127,9 @@
     return {
       name: "local",
       async getBoard() {
-        const wid = weekId();
         const you = loadYou(cfg);
         const entries = you._played ? [Object.assign({}, you, { id: "you", you: true })] : [];
-        return { weekId: wid, weekLabel: weekLabel(), resetsIn: timeLeft(), source: "local", entries, loggedIn: false };
+        return Object.assign(periodOf(cfg), { source: "local", entries, loggedIn: false });
       },
       recordEvent(ev) {
         const y = loadYou(cfg);
@@ -162,18 +167,17 @@
       async getBoard() {
         const sb = client();
         if (!sb) return local.getBoard();
-        const wid = weekId();
         const { start, end } = weekWindow();
         let rows;
         try {
-          const { data, error } = await sb
+          let q = sb
             .from("troll_leaderboard_view")
             .select("user_id,username,score,meta,achieved_at")
-            .eq("game_id", cfg.gameId)
-            .gte("achieved_at", start.toISOString())
-            .lt("achieved_at", end.toISOString())
+            .eq("game_id", cfg.gameId);
+          if (!cfg.allTime) q = q.gte("achieved_at", start.toISOString()).lt("achieved_at", end.toISOString());
+          const { data, error } = await q
             .order("achieved_at", { ascending: false })
-            .limit(500);
+            .limit(cfg.allTime ? 5000 : 500);
           if (error) throw error;
           rows = data || [];
         } catch (err) {
@@ -182,12 +186,31 @@
         }
         const me = session();
         const myId = me && me.userId;
-        const seen = new Set();
         const entries = [];
-        for (const r of rows) {
-          if (seen.has(r.user_id)) continue;   // first hit per user = most recent (order desc) = current weekly aggregate
-          seen.add(r.user_id);
-          entries.push(Object.assign({ id: r.user_id, name: r.username, you: r.user_id === myId }, r.meta || {}));
+        if (cfg.allTime) {
+          // One row is one recorded play: each player's best of every column
+          // over all of them, and the row count as their games.
+          const byUser = new Map();
+          for (const r of rows) {
+            const m = Object.assign({}, r.meta || {}, { score: r.score });
+            let e = byUser.get(r.user_id);
+            if (!e) {
+              e = Object.assign({}, m, { id: r.user_id, name: r.username, you: r.user_id === myId, games: 0 });
+              byUser.set(r.user_id, e); entries.push(e);
+            }
+            e.games++;
+            for (const c of cfg.columns) {
+              if (c.key !== "games" && Number(m[c.key]) > (Number(e[c.key]) || 0)) e[c.key] = Number(m[c.key]);
+            }
+          }
+        } else {
+          const seen = new Set();
+          for (const r of rows) {
+            if (seen.has(r.user_id)) continue;   // first hit per user = most recent (order desc) = current weekly aggregate
+            seen.add(r.user_id);
+            // the account's name, never the local cache's "YOU" saved in meta
+            entries.push(Object.assign({}, r.meta || {}, { id: r.user_id, name: r.username, you: r.user_id === myId }));
+          }
         }
         if (myId) {
           // keep the logged-in viewer's own row on their freshest local write —
@@ -196,10 +219,14 @@
           if (you._played) {
             const row = Object.assign({}, you, { id: myId, name: me.username || you.name, you: true });
             const idx = entries.findIndex(e => e.id === myId);
+            if (idx >= 0 && cfg.allTime) {
+              // all time: the server may know plays this browser never saw
+              for (const c of cfg.columns) row[c.key] = Math.max(Number(row[c.key]) || 0, Number(entries[idx][c.key]) || 0);
+            }
             if (idx >= 0) entries[idx] = row; else entries.push(row);
           }
         }
-        return { weekId: wid, weekLabel: weekLabel(), resetsIn: timeLeft(), source: "live", entries, loggedIn: !!myId };
+        return Object.assign(periodOf(cfg), { source: "live", entries, loggedIn: !!myId });
       },
       recordEvent(ev) {
         local.recordEvent(ev);   // always keep the local optimistic cache current, logged in or not
@@ -359,13 +386,20 @@
     try { g.provider.recordEvent(ev); } catch (_) { /* never break a game */ }
     refresh(g);
   }
-  /* This week's board for a game, ranked and cut to its boardSize, for a
-     game that draws it in its own style (Troll Man's high-score screen):
-     { weekLabel, weekId, resetsIn, source, loggedIn, entries: [{ rank, name, you, ...stats }] }. */
+  /* A game's board (this week's, or all time's with cfg.allTime), ranked and
+     cut to its boardSize, for a game that draws it in its own style (Troll
+     Man's high-score screen): { weekLabel, weekId, resetsIn, source, loggedIn,
+     entries: [{ rank, name, you, ...stats }], players, plays, you }. */
   async function board(gameId) {
     const g = get(gameId); if (!g) return null;
     const b = await g.provider.getBoard();
-    return Object.assign({}, b, { entries: rankEntries(g.config, b.entries).slice(0, g.config.boardSize || 10) });
+    const ranked = rankEntries(g.config, b.entries);
+    return Object.assign({}, b, {
+      entries: ranked.slice(0, g.config.boardSize || 10),
+      players: ranked.length,
+      plays: ranked.reduce((n, e) => n + (Number(e.games) || 0), 0),
+      you: ranked.find(e => e.you) || null,   // your own row, ranked, even below the cut
+    });
   }
   function setProvider(gameId, p) { const g = get(gameId); if (g && p) { g.provider = p; refresh(g); } }
   function configure(gameId, partial) {

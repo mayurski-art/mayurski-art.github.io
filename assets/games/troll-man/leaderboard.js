@@ -2,7 +2,7 @@
    (assets/js/troll-leaderboard.js, see assets/games/LEADERBOARD.md).
    game.js reports each finished 1-player game:
        TrollLeaderboard.record("troll-man", { score, level })
-   Ranked by best score, then the furthest level. */
+   Ranked by best score, then the furthest level, over every game ever. */
 (() => {
   "use strict";
   const LB = window.TrollLeaderboard;
@@ -33,6 +33,8 @@
       sublabel: e => (e.level ? `Reached level ${e.level}` : ""),
     },
     prizes: null,
-    footNote: "Best 1-player score this week. Resets every Monday.",
+    // never resets: every score since launch counts (user, 2026-10-28)
+    allTime: true,
+    footNote: "Best 1-player score, all time.",
   });
 })();
