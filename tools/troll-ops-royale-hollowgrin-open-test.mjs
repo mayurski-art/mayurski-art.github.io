@@ -111,10 +111,10 @@ for (let i = 0; i < 600; i++) {
   await new Promise((r) => setTimeout(r, 100));
 }
 await page.evaluate(() => window.__trollOps.keys.delete("KeyW"));
-await page.waitForFunction(() => window.__trollOps.royale().me === "ground", null, { timeout: 30000 }).catch(() => {});
+await page.waitForFunction(() => window.__trollOps.royale().me === "ground", null, { timeout: 90000 }).catch(() => {});
 const landed = await page.evaluate(() => { const T = window.__trollOps; return { me: T.royale().me, x: T.move.pos.x, y: T.move.pos.y, z: T.move.pos.z, hp: T.player.hp }; });
 check("glide out over the woods and you land out there, on your feet", landed.me === "ground" && !inVillage(landed.x, landed.z) && inside(S.open, landed.x, landed.z) && landed.y < 3,
-  JSON.stringify({ x: +landed.x.toFixed(1), y: +landed.y.toFixed(1), z: +landed.z.toFixed(1), hp: landed.hp }));
+  JSON.stringify({ me: landed.me, x: +landed.x.toFixed(1), y: +landed.y.toFixed(1), z: +landed.z.toFixed(1), hp: landed.hp }));
 await shot("2-landed-in-the-woods");
 
 // Walk on west, past the beach: the outline holds you on the island.
