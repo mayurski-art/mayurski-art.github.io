@@ -1369,8 +1369,13 @@ export function updateWeaponView(dt) {
 
   // Aiming plants the sight: bob and idle sway fall away as the weapon
   // comes up, so walking while aimed no longer swims the whole gun across
-  // the screen the way full-amplitude bob did.
-  const steady = 1 - w.adsT * 0.85;
+  // the screen the way full-amplitude bob did. All but 3% of it: the 15%
+  // left before still bounced the sight walking and shooting (user,
+  // 2026-10-29).
+  const steady = 1 - w.adsT * 0.97;
+  // The kick that moves the gun in your hands (not the aim's own climb,
+  // recoilPitch): aimed, a third of it, so the sight stays on the target.
+  const kick = 1 - w.adsT * 0.65;
   // Settle: eases toward 1 while moving, toward 0 at rest, on top of (not
   // instead of) bobPhase freezing — the freeze already stops the wave from
   // continuing, this stops the amplitude from cutting off abruptly with it.
@@ -1457,14 +1462,14 @@ export function updateWeaponView(dt) {
   turnLagY = damp(turnLagY, THREE.MathUtils.clamp(pitchRate * 0.006, -0.035, 0.035) * lagK, 10, dt);
 
   mesh.position.set(
-    basePos.x + bobX + swayX - w.viewKickKnockback * 0.4 + game.weaponLowerT * 0.02 + turnLagX + insp.x + rl.x,
+    basePos.x + bobX + swayX - w.viewKickKnockback * 0.4 * kick + game.weaponLowerT * 0.02 + turnLagX + insp.x + rl.x,
     basePos.y + bobY + swayY - game.weaponLowerT * 0.15 - landPos - turnLagY + insp.y + rl.y - sw * 0.28,
-    basePos.z + w.viewKickKnockback * 0.6 + game.weaponLowerT * 0.08 + insp.z + rl.z
+    basePos.z + w.viewKickKnockback * 0.6 * kick + game.weaponLowerT * 0.08 + insp.z + rl.z
   );
   mesh.rotation.set(
-    -w.viewKickPitch * 0.8 + game.weaponLowerT * 0.45 + landPitch - turnLagY * 2 + insp.pitch + rl.pitch - sw * 0.6,
-    w.viewKickYaw * 0.6 + (1 - adsOffset) * (0.05 + (mesh.userData.hipYaw ?? 0)) + sprintCant + turnLagX * 2 + insp.yaw + rl.yaw,
-    (1 - adsOffset) * 0.08 + game.weaponLowerT * 0.38 + sprintRoll + turnLagX * 4 + insp.roll + rl.roll + w.viewKickRoll + sw * 0.35
+    -w.viewKickPitch * 0.8 * kick + game.weaponLowerT * 0.45 + landPitch - turnLagY * 2 + insp.pitch + rl.pitch - sw * 0.6,
+    w.viewKickYaw * 0.6 * kick + (1 - adsOffset) * (0.05 + (mesh.userData.hipYaw ?? 0)) + sprintCant + turnLagX * 2 + insp.yaw + rl.yaw,
+    (1 - adsOffset) * 0.08 + game.weaponLowerT * 0.38 + sprintRoll + turnLagX * 4 + insp.roll + rl.roll + w.viewKickRoll * kick + sw * 0.35
   );
   applyGunInspect(mesh, w);
   if (mesh.userData.akimbo) {
