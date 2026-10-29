@@ -7,7 +7,7 @@ import { updateBoat } from "./royale-boat.js?v=tfb1-tfb8-ss1-ss2-ss3-tfm2-rfx1-r
 import { ChestField, chestSpots, CHEST_REACH, CHEST_OPEN_TIME } from "./royale-chests.js?v=ch1-zw1-tfb8-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1-mrc1-hgb8-tw1-rt2-fd1-rx1";
 import { groundHeightAt } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1";
 import { floorAt } from "../core/ground-field.js?v=gf1-tg1";
-import { insidePolygon } from "../maps/edge.js?v=or1";
+import { insidePolygon, clampInsidePolygon } from "../maps/edge.js?v=or1";
 import { DROP, RoyaleDrop, buildParaglider, Flight } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1-fl1-or1-dc2-dc3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-rb4-hp1-bx1-mg1-tx1-sp1-kbt1-gb1-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-rx1";
 import { Squadron, PLANES, flightPos, flightVel, tunePlanes } from "./royale-planes.js?v=pl1-pl2-pi1-sr1-fl1-or1-dc2-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-rb4-hp1-bx1-mg1-tx1-sp1-kbt1-gb1-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-rx1";
 import { SEAT_SPOTS, RAMP_END } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
@@ -25,7 +25,8 @@ import { royaleRecordReset, royaleRecordTick, stopRoyaleRecord } from "./royale-
 import { useAnimStart, useAnimTick, useAnimFinish, useAnimCancel, useWire, poseUsePeer } from "./royale-use.js?v=ru1-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1";
 import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose } from "./royale-fall.js?v=dc3-dc4-rf1-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-rx1";
 import { sidePref } from "./royale-side.js?v=rs1-tw1";
-import { updateRoyaleFlip, flipCineOn, resetRoyaleFlip, flipAt, matchingSpot } from "./royale-flip.js?v=rf1-hgb9-tw1";
+import { updateRoyaleFlip, flipCineOn, resetRoyaleFlip, flipAt, matchingSpot } from "./royale-flip.js?v=rf1-hgb9-tw1-op1";
+import { buildMinimapBase } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1";
 import { findOpenGround } from "./modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-tfb8-ug1-ugm1-hgb8-hgb9";
 
 // Phase 1 ("Mini Royale"): solo, one life, loot only, the Cringe closing in,
@@ -37,6 +38,7 @@ import { findOpenGround } from "./modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b
 // limits already work.
 
 export let royale = null;
+let opened = null;   // the side's map opened up for Royale (map.royale.open: Hollowgrin's woods), or null
 
 /* Which side of the island this match is on (MODES.royale.sides): the
    room's, once the host has said (its stage notes carry the map:
@@ -59,6 +61,7 @@ export function setupRoyale(seed = royaleSeed()) {
   royaleRecordReset();   // last match's clip goes (royale-record.js)
   preloadSfx();   // the drop's clips (sound/sfx-files.js), in well before the scene
   const map = game.builtMap.map;
+  openSide();
   const edge = royaleEdge();
   const { zone, loot, chests } = royaleWorld(seed, seededRng(seed));
   royale = {
@@ -86,7 +89,7 @@ export function setupRoyale(seed = royaleSeed()) {
    (the match's, or the swap's: swapRoyaleSide). `carry`: RoyaleZone's. */
 function royaleWorld(seed, rng, carry = null) {
   const map = game.builtMap.map;
-  const bounds = map.bounds;
+  const bounds = playBounds();
   const edge = royaleEdge();
   // A map can bring its own players, zone timings and loot density
   // (Trollface Island), and keep circles and loot on land.
@@ -122,7 +125,36 @@ function royaleWorld(seed, rng, carry = null) {
    them and comes down inside). */
 function royaleEdge() {
   const map = game.builtMap.map;
-  return map.edge || map.royale?.edge || null;
+  return opened?.edge || map.edge || map.royale?.edge || null;
+}
+
+/* Where the zone, the loot and the set-downs range: the map's bounds, or
+   what it opened up to (openSide). */
+function playBounds() { return opened?.bounds || game.builtMap.map.bounds; }
+
+/* A map that opens up more for Royale than its other modes (map.royale.open:
+   Hollowgrin's walls come down for the woods round it) does it now, in the
+   live colliders and arena; the bots' grid and the minimap follow. */
+function openSide() {
+  closeSide();
+  opened = game.builtMap.map.royale?.open?.({ colliders: game.colliders, arena: game.ARENA }) || null;
+  if (!opened) return;
+  opened.built = game.builtMap;
+  arenaChanged();
+}
+/* ... and back as it was, if that map's still the one loaded (a new one
+   brought its own colliders and arena). */
+function closeSide() {
+  if (!opened) return;
+  const same = game.builtMap === opened.built;
+  if (same) opened.close();
+  opened = null;
+  if (same) arenaChanged();
+}
+function arenaChanged() {
+  game.bots.rebuildNav(game.colliders, game.ARENA, 0);
+  game.bots.prepPlaces(game.k9Stairs());
+  buildMinimapBase();
 }
 
 /* A map with thick fog (Hollowgrin's night) thins it for the ride down
@@ -735,6 +767,7 @@ function royaleLateSpectate() {
 
 export function teardownRoyale() {
   stopRoyaleRecord("end");   // (already stopped at a death or a finish; this is the match ended from outside)
+  closeSide();
   document.body.classList.remove("to-aboard");   // the plane's trimmed touch HUD (view/player-update.js)
   resetDropCine();
   resetRoyaleFlip();
@@ -824,7 +857,9 @@ export function swapRoyaleSide(to) {
   r.drop?.dispose();   // (kept, done: a joiner's catch-up still reads it)
   r.scenery?.dispose();
   r.scenery = null;
+  closeSide();
   game.loadMap(to);
+  openSide();
   const map = game.builtMap.map;
   const phases = map.royale?.phases || ROYALE.phases;
   const [x, z] = matchingSpot(from, to, s.x, s.z);
@@ -832,10 +867,10 @@ export function swapRoyaleSide(to) {
   r.carry = { to, i: 2, x: +x.toFixed(2), z: +z.toFixed(2), shift: phases.slice(0, 2).reduce((a, p) => a + p.wait + p.close, 0) - at };
   sideWorld(r.carry);
   r.scenery = map.royale?.scenery?.(game.scene) || null;
-  // onto a smaller side (Hollowgrin's walls): everyone round the carried
-  // circle as they stood round the old one, the spacing shrunk to fit; one
-  // by one at the walls they all came down in a heap there
-  const B = map.bounds, k = Math.min(1, (Math.min(B.maxX - B.minX, B.maxZ - B.minZ) / 2 - 4) / Math.max(1, s.r));
+  // onto a smaller side (Hollowgrin, even opened up): everyone round the
+  // carried circle as they stood round the old one, the spacing shrunk to
+  // fit; one by one at the walls they all came down in a heap there
+  const B = playBounds(), k = Math.min(1, (Math.min(B.maxX - B.minX, B.maxZ - B.minZ) / 2 - 4) / Math.max(1, s.r));
   const ring = k < 1 ? { ox: s.x, oz: s.z, x: r.carry.x, z: r.carry.z, k } : null;
   if (me) {
     const p = setDownAt(from, to, me[0], me[1], ring);
@@ -862,12 +897,14 @@ function sideWorld(carry) {
    round the carried circle: `ring`, swapRoyaleSide), on open ground. */
 function setDownAt(from, to, x, z, ring = null) {
   let [mx, mz] = matchingSpot(from, to, x, z);
+  const B = playBounds();
   if (ring) {
-    const B = game.builtMap.map.bounds;
     mx = Math.min(B.maxX - 3, Math.max(B.minX + 3, ring.x + (x - ring.ox) * ring.k));
     mz = Math.min(B.maxZ - 3, Math.max(B.minZ + 3, ring.z + (z - ring.oz) * ring.k));
   }
-  const o = findOpenGround(game.colliders, game.builtMap.map.bounds, mx, mz, 0.6);
+  // (an opened side isn't a box: inside its edge, off the brew)
+  if (opened) { const p = { x: mx, z: mz }; clampInsidePolygon(p, opened.edge, 3); mx = p.x; mz = p.z; }
+  const o = findOpenGround(game.colliders, B, mx, mz, 0.6);
   return { x: o.x, z: o.z, y: royaleGround(o.x, o.z) };
 }
 
