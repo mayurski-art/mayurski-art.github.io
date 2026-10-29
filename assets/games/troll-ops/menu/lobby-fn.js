@@ -108,6 +108,9 @@ export function mountFnLobby(api) {
   title.classList.add("is-fn");
 
   mountReel($(".to-bo2-bg", root), title);
+  // Fortnite's dark bands across the top (under the tabs) and the bottom
+  // (under the hints row)
+  $(".to-bo2-bg", root).after(...["top", "foot"].map((k) => Object.assign(document.createElement("div"), { className: `to-fn-band is-${k}`, ariaHidden: "true" })));
 
   /* ── Top bar ── */
   const top = document.createElement("header");
@@ -130,20 +133,18 @@ export function mountFnLobby(api) {
   root.appendChild(top);
   const tabs = $$(".to-fn-tab", top);
 
-  /* ── Play tab, left: season, news, rank, challenges ── */
+  /* ── Play tab, left: season, level, prestige, challenges (Fortnite's
+     Chapter 1 lobby: one block, the level big beside its crest) ── */
   const left = document.createElement("section");
   left.className = "to-fn-left";
   left.setAttribute("aria-label", "Season");
   left.innerHTML = `
-    <div class="to-fn-glass to-fn-season"><b>Chapter One</b><span>Season: OG</span></div>
-    <div class="to-fn-news" role="group" aria-roledescription="carousel" aria-label="News">
-      ${NEWS.map((n, i) => `<button type="button" class="to-fn-news-card" data-i="${i}" ${i ? "hidden" : ""} aria-label="${esc(`${n.title}: ${n.tag}`)}">
-        <img alt="" data-map="${n.map}"><em>News</em><b>${esc(n.title)}</b><small>${esc(n.tag)}</small></button>`).join("")}
-      <div class="to-fn-pips">${NEWS.map((n, i) => `<button type="button" data-i="${i}" aria-label="News ${i + 1}: ${esc(n.title)}"></button>`).join("")}</div>
-    </div>
+    <div class="to-fn-glass to-fn-season"><span>Season: OG</span><b>Chapter One</b></div>
     <div class="to-fn-pair">
       <button type="button" class="to-fn-glass to-fn-rank" data-act="career">
-        <span class="to-fn-ring"><b></b></span><span><small>Level</small><strong class="to-fn-xp"></strong></span>
+        <span class="to-fn-crest" aria-hidden="true"><img alt="" src="${FALLBACK_AVATAR}"></span>
+        <span class="to-fn-lvbox"><span class="to-fn-lvline"><small>Level</small><b class="to-fn-lvnum"></b></span>
+          <span class="to-fn-bar"><i aria-hidden="true"></i><strong class="to-fn-xp"></strong></span></span>
       </button>
       <button type="button" class="to-fn-glass to-fn-medal" data-act="career">
         <i aria-hidden="true"></i><small>Prestige</small><strong class="to-fn-pnum"></strong>
@@ -154,6 +155,17 @@ export function mountFnLobby(api) {
       <ol class="to-fn-qlist"></ol>
     </div>`;
   root.appendChild(left);
+
+  /* ── Play tab, right: the news as Fortnite's event tile, over the mode card ── */
+  const news = document.createElement("section");
+  news.className = "to-fn-news";
+  news.setAttribute("role", "group");
+  news.setAttribute("aria-roledescription", "carousel");
+  news.setAttribute("aria-label", "News");
+  news.innerHTML = `
+      ${NEWS.map((n, i) => `<button type="button" class="to-fn-news-card" data-i="${i}" ${i ? "hidden" : ""} aria-label="${esc(`${n.title}: ${n.tag}`)}">
+        <img alt="" data-map="${n.map}"><b>${esc(n.title)}</b><span><em>New</em><small>${esc(n.tag)}</small></span></button>`).join("")}
+      <div class="to-fn-pips">${NEWS.map((n, i) => `<button type="button" data-i="${i}" aria-label="News ${i + 1}: ${esc(n.title)}"></button>`).join("")}</div>`;
 
   /* ── Play tab, right: the mode card and PLAY ── */
   const play = document.createElement("section");
@@ -166,6 +178,7 @@ export function mountFnLobby(api) {
     <div class="to-fn-map"><img alt="" hidden><div><strong></strong><span></span></div></div>
     <button type="button" class="to-fn-go"><kbd class="to-fn-padkey" aria-hidden="true">A</kbd>Play</button>`;
   root.appendChild(play);
+  play.append(news);   // (the event tile stands over the mode card)
   const picker = document.createElement("div");
   picker.className = "to-fn-glass to-fn-picker";
   picker.setAttribute("role", "dialog");
@@ -352,7 +365,7 @@ export function mountFnLobby(api) {
 
   /* ── News: turns every 6s; a card opens its playlist ── */
   let newsIdx = 0, newsTimer = 0;
-  const cards = $$(".to-fn-news-card", left), pips = $$(".to-fn-pips button", left);
+  const cards = $$(".to-fn-news-card", news), pips = $$(".to-fn-pips button", news);
   function showNews(i) {
     newsIdx = (i + NEWS.length) % NEWS.length;
     cards.forEach((c, k) => { c.hidden = k !== newsIdx; });
@@ -394,9 +407,8 @@ export function mountFnLobby(api) {
     $(".to-fn-avatar", top).classList.toggle("is-guest", !profile);
     $(".to-fn-avatar", top).setAttribute("aria-label", profile ? "Your Barracks" : "Sign in");
 
-    const ring = $(".to-fn-ring", left);
-    ring.style.setProperty("--p", owner ? 1 : rankProgress());
-    $("b", ring).textContent = owner ? "★" : String(lv);
+    $(".to-fn-rank", left).style.setProperty("--p", owner ? 1 : rankProgress());
+    $(".to-fn-lvnum", left).textContent = owner ? "★" : String(lv);
     $(".to-fn-xp", left).textContent = owner ? "Owner" : profile ? (rankXpText() || "") : "Sign in for XP";
     $(".to-fn-pnum", left).textContent = pres >= PRESTIGE_MASTER ? "Master" : pres ? `P${pres}` : "None yet";
     $(".to-fn-medal", left).classList.toggle("is-none", !pres);
@@ -429,6 +441,7 @@ export function mountFnLobby(api) {
     // the list: a class set here, after it, hid the list while it measured)
     const home = id === "main";
     left.hidden = !home;
+    news.hidden = !home;
     play.hidden = !home;
     more.hidden = !home;
     if (!home) { openPicker(false); openModes(false); }
