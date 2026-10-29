@@ -17,13 +17,14 @@ const text = (el) => (el ? el.textContent.trim().replace(/\s+/g, " ") : "");
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 /* The tabs, and the screen each opens (Play is the front page, "main"). */
+/* `icon`: what an upright phone shows in its place (all six fit there) */
 const TABS = [
-  { id: "play", label: "Play", screen: "main" },
-  { id: "locker", label: "Locker", screen: "locker" },
-  { id: "career", label: "Career", screen: "barracks" },
-  { id: "compete", label: "Compete", screen: "leaders" },
-  { id: "quests", label: "Quests", screen: "quests" },
-  { id: "options", label: "Options", screen: "options" },
+  { id: "play", label: "Play", screen: "main", icon: "M8 5v14l11-7z" },
+  { id: "locker", label: "Locker", screen: "locker", icon: "M9 3 4 6 2 11l3 1v9h14v-9l3-1-2-5-5-3a3 3 0 0 1-6 0z" },
+  { id: "career", label: "Career", screen: "barracks", icon: "m12 2 2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17l-6.1 3.4 1.5-6.8L2.2 9l6.9-.7z" },
+  { id: "compete", label: "Compete", screen: "leaders", icon: "M7 3h10v2h4v3a4 4 0 0 1-4 4h-.4A5 5 0 0 1 13 15v3h3v3H8v-3h3v-3a5 5 0 0 1-3.6-3H7a4 4 0 0 1-4-4V5h4zM5 7v1a2 2 0 0 0 2 2V7zm14 0h-2v3a2 2 0 0 0 2-2z" },
+  { id: "quests", label: "Quests", screen: "quests", icon: "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm5.6 12.6 7-7-1.4-1.4-5.6 5.6-2.8-2.8-1.4 1.4z" },
+  { id: "options", label: "Options", screen: "options", icon: "M13.9 3h-3.8l-.4 2.6a7 7 0 0 0-1.8 1L5.4 5.7 3.5 9l2 1.6a7 7 0 0 0 0 2.8l-2 1.6 1.9 3.3 2.5-.9a7 7 0 0 0 1.8 1l.4 2.6h3.8l.4-2.6a7 7 0 0 0 1.8-1l2.5.9 1.9-3.3-2-1.6a7 7 0 0 0 0-2.8l2-1.6-1.9-3.3-2.5.9a7 7 0 0 0-1.8-1zM12 15.2a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4z" },
 ];
 /* Screens reached from a tab's screen stay under that tab. */
 const TAB_OF = {
@@ -117,7 +118,7 @@ export function mountFnLobby(api) {
     </button>
     <nav class="to-fn-glass to-fn-tabs" aria-label="Lobby">
       <kbd class="to-fn-padkey" aria-hidden="true">LB</kbd>
-      ${TABS.map((t) => `<button type="button" class="to-fn-tab" data-tab="${t.id}">${t.label}<i class="to-fn-dot" hidden></i></button>`).join("")}
+      ${TABS.map((t) => `<button type="button" class="to-fn-tab" data-tab="${t.id}" title="${t.label}"><svg class="to-fn-tab-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="${t.icon}"/></svg><span class="to-fn-tab-lbl">${t.label}</span><i class="to-fn-dot" hidden></i></button>`).join("")}
       <kbd class="to-fn-padkey" aria-hidden="true">RB</kbd>
     </nav>
     <div class="to-fn-me">
@@ -160,7 +161,7 @@ export function mountFnLobby(api) {
   play.setAttribute("aria-label", "Mode");
   play.innerHTML = `
     <button type="button" class="to-fn-mode" aria-haspopup="dialog" aria-expanded="false">
-      <b class="to-fn-mode-name"></b><small class="to-fn-mode-sub"></small><span class="to-fn-change"><kbd class="to-fn-padkey" aria-hidden="true">X</kbd>Change mode</span>
+      <b class="to-fn-mode-name"></b><small class="to-fn-mode-sub"></small><span class="to-fn-change"><kbd class="to-fn-padkey" aria-hidden="true">X</kbd><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h14m-4-4 4 4-4 4M20 16H6m4-4-4 4 4 4"/></svg>Change mode</span>
     </button>
     <div class="to-fn-map"><img alt="" hidden><div><strong></strong><span></span></div></div>
     <button type="button" class="to-fn-go"><kbd class="to-fn-padkey" aria-hidden="true">A</kbd>Play</button>`;
@@ -396,7 +397,7 @@ export function mountFnLobby(api) {
     const ring = $(".to-fn-ring", left);
     ring.style.setProperty("--p", owner ? 1 : rankProgress());
     $("b", ring).textContent = owner ? "★" : String(lv);
-    $(".to-fn-xp", left).textContent = owner ? "Owner" : profile ? (rankXpText() || "") : "Sign in to keep XP";
+    $(".to-fn-xp", left).textContent = owner ? "Owner" : profile ? (rankXpText() || "") : "Sign in for XP";
     $(".to-fn-pnum", left).textContent = pres >= PRESTIGE_MASTER ? "Master" : pres ? `P${pres}` : "None yet";
     $(".to-fn-medal", left).classList.toggle("is-none", !pres);
 
