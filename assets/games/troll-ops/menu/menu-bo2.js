@@ -392,6 +392,7 @@ const mapMode = createMapMode({
   },
 });
 const back = (desc = "Back.") => ({ id: "back", label: "Back", desc, onSelect: (_, m) => m.back() });
+const diagOn = () => !!window.__tfDiag;   // troll-ops.html sets it when the panel is on
 /* Empty the room code: public rooms and solo play never take one along. */
 const clearRoom = () => { const r = $("#to-room"); if (r && r.value) { r.value = ""; r.dispatchEvent(new Event("input", { bubbles: true })); } };
 const zombiesPicked = () => currentModeBtn()?.dataset.mode === "zombies";
@@ -881,6 +882,11 @@ const screens = {
         { id: "anim", label: "Animations", value: () => (animOff ? "Off" : "On"), adjust: () => toggleAnim(),
           desc: "The menu's moving parts: the news cards turning, the glow. Off is easier on a slow laptop." },
         { id: "hud", label: "HUD layout", desc: "Move the buttons and the HUD.", onSelect: () => $("#to-pfp-controls [data-hud-layout]")?.click() },
+        // the ?diag=1 panel (core/diag.js) where a link can't carry ?diag=1:
+        // an app on the home screen has its own storage and no address bar
+        { id: "diag", label: "Diagnostics", value: () => (diagOn() ? "On" : "Off"),
+          desc: "A panel that reports what loaded and what didn't. Turning it on or off reloads the page.",
+          onSelect: () => { try { localStorage.setItem("tf-diag", diagOn() ? "0" : "1"); } catch {} location.reload(); } },
         back("Back to the main menu."),
       ],
     ],

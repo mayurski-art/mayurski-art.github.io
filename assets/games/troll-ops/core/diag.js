@@ -19,7 +19,7 @@ panel.style.cssText = "position:fixed;left:6px;top:calc(6px + env(safe-area-inse
 panel.innerHTML = `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
   <b style="font:800 13px system-ui;color:#4fd8ff;flex:1">Troll Forces diagnostics</b>
   <button type="button" data-act="tests">Run tests</button><button type="button" data-act="copy">Copy</button>
-  <button type="button" data-act="clear">Clear cache</button><button type="button" data-act="min">Hide</button></div><pre style="margin:0;white-space:pre-wrap;word-break:break-all"></pre>`;
+  <button type="button" data-act="clear">Clear cache</button><button type="button" data-act="min">Hide</button><button type="button" data-act="off">Turn off</button></div><pre style="margin:0;white-space:pre-wrap;word-break:break-all"></pre>`;
 for (const b of panel.querySelectorAll("button")) b.style.cssText = "font:700 12px system-ui;padding:5px 9px;border-radius:7px;border:1px solid #4fd8ff;background:#13234f;color:#fff";
 document.body.appendChild(panel);
 const pre = panel.querySelector("pre");
@@ -120,6 +120,11 @@ panel.addEventListener("click", async (e) => {
   if (act === "tests") { tests = ["running…"]; paint(); runTests(); }
   else if (act === "copy") { try { await navigator.clipboard.writeText(pre.textContent); e.target.textContent = "Copied"; } catch { e.target.textContent = "Select the text"; } }
   else if (act === "min") { const hide = pre.style.display !== "none"; pre.style.display = hide ? "none" : ""; e.target.textContent = hide ? "Show" : "Hide"; }
+  else if (act === "off") {
+    // (Options > Diagnostics' saved switch, and ?diag=1 out of the address)
+    try { localStorage.setItem("tf-diag", "0"); } catch {}
+    location.replace(location.pathname + location.search.replace(/[?&]diag=1/, "").replace(/^&/, "?") + location.hash);
+  }
   else if (act === "clear") {
     e.target.textContent = "Clearing…";
     try { for (const k of await caches.keys()) await caches.delete(k); } catch {}

@@ -21,7 +21,12 @@
 // Registered from game.js. Off on localhost unless ?sw=1, so editing the
 // game locally never serves a stale file; ?sw=0 removes it.
 
-const CACHE = "tf-assets-v1";
+// v2 (2026-10-28): the user's iPhone home-screen app showed the lobby with no
+// pictures and Troll City with no buildings while Safari on the same phone
+// loaded everything; that app keeps its own storage, so its v1 copy is the
+// suspect. A new name makes every device drop v1 (activate below) and fetch
+// the art once, fresh.
+const CACHE = "tf-assets-v2";
 const RECHECK_MS = 24 * 60 * 60 * 1000;
 const STAMP = "x-tf-cached-at";
 const KEEP_TAGS = 3;            // builds of one script kept at once
@@ -120,6 +125,12 @@ async function store(cache, req, kind, mode, res = null) {
   const headers = new Headers(res.headers);
   headers.set(STAMP, String(Date.now()));
   const body = await res.blob();
+  // Never keep a file cut short (a phone backgrounding the app mid-download,
+  // storage pressure): served cache-first, a broken copy would come back on
+  // every launch. Only checkable when the server sent it uncompressed
+  // (content-length is then the body's size); an empty body is never kept.
+  const len = +res.headers.get("content-length") || 0;
+  if (!body.size || (len && !res.headers.get("content-encoding") && body.size !== len)) return;
   await cache.put(req.url, new Response(body, { status: res.status, statusText: res.statusText, headers }));
   if (kind === "tagged") {
     // Older builds of this same script are never asked for again: keep the

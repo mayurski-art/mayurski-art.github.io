@@ -4342,9 +4342,15 @@ body.is-map :is(.to-bo2-anim, .to-bo2-quick) { visibility: hidden; }
   --fn-line: rgba(170,200,255,.36);
   --fn-yellow: #ffd21f;
   --fn-cyan: #4fd8ff;
-  --fn-pad: 28px;
+  /* The device's safe areas (a notch, rounded corners, the home bar; user,
+     2026-10-28: an iPhone 13 Pro turned sideways cut the left side off, in
+     every layout, Safari's desktop-site mode included). iOS gives a sideways
+     phone the notch's inset on both sides, so the sides use the larger. */
+  --fn-safe-x: max(env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+  --fn-safe-b: env(safe-area-inset-bottom, 0px);
+  --fn-pad: max(28px, calc(var(--fn-safe-x) + 12px));
   --fn-top: 92px;
-  --bo2-col: 472px;
+  --bo2-col: calc(444px + var(--fn-pad));
 }
 .to-bo2.is-fn { font-family: var(--fn-ui); }
 /* No scrollbars drawn anywhere in the game (user, 2026-10-26: "remove the
@@ -4390,7 +4396,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-fn-avatar.is-guest i { background: #8b95b3; }
 
 /* ── Play: the left column ── */
-.to-fn-left { position: absolute; left: var(--fn-pad); top: var(--fn-top); bottom: 84px; width: 300px; z-index: 3; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.to-fn-left { position: absolute; left: var(--fn-pad); top: var(--fn-top); bottom: calc(84px + var(--fn-safe-b)); width: 300px; z-index: 3; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
 .to-fn-season { flex: none; text-align: center; padding: 12px 10px 10px; }
 .to-fn-season b { display: block; color: var(--fn-cyan); font: 800 16px var(--fn-ui); letter-spacing: .1em; text-transform: uppercase; }
 .to-fn-season span { display: block; font: italic 400 34px/1.05 var(--fn-display); text-transform: uppercase; }
@@ -4429,7 +4435,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-fn-qlist i b { display: block; height: 100%; border-radius: 9px; background: #4ee6a0; }
 
 /* ── Play: the mode card, PLAY, the mode picker ── */
-.to-fn-play { position: absolute; right: var(--fn-pad); bottom: 84px; width: 330px; z-index: 4; display: grid; gap: 8px; padding: 10px; box-sizing: border-box; }
+.to-fn-play { position: absolute; right: var(--fn-pad); bottom: calc(84px + var(--fn-safe-b)); width: 330px; z-index: 4; display: grid; gap: 8px; padding: 10px; box-sizing: border-box; }
 .to-fn-mode { display: grid; justify-items: center; gap: 2px; padding: 12px 10px 10px; border: 1px solid rgba(255,255,255,.18); border-radius: 9px; background: rgba(18,26,60,.72); color: #fff; cursor: pointer; }
 .to-fn-mode:hover { border-color: rgba(255,255,255,.5); }
 .to-fn-mode-name { font: italic 400 34px/1 var(--fn-display); text-transform: uppercase; text-align: center; }
@@ -4444,7 +4450,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   font: 400 36px/1 var(--fn-display); letter-spacing: .02em; text-transform: uppercase; }
 .to-fn-go:hover { background: linear-gradient(180deg, #fff07e, #ffd21f); }
 .to-fn-go:active { transform: translateY(1px); box-shadow: inset 0 -2px 0 rgba(0,0,0,.15); }
-.to-fn-picker { position: absolute; right: var(--fn-pad); bottom: calc(84px + 8px); width: 330px; z-index: 6; padding: 12px; box-sizing: border-box; display: grid; gap: 6px; background: linear-gradient(180deg, #284085, #121c48); }
+.to-fn-picker { position: absolute; right: var(--fn-pad); bottom: calc(92px + var(--fn-safe-b)); width: 330px; z-index: 6; padding: 12px; box-sizing: border-box; display: grid; gap: 6px; background: linear-gradient(180deg, #284085, #121c48); }
 .to-fn-picker h2 { margin: 0 0 4px; font: italic 400 24px var(--fn-display); text-transform: uppercase; }
 .to-fn-picker button { display: grid; gap: 2px; padding: 9px 12px; border: 1px solid transparent; border-radius: 9px; background: rgba(255,255,255,.07); color: #fff; text-align: left; cursor: pointer; }
 .to-fn-picker button:hover, .to-fn-picker button:focus-visible { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.4); }
@@ -4459,11 +4465,11 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-bo2.is-fn.has-pad .to-fn-go .to-fn-padkey { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); min-width: 32px; height: 32px; border-radius: 50%; border-color: rgba(0,0,0,.35); background: rgba(0,0,0,.18); color: #1b1400; font-size: 16px; }
 .to-bo2.is-fn.has-pad .to-fn-change .to-fn-padkey { margin-right: 6px; vertical-align: 1px; height: 18px; min-width: 20px; font-size: 11px; }
 /* All modes: the tile row under the lobby (scroll down, or this button) */
-.to-fn-allmodes { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 4; display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 16px 0 10px;
+.to-fn-allmodes { position: absolute; left: 50%; bottom: calc(22px + var(--fn-safe-b)); transform: translateX(-50%); z-index: 4; display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 16px 0 10px;
   font: 800 16px var(--fn-ui); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
 .to-fn-allmodes svg, .to-fn-modes-x svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
 .to-fn-allmodes:hover { background: linear-gradient(180deg, rgba(90,124,214,.7), rgba(34,52,120,.8)); }
-.to-fn-modes { position: absolute; inset: var(--fn-top) 0 0; z-index: 7; display: flex; flex-direction: column; gap: 14px; padding: 6px var(--fn-pad) 24px; box-sizing: border-box;
+.to-fn-modes { position: absolute; inset: var(--fn-top) 0 0; z-index: 7; display: flex; flex-direction: column; gap: 14px; padding: 6px var(--fn-pad) calc(24px + var(--fn-safe-b)); box-sizing: border-box;
   background: linear-gradient(180deg, rgba(14,24,64,.82), rgba(8,14,40,.94)); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 @media (prefers-reduced-motion: no-preference) { .to-fn-modes:not([hidden]) { animation: to-fn-rise .22s ease-out; } }
 @keyframes to-fn-rise { from { transform: translateY(24px); opacity: 0; } }
@@ -4492,7 +4498,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 /* ── The Locker (phase 4): the class's slots as tiles on the left, your look
    on the right, you in the middle. menu-bo2.js's locker screen is three
    groups (class, look, Back); here they are panels. ── */
-.to-bo2.is-fn[data-screen="locker"] .to-bo2-menu { right: var(--fn-pad); width: auto; bottom: 84px; max-height: none; padding: 0; background: none; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; pointer-events: none; }
+.to-bo2.is-fn[data-screen="locker"] .to-bo2-menu { right: var(--fn-pad); width: auto; bottom: calc(84px + var(--fn-safe-b)); max-height: none; padding: 0; background: none; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; pointer-events: none; }
 .to-bo2.is-fn[data-screen="locker"] .tr-menu-title { text-shadow: 0 2px 12px rgba(0,0,0,.7); }
 .to-bo2.is-fn[data-screen="locker"] .tr-menu-groups { display: grid; grid-template-columns: 440px 1fr 300px; grid-template-rows: auto 1fr; gap: 10px 16px; align-items: start; margin: 0; padding: 0; overflow: visible; -webkit-mask-image: none; mask-image: none; }
 .to-bo2.is-fn[data-screen="locker"] .tr-menu-group { pointer-events: auto; display: grid; gap: 8px; padding: 10px; border: 1px solid var(--fn-line); border-radius: 14px; background: var(--fn-glass-solid); box-shadow: 0 16px 40px rgba(0,0,0,.3); }
@@ -4512,7 +4518,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-bo2.is-fn[data-screen="locker"] .tr-menu-item[data-id="classlist"] > small:not([aria-hidden]) { font: italic 400 28px/1 var(--fn-display); }
 .to-bo2.is-fn[data-screen="locker"] .tr-menu-item[data-id="classlist"].is-hot { background: #fff; }
 .to-bo2.is-fn[data-screen="locker"] .to-bo2-party { display: none; }
-#to-title.is-bo2.is-fn:has(.to-bo2[data-screen="locker"]) .to-char-view { left: calc(var(--fn-pad) + 456px); right: calc(var(--fn-pad) + 316px); top: var(--fn-top); bottom: 78px; --char-shift: 0; --char-dist: 1.15; }
+#to-title.is-bo2.is-fn:has(.to-bo2[data-screen="locker"]) .to-char-view { left: calc(var(--fn-pad) + 456px); right: calc(var(--fn-pad) + 316px); top: var(--fn-top); bottom: calc(78px + var(--fn-safe-b)); --char-shift: 0; --char-dist: 1.15; }
 /* ── The in-match Esc menu, in the lobby's look (phase 6): a navy glass
    panel, the heavy italic title, tabs as the lobby's pills, Resume yellow
    like PLAY, your class buttons glass with the picked one white. ── */
@@ -4635,7 +4641,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 #to-title.is-bo2.is-fn .to-char-view { top: calc(var(--fn-top) - 8px); }
 /* ...and on the Play page, on its pad between the columns, the party's
    pads either side (char-inspector.js stage; lobby.js the names and invites) */
-#to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: calc(var(--fn-pad) + 310px); right: calc(var(--fn-pad) + 340px); top: var(--fn-top); bottom: 78px; --char-shift: 0; --char-dist: 1.32; }
+#to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: calc(var(--fn-pad) + 310px); right: calc(var(--fn-pad) + 340px); top: var(--fn-top); bottom: calc(78px + var(--fn-safe-b)); --char-shift: 0; --char-dist: 1.32; }
 .to-bo2.is-fn[data-screen="main"] .to-bo2-foot .to-char-emote:not([hidden]) { display: flex; }
 .to-stage { position: absolute; inset: 0; pointer-events: none; font-family: var(--fn-ui); }
 .to-stage > * { position: absolute; left: 0; top: 0; pointer-events: auto; }
@@ -4663,7 +4669,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 
 /* the party column: under the top bar, above the mode card on Play */
 .to-bo2.is-fn .to-bo2-party { top: var(--fn-top); right: var(--fn-pad); width: 300px; }
-.to-bo2.is-fn[data-screen="main"] .to-bo2-party { bottom: calc(84px + 300px); }
+.to-bo2.is-fn[data-screen="main"] .to-bo2-party { bottom: calc(384px + var(--fn-safe-b)); }
 .to-bo2.is-fn .to-bo2-party-lbl { font: 800 16px var(--fn-ui); letter-spacing: .06em; text-transform: uppercase; text-shadow: 0 1px 6px rgba(0,0,0,.7); }
 .to-bo2.is-fn .to-bo2-party-row { min-height: 40px; border: 1px solid var(--fn-line); border-radius: 10px; background: var(--fn-glass); }
 .to-bo2.is-fn .to-bo2-party-row b { font: 800 17px var(--fn-ui); color: #ffe58a; }
@@ -4676,7 +4682,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 
 /* the bottom row: online count and Back left, chat right; tabs stand in
    for the old Barracks and Options pills */
-.to-bo2.is-fn .to-bo2-foot { left: var(--fn-pad); right: var(--fn-pad); bottom: 22px; align-items: flex-end; }
+.to-bo2.is-fn .to-bo2-foot { left: var(--fn-pad); right: var(--fn-pad); bottom: calc(22px + var(--fn-safe-b)); align-items: flex-end; }
 .to-bo2.is-fn .to-bo2-online { display: inline-block; padding: 9px 16px; border: 1px solid var(--fn-line); border-radius: 10px; background: var(--fn-glass); font: 800 18px/1 var(--fn-ui); letter-spacing: .06em; text-transform: uppercase; text-shadow: none; }
 .to-bo2.is-fn .to-bo2-back { margin-top: 8px; min-height: 40px; padding: 0 14px; border: 1px solid var(--fn-line); border-radius: 10px; background: var(--fn-glass); color: #fff; font: 800 16px var(--fn-ui); letter-spacing: .06em; text-transform: uppercase; }
 .to-bo2.is-fn .to-bo2-status, .to-bo2.is-fn .to-bo2-dl { font: 700 13px var(--fn-ui); text-shadow: 0 1px 6px rgba(0,0,0,.8); }
@@ -4689,7 +4695,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 
 /* Tablets: a narrower list and columns */
 @container cab (min-width: 761px) and (max-width: 1100px) {
-  .to-bo2.is-fn, #to-title.is-bo2.is-fn .to-pf { --fn-pad: 20px; --bo2-col: 384px; }
+  .to-bo2.is-fn, #to-title.is-bo2.is-fn .to-pf { --fn-pad: max(20px, calc(var(--fn-safe-x) + 12px)); --bo2-col: calc(364px + var(--fn-pad)); }
   .to-bo2.is-fn .to-bo2-menu { width: 348px; }
   .to-fn-left, .to-bo2.is-fn .to-bo2-party { width: 260px; }
   .to-fn-tab { min-width: 0; padding: 0 10px; font-size: 15px; }
@@ -4700,7 +4706,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 /* Sideways phones: everything smaller; news and the challenge list step
    out (the Quests tab has them) */
 @container cab (min-aspect-ratio: 9/10) and ((max-height: 520px) or (max-width: 760px)) {
-  .to-bo2.is-fn, #to-title.is-bo2.is-fn .to-pf { --fn-pad: max(16px, env(safe-area-inset-left)); --fn-top: 54px; --bo2-col: calc(var(--fn-pad) + min(330px, 44%) + 12px); }
+  .to-bo2.is-fn, #to-title.is-bo2.is-fn .to-pf { --fn-pad: max(16px, calc(var(--fn-safe-x) + 8px)); --fn-top: 54px; --bo2-col: calc(var(--fn-pad) + min(330px, 44%) + 12px); }
   .to-fn-top { top: 8px; height: 38px; gap: 6px; right: calc(var(--fn-pad) + 44px); }
   .to-fn-ico, .to-fn-avatar { width: 38px; height: 38px; }
   .to-fn-ico svg { width: 18px; height: 18px; }
@@ -4709,7 +4715,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-fn-tab { min-width: 0; padding: 0 9px; font-size: 13px; }
   .to-fn-lvl { padding: 0 10px; font-size: 14px; }
   .to-fn-pres { min-width: 22px; height: 22px; font-size: 10px; }
-  .to-fn-left { top: var(--fn-top); width: 210px; bottom: 54px; gap: 8px; }
+  .to-fn-left { top: var(--fn-top); width: 210px; bottom: calc(54px + var(--fn-safe-b)); gap: 8px; }
   .to-fn-season { padding: 6px; }
   .to-fn-season b { font-size: 12px; }
   .to-fn-season span { font-size: 22px; }
@@ -4717,8 +4723,8 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-fn-ring { width: 44px; height: 44px; }
   .to-fn-ring b { width: 34px; height: 34px; font-size: 16px; }
   .to-fn-rank strong { font-size: 12px; }
-  .to-fn-play, .to-fn-picker { width: 250px; bottom: 54px; gap: 6px; padding: 8px; }
-  .to-fn-picker { bottom: 62px; max-height: calc(100% - 120px); overflow-y: auto; }
+  .to-fn-play, .to-fn-picker { width: 250px; bottom: calc(54px + var(--fn-safe-b)); gap: 6px; padding: 8px; }
+  .to-fn-picker { bottom: calc(62px + var(--fn-safe-b)); max-height: calc(100% - 120px - var(--fn-safe-b)); overflow-y: auto; }
   .to-fn-mode { padding: 6px; }
   .to-fn-mode-name { font-size: 22px; }
   .to-fn-mode-sub { font-size: 12px; }
@@ -4734,12 +4740,12 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   #to-title.is-bo2.is-fn .to-pf > .to-gun-view.is-hero { top: var(--fn-top); }
   .to-bo2.is-fn.has-gun .to-bo2-detail { top: calc(var(--fn-top) + 38cqh + 8px); max-height: calc(100% - var(--fn-top) - 38cqh - 8px - var(--foot-h, 36px) - 20px); }
   .to-bo2.is-fn .to-bo2-party { top: var(--fn-top); width: 250px; }
-  .to-bo2.is-fn[data-screen="main"] .to-bo2-party { bottom: calc(54px + 200px); }
-  .to-bo2.is-fn .to-bo2-foot { bottom: 8px; }
+  .to-bo2.is-fn[data-screen="main"] .to-bo2-party { bottom: calc(254px + var(--fn-safe-b)); }
+  .to-bo2.is-fn .to-bo2-foot { bottom: calc(8px + var(--fn-safe-b)); }
   .to-bo2.is-fn .to-bo2-online { padding: 6px 10px; font-size: 14px; }
   /* the stage between the narrower columns, its names smaller; no bubbles
      (no room: the "+" opens Who's Online) */
-  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: calc(var(--fn-pad) + 218px); right: calc(var(--fn-pad) + 258px); top: calc(var(--fn-top) + 34px); bottom: 54px; }
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: calc(var(--fn-pad) + 218px); right: calc(var(--fn-pad) + 258px); top: calc(var(--fn-top) + 34px); bottom: calc(54px + var(--fn-safe-b)); }
   .to-stage-tag { margin-top: -34px; }
   .to-stage-tag b { padding: 2px 8px; font-size: 13px; }
   .to-stage-tag small { font-size: 9px; }
@@ -4747,8 +4753,8 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-stage-add span { font-size: 26px; }
   .to-stage-bubble { display: none; }
   /* the tiles in one row that scrolls sideways */
-  .to-fn-allmodes { bottom: 8px; min-height: 34px; font-size: 14px; }
-  .to-fn-modes { gap: 8px; padding-bottom: 10px; }
+  .to-fn-allmodes { bottom: calc(8px + var(--fn-safe-b)); min-height: 34px; font-size: 14px; }
+  .to-fn-modes { gap: 8px; padding-bottom: calc(10px + var(--fn-safe-b)); }
   .to-fn-modes h2 { font-size: 28px; }
   .to-fn-modes h2 small { margin-top: 4px; font-size: 12px; }
   .to-fn-modes-x { width: 38px; height: 38px; }
@@ -4757,7 +4763,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-fn-tile-n { font-size: 14px; }
   /* the Locker: three across in the class panel, smaller tiles; the tab
      bar names the page and takes you back, so no title or Back here */
-  .to-bo2.is-fn[data-screen="locker"] .to-bo2-menu { bottom: 46px; }
+  .to-bo2.is-fn[data-screen="locker"] .to-bo2-menu { bottom: calc(46px + var(--fn-safe-b)); }
   .to-bo2.is-fn[data-screen="locker"] .tr-menu-title, .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(3) { display: none; }
   .to-bo2.is-fn[data-screen="locker"] .tr-menu-groups { grid-template-columns: minmax(0, 470px) 1fr 220px; gap: 8px 12px; }
   .to-bo2.is-fn[data-screen="locker"] .tr-menu-group { gap: 6px; padding: 7px; }
@@ -4767,7 +4773,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item > small:not([aria-hidden]) { font-size: 14px; }
   .to-bo2.is-fn[data-screen="locker"] .tr-menu-item[data-id="classlist"] { min-height: 42px; }
   .to-bo2.is-fn[data-screen="locker"] .tr-menu-item[data-id="classlist"] > small:not([aria-hidden]) { font-size: 20px; }
-  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="locker"]) .to-char-view { left: calc(var(--fn-pad) + 482px); right: calc(var(--fn-pad) + 232px); bottom: 46px; }
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="locker"]) .to-char-view { left: calc(var(--fn-pad) + 482px); right: calc(var(--fn-pad) + 232px); bottom: calc(46px + var(--fn-safe-b)); }
   /* the item cards' pictures shorter, so more cards fit */
   .to-bo2.is-fn .tr-menu-item .tr-menu-pic { height: 44px; }
   .to-bo2.is-fn:is([data-screen]) .tr-menu-group:first-child .tr-menu-item:has(.tr-menu-pic) { min-height: 96px; }
@@ -4775,7 +4781,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 /* Upright phones: the tabs scroll along the top, the season and level
    under them, who's online, then the mode card and PLAY across the bottom */
 @container cab (max-aspect-ratio: 9/10) {
-  .to-bo2.is-fn, #to-title.is-bo2.is-fn .to-pf { --fn-pad: 12px; --bo2-col: 12px; }
+  .to-bo2.is-fn, #to-title.is-bo2.is-fn .to-pf { --fn-pad: max(12px, calc(var(--fn-safe-x) + 8px)); --bo2-col: var(--fn-pad); }
   /* the Play page is a stack of cards here: no room for the stage */
   #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { display: none; }
   .to-bo2.is-fn[data-screen="main"] .to-bo2-foot .to-char-emote:not([hidden]) { display: none; }
@@ -4833,7 +4839,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 /* The radio: its button ends the top bar, the same height, and the player
    drops down under the bar (never over the tabs), its right edge on the
    page's. */
-#to-title.is-fn:not([hidden]) ~ .to-radio { right: 28px; top: 22px; bottom: auto; left: auto; }
+#to-title.is-fn:not([hidden]) ~ .to-radio { right: max(28px, calc(max(env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px)) + 12px)); top: 22px; bottom: auto; left: auto; }
 #to-title.is-fn:not([hidden]) ~ .to-radio .to-radio-toggle { width: 52px; height: 52px; border-radius: 12px; }
 /* (top as a share of the button's box: the skins are zoomed down on small
    screens, and zoom shrinks a px offset with them, up into the tabs) */
