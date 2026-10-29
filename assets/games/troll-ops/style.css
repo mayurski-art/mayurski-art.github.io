@@ -3224,14 +3224,14 @@ body.tf-anim-off .to-radio-toggle .to-radio-ico rect { animation: none !importan
    --k from the screen's height (a 375px phone to a 1024px iPad), and keeps
    clear of the notch through the safe-area insets. */
 body.to-touch-play {
-  --k: 1;
+  --k: 1.2;   /* (all four sizes up a fifth, user 2026-10-28: "the button sizes on mobile devices while playing game modes are too small") */
   --sl: env(safe-area-inset-left, 0px);
   --sr: env(safe-area-inset-right, 0px);
   --sb: env(safe-area-inset-bottom, 0px);
 }
-@media (max-height: 340px) { body.to-touch-play { --k: .84; } }
-@media (min-height: 481px) { body.to-touch-play { --k: 1.18; } }
-@media (min-height: 700px) { body.to-touch-play { --k: 1.36; } }
+@media (max-height: 340px) { body.to-touch-play { --k: 1; } }
+@media (min-height: 481px) { body.to-touch-play { --k: 1.4; } }
+@media (min-height: 700px) { body.to-touch-play { --k: 1.6; } }
 
 /* Zones under the buttons; buttons on top. The look pad used to stop 120px
    short of the bottom so it wouldn't swallow the buttons painted under it. */
@@ -3387,7 +3387,7 @@ body.to-touch-play .to-ss-hud {
   width: max-content; z-index: 16;
 }
 body.to-touch-play .to-ss-slot { width: calc(64px * var(--k)); height: calc(64px * var(--k)); }
-body.to-touch-play .to-hud-top { padding-left: calc(var(--sl) + 20px + 96px * var(--k)); padding-right: calc(var(--sr) + 76px); top: 8px; }
+body.to-touch-play .to-hud-top { padding-left: calc(var(--sl) + 20px + 96px * var(--k)); padding-right: calc(var(--sr) + 262px); top: 8px; }
 body.to-touch-play .to-hud-teams { top: 10px; }
 body.to-touch-play .to-royale { top: 40px; }
 body.to-touch-play .to-dom { top: 42px; }
@@ -3638,9 +3638,12 @@ body.to-touch-play .to-spawnguard { bottom: auto; top: 26%; }
 
 /* Emotes on touch: the wheel shrinks to fit a landscape phone's height. */
 body.to-touch-play .to-emote-wheel { transform: scale(calc(var(--k) * .7)); }
+/* Emote, Admire, 1P/3P and free look ride the top row left of the menu
+   button, its size: hung under it they took the height the bigger right-thumb
+   cluster needs (user 2026-10-28: buttons too small). */
 body.to-touch-play .to-touch-emote {
-  left: auto; right: calc(var(--sr) + 24px * var(--k)); bottom: auto; top: calc(var(--st, 0px) + 64px * var(--k));
-  width: calc(56px * var(--k)); height: calc(30px * var(--k)); font-size: calc(9px * var(--k));
+  left: auto; right: calc(var(--sr) + 60px); bottom: auto; top: calc(var(--st, 0px) + 8px);
+  width: 44px; height: 44px; font-size: 9px;
 }
 
 /* Test Range on touch: the desktop panel sat over the right-thumb buttons.
@@ -3727,18 +3730,18 @@ body.to-layout-edit #hud-health.to-layout-item, body.to-layout-edit #hud-ammo.to
 .to-touch-admire { left: 22px; top: 136px; width: 52px; height: 32px; border-radius: 9px; }
 .to-touch-admire svg { width: 16px; height: 16px; }
 body.to-touch-play .to-touch-admire {
-  left: auto; right: calc(var(--sr) + 24px * var(--k)); bottom: auto; top: calc(var(--st, 0px) + 100px * var(--k));
-  width: calc(56px * var(--k)); height: calc(30px * var(--k));
+  left: auto; right: calc(var(--sr) + 110px); bottom: auto; top: calc(var(--st, 0px) + 8px);
+  width: 44px; height: 44px;
 }
-body.to-touch-play .to-touch-admire svg { width: calc(20px * var(--k)); height: calc(20px * var(--k)); }
+body.to-touch-play .to-touch-admire svg { width: 22px; height: 22px; }
 
 /* First / third person, showing the view you're in: under Admire on a
    desktop's touch panel, beside Emote on a phone (the right column's full). */
 .to-touch-pov { left: 22px; top: 176px; width: 52px; height: 32px; border-radius: 9px; font: 700 11px "DM Sans", sans-serif; letter-spacing: .04em; }
 .to-touch-pov[aria-pressed="true"] { background: rgba(127,224,102,.3); border-color: rgba(127,224,102,.65); }
 body.to-touch-play .to-touch-pov {
-  left: auto; right: calc(var(--sr) + 88px * var(--k)); bottom: auto; top: calc(var(--st, 0px) + 64px * var(--k));
-  width: calc(56px * var(--k)); height: calc(30px * var(--k)); font-size: calc(11px * var(--k));
+  left: auto; right: calc(var(--sr) + 160px); bottom: auto; top: calc(var(--st, 0px) + 8px);
+  width: 44px; height: 44px; font-size: 12px;
 }
 /* Free look (view/free-look.js), third person only: under the camera
    button on the touch panel, left of it on a phone. */
@@ -3747,10 +3750,10 @@ body.to-touch-play .to-touch-pov {
 .to-touch-free[aria-pressed="true"] { background: rgba(127,224,102,.3); border-color: rgba(127,224,102,.65); }
 .to-touch-free[hidden] { display: none; }
 body.to-touch-play .to-touch-free {
-  left: auto; right: calc(var(--sr) + 152px * var(--k)); bottom: auto; top: calc(var(--st, 0px) + 64px * var(--k));
-  width: calc(44px * var(--k)); height: calc(30px * var(--k));
+  left: auto; right: calc(var(--sr) + 210px); bottom: auto; top: calc(var(--st, 0px) + 8px);
+  width: 44px; height: 44px;
 }
-body.to-touch-play .to-touch-free svg { width: calc(18px * var(--k)); height: calc(18px * var(--k)); }
+body.to-touch-play .to-touch-free svg { width: 20px; height: 20px; }
 
 /* Scorestreak slots, BO2 style: the picture with the streak's tier badge on
    its corner, its name under it, then the cost (or READY and the key). */
