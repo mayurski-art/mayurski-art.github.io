@@ -7,11 +7,12 @@
 // It lives as the HUD's bottom layer, so it hides with the HUD (menus,
 // death) and sits under the ammo and score.
 //
-// With the trollface reticle on (view/troll-reticle.js) the troll fist
-// hangs just under the crosshair's centre, never over it (the target stays
-// in view), and "get trolled" while an enemy is in it, 4.5% of the
-// screen's height like the optics' (attachment-models.js
-// TROLL_RETICLE_SCREEN): the lens is 98% of it, so 4.6% of the lens.
+// With the trollface reticle on (view/troll-reticle.js) a red dot sits on
+// the crosshair's centre and the troll fist hangs just under it, never over
+// it (the target stays in view), "get trolled" while an enemy is in it.
+// Sized like the optics' (attachment-models.js): the fist 4.5% of the
+// screen's height (TROLL_RETICLE_SCREEN), the dot 2.6% (TROLL_DOT_SCREEN);
+// the lens is 98% of the screen, so 4.6% and 2.65% of the lens.
 
 import { TROLL_RETICLE_URLS } from "./troll-reticle.js?v=tr1-ret1-mrg1-hd1-mrc1-tw1-rt2-rd1";
 
@@ -24,7 +25,9 @@ const CSS = `
   border-radius: 50%; box-shadow: 0 0 0 100vmax #000;
   background: radial-gradient(circle, rgba(140,170,200,0.05) 0%, transparent 50%, rgba(0,0,0,0.45) 80%, rgba(0,0,0,0.95) 95%, #000 100%); }
 .to-scope-lens svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.to-scope-troll { position: absolute; left: 50%; top: 51%; height: 4.6%; width: auto; transform: translateX(-50%); }
+.to-scope-troll { position: absolute; left: 50%; top: 52%; height: 4.6%; width: auto; transform: translateX(-50%); }
+.to-scope-dot { position: absolute; left: 50%; top: 50%; width: 2.65%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%;
+  background: radial-gradient(circle, #ff2a2a 0 68%, rgba(0,0,0,0.75) 72% 100%); }
 `;
 
 function svg() {
@@ -51,6 +54,7 @@ function svg() {
 let root = null;
 let hidGun = null;
 let trollImgs = [];
+let trollDot = null;
 let shownSkin = null;
 
 function mount() {
@@ -64,8 +68,10 @@ function mount() {
   root.setAttribute("aria-hidden", "true");
   root.innerHTML = `<div class="to-scope-lens">${svg()}`
     + `<img class="to-scope-troll" data-skin="idle" src="${TROLL_RETICLE_URLS.idle}" alt="" hidden>`
-    + `<img class="to-scope-troll" data-skin="hit" src="${TROLL_RETICLE_URLS.hit}" alt="" hidden></div>`;
+    + `<img class="to-scope-troll" data-skin="hit" src="${TROLL_RETICLE_URLS.hit}" alt="" hidden>`
+    + `<div class="to-scope-dot" hidden></div></div>`;
   trollImgs = [...root.querySelectorAll(".to-scope-troll")];
+  trollDot = root.querySelector(".to-scope-dot");
   hud.prepend(root);
   return root;
 }
@@ -89,6 +95,7 @@ export function updateSniperScope(mesh, arms, w, holdingGun, firstPerson, skin =
       if (want !== shownSkin) {
         shownSkin = want;
         for (const img of trollImgs) img.hidden = img.dataset.skin !== want;
+        trollDot.hidden = !want;
       }
     }
   }

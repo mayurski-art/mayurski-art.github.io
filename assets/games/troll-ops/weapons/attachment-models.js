@@ -69,14 +69,16 @@ function sightMark(o, kind = true) {
    TROLL_RETICLE_SCREEN of the screen's height (a CoD emblem reticle's
    size), but never more than TROLL_RETICLE_WINDOW of the sight's own window,
    so the art under the dot still fits the reflex's small window. The dot is
-   TROLL_DOT_SCREEN of the screen, a red dot sight's. The eye
+   TROLL_DOT_SCREEN of the screen, as big as the Coyote's own (user,
+   2026-10-29, picked "Large" for something to put on the target), and
+   up to a quarter of the window, so the reflex's is near full size. The eye
    distance and lens fov are the optic's own (userData.adsDistance and
    adsWeaponFov, else view/weapon-view.js's 0.46 m and 50 degrees), so
    addTrollMarks runs once those are set. view/sniper-scope.js sizes the 8x
    overlay's to the same TROLL_RETICLE_SCREEN. */
 const TROLL_RETICLE_SCREEN = 0.045;
 const TROLL_RETICLE_WINDOW = 0.3;
-const TROLL_DOT_SCREEN = 0.009;
+const TROLL_DOT_SCREEN = 0.026;
 const TROLL_RETICLE_TEX = {};
 let trollDotTex = null;
 function trollDot() {
@@ -113,7 +115,7 @@ function addTrollMarks(g, z, window) {
   const eye = (g.userData.adsDistance ?? 0.46) - z;
   const screenH = 2 * eye * Math.tan(((g.userData.adsWeaponFov ?? 50) * Math.PI) / 360);
   const h = Math.min(TROLL_RETICLE_SCREEN * screenH, TROLL_RETICLE_WINDOW * window);
-  const dot = Math.min(TROLL_DOT_SCREEN * screenH, 0.05 * window);
+  const dot = Math.min(TROLL_DOT_SCREEN * screenH, 0.25 * window);
   for (const [kind, file] of [["troll-idle", "troll-fist.png"], ["troll-hit", "get-trolled.png"]]) {
     const t = trollReticleTex(kind, file);
     const mark = new THREE.Group();
