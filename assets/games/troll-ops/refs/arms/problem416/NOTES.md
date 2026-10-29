@@ -1,11 +1,10 @@
 # Problem 416: references (DESIGN-ARSENAL.md §4 step 0)
 
-The target look is the user's concept renders (2026-10-29, three images in the
-arms-416 session's chat: a left 3/4, a right-side close-up of the receiver, a
-right 3/4). They reached the session only as chat images, not files, so they
-aren't in this folder yet. Drop them here as `concept-1.png`, `concept-2.png`,
-`concept-3.png`, with a clean side-on HK416 photo (`side.jpg`, Wikimedia
-Commons) for proportions.
+The target look is the user's concept renders (2026-10-29), in this folder:
+`concept-1-left-34.jpg` (left 3/4), `concept-2-receiver-closeup.jpg` (the
+right side of the receiver: port, forward assist, controls, wear) and
+`concept-3-right-34.jpg` (right 3/4). Still wanted: a clean side-on HK416
+photo (`side.jpg`, Wikimedia Commons) for proportions.
 
 Prompt they were made from: "Studio product render of a modern AR-style
 assault rifle (HK416 proportions), side 3/4 view on a plain neutral grey
