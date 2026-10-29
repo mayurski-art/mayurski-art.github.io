@@ -10,6 +10,13 @@
 // assets/games/troll-ops/models/hollowgrin-island.json, which
 // models/hg_island.py builds from and maps/hollowgrin-island.js reads.
 //
+// It also carries what Troll Royale opens up round the village (user,
+// 2026-10-29: "freeing up some of the invisible wall restrictions ... so
+// people can land on near woods"): `open`, the outline you can walk and land
+// in, the woods round the wall out to the beach, clear of the brew; and
+// `wall`, the field-stone wall's sections (hg_woods.py, from the props in
+// models/hollowgrin-faces.json), [x0, z0, x1, z1, top], their colliders there.
+//
 // Usage: node tools/troll-ops-hollowgrin-island-shapes.mjs
 import fs from "node:fs";
 import path from "node:path";
@@ -48,6 +55,15 @@ const eyes = [
 ];
 const nose = [[10, -36], [-2, -10], [24, -10]];
 const stem = [-24, -150];
+// the open outline, already in Hollowgrin's coords: the north woods to the
+// beach (round the stem), west and east over the eyes, south to the grin's
+// lip, round the nose; the village's own walls where an eye comes close
+const open = [[-140, -14], [-124, -38], [-108, -50], [-90, -57], [-20, -55.5], [40, -54.5], [76, -53.5], [108, -44], [136, -28],
+  [150, -10], [126, -10.5], [92, 3], [87.6, 5], [87.6, 40], [92, 52], [84, 68], [40, 68], [22, 46], [16, 46], [-2, 68], [-72, 68],
+  [-66, 55], [-51.6, 47], [-51.6, 3], [-58, -3], [-90, -8], [-125, 15], [-145, 2]];
+const faces = JSON.parse(fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/models/hollowgrin-faces.json"), "utf8"));
+const wall = faces.props.filter((p) => p.id.startsWith("woods:wall-"))
+  .map((p) => [p.lo[0], p.lo[2], p.hi[0], p.hi[2], p.hi[1]].map((v) => +v.toFixed(2)));
 
 const mv = ([x, z]) => [+(x + OFFSET[0]).toFixed(2), +(z + OFFSET[1]).toFixed(2)];
 const out = {
@@ -59,8 +75,10 @@ const out = {
   eyes: eyes.map((e) => e.map(mv)),
   nose: nose.map(mv),
   stem: mv(stem),
+  open,
+  wall,
 };
 const file = path.join(ROOT, "assets/games/troll-ops/models/hollowgrin-island.json");
 fs.writeFileSync(file, JSON.stringify(out) + "\n");
 const xs = out.coast.map((p) => p[0]), zs = out.coast.map((p) => p[1]);
-console.log(`wrote ${path.relative(ROOT, file)}: coast ${out.coast.length} pts (x ${Math.min(...xs).toFixed(0)}..${Math.max(...xs).toFixed(0)}, z ${Math.min(...zs).toFixed(0)}..${Math.max(...zs).toFixed(0)}), mouth ${out.mouth.length} pts`);
+console.log(`wrote ${path.relative(ROOT, file)}: coast ${out.coast.length} pts (x ${Math.min(...xs).toFixed(0)}..${Math.max(...xs).toFixed(0)}, z ${Math.min(...zs).toFixed(0)}..${Math.max(...zs).toFixed(0)}), mouth ${out.mouth.length} pts, open ${open.length} pts, wall ${wall.length} sections`);
