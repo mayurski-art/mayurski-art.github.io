@@ -42,7 +42,8 @@ const browser = await chromium.launch({ args: ["--use-angle=d3d11", "--autoplay-
 const ctx = await browser.newContext({ viewport: { width: 640, height: 400 } });
 await ctx.route(/supabase/, (r) => r.abort());
 const SHOTS = process.env.SHOTS || "";
-const FLIP_URL = "./assets/games/troll-ops/modes/royale-flip.js?v=rf1";
+// the game's own copy of the module: the tag royale.js imports it on (the cascade bumps it)
+const FLIP_URL = "./assets/games/troll-ops/modes/" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/modes/royale.js"), "utf8").match(/royale-flip\.js\?v=[\w-]+/)[0];
 const errors = [];
 
 async function open(label, { side, flipAt, drop, room }) {
