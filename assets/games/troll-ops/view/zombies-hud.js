@@ -127,7 +127,7 @@ export function mountZombiesHud(h) {
   els.top = el("div", "zh-top");
   els.left = el("span", "zh-left");
   els.wave = el("strong", "zh-wave");
-  // a boss on its feet: its name and health take the place of "in N waves"
+  // a boss on its feet: its name and health take the place of "Boss in N waves"
   els.boss = el("span", "zh-boss");
   els.boss.hidden = true;
   els.boss.innerHTML = '<span class="zh-boss-n"></span><span class="zh-boss-bar"><i></i></span>';
@@ -332,8 +332,12 @@ export function updateZombiesHud(dt, s) {
   if (s.wave !== shown.wave) {
     shown.wave = s.wave;
     els.wave.textContent = `Wave ${s.wave}`;
-    const togo = Math.max(0, s.final - s.wave);
-    els.left.innerHTML = togo > 0 ? `in <b>${togo}</b> wave${togo === 1 ? "" : "s"}` : "<b>Final wave</b>";
+    // the countdown to the next boss: the minis, then the final one
+    const boss = s.nextBoss || s.final;
+    const togo = Math.max(0, boss - s.wave);
+    const who = boss >= s.final ? "Final boss" : "Boss";
+    els.left.innerHTML = s.wave >= s.final ? "<b>Final wave</b>"
+      : togo === 1 ? `${who} <b>next wave</b>` : `${who} in <b>${togo}</b> waves`;
   }
   const breakS = s.between ? Math.ceil(Math.max(0, s.breakT)) : -1;
   if (s.between !== shown.between || breakS !== shown.breakS) {
