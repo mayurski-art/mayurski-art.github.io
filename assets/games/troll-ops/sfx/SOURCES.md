@@ -20,3 +20,4 @@ downloaded 2026-10-17, trimmed, peak-normalised to -1 dB and made mono
 | missile.mp3 | https://pixabay.com/sound-effects/film-special-effects-sharp-missile-trail-367604/ | whole |
 | nuke-blast.mp3 | https://pixabay.com/sound-effects/film-special-effects-nuclear-explosion-63470/ (unfa) | 0-20 s, 6 s fade |
 | beep.mp3 | https://pixabay.com/sound-effects/film-special-effects-button-beep-307464/ | whole |
+| nuke-incoming.mp3 | Our own: Windows speech (Microsoft David), "Tactical nuke, incoming!", pitched down, radio band-pass, compressed, slap echo (ffmpeg) | whole |
