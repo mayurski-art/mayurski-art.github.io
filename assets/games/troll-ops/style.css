@@ -51,7 +51,7 @@ input, textarea, [contenteditable="true"] {
 body > :is([class^="to-"], [class^="tf-"]) { zoom: var(--ui-z, 1); }
 /* Layers placed at a world point by projecting it to screen px stay at the
    screen's own scale, or they'd land off their target. */
-.to-dmg-nums, .zh-bars, .to-hk-lock, .to-ws-marks, .to-scope { zoom: calc(1 / var(--ui-z, 1)); }
+.to-dmg-nums, .zh-bars, .to-hk-lock, .to-ws-marks, .to-scope, .to-team-marks { zoom: calc(1 / var(--ui-z, 1)); }
 
 .to-cabinet canvas { display: block; width: 100%; height: 100%; }
 
@@ -4525,6 +4525,27 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 /* Troll Royale's team size (lobby-fn.js): Solo / Duo / Trio / Squad */
 .to-fn-size { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; border: 1px solid rgba(255,255,255,.14); border-radius: 9px; background: rgba(10,16,44,.5); }
 .to-fn-size[hidden] { display: none; }
+/* Troll Royale in teams (modes/royale-team-hud.js): a marker over each
+   teammate, and the team panel on the left */
+.to-team-marks { position: fixed; inset: 0; z-index: 6; pointer-events: none; }
+.to-team-marks[hidden], .to-team-panel[hidden], .to-team-mark[hidden] { display: none; }
+.to-team-mark { position: absolute; left: 0; top: 0; display: grid; justify-items: center; gap: 1px; translate: -50% -100%; font-family: "DM Sans", sans-serif; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.85); white-space: nowrap; }
+.to-team-mark i { width: 12px; height: 12px; rotate: 45deg; border: 2px solid #fff; border-radius: 2px; background: #4fd8ff; box-shadow: 0 0 6px rgba(79,216,255,.8); order: 3; margin-top: 2px; }
+.to-team-mark b { font: 700 13px/1.1 "DM Sans", sans-serif; }
+.to-team-mark small { font: 600 11px/1 "DM Mono", monospace; color: #bfefff; }
+.to-team-mark.is-held { translate: -50% -50%; opacity: .85; }
+.to-team-mark.is-held b, .to-team-mark.has-tag b { display: none; }
+.to-team-panel { position: fixed; left: 16px; top: 46%; z-index: 6; display: grid; gap: 6px; width: 190px; pointer-events: none; font-family: "DM Sans", sans-serif; }
+.to-team-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 3px 8px; padding: 6px 9px; border-left: 3px solid #4fd8ff; border-radius: 0 8px 8px 0; background: rgba(8,14,34,.62); color: #fff; }
+.to-team-row b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 13px/1.15 "DM Sans", sans-serif; }
+.to-team-row small { font: 600 12px/1 "DM Mono", monospace; color: #bfefff; }
+.to-team-hp { grid-column: 1 / -1; height: 5px; border-radius: 3px; background: rgba(255,255,255,.18); overflow: hidden; }
+.to-team-hp > span { display: block; height: 100%; background: #4fd8ff; transition: width .2s; }
+.to-team-row.is-low { border-left-color: #ff6b5a; }
+.to-team-row.is-low .to-team-hp > span { background: #ff6b5a; }
+.to-team-row.is-low small { color: #ffb0a6; }
+.to-team-row.is-out { opacity: .55; border-left-color: rgba(255,255,255,.35); }
+.to-team-row.is-out b { text-decoration: line-through; }
 .to-fn-size button { min-height: 34px; border: 0; border-radius: 6px; background: none; color: #c4d1f3; font: 800 13px var(--fn-ui); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; touch-action: manipulation; }
 .to-fn-size button:hover:not(:disabled) { background: rgba(255,255,255,.12); color: #fff; }
 .to-fn-size button.is-on { background: #ffe14d; color: #1b1400; }
