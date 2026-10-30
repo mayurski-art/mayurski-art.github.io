@@ -72,7 +72,7 @@ import { ImpactShader, makeMuzzleFlashMaterial } from "./view/shaders.js?v=or1";
 import { ImpactFx } from "./view/impact-fx.js?v=zr4-or1";
 import { initResize } from "./view/resize.js?v=rz1";
 import { capTextures } from "./view/texture-budget.js?v=pm1";
-import { maxPixelRatio, CANVAS_MSAA, GFX, GFX_TIERS, CLUTTER_SHARE, MSAA_SAMPLES } from "./view/render-budget.js?v=pm1";
+import { maxPixelRatio, startPixelRatio, rememberPixelRatio, firstGfxTier, MIN_PIXEL_RATIO, CANVAS_MSAA, GFX, GFX_TIERS, CLUTTER_SHARE, MSAA_SAMPLES } from "./view/render-budget.js?v=pm1-rq1";
 import { guardContext } from "./view/context-guard.js?v=pm1";
 import { LightPool } from "./maps/light-pool.js?v=or1";
 import { loadModel } from "./maps/battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
@@ -1424,7 +1424,7 @@ renderLobbyRoster();
 // -------------------- renderer / scene --------------------
 
 const renderer = new THREE.WebGLRenderer({ antialias: CANVAS_MSAA, powerPreference: "high-performance" });
-renderer.setPixelRatio(maxPixelRatio());
+renderer.setPixelRatio(startPixelRatio());
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.NeutralToneMapping;   // truer colour than ACES, which pushed everything warm (-tm1)
 renderer.toneMappingExposure = 1.5;
@@ -2078,9 +2078,7 @@ const GFX_AUTO_KEY = "trollops:gfx-auto";
 // Auto starts wherever it settled last time on this device, so a laptop that
 // always ends up on Low doesn't spend the first minute of every match lagging.
 let gfxAutoTier = (() => {
-  // A phone's first match starts without SSAO, so it never spends its
-  // opening seconds lagging (and shedding resolution) to find that out.
-  const first = isTouch ? "medium" : "high";
+  const first = firstGfxTier(renderer);
   try { const t = localStorage.getItem(GFX_AUTO_KEY); return GFX[t] ? t : first; } catch { return first; }
 })();
 let gfxCeiling = 0;       // best tier index Auto may climb back to this session
@@ -2142,15 +2140,12 @@ function setAutoTier(tier) {
    High. Climbing back up is deliberately slower (3 good windows in a row),
    and a tier that drops straight back under 40 isn't retried this session,
    so it can't flicker between two tiers. The HUD is DOM and stays sharp. */
-// Phones used to fall to 0.6, which is what made them blurry: effects and
-// then the auto tier go first, and the picture stays at least 1:1.
-const MIN_PIXEL_RATIO = isTouch ? 1 : 0.75;
 let pixelRatio = renderer.getPixelRatio();
 const perfWin = { t: 0, n: 0, cool: 0, good: 0, raised: false };
 
 function setPixelRatioStep(next) {
   if (Math.abs(next - pixelRatio) < 1e-3) return false;
-  pixelRatio = next;
+  pixelRatio = next; rememberPixelRatio(next);
   renderer.setPixelRatio(next);
   composer.setPixelRatio?.(next);
   resize();
