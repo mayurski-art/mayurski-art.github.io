@@ -144,7 +144,7 @@ function reelList(map) {
 const FALLBACK_AVATAR = "assets/images/icons/favicon/grin.png";
 
 export function mountFnLobby(api) {
-  const { root, menu, openQuick, royaleSide, switchRoyaleSide, socialMaps = [], getLevel, getPrestige, rankProgress, rankXpText, PRESTIGE_MASTER, setMapShot, ACHIEVEMENTS } = api;
+  const { root, menu, openQuick, royaleSide, switchRoyaleSide, partyView, socialMaps = [], getLevel, getPrestige, rankProgress, rankXpText, PRESTIGE_MASTER, setMapShot, ACHIEVEMENTS } = api;
   const title = $("#to-title");
   root.classList.add("is-fn");
   title.classList.add("is-fn");
@@ -219,7 +219,7 @@ export function mountFnLobby(api) {
       <b class="to-fn-mode-name"></b><small class="to-fn-mode-sub"></small><span class="to-fn-change"><kbd class="to-fn-padkey" aria-hidden="true">X</kbd><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h14m-4-4 4 4-4 4M20 16H6m4-4-4 4 4 4"/></svg>Change mode</span>
     </button>
     <div class="to-fn-map"><img alt="" hidden><div><strong></strong><span></span></div></div>
-    <button type="button" class="to-fn-go"><kbd class="to-fn-padkey" aria-hidden="true">A</kbd>Play</button>`;
+    <button type="button" class="to-fn-go"><kbd class="to-fn-padkey" aria-hidden="true">A</kbd><span class="to-fn-go-text">Play</span></button>`;
   root.appendChild(play);
   play.append(news);   // (the event tile stands over the mode card)
   const picker = document.createElement("div");
@@ -330,6 +330,20 @@ export function mountFnLobby(api) {
   }, true);
   // PLAY opens the playlist's own screen: its modes, map vote, and the go button
   $(".to-fn-go", play).addEventListener("click", () => menu.go(playlist));
+  /* In someone else's party, or the joined squad whose leader didn't ask:
+     their leader starts the match (user, 2026-10-30), so PLAY waits for
+     them instead of taking you off on your own. */
+  function renderGo() {
+    const v = partyView?.(), go = $(".to-fn-go", play);
+    const leader = !v ? null : !v.host ? v.people.find((p) => p.host)?.name || "your leader"
+      : v.squad && !v.squad.lead ? v.squad.people[0]?.name || "the other leader" : null;
+    go.disabled = !!leader;
+    go.classList.toggle("is-waiting", !!leader);
+    $(".to-fn-go-text", go).textContent = leader ? `Waiting for ${leader}` : "Play";
+    go.setAttribute("aria-label", leader ? `Waiting for ${leader} to start the match` : "Play");
+  }
+  addEventListener("trollforces:party", renderGo);
+  renderGo();
 
   /* ── Mode tiles ── */
   let online = [];
@@ -431,6 +445,32 @@ export function mountFnLobby(api) {
     });
   }
   for (const p of pips) p.addEventListener("click", () => { showNews(+p.dataset.i); restartNews(); });
+  // swipe (or drag) the card left / right for the next / last (user,
+  // 2026-10-30: "users should be able to swipe through the four news")
+  {
+    let x0 = null, y0 = 0, swiped = false;
+    news.addEventListener("pointerdown", (e) => { x0 = e.clientX; y0 = e.clientY; swiped = false; });
+    news.addEventListener("pointerup", (e) => {
+      if (x0 == null) return;
+      const dx = e.clientX - x0, dy = e.clientY - y0;
+      x0 = null;
+      if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
+      swiped = true;
+      showNews(newsIdx + (dx < 0 ? 1 : -1));
+      restartNews();
+    });
+    news.addEventListener("pointercancel", () => { x0 = null; });
+    // (a swipe isn't a tap: the card's click doesn't open its mode)
+    news.addEventListener("click", (e) => { if (swiped) { e.stopPropagation(); e.preventDefault(); swiped = false; } }, true);
+    // the arrow keys too, on a focused card
+    news.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault();
+      showNews(newsIdx + (e.key === "ArrowRight" ? 1 : -1));
+      restartNews();
+      cards[newsIdx].focus();
+    });
+  }
   function restartNews() {
     clearInterval(newsTimer);
     newsTimer = setInterval(() => { if (!title.hidden && !document.body.classList.contains("tf-anim-off")) showNews(newsIdx + 1); }, 6000);

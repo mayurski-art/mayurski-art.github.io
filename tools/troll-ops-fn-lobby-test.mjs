@@ -8,6 +8,8 @@
 //      opens that playlist's screen, under the Play tab.
 //   4. Upright phone: the list is measured shown (the gun view stands under
 //      it, not over it), and no scrollbars are drawn.
+//   5. The news card swipes: left the next, right the last, Halloween
+//      first; a swipe doesn't open the card's mode.
 //
 //   NODE_PATH=<checkout>/node_modules node tools/troll-ops-fn-lobby-test.mjs
 import http from "node:http"; import fs from "node:fs"; import path from "node:path";
@@ -113,6 +115,27 @@ const bars = await page.evaluate(() => [...document.querySelectorAll("body *")].
   return e.clientHeight > 0 && e.offsetWidth - e.clientWidth - parseFloat(s.borderLeftWidth) - parseFloat(s.borderRightWidth) > 0.5;
 }).map((e) => e.className || e.tagName).slice(0, 5));
 check(!bars.length, "no scrollbars drawn", bars.join(", "));
+await ctx.close();
+
+// ---- 5
+({ ctx, page } = await open({ width: 1280, height: 720 }));
+await page.evaluate(() => { window.__toBo2.menu.backTo("main"); document.body.classList.add("tf-anim-off"); });
+await sleep(500);
+const newsNow = () => page.evaluate(() => document.querySelector(".to-fn-news-card:not([hidden]) b")?.textContent);
+const swipe = async (dx) => {
+  const r = await page.evaluate(() => { const b = document.querySelector(".to-fn-news").getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; });
+  await page.mouse.move(r.x, r.y); await page.mouse.down(); await page.mouse.move(r.x + dx / 2, r.y); await page.mouse.move(r.x + dx, r.y); await page.mouse.up();
+  await sleep(200);
+};
+const firstNews = await newsNow();
+const plBefore = await page.evaluate(() => window.__toBo2.fn.playlist());
+await swipe(-120);
+const second = await newsNow();
+await swipe(120);
+const back = await newsNow();
+const plAfter = await page.evaluate(() => window.__toBo2.fn.playlist());
+check(firstNews === "Halloween" && second === "Trollface Island" && back === "Halloween", "the news swipes: left the next, right the last", `${firstNews} -> ${second} -> ${back}`);
+check(plAfter === plBefore, "a swipe doesn't open the card's mode", `${plBefore} -> ${plAfter}`);
 await ctx.close();
 
 check(!errors.length, "no page errors", errors.slice(0, 3).join(" | "));

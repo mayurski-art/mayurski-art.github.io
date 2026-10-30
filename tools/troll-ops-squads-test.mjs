@@ -12,7 +12,8 @@
 //      the other side. We ask for the first side (net.js preferTeam), and
 //      chooseTeam takes it.
 //   5. The other leader's view (they asked us): Together / Versus shown,
-//      not ours to press.
+//      not ours to press; PLAY waits ("Waiting for grinlord", off), where
+//      the leader who asked keeps PLAY.
 //   6. The arrows clear the lobby's controls, desktop, sideways, upright.
 //   7. Splitting the squads (Split, under the pads): the arrows go.
 //   8. Not on the Locker.
@@ -98,6 +99,9 @@ await sleep(400);
 n = await nav(page);
 check(n.name === "The Grinners" && n.tags[0] === "Guest troll" && n.meShown === true, "and back: us", JSON.stringify(n));
 
+const goBtn = (page) => page.evaluate(() => { const b = document.querySelector(".to-fn-go"); return { text: b.textContent.trim(), off: b.disabled }; });
+let gb = await goBtn(page);
+check(gb.text.endsWith("Play") && !gb.off, "the leader who asked keeps PLAY", JSON.stringify(gb));
 // ---- 4
 let go = await page.evaluate(() => window.__toInvites.goFor());
 const lead = (g) => g.go.find((m) => m.to === "v-grin");
@@ -128,6 +132,8 @@ await page.evaluate((t) => window.__toInvites.fakeSquad(t, { lead: false }), THE
 await sleep(400);
 n = await nav(page);
 const split = await page.evaluate(() => !!document.querySelector(".to-squad-split")?.offsetParent);
+gb = await goBtn(page);
+check(/Waiting for grinlord$/.test(gb.text) && gb.off, "the other leader's PLAY waits for the one who asked", JSON.stringify(gb));
 check(n.shown && n.on === "together" && !n.canPick && split, "the other leader: Together shown, not theirs to pick; Split theirs", JSON.stringify(n));
 go = await page.evaluate(() => window.__toInvites.goFor());
 check(!go.go.some((m) => m.to === "v-grin"), "and it doesn't send the one who asked anywhere (they start)", JSON.stringify(go));
