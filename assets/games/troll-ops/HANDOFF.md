@@ -479,6 +479,7 @@ Map rules:
 ---
 
 ## 5. Shipped log (newest first; one line each, details in git)
+- **2026-10-30** Lobby (Troll Warfare Play page) LIVE on main (cascade -hwl1): Fortnite Chapter 1 look (top/bottom bands, flat tabs, season/level/prestige block, event tile over a slate mode card, slanted PLAY; -fnu1..3), the Halloween backdrop reel (ui/lobby/halloween/, the user's own edits of five stills, Oct to 5 Nov, ?season= forces it; -hw1), stone plinths for the stage (menu/lobby-stage.js) and no guns on it (-ng1/2). Open: the user's other five Halloween stills (Kabukigrin street first), the challenges system (proposal waiting on XP rewards and the medals list).
 - **2026-10-28** (branch) Hollowgrin phase 7, ship: map shot (93492cca), prefetch manifest (8041a7a7). Test table: layout --check, obstruction, map-walk ALL PASS, bot-stuck, import-check --load PASS; zombie-test only the mask row. Models + bakes 17.6 MB of 21.
 - **2026-10-28** Hollowgrin phase 6 LIVE on main (c8f5a559, cascade -hgb6).
 - **2026-10-28** (branch) Hollowgrin phase 6, the light bake (4601efb8): models/bake_hollowgrin.blender.py bakes the night sky + ten lamps into 35 hg-* GLBs (manor at 2048) and the ground; ten point lights gone, hemi 0.62, ambient 0.18, groundBake; BAKED in battlefield-props.js. Bakes 2.19 MB (models 17.6/21 MB). Test: luma within 10% at 7 views, map-fps before/after (SETTLE=30000, alternating) 8.8/8.3/9.5 vs 13/12.8/13.8, layout --check, import-check --load PASS, zombie-test (only the mask row).
