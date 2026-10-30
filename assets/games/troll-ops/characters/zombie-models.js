@@ -87,15 +87,25 @@ export function loadZombieLook(look) {
   return pending.get(look);
 }
 
+/* The late waves' bodies (the spitter's, the bloater's) come when a run gets
+   near them (run.js preloadLateLooks), not with the rest: two fewer files
+   between a party and its first wave. */
+const LATE_LOOKS = new Set(["spitter", "bloater"]);
+const EARLY_LOOKS = ZOMBIE_LOOKS.filter((l) => !LATE_LOOKS.has(l));
+
 export function preloadZombieModels() {
-  return Promise.all(ZOMBIE_LOOKS.map(loadZombieLook));
+  return Promise.all(EARLY_LOOKS.map(loadZombieLook));
+}
+
+export function preloadLateLooks() {
+  return Promise.all([...LATE_LOOKS].map(loadZombieLook));
 }
 
 /* True once at least one look is ready (zombies can spawn as real bodies);
    false while loading; null if loading failed (fall back to the stick rig). */
 export function zombieModelsReady() {
   if (templates.size) return true;
-  return failed && pending.size === ZOMBIE_LOOKS.length ? null : false;
+  return failed && pending.size >= EARLY_LOOKS.length ? null : false;
 }
 
 export function readyLooks() {

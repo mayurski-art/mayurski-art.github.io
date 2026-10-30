@@ -16,7 +16,8 @@ import { FlowField } from "../../bots/nav.js?v=ti1-bs1b7d-fl1-or1-gf1-tg1-tfb8";
 import { makeEnemyDissolveMaterial } from "../../view/shaders.js?v=or1";
 import { buildHumanoid, poseHumanoid } from "../../characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1";
 import { groundHeightAt, resolveCircle } from "../../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1";
-import { preloadZombieModels, zombieModelsReady, pickLook, lookReady, createZombieBody, CLIP_SPEED, ONE_SHOTS } from "../../characters/zombie-models.js?v=zr4c-zp1-or1-zf1";
+import { preloadZombieModels, zombieModelsReady, pickLook, lookReady, createZombieBody, CLIP_SPEED, ONE_SHOTS } from "../../characters/zombie-models.js?v=zr4c-zp1-or1-zf1-ze1-ze2";
+import { SPECIALS, attachSpecial, specialDamage, maybeCrawl, specialStep, specialDeath } from "./specials.js?v=ze1";
 
 /* Behaviour types. The look (body + clothes) is picked separately, so a
    runner can be any of the horde's bodies. `gait` is the clip it moves on. */
@@ -44,6 +45,25 @@ export const ZOMBIE_TYPES = {
     hpMult: 4, speed: 1.3, height: 2.2, build: 1.0, scale: 1.25, tint: 0xd36a5c,
     damage: 40, attackRange: 1.9, attackCd: 1.35, noStagger: true, flinch: 0.35,
   },
+  // the late waves' threats (modes/zombies/specials.js does what's special):
+  // hangs back and lobs acid
+  spitter: {
+    id: "spitter", gait: "walk", color: 0x8f9a86, tint: 0xa9c08a,
+    hpMult: 0.9, speed: 1.45, height: 1.72, build: 0.95,
+    damage: 14, attackRange: 1.5, attackCd: 1.1,
+  },
+  // slow, swollen, bursts when it dies or reaches you
+  bloater: {
+    id: "bloater", gait: "walk", color: 0x8f9a86, tint: 0x9fae78,
+    hpMult: 1.6, speed: 1.05, height: 1.85, build: 1.15,
+    damage: 20, attackRange: 1.7, attackCd: 1.4, noStagger: true, flinch: 0.4,
+  },
+  // a riot helmet (headshots chip it off) and a vest (body shots blunted)
+  armoured: {
+    id: "armoured", gait: "walk", color: 0x8f9a86,
+    hpMult: 1.8, speed: 1.5, height: 1.78, build: 1.0,
+    damage: 26, attackRange: 1.55, attackCd: 1.05, flinch: 0.5,
+  },
   // the bosses (modes/zombies/boss.js sets their health): a mini-boss on
   // waves 10 and 20, the final boss on the last wave; both slam the ground
   mini: {
@@ -64,6 +84,8 @@ const LEAPERS_FROM = 8;
 const LEAPER_SHARE = 0.12;
 const MAX_LEAPERS = 2;        // alive at once
 const BRUTES_FROM = 12;
+// the late waves (specials.js): [first wave, share of spawns, most alive at once]
+const SPECIAL_SPAWNS = { armoured: [20, 0.14, 4], bloater: [16, 0.08, 2], spitter: [14, 0.1, 3] };
 const BRUTE_SHARE = 0.1;
 const MAX_BRUTES = 3;
 
@@ -182,7 +204,7 @@ const groanGap = (typeId) => (typeId === "walker" ? 4 + Math.random() * 6 : 2.5 
 
 /* Cash a kill pays its killer, by type (Zombie Rush: cash is kill-driven,
    a hit pays nothing). A headshot kill pays half again. */
-export const CASH = { walker: 15, runner: 22, leaper: 30, brute: 60, mini: 500, boss: 2500 };
+export const CASH = { walker: 15, runner: 22, leaper: 30, brute: 60, spitter: 40, bloater: 45, armoured: 55, mini: 500, boss: 2500 };
 export const HEADSHOT_CASH = 1.5;
 
 /* Co-op (modes/zombies/coop.js): `hit(zombie, dmg, isHead)` takes a hit on
@@ -190,7 +212,7 @@ export const HEADSHOT_CASH = 1.5;
 export const zombieWire = { hit: null };
 const NOOP = () => {};
 // a mirrored zombie's moves, as the host sends them (zp's anim code)
-export const PROXY_ANIM = { walk: 0, crouch: 1, leap: 2, hold: 3, stun: 4 };
+export const PROXY_ANIM = { walk: 0, crouch: 1, leap: 2, hold: 3, stun: 4, spit: 5, crawl: 6 };
 
 const MAX_ALIVE = 12;
 const PER_PLAYER_COUNT = 0.45;   // co-op: share of a wave each extra player adds
@@ -313,6 +335,7 @@ export class Zombie {
       this.mesh.rotation.y = Math.random() * Math.PI * 2;
     }
     scene.add(this.mesh);
+    attachSpecial(this);
   }
 
   get radius() { return 0.38 * this.type.build * (this.type.scale || 1); }
@@ -326,18 +349,30 @@ export class Zombie {
       zombieWire.hit?.(this, dmg, isHead);
       return { killed: false, cash: 0 };
     }
+    dmg = specialDamage(this, dmg, isHead);
     if (HORDE_FX.instakill && !this.type.boss) dmg = Math.max(dmg, this.hp);
     const heavy = heavyHit(this, dmg, isHead);
     if (heavy) this.heavyAt = performance.now();
     this.hp -= dmg;
     if (!this.type.noStagger) this.staggerT = heavy ? HEAVY_STAGGER : STAGGER;
     this.shove = heavy && this.hp > 0;   // flinchFrom, next, knows which way
-    if (this.hp > 0) return { killed: false, cash: 0 };
+    if (this.hp > 0) { maybeCrawl(this, heavy); return { killed: false, cash: 0 }; }
     this.dying = true;
+    specialDeath(this);
     // a headshot kill pops the head instead (no throat left to gurgle with)
     this.voiceEvent = isHead && this.body ? null : "death";
     const cash = Math.round((CASH[this.type.id] || CASH.walker) * (isHead ? HEADSHOT_CASH : 1));
     return { killed: true, cash, isHead };
+  }
+
+  /* Its legs are gone (specials.js maybeCrawl, or the host's word): it
+     comes on dragging itself, slower and lower. */
+  makeCrawler() {
+    if (this.crawling || !this.body?.actions.crawl) return;
+    this.crawling = true;
+    this.speed *= SPECIALS.crawl.speed;
+    this.attackT = 0;
+    this.play("crawl", 0.2);
   }
 
   stun(seconds) {
@@ -402,6 +437,11 @@ export class Zombie {
       // the leap sets its own clips (crouch, leap, idle on landing)
     } else if (this.riseT > 0) {
       this.play(this._riseClip(), 0.2);
+    } else if (this.spitT > 0) {
+      // the spit clip, rearing back: it plays itself out
+    } else if (this.crawling) {
+      this.play("crawl", 0.25);
+      this.anim.setEffectiveTimeScale(moving && speed > 0.05 ? Math.max(0.5, Math.min(2, speed / CLIP_SPEED.crawl)) : 0.3);
     } else if (moving && speed > 0.15) {
       const g = this.type.gait;
       this.play(g, 0.3);
@@ -412,6 +452,7 @@ export class Zombie {
     this.body.mixer.update(dt);
     // the clips key the head too, so a popped head stays gone every frame
     if (this.headless) this.body.bones.head.scale.setScalar(0.001);
+    if (this.crawling) for (const b of LEG_BONES) this.body.bones[b]?.scale.setScalar(0.001);
     this._flinchPose(dt);
   }
 
@@ -528,7 +569,7 @@ export class Zombie {
     const clip = this.body ? this.body.actions.attack.getClip().duration : 0;
     this.bite = { t: Math.max(BITE_MIN, clip * BITE_AT), wall };
     this.swung = true;   // co-op: the host tells everyone (coop.js hostSend)
-    if (!this.body) return;
+    if (!this.body || this.crawling) return;
     this.play("attack", 0.1);
     this.attackT = clip * 0.9;
   }
@@ -648,6 +689,16 @@ export class Zombie {
       }
     }
 
+    // a spitter's spit, a bloater reaching you (specials.js)
+    if (this.type.id === "spitter" || this.type.id === "bloater") {
+      const target = playerPos;
+      const td = Math.hypot(target.x - this.mesh.position.x, target.z - this.mesh.position.z);
+      if (specialStep(this, dt, { pos: target, feetY, dist: td, chase, clear: () => lineClear(colliders, this.mesh.position, target, this.groundY) })) {
+        if (this.body) this._animate(dt);
+        return;
+      }
+    }
+
     // Damping belongs only where we're NOT steering. Applying it every frame
     // on top of the steering lerp settles the velocity at ~0.375x the
     // intended speed, which makes them shuffle far slower than configured.
@@ -713,6 +764,8 @@ export class Zombie {
 
   /* Co-op, on the host: what it's doing, for the wire (PROXY_ANIM). */
   get wireAnim() {
+    if (this.crawling) return PROXY_ANIM.crawl;
+    if (this.spitT > 0) return PROXY_ANIM.spit;
     if (this.leap) return this.leap.phase === "air" ? PROXY_ANIM.leap : PROXY_ANIM.crouch;
     if (this.holdT > 0) return PROXY_ANIM.hold;
     if (this.stunT > 0) return PROXY_ANIM.stun;
@@ -753,6 +806,7 @@ export class Zombie {
       poseHumanoid(this.rig, { phase: this.phase, moving: this.proxySpeed > 0.15, zombie: true, dt });
       return;
     }
+    if (s.a === PROXY_ANIM.crawl && !this.crawling) this.makeCrawler();
     if (s.a === PROXY_ANIM.crouch) this.play("crouch", 0.12);
     else if (s.a === PROXY_ANIM.leap) this.play("leap", 0.08);
     else if (s.a === PROXY_ANIM.hold && this.attackT <= 0) {
@@ -791,6 +845,7 @@ export class Zombie {
   }
 
   dispose(scene) {
+    this.disposed = true;
     scene.remove(this.mesh);
     if (this.pool) { scene.remove(this.pool); this.pool.material.dispose(); this.pool = null; }
     if (this.body) {
@@ -803,6 +858,7 @@ export class Zombie {
   }
 }
 
+const LEG_BONES = ["thigh_l", "thigh_r"];
 const _axis = new THREE.Vector3();
 const _poolAt = new THREE.Vector3();
 const _qw = new THREE.Quaternion();
@@ -985,6 +1041,11 @@ export class ZombieDirector {
 
   pickType() {
     if (this.forceType) return this.forceType;          // tests
+    for (const [id, [from, share, most]] of Object.entries(SPECIAL_SPAWNS)) {
+      if (this.round < from || Math.random() >= share) continue;
+      if (id !== "armoured" && !lookReady(id)) continue;
+      if (this.zombies.filter((z) => z.alive && !z.dying && z.type.id === id).length < most) return id;
+    }
     if (this.round >= LEAPERS_FROM && lookReady("leaper") && Math.random() < LEAPER_SHARE
         && this.zombies.filter((z) => z.alive && !z.dying && z.type.id === "leaper").length < MAX_LEAPERS) {
       return "leaper";
