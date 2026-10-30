@@ -343,9 +343,9 @@ export class CharacterInspector {
       poseHumanoid(m.humanoid, { moving: false, pitch: Math.sin(m.t * 1.3) * 0.015, dt, hold: "none" });
       m.humanoid.body?.update?.();
     }
-    // your pad breathes (not with Animations off or reduced motion)
+    // your pad breathes (not with Animations off)
     if (this.stage) {
-      const still = document.body.classList.contains("tf-anim-off") || matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const still = document.body.classList.contains("tf-anim-off");
       const { shine, column } = this.pads[0].userData;
       shine.material.opacity = still ? 0.6 : 0.52 + 0.12 * Math.sin(this.breathT * 2.1);
       column.material.opacity = still ? 0.22 : 0.18 + 0.06 * Math.sin(this.breathT * 2.1);

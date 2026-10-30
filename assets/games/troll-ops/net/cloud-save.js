@@ -48,6 +48,18 @@ export const SYNCED_KEYS = [
   "trollops:zombies",              // Zombies Credits, guns, kit levels (modes/zombies/credits.js)
   "trollops:wxp",                  // weapon XP, a level per gun (progression/weapon-xp.js)
   "trollops:jail",                 // a Troll City sentence still owed (modes/social-jail.js): rejoining doesn't skip it
+  // the rest of the player's choices (user, 2026-10-30: "configurations like
+  // this and others should be expected to be saved and synced when users
+  // log in from one device to another")
+  "trollops:anim",                 // Animations on/off (menu-bo2.js)
+  "trollops:achievements",         // challenges done (progression/achievements.js)
+  "tf-fn-playlist",                // the lobby's mode card (menu/lobby-fn.js)
+  "trollops:royaleSide",           // Troll Royale's island side (modes/royale-side.js)
+  "trollops:reticle-v2",           // the crosshair (view/troll-reticle.js)
+  "trollops:radio-skin",           // the radio's look (menu/radio.js)
+  "trollops:chat-muted",           // public chat muted (menu/public-chat.js)
+  "trollops:dj-volume",            // DJ Lulz's volume (maps/dj-lulz.js)
+  "trollops:royaleRecord",         // record Royale clips (modes/royale-record.js)
 ];
 const SYNCED = new Set(SYNCED_KEYS);
 // Graphics quality is about the machine, not the player: a phone shouldn't

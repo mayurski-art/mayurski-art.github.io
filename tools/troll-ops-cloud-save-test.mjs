@@ -1,7 +1,7 @@
 // Troll Forces — the setup follows the account (cloud-save.js). Supabase is
 // swapped for an in-page fake of troll_game_saves, then:
 //   signing in pulls the account's setup into the running game (settings,
-//   streaks, loadout), graphics quality staying this device's own;
+//   streaks, loadout, Animations), graphics quality staying this device's own;
 //   changing something while signed in uploads it;
 //   changing something signed out stays on the device;
 //   a device booting with a stale setup doesn't overwrite the account's
@@ -46,6 +46,8 @@ const errors = [];
 async function openGame(seed) {
   const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
   await page.route(/supabase/, (r) => r.abort());
+  // (the page loads the accounts script from the live site; serve ours)
+  await page.route("https://mayurski-art.github.io/assets/js/troll-accounts.js", (r) => r.fulfill({ path: path.join(ROOT, "assets/js/troll-accounts.js"), contentType: "text/javascript" }));
   page.on("pageerror", (e) => errors.push(e.message));
   if (seed) await page.addInitScript(seed);
   await page.addInitScript(() => {
@@ -106,6 +108,7 @@ const signedIn = await page.evaluate(async () => {
     data: { v: 1, keys: {
       "trollops:settings": JSON.stringify({ ...T.settings, sens: 40, fov: 95, gfx: "low" }),
       "trollops:streaks": JSON.stringify({ selected: ["uav", "k9", "warship"] }),
+      "trollops:anim": "off",
     } },
   });
   window.dispatchEvent(new CustomEvent("trollrunner:auth-changed", { detail: { userId: "u1" } }));
@@ -113,6 +116,7 @@ const signedIn = await page.evaluate(async () => {
   return {
     sens: T.settings.sens, fov: T.settings.fov, gfx: T.settings.gfx,
     streaks: JSON.parse(localStorage.getItem("trollops:streaks") || "{}").selected,
+    animOff: document.body.classList.contains("tf-anim-off"),
     sensUi: document.getElementById("to-set-sens")?.value,
     uploads: window.__cloud.log.filter((l) => l.op === "upsert").length,
     // The account had no loadout: this device's should join the row, with
@@ -125,6 +129,7 @@ const signedIn = await page.evaluate(async () => {
 });
 check("signing in brings the account's settings into the running game", signedIn.sens === 40 && signedIn.fov === 95 && String(signedIn.sensUi) === "40", JSON.stringify(signedIn));
 check("graphics quality stays this device's own", signedIn.gfx === before.gfx, `${before.gfx} -> ${signedIn.gfx}`);
+check("Animations turned off on another device: off here too", signedIn.animOff === true);
 check("and the scorestreak picks come down too", JSON.stringify(signedIn.streaks) === JSON.stringify(["uav", "k9", "warship"]), JSON.stringify(signedIn.streaks));
 check("the keys the account lacked go up once, merged, without touching the account's own",
   signedIn.uploads === 1 && signedIn.row.hasLoadout && signedIn.row.sens === 40 && JSON.stringify(signedIn.row.streaks) === JSON.stringify(["uav", "k9", "warship"]),

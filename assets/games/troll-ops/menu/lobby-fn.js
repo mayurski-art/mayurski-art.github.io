@@ -293,6 +293,11 @@ export function mountFnLobby(api) {
     else { map.removeAttribute("role"); map.removeAttribute("tabindex"); map.removeAttribute("aria-label"); }
   }
   window.addEventListener("tf-royale-side", () => renderPlay());
+  // signed in on another device: its mode card and Royale side come with it
+  addEventListener("trollforces:cloud-restored", (e) => {
+    if (e.detail?.includes(PL_KEY)) { try { const v = localStorage.getItem(PL_KEY); if (PLAYLISTS.some((p) => p.id === v)) playlist = v; } catch {} }
+    if (e.detail?.some((k) => k === PL_KEY || k === "trollops:royaleSide" || k === "trollops:achievements")) { renderPlay(); renderMe(); }
+  });
   {
     const map = $(".to-fn-map", play), flip = () => { if (map.classList.contains("is-side")) switchRoyaleSide?.(); };
     map.addEventListener("click", flip);
@@ -580,7 +585,7 @@ export function mountFnLobby(api) {
 /* ── Backdrop: the reel, no WebGL (pick 1). Two layers crossfade; the next
    picture is decoded (the clip buffered) before it fades in, and a file
    that won't load is skipped. It holds while a match is on, the tab is
-   hidden, or Animations is off / the system asks for reduced motion (then
+   hidden, or Animations is off (then
    a still stays up and the clip is skipped). ── */
 function mountReel(bg, title) {
   const width = () => (innerWidth * (devicePixelRatio || 1) > 1400 ? 1920 : 1280);
@@ -591,8 +596,8 @@ function mountReel(bg, title) {
     bg.append(d);
     return d;
   });
-  const reduce = matchMedia("(prefers-reduced-motion: reduce)");
-  const hold = () => document.body.classList.contains("tf-anim-off") || reduce.matches;
+  // (the Animations setting only: on unless the player turned it off)
+  const hold = () => document.body.classList.contains("tf-anim-off");
   const paused = () => title.hidden || document.hidden;
   let at = -1, front = 0, timer = 0, clip = null, waiting = false, flip = false;
 
@@ -673,7 +678,6 @@ function mountReel(bg, title) {
   new MutationObserver(sync).observe(title, { attributes: true, attributeFilter: ["hidden"] });
   new MutationObserver(sync).observe(document.body, { attributes: true, attributeFilter: ["class"] });
   document.addEventListener("visibilitychange", sync);
-  reduce.addEventListener?.("change", sync);
   // (the first picture once the Play page has said whose: lobby-fn renders
   // it straight after mounting this)
   setTimeout(() => { if (!started) { started = true; show(0); } }, 0);
