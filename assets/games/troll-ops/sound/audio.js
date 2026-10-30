@@ -6,6 +6,14 @@
 //
 // Browsers won't start an AudioContext without a gesture, so `resume()` is
 // called from the Drop In click.
+//
+// Gunshots and the scorestreaks are the exception: each gun class has a
+// recorded report and each streak its aircraft, radar, drones, dogs and
+// blasts (sound/clip-bank.js). The synth below plays until they have
+// loaded, and for what has no recording (suppressed shots, the Green
+// Candles).
+
+import { loadClips, playGunClip, playStreakSound, playStreakBlast, playClip } from "./clip-bank.js?v=gs2";
 
 const NOISE_SECONDS = 2;
 const HRTF_RANGE = 40;   // metres: sounds further off pan left/right only
@@ -50,6 +58,8 @@ export class GameAudio {
   resume() {
     this.init();
     if (this.ctx?.state === "suspended") this.ctx.resume().catch(() => {});
+    loadClips(this, "guns");
+    loadClips(this, "streaks");
   }
 
   setEnabled(on) {
@@ -177,6 +187,12 @@ export class GameAudio {
     // A 100-troll Royale fires constantly across the island: past this a
     // shot is a whisper anyway, and every one was a stack of new nodes.
     if (at && this._far(at, SHOT_CULL)) return;
+    // The recorded report when the class has one and it's in (clip-bank.js);
+    // the Hellfire's roar and screech still ride over it.
+    if (playGunClip(this, def, volume, at)) {
+      if (def.hellfire && !def.quiet) this.hellfireShot(volume, at);
+      return;
+    }
     if (def.candleShot) { this.candleShot(def.chargeLevel || 0, volume, at); return; }
     if (def.revolver) { this.revolverShot(volume, at); return; }
     if (def.pistolSound && !def.quiet) { this.pistolShot(def.pistolSound, volume, at); return; }
@@ -525,6 +541,8 @@ export class GameAudio {
      down. Placed in the world like the other hits. */
   bark(at = null, yelp = false) {
     if (!this._ready()) return;
+    // A real dog once the clip's in (clip-bank.js); the yelp stays synth.
+    if (!yelp && playClip(this, "dog", { gain: 0.5, rate: 0.9 + Math.random() * 0.2, at }) !== null) return;
     if (yelp) {
       this._tone({ freq: 900, to: 420, duration: 0.22, gain: 0.16, type: "sawtooth", at });
       return;
@@ -1326,6 +1344,21 @@ export class GameAudio {
     this._noise({ duration: 0.09, gain: 0.55, type: "bandpass", freq: 900, q: 0.9, at });
     this._tone({ freq: 140, to: 55, duration: 0.18, gain: 0.32, type: "sine", at });
     this._noise({ duration: 0.4, gain: 0.16, type: "lowpass", freq: 2600, sweepTo: 400, delay: 0.04, at });
+  }
+
+  /* A scorestreak arriving (clip-bank.js STREAK_SOUND): its aircraft,
+     radar, drones or dogs. False until the clips are in: the caller plays
+     its synth cue (wave()) instead. `delay` s, `at` for placed ones. */
+  streakSound(kind, at = null, delay = 0) {
+    if (!this._ready()) return false;
+    return playStreakSound(this, kind, { at, delay });
+  }
+
+  /* A streak's bomb, warhead or shell: the recorded blast, or the synth
+     explosion until it's in. */
+  streakBoom(scale = 1, at = null) {
+    if (!this._ready()) return;
+    if (!playStreakBlast(this, scale, at)) this.explosion(Math.min(1, 0.4 + scale * 0.3), at);
   }
 
   wave() {

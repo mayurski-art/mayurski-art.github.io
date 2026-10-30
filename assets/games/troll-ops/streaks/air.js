@@ -101,6 +101,7 @@ export function spawnRecon(x, z, yaw, duration = STREAK_DEFS.uav.duration, { tea
   attachAirHitbox(plane, 2.8, AIR_HP.recon);
   flyovers.push(plane);
   game.scene.add(plane.root);
+  game.audio.streakSound?.(counter ? "counteruav" : "uav");
   return plane;
 }
 
@@ -421,6 +422,7 @@ function crushUnderPackage(pkg) {
 export function strikeImpact(s, at) {
   game.explosionFx({ kind: "lethal", glow: 0xffb347, radius: AIRSTRIKE_RADIUS }, at);
   streakBlast(at, 1.3);
+  game.audio.streakBoom?.(1.3, at);
   game.impactFx.hit(at, { normal: new THREE.Vector3(0, 1, 0), surface: "ground", scale: 4 });
   if (s.owned) {
     game.areaDamage(at, AIRSTRIKE_RADIUS * 0.6,
@@ -489,6 +491,7 @@ function detonateDrone(e, out) {
   }
   game.explosionFx({ kind: "lethal", glow: 0xffa23a, radius: DRONE_SPLASH_RADIUS }, at);
   streakBlast(at, out === "expire" ? 0.6 : 0.9);
+  game.audio.streakBoom?.(out === "expire" ? 0.6 : 0.9, at);
   // Damage goes through the ordinary hit path, so a drone kill credits and
   // killfeeds exactly like a bullet one. A bot's drone can be hitting us.
   if (out === "hit" && e.targetId && (e.botId || e.targetId !== game.net.id)) {
@@ -556,6 +559,9 @@ function gunshipTarget(e) {
 
 /* The chin gun firing: tracers you can follow from the nose to the target,
    a muzzle puff, and the heaviest gun report in the game. */
+// The chin gun's report: the .50's recording a step down (clip-bank.js),
+// the SCAR-H's synth until it's in.
+let chinGun = null;
 function gunshipShotFx(e, aimAt) {
   const muzzle = e.muzzle;
   const def = WEAPON_DEFS.bellow || WEAPON_DEFS.problem416;
@@ -569,7 +575,8 @@ function gunshipShotFx(e, aimAt) {
   }
   game.spawnImpactBurst(muzzle, 0xffd166, 5);
   game.impactFx.puff(muzzle, aimAt.clone().sub(muzzle).normalize(), 1.5);
-  game.audio.shot(def, 0.45, e.root.position);
+  chinGun ||= { ...def, clip: "hmg", clipRate: 0.82, clipGain: 0.7 };
+  game.audio.shot(chinGun, 0.45, e.root.position);
 }
 
 /* Nearest living enemy of a given team, within range. The gunship is not a
