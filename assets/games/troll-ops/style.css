@@ -4790,19 +4790,17 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-fn-change { border-radius: 2px; }
 .to-fn-map { border-radius: 0; background: rgba(14,20,44,.9); border-color: rgba(160,180,230,.3); }
 .to-fn-map img { border-radius: 0; }
-/* PLAY: the troll flying through the sky fills the button (user,
-   2026-10-30: "use this image as a mask for the play button. that way we
-   dont have that dull yellow appearance"; no dark fade over it), pinned
-   right and sized off the button's height, so every screen frames him as
-   the desktop's 330x74 does; any room left of the picture is the same sky.
-   PLAY yellow, outlined dark, so it reads on the sky; a yellow edge keeps
-   it the button you came to press */
+/* PLAY: the troll flying through the sky in the button (user, 2026-10-30:
+   "use this image as a mask for the play button. that way we dont have
+   that dull yellow appearance"), the -ptb3 framing ("lets just use this"):
+   the picture fills the button pinned right, PLAY on its left over a fade.
+   PLAY and the line along the bottom black ("it should be black colored
+   play text and the line"), so the fade is the sky's own white, not dark */
 .to-fn-go { min-height: 74px; border-radius: 0; clip-path: polygon(2.5% 0, 100% 0, 97.5% 100%, 0 100%); box-shadow: none; text-align: left; padding: 0 0 0 26px;
-  color: var(--fn-yellow); font: 400 52px/1 var(--fn-display);
-  text-shadow: -2px -2px 0 #0b1026, 2px -2px 0 #0b1026, -2px 2px 0 #0b1026, 2px 2px 0 #0b1026, 0 -2px 0 #0b1026, 0 2px 0 #0b1026, -2px 0 0 #0b1026, 2px 0 0 #0b1026, 0 4px 8px rgba(0,0,0,.45);
-  background: var(--play-art) right center / auto 215% no-repeat, linear-gradient(180deg, #5fb0e4, #9fd2f1 60%, #d6ecfa);
-  border-bottom: 4px solid var(--fn-yellow); }
-.to-fn-go:hover { filter: brightness(1.08) saturate(1.1); color: #fff466; }
+  color: #0b0d14; font: 400 52px/1 var(--fn-display); text-shadow: 0 0 10px rgba(255,255,255,.7);
+  background: linear-gradient(90deg, rgba(240,248,255,.92) 0%, rgba(232,244,255,.7) 34%, rgba(232,244,255,0) 62%), var(--play-art) right center / cover no-repeat, #cfe6f7;
+  border-bottom: 4px solid #0b0d14; }
+.to-fn-go:hover { background: linear-gradient(90deg, rgba(255,255,255,.96) 0%, rgba(240,248,255,.76) 34%, rgba(240,248,255,0) 58%), var(--play-art) right center / cover no-repeat, #cfe6f7; }
 .to-bo2.is-fn.has-pad .to-fn-go { padding-left: 62px; }
 /* (720 wide, and 1440 for a 2x/3x screen: the button is 250-406 px wide) */
 .to-fn-go { --play-art: url("ui/lobby/play-troll.webp"); }
@@ -5065,8 +5063,6 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-bo2.is-fn .to-fn-medal small { font-size: 11px; }
   .to-fn-medal strong { margin-left: 0; font-size: 18px; }
   .to-fn-go { min-height: 56px; font-size: 38px; }
-  /* (a long button: the picture fills it, a little closer in, no seam) */
-  .to-fn-go { background-size: cover; background-position: right 40%; }
   .to-fn-mode-sub { font-size: 17px; }
 }
 /* The radio: its button ends the top bar, the same height, and the player
