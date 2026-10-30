@@ -21,7 +21,7 @@ import { game } from "../core/state.js?v=st1";
 import { poseUseLocal, clearUseBody } from "../modes/royale-use.js?v=ru1-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1";
 import { throwState, poseThrowBody, clearThrowBody } from "../combat/throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
 import { modelKind } from "../combat/throwable-models.js?v=tm1-th2";
-import { wearBlocky, ownBody } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-hl1-mg1-sp1-rh1-ci6-pm1";
+import { wearBlocky, ownBody, setReliefFace } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-hl1-mg1-sp1-rh1-ci6-pm1";
 import { freeLook } from "./free-look.js?v=nf1";
 import { bodyToken } from "../characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1-em2-nb2-pc2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-sf1-mg1-sp1";
 
@@ -317,8 +317,13 @@ export function updateLocalRig(dt) {
   if (!game.player.alive && game.gameState === "playing" && !royaleSpectating()) { updateLocalDeadBody(); return; }
   game.localRig.root.position.set(game.move.pos.x, game.move.pos.y, game.move.pos.z);
   // The TROLLS body (cosmetics.js, locked to its token's holder; menu/lobby.js
-  // sets ownBody), never under a hero or cop body.
-  wearBlocky(game.localRig, localBodyToken());
+  // sets ownBody), never under a hero or cop body. On the plain stick rig,
+  // the NPCs' 3D trollface head (user, 2026-10-30), off before a body goes on.
+  const token = localBodyToken();
+  const relief = !token && !game.localRig.heroBodyId && !game.localRig.copBodyId;
+  if (!relief) setReliefFace(game.localRig, false);
+  wearBlocky(game.localRig, token);
+  if (relief) setReliefFace(game.localRig);
   // The body follows the aim a beat behind; the head leads the turn.
   const rolling = royaleRolling();
   // Under the glider the body hangs the way the wing flies, not where you look.

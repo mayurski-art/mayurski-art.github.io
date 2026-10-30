@@ -606,9 +606,10 @@ export class RemotePlayer {
     applyCopBody(this.rig, this.peer.hero ? null : this.peer.body || null);
     // A TROLLS body (blocky-body.js): on the token's holder only (its
     // username, cosmetics.js mayWear), and never under a hero or cop body.
-    // A bot under no body of its own wears the NFT body's 3D trollface head
-    // (user, 2026-10-23: every NPC's), as the townsfolk do; off before a body goes on.
-    const reliefOn = !!(this.peer.isBot || this.peer.botSkill) && !this.peer.hero && !this.peer.body && !(this.peer.look && mayWear(this.peer.look, this.peer.name));
+    // Anyone on the plain stick rig, player or bot, wears the NFT body's 3D
+    // trollface head (user, 2026-10-23: every NPC's; 2026-10-30: players
+    // too), as the townsfolk do; off before a body goes on.
+    const reliefOn = !this.peer.hero && !this.peer.body && !(this.peer.look && mayWear(this.peer.look, this.peer.name));
     if (!reliefOn) setReliefFace(this.rig, false);
     wearBlocky(this.rig, this.peer.look && mayWear(this.peer.look, this.peer.name) && !this.peer.hero && !this.peer.body ? this.peer.look : 0);
     if (reliefOn) setReliefFace(this.rig);
