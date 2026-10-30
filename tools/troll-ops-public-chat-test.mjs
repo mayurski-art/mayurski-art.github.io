@@ -148,6 +148,19 @@ await page.evaluate(() => { window.__presence.deliver({ k: "chat", from: "v-1", 
 await page.waitForTimeout(200);
 const gifIn = await page.evaluate(() => [...document.querySelectorAll(".to-pchat-log img.to-pchat-gif")].map((i) => i.getAttribute("src")));
 check(gifIn.some((u) => /gifs\/lel\.gif/.test(u)) && !gifIn.some((u) => /evil/.test(u)), "someone's GIF shows; a GIF that isn't ours is dropped", JSON.stringify(gifIn));
+// fullscreen (user, 2026-10-29): the menu's chat still sends GIFs
+await page.keyboard.press("Escape");
+await page.click(".to-bo2-chat");
+await page.evaluate(() => document.documentElement.requestFullscreen().catch(() => {}));
+await page.waitForTimeout(1300);
+const fsOn = await page.evaluate(() => !!document.fullscreenElement);
+await page.click(".to-pchat-gifbtn");
+await page.click('.to-pchat-gifs [data-gif="lel"]');
+await page.waitForTimeout(200);
+const fsGif = await page.evaluate(() => ({ last: window.__sent.filter((m) => m.k === "chat").at(-1)?.d, shown: !document.querySelector(".to-pchat").hidden }));
+check(fsOn && fsGif.shown && fsGif.last?.gif === "lel", "fullscreen: the menu chat opens and sends a GIF", JSON.stringify({ fsOn, ...fsGif }));
+await page.evaluate(() => document.exitFullscreen?.().catch(() => {}));
+await page.waitForTimeout(200);
 await page.keyboard.press("Escape");
 
 // 6. Phones: the footer pills on screen and apart; the chat fits
@@ -204,20 +217,21 @@ await page.waitForTimeout(200);
 const sentPub = await page.evaluate(() => window.__sent.filter((m) => m.k === "chat").map((m) => m.d.text));
 b = await box();
 check(sentPub.includes("hello all") && b.lines.some((l) => l.includes("[PUBLIC]") && l.includes("(you)") && l.includes("hello all")), "Enter sends it to everyone, shown as yours", JSON.stringify({ sentPub, lines: b.lines }));
-// GIFs in the match: a strip over the box on PUBLIC; one in, one out
+// GIFs in the match (user, 2026-10-29): none sent from it, ones sent from the menu still show
 await page.keyboard.press("KeyU");
 await page.waitForTimeout(1300);
-const strip = await page.evaluate(() => { const g = document.querySelector(".to-chat-gifs"); return { shown: !!g && !g.hidden, n: g?.querySelectorAll("button").length }; });
-check(strip.shown && strip.n === 14, "on PUBLIC the GIF strip shows over the box", JSON.stringify(strip));
-await page.dispatchEvent('.to-chat-gifs [data-gif="forward"]', "mousedown");
-await page.waitForTimeout(200);
+const strip = await page.evaluate(() => ({ strip: !!document.querySelector(".to-chat-gifs") }));
+const hint = await page.evaluate(() => { const h = document.querySelector(".to-chat-hint"); return h && !h.hidden ? h.textContent : null; });
+check(!strip.strip, "no GIF picker in the match chatbox", JSON.stringify(strip));
+check(hint === "Enter all · Y team · U public · Tab switch", "the open box shows its keys", JSON.stringify(hint));
+const sentBefore = await page.evaluate(() => window.__sent.filter((m) => m.k === "chat").length);
 await page.evaluate(() => window.__presence.deliver({ k: "chat", from: "v-2", d: { text: "", gif: "cya" } }));
 await page.waitForTimeout(300);
-const mg = await page.evaluate(() => ({ last: window.__sent.filter((m) => m.k === "chat").at(-1)?.d, imgs: [...document.querySelectorAll(".to-chat .to-chat-gif")].map((i) => i.getAttribute("src")) }));
-check(mg.last?.gif === "forward" && mg.imgs.some((u) => /forward\.gif/.test(u)) && mg.imgs.some((u) => /cya\.gif/.test(u)), "a GIF sent and one received show in the match chatbox", JSON.stringify(mg));
+const mg = await page.evaluate(() => ({ n: window.__sent.filter((m) => m.k === "chat").length, imgs: [...document.querySelectorAll(".to-chat .to-chat-gif")].map((i) => i.getAttribute("src")) }));
+check(mg.n === sentBefore && mg.imgs.some((u) => /cya.gif/.test(u)), "a GIF someone sent from the menu shows in the match chatbox; we sent none", JSON.stringify(mg));
 await page.keyboard.press("Escape");
 await page.waitForTimeout(200);
-check(await page.evaluate(() => document.querySelector(".to-chat-gifs")?.hidden !== false), "the strip goes when the box closes");
+check(await page.evaluate(() => document.querySelector(".to-chat-hint")?.hidden !== false), "the key line goes when the box closes");
 // Tab steps through the channels: ALL -> TEAM -> PUBLIC
 await page.keyboard.press("Enter");
 await page.waitForTimeout(200);

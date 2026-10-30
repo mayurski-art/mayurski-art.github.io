@@ -16,7 +16,9 @@
 // 2026-10-16): its lines show there, not as cards, and muted they don't.
 // GIFs (user, 2026-10-16: "users should be able to send gifs in the chat"):
 // the site's own trollface GIFs (ui/gifs/), picked from a grid; a message
-// carries only the GIF's id, checked against GIFS, never a link.
+// carries only the GIF's id, checked against GIFS, never a link. Sent from
+// the menu only (user, 2026-10-29): mid-match the chatbox has no picker and
+// sendPublic refuses one; GIFs sent from the menu still show in a match.
 
 const CHAT = {
   max: 200,        // characters a message
@@ -157,11 +159,13 @@ function paintPreview() {
 }
 /* Say `text` (or send GIF `gif`, an id in GIFS) to everyone: { name,
    text, gif } when it went, else { error } ("" for nothing to send). The
-   panel and the match chatbox both send through here. */
+   panel and the match chatbox both send through here; a GIF only while
+   the menu's up. */
 export function sendPublic(text, gif = null) {
   text = clean(text);
   gif = gifOf(gif) ? gif : null;
   if (!text && !gif) return { error: "" };
+  if (gif && !chat.canOpen?.()) return { error: "GIFs send from the menu, not mid-match." };
   const t = performance.now();
   if (t - chat.lastSent < CHAT.gap * 1000) return { error: "Easy: one message a second." };
   if (!chat.presence?.live || !chat.presence.send("chat", gif ? { text, gif } : { text })) return { error: "Not connected yet. Try again in a moment." };
@@ -221,7 +225,7 @@ function hideToast() { if (chat.toast) chat.toast.hidden = true; clearTimeout(ch
 export function initPublicChat({ presence, pill, viewerId, canOpen = () => true, matchChat = null }) {
   chat.presence = presence;
   // (the game makes its match chatbox after the menu: picked up when it's there)
-  const hook = () => { let mc = null; try { mc = typeof matchChat === "function" ? matchChat() : matchChat; } catch { /* not made yet */ } if (mc && !chat.matchChat) { chat.matchChat = mc; mc.setPublic?.({ send: sendPublic, live: publicLive, gifs: GIFS, gifSrc }); } };
+  const hook = () => { let mc = null; try { mc = typeof matchChat === "function" ? matchChat() : matchChat; } catch { /* not made yet */ } if (mc && !chat.matchChat) { chat.matchChat = mc; mc.setPublic?.({ send: (text) => sendPublic(text), live: publicLive, gifSrc }); } };
   hook();
   chat.pill = pill;
   chat.canOpen = canOpen;

@@ -3615,6 +3615,8 @@ body.to-touch-play .to-spawnguard { bottom: auto; top: 26%; }
 .to-chat-tag.is-public { color: #ff8a1f; }
 .to-chat-line.is-note { color: #ffcf8a; font-style: italic; }
 .to-chat-input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: #fff; font: inherit; }
+.to-chat-hint { margin: 0 0 0 2px; font-size: 10.5px; color: rgba(234, 245, 228, .6); text-shadow: 0 1px 3px rgba(0, 0, 0, .9); }
+.to-chat-hint[hidden] { display: none; }
 
 /* Duo emote request (game.js updateDuo): "<name> wants to Dap up: hold X" with
    its 30 s countdown, or "Hold X: Dap up with <name>" to send one,
@@ -5362,12 +5364,10 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-pchat-form .to-pchat-gifbtn[aria-expanded="true"] { border-color: #ffd27a; background: rgba(255,210,122,.14); }
 .to-pchat-gifs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; max-height: 200px; overflow-y: auto; margin: 0 14px; padding: 8px; border-radius: 10px; background: rgba(0,0,0,.35); }
 .to-pchat-gifs[hidden] { display: none; }
-.to-pchat-gifs button, .to-chat-gifs button { display: block; padding: 0; border: 2px solid transparent; border-radius: 8px; background: #000; cursor: pointer; overflow: hidden; }
-.to-pchat-gifs button:hover, .to-pchat-gifs button:focus-visible, .to-chat-gifs button:hover { border-color: #ff8a1f; outline: none; }
-.to-pchat-gifs img, .to-chat-gifs img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
+.to-pchat-gifs button { display: block; padding: 0; border: 2px solid transparent; border-radius: 8px; background: #000; cursor: pointer; overflow: hidden; }
+.to-pchat-gifs button:hover, .to-pchat-gifs button:focus-visible { border-color: #ff8a1f; outline: none; }
+.to-pchat-gifs img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
 .to-pchat-gif { display: block; width: 160px; max-width: 100%; margin-top: 4px; border-radius: 8px; }
-.to-chat-gifs { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin: 6px 0 4px; pointer-events: auto; }
-.to-chat-gifs[hidden] { display: none; }
 .to-chat-gif { display: block; width: 96px; margin: 3px 0 2px; border-radius: 6px; }
 .to-pchat-note { min-height: 1.2em; margin: 6px 14px 10px; font: 12px "DM Mono", monospace; color: #ffcf8a; }
 @media (max-width: 560px) {
