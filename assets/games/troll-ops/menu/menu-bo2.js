@@ -22,6 +22,7 @@ import { ACHIEVEMENTS } from "../progression/achievements.js?v=umb1-wst-sb2-fu1-
 import { mountFnLobby } from "./lobby-fn.js?v=fn1-fn2-rl1-rl2-rl3-mt1-sm1-ip1-fn6-ug1-ugm1-tw1-fnu1-fnu2-hw1-hwl1-sc1-bgm1-nwc1";
 import { mountFriends } from "./friends.js?v=fr1";
 import { openPfpStudio } from "./pfp-studio.js?v=pf1";
+import { pickAvatar } from "./avatar-upload.js?v=au1";
 
 import { fetchRecord, formatPlayed } from "../progression/record.js?v=rec1-or1";
 import { WEAPON_DEFS } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
@@ -579,6 +580,7 @@ const screens = {
       groups: [
         [
           { id: "b-pfp", label: "Profile Picture", value: signedIn ? "PFP Studio" : "", desc: signedIn ? "Build your troll in PFP Studio: background, base, outfit, headwear, accessories. Save it and it's your picture on your card and across trollrunner.net." : "Build a troll in PFP Studio. Sign in there to save it as your picture.", onSelect: () => openPfpStudio() },
+          { id: "b-upload", label: "Upload Picture", value: signedIn ? "PNG · JPG · WebP" : "", disabled: !signedIn, desc: signedIn ? "Use your own image as your picture, like your troll NFT. It's cropped square and shows on your card and across trollrunner.net." : guest, need: signedIn ? "" : "Sign in to set it.", onSelect: () => pickAvatar(setStatus) },
           { id: "b-card", label: "Calling Card", value: signedIn ? cardById(card).name : "", disabled: !signedIn, desc: signedIn ? "The banner behind your name." : guest, need: signedIn ? "" : "Sign in to set it.", go: "cards" },
           { id: "b-clan", label: "Clan Tag", value: signedIn ? (clan ? `[${clan}]` : "None") : "", disabled: !signedIn, desc: signedIn ? "Up to 4 letters or numbers, shown as [TAG] name everywhere." : guest, need: signedIn ? "" : "Sign in to set it.", onSelect: () => editClan() },
           { id: "b-rewards", label: "Prestige Rewards", desc: "What each prestige unlocks.", go: "rewards" },

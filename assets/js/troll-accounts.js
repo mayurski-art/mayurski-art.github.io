@@ -1281,26 +1281,34 @@
     };
   }
 
-  async function listFriends() {
+  // `strict` throws on a failed fetch instead of returning an empty list, so
+  // the activity poller can tell "no friends" from "couldn't load friends".
+  async function listFriends(strict) {
     const sb = getClient();
     if (!cachedProfile) return [];
     const { data, error } = await sb.from('troll_friendships_view')
       .select('*')
       .eq('status', 'accepted')
       .order('responded_at', { ascending: false });
-    if (error || !Array.isArray(data)) return [];
+    if (error || !Array.isArray(data)) {
+      if (strict) throw error || new Error('friends fetch failed');
+      return [];
+    }
     return data.map(friendRowOther);
   }
 
   // Incoming = someone else requested me; outgoing = I requested someone else.
-  async function listFriendRequests() {
+  async function listFriendRequests(strict) {
     const sb = getClient();
     if (!cachedProfile) return { incoming: [], outgoing: [] };
     const { data, error } = await sb.from('troll_friendships_view')
       .select('*')
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
-    if (error || !Array.isArray(data)) return { incoming: [], outgoing: [] };
+    if (error || !Array.isArray(data)) {
+      if (strict) throw error || new Error('friend requests fetch failed');
+      return { incoming: [], outgoing: [] };
+    }
     const rows = data.map(friendRowOther);
     return {
       incoming: rows.filter(r => !r.requestedByMe),
@@ -3437,35 +3445,54 @@
      a cheap poll while a session is open is enough.
      ------------------------------------------------------------------ */
   let friendPollTimer = null;
-  let friendPollSeeded = false;
-  let seenIncomingIds = new Set();
-  let seenFriendIds = new Set();
+  let friendPollUserId = null;
+
+  // What's already been announced lives in localStorage per account, and only
+  // ever grows: a reload, another tab, or a poll that comes back empty
+  // mid token-refresh must never make an old friend look new again.
+  function seenFriendsKey(uid) { return `tr_seen_friends_${uid}`; }
+  function readSeenFriends(uid) {
+    try {
+      const raw = JSON.parse(localStorage.getItem(seenFriendsKey(uid)) || 'null');
+      if (raw && Array.isArray(raw.friends) && Array.isArray(raw.incoming)) {
+        return { friends: new Set(raw.friends), incoming: new Set(raw.incoming) };
+      }
+    } catch {}
+    return null;
+  }
+  function writeSeenFriends(uid, seen) {
+    try {
+      localStorage.setItem(seenFriendsKey(uid), JSON.stringify({ friends: [...seen.friends], incoming: [...seen.incoming] }));
+    } catch {}
+  }
 
   function dispatchFriendCount(count) {
     try { window.dispatchEvent(new CustomEvent('trollrunner:friend-requests-changed', { detail: { count } })); } catch {}
   }
 
   async function pollFriendActivity() {
-    if (!cachedProfile) return;
+    const uid = cachedProfile?.id;
+    if (!uid) return;
     try {
-      const [{ incoming }, friends] = await Promise.all([listFriendRequests(), listFriends()]);
+      const [{ incoming }, friends] = await Promise.all([listFriendRequests(true), listFriends(true)]);
+      if (cachedProfile?.id !== uid) return;
       dispatchFriendCount(incoming.length);
-      if (!friendPollSeeded) {
-        seenIncomingIds = new Set(incoming.map(r => r.id));
-        seenFriendIds = new Set(friends.map(f => f.id));
-        friendPollSeeded = true;
-        return;
-      }
+      const stored = readSeenFriends(uid);
+      const seen = stored || { friends: new Set(), incoming: new Set() };
+      const fresh = [];
       incoming.forEach(req => {
-        if (seenIncomingIds.has(req.id)) return;
-        seenIncomingIds.add(req.id);
-        showLocalToast('Friend request', `${req.username} wants to be friends.`, () => openFriendsPanel());
+        if (seen.incoming.has(req.id)) return;
+        seen.incoming.add(req.id);
+        fresh.push(() => showLocalToast('Friend request', `${req.username} wants to be friends.`, () => openFriendsPanel()));
       });
       friends.forEach(f => {
-        if (seenFriendIds.has(f.id)) return;
-        seenFriendIds.add(f.id);
-        showLocalToast('New friend', `You and ${f.username} are now friends.`, () => viewProfile(f.id, f.username));
+        if (seen.friends.has(f.id)) return;
+        seen.friends.add(f.id);
+        fresh.push(() => showLocalToast('New friend', `You and ${f.username} are now friends.`, () => viewProfile(f.id, f.username)));
       });
+      writeSeenFriends(uid, seen);
+      // first poll ever on this device for this account: learn, don't announce
+      if (stored) fresh.forEach(toast => toast());
     } catch {}
   }
 
@@ -3524,19 +3551,22 @@
 
   function startFriendActivityPolling() {
     stopFriendActivityPolling();
-    friendPollSeeded = false;
+    friendPollUserId = cachedProfile?.id || null;
     dmPollSeeded = false;
     void pollSocialActivity();
     friendPollTimer = window.setInterval(pollSocialActivity, 45000);
   }
   function stopFriendActivityPolling() {
     if (friendPollTimer) { window.clearInterval(friendPollTimer); friendPollTimer = null; }
+    friendPollUserId = null;
     dispatchFriendCount(0);
     dispatchDmCount(0);
   }
+  // auth-changed also fires on token refreshes and profile saves; only a
+  // different signed-in account restarts the poller.
   window.addEventListener('trollrunner:auth-changed', event => {
-    if (event.detail) startFriendActivityPolling();
-    else stopFriendActivityPolling();
+    if (!event.detail) stopFriendActivityPolling();
+    else if (!friendPollTimer || friendPollUserId !== cachedProfile?.id) startFriendActivityPolling();
   });
 
   function openRecovery() {
