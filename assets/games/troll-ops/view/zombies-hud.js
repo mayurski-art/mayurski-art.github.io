@@ -127,7 +127,7 @@ export function mountZombiesHud(h) {
   els.top = el("div", "zh-top");
   els.left = el("span", "zh-left");
   els.wave = el("strong", "zh-wave");
-  // a boss on its feet: its name and health take the place of "in N waves"
+  // a boss on its feet: its name and health take the place of "Boss in N waves"
   els.boss = el("span", "zh-boss");
   els.boss.hidden = true;
   els.boss.innerHTML = '<span class="zh-boss-n"></span><span class="zh-boss-bar"><i></i></span>';
@@ -185,6 +185,8 @@ export function mountZombiesHud(h) {
   els.gain = el("span", "zh-gain");
   els.cashN = el("strong", "zh-cash-n");
   els.cash.append(els.gain, els.cashN);
+  // the power-ups running (drops.js): a chip each, its time draining
+  els.fx = el("div", "zh-fx");
 
   els.feed = el("div", "zh-feed");
   els.banner = el("div", "zh-banner");
@@ -202,7 +204,7 @@ export function mountZombiesHud(h) {
   els.reviveT = els.revive.querySelector(".zh-revive-t");
   els.reviveBar = els.revive.querySelector("i");
 
-  root.append(els.top, els.skip, els.up, els.dep, els.chip, els.cash, els.feed, els.banner, els.down, els.revive);
+  root.append(els.top, els.skip, els.up, els.dep, els.chip, els.cash, els.fx, els.feed, els.banner, els.down, els.revive);
   for (const ev of ["pointerdown", "touchstart", "mousedown"]) root.addEventListener(ev, swallow, { passive: true });
   hud.append(root);
 
@@ -292,6 +294,26 @@ export function announceWave(n, final) {
   zombiesBanner(n >= final ? "Final wave" : `Wave ${n}`, n >= final);
 }
 
+/* The power-up chips: one per effect, its bar running down. */
+const fxChips = new Map();
+function drawFx(list) {
+  const live = new Set(list.map((f) => f.id));
+  for (const [id, c] of fxChips) if (!live.has(id)) { c.remove(); fxChips.delete(id); }
+  for (const f of list) {
+    let c = fxChips.get(f.id);
+    if (!c) {
+      c = el("div", "zh-fx-c");
+      c.style.setProperty("--fx", f.color);
+      c.innerHTML = '<span class="zh-fx-n"></span><span class="zh-fx-t"></span><i></i>';
+      c.querySelector(".zh-fx-n").textContent = f.name;
+      els.fx.append(c);
+      fxChips.set(f.id, c);
+    }
+    c.querySelector(".zh-fx-t").textContent = `${Math.ceil(f.t)}s`;
+    c.querySelector("i").style.width = `${(f.t / f.max) * 100}%`;
+  }
+}
+
 function feedLine(amount, label) {
   const line = el("div", "zh-feed-l");
   line.innerHTML = `<b>+${money(amount)}</b> <span></span>`;
@@ -305,12 +327,17 @@ function feedLine(amount, label) {
 /* Every frame of a run; touches the DOM only when something changed. */
 export function updateZombiesHud(dt, s) {
   if (!root || root.hidden) return;
+  drawFx(s.fx || []);
   setPad(!pad.kb && document.body.classList.contains("to-has-pad"));
   if (s.wave !== shown.wave) {
     shown.wave = s.wave;
     els.wave.textContent = `Wave ${s.wave}`;
-    const togo = Math.max(0, s.final - s.wave);
-    els.left.innerHTML = togo > 0 ? `in <b>${togo}</b> wave${togo === 1 ? "" : "s"}` : "<b>Final wave</b>";
+    // the countdown to the next boss: the minis, then the final one
+    const boss = s.nextBoss || s.final;
+    const togo = Math.max(0, boss - s.wave);
+    const who = boss >= s.final ? "Final boss" : "Boss";
+    els.left.innerHTML = s.wave >= s.final ? "<b>Final wave</b>"
+      : togo === 1 ? `${who} <b>next wave</b>` : `${who} in <b>${togo}</b> waves`;
   }
   const breakS = s.between ? Math.ceil(Math.max(0, s.breakT)) : -1;
   if (s.between !== shown.between || breakS !== shown.breakS) {

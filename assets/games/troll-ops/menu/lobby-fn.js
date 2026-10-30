@@ -9,7 +9,9 @@
    way menu-bo2.js wraps the old lobby: it reads the lobby's buttons and asks
    the menu to go places, it owns no game state. Everything it needs comes in
    through mountFnLobby(), so it imports nothing (no second copy of a module
-   under another ?v= tag). */
+   under another ?v= tag) but core/season.js, which holds no state: the
+   season's dates and Halloween, shared with the Zombies hub. */
+import { SEASON, seasonLeft, halloween } from "../core/season.js?v=zf1";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -73,17 +75,10 @@ function tileOf(a) {
 
 /* The season on the Play page's card (user, 2026-10-30: "a date range and
    countdown for how long chapter one lasts which is until november 12th
-   2026"): from the lobby's first day with it to the end of 12 November,
-   local time. */
-const SEASON = { start: new Date(2026, 9, 26), end: new Date(2026, 10, 12, 23, 59, 59) };
+   2026"): core/season.js's SEASON and seasonLeft, shared with the Zombies
+   hub's clock. */
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const day = (d) => `${MONTHS[d.getMonth()]} ${d.getDate()}`;
-function seasonLeft(now = Date.now()) {
-  const ms = SEASON.end - now;
-  if (ms <= 0) return "Season ended";
-  const m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor(m / 60) % 24;
-  return d ? `${d}D ${h}H left` : `${h}H ${m % 60}M left`;
-}
 
 /* The news carousel: what's new, each a way in (user, 2026-10-30: the
    Halloween update first, then Trollface Island, then the rest). `art`: a
@@ -114,18 +109,13 @@ const SHOT_MS = 7000, FADE_MS = 1400;
 const CLIP_V = "c3";   // bump when the clips are re-rendered (same filenames)
 const still = (id, n, w) => n ? `${UI}/lobby/${id}-${n}-${w}.webp` : `${UI}/maps/${id}-${w}.webp`;
 const clip = (name) => ({ clip: (w) => `${UI}/lobby/kabukigrin-${name}-${w}` });
-/* Halloween (user, 2026-10-29: the lobby "to be halloween vibes"): through
-   October and the first days of November a map with a Halloween still
-   shows that instead (ui/lobby/halloween/, the user's own Halloween edits
-   of the reel's stills, each named for the still it stands in for), no
-   clips. ?season=halloween or ?season=off forces it either way (the tests). */
+/* Halloween (user, 2026-10-29: the lobby "to be halloween vibes"): while it
+   lasts (core/season.js: October to the end of Chapter One, 12 November) a
+   map with a Halloween still shows that instead (ui/lobby/halloween/, the
+   user's own Halloween edits of the reel's stills, each named for the still
+   it stands in for), no clips. ?season=halloween or ?season=off forces it
+   either way (the tests). */
 const HALLOWEEN = ["kabukigrin-0", "culdegrin-1", "hollowgrin-1", "trollface-1", "grinleria-1", "undergrin-1", "trollcity-1", "grinbeach-1", "dustbowl-1", "depot-1"];
-function halloween() {
-  const force = new URLSearchParams(location.search).get("season");
-  if (force) return force === "halloween";
-  const d = new Date();
-  return d.getMonth() === 9 || (d.getMonth() === 10 && d.getDate() <= 5);
-}
 /* One map's pictures, in order. */
 function mapReel(id) {
   const spooky = halloween() ? HALLOWEEN.filter((n) => n.startsWith(`${id}-`)) : [];

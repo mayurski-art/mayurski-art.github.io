@@ -23,6 +23,9 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, r));
 const BASE = `http://localhost:${server.address().port}`;
+// zombie-models.js at the tag horde.js imports it by: the same module, so
+// its RARE_LOOKS is the game's (another tag is a second copy)
+const ZM_TAG = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/modes/zombies/horde.js"), "utf8").match(/zombie-models\.js\?v=([^"]+)"/)[1];
 const browser = await chromium.launch({ args: ["--use-angle=d3d11", "--ignore-gpu-blocklist", "--autoplay-policy=no-user-gesture-required"] });
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
 await ctx.route(/supabase/, (r) => r.abort());
@@ -230,9 +233,9 @@ for (const map of maps) {
   check(gone.gone && gone.poolGone, "the body and its pool are removed after sinking", `${gone.secs}s`);
 
   // the rare trollface-mask zombie: force its odds to 1 and look at one
-  const mask = await page.evaluate(async () => {
+  const mask = await page.evaluate(async (tag) => {
     const T = window.__trollOps;
-    const zm = await import("/assets/games/troll-ops/characters/zombie-models.js?v=zr4c");
+    const zm = await import(`/assets/games/troll-ops/characters/zombie-models.js?v=${tag}`);
     zm.RARE_LOOKS.trollmask = 1;
     const zd = T.zdir();
     zd.clear();
@@ -253,7 +256,7 @@ for (const map of maps) {
     T.look.yaw = Math.atan2(fx, fz);
     T.look.pitch = 0.05;
     return { look: z.look, maskTex };
-  });
+  }, ZM_TAG);
   check(mask?.look === "trollmask" && mask.maskTex, "the trollface-mask zombie spawns with its mask", JSON.stringify(mask));
   await new Promise((r) => setTimeout(r, 1500));
   const mshot = path.join(SHOTS, `zombie-mask-${map}.png`);

@@ -24,12 +24,14 @@
 
 import * as THREE from "three";
 import { game } from "../../core/state.js?v=st1";
-import { HUB } from "./hub-hall.js?v=zh1-sr1-or1-dm1";
+import { HUB, hallFx, CARVE_BASE } from "./hub-hall.js?v=zh1-sr1-or1-dm1-zf1";
+import { SEASON, seasonLeft, halloween } from "../../core/season.js?v=zf1";
+import { setRareLooks } from "../../characters/zombie-models.js?v=zr4c-zp1-or1-zf1-ze1-ze2";
 import { MAPS } from "../../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1-bw2-bt1-wf1-wf2-zf1-bp1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-rm1-kzf1-hgb1-hgb2-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-hgb5-hgb6-hgb8-hgb9-tw1-op1-hgo1";
 import { makeRoomCode } from "../../net/net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10-hr2-zp1-rs1-dj2-pl2-nf1-or1-bw2-bt1-dom1-jb3-jb4-sp1-gb4-gb6-gb8-gb9-tfb8-rfx3-tw1-sqd1-lmg1";
 import { roomNow } from "../room-clock.js?v=rc1-cd1-sh1";
 import { openKiosk, closeKiosk, kioskOpen } from "../../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1";
-import { credits, zsave, setZsave, payRun, gunAction, kitAction } from "./credits.js?v=zc1-zc2";
+import { credits, zsave, setZsave, payRun, gunAction, kitAction, setRunEvent, RUN_EVENTS } from "./credits.js?v=zc1-zc2-zf1";
 import { fetchRows, hasBackend, monthWindow, weekWindow, windowFor, timeLeft, tallyPlayers } from "../../progression/leaderboard-rows.js?v=lr1-zh1-or1-nd2";
 
 export const HUB_T = {
@@ -56,6 +58,7 @@ export const hub = {
   invite: null,        // the party an invite link put us in
   claims: new Map(),   // id -> { pad, s, py, at }
   holdT: 0,
+  holdAt: 0,           // when the hold was last counted (performance.now)
   sendT: 0,
   launched: null,      // { code, map } once we've gone
   flash: new Map(),    // pad -> { text, until } ("Lobby ready!" as a party leaves)
@@ -162,6 +165,10 @@ function go(padId) {
    Zombies start on that code like a typed one (match-start.js). */
 function launch(code, map, padId = null) {
   hub.launched = { code, map };
+  // the Halloween casket's run: double Credits, more of the dead in masks
+  const event = padById(padId)?.event || null;
+  setRunEvent(event);
+  setRareLooks(RUN_EVENTS[event]?.looks || null);
   if (!hub.roomCustom && padId && padId !== HUB.private.id) publicRuns.add(code);
   const back = { room: hub.room, custom: hub.roomCustom };
   game.els.quitBtn.click();   // forgets any return: set ours after it
@@ -186,6 +193,7 @@ export function scheduleHubReturn() {
 export function hubReturnPending() { return !!hub.returnTo && game.gameState === "gameover"; }
 export function returnToHub() {
   clearTimeout(hub.returnTimer);
+  setRareLooks(null);
   const to = hub.returnTo;
   if (!to || game.gameState !== "gameover") return;
   hub.returnTo = null;
@@ -199,7 +207,7 @@ export function returnToHub() {
   game.startGame();
 }
 /* Quit from a run (pause menu): the hub doesn't call you back. */
-export function forgetHubReturn() { clearTimeout(hub.returnTimer); hub.returnTo = null; }
+export function forgetHubReturn() { clearTimeout(hub.returnTimer); hub.returnTo = null; setRareLooks(null); }
 
 /* ------------------------------------------------------------ the scene */
 
@@ -235,8 +243,23 @@ function buildScene() {
     group.add(s.mesh);
     boards.set(b.id, s);
   }
+  // the long-case clock: its dial (the time), the plate on its trunk door
+  // (the season's countdown); the lectern's plate (your Credits)
+  const C = HUB.clock;
+  const dial = canvasPlane(0.56, 0.56, 256, 256);
+  dial.mesh.position.set(C.x + 0.268, C.dialY, C.z);
+  dial.mesh.rotation.y = Math.PI / 2;
+  const plate = canvasPlane(0.38, 0.48, 256, 320);
+  plate.mesh.position.set(C.x + 0.228, C.plateY, C.z);
+  plate.mesh.rotation.y = Math.PI / 2;
+  const L = HUB.lectern;
+  const purse = canvasPlane(0.42, 0.26, 384, 240);
+  const n = new THREE.Vector3(0, Math.cos(0.32), -Math.sin(0.32));
+  purse.mesh.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, Math.sin(0.32), Math.cos(0.32)), n));
+  purse.mesh.position.set(L.x, 1.041, L.z + 0.01).addScaledVector(n, 0.012);
+  group.add(dial.mesh, plate.mesh, purse.mesh);
   mapRoot.add(group);
-  built = { group, signs, boards, mapRoot };
+  built = { group, signs, boards, mapRoot, dial, plate, purse };
   board.drawn = "";
   refreshBoards();
 }
@@ -256,23 +279,23 @@ function drawSign(s, lines) {
   s.last = key;
   const { g, c } = s;
   g.clearRect(0, 0, c.width, c.height);
-  const r = 26;
-  g.beginPath(); g.roundRect(8, 8, c.width - 16, c.height - 16, r);
+  // black lacquer in a gold rule (the funeral home's frame: hub-hall.js)
   const grad = g.createLinearGradient(0, 0, 0, c.height);
-  grad.addColorStop(0, "#1b2f6e"); grad.addColorStop(1, "#0f1a3e");
-  g.fillStyle = grad; g.fill();
-  g.lineWidth = 8; g.strokeStyle = "#7fa8ff"; g.stroke();
+  grad.addColorStop(0, "#22170f"); grad.addColorStop(1, "#0e0906");
+  g.fillStyle = grad; g.fillRect(0, 0, c.width, c.height);
+  g.lineWidth = 8; g.strokeStyle = "#c9a24a"; g.strokeRect(10, 10, c.width - 20, c.height - 20);
+  g.lineWidth = 2; g.strokeStyle = "rgba(201,162,74,.5)"; g.strokeRect(22, 22, c.width - 44, c.height - 44);
   g.textAlign = "center"; g.textBaseline = "middle";
   g.lineJoin = "round";
   const rows = lines.length;
   lines.forEach((parts, i) => {
     const y = c.height / 2 + (i - (rows - 1) / 2) * (rows > 2 ? 72 : 92);
     const size = i === 0 && rows > 2 ? 54 : 60;
-    g.font = `700 ${size}px "Oswald", "DM Sans", sans-serif`;
+    g.font = i === 0 ? `700 ${size}px Georgia, "Times New Roman", serif` : `700 ${size}px "Oswald", "DM Sans", sans-serif`;
     const widths = parts.map(([t]) => g.measureText(t).width);
     let x = c.width / 2 - widths.reduce((a, b) => a + b, 0) / 2;
     parts.forEach(([t, col], k) => {
-      g.lineWidth = 9; g.strokeStyle = "#060b1c"; g.strokeText(t, x + widths[k] / 2, y);
+      g.lineWidth = 9; g.strokeStyle = "#080503"; g.strokeText(t, x + widths[k] / 2, y);
       g.fillStyle = col || "#ffffff"; g.fillText(t, x + widths[k] / 2, y);
       x += widths[k];
     });
@@ -330,22 +353,23 @@ function drawBoard(s, title, unit, rows, ends, period) {
   const { g, c } = s;
   const W = c.width, H = c.height;
   g.clearRect(0, 0, W, H);
-  g.fillStyle = "#0d1733"; g.beginPath(); g.roundRect(6, 6, W - 12, H - 12, 22); g.fill();
-  g.lineWidth = 10; g.strokeStyle = "#1f2f5c"; g.stroke();
+  g.fillStyle = "#120c08"; g.fillRect(0, 0, W, H);
+  g.lineWidth = 10; g.strokeStyle = "#c9a24a"; g.strokeRect(12, 12, W - 24, H - 24);
+  g.lineWidth = 2; g.strokeStyle = "rgba(201,162,74,.45)"; g.strokeRect(26, 26, W - 52, H - 52);
   g.textBaseline = "middle"; g.lineJoin = "round";
-  const text = (t, x, y, size, col, align = "left", weight = 700) => {
-    g.font = `${weight} ${size}px "Oswald", "DM Sans", sans-serif`;
+  const text = (t, x, y, size, col, align = "left", weight = 700, serif = false) => {
+    g.font = serif ? `${weight} ${size}px Georgia, "Times New Roman", serif` : `${weight} ${size}px "Oswald", "DM Sans", sans-serif`;
     g.textAlign = align;
-    g.lineWidth = Math.max(4, size / 7); g.strokeStyle = "#050a18"; g.strokeText(t, x, y);
+    g.lineWidth = Math.max(4, size / 7); g.strokeStyle = "#060403"; g.strokeText(t, x, y);
     g.fillStyle = col; g.fillText(t, x, y);
   };
-  text(title, W / 2, 66, 74, "#ffffff", "center");
+  text(title, W / 2, 70, 70, "#f2cf7a", "center", 700, true);
   text(period === "month" ? "Monthly" : "Weekly", 48, 136, 40, "#ffffff");
   text(`Ends: ${ends}`, W - 48, 136, 40, "#7dff4f", "right");
-  g.fillStyle = "rgba(255,255,255,.14)"; g.fillRect(40, 168, W - 80, 3);
-  text("Rank", 48, 198, 28, "#9fb0d8", "left", 600);
-  text("Player", 170, 198, 28, "#9fb0d8", "left", 600);
-  text(unit, W - 48, 198, 28, "#9fb0d8", "right", 600);
+  g.fillStyle = "rgba(201,162,74,.45)"; g.fillRect(40, 168, W - 80, 3);
+  text("Rank", 48, 198, 28, "#b9a27a", "left", 600);
+  text("Player", 170, 198, 28, "#b9a27a", "left", 600);
+  text(unit, W - 48, 198, 28, "#b9a27a", "right", 600);
   const top = 250, step = Math.min(62, (H - top - 30) / BOARD_ROWS);
   if (!rows.length) {
     text(board.error ? "Board's down. Back soon." : `No runs yet this ${period}.`, W / 2, top + step * 3, 40, "#cfd8f0", "center", 600);
@@ -354,7 +378,7 @@ function drawBoard(s, title, unit, rows, ends, period) {
   const RANK = ["#ffd84a", "#d9e2f2", "#e8a35c"];
   rows.forEach(([name, n], i) => {
     const y = top + step * i;
-    if (i % 2 === 0) { g.fillStyle = "rgba(255,255,255,.05)"; g.fillRect(40, y - step / 2, W - 80, step); }
+    if (i % 2 === 0) { g.fillStyle = "rgba(242,207,122,.06)"; g.fillRect(40, y - step / 2, W - 80, step); }
     text(`#${i + 1}`, 48, y, 42, RANK[i] || "#ffffff");
     let nm = String(name);
     g.font = `600 42px "Oswald", "DM Sans", sans-serif`;
@@ -384,9 +408,9 @@ function updateSigns() {
   for (const p of HUB.pads) {
     const flash = hub.flash.get(p.id);
     const party = partyOn(p.id);
-    const name = [[MAPS[p.map]?.name || p.map, "#ffd84a"]];
+    const name = p.event ? [[RUN_EVENTS[p.event].title, "#c58cff"]] : [[MAPS[p.map]?.name || p.map, "#f2cf7a"]];
     if (flash && flash.until > now && !party.members.length) { drawSign(built.signs.get(p.id), [name, [[flash.text, "#7dff4f"]]]); continue; }
-    if (!party.members.length) { drawSign(built.signs.get(p.id), [name, [["Step on to play"]], [["Players: "], ["0/4", "#7dff4f"]]]); continue; }
+    if (!party.members.length) { drawSign(built.signs.get(p.id), [name, p.event ? [[RUN_EVENTS[p.event].blurb, "#ffb347"]] : [["Step on to play"]], [["Players: "], ["0/4", "#7dff4f"]]]); continue; }
     const secs = Math.max(0, Math.ceil((party.ends - roomNow()) / 1000));
     drawSign(built.signs.get(p.id), [name, [["Starting in: "], [`${secs}s`, "#ffd84a"]], [["Players: "], [`${party.members.length}/${PARTY_MAX}`, party.members.length >= PARTY_MAX ? "#ff5a6a" : "#7dff4f"]]]);
   }
@@ -397,6 +421,126 @@ function updateSigns() {
     drawSign(priv, [[["Private", "#d9a6ff"]], [["Lobby ready!", "#7dff4f"]], [["Players: "], [`${party.members.length}/${PARTY_MAX}`, "#7dff4f"]]]);
   } else {
     drawSign(priv, [[["Private", "#d9a6ff"]], [["Your squad only"]], [["Invite friends in", "#ffd84a"]]]);
+  }
+}
+
+/* ------------------------------------------------------------ the clock */
+
+const ROMAN = ["XII", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI"];
+const SERIF = `Georgia, "Times New Roman", serif`;
+const SANS = `"Oswald", "DM Sans", sans-serif`;
+
+/* The long-case clock's face: cream enamel, Roman hours, the hands at the
+   local time. */
+function drawDial(s, now) {
+  const { g, c } = s;
+  const R = c.width / 2;
+  g.clearRect(0, 0, c.width, c.height);
+  g.save();
+  g.translate(R, R);
+  g.fillStyle = "#c9a24a"; g.beginPath(); g.arc(0, 0, R - 2, 0, Math.PI * 2); g.fill();
+  const face = g.createRadialGradient(0, -20, 10, 0, 0, R);
+  face.addColorStop(0, "#fbf3dc"); face.addColorStop(1, "#e3d3a8");
+  g.fillStyle = face; g.beginPath(); g.arc(0, 0, R - 14, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = "#2a1a0e"; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, R - 54, 0, Math.PI * 2); g.stroke();
+  g.fillStyle = "#2a1a0e"; g.textAlign = "center"; g.textBaseline = "middle";
+  g.font = `700 22px ${SERIF}`;
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2 - Math.PI / 2;
+    g.save(); g.translate(Math.cos(a) * (R - 36), Math.sin(a) * (R - 36)); g.rotate(a + Math.PI / 2);
+    g.fillText(ROMAN[i], 0, 0); g.restore();
+  }
+  for (let i = 0; i < 60; i++) {
+    const a = (i / 60) * Math.PI * 2, r0 = R - 18, r1 = R - (i % 5 ? 22 : 26);
+    g.lineWidth = i % 5 ? 1.5 : 3;
+    g.beginPath(); g.moveTo(Math.cos(a) * r0, Math.sin(a) * r0); g.lineTo(Math.cos(a) * r1, Math.sin(a) * r1); g.stroke();
+  }
+  g.font = `italic 13px ${SERIF}`;
+  g.fillText("Grin & Sons", 0, 34);
+  const d = new Date(now);
+  const hand = (frac, len, w) => {
+    const a = frac * Math.PI * 2 - Math.PI / 2;
+    g.lineWidth = w; g.lineCap = "round"; g.strokeStyle = "#140c06";
+    g.beginPath(); g.moveTo(-Math.cos(a) * 12, -Math.sin(a) * 12); g.lineTo(Math.cos(a) * len, Math.sin(a) * len); g.stroke();
+  };
+  hand(((d.getHours() % 12) + d.getMinutes() / 60) / 12, R * 0.48, 7);
+  hand((d.getMinutes() + d.getSeconds() / 60) / 60, R * 0.7, 4.5);
+  g.fillStyle = "#140c06"; g.beginPath(); g.arc(0, 0, 7, 0, Math.PI * 2); g.fill();
+  g.restore();
+  s.tex.needsUpdate = true;
+}
+
+/* The trunk door's plate: the season and how long it has left (the lobby's
+   countdown, core/season.js), and Halloween while it lasts. */
+function drawSeason(s, left) {
+  const { g, c } = s;
+  const W = c.width, H = c.height;
+  g.clearRect(0, 0, W, H);
+  g.fillStyle = "#c9a24a"; g.fillRect(0, 0, W, H);
+  g.fillStyle = "#1a110a"; g.fillRect(8, 8, W - 16, H - 16);
+  g.strokeStyle = "rgba(201,162,74,.6)"; g.lineWidth = 2; g.strokeRect(18, 18, W - 36, H - 36);
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = "#b9a27a"; g.font = `italic 26px ${SERIF}`;
+  g.fillText("Season: OG", W / 2, 60);
+  g.fillStyle = "#f2cf7a"; g.font = `700 38px ${SERIF}`;
+  g.fillText(SEASON.name, W / 2, 106);
+  g.fillStyle = "#c9a24a"; g.fillRect(W / 2 - 60, 140, 120, 2);
+  const m = left.match(/^(.*) (left)$/);
+  g.fillStyle = "#ffffff"; g.font = `700 ${m ? 46 : 34}px ${SANS}`;
+  g.fillText(m ? m[1] : left, W / 2, 190);
+  if (m) { g.fillStyle = "#b9a27a"; g.font = `600 26px ${SANS}`; g.fillText("LEFT", W / 2, 232); }
+  if (halloween()) { g.fillStyle = "#ff9a3a"; g.font = `italic 26px ${SERIF}`; g.fillText("Halloween", W / 2, 276); }
+  s.tex.needsUpdate = true;
+}
+
+/* The lectern's plate: what's in your collection plate (Credits). */
+function drawPurse(s, n) {
+  const { g, c } = s;
+  const W = c.width, H = c.height;
+  g.clearRect(0, 0, W, H);
+  g.fillStyle = "#b8903c"; g.fillRect(0, 0, W, H);
+  g.strokeStyle = "#5a3e16"; g.lineWidth = 4; g.strokeRect(10, 10, W - 20, H - 20);
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = "#3a2608"; g.font = `italic 30px ${SERIF}`;
+  g.fillText("Your collection", W / 2, 58);
+  g.font = `700 72px ${SERIF}`;
+  g.fillText(Math.round(n).toLocaleString(), W / 2, 130);
+  g.font = `600 26px ${SANS}`;
+  g.fillText("CREDITS", W / 2, 190);
+  s.tex.needsUpdate = true;
+}
+
+/* Once a second: the clock's hands move every 20 s, the countdown every
+   minute, the Credits after a kiosk buy (each read parses the save). */
+let plateT = 0;
+function updatePlates(dt) {
+  if (!built) return;
+  plateT -= dt;
+  if (plateT > 0 && built.purse.last !== "") return;   // a fresh scene draws at once
+  plateT = 1;
+  const now = Date.now();
+  const tick = Math.floor(now / 20000);
+  if (built.dial.last !== tick) { built.dial.last = tick; drawDial(built.dial, now); }
+  const left = seasonLeft(now);
+  if (built.plate.last !== left) { built.plate.last = left; drawSeason(built.plate, left); }
+  const n = credits();
+  if (built.purse.last !== n) { built.purse.last = n; drawPurse(built.purse, n); }
+}
+
+/* Halloween: the floor fog turning, the ghost swaying on its thread. */
+let fxT = 0;
+function updateHallFx(dt) {
+  fxT += dt;
+  hallFx.fog.forEach((m, i) => { if (m.parent) m.rotation.z = fxT * (i % 2 ? 0.02 : -0.015) + i; });
+  const gh = hallFx.ghost;
+  if (gh?.parent) { gh.rotation.y = Math.sin(fxT * 0.4) * 0.5; gh.position.y = 4.2 + Math.sin(fxT * 0.9) * 0.08; }
+  // the jack-o'-lanterns' candles (Hollowgrin's flicker: a quick wobble and
+  // the odd gutter)
+  if (hallFx.carve) {
+    const ft = fxT * 9;
+    const f = 1 - 0.22 * (0.5 + 0.5 * Math.sin(ft)) * (0.6 + 0.4 * Math.sin(ft * 2.3 + 1.7)) - (Math.random() < 0.02 ? 0.1 : 0);
+    hallFx.carve.color.copy(CARVE_BASE).multiplyScalar(f);
+    hallFx.pool?.color.setRGB(1, 0.478, 0.102).multiplyScalar(0.55 * f);
   }
 }
 
@@ -525,6 +669,7 @@ export function updateHub(dt) {
     hub.pad = under;
     hub.since = roomNow();
     hub.holdT = 0;
+    hub.holdAt = 0;
     sendClaim();
   }
   hub.sendT -= dt;
@@ -539,12 +684,18 @@ export function updateHub(dt) {
   const party = hub.pad ? partyOn(hub.pad, myParty()) : null;
   if (party && party.owner === me() && !hub.launched) {
     const held = !game.localPauseOnly && (game.keys.has("KeyX") || (game.isTouch && game.touchState?.swap) || !!game.gamepadState?.pickup);
-    hub.holdT = held ? hub.holdT + dt : 0;
+    // real seconds, not frame time: a slow frame (clamped to 50 ms) mustn't
+    // stretch the hold
+    const now = performance.now();
+    hub.holdT = held ? hub.holdT + Math.min(0.5, (now - (hub.holdAt || now)) / 1000) : 0;
+    hub.holdAt = held ? now : 0;
     const isPrivate = hub.pad === HUB.private.id;
     if (hub.holdT >= HUB_T.holdStart || (!isPrivate && (party.members.length >= PARTY_MAX || roomNow() >= party.ends))) go(hub.pad);
   }
   updateSigns();
   updateBoards();
+  updatePlates(dt);
+  updateHallFx(dt);
   updateUi(dt, party || { members: [], owner: null });
 }
 

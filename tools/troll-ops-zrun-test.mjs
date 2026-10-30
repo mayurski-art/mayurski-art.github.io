@@ -80,7 +80,7 @@ const hud = await page.evaluate(() => {
 });
 check(hud.shown, "the zombies HUD is up");
 check(hud.wave === "Wave 1", "wave reads Wave 1", hud.wave);
-check(/in 29 waves/.test(hud.left || ""), "29 waves to go", hud.left);
+check(/Boss in 9 waves/.test(hud.left || ""), "the first boss is 9 waves off", hud.left);
 check(hud.cash === "$0", "cash starts at $0", hud.cash);
 check(hud.cards === 3, "three upgrade cards", String(hud.cards));
 check(hud.res === "∞", "reserve ammo reads ∞", hud.res);

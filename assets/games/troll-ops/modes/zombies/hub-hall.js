@@ -1,277 +1,430 @@
-// Troll Forces — the Zombies hub (Zombie Rush P5).
+// Troll Forces — the Zombies hub: Grin & Sons Funeral Home (design doc
+// "Zombie Rush: what's next", phase H0; claude.ai/artifact/4pfaNykEVdLDTmpYkxL1vs).
 //
-// Where Zombies starts: a bright, blocky hall like Zombie Rush's lobby. Four
-// map pads along the back (stand on one and you're in its party), a private
-// pad by the west wall, the Weapons and Classes kiosks on the east, and the
-// two leaderboards on the north wall. The pads' signs, the boards and the
-// kiosk prompts are modes/zombies/hub.js's: this file is the room and where
-// everything stands (HUB).
+// Zombies start where the dead are laid out. The parlour is
+// models/build_zhub.blender.py's (zh-hall, zh-pads, zh-props): each map pad
+// is a velvet dais with an open casket at its back, its satin lit in the
+// map's colour; the private pad is the family vault behind an iron fence; the
+// Weapons kiosk is the embalming table, the Classes kiosk the chapel of rest;
+// the two leaderboards hang on the memorial wall; a long-case clock counts
+// down the season. The pads' signs, the boards, the clock's dial and the
+// plates are modes/zombies/hub.js's: this file is the room, its colliders
+// and where everything stands (HUB).
+//
+// Halloween (phase H0b) runs as long as Chapter One (core/season.js):
+// Hollowgrin's jack-o'-lanterns (maps/jack-o-lantern.js), candles,
+// cobwebs, bats, ground fog, a ghost by the vault, and the
+// fourth pad, the Halloween run (Hollowgrin, double Credits, more of the dead
+// in trollface masks).
 //
 // Never a fighting map: left out of MAP_IDS, only MODES.zhub plays it.
 
 import * as THREE from "three";
+import { loadModel } from "../../maps/battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
+import { RETEXTURE } from "../../maps/map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1-hgb5-hgb6-hgb8";
+import { halloween } from "../../core/season.js?v=zf1";
+import { carveTexture, jackPieces } from "../../maps/jack-o-lantern.js?v=zf1";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
-/* Where things stand. hub.js reads this; the numbers here are the colliders. */
+const SPOOKY = halloween();
+
+/* Where things stand. hub.js reads this; the numbers here are the colliders
+   and match build_zhub.blender.py. */
 export const HUB = {
   // a pad's floor area: you're on it while your feet are inside
   pads: [
     { id: "p1", map: "pentagrin", x: -15, z: -6, w: 6, d: 5 },
     { id: "p2", map: "hollowgrin", x: -8.4, z: -6, w: 6, d: 5 },
     { id: "p3", map: "trollcity", x: 8.4, z: -6, w: 6, d: 5 },
+    // Chapter One only: the Halloween run (credits.js RUN_EVENTS)
+    ...(SPOOKY ? [{ id: "p4", map: "hollowgrin", event: "halloween", x: 15, z: -6, w: 6, d: 5 }] : []),
   ],
   private: { id: "priv", x: -15, z: 8, w: 5, d: 5 },
   // the sign over a pad's back edge, facing the room
   signY: 4.3,
   kiosks: [
-    { id: "weapons", label: "Weapons", x: 16.6, z: 4, face: -Math.PI / 2 },
-    { id: "classes", label: "Classes", x: 16.6, z: 10, face: -Math.PI / 2 },
+    { id: "weapons", label: "Weapons", sub: "The Embalming Room", x: 16.6, z: 4, face: -Math.PI / 2 },
+    { id: "classes", label: "Classes", sub: "The Chapel of Rest", x: 16.6, z: 10, face: -Math.PI / 2 },
   ],
-  // the two boards on the north wall, at the end of the aisle between the
-  // pads: centre, width, height, bottom edge
+  // the two boards on the memorial wall: centre, width, height, bottom edge
   boards: [
     { id: "wave", title: "Highest Wave", x: -2.65, z: -14.12, w: 5, h: 4.4, y: 1.3 },
     { id: "kills", title: "Total Kills", x: 2.65, z: -14.12, w: 5, h: 4.4, y: 1.3 },
   ],
+  // the long-case clock (its dial and the season's countdown, hub.js), the
+  // collection lectern's plate (your Credits, hub.js)
+  clock: { x: -19.0, z: 3.6, dialY: 2.23, plateY: 1.08 },
+  lectern: { x: -4.2, z: 13.35 },
 };
 
-const W = 40, D = 30, WALL_H = 7;
-const PAD_GLOW = 0xb45cff;
+/* Each pad's satin (build_zhub.blender.py ZH_Satin*). */
+export const PAD_COLOR = { p1: 0x5a8dff, p2: 0xff7a1a, p3: 0xffb43a, p4: 0xb45cff, priv: 0xd9c9a0 };
 
-/* A crate face: blue panel, orange frame, hazard stripes, a white X. */
-let crateTex = null;
-function crateTexture() {
-  if (crateTex) return crateTex;
+const W = 40, D = 30, WALL_H = 7;
+const MODELS = ["zh-hall", "zh-pads", "zh-props", ...(SPOOKY ? ["zh-halloween"] : [])];
+const CHANDELIERS = [[0, -3.5], [0, 3.5], [0, 10]];
+
+// the GLBs' photo-textured materials: [surface, tiles per metre, lift]
+const MAPPING = {
+  ...RETEXTURE,
+  ZH_Floor: ["wood", 0.9, 0.15],
+  ZH_Walnut: ["wood", 1.2, 0.0],
+  ZH_Plaster: ["plaster", 0.4],
+  ZH_Marble: ["marble", 0.6],
+  ZH_Stone: ["rock", 0.9, 0.4],
+};
+
+/* The parlour's wallpaper: a green damask, one repeat every 0.6 m. */
+let damaskTex = null;
+function damask() {
+  if (damaskTex) return damaskTex;
   const c = document.createElement("canvas");
   c.width = c.height = 256;
   const g = c.getContext("2d");
-  g.fillStyle = "#f08a24"; g.fillRect(0, 0, 256, 256);
-  // hazard band inside the frame
-  g.save();
-  g.beginPath(); g.rect(18, 18, 220, 220); g.rect(34, 34, 188, 188); g.clip("evenodd");
-  g.fillStyle = "#f6d23a"; g.fillRect(0, 0, 256, 256);
-  g.fillStyle = "#1d1d22";
-  for (let i = -256; i < 512; i += 22) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + 11, 0); g.lineTo(i + 11 + 256, 256); g.lineTo(i + 256, 256); g.fill(); }
-  g.restore();
-  g.fillStyle = "#3f86e8"; g.fillRect(34, 34, 188, 188);
-  g.strokeStyle = "#cfe2ff"; g.lineWidth = 16; g.lineCap = "square";
-  g.beginPath(); g.moveTo(52, 52); g.lineTo(204, 204); g.moveTo(204, 52); g.lineTo(52, 204); g.stroke();
-  g.fillStyle = "#3f86e8"; g.fillRect(108, 108, 40, 40);
-  g.strokeStyle = "#cfe2ff"; g.lineWidth = 8; g.strokeRect(112, 112, 32, 32);
-  crateTex = new THREE.CanvasTexture(c);
-  crateTex.colorSpace = THREE.SRGBColorSpace;
-  crateTex.anisotropy = 4;
-  return crateTex;
+  g.fillStyle = "#24402f"; g.fillRect(0, 0, 256, 256);
+  // faint vertical stripes in the ground
+  g.fillStyle = "rgba(255,255,255,.025)";
+  for (let x = 0; x < 256; x += 16) g.fillRect(x, 0, 6, 256);
+  // the motif, mirrored left to right, at the centre and the four corners
+  const motif = (cx, cy, s) => {
+    g.save(); g.translate(cx, cy); g.scale(s, s);
+    for (const side of [1, -1]) {
+      g.save(); g.scale(side, 1);
+      g.beginPath();
+      g.moveTo(0, -58);
+      g.bezierCurveTo(22, -46, 30, -22, 12, -8);
+      g.bezierCurveTo(34, -2, 44, 18, 26, 34);
+      g.bezierCurveTo(16, 44, 6, 40, 0, 58);
+      g.lineTo(0, -58);
+      g.fill();
+      g.beginPath(); g.ellipse(30, -30, 6, 12, 0.5, 0, Math.PI * 2); g.fill();
+      g.beginPath(); g.ellipse(36, 22, 5, 9, -0.6, 0, Math.PI * 2); g.fill();
+      g.restore();
+    }
+    g.restore();
+  };
+  g.fillStyle = "#335a42";
+  motif(128, 128, 1);
+  for (const [x, y] of [[0, 0], [256, 0], [0, 256], [256, 256]]) motif(x, y, 0.9);
+  // a gold hairline round the centre motif
+  g.strokeStyle = "rgba(201,162,74,.35)"; g.lineWidth = 2;
+  g.beginPath(); g.ellipse(128, 128, 54, 74, 0, 0, Math.PI * 2); g.stroke();
+  damaskTex = new THREE.CanvasTexture(c);
+  damaskTex.colorSpace = THREE.SRGBColorSpace;
+  damaskTex.wrapS = damaskTex.wrapT = THREE.RepeatWrapping;
+  damaskTex.repeat.set(1 / 0.6, 1 / 0.6);
+  damaskTex.anisotropy = 8;
+  return damaskTex;
 }
 
-/* A plain text sign (the kiosks'): white bold capitals on a dark plate. */
-function labelTexture(text, { w = 512, h = 128, bg = "#16233c", fg = "#ffffff", edge = "#f08a24" } = {}) {
+/* A kiosk's plaque: walnut, a brass rule, the name in cream capitals over
+   the room's own name. */
+function plaqueTexture(text, sub) {
+  const c = document.createElement("canvas");
+  c.width = 512; c.height = 128;
+  const g = c.getContext("2d");
+  const grad = g.createLinearGradient(0, 0, 0, 128);
+  grad.addColorStop(0, "#3a2416"); grad.addColorStop(1, "#24160d");
+  g.fillStyle = grad; g.fillRect(0, 0, 512, 128);
+  g.strokeStyle = "#c9a24a"; g.lineWidth = 6; g.strokeRect(8, 8, 496, 112);
+  g.strokeStyle = "rgba(201,162,74,.45)"; g.lineWidth = 2; g.strokeRect(16, 16, 480, 96);
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = "#f3e6c4";
+  g.font = `700 52px Georgia, "Times New Roman", serif`;
+  g.fillText(text.toUpperCase(), 256, 54);
+  g.fillStyle = "#c9a24a";
+  g.font = `italic 22px Georgia, "Times New Roman", serif`;
+  g.fillText(sub, 256, 96);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
+/* A flat engraved plate (the memorial wall's title). */
+function engraved(text, w, h, size) {
   const c = document.createElement("canvas");
   c.width = w; c.height = h;
   const g = c.getContext("2d");
-  g.fillStyle = bg; g.fillRect(0, 0, w, h);
-  g.strokeStyle = edge; g.lineWidth = 10; g.strokeRect(5, 5, w - 10, h - 10);
-  g.fillStyle = fg;
-  g.font = `800 ${Math.round(h * 0.52)}px "DM Sans", system-ui, sans-serif`;
+  g.clearRect(0, 0, w, h);
   g.textAlign = "center"; g.textBaseline = "middle";
-  g.fillText(text, w / 2, h / 2 + 2);
+  g.font = `700 ${size}px Georgia, "Times New Roman", serif`;
+  g.fillStyle = "#2a1a0e"; g.fillText(text, w / 2 + 2, h / 2 + 3);
+  g.fillStyle = "#f6dc96"; g.fillText(text, w / 2, h / 2);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
+/* ------------------------------------------------------------ Halloween */
+
+/* Hollowgrin's jack-o'-lanterns (maps/jack-o-lantern.js; user, 2026-10-30:
+   "lets use the pumpkins we have in the hollowgrin map"), where
+   zhub-pumpkins.json puts them: every body, stem, carved face and glow pool
+   merged into one mesh each. The faces flicker together (hub.js). */
+let poolTex = null;
+function poolTexture() {
+  if (poolTex) return poolTex;
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const g = c.getContext("2d");
+  const r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  r.addColorStop(0, "rgba(255,255,255,1)"); r.addColorStop(0.25, "rgba(255,255,255,.55)");
+  r.addColorStop(0.6, "rgba(255,255,255,.14)"); r.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = r; g.fillRect(0, 0, 128, 128);
+  return (poolTex = new THREE.CanvasTexture(c));
+}
+const CARVE_COLOR = new THREE.Color(0xffb24a).multiplyScalar(2.2);
+function jackOLanterns(root) {
+  fetch(new URL("../../models/zhub-pumpkins.json", import.meta.url).href).then((r) => r.json()).then((list) => {
+    const bodies = [], stems = [], carves = [], pools = [];
+    list.forEach((p, i) => {
+      const j = jackPieces(p.x, p.y, p.z, { r: p.r, face: p.face, seed: 9100 + i, glow: p.r >= 0.2 });
+      const n = j.body.attributes.position.count, col = new THREE.Color(j.hue), rgb = new Float32Array(n * 3);
+      for (let k = 0; k < n; k++) col.toArray(rgb, k * 3);
+      j.body.setAttribute("color", new THREE.BufferAttribute(rgb, 3));
+      bodies.push(j.body); stems.push(j.stem);
+      if (j.carve) carves.push(j.carve);
+      if (j.pool) pools.push(j.pool);
+    });
+    const add = (geos, mat, name, shadow = false) => {
+      if (!geos.length) return;
+      const m = new THREE.Mesh(mergeGeometries(geos.map((g) => (g.index ? g.toNonIndexed() : g))), mat);
+      m.name = name;
+      m.castShadow = shadow;
+      root.add(m);
+      return m;
+    };
+    add(bodies, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55 }), "dress_jacks");
+    add(stems, new THREE.MeshStandardMaterial({ color: 0x4a5a26, roughness: 0.8 }), "dress_jack_stems");
+    hallFx.carve = new THREE.MeshBasicMaterial({ map: carveTexture(), color: CARVE_COLOR.clone(), alphaTest: 0.5 });
+    add(carves, hallFx.carve, "dress_jack_faces");
+    hallFx.pool = new THREE.MeshBasicMaterial({ map: poolTexture(), color: new THREE.Color(0xff7a1a).multiplyScalar(0.55),
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    add(pools, hallFx.pool, "dress_jack_glow");
+  }).catch(() => { /* no pumpkins, then */ });
+}
+export const CARVE_BASE = CARVE_COLOR;
+
+/* A cobweb in a corner: radial threads and rings on a transparent sheet. */
+function webTexture() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 256;
+  const g = c.getContext("2d");
+  g.strokeStyle = "rgba(235,235,240,.55)"; g.lineWidth = 1.4;
+  const spokes = 9;
+  for (let i = 0; i <= spokes; i++) {
+    const a = (Math.PI / 2) * i / spokes;
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * 250, Math.sin(a) * 250); g.stroke();
+  }
+  for (let r = 30; r < 250; r += 26) {
+    g.beginPath();
+    for (let i = 0; i <= spokes; i++) {
+      const a = (Math.PI / 2) * i / spokes, rr = r * (1 - 0.08 * Math.sin(i * 1.7));
+      const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
+      if (!i) g.moveTo(x, y); else g.quadraticCurveTo(Math.cos(a - 0.08) * rr * 0.92, Math.sin(a - 0.08) * rr * 0.92, x, y);
+    }
+    g.stroke();
+  }
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
 
+/* Low fog drifting over the floor: a few big soft sheets (hub.js turns them). */
+function fogTexture() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 256;
+  const g = c.getContext("2d");
+  for (let i = 0; i < 40; i++) {
+    const x = 30 + Math.random() * 196, y = 30 + Math.random() * 196, r = 30 + Math.random() * 50;
+    const grad = g.createRadialGradient(x, y, 0, x, y, r);
+    grad.addColorStop(0, "rgba(170,160,200,.07)"); grad.addColorStop(1, "rgba(170,160,200,0)");
+    g.fillStyle = grad; g.fillRect(0, 0, 256, 256);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+export const hallFx = { fog: [], ghost: null, carve: null, pool: null };
+
+function dressHalloween(api, root) {
+  jackOLanterns(root);
+  const web = new THREE.MeshBasicMaterial({ map: webTexture(), transparent: true, depthWrite: false, side: THREE.DoubleSide });
+  // the ceiling's corners and the tops of the pads' sign frames
+  const XI = W / 2 - 0.62, ZI = D / 2 - 0.62, top = WALL_H - 0.02;
+  for (const [x, z, ry] of [[-XI, -ZI, 0], [XI, -ZI, -Math.PI / 2], [XI, ZI, Math.PI], [-XI, ZI, Math.PI / 2]]) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.6), web);
+    m.geometry.translate(0.8, -0.8, 0);
+    m.position.set(x, top, z);
+    m.rotation.set(0, ry + Math.PI / 4, 0);
+    m.name = "dress_web";
+    root.add(m);
+  }
+  for (const p of HUB.pads) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.7), web);
+    m.geometry.translate(0.35, -0.35, 0);
+    m.position.set(p.x - (p.w - 0.4) / 2 - 0.1, HUB.signY + 0.95, p.z - p.d / 2 - 0.2);
+    m.name = "dress_web";
+    root.add(m);
+  }
+  const fogMat = new THREE.MeshBasicMaterial({ map: fogTexture(), transparent: true, depthWrite: false, toneMapped: false });
+  for (const [x, z, s] of [[-14, 1, 9], [14, 1, 9], [-11, 12, 7], [11, 12, 7], [-8, -11.5, 7], [8, -11.5, 7]]) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(s, s), fogMat);
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x, 0.06, z);
+    m.renderOrder = 3;
+    m.name = "dress_fog";
+    root.add(m);
+    hallFx.fog.push(m);
+  }
+  // Hollowgrin's porch ghost, under the middle chandelier
+  loadModel("hg-ghost").then((g) => {
+    g.position.set(-9.5, 4.2, 11);
+    g.name = "dress_ghost";
+    g.traverse((n) => { n.castShadow = false; });
+    root.add(g);
+    hallFx.ghost = g;
+  }).catch(() => {});
+}
+
+/* ------------------------------------------------------------ the build */
+
+function place(api, name, root) {
+  loadModel(name, MAPPING).then((obj) => {
+    obj.traverse((n) => {
+      if (!n.isMesh) return;
+      n.castShadow = false;
+      for (const m of [].concat(n.material)) {
+        if (m.name === "ZH_Wallpaper") { m.map = damask(); m.color.set(0xffffff); m.roughness = 0.85; m.needsUpdate = true; }
+      }
+    });
+    root.add(obj);
+  });
+}
+
 function buildHub(api) {
   const root = new THREE.Group();
   api.prop(root);
-  const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.05, ...o });
-  const add = (geo, mat, x, y, z, { shadow = true } = {}) => {
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(x, y, z);
-    m.castShadow = shadow; m.receiveShadow = true;
-    root.add(m);
-    return m;
-  };
+  for (const name of MODELS) place(api, name, root);
 
-  // ---- the hall: pale walls, orange pillars, a blue band along the top
-  api.walls(0, 0, W, D, WALL_H, 0.6, { color: 0xc9d4e6, pen: 14 });
-  const band = std(0x3a63b8);
+  // ---- the shell (colliders; zh-hall draws it), the old pillars' places
+  api.ghostWalls(0, 0, W, D, WALL_H, 0.6, { pen: 14 });
   for (const x of [-19.4, -9.75, 0, 9.75, 19.4]) {
-    // none mid-north: the boards hang there
-    for (const z of [-14.4, 14.4]) if (x || z > 0) api.box(x, z, 1.2, 0.9, WALL_H, { color: 0xe8682c, pen: 14 });
+    // none mid-north (the boards) or mid-south (the front door)
+    for (const z of [-14.4, 14.4]) if (x) api.ghostBox(x, z, 1.2, 0.9, WALL_H, { pen: 14 });
   }
-  for (const z of [-7.5, 0, 7.5]) for (const x of [-19.4, 19.4]) api.box(x, z, 0.9, 1.2, WALL_H, { color: 0xe8682c, pen: 14 });
-  add(new THREE.BoxGeometry(W, 0.6, 0.3), band, 0, WALL_H - 0.5, -14.25);
-  add(new THREE.BoxGeometry(W, 0.6, 0.3), band, 0, WALL_H - 0.5, 14.25);
-  add(new THREE.BoxGeometry(0.3, 0.6, D), band, -19.25, WALL_H - 0.5, 0);
-  add(new THREE.BoxGeometry(0.3, 0.6, D), band, 19.25, WALL_H - 0.5, 0);
-  // a darker dado round the foot of the walls, crate panels up the sides
-  const dado = std(0x7f91b4, { roughness: 0.5 });
-  add(new THREE.BoxGeometry(W - 1.2, 1.1, 0.12), dado, 0, 0.55, 14.34, { shadow: false });
-  add(new THREE.BoxGeometry(0.12, 1.1, D - 1.2), dado, -19.34, 0.55, 0, { shadow: false });
-  add(new THREE.BoxGeometry(0.12, 1.1, D - 1.2), dado, 19.34, 0.55, 0, { shadow: false });
-  add(new THREE.BoxGeometry(W - 1.2, 1.1, 0.12), dado, 0, 0.55, -14.34, { shadow: false });
-  const panelMat = new THREE.MeshStandardMaterial({ map: crateTexture(), roughness: 0.5, metalness: 0.1 });
-  for (const [x, z, ry] of [[-19.32, -3.75, Math.PI / 2], [-19.32, 3.75, Math.PI / 2], [19.32, -3.75, -Math.PI / 2], [-19.32, 11.2, Math.PI / 2],
-    [-14.6, 14.32, Math.PI], [-4.9, 14.32, Math.PI], [4.9, 14.32, Math.PI], [14.6, 14.32, Math.PI]]) {
-    const m = add(new THREE.PlaneGeometry(3.2, 3.2), panelMat, x, 3.2, z, { shadow: false });
-    m.rotation.y = ry;
-  }
+  for (const z of [-7.5, 0, 7.5]) for (const x of [-19.4, 19.4]) api.ghostBox(x, z, 0.9, 1.2, WALL_H, { pen: 14 });
 
-  // the floor: big pale tiles with dark seams, a blue walkway up the middle
-  const floorTex = (() => {
-    const c = document.createElement("canvas");
-    c.width = c.height = 256;
-    const g = c.getContext("2d");
-    g.fillStyle = "#c3ccd9"; g.fillRect(0, 0, 256, 256);
-    g.fillStyle = "#e9eef5"; g.fillRect(4, 4, 248, 248);
-    g.fillStyle = "#dfe6ef"; g.fillRect(14, 14, 228, 228);
-    g.strokeStyle = "rgba(150,165,190,.35)"; g.lineWidth = 2;
-    g.beginPath(); g.moveTo(128, 14); g.lineTo(128, 242); g.moveTo(14, 128); g.lineTo(242, 128); g.stroke();
-    const t = new THREE.CanvasTexture(c);
-    t.colorSpace = THREE.SRGBColorSpace;
-    t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    t.repeat.set(W / 3, D / 3);
-    t.anisotropy = 8;
-    return t;
-  })();
-  const floor = add(new THREE.PlaneGeometry(W - 1.2, D - 1.2), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.42, metalness: 0.05 }), 0, 0.004, 0, { shadow: false });
-  floor.rotation.x = -Math.PI / 2;
-  const walk = add(new THREE.PlaneGeometry(4, 27.6), new THREE.MeshStandardMaterial({ color: 0x5f7bb0, roughness: 0.5 }), 0, 0.008, 0.2, { shadow: false });
-  walk.rotation.x = -Math.PI / 2;
-  for (const dx of [-2.1, 2.1]) {
-    const edge = add(new THREE.PlaneGeometry(0.18, 27.6), new THREE.MeshStandardMaterial({ color: 0xf6d23a, roughness: 0.5 }), dx, 0.01, 0.2, { shadow: false });
-    edge.rotation.x = -Math.PI / 2;
-  }
-
-  // a skylight frame overhead (open: the sky shows through), steel trusses
-  const truss = std(0x4a78d0, { metalness: 0.4, roughness: 0.45 });
-  for (const z of [-10, -3.3, 3.3, 10]) add(new THREE.BoxGeometry(W, 0.35, 0.35), truss, 0, WALL_H + 0.2, z, { shadow: false });
-
-  // ---- the board wall: a dark backing either side of a lit window
-  const backing = std(0x1a2440);
-  add(new THREE.BoxGeometry(11.2, 5.4, 0.2), backing, 0, 0.9 + 2.7, -14.3, { shadow: false });
-  add(new THREE.BoxGeometry(11.8, 0.25, 0.4), std(0xf08a24), 0, 6.3, -14.25, { shadow: false });
-
-  // ---- the pads: a dark deck, a glowing rim, glass sides you can't walk through
-  const deck = std(0x2c3140, { roughness: 0.4, metalness: 0.3 });
-  const rim = new THREE.MeshStandardMaterial({ color: PAD_GLOW, emissive: PAD_GLOW, emissiveIntensity: 1.6, roughness: 0.4 });
-  const glass = new THREE.MeshStandardMaterial({ color: 0xd7a8ff, transparent: true, opacity: 0.22, roughness: 0.1, metalness: 0, depthWrite: false });
-  const glassEdge = new THREE.MeshStandardMaterial({ color: 0xf2e6ff, emissive: 0xd9a6ff, emissiveIntensity: 0.6 });
-  const pad = (p, sides) => {
-    add(new THREE.BoxGeometry(p.w, 0.08, p.d), deck, p.x, 0.04, p.z, { shadow: false });
-    const t = 0.14;
-    add(new THREE.BoxGeometry(p.w, 0.1, t), rim, p.x, 0.07, p.z - p.d / 2 + t / 2, { shadow: false });
-    add(new THREE.BoxGeometry(p.w, 0.1, t), rim, p.x, 0.07, p.z + p.d / 2 - t / 2, { shadow: false });
-    add(new THREE.BoxGeometry(t, 0.1, p.d), rim, p.x - p.w / 2 + t / 2, 0.07, p.z, { shadow: false });
-    add(new THREE.BoxGeometry(t, 0.1, p.d), rim, p.x + p.w / 2 - t / 2, 0.07, p.z, { shadow: false });
-    // a grille down the middle, like the reference's vents
-    const grille = std(0x1a1d26);
-    for (let i = -3; i <= 3; i++) add(new THREE.BoxGeometry(p.w * 0.5, 0.02, 0.08), grille, p.x, 0.09, p.z + i * 0.32, { shadow: false });
-    // glass sides: knee-high panes on the named sides, colliders included
-    const GH = 1.1;
-    for (const s of sides) {
-      const alongX = s === "n" || s === "s";
-      const len = alongX ? p.w : p.d;
-      const cx = s === "w" ? p.x - p.w / 2 : s === "e" ? p.x + p.w / 2 : p.x;
-      const cz = s === "n" ? p.z - p.d / 2 : s === "s" ? p.z + p.d / 2 : p.z;
-      api.ghostBox(cx, cz, alongX ? len : 0.12, alongX ? 0.12 : len, GH, { pen: 2 });
-      const pane = add(new THREE.BoxGeometry(alongX ? len : 0.06, GH, alongX ? 0.06 : len), glass, cx, GH / 2, cz, { shadow: false });
-      pane.renderOrder = 2;
-      add(new THREE.BoxGeometry(alongX ? len : 0.1, 0.08, alongX ? 0.1 : len), glassEdge, cx, GH, cz, { shadow: false });
-    }
-  };
-  for (const p of HUB.pads) pad(p, ["w", "e"]);
-  pad(HUB.private, ["n", "w"]);
-  // sign posts behind each pad (hub.js hangs the sign on them)
-  const post = std(0x9aa6ba, { metalness: 0.5, roughness: 0.35 });
-  for (const p of [...HUB.pads, HUB.private]) {
-    for (const dx of [-p.w / 2 + 0.4, p.w / 2 - 0.4]) {
-      api.box(p.x + dx, p.z - p.d / 2 - 0.25, 0.14, 0.14, HUB.signY - 0.9, { color: 0x9aa6ba, pen: 2 });
+  // ---- the pads: ropes down the open sides, the casket, its candelabras,
+  // the sign's posts
+  const PAD_SIDE_H = 1.1;
+  for (const p of HUB.pads) {
+    for (const s of [-1, 1]) api.ghostBox(p.x + s * p.w / 2, p.z, 0.12, p.d, PAD_SIDE_H, { pen: 2 });
+    const zc = p.z - p.d / 2 + 0.75;
+    api.ghostBox(p.x, zc, 2.4, 0.8, 1.45, { pen: 6 });
+    for (const s of [-1, 1]) {
+      api.ghostBox(p.x + s * 1.65, zc, 0.36, 0.36, 1.7, { pen: 2 });
+      api.ghostBox(p.x + s * (p.w / 2 - 0.4), p.z - p.d / 2 - 0.25, 0.24, 0.24, HUB.signY - 0.85, { pen: 2 });
     }
   }
+  // the vault: fence on the north and west, piers, the sign's posts
+  const v = HUB.private;
+  api.ghostBox(v.x, v.z - v.d / 2, v.w, 0.12, 1.2, { pen: 2 });
+  api.ghostBox(v.x - v.w / 2, v.z, 0.12, v.d, 1.2, { pen: 2 });
+  for (const [x, z] of [[v.x - v.w / 2, v.z - v.d / 2], [v.x + v.w / 2, v.z - v.d / 2], [v.x - v.w / 2, v.z + v.d / 2]]) api.ghostBox(x, z, 0.52, 0.52, 1.8, { pen: 6 });
+  for (const s of [-1, 1]) api.ghostBox(v.x + s * (v.w / 2 - 0.4), v.z - v.d / 2 - 0.25, 0.14, 0.14, HUB.signY - 0.85, { pen: 2 });
 
-  // hazard stripes in front of the pads and round the private one
-  const stripeTex = (() => {
-    const c = document.createElement("canvas");
-    c.width = 256; c.height = 32;
-    const g = c.getContext("2d");
-    g.fillStyle = "#f6d23a"; g.fillRect(0, 0, 256, 32);
-    g.fillStyle = "#1d1d22";
-    for (let i = -32; i < 288; i += 32) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + 16, 0); g.lineTo(i + 48, 32); g.lineTo(i + 32, 32); g.fill(); }
-    const t = new THREE.CanvasTexture(c);
-    t.colorSpace = THREE.SRGBColorSpace;
-    t.wrapS = THREE.RepeatWrapping;
-    return t;
-  })();
-  const stripe = (x, z, len, rotY = 0) => {
-    const t = stripeTex.clone(); t.needsUpdate = true; t.repeat.set(len / 2, 1);
-    const m = add(new THREE.PlaneGeometry(len, 0.25), new THREE.MeshStandardMaterial({ map: t, roughness: 0.7 }), x, 0.012, z, { shadow: false });
-    m.rotation.set(-Math.PI / 2, 0, rotY);
-  };
-  stripe(-11.7, -3.2, 13.4);
-  stripe(11.7, -3.2, 13.4);
-  stripe(HUB.private.x + HUB.private.w / 2 + 0.35, HUB.private.z, HUB.private.d, Math.PI / 2);
+  // ---- the kiosks: the table, its lamp, the shelves; the altar and the pews
+  for (const k of HUB.kiosks) api.ghostBox(k.x, k.z, 1.2, 2.6, 1.1, { pen: 4 });
+  api.ghostBox(16.4, 5.65, 0.4, 0.4, 1.9, { pen: 2 });
+  api.ghostBox(W / 2 - 0.6 - 0.21, 4, 0.42, 2.56, 2.35, { pen: 4 });
+  for (const x of [13.4, 11.7]) api.ghostBox(x - 0.03, 10, 0.62, 2.86, 1.1, { pen: 3 });
+  // the memorial wall: its ledge, the wreaths
+  api.ghostBox(0, -14.12, 11.0, 0.56, 1.03, { pen: 6 });
+  for (const s of [-1, 1]) api.ghostBox(s * 6.5, -13.55, 0.9, 0.6, 1.9, { pen: 2 });
+  // the clock, the organ and its bench, the lectern, the ferns
+  api.ghostBox(HUB.clock.x, HUB.clock.z, 0.52, 0.78, 2.95, { pen: 6 });
+  api.ghostBox(-19.03, -1.95, 0.75, 2.4, 1.6, { pen: 6 });
+  api.ghostBox(-18.1, -1.95, 0.4, 1.3, 0.56, { pen: 3 });
+  api.ghostBox(HUB.lectern.x + 0.15, HUB.lectern.z, 0.95, 0.55, 1.1, { pen: 3 });
+  for (const [x, z] of [[-18, 13], [18, 13], [-18.2, -12.9], [18.2, -12.9]]) api.ghostBox(x, z, 0.7, 0.7, 1.3, { pen: 2 });
 
-  // ---- crates: stacks in the corners and between the kiosks
-  const crateMat = new THREE.MeshStandardMaterial({ map: crateTexture(), roughness: 0.55, metalness: 0.1 });
-  const crate = (x, z, s = 2.2, y = 0, rot = 0) => {
-    api.ghostBox(x, z, s, s, s, { y, pen: 4 });
-    const m = add(new THREE.BoxGeometry(s, s, s), crateMat, x, y + s / 2, z);
-    m.rotation.y = rot;
-  };
-  crate(-17.6, -12.6); crate(-17.6, -10.3); crate(-17.6, -12.6, 2.2, 2.2); crate(-15.3, -12.6);
-  crate(17.6, -12.6); crate(17.6, -10.3); crate(17.6, -12.6, 2.2, 2.2); crate(15.3, -12.6);
-  crate(17.4, 13); crate(-17.4, 13); crate(-17.4, 13, 1.6, 2.2);
-  crate(-7.2, -13.2, 1.6); crate(7.2, -13.2, 1.6);
-
-  // ---- kiosks: a counter, a tilted screen, a sign overhead
-  const counter = std(0x2d3a58, { metalness: 0.3, roughness: 0.45 });
-  const trim = std(0xf08a24);
-  const screen = new THREE.MeshStandardMaterial({ color: 0x0c1428, emissive: 0x2a6ad8, emissiveIntensity: 0.9, roughness: 0.2 });
+  // ---- the plaques the GLBs leave blank
   for (const k of HUB.kiosks) {
     const g = new THREE.Group();
     g.position.set(k.x, 0, k.z);
     g.rotation.y = k.face;
-    root.add(g);
-    // the collider is axis-aligned: the kiosks face west, so it's d along x
-    api.ghostBox(k.x, k.z, 1.2, 2.6, 1.1, { pen: 4 });
-    const body = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.1, 1.2), counter);
-    body.position.y = 0.55; body.castShadow = body.receiveShadow = true; g.add(body);
-    const lip = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.08, 1.3), trim);
-    lip.position.y = 1.12; g.add(lip);
-    const scr = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.9, 0.06), screen);
-    scr.position.set(0, 1.62, -0.25); scr.rotation.x = -0.35; g.add(scr);
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.65), new THREE.MeshBasicMaterial({ map: labelTexture(k.label), toneMapped: false }));
-    sign.position.set(0, 2.9, -0.55); g.add(sign);
-    for (const dx of [-1.1, 1.1]) {
-      const rod = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.8, 0.08), post);
-      rod.position.set(dx, 2.0, -0.55); g.add(rod);
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.65), new THREE.MeshBasicMaterial({ map: plaqueTexture(k.label, k.sub), toneMapped: false }));
+    sign.position.set(0, 2.9, -0.55);
+    g.add(sign);
+    // its rods: brass, from the floor behind the furniture
+    const rodMat = new THREE.MeshStandardMaterial({ color: 0xc49a48, metalness: 0.6, roughness: 0.35 });
+    for (const dx of [-1.15, 1.15]) {
+      const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 2.9, 8), rodMat);
+      rod.position.set(dx, 1.45, -0.6);
+      g.add(rod);
     }
+    root.add(g);
   }
+  const title = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.42), new THREE.MeshBasicMaterial({ map: engraved("In Loving Memory", 1024, 136, 92), transparent: true, toneMapped: false }));
+  title.position.set(0, 6.17, -14.4 + 0.25);
+  root.add(title);
 
-  // ---- light: daylight through the skylight, a purple wash off the pads
-  for (const p of HUB.pads) {
-    const l = new THREE.PointLight(PAD_GLOW, 6, 7, 2);
-    l.position.set(p.x, 1.2, p.z);
+  // ---- light: the three chandeliers (the caskets' satin glows by itself:
+  // a light per casket cost a phone too much)
+  for (const [x, z] of CHANDELIERS) {
+    const l = new THREE.PointLight(0xffcf8a, SPOOKY ? 9 : 12, 15, 1.6);
+    l.position.set(x, 4.9, z);
     root.add(l);
   }
+  layOutGuns(root);
+  if (SPOOKY) dressHalloween(api, root);
+}
+
+/* Two of the game's own guns on the embalming table's bare half, lying on
+   their sides, barrels toward the wall. */
+function layOutGuns(root) {
+  const k = HUB.kiosks.find((q) => q.id === "weapons");
+  [["ar-kek", -0.2, -0.55], ["coltlmg", 0.18, -0.45]].forEach(([name, dx, dz]) => {
+    loadModel(name).then((gun) => {
+      const box = new THREE.Box3().setFromObject(gun), size = box.getSize(new THREE.Vector3());
+      const long = size.x >= size.z ? "x" : "z";
+      gun.scale.setScalar(0.95 / Math.max(size.x, size.z));
+      const holder = new THREE.Group();
+      holder.add(gun);
+      // its length along z, lying on its side
+      if (long === "x") gun.rotation.y = Math.PI / 2;
+      holder.rotation.z = Math.PI / 2;
+      const b2 = new THREE.Box3().setFromObject(holder);
+      holder.position.set(k.x + dx, 0.925 - b2.min.y, k.z + dz);
+      holder.name = "dress_gun";
+      root.add(holder);
+    }).catch(() => {});
+  });
 }
 
 export const ZHUB = {
-  name: "The Hub",
-  blurb: "Pick a pad, wait for a squad, go.",
+  name: "Grin & Sons",
+  blurb: "Pick a casket, wait for a squad, go.",
   bounds: { minX: -W / 2 + 0.6, maxX: W / 2 - 0.6, minZ: -D / 2 + 0.6, maxZ: D / 2 - 0.6 },
   playerSpawn: { x: 0, z: 10 },
-  sky: { top: 0x3f8ee8, horizon: 0xbfe0ff, bottom: 0xd8e8f8, sun: 0.9, haze: 0.2, clouds: 0.5, cloudColor: 0xffffff, cloudShade: 0xb8c8e0 },
-  fog: { color: 0xd8e6f6, density: 0.004 },
-  exposure: 0.95,
-  bloom: { threshold: 0.85, strength: 0.55, radius: 0.5 },
-  ground: { colorA: 0xe4ebf4, colorB: 0xd8e1ec, grid: 0xc2cddc },
-  sun: { color: 0xfff6e8, intensity: 2.0, pos: [14, 40, 18] },
-  hemi: { sky: 0xdbe8ff, ground: 0x8a96ab, intensity: 1.2 },
-  ambient: { color: 0xffffff, intensity: 0.6 },
-  // stylised realism (view/grade-pass.js): a clean sunny day, a little more colour
-  grade: { shadows: 0x2a3a58, shadowsAmt: 0.06, highlights: 0xfff4e0, highlightsAmt: 0.04, sat: 1.06, contrast: 1.04 },
-  viewFar: 200,
+  // night outside; the room is lit from within
+  sky: { top: 0x0b1024, horizon: 0x1c2444, bottom: 0x0a0c16, sun: 0.0, haze: 0.1, clouds: 0.2, cloudColor: 0x39405a, cloudShade: 0x1a1e2c },
+  fog: { color: SPOOKY ? 0x2a2236 : 0x2a2420, density: SPOOKY ? 0.012 : 0.006 },
+  exposure: 1.0,
+  bloom: { threshold: 0.9, strength: SPOOKY ? 0.7 : 0.55, radius: 0.55 },
+  ground: { colorA: 0x3a2a1e, colorB: 0x33251a, grid: 0x2a1e14 },
+  sun: { color: 0x9fb0d8, intensity: 0.15, pos: [14, 40, 18] },
+  hemi: { sky: 0xffe2b8, ground: 0x4a3326, intensity: SPOOKY ? 0.55 : 0.7 },
+  ambient: { color: 0xffe8cc, intensity: SPOOKY ? 0.28 : 0.35 },
+  // warm lamplight; Halloween leans the shadows violet
+  grade: SPOOKY
+    ? { shadows: 0x3a2458, shadowsAmt: 0.12, highlights: 0xffd8a0, highlightsAmt: 0.06, sat: 1.08, contrast: 1.06 }
+    : { shadows: 0x2a1e18, shadowsAmt: 0.08, highlights: 0xffe4b8, highlightsAmt: 0.06, sat: 1.04, contrast: 1.05 },
+  viewFar: 120,
   build: buildHub,
   // the open floor behind the pads, facing them
   spawns: [[0, 10], [-3, 11], [3, 11], [-6, 10], [6, 10], [0, 12.5], [-3, 8.5], [3, 8.5]],

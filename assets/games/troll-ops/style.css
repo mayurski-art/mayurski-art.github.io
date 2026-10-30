@@ -5868,6 +5868,15 @@ body.to-zombies .to-dmg-num.is-word { color: #7dff4f; font-size: 17px; font-weig
 .zh-cash-n { order: -1; font-size: 40px; line-height: 1; color: #7dff4f; }
 .zh-gain { font-size: 22px; color: #7dff4f; opacity: 0; transform: translateX(-6px); transition: opacity .2s, transform .2s; }
 .zh-gain.is-on { opacity: 1; transform: none; }
+/* Zombies power-ups running (modes/zombies/drops.js): a chip each under the wave, its bar draining */
+.zh-fx { position: absolute; left: 50%; top: 66px; transform: translateX(-50%); display: flex; gap: 8px; }
+.zh-fx-c {
+  position: relative; display: flex; align-items: baseline; gap: 8px; padding: 4px 10px 6px; border-radius: 6px; overflow: hidden;
+  background: rgba(8, 10, 14, .72); border-left: 4px solid var(--fx); font-size: 17px; color: #fff; white-space: nowrap;
+}
+.zh-fx-n { color: var(--fx); }
+.zh-fx-t { font-size: 15px; opacity: .85; font-variant-numeric: tabular-nums; }
+.zh-fx-c i { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--fx); }
 .zh-feed {
   position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%);
   display: flex; flex-direction: column; align-items: center; gap: 2px;
@@ -5918,6 +5927,9 @@ body.to-zombies .to-dmg-num.is-word { color: #7dff4f; font-size: 17px; font-weig
   .zh-cash { bottom: 64px; left: 12px; }
   .zh-cash-n { font-size: 30px; }
   .zh-gain { font-size: 17px; }
+  .zh-fx { top: auto; left: 128px; bottom: 64px; transform: none; flex-direction: column; align-items: flex-start; gap: 3px; }
+  .zh-fx-c { font-size: 13px; padding: 2px 7px 4px; }
+  .zh-fx-t { font-size: 12px; }
   .zh-feed { font-size: 15px; bottom: 96px; }
   .zh-banner { font-size: 40px; }
   .zh-down-t { font-size: 22px; }
