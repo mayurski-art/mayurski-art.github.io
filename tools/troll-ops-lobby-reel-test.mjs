@@ -61,7 +61,7 @@ const browser = await chromium.launch({ args: ["--use-angle=d3d11", "--ignore-gp
   "--disable-background-timer-throttling", "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows"] });
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
 await ctx.route(/supabase/, (r) => r.abort());
-const page = await ctx.newPage();
+let page = await ctx.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 await page.goto(`${BASE}/troll-ops.html?tohooks=1&season=off`, { waitUntil: "domcontentloaded", timeout: 120000 });
@@ -117,6 +117,11 @@ check((await front())?.src !== held, "Animations on again moves on", (await fron
 const spooky = JSON.parse(src.match(/const HALLOWEEN = (\[[^\]]*\])/)[1]);
 const gone = spooky.flatMap((n) => [1280, 1920].map((w) => `lobby/halloween/${n}-${w}.webp`)).filter((f) => !fs.existsSync(path.join(UI, f)));
 check(spooky.length >= 5 && !gone.length, `every Halloween still is there (${spooky.length} x 2 sizes)`, gone.join(", "));
+// (a fresh profile: this one remembers the Kabukigrin pick from 2)
+const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+await ctx2.route(/supabase/, (r) => r.abort());
+page = await ctx2.newPage();
+page.on("pageerror", (e) => errors.push(e.message));
 await page.goto(`${BASE}/troll-ops.html?tohooks=1&season=halloween`, { waitUntil: "domcontentloaded", timeout: 120000 });
 await page.waitForFunction(() => !!window.__trollOps && !!window.__toBo2?.fn, null, { timeout: 180000 });
 await page.waitForSelector(".to-fn-bg.is-on .to-fn-shot", { timeout: 15000 }).catch(() => {});
