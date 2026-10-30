@@ -110,7 +110,7 @@ export function applyRemoteNuke(m) {
 }
 
 function startInbound(info) {
-  preloadSfx();
+  const loading = preloadSfx();
   nuke.inbound = { ...info, t0: performance.now(), lastSec: NUKE.countdown + 1, sky: saveSky() };
   const el = ensureOverlay();
   el.root.hidden = false;
@@ -119,7 +119,11 @@ function startInbound(info) {
   el.count.textContent = String(NUKE.countdown);
   killstreakUi.pulse();
   // "Tactical nuke, incoming!" for everyone, a beat after the key slams.
-  if (game.audio?._ready?.()) playSfx("nuke-incoming", { gain: 0.95, delay: info.mine ? 0.18 : 0 });
+  // Clips still on their way (preloadSfx just started on a tab that never
+  // banked one) play as soon as they land, if that is within 1.5 s.
+  const t0 = performance.now();
+  const shout = () => game.audio?._ready?.() && playSfx("nuke-incoming", { gain: 0.95, delay: info.mine ? 0.18 : 0 });
+  if (!shout()) Promise.resolve(loading).then(() => { if (performance.now() - t0 < 1500 && nuke.inbound) shout(); });
 }
 
 /* A countdown is running or the blast is playing out: the match can't end
