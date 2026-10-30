@@ -15,7 +15,7 @@ const SCALE = 1.7;                    // reads at chase-camera range
 const RAISE = 0.35, LOWER = 0.4;       // seconds up at the start, down at the end
 const _tR = new THREE.Vector3(), _tL = new THREE.Vector3();
 const _poleR = new THREE.Vector3(1, -1, 0.3), _poleL = new THREE.Vector3(-1, -1, 0.3);
-const _key = new THREE.Vector3();
+const _key = new THREE.Vector3(), _pa = new THREE.Vector3();
 const lerp3 = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
 const ease = (k) => { k = Math.max(0, Math.min(1, k)); return k * k * (3 - 2 * k); };
 
