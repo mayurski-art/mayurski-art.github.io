@@ -11,6 +11,7 @@ export const econ = {
   gain: 0,       // the "+$37" over the counter: recent earnings, summed
   gainT: 0,      // seconds that chip stays up
   feed: [],      // { amount, label } for the HUD's cash feed
+  mult: 1,       // Double Cash (drops.js): everything pays this many times
 };
 
 const GAIN_SHOW = 1.4;
@@ -31,6 +32,7 @@ export function resetCash(start = 0) {
    `point` (world space) floats "+$15" over where it happened. */
 export function earn(amount, label = null, point = null) {
   if (!(amount > 0)) return;
+  amount = Math.round(amount * econ.mult);
   econ.cash += amount;
   econ.earned += amount;
   econ.gain = econ.gainT > 0 ? econ.gain + amount : amount;

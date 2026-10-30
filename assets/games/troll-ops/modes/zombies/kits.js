@@ -61,8 +61,11 @@ export function statsAt(id, level = 1) {
   return out;
 }
 
+/* Fire Sale (drops.js): every deployable at this share of its price. */
+export const SALE = { mult: 1 };
+
 /* What the next one costs, with `placed` already put down this run. */
 export function priceOf(id, placed) {
   const d = DEPLOYABLES[id];
-  return Math.round((d.price * Math.pow(d.priceGrowth, placed)) / 5) * 5;
+  return Math.round((d.price * Math.pow(d.priceGrowth, placed) * SALE.mult) / 5) * 5;
 }

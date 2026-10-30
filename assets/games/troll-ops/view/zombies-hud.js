@@ -185,6 +185,8 @@ export function mountZombiesHud(h) {
   els.gain = el("span", "zh-gain");
   els.cashN = el("strong", "zh-cash-n");
   els.cash.append(els.gain, els.cashN);
+  // the power-ups running (drops.js): a chip each, its time draining
+  els.fx = el("div", "zh-fx");
 
   els.feed = el("div", "zh-feed");
   els.banner = el("div", "zh-banner");
@@ -202,7 +204,7 @@ export function mountZombiesHud(h) {
   els.reviveT = els.revive.querySelector(".zh-revive-t");
   els.reviveBar = els.revive.querySelector("i");
 
-  root.append(els.top, els.skip, els.up, els.dep, els.chip, els.cash, els.feed, els.banner, els.down, els.revive);
+  root.append(els.top, els.skip, els.up, els.dep, els.chip, els.cash, els.fx, els.feed, els.banner, els.down, els.revive);
   for (const ev of ["pointerdown", "touchstart", "mousedown"]) root.addEventListener(ev, swallow, { passive: true });
   hud.append(root);
 
@@ -292,6 +294,26 @@ export function announceWave(n, final) {
   zombiesBanner(n >= final ? "Final wave" : `Wave ${n}`, n >= final);
 }
 
+/* The power-up chips: one per effect, its bar running down. */
+const fxChips = new Map();
+function drawFx(list) {
+  const live = new Set(list.map((f) => f.id));
+  for (const [id, c] of fxChips) if (!live.has(id)) { c.remove(); fxChips.delete(id); }
+  for (const f of list) {
+    let c = fxChips.get(f.id);
+    if (!c) {
+      c = el("div", "zh-fx-c");
+      c.style.setProperty("--fx", f.color);
+      c.innerHTML = '<span class="zh-fx-n"></span><span class="zh-fx-t"></span><i></i>';
+      c.querySelector(".zh-fx-n").textContent = f.name;
+      els.fx.append(c);
+      fxChips.set(f.id, c);
+    }
+    c.querySelector(".zh-fx-t").textContent = `${Math.ceil(f.t)}s`;
+    c.querySelector("i").style.width = `${(f.t / f.max) * 100}%`;
+  }
+}
+
 function feedLine(amount, label) {
   const line = el("div", "zh-feed-l");
   line.innerHTML = `<b>+${money(amount)}</b> <span></span>`;
@@ -305,6 +327,7 @@ function feedLine(amount, label) {
 /* Every frame of a run; touches the DOM only when something changed. */
 export function updateZombiesHud(dt, s) {
   if (!root || root.hidden) return;
+  drawFx(s.fx || []);
   setPad(!pad.kb && document.body.classList.contains("to-has-pad"));
   if (s.wave !== shown.wave) {
     shown.wave = s.wave;

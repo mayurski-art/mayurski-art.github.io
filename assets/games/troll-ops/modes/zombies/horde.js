@@ -238,6 +238,9 @@ export function speedForRound(round, base) {
 
 let idc = 0;
 
+/* One Tap (drops.js): while it's on, any hit kills (a boss excepted). */
+export const HORDE_FX = { instakill: false };
+
 export class Zombie {
   constructor(typeId, position, scene, round, { rise = false, hp = null, look: lookId = null, proxy = false } = {}) {
     this.type = ZOMBIE_TYPES[typeId];
@@ -323,6 +326,7 @@ export class Zombie {
       zombieWire.hit?.(this, dmg, isHead);
       return { killed: false, cash: 0 };
     }
+    if (HORDE_FX.instakill && !this.type.boss) dmg = Math.max(dmg, this.hp);
     const heavy = heavyHit(this, dmg, isHead);
     if (heavy) this.heavyAt = performance.now();
     this.hp -= dmg;
