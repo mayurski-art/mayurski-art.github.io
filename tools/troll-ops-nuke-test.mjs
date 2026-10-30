@@ -43,7 +43,9 @@ const errors = [];
 const STATE = "/assets/games/troll-ops/core/state.js?v=st1";
 // The game's own instance: whatever tag the game imports it under today.
 const NUKE = "/assets/games/troll-ops/streaks/nuke.js?v=" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/combat/scoring.js"), "utf8").match(/streaks\/nuke\.js\?v=([a-z0-9-]+)/)[1];
-const SKY = "/assets/games/troll-ops/view/sky.js?v=sr1";
+// Same for the sky: read the tag nuke.js imports it under, so the test tints
+// and reads the one copy the game draws (a stale tag loads a second copy).
+const SKY = "/assets/games/troll-ops/view/sky.js?v=" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/streaks/nuke.js"), "utf8").match(/view\/sky\.js\?v=([a-z0-9-]+)/)[1];
 
 async function open(room, mode) {
   const page = await ctx.newPage();
@@ -122,7 +124,7 @@ s = await state(a);
 check(s.calling && !s.inbound, "not armed before the key goes down", JSON.stringify({ calling: s.calling, inbound: s.inbound }));
 // The hold runs on game time; two headless WebGL tabs can run it slower than
 // the wall clock, so wait for the key rather than a fixed sleep.
-for (let i = 0; i < 40 && !(s = await state(a)).inbound; i++) await sleep(100);
+for (let i = 0; i < 80 && !(s = await state(a)).inbound; i++) await sleep(100);
 
 check(s.inbound && s.mine && !s.ready && s.used, "the key arms it and spends it", JSON.stringify({ inbound: s.inbound, mine: s.mine, ready: s.ready, used: s.used }));
 if (OUT) await a.screenshot({ path: path.join(OUT, "nuke-armed.png") });
