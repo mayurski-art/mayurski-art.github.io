@@ -2,8 +2,9 @@
 //
 // Everything else in sound/audio.js is synthesised; these few are real
 // recordings: the Royale drop's mask, breaths, belt, steps, ramp latch and
-// wind, the fall's whooshes, and the Tactical Nuke's alarm, missile, blast
-// and beeps. Pixabay clips (Pixabay Content License, no credit needed),
+// wind, the fall's whooshes, and the Tactical Nuke's alarm, missile, blast,
+// beeps and its "Tactical nuke, incoming!" shout (our own: Windows speech
+// put through a radio chain, sfx/SOURCES.md). Pixabay clips (Pixabay Content License, no credit needed),
 // trimmed, peak-normalised and made small mono mp3s in sfx/ (mp3 rather than
 // ogg: iPhone Safari decodes every mp3).
 //
@@ -17,7 +18,7 @@ import { game } from "../core/state.js?v=st1";
 const DIR = "/assets/games/troll-ops/sfx/";
 export const SFX_NAMES = [
   "mask-hiss", "breathing", "strap-snap", "belt", "steps", "latch", "wind-in", "gust", "wind-rush", "whoosh",
-  "nuke-alarm", "missile", "nuke-blast", "beep",
+  "nuke-alarm", "missile", "nuke-blast", "beep", "nuke-incoming",
 ];
 const buffers = new Map();
 let loading = null;

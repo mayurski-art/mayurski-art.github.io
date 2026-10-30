@@ -11,7 +11,7 @@ import { handMaterials, buildHumanHand, inkOutline, placeHand, poseHumanHand, ha
 import { game } from "../core/state.js?v=st1";
 import { nuke, nukeDevice, nukeLeft, NUKE } from "../streaks/nuke.js?v=tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1";
 import { dropCineMask, dropCineMaskK, dropCinePhoto, dropCinePhotoK, dropCineIpod, dropCineIpodK, dropCineIpodCord } from "../modes/royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1";
-import { drawNukeScreen, setNukeControls } from "../streaks/nuke-device.js?v=tn1";
+import { drawNukeScreen, setNukeControls, nukeSlam } from "../streaks/nuke-device.js?v=tn1-nd1";
 
 let streakSprintT = 0;
 // Two-handed, centred and low, screen tipped up toward the eye — BO2's
@@ -21,8 +21,8 @@ const TABLET_TILT = -0.36;
 const TABLET_PRESS_AT = 0.45;       // seconds into a UAV/gunship call the thumb goes down
 // The nuke handheld: upright in both hands, low and a touch right of centre
 // so the crosshair stays clear.
-const NUKE_HOLD_POS = new THREE.Vector3(0.012, -0.142, -0.44);
-const NUKE_TILT = -0.34;
+const NUKE_HOLD_POS = new THREE.Vector3(0.006, -0.1, -0.37);
+const NUKE_TILT = -0.42;
 // The oxygen mask: held low, then on the face just under the eyes.
 const MASK_DOWN = new THREE.Vector3(0.03, -0.3, -0.3);
 const MASK_ON = new THREE.Vector3(0, -0.1, -0.13);
@@ -169,15 +169,19 @@ export function updateStreakView(dt) {
 
   if (game.streakDeviceKind === "nuke") {
     // The Tactical Nuke's handheld: up in both hands, close and upright,
-    // the screen boots, the right thumb flips the safety cover and presses
-    // the red key (streaks/nuke.js arms it at NUKE.armAt), then it lowers.
+    // the screen boots, the code goes in on the keypad, the right thumb
+    // flips the safety cover, winds up and slams the red key (streaks/
+    // nuke.js arms it at NUKE.armAt; the handheld jolts with the hit),
+    // then it lowers.
     const h = game.streakHoldElapsed;
-    const cover = Math.min(1, Math.max(0, (h - 1.0) / 0.28));
-    const pk = (h - (NUKE.armAt - 0.15)) / 0.3;
-    const press = pk > 0 && pk < 1 ? Math.sin(pk * Math.PI) : 0;
-    setNukeControls(mesh, cover * cover * (3 - 2 * cover), press);
-    mesh.position.set(NUKE_HOLD_POS.x + idleX, NUKE_HOLD_POS.y - off * 0.3 - s * 0.1 + idleY - press * 0.004, NUKE_HOLD_POS.z + off * 0.06 + press * 0.003);
-    mesh.rotation.set(NUKE_TILT + s * 0.35 - off * 0.6, off * 0.2, s * 0.2 + off * 0.25);
+    const cover = Math.min(1, Math.max(0, (h - NUKE.coverAt) / 0.28));
+    const slam = nukeSlam(h - NUKE.armAt);
+    const pk = slam.lift > 0 ? slam.lift : 0;
+    setNukeControls(mesh, cover * cover * (3 - 2 * cover), slam.press);
+    // The hit drives it down and away, tipped forward, then it rings out.
+    const j = slam.jolt;
+    mesh.position.set(NUKE_HOLD_POS.x + idleX, NUKE_HOLD_POS.y - off * 0.3 - s * 0.1 + idleY - j * 0.03 + slam.lift * 0.006, NUKE_HOLD_POS.z + off * 0.06 - j * 0.02);
+    mesh.rotation.set(NUKE_TILT + s * 0.35 - off * 0.6 - j * 0.16, off * 0.2, s * 0.2 + off * 0.25 + j * 0.05);
     const armed = h >= NUKE.armAt && (!nuke.calling || !!nuke.inbound);
     drawNukeScreen(mesh, h, armed, armed ? nukeLeft() : null);
     poseStreakArms(mesh, "side", dt, cover > 0 && cover < 1 ? cover : pk > 0 && pk < 1 ? pk : 0);

@@ -40,7 +40,7 @@ import { oxygenMask } from "./royale-mask.js?v=dc1";
 import { familyPhoto, setPhotoThumb } from "./royale-photo.js?v=dc1-ph1-op1";
 import { ipod, drawIpod, pressIpod, layoutIpodCord } from "./royale-ipod.js?v=dc1-rfx1";
 import { updateCrew, hideCrew, crewSeat, yourRampPath, pathAt, paceFor, CREW } from "./royale-crew.js?v=dc2-rf1-ls1-rr1-ld2-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-tx1-sp1-kbt1-gb1-rh1-ci6-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
-import { playSfx } from "../sound/sfx-files.js?v=dc4";
+import { playSfx } from "../sound/sfx-files.js?v=dc4-nd1";
 
 export const CINE = {
   start: -28,       // drop clock: the scene takes over
