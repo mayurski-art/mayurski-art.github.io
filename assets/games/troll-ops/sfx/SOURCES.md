@@ -20,3 +20,19 @@ downloaded 2026-10-17, trimmed, peak-normalised to -1 dB and made mono
 | missile.mp3 | https://pixabay.com/sound-effects/film-special-effects-sharp-missile-trail-367604/ | whole |
 | nuke-blast.mp3 | https://pixabay.com/sound-effects/film-special-effects-nuclear-explosion-63470/ (unfa) | 0-20 s, 6 s fade |
 | beep.mp3 | https://pixabay.com/sound-effects/film-special-effects-button-beep-307464/ | whole |
+
+## Gunshots (sound/clip-bank.js, group "guns")
+
+From Pixabay (Pixabay Content License), downloaded 2026-10-29, trimmed,
+faded, peak-normalised to about -1 dB, mono 48 kb/s mp3. One shot each;
+the game plays one per round fired, a few percent of pitch either way.
+
+| File | Used for | Pixabay page | Trim |
+|---|---|---|---|
+| sniper.mp3 | sniper class | https://pixabay.com/sound-effects/film-special-effects-sniper-rifle-firing-shot-1-39789/ | 0.03-2.43 s, 0.9 s fade |
+| battle.mp3 | battle rifles | https://pixabay.com/sound-effects/film-special-effects-battle-rifle-42734/ | 0.02-1.32 s |
+| rifle.mp3 | assault rifles, carbines | https://pixabay.com/sound-effects/film-special-effects-ak74-sound-effect-351437/ | 0.07-1.07 s |
+| smg.mp3 | PDWs | https://pixabay.com/sound-effects/film-special-effects-gunshot-smg-shot-1-203471/ | 0.02-0.40 s |
+| shotgun.mp3 | shotguns | https://pixabay.com/sound-effects/film-special-effects-shotgun-blast-352038/ | 0.31-2.21 s |
+| pistol.mp3 | sidearms, traced pistols, revolver (pitched) | https://pixabay.com/sound-effects/film-special-effects-9mm-pistol-shot-6349/ | 0.12-1.32 s |
+| hmg.mp3 | LMGs (pitched up) | https://pixabay.com/sound-effects/film-special-effects-080979-heavy-machine-gun-50-caliber-39764/ | first shot, 0.07-0.52 s |

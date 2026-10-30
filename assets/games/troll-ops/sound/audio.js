@@ -6,6 +6,12 @@
 //
 // Browsers won't start an AudioContext without a gesture, so `resume()` is
 // called from the Drop In click.
+//
+// Gunshots are the exception: each class has a recorded report
+// (sound/clip-bank.js). The synth below plays until it has loaded, and for
+// what has no recording (suppressed shots, the Green Candles).
+
+import { loadClips, playGunClip } from "./clip-bank.js?v=gs1";
 
 const NOISE_SECONDS = 2;
 const HRTF_RANGE = 40;   // metres: sounds further off pan left/right only
@@ -50,6 +56,7 @@ export class GameAudio {
   resume() {
     this.init();
     if (this.ctx?.state === "suspended") this.ctx.resume().catch(() => {});
+    loadClips(this, "guns");
   }
 
   setEnabled(on) {
@@ -177,6 +184,12 @@ export class GameAudio {
     // A 100-troll Royale fires constantly across the island: past this a
     // shot is a whisper anyway, and every one was a stack of new nodes.
     if (at && this._far(at, SHOT_CULL)) return;
+    // The recorded report when the class has one and it's in (clip-bank.js);
+    // the Hellfire's roar and screech still ride over it.
+    if (playGunClip(this, def, volume, at)) {
+      if (def.hellfire && !def.quiet) this.hellfireShot(volume, at);
+      return;
+    }
     if (def.candleShot) { this.candleShot(def.chargeLevel || 0, volume, at); return; }
     if (def.revolver) { this.revolverShot(volume, at); return; }
     if (def.pistolSound && !def.quiet) { this.pistolShot(def.pistolSound, volume, at); return; }
