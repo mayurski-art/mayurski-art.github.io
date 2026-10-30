@@ -71,6 +71,20 @@ function tileOf(a) {
   return "public";
 }
 
+/* The season on the Play page's card (user, 2026-10-30: "a date range and
+   countdown for how long chapter one lasts which is until november 12th
+   2026"): from the lobby's first day with it to the end of 12 November,
+   local time. */
+const SEASON = { start: new Date(2026, 9, 26), end: new Date(2026, 10, 12, 23, 59, 59) };
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const day = (d) => `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+function seasonLeft(now = Date.now()) {
+  const ms = SEASON.end - now;
+  if (ms <= 0) return "Season ended";
+  const m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor(m / 60) % 24;
+  return d ? `${d}D ${h}H left` : `${h}H ${m % 60}M left`;
+}
+
 /* The news carousel: what's new, each a way in. */
 const NEWS = [
   { title: "Trollface Island", tag: "New in Royale", map: "trollface", playlist: "public", mode: "royale" },
@@ -152,7 +166,8 @@ export function mountFnLobby(api) {
   left.className = "to-fn-left";
   left.setAttribute("aria-label", "Season");
   left.innerHTML = `
-    <div class="to-fn-glass to-fn-season"><span>Season: OG</span><b>Chapter One</b></div>
+    <div class="to-fn-glass to-fn-season"><span>Season: OG</span><b>Chapter One</b>
+      <small class="to-fn-season-time"><i class="to-fn-season-dates">${day(SEASON.start)} – ${day(SEASON.end)}</i><em><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="to-fn-season-left"></span></em></small></div>
     <div class="to-fn-pair">
       <button type="button" class="to-fn-glass to-fn-rank" data-act="career">
         <span class="to-fn-crest" aria-hidden="true"><img alt="" src="${FALLBACK_AVATAR}"></span>
@@ -400,6 +415,13 @@ export function mountFnLobby(api) {
   }
   showNews(0);
   restartNews();
+
+  /* ── The season's countdown: each minute, while the menu is up ── */
+  const seasonEl = $(".to-fn-season-left", left);
+  const tickSeason = () => { if (!title.hidden) seasonEl.textContent = seasonLeft(); };
+  tickSeason();
+  setInterval(tickSeason, 60000);
+  new MutationObserver(tickSeason).observe(title, { attributes: true, attributeFilter: ["hidden"] });
 
   /* ── Rank, prestige, challenges ── */
   function done() {
