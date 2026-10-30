@@ -125,6 +125,8 @@ const NADE_MIN = 7;               // no closer: it would be standing in the blas
 const NADE_MAX = 26;
 const CLUSTER = 4.5;              // enemies this close together count as a group
 const SEEN_MEMORY = 4;            // seconds a hidden target's last position stays useful
+const CAMP_TIME = 4;              // seconds someone in sight holds one spot before they count as dug in
+const CAMP_RADIUS = 2.5;          // metres: "one spot"
 const between = ([a, b]) => a + Math.random() * (b - a);
 
 /* Melee-only bots (Infection's infected): they run the target down and
@@ -388,6 +390,7 @@ class Bot {
     this.flashes = 1;
     this.nadeT = between(NADE_FIRST);
     this.lastSeen = null;     // { id, x, y, z, age } of the last enemy in sight
+    this.camp = null;         // { id, x, z, t }: how long the one in sight has held one spot
   }
 
   respawn(spawn) {
@@ -557,6 +560,11 @@ class Bot {
 
     if (best) this.lastSeen = { id: best.id, x: best.pos.x, y: best.groundY ?? best.pos.y ?? 0, z: best.pos.z, age: 0 };
     else if (this.lastSeen) this.lastSeen.age += dt;
+    if (best) {
+      const c = this.camp;
+      if (c && c.id === best.id && Math.hypot(best.pos.x - c.x, best.pos.z - c.z) < CAMP_RADIUS) c.t += dt;
+      else this.camp = { id: best.id, x: best.pos.x, z: best.pos.z, t: 0 };
+    } else this.camp = null;
 
     // A Trollsaber guard turned on us bats every round away: shooting into
     // it only drains their meter a little. Smarter bots stop feeding it and
@@ -1039,11 +1047,13 @@ class Bot {
 
   /* A reason to throw, or null. In order of how good a reason it is:
        - enemies bunched up (2+ within CLUSTER of each other): a frag;
+       - the one in sight dug in (CAMP_TIME in one spot): a frag;
        - enemies holding the objective we want (hill, bomb site): frag, or a
          flash if the frag is gone;
        - someone we just lost behind cover, still near where we saw them:
          lob it over — a flash when it's close enough to push, else a frag.
-     A target we can see and shoot on its own isn't a reason: the gun is. */
+     A target we can see and shoot on its own isn't a reason, unless it's
+     dug in: the gun is. */
   planThrow(targets, ffa, colliders, eye, best, objective) {
     const enemies = [];
     for (const t of targets) {
@@ -1093,6 +1103,14 @@ class Bot {
       if (bestGroup) {
         return { kind: L, x: bestGroup.x, y: bestGroup.y, z: bestGroup.z,
           dist: distTo(bestGroup.x, bestGroup.z), lob: hidden(bestGroup.x, bestGroup.y, bestGroup.z) };
+      }
+      // Dug in (user, 2026-10-29): the one it's trading with has held one
+      // spot a while (a window, a corner, behind a crate). The gun isn't
+      // moving them; a frag will.
+      const c = this.camp;
+      if (best && c?.id === best.id && c.t >= CAMP_TIME) {
+        const d = distTo(best.pos.x, best.pos.z), y = best.groundY ?? best.pos.y ?? 0;
+        if (inRange(d)) return { kind: L, x: best.pos.x, y, z: best.pos.z, dist: d, lob: false };
       }
     }
 
