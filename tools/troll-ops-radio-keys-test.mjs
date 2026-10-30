@@ -101,6 +101,48 @@ await sleep(500);
 s = await st();
 check(s.pause && !s.open, "match: losing the mouse otherwise still opens the pause menu", JSON.stringify(s));
 
+// ---- 3. home with a song on (user, 2026-10-29: "music should not pause
+// when clicking on return to main menu"): the pause menu's and the game
+// over screen's "Troll Warfare home" leave in the page, the song plays on
+const song = () => page.evaluate(() => ({ playing: window.__trollOps.music.playing, paused: window.__trollOps.music.el.paused, t: window.__trollOps.music.el.currentTime, title: window.__trollOps.music.current?.title, state: window.__trollOps.state() }));
+await page.evaluate(() => { window.__marker = 1; window.__trollOps.music.play(); });
+await sleep(1500);
+const before = await song();
+await page.click("#to-exit-btn");
+await sleep(1500);
+let after = await song();
+const stayed = await page.evaluate(() => window.__marker === 1);
+check(before.playing && stayed && after.state === "menu" && after.playing && !after.paused && after.title === before.title && after.t > before.t,
+  "pause menu home: back on the menu, same page, the song still going", JSON.stringify({ before, after, stayed }));
+check(await page.evaluate(() => !document.getElementById("to-title").hidden && document.getElementById("to-pause").hidden && document.getElementById("to-hud").hidden), "pause menu home: the menu's up, the match's screens away");
+
+await page.evaluate(async () => {
+  const T = window.__trollOps;
+  T.setMode("tdm");
+  if (T.els.noBots) T.els.noBots.checked = true;
+  await T.startGame();
+});
+await page.waitForFunction(() => window.__trollOps.state() === "playing", null, { timeout: 180000 });
+await sleep(2500);
+await page.evaluate(() => window.__trollOps.endMatch());
+await page.waitForFunction(() => window.__trollOps.state() === "gameover", null, { timeout: 20000 }).catch(() => {});
+await sleep(800);
+const go = await song();
+await page.click("#to-go-home-btn");
+await sleep(1500);
+after = await song();
+check(go.state === "gameover" && go.playing && await page.evaluate(() => window.__marker === 1) && after.state === "menu" && after.playing && after.title === go.title,
+  "game over home: back on the menu, same page, the song still going", JSON.stringify({ go, after }));
+check(await page.evaluate(() => document.getElementById("to-gameover").hidden && !document.getElementById("to-title").hidden), "game over home: the game over screen's away");
+// with nothing playing it reloads onto the menu as before
+await page.evaluate(() => window.__trollOps.music.pause());
+await page.evaluate(async () => { const T = window.__trollOps; T.setMode("tdm"); if (T.els.noBots) T.els.noBots.checked = true; await T.startGame(); });
+await page.waitForFunction(() => window.__trollOps.state() === "playing", null, { timeout: 180000 });
+await sleep(2000);
+await page.evaluate(() => window.__trollOps.openPauseMenu());
+await Promise.all([page.waitForEvent("load", { timeout: 60000 }).catch(() => null), page.click("#to-exit-btn")]);
+check(await page.evaluate(() => window.__marker !== 1), "radio off: home reloads as before");
+
 check(!errors.length, "no page errors", errors.slice(0, 3).join(" | "));
 await browser.close();
 server.close();
