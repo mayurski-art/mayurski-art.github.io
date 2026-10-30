@@ -2275,6 +2275,29 @@ body.tf-anim-off .to-radio-toggle .to-radio-ico rect { animation: none !importan
   filter: drop-shadow(0 16px 26px rgba(0,0,0,.5));
 }
 .to-radio-panel.fm[hidden] { display: none; }
+
+/* Squad sync (menu/radio.js, sound/radio-sync.js): a glass strip off the
+   panel's edge, above it in a match (the toggle's below), under it on the
+   menu (the toggle's above). */
+.to-radio-sync {
+  position: absolute; left: 0; bottom: calc(100% + 8px);
+  display: flex; align-items: center; gap: 10px; max-width: 460px;
+  padding: 6px 6px 6px 12px; border-radius: 12px;
+  background: linear-gradient(180deg, rgba(62,92,176,.82), rgba(24,38,92,.9)); border: 1px solid rgba(170,200,255,.36);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 8px 18px rgba(0,0,0,.35);
+  color: #fff; font: 13px/1.2 "DM Sans", system-ui, sans-serif;
+  filter: none; user-select: none;
+}
+.to-radio-sync[hidden] { display: none; }
+.to-radio-sync.is-on { border-color: #4fd8ff; }
+.to-radio-sync span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.to-radio-sync button {
+  flex: 0 0 auto; padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,.5);
+  background: #fff; color: #17224d; font: 600 12px "DM Sans", system-ui, sans-serif; cursor: pointer;
+}
+.to-radio-sync button:disabled { opacity: .6; cursor: default; }
+.to-radio-sync button:focus-visible { outline: 3px solid #4fd8ff; outline-offset: 2px; }
+#to-title:not([hidden]) ~ .to-radio .to-radio-sync { bottom: auto; top: calc(100% + 8px); }
 .fm button { font-family: inherit; }
 .fm :focus-visible { outline: 2px solid var(--fm-accent); outline-offset: 2px; }
 

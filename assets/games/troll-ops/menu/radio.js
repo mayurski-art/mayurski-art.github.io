@@ -134,7 +134,7 @@ export function initRadioWidget() {
       b.firstChild.textContent = fm ? `${String(i + 1).padStart(2, "0")}. ${t.title}` : t.title;
       if (!fm) b.lastChild.textContent = t.artist;
       b.setAttribute("aria-label", `Play ${t.title} by ${t.artist}`);
-      b.addEventListener("click", () => game.music.playIndex(i));
+      b.addEventListener("click", () => { tookOver(); game.music.playIndex(i); });
       li.append(b);
       list.append(li);
       return b;
@@ -163,10 +163,10 @@ export function initRadioWidget() {
     });
 
     $("to-radio-close").addEventListener("click", () => closeFromKey());
-    ui.play.addEventListener("click", () => game.music.toggle());
-    ui.stop.addEventListener("click", () => game.music.stop());
-    ui.prev.addEventListener("click", () => game.music.prev());
-    ui.next.addEventListener("click", () => game.music.next());
+    ui.play.addEventListener("click", () => { tookOver(); game.music.toggle(); });
+    ui.stop.addEventListener("click", () => { tookOver(); game.music.stop(); });
+    ui.prev.addEventListener("click", () => { tookOver(); game.music.prev(); });
+    ui.next.addEventListener("click", () => { tookOver(); game.music.next(); });
     ui.shuffle.addEventListener("click", () => game.music.setShuffle(!game.music.shuffle));
     ui.volume.value = Math.round(game.music.volume * 100);
     ui.volume.addEventListener("input", () => game.music.setVolume(ui.volume.value / 100));
@@ -174,6 +174,7 @@ export function initRadioWidget() {
     ui.balance.addEventListener("input", () => game.music.setBalance(ui.balance.value / 100));
     ui.seek.addEventListener("input", () => { seeking = true; });
     ui.seek.addEventListener("change", () => {
+      tookOver();
       game.music.seek((ui.seek.value / 1000) * game.music.duration);
       seeking = false;
     });
@@ -190,11 +191,44 @@ export function initRadioWidget() {
       panel.querySelector(".rs-swap")?.focus();
     });
 
+    // Squad sync (sound/radio-sync.js): a strip off the panel's edge
+    ui.sync = document.createElement("div");
+    ui.sync.className = "to-radio-sync";
+    ui.sync.setAttribute("role", "status");
+    ui.sync.innerHTML = `<span></span><button type="button"></button>`;
+    ui.sync.lastChild.addEventListener("click", (e) => {
+      const rs = game.radioSync;
+      if (!rs) return;
+      if (e.currentTarget.dataset.act === "stop") rs.stop();
+      else { const line = rs.request(); if (line && !rs.view().asked) ui.sync.firstChild.textContent = line; }
+    });
+    panel.append(ui.sync);
+
     history.length = 0;
     paintStation();
     paintDurations();
+    paintSync();
     repaint();
   }
+
+  /* Following the squad leader's radio, asking to, or leading followers. */
+  function paintSync() {
+    const s = ui?.sync;
+    if (!s) return;
+    const v = game.radioSync?.view() || { role: null };
+    s.hidden = !v.role;
+    if (!v.role) return;
+    const [text, btn] = [s.firstChild, s.lastChild];
+    const set = (t, b, act, off = false) => { text.textContent = t; btn.textContent = b; btn.dataset.act = act; btn.disabled = off; };
+    if (v.role === "leader") set(`In sync with you: ${v.followers.join(", ") || "your squad"}`, "Stop sharing", "stop");
+    else if (v.following) set(`In sync with ${v.leader}`, "Stop syncing", "stop");
+    else if (v.asked) set(`Asked ${v.leader} to sync…`, "Waiting", "req", true);
+    else set(`Squad leader: ${v.leader}`, "Sync music", "req");
+    s.classList.toggle("is-on", v.role === "leader" || !!v.following);
+  }
+  addEventListener("trollforces:radio-sync", paintSync);
+  // working the radio yourself stops following the leader
+  const tookOver = () => game.radioSync?.tookOver();
 
   /* Grinspace: the last N spectra stacked into a tilted sheet of dots, red
      at the front fading to blue at the back, like the original. */

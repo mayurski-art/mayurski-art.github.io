@@ -399,9 +399,13 @@ function show(who, d) {
   p.replaceChildren();
   const b = document.createElement("b");
   b.textContent = who.name;
-  p.append(b, d.squad ? `'s squad (${d.size}) wants to join up with yours. They'll start the match.`
+  p.append(b, d.text ? d.text : d.squad ? `'s squad (${d.size}) wants to join up with yours. They'll start the match.`
     : d.party ? ` invited you to their party. They'll pick the match.` : ` invited you to ${mode}${map ? ` on ${map}` : ""}.`);
-  card.querySelector('[data-act="join"]').onclick = () => { hide(); accept(d); };
+  // (a request, not an invite: Accept, J to accept)
+  const yes = card.querySelector('[data-act="join"]');
+  yes.textContent = d.onAccept ? "Accept" : "Join";
+  card.querySelector(".to-invite-key").lastChild.textContent = d.onAccept ? " to accept" : " to join";
+  yes.onclick = () => { hide(); accept(d); };
   card.querySelector('[data-act="no"]').onclick = hide;
   pending = d;
   // the key hint, while the mouse can't reach the buttons
@@ -433,6 +437,7 @@ async function join(d) {
 /* Join pressed: a match's invite goes into it; a party's into the party,
    back to the menu if we're in a match, to wait for the host. */
 async function accept(d) {
+  if (d.onAccept) { d.onAccept(); return; }
   if (d.squad) { acceptSquad(d.from); return; }
   if (!d.party) { join(d); return; }
   if (playing()) {
@@ -445,6 +450,17 @@ async function accept(d) {
   party.looks.set(d.from, cleanLook(d.look));
   presence.send("party-join", { to: d.from, look: myLook() });
   renderParty();
+}
+
+/* Troll Radio's squad sync (sound/radio-sync.js): who leads our party,
+   who's in the one we lead, and the invite card for a member's request. */
+export const partyLeader = () => party.in?.host || null;
+export const partyHas = (v) => party.members.has(v);
+export function showRequest(from, text, onAccept) {
+  const who = presence?.nameOf(from);
+  if (!who) return false;
+  show(who, { from, text, onAccept });
+  return true;
 }
 
 function onInvite(d, from) {
