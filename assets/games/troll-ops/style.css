@@ -337,6 +337,49 @@ button.to-gear-chip { cursor: pointer; }
 .to-spectate-btn:hover, .to-spectate-btn:focus-visible { background: rgba(125,255,74,.22); border-color: #7dff4a; outline: none; }
 /* Spectating: our own crosshair and gun readouts aren't ours to use. */
 .to-spectating #to-crosshair, .to-spectating #hud-ammo { display: none; }
+/* The match report, live (modes/royale-live-report.js): its button under the
+   spectate bar, and the card over a dimmed view. */
+.to-spectate-report {
+  pointer-events: auto; margin-top: 8px; padding: 6px 14px; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.18); background: rgba(6,9,7,.62); color: #eef2ea;
+  font: 600 12px "Oswald", sans-serif; letter-spacing: .12em; text-transform: uppercase;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.to-spectate-report kbd {
+  font: 500 10px "DM Mono", monospace; padding: 1px 5px; border-radius: 4px;
+  border: 1px solid rgba(255,255,255,.3); color: #cfd8c8;
+}
+.to-spectate-report:hover, .to-spectate-report:focus-visible { background: rgba(125,255,74,.22); border-color: #7dff4a; outline: none; }
+@media (pointer: coarse) { .to-spectate-report kbd, .to-live-card .to-live-hint { display: none; } }
+.to-live-report {
+  position: absolute; inset: 0; z-index: 30; pointer-events: auto;
+  display: flex; align-items: flex-start; justify-content: center; overflow-y: auto;
+  padding: 18px 12px; background: rgba(3,5,4,.58); backdrop-filter: blur(2px);
+}
+.to-live-report[hidden] { display: none; }
+.to-live-card {
+  padding: 12px; border-radius: 14px; margin: auto 0;
+  background: rgba(10,14,11,.94); border: 1px solid rgba(255,255,255,.1); box-shadow: 0 18px 50px rgba(0,0,0,.55);
+}
+.to-live-card:focus { outline: none; }
+.to-live-card .to-aar-head { padding-right: 46px; padding-left: 46px; }
+.to-live-card .to-aar-board { max-height: min(58vh, 58cqh); overflow-y: auto; }
+.to-live-card .to-aar-result { font-size: 22px; display: inline-flex; align-items: center; gap: 10px; }
+.to-live-card .to-aar-score { font-size: 13px; color: #ff9f8c; text-align: center; }
+.to-live-pill {
+  font: 700 10px "DM Mono", monospace; letter-spacing: .14em; padding: 2px 7px; border-radius: 999px;
+  color: #10170c; background: #ff5a4a; box-shadow: 0 0 10px rgba(255,90,74,.6);
+  animation: to-live-blink 1.6s ease-in-out infinite;
+}
+@keyframes to-live-blink { 50% { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .to-live-pill { animation: none; } }
+.to-live-close {
+  position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.05); color: #eef2ea;
+  font: 600 14px/1 "DM Sans", sans-serif; display: inline-flex; align-items: center; justify-content: center; z-index: 1;
+}
+.to-live-close:hover, .to-live-close:focus-visible { background: rgba(255,255,255,.14); outline: 2px solid #7fe066; outline-offset: 1px; }
+.to-live-hint { margin: 0; text-align: center; font: 500 10px "DM Mono", monospace; letter-spacing: .08em; color: #6f7a6b; }
 
 /* Pre-match staging. Deliberately the loudest thing on screen — it's the only
    moment the player is meant to be looking at the HUD rather than the map. */
