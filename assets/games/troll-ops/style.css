@@ -4797,10 +4797,15 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
    yellow over a dark fade on the left; a yellow edge keeps it the button you came to press */
 .to-fn-go { min-height: 74px; border-radius: 0; clip-path: polygon(2.5% 0, 100% 0, 97.5% 100%, 0 100%); box-shadow: none; text-align: left; padding: 0 0 0 26px;
   color: var(--fn-yellow); font: 400 52px/1 var(--fn-display); text-shadow: 0 2px 0 #000, 0 0 18px rgba(0,0,0,.8);
-  background: linear-gradient(90deg, rgba(8,12,34,.92) 0%, rgba(8,12,34,.66) 34%, rgba(8,12,34,0) 62%), url("ui/lobby/play-troll.webp") right center / cover no-repeat, #0d1433;
+  background: linear-gradient(90deg, rgba(8,12,34,.92) 0%, rgba(8,12,34,.66) 34%, rgba(8,12,34,0) 62%), var(--play-art) right center / cover no-repeat, #0d1433;
   border-bottom: 4px solid var(--fn-yellow); }
-.to-fn-go:hover { background: linear-gradient(90deg, rgba(8,12,34,.8) 0%, rgba(8,12,34,.5) 34%, rgba(8,12,34,0) 58%), url("ui/lobby/play-troll.webp") right center / cover no-repeat, #0d1433; color: #fff466; }
-.to-bo2.is-fn.has-pad .to-fn-go { padding-left: 62px; }   /* (the A key's hint at its left edge) */
+.to-fn-go:hover { background: linear-gradient(90deg, rgba(8,12,34,.8) 0%, rgba(8,12,34,.5) 34%, rgba(8,12,34,0) 58%), var(--play-art) right center / cover no-repeat, #0d1433; color: #fff466; }
+.to-bo2.is-fn.has-pad .to-fn-go { padding-left: 62px; }
+/* (720 wide, and 1440 for a 2x/3x screen: the button is 250-406 px wide) */
+.to-fn-go { --play-art: url("ui/lobby/play-troll.webp"); }
+@supports (background-image: image-set(url("x.webp") 1x)) {
+  .to-fn-go { --play-art: image-set(url("ui/lobby/play-troll.webp") 1x, url("ui/lobby/play-troll-2x.webp") 2x); }
+}   /* (the A key's hint at its left edge) */
 /* the news over the mode card, the card it was (user, 2026-10-30: "i kind
    of like what we had in the previous live version"): the map's picture,
    NEWS in the corner, the title big */
