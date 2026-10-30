@@ -85,9 +85,12 @@ function seasonLeft(now = Date.now()) {
   return d ? `${d}D ${h}H left` : `${h}H ${m % 60}M left`;
 }
 
-/* The news carousel: what's new, each a way in. */
+/* The news carousel: what's new, each a way in (user, 2026-10-30: the
+   Halloween update first, then Trollface Island, then the rest). `art`: a
+   picture other than the map's shot; `side`: the Royale side it picks. */
 const NEWS = [
-  { title: "Trollface Island", tag: "New in Royale", map: "trollface", playlist: "public", mode: "royale" },
+  { title: "Halloween", tag: "Hollowgrin, the island's underside", map: "hollowgrin", art: "assets/games/troll-ops/ui/lobby/halloween/hollowgrin-1-1280.webp", playlist: "public", mode: "royale", side: "hollowgrin" },
+  { title: "Trollface Island", tag: "New in Royale", map: "trollface", playlist: "public", mode: "royale", side: "trollface" },
   { title: "Kabukigrin", tag: "Hang out at night", map: "kabukigrin", playlist: "social" },
   { title: "Troll Beach", tag: "Courts are open", map: "grinbeach", playlist: "social" },
 ];
@@ -204,7 +207,7 @@ export function mountFnLobby(api) {
   news.setAttribute("aria-label", "News");
   news.innerHTML = `
       ${NEWS.map((n, i) => `<button type="button" class="to-fn-news-card" data-i="${i}" ${i ? "hidden" : ""} aria-label="${esc(`${n.title}: ${n.tag}`)}">
-        <img alt="" data-map="${n.map}"><b>${esc(n.title)}</b><span><em>New</em><small>${esc(n.tag)}</small></span></button>`).join("")}
+        <img alt="" data-map="${n.map}"><em>News</em><b>${esc(n.title)}</b><small>${esc(n.tag)}</small></button>`).join("")}
       <div class="to-fn-pips">${NEWS.map((n, i) => `<button type="button" data-i="${i}" aria-label="News ${i + 1}: ${esc(n.title)}"></button>`).join("")}</div>`;
 
   /* ── Play tab, right: the mode card and PLAY ── */
@@ -413,10 +416,11 @@ export function mountFnLobby(api) {
     pips.forEach((p, k) => p.setAttribute("aria-current", String(k === newsIdx)));
   }
   for (const c of cards) {
-    setMapShot($("img", c), $("img", c).dataset.map, "320px");
+    const n = NEWS[+c.dataset.i];
+    if (n.art) $("img", c).src = n.art; else setMapShot($("img", c), n.map, "320px");
     c.addEventListener("click", () => {
-      const n = NEWS[+c.dataset.i];
       if (n.mode) { const b = $(`#to-lo-mode [data-mode="${n.mode}"]`); if (b && !b.disabled) b.click(); }
+      if (n.side && royaleSide?.().id !== n.side) switchRoyaleSide?.();
       setPlaylist(n.playlist);
       $(".to-fn-go", play).focus();
     });

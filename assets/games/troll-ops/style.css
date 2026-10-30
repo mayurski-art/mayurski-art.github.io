@@ -4713,7 +4713,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
    the top and the bottom, flat tabs under the top one with the picked tab
    yellow, square navy panels, the level big beside its crest over an XP
    bar, Prestige as the gold Battle Pass bar, the challenge heads as gold
-   slabs, the news as the event tile over a slate mode card, a slanted
+   slabs, the news card over a slate mode card, a slanted
    yellow PLAY, the bottom row as plain hints, names over heads with a
    dotted line, dashed "+" squares. Anton upright, as Burbank is. ── */
 #to-title.is-bo2.is-fn .to-pf, .to-bo2.is-fn {
@@ -4781,7 +4781,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-fn-qlist i b { border-radius: 0; background: var(--fn-yellow); }
 .to-fn-qlist em { grid-column: 2; grid-row: 2; font: 700 14px var(--fn-ui); letter-spacing: .04em; color: #fff; }
 .to-fn-qlist li.is-done em { color: #7cf07c; }
-/* the right: the event tile over a slate mode card, then PLAY */
+/* the right: the news over a slate mode card, then PLAY */
 .to-fn-play { padding: 0; gap: 8px; border: 0; background: none; box-shadow: none; }
 .to-fn-mode { padding: 10px 10px 9px; border: 2px solid rgba(205,218,255,.6); border-radius: 0; background: linear-gradient(180deg, rgba(62,74,110,.95), rgba(38,48,80,.95)); }
 .to-fn-mode:hover { border-color: #fff; }
@@ -4792,16 +4792,11 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-fn-map img { border-radius: 0; }
 .to-fn-go { min-height: 74px; border-radius: 0; clip-path: polygon(2.5% 0, 100% 0, 97.5% 100%, 0 100%); color: #10142c; background: linear-gradient(180deg, #fff466, #f3e23a 55%, #dfc81c); box-shadow: none; font: 400 52px/1 var(--fn-display); }
 .to-fn-go:hover { background: linear-gradient(180deg, #fff88a, #f7e94c 55%, #e8d22a); }
-.to-fn-play > .to-fn-news { position: absolute; left: 0; right: 0; bottom: calc(100% + 18px); height: auto; }
-.to-fn-news-card { position: relative; inset: auto; display: grid; padding: 0; border: 2px solid #d4ecff; border-radius: 0; overflow: visible; background: none; text-align: left; }
-.to-fn-news-card img { display: none; }
-.to-fn-news-card::after { inset: auto; right: 34px; bottom: -14px; width: 0; height: 0; background: none; border-style: solid; border-width: 12px 14px 0 0; border-color: #d4ecff transparent transparent transparent; }
-.to-fn-news-card b { position: static; display: block; padding: 9px 12px 7px; background: linear-gradient(180deg, #7140cf, #4b1f9c); color: #86f4ff; font: 400 27px/1 var(--fn-display); text-shadow: 0 2px 0 rgba(20,0,60,.6); }
-.to-fn-news-card > span { display: flex; align-items: center; gap: 10px; padding: 5px 12px; background: linear-gradient(90deg, #1d8fd8, #3ccfff); }
-.to-fn-news-card em { position: static; display: flex; align-items: center; gap: 6px; font: 400 18px/1 var(--fn-display); letter-spacing: .02em; color: #fff; }
-.to-fn-news-card em::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #fff; }
-.to-fn-news-card small { position: static; margin-left: auto; font: 700 13px var(--fn-ui); letter-spacing: .06em; text-transform: uppercase; color: #fff; }
-.to-fn-pips { left: auto; right: 6px; top: 6px; }
+/* the news over the mode card, the card it was (user, 2026-10-30: "i kind
+   of like what we had in the previous live version"): the map's picture,
+   NEWS in the corner, the title big */
+.to-fn-play > .to-fn-news { position: absolute; left: 0; right: 0; bottom: calc(100% + 14px); height: 140px; }
+.to-fn-news-card { border-radius: 2px; }   /* (square, as every panel here) */
 /* the bottom row: plain hints on the band */
 .to-bo2.is-fn .to-bo2-online, .to-fn-allmodes, .to-bo2.is-fn .to-bo2-foot .to-char-emote, .to-bo2.is-fn .to-bo2-foot .to-bo2-chat { border: 0; border-radius: 2px; background: none; box-shadow: none; color: #e6ebf7; font: 600 17px var(--fn-ui); letter-spacing: .02em; text-transform: none; }
 .to-bo2.is-fn .to-bo2-online[role="button"]:hover, .to-fn-allmodes:hover, .to-bo2.is-fn .to-bo2-foot .to-char-emote:hover, .to-bo2.is-fn .to-bo2-foot .to-bo2-chat:hover { background: rgba(255,255,255,.1); color: var(--fn-yellow); text-decoration: none; }
