@@ -165,12 +165,13 @@ const SPECS = {
     finish: { pose: pose([0.05, -0.13, -0.76], [-0.3, 0.92, -0.3], [-0.95, -0.3, 0.2]), handle: [0.05, 0.04, -0.02], pull: [0.05, 0.04, 0.08], sound: "rack" },
   },
   // MTAR (bullpup): up on the right but nowhere near vertical; the mag goes
-  // in behind the grip, and empty, the hand goes over the top to the handle
-  // on the left under the rail.
+  // in behind the grip, and empty, the hand reaches forward over the top to
+  // the gun's own charging handle on the left (MT_ChargeHand) and rides it
+  // back; handle / pull stand in for a gun without the point.
   kek: {
     up: pose([0.2, -0.2, -0.72], [0.18, 0.85, -0.5], [1, 0.1, 0.35]),
     fetch: LEFT_HAND, present: [-0.02, -0.32, -0.72],
-    finish: { pose: pose([0.18, -0.16, -0.74], [-0.15, 0.85, -0.5], [0.85, 0.2, 0.5]), handle: [-0.05, 0.03, -0.14], pull: [-0.05, 0.03, -0.03], sound: "rack" },
+    finish: { pose: pose([0.18, -0.16, -0.74], [-0.15, 0.85, -0.5], [0.85, 0.2, 0.5]), handle: [-0.05, 0.03, -0.14], pull: [-0.05, 0.03, -0.03], sound: "rack", part: "charge" },
   },
   // Type 25 (bullpup): stood all the way up on the right; empty, tipped away
   // and the catch above the mag slapped.
