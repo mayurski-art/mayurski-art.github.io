@@ -406,8 +406,10 @@ export function mountFnLobby(api) {
     if (e.deltaY > 0 && modes.hidden) openModes(true);
     else if (e.deltaY < 0 && !modes.hidden && !e.target.closest(".to-fn-tiles")?.scrollTop) openModes(false);
   }, { passive: true, capture: true });
+  // (not when the key is in the radio: its player opens over the sheet, and
+  // Esc there shuts the radio, the layer it's in, not the sheet behind)
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !modes.hidden) { e.preventDefault(); e.stopPropagation(); openModes(false); more.focus(); }
+    if (e.key === "Escape" && !modes.hidden && !e.target.closest?.("#to-radio")) { e.preventDefault(); e.stopPropagation(); openModes(false); more.focus(); }
   }, true);
   addEventListener("trollforces:online", (e) => { online = e.detail || []; if (!modes.hidden) renderTiles(); });
 

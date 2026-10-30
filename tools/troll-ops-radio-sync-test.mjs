@@ -24,7 +24,7 @@ const server = http.createServer((req, res) => {
   if (!p.startsWith(ROOT) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) { res.writeHead(404); return res.end(); }
   const type = TYPES[path.extname(p)] || "application/octet-stream", size = fs.statSync(p).size;
   // ranges, so the songs can seek (the sync seeks the member's radio)
-  const m = /bytes=(d*)-(d*)/.exec(req.headers.range || "");
+  const m = /bytes=(\d*)-(\d*)/.exec(req.headers.range || "");
   if (m) {
     const start = m[1] ? +m[1] : 0, end = m[2] ? Math.min(+m[2], size - 1) : size - 1;
     res.writeHead(206, { "content-type": type, "accept-ranges": "bytes", "content-range": `bytes ${start}-${end}/${size}`, "content-length": end - start + 1 });
@@ -195,7 +195,13 @@ await lead.waitForFunction(() => window.__trollOps.state() === "playing", null, 
 // (the party follows the leader in: the member's tab loads the match too)
 await lead.evaluate(() => window.__trollOps.music.playIndex(7));
 await mem.waitForFunction(() => { const m = window.__trollOps.music; return m.order[m.pos] === 7 && m.playing && m.time > 1; }, null, { timeout: 60000 }).catch(() => {});
-a = await radio(lead); b = await radio(mem);
+// (as in 3: the leader's tab is busy with its match, so its state can
+// reach the member late; the 4 s position beat pulls a late one in)
+for (let k = 0; k < 12; k++) {
+  a = await radio(lead); b = await radio(mem);
+  if (b.i === 7 && a.i === 7 && b.playing && Math.abs(b.t - a.t) < 1.6) break;
+  await sleep(500);
+}
 check(b.i === 7 && a.i === 7 && b.playing && Math.abs(b.t - a.t) < 1.6, "the leader mid-match picks a song: the member follows", JSON.stringify({ a, b }));
 
 // ---- 4. the member takes the wheel

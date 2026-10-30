@@ -173,5 +173,9 @@ export function initRadioSync(p, party) {
   p.on?.("radio-state", onState);
   game.radioSync = { view, request, stop: () => { stopFollowing(true); stopLeading(); }, tookOver };
   setInterval(tick, SYNC.tick);
+  // A new track's seek lands the moment its length is known, not at the
+  // next tick: else the follower plays the song's start first (and on a
+  // busy tab, a match loading, the tick runs late, seconds of it).
+  game.music?.el?.addEventListener("durationchange", () => { if (sync.following) applySeek(); });
   addEventListener("trollforces:party", changed);
 }
