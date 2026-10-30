@@ -54,7 +54,8 @@ export function renderAfterAction(d) {
   pendingCapture = null; captureJob = null;   // the last match's plan is not this one's
   el.dataset.result = d.won ? "won" : d.won === false ? "lost" : "";
 
-  const scoreLine = d.ffa
+  const scoreLine = d.squad ? `${fmt(d.stats.kills)} kills · your team ${fmt(d.squad.kills)}`
+    : d.ffa
     ? `${fmt(d.stats.kills)} kills`
     : `<span class="to-aar-team" style="color:${esc(d.teams.mine.color)}">${esc(d.teams.mine.name)} <b>${fmt(d.teams.mine.score)}</b></span>`
       + `<span class="to-aar-vs">—</span>`
@@ -76,6 +77,7 @@ export function renderAfterAction(d) {
     </div>
     <section class="to-aar-pane" data-pane="summary" role="tabpanel" aria-labelledby="to-aar-tab-summary">
       ${rankCardHtml(d.rank)}
+      ${teamHtml(d.squad)}
       ${weaponsHtml(d.weapons)}
       ${statsHtml(d.stats)}
     </section>
@@ -292,6 +294,19 @@ export function loadThumbs(el, list) {
       pic.replaceChildren(img);
     }).catch(() => {});
   }
+}
+
+/* ------------------------------------------------------------ team */
+
+/* Troll Royale in teams (modes/royale-squad-end.js squadCard): the team's
+   place, and each of you: kills, out or standing. */
+const nth = (n) => n + (["th", "st", "nd", "rd"][(n % 100 - 20) % 10] || ["th", "st", "nd", "rd"][n % 100] || "th");
+export function teamHtml(t) {
+  if (!t) return "";
+  const head = [t.place ? `${nth(t.place)} of ${fmt(t.of)} teams` : "", `${fmt(t.kills)} kills`].filter(Boolean).join(" · ");
+  return `<div class="to-aar-squad" role="list" aria-label="Your team"><div class="to-aar-squad-head"><b>Your team</b><span>${head}</span></div>`
+    + t.rows.map((r) => `<div class="to-aar-squad-row${r.me ? " is-me" : ""}" role="listitem"><span>${esc(r.name)}</span><span>${fmt(r.kills)} ${r.kills === 1 ? "kill" : "kills"}</span>`
+      + `<span class="${r.alive ? "is-up" : "is-out"}">${r.alive ? "Standing" : "Out"}</span></div>`).join("") + "</div>";
 }
 
 /* ------------------------------------------------------------ stats */

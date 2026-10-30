@@ -836,6 +836,14 @@ export function royaleAliveList() {
   return list;
 }
 
+/* Out: where we finished, or (in teams, a teammate still up) not yet. The
+   spectator bar and the live report (royale-live-report.js) both say it. */
+function outLine(alive) {
+  const r = royale;
+  if (!r.place && squadSize() > 1) return "Eliminated — your team is still in it";
+  return `Eliminated — ${ordinal(r.place || standing(alive) + 1)} of ${r.peak}${squadSize() > 1 ? " teams" : ""}`;
+}
+
 /* How many are still in it: trolls, or in teams, teams (royale-squads.js). */
 const standing = (alive) => (squadSize() > 1 ? teamsAlive(alive) : alive.length);
 
@@ -1052,9 +1060,7 @@ export function updateRoyale(dt) {
     const prev = r.spectate;
     r.spectate = pickSpectateTarget(r.spectate, alive);
     if (r.spectate && r.spectate !== prev && r.spectate.id !== prev?.id) onSpectateTarget();
-    const out = r.lateJoin ? "Joined mid-match — you're in the next one"
-      : !r.place && squadSize() > 1 ? "Eliminated — your team is still in it"
-      : `Eliminated — ${ordinal(r.place || standing(alive) + 1)} of ${r.peak}`;
+    const out = r.lateJoin ? "Joined mid-match — you're in the next one" : outLine(alive);
     if (!r.outShown) { r.outShown = true; game.els.respawn.hidden = false; }
     const watching = royaleSpectating();
     // The spectator view is clear: no 62% death fade, no low-HP pulse, and
@@ -1709,7 +1715,7 @@ function updateTouchGear() {
 
 /* Spectating: keep watching someone while they're alive; our killer first. */
 function pickSpectateTarget(cur, alive) {
-  const others = alive.filter((a) => !a.me);
+  const others = spectateOrder(alive);
   if (!others.length) return null;
   if (cur) { const still = others.find((a) => a.id === cur.id); if (still) return still; }
   const killer = others.find((a) => a.id === game.player.lastKilledBy);
@@ -1726,9 +1732,13 @@ export function royaleSpectating() {
   return !!royale && !game.player.alive && !!royale.spectate && !game.killcam.replaying && game.gameState === "playing";
 }
 
-/* Everyone still standing but us, in a fixed order so prev/next go round. */
+/* Everyone still standing but us, in a fixed order so prev/next go round.
+   In teams, only our teammates while any are up (you watch your own). */
 function spectateOrder(alive = royaleAliveList()) {
-  return alive.filter((a) => !a.me).sort((a, b) => String(a.id).localeCompare(String(b.id)));
+  let others = alive.filter((a) => !a.me);
+  const mates = squadSize() > 1 ? others.filter((a) => a.team && a.team === game.net.team) : [];
+  if (mates.length) others = mates;
+  return others.sort((a, b) => String(a.id).localeCompare(String(b.id)));
 }
 
 export function cycleSpectate(dir) {
@@ -1799,7 +1809,7 @@ export function initRoyale() {
   game.els.spectatePrev?.addEventListener("click", () => cycleSpectate(-1));
   game.els.spectateNext?.addEventListener("click", () => cycleSpectate(1));
   // out and watching: the match report, live (royale-live-report.js)
-  initLiveReport({ royale: () => royale, alive: royaleAliveList, ordinal });
+  initLiveReport({ royale: () => royale, alive: royaleAliveList, ordinal, outLine });
 
   // Touch: the plate and Hopium chips are buttons.
   game.els.gearPlates?.addEventListener("click", () => startRoyaleAct("plate"));
