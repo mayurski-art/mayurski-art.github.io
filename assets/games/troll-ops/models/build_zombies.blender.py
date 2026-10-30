@@ -170,6 +170,38 @@ LOOKS = {
         "mask": True,
         "pose": SHAMBLE,
     },
+    # the spitter (wave 14+, zombies.js): a thin woman with her jaw hanging
+    # open, a swollen throat; it hangs back and lobs acid. Its clip set adds
+    # "spit" (rear back, then thrust the head forward).
+    "spitter": {
+        "macros": {"gender": 0.0, "age": 0.45, "muscle": 0.25, "weight": 0.1, "height": 0.6},
+        "skin": "young_caucasian_female",
+        "clothes": ["joepal_crude_t-shirt_female", "cortu_cargo_pants", "shoes01"],
+        "hair": "ponytail01",
+        "face": {**GAUNT, "expression/units/caucasian/mouth-open": 1.0,
+                 "neck/neck-scale-horiz-incr": 0.6, "neck/neck-scale-depth-incr": 0.8},
+        "tear": 0.65,
+        "pose": SHAMBLE,
+        "clips": "spitter",
+    },
+    # the bloater (wave 16+): a huge swollen belly that bursts when it's shot
+    # or reaches you. Work overalls straining over it.
+    "bloater": {
+        "macros": {"gender": 1.0, "age": 0.6, "muscle": 0.1, "weight": 1.0, "height": 0.45},
+        "skin": "old_caucasian_male",
+        "clothes": ["male_worksuit01", "shoes03"],
+        "face": SNARL,
+        "body": {
+            "stomach/stomach-pregnant-incr": 1.0,
+            "torso/measure-waist-circ-incr": 1.0,
+            "torso/torso-scale-depth-incr": 0.7,
+            "neck/neck-scale-horiz-incr": 0.5,
+        },
+        "tear": 0.62,          # (higher = fewer rips)
+        "cloth_value": 0.42,
+        "standoff": 0.015,     # the belly pushes through the usual 5 mm
+        "pose": SHAMBLE,
+    },
     # the leaper: starved, shirtless, barefoot, trousers in rags, long arms
     # and long hooked fingers. The length comes from MakeHuman's own
     # measure/finger targets, so the rig is fitted to it (bone scale doesn't
@@ -214,7 +246,7 @@ def make_human(look):
             md = cl.modifiers.new("standoff", "DISPLACE")
             md.direction = "NORMAL"
             md.mid_level = 0.0
-            md.strength = 0.005
+            md.strength = look.get("standoff", 0.005)
     if look.get("hair"):
         HumanService.add_mhclo_asset(user_asset("hair", look["hair"]), bm, asset_type="Hair", subdiv_levels=0)
     # MPFB deletes the body under each garment; keep it under torn clothes so
@@ -733,6 +765,27 @@ def _rise_arms(up):
             (f"upperarm_{b}", (0.3 * sx[b], -0.8, 0.5)), (f"lowerarm_{b}", (0.1 * sx[b], -0.5, -0.85))]
 
 
+def _prone():
+    """Face down on the floor, the head craned up and forward."""
+    return [("pelvis", ("drop", 0.82)), ("pelvis", ("X", 84)), ("spine_02", ("X", -10)),
+            ("neck_01", ("X", -28)), ("head", ("X", -34)),
+            ("thigh_l", (0.08, 0.98, -0.12)), ("calf_l", (0.06, 0.99, -0.1)),
+            ("thigh_r", (-0.08, 0.98, -0.12)), ("calf_r", (-0.06, 0.99, -0.1))]
+
+
+def _crawl_arms(lead, k):
+    """`lead` arm reaching out ahead (k 1) or hauling in under the chest (k 0);
+    the other doing the opposite."""
+    sx = {"l": 1, "r": -1}
+    out = []
+    for side in ("l", "r"):
+        reach = k if side == lead else 1 - k
+        x = sx[side]
+        out += [(f"upperarm_{side}", (0.28 * x, -0.95 * reach - 0.25 * (1 - reach), -0.25 * reach - 0.95 * (1 - reach))),
+                (f"lowerarm_{side}", (0.12 * x, -0.97 * reach + 0.35 * (1 - reach), -0.2 * reach - 0.9 * (1 - reach)))]
+    return out + [("fingers", ("curl", 30))]
+
+
 CLIPS = {
     # the shamble: arms out, a lopsided drag, the head lolling
     "walk": {"loop": True, "keys": [
@@ -789,6 +842,11 @@ CLIPS = {
               ("thigh_r", (-0.12, -0.6, 0.79)), ("calf_r", (-0.06, -1, 0.05)),
               ("upperarm_l", (0.95, 0.3, 0.1)), ("lowerarm_l", (0.9, 0.0, 0.4)),
               ("upperarm_r", (-0.95, 0.25, 0.15)), ("lowerarm_r", (-0.98, -0.15, 0.05))]),
+    ]},
+    # dragging itself along on its arms, face down, head up at you: what's
+    # left of a zombie whose legs were blown off (zombies.js hides them)
+    "crawl": {"loop": True, "keys": [
+        (f, _prone() + _crawl_arms(side, k)) for f, side, k in ((0, "l", 1), (12, "l", 0), (24, "r", 1), (36, "r", 0), (48, "l", 1))
     ]},
     # out of a grave (the game lifts the body through the ground meanwhile):
     # head up, hands clawing over each other, then into the shamble.
@@ -868,7 +926,19 @@ LEAPER_CLIPS = {
     "die": {"loop": False, "keys": [(f, s + CLAWS) for f, s in CLIPS["die"]["keys"]]},
     "rise": {"loop": False, "keys": [(f, s + CLAWS) for f, s in CLIPS["rise"]["keys"]]},
 }
-CLIP_SETS = {"human": CLIPS, "leaper": LEAPER_CLIPS}
+# The spitter: the human set and the spit. Back and up (the throat working),
+# then the head thrown forward; frame 16 is the release (zombies.js SPIT).
+SPITTER_CLIPS = {**CLIPS, "spit": {"loop": False, "keys": [
+    (0, _sway(0) + ARMS_OUT),
+    (10, [("spine_01", ("X", -10)), ("spine_02", ("X", -12)), ("neck_01", ("X", -14)), ("head", ("X", -30)),
+          ("upperarm_l", (0.45, 0.2, -0.87)), ("lowerarm_l", (0.3, 0.1, -0.95)),
+          ("upperarm_r", (-0.45, 0.2, -0.87)), ("lowerarm_r", (-0.3, 0.1, -0.95))]),
+    (16, [("spine_01", ("X", 24)), ("spine_02", ("X", 14)), ("neck_01", ("X", 10)), ("head", ("X", 22)),
+          ("upperarm_l", (0.4, 0.35, -0.85)), ("lowerarm_l", (0.25, 0.2, -0.95)),
+          ("upperarm_r", (-0.4, 0.35, -0.85)), ("lowerarm_r", (-0.25, 0.2, -0.95))]),
+    (28, _sway(0) + ARMS_OUT),
+]}}
+CLIP_SETS = {"human": CLIPS, "leaper": LEAPER_CLIPS, "spitter": SPITTER_CLIPS}
 
 
 def _rest(rig):

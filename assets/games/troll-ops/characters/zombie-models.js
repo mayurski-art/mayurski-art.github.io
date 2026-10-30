@@ -5,9 +5,10 @@
 // to colour + normal maps, clothes with baked colour + alpha tears, teeth and
 // milky eyes, all joined into ONE skinned mesh on one texture atlas (one draw
 // per zombie, plus its shadow; the eyes' glow is the atlas's emissive map),
-// and six in-place clips: walk, run, idle, attack, die, rise
-// (clawing out of a grave). The leaper's set swaps walk/run for lope,
-// crouch and leap.
+// and seven in-place clips: walk, run, idle, attack, die, rise (clawing out
+// of a grave) and crawl (a zombie whose legs are gone). The leaper's set
+// swaps walk/run for lope, crouch and leap and has no crawl; the spitter's
+// adds spit.
 //
 // Each GLB is fetched and parsed once. Every zombie is a skinned clone that
 // shares the geometry, textures and (apart from a skin tint) the materials,
@@ -18,16 +19,20 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 const LOOKS = {
-  walker: new URL("../models/zombie-walker.glb?v=zr4", import.meta.url).href,
-  runner: new URL("../models/zombie-runner.glb?v=zr4", import.meta.url).href,
-  woman: new URL("../models/zombie-woman.glb?v=zr4", import.meta.url).href,
-  worker: new URL("../models/zombie-worker.glb?v=zr4", import.meta.url).href,
+  walker: new URL("../models/zombie-walker.glb?v=ze1", import.meta.url).href,
+  runner: new URL("../models/zombie-runner.glb?v=ze1", import.meta.url).href,
+  woman: new URL("../models/zombie-woman.glb?v=ze1", import.meta.url).href,
+  worker: new URL("../models/zombie-worker.glb?v=ze1", import.meta.url).href,
   // the rare one: a rubber mask of the real trollface art (zombies.js
   // picks it about 1 in 40)
-  trollmask: new URL("../models/zombie-trollmask.glb?v=zr4", import.meta.url).href,
+  trollmask: new URL("../models/zombie-trollmask.glb?v=ze1", import.meta.url).href,
   // the leaper's own gaunt, long-armed body and clip set (idle, lope,
   // crouch, leap, attack, die, rise)
   leaper: new URL("../models/zombie-leaper.glb?v=zr4", import.meta.url).href,
+  // the late waves' own bodies (modes/zombies/specials.js): a gaunt woman
+  // with her jaw hanging (the "spit" clip), a swollen man in overalls
+  spitter: new URL("../models/zombie-spitter.glb?v=ze1", import.meta.url).href,
+  bloater: new URL("../models/zombie-bloater.glb?v=ze1", import.meta.url).href,
 };
 export const ZOMBIE_LOOKS = Object.keys(LOOKS);
 export const RARE_LOOKS = { trollmask: 1 / 40 };
@@ -36,15 +41,18 @@ const RARE_BASE = { ...RARE_LOOKS };
    new odds for some rare looks, or null for the usual ones. */
 export function setRareLooks(odds) { Object.assign(RARE_LOOKS, RARE_BASE, odds || {}); }
 // a type that always wears its own look (and no other type does)
-export const TYPE_LOOKS = { leaper: "leaper" };
+export const TYPE_LOOKS = { leaper: "leaper", spitter: "spitter", bloater: "bloater" };
+// a type that wears this look when it can (others may wear it too): the
+// riot helmet and vest are fitted to the walker
+const PREFER_LOOKS = { armoured: "walker" };
 const DEDICATED = new Set(Object.values(TYPE_LOOKS));
 
 // Ground speed (m/s) each clip's stride covers at timeScale 1, so the feet
 // keep pace with the body instead of skating.
-export const CLIP_SPEED = { walk: 0.95, run: 3.4, lope: 4.0 };
+export const CLIP_SPEED = { walk: 0.95, run: 3.4, lope: 4.0, crawl: 0.45 };
 
 // clips that play once and hold their last frame
-export const ONE_SHOTS = new Set(["attack", "die", "rise", "crouch", "leap"]);
+export const ONE_SHOTS = new Set(["attack", "die", "rise", "crouch", "leap", "spit"]);
 
 const templates = new Map();   // look -> { scene, clips } once loaded
 const pending = new Map();     // look -> Promise
@@ -101,7 +109,7 @@ export function lookReady(look) {
 /* A look for a new zombie of `type`: its own look if it has one, else each
    rare one at its odds, else any common one. */
 export function pickLook(type = null) {
-  const own = TYPE_LOOKS[type];
+  const own = TYPE_LOOKS[type] || PREFER_LOOKS[type];
   if (own && templates.has(own)) return own;
   const ready = readyLooks().filter((l) => !DEDICATED.has(l));
   for (const [look, odds] of Object.entries(RARE_LOOKS)) {
