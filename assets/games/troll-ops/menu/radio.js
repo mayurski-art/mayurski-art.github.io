@@ -36,7 +36,11 @@ function loadDurations(onDone) {
     a.preload = "metadata";
     a.addEventListener("loadedmetadata", () => {
       if (Number.isFinite(a.duration)) durations[i] = a.duration;
+      // (load() too: without it the emptied element keeps its fetch, and
+      // 22 parked song requests hold the connections the radio's own
+      // seeks need)
       a.removeAttribute("src");
+      a.load();
       onDone();
     }, { once: true });
     a.src = t.src;
