@@ -15,10 +15,8 @@ import { FlowField } from "./nav.js?v=ti1-bs1b7d-fl1-or1-gf1-tg1-tfb8";
 import { clampInsidePolygon, insidePolygon } from "../maps/edge.js?v=or1";
 import { botPerks, perkBits, PERK_TUNE } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
 
-const NAMES = [
-  "grinbot", "sneerbot", "chuckles", "smirko", "haha_9000", "kekbot",
-  "widemouth", "lolgrin", "trollbyte", "yikesbot", "guffaw", "snicker",
-];
+// Every bot is just "bot" (user, 2026-10-30), so nobody takes one for a person.
+const BOT_NAME = "bot";
 
 const BOT_HP = 100;
 const BOT_SPEED = 4.2;
@@ -296,7 +294,7 @@ class Bot {
   constructor(team, spawn, difficulty = "regular", rules = {}) {
     this.rules = rules;   // the BotManager's, shared: the match's mode rules
     this.id = `bot-${(counter++).toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-    this.name = NAMES[counter % NAMES.length];
+    this.name = BOT_NAME;
     this.team = team;
     this.isBot = true;
     // A mode can fix the tier (Troll Royale: rules.skill, match-start.js beginMatch).
