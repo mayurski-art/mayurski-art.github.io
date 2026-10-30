@@ -14,13 +14,13 @@
 import { createBo2Menu } from "../../../js/bo2-menu.js?v=to-ft2-tb1-nd1-ul1";
 import { createMapMode } from "../../../js/troll-map-mode.js?v=to-bo2d";
 import { joinSitePresence, viewerId } from "../../../js/site-presence.js?v=to-bo2d-ol1-iv1-mv1-wo1";
-import { initInvites, invitePlayer } from "./invites.js?v=iv1-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-pty1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416";
+import { initInvites, invitePlayer, squadUp, partyView, PARTY_SIZE } from "./invites.js?v=iv1-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-pty1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1";
 import { initPublicChat } from "./public-chat.js?v=pch1-nb2-pc2-gf1-sc1-tw1-nd2";
-import { startOnline, onlinePlayers, serverList, joinServer, describe, setLobbyActivity, pushActivity } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416";
+import { startOnline, onlinePlayers, serverList, joinServer, describe, setLobbyActivity, pushActivity } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1";
 import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER, getLevel, rankProgress, rankXpText } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
 import { ACHIEVEMENTS } from "../progression/achievements.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
-import { mountFnLobby } from "./lobby-fn.js?v=fn1-fn2-rl1-rl2-rl3-mt1-sm1-ip1-fn6-ug1-ugm1-tw1-fnu1-fnu2-hw1-hwl1-sc1-bgm1-nwc1";
-import { mountFriends } from "./friends.js?v=fr1";
+import { mountFnLobby } from "./lobby-fn.js?v=fn1-fn2-rl1-rl2-rl3-mt1-sm1-ip1-fn6-ug1-ugm1-tw1-fnu1-fnu2-hw1-hwl1-sc1-bgm1-nwc1-lmg1";
+import { mountFriends } from "./friends.js?v=fr1-lmg1";
 import { openPfpStudio } from "./pfp-studio.js?v=pf1";
 import { pickAvatar } from "./avatar-upload.js?v=au1";
 
@@ -35,8 +35,8 @@ import { MODES } from "../modes/modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d
 import { setMapShot } from "../maps/map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1-sr1-ug5-or1-sp1-pv1-tb3-pv2-dm1-kbk2-tfp7-tfb8-rfx2-hgm1-ugb5-ugm1-hgb7";
 import { leaveToArcade, initExitLinks } from "./exit-links.js?v=ex1-cl1";
 import { game } from "../core/state.js?v=st1";
-import { inviteLink, prepareHubEntry } from "../modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416";
-import { openKiosk } from "../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416";
+import { inviteLink, prepareHubEntry } from "../modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1";
+import { openKiosk } from "../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1";
 import { credits } from "../modes/zombies/credits.js?v=zc1-zc2";
 import { TROLL_RETICLE_LEVEL, trollReticleUnlocked, trollReticleLabel, toggleTrollReticle } from "../view/troll-reticle.js?v=tr1-ret1-mrg1-hd1-mrc1-tw1-rt2-rd1-ars1-p416";
 import { sidePref, setSidePref, SIDE_NAMES } from "../modes/royale-side.js?v=rs1-tw1";
@@ -1240,9 +1240,11 @@ renameForm.addEventListener("submit", (e) => {
    online i should be able to see them where i see the whole 1 Player (8
    max) ... when there are users who are not online then they dont show up
    there". Presence drops a closed tab on its next sync, so this list is
-   only ever who's on. Up to 7 beside you (8 in all); past that, a line
-   opens Who's Online. */
-const PARTY_MAX = 8;
+   only ever who's on. Up to 7 beside you; past that, a line opens Who's
+   Online. The head counts your party (you and who's joined, a squad of
+   PARTY_SIZE: user, 2026-10-30, "how is the 1 player (8 max) going to make
+   sense"); the list under it is "Online now". */
+const ONLINE_SHOWN = 7;
 const partyList = document.createElement("div");
 partyList.className = "to-bo2-party-others";
 partyList.setAttribute("role", "list");
@@ -1254,7 +1256,7 @@ function renderPartyOthers() {
   // (the Play page's invite bubbles take theirs from here: lobby.js)
   // (and the mode tiles count what they're playing: lobby-fn.js)
   dispatchEvent(new CustomEvent("trollforces:online", { detail: others.map(({ viewerId, name, userId, activity }) => ({ viewerId, name, userId, activity })) }));
-  const shown = others.slice(0, PARTY_MAX - 1);
+  const shown = others.slice(0, ONLINE_SHOWN);
   partyList.replaceChildren(...shown.map((o) => {
     const item = document.createElement("div");
     item.className = "to-bo2-party-item";
@@ -1289,7 +1291,19 @@ function renderPartyOthers() {
       inv.title = msg || "";
       if (/^Invite sent/.test(msg || "")) { inv.textContent = "Sent"; inv.disabled = true; }
     });
-    item.append(row, inv);
+    // Squad up: their squad joins ours, if they say yes (invites.js)
+    const sq = document.createElement("button");
+    sq.type = "button";
+    sq.className = "tf-btn tf-btn--secondary to-bo2-party-invite is-squad";
+    sq.textContent = "Squad";
+    sq.setAttribute("aria-label", `Ask ${o.name}'s squad to join up with yours`);
+    sq.addEventListener("click", () => {
+      const msg = squadUp({ viewerId: o.viewerId, name: o.name });
+      sq.title = msg || "";
+      setStatus?.(msg || "");
+      if (/^Squad request sent/.test(msg || "")) { sq.textContent = "Asked"; sq.disabled = true; }
+    });
+    item.append(row, inv, sq);
     return item;
   }));
   const more = document.createElement("button");
@@ -1326,10 +1340,14 @@ function fitPartyList(setMore) {
   }
 }
 addEventListener("resize", () => renderParty());
+// who joined: the head's count (only the head: the list is the roster's)
+const renderPartyHead = () => { $(".to-bo2-party-lbl", root).innerHTML = `Party <span>${1 + partyView().people.length}/${PARTY_SIZE}</span>`; };
+addEventListener("trollforces:party", renderPartyHead);
 function renderParty() {
   const p = window.TrollrunnerAccounts?.getCachedProfile?.();
   const n = renderPartyOthers();
-  $(".to-bo2-party-lbl", root).innerHTML = `${n} Player${n > 1 ? "s" : ""} <span>(${PARTY_MAX} Max)</span>`;
+  renderPartyHead();
+  partyList.dataset.head = n > 1 ? "Online now" : "";
   $(".to-bo2-name", root).textContent = p?.username ? withClan(p.username, getMyCard().clan) : "Guest troll";
   const rankEl = $("#to-lo-rank-label"), owner = !!rankEl?.classList.contains("is-owner");
   const lv = $(".to-bo2-lv", root);
@@ -1468,20 +1486,36 @@ let dlHide = 0;
    user 2026-10-16) ───────────────────────────────────────────────────────
    For slow laptops (user, 2026-10-03): off freezes the planet and the
    asteroids, drops the menu's CSS animations (body.tf-anim-off), and
-   game.js cuts the solo pre-match countdown short. Remembered per device. */
-const ANIM_KEY = "tf-anim-off";
-let animOff = false;
-try { animOff = localStorage.getItem(ANIM_KEY) === "1"; } catch {}
+   game.js cuts the solo pre-match countdown short. On unless the player
+   turned it off (user, 2026-10-30: "animations should be on by default ...
+   unless the user has specifically turned it off"; the system's reduced
+   motion no longer stops it), and on the account, so it follows them to
+   every device (net/cloud-save.js SYNCED_KEYS). */
+const ANIM_KEY = "trollops:anim";   // "off" when turned off
+const readAnim = () => { try { return localStorage.getItem(ANIM_KEY) === "off"; } catch { return false; } };
+// (the per-device key it was: carried over once)
+try {
+  if (localStorage.getItem("tf-anim-off") === "1" && localStorage.getItem(ANIM_KEY) == null) localStorage.setItem(ANIM_KEY, "off");
+  localStorage.removeItem("tf-anim-off");
+} catch {}
+let animOff = readAnim();
 function applyAnim() {
   document.body.classList.toggle("tf-anim-off", animOff);
   backdrop?.setStill?.(animOff);
 }
 function toggleAnim() {
   animOff = !animOff;
-  try { animOff ? localStorage.setItem(ANIM_KEY, "1") : localStorage.removeItem(ANIM_KEY); } catch {}
+  try { localStorage.setItem(ANIM_KEY, animOff ? "off" : "on"); } catch {}
   applyAnim();
 }
 applyAnim();
+// signing in on another device brings the account's choice
+addEventListener("trollforces:cloud-restored", (e) => {
+  if (!e.detail?.includes(ANIM_KEY)) return;
+  animOff = readAnim();
+  applyAnim();
+  menu.refresh();
+});
 
 /* ── The backdrop is a still now (menu/lobby-fn.js); the molten planet
    (menu-globe.js) stays the trollrunner.net home's. While the menu covers
@@ -1501,11 +1535,12 @@ const fn = mountFnLobby({
   getLevel, getPrestige, rankProgress, rankXpText, PRESTIGE_MASTER, ACHIEVEMENTS,
   royaleSide: () => { const id = sidePref(MODES.royale?.sides || ["trollface"]); return { id, ...SIDE_NAMES[id] }; },
   switchRoyaleSide: () => sideRow()?.adjust(1),
+  partyView,
 });
 
 /* ── Friends: the top bar's people button and its drawer (menu/friends.js) ── */
 friendsUi = mountFriends({
-  root, getRoster: () => roster, onlinePlayers, describe, serverList, joinServer, invitePlayer,
+  root, getRoster: () => roster, onlinePlayers, describe, serverList, joinServer, invitePlayer, squadUp,
   openProfileCard, openGuestCard, setStatus, signIn: () => $("#to-pf-profile")?.click(),
 });
 

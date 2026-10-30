@@ -4704,7 +4704,12 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-bo2.is-fn .to-bo2-party-row small, .to-bo2.is-fn .to-bo2-lv, .to-bo2.is-fn .to-bo2-xp, .to-bo2.is-fn .to-bo2-party-more { font-family: var(--fn-ui); font-weight: 700; }
 .to-bo2.is-fn .to-bo2-lv { color: var(--fn-cyan); }
 .to-bo2.is-fn .tf-btn--secondary.to-bo2-party-invite { border-radius: 8px; border: 0; background: var(--fn-yellow); color: #1b1400; font: 800 13px var(--fn-ui); letter-spacing: .04em; text-transform: uppercase; }
-.to-bo2.is-fn .to-party { border-color: var(--fn-line); background: rgba(79,216,255,.1); }
+.to-bo2.is-fn .to-party { margin: 0; padding: 4px 4px 4px 10px; border-color: var(--fn-line); border-radius: 0; background: rgba(79,216,255,.1); }
+/* one line in the lobby's party card (its full text on hover), so it never
+   spills under the news or the mode card */
+.to-bo2.is-fn .to-party-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 13px var(--fn-ui); color: #dbe4ff; }
+.to-bo2.is-fn .to-party-leave { min-height: 28px; padding: 0 10px; border-radius: 0; font: 800 12px var(--fn-ui); letter-spacing: .05em; text-transform: uppercase; }
+.to-bo2.is-fn[data-screen="main"] .to-bo2-party { overflow: hidden; }
 
 /* the bottom row: online count and Back left, chat right; tabs stand in
    for the old Barracks and Options pills */
@@ -4814,6 +4819,9 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   border-bottom: 4px solid #0b0d14; }
 .to-fn-go:hover { background: linear-gradient(90deg, rgba(255,255,255,.96) 0%, rgba(240,248,255,.76) 34%, rgba(240,248,255,0) 58%), var(--play-art) right center / cover no-repeat, #cfe6f7; }
 .to-bo2.is-fn.has-pad .to-fn-go { padding-left: 62px; }
+/* in someone else's party: their leader starts (lobby-fn.js renderGo) */
+.to-fn-go.is-waiting { cursor: default; font-size: 26px; filter: grayscale(.65) brightness(.92); }
+.to-fn-go.is-waiting:hover { filter: grayscale(.65) brightness(.92); }
 /* (720 wide, and 1440 for a 2x/3x screen: the button is 250-406 px wide) */
 .to-fn-go { --play-art: url("ui/lobby/play-troll.webp"); }
 @supports (background-image: image-set(url("x.webp") 1x)) {
@@ -4823,6 +4831,8 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
    of like what we had in the previous live version"): the map's picture,
    NEWS in the corner, the title big */
 .to-fn-play > .to-fn-news { position: absolute; left: 0; right: 0; bottom: calc(100% + 14px); height: 140px; }
+.to-fn-news { touch-action: pan-y; user-select: none; -webkit-user-select: none; }   /* (swiped sideways: lobby-fn.js) */
+.to-fn-news img { -webkit-user-drag: none; pointer-events: none; }
 .to-fn-news-card { border-radius: 2px; }   /* (square, as every panel here) */
 /* the bottom row: plain hints on the band */
 .to-bo2.is-fn .to-bo2-online, .to-fn-allmodes, .to-bo2.is-fn .to-bo2-foot .to-char-emote, .to-bo2.is-fn .to-bo2-foot .to-bo2-chat { border: 0; border-radius: 2px; background: none; box-shadow: none; color: #e6ebf7; font: 600 17px var(--fn-ui); letter-spacing: .02em; text-transform: none; }
@@ -4830,6 +4840,8 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 /* who's in the party: a square navy card */
 .to-bo2.is-fn[data-screen="main"] .to-bo2-party { border-radius: 2px; border: 0; background: rgba(14,20,44,.88); }
 .to-bo2.is-fn .to-bo2-party-row { border-radius: 0; }
+/* "Online now" over the list of who's on, under your own row */
+.to-bo2.is-fn .to-bo2-party-others:not([data-head=""])::before { content: attr(data-head); margin-top: 4px; font: 800 12px var(--fn-ui); letter-spacing: .1em; text-transform: uppercase; color: #9fb2e4; }
 /* over the stage: names with a dotted line, the state under in green;
    the empty pads' "+" a dashed square */
 .to-stage-tag b { padding: 0 4px 3px; border: 0; border-bottom: 2px dotted rgba(255,255,255,.6); border-radius: 0; background: none; color: #fff; font: 700 18px var(--fn-ui); text-shadow: 0 1px 4px rgba(0,0,0,.95), 0 0 10px rgba(0,0,0,.6); }
@@ -4842,6 +4854,31 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-bo2.is-fn .tr-menu-item, .to-bo2.is-fn .to-bo2-back { border-radius: 2px; }
 .to-bo2.is-fn .tr-menu-item.is-primary { border-radius: 0; background: linear-gradient(180deg, #fff466, #f3e23a 55%, #dfc81c); }
 .to-bo2.is-fn .tr-menu-title { font-style: normal; }
+/* the online list's Squad (up) beside Invite: outlined, Invite stays the yellow one */
+.to-bo2.is-fn .tf-btn--secondary.to-bo2-party-invite.is-squad { border: 1px solid var(--fn-line); background: rgba(8,12,34,.6); color: #fff; }
+/* two squads joined up (lobby.js): small white arrows either side of the
+   squad's name, under the pads, and Together / Versus */
+.to-squad-nav { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); z-index: 2; display: flex; align-items: center; gap: 14px; pointer-events: auto; font-family: var(--fn-ui); }
+.to-squad-nav[hidden] { display: none; }
+.to-squad-arrow { width: 40px; height: 40px; padding: 0; border: 0; background: none; cursor: pointer; display: grid; place-items: center; filter: drop-shadow(0 2px 4px rgba(0,0,0,.8)); }
+.to-squad-arrow svg { width: 30px; height: 30px; fill: none; stroke: #fff; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
+.to-squad-arrow:hover svg { stroke: var(--fn-yellow); }
+.to-squad-head { display: grid; justify-items: center; gap: 4px; }
+.to-squad-name { font: 800 17px var(--fn-ui); letter-spacing: .06em; text-transform: uppercase; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.95); white-space: nowrap; }
+.to-squad-title { display: flex; align-items: center; gap: 4px; }
+.to-squad-title [hidden], .to-squad-row[hidden], .to-squad-arrow[hidden], .to-squad-split[hidden], .to-squad-pen[hidden] { display: none; }
+.to-squad-pen { width: 26px; height: 26px; padding: 0; border: 0; background: none; cursor: pointer; display: grid; place-items: center; filter: drop-shadow(0 1px 3px rgba(0,0,0,.9)); }
+.to-squad-pen svg { width: 15px; height: 15px; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.to-squad-pen:hover svg { stroke: var(--fn-yellow); }
+.to-squad-edit { width: 12em; padding: 3px 8px; border: 1px solid #fff; border-radius: 0; background: rgba(8,12,34,.85); color: #fff; font: 800 15px var(--fn-ui); letter-spacing: .04em; text-transform: uppercase; text-align: center; }
+.to-squad-row { display: flex; align-items: center; gap: 6px; }
+.to-squad-split { padding: 3px 9px; border: 1px solid rgba(255,255,255,.5); border-radius: 0; background: rgba(8,12,34,.75); color: #fff; font: 700 12px var(--fn-ui); letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+.to-squad-split:hover { background: #fff; color: #121733; }
+.to-squad-mode { display: flex; gap: 2px; padding: 2px; background: rgba(8,12,34,.75); }
+.to-squad-mode button { padding: 3px 10px; border: 0; border-radius: 0; background: none; color: #c4d1f3; font: 700 12px var(--fn-ui); letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+.to-squad-mode button.is-on { background: #fff; color: #121733; }
+.to-squad-mode button:disabled { cursor: default; }
+.to-squad-mode button:disabled:not(.is-on) { opacity: .55; }
 /* the modes page and the picker: upright heads */
 .to-fn-modes h2, .to-fn-tile-art b, .to-fn-picker h2 { font-style: normal; }
 .to-fn-tile-art { border-radius: 2px; }
@@ -4909,6 +4946,13 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-stage-add { width: 40px; height: 40px; margin: -20px 0 0 -20px; }
   .to-stage-add span { font-size: 26px; }
   .to-stage-bubble { display: none; }
+  /* the squads' arrows and name, tighter (the mode card is close) */
+  .to-squad-nav { gap: 2px; bottom: 2px; }
+  .to-squad-arrow { width: 28px; height: 32px; }
+  .to-squad-arrow svg { width: 22px; height: 22px; }
+  .to-squad-name { font-size: 13px; }
+  .to-squad-head { gap: 2px; }
+  .to-squad-mode button, .to-squad-split { padding: 2px 6px; font-size: 10px; }
   /* the tiles in one row that scrolls sideways */
   .to-fn-allmodes { bottom: calc(8px + var(--fn-safe-b)); min-height: 34px; font-size: 14px; }
   .to-fn-modes { gap: 8px; padding-bottom: calc(10px + var(--fn-safe-b)); }

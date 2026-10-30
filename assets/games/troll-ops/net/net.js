@@ -120,6 +120,7 @@ export class Net {
     this.connected = false;
     this.myVote = null; // our map vote during an intermission
     this.team = null;   // stays unset until chooseTeam, so it can't leak into the handshake
+    this.preferTeam = null;   // a joined squad's side (menu/invites.js), honoured by chooseTeam
     this.name = "operator";
     this.uid = null;     // the signed-in account id, so others can open our profile
     this.mapId = "grinsite";
@@ -229,13 +230,20 @@ export class Net {
     return m;
   }
 
-  /* Join the side with fewer people. Only peers whose team we actually know
+  /* Join the side with fewer people (unless a joined squad asks for one,
+     preferTeam). Only peers whose team we actually know
      are counted — counting undecided peers as phantoms made two simultaneous
      joiners both "balance" onto ghost. Bots aren't counted either: they pad
      whichever side is short, so counting them put a second human on the
      first one's side about half the time. On a genuine tie (usually because
      nobody has chosen yet) id order decides, so simultaneous joiners split. */
   chooseTeam() {
+    // a joined squad's side (menu/invites.js: Together, or Versus)
+    if (this.preferTeam === "phantom" || this.preferTeam === "ghost") {
+      this.team = this.preferTeam;
+      this.send({ t: "here", id: this.id, name: this.name, u: this.uid || undefined, team: this.team, js: this.since, lr: 1 });
+      return this.team;
+    }
     let phantom = 0, ghost = 0;
     const humans = [];
     for (const p of this.peers.values()) {
