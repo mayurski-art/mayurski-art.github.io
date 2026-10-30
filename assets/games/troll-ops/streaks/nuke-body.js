@@ -53,7 +53,7 @@ export function poseNukeLocal(rig) {
   const dev = bodyDevice(rig);
   dev.visible = true;
   dev.scale.setScalar(SCALE * s);
-  const at = lerp3([0.06, -0.5, -0.16], [0, -0.16, -0.34], up);
+  const at = lerp3([0.06, -0.5, -0.16], [0, -0.05, -0.36], up);
   dev.position.set(at[0] * s, at[1] * s, at[2] * s);
   dev.rotation.set(-0.15 - 0.5 * up, 0, 0);
   const cover = ease((h - NUKE.coverAt) / 0.28);
