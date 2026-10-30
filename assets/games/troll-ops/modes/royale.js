@@ -25,6 +25,11 @@ import { royaleRecordReset, royaleRecordTick, stopRoyaleRecord } from "./royale-
 import { useAnimStart, useAnimTick, useAnimFinish, useAnimCancel, useWire, poseUsePeer } from "./royale-use.js?v=ru1-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1";
 import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose } from "./royale-fall.js?v=dc3-dc4-rf1-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-rx1-p416";
 import { sidePref } from "./royale-side.js?v=rs1-tw1";
+import { noteWorldBeforeSwap } from "./royale-worlds.js?v=rw1";
+import { initLiveReport, closeLiveReport } from "./royale-live-report.js?v=rlr1";
+import { squadSize, teamsAlive, myTeamAlive, squadSeats, botSquadGoal } from "./royale-squads.js?v=sq1";
+import { updateTeamHud, clearTeamHud } from "./royale-team-hud.js?v=tm1-rd1";
+import { updateRoyaleDown, clearRoyaleDown, botReviveGoal } from "./royale-down.js?v=rd1";
 import { updateRoyaleFlip, flipCineOn, resetRoyaleFlip, flipAt, matchingSpot } from "./royale-flip.js?v=rf1-hgb9-tw1-op1-hgo1";
 import { buildMinimapBase } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1";
 import { findOpenGround } from "./modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-tfb8-ug1-ugm1-hgb8-hgb9";
@@ -293,6 +298,13 @@ function humanOrder() {
   return list;
 }
 
+/* In teams: a party's squad on a plane of its own, its bots beside it
+   (royale-squads.js squadSeats). Map id -> slot. */
+function teamSeats() {
+  const humans = humanOrder().map((h) => ({ id: h.id, team: h.id === (game.net.id || "me") ? game.net.team : game.net.peers.get(h.id)?.team }));
+  return squadSeats(humans, game.bots.bots.map((b) => ({ id: b.id, team: b.team })), PLANES.seats, PLANES.count);
+}
+
 /* Where you stand at the start: in the aisle by your seat, facing across. */
 function seatStand(seat) {
   const s = SEAT_SPOTS[seat % SEAT_SPOTS.length];
@@ -305,7 +317,8 @@ function seatStand(seat) {
    which way to face. */
 export function boardRoyale() {
   const r = royale;
-  const slot = Math.max(0, humanOrder().findIndex((h) => h.id === (game.net.id || "me")));
+  const slot = squadSize() > 1 ? (teamSeats().get(game.net.id || "me") ?? 0)
+    : Math.max(0, humanOrder().findIndex((h) => h.id === (game.net.id || "me")));
   const { plane, seat } = Squadron.seatOf(slot);
   r.plane = plane;
   r.seat = seat;
@@ -322,9 +335,11 @@ export function boardRoyale() {
 export function placeBotsInLobby() {
   const r = royale, sq = r.drop.squadron;
   const humans = humanOrder().length;
+  const seats = squadSize() > 1 ? teamSeats() : null;   // in teams: beside the squad
   const perPlane = new Map();
   game.bots.bots.forEach((b, i) => {
-    const { plane, seat } = Squadron.seatOf(humans + i);
+    const slot = seats ? seats.get(b.id) : humans + i;
+    const { plane, seat } = Squadron.seatOf(slot);
     const f = sq.flights[plane];
     const order = perPlane.get(plane) || 0;
     perPlane.set(plane, order + 1);
@@ -332,7 +347,7 @@ export function placeBotsInLobby() {
     b.airborne = true;   // parked: the bot AI leaves it be until it lands
     b.drop = { state: "aboard", plane, seat, jumpT };
     b.dropCode = DROP_BUS;
-    b.dropSlot = humans + i + 1;   // its seat, for the wire
+    b.dropSlot = slot + 1;   // its seat, for the wire
     botSeatPos(b);
     game.net.publishBot(b);
   });
@@ -771,6 +786,9 @@ function royaleLateSpectate() {
 }
 
 export function teardownRoyale() {
+  clearTeamHud();      // the team panel and markers (royale-team-hud.js)
+  clearRoyaleDown();   // down, the revive (royale-down.js)
+  closeLiveReport();   // the spectator's live report (royale-live-report.js): the end's takes over
   stopRoyaleRecord("end");   // (already stopped at a death or a finish; this is the match ended from outside)
   closeSide();
   document.body.classList.remove("to-aboard");   // the plane's trimmed touch HUD (view/player-update.js)
@@ -803,20 +821,31 @@ export function teardownRoyale() {
    host (on anyone else's screen those arrive as peers). */
 export function royaleAliveList() {
   const list = [];
-  if (game.player.alive) list.push({ id: game.net.id, name: "You", pos: game.move.pos, yaw: game.look.yaw, me: true });
+  if (game.player.alive) list.push({ id: game.net.id, name: "You", pos: game.move.pos, yaw: game.look.yaw, me: true, team: game.net.team });
   const seen = new Set([game.net.id]);
   for (const rp of game.remotes.byId.values()) {
     if (!rp.alive || seen.has(rp.netId)) continue;
     seen.add(rp.netId);
-    list.push({ id: rp.netId, name: rp.tagText, pos: rp.pos, yaw: rp.yaw || 0 });
+    list.push({ id: rp.netId, name: rp.tagText, pos: rp.pos, yaw: rp.yaw || 0, team: rp.team });
   }
   for (const b of game.bots.bots) {
     if (!b.alive || seen.has(b.id)) continue;
     seen.add(b.id);
-    list.push({ id: b.id, name: b.name, pos: b.pos, yaw: b.yaw || 0 });
+    list.push({ id: b.id, name: b.name, pos: b.pos, yaw: b.yaw || 0, team: b.team });
   }
   return list;
 }
+
+/* Out: where we finished, or (in teams, a teammate still up) not yet. The
+   spectator bar and the live report (royale-live-report.js) both say it. */
+function outLine(alive) {
+  const r = royale;
+  if (!r.place && squadSize() > 1) return "Eliminated — your team is still in it";
+  return `Eliminated — ${ordinal(r.place || standing(alive) + 1)} of ${r.peak}${squadSize() > 1 ? " teams" : ""}`;
+}
+
+/* How many are still in it: trolls, or in teams, teams (royale-squads.js). */
+const standing = (alive) => (squadSize() > 1 ? teamsAlive(alive) : alive.length);
 
 export function ordinal(n) {
   const s = ["th", "st", "nd", "rd"], v = n % 100;
@@ -862,6 +891,7 @@ export function swapRoyaleSide(to) {
   r.drop?.dispose();   // (kept, done: a joiner's catch-up still reads it)
   r.scenery?.dispose();
   r.scenery = null;
+  noteWorldBeforeSwap(r, from);   // the side going away, for the report's Map tab (royale-worlds.js)
   closeSide();
   game.loadMap(to);
   openSide();
@@ -953,7 +983,11 @@ export function updateRoyale(dt) {
   r.chests?.update(dt, game.camera.position, game.player.alive && r.me === "ground" ? game.move.pos : null, game.audio);
 
   const alive = royaleAliveList();
-  if (r.live) r.peak = Math.max(r.peak, alive.length);
+  if (r.live) r.peak = Math.max(r.peak, standing(alive));
+  updateTeamHud(r.live);   // in teams: where they are, how they are (royale-team-hud.js)
+  if (r.live && !r.over) updateRoyaleDown(dt);   // in teams: down, not out (royale-down.js)
+  // in teams, our place comes when the last of us goes down
+  if (r.live && !r.place && !game.player.alive && squadSize() > 1 && !myTeamAlive(alive)) r.place = standing(alive) + 1;
 
   // Zone, countdown, trolls left.
   const secs = Math.max(0, Math.ceil(s.left));
@@ -1026,8 +1060,7 @@ export function updateRoyale(dt) {
     const prev = r.spectate;
     r.spectate = pickSpectateTarget(r.spectate, alive);
     if (r.spectate && r.spectate !== prev && r.spectate.id !== prev?.id) onSpectateTarget();
-    const out = r.lateJoin ? "Joined mid-match — you're in the next one"
-      : `Eliminated — ${ordinal(r.place || alive.length + 1)} of ${r.peak}`;
+    const out = r.lateJoin ? "Joined mid-match — you're in the next one" : outLine(alive);
     if (!r.outShown) { r.outShown = true; game.els.respawn.hidden = false; }
     const watching = royaleSpectating();
     // The spectator view is clear: no 62% death fade, no low-HP pulse, and
@@ -1050,8 +1083,8 @@ export function updateRoyale(dt) {
     }
   }
 
-  // The end: one troll left (or none, if the Cringe took the last two).
-  const ended = r.live && !r.over && r.t > 3 && ((r.peak >= 2 && alive.length <= 1) || alive.length === 0);
+  // The end: one troll (or team) left, or none, if the Cringe took the last two.
+  const ended = r.live && !r.over && r.t > 3 && ((r.peak >= 2 && standing(alive) <= 1) || alive.length === 0);
   if (ended) {
     r.endT += dt;
     if (r.endT > 1.2) finishRoyale(alive);
@@ -1063,20 +1096,25 @@ function finishRoyale(alive) {
   r.over = true;
   stopRoyaleRecord(game.player.alive ? "win" : "end");
   hideSpectateHud();
-  const won = game.player.alive;
+  const teams = squadSize() > 1;
+  // in teams, the team wins: you too, out or not
+  const won = teams ? myTeamAlive(alive) : game.player.alive;
   const place = won ? 1 : (r.place || r.peak);
-  const bonus = r.lateJoin ? 0 : Math.max(0, r.peak - place) * 4 + (won ? 40 : 0);
-  if (bonus > 0) game.addMatchXp(bonus, won ? "LAST TROLL STANDING" : `${ordinal(place).toUpperCase()} PLACE`);
+  const bonus = r.lateJoin ? 0 : Math.max(0, r.peak - place) * 4 * squadSize() + (won ? 40 : 0);
+  if (bonus > 0) game.addMatchXp(bonus, won ? (teams ? "LAST TEAM STANDING" : "LAST TROLL STANDING") : `${ordinal(place).toUpperCase()} PLACE`);
   const winner = alive.find((a) => !a.me)?.name;
   r.finalPlace = place;
-  game.endMatch(won ? "You win — last troll standing" : winner ? `${winner} wins` : "The Cringe wins");
+  if (teams) game.endMatch(won ? "Your team wins — last team standing" : winner ? `${winner}'s team wins` : "The Cringe wins", { won });
+  else game.endMatch(won ? "You win — last troll standing" : winner ? `${winner} wins` : "The Cringe wins");
 }
 
 /* Out of the match: where we finished, and everything we carried on the floor. */
 export function royaleOnDeath() {
   const r = royale;
   stopRoyaleRecord("death");
-  r.place = royaleAliveList().length + 1;
+  const left = royaleAliveList();
+  // in teams, a teammate still standing keeps our place open (updateRoyale)
+  r.place = squadSize() > 1 ? (myTeamAlive(left) ? 0 : standing(left) + 1) : left.length + 1;
   cancelRoyaleAct();
   // Out for good: nothing left to protect (its pill hung over the spectator view).
   game.player.spawnGuard = 0;
@@ -1297,6 +1335,9 @@ export function royaleNoise(x, z, by) {
 export function royaleBotObjective(b) {
   if (!royale.live) return null;
   if (!b.royaleInit) initRoyaleBot(b);
+  // in teams: a downed teammate near and nobody in sight (royale-down.js)
+  const rv = botReviveGoal(b);
+  if (rv) return rv;
   const s = royale.zone.state(royale.t);
   const c = s.next && s.stage !== "final" ? s.next : s;
   const outNow = RoyaleZone.outside(s, b.pos.x, b.pos.z);
@@ -1307,6 +1348,9 @@ export function royaleBotObjective(b) {
   // field walking straight into the next one and piling up there.
   const soon = s.stage !== "wait" || s.left < 15 + Math.max(0, d - c.r * 0.8) / 4;
   if (outNow || (d > c.r * 0.8 && soon)) return zone;
+  // in teams: back to the squad when it's strayed (royale-squads.js)
+  const squad = botSquadGoal(b);
+  if (squad) return squad;
   const area = soon ? c : { x: s.x, z: s.z, r: s.r * 0.9 };
   const flee = royaleBotFlee(b, area);
   if (flee) return flee;
@@ -1618,7 +1662,7 @@ export function royalePickupGun(it) {
 
 /* Plating up / Hopium: a short channel, cancelled by firing or dying. */
 export function startRoyaleAct(kind) {
-  if (!royale || !game.player.alive || royale.act || game.isStaging()) return;
+  if (!royale || !game.player.alive || game.player.downed || royale.act || game.isStaging()) return;
   if (kind === "plate" && (game.player.plates <= 0 || game.player.armor >= ROYALE.maxArmor)) return;
   if (kind === "heal" && (game.player.heals <= 0 || game.player.hp >= game.player.maxHp)) return;
   royale.act = { kind, t: 0, dur: kind === "plate" ? ROYALE.plateTime : ROYALE.healTime, rate: (game.player.maxHp - game.player.hp) / ROYALE.healTime,
@@ -1710,7 +1754,7 @@ function updateTouchGear() {
 
 /* Spectating: keep watching someone while they're alive; our killer first. */
 function pickSpectateTarget(cur, alive) {
-  const others = alive.filter((a) => !a.me);
+  const others = spectateOrder(alive);
   if (!others.length) return null;
   if (cur) { const still = others.find((a) => a.id === cur.id); if (still) return still; }
   const killer = others.find((a) => a.id === game.player.lastKilledBy);
@@ -1727,9 +1771,13 @@ export function royaleSpectating() {
   return !!royale && !game.player.alive && !!royale.spectate && !game.killcam.replaying && game.gameState === "playing";
 }
 
-/* Everyone still standing but us, in a fixed order so prev/next go round. */
+/* Everyone still standing but us, in a fixed order so prev/next go round.
+   In teams, only our teammates while any are up (you watch your own). */
 function spectateOrder(alive = royaleAliveList()) {
-  return alive.filter((a) => !a.me).sort((a, b) => String(a.id).localeCompare(String(b.id)));
+  let others = alive.filter((a) => !a.me);
+  const mates = squadSize() > 1 ? others.filter((a) => a.team && a.team === game.net.team) : [];
+  if (mates.length) others = mates;
+  return others.sort((a, b) => String(a.id).localeCompare(String(b.id)));
 }
 
 export function cycleSpectate(dir) {
@@ -1799,6 +1847,8 @@ export function drawRoyaleMinimap(ctx, size) {
 export function initRoyale() {
   game.els.spectatePrev?.addEventListener("click", () => cycleSpectate(-1));
   game.els.spectateNext?.addEventListener("click", () => cycleSpectate(1));
+  // out and watching: the match report, live (royale-live-report.js)
+  initLiveReport({ royale: () => royale, alive: royaleAliveList, ordinal, outLine });
 
   // Touch: the plate and Hopium chips are buttons.
   game.els.gearPlates?.addEventListener("click", () => startRoyaleAct("plate"));

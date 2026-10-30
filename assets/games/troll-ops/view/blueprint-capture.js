@@ -71,7 +71,16 @@ function pass(renderer, scene, cam, mat) {
 
 /* game-like: { renderer, scene, colliders, ARENA, floorY, events }.
    Returns { canvas, bounds: {minX, minZ, span}, cut, cuts } or null. */
-export function captureBlueprint({ renderer, scene, colliders = [], arena, floorY = 0, events = [] }) {
+export function captureBlueprint(opts) {
+  const raw = captureBlueprintLater(opts);
+  return raw && raw.finish();
+}
+
+/* The same in two halves: the renders now (the scene must be there), the
+   pixels traced into linework (most of the time) when finish() is called.
+   Royale's flip (modes/royale-worlds.js) renders the side going away inside
+   the swap's frame and leaves the tracing for the report. */
+export function captureBlueprintLater({ renderer, scene, colliders = [], arena, floorY = 0, events = [] }) {
   if (!renderer || !scene || !arena) return null;
   try {
     targets();
@@ -98,10 +107,13 @@ export function captureBlueprint({ renderer, scene, colliders = [], arena, floor
 
     const nrm = pass(renderer, scene, cam, normalMat);
     const dep = pass(renderer, scene, cam, depthMat);
-    const canvas = trace(nrm, dep, { eye, range, span, cut });
     // The solid pieces the cut slices through: hatched as cut walls.
     const cuts = cut == null ? [] : colliders.filter((c) => c.min.y < cut && c.max.y > cut - 0.6 && c.max.y - c.min.y > 0.9);
-    return { canvas, bounds, cut, cuts, floor };
+    let done = null;
+    return {
+      bounds, cut,
+      finish: () => (done ||= { canvas: trace(nrm, dep, { eye, range, span, cut }), bounds, cut, cuts, floor }),
+    };
   } catch (e) {
     console.warn("[blueprint] capture failed", e);
     return null;

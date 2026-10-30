@@ -49,7 +49,7 @@ import { poseEmoteCode, emoteCode, emoteSeconds, FP_HAND_POSES, hideFpEmoteProps
 import { buildWatch, wristOf } from "./characters/wristwear.js?v=ww1c2m1-or1";
 import { MatchIntro } from "./modes/match-intro.js?v=mi5-wst-or1";
 import {
-  MODES, MODE_IDS, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
+  MODES, MODE_IDS, QUICKPLAY_BASE, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
 } from "./modes/modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-tfb8-ug1-ugm1-hgb8-hgb9";
 import { BotManager } from "./bots/bots.js?v=cg5-em1-wst-bs1-p22-bs2-sb2-gj1-fu1b7b7d-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-ob1-nl1-nf1-fl1-or1-tn2-bc1-gf1-tg1-mg1-bt2-sp1-tfb8-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
@@ -1019,7 +1019,6 @@ const BOT_TARGET = MAX_PLAYERS;   // a PvP room is padded with bots up to 22; ea
 // public server for their mode, instead of each getting their own random
 // room. Only overflow into a numbered shard (QTDM2, QTDM3, ...) once the
 // base room is genuinely full of real people — see joinQuickplay().
-const QUICKPLAY_BASE = { umb: "QUMB", tdm: "QTDM", ffa: "QFFA", dom: "QDOM", koth: "QKOH", oitc: "QOTC", gungame: "QGUN", snd: "QSND", infection: "QINF", royale: "QTRR", social: "QSOC", zhub: "QZHB" };
 const QUICKPLAY_MAX_SHARDS = 9;
 let roomIsCustom = false;   // true once the player types a code or asks for a new one
 /* The room's map, as its host told us before our match began (onStage). */

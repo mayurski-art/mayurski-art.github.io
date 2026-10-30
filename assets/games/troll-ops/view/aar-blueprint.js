@@ -31,12 +31,19 @@ function clock(seconds) {
 }
 
 /* `host`: an empty element. `d`: { mapName, modeName, arena, colliders,
-   events, counts, seconds, weaponName(id) }. Returns { draw, setCapture }. */
+   events, counts, seconds, weaponName(id), overlay? }. `overlay(g, P, M, inner)`, when
+   given, draws over the match on every draw (Royale's live report: the
+   storm, who's still standing). Returns { draw, setCapture, setEvents }. */
 export function mountBlueprint(host, d) {
-  const events = (d.events || []).map((e, i) => ({ ...e, i }));
-  let n = 0;
-  for (const e of events) if (e.kind === "kill") e.n = ++n;
-  const end = Math.max(1, d.seconds || 0, ...events.map((e) => e.t || 0));
+  const prep = (list) => {
+    const out = (list || []).map((e, i) => ({ ...e, i }));
+    let n = 0;
+    for (const e of out) if (e.kind === "kill") e.n = ++n;
+    return out;
+  };
+  let events = prep(d.events);
+  const endOf = (seconds) => Math.max(1, seconds || 0, ...events.map((e) => e.t || 0));
+  let end = endOf(d.seconds);
   const st = { show: { kill: true, death: true, assist: true, lines: true }, heat: false, t: end, hover: null, playing: 0 };
   let capture = d.capture || null;
   let sheet = null, sheetKey = "";
@@ -403,6 +410,7 @@ export function mountBlueprint(host, d) {
     g.drawImage(sheet, 0, 0);
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawMatch(g);
+    d.overlay?.(g, P, M, inner);
     clockOut.textContent = clock(st.t);
   }
 
@@ -415,5 +423,21 @@ export function mountBlueprint(host, d) {
     draw();
   }
 
-  return { draw, setCapture, state: st, hasCapture: () => !!capture };
+  /* The match so far, again (the live report, every second). The timeline
+     stays at the end if it was there. */
+  function setEvents(list, counts, seconds) {
+    const atEnd = st.t >= end - 1e-6;
+    events = prep(list);
+    end = endOf(seconds);
+    scrub.max = String(Math.ceil(end));
+    if (atEnd && !st.playing) { st.t = end; scrub.value = String(Math.ceil(end)); }
+    for (const k of ["kill", "death", "assist"]) {
+      const b = host.querySelector(`.to-bp-chip[data-k="${k}"] b`);
+      if (b) b.textContent = String(counts?.[k] ?? 0);
+    }
+    if (st.hover && !events.includes(st.hover)) st.hover = null;
+    draw();
+  }
+
+  return { draw, setCapture, setEvents, state: st, hasCapture: () => !!capture };
 }

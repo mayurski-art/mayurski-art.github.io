@@ -404,7 +404,7 @@ export class Net {
         p.heat = (m.hr | 0) === 1;
         p.wanted = typeof m.wl === "string" ? m.wl.slice(0, 80) : null;
         p.body = typeof m.bd === "string" ? m.bd.slice(0, 16) : null;   // a realistic body (cop-bodies.js)
-        p.downed = Math.max(0, Math.min(2, m.dn | 0));   // Zombies co-op: 1 down, 2 bled out (modes/zombies/coop.js)
+        p.downed = Math.max(0, Math.min(2, m.dn | 0));   // Zombies co-op: 1 down, 2 bled out (modes/zombies/coop.js); Royale in teams: 1 down
         if (m.bs != null) p.botSkill = BOT_SKILLS[m.bs | 0] || null;   // only bots carry it
         // keep a short history so the renderer can interpolate in the past
         p.snaps.push({ t: performance.now(), x: m.x, y: m.y, z: m.z, yaw: m.ry, pitch: m.rp, stance: m.st, moving: !!m.mv,
@@ -533,6 +533,11 @@ export class Net {
         const p = this.peer(m.id);
         p.vote = m.map;
         this.h.onVote?.(p, m.map);
+        break;
+      }
+      /* Troll Royale in teams: a downed teammate picked up (modes/royale-down.js). */
+      case "rv": {
+        this.onRevive?.(this.peer(m.id), m);
         break;
       }
       case "stall": {
@@ -734,6 +739,7 @@ export class Net {
       this.h.onJoin?.(p);
     }
     p.team = bot.team;
+    p.downed = bot.downed ? 1 : 0;   // Troll Royale in teams (modes/royale-down.js)
     p.name = bot.name;
     p.hp = bot.hp;
     p.alive = bot.alive;
@@ -791,6 +797,7 @@ export class Net {
       bd: bot.body || undefined,
       ck: bot.throwCk || undefined,
       ua: p.useAct || undefined,
+      dn: bot.downed ? 1 : undefined,   // Troll Royale in teams: down (modes/royale-down.js)
     });
   }
 

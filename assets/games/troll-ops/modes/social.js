@@ -140,7 +140,7 @@ export function cancelSocialReturn() {
 
 /* The owner's room-mode row in the pause menu: troll_runner, in a
    Socialize room, only. */
-const ROOM_MODE_IDS = ["social", "tdm", "ffa", "dom", "koth", "snd", "infection", "oitc", "gungame", "umb", "royale"];
+const ROOM_MODE_IDS = ["social", "tdm", "ffa", "dom", "koth", "snd", "infection", "oitc", "gungame", "umb", "royale", "royale_duo", "royale_trio", "royale_squad"];
 export function renderRoomModeRow() {
   const row = document.getElementById("to-set-roommode-row");
   const sel = document.getElementById("to-set-roommode");

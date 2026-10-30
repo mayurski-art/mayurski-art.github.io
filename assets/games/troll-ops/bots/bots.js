@@ -1547,7 +1547,7 @@ export class BotManager {
     this.bots = [];
     this.enabled = false;
     this.difficulty = "regular";
-    this.rules = { oneShot: false, calm: false, skill: null };   // the match's mode rules every bot reads (match-start.js beginMatch)
+    this.rules = { oneShot: false, calm: false, skill: null, squad: 0, humanSquads: null, goDown: null };   // the match's mode rules every bot reads (match-start.js beginMatch)
     this.fieldSrc = null;         // geometry the fields are built from
     this.fieldPool = new Map();   // [level|]target id -> FlowField, reused across sweeps
     this.fieldBases = new Map();  // level -> the blocked grid every field there copies
@@ -1818,6 +1818,7 @@ export class BotManager {
      with four bots against three — the bots split evenly among themselves
      and the human made it 5v3. */
   fill(target, humanCount, spawnFor, ffa, humanTeams = null) {
+    if (this.rules.squad > 1) return this.fillSquads(target, humanCount, spawnFor, this.rules.squad, this.rules.humanSquads?.() || {});
     if (!ffa && humanTeams && target > 0) {
       const want = {
         phantom: Math.max(0, Math.floor(target / 2) - (humanTeams.phantom | 0)),
@@ -1846,6 +1847,30 @@ export class BotManager {
         : (this.bots.filter((b) => b.team === "phantom").length <= this.bots.filter((b) => b.team === "ghost").length ? "phantom" : "ghost");
       this.bots.push(new Bot(team, spawnFor(team), this.difficulty, this.rules));
     }
+  }
+
+  /* Troll Royale in teams (modes/royale-squads.js): each party's squad
+     (`humanSquads`, { squadId: humans }) topped up to `size` with bots, the
+     rest bots in squads of `size` ("b0", "b1", ...). A bot keeps its squad
+     for life; only how many each squad wants moves. */
+  fillSquads(target, humanCount, spawnFor, size, humanSquads) {
+    const want = new Map();
+    let room = Math.max(0, target - humanCount);
+    for (const sq of Object.keys(humanSquads).sort()) {
+      const k = Math.min(room, Math.max(0, size - humanSquads[sq]));
+      if (k) want.set(sq, k);
+      room -= k;
+    }
+    for (let i = 0; room > 0; i++) { const k = Math.min(size, room); want.set(`b${i}`, k); room -= k; }
+    const have = new Map();
+    const keep = this.bots.filter((b) => {
+      const n = (have.get(b.team) || 0) + 1;
+      if (n > (want.get(b.team) || 0)) return false;
+      have.set(b.team, n);
+      return true;
+    });
+    if (keep.length < this.bots.length) this.bots.splice(0, this.bots.length, ...keep);
+    for (const [sq, k] of want) for (let n = have.get(sq) || 0; n < k; n++) this.bots.push(new Bot(sq, spawnFor(sq), this.difficulty, this.rules));
   }
 
   byId(id) { return this.bots.find((b) => b.id === id) || null; }
@@ -1943,6 +1968,7 @@ export class BotManager {
         step = Math.min(0.1, bot.lodDt);
         bot.lodDt = 0;
       }
+      if (bot.downed) continue;   // Troll Royale in teams: on the floor (modes/royale-down.js)
       bot.update(step, sub);
       // One-life modes (Search & Destroy) bring bots back at the round
       // boundary via reviveAll, never on the respawn clock — respawning here
@@ -1973,6 +1999,8 @@ export class BotManager {
     bot.hp -= dmg;
     bot.onDamaged();
     if (bot.hp > 0) return { killed: false, bot };
+    // Troll Royale in teams: down, not out (modes/royale-down.js)
+    if (this.rules.goDown?.(bot)) return { killed: false, bot, downed: true };
     bot.alive = false;
     bot.deaths++;
     bot.respawnT = RESPAWN;

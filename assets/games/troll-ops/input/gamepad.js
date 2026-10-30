@@ -23,8 +23,9 @@ import { freeLook } from "../view/free-look.js?v=nf1";
    - ADS drops the rate, and a scope's zoom drops it further
    The 1–14 ladder is BO2's, 3 (Medium) its default. */
 // Hooks other systems hand the pad: zombies = the Zombie Rush HUD's buy /
-// deploy controls (view/zombies-hud.js fills it in).
-export const padHooks = { zombies: null, royale: null };
+// deploy controls (view/zombies-hud.js fills it in); royaleReport = Troll
+// Royale's live match report while you spectate (modes/royale-live-report.js).
+export const padHooks = { zombies: null, royale: null, royaleReport: null };
 export const PAD_SENS_MULT = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.3, 3.6, 4];
 export const PAD_SENS_NAMES = { 1: "Low", 3: "Medium", 5: "High", 7: "Very High", 9: "Insane" };
 const PAD_LOOK_DEADZONE = 0.1;
@@ -119,9 +120,17 @@ export function pollGamepad(dt) {
   if (game.killcam.active && !game.player.alive && pressedEdge(0)) game.skipKillcam();
   if (game.matchIntro.active && pressedEdge(0)) game.matchIntro.skip();
   // Troll Royale, out: bumpers or the D-pad go round the players still alive.
-  if (!game.player.alive && game.royaleSpectating()) {
+  // Y opens the match report, live; open, the bumpers go between its tabs
+  // and Y or B shuts it.
+  const report = padHooks.royaleReport;
+  if (report?.open()) {
+    if (pressedEdge(4)) report.tab(-1);
+    if (pressedEdge(5)) report.tab(1);
+    if (pressedEdge(3) || pressedEdge(1)) report.close();
+  } else if (!game.player.alive && game.royaleSpectating()) {
     if (pressedEdge(4) || pressedEdge(14)) game.cycleSpectate(-1);
     if (pressedEdge(5) || pressedEdge(15)) game.cycleSpectate(1);
+    if (pressedEdge(3) && report?.can()) report.toggle();
   }
 
   // The strike tablet takes the pad: either stick aims, A / R2 marks,

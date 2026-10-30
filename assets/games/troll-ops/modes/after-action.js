@@ -20,7 +20,7 @@ import { playerIconSvg } from "../progression/rank-icons.js?v=rk1-or1";
 import { gunThumb } from "../view/zombies-thumbs.js?v=zc1-zc2-zp1-sr1-br1-or1-rt1-ut1-rb4-hp1-bx1-mg1-tm2-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-lz1-ret1-ret2-mrg1-hd1-ugb1-ug1-ugm1-mrc1-hgb6-tw1-rt2-fd1-ars1-mrg3-p416";
 import { renderScoreboard } from "../core/scoreboard.js?v=sb1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1";
 import { MAPS } from "../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1-bw2-bt1-wf1-wf2-zf1-bp1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-rm1-kzf1-hgb1-hgb2-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-hgb5-hgb6-hgb8-hgb9-tw1-op1-hgo1";
-import { mountBlueprint } from "../view/aar-blueprint.js?v=bp1";
+import { mountBlueprint } from "../view/aar-blueprint.js?v=bp1-rw1";
 import { game } from "../core/state.js?v=st1";
 
 const CLASS_NAMES = {
@@ -30,6 +30,7 @@ const CLASS_NAMES = {
 const MAX_WEAPON_CARDS = 4;
 const BAR_MS = 900;   // one bar's fill, matching .to-aar-fill's transition
 
+export const weaponName = (id) => WEAPON_DEFS[id]?.name || id;
 const root = () => document.getElementById("to-aar");
 
 function esc(s) {
@@ -53,17 +54,21 @@ export function renderAfterAction(d) {
   pendingCapture = null; captureJob = null;   // the last match's plan is not this one's
   el.dataset.result = d.won ? "won" : d.won === false ? "lost" : "";
 
-  const scoreLine = d.ffa
+  const scoreLine = d.squad ? `${fmt(d.stats.kills)} kills · your team ${fmt(d.squad.kills)}`
+    : d.ffa
     ? `${fmt(d.stats.kills)} kills`
     : `<span class="to-aar-team" style="color:${esc(d.teams.mine.color)}">${esc(d.teams.mine.name)} <b>${fmt(d.teams.mine.score)}</b></span>`
       + `<span class="to-aar-vs">—</span>`
       + `<span class="to-aar-team" style="color:${esc(d.teams.theirs.color)}"><b>${fmt(d.teams.theirs.score)}</b> ${esc(d.teams.theirs.name)}</span>`;
+  const worlds = d.worlds?.length ? d.worlds.map((w) => ({ ...w, mapName: w.name }))
+    : [{ mapName: d.mapName, arena: d.arena, colliders: d.colliders, events: d.events, counts: d.counts, live: true }];
+  const mapLine = d.worlds?.length ? worlds.map((w) => w.mapName).join(" → ") : d.mapName;
 
   el.innerHTML = `
     <header class="to-aar-head">
       <div class="to-aar-result">${esc(d.title)}</div>
       <div class="to-aar-score">${scoreLine}</div>
-      <div class="to-aar-meta">${esc(d.modeName)} · ${esc(d.mapName)} · ${clock(d.stats.seconds)}</div>
+      <div class="to-aar-meta">${esc(d.modeName)} · ${esc(mapLine)} · ${clock(d.stats.seconds)}</div>
     </header>
     <div class="to-aar-tabs" role="tablist" aria-label="After-action report">
       <button type="button" role="tab" class="to-aar-tab" data-tab="summary" aria-selected="true" id="to-aar-tab-summary">Summary</button>
@@ -72,6 +77,7 @@ export function renderAfterAction(d) {
     </div>
     <section class="to-aar-pane" data-pane="summary" role="tabpanel" aria-labelledby="to-aar-tab-summary">
       ${rankCardHtml(d.rank)}
+      ${teamHtml(d.squad)}
       ${weaponsHtml(d.weapons)}
       ${statsHtml(d.stats)}
     </section>
@@ -79,15 +85,20 @@ export function renderAfterAction(d) {
       <div class="to-aar-board">${d.boardHtml || "<p class='to-aar-empty'>No scoreboard for this match.</p>"}</div>
     </section>
     <section class="to-aar-pane" data-pane="map" role="tabpanel" aria-labelledby="to-aar-tab-map" hidden>
-      <div class="to-aar-map"></div>
+      ${worldsHtml(worlds)}
+      ${worlds.map((w, i) => `<div class="to-aar-map" data-world="${i}"${i === worlds.length - 1 ? "" : " hidden"}></div>`).join("")}
     </section>`;
 
-  blueprint = mountBlueprint(el.querySelector(".to-aar-map"), {
-    mapName: d.mapName, modeName: d.modeName, arena: d.arena, colliders: d.colliders,
-    events: d.events, counts: d.counts, seconds: d.stats.seconds, capture: pendingCapture,
+  // Royale's Two Worlds: a plan per side of the island, the end's render
+  // going to the side it was taken on (modes/royale-worlds.js)
+  maps = worlds.map((w, i) => mountBlueprint(el.querySelector(`.to-aar-map[data-world="${i}"]`), {
+    mapName: w.mapName, modeName: d.modeName, arena: w.arena, colliders: w.colliders,
+    events: w.events, counts: w.counts, seconds: d.stats.seconds, capture: w.capture || (w.live ? pendingCapture : null),
     weaponName: (id) => WEAPON_DEFS[id]?.name || id,
-  });
+  }));
+  blueprint = maps[worlds.findIndex((w) => w.live)] || null;
   el.querySelectorAll(".to-aar-tab").forEach((b) => b.addEventListener("click", () => selectTab(el, b.dataset.tab)));
+  el.querySelectorAll(".to-aar-world").forEach((b) => b.addEventListener("click", () => selectWorld(el, Number(b.dataset.world))));
   animateRank(el, d.rank);
   animateWeapons(el, d.weapons);
   loadThumbs(el, d.weapons);
@@ -96,7 +107,7 @@ export function renderAfterAction(d) {
 export function hideAfterAction() {
   const el = root();
   if (el) { el.hidden = true; el.innerHTML = ""; }
-  blueprint = null; pendingCapture = null; captureJob = null;
+  blueprint = null; maps = []; pendingCapture = null; captureJob = null;
   clearTimeout(captureTimer);
   plainCard(true);
 }
@@ -106,10 +117,13 @@ export function hideAfterAction() {
    until the Map tab is opened, whichever comes first; match-end.js queues it
    once the match is cleared away (no bots in the shot) and the map is still
    loaded. */
-let blueprint = null, pendingCapture = null, captureJob = null, captureTimer = 0;
+let blueprint = null, maps = [], pendingCapture = null, captureJob = null, captureTimer = 0;
 const CAPTURE_DELAY = 2600;
 
 export function queueBlueprint(job) {
+  // a report whose every plan is drawn already (Royale, out before the flip:
+  // the map now loaded is the side you never played) has no use for it
+  if (maps.length && !blueprint) return;
   captureJob = job;
   clearTimeout(captureTimer);
   captureTimer = setTimeout(runCapture, CAPTURE_DELAY);
@@ -142,7 +156,23 @@ function selectTab(el, tab) {
   for (const b of el.querySelectorAll(".to-aar-tab")) b.setAttribute("aria-selected", String(b.dataset.tab === tab));
   for (const p of el.querySelectorAll(".to-aar-pane")) p.hidden = p.dataset.pane !== tab;
   // drawn now, and again once the tab's layout has settled (a scrollbar can come or go)
-  if (tab === "map") { runCapture(); blueprint?.draw(); requestAnimationFrame(() => requestAnimationFrame(() => blueprint?.draw())); }
+  if (tab === "map") { runCapture(); drawMaps(); requestAnimationFrame(() => requestAnimationFrame(drawMaps)); }
+}
+const drawMaps = () => { for (const m of maps) m.draw(); };   // (a hidden one has no size and skips)
+
+/* Two Worlds: which side's plan is up. */
+function worldsHtml(worlds) {
+  if (worlds.length < 2) return "";
+  return `<div class="to-aar-worlds" role="group" aria-label="Side of the island">${worlds.map((w, i) => `
+    <button type="button" class="to-aar-world" data-world="${i}" aria-pressed="${i === worlds.length - 1}">
+      <span>${esc(w.mapName)}</span><small>${i ? "After the flip" : "Before the flip"} · ${fmt(w.counts.kill)} kill${w.counts.kill === 1 ? "" : "s"}</small>
+    </button>`).join("")}</div>`;
+}
+
+function selectWorld(el, i) {
+  for (const b of el.querySelectorAll(".to-aar-world")) b.setAttribute("aria-pressed", String(Number(b.dataset.world) === i));
+  for (const m of el.querySelectorAll(".to-aar-map")) m.hidden = Number(m.dataset.world) !== i;
+  drawMaps(); requestAnimationFrame(() => requestAnimationFrame(drawMaps));
 }
 
 /* ------------------------------------------------------------ rank */
@@ -196,7 +226,7 @@ function animateRank(el, r) {
 
 /* ------------------------------------------------------------ weapons */
 
-function weaponsHtml(list) {
+export function weaponsHtml(list) {
   const cards = list.slice(0, MAX_WEAPON_CARDS);
   if (!cards.length) return `<div class="to-aar-weapons"><p class="to-aar-empty">No gun kills this match.</p></div>`;
   return `<div class="to-aar-weapons">${cards.map((w) => {
@@ -254,7 +284,7 @@ function animateWeapons(el, list) {
 
 /* The gun's picture, drawn from its model (view/zombies-thumbs.js); the name
    stands in until it lands, or for good where there's no WebGL for it. */
-function loadThumbs(el, list) {
+export function loadThumbs(el, list) {
   for (const w of list.slice(0, MAX_WEAPON_CARDS)) {
     gunThumb(w.id).then((url) => {
       const pic = el.querySelector(`.to-aar-gun[data-weapon="${w.id}"] .to-aar-gun-pic`);
@@ -266,9 +296,22 @@ function loadThumbs(el, list) {
   }
 }
 
+/* ------------------------------------------------------------ team */
+
+/* Troll Royale in teams (modes/royale-squad-end.js squadCard): the team's
+   place, and each of you: kills, out or standing. */
+const nth = (n) => n + (["th", "st", "nd", "rd"][(n % 100 - 20) % 10] || ["th", "st", "nd", "rd"][n % 100] || "th");
+export function teamHtml(t) {
+  if (!t) return "";
+  const head = [t.place ? `${nth(t.place)} of ${fmt(t.of)} teams` : "", `${fmt(t.kills)} kills`].filter(Boolean).join(" · ");
+  return `<div class="to-aar-squad" role="list" aria-label="Your team"><div class="to-aar-squad-head"><b>Your team</b><span>${head}</span></div>`
+    + t.rows.map((r) => `<div class="to-aar-squad-row${r.me ? " is-me" : ""}" role="listitem"><span>${esc(r.name)}</span><span>${fmt(r.kills)} ${r.kills === 1 ? "kill" : "kills"}</span>`
+      + `<span class="${r.alive ? "is-up" : "is-out"}">${r.alive ? "Standing" : "Out"}</span></div>`).join("") + "</div>";
+}
+
 /* ------------------------------------------------------------ stats */
 
-function statsHtml(s) {
+export function statsHtml(s) {
   const kd = (s.kills / Math.max(1, s.deaths)).toFixed(2);
   const acc = s.shotsFired > 0 ? `${Math.round((s.shotsHit / s.shotsFired) * 100)}%` : "—";
   const rows = [
@@ -292,7 +335,7 @@ export function afterActionData({ title, won, rank, boostedXp }) {
   const kills = p.weaponKills || {};
   const weapons = rank.weapons.map((w) => ({ ...w, kills: kills[w.id] | 0 }));
   return {
-    title, won, ffa: !!mode.ffa,
+    title, won, ffa: !!(mode.ffa || mode.squad),   // (Royale in teams: no two sides to score)
     modeName: mode.name || game.modeId,
     mapName: MAPS[game.loadedMapId]?.name || game.loadedMapId || "",
     teams: {

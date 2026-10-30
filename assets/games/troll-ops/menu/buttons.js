@@ -95,8 +95,9 @@ export function initMenuButtons() {
     // the mouse on purpose (and so does the sheriff's wanted board,
     // modes/social-sheriff.js: looked up, not imported, which would loop;
     // the town hall's Troll-o-Graph screens too, modes/social-computers.js;
-    // and the radio, opened with M, menu/radio.js)
-    if (game.gameState === "playing" && !game.djLulz.isOpen && !kioskOpen() && !document.querySelector(".to-piano:not([hidden])") && !clubAskOpen() && !document.querySelector(".sheriff-board:not([hidden])") && !document.querySelector(".troll-o-graph:not([hidden])") && !game.radioHasMouse) game.openPauseMenu();
+    // and the radio, opened with M, menu/radio.js
+    // Royale's live match report, modes/royale-live-report.js)
+    if (game.gameState === "playing" && !game.djLulz.isOpen && !kioskOpen() && !document.querySelector(".to-piano:not([hidden])") && !clubAskOpen() && !document.querySelector(".sheriff-board:not([hidden])") && !document.querySelector(".troll-o-graph:not([hidden])") && !document.querySelector(".to-live-report:not([hidden])") && !game.radioHasMouse) game.openPauseMenu();
   });
 
   document.addEventListener("visibilitychange", () => {

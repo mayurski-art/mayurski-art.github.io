@@ -279,6 +279,8 @@ export function setHolding(what) {
   if (game.socialUnarmed()) return;   // hands stay empty in the hangout
   // Nothing in your hands inside the C-130 (user, 2026-10-18): no gun, no blade.
   if ((what === "gun" || what === "melee") && royaleAboard()) what = "none";   // (a streak hold ending hands back empty)
+  // ...or down, in Royale in teams (modes/royale-down.js): nothing in your hands till you're up
+  if ((what === "gun" || what === "melee") && royale && game.player.downed) what = "none";
   if (game.player.holding === what) return;
   if (game.isInfected() && what !== "melee") return;   // the sword is all they have
   if (what === "melee" && !game.player.melee) return;
@@ -350,6 +352,8 @@ export function cycleWeapon() {
 let pkgHoldT = 0, chestHoldT = 0;
 export function updatePickupPrompt(dt) {
   promptTick = swapTick;
+  // Troll Royale in teams: a downed teammate in reach, X is the revive (modes/royale-down.js)
+  if (royale && reviveInReach()) { if (game.els.pickupPrompt) game.els.pickupPrompt.hidden = true; setTouchContext("Revive"); return; }
   const pkg = game.player.alive ? nearbyPackage() : null;
   // Troll Royale's chests (modes/royale-chests.js): hold X a second to open.
   const chest = !pkg ? royaleChestNear() : null;

@@ -62,10 +62,10 @@ const TILES = [
    activity()); null in a menu or another game. */
 function tileOf(a) {
   if (!a || a.game !== "tf" || a.state === "menu") return null;
-  if (a.state === "lobby") return a.mode === "royale" ? "royale" : "public";
+  if (a.state === "lobby") return /^royale(_duo|_trio|_squad)?$/.test(a.mode) ? "royale" : "public";
   if (a.room && !a.pub) return "private";
   if (!a.room) return "solo";
-  if (a.mode === "royale") return "royale";
+  if (/^royale(_duo|_trio|_squad)?$/.test(a.mode)) return "royale";
   if (a.state === "zombies" || a.mode === "zhub") return "zombies";
   if (a.mode === "social") return "social";
   return "public";
@@ -144,7 +144,7 @@ function reelList(map) {
 const FALLBACK_AVATAR = "assets/images/icons/favicon/grin.png";
 
 export function mountFnLobby(api) {
-  const { root, menu, openQuick, royaleSide, switchRoyaleSide, partyView, socialMaps = [], getLevel, getPrestige, rankProgress, rankXpText, PRESTIGE_MASTER, setMapShot, ACHIEVEMENTS } = api;
+  const { root, menu, openQuick, royaleSide, switchRoyaleSide, royaleSize, partyView, socialMaps = [], getLevel, getPrestige, rankProgress, rankXpText, PRESTIGE_MASTER, setMapShot, ACHIEVEMENTS } = api;
   const title = $("#to-title");
   root.classList.add("is-fn");
   title.classList.add("is-fn");
@@ -219,6 +219,7 @@ export function mountFnLobby(api) {
       <b class="to-fn-mode-name"></b><small class="to-fn-mode-sub"></small><span class="to-fn-change"><kbd class="to-fn-padkey" aria-hidden="true">X</kbd><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h14m-4-4 4 4-4 4M20 16H6m4-4-4 4 4 4"/></svg>Change mode</span>
     </button>
     <div class="to-fn-map"><img alt="" hidden><div><strong></strong><span></span></div></div>
+    <div class="to-fn-size" role="group" aria-label="Team size" hidden>${(royaleSize?.().sizes || []).map((s) => `<button type="button" data-n="${s.n}" aria-pressed="false">${esc(s.label)}</button>`).join("")}</div>
     <button type="button" class="to-fn-go"><kbd class="to-fn-padkey" aria-hidden="true">A</kbd><span class="to-fn-go-text">Play</span></button>`;
   root.appendChild(play);
   play.append(news);   // (the event tile stands over the mode card)
@@ -289,10 +290,24 @@ export function mountFnLobby(api) {
     map.hidden = !name;
     // Royale: the card switches the side (the Island row in Public Match does too)
     map.classList.toggle("is-side", !!side);
+    // Royale: Solo / Duo / Trio / Squad (royale-squads.js); none smaller
+    // than the party
+    const size = $(".to-fn-size", play), rs = side && royaleSize?.();
+    size.hidden = !rs;
+    if (rs) for (const b of $$("button", size)) {
+      const n = +b.dataset.n, on = n === rs.cur, small = n < rs.min;
+      b.classList.toggle("is-on", on);
+      b.setAttribute("aria-pressed", String(on));
+      b.disabled = small;
+      b.title = small ? `Your party is ${rs.min}` : `Troll Royale ${b.textContent}`;
+    }
     if (side) { map.setAttribute("role", "button"); map.tabIndex = 0; map.setAttribute("aria-label", `Island: ${side.name}, ${side.tag}. Switch side`); }
     else { map.removeAttribute("role"); map.removeAttribute("tabindex"); map.removeAttribute("aria-label"); }
   }
   window.addEventListener("tf-royale-side", () => renderPlay());
+  window.addEventListener("tf-royale-size", () => renderPlay());
+  addEventListener("trollforces:party", () => renderPlay());
+  $(".to-fn-size", play).addEventListener("click", (e) => { const b = e.target.closest("button"); if (b && !b.disabled) royaleSize?.().pick(+b.dataset.n); });
   // signed in on another device: its mode card and Royale side come with it
   addEventListener("trollforces:cloud-restored", (e) => {
     if (e.detail?.includes(PL_KEY)) { try { const v = localStorage.getItem(PL_KEY); if (PLAYLISTS.some((p) => p.id === v)) playlist = v; } catch {} }

@@ -41,6 +41,8 @@ import { openKiosk } from "../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar
 import { credits } from "../modes/zombies/credits.js?v=zc1-zc2";
 import { TROLL_RETICLE_LEVEL, trollReticleUnlocked, trollReticleLabel, toggleTrollReticle } from "../view/troll-reticle.js?v=tr1-ret1-mrg1-hd1-mrc1-tw1-rt2-rd1-ars1-p416";
 import { sidePref, setSidePref, SIDE_NAMES } from "../modes/royale-side.js?v=rs1-tw1";
+import { SQUAD_SIZES, squadSize, partySize } from "../modes/royale-squads.js?v=sq1";
+import { pickRoyaleSize } from "./mode-picker.js?v=mp1-fu1b7b7d-wb1-ar1-ar2-cl1-bp1-fj1-zr9-zr10-zh1-zc1-zc2-nf1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-sam1-rl1-tfp4-tfp7-tfb8-rfx1-ret1-mrg1-ug1-ugm1-mrc1-hgb8-hgb9-tw1-ars1-p416";
 import { recordSupported, recordPref, setRecordPref } from "../modes/royale-record.js?v=rrc1-rfx1-rr2-ret1-mrg1-hd1";
 import { makeTrollOpsProvider } from "../progression/leaderboard-rows.js?v=lr1-zh1-or1-nd2";
 const lbProvider = makeTrollOpsProvider();
@@ -261,6 +263,20 @@ const sideRow = () => {
       setSidePref(next);
       game.loadout?.setForcedMap(next);
       game.refreshLobbyMap?.();
+    },
+  };
+};
+/* Troll Royale's team size (royale-squads.js): Solo, Duo, Trio, Squad;
+   never smaller than your party. */
+const royaleSize = () => ({ sizes: SQUAD_SIZES, cur: squadSize(), min: partySize(), pick: (n) => pickRoyaleSize(n) });
+const sizeRow = () => {
+  if (currentModeBtn()?.dataset.mode !== "royale") return null;
+  return {
+    id: "royale-size", label: "Team", value: () => SQUAD_SIZES[squadSize() - 1].label,
+    desc: "Solo, Duo, Trio or Squad. Your party is your team; bots fill the empty seats. Last team standing wins.",
+    adjust: (dir) => {
+      const min = partySize(), n = squadSize() + (dir < 0 ? -1 : 1);
+      pickRoyaleSize(n > 4 ? min : n < min ? 4 : n);
     },
   };
 };
@@ -664,7 +680,7 @@ const screens = {
     return {
       title: "Public Match", panel: "deploy", vote: v,
       enter: () => { ensureGroup("versus", "tdm"); clearRoom(); },
-      groups: [modeItems("versus"), [heroRow(), sideRow(), recordRow(), ...voteRows(v)].filter(Boolean), [findRow(v), back("Back to the main menu.")]],
+      groups: [modeItems("versus"), [heroRow(), sideRow(), sizeRow(), recordRow(), ...voteRows(v)].filter(Boolean), [findRow(v), back("Back to the main menu.")]],
     };
   },
   /* One public hangout room: pick a map (whoever is already there decides
@@ -712,7 +728,7 @@ const screens = {
     enter: () => ensureGroup("versus", "tdm"),
     groups: [
       modeItems("versus"),
-      [heroRow(), sideRow(), recordRow(), { id: "room", label: "Room", value: $("#to-room")?.value || "Auto", desc: "Room code, bots and who's in.", go: "room" }, mapRow()].filter(Boolean),
+      [heroRow(), sideRow(), sizeRow(), recordRow(), { id: "room", label: "Room", value: $("#to-room")?.value || "Auto", desc: "Room code, bots and who's in.", go: "room" }, mapRow()].filter(Boolean),
       [deployRow("Start", "Open the room. Friends join with your code."), back("Back to the main menu.")],
     ],
   }),
@@ -1538,6 +1554,7 @@ const fn = mountFnLobby({
   getLevel, getPrestige, rankProgress, rankXpText, PRESTIGE_MASTER, ACHIEVEMENTS,
   royaleSide: () => { const id = sidePref(MODES.royale?.sides || ["trollface"]); return { id, ...SIDE_NAMES[id] }; },
   switchRoyaleSide: () => sideRow()?.adjust(1),
+  royaleSize,
   partyView,
 });
 
