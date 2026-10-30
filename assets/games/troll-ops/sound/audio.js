@@ -13,7 +13,7 @@
 // loaded, and for what has no recording (suppressed shots, the Green
 // Candles).
 
-import { loadClips, playGunClip, playStreakSound, playStreakBlast, playClip } from "./clip-bank.js?v=gs2";
+import { loadClips, playGunClip, playStreakSound, playStreakBlast, playClip } from "./clip-bank.js?v=gs2-wb1";
 
 const NOISE_SECONDS = 2;
 const HRTF_RANGE = 40;   // metres: sounds further off pan left/right only

@@ -11,7 +11,7 @@
    through mountFnLobby(), so it imports nothing (no second copy of a module
    under another ?v= tag) but core/season.js, which holds no state: the
    season's dates and Halloween, shared with the Zombies hub. */
-import { SEASON, seasonLeft, halloween } from "../core/season.js?v=zf1";
+import { SEASON, seasonLeft, halloween } from "../core/season.js?v=zf1-wb1";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];

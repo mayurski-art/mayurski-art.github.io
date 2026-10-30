@@ -6,7 +6,7 @@ import { prestigeUnlocked } from "../progression/progression.js?v=p5-wst-sb2-fu1
 import { streaksAllowed } from "../streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1-sam1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
 import { game } from "../core/state.js?v=st1";
 import { sidePref } from "../modes/royale-side.js?v=rs1-tw1";
-import { royaleModeFor, setSizePref, squadSize } from "../modes/royale-squads.js?v=sq1";
+import { royaleModeFor, setSizePref, squadSize } from "../modes/royale-squads.js?v=sq1-wb1";
 
 /* The Play tab's mode list: versus modes first, then the solo ones, each a
    full-width row with a tick on the one you're deploying into. */

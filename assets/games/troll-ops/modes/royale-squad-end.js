@@ -4,7 +4,7 @@
 // teamHtml, from match-end.js).
 
 import { game } from "../core/state.js?v=st1";
-import { squadSize } from "./royale-squads.js?v=sq1";
+import { squadSize } from "./royale-squads.js?v=sq1-wb1";
 
 /* `r`: the Royale ending (royale.js). null outside Royale in teams. */
 export function squadCard(r) {

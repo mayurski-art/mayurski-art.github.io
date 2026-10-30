@@ -10,7 +10,7 @@
 //   Out before it: only the side you played (the end's render would be the
 //   other one, where you never were).
 
-import { captureBlueprintLater } from "../view/blueprint-capture.js?v=bc1-rw1";
+import { captureBlueprintLater } from "../view/blueprint-capture.js?v=bc1-rw1-wb1";
 import { matchLog } from "../combat/match-log.js?v=ml1-bp2";
 import { SIDE_NAMES } from "./royale-side.js?v=rs1-tw1";
 import { game } from "../core/state.js?v=st1";

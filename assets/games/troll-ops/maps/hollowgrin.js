@@ -47,7 +47,7 @@ import { buildChapel } from "./hollowgrin-chapel.js?v=hg6tc-or1-tcs1-hgb2-hgb6";
 import { islandScenery, islandShapes, openIsland } from "./hollowgrin-island.js?v=hgi1-hgb8-tw1-op1-hgo1";
 import { bandOrgan, wheelCreak, coasterRattle } from "./hollowgrin-fair-sound.js?v=hgb4";
 import { roseTexture } from "./chapel-art.js?v=ca1-tcs1";
-import { carveTexture, jackPieces } from "./jack-o-lantern.js?v=zf1";
+import { carveTexture, jackPieces } from "./jack-o-lantern.js?v=zf1-wb1";
 import { placeMannequins } from "./hollowgrin-mannequins.js?v=hg6h-sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1-hgb6";
 
 export const HG_FLOORS = { ground: 0, upper: 3.6, loft: 2.4, wheel: 6.0, mansion: 4.2, brake: 9.0 };
