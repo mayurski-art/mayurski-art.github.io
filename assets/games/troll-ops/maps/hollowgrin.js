@@ -47,6 +47,7 @@ import { buildChapel } from "./hollowgrin-chapel.js?v=hg6tc-or1-tcs1-hgb2-hgb6";
 import { islandScenery, islandShapes, openIsland } from "./hollowgrin-island.js?v=hgi1-hgb8-tw1-op1-hgo1";
 import { bandOrgan, wheelCreak, coasterRattle } from "./hollowgrin-fair-sound.js?v=hgb4";
 import { roseTexture } from "./chapel-art.js?v=ca1-tcs1";
+import { carveTexture, jackPieces } from "./jack-o-lantern.js?v=zf1";
 import { placeMannequins } from "./hollowgrin-mannequins.js?v=hg6h-sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1-hgb6";
 
 export const HG_FLOORS = { ground: 0, upper: 3.6, loft: 2.4, wheel: 6.0, mansion: 4.2, brake: 9.0 };
@@ -339,37 +340,6 @@ function canvasTex(w, h, draw, { srgb = true, repeat = false } = {}) {
    disposed (geometry and materials), never their textures. */
 const TEX = {};
 function tex(name, make) { return TEX[name] ??= make(); }
-
-/* The carved face: the real trollface artwork, its ink lines cut through
-   the skin so they glow. Everything that isn't ink is left transparent,
-   so the pumpkin shows round the cuts. */
-function carveTexture() {
-  return tex("carve", () => {
-    const c = document.createElement("canvas");
-    c.width = c.height = 256;
-    const t = new THREE.CanvasTexture(c);
-    t.colorSpace = THREE.SRGBColorSpace;
-    const img = new Image();
-    img.onload = () => {
-      const g = c.getContext("2d");
-      const s = Math.min(236 / img.width, 236 / img.height);
-      const w = img.width * s, h = img.height * s;
-      g.drawImage(img, (256 - w) / 2, (256 - h) / 2 + 6, w, h);
-      const d = g.getImageData(0, 0, 256, 256);
-      const px = d.data;
-      for (let i = 0; i < px.length; i += 4) {
-        const lum = px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11;
-        const ink = px[i + 3] > 100 && lum < 110;
-        px[i] = 255; px[i + 1] = 214; px[i + 2] = 120;
-        px[i + 3] = ink ? 255 : 0;
-      }
-      g.putImageData(d, 0, 0);
-      t.needsUpdate = true;
-    };
-    img.src = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
-    return t;
-  });
-}
 
 function glowTexture() {
   return tex("glow", () => canvasTex(128, 128, (g) => {
@@ -887,38 +857,6 @@ class Kit {
 
 /* ================================================================== shapes */
 
-/* A pumpkin: a sphere pulled into ribs, squashed, dimpled at the stem. */
-function pumpkinGeo(r, { ribs = 10, squash = 0.78, seg = 18 } = {}) {
-  const g = new THREE.SphereGeometry(r, seg, Math.round(seg * 0.7));
-  ribPumpkin(g, r, ribs, squash);
-  return g;
-}
-
-function ribPumpkin(g, r, ribs, squash, grow = 1) {
-  const p = g.attributes.position;
-  for (let i = 0; i < p.count; i++) {
-    let x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-    const a = Math.atan2(z, x);
-    const k = Math.pow(Math.abs(Math.sin(a * ribs / 2)), 0.45);
-    const sc = (0.9 + 0.1 * k) * grow;
-    x *= sc; z *= sc;
-    y *= squash;
-    const d = Math.hypot(x, z) / r;
-    if (y > 0) y -= r * 0.16 * Math.exp(-d * d * 9);
-    else y += r * 0.08 * Math.exp(-d * d * 9);
-    p.setXYZ(i, x, y, z);
-  }
-  g.computeVertexNormals();
-}
-
-/* The carved front of a jack-o'-lantern: a patch of the same ribbed shell,
-   a hair proud of it, UV-mapped 0..1 across the face. */
-function carvePatchGeo(r, ribs, squash) {
-  const g = new THREE.SphereGeometry(r, 16, 12, Math.PI / 2 - 1.0, 2.0, Math.PI * 0.22, Math.PI * 0.56);
-  ribPumpkin(g, r, ribs, squash, 1.018);
-  return g;
-}
-
 /* The woods round the outside of the wall: hg-woodkit.glb's pieces,
    instanced along the ring from one seeded stream (the same woods for
    everyone). Dead trees in front, dark pines behind, and between them
@@ -1096,22 +1034,12 @@ function railing(K, { axis, at, a, b, y }) {
 
 /* A jack-o'-lantern: ribbed body and stem, and when carved, the trollface
    glowing out of the front with a warm pool on the ground under it. */
-function jack(K, M, x, y, z, { r = 0.3, face = 0, carved = true, seed = 1, glow = true } = {}) {
-  const R = rng(seed * 97 + 13);
-  const ribs = 9 + Math.floor(R() * 3), squash = 0.72 + R() * 0.12;
-  const hue = [0xd8641c, 0xe07423, 0xcf5a17, 0xe8842c][Math.floor(R() * 4)];
-  const body = pumpkinGeo(r, { ribs, squash });
-  K.add(M.pumpkin, place(body, { x, y: y + r * squash * 0.95, z, ry: R() * 6 }), { color: hue });
-  const stem = new THREE.CylinderGeometry(r * 0.08, r * 0.13, r * 0.45, 6);
-  K.add(M.stem, place(stem, { x, y: y + r * squash * 1.75, z, rz: (R() - 0.5) * 0.6, rx: (R() - 0.5) * 0.6 }));
-  if (!carved) return;
-  const phase = R();
-  K.add(M.carve, place(carvePatchGeo(r, ribs, squash), { x, y: y + r * squash * 0.95, z, ry: face }), { phase, shadow: false });
-  if (glow) {
-    const gr = r * 5.5;
-    const pool = new THREE.PlaneGeometry(gr, gr);
-    K.add(M.glow, place(pool, { x: x + Math.sin(face) * r, y: y + 0.03, z: z + Math.cos(face) * r, rx: -Math.PI / 2 }), { phase, shadow: false });
-  }
+function jack(K, M, x, y, z, opts) {
+  const j = jackPieces(x, y, z, opts);
+  K.add(M.pumpkin, j.body, { color: j.hue });
+  K.add(M.stem, j.stem);
+  if (j.carve) K.add(M.carve, j.carve, { phase: j.phase, shadow: false });
+  if (j.pool) K.add(M.glow, j.pool, { phase: j.phase, shadow: false });
 }
 
 /* A candle with a flickering flame (crossed quads, always face-ish on). */
