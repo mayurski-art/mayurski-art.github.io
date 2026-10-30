@@ -46,7 +46,7 @@ await page.route(/supabase/, (r) => r.abort());
 await page.goto(`${BASE}/__ss.html`);
 const r = await page.evaluate(async () => {
   const { GameAudio } = await import("/assets/games/troll-ops/sound/audio.js");
-  const CB = await import("/assets/games/troll-ops/sound/clip-bank.js?v=gs2");
+  const CB = await import("/assets/games/troll-ops/sound/clip-bank.js?v=gs2-wb1");
   const a = new GameAudio();
   a.init();
   await a.ctx.resume();
