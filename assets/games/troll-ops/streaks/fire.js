@@ -291,7 +291,7 @@ export function spawnCarePackage({ id, x, z, reward, owned, ownerTeam, groundY =
   streakEntities.set(id, pkg);
   pkg.addTo(game.scene);
   streakIconTexture(String(reward).split(":")[1]).then((tex) => tex && pkg.setIcon(tex));
-  game.audio.wave();   // the heli's on its way
+  game.audio.streakSound?.("carepackage") || game.audio.wave();   // the heli's on its way
   return pkg;
 }
 
@@ -358,7 +358,9 @@ export function spawnDrone({ id, targetId, owned, pos, yaw = 0, sky = false, cre
   attachAirHitbox(drone, 0.7, AIR_HP.drone);
   streakEntities.set(id, drone);
   game.scene.add(drone.root);
-  if (!sky) game.audio.wave();   // a Swarm is two dozen of them
+  // A Swarm is two dozen of them, each buzzing in from where it is.
+  if (sky) game.audio.streakSound?.("swarm", pos);
+  else game.audio.streakSound?.("drone") || game.audio.wave();
   return drone;
 }
 
@@ -587,6 +589,8 @@ export function spawnAirstrike({ x, z, yaw, owned, team, delay = AIRSTRIKE_DELAY
   });
   run.addTo(game.scene);
   pendingStrikes.push(run);
+  // The jet's loudest as it passes over the mark, as the first bombs fall.
+  game.audio.streakSound?.("airstrike", null, Math.max(0, delay - 2.5));
   return run;
 }
 
@@ -612,7 +616,7 @@ export function spawnHelicopter({ id, seed, owned, team }) {
   attachAirHitbox(heli, 3.2, AIR_HP.heli);
   streakEntities.set(id, heli);
   game.scene.add(heli.root);
-  game.audio.wave();
+  game.audio.streakSound?.("helicopter") || game.audio.wave();
   return heli;
 }
 
@@ -630,6 +634,6 @@ export function spawnK9({ id, owned, team, ownerId, x, y, z, yaw = 0, count = un
   });
   streakEntities.set(id, pack);
   game.scene.add(pack.root);
-  game.audio.wave();
+  game.audio.streakSound?.("k9", new THREE.Vector3(x, y, z)) || game.audio.wave();
   return pack;
 }

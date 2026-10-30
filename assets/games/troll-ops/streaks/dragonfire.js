@@ -28,7 +28,7 @@ export function spawnDragonfire({ id, owned, team, x, y, z, yaw, botId = null })
   const df = new Dragonfire({ id, owned, team, x, y, z, yaw, duration: STREAK_DEFS.dragonfire.duration, botId });
   streakEntities.set(id, df);
   game.scene.add(df.root);
-  game.audio.wave();
+  game.audio.streakSound?.("dragonfire") || game.audio.wave();
   return df;
 }
 
@@ -145,7 +145,7 @@ export function updateSamAi(sam, dt) {
       sam.salvo--;
       sam.salvoT = SAM_SALVO_GAP;
       if (sam.salvo <= 0) sam.reloadT = SAM_RELOAD;
-      game.audio.explosion?.(0.12, ms.pos);
+      game.audio.streakSound?.("sam", ms.pos) || game.audio.explosion?.(0.12, ms.pos);
       if (game.net.active) {
         game.net.publishStreak({ kind: "sam", action: "launch", eid: sam.id, t: tgt.id,
           x: round2(ms.pos.x), y: round2(ms.pos.y), z: round2(ms.pos.z), dx: round2(ms.dir.x), dy: round2(ms.dir.y), dz: round2(ms.dir.z) });
@@ -190,7 +190,7 @@ export function shootDownAir(eid, byId, announce = false) {
   const at = (e ? (e instanceof Dragonfire ? e.pos : e instanceof SamTurret ? e.pos.clone().setY(e.pos.y + 1) : e.root.position) : plane.root.position).clone();
   game.explosionFx({ kind: "lethal", glow: 0xffa23a, radius: 4 }, at);
   streakBlast(at, e instanceof HunterDrone || e instanceof Dragonfire ? 0.7 : 1.2);
-  game.audio.explosion?.(0.5, at);
+  game.audio.streakBoom?.(e instanceof HunterDrone || e instanceof Dragonfire ? 0.7 : 1.2, at);
   const mine = e ? (e.owned && !e.botId) : plane.team === uavBucket() && !game.currentMode().ffa;
   if (e) {
     if (e === game.warship) game.warship = null;

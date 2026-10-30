@@ -14,6 +14,7 @@
 const DIR = "/assets/games/troll-ops/sfx/";
 export const CLIP_GROUPS = {
   guns: ["sniper", "battle", "rifle", "smg", "shotgun", "pistol", "hmg"],
+  streaks: ["heli", "jet", "prop-plane", "radar", "quad", "blast", "dog", "missile"],
 };
 const buffers = new Map();
 const loading = new Map();   // name -> promise
@@ -105,3 +106,43 @@ export function playGunClip(audio, def, volume = 1, at = null) {
   return r !== null;
 }
 
+/* ---- scorestreaks ---- */
+
+// What each streak sounds like arriving: layers of { clip, gain, rate,
+// delay }. Aircraft play on the master bus, not from a position: they're
+// overhead and loud everywhere, and through the panner a plane 40 m up
+// came out a murmur. The Swarm's drones and the K9's barks are placed.
+const STREAK_SOUND = {
+  uav:         [{ clip: "prop-plane", gain: 0.5 }, { clip: "radar", gain: 0.3, delay: 1.2 }],
+  counteruav:  [{ clip: "prop-plane", gain: 0.5, rate: 0.9 }, { clip: "radar", gain: 0.3, rate: 0.7, delay: 1.2 }],
+  vsat:        [{ clip: "radar", gain: 0.35, rate: 0.85 }, { clip: "radar", gain: 0.25, rate: 0.85, delay: 1.5 }],
+  carepackage: [{ clip: "heli", gain: 0.55 }],
+  helicopter:  [{ clip: "heli", gain: 0.7, rate: 0.94 }],
+  warship:     [{ clip: "prop-plane", gain: 0.7, rate: 0.62 }],   // a big turboprop VTOL
+  dragonfire:  [{ clip: "quad", gain: 0.55, rate: 0.8 }],
+  drone:       [{ clip: "quad", gain: 0.5 }],
+  swarm:       [{ clip: "quad", gain: 0.28 }],
+  airstrike:   [{ clip: "jet", gain: 0.8 }],
+  k9:          [{ clip: "dog", gain: 0.55 }, { clip: "dog", gain: 0.45, rate: 1.12, delay: 0.32 }, { clip: "dog", gain: 0.5, rate: 0.9, delay: 0.62 }],
+  sam:         [{ clip: "missile", gain: 0.45 }],
+};
+
+/* Play `kind`'s arrival sound. True when it played; false when its clips
+   aren't in yet (the caller plays its synth cue instead). */
+export function playStreakSound(audio, kind, { at = null, delay = 0 } = {}) {
+  const layers = STREAK_SOUND[kind];
+  if (!layers || !clipLoaded(layers[0].clip)) { loadClips(audio, "streaks"); return false; }
+  let ok = false;
+  for (const l of layers) {
+    const r = playClip(audio, l.clip, { gain: l.gain, rate: (l.rate ?? 1) * (0.97 + Math.random() * 0.06), delay: delay + (l.delay ?? 0), at });
+    ok = ok || r !== null;
+  }
+  return ok;
+}
+
+/* A streak's bomb, warhead or shell going off: the recorded blast, bigger
+   and lower for a bigger `scale`. False when it isn't in yet. */
+export function playStreakBlast(audio, scale = 1, at = null) {
+  const r = playClip(audio, "blast", { gain: Math.min(1, 0.45 + scale * 0.25), rate: 1.12 - Math.min(0.3, scale * 0.15), at });
+  return r !== null;
+}

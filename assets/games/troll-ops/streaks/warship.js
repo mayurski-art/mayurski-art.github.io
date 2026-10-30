@@ -42,7 +42,7 @@ export function spawnWarship({ id, seed, owned, team }) {
   const ws = new VtolWarship({ id, owned, bounds: streakBounds(), seed, team, duration: STREAK_DEFS.warship.duration });
   streakEntities.set(id, ws);
   game.scene.add(ws.root);
-  game.audio.wave();
+  game.audio.streakSound?.("warship") || game.audio.wave();
   return ws;
 }
 
@@ -133,6 +133,18 @@ export function toggleWarshipGun() {
   game.audio.reload();
 }
 
+// The guns' reports (clip-bank.js): the 25 mm on the .50's recording, the
+// 105 mm on the sniper's a long way down; the SCAR-H's synth until in.
+let warshipGuns = null;
+function gunSound(g) {
+  const base = WEAPON_DEFS.bellow || WEAPON_DEFS.problem416;
+  warshipGuns ||= {
+    chain: { ...base, clip: "hmg", clipRate: 0.9, clipGain: 0.6 },
+    cannon: { ...base, clip: "sniper", clipRate: 0.55, clipGain: 0.9 },
+  };
+  return warshipGuns[g];
+}
+
 export function fireWarship() {
   const ws = game.warship;
   const g = WARSHIP_GUNS[game.warshipGun];
@@ -153,10 +165,10 @@ export function fireWarship() {
     game.net.publishStreak({ kind: "warship", action: "shot", eid: ws.id, g: game.warshipGun, x: round2(to.x), y: round2(to.y), z: round2(to.z) });
   }
   if (game.warshipGun === "cannon") {
-    game.audio.explosion(0.35);
+    game.audio.shot(gunSound("cannon"), 1);
     game.shakeMag = Math.max(game.shakeMag, 0.035); game.shakeT = 0.25;
   } else {
-    game.audio.shot(WEAPON_DEFS.bellow || WEAPON_DEFS.problem416, 0.45);
+    game.audio.shot(gunSound("chain"), 0.45);
   }
 }
 
@@ -166,6 +178,7 @@ export function warshipImpact(ws, r) {
   if (r.gun === "cannon") {
     game.explosionFx({ kind: "lethal", glow: 0xffb347, radius: g.radius }, r.to);
     streakBlast(r.to, 1.1);
+    game.audio.streakBoom?.(1.1, r.to);
     game.impactFx.hit(r.to, { normal: new THREE.Vector3(0, 1, 0), surface: "ground", scale: 4 });
   } else {
     game.impactFx.hit(r.to, { normal: new THREE.Vector3(0, 1, 0), surface: "ground", scale: 1.8 });

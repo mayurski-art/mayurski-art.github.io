@@ -56,6 +56,7 @@ export function spawnVsatSat(yaw, duration) {
   const sat = new VsatSatellite({ bounds, yaw, duration });
   flyovers.push(sat);
   game.scene.add(sat.root);
+  game.audio.streakSound?.("vsat");
   return sat;
 }
 export function startVsat(team, duration) {
