@@ -156,14 +156,16 @@ export function sortInfectionBots() {
 }
 
 /* A bot we host swings its sword at `target`. Whether it's in reach is
-   bots.js's call; this plays the swing everywhere and lands the hit. */
-export function botMelee(bot, target) {
+   bots.js's call; this plays the swing everywhere and lands the hit.
+   `scale`: the share of the damage that lands (a gunner's swing, bots.js
+   KNIFE_DAMAGE); 0 is a whiff, the swing and nothing else. */
+export function botMelee(bot, target, scale = 1) {
   const def = MELEE_DEFS.keyboard;
   bot.meleeSwing = ((bot.meleeSwing | 0) + 1) & 1;
   const p = game.net.peers.get(bot.id);
   if (p) { p.meleeSeq = (p.meleeSeq | 0) + 1; p.meleeKind = bot.meleeSwing; p.meleeDef = def.id; }
   if (game.net.active) game.net.publishMeleeAs(bot.id, bot.meleeSwing, def.id);
-  game.botDealDamage(bot, target.id, def.damage, false, def.id);
+  if (scale > 0) game.botDealDamage(bot, target.id, def.damage * scale, false, def.id);
 }
 
 function paintInfectionCounts(c) {

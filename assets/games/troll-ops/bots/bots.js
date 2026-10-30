@@ -87,11 +87,11 @@ const magFor = (rules) => (rules?.oneShot ? 1 : MAG_SIZE);
    and whether it cooks frags so they go off on landing. */
 const DIFFICULTY = {
   recruit:  { label: "Recruit",  hit: 0.28, missSpread: [0.9, 2.4], damage: 14, interval: 1.0, reaction: 0.45, strafe: 0.55, lead: 0.15, readsGuard: false, adsTime: 0.42,
-    nade: { chance: 0.3, scatter: 3.2, cook: false }, jump: 0.05, slide: 0.05 },
+    nade: { chance: 0.3, scatter: 3.2, cook: false }, jump: 0.05, slide: 0.05, knife: 0.35 },
   regular:  { label: "Regular",  hit: 0.37, missSpread: [0.6, 1.6], damage: 17, interval: 0.72, reaction: 0.28, strafe: 0.75, lead: 0.4, readsGuard: true, adsTime: 0.3,
-    nade: { chance: 0.55, scatter: 1.9, cook: false }, jump: 0.12, slide: 0.12 },
+    nade: { chance: 0.55, scatter: 1.9, cook: false }, jump: 0.12, slide: 0.12, knife: 0.45 },
   veteran:  { label: "Veteran",  hit: 0.55, missSpread: [0.4, 1.0], damage: 20, interval: 0.53, reaction: 0.16, strafe: 1.0, lead: 0.75, readsGuard: true, adsTime: 0.22,
-    nade: { chance: 0.85, scatter: 1.0, cook: true }, jump: 0.2, slide: 0.2 },
+    nade: { chance: 0.85, scatter: 1.0, cook: true }, jump: 0.2, slide: 0.2, knife: 0.6 },
 };
 
 /* Moving like a player (user: bots never jumped or slid). In a fight a bot
@@ -131,6 +131,7 @@ const between = ([a, b]) => a + Math.random() * (b - a);
    swing when they're in reach. */
 const MELEE_REACH = 1.9;   // keyboard reach (gear.js range 2.0 from the eye), centre to centre
 const MELEE_INTERVAL = 0.95;      // seconds between swings, scaled by skill below
+const KNIFE_DAMAGE = 0.65;        // a gunner's swing: this share of the board's damage (DIFFICULTY `knife`: how often it lands)
 export const DIFFICULTY_IDS = Object.keys(DIFFICULTY);
 
 /* Taking the high ground (Bot.updatePerch): with nobody in sight, every
@@ -666,6 +667,9 @@ class Bot {
       // since standing to trade is exactly what they want.
       // Just smoked themselves: back off in it.
       let closeSign = this.retreatT > 0 ? -1 : best.melee ? (bestD < 14 ? -1 : 0) : bestD > 12 ? 1 : (bestD < 6 ? -1 : 0);
+      // Nothing left to shoot: in for the keyboard (unless the mode's
+      // objective, a gun on the floor, wants it elsewhere: below).
+      if (this.dry) closeSign = 1;
       // Up on a floor over them: hold the high ground, don't walk off it
       // to close the range.
       if (this.groundY >= UPPER_Y && this.groundY - (best.groundY ?? best.pos.y ?? 0) > 1.2) closeSign = Math.min(closeSign, 0);
@@ -926,6 +930,22 @@ class Bot {
     // A short reaction delay before the first shot, so they don't snap onto
     // someone the instant they round a corner.
     const reacted = this.acquireT >= this.diff.reaction;
+
+    // The keyboard (user, 2026-10-29): someone right in its face on its own
+    // level gets swung at, not shot, as a player would; so does anyone in
+    // reach of a bot with nothing left to shoot. `knife` is how often a swing
+    // lands, KNIFE_DAMAGE its share of the board's 120, so it isn't a
+    // one-swing kill the way yours is.
+    this.meleeT -= dt;
+    if (ctx.onMelee && best && !busy && !stunned && !this.windup && reacted && bestD <= MELEE_REACH
+      && Math.abs((best.groundY ?? best.pos.y ?? 0) - this.groundY) < SAME_LEVEL) {
+      if (this.meleeT <= 0) {
+        this.meleeT = MELEE_INTERVAL * (0.7 + this.diff.interval * 0.35) * (0.9 + Math.random() * 0.2);
+        this.fireT = Math.max(this.fireT, 0.45);
+        ctx.onMelee(this, best, Math.random() < this.diff.knife ? KNIFE_DAMAGE : 0);
+      }
+      return;   // the gun waits while the board's out
+    }
 
     // Dry primary with someone still in sight draws the sidearm instead of
     // reloading into a firefight; holstering it again (back to the rifle)
