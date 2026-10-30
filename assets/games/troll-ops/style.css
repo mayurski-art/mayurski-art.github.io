@@ -6129,6 +6129,9 @@ body:has(#to-title.is-fn:not([hidden])) .to-fps { top: auto; bottom: max(2px, en
   background: radial-gradient(circle at 35% 30%, #fff3a8, #f2b71c 55%, #a8700a); border: 2px solid #5a3a04; }
 .zk { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; background: rgba(5,9,22,.6); font-family: "Oswald", sans-serif; color: #fff; }
 .zk[hidden] { display: none; }
+/* the HUD's menu button sits under the kiosk, right where a phone puts its ✕:
+   the kiosk shuts with its own ✕ (Esc / X), so the button goes while it's up */
+body.zk-open .to-gear { visibility: hidden; }
 .zk-panel { width: min(1060px, 100%); max-height: calc(100cqh - 32px); overflow: auto; padding: 16px 18px 14px; border-radius: 16px;
   background: linear-gradient(#1b2f6e, #0f1a3e); border: 3px solid #7fa8ff; box-shadow: 0 18px 50px rgba(0,0,0,.5); }
 .zk-head { display: flex; align-items: center; gap: 14px; }
