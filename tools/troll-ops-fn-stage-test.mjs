@@ -86,7 +86,10 @@ await settle(page);
 const view = (await rect(page, "#to-char-view"))[0];
 const left = (await rect(page, ".to-fn-left"))[0], play = (await rect(page, ".to-fn-play"))[0];
 check(!!view && view.w > 300 && view.h > 300, "the operator view shows on the Play page", JSON.stringify(view));
-check(!!view && !!left && !!play && view.l >= left.r - 1 && view.r <= play.l + 1, "between the left column and the mode card", `${left?.r | 0} <= ${view?.l | 0} .. ${view?.r | 0} <= ${play?.l | 0}`);
+// (the view spans the width under the panels, user 2026-10-30; you stand between them)
+const you = (await rect(page, '.to-stage-tag[data-slot="0"]'))[0], youX = you ? you.l + you.w / 2 : -1;
+check(!!view && !!left && !!play && view.w >= 1279 && youX > left.r + 60 && youX < play.l - 60, "you stand between the left column and the mode card, the view the screen's width", `${left?.r | 0} < ${youX | 0} < ${play?.l | 0}, view ${view?.w | 0} wide`);
+check(await page.evaluate(() => { const z = (s) => +getComputedStyle(document.querySelector(s)).zIndex || 0; return z("#to-char-view") < Math.min(z(".to-fn-left"), z(".to-fn-play")); }), "the view under the panels (its podiums pass behind them)");
 const me = await page.evaluate(() => document.querySelector('.to-stage-tag[data-slot="0"]:not([hidden]) b')?.textContent);
 check(me === "Guest troll", "your name over your operator", me);
 check(await shown(page, ".to-stage-add") === 2, "an empty pad's + either side", String(await shown(page, ".to-stage-add")));

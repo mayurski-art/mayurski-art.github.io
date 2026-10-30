@@ -1,8 +1,12 @@
 // Troll Forces — Hollowgrin Island ("Troll Royale: Two Worlds"): Trollface
 // Island's underside, a Halloween trollface pumpkin round the village, seen
-// from the planes and the fall. Scenery only, for Troll Royale on Hollowgrin
-// (hollowgrin.js royale.scenery): the fight stays inside Hollowgrin's
-// invisible walls; nothing here is a collider.
+// from the planes and the fall. Scenery, for Troll Royale on Hollowgrin
+// (hollowgrin.js royale.scenery); and openIsland (royale.open) lets the
+// fight out of the village into the woods round it (user, 2026-10-29:
+// "freeing up some of the invisible wall restrictions ... so people can land
+// on near woods", "kind of like in fortnite"): the invisible walls come down,
+// the edge is the island JSON's `open` outline, and the trees, stumps, logs,
+// the field-stone wall and the stem in it become colliders.
 //
 // models/hg_island.py draws hg-island.glb (the dark land, the glowing orange
 // rind and the cliff under it, the brew pools of the grin, eyes and nose, the
@@ -16,7 +20,7 @@
 import * as THREE from "three";
 import { lakeWaterMaterial } from "./lake-water.js?v=wf2";
 
-const JSON_URL = new URL("../models/hollowgrin-island.json", import.meta.url).href;
+const JSON_URL = new URL("../models/hollowgrin-island.json?v=op1", import.meta.url).href;
 const HAZE_FADE = [30, 110];   // camera height (m): the ground haze full below, gone above
 const PLANE_PAD = 2;           // the ground plane's margin round the play area here
 // the rind's ground (hg_island.py): Blender material -> [colour, warmth, its strength]
@@ -27,6 +31,18 @@ const RIND = { HG_IslandSand: [0xf5b85e, 0xd88a2a, 0.2], HG_IslandSoil: [0xb8844
 const BREW = { shallow: 0x23401a, deep: 0x050c06, sand: 0x141a0e, foam: 0x8fb86a, glow: 0x1c6a12, glowK: 0.1, bed: 0x080c06 };
 const MOON = [-30, 40, -60];   // hollowgrin.js HOLLOWGRIN.sun.pos: the full moon the brew shows
 const PATH_W = 4;              // a trodden path's width (m)
+
+/* The island's shapes (the JSON), fetched once, by whoever asks first: the
+   map's build (so the loading screen waits on it: the default loading
+   manager), the scenery, the flip (royale-flip.js). */
+let shapes = null, shapesLoad = null;
+export function islandShapes() {
+  shapesLoad ||= new THREE.FileLoader().setResponseType("json").loadAsync(JSON_URL)
+    .then((j) => (shapes = j)).catch(() => { shapesLoad = null; return null; });
+  return shapesLoad;
+}
+/* The same, if it's in yet (else null). */
+export function islandShapesNow() { return shapes; }
 
 /* What the island's ground shaders share (user, 2026-10-28: the brew "still
    looks fake", the rind "looks flat", the land "too dark / bare"): a mask
@@ -261,6 +277,108 @@ function rng(seed) {
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
 const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
 let layout = null;   // groundLayout, once (it's seeded)
+const groundOf = (S, B) => (layout ||= groundLayout(S, B));
+
+/* Is (x, z) on a path or in a clearing (`pad` metres to spare)? */
+function inOpen(S, B, x, z, pad) {
+  const { paths, clearings } = groundOf(S, B);
+  return onPath(paths, x, z, pad) || clearings.some(([a, b, r]) => Math.hypot(a - x, b - z) < r + pad);
+}
+const stemRoot = (S) => [S.stem[0], S.stem[1] + 8];   // hg_island.py's stem root
+
+/* Which of the woods ring's spots (hollowgrin.js woodsLayout) stay: on the
+   land, off the cliff, out of the brew, clear of the stem and the paths. */
+function ringKept(S, B) {
+  const pools = [S.mouth, ...S.eyes, S.nose], root = stemRoot(S);
+  return (x, z) => inside(S.coast, x, z) && distTo(S.coast, x, z) > 6 && !pools.some((p) => inside(p, x, z) || distTo(p, x, z) < 2)
+    && Math.hypot(x - root[0], z - root[1]) > 11 && !inOpen(S, B, x, z, 1);
+}
+
+/* The woods over the rest of the island (past the ring, clear of the rind,
+   the brew, the stem and the paths): name -> [[x, z, ry, scale], ...].
+   Seeded, so once. */
+let woodsSpots = null;
+function islandWoods(S, B) {
+  if (woodsSpots) return woodsSpots;
+  const R = rng(1031);
+  const ring = 24, pools = [S.mouth, ...S.eyes, S.nose], root = stemRoot(S);
+  const xs = S.coast.map((p) => p[0]), zs = S.coast.map((p) => p[1]);
+  const [x0, x1, z0, z1] = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)];
+  const spots = new Map();
+  const ok = (x, z, r) => inside(S.coast, x, z) && distTo(S.coast, x, z) > 8 + r
+    && !(x > B.minX - ring && x < B.maxX + ring && z > B.minZ - ring && z < B.maxZ + ring)
+    && !pools.some((p) => inside(p, x, z) || distTo(p, x, z) < 2.5 + r)
+    && Math.hypot(x - root[0], z - root[1]) > 13 && !inOpen(S, B, x, z, r + 0.5);
+  const put = (name, n, r, s0, s1) => {
+    for (let i = 0, tries = 0; i < n && tries < n * 30; tries++) {
+      const x = x0 + R() * (x1 - x0), z = z0 + R() * (z1 - z0);
+      if (!ok(x, z, r)) continue;
+      if (!spots.has(name)) spots.set(name, []);
+      spots.get(name).push([x, z, R() * 6.28, s0 + R() * (s1 - s0)]);
+      i++;
+    }
+  };
+  for (let k = 0; k < 4; k++) put(`tree${k}`, 160, 1, 0.85, 1.3);
+  for (let k = 0; k < 2; k++) put(`pine${k}`, 320, 1.5, 0.8, 1.35);
+  for (let k = 0; k < 2; k++) put(`bramble${k}`, 80, 0.8, 0.8, 1.4);
+  for (let k = 0; k < 2; k++) put(`stump${k}`, 30, 0.6, 0.9, 1.1);
+  for (let k = 0; k < 2; k++) put(`log${k}`, 20, 2.4, 0.9, 1.1);
+  put("toad0", 50, 0.6, 0.8, 1.4);
+  return (woodsSpots = spots);
+}
+
+// What stops you in the open woods (hg_woods.py's kit, at scale 1): a dead
+// tree's bole, a pine's lower boughs (60% out: you can push in under the
+// tips), a stump, a log in three lengths along it. Bramble, roots,
+// toadstools and crows you walk through.
+const TREE_R = [0.34, 0.4, 0.44, 0.5], TREE_H = [7.5, 8.5, 9.0, 10.0], PINE_H = [9.0, 11.0];
+const STEM = { w: 10, d: 6, h: 12 };   // the stem's root, as two crossed boxes (it's ~5 m round, flaring to 8)
+const WALL_STEP = 0.45;                // a fallen run of the wall this low is stepped over (no collider)
+
+/* The colliders of one piece of woods at (x, z), turned `ry`, scaled `sc`. */
+function pieceBoxes(name, x, z, ry, sc, out) {
+  const box = (cx, cz, half, h, pen) => out.push({ min: new THREE.Vector3(cx - half, 0, cz - half), max: new THREE.Vector3(cx + half, h, cz + half), pen });
+  const k = +name.slice(-1);
+  if (name.startsWith("tree")) box(x, z, TREE_R[k] * 1.1 * sc, TREE_H[k] * 0.48 * sc, 3);
+  else if (name.startsWith("pine")) { const H = PINE_H[k] * sc; box(x, z, 0.6 * (H * 0.22 + 0.2), H * 0.55, 1.2); }
+  else if (name.startsWith("stump")) box(x, z, 0.42 * sc, 0.55 * sc, 4);
+  else if (name.startsWith("log")) for (const t of [-1.2, 0, 1.2]) box(x + Math.cos(ry) * t * sc, z - Math.sin(ry) * t * sc, 0.45 * sc, 0.6 * sc, 3);
+}
+
+/* Troll Royale only (hollowgrin.js royale.open): the woods round the village
+   opened to play, in the live `colliders` and `arena`. `bounds` is the
+   village's (BOUNDS), `ring` the woods ring's layout (woodsLayout), `isWall`
+   picks out the invisible walls. Returns { bounds, edge, close } (close puts
+   the village back as it was), or null if the island's shapes aren't in. */
+export function openIsland({ colliders, arena, bounds, ring, isWall }) {
+  const S = shapes;
+  if (!S?.open) return null;
+  const edge = S.open, near = (x, z) => inside(edge, x, z) || distTo(edge, x, z) < 3;
+  const added = [];
+  const kept = ringKept(S, bounds);
+  for (const [name, list] of ring) for (const [x, z, ry, sc] of list) if (kept(x, z) && near(x, z)) pieceBoxes(name, x, z, ry, sc, added);
+  for (const [name, list] of islandWoods(S, bounds)) for (const [x, z, ry, sc] of list) if (near(x, z)) pieceBoxes(name, x, z, ry, sc, added);
+  for (const [x0, z0, x1, z1, top] of S.wall) {
+    if (top > WALL_STEP) added.push({ min: new THREE.Vector3(x0, 0, z0), max: new THREE.Vector3(x1, top, z1), pen: 6 });
+  }
+  const [sx, sz] = stemRoot(S);
+  for (const [w, d] of [[STEM.w, STEM.d], [STEM.d, STEM.w]]) {
+    added.push({ min: new THREE.Vector3(sx - w / 2, 0, sz - d / 2), max: new THREE.Vector3(sx + w / 2, STEM.h, sz + d / 2), pen: 10 });
+  }
+  const walls = colliders.filter(isWall);
+  const was = { minX: arena.minX, maxX: arena.maxX, minZ: arena.minZ, maxZ: arena.maxZ, edge: arena.edge };
+  const xs = edge.map((p) => p[0]), zs = edge.map((p) => p[1]);
+  const open = { minX: Math.min(...xs), maxX: Math.max(...xs), minZ: Math.min(...zs), maxZ: Math.max(...zs) };
+  const apply = (on) => {
+    const out = new Set(on ? walls : added);
+    for (let i = colliders.length - 1; i >= 0; i--) if (out.has(colliders[i])) colliders.splice(i, 1);
+    colliders.push(...(on ? added : walls));
+    Object.assign(arena, on ? { ...open, edge } : was);
+  };
+  apply(true);
+  let shut = false;
+  return { bounds: open, edge, close() { if (!shut) apply(false); shut = true; } };
+}
 
 /* The map's ground plane (maps.js: bounds + 24 m, at the origin), cut back
    to the play area + PLANE_PAD; returns the undo. Its light map's UVs are
@@ -306,15 +424,11 @@ export function islandScenery(scene, { load, bounds, bakeRect, haze }) {
   const brews = [];        // the pools' water
   const hazeK = haze.value.x;
   let gone = false, untrim = () => {};
-  Promise.all([load("hg-island"), load("hg-woodkit"), fetch(JSON_URL).then((r) => r.json())]).then(([land, kit, S]) => {
-    if (gone) return;
+  Promise.all([load("hg-island"), load("hg-woodkit"), islandShapes()]).then(([land, kit, S]) => {
+    if (gone || !S) return;
     untrim = trimPlane(scene, bounds, bakeRect);
     const pools = [S.mouth, ...S.eyes, S.nose];
-    const root = [S.stem[0], S.stem[1] + 8];   // hg_island.py's stem root
-    layout ||= groundLayout(S, bounds);
-    if (!U.uHgiMask.value) groundMask(S, layout);
-    const { paths, clearings } = layout;
-    const open = (x, z, pad) => onPath(paths, x, z, pad) || clearings.some(([a, b, r]) => Math.hypot(a - x, b - z) < r + pad);
+    if (!U.uHgiMask.value) groundMask(S, groundOf(S, bounds));
     // the ground haze lifts as the camera climbs (one mesh's hook, every frame it's drawn)
     let hook = null;
     land.traverse((n) => {
@@ -385,12 +499,12 @@ export function islandScenery(scene, { load, bounds, bakeRect, haze }) {
       }
     }
     // the woods ring's trees off the cliff, out of the brew, clear of the stem
+    const kept = ringKept(S, bounds);
     scene.traverse((o) => {
       const spots = o.isInstancedMesh && o.userData.woodsSpots;
       if (!spots) return;
       spots.forEach(([x, z], i) => {
-        if (inside(S.coast, x, z) && distTo(S.coast, x, z) > 6 && !pools.some((p) => inside(p, x, z) || distTo(p, x, z) < 2)
-          && Math.hypot(x - root[0], z - root[1]) > 11 && !open(x, z, 1)) return;
+        if (kept(x, z)) return;
         const keep = new THREE.Matrix4();
         o.getMatrixAt(i, keep);
         hiddenRing.push([o, i, keep]);
@@ -401,31 +515,7 @@ export function islandScenery(scene, { load, bounds, bakeRect, haze }) {
     // the woods over the rest of the island: past the ring, clear of the
     // rind, the brew and the stem
     kit.updateMatrixWorld(true);
-    const R = rng(1031);
-    const B = bounds, ring = 24;
-    const xs = S.coast.map((p) => p[0]), zs = S.coast.map((p) => p[1]);
-    const [x0, x1, z0, z1] = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)];
-    const spots = new Map();
-    const ok = (x, z, r) => inside(S.coast, x, z) && distTo(S.coast, x, z) > 8 + r
-      && !(x > B.minX - ring && x < B.maxX + ring && z > B.minZ - ring && z < B.maxZ + ring)
-      && !pools.some((p) => inside(p, x, z) || distTo(p, x, z) < 2.5 + r)
-      && Math.hypot(x - root[0], z - root[1]) > 13 && !open(x, z, r + 0.5);
-    const put = (name, n, r, s0, s1) => {
-      for (let i = 0, tries = 0; i < n && tries < n * 30; tries++) {
-        const x = x0 + R() * (x1 - x0), z = z0 + R() * (z1 - z0);
-        if (!ok(x, z, r)) continue;
-        if (!spots.has(name)) spots.set(name, []);
-        spots.get(name).push([x, z, R() * 6.28, s0 + R() * (s1 - s0)]);
-        i++;
-      }
-    };
-    for (let k = 0; k < 4; k++) put(`tree${k}`, 160, 1, 0.85, 1.3);
-    for (let k = 0; k < 2; k++) put(`pine${k}`, 320, 1.5, 0.8, 1.35);
-    for (let k = 0; k < 2; k++) put(`bramble${k}`, 80, 0.8, 0.8, 1.4);
-    for (let k = 0; k < 2; k++) put(`stump${k}`, 30, 0.6, 0.9, 1.1);
-    for (let k = 0; k < 2; k++) put(`log${k}`, 20, 2.4, 0.9, 1.1);
-    put("toad0", 50, 0.6, 0.8, 1.4);
-    for (const [name, list] of spots) {
+    for (const [name, list] of islandWoods(S, bounds)) {
       kit.getObjectByName(name)?.traverse((m) => {
         if (!m.isMesh) return;
         const inst = new THREE.InstancedMesh(m.geometry, m.material, list.length);

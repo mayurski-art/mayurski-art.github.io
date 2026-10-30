@@ -38,7 +38,8 @@ async function open(viewport) {
   await ctx.route(/supabase/, (r) => r.abort());
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 120000 });
+  // (season=off: the year-round stills)
+  await page.goto(`${BASE}/troll-ops.html?tohooks=1&season=off`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.waitForFunction(() => !!window.__trollOps && !!window.__toBo2?.fn, null, { timeout: 180000 });
   await sleep(500);
   return { ctx, page };
@@ -56,7 +57,7 @@ check(await shown(page, ".to-fn-play") && await shown(page, ".to-fn-go"), "mode 
 check(!(await shown(page, ".to-bo2-menu")), "the BO2 list is hidden on the Play page");
 check(await page.evaluate(() => !document.body.textContent.includes("\u{1F9CC}")), "no troll emoji anywhere");
 await page.waitForSelector(".to-fn-bg.is-on .to-fn-shot", { timeout: 15000 }).catch(() => {});
-check(await page.evaluate(() => { const i = document.querySelector(".to-fn-bg.is-on .to-fn-shot"); return !!i && /kabukigrin/.test(i.currentSrc || i.src); }), "the backdrop reel opens on Kabukigrin");
+check(await page.evaluate(() => { const i = document.querySelector(".to-fn-bg.is-on .to-fn-shot"); return !!i && /trollface/.test(i.currentSrc || i.src); }), "the backdrop reel opens on Trollface Island (no map picked)");
 
 // ---- 2
 const want = { locker: "locker", career: "barracks", compete: "leaders", quests: "quests", options: "options" };

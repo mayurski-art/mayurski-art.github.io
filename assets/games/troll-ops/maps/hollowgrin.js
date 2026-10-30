@@ -44,7 +44,7 @@ import { mapModel, RETEXTURE } from "./map-models.js?v=hg6e-sr1-or1-tx1-sp1-kbt1
 import { loadModel } from "./battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
 import { buildCauldronFx } from "./hollowgrin-cauldron.js?v=hgb2";
 import { buildChapel } from "./hollowgrin-chapel.js?v=hg6tc-or1-tcs1-hgb2-hgb6";
-import { islandScenery } from "./hollowgrin-island.js?v=hgi1-hgb8-tw1";
+import { islandScenery, islandShapes, openIsland } from "./hollowgrin-island.js?v=hgi1-hgb8-tw1-op1-hgo1";
 import { bandOrgan, wheelCreak, coasterRattle } from "./hollowgrin-fair-sound.js?v=hgb4";
 import { roseTexture } from "./chapel-art.js?v=ca1-tcs1";
 import { placeMannequins } from "./hollowgrin-mannequins.js?v=hg6h-sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1-hgb6";
@@ -65,6 +65,11 @@ export function hgFloorOf(y, x, z) {
 }
 
 const BOUNDS = { minX: -51, maxX: 87, minZ: -45, maxZ: 45 };
+// The invisible walls round it (buildHollowgrin's boundary): GHOST_H high,
+// just outside the line on all four sides.
+const GHOST_H = 8;
+const isGhostWall = (c) => c.min.y === 0 && c.max.y === GHOST_H
+  && (c.max.z <= BOUNDS.minZ + 1e-6 || c.min.z >= BOUNDS.maxZ - 1e-6 || c.max.x <= BOUNDS.minX + 1e-6 || c.min.x >= BOUNDS.maxX - 1e-6);
 
 // The Grinmoor Fair park (phase 6b on): the strip east of the old midway,
 // x 51..87, behind a brick-and-iron fence. Shared with
@@ -918,10 +923,38 @@ function carvePatchGeo(r, ribs, squash) {
    instanced along the ring from one seeded stream (the same woods for
    everyone). Dead trees in front, dark pines behind, and between them
    stumps, fallen logs, roots, bramble against the wall, toadstools, and
-   crows perched on the stumps and logs. All outside the line: no shadows
-   cast (they cost more than they show there), none of them a collider. */
+   crows perched on the stumps and logs. Outside the line: no shadows cast
+   (they cost more than they show there), and none of them a collider but in
+   Troll Royale, which opens the woods (hollowgrin-island.js openIsland). */
 function woods(kit, root) {
   kit.updateMatrixWorld(true);
+  const top = (name) => new THREE.Box3().setFromObject(kit.getObjectByName(name)).max.y;
+  for (const [name, list] of woodsLayout()) {
+    const node = kit.getObjectByName(name);
+    node.traverse((m) => {
+      if (!m.isMesh) return;
+      const inst = new THREE.InstancedMesh(m.geometry, m.material, list.length);
+      const local = m.matrixWorld;
+      list.forEach(([x, z, ry, sc, y], i) => {
+        _e.set(0, ry, 0);
+        _q.setFromEuler(_e);
+        _m4.compose(_p.set(x, y.on ? top(y.on) + y.dy : y, z), _q, _s.set(sc, sc * (0.9 + (i % 3) * 0.1), sc)).multiply(local);
+        inst.setMatrixAt(i, _m4);
+      });
+      inst.computeBoundingSphere();
+      inst.castShadow = false;
+      inst.receiveShadow = true;
+      inst.userData.woodsSpots = list.map(([x, z]) => [x, z]);   // (Royale's island takes some away)
+      root.add(inst);
+    });
+  }
+}
+
+/* Where woods() sets each piece: name -> [[x, z, ry, scale, y], ...], a
+   crow's y { on: the stump or log it perches on, dy }. Seeded, so once. */
+let WOODS = null;
+export function woodsLayout() {
+  if (WOODS) return WOODS;
   const T = rng(99);
   const spots = new Map();
   const put = (name, x, z, s, y = 0, ry = T() * 6.28) => {
@@ -946,7 +979,6 @@ function woods(kit, root) {
       if (clear(x, z, r)) fn(x, z);
     }
   };
-  const top = (name) => new THREE.Box3().setFromObject(kit.getObjectByName(name)).max.y;
   scatter(200, 1.8, 11, 0.6, (x, z) => put(`tree${Math.floor(T() * 4)}`, x, z, 0.85 + T() * 0.45));
   scatter(190, 7, 22, 1.2, (x, z) => put(`pine${Math.floor(T() * 2)}`, x, z, 0.8 + T() * 0.5));
   scatter(120, 1.15, 3.2, 0.8, (x, z) => put(`bramble${Math.floor(T() * 2)}`, x, z, 0.8 + T() * 0.6));
@@ -956,34 +988,15 @@ function woods(kit, root) {
   scatter(46, 1.8, 10, 0.6, (x, z) => {
     const k = Math.floor(T() * 2);
     put(`stump${k}`, x, z, 1);
-    perches.push([x, z, top(`stump${k}`)]);
+    perches.push([x, z, { on: `stump${k}`, dy: 0 }]);
   });
   scatter(34, 2.8, 11, 2.4, (x, z) => {
     const k = Math.floor(T() * 2);
     put(`log${k}`, x, z, 1);
-    perches.push([x, z, top(`log${k}`) - 0.05]);
+    perches.push([x, z, { on: `log${k}`, dy: -0.05 }]);
   });
   for (const [x, z, y] of perches) if (T() < 0.3) put("crow0", x, z, 0.9 + T() * 0.3, y);
-
-  for (const [name, list] of spots) {
-    const node = kit.getObjectByName(name);
-    node.traverse((m) => {
-      if (!m.isMesh) return;
-      const inst = new THREE.InstancedMesh(m.geometry, m.material, list.length);
-      const local = m.matrixWorld;
-      list.forEach(([x, z, ry, sc, y], i) => {
-        _e.set(0, ry, 0);
-        _q.setFromEuler(_e);
-        _m4.compose(_p.set(x, y, z), _q, _s.set(sc, sc * (0.9 + (i % 3) * 0.1), sc)).multiply(local);
-        inst.setMatrixAt(i, _m4);
-      });
-      inst.computeBoundingSphere();
-      inst.castShadow = false;
-      inst.receiveShadow = true;
-      inst.userData.woodsSpots = list.map(([x, z]) => [x, z]);   // (Royale's island takes some away)
-      root.add(inst);
-    });
-  }
+  return (WOODS = spots);
 }
 
 /* A headstone with a rounded top, as an extruded outline. */
@@ -3725,7 +3738,10 @@ function buildHollowgrin(api) {
   });
 
   /* ------------------------------------------------------- boundary */
-  api.ghostWalls((BOUNDS.minX + BOUNDS.maxX) / 2, (BOUNDS.minZ + BOUNDS.maxZ) / 2, BOUNDS.maxX - BOUNDS.minX + 2.8, BOUNDS.maxZ - BOUNDS.minZ + 2.8, 8, 1.4);
+  // (Troll Royale takes them down for the woods: royale.open, isGhostWall)
+  api.ghostWalls((BOUNDS.minX + BOUNDS.maxX) / 2, (BOUNDS.minZ + BOUNDS.maxZ) / 2, BOUNDS.maxX - BOUNDS.minX + 2.8, BOUNDS.maxZ - BOUNDS.minZ + 2.8, GHOST_H, 1.4);
+  // the island's shapes, for Royale's open woods: in under the loading screen
+  islandShapes();
   // A crumbling field-stone wall just outside the line, then the woods:
   // models/hg_woods.py draws the wall (hg-woods.glb) and the woods' pieces
   // (hg-woodkit.glb), which woods() sets round the ring.
@@ -4494,11 +4510,16 @@ export const HOLLOWGRIN = {
   build: buildHollowgrin,
   viewFar: 400,   // Troll Royale's planes circle 170 m out and 140 m up
   // Troll Royale on Hollowgrin ("Troll Royale: Two Worlds": the island's
-  // underside), the map as it is: the drop comes in over it on three planes
-  // and its walls reach the sky (royale.edge: a parachute slides along them
-  // and comes down inside). A small arena: 24 trolls, ~7 minutes of zone.
+  // underside): the drop comes in over it on three planes, and the woods
+  // round the village are open (royale.open), out to the beach and round
+  // the brew, so a crowd coming down after the flip spreads out (user,
+  // 2026-10-29: "people can land on near woods or near the main stuff ...
+  // kind of like in fortnite"). Without the island's shapes it's the
+  // village alone, its walls reaching the sky (royale.edge: a parachute
+  // slides along them). 24 trolls, ~7 minutes of zone.
   royale: {
     players: 24,
+    open: ({ colliders, arena }) => openIsland({ colliders, arena, bounds: BOUNDS, ring: woodsLayout(), isWall: isGhostWall }),
     edge: [[BOUNDS.minX + 0.5, BOUNDS.minZ + 0.5], [BOUNDS.maxX - 0.5, BOUNDS.minZ + 0.5],
       [BOUNDS.maxX - 0.5, BOUNDS.maxZ - 0.5], [BOUNDS.minX + 0.5, BOUNDS.maxZ - 0.5]],
     lootPerSqM: 1 / 120,
@@ -4530,7 +4551,7 @@ export const HOLLOWGRIN = {
     dropFog: 0.002,   // the night's fog (0.016) hides the ground from 140 m up
     // the island round it, Trollface Island's underside as a Halloween
     // trollface pumpkin, seen from the planes and the fall
-    // (hollowgrin-island.js; scenery, never walked on)
+    // (hollowgrin-island.js; walked on only where royale.open opens it)
     scenery: (scene) => islandScenery(scene, {
       bounds: BOUNDS,
       bakeRect: HOLLOWGRIN.groundBake.rect,

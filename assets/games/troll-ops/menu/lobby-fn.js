@@ -17,13 +17,14 @@ const text = (el) => (el ? el.textContent.trim().replace(/\s+/g, " ") : "");
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 /* The tabs, and the screen each opens (Play is the front page, "main"). */
+/* `icon`: what an upright phone shows in its place (all six fit there) */
 const TABS = [
-  { id: "play", label: "Play", screen: "main" },
-  { id: "locker", label: "Locker", screen: "locker" },
-  { id: "career", label: "Career", screen: "barracks" },
-  { id: "compete", label: "Compete", screen: "leaders" },
-  { id: "quests", label: "Quests", screen: "quests" },
-  { id: "options", label: "Options", screen: "options" },
+  { id: "play", label: "Play", screen: "main", icon: "M8 5v14l11-7z" },
+  { id: "locker", label: "Locker", screen: "locker", icon: "M9 3 4 6 2 11l3 1v9h14v-9l3-1-2-5-5-3a3 3 0 0 1-6 0z" },
+  { id: "career", label: "Career", screen: "barracks", icon: "m12 2 2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17l-6.1 3.4 1.5-6.8L2.2 9l6.9-.7z" },
+  { id: "compete", label: "Compete", screen: "leaders", icon: "M7 3h10v2h4v3a4 4 0 0 1-4 4h-.4A5 5 0 0 1 13 15v3h3v3H8v-3h3v-3a5 5 0 0 1-3.6-3H7a4 4 0 0 1-4-4V5h4zM5 7v1a2 2 0 0 0 2 2V7zm14 0h-2v3a2 2 0 0 0 2-2z" },
+  { id: "quests", label: "Quests", screen: "quests", icon: "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm5.6 12.6 7-7-1.4-1.4-5.6 5.6-2.8-2.8-1.4 1.4z" },
+  { id: "options", label: "Options", screen: "options", icon: "M13.9 3h-3.8l-.4 2.6a7 7 0 0 0-1.8 1L5.4 5.7 3.5 9l2 1.6a7 7 0 0 0 0 2.8l-2 1.6 1.9 3.3 2.5-.9a7 7 0 0 0 1.8 1l.4 2.6h3.8l.4-2.6a7 7 0 0 0 1.8-1l2.5.9 1.9-3.3-2-1.6a7 7 0 0 0 0-2.8l2-1.6-1.9-3.3-2.5.9a7 7 0 0 0-1.8-1zM12 15.2a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4z" },
 ];
 /* Screens reached from a tab's screen stay under that tab. */
 const TAB_OF = {
@@ -70,32 +71,74 @@ function tileOf(a) {
   return "public";
 }
 
-/* The news carousel: what's new, each a way in. */
+/* The season on the Play page's card (user, 2026-10-30: "a date range and
+   countdown for how long chapter one lasts which is until november 12th
+   2026"): from the lobby's first day with it to the end of 12 November,
+   local time. */
+const SEASON = { start: new Date(2026, 9, 26), end: new Date(2026, 10, 12, 23, 59, 59) };
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const day = (d) => `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+function seasonLeft(now = Date.now()) {
+  const ms = SEASON.end - now;
+  if (ms <= 0) return "Season ended";
+  const m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor(m / 60) % 24;
+  return d ? `${d}D ${h}H left` : `${h}H ${m % 60}M left`;
+}
+
+/* The news carousel: what's new, each a way in (user, 2026-10-30: the
+   Halloween update first, then Trollface Island, then the rest). `art`: a
+   picture other than the map's shot; `side`: the Royale side it picks. */
 const NEWS = [
-  { title: "Trollface Island", tag: "New in Royale", map: "trollface", playlist: "public", mode: "royale" },
+  { title: "Halloween", tag: "Hollowgrin, the island's underside", map: "hollowgrin", art: "assets/games/troll-ops/ui/lobby/halloween/hollowgrin-1-1280.webp", playlist: "public", mode: "royale", side: "hollowgrin" },
+  { title: "Trollface Island", tag: "New in Royale", map: "trollface", playlist: "public", mode: "royale", side: "trollface" },
   { title: "Kabukigrin", tag: "Hang out at night", map: "kabukigrin", playlist: "social" },
   { title: "Troll Beach", tag: "Courts are open", map: "grinbeach", playlist: "social" },
 ];
 
 /* The backdrop reel (user, 2026-10-26: "a couple of photos of each map and
-   then have an animated loop"): three stills of each map (ui/lobby/,
-   tools/troll-ops-lobby-reel.mjs; Kabukigrin's first is its map-vote still,
-   ui/maps/), each held SHOT_MS with a slow drift, crossfading, maps taking
-   turns; and Kabukigrin's two clips, filmed like a vlog: a walk through the
-   club's crowd, and its big screen up close. */
+   then have an animated loop"): the stills of a map (ui/maps/ its map-vote
+   still, ui/lobby/ three more: tools/troll-ops-lobby-reel.mjs), each held
+   SHOT_MS with a slow drift, crossfading; Kabukigrin's with its two clips,
+   filmed like a vlog (a walk through the club's crowd, its big screen up
+   close). Whose stills (user, 2026-10-30: "the background images should be
+   looped to the respective choices of the maps chosen ... if no maps are
+   chosen then we should default to the trollface island one ... that
+   includes hollowgrin island as well"): the map on the mode card (Royale:
+   your side), else both islands' in turn (Public Match's map vote, the
+   Zombies hub). */
 const UI = "assets/games/troll-ops/ui";
 const REEL_MAPS = ["trollface", "grinbeach", "trollcity", "hollowgrin", "undergrin", "grinsite", "culdegrin", "dustbowl", "depot", "grinleria", "kabukigrin"];
 const REEL_CLIPS = ["club", "screen"];
+const REEL_DEFAULT = ["trollface", "hollowgrin"];
 const SHOT_MS = 7000, FADE_MS = 1400;
 const CLIP_V = "c3";   // bump when the clips are re-rendered (same filenames)
 const still = (id, n, w) => n ? `${UI}/lobby/${id}-${n}-${w}.webp` : `${UI}/maps/${id}-${w}.webp`;
 const clip = (name) => ({ clip: (w) => `${UI}/lobby/kabukigrin-${name}-${w}` });
-function reelList() {
-  const out = [{ src: (w) => still("kabukigrin", 0, w) }, clip(REEL_CLIPS[0])];
-  for (const n of [1, 2, 3]) {
-    for (const id of REEL_MAPS) if (!(id === "kabukigrin" && n === 3)) out.push({ src: (w) => still(id, n, w) });
-    if (n === 1) out.push(clip(REEL_CLIPS[1]));
-  }
+/* Halloween (user, 2026-10-29: the lobby "to be halloween vibes"): through
+   October and the first days of November a map with a Halloween still
+   shows that instead (ui/lobby/halloween/, the user's own Halloween edits
+   of the reel's stills, each named for the still it stands in for), no
+   clips. ?season=halloween or ?season=off forces it either way (the tests). */
+const HALLOWEEN = ["kabukigrin-0", "culdegrin-1", "hollowgrin-1", "trollface-1", "grinleria-1", "undergrin-1", "trollcity-1", "grinbeach-1", "dustbowl-1", "depot-1"];
+function halloween() {
+  const force = new URLSearchParams(location.search).get("season");
+  if (force) return force === "halloween";
+  const d = new Date();
+  return d.getMonth() === 9 || (d.getMonth() === 10 && d.getDate() <= 5);
+}
+/* One map's pictures, in order. */
+function mapReel(id) {
+  const spooky = halloween() ? HALLOWEEN.filter((n) => n.startsWith(`${id}-`)) : [];
+  if (spooky.length) return spooky.map((n) => ({ key: `h:${n}`, src: (w) => `${UI}/lobby/halloween/${n}-${w}.webp` }));
+  const shot = (n) => ({ key: `${id}:${n}`, src: (w) => still(id, n, w) });
+  if (id === "kabukigrin") return [shot(0), { key: "clip:club", ...clip(REEL_CLIPS[0]) }, shot(1), { key: "clip:screen", ...clip(REEL_CLIPS[1]) }, shot(2)];
+  return REEL_MAPS.includes(id) ? [0, 1, 2, 3].map(shot) : [shot(0)];
+}
+/* The reel for the chosen map, or both islands' taking turns. */
+function reelList(map) {
+  if (map) return mapReel(map);
+  const lists = REEL_DEFAULT.map(mapReel), out = [];
+  for (let i = 0; i < Math.max(...lists.map((l) => l.length)); i++) for (const l of lists) if (l[i]) out.push(l[i]);
   return out;
 }
 const FALLBACK_AVATAR = "assets/images/icons/favicon/grin.png";
@@ -106,7 +149,10 @@ export function mountFnLobby(api) {
   root.classList.add("is-fn");
   title.classList.add("is-fn");
 
-  mountReel($(".to-bo2-bg", root), title);
+  const reel = mountReel($(".to-bo2-bg", root), title);
+  // Fortnite's dark bands across the top (under the tabs) and the bottom
+  // (under the hints row)
+  $(".to-bo2-bg", root).after(...["top", "foot"].map((k) => Object.assign(document.createElement("div"), { className: `to-fn-band is-${k}`, ariaHidden: "true" })));
 
   /* ── Top bar ── */
   const top = document.createElement("header");
@@ -117,7 +163,7 @@ export function mountFnLobby(api) {
     </button>
     <nav class="to-fn-glass to-fn-tabs" aria-label="Lobby">
       <kbd class="to-fn-padkey" aria-hidden="true">LB</kbd>
-      ${TABS.map((t) => `<button type="button" class="to-fn-tab" data-tab="${t.id}">${t.label}<i class="to-fn-dot" hidden></i></button>`).join("")}
+      ${TABS.map((t) => `<button type="button" class="to-fn-tab" data-tab="${t.id}" title="${t.label}"><svg class="to-fn-tab-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="${t.icon}"/></svg><span class="to-fn-tab-lbl">${t.label}</span><i class="to-fn-dot" hidden></i></button>`).join("")}
       <kbd class="to-fn-padkey" aria-hidden="true">RB</kbd>
     </nav>
     <div class="to-fn-me">
@@ -129,20 +175,19 @@ export function mountFnLobby(api) {
   root.appendChild(top);
   const tabs = $$(".to-fn-tab", top);
 
-  /* ── Play tab, left: season, news, rank, challenges ── */
+  /* ── Play tab, left: season, level, prestige, challenges (Fortnite's
+     Chapter 1 lobby: one block, the level big beside its crest) ── */
   const left = document.createElement("section");
   left.className = "to-fn-left";
   left.setAttribute("aria-label", "Season");
   left.innerHTML = `
-    <div class="to-fn-glass to-fn-season"><b>Chapter One</b><span>Season: OG</span></div>
-    <div class="to-fn-news" role="group" aria-roledescription="carousel" aria-label="News">
-      ${NEWS.map((n, i) => `<button type="button" class="to-fn-news-card" data-i="${i}" ${i ? "hidden" : ""} aria-label="${esc(`${n.title}: ${n.tag}`)}">
-        <img alt="" data-map="${n.map}"><em>News</em><b>${esc(n.title)}</b><small>${esc(n.tag)}</small></button>`).join("")}
-      <div class="to-fn-pips">${NEWS.map((n, i) => `<button type="button" data-i="${i}" aria-label="News ${i + 1}: ${esc(n.title)}"></button>`).join("")}</div>
-    </div>
+    <div class="to-fn-glass to-fn-season"><span>Season: OG</span><b>Chapter One</b>
+      <small class="to-fn-season-time"><i class="to-fn-season-dates">${day(SEASON.start)} – ${day(SEASON.end)}</i><em><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="to-fn-season-left"></span></em></small></div>
     <div class="to-fn-pair">
       <button type="button" class="to-fn-glass to-fn-rank" data-act="career">
-        <span class="to-fn-ring"><b></b></span><span><small>Level</small><strong class="to-fn-xp"></strong></span>
+        <span class="to-fn-crest" aria-hidden="true"><img alt="" src="${FALLBACK_AVATAR}"></span>
+        <span class="to-fn-lvbox"><span class="to-fn-lvline"><small>Level</small><b class="to-fn-lvnum"></b></span>
+          <span class="to-fn-bar"><i aria-hidden="true"></i><strong class="to-fn-xp"></strong></span></span>
       </button>
       <button type="button" class="to-fn-glass to-fn-medal" data-act="career">
         <i aria-hidden="true"></i><small>Prestige</small><strong class="to-fn-pnum"></strong>
@@ -154,17 +199,29 @@ export function mountFnLobby(api) {
     </div>`;
   root.appendChild(left);
 
+  /* ── Play tab, right: the news as Fortnite's event tile, over the mode card ── */
+  const news = document.createElement("section");
+  news.className = "to-fn-news";
+  news.setAttribute("role", "group");
+  news.setAttribute("aria-roledescription", "carousel");
+  news.setAttribute("aria-label", "News");
+  news.innerHTML = `
+      ${NEWS.map((n, i) => `<button type="button" class="to-fn-news-card" data-i="${i}" ${i ? "hidden" : ""} aria-label="${esc(`${n.title}: ${n.tag}`)}">
+        <img alt="" data-map="${n.map}"><em>News</em><b>${esc(n.title)}</b><small>${esc(n.tag)}</small></button>`).join("")}
+      <div class="to-fn-pips">${NEWS.map((n, i) => `<button type="button" data-i="${i}" aria-label="News ${i + 1}: ${esc(n.title)}"></button>`).join("")}</div>`;
+
   /* ── Play tab, right: the mode card and PLAY ── */
   const play = document.createElement("section");
   play.className = "to-fn-glass to-fn-play";
   play.setAttribute("aria-label", "Mode");
   play.innerHTML = `
     <button type="button" class="to-fn-mode" aria-haspopup="dialog" aria-expanded="false">
-      <b class="to-fn-mode-name"></b><small class="to-fn-mode-sub"></small><span class="to-fn-change"><kbd class="to-fn-padkey" aria-hidden="true">X</kbd>Change mode</span>
+      <b class="to-fn-mode-name"></b><small class="to-fn-mode-sub"></small><span class="to-fn-change"><kbd class="to-fn-padkey" aria-hidden="true">X</kbd><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h14m-4-4 4 4-4 4M20 16H6m4-4-4 4 4 4"/></svg>Change mode</span>
     </button>
     <div class="to-fn-map"><img alt="" hidden><div><strong></strong><span></span></div></div>
     <button type="button" class="to-fn-go"><kbd class="to-fn-padkey" aria-hidden="true">A</kbd>Play</button>`;
   root.appendChild(play);
+  play.append(news);   // (the event tile stands over the mode card)
   const picker = document.createElement("div");
   picker.className = "to-fn-glass to-fn-picker";
   picker.setAttribute("role", "dialog");
@@ -226,6 +283,7 @@ export function mountFnLobby(api) {
     $("strong", map).textContent = name;
     $("span", map).textContent = sub;
     const mapId = side ? side.id : p.id !== "public" && p.id !== "zombies" ? active?.dataset.map : null;
+    reel.setMap(mapId || null);
     img.hidden = !mapId;
     if (mapId && img.dataset.map !== mapId) { img.dataset.map = mapId; setMapShot(img, mapId, "120px"); }
     map.hidden = !name;
@@ -351,17 +409,18 @@ export function mountFnLobby(api) {
 
   /* ── News: turns every 6s; a card opens its playlist ── */
   let newsIdx = 0, newsTimer = 0;
-  const cards = $$(".to-fn-news-card", left), pips = $$(".to-fn-pips button", left);
+  const cards = $$(".to-fn-news-card", news), pips = $$(".to-fn-pips button", news);
   function showNews(i) {
     newsIdx = (i + NEWS.length) % NEWS.length;
     cards.forEach((c, k) => { c.hidden = k !== newsIdx; });
     pips.forEach((p, k) => p.setAttribute("aria-current", String(k === newsIdx)));
   }
   for (const c of cards) {
-    setMapShot($("img", c), $("img", c).dataset.map, "320px");
+    const n = NEWS[+c.dataset.i];
+    if (n.art) $("img", c).src = n.art; else setMapShot($("img", c), n.map, "320px");
     c.addEventListener("click", () => {
-      const n = NEWS[+c.dataset.i];
       if (n.mode) { const b = $(`#to-lo-mode [data-mode="${n.mode}"]`); if (b && !b.disabled) b.click(); }
+      if (n.side && royaleSide?.().id !== n.side) switchRoyaleSide?.();
       setPlaylist(n.playlist);
       $(".to-fn-go", play).focus();
     });
@@ -373,6 +432,13 @@ export function mountFnLobby(api) {
   }
   showNews(0);
   restartNews();
+
+  /* ── The season's countdown: each minute, while the menu is up ── */
+  const seasonEl = $(".to-fn-season-left", left);
+  const tickSeason = () => { if (!title.hidden) seasonEl.textContent = seasonLeft(); };
+  tickSeason();
+  setInterval(tickSeason, 60000);
+  new MutationObserver(tickSeason).observe(title, { attributes: true, attributeFilter: ["hidden"] });
 
   /* ── Rank, prestige, challenges ── */
   function done() {
@@ -393,10 +459,9 @@ export function mountFnLobby(api) {
     $(".to-fn-avatar", top).classList.toggle("is-guest", !profile);
     $(".to-fn-avatar", top).setAttribute("aria-label", profile ? "Your Barracks" : "Sign in");
 
-    const ring = $(".to-fn-ring", left);
-    ring.style.setProperty("--p", owner ? 1 : rankProgress());
-    $("b", ring).textContent = owner ? "★" : String(lv);
-    $(".to-fn-xp", left).textContent = owner ? "Owner" : profile ? (rankXpText() || "") : "Sign in to keep XP";
+    $(".to-fn-rank", left).style.setProperty("--p", owner ? 1 : rankProgress());
+    $(".to-fn-lvnum", left).textContent = owner ? "★" : String(lv);
+    $(".to-fn-xp", left).textContent = owner ? "Owner" : profile ? (rankXpText() || "") : "Sign in for XP";
     $(".to-fn-pnum", left).textContent = pres >= PRESTIGE_MASTER ? "Master" : pres ? `P${pres}` : "None yet";
     $(".to-fn-medal", left).classList.toggle("is-none", !pres);
 
@@ -428,6 +493,7 @@ export function mountFnLobby(api) {
     // the list: a class set here, after it, hid the list while it measured)
     const home = id === "main";
     left.hidden = !home;
+    news.hidden = !home;
     play.hidden = !home;
     more.hidden = !home;
     if (!home) { openPicker(false); openModes(false); }
@@ -518,7 +584,7 @@ export function mountFnLobby(api) {
    a still stays up and the clip is skipped). ── */
 function mountReel(bg, title) {
   const width = () => (innerWidth * (devicePixelRatio || 1) > 1400 ? 1920 : 1280);
-  const list = reelList();
+  let list = reelList(), listKey = "", gen = 0, started = false;
   const layers = [0, 1].map(() => {
     const d = document.createElement("div");
     d.className = "to-fn-bg";
@@ -560,9 +626,10 @@ function mountReel(bg, title) {
   }
   async function show(k) {
     k %= list.length;
-    const item = list[k];
-    if (item.clip && hold()) return show(k + 1);
+    const item = list[k], g = gen;
+    if (item.clip && hold()) return list.some((x) => !x.clip) ? show(k + 1) : undefined;
     const el = await load(item);
+    if (g !== gen) return;   // (another map was picked while this loaded)
     if (!el) { at = k; return wait(200); }
     el.className = "to-fn-shot";
     if (!item.clip && !hold()) {
@@ -607,5 +674,25 @@ function mountReel(bg, title) {
   new MutationObserver(sync).observe(document.body, { attributes: true, attributeFilter: ["class"] });
   document.addEventListener("visibilitychange", sync);
   reduce.addEventListener?.("change", sync);
-  show(0);
+  // (the first picture once the Play page has said whose: lobby-fn renders
+  // it straight after mounting this)
+  setTimeout(() => { if (!started) { started = true; show(0); } }, 0);
+  return {
+    /* The map whose pictures loop (null: both islands'). A new one starts
+       over on its first picture. */
+    setMap(map) {
+      const next = reelList(map), key = next.map((x) => x.key).join();
+      if (key === listKey) return;
+      listKey = key;
+      list = next;
+      if (!started) return;
+      gen++;
+      clearTimeout(timer);
+      clip?.pause();
+      clip = null;
+      waiting = false;
+      at = -1;
+      show(0);
+    },
+  };
 }

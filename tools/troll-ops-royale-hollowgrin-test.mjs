@@ -1,9 +1,10 @@
 // Troll Royale on Hollowgrin ("Troll Royale: Two Worlds", phase 1: the
 // island's underside, the 6v6 map as it is). The drop comes in over
 // Hollowgrin on its own three planes; the night's fog thins for the ride
-// down; a faller held hard for the far woods slides along the invisible
-// wall and comes down inside it; every bot lands inside; the floor loot,
-// the chests and the zone are Hollowgrin's.
+// down; the woods round the village are open (2026-10-29: the island's
+// `open` outline), so a faller held hard for the far east comes out over
+// them but slides along the outline's edge and comes down inside it; every
+// bot lands inside; the floor loot, the chests and the zone are Hollowgrin's.
 //
 // Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-royale-hollowgrin-test.mjs
 // SHOTS=<dir> also saves the look down from the ramp, the fall and the landing.
@@ -50,8 +51,27 @@ await page.waitForFunction(() => window.__trollOps.state() === "playing", null, 
 await new Promise((r) => setTimeout(r, 1500));
 
 const shot = (name) => process.env.SHOTS ? page.screenshot({ path: path.join(process.env.SHOTS, `royale-hollowgrin-${name}.jpg`), type: "jpeg", quality: 85 }) : null;
-const B = { minX: -51, maxX: 87, minZ: -45, maxZ: 45 };
-const inside = (p) => p.x >= B.minX && p.x <= B.maxX && p.z >= B.minZ && p.z <= B.maxZ;
+// the open outline (models/hollowgrin-island.json `open`; the village's walls come down for it)
+const OPEN = JSON.parse(fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/models/hollowgrin-island.json"), "utf8")).open;
+const inPoly = (poly, x, z) => {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, zi] = poly[i], [xj, zj] = poly[j];
+    if ((zi > z) !== (zj > z) && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) c = !c;
+  }
+  return c;
+};
+const outBy = (x, z) => {   // how far past the outline (0 inside)
+  if (inPoly(OPEN, x, z)) return 0;
+  let d = Infinity;
+  for (let i = 0, j = OPEN.length - 1; i < OPEN.length; j = i++) {
+    const [ax, az] = OPEN[j], [bx, bz] = OPEN[i], ex = bx - ax, ez = bz - az;
+    const t = Math.max(0, Math.min(1, ((x - ax) * ex + (z - az) * ez) / (ex * ex + ez * ez)));
+    d = Math.min(d, Math.hypot(x - ax - ex * t, z - az - ez * t));
+  }
+  return d;
+};
+const inside = (p) => inPoly(OPEN, p.x, p.z);
 
 const setup = await page.evaluate(() => {
   const T = window.__trollOps, r = T.royale(), sq = T.planes();
@@ -79,42 +99,45 @@ await new Promise((r) => setTimeout(r, 1200));
 await shot("2-fall");
 check("Space: off the ramp into a fall", jumped.me === "fall", jumped.me);
 check("the night's fog is thin up high, so the ground shows", jumped.fog < 0.008, `density ${jumped.fog.toFixed(4)} at ${jumped.y.toFixed(0)} m`);
-// Hold hard for the woods past the east wall, camera level: the invisible
-// wall keeps you in.
+// Hold hard for the far east, past the woods, camera level: the outline's
+// edge keeps you in.
 await page.evaluate(() => {
   const T = window.__trollOps;
   T.look.yaw = Math.atan2(-(300 - T.move.pos.x), -(0 - T.move.pos.z));
   T.look.pitch = 0;
   T.keys.add("KeyW");
 });
-let maxOut = 0;
+let maxOut = 0, maxX = -Infinity;
 for (let i = 0; i < 400; i++) {
   const s = await page.evaluate(() => { const T = window.__trollOps; return { me: T.royale().me, x: T.move.pos.x, z: T.move.pos.z }; });
-  maxOut = Math.max(maxOut, s.x - B.maxX, B.minX - s.x, s.z - B.maxZ, B.minZ - s.z);
+  maxOut = Math.max(maxOut, outBy(s.x, s.z));
+  maxX = Math.max(maxX, s.x);
   if (s.me === "roll" || s.me === "ground") break;
   await new Promise((r) => setTimeout(r, 100));
 }
 await page.evaluate(() => window.__trollOps.keys.delete("KeyW"));
 await page.waitForFunction(() => window.__trollOps.royale().me === "ground", null, { timeout: 30000 }).catch(() => {});
 const landed = await page.evaluate(() => { const T = window.__trollOps; return { me: T.royale().me, x: T.move.pos.x, y: T.move.pos.y, z: T.move.pos.z, fog: T.scene.fog.density, hp: T.player.hp }; });
-check("held for the woods, the wall stops you: you never leave Hollowgrin in the air", maxOut <= 0.5, `${maxOut.toFixed(1)} m past the line at most`);
-check("you land inside Hollowgrin, on your feet, unhurt", landed.me === "ground" && inside(landed) && landed.y < 20 && landed.hp === 100,
+check("held for the far east, you never get past the outline in the air", maxOut <= 0.5, `${maxOut.toFixed(1)} m past it at most, out to x ${maxX.toFixed(0)}`);
+check("you land inside the outline, on your feet, unhurt", landed.me === "ground" && inside(landed) && landed.y < 20 && landed.hp === 100,
   JSON.stringify({ x: +landed.x.toFixed(1), y: +landed.y.toFixed(1), z: +landed.z.toFixed(1), hp: landed.hp }));
 await shot("3-landed");
 check("on the ground the night's fog is back", Math.abs(landed.fog - 0.016) < 1e-6, landed.fog.toFixed(4));
 
 await page.waitForFunction(() => { const T = window.__trollOps; return T.royale().live && T.royale().drop.phase === "done" && T.bots.bots.every((b) => !b.alive || !b.airborne); }, null, { timeout: 150000 }).catch(() => {});
 const after = await page.evaluate(() => {
-  const T = window.__trollOps, r = T.royale(), B = { minX: -51, maxX: 87, minZ: -45, maxZ: 45 };
+  const T = window.__trollOps, r = T.royale();
   const alive = T.bots.bots.filter((b) => b.alive);
   return {
     live: r.live, phase: r.drop.phase, airborne: alive.filter((b) => b.airborne).length, high: alive.filter((b) => b.pos.y > 20).length,
-    out: alive.filter((b) => b.pos.x < B.minX || b.pos.x > B.maxX || b.pos.z < B.minZ || b.pos.z > B.maxZ).length,
+    at: alive.map((b) => [b.pos.x, b.pos.z]),
     trolls: T.royaleAliveList().length, zoneR: Math.round(r.zone.state(0).r),
   };
 });
+after.out = after.at.filter(([x, z]) => !inPoly(OPEN, x, z)).length;
+delete after.at;
 check("every bot jumps and lands, the zone goes live", after.live && after.phase === "done" && after.airborne === 0 && after.high === 0 && after.trolls >= 20, JSON.stringify(after));
-check("every bot is inside Hollowgrin's walls", after.out === 0, `${after.out} outside`);
+check("every bot is inside the outline", after.out === 0, `${after.out} outside`);
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 
 await browser.close();

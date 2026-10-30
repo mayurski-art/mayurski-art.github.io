@@ -25,8 +25,9 @@
 
 import * as THREE from "three";
 import { game } from "../core/state.js?v=st1";
+import { clampInsidePolygon } from "../maps/edge.js?v=or1";
+import { islandShapes } from "../maps/hollowgrin-island.js?v=hgi1-hgb8-tw1-op1-hgo1";
 
-const ISLAND_URL = new URL("../models/hollowgrin-island.json", import.meta.url).href;
 const FACE_URL = (side) => new URL(`../ui/flip/${side}.webp`, import.meta.url).href;
 const FACE_BOX_URL = new URL("../ui/flip/box.json", import.meta.url).href;
 // where each side's map sits in the island's frame (its own coords minus this)
@@ -47,12 +48,12 @@ export const FLIP = {
 const cine = { kind: null, t: 0, from: null, to: null, yaw0: 0, banner: false };
 let model = null;   // { root, turn, slabs: { side: Group }, markers: { side: Mesh }, island }
 let loading = null;
-let island = null, islandLoad = null;   // models/hollowgrin-island.json (the coast, the play box, the offset)
+let island = null, islandLoad = null;   // models/hollowgrin-island.json (the coast, the open outline, the offset)
 
-/* The island's shapes, fetched once (the model and the swap both use them). */
+/* The island's shapes, fetched once (the model, the swap and Hollowgrin's
+   open woods all use them: hollowgrin-island.js). */
 function loadIsland() {
-  islandLoad ||= fetch(ISLAND_URL).then((r) => r.json()).then((j) => { island = j; SIDE_OFFSET.hollowgrin = j.offset; return j; })
-    .catch(() => { islandLoad = null; return null; });
+  islandLoad ||= islandShapes().then((j) => { if (!j) { islandLoad = null; return null; } island = j; SIDE_OFFSET.hollowgrin = j.offset; return j; });
   return islandLoad;
 }
 let veil = null;
@@ -107,7 +108,7 @@ export function updateRoyaleFlip(r, dt) {
 }
 
 /* Where (x, z) on side `from` comes down on side `to`, in that side's map
-   metres: the same point of the island, kept inside Hollowgrin's walls. */
+   metres: the same point of the island, kept inside what's open of Hollowgrin. */
 export function matchingSpot(from, to, x, z) {
   const [ix, iz] = landingSpot(from, to, x, z), o = SIDE_OFFSET[to] || [0, 0];
   return [ix + o[0], iz + o[1]];
@@ -167,7 +168,7 @@ function tick() {
     slab.quaternion.setFromAxisAngle(_axis, second ? -Math.PI : 0);   // (the far face, the right way up once over)
   }
   // your marker: where you are now on the face you leave, where you'll come
-  // down on the one you go to (into Hollowgrin's walls, if that's it)
+  // down on the one you go to (into Hollowgrin's open woods, if that's it)
   const you = game.player.alive ? game.move.pos : game.camera.position;
   for (const [side, m] of Object.entries(model.markers)) {
     const [ix, iz] = side === cine.from ? toIsland(cine.from, you.x, you.z) : landingSpot(cine.from, cine.to, you.x, you.z);
@@ -178,14 +179,15 @@ function tick() {
 
 function toIsland(side, x, z) { const o = SIDE_OFFSET[side] || [0, 0]; return [x - o[0], z - o[1]]; }
 /* Where a spot on one face comes down on the other: the same point of the
-   island, kept inside the play area there (Hollowgrin is walled). */
+   island, kept inside the play area there (Hollowgrin's open outline: the
+   village and the woods round it, off the brew). */
 function landingSpot(from, to, x, z) {
   let [ix, iz] = toIsland(from, x, z);
-  const play = island?.play;
-  if (to === "hollowgrin" && play) {
-    const o = SIDE_OFFSET.hollowgrin;
-    ix = Math.min(play[1] - 3, Math.max(play[0] + 3, ix + o[0])) - o[0];
-    iz = Math.min(play[3] - 3, Math.max(play[2] + 3, iz + o[1])) - o[1];
+  if (to === "hollowgrin" && island?.open) {
+    const o = SIDE_OFFSET.hollowgrin, p = { x: ix + o[0], z: iz + o[1] };
+    clampInsidePolygon(p, island.open, 3);
+    ix = p.x - o[0];
+    iz = p.z - o[1];
   }
   return [ix, iz];
 }

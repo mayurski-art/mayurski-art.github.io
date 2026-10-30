@@ -16,6 +16,7 @@ import { buildHumanoid, poseHumanoid, aimRig, mountHeldWeapon } from "../charact
 import { buildWeaponMesh } from "../weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1-rt1-ut1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1-mrg3";
 import { drawInkOverlay } from "../view/char-ink.js?v=ci1-ci2-ci3-ci4-ci5-rb4-rb5-mg1-sp1-ci6";
 import { poseEmoteCode, emoteCode, emoteSeconds } from "../characters/emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-cf1-gs2-lh1-fg2-lp1-fg3-rc1-rc4-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-ht2-bx1-cg1-mg1-sp1-chg1";
+import { buildPlinth } from "./lobby-stage.js?v=ps2-ng2-hwl1";
 import { wearBlocky } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-hl1-mg1-sp1-rh1-ci6-pm1";
 
 const MIN_ZOOM = 0.5;
@@ -39,33 +40,8 @@ const OPERATOR_MATERIAL = new THREE.MeshStandardMaterial({
 /* The Play page's stage (user, 2026-10-27, the Fortnite lobby's phase 2):
    you on a glowing pad in the middle, up to two of your party on the pads
    either side, a step back and turned a little in. [x, z, yaw] in the
-   rig's space (its feet at y 0). */
+   rig's space (its feet at y 0). The pads are stone plinths (lobby-stage.js). */
 const SLOTS = [[0, 0, 0], [-1.05, -0.55, 0.28], [1.05, -0.55, -0.28]];
-// the pads' glow: a soft disc and a bright rim, drawn once
-function padTexture() {
-  const c = document.createElement("canvas");
-  c.width = c.height = 128;
-  const g = c.getContext("2d"), r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-  r.addColorStop(0, "rgba(255,255,255,.55)");
-  r.addColorStop(0.62, "rgba(255,255,255,.28)");
-  r.addColorStop(0.8, "rgba(255,255,255,.95)");
-  r.addColorStop(0.86, "rgba(255,255,255,.35)");
-  r.addColorStop(1, "rgba(255,255,255,0)");
-  g.fillStyle = r;
-  g.fillRect(0, 0, 128, 128);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
-function buildPad(color, size) {
-  const m = new THREE.MeshBasicMaterial({ map: padTexture(), color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
-  const pad = new THREE.Mesh(new THREE.PlaneGeometry(size, size), m);
-  pad.rotation.x = -Math.PI / 2;
-  pad.position.y = 0.005;
-  pad.renderOrder = -1;
-  return pad;
-}
-
 export class CharacterInspector {
   constructor(canvas) {
     this.canvas = canvas;
@@ -126,7 +102,7 @@ export class CharacterInspector {
     // the stage: pads, and the party on them (setStage, setParty)
     this.stage = false;
     this.pads = SLOTS.map(([x, z], i) => {
-      const p = buildPad(i ? 0xbcd2ff : 0x4fd8ff, i ? 1.15 : 1.4);
+      const p = buildPlinth(i ? 0.42 : 0.5, i ? 0x1ea0d8 : 0x8a3cf0);
       p.position.x = x; p.position.z = z;
       p.visible = false;
       this.rig.add(p);
@@ -334,7 +310,11 @@ export class CharacterInspector {
       this.emote.t += dt;
       if (this.emote.t > this.emote.secs) this.emote = null;
     }
-    if (this.held) this.held.visible = !this.emote;
+    // on the Play page's stage nobody holds a gun (user, 2026-10-29:
+    // "players should not be seen holding weapons in the main menu"); the
+    // Locker and Cosmetics still show it
+    const armed = !!this.held && !this.stage;
+    if (this.held) this.held.visible = armed && !this.emote;
     if (!this.emote || !poseEmoteCode(this.humanoid, this.emote.code, this.emote.t)) {
       // A slow breath in the aim keeps the ready stance from reading as a
       // frozen frame.
@@ -344,7 +324,7 @@ export class CharacterInspector {
       const breath = Math.sin(this.breathT * 1.3) * 0.012;
       poseHumanoid(this.humanoid, {
         moving: false, pitch: LOW_READY + breath, dt,
-        hold: this.held ? "gun" : "none", hasGun: !!this.held && this.hasGun,
+        hold: armed ? "gun" : "none", hasGun: armed && this.hasGun,
         carryYaw: PORT_YAW, carryRoll: PORT_ROLL,
       });
       const p = this.humanoid.parts;
@@ -366,7 +346,9 @@ export class CharacterInspector {
     // your pad breathes (not with Animations off or reduced motion)
     if (this.stage) {
       const still = document.body.classList.contains("tf-anim-off") || matchMedia("(prefers-reduced-motion: reduce)").matches;
-      this.pads[0].material.opacity = still ? 0.9 : 0.78 + 0.22 * Math.sin(this.breathT * 2.1);
+      const { shine, column } = this.pads[0].userData;
+      shine.material.opacity = still ? 0.6 : 0.52 + 0.12 * Math.sin(this.breathT * 2.1);
+      column.material.opacity = still ? 0.22 : 0.18 + 0.06 * Math.sin(this.breathT * 2.1);
     }
 
     const dist = this.baseDist * (this.distMult || 1) * this.zoom;
