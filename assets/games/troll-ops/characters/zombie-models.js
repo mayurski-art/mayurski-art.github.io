@@ -31,6 +31,10 @@ const LOOKS = {
 };
 export const ZOMBIE_LOOKS = Object.keys(LOOKS);
 export const RARE_LOOKS = { trollmask: 1 / 40 };
+const RARE_BASE = { ...RARE_LOOKS };
+/* A run that dresses its dead up (the Halloween run, modes/zombies/hub.js):
+   new odds for some rare looks, or null for the usual ones. */
+export function setRareLooks(odds) { Object.assign(RARE_LOOKS, RARE_BASE, odds || {}); }
 // a type that always wears its own look (and no other type does)
 export const TYPE_LOOKS = { leaper: "leaper" };
 const DEDICATED = new Set(Object.values(TYPE_LOOKS));

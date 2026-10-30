@@ -16,7 +16,7 @@ import { FlowField } from "../../bots/nav.js?v=ti1-bs1b7d-fl1-or1-gf1-tg1-tfb8";
 import { makeEnemyDissolveMaterial } from "../../view/shaders.js?v=or1";
 import { buildHumanoid, poseHumanoid } from "../../characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1";
 import { groundHeightAt, resolveCircle } from "../../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1";
-import { preloadZombieModels, zombieModelsReady, pickLook, lookReady, createZombieBody, CLIP_SPEED, ONE_SHOTS } from "../../characters/zombie-models.js?v=zr4c-zp1-or1";
+import { preloadZombieModels, zombieModelsReady, pickLook, lookReady, createZombieBody, CLIP_SPEED, ONE_SHOTS } from "../../characters/zombie-models.js?v=zr4c-zp1-or1-zf1";
 
 /* Behaviour types. The look (body + clothes) is picked separately, so a
    runner can be any of the horde's bodies. `gait` is the clip it moves on. */
