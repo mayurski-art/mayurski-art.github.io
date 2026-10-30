@@ -126,7 +126,7 @@ addEventListener("trollforces:fn-screen", () => { if (activeLobbyPanel === "depl
 // (user, 2026-10-30: "a small white arrow where users can panel back and
 // forth between their 3 members versus the other 1-3 members")
 let stageSquad = 0;
-const onStage = (v) => (stageSquad && v.squad?.people.length ? v.squad.people : v.people.slice(0, 2));
+const onStage = (v) => (stageSquad && v.squad?.people.length ? v.squad.people : v.people.slice(0, 3));
 function showParty() {
   if (!charInspector?.stage) return;
   const v = partyView();
@@ -147,8 +147,8 @@ const sentTo = new Set();
 const stageEl = charView ? document.createElement("div") : null;
 if (stageEl) {
   stageEl.className = "to-stage";
-  stageEl.innerHTML = [0, 1, 2].map((i) => `<div class="to-stage-tag${i ? "" : " is-me"}" data-slot="${i}" hidden><b></b><small></small></div>`).join("")
-    + [1, 2].map((i) => `<button type="button" class="to-stage-add" data-slot="${i}" hidden aria-label="Invite someone to your party"><span aria-hidden="true">+</span></button>
+  stageEl.innerHTML = [0, 1, 2, 3].map((i) => `<div class="to-stage-tag${i ? "" : " is-me"}" data-slot="${i}" hidden><b></b><small></small></div>`).join("")
+    + [1, 2, 3].map((i) => `<button type="button" class="to-stage-add" data-slot="${i}" hidden aria-label="Invite someone to your party"><span aria-hidden="true">+</span></button>
       <div class="to-stage-bubble" data-slot="${i}" hidden><b></b><small>Online</small><button type="button">Invite to party</button></div>`).join("");
   charView.appendChild(stageEl);
   stageEl.addEventListener("click", (e) => {
@@ -227,14 +227,14 @@ function renderStage() {
   if (!v.squad) stageSquad = 0;
   renderSquadNav(v);
   const tags = [...stageEl.querySelectorAll(".to-stage-tag")];
-  // the joined squad's three on the pads: their names, no "+"
+  // the joined squad on the pads: their names, no "+"
   if (stageSquad) {
-    v.squad.people.slice(0, 3).forEach((p, i) => { tags[i].querySelector("b").textContent = p.name; tags[i].querySelector("small").textContent = i ? "" : "Squad leader"; });
+    v.squad.people.slice(0, 4).forEach((p, i) => { tags[i].querySelector("b").textContent = p.name; tags[i].querySelector("small").textContent = i ? "" : "Squad leader"; });
     tags.forEach((t, i) => { t.hidden = !v.squad.people[i]; });
     for (const el of stageEl.querySelectorAll(".to-stage-add, .to-stage-bubble")) el.hidden = true;
     return;
   }
-  const people = v.people.slice(0, 2);
+  const people = v.people.slice(0, 3);
   const me = window.TrollrunnerAccounts?.getCachedProfile?.()?.username;
   tags[0].querySelector("b").textContent = me ? withClan(me, getMyCard().clan) : "Guest troll";
   tags[0].querySelector("small").textContent = people.length || v.squad ? (v.host ? "Party leader" : "In the party") : "";
@@ -242,15 +242,16 @@ function renderStage() {
   const inParty = new Set(people.map((p) => p.viewerId));
   const free = online.filter((o) => !inParty.has(o.viewerId));
   let pick = 0;
-  for (const slot of [1, 2]) {
+  for (const slot of [1, 2, 3]) {
     const p = people[slot - 1], tag = tags[slot];
     tag.hidden = !p;
     if (p) {
       tag.querySelector("b").textContent = p.name;
       tag.querySelector("small").textContent = p.host ? "Party leader" : "In your party";
     }
-    // an empty pad: yours to fill (not in someone else's party: their host invites)
-    const empty = !p && v.host;
+    // an empty pad: yours to fill (not in someone else's party: their host
+    // invites); the fourth only once the two either side of you are taken
+    const empty = !p && v.host && (slot < 3 || people.length >= 2);
     stageEl.querySelector(`.to-stage-add[data-slot="${slot}"]`).hidden = !empty;
     const bubble = stageEl.querySelector(`.to-stage-bubble[data-slot="${slot}"]`), o = empty ? free[pick++] : null;
     bubble.hidden = !o;

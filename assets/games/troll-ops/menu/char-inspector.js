@@ -38,10 +38,12 @@ const OPERATOR_MATERIAL = new THREE.MeshStandardMaterial({
 });
 
 /* The Play page's stage (user, 2026-10-27, the Fortnite lobby's phase 2):
-   you on a glowing pad in the middle, up to two of your party on the pads
-   either side, a step back and turned a little in. [x, z, yaw] in the
+   you on a glowing pad in the middle, up to three of your party: one on
+   each side a step back, the fourth further out on the left, all turned a
+   little in (user, 2026-10-30: a party of 4). [x, z, yaw] in the
    rig's space (its feet at y 0). The pads are stone plinths (lobby-stage.js). */
-const SLOTS = [[0, 0, 0], [-1.05, -0.55, 0.28], [1.05, -0.55, -0.28]];
+const SLOTS = [[0, 0, 0], [-1.05, -0.55, 0.28], [1.05, -0.55, -0.28], [-2.05, -1.2, 0.5]];
+const STAGE_MARGIN = 0.5;   // room (rig units) beside the outermost on the stage, for their name
 export class CharacterInspector {
   constructor(canvas) {
     this.canvas = canvas;
@@ -116,7 +118,7 @@ export class CharacterInspector {
   }
 
   /* The Play page's stage on or off: the pads, the party, and the camera
-     back far enough for all three (the box's --char-dist, re-read). */
+     back far enough for all four (the box's --char-dist, re-read). */
   setStage(on) {
     this.stage = !!on;
     for (const p of this.pads) p.visible = this.stage;
@@ -128,8 +130,8 @@ export class CharacterInspector {
   }
 
   /* The party beside you: [{ id, name, face, body (a TROLLS token, 0 the
-     stick) }], two at most, in slot order. A member's operator is rebuilt
-     only when their look changes. `withoutMe`: a joined squad's three
+     stick) }], three at most, in slot order. A member's operator is rebuilt
+     only when their look changes. `withoutMe`: a joined squad's four
      instead (user, 2026-10-30: the arrows between the squads), on every
      pad, yours hidden. */
   setParty(list, { withoutMe = false } = {}) {
@@ -290,6 +292,9 @@ export class CharacterInspector {
       // --char-dist: how much further back the camera stands in a box too
       // small for the full-size operator (the portrait phone layout)
       this.distMult = parseFloat(css.getPropertyValue("--char-dist")) || 1;
+      // --stage-fit: the share of the box's half width the stage may fill
+      // either side of its middle (the Play page: the columns over its edges)
+      this.stageFit = parseFloat(css.getPropertyValue("--stage-fit")) || 1;
       if (shift) this.camera.setViewOffset(w, h, -shift * w, 0, w, h);
       else this.camera.clearViewOffset();
       this.camera.updateProjectionMatrix();
@@ -357,7 +362,20 @@ export class CharacterInspector {
       column.material.opacity = still ? 0.22 : 0.18 + 0.06 * Math.sin(this.breathT * 2.1);
     }
 
-    const dist = this.baseDist * (this.distMult || 1) * this.zoom;
+    let dist = this.baseDist * (this.distMult || 1) * this.zoom;
+    // the stage: its pads centred, and the camera back far enough that the
+    // outermost stays in frame (a party of four on a phone). The fourth pad
+    // shows once the two either side of you are taken (a joined squad: its
+    // fourth is on it).
+    this.rig.position.x = 0;
+    if (this.stage) {
+      this.pads[3].visible = this.party.length >= (this.withoutMe ? 4 : 2);
+      const on = SLOTS.filter((s, i) => this.pads[i].visible);
+      const xs = on.map(([x]) => x), off = -(Math.min(...xs) + Math.max(...xs)) / 2;
+      this.rig.position.x = off;
+      const tanH = Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2) * this.camera.aspect * (this.stageFit || 1);
+      for (const [x, z] of on) dist = Math.max(dist, (Math.abs(x + off) + STAGE_MARGIN) / tanH + z);
+    }
     const cp = Math.cos(this.pitch);
     this.camera.position.set(
       Math.sin(this.yaw) * cp * dist,

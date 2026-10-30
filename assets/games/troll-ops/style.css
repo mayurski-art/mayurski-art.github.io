@@ -4723,8 +4723,9 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
    pads either side (char-inspector.js stage; lobby.js the names and invites).
    The view spans the screen's width under the panels (user, 2026-10-30: the
    box the stage was drawn in cut the podiums off; "its fine that the little
-   podiums are in the background of" the challenges and the mode card) */
-#to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: 0; right: 0; top: var(--fn-top); bottom: calc(78px + var(--fn-safe-b)); --char-shift: 0; --char-dist: 1.32; }
+   podiums are in the background of" the challenges and the mode card);
+   --stage-fit keeps a party of four's names between the columns */
+#to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: 0; right: 0; top: var(--fn-top); bottom: calc(78px + var(--fn-safe-b)); --char-shift: 0; --char-dist: 1.32; --stage-fit: 0.44; }
 .to-bo2.is-fn[data-screen="main"] .to-bo2-foot .to-char-emote:not([hidden]) { display: flex; }
 .to-stage { position: absolute; inset: 0; pointer-events: none; font-family: var(--fn-ui); }
 .to-stage > * { position: absolute; left: 0; top: 0; pointer-events: auto; }
@@ -5074,7 +5075,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
      to make room; the box starts 50 px under the cards (your name sits
      over your head, above the box) and ends 8 px over the mode card (224
      px tall). Names smaller, no bubbles (the "+" opens Who's Online) */
-  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: 0; right: 0; --char-shift: 0; --char-dist: 1;
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: 0; right: 0; --char-shift: 0; --char-dist: 1; --stage-fit: 1;
     top: calc(58px + env(safe-area-inset-top) + 36px + 8px + 56px + 50px);
     bottom: calc(var(--foot-h, 60px) + 26px + env(safe-area-inset-bottom) + 224px + 8px); }
   .to-fn-season { display: flex; justify-content: center; align-items: baseline; gap: 10px; height: 36px; padding: 0 10px; box-sizing: border-box; }

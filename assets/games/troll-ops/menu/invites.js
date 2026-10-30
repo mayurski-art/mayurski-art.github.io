@@ -40,9 +40,9 @@ const INVITE = {
   sendGap: 4,       // seconds between your invites to the same person
 };
 const ROOM = /^[A-Z0-9]{1,8}$/;
-/* A party: you and two more (user, 2026-10-30: "just make it 3 max"), one
-   on each pad of the lobby's stage. */
-export const PARTY_SIZE = 3;
+/* A party: you and three more (user, 2026-10-30: "lets increase it to 4";
+   it was 3), one on each pad of the lobby's stage. */
+export const PARTY_SIZE = 4;
 
 let presence = null;
 const lastFrom = new Map(), lastTo = new Map();
