@@ -127,6 +127,8 @@ check(same.far < 1.5, "where the host has them", `${same.far.toFixed(2)} m out a
 // ---- 3. kills pay whoever made them
 const cash = async () => Promise.all([a, b].map((p) => R(p, () => window.__trollOps.zrun().econ.cash)));
 let [ca, cb] = await cash();
+// (one of the host's up and out of the ground on B's screen to shoot)
+await until(b, () => window.__trollOps.zdir().zombies.some((q) => q.alive && !q.dying && q.riseT <= 0), null, 30000);
 const killed = await R(b, () => {
   const T = window.__trollOps;
   const z = T.zdir().zombies.find((q) => q.alive && !q.dying && q.riseT <= 0);
@@ -211,6 +213,7 @@ await sleep(1500);
 const before = await R(b, () => window.__trollOps.zdir().round);
 await a.close();
 check(await until(b, () => window.__trollOps.zrun().coop.coop.host, null, 15000), "A gone: B is the host");
+console.log("  B after A left", JSON.stringify(await R(b, () => { const T = window.__trollOps; return { conn: T.net.connected, kind: T.net.transport?.kind, room: T.net.room, on: T.zrun().coop.coop.on, state: T.state() }; })));
 const took = await R(b, () => { const z = window.__trollOps.zdir(); return { proxies: z.zombies.filter((q) => q.proxy).length, round: z.round, state: z.state }; });
 check(took.proxies === 0 && took.round === before, "B carries on the same wave with the horde its own", JSON.stringify(took));
 check(await until(b, () => window.__trollOps.zdir().zombies.some((q) => q.alive && !q.dying && !q.proxy && q.nid?.startsWith(window.__trollOps.net.id.slice(0, 4))), null, 30000), "B spawns the rest");
@@ -220,8 +223,12 @@ const c = await open("C");
 await start(c, "trollcity", true);
 await loaded(c);
 await R(c, () => { const T = window.__trollOps; if (T.isStaging()) T.endStaging(); });
-check(await until(c, (r) => window.__trollOps.zdir().round === r, before, 15000), "C joins on the run's wave", String(await R(c, () => window.__trollOps.zdir().round)));
+const cRole = () => R(c, () => { const T = window.__trollOps, k = T.zrun().coop.coop, me = T.net; return { round: T.zdir().round, state: T.zdir().state, on: k.on, host: k.host, heard: k.heard, conn: me.connected, id: me.id, hostId: me.hostId(), since: me.since, map: T.builtMap()?.map?.name, peers: [...me.peers.values()].filter((p) => !p.isBot).map((p) => ({ id: p.id, since: p.since, live: performance.now() - (p.stateAt || 0), slow: p.slow })) }; });
+const cJoined = await until(c, (r) => window.__trollOps.zdir().round === r, before, 15000);
+const bView = await R(b, async () => { const T = window.__trollOps; const f0 = T.zdir().zombies.map((q) => q.mesh.position.x).join(); const r0 = await new Promise((r) => { let n = 0; const t = performance.now(); const tick = () => { n++; if (performance.now() - t < 1000) requestAnimationFrame(tick); else r(n); }; requestAnimationFrame(tick); }); return { vis: document.visibilityState, rafPerSec: r0, conn: T.net.connected, state: T.state(), peers: [...T.net.peers.values()].filter((p) => !p.isBot).map((p) => p.id), sinceA: T.net.since }; });
+check(cJoined, "C joins on the run's wave", JSON.stringify(await cRole()) + " B: " + JSON.stringify(bView));
 check(await until(c, () => window.__trollOps.zdir().zombies.some((q) => q.proxy), null, 15000), "C gets the horde");
+console.log("  B with C in", JSON.stringify(await R(b, () => { const T = window.__trollOps; return { conn: T.net.connected, kind: T.net.transport?.kind, room: T.net.room, peers: [...T.net.peers.values()].filter((p) => !p.isBot).map((p) => p.id) }; })), "C room", await R(c, () => window.__trollOps.net.room));
 await R(b, () => { const T = window.__trollOps; T.player.spawnGuard = 0; T.damagePlayer(9999); });
 await R(c, () => { const T = window.__trollOps; T.player.spawnGuard = 0; T.damagePlayer(9999); });
 check(await until(b, () => window.__trollOps.state() === "gameover", null, 10000), "both down: B's run is lost");
