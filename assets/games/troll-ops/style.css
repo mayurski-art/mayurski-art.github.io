@@ -4544,6 +4544,15 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-team-row.is-low { border-left-color: #ff6b5a; }
 .to-team-row.is-low .to-team-hp > span { background: #ff6b5a; }
 .to-team-row.is-low small { color: #ffb0a6; }
+.to-team-row.is-down { border-left-color: #ffb020; }
+.to-team-row.is-down small { color: #ffd27a; }
+/* Troll Royale in teams: down, or picking someone up (modes/royale-down.js) */
+.to-down-hud { position: fixed; left: 50%; bottom: 30%; z-index: 7; translate: -50% 0; display: grid; gap: 6px; min-width: 280px; padding: 8px 14px; border-radius: 10px; background: rgba(8,14,34,.72); color: #fff; font: 700 15px/1.2 "DM Sans", sans-serif; text-align: center; pointer-events: none; }
+.to-down-hud[hidden] { display: none; }
+.to-down-hud i { display: block; height: 5px; border-radius: 3px; background: rgba(255,255,255,.18); overflow: hidden; }
+.to-down-hud b { display: block; height: 100%; background: #5cff7a; }
+.to-down-hud.is-down { border: 1px solid rgba(255,176,32,.6); }
+.to-down-hud.is-down b { background: #ffb020; }
 .to-team-row.is-out { opacity: .55; border-left-color: rgba(255,255,255,.35); }
 .to-team-row.is-out b { text-decoration: line-through; }
 .to-fn-size button { min-height: 34px; border: 0; border-radius: 6px; background: none; color: #c4d1f3; font: 800 13px var(--fn-ui); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; touch-action: manipulation; }

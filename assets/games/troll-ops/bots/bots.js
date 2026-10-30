@@ -1448,7 +1448,7 @@ export class BotManager {
     this.bots = [];
     this.enabled = false;
     this.difficulty = "regular";
-    this.rules = { oneShot: false, calm: false, skill: null, squad: 0, humanSquads: null };   // the match's mode rules every bot reads (match-start.js beginMatch)
+    this.rules = { oneShot: false, calm: false, skill: null, squad: 0, humanSquads: null, goDown: null };   // the match's mode rules every bot reads (match-start.js beginMatch)
     this.fieldSrc = null;         // geometry the fields are built from
     this.fieldPool = new Map();   // [level|]target id -> FlowField, reused across sweeps
     this.fieldBases = new Map();  // level -> the blocked grid every field there copies
@@ -1869,6 +1869,7 @@ export class BotManager {
         step = Math.min(0.1, bot.lodDt);
         bot.lodDt = 0;
       }
+      if (bot.downed) continue;   // Troll Royale in teams: on the floor (modes/royale-down.js)
       bot.update(step, sub);
       // One-life modes (Search & Destroy) bring bots back at the round
       // boundary via reviveAll, never on the respawn clock — respawning here
@@ -1899,6 +1900,8 @@ export class BotManager {
     bot.hp -= dmg;
     bot.onDamaged();
     if (bot.hp > 0) return { killed: false, bot };
+    // Troll Royale in teams: down, not out (modes/royale-down.js)
+    if (this.rules.goDown?.(bot)) return { killed: false, bot, downed: true };
     bot.alive = false;
     bot.deaths++;
     bot.respawnT = RESPAWN;

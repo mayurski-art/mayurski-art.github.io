@@ -25,7 +25,7 @@ export function teammates() {
   if (!mine || squadSize() < 2) return out;
   for (const rp of game.remotes.byId.values()) {
     if (rp.team !== mine || rp.netId === game.net.id) continue;
-    out.push({ id: rp.netId, name: rp.peer.name || "operator", hp: Math.max(0, Math.round(rp.peer.hp ?? 100)), alive: rp.alive, pos: rp.pos, tag: !!rp.tag?.visible && !rp.farHidden });
+    out.push({ id: rp.netId, name: rp.peer.name || "operator", hp: Math.max(0, Math.round(rp.peer.hp ?? 100)), alive: rp.alive, pos: rp.pos, tag: !!rp.tag?.visible && !rp.farHidden, down: rp.peer.downed === 1 });
   }
   return out.sort((a, b) => (a.name < b.name ? -1 : 1));
 }
@@ -66,15 +66,16 @@ export function updateTeamHud(show = true) {
       rows.set(t.id, e = { mark, row, key: "" });
     }
     // the panel: name, health, or out
-    const key = `${t.name}|${t.alive ? t.hp : "out"}`;
+    const key = `${t.name}|${t.alive ? (t.down ? "down" : t.hp) : "out"}`;
     if (key !== e.key) {
       e.key = key;
       e.row.querySelector("b").textContent = t.name;
-      e.row.querySelector(".to-team-hp > span").style.width = `${t.alive ? t.hp : 0}%`;
-      e.row.querySelector("small").textContent = t.alive ? `${t.hp}` : "Out";
+      e.row.querySelector(".to-team-hp > span").style.width = `${t.alive && !t.down ? t.hp : 0}%`;
+      e.row.querySelector("small").textContent = !t.alive ? "Out" : t.down ? "Down" : `${t.hp}`;
+      e.row.classList.toggle("is-down", t.alive && t.down);
       e.row.classList.toggle("is-out", !t.alive);
       e.row.classList.toggle("is-low", t.alive && t.hp <= 30);
-      e.row.setAttribute("aria-label", t.alive ? `${t.name}, ${t.hp} health` : `${t.name}, out`);
+      e.row.setAttribute("aria-label", !t.alive ? `${t.name}, out` : t.down ? `${t.name}, down` : `${t.name}, ${t.hp} health`);
       e.mark.querySelector("b").textContent = t.name;
     }
     // the marker: over their head, or held to the edge toward them

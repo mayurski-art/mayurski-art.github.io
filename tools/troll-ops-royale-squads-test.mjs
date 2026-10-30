@@ -116,11 +116,13 @@ async function startDuos() {
 const killBot = (p, pick) => p.evaluate((pick) => {
   const T = window.__trollOps;
   for (const b of T.bots.bots.filter((b) => b.alive && (pick === "theirs" ? b.team !== T.net.team : b.team === T.net.team))) {
-    const { killed } = T.bots.applyHit(b.id, 999, { pierce: true });
+    // (in teams the first hit only puts them down: royale-down.js; the second finishes them)
+    let { killed } = T.bots.applyHit(b.id, 999, { pierce: true });
+    if (!killed && b.downed) ({ killed } = T.bots.applyHit(b.id, 999, { pierce: true }));
     if (killed) { T.net.reportDeathAs(b.id, null, "zone", false); T.registerDeath(b.name, null, "zone", { victimTeam: b.team, victimIsBot: true, victimId: b.id }); }
   }
 }, pick);
-const meDown = (p) => p.evaluate(() => { const T = window.__trollOps; T.player.spawnGuard = 0; const k = T.bots.bots.find((b) => b.alive && b.team !== T.net.team); T.damagePlayer(999, k.id, "sixtynine", false, k.pos); });
+const meDown = (p) => p.evaluate(() => { const T = window.__trollOps; T.player.spawnGuard = 0; const k = T.bots.bots.find((b) => b.alive && b.team !== T.net.team); T.damagePlayer(999, k.id, "sixtynine", false, k.pos); if (T.player.downed) T.damagePlayer(999, k.id, "sixtynine", false, k.pos); });
 
 page = await startDuos();
 const s = await page.evaluate(() => {

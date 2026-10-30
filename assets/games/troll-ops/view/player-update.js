@@ -186,7 +186,7 @@ export function updatePlayer(dt) {
   const wantAds = game.player.alive && !royaleAboard() && !game.isView() && !game.socialUnarmed() && !game.localPauseOnly && game.empT <= 0 && game.player.holding !== "streak"
     && ((game.isTouch && touchState.ads) || (gp && game.gamepadState.ads) || game.adsHeld || game.keys.has("KeyQ"));
   // Aboard the C-130 (Troll Royale's opening) the guns stay quiet till you land.
-  const wantFire = !frozen && !royaleAboard() && !game.isView() && !game.socialUnarmed() && ((game.isTouch && touchState.firing) || (gp && game.gamepadState.firing) || game.mouseDown);
+  const wantFire = !frozen && !royaleAboard() && !(game.player.downed && game.isRoyale()) && !game.isView() && !game.socialUnarmed() && ((game.isTouch && touchState.firing) || (gp && game.gamepadState.firing) || game.mouseDown);
   // The frame the trigger went down (the 16 ms fireEdgeTrigger pulse can
   // fall between two slow frames).
   const firePressed = wantFire && !fireWasDown;
