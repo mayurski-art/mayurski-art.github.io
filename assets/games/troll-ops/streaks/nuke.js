@@ -3,9 +3,9 @@
 // way to get one is the Nuclear medal, 25 kills without dying, in Team
 // Deathmatch or Free-for-All. Dying keeps it; one per player per match.
 //
-// Calling it raises the handheld (nuke-device.js) for 2.4 s: the screen
-// boots, the thumb flips the safety cover and presses the key, and the
-// nuke is ARMED. One `nuke` message goes out on the streak channel and
+// Calling it raises the handheld (nuke-device.js) for 3.3 s: the screen
+// boots, the launch code 0919 2008 goes in on the keypad, the thumb flips
+// the safety cover and presses the key, and the nuke is ARMED. One `nuke` message goes out on the streak channel and
 // every client runs the same 10 s countdown off it: banner, counter,
 // siren, a red pulse and the sky going orange-red. The match keeps going
 // through it. Phase 2 owns what happens at zero (missile, flash, the end).
@@ -15,7 +15,7 @@ import { playSfx, preloadSfx } from "../sound/sfx-files.js?v=dc4";
 import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416";
 import { beginStreakHold, endStreakHold } from "./hold.js?v=sh1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1";
 import { killstreakUi } from "./calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-fs1-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ls4-gb4-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416";
-import { buildNukeDevice } from "./nuke-device.js?v=tn1";
+import { buildNukeDevice, NUKE_CODE, nukeCodeTyped } from "./nuke-device.js?v=tn1-nd1";
 import { NukeBlast, MISSILE_TIME } from "./nuke-blast.js?v=tn2";
 import { streakBounds } from "./fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-fs1-ut1-gf1-tg1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ls4-gb4-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416";
 import { medalDef, medalIcon } from "../progression/medals.js?v=to-medals3-or1";
@@ -24,8 +24,9 @@ import * as THREE from "three";
 
 export const NUKE = {
   countdown: 10,   // seconds from ARMED to zero
-  hold: 2.4,       // the handheld's whole raise, press and lower
-  armAt: 1.6,      // seconds into the hold the key goes down
+  hold: 3.3,       // the handheld's whole raise, code, press and lower
+  coverAt: NUKE_CODE.done + 0.3,   // the guard flips once the code is in (~1.9 s)
+  armAt: NUKE_CODE.done + 0.85,    // seconds into the hold the key goes down (~2.5 s)
 };
 
 /* ready: banked and not yet called. used: this player's one nuke is spent.
@@ -78,6 +79,7 @@ export function callNuke() {
   if (game.player.holding === "melee" && !game.meleePutAway) { game.holsterMeleeThen(() => callNuke()); return true; }
   game.cancelCook();
   nuke.calling = true;
+  nuke.typed = 0;
   beginStreakHold(NUKE.hold, "nuke");
   if (game.player.holding !== "streak") { nuke.calling = false; return false; }
   game.audio.reload();
@@ -93,6 +95,7 @@ function arm() {
   nuke.used = true;
   renderReady();
   nukeBeep(1);
+  slamHit();
   const who = game.net.name || "You";
   const team = game.currentMode().ffa ? null : (game.net.team || "phantom");
   startInbound({ who, team, id: game.net.id || "me", mine: true });
@@ -126,7 +129,13 @@ export function updateNuke(dt = 0) {
   if (nuke.calling) {
     const holding = game.player.holding === "streak" && game.streakDeviceKind === "nuke";
     if (!holding || !game.player.alive) nuke.calling = false;
-    else if (game.streakHoldElapsed >= NUKE.armAt) arm();
+    else {
+      // A click for each digit of the code as it goes in.
+      const typed = nukeCodeTyped(game.streakHoldElapsed);
+      if (typed > (nuke.typed || 0)) keyClick();
+      nuke.typed = typed;
+      if (game.streakHoldElapsed >= NUKE.armAt) arm();
+    }
   }
   const ib = nuke.inbound;
   if (!ib) return;
@@ -406,6 +415,23 @@ function blastSound() {
   a._noise({ duration: 9, gain: 0.5, type: "lowpass", freq: 260, sweepTo: 40, delay: 0.15 });
   a._tone({ freq: 48, to: 22, duration: 8, gain: 0.35, type: "sine", delay: 0.1 });
 }
+/* The fist coming down on the red key: a thud and a kick through the view. */
+function slamHit() {
+  game.shakeMag = Math.max(game.shakeMag || 0, 0.035);
+  game.shakeT = Math.max(game.shakeT || 0, 0.22);
+  const a = game.audio;
+  if (!a?._ready?.()) return;
+  a._tone({ freq: 70, duration: 0.16, gain: 0.22, type: "sine" });
+  a._tone({ freq: 140, duration: 0.05, gain: 0.08, type: "square" });
+}
+
+/* One keypad press on the handheld: a short soft tick. */
+function keyClick() {
+  const a = game.audio;
+  if (!a?._ready?.()) return;
+  if (!playSfx("beep", { gain: 0.22, rate: 1.7 })) a._tone({ freq: 1900, duration: 0.03, gain: 0.04, type: "square" });
+}
+
 function nukeBeep(armed) {
   const a = game.audio;
   if (!a?._ready?.()) return;
