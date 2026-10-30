@@ -110,10 +110,11 @@ const DETAILED = {
   // Black Ops 2's assault rifles, modelled on their traced outlines
   // (models/build_ar_<id>.blender.py); weapon-ars.js's traced versions stand
   // in until the model streams in.
+  // the MTAR on arsenal v2 (models/build_mtar.blender.py): baked kit, the
+  // port above the mag, a see-through mag (gun-action.js sinks its rounds)
   kek: {
-    url: new URL("../models/ar-kek.glb?v=ar2", import.meta.url).href,
-    p: "MT", device: "MT_Hider", rake: -0.37, railY: 0.0431, adsDistance: null,
-    glow: [],
+    url: new URL("../models/mtar.glb?v=mt1", import.meta.url).href,
+    kit: "mtar", p: "MT", device: "MT_Hider", rake: -0.37, railY: 0.043, adsDistance: null, glow: [], brass: "556",
   },
   lol: {
     url: new URL("../models/ar-lol.glb?v=ar2", import.meta.url).href,
@@ -187,7 +188,7 @@ const detailedLod1 = new Map();
    moving parts (P_Carrier ...) carry their motion as extras (tf_part,
    tf_kind, tf_axis, tf_travel) for view/gun-action.js. */
 const kitUrl = (kit, file) => new URL(`../models/${kit}${file}?v=${KIT_VER[kit] ?? 1}`, import.meta.url).href;
-const KIT_VER = { problem416: "pf2" };
+const KIT_VER = { problem416: "pf2", mtar: "mt1" };
 function loadDetailed(id, cfg) {
   const lod0 = new GLTFLoader().loadAsync(cfg.url).then((gltf) => {
     detailedTemplates.set(id, prepDetailed(gltf.scene, cfg));

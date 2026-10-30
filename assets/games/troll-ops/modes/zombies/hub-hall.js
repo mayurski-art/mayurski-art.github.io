@@ -388,7 +388,7 @@ function buildHub(api) {
    their sides, barrels toward the wall. */
 function layOutGuns(root) {
   const k = HUB.kiosks.find((q) => q.id === "weapons");
-  [["ar-kek", -0.2, -0.55], ["coltlmg", 0.18, -0.45]].forEach(([name, dx, dz]) => {
+  [["ar-lol", -0.2, -0.55], ["coltlmg", 0.18, -0.45]].forEach(([name, dx, dz]) => {
     loadModel(name).then((gun) => {
       const box = new THREE.Box3().setFromObject(gun), size = box.getSize(new THREE.Vector3());
       const long = size.x >= size.z ? "x" : "z";

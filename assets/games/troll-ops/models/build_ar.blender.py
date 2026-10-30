@@ -1,7 +1,7 @@
-"""
+﻿"""
 The detailed first-person assault rifles that share one recipe (arkit):
-Type 25, SWAT-556, FAL OSW, SCAR-H, AN-94, SMR and M8A1. (The M27 and MTAR
-have their own scripts, build_ar_heh / build_ar_kek.)
+Type 25, SWAT-556, FAL OSW, SCAR-H, AN-94, SMR and M8A1. (The M27 has its own
+script, build_ar_heh; the MTAR is on arsenal v2, build_mtar.blender.py.)
 
     blender --background --python build_ar.blender.py -- <id>           # export models/ar-<id>.glb
     blender --background --python build_ar.blender.py -- <id> render    # + studio renders
