@@ -203,10 +203,16 @@ await page.close();
 
 // ---- 6. co-op
 const ROOM = "ZE" + String(Math.floor(Math.random() * 900 + 100));
-// A first and past its countdown, then B joins its run
-const A = await open("A", ROOM);
-await sleep(1500);
-const B = await open("B", ROOM);
+// A first, then B joins its run. Both load together: B on its own takes
+// minutes to load, and A, standing idle through its first wave all that
+// time, was killed and its run over before B got in (B then hosted alone).
+// A is kept on its feet until B is in, for a slow machine.
+const [A, B] = await Promise.all([
+  open("A", ROOM).then(async (p) => { await R(p, () => { window.__keepUp = setInterval(() => { const T = window.__trollOps; if (T.player.alive) T.player.hp = T.player.maxHp; }, 50); }); return p; }),
+  sleep(1500).then(() => open("B", ROOM)),
+]);
+await R(A, () => clearInterval(window.__keepUp));
+await heal(A);
 await until(B, () => window.__trollOps.zdir().round >= 1, null, 30000);
 // the roles settle once both have heard each other
 const settled = await until(B, () => !window.__trollOps.zrun().coop.coop.host, null, 30000);

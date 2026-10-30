@@ -64,6 +64,7 @@ export const coop = {
   onSpecial: null,    // run.js: (ev, byNid) an "x" event (specials.js)
   heard: false,       // the host's first zw has come in
   own: null,          // our own last wave, while we ran it (takeOver)
+  live: false,        // a run is on (startCoop to stopCoop): a late connect joins it
 };
 
 let posT = 0, waveT = 0, depT = 0;
@@ -97,6 +98,7 @@ const feetOf = (p) => p.snaps?.[p.snaps.length - 1] || null;
 /* ------------------------------------------------------------- the run */
 
 export function startCoop() {
+  coop.live = true;
   coop.on = !!net().connected;
   coop.host = hostNow();
   coop.wave = { r: 0, s: "idle", b: 0, n: 0, vn: 0, vt: 1 };
@@ -111,16 +113,38 @@ export function startCoop() {
   posT = waveT = depT = 0;
   dep.cosmetic = coop.on && !coop.host;
   if (!coop.on) return;
+  wireUp();
+  if (!coop.host) askSync();
+}
+
+/* The wire hooks the horde, the deployables and the bosses call. */
+function wireUp() {
   zombieWire.hit = (z, dmg, head) => { if (z.nid) hits.push([z.nid, Math.round(dmg), head ? 1 : 0]); };
   depWire.add = (e) => send({ t: "zd", d: ["a", e.did, e.id, r2(e.pos.x), r2(e.pos.y), r2(e.pos.z), r2(e.yaw), e.level, me()] });
   depWire.hp = (e) => { if (coop.host) depDirty.add(e); };
   depWire.gone = (e) => { if (coop.host) send({ t: "zd", d: ["x", e.did] }); };
   bossWire.slam = (z, at, kind) => events.push(["s", r2(at.x), r2(at.y), r2(at.z), kind]);
-  if (!coop.host) askSync();
+}
+
+/* The run began before the room connected (a slow socket, or the run
+   started straight off the menu): co-op comes on now. Still the host, our
+   horde goes out on the wire from the next frame; someone older is
+   running it, ours go and theirs come in (handBack), and their first wave
+   word sits us out of a round already on (onJoinMidRound). */
+function joinLate() {
+  coop.on = true;
+  coop.host = hostNow();
+  coop.heard = false;
+  hits = []; events = []; depDirty.clear(); lastWire = "";
+  posT = waveT = depT = 0;
+  wireUp();
+  if (coop.host) dep.cosmetic = false;
+  else handBack();
 }
 
 export function stopCoop() {
   clearReviveRings();
+  coop.live = false;
   coop.on = false;
   coop.host = true;
   dep.cosmetic = false;
@@ -181,7 +205,10 @@ export function voteSkip() {
 /* Before the director's frame: who's host now, and taking over (or handing
    back) the horde if that changed. */
 export function coopPreFrame(dt) {
-  if (!coop.on) return;
+  if (!coop.on) {
+    if (!coop.live || !net().connected) return;
+    joinLate();
+  }
   const h = hostNow();
   if (h !== coop.host) {
     coop.host = h;
