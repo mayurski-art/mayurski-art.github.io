@@ -3,13 +3,16 @@
 // nothing here presses a go button.
 //   1. Every file the reel names is in the repo (each map's map-vote still
 //      and two reel stills, the club clip in webm and mp4 at both sizes).
-//   2. It opens on the Kabukigrin still, then the club clip fades in and
-//      plays (its time moves); after the clip, a still comes in.
+//   2. With no map picked (Public Match's vote) it loops both islands':
+//      Trollface Island's still, then Hollowgrin's. Socialize on Kabukigrin
+//      switches it to Kabukigrin's: its still, then the club clip fades in
+//      and plays (its time moves); after the clip, its next still.
 //   3. Animations off holds the picture (nothing changes in 9 s), and on
 //      again it moves on.
 //   4. A hidden menu (a match on) pauses the clip.
 //   5. Halloween (?season=halloween; 1-4 run with ?season=off): every
-//      Halloween still is there, the reel opens on the first and plays no clip.
+//      Halloween still is there; the islands' Halloween stills take turns,
+//      no clip; Kabukigrin picked, its Halloween street.
 //
 //   NODE_PATH=<checkout>/node_modules node tools/troll-ops-lobby-reel-test.mjs
 import http from "node:http"; import fs from "node:fs"; import path from "node:path";
@@ -71,7 +74,16 @@ const front = () => page.evaluate(() => {
 // ---- 2
 await page.waitForSelector(".to-fn-bg.is-on .to-fn-shot", { timeout: 15000 }).catch(() => {});
 const first = await front();
-check(first?.tag === "IMG" && /maps\/kabukigrin-/.test(first.src), "opens on the Kabukigrin still", first?.src);
+check(first?.tag === "IMG" && /maps\/trollface-/.test(first.src), "no map picked: opens on Trollface Island", first?.src);
+await page.waitForFunction(() => /maps\/hollowgrin-/.test(document.querySelector(".to-fn-bg.is-on .to-fn-shot")?.src || ""), null, { timeout: 15000 }).catch(() => {});
+check(/maps\/hollowgrin-/.test((await front())?.src || ""), "then Hollowgrin's (the islands take turns)", (await front())?.src);
+const pickKabukigrin = () => page.evaluate(() => {
+  window.__toBo2.fn.setPlaylist("social");
+  document.querySelector('#to-lo-maps [data-map="kabukigrin"]')?.click();
+});
+await pickKabukigrin();
+await page.waitForFunction(() => /maps\/kabukigrin-/.test(document.querySelector(".to-fn-bg.is-on .to-fn-shot")?.src || ""), null, { timeout: 15000 }).catch(() => {});
+check(/maps\/kabukigrin-/.test((await front())?.src || ""), "Socialize on Kabukigrin: its still comes in", (await front())?.src);
 await page.waitForFunction(() => document.querySelector(".to-fn-bg.is-on video"), null, { timeout: 20000 }).catch(() => {});
 const a = await front();
 await sleep(1500);
@@ -90,7 +102,7 @@ check((await front())?.paused === false, "and it plays again when the menu is ba
 const dur = await page.evaluate(() => document.querySelector(".to-fn-bg.is-on video")?.duration || 0);
 await page.waitForFunction(() => document.querySelector(".to-fn-bg.is-on .to-fn-shot")?.tagName === "IMG", null, { timeout: (dur + 6) * 1000 }).catch(() => {});
 const after = await front();
-check(after?.tag === "IMG" && /lobby\/trollface-1-/.test(after.src), "after the clip, the next still (the island) comes in", after?.src);
+check(after?.tag === "IMG" && /lobby\/kabukigrin-1-/.test(after.src), "after the clip, Kabukigrin's next still comes in", after?.src);
 
 // ---- 3
 await page.evaluate(() => document.body.classList.add("tf-anim-off"));
@@ -109,10 +121,13 @@ await page.goto(`${BASE}/troll-ops.html?tohooks=1&season=halloween`, { waitUntil
 await page.waitForFunction(() => !!window.__trollOps && !!window.__toBo2?.fn, null, { timeout: 180000 });
 await page.waitForSelector(".to-fn-bg.is-on .to-fn-shot", { timeout: 15000 }).catch(() => {});
 const h1 = await front();
-check(h1?.tag === "IMG" && h1.src.includes(`lobby/halloween/${spooky[0]}-`), "Halloween: opens on the first Halloween still", h1?.src);
+check(h1?.tag === "IMG" && h1.src.includes("lobby/halloween/trollface-1-"), "Halloween: opens on the island's Halloween still", h1?.src);
 await sleep(9000);
 const h2 = await front();
-check(h2?.tag === "IMG" && /lobby\/halloween\//.test(h2.src) && h2.src !== h1?.src && !(await page.$(".to-fn-bg video")), "Halloween: the next Halloween still, no clip", h2?.src);
+check(h2?.tag === "IMG" && h2.src.includes("lobby/halloween/hollowgrin-1-") && !(await page.$(".to-fn-bg video")), "Halloween: then Hollowgrin's, no clip", h2?.src);
+await pickKabukigrin();
+await page.waitForFunction(() => /halloween\/kabukigrin-0-/.test(document.querySelector(".to-fn-bg.is-on .to-fn-shot")?.src || ""), null, { timeout: 15000 }).catch(() => {});
+check(/halloween\/kabukigrin-0-/.test((await front())?.src || ""), "Halloween, Kabukigrin picked: its Halloween street", (await front())?.src);
 
 check(!errors.length, "no page errors", errors.slice(0, 3).join(" | "));
 await browser.close();

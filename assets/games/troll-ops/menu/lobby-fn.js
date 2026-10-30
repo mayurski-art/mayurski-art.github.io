@@ -93,37 +93,49 @@ const NEWS = [
 ];
 
 /* The backdrop reel (user, 2026-10-26: "a couple of photos of each map and
-   then have an animated loop"): three stills of each map (ui/lobby/,
-   tools/troll-ops-lobby-reel.mjs; Kabukigrin's first is its map-vote still,
-   ui/maps/), each held SHOT_MS with a slow drift, crossfading, maps taking
-   turns; and Kabukigrin's two clips, filmed like a vlog: a walk through the
-   club's crowd, and its big screen up close. */
+   then have an animated loop"): the stills of a map (ui/maps/ its map-vote
+   still, ui/lobby/ three more: tools/troll-ops-lobby-reel.mjs), each held
+   SHOT_MS with a slow drift, crossfading; Kabukigrin's with its two clips,
+   filmed like a vlog (a walk through the club's crowd, its big screen up
+   close). Whose stills (user, 2026-10-30: "the background images should be
+   looped to the respective choices of the maps chosen ... if no maps are
+   chosen then we should default to the trollface island one ... that
+   includes hollowgrin island as well"): the map on the mode card (Royale:
+   your side), else both islands' in turn (Public Match's map vote, the
+   Zombies hub). */
 const UI = "assets/games/troll-ops/ui";
 const REEL_MAPS = ["trollface", "grinbeach", "trollcity", "hollowgrin", "undergrin", "grinsite", "culdegrin", "dustbowl", "depot", "grinleria", "kabukigrin"];
 const REEL_CLIPS = ["club", "screen"];
+const REEL_DEFAULT = ["trollface", "hollowgrin"];
 const SHOT_MS = 7000, FADE_MS = 1400;
 const CLIP_V = "c3";   // bump when the clips are re-rendered (same filenames)
 const still = (id, n, w) => n ? `${UI}/lobby/${id}-${n}-${w}.webp` : `${UI}/maps/${id}-${w}.webp`;
 const clip = (name) => ({ clip: (w) => `${UI}/lobby/kabukigrin-${name}-${w}` });
 /* Halloween (user, 2026-10-29: the lobby "to be halloween vibes"): through
-   October and the first days of November the reel is the maps' Halloween
-   stills only (ui/lobby/halloween/, the user's own Halloween edits of the
-   reel's stills, each in its still's place), no clips. ?season=halloween or
-   ?season=off forces it either way (the tests). */
-const HALLOWEEN = ["culdegrin-1", "grinleria-1", "grinbeach-1", "dustbowl-1", "depot-1"];
+   October and the first days of November a map with a Halloween still
+   shows that instead (ui/lobby/halloween/, the user's own Halloween edits
+   of the reel's stills, each named for the still it stands in for), no
+   clips. ?season=halloween or ?season=off forces it either way (the tests). */
+const HALLOWEEN = ["kabukigrin-0", "culdegrin-1", "hollowgrin-1", "trollface-1", "grinleria-1", "undergrin-1", "trollcity-1", "grinbeach-1", "dustbowl-1", "depot-1"];
 function halloween() {
   const force = new URLSearchParams(location.search).get("season");
   if (force) return force === "halloween";
   const d = new Date();
   return d.getMonth() === 9 || (d.getMonth() === 10 && d.getDate() <= 5);
 }
-function reelList() {
-  if (halloween()) return HALLOWEEN.map((n) => ({ src: (w) => `${UI}/lobby/halloween/${n}-${w}.webp` }));
-  const out = [{ src: (w) => still("kabukigrin", 0, w) }, clip(REEL_CLIPS[0])];
-  for (const n of [1, 2, 3]) {
-    for (const id of REEL_MAPS) if (!(id === "kabukigrin" && n === 3)) out.push({ src: (w) => still(id, n, w) });
-    if (n === 1) out.push(clip(REEL_CLIPS[1]));
-  }
+/* One map's pictures, in order. */
+function mapReel(id) {
+  const spooky = halloween() ? HALLOWEEN.filter((n) => n.startsWith(`${id}-`)) : [];
+  if (spooky.length) return spooky.map((n) => ({ key: `h:${n}`, src: (w) => `${UI}/lobby/halloween/${n}-${w}.webp` }));
+  const shot = (n) => ({ key: `${id}:${n}`, src: (w) => still(id, n, w) });
+  if (id === "kabukigrin") return [shot(0), { key: "clip:club", ...clip(REEL_CLIPS[0]) }, shot(1), { key: "clip:screen", ...clip(REEL_CLIPS[1]) }, shot(2)];
+  return REEL_MAPS.includes(id) ? [0, 1, 2, 3].map(shot) : [shot(0)];
+}
+/* The reel for the chosen map, or both islands' taking turns. */
+function reelList(map) {
+  if (map) return mapReel(map);
+  const lists = REEL_DEFAULT.map(mapReel), out = [];
+  for (let i = 0; i < Math.max(...lists.map((l) => l.length)); i++) for (const l of lists) if (l[i]) out.push(l[i]);
   return out;
 }
 const FALLBACK_AVATAR = "assets/images/icons/favicon/grin.png";
@@ -134,7 +146,7 @@ export function mountFnLobby(api) {
   root.classList.add("is-fn");
   title.classList.add("is-fn");
 
-  mountReel($(".to-bo2-bg", root), title);
+  const reel = mountReel($(".to-bo2-bg", root), title);
   // Fortnite's dark bands across the top (under the tabs) and the bottom
   // (under the hints row)
   $(".to-bo2-bg", root).after(...["top", "foot"].map((k) => Object.assign(document.createElement("div"), { className: `to-fn-band is-${k}`, ariaHidden: "true" })));
@@ -268,6 +280,7 @@ export function mountFnLobby(api) {
     $("strong", map).textContent = name;
     $("span", map).textContent = sub;
     const mapId = side ? side.id : p.id !== "public" && p.id !== "zombies" ? active?.dataset.map : null;
+    reel.setMap(mapId || null);
     img.hidden = !mapId;
     if (mapId && img.dataset.map !== mapId) { img.dataset.map = mapId; setMapShot(img, mapId, "120px"); }
     map.hidden = !name;
@@ -567,7 +580,7 @@ export function mountFnLobby(api) {
    a still stays up and the clip is skipped). ── */
 function mountReel(bg, title) {
   const width = () => (innerWidth * (devicePixelRatio || 1) > 1400 ? 1920 : 1280);
-  const list = reelList();
+  let list = reelList(), listKey = "", gen = 0, started = false;
   const layers = [0, 1].map(() => {
     const d = document.createElement("div");
     d.className = "to-fn-bg";
@@ -609,9 +622,10 @@ function mountReel(bg, title) {
   }
   async function show(k) {
     k %= list.length;
-    const item = list[k];
-    if (item.clip && hold()) return show(k + 1);
+    const item = list[k], g = gen;
+    if (item.clip && hold()) return list.some((x) => !x.clip) ? show(k + 1) : undefined;
     const el = await load(item);
+    if (g !== gen) return;   // (another map was picked while this loaded)
     if (!el) { at = k; return wait(200); }
     el.className = "to-fn-shot";
     if (!item.clip && !hold()) {
@@ -656,5 +670,25 @@ function mountReel(bg, title) {
   new MutationObserver(sync).observe(document.body, { attributes: true, attributeFilter: ["class"] });
   document.addEventListener("visibilitychange", sync);
   reduce.addEventListener?.("change", sync);
-  show(0);
+  // (the first picture once the Play page has said whose: lobby-fn renders
+  // it straight after mounting this)
+  setTimeout(() => { if (!started) { started = true; show(0); } }, 0);
+  return {
+    /* The map whose pictures loop (null: both islands'). A new one starts
+       over on its first picture. */
+    setMap(map) {
+      const next = reelList(map), key = next.map((x) => x.key).join();
+      if (key === listKey) return;
+      listKey = key;
+      list = next;
+      if (!started) return;
+      gen++;
+      clearTimeout(timer);
+      clip?.pause();
+      clip = null;
+      waiting = false;
+      at = -1;
+      show(0);
+    },
+  };
 }
