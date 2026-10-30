@@ -60,6 +60,7 @@ export const SYNCED_KEYS = [
   "trollops:chat-muted",           // public chat muted (menu/public-chat.js)
   "trollops:dj-volume",            // DJ Lulz's volume (maps/dj-lulz.js)
   "trollops:royaleRecord",         // record Royale clips (modes/royale-record.js)
+  "trollops:squad-name",           // your squad's name (menu/invites.js)
 ];
 const SYNCED = new Set(SYNCED_KEYS);
 // Graphics quality is about the machine, not the player: a phone shouldn't

@@ -2,7 +2,7 @@
 // inspectors, map drawer, roster, callsign, heroes, cloud setup and room code.
 
 import { WeaponInspector } from "./inspector.js?v=hb1-nf-wst-ig1-sb2-if1-wb1-th2-ar1-ar2-cl1-fj1-zr9-zr10-zp1-sr1-or1-rt1-ut1-rb4-hp1-bx1-mg1-tm2-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-lz1-ret1-ret2-mrg1-hd1-ugb1-ug1-ugm1-hgb6-rt2-fd1-rx1";
-import { CharacterInspector } from "./char-inspector.js?v=hb4-wst-soc1-sb2c2-wb1m1-ar1-ar2-gt1-gt2-bk1-cw1-fj1-zr10-bf1-sr1-br1-or1-nf2-em2-cf1-gs2-ci1-lh1-ci2-ci3-ci4-ci5-fg2-lp1-fg3-rc1-rc4-ls1-rt1-ut1-er1-cl1-rb4-rb5-rb6-hp1-ht1-ht2-bx1-cg1-mg1-tm2-sp1-chg1-ci6-pm1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-rx1-ng1-ng2-hwl1-ans1";
+import { CharacterInspector } from "./char-inspector.js?v=hb4-wst-soc1-sb2c2-wb1m1-ar1-ar2-gt1-gt2-bk1-cw1-fj1-zr10-bf1-sr1-br1-or1-nf2-em2-cf1-gs2-ci1-lh1-ci2-ci3-ci4-ci5-fg2-lp1-fg3-rc1-rc4-ls1-rt1-ut1-er1-cl1-rb4-rb5-rb6-hp1-ht1-ht2-bx1-cg1-mg1-tm2-sp1-chg1-ci6-pm1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-rx1-ng1-ng2-hwl1-ans1-sqd1";
 import { CosmeticsPanel, loadCosmetics, bodyToken, cleanFaceKey, mayWear } from "../characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1-em2-nb2-pc2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-sf1-mg1-sp1";
 import { EmoteWheel } from "../characters/emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-nb2-pc2-cf1-gs2-lh1-fg2-lp1-fg3-rc1-rc4-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-ht2-bx1-sf1-cg1-mg1-sp1-chg1";
 import { padEmotePressed } from "./controller-layout.js?v=cl7-pd1-or1-pd2";
@@ -13,12 +13,12 @@ import { syncXp } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-a
 import { renderModes, buildModeButtons } from "./mode-picker.js?v=mp1-fu1b7b7d-wb1-ar1-ar2-cl1-bp1-fj1-zr9-zr10-zh1-zc1-zc2-nf1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-sam1-rl1-tfp4-tfp7-tfb8-rfx1-ret1-mrg1-ug1-ugm1-mrc1-hgb8-hgb9-tw1";
 import { HERO_IDS, HEROES, saveHero, savedHero } from "../characters/heroes.js?v=umb2-or1";
 import { heroKit, heroActive } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-fs1-ut1-gf1-tg1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ls4-gb4-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-rx1";
-import { SETTINGS_KEY, settings, applySettings } from "./settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-ans1";
-import { BOT_STREAK_KEY } from "../streaks/bot-streaks.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-ans1";
-import { initCloudSave } from "../net/cloud-save.js?v=cs1b7-zc1-zc2-or1-jb5-sp1-ans1";
-import { makeRoomCode } from "../net/net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10-hr2-zp1-rs1-dj2-pl2-nf1-or1-bw2-bt1-dom1-jb3-jb4-sp1-gb4-gb6-gb8-gb9-tfb8-rfx3-tw1";
+import { SETTINGS_KEY, settings, applySettings } from "./settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-ans1-sqd1";
+import { BOT_STREAK_KEY } from "../streaks/bot-streaks.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-ans1-sqd1";
+import { initCloudSave } from "../net/cloud-save.js?v=cs1b7-zc1-zc2-or1-jb5-sp1-ans1-sqd1";
+import { makeRoomCode } from "../net/net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10-hr2-zp1-rs1-dj2-pl2-nf1-or1-bw2-bt1-dom1-jb3-jb4-sp1-gb4-gb6-gb8-gb9-tfb8-rfx3-tw1-sqd1";
 import { game } from "../core/state.js?v=st1";
-import { setLookSource, partyLookChanged, partyView, invitePlayer } from "./invites.js?v=iv1-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-pty1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-ans1";
+import { setLookSource, partyLookChanged, partyView, invitePlayer, setSquadMode, setSquadName, leaveSquad, SQUAD_NAME_MAX } from "./invites.js?v=iv1-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-pty1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-ans1-sqd1";
 import { wearBlocky, ownBody, prefetchBody } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-hl1-mg1-sp1-rh1-ci6-pm1";
 
 // The tab bar across the top swaps what's under it. "deploy" is the Play
@@ -122,12 +122,19 @@ addEventListener("trollforces:fn-screen", () => { if (activeLobbyPanel === "depl
 /* The party on the pads beside you (invites.js): their names and looks.
    A face this build doesn't know is the default one; a TROLLS body only on
    its holder, as in a match (remote-players.js). */
+// which squad the stage shows: 0 yours, 1 the one joined up with yours
+// (user, 2026-10-30: "a small white arrow where users can panel back and
+// forth between their 3 members versus the other 1-3 members")
+let stageSquad = 0;
+const onStage = (v) => (stageSquad && v.squad?.people.length ? v.squad.people : v.people.slice(0, 2));
 function showParty() {
   if (!charInspector?.stage) return;
-  charInspector.setParty(partyView().people.slice(0, 2).map((p) => {
+  const v = partyView();
+  if (!v.squad) stageSquad = 0;
+  charInspector.setParty(onStage(v).map((p) => {
     const token = bodyToken(p.look?.body);
     return { id: p.viewerId, name: p.name, host: p.host, face: cleanFaceKey(p.look?.face), body: token && mayWear(token, p.name) ? token : 0 };
-  }));
+  }), { withoutMe: !!stageSquad });
 }
 addEventListener("trollforces:party", () => { if (charInspectorLive) showParty(); renderStage(); });
 
@@ -157,16 +164,80 @@ if (stageEl) {
   });
 }
 addEventListener("trollforces:online", (e) => { online = Array.isArray(e.detail) ? e.detail : []; renderStage(); });
+/* Under the pads: your squad's name (its leader renames it with the pencil:
+   user, 2026-10-30). Two squads joined up: white arrows either side go
+   between them, Together / Versus (the leader who asked picks; the rest see
+   it), and Split for a leader. */
+const squadNav = charView ? document.createElement("div") : null;
+if (squadNav) {
+  squadNav.className = "to-squad-nav";
+  squadNav.hidden = true;
+  squadNav.innerHTML = `
+    <button type="button" class="to-squad-arrow is-prev" aria-label="Previous squad"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="to-squad-head"><span class="to-squad-title"><b class="to-squad-name"></b>
+        <input class="to-squad-edit" type="text" maxlength="${SQUAD_NAME_MAX}" aria-label="Squad name" hidden>
+        <button type="button" class="to-squad-pen" aria-label="Rename your squad" title="Rename your squad"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/></svg></button></span>
+      <div class="to-squad-row"><div class="to-squad-mode" role="group" aria-label="Joined squads play">
+        <button type="button" data-mode="together">Together</button><button type="button" data-mode="versus">Versus</button></div>
+        <button type="button" class="to-squad-split" title="Back to your own squad">Split</button></div></div>
+    <button type="button" class="to-squad-arrow is-next" aria-label="Next squad"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>`;
+  charView.appendChild(squadNav);
+  const edit = squadNav.querySelector(".to-squad-edit"), title = squadNav.querySelector(".to-squad-name");
+  const editing = (on) => { edit.hidden = !on; title.hidden = on; squadNav.querySelector(".to-squad-pen").hidden = on; if (on) { edit.value = partyView().myName || ""; edit.focus(); edit.select(); } };
+  edit.addEventListener("keydown", (e) => {
+    e.stopPropagation();   // (the lobby's keys and the pad's stay out of it)
+    if (e.key === "Enter") { setSquadName(edit.value); editing(false); renderStage(); }
+    else if (e.key === "Escape") { editing(false); renderStage(); }
+  });
+  edit.addEventListener("blur", () => { if (!edit.hidden) { setSquadName(edit.value); editing(false); renderStage(); } });
+  squadNav.addEventListener("click", (e) => {
+    if (e.target.closest(".to-squad-pen")) { editing(true); return; }
+    if (e.target.closest(".to-squad-split")) { stageSquad = 0; leaveSquad(); return; }
+    if (e.target.closest(".to-squad-arrow")) { stageSquad = 1 - stageSquad; showParty(); renderStage(); return; }
+    const m = e.target.closest("[data-mode]");
+    if (m && !m.disabled) setSquadMode(m.dataset.mode);
+  });
+}
+function renderSquadNav(v) {
+  if (!squadNav) return;
+  squadNav.hidden = false;
+  const linked = !!v.squad;
+  for (const el of squadNav.querySelectorAll(".to-squad-arrow, .to-squad-row")) el.hidden = !linked;
+  squadNav.querySelector(".to-squad-split").hidden = !(linked && v.host);
+  // the pencil: your own squad's name, for its leader
+  if (squadNav.querySelector(".to-squad-edit").hidden) squadNav.querySelector(".to-squad-pen").hidden = !(v.host && !stageSquad);
+  const theirs = v.squad?.people[0]?.name || "Their";
+  squadNav.querySelector(".to-squad-name").textContent = stageSquad ? v.squad.name || `${theirs}'s squad` : v.myName || "Your squad";
+  if (!linked) return;
+  for (const b of squadNav.querySelectorAll("[data-mode]")) {
+    const on = b.dataset.mode === v.squad.mode;
+    b.classList.toggle("is-on", on);
+    b.setAttribute("aria-pressed", String(on));
+    b.disabled = !v.squad.lead;   // (the leader who asked picks)
+  }
+  squadNav.querySelector(".to-squad-mode").title = v.squad.lead ? "Play on one side, or squad against squad" : "The leader who asked picks";
+}
 function renderStage() {
   if (!stageEl) return;
   const on = !!charInspector?.stage && charInspectorLive;
   stageEl.hidden = !on;
+  if (squadNav && !on) squadNav.hidden = true;   // (the Play page's stage only)
   if (!on) return;
-  const v = partyView(), people = v.people.slice(0, 2);
+  const v = partyView();
+  if (!v.squad) stageSquad = 0;
+  renderSquadNav(v);
   const tags = [...stageEl.querySelectorAll(".to-stage-tag")];
+  // the joined squad's three on the pads: their names, no "+"
+  if (stageSquad) {
+    v.squad.people.slice(0, 3).forEach((p, i) => { tags[i].querySelector("b").textContent = p.name; tags[i].querySelector("small").textContent = i ? "" : "Squad leader"; });
+    tags.forEach((t, i) => { t.hidden = !v.squad.people[i]; });
+    for (const el of stageEl.querySelectorAll(".to-stage-add, .to-stage-bubble")) el.hidden = true;
+    return;
+  }
+  const people = v.people.slice(0, 2);
   const me = window.TrollrunnerAccounts?.getCachedProfile?.()?.username;
   tags[0].querySelector("b").textContent = me ? withClan(me, getMyCard().clan) : "Guest troll";
-  tags[0].querySelector("small").textContent = people.length ? (v.host ? "Party leader" : "In the party") : "";
+  tags[0].querySelector("small").textContent = people.length || v.squad ? (v.host ? "Party leader" : "In the party") : "";
   tags[0].hidden = false;
   const inParty = new Set(people.map((p) => p.viewerId));
   const free = online.filter((o) => !inParty.has(o.viewerId));

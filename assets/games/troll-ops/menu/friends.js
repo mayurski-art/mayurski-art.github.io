@@ -27,7 +27,7 @@ const ICON = {
 };
 
 export function mountFriends(api) {
-  const { root, getRoster, onlinePlayers, describe, serverList, joinServer, invitePlayer, openProfileCard, openGuestCard, signIn, setStatus } = api;
+  const { root, getRoster, onlinePlayers, describe, serverList, joinServer, invitePlayer, squadUp, openProfileCard, openGuestCard, signIn, setStatus } = api;
   const acc = () => window.TrollrunnerAccounts;
   const me = () => acc()?.getCachedProfile?.() || null;
   const myId = () => { const p = me(); return p?.id || p?.userId || null; };
@@ -224,6 +224,16 @@ export function mountFriends(api) {
     b.disabled = !!done;
     return b;
   }
+  /* Their squad joins up with ours (invites.js squadUp): they say yes. */
+  function squadBtn(o, name) {
+    if (!squadUp) return null;
+    return action("Squad up", "is-ghost", (el) => {
+      const msg = squadUp({ viewerId: o.viewerId, name }) || "";
+      const ok = /^Squad request sent/.test(msg);
+      if (ok) { el.textContent = "Asked"; el.disabled = true; }
+      say(msg, !ok);
+    }, `Ask ${name}'s squad to join up with yours`);
+  }
   /* A public room they're in, that we can drop into from here. */
   function joinBtn(o, name) {
     const a = o.activity;
@@ -278,7 +288,7 @@ export function mountFriends(api) {
         return row({
           id: f.id, name: f.username, level: o.level || f.level, avatarUrl: f.avatar_url, state: inGame ? "game" : "on",
           line: describe(o.activity, o), onOpen: profileOf(f.id, f.username),
-          actions: [joinBtn(o, f.username), inviteBtn(o, f.username)],
+          actions: [joinBtn(o, f.username), inviteBtn(o, f.username), squadBtn(o, f.username)],
         });
       }), { hint: loaded && friends.length ? "None of your friends are on right now." : "" }));
 
@@ -313,7 +323,7 @@ export function mountFriends(api) {
         id: o.userId || o.viewerId, name: o.name, level: o.guest ? null : o.level, avatarUrl: null, state: "on",
         line: o.guest ? `Guest · ${describe(o.activity, o)}` : describe(o.activity, o),
         onOpen: o.userId ? profileOf(o.userId, o.name) : () => openGuestCard({ viewerId: o.viewerId, name: o.name }),
-        actions: [add, inviteBtn(o, o.name)],
+        actions: [add, inviteBtn(o, o.name), squadBtn(o, o.name)],
       });
     }), { count: others.length, cls: "is-others", hint: "Nobody else is on right now." }));
 

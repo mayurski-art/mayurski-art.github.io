@@ -121,20 +121,26 @@ export class CharacterInspector {
     this.stage = !!on;
     for (const p of this.pads) p.visible = this.stage;
     for (const m of this.party) m.humanoid.root.visible = this.stage;
+    // (yours hides only while the stage shows the joined squad)
+    this.humanoid.root.visible = !(this.stage && this.withoutMe);
     this.width = 0;   // re-read the box's size and its CSS knobs next tick
     if (!this.stage) { this.yaw = REST_YAW; this.pitch = REST_PITCH; }
   }
 
   /* The party beside you: [{ id, name, face, body (a TROLLS token, 0 the
      stick) }], two at most, in slot order. A member's operator is rebuilt
-     only when their look changes. */
-  setParty(list) {
-    const want = list.slice(0, 2);
+     only when their look changes. `withoutMe`: a joined squad's three
+     instead (user, 2026-10-30: the arrows between the squads), on every
+     pad, yours hidden. */
+  setParty(list, { withoutMe = false } = {}) {
+    this.withoutMe = withoutMe;
+    this.humanoid.root.visible = !(this.stage && withoutMe);
+    const first = withoutMe ? 0 : 1, want = list.slice(0, SLOTS.length - first);
     const keep = [];
     for (const m of this.party) {
       const i = want.findIndex((w) => w.id === m.id);
       const w = want[i];
-      if (w && m.key === `${w.face}|${w.body}` && m.slot === i + 1) { keep.push(m); continue; }
+      if (w && m.key === `${w.face}|${w.body}` && m.slot === i + first) { keep.push(m); continue; }
       this.rig.remove(m.humanoid.root);
     }
     this.party = want.map((w, i) => {
@@ -144,12 +150,12 @@ export class CharacterInspector {
       h.noIdleGlance = true;
       h.face = w.face;
       if (w.body) wearBlocky(h, w.body);
-      const [x, z, yaw] = SLOTS[i + 1];
+      const [x, z, yaw] = SLOTS[i + first];
       h.root.position.set(x, 0, z);
       aimRig(h, FACING + yaw, 0, { snap: true });
       h.root.visible = this.stage;
       this.rig.add(h.root);
-      return { id: w.id, slot: i + 1, humanoid: h, key: `${w.face}|${w.body}`, t: Math.random() * 6 };
+      return { id: w.id, slot: i + first, humanoid: h, key: `${w.face}|${w.body}`, t: Math.random() * 6 };
     });
   }
 
