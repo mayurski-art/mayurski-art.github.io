@@ -949,8 +949,15 @@ class Bot {
     // load swaps for the sidearm in or out of a fight, and the sidearm only
     // goes back for a primary that has something in it.
     const primaryLive = this.ammo > 0 || this.canReload;
-    if (!this.holdingSecondary && this.ammo <= 0 && (canSee || !primaryLive) && this.sidearmLive) this.holdingSecondary = true;
+    const wasHolding = this.holdingSecondary;
+    // Caught mid-reload with someone close: the sidearm (with a round in it),
+    // not the rest of the reload.
+    if (!this.holdingSecondary && this.reloadT > SWAP_MIN_LEFT && canSee && bestD < SWAP_RANGE && this.sidearmAmmo > 0 && this.sidearmLive) {
+      this.reloadT = 0;
+      this.holdingSecondary = true;
+    } else if (!this.holdingSecondary && this.ammo <= 0 && (canSee || !primaryLive) && this.sidearmLive) this.holdingSecondary = true;
     else if (this.holdingSecondary && primaryLive && ((!canSee && this.reloadT <= 0) || !this.sidearmLive)) this.holdingSecondary = false;
+    if (this.holdingSecondary !== wasHolding) this.fireT = Math.max(this.fireT, SIDEARM_DRAW);
     this.updateAds(dt, { canShoot, reacted, range: bestD, objective });
     if (this.slideT > 0 || this.hopY > 0) this.ads = Math.max(0, this.ads - dt * 6);   // no scope mid-slide or mid-air
 
