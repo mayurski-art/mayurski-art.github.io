@@ -162,7 +162,7 @@ export function initRadioWidget() {
       eqInputs.forEach((inp) => { inp.value = 0; });
     });
 
-    $("to-radio-close").addEventListener("click", () => { setOpen(false); toggle.focus(); });
+    $("to-radio-close").addEventListener("click", () => closeFromKey());
     ui.play.addEventListener("click", () => game.music.toggle());
     ui.stop.addEventListener("click", () => game.music.stop());
     ui.prev.addEventListener("click", () => game.music.prev());
@@ -291,7 +291,41 @@ export function initRadioWidget() {
 
   toggle.addEventListener("click", () => setOpen(panel.hidden));
   panel.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { e.stopPropagation(); setOpen(false); toggle.focus(); }
+    if (e.key === "Escape") { e.stopPropagation(); closeFromKey(); }
+  });
+
+  /* M: the radio, open or shut, without the Esc menu (user, 2026-10-29:
+     "press m for music"). In a match it frees the mouse to work it (no
+     pause menu: buttons.js lets an open radio have the mouse), and putting
+     it away takes the mouse back; a click on the game does too, and shuts
+     it. On the menu it's the toggle. */
+  // opened by M mid-match: the mouse was the game's (game.radioHasMouse,
+  // so losing it doesn't open the pause menu)
+  let freed = false;
+  const setFreed = (v) => { freed = game.radioHasMouse = v; };
+  const inPlay = () => game.gameState === "playing" && game.els.pause.hidden;
+  function closeFromKey() {
+    setOpen(false);
+    if (freed && inPlay() && !game.controls.isLocked) game.resumePlay();
+    else toggle.focus();
+    setFreed(false);
+  }
+  window.addEventListener("keydown", (e) => {
+    if (e.code !== "KeyM" || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (game.chat?.isTyping || e.target?.closest?.("input:not([type=range]), textarea, select, [contenteditable='true']")) return;
+    if (!["menu", "playing", "paused", "gameover"].includes(game.gameState)) return;
+    if (!panel.hidden) { e.preventDefault(); closeFromKey(); return; }
+    // a hidden radio (a touch match) has nothing to show
+    if (!toggle.getClientRects().length) return;
+    e.preventDefault();
+    setFreed(inPlay() && game.controls.isLocked);
+    setOpen(true);
+    ui?.play.focus({ preventScroll: true });
+    if (freed) game.controls.unlock();
+  });
+  game.controls.addEventListener("lock", () => {
+    if (freed && !panel.hidden) setOpen(false);
+    setFreed(false);
   });
   // On the menu it's a popover like the lobby's others: a click anywhere
   // else puts it away (in a match it stays till you close it).
