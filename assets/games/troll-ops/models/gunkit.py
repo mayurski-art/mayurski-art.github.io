@@ -62,6 +62,8 @@ class Part:
         self.pivot = Vector(pivot)
         self.mats = []
         self.bevel = []   # (vert set) groups that get a modifier bevel
+        self.cutters = [] # v2: bmesh solids cut out of the part (panel lines, slots)
+        self.extras = {}  # v2: custom properties exported as glTF extras (moving parts)
 
     def mi(self, key):
         mat = M[key]
@@ -98,8 +100,12 @@ class Part:
         if parent:
             ob.parent = parent
             ob.matrix_parent_inverse = parent.matrix_world.inverted()
+        for k, v in self.extras.items():
+            ob[k] = v
         bpy.context.view_layer.objects.active = ob
         ob.select_set(True)
+        if self.cutters:
+            _apply_cutters(ob, self.cutters, self.pivot)
         if bevel > 0:
             bv = ob.modifiers.new("bevel", "BEVEL")
             bv.width = bevel
@@ -854,3 +860,291 @@ def slab_body(P, ref, outer, holes, regions, clip=(), smooth=2, eps=1.6, bevel=0
     bpy.data.meshes.remove(me)
     bpy.data.meshes.remove(me2)
     return loops
+
+
+# ------------------------------------------------------------------ gunkit v2 (DESIGN-ARSENAL.md)
+# Hard-surface guns built twice from one recipe: bake_kit.bake_gun runs the
+# builder with HI = True (rounded 3-segment bevels, panel lines, screws,
+# stippling and waffle as real geometry) and again with HI = False (the game
+# mesh: the same chamfered sections, hard edges), then bakes the first onto
+# the second. Helpers that only add bakeable detail do nothing on the low
+# pass, so a recipe just calls them.
+
+HI = False
+
+# The moving parts every v2 gun exports (weapon-model.js / view/gun-action.js
+# read them by name under the gun's prefix). kind: "slide" moves along
+# axis by travel (metres, + = toward the tail), "hinge" turns about axis by
+# travel (radians).
+MOVING = ("Carrier", "Charge", "DustCover", "Trigger", "Catch", "Selector", "Mag", "Bolt",
+          "BipodL", "BipodR", "Stock")   # (legs and a folding stock: posed, not cycled)
+# Hand and effect points beside P_Grip / P_Support / P_Muzzle / P_Aim /
+# P_Under / P_Rail. (The plan named the hand targets P_Charge / P_Catch, the
+# same names as the parts; a glTF scene wants them unique.)
+POINTS = ("Eject", "ChargeHand", "CatchHand")
+
+
+def moving(prefix, name, pivot, kind="slide", axis="z", travel=0.0):
+    """A Part for one moving piece, its motion recorded as glTF extras."""
+    assert name in MOVING, name
+    P = Part(prefix + "_" + name, pivot=pivot)
+    P.extras.update({"tf_part": name, "tf_kind": kind, "tf_axis": axis, "tf_travel": float(travel)})
+    return P
+
+
+def finish_v2(P, hi=None, smooth_angle=34):
+    """Finish a v2 part: rounded on the high pass, hard chamfers on the low."""
+    hi = HI if hi is None else hi
+    return P.finish(smooth_angle=smooth_angle, bevel=0.0007 if hi else 0.0, bevel_segs=3)
+
+
+def _apply_cutters(ob, cutters, pivot):
+    """cutters: bmesh solids, or (bmesh, key) to give the cut's walls and
+    floor that material (a pocket in a black grip stays black); a plain
+    one takes the part's first material."""
+    bm = bmesh.new()
+    keyed = any(isinstance(c, tuple) for c in cutters)
+    for c in cutters:
+        if isinstance(c, tuple):
+            c, key = c
+            if M[key] not in list(ob.data.materials):
+                ob.data.materials.append(M[key])
+            idx = list(ob.data.materials).index(M[key])
+            for f in c.faces:
+                f.material_index = idx
+        tmp = bpy.data.meshes.new("cut_tmp")
+        c.to_mesh(tmp)
+        bm.from_mesh(tmp)
+        bpy.data.meshes.remove(tmp)
+        c.free()
+    for v in bm.verts:
+        v.co = (RX @ (v.co - pivot).to_4d()).to_3d()
+    me = bpy.data.meshes.new(ob.name + "_cut")
+    bm.to_mesh(me)
+    bm.free()
+    if keyed:
+        for m in ob.data.materials:
+            me.materials.append(m)
+    co = bpy.data.objects.new(ob.name + "_cut", me)
+    scene.collection.objects.link(co)
+    bpy.context.view_layer.update()      # ob.location was just set: matrix_world is stale till now
+    co.matrix_world = ob.matrix_world.copy()
+    bo = ob.modifiers.new("cut", "BOOLEAN")
+    bo.operation = "DIFFERENCE"
+    bo.solver = "EXACT"
+    bo.use_self = True
+    bo.object = co
+    if keyed:
+        bo.material_mode = "TRANSFER"
+    bpy.context.view_layer.objects.active = ob
+    bpy.ops.object.modifier_apply(modifier=bo.name)
+    bpy.data.objects.remove(co)
+    bpy.data.meshes.remove(me)
+
+
+def chamfer_loop(z, hw, top, bot, c, hw_bot=None, x0=0.0):
+    """A chamfered rectangle (8 points) in the XY plane at z, CCW from +z
+    like rrect: half-width hw at the top, hw_bot at the bottom (a trapezoid
+    when they differ), 45-degree chamfers of c on the four corners."""
+    hb = hw if hw_bot is None else hw_bot
+    c = max(0.0, min(c, hw * 0.45, hb * 0.45, (top - bot) * 0.3))
+    return [(x0 + hw - c, top, z), (x0 - hw + c, top, z), (x0 - hw, top - c, z), (x0 - hb, bot + c, z),
+            (x0 - hb + c, bot, z), (x0 + hb - c, bot, z), (x0 + hb, bot + c, z), (x0 + hw, top - c, z)]
+
+
+def chamfer_loop_xz(y, z0, z1, hw, c):
+    """The same in the horizontal plane at height y (grips, mags): x across
+    +-hw, z from z0 to z1."""
+    zf, zb = min(z0, z1), max(z0, z1)
+    c = max(0.0, min(c, hw * 0.45, (zb - zf) * 0.3))
+    return [(hw, y, zb - c), (hw - c, y, zb), (-hw + c, y, zb), (-hw, y, zb - c),
+            (-hw, y, zf + c), (-hw + c, y, zf), (hw - c, y, zf), (hw, y, zf + c)]
+
+
+def section_body(P, outline, regions, step=0.004, smooth=1):
+    """#1: the side outline sets the profile, each region its own section.
+    outline: closed [(z, y)] in game metres (a traced one: [(R.Z(px),
+    R.Y(py))]). regions, each lofted as its own solid:
+      dict(z=(z0, z1), key, hw, c=0.002, hw_bot=None, y=(lo, hi) window,
+           top=None, bot=None)          sections across the gun (receiver,
+                                        handguard, stock): top / bot pin an
+                                        edge flat (a rail bed, a split line)
+      dict(axis="v", y=(y0, y1), key, hw, c, z=(lo, hi) window)
+                                        sections down the gun (grip, mag well)
+    hw and hw_bot may be functions of t 0..1 along the region (tapers);
+    step (metres between sections) may be set per region (a straight run
+    needs few).
+    c 0 gives a plain box section; a big c an octagon."""
+    out = []
+    for rg in regions:
+        val = lambda v, t: v(t) if callable(v) else v
+        c = rg.get("c", 0.002)
+        if rg.get("axis") == "v":
+            y0, y1 = rg["y"]
+            n = max(2, int(abs(y1 - y0) / rg.get("step", step)) + 1)
+            rows = []
+            for k in range(n):
+                t = k / (n - 1)
+                y = y0 + (y1 - y0) * t
+                sp = span(outline, 1, y, rg.get("z"))
+                if sp:
+                    rows.append((t, y, sp[0], sp[1]))
+            if len(rows) < 2:
+                continue
+            a = _smooth([r[2] for r in rows], smooth)
+            b = _smooth([r[3] for r in rows], smooth)
+            secs = [chamfer_loop_xz(y, za, zb, val(rg["hw"], t), c) for (t, y, _, _), za, zb in zip(rows, a, b)]
+        else:
+            z0, z1 = rg["z"]
+            n = max(2, int(abs(z1 - z0) / rg.get("step", step)) + 1)
+            rows = []
+            for k in range(n):
+                t = k / (n - 1)
+                z = z0 + (z1 - z0) * t
+                sp = span(outline, 0, z, rg.get("y"))
+                if sp:
+                    rows.append((t, z, sp[1] if rg.get("top") is None else rg["top"], sp[0] if rg.get("bot") is None else rg["bot"]))
+            if len(rows) < 2:
+                continue
+            tops = _smooth([r[2] for r in rows], smooth)
+            bots = _smooth([r[3] for r in rows], smooth)
+            secs = [chamfer_loop(z, val(rg["hw"], t), ty, by, c, val(rg.get("hw_bot"), t) if rg.get("hw_bot") is not None else None)
+                    for (t, z, _, _), ty, by in zip(rows, tops, bots)]
+        loft(P, secs, rg["key"])
+        out.append(secs)
+    return out
+
+
+def chamfer_box(P, center, size, c, key, basis=None):
+    """A box with every edge chamfered at 45 degrees by c (the machined-part
+    block: the concepts' 'chamfers, not rounds')."""
+    ex, ey, ez = basis or (Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1)))
+    cen = Vector(center)
+    hx, hy, hz = (s / 2 for s in size)
+    c = min(c, hx * 0.49, hy * 0.49, hz * 0.49)
+    pts = []
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            for sz in (-1, 1):
+                for (ax, ay, az) in ((hx, hy - c, hz - c), (hx - c, hy, hz - c), (hx - c, hy - c, hz)):
+                    pts.append(cen + ex * (sx * ax) + ey * (sy * ay) + ez * (sz * az))
+    vs = [P.v(p) for p in pts]
+    res = bmesh.ops.convex_hull(P.bm, input=vs)
+    faces = [g for g in res["geom"] if isinstance(g, bmesh.types.BMFace)]
+    bmesh.ops.dissolve_limit(P.bm, angle_limit=math.radians(1), verts=[], edges=list({e for f in faces for e in f.edges}))
+    mi = P.mi(key)
+    for v in vs:
+        if v.is_valid:
+            for f in v.link_faces:
+                f.material_index = mi
+                f.smooth = True
+    for v in [g for g in res.get("geom_interior", []) if isinstance(g, bmesh.types.BMVert)]:
+        if v.is_valid and not v.link_faces:
+            P.bm.verts.remove(v)
+
+
+def _slot_solid(center, along, normal, length, width, depth, n=5):
+    """A stadium-shaped prism (a slot cutter): long axis `along`, sunk
+    `depth` into the surface whose outward normal is `normal`."""
+    bm = bmesh.new()
+    nv = Vector(normal).normalized()
+    a = Vector(along).normalized()
+    s = nv.cross(a).normalized()
+    r = width / 2
+    half = max(0.0, length / 2 - r)
+    loop = []
+    for end, a0 in ((1, -90.0), (-1, 90.0)):
+        for i in range(n + 1):
+            ang = math.radians(a0 + 180.0 * i / n)
+            loop.append(Vector(center) + a * (end * half + r * math.cos(ang)) + s * (r * math.sin(ang)))
+    top = [bm.verts.new(p + nv * 0.002) for p in loop]
+    bot = [bm.verts.new(p - nv * depth) for p in loop]
+    m = len(loop)
+    bm.faces.new(top)
+    bm.faces.new(list(reversed(bot)))
+    for k in range(m):
+        k2 = (k + 1) % m
+        bm.faces.new([top[k2], top[k], bot[k], bot[k2]])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    return bm
+
+
+def slot_array(P, start, step, n, length, width, normal, depth=0.004, along=None, both=True):
+    """M-LOK style slots, n of them from start every `step` (a vector).
+    both: cut on the low mesh too (a through slot shows the core behind)."""
+    if not (HI or both):
+        return
+    along = along or step
+    for k in range(n):
+        P.cutters.append(_slot_solid(Vector(start) + Vector(step) * k, along, normal, length, width, depth))
+
+
+def vent_slashes(P, center, n, pitch, length, width, normal, angle=0.6, depth=0.0025, both=True):
+    """Angled vent slashes across a panel: n slots `pitch` apart along the
+    gun (z), each leaned `angle` radians off vertical."""
+    if not (HI or both):
+        return
+    nv = Vector(normal).normalized()
+    up = Vector((0, 1, 0))
+    up = (up - nv * up.dot(nv)).normalized()
+    fwd = nv.cross(up).normalized()
+    along = (up * math.cos(angle) + fwd * math.sin(angle)).normalized()
+    for k in range(n):
+        c = Vector(center) + fwd * (pitch * (k - (n - 1) / 2))
+        P.cutters.append(_slot_solid(c, along, nv, length, width, depth))
+
+
+def panel_line(P, path, normal, depth=0.0006, width=0.0007):
+    """A seam cut along a polyline on a surface (high pass only: the normal
+    map carries it)."""
+    if not HI:
+        return
+    nv = Vector(normal).normalized()
+    pts = [Vector(p) for p in path]
+    for a, b in zip(pts, pts[1:]):
+        d = b - a
+        L = d.length
+        if L < 1e-6:
+            continue
+        P.cutters.append(_slot_solid((a + b) / 2, d, nv, L + width, width, depth, n=2))
+
+
+def _frame(origin, u, v):
+    u, v = Vector(u).normalized(), Vector(v).normalized()
+    return Vector(origin), u, v, u.cross(v).normalized()
+
+
+def stipple(P, origin, u, v, w, h, key, pitch=0.0015, r=0.00055, seed=1):
+    """Stippled grip texture (high pass only): little domes on a jittered
+    grid over the w x h patch spanned by u, v from origin; the outward
+    normal is u x v."""
+    if not HI:
+        return
+    import random
+    rnd = random.Random(seed)
+    o, u, v, nrm = _frame(origin, u, v)
+    for i in range(int(w / pitch)):
+        for j in range(int(h / pitch)):
+            p = o + u * ((i + 0.5 + rnd.uniform(-0.3, 0.3)) * pitch) + v * ((j + 0.5 + rnd.uniform(-0.3, 0.3)) * pitch)
+            rr = r * rnd.uniform(0.7, 1.15)
+            local_lathe(P, p, nrm, [(-0.0003, rr), (rr * 0.45, rr * 0.75), (rr * 0.8, 0.0)], key, segs=6, spin=rnd.random())
+
+
+def waffle(P, origin, u, v, w, h, key, cell=0.004, height=0.0006, land=0.7):
+    """Waffle polymer texture (high pass only): raised square bosses in a
+    grid over the patch (a polymer mag's sides)."""
+    if not HI:
+        return
+    o, u, v, nrm = _frame(origin, u, v)
+    for i in range(int(w / cell)):
+        for j in range(int(h / cell)):
+            c = o + u * ((i + 0.5) * cell) + v * ((j + 0.5) * cell) + nrm * (height / 2 - 0.0002)
+            chamfer_box(P, c, (cell * land, cell * land, height + 0.0004), height * 0.4, key, (u, v, nrm))
+
+
+def screw_set(P, pts, normal, r=0.0022, key="steel"):
+    """Hex screws and pins at the shared size (high pass only)."""
+    if not HI:
+        return
+    for p in pts:
+        screw(P, p, normal, r, key)

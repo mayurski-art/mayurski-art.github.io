@@ -75,7 +75,7 @@ async function run(gunId) {
     if (T.els.noBots) T.els.noBots.checked = true;
     await T.startGame();
   }, gunId);
-  await page.waitForFunction(() => window.__trollOps.state() === "playing", null, { timeout: 30000 });
+  await page.waitForFunction(() => window.__trollOps.state() === "playing", null, { timeout: 180000 });
   await sleep(4500);
   await page.evaluate(() => {
     const T = window.__trollOps;
@@ -136,17 +136,59 @@ async function run(gunId) {
       w.def.pumpTime = 3;
       w.fireCooldown = 0;
       T.fireOnce();
+      const m = T.activeWeaponMesh(), V = m.position.constructor;
+      const hw = () => a.hand.getWorldPosition(new V()), kw = () => a.knob.getWorldPosition(new V());
       const read = async (t) => {
         for (let i = 0; i < 2; i++) { w.pumpT = w.pumpDur * (1 - t); await new Promise((r) => requestAnimationFrame(r)); }
-        return [+a.bolt.rotation.z.toFixed(3), +(a.bolt.position.z - a.restZ).toFixed(4)];
+        m.updateMatrixWorld(true);
+        return [+a.bolt.rotation.z.toFixed(3), +(a.bolt.position.z - a.restZ).toFixed(4),
+          +hw().distanceTo(kw()).toFixed(4), +a.hand.position.distanceTo(a.handRest.position).toFixed(4), +m.rotation.z.toFixed(3)];
       };
+      const rest = await read(0);
       const r = { lifted: await read(0.22), back: await read(0.5), locked: await read(0.97) };
-      w.def.pumpTime = pump;
       w.pumpT = 0;
-      return { ...r, travel: a.travel };
+      for (let i = 0; i < 3; i++) await new Promise((res) => requestAnimationFrame(res));
+      const home = +a.hand.position.distanceTo(a.handRest.position).toFixed(5);
+      w.def.pumpTime = pump;
+      return { ...r, rest, home, travel: a.travel };
     });
     check(`${tag}: a shot lifts the bolt, rakes it back and locks it home`,
       cyc.lifted[0] > 0.5 && cyc.back[1] > cyc.travel * 0.9 && Math.abs(cyc.locked[0]) < 1e-3 && Math.abs(cyc.locked[1]) < 1e-4, JSON.stringify(cyc));
+    check(`${tag}: the trigger hand leaves the grip, rides the knob and comes home`,
+      cyc.lifted[3] > 0.08 && cyc.lifted[2] < 0.04 && cyc.back[2] < 0.04 && cyc.home < 1e-4, JSON.stringify(cyc));
+    check(`${tag}: the gun rolls its right side up for the cycle`, cyc.back[4] - cyc.rest[4] > 0.15, JSON.stringify(cyc));
+
+    // scoped: the shot brings the gun partly down out of the scope, so the
+    // hand on the bolt is seen, then the scope comes back once it locks
+    await page.evaluate(() => window.__trollOps.setAds(true));
+    await sleep(600);
+    await settle(page);
+    const scopedCycle = await page.evaluate(async () => {
+      const T = window.__trollOps, w = T.currentWeapon(), m = T.activeWeaponMesh(), el = document.querySelector(".to-scope");
+      const before = w.adsT;
+      w.def.pumpTime = 4; w.fireCooldown = 0; w.pumpT = 0;
+      T.fireOnce();
+      const t0 = performance.now();
+      while (performance.now() - t0 < 1500) await new Promise((r) => requestAnimationFrame(r));
+      return { before, mid: +w.adsT.toFixed(3), overlay: getComputedStyle(el).display, gunShown: m.visible, cycling: w.pumpT > 0 };
+    });
+    check(`${tag}: scoped, the bolt cycle drops the gun out of the scope`,
+      scopedCycle.before > 0.99 && scopedCycle.cycling && scopedCycle.mid < 0.65 && scopedCycle.overlay === "none" && scopedCycle.gunShown, JSON.stringify(scopedCycle));
+    for (const [n, t] of [["a-reach", 0.1], ["b-lift", 0.24], ["c-back", 0.48], ["d-home", 0.7]]) {
+      await page.evaluate(async (t) => { const w = window.__trollOps.currentWeapon(); for (let i = 0; i < 3; i++) { w.pumpT = w.pumpDur * (1 - t); await new Promise((r) => requestAnimationFrame(r)); } }, t);
+      await shot(page, `${tag}-2s-${n}.png`);
+    }
+    await page.evaluate(() => { window.__trollOps.currentWeapon().pumpT = 0; });
+    await sleep(800);
+    await settle(page);
+    const back = await page.evaluate(() => {
+      const T = window.__trollOps, el = document.querySelector(".to-scope");
+      return { ads: +T.currentWeapon().adsT.toFixed(3), overlay: getComputedStyle(el).display, gunShown: T.activeWeaponMesh().visible };
+    });
+    check(`${tag}: locked, the scope comes back`, back.ads > 0.99 && back.overlay === "block" && !back.gunShown, JSON.stringify(back));
+    await page.evaluate(() => window.__trollOps.setAds(false));
+    await sleep(600);
+    await settle(page);
     await page.evaluate(async () => { const T = window.__trollOps, w = T.currentWeapon(); w.def.pumpTime = 3; w.fireCooldown = 0; w.pumpT = 0; T.fireOnce(); });
     await sleep(1300);
     await shot(page, `${tag}-2-bolt.png`);
@@ -194,7 +236,7 @@ async function run(gunId) {
   await page.close();
 }
 
-for (const id of ["snort", "deadpan", "howl", "smug"]) await run(id);
+for (const id of process.env.GUNS?.split(",") || ["snort", "deadpan", "howl", "smug"]) await run(id);
 
 await browser.close();
 server.close();

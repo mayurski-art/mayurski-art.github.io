@@ -48,7 +48,7 @@ async function run(gunId) {
   await page.route(/supabase/, (r) => r.abort());
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto(`${BASE}/troll-ops.html?tohooks=1`);
+  await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { timeout: 180000 });   // a loaded machine misses 30 s
   await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 60000 });
   await page.evaluate(async (id) => {
     const T = window.__trollOps;
@@ -142,8 +142,19 @@ async function run(gunId) {
 
   // empty reload: the def's time, held back until the release, then home.
   // Each beat is set and read inside the page over two frames, so a slow
-  // frame (a screenshot) can't carry the reload past it.
-  const empty = await page.evaluate(() => { const T = window.__trollOps; T.tryReload(); const w = T.currentWeapon(); return { t: w.reloadTime, def: w.def.reloadTime }; });
+  // frame (a screenshot) can't carry the reload past it. The last round
+  // starts the auto reload; a slow screenshot can let it finish first, so
+  // an empty one is started again here (tryReload needs pointer lock,
+  // headless never has it).
+  const empty = await page.evaluate(() => {
+    const w = window.__trollOps.currentWeapon();
+    if (!w.reloading) { w.ammoInMag = 0; w.startReload(); }
+    const out = { t: w.reloadTime, def: w.def.reloadTime };
+    // stretched for the beats: a slow screenshot between two of them can't
+    // run out what's left of it
+    w.reloadTime = 60;
+    return out;
+  });
   check(`${tag}: empty reload takes the full reloadTime`, empty.t === empty.def, JSON.stringify(empty));
   const beats = [];
   for (const [t, name] of [[0.25, "out"], [0.45, "swap"], [0.62, "seat"], [0.7, "held"], [0.85, "released"]]) {
@@ -165,7 +176,7 @@ async function run(gunId) {
   const tac = await page.evaluate(async () => {
     const T = window.__trollOps, w = T.currentWeapon(), a = T.activeWeaponMesh().userData.pistolAction;
     w.ammoInMag = 3;
-    T.tryReload();
+    w.startReload();
     const time = w.reloadTime;
     let max = 0;
     for (const r of [0.3, 0.6, 0.8, 0.95]) {

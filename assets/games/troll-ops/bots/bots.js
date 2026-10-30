@@ -10,10 +10,10 @@
 
 import * as THREE from "three";
 import { groundHeightAt, resolveCircle } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1";
-import { segmentBlocked } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1-gf1-tg1-rfx1-ret1-mrg1-mrc1-tw1";
+import { segmentBlocked } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1-gf1-tg1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
 import { FlowField } from "./nav.js?v=ti1-bs1b7d-fl1-or1-gf1-tg1-tfb8";
 import { clampInsidePolygon, insidePolygon } from "../maps/edge.js?v=or1";
-import { botPerks, perkBits, PERK_TUNE } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1";
+import { botPerks, perkBits, PERK_TUNE } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
 
 const NAMES = [
   "grinbot", "sneerbot", "chuckles", "smirko", "haha_9000", "kekbot",

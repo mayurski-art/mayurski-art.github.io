@@ -14,37 +14,38 @@
 import { createBo2Menu } from "../../../js/bo2-menu.js?v=to-ft2-tb1-nd1-ul1";
 import { createMapMode } from "../../../js/troll-map-mode.js?v=to-bo2d";
 import { joinSitePresence, viewerId } from "../../../js/site-presence.js?v=to-bo2d-ol1-iv1-mv1-wo1";
-import { initInvites, invitePlayer, squadUp, partyView, PARTY_SIZE } from "./invites.js?v=iv1-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-pty1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-ans1-sqd1";
+import { initInvites, invitePlayer, squadUp, partyView, PARTY_SIZE } from "./invites.js?v=iv1-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-pty1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1";
 import { initPublicChat } from "./public-chat.js?v=pch1-nb2-pc2-gf1-sc1-tw1-nd2";
-import { startOnline, onlinePlayers, serverList, joinServer, describe, setLobbyActivity, pushActivity } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-ans1-sqd1";
-import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER, getLevel, rankProgress, rankXpText } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1";
-import { ACHIEVEMENTS } from "../progression/achievements.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1";
-import { mountFnLobby } from "./lobby-fn.js?v=fn1-fn2-rl1-rl2-rl3-mt1-sm1-ip1-fn6-ug1-ugm1-tw1-fnu1-fnu2-hw1-hwl1-sc1-bgm1-nwc1-ans1-sqd2";
-import { mountFriends } from "./friends.js?v=fr1-sqd1";
+import { startOnline, onlinePlayers, serverList, joinServer, describe, setLobbyActivity, pushActivity } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1";
+import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER, getLevel, rankProgress, rankXpText } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
+import { ACHIEVEMENTS } from "../progression/achievements.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
+import { mountFnLobby } from "./lobby-fn.js?v=fn1-fn2-rl1-rl2-rl3-mt1-sm1-ip1-fn6-ug1-ugm1-tw1-fnu1-fnu2-hw1-hwl1-sc1-bgm1-nwc1-lmg1";
+import { mountFriends } from "./friends.js?v=fr1-lmg1";
 import { openPfpStudio } from "./pfp-studio.js?v=pf1";
+import { pickAvatar } from "./avatar-upload.js?v=au1";
 
 import { fetchRecord, formatPlayed } from "../progression/record.js?v=rec1-or1";
-import { WEAPON_DEFS } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1";
-import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withClan } from "../progression/calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1";
-import { renderCard, myCardData, openProfileCard, openGuestCard, setInviteHandler } from "../progression/profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zh1-zc1-zc2-nf1-or1-nb2-nd2-rfx1-ret1-mrg1-mrc1-tw1";
-import { shareCardOnX, saveCardPhoto } from "./card-share.js?v=cs1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-tw1-rfx1-bk1-mrg1-mrc1";
+import { WEAPON_DEFS } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
+import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withClan } from "../progression/calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
+import { renderCard, myCardData, openProfileCard, openGuestCard, setInviteHandler } from "../progression/profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zh1-zc1-zc2-nf1-or1-nb2-nd2-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
+import { shareCardOnX, saveCardPhoto } from "./card-share.js?v=cs1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-tw1-rfx1-bk1-mrg1-mrc1-ars1-p416";
 import { FINISHES } from "../characters/skins.js?v=p5-wb1-or1";
 import { MAPS, REWARD_MAPS } from "../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1-bw2-bt1-wf1-wf2-zf1-bp1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-rm1-kzf1-hgb1-hgb2-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-hgb5-hgb6-hgb8-hgb9-tw1-op1-hgo1";
 import { MODES } from "../modes/modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-tfb8-ug1-ugm1-hgb8-hgb9";
 import { setMapShot } from "../maps/map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1-sr1-ug5-or1-sp1-pv1-tb3-pv2-dm1-kbk2-tfp7-tfb8-rfx2-hgm1-ugb5-ugm1-hgb7";
 import { leaveToArcade, initExitLinks } from "./exit-links.js?v=ex1-cl1";
 import { game } from "../core/state.js?v=st1";
-import { inviteLink, prepareHubEntry } from "../modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-ans1-sqd1";
-import { openKiosk } from "../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-ans1-sqd1";
+import { inviteLink, prepareHubEntry } from "../modes/zombies/hub.js?v=zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-sv1-dj2-bf1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1";
+import { openKiosk } from "../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1";
 import { credits } from "../modes/zombies/credits.js?v=zc1-zc2";
-import { TROLL_RETICLE_LEVEL, trollReticleUnlocked, trollReticleLabel, toggleTrollReticle } from "../view/troll-reticle.js?v=tr1-ret1-mrg1-hd1-mrc1-tw1-rt2-rd1";
+import { TROLL_RETICLE_LEVEL, trollReticleUnlocked, trollReticleLabel, toggleTrollReticle } from "../view/troll-reticle.js?v=tr1-ret1-mrg1-hd1-mrc1-tw1-rt2-rd1-ars1-p416";
 import { sidePref, setSidePref, SIDE_NAMES } from "../modes/royale-side.js?v=rs1-tw1";
 import { recordSupported, recordPref, setRecordPref } from "../modes/royale-record.js?v=rrc1-rfx1-rr2-ret1-mrg1-hd1";
 import { makeTrollOpsProvider } from "../progression/leaderboard-rows.js?v=lr1-zh1-or1-nd2";
 const lbProvider = makeTrollOpsProvider();
-import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perksInTier, perkUnlocked, perkIconSvg } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1";
-import { STREAK_DEFS } from "../streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1-sam1-rfx1-ret1-mrg1-mrc1-tw1";
-import { renderClassPreview } from "./class-preview.js?v=cp1-rb4-hp1-bx1-sp1-sam1-rfx1-mrg1-mrc1-tw1";
+import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perksInTier, perkUnlocked, perkIconSvg } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
+import { STREAK_DEFS } from "../streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1-sam1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
+import { renderClassPreview } from "./class-preview.js?v=cp1-rb4-hp1-bx1-sp1-sam1-rfx1-mrg1-mrc1-tw1-p416";
 import { lobby, enterLobby, leaveLobby, lobbyActivity, round, candidates, tally, renderPanel, tickClock } from "./map-vote.js?v=mv1-vs1-vt2-sp1-hh1-yb1-pv1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-tb3-pv2-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-rfx2-rm1-kzf1-hgm1-hgb1-hgb2-hgb3-ugb1-ug1-ug2-ug3-ug4-ugb5-ugm1-hgb4-hgb5-hgb6-hgb7-hgb8-hgb9-tw1-op1-hgo1";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
@@ -114,10 +115,12 @@ root.innerHTML = `
   </section>
   <footer class="to-bo2-foot">
     <div>
-      <div class="to-bo2-online">1 Online</div>
+      <div class="to-bo2-onrow">
+        <div class="to-bo2-online">1 Online</div>
+        <button type="button" class="to-bo2-back"><kbd>Esc</kbd>Back</button>
+      </div>
       <span class="to-bo2-status"></span>
       <span class="to-bo2-dl" aria-live="polite"><i></i><b></b></span>
-      <button type="button" class="to-bo2-back"><kbd>Esc</kbd>Back</button>
     </div>
     <button type="button" class="tf-btn tf-btn--secondary to-bo2-quick" data-go="barracks">Barracks</button>
     <div class="to-bo2-optcol">
@@ -397,7 +400,7 @@ function selectRow(id, label, desc) {
     },
   };
 }
-/* The trollface reticle or the optic's own, in the Locker and in Options
+/* The trollface reticle or the optic's own, in the Locker and the class
    (view/troll-reticle.js). Below the level it's open too: it can put it on
    Troll Royale's sniper scopes, the only ones that wear it then. */
 function reticleRow() {
@@ -577,6 +580,7 @@ const screens = {
       groups: [
         [
           { id: "b-pfp", label: "Profile Picture", value: signedIn ? "PFP Studio" : "", desc: signedIn ? "Build your troll in PFP Studio: background, base, outfit, headwear, accessories. Save it and it's your picture on your card and across trollrunner.net." : "Build a troll in PFP Studio. Sign in there to save it as your picture.", onSelect: () => openPfpStudio() },
+          { id: "b-upload", label: "Upload Picture", value: signedIn ? "PNG · JPG · WebP" : "", disabled: !signedIn, desc: signedIn ? "Use your own image as your picture, like your troll NFT. It's cropped square and shows on your card and across trollrunner.net." : guest, need: signedIn ? "" : "Sign in to set it.", onSelect: () => pickAvatar(setStatus) },
           { id: "b-card", label: "Calling Card", value: signedIn ? cardById(card).name : "", disabled: !signedIn, desc: signedIn ? "The banner behind your name." : guest, need: signedIn ? "" : "Sign in to set it.", go: "cards" },
           { id: "b-clan", label: "Clan Tag", value: signedIn ? (clan ? `[${clan}]` : "None") : "", disabled: !signedIn, desc: signedIn ? "Up to 4 letters or numbers, shown as [TAG] name everywhere." : guest, need: signedIn ? "" : "Sign in to set it.", onSelect: () => editClan() },
           { id: "b-rewards", label: "Prestige Rewards", desc: "What each prestige unlocks.", go: "rewards" },
@@ -776,6 +780,7 @@ const screens = {
         }),
         [
           { id: "streaks", label: "Scorestreaks", value: streaks.length ? `${streaks.length}/3` : "", desc: streaks.join(" · ") || "Pick three. Kills, assists and objectives build the meter.", go: "streaks" },
+          reticleRow(),
           { id: "rename", label: "Rename", value: L.className, desc: "Up to 16 letters. Enter saves, Esc cancels.", onSelect: () => renameClass() },
         ],
         [back("Back to your classes.")],
@@ -896,7 +901,6 @@ const screens = {
       [
         checkRow("to-set-invert-lobby", "Invert look", "Flip up and down."),
         checkRow("to-set-minimap-lobby", "Minimap", "The radar in the corner."),
-        reticleRow(),
         checkRow("to-set-fps-lobby", "Show FPS", "Frame rate in the top corner."),
         selectRow("to-set-botskill", "Bot skill", "Veteran bots give +10% XP."),
         checkRow("to-set-viewmode-lobby", "View mode", "Just look at the maps, no fighting."),
@@ -916,30 +920,38 @@ const screens = {
   }),
   ...mapMode.screens,
 };
+/* Back is the footer's button beside the online count on every screen
+   (user, 2026-10-29), never a row at the foot of the list. */
+const noBackRow = (f) => f && ((...a) => {
+  const s = f(...a);
+  if (!s?.groups) return s;
+  return { ...s, groups: s.groups.map((g) => g.filter((it) => it?.id !== "back")).filter((g) => g.length) };
+});
 // Dynamic option sub-screens (att-0.., gear-0..) resolve from the live DOM.
 const optionScreens = new Proxy(screens, {
-  get(t, id) {
-    if (id in t) return t[id];
-    const a = /^att-(\d+)$/.exec(id), g = /^gear-(\d+)$/.exec(id), p = /^perk-([012])$/.exec(id);
-    if (p) return () => perkScreen(+p[1]);
-    if (a) {
-      const slotEl = $$("#to-lo-atts .to-lo-slot")[+a[1]];
-      if (slotEl) return () => optionScreen(text($(".to-lo-slot-label", slotEl)), $$(".to-lo-att, button", slotEl), {
-        descOf: (b) => text($("small", b)) || b.title,
-        valueFor: (b) => $$(".to-att-delta b", b).map(text).join(" "),
-      });
-    }
-    if (g) {
-      const row = $$("#to-lo-gear .to-lo-gearrow")[+g[1]];
-      if (row) return () => optionScreen(text($(".to-lo-slot-label", row)), $$(".to-lo-gear", row), {
-        valueFor: (b) => text($("span", b)), preview: true,
-        needOf: (b) => `Unlocks at level ${text($("span", b)).replace(/^LV\s*/i, "")}.`,
-      });
-    }
-    return undefined;
-  },
+  get(t, id) { return noBackRow(screenFor(t, id)); },
   has(t, id) { return id in t || /^(att|gear|perk)-\d+$/.test(id); },
 });
+function screenFor(t, id) {
+  if (id in t) return t[id];
+  const a = /^att-(\d+)$/.exec(id), g = /^gear-(\d+)$/.exec(id), p = /^perk-([012])$/.exec(id);
+  if (p) return () => perkScreen(+p[1]);
+  if (a) {
+    const slotEl = $$("#to-lo-atts .to-lo-slot")[+a[1]];
+    if (slotEl) return () => optionScreen(text($(".to-lo-slot-label", slotEl)), $$(".to-lo-att, button", slotEl), {
+      descOf: (b) => text($("small", b)) || b.title,
+      valueFor: (b) => $$(".to-att-delta b", b).map(text).join(" "),
+    });
+  }
+  if (g) {
+    const row = $$("#to-lo-gear .to-lo-gearrow")[+g[1]];
+    if (row) return () => optionScreen(text($(".to-lo-slot-label", row)), $$(".to-lo-gear", row), {
+      valueFor: (b) => text($("span", b)), preview: true,
+      needOf: (b) => `Unlocks at level ${text($("span", b)).replace(/^LV\s*/i, "")}.`,
+    });
+  }
+  return undefined;
+}
 
 /* U Mad Bro? teaser: while its mode row is hot (locked or not), the detail
    pane shows the hero banners, the two album-cover parodies taking turns.

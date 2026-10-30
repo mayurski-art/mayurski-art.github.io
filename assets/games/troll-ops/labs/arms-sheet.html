@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arms sheet</title>
+<style>html, body { margin: 0; background: #2a2c2f; } canvas { display: block; }</style>
+</head>
+<body>
+<!-- tools/troll-ops-arms-sheet.mjs drives this: window.sheet.shoot(id, view)
+     renders one gun the way the game builds it, stats(id, lod) counts it. -->
+<script type="importmap">
+  { "imports": { "three": "../../../vendor/r186/three.module.js", "three/addons/": "../../../vendor/r186/addons/" } }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { buildWeaponMesh, preloadWeaponModels, setWeaponEnvMap } from "../weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1-rt1-ut1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1-mrg3-p416";
+import { WEAPON_DEFS } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
+import { resolveWeapon, defaultLoadoutFor } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
+import { useArmsTest } from "../weapons/arms-test.js?v=at1-ars1-mrg3-p416";
+
+const W = 900, H = 520;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.body.appendChild(renderer.domElement);
+// a small photo studio for the reflections: a dim room and three softboxes
+const studio = new THREE.Scene();
+studio.add(new THREE.Mesh(new THREE.BoxGeometry(8, 6, 8), new THREE.MeshBasicMaterial({ color: 0x3a3c40, side: THREE.BackSide })));
+for (const [x, y, z, w, h, k] of [[0, 2.9, 0, 4, 2.5, 3], [3.9, 1, -1, 0.1, 2, 2], [-3.9, 0.5, 1, 0.1, 1.5, 1.2]]) {
+  const box = new THREE.Mesh(new THREE.BoxGeometry(w, x ? h : 0.1, x ? 1.5 : h), new THREE.MeshBasicMaterial({ color: new THREE.Color(k, k, k) }));
+  box.position.set(x, y, z);
+  studio.add(box);
+}
+const pm = new THREE.PMREMGenerator(renderer);
+const env = pm.fromScene(studio, 0.04).texture;
+setWeaponEnvMap(env);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x2a2c2f);
+scene.environment = env;
+const key = new THREE.DirectionalLight(0xfff2e0, 2.2);
+key.position.set(1, 1.4, 0.6);
+const rim = new THREE.DirectionalLight(0xbfd0ff, 1.0);
+rim.position.set(-1, 0.6, -1);
+scene.add(key, rim, new THREE.AmbientLight(0xffffff, 0.25));
+const cam = new THREE.PerspectiveCamera(30, W / H, 0.01, 20);
+
+const defOf = (id) => resolveWeapon(id, defaultLoadoutFor(id));
+const shown = (o, root) => { for (let p = o; p && p !== root; p = p.parent) if (!p.visible || p.userData.hand) return false; return o.visible; };
+
+function stats(mesh) {
+  const mats = new Set(), tex = new Set();
+  let tris = 0, draws = 0;
+  mesh.updateMatrixWorld(true);
+  mesh.traverse((o) => {
+    if (!o.isMesh || !shown(o, mesh)) return;
+    const g = o.geometry;
+    const n = g.index ? g.index.count : g.attributes.position.count;
+    tris += n / 3 * (o.isInstancedMesh ? o.count : 1);
+    const ms = [].concat(o.material);
+    draws += Array.isArray(o.material) ? Math.max(1, g.groups.length) : 1;
+    for (const m of ms) {
+      mats.add(m);
+      for (const k of ["map", "normalMap", "roughnessMap", "metalnessMap", "aoMap", "emissiveMap", "alphaMap"]) if (m[k]) tex.add(m[k]);
+    }
+  });
+  let bytes = 0;
+  for (const t of tex) {
+    const im = t.image;
+    const w = im?.naturalWidth || im?.width || 0, h = im?.naturalHeight || im?.height || 0;
+    bytes += w * h * 4 * 4 / 3;    // RGBA8 with mips
+  }
+  return { tris: Math.round(tris), draws, materials: mats.size, textures: tex.size, texMB: +(bytes / 1048576).toFixed(1) };
+}
+
+// views relative to the gun's box: side (from its right), 3/4 front-right
+// from above, and a macro on the receiver (around the grip, behind the mag)
+function frame(mesh, view) {
+  const box = new THREE.Box3();
+  mesh.updateMatrixWorld(true);
+  mesh.traverse((o) => { if (o.isMesh && shown(o, mesh)) box.expandByObject(o); });
+  const c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
+  const L = Math.max(s.x, s.y, s.z);
+  if (view === "side") { cam.position.set(c.x + L * 2.1, c.y, c.z); cam.lookAt(c); }
+  else if (view === "q34") { cam.position.set(c.x + L * 0.75, c.y + L * 0.38, c.z - L * 1.05); cam.lookAt(c); }
+  else {
+    const g = mesh.userData.gripPos ?? new THREE.Vector3();
+    const t = new THREE.Vector3(0, g.y + 0.06, g.z - 0.03);
+    cam.position.set(t.x + 0.22, t.y + 0.07, t.z + 0.12);
+    cam.lookAt(t);
+  }
+}
+
+// any angle round the gun (or round its sight only): yaw 0 = from its
+// right side, 90 = from the muzzle; pitch up from level
+function orbit(mesh, yaw, pitch, only) {
+  const box = new THREE.Box3();
+  const root = only === "sight" ? mesh.userData.sight : mesh;
+  if (!root) return false;
+  mesh.updateMatrixWorld(true);
+  root.traverse((o) => { if (o.isMesh && shown(o, mesh)) box.expandByObject(o); });
+  const c = box.getCenter(new THREE.Vector3()), L = box.getSize(new THREE.Vector3()).length();
+  const y = THREE.MathUtils.degToRad(yaw), p = THREE.MathUtils.degToRad(pitch);
+  const d = L * (only ? 1.6 : 1.2);
+  cam.position.set(c.x + d * Math.cos(p) * Math.cos(y), c.y + d * Math.sin(p), c.z - d * Math.cos(p) * Math.sin(y));
+  cam.lookAt(c);
+  return true;
+}
+
+let current = null;
+async function build(id, lod, optic) {
+  if (current) scene.remove(current);
+  const def = defOf(id);
+  if (optic) def.attachments = { ...def.attachments, optic };
+  current = buildWeaponMesh(def, { lod });
+  current.traverse((o) => { if (o.userData.hand) o.visible = false; });
+  scene.add(current);
+  // wait for any map still on its way
+  for (let i = 0; i < 100; i++) {
+    let pending = false;
+    current.traverse((o) => { if (o.isMesh) for (const m of [].concat(o.material)) for (const k of ["map", "normalMap", "roughnessMap"]) if (m[k] && !m[k].image) pending = true; });
+    if (!pending) break;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  return current;
+}
+
+window.sheet = {
+  ready: (async () => {
+    const test = new URLSearchParams(location.search).get("test");
+    if (test) await useArmsTest(test);
+    await preloadWeaponModels();
+    return true;
+  })(),
+  guns: () => Object.entries(WEAPON_DEFS).filter(([, d]) => d.magSize > 0 && !d.model?.kind && d.cls !== "melee").map(([id]) => id),
+  async shoot(id, view, lod = 0) {
+    const m = await build(id, lod);
+    frame(m, view);
+    renderer.render(scene, cam);
+    return renderer.domElement.toDataURL("image/png");
+  },
+  /* opts: { optic, only: "sight", lod } */
+  async orbit(id, yaw, pitch, opts = {}) {
+    const m = await build(id, opts.lod ?? 0, opts.optic);
+    if (!orbit(m, yaw, pitch, opts.only)) return null;
+    renderer.render(scene, cam);
+    return renderer.domElement.toDataURL("image/png");
+  },
+  async stats(id, lod = 0) {
+    const m = await build(id, lod);
+    return { ...stats(m), v2: !!m.userData.gunParts || m.userData.lod === 1 };
+  },
+};
+</script>
+</body>
+</html>
