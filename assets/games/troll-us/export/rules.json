@@ -1,4 +1,4 @@
-{"botFillTo":8,"botNames":["Alex","Sam","Jordan","Casey","Riley","Morgan","Taylor","Jamie","Avery","Quinn"],"botTaskTime":6,"botThinkInterval":0.5,"botWalkSpeed":12,"confirmEjects":true,"discussionTime":30,"doorsCloseTime":10,"doorsCooldown":30,"ejectionTime":7,"emergencyCooldown":15,"emergencyMeetings":1,"fixPads":{"Comms":[
+{"botFillTo":8,"botNames":["bot"],"botTaskTime":6,"botThinkInterval":0.5,"botWalkSpeed":12,"confirmEjects":true,"discussionTime":30,"doorsCloseTime":10,"doorsCooldown":30,"ejectionTime":7,"emergencyCooldown":15,"emergencyMeetings":1,"fixPads":{"Comms":[
 {"room":"Communications","x":34,"z":44}],"Lights":[
 {"room":"Electrical","x":-36,"z":22}],"O2":[
 {"room":"O2","x":50,"z":-4},

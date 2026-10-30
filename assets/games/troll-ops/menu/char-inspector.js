@@ -17,7 +17,7 @@ import { buildWeaponMesh } from "../weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1
 import { drawInkOverlay } from "../view/char-ink.js?v=ci1-ci2-ci3-ci4-ci5-rb4-rb5-mg1-sp1-ci6";
 import { poseEmoteCode, emoteCode, emoteSeconds } from "../characters/emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-cf1-gs2-lh1-fg2-lp1-fg3-rc1-rc4-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-ht2-bx1-cg1-mg1-sp1-chg1";
 import { buildPlinth } from "./lobby-stage.js?v=ps2-ng2-hwl1";
-import { wearBlocky } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-hl1-mg1-sp1-rh1-ci6-pm1";
+import { wearBlocky, setReliefFace } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-hl1-mg1-sp1-rh1-ci6-pm1";
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2.2;
@@ -149,7 +149,8 @@ export class CharacterInspector {
       const h = buildHumanoid(OPERATOR_MATERIAL, { height: 1.8, gun: false });
       h.noIdleGlance = true;
       h.face = w.face;
-      if (w.body) wearBlocky(h, w.body);
+      // no TROLLS body: the stick rig with the NPCs' 3D head (user, 2026-10-30)
+      if (w.body) wearBlocky(h, w.body); else setReliefFace(h);
       const [x, z, yaw] = SLOTS[i + first];
       h.root.position.set(x, 0, z);
       aimRig(h, FACING + yaw, 0, { snap: true });

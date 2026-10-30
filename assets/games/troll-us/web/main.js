@@ -111,7 +111,7 @@ async function start() {
   for (let i = 0; i < botCount; i++) {
     const a = ((i + 1) / (botCount + 1)) * Math.PI * 2;
     const bot = createBot(nav, { x: table[0] + Math.cos(a) * 13, z: table[1] + Math.sin(a) * 13,
-      speed: rules.botWalkSpeed || 12, taskTime: rules.botTaskTime || 6, rng, name: rules.botNames?.[i] || 'Bot ' + (i + 1) });
+      speed: rules.botWalkSpeed || 12, taskTime: rules.botTaskTime || 6, rng, name: 'bot' });
     bot.yaw = Math.atan2(Math.cos(a), Math.sin(a)); // facing the table
     bot.busy = 0.5 + rng() * 2; // don't all set off on the same frame
     const hat = hatNames[Math.floor(rng() * hatNames.length)];

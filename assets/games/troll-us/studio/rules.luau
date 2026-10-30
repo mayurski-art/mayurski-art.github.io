@@ -89,6 +89,7 @@ Rules.sounds = {
 }
 
 Rules.suits = { "Red", "Blue", "Green", "Pink", "Orange", "Yellow", "Black", "White", "Purple", "Brown", "Cyan", "Lime" }
-Rules.botNames = { "Alex", "Sam", "Jordan", "Casey", "Riley", "Morgan", "Taylor", "Jamie", "Avery", "Quinn" }
+-- every bot is just "bot" (user, 2026-10-30)
+Rules.botNames = { "bot" }
 
 return Rules

@@ -15,10 +15,8 @@ import { FlowField } from "./nav.js?v=ti1-bs1b7d-fl1-or1-gf1-tg1-tfb8";
 import { clampInsidePolygon, insidePolygon } from "../maps/edge.js?v=or1";
 import { botPerks, perkBits, PERK_TUNE } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
 
-const NAMES = [
-  "grinbot", "sneerbot", "chuckles", "smirko", "haha_9000", "kekbot",
-  "widemouth", "lolgrin", "trollbyte", "yikesbot", "guffaw", "snicker",
-];
+// Every bot is just "bot" (user, 2026-10-30), so nobody takes one for a person.
+const BOT_NAME = "bot";
 
 const BOT_HP = 100;
 const BOT_SPEED = 4.2;
@@ -87,11 +85,11 @@ const magFor = (rules) => (rules?.oneShot ? 1 : MAG_SIZE);
    and whether it cooks frags so they go off on landing. */
 const DIFFICULTY = {
   recruit:  { label: "Recruit",  hit: 0.28, missSpread: [0.9, 2.4], damage: 14, interval: 1.0, reaction: 0.45, strafe: 0.55, lead: 0.15, readsGuard: false, adsTime: 0.42,
-    nade: { chance: 0.3, scatter: 3.2, cook: false }, jump: 0.05, slide: 0.05 },
+    nade: { chance: 0.3, scatter: 3.2, cook: false }, jump: 0.05, slide: 0.05, knife: 0.35 },
   regular:  { label: "Regular",  hit: 0.37, missSpread: [0.6, 1.6], damage: 17, interval: 0.72, reaction: 0.28, strafe: 0.75, lead: 0.4, readsGuard: true, adsTime: 0.3,
-    nade: { chance: 0.55, scatter: 1.9, cook: false }, jump: 0.12, slide: 0.12 },
+    nade: { chance: 0.55, scatter: 1.9, cook: false }, jump: 0.12, slide: 0.12, knife: 0.45 },
   veteran:  { label: "Veteran",  hit: 0.55, missSpread: [0.4, 1.0], damage: 20, interval: 0.53, reaction: 0.16, strafe: 1.0, lead: 0.75, readsGuard: true, adsTime: 0.22,
-    nade: { chance: 0.85, scatter: 1.0, cook: true }, jump: 0.2, slide: 0.2 },
+    nade: { chance: 0.85, scatter: 1.0, cook: true }, jump: 0.2, slide: 0.2, knife: 0.6 },
 };
 
 /* Moving like a player (user: bots never jumped or slid). In a fight a bot
@@ -125,12 +123,15 @@ const NADE_MIN = 7;               // no closer: it would be standing in the blas
 const NADE_MAX = 26;
 const CLUSTER = 4.5;              // enemies this close together count as a group
 const SEEN_MEMORY = 4;            // seconds a hidden target's last position stays useful
+const CAMP_TIME = 4;              // seconds someone in sight holds one spot before they count as dug in
+const CAMP_RADIUS = 2.5;          // metres: "one spot"
 const between = ([a, b]) => a + Math.random() * (b - a);
 
 /* Melee-only bots (Infection's infected): they run the target down and
    swing when they're in reach. */
 const MELEE_REACH = 1.9;   // keyboard reach (gear.js range 2.0 from the eye), centre to centre
 const MELEE_INTERVAL = 0.95;      // seconds between swings, scaled by skill below
+const KNIFE_DAMAGE = 0.65;        // a gunner's swing: this share of the board's damage (DIFFICULTY `knife`: how often it lands)
 export const DIFFICULTY_IDS = Object.keys(DIFFICULTY);
 
 /* Taking the high ground (Bot.updatePerch): with nobody in sight, every
@@ -239,6 +240,13 @@ const BOT_SIDEARMS = ["sixtynine", "true69", "peacemakers"];
 export const BOT_AA_MISSILES = 6;
 const SIDEARM_MAG_SIZE = 12;
 const SIDEARM_RELOAD_TIME = 1.5;
+// Drawing it takes a beat, as yours does: no shot the instant it comes out.
+const SIDEARM_DRAW = 0.3;
+// Caught mid-reload by someone this close (user, 2026-10-29), with more than
+// SWAP_MIN_LEFT of the reload still to go: the sidearm, not the rest of the
+// reload. The reload is lost, as yours is when you swap.
+const SWAP_RANGE = 14;
+const SWAP_MIN_LEFT = 0.6;
 
 let counter = 0;
 
@@ -246,10 +254,47 @@ class Bot {
   /* Its secondary is the FHJ-18 (Troll Royale and the like swap it out). */
   get launcher() { return this.secondaryId === "fhj18"; }
 
+  /* Rounds left to load into the primary / the sidearm. */
+  get canReload() { return this.reserve == null || this.reserve > 0; }
+  get sidearmCanReload() { return this.sidearmReserve == null || this.sidearmReserve > 0; }
+  /* A sidearm with a shot in it or one to load (the FHJ-18 is for aircraft). */
+  get sidearmLive() { return !this.launcher && (this.sidearmAmmo > 0 || this.sidearmCanReload); }
+  /* Nothing in either gun and nothing to load: the knife, and a gun off the
+     floor (royale.js botWants). Never in a bottomless mode. */
+  get dry() { return this.ammo <= 0 && !this.canReload && !this.sidearmLive; }
+  /* The primary's rounds, magazine and reserve (Infinity when bottomless). */
+  get primaryRounds() { return this.reserve == null ? Infinity : this.ammo + this.reserve; }
+
+  /* A gun picked up with `total` rounds in it, magazine first. */
+  loadGun(total) {
+    this.reloadT = 0;
+    this.ammo = Math.min(magFor(this.rules), Math.max(0, total | 0));
+    this.reserve = Math.max(0, (total | 0) - this.ammo);
+  }
+  loadSidearm(total) {
+    this.sidearmReloadT = 0;
+    this.sidearmAmmo = Math.min(SIDEARM_MAG_SIZE, Math.max(0, total | 0));
+    this.sidearmReserve = Math.max(0, (total | 0) - this.sidearmAmmo);
+  }
+  /* A reload done: the magazine filled from the reserve, if it's counted. */
+  finishReload() {
+    const mag = magFor(this.rules);
+    if (this.reserve == null) { this.ammo = mag; return; }
+    const take = Math.min(this.reserve, mag - this.ammo);
+    this.ammo += take;
+    this.reserve -= take;
+  }
+  finishSidearmReload() {
+    if (this.sidearmReserve == null) { this.sidearmAmmo = SIDEARM_MAG_SIZE; return; }
+    const take = Math.min(this.sidearmReserve, SIDEARM_MAG_SIZE - this.sidearmAmmo);
+    this.sidearmAmmo += take;
+    this.sidearmReserve -= take;
+  }
+
   constructor(team, spawn, difficulty = "regular", rules = {}) {
     this.rules = rules;   // the BotManager's, shared: the match's mode rules
     this.id = `bot-${(counter++).toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-    this.name = NAMES[counter % NAMES.length];
+    this.name = BOT_NAME;
     this.team = team;
     this.isBot = true;
     // A mode can fix the tier (Troll Royale: rules.skill, match-start.js beginMatch).
@@ -261,6 +306,10 @@ class Bot {
     this.holdingSecondary = false;
     this.sidearmAmmo = SIDEARM_MAG_SIZE;
     this.sidearmReloadT = 0;
+    // Rounds left to reload from: null = bottomless, as every mode but Troll
+    // Royale has it (royale.js loads them from what's picked up: loadGun).
+    this.reserve = null;
+    this.sidearmReserve = null;
     this.hp = BOT_HP;
     this.alive = true;
     this.kills = 0;
@@ -339,6 +388,7 @@ class Bot {
     this.flashes = 1;
     this.nadeT = between(NADE_FIRST);
     this.lastSeen = null;     // { id, x, y, z, age } of the last enemy in sight
+    this.camp = null;         // { id, x, z, t }: how long the one in sight has held one spot
   }
 
   respawn(spawn) {
@@ -359,6 +409,8 @@ class Bot {
     this.aaUp = false;
     this.sidearmAmmo = SIDEARM_MAG_SIZE;
     this.sidearmReloadT = 0;
+    this.reserve = null;
+    this.sidearmReserve = null;
     this.ads = 0;
     this.adsLingerT = 0;
     this.acquireT = 0;
@@ -441,7 +493,7 @@ class Bot {
 
     if (this.reloadT > 0) {
       this.reloadT -= dt;
-      if (this.reloadT <= 0) this.ammo = magFor(this.rules);
+      if (this.reloadT <= 0) this.finishReload();
     }
     if (this.rules.oneShot) {
       // any kill buys the round back, the knife's too
@@ -506,6 +558,11 @@ class Bot {
 
     if (best) this.lastSeen = { id: best.id, x: best.pos.x, y: best.groundY ?? best.pos.y ?? 0, z: best.pos.z, age: 0 };
     else if (this.lastSeen) this.lastSeen.age += dt;
+    if (best) {
+      const c = this.camp;
+      if (c && c.id === best.id && Math.hypot(best.pos.x - c.x, best.pos.z - c.z) < CAMP_RADIUS) c.t += dt;
+      else this.camp = { id: best.id, x: best.pos.x, z: best.pos.z, t: 0 };
+    } else this.camp = null;
 
     // A Trollsaber guard turned on us bats every round away: shooting into
     // it only drains their meter a little. Smarter bots stop feeding it and
@@ -616,6 +673,9 @@ class Bot {
       // since standing to trade is exactly what they want.
       // Just smoked themselves: back off in it.
       let closeSign = this.retreatT > 0 ? -1 : best.melee ? (bestD < 14 ? -1 : 0) : bestD > 12 ? 1 : (bestD < 6 ? -1 : 0);
+      // Nothing left to shoot: in for the keyboard (unless the mode's
+      // objective, a gun on the floor, wants it elsewhere: below).
+      if (this.dry) closeSign = 1;
       // Up on a floor over them: hold the high ground, don't walk off it
       // to close the range.
       if (this.groundY >= UPPER_Y && this.groundY - (best.groundY ?? best.pos.y ?? 0) > 1.2) closeSign = Math.min(closeSign, 0);
@@ -864,7 +924,7 @@ class Bot {
     this.fireT -= dt;
     if (this.sidearmReloadT > 0) {
       this.sidearmReloadT -= dt;
-      if (this.sidearmReloadT <= 0) this.sidearmAmmo = SIDEARM_MAG_SIZE;
+      if (this.sidearmReloadT <= 0) this.finishSidearmReload();
     }
     // Hands full with the bomb means no trigger, same as for a player.
     const canSee = !busy && best && bestD < FIRE_RANGE;
@@ -876,6 +936,22 @@ class Bot {
     // A short reaction delay before the first shot, so they don't snap onto
     // someone the instant they round a corner.
     const reacted = this.acquireT >= this.diff.reaction;
+
+    // The keyboard (user, 2026-10-29): someone right in its face on its own
+    // level gets swung at, not shot, as a player would; so does anyone in
+    // reach of a bot with nothing left to shoot. `knife` is how often a swing
+    // lands, KNIFE_DAMAGE its share of the board's 120, so it isn't a
+    // one-swing kill the way yours is.
+    this.meleeT -= dt;
+    if (ctx.onMelee && best && !busy && !stunned && !this.windup && reacted && bestD <= MELEE_REACH
+      && Math.abs((best.groundY ?? best.pos.y ?? 0) - this.groundY) < SAME_LEVEL) {
+      if (this.meleeT <= 0) {
+        this.meleeT = MELEE_INTERVAL * (0.7 + this.diff.interval * 0.35) * (0.9 + Math.random() * 0.2);
+        this.fireT = Math.max(this.fireT, 0.45);
+        ctx.onMelee(this, best, Math.random() < this.diff.knife ? KNIFE_DAMAGE : 0);
+      }
+      return;   // the gun waits while the board's out
+    }
 
     // Dry primary with someone still in sight draws the sidearm instead of
     // reloading into a firefight; holstering it again (back to the rifle)
@@ -895,15 +971,26 @@ class Bot {
       }
       return;
     }
-    if (!this.holdingSecondary && this.ammo <= 0 && canSee && !this.launcher) this.holdingSecondary = true;
-    else if (this.holdingSecondary && !canSee && this.reloadT <= 0) this.holdingSecondary = false;
+    // With the reserve counted (Troll Royale), a primary with nothing left to
+    // load swaps for the sidearm in or out of a fight, and the sidearm only
+    // goes back for a primary that has something in it.
+    const primaryLive = this.ammo > 0 || this.canReload;
+    const wasHolding = this.holdingSecondary;
+    // Caught mid-reload with someone close: the sidearm (with a round in it),
+    // not the rest of the reload.
+    if (!this.holdingSecondary && this.reloadT > SWAP_MIN_LEFT && canSee && bestD < SWAP_RANGE && this.sidearmAmmo > 0 && this.sidearmLive) {
+      this.reloadT = 0;
+      this.holdingSecondary = true;
+    } else if (!this.holdingSecondary && this.ammo <= 0 && (canSee || !primaryLive) && this.sidearmLive) this.holdingSecondary = true;
+    else if (this.holdingSecondary && primaryLive && ((!canSee && this.reloadT <= 0) || !this.sidearmLive)) this.holdingSecondary = false;
+    if (this.holdingSecondary !== wasHolding) this.fireT = Math.max(this.fireT, SIDEARM_DRAW);
     this.updateAds(dt, { canShoot, reacted, range: bestD, objective });
     if (this.slideT > 0 || this.hopY > 0) this.ads = Math.max(0, this.ads - dt * 6);   // no scope mid-slide or mid-air
 
     if (this.holdingSecondary) {
       if (reacted && canShoot && this.sidearmReloadT <= 0 && this.fireT <= 0) {
         if (this.sidearmAmmo <= 0) {
-          this.sidearmReloadT = SIDEARM_RELOAD_TIME;
+          if (this.sidearmCanReload) this.sidearmReloadT = SIDEARM_RELOAD_TIME;
         } else {
           this.sidearmAmmo--;
           this.fireT = this.diff.interval * (0.9 + Math.random() * 0.6);
@@ -912,13 +999,15 @@ class Bot {
           onShoot(this, best, hit ? this.diff.damage * 0.8 * (head ? 2 : 1) : 0, head, hit, bestD, true);
         }
       }
-      if (!canSee && this.ammo < MAG_SIZE && this.reloadT <= 0) this.reloadT = RELOAD_TIME;
+      if (!canSee && this.ammo < MAG_SIZE && this.reloadT <= 0 && this.canReload) this.reloadT = RELOAD_TIME;
+      // Staying on it (the primary's empty): top it up out of contact.
+      else if (!canSee && !primaryLive && this.sidearmAmmo < SIDEARM_MAG_SIZE && this.sidearmReloadT <= 0 && this.sidearmCanReload) this.sidearmReloadT = SIDEARM_RELOAD_TIME;
       return;
     }
 
     if (canShoot && reacted && this.reloadT <= 0 && this.fireT <= 0) {
       if (this.ammo <= 0) {
-        this.reloadT = RELOAD_TIME;
+        if (this.canReload) this.reloadT = RELOAD_TIME;
       } else {
         this.ammo--;
         this.fireT = this.diff.interval * (0.75 + Math.random() * 0.6);
@@ -927,7 +1016,7 @@ class Bot {
         const head = hit && Math.random() < HEADSHOT_CHANCE;
         onShoot(this, best, hit ? this.diff.damage * (head ? 2 : 1) : 0, head, hit, bestD);
       }
-    } else if (!canSee && this.ammo < MAG_SIZE && this.reloadT <= 0) {
+    } else if (!canSee && this.ammo < MAG_SIZE && this.reloadT <= 0 && this.canReload) {
       // Top up while out of contact rather than mid-firefight.
       this.reloadT = RELOAD_TIME;
     }
@@ -948,7 +1037,7 @@ class Bot {
     if (engaged) this.adsLingerT = between(ADS_LINGER);
     else this.adsLingerT = Math.max(0, this.adsLingerT - dt);
     // An objective that can't wait means running, not scoping.
-    const want = !this.meleeOnly && !reloading && !objective?.urgent && !(this.stunT > 0)
+    const want = !this.meleeOnly && !this.dry && !reloading && !objective?.urgent && !(this.stunT > 0)
       && (engaged || (this.adsLingerT > 0 && !(canShoot && range < ADS_MIN_RANGE)));
     const rate = want ? 1 / ((this.diff.adsTime || 0.3) * (this.perks.has("dexterity") ? PERK_TUNE.dexterityAds : 1)) : 1 / 0.15;
     this.ads = want ? Math.min(1, this.ads + dt * rate) : Math.max(0, this.ads - dt * rate);
@@ -956,11 +1045,13 @@ class Bot {
 
   /* A reason to throw, or null. In order of how good a reason it is:
        - enemies bunched up (2+ within CLUSTER of each other): a frag;
+       - the one in sight dug in (CAMP_TIME in one spot): a frag;
        - enemies holding the objective we want (hill, bomb site): frag, or a
          flash if the frag is gone;
        - someone we just lost behind cover, still near where we saw them:
          lob it over — a flash when it's close enough to push, else a frag.
-     A target we can see and shoot on its own isn't a reason: the gun is. */
+     A target we can see and shoot on its own isn't a reason, unless it's
+     dug in: the gun is. */
   planThrow(targets, ffa, colliders, eye, best, objective) {
     const enemies = [];
     for (const t of targets) {
@@ -1010,6 +1101,14 @@ class Bot {
       if (bestGroup) {
         return { kind: L, x: bestGroup.x, y: bestGroup.y, z: bestGroup.z,
           dist: distTo(bestGroup.x, bestGroup.z), lob: hidden(bestGroup.x, bestGroup.y, bestGroup.z) };
+      }
+      // Dug in (user, 2026-10-29): the one it's trading with has held one
+      // spot a while (a window, a corner, behind a crate). The gun isn't
+      // moving them; a frag will.
+      const c = this.camp;
+      if (best && c?.id === best.id && c.t >= CAMP_TIME) {
+        const d = distTo(best.pos.x, best.pos.z), y = best.groundY ?? best.pos.y ?? 0;
+        if (inRange(d)) return { kind: L, x: best.pos.x, y, z: best.pos.z, dist: d, lob: false };
       }
     }
 

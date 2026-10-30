@@ -1115,7 +1115,7 @@ function royaleDropBotGear(b) {
   let i = 0;
   if (WEAPON_DEFS[b.weaponId]) {
     const [x, z] = at(i++);
-    royaleDrop({ k: "gun", w: b.weaponId, a: b.gunAtt || defaultLoadoutFor(b.weaponId), r: b.gunRarity ?? 0 }, x, z);
+    royaleDrop({ k: "gun", w: b.weaponId, a: b.gunAtt || defaultLoadoutFor(b.weaponId), r: b.gunRarity ?? 0, ...botRounds(b) }, x, z);
   }
   for (let n = 0; n < (b.plates | 0); n++) { const [x, z] = at(i++); royaleDrop({ k: "plate", n: 1 }, x, z); }
   for (let n = 0; n < (b.heals | 0); n++) { const [x, z] = at(i++); royaleDrop({ k: "heal", n: 1 }, x, z); }
@@ -1139,12 +1139,22 @@ const BOT_REGEN_RATE = 12;        // hp a second, as yours
 // fight doesn't pull in the whole crowded opening (a chain that emptied the
 // island in three minutes once bots could actually kill each other).
 const BOT_NOISE_RANGE = [15, 25, 35, 45, 45];
+// Rounds (user, 2026-10-29): a bot's come from what it picks up, as yours do
+// (bots.js loadGun), so it can run dry. Under this many left in the primary
+// it takes a gun with more rounds in it and an ammo box; dry (nothing in
+// either gun) it goes for the nearest one even mid-fight.
+const BOT_LOW_ROUNDS = 20;
+const botLow = (b) => b.dry || b.primaryRounds < BOT_LOW_ROUNDS;
+/* The rounds a bot's gun goes down with, for the floor (gunFields' `ammo`). */
+function botRounds(b) { return Number.isFinite(b.primaryRounds) ? { ammo: b.primaryRounds } : {}; }
 
 /* First sight of a bot this match: a pistol and empty pockets, like us. */
 function initRoyaleBot(b) {
   b.royaleInit = true;
   b.weaponId = ROYALE.startWeapon;
   b.secondaryId = ROYALE.startWeapon;
+  b.loadGun?.(WEAPON_DEFS[ROYALE.startWeapon].reserveMax);
+  b.loadSidearm?.(WEAPON_DEFS[ROYALE.startWeapon].reserveMax);
   b.gunRarity = null;     // null = still on the pistol
   b.gunAtt = null;
   b.armor = 0;
@@ -1160,11 +1170,24 @@ function initRoyaleBot(b) {
 
 function botArmed(b) { return b.gunRarity != null; }
 
-function botWants(b, it) {
+/* `need`: botNeed(b), worked out once for a whole scan of the floor. */
+function botNeed(b) {
+  const low = botLow(b), rounds = b.primaryRounds;
+  return { low, rounds, box: b.reserve != null && rounds < (WEAPON_DEFS[b.weaponId]?.reserveMax ?? 0) * 0.5 };
+}
+function botWants(b, it, need = botNeed(b)) {
   if (it.k === "gun") {
     if (WEAPON_DEFS[it.w]?.cls === "sidearm") return false;   // it already has one
+    // An empty one (dropped dry) is no use however rare: taking its own dry
+    // gun back off the floor left a bot that had just rearmed dry again.
+    if (it.ammo === 0) return false;
+    // Running low: any gun with more rounds in it than it has left (one
+    // never dropped has a magazine and a third: updateRoyaleBot).
+    if (need.low && (it.ammo == null || it.ammo > need.rounds)) return true;
     return !botArmed(b) || (it.r | 0) > b.gunRarity;
   }
+  // A box once it's down to half of what its gun carries.
+  if (it.k === "ammo") return need.box;
   if (it.k === "plate") return (b.plates | 0) < ROYALE.carryPlates;
   if (it.k === "heal") return (b.heals | 0) < ROYALE.carryHeals;
   return false;
@@ -1200,11 +1223,12 @@ function royaleBotLoot(b, circle) {
     }
   }
   const claimed = royale.claimed, crowd = royale.crowd, mine = crowdKey(b.pos.x, b.pos.z);
-  const reach = !botArmed(b) ? BOT_LOOT_SEARCH
+  const need = botNeed(b);
+  const reach = !botArmed(b) || need.low ? BOT_LOOT_SEARCH
     : (b.plates | 0) > 0 && b.hp >= 60 ? BOT_LOOT_SEARCH_ARMED : BOT_LOOT_SEARCH_HURT;
   let best = null, bestD = reach;
   for (const it of items.values()) {
-    if (claimed.has(it.id) || (it.y || 0) > 0.5 || !botWants(b, it)) continue;
+    if (claimed.has(it.id) || (it.y || 0) > 0.5 || !botWants(b, it, need)) continue;
     if (Math.hypot(it.x - circle.x, it.z - circle.z) > circle.r) continue;
     const d = Math.hypot(it.x - b.pos.x, it.z - b.pos.z);
     if (d >= reach) continue;
@@ -1296,7 +1320,8 @@ export function royaleBotObjective(b) {
   // Without a real gun, getting one beats trading pistol shots.
   if (it) {
     const d = Math.hypot(it.x - b.pos.x, it.z - b.pos.z);
-    const need = (it.k === "gun" && !botArmed(b))
+    const need = (it.k === "gun" && (!botArmed(b) || botLow(b)))
+      || (it.k === "ammo" && botLow(b))
       || (it.k === "plate" && !(b.plates | 0) && !(b.armor | 0) && d < 15)
       || (it.k === "heal" && b.hp < 50 && d < 40);
     return { id: `loot-${it.id}`, x: it.x, z: it.z, radius: 0.9, urgent: need || d < 8 };
@@ -1377,14 +1402,24 @@ function updateRoyaleBot(b, dt) {
       if (it.k === "gun") {
         // A real gun in hand: the pistol goes back to being the sidearm.
         if (botArmed(b)) {
-          royaleDrop({ k: "gun", w: b.weaponId, a: b.gunAtt || defaultLoadoutFor(b.weaponId), r: b.gunRarity }, b.pos.x + 0.6, b.pos.z);
+          royaleDrop({ k: "gun", w: b.weaponId, a: b.gunAtt || defaultLoadoutFor(b.weaponId), r: b.gunRarity, ...botRounds(b) }, b.pos.x + 0.6, b.pos.z);
         }
+        // Its rounds, as yours (royalePickupGun): what it went down with,
+        // else a magazine and a third of the most it carries.
+        const def = WEAPON_DEFS[it.w];
+        b.loadGun?.(it.ammo ?? (def ? def.magSize + Math.round(def.reserveMax * 0.35) : 60));
         b.weaponId = it.w;
         b.gunAtt = it.a;
         b.gunRarity = it.r | 0;
         b.holdingSecondary = false;
       } else if (it.k === "plate") b.plates++;
       else if (it.k === "heal") b.heals++;
+      else if (it.k === "ammo") {
+        // As a box does yours: 40% of the most each gun carries, both guns.
+        const top = (have, id) => Math.max(have, Math.min(WEAPON_DEFS[id].reserveMax, have + Math.ceil(WEAPON_DEFS[id].reserveMax * 0.4)));
+        if (b.reserve != null && WEAPON_DEFS[b.weaponId]) b.reserve = top(b.primaryRounds, b.weaponId) - b.ammo;
+        if (b.sidearmReserve != null && WEAPON_DEFS[b.secondaryId]) b.sidearmReserve = top(b.sidearmAmmo + b.sidearmReserve, b.secondaryId) - b.sidearmAmmo;
+      }
     }
   }
   // Health comes back on its own out of a fight, the same as yours
@@ -1402,6 +1437,10 @@ function updateRoyaleBot(b, dt) {
     if (b.act.kind === "plate") { b.plates--; b.armor = Math.min(ROYALE.maxArmor, (b.armor | 0) + ROYALE.plateHp); }
     else { b.heals--; b.hp = b.maxHp || 100; }
     b.act = null;
+  } else if (quiet && b.heals > 0 && b.hp < 40) {
+    // Low: the Hopium before a plate (user, 2026-10-29): armour on a body
+    // that's nearly down buys less than its health back.
+    b.act = { kind: "heal", t: 0, dur: ROYALE.healTime, at: performance.now() };
   } else if (quiet && b.plates > 0 && (b.armor | 0) < ROYALE.maxArmor) {
     b.act = { kind: "plate", t: 0, dur: ROYALE.plateTime * 1.2, at: performance.now() };
   } else if (quiet && b.heals > 0 && b.hp < 70) {
