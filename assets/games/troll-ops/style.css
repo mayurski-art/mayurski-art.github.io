@@ -5268,6 +5268,12 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 /* (top as a share of the button's box: the skins are zoomed down on small
    screens, and zoom shrinks a px offset with them, up into the tabs) */
 #to-title.is-fn:not([hidden]) ~ .to-radio .to-radio-panel { top: calc(100% + 10px); right: 0; bottom: auto; left: auto; }
+/* Where the tabs hang under the band (wide landscape), the player drops
+   past them too: the tabs end 87px below the 42px button's top, so 235% of
+   the button lands it ~12px under them (a share again, for the zoom). */
+@container cab (min-width: 761px) and (min-height: 521px) and (min-aspect-ratio: 9/10) {
+  #to-title.is-fn:not([hidden]) ~ .to-radio .to-radio-panel { top: 235%; }
+}
 @container cab (min-width: 761px) and (max-width: 1100px) { #to-title.is-fn:not([hidden]) ~ .to-radio { right: 20px; } }
 @media (max-height: 520px) and (min-aspect-ratio: 9/10) {
   #to-title.is-fn:not([hidden]) ~ .to-radio { right: max(16px, env(safe-area-inset-right)); top: 8px; }
