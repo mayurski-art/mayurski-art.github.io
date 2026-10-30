@@ -1170,7 +1170,12 @@ function initRoyaleBot(b) {
 
 function botArmed(b) { return b.gunRarity != null; }
 
-function botWants(b, it) {
+/* `need`: botNeed(b), worked out once for a whole scan of the floor. */
+function botNeed(b) {
+  const low = botLow(b), rounds = b.primaryRounds;
+  return { low, rounds, box: b.reserve != null && rounds < (WEAPON_DEFS[b.weaponId]?.reserveMax ?? 0) * 0.5 };
+}
+function botWants(b, it, need = botNeed(b)) {
   if (it.k === "gun") {
     if (WEAPON_DEFS[it.w]?.cls === "sidearm") return false;   // it already has one
     // An empty one (dropped dry) is no use however rare: taking its own dry
@@ -1178,11 +1183,11 @@ function botWants(b, it) {
     if (it.ammo === 0) return false;
     // Running low: any gun with more rounds in it than it has left (one
     // never dropped has a magazine and a third: updateRoyaleBot).
-    if (botLow(b) && (it.ammo == null || it.ammo > b.primaryRounds)) return true;
+    if (need.low && (it.ammo == null || it.ammo > need.rounds)) return true;
     return !botArmed(b) || (it.r | 0) > b.gunRarity;
   }
   // A box once it's down to half of what its gun carries.
-  if (it.k === "ammo") return b.reserve != null && b.primaryRounds < (WEAPON_DEFS[b.weaponId]?.reserveMax ?? 0) * 0.5;
+  if (it.k === "ammo") return need.box;
   if (it.k === "plate") return (b.plates | 0) < ROYALE.carryPlates;
   if (it.k === "heal") return (b.heals | 0) < ROYALE.carryHeals;
   return false;
@@ -1218,11 +1223,12 @@ function royaleBotLoot(b, circle) {
     }
   }
   const claimed = royale.claimed, crowd = royale.crowd, mine = crowdKey(b.pos.x, b.pos.z);
-  const reach = !botArmed(b) || botLow(b) ? BOT_LOOT_SEARCH
+  const need = botNeed(b);
+  const reach = !botArmed(b) || need.low ? BOT_LOOT_SEARCH
     : (b.plates | 0) > 0 && b.hp >= 60 ? BOT_LOOT_SEARCH_ARMED : BOT_LOOT_SEARCH_HURT;
   let best = null, bestD = reach;
   for (const it of items.values()) {
-    if (claimed.has(it.id) || (it.y || 0) > 0.5 || !botWants(b, it)) continue;
+    if (claimed.has(it.id) || (it.y || 0) > 0.5 || !botWants(b, it, need)) continue;
     if (Math.hypot(it.x - circle.x, it.z - circle.z) > circle.r) continue;
     const d = Math.hypot(it.x - b.pos.x, it.z - b.pos.z);
     if (d >= reach) continue;
