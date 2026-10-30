@@ -5861,8 +5861,13 @@ body.to-zombies .to-dmg-num.is-word { color: #7dff4f; font-size: 17px; font-weig
   background: rgba(0,0,0,.55); color: #fff; font: 700 11px/1 "DM Mono", monospace; -webkit-text-stroke: 0;
 }
 .zh-card .zh-key { position: absolute; top: 5px; left: 5px; }
+/* The cash stands on the gear chips (.to-hud-gear: bottom 54px, a chip
+   1.18 x --to-gi + 2px tall since they became pictures), not behind them,
+   and beside the upgrade cards (left 18px + 96px), which at 720 tall reach
+   down to where it would stand. */
+.zh { --zh-over-gear: calc(64px + var(--to-gi, 26px) * 1.18); }
 .zh-cash {
-  position: absolute; left: 18px; bottom: 74px; display: flex; align-items: baseline; gap: 8px;
+  position: absolute; left: 126px; bottom: var(--zh-over-gear); display: flex; align-items: baseline; gap: 8px;
   -webkit-text-stroke: 1.4px #0b2a05; paint-order: stroke fill;
 }
 .zh-cash-n { order: -1; font-size: 40px; line-height: 1; color: #7dff4f; }
@@ -5924,10 +5929,11 @@ body.to-zombies .to-dmg-num.is-word { color: #7dff4f; font-size: 17px; font-weig
   .zh-sub { font-size: 11px; }
   .zh-title { font-size: 13px; }
   .zh-card .zh-key { display: none; }
-  .zh-cash { bottom: 64px; left: 12px; }
+  .zh-cash { bottom: var(--zh-over-gear); left: 106px; }   /* (cards 78px wide here) */
   .zh-cash-n { font-size: 30px; }
   .zh-gain { font-size: 17px; }
-  .zh-fx { top: auto; left: 128px; bottom: 64px; transform: none; flex-direction: column; align-items: flex-start; gap: 3px; }
+  .zh-fx { top: auto; left: 106px; bottom: calc(var(--zh-over-gear) + 38px); transform: none; flex-direction: column; align-items: flex-start; gap: 3px; }
+  body.to-touch-play .zh-fx { left: 128px; bottom: 64px; }   /* (touch: no gear chips, the cash is up top) */
   .zh-fx-c { font-size: 13px; padding: 2px 7px 4px; }
   .zh-fx-t { font-size: 12px; }
   .zh-feed { font-size: 15px; bottom: 96px; }
