@@ -112,34 +112,41 @@ const soak = await page.evaluate(() => {
 });
 check("bot armour soaks gunfire, not the Cringe", soak.afterGun.armor === 20 && soak.afterGun.hp === 100 && soak.afterZone.hp === 90 && soak.afterZone.armor === 20, JSON.stringify(soak));
 
-// Gunfire draws an armed bot with nothing better to do.
-const heard = await page.evaluate(() => {
+// Gunfire draws an armed bot with nothing better to do. "Nothing better":
+// stocked (gun, plates, Hopium, rounds, so no loot run), not hurt, and
+// standing in the middle of the coming circle (this runs ~40 s in, when the
+// zone 1 wait is nearly up and a bot further out rightly rotates first). The
+// shots are 10 m off: hearing is only 15 m in zone 1 (royale.js
+// BOT_NOISE_RANGE, short early for pacing), so the old 20 m was out of earshot.
+const quietBot = () => {
   const T = window.__trollOps, r = T.royale();
   const b = T.bots.bots.find((x) => x.alive);
   b.gunRarity = 4; b.plates = 3; b.heals = 2; b.lootId = null; b.lastTargetId = null; b.killedAt = 0;
   b.calmAt = b.sparedAt = 0; b.flee = null;   // nor calm from sparing someone (the pace director), nor running
-  const s = r.zone.state(r.t);
-  // Somewhere 20 m off, inside the circle.
-  const a = Math.atan2(s.z - b.pos.z, s.x - b.pos.x);
-  T.royaleNoise(b.pos.x + Math.cos(a) * 20, b.pos.z + Math.sin(a) * 20, "someone");
-  const o = T.royaleBotObjective(b);
-  return o?.id || null;
-});
+  b.__rounds0 ??= b.primaryRounds;
+  b.hp = 100; b.hurtAt = 0; b.dry = false; b.primaryRounds = 999;   // nothing to rearm or heal for
+  const s = r.zone.state(r.t), c = s.next && s.stage !== "final" ? s.next : s;
+  b.pos.x = c.x; b.pos.z = c.z;
+  return { T, r, b, c };
+};
+const heard = await page.evaluate(`(() => {
+  const { T, b, c } = (${quietBot})();
+  T.royaleNoise(c.x + 10, c.z, "someone");
+  return T.royaleBotObjective(b)?.id || null;
+})()`);
 check("an armed bot heads for nearby gunfire", /^noise-/.test(heard || ""), heard);
 // ...unless it has just killed someone (ROYALE-ISLAND.md pacing): calm for
 // 10-20 s, it loots and heals, sees only who's right there.
-const calm = await page.evaluate(() => {
-  const T = window.__trollOps, r = T.royale();
-  const b = T.bots.bots.find((x) => x.alive);
+const calm = await page.evaluate(`(() => {
+  const { T, b, c } = (${quietBot})();
   b.killedAt = performance.now(); b.hurtAt = 0;
-  const s = r.zone.state(r.t), a = Math.atan2(s.z - b.pos.z, s.x - b.pos.x);
-  T.royaleNoise(b.pos.x + Math.cos(a) * 20, b.pos.z + Math.sin(a) * 20, "someone");
+  T.royaleNoise(c.x + 10, c.z, "someone");
   const o = T.royaleBotObjective(b), sight = T.royaleBotSight(b);
   b.hurtAt = performance.now();
   const shotAt = T.royaleBotSight(b);
-  b.killedAt = 0; b.hurtAt = 0;
+  b.killedAt = 0; b.hurtAt = 0; b.primaryRounds = b.__rounds0;
   return { id: o?.id || null, sight, shotAt };
-});
+})()`);
 check("after a kill a bot is calm: no gunfire chasing, short sight, still fights back when shot", !/^noise-/.test(calm.id || "") && calm.sight <= 6 && calm.shotAt >= 40, JSON.stringify(calm));
 
 // The zone moves them, even under fire: jump to zone 2 closing and watch.
