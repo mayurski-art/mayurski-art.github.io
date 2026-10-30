@@ -10,8 +10,8 @@
 //      name) overlaps the top bar, the season and level cards, the mode
 //      card, PLAY, All modes or the bottom row, or leaves the safe area.
 //   3. With a party member: their name and operator fit the same way.
-//   4. Sideways and desktop: the view's box pinned (moved down 16 / 6 px
-//      by the Fortnite top band, -fnu2: the tabs hang under it).
+//   4. Sideways and desktop: the view's box pinned (the screen's width,
+//      under the panels: user, 2026-10-30, the podiums no longer cut off).
 // Screenshots: .claude/run/portrait-*.png
 //
 //   NODE_PATH=<checkout>/node_modules node tools/troll-ops-fn-portrait-test.mjs
@@ -40,7 +40,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const errors = [];
 // the lobby's controls on the Play page, each piece on its own
 const CONTROLS = ".to-fn-top > *, .to-fn-season, .to-fn-pair > *, .to-fn-news, .to-fn-play, .to-fn-allmodes, .to-bo2-foot .to-bo2-online, .to-bo2-foot .to-bo2-chat, .to-radio-toggle";
-const STAGE = "#to-char-view, .to-stage > :not([hidden])";
+// (the names and "+"s: the view itself spans the width under the panels)
+const STAGE = ".to-stage > :not([hidden])";
 const boxes = (page, sel) => page.evaluate((s) => [...document.querySelectorAll(s)].filter((e) => e.offsetParent && getComputedStyle(e).visibility !== "hidden" && getComputedStyle(e).display !== "none")
   .map((e) => { const r = e.getBoundingClientRect(); return { el: e.className.toString().split(" ").pop() || e.tagName, l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height }; })
   .filter((r) => r.w > 0 && r.h > 0), sel);
@@ -115,8 +116,8 @@ for (const c of [
 
 // ---- 4 (the boxes the sideways and desktop layouts had before)
 for (const c of [
-  { name: "sideways", w: 844, h: 390, insets: { top: 0, left: 47, right: 47, bottom: 21 }, want: [273, 94, 258, 221] },
-  { name: "desktop", w: 1280, h: 720, insets: null, want: [338, 108, 574, 534] },
+  { name: "sideways", w: 844, h: 390, insets: { top: 0, left: 47, right: 47, bottom: 21 }, want: [0, 94, 844, 221] },
+  { name: "desktop", w: 1280, h: 720, insets: null, want: [0, 108, 1280, 534] },
 ]) {
   const { ctx, page } = await open(c);
   const v = (await boxes(page, "#to-char-view"))[0];

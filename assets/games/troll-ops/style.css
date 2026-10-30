@@ -4651,8 +4651,11 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 /* the operator (Cosmetics) stands under the tab bar */
 #to-title.is-bo2.is-fn .to-char-view { top: calc(var(--fn-top) - 8px); }
 /* ...and on the Play page, on its pad between the columns, the party's
-   pads either side (char-inspector.js stage; lobby.js the names and invites) */
-#to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: calc(var(--fn-pad) + 310px); right: calc(var(--fn-pad) + 340px); top: var(--fn-top); bottom: calc(78px + var(--fn-safe-b)); --char-shift: 0; --char-dist: 1.32; }
+   pads either side (char-inspector.js stage; lobby.js the names and invites).
+   The view spans the screen's width under the panels (user, 2026-10-30: the
+   box the stage was drawn in cut the podiums off; "its fine that the little
+   podiums are in the background of" the challenges and the mode card) */
+#to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: 0; right: 0; top: var(--fn-top); bottom: calc(78px + var(--fn-safe-b)); --char-shift: 0; --char-dist: 1.32; }
 .to-bo2.is-fn[data-screen="main"] .to-bo2-foot .to-char-emote:not([hidden]) { display: flex; }
 .to-stage { position: absolute; inset: 0; pointer-events: none; font-family: var(--fn-ui); }
 .to-stage > * { position: absolute; left: 0; top: 0; pointer-events: auto; }
@@ -4830,7 +4833,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-fn-tab { min-width: 0; padding: 0 10px; font-size: 15px; }
   .to-fn-play, .to-fn-picker { width: 290px; }
   .to-fn-mode-name { font-size: 28px; }
-  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: calc(var(--fn-pad) + 270px); right: calc(var(--fn-pad) + 300px); }
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: 0; right: 0; }
 }
 /* Sideways phones: everything smaller; news and the challenge list step
    out (the Quests tab has them) */
@@ -4877,7 +4880,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-bo2.is-fn .to-bo2-online { padding: 6px 10px; font-size: 14px; }
   /* the stage between the narrower columns, its names smaller; no bubbles
      (no room: the "+" opens Who's Online) */
-  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: calc(var(--fn-pad) + 218px); right: calc(var(--fn-pad) + 258px); top: calc(var(--fn-top) + 34px); bottom: calc(54px + var(--fn-safe-b)); }
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: 0; right: 0; top: calc(var(--fn-top) + 34px); bottom: calc(54px + var(--fn-safe-b)); }
   .to-stage-tag { margin-top: -34px; }
   .to-stage-tag b { padding: 2px 8px; font-size: 13px; }
   .to-stage-tag small { font-size: 9px; }
