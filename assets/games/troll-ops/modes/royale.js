@@ -27,7 +27,7 @@ import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallSh
 import { sidePref } from "./royale-side.js?v=rs1-tw1";
 import { noteWorldBeforeSwap } from "./royale-worlds.js?v=rw1";
 import { initLiveReport, closeLiveReport } from "./royale-live-report.js?v=rlr1";
-import { squadSize, teamsAlive, myTeamAlive } from "./royale-squads.js?v=sq1";
+import { squadSize, teamsAlive, myTeamAlive, squadSeats, botSquadGoal } from "./royale-squads.js?v=sq1";
 import { updateTeamHud, clearTeamHud } from "./royale-team-hud.js?v=tm1-rd1";
 import { updateRoyaleDown, clearRoyaleDown, botReviveGoal } from "./royale-down.js?v=rd1";
 import { updateRoyaleFlip, flipCineOn, resetRoyaleFlip, flipAt, matchingSpot } from "./royale-flip.js?v=rf1-hgb9-tw1-op1-hgo1";
@@ -298,6 +298,13 @@ function humanOrder() {
   return list;
 }
 
+/* In teams: a party's squad on a plane of its own, its bots beside it
+   (royale-squads.js squadSeats). Map id -> slot. */
+function teamSeats() {
+  const humans = humanOrder().map((h) => ({ id: h.id, team: h.id === (game.net.id || "me") ? game.net.team : game.net.peers.get(h.id)?.team }));
+  return squadSeats(humans, game.bots.bots.map((b) => ({ id: b.id, team: b.team })), PLANES.seats, PLANES.count);
+}
+
 /* Where you stand at the start: in the aisle by your seat, facing across. */
 function seatStand(seat) {
   const s = SEAT_SPOTS[seat % SEAT_SPOTS.length];
@@ -310,7 +317,8 @@ function seatStand(seat) {
    which way to face. */
 export function boardRoyale() {
   const r = royale;
-  const slot = Math.max(0, humanOrder().findIndex((h) => h.id === (game.net.id || "me")));
+  const slot = squadSize() > 1 ? (teamSeats().get(game.net.id || "me") ?? 0)
+    : Math.max(0, humanOrder().findIndex((h) => h.id === (game.net.id || "me")));
   const { plane, seat } = Squadron.seatOf(slot);
   r.plane = plane;
   r.seat = seat;
@@ -327,9 +335,11 @@ export function boardRoyale() {
 export function placeBotsInLobby() {
   const r = royale, sq = r.drop.squadron;
   const humans = humanOrder().length;
+  const seats = squadSize() > 1 ? teamSeats() : null;   // in teams: beside the squad
   const perPlane = new Map();
   game.bots.bots.forEach((b, i) => {
-    const { plane, seat } = Squadron.seatOf(humans + i);
+    const slot = seats ? seats.get(b.id) : humans + i;
+    const { plane, seat } = Squadron.seatOf(slot);
     const f = sq.flights[plane];
     const order = perPlane.get(plane) || 0;
     perPlane.set(plane, order + 1);
@@ -337,7 +347,7 @@ export function placeBotsInLobby() {
     b.airborne = true;   // parked: the bot AI leaves it be until it lands
     b.drop = { state: "aboard", plane, seat, jumpT };
     b.dropCode = DROP_BUS;
-    b.dropSlot = humans + i + 1;   // its seat, for the wire
+    b.dropSlot = slot + 1;   // its seat, for the wire
     botSeatPos(b);
     game.net.publishBot(b);
   });
@@ -1308,6 +1318,9 @@ export function royaleBotObjective(b) {
   // field walking straight into the next one and piling up there.
   const soon = s.stage !== "wait" || s.left < 15 + Math.max(0, d - c.r * 0.8) / 4;
   if (outNow || (d > c.r * 0.8 && soon)) return zone;
+  // in teams: back to the squad when it's strayed (royale-squads.js)
+  const squad = botSquadGoal(b);
+  if (squad) return squad;
   const area = soon ? c : { x: s.x, z: s.z, r: s.r * 0.9 };
   const flee = royaleBotFlee(b, area);
   if (flee) return flee;

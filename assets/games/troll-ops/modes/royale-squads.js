@@ -61,3 +61,45 @@ export function humanSquads() {
 export const teamsAlive = (alive) => new Set(alive.map((a) => a.team || a.id)).size;
 /* Anyone on our team still standing (us included)? */
 export const myTeamAlive = (alive) => alive.some((a) => a.me || (a.team && a.team === game.net.team));
+
+/* Phase 4: the drop together. Seats in the squadron, as slots (Squadron.seatOf:
+   `per` to a plane): each party's squad from the start of a plane of its
+   own, so a party never splits across two planes; its bots right after
+   it; the bot squads in the seats left. `humans` [{ id, team }] in join
+   order (every client has the same list); `bots` [{ id, team }] (the
+   host's). Returns Map id -> slot. */
+export function squadSeats(humans, bots, per, count) {
+  const slots = new Map(), taken = new Set();
+  const put = (id, s) => { while (taken.has(s)) s++; slots.set(id, s); taken.add(s); return s + 1; };
+  [...new Set(humans.map((h) => h.team))].forEach((team, k) => {
+    let s = (k % count) * per;
+    for (const h of humans) if (h.team === team) s = put(h.id, s);
+    for (const b of bots) if (b.team === team) s = put(b.id, s);
+  });
+  let s = 0;
+  for (const b of bots) if (!slots.has(b.id)) s = put(b.id, s);
+  return slots;
+}
+
+/* Phase 4: bot squads stick together. A bot more than `near` from its
+   squad's lead (a human teammate if there is one, else the bot with the
+   lowest id) heads back to them when nobody's in sight; past `far`, that
+   comes first. royale.js royaleBotObjective asks after the zone. */
+export const FOLLOW = { near: 15, far: 40 };
+export function botSquadGoal(b) {
+  if (squadSize() < 2 || b.seenId || b.downed) return null;
+  let lead = null;
+  const take = (id, pos, human) => {
+    if (!lead || (human && !lead.human) || (human === lead.human && id < lead.id)) lead = { id, pos, human };
+  };
+  if (game.player.alive && !game.player.downed && game.net.team === b.team) take(game.net.id, game.move.pos, true);
+  for (const rp of game.remotes.byId.values()) {
+    if (rp.team !== b.team || !rp.alive || rp.peer.downed === 1 || rp.netId === b.id) continue;
+    const bot = game.bots.byId(rp.netId);
+    take(rp.netId, bot ? bot.pos : rp.pos, !game.isBotPeer(rp.peer));
+  }
+  if (!lead || (!lead.human && b.id < lead.id)) return null;   // nobody, or it leads
+  const d = Math.hypot(lead.pos.x - b.pos.x, lead.pos.z - b.pos.z);
+  if (d < FOLLOW.near) return null;
+  return { id: `squad-${lead.id}`, x: lead.pos.x, z: lead.pos.z, radius: FOLLOW.near * 0.5, urgent: d > FOLLOW.far };
+}
