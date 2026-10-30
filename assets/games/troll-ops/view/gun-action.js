@@ -6,7 +6,9 @@
 //    dust cover pops open on the first shot and stays open; the trigger
 //    pulls; the bolt catch rises when it locks and goes down under the
 //    slap; the charging handle rides the hand back (ar-reload.js partState);
-//    the selector shows the fire mode.
+//    the selector shows the fire mode; a see-through mag's brass stack
+//    (MT_Rounds, tf_rounds extras) rises a round a shot, so its windows
+//    empty as you fire.
 //  - The pistols' slides (pistol-action.js) and the bolt rifles' bolts
 //    (rifle-action.js), which keep their own timing.
 // Returns what the view plays: { release, boltBeat, eject }.
@@ -80,6 +82,24 @@ function placeParts(mesh, w, dt, arT, o) {
   setPart(P.DustCover, a.cover < 1 ? smoothstep(a.cover) * 1.08 : 1);
   setPart(P.Trigger, a.t < TRIGGER_HOLD ? 1 : 1 - smoothstep(Math.min(1, (a.t - TRIGGER_HOLD) / TRIGGER_BACK)));
   setPart(P.Selector, w.def.fireMode === "auto" ? 1 : w.def.fireMode === "burst" ? 0.75 : 0.5);
+  placeRounds(mesh, w, arT);
+}
+
+/* A see-through mag's brass stack (a child of P_Mag with tf_rounds extras:
+   the builder's round pitch and how far the stack may rise before it would
+   show above the shell). The follower pushes it up a round a shot, so the
+   windows empty from the bottom; the fresh mag of a reload comes in full. */
+function placeRounds(mesh, w, arT) {
+  const u = mesh.userData;
+  if (u.gunRounds === undefined) {
+    let r = null;
+    mesh.traverse((o) => { if (o.userData.tf_rounds) r = { node: o, y: o.position.y, pitch: o.userData.tf_rounds_pitch, max: o.userData.tf_rounds_max }; });
+    u.gunRounds = r;
+  }
+  const r = u.gunRounds;
+  if (!r) return;
+  const gone = w.reloading && arT > 0.35 ? 0 : Math.max(0, w.def.magSize - w.ammoInMag);
+  r.node.position.y = r.y + Math.min(gone * r.pitch, r.max);
 }
 
 /* A part `k` (0..1) of the way along its travel. */
