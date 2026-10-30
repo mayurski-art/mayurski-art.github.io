@@ -912,6 +912,21 @@ body.to-social:not(.to-social-armed) #to-touch-interact { display: none !importa
 
 /* The blueprint map (view/aar-blueprint.js): a drafting sheet, its tools, its title block. */
 .to-aar-map { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.to-aar-map[hidden] { display: none; }
+/* Royale's Two Worlds: which side of the island the plan shows (modes/royale-worlds.js). */
+.to-aar-worlds { display: flex; gap: 6px; justify-content: center; width: min(560px, 100%, 64cqh); align-self: center; }
+.to-aar-world {
+  flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 1px;
+  font: inherit; padding: 6px 10px; border-radius: 8px; cursor: pointer; color: #9fb4c9;
+  background: rgba(120,180,240,.05); border: 1px solid rgba(170,215,255,.18);
+  transition: background .14s, border-color .14s, color .14s;
+}
+.to-aar-world span { font-size: 13px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.to-aar-world small { font: 500 10px "DM Mono", monospace; letter-spacing: .04em; color: #7f93a8; white-space: nowrap; }
+.to-aar-world:hover { border-color: rgba(170,215,255,.4); }
+.to-aar-world[aria-pressed="true"] { color: #e6f1ff; background: rgba(120,180,240,.16); border-color: #9fd0ff; }
+.to-aar-world[aria-pressed="true"] small { color: #b9d6f2; }
+.to-aar-world:focus-visible { outline: 2px solid #9fd0ff; outline-offset: 1px; }
 .to-bp-tools, .to-bp-time, .to-bp-block, .to-bp-sheet { width: min(560px, 100%, 64cqh); }
 .to-bp-tools { display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
 .to-bp-chips { display: flex; gap: 5px; flex-wrap: wrap; }

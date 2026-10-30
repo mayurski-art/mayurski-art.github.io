@@ -48,6 +48,9 @@ page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (m) => { if (m.type() === "error" && !/frame-ancestors|ERR_FAILED|supabase/i.test(m.text())) errors.push(m.text()); });
 const R = (fn, arg) => page.evaluate(fn, arg);
 
+// (the default 250 resource entries fill before every module has loaded,
+// and a tag not read below means a second copy of the module)
+await page.addInitScript(() => performance.setResourceTimingBufferSize(10000));
 await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 120000 });
 await page.waitForFunction(() => !!window.__trollOps && !!window.__trollAar, null, { timeout: 180000 });
 

@@ -58,12 +58,15 @@ export function renderAfterAction(d) {
     : `<span class="to-aar-team" style="color:${esc(d.teams.mine.color)}">${esc(d.teams.mine.name)} <b>${fmt(d.teams.mine.score)}</b></span>`
       + `<span class="to-aar-vs">—</span>`
       + `<span class="to-aar-team" style="color:${esc(d.teams.theirs.color)}"><b>${fmt(d.teams.theirs.score)}</b> ${esc(d.teams.theirs.name)}</span>`;
+  const worlds = d.worlds?.length ? d.worlds.map((w) => ({ ...w, mapName: w.name }))
+    : [{ mapName: d.mapName, arena: d.arena, colliders: d.colliders, events: d.events, counts: d.counts, live: true }];
+  const mapLine = d.worlds?.length ? worlds.map((w) => w.mapName).join(" → ") : d.mapName;
 
   el.innerHTML = `
     <header class="to-aar-head">
       <div class="to-aar-result">${esc(d.title)}</div>
       <div class="to-aar-score">${scoreLine}</div>
-      <div class="to-aar-meta">${esc(d.modeName)} · ${esc(d.mapName)} · ${clock(d.stats.seconds)}</div>
+      <div class="to-aar-meta">${esc(d.modeName)} · ${esc(mapLine)} · ${clock(d.stats.seconds)}</div>
     </header>
     <div class="to-aar-tabs" role="tablist" aria-label="After-action report">
       <button type="button" role="tab" class="to-aar-tab" data-tab="summary" aria-selected="true" id="to-aar-tab-summary">Summary</button>
@@ -79,15 +82,20 @@ export function renderAfterAction(d) {
       <div class="to-aar-board">${d.boardHtml || "<p class='to-aar-empty'>No scoreboard for this match.</p>"}</div>
     </section>
     <section class="to-aar-pane" data-pane="map" role="tabpanel" aria-labelledby="to-aar-tab-map" hidden>
-      <div class="to-aar-map"></div>
+      ${worldsHtml(worlds)}
+      ${worlds.map((w, i) => `<div class="to-aar-map" data-world="${i}"${i === worlds.length - 1 ? "" : " hidden"}></div>`).join("")}
     </section>`;
 
-  blueprint = mountBlueprint(el.querySelector(".to-aar-map"), {
-    mapName: d.mapName, modeName: d.modeName, arena: d.arena, colliders: d.colliders,
-    events: d.events, counts: d.counts, seconds: d.stats.seconds, capture: pendingCapture,
+  // Royale's Two Worlds: a plan per side of the island, the end's render
+  // going to the side it was taken on (modes/royale-worlds.js)
+  maps = worlds.map((w, i) => mountBlueprint(el.querySelector(`.to-aar-map[data-world="${i}"]`), {
+    mapName: w.mapName, modeName: d.modeName, arena: w.arena, colliders: w.colliders,
+    events: w.events, counts: w.counts, seconds: d.stats.seconds, capture: w.capture || (w.live ? pendingCapture : null),
     weaponName: (id) => WEAPON_DEFS[id]?.name || id,
-  });
+  }));
+  blueprint = maps[worlds.findIndex((w) => w.live)] || null;
   el.querySelectorAll(".to-aar-tab").forEach((b) => b.addEventListener("click", () => selectTab(el, b.dataset.tab)));
+  el.querySelectorAll(".to-aar-world").forEach((b) => b.addEventListener("click", () => selectWorld(el, Number(b.dataset.world))));
   animateRank(el, d.rank);
   animateWeapons(el, d.weapons);
   loadThumbs(el, d.weapons);
@@ -96,7 +104,7 @@ export function renderAfterAction(d) {
 export function hideAfterAction() {
   const el = root();
   if (el) { el.hidden = true; el.innerHTML = ""; }
-  blueprint = null; pendingCapture = null; captureJob = null;
+  blueprint = null; maps = []; pendingCapture = null; captureJob = null;
   clearTimeout(captureTimer);
   plainCard(true);
 }
@@ -106,10 +114,13 @@ export function hideAfterAction() {
    until the Map tab is opened, whichever comes first; match-end.js queues it
    once the match is cleared away (no bots in the shot) and the map is still
    loaded. */
-let blueprint = null, pendingCapture = null, captureJob = null, captureTimer = 0;
+let blueprint = null, maps = [], pendingCapture = null, captureJob = null, captureTimer = 0;
 const CAPTURE_DELAY = 2600;
 
 export function queueBlueprint(job) {
+  // a report whose every plan is drawn already (Royale, out before the flip:
+  // the map now loaded is the side you never played) has no use for it
+  if (maps.length && !blueprint) return;
   captureJob = job;
   clearTimeout(captureTimer);
   captureTimer = setTimeout(runCapture, CAPTURE_DELAY);
@@ -142,7 +153,23 @@ function selectTab(el, tab) {
   for (const b of el.querySelectorAll(".to-aar-tab")) b.setAttribute("aria-selected", String(b.dataset.tab === tab));
   for (const p of el.querySelectorAll(".to-aar-pane")) p.hidden = p.dataset.pane !== tab;
   // drawn now, and again once the tab's layout has settled (a scrollbar can come or go)
-  if (tab === "map") { runCapture(); blueprint?.draw(); requestAnimationFrame(() => requestAnimationFrame(() => blueprint?.draw())); }
+  if (tab === "map") { runCapture(); drawMaps(); requestAnimationFrame(() => requestAnimationFrame(drawMaps)); }
+}
+const drawMaps = () => { for (const m of maps) m.draw(); };   // (a hidden one has no size and skips)
+
+/* Two Worlds: which side's plan is up. */
+function worldsHtml(worlds) {
+  if (worlds.length < 2) return "";
+  return `<div class="to-aar-worlds" role="group" aria-label="Side of the island">${worlds.map((w, i) => `
+    <button type="button" class="to-aar-world" data-world="${i}" aria-pressed="${i === worlds.length - 1}">
+      <span>${esc(w.mapName)}</span><small>${i ? "After the flip" : "Before the flip"} · ${fmt(w.counts.kill)} kill${w.counts.kill === 1 ? "" : "s"}</small>
+    </button>`).join("")}</div>`;
+}
+
+function selectWorld(el, i) {
+  for (const b of el.querySelectorAll(".to-aar-world")) b.setAttribute("aria-pressed", String(Number(b.dataset.world) === i));
+  for (const m of el.querySelectorAll(".to-aar-map")) m.hidden = Number(m.dataset.world) !== i;
+  drawMaps(); requestAnimationFrame(() => requestAnimationFrame(drawMaps));
 }
 
 /* ------------------------------------------------------------ rank */
