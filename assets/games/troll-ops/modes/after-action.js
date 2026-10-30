@@ -320,7 +320,7 @@ export function afterActionData({ title, won, rank, boostedXp }) {
   const kills = p.weaponKills || {};
   const weapons = rank.weapons.map((w) => ({ ...w, kills: kills[w.id] | 0 }));
   return {
-    title, won, ffa: !!mode.ffa,
+    title, won, ffa: !!(mode.ffa || mode.squad),   // (Royale in teams: no two sides to score)
     modeName: mode.name || game.modeId,
     mapName: MAPS[game.loadedMapId]?.name || game.loadedMapId || "",
     teams: {

@@ -4522,6 +4522,14 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 /* Troll Royale: the card switches the side you start on (menu/lobby-fn.js) */
 .to-fn-map.is-side { cursor: pointer; touch-action: manipulation; }
 .to-fn-map.is-side:hover, .to-fn-map.is-side:focus-visible { background: rgba(255,255,255,.2); outline: none; }
+/* Troll Royale's team size (lobby-fn.js): Solo / Duo / Trio / Squad */
+.to-fn-size { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; border: 1px solid rgba(255,255,255,.14); border-radius: 9px; background: rgba(10,16,44,.5); }
+.to-fn-size[hidden] { display: none; }
+.to-fn-size button { min-height: 34px; border: 0; border-radius: 6px; background: none; color: #c4d1f3; font: 800 13px var(--fn-ui); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; touch-action: manipulation; }
+.to-fn-size button:hover:not(:disabled) { background: rgba(255,255,255,.12); color: #fff; }
+.to-fn-size button.is-on { background: #ffe14d; color: #1b1400; }
+.to-fn-size button:disabled { opacity: .38; cursor: not-allowed; }
+.to-fn-size button:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
 .to-fn-map img { width: 76px; height: 44px; flex: none; object-fit: cover; border-radius: 6px; }
 .to-fn-map strong { display: block; font: 800 16px/1.15 var(--fn-ui); }
 .to-fn-map span { font: 700 12px var(--fn-ui); letter-spacing: .06em; text-transform: uppercase; color: #c4d1f3; }
@@ -4890,6 +4898,8 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
    of like what we had in the previous live version"): the map's picture,
    NEWS in the corner, the title big */
 .to-fn-play > .to-fn-news { position: absolute; left: 0; right: 0; bottom: calc(100% + 14px); height: 140px; }
+/* Royale's team-size row makes the card taller: the news gives it the room, clear of the party panel */
+.to-fn-play:has(.to-fn-size:not([hidden])) > .to-fn-news { height: 88px; }
 .to-fn-news { touch-action: pan-y; user-select: none; -webkit-user-select: none; }   /* (swiped sideways: lobby-fn.js) */
 .to-fn-news img { -webkit-user-drag: none; pointer-events: none; }
 .to-fn-news-card { border-radius: 2px; }   /* (square, as every panel here) */
@@ -5078,6 +5088,9 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: 0; right: 0; --char-shift: 0; --char-dist: 1; --stage-fit: 1;
     top: calc(58px + env(safe-area-inset-top) + 36px + 8px + 56px + 50px);
     bottom: calc(var(--foot-h, 60px) + 26px + env(safe-area-inset-bottom) + 224px + 8px); }
+  /* ...and up by Royale's team-size row (lobby-fn.js .to-fn-size: 44 px and the gap) */
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]):has(.to-fn-size:not([hidden])) .to-char-view {
+    bottom: calc(var(--foot-h, 60px) + 26px + env(safe-area-inset-bottom) + 224px + 8px + 52px); }
   .to-fn-season { display: flex; justify-content: center; align-items: baseline; gap: 10px; height: 36px; padding: 0 10px; box-sizing: border-box; }
   .to-fn-season b { font-size: 12px; }
   .to-fn-season span { font-size: 22px; }

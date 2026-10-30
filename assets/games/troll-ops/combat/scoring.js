@@ -297,7 +297,7 @@ export function updateTeamHud() {
   game.els.scoreGhost.textContent = String(game.teamScores.ghost);
   // How far behind we ever got, for Comeback. Free-for-all has no side to be
   // behind, so it only tracks in team modes.
-  if (!game.currentMode().ffa && game.net.team) {
+  if (!game.currentMode().ffa && !game.currentMode().squad && game.net.team) {
     const mine = game.teamScores[game.net.team] || 0;
     const theirs = game.net.team === "phantom" ? game.teamScores.ghost : game.teamScores.phantom;
     achievements.noteScores(mine, theirs);

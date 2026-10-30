@@ -86,7 +86,7 @@ const SPAWN_SIDE_BONUS = 35;
 export function spawnForTeam(team, forId = game.net.id, { sideOnly = game.spawnOpening || game.isSnd(), groundOnly = false } = {}) {
   const pts = game.builtMap.spawnPoints;
   if (!pts?.length) return { x: 0, y: 0, z: 0 };
-  const ffa = !!game.currentMode().ffa;
+  const ffa = !!(game.currentMode().ffa || game.currentMode().squad);   // (Royale in teams: no halves)
   const own = new Set(!ffa && game.spawnSides ? game.spawnSides[spawnSideFor(team)] : pts.map((_, i) => i));
   let candidates = sideOnly ? [...own] : pts.map((_, i) => i);
   // Bots spawn on the ground floor: they take the stairs fine now (bots.js
@@ -112,7 +112,7 @@ export function spawnForTeam(team, forId = game.net.id, { sideOnly = game.spawnO
       const dx = sp.x - o.pos.x, dz = sp.z - o.pos.z;
       const d = Math.hypot(dx, dz);
       // In a free-for-all everyone still standing is an enemy.
-      const enemy = game.currentMode().ffa || o.team !== team;
+      const enemy = game.currentMode().ffa || game.currentMode().squad || o.team !== team;
 
       if (!enemy) {
         // Being right on top of a teammate is bad in its own right — one

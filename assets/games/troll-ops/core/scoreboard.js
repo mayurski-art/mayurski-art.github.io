@@ -45,7 +45,7 @@ export function renderScoreboard() {
     + `<span>${(r.kills / Math.max(1, r.deaths)).toFixed(2)}</span></div>`;
 
   let html = "";
-  if (game.currentMode().ffa) {
+  if (game.currentMode().ffa || game.currentMode().squad) {   // (Royale in teams: one list too)
     const all = rows.sort(rank);
     html += `<div class="to-sb-team"><div class="to-sb-head">`
       + `<span>${escapeHtml(game.currentMode().name)}</span>${cols}</div>`;

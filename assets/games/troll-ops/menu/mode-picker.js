@@ -6,6 +6,7 @@ import { prestigeUnlocked } from "../progression/progression.js?v=p5-wst-sb2-fu1
 import { streaksAllowed } from "../streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1-sam1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
 import { game } from "../core/state.js?v=st1";
 import { sidePref } from "../modes/royale-side.js?v=rs1-tw1";
+import { royaleModeFor, setSizePref, squadSize } from "../modes/royale-squads.js?v=sq1";
 
 /* The Play tab's mode list: versus modes first, then the solo ones, each a
    full-width row with a tick on the one you're deploying into. */
@@ -44,7 +45,8 @@ export function buildModeButtons() {
       name.textContent = m.name;
       b.appendChild(name);
       b.insertAdjacentHTML("beforeend", TICK_SVG);
-      b.addEventListener("click", () => { if (modeLocked(m)) return; game.modeId = id; game.modePicked = true; renderModes(); });
+      // (Troll Royale: at the size picked, or the party's: royale-squads.js)
+      b.addEventListener("click", () => { if (modeLocked(m)) return; game.modeId = id === "royale" ? royaleModeFor() : id; game.modePicked = true; renderModes(); });
       game.els.loMode.appendChild(b);
     }
   }
@@ -74,6 +76,20 @@ function fitModeBlurb() {
 const DEV_HOST = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 const modeLocked = (m) => !!m?.prestige && !DEV_HOST && !prestigeUnlocked(m.prestige);
 
+/* Troll Royale's team size (the Royale card's Solo / Duo / Trio / Squad):
+   kept for next time, and played now when Royale is the pick. */
+export function pickRoyaleSize(n) {
+  setSizePref(n);
+  if (game.modeId === "royale" || game.currentMode().base === "royale") { game.modeId = royaleModeFor(n); renderModes(); }
+  dispatchEvent(new CustomEvent("tf-royale-size"));
+}
+// a party bigger than the size picked: up to the party's
+addEventListener("trollforces:party", () => {
+  if (game.currentMode?.()?.base !== "royale" && game.modeId !== "royale") return;
+  const want = royaleModeFor(squadSize());
+  if (want !== game.modeId) { game.modeId = want; renderModes(); dispatchEvent(new CustomEvent("tf-royale-size")); }
+});
+
 export function renderModes() {
   // Picked, then the lock came back (signed out): fall back to TDM.
   if (game.modePicked && modeLocked(game.currentMode())) game.modeId = "tdm";
@@ -85,7 +101,7 @@ export function renderModes() {
     b.classList.toggle("is-locked", locked);
     b.dataset.lock = locked ? `Prestige ${m.prestige}` : "";
     b.title = locked ? `Unlocks at Prestige ${m.prestige}. ${m.blurb}` : m.blurb;
-    const on = game.modePicked && b.dataset.mode === game.modeId;
+    const on = game.modePicked && b.dataset.mode === (game.currentMode().base || game.modeId);
     b.classList.toggle("is-active", on);
     b.setAttribute("aria-pressed", String(on));
   }

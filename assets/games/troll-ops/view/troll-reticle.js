@@ -50,7 +50,7 @@ export function toggleTrollReticle() {
    whether the gun has glass that can carry it (iron sights can't). */
 export function trollReticleOn(w, optic) {
   if (!optic || !trollReticlePref()) return false;
-  if (game.modeId === "royale" && w?.def?.cls === "sniper") return true;
+  if ((game.modeId === "royale" || game.currentMode().base === "royale") && w?.def?.cls === "sniper") return true;
   return trollReticleUnlocked();
 }
 

@@ -222,6 +222,24 @@ MODES.royale_hollowgrin = {
   blurb: "Troll Royale on Hollowgrin, the island's underside: 24 trolls, the walls reach the sky.",
 };
 
+/* Troll Royale in teams (user, 2026-10-30: "duo trio and squad, squad being
+   4 players"; docs/ROYALE-SQUADS.md). `squad` is a team's size. Each team is
+   a side of its own (net.team is its squad id, royale-squads.js), so the
+   team modes' rules keep teammates off each other; the two-sided parts
+   (team scores, the split scoreboard, spawn halves) stay free-for-all's
+   (each checks `squad` beside `ffa`). Hidden: the Royale card's Solo / Duo / Trio / Squad picks. */
+for (const [n, key, name] of [[2, "duo", "Duos"], [3, "trio", "Trios"], [4, "squad", "Squads"]]) {
+  MODES[`royale_${key}`] = {
+    ...MODES.royale, hidden: true, id: `royale_${key}`, base: "royale",
+    name: `Troll Royale ${name}`, short: `Royale ${name}`, ffa: false, squad: n,
+    blurb: `Troll Royale in teams of ${n}: your party, bots in the empty seats. Last team standing wins.`,
+  };
+}
+
+/* The public room each mode's quick play starts in (match-start.js
+   joinQuickplay; shards add 2-9). */
+export const QUICKPLAY_BASE = { umb: "QUMB", tdm: "QTDM", ffa: "QFFA", dom: "QDOM", koth: "QKOH", oitc: "QOTC", gungame: "QGUN", snd: "QSND", infection: "QINF", royale: "QTRR", royale_duo: "QTRD", royale_trio: "QTRT", royale_squad: "QTRS", social: "QSOC", zhub: "QZHB" };
+
 /* Socialize (user, 2026-10-04): one public hangout room, no fighting. Walk
    the map, chat and emote; no guns, no damage, no streaks, no bots, no
    clock. Everyone is on one side so duo emotes work with anyone. The owner

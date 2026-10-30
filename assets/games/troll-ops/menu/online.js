@@ -25,7 +25,7 @@ const TICK_MS = 2000;   // how often our activity is re-read (sent only when it 
 
 /* The public rooms everyone gets by default, in the order the list shows
    them when nobody is in them yet. */
-const DEFAULT_SERVERS = ["tdm", "ffa", "dom", "koth", "snd", "oitc", "gungame", "infection", "umb", "royale", "social", "zhub"];
+const DEFAULT_SERVERS = ["tdm", "ffa", "dom", "koth", "snd", "oitc", "gungame", "infection", "umb", "royale", "royale_duo", "royale_trio", "royale_squad", "social", "zhub"];
 
 /* A quickplay room, or a public hub run. */
 export function isPublicRoom(room) {
