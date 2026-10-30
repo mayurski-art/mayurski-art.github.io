@@ -200,10 +200,23 @@ export function upgradeKit(depId) {
 
 /* ------------------------------------------------------------ a run's pay */
 
+/* Runs a hub pad can start that aren't plain ones (modes/zombies/hub.js
+   sets the one under way as it launches): what its pad's sign says, what the
+   run pays (x Credits), and the rare zombie looks it raises
+   (characters/zombie-models.js setRareLooks). Halloween is Chapter One's
+   (core/season.js): its casket stands only while the season lasts. */
+export const RUN_EVENTS = {
+  halloween: { title: "Halloween Run", blurb: "Hollowgrin · 2x Credits", pay: 2, looks: { trollmask: 0.3 } },
+};
+let runEvent = null;
+export function setRunEvent(id) { runEvent = RUN_EVENTS[id] ? id : null; }
+export const currentRunEvent = () => runEvent;
+
 /* The run is over: pay it and keep the best wave. Returns what it paid. */
 export function payRun({ kills = 0, wave = 0, won = false }) {
   const cleared = won ? wave : Math.max(0, wave - 1);
-  const paid = creditsFor({ kills, cleared, won });
+  const paid = Math.round(creditsFor({ kills, cleared, won }) * (RUN_EVENTS[runEvent]?.pay || 1));
+  runEvent = null;
   const s = zsave();
   s.credits += paid;
   s.earned += paid;

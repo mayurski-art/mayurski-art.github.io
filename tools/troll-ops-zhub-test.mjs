@@ -95,10 +95,12 @@ await Promise.all([loaded(a), loaded(b)]);
 
 // ---- 1. the hub
 const wa = await where(a), wb = await where(b);
-check(wa.map === "The Hub" && wb.map === "The Hub", "both are in The Hub", `${wa.map} / ${wb.map}`);
+check(wa.map === "Grin & Sons" && wb.map === "Grin & Sons", "both are in the hub (Grin & Sons)", `${wa.map} / ${wb.map}`);
 check(wa.room === HUBROOM && wb.room === HUBROOM, "on the private hub code", `${wa.room} / ${wb.room}`);
+// three maps, the private pad, and the Halloween run while Chapter One lasts
 const signs = await R(a, () => Object.keys(window.__trollHub.signs() || {}).length);
-check(signs === 4, "four pad signs (three maps and the private pad)", String(signs));
+const padCount = await R(a, () => window.__trollHub.HUB.pads.length + 1);
+check(signs === padCount && (padCount === 4 || padCount === 5), "a sign per pad (maps, private, Halloween in season)", `${signs} of ${padCount}`);
 check(await R(a, () => !document.querySelector(".zhb")?.hidden), "the hub HUD shows");
 // the boards: this week's Zombies rows, best wave and kills summed per player
 await R(a, () => window.__trollHub.setBoardRows([

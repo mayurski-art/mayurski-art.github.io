@@ -21,7 +21,7 @@ import { DEPLOYABLES, KITS, statsAt } from "../modes/zombies/kits.js?v=zr6-zr9-z
 import {
   GUN_TIERS, GUN_MAX, KIT_MAX, tierOf, tierOpen, owns, gunLevel, gunAction, gunAtLevel, equippedGun,
   buyGun, upgradeGun, equipGun, kitAction, upgradeKit, zsave, onCreditsChange, loggedIn,
-} from "../modes/zombies/credits.js?v=zc1-zc2";
+} from "../modes/zombies/credits.js?v=zc1-zc2-zf1";
 import { gunThumb, kitThumb } from "./zombies-thumbs.js?v=zc1-zc2-zp1-sr1-br1-or1-rt1-ut1-rb4-hp1-bx1-mg1-tm2-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-lz1-ret1-ret2-mrg1-hd1-ugb1-ug1-ugm1-mrc1-hgb6-tw1-rt2-fd1-ars1-mrg3-p416";
 
 const RARITY = ["Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"];
