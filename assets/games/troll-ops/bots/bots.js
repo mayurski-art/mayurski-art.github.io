@@ -239,12 +239,56 @@ const BOT_SIDEARMS = ["sixtynine", "true69", "peacemakers"];
 export const BOT_AA_MISSILES = 6;
 const SIDEARM_MAG_SIZE = 12;
 const SIDEARM_RELOAD_TIME = 1.5;
+// Drawing it takes a beat, as yours does: no shot the instant it comes out.
+const SIDEARM_DRAW = 0.3;
+// Caught mid-reload by someone this close (user, 2026-10-29), with more than
+// SWAP_MIN_LEFT of the reload still to go: the sidearm, not the rest of the
+// reload. The reload is lost, as yours is when you swap.
+const SWAP_RANGE = 14;
+const SWAP_MIN_LEFT = 0.6;
 
 let counter = 0;
 
 class Bot {
   /* Its secondary is the FHJ-18 (Troll Royale and the like swap it out). */
   get launcher() { return this.secondaryId === "fhj18"; }
+
+  /* Rounds left to load into the primary / the sidearm. */
+  get canReload() { return this.reserve == null || this.reserve > 0; }
+  get sidearmCanReload() { return this.sidearmReserve == null || this.sidearmReserve > 0; }
+  /* A sidearm with a shot in it or one to load (the FHJ-18 is for aircraft). */
+  get sidearmLive() { return !this.launcher && (this.sidearmAmmo > 0 || this.sidearmCanReload); }
+  /* Nothing in either gun and nothing to load: the knife, and a gun off the
+     floor (royale.js botWants). Never in a bottomless mode. */
+  get dry() { return this.ammo <= 0 && !this.canReload && !this.sidearmLive; }
+  /* The primary's rounds, magazine and reserve (Infinity when bottomless). */
+  get primaryRounds() { return this.reserve == null ? Infinity : this.ammo + this.reserve; }
+
+  /* A gun picked up with `total` rounds in it, magazine first. */
+  loadGun(total) {
+    this.reloadT = 0;
+    this.ammo = Math.min(magFor(this.rules), Math.max(0, total | 0));
+    this.reserve = Math.max(0, (total | 0) - this.ammo);
+  }
+  loadSidearm(total) {
+    this.sidearmReloadT = 0;
+    this.sidearmAmmo = Math.min(SIDEARM_MAG_SIZE, Math.max(0, total | 0));
+    this.sidearmReserve = Math.max(0, (total | 0) - this.sidearmAmmo);
+  }
+  /* A reload done: the magazine filled from the reserve, if it's counted. */
+  finishReload() {
+    const mag = magFor(this.rules);
+    if (this.reserve == null) { this.ammo = mag; return; }
+    const take = Math.min(this.reserve, mag - this.ammo);
+    this.ammo += take;
+    this.reserve -= take;
+  }
+  finishSidearmReload() {
+    if (this.sidearmReserve == null) { this.sidearmAmmo = SIDEARM_MAG_SIZE; return; }
+    const take = Math.min(this.sidearmReserve, SIDEARM_MAG_SIZE - this.sidearmAmmo);
+    this.sidearmAmmo += take;
+    this.sidearmReserve -= take;
+  }
 
   constructor(team, spawn, difficulty = "regular", rules = {}) {
     this.rules = rules;   // the BotManager's, shared: the match's mode rules
@@ -261,6 +305,10 @@ class Bot {
     this.holdingSecondary = false;
     this.sidearmAmmo = SIDEARM_MAG_SIZE;
     this.sidearmReloadT = 0;
+    // Rounds left to reload from: null = bottomless, as every mode but Troll
+    // Royale has it (royale.js loads them from what's picked up: loadGun).
+    this.reserve = null;
+    this.sidearmReserve = null;
     this.hp = BOT_HP;
     this.alive = true;
     this.kills = 0;
@@ -359,6 +407,8 @@ class Bot {
     this.aaUp = false;
     this.sidearmAmmo = SIDEARM_MAG_SIZE;
     this.sidearmReloadT = 0;
+    this.reserve = null;
+    this.sidearmReserve = null;
     this.ads = 0;
     this.adsLingerT = 0;
     this.acquireT = 0;
@@ -441,7 +491,7 @@ class Bot {
 
     if (this.reloadT > 0) {
       this.reloadT -= dt;
-      if (this.reloadT <= 0) this.ammo = magFor(this.rules);
+      if (this.reloadT <= 0) this.finishReload();
     }
     if (this.rules.oneShot) {
       // any kill buys the round back, the knife's too
@@ -864,7 +914,7 @@ class Bot {
     this.fireT -= dt;
     if (this.sidearmReloadT > 0) {
       this.sidearmReloadT -= dt;
-      if (this.sidearmReloadT <= 0) this.sidearmAmmo = SIDEARM_MAG_SIZE;
+      if (this.sidearmReloadT <= 0) this.finishSidearmReload();
     }
     // Hands full with the bomb means no trigger, same as for a player.
     const canSee = !busy && best && bestD < FIRE_RANGE;
@@ -895,15 +945,19 @@ class Bot {
       }
       return;
     }
-    if (!this.holdingSecondary && this.ammo <= 0 && canSee && !this.launcher) this.holdingSecondary = true;
-    else if (this.holdingSecondary && !canSee && this.reloadT <= 0) this.holdingSecondary = false;
+    // With the reserve counted (Troll Royale), a primary with nothing left to
+    // load swaps for the sidearm in or out of a fight, and the sidearm only
+    // goes back for a primary that has something in it.
+    const primaryLive = this.ammo > 0 || this.canReload;
+    if (!this.holdingSecondary && this.ammo <= 0 && (canSee || !primaryLive) && this.sidearmLive) this.holdingSecondary = true;
+    else if (this.holdingSecondary && primaryLive && ((!canSee && this.reloadT <= 0) || !this.sidearmLive)) this.holdingSecondary = false;
     this.updateAds(dt, { canShoot, reacted, range: bestD, objective });
     if (this.slideT > 0 || this.hopY > 0) this.ads = Math.max(0, this.ads - dt * 6);   // no scope mid-slide or mid-air
 
     if (this.holdingSecondary) {
       if (reacted && canShoot && this.sidearmReloadT <= 0 && this.fireT <= 0) {
         if (this.sidearmAmmo <= 0) {
-          this.sidearmReloadT = SIDEARM_RELOAD_TIME;
+          if (this.sidearmCanReload) this.sidearmReloadT = SIDEARM_RELOAD_TIME;
         } else {
           this.sidearmAmmo--;
           this.fireT = this.diff.interval * (0.9 + Math.random() * 0.6);
@@ -912,13 +966,15 @@ class Bot {
           onShoot(this, best, hit ? this.diff.damage * 0.8 * (head ? 2 : 1) : 0, head, hit, bestD, true);
         }
       }
-      if (!canSee && this.ammo < MAG_SIZE && this.reloadT <= 0) this.reloadT = RELOAD_TIME;
+      if (!canSee && this.ammo < MAG_SIZE && this.reloadT <= 0 && this.canReload) this.reloadT = RELOAD_TIME;
+      // Staying on it (the primary's empty): top it up out of contact.
+      else if (!canSee && !primaryLive && this.sidearmAmmo < SIDEARM_MAG_SIZE && this.sidearmReloadT <= 0 && this.sidearmCanReload) this.sidearmReloadT = SIDEARM_RELOAD_TIME;
       return;
     }
 
     if (canShoot && reacted && this.reloadT <= 0 && this.fireT <= 0) {
       if (this.ammo <= 0) {
-        this.reloadT = RELOAD_TIME;
+        if (this.canReload) this.reloadT = RELOAD_TIME;
       } else {
         this.ammo--;
         this.fireT = this.diff.interval * (0.75 + Math.random() * 0.6);
@@ -927,7 +983,7 @@ class Bot {
         const head = hit && Math.random() < HEADSHOT_CHANCE;
         onShoot(this, best, hit ? this.diff.damage * (head ? 2 : 1) : 0, head, hit, bestD);
       }
-    } else if (!canSee && this.ammo < MAG_SIZE && this.reloadT <= 0) {
+    } else if (!canSee && this.ammo < MAG_SIZE && this.reloadT <= 0 && this.canReload) {
       // Top up while out of contact rather than mid-firefight.
       this.reloadT = RELOAD_TIME;
     }
@@ -948,7 +1004,7 @@ class Bot {
     if (engaged) this.adsLingerT = between(ADS_LINGER);
     else this.adsLingerT = Math.max(0, this.adsLingerT - dt);
     // An objective that can't wait means running, not scoping.
-    const want = !this.meleeOnly && !reloading && !objective?.urgent && !(this.stunT > 0)
+    const want = !this.meleeOnly && !this.dry && !reloading && !objective?.urgent && !(this.stunT > 0)
       && (engaged || (this.adsLingerT > 0 && !(canShoot && range < ADS_MIN_RANGE)));
     const rate = want ? 1 / ((this.diff.adsTime || 0.3) * (this.perks.has("dexterity") ? PERK_TUNE.dexterityAds : 1)) : 1 / 0.15;
     this.ads = want ? Math.min(1, this.ads + dt * rate) : Math.max(0, this.ads - dt * rate);
