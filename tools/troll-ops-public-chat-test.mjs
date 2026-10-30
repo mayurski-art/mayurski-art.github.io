@@ -75,14 +75,23 @@ const read = () => page.evaluate(() => {
 });
 const say = (from, text) => page.evaluate(([from, text]) => window.__presence.deliver({ k: "chat", from, d: { text } }), [from, text]);
 
-// 1. The pill is there for a guest (we are one)
+// 1. The pill is there for a guest (we are one). The BO2 footer stacks it
+// over the Options pill; the Fortnite lobby (lobby-fn.js) moved Options up
+// into the tab bar and hides the footer pill, so there the chat icon is the
+// last thing on the right of the bottom row (style.css, .is-fn .to-bo2-foot).
 const pill = await page.evaluate(() => {
   const b = document.querySelector(".to-bo2-chat"), o = document.querySelector('.to-bo2-quick[data-go="options"]');
   if (!b || !o) return null;
   const r = b.getBoundingClientRect(), ro = o.getBoundingClientRect();
-  return { shown: !!b.offsetParent, w: Math.round(r.width), above: r.bottom <= ro.top + 1 && r.right > ro.left };
+  const out = { shown: !!b.offsetParent, w: Math.round(r.width) };
+  if (o.offsetParent) return { ...out, above: r.bottom <= ro.top + 1 && r.right > ro.left };
+  const tab = document.querySelector('.to-fn-tab[data-tab="options"]'), rt = tab?.getBoundingClientRect();
+  const foot = document.querySelector(".to-bo2-foot").getBoundingClientRect();
+  const right = Math.max(...[...document.querySelectorAll(".to-bo2-foot button, .to-bo2-foot .to-bo2-online")].filter((e) => e.offsetParent).map((e) => e.getBoundingClientRect().right));
+  return { ...out, optionsTab: !!tab?.offsetParent, tabTop: rt && Math.round(rt.top), chatTop: Math.round(r.top), lastRight: Math.round(foot.right - r.right),
+    above: !!tab?.offsetParent && rt.bottom < r.top && r.right >= right - 0.5 && r.top > innerHeight / 2 };
 });
-check(pill?.shown && pill.w <= 48 && pill.above, "a guest sees the chat icon, small, over Options", JSON.stringify(pill));
+check(pill?.shown && pill.w <= 48 && pill.above, "a guest sees the chat icon, small: over Options, or (Fortnite lobby, Options in the tabs) last on the bottom row", JSON.stringify(pill));
 // 2. A message with the chat shut: a notification and an unread count
 await say("v-1", "anyone up for TDM?");
 await page.waitForTimeout(200);

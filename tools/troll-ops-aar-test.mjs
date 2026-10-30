@@ -146,8 +146,9 @@ sample.colliders.push({ min: { x: -10, y: 4, z: -10 }, max: { x: 10, y: 6, z: 10
 
 await R((d) => {
   const T = window.__trollOps;
-  // a real match end has no menu behind the card
-  T.els.menu && (T.els.menu.hidden = true);
+  // a real match end has no menu behind the card (match-start.js hides
+  // #to-title, and with it the lobby stage's "+" invite pads)
+  T.els.title.hidden = true;
   document.querySelectorAll(".to-bo2").forEach((m) => { m.style.display = "none"; });
   document.getElementById("to-gameover").hidden = false;
   document.getElementById("to-go-rank").hidden = false;
