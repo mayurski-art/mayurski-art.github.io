@@ -57,10 +57,14 @@ for (const mode of modes) {
     const ml = document.getElementById("to-lo-mode");
     const mo = ml && new MutationObserver((rs) => { for (const m of rs) { muts.n++; const k = `${m.target.dataset?.mode || m.target.className}`.slice(0, 40); muts.what[k] = (muts.what[k] || 0) + 1; } });
     mo?.observe(ml, { subtree: true, attributes: true, attributeFilter: ["class"] });
+    // Window events by type, and forced style reads (menu fitNames).
+    const evs = {}, wd = window.dispatchEvent.bind(window);
+    const evMs = {}; window.dispatchEvent = (e) => { evs[e.type] = (evs[e.type] || 0) + 1; const t = performance.now(); const v = wd(e); evMs[e.type] = +((evMs[e.type] || 0) + performance.now() - t).toFixed(1); return v; };
+    let gcs = 0; const og = window.getComputedStyle; window.getComputedStyle = function () { gcs++; return og.apply(this, arguments); };
     T.renderer.info.autoReset = false; T.renderer.info.reset();
     const dts = []; let last = performance.now();
     await new Promise((res) => { const t0 = last; const tick = (now) => { dts.push(now - last); last = now; if (now - t0 < secs * 1000) requestAnimationFrame(tick); else res(); }; requestAnimationFrame(tick); });
-    mo?.disconnect();
+    mo?.disconnect(); window.dispatchEvent = wd; window.getComputedStyle = og;
     const n = dts.length; dts.sort((a, b) => a - b);
     const avg = dts.reduce((a, b) => a + b, 0) / n, per = (v) => +(v / n).toFixed(2);
     const teams = {}; for (const b of T.bots.bots) teams[b.team] = (teams[b.team] || 0) + 1;
@@ -70,7 +74,7 @@ for (const mode of modes) {
       bots: T.bots.bots.length, remotes: T.remotes.byId.size, alive: T.royaleAliveList().length, teamCount: Object.keys(teams).length,
       max: +dts[n - 1].toFixed(0), over150: dts.filter((d) => d > 150).length,
       programs: T.renderer.info.programs?.length || 0,
-      modeListFlipsPerFrame: +(muts.n / n).toFixed(2), modeListFlips: muts.what,
+      modeListFlipsPerFrame: +(muts.n / n).toFixed(2), modeListFlips: muts.what, events: evs, eventMs: evMs, styleReadsPerFrame: +(gcs / n).toFixed(2),
       nodes: (() => { let k = 0; T.scene.traverse(() => k++); return k; })(),
       // Render passes in one frame, and what each pass drew (by scene).
       passes: await (() => { const list = []; const r = T.renderer.render; T.renderer.render = function (s, c) { list.push(`${s.name || s.type}/${c.name || c.type}`); return r.apply(this, arguments); }; return new Promise((res) => requestAnimationFrame(() => { list.length = 0; requestAnimationFrame(() => { T.renderer.render = r; res(list); }); })); })(),
