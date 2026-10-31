@@ -4958,6 +4958,36 @@ body.tf-anim-off .to-fn-pips button[aria-current="true"]::after { transform: non
 .to-bo2.is-fn .to-bo2-party-grid .to-bo2-seat.is-add { border-style: dashed; border-color: rgba(255,255,255,.55); background: rgba(8,12,34,.35); }
 .to-bo2.is-fn .to-bo2-party-grid .to-bo2-seat.is-add .to-bo2-lv { font: 800 16px/1 var(--fn-ui); color: #fff; }
 .to-bo2.is-fn .to-bo2-party-grid .to-bo2-seat.is-add b { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; }
+/* The leaderboard (Compete; the arcade's shared engine, assets/js/
+   troll-leaderboard.js), in the lobby's look (user, 2026-10-31: "fix the
+   leaderboard UI"): the navy glass, square corners and the lobby's type;
+   the top three on gold, silver and bronze plates (no emoji medals), your
+   row lit in yellow, and a line while the board loads. */
+.to-bo2.is-fn .to-bo2-lb { --line: var(--fn-line); --muted: #9fb2e4; --cyan: var(--fn-cyan); --gold: var(--fn-yellow); --green: #7fe066; --mono: var(--fn-ui); font-family: var(--fn-ui); }
+.to-bo2.is-fn .to-bo2-lb:empty::before { content: "Loading the board…"; display: block; padding: 18px 16px; font: 800 14px var(--fn-ui); letter-spacing: .06em; text-transform: uppercase; color: #9fb2e4; }
+.to-bo2.is-fn .to-bo2-lb .lb-bar { padding: 12px 16px; border-bottom: 1px solid var(--fn-line); background: rgba(8,12,34,.55); }
+.to-bo2.is-fn .to-bo2-lb .lb-week-label { font: italic 400 24px/1 var(--fn-display); letter-spacing: .02em; color: #fff; }
+.to-bo2.is-fn .to-bo2-lb .lb-week-id { margin-top: 3px; font: 800 12px var(--fn-ui); letter-spacing: .1em; text-transform: uppercase; color: var(--fn-cyan); }
+.to-bo2.is-fn .to-bo2-lb .lb-reset { font: 700 13px var(--fn-ui); letter-spacing: .04em; text-transform: uppercase; color: #9fb2e4; }
+.to-bo2.is-fn .to-bo2-lb .lb-reset-time { font: 800 16px var(--fn-ui); color: #fff; }
+.to-bo2.is-fn .to-bo2-lb .lb-source { border-radius: 2px; border: 0; padding: 4px 9px; font: 800 12px var(--fn-ui); letter-spacing: .08em; background: var(--fn-yellow); color: #1b1400; }
+.to-bo2.is-fn .to-bo2-lb .lb-table { min-width: 0; font: 700 15px var(--fn-ui); }
+.to-bo2.is-fn .to-bo2-lb .lb-table th, .to-bo2.is-fn .to-bo2-lb .lb-table td { padding: 8px 10px; border-bottom-color: rgba(170,200,255,.12); }
+.to-bo2.is-fn .to-bo2-lb .lb-table thead th { font: 800 12px var(--fn-ui); letter-spacing: .08em; color: #9fb2e4; background: rgba(8,12,34,.92); }
+.to-bo2.is-fn .to-bo2-lb .lb-num { font-family: var(--fn-ui); font-weight: 800; }
+.to-bo2.is-fn .to-bo2-lb .lb-rank { width: 44px; }
+.to-bo2.is-fn .to-bo2-lb .lb-rank-medal { display: none; }
+.to-bo2.is-fn .to-bo2-lb .lb-rank-n { display: inline-grid; place-items: center; min-width: 28px; height: 28px; padding: 0 4px; box-sizing: border-box; border-radius: 2px; background: rgba(255,255,255,.07); font: 800 15px var(--fn-ui); color: #fff; }
+.to-bo2.is-fn .to-bo2-lb .lb-r1 .lb-rank-n { background: linear-gradient(180deg, #ffe066, #e3a800); color: #2a1c00; }
+.to-bo2.is-fn .to-bo2-lb .lb-r2 .lb-rank-n { background: linear-gradient(180deg, #f1f4fa, #a9b3c6); color: #1d2433; }
+.to-bo2.is-fn .to-bo2-lb .lb-r3 .lb-rank-n { background: linear-gradient(180deg, #f0a35e, #a8612b); color: #2b1300; }
+.to-bo2.is-fn .to-bo2-lb .lb-name { font: 800 16px var(--fn-ui); color: #fff; }
+.to-bo2.is-fn .to-bo2-lb .lb-char { font: 700 11px var(--fn-ui); letter-spacing: .08em; text-transform: uppercase; color: #9fb2e4; }
+.to-bo2.is-fn .to-bo2-lb .lb-tag { border-radius: 2px; border: 0; background: var(--fn-yellow); color: #1b1400; font: 800 10px var(--fn-ui); }
+.to-bo2.is-fn .to-bo2-lb .lb-table tbody tr.lb-you { background: rgba(255,224,77,.12); box-shadow: inset 4px 0 0 var(--fn-yellow); }
+.to-bo2.is-fn .to-bo2-lb .lb-empty-cell { font: 700 14px var(--fn-ui); font-style: normal; color: #9fb2e4; }
+.to-bo2.is-fn .to-bo2-lb .lb-foot { font: 700 13px/1.45 var(--fn-ui); color: #9fb2e4; }
+.to-bo2.is-fn .to-bo2-lb .lb-foot strong { color: var(--fn-yellow); }
 .to-bo2.is-fn .tf-btn--secondary.to-bo2-party-invite { border-radius: 8px; border: 0; background: var(--fn-yellow); color: #1b1400; font: 800 13px var(--fn-ui); letter-spacing: .04em; text-transform: uppercase; }
 .to-bo2.is-fn .to-party { margin: 0; padding: 4px 4px 4px 10px; border-color: var(--fn-line); border-radius: 0; background: rgba(79,216,255,.1); }
 /* one line in the lobby's party card (its full text on hover), so it never
@@ -5199,6 +5229,18 @@ body.tf-anim-off .to-fn-pips button[aria-current="true"]::after { transform: non
   .to-bo2.is-fn[data-screen="main"] .to-bo2-party::-webkit-scrollbar { display: none; }
   .to-bo2.is-fn .to-bo2-party-lbl { font-size: 12px; line-height: 14px; }
   .to-bo2.is-fn .to-bo2-party { gap: 3px; }
+  /* the board: every column on screen (Wins and the "operator" line go) */
+  .to-bo2.is-fn .to-bo2-lb .lb-bar { padding: 7px 10px; gap: 4px 10px; }
+  .to-bo2.is-fn .to-bo2-lb .lb-week-label { font-size: 18px; }
+  .to-bo2.is-fn .to-bo2-lb .lb-reset-time { font-size: 13px; }
+  .to-bo2.is-fn .to-bo2-lb :is(.lb-hide-sm, .lb-char) { display: none; }
+  .to-bo2.is-fn .to-bo2-lb .lb-table { font-size: 13px; }
+  .to-bo2.is-fn .to-bo2-lb .lb-table :is(th, td) { padding: 5px 6px; }
+  .to-bo2.is-fn .to-bo2-lb .lb-table thead th { font-size: 10px; letter-spacing: .04em; }
+  .to-bo2.is-fn .to-bo2-lb .lb-name { font-size: 14px; }
+  .to-bo2.is-fn .to-bo2-lb .lb-rank { width: 30px; }
+  .to-bo2.is-fn .to-bo2-lb .lb-rank-n { min-width: 22px; height: 22px; font-size: 13px; }
+  .to-bo2.is-fn .to-bo2-lb .lb-foot { padding: 8px 10px; font-size: 12px; }
   .to-bo2.is-fn .to-bo2-party > :empty { display: none; }   /* (no gap for an empty row) */
   .to-bo2-party-grid { gap: 3px; }
   .to-bo2-party-grid > .to-bo2-party-row { min-height: 31px; padding: 2px 7px; gap: 1px; }

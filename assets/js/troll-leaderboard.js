@@ -2,9 +2,8 @@
    TROLL RUNNER ARCADE  —  Shared Weekly Leaderboard engine
 
    ONE engine for EVERY game in the arcade. Each game registers a small config
-   describing its own stats; the engine handles weekly rotation, mock rivals,
-   the local player's real stats, ranking, rendering and the (placeholder)
-   prize panel. Adding a leaderboard to a new game = write a ~30-line config
+   describing its own stats; the engine handles weekly rotation, the local
+   player's real stats, ranking and rendering. Adding a leaderboard to a new game = write a ~30-line config
    and call register(). See LEADERBOARD.md.
 
    BACKEND-READY: the UI only talks to a per-game `provider` exposing
@@ -14,9 +13,9 @@
    logged in, and falls back to a local-only cache otherwise. Swap in a
    different backend entirely with setProvider(gameId, provider).
 
-   SAFETY: prizes are DISPLAY-ONLY placeholders. No wallet code, no claim flow,
-   no payouts live here. `prizes.live` is a guard kept false. Do not wire real
-   USDC / $TROLL payouts in this file without a separate, audited money path.
+   No prizes (user, 2026-10-31: "get rid of all that mock prize pool stuff"):
+   no wallet code, no claim flow, no payouts live here, and no mock prize
+   panel either. Don't add real USDC / $TROLL payouts to this file.
    ============================================================================ */
 (() => {
   "use strict";
@@ -83,20 +82,7 @@
   const fmtInt = n => Number(n || 0).toLocaleString();
   const fmtPct = r => Math.round((r || 0) * 100) + "%";
 
-  /* ---------- default (placeholder, inert) prize config ------------------ */
-  const DEFAULT_PRIZES = {
-    enabled: true,
-    live: false,   // HARD GUARD — true would imply real payouts. Keep false.
-    poolLabel: "Mock prize pool",
-    pool: "750 USDC  +  1.75M $TROLL",
-    disclaimer: "Preview only — prizes are illustrative mock values. No real money or " +
-                "$TROLL payouts, wallet transfers, or claims are active.",
-    tiers: [
-      { rank: 1, medal: "🥇", usdc: "500 USDC", troll: "1,000,000 $TROLL" },
-      { rank: 2, medal: "🥈", usdc: "200 USDC", troll: "500,000 $TROLL" },
-      { rank: 3, medal: "🥉", usdc: "100 USDC", troll: "250,000 $TROLL" },
-    ],
-  };
+;
 
   /* ---------- storage (per-game, current week only) ---------------------- */
   const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (_) { return null; } };
@@ -265,34 +251,13 @@
     (col.accent ? " lb-acc-" + col.accent : "") +
     (col.hideSm ? " lb-hide-sm" : "");
 
-  function prizeMarkup(cfg) {
-    const p = cfg.prizes;
-    if (!p || !p.enabled) return "";
-    const tiers = p.tiers.map(t => `
-      <li class="lb-prize-tier lb-prize-r${t.rank}">
-        <span class="lb-medal" aria-hidden="true">${t.medal}</span>
-        <span class="lb-prize-rank">${t.rank === 1 ? "1st" : t.rank === 2 ? "2nd" : t.rank === 3 ? "3rd" : t.rank + "th"}</span>
-        <strong class="lb-prize-usdc">${esc(t.usdc)}</strong>
-        <span class="lb-prize-troll">${esc(t.troll)}</span>
-      </li>`).join("");
-    return `
-      <div class="lb-prizes" role="group" aria-label="Prize preview (not active)">
-        <div class="lb-prize-head">
-          <div><p class="lb-prize-kicker">${esc(p.poolLabel)}</p><strong class="lb-prize-pool">${esc(p.pool)}</strong></div>
-          <span class="lb-prize-badge">${p.live ? "LIVE" : "NOT LIVE · PREVIEW"}</span>
-        </div>
-        <ul class="lb-prize-tiers">${tiers}</ul>
-        <p class="lb-prize-note">⚠ ${esc(p.disclaimer)}</p>
-      </div>`;
-  }
-
   function rowMarkup(cfg, e) {
     const medal = e.rank === 1 ? "🥇" : e.rank === 2 ? "🥈" : e.rank === 3 ? "🥉" : "";
     const dot = (cfg.player && cfg.player.dotColor && cfg.player.dotColor(e)) || hashColor(e.name);
     const sub = (cfg.player && cfg.player.sublabel && cfg.player.sublabel(e)) || "";
     const cells = cfg.columns.map(c => `<td class="${colClass(c)}">${colText(c, e)}</td>`).join("");
     return `
-      <tr class="${e.you ? "lb-you" : ""}">
+      <tr class="${[e.you ? "lb-you" : "", e.rank <= 3 ? `lb-r${e.rank}` : ""].filter(Boolean).join(" ")}">
         <td class="lb-rank"><span class="lb-rank-n">${e.rank}</span>${medal ? `<span class="lb-rank-medal">${medal}</span>` : ""}</td>
         <td class="lb-player">
           <span class="lb-dot" style="background:${dot}"></span>
@@ -324,7 +289,6 @@
         <div class="lb-reset"><span class="lb-reset-label">Resets in</span><strong class="lb-reset-time" data-lb-reset>${esc(board.resetsIn)}</strong></div>
         <span class="lb-source">${board.source === "live" ? "LIVE" : "LOCAL"}</span>
       </div>
-      ${prizeMarkup(cfg)}
       <div class="lb-table-wrap">
         <table class="lb-table">
           <thead><tr><th class="lb-rank">#</th><th class="lb-player">Player</th>${headCols}</tr></thead>
@@ -360,8 +324,6 @@
 
   function register(cfg) {
     if (!cfg || !cfg.gameId) throw new Error("TrollLeaderboard.register needs a gameId");
-    cfg.prizes = cfg.prizes === undefined ? Object.assign({}, DEFAULT_PRIZES)
-               : (cfg.prizes && Object.assign({}, DEFAULT_PRIZES, cfg.prizes, { live: false }));  // never allow live:true
     const g = games[cfg.gameId] = { config: cfg, provider: makeLiveProvider(cfg), rootEl: null, timer: null };
     if (cfg.mount) {
       const el = typeof cfg.mount === "string" ? document.querySelector(cfg.mount) : cfg.mount;
@@ -404,7 +366,6 @@
   function setProvider(gameId, p) { const g = get(gameId); if (g && p) { g.provider = p; refresh(g); } }
   function configure(gameId, partial) {
     const g = get(gameId); if (!g || !partial) return;
-    if (partial.prizes) partial.prizes = Object.assign({}, g.config.prizes, partial.prizes, { live: false });
     Object.assign(g.config, partial);
     refresh(g);
   }
@@ -461,7 +422,6 @@
     columns: [{ key: "gamesPlayed", label: "Games played", align: "num", accent: "green" }],
     rankBy: ["gamesPlayed"],
     boardSize: 10,
-    prizes: { enabled: false },
     footNote: "Ranked by distinct games played this week across the whole arcade. Resets every Monday.",
   };
   let arcadeState = null;
@@ -489,6 +449,6 @@
     setProvider, configure, setPlayerName, mountArcadeBoard,
     // shared helpers exposed for configs / tests
     weekId, weekLabel, weekWindow, timeLeft, hashStr, rng: mulberry32, hashColor,
-    fmt: { int: fmtInt, pct: fmtPct }, RIVAL_NAMES, DEFAULT_PRIZES,
+    fmt: { int: fmtInt, pct: fmtPct }, RIVAL_NAMES,
   };
 })();

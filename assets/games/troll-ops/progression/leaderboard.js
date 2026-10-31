@@ -1,7 +1,6 @@
 /* Troll Forces — weekly leaderboard config.
    Uses the shared arcade engine (assets/js/troll-leaderboard.js); see
-   assets/games/LEADERBOARD.md. Prizes are display-only mock — the engine
-   enforces live:false. game.js reports one event per run: solo Ops runs carry
+   assets/games/LEADERBOARD.md. game.js reports one event per run: solo Ops runs carry
    a wave, PvP matches carry kills, deaths and whether you won. */
 (() => {
   const LB = window.TrollLeaderboard;
@@ -39,7 +38,9 @@
         + you.pvpWins * 2500;
     },
 
+    // (the score is what ranks you: shown first)
     columns: [
+      { key: "score", label: "Score", align: "num", accent: "gold" },
       { key: "bestWave", label: "Best wave", align: "num", accent: "green" },
       { key: "pvpKills", label: "PvP kills", align: "num", accent: "gold" },
       { key: "kd", label: "K/D", align: "num", accent: "muted" },
@@ -48,25 +49,5 @@
     rankBy: ["score"],
 
     player: { dotColor: () => "#7fe066", sublabel: () => "operator" },
-
-    mockRival: (rng) => {
-      const bestWave = 1 + Math.floor(rng() * 12);
-      const bestKills = bestWave * (8 + Math.floor(rng() * 10));
-      const pvpKills = Math.floor(rng() * 90);
-      const pvpDeaths = 1 + Math.floor(rng() * 70);
-      const pvpWins = Math.floor(rng() * 6);
-      return {
-        bestWave, bestKills, pvpKills, pvpDeaths, pvpWins,
-        matches: pvpWins + Math.floor(rng() * 8),
-        runs: 1 + Math.floor(rng() * 8),
-        assists: Math.floor(pvpKills * (0.3 + rng() * 0.5)),
-        headshots: Math.floor(pvpKills * (0.1 + rng() * 0.3)),
-        bestStreak: 1 + Math.floor(rng() * 8),
-        kd: Math.round((pvpKills / Math.max(1, pvpDeaths)) * 100) / 100,
-        score: bestWave * 10000 + bestKills * 10 + pvpKills * 40 + pvpWins * 2500,
-      };
-    },
-
-    prizes: { poolLabel: "Mock prize pool · Trollnite", pool: "100 USDC + 1M $TROLL" },
   });
 })();

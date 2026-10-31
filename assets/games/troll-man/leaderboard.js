@@ -32,7 +32,6 @@
       dotColor: () => "#ffcc00",
       sublabel: e => (e.level ? `Reached level ${e.level}` : ""),
     },
-    prizes: null,
     // never resets: every score since launch counts (user, 2026-10-28)
     allTime: true,
     footNote: "Best 1-player score, all time.",

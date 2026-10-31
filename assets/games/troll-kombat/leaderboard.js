@@ -75,9 +75,5 @@
       };
     },
 
-    prizes: {
-      poolLabel: "Mock prize pool · Troll Kombat",
-      pool: "750 USDC  +  1.75M $TROLL",
-    },
   });
 })();
