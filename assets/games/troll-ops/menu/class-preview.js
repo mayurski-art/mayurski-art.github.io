@@ -8,7 +8,7 @@
 import { WEAPON_DEFS } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
 import { ATTACHMENTS, SLOTS, SLOT_LABELS } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
 import { MELEE_DEFS, THROWABLE_DEFS } from "../weapons/gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1-rb4-hp1-bx1-mg1-sp1";
-import { SKIN_BY_ID, skinsFor } from "../characters/skins.js?v=p5-wb1-or1-sk1";
+import { SKIN_BY_ID, skinsFor } from "../characters/skins.js?v=p5-wb1-or1";
 import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perkIconSvg } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
 import { STREAK_DEFS, streakBadgeSvg } from "../streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1-sam1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
 

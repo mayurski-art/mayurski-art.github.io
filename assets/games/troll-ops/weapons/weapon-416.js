@@ -19,7 +19,7 @@
 import * as THREE from "three";
 import { buildGripHand, buildSupportHand } from "./hand-model.js?v=to-grip2-or1-hp1-bx1";
 import { OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS, buildIronRear, buildIronFront, railSection } from "./attachment-models.js?v=fg1-wst-or1-rt1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1-mrg3";
-import { skinAtlasTexture, SKIN_ATLAS, skinDef } from "../characters/skins.js?v=p5-wb1-or1-sk1";
+import { skinAtlasTexture, SKIN_ATLAS, skinDef } from "../characters/skins.js?v=p5-wb1-or1";
 
 /* Side profiles in weapon space, as [z, y] points (z forward is negative,
    y up), plus each part's thickness across x. The baker draws its panel
