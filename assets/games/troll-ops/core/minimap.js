@@ -105,6 +105,16 @@ export function drawMinimap() {
         ctx.closePath();
         ctx.fill();
         ctx.restore();
+      } else if (friendly && rp.netId === game.teamLeader) {
+        // Royale in teams: the squad leader's crown (modes/royale-team-hud.js),
+        // flashing red while they're down
+        ctx.fillStyle = rp.peer.downed === 1 && performance.now() % 600 < 300 ? "#ff4a3a" : "#ffc83a";
+        ctx.strokeStyle = "rgba(0,0,0,.75)";
+        ctx.lineWidth = 1;
+        ctx.moveTo(x - 5, z - 2.5); ctx.lineTo(x - 2.5, z); ctx.lineTo(x, z - 4.5); ctx.lineTo(x + 2.5, z);
+        ctx.lineTo(x + 5, z - 2.5); ctx.lineTo(x + 4, z + 3.5); ctx.lineTo(x - 4, z + 3.5); ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
       } else {
         ctx.arc(x, z, 3, 0, Math.PI * 2);
         ctx.fill();

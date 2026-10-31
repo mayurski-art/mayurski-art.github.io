@@ -5,7 +5,7 @@ for the ramp, arms out, spin, a slow-motion look back at the plane, hands
 to your chest, dive. Squads hold hands in a line and jump together. Fortnite is the feel to aim for; every pose and shot here is
 our own, on our trollface rigs.
 
-Status: building (go-ahead 2026-10-30). Phases 1-3 done on branch claude/royale-jump-anim-e36721; 4 (leader marker) and 5 (bots) next.
+Status: building (go-ahead 2026-10-30). Phases 1-4 done on branch claude/royale-jump-anim-e36721; 5 (bots) next.
 
 ## Today
 - T-1.6 you turn your back to the door; at the green the jumpmaster shoves
@@ -111,6 +111,10 @@ squad leader is dead."
 - The leader: the party leader; a squad with no party, its first human;
   an all-bot squad, its lowest id. The same on every tab, nothing new on
   the wire. It doesn't pass to anyone else when they die.
+  (Built: the party leader's id isn't on the wire, but the leader starts
+  the match and the rest follow the invite, so it's the squad's first
+  human to join, `net.since`; the seats go the same way, so the leader is
+  the front of the file. Settled as the squad gets up for the ramp.)
 - Their teammate marker (`royale-team-hud.js` already puts one over each
   teammate, through walls, held to the screen's edge) gets a crown badge
   (a small drawn icon, not an emoji), a gold colour and "LEADER" under the
@@ -118,7 +122,7 @@ squad leader is dead."
   ground. Shape and the word, not only the colour.
 - Off screen or behind you: the marker sits on the screen's edge with an
   arrow pointing to them and the distance.
-- On the minimap and the compass: a gold crown pip.
+- On the minimap: a gold crown pip. (The HUD has no compass.)
 - In the team panel: the leader's row first, with the crown.
 - Downed (Duo and up): the crown stays, flashing red, so you can go and
   revive them. Eliminated: the leader marker, pip and arrow go.

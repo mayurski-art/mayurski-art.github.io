@@ -4596,6 +4596,24 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-down-hud.is-down b { background: #ffb020; }
 .to-team-row.is-out { opacity: .55; border-left-color: rgba(255,255,255,.35); }
 .to-team-row.is-out b { text-decoration: line-through; }
+/* Troll Royale in teams: the squad leader (modes/royale-team-hud.js, docs/ROYALE-EXIT.md) */
+.to-crown { display: none; width: 18px; height: 14px; fill: #ffc83a; stroke: rgba(0,0,0,.7); stroke-width: 1; filter: drop-shadow(0 0 4px rgba(255,200,58,.75)); }
+.to-team-mark em, .to-team-mark u { display: none; }
+.to-team-mark.is-leader .to-crown { display: block; order: 0; }
+.to-team-mark.is-leader i { background: #ffc83a; box-shadow: 0 0 6px rgba(255,200,58,.85); }
+.to-team-mark.is-leader b { color: #ffe08a; }
+.to-team-mark.is-leader em { display: block; order: 2; font: 800 10px/1 "DM Sans", sans-serif; font-style: normal; letter-spacing: .14em; color: #ffc83a; }
+.to-team-mark.is-leader small { color: #ffe08a; }
+.to-team-mark.is-leader.is-down .to-crown, .to-team-me.is-down .to-crown { animation: to-crown-down .6s steps(1) infinite; }
+.to-team-mark.is-leader.is-down em { color: #ff6b5a; }
+.to-team-mark.is-held u { display: block; position: absolute; left: 50%; bottom: 8px; width: 0; height: 0; border: 6px solid transparent; border-left: 10px solid #4fd8ff; translate: -50% 50%; transform: rotate(var(--to-arrow, 0rad)) translateX(19px); filter: drop-shadow(0 1px 2px rgba(0,0,0,.8)); }
+.to-team-mark.is-leader.is-held u { border-left-color: #ffc83a; }
+.to-team-row.is-leader { border-left-color: #ffc83a; }
+.to-team-row.is-leader b { display: flex; align-items: center; gap: 5px; }
+.to-team-row.is-leader .to-crown { display: block; flex: none; width: 15px; height: 12px; }
+.to-team-me { grid-template-columns: 1fr; }
+.to-team-me[hidden] { display: none; }
+@keyframes to-crown-down { 50% { fill: #ff4a3a; filter: drop-shadow(0 0 5px rgba(255,74,58,.9)); } }
 .to-fn-size button { min-height: 34px; border: 0; border-radius: 6px; background: none; color: #c4d1f3; font: 800 13px var(--fn-ui); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; touch-action: manipulation; }
 .to-fn-size button:hover:not(:disabled) { background: rgba(255,255,255,.12); color: #fff; }
 .to-fn-size button.is-on { background: #ffe14d; color: #1b1400; }

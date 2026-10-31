@@ -432,6 +432,8 @@ export function royaleTickDrop(dt) {
   // Slid in under the floor (royale-planes.js retractAt): no deck past the hinge.
   if (hold && hold.rampFloor && d.squadron.retractK(r.planeT) > 0.35) hold.dropRampFloor();
   planeSounds();
+  // aboard is staging (updateRoyale waits for the green): your team and its leader from the plane on
+  if (game.isStaging()) updateTeamHud(true, r.planeT > CINE.walkFrom);
 }
 
 /* The engines from inside (aboard), the nearest other plane going over,
@@ -1051,7 +1053,7 @@ export function updateRoyale(dt) {
 
   const alive = royaleAliveList();
   if (r.live) r.peak = Math.max(r.peak, standing(alive));
-  updateTeamHud(r.live);   // in teams: where they are, how they are (royale-team-hud.js)
+  updateTeamHud(r.live || !!r.drop, r.live || r.planeT > CINE.walkFrom);   // in teams: where they are, how they are, the leader from the plane on (royale-team-hud.js)
   if (r.live && !r.over) updateRoyaleDown(dt);   // in teams: down, not out (royale-down.js)
   // in teams, our place comes when the last of us goes down
   if (r.live && !r.place && !game.player.alive && squadSize() > 1 && !myTeamAlive(alive)) r.place = standing(alive) + 1;
