@@ -83,16 +83,6 @@ a{color:var(--hot)}a:hover{color:#ffb870}
 .home-tile.is-trollnite b{font:400 34px/1 'Luckiest Guy',var(--display);letter-spacing:.05em;color:#ffd23f;-webkit-text-stroke:1.5px #2a1600;paint-order:stroke fill;text-shadow:0 3px 0 #7a3b00,0 6px 14px rgba(0,0,0,.8);text-transform:none}
 .home-tile.is-trollnite i{color:var(--ink);text-shadow:0 1px 4px rgba(0,0,0,.9)}
 .home-tile.is-trollnite em{position:absolute;top:12px;right:12px;padding:4px 10px;border-radius:999px;background:#ffd23f;color:#2a1600;font:700 12px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;font-style:normal}
-/* Finances is the donation wallet: its own glowing pill, bottom right. */
-.home-donate{display:flex;white-space:nowrap;flex:none;align-items:center;gap:12px;margin-left:auto;padding:8px 20px 8px 8px;border-radius:999px;border:1px solid rgba(255,210,122,.75);
-  background:linear-gradient(135deg,rgba(255,210,122,.3),rgba(255,138,31,.16) 55%,rgba(10,4,2,.85));color:var(--ink);text-decoration:none;
-  box-shadow:0 0 0 0 rgba(255,210,122,.45),0 10px 30px rgba(0,0,0,.5);animation:home-glow 2.8s ease-in-out infinite}
-.home-donate img{width:46px;height:46px;border-radius:50%;object-fit:contain;background:rgba(0,0,0,.45);padding:4px}
-.home-donate b{display:block;font:700 22px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--gold)}
-.home-donate i{display:block;font:normal 12px/1.3 var(--mono);color:var(--soft);margin-top:3px}
-.home-donate:hover,.home-donate:focus-visible{color:var(--ink);border-color:var(--gold);background:linear-gradient(135deg,rgba(255,210,122,.42),rgba(255,138,31,.26) 55%,rgba(10,4,2,.85))}
-.home-donate:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
-@keyframes home-glow{50%{box-shadow:0 0 0 7px rgba(255,210,122,0),0 10px 30px rgba(0,0,0,.5)}}
 
 .home-foot{position:absolute;left:96px;right:64px;bottom:34px;display:flex;align-items:flex-end;gap:26px;color:var(--dim);font-size:15px;pointer-events:none}
 .home-foot > *{pointer-events:auto}
@@ -122,7 +112,7 @@ kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgb
 .home-socials{display:flex;gap:16px;margin:4px 0 14px}
 .home-admin{display:flex;gap:8px;margin-top:16px}
 .home-admin .home-field{max-width:220px}
-.is-map .home-acct,.is-map .home-donate{visibility:hidden}
+.is-map .home-acct{visibility:hidden}
 /* The weekly leaderboard (assets/js/troll-leaderboard.js) in a panel: wider
    than About, and the engine's colour names mapped onto this page's. */
 #panel-lb{--muted:var(--dim);--green:#4dff73;--cyan:var(--gold);--red:#ff453a}
@@ -153,10 +143,6 @@ kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgb
   .home-tile i{font-size:11px}
   .home-foot{left:max(44px,env(safe-area-inset-left));right:max(24px,env(safe-area-inset-right));bottom:10px;gap:14px;align-items:center}
   .home-online{font-size:24px}
-  .home-donate{padding:5px 14px 5px 5px;gap:8px}
-  .home-donate img{width:32px;height:32px}
-  .home-donate b{font-size:16px}
-  .home-donate i{font-size:10px}
   .home-panel{left:48vw;top:38px;width:calc(52vw - max(24px,env(safe-area-inset-right)));max-height:calc(100% - 38px - var(--foot-h,40px) - 24px);padding:16px}
 }
 @media (max-aspect-ratio:9/10){
@@ -175,10 +161,6 @@ kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgb
   .home-tile i{font-size:11px}
   .home-foot{left:20px;right:20px;bottom:calc(20px + env(safe-area-inset-bottom));gap:12px;align-items:center}
   .home-online{font-size:28px}
-  .home-donate{padding:6px 14px 6px 6px;gap:8px}
-  .home-donate img{width:36px;height:36px}
-  .home-donate b{font-size:17px}
-  .home-donate i{font-size:11px}
   .home-panel{left:12px;right:12px;width:auto;top:calc(60px + env(safe-area-inset-top) + var(--menu-h,320px) + 10px);bottom:auto;max-height:calc(100% - 60px - env(safe-area-inset-top) - var(--menu-h,320px) - 10px - var(--foot-h,58px) - 34px - env(safe-area-inset-bottom));padding:18px}
 }
 /* News: a lobby-style card over the blurred home (HANDOFF.md). Sizes come
@@ -267,7 +249,7 @@ kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgb
   .news-more{margin-top:16px}
   .news-close{left:20px;bottom:calc(20px + env(safe-area-inset-bottom))}
 }
-@media (prefers-reduced-motion:reduce){.home-live i,.home-donate{animation:none}.home-tile,.home-tile img{transition:none}.news-more,.news-arrow,.news-dot::before{transition:none}}
+@media (prefers-reduced-motion:reduce){.home-live i{animation:none}.home-tile,.home-tile img{transition:none}.news-more,.news-arrow,.news-dot::before{transition:none}}
 </style>
 <!-- Tab icon: the trollface spins grin <-> sad, like trolltruths.com -->
 <link rel="icon" type="image/png" href="/assets/images/icons/favicon/grin.png">
@@ -336,10 +318,6 @@ kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgb
       <span class="home-live" id="home-live"></span>
       <button type="button" class="home-back" id="home-back"><kbd>Esc</kbd>Back</button>
     </div>
-    <a class="home-donate" href="https://finance.trollrunner.net" aria-label="Donate to the Troll Runner wallet">
-      <img src="assets/images/icons/finances.png" alt="">
-      <span><b>Donate</b><i>Tip the troll wallet</i></span>
-    </a>
   </footer>
 </main>
 
