@@ -352,8 +352,11 @@ export function cutOldClub(scene) {
   const partOf = (o) => { while (o.parent && o.parent !== scene) o = o.parent; return o; };
   const v = new THREE.Vector3();
   scene.updateMatrixWorld(true);
+  // Grinjuku's part keeps its street, but the wells are cut out of its floor
+  const inWell = (x, z, y) => Math.abs(y) < 0.35 && WELLS.some(([x0, x1, z0, z1]) => x > x0 && x < x1 && z > z0 && z < z1);
   scene.traverse((o) => {
-    if (!o.isMesh || /^gj/.test(partOf(o).name)) return;
+    if (!o.isMesh) return;
+    const gone = /^gj/.test(partOf(o).name) ? inWell : inOldHall;
     const g = o.geometry, P = g.attributes.position, idx = g.index;
     const n = idx ? idx.count : P.count;
     const keep = [];
@@ -364,19 +367,21 @@ export function cutOldClub(scene) {
         v.fromBufferAttribute(P, idx ? idx.getX(t + k) : t + k).applyMatrix4(o.matrixWorld);
         cx += v.x / 3; cy += v.y / 3; cz += v.z / 3;
       }
-      if (inOldHall(cx, cz, cy)) { dropped++; continue; }
+      if (gone(cx, cz, cy)) { dropped++; continue; }
       keep.push(t, t + 1, t + 2);
     }
     if (!dropped) return;
     if (keep.length === 0) { o.visible = false; o.geometry = new THREE.BufferGeometry(); return; }
+    // (the models' attributes are quantized and interleaved: read through
+    // the accessor, which strides and denormalizes, into plain floats)
     const out = new THREE.BufferGeometry();
     for (const [name, attr] of Object.entries(g.attributes)) {
-      const size = attr.itemSize, arr = new attr.array.constructor(keep.length * size);
+      const size = attr.itemSize, arr = new Float32Array(keep.length * size);
       for (let i = 0; i < keep.length; i++) {
         const src = idx ? idx.getX(keep[i]) : keep[i];
-        for (let k = 0; k < size; k++) arr[i * size + k] = attr.array[src * size + k];
+        for (let k = 0; k < size; k++) arr[i * size + k] = attr.getComponent(src, k);
       }
-      out.setAttribute(name, new THREE.BufferAttribute(arr, size, attr.normalized));
+      out.setAttribute(name, new THREE.BufferAttribute(arr, size));
     }
     out.computeBoundingSphere();
     o.geometry = out;

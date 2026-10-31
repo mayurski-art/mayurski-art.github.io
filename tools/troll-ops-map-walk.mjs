@@ -256,14 +256,29 @@ await ctx.route(/supabase/, (r) => r.abort());
 // Ramps' deck went with the club's front wall (it stood in front of the
 // pole dancer's screen), so its route goes too
 RUNS.kabukigrin = [...RUNS.grinjuku.filter((r) => r[6] !== "A Ramps steps -> deck"),
-  [-27.6, 0, -2, 0, 1, 3.5, "A Main -> the club's main door", (r) => r.end[2] > 7],
+  [-26, 0, -2, 0, 1, 4, "A Main -> down the front stair", (r) => r.end[2] > 7 && r.end[1] < -3.4],
   [-27, 0, 29, 0, -1, 3, "kitchen -> hall (west back door)", (r) => r.end[2] < 21],
   [-16, 0, 29, 0, -1, 3, "green room -> hall (east back door)", (r) => r.end[2] < 21],
   [-27.5, 0, 37, 0, -1, 3, "yard -> kitchen (west yard door)", (r) => r.end[2] < 31],
   [-15.5, 0, 37, 0, -1, 3, "yard -> green room (east yard door)", (r) => r.end[2] < 31],
   [-2, 0, 28.5, -1, 0, 3, "the backs -> green room (east door)", (r) => r.end[0] < -9],
   [-22, 0, 27.6, 1, 0, 2.5, "kitchen -> green room (partition door)", (r) => r.end[0] > -17],
-  [-27.6, 0, 12, 0, -1, 3.5, "hall -> A Main (out the main door)", (r) => r.end[2] < 0],
+  [-30, 0, 12, 0, -1, 3.5, "Lulz Square -> A Main (past the stair's slot)", (r) => r.end[2] < 0],
+  // the dug club (docs/KB-CLUB-UNDERGROUND.md): the three stairs off the
+  // street down to the balcony (B1, -3.6), the two off the balcony down to
+  // the floor (B2, -7.5), and back up each
+  [-26, 0, 3.6, 0, 1, 4, "S1: square -> balcony", (r) => r.end[1] < -3.4 && r.end[2] > 10],
+  [-26, -3.6, 10.8, 0, -1, 4, "S1: balcony -> square", (r) => r.end[1] > -0.2 && r.end[2] < 4],
+  [-22.6, 0, 23, 1, 0, 4, "S5: square -> south arm", (r) => r.end[1] < -3.4 && r.end[0] > -16.4],
+  [-16, -3.6, 23, -1, 0, 4, "S5: south arm -> square", (r) => r.end[1] > -0.2 && r.end[0] < -22],
+  [-20, 0, 40.6, 0, -1, 6, "S2: yard -> tunnel -> south arm", (r) => r.end[1] < -3.4 && r.end[2] < 30],
+  [-20, -3.6, 29, 0, 1, 6, "S2: south arm -> tunnel -> yard", (r) => r.end[1] > -0.2 && r.end[2] > 40],
+  [-12.75, -3.6, 11, 0, 1, 4, "G1: balcony -> floor", (r) => r.end[1] < -7.3 && r.end[2] > 17],
+  [-12.75, -7.5, 17.8, 0, -1, 4, "G1: floor -> balcony", (r) => r.end[1] > -3.8 && r.end[2] < 12],
+  [-30.5, -3.6, 23, 0, -1, 4, "S4: south arm -> floor", (r) => r.end[1] < -7.3 && r.end[2] < 17],
+  [-30.5, -7.5, 16.2, 0, 1, 4, "S4: floor -> south arm", (r) => r.end[1] > -3.8 && r.end[2] > 22],
+  [-24, -7.5, 8, 0, 1, 5, "floor: under the north arm -> the south wall", (r) => r.end[2] > 25],
+  [-9, -3.6, 13, 0, 1, 4, "east arm: north -> south", (r) => r.end[2] > 20 && r.end[1] > -3.8],
   // phase 3: both Mains end to end past the street furniture (poles, bollards, kei trucks)
   [24.5, 0, -30, 0, 1, 6, "down B Main", (r) => r.end[2] > -2],
   [24.5, 0, 1, 0, -1, 6, "up B Main", (r) => r.end[2] < -26],
