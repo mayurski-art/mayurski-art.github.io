@@ -78,9 +78,15 @@ const u1 = await planeInfo(false);
 // the headless sim runs well under real time: wait for it to fly a while
 await until(() => window.__trollOps.flyovers[0].age > 0.4, 20000);
 const u2 = await planeInfo(false);
-// look up at it for the shot
-await page.evaluate(() => { const T = window.__trollOps; const p = T.flyovers[0]; const d = p.root.position.clone().sub(T.move.pos); T.look.yaw = Math.atan2(-d.x, -d.z); T.look.pitch = Math.atan2(d.y, Math.hypot(d.x, d.z)); });
-await sleep(300);
+// the shot: put it on its orbit, overhead and close, and look up at it
+await page.evaluate(() => {
+  const T = window.__trollOps; const p = T.flyovers[0];
+  p.age = 8; p.place();
+  T.move.pos.x = p.root.position.x; T.move.pos.z = p.root.position.z + 18;
+  const d = p.root.position.clone().sub(T.move.pos);
+  T.look.yaw = Math.atan2(-d.x, -d.z); T.look.pitch = Math.atan2(d.y - 1.6, Math.hypot(d.x, d.z));
+});
+await until(() => window.__trollOps.flyovers[0].age > 8.2, 10000);
 await shot(page, "1-uav-shadow.png");
 check("the UAV is the Shadow (prop, blur disc, strobe, jammer nodes present)", !!u1 && u1.prop && u1.blur !== null && u1.strobe !== null && u1.pods.every((v) => v !== null), JSON.stringify(u1?.pods));
 check("a UAV flies clean: jammer pods and band hidden", !!u1 && u1.pods.every((v) => v === false));
