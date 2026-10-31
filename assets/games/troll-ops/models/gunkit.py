@@ -881,7 +881,7 @@ MOVING = ("Carrier", "Charge", "DustCover", "Trigger", "Catch", "Selector", "Mag
 # Hand and effect points beside P_Grip / P_Support / P_Muzzle / P_Aim /
 # P_Under / P_Rail. (The plan named the hand targets P_Charge / P_Catch, the
 # same names as the parts; a glTF scene wants them unique.)
-POINTS = ("Eject", "ChargeHand", "CatchHand")
+POINTS = ("Eject", "ChargeHand", "CatchHand", "BoltKnob")   # BoltKnob: a bolt gun's knob (the hand's target)
 
 
 def moving(prefix, name, pivot, kind="slide", axis="z", travel=0.0):
