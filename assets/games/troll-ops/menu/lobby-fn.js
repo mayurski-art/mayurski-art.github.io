@@ -276,7 +276,9 @@ export function mountFnLobby(api) {
     // Troll Royale: the side you start on (royale-side.js), not a vote
     const side = p.id === "public" && $('#to-lo-mode [data-mode="royale"]')?.classList.contains("is-active") && royaleSide?.();
     if (side) { name = side.name; sub = `${side.tag === "Default" ? "Default island" : side.tag} · change`; }
-    else if (p.id === "public") { name = "Map vote"; sub = "Vote with the lobby"; }
+    // (Public Match: no card. The vote is on the screen PLAY opens; a "Map
+    // vote" card here said it twice, user 2026-10-31: "remove this")
+    else if (p.id === "public") { /* no card */ }
     else if (p.id === "zombies") { name = "The hub"; sub = "A pad for every map"; }
     else if (active) { name = text($(".to-map-name", active)); sub = p.id === "social" ? "Join whoever's there" : "Your map"; }
     $("strong", map).textContent = name;

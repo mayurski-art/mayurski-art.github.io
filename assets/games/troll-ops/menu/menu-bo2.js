@@ -683,7 +683,9 @@ const screens = {
     return {
       title: "Public Match", panel: "deploy", vote: v,
       enter: () => { ensureGroup("versus", "tdm"); clearRoom(); },
-      groups: [modeItems("versus"), [heroRow(), sideRow(), sizeRow(), recordRow(), ...voteRows(v)].filter(Boolean), [findRow(v), back("Back to the main menu.")]],
+      // Find Match first (user, 2026-10-31: "users have to scroll down to
+      // click find match"): the mode list and the vote sit under it
+      groups: [[findRow(v)], modeItems("versus"), [heroRow(), sideRow(), sizeRow(), recordRow(), ...voteRows(v)].filter(Boolean), [back("Back to the main menu.")]],
     };
   },
   /* One public hangout room: pick a map (whoever is already there decides
