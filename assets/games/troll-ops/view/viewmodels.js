@@ -41,7 +41,8 @@ export function setActiveWeaponMesh(def) {
     weaponRig.remove(activeWeaponMesh);
     activeWeaponMesh.traverse((o) => {
       if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
-      if (o.material) o.material.dispose?.();
+      // the kit and camo materials are shared by every build: never ours to dispose
+      if (o.material && !o.material.userData?.shared) o.material.dispose?.();
     });
   }
   activeWeaponMesh = buildWeaponMesh(def);
