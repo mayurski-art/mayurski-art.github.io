@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Troll Warfare — Exit Lab</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #1c1c1e; color: #f5f5f7; font: 12px "DM Sans", -apple-system, sans-serif; }
+  canvas { display: block; }
+  #labels { position: fixed; inset: 0; pointer-events: none; }
+  #labels span { position: absolute; padding: 2px 6px; border-radius: 6px; background: rgba(28,28,30,.75); }
+</style>
+</head>
+<body>
+<div id="labels" aria-hidden="true"></div>
+<script type="importmap">
+{ "imports": { "three": "../../../vendor/r186/three.module.js", "three/addons/": "../../../vendor/r186/addons/" } }
+</script>
+<script type="module">
+// The jump out of the C-130 (modes/royale-exit.js), posed beat by beat:
+// a column per moment, a row per view (side, front 3/4, from above).
+// ?t=0.15,1,2.6,3.3,3.75,dive picks the columns ("dive": the dive tuck in
+// flight). tools/troll-ops-royale-exit-test.mjs reads window.exitLab.
+import * as THREE from "three";
+import { buildHumanoid } from "../characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1";
+import { setReliefFace } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-hl1-mg1-sp1-rh1-ci6-pm1";
+import { EXIT, exitClock, poseExit, poseDiveTuck } from "../modes/royale-exit.js?v=ex1";
+
+const q = new URLSearchParams(location.search);
+const cols = (q.get("t") || "0.12,0.3,1.2,2.6,3.3,3.75,4.2,dive").split(",");
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(innerWidth, innerHeight);
+renderer.setScissorTest(true);
+document.body.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xdfe9ff, 0x6b5a48, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+sun.position.set(3, 6, 4);
+scene.add(sun);
+const mat = new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.7, metalness: 0.1 });
+
+const BELLY = 1.0;   // the turn's centre over the feet
+const rigs = cols.map((c, i) => {
+  const rig = buildHumanoid(mat, { height: 1.8, gun: false });
+  rig.styleSeed = 7;
+  setReliefFace(rig);
+  rig.root.position.set(i * 12, 0, 0);
+  rig.root.rotation.order = "YXZ";
+  scene.add(rig.root);
+  return { rig, col: c, x: i * 12 };
+});
+const OUT_YAW = 0, LIVE_YAW = 0.6;
+function poseAll() {
+  for (const r of rigs) {
+    const { rig } = r, p = rig.parts;
+    rig.root.position.set(r.x, 0, 0);
+    rig.root.quaternion.identity();
+    for (const k of Object.keys(p)) if (p[k]?.rotation) p[k].rotation.set(0, 0, 0);
+    if (r.col === "dive") {
+      // poseDrop's belly-down flying pose, then the dive tuck.
+      const a = -1.35;
+      rig.root.rotation.set(a, LIVE_YAW, 0);
+      rig.root.position.x += -BELLY * Math.sin(a) * Math.sin(LIVE_YAW);
+      rig.root.position.y += BELLY * (1 - Math.cos(a));
+      rig.root.position.z += -BELLY * Math.sin(a) * Math.cos(LIVE_YAW);
+      p.chest.rotation.x = -0.25;
+      p.armL.rotation.set(1.1, 0, 1.2); p.armR.rotation.set(1.1, 0, -1.2);
+      p.elbowL.rotation.x = 0.8; p.elbowR.rotation.x = 0.8;
+      p.legL.rotation.set(-0.2, 0, 0.3); p.legR.rotation.set(-0.2, 0, -0.3);
+      p.kneeL.rotation.x = -0.9; p.kneeR.rotation.x = -0.9;
+      poseDiveTuck(rig, 1);
+    } else poseExit(rig, +r.col, OUT_YAW, LIVE_YAW, 0);
+    rig.body?.update?.();
+    rig.root.updateMatrixWorld(true);
+  }
+}
+const VIEWS = [
+  { name: "side", off: new THREE.Vector3(4.2, 0.4, 0) },
+  { name: "front 3/4", off: new THREE.Vector3(-2.6, 1.0, -3.4) },
+  { name: "above", off: new THREE.Vector3(0.01, 4.6, 0.4) },
+];
+const cam = new THREE.PerspectiveCamera(35, 1, 0.05, 50);
+const labels = document.getElementById("labels");
+function draw() {
+  poseAll();
+  const W = innerWidth, H = innerHeight, cw = W / rigs.length, ch = H / VIEWS.length;
+  labels.textContent = "";
+  rigs.forEach((r, i) => {
+    const centre = new THREE.Vector3(r.x, BELLY, 0).add(new THREE.Vector3(0, 0, 0));
+    VIEWS.forEach((v, j) => {
+      const x = i * cw, y = H - (j + 1) * ch;
+      renderer.setViewport(x, y, cw, ch);
+      renderer.setScissor(x, y, cw, ch);
+      renderer.setClearColor(j % 2 ? 0x9cc4e8 : 0xb3d4f0);
+      cam.aspect = cw / ch;
+      cam.position.copy(centre).add(v.off);
+      cam.up.set(0, 1, 0);
+      if (v.name === "above") cam.up.set(0, 0, -1);
+      cam.lookAt(centre);
+      cam.updateProjectionMatrix();
+      renderer.render(scene, cam);
+    });
+    const s = document.createElement("span");
+    s.textContent = r.col === "dive" ? "dive (flying)" : `t ${r.col} s`;
+    s.style.left = `${x0(i, cw) + 6}px`; s.style.top = "6px";
+    labels.append(s);
+  });
+}
+const x0 = (i, cw) => i * cw;
+addEventListener("resize", () => { renderer.setSize(innerWidth, innerHeight); draw(); });
+
+/* For the test: where the wrists and chest are, per column (world). */
+function joints() {
+  return rigs.map((r) => {
+    const p = r.rig.parts, w = (o) => o.getWorldPosition(new THREE.Vector3());
+    const L = w(p.wristL), R = w(p.wristR), C = w(p.chest), head = w(p.headPivot);
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(p.chest.getWorldQuaternion(new THREE.Quaternion()));
+    const mid = L.clone().add(R).multiplyScalar(0.5);
+    return { col: r.col, wrists: +L.distanceTo(R).toFixed(3), handsToChest: +mid.distanceTo(C).toFixed(3),
+      handsFront: +mid.clone().sub(C).dot(fwd).toFixed(3), headY: +(head.y - r.rig.root.position.y).toFixed(3),
+      belly: +r.rig.root.localToWorld(new THREE.Vector3(0, BELLY, 0)).sub(new THREE.Vector3(r.x, BELLY, 0)).length().toFixed(3) };
+  });
+}
+draw();
+window.exitLab = { EXIT, clock: exitClock, joints, ready: true };
+</script>
+</body>
+</html>

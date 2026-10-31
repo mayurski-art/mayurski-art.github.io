@@ -1,33 +1,32 @@
-// Troll Royale — the drop cinematic, phase 3 (doc "Troll Forces: Royale
-// drop cinematic"): the first FALL_SHOW s out of the plane are a camera
-// show, then the freefall you know, plus a hold-to-view key.
+// Troll Royale — the jump out of the C-130 (docs/ROYALE-EXIT.md): the
+// first seconds out of the plane are a camera show, then the fall is first
+// person (user, 2026-10-30), plus a hold-to-view key.
 //
-//   0   .. 1.5  the tumble, first person: out backwards you go over once
-//               (the hold rolls up out of sight, the plane's belly, sky)
-//               and land on your back; out forwards, a head-first tip
-//   1.5 .. 3    cut: from where you left the ramp, a long lens on your
-//               face as you fall away on your back (framed as if from 3 m)
-//   3   .. 4.5  cut: just over you, looking down into your face
-//   4.5 .. 6    cut: close below, ahead of your head: your face comes
-//               round into it as you roll onto your belly
-//   6 on        the camera behind you; yours to fly
-// Every shot is aimed at your head and framed on your face and body (user,
-// 2026-10-18: "more emphasis on seeing the face and body").
-//
-// No steering in the show (so everyone covers the same ground before
-// control starts); the pose is net/remote-players.js poseDrop's, which
-// your planemates play for you too. Held after the show (crouch: C, Ctrl,
-// the touch crouch button, the pad's), side, front and low angles come
-// back 1.5 s each while you steer, down to 80 m. The show's fall
-// builds speed slowly (Flight's `coast`), so it costs ~130 m of the ~330.
+// Real seconds from the lip (the pose runs on royale-exit.js exitClock,
+// which slows to 0.3x for the look back and has caught up by 2.6):
+//   0   .. 0.3  your own eyes: the lip drops away, the horizon tips
+//   0.3 .. 1.9  the look back, in slow motion: over your shoulder as you
+//               spin, arms wide, the open ramp behind you with the
+//               jumpmaster in the door (the plane's drawn on the slow
+//               clock too: royale-planes.js riddenLag)
+//   1.9 .. 3.3  round in front: your face and body as the hands come in
+//               to your chest
+//   3.3 .. 3.8  in behind your head and into your eyes as you dive; the
+//               stick's yours from 3.3
+//   on          first person, your arms out in front of you; the POV key
+//               flips to the camera behind you for this fall
+// The show doesn't steer (everyone covers the same ground before control
+// starts). Held after it (crouch: C, Ctrl, the touch crouch button, the
+// pad's), side, front and low angles come back 1.5 s each, down to 80 m.
 
 import * as THREE from "three";
 import { game } from "../core/state.js?v=st1";
 import { playSfx } from "../sound/sfx-files.js?v=dc4-nd1-wb1";
-import { FALL_SHOW, FALL_FLIP, fallShowQuat } from "../net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-wb1-mt2-sk1-hb4-lu1";
+import { EXIT, exitClock, exitSlowK, exitQuat } from "./royale-exit.js?v=ex1";
 
-export const FALL_CUTS = [FALL_FLIP, 3, 4.5];
-export const VIEW_FLOOR = 80;    // m: no hold-to-view below this (the landing's always from behind)
+export const FALL_CUTS = [EXIT.slow[0], EXIT.tuck, EXIT.dive];   // real s: the lip, the look back, the face, into your eyes
+const INTO_EYES = 0.5;            // s to push into your eyes after the dive
+export const VIEW_FLOOR = 80;     // m: no hold-to-view below this (the landing's always from your eyes)
 const VIEW_EVERY = 1.5;
 
 let show = null;
@@ -37,25 +36,23 @@ const _cam = new THREE.Vector3();
 const _v = new THREE.Vector3();
 const _head = new THREE.Vector3();
 const _up = new THREE.Vector3();
+const _aim = new THREE.Vector3();
+const _eu = new THREE.Euler(0, 0, 0, "YXZ");
 
-/* Out of the plane (royale.js jumpOut): `back` whether you went out facing
-   into the hold, `yaw` your facing (world), `at` where you left it,
-   `vel` how fast (the plane's way) and `centre` the island's middle {x, z}. */
-export function startFallShow(back, yaw, at, vel, centre) {
-  const h = Math.hypot(vel.x, vel.z) || 1;
-  // The ramp shot's spot: hung in the sky where you went out, a little aft
-  // and above (the planes behind come through 20 m up or down, not here).
-  const exit = new THREE.Vector3(at.x - (vel.x / h) * 4, at.y + 3, at.z - (vel.z / h) * 4);
-  show = { t: 0, back, yaw, exit, holdT: 0, view: -1, centre, look0: { yaw: game.look.yaw, pitch: game.look.pitch } };
+/* Out of the plane (royale.js jumpOut): `yaw` the way you faced going out
+   (world), `vel` how fast (the plane's way), `centre` the island's middle
+   {x, z}, `ramp(out)` where the ramp's lip is now (world: the plane on its
+   slowed clock). */
+export function startFallShow(yaw, vel, centre, ramp) {
+  show = { r: 0, d: 0, yaw, centre, ramp, look0: { yaw: game.look.yaw, pitch: game.look.pitch },
+    view: -1, holdT: 0, front: null, from: null, pov: !!game.settings?.thirdPerson };
+  setHead(true);
+  vignette(0);
 }
 
 /* The show hands the camera back looking down at the island, north up so
-   the trollface reads the right way (user: "the final orientation actually
-   faces the opposite direction basically seeing space"). The camera sits
-   behind you along the look (royale.js placeDropCamera), so its line through
-   you is pitched to land on the island's middle when that's ahead (north);
-   when it's under you or behind, nearly straight down. A look you lined up
-   yourself while the show ran stays yours. */
+   the trollface reads the right way. A look you lined up yourself while
+   the show ran stays yours. */
 function aimAtIsland(c, look0) {
   const turned = Math.abs(Math.atan2(Math.sin(game.look.yaw - look0.yaw), Math.cos(game.look.yaw - look0.yaw)));
   if (turned > 0.1 || Math.abs(game.look.pitch - look0.pitch) > 0.1) return;
@@ -66,66 +63,140 @@ function aimAtIsland(c, look0) {
   const pitch = ahead > 1 ? -Math.atan2(Math.max(20, pos.y), ahead) : -1.4;
   game.look.pitch = Math.max(-1.4, Math.min(-0.6, pitch));
 }
+/* Landed (or out of the match): your POV setting as it was, the head back. */
 export function endFallShow() {
+  if (show && game.settings) game.settings.thirdPerson = show.pov;
   show = null;
+  setHead(true);
+  vignette(0);
   if (game.camera) lens(game.camera, 1);
 }
-export function fallShowOn() { return !!show && show.t < FALL_SHOW; }
-/* For your own body's pose (view/third-person.js): { t, back, yaw } in the
-   show (the body keeps the way you went out; the look is free). */
-export function fallShowPose() { return show && show.t < FALL_SHOW ? show : null; }
+/* The show has the stick (and the camera) till the dive. */
+export function fallShowOn() { return !!show && show.r < EXIT.dive; }
+/* For your own body's pose (view/third-person.js): { r (real s), yaw } in
+   the show. */
+export function fallShowPose() { return show && exitClock(show.r) < EXIT.show ? show : null; }
+/* How far behind the plane you left is drawn (royale-planes.js riddenLag). */
+export function fallShowLag() { return show ? Math.max(0, show.r - exitClock(show.r)) : 0; }
 /* What the tests read. */
 export function fallShowState() {
-  return show ? { t: show.t, back: show.back, shot: shotAt(show.t), view: show.view } : null;
+  return show ? { r: show.r, d: exitClock(show.r), shot: shotAt(show.r), view: show.view, lag: fallShowLag(), slow: exitSlowK(show.r) } : null;
 }
-function shotAt(t) {
-  if (t >= FALL_SHOW) return "behind";
-  return t < FALL_CUTS[0] ? "tumble" : t < FALL_CUTS[1] ? "ramp" : t < FALL_CUTS[2] ? "face" : "low";
+function shotAt(r) {
+  if (r < FALL_CUTS[0]) return "lip";
+  if (r < FALL_CUTS[1]) return "lookback";
+  if (r < FALL_CUTS[2]) return "face";
+  if (r < FALL_CUTS[2] + INTO_EYES) return "eyes";
+  return "fall";
 }
 
 /* Each frame of the fall, before the flight steps: a whoosh on each cut.
-   Returns whether the show still has the stick. The look stays yours (the
-   shots don't use it): line up where you'll fly while you watch. */
+   Returns { coast (the show still has the stick), dt (how far the fall
+   steps: the slow clock's) }. */
 export function updateFallShow(dt) {
-  if (!show) return false;
-  const was = show.t;
-  show.t += dt;
-  if (was >= FALL_SHOW) return false;
-  for (const c of [...FALL_CUTS, FALL_SHOW]) if (was < c && show.t >= c && !playSfx("whoosh", { gain: 0.5 })) game.audio.swing?.();
-  if (show.t >= FALL_SHOW) { aimAtIsland(show.centre, show.look0); game.showWaveBanner("Push forward to fly — look down to dive", 1800); }
-  return show.t < FALL_SHOW;
+  if (!show) return { coast: false, dt };
+  const was = show.r;
+  show.r += dt;
+  const step = exitClock(show.r) - exitClock(was);
+  for (const c of FALL_CUTS) if (was < c && show.r >= c && !playSfx("whoosh", { gain: c === FALL_CUTS[0] ? 0.7 : 0.45, rate: c === FALL_CUTS[0] ? 0.7 : 1 })) game.audio.swing?.();
+  if (was < EXIT.dive && show.r >= EXIT.dive) { aimAtIsland(show.centre, show.look0); game.showWaveBanner("Push forward to fly — look down to dive", 1800); }
+  vignette(exitSlowK(show.r));
+  return { coast: show.r < EXIT.dive, dt: step };
 }
+/* The slow-mo's own look: the edges darken (and the wind drops, royale.js). */
+export function fallSlowK() { return show ? exitSlowK(show.r) : 0; }
 
-/* The camera, after placeDropCamera has put it behind you: in the show (or
-   while you hold the view key, high enough) it goes to the shot instead.
-   `pos` your feet, `held` the view key, `height` above the ground.
-   Returns "fp" (first person: hide your body), "tp" or null. */
+/* The camera, after placeDropCamera has put it behind you. `pos` your
+   feet, `held` the view key, `height` above the ground. Returns "fp" (your
+   eyes, your body hidden), "fpfall" (your eyes, your body shown but your
+   head), "tp", or null (placeDropCamera's camera behind you). */
 export function placeFallShowCamera(camera, pos, held, height, dt) {
   if (!show) return lens(camera, 1);
   _body.copy(pos).y += 1.0;   // the belly, where the pose turns about
-  if (show.t < FALL_SHOW) {
-    const shot = shotAt(show.t);
-    if (shot === "tumble") {
-      // Your own eyes, turning with your body.
-      fallShowQuat(show.t, show.yaw, show.back, _q);
-      camera.position.copy(_v.set(0, 0.68, -0.08).applyQuaternion(_q).add(_body));
-      camera.quaternion.copy(_q);
-      lens(camera, 1);
-      return "fp";
-    }
-    placeShot(camera, shot, show.yaw, show.t);
-    return "tp";
+  const shot = shotAt(show.r);
+  if (shot === "lip") {
+    // Your own eyes, the body's turn (a lean out over the edge).
+    exitQuat(exitClock(show.r), show.yaw, show.yaw, _q);
+    camera.position.copy(_v.set(0, 0.68, -0.08).applyQuaternion(_q).add(_body));
+    camera.quaternion.copy(_q);
+    lens(camera, 1);
+    return "fp";
   }
-  // Hold-to-view: side, front, low, 1.5 s each, while it's held.
+  if (shot === "lookback") { lookBack(camera); return "tp"; }
+  if (shot === "face") { faceShot(camera, dt); return "tp"; }
+  if (shot === "eyes") {
+    // From the face shot round behind your head and into your eyes.
+    const k = smooth((show.r - FALL_CUTS[2]) / INTO_EYES);
+    if (!show.from) show.from = { p: camera.position.clone(), q: camera.quaternion.clone() };
+    eyes(camera);
+    camera.position.lerpVectors(show.from.p, camera.position, k);
+    camera.quaternion.slerpQuaternions(show.from.q, camera.quaternion, k);
+    lens(camera, 1);
+    return k > 0.85 ? "fpfall" : "tp";
+  }
+  // The fall. Hold-to-view: side, front, low, 1.5 s each, while it's held.
   if (held && height > VIEW_FLOOR) {
     show.view = Math.floor(show.holdT / VIEW_EVERY) % 3;
     show.holdT += dt;
-    placeShot(camera, VIEWS[show.view], game.look.yaw, show.holdT);
+    placeShot(camera, VIEWS[show.view], game.look.yaw);
     return "tp";
   }
   if (show.view >= 0) { show.view = -1; show.holdT = 0; }
-  return lens(camera, 1);
+  lens(camera, 1);
+  // First person (user, 2026-10-30); the POV key flips it for this fall
+  // (endFallShow puts your setting back).
+  if (!!game.settings?.thirdPerson !== show.pov) return null;
+  eyes(camera);
+  return "fpfall";
 }
+
+/* Your eyes in the fall: at your head, looking where you look. */
+function eyes(camera) {
+  headAt(_head);
+  camera.position.copy(_head);
+  camera.quaternion.setFromEuler(_eu.set(game.look.pitch, game.look.yaw, 0, "YXZ"));
+}
+
+/* The look back: over your shoulder, from the side away from the plane, a
+   longer lens; you spin in the front of the frame, the open ramp behind
+   you (the jumpmaster in the door, the bots in their seats). */
+function lookBack(camera) {
+  headAt(_head);
+  show.ramp(_aim);
+  const toPlane = _v.copy(_aim).sub(_head);
+  const dist = toPlane.length() || 1;
+  toPlane.divideScalar(dist);
+  const side = _up.set(0, 1, 0).cross(toPlane).normalize();
+  // Behind you (away from the plane), up a little and off to one side; it
+  // drifts round slowly while the shot holds.
+  const k = (show.r - FALL_CUTS[0]) / (FALL_CUTS[1] - FALL_CUTS[0]);
+  _cam.copy(_head).addScaledVector(toPlane, -3.4).addScaledVector(side, 1.0 - 0.8 * k);
+  _cam.y += 1.5;
+  camera.position.copy(_cam);
+  // Aimed past you at the door, so you sit low in the frame and the door's
+  // up behind you; a lens long enough to bring it close.
+  camera.lookAt(_v.copy(_head).lerp(_aim, 0.3));
+  lens(camera, Math.max(1.2, Math.min(2.4, dist / 9)));
+}
+
+/* Round in front of you: your face and body as the hands come in. You're
+   tipped face down by now, so it's from out in front and below, looking up
+   into your face; it follows your face round, slowly (you're still
+   turning). */
+function faceShot(camera, dt) {
+  headAt(_head);
+  // (the body's facing, as the pose turns it: royale-exit.js exitQuat)
+  exitQuat(exitClock(show.r), show.yaw, game.localRig?.root.rotation.y ?? show.yaw, _q);
+  const fwd = _v.set(0, 0, -1).applyQuaternion(_q);
+  if (!show.front) show.front = fwd.clone();
+  show.front.lerp(fwd, Math.min(1, dt * 1.6)).normalize();
+  camera.position.copy(_head).addScaledVector(show.front, 2.4);
+  camera.up.set(0, 1, 0);
+  camera.lookAt(_aim.copy(_head).lerp(_body, 0.4));
+  lens(camera, 1.15);
+}
+
+const smooth = (k) => (k <= 0 ? 0 : k >= 1 ? 1 : k * k * (3 - 2 * k));
 
 /* A longer lens for the shots (game.js keeps the fov; the zoom is ours, as
    in club-entry-cine.js). Returns null, for placeFallShowCamera's "not
@@ -133,6 +204,28 @@ export function placeFallShowCamera(camera, pos, held, height, dt) {
 function lens(camera, z) {
   if (camera.zoom !== z) { camera.zoom = z; camera.updateProjectionMatrix(); }
   return null;
+}
+
+/* Your own head shown or not (in the fall's first person the body is
+   seen, the head would fill the view). */
+function setHead(on) {
+  const hp = game.localRig?.parts?.headPivot;
+  if (hp) hp.visible = on;
+}
+export function fallHeadShown(on) { setHead(on); }
+
+/* The slow-mo's darkened edges. */
+let vig = null;
+function vignette(k) {
+  if (!vig) {
+    if (k <= 0) return;
+    vig = document.createElement("div");
+    vig.className = "to-exit-slowmo";
+    vig.setAttribute("aria-hidden", "true");
+    vig.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:5;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 45%,rgba(8,10,20,.85) 100%);opacity:0;";
+    document.body.append(vig);
+  }
+  vig.style.opacity = String(k * 0.75);
 }
 
 const VIEWS = ["side", "front", "low"];
@@ -143,31 +236,13 @@ function headAt(out) {
   if (head) { head.updateWorldMatrix(true, false); return head.getWorldPosition(out); }
   return out.copy(_body).y += 0.6;
 }
-function placeShot(camera, shot, yaw, t) {
+function placeShot(camera, shot, yaw) {
   const fx = -Math.sin(yaw), fz = -Math.cos(yaw);   // your facing
   const rx = Math.cos(yaw), rz = -Math.sin(yaw);    // your right
   headAt(_head);
-  // Aimed between your face and your chest: the face high in the frame,
-  // the body under it.
-  const aim = _v.copy(_head).lerp(_body, 0.3);
-  _up.set(0, 1, 0);
-  let frame = 1.3;   // the lens
-  if (shot === "ramp") {
-    // Left behind where you went out, a long lens on you falling away
-    // (you're face up): framed as if from 3 m.
-    _cam.copy(show.exit);
-    frame = Math.max(1, Math.min(24, _cam.distanceTo(aim) / 3));
-  } else if (shot === "face") {
-    // Just over you on your back, a little toward your feet, looking down
-    // into your face; your head at the top of the frame.
-    _cam.copy(_head).addScaledVector(_v.set(fx, 0, fz), 0.9);
-    _cam.y += 2.3;
-    aim.copy(_head).lerp(_body, 0.25);
-    _up.set(-fx, 0, -fz);
-    frame = 1.15;
-  } else if (shot === "low") {
-    // Close below you and ahead of your head: you roll over onto your
-    // belly into it, face first.
+  const aim = _aim.copy(_head).lerp(_body, 0.3);
+  let frame = 1.3;
+  if (shot === "low") {
     _cam.set(_head.x + fx * 1.0 + rx * 0.6, _head.y - 2.1, _head.z + fz * 1.0 + rz * 0.6);
     frame = 1.45;
   } else if (shot === "side") {
@@ -178,9 +253,8 @@ function placeShot(camera, shot, yaw, t) {
     _cam.set(_head.x + fx * 2.8, _head.y - 1.1, _head.z + fz * 2.8);
   }
   camera.position.copy(_cam);
-  camera.up.copy(_up);
-  camera.lookAt(aim);
   camera.up.set(0, 1, 0);
+  camera.lookAt(aim);
   lens(camera, frame);
 }
 /* Tests: where your face sits on screen (-1..1 both ways, z < 1 in front

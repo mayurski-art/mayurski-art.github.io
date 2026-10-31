@@ -9,14 +9,16 @@
 // planemates), so nothing goes on the wire.
 //
 //   the jumpmaster   by the crew hatch; walks down to you as you sit
-//                    (T-19.6), leans in at T-16 and taps his face (mask on),
-//                    points aft at T-9, goes ahead to the ramp, holds the
-//                    strap; waves you round at T-1.6, steps in front of
-//                    you, and at the green shoves you out backwards
-//                    (user, 2026-10-18), then GO GO GO
+//                    you (T-19.6), leans in at T-16 and taps his face (mask on),
+//                    points aft at T-9, goes ahead to the ramp's control
+//                    panel by the door and presses its green button: the
+//                    ramp comes down (user, 2026-10-31); as you back up for your run (docs/ROYALE-
+//                    EXIT.md) he points out of the door, a flat hand up for
+//                    "wait for it", then GO GO GO, chopping at the door,
+//                    still waving as you look back from the sky
 //   the squad mate   in the seat across from you (the bot drawn there is
 //                    hidden: crewSeat()); masks up with you, stands at T-8,
-//                    lines up beside you at the ramp, turns with you
+//                    lines up beside you at the ramp, facing out
 //
 // Plane-local: -z is the nose, the ramp's hinge is at z 6.25, the seats are
 // at x ±1.3 (royale-hold.js SEAT_SPOTS).
@@ -25,7 +27,7 @@ import * as THREE from "three";
 import { game } from "../core/state.js?v=st1";
 import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, reachHand } from "../characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-pk1";
 import { poseSeated } from "./rp-roles.js?v=rp1b7-cd1-sh1-dj2-or1-bw2-sp1";
-import { SEAT_SPOTS } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
+import { SEAT_SPOTS, RAMP_PANEL } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6-jx2";
 import { oxygenMask } from "./royale-mask.js?v=dc1";
 import { setReliefFace } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-hl1-mg1-sp1-rh1-ci6-pm1";
 
@@ -35,15 +37,16 @@ export const CREW = {
   jmBy: -22.4,            // ...and is by you
   lean: [-22, -20.8],     // leans in, taps his face: mask on
   point: [-15.2, -14.2],    // points aft: the ramp
-  jmToRamp: -14.6,         // goes ahead to the ramp
+  jmToRamp: -14.6,         // goes ahead to the ramp's control panel
+  atPanel: -10.4,          // ...there, at his wall by the door
+  press: [-10.0, -9.2],    // the hand up to the green button, and down
+  push: [-9.6, -9.3],      // his thumb on it (the ramp starts down at -9.2: PLANES.rampAt)
   stand: -13.7,            // the squad mate's up
   mateWalk: -13.4,
-  wave: [-1.7, -0.4],     // round you go: back to the door
-  turn: [-1.6, -0.3],     // you both turn to face into the hold
-  stepIn: [-0.9, -0.2],   // he steps in, square in front of you
-  shove: [0.02, 0.6],     // both hands to your chest and out: the push
-  shoveHit: 0.3,          // ...his hands land (royale-cine.js sends you back)
-  go: [0.6, 2.2],         // GO GO GO
+  door: [-1.7, -0.7],     // as you back up: points out of the door
+  wait: [-0.6, 0.1],      // a flat hand up: wait for it
+  go: [0.05, 0.6],        // GO GO GO, you off the lip
+  wave: [0.45, 4],         // ...then a wave goodbye at the door as the stick goes, while you look back from the sky
   mask: [-20.6, -14.8],    // the squad mate's mask on
   seatY: 0.44,
 };
@@ -126,10 +129,12 @@ export function crewState() {
     jmLean: w(jr.parts.head).sub(w(jr.parts.hips)).dot(fwd),
     jmHandToMouth: w(jr.parts.handR).distanceTo(w(jr.parts.head, 0.12 * g.width / 2, -0.42 * g.height / 2, 0.05)),
     // the squad mate's hands from his mask
+    // his right hand over his head (the wave goodbye)
+    jmHandOverHead: w(jr.parts.handR).y - w(jr.parts.head).y,
     mateHandsToMask: Math.max(w(mr.parts.handL).distanceTo(w(crew.mate.mask)), w(mr.parts.handR).distanceTo(w(crew.mate.mask))),
-    // where his hands are (world): the shove lands them on your chest
+    // where his hands are (world)
     jmHands: w(jr.parts.handL).add(w(jr.parts.handR)).multiplyScalar(0.5).toArray(),
-    jmReach: crew.jm.reach ?? null,   // closest his hands came to your chest in the shove
+    jmHandR: w(jr.parts.handR).toArray(),
   };
 }
 
@@ -204,7 +209,6 @@ function reachFrom(rig, side, target, k, pole) {
   _hang.set(side * 0.3, -0.62, 0.02).multiplyScalar(rig.scale).lerp(target, k);
   reachHand(rig, side, _hang, pole);
 }
-const POLE_OUT_R = new THREE.Vector3(1, -0.7, -0.4), POLE_OUT_L = new THREE.Vector3(-1, -0.7, -0.4);
 const POLE_DOWN_R = new THREE.Vector3(0.6, -1, 0.2), POLE_DOWN_L = new THREE.Vector3(-0.6, -1, 0.2);
 
 /* Each frame of the scene: `r` the royale state, `t` the drop clock,
@@ -217,17 +221,10 @@ export function updateCrew(r, t, dt, you, side, seatZ) {
   // ---- the jumpmaster
   const jz = Math.max(-4.9, Math.min(4.6, seatZ - 1.0));
   const toYou = [{ x: 0, z: -5.0 }, { x: side * 0.62, z: -4.9 }, { x: side * 0.62, z: jz }];
-  const toRamp = [{ x: side * 0.62, z: jz }, { x: side * 0.45, z: jz + 0.3 }, { x: side * 0.45, z: 3.6 }, { x: side * 1.0, z: 4.1 }];
-  // Then square in front of you at the ramp (you face in, he faces you).
-  const rampAt = RAMP_SPOT(side), front = { x: rampAt.x, z: rampAt.z - 0.82 };
+  const toRamp = [{ x: side * 0.62, z: jz }, { x: side * 0.45, z: jz + 0.3 }, { x: side * 0.45, z: 3.6 }, { x: side * 1.0, z: RAMP_PANEL.z }];
   const jp = t < CREW.jmToRamp
     ? pathAt(toYou, CREW.jmWalk, paceFor(toYou, CREW.jmWalk, CREW.jmBy, 1.4), t, jm.pos)
-    : t < CREW.stepIn[0]
-      ? pathAt(toRamp, CREW.jmToRamp, paceFor(toRamp, CREW.jmToRamp, -5.6, 1.6), t, jm.pos)
-      : pathAt([toRamp.at(-1), front], CREW.stepIn[0], paceFor([toRamp.at(-1), front], CREW.stepIn[0], CREW.stepIn[1], 1), t, jm.pos);
-  // The shove: his weight goes in behind his hands, a short step at you.
-  const lunge = shoveK(t);
-  jp.z += lunge * 0.16;
+    : pathAt(toRamp, CREW.jmToRamp, paceFor(toRamp, CREW.jmToRamp, CREW.atPanel, 1.6), t, jm.pos);
   let jyaw = jp.yaw, jpitch = 0;
   const atYou = Math.atan2(-(you.x - jp.x), -(you.z - jp.z));
   if (t < CREW.jmWalk) jyaw = Math.PI;   // by the hatch, looking down the hold
@@ -237,21 +234,17 @@ export function updateCrew(r, t, dt, you, side, seatZ) {
     const aft = smooth(CREW.point[0] - 0.4, CREW.point[0], t);
     jyaw = lerpAngle(atYou, Math.PI, aft);
     jpitch = -0.4 * (1 - aft);
-  } else if (!jp.moving && t >= CREW.stepIn[0]) jyaw = Math.PI;   // facing you square (you face -z, he faces +z)
+  } else if (!jp.moving && t >= CREW.press[0] - 0.4 && t < CREW.press[1] + 0.2) jyaw = -side * Math.PI / 2;   // to his wall: the panel
+  else if (!jp.moving && t >= CREW.door[0]) jyaw = Math.PI;   // facing out of the door with you
   else if (!jp.moving) jyaw = atYou;   // at the ramp: watching you
   const jrig = place(jm, { x: jp.x, z: jp.z, yaw: jyaw, moving: jp.moving, mps: 2.4, pitch: jpitch, dt });
   poseJumpmaster(jrig, t);
-  // How close his hands came to your chest as they landed (the tests read
-  // it): still plane-local here, before carry().
-  if (t >= CREW.shoveHit - 0.02 && t <= CREW.shoveHit + 0.12) {
-    const hl = jrig.parts.handL.getWorldPosition(_a), hr = jrig.parts.handR.getWorldPosition(_b);
-    const d = hl.add(hr).multiplyScalar(0.5).distanceTo(_c.set(rampAt.x, 1.23, rampAt.z));
-    jm.reach = Math.min(jm.reach ?? 9, d);
-  } else if (t < CREW.shove[0]) jm.reach = null;
+  pressButton(jrig, t, side, r.drop.hold);
   jm.lastT = t;
   carry(jrig, m);
 
-  // ---- the squad mate
+  // ---- the squad mate (solo only: a squad has its own, in its file)
+  if (r.file?.n > 1) { mate.rig.root.visible = false; mate.mask.visible = false; return; }
   const ms = crewSeat(r.seat), spot = SEAT_SPOTS[ms];
   const mside = Math.sign(spot.x);
   const seatYaw = mside < 0 ? -Math.PI / 2 : Math.PI / 2;
@@ -266,9 +259,8 @@ export function updateCrew(r, t, dt, you, side, seatZ) {
   } else {
     const mp = pathAt(mPath, CREW.mateWalk, paceFor(mPath, CREW.mateWalk, -3.6, 2.2), t, mate.pos);
     let yaw = mp.yaw;
-    // At the ramp facing aft, then round to face into the hold (turning
-    // toward his own wall, as you turn toward yours).
-    if (!mp.moving) yaw = Math.PI + mside * Math.PI * smooth(CREW.turn[0], CREW.turn[1], t);
+    // At the ramp facing aft, out of the door with you.
+    if (!mp.moving) yaw = Math.PI;
     mrig = place(mate, { x: mp.x, z: mp.z, yaw, moving: mp.moving, mps: 2.6, dt });
     mate.mask.visible = false;
   }
@@ -293,22 +285,15 @@ function poseJumpmaster(rig, t) {
     // Arm straight out ahead at shoulder height: the way he faces, aft.
     reachFrom(rig, 1, _a.set(0.2 * s, 0.12 * s, -0.62 * s), point, POLE_DOWN_R);
   }
-  const wave = smooth(CREW.wave[0], CREW.wave[0] + 0.25, t) * (1 - smooth(CREW.wave[1], CREW.wave[1] + 0.3, t));
-  if (wave > 0) {
-    // Forearm up beside his head, the finger drawing small circles.
-    const c = (t - CREW.wave[0]) * 9;
-    reachFrom(rig, 1, _a.set((0.3 + Math.cos(c) * 0.05) * s, (0.28 + Math.sin(c) * 0.05) * s, -0.22 * s), wave, POLE_DOWN_R);
+  const door = smooth(CREW.door[0], CREW.door[0] + 0.3, t) * (1 - smooth(CREW.door[1] - 0.2, CREW.door[1], t));
+  if (door > 0) {
+    // Arm out at the door ahead of him, a little up: out there.
+    reachFrom(rig, 1, _a.set(0.18 * s, 0.2 * s, -0.62 * s), door, POLE_DOWN_R);
   }
-  const up = smooth(CREW.shove[0], CREW.shove[0] + 0.12, t) * (1 - smooth(CREW.shove[1] - 0.15, CREW.shove[1], t));
-  if (up > 0) {
-    // Both hands up flat at his chest, then out at yours, his body behind them.
-    const k = shoveK(t);
-    p.torso.rotation.x += LEAN * 0.22 * Math.max(0, k);
-    rig.root.updateMatrixWorld(true);
-    for (const side of [-1, 1]) {
-      _a.set(side * 0.16 * s, 0.06 * s, (-0.3 - 0.36 * k) * s);
-      reachFrom(rig, side, _a, up, side > 0 ? POLE_OUT_R : POLE_OUT_L);
-    }
+  const wait = smooth(CREW.wait[0], CREW.wait[0] + 0.2, t) * (1 - smooth(CREW.wait[1] - 0.1, CREW.wait[1], t));
+  if (wait > 0) {
+    // A flat hand up at shoulder height: hold it... hold it...
+    reachFrom(rig, 1, _a.set(0.26 * s, 0.22 * s, -0.36 * s), wait, POLE_DOWN_R);
   }
   const go = smooth(CREW.go[0], CREW.go[0] + 0.15, t) * (1 - smooth(CREW.go[1] - 0.3, CREW.go[1], t));
   if (go > 0) {
@@ -318,18 +303,31 @@ function poseJumpmaster(rig, t) {
     _c.set(0.18 * s, -0.05 * s, -0.6 * s);
     reachFrom(rig, 1, _a.copy(_c).lerp(_b, chop), go, POLE_DOWN_R);
   }
+  const wave = smooth(CREW.wave[0], CREW.wave[0] + 0.3, t) * (1 - smooth(CREW.wave[1] - 0.3, CREW.wave[1], t));
+  if (wave > 0) {
+    // The hand up over his head, side to side.
+    const sway = Math.sin((t - CREW.wave[0]) * 7);
+    reachFrom(rig, 1, _a.set((0.3 + 0.14 * sway) * s, 0.5 * s, -0.18 * s), wave, POLE_DOWN_R);
+  }
   rig.body?.update?.();
   rig.root.updateMatrixWorld(true);
 }
 
-/* The shove's reach: 0 hands at his chest .. 1 arms out straight; the
-   wind-up draws them in first. */
-function shoveK(t) {
-  const [a, b] = CREW.shove, hit = CREW.shoveHit;
-  if (t < a || t > b) return 0;
-  if (t < hit - 0.08) return -0.25 * smooth(a, hit - 0.08, t);          // drawn back
-  if (t < hit) return -0.25 + 1.25 * smooth(hit - 0.08, hit, t);         // out
-  return 1 - smooth(hit + 0.12, b, t);                                    // and back down
+/* The ramp's button (royale-hold.js RAMP_PANEL): his right hand up to
+   it, the thumb in, and down again; the button goes in and lights up. */
+function pressButton(rig, t, side, hold) {
+  const reach = smooth(CREW.press[0], CREW.press[0] + 0.4, t) * (1 - smooth(CREW.press[1] - 0.3, CREW.press[1], t));
+  const push = smooth(CREW.push[0], CREW.push[0] + 0.1, t) * (1 - smooth(CREW.push[1] - 0.1, CREW.push[1], t));
+  hold?.pressRamp(side, push);
+  if (reach <= 0) return;
+  rig.root.updateMatrixWorld(true);
+  // (posed plane-local: the rig's world is the plane's frame till carry())
+  RAMP_PANEL.at(side, _c);
+  _c.x -= side * (0.06 - 0.045 * push);   // the hand just off the button, then on it
+  _c.y += 0.05;   // (the IK places the wrist: the hand hangs below it)
+  reachFrom(rig, 1, rig.parts.chest.worldToLocal(_c), reach, POLE_DOWN_R);
+  rig.body?.update?.();
+  rig.root.updateMatrixWorld(true);
 }
 
 /* The squad mate in his seat: hands on his knees; with you, both hands

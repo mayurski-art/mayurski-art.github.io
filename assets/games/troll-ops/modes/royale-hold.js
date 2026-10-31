@@ -28,6 +28,45 @@ export const HOLD = {
   seats: 9,
 };
 export const RAMP_END = HOLD.hinge + HOLD.rampLen;
+
+/* The ramp's controls (user, 2026-10-31: the jumpmaster presses a green
+   button and the ramp opens): a panel on each wall by the door, hand
+   height, under the jump lights, a big green button (down) over a red one
+   (up). Plane-local; RAMP_PANEL.at(side) is the green button's face. */
+export const RAMP_PANEL = {
+  z: 5.35, y: 1.12, x: 1.47,
+  at: (side, out = new THREE.Vector3()) => out.set(side * (RAMP_PANEL.x - 0.075), RAMP_PANEL.y + 0.04, RAMP_PANEL.z),
+};
+const PANEL_MATS = {};
+function rampPanel(side) {
+  const M = PANEL_MATS;
+  M.plate ??= new THREE.MeshStandardMaterial({ color: 0x2a2d30, roughness: 0.6, metalness: 0.5 });
+  M.stripe ??= new THREE.MeshStandardMaterial({ color: 0xf2c230, roughness: 0.5 });
+  M.rim ??= new THREE.MeshStandardMaterial({ color: 0x8a8f94, roughness: 0.4, metalness: 0.8 });
+  const g = new THREE.Group();
+  g.name = "Hold_RampPanel";
+  g.position.set(side * RAMP_PANEL.x, RAMP_PANEL.y, RAMP_PANEL.z);
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.34, 0.24), M.plate);
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.04, 0.24), M.stripe);
+  stripe.position.y = 0.15;
+  g.add(plate, stripe);
+  // The buttons stand out of the plate toward the aisle, round, in a rim.
+  const button = (y, color, r) => {
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(r + 0.012, r + 0.012, 0.02, 24), M.rim);
+    rim.rotation.z = Math.PI / 2;
+    rim.position.set(-side * 0.032, y, 0);
+    const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.5, roughness: 0.35 });
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.05, 0.03, 24), mat);
+    b.rotation.z = Math.PI / 2;
+    b.position.set(-side * 0.05, y, 0);
+    b.userData.out = b.position.x;
+    g.add(rim, b);
+    return b;
+  };
+  g.userData.green = button(0.04, 0x22d34a, 0.05);
+  button(-0.09, 0xd8262b, 0.035);
+  return g;
+}
 /* The nine seats' pans (plane-local x, z): build_c130_hold.blender.py
    SEATS, five down the port wall, four down the starboard. The glb's
    Hold_Seat_N empties say the same; this copy is for before it loads. */
@@ -171,7 +210,8 @@ export class Hold {
       }
     });
     for (const m of this.mats.glow) { m.emissive = new THREE.Color(0xfff1d8); m.emissiveIntensity = 1.6; }
-    this.group.add(plane, inside);
+    this.panels = [rampPanel(-1), rampPanel(1)];
+    this.group.add(plane, inside, ...this.panels);
     this.plane = plane;
     this.inside = inside;
     this.setRamp(this.rampK, this.retractK || 0);
@@ -214,6 +254,16 @@ export class Hold {
         m.emissiveIntensity = mode === key ? (key === "green" ? 1.4 : 2.4) : 0;
       }
     }
+  }
+
+  /* The jumpmaster's thumb on the green button (`side` his wall): 0 out ..
+     1 pushed in, lit up. */
+  pressRamp(side, k) {
+    const p = this.panels?.[side < 0 ? 0 : 1];
+    if (!p) return;
+    const b = p.userData.green;
+    b.position.x = b.userData.out + side * 0.018 * k;
+    b.material.emissiveIntensity = 0.5 + 2.2 * k;
   }
 
   /* Props spin (the rate is what reads as a turboprop at 30-60 fps, not the real 1020 rpm). */

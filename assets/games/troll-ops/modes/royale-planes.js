@@ -19,7 +19,7 @@ import * as THREE from "three";
 import { insidePolygon } from "../maps/edge.js?v=or1";
 import { seededRng } from "./royale-zone.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1-fl1-or1-rt1-ut1-gf1-tg1-rb4-hp1-bx1-mg1-sp1-zw1-tfb8-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1-mrc1-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-mt2-sk1-hb4";
 import { loadModel } from "../maps/battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
-import { Hold, HOLD, RAMP_END, holdDaylight } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
+import { Hold, HOLD, RAMP_END, holdDaylight } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6-jx2";
 
 export const PLANES = {
   count: 8,           // 8 x 9 = 72 seats for Trollface Island's 69 (user 2026-10-25; 12 for 100 before)
@@ -251,6 +251,7 @@ export class Squadron {
     this.flights = planFlights(seed, ctx.centre, ctx.edge);
     this.t = -90;
     this.ridden = -1;
+    this.riddenLag = 0;      // s: the plane you jumped from, drawn this far behind (royale-exit.js: the slow-mo look back)
     this.hold = null;
     this.parts = [];         // { mesh: InstancedMesh, local: Matrix4 per instance-kind }
     this.template = null;
@@ -335,7 +336,7 @@ export class Squadron {
     const P = PLANES;
     this.root.visible = t < P.gone;
     if (!this.root.visible) return;
-    for (let i = 0; i < this.flights.length; i++) flightMatrix(this.flights[i], t, this.planeM[i]);
+    for (let i = 0; i < this.flights.length; i++) flightMatrix(this.flights[i], i === this.ridden ? t - this.riddenLag : t, this.planeM[i]);
     const door = this.doorK(t), ramp = this.rampK(t), retract = this.retractK(t);
     if (this.template) {
       for (const p of this.props) p.rotation.z += 31 * dt;

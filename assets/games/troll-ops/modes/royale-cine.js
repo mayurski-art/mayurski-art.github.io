@@ -24,9 +24,11 @@
 //   T-8            seatbelt off, on your feet
 //   T-7.4 .. T-3.4 down the aisle to the ramp's hinge (the jumpmaster went
 //                  ahead); the ramp lowers from T-5, red light since T-15
-//   T-1.6 .. T-0.3 you turn round to face into the hold: back to the door
-//   T-0            green: the jumpmaster shoves you (user, 2026-10-18)
-//                  and you go out backwards off the ramp
+//   T-1.75 .. T-0.6 the run-up (docs/ROYALE-EXIT.md): slow steps backwards
+//                  up the ramp, still facing out of the door
+//   T-0.6 .. T-0   a small crouch, set
+//   T-0            green: the dash down the ramp and off the lip (royale.js
+//                  DASH_SPEED); the jump is royale-fall.js's
 //
 // Everything runs off the drop clock (royale.planeT), which every client
 // already shares, so nothing new goes on the wire. A client that boards
@@ -34,13 +36,15 @@
 
 import * as THREE from "three";
 import { game } from "../core/state.js?v=st1";
-import { beginStreakHold, endStreakHold } from "../streaks/hold.js?v=sh1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1";
-import { SEAT_SPOTS } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
+import { beginStreakHold, endStreakHold } from "../streaks/hold.js?v=sh1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-cl1-bp1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-jx2-jx3-jx4-jx5";
+import { SEAT_SPOTS, RAMP_PANEL } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6-jx2";
 import { oxygenMask } from "./royale-mask.js?v=dc1";
 import { familyPhoto, setPhotoThumb } from "./royale-photo.js?v=dc1-ph1-op1";
 import { ipod, drawIpod, pressIpod, layoutIpodCord } from "./royale-ipod.js?v=dc1-rfx1";
-import { updateCrew, hideCrew, crewSeat, yourRampPath, pathAt, paceFor, CREW } from "./royale-crew.js?v=dc2-rf1-ls1-rr1-ld2-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-tx1-sp1-kbt1-gb1-rh1-ci6-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
+import { updateCrew, hideCrew, crewSeat, yourRampPath, pathAt, paceFor } from "./royale-crew.js?v=dc2-rf1-ls1-rr1-ld2-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-tx1-sp1-kbt1-gb1-rh1-ci6-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6-jx2-jx3-jx5";
 import { playSfx } from "../sound/sfx-files.js?v=dc4-nd1-wb1";
+import { fileSpot } from "./royale-file.js?v=fl1-jx3";
+import { STANCE } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1-hb4";
 
 export const CINE = {
   start: -28,       // drop clock: the scene takes over
@@ -61,8 +65,11 @@ export const CINE = {
   release: 0,       // the green: hands you back, at the ramp
   stand: [-14, -13.45],      // seatbelt off, up on your feet
   walkFrom: -13.4,          // down the aisle to the ramp
-  walkBy: -9.4,            // ...there by now, whatever the seat
-  turn: [-1.6, -0.3],      // round to face into the hold
+  walkBy: -10.1,           // ...there by now, whatever the seat (to see the button pressed)
+  watchPress: [-10.2, -8.9],   // the head turns to watch the jumpmaster press the ramp's button
+  backUp: [-1.75, -0.6],   // the run-up: backwards up the ramp, facing out
+  backBy: 1.6,             // m
+  crouch: [-0.6, 0],       // set: a small crouch till the green
   lookDown: [-6, -1.75],   // down past the edge once the ramp's slid in: a long look (user, 2026-10-18)
   lean: 1.3,               // m: the head out past the edge to look straight down (the floor hid most of it)
   zoom: 1.75,              // a longer lens looking down: the island bigger, the floor's edge out of frame
@@ -82,7 +89,8 @@ const LINES = [
   { at: -18, until: -15, who: "Jumpmaster", text: "Deep breaths. That's it." },
   { at: -15, until: -13, who: "Jumpmaster", text: "Okay, off. On your feet." },
   { at: -13, until: -10.6, who: "Jumpmaster", text: "Get to the ramp. Wait for green." },
-  { at: -1.7, until: 0, who: "Jumpmaster", text: "Back to the door." },
+  { at: -1.7, until: -0.6, who: "Jumpmaster", text: "Back up. Get a run at it." },
+  { at: -0.6, until: 0, who: "Jumpmaster", text: "Wait for it..." },
   { at: 0, until: 1.4, who: "Jumpmaster", text: "GO! GO! GO!" },
 ];
 
@@ -226,19 +234,25 @@ export function updateDropCine(r, dt) {
     return false;
   }
   cine.t = t;
-  if (!game.player.alive || t >= CREW.shoveHit + 0.05 || (d.phase !== "lobby" && d.phase !== "run")) {
-    // His hands land: you go over backwards (royale.js runs you off the ramp).
-    const shoved = game.player.alive && t >= CREW.shoveHit + 0.05;   // a beat after his hands land
+  if (!game.player.alive || t >= CINE.release || (d.phase !== "lobby" && d.phase !== "run")) {
+    // The green: up out of the crouch and the dash (royale.js runs you off
+    // the ramp, facing out).
+    const go = game.player.alive && t >= CINE.release;
     finish();
-    if (shoved) {
-      r.pushed = { yaw: game.look.yaw };
+    if (game.move.stance === STANCE.CROUCH) game.move.setStance(STANCE.STAND);
+    if (go) {
+      r.dash = { yaw: game.look.yaw };
       r.autoRun = true;
       cine.tailUntil = CINE.release + CINE.tail;
+      cine.exitYou = { ...localYou(r) };
     }
     tail(r, t, dt);
     return false;
   }
   pin(r, t);
+  // Set for the run: a small crouch.
+  const set = t >= CINE.crouch[0];
+  if (set && game.move.stance !== STANCE.CROUCH) game.move.setStance(STANCE.CROUCH);
   updateCrew(r, t, dt, cine.walk, cine.side, cine.seatZ);
   // The mask's off: the hands are empty for the walk.
   if (t >= CINE.lower[1] + 0.1 && game.player.holding === "streak" && game.streakDeviceKind === "mask") endStreakHold(true);
@@ -273,11 +287,20 @@ function localYou(r) {
 /* The seat the squad mate takes (royale.js hides the bot drawn in it), or
    -1 when there's no scene. */
 export function dropCineCrewSeat(r) {
+  if (r?.file?.n > 1) return -1;   // a squad: your own teammates, no stick-figure mate
   return (cine.on || (cine.done && cine.path)) && r ? crewSeat(r.seat) : -1;
 }
 /* At the ramp facing in when the green came (the green light's banner says
    how to go out). */
-export function dropCineAtRamp() { return (cine.on && cine.t >= CINE.turn[0]) || (cine.done && cine.tailUntil != null); }
+export function dropCineAtRamp() { return (cine.on && cine.t >= CINE.backUp[0]) || (cine.done && cine.tailUntil != null); }
+
+/* Out of the plane, through the jump's look back (royale.js): the crew
+   still at the door, on the slowed clock the plane's drawn on. */
+export function updateExitCrew(r, dt) {
+  if (!cine.done || !cine.path || !cine.exitYou) return;
+  const sq = r.drop.squadron;
+  updateCrew(r, r.planeT - (sq.riddenLag || 0), dt * 0.3, cine.exitYou, cine.side, cine.seatZ);
+}
 
 /* T-36 on: from wherever you are in the hold to your seat (down your own
    side's aisle, round behind the pallet if you're across the hold from
@@ -325,8 +348,10 @@ export function dropCineOut() {
   cine.tailUntil = null;
   showUi(false);
 }
-/* The scene's in first person: its hands and props only show there. */
-export function dropCineFirstPerson() { return cine.on; }
+/* The scene's close-ups (the photo or the iPod, the mask) are first
+   person: its hands and props only show there. On your feet it's your POV
+   setting (user, 2026-10-30). */
+export function dropCineFirstPerson() { return cine.on && cine.t < CINE.stand[0]; }
 
 const t0 = (r) => r.planeT;
 function begin(r) {
@@ -338,6 +363,13 @@ function begin(r) {
   cine.side = seat.pos.x - o.x < 0 ? -1 : 1;
   cine.seatZ = seat.pos.z - o.z;
   cine.path = yourRampPath(cine.side, seat.pos.x - o.x, cine.seatZ);
+  // In a squad (royale-file.js, royale.js royaleFile): your place in the
+  // file down the middle, the front nearest the door.
+  cine.fileK = r.file?.n > 1 ? r.file.k : -1;
+  if (cine.fileK >= 0) {
+    const sp = fileSpot(cine.fileK);
+    cine.path = [...cine.path.slice(0, 2), { x: cine.side * 0.62, z: Math.min(4.6, sp.z - 0.3) }, sp];
+  }
   cine.pace = paceFor(cine.path, CINE.walkFrom, CINE.walkBy, 2.4);
   cine.head = cine.yaw;
   cine.last = null;
@@ -381,10 +413,13 @@ function pin(r, t) {
   const { pos } = seatOf(r);
   const o = r.drop.origin, p = game.move.pos;
   const w = pathAt(cine.path, CINE.walkFrom, cine.pace, t, cine.walk);
-  const x = o.x + w.x, z = o.z + w.z;
+  // The run-up: backwards up the ramp (toward the nose, -z), facing out.
+  const back = CINE.backBy * smooth(CINE.backUp[0], CINE.backUp[1], t);
+  const x = o.x + w.x, z = o.z + w.z - back;
   if (Math.abs(p.x - x) > 0.25 || Math.abs(p.z - z) > 0.25 || Math.abs(p.y - pos.y) > 0.3) game.move.reset(x, z, pos.y);
   else { p.x = x; p.z = z; }
   if (w.moving) game.move.velocity.set(-Math.sin(w.yaw) * cine.pace, 0, -Math.cos(w.yaw) * cine.pace);
+  else if (t > CINE.backUp[0] && t < CINE.backUp[1]) game.move.velocity.set(0, 0, -CINE.backBy / (CINE.backUp[1] - CINE.backUp[0]));
   else game.move.velocity.set(0, 0, 0);
   // Boots on the deck: a step every stride.
   if (cine.last) {
@@ -415,19 +450,29 @@ function look(t, dt) {
 /* On your feet: down the aisle the way you walk, then aft at the ramp
    watching it come down, then round to face into the hold (toward your own
    wall, where the jumpmaster holds the strap). */
-const _north = new THREE.Vector3(), _northQ = new THREE.Quaternion();
+const _north = new THREE.Vector3(), _northQ = new THREE.Quaternion(), _panel = new THREE.Vector3();
 function lookStanding(t, dt) {
   const w = cine.walk;
   let want;
   if (t < CINE.walkFrom) want = cine.yaw;
   else if (w.moving) want = w.yaw;
-  else want = Math.PI + cine.side * Math.PI * smooth(CINE.turn[0], CINE.turn[1], t);
-  if (t >= CINE.turn[0]) cine.head = want;   // the turn is the script's own
-  else cine.head += Math.atan2(Math.sin(want - cine.head), Math.cos(want - cine.head)) * Math.min(1, dt * 5);
-  const ramp = smooth(-9.4, -8.4, t) * (1 - smooth(CINE.turn[0], CINE.turn[0] + 0.5, t));
+  else want = Math.PI;   // at the ramp: facing out of the door
+  // Watching the jumpmaster press the ramp's green button (royale-crew.js),
+  // on his wall beside you.
+  const watch = smooth(CINE.watchPress[0], CINE.watchPress[0] + 0.4, t) * (1 - smooth(CINE.watchPress[1] - 0.5, CINE.watchPress[1], t));
+  if (watch > 0) {
+    const p = RAMP_PANEL.at(cine.side, _panel), you = cine.walk;
+    const at = Math.atan2(-(p.x - (you.x ?? 0)), -(p.z - (you.z ?? 0)));
+    want += Math.atan2(Math.sin(at - want), Math.cos(at - want)) * watch;
+  }
+  cine.head += Math.atan2(Math.sin(want - cine.head), Math.cos(want - cine.head)) * Math.min(1, dt * 5);
+  const ramp = smooth(-9.4, -8.4, t) * (1 - smooth(CINE.backUp[0], CINE.backUp[0] + 0.5, t));
+  // Backing up and set: eyes on the door, a little down at the ramp.
+  const set = smooth(CINE.backUp[0], CINE.backUp[0] + 0.4, t);
   // The ramp slides in under the floor (royale-planes.js retractAt): a look
   // straight down past the edge at the island, then back up for the turn.
-  const down = smooth(CINE.lookDown[0], CINE.lookDown[0] + 0.45, t) * (1 - smooth(CINE.lookDown[1] - 0.35, CINE.lookDown[1], t));
+  // (behind someone in a squad's file, you look out past them, not down)
+  const down = (cine.fileK > 0 ? 0 : 1) * smooth(CINE.lookDown[0], CINE.lookDown[0] + 0.45, t) * (1 - smooth(CINE.lookDown[1] - 0.35, CINE.lookDown[1], t));
   // Looking down, the head turns so the island's the right way up: map
   // north at the top, as it's drawn (user, 2026-10-18), whichever way the
   // plane runs. Yaw is in the hold's frame, so less the plane's heading.
@@ -438,7 +483,9 @@ function lookStanding(t, dt) {
     yaw += Math.atan2(Math.sin(north - yaw), Math.cos(north - yaw)) * down;
   }
   game.look.yaw = yaw + Math.sin(t * 0.55) * 0.02;
-  game.look.pitch = -0.04 - ramp * 0.14 - down * 1.32 + (w.moving ? Math.sin(t * 9) * 0.008 : 0) + Math.sin(t * 0.8) * 0.01;
+  // (a step's bob as you back up)
+  const bob = t > CINE.backUp[0] && t < CINE.backUp[1] ? Math.abs(Math.sin((t - CINE.backUp[0]) * 7)) * 0.012 : 0;
+  game.look.pitch = -0.04 - ramp * 0.14 * (1 - watch) - watch * 0.22 - down * 1.32 - set * 0.1 + bob + (w.moving ? Math.sin(t * 9) * 0.008 : 0) + Math.sin(t * 0.8) * 0.01;
   cine.lean = down * CINE.lean;
   cine.zoom = 1 + down * (CINE.zoom - 1);
 }
@@ -548,7 +595,7 @@ function startSong() {
   cine.song = { vol: m.volume, prevPlaying: m.playing, prevIndex: m.order[m.pos], prevPos: m.pos };
   m.playIndex(opener.track);
 }
-/* The scene's over (the shove, or a death): the song fades out over
+/* The scene's over (the green, or a death): the song fades out over
    SONG_OUT s, into the fall, then the radio goes back to how it was. */
 const SONG_OUT = 3;
 function endSong(now = false) {

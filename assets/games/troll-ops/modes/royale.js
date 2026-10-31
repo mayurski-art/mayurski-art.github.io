@@ -3,35 +3,36 @@
 // next door holds the zone and loot it runs on.
 
 import { hashSeed, seededRng, RoyaleZone, ROYALE, LootField, lootSpots, ZoneVisual, ITEM_NAMES, gunDisplayName, POI_TIERS, poiTierAt } from "./royale-zone.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1-fl1-or1-rt1-ut1-gf1-tg1-rb4-hp1-bx1-mg1-sp1-zw1-tfb8-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1-mrc1-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-mt2-sk1-hb4";
-import { updateBoat } from "./royale-boat.js?v=tfb1-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb5-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-wb1-mt2-sk1-hb4-lu1";
+import { updateBoat } from "./royale-boat.js?v=tfb1-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb5-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-wb1-mt2-sk1-hb4-jx2-jx3";
 import { ChestField, chestSpots, CHEST_REACH, CHEST_OPEN_TIME } from "./royale-chests.js?v=ch1-zw1-tfb8-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1-mrc1-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-mt2-sk1-hb4";
 import { groundHeightAt } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1-hb4";
 import { floorAt } from "../core/ground-field.js?v=gf1-tg1";
 import { insidePolygon, clampInsidePolygon } from "../maps/edge.js?v=or1";
-import { DROP, RoyaleDrop, buildParaglider, Flight } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1-fl1-or1-dc2-dc3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-rb4-hp1-bx1-mg1-tx1-sp1-kbt1-gb1-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-mt2-sk1-hb4";
-import { Squadron, PLANES, flightPos, flightVel, tunePlanes } from "./royale-planes.js?v=pl1-pl2-pi1-sr1-fl1-or1-dc2-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-rb4-hp1-bx1-mg1-tx1-sp1-kbt1-gb1-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-mt2-sk1-hb4";
-import { SEAT_SPOTS, RAMP_END } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
-import { DROP_BUS, DROP_FALL, DROP_GLIDE, ROLL_TIME, busPlacers, peerPosers } from "../net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-wb1-mt2-sk1-hb4-lu1";
+import { DROP, RoyaleDrop, buildParaglider, Flight } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1-fl1-or1-dc2-dc3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-rb4-hp1-bx1-mg1-tx1-sp1-kbt1-gb1-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-mt2-sk1-hb4-jx2";
+import { Squadron, PLANES, flightPos, flightVel, tunePlanes } from "./royale-planes.js?v=pl1-pl2-pi1-sr1-fl1-or1-dc2-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-rb4-hp1-bx1-mg1-tx1-sp1-kbt1-gb1-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-mt2-sk1-hb4-jx2";
+import { SEAT_SPOTS, RAMP_END } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6-jx2";
+import { DROP_BUS, DROP_FALL, DROP_GLIDE, ROLL_TIME, busPlacers, peerPosers } from "../net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-wb1-mt2-sk1-hb4-jx2-jx3";
 import * as THREE from "three";
 import { WEAPON_DEFS, WeaponState } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
 import { defaultLoadoutFor } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1-gf1-tg1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
 import { game } from "../core/state.js?v=st1";
 import { setGearChip, setTouchItem } from "../view/gear-chips.js?v=gc1-rfx2-rfx3-hb4";
-import { padHooks } from "../input/gamepad.js?v=in1-fu1b7-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-zp1-aa0-pd1-nf1-or1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-spd1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-mt2-sk1-hb4-tnt1";
-import { updateDropCine, dropCineEye, dropCineLean, dropCineZoom, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1";
+import { padHooks } from "../input/gamepad.js?v=in1-fu1b7-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-zp1-aa0-pd1-nf1-or1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-spd1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-mt2-sk1-hb4-jx2-jx3-jx4-jx5";
+import { CINE, updateDropCine, dropCineEye, dropCineLean, dropCineZoom, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut, updateExitCrew } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-jx2-jx3-jx4-jx5";
 import { playSfx, preloadSfx } from "../sound/sfx-files.js?v=dc4-nd1-wb1";
 import { royaleRecordReset, royaleRecordTick, stopRoyaleRecord } from "./royale-record.js?v=rrc1-rfx1-rr2-ret1-mrg1-hd1";
-import { useAnimStart, useAnimTick, useAnimFinish, useAnimCancel, useWire, poseUsePeer } from "./royale-use.js?v=ru1-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1";
-import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose } from "./royale-fall.js?v=dc3-dc4-rf1-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-rx1-p416-wb1-mt2-sk1-hb4";
+import { useAnimStart, useAnimTick, useAnimFinish, useAnimCancel, useWire, poseUsePeer } from "./royale-use.js?v=ru1-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-jx2-jx3-jx4-jx5";
+import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose, fallShowLag, fallSlowK, fallShowOn, fallHeadShown } from "./royale-fall.js?v=dc3-dc4-rf1-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-rx1-p416-wb1-mt2-sk1-hb4-jx2";
 import { sidePref } from "./royale-side.js?v=rs1-tw1";
 import { noteWorldBeforeSwap } from "./royale-worlds.js?v=rw1-wb1";
-import { initLiveReport, closeLiveReport } from "./royale-live-report.js?v=rlr1-wb1-mt2-sk1-hb4-tnt1";
+import { initLiveReport, closeLiveReport } from "./royale-live-report.js?v=rlr1-wb1-mt2-sk1-hb4-jx2-jx3-jx4-jx5";
 import { squadSize, teamsAlive, myTeamAlive, squadSeats, botSquadGoal } from "./royale-squads.js?v=sq1-wb1-mt2-hb4";
-import { updateTeamHud, clearTeamHud } from "./royale-team-hud.js?v=tm1-rd1-wb1-mt2-hb4";
-import { updateRoyaleDown, clearRoyaleDown, botReviveGoal } from "./royale-down.js?v=rd1-wb1-mt2-sk1-hb4-lu1";
+import { fileRoster, fileGrip, fileOutAt, botFilePlace, poseFileHands } from "./royale-file.js?v=fl1-jx3";
+import { updateTeamHud, clearTeamHud } from "./royale-team-hud.js?v=tm1-rd1-wb1-mt2-hb4-jx4";
+import { updateRoyaleDown, clearRoyaleDown, botReviveGoal } from "./royale-down.js?v=rd1-wb1-mt2-sk1-hb4-jx2-jx3";
 import { updateRoyaleFlip, flipCineOn, resetRoyaleFlip, flipAt, matchingSpot } from "./royale-flip.js?v=rf1-hgb9-tw1-op1-hgo1";
-import { buildMinimapBase } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1";
+import { buildMinimapBase } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-jx2-jx3-jx4-jx5";
 import { findOpenGround } from "./modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-tfb8-ug1-ugm1-hgb8-hgb9-mt2-hb4";
 
 // Phase 1 ("Mini Royale"): solo, one life, loot only, the Cringe closing in,
@@ -247,7 +248,20 @@ busPlacers.push((rp, snap) => {
   if (!snap.slot || !royaleAboard() || !d.hold) return null;
   const { plane, seat } = Squadron.seatOf(snap.slot - 1);
   if (plane !== sq.ridden) return null;
-  if (rp.pos.y > d.origin.y - 50) {
+  _aboard.moving = _aboard.mps = _aboard.forward = _aboard.lower = undefined;
+  const fk = r.file?.ids.indexOf(rp.netId) ?? -1;
+  const walk = fk >= 0 && game.isBotPeer(rp.peer) ? botFilePlace(fk, SEAT_SPOTS[seat % SEAT_SPOTS.length], r.planeT, CINE) : null;
+  if (walk) {
+    // A bot of your squad's file (royale-file.js): up out of its seat,
+    // down the aisle, into line, the run-up and the dash with you.
+    rp.pos.set(walk.x, 0, walk.z);
+    rp.yaw = walk.yaw;
+    _aboard.seatY = null;
+    _aboard.moving = walk.moving;
+    _aboard.mps = walk.mps;
+    _aboard.forward = walk.forward;
+    _aboard.lower = walk.lower;
+  } else if (rp.pos.y > d.origin.y - 50) {
     rp.pos.sub(d.origin);
     _aboard.seatY = null;
   } else {
@@ -262,6 +276,32 @@ busPlacers.push((rp, snap) => {
   return _aboard;
 });
 let playerGlider = null;
+
+/* Your squad's file at the ramp (royale-file.js), worked out once the
+   cinematic starts (everyone's in their seat by then): { ids, k (you), n }. */
+function slotOf(rp) { return rp.slot || 0; }
+export function royaleFile() {
+  const r = royale;
+  if (!r?.drop || squadSize() < 2) return null;
+  if (r.file && r.file.at === r.planeT) return r.file;
+  if (!r.file || r.planeT < CINE.walkFrom - 1) {
+    const me = { id: game.net.id || "me", slot: r.plane * PLANES.seats + r.seat + 1, team: game.net.team };
+    const list = fileRoster(r.plane, game.net.team, me, slotOf, PLANES.seats);
+    r.file = { ids: list.map((m) => m.id), k: list.findIndex((m) => m.me), n: list.length };
+  }
+  r.file.at = r.planeT;
+  return r.file;
+}
+/* Hands held in the file: your body (view/third-person.js) and theirs. */
+export function poseFileLocal(rig) {
+  const f = royaleAboard() && royaleFile();
+  if (f?.n > 1 && f.k >= 0) poseFileHands(rig, fileGrip(royale.planeT), f.k, f.n);
+}
+peerPosers.push((rp) => {
+  if (!royaleAboard() || (rp.drop & 3) !== DROP_BUS) return;
+  const f = royaleFile(), k = f ? f.ids.indexOf(rp.netId) : -1;
+  if (k >= 0) poseFileHands(rp.rig, fileGrip(royale.planeT), k, f.n);
+});
 
 /* Orbit `dist` m behind `target` along the look direction, `height` up. */
 export function placeDropCamera(target, dist, height) {
@@ -324,7 +364,7 @@ export function boardRoyale() {
   r.seat = seat;
   r.me = "aboard";
   r.autoRun = false;
-  r.pushed = null;
+  r.dash = null;
   r.drop.ride(plane);
   return seatStand(seat);
 }
@@ -351,6 +391,24 @@ export function placeBotsInLobby() {
     botSeatPos(b);
     game.net.publishBot(b);
   });
+  // A human squad's bots go out with its file (royale-file.js): each on its
+  // place in the line, a beat after the one in front.
+  if (!seats) return;
+  const humanTeams = new Set([game.net.team, ...[...game.net.peers.values()].filter((p) => !game.isBotPeer(p)).map((p) => p.team)]);
+  const byTeam = new Map();
+  for (const [id, slot] of seats) {
+    const team = id === (game.net.id || "me") ? game.net.team : game.net.peers.get(id)?.team ?? game.bots.bots.find((b) => b.id === id)?.team;
+    if (!humanTeams.has(team)) continue;
+    if (!byTeam.has(team)) byTeam.set(team, []);
+    byTeam.get(team).push({ id, slot });
+  }
+  for (const list of byTeam.values()) {
+    list.sort((a, b) => a.slot - b.slot);
+    list.forEach(({ id }, k) => {
+      const b = game.bots.bots.find((x) => x.id === id);
+      if (b?.drop) b.drop.jumpT = fileOutAt(k, CINE.backBy);
+    });
+  }
 }
 
 /* A bot in its seat, wherever its plane is now. */
@@ -374,6 +432,8 @@ export function royaleTickDrop(dt) {
   // Slid in under the floor (royale-planes.js retractAt): no deck past the hinge.
   if (hold && hold.rampFloor && d.squadron.retractK(r.planeT) > 0.35) hold.dropRampFloor();
   planeSounds();
+  // aboard is staging (updateRoyale waits for the green): your team and its leader from the plane on
+  if (game.isStaging()) updateTeamHud(true, r.planeT > CINE.walkFrom);
 }
 
 /* The engines from inside (aboard), the nearest other plane going over,
@@ -584,17 +644,17 @@ function updateRoyaleDropWorld(dt) {
 export function updateAboardPlayer(dt, jump) {
   const r = royale, d = r.drop, hold = d.hold;
   if (!hold) return;
+  royaleFile();   // your squad's file at the ramp (the cinematic walks you to your place in it)
   // The drop cinematic (royale-cine.js) has you, T-22 to the green.
   if (updateDropCine(r, dt)) return;
   if (game.player.holding !== "none") game.setHolding("none");
   const o = d.origin, pos = game.move.pos;
   const t = r.planeT, f = d.squadron.riddenFlight();
   const green = d.phase !== "lobby";
-  if (r.pushed) {
-    // Shoved (royale-cine.js): staggering back off the ramp, still facing
-    // in, the head thrown back a little.
-    game.look.yaw = r.pushed.yaw;
-    game.look.pitch = Math.min(0.3, game.look.pitch + dt * 1.4);
+  if (r.dash) {
+    // The green (royale-cine.js): the dash for the door, eyes on it.
+    game.look.yaw = r.dash.yaw;
+    game.look.pitch += (-0.12 - game.look.pitch) * Math.min(1, dt * 5);
   }
   if (green && jump && d.squadron.rampOpen(t)) r.autoRun = true;
   if (green && f && t > f.tOut - 1.2 && !r.autoRun) {
@@ -607,9 +667,8 @@ export function updateAboardPlayer(dt, jump) {
     const lx = pos.x - o.x, lz = pos.z - o.z;
     const goal = lz < -1.9 ? { x: (lx < 0 ? -0.95 : 0.95), z: -1.8 } : { x: 0, z: RAMP_END + 2 };
     const dx = goal.x - lx, dz = goal.z - lz, len = Math.hypot(dx, dz) || 1;
-    // Facing into the hold at the ramp (the drop cinematic): a few steps
-    // back and over the edge, not a sprint.
-    const run = r.pushed ? 5 : Math.cos(game.look.yaw) > 0.5 && lz > 3 ? 3.4 : 6.5;
+    // The drop cinematic's dash: a flat-out sprint from the run-up.
+    const run = r.dash ? DASH_SPEED : 6.5;
     const step = Math.min(len, run * dt);
     pos.x += (dx / len) * step;
     pos.z += (dz / len) * step;
@@ -628,18 +687,23 @@ export function updateAboardPlayer(dt, jump) {
   if (green && pos.y < o.y - 1.5) jumpOut();
 }
 
+/* m/s: the dash down the ramp at the green (docs/ROYALE-EXIT.md). */
+export const DASH_SPEED = 7;
+
 /* Out of the back: the ghost spot mapped into the sky, your run turned with
    the plane, plus the plane's own speed. */
 function jumpOut() {
   const r = royale, d = r.drop, sq = d.squadron, f = sq.riddenFlight();
-  // Facing into the hold (the drop cinematic leaves you there): out backwards.
-  const back = Math.cos(game.look.yaw) > 0.5;
   sq.ghostToWorld(game.move.pos, _v);
   sq.riddenQuat(_q);
   _exitVel.copy(game.move.velocity).applyQuaternion(_q);
   if (f) _exitVel.add(flightVel(f, r.planeT, _dropCam));
   _exitVel.y = Math.min(_exitVel.y, -2);
   r.exitSpeed = Math.hypot(_exitVel.x, _exitVel.z);
+  // how you left (the tests read it): the run, standing, facing out
+  r.exitRun = Math.hypot(game.move.velocity.x, game.move.velocity.z);
+  r.exitStance = game.move.stance;
+  r.exitLookYaw = game.look.yaw;
   r.exitFromRamp = _v.distanceTo(_dropCam.set(0, 0, RAMP_END).applyMatrix4(sq.planeM[sq.ridden]));
   game.move.reset(_v.x, _v.z, _v.y);
   // The look turns with the plane, so the view out of the back carries on.
@@ -648,16 +712,16 @@ function jumpOut() {
   r.flight = new Flight(_v, royaleEdge(), { glider: false, track: true, vel: _exitVel });
   r.me = "fall";
   r.autoRun = false;
-  r.pushed = null;
+  r.dash = null;
   dropCineOut();
   game.setHolding("none");
-  // The fall's opening show (royale-fall.js) has the camera and the stick
-  // for its first seconds; its end puts up the fly banner.
-  // The show keeps the way you went out; it hands your look back facing
-  // north and down at the island (royale-fall.js aimAtIsland).
+  // The jump (royale-fall.js, royale-exit.js) has the camera and the stick
+  // for its first seconds; its end puts up the fly banner. The body keeps
+  // the way you went out; the show hands your look back facing north and
+  // down at the island (royale-fall.js aimAtIsland).
   const outYaw = game.look.yaw;
   game.look.yaw = 0;
-  startFallShow(back, outYaw, game.move.pos, _exitVel, d.centre);
+  startFallShow(outYaw, _exitVel, d.centre, (out) => out.set(0, 1.3, RAMP_END - 3).applyMatrix4(sq.planeM[sq.ridden]));
   // The slipstream as you go, and the wind of the fall from then on.
   playSfx("gust", { gain: 0.8 });
   r.windRush = playSfx("wind-rush", { gain: 0.15, loop: true }) || null;
@@ -667,9 +731,10 @@ function fallWind(f) {
   const r = royale;
   if (!r.windRush) return;
   if (!f || f.state === "landed") { r.windRush.stop(0.3); r.windRush = null; return; }
-  const v = Math.min(1, f.vel.length() / 45);
-  r.windRush.setGain(0.15 + v * 0.45, 0.15);
-  r.windRush.setRate(0.85 + v * 0.35);
+  const v = Math.min(1, f.vel.length() / 45), slow = fallSlowK();
+  // The slow-mo look back: the wind drops to a low rumble.
+  r.windRush.setGain((0.15 + v * 0.45) * (1 - 0.7 * slow), 0.15);
+  r.windRush.setRate((0.85 + v * 0.35) * (1 - 0.45 * slow));
 }
 /* The fall show, for the camera (view/player-update.js) and your body
    (view/third-person.js). */
@@ -705,10 +770,13 @@ export function placeAboardRig(rig) {
 export function updateDropPlayer(dt, ix, iz) {
   const r = royale;
   const f = r.flight;
-  // Straight down, hands off, through the fall's opening show.
-  const coast = updateFallShow(dt);
+  // Hands off through the jump; the fall steps on its slowed clock, and the
+  // plane you left is drawn on it too (the look back).
+  const sh = updateFallShow(dt), coast = sh.coast;
   if (coast) ix = iz = 0;
-  f.update(dt, { forward: iz, strafe: ix, yaw: game.look.yaw, pitch: game.look.pitch, open: false, coast }, dropGround);
+  r.drop.squadron.riddenLag = fallShowLag();
+  if (fallShowOn()) updateExitCrew(r, dt);
+  f.update(sh.dt, { forward: iz, strafe: ix, yaw: game.look.yaw, pitch: game.look.pitch, open: false, coast }, dropGround);
   fallWind(f);
   game.move.pos.copy(f.pos);
   game.move.velocity.copy(f.vel);
@@ -721,6 +789,7 @@ export function updateDropPlayer(dt, ix, iz) {
     r.rollT = 0;
     r.rollYaw = r.me === "glide" ? f.heading : game.look.yaw;
     r.flight = null;
+    r.drop.squadron.riddenLag = 0;
     endFallShow();
     setPlayerGlider(false);
     game.setHolding("none");
@@ -798,7 +867,7 @@ export function teardownRoyale() {
   if (royale) {
     royale.scenery?.dispose();
     royale.scenery = null;
-    royale.pushed = null;
+    royale.dash = null;
     royale.windIn?.stop(0.2);
     royale.windRush?.stop(0.2);
     royale.windIn = royale.windRush = null;
@@ -984,7 +1053,7 @@ export function updateRoyale(dt) {
 
   const alive = royaleAliveList();
   if (r.live) r.peak = Math.max(r.peak, standing(alive));
-  updateTeamHud(r.live);   // in teams: where they are, how they are (royale-team-hud.js)
+  updateTeamHud(r.live || !!r.drop, r.live || r.planeT > CINE.walkFrom);   // in teams: where they are, how they are, the leader from the plane on (royale-team-hud.js)
   if (r.live && !r.over) updateRoyaleDown(dt);   // in teams: down, not out (royale-down.js)
   // in teams, our place comes when the last of us goes down
   if (r.live && !r.place && !game.player.alive && squadSize() > 1 && !myTeamAlive(alive)) r.place = standing(alive) + 1;
