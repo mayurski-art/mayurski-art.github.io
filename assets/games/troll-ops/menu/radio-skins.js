@@ -71,7 +71,7 @@ const grin = `
 
   <div class="gs-wing gs-wing-r">
     <div class="gs-inset gs-list">
-      <div class="gs-list-head"><span class="gs-disc" aria-hidden="true"></span><span data-station>Troll Warfare FM</span></div>
+      <div class="gs-list-head"><span class="gs-disc" aria-hidden="true"></span><span data-station>Trollnite FM</span></div>
       <ol id="to-radio-list" aria-label="Playlist"></ol>
     </div>
     <div class="gs-pods" aria-hidden="true"><i></i><i></i><i></i></div>
@@ -87,7 +87,7 @@ const fm = (skin, art) => `
     <div class="fm-bump" aria-hidden="true"></div>
     <div class="fm-art" aria-hidden="true">${art}</div>
     <div class="fm-bar">
-      <div class="fm-titles"><b data-station>Troll Warfare FM</b><small data-station-mode></small></div>
+      <div class="fm-titles"><b data-station>Trollnite FM</b><small data-station-mode></small></div>
       ${swap(skin === "girl" ? "don" : "girl", "fm-swap")}
       <button type="button" class="fm-x" id="to-radio-close" aria-label="Close radio">×</button>
     </div>
@@ -119,11 +119,11 @@ const fm = (skin, art) => `
     </section>
 
     <section class="fm-col fm-list" aria-label="Playlist">
-      <h3><i class="fm-dot" aria-hidden="true"></i><span data-station>Troll Warfare FM</span></h3>
+      <h3><i class="fm-dot" aria-hidden="true"></i><span data-station>Trollnite FM</span></h3>
       <ol id="to-radio-list" aria-label="Playlist"></ol>
       <footer><span id="to-radio-count"></span><span id="to-radio-total"></span><span class="fm-shufstate" id="to-radio-shufstate"></span></footer>
     </section>
-    ${skin === "don" ? `<div class="fm-foot"><span>✦ <span data-station>Troll Warfare FM</span> ✦</span><i aria-hidden="true"></i><span>Media player v2.0 ✦</span></div>` : ""}
+    ${skin === "don" ? `<div class="fm-foot"><span>✦ <span data-station>Trollnite FM</span> ✦</span><i aria-hidden="true"></i><span>Media player v2.0 ✦</span></div>` : ""}
   </div>`;
 
 export const SKINS = {

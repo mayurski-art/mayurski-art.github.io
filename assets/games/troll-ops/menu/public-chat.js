@@ -155,7 +155,7 @@ function paintPreview() {
   const last = chat.msgs.slice(-3);
   previewEl.innerHTML = last.length
     ? last.map((m) => `<li><b>${esc(m.name)}</b> ${m.text ? esc(m.text) : ""}${m.gif ? `<img src="${gifSrc(m.gif)}" alt="GIF: ${esc(gifOf(m.gif).label)}">` : ""}</li>`).join("")
-    : `<li class="is-empty">Quiet in here. Say hi: everyone on Troll Warfare sees it.</li>`;
+    : `<li class="is-empty">Quiet in here. Say hi: everyone on Trollnite sees it.</li>`;
 }
 /* Say `text` (or send GIF `gif`, an id in GIFS) to everyone: { name,
    text, gif } when it went, else { error } ("" for nothing to send). The

@@ -9,7 +9,7 @@
 
   LB.register({
     gameId: "troll-ops",
-    gameName: "Troll Warfare",
+    gameName: "Trollnite",
 
     blank: () => ({
       score: 0, bestWave: 0, bestKills: 0, runs: 0,
@@ -67,6 +67,6 @@
       };
     },
 
-    prizes: { poolLabel: "Mock prize pool · Troll Warfare", pool: "100 USDC + 1M $TROLL" },
+    prizes: { poolLabel: "Mock prize pool · Trollnite", pool: "100 USDC + 1M $TROLL" },
   });
 })();

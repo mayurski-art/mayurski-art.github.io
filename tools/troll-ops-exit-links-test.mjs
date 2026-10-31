@@ -1,4 +1,4 @@
-// Troll Forces exit links test: trollrunner.net/warfare (warfare/index.html, and the old /tf) lands on
+// Troll Forces exit links test: trollrunner.net/trollnite (trollnite/index.html, and the old /warfare and /tf) lands on
 // the game, and trollrunner.net/royale (royale/index.html) on it with Troll Royale picked;
 // opened from the arcade (games.html's full-screen frame), the
 // game's Arcade link closes the frame instead of loading the arcade inside
@@ -34,18 +34,23 @@ const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
 await ctx.route(/supabase/, (r) => r.abort());
 const errors = [];
 
-// 1. /warfare/ (and the old /tf/) bounce to the game.
+// 1. /trollnite/ (and the old /warfare/ and /tf/) bounce to the game.
 const old = await ctx.newPage();
 await old.goto(`${BASE}/tf/?room=x`, { waitUntil: "domcontentloaded", timeout: 120000 });
 await old.waitForURL(/troll-ops\.html/, { timeout: 30000 });
 check("old /tf still lands on the game, keeping ?room=", /\/troll-ops\.html\?room=x$/.test(old.url()), old.url());
 await old.close();
+const oldW = await ctx.newPage();
+await oldW.goto(`${BASE}/warfare/?room=w`, { waitUntil: "domcontentloaded", timeout: 120000 });
+await oldW.waitForURL(/troll-ops\.html/, { timeout: 30000 });
+check("old /warfare still lands on the game, keeping ?room=", /\/troll-ops\.html\?room=w$/.test(oldW.url()), oldW.url());
+await oldW.close();
 const page = await ctx.newPage();
 page.on("pageerror", (e) => errors.push(e.message));
-await page.goto(`${BASE}/warfare/`, { waitUntil: "domcontentloaded", timeout: 120000 });
+await page.goto(`${BASE}/trollnite/`, { waitUntil: "domcontentloaded", timeout: 120000 });
 await page.waitForURL(/troll-ops\.html/, { timeout: 30000 });
 await page.waitForFunction(() => !!document.getElementById("to-title"), null, { timeout: 120000 });
-check("/warfare lands on the game", /\/troll-ops\.html$/.test(new URL(page.url()).pathname), page.url());
+check("/trollnite lands on the game", /\/troll-ops\.html$/.test(new URL(page.url()).pathname), page.url());
 
 // 1b. /royale/ lands on the game with Troll Royale picked in the mode list.
 const roy = await ctx.newPage();
@@ -63,8 +68,8 @@ const homes = await page.evaluate(() => ["to-exit-btn", "to-go-home-btn"].map((i
   const a = document.getElementById(id);
   return a ? [a.getAttribute("href"), a.textContent.trim()] : null;
 }));
-check("pause menu exit goes to the game's home", homes[0]?.[0] === "troll-ops.html" && /Troll Warfare home/.test(homes[0][1]), JSON.stringify(homes[0]));
-check("game-over button goes to the game's home", homes[1]?.[0] === "troll-ops.html" && /Troll Warfare home/.test(homes[1][1]), JSON.stringify(homes[1]));
+check("pause menu exit goes to the game's home", homes[0]?.[0] === "troll-ops.html" && /Trollnite home/.test(homes[0][1]), JSON.stringify(homes[0]));
+check("game-over button goes to the game's home", homes[1]?.[0] === "troll-ops.html" && /Trollnite home/.test(homes[1][1]), JSON.stringify(homes[1]));
 check("no arcade links left in the pause/game-over screens",
   await page.evaluate(() => !document.querySelector('#to-pause a[href="games.html"], #to-gameover a[href="games.html"]')));
 await page.close();

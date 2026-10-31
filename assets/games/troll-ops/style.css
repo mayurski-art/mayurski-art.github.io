@@ -2693,6 +2693,15 @@ body.tf-anim-off .to-radio-toggle .to-radio-ico rect { animation: none !importan
   font-size: 28px; letter-spacing: .04em; line-height: 1; color: var(--pf-text);
 }
 .to-pf-logo b { color: var(--pf-ok); font-weight: 700; }
+/* TROLLNITE wordmark (user, 2026-10-31: the game is Trollnite now, with a
+   cool font): chunky Luckiest Guy, gold with a dark outline and drop. */
+.tn-word {
+  font-family: "Luckiest Guy", "Oswald", sans-serif; font-weight: 400; font-style: normal;
+  letter-spacing: .05em; color: #ffd23f;
+  -webkit-text-stroke: 1.5px #2a1600; paint-order: stroke fill;
+  text-shadow: 0 3px 0 #7a3b00, 0 5px 12px rgba(0,0,0,.7);
+}
+.to-bo2-brand .tn-word { color: #ffd23f; }
 
 /* Back to arcade: a pill left of the logo, on every screen size (it used
    to be loose text in a corner, and hidden in Servers on phones). */

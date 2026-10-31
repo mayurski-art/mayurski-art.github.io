@@ -8,7 +8,7 @@
 import { cardById, cleanClan } from "../progression/calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
 import { playerIconCanvas, prestigeName } from "../progression/rank-icons.js?v=rk1-or1";
 
-const GAME_URL = "https://trollrunner.net/warfare";
+const GAME_URL = "https://trollrunner.net/trollnite";
 const FALLBACK_EMBLEM = new URL("../../../images/wallpaper/trollface transparent.png", import.meta.url).href;
 const OWNER_ICON = new URL("../../../images/icons/pfp.png", import.meta.url).href;
 
@@ -18,7 +18,7 @@ const fullName = (d) => { const c = cleanClan(d.clan); return `${c ? `[${c}] ` :
 export function cardPostText(d) {
   const r = d.record;
   const bits = r ? [`K/D ${r.kd.toFixed(2)}`, `W/L ${r.wl.toFixed(2)}`, `best streak ${r.bestStreak}`] : [];
-  return `My Troll Warfare card: ${fullName(d)}${bits.length ? ` · ${bits.join(" · ")}` : ""}. Problem?`;
+  return `My Trollnite card: ${fullName(d)}${bits.length ? ` · ${bits.join(" · ")}` : ""}. Problem?`;
 }
 
 export function shareCardOnX(d) {
@@ -181,7 +181,7 @@ async function drawCard(d, withAvatar) {
   g.textAlign = "left"; g.textBaseline = "alphabetic";
   g.font = '600 24px Oswald, "Arial Narrow", sans-serif'; g.fillStyle = "#ff8a1f";
   if ("letterSpacing" in g) g.letterSpacing = "3px";
-  g.fillText("TROLL WARFARE", PAD, H - 26);
+  g.fillText("TROLLNITE", PAD, H - 26);
   if ("letterSpacing" in g) g.letterSpacing = "0px";
   g.textAlign = "right"; g.font = '20px "DM Mono", monospace'; g.fillStyle = "#c9b8a6";
   g.fillText("trollrunner.net", W - PAD, H - 26);

@@ -1,5 +1,5 @@
-/* Troll Warfare's lobby, Fortnite style (user, 2026-10-26; the design doc
-   "Troll Warfare Lobby Redesign", phase 1). A tab bar along the top, glass
+/* Trollnite's lobby, Fortnite style (user, 2026-10-26; the design doc
+   "Trollnite Lobby Redesign", phase 1). A tab bar along the top, glass
    panels at the sides, the mode card with PLAY bottom right, over a reel of
    the maps (mountReel below).
 
@@ -234,7 +234,7 @@ export function mountFnLobby(api) {
   modes.setAttribute("aria-label", "All modes");
   modes.hidden = true;
   modes.innerHTML = `
-    <header><h2>Troll Warfare<small>Pick how you play</small></h2>
+    <header><h2>Trollnite<small>Pick how you play</small></h2>
       <button type="button" class="to-fn-glass to-fn-modes-x" aria-label="Back to the lobby"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button></header>
     <div class="to-fn-tiles">${TILES.map((t) => `<button type="button" class="to-fn-tile" data-tile="${t.id}">
       <span class="to-fn-tile-art"><img alt="" loading="lazy" data-map="${t.map}"><b>${esc(t.label)}</b></span>
