@@ -1410,6 +1410,7 @@ export class VtolWarship {
       obj.traverse((n) => {
         if (n.name?.startsWith("VTOL_Nacelle")) { this.nacelles.push(n); n.rotation.x = NACELLE_TILT; }
         else if (n.name?.startsWith("VTOL_Rotor")) this.rotors.push(n);
+        else if (n.name === "Strobe") this.strobe = n;
       });
     });
   }
@@ -1478,6 +1479,7 @@ export class VtolWarship {
     this.age += dt;
     this.fireT = Math.max(0, this.fireT - dt);
     for (const r of this.rotors) r.rotation.y += dt * Math.PI * 2 * WARSHIP_ROTOR_RPS;
+    if (this.strobe) { const k = this.age % 1.3; this.strobe.visible = k < 0.06 || (k > 0.14 && k < 0.2); }
     const t = this.age;
     this.pathAt(t, this.root.position);
     const yaw = this.headingAt(t);

@@ -11,6 +11,7 @@ Writes the .glb files next to this script, over the ones the game loads:
   drop-heli.glb      the UH-60 Black Hawk that drops it (phase 4)
   helicopter.glb     the Helicopter Gunship: an AH-64E Apache (phase 5)
   strike-jet.glb     the Lightning Strike's F-35A (phase 6)
+  vtol-warship.glb   the VTOL Warship: a CV-22 Osprey (phase 8)
 
 Conventions as build_streaks.blender.py: metres, Blender +Y is the nose
 (the exporter's +Y-up makes that three.js -Z), models centred on the hull.
@@ -641,7 +642,84 @@ def build_f35():
     export(body, "strike-jet.glb")
 
 
-BUILDS = {"uav": build_shadow, "drone": build_hk, "crate": build_crate, "dropheli": build_blackhawk, "gunship": build_apache, "jet": build_f35}
+# ------------------------------------------------------------ CV-22 Osprey
+
+def build_osprey():
+    """The VTOL Warship: a CV-22 Osprey (refs/streaks/warship) with the
+    AC-130's guns in its port side. Same size and node contract as the old
+    warship (build_streaks2.blender.py): VTOL_Hull > VTOL_Nacelle_L/R
+    (origin on the wing, tilted about x by the game) > VTOL_Rotor_L/R
+    (origin at the hub, spun about the nacelle's up). The gunner and the
+    muzzles stay where streak-entities.js puts them: the port side, low.
+    A boxy cabin with the sponsons along its belly, the stepped cockpit
+    glass, the high wing with its fairing, the boom rising to the H-tail,
+    the tubby nacelles with three-blade proprotors and blur discs, the
+    refuel probe, and the 25 mm and 105 mm out of the port side."""
+    clear_scene()
+    grey = material("OspreyGrey", (0.3, 0.33, 0.36), rough=0.55, metal=0.35)
+    dark = material("OspreyDark", (0.1, 0.11, 0.12), rough=0.5, metal=0.5)
+    glass = material("OspreyGlass", (0.07, 0.11, 0.14), rough=0.08, metal=0.3)
+    gun = material("OspreyGun", (0.07, 0.08, 0.09), rough=0.35, metal=0.85)
+    blade_mat = material("OspreyBlade", (0.06, 0.06, 0.06), rough=0.4, metal=0.3)
+    blur = material("OspreyBlur", (0.08, 0.08, 0.08), rough=0.8, alpha=0.22)
+    nav_r = material("NavRed", (0.6, 0.02, 0.02), emit=(1.0, 0.05, 0.02), strength=6)
+    nav_g = material("NavGreen", (0.02, 0.6, 0.1), emit=(0.1, 1.0, 0.2), strength=6)
+    strobe = material("StrobeWhite", (0.9, 0.9, 0.9), emit=(1.0, 1.0, 1.0), strength=8)
+
+    hull = []
+    # the fuselage: rounded nose, the cockpit, a boxy cabin, the boom rising
+    # to the tail with the ramp's underside sloping up
+    hull.append(loft("fuse", grey, [
+        (8.9, 0.0, 0.0, 0, 0.1), (8.5, 0.6, 0.6, 0, 0.1), (7.5, 1.0, 1.0, 0, 0.1, 2.5), (6.0, 1.25, 1.35, 0, 0.1, 3.0),
+        (4.5, 1.35, 1.5, 0, 0.0, 3.5), (0.0, 1.35, 1.5, 0, 0.0, 3.5), (-3.0, 1.3, 1.45, 0, 0.1, 3.5), (-5.5, 1.0, 1.0, 0, 0.6, 3.0),
+        (-7.5, 0.7, 0.7, 0, 1.1, 2.5), (-8.8, 0.4, 0.5, 0, 1.4), (-9.2, 0.0, 0.0, 0, 1.5)]))
+    # the stepped cockpit glass and the side windows
+    hull.append(loft("windscreen", glass, [(8.2, 0.0, 0.0, 0, 0.9), (7.6, 0.8, 0.5, 0, 1.0, 3.0), (6.4, 1.1, 0.7, 0, 1.2, 3.0), (6.0, 0.0, 0.0, 0, 1.3)]))
+    for sx in (-1, 1):
+        hull.append(box("side_win_%d" % sx, glass, (0.06, 1.0, 0.6), (sx * 1.3, 6.4, 0.75)))
+        hull.append(box("cabin_win_%d" % sx, glass, (0.06, 0.7, 0.5), (sx * 1.36, 2.6, 0.5)))
+        # the sponsons along the belly
+        hull.append(loft("sponson_%d" % sx, grey, [(4.5, 0.0, 0.0, sx * 1.5, -1.0), (3.6, 0.5, 0.55, sx * 1.6, -1.0, 3.0), (-2.0, 0.55, 0.6, sx * 1.65, -1.0, 3.0), (-3.6, 0.0, 0.0, sx * 1.6, -0.9)]))
+    # the high wing, its fairing over the cabin, the H-tail
+    hull.append(wing("wing", grey, [(-7.4, 2.2, 0.32, 1.9, 1.55), (0, 2.4, 0.36, 2.0, 1.55), (7.4, 2.2, 0.32, 1.9, 1.55)], ring=12))
+    hull.append(loft("fairing", grey, [(2.8, 0.0, 0.0, 0, 1.45), (2.2, 1.0, 0.3, 0, 1.5, 3.0), (-1.2, 1.0, 0.3, 0, 1.5, 3.0), (-1.8, 0.0, 0.0, 0, 1.45)]))
+    hull.append(wing("stab", grey, [(-2.9, 1.9, 0.14, -7.0, 1.6), (0, 2.1, 0.18, -6.9, 1.6), (2.9, 1.9, 0.14, -7.0, 1.6)], ring=12))
+    for sx in (-1, 1):
+        hull.append(wing("fin_%d" % sx, grey, [(1.6, 1.9, 0.14, -7.0, sx * 2.7), (4.3, 1.3, 0.1, -7.9, sx * 2.7)], axis="z", ring=10))
+    # the refuel probe off the nose, the guns out of the port side
+    hull.append(cyl("probe", dark, 0.07, 3.0, (0.7, 9.6, -0.3), axis="y", verts=8))
+    hull.append(cyl("chain_gun", gun, 0.09, 2.0, (-2.2, -0.4, -1.0), axis="x", verts=8))
+    hull.append(cyl("chain_mount", gun, 0.22, 0.5, (-1.35, -0.4, -1.0), axis="x", verts=10))
+    hull.append(cyl("cannon", gun, 0.14, 2.6, (-2.5, 1.2, -1.35), axis="x", verts=10))
+    hull.append(cyl("cannon_mount", gun, 0.32, 0.6, (-1.4, 1.2, -1.35), axis="x", verts=12))
+    body = join(hull, "VTOL_Hull")
+    set_origin(body, (0, 0, 0))
+    for name, mat, loc in (("NavL", nav_r, (-7.4, 2.0, 1.55)), ("NavR", nav_g, (7.4, 2.0, 1.55)), ("Strobe", strobe, (0, -8.2, 2.3))):
+        o = sphere(name, mat, 0.08, loc)
+        parent(o, body)
+    # the nacelles on the wingtips, built upright (rotor axis up) so the
+    # game's tilt about x lays them forward for cruise
+    for side, sx in (("L", -1), ("R", 1)):
+        x = sx * 7.4
+        nac = loft("nacelle", grey, [(-0.3, 0.0, 0.0, x, 0.8), (0.0, 0.7, 0.75, x, 0.8), (2.6, 0.75, 0.8, x, 0.8), (3.4, 0.5, 0.55, x, 0.8), (3.7, 0.0, 0.0, x, 0.8)], axis="z")
+        intake = box("intake", dark, (0.9, 0.3, 0.4), (x, 1.5, 1.2))
+        exhaust = cyl("exhaust", dark, 0.25, 0.4, (x, 0.3, -0.2), axis="z", verts=10)
+        n = join([nac, intake, exhaust], "VTOL_Nacelle_%s" % side)
+        set_origin(n, (x, 0.8, 1.55))
+        parent(n, body)
+        blades = [cyl("hub", dark, 0.35, 0.3, (x, 0.8, 3.75), axis="z", verts=10)]
+        for b in range(3):
+            a = math.radians(b * 120)
+            blades.append(box("blade_%d" % b, blade_mat, (0.5, 5.4, 0.08), (x + math.sin(a) * 2.9, 0.8 + math.cos(a) * 2.9, 3.78), rot=(0, 0, -a), bevel=0.01))
+        r = join(blades, "VTOL_Rotor_%s" % side)
+        set_origin(r, (x, 0.8, 3.75))
+        parent(r, n)
+        disc = cyl("VTOL_Blur_%s" % side, blur, 5.7, 0.02, (x, 0.8, 3.8), axis="z", verts=36)
+        parent(disc, n)
+    export(body, "vtol-warship.glb")
+
+
+BUILDS = {"uav": build_shadow, "drone": build_hk, "crate": build_crate, "dropheli": build_blackhawk, "gunship": build_apache, "jet": build_f35, "warship": build_osprey}
 
 if __name__ == "__main__":
     args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
