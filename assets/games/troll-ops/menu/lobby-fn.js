@@ -556,9 +556,24 @@ export function mountFnLobby(api) {
     }).join("");
     const left_ = all.filter((a) => !have.has(a.id)).length;
     lockerDot();
-    const dot = $('[data-tab="quests"] .to-fn-dot', top);
-    dot.hidden = !left_;
+    questDot();
     $('[data-tab="quests"]', top).setAttribute("aria-label", left_ ? `Quests, ${left_} to do` : "Quests");
+  }
+
+  /* The Quests tab's dot: something there you haven't looked at (a quest
+     done or a new one since you last opened Quests), not "anything left to
+     do", which is always (user, 2026-10-31: "the yellow circle in quest
+     isn't disappearing"). */
+  // (declarations, not consts: renderMe can run before this line has)
+  function questSig() { const have = done(); return Object.keys(ACHIEVEMENTS).map((id) => `${id}:${have.has(id) ? 1 : 0}`).sort().join(","); }
+  function questDot() {
+    let seen = null;
+    try { seen = localStorage.getItem("trollops:quests-seen"); } catch {}
+    $('[data-tab="quests"] .to-fn-dot', top).hidden = seen === questSig();
+  }
+  function questsSeen() {
+    try { localStorage.setItem("trollops:quests-seen", questSig()); } catch {}
+    questDot();
   }
 
   /* The Locker tab's dot: something new in it, not seen yet (an item the
@@ -592,6 +607,7 @@ export function mountFnLobby(api) {
     more.hidden = !home;
     if (!home) { openPicker(false); openModes(false); help.close(); }
     if (home) { renderPlay(); renderMe(); }
+    if (id === "quests") questsSeen();
     // the operator on the pad stands on the Play page only (lobby.js)
     dispatchEvent(new Event("trollforces:fn-screen"));
   }
