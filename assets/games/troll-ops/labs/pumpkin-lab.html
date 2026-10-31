@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pumpkin Lab</title>
+<!-- The Pumpkin Head (characters/pumpkin-head.js) on the stick troll and on
+     TROLLS #1718, four views each (side, two 3/4s, top). ?pumpkin=carved|whole|traced|none -->
+<style>
+  html, body { margin: 0; background: #101114; overflow: hidden; }
+  canvas { display: block; }
+  .lbl { position: fixed; color: #f3efe4; font: 600 15px "DM Sans", system-ui, sans-serif; letter-spacing: .02em; text-shadow: 0 1px 3px #000; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "../../../vendor/three.module.min.js", "three/addons/": "../../../vendor/addons/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from "three";
+import { buildHumanoid, poseHumanoid } from "../characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-pk1";
+import { syncHeadwear } from "../characters/pumpkin-head.js?v=pk1";
+import { wearBlocky } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-hl1-mg1-sp1-rh1-ci6-pm1";
+
+const q = new URLSearchParams(location.search);
+const LOOK = q.get("pumpkin") || "carved";
+const W = innerWidth, H = innerHeight;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(W, H);
+renderer.shadowMap.enabled = true;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.setScissorTest(true);
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xdfe4ff, 0x3a2a20, 1.0));
+const sun = new THREE.DirectionalLight(0xfff1dd, 2.4);
+sun.position.set(2.5, 5, 3);
+scene.add(sun);
+const rim = new THREE.DirectionalLight(0x9fb4ff, 1.1);
+rim.position.set(-3, 3, -4);
+scene.add(rim);
+const floor = new THREE.Mesh(new THREE.CircleGeometry(1.4, 48), new THREE.MeshStandardMaterial({ color: 0x24262b, roughness: 0.9 }));
+floor.rotation.x = -Math.PI / 2;
+scene.add(floor);
+
+const MAT = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.7, metalness: 0.1 });
+const idle = { phase: 0, moving: false, pitch: 0, lower: 0, strafe: 0, forward: 1, speed: 0, mps: 0, dt: 1 / 60, hasGun: false, hold: "none", ads: 0, recoil: 0, reload: 0, fired: Infinity };
+async function body(token) {
+  const r = buildHumanoid(MAT, { height: 1.8, gun: false });
+  r.face = `grin:og:::${LOOK === "none" ? "" : "pumpkin"}`;
+  if (token) await wearBlocky(r, token);
+  for (let i = 0; i < 30; i++) poseHumanoid(r, idle);
+  return r;
+}
+const rigs = [await body(0), await body(1718)];
+await new Promise((r) => setTimeout(r, 1500));   // the textures, the GLB pieces
+for (const r of rigs) for (let i = 0; i < 4; i++) { poseHumanoid(r, idle); syncHeadwear?.(r); }
+
+// views: right side, front-right 3/4, rear-left 3/4, top (feedback-four-views)
+const VIEWS = [["Side", 90, 6], ["Front 3/4", 35, 12], ["Rear 3/4", 215, 14], ["Top", 0, 82]];
+const cam = new THREE.PerspectiveCamera(26, 1, 0.05, 50);
+const cols = 4, rows = 2, tw = W / cols, th = H / rows;
+const labels = [];
+function draw() {
+  rigs.forEach((r, row) => {
+    scene.add(r.root);
+    r.root.updateMatrixWorld(true);
+    const head = new THREE.Vector3();
+    r.parts.headPivot.getWorldPosition(head);
+    head.y += 0.1;
+    VIEWS.forEach(([name, yaw, pitch], col) => {
+      const a = THREE.MathUtils.degToRad(yaw), p = THREE.MathUtils.degToRad(pitch), d = pitch > 60 ? 2.2 : 2.6;
+      const aim = pitch > 60 ? head.y : head.y - 0.12;  // head and shoulders, the top looking straight down
+      cam.aspect = tw / th; cam.updateProjectionMatrix();
+      // the game's forward is -z: the face looks down -z, so yaw 0 is in front
+      cam.position.set(head.x + Math.sin(a) * Math.cos(p) * d, aim + Math.sin(p) * d, head.z - Math.cos(a) * Math.cos(p) * d);
+      cam.lookAt(head.x, aim, head.z);
+      const x = col * tw, y = (rows - 1 - row) * th;
+      renderer.setViewport(x, y, tw, th); renderer.setScissor(x, y, tw, th);
+      scene.background = new THREE.Color(row ? 0x1a1c22 : 0x16181d);
+      renderer.render(scene, cam);
+      if (!labels.length || labels.length < 8) {
+        const l = document.createElement("div"); l.className = "lbl";
+        l.style.left = `${x + 12}px`; l.style.top = `${row * th + 10}px`;
+        l.textContent = `${row ? "TROLLS #1718" : "Stick troll"} · ${name}`;
+        document.body.appendChild(l); labels.push(l);
+      }
+    });
+    scene.remove(r.root);
+  });
+}
+draw();
+window.__pk = { draw, rigs, ready: true };
+</script>
+</body>
+</html>

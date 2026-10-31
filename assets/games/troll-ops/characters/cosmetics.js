@@ -8,8 +8,10 @@
 // the materials (faceMaterial / setFace); this file is the picks and the
 // panel.
 
-import { FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1";
+import { FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-pk1";
 import { WRISTWEAR, watchThumb } from "./wristwear.js?v=ww1c2m1-or1";
+import { HEADWEAR } from "./pumpkin-head.js?v=pk1";
+import { ownsItem } from "../progression/grants.js?v=pk1";
 const KEY = "trollops:cosmetics";
 
 export const EXPRESSIONS = [
@@ -26,6 +28,21 @@ export const COVERINGS = [
 ];
 // Wristwear (wristwear.js WRISTWEAR): a watch on the left wrist.
 export const WRISTS = [{ id: "", name: "None" }, ...Object.entries(WRISTWEAR).map(([id, w]) => ({ id, name: w.name }))];
+/* Head pieces (pumpkin-head.js HEADWEAR): worn in place of the whole head,
+   on the stick troll or a TROLLS body, picked among the faces (menu-bo2.js;
+   user, 2026-10-31: "add the pumpkin in faces"): picking an expression, or
+   the piece again, takes it off. `item`: the grant that unlocks it
+   (progression/grants.js); the Pumpkin Head is Chapter One's, free to
+   everyone who played it (user, 2026-10-31). */
+export const HEADS = [
+  { id: "pumpkin", name: "Pumpkin Head", item: "pumpkin-head", img: "../ui/pumpkin-head.webp" },
+];
+/* May the signed-in account wear head piece `id`? */
+export function canWearHead(id) {
+  if (!id) return true;
+  const h = HEADS.find((x) => x.id === id);
+  return !!h && (!h.item || ownsItem(h.item));
+}
 const EXPR_IDS = new Set(EXPRESSIONS.map((e) => e.id));
 // Bodies: the stick troll, or a TROLLS NFT's look (blocky-body.js
 // wearBlocky). A token's body is for its holder only: until the wallet
@@ -85,8 +102,8 @@ export function wornToken() {
    back on (user, 2026-10-12). The wrist isn't the head: it stays. */
 const FACE_FREE = "grin";
 const ownFace = (face) => {
-  const w = String(face).split(":")[3] || "";
-  return cleanFaceKey(`${FACE_FREE}:og::${w}`);
+  const [, , , w = "", h = ""] = String(face).split(":");
+  return cleanFaceKey(`${FACE_FREE}:og::${w}:${h}`);
 };
 
 /* May the signed-in account wear body `id`? */
@@ -98,15 +115,19 @@ export function canWearBody(id) {
 /* A face key off the wire or storage, or the default when it's not one we
    know: "expression:og", plus ":covering" when one's worn, plus ":wrist"
    when a watch is (the covering part left empty without one:
-   "grin:og::rolex-gold"). The second part was a face colour once; any old
+   "grin:og::rolex-gold"), plus ":head" when a head piece is
+   ("grin:og:::pumpkin"). The second part was a face colour once; any old
    one reads as "og". */
 export function cleanFaceKey(key) {
-  const [e, , c, w] = String(key || "").split(":");
+  const [e, , c, w, h] = String(key || "").split(":");
   if (!EXPR_IDS.has(e)) return "grin:og";
   const cover = FACE_COVERINGS[c] ? c : "";
   const wrist = WRISTWEAR[w] ? w : "";
-  return `${e}:og${cover || wrist ? `:${cover}` : ""}${wrist ? `:${wrist}` : ""}`;
+  const head = HEADWEAR[h] ? h : "";
+  return `${e}:og${cover || wrist || head ? `:${cover}` : ""}${wrist || head ? `:${wrist}` : ""}${head ? `:${head}` : ""}`;
 }
+/* A face key without its head piece. */
+const headless = (key) => { const [e, o, c = "", w = ""] = String(key).split(":"); return cleanFaceKey(`${e}:${o}:${c}:${w}`); };
 
 export function loadCosmetics() {
   try {
@@ -194,7 +215,7 @@ export class CosmeticsPanel {
       const name = document.createElement("span");
       name.textContent = e.name;
       b.append(thumb, name);
-      b.addEventListener("click", () => { if (!this.body) this.set({ expr: e.id }); });
+      b.addEventListener("click", () => { if (!this.body) this.set({ expr: e.id, head: "" }); });
       this.exprBox.appendChild(b);
     }
     this.coverBox = sec("Face covering", "Tie something over the grin. It still shows through.");
@@ -256,12 +277,41 @@ export class CosmeticsPanel {
       b.addEventListener("click", () => this.set({ wrist: wr.id }));
       this.wristBox.appendChild(b);
     }
+    this.headBox = sec("Head", "Worn over your whole head, on any body.");
+    this.headBox.className = "to-cos-faces";
+    this.headBox.setAttribute("role", "radiogroup");
+    this.headBox.setAttribute("aria-label", "Head");
+    for (const hd of HEADS) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "to-cos-face";
+      b.dataset.head = hd.id;
+      b.setAttribute("role", "radio");
+      const thumb = document.createElement("span");
+      thumb.className = "to-cos-thumb";
+      const img = document.createElement("img");
+      img.alt = "";
+      img.draggable = false;
+      img.src = new URL(hd.img, import.meta.url).href;
+      thumb.style.setProperty("--art", `url("${img.src}")`);
+      thumb.appendChild(img);
+      const name = document.createElement("span");
+      name.textContent = hd.name;
+      b.append(thumb, name);
+      b.addEventListener("click", () => { if (canWearHead(hd.id)) this.set({ head: this.face.split(":")[4] === hd.id ? "" : hd.id }); });
+      this.headBox.appendChild(b);
+    }
+    // a head piece unlocks when the server's grant lands (progression/grants.js)
+    window.addEventListener("trollforces:grants", () => { this.paint(); this.onChange?.(this.face); });
     this.paint();
   }
 
   /* The face you wear: the pick, or (a TROLLS body on) the plain face with
      only the wrist kept, since the body's own head covers the rest. */
-  get face() { return this.body ? ownFace(this.state.face) : this.state.face; }
+  get face() {
+    const f = this.body ? ownFace(this.state.face) : this.state.face;
+    return canWearHead(f.split(":")[4] || "") ? f : headless(f);
+  }
   /* The body to wear: the pick, if this account may wear it ("" the stick). */
   get body() { return canWearBody(this.state.body) ? this.state.body : ""; }
 
@@ -275,14 +325,14 @@ export class CosmeticsPanel {
     this.onChange?.(this.face);
   }
 
-  set({ expr, cover, wrist }) {
+  set({ expr, cover, wrist, head }) {
     if (this.body) { expr = undefined; cover = undefined; }   // the body's own head
-    const [e0, , c0 = "", w0 = ""] = this.state.face.split(":");
-    const c = cover ?? c0, w = wrist ?? w0;
-    this.state.face = cleanFaceKey(`${expr || e0}:og:${c}:${w}`);
+    const [e0, , c0 = "", w0 = "", h0 = ""] = this.state.face.split(":");
+    const c = cover ?? c0, w = wrist ?? w0, h = head ?? h0;
+    this.state.face = cleanFaceKey(`${expr || e0}:og:${c}:${w}:${h}`);
     saveCosmetics(this.state);
     this.paint();
-    this.onChange?.(this.state.face);
+    this.onChange?.(this.face);
   }
 
   paint() {
@@ -304,7 +354,7 @@ export class CosmeticsPanel {
     this.coverBox.classList.toggle("is-locked", headLock);
     const e = face.split(":")[0];
     for (const b of this.exprBox.children) {
-      const on = !headLock && b.dataset.expr === e;
+      const on = !headLock && b.dataset.expr === e && !face.split(":")[4];   // (the Pumpkin Head on: it is the face)
       b.classList.toggle("is-on", on);
       b.setAttribute("aria-checked", String(on));
       b.setAttribute("aria-disabled", String(headLock));
@@ -323,6 +373,15 @@ export class CosmeticsPanel {
       const on = b.dataset.wrist === wrist;
       b.classList.toggle("is-on", on);
       b.setAttribute("aria-checked", String(on));
+    }
+    const head = face.split(":")[4] || "";
+    for (const b of this.headBox.children) {
+      const on = b.dataset.head === head;
+      const locked = !canWearHead(b.dataset.head);
+      b.classList.toggle("is-on", on);
+      b.setAttribute("aria-checked", String(on));
+      b.setAttribute("aria-disabled", String(locked));
+      b.title = locked ? "Free to everyone who played Chapter One (26 Oct to 12 Nov)" : "";
     }
   }
 }

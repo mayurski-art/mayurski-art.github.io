@@ -533,10 +533,24 @@ export function mountFnLobby(api) {
         <i aria-hidden="true"><b style="width:${ok ? 100 : 4}%"></b></i></li>`;
     }).join("");
     const left_ = all.filter((a) => !have.has(a.id)).length;
+    lockerDot();
     const dot = $('[data-tab="quests"] .to-fn-dot', top);
     dot.hidden = !left_;
     $('[data-tab="quests"]', top).setAttribute("aria-label", left_ ? `Quests, ${left_} to do` : "Quests");
   }
+
+  /* The Locker tab's dot: something new in it, not seen yet (an item the
+     server gave: progression/grants.js keeps the list, per account, in
+     localStorage; read here so this module still imports nothing). */
+  function lockerDot() {
+    const id = window.TrollrunnerAccounts?.getCachedProfile?.()?.id;
+    let fresh = 0;
+    try { fresh = id ? (JSON.parse(localStorage.getItem("trollops:new-items") || "{}")[id] || []).length : 0; } catch {}
+    $('[data-tab="locker"] .to-fn-dot', top).hidden = !fresh;
+    $('[data-tab="locker"]', top).setAttribute("aria-label", fresh ? "Locker, something new" : "Locker");
+  }
+  addEventListener("trollforces:grants", lockerDot);
+  lockerDot();
 
   /* ── Follow the menu: which tab, and the Play page only on "main" ── */
   function onScreen() {
