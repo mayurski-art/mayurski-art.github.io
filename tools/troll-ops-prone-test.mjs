@@ -136,6 +136,26 @@ const r = await page.evaluate(async (MOVE) => {
   return out;
 }, MOVE);
 
+// steadiness: the stance table, and the hip cone a WeaponState settles to
+const s = await page.evaluate(async ({ MOVE, WPN }) => {
+  const { stanceSteady } = await import(MOVE);
+  const { WeaponState, WEAPON_DEFS } = await import(WPN);
+  const id = Object.keys(WEAPON_DEFS).find((k) => WEAPON_DEFS[k].spreadBase > 0.01);
+  const cone = (hipSteady) => {
+    const w = new WeaponState(id);
+    for (let i = 0; i < 300; i++) w.update(1 / 60, { moving: false, sprinting: false, grounded: true, jumping: false, adsHeld: false, canAds: true, hipSteady });
+    return w.spread / w.def.spreadBase;
+  };
+  return { stand: stanceSteady("stand"), slide: stanceSteady("slide"), crouch: stanceSteady("crouch"), prone: stanceSteady("prone"),
+    coneStand: cone(1), coneCrouch: cone(stanceSteady("crouch").spread), coneProne: cone(stanceSteady("prone").spread), id };
+}, { MOVE, WPN: urlOf("game.js", "weapons.js") });
+const near = (a, b) => Math.abs(a - b) < 0.02;
+check("standing and sliding: no steadiness change", s.stand.sway === 1 && s.slide.spread === 1 && s.slide.kick === 1);
+check("crouch: sway x0.8, spread x0.85", s.crouch.sway === 0.8 && s.crouch.spread === 0.85 && s.crouch.kick === 1);
+check("prone: sway x0.4, kick x0.7, spread x0.6", s.prone.sway === 0.4 && s.prone.kick === 0.7 && s.prone.spread === 0.6);
+check("the hip cone settles to the stance's share", near(s.coneStand, 1) && near(s.coneCrouch, 0.85) && near(s.coneProne, 0.6),
+  `${s.id}: ${s.coneStand.toFixed(2)} / ${s.coneCrouch.toFixed(2)} / ${s.coneProne.toFixed(2)}`);
+
 check("tap crouch crouches, tap again stands", r.tapCrouch === "crouch" && r.tapStand === "stand", `${r.tapCrouch} -> ${r.tapStand}`);
 check("held crouch: crouch at once, prone at 0.35 s", r.holdEarly === "crouch" && r.holdLate === "prone", `${r.holdEarly} -> ${r.holdLate}`);
 check("lying down commits 0.25 s (no aim/fire)", r.lockedAt === true && r.lockedAfter === false);

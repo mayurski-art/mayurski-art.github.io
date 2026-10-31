@@ -18,6 +18,15 @@ export const STANCE = { STAND: "stand", CROUCH: "crouch", SLIDE: "slide", PRONE:
 const EYE = { stand: 1.68, crouch: 1.05, slide: 0.82, prone: 0.5, vault: 1.2, rope: 1.55 };
 const STANCE_SPEED = { stand: 1, crouch: 0.48, slide: 1, prone: 0.22, vault: 0, rope: 0 };
 
+// Lower is steadier (docs/PRONE.md): multipliers on the gun's idle sway and
+// visual kick (view/weapon-view.js) and the hip-fire cone (weapons.js).
+const STEADY_NONE = { sway: 1, kick: 1, spread: 1 };
+export const STANCE_STEADY = {
+  crouch: { sway: 0.8, kick: 1, spread: 0.85 },
+  prone: { sway: 0.4, kick: 0.7, spread: 0.6 },
+};
+export const stanceSteady = (stance) => STANCE_STEADY[stance] || STEADY_NONE;
+
 const WALK_SPEED = 5.2;
 const GRAVITY = 22;
 const JUMP_SPEED = 7.0;

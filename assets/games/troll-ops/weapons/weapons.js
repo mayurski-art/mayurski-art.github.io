@@ -786,7 +786,7 @@ export class WeaponState {
     this.spread = Math.min(this.def.spreadMax, this.spread + this.def.spreadPerShot * (1 - 0.9 * this.adsT));
   }
 
-  update(dt, { moving, sprinting, grounded, jumping, adsHeld, canAds }) {
+  update(dt, { moving, sprinting, grounded, jumping, adsHeld, canAds, hipSteady = 1 }) {
     const def = this.def;
     this.fireCooldown = Math.max(0, this.fireCooldown - dt);
     this.pumpT = Math.max(0, this.pumpT - dt);
@@ -813,6 +813,7 @@ export class WeaponState {
     let hipTarget = def.spreadBase;
     if (moving) hipTarget = Math.max(hipTarget, def.spreadMoving);
     if (!grounded || jumping) hipTarget = Math.max(hipTarget, def.spreadJump);
+    hipTarget *= hipSteady;   // crouched or prone: a tighter hip cone (core/movement.js STANCE_STEADY)
 
     // Walking while aimed costs nothing, as in CoD; sprinting still does.
     // The old 1.45 walk penalty plus per-shot bloom put a walking rifle's

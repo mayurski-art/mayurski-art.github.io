@@ -20,7 +20,7 @@ import { trollReticleSkin } from "./troll-reticle.js?v=tr1-ret1-mrg1-hd1-mrc1-tw
 import { hasArReload, applyArReload, arReloadBeats, easeCutReload } from "./ar-reload.js?v=ar1-br1-or1-ars1-p416";
 import { chargedShotDef } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1-gf1-tg1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
-import { STANCE } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1";
+import { STANCE, stanceSteady } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1";
 import { game } from "../core/state.js?v=st1";
 
 /* Phase 2 (DESIGN-ARMS.md §5): landing-impact dip. `move.justLanded`/
@@ -1376,15 +1376,17 @@ export function updateWeaponView(dt) {
   const steady = 1 - w.adsT * 0.97;
   // The kick that moves the gun in your hands (not the aim's own climb,
   // recoilPitch): aimed, a third of it, so the sight stays on the target.
-  const kick = 1 - w.adsT * 0.65;
+  // Crouched or prone, the gun sways and kicks less (PRONE.md).
+  const st = stanceSteady(game.move.stance);
+  const kick = (1 - w.adsT * 0.65) * st.kick;
   // Settle: eases toward 1 while moving, toward 0 at rest, on top of (not
   // instead of) bobPhase freezing — the freeze already stops the wave from
   // continuing, this stops the amplitude from cutting off abruptly with it.
   bobSettleT = damp(bobSettleT, game.move.moving ? 1 : 0, game.move.moving ? 10 : 5, dt);
   const bobX = Math.sin(w.bobPhase) * w.def.bobAmp * 0.5 * steady * bobSettleT;
   const bobY = Math.abs(Math.cos(w.bobPhase)) * w.def.bobAmp * steady * bobSettleT;
-  const rawSwayX = Math.sin(game.clock.elapsedTime * w.def.swaySpeed) * w.def.swayAmp * steady;
-  const rawSwayY = Math.cos(game.clock.elapsedTime * w.def.swaySpeed * 0.8) * w.def.swayAmp * 0.6 * steady;
+  const rawSwayX = Math.sin(game.clock.elapsedTime * w.def.swaySpeed) * w.def.swayAmp * steady * st.sway;
+  const rawSwayY = Math.cos(game.clock.elapsedTime * w.def.swaySpeed * 0.8) * w.def.swayAmp * 0.6 * steady * st.sway;
   // Directional strafe lean: a small extra lag-behind tilt keyed to strafe
   // direction, on top of the symmetric idle sway above, so left/right reads
   // as different rather than mirrored. move.strafeInput is -1 (left)..1
