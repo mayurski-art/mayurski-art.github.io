@@ -171,4 +171,7 @@ wheel.
    for the fall, your choice of POV in the plane (see "First person and
    third person").
 3. Break off with Space / pad A, auto-release at 120 m: OK?
-4. Bot-only squads fall as wheels too?
+4. DECIDED (user, 2026-10-30): yes. Every Duo, Trio and Squad wheels,
+   whether it's all humans, humans topped up with bots, or all bots. The
+   top-up is already in the game (`bots.js` `fillSquads` fills every
+   empty seat).
