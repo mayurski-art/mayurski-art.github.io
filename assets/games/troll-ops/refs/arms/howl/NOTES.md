@@ -60,4 +60,14 @@ What the renders show, and where the builder takes it from
 | Skeleton stock: a top beam, an angled lower strut, a big triangular window, hex screws at the joints | `stock()` section_body + `rrect_cut` through |
 | Cheek riser: an olive block on two posts with adjust slots | `riser()` |
 | Butt: black rubber pad on stacked spacer plates, hex screws, QD cups | `butt()` |
-| The round in the port (`concept-4`) | a round node the shared animation shows and moves (name pending the MTAR session's convention) |
+| The round in the port (`concept-4`) | `HB_Round`: one .338 round in the chamber ahead of the bolt face, extras `tf_round: 1`; the shared cocking animation (claude/arms-mtar) shows it while the bolt is open and the mag has rounds |
+
+Node conventions agreed with the MTAR session (2026-10-30), which wires the
+runtime on claude/arms-mtar: `HB_Bolt` is one moving part (slide z, travel
+0.075) pivoted on the bore at the bolt's rest z, with `tf_lift` (the
+handle's lift in radians, positive rotation.z lifts the knob) so lift and
+rake run on the same node and gun-action's carrier curve leaves it alone;
+`HB_BoltKnob` is a point at the knob's centre ("BoltKnob" added to
+gunkit.POINTS and weapon-model.js gunPoints); `HB_Eject` at the port. The
+Ballista's own test checks the nodes, extras and that the LOD1 drops them;
+the cycle, round and brass are tested on the MTAR branch.
