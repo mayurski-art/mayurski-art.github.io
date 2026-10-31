@@ -33,7 +33,10 @@ nothing in game.js.
 | `modes/kb-bar.js` (new) | ordering, the menu, the drink arriving, `orderDrink(player, drinkId)` |
 | `modes/drunk.js` (new) | the spells, the pass-out state machine, the screen effects, the peer pose |
 | `maps/saloon-bar.js` | the four new drink models + kinds + wire codes |
-| `net/net.js` | one state field, `dz` (sent from `game.net.drunkAt`, like `trainAt`) |
+| `net/net.js` | one state field, `dz` (`game.net.dz`, like `trainAt`) |
+| `view/player-update.js` | the frame hooks: `updateDrunk` / `updateKbBar`, the hold while out, the camera's roll, pitch and eye drop, the walk's shove |
+| `maps/kabukigrin.js`, `maps/kabukigrin-social.js` | the bar stools carry `bar: true`; `muffle` reads `game.drunkMuffle` |
+| `style.css` | the drinks card, the dizzy vignette, the blackout |
 | `tools/troll-ops-kb-bar-test.mjs` (new) | the targeted test |
 
 ## 3. Ordering (hooks into hold X)
@@ -41,8 +44,8 @@ nothing in game.js.
 Seated on a Kabukigrin bar stool with empty hands, the pickup prompt says
 **Hold X: Order a drink** (an `rpExtras` action, so it rides the existing
 prompt, keycap and touch context button). Holding it opens a small menu card
-(DM Mono, the club's neon pink accent), four rows, picked with 1-4, click or
-tap, Esc / move closes:
+(DM Mono, the club's neon pink accent), four rows, picked with 1-4 (a tap on
+a phone), Esc or standing up closes:
 
 | Drink | Sips | Per sip | Total | Glass |
 |---|---|---|---|---|
@@ -59,8 +62,8 @@ down, as now).
 **API for North's dialogue session**: `orderDrink(player, drinkId)` exported
 from `modes/kb-bar.js`. `player` is `"me"` (the local player; peers order on
 their own tabs), `drinkId` one of `sake | highball | sour | tea`. Returns
-`true` if it was served, `false` with a reason banner if not (hands full,
-not at the bar). `KB_DRINKS` exports the menu for dialogue copy.
+`true` if the bartender took it (the glass lands after the 1.2 s pour),
+`false` with a reason banner if not (hands full, not on a bar stool). `KB_DRINKS` exports the menu for dialogue copy.
 
 ## 4. The intoxication curve
 
@@ -89,12 +92,10 @@ envelope (0.3 s in, hold, 0.8 s out). With `k = (level - 3) / 5`:
 During a spell, scaled by strength:
 
 - **Camera**: a roll lurch to one side (up to 0.22 rad) and a pitch dip,
-  a slow yaw drag (the view slides off what you're looking at), FOV breathing
-  +-4°.
-- **Blur and wobble**: a CSS `blur()` on the game canvas (up to 2.5 px), a
-  dark vignette that pulses in, and a faint double image (the HUD-layer
-  overlay used by the Pour up trip, offset and fading). On Low quality and on
-  phones the blur is skipped (the vignette and double image stay).
+  a slow yaw drag (the view slides off what you're looking at).
+- **Blur and wobble**: a CSS `blur()` on the game canvas (up to 2.5 px) and
+  a dark vignette that closes in with the spell. On Low quality and on
+  phones the blur is skipped (the vignette stays).
 - **Staggered movement**: the walk input is shoved sideways (the stagger
   term x3) and slowed to 70 %; a strong spell can make you stumble a step
   on your own. Seated: just the body sway, you stay on the stool.
