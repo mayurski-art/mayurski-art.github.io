@@ -18,7 +18,7 @@
 // The radio panel (menu/radio.js) draws it from game.radioSync.view().
 
 import { game } from "../core/state.js?v=st1";
-import { viewerId } from "../../../js/site-presence.js?v=to-bo2d-ol1-iv1-mv1-wo1";
+import { viewerId } from "../../../js/site-presence.js?v=to-bo2d-ol1-iv1-mv1-wo1-ll2";
 
 const SYNC = {
   tick: 500,        // ms between checks of the leader's radio

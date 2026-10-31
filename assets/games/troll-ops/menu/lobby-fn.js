@@ -280,7 +280,9 @@ export function mountFnLobby(api) {
     // Troll Royale: the side you start on (royale-side.js), not a vote
     const side = p.id === "public" && $('#to-lo-mode [data-mode="royale"]')?.classList.contains("is-active") && royaleSide?.();
     if (side) { name = side.name; sub = `${side.tag === "Default" ? "Default island" : side.tag} · change`; }
-    else if (p.id === "public") { name = "Map vote"; sub = "Vote with the lobby"; }
+    // (Public Match: no card. The vote is on the screen PLAY opens; a "Map
+    // vote" card here said it twice, user 2026-10-31: "remove this")
+    else if (p.id === "public") { /* no card */ }
     else if (p.id === "zombies") { name = "The hub"; sub = "A pad for every map"; }
     else if (active) { name = text($(".to-map-name", active)); sub = p.id === "social" ? "Join whoever's there" : "Your map"; }
     $("strong", map).textContent = name;
@@ -569,9 +571,13 @@ export function mountFnLobby(api) {
         <small>${esc(c.desc)}</small>
         <i aria-hidden="true"><b style="width:${c.done ? 100 : Math.max(3, pct)}%"></b></i><strong>+${c.xp.toLocaleString()} XP</strong></li>`;
     }).join("");
-    // the Quests tab's dot: today's challenges still to do
+    // the Quests tab's dot: something there not looked at yet (a challenge
+    // done, a new day's or week's), not "anything left to do", which is
+    // always (user, 2026-10-31: "the yellow circle in quest isn't
+    // disappearing"); opening Quests clears it (onScreen questsSeen)
     const today = groups.find((x) => x.id === "daily").list.filter((c) => !c.done).length;
-    $('[data-tab="quests"] .to-fn-dot', top).hidden = !today;
+    questSig = groups.flatMap((x) => x.list.map((c) => `${x.id}:${c.name}:${c.done ? 1 : 0}`)).join("|");
+    questDot();
     $('[data-tab="quests"]', top).setAttribute("aria-label", today ? `Quests, ${today} daily challenges to do` : "Quests");
   }
   $(".to-fn-qtabs", left).addEventListener("click", (e) => {
@@ -581,6 +587,17 @@ export function mountFnLobby(api) {
     try { localStorage.setItem(QTAB_KEY, qtab); } catch {}
     renderChallenges();
   });
+  // (a var, no value: renderChallenges may run before this line has)
+  var questSig;
+  function questDot() {
+    let seen = null;
+    try { seen = localStorage.getItem("trollops:quests-seen"); } catch {}
+    $('[data-tab="quests"] .to-fn-dot', top).hidden = !questSig || seen === questSig;
+  }
+  function questsSeen() {
+    try { localStorage.setItem("trollops:quests-seen", questSig); } catch {}
+    questDot();
+  }
   addEventListener("trollforces:challenges", () => renderChallenges());
   // (a new day or week while the menu is up)
   setInterval(() => { if (!title.hidden) renderChallenges(); }, 60000);
@@ -616,6 +633,7 @@ export function mountFnLobby(api) {
     more.hidden = !home;
     if (!home) { openPicker(false); openModes(false); help.close(); }
     if (home) { renderPlay(); renderMe(); }
+    if (id === "quests") questsSeen();
     // the operator on the pad stands on the Play page only (lobby.js)
     dispatchEvent(new Event("trollforces:fn-screen"));
   }

@@ -27,7 +27,7 @@ const ICON = {
 };
 
 export function mountFriends(api) {
-  const { root, getRoster, onlinePlayers, describe, serverList, joinServer, invitePlayer, squadUp, openProfileCard, openGuestCard, signIn, setStatus } = api;
+  const { root, getRoster, onlinePlayers, describe, serverList, joinServer, invitePlayer, squadUp, openProfileCard, openGuestCard, signIn, setStatus, poke, onPoke } = api;
   const acc = () => window.TrollrunnerAccounts;
   const me = () => acc()?.getCachedProfile?.() || null;
   const myId = () => { const p = me(); return p?.id || p?.userId || null; };
@@ -208,7 +208,7 @@ export function mountFriends(api) {
     if (busy.has(id)) return;
     busy.add(id);
     render();
-    try { await fn(); if (ok) say(ok); }
+    try { await fn(); if (ok) say(ok); poke?.(id); }
     catch (err) { say(err?.message || "That didn't go through. Try again.", true); }
     busy.delete(id);
     await load();
@@ -234,14 +234,17 @@ export function mountFriends(api) {
       say(msg, !ok);
     }, `Ask ${name}'s squad to join up with yours`);
   }
-  /* A public room they're in, that we can drop into from here. */
+  /* A room they're in, that we can drop into from here, mid-match: a public
+     one, or a friend's private one they leave open to friends (online.js
+     friendsCanJoin; off, its code never reaches us). */
   function joinBtn(o, name) {
     const a = o.activity;
-    if (!a?.pub || !a.room) return null;
-    const srv = serverList(getRoster()).find((s) => s.room === a.room);
+    if (!a?.room || !(a.pub || a.open)) return null;
+    const srv = a.pub ? serverList(getRoster()).find((s) => s.room === a.room) : { room: a.room, mode: a.mode, map: a.map };
     if (!srv) return null;
     return action("Join", "is-go", () => {
-      if (joinServer(srv)) { setStatus?.(`Joining ${name}…`); open(false); }
+      // (a private room stays off the public list)
+      if (joinServer(srv, { listed: !!a.pub })) { setStatus?.(`Joining ${name}…`); open(false); }
       else say(`Couldn't join ${name} right now.`, true);
     }, `Join ${name}'s match`);
   }
@@ -255,6 +258,24 @@ export function mountFriends(api) {
     const { all, byUser } = onlineNow();
     const mine = myId(), myViewer = (() => { try { return localStorage.getItem("trollrunner_viewer_id_v1"); } catch { return null; } })();
     const parts = [];
+
+    /* Who else is on: not you, not already a friend or a request. Right
+       under your friends online (user, 2026-10-31: "its too hard to see who
+       is online that aren't my friends because i have to scroll all the way
+       down"), the offline ones after it. */
+    function othersSection() {
+      const known = new Set([...friends, ...incoming, ...outgoing].map((f) => f.id));
+      const others = all.filter((o) => o.viewerId !== myViewer && !(mine && o.userId === mine) && !(o.userId && known.has(o.userId)));
+      return section("Online now", others.map((o) => {
+        const add = signedIn && o.userId ? (busy.has(o.userId) ? action("…", "is-ghost", () => {}) : action("Add", "is-add", () => act(o.userId, () => acc().sendFriendRequest(o.userId), `Friend request sent to ${o.name}.`), `Add ${o.name} as a friend`)) : null;
+        return row({
+          id: o.userId || o.viewerId, name: o.name, level: o.guest ? null : o.level, avatarUrl: null, state: "on",
+          line: o.guest ? `Guest · ${describe(o.activity, o)}` : describe(o.activity, o),
+          onOpen: o.userId ? profileOf(o.userId, o.name) : () => openGuestCard({ viewerId: o.viewerId, name: o.name }),
+          actions: [add, inviteBtn(o, o.name), squadBtn(o, o.name)],
+        });
+      }), { count: others.length, cls: "is-others", hint: "Nobody else is on right now." });
+    }
 
     if (!signedIn) {
       sum.textContent = "Sign in to keep a friends list";
@@ -292,6 +313,8 @@ export function mountFriends(api) {
         });
       }), { hint: loaded && friends.length ? "None of your friends are on right now." : "" }));
 
+      parts.push(othersSection());
+
       parts.push(section("Offline", offF.map((f) => row({
         id: f.id, name: f.username, level: f.level, avatarUrl: f.avatar_url, state: "off",
         line: confirmRemove === f.id ? `Remove ${f.username} from your friends?` : "Offline",
@@ -314,18 +337,7 @@ export function mountFriends(api) {
       }
     }
 
-    // Who else is on: not you, not already a friend or a request
-    const known = new Set([...friends, ...incoming, ...outgoing].map((f) => f.id));
-    const others = all.filter((o) => o.viewerId !== myViewer && !(mine && o.userId === mine) && !(o.userId && known.has(o.userId)));
-    parts.push(section("Online now", others.slice(0, 12).map((o) => {
-      const add = signedIn && o.userId ? (busy.has(o.userId) ? action("…", "is-ghost", () => {}) : action("Add", "is-add", () => act(o.userId, () => acc().sendFriendRequest(o.userId), `Friend request sent to ${o.name}.`), `Add ${o.name} as a friend`)) : null;
-      return row({
-        id: o.userId || o.viewerId, name: o.name, level: o.guest ? null : o.level, avatarUrl: null, state: "on",
-        line: o.guest ? `Guest · ${describe(o.activity, o)}` : describe(o.activity, o),
-        onOpen: o.userId ? profileOf(o.userId, o.name) : () => openGuestCard({ viewerId: o.viewerId, name: o.name }),
-        actions: [add, inviteBtn(o, o.name), squadBtn(o, o.name)],
-      });
-    }), { count: others.length, cls: "is-others", hint: "Nobody else is on right now." }));
+    if (!signedIn) parts.push(othersSection());
 
     body.replaceChildren(...parts.filter(Boolean));
   }
@@ -425,6 +437,9 @@ export function mountFriends(api) {
     render();
     if (me()) load();
   });
+  // someone asked, accepted, declined or removed us just now (their act()
+  // nudged us): reload at once, not on the next poll
+  onPoke?.(() => { if (me()) load(); });
   if (me()) load();
 
   return {
