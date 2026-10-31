@@ -214,7 +214,8 @@ async function installSim(page) {
       floors: layout.floors || { ground: 0 },
       floorOf: (y, x, z) => (layout.floorOf || (() => "ground"))(y, x, z),
       ground: (x, z, y) => H.groundHeightAt ? H.groundHeightAt(live.colliders, x, z, y + 0.6, 0.3) : y,
-      async run({ points = null, type = "walker", n = 12, secs = 40, crawl = false, round = 5, player, walk = null, stagger = 0.5 }) {
+      async run({ points = null, type = "walker", n = 12, secs = 40, crawl = false, round = 5, player, walk = null, stagger = 0.5, trace = 0 }) {
+        const traces = [];
         stand();
         const dir = new H.ZombieDirector(new THREE.Scene(), live.arena, live.colliders, layout);
         dir.round = round;
@@ -269,13 +270,14 @@ async function installSim(page) {
             for (const b of moving) if (a !== b) nd = Math.min(nd, Math.hypot(a.mesh.position.x - b.mesh.position.x, a.mesh.position.z - b.mesh.position.z));
             if (nd < Infinity) { bunchN++; if (nd < 0.8) bunchHit++; }
           }
+          if (trace && Math.abs(t - Math.round(t)) < dt / 2) traces.push(stats.slice(0, trace).map((s) => { const q = s.z.mesh.position; return [Math.round(t), +q.x.toFixed(1), +s.z.groundY.toFixed(1), +q.z.toFixed(1), s.z.climb ? "C" : "", s.at != null ? "R" : ""].join(","); }).join(" | "));
           t += dt;
           if (((t / dt) | 0) % 60 === 0) await new Promise((r) => setTimeout(r, 0));
         }
         const out = stats.map((s) => ({ at: s.at == null ? null : +s.at.toFixed(1), speed: +(s.dist / Math.max(s.moveT, 0.01)).toFixed(2), stuck: s.stuck, angle: s.angle, end: { x: +s.z.mesh.position.x.toFixed(1), y: +s.z.groundY.toFixed(2), z: +s.z.mesh.position.z.toFixed(1) }, base: +s.z.speed.toFixed(2) }));
         for (const z of dir.zombies) z.dispose(dir.scene);
         const sectors = new Set(out.filter((o) => o.angle != null).map((o) => Math.floor(((o.angle + Math.PI) / (Math.PI * 2)) * 8) % 8)).size;
-        return { zs: out, bunch: bunchN ? +(bunchHit / bunchN).toFixed(2) : 0, hits, sectors };
+        return { traces, zs: out, bunch: bunchN ? +(bunchHit / bunchN).toFixed(2) : 0, hits, sectors };
       },
     };
   });
@@ -328,14 +330,12 @@ async function debug() {
   const page = await open(MAPS[0]);
   await installSim(page);
   const spots = await spotsFor(page);
-  console.log(JSON.stringify(spots));
-  const r = await R(page, async (spot) => {
-    const S = window.__zsim, T = window.__trollOps;
-    const lay = S.layout;
-    const w = lay.windows.slice(0, 40).map((q) => [+q.x.toFixed(1), +q.y.toFixed(1), +q.z.toFixed(1), S.floorOf(q.y + 0.2, q.x, q.z)]);
-    return { w, floorPlayer: S.floorOf(spot.y + 0.2, spot.x, spot.z), arena: S.live.arena, ncol: S.live.colliders.length, mode: T.modeId(), staging: T.isStaging?.() };
-  }, spots[0]);
-  console.log(JSON.stringify(r));
+  const which = (process.env.SPOTS || '1').split(',').map(Number);
+  for (const i of which) {
+    const r = await R(page, (a) => window.__zsim.run(a), { player: spots[i], n: 3, secs: +(process.env.SECS || 40), trace: 3, crawl: !!process.env.CRAWL });
+    console.log(spots[i].name, JSON.stringify(spots[i]));
+    console.log(r.traces.join("\n"));
+  }
 }
 const SECTIONS = { rebuild, hud, hp, ai, debug };
 if (!SECTIONS[section]) { console.log(`unknown section ${section}: ${Object.keys(SECTIONS).join(" ")}`); process.exit(2); }
