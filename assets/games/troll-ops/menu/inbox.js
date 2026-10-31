@@ -14,13 +14,19 @@
 //     lobby's type, a yellow call to action) at the top of the screen, but
 //     only once the player is in the menu: never over the boot screen, never
 //     in a match. Waiting ones go one at a time.
-// The inbox is the envelope in the lobby's footer, beside public chat, with
-// a count of unread messages.
+// The inbox is Mail: the envelope in the lobby's footer, beside public chat,
+// with a count of unread messages. Besides prizes, unlocks and finished
+// challenges, the game sends everyone its news as letters (menu/mail.js: an
+// update, an event), each once per account.
+
+import { lettersDue } from "./mail.js?v=ml1";
 
 const KEY = "trollops:inbox";       // { [account id | "guest"]: [message, ...] }
 const MAX = 50;
 const TOAST_MS = 8000;
 const ICON = "assets/images/icons/favicon/grin.png";
+const SENT_KEY = "trollops:mail-sent";   // { [account id | "guest"]: [letter id, ...] }
+
 
 /* What each kind says over its title, and its button. */
 const KINDS = {
@@ -29,6 +35,7 @@ const KINDS = {
   x: { kicker: "New post on X", cta: "Open on X" },
   tiktok: { kicker: "New TikTok", cta: "Watch on TikTok" },
   news: { kicker: "Trollnite", cta: "Open" },
+  mail: { kicker: "Mail from Trollnite", cta: "Open" },
 };
 
 const profile = () => window.TrollrunnerAccounts?.getCachedProfile?.() || null;
@@ -59,7 +66,7 @@ const live = new Map();     // id -> the live callback a message came with (not 
 /* A message: { id, kind, title?, body, cta?, url?, screen? }. Stored, then
    shown as a toast as soon as the player is in the menu. The same id twice
    is one message. */
-export function notify(msg, onCta) {
+export function notify(msg, onCta, { quiet = false } = {}) {
   if (!msg?.body) return;
   const m = {
     id: String(msg.id || `m-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`),
@@ -78,8 +85,24 @@ export function notify(msg, onCta) {
   saveMine([m, ...list]);
   renderBadge();
   if (ui?.panel && !ui.panel.hidden) renderList();
+  if (quiet) return;   // (into Mail, no toast)
   waiting.push(m);
   pump();
+}
+
+/* The game's letters (menu/mail.js) this account hasn't had: each into Mail
+   once (cleared Mail doesn't bring them back); the newest pops as a toast,
+   the rest arrive quietly. */
+function deliverMail() {
+  let sent = {};
+  try { sent = JSON.parse(localStorage.getItem(SENT_KEY) || "{}") || {}; } catch {}
+  const had = new Set(sent[owner()] || []);
+  const due = lettersDue().filter((l) => !had.has(l.id));
+  if (!due.length) return;
+  due.forEach((l, i) => notify({ id: l.id, kind: "mail", title: l.title, body: l.body, cta: l.cta, screen: l.screen, url: l.url },
+    null, { quiet: i < due.length - 1 }));
+  sent[owner()] = [...had, ...due.map((l) => l.id)];
+  try { localStorage.setItem(SENT_KEY, JSON.stringify(sent)); } catch { /* private mode */ }
 }
 
 /* The game's own news (progression/challenges.js: a challenge done) comes as
@@ -156,7 +179,7 @@ function renderBadge() {
   const n = unread();
   ui.badge.hidden = !n;
   ui.badge.textContent = n > 9 ? "9+" : String(n);
-  ui.btn.setAttribute("aria-label", n ? `Inbox, ${n} unread` : "Inbox");
+  ui.btn.setAttribute("aria-label", n ? `Mail, ${n} unread` : "Mail");
 }
 
 function renderList() {
@@ -167,7 +190,7 @@ function renderList() {
       <img src="${ICON}" alt="">
       <div><small>${esc(m.title || k.kicker)} · ${esc(ago(m.at))}</small><p>${esc(m.body)}</p>
       ${actionable(m) ? `<button type="button" class="tf-inbox-go">${esc(m.cta || k.cta)}</button>` : ""}</div></li>`;
-  }).join("") : `<li class="tf-inbox-empty">Nothing yet. Rewards, finished challenges and news land here.</li>`;
+  }).join("") : `<li class="tf-inbox-empty">No mail yet. Prizes, unlocks, finished challenges and updates land here.</li>`;
 }
 
 function openInbox() {
@@ -194,7 +217,7 @@ export function initInbox({ root, title, before }) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "tf-btn tf-btn--secondary to-bo2-quick to-bo2-mail";   // (not .to-bo2-chat: lookups of the chat pill must not find this)
-  btn.title = "Inbox";
+  btn.title = "Mail";
   btn.setAttribute("aria-haspopup", "dialog");
   btn.setAttribute("aria-expanded", "false");
   btn.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5A2 2 0 0 1 5.5 4.5h13a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2zM5 7l7 5.5L19 7"/></svg><b class="to-pchat-badge tf-inbox-badge" hidden></b>`;
@@ -202,11 +225,11 @@ export function initInbox({ root, title, before }) {
   const panel = document.createElement("section");
   panel.className = "tf-inbox";
   panel.setAttribute("role", "dialog");
-  panel.setAttribute("aria-label", "Inbox");
+  panel.setAttribute("aria-label", "Mail");
   panel.hidden = true;
-  panel.innerHTML = `<header><h2>Inbox</h2>
+  panel.innerHTML = `<header><h2>Mail</h2>
     <button type="button" class="tf-inbox-clear">Clear</button>
-    <button type="button" class="tf-inbox-x" aria-label="Close the inbox"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></header>
+    <button type="button" class="tf-inbox-x" aria-label="Close Mail"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></header>
     <ol class="tf-inbox-list"></ol>`;
   const layer = root.parentElement || root;
   layer.append(panel);
@@ -233,7 +256,8 @@ export function initInbox({ root, title, before }) {
   new MutationObserver(() => pump()).observe(document.body, { attributes: true, attributeFilter: ["class"] });
   addEventListener("tf-boot-enter", () => setTimeout(pump, 600));
   // a different account: its own inbox
-  addEventListener("trollrunner:auth-changed", () => { renderBadge(); if (!panel.hidden) renderList(); });
+  addEventListener("trollrunner:auth-changed", () => { deliverMail(); renderBadge(); if (!panel.hidden) renderList(); });
+  deliverMail();
   renderBadge();
   pump();
   return { notify, open: openInbox, close: closeInbox, unread };
