@@ -172,7 +172,8 @@ export function updatePlayer(dt) {
   // The saloon bar: a few drinks in, the walk wanders side to side.
   if (bar.tipsy > TIPSY.onset && game.isSocial() && (ix || iz)) ix = Math.max(-1, Math.min(1, ix + tipsyFx(bar.tipsy, performance.now() / 1000).stagger * 0.45));
   // A dizzy spell: shoved sideways (a stumble, even standing still) and slowed.
-  if (dz.shove) { ix = Math.max(-1, Math.min(1, ix * dz.slow + dz.shove)); iz *= dz.slow; }
+  // (not sat down: the seat reads any move as getting up, and a spell on a stool is just the sway)
+  if (dz.shove && !seated) { ix = Math.max(-1, Math.min(1, ix * dz.slow + dz.shove)); iz *= dz.slow; }
   const frozen = dropping || rolling || !game.player.alive || stageFrozen() || game.localPauseOnly || !!strikeTablet?.isOpen || warshipView() || dragonfireView() || drunkOut();
   if (frozen) { ix = 0; iz = 0; }
   // The landing roll carries you forward along the glider's line.
