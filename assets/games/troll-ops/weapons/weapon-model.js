@@ -168,9 +168,9 @@ const DETAILED = {
   // models/build_ballista.blender.py. It carries BO2's own scope (HB_Scope)
   // and wears it for the 8x; any other optic hides it and sits on the rail.
   howl: {
-    url: new URL("../models/ballista.glb?v=hb1", import.meta.url).href,
+    url: new URL("../models/ballista.glb?v=hb3", import.meta.url).href,
     kit: "ballista", p: "HB", device: "HB_Brake", rake: -0.40, railY: 0.0332, adsDistance: null,
-    glow: [], brass: "338", scope: "Scope", scopeOptic: "scope8",
+    glow: [], brass: "338", supportDrop: 0.01, scope: "Scope", scopeOptic: "scope8",
   },
   salt: {
     url: new URL("../models/ar-salt.glb?v=ar2", import.meta.url).href,
@@ -195,7 +195,7 @@ const detailedLod1 = new Map();
    moving parts (P_Carrier ...) carry their motion as extras (tf_part,
    tf_kind, tf_axis, tf_travel) for view/gun-action.js. */
 const kitUrl = (kit, file) => new URL(`../models/${kit}${file}?v=${KIT_VER[kit] ?? 1}`, import.meta.url).href;
-const KIT_VER = { problem416: "pf2", ballista: "hb1" };
+const KIT_VER = { problem416: "pf2", ballista: "hb3" };
 function loadDetailed(id, cfg) {
   const lod0 = new GLTFLoader().loadAsync(cfg.url).then((gltf) => {
     detailedTemplates.set(id, prepDetailed(gltf.scene, cfg));
@@ -347,7 +347,9 @@ function buildDetailed(def, cfg, template, lod = 0) {
   root.add(sup);
   u.supportHandPos = support.clone();
   u.pfAnchors = [hand, sup];
-  u.pfSupportDrop = 0.05;
+  // how far under the Support point the hand closes (a gun whose point is
+  // already under its handguard, the Ballista, says less)
+  u.pfSupportDrop = cfg.supportDrop ?? 0.05;
   u.gripPos = grip;
   if (cfg.hip) u.hipOffset = new THREE.Vector3(...cfg.hip);
   if (cfg.butt) u.buttPos = new THREE.Vector3(...cfg.butt);

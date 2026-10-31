@@ -20,7 +20,7 @@ The moving parts follow the convention agreed with the MTAR session
   HB_Eject     point: where the case leaves the port on the rake.
   HB_Scope     the gun's own scope, mount and level (the default optic);
                HB_Aim sits on its axis. Another optic hides it.
-  HB_Trigger, HB_Mag, HB_BipodL / HB_BipodR (folded, never cycled).
+  HB_Trigger, HB_Mag, HB_BipodL / HB_BipodR (folded; down -1.5 rad when mounted).
 
     blender --background --python build_ballista.blender.py --              # flat materials -> ballista.glb
     ... -- render                                                           # + check renders (HB_RENDER_DIR)
@@ -619,10 +619,11 @@ def parts():
         for y in (-0.090, -0.133):
             rrect_cut(P, (x, y, (mz0 + mz1) / 2), n, ZV, 0.094, 0.036, 0.004, 0.0016, "magm")
     fin(P)
-    # the bipod's legs, folded forward under the barrel (BO2's: never deployed)
+    # the bipod's legs, folded forward under the barrel; -1.5 rad swings them
+    # down to the ground (prone and aiming: view/gun-action.js updateBipod)
     for side, name in ((-1, "BipodL"), (1, "BipodR")):
         x, y = side * 0.0115, HG_STEP - 0.012
-        P = moving(PFX, name, (x, y, BIPOD_Z[0]), "hinge", "x", 1.5)
+        P = moving(PFX, name, (x, y, BIPOD_Z[0]), "hinge", "x", -1.5)
         lathe(P, [(BIPOD_Z[0] - 0.012, 0.0), (BIPOD_Z[0] - 0.012, 0.0055), (-0.620, 0.0055), (-0.623, 0.0045),
                   (BIPOD_Z[1] + 0.034, 0.0045), (BIPOD_Z[1] + 0.034, 0.0)], "core", segs=16, cx=x, cy=y)
         for k in range(6):
@@ -634,10 +635,12 @@ def parts():
 
 
 def points():
-    # the grip hand at its anchor (the rig is fitted to it); the support on
-    # the handguard's top (buildDetailed drops it 0.05 to the belly); the
+    # the grip hand at its anchor (the rig is fitted to it); the support
+    # under the handguard just ahead of the mag (user, 2026-10-30: there,
+    # not out by the step, and under the gun where the user marked it, 6 cm
+    # under the bore; DETAILED supportDrop 0.01); the
     # aim on the scope's axis; another optic sits on the rail over the receiver
-    for name, p in (("Grip", (0, -0.100, 0.020)), ("Support", (0, HG_TOP, -0.410)), ("Muzzle", (0, 0, MUZZLE_Z)),
+    for name, p in (("Grip", (0, -0.100, 0.020)), ("Support", (0, -0.062, -0.330)), ("Muzzle", (0, 0, MUZZLE_Z)),
                     ("Aim", (0, SCOPE_Y, TURRET_Z)), ("Under", (0, HG_STEP - 0.0105, -0.460)), ("Rail", (0, RAIL_TOP, -0.100)),
                     ("Eject", (0.024, 0.006, -0.130)), ("BoltKnob", tuple(KNOB))):
         empty(PFX + "_" + name, p)
