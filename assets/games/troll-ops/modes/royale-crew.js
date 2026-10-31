@@ -45,7 +45,8 @@ export const CREW = {
   mateWalk: -13.4,
   door: [-1.7, -0.7],     // as you back up: points out of the door
   wait: [-0.6, 0.1],      // a flat hand up: wait for it
-  go: [0.05, 4],          // GO GO GO, and on while you look back from the sky
+  go: [0.05, 0.6],        // GO GO GO, you off the lip
+  wave: [0.45, 4],         // ...then a wave goodbye at the door as the stick goes, while you look back from the sky
   mask: [-20.6, -14.8],    // the squad mate's mask on
   seatY: 0.44,
 };
@@ -128,6 +129,8 @@ export function crewState() {
     jmLean: w(jr.parts.head).sub(w(jr.parts.hips)).dot(fwd),
     jmHandToMouth: w(jr.parts.handR).distanceTo(w(jr.parts.head, 0.12 * g.width / 2, -0.42 * g.height / 2, 0.05)),
     // the squad mate's hands from his mask
+    // his right hand over his head (the wave goodbye)
+    jmHandOverHead: w(jr.parts.handR).y - w(jr.parts.head).y,
     mateHandsToMask: Math.max(w(mr.parts.handL).distanceTo(w(crew.mate.mask)), w(mr.parts.handR).distanceTo(w(crew.mate.mask))),
     // where his hands are (world)
     jmHands: w(jr.parts.handL).add(w(jr.parts.handR)).multiplyScalar(0.5).toArray(),
@@ -299,6 +302,12 @@ function poseJumpmaster(rig, t) {
     _b.set(0.25 * s, 0.3 * s, -0.15 * s);
     _c.set(0.18 * s, -0.05 * s, -0.6 * s);
     reachFrom(rig, 1, _a.copy(_c).lerp(_b, chop), go, POLE_DOWN_R);
+  }
+  const wave = smooth(CREW.wave[0], CREW.wave[0] + 0.3, t) * (1 - smooth(CREW.wave[1] - 0.3, CREW.wave[1], t));
+  if (wave > 0) {
+    // The hand up over his head, side to side.
+    const sway = Math.sin((t - CREW.wave[0]) * 7);
+    reachFrom(rig, 1, _a.set((0.3 + 0.14 * sway) * s, 0.5 * s, -0.18 * s), wave, POLE_DOWN_R);
   }
   rig.body?.update?.();
   rig.root.updateMatrixWorld(true);

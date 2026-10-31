@@ -133,7 +133,8 @@ squad leader is dead."
 - Bots outside your squad still go out in a stick off the ramp's end (no
   run-up), but they do the leap, the spin, the tuck and the dive, through
   the remote pose path everyone uses.
-- The jumpmaster stays aboard at the door and waves.
+- The jumpmaster stays aboard at the door: GO GO GO, then a wave goodbye
+  over his head (royale-crew.js CREW.wave), in your look-back.
 
 ## Phases (one system each, each with its own test)
 1. **Poses + exit clock.** `modes/royale-exit.js`: the beats, the slow-mo

@@ -55,9 +55,10 @@ const CREW = "/assets/games/troll-ops/modes/royale-crew.js?v=" + fs.readFileSync
 const FALL = "/assets/games/troll-ops/modes/royale-fall.js?v=" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/modes/royale.js"), "utf8").match(/royale-fall\.js\?v=([a-z0-9-]+)/)[1];
 // The fall's opening show (phase 3), sampled in the page each frame from
 // the first fall frame until its clock reaches `to`.
-const fallSamples = (page, to, max = 20000) => page.evaluate(async ({ u, fl, to, max }) => {
+const fallSamples = (page, to, max = 20000) => page.evaluate(async ({ u, fl, cw, to, max }) => {
   const { game } = await import(u);
   const fall = await import(fl);
+  const crewMod = await import(cw);
   const THREE = await import("three");
   const T = window.__trollOps;
   const v = new THREE.Vector3(), q = new THREE.Quaternion();
@@ -84,6 +85,7 @@ const fallSamples = (page, to, max = 20000) => page.evaluate(async ({ u, fl, to,
           hv: Math.hypot(T.royale().flight?.vel.x ?? 0, T.royale().flight?.vel.z ?? 0),
           // how fast along where you look (flying is yours)
           along: (T.royale().flight?.vel.x ?? 0) * -Math.sin(game.look.yaw) + (T.royale().flight?.vel.z ?? 0) * -Math.cos(game.look.yaw),
+          jmOver: crewMod.crewState()?.jmHandOverHead ?? null,
           ...(() => { const p = fall.fallFaceOnScreen(cam); return { faceX: p.x, faceY: p.y, faceZ: p.z }; })() });
       }
       if ((fs && fs.r >= to) || performance.now() - t0 > max) done(out);
@@ -91,7 +93,7 @@ const fallSamples = (page, to, max = 20000) => page.evaluate(async ({ u, fl, to,
     };
     tick();
   });
-}, { u: STATE, fl: FALL, to, max });
+}, { u: STATE, fl: FALL, cw: CREW, to, max });
 const fallAt = async (page, t) => (await fallSamples(page, t)).at(-1);
 const SFX = "/assets/games/troll-ops/sound/sfx-files.js?v=" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/modes/royale.js"), "utf8").match(/sfx-files\.js\?v=([a-z0-9-]+)/)[1];
 const sfxState = (page) => page.evaluate(async (u) => { const m = await import(u); return { loaded: m.SFX_NAMES.filter((n) => m.sfxLoaded(n)), all: m.SFX_NAMES.length, played: [...m.sfxPlayed] }; }, SFX);
@@ -466,6 +468,7 @@ check(lip.length >= 1 && lip.every((x) => !x.rigVis), "off the lip: your own eye
 check(back.length > 10 && back.every((x) => x.rigVis), "the look back: you in the shot", `${back.length} frames`);
 const mid = back.filter((x) => x.t > 0.8 && x.t < 1.5);
 check(mid.length && mid.every((x) => x.slow > 0.5 && x.d - 0.3 < (x.t - 0.3) * 0.31 + 0.02), "...in slow motion (0.3x)", mid.map((x) => `${x.t.toFixed(2)}->${x.d.toFixed(2)}`).slice(0, 4).join(" "));
+check(mid.filter((x) => x.jmOver > 0).length >= mid.length * 0.6, "...the jumpmaster waving goodbye at the door, his hand over his head", mid.map((x) => x.jmOver?.toFixed(2)).slice(-4).join(" "));
 check(mid.every((x) => x.lag > 0.3), "...the plane held back with you", mid.map((x) => x.lag.toFixed(2)).slice(0, 4).join(" "));
 const doorIn = mid.filter((x) => x.door && Math.abs(x.door.x) < 1 && Math.abs(x.door.y) < 1 && x.door.z < 1);
 check(doorIn.length >= mid.length * 0.7, "...the door you left in frame behind you", `${doorIn.length}/${mid.length}`);
