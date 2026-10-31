@@ -19,11 +19,11 @@ import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-a
 import { game } from "../core/state.js?v=st1";
 import { setGearChip, setTouchItem } from "../view/gear-chips.js?v=gc1-rfx2-rfx3-hb4";
 import { padHooks } from "../input/gamepad.js?v=in1-fu1b7-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-zp1-aa0-pd1-nf1-or1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-spd1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-mt2-sk1-hb4";
-import { updateDropCine, dropCineEye, dropCineLean, dropCineZoom, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4";
+import { updateDropCine, dropCineEye, dropCineLean, dropCineZoom, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut, updateExitCrew } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4";
 import { playSfx, preloadSfx } from "../sound/sfx-files.js?v=dc4-nd1-wb1";
 import { royaleRecordReset, royaleRecordTick, stopRoyaleRecord } from "./royale-record.js?v=rrc1-rfx1-rr2-ret1-mrg1-hd1";
 import { useAnimStart, useAnimTick, useAnimFinish, useAnimCancel, useWire, poseUsePeer } from "./royale-use.js?v=ru1-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4";
-import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose } from "./royale-fall.js?v=dc3-dc4-rf1-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-rx1-p416-wb1-mt2-sk1-hb4";
+import { startFallShow, endFallShow, updateFallShow, placeFallShowCamera, fallShowPose, fallShowLag, fallSlowK, fallShowOn, fallHeadShown } from "./royale-fall.js?v=dc3-dc4-rf1-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-rx1-p416-wb1-mt2-sk1-hb4";
 import { sidePref } from "./royale-side.js?v=rs1-tw1";
 import { noteWorldBeforeSwap } from "./royale-worlds.js?v=rw1-wb1";
 import { initLiveReport, closeLiveReport } from "./royale-live-report.js?v=rlr1-wb1-mt2-sk1-hb4";
@@ -324,7 +324,7 @@ export function boardRoyale() {
   r.seat = seat;
   r.me = "aboard";
   r.autoRun = false;
-  r.pushed = null;
+  r.dash = null;
   r.drop.ride(plane);
   return seatStand(seat);
 }
@@ -590,11 +590,10 @@ export function updateAboardPlayer(dt, jump) {
   const o = d.origin, pos = game.move.pos;
   const t = r.planeT, f = d.squadron.riddenFlight();
   const green = d.phase !== "lobby";
-  if (r.pushed) {
-    // Shoved (royale-cine.js): staggering back off the ramp, still facing
-    // in, the head thrown back a little.
-    game.look.yaw = r.pushed.yaw;
-    game.look.pitch = Math.min(0.3, game.look.pitch + dt * 1.4);
+  if (r.dash) {
+    // The green (royale-cine.js): the dash for the door, eyes on it.
+    game.look.yaw = r.dash.yaw;
+    game.look.pitch += (-0.12 - game.look.pitch) * Math.min(1, dt * 5);
   }
   if (green && jump && d.squadron.rampOpen(t)) r.autoRun = true;
   if (green && f && t > f.tOut - 1.2 && !r.autoRun) {
@@ -607,9 +606,8 @@ export function updateAboardPlayer(dt, jump) {
     const lx = pos.x - o.x, lz = pos.z - o.z;
     const goal = lz < -1.9 ? { x: (lx < 0 ? -0.95 : 0.95), z: -1.8 } : { x: 0, z: RAMP_END + 2 };
     const dx = goal.x - lx, dz = goal.z - lz, len = Math.hypot(dx, dz) || 1;
-    // Facing into the hold at the ramp (the drop cinematic): a few steps
-    // back and over the edge, not a sprint.
-    const run = r.pushed ? 5 : Math.cos(game.look.yaw) > 0.5 && lz > 3 ? 3.4 : 6.5;
+    // The drop cinematic's dash: a flat-out sprint from the run-up.
+    const run = r.dash ? DASH_SPEED : 6.5;
     const step = Math.min(len, run * dt);
     pos.x += (dx / len) * step;
     pos.z += (dz / len) * step;
@@ -628,18 +626,23 @@ export function updateAboardPlayer(dt, jump) {
   if (green && pos.y < o.y - 1.5) jumpOut();
 }
 
+/* m/s: the dash down the ramp at the green (docs/ROYALE-EXIT.md). */
+export const DASH_SPEED = 7;
+
 /* Out of the back: the ghost spot mapped into the sky, your run turned with
    the plane, plus the plane's own speed. */
 function jumpOut() {
   const r = royale, d = r.drop, sq = d.squadron, f = sq.riddenFlight();
-  // Facing into the hold (the drop cinematic leaves you there): out backwards.
-  const back = Math.cos(game.look.yaw) > 0.5;
   sq.ghostToWorld(game.move.pos, _v);
   sq.riddenQuat(_q);
   _exitVel.copy(game.move.velocity).applyQuaternion(_q);
   if (f) _exitVel.add(flightVel(f, r.planeT, _dropCam));
   _exitVel.y = Math.min(_exitVel.y, -2);
   r.exitSpeed = Math.hypot(_exitVel.x, _exitVel.z);
+  // how you left (the tests read it): the run, standing, facing out
+  r.exitRun = Math.hypot(game.move.velocity.x, game.move.velocity.z);
+  r.exitStance = game.move.stance;
+  r.exitLookYaw = game.look.yaw;
   r.exitFromRamp = _v.distanceTo(_dropCam.set(0, 0, RAMP_END).applyMatrix4(sq.planeM[sq.ridden]));
   game.move.reset(_v.x, _v.z, _v.y);
   // The look turns with the plane, so the view out of the back carries on.
@@ -648,16 +651,16 @@ function jumpOut() {
   r.flight = new Flight(_v, royaleEdge(), { glider: false, track: true, vel: _exitVel });
   r.me = "fall";
   r.autoRun = false;
-  r.pushed = null;
+  r.dash = null;
   dropCineOut();
   game.setHolding("none");
-  // The fall's opening show (royale-fall.js) has the camera and the stick
-  // for its first seconds; its end puts up the fly banner.
-  // The show keeps the way you went out; it hands your look back facing
-  // north and down at the island (royale-fall.js aimAtIsland).
+  // The jump (royale-fall.js, royale-exit.js) has the camera and the stick
+  // for its first seconds; its end puts up the fly banner. The body keeps
+  // the way you went out; the show hands your look back facing north and
+  // down at the island (royale-fall.js aimAtIsland).
   const outYaw = game.look.yaw;
   game.look.yaw = 0;
-  startFallShow(back, outYaw, game.move.pos, _exitVel, d.centre);
+  startFallShow(outYaw, _exitVel, d.centre, (out) => out.set(0, 1.3, RAMP_END - 3).applyMatrix4(sq.planeM[sq.ridden]));
   // The slipstream as you go, and the wind of the fall from then on.
   playSfx("gust", { gain: 0.8 });
   r.windRush = playSfx("wind-rush", { gain: 0.15, loop: true }) || null;
@@ -667,9 +670,10 @@ function fallWind(f) {
   const r = royale;
   if (!r.windRush) return;
   if (!f || f.state === "landed") { r.windRush.stop(0.3); r.windRush = null; return; }
-  const v = Math.min(1, f.vel.length() / 45);
-  r.windRush.setGain(0.15 + v * 0.45, 0.15);
-  r.windRush.setRate(0.85 + v * 0.35);
+  const v = Math.min(1, f.vel.length() / 45), slow = fallSlowK();
+  // The slow-mo look back: the wind drops to a low rumble.
+  r.windRush.setGain((0.15 + v * 0.45) * (1 - 0.7 * slow), 0.15);
+  r.windRush.setRate((0.85 + v * 0.35) * (1 - 0.45 * slow));
 }
 /* The fall show, for the camera (view/player-update.js) and your body
    (view/third-person.js). */
@@ -705,10 +709,13 @@ export function placeAboardRig(rig) {
 export function updateDropPlayer(dt, ix, iz) {
   const r = royale;
   const f = r.flight;
-  // Straight down, hands off, through the fall's opening show.
-  const coast = updateFallShow(dt);
+  // Hands off through the jump; the fall steps on its slowed clock, and the
+  // plane you left is drawn on it too (the look back).
+  const sh = updateFallShow(dt), coast = sh.coast;
   if (coast) ix = iz = 0;
-  f.update(dt, { forward: iz, strafe: ix, yaw: game.look.yaw, pitch: game.look.pitch, open: false, coast }, dropGround);
+  r.drop.squadron.riddenLag = fallShowLag();
+  if (fallShowOn()) updateExitCrew(r, dt);
+  f.update(sh.dt, { forward: iz, strafe: ix, yaw: game.look.yaw, pitch: game.look.pitch, open: false, coast }, dropGround);
   fallWind(f);
   game.move.pos.copy(f.pos);
   game.move.velocity.copy(f.vel);
@@ -721,6 +728,7 @@ export function updateDropPlayer(dt, ix, iz) {
     r.rollT = 0;
     r.rollYaw = r.me === "glide" ? f.heading : game.look.yaw;
     r.flight = null;
+    r.drop.squadron.riddenLag = 0;
     endFallShow();
     setPlayerGlider(false);
     game.setHolding("none");
@@ -798,7 +806,7 @@ export function teardownRoyale() {
   if (royale) {
     royale.scenery?.dispose();
     royale.scenery = null;
-    royale.pushed = null;
+    royale.dash = null;
     royale.windIn?.stop(0.2);
     royale.windRush?.stop(0.2);
     royale.windIn = royale.windRush = null;

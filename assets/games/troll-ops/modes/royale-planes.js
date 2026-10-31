@@ -251,6 +251,7 @@ export class Squadron {
     this.flights = planFlights(seed, ctx.centre, ctx.edge);
     this.t = -90;
     this.ridden = -1;
+    this.riddenLag = 0;      // s: the plane you jumped from, drawn this far behind (royale-exit.js: the slow-mo look back)
     this.hold = null;
     this.parts = [];         // { mesh: InstancedMesh, local: Matrix4 per instance-kind }
     this.template = null;
@@ -335,7 +336,7 @@ export class Squadron {
     const P = PLANES;
     this.root.visible = t < P.gone;
     if (!this.root.visible) return;
-    for (let i = 0; i < this.flights.length; i++) flightMatrix(this.flights[i], t, this.planeM[i]);
+    for (let i = 0; i < this.flights.length; i++) flightMatrix(this.flights[i], i === this.ridden ? t - this.riddenLag : t, this.planeM[i]);
     const door = this.doorK(t), ramp = this.rampK(t), retract = this.retractK(t);
     if (this.template) {
       for (const p of this.props) p.rotation.z += 31 * dt;

@@ -21,6 +21,7 @@ import { playerIconCanvas } from "../progression/rank-icons.js?v=rk1-or1";
 import { buildDrink, drinkFromCode, drinkMax, FILL_TIME, mountDrink, poseDrinkArm } from "../maps/saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1";
 import { poseSeated, poseLapHands, posePraying, posePianoArms, roleLabel } from "../modes/rp-roles.js?v=rp1b7-cd1-sh1-dj2-or1-bw2-sp1";
 import { peerHas } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
+import { EXIT, exitClock, poseExit, poseDiveTuck, diveFromSink } from "../modes/royale-exit.js?v=ex1";
 import { wearBlocky, setReliefFace } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-hl1-mg1-sp1-rh1-ci6-pm1";
 
 /* Socialize seats: game.js hands over the map's seat list (rp.seats), so a
@@ -120,80 +121,23 @@ export const DROP_BUS = 1, DROP_FALL = 2, DROP_GLIDE = 3;
 const FALL_PIVOT = 1.0;   // tip over about the belly, not the feet
 const _planeQ = new THREE.Quaternion();
 
-/* The first FALL_SHOW s off the ramp (the drop cinematic's fall, modes/
-   royale-fall.js): out backwards (`back`, facing into the hold) you go
-   over in one backward flip and land on your back, head aft, arms and
-   legs up at the sky; then you roll over onto your belly (about your own
-   length) and turn flat to face the way you were, into the usual belly-
-   down fall. Out forwards it's a head-first tip into the belly-down pose.
-   The body's turn as a quaternion (with the facing `yaw`), shared by the
-   pose and the first-person camera of the tumble. */
-export const FALL_SHOW = 6;
-export const FALL_FLIP = 1.5;
-const BELLY = -1.35;
-const _qa = new THREE.Quaternion(), _qb = new THREE.Quaternion(), _ax = new THREE.Vector3();
-const ease = (k) => (k <= 0 ? 0 : k >= 1 ? 1 : k * k * (3 - 2 * k));
-const qYaw = (y, out) => out.setFromAxisAngle(_ax.set(0, 1, 0), y);
-const qX = (a, out) => out.setFromAxisAngle(_ax.set(1, 0, 0), a);
-const qY = (a, out) => out.setFromAxisAngle(_ax.set(0, 1, 0), a);
-export function fallShowQuat(t, yaw, back, out) {
-  if (!back) return qYaw(yaw, out).multiply(qX(BELLY * ease(t / 0.9), _qa));
-  if (t < FALL_FLIP) {
-    // Over backwards: once right round, then on to your back.
-    const k = t / FALL_FLIP, a = (2 * Math.PI + Math.PI / 2) * (1 - (1 - k) * (1 - k));
-    return qYaw(yaw, out).multiply(qX(a, _qa));
-  }
-  if (t < 4.5) return qYaw(yaw, out).multiply(qX(Math.PI / 2 + Math.sin(t * 2.3) * 0.08, _qa));
-  if (t < 5.2) {
-    // Rolled over about your own length: belly down now, head still aft.
-    return qYaw(yaw, out).multiply(qX(Math.PI / 2, _qa)).multiply(qY(Math.PI * ease((t - 4.5) / 0.7), _qb));
-  }
-  // Flat turn back round to face the way you were, settling into the arch.
-  const k = ease((t - 5.2) / (FALL_SHOW - 5.2));
-  return qYaw(yaw + Math.PI * (1 - k), out).multiply(qX(-Math.PI / 2 + (Math.PI / 2 + BELLY) * k, _qa));
-}
-/* How far on your back the show has you: 1 limbs up at the sky, 0 the
-   belly-down spread. */
-export function fallShowBackK(t, back) {
-  if (!back) return 0;
-  return t < 4.5 ? 1 : 1 - ease((t - 4.5) / 0.9);
-}
-const _pv = new THREE.Vector3();
-function poseFallShow(rig, t, back, f, f2, yaw = rig.root.rotation.y) {
-  const p = rig.parts, root = rig.root;
-  fallShowQuat(t, yaw, back, root.quaternion);
-  // About the belly, not the feet (as the belly-down pose).
-  _pv.set(0, FALL_PIVOT, 0);
-  root.position.add(_pv).sub(_pv.applyQuaternion(root.quaternion));
-  const up = fallShowBackK(t, back);
-  // On your back: arms reaching up at the sky, legs drawn up, flailing
-  // (harder while you go over); belly down: the usual spread and arch.
-  const flail = up * (t < FALL_FLIP ? 0.35 : 0.18);
-  const s1 = Math.sin(t * 9) * flail, s2 = Math.sin(t * 7 + 2) * flail;
-  const mix = (a, b) => b + (a - b) * up;
-  p.chest.rotation.x = mix(0.15, -0.25);
-  p.armL.rotation.set(mix(1.5 + s1, 1.1 + f), 0, mix(0.7 - s2, 1.2));
-  p.armR.rotation.set(mix(1.5 - s2, 1.1 - f), 0, mix(-0.7 + s1, -1.2));
-  p.elbowL.rotation.x = mix(0.5, 0.8);
-  p.elbowR.rotation.x = mix(0.5, 0.8);
-  p.legL.rotation.set(mix(1.0 + s2, -0.2), 0, mix(0.2, 0.3 + f2));
-  p.legR.rotation.set(mix(0.8 - s1, -0.2), 0, mix(-0.2, -0.3 - f2));
-  p.kneeL.rotation.x = mix(-1.3, -0.9);
-  p.kneeR.rotation.x = mix(-1.1, -0.9);
-}
+/* The first EXIT.show s off the ramp (modes/royale-exit.js, docs/
+   ROYALE-EXIT.md): the leap, arms out, the spin, the hands to the chest and
+   the dive, on the exit clock (slowed for the look back). */
+export const FALL_SHOW = EXIT.show;
 
-/* `show` (a freefall's first FALL_SHOW s): whether they went out
-   backwards; null for a fall without the show. `showYaw` the way they
-   went out (the body keeps it through the show), else their facing. */
-export function poseDrop(rig, state, t, show = null, showYaw = undefined) {
+/* `show`: a freefall's first FALL_SHOW s, the way they faced going out
+   (yaw), or null for a fall without the show; `t` real seconds since the
+   lip in the show. `dive` 0 flying .. 1 diving (after the show). */
+export function poseDrop(rig, state, t, show = null, dive = 0) {
   const p = rig.parts, root = rig.root;
   if (root.rotation.order !== "YXZ") root.rotation.order = "YXZ";
   const f = Math.sin(t * 11) * 0.07, f2 = Math.sin(t * 7.3 + 1) * 0.06;
   p.torso.rotation.set(0, 0, 0);
   p.chest.rotation.set(0, 0, 0);
   for (const j of [p.kneeL, p.kneeR, p.ankleL, p.ankleR, p.elbowL, p.elbowR]) j.rotation.set(0, 0, 0);
-  if (state === DROP_FALL && show != null && t < FALL_SHOW) {
-    poseFallShow(rig, t, show, f, f2, showYaw);
+  if (state === DROP_FALL && show != null && exitClock(t) < FALL_SHOW) {
+    poseExit(rig, exitClock(t), show, root.rotation.y, t);
     rig.body.update();
     return;
   }
@@ -219,6 +163,7 @@ export function poseDrop(rig, state, t, show = null, showYaw = undefined) {
     p.legR.rotation.set(-0.2, 0, -0.3 - f2);
     p.kneeL.rotation.x = -0.9;
     p.kneeR.rotation.x = -0.9;
+    poseDiveTuck(rig, dive);
   } else if (state === DROP_GLIDE) {
     root.rotation.x = 0;
     p.armL.rotation.set(2.75, 0, 0.3);
@@ -720,7 +665,7 @@ export class RemotePlayer {
     // plane, posed in its frame); in the air they skydive.
     let drop = b.drop | 0;
     // Just out of the plane: the fall's opening show from the top (poseDrop).
-    if (drop === DROP_FALL && (this.drop & 3) === DROP_BUS) { this.dropT = 0; this.fallBack = null; }
+    if (drop === DROP_FALL && (this.drop & 3) === DROP_BUS) { this.dropT = 0; this.fallYaw = null; this.diveK = 0; }
     this.drop = drop;
     this.setGlider(drop === DROP_GLIDE);
     let aboard = null;
@@ -763,6 +708,7 @@ export class RemotePlayer {
       const span = (b.t - a0.t) / 1000;
       const vx = (b.x - a0.x) / span, vz = (b.z - a0.z) / span;
       vy = (b.y - a0.y) / span;
+      this.vx = vx; this.vz = vz;
       const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
       // Local right/forward axes for a yaw-only rotation about Y (forward
       // is -Z at yaw 0, matching movement.js/character.js's convention).
@@ -914,12 +860,15 @@ export class RemotePlayer {
       this.bodyPose.gait = false;
     }
     if (drop || roll > 0) this.bodyPose.gait = false;
-    // Which way they went out isn't on the wire: facing the way they move
-    // (the plane's way, so facing into the hold) is out backwards.
-    if (drop === DROP_FALL && this.fallBack === null && this.dropT > 0.15 && speed > 3) { this.fallBack = forward > 0; this.fallYaw = this.yaw; }
+    // Which way they faced going out isn't on the wire (their look turns to
+    // the island at once): out of the ramp, facing back the way the plane
+    // carries them. Till it's read, their facing.
+    if (drop === DROP_FALL && this.fallYaw === null && this.dropT > 0.12 && speed > 3) this.fallYaw = Math.atan2(this.vx, this.vz);
     if (drop) {
       this.dropT = (this.dropT || 0) + dt;
-      poseDrop(this.rig, drop, this.dropT, this.fallBack === undefined ? null : this.fallBack ?? true, this.fallBack == null ? undefined : this.fallYaw);
+      // Diving: coming down faster than flying ever does (a smoothed read).
+      this.diveK = (this.diveK || 0) + (diveFromSink(-vy) - (this.diveK || 0)) * Math.min(1, dt * 4);
+      poseDrop(this.rig, drop, this.dropT, this.fallYaw === undefined ? null : this.fallYaw ?? this.yaw, this.diveK);
       if (this.weaponMesh) this.weaponMesh.visible = false;
       if (this.meleeMesh) this.meleeMesh.visible = false;
     }

@@ -379,10 +379,13 @@ export function updatePlayer(dt) {
     // the camera.
     game.localRig.root.visible = true;
     placeDropCamera(_dropTarget.set(game.move.pos.x, game.move.pos.y + (royale.me === "glide" ? 3 : 1.4), game.move.pos.z), royale.me === "glide" ? 10 : 7, 1.5);
-    // The fall's opening show and the hold-to-view angles (crouch held:
-    // there's nothing to crouch on in the air). First person in its tumble.
+    // The jump's shots, then first person for the fall (your body seen,
+    // not your head), and the hold-to-view angles (crouch held: there's
+    // nothing to crouch on in the air).
     const viewHeld = (game.isTouch && touchState.crouch) || (gp && game.gamepadState.crouch) || game.keys.has("KeyC") || game.keys.has("ControlLeft");
-    if (placeFallCamera(!!viewHeld, dt) === "fp") game.localRig.root.visible = false;
+    const fallView = placeFallCamera(!!viewHeld, dt);
+    if (fallView === "fp") game.localRig.root.visible = false;
+    game.localRig.parts.headPivot.visible = fallView !== "fpfall";
   } else if ((settings.thirdPerson && !dropCineFirstPerson()) || game.emoteIsTp() || hoopsView() || tennisView() || vballView()) {   // with a ball on the court: over the shoulder (social-hoops.js)   // the drop cinematic is first person
     game.localRig.root.visible = true;
     if (game.emoteIsTp()) updateEmoteCamera(game.player.pos, game.look.yaw, game.emoteKind() === "duo" ? EMOTES[game.emote.idx].dist || 1 : 0);

@@ -4,7 +4,7 @@
 // yourself during the show stays yours.
 //
 // Two Royale matches in private rooms (Supabase blocked), each: green light,
-// Space, then read the look when the show (FALL_SHOW, 6 s) ends.
+// Space, then read the look once the jump (royale-exit.js EXIT.dive, 3.3 s) hands it back.
 //   1. hands off: yaw north, pitched down, and the camera's line through you
 //      lands on the ground inside the island
 //   2. turned east during the show: the look is left where you put it
@@ -80,7 +80,7 @@ async function jumpAndRead(turn) {
 }
 
 const a = await jumpAndRead(false);
-check("out of the plane and through the show", a.me === "fall" && a.showT >= 6, round(a));
+check("out of the plane and through the show", a.me === "fall" && a.showT >= 3.3, round(a));
 check("hands off: the look comes back facing north", Math.abs(a.yaw) < 0.05, round(a));
 check("...pitched down, the camera's line landing inside the island", a.pitch < -0.55 && a.fromMiddle < 200, round(a));
 const b = await jumpAndRead(true);
