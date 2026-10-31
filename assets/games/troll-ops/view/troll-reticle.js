@@ -13,7 +13,7 @@
 // shows it as a picture (view/sniper-scope.js). view/weapon-view.js decides
 // which, once a frame, from trollReticleSkin().
 
-import { getRank } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
+import { getRank } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1";
 import { game } from "../core/state.js?v=st1";
 
 // -v2: a fresh key, so everyone starts back on Classic once.
