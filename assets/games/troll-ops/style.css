@@ -1069,6 +1069,83 @@ body.to-social:not(.to-social-armed) #to-touch-interact { display: none !importa
   .to-aar-rank { grid-template-columns: 44px minmax(0, 1fr); gap: 10px; }
   .to-aar-rank-icon svg { width: 44px; height: 44px; }
 }
+/* The results card never scrolls (user, 2026-10-31: "Users shouldn't have to
+   scroll up and down on the match summary"). Wide screens put the report on
+   the left and the medals, the map vote and the buttons beside it; small
+   screens tighten everything; view/fit-screen.js zooms whatever is still too
+   tall. The last row soaks up the report's height so the side stays packed. */
+.to-gameover-inner:has(> .to-aar:not([hidden])) { padding: 16px 18px; gap: 10px; }
+@container cab (min-aspect-ratio: 5/4) {
+  .to-gameover-inner:has(> .to-aar:not([hidden])) {
+    display: grid; grid-template-columns: minmax(0, 760px) minmax(220px, 300px);
+    grid-template-rows: repeat(6, auto) minmax(0, 1fr); column-gap: 18px; row-gap: 10px;
+    align-items: start; width: min(1100px, 100%); box-sizing: border-box;
+  }
+  .to-gameover-inner:has(> .to-aar:not([hidden])) > .to-aar { grid-column: 1; grid-row: 1 / -1; width: 100%; }
+  .to-gameover-inner:has(> .to-aar:not([hidden])) > :not(.to-aar) { grid-column: 2; width: 100%; box-sizing: border-box; text-align: center; }
+  .to-gameover-inner:has(> .to-aar:not([hidden])) .to-go-medals ul { grid-template-columns: 1fr; max-height: none; }
+  .to-gameover-inner:has(> .to-aar:not([hidden])) .to-intermission { padding: 10px; }
+  .to-gameover-inner:has(> .to-aar:not([hidden])) .to-vote-list { flex-direction: column; width: 100%; gap: 5px; }
+  .to-gameover-inner:has(> .to-aar:not([hidden])) .to-vote-opt { flex-direction: row; align-items: center; max-width: none; gap: 8px; }
+  .to-gameover-inner:has(> .to-aar:not([hidden])) .to-vote-img { width: 72px; flex: none; }
+  .to-gameover-inner:has(> .to-aar:not([hidden])) .to-vote-row { flex: 1; min-width: 0; }
+  .to-gameover-inner:has(> .to-aar:not([hidden])) .to-vote-opt.is-mine { transform: none; }
+}
+/* Tight: a phone either way up, or a short laptop. */
+@container cab (max-height: 560px) or (max-aspect-ratio: 5/4) {
+  .to-gameover-inner:has(> .to-aar:not([hidden])) { padding: 8px 10px; gap: 7px; }
+  .to-gameover-inner:has(> .to-aar:not([hidden])) > .to-btn { padding: 8px 22px; font-size: 14px; }
+  .to-aar { gap: 6px; }
+  .to-aar-pane { gap: 6px; }
+  .to-aar-head { padding: 5px 12px 6px; }
+  .to-aar-result { font-size: 20px; }
+  .to-aar-score { font-size: 12px; } .to-aar-score b { font-size: 15px; }
+  .to-aar-tab { padding: 4px 12px; font-size: 11px; }
+  .to-aar-rank { grid-template-columns: 36px minmax(0, 1fr); gap: 10px; padding: 6px 10px; }
+  .to-aar-rank-icon svg { width: 36px; height: 36px; }
+  .to-aar-rank-body { gap: 3px; }
+  .to-aar-level { font-size: 20px; }
+  .to-aar-weapons { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .to-aar-gun { grid-template-columns: 60px minmax(0, 1fr); gap: 7px; padding: 5px 8px 5px 5px; }
+  .to-aar-gun-body { gap: 2px; }
+  .to-aar-gun-name { font-size: 13px; }
+  .to-aar-gun-level { font-size: 15px; }
+  .to-aar-stats { gap: 4px; }
+  .to-aar-stats div { padding: 4px 2px; gap: 0; }
+  .to-aar-stats strong { font-size: 16px; }
+  .to-aar-stats span { font-size: 9px; }
+  .to-go-medals h3 { margin-bottom: 4px; }
+  .to-go-medal { padding: 2px 8px 2px 4px; font-size: 12px; grid-template-columns: 22px minmax(0, 1fr) auto; }
+  .to-go-medal-icon svg, .to-go-medal-icon img { width: 22px; height: 22px; }
+  .to-intermission { padding: 8px 10px; gap: 6px; }
+  /* the two buttons side by side under the rest */
+  .to-gameover-inner:has(> .to-aar:not([hidden])) > .to-btn { min-width: 0; }
+}
+@container cab (max-height: 560px) and (min-aspect-ratio: 5/4) {
+  .to-gameover-inner:has(> .to-aar:not([hidden])) { grid-template-columns: minmax(0, 1fr) minmax(200px, 260px); column-gap: 12px; row-gap: 6px; }
+  .to-gameover-inner:has(> .to-aar:not([hidden])) .to-go-medals ul { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; }
+  .to-gameover-inner:has(> .to-aar:not([hidden])) .to-go-medal { font-size: 10.5px; gap: 4px; padding: 1px 6px 1px 3px; grid-template-columns: 16px minmax(0, 1fr) auto; }
+  .to-gameover-inner:has(> .to-aar:not([hidden])) .to-go-medal b { font-size: 12px; }
+  .to-gameover-inner:has(> .to-aar:not([hidden])) .to-go-medal-icon :is(svg, img) { width: 16px; height: 16px; }
+  .to-gameover-inner:has(> .to-aar:not([hidden])) .to-go-medal-bonus { margin-top: 3px; font-size: 10.5px; }
+  .to-gameover-inner:has(> .to-aar:not([hidden])) .to-vote-img { width: 52px; }
+  .to-gameover-inner:has(> .to-aar:not([hidden])) .to-vote-opt { padding: 2px 3px; font-size: 11px; }
+}
+/* Upright phones: the gun cards two across, the picture faded in behind the
+   numbers; the medals as a two-across list. */
+@container cab (max-aspect-ratio: 5/4) {
+  .to-aar-gun { grid-template-columns: minmax(0, 1fr); position: relative; overflow: hidden; padding: 6px 8px; }
+  .to-aar-gun-pic { position: absolute; inset: 0 0 0 auto; width: 70%; opacity: .3; pointer-events: none; background: none; }
+  .to-aar-gun-ph { display: none; }
+  .to-aar-gun-body { position: relative; }
+  .to-aar-gun-cls { display: none; }
+  .to-go-medals ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .to-vote-row { font-size: 11px; }
+  .to-vote-img { aspect-ratio: 2.4 / 1; }
+  /* both buttons on one row */
+  .to-gameover-inner:has(> .to-aar:not([hidden])) { flex-flow: row wrap; justify-content: center; }
+  .to-gameover-inner:has(> .to-aar:not([hidden])) > :not(.to-btn) { flex: 0 0 100%; }
+}
 .to-go-stats div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .to-go-stats strong { font-size: 26px; font-family: "Oswald", sans-serif; color: #7fe066; }
 .to-go-stats span { font-size: 10.5px; color: #93a08c; text-transform: uppercase; letter-spacing: .06em; }

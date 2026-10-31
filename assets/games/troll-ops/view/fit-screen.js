@@ -18,8 +18,10 @@ export function fitToScreen(screen, card, { min = 0.55 } = {}) {
     let z = 1;
     card.style.zoom = "";
     // zoomed out, the card is wider and wraps less, so it settles in a few steps
-    for (let i = 0; i < 4 && card.offsetHeight * z > avail + 0.5; i++) {
-      z = Math.max(min, Math.floor(z * (avail / (card.offsetHeight * z)) * 1000) / 1000);
+    // (cq-sized parts, like the Map tab's sheet, don't shrink with it: a
+    // nudge more each step)
+    for (let i = 0; i < 8 && card.offsetHeight * z > avail + 0.5; i++) {
+      z = Math.max(min, Math.floor(z * (avail / (card.offsetHeight * z)) * (i ? 0.99 : 1) * 1000) / 1000);
       card.style.zoom = String(z);
       if (z === min) break;
     }
