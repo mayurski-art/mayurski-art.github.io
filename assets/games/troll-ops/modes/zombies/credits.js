@@ -18,6 +18,8 @@
 // account; guests keep them for this visit only. The owner, troll_runner,
 // owns every gun.
 
+import { WEAPON_DEFS } from "../../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2";
+
 const KEY = "trollops:zombies";
 
 export const CREDITS_PER_KILL = 1;
@@ -25,7 +27,9 @@ export const CREDITS_PER_WAVE = 25;
 export const CREDITS_FOR_WIN = 200;
 
 /* Six tiers over the 34 guns, roughly by rank; the first of each is the
-   free starter. `wave`: the best wave that opens the tier. */
+   free starter. `wave`: the best wave that opens the tier. The guns
+   retired while arsenal v2 rebuilds them (weapons.js KEPT) are left out,
+   and a tier left with none is dropped. */
 export const GUN_TIERS = [
   { id: 1, wave: 0, price: 400, guns: ["problem416", "snubgrin", "snicker", "shotgun", "sixtynine", "soulblazer"] },
   { id: 2, wave: 5, price: 900, guns: ["kek", "sneer", "snort", "lol", "bellow", "sawgrin"] },
@@ -33,7 +37,7 @@ export const GUN_TIERS = [
   { id: 4, wave: 15, price: 3200, guns: ["heh", "rofl", "grinmington", "coltlmg", "guffaw", "beast"] },
   { id: 5, wave: 20, price: 5500, guns: ["mald", "seethe", "greencandle", "howl", "peacemakers"] },
   { id: 6, wave: 25, price: 9000, guns: ["ratio", "coalface", "salt", "smug", "bellylaugh"] },
-];
+].map((t) => ({ ...t, guns: t.guns.filter((g) => !WEAPON_DEFS[g]?.retired) })).filter((t) => t.guns.length);
 const TIER_OF = new Map(GUN_TIERS.flatMap((t) => t.guns.map((g) => [g, t])));
 export const tierOf = (gunId) => TIER_OF.get(gunId) || null;
 export const isStarter = (gunId) => tierOf(gunId)?.guns[0] === gunId;
@@ -132,7 +136,7 @@ export const gunLevel = (gunId, s = zsave()) => (owns(gunId, s) ? s.guns[gunId] 
 
 /* The gun runs start with: the equipped one, if it's still yours. */
 export function equippedGun(s = zsave()) {
-  return owns(s.gun, s) ? s.gun : DEFAULT_GUN;
+  return owns(s.gun, s) && tierOf(s.gun) ? s.gun : DEFAULT_GUN;   // (a retired gun has no tier)
 }
 
 /* What the kiosk's button does for this gun, and its price. */

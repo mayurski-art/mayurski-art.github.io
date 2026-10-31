@@ -15,9 +15,9 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { WEAPON_DEFS } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
-import { buildWeaponMesh, stripLights } from "../weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1-rt1-ut1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1-mrg3-p416";
-import { SLOTS, defaultLoadoutFor, fitsFor, resolveWeapon } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
+import { WEAPON_DEFS } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2";
+import { buildWeaponMesh, stripLights } from "../weapons/weapon-model.js?v=p5-em1-wst-hf1-wb1-ar1-ar2-fj1-br1-or1-rt1-ut1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1-mrg3-p416-mt2";
+import { SLOTS, defaultLoadoutFor, fitsFor, resolveWeapon } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2";
 import { buildLootModel } from "./royale-loot-models.js?v=rlm1-rfx2";
 import { FlowField } from "../bots/nav.js?v=ti1-bs1b7d-fl1-or1-gf1-tg1-tfb8";
 
@@ -310,7 +310,7 @@ export class ZoneVisual {
 /* A gun def at a rarity: that many random attachments, never two in one
    slot, only parts that fit the gun's class (snipers keep glass). */
 export function rollGun(rng, rarityIdx, weaponId = null) {
-  const ids = Object.keys(WEAPON_DEFS).filter((id) => !WEAPON_DEFS[id].hidden && !WEAPON_DEFS[id].prestige);   // prestige guns are earned, never looted
+  const ids = Object.keys(WEAPON_DEFS).filter((id) => !WEAPON_DEFS[id].hidden && !WEAPON_DEFS[id].prestige && !WEAPON_DEFS[id].retired);   // prestige guns are earned, never looted; retired ones are being rebuilt
   const id = weaponId || ids[Math.floor(rng() * ids.length)];
   const att = { ...defaultLoadoutFor(id) };
   const slots = [...SLOTS];

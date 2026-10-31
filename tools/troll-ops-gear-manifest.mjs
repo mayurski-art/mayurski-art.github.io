@@ -46,6 +46,16 @@ for (const f of walk(path.join(GAME, "characters"))) {
     if (fs.existsSync(path.join(GAME, "models", name))) out.add(`assets/games/troll-ops/models/${name}${query ? "?" + query : ""}`);
   }
 }
+// the baked guns' kits (weapon-model.js DETAILED kit: "<id>", at KIT_VER's
+// tag): the LOD1 and the six maps kitUrl asks for
+const wm = fs.readFileSync(path.join(GAME, "weapons/weapon-model.js"), "utf8");
+const kitVer = Object.fromEntries([...(wm.match(/const KIT_VER = \{([^}]*)\}/)?.[1] || "").matchAll(/(\w+):\s*"([^"]+)"/g)].map((m) => [m[1], m[2]]));
+for (const [, kit] of wm.matchAll(/\bkit:\s*"(\w+)"/g)) {
+  for (const f of ["-lod1.glb", "-base.webp", "-orm.webp", "-nrm.webp", "-lod1-base.webp", "-lod1-orm.webp", "-lod1-nrm.webp"]) {
+    const abs = path.join(GAME, "models", kit + f);
+    if (fs.existsSync(abs)) out.add(site(abs) + `?v=${kitVer[kit] ?? 1}`);
+  }
+}
 // the warm-up's models (loadModel: models/<name>.glb, no tag)
 const warm = fs.readFileSync(path.join(GAME, "modes/match-start.js"), "utf8").match(/const WARM_MODELS = \[([^\]]*)\]/)?.[1] || "";
 for (const [, n] of warm.matchAll(/"([^"]+)"/g)) out.add(`assets/games/troll-ops/models/${n}.glb`);

@@ -1,15 +1,15 @@
 // Troll Forces — loadout screen: class → weapon → attachments.
 
-import { WEAPON_DEFS, CLASS_ORDER, SECONDARY_CLASSES, CLASS_LABELS, weaponsInClass } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
-import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, fits, fitLoadout, statBars, statDelta } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
+import { WEAPON_DEFS, CLASS_ORDER, SECONDARY_CLASSES, CLASS_LABELS, weaponsInClass } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2";
+import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, fits, fitLoadout, statBars, statDelta } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2";
 import { iconFor } from "../weapons/attachment-icons.js?v=or1";
 import { SKIN_BY_ID, skinsFor, skinThumbUrl } from "../characters/skins.js?v=p5-wb1-or1";
 import { weaponLevel } from "./weapon-xp.js?v=wx1";
-import { getRank, getLevel, getPrestige, PRESTIGE_MASTER, isUnlocked, rankUnlocked, rankProgress, rankXpText, prestigeUnlocked } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
+import { getRank, getLevel, getPrestige, PRESTIGE_MASTER, isUnlocked, rankUnlocked, rankProgress, rankXpText, prestigeUnlocked } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2";
 import { playerIconSvg } from "./rank-icons.js?v=rk1-or1";
-import { MAPS, MAP_IDS, REWARD_MAPS, mapSchematic } from "../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1-bw2-bt1-wf1-wf2-zf1-bp1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-rm1-kzf1-hgb1-hgb2-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-hgb5-hgb6-hgb8-hgb9-tw1-op1-hgo1-wb1";
+import { MAPS, MAP_IDS, REWARD_MAPS, mapSchematic } from "../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1-bw2-bt1-wf1-wf2-zf1-bp1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-rm1-kzf1-hgb1-hgb2-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-hgb5-hgb6-hgb8-hgb9-tw1-op1-hgo1-wb1-mt2";
 import { MELEE_DEFS, MELEE_IDS, THROWABLE_DEFS, LETHAL_IDS, TACTICAL_IDS } from "../weapons/gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1-rb4-hp1-bx1-mg1-sp1";
-import { PERK_DEFS, validPerks } from "./perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
+import { PERK_DEFS, validPerks } from "./perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2";
 
 const STORE = "trollops:loadout";
 // The scorestreak picker's own key (streak-picker.js). The active class's
@@ -192,7 +192,7 @@ export class Loadout {
      only swapped in memory: the save keeps it until the player changes
      something, and restoreSaved() puts it back once the profile is in. */
   validClass(c) {
-    let weaponId = WEAPON_DEFS[c.weaponId] ? c.weaponId : "problem416";
+    let weaponId = WEAPON_DEFS[c.weaponId] && !WEAPON_DEFS[c.weaponId].retired ? c.weaponId : "problem416";
     if (!isUnlocked(weaponId)) weaponId = "problem416";
     // Secondary is a sidearm or a launcher - sixtynine (rank 0) is the one
     // every account has unlocked, same reasoning as the problem416 primary
@@ -537,7 +537,8 @@ export class Loadout {
   buildClasses() {
     const wrap = this.els.classes;
     wrap.innerHTML = "";
-    const classes = this.slot === "secondary" ? SECONDARY_CLASSES : CLASS_ORDER;
+    // (a class whose guns are all retired has no tab)
+    const classes = (this.slot === "secondary" ? SECONDARY_CLASSES : CLASS_ORDER).filter((c) => weaponsInClass(c).length);
     for (const cls of classes) {
       const b = document.createElement("button");
       b.type = "button";
@@ -977,7 +978,7 @@ export class Loadout {
 
     if (sum.next) {
       const next = Object.entries(WEAPON_DEFS)
-        .filter(([id]) => !isUnlocked(id))
+        .filter(([id, d]) => !d.retired && !isUnlocked(id))
         .sort((a, b) => a[1].rank - b[1].rank)[0];
       // nothing left to unlock: no "Next unlock" line at all (user,
       // 2026-10-15: remove "Everything unlocked")

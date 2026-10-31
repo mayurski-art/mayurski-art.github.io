@@ -10,10 +10,10 @@
 
 import * as THREE from "three";
 import { groundHeightAt, resolveCircle } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1";
-import { segmentBlocked } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1-gf1-tg1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
+import { segmentBlocked } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1-gf1-tg1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2";
 import { FlowField } from "./nav.js?v=ti1-bs1b7d-fl1-or1-gf1-tg1-tfb8";
 import { clampInsidePolygon, insidePolygon } from "../maps/edge.js?v=or1";
-import { botPerks, perkBits, PERK_TUNE } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
+import { botPerks, perkBits, PERK_TUNE } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2";
 
 // Every bot is just "bot" (user, 2026-10-30), so nobody takes one for a person.
 const BOT_NAME = "bot";
@@ -228,7 +228,8 @@ function isGuarding(t, from) {
 
 /* Bots carry real guns from the roster rather than all reporting problem416,
    so the killfeed says something true about how you died. */
-const BOT_WEAPONS = ["problem416", "snubgrin", "snicker", "kek", "trollboy", "sneer", "mald", "cackle"];
+// (the guns not retired while arsenal v2 rebuilds the rest: weapons.js KEPT)
+const BOT_WEAPONS = ["problem416", "kek", "beast"];
 
 // Everyone also carries a sidearm and draws it the instant the primary runs
 // dry rather than standing there reloading in a firefight - the same reason

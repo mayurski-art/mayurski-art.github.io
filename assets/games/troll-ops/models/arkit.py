@@ -20,7 +20,7 @@ from gunkit import (Part, Vector, TAU, material, lathe, box, local_lathe, sweep,
                     Ref, ars_outline, span, picatinny, vert_loft)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ARS_JS = os.path.join(os.path.dirname(HERE), "weapon-ars.js")
+ARS_JS = os.path.join(os.path.dirname(HERE), "weapons", "weapon-ars.js")
 
 
 def spec(gun_id):

@@ -126,9 +126,12 @@ export const MODES = {
     name: "Gun Game",
     short: "Gun Game",
     pvp: true, ffa: true,
+    // the rack from the guns not retired while arsenal v2 rebuilds the rest
+    // (weapons.js KEPT); was sixtynine snicker snubgrin seethe problem416
+    // mald sneer shotgun bellow cackle deadpan true69
     ladder: [
-      "sixtynine", "snicker", "snubgrin", "seethe", "problem416", "mald",
-      "sneer", "shotgun", "bellow", "cackle", "deadpan", "true69",
+      "sixtynine", "soulblazer", "kek", "problem416", "greencandle", "beast",
+      "peacemakers", "howl", "true69",
     ],
     noStreaks: true,   // see oitc
     noBotNades: true,
