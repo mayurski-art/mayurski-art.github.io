@@ -52,7 +52,8 @@ export const SYNCED_KEYS = [
   // this and others should be expected to be saved and synced when users
   // log in from one device to another")
   "trollops:anim",                 // Animations on/off (menu-bo2.js)
-  "trollops:achievements",         // challenges done (progression/achievements.js)
+  "trollops:achievements",         // milestones done (progression/achievements.js)
+  "trollops:challenges",           // daily, weekly and event challenge progress (progression/challenges.js)
   "tf-fn-playlist",                // the lobby's mode card (menu/lobby-fn.js)
   "trollops:royaleSide",           // Troll Royale's island side (modes/royale-side.js)
   "trollops:reticle-v2",           // the crosshair (view/troll-reticle.js)
