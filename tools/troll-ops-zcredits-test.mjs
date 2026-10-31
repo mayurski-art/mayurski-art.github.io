@@ -1,7 +1,7 @@
 // Troll Forces Zombies Credits check (Zombie Rush P6). One headless tab,
 // Supabase blocked; the run is SOLO (no room code), never a public room.
 //   1. A guest: a run's pay lands in memory only, nothing in localStorage.
-//   2. Logged in (a stubbed profile): the Weapons kiosk shows six tiers,
+//   2. Logged in (a stubbed profile): the Weapons kiosk shows its tiers (five while arsenal v2 retires guns),
 //      tiers past your best wave locked, the free starter equipped; Buy,
 //      Upgrade and Equip spend Credits; Classes levels the turret.
 //   3. Reload: all of it is still there (localStorage, which the account syncs).
@@ -71,7 +71,7 @@ await R(() => window.__trollHub.zc.setZsave({ credits: 5000, best: 6 }));
 await R(() => window.__trollHub.openKiosk("weapons"));
 check(await until(() => window.__trollHub.kioskOpen(), null, 3000), "the Weapons kiosk opens");
 const tiers = await R(() => [...document.querySelectorAll(".zk-tier")].map((b) => ({ n: b.querySelector(".zk-tier-n").textContent, locked: b.classList.contains("is-locked"), r: b.querySelector(".zk-tier-r").textContent })));
-check(tiers.length === 6 && !tiers[0].locked && !tiers[1].locked && tiers[2].locked && tiers[2].r === "Wave 10", "six tiers; best wave 6 opens tiers 1-2 only", JSON.stringify(tiers.map((t) => t.r)));
+check(tiers.length === 5 && !tiers[0].locked && !tiers[1].locked && tiers[2].locked && tiers[2].r === "Wave 10", "five tiers; best wave 6 opens tiers 1-2 only", JSON.stringify(tiers.map((t) => t.r)));
 const sel = await R(() => document.querySelector(".zk-sel")?.innerText.replace(/\s+/g, " "));
 check(/Problem 416/.test(sel) && /Equipped/.test(sel), "the free starter is selected and equipped", sel);
 check(await until(() => [...document.querySelectorAll(".zk-thumb")].some((i) => i.classList.contains("is-in") && i.src.length > 2000), null, 20000), "gun pictures render");
@@ -79,20 +79,20 @@ await sleep(1500);   // the rest of the pictures
 await scanText(page, check, "the Weapons kiosk");
 await page.screenshot({ path: path.join(SHOTS, `zcredits-weapons${TAG}.png`) });
 
-// buy the MP7 (tier 1, 400), level it once (150), then equip the starter back and the MP7 again
-await page.click(".zk-gun[data-id='snicker']");
+// buy the Soul Blazer (tier 1, 400), level it once (150), then equip the starter back and the Soul Blazer again
+await page.click(".zk-gun[data-id='soulblazer']");
 await page.click(".zk-sel [data-act='buy']");
 let s = await R(() => window.__trollHub.zc.zsave());
-check(s.credits === 4600 && s.guns.snicker === 1 && s.gun === "snicker", "Buy: 400 Credits, owned and equipped", JSON.stringify(s));
+check(s.credits === 4600 && s.guns.soulblazer === 1 && s.gun === "soulblazer", "Buy: 400 Credits, owned and equipped", JSON.stringify(s));
 await page.click(".zk-sel [data-act='upgrade']");
 s = await R(() => window.__trollHub.zc.zsave());
-check(s.credits === 4450 && s.guns.snicker === 2, "Upgrade: 150 Credits, level 2", JSON.stringify(s));
+check(s.credits === 4450 && s.guns.soulblazer === 2, "Upgrade: 150 Credits, level 2", JSON.stringify(s));
 const statsTxt = await R(() => document.querySelector(".zk-stats")?.innerText.replace(/\s+/g, " "));
 check(/>/.test(statsTxt), "stats show now > next", statsTxt);
 await page.click(".zk-gun[data-id='problem416']");
 await page.click(".zk-sel [data-act='equip']");
 check((await R(() => window.__trollHub.zc.zsave())).gun === "problem416", "Equip switches the gun");
-await page.click(".zk-gun[data-id='snicker']");
+await page.click(".zk-gun[data-id='soulblazer']");
 await page.click(".zk-sel [data-act='equip']");
 // a locked tier: its button says so
 await page.click(".zk-tier[data-id='4']");
@@ -118,7 +118,7 @@ await page.keyboard.press("Escape");
 await load();
 await logIn();
 s = await R(() => window.__trollHub.zc.zsave());
-check(s.credits === 3850 && s.guns.snicker === 2 && s.gun === "snicker" && s.kits.rookie.turret === 2, "everything survives a reload", JSON.stringify(s));
+check(s.credits === 3850 && s.guns.soulblazer === 2 && s.gun === "soulblazer" && s.kits.rookie.turret === 2, "everything survives a reload", JSON.stringify(s));
 
 // 4. a solo run (no room code: never a public room)
 await R(async () => {
@@ -134,8 +134,8 @@ const gun = await R(() => {
   const T = window.__trollOps, p = T.player, w = p.weapons[p.weaponId];
   return { id: p.weaponId, lv: w.def.zLevel || 1, dmg: w.def.damage, turret: T.zrun().dep.levels.turret, room: T.els.room.value };
 });
-const baseDmg = await R(() => window.__trollOps.weaponDefs?.snicker?.damage ?? null);
-check(gun.id === "snicker" && gun.lv === 2 && (baseDmg == null || Math.abs(gun.dmg - baseDmg * 1.06) < 0.01) && !gun.room, "the run's primary is the bought MP7 at level 2", JSON.stringify({ ...gun, baseDmg }));
+const baseDmg = await R(() => window.__trollOps.weaponDefs?.soulblazer?.damage ?? null);
+check(gun.id === "soulblazer" && gun.lv === 2 && (baseDmg == null || Math.abs(gun.dmg - baseDmg * 1.06) < 0.01) && !gun.room, "the run's primary is the bought Soul Blazer at level 2", JSON.stringify({ ...gun, baseDmg }));
 check(gun.turret === 2, "the turret is at its kit level");
 await R(() => { const T = window.__trollOps; T.player.kills = 20; T.player.wave = 4; window.__trollHub.endRun("dead"); });
 check(await until(() => window.__trollOps.gameState === "gameover" || window.__trollHub.state() === "gameover", null, 10000), "the run ends");

@@ -16,7 +16,7 @@
 import { smoothstep } from "../characters/anim-curves.js?v=or1";
 import { placePistolSlide } from "./pistol-action.js?v=ps1-wb1-br1-or1";
 import { placeBolt } from "./rifle-action.js?v=ra1-wb1-or1-sbolt1-ars1-p416";
-import { arSlideAt, arPartState, LET_GO } from "./ar-reload.js?v=ar1-br1-or1-ars1-p416";
+import { arSlideAt, arPartState, LET_GO } from "./ar-reload.js?v=ar1-br1-or1-ars1-p416-mt2";
 
 export const CARRIER_BACK = 0.03, CARRIER_HOME = 0.04;
 const TRIGGER_HOLD = 0.05, TRIGGER_BACK = 0.08;   // after a shot: held, then forward

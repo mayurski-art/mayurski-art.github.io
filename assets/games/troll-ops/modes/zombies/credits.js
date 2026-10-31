@@ -18,7 +18,7 @@
 // account; guests keep them for this visit only. The owner, troll_runner,
 // owns every gun.
 
-import { WEAPON_DEFS } from "../../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
+import { WEAPON_DEFS } from "../../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2";
 
 const KEY = "trollops:zombies";
 

@@ -4,7 +4,7 @@
 // Dragonfire's nose gun uses it (view/player-update.js, streaks/dragonfire.js).
 
 import * as THREE from "three";
-import { segmentBlocked } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1-gf1-tg1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
+import { segmentBlocked } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1-gf1-tg1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2";
 import { game } from "../core/state.js?v=st1";
 
 /* The pull, the Call of Duty way (it was a controller's and a thumb's

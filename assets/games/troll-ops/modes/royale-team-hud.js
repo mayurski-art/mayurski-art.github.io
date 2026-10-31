@@ -9,7 +9,7 @@
 
 import { game } from "../core/state.js?v=st1";
 import * as THREE from "three";
-import { squadSize } from "./royale-squads.js?v=sq1-wb1";
+import { squadSize } from "./royale-squads.js?v=sq1-wb1-mt2";
 
 const HEAD = 2.15;          // the marker's height over their feet (m)
 const OVER_TAG = 2.42;      // ...over their own name tag when it shows (remote-players.js: 2.15, 0.38 tall)
