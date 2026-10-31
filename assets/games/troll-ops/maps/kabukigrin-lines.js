@@ -15,7 +15,7 @@
 // (the local user in first person holds their own card and bill).
 //
 // Rule 9: it all lies on the table tops (0.75); the stand is the tallest
-// piece at 8.7 cm. The test raycasts the room's eye points at the koi tank,
+// piece at 6 cm (a kneeling eye by the tank grazed taller ones). The test raycasts the room's eye points at the koi tank,
 // the noren, the lattice window and the doors against these boxes.
 
 import * as THREE from "three";
@@ -264,13 +264,13 @@ function lineGeometry(seedN = 5) {
 // the stand are placed in it). Tables 1 and 2 are used from their east
 // end, facing west; table 3 from its west side (its east is the wall).
 export const LINE_TABLES = [
-  { x: -29.9, z: 25.9, top: 0.75, floor: 0.3, ry: Math.PI / 2, tray: [0, 0.26], stand: [0, -0.12], at: { x: -28.95, z: 25.9, yaw: Math.PI / 2 }, cushions: [[-29.9, 25.2], [-29.9, 26.6]] },
-  { x: -29.9, z: 28.3, top: 0.75, floor: 0.3, ry: Math.PI / 2, tray: [0, 0.26], stand: [0, -0.12], at: { x: -28.95, z: 28.3, yaw: Math.PI / 2 }, cushions: [[-29.9, 27.6], [-29.9, 29.0]] },
-  { x: -24.9, z: 27.0, top: 0.75, floor: 0.3, ry: -Math.PI / 2, tray: [0, 0.1], stand: [0.4, -0.14], at: { x: -25.78, z: 27.0, yaw: -Math.PI / 2 }, cushions: [[-24.9, 26.0], [-24.9, 28.0]] },
+  { x: -29.9, z: 25.9, top: 0.75, floor: 0.3, ry: Math.PI / 2, tray: [0, 0.26], stand: [0, -0.04], at: { x: -28.95, z: 25.9, yaw: Math.PI / 2 }, cushions: [[-29.9, 25.2], [-29.9, 26.6]] },
+  { x: -29.9, z: 28.3, top: 0.75, floor: 0.3, ry: Math.PI / 2, tray: [0, 0.26], stand: [0, -0.04], at: { x: -28.95, z: 28.3, yaw: Math.PI / 2 }, cushions: [[-29.9, 27.6], [-29.9, 29.0]] },
+  { x: -24.9, z: 27.0, top: 0.75, floor: 0.3, ry: -Math.PI / 2, tray: [0, 0.1], stand: [0.4, -0.08], at: { x: -25.78, z: 27.0, yaw: -Math.PI / 2 }, cushions: [[-24.9, 26.0], [-24.9, 28.0]] },
 ];
 
 const CANDLES = [   // the stand, left to right: [height, red?]
-  [0.03, false], [0.045, false], [0.036, true], [0.056, false], [0.07, false],
+  [0.02, false], [0.03, false], [0.024, true], [0.038, false], [0.046, false],
 ];
 const TAKEN = 4;    // the tall one on the right is the one you take
 const CANDLE_W = 0.011, WICK = 0.006, BASE_H = 0.012, GRAINS = 120, STRAYS = 36;
