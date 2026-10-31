@@ -31,7 +31,9 @@ export const DROPS = {
   kaboom: { name: "Kaboom", color: "#ff4a3a", weight: 1 },
   onetap: { name: "One Tap", color: "#ffe14a", weight: 1.2, secs: 20 },
   double: { name: "Double Cash", color: "#7dff4f", weight: 1.2, secs: 20 },
-  rebuild: { name: "Rebuild", color: "#4aa8ff", weight: 0.8 },
+  // only drops while a deployable is hurt, and says what it did: a bare
+  // "Rebuild!" read as a stray prompt (user, 2026-10-31)
+  rebuild: { name: "Rebuild", color: "#4aa8ff", weight: 0.8, says: "Rebuild! Deployables repaired" },
   firesale: { name: "Fire Sale", color: "#ff9a2a", weight: 0.8, secs: 30 },
 };
 export const DROP_ODDS = 0.035;
@@ -159,7 +161,7 @@ function roll(z) {
 
 function pickKind() {
   if (state.forceKind) return state.forceKind;
-  const kinds = Object.entries(DROPS).filter(([id]) => id !== "rebuild" || state.hooks?.deployables().length);
+  const kinds = Object.entries(DROPS).filter(([id]) => id !== "rebuild" || state.hooks?.deployables().some((e) => e.hp < e.maxHp));
   let r = Math.random() * kinds.reduce((a, [, d]) => a + d.weight, 0);
   for (const [id, d] of kinds) if ((r -= d.weight) <= 0) return id;
   return kinds[0][0];
@@ -189,7 +191,8 @@ function take(n, kind, name, by) {
   const D = DROPS[kind];
   if (!D) return;
   const mine = !by || by === me();
-  state.hooks?.banner(net().connected && !mine && name ? `${D.name}! (${name})` : `${D.name}!`);
+  const says = D.says || `${D.name}!`;
+  state.hooks?.banner(net().connected && !mine && name ? `${says} (${name})` : says);
   game.audio.tierUp();
   if (D.secs) dropFx[kind] = D.secs;
   if (kind === "kaboom") kaboom();
