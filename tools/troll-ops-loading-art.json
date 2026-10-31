@@ -64,6 +64,7 @@
   {
    "token": 0,
    "side": -3.2,
+   "turn": true,
    "pose": "port",
    "gun": "problem416"
   },
@@ -78,12 +79,14 @@
    "token": 1272,
    "side": 0,
    "back": 0.3,
+   "turn": true,
    "pose": "port",
    "gun": "howl"
   },
   {
    "token": 0,
    "side": 1.6,
+   "turn": true,
    "pose": "port",
    "gun": "greencandle"
   },
