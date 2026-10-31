@@ -7,7 +7,10 @@ conditions and flags. Keyboard, pad and touch. Only NPCs that opt in talk;
 the rest of the crowd stays scenery. First speaker: **North**, the
 Kabukigrin club's bartender.
 
-Status: **draft, waiting on the user's picks** (section 9). Nothing is built.
+Status: **built** with the recommended picks (user via the parent session,
+2026-10-31: "go with your recommended picks"): Neon Nina became North,
+first-person ease, flags remembered in the browser, North only. Test:
+`tools/troll-ops-npc-dialogue-test.mjs`.
 
 ## 1. What already exists (reused, not rebuilt)
 
@@ -32,8 +35,14 @@ bar, same spot, same index, so no other NPC moves). Pick in section 9.
 | `modes/npc-dialogue.js` | the engine: tree walker, conditions, flags, input, camera ease, the panel and its CSS | 1: engine |
 | `modes/talk/north.js` | North's script (data only) | 2: North |
 | `maps/kabukigrin-social.js` | North in the cast (`talk: "north"`) | 2: North |
-| `menu/buttons.js` | `talkOpen()` in the don't-pause list | 1: engine |
-| `game.js` | one import line, nothing else (rule 8) | 1: engine |
+| `menu/buttons.js` | `.to-talk` in the don't-pause list (looked up, not imported) | 1: engine |
+| `view/player-update.js` | `updateTalk(dt)` each frame, beside the photo booth's (game.js untouched) | 1: engine |
+
+Built notes: while talking, `game.localPauseOnly` is held on (the pause
+menu's own "only my player freezes" flag: no feet, no trigger, no hold X)
+and the lens narrows with `camera.zoom`, which game.js's FOV easing leaves
+alone. The NPC is driven with `TownNpcs.takeOver` (head to you, hands on the
+bar, a gesture while the line types) and released on goodbye.
 
 `?v=` tags bumped per rule 4. If this branch gets merged into another
 session's (the bar-drinks session is the likely one), the cascade waits for
@@ -168,7 +177,10 @@ registerTalkService("bar", ({ npc, close, back }) => { /* open the drinks menu *
 ```
 
 `order: { service: "bar" }` calls it with `close()` (end the talk) and
-`back()` (return to the hub). Until it's registered, North says
+`back(line)` (return to the hub). Or, simpler, it returns options to say
+right there: `{ say, options: [{ text, run }] }`; picking one calls `run()`
+(serve the drink, e.g. kb-bar's `orderDrink("me", "sake")`) and North says
+what it returns. A "Never mind" row is added under them. Until it's registered, North says
 "Taps are getting rewired. Ask me in a minute." and you go back to the hub.
 No drinks built here.
 
