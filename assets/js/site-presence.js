@@ -102,20 +102,57 @@ export function joinSitePresence({ onCount = null, onSync = null } = {}) {
     if (onSync) onSync(roster());
     window.dispatchEvent(new CustomEvent("trollrunner:presence-sync"));
   };
-  const retrack = async () => { if (!joined) return; try { await channel.untrack(); await channel.track(payload()); } catch {} };
+  // (track again in place: an untrack first had us offline to everyone for a
+  // moment every 30 s, long enough for a party to think its host had gone)
+  const retrack = async () => { if (!joined || !channel) return; try { await channel.track(payload()); } catch {} };
 
+  /* The channel stays up (user, 2026-10-31: "the trollnite website does not
+     refresh frequently on its own like it doesn't sync that someone invited
+     someone in real time"). It used to join once and never again: a tab put
+     in the background throttles the socket's heartbeat timer, the server
+     drops it, and from then on that tab had a frozen roster and heard no
+     invites while still thinking it was joined. Now the heartbeat runs in a
+     worker (not throttled), a channel that errors, times out or closes is
+     made again after a short wait, and coming back to the tab (or online)
+     checks it at once. */
   if (window.supabase) {
-    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
-    channel = client.channel("trollrunner-site-presence", { config: { presence: { key: viewerId() } } });
-    channel.on("presence", { event: "sync" }, sync);
-    channel.on("broadcast", { event: "msg" }, ({ payload: m }) => {
-      if (!m || typeof m.k !== "string" || typeof m.from !== "string" || m.from === viewerId()) return;
-      for (const fn of listeners.get(m.k) || []) { try { fn(m.d || {}, m.from); } catch { /* one bad listener */ } }
-    });
-    channel.subscribe((status) => {
-      if (status === "SUBSCRIBED") { joined = true; channel.track(payload()); }
-    });
-    setInterval(retrack, 30000);
+    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { autoRefreshToken: false, persistSession: false }, realtime: { worker: true } });
+    let retryT = 0, tries = 0;
+    const connect = () => {
+      clearTimeout(retryT);
+      const ch = client.channel("trollrunner-site-presence", { config: { presence: { key: viewerId() } } });
+      channel = ch;
+      ch.on("presence", { event: "sync" }, () => { if (channel === ch) sync(); });
+      ch.on("broadcast", { event: "msg" }, ({ payload: m }) => {
+        if (channel !== ch || !m || typeof m.k !== "string" || typeof m.from !== "string" || m.from === viewerId()) return;
+        for (const fn of listeners.get(m.k) || []) { try { fn(m.d || {}, m.from); } catch { /* one bad listener */ } }
+      });
+      ch.subscribe((status) => {
+        if (channel !== ch) return;
+        if (status === "SUBSCRIBED") { joined = true; tries = 0; ch.track(payload()).catch(() => {}); return; }
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") reconnect();
+      });
+    };
+    const reconnect = (now = false) => {
+      joined = false;
+      clearTimeout(retryT);
+      const old = channel;
+      channel = null;
+      if (old) client.removeChannel(old).catch(() => {});
+      sync();   // (the roster is just us till we're back)
+      retryT = setTimeout(connect, now ? 0 : Math.min(15000, 1000 * 2 ** tries++));
+    };
+    connect();
+    // back to the tab, or the network back: still joined? (else at once)
+    const check = () => {
+      if (document.visibilityState === "hidden") return;
+      const st = channel?.state;
+      if (!channel || st === "closed" || st === "errored" || (st === "joined" && !client.realtime.isConnected())) reconnect(true);
+      else if (st === "joined") { retrack(); sync(); }
+    };
+    document.addEventListener("visibilitychange", check);
+    window.addEventListener("online", check);
+    setInterval(() => { if (joined && channel && channel.state !== "joined") reconnect(); else retrack(); }, 30000);
     window.addEventListener("trollrunner:auth-changed", retrack);
   }
   /* What this viewer is doing now (null: nothing in particular). Sent at
