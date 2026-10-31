@@ -90,7 +90,7 @@ for (const b of KB_BOOTHS) {
   for (const dx of [-0.8, 0, 0.8]) seatAt(b.x + dx, b.z + dz, 0.45, 0, FACE_YAW[b.face], "bench");
 }
 export const KB_BAR_STOOLS = [9.0, 10.3, 11.6, 12.9, 14.2, 15.5].map((z) => ({ x: -16.85, z }));
-for (const s of KB_BAR_STOOLS) seatAt(s.x, s.z, STOOL, 0, FACE_YAW["+x"], "stool", 0.6);
+for (const s of KB_BAR_STOOLS) { seatAt(s.x, s.z, STOOL, 0, FACE_YAW["+x"], "stool", 0.6); KB_SEATS.at(-1).bar = true; }   // `bar`: you can order here (modes/kb-bar.js)
 export const KB_SOFAS = [
   { x: -6.8, z: 15.5, len: 3, face: "-x", y: MEZZ },     // the mezzanine's, facing the floor
   { x: -8.5, z: 33.35, len: 3, face: "-z", y: 0 },       // the green room's
