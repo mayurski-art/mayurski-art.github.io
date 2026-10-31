@@ -183,10 +183,99 @@ def engrave(P, lines, origin, normal, along, size, depth=0.0004):
         bpy.data.meshes.remove(me)
 
 
+def fillet(pts, n=5):
+    """A closed outline [(z, y, r)] with each corner rounded by its own
+    radius r (0 keeps it sharp): the straight runs meet in arcs, as they do
+    on a moulded stock and grip (rule 10: square only where the real part is)."""
+    out, m = [], len(pts)
+    for i in range(m):
+        z, y, r = pts[i]
+        if r <= 0:
+            out.append((z, y))
+            continue
+        b = Vector((z, y, 0))
+        a = Vector((pts[i - 1][0], pts[i - 1][1], 0))
+        c = Vector((pts[(i + 1) % m][0], pts[(i + 1) % m][1], 0))
+        u1, u2 = a - b, c - b
+        l1, l2 = u1.length, u2.length
+        u1.normalize()
+        u2.normalize()
+        th = math.acos(max(-1.0, min(1.0, u1.dot(u2))))
+        if th < 1e-3 or th > math.pi - 1e-3:
+            out.append((z, y))
+            continue
+        d = min(r / math.tan(th / 2), 0.45 * l1, 0.45 * l2)
+        re = d * math.tan(th / 2)
+        p1, p2 = b + u1 * d, b + u2 * d
+        cen = b + (u1 + u2).normalized() * (re / math.sin(th / 2))
+        a1 = math.atan2(p1.y - cen.y, p1.x - cen.x)
+        a2 = math.atan2(p2.y - cen.y, p2.x - cen.x)
+        da = (a2 - a1 + math.pi) % gk.TAU - math.pi          # the short way round
+        for k in range(n + 1):
+            t = a1 + da * k / n
+            out.append((cen.x + re * math.cos(t), cen.y + re * math.sin(t)))
+    return out
+
+
+def round_v(P, outline, y0, y1, hw, key, r=0.9, step=0.003, n=4, zwin=None):
+    """section_body's down-the-gun loft with rounded sections (the grip,
+    the mag): each row a rounded rectangle, its corner radius r of the
+    smaller half-size (0.9 is nearly an oval); hw may be a function of t 0..1."""
+    k_n = max(2, int(abs(y1 - y0) / step) + 1)
+    secs = []
+    for k in range(k_n):
+        t = k / (k_n - 1)
+        y = y0 + (y1 - y0) * t
+        sp = gk.span(outline, 1, y, zwin)
+        if not sp:
+            continue
+        w = hw(t) if callable(hw) else hw
+        hz = (sp[1] - sp[0]) / 2
+        secs.append(gk.rrect_xz(y, (sp[0] + sp[1]) / 2, hz, w, min(w, hz) * r, n))
+    gk.loft(P, secs, key)
+
+
+def round_z(P, outline, z0, z1, hw, key, r=0.006, step=0.003, n=4, ywin=None):
+    """The across-the-gun loft with rounded-rectangle sections (the stock's
+    housing, leg and butt): rounded edges where section_body has chamfers."""
+    k_n = max(2, int(abs(z1 - z0) / step) + 1)
+    secs = []
+    for k in range(k_n):
+        t = k / (k_n - 1)
+        z = z0 + (z1 - z0) * t
+        sp = gk.span(outline, 0, z, ywin)
+        if not sp:
+            continue
+        w = hw(t) if callable(hw) else hw
+        secs.append(gk.rrect(z, w, sp[1], sp[0], r, n))
+    gk.loft(P, secs, key)
+
+
 def fin(P):
-    """Finish a part with real rounded edges on the game mesh too (the
-    light catches every chamfer), a finer bevel on the bake's high pass."""
-    return P.finish(smooth_angle=34, bevel=0.0007 if gk.HI else 0.0006, bevel_segs=3 if gk.HI else 2)
+    """Rounded edges on the game mesh too (the light catches every chamfer),
+    a finer bevel on the bake's high pass. Sharp outer miters: gunkit's arc
+    miters throw vertices off to infinity on some corners (lathe caps, cut
+    floors). The cut-outs go in as one exact boolean, which now and then
+    throws a whole region of a big part away: the part's extents before and
+    after are compared and the build stops if any side moved more than 4 mm."""
+    pre = [v.co.copy() for v in P.bm.verts]
+    lo = [min(p[i] for p in pre) for i in range(3)] if pre else None
+    hi = [max(p[i] for p in pre) for i in range(3)] if pre else None
+    ob = P.finish(smooth_angle=34, bevel=0.0007 if gk.HI else 0.0006, bevel_segs=3 if gk.HI else 2)
+    bv = ob.modifiers.get("bevel")
+    if bv:
+        bv.miter_outer = "MITER_SHARP"
+        bv.use_clamp_overlap = True
+    if lo:
+        g = [(v.co + ob.location) for v in ob.data.vertices]       # (matrix_world can be stale here)
+        g = [(p.x, p.z, -p.y) for p in g]                      # Blender z-up -> game y-up
+        lo2 = [min(p[i] for p in g) for i in range(3)]
+        hi2 = [max(p[i] for p in g) for i in range(3)]
+        off = max(max(abs(a - b) for a, b in zip(lo, lo2)), max(abs(a - b) for a, b in zip(hi, hi2)))
+        if off > 0.004:
+            raise RuntimeError(f"{ob.name}: the cut-outs dropped geometry ({off * 1000:.1f} mm off its extents "
+                               f"{[round(x, 3) for x in lo]}..{[round(x, 3) for x in hi]})")
+    return ob
 
 
 # ------------------------------------------------------------------ the body
@@ -229,12 +318,14 @@ def upper(P):
 def lower(P):
     # one outline: the stepped top under the upper's skirt, the flared mag
     # well, the trigger guard (an opening cut through, as in concept-2),
-    # the grip's seat and the slope down from the buffer tube
-    section_body(P, [(0.076, SPLIT_R - 0.0002), (0.076, -0.024), (0.064, -0.034), (0.040, -0.040), (0.010, -0.040),
-                     (0.006, -0.0575), (-0.038, -0.0575), (-0.044, -0.064), (-0.120, -0.064), (-0.128, -0.022),
-                     (-0.127, SPLIT_F - 0.0002), (SPLIT_STEP - 0.004, SPLIT_F - 0.0002), (SPLIT_STEP + 0.004, SPLIT_R - 0.0002)],
-                 [dict(z=(0.074, -0.126), key="lower", hw=HW_LO, c=0.002, step=0.003)])
-    rrect_cut(P, (0.03, -0.045, -0.021), R, ZV, 0.040, 0.0155, 0.006, 0.06, "lower")
+    # the grip's seat and the slope down from the buffer tube; forged, so
+    # the guard and the tang sweep in curves (concept-2), the top stays square
+    section_body(P, fillet([(0.076, SPLIT_R - 0.0002, 0.0), (0.076, -0.024, 0.005), (0.064, -0.034, 0.010), (0.040, -0.040, 0.008),
+                            (0.010, -0.040, 0.004), (0.006, -0.0575, 0.006), (-0.038, -0.0575, 0.005), (-0.044, -0.064, 0.003),
+                            (-0.120, -0.064, 0.002), (-0.128, -0.022, 0.003),
+                            (-0.127, SPLIT_F - 0.0002, 0.0), (SPLIT_STEP - 0.004, SPLIT_F - 0.0002, 0.0), (SPLIT_STEP + 0.004, SPLIT_R - 0.0002, 0.0)]),
+                 [dict(z=(0.074, -0.126), key="lower", hw=HW_LO, c=0.002, step=0.003)])   # (step 0.002 unsmoothed left a sliver that wrecked the bake atlas)
+    rrect_cut(P, (0.03, -0.045, -0.021), R, ZV, 0.040, 0.0155, 0.0072, 0.06, "lower")
     # the well's flared mouth and the raised lip along the top of the lower
     chamfer_box(P, (0, -0.0605, -0.082), (2 * HW_LO + 0.0035, 0.008, 0.0795), 0.0018, "lower")
     for n in (R, L):
@@ -249,8 +340,9 @@ def lower(P):
         pin(P, (x, -0.0315, -0.024), n, 0.0022, 0.0007)      # trigger pin
         pin(P, (x, -0.0315, -0.004), n, 0.0022, 0.0007)      # hammer pin
         pin(P, (x, -0.024, 0.012), n, 0.0016, 0.0005)        # selector detent
-    # beavertail over the grip
-    chamfer_box(P, (0, -0.0395, 0.052), (0.022, 0.006, 0.030), 0.0025, "lower")
+    # beavertail over the grip, its tail curling down
+    round_z(P, fillet([(0.036, -0.0365, 0.0), (0.067, -0.0365, 0.004), (0.065, -0.0425, 0.003), (0.036, -0.0425, 0.0)]),
+            0.0365, 0.0665, 0.011, "lower", r=0.0025, step=0.0025)
     # selector on auto, both sides: a hub and its lever toward the stock
     for n in (R, L):
         local_lathe(P, (n.x * HW_LO, -0.033, 0.024), n, [(0, 0.0058), (0.0018, 0.0058), (0.0024, 0.005), (0.0024, 0.0)], "core", segs=20)
@@ -314,14 +406,23 @@ def stock(P):
                     (Vector((math.cos(a), math.sin(a), 0)), Vector((-math.sin(a), math.cos(a), 0)), ZV))
     lathe(P, [(0.083, 0.0), (0.083, 0.0137), (0.225, 0.0137), (0.225, 0.0)], "core", segs=40, cy=BORE)
     chamfer_box(P, (0, BORE - 0.0185, 0.089), (0.006, 0.010, 0.010), 0.0018, "core")   # the sling loop under the end plate
-    section_body(P, [(0.103, 0.030), (0.180, 0.037), (0.276, 0.041), (0.276, -0.024), (0.103, -0.010)],
-                 [dict(z=(0.105, 0.268), key="stock", hw=HW_STOCK, c=0.0045, step=0.012)])
-    section_body(P, [(0.140, -0.006), (0.165, -0.008), (0.268, -0.040), (0.268, -0.088), (0.250, -0.088), (0.140, -0.019)],
-                 [dict(z=(0.142, 0.266), key="stock", hw=0.0125, c=0.003, step=0.008)])
-    section_body(P, box_outline((0.258, 0.276), -0.088, 0.041),
-                 [dict(z=(0.258, 0.276), key="stock", hw=0.0195, c=0.004, step=0.009)])
-    section_body(P, box_outline((0.276, 0.294), -0.090, 0.043),
-                 [dict(z=(0.276, 0.294), key="rubber", hw=0.0210, c=0.0045, step=0.006)])
+    # the housing: its nose rounded down onto the tube, the top rising in
+    # a curve to the heel, the cheek swelling out mid-length, every edge round
+    housing = fillet([(0.101, -0.010, 0.004), (0.101, 0.026, 0.012), (0.175, 0.037, 0.06), (0.272, 0.042, 0.008),
+                      (0.272, -0.024, 0.0), (0.180, -0.020, 0.03), (0.130, -0.016, 0.008)])
+    round_z(P, housing, 0.1015, 0.2715, lambda t: HW_STOCK * (0.93 + 0.08 * math.sin(math.pi * min(1.0, t * 1.1))),
+            "stock", r=0.0075, step=0.003)
+    # the leg: from under the housing down to the toe, its belly a long
+    # curve, the window's corners round
+    leg = fillet([(0.128, -0.012, 0.0), (0.168, -0.014, 0.010), (0.262, -0.042, 0.006), (0.268, -0.046, 0.0),
+                  (0.268, -0.091, 0.0), (0.250, -0.092, 0.008), (0.215, -0.076, 0.06), (0.152, -0.025, 0.02),
+                  (0.128, -0.016, 0.0)])
+    round_z(P, leg, 0.1285, 0.2675, 0.0125, "stock", r=0.0045, step=0.003)
+    # the butt upright, its heel and toe rounded
+    butt = fillet([(0.256, 0.040, 0.0), (0.277, 0.044, 0.006), (0.277, -0.091, 0.005), (0.252, -0.091, 0.008), (0.256, -0.060, 0.0)])
+    round_z(P, butt, 0.2525, 0.2765, 0.0195, "stock", r=0.0055, step=0.003)
+    pad = fillet([(0.276, 0.044, 0.0), (0.294, 0.044, 0.007), (0.294, -0.092, 0.007), (0.276, -0.092, 0.0)])
+    round_v(P, pad, 0.0435, -0.0915, 0.0210, "rubber", r=0.35, step=0.004)
     for k in range(11):
         y = 0.036 - 0.0122 * k
         rrect_cut(P, (0, y, 0.294), ZV, R, 0.046, 0.0034, 0.0015, 0.002, "rubber")
@@ -340,19 +441,25 @@ def stock(P):
 
 def grip(P):
     # MOE-style, OD (concept-3): the old 416's rake (the hand rig is fitted
-    # to it), a finger nub, a flared base; stippled panels sunk in each
-    # side, ribs down the back strap
-    section_body(P, [(-0.004, -0.038), (0.036, -0.038), (0.044, -0.060), (0.052, -0.108), (0.057, -0.122),
-                     (0.050, -0.133), (0.030, -0.135), (0.016, -0.130), (0.006, -0.096), (0.002, -0.084),
-                     (-0.008, -0.073), (-0.003, -0.062), (-0.006, -0.048)],
-                 [dict(axis="v", y=(-0.039, -0.133), key="gripm", hw=HW_GRIP, c=0.004)])
+    # to it), moulded round: near-oval sections, the back strap's hump
+    # under the beavertail, a finger nub, the heel flaring out; stippled
+    # panels sunk in each side, ribs down the back strap
+    outline = fillet([(-0.004, -0.038, 0.0), (0.036, -0.038, 0.0), (0.044, -0.056, 0.014), (0.052, -0.104, 0.03),
+                      (0.059, -0.124, 0.008), (0.053, -0.134, 0.005), (0.030, -0.136, 0.008), (0.016, -0.131, 0.008),
+                      (0.006, -0.097, 0.014), (0.002, -0.084, 0.004), (-0.008, -0.073, 0.006), (-0.003, -0.062, 0.004),
+                      (-0.006, -0.048, 0.0)])
+    round_v(P, outline, -0.039, -0.1355,
+            lambda t: 0.0122 + 0.0026 * min(1.0, t / 0.2) ** 0.5 + 0.0010 * max(0.0, (t - 0.86) / 0.14) ** 2,
+            "gripm", r=0.7, step=0.0025, n=5)
     v = Vector((0, 0.976, -0.218))
     for n in (R, L):
         rrect_cut(P, (n.x * HW_GRIP, -0.092, 0.028), n, v, 0.066, 0.022, 0.005, 0.0009, "gripm")
-    back = Vector((0, 0.218, 0.976))
+    # the ribs follow the back strap's curve
     for k in range(7):
-        c = Vector((0, -0.064 - 0.008 * k, 0.0455 + 0.0018 * k))
-        rrect_cut(P, c, back, R, 0.016, 0.0028, 0.0012, 0.0012, "gripm")
+        y = -0.064 - 0.008 * k
+        z0, z1 = gk.span(outline, 1, y + 0.001)[1], gk.span(outline, 1, y - 0.001)[1]
+        back = Vector((0, (z1 - z0) / 0.002, 1)).normalized()
+        rrect_cut(P, (0, y, (z0 + z1) / 2), back, R, 0.016, 0.0028, 0.0012, 0.0012, "gripm")
     stipple(P, (HW_GRIP - 0.0008, -0.121, 0.040), (0, 0, -1), v, 0.020, 0.058, "gripm")
     stipple(P, (-HW_GRIP + 0.0008, -0.121, 0.020), (0, 0, 1), v, 0.020, 0.058, "gripm")
 
@@ -441,23 +548,48 @@ def parts():
     for k in range(3):
         chamfer_box(P, (-HW_LO - 0.0024, -0.0135 - 0.0028 * k, -0.040), (0.0010, 0.0011, 0.014), 0.0003, "core")
     fin(P)
-    # magazine: a black PMAG, nearly straight, 3 x 4 recessed cells a side
-    # with raised frames, a ribbed band and a flared floorplate
+    # magazine: a black PMAG, straight in the well, then curving forward on
+    # an arc to its floorplate (concept-1/-3); rounded front and back
+    # straps, 3 x 4 recessed cells a side following the curve, a ribbed
+    # band and the flared floorplate square to the curve's end
     P = moving(PFX, "Mag", (0, -0.060, -0.082), "slide", "y", 0.0)
-    mag = [(-0.114, -0.020), (-0.046, -0.020), (-0.047, -0.080), (-0.054, -0.160), (-0.066, -0.226), (-0.068, -0.238),
-           (-0.146, -0.238), (-0.144, -0.226), (-0.128, -0.160), (-0.118, -0.080)]
-    section_body(P, mag, [dict(axis="v", y=(-0.020, -0.225), key="magm", hw=HW_MAG, c=0.0035),
-                          dict(axis="v", y=(-0.225, -0.2375), key="magm", hw=HW_MAG + 0.0025, c=0.0035)])
-    v = Vector((0, 0.991, 0.133))
+    S0, S1, RC = 0.050, 0.203, 0.37          # straight run, length, the curve's radius
+
+    def frame(s):
+        """The mag's spine at s down from its top: centre (z, y), the
+        tangent (down the mag) and the forward normal, and its half-depth."""
+        if s <= S0:
+            c, a = (-0.080, -0.020 - s), 0.0
+        else:
+            a = (s - S0) / RC
+            c = (-0.080 - RC * (1 - math.cos(a)), -0.020 - S0 - RC * math.sin(a))
+        return Vector(c), Vector((-math.sin(a), -math.cos(a))), Vector((-math.cos(a), math.sin(a))), 0.034 + 0.005 * s / S1
+
+    def at(s, o, x):
+        c, _, nf, _ = frame(s)
+        p = c + nf * o
+        return Vector((x, p.y, p.x))
+
+    fronts, backs = [], []
+    for k in range(41):
+        c, _, nf, h = frame(S1 * k / 40)
+        fronts.append(tuple(c + nf * h))
+        backs.append(tuple(c - nf * h))
+    round_v(P, fronts + backs[::-1], -0.0205, backs[-1][1] + 0.0003, HW_MAG, "magm", r=0.4, step=0.003)
+    c, t, nf, h = frame(S1)
+    ax = Vector((0, -t.y, -t.x))                         # up the mag, in game (x, y, z)
+    bx = Vector((0, -nf.y, -nf.x))                       # front to back along the floorplate
+    fp = c + t * 0.0055
+    chamfer_box(P, (0, fp.y, fp.x), (2 * (HW_MAG + 0.0025), 0.0125, 2 * h + 0.004), 0.0035, "magm", (R, ax, bx))
     for n in (R, L):
         for i in range(3):
             for j in range(4):
-                y = -0.088 - 0.0345 * j
-                zf = -0.118 - 0.010 * (j + 0.5) / 4 * 1.3     # the front edge leans forward down the mag
-                z = zf + 0.0105 + 0.0215 * i + 0.002 * j
-                rrect_cut(P, (n.x * HW_MAG, y, z), n, v, 0.030, 0.0175, 0.003, 0.0013, "magm")
+                s = 0.068 + 0.0345 * j
+                p = at(s, 0.0215 * (1 - i), n.x * HW_MAG)
+                rrect_cut(P, p, n, at(s - 0.01, 0, 0) - at(s + 0.01, 0, 0), 0.030, 0.0175, 0.003, 0.0013, "magm")
         for k in range(5):
-            rrect_cut(P, (n.x * HW_MAG, -0.2165 - 0.0018 * k, -0.103), n, ZV, 0.060, 0.0009, 0.0004, 0.0006, "magm")
+            s = S1 - 0.0065 - 0.0018 * k
+            rrect_cut(P, at(s, 0, n.x * HW_MAG), n, at(s, 0.01, 0) - at(s, -0.01, 0), 0.060, 0.0009, 0.0004, 0.0006, "magm")
         rrect_cut(P, (n.x * HW_MAG, -0.048, -0.080), n, ZV, 0.050, 0.010, 0.003, 0.0008, "magm")
     fin(P)
 
@@ -495,7 +627,9 @@ if BAKE:
     # First person carries the detail (88k tris, 2048 maps); everyone else
     # sees the LOD1 at the design's third-person budget (~6k tris, 256 px):
     # the user, 2026-10-29, "more emphasis in first person POV than third"
-    bake_kit.bake_gun(recipe, "problem416", PFX, HERE, render=render, res=2048, margin_px=6, lod_ratio=0.07)
+    # (lod_weld: the rounded lofts split the game mesh along many more
+    # seams, and unwelded the LOD1 only got down to 38k)
+    bake_kit.bake_gun(recipe, "problem416", PFX, HERE, render=render, res=2048, margin_px=6, lod_ratio=0.07, lod_weld=1e-5)
 else:
     gk.HI = "hi" in ARGS
     recipe()
