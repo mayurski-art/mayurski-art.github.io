@@ -667,6 +667,7 @@ export class RemotePlayer {
     // Just out of the plane: the fall's opening show from the top (poseDrop).
     if (drop === DROP_FALL && (this.drop & 3) === DROP_BUS) { this.dropT = 0; this.fallYaw = null; this.diveK = 0; }
     this.drop = drop;
+    this.slot = drop === DROP_BUS ? b.slot | 0 : 0;   // their seat aboard (royale-file.js reads it)
     this.setGlider(drop === DROP_GLIDE);
     let aboard = null;
     if (drop === DROP_BUS) {
@@ -681,7 +682,7 @@ export class RemotePlayer {
 
     // A landing roll: tucked all the way down while it lasts.
     const roll = (b.roll || 0) >= (a.roll || 0) ? (a.roll || 0) + ((b.roll || 0) - (a.roll || 0)) * k : b.roll || 0;
-    const wantLower = roll > 0 ? 1 : STANCE_LOWER[b.stance] ?? 0;
+    const wantLower = aboard?.lower ?? (roll > 0 ? 1 : STANCE_LOWER[b.stance] ?? 0);
     this.lower += (wantLower - this.lower) * Math.min(1, dt * 8);
     const wantProne = roll > 0 ? 0 : b.stance === "prone" ? 1 : 0;
     this.prone += (wantProne - this.prone) * Math.min(1, dt * (wantProne ? 7 : 8));
@@ -752,7 +753,9 @@ export class RemotePlayer {
     if (b.moving) this.stopT = 0; else this.stopT = (this.stopT || 0) + dt;
     // a bot sat in a chapel pew or knelt at its rail (bots.js rest)
     const resting = b.stance === "sit" || b.stance === "pray";
-    const moving = (!!b.moving || this.stopT < STOP_HOLD) && b.stance !== "rope" && !resting && aboard?.seatY == null;
+    // (a bot the plane's placer walks, royale-file.js: its own gait)
+    if (aboard?.mps != null) { speed = aboard.mps; forward = aboard.forward ?? 1; strafe = 0; }
+    const moving = aboard?.moving ?? ((!!b.moving || this.stopT < STOP_HOLD) && b.stance !== "rope" && !resting && aboard?.seatY == null);
     // Same 4.2 m/s reference speed used to drive the phase rate above,
     // reused here as the 0..1 intensity that scales stride/arm-swing/lean
     // so a jog and a sprint are visibly different gaits, not just the same

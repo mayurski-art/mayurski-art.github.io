@@ -5,7 +5,7 @@ for the ramp, arms out, spin, a slow-motion look back at the plane, hands
 to your chest, dive. Squads hold hands in a line and jump together. Fortnite is the feel to aim for; every pose and shot here is
 our own, on our trollface rigs.
 
-Status: decisions settled; waiting for the go-ahead to build.
+Status: building (go-ahead 2026-10-30). Phases 1-3 done on branch claude/royale-jump-anim-e36721; 4 (leader marker) and 5 (bots) next.
 
 ## Today
 - T-1.6 you turn your back to the door; at the green the jumpmaster shoves
@@ -24,6 +24,7 @@ the wire.
 
 | Drop clock | You | Jumpmaster |
 |---|---|---|
+| T-10 .. T-9.2 | at the ramp, your head turns to watch him | **presses the green button** on the ramp panel by the door (user, 2026-10-31); the ramp starts down |
 | T-6 .. T-1.75 | the long look down over the edge (as now) | by the ramp, holding the strap |
 | T-1.75 .. T-0.6 | **back-up:** slow steps backwards up the ramp, ~1.6 m, still facing out the door | steps aside, arm out at the door |
 | T-0.6 .. T-0 | **set:** a small crouch, weight forward, hands down by the knees | "Wait for it..." |

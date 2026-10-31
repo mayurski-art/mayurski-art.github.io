@@ -43,6 +43,7 @@ import { familyPhoto, setPhotoThumb } from "./royale-photo.js?v=dc1-ph1-op1";
 import { ipod, drawIpod, pressIpod, layoutIpodCord } from "./royale-ipod.js?v=dc1-rfx1";
 import { updateCrew, hideCrew, crewSeat, yourRampPath, pathAt, paceFor } from "./royale-crew.js?v=dc2-rf1-ls1-rr1-ld2-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-tx1-sp1-kbt1-gb1-rh1-ci6-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6-jx2";
 import { playSfx } from "../sound/sfx-files.js?v=dc4-nd1-wb1";
+import { fileSpot } from "./royale-file.js?v=fl1";
 import { STANCE } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1-hb4";
 
 export const CINE = {
@@ -286,6 +287,7 @@ function localYou(r) {
 /* The seat the squad mate takes (royale.js hides the bot drawn in it), or
    -1 when there's no scene. */
 export function dropCineCrewSeat(r) {
+  if (r?.file?.n > 1) return -1;   // a squad: your own teammates, no stick-figure mate
   return (cine.on || (cine.done && cine.path)) && r ? crewSeat(r.seat) : -1;
 }
 /* At the ramp facing in when the green came (the green light's banner says
@@ -361,6 +363,13 @@ function begin(r) {
   cine.side = seat.pos.x - o.x < 0 ? -1 : 1;
   cine.seatZ = seat.pos.z - o.z;
   cine.path = yourRampPath(cine.side, seat.pos.x - o.x, cine.seatZ);
+  // In a squad (royale-file.js, royale.js royaleFile): your place in the
+  // file down the middle, the front nearest the door.
+  cine.fileK = r.file?.n > 1 ? r.file.k : -1;
+  if (cine.fileK >= 0) {
+    const sp = fileSpot(cine.fileK);
+    cine.path = [...cine.path.slice(0, 2), { x: cine.side * 0.62, z: Math.min(4.6, sp.z - 0.3) }, sp];
+  }
   cine.pace = paceFor(cine.path, CINE.walkFrom, CINE.walkBy, 2.4);
   cine.head = cine.yaw;
   cine.last = null;
@@ -462,7 +471,8 @@ function lookStanding(t, dt) {
   const set = smooth(CINE.backUp[0], CINE.backUp[0] + 0.4, t);
   // The ramp slides in under the floor (royale-planes.js retractAt): a look
   // straight down past the edge at the island, then back up for the turn.
-  const down = smooth(CINE.lookDown[0], CINE.lookDown[0] + 0.45, t) * (1 - smooth(CINE.lookDown[1] - 0.35, CINE.lookDown[1], t));
+  // (behind someone in a squad's file, you look out past them, not down)
+  const down = (cine.fileK > 0 ? 0 : 1) * smooth(CINE.lookDown[0], CINE.lookDown[0] + 0.45, t) * (1 - smooth(CINE.lookDown[1] - 0.35, CINE.lookDown[1], t));
   // Looking down, the head turns so the island's the right way up: map
   // north at the top, as it's drawn (user, 2026-10-18), whichever way the
   // plane runs. Yaw is in the hold's frame, so less the plane's heading.

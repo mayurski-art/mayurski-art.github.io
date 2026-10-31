@@ -19,7 +19,7 @@ import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-a
 import { game } from "../core/state.js?v=st1";
 import { setGearChip, setTouchItem } from "../view/gear-chips.js?v=gc1-rfx2-rfx3-hb4";
 import { padHooks } from "../input/gamepad.js?v=in1-fu1b7-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-zp1-aa0-pd1-nf1-or1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-spd1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-mt2-sk1-hb4-jx2";
-import { updateDropCine, dropCineEye, dropCineLean, dropCineZoom, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut, updateExitCrew } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-jx2";
+import { CINE, updateDropCine, dropCineEye, dropCineLean, dropCineZoom, resetDropCine, dropCineCrewSeat, dropCineAtRamp, dropCineSitK, dropCineFirstPerson, dropCineOut, updateExitCrew } from "./royale-cine.js?v=dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-jx2";
 import { playSfx, preloadSfx } from "../sound/sfx-files.js?v=dc4-nd1-wb1";
 import { royaleRecordReset, royaleRecordTick, stopRoyaleRecord } from "./royale-record.js?v=rrc1-rfx1-rr2-ret1-mrg1-hd1";
 import { useAnimStart, useAnimTick, useAnimFinish, useAnimCancel, useWire, poseUsePeer } from "./royale-use.js?v=ru1-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-jx2";
@@ -28,6 +28,7 @@ import { sidePref } from "./royale-side.js?v=rs1-tw1";
 import { noteWorldBeforeSwap } from "./royale-worlds.js?v=rw1-wb1";
 import { initLiveReport, closeLiveReport } from "./royale-live-report.js?v=rlr1-wb1-mt2-sk1-hb4-jx2";
 import { squadSize, teamsAlive, myTeamAlive, squadSeats, botSquadGoal } from "./royale-squads.js?v=sq1-wb1-mt2-hb4";
+import { fileRoster, fileGrip, fileOutAt, botFilePlace, poseFileHands } from "./royale-file.js?v=fl1";
 import { updateTeamHud, clearTeamHud } from "./royale-team-hud.js?v=tm1-rd1-wb1-mt2-hb4";
 import { updateRoyaleDown, clearRoyaleDown, botReviveGoal } from "./royale-down.js?v=rd1-wb1-mt2-sk1-hb4-jx2";
 import { updateRoyaleFlip, flipCineOn, resetRoyaleFlip, flipAt, matchingSpot } from "./royale-flip.js?v=rf1-hgb9-tw1-op1-hgo1";
@@ -247,7 +248,20 @@ busPlacers.push((rp, snap) => {
   if (!snap.slot || !royaleAboard() || !d.hold) return null;
   const { plane, seat } = Squadron.seatOf(snap.slot - 1);
   if (plane !== sq.ridden) return null;
-  if (rp.pos.y > d.origin.y - 50) {
+  _aboard.moving = _aboard.mps = _aboard.forward = _aboard.lower = undefined;
+  const fk = r.file?.ids.indexOf(rp.netId) ?? -1;
+  const walk = fk >= 0 && game.isBotPeer(rp.peer) ? botFilePlace(fk, SEAT_SPOTS[seat % SEAT_SPOTS.length], r.planeT, CINE) : null;
+  if (walk) {
+    // A bot of your squad's file (royale-file.js): up out of its seat,
+    // down the aisle, into line, the run-up and the dash with you.
+    rp.pos.set(walk.x, 0, walk.z);
+    rp.yaw = walk.yaw;
+    _aboard.seatY = null;
+    _aboard.moving = walk.moving;
+    _aboard.mps = walk.mps;
+    _aboard.forward = walk.forward;
+    _aboard.lower = walk.lower;
+  } else if (rp.pos.y > d.origin.y - 50) {
     rp.pos.sub(d.origin);
     _aboard.seatY = null;
   } else {
@@ -262,6 +276,32 @@ busPlacers.push((rp, snap) => {
   return _aboard;
 });
 let playerGlider = null;
+
+/* Your squad's file at the ramp (royale-file.js), worked out once the
+   cinematic starts (everyone's in their seat by then): { ids, k (you), n }. */
+function slotOf(rp) { return rp.slot || 0; }
+export function royaleFile() {
+  const r = royale;
+  if (!r?.drop || squadSize() < 2) return null;
+  if (r.file && r.file.at === r.planeT) return r.file;
+  if (!r.file || r.planeT < CINE.walkFrom - 1) {
+    const me = { id: game.net.id || "me", slot: r.plane * PLANES.seats + r.seat + 1, team: game.net.team };
+    const list = fileRoster(r.plane, game.net.team, me, slotOf, PLANES.seats);
+    r.file = { ids: list.map((m) => m.id), k: list.findIndex((m) => m.me), n: list.length };
+  }
+  r.file.at = r.planeT;
+  return r.file;
+}
+/* Hands held in the file: your body (view/third-person.js) and theirs. */
+export function poseFileLocal(rig) {
+  const f = royaleAboard() && royaleFile();
+  if (f?.n > 1 && f.k >= 0) poseFileHands(rig, fileGrip(royale.planeT), f.k, f.n);
+}
+peerPosers.push((rp) => {
+  if (!royaleAboard() || (rp.drop & 3) !== DROP_BUS) return;
+  const f = royaleFile(), k = f ? f.ids.indexOf(rp.netId) : -1;
+  if (k >= 0) poseFileHands(rp.rig, fileGrip(royale.planeT), k, f.n);
+});
 
 /* Orbit `dist` m behind `target` along the look direction, `height` up. */
 export function placeDropCamera(target, dist, height) {
@@ -351,6 +391,24 @@ export function placeBotsInLobby() {
     botSeatPos(b);
     game.net.publishBot(b);
   });
+  // A human squad's bots go out with its file (royale-file.js): each on its
+  // place in the line, a beat after the one in front.
+  if (!seats) return;
+  const humanTeams = new Set([game.net.team, ...[...game.net.peers.values()].filter((p) => !game.isBotPeer(p)).map((p) => p.team)]);
+  const byTeam = new Map();
+  for (const [id, slot] of seats) {
+    const team = id === (game.net.id || "me") ? game.net.team : game.net.peers.get(id)?.team ?? game.bots.bots.find((b) => b.id === id)?.team;
+    if (!humanTeams.has(team)) continue;
+    if (!byTeam.has(team)) byTeam.set(team, []);
+    byTeam.get(team).push({ id, slot });
+  }
+  for (const list of byTeam.values()) {
+    list.sort((a, b) => a.slot - b.slot);
+    list.forEach(({ id }, k) => {
+      const b = game.bots.bots.find((x) => x.id === id);
+      if (b?.drop) b.drop.jumpT = fileOutAt(k, CINE.backBy);
+    });
+  }
 }
 
 /* A bot in its seat, wherever its plane is now. */
@@ -584,6 +642,7 @@ function updateRoyaleDropWorld(dt) {
 export function updateAboardPlayer(dt, jump) {
   const r = royale, d = r.drop, hold = d.hold;
   if (!hold) return;
+  royaleFile();   // your squad's file at the ramp (the cinematic walks you to your place in it)
   // The drop cinematic (royale-cine.js) has you, T-22 to the green.
   if (updateDropCine(r, dt)) return;
   if (game.player.holding !== "none") game.setHolding("none");

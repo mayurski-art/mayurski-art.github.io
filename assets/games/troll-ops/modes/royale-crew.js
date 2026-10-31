@@ -240,7 +240,8 @@ export function updateCrew(r, t, dt, you, side, seatZ) {
   jm.lastT = t;
   carry(jrig, m);
 
-  // ---- the squad mate
+  // ---- the squad mate (solo only: a squad has its own, in its file)
+  if (r.file?.n > 1) { mate.rig.root.visible = false; mate.mask.visible = false; return; }
   const ms = crewSeat(r.seat), spot = SEAT_SPOTS[ms];
   const mside = Math.sign(spot.x);
   const seatYaw = mside < 0 ? -Math.PI / 2 : Math.PI / 2;
