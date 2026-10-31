@@ -104,9 +104,13 @@ ROUND_HEAD = BOLT_FACE + TRAVEL - 0.001  # the round waits just ahead of the rak
 MAG_Z, MAG_TOP, MAG_BOT = (-0.078, -0.184), -0.040, -0.163
 TRIG = Vector((0, -0.058, -0.040))
 BIPOD_Z = (-0.500, -0.735)
-SCOPE_Y = RAIL_TOP + 0.046               # the scope's axis
-SCOPE_Z = (0.094, -0.336)                # eyepiece to objective
-TURRET_Z = -0.100
+# the scope, measured off the sheet's right side (0.000797 m a pixel): its
+# axis 37 mm over the rail, 0.48 m long, a 25 mm eyepiece, a slim 12 mm
+# tube, the bell flaring from z -0.181 to a 30 mm objective
+SCOPE_Y = RAIL_TOP + 0.037               # the scope's axis
+SCOPE_Z = (0.092, -0.386)                # eyepiece to objective
+SCOPE_R = dict(eye=0.0247, tube=0.0117, bell=0.0300)
+TURRET_Z = -0.091
 RING_Z = (-0.040, -0.158)
 
 
@@ -187,30 +191,115 @@ def drum(P, center, normal, r, h, key="core", ribs=24, ticks=0):
                     "white", (d, d.cross(n).normalized(), n))
 
 
+def fillet(pts, n=5):
+    """A closed outline [(z, y, r)] with each corner rounded by its own
+    radius r (0 keeps it sharp): the straight runs meet in arcs, as they do
+    on a machined chassis and a moulded grip."""
+    out, m = [], len(pts)
+    for i in range(m):
+        z, y, r = pts[i]
+        if r <= 0:
+            out.append((z, y))
+            continue
+        b = Vector((z, y, 0))
+        a = Vector((pts[i - 1][0], pts[i - 1][1], 0))
+        c = Vector((pts[(i + 1) % m][0], pts[(i + 1) % m][1], 0))
+        u1, u2 = a - b, c - b
+        l1, l2 = u1.length, u2.length
+        u1.normalize()
+        u2.normalize()
+        th = math.acos(max(-1.0, min(1.0, u1.dot(u2))))
+        if th < 1e-3 or th > math.pi - 1e-3:
+            out.append((z, y))
+            continue
+        d = min(r / math.tan(th / 2), 0.45 * l1, 0.45 * l2)
+        re = d * math.tan(th / 2)
+        p1, p2 = b + u1 * d, b + u2 * d
+        cen = b + (u1 + u2).normalized() * (re / math.sin(th / 2))
+        a1 = math.atan2(p1.y - cen.y, p1.x - cen.x)
+        a2 = math.atan2(p2.y - cen.y, p2.x - cen.x)
+        da = (a2 - a1 + math.pi) % gk.TAU - math.pi          # the short way round
+        for k in range(n + 1):
+            t = a1 + da * k / n
+            out.append((cen.x + re * math.cos(t), cen.y + re * math.sin(t)))
+    return out
+
+
+def round_v(P, outline, y0, y1, hw, key, r=0.9, step=0.003, n=4, zwin=None):
+    """section_body's down-the-gun loft with rounded sections (a grip, a
+    pad): each row a rounded rectangle, its corner radius r of the smaller
+    half-size (0.9 is nearly an oval); hw may be a function of t 0..1."""
+    k_n = max(2, int(abs(y1 - y0) / step) + 1)
+    secs = []
+    for k in range(k_n):
+        t = k / (k_n - 1)
+        y = y0 + (y1 - y0) * t
+        sp = gk.span(outline, 1, y, zwin)
+        if not sp:
+            continue
+        w = hw(t) if callable(hw) else hw
+        hz = (sp[1] - sp[0]) / 2
+        secs.append(gk.rrect_xz(y, (sp[0] + sp[1]) / 2, hz, w, min(w, hz) * r, n))
+    gk.loft(P, secs, key)
+
+
+def round_z(P, outline, z0, z1, hw, key, r=0.006, step=0.003, n=4, ywin=None):
+    """The across-the-gun loft with rounded-rectangle sections (a cheek
+    piece, a bracket): rounded edges where section_body has chamfers."""
+    k_n = max(2, int(abs(z1 - z0) / step) + 1)
+    secs = []
+    for k in range(k_n):
+        t = k / (k_n - 1)
+        z = z0 + (z1 - z0) * t
+        sp = gk.span(outline, 0, z, ywin)
+        if not sp:
+            continue
+        w = hw(t) if callable(hw) else hw
+        secs.append(gk.rrect(z, w, sp[1], sp[0], r, n))
+    gk.loft(P, secs, key)
+
+
 def fin(P):
     """Rounded edges on the game mesh too, a finer bevel on the bake's high
     pass. Sharp outer miters: gunkit's arc miters throw vertices off to
-    infinity on some corners (lathe caps, cut floors)."""
+    infinity on some corners (lathe caps, cut floors).
+    The cut-outs go in as one exact boolean, which now and then throws a
+    whole region of a big part away (a build once lost the stock): the
+    part's extents before and after are compared and the build stops if
+    any side moved more than 4 mm."""
+    pre = [v.co.copy() for v in P.bm.verts]
+    lo = [min(p[i] for p in pre) for i in range(3)] if pre else None
+    hi = [max(p[i] for p in pre) for i in range(3)] if pre else None
     ob = P.finish(smooth_angle=34, bevel=0.0007 if gk.HI else 0.0006, bevel_segs=3 if gk.HI else 2)
     bv = ob.modifiers.get("bevel")
     if bv:
         bv.miter_outer = "MITER_SHARP"
         bv.use_clamp_overlap = True
+    if lo:
+        g = [(v.co + ob.location) for v in ob.data.vertices]       # (matrix_world can be stale here)
+        g = [(p.x, p.z, -p.y) for p in g]                      # Blender z-up -> game y-up
+        lo2 = [min(p[i] for p in g) for i in range(3)]
+        hi2 = [max(p[i] for p in g) for i in range(3)]
+        off = max(max(abs(a - b) for a, b in zip(lo, lo2)), max(abs(a - b) for a, b in zip(hi, hi2)))
+        if off > 0.004:
+            raise RuntimeError(f"{ob.name}: the cut-outs dropped geometry ({off * 1000:.1f} mm off its extents "
+                               f"{[round(x, 3) for x in lo]}..{[round(x, 3) for x in hi]})")
     return ob
 
 
 # ------------------------------------------------------------------ the body
 
 def receiver(P):
-    # one tan block (fn-ballista-2): the flat top under the rail, the tang
-    # dropping behind the rear wall to the stock's hinge, the mag well's
-    # flare, the trigger guard (its opening cut through), the grip's seat
-    outline = [(RX_Z[0], TANG_TOP), (0.002, TANG_TOP), (RX_REAR, 0.012), (RX_REAR - 0.008, RX_TOP),
-               (RX_Z[1] - 0.002, RX_TOP), (RX_Z[1] - 0.002, -0.040), (-0.236, -0.057), (-0.190, -0.057),
-               (-0.188, -0.071), (-0.075, -0.071), (-0.071, -0.090), (-0.061, -0.097), (-0.013, -0.097),
-               (-0.007, -0.088), (-0.010, -0.062), (RX_Z[0], -0.062)]
-    section_body(P, outline, [dict(z=(RX_Z[0] - 0.001, RX_Z[1] + 0.002), key="chassis", hw=HW_RX, c=0.0035, step=0.003)], smooth=0)
-    rrect_cut(P, (HW_RX, -0.0775, -0.042), R, ZV, 0.052, 0.026, 0.008, 0.06, "chassis")   # the guard's opening
+    # one tan block (fn-ballista-2), every corner filleted: the tang sweeping
+    # up from the stock's hinge into the receiver's rear wall, the flat top
+    # under the rail, the mag well's flare, the rounded trigger guard (its
+    # opening cut through), the grip's seat; broad 45-degree edge facets
+    outline = fillet([(RX_Z[0], TANG_TOP, 0.0), (0.004, TANG_TOP, 0.014), (RX_REAR, 0.012, 0.010), (RX_REAR - 0.008, RX_TOP, 0.004),
+                      (RX_Z[1] - 0.002, RX_TOP, 0.0), (RX_Z[1] - 0.002, -0.040, 0.0), (-0.236, -0.057, 0.006), (-0.192, -0.057, 0.004),
+                      (-0.188, -0.071, 0.004), (-0.075, -0.071, 0.006), (-0.069, -0.088, 0.008), (-0.058, -0.097, 0.010),
+                      (-0.016, -0.097, 0.010), (-0.006, -0.086, 0.008), (-0.010, -0.062, 0.006), (RX_Z[0], -0.062, 0.0)])
+    section_body(P, outline, [dict(z=(RX_Z[0] - 0.001, RX_Z[1] + 0.002), key="chassis", hw=HW_RX, c=0.0055, step=0.002)], smooth=0)
+    rrect_cut(P, (HW_RX, -0.0775, -0.042), R, ZV, 0.052, 0.026, 0.012, 0.06, "chassis")   # the guard's opening
     # the bolt's channel, open at the rear wall for the rake
     hole(P, (0, 0, RX_REAR + 0.004), (0, 0, 1), 0.0100, abs(RX_Z[1] - RX_REAR) + 0.004, "dark", segs=20)
     # the port: a stadium with a chamfered lip, through to the bolt
@@ -218,72 +307,74 @@ def receiver(P):
     rrect_cut(P, (HW_RX - 0.0012, PORT["y"], PORT["z"]), R, ZV, PORT["len"], PORT["h"], PORT["h"] / 2, 0.024, "core")
     # the handle's L-shaped notch behind the port: a short drop where it rests,
     # and the slot it rakes back along when lifted, out through the rear wall
-    rrect_cut(P, (HW_RX, 0.004, BOLT_ROOT), R, ZV, 0.016, 0.026, 0.004, 0.020, "core")
-    rrect_cut(P, (HW_RX, 0.012, (BOLT_ROOT + RX_REAR) / 2 - 0.004), R, ZV, abs(BOLT_ROOT - RX_REAR) + 0.024, 0.013, 0.004, 0.020, "core")
+    rrect_cut(P, (HW_RX, 0.004, BOLT_ROOT), R, ZV, 0.016, 0.026, 0.005, 0.020, "core")
+    rrect_cut(P, (HW_RX, 0.012, (BOLT_ROOT + RX_REAR) / 2 - 0.004), R, ZV, abs(BOLT_ROOT - RX_REAR) + 0.024, 0.013, 0.0055, 0.020, "core")
     for n in (R, L):
         x = n.x * HW_RX
         # the long stadium groove under the port, the seam down to the well
         rrect_cut(P, (x, -0.020, PORT["z"]), n, ZV, PORT["len"], 0.009, 0.0045, 0.0014, "chassis")
         panel_line(P, [(x, -0.036, -0.022), (x, -0.036, -0.200), (x, -0.030, -0.236)], n)
-        panel_line(P, [(x, 0.020, -0.200), (x, 0.020, -0.238)], n)
+        panel_line(P, [(x, 0.016, -0.200), (x, 0.016, -0.238)], n)
         screw(P, (x, -0.040, -0.226), n, 0.0034)          # the big cross-bolt by the handguard
-        screw(P, (x, -0.029, 0.014), n)
-        screw(P, (x, -0.029, 0.030), n)
+        screw(P, (x, -0.033, 0.014), n)
+        screw(P, (x, -0.033, 0.030), n)
         hole(P, (x, -0.006, -0.204), n, 0.0016, 0.003, "dark", segs=10)
-        # the mag release's angled cut ahead of the well
-        rrect_cut(P, (x, -0.046, -0.200), n, ZV, 0.016, 0.010, 0.002, 0.003, "core")
+        # the mag release's cut ahead of the well
+        rrect_cut(P, (x, -0.046, -0.200), n, ZV, 0.016, 0.010, 0.004, 0.003, "core")
         # QD cup on the tang
-        local_lathe(P, (x, -0.042, 0.022), n, [(-0.0005, 0.0050), (0.0012, 0.0050), (0.0015, 0.0040), (0.0015, 0.0)], "core", segs=18)
-        hole(P, (x + n.x * 0.0015, -0.042, 0.022), n, 0.0028, 0.004, "dark", segs=10)
+        local_lathe(P, (x, -0.045, 0.022), n, [(-0.0005, 0.0050), (0.0012, 0.0050), (0.0015, 0.0040), (0.0015, 0.0)], "core", segs=18)
+        hole(P, (x + n.x * 0.0015, -0.045, 0.022), n, 0.0028, 0.004, "dark", segs=10)
     # the safety: a ribbed tab on the left of the tang (the handle rakes back over the right)
-    chamfer_box(P, (-HW_RX + 0.004, TANG_TOP + 0.002, 0.012), (0.007, 0.005, 0.012), 0.0012, "core")
+    chamfer_box(P, (-HW_RX + 0.006, TANG_TOP + 0.002, 0.012), (0.007, 0.005, 0.012), 0.0012, "core")
     for k in range(3):
-        chamfer_box(P, (-HW_RX + 0.004, TANG_TOP + 0.0047, 0.008 + 0.004 * k), (0.0065, 0.0008, 0.0012), 0.0003, "core")
+        chamfer_box(P, (-HW_RX + 0.006, TANG_TOP + 0.0047, 0.008 + 0.004 * k), (0.0065, 0.0008, 0.0012), 0.0003, "core")
     # the stock's hinge: a black block, its latch lever and pin on the right
-    chamfer_box(P, (0, -0.040, 0.046), (2 * HW_RX + 0.002, 0.042, 0.024), 0.003, "core")
-    chamfer_box(P, (HW_RX + 0.0025, -0.034, 0.048), (0.004, 0.022, 0.010), 0.0014, "core")
+    chamfer_box(P, (0, -0.040, 0.046), (2 * HW_RX + 0.002, 0.042, 0.024), 0.005, "core")
+    chamfer_box(P, (HW_RX + 0.0025, -0.034, 0.048), (0.004, 0.022, 0.010), 0.0016, "core")
     local_lathe(P, (HW_RX + 0.001, -0.052, 0.046), R, [(-0.001, 0.0055), (0.0025, 0.0055), (0.003, 0.0045), (0.003, 0.0)], "core", segs=18)
 
 
 def handguard(P):
-    # an octagon under the rail; the rear half to the receiver's depth, the
-    # front half stepping down to a deeper belly (fn-ballista-2); windows
-    # through each side between screw bosses, short slots on the front
-    # half's lower step, a line of round holes by the receiver
-    section_body(P, [(HG_Z[0] + 0.002, HG_TOP), (HG_Z[1] - 0.002, HG_TOP), (HG_Z[1] - 0.002, HG_STEP),
-                     (HG_STEP_Z - 0.006, HG_STEP), (HG_STEP_Z + 0.006, HG_BOT), (HG_Z[0] + 0.002, HG_BOT)],
-                 [dict(z=(HG_Z[0], HG_Z[1]), key="guard", hw=HW_HG, c=0.006, top=HG_TOP, step=0.003)], smooth=0)
+    # a broad-faceted octagon under the rail, the rear half to the
+    # receiver's depth, the front half stepping down in a curve to a deeper
+    # belly, the nose narrowing; rounded windows between screw bosses, short
+    # slots on the step, a line of round holes by the receiver
+    outline = fillet([(HG_Z[0] + 0.002, HG_TOP, 0.0), (HG_Z[1] - 0.002, HG_TOP, 0.0), (HG_Z[1] - 0.002, HG_STEP, 0.006),
+                      (HG_STEP_Z - 0.010, HG_STEP, 0.012), (HG_STEP_Z + 0.010, HG_BOT, 0.012), (HG_Z[0] + 0.002, HG_BOT, 0.0)])
+    section_body(P, outline, [dict(z=(HG_Z[0], HG_Z[1]), key="guard", c=0.009, top=HG_TOP, step=0.003,
+                                   hw=lambda t: HW_HG - 0.0035 * max(0.0, (t - 0.93) / 0.07) ** 1.5)], smooth=0)
     for n in (R, L):
         x = n.x * HW_HG
         for k in range(6):
             z = -0.272 - 0.057 * k
-            rrect_cut(P, (x, 0.004, z), n, ZV, 0.040, 0.021, 0.004, 0.012, "core")
-            screw(P, (x, 0.019, z - 0.0285), n, 0.0022)
-            screw(P, (x, -0.012, z - 0.0285), n, 0.0022)
+            rrect_cut(P, (x, 0.003, z), n, ZV, 0.040, 0.020, 0.008, 0.012, "core")
+            screw(P, (x, 0.0145, z - 0.0285), n, 0.0021)
+            screw(P, (x, -0.0110, z - 0.0285), n, 0.0021)
         for k in range(5):
-            rrect_cut(P, (x, -0.0345, -0.455 - 0.027 * k), n, ZV, 0.018, 0.0055, 0.00275, 0.004, "core")
-        for k, y in enumerate((0.013, 0.002, -0.009)):
+            rrect_cut(P, (x, -0.0290, -0.455 - 0.027 * k), n, ZV, 0.018, 0.0055, 0.00275, 0.004, "core")
+        for y in (0.011, 0.001, -0.009):
             hole(P, (x, y, -0.249), n, 0.0019, 0.005, "core", segs=10)
-        local_lathe(P, (x, -0.034, -0.575), n, [(-0.0005, 0.0050), (0.0012, 0.0050), (0.0015, 0.0040), (0.0015, 0.0)], "core", segs=18)
-        hole(P, (x + n.x * 0.0015, -0.034, -0.575), n, 0.0028, 0.004, "dark", segs=10)   # QD cup at the nose
+        local_lathe(P, (x, -0.022, -0.572), n, [(-0.0005, 0.0050), (0.0012, 0.0050), (0.0015, 0.0040), (0.0015, 0.0)], "core", segs=18)
+        hole(P, (x + n.x * 0.0015, -0.022, -0.572), n, 0.0028, 0.004, "dark", segs=10)   # QD cup at the nose
     # the belly rail under the front step (the underbarrel's), the bipod's mount ahead of it
     picatinny(P, (0, HG_STEP + 0.0024 - 0.0002, 0), DN, R, -0.440, -0.480, hw=0.0100)
-    chamfer_box(P, (0, HG_STEP - 0.008, BIPOD_Z[0] - 0.008), (0.032, 0.016, 0.034), 0.003, "core")
+    chamfer_box(P, (0, HG_STEP - 0.008, BIPOD_Z[0] - 0.008), (0.032, 0.016, 0.034), 0.004, "core")
     local_lathe(P, (0.016, HG_STEP - 0.010, BIPOD_Z[0] - 0.008), R, [(-0.0005, 0.0055), (0.0030, 0.0055), (0.0036, 0.0)], "core", segs=16)
     screw(P, (0, HG_STEP - 0.016, BIPOD_Z[0] - 0.016), DN, 0.0030)
 
 
 def lower_panel(P):
-    # the perforated accessory panel hung under the handguard's rear half
-    # (fn-ballista-2's dotted panel): a long recess and a row of dimples
-    section_body(P, [(-0.236, HG_BOT + 0.004), (-0.392, HG_BOT + 0.004), (-0.402, -0.040), (-0.384, -0.057), (-0.250, -0.057), (-0.236, -0.050)],
-                 [dict(z=(-0.237, -0.401), key="guard", hw=0.019, c=0.004, step=0.003)], smooth=0)
+    # the dotted accessory panel hung under the handguard's rear half, its
+    # ends sloped and rounded: a long recess and a row of dimples
+    outline = fillet([(-0.236, HG_BOT + 0.004, 0.0), (-0.392, HG_BOT + 0.004, 0.0), (-0.402, -0.040, 0.008),
+                      (-0.384, -0.057, 0.008), (-0.250, -0.057, 0.008), (-0.236, -0.050, 0.006)])
+    section_body(P, outline, [dict(z=(-0.237, -0.401), key="guard", hw=0.019, c=0.005, step=0.002)], smooth=0)
     for n in (R, L):
         x = n.x * 0.019
-        rrect_cut(P, (x, -0.038, -0.318), n, ZV, 0.120, 0.010, 0.005, 0.0012, "guard")
+        rrect_cut(P, (x, -0.037, -0.318), n, ZV, 0.120, 0.010, 0.005, 0.0012, "guard")
         for k in range(14):
-            local_lathe(P, (x, -0.051, -0.252 - 0.0098 * k), n, [(-0.0004, 0.0012), (0.0004, 0.0009), (0.0006, 0.0)], "guard", segs=8)
-        screw(P, (x, -0.030, -0.252), n, 0.0020)
+            local_lathe(P, (x, -0.048, -0.252 - 0.0098 * k), n, [(-0.0004, 0.0012), (0.0004, 0.0009), (0.0006, 0.0)], "guard", segs=8)
+        screw(P, (x, -0.030, -0.256), n, 0.0020)
         screw(P, (x, -0.030, -0.384), n, 0.0020)
 
 
@@ -305,67 +396,83 @@ def barrel(P):
 
 
 def grip(P):
-    # FN's tan ergonomic grip: raked back, a finger swell on the front
-    # strap, a flared heel; dimples over both sides (the bake carries them)
-    section_body(P, [(-0.016, -0.061), (0.028, -0.061), (0.040, -0.090), (0.056, -0.130), (0.072, -0.160),
-                     (0.070, -0.168), (0.008, -0.168), (0.004, -0.158), (0.000, -0.138), (-0.006, -0.120),
-                     (-0.010, -0.108), (-0.008, -0.096), (-0.013, -0.080)],
-                 [dict(axis="v", y=(-0.062, -0.167), key="gripm", hw=HW_GRIP, c=0.005)])
+    # FN's tan grip, moulded: rounded sections (nearly oval), a palm swell
+    # mid-height, finger bumps down the front strap, a flared heel;
+    # dimples over both sides (the bake carries them)
+    outline = fillet([(-0.016, -0.061, 0.0), (0.028, -0.061, 0.0), (0.040, -0.088, 0.020), (0.054, -0.128, 0.020),
+                      (0.072, -0.158, 0.008), (0.068, -0.169, 0.005), (0.006, -0.169, 0.005), (0.002, -0.156, 0.008),
+                      (-0.004, -0.136, 0.010), (-0.011, -0.116, 0.008), (-0.006, -0.104, 0.006), (-0.012, -0.090, 0.008),
+                      (-0.016, -0.072, 0.006)])
+    round_v(P, outline, -0.062, -0.168, lambda t: HW_GRIP * (0.86 + 0.16 * math.sin(math.pi * min(1.0, t * 1.15))),
+            "gripm", r=0.92, step=0.0025, n=5)
     v = Vector((0, 0.906, -0.423))
-    for side, n in ((1, R), (-1, L)):
-        o = Vector((side * (HW_GRIP - 0.0006), -0.160, 0.058 if side > 0 else 0.016))
-        stipple(P, o, (0, 0, -side), v, 0.034, 0.075, "gripm", pitch=0.0050, r=0.0011, seed=3 + side)
+    for side in (1, -1):
+        o = Vector((side * HW_GRIP * 0.95, -0.158, 0.056 if side > 0 else 0.018))
+        stipple(P, o, (0, 0, -side), v, 0.030, 0.070, "gripm", pitch=0.0050, r=0.0011, seed=3 + side)
 
 
 def stock(P):
-    # FN's folding stock: a tan beam off the hinge with a long stadium
-    # window, a black cheek piece on its adjuster, a tan upright, the black
-    # concave butt pad, a tan bracket and a short rail under the butt
-    section_body(P, box_outline((0.058, 0.276), -0.054, TANG_TOP),
-                 [dict(z=(0.058, 0.276), key="stock", hw=HW_STOCK, c=0.0035, step=0.05)])
-    rrect_cut(P, (HW_STOCK, -0.0385, 0.183), R, ZV, 0.132, 0.017, 0.0085, 0.04, "core")
+    # FN's folding stock: the tan beam off the hinge, narrowing and its
+    # belly rising toward the back, a long stadium window; the upright that
+    # flows into it through a curved gusset; the black cheek piece (rounded,
+    # its nose swept) on its tan adjuster; the black pad, its back hollowed;
+    # a tan bracket and a short rail under the butt
+    section_body(P, [(0.058, TANG_TOP), (0.276, TANG_TOP), (0.276, -0.049), (0.058, -0.057)],
+                 [dict(z=(0.059, 0.275), key="stock", hw=lambda t: HW_STOCK - 0.0025 * t, c=0.0050, step=0.02)])
+    rrect_cut(P, (HW_STOCK, -0.0375, 0.180), R, ZV, 0.128, 0.016, 0.008, 0.04, "core")
+    section_body(P, fillet([(0.274, 0.022, 0.004), (0.290, 0.022, 0.004), (0.290, -0.113, 0.006), (0.256, -0.113, 0.004),
+                            (0.256, -0.088, 0.010), (0.232, -0.052, 0.014), (0.232, -0.030, 0.0), (0.274, -0.030, 0.0)]),
+                 [dict(z=(0.233, 0.289), key="stock", hw=HW_STOCK + 0.001, c=0.0045, step=0.002)], smooth=0)
+    rrect_cut(P, (HW_STOCK, -0.098, 0.273), R, UP, 0.022, 0.012, 0.006, 0.04, "core")
     for n in (R, L):
         x = n.x * HW_STOCK
-        panel_line(P, [(x, -0.025, 0.070), (x, -0.025, 0.270)], n)
+        panel_line(P, [(x, -0.025, 0.070), (x, -0.025, 0.230)], n)
         screw(P, (x, -0.046, 0.070), n)
-        screw(P, (x, -0.046, 0.262), n)
-    # the adjuster under the cheek piece (tan) with its slot and lever, the cheek piece (black)
-    section_body(P, box_outline((0.150, 0.272), TANG_TOP - 0.002, -0.006),
-                 [dict(z=(0.150, 0.272), key="stock", hw=HW_STOCK - 0.002, c=0.003, step=0.05)])
+        screw(P, (x, -0.046, 0.250), n)
+        # length-of-pull adjust lines on the upright, its QD cup
+        for k in range(5):
+            rrect_cut(P, (n.x * (HW_STOCK + 0.001), 0.002 + 0.0035 * k, 0.282), n, ZV, 0.010, 0.0010, 0.0004, 0.0006, "stock")
+        local_lathe(P, (n.x * (HW_STOCK + 0.001), -0.060, 0.272), n, [(-0.0005, 0.0048), (0.0012, 0.0048), (0.0015, 0.0038), (0.0015, 0.0)], "core", segs=18)
+        hole(P, (n.x * (HW_STOCK + 0.0026), -0.060, 0.272), n, 0.0026, 0.004, "dark", segs=10)
+    # the adjuster under the cheek piece (tan, rounded) with its slot and lever
+    round_z(P, box_outline((0.150, 0.272), TANG_TOP - 0.002, -0.006), 0.151, 0.271, HW_STOCK - 0.002, "stock", r=0.004, step=0.03)
     for n in (R, L):
         rrect_cut(P, (n.x * (HW_STOCK - 0.002), -0.0135, 0.226), n, ZV, 0.060, 0.007, 0.0035, 0.0015, "core")
-    chamfer_box(P, (HW_STOCK + 0.001, -0.0135, 0.208), (0.005, 0.006, 0.024), 0.0015, "core")
-    section_body(P, [(0.276, -0.007), (0.276, 0.023), (0.140, 0.023), (0.122, 0.020), (0.122, 0.012), (0.150, -0.007)],
-                 [dict(z=(0.275, 0.123), key="rubber", hw=HW_STOCK + 0.001, c=0.0045, step=0.004)], smooth=0)
-    rrect_cut(P, (0, 0.023, 0.200), UP, ZV, 0.120, 0.014, 0.006, 0.0015, "rubber")
-    # the upright to the pad
-    section_body(P, box_outline((0.274, 0.290), -0.112, 0.022),
-                 [dict(z=(0.274, 0.290), key="stock", hw=HW_STOCK + 0.001, c=0.0035, step=0.01)])
-    for n in (R, L):
-        local_lathe(P, (n.x * (HW_STOCK + 0.001), -0.030, 0.282), n, [(-0.0005, 0.0048), (0.0012, 0.0048), (0.0015, 0.0038), (0.0015, 0.0)], "core", segs=18)
-        hole(P, (n.x * (HW_STOCK + 0.0026), -0.030, 0.282), n, 0.0026, 0.004, "dark", segs=10)
-    # the pad: black rubber, its back hollowed (concave), spacer lines
-    section_body(P, [(0.290, 0.023), (0.352, 0.023), (0.343, -0.010), (0.339, -0.046), (0.342, -0.080),
-                     (0.352, -0.116), (0.290, -0.116)],
-                 [dict(axis="v", y=(0.022, -0.115), key="rubber", hw=0.021, c=0.005, step=0.003)])
+    chamfer_box(P, (HW_STOCK + 0.001, -0.0135, 0.208), (0.005, 0.006, 0.024), 0.0018, "core")
+    # the cheek piece: black, rounded edges, a swept nose, the channel on top
+    cheek = fillet([(0.276, -0.007, 0.003), (0.276, 0.023, 0.006), (0.140, 0.023, 0.014), (0.122, 0.015, 0.006),
+                    (0.124, 0.006, 0.004), (0.152, -0.007, 0.006)])
+    round_z(P, cheek, 0.2755, 0.1225, HW_STOCK + 0.001, "rubber", r=0.0065, step=0.0025)
+    rrect_cut(P, (0, 0.023, 0.204), UP, ZV, 0.110, 0.012, 0.006, 0.0015, "rubber")
+    # the pad: black rubber, rounded edges, its back hollowed, spacer lines
+    pad = fillet([(0.290, 0.023, 0.0), (0.352, 0.023, 0.008), (0.343, -0.010, 0.04), (0.339, -0.046, 0.06),
+                  (0.342, -0.080, 0.04), (0.352, -0.116, 0.008), (0.290, -0.116, 0.0)])
+    round_v(P, pad, 0.0225, -0.1155, 0.021, "rubber", r=0.5, step=0.003, n=4)
     for n in (R, L):
         for z in (0.300, 0.312):
-            rrect_cut(P, (n.x * 0.021, -0.046, z), n, UP, 0.134, 0.0012, 0.0005, 0.0010, "rubber")
-    # under the butt: the tan bracket and its short rail
-    section_body(P, box_outline((0.222, 0.272), -0.100, -0.054),
-                 [dict(z=(0.222, 0.272), key="stock", hw=0.012, c=0.003, step=0.01)])
+            rrect_cut(P, (n.x * 0.021, -0.046, z), n, UP, 0.120, 0.0012, 0.0005, 0.0010, "rubber")
+    # under the butt: the tan bracket (rounded) and its short rail
+    round_z(P, fillet([(0.222, -0.054, 0.0), (0.272, -0.054, 0.0), (0.272, -0.100, 0.005), (0.222, -0.100, 0.010)]),
+            0.2225, 0.2715, 0.012, "stock", r=0.004, step=0.004)
     picatinny(P, (0, -0.100 - 0.0024, 0), DN, R, 0.214, 0.300, key="core", hw=0.0090)
 
 
 def body():
+    # three static parts, so each exact boolean stays small (one body with
+    # every cut-out once dropped the stock): receiver, barrel and grip; the
+    # handguard and its hung panel; the stock
     P = Part(PFX + "_Body")
     receiver(P)
-    handguard(P)
-    lower_panel(P)
     barrel(P)
     grip(P)
-    stock(P)
-    return fin(P)
+    fin(P)
+    G = Part(PFX + "_Guard")
+    handguard(G)
+    lower_panel(G)
+    fin(G)
+    S = Part(PFX + "_Stock")
+    stock(S)
+    return fin(S)
 
 
 def brake():
@@ -452,32 +559,34 @@ def scope():
     # two black drums on the right with white ticks), the objective bell
     P = Part(PFX + "_Scope")
     e, o = SCOPE_Z
-    lathe(P, [(e, 0.0), (e, 0.0172), (e - 0.003, 0.0195), (e - 0.040, 0.0195), (e - 0.050, 0.0150),
-              (-0.205, 0.0150), (-0.275, 0.0262), (o + 0.004, 0.0262), (o, 0.0250), (o, 0.0)], "scope", segs=48, cy=SCOPE_Y)
-    lathe(P, [(e - 0.012, 0.0), (e - 0.012, 0.0201), (e - 0.024, 0.0201), (e - 0.024, 0.0)], "core", segs=48, cy=SCOPE_Y)
-    for k in range(10):
+    re, rt, rb = SCOPE_R["eye"], SCOPE_R["tube"], SCOPE_R["bell"]
+    lathe(P, [(e, 0.0), (e, re - 0.003), (e - 0.003, re), (e - 0.058, re), (e - 0.066, rt + 0.004), (e - 0.072, rt),
+              (-0.181, rt), (-0.255, rb), (o + 0.004, rb), (o, rb - 0.0015), (o, 0.0)], "scope", segs=48, cy=SCOPE_Y)
+    lathe(P, [(e - 0.012, 0.0), (e - 0.012, re + 0.0006), (e - 0.026, re + 0.0006), (e - 0.026, 0.0)], "core", segs=48, cy=SCOPE_Y)
+    for k in range(11):
         z = e - 0.0135 - 0.0011 * k
-        lathe(P, [(z, 0.0), (z, 0.0206), (z - 0.0005, 0.0206), (z - 0.0005, 0.0)], "core", segs=48, cy=SCOPE_Y)
-    lathe(P, [(e - 0.058, 0.0), (e - 0.058, 0.0158), (e - 0.070, 0.0158), (e - 0.070, 0.0)], "core", segs=48, cy=SCOPE_Y)
-    lathe(P, [(o + 0.010, 0.0), (o + 0.010, 0.0266), (o, 0.0266), (o, 0.0)], "core", segs=48, cy=SCOPE_Y)
-    hole(P, (0, SCOPE_Y, o), (0, 0, -1), 0.0205, 0.012, "glass", segs=24)
-    hole(P, (0, SCOPE_Y, e), (0, 0, 1), 0.0140, 0.006, "glass", segs=24)
-    # the saddle and turrets
-    chamfer_box(P, (0, SCOPE_Y, TURRET_Z), (0.034, 0.032, 0.046), 0.006, "scope")
-    drum(P, (0, SCOPE_Y + 0.016, TURRET_Z), UP, 0.0115, 0.010, "core", ticks=0)
-    drum(P, (0, SCOPE_Y + 0.026, TURRET_Z), UP, 0.0128, 0.012, "scope", ribs=36, ticks=24)
-    drum(P, (0.017, SCOPE_Y, TURRET_Z + 0.012), R, 0.0135, 0.016, "core", ticks=24)
-    drum(P, (0.017, SCOPE_Y, TURRET_Z - 0.019), R, 0.0135, 0.016, "core", ticks=24)
-    drum(P, (-0.017, SCOPE_Y, TURRET_Z), L, 0.0095, 0.008, "core", ticks=0)
+        lathe(P, [(z, 0.0), (z, re + 0.0011), (z - 0.0005, re + 0.0011), (z - 0.0005, 0.0)], "core", segs=48, cy=SCOPE_Y)
+    lathe(P, [(e - 0.076, 0.0), (e - 0.076, rt + 0.0008), (e - 0.088, rt + 0.0008), (e - 0.088, 0.0)], "core", segs=48, cy=SCOPE_Y)
+    lathe(P, [(o + 0.011, 0.0), (o + 0.011, rb + 0.0005), (o, rb + 0.0005), (o, 0.0)], "core", segs=48, cy=SCOPE_Y)
+    hole(P, (0, SCOPE_Y, o), (0, 0, -1), rb - 0.0055, 0.012, "glass", segs=24)
+    hole(P, (0, SCOPE_Y, e), (0, 0, 1), re - 0.006, 0.006, "glass", segs=24)
+    # the saddle and turrets: the tall elevation turret (black drum, tan
+    # knurled cap) and two big black drums on the right (the sheet's)
+    chamfer_box(P, (0, SCOPE_Y, TURRET_Z), (0.032, 0.030, 0.052), 0.006, "scope")
+    drum(P, (0, SCOPE_Y + 0.015, TURRET_Z), UP, 0.0125, 0.012, "core", ticks=0)
+    drum(P, (0, SCOPE_Y + 0.027, TURRET_Z), UP, 0.0138, 0.018, "scope", ribs=36, ticks=24)
+    drum(P, (0.016, SCOPE_Y, TURRET_Z + 0.0165), R, 0.0160, 0.016, "core", ticks=24)
+    drum(P, (0.016, SCOPE_Y, TURRET_Z - 0.0175), R, 0.0160, 0.016, "core", ticks=24)
+    drum(P, (-0.016, SCOPE_Y, TURRET_Z), L, 0.0100, 0.008, "core", ticks=0)
     # the mount: two rings on blocks on the rail, the front one a cantilever
     # plate with lightening holes; the level on its right
     for z in RING_Z:
         chamfer_box(P, (0, RAIL_TOP + 0.005, z), (0.032, 0.010, 0.016), 0.0025, "core")
         chamfer_box(P, (0, (RAIL_TOP + SCOPE_Y) / 2, z), (0.016, SCOPE_Y - RAIL_TOP, 0.012), 0.002, "core")
-        lathe(P, [(z + 0.007, 0.0), (z + 0.007, 0.0186), (z - 0.007, 0.0186), (z - 0.007, 0.0)], "core", segs=40, cy=SCOPE_Y)
-        chamfer_box(P, (0, SCOPE_Y + 0.019, z), (0.026, 0.006, 0.014), 0.002, "core")
+        lathe(P, [(z + 0.007, 0.0), (z + 0.007, rt + 0.0045), (z - 0.007, rt + 0.0045), (z - 0.007, 0.0)], "core", segs=40, cy=SCOPE_Y)
+        chamfer_box(P, (0, SCOPE_Y + rt + 0.004, z), (0.024, 0.006, 0.014), 0.002, "core")
         for sx in (-1, 1):
-            screw(P, (sx * 0.010, SCOPE_Y + 0.022, z), UP, 0.0018)
+            screw(P, (sx * 0.009, SCOPE_Y + rt + 0.007, z), UP, 0.0018)
             screw(P, (0.016 * sx, RAIL_TOP + 0.005, z), Vector((sx, 0, 0)), 0.0022)
     zf = RING_Z[1]
     chamfer_box(P, (0.0175, (RAIL_TOP + SCOPE_Y) / 2 + 0.004, zf - 0.004), (0.004, SCOPE_Y - RAIL_TOP + 0.020, 0.040), 0.0015, "core")
