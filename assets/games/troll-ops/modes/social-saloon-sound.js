@@ -17,7 +17,7 @@
 
 import { game } from "../core/state.js?v=st1";
 import { roomNow } from "./room-clock.js?v=rc1-cd1-sh1";
-import { PianoVoice, TUNES } from "./rp-roles.js?v=rp1b7-cd1-sh1-dj2-or1-bw2-sp1-mb1";
+import { PianoVoice, TUNES } from "./rp-roles.js?v=rp1b7-cd1-sh1-dj2-or1-bw2-sp1-mb1-mb2";
 
 export const SALOON_SOUND = {
   pete: 0.85,          // Pete's piano, as loud as a player's house tune

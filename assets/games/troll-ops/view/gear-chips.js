@@ -14,7 +14,7 @@
 // going, or another family's pad, swaps them within a quarter second).
 
 import { game } from "../core/state.js?v=st1";
-import { padButtonName } from "../menu/controller-layout.js?v=cl7-pd1-or1-pd2-hb4-xb1";
+import { padButtonName } from "../menu/controller-layout.js?v=cl7-pd1-or1-pd2-hb4-xb1-mb2";
 
 const ICON_TAG = "gi1";
 /* Every item with a picture: the melee weapons (gear.js MELEE_DEFS), the

@@ -14,7 +14,7 @@
 // Headless harnesses (navigator.webdriver) skip the gate, as the old spinner
 // did: the screen hides itself the moment the game is ready. ?boot=1 keeps
 // the gate for its own test (tools/troll-ops-boot-screen-test.mjs).
-import { padButtonName } from "./controller-layout.js?v=cl7-pd1-or1-pd2-hb4-xb1";
+import { padButtonName } from "./controller-layout.js?v=cl7-pd1-or1-pd2-hb4-xb1-mb2";
 import { SEASON } from "../core/season.js?v=zf1-wb1";
 
 export function initBootScreen(root) {

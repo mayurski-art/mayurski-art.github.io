@@ -13,7 +13,7 @@
    season's dates and Halloween, shared with the Zombies hub; and
    new-here.js, I'M NEW HERE's sheet, which holds none either. */
 import { SEASON, seasonLeft, halloween } from "../core/season.js?v=zf1-wb1";
-import { mountNewHere } from "./new-here.js?v=nwh1-mb1";
+import { mountNewHere } from "./new-here.js?v=nwh1-mb1-mb2";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
