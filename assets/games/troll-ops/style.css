@@ -2157,9 +2157,19 @@ body.to-touch-play .to-ws-guns span { pointer-events: auto; cursor: pointer; pad
   animation: to-boot-pulse 1.8s ease-in-out infinite;
 }
 .to-boot-prompt[hidden] { display: none; }
-/* the Halloween look (boot-screen.js): a pumpkin in the corner, lit when on */
-.to-boot-look { position: absolute; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); z-index: 2; display: grid; place-items: center; width: 48px; height: 48px; padding: 0; border: 1px solid rgba(255,255,255,.28); border-radius: 2px; background: rgba(10,14,34,.62); cursor: pointer; transition: background .2s, border-color .2s, transform .2s; }
-.to-boot-look svg { width: 28px; height: 28px; }
+/* the Halloween look (boot-screen.js): a pumpkin pill at the top right
+   (user, 2026-10-31), its name and Off / On beside it, lit when on; an
+   upright phone has only the pumpkin (the wordmark takes the width) */
+.to-boot-look { position: absolute; right: max(14px, env(safe-area-inset-right)); top: max(14px, calc(env(safe-area-inset-top, 0px) + 10px)); z-index: 2; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px 0 8px; border: 1px solid rgba(255,255,255,.28); border-radius: 2px; background: rgba(10,14,34,.62); color: #fff; cursor: pointer; transition: background .2s, border-color .2s, transform .2s; }
+.to-boot-look svg { width: 26px; height: 26px; flex: none; }
+.to-boot-look-txt { display: flex; flex-direction: column; align-items: flex-start; line-height: 1; text-align: left; }
+.to-boot-look-txt b { font: 800 13px "DM Sans", system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.to-boot-look-txt small { margin-top: 3px; font: 600 10px "DM Mono", monospace; letter-spacing: .18em; text-transform: uppercase; color: #aab4d8; }
+.to-boot-look[aria-pressed="true"] .to-boot-look-txt small { color: #ffc46a; }
+@container cab (max-width: 520px) {
+  .to-boot-look { width: 44px; padding: 0; justify-content: center; gap: 0; }
+  .to-boot-look-txt { display: none; }
+}
 .to-boot-look-body { fill: none; stroke: #e9ecff; stroke-width: 1.4; stroke-linejoin: round; }
 .to-boot-look-stem { fill: none; stroke: #9ed36a; stroke-width: 1.6; stroke-linecap: round; }
 .to-boot-look-face { fill: #e9ecff; opacity: .7; }
