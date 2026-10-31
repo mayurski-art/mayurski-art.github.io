@@ -161,6 +161,8 @@ export function createBo2Menu(nav, { screens, start = "main", keys = false, onSc
         if (it.on) b.insertAdjacentHTML("beforeend", '<span class="tr-menu-tick" aria-label="selected">&#10003;</span>');
         const value = typeof it.value === "function" ? it.value() : it.value;
         if (value) { const sm = document.createElement("small"); sm.textContent = it.adjust ? `‹ ${value} ›` : value; b.appendChild(sm); }
+        // a line under the label, on the row itself (a challenge's "what to do")
+        if (it.sub) { const em = document.createElement("em"); em.className = "tr-menu-sub"; em.textContent = it.sub; b.appendChild(em); }
         if (it.adjust) b.setAttribute("aria-label", `${it.label}: ${value}. Left and right arrows change it.`);
         if (it.go) b.insertAdjacentHTML("beforeend", '<small aria-hidden="true">&rsaquo;</small>');
         if (it.newTab) b.insertAdjacentHTML("beforeend", '<small>new tab</small>');
