@@ -23,7 +23,7 @@
 
 import * as THREE from "three";
 import { game } from "../core/state.js?v=st1";
-import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, reachHand } from "../characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1";
+import { buildHumanoid, poseHumanoid, aimRig, gaitPhaseRate, reachHand } from "../characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-pk1";
 import { poseSeated } from "./rp-roles.js?v=rp1b7-cd1-sh1-dj2-or1-bw2-sp1";
 import { SEAT_SPOTS } from "./royale-hold.js?v=pl1-pl2-sr1-or1-rr1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
 import { oxygenMask } from "./royale-mask.js?v=dc1";
