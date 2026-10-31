@@ -274,11 +274,12 @@ localPosers.push((rig) => {
   rig.body?.update?.();
 });
 /* Peers: the phase off the wire, timed from when it changed here. */
-peerPosers.push((rp, dt) => {
+peerPosers.push((rp) => {
   const dz = rp.alive ? rp.peer.dz | 0 : 0;
-  if (dz !== (rp.dzWas | 0)) { rp.dzWas = dz; rp.dzT = 0; rp.dzDir ??= Math.random() < 0.5 ? -1 : 1; }
+  if (dz !== (rp.dzWas | 0)) { rp.dzWas = dz; rp.dzAt = performance.now(); rp.dzDir ??= Math.random() < 0.5 ? -1 : 1; }
   if (!dz) return;
-  rp.dzT = (rp.dzT || 0) + dt;
+  // on the clock, not summed frames: a body off-screen is posed less often
+  rp.dzT = (performance.now() - rp.dzAt) / 1000;
   // a spell's strength isn't on the wire: a middling one
   poseDrunk(rp.rig, dz, rp.dzT, rp.dzDir, 0.6);
   if (dz >= DZ.SLUMP) rp.bodyPose.gait = false;

@@ -176,12 +176,13 @@ s = await until((ss) => ss[0].drunk.phase === 2, 8000);
 check("at the cap: the slump (dz 2), still in the seat, the drink gone", s[0].drunk.phase === 2 && s[0].seated && !s[0].bar.drink, JSON.stringify({ phase: s[0].drunk.phase, seated: s[0].seated }));
 await pump(300);
 await A.screenshot({ path: path.join(SHOTS, "4-slump.png") });
-s = await until((ss) => ss[1].peers.find((p) => p.id === idA)?.dz === 2, 4000);
-check("B reads dz 2", s[1].peers.find((p) => p.id === idA)?.dz === 2, JSON.stringify(s[1].peers));
+// (slow frames can carry A past the slump before B's next snapshot: 2 or 3)
+s = await until((ss) => ss[1].peers.find((p) => p.id === idA)?.dz >= 2, 4000);
+check("B reads dz 2 (or already 3)", s[1].peers.find((p) => p.id === idA)?.dz >= 2, JSON.stringify(s[1].peers));
 await B.screenshot({ path: path.join(SHOTS, "5-slump-seen-by-b.png") });
 s = await until((ss) => ss[0].drunk.phase === 3, 10000);
 check("off the stool (dz 3): the seat given up, at its standing spot", s[0].drunk.phase === 3 && !s[0].seated && Math.hypot(s[0].pos[0] - seat.stand.x, s[0].pos[2] - seat.stand.z) < 0.1, JSON.stringify({ pos: s[0].pos, stand: seat.stand }));
-s = await until((ss) => ss[0].drunk.t > 0.9 && ss[1].peers.find((p) => p.id === idA)?.dz === 3, 8000);
+s = await until((ss) => ss[0].drunk.t > 0.9 && ss[1].peers.find((p) => p.id === idA)?.dz === 3 && Math.abs(ss[1].peers.find((p) => p.id === idA)?.rotZ) > 1.2, 8000);
 const aOnB = s[1].peers.find((p) => p.id === idA);
 check("B sees A down: dz 3, the rig on its side", aOnB?.dz === 3 && Math.abs(aOnB.rotZ) > 1.2, JSON.stringify(aOnB));
 await B.screenshot({ path: path.join(SHOTS, "6-fall-seen-by-b.png") });
