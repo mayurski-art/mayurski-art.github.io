@@ -1,11 +1,12 @@
-# Prone, and bipods that deploy (2026-10-30; phase 1 built)
+# Prone, and bipods that deploy (2026-10-30; phases 1 and 2 built)
 
 User, 2026-10-30: "add a feature where users can get prone, and it would
 be nice if the little stand on the rifle can be propped up if the user is
 trying to scope while proned. That would mean updating the controller
-diagram." Phase 1 is built on claude/arms-ballista (the stance, the
-steadiness, the controls; tools/troll-ops-prone-test.mjs); phases 2 to 4
-are still the plan.
+diagram." Phases 1 and 2 are built on claude/arms-ballista (the stance,
+the steadiness, the controls; the lying pose, the crawl, for third person,
+other players and the killcam; tools/troll-ops-prone-test.mjs); phases 3
+and 4 are still the plan.
 
 ## 1. What exists today
 
