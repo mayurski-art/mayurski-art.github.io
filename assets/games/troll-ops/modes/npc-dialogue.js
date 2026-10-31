@@ -259,7 +259,7 @@ export function updateTalk(dt) {
   talk.n.rig.parts.head.getWorldPosition(_head);
   const e = game.camera.position;
   const dx = _head.x - e.x, dz = _head.z - e.z, dy = _head.y - 0.12 - e.y;
-  const yaw = Math.atan2(-dx, -dz), pitch = Math.atan2(dy, Math.hypot(dx, dz));
+  const yaw = Math.atan2(-dx, -dz) + frameShift(), pitch = Math.atan2(dy, Math.hypot(dx, dz));
   game.look.yaw = talk.yaw0 + wrap(yaw - talk.yaw0) * k;
   game.look.pitch = talk.pitch0 + (pitch - talk.pitch0) * k;
   setZoom(1 + (ZOOM - 1) * k);
@@ -273,6 +273,15 @@ export function updateTalk(dt) {
   if (talk.byeT != null && talk.shown >= talk.line.length && (talk.byeT -= dt) <= 0) { closeTalk(); return; }
   pollPad(dt);
   glyphs();
+}
+
+/* A low phone puts the panel down the right side: the face goes in the
+   middle of what's left of the screen, not under the panel. */
+function frameShift() {
+  const W = innerWidth, left = ui.panel.getBoundingClientRect().left;
+  if (left < W * 0.25) return 0;
+  const c = game.camera, ndc = left / W - 1;   // the free strip's middle, -1..1
+  return Math.atan(ndc * Math.tan(THREE.MathUtils.degToRad(c.fov / 2)) * c.aspect / ZOOM);
 }
 
 function setZoom(z) {
@@ -316,9 +325,12 @@ function move(d) {
 function bye() {
   if (!talk) return;
   if (talk.byeT != null) { closeTalk(); return; }
-  const k = talk.opts.findIndex((o) => o.bye);
-  if (k >= 0) { talk.shown = talk.line.length; choose(k); }
-  else closeTalk();
+  // deep in a topic, the hub's goodbye still gets its line
+  const o = talk.opts.find((x) => x.bye) || (talk.s.nodes[talk.s.hub].options || []).find((x) => x.bye && passes(talk.s.id, x.if));
+  if (!o) { closeTalk(); return; }
+  talk.opts = [o];
+  talk.shown = talk.line.length;
+  choose(0);
 }
 
 window.addEventListener("keydown", (e) => {
@@ -353,8 +365,8 @@ function pollPad(dt) {
   else if (now.b && !P.b) bye();
   else if (now.up && !P.up) move(-1);
   else if (now.dn && !P.dn) move(1);
-  talk.padPrev = now;
   if (!talk) return;
+  talk.padPrev = now;
   // the stick: one step, then a repeat while it's held
   if (Math.abs(sy) > 0.6) {
     if (talk.stickT <= 0) { move(sy > 0 ? 1 : -1); talk.stickT = talk.stickHeld ? 0.16 : 0.4; }
@@ -383,7 +395,7 @@ function mountUi() {
       <div class="to-talk-keys" aria-hidden="true"></div>
     </div>`;
   const $ = (s) => root.querySelector(s);
-  ui = { root, name: $(".to-talk-name"), role: $(".to-talk-role"), echo: $(".to-talk-echo"), line: $(".to-talk-line"), opts: $(".to-talk-opts"), keys: $(".to-talk-keys") };
+  ui = { root, panel: $(".to-talk-panel"), name: $(".to-talk-name"), role: $(".to-talk-role"), echo: $(".to-talk-echo"), line: $(".to-talk-line"), opts: $(".to-talk-opts"), keys: $(".to-talk-keys") };
   // clicks on the panel are the panel's, not the game's (fire, re-lock)
   for (const ev of ["mousedown", "pointerdown", "click", "wheel", "touchstart"]) root.addEventListener(ev, (e) => e.stopPropagation());
   ui.opts.addEventListener("click", (e) => {
@@ -472,7 +484,7 @@ function injectCss() {
     border-top: 0; border-left: 1px solid rgba(255,138,31,.35); display: flex; flex-direction: column; justify-content: flex-end; }
   .to-talk.is-touch .to-talk-opt { min-height: 40px; line-height: 40px; font-size: 17px; }
 }
-body.to-talking #to-touch, body.to-talking #to-pickup-prompt { display: none !important; }
+body.to-talking #to-touch, body.to-talking #to-pickup-prompt, body.to-talking .to-dj-chip { display: none !important; }
 `;
   document.head.appendChild(s);
 }
