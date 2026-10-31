@@ -7,6 +7,7 @@ import { padEmotePressed } from "../menu/controller-layout.js?v=cl7-pd1-or1-pd2-
 import { game } from "../core/state.js?v=st1";
 import { nuke, callNuke } from "../streaks/nuke.js?v=tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h";
 import { freeLook } from "../view/free-look.js?v=nf1";
+import { adsLookScale, zoomLookRatio } from "./aim-sens.js?v=as1";
 
 
 /* Stick look, built like Black Ops 2's (user: "smooth like BO2"). The old
@@ -56,9 +57,10 @@ export function radialStick(x, y, dz) {
 export function padLookTurn(x, y, mag, dt) {
   const w = game.currentWeapon();
   const adsT = w?.adsT || 0;
-  // Zoom past the plain iron sights (scopes) slows it in step with the FOV.
-  const zoom = Math.min(1, game.camera.fov / (game.baseFov * 0.78));
-  const ads = (1 - (1 - PAD_ADS_RATE) * adsT) * (adsT > 0.5 ? zoom : 1);
+  // Aimed, the turn follows the sight's zoom and the ADS sensitivity
+  // (aim-sens.js), trimmed so the stick's irons keep BO2's PAD_ADS_RATE.
+  const trim = PAD_ADS_RATE / zoomLookRatio(0.78);
+  const ads = adsLookScale() * (1 - (1 - trim) * adsT);
   const sens = (PAD_SENS_MULT[(game.settings.padSens | 0) - 1] ?? 1) * ads;
 
   const shaped = mag > 0 ? Math.pow(mag, PAD_CURVE) / mag : 0;

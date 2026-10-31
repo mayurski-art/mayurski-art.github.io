@@ -4,6 +4,7 @@
 import { game } from "../core/state.js?v=st1";
 import { initFullscreen } from "./fullscreen.js?v=fs1";
 import { freeLook } from "../view/free-look.js?v=nf1";
+import { adsLookScale, zoomLookRatio } from "./aim-sens.js?v=as1";
 
 
 export const touchState = {
@@ -71,7 +72,10 @@ const TOUCH_ACCEL_MAX = 1.6;      // cap on the flick multiplier
 function touchLookGain(dx, dy, dtMs) {
   const speed = Math.hypot(dx, dy) / Math.max(dtMs, 4);
   const accel = Math.min(TOUCH_ACCEL_MAX, 1 + Math.max(0, speed - TOUCH_ACCEL_START) * 0.5);
-  const adsScale = 1 - (game.currentWeapon()?.adsT || 0) * 0.4;
+  // Aimed: the sight's zoom and the ADS sensitivity (aim-sens.js), trimmed
+  // so the irons keep the old 0.6 of hip speed under the thumb.
+  const adsT = game.player?.holding === "gun" ? game.currentWeapon()?.adsT || 0 : 0;
+  const adsScale = adsLookScale() * (1 - (1 - 0.6 / zoomLookRatio(0.78)) * adsT);
   return TOUCH_BASE_SENS * (game.settings.sens / 100) * accel * adsScale;
 }
 function addTouchLook(t, last) {
