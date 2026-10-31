@@ -16,6 +16,7 @@
 // the gate for its own test (tools/troll-ops-boot-screen-test.mjs).
 import { padButtonName } from "./controller-layout.js?v=cl7-pd1-or1-pd2-hb4-xb1-mb2";
 import { SEASON } from "../core/season.js?v=zf1-wb1";
+import { mountBootMotion } from "./boot-motion.js?v=bm1";
 
 export function initBootScreen(root) {
   const word = root.querySelector(".to-boot-word");
@@ -29,9 +30,11 @@ export function initBootScreen(root) {
      a halloween version ... users can click a pumpkin button that changes
      to halloween version"): normal unless the player picked the pumpkin;
      remembered on this device. */
-  const ART = "assets/games/troll-ops/ui/boot", ART_V = "lk1", LOOK_KEY = "trollops:boot-look";
+  const ART = "assets/games/troll-ops/ui/boot", ART_V = "lk2", LOOK_KEY = "trollops:boot-look";
   const look = root.querySelector(".to-boot-look");
   const art = root.querySelector(".to-boot-art");
+  // the picture's moving parts (menu/boot-motion.js)
+  const motion = mountBootMotion(root, { art, base: ART, v: ART_V });
   function setLook(spooky, save) {
     const sfx = spooky ? "-halloween" : "";
     const src = art?.querySelector("source"), img = art?.querySelector("img");
@@ -41,6 +44,7 @@ export function initBootScreen(root) {
       img.alt = `The squad on the Troll Peak facing you, Trollface Island behind them${spooky ? " on Halloween night" : ""}`;
     }
     root.classList.toggle("is-halloween", spooky);
+    motion.setLook(spooky);
     look?.setAttribute("aria-pressed", String(spooky));
     if (save) { try { localStorage.setItem(LOOK_KEY, spooky ? "halloween" : "normal"); } catch {} }
   }
@@ -78,7 +82,7 @@ export function initBootScreen(root) {
     stop();
     root.classList.add("is-leaving");
     document.body.classList.remove("tf-booting");
-    setTimeout(() => { root.hidden = true; }, 480);
+    setTimeout(() => { root.hidden = true; motion.stop(); }, 480);
     window.dispatchEvent(new CustomEvent("tf-boot-enter", { detail: { by } }));
   }
 

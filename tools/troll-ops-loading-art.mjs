@@ -344,6 +344,29 @@ await page.evaluate(async (S) => {
     // the island's fog (trollface-island.js: dark blue at the far edge):
     // Halloween's is thicker and violet, the far city dissolving into it
     if (g.fog && scene.fog) { if (g.fog.color) scene.fog.color.set(g.fog.color); if (g.fog.density) scene.fog.density = g.fog.density; }
+    // the sky dome's own colours (view/sky.js): Halloween's violet night
+    if (g.skyDome) {
+      const SK = await need("/view/sky.js"), u = SK.skyMat.uniforms;
+      if (g.skyDome.top) u.uTop.value.set(g.skyDome.top);
+      if (g.skyDome.horizon) u.uHorizon.value.set(g.skyDome.horizon);
+      if (g.skyDome.bottom) u.uBottom.value.set(g.skyDome.bottom);
+    }
+    // the island is lit from its light maps (phase 6), which the lights above
+    // don't touch: moonlight means tinting every map material cool and
+    // turning the baked light down (the cast, the slab and the lanterns are
+    // added after this, so they keep their own colour)
+    if (g.tint || g.lightMapK) {
+      const tint = g.tint ? new THREE.Color(g.tint) : null, seen = new Set();
+      scene.traverse((o) => {
+        if (!o.isMesh) return;
+        for (const m of [].concat(o.material)) {
+          if (!m || seen.has(m) || !m.color) continue;
+          seen.add(m);
+          if (tint) m.color.multiply(tint);
+          if (g.lightMapK && m.lightMap) m.lightMapIntensity *= g.lightMapK;
+        }
+      });
+    }
     // the game's own colour grade (view/grade-pass.js): sat, contrast, and a
     // split tone { shadows, shadowsAmt, highlights, highlightsAmt }
     if (g.post) for (const p of T.composer.passes) if (p.setGrade) p.setGrade(g.post);
@@ -478,7 +501,7 @@ await page.evaluate(async (S) => {
 
 async function render(cam, w, h) {
   return page.evaluate(async ({ v, w, h }) => {
-    const T = window.__trollOps, R = T.renderer, Cm = T.composer, cam = T.camera;
+    const T = window.__trollOps, THREE = T.THREE, R = T.renderer, Cm = T.composer, cam = T.camera;
     for (const rt of [Cm.renderTarget1, Cm.renderTarget2]) if (rt.samples !== 4) { rt.samples = 4; rt.dispose(); }
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     return await new Promise((done) => requestAnimationFrame(() => {
@@ -489,9 +512,37 @@ async function render(cam, w, h) {
       Cm.setPixelRatio?.(1); Cm.setSize(w, h);
       for (const p of Cm.passes) for (const k of ["uHitFlash", "uLowHp", "uAberration", "uSuppress"]) if (p.uniforms?.[k]) p.uniforms[k].value = 0;
       Cm.render(0.016);
-      done(R.domElement.toDataURL("image/png"));
+      // where the moving parts sit in this picture (boot-screen.js lays its
+      // glows, the plane and the bats on these): shares of width and height,
+      // a radius as a share of height. Taken here, in the frame that drew
+      // the picture: the game's own loop puts the player's camera back a
+      // frame later.
+      const P = new THREE.Vector3(), Q = new THREE.Vector3(), tanH = Math.tan(cam.fov * Math.PI / 360);
+      const at = (o, r = 0) => {
+        o.getWorldPosition(P);
+        const d = P.distanceTo(cam.position);
+        Q.copy(P).project(cam);
+        return { x: +((Q.x + 1) / 2).toFixed(4), y: +((1 - Q.y) / 2).toFixed(4), r: +(r / (d * tanH) / 2).toFixed(4) };
+      };
+      const anchors = { jacks: [] };
+      if (window.__moon?.[0]) anchors.moon = at(window.__moon[0], window.__moon[0].geometry.parameters.radius);
+      for (const one of window.__slabJacks?.children || []) anchors.jacks.push(at(one, one.userData.r || 0.3));
+      if (window.__planes?.[0]) { const b = new THREE.Box3().setFromObject(window.__planes[0]); anchors.plane = at(window.__planes[0], b.getSize(new THREE.Vector3()).length() / 2); }
+      done({ url: R.domElement.toDataURL("image/png"), anchors });
     }));
   }, { v: cam, w, h });
+}
+/* The tall frame sometimes comes back blank (a white or empty canvas at its
+   size); a tiny data URL gives it away. Three goes, a moment apart. */
+async function renderSure(cam, w, h) {
+  let out = null;
+  for (let i = 0; i < 3; i++) {
+    out = await render(cam, w, h);
+    if (out.url.length > w * h * 0.15) return out;
+    console.log(`ART blank frame at ${w}x${h} (${out.url.length} chars), again`);
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  return out;
 }
 const save = (file, data) => fs.writeFileSync(file, Buffer.from(data.split(",")[1], "base64"));
 const anchors = {};
@@ -528,30 +579,17 @@ for (const [name, frame] of Object.entries(SCENE.frames)) {
         for (const one of jg.children) one.position.set(one.userData.at[0] * (C.slabScale ?? 1), 0, one.userData.at[1]);
       }
     }, { v: cam, C: frame.cast || {} });
-    const url = await render(cam, Math.round(frame.size[0] * k), Math.round(frame.size[1] * k));
+    // (the plane is the boot screen's own moving sprite, below: the picture
+    // goes without it; its anchor is still taken from where it would be)
+    if (!TRY) await page.evaluate(() => { for (const o of window.__planes || []) o.visible = false; });
+    const shot = await renderSure(cam, Math.round(frame.size[0] * k), Math.round(frame.size[1] * k));
+    const url = shot.url;
+    anchors[name] = shot.anchors;
+    await page.evaluate(() => { for (const o of window.__planes || []) o.visible = true; });
     const file = TRY ? path.join(TRYDIR, `${name}-${i}.png`) : path.join(TRYDIR, `${name}-2x.png`);
     save(file, url);
     console.log("wrote", file);
     if (TRY) continue;
-    // where the moving parts sit in this picture (boot-screen.js lays its
-    // glows, the plane and the bats on these): shares of width and height,
-    // a radius as a share of height
-    anchors[name] = await page.evaluate(() => {
-      const T = window.__trollOps, THREE = T.THREE, cam = T.camera;
-      const p = new THREE.Vector3(), q = new THREE.Vector3();
-      const tanH = Math.tan(cam.fov * Math.PI / 360);
-      const at = (o, r = 0) => {
-        o.getWorldPosition(p);
-        const d = p.distanceTo(cam.position);
-        q.copy(p).project(cam);
-        return { x: +((q.x + 1) / 2).toFixed(4), y: +((1 - q.y) / 2).toFixed(4), r: +(r / (d * tanH) / 2).toFixed(4) };
-      };
-      const out = { jacks: [] };
-      if (window.__moon?.[0]) out.moon = at(window.__moon[0], window.__moon[0].geometry.parameters.radius);
-      for (const one of window.__slabJacks?.children || []) out.jacks.push(at(one, one.userData.r || 0.3));
-      if (window.__planes?.[0]) { const b = new THREE.Box3().setFromObject(window.__planes[0]); out.plane = at(window.__planes[0], b.getSize(new THREE.Vector3()).length() / 2); }
-      return out;
-    });
     const out = frame.out || frame.size;
     const scale = `scale=${out[0]}:${out[1]}:flags=lanczos`;
     execFileSync(process.env.FFMPEG || "ffmpeg", ["-loglevel", "error", "-y", "-i", file, "-vf", scale, path.join(TRYDIR, `${name}.png`)]);
@@ -592,7 +630,7 @@ if (!TRY) {
     const png = path.join(TRYDIR, `plane${SCENE.suffix || ""}.png`);
     save(png, sprite);
     const webp = path.join(OUT, `plane${SCENE.suffix || ""}.webp`);
-    execFileSync(process.env.FFMPEG || "ffmpeg", ["-loglevel", "error", "-y", "-i", png, "-c:v", "libwebp", "-quality", "90", "-exact", "1", webp]);
+    execFileSync(process.env.FFMPEG || "ffmpeg", ["-loglevel", "error", "-y", "-i", png, "-c:v", "libwebp", "-quality", "90", "-pix_fmt", "yuva420p", webp]);
     console.log("wrote", path.relative(ROOT, webp), Math.round(fs.statSync(webp).size / 1024), "KB");
   }
   // the anchors, this look's merged over the other's

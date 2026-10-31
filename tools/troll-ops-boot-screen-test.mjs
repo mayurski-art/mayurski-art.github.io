@@ -61,7 +61,7 @@ async function layout({ page, name }) {
     return {
       vw: innerWidth, vh: innerHeight, word: r(".to-boot-word"), chapter: r(".to-boot-chapter"), prompt: r(".to-boot-prompt"),
       wordFits: word.scrollWidth <= top.clientWidth,
-      art: (() => { const i = document.querySelector(".to-boot-art img"); return { src: i.currentSrc.split("/").pop(), loaded: i.complete && i.naturalWidth > 0, w: i.naturalWidth, h: i.naturalHeight }; })(),
+      art: (() => { const i = document.querySelector(".to-boot-art img"); return { src: i.currentSrc.split("/").pop().split("?")[0], loaded: i.complete && i.naturalWidth > 0, w: i.naturalWidth, h: i.naturalHeight }; })(),
       text: document.getElementById("to-loading").textContent,
       spinner: !!document.querySelector(".to-loading-spinner"),
       radio: getComputedStyle(document.getElementById("to-radio")).display,
