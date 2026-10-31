@@ -44,6 +44,7 @@ import { sidePref, setSidePref, SIDE_NAMES } from "../modes/royale-side.js?v=rs1
 import { SQUAD_SIZES, squadSize, partySize } from "../modes/royale-squads.js?v=sq1-wb1-mt2-hb4";
 import { pickRoyaleSize } from "./mode-picker.js?v=mp1-fu1b7b7d-wb1-ar1-ar2-cl1-bp1-fj1-zr9-zr10-zh1-zc1-zc2-nf1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-sam1-rl1-tfp4-tfp7-tfb8-rfx1-ret1-mrg1-ug1-ugm1-mrc1-hgb8-hgb9-tw1-ars1-p416-mt2-hb4";
 import { recordSupported, recordPref, setRecordPref } from "../modes/royale-record.js?v=rrc1-rfx1-rr2-ret1-mrg1-hd1";
+import { isNew, hasNew, markSeen } from "../progression/grants.js?v=pk1";
 import { makeTrollOpsProvider } from "../progression/leaderboard-rows.js?v=lr1-zh1-or1-nd2";
 const lbProvider = makeTrollOpsProvider();
 import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perksInTier, perkUnlocked, perkIconSvg } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
@@ -458,7 +459,7 @@ const screens = {
       ],
       [
         { id: "class", label: "Create a Class", value: () => game.loadout?.className || "", desc: "Five classes: guns, attachments, melee, a throwable, three scorestreaks and three perks.", go: "classlist" },
-        { id: "cosmetics", label: "Cosmetics", desc: "Your trollface: expression, colour and wrist.", go: "cosmetics" },
+        { id: "cosmetics", label: "Cosmetics", desc: "Your trollface: expression, colour and wrist.", go: "cosmetics", fresh: hasNew() },
         // BO2: at the level cap the Prestige option appears.
         canPrestige() && { id: "prestige", label: "Prestige", value: nextPrestigeName(), desc: "You're at level 69. Go back to level 1 for a new prestige.", go: "prestige" },
       ].filter(Boolean),
@@ -501,8 +502,9 @@ const screens = {
         [
           ...look,
           reticleRow(),
-          { id: "cards", label: "Calling Card", value: signedIn ? cardById(getMyCard().card).name : "Sign in", disabled: !signedIn, desc: signedIn ? "The banner behind your name." : "Sign in to set it. Guests don't keep a card.", need: signedIn ? "" : "Sign in to set it.", go: "cards" },
-        ],
+          // (signed out it isn't there at all: user, 2026-10-31, "remove the calling card sign in box")
+          signedIn && { id: "cards", label: "Calling Card", value: cardById(getMyCard().card).name, desc: "The banner behind your name.", go: "cards" },
+        ].filter(Boolean),
         [back("Back to Play.")],
       ],
     };
@@ -869,15 +871,16 @@ const screens = {
     };
   },
   cosmetics: () => {
-    const face = $$("#to-cos-body .to-cos-face:not([data-wrist]):not([data-body])").find(isOn);
+    const face = $$("#to-cos-body .to-cos-face:not([data-wrist]):not([data-body]):not([data-head])").find(isOn);
     const wrist = $$("#to-cos-body [data-wrist]").find(isOn);
     const body = $$("#to-cos-body [data-body]").find(isOn);
+    const head = $$("#to-cos-body [data-head]").find(isOn);
     return {
       title: "Cosmetics", panel: "cosmetics",
       groups: [
         [
           { id: "body", label: "Body", value: body ? text($("span:last-child", body)) : "", desc: "Wear a TROLLS NFT's look. Holders only.", go: "bodies" },
-          { id: "face", label: "Face", value: face ? text($("span:last-child", face)) : body?.dataset.body ? "The NFT's own" : "", desc: body?.dataset.body ? "A TROLLS body wears its own head: no expression or face covering with it." : "Your trollface's expression. Everyone in the match sees it.", go: "faces" },
+          { id: "face", label: "Face", fresh: isNew("pumpkin-head"), value: head ? text($("span:last-child", head)) : face ? text($("span:last-child", face)) : body?.dataset.body ? "The NFT's own" : "", desc: body?.dataset.body ? "A TROLLS body wears its own head: no expression or face covering with it." : "Your trollface's expression. Everyone in the match sees it.", go: "faces" },
           { id: "wrist", label: "Wrist", value: wrist ? text($("span:last-child", wrist)) : "", desc: "Something on your left wrist. Everyone sees it, and so do you, in your own hands.", go: "wrists" },
         ],
         [back("Back to the main menu.")],
@@ -894,7 +897,22 @@ const screens = {
     if (!s.groups[0].length) s.groups[0] = [{ id: "o-none", label: "No match", disabled: true, desc: `No TROLLS body matches "${bodyQuery.trim()}".` }];
     return s;
   },
-  faces: () => optionScreen("Face", $$("#to-cos-body .to-cos-face:not([data-wrist]):not([data-body])"), { descOf: (b) => (isLocked(b) ? "Off while you wear a TROLLS body: it has its own head." : "Everyone in the match sees it."), needOf: () => "Off while you wear a TROLLS body." }),
+  /* The faces, and after them the Pumpkin Head (cosmetics.js HEADS: worn
+     over the whole head, on any body; user, 2026-10-31: "add the pumpkin in
+     faces"). It wears its "new" dot on this one visit, then it's seen
+     (progression/grants.js). */
+  faces: () => {
+    // the expressions, the Pumpkin Head, then the coverings
+    const all = $$("#to-cos-body .to-cos-face:not([data-wrist]):not([data-body])");
+    const cards = [...all.filter((b) => b.dataset.expr), ...all.filter((b) => b.dataset.head), ...all.filter((b) => b.dataset.cover != null)];
+    const s = optionScreen("Face", cards, {
+      descOf: (b) => (b.dataset.head ? (isLocked(b) ? "Free to everyone who played Chapter One, 26 October to 12 November." : "Over your whole head, on any body. Yours to keep. Pick it again to take it off.") : isLocked(b) ? "Off while you wear a TROLLS body: it has its own head." : "Everyone in the match sees it."),
+      needOf: (b) => (b.dataset.head ? "For players of Chapter One (26 Oct to 12 Nov)." : "Off while you wear a TROLLS body."),
+    });
+    s.groups[0].forEach((it, i) => { if (cards[i]?.dataset.head === "pumpkin" && isNew("pumpkin-head")) it.fresh = true; });
+    s.seen = "pumpkin-head";
+    return s;
+  },
   wrists: () => optionScreen("Wrist", $$("#to-cos-body [data-wrist]"), { descOf: (b) => (b.dataset.wrist ? "On your left wrist, every match." : "A bare wrist.") }),
   leaders: () => ({
     title: "Leaderboards", panel: "deploy", detail: true, lb: true,
@@ -1152,6 +1170,19 @@ const menu = createBo2Menu(nav, {
       if (typeof p === "string") box.innerHTML = p; else box.append(p.cloneNode(true));
       b.append(box);
     }
+    // the yellow "new" dot (lobby-fn.js's tab dot, the same mark) on a row
+    // that leads to something new; a screen that shows the new item marks
+    // it seen once it's drawn (progression/grants.js)
+    for (const it of (s.groups || []).flat()) {
+      const b = it?.fresh && nav.querySelector(`.tr-menu-item[data-id="${CSS.escape(it.id)}"]`);
+      if (!b || $(".to-fn-dot", b)) continue;
+      const dot = document.createElement("i");
+      dot.className = "to-fn-dot is-row";
+      dot.setAttribute("aria-hidden", "true");
+      b.append(dot);
+      b.setAttribute("aria-description", "New");
+    }
+    if (s.seen) markSeen(s.seen);
     // the dock (Emote, Chat, Barracks, Options) is the top menu's only:
     // inside a screen the footer is Back, nothing else to press
     root.classList.toggle("is-top", id === "main");
@@ -1427,6 +1458,16 @@ for (const b of $$(".to-bo2-quick[data-go]", root)) b.addEventListener("click", 
 }
 window.addEventListener("trollrunner:auth-changed", () => setTimeout(() => { renderParty(); menu.refresh(); }, 50));
 window.addEventListener("trollforces:prestige-changed", () => setTimeout(() => { renderParty(); menu.refresh(); }, 50));
+// a grant landed or was seen: the "new" dots follow (progression/grants.js)
+// (an item marked seen keeps its dot on the screen showing it, till you leave)
+window.addEventListener("trollforces:grants", (e) => { if (!e.detail?.seen) menu.refresh(); });
+// the grant's toast takes you to the item (the Locker's Face screen), from the lobby
+window.addEventListener("trollforces:open-screen", (e) => {
+  if (!root.isConnected || root.hidden || getComputedStyle(root).display === "none") return;
+  menu.backTo("main");
+  menu.go("locker");
+  menu.go(e.detail);
+});
 for (const el of [$("#to-lo-rank-label"), $("#to-pf-roster")]) if (el) new MutationObserver(renderParty).observe(el, { childList: true, characterData: true, subtree: true });
 renderParty();
 

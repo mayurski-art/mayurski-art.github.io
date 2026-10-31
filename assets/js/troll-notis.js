@@ -34,6 +34,9 @@
     x:       { app: 'TROLL RUNNER on 𝕏', kicker: 'New post', badge: '𝕏', cta: 'Open on X', handle: '@troll_runner', base: 'https://x.com/troll_runner' },
     tiktok:  { app: 'TROLL RUNNER · TikTok', kicker: 'New video', badge: 'TT', cta: 'Watch on TikTok', handle: '@mayurski', base: 'https://www.tiktok.com/@mayurski' },
     account: { app: 'TROLL RUNNER', kicker: 'Account created', badge: 'TR', cta: 'View profile', handle: '', base: '#' },
+    // a game giving you something (Trollnite's free Pumpkin Head): shown
+    // locally with onCta, never broadcast
+    reward:  { app: 'TROLLNITE', kicker: 'New in your Locker', badge: 'TN', cta: 'Open the Locker', handle: '', base: '#' },
   };
 
   let client = null, channel = null, subscribed = false, pollTimer = null;
@@ -123,6 +126,10 @@
       .tn-progress span{display:block;height:100%;background:#2bd66f;width:100%;transform-origin:left;animation:tn-bar linear forwards;}
       .tn-toast[data-platform="x"] .tn-progress span{background:#fff;}
       .tn-toast[data-platform="tiktok"] .tn-progress span{background:#ff0050;}
+      .tn-toast[data-platform="reward"] .tn-titlebar{background:linear-gradient(90deg,#b8520f,#e2791f 60%,#ffd21f);}
+      .tn-toast[data-platform="reward"] .tn-app{color:#fff;text-shadow:1px 1px 0 #3a1600;}
+      .tn-toast[data-platform="reward"] .tn-cta{background:#ffd21f;}
+      .tn-toast[data-platform="reward"] .tn-progress span{background:#e2791f;}
       @keyframes tn-bar{from{transform:scaleX(1);}to{transform:scaleX(0);}}
       @media (max-width:520px){#troll-notis-root{left:16px;right:16px;width:auto;}}
     `;

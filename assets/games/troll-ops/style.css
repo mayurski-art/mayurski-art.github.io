@@ -4895,6 +4895,9 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-fn-tab:hover { background: rgba(84,104,166,.95); }
 .to-fn-tab.is-on { background: var(--fn-yellow); color: #121733; }
 .to-fn-dot { top: -4px; right: -4px; width: 10px; height: 10px; border: 2px solid #0c1331; }
+/* the same dot on a menu row that leads to something new (menu-bo2.js `fresh`): Locker > Face > the item */
+.to-bo2 .tr-menu-item:has(> .to-fn-dot.is-row) { position: relative; }
+.to-bo2 .tr-menu-item > .to-fn-dot.is-row { position: absolute; top: 6px; right: 6px; left: auto; width: 10px; height: 10px; border: 2px solid #0c1331; border-radius: 50%; background: var(--fn-yellow, #ffd21f); box-shadow: 0 0 6px rgba(255,210,31,.7); pointer-events: none; }
 /* the left: one block (season, level, prestige), then the challenges */
 .to-fn-left { gap: 0; }
 .to-fn-season { display: flex; align-items: baseline; gap: 10px; padding: 8px 14px 7px; text-align: left; border: 0; background: #0c1331; box-shadow: none; }
