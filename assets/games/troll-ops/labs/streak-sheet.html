@@ -17,9 +17,9 @@
 <script type="module">
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { buildStreakDevice, drawTabletScreen, buildMarkerDevice } from "../streaks/streak-device.js?v=sd1";
-import { buildDragonfireModel } from "../streaks/dragonfire-drone.js?v=df1";
-import { buildSamTurretModel } from "../streaks/sam-turret.js?v=st1";
+import { buildStreakDevice, drawTabletScreen, buildMarkerDevice } from "../streaks/streak-device.js?v=to-df1-or1-sr1";
+import { buildDragonfireModel } from "../streaks/dragonfire-drone.js?v=df3-sb2-or1";
+import { buildSamTurretModel } from "../streaks/sam-turret.js?v=sam1-fj1-or1";
 
 const TILE = 640;
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -145,6 +145,12 @@ window.sheet = {
     g.fillStyle = "rgba(255,255,255,.7)"; g.font = "bold 22px system-ui";
     ["side", "front 3/4", "rear 3/4", "top"].forEach((t, i) => g.fillText(`${id}: ${t}`, (i % 2) * TILE + 14, Math.floor(i / 2) * TILE + 30));
     return composite.toDataURL("image/png");
+  },
+  /* the pad's screen canvas on its own, for the UI pass */
+  async screen(mode = "uav", t = 1.2, confirmed = false) {
+    const m = await build("pad");
+    drawTabletScreen(m, mode, t, confirmed);
+    return m.userData.screen.canvas.toDataURL("image/png");
   },
   async stats(id) {
     const m = await build(id);

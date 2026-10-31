@@ -24,7 +24,7 @@ const OUT = process.env.OUT || path.join(ROOT, "_streak-sheet");
 fs.mkdirSync(OUT, { recursive: true });
 // STREAK-REALISM.md budget
 // the Dragonfire and the dog are already detailed: held where they are
-const TRIS = { pad: 3000, marker: 600, drone: 4000, dragonfire: 20000, samturret: 8000, k9: 10000, carepackage: 3000 };
+const TRIS = { pad: 6000, marker: 1000, drone: 4000, dragonfire: 20000, samturret: 8000, k9: 10000, carepackage: 3000 };
 const TRIS_AIRCRAFT = 15000;
 const GLB_CAP = 600 * 1024, ALL_CAP = 4 * 1024 * 1024;
 
@@ -84,6 +84,10 @@ fs.writeFileSync(path.join(OUT, "index.html"), `<!doctype html><meta charset="ut
 <h1>Streak sheet</h1>
 ${rows.map((r) => `<h2>${r.id} <small>${r.tris} tris, ${r.draws} draws, ${r.materials} mats, ${r.kb} KB</small>${r.flags.length ? ` <span class="bad">${r.flags.join("; ")}</span>` : ""}</h2><img src="${r.id}.png" alt="${r.id}">`).join("\n")}`);
 console.log(`\nsheet: ${path.join(OUT, "index.html")}`);
+if (process.env.SCREENS) for (const mode of process.env.SCREENS.split(",")) {
+  const url = await page.evaluate(([m, c]) => window.sheet.screen(m, 1.2, c), [mode.replace("+", ""), mode.endsWith("+")]);
+  fs.writeFileSync(path.join(OUT, `screen-${mode.replace("+", "-ok")}.png`), Buffer.from(url.split(",")[1], "base64"));
+}
 if (errors.length) console.log("page errors:", errors.slice(0, 3).join(" | "));
 await browser.close();
 server.close();

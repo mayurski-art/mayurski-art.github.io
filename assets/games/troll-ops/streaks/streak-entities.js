@@ -17,6 +17,7 @@
 // the map.
 
 import * as THREE from "three";
+import { buildSmokeCan } from "./streak-device.js?v=to-df1-or1-sr1";
 import { loadModel } from "../maps/battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
 
 export const PACKAGE_CLAIM_RADIUS = 2.2;
@@ -285,38 +286,20 @@ const PKG_FALL_G = 16;                     // a heavy crate: quicker than 9.8 re
 const PKG_OPEN = 0.42;                     // crate pop when it's opened
 export const PKG_CRUSH_RADIUS = 1.5;
 
-/* The smoke marker: a stubby canister with a red cap and a blinking strobe.
-   Shared by the hand-held viewmodel's look (streak-device.js builds its own)
-   and the thrown/landed copy here. */
-let markerGeo = null;
-let markerMats = null;
+/* The thrown M18: streak-device.js's can, with a glow round its strobe. */
 function makeMarkerMesh() {
-  if (!markerGeo) {
-    markerGeo = {
-      body: new THREE.CylinderGeometry(0.045, 0.045, 0.2, 10),
-      cap: new THREE.CylinderGeometry(0.05, 0.05, 0.045, 10),
-    };
-    markerMats = {
-      body: new THREE.MeshLambertMaterial({ color: 0x3b4034 }),
-      cap: new THREE.MeshLambertMaterial({ color: 0xc8321f, emissive: 0x3a0804 }),
-    };
-    markerMats.body.userData.shared = markerMats.cap.userData.shared = true;
-  }
-  const g = new THREE.Group();
-  g.add(new THREE.Mesh(markerGeo.body, markerMats.body));
-  const cap = new THREE.Mesh(markerGeo.cap, markerMats.cap);
-  cap.position.y = 0.12;
-  g.add(cap);
-  const strobe = glowSprite(0xff3322, 0.35);
-  strobe.position.y = 0.16;
-  g.add(strobe);
-  g.userData.strobe = strobe;
+  const g = buildSmokeCan();
+  const glow = glowSprite(0xff3322, 0.35);
+  glow.position.y = 0.1275;
+  g.add(glow);
+  g.userData.glow = glow;
   return g;
 }
 
 function blinkStrobe(g, age) {
-  const s = g.userData.strobe;
-  if (s) s.material.opacity = (age * 2.5) % 1 < 0.18 ? 1 : 0.08;
+  const on = (age * 2.5) % 1 < 0.18;
+  if (g.userData.strobe) g.userData.strobe.material.opacity = on ? 1 : 0.08;
+  if (g.userData.glow) g.userData.glow.material.opacity = on ? 1 : 0;
 }
 
 /* The thrown marker. The caller simulates the real one (with the world
@@ -379,7 +362,7 @@ export class MarkerCanister {
   dispose() {
     this.dead = true;
     this.root.parent?.remove(this.root);
-    this.root.userData.strobe?.material.dispose();
+    this.root.userData.glow?.material.dispose();
   }
 }
 
