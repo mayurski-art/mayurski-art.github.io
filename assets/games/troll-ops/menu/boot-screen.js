@@ -47,8 +47,6 @@ export function initBootScreen(root) {
     motion.setLook(spooky);
     look?.setAttribute("aria-pressed", String(spooky));
     look?.setAttribute("aria-label", `Halloween look: ${spooky ? "on" : "off"}`);
-    const state = look?.querySelector("small");
-    if (state) state.textContent = spooky ? "On" : "Off";
     if (save) { try { localStorage.setItem(LOOK_KEY, spooky ? "halloween" : "normal"); } catch {} }
   }
   let spooky = false;
