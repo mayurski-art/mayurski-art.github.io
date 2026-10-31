@@ -132,7 +132,7 @@ export function joinSitePresence({ onCount = null, onSync = null } = {}) {
       });
       ch.subscribe((status) => {
         if (channel !== ch) return;
-        if (status === "SUBSCRIBED") { joined = true; tries = 0; ch.track(payload()).catch(() => {}); return; }
+        if (status === "SUBSCRIBED") { joined = true; tries = 0; Promise.resolve(ch.track(payload())).catch(() => {}); return; }
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") reconnect();
       });
     };
@@ -141,7 +141,7 @@ export function joinSitePresence({ onCount = null, onSync = null } = {}) {
       clearTimeout(retryT);
       const old = channel;
       channel = null;
-      if (old) client.removeChannel(old).catch(() => {});
+      if (old) Promise.resolve(client.removeChannel(old)).catch(() => {});   // (a client may hand back no promise)
       sync();   // (the roster is just us till we're back)
       retryT = setTimeout(connect, now ? 0 : Math.min(15000, 1000 * 2 ** tries++));
     };

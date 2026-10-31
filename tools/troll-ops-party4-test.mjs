@@ -59,7 +59,7 @@ await page.addInitScript(() => {
     getUser: async () => ({ data: { user: null }, error: null }),
     onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
   };
-  window.supabase = { createClient: () => ({ channel: () => channel, from: query, rpc: query, auth, removeChannel() {} }) };
+  window.supabase = { createClient: () => ({ channel: () => channel, from: query, rpc: query, auth, removeChannel: async () => "ok" }) };   // (supabase-js: a promise)
 });
 await page.goto(`http://localhost:${server.address().port}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded" });
 await page.waitForFunction(() => !!window.__toBo2 && !!document.querySelector(".to-bo2-party-others"), null, { timeout: 90000 });
