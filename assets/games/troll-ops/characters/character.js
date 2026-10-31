@@ -18,6 +18,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { addInkRim } from "../view/rim-light.js?v=sr1";
 import { buildWatch, buildWristband, wristOf } from "./wristwear.js?v=ww1c2m1-or1";
+import { syncHeadwear } from "./pumpkin-head.js?v=pk1";
 import { sampleGait, applyClip, GAME_CLIPS, CLIP_HIPS, CLIP_SPINE, CLIP_ARM_L, CLIP_ARM_R } from "./clips.js?v=rc1";
 
 const DARK = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
@@ -1914,6 +1915,7 @@ export function poseHumanoid(rig, arg) {
   syncCovering(rig);
   syncWristwear(rig);
   syncWristband(rig);
+  syncHeadwear(rig);   // the Pumpkin Head (pumpkin-head.js), in place of the head
   rig.emoteProps?.hide();   // an emote's props (lean-cup.js), once it's over
   for (const o of rig.emoteBits || []) o.visible = false;   // and the bubble, the crutches (emotes.js)
   beginPose(rig, "gait");
