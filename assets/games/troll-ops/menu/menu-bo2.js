@@ -1676,9 +1676,15 @@ const fn = mountFnLobby({
 friendsUi = mountFriends({
   root, getRoster: () => roster, onlinePlayers, describe, serverList, joinServer, invitePlayer, squadUp,
   openProfileCard, openGuestCard, setStatus, signIn: () => $("#to-pf-profile")?.click(),
+  // a friends change reaches the other side's list at once, on the presence
+  // channel (it only says "look again": the list itself is the server's)
+  poke: (userId) => { for (const o of onlinePlayers(roster)) if (o.userId === userId) presence.send("friends-poke", { to: o.viewerId }); },
+  onPoke: (fn) => presence.on("friends-poke", (d) => { if (d.to === viewerId()) fn(); }),
 });
 
 // An invite link (?zhub=ROOM&party=CODE): open on Zombies, ready to go.
 if (inviteLink) { fn.setPlaylist("zombies"); menu.go("zombies"); }
 
 window.__toBo2 = { menu, fn, get backdrop() { return backdrop; } };   // for headless tests
+// (and a roster, as if it had come over the presence channel: tools/troll-ops-live-lobby-test.mjs)
+if (/[?&]tohooks=1/.test(location.search)) window.__toBo2.fakeRoster = (r) => { roster = r; renderParty(); friendsUi?.update(); };
