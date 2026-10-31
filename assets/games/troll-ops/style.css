@@ -5472,7 +5472,9 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 @container cab (max-aspect-ratio: 9/10) {
   .to-fn-newhere { justify-content: center; min-height: 30px; margin-top: 0; font-size: 13px; gap: 8px; }
   .to-fn-newhere svg { width: 17px; height: 17px; }
-  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { top: calc(58px + env(safe-area-inset-top) + 36px + 8px + 56px + 8px + 30px + 50px); }
+  /* ...and the picture up a share of the shorter box, so the four pads
+     (lobby: a pad for every member) clear the squad's name under them */
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { top: calc(58px + env(safe-area-inset-top) + 36px + 8px + 56px + 8px + 30px + 50px); --char-lift: 0.1; }
   .to-nh { padding: calc(8px + env(safe-area-inset-top, 0px)) calc(var(--fn-safe-x) + 8px) calc(8px + var(--fn-safe-b)); }
   .to-nh-card { height: 100%; }
   .to-nh-head { padding: 12px 12px 8px; }
