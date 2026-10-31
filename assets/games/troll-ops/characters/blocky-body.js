@@ -22,7 +22,7 @@ import { addRim } from "../view/rim-light.js?v=sr1";
 import { tagInk, untagInk } from "../view/char-ink.js?v=ci1-ci2-ci3-ci4-ci5-rb4-rb5-mg1-sp1-ci6";
 
 const DIR = new URL("../traits/", import.meta.url);
-const ART_V = globalThis.TRAITS_BUST ?? "tr8";
+const ART_V = globalThis.TRAITS_BUST ?? "tr9";
 const FRAME = { w: 1000, h: 1167, spine: 500, chest: 233, unit: 1667 };   // the garment frame
 
 const SKIN = 0xf3f3ef, INK = 0x0a0a0a;

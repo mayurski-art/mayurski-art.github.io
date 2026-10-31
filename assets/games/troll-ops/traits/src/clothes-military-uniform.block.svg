@@ -1,14 +1,12 @@
 <!--
   TROLLS trait: CLOTHES / Miltary Uniform (the metadata's spelling) on the
-  BLOCK body (blocky-body.js): a grey-green digital camo combat jacket, a
-  stand-up collar closed with a tab at the front, a raised placket down the
-  middle, tan shoulder straps, armhole seams, and the creases the NFT's art
-  draws in ink: tension folds out from under the collar, long folds across
-  the chest from the armpits to the placket, shorter ones toward the hem;
-  no pockets (user, 2026-10-31). Traced from TROLLS #2531. The camo long
-  sleeves are the box arms' in the same tile (KITS "camo", blocky-body.js
-  camoMaterial), the trousers the farmer's leg pieces in its grey-green,
-  tan boots.
+  BLOCK body (blocky-body.js): a grey-green digital camo combat jacket, kept
+  plain (user, 2026-10-31: no placket, no collar, no pockets, few wrinkles):
+  tan shoulder straps lying along the top of each shoulder, armhole seams,
+  and one long fold in from each armpit across the chest. Traced from
+  TROLLS #2531. The camo long sleeves are the box arms' in the same tile
+  (KITS "camo", blocky-body.js camoMaterial), the trousers the farmer's leg
+  pieces in its grey-green, tan boots.
   Same template as clothes-farmer.block.svg, 1 unit = 1 mm:
     front  x    0..400  (seen from the front: the troll's right on the left)
     back   x  400..800  (seen from behind: the troll's left on the left)
@@ -43,77 +41,32 @@
   </defs>
   <rect width="1200" height="760" fill="url(#camo)"/>
   <g stroke-linejoin="round" stroke-linecap="round" fill="none">
-    <!-- FRONT -->
-    <!-- a shade down the troll's left of the placket and under each arm, as the art shades it -->
-    <g fill="#2a2e28" stroke="none" opacity="0.16">
-      <path d="M214 46 L262 46 L256 470 L214 470 Z"/>
-      <path d="M0 60 C30 120 36 260 20 470 L0 470 Z"/>
-      <path d="M400 60 C372 130 366 270 382 470 L400 470 Z"/>
-    </g>
-    <!-- the raised placket down the middle, inked both sides -->
-    <path stroke="#060606" stroke-width="5" d="M186 46 L186 470 M214 46 L214 470"/>
-    <path stroke="#9a9e90" stroke-width="3" d="M191 52 L191 466"/>
-    <!-- the stand-up collar, closed with a tab seam at the front -->
-    <path fill="url(#camo)" stroke="#060606" stroke-width="6" d="M92 0 L308 0 L300 46 L100 46 Z"/>
-    <path fill="#2a2e28" stroke="none" opacity="0.16" d="M100 38 L300 38 L300 46 L100 46 Z"/>
-    <path stroke="#060606" stroke-width="5" d="M196 2 L196 46 M212 2 L212 46"/>
-    <!-- the shoulder straps, tan, buttoned at the collar -->
-    <path fill="#b9ad88" stroke="#060606" stroke-width="5" d="M14 0 L112 0 L114 28 L24 32 Z"/>
-    <path fill="#b9ad88" stroke="#060606" stroke-width="5" d="M386 0 L288 0 L286 28 L376 32 Z"/>
-    <g fill="#8b836a" stroke="#060606" stroke-width="4">
-      <circle cx="104" cy="15" r="7"/><circle cx="296" cy="15" r="7"/>
-    </g>
-    <!-- the armhole seams, curving in from each shoulder -->
-    <path stroke="#2b2f2a" stroke-width="4" d="M30 34 C52 90 56 170 44 240 M370 34 C348 90 344 170 356 240"/>
-    <!-- the creases: tension folds out from under the collar -->
+    <!-- FRONT: the armhole seams curving in from each shoulder -->
+    <path stroke="#2b2f2a" stroke-width="4" d="M30 10 C52 80 56 170 44 250 M370 10 C348 80 344 170 356 250"/>
+    <!-- one long fold in from each armpit across the chest -->
     <g stroke="#0e100d" stroke-width="6">
-      <path d="M128 66 C100 80 72 96 50 114"/>
-      <path d="M272 66 C300 82 326 100 346 120"/>
-      <!-- the long folds across the chest, from the armpits in to the placket -->
-      <path d="M22 164 C70 174 126 190 180 206"/>
-      <path d="M378 176 C338 190 290 204 220 218"/>
-      <!-- a second pair, flatter -->
-      <path d="M56 258 C100 262 140 268 182 270"/>
-      <path d="M220 280 C262 274 300 262 334 250"/>
-      <!-- folds at the waist, shorter -->
-      <path d="M40 352 C78 360 108 364 134 366"/>
-      <path d="M282 372 C318 364 346 352 368 338"/>
-      <path d="M96 430 C122 436 146 438 172 438"/>
-      <path d="M226 444 C256 442 286 436 314 426"/>
+      <path d="M22 170 C70 180 126 196 176 212"/>
+      <path d="M378 182 C338 196 290 210 224 224"/>
     </g>
-    <!-- the armpit folds, radiating -->
-    <g stroke="#0e100d" stroke-width="5">
-      <path d="M6 190 C30 204 48 218 62 232"/>
-      <path d="M394 200 C372 214 356 226 342 240"/>
-    </g>
-    <!-- BACK: the collar, the yoke seam, the centre seam, two folds -->
-    <path fill="url(#camo)" stroke="#060606" stroke-width="6" d="M492 0 L708 0 L700 46 L500 46 Z"/>
-    <path fill="#2a2e28" stroke="none" opacity="0.16" d="M500 38 L700 38 L700 46 L500 46 Z"/>
-    <path fill="#b9ad88" stroke="#060606" stroke-width="5" d="M414 0 L512 0 L514 28 L424 32 Z"/>
-    <path fill="#b9ad88" stroke="#060606" stroke-width="5" d="M786 0 L688 0 L686 28 L776 32 Z"/>
+    <!-- the straps' front edge, a sliver of tan where they meet the shoulder's front -->
+    <path fill="#b9ad88" stroke="#060606" stroke-width="4" d="M10 0 L110 0 L110 8 L10 8 Z M290 0 L390 0 L390 8 L290 8 Z"/>
+    <!-- BACK: the yoke seam, the centre seam, one fold -->
     <path stroke="#2b2f2a" stroke-width="4" d="M416 120 C520 140 680 140 784 120 M600 140 L600 466"/>
-    <g stroke="#0e100d" stroke-width="6">
-      <path d="M430 250 C470 262 520 270 580 274"/>
-      <path d="M620 300 C680 292 730 280 770 266"/>
-    </g>
-    <!-- SIDES: the collar's end, the side seam, a fold under the arm -->
-    <path fill="url(#camo)" stroke="#060606" stroke-width="6" d="M856 0 L944 0 L940 46 L860 46 Z"/>
-    <path fill="url(#camo)" stroke="#060606" stroke-width="6" d="M1056 0 L1144 0 L1140 46 L1060 46 Z"/>
-    <path stroke="#2b2f2a" stroke-width="4" d="M900 60 L900 466 M1100 60 L1100 466"/>
-    <g stroke="#0e100d" stroke-width="5">
-      <path d="M836 200 C860 214 880 226 896 240 M1104 206 C1122 220 1140 232 1164 246"/>
-      <path d="M842 330 C870 336 890 338 906 338 M1094 340 C1112 338 1134 334 1158 326"/>
-    </g>
+    <path stroke="#0e100d" stroke-width="6" d="M430 260 C470 272 520 280 580 284"/>
+    <path fill="#b9ad88" stroke="#060606" stroke-width="4" d="M410 0 L510 0 L510 8 L410 8 Z M690 0 L790 0 L790 8 L690 8 Z"/>
+    <!-- SIDES: the side seam, a fold under the arm -->
+    <path stroke="#2b2f2a" stroke-width="4" d="M900 20 L900 466 M1100 20 L1100 466"/>
+    <path stroke="#0e100d" stroke-width="5" d="M836 200 C860 214 880 226 896 240 M1104 206 C1122 220 1140 232 1164 246"/>
     <!-- the jacket's hem all round, the trousers below with their waistband -->
     <path stroke="#060606" stroke-width="6" d="M0 470 L1200 470"/>
     <path stroke="#5e665a" stroke-width="8" d="M0 486 L1200 486"/>
     <path stroke="#5e665a" stroke-width="5" d="M120 490 L120 560 M280 490 L280 560 M600 490 L600 560"/>
-    <!-- TOP: the shoulders from above, the collar along the front edge, the straps out along the arms -->
-    <path fill="url(#camo)" stroke="#060606" stroke-width="6" d="M92 560 L308 560 C300 600 254 620 200 620 C146 620 100 600 92 560 Z"/>
-    <path fill="#b9ad88" stroke="#060606" stroke-width="5" d="M8 574 L108 578 L108 612 L8 608 Z"/>
-    <path fill="#b9ad88" stroke="#060606" stroke-width="5" d="M392 574 L292 578 L292 612 L392 608 Z"/>
+    <!-- TOP: the shoulders from above; a strap lies along each, from the
+         neck out to the arm, buttoned at its inner end -->
+    <path fill="#b9ad88" stroke="#060606" stroke-width="5" d="M0 626 L114 622 C124 622 128 630 128 646 C128 662 124 670 114 670 L0 674 Z"/>
+    <path fill="#b9ad88" stroke="#060606" stroke-width="5" d="M400 626 L286 622 C276 622 272 630 272 646 C272 662 276 670 286 670 L400 674 Z"/>
     <g fill="#8b836a" stroke="#060606" stroke-width="4">
-      <circle cx="98" cy="595" r="8"/><circle cx="302" cy="595" r="8"/>
+      <circle cx="108" cy="646" r="8"/><circle cx="292" cy="646" r="8"/>
     </g>
   </g>
 </svg>
