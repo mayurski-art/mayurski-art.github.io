@@ -58,6 +58,7 @@ import { updateEngineerMarks } from "./engineer-marks.js?v=en1-cl1-bp1-gt1-gt2-c
 import { throwBusy } from "../combat/throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-mb1-mb2-gc1";
 import { updateSwingDoors } from "./swing-doors.js?v=sd1-bw2";
 import { updateArmWrestle, awHolds, awHold } from "../modes/arm-wrestle.js?v=aw1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-gf1-tg1-tw1-arw1-su1-tcs1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht1-ht2-bx1-ba1-sf1-cg1-hl1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-rm1-kzf1-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1";
+import { updateTalk } from "../modes/npc-dialogue.js?v=nd1";
 import { updatePhotoBooth } from "../modes/photo-booth.js?v=pb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-tw1-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1";
 
 /* Last value written to each per-frame HUD node. The DOM write itself is
@@ -261,6 +262,7 @@ export function updatePlayer(dt) {
   // fist fights with the townsfolk (Socialize): after we've moved, so a
   // bump reads our speed and a knock-down holds us where we fell
   if (game.isSocial()) { duelFire(); updateDuel(dt); updateClubEntry(dt); updateConductor(); updateSheriff(dt); updateBand(dt); updateShop(); updateComputers(); updateHorses(dt); updateSurf(); updateHoops(dt); updateTennis(dt); updateVball(dt); updateArmWrestle(dt); updatePhotoBooth(dt); updateJailbreak(dt); updatePachinko(); }
+  updateTalk(dt);   // talking to an NPC (modes/npc-dialogue.js): the view on their face; closes itself off Socialize
 
   updateSwivel(dt);
   updateSwingDoors(dt);   // a map's swing doors (Trolling Loud's kitchen)
