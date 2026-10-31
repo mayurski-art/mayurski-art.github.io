@@ -636,6 +636,9 @@ export function mountFnLobby(api) {
     // the lobby's only while it's up, and not while the emote wheel has the pad
     if (title.hidden || $(".to-emote-wheel:not([hidden])")) { pad.prev = {}; pad.held = null; return; }
     const b = (i) => !!gp.buttons[i]?.pressed;
+    // the boot screen's while it's up (menu/boot-screen.js): the press that
+    // enters the menu is no press here, it has to be let go first
+    if (document.body.classList.contains("tf-booting")) { for (const i of [0, 1, 2, 3, 4, 5]) pad.prev[i] = b(i); pad.held = null; return; }
     for (const i of [0, 1, 2, 3, 4, 5]) if (b(i) && !pad.prev[i]) padPress(i);
     const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
     const dir = b(12) || ay < -0.6 ? "up" : b(13) || ay > 0.6 ? "down" : b(14) || ax < -0.6 ? "left" : b(15) || ax > 0.6 ? "right" : null;

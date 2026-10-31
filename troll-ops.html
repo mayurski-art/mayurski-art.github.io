@@ -58,7 +58,7 @@
 <script src="assets/js/no-context-menu.js?v=1"></script>
 <script src="assets/games/troll-ops/view/ui-scale.js?v=uz1"></script>
 </head>
-<body>
+<body class="tf-booting">
 
   <main class="arcade-shell">
     <section class="to-cabinet" id="to-cabinet" aria-label="Trollnite">
@@ -729,10 +729,21 @@
         <span>Trollnite plays in landscape.</span>
       </div>
 
-      <div class="to-loading" id="to-loading">
-        <div class="to-loading-inner">
-          <div class="to-loading-spinner"></div>
-          <p>Loading arena…</p>
+      <!-- The boot screen (menu/boot-screen.js): the key art rendered from the
+           game (tools/troll-ops-loading-art.mjs), the wordmark, and a prompt
+           for the device in hand. Up until the player enters the menu. -->
+      <div class="to-loading" id="to-loading" role="dialog" aria-label="Trollnite">
+        <picture class="to-boot-art">
+          <source media="(orientation: portrait)" srcset="assets/games/troll-ops/ui/boot/key-art-tall.webp">
+          <img src="assets/games/troll-ops/ui/boot/key-art-wide.webp" alt="The squad on the Troll Peak, looking out over Trollface Island on Halloween night" decoding="async" fetchpriority="high">
+        </picture>
+        <div class="to-boot-top">
+          <b class="tn-word to-boot-word">TROLLNITE</b>
+          <span class="to-boot-chapter">CHAPTER ONE</span>
+        </div>
+        <div class="to-boot-bottom">
+          <p class="to-boot-status" aria-live="polite">LOADING<i>.</i><i>.</i><i>.</i></p>
+          <p class="to-boot-prompt" hidden>Press <kbd>Space</kbd> to enter</p>
         </div>
       </div>
 
