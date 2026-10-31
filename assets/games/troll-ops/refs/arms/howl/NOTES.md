@@ -57,14 +57,23 @@ language), superseded the same day; kept for the record, not a target.
 - **Mag**: dark (black-brown) box, .338, straight sides, flat floorplate;
   "Made by Hobo Commando MP, in Bavaria, Germany" on the side in the game
   (not reproduced: no markings).
-- **Scope**: tan "Royce & Wesley" with black turrets and a black ring mount,
-  a spirit level on the rail. In game the scope is the attachment's
-  (scope8), so the builder leaves the rail bare.
+- **Scope** (user, 2026-10-30: "I want that scope"): BO2's tan "Royce &
+  Wesley" scope is part of this gun. A long tan tube with a wide objective
+  bell at the front, a tan eyepiece with a black focus ring, a tall black
+  elevation turret with a tan knurled cap and white range numbers (100 to
+  500) and a matching black windage turret on the right; a black cantilever
+  ring mount with lightening holes that lifts the scope up and forward off
+  the rail; a small spirit level (green bubble vial in a black housing)
+  clamped to the rail ahead of the mount. Built into the glb as `HB_Scope`
+  (its own node): with the default 8x optic the game shows this scope and
+  hides the generic scope8 model, aiming down its axis; an ACOG hides
+  `HB_Scope` and sits on the bare rail. The scope overlay keys off
+  `scopeKey` "scope8", which buildDetailed must set as the traced path does.
 
 Panel note: the game's port and handle are on the right, as in all the BO2
 renders; `fn-ballista-1.jpg` is the left side.
 
-## Prompt (ChatGPT) for a concept sheet in the game's style
+## Prompt (ChatGPT) for a concept sheet: the whole gun with its scope
 
 "Studio product render of a modern bolt-action precision rifle in the
 style of Call of Duty: Black Ops 2's Ballista, right side 3/4 view with the
@@ -84,13 +93,20 @@ rows of slots. A folding skeleton stock: a tan frame with a big open
 window, a black adjustable cheek piece on top, a black vertical recoil pad
 at the back with a short rail under it, a hinge block in front. A tan
 dimpled ergonomic grip. A dark box magazine for .338 rounds with straight
-sides. No scope, bare top rail. No text, logos or markings."
+sides. On the rail, a long tan rifle scope: a wide objective bell at the
+front, a tan eyepiece with a black focus ring, a tall black elevation
+turret with a tan knurled cap and a black windage turret on the right,
+both with white range numbers; the scope held up and forward in a black
+cantilever ring mount with lightening holes, and a small spirit level with
+a green bubble vial clamped to the rail just ahead of the mount. Scuffed
+tan paint on the scope too. No text, logos or brand names."
 
-Follow-up 1 (receiver): "Same rifle, same lighting and background.
-Close-up of the right side of the receiver: the open port with the dark
-steel bolt body and its lugs, the swept-back handle and round black knob,
-the trigger and guard, the top of the magazine, scuffed tan paint worn to
-grey metal around the port."
+Follow-up 1 (receiver and scope mount): "Same rifle, same lighting and
+background. Close-up of the right side of the receiver and the scope
+mount: the open port with the dark steel bolt body and its lugs, the
+swept-back handle and round black knob, the trigger and guard, the top of
+the magazine, the black cantilever ring mount and the spirit level on the
+rail above, scuffed tan paint worn to grey metal around the port."
 
 Follow-up 2 (profile): "Same rifle, same lighting and background. Clean
 side-on profile of the right side, perfectly horizontal, muzzle pointing
@@ -105,6 +121,9 @@ pivoted on the bore at the bolt's rest z, with `tf_lift` (radians,
 positive rotation.z lifts the knob); `HB_BoltKnob` point ("BoltKnob" in
 gunkit.POINTS and weapon-model.js gunPoints); `HB_Round` (tf_round) in the
 chamber ahead of the raked bolt face; `HB_Eject` at the port; `HB_Trigger`,
-`HB_Mag`, `HB_BipodL` / `HB_BipodR` folded. Materials: the kit's cerakote in
-FDE tan worn to grey, parkerized dark steel for the barrel and bolt,
-polymer for the mag, rubber for the pad.
+`HB_Mag`, `HB_BipodL` / `HB_BipodR` folded; `HB_Scope` (the gun's own 8x,
+above) with `HB_Aim` on its axis. Materials: the kit's cerakote in FDE tan
+worn to grey (chassis and scope), parkerized dark steel for the barrel and
+bolt, anodized black for the mount, turrets and brake, polymer for the mag,
+rubber for the pad, a glass material for the lenses (a plain gunkit
+material survives the bake as its own slot).
