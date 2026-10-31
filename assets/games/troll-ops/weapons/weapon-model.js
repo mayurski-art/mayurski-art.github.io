@@ -165,7 +165,7 @@ const DETAILED = {
   // models/build_ballista.blender.py. It carries BO2's own scope (HB_Scope)
   // and wears it for the 8x; any other optic hides it and sits on the rail.
   howl: {
-    url: new URL("../models/ballista.glb?v=hb3", import.meta.url).href,
+    url: new URL("../models/ballista.glb?v=hb4", import.meta.url).href,
     kit: "ballista", p: "HB", device: "HB_Brake", rake: -0.40, railY: 0.0332, adsDistance: null,
     glow: [], brass: "338", supportDrop: 0.01, scope: "Scope", scopeOptic: "scope8",
   },
@@ -192,7 +192,7 @@ const detailedLod1 = new Map();
    moving parts (P_Carrier ...) carry their motion as extras (tf_part,
    tf_kind, tf_axis, tf_travel) for view/gun-action.js. */
 const kitUrl = (kit, file) => new URL(`../models/${kit}${file}?v=${KIT_VER[kit] ?? 1}`, import.meta.url).href;
-const KIT_VER = { problem416: "pf4", mtar: "mt3", ballista: "hb3" };   // mt3: re-baked with the skin mask; pf4: reshaped round (rule 10)
+const KIT_VER = { problem416: "pf4", mtar: "mt3", ballista: "hb4" };   // mt3 / hb4: re-baked with the skin mask; pf4: reshaped round (rule 10)
 function loadDetailed(id, cfg) {
   const lod0 = new GLTFLoader().loadAsync(cfg.url).then((gltf) => {
     detailedTemplates.set(id, prepDetailed(gltf.scene, cfg));
