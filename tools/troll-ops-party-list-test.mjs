@@ -81,19 +81,38 @@ const read = () => page.evaluate(() => ({
   everything: document.body.innerText.includes("Everything unlocked"),
 }));
 const roster = (list) => page.evaluate((list) => { window.__presence.set(list); window.__presence.sync(); }, list);
+// The head counts your party, not everyone online ("Party 1/4": user,
+// 2026-10-30); on the Play page the news card sits under the party box, so
+// a laptop folds the online list into "+N more online". The rows themselves
+// are read on the Quests screen, where the column has the room.
+const PARTY_ALONE = /^Party\s*1\s*\/\s*4$/;
+const onQuests = async (fn) => {
+  await page.evaluate(() => window.__toBo2.menu.go("quests"));
+  await page.waitForTimeout(400);
+  // (the list re-fits on a resize, once the screen has hidden the news card)
+  await page.evaluate(() => dispatchEvent(new Event("resize")));
+  await page.waitForTimeout(300);
+  const out = await fn();
+  await page.evaluate(() => { window.__toBo2.menu.backTo("main"); dispatchEvent(new Event("resize")); });
+  await page.waitForTimeout(300);
+  return out;
+};
 
 // alone
 await roster([myRow]);
 await page.waitForTimeout(300);
 let s = await read();
-check(s.label === "1 Player (8 Max)" && s.rows.length === 0, "alone: 1 Player, nobody listed", JSON.stringify(s));
+check(PARTY_ALONE.test(s.label) && s.rows.length === 0 && !s.more, "alone: Party 1/4, nobody listed", JSON.stringify(s));
 check(!s.everything && (s.xp.hidden || !s.xp.text), "no \"Everything unlocked\" anywhere (owner, no XP line)", JSON.stringify(s.xp));
 
 // two accounts and a guest come online
 await roster([myRow, member(1, { kind: "match", mode: "tdm", map: "trollingloud" }), member(2), guest(1)]);
 await page.waitForTimeout(300);
 s = await read();
-check(s.label === "4 Players (8 Max)" && s.rows.length === 3, "three others online: listed, 4 Players", JSON.stringify(s));
+const more3 = +(/\+(\d+) more/.exec(s.more || "")?.[1] || 0);
+check(PARTY_ALONE.test(s.label) && s.rows.length + more3 === 3, "three others online: all counted (rows or +N more), still Party 1/4", JSON.stringify(s));
+s = await onQuests(read);
+check(s.rows.length === 3, "three others online: listed where there's room", JSON.stringify(s.rows));
 check(s.rows.some((r) => r.includes("player_1") && r.includes("LV 4")) && s.rows.some((r) => r.includes("Guest")), "accounts with their level, the guest as Guest", JSON.stringify(s.rows));
 check(!s.rows.some((r) => r.includes("troll_runner")), "you aren't listed twice");
 await page.screenshot({ path: path.join(SHOTS, "party-3-online.png") });
@@ -101,8 +120,8 @@ await page.screenshot({ path: path.join(SHOTS, "party-3-online.png") });
 // one goes offline: gone from the list
 await roster([myRow, member(1), guest(1)]);
 await page.waitForTimeout(300);
-s = await read();
-check(s.label === "3 Players (8 Max)" && !s.rows.some((r) => r.includes("player_2")), "someone goes offline: they drop off", JSON.stringify(s));
+s = await onQuests(read);
+check(s.rows.length === 2 && !s.rows.some((r) => r.includes("player_2")), "someone goes offline: they drop off", JSON.stringify(s));
 
 // ten others: up to seven beside you, as many as fit above the Play page's
 // mode card (the Fortnite lobby, phase 1), the rest a "+N more online" line
@@ -110,7 +129,7 @@ await roster([myRow, ...Array.from({ length: 8 }, (_, i) => member(i + 1)), gues
 await page.waitForTimeout(300);
 s = await read();
 const moreN = +(/\+(\d+) more/.exec(s.more || "")?.[1] || 0);
-check(s.label === "8 Players (8 Max)" && s.rows.length >= 3 && s.rows.length <= 7 && s.rows.length + moreN === 10, "ten others: 8 Players, the rows that fit, the rest in +N more online", JSON.stringify({ rows: s.rows.length, more: s.more }));
+check(PARTY_ALONE.test(s.label) && s.rows.length <= 7 && s.rows.length + moreN === 10, "ten others: the rows that fit, the rest in +N more online", JSON.stringify({ rows: s.rows.length, more: s.more }));
 const clear = await page.evaluate(() => {
   const card = document.querySelector(".to-fn-play")?.getBoundingClientRect();
   const last = [...document.querySelectorAll(".to-bo2-party-others > *")].pop()?.getBoundingClientRect();
