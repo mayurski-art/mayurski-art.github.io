@@ -19,7 +19,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { buildStreakDevice, drawTabletScreen, buildMarkerDevice } from "../streaks/streak-device.js?v=to-df1-or1-sr1";
 import { buildDragonfireModel } from "../streaks/dragonfire-drone.js?v=df3-sb2-or1";
-import { buildSamTurretModel } from "../streaks/sam-turret.js?v=sam1-fj1-or1";
+import { buildSamTurretModel, spawnMissile, flyMissiles, clearMissiles, trailPuffCount } from "../streaks/sam-turret.js?v=sam1-fj1-or1-sr7";
 
 const TILE = 640;
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -153,6 +153,21 @@ window.sheet = {
     const m = await build("pad");
     drawTabletScreen(m, mode, t, confirmed);
     return m.userData.screen.canvas.toDataURL("image/png");
+  },
+  /* phase 10: fly one SAM missile for `seconds` and count its smoke */
+  samTrail(seconds = 1) {
+    const list = [];
+    const target = new THREE.Vector3(0, 40, -40);
+    spawnMissile(list, scene, new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 1, 0), "t");
+    for (let t = 0; t < seconds; t += 1 / 60) flyMissiles(list, 1 / 60, () => target);
+    const puffs = trailPuffCount();
+    const sprites = scene.children.filter((o) => o.isSprite).length;
+    // the missile gone, its smoke fades on its own
+    list[0].mesh.parent?.remove(list[0].mesh); list.length = 0;
+    for (let t = 0; t < 2; t += 1 / 60) flyMissiles(list, 1 / 60, () => null);
+    const after = trailPuffCount();
+    clearMissiles(list);
+    return { puffs, sprites, after, cleared: trailPuffCount() };
   },
   async stats(id) {
     const m = await build(id);
