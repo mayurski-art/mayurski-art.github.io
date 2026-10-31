@@ -274,7 +274,8 @@ const SPECS = {
   // Problem 416 (arsenal v2, models/build_problem416.blender.py): the M4
   // family's stand; the empty reload ends on the T-handle under your eye
   // drawn back and let go, so you see it and the carrier snap home.
-  problem416: { template: "ar", finish: { part: "charge", sound: "rack" } },
+  // (canted with its top toward you, so the handle and the hand on it show)
+  problem416: { template: "ar", finish: { pose: pose([0.1, -0.08, -0.74], [-0.45, 0.7, -0.55], [0.35, 0.3, 0.9]), part: "charge", sound: "rack" } },
 };
 
 /* Archetypes (DESIGN-ARSENAL.md #6): a gun's spec can be { template, ...
