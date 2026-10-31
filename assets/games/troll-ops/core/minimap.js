@@ -2,12 +2,12 @@
 // (team, enemies on UAV, objectives, streaks). Moved out of game.js (split
 // phase 1).
 
-import { royale, drawRoyaleMinimap } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4";
-import { CarePackage } from "../streaks/streak-entities.js?v=vsat2-hk1-sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
+import { royale, drawRoyaleMinimap } from "../modes/royale.js?v=md1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-sr2-sr3";
+import { CarePackage } from "../streaks/streak-entities.js?v=vsat2-hk1-sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6-sr2";
 import * as THREE from "three";
 import { groundHeightAt } from "./movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1-hb4";
 import { game } from "./state.js?v=st1";
-import { drawDomMinimap } from "../modes/domination.js?v=dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4";
+import { drawDomMinimap } from "../modes/domination.js?v=dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-sr2-sr3";
 import { peerHas } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
 
 // Static geometry is drawn once per map into an offscreen canvas and blitted
@@ -111,12 +111,17 @@ export function drawMinimap() {
       }
     }
     if (showEnemies) {
-      // A thin sweep ring, so it reads as "the UAV is why you can see this".
-      // The satellite's is doubled and brighter.
-      ctx.strokeStyle = vsat ? "rgba(255,150,110,.85)" : "rgba(255,107,90,.5)";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(1.5, 1.5, size - 3, size - 3);
-      if (vsat) ctx.strokeRect(4.5, 4.5, size - 9, size - 9);
+      // The radar sweep: a wedge turning round us once every couple of
+      // seconds with a trail fading behind its edge, so it reads as "the
+      // UAV is why you can see this". The satellite's edge is a frame
+      // round the map on top of it.
+      drawRadarSweep(ctx, size);
+      if (vsat) {
+        ctx.strokeStyle = "rgba(255,150,110,.85)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(1.5, 1.5, size - 3, size - 3);
+        ctx.strokeRect(4.5, 4.5, size - 9, size - 9);
+      }
     }
 
     // Care packages beacon their own position by radio the moment they
@@ -171,6 +176,24 @@ export function drawMinimap() {
   ctx.lineTo(-4, 5);
   ctx.closePath();
   ctx.fill();
+  ctx.restore();
+}
+
+/* The UAV's sweep round our own dot, clipped to the map. */
+const SWEEP_PERIOD = 2.4;
+function drawRadarSweep(ctx, size) {
+  const [px, pz] = mapToMinimap(game.move.pos.x, game.move.pos.z);
+  const a = ((performance.now() / 1000) % SWEEP_PERIOD) / SWEEP_PERIOD * Math.PI * 2 - Math.PI / 2;
+  const r = size * 1.5;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, 0, size, size); ctx.clip();
+  for (let i = 0; i < 14; i++) {
+    ctx.fillStyle = `rgba(255,120,90,${0.11 * (1 - i / 14)})`;
+    ctx.beginPath(); ctx.moveTo(px, pz); ctx.arc(px, pz, r, a - (i + 1) * 0.07, a - i * 0.07); ctx.closePath(); ctx.fill();
+  }
+  ctx.strokeStyle = "rgba(255,140,110,.8)";
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(px, pz); ctx.lineTo(px + Math.cos(a) * r, pz + Math.sin(a) * r); ctx.stroke();
   ctx.restore();
 }
 
