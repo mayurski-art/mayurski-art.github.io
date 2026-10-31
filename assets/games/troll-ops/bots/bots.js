@@ -1208,7 +1208,7 @@ class Bot {
       if (step) return step;
       // A fixed spot on the ground the old grid can't reach (a post in
       // Hollowgrin's chapel, past a door it seals): the chase grid's.
-      if (goal.static && here < 1.2 && (gy ?? 0) < 0.75) {
+      if (goal.static && Math.abs(here) < 1.2 && Math.abs(gy ?? 0) < 0.75) {
         const d = field(id, goal.x, goal.z, 0, true, true);
         step = d?.steer(this.pos.x, this.pos.z);
         if (step) return step;
@@ -1218,7 +1218,7 @@ class Bot {
       // The doors grid has no way from here: a stair's foot, say, in a
       // notch the finer grid seals off. A second opinion from the old grid,
       // whose cells snap out of such corners.
-      const old = navY < 0.75 && !goal.static && !(ctx.arena?.navCell >= 1) ? ctx.navFor?.({ id, pos: { x: goal.x, z: goal.z }, coarse: true }, navY) : null;
+      const old = Math.abs(navY) < 0.75 && !goal.static && !(ctx.arena?.navCell >= 1) ? ctx.navFor?.({ id, pos: { x: goal.x, z: goal.z }, coarse: true }, navY) : null;
       step = old?.steer(this.pos.x, this.pos.z);
       if (step) return step;
       // No route on this level, and a wall between here and there: the goal
@@ -1251,7 +1251,7 @@ class Bot {
         }
         step = field(key, entry.x, entry.z, here, true)?.steer(this.pos.x, this.pos.z);
         if (step) return step;
-        if (here < 0.75) step = field(key, entry.x, entry.z, here, true, true)?.steer(this.pos.x, this.pos.z);
+        if (Math.abs(here) < 0.75) step = field(key, entry.x, entry.z, here, true, true)?.steer(this.pos.x, this.pos.z);
         if (step) return step;
         const v = new THREE.Vector3(entry.x - this.pos.x, 0, entry.z - this.pos.z);
         if (v.lengthSq() > 1e-6) return v.normalize();
@@ -1372,7 +1372,7 @@ class Bot {
       let toFoot = Math.hypot(c.entry.x - this.pos.x, c.entry.z - this.pos.z) < 1.5
         ? 0 : fdist(field(key, c.entry.x, c.entry.z, here, true), this.pos.x, this.pos.z);
       // walled off on the old grid: the finer one may find the doorway
-      if (!isFinite(toFoot) && here < 0.75) toFoot = fdist(field(key, c.entry.x, c.entry.z, here, true, true), this.pos.x, this.pos.z);
+      if (!isFinite(toFoot) && Math.abs(here) < 0.75) toFoot = fdist(field(key, c.entry.x, c.entry.z, here, true, true), this.pos.x, this.pos.z);
       if (!isFinite(toFoot)) continue;
       let onward;
       if (Math.abs(c.exit.y - gy) < 0.6) {
@@ -1590,12 +1590,12 @@ export class BotManager {
     // A big map's coarse grid (arena.navCell >= 1, Troll Royale's island)
     // has no doorways to find at that scale: it keeps the one grid.
     if (this.fieldSrc.arena.navCell >= 1) doors = false;
-    const bk = doors && level <= 0.5 ? `${level}|doors` : level;
+    const bk = doors && Math.abs(level) <= 0.5 ? `${level}|doors` : level;
     let base = this.fieldBases.get(bk);
     if (!base) {
       const src = this.fieldSrc;
-      if (level > 0.5) {
-        // Upstairs, a finer grid: walkways and landings up there are often
+      if (Math.abs(level) > 0.5) {
+        // Upstairs (or downstairs: Kabukigrin's club), a finer grid: walkways and landings up there are often
         // only a metre and a half wide (the Grinder's platforms, the top of
         // a stair), narrower than two coarse cells once the rails are
         // padded, so the ground floor's grid sealed them off. It only
@@ -1689,7 +1689,7 @@ export class BotManager {
       const s = stairs[i];
       const [lo, hi] = s.a.y < s.b.y ? [s.a, s.b] : [s.b, s.a];
       if (hi.y - lo.y < 1) continue;
-      const level = Math.max(0, Math.round(hi.y * 2) / 2);
+      const level = Math.round(hi.y * 2) / 2;
       const f = new FlowField(null, null, 0, { template: baseFor(level) });
       if (!f.compute(hi.x, hi.z)) continue;
       tops.push({ i, lo, hi, level, f, grounded: lo.y < 0.5 });
@@ -1896,7 +1896,7 @@ export class BotManager {
       if (!target || !this.fieldSrc) return null;
       // A field per floor level: an upstairs walker needs the upstairs
       // walls, and only cells with floor under them (not the ground plan).
-      const level = Math.max(0, Math.round(levelY * 2) / 2);
+      const level = Math.round(levelY * 2) / 2;
       // `target.coarse`: a chase on the old grid (steerTo's second opinion
       // when the doors grid has no way from where the bot stands).
       const key = (level ? `${level}|${target.id}` : target.id) + (target.coarse ? "|old" : "") + (target.static && target.doors ? "|doors" : "");
