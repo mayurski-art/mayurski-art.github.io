@@ -24,7 +24,7 @@ const OUT = process.env.OUT || path.join(ROOT, "_streak-sheet");
 fs.mkdirSync(OUT, { recursive: true });
 // STREAK-REALISM.md budget
 // the Dragonfire and the dog are already detailed: held where they are
-const TRIS = { pad: 6000, marker: 1000, drone: 4000, dragonfire: 20000, samturret: 8000, k9: 10000, carepackage: 3000 };
+const TRIS = { pad: 6000, marker: 1000, drone: 4000, dragonfire: 20000, samturret: 8000, k9: 10000, carepackage: 3500 };
 const TRIS_AIRCRAFT = 15000;
 const GLB_CAP = 600 * 1024, ALL_CAP = 4 * 1024 * 1024;
 

@@ -93,8 +93,9 @@ check("a UAV flies clean: jammer pods and band hidden", !!u1 && u1.pods.every((v
 check("the prop turns", !!u1 && !!u2 && u2.propAngle !== u1.propAngle, `${u1?.propAngle} -> ${u2?.propAngle}`);
 check("under the tri budget", !!u1 && u1.tris <= 15000, `${u1?.tris} tris`);
 // the strobe blinks: sample it over a few frames
+// the headless sim runs well under real time: sample until both states show
 const blinks = new Set();
-for (let i = 0; i < 12; i++) { blinks.add((await planeInfo(false))?.strobe); await sleep(90); }
+for (let i = 0; i < 60 && !(blinks.has(true) && blinks.has(false)); i++) { blinks.add((await planeInfo(false))?.strobe); await sleep(120); }
 check("the strobe blinks", blinks.has(true) && blinks.has(false), [...blinks].join("/"));
 
 /* ---- 2. the Counter-UAV */

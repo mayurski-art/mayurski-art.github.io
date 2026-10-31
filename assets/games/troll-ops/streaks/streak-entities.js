@@ -395,19 +395,22 @@ export class CarePackage {
     this.flare = makeSignalSmoke(0xd8452f, 0xff8a6a);
     this.flare.position.set(x, groundY, z);
 
-    // The delivery helicopter, flying one line through the hover point.
+    // The delivery helicopter, a Black Hawk (drop-heli.glb), flying one
+    // line through the hover point. Its strobe blinks on the way.
     const yaw = this.seed * Math.PI * 2;
     this.heliDir = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
     this.heli = new THREE.Group();
     this.heli.rotation.order = "YXZ";
     this.heli.rotation.y = yaw;
     this.heliRotors = [];
-    loadModel("helicopter").then((obj) => {
+    this.heliStrobe = null;
+    loadModel("drop-heli").then((obj) => {
       if (this.dead) return;
       this.heli.add(obj);
       obj.traverse((n) => {
         if (n.name === "MainRotor") this.heliRotors.push([n, "y", HELI_MAIN_ROTOR_RPS]);
         else if (n.name === "TailRotor") this.heliRotors.push([n, "x", HELI_TAIL_ROTOR_RPS]);
+        else if (n.name === "Strobe") this.heliStrobe = n;
       });
     });
 
@@ -483,6 +486,7 @@ export class CarePackage {
   update(dt) {
     this.age += dt;
     for (const [n, axis, rps] of this.heliRotors) n.rotation[axis] += dt * Math.PI * 2 * rps;
+    if (this.heliStrobe) { const k = this.age % 1.3; this.heliStrobe.visible = k < 0.06 || (k > 0.14 && k < 0.2); }
     if (this.heli.parent) {
       this.placeHeli();
       if (this.heliT() > 8.5) { this.heli.parent.remove(this.heli); this.heli.visible = false; }

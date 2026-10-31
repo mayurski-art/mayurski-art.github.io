@@ -7,6 +7,8 @@ streak aircraft rebuilt on their real-world references (refs/streaks/<id>).
 Writes the .glb files next to this script, over the ones the game loads:
   recon-drone.glb    the UAV / Counter-UAV: an RQ-7B Shadow (phase 2)
   hunter-drone.glb   the Hunter-Killer / Swarm drone (phase 3)
+  care-package.glb   the wooden supply crate (phase 4)
+  drop-heli.glb      the UH-60 Black Hawk that drops it (phase 4)
 
 Conventions as build_streaks.blender.py: metres, Blender +Y is the nose
 (the exporter's +Y-up makes that three.js -Z), models centred on the hull.
@@ -60,14 +62,17 @@ def loft(name, mat, sections, axis="y", ring=RING, caps=True, smooth=True):
     bm = bmesh.new()
     order = {"x": (0, 1, 2), "y": (1, 0, 2), "z": (2, 0, 1)}[axis]
     rings = []
-    for (s, ha, hb, oa, ob) in sections:
+    for sec in sections:
+        (s, ha, hb, oa, ob) = sec[:5]
+        n = sec[5] if len(sec) > 5 else 2.0     # 2 = ellipse, 4 = near-rectangular
         verts = []
         for i in range(ring):
             t = i / ring * math.tau
+            c, sn = math.cos(t), math.sin(t)
             co = [0.0, 0.0, 0.0]
             co[order[0]] = s
-            co[order[1]] = oa + ha * math.cos(t)
-            co[order[2]] = ob + hb * math.sin(t)
+            co[order[1]] = oa + ha * math.copysign(abs(c) ** (2.0 / n), c)
+            co[order[2]] = ob + hb * math.copysign(abs(sn) ** (2.0 / n), sn)
             verts.append(bm.verts.new(co))
         rings.append(verts)
     bm.verts.ensure_lookup_table()
@@ -104,10 +109,10 @@ def wing(name, mat, span_sections, axis="x", ring=RING):
     that chord and thickness with its leading edge offset back along y."""
     secs = []
     for (s, chord, thick, le, z) in span_sections:
-        if axis == "x":
+        if axis == "x":        # span along x: chord along y, z up
             secs.append((s, chord / 2, thick / 2, le - chord / 2, z))
-        else:
-            secs.append((s, chord / 2, thick / 2, le - chord / 2, z))
+        else:                  # a fin, span along z: thickness along x, chord along y
+            secs.append((s, thick / 2, chord / 2, z, le - chord / 2))
     return loft(name, mat, secs, axis=axis, ring=ring)
 
 
@@ -335,7 +340,142 @@ def build_hk():
     export(body, "hunter-drone.glb")
 
 
-BUILDS = {"uav": build_shadow, "drone": build_hk}
+# ---------------------------------------------------------- care package
+
+def build_crate():
+    """The care package: a wooden supply crate (refs/streaks/carepackage
+    ammo-crate), 1.1 m, base on z=0. Planked sides with the gaps between
+    boards, steel corner brackets and edge straps, rope handles on two
+    sides, a dark stencil band, and the green beacon on the lid that the
+    game already uses to find it across a map."""
+    clear_scene()
+    wood = material("CrateWood", (0.45, 0.33, 0.18), rough=0.85, metal=0.0)
+    wood2 = material("CrateWood2", (0.38, 0.27, 0.14), rough=0.85, metal=0.0)
+    steel = material("CrateSteel", (0.25, 0.26, 0.25), rough=0.45, metal=0.8)
+    rope = material("CrateRope", (0.6, 0.52, 0.36), rough=0.95, metal=0.0)
+    band = material("CrateBand", (0.12, 0.12, 0.1), rough=0.8, metal=0.0)
+    light = material("PkgLight", (0.35, 0.85, 0.4), rough=0.2, metal=0.0, emit=(0.3, 1.0, 0.4), strength=2)
+
+    s = 1.1
+    objs = []
+    # the core box a hair inside the planks so the gaps read dark
+    objs.append(box("core", band, (s - 0.03, s - 0.03, s * 0.8 - 0.02), (0, 0, s * 0.4)))
+    # planks: five boards up each side, alternating tones, with a 1 cm gap
+    n = 5
+    ph = (s * 0.8) / n
+    for i in range(n):
+        z = ph * (i + 0.5)
+        m = wood if i % 2 == 0 else wood2
+        objs.append(box("plank_f%d" % i, m, (s, 0.03, ph - 0.012), (0, -s / 2, z), bevel=0.004))
+        objs.append(box("plank_b%d" % i, m, (s, 0.03, ph - 0.012), (0, s / 2, z), bevel=0.004))
+        objs.append(box("plank_l%d" % i, m, (0.03, s - 0.03, ph - 0.012), (-s / 2, 0, z), bevel=0.004))
+        objs.append(box("plank_r%d" % i, m, (0.03, s - 0.03, ph - 0.012), (s / 2, 0, z), bevel=0.004))
+    # the lid: boards running across, a frame round them
+    for i in range(n):
+        objs.append(box("lid_%d" % i, wood if i % 2 else wood2, (ph - 0.012, s, 0.035), ((i + 0.5) * ph - s * 0.4, 0, s * 0.8 + 0.017), bevel=0.004))
+    objs.append(box("lid_frame_a", wood, (s + 0.02, 0.06, 0.045), (0, -s / 2 + 0.02, s * 0.8 + 0.02)))
+    objs.append(box("lid_frame_b", wood, (s + 0.02, 0.06, 0.045), (0, s / 2 - 0.02, s * 0.8 + 0.02)))
+    # steel corner brackets and the straps up the middle of the long sides
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            objs.append(box("corner_%d_%d" % (sx, sy), steel, (0.09, 0.09, s * 0.8 + 0.06), (sx * s / 2, sy * s / 2, s * 0.4 + 0.02)))
+        objs.append(box("strap_%d" % sx, steel, (0.07, s + 0.05, s * 0.86), (sx * s * 0.28, 0, s * 0.41)))
+    # rope handles on the ends
+    for sx in (-1, 1):
+        bpy.ops.mesh.primitive_torus_add(major_radius=0.11, minor_radius=0.018, location=(sx * (s / 2 + 0.02), 0, s * 0.5), rotation=(0, math.radians(90), 0), major_segments=14, minor_segments=6)
+        t = bpy.context.object
+        t.name = "rope_%d" % sx
+        t.data.materials.append(rope)
+        objs.append(t)
+    # a dark stencil band on the front and the beacon on the lid
+    objs.append(box("stencil", band, (0.5, 0.004, 0.11), (0, -s / 2 - 0.016, s * 0.45)))
+    objs.append(cyl("beacon", light, 0.07, 0.1, (0, 0, s * 0.8 + 0.08), axis="z", verts=10))
+    root = join(objs, "care_package")
+    set_origin(root, (0, 0, 0))
+    export(root, "care-package.glb")
+
+
+# --------------------------------------------------------- UH-60 Black Hawk
+
+def build_blackhawk():
+    """The care package's delivery helicopter: a UH-60M Black Hawk
+    (refs/streaks/carepackage), built at 0.8 scale (12 m fuselage, 13 m
+    rotor). A low wide cabin with the sloped cockpit nose, the engine deck
+    and nacelles either side of the mast, the tail boom rising to the
+    canted fin with the stabilator low on its back, main gear on struts and
+    the tail wheel. MainRotor spins about y, TailRotor about x."""
+    clear_scene()
+    green = material("HawkGreen", (0.16, 0.19, 0.15), rough=0.55, metal=0.25)
+    dark = material("HawkDark", (0.07, 0.08, 0.07), rough=0.5, metal=0.4)
+    glass = material("HawkGlass", (0.06, 0.09, 0.11), rough=0.08, metal=0.3)
+    blade_mat = material("HawkBlade", (0.06, 0.06, 0.06), rough=0.4, metal=0.3)
+    blur = material("HawkBlur", (0.08, 0.08, 0.08), rough=0.8, alpha=0.22)
+    nav_r = material("NavRed", (0.6, 0.02, 0.02), emit=(1.0, 0.05, 0.02), strength=6)
+    nav_g = material("NavGreen", (0.02, 0.6, 0.1), emit=(0.1, 1.0, 0.2), strength=6)
+    strobe = material("StrobeWhite", (0.9, 0.9, 0.9), emit=(1.0, 1.0, 1.0), strength=8)
+
+    k = 0.8
+    hull = []
+    # fuselage: nose, cockpit, cabin, then the boom tapering up to the tail
+    hull.append(loft("fuse", green, [
+        (7.6 * k, 0.0, 0.0, 0, 0.9 * k), (7.2 * k, 0.5 * k, 0.5 * k, 0, 1.0 * k), (6.2 * k, 0.9 * k, 0.9 * k, 0, 1.25 * k),
+        (5.0 * k, 1.2 * k, 1.15 * k, 0, 1.45 * k, 3.0), (3.2 * k, 1.25 * k, 1.25 * k, 0, 1.55 * k, 3.5), (0.0, 1.25 * k, 1.25 * k, 0, 1.6 * k, 3.5),
+        (-2.2 * k, 1.1 * k, 1.1 * k, 0, 1.75 * k, 3.0), (-3.8 * k, 0.55 * k, 0.6 * k, 0, 2.0 * k), (-6.0 * k, 0.35 * k, 0.45 * k, 0, 2.3 * k),
+        (-7.6 * k, 0.25 * k, 0.4 * k, 0, 2.6 * k), (-8.0 * k, 0.0, 0.0, 0, 2.7 * k)]))
+    # the long nose under the windscreen, a flattened cone out past the glass
+    hull.append(loft("nose", green, [(8.6 * k, 0.0, 0.0, 0, 0.85 * k), (8.2 * k, 0.4 * k, 0.3 * k, 0, 0.85 * k), (7.0 * k, 0.8 * k, 0.5 * k, 0, 0.95 * k, 3.0), (5.8 * k, 1.1 * k, 0.6 * k, 0, 1.05 * k, 3.0)]))
+    # the engine deck over the cabin and the two nacelles
+    hull.append(loft("deck", green, [(3.4 * k, 0.0, 0.0, 0, 2.6 * k), (3.0 * k, 0.9 * k, 0.3 * k, 0, 2.65 * k), (-0.5 * k, 1.0 * k, 0.35 * k, 0, 2.75 * k), (-2.6 * k, 0.7 * k, 0.25 * k, 0, 2.7 * k), (-3.2 * k, 0.0, 0.0, 0, 2.65 * k)]))
+    for sx in (-1, 1):
+        hull.append(loft("nacelle_%d" % sx, dark, [(2.2 * k, 0.0, 0.0, sx * 0.95 * k, 2.95 * k), (1.8 * k, 0.4 * k, 0.4 * k, sx * 0.95 * k, 2.95 * k), (-1.6 * k, 0.4 * k, 0.4 * k, sx * 0.95 * k, 2.95 * k), (-2.3 * k, 0.25 * k, 0.25 * k, sx * 0.95 * k, 3.0 * k), (-2.5 * k, 0.0, 0.0, sx * 0.95 * k, 3.0 * k)]))
+    # the rotor mast and the cockpit glass, cabin windows and doors
+    hull.append(cyl("mast", dark, 0.22 * k, 0.9 * k, (0, 0.6 * k, 3.3 * k), axis="z", verts=12))
+    hull.append(loft("windscreen", glass, [(7.0 * k, 0.55 * k, 0.45 * k, 0, 1.55 * k), (5.6 * k, 1.0 * k, 0.75 * k, 0, 1.95 * k)], axis="y"))
+    for sx in (-1, 1):
+        hull.append(box("door_win_%d" % sx, glass, (0.06 * k, 1.6 * k, 0.8 * k), (sx * 1.2 * k, 1.2 * k, 1.9 * k)))
+        hull.append(box("door_%d" % sx, dark, (0.04 * k, 1.9 * k, 2.0 * k), (sx * 1.21 * k, 1.2 * k, 1.35 * k)))
+        hull.append(box("cockpit_win_%d" % sx, glass, (0.06 * k, 1.1 * k, 0.9 * k), (sx * 1.1 * k, 4.6 * k, 1.9 * k)))
+    # the tail: a fin canted forward, the stabilator low across its back
+    hull.append(wing("fin", green, [(2.6 * k, 2.2 * k, 0.35 * k, -6.3 * k, 0), (5.0 * k, 1.6 * k, 0.2 * k, -7.6 * k, 0)], axis="z", ring=12))
+    hull.append(wing("stab", green, [(-2.2 * k, 1.0 * k, 0.12 * k, -6.9 * k, 2.7 * k), (0, 1.3 * k, 0.16 * k, -6.7 * k, 2.7 * k), (2.2 * k, 1.0 * k, 0.12 * k, -6.9 * k, 2.7 * k)], ring=12))
+    # landing gear: main wheels on struts under the cabin, tail wheel
+    for sx in (-1, 1):
+        hull.append(cyl("strut_%d" % sx, dark, 0.07 * k, 1.1 * k, (sx * 1.4 * k, 3.0 * k, 0.55 * k), axis="z", verts=8))
+        hull.append(cyl("wheel_%d" % sx, dark, 0.32 * k, 0.25 * k, (sx * 1.5 * k, 3.0 * k, 0.32 * k), axis="x", verts=14))
+    hull.append(cyl("tail_strut", dark, 0.05 * k, 0.9 * k, (0, -6.0 * k, 1.8 * k), axis="z", verts=8))
+    hull.append(cyl("tail_wheel", dark, 0.2 * k, 0.18 * k, (0, -6.0 * k, 1.4 * k), axis="x", verts=12))
+    # the sling hook under the belly and a pitot on the nose
+    hull.append(cyl("hook", dark, 0.1 * k, 0.3 * k, (0, 0.6 * k, 0.4 * k), axis="z", verts=8))
+    hull.append(cyl("pitot", dark, 0.03 * k, 1.2 * k, (0.5 * k, 7.6 * k, 1.1 * k), axis="y", verts=6))
+    body = join(hull, "Blackhawk")
+    set_origin(body, (0, 0, 1.7 * k))
+    for name, mat, loc in (("NavL", nav_r, (-1.3 * k, 3.5 * k, 1.1 * k)), ("NavR", nav_g, (1.3 * k, 3.5 * k, 1.1 * k)), ("Strobe", strobe, (0, -7.4 * k, 5.1 * k))):
+        o = sphere(name, mat, 0.06 * k, loc)
+        parent(o, body)
+    # the four-blade main rotor, its hub and the blur disc
+    hub = (0, 0.6 * k, 3.85 * k)
+    parts = [cyl("hub", dark, 0.35 * k, 0.35 * k, hub, axis="z", verts=12)]
+    for b in range(4):
+        a = math.radians(b * 90)
+        parts.append(box("blade_%d" % b, blade_mat, (6.5 * k, 0.4 * k, 0.05 * k), (hub[0] + math.cos(a) * 3.4 * k, hub[1] + math.sin(a) * 3.4 * k, hub[2] + 0.02), rot=(0, 0, a), bevel=0.01))
+    rotor = join(parts, "MainRotor")
+    set_origin(rotor, hub)
+    parent(rotor, body)
+    disc = cyl("MainRotorBlur", blur, 6.6 * k, 0.02, (hub[0], hub[1], hub[2] + 0.02), axis="z", verts=36)
+    parent(disc, body)
+    # the tail rotor on the left of the fin, four blades, spun about x
+    thub = (-0.35 * k, -7.3 * k, 4.2 * k)
+    tparts = [cyl("thub", dark, 0.15 * k, 0.2 * k, thub, axis="x", verts=10)]
+    for b in range(4):
+        a = math.radians(b * 90)
+        tparts.append(box("tblade_%d" % b, blade_mat, (0.04 * k, 0.22 * k, 1.5 * k), (thub[0] - 0.02, thub[1] + math.sin(a) * 0.8 * k, thub[2] + math.cos(a) * 0.8 * k), rot=(a, 0, 0), bevel=0.005))
+    trotor = join(tparts, "TailRotor")
+    set_origin(trotor, thub)
+    parent(trotor, body)
+    export(body, "drop-heli.glb")
+
+
+BUILDS = {"uav": build_shadow, "drone": build_hk, "crate": build_crate, "dropheli": build_blackhawk}
 
 if __name__ == "__main__":
     args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
