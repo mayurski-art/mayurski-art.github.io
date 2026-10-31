@@ -6920,7 +6920,7 @@ body.to-aboard #to-touch-endstreak { display: none !important; }
 
 /* Kabukigrin's bar (modes/kb-bar.js): the drinks card, over the pickup prompt */
 .to-kb-menu {
-  position: absolute; left: 50%; bottom: 22cqh; transform: translateX(-50%); z-index: 12; pointer-events: auto;
+  position: absolute; left: 50%; bottom: 38cqh; transform: translateX(-50%); z-index: 12; pointer-events: auto;   /* clear of the pickup prompt under it */
   min-width: 34ch; padding: 10px 12px 8px; border-radius: 12px;
   background: rgba(14, 8, 20, .86); border: 1px solid rgba(255, 80, 190, .45); box-shadow: 0 0 22px rgba(255, 60, 180, .25), inset 0 0 0 1px rgba(255, 255, 255, .04);
   font-family: "DM Mono", monospace; color: #f4e9ff;

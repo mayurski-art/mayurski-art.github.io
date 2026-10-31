@@ -82,7 +82,8 @@ async function open(label, user) {
   });
   await page.waitForFunction(() => !window.__trollOps.loadState().open, null, { timeout: 420000 });
   // out of the club's line (Socialize starts you in it), the pause menu away
-  await page.evaluate(() => { window.__trollOps.els.pause.hidden = true; const C = window.__trollClub; if (C.club.phase !== "none") C.leave(); });
+  // past the door's line, with a band on (modes/club-entry.js: inside without one, the door puts you out)
+  await page.evaluate(() => { window.__trollOps.els.pause.hidden = true; window.__trollClub.pass(); });
   pages.push(page);
   await pump(400);
   return page;
@@ -127,8 +128,8 @@ s = await until((ss) => ss[0].bar.prompt === "Order a drink" && ss[1].peers.find
 check("on a bar stool: the prompt reads Order a drink", s[0].bar.prompt === "Order a drink", `prompt ${JSON.stringify(s[0].bar.prompt)}`);
 check("B sees A in the seat", s[1].peers.find((p) => p.id === idA)?.seat === seat.i + 1, JSON.stringify(s[1].peers));
 await A.evaluate(() => window.__trollKbBar.openMenu());
-s = await until((ss) => ss[0].menu, 3000);
-check("the card opens", s[0].menu && s[0].bar.prompt?.startsWith("1-4"), `prompt ${JSON.stringify(s[0].bar.prompt)}`);
+s = await until((ss) => ss[0].menu && ss[0].bar.prompt === "Pick a drink", 4000);
+check("the card opens", s[0].menu && s[0].bar.prompt === "Pick a drink", `prompt ${JSON.stringify(s[0].bar.prompt)}`);
 await A.screenshot({ path: path.join(SHOTS, "1-menu.png") });
 const took = await A.evaluate(() => window.__trollKbBar.orderDrink("me", "sake"));
 check("orderDrink(me, sake) is taken", took === true);

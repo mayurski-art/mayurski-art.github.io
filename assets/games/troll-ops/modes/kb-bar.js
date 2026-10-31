@@ -132,9 +132,9 @@ export function updateKbBar(dt) {
 
 /* Hold X on a bar stool: the menu. Asked before the saloon's own actions. */
 rpExtras.push(() => {
-  if (!atBar() || bar.drink) return null;
+  if (!atBar() || bar.drink || (game.net?.dz | 0) >= 2) return null;   // not while passing out (modes/drunk.js)
   if (kbBar.pouring) return { key: "kb-pour", label: "Pouring…", info: true };
-  if (kbBar.open) return { key: "kb-menu", label: game.isTouch ? "Tap a drink" : "1-4 picks a drink · Esc closes", info: true };
+  if (kbBar.open) return { key: "kb-menu", label: "Pick a drink", info: true };
   return { key: "kb-order", label: "Order a drink", ctx: "Order", time: 0.3, done: openMenu };
 });
 
