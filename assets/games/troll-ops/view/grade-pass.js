@@ -37,7 +37,8 @@ export class ViewmodelPass extends Pass {
 }
 
 const GRADE_FRAGMENT = /* glsl */`
-  uniform float uGrade, uSat, uContrast, uShadowAmt, uHighAmt;
+  uniform float uGrade, uSat, uContrast, uShadowAmt, uHighAmt, uDouble;
+  uniform vec2 uDoubleOff;
   uniform vec3 uShadow, uHigh;
   vec3 gradeColor(vec3 c) {
     const vec3 LW = vec3(0.2126, 0.7152, 0.0722);
@@ -60,6 +61,10 @@ function srgb(hex, out) {
   out.set(_rgb.r, _rgb.g, _rgb.b);
 }
 
+/* Double vision (modes/drunk.js, a dizzy spell): the frame, and a ghost of
+   it shifted by (x, y) in screen widths, mixed in at k (0 off). */
+export const DOUBLE_VISION = { k: 0, x: 0, y: 0 };
+
 const IDENTITY = { sat: 1, contrast: 1, shadows: 0x808080, shadowsAmt: 0, highlights: 0x808080, highlightsAmt: 0 };
 
 export class GradePass extends OutputPass {
@@ -73,12 +78,25 @@ export class GradePass extends OutputPass {
       uShadowAmt: { value: 0 },
       uHigh: { value: new THREE.Vector3(0.5, 0.5, 0.5) },
       uHighAmt: { value: 0 },
+      uDouble: { value: 0 },
+      uDoubleOff: { value: new THREE.Vector2() },
     });
-    const fs = this.material.fragmentShader;
+    // the ghost is sampled before the tone map, so it gets the same exposure
+    const SAMPLE = "gl_FragColor = texture2D( tDiffuse, vUv );";
+    const fs = this.material.fragmentShader.replace(SAMPLE, `${SAMPLE}
+		if (uDouble > 0.0) gl_FragColor = mix(gl_FragColor, texture2D(tDiffuse, clamp(vUv + uDoubleOff, 0.0, 1.0)), uDouble);`);
+    if (!fs.includes("uDouble")) console.warn("GradePass: no double vision (OutputShader changed)");
     const head = fs.indexOf("varying vec2 vUv;");
     const end = fs.lastIndexOf("}");
     this.material.fragmentShader = fs.slice(0, head) + GRADE_FRAGMENT + fs.slice(head, end)
       + "\tif (uGrade > 0.5) gl_FragColor.rgb = gradeColor(gl_FragColor.rgb);\n}";
+  }
+
+  render(renderer, writeBuffer, readBuffer, deltaTime, maskActive) {
+    const u = this.uniforms;
+    u.uDouble.value = DOUBLE_VISION.k;
+    u.uDoubleOff.value.set(DOUBLE_VISION.x, DOUBLE_VISION.y);
+    super.render(renderer, writeBuffer, readBuffer, deltaTime, maskActive);
   }
 
   /* A map's whole look: its grade, exposure (default 1.5) and tone mapping.
