@@ -30,7 +30,7 @@ export function initBootScreen(root) {
      a halloween version ... users can click a pumpkin button that changes
      to halloween version"): normal unless the player picked the pumpkin;
      remembered on this device. */
-  const ART = "assets/games/troll-ops/ui/boot", ART_V = "lk2", LOOK_KEY = "trollops:boot-look";
+  const ART = "assets/games/troll-ops/ui/boot", ART_V = "lk3", LOOK_KEY = "trollops:boot-look";
   const look = root.querySelector(".to-boot-look");
   const art = root.querySelector(".to-boot-art");
   // the picture's moving parts (menu/boot-motion.js)
