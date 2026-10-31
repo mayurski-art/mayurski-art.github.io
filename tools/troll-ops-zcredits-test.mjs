@@ -71,7 +71,7 @@ await R(() => window.__trollHub.zc.setZsave({ credits: 5000, best: 6 }));
 await R(() => window.__trollHub.openKiosk("weapons"));
 check(await until(() => window.__trollHub.kioskOpen(), null, 3000), "the Weapons kiosk opens");
 const tiers = await R(() => [...document.querySelectorAll(".zk-tier")].map((b) => ({ n: b.querySelector(".zk-tier-n").textContent, locked: b.classList.contains("is-locked"), r: b.querySelector(".zk-tier-r").textContent })));
-check(tiers.length === 5 && !tiers[0].locked && !tiers[1].locked && tiers[2].locked && tiers[2].r === "Wave 10", "five tiers; best wave 6 opens tiers 1-2 only", JSON.stringify(tiers.map((t) => t.r)));
+check(tiers.length === 4 && !tiers[0].locked && !tiers[1].locked && tiers[2].locked && tiers[2].r === "Wave 10", "four tiers (wave 15's went with THE BEAST); best wave 6 opens tiers 1-2 only", JSON.stringify(tiers.map((t) => t.r)));
 const sel = await R(() => document.querySelector(".zk-sel")?.innerText.replace(/\s+/g, " "));
 check(/Problem 416/.test(sel) && /Equipped/.test(sel), "the free starter is selected and equipped", sel);
 check(await until(() => [...document.querySelectorAll(".zk-thumb")].some((i) => i.classList.contains("is-in") && i.src.length > 2000), null, 20000), "gun pictures render");
@@ -97,7 +97,7 @@ await page.click(".zk-sel [data-act='equip']");
 // a locked tier: its button says so
 await page.click(".zk-tier[data-id='4']");
 const lockedBtn = await R(() => document.querySelector(".zk-sel .zk-btn")?.textContent);
-check(/Wave 15/.test(lockedBtn), "a locked tier's gun can't be bought", lockedBtn);
+check(/Wave 20/.test(lockedBtn), "a locked tier's gun can't be bought", lockedBtn);
 await page.click(".zk-tier[data-id='2']");
 await page.screenshot({ path: path.join(SHOTS, `zcredits-weapons-t2${TAG}.png`) });
 await page.keyboard.press("Escape");
