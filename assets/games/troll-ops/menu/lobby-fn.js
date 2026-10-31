@@ -10,8 +10,10 @@
    the menu to go places, it owns no game state. Everything it needs comes in
    through mountFnLobby(), so it imports nothing (no second copy of a module
    under another ?v= tag) but core/season.js, which holds no state: the
-   season's dates and Halloween, shared with the Zombies hub. */
+   season's dates and Halloween, shared with the Zombies hub; and
+   new-here.js, I'M NEW HERE's sheet, which holds none either. */
 import { SEASON, seasonLeft, halloween } from "../core/season.js?v=zf1-wb1";
+import { mountNewHere } from "./new-here.js?v=nwh1";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -186,8 +188,11 @@ export function mountFnLobby(api) {
     <div class="to-fn-glass to-fn-quests">
       <h2><button type="button" data-act="quests">Challenges</button></h2>
       <ol class="to-fn-qlist"></ol>
-    </div>`;
+    </div>
+    <button type="button" class="to-fn-newhere" data-act="newhere" aria-haspopup="dialog"><kbd class="to-fn-padkey" aria-hidden="true">Y</kbd><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M9.3 9.4a2.8 2.8 0 1 1 3.9 2.6c-.8.4-1.2 1-1.2 1.8v.6"/><circle cx="12" cy="17.4" r=".4"/></svg><span>I'm new here</span></button>`;
   root.appendChild(left);
+  /* I'M NEW HERE (menu/new-here.js): the tutorial, over everything */
+  const help = mountNewHere(root);
 
   /* ── Play tab, right: the news as Fortnite's event tile, over the mode card ── */
   const news = document.createElement("section");
@@ -400,7 +405,7 @@ export function mountFnLobby(api) {
   // not its zoom)
   title.addEventListener("wheel", (e) => {
     if (menu.current() !== "main") return;
-    if (e.target.closest(".to-bo2-party-others, .to-fn-picker, .to-bo2-panel, .tr-pincard")) return;
+    if (e.target.closest(".to-bo2-party-others, .to-fn-picker, .to-bo2-panel, .tr-pincard, .to-nh")) return;
     if (e.target.closest(".to-char-view")) e.stopPropagation();
     if (Math.abs(e.deltaY) < 4) return;
     if (e.deltaY > 0 && modes.hidden) openModes(true);
@@ -430,7 +435,8 @@ export function mountFnLobby(api) {
   });
   left.addEventListener("click", (e) => {
     const act = e.target.closest("[data-act]")?.dataset.act;
-    if (act) goTab(act);
+    if (act === "newhere") help.open();
+    else if (act) goTab(act);
   });
 
   /* ── News: turns every 6s; a card opens its playlist ── */
@@ -548,7 +554,7 @@ export function mountFnLobby(api) {
     news.hidden = !home;
     play.hidden = !home;
     more.hidden = !home;
-    if (!home) { openPicker(false); openModes(false); }
+    if (!home) { openPicker(false); openModes(false); help.close(); }
     if (home) { renderPlay(); renderMe(); }
     // the operator on the pad stands on the Play page only (lobby.js)
     dispatchEvent(new Event("trollforces:fn-screen"));
@@ -567,8 +573,9 @@ export function mountFnLobby(api) {
 
   /* ── A controller in the lobby (phase 6). LB / RB change tabs; the d-pad or
      left stick moves, A picks, B goes back. On Play: A is PLAY, X Change
-     mode, down All modes. The lists are menu-bo2.js's, driven with the keys
-     it already takes. The buttons' hints show while a pad is in. ── */
+     mode, Y I'm new here, down All modes. The lists are menu-bo2.js's,
+     driven with the keys it already takes. The buttons' hints show while a
+     pad is in. ── */
   const pad = { prev: {}, held: null, next: 0, raf: 0 };
   const key = (k) => document.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
   const focusIn = (box, d, cols = 1) => {
@@ -579,7 +586,8 @@ export function mountFnLobby(api) {
     to?.focus();
   };
   function padMove(d) {
-    if (!modes.hidden) {
+    if (help.isOpen()) help.padMove(d);
+    else if (!modes.hidden) {
       const cols = getComputedStyle($(".to-fn-tiles", modes)).gridTemplateColumns.split(" ").filter(Boolean).length || 1;
       if (d === "up" && $$(".to-fn-tile", modes).indexOf(document.activeElement) < cols) openModes(false);
       else focusIn($(".to-fn-tiles", modes), d, cols);
@@ -588,7 +596,9 @@ export function mountFnLobby(api) {
     else key({ up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight" }[d]);
   }
   function padPress(i) {
-    if (i === 4 || i === 5) {
+    if (help.isOpen()) help.padPress(i);
+    else if (i === 3 && menu.current() === "main" && modes.hidden && picker.hidden) help.open();
+    else if (i === 4 || i === 5) {
       const at = TABS.findIndex((t) => t.id === tab);
       goTab(TABS[(at + (i === 5 ? 1 : TABS.length - 1)) % TABS.length].id);
     } else if (i === 1) {
@@ -612,21 +622,21 @@ export function mountFnLobby(api) {
     // the lobby's only while it's up, and not while the emote wheel has the pad
     if (title.hidden || $(".to-emote-wheel:not([hidden])")) { pad.prev = {}; pad.held = null; return; }
     const b = (i) => !!gp.buttons[i]?.pressed;
-    for (const i of [0, 1, 2, 4, 5]) if (b(i) && !pad.prev[i]) padPress(i);
+    for (const i of [0, 1, 2, 3, 4, 5]) if (b(i) && !pad.prev[i]) padPress(i);
     const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
     const dir = b(12) || ay < -0.6 ? "up" : b(13) || ay > 0.6 ? "down" : b(14) || ax < -0.6 ? "left" : b(15) || ax > 0.6 ? "right" : null;
     const now = performance.now();
     if (dir !== pad.held) { pad.held = dir; if (dir) { padMove(dir); pad.next = now + 380; } }
     else if (dir && now >= pad.next) { padMove(dir); pad.next = now + 130; }   // held: repeats
     pad.prev = {};
-    for (const i of [0, 1, 2, 4, 5]) pad.prev[i] = b(i);
+    for (const i of [0, 1, 2, 3, 4, 5]) pad.prev[i] = b(i);
   }
   const startPad = () => { if (!pad.raf) pad.raf = requestAnimationFrame(pollPad); };
   addEventListener("gamepadconnected", startPad);
   new MutationObserver(() => { if (!title.hidden) startPad(); }).observe(title, { attributes: true, attributeFilter: ["hidden"] });
   startPad();
 
-  return { setPlaylist, playlist: () => playlist, goTab, openModes };
+  return { setPlaylist, playlist: () => playlist, goTab, openModes, help };
 }
 
 /* ── Backdrop: the reel, no WebGL (pick 1). Two layers crossfade; the next

@@ -5293,6 +5293,121 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-fn-news { display: none; }
 }
 
+/* ── I'M NEW HERE (menu/new-here.js): the button under the Play page's left
+   column, and the tutorial's sheet over everything: four pages (modes,
+   controls, the Locker, the rest), Back / Next along the bottom. Sizes in
+   px (zoomed with the rest by --ui-z) and %, never vh. ── */
+.to-fn-newhere { flex: none; display: flex; align-items: center; gap: 10px; margin-top: 8px; min-height: 42px; padding: 0 14px; border: 0; border-left: 4px solid var(--fn-cyan); background: rgba(12,19,49,.92); color: #fff; cursor: pointer; text-align: left;
+  font: 700 16px/1.1 var(--fn-ui); letter-spacing: .08em; text-transform: uppercase; }
+.to-fn-newhere:hover { background: rgba(32,48,104,.95); }
+.to-fn-newhere svg { flex: none; width: 22px; height: 22px; fill: none; stroke: var(--fn-cyan); stroke-width: 2; stroke-linecap: round; }
+.to-bo2.is-fn.has-pad .to-fn-newhere .to-fn-padkey { flex: none; min-width: 22px; border-radius: 50%; }
+.to-nh { position: absolute; inset: 0; z-index: 30; display: grid; place-items: center; box-sizing: border-box;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) calc(var(--fn-safe-x) + 16px) calc(16px + var(--fn-safe-b));
+  background: rgba(4,8,28,.74); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); color: #fff; font-family: var(--fn-ui); }
+/* the radio (a sibling of the menu, above it) steps out: it sat on the close button */
+#to-title:has(.to-nh:not([hidden])) ~ .to-radio { visibility: hidden; }
+.to-nh-card { display: flex; flex-direction: column; width: min(880px, 100%); height: min(700px, 100%); min-height: 0; overflow: hidden; box-sizing: border-box;
+  background: var(--fn-glass-solid); border: 1px solid var(--fn-line); border-radius: 14px; box-shadow: 0 24px 60px rgba(0,0,0,.5); }
+@media (prefers-reduced-motion: no-preference) { .to-nh:not([hidden]) .to-nh-card { animation: to-fn-rise .22s ease-out; } }
+.to-nh-head { flex: none; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 18px 10px; }
+.to-nh-head h2 { margin: 0; min-width: 0; font: italic 400 40px/1.2 var(--fn-display); text-transform: uppercase; }
+.to-nh-head h2 small { display: block; margin-top: 8px; font: 700 15px var(--fn-ui); letter-spacing: .06em; text-transform: none; font-style: normal; color: #c4d1f3; }
+.to-nh-x { flex: none; display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; height: 44px; padding: 0 8px; box-sizing: border-box; cursor: pointer; }
+.to-nh-x svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
+.to-nh-tabs { flex: none; display: flex; align-items: center; gap: 6px; padding: 0 18px 12px; }
+.to-nh-tab { flex: 1 1 0; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 10px; border: 0; border-radius: 2px; cursor: pointer;
+  background: rgba(54,70,120,.88); color: #eef2ff; box-shadow: inset 0 -2px 0 rgba(0,0,0,.25); font: 700 17px/1.05 var(--fn-ui); letter-spacing: .04em; text-transform: uppercase; }
+.to-nh-tab:hover { background: rgba(84,104,166,.95); }
+.to-nh-tab.is-on { background: var(--fn-yellow); color: #121733; }
+.to-nh-tab em { display: grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,.25); font: 800 13px/1 var(--fn-ui); font-style: normal; }
+.to-nh-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 18px 16px; border-top: 1px solid rgba(170,200,255,.18); }
+.to-nh-page { outline: none; }
+.to-nh-page:focus-visible { box-shadow: inset 0 0 0 2px var(--fn-cyan); border-radius: 8px; }
+.to-nh-h { margin: 12px 0 8px; font: italic 400 30px/1 var(--fn-display); text-transform: uppercase; }
+.to-nh-page h3:not(.to-nh-h) { margin: 20px 0 4px; font: 800 15px var(--fn-ui); letter-spacing: .12em; text-transform: uppercase; color: var(--fn-cyan); }
+.to-nh-lead { margin: 0 0 12px; font: 500 17px/1.4 var(--fn-ui); color: #dbe4ff; }
+.to-nh-lead b { color: #fff; }
+.to-nh-lead.is-end { margin-top: 16px; font-weight: 700; color: var(--fn-yellow); }
+.to-nh-note { margin: 12px 0 0; font: 500 15px/1.4 var(--fn-ui); color: #b9c6ea; }
+.to-nh-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.to-nh-list li { display: grid; gap: 2px; padding: 9px 12px; border-left: 3px solid var(--fn-cyan); background: rgba(10,16,44,.45); }
+.to-nh-list b { font: 800 17px/1.2 var(--fn-ui); letter-spacing: .02em; }
+.to-nh-list span { font: 500 15px/1.35 var(--fn-ui); color: #d3ddf7; }
+.to-nh-list.is-tight { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+.to-nh-list.is-tight li { border-left-color: rgba(255,210,31,.8); }
+.to-nh-seg { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 12px; }
+.to-nh-seg button { min-height: 38px; padding: 0 14px; border: 1px solid rgba(255,255,255,.3); border-radius: 20px; background: rgba(255,255,255,.08); color: #fff; cursor: pointer;
+  font: 800 15px var(--fn-ui); letter-spacing: .05em; text-transform: uppercase; }
+.to-nh-seg button.is-on { background: #fff; color: #17224d; border-color: #fff; }
+.to-nh-keys { margin: 0; display: grid; }
+.to-nh-keys > div { display: grid; grid-template-columns: minmax(0, 230px) minmax(0, 1fr); align-items: center; gap: 4px 14px; padding: 7px 0; border-bottom: 1px solid rgba(170,200,255,.14); }
+.to-nh-keys dt { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.to-nh-keys dt i { font: 600 12px var(--fn-ui); font-style: normal; color: #9aa8d0; }
+.to-nh-keys dd { margin: 0; font: 500 16px/1.3 var(--fn-ui); color: #e6ebfa; }
+.to-bo2.is-fn .to-nh kbd:not(.to-fn-padkey) { display: inline-block; min-width: 26px; padding: 3px 8px; box-sizing: border-box; border: 1px solid rgba(255,255,255,.5); border-bottom-width: 2px; border-radius: 6px;
+  background: rgba(0,0,0,.35); color: #fff; font: 700 14px/1.2 var(--fn-ui); text-align: center; white-space: nowrap; }
+.to-nh .to-fn-padkey { display: none; }
+.to-bo2.is-fn.has-pad .to-nh .to-fn-padkey { display: inline-grid; flex: none; padding: 0 5px; border-bottom-width: 1px; font-size: 12px; line-height: 1; }
+.to-nh-pic { margin: 4px 0 14px; }
+.to-nh-pic img { display: block; width: 100%; max-width: 640px; height: auto; border-radius: 10px; border: 1px solid var(--fn-line); background: #0b1430; }
+.to-nh-touch { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px 16px; }
+.to-nh-touch li { display: flex; align-items: center; gap: 12px; min-height: 44px; font: 500 15px/1.3 var(--fn-ui); color: #e6ebfa; }
+.to-nh-ticon { flex: none; display: grid; place-items: center; width: 42px; height: 42px; box-sizing: border-box; border-radius: 50%; border: 2px solid rgba(255,255,255,.55); background: rgba(255,255,255,.12); color: #fff; font: 800 13px var(--fn-ui); }
+.to-nh-ticon svg { width: 22px; height: 22px; }
+.to-nh-ticon.is-move::after { content: ""; width: 16px; height: 16px; border-radius: 50%; background: rgba(255,255,255,.8); }
+.to-nh-ticon.is-look { border-radius: 10px; border-style: dashed; }
+.to-nh-foot { flex: none; display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-top: 1px solid rgba(170,200,255,.18); }
+.to-nh-count { flex: 1; text-align: center; font: 700 14px var(--fn-ui); letter-spacing: .08em; text-transform: uppercase; color: #c4d1f3; }
+.to-nh-step { min-width: 120px; min-height: 46px; padding: 0 18px; border: 1px solid var(--fn-line); border-radius: 4px; background: rgba(54,70,120,.88); color: #fff; cursor: pointer;
+  font: 800 17px var(--fn-ui); letter-spacing: .06em; text-transform: uppercase; }
+.to-nh-step:disabled { opacity: .35; cursor: default; }
+.to-nh-step.is-next { border: 0; background: linear-gradient(180deg, #ffe45c, #ffc400); color: #1b1400; box-shadow: inset 0 -3px 0 rgba(0,0,0,.15); }
+/* sideways phones: no subtitle, everything a size down */
+@container cab (min-aspect-ratio: 9/10) and ((max-height: 520px) or (max-width: 760px)) {
+  .to-fn-newhere { min-height: 34px; padding: 0 10px; gap: 8px; font-size: 13px; }
+  .to-fn-newhere svg { width: 18px; height: 18px; }
+  .to-nh { padding: calc(8px + env(safe-area-inset-top, 0px)) calc(var(--fn-safe-x) + 10px) calc(8px + var(--fn-safe-b)); }
+  .to-nh-card { height: 100%; }
+  .to-nh-head { padding: 8px 12px 6px; align-items: center; }
+  .to-nh-head h2 { font-size: 26px; }
+  .to-nh-head h2 small { display: none; }
+  .to-nh-x { min-width: 40px; height: 40px; }
+  .to-nh-tabs { padding: 0 12px 8px; }
+  .to-nh-tab { min-height: 34px; font-size: 14px; gap: 6px; }
+  .to-nh-tab em { width: 18px; height: 18px; font-size: 11px; }
+  .to-nh-body { padding: 0 12px 10px; }
+  .to-nh-h { margin-top: 8px; font-size: 22px; }
+  .to-nh-foot { padding: 6px 12px; }
+  .to-nh-step { min-height: 40px; min-width: 100px; font-size: 15px; }
+  .to-nh-pic img { max-width: 480px; }
+  .to-nh-keys > div { grid-template-columns: minmax(0, 190px) minmax(0, 1fr); }
+}
+/* upright phones: the button a slim row under the level cards (the stage
+   below steps down by it), the sheet the whole screen */
+@container cab (max-aspect-ratio: 9/10) {
+  .to-fn-newhere { justify-content: center; min-height: 30px; margin-top: 0; font-size: 13px; gap: 8px; }
+  .to-fn-newhere svg { width: 17px; height: 17px; }
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { top: calc(58px + env(safe-area-inset-top) + 36px + 8px + 56px + 8px + 30px + 50px); }
+  .to-nh { padding: calc(8px + env(safe-area-inset-top, 0px)) calc(var(--fn-safe-x) + 8px) calc(8px + var(--fn-safe-b)); }
+  .to-nh-card { height: 100%; }
+  .to-nh-head { padding: 12px 12px 8px; }
+  .to-nh-head h2 { font-size: 30px; }
+  .to-nh-head h2 small { font-size: 13px; }
+  .to-nh-tabs { gap: 4px; padding: 0 12px 10px; }
+  .to-nh-tab { padding: 0 4px; min-height: 40px; font-size: 14px; }
+  .to-nh-tab em { display: none; }
+  .to-bo2.is-fn.has-pad .to-nh-tabs .to-fn-padkey { display: none; }
+  .to-nh-body { padding: 0 12px 12px; }
+  .to-nh-h { font-size: 24px; }
+  .to-nh-keys > div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .to-nh-touch { grid-template-columns: minmax(0, 1fr); }
+  .to-nh-seg { flex-wrap: nowrap; gap: 4px; }
+  .to-nh-seg button { min-height: 36px; padding: 0 9px; font-size: 13px; letter-spacing: .03em; white-space: nowrap; }
+  .to-nh-foot { padding: 8px 12px; gap: 8px; }
+  .to-nh-step { min-width: 96px; }
+}
+
 /* Owner badge (troll_runner): stands where a level would. The crowned troll
    from the site's PFP icon, gold OWNER lettering, a slow shine across it. */
 .is-owner {
