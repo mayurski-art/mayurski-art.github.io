@@ -183,10 +183,11 @@ export function updatePlayer(dt) {
   // primary's optic has no business popping up over it (that's the "scoped
   // weapon flash" glitch when activating a killstreak while holding ADS).
   // Staging doesn't block it: scoping in on the mark is harmless (see canAds).
-  const wantAds = game.player.alive && !royaleAboard() && !game.isView() && !game.socialUnarmed() && !game.localPauseOnly && game.empT <= 0 && game.player.holding !== "streak"
+  const wantAds = game.player.alive && !royaleAboard() && !game.isView() && !game.socialUnarmed() && !game.localPauseOnly && game.empT <= 0 && game.player.holding !== "streak" && !game.move.stanceLocked
     && ((game.isTouch && touchState.ads) || (gp && game.gamepadState.ads) || game.adsHeld || game.keys.has("KeyQ"));
-  // Aboard the C-130 (Troll Royale's opening) the guns stay quiet till you land.
-  const wantFire = !frozen && !royaleAboard() && !(game.player.downed && game.isRoyale()) && !game.isView() && !game.socialUnarmed() && ((game.isTouch && touchState.firing) || (gp && game.gamepadState.firing) || game.mouseDown);
+  // Aboard the C-130 (Troll Royale's opening) the guns stay quiet till you land;
+  // so do they (and the sights) in the first moment of lying down or getting up.
+  const wantFire = !frozen && !game.move.stanceLocked && !royaleAboard() && !(game.player.downed && game.isRoyale()) && !game.isView() && !game.socialUnarmed() && ((game.isTouch && touchState.firing) || (gp && game.gamepadState.firing) || game.mouseDown);
   // The frame the trigger went down (the 16 ms fireEdgeTrigger pulse can
   // fall between two slow frames).
   const firePressed = wantFire && !fireWasDown;
@@ -233,6 +234,7 @@ export function updatePlayer(dt) {
     jump: !frozen && !downed && ((game.isTouch && touchState.jump) || (gp && game.gamepadState.jump) || game.keys.has("Space")),
     // Zombies, down: on the floor, crawling (modes/zombies/run.js)
     crouch: downed || (!frozen && ((game.isTouch && touchState.crouch) || (gp && game.gamepadState.crouch) || game.keys.has("KeyC"))),
+    noProne: downed,   // the crawl is a crouch, not a held crouch lying you down
     dive: !frozen && ((game.isTouch && touchState.dive) || game.keys.has("ControlLeft") || game.keys.has("ControlRight")),
     yaw: rolling ? royale.rollYaw : game.look.yaw,
     pitch: game.look.pitch,
