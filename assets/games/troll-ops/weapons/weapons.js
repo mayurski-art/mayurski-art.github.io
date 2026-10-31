@@ -775,7 +775,8 @@ export class WeaponState {
     }
     if (this.def.slideCycle) this.slideT = this.def.slideCycle;
     // Shouldering the weapon steadies it: aimed fire kicks less than hipfire.
-    const steady = (1 - this.adsT * 0.35) * kick;
+    // On a bipod, less again (kickSteady: view/player-update.js, PRONE.md).
+    const steady = (1 - this.adsT * 0.35) * kick * (this.kickSteady ?? 1);
     const yawKick = ((Math.random() * 2 - 1) * this.def.recoilKickYawRand + this.def.recoilKickYaw) * steady;
     // A scope's zoom magnifies the kick on screen; adsKick takes it back out.
     const cam = this.adsKick;
@@ -795,7 +796,7 @@ export class WeaponState {
     this.spread = Math.min(this.def.spreadMax, this.spread + this.def.spreadPerShot * (1 - 0.9 * this.adsT));
   }
 
-  update(dt, { moving, sprinting, grounded, jumping, adsHeld, canAds }) {
+  update(dt, { moving, sprinting, grounded, jumping, adsHeld, canAds, hipSteady = 1 }) {
     const def = this.def;
     this.fireCooldown = Math.max(0, this.fireCooldown - dt);
     this.pumpT = Math.max(0, this.pumpT - dt);
@@ -822,6 +823,7 @@ export class WeaponState {
     let hipTarget = def.spreadBase;
     if (moving) hipTarget = Math.max(hipTarget, def.spreadMoving);
     if (!grounded || jumping) hipTarget = Math.max(hipTarget, def.spreadJump);
+    hipTarget *= hipSteady;   // crouched or prone: a tighter hip cone (core/movement.js STANCE_STEADY)
 
     // Walking while aimed costs nothing, as in CoD; sprinting still does.
     // The old 1.45 walk penalty plus per-shot bloom put a walking rifle's

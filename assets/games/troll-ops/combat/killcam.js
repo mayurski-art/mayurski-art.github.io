@@ -74,7 +74,7 @@ export class KillCam {
     if (!tr) { tr = []; this.tracks.set(id, tr); }
     const last = tr[tr.length - 1];
     if (last && t - last.t < SAMPLE_DT) return;
-    tr.push({ t, x: s.x, y: s.y, z: s.z, yaw: s.yaw, pitch: s.pitch || 0, lower: s.lower || 0,
+    tr.push({ t, x: s.x, y: s.y, z: s.z, yaw: s.yaw, pitch: s.pitch || 0, lower: s.lower || 0, prone: s.prone || 0,
       alive: s.alive !== false, wid: s.wid || null, moving: !!s.moving, bot: !!s.bot,
       // Melee (user: the killcam should show swings and the saber guard):
       // `mid` the melee weapon in the fist (null: the gun), `sw` how far
@@ -162,6 +162,7 @@ export class KillCam {
     out.yaw = lerpAngle(a.yaw, b.yaw, k);
     out.pitch = a.pitch + (b.pitch - a.pitch) * k;
     out.lower = a.lower + (b.lower - a.lower) * k;
+    out.prone = (a.prone || 0) + ((b.prone || 0) - (a.prone || 0)) * k;
     out.alive = k < 0.5 ? a.alive : b.alive;
     out.wid = b.wid;
     out.moving = b.moving;

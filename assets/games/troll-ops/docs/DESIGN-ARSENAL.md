@@ -189,7 +189,8 @@ fluted barrel and slotted brake, the bipod folded under. The bolt cycle
 ## 6. The per-class checklist
 
 Every gun, every class:
-- [ ] Reference set in `refs/arms/<id>/` (concept, side photo, part close-ups)
+- [ ] Reference set in `refs/arms/<id>/` (concept, side photo, part close-ups): every image used, with a NOTES.md (CLAUDE.md rule 11)
+- [ ] Not boxier than the real gun: grips, stocks, pads, guards and curved parts carry their curves; the side render checked against the reference (CLAUDE.md rule 10)
 - [ ] Built on gunkit v2 (section body, shared vocabulary), baked maps, no flat colour
 - [ ] Within budget (LOD0 and LOD1), checked by the arms sheet tool
 - [ ] Silhouette reads at hip and at 3/4; the moving part is visible

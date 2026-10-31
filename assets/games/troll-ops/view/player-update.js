@@ -40,7 +40,7 @@ import { DF_RANGE } from "../streaks/dragonfire-drone.js?v=df3-sb2-or1";
 import { settings } from "../menu/settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1";
 import { EMOTES } from "../characters/emote-wheel.js?v=hb4-em1-wst-soc1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-nb2-pc2-cf1-gs2-lh1-fg2-lp1-fg3-rc1-rc4-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-ht2-bx1-sf1-cg1-mg1-sp1-chg1";
 import { damp } from "../characters/anim-curves.js?v=or1";
-import { STANCE } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1";
+import { STANCE, stanceSteady } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1";
 import { kbRepair, meleeConnect, updateSaberBlock, updateKbShield, swingMelee } from "../combat/melee.js?v=ml1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1";
 import { KB_GLANCE } from "../weapons/keyboard-repair.js?v=kr15-or1";
 import { updateDamageNumbers } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-wb1-mt2-sk1";
@@ -183,10 +183,11 @@ export function updatePlayer(dt) {
   // primary's optic has no business popping up over it (that's the "scoped
   // weapon flash" glitch when activating a killstreak while holding ADS).
   // Staging doesn't block it: scoping in on the mark is harmless (see canAds).
-  const wantAds = game.player.alive && !royaleAboard() && !game.isView() && !game.socialUnarmed() && !game.localPauseOnly && game.empT <= 0 && game.player.holding !== "streak"
+  const wantAds = game.player.alive && !royaleAboard() && !game.isView() && !game.socialUnarmed() && !game.localPauseOnly && game.empT <= 0 && game.player.holding !== "streak" && !game.move.stanceLocked
     && ((game.isTouch && touchState.ads) || (gp && game.gamepadState.ads) || game.adsHeld || game.keys.has("KeyQ"));
-  // Aboard the C-130 (Troll Royale's opening) the guns stay quiet till you land.
-  const wantFire = !frozen && !royaleAboard() && !(game.player.downed && game.isRoyale()) && !game.isView() && !game.socialUnarmed() && ((game.isTouch && touchState.firing) || (gp && game.gamepadState.firing) || game.mouseDown);
+  // Aboard the C-130 (Troll Royale's opening) the guns stay quiet till you land;
+  // so do they (and the sights) in the first moment of lying down or getting up.
+  const wantFire = !frozen && !game.move.stanceLocked && !royaleAboard() && !(game.player.downed && game.isRoyale()) && !game.isView() && !game.socialUnarmed() && ((game.isTouch && touchState.firing) || (gp && game.gamepadState.firing) || game.mouseDown);
   // The frame the trigger went down (the 16 ms fireEdgeTrigger pulse can
   // fall between two slow frames).
   const firePressed = wantFire && !fireWasDown;
@@ -233,6 +234,7 @@ export function updatePlayer(dt) {
     jump: !frozen && !downed && ((game.isTouch && touchState.jump) || (gp && game.gamepadState.jump) || game.keys.has("Space")),
     // Zombies, down: on the floor, crawling (modes/zombies/run.js)
     crouch: downed || (!frozen && ((game.isTouch && touchState.crouch) || (gp && game.gamepadState.crouch) || game.keys.has("KeyC"))),
+    noProne: downed,   // the crawl is a crouch, not a held crouch lying you down
     dive: !frozen && ((game.isTouch && touchState.dive) || game.keys.has("ControlLeft") || game.keys.has("ControlRight")),
     yaw: rolling ? royale.rollYaw : game.look.yaw,
     pitch: game.look.pitch,
@@ -444,11 +446,14 @@ export function updatePlayer(dt) {
   // looser gate instead of inheriting the staging freeze from canAct.
   const canAds = !game.move.busy && game.player.alive && !throwing;
   w.adsMult = hasPerk("dexterity") ? 1 / PERK_TUNE.dexterityAds : 1;   // Dexterity: ADS twice as fast
+  // Mounted on its bipod (gun-action.js updateBipod), the gun kicks x0.4.
+  w.kickSteady = 1 - (game.activeWeaponMesh?.userData.bipodK || 0) * 0.6;
   w.update(dt, {
     moving: game.move.moving,
     sprinting: game.move.sprinting,
     grounded: game.move.grounded,
     jumping: game.move.jumping,
+    hipSteady: stanceSteady(game.move.stance).spread,
     // A held melee weapon has the hands: the gun behind it doesn't scope in
     // (with the saber, aim is the block instead).
     adsHeld: wantAds && canAds && game.player.holding !== "melee" && !w.def.noAds,

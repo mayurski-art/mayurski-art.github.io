@@ -13,14 +13,14 @@ import { bodyToken } from "../characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1
 import { cosmetics } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1";
 import { soulBlazerReloadPose, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth, updateSoulBlazerView, soulBlazerInspect, SB_INSPECT_CUES } from "../weapons/soul-blazer.js?v=sb1-or1";
 import { boltGunPose, frameBolt } from "./rifle-action.js?v=ra1-wb1-or1-sbolt1-ars1-p416";
-import { updateGunAction } from "./gun-action.js?v=ga1-ars1-p416-mt2";
+import { updateGunAction, updateBipod } from "./gun-action.js?v=ga1-ars1-p416-mt2";
 import { ejectBrass, updateBrass } from "./brass.js?v=bs1-ars1-p416";
 import { updateSniperScope } from "./sniper-scope.js?v=ss1-wb1-ars1-p416-mt2";
 import { trollReticleSkin } from "./troll-reticle.js?v=tr1-ret1-mrg1-hd1-mrc1-tw1-rt2-rd1-ars1-p416-wb1-mt2";
 import { hasArReload, applyArReload, arReloadBeats, easeCutReload } from "./ar-reload.js?v=ar1-br1-or1-ars1-p416-mt2";
 import { chargedShotDef } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2";
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1-gf1-tg1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2";
-import { STANCE } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1";
+import { STANCE, stanceSteady } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1";
 import { game } from "../core/state.js?v=st1";
 
 /* Phase 2 (DESIGN-ARMS.md §5): landing-impact dip. `move.justLanded`/
@@ -1376,15 +1376,20 @@ export function updateWeaponView(dt) {
   const steady = 1 - w.adsT * 0.97;
   // The kick that moves the gun in your hands (not the aim's own climb,
   // recoilPitch): aimed, a third of it, so the sight stays on the target.
-  const kick = 1 - w.adsT * 0.65;
+  // Crouched or prone, the gun sways and kicks less (PRONE.md).
+  const st = stanceSteady(game.move.stance);
+  // On its bipod (gun-action.js updateBipod, last frame's), the gun all but
+  // stops swaying (PRONE.md: x0.1 on top of prone's).
+  const mount = 1 - (mesh.userData.bipodK || 0) * 0.9;
+  const kick = (1 - w.adsT * 0.65) * st.kick;
   // Settle: eases toward 1 while moving, toward 0 at rest, on top of (not
   // instead of) bobPhase freezing — the freeze already stops the wave from
   // continuing, this stops the amplitude from cutting off abruptly with it.
   bobSettleT = damp(bobSettleT, game.move.moving ? 1 : 0, game.move.moving ? 10 : 5, dt);
   const bobX = Math.sin(w.bobPhase) * w.def.bobAmp * 0.5 * steady * bobSettleT;
   const bobY = Math.abs(Math.cos(w.bobPhase)) * w.def.bobAmp * steady * bobSettleT;
-  const rawSwayX = Math.sin(game.clock.elapsedTime * w.def.swaySpeed) * w.def.swayAmp * steady;
-  const rawSwayY = Math.cos(game.clock.elapsedTime * w.def.swaySpeed * 0.8) * w.def.swayAmp * 0.6 * steady;
+  const rawSwayX = Math.sin(game.clock.elapsedTime * w.def.swaySpeed) * w.def.swayAmp * steady * st.sway * mount;
+  const rawSwayY = Math.cos(game.clock.elapsedTime * w.def.swaySpeed * 0.8) * w.def.swayAmp * 0.6 * steady * st.sway * mount;
   // Directional strafe lean: a small extra lag-behind tilt keyed to strafe
   // direction, on top of the symmetric idle sway above, so left/right reads
   // as different rather than mirrored. move.strafeInput is -1 (left)..1
@@ -1500,6 +1505,11 @@ export function updateWeaponView(dt) {
   // handle, with brass out of the port.
   const admire = game.inspectT > 0 && game.player.holding === "gun" ? inspectProgress() : -1;
   const act = updateGunAction(mesh, w, dt, rl, admire);
+  // The bipod: legs down aiming prone and still, up again on the move, off
+  // the sights or standing (PRONE.md phase 3).
+  const mountWant = game.player.holding === "gun" && game.move.stance === STANCE.PRONE && game.move.grounded
+    && !game.move.moving && !game.move.stanceLocked && w.adsT > 0.3;
+  if (updateBipod(mesh, mountWant, dt) === "down") game.audio.bipodDown?.();
   if (act.release) {
     game.audio.slideRelease();
     w.viewKickPitch += 0.012;

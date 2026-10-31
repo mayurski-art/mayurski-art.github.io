@@ -376,6 +376,13 @@ export class GameAudio {
     }
   }
 
+  /* A bipod's legs locking down (PRONE.md): a dull double click. */
+  bipodDown() {
+    if (!this._ready()) return;
+    this._noise({ duration: 0.03, gain: 0.12, type: "bandpass", freq: 1800, q: 4 });
+    this._noise({ duration: 0.04, gain: 0.1, type: "bandpass", freq: 1100, q: 3, delay: 0.045 });
+  }
+
   /* The slide stop dropped on a fresh mag: the slide slams home. */
   slideRelease() {
     if (!this._ready()) return;

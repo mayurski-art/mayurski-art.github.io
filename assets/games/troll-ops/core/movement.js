@@ -18,6 +18,15 @@ export const STANCE = { STAND: "stand", CROUCH: "crouch", SLIDE: "slide", PRONE:
 const EYE = { stand: 1.68, crouch: 1.05, slide: 0.82, prone: 0.5, vault: 1.2, rope: 1.55 };
 const STANCE_SPEED = { stand: 1, crouch: 0.48, slide: 1, prone: 0.22, vault: 0, rope: 0 };
 
+// Lower is steadier (docs/PRONE.md): multipliers on the gun's idle sway and
+// visual kick (view/weapon-view.js) and the hip-fire cone (weapons.js).
+const STEADY_NONE = { sway: 1, kick: 1, spread: 1 };
+export const STANCE_STEADY = {
+  crouch: { sway: 0.8, kick: 1, spread: 0.85 },
+  prone: { sway: 0.4, kick: 0.7, spread: 0.6 },
+};
+export const stanceSteady = (stance) => STANCE_STEADY[stance] || STEADY_NONE;
+
 const WALK_SPEED = 5.2;
 const GRAVITY = 22;
 const JUMP_SPEED = 7.0;
@@ -34,6 +43,21 @@ const SLIDE_MIN_SPEED = 3.2; // must actually be moving to start one
 const DIVE_FORWARD = 9.5;
 const DIVE_UP = 3.4;
 const DIVE_RECOVER = 0.75;   // locked out of standing while you pick yourself up
+
+// Prone (docs/PRONE.md): crouch held this long lies you down, from standing,
+// crouched or a slide; a tap still just crouches. Going down eases over
+// ~0.45 s and getting up ~0.40 s, and the first PRONE_LOCK of either is a
+// commit: no aiming or firing (stanceLocked).
+const PRONE_HOLD = 0.35;
+const PRONE_LOCK = 0.25;
+const EYE_RATE_DOWN = 7;     // damp rates: ~95% of the way in 0.45 s / 0.40 s
+const EYE_RATE_UP = 8;
+const STAND_ROOM = 1.8;      // m above the feet that standing up needs clear
+const CROUCH_ROOM = 1.15;
+const BODY_AHEAD = 0.5;      // lying down, the body runs this far ahead of the
+const BODY_BEHIND = 1.2;     // eye point and this far behind it
+const BODY_HALF = 0.22;      // half its width
+const BODY_TOP = 0.45;       // and how high it stands off the floor
 
 const VAULT_TIME = 0.34;
 const VAULT_MIN = 0.35;      // ledge heights we can mantle, relative to the feet
@@ -135,6 +159,11 @@ export class MovementController {
     this.slideCd = 0;
     this.slideDir = new THREE.Vector3();
     this.diveT = 0;
+    this.crouchHeldT = 0;      // how long crouch has been held (prone at PRONE_HOLD)
+    this.crouchTap = false;    // pressed while crouched: stand on release, unless held to prone
+    this.crouchSpent = false;  // this hold already changed stance (no prone off it)
+    this.stanceLockT = 0;      // the prone transition's commit (no aim, no fire)
+    this.yaw = 0;
     this.vault = null;
     this.rope = null;          // the rope we're on (arena.ropes)
     this.ropeCd = 0;
@@ -167,6 +196,8 @@ export class MovementController {
     this.stance = STANCE.STAND;
     this.eyeHeight = EYE.stand;
     this.slideT = this.slideCd = this.diveT = this.impulseT = this.ropeCd = 0;
+    this.crouchHeldT = this.stanceLockT = 0;
+    this.crouchTap = this.crouchSpent = false;
     this.vault = null;
     this.rope = null;
     this.grounded = true;
@@ -176,6 +207,33 @@ export class MovementController {
 
   get crouched() { return this.stance === STANCE.CROUCH || this.stance === STANCE.SLIDE || this.stance === STANCE.PRONE; }
   get busy() { return this.stance === STANCE.VAULT || this.diveT > 0; }
+  get stanceLocked() { return this.stanceLockT > 0; }
+
+  /* Nothing overhead below `h` m above the feet (standing or crouching up). */
+  headRoom(h) {
+    const feet = this.pos.y, r = RADIUS * 0.9;
+    return !this.colliders.some((c) => c.max.y > feet + STEP_UP && c.min.y < feet + h
+      && this.pos.x > c.min.x - r && this.pos.x < c.max.x + r
+      && this.pos.z > c.min.z - r && this.pos.z < c.max.z + r);
+  }
+
+  /* Room to lie down facing `yaw`: no wall across the body's length. */
+  bodyRoom(yaw = this.yaw) {
+    const feet = this.pos.y, fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+    for (let s = -BODY_BEHIND; s <= BODY_AHEAD + 1e-6; s += 0.25) {
+      const x = this.pos.x + fx * s, z = this.pos.z + fz * s;
+      if (this.colliders.some((c) => c.max.y > feet + STEP_UP && c.min.y < feet + BODY_TOP
+        && x > c.min.x - BODY_HALF && x < c.max.x + BODY_HALF
+        && z > c.min.z - BODY_HALF && z < c.max.z + BODY_HALF)) return false;
+    }
+    return true;
+  }
+
+  /* Into or out of prone: the transition's commit starts. */
+  setStance(s) {
+    if ((s === STANCE.PRONE) !== (this.stance === STANCE.PRONE)) this.stanceLockT = PRONE_LOCK;
+    this.stance = s;
+  }
 
   groundHeightAt(x, z, ceiling) {
     return groundHeightAt(this.colliders, x, z, ceiling);
@@ -300,8 +358,9 @@ export class MovementController {
     this.applyEye(dt);
   }
 
-  /* input: { forward, strafe, sprint, jump, crouch, dive, yaw, pitch, adsHeld, speedMult }
-     (`pitch` only steers a rope climb: looking down, W goes down) */
+  /* input: { forward, strafe, sprint, jump, crouch, dive, yaw, pitch, adsHeld, speedMult, noProne }
+     (`pitch` only steers a rope climb: looking down, W goes down; `noProne`
+     keeps a held crouch from lying you down, as when downed in Zombies) */
   update(dt, input) {
     const { yaw, speedMult = 1 } = input;
 
@@ -309,6 +368,8 @@ export class MovementController {
     this.ropeCd = Math.max(0, this.ropeCd - dt);
     if (this.impulseT > 0) this.impulseT = Math.max(0, this.impulseT - dt);
     if (this.diveT > 0) this.diveT = Math.max(0, this.diveT - dt);
+    if (this.stanceLockT > 0) this.stanceLockT = Math.max(0, this.stanceLockT - dt);
+    this.yaw = yaw;
 
     // ---- vault runs to completion, ignoring normal physics
     if (this.vault) {
@@ -334,6 +395,8 @@ export class MovementController {
       this._prevJump = input.jump;
       this._prevCrouch = input.crouch;
       this._prevDive = input.dive;
+      this.crouchHeldT = 0;
+      this.crouchTap = this.crouchSpent = false;
       this.climbRope(dt, input, jumpEdge);
       return;
     }
@@ -369,8 +432,9 @@ export class MovementController {
       this.velocity.z = d.z * this.tuning.DIVE_FORWARD;
       this.velocity.y = DIVE_UP;
       this.grounded = false;
-      this.stance = STANCE.PRONE;
+      this.setStance(STANCE.PRONE);
       this.diveT = DIVE_RECOVER;
+      this.crouchSpent = true;
     }
 
     // ---- slide: crouch out of a sprint
@@ -384,7 +448,29 @@ export class MovementController {
       this.velocity.z = this.slideDir.z * boosted;
     } else if (crouchEdge && this.diveT <= 0) {
       if (this.stance === STANCE.STAND) this.stance = STANCE.CROUCH;
-      else if (this.stance === STANCE.CROUCH || this.stance === STANCE.PRONE) this.stance = STANCE.STAND;
+      else if (this.stance === STANCE.CROUCH) this.crouchTap = true;   // stands on release, unless held to prone
+      else if (this.stance === STANCE.PRONE) {
+        // up to a crouch; this press is spent, so holding it doesn't lie you back down
+        if (this.headRoom(CROUCH_ROOM)) this.setStance(STANCE.CROUCH);
+        this.crouchSpent = true;
+      }
+    }
+
+    // ---- prone: crouch held PRONE_HOLD s, from standing, crouched or a slide
+    if (input.crouch) {
+      if (crouchEdge) this.crouchHeldT = 0;
+      this.crouchHeldT += dt;
+      if (!this.crouchSpent && this.crouchHeldT >= PRONE_HOLD && !input.noProne && this.grounded && this.diveT <= 0
+          && (this.stance === STANCE.CROUCH || this.stance === STANCE.SLIDE) && this.bodyRoom(yaw)) {
+        if (this.stance === STANCE.SLIDE) this.slideCd = this.tuning.SLIDE_COOLDOWN;
+        this.setStance(STANCE.PRONE);
+        this.crouchSpent = true;
+        this.crouchTap = false;
+      }
+    } else {
+      if (this.crouchTap && this.stance === STANCE.CROUCH && this.headRoom(STAND_ROOM)) this.stance = STANCE.STAND;
+      this.crouchHeldT = 0;
+      this.crouchTap = this.crouchSpent = false;
     }
 
     // ---- slide decay
@@ -427,7 +513,8 @@ export class MovementController {
         this.velocity.set(0, 0, 0);
       } else if (this.grounded) {
         if (this.stance === STANCE.CROUCH || this.stance === STANCE.PRONE) {
-          this.stance = STANCE.STAND;
+          if (this.headRoom(STAND_ROOM)) this.setStance(STANCE.STAND);
+          this.crouchTap = false;
         } else {
           this.velocity.y = this.tuning.JUMP_SPEED;
           this.grounded = false;
@@ -520,7 +607,9 @@ export class MovementController {
   /* Eases eye height toward the current stance's target. */
   applyEye(dt) {
     const targetEye = EYE[this.stance] ?? EYE.stand;
-    this.eyeHeight = damp(this.eyeHeight, targetEye, 12, dt);
+    // Lying down and getting up are slower than a crouch (PRONE.md)
+    const rate = this.stance === STANCE.PRONE ? EYE_RATE_DOWN : this.eyeHeight < EYE.crouch - 0.1 && this.stance !== STANCE.SLIDE ? EYE_RATE_UP : 12;
+    this.eyeHeight = damp(this.eyeHeight, targetEye, rate, dt);
   }
 
   /* Where the camera goes this frame. */

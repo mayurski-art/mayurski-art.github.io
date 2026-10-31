@@ -410,6 +410,7 @@ export class RemotePlayer {
     this.yaw = 0;
     this.pitch = 0;
     this.lower = 0;
+    this.prone = 0;   // 0..1 lying down (character.js prone)
     this.ads = 0;         // aiming down sights, 0..1 (smoothed from the wire)
     this.phase = Math.random() * Math.PI * 2;
 
@@ -737,6 +738,8 @@ export class RemotePlayer {
     const roll = (b.roll || 0) >= (a.roll || 0) ? (a.roll || 0) + ((b.roll || 0) - (a.roll || 0)) * k : b.roll || 0;
     const wantLower = roll > 0 ? 1 : STANCE_LOWER[b.stance] ?? 0;
     this.lower += (wantLower - this.lower) * Math.min(1, dt * 8);
+    const wantProne = roll > 0 ? 0 : b.stance === "prone" ? 1 : 0;
+    this.prone += (wantProne - this.prone) * Math.min(1, dt * (wantProne ? 7 : 8));
     this.ads += ((b.ads || 0) - this.ads) * Math.min(1, dt * 14);
 
     // Strafe (and the leg-swing rate below) are not sent over the wire
@@ -863,7 +866,7 @@ export class RemotePlayer {
       this.bodyPose.gait = false;
     } else poseHumanoid(this.rig, {
       air: !!this.air, vy, land,
-      phase: this.phase, moving, pitch: this.pitch, lower: this.lower, strafe, forward,
+      phase: this.phase, moving, pitch: this.pitch, lower: this.lower, prone: this.prone, strafe, forward,
       speed: gaitSpeed, mps: this.gaitMps ?? speed, dt, hasGun,
       // A bot's top speed (4.2 m/s) is its sprint: it plays the sprint clip
       // there (characters/clips.js), as a player's 7 m/s sprint does.
@@ -966,7 +969,7 @@ export class RemotePlayer {
     if (s.moving) this.replayPhase = (this.replayPhase || 0) + dt * gaitPhaseRate(kg.speed, this.rig.legScale);
     aimRig(this.rig, s.yaw, dt, { moving: s.moving });
     poseHumanoid(this.rig, {
-      phase: this.replayPhase || 0, moving: s.moving, pitch: s.pitch, lower: s.lower, strafe: kg.strafe, forward: kg.forward,
+      phase: this.replayPhase || 0, moving: s.moving, pitch: s.pitch, lower: s.lower, prone: s.prone || 0, strafe: kg.strafe, forward: kg.forward,
       speed: s.moving ? Math.min(1, kg.speed / 4.2) : 0, mps: s.moving ? kg.speed : 0, dt,
       hasGun: !sword && WEAPON_DEFS[this.weaponId]?.cls !== "sidearm", hold: sword ? "melee" : "gun",
       swing: sword && s.sw >= 0 ? { t: s.sw, kind: s.si % 2 === 0 ? "swing" : "thrust" } : null,
