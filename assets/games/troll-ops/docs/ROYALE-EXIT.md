@@ -39,7 +39,7 @@ dash and the jump below (Space at the green, or the auto-run at the coast).
 | 0 .. 0.3 | **leap:** off the lip, chest open, arms flung out wide, legs trailing | first person: the lip drops away, the horizon tips |
 | 0.3 .. 1.9 | **spin:** arms still wide, 1.5 turns about your belly, tipping toward belly-down | **slow-mo glimpse** (below) |
 | 1.9 .. 3.3 | **tuck:** still turning, slowing; the hands come in slowly and meet at the middle of your chest | swings round in front: your face and body (the 2026-10-18 "see the face and body" rule) |
-| 3.3 .. 4.2 | **dive:** head down, legs together, hands at the chest, then easing into the spread-arm flying pose | pulls up behind you into the normal drop camera |
+| 3.3 .. 4.2 | **dive:** head down, legs together, hands at the chest, then easing into the spread-arm flying pose | pushes in behind your head and into your eyes: first person for the fall |
 | 3.3 on | **yours to fly**: push forward to fly, look down to dive, pull back to hover over a spot (all as today) | |
 
 Control comes back at 3.3 s instead of 6 s.
@@ -66,14 +66,25 @@ slows, nobody else's game.
 - Remotes play your spin through the same clock function, so in their view
   you slow too, just like in yours.
 
-### First person and third person
-- The plane is first person as now, run-up and dash included: the eye
-  bobs as you back up, dips for the crouch, and the dash gets a FOV kick
-  and footstep thumps on the ramp.
-- The jump goes to third person from the spin on (you can't see your own
-  arms out or your hands at your chest otherwise). The air is third person
-  as today. FP-only players get the same show; the camera returns to their
-  setting on landing, as now.
+### First person and third person (user, 2026-10-30)
+- **In the plane: your choice.** The POV key (and the plane HUD's POV
+  button) works through the whole cinematic, run-up and dash included.
+  Today the scene forces first person; it stops doing that. In first
+  person the eye bobs as you back up, dips for the crouch, and the dash
+  gets a FOV kick and footstep thumps. In third person the camera sits
+  over your shoulder in the hold, and your body plays every beat: seated,
+  mask, the walk, the back-up, the crouch, the dash. The photo/iPod/mask
+  close-ups are first-person shots, so those beats cut to first person
+  and back.
+- **The jump: third person**, leap to dive (the slow-mo glimpse, the tuck,
+  the dive), whatever your POV.
+- **The fall: first person.** When the show ends (3.3 s) the camera goes
+  to your eyes: you see the island under you, your hands out in front when
+  you fly level and tucked when you dive. In the wheel you see your
+  squad's arms and hands joined round you. The hold-to-view key still
+  gives the side, front and low angles above 80 m. Today's third-person
+  drop camera is still one POV press away.
+- Landing: your normal POV setting comes back with the landing roll.
 
 ## Squads (Duo, Trio, Squad)
 ### The line-up
@@ -134,7 +145,8 @@ slows, nobody else's game.
 2. **Solo run-up + jump.** The back-up, the crouch, the dash in
    `royale-cine.js`/`royale.js`, the jumpmaster without the shove
    (`royale-crew.js`), the exit show's cameras and the slow-mo glimpse in
-   `royale-fall.js`, the lagged plane. Test: `troll-ops-drop-cine-test.mjs`
+   `royale-fall.js`, the lagged plane, the POV choice in the plane and
+   first person in the fall (with hands). Test: `troll-ops-drop-cine-test.mjs`
    updated (beats, dash speed, off the lip, control at 3.3 s), plus
    `royale-drop`, `royale-fall-look`; screenshots of each shot.
 3. **Squad file.** The line-up, hands held, the jump together. Test: a
@@ -155,7 +167,8 @@ wheel.
 1. DECIDED (user, 2026-10-30: "yes"): "walks slowly backwards while still
    facing forwards" = facing out of the door, backing up the ramp for a
    run-up, then dashing out.
-2. Third person from the spin on (so you see your arms and hands), or stay
-   first person through the whole jump?
+2. DECIDED (user, 2026-10-30): third person for the jump, first person
+   for the fall, your choice of POV in the plane (see "First person and
+   third person").
 3. Break off with Space / pad A, auto-release at 120 m: OK?
 4. Bot-only squads fall as wheels too?
