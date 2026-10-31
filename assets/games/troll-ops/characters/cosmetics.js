@@ -344,7 +344,9 @@ export class CosmeticsPanel {
       b.classList.toggle("is-on", on);
       b.setAttribute("aria-checked", String(on));
       b.setAttribute("aria-disabled", String(locked));
-      b.title = locked ? "Locked: for the holder of this TROLLS NFT" : "";
+      // someone else's TROLLS body isn't shown at all, not even greyed out:
+      // you see the stick and your own (user, 2026-10-31); the owner sees all
+      b.style.display = locked ? "none" : "";
     }
     // with a TROLLS body on, the face and covering cards are locked
     const face = this.face;
