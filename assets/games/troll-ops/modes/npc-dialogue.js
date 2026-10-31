@@ -144,7 +144,8 @@ function goTo(id, say) {
     const f = flags(s.id);
     const left = node.pick.filter((k) => !f[`seen:${k}`]);
     const pool = node.unseen ? left : node.pick;
-    if (!pool.length) { const e = s.nodes[node.empty]; setFlags(s.id, e?.set); return say != null ? goTo(s.hub, say) : showNode(s.hub, pickLine(e?.say)); }
+    // all heard: the `empty` line once, then round again
+    if (!pool.length) { const e = s.nodes[node.empty]; setFlags(s.id, e?.set, node.pick.map((k) => `seen:${k}`).join(" ")); return say != null ? goTo(s.hub, say) : showNode(s.hub, pickLine(e?.say)); }
     const k = pool[Math.floor(Math.random() * pool.length)];
     setFlags(s.id, `seen:${k}`);
     id = k; node = s.nodes[k];
