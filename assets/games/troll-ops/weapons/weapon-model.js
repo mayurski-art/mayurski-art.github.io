@@ -164,6 +164,14 @@ const DETAILED = {
     kit: "problem416", p: "PF", device: "PF_Hider", rake: -0.37, railY: 0.035, adsDistance: null,
     glow: [], brass: "556",
   },
+  // Arsenal v2's Howl Ballista: Black Ops 2's Ballista (the FN Ballista),
+  // models/build_ballista.blender.py. It carries BO2's own scope (HB_Scope)
+  // and wears it for the 8x; any other optic hides it and sits on the rail.
+  howl: {
+    url: new URL("../models/ballista.glb?v=hb1", import.meta.url).href,
+    kit: "ballista", p: "HB", device: "HB_Brake", rake: -0.40, railY: 0.0332, adsDistance: null,
+    glow: [], brass: "338", scope: "Scope", scopeOptic: "scope8",
+  },
   salt: {
     url: new URL("../models/ar-salt.glb?v=ar2", import.meta.url).href,
     p: "SM", device: "SM_Hider", rake: -0.37, railY: 0.0672, adsDistance: null,
@@ -187,7 +195,7 @@ const detailedLod1 = new Map();
    moving parts (P_Carrier ...) carry their motion as extras (tf_part,
    tf_kind, tf_axis, tf_travel) for view/gun-action.js. */
 const kitUrl = (kit, file) => new URL(`../models/${kit}${file}?v=${KIT_VER[kit] ?? 1}`, import.meta.url).href;
-const KIT_VER = { problem416: "pf2" };
+const KIT_VER = { problem416: "pf2", ballista: "hb1" };
 function loadDetailed(id, cfg) {
   const lod0 = new GLTFLoader().loadAsync(cfg.url).then((gltf) => {
     detailedTemplates.set(id, prepDetailed(gltf.scene, cfg));
@@ -250,7 +258,18 @@ function prepDetailed(scene, cfg) {
   return scene;
 }
 
-const V2_POINTS = ["Eject", "ChargeHand", "CatchHand"];
+const V2_POINTS = ["Eject", "ChargeHand", "CatchHand", "BoltKnob"];
+// An optic's ADS numbers (adsDistance, adsWeaponFov), read once from a
+// throwaway build: a gun with its own scope aims with the optic it stands in for.
+const _opticRefs = new Map();
+function opticRef(key) {
+  if (!_opticRefs.has(key)) {
+    const o = OPTIC_BUILDERS[key]?.();
+    _opticRefs.set(key, o ? { ...o.userData } : {});
+    o?.traverse((m) => { if (m.isMesh && !m.geometry.userData.shared) m.geometry.dispose(); });
+  }
+  return _opticRefs.get(key);
+}
 function buildDetailed(def, cfg, template, lod = 0) {
   const P = cfg.p;
   const src = template.clone(true);
@@ -310,7 +329,8 @@ function buildDetailed(def, cfg, template, lod = 0) {
   });
   if (Object.keys(parts).length) {
     u.gunParts = parts;
-    u.gunPoints = { eject: points.Eject ?? null, charge: points.ChargeHand ?? null, catch: points.CatchHand ?? null };
+    u.gunPoints = { eject: points.Eject ?? null, charge: points.ChargeHand ?? null, catch: points.CatchHand ?? null,
+      knob: points.BoltKnob ?? null };
     u.brass = cfg.brass ?? "556";
   }
   u.lod = lod;
@@ -334,13 +354,32 @@ function buildDetailed(def, cfg, template, lod = 0) {
 
   // Sights: the irons unless glass goes on the rail.
   const irons = [root.getObjectByName(`${P}_IronRear`), root.getObjectByName(`${P}_IronFront`)];
+  // A gun's own scope (cfg.scope, a node; the LOD1 has it merged into the
+  // body) stands in for one optic (cfg.scopeOptic): aimed down its axis
+  // (the gun's Aim point) with that optic's ADS numbers.
+  const ownScope = cfg.scope ? root.getObjectByName(`${P}_${cfg.scope}`) : null;
   const opticKey = def.attachments?.optic
-    || (def.sight === "scope" ? "acog" : def.sight === "reddot" ? "reflex" : "iron");
-  const opticBuild = OPTIC_BUILDERS[opticKey];
+    || (def.sight === "scope" ? (cfg.scopeOptic ?? "acog") : def.sight === "reddot" ? "reflex" : "iron");
+  const useOwn = !!cfg.scope && opticKey === cfg.scopeOptic && (ownScope || lod === 1);
+  if (ownScope && !useOwn) ownScope.visible = false;
+  const opticBuild = useOwn ? null : OPTIC_BUILDERS[opticKey];
   u.aimPoint = aim;
   u.adsDistance = cfg.adsDistance;
   u.adsWeaponFov = null;
   u.sight = null;
+  u.scopeKey = OPTIC_BUILDERS[opticKey] ? opticKey : null;
+  if (useOwn) {
+    const ref = opticRef(opticKey);
+    for (const i of irons) if (i) i.visible = false;
+    // a sight is a group holding its optic (as the rail optics are); the
+    // node sits at the gun's origin, so wrapping it moves nothing
+    const sight = new THREE.Group();
+    root.add(sight);
+    if (ownScope) sight.add(ownScope);
+    u.sight = sight;
+    u.adsDistance = ref.adsDistance ?? null;
+    u.adsWeaponFov = ref.adsWeaponFov ?? null;
+  }
   if (opticBuild) {
     const optic = opticBuild();
     const railY = cfg.railY + 0.004;
