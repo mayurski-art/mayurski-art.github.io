@@ -15,14 +15,14 @@
 // outside the card goes back to watching. royale.js wires it (initRoyale) and
 // closes it when the match ends (teardownRoyale).
 
-import { weaponsHtml, statsHtml, loadThumbs, weaponName, teamHtml } from "./after-action.js?v=aar1-bp2-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hd1-hgb3-rm1-kzf1-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-tw1-rt2-mmd1-rd1-fd1-rx1-op1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-rw1-wb1-mt2-sk1-hb4-sr2-sr3-sr4";
+import { weaponsHtml, statsHtml, loadThumbs, weaponName, teamHtml } from "./after-action.js?v=aar1-bp2-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hd1-hgb3-rm1-kzf1-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-tw1-rt2-mmd1-rd1-fd1-rx1-op1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-rw1-wb1-mt2-sk1-hb4-sr2-sr3-sr4-sr5";
 import { matchWeaponReport } from "../progression/weapon-xp.js?v=wx1";
 import { matchLog } from "../combat/match-log.js?v=ml1-bp2";
 import { mountBlueprint } from "../view/aar-blueprint.js?v=bp1-rw1-wb1";
 import { captureBlueprint } from "../view/blueprint-capture.js?v=bc1-rw1-wb1";
 import { sideName } from "./royale-worlds.js?v=rw1-wb1";
 import { squadCard } from "./royale-squad-end.js?v=se1-wb1-mt2-hb4";
-import { padHooks } from "../input/gamepad.js?v=in1-fu1b7-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-zp1-aa0-pd1-nf1-or1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-spd1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-mt2-sk1-hb4-sr2-sr3-sr4";
+import { padHooks } from "../input/gamepad.js?v=in1-fu1b7-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-zp1-aa0-pd1-nf1-or1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-spd1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-mt2-sk1-hb4-sr2-sr3-sr4-sr5";
 import { game } from "../core/state.js?v=st1";
 
 const REFRESH_MS = 1000;

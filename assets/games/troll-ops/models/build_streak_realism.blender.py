@@ -9,6 +9,8 @@ Writes the .glb files next to this script, over the ones the game loads:
   hunter-drone.glb   the Hunter-Killer / Swarm drone (phase 3)
   care-package.glb   the wooden supply crate (phase 4)
   drop-heli.glb      the UH-60 Black Hawk that drops it (phase 4)
+  helicopter.glb     the Helicopter Gunship: an AH-64E Apache (phase 5)
+  strike-jet.glb     the Lightning Strike's F-35A (phase 6)
 
 Conventions as build_streaks.blender.py: metres, Blender +Y is the nose
 (the exporter's +Y-up makes that three.js -Z), models centred on the hull.
@@ -475,7 +477,169 @@ def build_blackhawk():
     export(body, "drop-heli.glb")
 
 
-BUILDS = {"uav": build_shadow, "drone": build_hk, "crate": build_crate, "dropheli": build_blackhawk}
+# ------------------------------------------------------------ AH-64E Apache
+
+def build_apache():
+    """The Helicopter Gunship: an AH-64E Apache (refs/streaks/helicopter) at
+    0.8 scale (14 m, 11.7 m rotor). The narrow tandem cockpit with its flat
+    stepped canopy panels, the sensor nose with the chin turret and gun
+    under it, engine nacelles high either side behind the cockpit, stub
+    wings with rocket pods outboard and missile racks inboard, the slim
+    boom to the tail with the stabilator at its tip and the tail rotor on
+    the right, the mast radome and the tailwheel gear. MainRotor spins
+    about y, TailRotor about x; the game's searchlight and muzzle sit on
+    the nose at -z as before."""
+    clear_scene()
+    olive = material("ApacheOlive", (0.17, 0.19, 0.14), rough=0.6, metal=0.2)
+    dark = material("ApacheDark", (0.06, 0.07, 0.06), rough=0.5, metal=0.4)
+    glass = material("ApacheGlass", (0.07, 0.1, 0.12), rough=0.08, metal=0.3)
+    blade_mat = material("ApacheBlade", (0.05, 0.05, 0.05), rough=0.4, metal=0.3)
+    blur = material("ApacheBlur", (0.08, 0.08, 0.08), rough=0.8, alpha=0.22)
+    nav_r = material("NavRed", (0.6, 0.02, 0.02), emit=(1.0, 0.05, 0.02), strength=6)
+    nav_g = material("NavGreen", (0.02, 0.6, 0.1), emit=(0.1, 1.0, 0.2), strength=6)
+    strobe = material("StrobeWhite", (0.9, 0.9, 0.9), emit=(1.0, 1.0, 1.0), strength=8)
+
+    k = 0.8
+    hull = []
+    # the fuselage: sensor nose, the narrow tandem cockpit rising to the
+    # pilot's seat, the engine bay, then the boom tapering to the tail
+    hull.append(loft("fuse", olive, [
+        (8.6 * k, 0.0, 0.0, 0, 0.9 * k), (8.2 * k, 0.35 * k, 0.35 * k, 0, 0.95 * k), (7.4 * k, 0.5 * k, 0.55 * k, 0, 1.0 * k, 3.0),
+        (6.2 * k, 0.55 * k, 0.65 * k, 0, 1.05 * k, 3.0), (4.6 * k, 0.6 * k, 0.75 * k, 0, 1.2 * k, 3.0), (3.0 * k, 0.65 * k, 0.85 * k, 0, 1.35 * k, 3.0),
+        (1.2 * k, 0.8 * k, 1.0 * k, 0, 1.75 * k, 3.0), (-1.0 * k, 0.7 * k, 0.8 * k, 0, 1.8 * k, 3.0), (-3.0 * k, 0.4 * k, 0.5 * k, 0, 2.0 * k),
+        (-6.0 * k, 0.28 * k, 0.4 * k, 0, 2.3 * k), (-8.4 * k, 0.2 * k, 0.35 * k, 0, 2.6 * k), (-8.9 * k, 0.0, 0.0, 0, 2.65 * k)]))
+    # the stepped canopy: gunner's low front panels, pilot's higher behind
+    hull.append(loft("canopy_f", glass, [(6.9 * k, 0.0, 0.0, 0, 1.5 * k), (6.4 * k, 0.5 * k, 0.55 * k, 0, 1.75 * k, 3.5), (5.0 * k, 0.55 * k, 0.65 * k, 0, 2.0 * k, 3.5), (4.6 * k, 0.0, 0.0, 0, 2.05 * k)]))
+    hull.append(loft("canopy_r", glass, [(4.7 * k, 0.0, 0.0, 0, 2.0 * k), (4.3 * k, 0.55 * k, 0.65 * k, 0, 2.3 * k, 3.5), (2.8 * k, 0.58 * k, 0.65 * k, 0, 2.5 * k, 3.5), (2.0 * k, 0.0, 0.0, 0, 2.4 * k)]))
+    # the fuselage spine behind the pilot, up to the engine bay
+    hull.append(loft("spine", olive, [(2.4 * k, 0.0, 0.0, 0, 2.2 * k), (2.0 * k, 0.6 * k, 0.35 * k, 0, 2.3 * k, 3.0), (0.4 * k, 0.75 * k, 0.4 * k, 0, 2.35 * k, 3.0), (-1.2 * k, 0.6 * k, 0.3 * k, 0, 2.3 * k), (-2.0 * k, 0.0, 0.0, 0, 2.25 * k)]))
+    # the sensor nose: the TADS/PNVS turret, a barrel with the lens windows
+    hull.append(cyl("tads", dark, 0.55 * k, 0.8 * k, (0, 8.2 * k, 0.85 * k), axis="y", verts=14))
+    hull.append(cyl("tads_lens", glass, 0.22 * k, 0.05 * k, (0.2 * k, 8.62 * k, 0.85 * k), axis="y", verts=10))
+    # the chin turret and the gun under the nose, pointing forward
+    hull.append(cyl("turret", dark, 0.35 * k, 0.5 * k, (0, 6.3 * k, 0.15 * k), axis="z", verts=12))
+    hull.append(cyl("gun", dark, 0.1 * k, 2.2 * k, (0, 7.4 * k, 0.0), axis="y", verts=8))
+    # engine nacelles high either side of the fuselage, the exhaust at the back
+    for sx in (-1, 1):
+        hull.append(loft("nacelle_%d" % sx, olive, [(3.6 * k, 0.0, 0.0, sx * 1.2 * k, 2.2 * k), (3.2 * k, 0.55 * k, 0.55 * k, sx * 1.2 * k, 2.2 * k), (-0.6 * k, 0.55 * k, 0.55 * k, sx * 1.2 * k, 2.25 * k), (-1.8 * k, 0.4 * k, 0.45 * k, sx * 1.25 * k, 2.3 * k), (-2.2 * k, 0.0, 0.0, sx * 1.25 * k, 2.3 * k)]))
+        hull.append(cyl("exhaust_%d" % sx, dark, 0.3 * k, 0.5 * k, (sx * 1.25 * k, -1.7 * k, 2.3 * k), axis="y", verts=10))
+    # the stub wings, with a rocket pod outboard and a missile rack inboard
+    hull.append(wing("stub", olive, [(-3.1 * k, 1.1 * k, 0.2 * k, 1.5 * k, 1.75 * k), (0, 1.3 * k, 0.28 * k, 1.6 * k, 1.75 * k), (3.1 * k, 1.1 * k, 0.2 * k, 1.5 * k, 1.75 * k)], ring=12))
+    for sx in (-1, 1):
+        hull.append(cyl("pod_%d" % sx, dark, 0.3 * k, 1.9 * k, (sx * 2.7 * k, 1.0 * k, 1.3 * k), axis="y", verts=12))
+        hull.append(box("rack_%d" % sx, dark, (0.5 * k, 1.4 * k, 0.12 * k), (sx * 1.7 * k, 1.0 * k, 1.35 * k)))
+        for i in range(2):
+            hull.append(cyl("msl_%d_%d" % (sx, i), dark, 0.09 * k, 1.5 * k, (sx * (1.55 + i * 0.3) * k, 1.0 * k, 1.2 * k), axis="y", verts=8))
+    # the tail: a swept fin up with the stabilator across its top, the tail
+    # rotor gearbox on the right of the fin
+    hull.append(wing("fin", olive, [(2.5 * k, 2.0 * k, 0.3 * k, -7.2 * k, 0), (4.6 * k, 1.2 * k, 0.18 * k, -8.3 * k, 0)], axis="z", ring=12))
+    hull.append(wing("stab", olive, [(-1.9 * k, 0.9 * k, 0.1 * k, -8.3 * k, 4.5 * k), (1.9 * k, 0.9 * k, 0.1 * k, -8.3 * k, 4.5 * k)], ring=12))
+    hull.append(cyl("tgear", dark, 0.2 * k, 0.5 * k, (0.3 * k, -7.9 * k, 4.0 * k), axis="x", verts=10))
+    # the mast and the Longbow radome on top, the landing gear
+    hull.append(cyl("mast", dark, 0.22 * k, 1.0 * k, (0, 1.0 * k, 3.2 * k), axis="z", verts=12))
+    hull.append(cyl("radome_stem", dark, 0.12 * k, 0.8 * k, (0, 1.0 * k, 4.3 * k), axis="z", verts=8))
+    hull.append(sphere("radome", olive, 0.7 * k, (0, 1.0 * k, 4.8 * k), scale=(1, 1, 0.5)))
+    for sx in (-1, 1):
+        hull.append(cyl("strut_%d" % sx, dark, 0.07 * k, 1.3 * k, (sx * 1.1 * k, 4.2 * k, 0.3 * k), axis="z", verts=8))
+        hull.append(cyl("wheel_%d" % sx, dark, 0.3 * k, 0.22 * k, (sx * 1.2 * k, 4.2 * k, -0.1 * k), axis="x", verts=14))
+    hull.append(cyl("tail_strut", dark, 0.05 * k, 0.8 * k, (0, -7.2 * k, 1.9 * k), axis="z", verts=8))
+    hull.append(cyl("tail_wheel", dark, 0.18 * k, 0.16 * k, (0, -7.2 * k, 1.5 * k), axis="x", verts=12))
+    body = join(hull, "Apache")
+    set_origin(body, (0, 0, 1.7 * k))
+    for name, mat, loc in (("NavL", nav_r, (-3.1 * k, 1.5 * k, 1.75 * k)), ("NavR", nav_g, (3.1 * k, 1.5 * k, 1.75 * k)), ("Strobe", strobe, (0, -8.3 * k, 4.9 * k))):
+        o = sphere(name, mat, 0.06 * k, loc)
+        parent(o, body)
+    # the four-blade main rotor, hub and blur disc
+    hub = (0, 1.0 * k, 3.75 * k)
+    parts = [cyl("hub", dark, 0.4 * k, 0.4 * k, hub, axis="z", verts=12)]
+    for b in range(4):
+        a = math.radians(b * 90)
+        parts.append(box("blade_%d" % b, blade_mat, (5.8 * k, 0.45 * k, 0.05 * k), (hub[0] + math.cos(a) * 3.1 * k, hub[1] + math.sin(a) * 3.1 * k, hub[2] + 0.02), rot=(0, 0, a), bevel=0.01))
+    rotor = join(parts, "MainRotor")
+    set_origin(rotor, hub)
+    parent(rotor, body)
+    disc = cyl("MainRotorBlur", blur, 5.9 * k, 0.02, (hub[0], hub[1], hub[2] + 0.02), axis="z", verts=36)
+    parent(disc, body)
+    # the tail rotor on the right of the fin, spun about x
+    thub = (0.6 * k, -7.9 * k, 4.0 * k)
+    tparts = [cyl("thub", dark, 0.14 * k, 0.2 * k, thub, axis="x", verts=10)]
+    for b in range(4):
+        a = math.radians(b * 90 + (0 if b % 2 == 0 else 30))
+        tparts.append(box("tblade_%d" % b, blade_mat, (0.04 * k, 0.22 * k, 1.4 * k), (thub[0] + 0.02, thub[1] + math.sin(a) * 0.75 * k, thub[2] + math.cos(a) * 0.75 * k), rot=(a, 0, 0), bevel=0.005))
+    trotor = join(tparts, "TailRotor")
+    set_origin(trotor, thub)
+    parent(trotor, body)
+    export(body, "helicopter.glb")
+
+
+# ------------------------------------------------------------- F-35A jet
+
+def build_f35():
+    """The Lightning Strike's jet: an F-35A (refs/streaks/airstrike) at 0.8
+    scale (12.5 m long, 8.6 m span). A wide flat blended fuselage with the
+    pointed nose, the bubble canopy well forward, the two angled intakes
+    under the wing roots, trapezoidal wings, the twin canted tails and the
+    stabilators, one round nozzle at the back. JetProp is the turbine disc
+    inside the nozzle (the game spins it about z); Exhaust is the
+    afterburner cone behind it, emissive."""
+    clear_scene()
+    grey = material("JetGrey", (0.36, 0.38, 0.4), rough=0.45, metal=0.5)
+    dark = material("JetDark", (0.12, 0.13, 0.14), rough=0.4, metal=0.5)
+    glass = material("JetGlass", (0.1, 0.14, 0.17), rough=0.06, metal=0.4)
+    hot = material("JetHot", (0.9, 0.55, 0.25), rough=0.3, metal=0.0, emit=(1.0, 0.45, 0.12), strength=6, alpha=0.75)
+    fan = material("JetFan", (0.3, 0.3, 0.32), rough=0.4, metal=0.8)
+    nav_r = material("NavRed", (0.6, 0.02, 0.02), emit=(1.0, 0.05, 0.02), strength=6)
+    nav_g = material("NavGreen", (0.02, 0.6, 0.1), emit=(0.1, 1.0, 0.2), strength=6)
+
+    k = 0.8
+    hull = []
+    # the blended fuselage: sharp nose, widening under the canopy into the
+    # flat deck between the intakes, narrowing to the nozzle
+    hull.append(loft("fuse", grey, [
+        (7.8 * k, 0.0, 0.0, 0, 0.0), (7.2 * k, 0.3 * k, 0.3 * k, 0, 0.0), (5.6 * k, 0.65 * k, 0.6 * k, 0, 0.05 * k, 2.5),
+        (4.0 * k, 1.1 * k, 0.75 * k, 0, 0.0, 3.0), (2.4 * k, 1.8 * k, 0.85 * k, 0, 0.0, 3.5), (0.6 * k, 2.1 * k, 0.9 * k, 0, 0.0, 3.5),
+        (-1.6 * k, 2.0 * k, 0.85 * k, 0, 0.0, 3.5), (-3.6 * k, 1.3 * k, 0.75 * k, 0, 0.0, 3.0), (-5.0 * k, 0.7 * k, 0.6 * k, 0, 0.0, 2.5),
+        (-5.6 * k, 0.55 * k, 0.55 * k, 0, 0.0)]))
+    # the canopy, a bubble forward of the wing
+    hull.append(loft("canopy", glass, [(5.4 * k, 0.0, 0.0, 0, 0.45 * k), (4.6 * k, 0.45 * k, 0.5 * k, 0, 0.55 * k), (3.0 * k, 0.5 * k, 0.6 * k, 0, 0.65 * k), (1.4 * k, 0.45 * k, 0.4 * k, 0, 0.65 * k), (0.4 * k, 0.0, 0.0, 0, 0.6 * k)]))
+    # the intakes: angled boxes either side under the wing roots, lips open forward
+    for sx in (-1, 1):
+        hull.append(loft("intake_%d" % sx, grey, [(3.4 * k, 0.5 * k, 0.55 * k, sx * 1.35 * k, -0.35 * k, 3.5), (0.4 * k, 0.55 * k, 0.6 * k, sx * 1.5 * k, -0.3 * k, 3.5), (-1.0 * k, 0.0, 0.0, sx * 1.5 * k, -0.3 * k)]))
+        hull.append(box("intake_mouth_%d" % sx, dark, (0.7 * k, 0.05 * k, 0.8 * k), (sx * 1.35 * k, 3.38 * k, -0.35 * k), rot=(0, math.radians(sx * 12), 0)))
+    # the wings: trapezoid, leading edge swept, trailing edge nearly straight
+    hull.append(wing("wing", grey, [(-5.4 * k, 1.6 * k, 0.08 * k, -2.4 * k, -0.1 * k), (-2.4 * k, 4.0 * k, 0.18 * k, -0.2 * k, -0.1 * k), (0, 5.8 * k, 0.3 * k, 1.4 * k, -0.1 * k),
+        (2.4 * k, 4.0 * k, 0.18 * k, -0.2 * k, -0.1 * k), (5.4 * k, 1.6 * k, 0.08 * k, -2.4 * k, -0.1 * k)], ring=12))
+    # stabilators at the tail, swept like the wing
+    hull.append(wing("stab", grey, [(-2.6 * k, 1.1 * k, 0.06 * k, -4.6 * k, 0.0), (0, 2.2 * k, 0.12 * k, -3.6 * k, 0.0), (2.6 * k, 1.1 * k, 0.06 * k, -4.6 * k, 0.0)], ring=10))
+    # twin tails, canted out 20 degrees
+    for sx in (-1, 1):
+        f = wing("fin_%d" % sx, grey, [(0.0, 2.4 * k, 0.12 * k, -2.6 * k, 0), (1.9 * k, 1.1 * k, 0.06 * k, -4.0 * k, 0)], axis="z", ring=10)
+        f.location = (sx * 0.9 * k, 0, 0.6 * k)
+        f.rotation_euler = (0, math.radians(-sx * 20), 0)
+        hull.append(f)
+    # the nozzle: a ring of petals, the turbine disc inside it
+    hull.append(cyl("nozzle", dark, 0.55 * k, 0.9 * k, (0, -5.9 * k, 0), axis="y", verts=16, r2=0.5 * k))
+    hull.append(cyl("pitot", dark, 0.02 * k, 0.8 * k, (0, 8.1 * k, 0), axis="y", verts=6))
+    body = join(hull, "F35")
+    set_origin(body, (0, 0, 0))
+    for name, mat, loc in (("NavL", nav_r, (-5.35 * k, -3.0 * k, -0.1 * k)), ("NavR", nav_g, (5.35 * k, -3.0 * k, -0.1 * k))):
+        o = sphere(name, mat, 0.05 * k, loc)
+        parent(o, body)
+    # the turbine disc the game spins (JetProp, rotation.z), flat in the nozzle
+    blades = []
+    for b in range(5):
+        blades.append(box("fan_%d" % b, fan, (0.9 * k, 0.1 * k, 0.03 * k), (0, 0, 0), rot=(0, 0, math.radians(b * 36))))
+    prop = join(blades, "JetProp")
+    prop.rotation_euler = (math.radians(90), 0, 0)
+    prop.location = (0, -5.7 * k, 0)
+    parent(prop, body)
+    # the afterburner cone behind the nozzle
+    cone = loft("Exhaust", hot, [(-6.2 * k, 0.42 * k, 0.42 * k, 0, 0), (-7.4 * k, 0.3 * k, 0.3 * k, 0, 0), (-9.0 * k, 0.0, 0.0, 0, 0)], axis="y", ring=14)
+    parent(cone, body)
+    export(body, "strike-jet.glb")
+
+
+BUILDS = {"uav": build_shadow, "drone": build_hk, "crate": build_crate, "dropheli": build_blackhawk, "gunship": build_apache, "jet": build_f35}
 
 if __name__ == "__main__":
     args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []

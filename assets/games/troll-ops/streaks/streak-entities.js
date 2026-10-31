@@ -1242,6 +1242,7 @@ export class HelicopterGunship {
       obj.traverse((n) => {
         if (n.name === "MainRotor") this.mainRotor = n;
         else if (n.name === "TailRotor") this.tailRotor = n;
+        else if (n.name === "Strobe") this.strobe = n;
       });
       // A dynamic spotlight that tracks what the gunship is engaging.
       // Borrowed from the pool, never created: a new light recompiles every
@@ -1299,6 +1300,7 @@ export class HelicopterGunship {
     this.age += dt;
     if (this.mainRotor) this.mainRotor.rotation.y += dt * Math.PI * 2 * HELI_MAIN_ROTOR_RPS;
     if (this.tailRotor) this.tailRotor.rotation.x += dt * Math.PI * 2 * HELI_TAIL_ROTOR_RPS;
+    if (this.strobe) { const k = this.age % 1.3; this.strobe.visible = k < 0.06 || (k > 0.14 && k < 0.2); }
 
     const t = this.age;
     this.pathAt(t, this.root.position);
