@@ -29,9 +29,14 @@ What the renders show, and where the builder takes it from
 | Open port, bolt and carrier showing, dust cover hanging | `P_Carrier` in the port, `P_DustCover` opens on the first shot |
 | Forward assist right-rear of the port, brass deflector | `upper()` |
 | Flip-up irons (MBUS style) front and rear, OD | `P_IronRear` (both, one node; fold under an optic) |
-| Black waffle polymer mag, curved | `P_Mag`, waffle baked to the normal map |
-| Stippled grip (black in two renders, OD in one) | black polymer, stipple baked |
-| Skeletal OD stock with a window, QD cup, ribbed rubber pad | `stock()` |
+| Black waffle polymer mag, curving forward below the well | `P_Mag`: straight 50 mm, then a 0.37 m arc, rounded straps, cells and floorplate follow the curve |
+| Stippled grip (black in two renders, OD in one), moulded round with a humped back strap | `grip()`: near-oval `round_v` sections, filleted outline, stipple baked |
+| Skeletal OD stock with a window, QD cup, ribbed rubber pad; sloped, rounded housing, the leg curving into the toe | `stock()`: `round_z` lofts on filleted outlines |
 | Ambi selector, mag release, pins, trigger guard | `lower()` |
 | Vertical foregrip (renders 1 and 3) | not built in: it's the `vert` underbarrel attachment |
 | "HK416 / 7.62mm x 51" marking | left off: the gun is the Problem 416 in game |
+
+Rule 10 check (2026-10-30): the stock, grip and mag were rendered flat and boxier than the
+concepts; reshaped with `fillet` / `round_v` / `round_z` (from the Ballista builder). The
+lower's tang, guard and well corners are filleted too; the upper, rails and handguard stay
+square-edged, as the concepts show them. No new reference images were used.
