@@ -119,7 +119,7 @@ async function build(id, lod, optic, skin) {
   // wait for any map still on its way
   for (let i = 0; i < 100; i++) {
     let pending = false;
-    current.traverse((o) => { if (o.isMesh) for (const m of [].concat(o.material)) for (const k of ["map", "normalMap", "roughnessMap"]) if (m[k] && !m[k].image) pending = true; });
+    current.traverse((o) => { if (o.isMesh) for (const m of [].concat(o.material)) { for (const k of ["map", "normalMap", "roughnessMap"]) if (m[k] && !m[k].image) pending = true; if (m.userData.camoReady && !m.userData.camoReady()) pending = true; } });
     if (!pending) break;
     await new Promise((r) => setTimeout(r, 50));
   }

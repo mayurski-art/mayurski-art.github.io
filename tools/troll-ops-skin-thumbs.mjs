@@ -1,8 +1,11 @@
-// Renders the loadout picker thumbnail for each finish (skins.js FINISHES):
-// the Problem 416 wearing it, from the same angle and size as the baked
-// banner skins' thumbs (tools/troll-skin-bake.html), to skins/<id>-thumb.jpg.
+// Renders the loadout picker thumbnail of every camo and finish
+// (characters/skins.js CAMOS + FINISHES, docs/DESIGN-SKINS.md): the
+// Problem 416 wearing it, from the angle and size the banner skins' thumbs
+// use (tools/troll-skin-bake.html), to skins/<id>-thumb.jpg. Replaces
+// troll-ops-finish-thumbs.mjs. Supabase is blocked (never a live room).
 //
-// Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-finish-thumbs.mjs
+// Usage: NODE_PATH=<main checkout>/node_modules [ONLY=grinwood,goldgrin]
+//        node tools/troll-ops-skin-thumbs.mjs
 
 import http from "node:http";
 import fs from "node:fs";
@@ -29,15 +32,20 @@ const BASE = `http://localhost:${server.address().port}`;
 
 const browser = await chromium.launch({ args: ["--use-angle=d3d11", "--ignore-gpu-blocklist"] });
 const page = await browser.newPage({ viewport: { width: 800, height: 400 } });
-page.on("pageerror", (e) => console.log("ERR", e.message));
-// The game page carries the import map for "three".
-await page.goto(`${BASE}/troll-ops.html?tohooks=1`);
-await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 60000 });
-const shots = await page.evaluate(async () => {
+await page.route(/supabase/, (r) => r.abort());
+const errors = [];
+page.on("pageerror", (e) => errors.push(e.message));
+// the arms sheet carries the import map for "three" and preloads the guns
+await page.goto(`${BASE}/assets/games/troll-ops/labs/arms-sheet.html`);
+await page.waitForFunction(() => window.sheet, null, { timeout: 60000 });
+await page.evaluate(() => window.sheet.ready);
+const only = process.env.ONLY?.split(",") || null;
+const shots = await page.evaluate(async (only) => {
   const THREE = await import("three");
-  const wm = await import("/assets/games/troll-ops/weapons/weapon-model.js?v=p5-em1-br1");
-  const { FINISHES } = await import("/assets/games/troll-ops/characters/skins.js?v=p5");
-  const { resolveWeapon } = await import("/assets/games/troll-ops/weapons/attachments.js?v=cg1");
+  const wm = await import("/assets/games/troll-ops/weapons/weapon-model.js?v=thumbs");
+  const { CAMOS, FINISHES } = await import("/assets/games/troll-ops/characters/skins.js?v=thumbs");
+  const { resolveWeapon } = await import("/assets/games/troll-ops/weapons/attachments.js?v=thumbs");
+  await wm.preloadWeaponModels();
   const canvas = document.createElement("canvas");
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(1);
@@ -46,7 +54,7 @@ const shots = await page.evaluate(async () => {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
   const pm = new THREE.PMREMGenerator(renderer);
-  // A little studio for the reflections: a dim room with three light panels.
+  // a little studio for the reflections: a dim room with three light panels
   const studio = new THREE.Scene();
   studio.background = new THREE.Color(0x30343a);
   const panel = (x, y, z, w, h, c) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); studio.add(m); };
@@ -60,22 +68,37 @@ const shots = await page.evaluate(async () => {
   const cam = new THREE.PerspectiveCamera(24, 360 / 128, 0.01, 10);
   cam.position.set(-0.84, 0.03, -0.14);
   cam.lookAt(0, -0.055, -0.14);
+  const loading = (gun) => {
+    let pending = false;
+    gun.traverse((o) => {
+      if (!o.isMesh) return;
+      for (const m of [].concat(o.material)) {
+        for (const k of ["map", "normalMap", "roughnessMap"]) if (m[k] && !m[k].image) pending = true;
+        if (m.userData.camoReady && !m.userData.camoReady()) pending = true;
+      }
+    });
+    return pending;
+  };
   const out = {};
-  for (const f of FINISHES) {
+  for (const s of [...CAMOS, ...FINISHES]) {
+    if (only && !only.includes(s.id)) continue;
     const def = { ...resolveWeapon("problem416", { optic: "reflex" }) };
-    def.attachments = { ...(def.attachments || {}), optic: "reflex", skin: f.id };
+    def.attachments = { ...(def.attachments || {}), optic: "reflex", skin: s.id };
     const gun = wm.buildWeaponMesh(def);
     gun.traverse((o) => { if (o.userData.hand) o.visible = false; });
+    for (let i = 0; i < 200 && loading(gun); i++) await new Promise((r) => setTimeout(r, 50));
     scene.add(gun);
     renderer.render(scene, cam);
-    out[f.id] = canvas.toDataURL("image/jpeg", 0.86);
+    out[s.id] = canvas.toDataURL("image/jpeg", 0.88);
     scene.remove(gun);
   }
   return out;
-});
+}, only);
 for (const [id, url] of Object.entries(shots)) {
   fs.writeFileSync(path.join(OUT, `${id}-thumb.jpg`), Buffer.from(url.split(",")[1], "base64"));
   console.log("wrote", `${id}-thumb.jpg`);
 }
+if (errors.length) console.log("page errors:", errors.slice(0, 3).join(" | "));
 await browser.close();
 server.close();
+process.exit(errors.length ? 1 : 0);
