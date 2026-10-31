@@ -283,29 +283,30 @@ await A.evaluate(() => window.__trollOps.setEmote(-1));
 await sleep(500);
 check("crutches: gone once it stops", await A.evaluate(() => !window.__trollOps.localRig.crutches?.visible));
 
-// Cigar: TROLLS #1272's own emote (user, 2026-10-21). Last in the list (its
-// wire code new); a guest on the stick doesn't get it, the owner does on any
-// body: in the mouth on a puff, in the hand while the smoke goes up, and
-// gone once it stops.
+// Cigar and Blunt: TROLLS #1272's own (user, 2026-10-21; two since
+// 2026-10-30, one motion). In a match, for the owner: in the grin, then the
+// hand on fire as it lights, and gone once it stops. Every beat on both
+// bodies, the hand under the tip and the wheel: troll-ops-light-up-test.mjs.
 const CIG = await A.evaluate(() => window.__trollOps.emoteWheel.slices.findIndex((b) => b.textContent.includes("Cigar")));
-const cigOnWheel = () => A.evaluate((i) => { const w = window.__trollOps.emoteWheel; w.layout(); return w.shown.includes(i); }, CIG);
 check("cigar: on the wheel's list, after the crutches", CIG > CR, `slot ${CIG}`);
-check("cigar: not on a guest's wheel", !(await cigOnWheel()));
 await A.evaluate(() => { const A = window.TrollrunnerAccounts; window.__gp = A?.getCachedProfile; if (A) A.getCachedProfile = () => ({ username: "troll_runner", id: "test" }); });
-check("cigar: on the owner's wheel, any body", await cigOnWheel());
-await A.evaluate((i) => window.__trollOps.setEmote(i), CIG);
-const cigAt = (t) => A.evaluate(async (t) => {
-  window.__trollOps.emote().t = t;
-  await new Promise((r) => setTimeout(r, 300));
-  const rig = window.__trollOps.localRig;
-  return { mouth: !!rig.cigarMouth?.visible, hand: !!rig.cigarHand?.visible, smoke: !!rig.cigarSmoke?.visible };
-}, t);
-const cigPuff = await cigAt(2.2), cigSmoke = await cigAt(4.8);
-check("cigar: in the mouth on a puff", cigPuff.mouth && !cigPuff.hand, JSON.stringify(cigPuff));
-check("cigar: in the hand while the smoke goes up", cigSmoke.hand && !cigSmoke.mouth && cigSmoke.smoke, JSON.stringify(cigSmoke));
-await A.evaluate(() => { window.__trollOps.setEmote(-1); const A = window.TrollrunnerAccounts; if (A && window.__gp) A.getCachedProfile = window.__gp; });
-await sleep(500);
-check("cigar: gone once it stops", await A.evaluate(() => { const r = window.__trollOps.localRig; return !r.cigarMouth?.visible && !r.cigarHand?.visible && !r.cigarSmoke?.visible; }));
+for (const kind of ["cigar", "blunt"]) {
+  const slot = await A.evaluate((n) => window.__trollOps.emoteWheel.slices.findIndex((b) => b.textContent.includes(n)), kind === "cigar" ? "Cigar" : "Blunt");
+  await A.evaluate((i) => window.__trollOps.setEmote(i), slot);
+  const at = (t) => A.evaluate(async ({ t, kind }) => {
+    window.__trollOps.emote().t = t;
+    await new Promise((r) => setTimeout(r, 300));
+    const rig = window.__trollOps.localRig, fx = rig[kind + "Fx"];
+    return { mouth: !!rig[kind + "Mouth"]?.visible, fire: fx?.visible ? fx.userData.fire.fire.geo.instanceCount : 0 };
+  }, { t, kind });
+  const inGrin = await at(1.3), lighting = await at(2.8);
+  check(`${kind}: in the grin`, inGrin.mouth, JSON.stringify(inGrin));
+  check(`${kind}: the hand on fire as it lights`, lighting.mouth && lighting.fire > 5, JSON.stringify(lighting));
+  await A.evaluate(() => window.__trollOps.setEmote(-1));
+  await sleep(500);
+  check(`${kind}: gone once it stops`, await A.evaluate((k) => { const r = window.__trollOps.localRig; return !r[k + "Mouth"]?.visible && !r[k + "Hand"]?.visible && !r[k + "Fx"]?.visible; }, kind));
+}
+await A.evaluate(() => { const A = window.TrollrunnerAccounts; if (A && window.__gp) A.getCachedProfile = window.__gp; });
 
 // Chug (user, 2026-10-22): for everyone. The mug in the fist while he
 // drinks, out of the hand and in the air after the throw, smashed on the
