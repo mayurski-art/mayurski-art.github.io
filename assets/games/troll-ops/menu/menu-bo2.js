@@ -889,7 +889,9 @@ const screens = {
   },
   heroes: () => optionScreen("Hero", $$("#to-lo-heroes .to-lo-hero")),
   bodies: () => {
-    const s = optionScreen("Body", $$("#to-cos-body [data-body]").filter(bodyMatches), {
+    // only the stick and the bodies you may wear: someone else's TROLLS body
+    // isn't listed at all (user, 2026-10-31); the owner sees every one
+    const s = optionScreen("Body", $$("#to-cos-body [data-body]").filter((b) => !isLocked(b) && bodyMatches(b)), {
       descOf: (b) => (isLocked(b) ? "Locked: for the holder of this TROLLS NFT." : b.dataset.body ? "This TROLLS look, every match. Everyone sees it." : "The classic stick troll."),
       needOf: () => "For the holder of this TROLLS NFT.",
     });
