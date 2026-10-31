@@ -147,15 +147,17 @@ groups by material) and the killcam get the same material at LOD1.
 ### 3.3 Tiles and palettes
 
 A camo is a **tile + palette**, not a colour texture: the tile is a
-seamless 512² webp with R = tone index (quantised to 4 bands) and
-G = detail (fibre, speckle, scratches, used for roughness and the
-mastery sheen); the palette is 4 colours. One blotch tile gives the
-woodland, desert and urban colourways for free; the same goes for the
-digital and the stripe tiles. Tiles are drawn by
-`tools/troll-ops-camo-tiles.mjs` (canvas, drawn 3x3 wrapped so the
-edges meet; the only camo code in the repo today,
-`streaks/dragonfire-drone.js camoTexture`, is the seed). They live in
-`assets/games/troll-ops/skins/tiles/`.
+seamless 512² png (lossless: the tone channel is stepped) with R = tone
+index (quantised to 4 bands) and G = detail (fibre, speckle, seams, used
+for roughness and the mastery sheen); the palette is 4 colours. One
+blotch tile gives the woodland, desert and urban colourways for free; the
+same goes for the digital and the stripe tiles. Tiles are drawn by
+`tools/troll-ops-camo-tiles.mjs` (canvas; every noise lattice wraps and
+every stamp is drawn nine times, so the tile repeats without a seam) into
+`assets/games/troll-ops/skins/tiles/`. The eight tiles of the ladder,
+coloured by their palettes at 1.5 tiles across (the wrap shows):
+
+![The camo tiles](skins/camo-swatches.webp)
 
 ### 3.4 The older, non-baked guns
 
