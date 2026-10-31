@@ -188,7 +188,7 @@ export class Loadout {
      only swapped in memory: the save keeps it until the player changes
      something, and restoreSaved() puts it back once the profile is in. */
   validClass(c) {
-    let weaponId = WEAPON_DEFS[c.weaponId] ? c.weaponId : "problem416";
+    let weaponId = WEAPON_DEFS[c.weaponId] && !WEAPON_DEFS[c.weaponId].retired ? c.weaponId : "problem416";
     if (!isUnlocked(weaponId)) weaponId = "problem416";
     // Secondary is a sidearm or a launcher - sixtynine (rank 0) is the one
     // every account has unlocked, same reasoning as the problem416 primary
@@ -533,7 +533,8 @@ export class Loadout {
   buildClasses() {
     const wrap = this.els.classes;
     wrap.innerHTML = "";
-    const classes = this.slot === "secondary" ? SECONDARY_CLASSES : CLASS_ORDER;
+    // (a class whose guns are all retired has no tab)
+    const classes = (this.slot === "secondary" ? SECONDARY_CLASSES : CLASS_ORDER).filter((c) => weaponsInClass(c).length);
     for (const cls of classes) {
       const b = document.createElement("button");
       b.type = "button";
@@ -967,7 +968,7 @@ export class Loadout {
 
     if (sum.next) {
       const next = Object.entries(WEAPON_DEFS)
-        .filter(([id]) => !isUnlocked(id))
+        .filter(([id, d]) => !d.retired && !isUnlocked(id))
         .sort((a, b) => a[1].rank - b[1].rank)[0];
       // nothing left to unlock: no "Next unlock" line at all (user,
       // 2026-10-15: remove "Everything unlocked")

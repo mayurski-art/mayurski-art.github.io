@@ -566,7 +566,16 @@ export const WEAPON_DEFS = {
   }),
 };
 
-export const WEAPON_IDS = Object.keys(WEAPON_DEFS);
+/* Retired while arsenal v2 rebuilds the guns (user, 2026-10-30): every
+   primary but these is off the class lists, loot, bots, the gun game
+   rack and the Zombies kiosks; the sidearms and the launcher stay. A
+   retired def still resolves (an old saved class, a remote player's gun)
+   and loadout.js swaps it for the 416. Add a gun to KEPT when its
+   v2 model lands. */
+const KEPT = new Set(["problem416", "kek", "beast", "greencandle", "howl", "soulblazer"]);
+for (const d of Object.values(WEAPON_DEFS)) if (!SECONDARY_CLASSES.includes(d.cls) && !KEPT.has(d.id)) d.retired = true;
+
+export const WEAPON_IDS = Object.keys(WEAPON_DEFS).filter((id) => !WEAPON_DEFS[id].retired);
 
 export function weaponsInClass(cls) {
   return WEAPON_IDS.filter((id) => WEAPON_DEFS[id].cls === cls).sort((a, b) => WEAPON_DEFS[a].rank - WEAPON_DEFS[b].rank);

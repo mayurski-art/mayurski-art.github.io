@@ -310,7 +310,7 @@ export class ZoneVisual {
 /* A gun def at a rarity: that many random attachments, never two in one
    slot, only parts that fit the gun's class (snipers keep glass). */
 export function rollGun(rng, rarityIdx, weaponId = null) {
-  const ids = Object.keys(WEAPON_DEFS).filter((id) => !WEAPON_DEFS[id].hidden && !WEAPON_DEFS[id].prestige);   // prestige guns are earned, never looted
+  const ids = Object.keys(WEAPON_DEFS).filter((id) => !WEAPON_DEFS[id].hidden && !WEAPON_DEFS[id].prestige && !WEAPON_DEFS[id].retired);   // prestige guns are earned, never looted; retired ones are being rebuilt
   const id = weaponId || ids[Math.floor(rng() * ids.length)];
   const att = { ...defaultLoadoutFor(id) };
   const slots = [...SLOTS];
