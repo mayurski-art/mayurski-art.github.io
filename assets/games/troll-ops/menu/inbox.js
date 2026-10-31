@@ -19,7 +19,7 @@
 // challenges, the game sends everyone its news as letters (menu/mail.js: an
 // update, an event), each once per account.
 
-import { lettersDue } from "./mail.js?v=ml1";
+import { lettersDue } from "./mail.js?v=ml1-mg1";
 
 const KEY = "trollops:inbox";       // { [account id | "guest"]: [message, ...] }
 const MAX = 50;

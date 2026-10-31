@@ -15,7 +15,7 @@
    progression/challenges.js, the daily, weekly and event challenges. */
 import { SEASON, seasonLeft, halloween } from "../core/season.js?v=zf1-wb1";
 import { mountNewHere } from "./new-here.js?v=nwh1-mb1-mb2";
-import { view as challengeView, timeLeft as challengeLeft } from "../progression/challenges.js?v=ch1";
+import { view as challengeView, timeLeft as challengeLeft } from "../progression/challenges.js?v=ch1-mg1";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];

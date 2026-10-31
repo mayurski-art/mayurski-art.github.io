@@ -11,7 +11,7 @@
 import { FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-pk1-mb1-mb2";
 import { WRISTWEAR, watchThumb } from "./wristwear.js?v=ww1c2m1-or1";
 import { HEADWEAR } from "./pumpkin-head.js?v=pk1-mb1-mb2";
-import { ownsItem } from "../progression/grants.js?v=pk1-mb1-mb2";
+import { ownsItem } from "../progression/grants.js?v=pk1-mb1-mb2-mg1";
 const KEY = "trollops:cosmetics";
 
 export const EXPRESSIONS = [
@@ -58,8 +58,8 @@ export const BODIES = [
   { id: "trolls-820", token: 820, name: "TROLLS #820", img: "../ui/trolls-820.png", holder: "guccibeardd" },
   // the troll dev's (OpenSea: the_troll_); troll_runner's until he has an account
   { id: "trolls-989", token: 989, name: "TROLLS #989", img: "../ui/trolls-989.png", holder: "troll_runner" },
-  // holders to come (user, 2026-10-16: "Ill tell you the accounts it should go to later"); troll_runner's till then (#33 Bradz_, #2630 karlezetroll, #2631 lacksss: user 2026-10-16)
-  { id: "trolls-33", token: 33, name: "TROLLS #33", img: "../ui/trolls-33.png", holder: "bradz_" },
+  // holders to come (user, 2026-10-16: "Ill tell you the accounts it should go to later"); troll_runner's till then (#2630 karlezetroll, #2631 lacksss: user 2026-10-16; #33 BradTheTroll: user 2026-10-31)
+  { id: "trolls-33", token: 33, name: "TROLLS #33", img: "../ui/trolls-33.png", holder: "bradthetroll" },
   { id: "trolls-2630", token: 2630, name: "TROLLS #2630", img: "../ui/trolls-2630.png", holder: "karlezetroll" },
   { id: "trolls-2631", token: 2631, name: "TROLLS #2631", img: "../ui/trolls-2631.png", holder: "lacksss" },
   // holder's account still to come (user, 2026-10-21); troll_runner's till then
@@ -344,7 +344,9 @@ export class CosmeticsPanel {
       b.classList.toggle("is-on", on);
       b.setAttribute("aria-checked", String(on));
       b.setAttribute("aria-disabled", String(locked));
-      b.title = locked ? "Locked: for the holder of this TROLLS NFT" : "";
+      // someone else's TROLLS body isn't shown at all, not even greyed out:
+      // you see the stick and your own (user, 2026-10-31); the owner sees all
+      b.style.display = locked ? "none" : "";
     }
     // with a TROLLS body on, the face and covering cards are locked
     const face = this.face;
