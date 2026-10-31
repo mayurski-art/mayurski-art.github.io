@@ -10,12 +10,13 @@ the MTAR copies its own.
 
 **The concept sheet** (ChatGPT from the prompt below with the BO2 and FN
 photos attached, 2026-10-30): `concept-sheet.webp`, split into
-`concept-1-side-mirrored.jpg` (the whole gun, scope on, bipod deployed),
-`concept-2-receiver-mirrored.jpg` (port, bolt body, handle and knob, the
-cantilever mount and spirit level, worn tan) and `concept-3-right-34.jpg`
-(the true right side, 3/4 from the front, muzzle left). Panels 1 and 2 are
-mirrored (muzzle right with the handle toward the camera); the builder
-keeps the handle, port and ejection on the right. This sheet is the
+`concept-1-right-side.jpg` (the whole gun, scope on, bipod deployed),
+`concept-2-receiver-right.jpg` (port, bolt body, handle and knob, the
+cantilever mount and spirit level, worn tan) and `concept-3-left-34.jpg`
+(the left side, 3/4 from the front, muzzle left). Panels 1 and 2 are the
+true right side, not mirrored: seen from the right, the muzzle points to
+the viewer's right with the handle toward the camera, as in
+real/fn-ballista-2.jpg. (Corrected 2026-10-30 when measuring the FN photo.) This sheet is the
 surface target; BO2's renders and the FN photos below settle anything it
 leaves out or gets wrong.
 
@@ -135,8 +136,11 @@ left, whole rifle in frame with space around it, no perspective."
 
 ## Builder (`models/build_ballista.blender.py`)
 
-The first builder (commit e6333949) was built to the olive concept; it is
-rebuilt to the BO2 references above. Node conventions agreed with the MTAR
+The first builder (commit e6333949) was built to the olive concept; it was
+rebuilt to the BO2 references above. Proportions are measured off
+real/fn-ballista-2.jpg at 0.000552 m a pixel (1.29 m overall) around the
+grip-hand anchor (0, -0.100, 0.020); the surface follows the sheet and
+BO2 (FDE 0x7f6a3e, grime from the kit's Grain, light Patches). Node conventions agreed with the MTAR
 session (2026-10-30) stand unchanged: `HB_Bolt` one moving part (slide z)
 pivoted on the bore at the bolt's rest z, with `tf_lift` (radians,
 positive rotation.z lifts the knob); `HB_BoltKnob` point ("BoltKnob" in
