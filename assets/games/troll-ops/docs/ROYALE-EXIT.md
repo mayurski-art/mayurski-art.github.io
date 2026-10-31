@@ -2,11 +2,10 @@
 
 User, 2026-10-30: leave the plane like you mean it. Back up, crouch, dash
 for the ramp, arms out, spin, a slow-motion look back at the plane, hands
-to your chest, dive. Squads hold hands in a line, jump together and fall
-as a wheel. Fortnite is the feel to aim for; every pose and shot here is
+to your chest, dive. Squads hold hands in a line and jump together. Fortnite is the feel to aim for; every pose and shot here is
 our own, on our trollface rigs.
 
-Status: DRAFT, waiting for the user's go-ahead. Nothing built yet.
+Status: decisions settled; waiting for the go-ahead to build.
 
 ## Today
 - T-1.6 you turn your back to the door; at the green the jumpmaster shoves
@@ -80,60 +79,55 @@ slows, nobody else's game.
   the dive), whatever your POV.
 - **The fall: first person.** When the show ends (3.3 s) the camera goes
   to your eyes: you see the island under you, your hands out in front when
-  you fly level and tucked when you dive. In the wheel you see your
-  squad's arms and hands joined round you. The hold-to-view key still
+  you fly level and tucked when you dive. The hold-to-view key still
   gives the side, front and low angles above 80 m. Today's third-person
   drop camera is still one POV press away.
 - Landing: your normal POV setting comes back with the landing roll.
 
 ## Squads (Duo, Trio, Squad)
-### The line-up
+Every Duo, Trio and Squad, whether it's all players, players topped up
+with bots, or all bots (the top-up is already in the game: `bots.js`
+`fillSquads` fills every empty seat).
 - Each client works out the file from the squad roster, the leader first
   (the party leader; a bot squad: its lowest id), in the same order on
-  every tab. No wire.
+  every tab. Everything runs off the shared drop clock, so nothing new
+  goes on the wire.
 - From T-1.75 the squad stands in a file at the ramp, one behind the other,
   0.9 m apart, the leader nearest the door. They back up together, crouch
   together, and each one's right hand reaches back to take the left hand of
-  the one behind (`reachHand` IK, as the crew uses).
-- At the green they dash in step and go off the lip a beat apart (0.15 s).
-- With a real squad, your real teammates replace the stick-figure squad
-  mate (solo keeps him).
+  the one behind (`reachHand` IK, as the crew uses). Bot teammates are
+  posed in the file by each client locally, the way the crew is.
+- At the green they dash in step, let go at the lip, and go off a beat
+  apart (0.15 s), each doing their own leap, spin, tuck and dive.
+- Once out, everyone flies on their own (user, 2026-10-30: the falling
+  hand-in-hand ring is dropped).
+- With a real squad, your teammates replace the stick-figure squad mate
+  (solo keeps him).
 
-### The wheel
-- Out of the plane each one does the leap and arms-out, then the squad
-  pulls into a ring, belly down, facing the middle, hands joined: two face
-  each other, three is a triangle, four a square. Radius ~1.1 m.
-- The leader flies the wheel: the same steering, dive and hover as solo.
-  Everyone else rides it: their stick does nothing but look around.
-- **Break off:** Space / pad A. You let go, spin out along your spoke and
-  fly on your own. The leader breaking off ends the wheel for everyone.
-- **Auto-release:** at 120 m above the ground, everyone lets go and fans
-  out a few metres along their spokes, so nobody lands on top of anyone.
-- If the leader dies or leaves mid-air, the wheel dissolves the same way.
-
-### Squad sync (client-authoritative)
-- The wire already has `dr`: 2 bits of drop state, plus a seat slot above
-  them used only aboard. In the air the slot becomes your **wheel slot**:
-  `DROP_FALL | (slot + 1) << 2`, the leader as slot 0. No new fields.
-- Each rider puts itself at the leader as *it* sees him, plus its slot's
-  offset round the leader's heading, and sends that as its position.
-- Each client draws other riders the same way (at its own picture of the
-  leader, plus their slot's offset), not at the position they sent. So the
-  wheel is a perfect ring on every screen, whatever the lag between three
-  phones (at 34 m/s, 0.1 s of lag would otherwise be a 3 m gap).
-- No shooting in the air, so nothing depends on those positions until the
-  ring breaks; from then on everyone's own flight is the truth again,
-  starting from where their screen had them.
+### Where the leader is (user, 2026-10-30)
+"An indication of where the squad leader is at all times, unless the
+squad leader is dead."
+- The leader: the party leader; a squad with no party, its first human;
+  an all-bot squad, its lowest id. The same on every tab, nothing new on
+  the wire. It doesn't pass to anyone else when they die.
+- Their teammate marker (`royale-team-hud.js` already puts one over each
+  teammate, through walls, held to the screen's edge) gets a crown badge
+  (a small drawn icon, not an emoji), a gold colour and "LEADER" under the
+  name, and stays up the whole match: in the plane, in the fall, on the
+  ground. Shape and the word, not only the colour.
+- Off screen or behind you: the marker sits on the screen's edge with an
+  arrow pointing to them and the distance.
+- On the minimap and the compass: a gold crown pip.
+- In the team panel: the leader's row first, with the crown.
+- Downed (Duo and up): the crown stays, flashing red, so you can go and
+  revive them. Eliminated: the leader marker, pip and arrow go.
+- You're the leader: your team sees you that way; your own panel row
+  says "You lead".
 
 ## Bots
-- Bots still go out in a stick off the ramp's end (they don't do the
+- Bots outside your squad still go out in a stick off the ramp's end (no
   run-up), but they do the leap, the spin, the tuck and the dive, through
   the remote pose path everyone uses.
-- A bot in your squad lines up and holds hands in the file, jumps with you
-  and rides your wheel. The host places it from the host's picture of the
-  leader; everyone else draws it by the wheel rule.
-- Bot-only squads wheel too: the bot leader steers to its landing spot as
-  today, the others ride along (cheaper than flying each one).
 - The jumpmaster stays aboard at the door and waves.
 
 ## Phases (one system each, each with its own test)
@@ -149,29 +143,26 @@ slows, nobody else's game.
    first person in the fall (with hands). Test: `troll-ops-drop-cine-test.mjs`
    updated (beats, dash speed, off the lip, control at 3.3 s), plus
    `royale-drop`, `royale-fall-look`; screenshots of each shot.
-3. **Squad file.** The line-up, hands held, the jump together. Test: a
-   Duos/Trios private-room match with bot teammates (Supabase blocked):
-   order, spacing, hands meet, a beat apart off the lip.
-4. **The wheel.** Slots on `dr`, riding, drawing riders, break-off,
-   auto-release, the leader gone. Test: the same match with you as leader
-   and as rider (a bot leads), plus a fed-in peer for the draw rule; the
-   ring's shape on screen with 0.2 s of fake lag. Screenshots of the wheel
-   for two, three and four.
-5. **Bots.** Bot exits through the new show, bot squads wheel. Test:
-   `royale-squad-drop`, `royale-bots`; 99 bots still land on the island.
+3. **Squad file.** The line-up, hands held, the jump together, bot
+   teammates included. Test: a Duos/Trios private-room match with bot
+   teammates (Supabase blocked): order, spacing, hands meet, a beat apart
+   off the lip; screenshots of the file.
+4. **The leader marker.** Crown marker, edge arrow, minimap and compass
+   pip, panel row, flashing when downed, gone when eliminated. Test: a
+   Trios private-room match with bot teammates: marker on the leader in
+   the plane, in the fall and on the ground, at the edge when behind you,
+   gone when the leader is killed; screenshots of each.
+5. **Bots.** Bot exits through the new show. Test: `royale-squad-drop`,
+   `royale-bots`; 99 bots still land on the island.
 
-Then one live check: two tabs in a **private** room, solo exit and a duo
-wheel.
+Then one live check: two tabs in a **private** room, a solo exit and a duo
+jumping together.
 
-## Decisions for the user
-1. DECIDED (user, 2026-10-30: "yes"): "walks slowly backwards while still
-   facing forwards" = facing out of the door, backing up the ramp for a
-   run-up, then dashing out.
-2. DECIDED (user, 2026-10-30): third person for the jump, first person
-   for the fall, your choice of POV in the plane (see "First person and
-   third person").
-3. Break off with Space / pad A, auto-release at 120 m: OK?
-4. DECIDED (user, 2026-10-30): yes. Every Duo, Trio and Squad wheels,
-   whether it's all humans, humans topped up with bots, or all bots. The
-   top-up is already in the game (`bots.js` `fillSquads` fills every
-   empty seat).
+## Decisions (all settled, user 2026-10-30)
+1. "Walks slowly backwards while still facing forwards" = facing out of
+   the door, backing up the ramp for a run-up, then dashing out.
+2. Third person for the jump, first person for the fall, your choice of
+   POV in the plane.
+3. Squads, bots included, line up and jump together; no hand-in-hand ring
+   in the air ("just forget the ring idea").
+4. The squad leader is marked at all times unless dead.
