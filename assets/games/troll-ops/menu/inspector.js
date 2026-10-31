@@ -16,7 +16,7 @@ import { buildMeleeMesh } from "../weapons/gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-z
 import { buildThrowable, modelKind } from "../combat/throwable-models.js?v=tm1-th2";
 import { loadModel } from "../maps/battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
 import { buildDragonfireModel } from "../streaks/dragonfire-drone.js?v=df3-sb2-or1";
-import { buildSamTurretModel } from "../streaks/sam-turret.js?v=sam1-fj1-or1-sr7";
+import { buildSamTurretModel } from "../streaks/sam-turret.js?v=sam1-fj1-or1-sr7-mb1";
 
 /* The glb each scorestreak flies in the match (see streak-entities.js). */
 const STREAK_MODELS = {
