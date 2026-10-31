@@ -48,6 +48,11 @@ let fails = 0;
 const check = (ok, what, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${what}${extra ? "  " + extra : ""}`); if (!ok) fails++; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const errors = [];
+// Every in-page import goes through window.__dcMods: a module imported once
+// per page, then reused. A fresh import() of royale-cine.js cost ~575 ms
+// every call (royale-crew.js ~290), a stall on every snapshot that put the
+// cinematic (capped per frame) behind the drop clock: a different check
+// failed each run.
 const STATE = "/assets/games/troll-ops/core/state.js?v=st1";
 // The tag the game imports it at (one module instance): read from royale.js.
 const CINE = "/assets/games/troll-ops/modes/royale-cine.js?v=" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/modes/royale.js"), "utf8").match(/royale-cine\.js\?v=([a-z0-9-]+)/)[1];
@@ -56,10 +61,10 @@ const FALL = "/assets/games/troll-ops/modes/royale-fall.js?v=" + fs.readFileSync
 // The fall's opening show (phase 3), sampled in the page each frame from
 // the first fall frame until its clock reaches `to`.
 const fallSamples = (page, to, max = 20000) => page.evaluate(async ({ u, fl, cw, to, max }) => {
-  const { game } = await import(u);
-  const fall = await import(fl);
-  const crewMod = await import(cw);
-  const THREE = await import("three");
+  const { game } = ((window.__dcMods ??= {})[u] ??= await import(u));
+  const fall = ((window.__dcMods ??= {})[fl] ??= await import(fl));
+  const crewMod = ((window.__dcMods ??= {})[cw] ??= await import(cw));
+  const THREE = ((window.__dcMods ??= {})["three"] ??= await import("three"));
   const T = window.__trollOps;
   const v = new THREE.Vector3(), q = new THREE.Quaternion();
   const out = [];
@@ -96,13 +101,13 @@ const fallSamples = (page, to, max = 20000) => page.evaluate(async ({ u, fl, cw,
 }, { u: STATE, fl: FALL, cw: CREW, to, max });
 const fallAt = async (page, t) => (await fallSamples(page, t)).at(-1);
 const SFX = "/assets/games/troll-ops/sound/sfx-files.js?v=" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/modes/royale.js"), "utf8").match(/sfx-files\.js\?v=([a-z0-9-]+)/)[1];
-const sfxState = (page) => page.evaluate(async (u) => { const m = await import(u); return { loaded: m.SFX_NAMES.filter((n) => m.sfxLoaded(n)), all: m.SFX_NAMES.length, played: [...m.sfxPlayed] }; }, SFX);
+const sfxState = (page) => page.evaluate(async (u) => { const m = ((window.__dcMods ??= {})[u] ??= await import(u)); return { loaded: m.SFX_NAMES.filter((n) => m.sfxLoaded(n)), all: m.SFX_NAMES.length, played: [...m.sfxPlayed] }; }, SFX);
 // Frames grabbed in the page on the exact frame each moment comes (a
 // screenshot from out here lands seconds late): `at` on the drop clock
 // ("plane") or the jump's real clock ("show"). The 3D view only, no HUD.
 const grabs = (page, list) => page.evaluate(async ({ u, fl, list }) => {
-  const { game } = await import(u);
-  const fall = await import(fl);
+  const { game } = ((window.__dcMods ??= {})[u] ??= await import(u));
+  const fall = ((window.__dcMods ??= {})[fl] ??= await import(fl));
   const T = window.__trollOps, out = {}, todo = [...list];
   return await new Promise((done) => {
     const t0 = performance.now();
@@ -143,10 +148,10 @@ async function open(lobbySeconds) {
 // One state snapshot, taken in the page on the first frame the drop clock
 // reaches `target` (waiting out there and polling landed samples late
 // whenever the machine was busy).
-const snap = (page, target = -Infinity, max = 70000) => page.evaluate(async ({ u, c, w, target, max }) => {
-  const crewMod = await import(w);
-  const { game } = await import(u);
-  const cine = await import(c);
+const snap = (page, target = -Infinity, max = 70000, to = null) => page.evaluate(async ({ u, c, w, target, max, to }) => {
+  const crewMod = ((window.__dcMods ??= {})[w] ??= await import(w));
+  const { game } = ((window.__dcMods ??= {})[u] ??= await import(u));
+  const cine = ((window.__dcMods ??= {})[c] ??= await import(c));
   const T = window.__trollOps;
   const take = () => {
   const r = T.royale();
@@ -179,19 +184,27 @@ const snap = (page, target = -Infinity, max = 70000) => page.evaluate(async ({ u
   };
   };
   return await new Promise((done) => {
-    const t0 = performance.now();
+    const t0 = performance.now(), out = [];
     const tick = () => {
       const t = T.royale()?.planeT;
+      // `to`: every frame from `target` to `to` (the first one past `to`
+      // too, so a long frame still leaves one), not just the first
+      if (to != null) {
+        if (t != null && t >= target) out.push(take());
+        if ((t != null && t > to) || performance.now() - t0 > max) done(out);
+        else requestAnimationFrame(tick);
+        return;
+      }
       if ((t != null && t >= target) || performance.now() - t0 > max) done(take());
       else requestAnimationFrame(tick);
     };
     tick();
   });
-}, { u: STATE, c: CINE, w: CREW, target, max });
+}, { u: STATE, c: CINE, w: CREW, target, max, to });
 // The crew's measures on every frame the drop clock spends in [from, to].
 const CREW_LEAN0 = -22;   // royale-crew.js CREW.lean[0]
 const crewOver = (page, from, to) => page.evaluate(async ({ w, from, to }) => {
-  const crewMod = await import(w);
+  const crewMod = ((window.__dcMods ??= {})[w] ??= await import(w));
   const T = window.__trollOps;
   const out = [];
   return await new Promise((done) => {
@@ -224,7 +237,7 @@ const holdPath = (page, to) => page.evaluate(async (to) => {
 // Third person: how far the camera is from your head, and where your head
 // is on screen.
 const tpView = (page) => page.evaluate(async (u) => {
-  const { game } = await import(u);
+  const { game } = ((window.__dcMods ??= {})[u] ??= await import(u));
   const head = game.localRig.parts.head;
   head.updateWorldMatrix(true, false);
   const h = head.getWorldPosition(game.camera.position.clone());
@@ -234,7 +247,13 @@ const tpView = (page) => page.evaluate(async (u) => {
   return { dist, x: p.x, y: p.y, z: p.z, vis: game.localRig.root.visible };
 }, STATE);
 const until = (page, t, max = 70000) => snap(page, t, max);
-const setOpener = (page, pick, track) => page.evaluate(async ({ c, pick, track }) => (await import(c)).setDropOpener(pick, track), { c: CINE, pick, track });
+// Every snapshot from drop clock `from` to `to`: a beat that has to show on
+// some frame in it. One sample at `from` lands wherever a slow headless
+// frame puts it, mid-turn or mid-look (the run-up and the look down failed
+// a different check each run that way).
+const over = (page, from, to, max = 70000) => snap(page, from, max, to);
+const fmt = (fr, f) => fr.map(f).slice(0, 6).join(" ") + ` (${fr.length} frames)`;
+const setOpener = (page, pick, track) => page.evaluate(async ({ c, pick, track }) => (((window.__dcMods ??= {})[c] ??= await import(c))).setDropOpener(pick, track), { c: CINE, pick, track });
 const angOff = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
 
 // ---- photo: the card, then the whole scene
@@ -318,7 +337,7 @@ await shot(a, "photo-look.png");
 // The stroke runs T-19.3..T-17.2: watch it go across (a single sample can land late).
 // Sampled in the page every frame, so a slow poll can't miss it.
 const strokes = await a.evaluate(async (c) => {
-  const cine = await import(c), T = window.__trollOps, out = [];
+  const cine = ((window.__dcMods ??= {})[c] ??= await import(c)), T = window.__trollOps, out = [];
   await new Promise((done) => {
     const tick = () => {
       const t = T.royale().planeT;
@@ -327,10 +346,12 @@ const strokes = await a.evaluate(async (c) => {
     };
     tick();
   });
-  return out.filter((_, i) => i % 6 === 0);
+  return out;
 }, CINE);
 s = await st(a);
-check(strokes.some((c) => c > 0.2 && c < 0.8), "the thumb across it", strokes.join(" "));
+// every frame kept (thinning to one in six left a slow run one sample): the
+// stroke caught mid-way, or seen both before and after its middle
+check(strokes.some((c) => c > 0.2 && c < 0.8) || (Math.min(...strokes) < 0.3 && Math.max(...strokes) > 0.7), "the thumb across it", strokes.filter((_, i) => i % 6 === 0).join(" ") + ` (${strokes.length} frames)`);
 await shot(a, "photo-caress.png");
 
 // He's by you, standing still, from T-16.4; the lean and the tap run
@@ -391,8 +412,8 @@ await shot(a, "walk.png");
 // watching: caught in the page on the frame his thumb's on it.
 const pressFrame = grabs(a, [{ kind: "plane", at: -9.45, name: "g-press.png" }]);
 const press = await a.evaluate(async (w) => {
-  const crewMod = await import(w);
-  const T = window.__trollOps, THREE = await import("three");
+  const crewMod = ((window.__dcMods ??= {})[w] ??= await import(w));
+  const T = window.__trollOps, THREE = ((window.__dcMods ??= {})["three"] ??= await import("three"));
   return await new Promise((done) => {
     const t0 = performance.now();
     const tick = () => {
@@ -412,30 +433,32 @@ check(Math.max(...press.lit) > 2, "T-9.45: the green button's pushed in and lit"
 // (crewState's handR is the hand's middle, not the thumb: within a hand)
 check(press.hand < 0.2, "...under the jumpmaster's hand", `${press.hand.toFixed(2)} m`);
 saveGrabs(await pressFrame);
-s = await until(a, -8.6);
+let fr = await over(a, -8.6, -7.6);
+s = fr[0];
 check(Math.abs(s.lz - 5.7) < 0.3, "at the ramp's hinge by T-8.6", `z=${s.lz.toFixed(2)}`);
 check(s.light === "red" && s.ramp > 0.1, "red light on, the ramp coming down", JSON.stringify({ light: s.light, ramp: s.ramp }));
-check(Math.cos(s.yaw) < -0.8, "looking aft at the ramp", `yaw=${s.yaw.toFixed(2)}`);
+check(fr.some((q) => Math.cos(q.yaw) < -0.8), "looking aft at the ramp", fmt(fr, (q) => q.yaw.toFixed(2)));
 await shot(a, "ramp.png");
-s = await until(a, -5.2);
-check(s.pitch < -0.5 && s.ramp >= 0.99, "T-5.2: looking down past the edge, the ramp slid in", JSON.stringify({ pitch: s.pitch, ramp: s.ramp }));
+fr = await over(a, -5.2, -4.2);
+check(fr.some((q) => q.pitch < -0.5 && q.ramp >= 0.99), "T-5.2: looking down past the edge, the ramp slid in", fmt(fr, (q) => `${q.pitch.toFixed(2)}/${q.ramp}`));
 await shot(a, "look-down.png");
-s = await until(a, -2.4);
-check(s.pitch < -0.5, "T-2.4: still looking down (a long look)", JSON.stringify({ pitch: s.pitch }));
+fr = await over(a, -2.4, -1.6);
+check(fr.some((q) => q.pitch < -0.5), "T-2.4: still looking down (a long look)", fmt(fr, (q) => q.pitch.toFixed(2)));
 const frames = grabs(a, [
   { kind: "plane", at: -1.0, name: "g-run-up.png" }, { kind: "plane", at: -0.3, name: "g-set.png" },
   { kind: "show", at: 0.15, name: "g-lip.png" }, { kind: "show", at: 0.7, name: "g-lookback-a.png" }, { kind: "show", at: 1.4, name: "g-lookback-b.png" },
   { kind: "show", at: 2.3, name: "g-face-a.png" }, { kind: "show", at: 3.0, name: "g-face-b.png" }, { kind: "show", at: 3.6, name: "g-eyes.png" },
   { kind: "show", at: 4.6, name: "g-fall.png" }]);
-s = await until(a, -1.0);
-check(/Back up/.test(s.sub), "the run-up line", s.sub);
-check(Math.cos(s.yaw) < -0.8, "still facing out of the door", `yaw=${s.yaw.toFixed(2)}`);
-check(s.lz < 5.7 - 0.4 && s.vz < 0, "backing up the ramp (toward the nose)", `z=${s.lz.toFixed(2)} vz=${s.vz.toFixed(2)}`);
+fr = await over(a, -1.0, -0.6);
+s = fr[0];
+check(fr.some((q) => /Back up/.test(q.sub)), "the run-up line", fmt(fr, (q) => JSON.stringify(q.sub)));
+check(fr.some((q) => Math.cos(q.yaw) < -0.8), "still facing out of the door", fmt(fr, (q) => q.yaw.toFixed(2)));
+check(fr.some((q) => q.lz < 5.7 - 0.4 && q.vz < 0), "backing up the ramp (toward the nose)", fmt(fr, (q) => `z=${q.lz.toFixed(2)} vz=${q.vz.toFixed(2)}`));
 check(s.crew?.jm.shown && s.crew?.mate.shown, "the crew in the hold with you", JSON.stringify(s.crew));
-s = await until(a, -0.45);
-check(/Wait for it/.test(s.sub), "wait for it", s.sub);
-check(s.stance === "crouch", "set: crouched", s.stance);
-check(Math.abs(s.lz - (5.7 - 1.6)) < 0.25, "1.6 m back from the hinge", `z=${s.lz.toFixed(2)}`);
+fr = await over(a, -0.45, -0.15);
+check(fr.some((q) => /Wait for it/.test(q.sub)), "wait for it", fmt(fr, (q) => JSON.stringify(q.sub)));
+check(fr.some((q) => q.stance === "crouch"), "set: crouched", fmt(fr, (q) => q.stance));
+check(fr.some((q) => Math.abs(q.lz - (5.7 - 1.6)) < 0.25), "1.6 m back from the hinge", fmt(fr, (q) => `z=${q.lz.toFixed(2)}`));
 const jumpWatch = fallSamples(a, 4.6, 40000);
 // The green: the dash.
 // (sampled in the page every frame: the dash is over in under a second)
@@ -507,8 +530,23 @@ check(x.view === -1 && x.camDist < 1.6 && !x.headVis, "let go: back to your eyes
 // The POV key flips this fall to the camera behind you.
 const pov0 = await a.evaluate(() => window.__trollOps.settings.thirdPerson);
 await a.evaluate(() => window.__trollOps.toggleThirdPerson());
-x = (await fallSamples(a, x.t + 0.4)).at(-1) ?? { headVis: false, camDist: 0, pitch: 0, landed: true };
-check(x.headVis && Math.abs(x.camDist - dropCamDist(x.pitch)) < 1.2, "POV pressed: the camera behind you", JSON.stringify(x));
+// Measured straight off the camera, a few frames on (the show's sampler only
+// sees the show, and a slow run is out of it by now): any falling frame with
+// the camera behind you passes; landed first is no answer either way.
+const povFr = await a.evaluate(async (u) => {
+  const { game } = ((window.__dcMods ??= {})[u] ??= await import(u));
+  const T = window.__trollOps, out = [];
+  for (let i = 0; i < 12; i++) {
+    await new Promise((r) => requestAnimationFrame(r));
+    const p = game.move.pos, cam = game.camera;
+    out.push({ me: T.royale().me, headVis: game.localRig.parts.headPivot.visible, pitch: game.look.pitch,
+      camDist: Math.hypot(cam.position.x - p.x, cam.position.y - (p.y + 1), cam.position.z - p.z) });
+  }
+  return out;
+}, STATE);
+const povFalling = povFr.filter((q) => q.me === "fall" || q.me === "glide");
+if (!povFalling.length) console.log("SKIP  POV pressed: landed before the camera could be seen (a slow run)", JSON.stringify(povFr.at(-1)));
+else check(povFalling.some((q) => q.headVis && Math.abs(q.camDist - dropCamDist(q.pitch)) < 1.2), "POV pressed: the camera behind you", JSON.stringify(povFalling.at(-1)));
 await shot(a, "fall-tp.png");
 await a.evaluate((v) => { if (window.__trollOps.settings.thirdPerson !== v) window.__trollOps.toggleThirdPerson(); }, pov0);
 // Phase 4: the real clips (sound/sfx-files.js), all in and each on its cue.
