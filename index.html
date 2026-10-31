@@ -23,7 +23,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="assets/css/troll-leaderboard.css?v=lb-engine-v1">
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Oswald:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 /* trollrunner.net home: one screen, a Black Ops 2 Zombies style menu over
    the molten troll-map planet (assets/js/menu-globe.js). The menu itself is
@@ -75,6 +75,14 @@ a{color:var(--hot)}a:hover{color:#ffb870}
 .home-tile:hover img,.home-tile:focus-visible img{transform:rotate(-4deg) scale(1.05)}
 .home-tile:hover,.home-tile:focus-visible{color:var(--ink)}
 .home-tile:focus-visible{outline:2px solid var(--hot);outline-offset:2px}
+/* Trollnite: its own wide tile over the other two (user, 2026-10-31: "a
+   separate section like PFP Studio", clear on every device). Key art behind,
+   the wordmark in Luckiest Guy. */
+.home-tile.is-trollnite{grid-column:1/-1;min-height:118px;justify-content:flex-end;padding:14px 16px;border-color:rgba(255,210,63,.7);
+  background:linear-gradient(180deg,rgba(10,4,2,0) 30%,rgba(10,4,2,.88)),url('assets/games/troll-ops/ui/troll-forces-key-art.jpg') center 30%/cover}
+.home-tile.is-trollnite b{font:400 34px/1 'Luckiest Guy',var(--display);letter-spacing:.05em;color:#ffd23f;-webkit-text-stroke:1.5px #2a1600;paint-order:stroke fill;text-shadow:0 3px 0 #7a3b00,0 6px 14px rgba(0,0,0,.8);text-transform:none}
+.home-tile.is-trollnite i{color:var(--ink);text-shadow:0 1px 4px rgba(0,0,0,.9)}
+.home-tile.is-trollnite em{position:absolute;top:12px;right:12px;padding:4px 10px;border-radius:999px;background:#ffd23f;color:#2a1600;font:700 12px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;font-style:normal}
 /* Finances is the donation wallet: its own glowing pill, bottom right. */
 .home-donate{display:flex;white-space:nowrap;flex:none;align-items:center;gap:12px;margin-left:auto;padding:8px 20px 8px 8px;border-radius:999px;border:1px solid rgba(255,210,122,.75);
   background:linear-gradient(135deg,rgba(255,210,122,.3),rgba(255,138,31,.16) 55%,rgba(10,4,2,.85));color:var(--ink);text-decoration:none;
@@ -141,6 +149,7 @@ kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgb
   .home-tile{padding:10px}
   .home-tile img{width:40px;height:40px;margin-bottom:8px;border-radius:10px}
   .home-tile b{font-size:16px}
+  .home-tile.is-trollnite{min-height:72px;padding:8px 12px}.home-tile.is-trollnite b{font-size:24px}.home-tile.is-trollnite em{top:8px;right:8px}
   .home-tile i{font-size:11px}
   .home-foot{left:max(44px,env(safe-area-inset-left));right:max(24px,env(safe-area-inset-right));bottom:10px;gap:14px;align-items:center}
   .home-online{font-size:24px}
@@ -278,6 +287,7 @@ kbd{font:12px var(--mono);padding:3px 7px;border-radius:5px;border:1px solid rgb
     <span class="home-acct-lbl">1 Runner <span>(you)</span></span>
     <button type="button" class="home-acct-row" id="home-acct-row"><b id="home-acct-name">Guest troll</b><i id="home-acct-note">Log in to save progress</i></button>
     <div class="home-tiles">
+      <a class="home-tile is-trollnite" href="troll-ops.html" aria-label="Play Trollnite: online PvP, Zombies and Troll Royale"><em>Play</em><b>TROLLNITE</b><i>PvP, Zombies and Troll Royale</i></a>
       <button type="button" class="home-tile" id="home-map-tile"><img class="is-cutout" src="assets/images/icons/troll-map.png" alt=""><b>Troll Map</b><i>Spin the planet</i></button>
       <a class="home-tile" href="pfp.html"><img src="assets/images/icons/pfp.png" alt=""><b>PFP Studio</b><i>Build your trollface</i></a>
     </div>
@@ -618,7 +628,7 @@ const screens = {
         { id: 'news', label: 'News', desc: NEWS[0].title, onSelect: () => openNews() },
       ] : [],
       [
-        { id: 'arcade', label: 'Arcade', desc: 'Troll Warfare, Troll Kombat and the weekly ladder.', go: 'arcade' },
+        { id: 'arcade', label: 'Arcade', desc: 'Trollnite, Troll Kombat and the weekly ladder.', go: 'arcade' },
         { id: 'terminal', label: 'Terminal', desc: 'The Trollface Terminal. The archive, the riddles, the transmissions.', href: 'https://trolltruths.com', newTab: true },
       ],
       [
@@ -636,7 +646,7 @@ const screens = {
     title: 'Arcade',
     groups: [
       [
-        { id: 'a-forces', label: 'Troll Warfare', desc: 'Online PvP, Zombies and Troll Royale. The big one.', href: 'troll-ops.html' },
+        { id: 'a-forces', label: 'Trollnite', desc: 'Online PvP, Zombies and Troll Royale. The big one.', href: 'troll-ops.html' },
         { id: 'a-kombat', label: 'Troll Kombat', desc: 'Two-player fighting. Pepe, Doge and the gladiator.', href: 'troll-kombat', ...soon() },
         { id: 'a-trollman', label: 'Troll Man', desc: 'Eat the dots, dodge the memes. The arcade classic, trolled.', href: 'troll-man' },
         { id: 'a-sabers', label: 'Grin Sabers', desc: 'Saber duels for trollfaces. Block it, disarm them, bonk them.', href: 'sabers', ...soon() },
