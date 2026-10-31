@@ -22,7 +22,7 @@
 import * as THREE from "three";
 import { game } from "../core/state.js?v=st1";
 import { playSfx } from "../sound/sfx-files.js?v=dc4-nd1-wb1";
-import { EXIT, exitClock, exitSlowK, exitQuat } from "./royale-exit.js?v=ex1-mb1-mb2";
+import { EXIT, exitClock, exitSlowK, exitQuat } from "./royale-exit.js?v=ex1-mb1-mb2-nft2531";
 
 export const FALL_CUTS = [EXIT.slow[0], EXIT.tuck, EXIT.dive];   // real s: the lip, the look back, the face, into your eyes
 const INTO_EYES = 0.5;            // s to push into your eyes after the dive

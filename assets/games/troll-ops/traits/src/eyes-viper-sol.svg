@@ -1,0 +1,35 @@
+<!--
+  TROLLS trait: EYES / Viper Sol. A wraparound sport visor over both eyes:
+  one wide violet lens, blue toward its ends, a teal bar along its top
+  edge in the middle, teal hinge blocks at the corners and teal arms
+  running back to the face's edges. Traced from TROLLS #2531. Front only.
+  Frame: the head-trait frame (traits/README.md); the eyes sit at about
+  (348, 478) and (578, 472) in it.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1033" width="1000" height="1033">
+  <defs>
+    <clipPath id="lens">
+      <path d="M232 444 C300 426 420 418 500 420 C600 422 690 432 722 446 L716 520 C660 536 560 544 486 542 C400 540 300 530 238 512 Z"/>
+    </clipPath>
+  </defs>
+  <!-- the arms, back to the face's sides -->
+  <g fill="#2bb2a3" stroke="#0a0a0a" stroke-width="9" stroke-linejoin="round">
+    <path d="M232 452 L150 470 L146 494 L236 486 Z"/>
+    <path d="M722 452 L820 466 L824 490 L718 486 Z"/>
+  </g>
+  <!-- the lens: violet, bluer at the ends, kept over the alpha test (traits.js 0.3) -->
+  <g clip-path="url(#lens)">
+    <rect x="220" y="410" width="520" height="150" fill="#8f7de8" fill-opacity="0.86"/>
+    <path d="M220 410 L330 410 L300 560 L220 560 Z" fill="#6f8cea" fill-opacity="0.86"/>
+    <path d="M740 410 L640 410 L660 560 L740 560 Z" fill="#6f8cea" fill-opacity="0.86"/>
+    <!-- a glint across the top -->
+    <path d="M300 440 C420 428 560 428 690 444" fill="none" stroke="#dcd6ff" stroke-width="7" stroke-linecap="round" opacity="0.7"/>
+  </g>
+  <path d="M232 444 C300 426 420 418 500 420 C600 422 690 432 722 446 L716 520 C660 536 560 544 486 542 C400 540 300 530 238 512 Z" fill="none" stroke="#0a0a0a" stroke-width="10" stroke-linejoin="round"/>
+  <!-- the teal bar along the top in the middle, and the hinge blocks -->
+  <g fill="#2bb2a3" stroke="#0a0a0a" stroke-width="8" stroke-linejoin="round">
+    <path d="M404 412 L600 414 L598 440 L406 438 Z"/>
+    <rect x="226" y="438" width="40" height="30" rx="4"/>
+    <rect x="692" y="440" width="40" height="30" rx="4"/>
+  </g>
+</svg>

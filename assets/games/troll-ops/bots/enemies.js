@@ -2,7 +2,7 @@
 import * as THREE from "three";
 import { makeEnemyDissolveMaterial } from "../view/shaders.js?v=or1";
 import { groundHeightAt, resolveCircle } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1-hb4";
-import { buildHumanoid, poseHumanoid, gaitFromVelocity, gaitPhaseRate } from "../characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-pk1-mb1-mb2";
+import { buildHumanoid, poseHumanoid, gaitFromVelocity, gaitPhaseRate } from "../characters/character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-pk1-mb1-mb2-nft2531";
 
 const GRUNT_TYPES = {
   runner: { hp: 40, speed: 4.4, radius: 0.42, height: 1.7, build: 1.0, color: 0x6bd15a, scoreValue: 100, damage: 8, attackRange: 1.3, attackCd: 0.7 },

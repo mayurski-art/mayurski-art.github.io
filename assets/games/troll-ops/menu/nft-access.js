@@ -6,7 +6,7 @@
 // (assets/supabase/troll_forces_nft_holders.sql); the holder then sees it
 // after a reload. Nobody else sees these screens.
 
-import { BODIES, holderOf, username } from "../characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1-em2-nb2-pc2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-sf1-mg1-sp1-pk1-mb1-mb2-bt1-nft33-nfh1-nfh5";
+import { BODIES, holderOf, username } from "../characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1-em2-nb2-pc2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-sf1-mg1-sp1-pk1-mb1-mb2-bt1-nft33-nfh1-nfh5-nft2531";
 import { setHolder } from "../characters/nft-holders.js?v=nfh3";
 
 const OWNER = "troll_runner";

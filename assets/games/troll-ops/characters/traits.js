@@ -15,7 +15,7 @@
 // drawn traits.
 
 import * as THREE from "three";
-import { setClothed } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-pk1-mb1-mb2";
+import { setClothed } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-pk1-mb1-mb2-nft2531";
 
 const DIR = new URL("../traits/", import.meta.url);
 // The art's cache tag: bump it when a drawing changes (a dev page can set
@@ -60,6 +60,10 @@ const ART_V = globalThis.TRAITS_BUST ?? "tr7";
      FACIALS/Cigar            the token's emote, not worn (user, 2026-10-21:
                               "1272 should not have a cigar in his face just
                               make it an exclusive emote"; emotes.js)
+     HATS/Horny               hat-horny          (MODELLED: Blender horns, no drawing)
+     FACIALS/HellYa           the face itself (face-hellya.svg, character.js FACE_ART)
+     EYES/Viper Sol           eyes-viper-sol
+     CLOTHES/Miltary Uniform  clothes-military-uniform (block template only)
    Head traits go on in this order, each a hair in front of the last. */
 /* token -> its traits by type, as its metadata names them (local: the
    page's CSP blocks IPFS, so a token's traits are copied in here). */
@@ -72,6 +76,8 @@ export const TOKENS = {
   2630: { hat: "Trucker Hat Microsoft", facial: "Licky", eyes: "Blindfold", clothes: "Tshirt Black" },
   2631: { hat: "Trucker Hat Yobucks", facial: "Gold Tooth", eyes: "Glasses Reading", clothes: "Trainer" },
   1272: { hat: "Sheriff Hat", facial: "Cigar", eyes: "Eyes None", clothes: "Sheriff Gear" },
+  // ("Miltary" as the metadata spells it)
+  2531: { hat: "Horny", facial: "HellYa", eyes: "Viper Sol", clothes: "Miltary Uniform" },
 };
 /* trait value -> its drawing's id; "" for a value that's the OG art. */
 export const TRAIT_ART = {
@@ -88,10 +94,11 @@ export const TRAIT_ART = {
   "Jester": "clothes-jester", "Tshirt Black": "clothes-tshirt-black", "Trainer": "clothes-trainer",
   "Sheriff Hat": "hat-sheriff", "Sheriff Gear": "clothes-sheriff-gear",
   "Eyes None": "", "None": "", "Bubblegum": "", "Cigar": "",
+  "Horny": "hat-horny", "HellYa": "", "Viper Sol": "eyes-viper-sol", "Miltary Uniform": "clothes-military-uniform",
 };
 /* Traits that are Blender models, not drawings (blocky-body.js HAIRS puts
    them on the relief head): no planes here. */
-export const MODELLED = new Set(["hat-carrot-cake-hair"]);
+export const MODELLED = new Set(["hat-carrot-cake-hair", "hat-horny"]);
 /* Eye traits that go on over the facial, not under it (shades over a mask). */
 const OVER_FACIAL = new Set(["eyes-glasses-thug"]);
 /* Token #id's drawn trait ids, worn in this order (eyes on the face, then
@@ -103,8 +110,9 @@ const OVER_FACIAL = new Set(["eyes-glasses-thug"]);
    Cracked Eyes are painted into the trollface in place of its squints (as
    a card they floated in front of the grin; user, 2026-10-16), and #2631's
    Gold Tooth fills a tooth of it (a card was half buried in the grin);
-   #1718's Eyes Relaxed are its closed lids in place of the squints. */
-const FACE_TRAITS = { Bubblegum: "gum", "Cracked Eyes": "cracked", "Gold Tooth": "goldtooth", "Eyes Relaxed": "relaxed" };
+   #1718's Eyes Relaxed are its closed lids in place of the squints; #2531's
+   HellYa is the grin opened into a laugh. */
+const FACE_TRAITS = { Bubblegum: "gum", "Cracked Eyes": "cracked", "Gold Tooth": "goldtooth", "Eyes Relaxed": "relaxed", HellYa: "hellya" };
 export function tokenFace(token) {
   const t = TOKENS[token];
   return FACE_TRAITS[t?.facial] || FACE_TRAITS[t?.eyes] || null;

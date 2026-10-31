@@ -16,8 +16,8 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeVertices, mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-pk1-mb1-mb2";
-import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1-gt1-fg2-bd1-mj1-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-sf1-hl1-mg1-sp1-mb1-mb2";
+import { setClothed, setHips, reshapeRig, setFace } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-pk1-mb1-mb2-nft2531";
+import { applyToken, removeToken, tokenTraits, tokenFace, TOKENS, TRAIT_ART } from "./traits.js?v=bk1-cw1-zr10-bf1-sr1-nf1-or1-nf2-em2-nb2-sb1-lh1-fc1-fm1-mr1-gt1-fg2-bd1-mj1-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-sf1-hl1-mg1-sp1-mb1-mb2-nft2531";
 import { addRim } from "../view/rim-light.js?v=sr1";
 import { tagInk, untagInk } from "../view/char-ink.js?v=ci1-ci2-ci3-ci4-ci5-rb4-rb5-mg1-sp1-ci6";
 
@@ -231,12 +231,19 @@ const KITS = {
   // torso template), dark jeans, brown cowboy boots
   "clothes-sheriff-gear": { sleeves: "long", legs: "legs-farmer.glb",
     colours: { sleeve: 0xf4f4f0, cuff: 0xe2e2dc, denim: 0x2c3650, hem: 0x222a3e, boot: 0x4a2e18, sole: 0x2a1c12 } },
+  // Miltary Uniform (#2531): the farmer's pieces in digital camo (camoMaterial)
+  // to the tan combat boots; first-person forearms in the camo sleeve
+  "clothes-military-uniform": { sleeves: "long", legs: "legs-farmer.glb",
+    colours: { sleeve: "camo", cuff: "camo", denim: "camo", hem: "camo", boot: 0x9a8a68, collar: 0x7d6e52, sole: 0x2a2420 } },
 };
 /* Hair modelled in Blender (traits.js MODELLED), worn on the relief head in
    its frame: the file and a colour per piece name. Carrot Cake Hair is the
    NFT's black spikes, a dark grey so the toon bands and the ink read on it. */
 const HAIRS = {
   "hat-carrot-cake-hair": { file: "hair-carrot-cake.glb", colours: { hair: 0x2c2c33 } },
+  // Horny (#2531): two red horns off the skull's corners, a darker ring at
+  // each root (build_blocky_horns); no `hair` colour, so no hairline
+  "hat-horny": { file: "horns.glb", colours: { horn: 0xd0381c, hornbase: 0x7e1d10 } },
 };
 /* Token #id's look on the block body: its garment and that garment's kit,
    or null when the token isn't wearable (a trait not drawn yet). */
@@ -266,6 +273,36 @@ function plaidMaterial() {
   }
   return addRim(new THREE.MeshToonMaterial({ map: plaidTex, gradientMap: CLOTH_TONES, emissive: 0xffffff, emissiveMap: plaidTex, emissiveIntensity: 0.12 }));
 }
+/* The uniform's digital camo (#2531): 8 mm pixels in four greys, the
+   block template's tile (clothes-military-uniform.block.svg) drawn once,
+   repeated over the sleeves and trousers. */
+let camoTex = null;
+function camoMaterial() {
+  if (!camoTex) {
+    const c = document.createElement("canvas");
+    c.width = c.height = 128;
+    const g = c.getContext("2d");
+    g.fillStyle = "#8b9185"; g.fillRect(0, 0, 128, 128);
+    // (x, y, w, h) in the tile's 8-px cells, two tiles across
+    const CELLS = {
+      "#aaa99b": [[0, 0, 2, 1], [1, 1, 1, 1], [5, 0, 1, 2], [6, 1, 2, 1], [3, 3, 2, 1], [4, 4, 1, 1], [0, 5, 1, 2], [1, 6, 2, 1], [6, 5, 1, 1], [7, 6, 1, 2], [3, 7, 2, 1]],
+      "#646c62": [[3, 0, 1, 1], [2, 2, 1, 1], [7, 3, 1, 1], [6, 3, 1, 2], [0, 3, 1, 1], [5, 6, 1, 1], [2, 5, 1, 1], [1, 4, 1, 1], [4, 1, 1, 1], [5, 7, 1, 1], [0, 7, 1, 1]],
+      "#bbb8a7": [[2, 0, 1, 1], [4, 2, 2, 1], [0, 2, 1, 1], [7, 0, 1, 1], [3, 5, 1, 1], [6, 7, 1, 1], [1, 3, 1, 1], [5, 4, 1, 1]],
+    };
+    for (const [col, cells] of Object.entries(CELLS)) {
+      g.fillStyle = col;
+      for (const [x, y, w, h] of cells) for (const ox of [0, 64]) for (const oy of [0, 64]) g.fillRect(ox + x * 8, oy + y * 8, w * 8, h * 8);
+    }
+    camoTex = new THREE.CanvasTexture(c);
+    camoTex.colorSpace = THREE.SRGBColorSpace;
+    camoTex.wrapS = camoTex.wrapT = THREE.RepeatWrapping;
+    camoTex.magFilter = THREE.NearestFilter;
+    camoTex.anisotropy = 8;
+  }
+  return addRim(new THREE.MeshToonMaterial({ map: camoTex, gradientMap: CLOTH_TONES, emissive: 0xffffff, emissiveMap: camoTex, emissiveIntensity: 0.12 }));
+}
+/* A kit colour that's a cloth instead (KITS colours "plaid", "camo"). */
+const PATTERNS = { plaid: plaidMaterial, camo: camoMaterial };
 /* A painted piece's material: its own texture (a Roblox Studio body,
    tools/troll-ops-roblox-body.mjs, carries one per part), cel-shaded like
    the cloth, one per texture. */
@@ -312,7 +349,7 @@ function kitMaterials(colours) {
     const key = name.split("-")[0];
     if (!mats.has(key)) {
       const c = colours[key];
-      mats.set(key, c === "plaid" ? plaidMaterial() : toon(c ?? SKIN));
+      mats.set(key, PATTERNS[c] ? PATTERNS[c]() : toon(c ?? SKIN));
     }
     return mats.get(key);
   };
@@ -320,8 +357,8 @@ function kitMaterials(colours) {
 /* Your own first-person arms in token #token's garment (view/weapon-view.js
    placeBlockArms): the forearm's material (null: bare, the white skin) and
    the cuff's (null: none), or null for a token that isn't wearable. The
-   plaid gets its own repeat for the first-person box (0.066 m across, about
-   0.45 m long). */
+   plaid (and the camo) gets its own repeat for the first-person box
+   (0.066 m across, about 0.45 m long). */
 const fpArmLooks = new Map();
 export function fpArmLook(token) {
   const kit = tokenLook(token)?.kit;
@@ -329,9 +366,9 @@ export function fpArmLook(token) {
   if (!fpArmLooks.has(token)) {
     const mat = (c) => {
       if (c == null) return null;
-      if (c !== "plaid") return toon(c);
-      const m = plaidMaterial();
-      m.map = m.emissiveMap = plaidTex.clone();
+      if (!PATTERNS[c]) return toon(c);
+      const m = PATTERNS[c]();
+      m.map = m.emissiveMap = m.map.clone();
       m.map.repeat.set(0.55, 3.6);
       m.map.needsUpdate = true;
       return m;
@@ -1579,8 +1616,9 @@ function reliefHead(rig) {
       // so the bare scalp showed between the fringe spikes (user,
       // 2026-10-17: no scalp under hair). The face's top strip, above the
       // brows, gets a skin of the hair's colour a hair's width out.
+      // (horns have no `hair`: the scalp between them stays skin)
       const face = pieces.find((x) => x.mat === "trollface");
-      if (face) g.add(hairline(face.geo, matOf("hair"), M.hairline));
+      if (face && hair.colours.hair) g.add(hairline(face.geo, matOf("hair"), M.hairline));
     }
     g.userData.undo = () => {
       board.layers.mask = mask;
