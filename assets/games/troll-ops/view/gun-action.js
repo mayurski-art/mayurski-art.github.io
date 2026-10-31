@@ -16,12 +16,12 @@
 import { smoothstep } from "../characters/anim-curves.js?v=or1";
 import { placePistolSlide } from "./pistol-action.js?v=ps1-wb1-br1-or1";
 import { placeBolt } from "./rifle-action.js?v=ra1-wb1-or1-sbolt1-ars1-p416";
-import { arSlideAt, arPartState } from "./ar-reload.js?v=ar1-br1-or1-ars1-p416";
+import { arSlideAt, arPartState, LET_GO } from "./ar-reload.js?v=ar1-br1-or1-ars1-p416";
 
 export const CARRIER_BACK = 0.03, CARRIER_HOME = 0.04;
 const TRIGGER_HOLD = 0.05, TRIGGER_BACK = 0.08;   // after a shot: held, then forward
 const COVER_OPEN = 0.07;                           // the dust cover's swing, seconds
-const SLAM = 0.03;                                 // carrier home off the catch
+const SLAM = LET_GO;                               // carrier home off the catch or a let-go handle
 
 const _out = { release: false, boltBeat: null, eject: false };
 
@@ -60,20 +60,24 @@ function placeParts(mesh, w, dt, arT, o) {
   if (!a.ejected && a.t >= CARRIER_BACK * 0.6) { a.ejected = true; o.eject = true; }
 
   let back = carrierCurve(a.t);
-  let catchUp = 0;
+  let catchUp = 0, charge = 0;
   const empty = w.ammoInMag <= 0;
   if (arT >= 0 && w.reloadWasEmpty) {
-    // held back on the catch till the hand releases it, then slammed home
+    // held back on the catch till the hand releases it, then slammed home,
+    // speeding up as it goes (a let-go handle keeps the same pace)
     const ps = arPartState(w, arT);
     const rel = ps.releaseAt ?? 0.8;
-    back = arT < rel ? 1 : Math.max(ps.charge, 1 - smoothstep(Math.min(1, (arT - rel) / SLAM)));
+    back = arT < rel ? 1 : Math.max(ps.charge, 1 - Math.min(1, (arT - rel) / SLAM) ** 2);
     catchUp = arT < rel ? 1 - ps.press : 0;
-    setPart(P.Charge, ps.charge);
+    charge = ps.charge;
   } else {
     if (empty && !w.reloading && a.t >= CARRIER_BACK) { back = 1; catchUp = 1; }
-    if (arT >= 0) setPart(P.Charge, arPartState(w, arT).charge);
-    else setPart(P.Charge, 0);
+    if (arT >= 0) charge = arPartState(w, arT).charge;
   }
+  // a reciprocating handle (tf_follow) rides back with the carrier on each
+  // shot and sits back with it when it locks
+  if (P.Charge?.follow === "Carrier" && P.Carrier) charge = Math.max(charge, back * P.Carrier.travel / P.Charge.travel);
+  setPart(P.Charge, charge);
   setPart(P.Carrier, back);
   setPart(P.Bolt, back);
   setPart(P.Catch, catchUp);

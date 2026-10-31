@@ -95,14 +95,23 @@ function build(s, empty) {
     // part (gun-action.js reads partState); handle / pull stay the fallback
     // for a gun without the points.
     const at = (v, pull) => (f.part ? { at: "part", part: f.part, v, pull } : { at: "gun", v });
-    k.hand.push([T.reach, at(f.handle, 0)], [T.work - 0.02, at(f.handle, 0)],
-      [T.work + 0.02, at(f.pull, 1)], [T.done, at(f.handle, 0)], [T.home, { at: "guard" }]);
+    if (f.part === "charge") {
+      // a rack you can see: the handle drawn all the way back, held a
+      // beat, then let go: the hand opens where it is and the handle and
+      // carrier snap home on the spring
+      k.hand.push([T.reach, at(f.handle, 0)], [T.work - 0.05, at(f.handle, 0)],
+        [T.work + 0.01, at(f.pull, 1)], [T.work + 0.03, at(f.pull, 1)], [T.home, { at: "guard" }]);
+      k.part = { name: "charge", grab: T.work - 0.05, pull: T.work + 0.01, let: T.work + 0.03, done: T.done, releaseAt: T.work + 0.03 };
+    } else {
+      k.hand.push([T.reach, at(f.handle, 0)], [T.work - 0.04, at(f.handle, 0)],
+        [T.work, at(f.pull, 1)], [T.done, at(f.handle, 0)], [T.home, { at: "guard" }]);
+      // a handle without a point rides back with the hand and home when
+      // it's let go; a catch is pressed and held and drops the carrier
+      k.part = { name: f.part ?? (f.sound === "slap" ? "catch" : "charge"), grab: T.work - 0.04, pull: T.work, done: T.done,
+        releaseAt: !f.part && f.sound === "rack" ? T.done : T.work };
+    }
     if (f.sound) k.beats.push([T.work, f.sound]);   // (a pistol's is its slide: arSlideAt)
     k.slideAt = T.work + 0.02;
-    // a charging handle comes back with the hand and the carrier rides
-    // home when it's let go; a catch drops the carrier under the slap
-    k.part = { name: f.part ?? (f.sound === "slap" ? "catch" : "charge"), grab: T.work - 0.02, pull: T.work + 0.02, done: T.done,
-      releaseAt: f.part === "charge" || (!f.part && f.sound === "rack") ? T.done : T.work };
   } else {
     k.hand.push([T.home, { at: "guard" }]);
   }
@@ -263,8 +272,9 @@ const SPECS = {
     finish: { pose: pose([0.06, -0.13, -0.55], [0.15, 0.95, -0.25], [0.95, -0.1, 0.3]), handle: [0, 0.014, 0.07], pull: [0, 0.014, 0.1], sound: null },
   },
   // Problem 416 (arsenal v2, models/build_problem416.blender.py): the M4
-  // family's stand; the empty reload ends on a palm slap of its P_Catch.
-  problem416: { template: "ar" },
+  // family's stand; the empty reload ends on the T-handle under your eye
+  // drawn back and let go, so you see it and the carrier snap home.
+  problem416: { template: "ar", finish: { part: "charge", sound: "rack" } },
 };
 
 /* Archetypes (DESIGN-ARSENAL.md #6): a gun's spec can be { template, ...
@@ -311,13 +321,20 @@ export const hasArReload = (def) => !!trackOf(def);
    handle is pulled (0..1), how far the catch is pressed (0..1), and when
    the carrier is let go home. Zeros outside an empty reload. */
 const _ps = { charge: 0, press: 0, releaseAt: null };
+export const LET_GO = 0.03;   // a let-go handle's run home, as a share of the reload
 export function arPartState(w, t) {
   _ps.charge = _ps.press = 0;
   _ps.releaseAt = null;
   const p = w.reloadWasEmpty ? trackOf(w.def)?.empty.part : null;
   if (!p || t < 0) return _ps;
   _ps.releaseAt = p.releaseAt;
-  const k = t < p.grab ? 0 : t < p.pull ? smoothstep((t - p.grab) / (p.pull - p.grab)) : t < p.done ? 1 - smoothstep((t - p.pull) / (p.done - p.pull)) : 0;
+  let k;
+  if (t < p.grab) k = 0;
+  else if (t < p.pull) k = smoothstep((t - p.grab) / (p.pull - p.grab));
+  // let go: held back, then home on the spring, speeding up as it goes
+  // (the carrier's slam in gun-action.js keeps the same pace)
+  else if (p.let != null) k = 1 - Math.min(1, Math.max(0, (t - p.let) / LET_GO)) ** 2;
+  else k = t < p.done ? 1 - smoothstep((t - p.pull) / (p.done - p.pull)) : 0;
   if (p.name === "charge") _ps.charge = k;
   else _ps.press = t >= p.grab ? Math.min(1, (t - p.grab) / (p.pull - p.grab)) : 0;
   return _ps;
@@ -463,11 +480,13 @@ function handPoint(mesh, mag, key, out, palm) {
     const pt = mesh.userData.gunPoints?.[key.part];
     if (!pt) return key.v ? gunToCam(mesh, out.set(...key.v)) : out.copy(mesh.position);
     out.copy(pt);
-    if (key.pull) {
-      const ch = mesh.userData.gunParts?.Charge;
-      if (key.part === "charge" && ch?.kind === "slide") out[ch.axis] += ch.travel;
-      else if (key.part === "catch") out.y -= 0.006;
-    }
+    const ch = mesh.userData.gunParts?.Charge;
+    if (key.part === "charge" && ch?.kind === "slide") {
+      // pulled: the end of its travel (the hand stays there when it lets
+      // go); otherwise wherever the handle sits (a reciprocating one is
+      // back with the locked carrier)
+      out[ch.axis] += key.pull ? ch.travel : ch.node.position[ch.axis] - ch.pos[ch.axis];
+    } else if (key.pull && key.part === "catch") out.y -= 0.006;
     return gunToCam(mesh, out);
   }
   if (key.at === "gun" && key.v) return gunToCam(mesh, out.set(...key.v));
