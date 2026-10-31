@@ -62,9 +62,17 @@ function srgb(hex, out) {
 
 const IDENTITY = { sat: 1, contrast: 1, shadows: 0x808080, shadowsAmt: 0, highlights: 0x808080, highlightsAmt: 0 };
 
+/* The one the game draws with, for an effect that rides on top of the
+   map's grade for a while (view/stonks-fx.js setBoost). */
+export let gradeActive = null;
+
 export class GradePass extends OutputPass {
   constructor() {
     super();
+    gradeActive = this;
+    this.base = { ...IDENTITY };
+    this.hasGrade = false;
+    this.boost = null;
     Object.assign(this.uniforms, {
       uGrade: { value: 0 },
       uSat: { value: 1 },
@@ -93,13 +101,28 @@ export class GradePass extends OutputPass {
   /* map.grade: { sat, contrast, shadows (hex), shadowsAmt, highlights (hex),
      highlightsAmt }. Tints are sRGB hex, as the map's other colours are. */
   setGrade(grade) {
-    const g = { ...IDENTITY, ...(grade || {}) }, u = this.uniforms;
-    u.uGrade.value = grade ? 1 : 0;
-    u.uSat.value = g.sat;
-    u.uContrast.value = g.contrast;
-    srgb(g.shadows, u.uShadow.value);
-    u.uShadowAmt.value = g.shadowsAmt;
-    srgb(g.highlights, u.uHigh.value);
-    u.uHighAmt.value = g.highlightsAmt;
+    this.base = { ...IDENTITY, ...(grade || {}) };
+    this.hasGrade = !!grade;
+    this.apply();
+  }
+
+  /* An effect over the map's grade (null clears it): `sat` and `contrast`
+     multiply the map's; `high`/`highAmt` and `shadow`/`shadowAmt` are a
+     tint pulled in over the map's own (blended by `mix`, 0..1). */
+  setBoost(boost) {
+    this.boost = boost;
+    this.apply();
+  }
+
+  apply() {
+    const g = this.base, b = this.boost, u = this.uniforms;
+    u.uGrade.value = this.hasGrade || b ? 1 : 0;
+    u.uSat.value = g.sat * (b?.sat ?? 1);
+    u.uContrast.value = g.contrast * (b?.contrast ?? 1);
+    const mix = b?.mix ?? 0;
+    srgb(b?.shadow != null && mix > 0 ? b.shadow : g.shadows, u.uShadow.value);
+    u.uShadowAmt.value = b?.shadow != null ? g.shadowsAmt * (1 - mix) + (b.shadowAmt ?? 0) * mix : g.shadowsAmt;
+    srgb(b?.high != null && mix > 0 ? b.high : g.highlights, u.uHigh.value);
+    u.uHighAmt.value = b?.high != null ? g.highlightsAmt * (1 - mix) + (b.highAmt ?? 0) * mix : g.highlightsAmt;
   }
 }

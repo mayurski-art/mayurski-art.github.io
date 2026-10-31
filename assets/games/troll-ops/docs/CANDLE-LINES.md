@@ -6,7 +6,11 @@ snorted through a rolled-up bill. You get a stonks rush, then a rug pull.
 Socialize only (the club's `rp` hooks never run in versus). Cosmetic plus
 a short speed change. Nothing is won or lost.
 
-Status: draft, waiting on the user's picks (section 9).
+Status: built with the recommended picks (section 9: the tatami room only,
+the $TROLL card, 20 s at x1.25 then 12 s at x0.85, the VIPs do lines) on
+branch claude/kb-candle-lines-801c94. Files: maps/kabukigrin-lines.js,
+modes/social-lines.js, sound/lines-sfx.js, view/stonks-fx.js; test
+tools/troll-ops-lines-test.mjs.
 
 ## 1. Where the tables go
 

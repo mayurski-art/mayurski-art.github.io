@@ -46,6 +46,8 @@ import { KB_GLANCE } from "../weapons/keyboard-repair.js?v=kr15-or1";
 import { updateDamageNumbers } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-wb1-mt2-sk1-hb4-lu1-mb1-mb2-gc1";
 import { chargedShotDef } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
 import { updateBand } from "../modes/social-band.js?v=bd1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-gf1-tg1-tw1-arw1-su1-tcs1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht1-ht2-bx1-ba1-sf1-cg1-hl1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-rm1-kzf1-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1";
+import { updateLines, linesCam } from "../modes/social-lines.js?v=cl1";
+import { updateStonks, stonksSpeed } from "./stonks-fx.js?v=cl1";
 import { updatePachinko } from "../modes/social-pachinko.js?v=pk1-kb3-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-rm1-kzf1-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-tw1-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1";
 import { game } from "../core/state.js?v=st1";
 import { nukeCineOn, placeNukeCamera } from "../streaks/nuke.js?v=tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1";
@@ -106,6 +108,7 @@ let aboardHud = false;   // body.to-aboard is on
 export function updatePlayer(dt) {
   const w = currentWeapon();
   const trip = updateLeanTrip(dt);   // the Pour up's after-effect (lean-trip.js)
+  const stonks = updateStonks(dt);   // the candle lines' rush and rug pull (stonks-fx.js)
   updateLauncherLock(dt);
   updateSwapButton(dt);   // X / the touch SWAP outside the PvP pickup prompt
 
@@ -239,7 +242,7 @@ export function updatePlayer(dt) {
     yaw: rolling ? royale.rollYaw : game.look.yaw,
     pitch: game.look.pitch,
     adsHeld: wantAds,
-    speedMult: w.moveSpeedMult * (game.isInfected() ? INFECTION.speed : 1) * (wading ? 0.55 : 1) * (heroActive() ? hero().speedMult() : 1)
+    speedMult: w.moveSpeedMult * (game.isInfected() ? INFECTION.speed : 1) * (wading ? 0.55 : 1) * (heroActive() ? hero().speedMult() : 1) * stonksSpeed()
       * (hasPerk("lightweight") ? PERK_TUNE.lightweightSpeed : 1) * (downed ? (game.player.out ? 0 : DOWNED_SPEED) : 1),   // out (co-op, bled out): where you fell
     // Troll Royale is a 400 m island: sprinting covers it 25% faster.
     // Extreme Conditioning (perks.js): the game has no sprint limit to lift,
@@ -260,7 +263,7 @@ export function updatePlayer(dt) {
 
   // fist fights with the townsfolk (Socialize): after we've moved, so a
   // bump reads our speed and a knock-down holds us where we fell
-  if (game.isSocial()) { duelFire(); updateDuel(dt); updateClubEntry(dt); updateConductor(); updateSheriff(dt); updateBand(dt); updateShop(); updateComputers(); updateHorses(dt); updateSurf(); updateHoops(dt); updateTennis(dt); updateVball(dt); updateArmWrestle(dt); updatePhotoBooth(dt); updateJailbreak(dt); updatePachinko(); }
+  if (game.isSocial()) { duelFire(); updateDuel(dt); updateClubEntry(dt); updateConductor(); updateSheriff(dt); updateBand(dt); updateShop(); updateComputers(); updateHorses(dt); updateSurf(); updateHoops(dt); updateTennis(dt); updateVball(dt); updateArmWrestle(dt); updateLines(dt); updatePhotoBooth(dt); updateJailbreak(dt); updatePachinko(); }
 
   updateSwivel(dt);
   updateSwingDoors(dt);   // a map's swing doors (Trolling Loud's kitchen)
@@ -416,7 +419,7 @@ export function updatePlayer(dt) {
     const glance = kbRepair.active ? kbRepair.glance : 0;
     // Tipsy (the saloon bar): the room leans and bobs a little.
     const tip = bar.tipsy > TIPSY.onset && game.isSocial() ? tipsyFx(bar.tipsy, performance.now() / 1000) : null;
-    game._euler.set(viewPitch + rollPitch + downPitch + glance * KB_GLANCE.pitch + (tip?.pitch || 0) + trip.pitch, viewYaw + glance * KB_GLANCE.yaw, (Math.random() - 0.5) * shake * 0.6 + game.fireShake.r + slideRoll + downRoll + (tip?.roll || 0) + trip.roll);
+    game._euler.set(viewPitch + rollPitch + downPitch + glance * KB_GLANCE.pitch + (tip?.pitch || 0) + trip.pitch + linesCam.pitch + stonks.pitch, viewYaw + glance * KB_GLANCE.yaw + linesCam.yaw + stonks.yaw,(Math.random() - 0.5) * shake * 0.6 + game.fireShake.r + slideRoll + downRoll + (tip?.roll || 0) + trip.roll + linesCam.roll + stonks.roll);
     game.camera.quaternion.setFromEuler(game._euler);
     if (glance > 0 || game.weaponCamera.userData.glanced) {
       game.weaponCamera.quaternion.setFromEuler(game._euler.set(glance * KB_GLANCE.pitch, glance * KB_GLANCE.yaw, 0, "YXZ"));
