@@ -364,6 +364,18 @@ function buildDetailed(def, cfg, template, lod = 0, camo = null) {
   root.add(sup);
   u.supportHandPos = support.clone();
   u.pfAnchors = [hand, sup];
+  // a bolt gun's bolt (view/rifle-action.js): the knob rides the bolt, the
+  // trigger hand leaves the grip to work it, and the round (tf_round) shows
+  // in the open action
+  if (parts.Bolt && points.BoltKnob) {
+    const b = parts.Bolt;
+    let round = null;
+    root.traverse((o) => { if (o.userData.tf_round) round = o; });
+    if (round) round.visible = false;
+    u.boltAction = { bolt: b.node, knob: { position: points.BoltKnob.clone().sub(b.pos) }, restZ: b.pos.z,
+      travel: b.travel, lift: b.node.userData.tf_lift, round,
+      hand, handRest: { position: hand.position.clone(), quaternion: hand.quaternion.clone() } };
+  }
   // how far under the Support point the hand closes (a gun whose point is
   // already under its handguard, the Ballista, says less)
   u.pfSupportDrop = cfg.supportDrop ?? 0.05;
