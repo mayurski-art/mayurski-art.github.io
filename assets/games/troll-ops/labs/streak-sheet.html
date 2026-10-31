@@ -63,7 +63,9 @@ const STREAKS = {
   // the pad faces +z, so its "side" is the screen, straight on
   pad: { build: () => { const d = buildStreakDevice(); drawTabletScreen(d, "uav", 1.2, false); if (d.userData.screen) d.userData.screen.tex.needsUpdate = true; return d; }, views: [[-90, 0], [-50, 18], [130, 18], [-90, 85]] },
   marker: { build: () => buildMarkerDevice(), views: [[-90, 0], [-45, 15], [135, 15], [0, 85]] },
-  uav: { glb: "recon-drone", nodes: ["ReconProp"] },
+  // the Counter-UAV is the same Shadow with its jammer nodes shown
+  uav: { glb: "recon-drone", nodes: ["ReconProp", "ReconPropBlur", "Strobe", "JamPodL", "JamPodR", "JamStripe"], hide: /^Jam/ },
+  counteruav: { glb: "recon-drone", nodes: ["JamPodL", "JamPodR", "JamStripe"] },
   carepackage: { glb: "care-package" },
   dropheli: { glb: "helicopter", nodes: ["MainRotor", "TailRotor"] },
   drone: { glb: "hunter-drone", nodes: ["DroneRotor_0", "DroneRotor_1", "DroneRotor_2", "DroneRotor_3"] },
@@ -115,7 +117,7 @@ async function build(id) {
   const def = STREAKS[id];
   if (!def) throw new Error(`no streak ${id}`);
   current = def.glb ? await glb(def.glb) : def.build();
-  current.traverse((o) => { if (o.isMesh) o.castShadow = o.receiveShadow = false; });
+  current.traverse((o) => { if (o.isMesh) o.castShadow = o.receiveShadow = false; if (def.hide && def.hide.test(o.name)) o.visible = false; });
   scene.add(current);
   return current;
 }

@@ -953,21 +953,19 @@ export class ReconPlane {
     this.prop = null;
     this.place();
 
+    this.strobe = null;
     loadModel("recon-drone").then((obj) => {
       if (this.dead) return;
-      if (this.counter) {
-        // Own materials (the model's are shared with every UAV), greys
-        // pushed to a dark jammer red.
-        obj.traverse((o) => {
-          if (!o.isMesh || !o.material?.color) return;
-          o.material = o.material.clone();
-          const hsl = {};
-          o.material.color.getHSL(hsl);
-          if (hsl.s < 0.2) o.material.color.setHSL(0.99, 0.55, Math.min(0.32, 0.1 + hsl.l * 0.4));
-        });
+      // The Shadow (models/build_streak_realism.blender.py): a Counter-UAV
+      // is the same airframe carrying its jammer pods and the red band on
+      // the booms; a UAV flies clean.
+      for (const name of ["JamPodL", "JamPodR", "JamStripe"]) {
+        const n = obj.getObjectByName(name);
+        if (n) n.visible = this.counter;
       }
       this.root.add(obj);
       this.prop = obj.getObjectByName("ReconProp") || null;
+      this.strobe = obj.getObjectByName("Strobe") || null;
     });
   }
 
@@ -1008,6 +1006,8 @@ export class ReconPlane {
   update(dt) {
     this.age += dt;
     if (this.prop) this.prop.rotation.z += dt * Math.PI * 2 * RECON_PROP_RPS;
+    // the anti-collision strobe: a double flash every second and a bit
+    if (this.strobe) { const k = this.age % 1.3; this.strobe.visible = k < 0.06 || (k > 0.14 && k < 0.2); }
     this.place();
     if (this.age > this.duration + RECON_EXIT) { this.done = true; return "expire"; }
     return null;
