@@ -108,10 +108,11 @@ function orbit(mesh, yaw, pitch, only) {
 }
 
 let current = null;
-async function build(id, lod, optic) {
+async function build(id, lod, optic, skin) {
   if (current) scene.remove(current);
   const def = defOf(id);
   if (optic) def.attachments = { ...def.attachments, optic };
+  if (skin) def.attachments = { ...def.attachments, skin };
   current = buildWeaponMesh(def, { lod });
   current.traverse((o) => { if (o.userData.hand) o.visible = false; });
   scene.add(current);
@@ -133,15 +134,15 @@ window.sheet = {
     return true;
   })(),
   guns: () => Object.entries(WEAPON_DEFS).filter(([, d]) => d.magSize > 0 && !d.model?.kind && d.cls !== "melee").map(([id]) => id),
-  async shoot(id, view, lod = 0) {
-    const m = await build(id, lod);
+  async shoot(id, view, lod = 0, skin = null) {
+    const m = await build(id, lod, null, skin);
     frame(m, view);
     renderer.render(scene, cam);
     return renderer.domElement.toDataURL("image/png");
   },
-  /* opts: { optic, only: "sight", lod } */
+  /* opts: { optic, only: "sight", lod, skin } */
   async orbit(id, yaw, pitch, opts = {}) {
-    const m = await build(id, opts.lod ?? 0, opts.optic);
+    const m = await build(id, opts.lod ?? 0, opts.optic, opts.skin);
     if (!orbit(m, yaw, pitch, opts.only)) return null;
     renderer.render(scene, cam);
     return renderer.domElement.toDataURL("image/png");
