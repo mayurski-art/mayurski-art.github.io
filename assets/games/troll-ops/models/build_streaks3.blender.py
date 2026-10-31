@@ -238,14 +238,13 @@ def build_vsat():
     select_only(bus)
     bpy.ops.object.shade_auto_smooth(angle=math.radians(30))
 
-    # Solar wings, proportioned off the reference: each wing is a little
-    # narrower than the bus and ~1.5x its height, on a short boom that meets
-    # the wing's vertical middle. Four panels stacked along Z; each panel is
-    # dark cells in full-width HORIZONTAL strips, and between panels runs a
-    # pale gap crossed by dark spacer blocks. A copper bracket at the middle
-    # gap on the inner edge takes the boom.
-    PW, PH, GAP = 1.55, 0.72, 0.1
-    total = 4 * PH + 3 * GAP
+    # Solar wings, proportioned off the AEHF reference (STREAK-REALISM.md
+    # phase 7, refs/streaks/vsat): each wing is a long array reaching out
+    # along its boom, four panels in a row, each about as tall as the bus;
+    # a panel is dark cells in full-width HORIZONTAL strips, and between
+    # panels runs a pale gap crossed by dark spacer blocks. A copper bracket
+    # on the inner edge takes the boom.
+    PW, PH, GAP = 1.55, 1.9, 0.1
     root_x = BW / 2 + 0.45                     # where the boom meets the wing
     for side, sx in (("L", -1), ("R", 1)):
         parts = [
@@ -253,22 +252,22 @@ def build_vsat():
             box("bracket", (0.3, 0.12, 0.16), (sx * (root_x + 0.1), 0, 0), copper),
             box("bracketPin", (0.12, 0.2, 0.08), (sx * (root_x + 0.02), 0, 0), copper),
         ]
-        cx = sx * (root_x + PW / 2)
+        zc = 0
         for k in range(4):
-            zc = -total / 2 + PH / 2 + k * (PH + GAP)
+            cx = sx * (root_x + PW / 2 + k * (PW + GAP))
             parts.append(box(f"pframe{k}", (PW, 0.04, PH), (cx, 0, zc), framem))
-            rows = 11
+            rows = 24
             ch = (PH - 0.06) / rows
             for r in range(rows):
                 parts.append(box(f"cell{k}{r}", (PW - 0.07, 0.06, ch - 0.018),
                                  (cx, 0, zc - PH / 2 + 0.03 + (r + 0.5) * ch),
                                  cellm if (r + k) % 2 else cell2))
             if k < 3:
-                gz = zc + PH / 2 + GAP / 2
-                parts.append(box(f"gap{k}", (PW, 0.02, GAP), (cx, -0.01, gz), band))
+                gx = cx + sx * (PW / 2 + GAP / 2)
+                parts.append(box(f"gap{k}", (GAP, 0.02, PH), (gx, -0.01, zc), band))
                 for d in range(5):
-                    parts.append(box(f"spacer{k}{d}", (0.07, 0.04, GAP + 0.01),
-                                     (cx - PW / 2 + 0.12 + d * (PW - 0.24) / 4, 0, gz), framem))
+                    parts.append(box(f"spacer{k}{d}", (GAP + 0.01, 0.04, 0.07),
+                                     (gx, 0, zc - PH / 2 + 0.12 + d * (PH - 0.24) / 4), framem))
         wing = join(parts, f"VSAT_Wing_{side}")
         # The join takes on the boom cylinder's unapplied 90-degree turn;
         # bake it in, or the tilt below replaces it and the wing spins sideways.

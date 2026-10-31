@@ -294,13 +294,54 @@ const _to = new THREE.Vector3(), _dir = new THREE.Vector3(), _fwd = new THREE.Ve
    (combat/launcher.js): a list of missiles in flight, each homing on an
    aircraft by id. */
 
+/* The white smoke a missile leaves (STREAK-REALISM.md phase 10): a puff
+   sprite dropped behind it every few centimetres of flight, growing and
+   thinning for a second and a half. Puffs outlive their missile, so they
+   live in one list here and fade on every flyMissiles call. */
+let puffTex = null, puffMat = null;
+const trailPuffs = [];
+const PUFF_EVERY = 0.04, PUFF_LIFE = 1.5, PUFF_MAX = 160;
+function puffSprite() {
+  if (!puffTex) {
+    const c = document.createElement("canvas"); c.width = c.height = 64;
+    const g = c.getContext("2d");
+    const grad = g.createRadialGradient(32, 32, 2, 32, 32, 32);
+    grad.addColorStop(0, "rgba(255,255,255,.9)"); grad.addColorStop(0.5, "rgba(255,255,255,.35)"); grad.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = grad; g.fillRect(0, 0, 64, 64);
+    puffTex = new THREE.CanvasTexture(c);
+    puffMat = new THREE.SpriteMaterial({ map: puffTex, color: 0xe8e6e0, transparent: true, depthWrite: false, opacity: 0.6 });
+  }
+  const s = new THREE.Sprite(puffMat.clone());
+  s.scale.setScalar(0.5);
+  return s;
+}
+function dropPuff(ms) {
+  if (trailPuffs.length >= PUFF_MAX) return;
+  const s = puffSprite();
+  s.position.copy(ms.pos).addScaledVector(ms.dir, -0.5);
+  s.position.x += (Math.random() - 0.5) * 0.1; s.position.y += (Math.random() - 0.5) * 0.1;
+  ms.mesh.parent?.add(s);
+  trailPuffs.push({ s, age: 0 });
+}
+function fadePuffs(dt) {
+  for (let i = trailPuffs.length - 1; i >= 0; i--) {
+    const p = trailPuffs[i];
+    p.age += dt;
+    const k = p.age / PUFF_LIFE;
+    if (k >= 1) { p.s.parent?.remove(p.s); p.s.material.dispose(); trailPuffs.splice(i, 1); continue; }
+    p.s.scale.setScalar(0.5 + k * 1.6);
+    p.s.material.opacity = 0.6 * (1 - k) * (1 - k);
+  }
+}
+export function trailPuffCount() { return trailPuffs.length; }
+
 /* One missile out of `from` along `dir` at `targetId`, into `parent`. */
 export function spawnMissile(list, parent, from, dir, targetId) {
   const mesh = missileMesh();
   mesh.position.copy(from);
   mesh.lookAt(_to.copy(from).add(dir));
   parent?.add(mesh);
-  const ms = { mesh, pos: from.clone(), dir: dir.clone().normalize(), targetId, t: 0, done: false };
+  const ms = { mesh, pos: from.clone(), dir: dir.clone().normalize(), targetId, t: 0, done: false, puffT: 0 };
   list.push(ms);
   return ms;
 }
@@ -310,6 +351,7 @@ export function spawnMissile(list, parent, from, dir, targetId) {
    at, ms }. */
 export function flyMissiles(list, dt, targetPos) {
   const hits = [];
+  fadePuffs(dt);
   for (let i = list.length - 1; i >= 0; i--) {
     const ms = list[i];
     ms.t += dt;
@@ -331,6 +373,7 @@ export function flyMissiles(list, dt, targetPos) {
     ms.mesh.position.copy(ms.pos);
     ms.mesh.lookAt(_to.copy(ms.pos).add(ms.dir));
     ms.mesh.userData.flame.scale.set(1, 0.7 + Math.random() * 0.6, 1);
+    for (ms.puffT += dt; ms.puffT > PUFF_EVERY; ms.puffT -= PUFF_EVERY) dropPuff(ms);
     if (ms.t > MISSILE_LIFE) { hits.push({ targetId: null, at: ms.pos.clone(), ms }); ms.done = true; }
     if (ms.done) {
       ms.mesh.parent?.remove(ms.mesh);
@@ -343,6 +386,8 @@ export function flyMissiles(list, dt, targetPos) {
 export function clearMissiles(list) {
   for (const ms of list) ms.mesh.parent?.remove(ms.mesh);
   list.length = 0;
+  for (const p of trailPuffs) { p.s.parent?.remove(p.s); p.s.material.dispose(); }
+  trailPuffs.length = 0;
 }
 
 export class SamTurret {

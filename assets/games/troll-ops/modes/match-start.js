@@ -403,7 +403,7 @@ function startMatchIntro(kind) {
    arrive; what it misses compiles on the frame it first appears. */
 const WARM_MS = 20000, WARM_MODEL_MS = 8000;
 const within = (p, ms, late = undefined) => Promise.race([p, new Promise((r) => setTimeout(() => r(late), ms))]);
-const WARM_MODELS = ["care-package", "helicopter", "hunter-drone", "recon-drone", "strike-jet", "k9-dog", "vtol-warship"];
+const WARM_MODELS = ["care-package", "helicopter", "drop-heli", "hunter-drone", "recon-drone", "strike-jet", "k9-dog", "vtol-warship"];
 let warmKeep = [];                 // last warm-up's stand-ins, holding their shaders
 const warmedGuns = new Set();      // gunWarmKey()s those stand-ins cover
 const gunWarmKey = (def) => `${def.id}:${JSON.stringify(def.attachments || {})}`;

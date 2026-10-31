@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Streak sheet</title>
+<style>html, body { margin: 0; background: #2a2c2f; } canvas { display: block; }</style>
+</head>
+<body>
+<!-- tools/troll-ops-streak-sheet.mjs drives this (docs/STREAK-REALISM.md):
+     window.sheet.four(id) renders a streak the way the game builds it from
+     the four review views (side, front 3/4, rear 3/4, top) as one 2x2 image,
+     orbit(id, yaw, pitch) gives any angle, stats(id) counts it. -->
+<script type="importmap">
+  { "imports": { "three": "../../../vendor/r186/three.module.js", "three/addons/": "../../../vendor/r186/addons/" } }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { buildStreakDevice, drawTabletScreen, buildMarkerDevice } from "../streaks/streak-device.js?v=to-df1-or1-sr1";
+import { buildDragonfireModel } from "../streaks/dragonfire-drone.js?v=df3-sb2-or1";
+import { buildSamTurretModel, spawnMissile, flyMissiles, clearMissiles, trailPuffCount } from "../streaks/sam-turret.js?v=sam1-fj1-or1-sr7";
+
+const TILE = 640;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(TILE, TILE);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+// an open-sky environment: aircraft are seen against sky, so the reflections
+// are a bright sky dome over a dull ground, not a photo studio
+const sky = new THREE.Scene();
+sky.add(new THREE.Mesh(new THREE.SphereGeometry(50, 16, 8), new THREE.MeshBasicMaterial({ color: 0x9fb8d6, side: THREE.BackSide })));
+const ground = new THREE.Mesh(new THREE.CircleGeometry(60, 24), new THREE.MeshBasicMaterial({ color: 0x4a4a40 }));
+ground.rotation.x = -Math.PI / 2; ground.position.y = -2;
+sky.add(ground);
+const sun = new THREE.Mesh(new THREE.SphereGeometry(4, 8, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(6, 5.6, 5) }));
+sun.position.set(20, 30, 12);
+sky.add(sun);
+const pm = new THREE.PMREMGenerator(renderer);
+const env = pm.fromScene(sky, 0.04).texture;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x2a2c2f);
+scene.environment = env;
+const key = new THREE.DirectionalLight(0xfff2e0, 2.4);
+key.position.set(1, 1.6, 0.8);
+const rim = new THREE.DirectionalLight(0xbfd0ff, 0.9);
+rim.position.set(-1, 0.5, -1);
+scene.add(key, rim, new THREE.AmbientLight(0xffffff, 0.2));
+const cam = new THREE.PerspectiveCamera(28, 1, 0.01, 200);
+
+const MODEL_BASE = new URL("../models/", import.meta.url).href;
+const loader = new GLTFLoader();
+const glbCache = new Map();
+function glb(name) {
+  if (!glbCache.has(name)) glbCache.set(name, loader.loadAsync(`${MODEL_BASE}${name}.glb`).then((g) => g.scene));
+  return glbCache.get(name).then((s) => s.clone(true));
+}
+
+/* Every streak the sheet knows, built as the game builds it. `nodes` are the
+   named parts the game animates: the sheet fails when one is missing. */
+const STREAKS = {
+  // the pad faces +z, so its "side" is the screen, straight on
+  pad: { build: () => { const d = buildStreakDevice(); drawTabletScreen(d, "uav", 1.2, false); if (d.userData.screen) d.userData.screen.tex.needsUpdate = true; return d; }, views: [[-90, 0], [-50, 18], [130, 18], [-90, 85]] },
+  marker: { build: () => buildMarkerDevice(), views: [[-90, 0], [-45, 15], [135, 15], [0, 85]] },
+  // the Counter-UAV is the same Shadow with its jammer nodes shown
+  uav: { glb: "recon-drone", nodes: ["ReconProp", "ReconPropBlur", "Strobe", "JamPodL", "JamPodR", "JamStripe"], hide: /^Jam/ },
+  counteruav: { glb: "recon-drone", nodes: ["JamPodL", "JamPodR", "JamStripe"] },
+  carepackage: { glb: "care-package" },
+  dropheli: { glb: "drop-heli", nodes: ["MainRotor", "TailRotor", "MainRotorBlur", "Strobe"] },
+  drone: { glb: "hunter-drone", nodes: ["DroneRotor_0", "Beacon"] },
+  airstrike: { glb: "strike-jet", nodes: ["JetProp", "Exhaust"] },
+  samturret: { build: () => buildSamTurretModel().root },
+  k9: { glb: "k9-dog" },
+  helicopter: { glb: "helicopter", nodes: ["MainRotor", "TailRotor", "MainRotorBlur", "Strobe"] },
+  dragonfire: { build: () => buildDragonfireModel().root },
+  vsat: { glb: "orbital-vsat", nodes: ["VSAT_Wing_L", "VSAT_Wing_R"] },
+  warship: { glb: "vtol-warship", nodes: ["VTOL_Nacelle_L", "VTOL_Nacelle_R", "VTOL_Rotor_L", "VTOL_Rotor_R", "VTOL_Blur_L", "Strobe"] },
+};
+
+function stats(mesh) {
+  const mats = new Set(), tex = new Set();
+  let tris = 0, draws = 0;
+  mesh.updateMatrixWorld(true);
+  mesh.traverse((o) => {
+    if (!o.isMesh || !o.visible) return;
+    const g = o.geometry;
+    const n = g.index ? g.index.count : g.attributes.position.count;
+    tris += n / 3 * (o.isInstancedMesh ? o.count : 1);
+    draws += Array.isArray(o.material) ? Math.max(1, g.groups.length) : 1;
+    for (const m of [].concat(o.material)) {
+      mats.add(m);
+      for (const k of ["map", "normalMap", "roughnessMap", "metalnessMap", "aoMap", "emissiveMap", "alphaMap"]) if (m[k]) tex.add(m[k]);
+    }
+  });
+  return { tris: Math.round(tris), draws, materials: mats.size, textures: tex.size };
+}
+
+/* yaw 0 = from the model's right side (+x), 90 = from its nose (-z);
+   pitch up from level. */
+function orbit(mesh, yaw, pitch) {
+  const box = new THREE.Box3();
+  mesh.updateMatrixWorld(true);
+  mesh.traverse((o) => { if (o.isMesh && o.visible) box.expandByObject(o); });
+  const c = box.getCenter(new THREE.Vector3()), L = box.getSize(new THREE.Vector3()).length();
+  const y = THREE.MathUtils.degToRad(yaw), p = THREE.MathUtils.degToRad(pitch);
+  // the bounding sphere just fits the 28 degree view
+  const d = (L / 2) / Math.sin(THREE.MathUtils.degToRad(14)) * 1.04;
+  cam.position.set(c.x + d * Math.cos(p) * Math.cos(y), c.y + d * Math.sin(p), c.z - d * Math.cos(p) * Math.sin(y));
+  cam.lookAt(c);
+  cam.near = d / 50; cam.far = d * 4; cam.updateProjectionMatrix();
+}
+
+let current = null;
+async function build(id) {
+  if (current) scene.remove(current);
+  const def = STREAKS[id];
+  if (!def) throw new Error(`no streak ${id}`);
+  current = def.glb ? await glb(def.glb) : def.build();
+  current.traverse((o) => { if (o.isMesh) o.castShadow = o.receiveShadow = false; if (def.hide && def.hide.test(o.name)) o.visible = false; });
+  scene.add(current);
+  return current;
+}
+
+const VIEWS = [[0, 8], [45, 15], [225, 15], [0, 85]];   // side, front 3/4, rear 3/4, top
+const composite = document.createElement("canvas");
+composite.width = composite.height = TILE * 2;
+
+window.sheet = {
+  ready: Promise.resolve(true),
+  ids: () => Object.keys(STREAKS),
+  async orbit(id, yaw, pitch) {
+    const m = await build(id);
+    orbit(m, yaw, pitch);
+    renderer.render(scene, cam);
+    return renderer.domElement.toDataURL("image/png");
+  },
+  /* the 2x2 review sheet: side | front 3/4 over rear 3/4 | top */
+  async four(id) {
+    const m = await build(id);
+    const g = composite.getContext("2d");
+    (STREAKS[id].views || VIEWS).forEach(([yaw, pitch], i) => {
+      orbit(m, yaw, pitch);
+      renderer.render(scene, cam);
+      g.drawImage(renderer.domElement, (i % 2) * TILE, Math.floor(i / 2) * TILE);
+    });
+    g.fillStyle = "rgba(255,255,255,.7)"; g.font = "bold 22px system-ui";
+    ["side", "front 3/4", "rear 3/4", "top"].forEach((t, i) => g.fillText(`${id}: ${t}`, (i % 2) * TILE + 14, Math.floor(i / 2) * TILE + 30));
+    return composite.toDataURL("image/png");
+  },
+  /* the pad's screen canvas on its own, for the UI pass */
+  async screen(mode = "uav", t = 1.2, confirmed = false) {
+    const m = await build("pad");
+    drawTabletScreen(m, mode, t, confirmed);
+    return m.userData.screen.canvas.toDataURL("image/png");
+  },
+  /* phase 10: fly one SAM missile for `seconds` and count its smoke */
+  samTrail(seconds = 1) {
+    const list = [];
+    const target = new THREE.Vector3(0, 40, -40);
+    spawnMissile(list, scene, new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 1, 0), "t");
+    for (let t = 0; t < seconds; t += 1 / 60) flyMissiles(list, 1 / 60, () => target);
+    const puffs = trailPuffCount();
+    const sprites = scene.children.filter((o) => o.isSprite).length;
+    // the missile gone, its smoke fades on its own
+    list[0].mesh.parent?.remove(list[0].mesh); list.length = 0;
+    for (let t = 0; t < 2; t += 1 / 60) flyMissiles(list, 1 / 60, () => null);
+    const after = trailPuffCount();
+    clearMissiles(list);
+    return { puffs, sprites, after, cleared: trailPuffCount() };
+  },
+  async stats(id) {
+    const m = await build(id);
+    const want = STREAKS[id].nodes || [];
+    const missing = want.filter((n) => !m.getObjectByName(n));
+    return { ...stats(m), glb: STREAKS[id].glb || null, missing };
+  },
+};
+</script>
+</body>
+</html>

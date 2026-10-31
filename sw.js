@@ -26,7 +26,7 @@
 // loaded everything; that app keeps its own storage, so its v1 copy is the
 // suspect. A new name makes every device drop v1 (activate below) and fetch
 // the art once, fresh.
-const CACHE = "tf-assets-v2";
+const CACHE = "tf-assets-v3";   // v3: the streak models were rebuilt (STREAK-REALISM.md)
 const RECHECK_MS = 24 * 60 * 60 * 1000;
 const STAMP = "x-tf-cached-at";
 const KEEP_TAGS = 3;            // builds of one script kept at once

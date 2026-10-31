@@ -111,12 +111,17 @@ export function drawMinimap() {
       }
     }
     if (showEnemies) {
-      // A thin sweep ring, so it reads as "the UAV is why you can see this".
-      // The satellite's is doubled and brighter.
-      ctx.strokeStyle = vsat ? "rgba(255,150,110,.85)" : "rgba(255,107,90,.5)";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(1.5, 1.5, size - 3, size - 3);
-      if (vsat) ctx.strokeRect(4.5, 4.5, size - 9, size - 9);
+      // The radar sweep: a wedge turning round us once every couple of
+      // seconds with a trail fading behind its edge, so it reads as "the
+      // UAV is why you can see this". The satellite's edge is a frame
+      // round the map on top of it.
+      drawRadarSweep(ctx, size);
+      if (vsat) {
+        ctx.strokeStyle = "rgba(255,150,110,.85)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(1.5, 1.5, size - 3, size - 3);
+        ctx.strokeRect(4.5, 4.5, size - 9, size - 9);
+      }
     }
 
     // Care packages beacon their own position by radio the moment they
@@ -171,6 +176,24 @@ export function drawMinimap() {
   ctx.lineTo(-4, 5);
   ctx.closePath();
   ctx.fill();
+  ctx.restore();
+}
+
+/* The UAV's sweep round our own dot, clipped to the map. */
+const SWEEP_PERIOD = 2.4;
+function drawRadarSweep(ctx, size) {
+  const [px, pz] = mapToMinimap(game.move.pos.x, game.move.pos.z);
+  const a = ((performance.now() / 1000) % SWEEP_PERIOD) / SWEEP_PERIOD * Math.PI * 2 - Math.PI / 2;
+  const r = size * 1.5;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, 0, size, size); ctx.clip();
+  for (let i = 0; i < 14; i++) {
+    ctx.fillStyle = `rgba(255,120,90,${0.11 * (1 - i / 14)})`;
+    ctx.beginPath(); ctx.moveTo(px, pz); ctx.arc(px, pz, r, a - (i + 1) * 0.07, a - i * 0.07); ctx.closePath(); ctx.fill();
+  }
+  ctx.strokeStyle = "rgba(255,140,110,.8)";
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(px, pz); ctx.lineTo(px + Math.cos(a) * r, pz + Math.sin(a) * r); ctx.stroke();
   ctx.restore();
 }
 

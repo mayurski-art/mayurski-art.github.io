@@ -19,7 +19,7 @@ import {
   DRONE_DAMAGE, DRONE_SPLASH_RADIUS, DRONE_SPEED,
   AIRSTRIKE_DELAY, AIRSTRIKE_RADIUS, AIRSTRIKE_DAMAGE, AIRSTRIKE_BOMBS,
   HELI_FIRE_RANGE, HELI_DAMAGE,
-} from "./streaks/streak-entities.js?v=vsat2-hk1-sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
+} from "./streaks/streak-entities.js?v=vsat2-hk1-sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6-sr2-sr4-sr5-sr6";
 import { KillstreakUi } from "./streaks/killstreak-ui.js?v=to-medals3-or1-rfx2";
 import { medalSvg } from "./progression/medals.js?v=to-medals3-or1";
 import { StrikeTablet, STRIKE_TARGETS } from "./streaks/streak-tablet.js?v=wu1-or1";
@@ -62,7 +62,7 @@ import { GameMusic, EQ_BANDS, EQ_RANGE } from "./sound/music.js?v=to-gs1-sg1-zr1
 import { DjLulz } from "./maps/dj-lulz.js?v=dj1-sg1-zr10-dj2-jb1-hl1-or1-hh1-yb1-gr1";
 import { stage, rise, damp, smoothstep } from "./characters/anim-curves.js?v=or1";
 import { AnimDebugLab } from "./labs/anim-debug.js?v=or1";
-import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streaks/streak-device.js?v=to-df1-or1";
+import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streaks/streak-device.js?v=to-df1-or1-sr1";
 import { buildHumanHand, placeHand, poseHumanHand, handWrist, handMaterials, inkOutline, HAND_POSES, HAND_GRIPS } from "./weapons/hand-model.js?v=to-grip2-or1-hp1-bx1";
 import { FlowField } from "./bots/nav.js?v=ti1-bs1b7d-fl1-or1-gf1-tg1-tfb8";
 import { ZombieDirector, goreStandIns } from "./modes/zombies/horde.js?v=zr4c-sb2b7b7dc2f1m1u-gt1-gt2-zr5-zr6-zr7-zr8-zr9-zr10-zc2-zp1-bf1-sr1-fl1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-gf1-tg1-er1-cl1-rb4-rb6-hp1-ht1-bx1-sp1-tfb8-rfx1-zd1-ze1-wb1-hb4";
@@ -94,7 +94,7 @@ import { initCloudSave } from "./net/cloud-save.js?v=cs1b7-zc1-zc2-or1-jb5-sp1-a
 import { ControllerLayout, padEmotePressed } from "./menu/controller-layout.js?v=cl7-pd1-or1-pd2-hb4";
 import { CosmeticsPanel, cleanFaceKey, loadCosmetics } from "./characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1-em2-nb2-pc2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-sf1-mg1-sp1-pk1";
 import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./streaks/dragonfire-drone.js?v=df3-sb2-or1";
-import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./streaks/sam-turret.js?v=sam1-fj1-or1";
+import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./streaks/sam-turret.js?v=sam1-fj1-or1-sr7";
 import { DROP, RoyaleDrop, Flight, buildParaglider } from "./modes/royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1-fl1-or1-dc2-dc3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-rb4-hp1-bx1-mg1-tx1-sp1-kbt1-gb1-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-mt2-sk1-hb4";
 import { preloadHalloweenMelee, setHalloweenEnvMap } from "./weapons/melee-models.js?v=hw2-or1";
 import {
