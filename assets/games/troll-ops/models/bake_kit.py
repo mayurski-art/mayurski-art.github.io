@@ -377,14 +377,16 @@ def bake_ao(obj, path, res=1024, samples=64, distance=2.0, blur=1, uv_index=1):
 
 # The arms material kit: six surfaces, one node group each (TF_<surface>).
 # Colours are the defaults; kit_material() takes a gun's own. wear_* is what
-# the edges wear down to; grain varies the colour across the surface.
+# the edges wear down to; grain varies the colour across the surface. paint
+# is what a weapon skin may cover (DESIGN-SKINS.md: 1 cerakote, 0.5 polymer,
+# 0 bare metal, rubber and brass), the R channel of the skin mask.
 SURFACES = {
-    "anodized":   dict(color=0x1c1d1f, wear=0x8d9094, rough=0.42, metal=0.35, wear_rough=0.28, wear_metal=1.0, amount=0.55, grain=0.05),
-    "cerakote":   dict(color=0x4b5236, wear=0x1f2022, rough=0.64, metal=0.0, wear_rough=0.38, wear_metal=0.45, amount=1.0, grain=0.07),
-    "polymer":    dict(color=0x242424, wear=0x3c3b38, rough=0.8, metal=0.0, wear_rough=0.62, wear_metal=0.0, amount=0.35, grain=0.05),
-    "parkerized": dict(color=0x2c2d2d, wear=0x80837f, rough=0.6, metal=0.55, wear_rough=0.3, wear_metal=1.0, amount=0.5, grain=0.09),
-    "rubber":     dict(color=0x151515, wear=0x151515, rough=0.93, metal=0.0, wear_rough=0.93, wear_metal=0.0, amount=0.0, grain=0.03),
-    "brass":      dict(color=0xb38f42, wear=0xe2c072, rough=0.3, metal=1.0, wear_rough=0.2, wear_metal=1.0, amount=0.4, grain=0.06),
+    "anodized":   dict(color=0x1c1d1f, wear=0x8d9094, rough=0.42, metal=0.35, wear_rough=0.28, wear_metal=1.0, amount=0.55, grain=0.05, paint=0.0),
+    "cerakote":   dict(color=0x4b5236, wear=0x1f2022, rough=0.64, metal=0.0, wear_rough=0.38, wear_metal=0.45, amount=1.0, grain=0.07, paint=1.0),
+    "polymer":    dict(color=0x242424, wear=0x3c3b38, rough=0.8, metal=0.0, wear_rough=0.62, wear_metal=0.0, amount=0.35, grain=0.05, paint=0.5),
+    "parkerized": dict(color=0x2c2d2d, wear=0x80837f, rough=0.6, metal=0.55, wear_rough=0.3, wear_metal=1.0, amount=0.5, grain=0.09, paint=0.0),
+    "rubber":     dict(color=0x151515, wear=0x151515, rough=0.93, metal=0.0, wear_rough=0.93, wear_metal=0.0, amount=0.0, grain=0.03, paint=0.0),
+    "brass":      dict(color=0xb38f42, wear=0xe2c072, rough=0.3, metal=1.0, wear_rough=0.2, wear_metal=1.0, amount=0.4, grain=0.06, paint=0.0),
 }
 
 
@@ -405,11 +407,12 @@ def surface_group(surface):
     ng = bpy.data.node_groups.new(name, "ShaderNodeTree")
     _sock(ng, "Color", "NodeSocketColor", default=(*hexlin(d["color"]), 1))
     _sock(ng, "Wear Color", "NodeSocketColor", default=(*hexlin(d["wear"]), 1))
-    for n in ("Roughness", "Metallic", "Wear Roughness", "Wear Metallic", "Wear", "Grain", "Patches"):
+    for n in ("Roughness", "Metallic", "Wear Roughness", "Wear Metallic", "Wear", "Grain", "Patches", "Paint"):
         _sock(ng, n, "NodeSocketFloat", default={"Roughness": d["rough"], "Metallic": d["metal"], "Wear Roughness": d["wear_rough"],
                                                  "Wear Metallic": d["wear_metal"], "Wear": d["amount"], "Grain": d["grain"],
-                                                 "Patches": 0.0}[n])
-    for n, k in (("Base Color", "NodeSocketColor"), ("ORM", "NodeSocketColor"), ("Roughness", "NodeSocketFloat"), ("Metallic", "NodeSocketFloat")):
+                                                 "Patches": 0.0, "Paint": d.get("paint", 0.0)}[n])
+    for n, k in (("Base Color", "NodeSocketColor"), ("ORM", "NodeSocketColor"), ("Roughness", "NodeSocketFloat"), ("Metallic", "NodeSocketFloat"),
+                 ("Mask", "NodeSocketColor")):
         _sock(ng, n, k, io="OUTPUT")
     N, L = ng.nodes, ng.links
     gi, go = N.new("NodeGroupInput"), N.new("NodeGroupOutput")
@@ -498,6 +501,13 @@ def surface_group(surface):
     L.new(metal, orm.inputs[2])
     L.new(scl.outputs["Vector"], go.inputs["Base Color"])
     L.new(orm.outputs["Color"], go.inputs["ORM"])
+    # the skin mask (DESIGN-SKINS.md §3.1): R paint zone, G the wear that
+    # chips the base colour, B the AO x grain shade the base colour carries
+    msk = N.new("ShaderNodeCombineColor")
+    L.new(gi.outputs["Paint"], msk.inputs[0])
+    L.new(wear, msk.inputs[1])
+    L.new(shade, msk.inputs[2])
+    L.new(msk.outputs["Color"], go.inputs["Mask"])
     L.new(rough, go.inputs["Roughness"])
     L.new(metal, go.inputs["Metallic"])
     return ng
@@ -545,11 +555,12 @@ def _bake_output(m, what):
         nt.links.remove(l)
     g = nt.nodes.get("KIT")
     if g:
-        nt.links.new(g.outputs["Base Color" if what == "base" else "ORM"], em.inputs["Color"])
-    else:   # not a kit surface (glass, a glow): its flat values
+        nt.links.new(g.outputs[{"base": "Base Color", "orm": "ORM", "msk": "Mask"}[what]], em.inputs["Color"])
+    else:   # not a kit surface (glass, a glow): its flat values, no paint
         b = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
         em.inputs["Color"].default_value = (b.inputs["Base Color"].default_value if what == "base" else
-                                            (1.0, b.inputs["Roughness"].default_value, b.inputs["Metallic"].default_value, 1.0))
+                                            (1.0, b.inputs["Roughness"].default_value, b.inputs["Metallic"].default_value, 1.0) if what == "orm" else
+                                            (0.0, 0.0, 1.0, 1.0))
     em.inputs["Strength"].default_value = 1.0
     nt.links.new(em.outputs[0], out.inputs["Surface"])
 
@@ -649,7 +660,10 @@ def bake_gun(recipe, gun_id, prefix, out_dir, res=1024, lod_res=256, lod_ratio=0
     gunkit.HI). render: gunkit.render_views' views, rendered after export
     with the baked maps on (a check, not shipped). margin_px: the gap
     between UV islands in texels (default: 2 % scaled per island, which
-    starves a gun of many small islands, a rail's teeth, of texels)."""
+    starves a gun of many small islands, a rail's teeth, of texels).
+    Writes the skin mask (<id>-msk.webp, DESIGN-SKINS.md) with the other
+    maps: it has to share their unwrap, and Smart UV is not repeatable
+    run to run, so never bake it on its own."""
     import gunkit as gk
     import json
     scene = bpy.context.scene
@@ -698,7 +712,9 @@ def bake_gun(recipe, gun_id, prefix, out_dir, res=1024, lod_res=256, lod_ratio=0
     low_mats = {m for o in low for m in o.data.materials if m}
     hi_mats = {m for h, _ in pairs for m in h.data.materials if m}
     maps = {}
-    for what, bake_type, fill in (("nrm", "NORMAL", (0.5, 0.5, 1.0, 1.0)), ("base", "EMIT", (0.2, 0.2, 0.2, 1.0)), ("orm", "EMIT", (1.0, 0.6, 0.0, 1.0))):
+    passes = (("nrm", "NORMAL", (0.5, 0.5, 1.0, 1.0)), ("base", "EMIT", (0.2, 0.2, 0.2, 1.0)), ("orm", "EMIT", (1.0, 0.6, 0.0, 1.0)),
+              ("msk", "EMIT", (0.0, 0.0, 1.0, 1.0)))
+    for what, bake_type, fill in passes:
         img = bpy.data.images.new(prefix + "-" + what, res, res, alpha=True, float_buffer=True)
         img.colorspace_settings.name = "Non-Color"
         img.generated_color = fill
@@ -727,9 +743,10 @@ def bake_gun(recipe, gun_id, prefix, out_dir, res=1024, lod_res=256, lod_ratio=0
         _bake_output(m, None)
 
     stats = {"id": gun_id, "tex": {}}
-    for what in ("base", "orm", "nrm"):
+    # the mask is lossless (quality 100): its paint channel is stepped
+    for what in maps:
         stats["tex"][what] = _save_gun_webp(maps[what], res, os.path.join(out_dir, f"{gun_id}-{what}.webp"), srgb=what == "base",
-                                        quality=95 if what == "nrm" else 90)
+                                        quality={"nrm": 95, "msk": 100}.get(what, 90))
     # the game mesh: no high pass in the file
     for h in hi.values():
         me = h.data
@@ -743,7 +760,7 @@ def bake_gun(recipe, gun_id, prefix, out_dir, res=1024, lod_res=256, lod_ratio=0
                      "kb": os.path.getsize(glb) // 1024}
 
     # LOD1: one node, decimated, 256 px maps
-    for what in ("base", "orm", "nrm"):
+    for what in maps:
         stats["tex"]["lod1-" + what] = _save_gun_webp(_shrink(maps[what], res, res // lod_res), lod_res,
                                                   os.path.join(out_dir, f"{gun_id}-lod1-{what}.webp"), srgb=what == "base")
     body = next((o for o in low if o.name == prefix + "_Body"), low[0])
