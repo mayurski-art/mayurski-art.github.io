@@ -4,6 +4,9 @@
 // each on a pad of the stage (char-inspector.js SLOTS), the head says 4/4,
 // a fifth invite is refused as full; a joined squad of four stands on all
 // four pads. Name tags stay apart and on screen, desktop and phone.
+// The stage always has a pad for every place in a party (PARTY_SIZE), in a
+// mirrored arc, even on your own: shots of 1 and of 4, desktop and a phone
+// upright and on its side, with no name or "+" under the menu.
 // SHOTS_DIR=<dir> keeps the shots.
 //
 //   NODE_PATH=<checkout>/node_modules node tools/troll-ops-party4-test.mjs
@@ -75,6 +78,59 @@ const INV = "/assets/games/troll-ops/menu/" + fs.readFileSync(path.join(ROOT, "a
 const invite = (i) => page.evaluate(([url, i]) => import(url).then((m) => m.invitePlayer({ viewerId: `v-${i}`, name: `player_${i}` })), [INV, i]);
 const size = await page.evaluate((url) => import(url).then((m) => m.PARTY_SIZE), INV);
 check(size === 4, "a party is four", String(size));
+// on your own: a pad for each place in the party, a "+" on the three empty
+const CI = "/assets/games/troll-ops/menu/" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/menu/lobby.js"), "utf8").match(/char-inspector\.js\?v=[^"]+/)[0];
+const SLOTS = await page.evaluate((url) => import(url).then((m) => m.SLOTS), CI);
+check(SLOTS?.length === size, "a slot for every place in the party", `${SLOTS?.length} slots, party ${size}`);
+const mirrored = SLOTS.every(([x, z, yaw]) => SLOTS.some(([x2, z2, yaw2]) => Math.abs(x + x2) < 1e-6 && Math.abs(z - z2) < 1e-6 && Math.abs(yaw + yaw2) < 1e-6));
+check(mirrored, "the pads are a mirrored arc", JSON.stringify(SLOTS));
+const R = (i) => (i ? 0.42 : 0.5);   // (char-inspector.js buildPlinth radii)
+const clash = SLOTS.flatMap((a, i) => SLOTS.slice(i + 1).map((b, j) => [i, i + 1 + j, Math.hypot(a[0] - b[0], a[1] - b[1]) - R(i) - R(i + 1 + j)])).filter(([, , gap]) => gap < 0.1);
+check(!clash.length, "no two pads touch", JSON.stringify(clash));
+// the name tags and the "+": nothing of the menu over them
+const coveredAll = () => page.evaluate(() => [...document.querySelectorAll(".to-stage-tag:not([hidden]), .to-stage-add:not([hidden])")].filter((t) => { t.style.pointerEvents = "auto"; for (const c of t.children) c.style.pointerEvents = "auto"; const r = t.getBoundingClientRect(); const hit = [[r.left + 3, r.top + 3], [r.right - 3, r.top + 3], [r.left + 3, r.bottom - 3], [r.right - 3, r.bottom - 3]].some(([x, y]) => !t.contains(document.elementFromPoint(x, y))); t.style.pointerEvents = ""; for (const c of t.children) c.style.pointerEvents = ""; return hit; }).map((t) => `${t.className} ${t.dataset.slot}`));
+// the pads as drawn (page px, each plinth's box projected): the squad's name
+// and arrows under them stay off them
+const padsClear = () => page.evaluate(() => {
+  const ci = window.__trollOps.charInspector, V = ci._v.constructor, c = ci.canvas.getBoundingClientRect();
+  const boxes = ci.pads.filter((p) => p.visible).map((p) => {
+    const b = { l: 1e9, t: 1e9, r: -1e9, b: -1e9 };
+    p.updateWorldMatrix(true, true);
+    p.traverse((o) => {
+      if (!o.isMesh || !o.geometry) return;
+      o.geometry.computeBoundingBox();
+      const { min, max } = o.geometry.boundingBox;
+      for (const x of [min.x, max.x]) for (const y of [min.y, max.y]) for (const z of [min.z, max.z]) {
+        const v = new V(x, y, z).applyMatrix4(o.matrixWorld).project(ci.camera);
+        const px = c.left + (v.x + 1) / 2 * c.width, py = c.top + (1 - v.y) / 2 * c.height;
+        b.l = Math.min(b.l, px); b.r = Math.max(b.r, px); b.t = Math.min(b.t, py); b.b = Math.max(b.b, py);
+      }
+    });
+    return b;
+  });
+  const navs = [...document.querySelectorAll(".to-squad-nav:not([hidden]) :is(.to-squad-name, .to-squad-pen, .to-squad-arrow, .to-squad-row)")].filter((e) => e.offsetParent && !e.hidden).map((e) => e.getBoundingClientRect());
+  return boxes.flatMap((p, i) => navs.filter((n) => n.width && p.l < n.right && n.left < p.r && p.t < n.bottom && n.top < p.b).map((n) => [i, p.b | 0, n.top | 0]));
+});
+const solo = async (w, h, shot) => {
+  await page.setViewportSize({ width: w, height: h });
+  await page.waitForTimeout(1200);
+  const st = await page.evaluate(() => ({
+    pads: window.__trollOps.charInspector.pads.filter((p) => p.visible).length,
+    adds: [...document.querySelectorAll(".to-stage-add")].filter((a) => !a.hidden).map((a) => { const r = a.getBoundingClientRect(); return [+a.dataset.slot, r.left | 0, r.top | 0, r.right | 0, r.bottom | 0]; }),
+  }));
+  check(st.pads === size, `on your own: ${size} pads (${shot})`, String(st.pads));
+  check(st.adds.length === size - 1 && st.adds.every(([, l, t, r, b]) => l >= 0 && t >= 0 && r <= w && b <= h), `on your own: a + on each empty pad, on screen (${shot})`, JSON.stringify(st.adds));
+  const cov = await coveredAll();
+  check(!cov.length, `on your own: nothing covered (${shot})`, JSON.stringify(cov));
+  const under = await padsClear();
+  check(!under.length, `on your own: the squad's name off the pads (${shot})`, JSON.stringify(under));
+  await page.screenshot({ path: path.join(SHOTS, `party1-${shot}.png`) });
+};
+await solo(1280, 720, "desktop");
+await solo(390, 844, "phone");
+await solo(844, 390, "phone-landscape");
+await page.setViewportSize({ width: 1280, height: 720 });
+await page.waitForTimeout(800);
 for (const i of [1, 2, 3]) {
   const msg = await invite(i);
   check(/^Invite sent/.test(msg), `invite ${i} goes out`, msg);
@@ -94,7 +150,7 @@ check(apart(t) && onScreen(t, 1280, 720), "their names stay apart and on screen 
 const cov = await covered();
 check(!cov.length, "no name under the columns (desktop)", JSON.stringify(cov));
 const pads = await page.evaluate(() => window.__trollOps.charInspector.pads.filter((p) => p.visible).length);
-check(pads === 4, "four pads on the stage", String(pads));
+check(pads === size, "a pad for each of the party on the stage", String(pads));
 const headTxt = await page.evaluate(() => document.querySelector(".to-bo2-party-lbl")?.textContent || "");
 check(/4\/4/.test(headTxt), "the party head counts 4/4", headTxt);
 const adds = await page.evaluate(() => [...document.querySelectorAll(".to-stage-add")].filter((a) => !a.hidden).length);
@@ -128,7 +184,18 @@ await page.waitForTimeout(1200);
 t = await tags();
 check(t.filter((x) => x.shown).length === 4 && apart(t) && onScreen(t, 390, 844), "names apart and on screen (phone, upright)", JSON.stringify(t.filter((x) => x.shown).map((x) => [x.name, x.l | 0, x.t | 0, x.r | 0, x.b | 0])));
 check(!(await covered()).length, "no name covered (phone)");
+const underP = await padsClear();
+check(!underP.length, "the squad's name and arrows off the pads (phone, upright)", JSON.stringify(underP));
 await page.screenshot({ path: path.join(SHOTS, "party4-phone.png") });
+await page.setViewportSize({ width: 844, height: 390 });
+await page.waitForTimeout(1200);
+t = await tags();
+check(t.filter((x) => x.shown).length === 4 && apart(t) && onScreen(t, 844, 390), "names apart and on screen (phone, on its side)", JSON.stringify(t.filter((x) => x.shown).map((x) => [x.name, x.l | 0, x.t | 0, x.r | 0, x.b | 0])));
+const covL = await coveredAll();
+check(!covL.length, "no name covered (phone, on its side)", JSON.stringify(covL));
+const underL = await padsClear();
+check(!underL.length, "the squad's name and arrows off the pads (phone, on its side)", JSON.stringify(underL));
+await page.screenshot({ path: path.join(SHOTS, "party4-phone-landscape.png") });
 check(errors.length === 0, "no page errors", errors.slice(0, 3).join(" | "));
 console.log("shots: " + SHOTS);
 await browser.close(); server.close();
