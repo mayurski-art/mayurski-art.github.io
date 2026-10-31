@@ -8,8 +8,10 @@
 // scope key "scope8", the 8x's ADS numbers), aimed in its line sits on the
 // screen centre and the scope overlay takes over; an ACOG hides it and
 // sits on the rail; third person carries the LOD1 (one node, about 6k
-// tris, no parts, no second scope). The bolt cycle, the round and the
-// brass are the MTAR branch's tests. Writes OUT/ballista-*.png.
+// tris, no parts, no second scope); a shot works the bolt: the handle
+// lifts, the bolt rakes its travel with the round in the open action, the
+// trigger hand rides the knob, and all of it comes home. Writes
+// OUT/ballista-*.png.
 // Offline: Supabase blocked, no bots, never a public room.
 //
 // Usage: NODE_PATH=<main checkout>/node_modules OUT=<dir> node tools/troll-ops-ballista-test.mjs
@@ -207,6 +209,38 @@ await page.evaluate(() => window.__trollOps.toggleThirdPerson());
 await sleep(1500);
 await shot(page, "ballista-2-3p.png");
 await page.evaluate(() => window.__trollOps.toggleThirdPerson());
+
+// 6. the bolt: a shot starts the cycle; through it the handle lifts, the
+// bolt rakes back its travel, the round shows in the open action and the
+// trigger hand rides the knob; at rest all of it is home
+await sleep(1500);
+const cyc = await page.evaluate(async () => {
+  const T = window.__trollOps, w = T.currentWeapon(), m = T.activeWeaponMesh(), a = m.userData.boltAction;
+  if (!a) return null;
+  const frames = (n) => new Promise((r) => { const f = () => (n-- > 0 ? requestAnimationFrame(f) : r()); f(); });
+  w.fireCooldown = 0; T.fireOnce();
+  await frames(3);
+  const started = w.pumpT > 0;
+  const at = async (t) => {
+    w.pumpDur = 1e4; w.pumpT = 1e4 * (1 - t);
+    await frames(4);
+    return { lift: +a.bolt.rotation.z.toFixed(3), back: +(a.bolt.position.z - a.restZ).toFixed(4), round: !!a.round?.visible,
+      hand: +a.hand.position.distanceTo(a.handRest.position).toFixed(3) };
+  };
+  const out = { started, travel: a.travel, up: await at(0.27), raked: await at(0.53), rest: await at(0.999) };
+  w.pumpT = 0;
+  return out;
+});
+check("a shot starts the bolt cycle", !!cyc?.started, JSON.stringify(cyc));
+check("the handle lifts, then the bolt rakes back its travel with the round in the open action",
+  cyc && cyc.up.lift > 0.9 && cyc.raked.lift > 0.9 && Math.abs(cyc.raked.back - cyc.travel) < 0.004 && cyc.raked.round && !cyc.up.round, JSON.stringify(cyc));
+check("the trigger hand leaves the grip for the knob", cyc && cyc.raked.hand > 0.03, JSON.stringify(cyc));
+check("at the end the bolt is home, the round hidden, the hand on the grip",
+  cyc && Math.abs(cyc.rest.lift) < 0.01 && Math.abs(cyc.rest.back) < 0.001 && !cyc.rest.round && cyc.rest.hand < 0.003, JSON.stringify(cyc));
+await page.evaluate(() => { const w = window.__trollOps.currentWeapon(); w.pumpDur = 1e4; w.pumpT = 1e4 * (1 - 0.53); });
+await sleep(300);
+await shot(page, "ballista-3-bolt-back.png");
+await page.evaluate(() => { window.__trollOps.currentWeapon().pumpT = 0; });
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 await browser.close();

@@ -81,7 +81,7 @@ function placeParts(mesh, w, dt, arT, o) {
   if (P.Charge?.follow === "Carrier" && P.Carrier) charge = Math.max(charge, back * P.Carrier.travel / P.Charge.travel);
   setPart(P.Charge, charge);
   setPart(P.Carrier, back);
-  setPart(P.Bolt, back);
+  if (!u.boltAction) setPart(P.Bolt, back);   // a bolt gun's bolt is rifle-action.js's
   setPart(P.Catch, catchUp);
   if (a.opened) a.cover = Math.min(1, a.cover + dt / COVER_OPEN);
   // a little overshoot as it slaps open

@@ -81,8 +81,10 @@ export function placeBolt(mesh, w, magT) {
   const t = cycleT(w, magT);
   const lift = t < 0 ? 0 : span(t, UP) - span(t, DOWN);
   const back = t < 0 ? 0 : span(t, BACK) - span(t, HOME);
-  a.bolt.rotation.z = lift * LIFT;
+  a.bolt.rotation.z = lift * (a.lift ?? LIFT);
   a.bolt.position.z = a.restZ + back * a.travel;
+  // a kit gun's round shows in the open action while the mag has one to feed
+  if (a.round) a.round.visible = back > 0.3 && w.ammoInMag > 0;
   // The trigger hand rides the knob (the arm follows the hand: posePfArms).
   if (a.hand) {
     const reach = t < 0 ? 0 : span(t, REACH) - span(t, LETGO);
