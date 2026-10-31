@@ -4,6 +4,7 @@ import { WEAPON_DEFS, CLASS_ORDER, SECONDARY_CLASSES, CLASS_LABELS, weaponsInCla
 import { ATTACHMENTS, SLOTS, SLOT_LABELS, resolveWeapon, defaultLoadoutFor, fits, fitLoadout, statBars, statDelta } from "../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
 import { iconFor } from "../weapons/attachment-icons.js?v=or1";
 import { SKIN_BY_ID, skinsFor, skinThumbUrl } from "../characters/skins.js?v=p5-wb1-or1";
+import { weaponLevel } from "./weapon-xp.js?v=wx1";
 import { getRank, getLevel, getPrestige, PRESTIGE_MASTER, isUnlocked, rankUnlocked, rankProgress, rankXpText, prestigeUnlocked } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416";
 import { playerIconSvg } from "./rank-icons.js?v=rk1-or1";
 import { MAPS, MAP_IDS, REWARD_MAPS, mapSchematic } from "../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1-bw2-bt1-wf1-wf2-zf1-bp1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-rm1-kzf1-hgb1-hgb2-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-hgb5-hgb6-hgb8-hgb9-tw1-op1-hgo1-wb1";
@@ -57,14 +58,17 @@ function migrate(saved) {
   return { ...saved, v: 2, active, classes: out };
 }
 
-/* Prestige finishes (skins.js) open at their prestige. A saved pick you can't
-   wear right now (signed out, say) is kept, but the gun goes out in factory. */
-export function finishUnlocked(skin) {
+/* Prestige finishes (skins.js) open at their prestige, camos at the gun's
+   own weapon level (weapon-xp.js). A saved pick you can't wear right now
+   (signed out, say) is kept, but the gun goes out in factory. */
+export function finishUnlocked(skin, weaponId) {
+  if (skin?.level && weaponId) return weaponLevel(weaponId) >= skin.level;
   return !skin?.prestige || prestigeUnlocked(skin.prestige);
 }
-function wearable(atts) {
+const lockText = (skin) => skin.level ? `Unlocks at weapon level ${skin.level}` : `Unlocks at Prestige ${skin.prestige}`;
+function wearable(atts, weaponId) {
   const s = atts?.skin && SKIN_BY_ID[atts.skin];
-  return s && !finishUnlocked(s) ? { ...atts, skin: null } : atts;
+  return s && !finishUnlocked(s, weaponId) ? { ...atts, skin: null } : atts;
 }
 
 function load() {
@@ -301,12 +305,12 @@ export class Loadout {
 
   get attachments() { return this.attachmentsFor(this.activeId); }
 
-  get resolved() { return resolveWeapon(this.weaponId, wearable(this.attachmentsFor(this.weaponId))); }
-  get resolvedSecondary() { return resolveWeapon(this.secondaryId, wearable(this.attachmentsFor(this.secondaryId))); }
+  get resolved() { return resolveWeapon(this.weaponId, wearable(this.attachmentsFor(this.weaponId), this.weaponId)); }
+  get resolvedSecondary() { return resolveWeapon(this.secondaryId, wearable(this.attachmentsFor(this.secondaryId), this.secondaryId)); }
   // Whichever of the two the slot toggle currently has open — for previews
   // (the 3D inspector), never for equipping: equipFromLoadout always wants
   // `resolved`/`resolvedSecondary` specifically, not "whatever's on screen".
-  get resolvedActive() { return resolveWeapon(this.activeId, wearable(this.attachments)); }
+  get resolvedActive() { return resolveWeapon(this.activeId, wearable(this.attachments, this.activeId)); }
 
   get melee() { return MELEE_DEFS[this.meleeId]; }
   /* What the Gear panel's preview shows: the last melee or throwable picked. */
@@ -652,6 +656,12 @@ export class Loadout {
         const name = document.createElement("strong");
         name.textContent = skin.name;
         b.append(img, name);
+        if (skin.level) {
+          const lv = document.createElement("span");
+          lv.className = "to-lo-skin-lv";
+          lv.textContent = skin.level === 30 ? "Mastery" : `LV ${skin.level}`;
+          b.appendChild(lv);
+        }
         b.title = skin.blurb;
         b.addEventListener("click", () => {
           this.attachments.skin = skin.id;
@@ -665,13 +675,13 @@ export class Loadout {
     const current = this.attachments.skin || null;
     for (const [id, { b, skin }] of this.skinButtons) {
       const on = id === current;
-      const open = finishUnlocked(skin);
+      const open = finishUnlocked(skin, this.activeId);
       b.classList.toggle("is-active", on);
       b.classList.toggle("is-locked", !open);
       b.disabled = !open;
       b.setAttribute("aria-pressed", String(on));
-      b.title = open ? skin.blurb : `Unlocks at Prestige ${skin.prestige}.`;
-      b.setAttribute("aria-label", `Skin: ${skin.name}. ${open ? skin.blurb : `Locked, unlocks at Prestige ${skin.prestige}.`}${on ? " Equipped" : ""}`);
+      b.title = open ? skin.blurb : `${lockText(skin)}.`;
+      b.setAttribute("aria-label", `Skin: ${skin.name}. ${open ? skin.blurb : `Locked, ${lockText(skin).toLowerCase()}.`}${on ? " Equipped" : ""}`);
     }
   }
 
@@ -871,7 +881,7 @@ export class Loadout {
       // The preview and the stats both follow the gun you're on (user,
       // 2026-10-25: "so should the stats of that weapon")
       const preview = () => {
-        const d = resolveWeapon(id, wearable(this.attachmentsFor(id)));
+        const d = resolveWeapon(id, wearable(this.attachmentsFor(id), id));
         this.onPreview?.(d);
         this.renderDetail(d);
       };

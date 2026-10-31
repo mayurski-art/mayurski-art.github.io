@@ -616,6 +616,10 @@ button.to-gear-chip { cursor: pointer; }
 .to-lo-skin:focus-visible { outline: 2px solid #7fe066; outline-offset: 1px; }
 .to-lo-skin.is-active { background: rgba(127,224,102,.14); border-color: #7fe066; color: #eaf5e4; }
 .to-lo-skin.is-active strong::before { content: "\2713  "; color: #9fe88a; }
+/* a camo card says the weapon level it opens at (DESIGN-SKINS.md) */
+.to-lo-skin-lv { font-family: "DM Mono", monospace; font-size: 9px; letter-spacing: .04em; color: #7c8778; }
+.to-lo-skin.is-locked { opacity: .55; cursor: not-allowed; }
+.to-lo-skin.is-locked .to-lo-skin-lv { color: #c7a25a; }
 
 .to-go-xp {
   margin: 0; font-family: "Oswald", sans-serif; font-size: 15px;
