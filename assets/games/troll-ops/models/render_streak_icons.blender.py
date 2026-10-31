@@ -38,8 +38,12 @@ STREAKS = {
 ONLY = [s for s in os.environ.get("ICON_ONLY", "").split(",") if s]
 # Hull colour the neutral greys become: olive drab by default.
 FINISH = {"counteruav": (0.34, 0.07, 0.06)}
-# These keep their own colours (the VSAT is gold foil and blue-grey cells).
-NO_FINISH = {"vsat"}
+# These keep their own colours (the VSAT is gold foil and blue-grey cells;
+# the Shadow and the F-35 are grey aircraft, STREAK-REALISM.md).
+NO_FINISH = {"vsat", "uav", "airstrike"}
+# Nodes hidden per streak: the Shadow's jammer pods and band fly only on
+# the Counter-UAV (streak-entities.js ReconPlane).
+HIDE = {"uav": "Jam", "swarm": "", "drone": ""}
 SWARM_OFFSETS = [(0, 0, 0.3), (0.55, 0.45, -0.2), (-0.35, -0.55, -0.35)]
 
 
@@ -56,6 +60,11 @@ def render(streak, model, view, lens):
                     o.location = Vector(o.location) + Vector(SWARM_OFFSETS[i])
                     o.rotation_euler.z += (i - 1) * 0.25
     bpy.context.view_layer.update()
+    prefix = HIDE.get(streak)
+    if prefix:
+        for o in list(scene.objects):
+            if o.name.startswith(prefix):
+                bpy.data.objects.remove(o, do_unlink=True)
     meshes = [o for o in scene.objects if o.type == "MESH"]
     lo = Vector((1e9, 1e9, 1e9))
     hi = Vector((-1e9, -1e9, -1e9))
