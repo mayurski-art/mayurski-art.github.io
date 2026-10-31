@@ -10,7 +10,7 @@
 // everyone else. The modes themselves are modes.js royale_duo/trio/squad.
 
 import { game, room } from "../core/state.js?v=st1";
-import { MODES } from "./modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-tfb8-ug1-ugm1-hgb8-hgb9-mt2";
+import { MODES } from "./modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-tfb8-ug1-ugm1-hgb8-hgb9-mt2-hb4";
 
 /* The Royale card's choices, smallest first. */
 export const SQUAD_SIZES = [

@@ -5,7 +5,7 @@
 // use `set` for zoom because the sight decides magnification, so bolting an
 // ACOG onto a sniper shouldn't stack into an absurd fraction.
 
-import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2";
+import { WEAPON_DEFS } from "./weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
 
 export const SLOTS = ["optic", "barrel", "underbarrel", "ammo"];
 

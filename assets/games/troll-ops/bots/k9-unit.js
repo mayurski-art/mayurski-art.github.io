@@ -15,7 +15,7 @@ import * as THREE from "three";
 import { loadModel } from "../maps/battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
 import { FlowField } from "./nav.js?v=ti1-bs1b7d-fl1-or1-gf1-tg1-tfb8";
 import { floorAt } from "../core/ground-field.js?v=gf1-tg1";
-import { groundHeightAt, resolveCircle } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1";
+import { groundHeightAt, resolveCircle } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1-hb4";
 
 export const K9 = {
   dogs: 6,

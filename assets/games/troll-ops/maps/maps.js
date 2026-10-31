@@ -9,7 +9,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { makeGroundMaterial } from "../view/shaders.js?v=or1";
-import { groundHeightAt } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1";
+import { groundHeightAt } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1-hb4";
 import { setGroundField } from "../core/ground-field.js?v=gf1-tg1";
 import { PENTAGRIN } from "./pentagrin.js?v=hg6e-sr1-or1";
 import { HOLLOWGRIN } from "./hollowgrin.js?v=hg6tc-sb2-sr1-or1-tcs1-tm3-tm6-tx1-sp1-kbt1-gb1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb1-hgb2-hgb3-ugb1-ug1-ugm1-hgb4-hgb5-hgb6-hgb8-hgb9-tw1-op1-hgo1-zf1-wb1";
