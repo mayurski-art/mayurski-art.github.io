@@ -79,6 +79,9 @@ export function padButtonName(i) {
 
 export function padFamily(gp) {
   const id = String(gp?.id || "").toLowerCase();
+  // ("Xbox Wireless Controller" is an Xbox pad: Sony's "Wireless Controller"
+  // is the bare name, so Microsoft's goes first)
+  if (/045e|xbox|xinput/.test(id)) return "xbox";
   if (/054c|playstation|dualsense|dualshock|wireless controller/.test(id)) return "ps";
   if (/057e|nintendo|pro controller|joy-con|voyee|switch/.test(id)) return "switch";
   return "xbox";   // XInput and most generic pads use Xbox names
