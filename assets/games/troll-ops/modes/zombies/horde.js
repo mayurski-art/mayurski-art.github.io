@@ -244,8 +244,17 @@ const heavyHit = (z, dmg, isHead) => !z.type.noStagger && (isHead || dmg >= z.ma
 const CLIMB_GIVE_UP = 9;      // seconds on a stair before re-thinking the route
 const BLOCKER_REACH = 0.2;    // metres from a deployable's box it stops and swings (up against it: on the spikes)
 
-/* Classic curve: +100 a round to round 9, then ×1.1 compounding. */
+/* The horde's health: +75 a round to round 9, then x1.055 compounding
+   (wave 30: 2,300, was 7,000 on the classic +100 / x1.1 curve). The user
+   (2026-10-31): "zombies gaining HP is a bad thing"; later waves get
+   harder through numbers, runners and specials instead of bullet sponges. */
 export function healthForRound(round) {
+  if (round <= 9) return 150 + (round - 1) * 75;
+  return Math.round(750 * Math.pow(1.055, round - 9));
+}
+
+/* The classic curve the bosses keep (boss.js): one target, it should last. */
+export function bossHealthForRound(round) {
   if (round <= 9) return 150 + (round - 1) * 100;
   return Math.round(950 * Math.pow(1.1, round - 9));
 }

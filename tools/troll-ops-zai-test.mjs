@@ -162,7 +162,37 @@ async function hud() {
   check(!page.errors.length, "no page errors", page.errors.slice(0, 3).join(" | "));
 }
 
-const SECTIONS = { rebuild, hud };
+/* ---------------------------------------------------------------- hp */
+async function hp() {
+  const page = await open(MAPS[0]);
+  const t = await R(page, async () => {
+    const url = new URL("assets/games/troll-ops/modes/zombies/horde.js", location.href).href;
+    const boss = new URL("assets/games/troll-ops/modes/zombies/boss.js", location.href).href;
+    const H = await import(url), B = await import(boss);
+    const old = (r) => (r <= 9 ? 150 + (r - 1) * 100 : Math.round(950 * Math.pow(1.1, r - 9)));
+    const rows = [];
+    for (let r = 1; r <= 30; r++) rows.push([r, old(r), H.healthForRound(r), B.bossHealth("mini", r), H.countForRound(r)]);
+    // the live horde: a wave-20 walker's health
+    const zd = window.__trollOps.zdir();
+    zd.round = 20;
+    const z = zd.summonAround({ x: 0, y: 0, z: 0 }, 1)[0];
+    const live = z.maxHp;
+    z.takeDamage(z.hp + 1e6, false);
+    return { rows, live };
+  });
+  console.log("wave  before  after  mini-boss  count");
+  for (const [r, a, b, m, c] of t.rows) console.log(`${String(r).padStart(4)}  ${String(a).padStart(6)}  ${String(b).padStart(5)}  ${String(m).padStart(9)}  ${String(c).padStart(5)}`);
+  const at = (r) => t.rows[r - 1];
+  check(at(1)[2] === 150, "wave 1 unchanged at 150");
+  check(t.rows.every((r, i) => !i || r[2] >= t.rows[i - 1][2]), "the curve never drops");
+  check(at(30)[2] <= at(30)[1] * 0.4 && at(20)[2] <= at(20)[1] * 0.55, "late waves well under the old curve", `w20 ${at(20)[1]}->${at(20)[2]}, w30 ${at(30)[1]}->${at(30)[2]}`);
+  check(at(30)[2] / at(1)[2] < 16, "wave 30 under 16x wave 1 (was 47x)", (at(30)[2] / at(1)[2]).toFixed(1) + "x");
+  check(Math.abs(at(20)[3] / at(20)[1] - at(10)[3] / at(10)[1]) < 0.01, "bosses keep the classic curve", `mini w10 ${at(10)[3]}, w20 ${at(20)[3]}`);
+  check(t.live === at(20)[2], "a live wave-20 walker spawns on the new curve", String(t.live));
+  check(!page.errors.length, "no page errors", page.errors.slice(0, 3).join(" | "));
+}
+
+const SECTIONS = { rebuild, hud, hp };
 if (!SECTIONS[section]) { console.log(`unknown section ${section}: ${Object.keys(SECTIONS).join(" ")}`); process.exit(2); }
 try { await SECTIONS[section](); } catch (e) { check(false, "threw", String(e?.stack || e)); }
 await browser.close();
