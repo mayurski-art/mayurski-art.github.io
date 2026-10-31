@@ -655,7 +655,8 @@ def _tris(objs):
     return out
 
 
-def bake_gun(recipe, gun_id, prefix, out_dir, res=1024, lod_res=256, lod_ratio=0.25, samples=16, render=None, margin_px=None):
+def bake_gun(recipe, gun_id, prefix, out_dir, res=1024, lod_res=256, lod_ratio=0.25, samples=16, render=None, margin_px=None,
+             lod_weld=0.0):
     """recipe(): builds the gun's Parts and empties with gunkit (reading
     gunkit.HI). render: gunkit.render_views' views, rendered after export
     with the baked maps on (a check, not shipped). margin_px: the gap
@@ -663,7 +664,11 @@ def bake_gun(recipe, gun_id, prefix, out_dir, res=1024, lod_res=256, lod_ratio=0
     starves a gun of many small islands, a rail's teeth, of texels).
     Writes the skin mask (<id>-msk.webp, DESIGN-SKINS.md) with the other
     maps: it has to share their unwrap, and Smart UV is not repeatable
-    run to run, so never bake it on its own."""
+    run to run, so never bake it on its own.
+    lod_weld: merge the joined LOD1's vertices closer than this (metres)
+    before decimating; the game mesh is split along every UV and sharp
+    seam, and a gun with many of them (the Ballista: 64k open edges)
+    otherwise barely decimates. UVs are per corner, so they survive."""
     import gunkit as gk
     import json
     scene = bpy.context.scene
@@ -772,6 +777,13 @@ def bake_gun(recipe, gun_id, prefix, out_dir, res=1024, lod_res=256, lod_ratio=0
     for k in [k for k in body.keys() if k.startswith("tf_")]:
         del body[k]
     body.name = prefix + "_Body"
+    if lod_weld > 0:
+        import bmesh
+        bm = bmesh.new()
+        bm.from_mesh(body.data)
+        bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=lod_weld)
+        bm.to_mesh(body.data)
+        bm.free()
     dec = body.modifiers.new("lod", "DECIMATE")
     dec.ratio = lod_ratio
     dec.use_collapse_triangulate = True
