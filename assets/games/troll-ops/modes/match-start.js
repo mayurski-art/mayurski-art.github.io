@@ -40,6 +40,7 @@ import { WaveSpawner } from "../bots/enemies.js?v=hb4-wst-soc1-sb2b7c2m1-gt1-gt2
 import { DROP } from "./royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1-fl1-or1-dc2-dc3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-rb4-hp1-bx1-mg1-tx1-sp1-kbt1-gb1-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-mt2-sk1-hb4-jx2-mb1-mb2";
 import { game } from "../core/state.js?v=st1";
 import { setFireIcon } from "../view/touch-icons.js?v=ti1-zc2";
+import { setMoneyWorld } from "../maps/club-money.js?v=mn2";
 import { carryClassPerks } from "../combat/perk-carry.js?v=pk1-cl1-bp1-fj1-zh1-zc1-zc2-nf1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-tfb8-rfx1-ret1-mrg1-ug1-ugm1-mrc1-hgb8-hgb9-tw1-ars1-p416-mt2-hb4-gc1";
 
 /* Put everyone who didn't ask for a private room into the same public
@@ -722,6 +723,8 @@ export function beginMatch(mapId = null) {
   game.player.spawnGuard = 0;
   updateSpawnGuardHud();
 
+  // the bills' world (club-money.js): the scene, what they land on, the pool's size
+  setMoneyWorld(game.scene, game.colliders, game.gfxTier(), () => game.camera.position);
   game.loadMap(game.matchMapId(mapId));
   // Socialize: the map's townsfolk (town-npcs.js), if it has any.
   game.townNpcs?.dispose();
