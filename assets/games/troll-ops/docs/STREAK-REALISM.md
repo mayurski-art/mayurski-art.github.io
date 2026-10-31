@@ -97,3 +97,18 @@ One commit per streak (one system each), ?v= tags bumped per commit.
 3. **Counter-UAV look.** Jammer pods with a red stripe (real), or keep the
    all-red plane (easier to spot)?
 4. **Nuke.** Leave it out (default) or add a pass?
+
+## Status (2026-10-31)
+
+Phases 0-8 and 10-11 are built and committed on claude/scorestreak-realism
+(not pushed). Phase 9 (K9) and the Dragonfire and SAM models in phase 10
+were left as built: their baseline sheets (refs/streaks/_baseline/) already
+sit at the bar (the dog is a Malinois with the saddle and vest, the quad
+has its ducts, camo body and gun, the SAM its twin four-tube pods on the
+tripod), so phase 10 is the missile smoke trail only. Every rebuilt model
+is in models/build_streak_realism.blender.py (the VSAT wings in
+build_streaks3). Not done: the heat shimmer and jet wingtip vapour (the
+afterburner cone is an emissive mesh), the phone check on a real device
+(the models total 1.9 MB, every one under its tri cap, after-sheets in refs/streaks/_after/; the pad's screen
+canvas is 512x288), and in-game shots that frame each aircraft (the sheet
+lab is the review surface).
