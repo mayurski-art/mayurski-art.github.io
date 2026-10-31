@@ -116,12 +116,12 @@ function renderMatchMedals() {
     const icon = document.createElement("span");
     icon.className = "to-go-medal-icon";
     icon.innerHTML = medalSvg(m.label);
-    const name = document.createElement("span");
-    name.className = "to-go-medal-name";
-    name.textContent = m.label;
+    // the medal and its count; the name on hover and for screen readers
     const n = document.createElement("b");
     n.textContent = `×${m.n}`;
-    li.append(icon, name, n);
+    n.setAttribute("aria-hidden", "true");
+    li.append(icon, n);
+    li.title = m.label;
     li.setAttribute("aria-label", `${m.label}, ${m.n} time${m.n === 1 ? "" : "s"}`);
     ul.appendChild(li);
   }

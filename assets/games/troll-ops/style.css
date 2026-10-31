@@ -676,21 +676,21 @@ button.to-gear-chip { cursor: pointer; }
   margin: 0 0 7px; font-family: "Oswald", sans-serif; font-size: 11px; font-weight: 500;
   letter-spacing: .14em; text-transform: uppercase; color: #93a08c; text-align: center;
 }
+/* Just the medals, the count written on each (user, 2026-10-31: "show the
+   actual medals only ... on it write x2 or x5"); the name is the tooltip
+   and the screen reader's label. */
 .to-go-medals ul {
   list-style: none; margin: 0; padding: 0;
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 5px;
-  max-height: 176px; overflow-y: auto; text-align: left;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
 }
-.to-go-medal {
-  display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 8px;
-  padding: 4px 10px 4px 6px; border-radius: 7px;
-  background: rgba(255,255,255,.04); border: 1px solid rgba(207,214,209,.14);
-  font-family: "Oswald", sans-serif; font-size: 13px; letter-spacing: .04em;
-  text-transform: uppercase; color: #f3ead2;
+.to-go-medal { position: relative; width: var(--medal, 46px); height: var(--medal, 46px); }
+.to-go-medal-icon svg, .to-go-medal-icon img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.to-go-medal-icon { display: block; width: 100%; height: 100%; }
+.to-go-medal b {
+  position: absolute; right: -3px; bottom: -3px; padding: 0 4px; border-radius: 6px;
+  font: 700 12px/16px "Oswald", sans-serif; color: #f5b82e; font-variant-numeric: tabular-nums;
+  background: rgba(6,9,7,.9); border: 1px solid rgba(245,184,46,.55);
 }
-.to-go-medal-icon svg, .to-go-medal-icon img { display: block; width: 30px; height: 30px; object-fit: contain; }
-.to-go-medal-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.to-go-medal b { font-weight: 700; color: #f5b82e; font-size: 15px; font-variant-numeric: tabular-nums; }
 .to-go-medal-bonus {
   margin: 6px 0 0; text-align: center; font-family: "Oswald", sans-serif; font-size: 12px;
   letter-spacing: .1em; text-transform: uppercase; color: #f5b82e;
@@ -1083,7 +1083,6 @@ body.to-social:not(.to-social-armed) #to-touch-interact { display: none !importa
   }
   .to-gameover-inner:has(> .to-aar:not([hidden])) > .to-aar { grid-column: 1; grid-row: 1 / -1; width: 100%; }
   .to-gameover-inner:has(> .to-aar:not([hidden])) > :not(.to-aar) { grid-column: 2; width: 100%; box-sizing: border-box; text-align: center; }
-  .to-gameover-inner:has(> .to-aar:not([hidden])) .to-go-medals ul { grid-template-columns: 1fr; max-height: none; }
   .to-gameover-inner:has(> .to-aar:not([hidden])) .to-intermission { padding: 10px; }
   .to-gameover-inner:has(> .to-aar:not([hidden])) .to-vote-list { flex-direction: column; width: 100%; gap: 5px; }
   .to-gameover-inner:has(> .to-aar:not([hidden])) .to-vote-opt { flex-direction: row; align-items: center; max-width: none; gap: 8px; }
@@ -1091,6 +1090,22 @@ body.to-social:not(.to-social-armed) #to-touch-interact { display: none !importa
   .to-gameover-inner:has(> .to-aar:not([hidden])) .to-vote-row { flex: 1; min-width: 0; }
   .to-gameover-inner:has(> .to-aar:not([hidden])) .to-vote-opt.is-mine { transform: none; }
 }
+/* The radio button floats over every screen (bottom left): the results
+   card keeps out of its way, beside it on a wide screen, above it upright. */
+@container cab (min-aspect-ratio: 5/4) {
+  #to-gameover:has(.to-aar:not([hidden])) { padding: 0 64px; box-sizing: border-box; }
+}
+@container cab (min-aspect-ratio: 5/4) and (max-height: 560px) {
+  #to-gameover:has(.to-aar:not([hidden])) { padding: 0 6px 0 62px; }
+  /* the stat tiles in one row, for the height */
+  .to-aar-stats { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  .to-aar-stats span { font-size: 8.5px; letter-spacing: .04em; white-space: nowrap; }
+}
+@container cab (max-aspect-ratio: 5/4) {
+  #to-gameover:has(.to-aar:not([hidden])) { padding-bottom: 58px; box-sizing: border-box; }
+}
+/* a narrow report: the gun's name gets the row, not its class */
+@container cab (max-width: 1100px) { .to-aar-gun-cls { display: none; } }
 /* Tight: a phone either way up, or a short laptop. */
 @container cab (max-height: 560px) or (max-aspect-ratio: 5/4) {
   .to-gameover-inner:has(> .to-aar:not([hidden])) { padding: 8px 10px; gap: 7px; }
@@ -1115,18 +1130,13 @@ body.to-social:not(.to-social-armed) #to-touch-interact { display: none !importa
   .to-aar-stats strong { font-size: 16px; }
   .to-aar-stats span { font-size: 9px; }
   .to-go-medals h3 { margin-bottom: 4px; }
-  .to-go-medal { padding: 2px 8px 2px 4px; font-size: 12px; grid-template-columns: 22px minmax(0, 1fr) auto; }
-  .to-go-medal-icon svg, .to-go-medal-icon img { width: 22px; height: 22px; }
+  .to-go-medals { --medal: 38px; }
   .to-intermission { padding: 8px 10px; gap: 6px; }
   /* the two buttons side by side under the rest */
   .to-gameover-inner:has(> .to-aar:not([hidden])) > .to-btn { min-width: 0; }
 }
 @container cab (max-height: 560px) and (min-aspect-ratio: 5/4) {
   .to-gameover-inner:has(> .to-aar:not([hidden])) { grid-template-columns: minmax(0, 1fr) minmax(200px, 260px); column-gap: 12px; row-gap: 6px; }
-  .to-gameover-inner:has(> .to-aar:not([hidden])) .to-go-medals ul { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; }
-  .to-gameover-inner:has(> .to-aar:not([hidden])) .to-go-medal { font-size: 10.5px; gap: 4px; padding: 1px 6px 1px 3px; grid-template-columns: 16px minmax(0, 1fr) auto; }
-  .to-gameover-inner:has(> .to-aar:not([hidden])) .to-go-medal b { font-size: 12px; }
-  .to-gameover-inner:has(> .to-aar:not([hidden])) .to-go-medal-icon :is(svg, img) { width: 16px; height: 16px; }
   .to-gameover-inner:has(> .to-aar:not([hidden])) .to-go-medal-bonus { margin-top: 3px; font-size: 10.5px; }
   .to-gameover-inner:has(> .to-aar:not([hidden])) .to-vote-img { width: 52px; }
   .to-gameover-inner:has(> .to-aar:not([hidden])) .to-vote-opt { padding: 2px 3px; font-size: 11px; }
@@ -1139,7 +1149,6 @@ body.to-social:not(.to-social-armed) #to-touch-interact { display: none !importa
   .to-aar-gun-ph { display: none; }
   .to-aar-gun-body { position: relative; }
   .to-aar-gun-cls { display: none; }
-  .to-go-medals ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .to-vote-row { font-size: 11px; }
   .to-vote-img { aspect-ratio: 2.4 / 1; }
   /* both buttons on one row */

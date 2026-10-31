@@ -65,7 +65,8 @@ for (const dev of DEVICES) {
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.waitForFunction(() => !!window.__trollOps && !!window.__trollAar, null, { timeout: 180000 });
-  await page.evaluate(({ d, medals }) => {
+  await page.evaluate(async ({ d, medals }) => {
+    const { medalSvg } = await import("/assets/games/troll-ops/progression/medals.js?v=to-medals3-or1");
     const T = window.__trollOps;
     T.els.title.hidden = true;
     document.querySelectorAll(".to-bo2").forEach((m) => { m.style.display = "none"; });
@@ -74,7 +75,8 @@ for (const dev of DEVICES) {
     // the fullest card: medals and the next-map vote under the report
     const box = document.getElementById("to-go-medals");
     box.hidden = false;
-    box.querySelector("ul").innerHTML = medals.map((m, i) => `<li class="to-go-medal"><span class="to-go-medal-icon"></span><span class="to-go-medal-name">${m}</span><b>×${i % 3 + 1}</b></li>`).join("");
+    // as match-end.js renderMatchMedals draws them: the medal, its count on it
+    box.querySelector("ul").innerHTML = medals.map((m, i) => `<li class="to-go-medal" title="${m}"><span class="to-go-medal-icon">${medalSvg(m)}</span><b aria-hidden="true">×${i % 3 + 1}</b></li>`).join("");
     const bonus = box.querySelector(".to-go-medal-bonus"); bonus.hidden = false; bonus.textContent = "Medal bonus +850";
     document.getElementById("to-intermission").hidden = false;
     document.getElementById("to-vote-list").innerHTML = ["culdegrin", "grinsite", "dustbowl"].map((id, i) =>
@@ -103,6 +105,19 @@ for (const dev of DEVICES) {
       check(m.retry.on && m.home.on, `${tag}: both buttons on screen`, JSON.stringify([m.retry, m.home]));
       if (tab === "summary") {
         check(m.font >= 9, `${tag}: the tabs stay readable`, `${m.font.toFixed(1)}px`);
+        // nothing else on the page (the radio, a corner button) on top of the card
+        const over = await page.evaluate(() => {
+          const card = document.querySelector("#to-gameover .to-gameover-inner"), r = card.getBoundingClientRect(), hit = new Set();
+          for (let y = r.top + 2; y < r.bottom - 1; y += 8) for (let x = r.left + 2; x < r.right - 1; x += 8) {
+            const el = document.elementFromPoint(x, y);
+            if (el && !el.closest("#to-gameover")) {
+              const t = el.closest("[id]") || el;
+              hit.add(t.id ? "#" + t.id : t.className || t.tagName);
+            }
+          }
+          return [...hit];
+        });
+        check(!over.length, `${tag}: nothing else on top of the card`, over.join(", "));
         await scanText(page, (ok, what, extra) => check(ok, `${tag}: ${what}`, extra), tag);
         if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `aar-fit-${dev.name}-${w}x${h}.png`) });
       }
