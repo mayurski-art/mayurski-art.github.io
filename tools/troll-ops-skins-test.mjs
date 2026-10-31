@@ -129,7 +129,7 @@ const misc = await page.evaluate(async ([wm]) => {
     fin[f] = { finish: g.userData.finish, parts: !!g.userData.gunParts, kit, painted };
   }
   const flat = {};
-  for (const id of ["howl", "kek", "snubgrin"]) {
+  for (const id of ["howl", "salt", "snubgrin"]) {
     const g = build(id, "grinwood");
     let camo = 0, steel = 0, steelKept = 0;
     g.traverse((o) => {

@@ -47,11 +47,11 @@ for (const f of walk(path.join(GAME, "characters"))) {
   }
 }
 // the baked guns' kits (weapon-model.js DETAILED kit: "<id>", at KIT_VER's
-// tag): the LOD1 and the six maps kitUrl asks for
+// tag): the LOD1 and the eight maps kitUrl asks for (the skin mask too)
 const wm = fs.readFileSync(path.join(GAME, "weapons/weapon-model.js"), "utf8");
 const kitVer = Object.fromEntries([...(wm.match(/const KIT_VER = \{([^}]*)\}/)?.[1] || "").matchAll(/(\w+):\s*"([^"]+)"/g)].map((m) => [m[1], m[2]]));
 for (const [, kit] of wm.matchAll(/\bkit:\s*"(\w+)"/g)) {
-  for (const f of ["-lod1.glb", "-base.webp", "-orm.webp", "-nrm.webp", "-lod1-base.webp", "-lod1-orm.webp", "-lod1-nrm.webp"]) {
+  for (const f of ["-lod1.glb", "-base.webp", "-orm.webp", "-nrm.webp", "-msk.webp", "-lod1-base.webp", "-lod1-orm.webp", "-lod1-nrm.webp", "-lod1-msk.webp"]) {
     const abs = path.join(GAME, "models", kit + f);
     if (fs.existsSync(abs)) out.add(site(abs) + `?v=${kitVer[kit] ?? 1}`);
   }
