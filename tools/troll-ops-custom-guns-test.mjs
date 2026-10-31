@@ -1,5 +1,5 @@
-// The custom guns: THE BEAST and the Hyuck Colt LMG wear their Blender
-// models (models/beast.glb, models/coltlmg.glb) with both arm anchors and a
+// The custom guns: the Hyuck Colt LMG wears its Blender model
+// (models/coltlmg.glb) with both arm anchors and a
 // magazine that leaves the gun on a reload; the Ghost Glass finish turns any
 // gun see-through with lit edges. Screenshots (hip, ADS, glass) go to OUT.
 //
@@ -100,7 +100,6 @@ async function run(id, prefix, skin, tag) {
   await page.close();
 }
 
-await run("beast", "BE", null, "beast");
 await run("coltlmg", "CL", null, "colt");
 await run("coltlmg", "CL", "ghostglass", "colt-glass");
 await run("problem416", null, "ghostglass", "416-glass");

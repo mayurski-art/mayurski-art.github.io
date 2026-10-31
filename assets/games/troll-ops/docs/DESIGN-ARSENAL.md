@@ -171,7 +171,8 @@ slot. Brass ejects from behind the grip, by the cheek, which is what sells a
 bullpup. The tail reload exists; the empty one gains the support hand
 reaching forward for the charging handle.
 
-**Unique: THE BEAST.** Before: 46k tris, flat bone white, cone spikes, a
+**Unique: THE BEAST.** (Deleted from the game, user 2026-10-30; Phase 1
+is three guns.) Before: 46k tris, flat bone white, cone spikes, a
 lofted head. After (concept 3): bone-white armour plates with chamfered
 seams over a black mechanical core showing through the cut-outs, brushed
 gold inlays, faceted blade spikes, a dragon head at the muzzle with steel

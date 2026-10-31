@@ -27,7 +27,7 @@ const BUDGET = {
   lod0: { tris: 30000, trisUnique: 45000, draws: 8, texMB: 22 },   // one 1024 set: 3 x 5.3 MB, plus optics
   lod1: { tris: 6000, draws: 2, texMB: 1.5 },
 };
-const UNIQUE = new Set(["beast", "soulblazer", "greencandles"]);
+const UNIQUE = new Set(["soulblazer", "greencandles"]);
 
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css",
   ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp",

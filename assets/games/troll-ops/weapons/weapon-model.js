@@ -88,7 +88,7 @@ export function hasDetailedModel(def) {
 }
 
 /* ---- Detailed rifles: one loader for the Blender-built guns that reload
-   with a magazine (THE BEAST, the Colt LMG). Each build script
+   with a magazine (the Colt LMG). Each build script
    (models/build_<id>.blender.py, helpers in models/gunkit.py) exports, in
    game coordinates, under its prefix P:
      P_Body, P_Mag (pivot = the mag point), P_IronRear / P_IronFront (hidden
@@ -98,11 +98,6 @@ export function hasDetailedModel(def) {
    `glow` materials pulse gently; `rake` is the grip's lean (the grip
    hand matches); `railY` is the top of the rail an optic sits on. */
 const DETAILED = {
-  beast: {
-    url: new URL("../models/beast.glb?v=be3", import.meta.url).href,
-    p: "BE", device: "BE_Brake", rake: -0.35, railY: 0.038, adsDistance: 0.24,
-    glow: ["BE_Core", "BE_Vein"],
-  },
   coltlmg: {
     url: new URL("../models/coltlmg.glb?v=cl2", import.meta.url).href,
     p: "CL", device: "CL_Hider", rake: -0.37, railY: 0.0465, adsDistance: null,

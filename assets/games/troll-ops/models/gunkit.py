@@ -1,6 +1,6 @@
 """
-Shared helpers for the detailed first-person gun builders (build_beast,
-build_coltlmg). Lifted from build_grinmington.blender.py: a Part collects
+Shared helpers for the detailed first-person gun builders (build_coltlmg,
+the arsenal v2 guns). Lifted from build_grinmington.blender.py: a Part collects
 bmesh geometry in game coordinates (x right, y up, -z = muzzle forward,
 metres, origin about the grip) and becomes one Blender object.
 

@@ -34,7 +34,7 @@ export const GUN_TIERS = [
   { id: 1, wave: 0, price: 400, guns: ["problem416", "snubgrin", "snicker", "shotgun", "sixtynine", "soulblazer"] },
   { id: 2, wave: 5, price: 900, guns: ["kek", "sneer", "snort", "lol", "bellow", "sawgrin"] },
   { id: 3, wave: 10, price: 1800, guns: ["lmao", "trollboy", "cope", "true69", "deadpan", "cackle"] },
-  { id: 4, wave: 15, price: 3200, guns: ["heh", "rofl", "grinmington", "coltlmg", "guffaw", "beast"] },
+  { id: 4, wave: 15, price: 3200, guns: ["heh", "rofl", "grinmington", "coltlmg", "guffaw"] },
   { id: 5, wave: 20, price: 5500, guns: ["mald", "seethe", "greencandle", "howl", "peacemakers"] },
   { id: 6, wave: 25, price: 9000, guns: ["ratio", "coalface", "salt", "smug", "bellylaugh"] },
 ].map((t) => ({ ...t, guns: t.guns.filter((g) => !WEAPON_DEFS[g]?.retired) })).filter((t) => t.guns.length);

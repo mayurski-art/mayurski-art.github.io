@@ -130,7 +130,7 @@ export const MODES = {
     // (weapons.js KEPT); was sixtynine snicker snubgrin seethe problem416
     // mald sneer shotgun bellow cackle deadpan true69
     ladder: [
-      "sixtynine", "soulblazer", "kek", "problem416", "greencandle", "beast",
+      "sixtynine", "soulblazer", "kek", "problem416", "greencandle",
       "peacemakers", "howl", "true69",
     ],
     noStreaks: true,   // see oitc

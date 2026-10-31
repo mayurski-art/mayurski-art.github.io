@@ -265,19 +265,6 @@ export const WEAPON_DEFS = {
     blurb: "Laser beam with a stock on it.",
     model: { len: 0.6, stock: "fixed", mag: "box", build: "heh" },
   }),
-  // THE BEAST (after Phantom Forces' modded custom gun): an AK grown a
-  // frill of bone and crystal. Hits like the AR-12, fires like the 416,
-  // and a little heavier to swing for it. Detailed model: models/beast.glb.
-  beast: mk("assault", {
-    id: "beast", name: "THE BEAST", rank: 25, sight: "iron",
-    // 50-round magazine (user, 2026-10-03), five of them in reserve.
-    magSize: 50, reserveMax: 250,
-    damage: 33, rpm: 660, recoilKickPitch: 0.025, recoilKickYaw: 0.011, muzzleVelocity: 760,
-    adsTime: 0.27, sprintMult: 1.26, penetration: 1.5,
-    tracerColor: 0x9fe8ff, muzzleColor: 0xbff0ff,
-    blurb: "It was a rifle once. Now it's a rifle with opinions.",
-    model: { len: 0.6, stock: "fixed", mag: "curved", barrel: 1.0 },
-  }),
   // SCAR-H: hits hardest of the autos, three up close, twenty in the mag.
   mald: mk("assault", {
     id: "mald", name: "SCAR-H", rank: 29, sight: "iron",
@@ -572,7 +559,7 @@ export const WEAPON_DEFS = {
    retired def still resolves (an old saved class, a remote player's gun)
    and loadout.js swaps it for the 416. Add a gun to KEPT when its
    v2 model lands. */
-const KEPT = new Set(["problem416", "kek", "beast", "greencandle", "howl", "soulblazer"]);
+const KEPT = new Set(["problem416", "kek", "greencandle", "howl", "soulblazer"]);
 for (const d of Object.values(WEAPON_DEFS)) if (!SECONDARY_CLASSES.includes(d.cls) && !KEPT.has(d.id)) d.retired = true;
 
 export const WEAPON_IDS = Object.keys(WEAPON_DEFS).filter((id) => !WEAPON_DEFS[id].retired);

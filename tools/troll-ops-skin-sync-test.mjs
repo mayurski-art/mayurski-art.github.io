@@ -60,7 +60,7 @@ async function loaded(page, ms = 240000) {
 const R = (page, fn, arg) => page.evaluate(fn, arg);
 
 const a = await open("A");
-await start(a, process.env.GUN || "beast", process.env.SKIN || "darkmatter");
+await start(a, process.env.GUN || "kek", process.env.SKIN || "darkmatter");
 await loaded(a);
 await R(a, () => { const T = window.__trollOps; if (T.isStaging()) T.endStaging(); });
 const b = await open("B");

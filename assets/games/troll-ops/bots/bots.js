@@ -229,7 +229,7 @@ function isGuarding(t, from) {
 /* Bots carry real guns from the roster rather than all reporting problem416,
    so the killfeed says something true about how you died. */
 // (the guns not retired while arsenal v2 rebuilds the rest: weapons.js KEPT)
-const BOT_WEAPONS = ["problem416", "kek", "beast"];
+const BOT_WEAPONS = ["problem416", "kek"];
 
 // Everyone also carries a sidearm and draws it the instant the primary runs
 // dry rather than standing there reloading in a firefight - the same reason
