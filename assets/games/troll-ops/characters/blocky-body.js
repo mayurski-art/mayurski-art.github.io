@@ -231,10 +231,12 @@ const KITS = {
   // torso template), dark jeans, brown cowboy boots
   "clothes-sheriff-gear": { sleeves: "long", legs: "legs-farmer.glb",
     colours: { sleeve: 0xf4f4f0, cuff: 0xe2e2dc, denim: 0x2c3650, hem: 0x222a3e, boot: 0x4a2e18, sole: 0x2a1c12 } },
-  // Miltary Uniform (#2531): the farmer's pieces in digital camo (camoMaterial)
-  // to the tan combat boots; first-person forearms in the camo sleeve
+  // Miltary Uniform (#2531): the box arms in the digital camo (camoMaterial),
+  // the farmer's trousers in the camo's own grey-green (the leg pieces have
+  // no UVs for a tile: the camo there came out one flat colour), tan combat
+  // boots; first-person forearms in the camo sleeve
   "clothes-military-uniform": { sleeves: "long", legs: "legs-farmer.glb",
-    colours: { sleeve: "camo", cuff: "camo", denim: "camo", hem: "camo", boot: 0x9a8a68, collar: 0x7d6e52, sole: 0x2a2420 } },
+    colours: { sleeve: "camo", cuff: "camo", denim: 0x7c8376, hem: 0x6e7568, boot: 0x9a8a68, collar: 0x7d6e52, sole: 0x2a2420 } },
 };
 /* Hair modelled in Blender (traits.js MODELLED), worn on the relief head in
    its frame: the file and a colour per piece name. Carrot Cake Hair is the
@@ -282,12 +284,12 @@ function camoMaterial() {
     const c = document.createElement("canvas");
     c.width = c.height = 128;
     const g = c.getContext("2d");
-    g.fillStyle = "#8b9185"; g.fillRect(0, 0, 128, 128);
+    g.fillStyle = "#7c8376"; g.fillRect(0, 0, 128, 128);
     // (x, y, w, h) in the tile's 8-px cells, two tiles across
     const CELLS = {
-      "#aaa99b": [[0, 0, 2, 1], [1, 1, 1, 1], [5, 0, 1, 2], [6, 1, 2, 1], [3, 3, 2, 1], [4, 4, 1, 1], [0, 5, 1, 2], [1, 6, 2, 1], [6, 5, 1, 1], [7, 6, 1, 2], [3, 7, 2, 1]],
-      "#646c62": [[3, 0, 1, 1], [2, 2, 1, 1], [7, 3, 1, 1], [6, 3, 1, 2], [0, 3, 1, 1], [5, 6, 1, 1], [2, 5, 1, 1], [1, 4, 1, 1], [4, 1, 1, 1], [5, 7, 1, 1], [0, 7, 1, 1]],
-      "#bbb8a7": [[2, 0, 1, 1], [4, 2, 2, 1], [0, 2, 1, 1], [7, 0, 1, 1], [3, 5, 1, 1], [6, 7, 1, 1], [1, 3, 1, 1], [5, 4, 1, 1]],
+      "#8f968a": [[0, 0, 2, 1], [1, 1, 1, 1], [5, 0, 1, 2], [6, 1, 2, 1], [3, 3, 2, 1], [4, 4, 1, 1], [0, 5, 1, 2], [1, 6, 2, 1], [6, 5, 1, 1], [7, 6, 1, 2], [3, 7, 2, 1]],
+      "#5e665a": [[3, 0, 1, 1], [2, 2, 1, 1], [7, 3, 1, 1], [6, 3, 1, 2], [0, 3, 1, 1], [5, 6, 1, 1], [2, 5, 1, 1], [1, 4, 1, 1], [4, 1, 1, 1], [5, 7, 1, 1], [0, 7, 1, 1]],
+      "#9a9e90": [[2, 0, 1, 1], [4, 2, 2, 1], [0, 2, 1, 1], [7, 0, 1, 1], [3, 5, 1, 1], [6, 7, 1, 1], [1, 3, 1, 1], [5, 4, 1, 1]],
     };
     for (const [col, cells] of Object.entries(CELLS)) {
       g.fillStyle = col;

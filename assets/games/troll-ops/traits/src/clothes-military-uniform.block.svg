@@ -17,20 +17,20 @@
   <defs>
     <!-- the digital camo: 8 mm pixels in four greys, one tile repeated -->
     <pattern id="camo" width="64" height="64" patternUnits="userSpaceOnUse">
-      <rect width="64" height="64" fill="#8b9185"/>
-      <g fill="#aaa99b">
+      <rect width="64" height="64" fill="#7c8376"/>
+      <g fill="#8f968a">
         <rect x="0" y="0" width="16" height="8"/><rect x="8" y="8" width="8" height="8"/><rect x="40" y="0" width="8" height="16"/>
         <rect x="48" y="8" width="16" height="8"/><rect x="24" y="24" width="16" height="8"/><rect x="32" y="32" width="8" height="8"/>
         <rect x="0" y="40" width="8" height="16"/><rect x="8" y="48" width="16" height="8"/><rect x="48" y="40" width="8" height="8"/>
         <rect x="56" y="48" width="8" height="16"/><rect x="24" y="56" width="16" height="8"/>
       </g>
-      <g fill="#646c62">
+      <g fill="#5e665a">
         <rect x="24" y="0" width="8" height="8"/><rect x="16" y="16" width="8" height="8"/><rect x="56" y="24" width="8" height="8"/>
         <rect x="48" y="24" width="8" height="16"/><rect x="0" y="24" width="8" height="8"/><rect x="40" y="48" width="8" height="8"/>
         <rect x="16" y="40" width="8" height="8"/><rect x="8" y="32" width="8" height="8"/><rect x="32" y="8" width="8" height="8"/>
         <rect x="40" y="56" width="8" height="8"/><rect x="0" y="56" width="8" height="8"/>
       </g>
-      <g fill="#bbb8a7">
+      <g fill="#9a9e90">
         <rect x="16" y="0" width="8" height="8"/><rect x="32" y="16" width="16" height="8"/><rect x="0" y="16" width="8" height="8"/>
         <rect x="56" y="0" width="8" height="8"/><rect x="24" y="40" width="8" height="8"/><rect x="48" y="56" width="8" height="8"/>
         <rect x="8" y="24" width="8" height="8"/><rect x="40" y="32" width="8" height="8"/>
@@ -62,9 +62,6 @@
       <rect x="92" y="176" width="30" height="16" rx="3"/>
       <rect x="278" y="176" width="30" height="16" rx="3"/>
     </g>
-    <!-- a name tape on the troll's left breast, over the pocket flap -->
-    <rect x="236" y="116" width="118" height="22" fill="#b9ad88" stroke="#060606" stroke-width="4"/>
-    <path fill="none" stroke="#2b2a24" stroke-width="4" d="M248 127 L264 127 M272 127 L300 127 M308 127 L340 127"/>
     <!-- BACK: the collar and a yoke seam -->
     <path fill="url(#camo)" stroke="#060606" stroke-width="6" d="M496 0 L704 0 L696 46 L504 46 Z"/>
     <path fill="#8a9086" stroke="none" d="M504 40 L696 40 L696 46 L504 46 Z"/>
