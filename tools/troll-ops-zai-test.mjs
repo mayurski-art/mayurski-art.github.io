@@ -192,7 +192,152 @@ async function hp() {
   check(!page.errors.length, "no page errors", page.errors.slice(0, 3).join(" | "));
 }
 
-const SECTIONS = { rebuild, hud, hp };
+/* ---------------------------------------------------------------- the sim */
+/* A second director on the loaded map, stepped by hand at 30 Hz with no
+   rendering (the live one is stood down). `run({ points, type, n, secs,
+   crawl, round, player })`: n zombies of `type` in at the given entry
+   points (or the director's own pick), the player standing at `player`
+   (feet) or walking a loop through `walk`; back come, per zombie, when it
+   got into reach and its speed, plus the horde's bunching. */
+async function installSim(page) {
+  await R(page, async () => {
+    const T = window.__trollOps;
+    const url = performance.getEntriesByType("resource").map((e) => e.name).find((n) => /modes\/zombies\/horde\.js/.test(n));
+    const H = await import(url);
+    const THREE = T.THREE;
+    const live = T.zdir();
+    const layout = T.builtMap().map.zombieLayout();
+    const stand = () => { live.clear(); live.state = "idle"; };
+    stand();
+    window.__zsim = {
+      H, layout, live,
+      floors: layout.floors || { ground: 0 },
+      floorOf: (y, x, z) => (layout.floorOf || (() => "ground"))(y, x, z),
+      ground: (x, z, y) => H.groundHeightAt ? H.groundHeightAt(live.colliders, x, z, y + 0.6, 0.3) : y,
+      async run({ points = null, type = "walker", n = 12, secs = 40, crawl = false, round = 5, player, walk = null, stagger = 0.5 }) {
+        stand();
+        const dir = new H.ZombieDirector(new THREE.Scene(), live.arena, live.colliders, layout);
+        dir.round = round;
+        dir.state = "fighting";
+        const feet = { x: player.x, y: player.y, z: player.z };
+        const eye = new THREE.Vector3(feet.x, feet.y + 1.6, feet.z);
+        const queue = [];
+        for (let i = 0; i < n; i++) {
+          const w = points ? points[i % points.length] : dir.spawnPointFor({ x: feet.x, y: feet.y + 0.2, z: feet.z });
+          queue.push(w);
+        }
+        const stats = [];
+        let hits = 0, bunchN = 0, bunchHit = 0, t = 0, spawnT = 0;
+        const dt = 1 / 30;
+        const reachOf = (z) => z.type.attackRange + 0.35;
+        let wi = 0;
+        while (t < secs) {
+          if (queue.length && (spawnT -= dt) <= 0) {
+            spawnT = stagger;
+            const w = queue.shift();
+            const z = new H.Zombie(type, new THREE.Vector3(w.x + (Math.random() - 0.5) * 0.6, w.y, w.z + (Math.random() - 0.5) * 0.6), dir.scene, round, {});
+            if (crawl) { z.makeCrawler(); if (!z.crawling) { z.crawling = true; z.speed *= H.SPECIALS_CRAWL ?? 0.42; } }
+            z.hp = z.maxHp = 1e9;
+            dir.zombies.push(z);
+            stats.push({ z, born: t, at: null, dist: 0, moveT: 0, from: { x: w.x, z: w.z }, last: { x: w.x, z: w.z }, stillT: 0, stuck: false, angle: null });
+          }
+          if (walk) {
+            const tgt = walk[wi % walk.length];
+            const dx = tgt.x - feet.x, dz = tgt.z - feet.z, d = Math.hypot(dx, dz);
+            if (d < 0.3) wi++;
+            else { const s = Math.min(d, 3.0 * dt); feet.x += dx / d * s; feet.z += dz / d * s; feet.y += (tgt.y - feet.y) * Math.min(1, s / Math.max(d, 0.01)); }
+            eye.set(feet.x, feet.y + 1.6, feet.z);
+          }
+          dir.update(dt, eye, () => { hits++; }, feet.y);
+          const moving = [];
+          for (const s of stats) {
+            const z = s.z, p = z.mesh.position;
+            const d = Math.hypot(p.x - feet.x, p.z - feet.z);
+            const near = d <= reachOf(z) && Math.abs(z.groundY - feet.y) < 1.3;
+            if (near && s.at == null) { s.at = t - s.born; s.angle = Math.atan2(p.z - feet.z, p.x - feet.x); }
+            if (!near) {
+              const step = Math.hypot(p.x - s.last.x, p.z - s.last.z);
+              s.dist += step; s.moveT += dt;
+              moving.push(z);
+              s.stillT = step < 0.6 * dt ? s.stillT + dt : 0;   // under 0.6 m/s
+              if (s.stillT > 6) s.stuck = true;
+            } else s.stillT = 0;
+            s.last = { x: p.x, z: p.z };
+          }
+          for (const a of moving) {
+            let nd = Infinity;
+            for (const b of moving) if (a !== b) nd = Math.min(nd, Math.hypot(a.mesh.position.x - b.mesh.position.x, a.mesh.position.z - b.mesh.position.z));
+            if (nd < Infinity) { bunchN++; if (nd < 0.8) bunchHit++; }
+          }
+          t += dt;
+          if (((t / dt) | 0) % 60 === 0) await new Promise((r) => setTimeout(r, 0));
+        }
+        const out = stats.map((s) => ({ at: s.at == null ? null : +s.at.toFixed(1), speed: +(s.dist / Math.max(s.moveT, 0.01)).toFixed(2), stuck: s.stuck, angle: s.angle, end: { x: +s.z.mesh.position.x.toFixed(1), y: +s.z.groundY.toFixed(2), z: +s.z.mesh.position.z.toFixed(1) }, base: +s.z.speed.toFixed(2) }));
+        for (const z of dir.zombies) z.dispose(dir.scene);
+        const sectors = new Set(out.filter((o) => o.angle != null).map((o) => Math.floor(((o.angle + Math.PI) / (Math.PI * 2)) * 8) % 8)).size;
+        return { zs: out, bunch: bunchN ? +(bunchHit / bunchN).toFixed(2) : 0, hits, sectors };
+      },
+    };
+  });
+}
+
+/* Test spots per map: where the player spawns, each stair top, and a few
+   far corners of the ground the horde must find a way to. */
+async function spotsFor(page) {
+  return R(page, () => {
+    const T = window.__trollOps, S = window.__zsim;
+    const out = [];
+    const p = T.move.pos;   // the feet
+    out.push({ name: "spawn", x: p.x, y: p.y, z: p.z });
+    (S.layout.links || []).forEach((l, i) => out.push({ name: `stair${i} top (${l.to})`, x: l.b.x, y: S.floors[l.to] ?? 0, z: l.b.z }));
+    return out.map((s) => ({ ...s, x: +s.x.toFixed(2), y: +s.y.toFixed(2), z: +s.z.toFixed(2) }));
+  });
+}
+
+/* ---------------------------------------------------------------- ai */
+async function ai() {
+  const summary = [];
+  for (const map of MAPS) {
+    const page = await open(map);
+    await installSim(page);
+    const spots = await spotsFor(page);
+    for (const spot of spots) {
+      for (const [type, round, crawl] of [["walker", 3, false], ["walker", 15, false], ["walker", 8, true]]) {
+        const r = await R(page, (a) => window.__zsim.run(a), { player: spot, type, round, crawl, n: crawl ? 4 : 12, secs: crawl ? 70 : 45 });
+        const got = r.zs.filter((z) => z.at != null);
+        const ts = got.map((z) => z.at).sort((a, b) => a - b);
+        const med = ts.length ? ts[ts.length >> 1] : null;
+        const sp = r.zs.map((z) => z.speed).sort((a, b) => a - b);
+        const row = { map, spot: spot.name, kind: crawl ? "crawler" : `${type} w${round}`, reached: `${got.length}/${r.zs.length}`, medianS: med, speed: sp[sp.length >> 1], base: r.zs[0]?.base, bunch: r.bunch, sectors: r.sectors, stuck: r.zs.filter((z) => z.stuck).length };
+        summary.push(row);
+        console.log(JSON.stringify(row));
+        const lost = r.zs.filter((z) => z.at == null);
+        if (lost.length) console.log("   not there:", JSON.stringify(lost.slice(0, 4).map((z) => z.end)));
+        check(got.length === r.zs.length, `${map} ${spot.name} ${row.kind}: every zombie gets to the player`, row.reached);
+        if (!crawl) check(r.bunch <= 0.35, `${map} ${spot.name} ${row.kind}: no conga line`, `bunched ${r.bunch}`);
+        if (!crawl) check(row.speed >= r.zs[0].base * 0.7, `${map} ${spot.name} ${row.kind}: keeps up its speed`, `${row.speed} of ${row.base} m/s`);
+      }
+    }
+    check(!page.errors.length, `${map}: no page errors`, page.errors.slice(0, 3).join(" | "));
+    await page.close();
+  }
+  fs.writeFileSync(path.join(SHOTS, `zai-ai-${process.env.TAG || "run"}.json`), JSON.stringify(summary, null, 1));
+}
+
+async function debug() {
+  const page = await open(MAPS[0]);
+  await installSim(page);
+  const spots = await spotsFor(page);
+  console.log(JSON.stringify(spots));
+  const r = await R(page, async (spot) => {
+    const S = window.__zsim, T = window.__trollOps;
+    const lay = S.layout;
+    const w = lay.windows.slice(0, 40).map((q) => [+q.x.toFixed(1), +q.y.toFixed(1), +q.z.toFixed(1), S.floorOf(q.y + 0.2, q.x, q.z)]);
+    return { w, floorPlayer: S.floorOf(spot.y + 0.2, spot.x, spot.z), arena: S.live.arena, ncol: S.live.colliders.length, mode: T.modeId(), staging: T.isStaging?.() };
+  }, spots[0]);
+  console.log(JSON.stringify(r));
+}
+const SECTIONS = { rebuild, hud, hp, ai, debug };
 if (!SECTIONS[section]) { console.log(`unknown section ${section}: ${Object.keys(SECTIONS).join(" ")}`); process.exit(2); }
 try { await SECTIONS[section](); } catch (e) { check(false, "threw", String(e?.stack || e)); }
 await browser.close();
