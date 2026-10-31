@@ -33,8 +33,9 @@ const SMOOTH = 14;     // px: the lips' edges averaged along the row
 const GROW = 7;        // px out past the teeth, under the lip's ink (no white seam)
 const TAPER = 34;      // px: the mouth closes to a corner at each end
 const DROP = 22;       // px: the jaw drops this much further than the grin's inside (the NFT's mouth is taller)
-const UPPER = 0.40;    // the upper teeth's share of the mouth's height at each column
-const LOWER = 0.24;    // the lower teeth's
+const UPPER = 0.40;    // the upper teeth's share of the mouth's height (its middle height: the
+const LOWER = 0.24;    // lower teeth's), the same depth all along the row, so no corner tooth
+                       // hangs down like a fang where the grin is tall (user, 2026-10-31)
 const INK = "#0b0b0b", TOOTH = "#f6f6f2", MOUTH = "#141212";
 
 const browser = await chromium.launch();
@@ -103,9 +104,14 @@ const edge = (fn) => xs.map((x) => `${f(x)} ${f(fn(x))}`).join(" L");
 const edgeBack = (fn) => [...xs].reverse().map((x) => `${f(x)} ${f(fn(x))}`).join(" L");
 // the mouth's outline: along the top lip left to right, back along the bottom
 const mouthPath = `M${edge(top)} L${edgeBack(bot)} Z`;
-// the upper teeth: the band under the top lip; the lower: the band over the bottom lip
-const upperBottom = (x) => top(x) + (bot(x) - top(x)) * UPPER;
-const lowerTop = (x) => bot(x) - (bot(x) - top(x)) * LOWER;
+// the upper teeth: a band of one depth under the top lip (the mouth's middle
+// height's share of it, never more than the mouth is tall here); the lower:
+// the same over the bottom lip
+const mid = xs.filter((x) => x > L + (R - L) * 0.3 && x < R - (R - L) * 0.3).map((x) => bot(x) - top(x)).sort((a, b) => a - b);
+const HMID = mid[mid.length >> 1];
+const depth = (x, share) => Math.min(HMID * share, (bot(x) - top(x)) * 0.5);
+const upperBottom = (x) => top(x) + depth(x, UPPER);
+const lowerTop = (x) => bot(x) - depth(x, LOWER);
 const upperPath = `M${edge(top)} L${edgeBack(upperBottom)} Z`;
 const lowerPath = `M${edge(lowerTop)} L${edgeBack(bot)} Z`;
 // the gaps between the new teeth: at each old upper tooth's left edge (the
