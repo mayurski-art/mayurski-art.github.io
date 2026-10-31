@@ -212,7 +212,14 @@ async function setUser(id) {
   const me = userId;
   // Settled either way (no client, offline, an error): from here on, writes
   // on this device are changes, and go up when they can.
-  await queue(() => pull(true).finally(() => { if (userId === me) settled = true; }));
+  await queue(() => pull(true).finally(() => {
+    if (userId !== me) return;
+    settled = true;
+    // the account's copy is on this device now: what a guest earned here can
+    // be merged into it (progression/weapon-xp.js, modes/zombies/credits.js)
+    // and go up as this account's own change
+    dispatchEvent(new CustomEvent("trollforces:cloud-settled", { detail: me }));
+  }));
 }
 
 /* `apply(changedKeys)`: put a restored setup into the running game. */
