@@ -30,7 +30,7 @@ Start each session on a fresh branch or worktree from origin/main.
 
 ### After-action report + weapon levels (live 2026-10-26, -aar1/-bp2/-aar2)
 The Call of Duty results screen for PvP (Ops and Zombies keep the plain card). `modes/after-action.js`: a result banner, then SUMMARY (rank card whose XP bar animates across level-ups, up to four gun cards with their own level bars and pictures from `view/zombies-thumbs.js`, an 8-stat grid), SCOREBOARD (the Tab board as it ended), MAP.
-- Weapon XP: `progression/weapon-xp.js`, a level 1-30 per gun (kill 25, headshot +10, assist 10; PvP only; 100 to LV 2, 19,140 to 30). Key `trollops:wxp`, cloud-synced; guests in memory. Nothing is unlocked by it yet: attachments and camos per weapon level are the obvious next step.
+- Weapon XP: `progression/weapon-xp.js`, a level 1-30 per gun (kill 25, headshot +10, assist 10; PvP only; 100 to LV 2, 19,140 to 30). Key `trollops:wxp`, cloud-synced; guests in memory. It unlocks the camos (skins.js CAMOS `level`, loadout.js finishUnlocked); attachments per level are the next step.
 - `combat/match-log.js`: where this match's kills, deaths and assists happened (x/y/z + the shot's other end). Fed from scoring.js and damage.js, reset in beginMatch.
 - The MAP tab is a drafting sheet (`view/aar-blueprint.js`) over a real plan of the level (`view/blueprint-capture.js`): an ortho top-down render (normals + height passes) traced into outlines, creases, 1 m contours and height tone; maps up to 150 m are cut like a floor plan 2.4 m over the fight's floor, with the colliders the cut slices hatched. Captured once after endMatch's teardown (no bots in it), 2.6 s later or when the tab opens (~0.5-0.9 s). Sheet: grid, dimension ticks, north arrow, scale bar, title block; marks numbered, shot lines with arrowheads; filter chips, Heat, a timeline to scrub or play back, a hover card.
 - Test: `tools/troll-ops-aar-test.mjs` (PHONE=1 too): weapon-xp, match-log, a made-up TDM's report, and a real offline TDM on Cul-de-Grin ended through endMatch.
@@ -213,7 +213,7 @@ Design: **`TROLL-CITY-RP2.md`**. Done: 0 groundwork, 2d conductor, 2b sheriff. N
 - 1/40 trollmask rare.
 
 **Skins**
-- Only the Problem 416 wears skins. Each part is "the banner only".
+- Camos (docs/DESIGN-SKINS.md) on every gun, by weapon level; banner skins only on the Problem 416, each part "the banner only".
 - The user designs skins in the editor; don't overwrite their crops.
 - Final-locked skins: You Have a Problem, Vice Grin.
 - Sides formula: the right side mirrors the left, and writing still reads correctly on both.
@@ -479,6 +479,7 @@ Map rules:
 ---
 
 ## 5. Shipped log (newest first; one line each, details in git)
+- **2026-10-30** (branch claude/weapon-skins-359ea8, -sk1, cascade done, not landed) Weapon camos, docs/DESIGN-SKINS.md: bake_kit.py writes a skin mask (<id>-msk.webp: paint zone, wear, shade) with the other maps (never alone: Smart UV moves islands), 416 re-baked whole (pf3); weapons/camo.js paints the shell triplanar in gun space with hard chips to bare metal; 8 camos by weapon level (Grinwood 4 .. Snowblind 28, Grinwrap mastery 30 with a sheen; tiles: tools/troll-ops-camo-tiles.mjs), prestige metals/Diamond/Dark Matter as paint on kit guns, a flat path for older guns; thumbs tools/troll-ops-skin-thumbs.mjs. MTAR / Ballista get their mask on their next full bake. Tests: troll-ops-skins-test, 416-test, skin-sync, import-check --load.
 - **2026-10-30** Cleanup LIVE on main (-cu1..-cu5): radio below the tabs + Esc over All modes + sync seek on durationchange + duration probes released; Zombies cash clears the V/G chips, kiosk hides the menu button, late-connect co-op joins the host; stale tests fixed (aar, public-chat, nuke sky tag, royale-bots gunfire 10 m, zenemies tabs together). Still flaky: aar gun bar crossing two levels (mid-animation sample), zcoop third player under load.
 - **2026-10-30** Bug batch LIVE on main (cascade -wb1): nuke device, recorded gun + streak sounds, radio (M, keeps playing, squad sync), GIFs menu-only, bot smarts + 3D heads, Royale both-worlds AAR + live report + Duo/Trio/Squad, Zombies hub H0 + drops M1 + late-wave M2. Known fails: aar summary "+" overlap, public-chat icon not above Options, nuke sky-tint check (stale), zenemies two-tab co-op start-up.
 - **2026-10-30** (branch claude/tf-zombies-a803ee, -ze1/-ze2) Zombies M2, late-wave threats: modes/zombies/specials.js: spitter (14+, lobs acid, pools), bloater (16+, bursts on death or on reaching you, wrecks deployables), armoured (20+, riot helmet chipped off by headshots, vest cuts body shots), crawler (a heavy hit can take a walker's legs); horde.js hooks, co-op as "x" events + spit/crawl anim states; late bodies and riot gear load from wave 10 (zombie-models preloadLateLooks). Test: tools/troll-ops-zenemies-test.mjs solo ALL PASS (its co-op part passed once, then flaked: both tabs started before the net connected, coop.on false), zombie-test ALL PASS, zanim, zrun, zdeploy, zboss, zdrops, zcoop: only the old V/G-over-cash overlap and zcoop's C-join, which 4ae17e89 fails too.

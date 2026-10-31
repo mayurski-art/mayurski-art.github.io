@@ -1,6 +1,8 @@
 # Troll Warfare: weapon skins (camos) on the arsenal v2 guns
 
-Status: **design, awaiting buy-in.** No game code written. Target guns:
+Status: **approved 2026-10-30; phases 0-4 built** on `claude/weapon-skins-359ea8`
+(not landed). The 416 wears the whole ladder; the MTAR and Ballista get
+their mask with their next full bake. Target guns:
 the Problem 416 (live), the MTAR (`claude/arms-mtar`, not landed) and the
 Howl Ballista (in progress). Their builders are not touched by this work;
 the skins ride on the baked kit every v2 gun already ships.
@@ -8,6 +10,14 @@ the skins ride on the baked kit every v2 gun already ships.
 The look we are after is BO2 and the newer CoDs: a camo that reads as paint
 on a real gun, not a colour swap. Our own patterns and names, in that
 quality bar, never a copy of an Activision camo.
+
+Built (2026-10-30), on the Problem 416 with its re-baked kit:
+
+![The ladder on the 416](skins/ladder-416.webp)
+
+![Prestige finishes as paint, and the flat path on older guns](skins/finishes-416.webp)
+
+Before, for reference:
 
 ![Current skins](skins/current-skins.webp)
 
@@ -108,7 +118,12 @@ zone channel is stepped and lossy webp would blur the steps:
 No builder edits: the defaults live in `SURFACES`, so `bake_gun(...)` on
 the existing 416, MTAR and Ballista recipes produces the mask on their
 next `bake` run. LOD1 gets its 256 copy through `_shrink` like the others.
-Both GLBs stay as they are.
+
+**Built: the mask is only ever baked with the other maps.** A mask-only
+re-bake of the 416 put a handful of islands (the forward-assist housing,
+the port lip, a grip panel) in slightly different places from the shipped
+base map: Smart UV is not repeatable run to run. So the 416 was re-baked
+whole (`KIT_VER pf3`), and every gun gets its mask from a full bake.
 
 ### 3.2 The camo shader (`weapons/camo.js`)
 
@@ -116,13 +131,15 @@ Both GLBs stay as they are.
 four maps, cached per `kit:lod:skin`, `userData.shared`) and adds, by
 `onBeforeCompile` (the `withFx` pattern already in `weapon-model.js`):
 
-- Varyings: gun-space position and normal. The part's rest position in
-  the gun is a uniform (`uPartOffset`, set per node in `buildDetailed`
-  from the GLB node's rest transform), so the mag and the receiver agree
-  at rest and the paint moves with the part when it cycles.
+- Gun-space position and normal as two vertex attributes (`camoPos`,
+  `camoNrm`), computed once per geometry from each node's rest transform
+  (`camoAttributes`), so the mag and the receiver agree at rest and the
+  paint moves with the part when it cycles. (Built this way instead of a
+  per-node uniform: one shared material can't carry a per-mesh value.)
 - **Pattern sample**: the skin's tile sampled three times (xy, yz, xz)
   and blended by |normal|^6: no seams, scale set in metres by
-  `uScale` (one tile = 12-15 cm by default, per skin).
+  `uScale`. **Built:** one tile = 22 cm (12 cm read as noise on a rifle:
+  seven repeats down the gun); Grinwrap 40 cm so the grins read.
 - **Colour**, after `map_fragment`:
   `paint = mask.r * (1 - mask.g * uWear)`;
   `camo = palette[tone] * mask.b`;
@@ -130,6 +147,11 @@ four maps, cached per `kit:lod:skin`, `userData.shared`) and adds, by
   Chips (mask.g) show the baked base colour, which at those pixels is
   already the worn metal. `uWear` lets a skin wear harder than factory
   (never cleaner: the base is chipped already, which is fine).
+  **Built:** the wear is a hard edge (`smoothstep(0.5, 0.62, g)`; its soft
+  mid values leaked a third of the factory olive into the paint), a chip
+  shows the bake desaturated (bare metal, no olive under a camo), and the
+  paint is `value` (0.72) darker than its swatch, plus a faint speckle
+  from the detail channel.
 - **Roughness / metalness**, after `roughnessmap_fragment` /
   `metalnessmap_fragment`: `mix(baked, skin.rough + tileDetail * 0.1,
   paint)` and `mix(baked, skin.metal, paint)`. Paint is dielectric
