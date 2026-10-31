@@ -89,3 +89,16 @@ These rules hold for every session that touches the game:
    showing the work: raycast from a grid of eye points to a grid on the
    face, then shoot it head-on and from two angles. Anything in the way is
    removed, moved or redesigned, never flush-mounted behind proud pieces.
+10. Guns are shaped like the real thing, never boxier (user, 2026-10-30).
+   A part is only rectangular where the real part is (a rail, a mag, a
+   receiver block); grips, stocks, cheek pieces, pads, trigger guards,
+   tangs and curved mags get their curves, rounded sections and fillets
+   (the Ballista builder's fillet / round_v / round_z). Check it before
+   showing the work: the side render beside the reference photo, corner
+   by corner; anything boxier than the reference gets reshaped.
+11. Every gun keeps its references (user, 2026-10-30): every image used to
+   build it (the concept renders, the real gun's photos, the game renders,
+   the user's screenshots and crops) is saved in `refs/arms/<id>/`, with
+   a NOTES.md naming each file, where it came from, the prompt, and the
+   picks where they disagree. Nothing used is left only in chat or in a
+   temp folder.
