@@ -12,6 +12,7 @@ import { FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-
 import { WRISTWEAR, watchThumb } from "./wristwear.js?v=ww1c2m1-or1";
 import { HEADWEAR } from "./pumpkin-head.js?v=pk1-mb1-mb2";
 import { ownsItem } from "../progression/grants.js?v=pk1-mb1-mb2";
+import { holderFromServer } from "./nft-holders.js?v=nfh3";
 const KEY = "trollops:cosmetics";
 
 export const EXPRESSIONS = [
@@ -47,7 +48,9 @@ const EXPR_IDS = new Set(EXPRESSIONS.map((e) => e.id));
 // Bodies: the stick troll, or a TROLLS NFT's look (blocky-body.js
 // wearBlocky). A token's body is for its holder only: until the wallet
 // check exists (TROLLS-TRAITS.md) each is locked to its holder's
-// trollrunner.net account by username (`holder`), and nobody else can put
+// trollrunner.net account by username, the server's (nft-holders.js: the
+// owner hands them out in the Locker, 2026-10-31) or else `holder` here
+// (the fallback when the server has none), and nobody else can put
 // it on (user, 2026-10-15: #820 "should only be exclusively played by him
 // only"). The owner is the one exception: troll_runner wears every TROLLS
 // body, the ones here and every one added later (user, 2026-10-15).
@@ -78,7 +81,8 @@ export function bodyToken(id) {
    a body shows on its holder only, and on the owner. */
 const OWNER = "troll_runner";
 export function holderOf(token) {
-  return BODIES.find((x) => x.token === +token)?.holder || null;
+  const b = BODIES.find((x) => x.token === +token);
+  return b?.holder ? holderFromServer(b.token) || b.holder : null;
 }
 export function mayWear(token, name) {
   const holder = holderOf(token);
@@ -153,6 +157,8 @@ export class CosmeticsPanel {
     // a locked body unlocks (or locks) as the account signs in (or out)
     // signing in or out can put a TROLLS body on or take it off, and the face with it
     window.addEventListener("trollrunner:auth-changed", () => { this.paint(); this.onBody?.(this.body); this.onChange?.(this.face); });
+    // so does a body handed out or taken back (nft-holders.js)
+    window.addEventListener("trollforces:nft-holders", () => { this.paint(); this.onBody?.(this.body); this.onChange?.(this.face); });
     const sec = (title, hint) => {
       const h = document.createElement("div");
       h.className = "to-pf-sublabel";
