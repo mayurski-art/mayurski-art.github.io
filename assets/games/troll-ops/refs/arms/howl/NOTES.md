@@ -8,6 +8,27 @@ the MTAR copies its own.
 
 ## The references
 
+**The concept sheet** (ChatGPT from the prompt below with the BO2 and FN
+photos attached, 2026-10-30): `concept-sheet.webp`, split into
+`concept-1-side-mirrored.jpg` (the whole gun, scope on, bipod deployed),
+`concept-2-receiver-mirrored.jpg` (port, bolt body, handle and knob, the
+cantilever mount and spirit level, worn tan) and `concept-3-right-34.jpg`
+(the true right side, 3/4 from the front, muzzle left). Panels 1 and 2 are
+mirrored (muzzle right with the handle toward the camera); the builder
+keeps the handle, port and ejection on the right. This sheet is the
+surface target; BO2's renders and the FN photos below settle anything it
+leaves out or gets wrong.
+
+Picks where the sheet differs from the game:
+- Bipod: the sheet deploys it; the game's is folded forward under the
+  handguard (BO2 trivia: "an unusable, folded bipod"). Built folded.
+- Scope caps and turret numbers: the sheet's turrets read 100-500 like
+  BO2's; the game bake carries no text (no markings rule), the knurl and
+  the white tick marks only.
+- Mag: the sheet's is grey-black with two recessed windows and a flat
+  floorplate, BO2's dark brown-black; built dark polymer with the windows.
+- Barrel: dark grey steel as in the game (the sheet agrees), not the FN's tan.
+
 `bo2/`: Black Ops 2's own renders, from the Call of Duty wiki
 (callofduty.fandom.com/wiki/Ballista, CC-BY-SA): `Ballista_BOII.webp`
 (first person, the whole right side: receiver, port, scope, rail, handguard,
