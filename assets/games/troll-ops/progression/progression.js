@@ -6,10 +6,13 @@
 // account XP earned since your last prestige, on a faster curve (see
 // "Prestige" below). Unlocks use the higher of that and the account level.
 //
-// Guests keep nothing (user, 2026-10-01: "remove progress being saved for
-// guest accounts"): they level on the same curve for the session, in
-// memory, and it's gone when the tab closes. Nothing is stored or queued
-// for a later sign-in.
+// Guests keep their progress until they sign up (user, 2026-10-31: "if
+// guests play for a while ... they can sign up and their stats will be
+// saved instead of reset"; it replaces 2026-10-01's "remove progress being
+// saved for guest accounts"): a guest's XP is kept on this device
+// (GUEST_KEY) and levels them on the same curve; the first account signed
+// in on this device takes it, queued like any signed-in XP, and the guest
+// total goes.
 //
 // Signed in, XP earned is queued in PENDING_KEY before it's sent, so a
 // closed tab or a flaky network never loses any.
@@ -18,6 +21,7 @@ import { WEAPON_DEFS } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar
 
 const KEY = "trollops:xp";                 // the old saved guest total: no longer kept (cleared below)
 const PENDING_KEY = "trollops:xp-pending"; // earned signed in, not yet on the account
+const GUEST_KEY = "trollops:guest-xp";     // earned as a guest, for the account they sign up to
 const AUTH_KEY = "trollrunner-accounts-auth";   // troll-accounts.js keeps its session here
 
 /* Every XP rate below is a tenth of what it was on 2026-09-29: a match used
@@ -36,11 +40,24 @@ function writeNum(key, value) {
   try { localStorage.setItem(key, String(Math.max(0, Math.floor(value)))); } catch { /* private mode */ }
 }
 
-// Guest progress isn't kept: the old saved guest total goes.
+// (the old guest total, from before 2026-10-01, never carries over)
 try { localStorage.removeItem(KEY); } catch { /* private mode */ }
 
-/* This session's guest XP (never saved). */
-let sessionXp = 0;
+/* A guest's XP on this device, until an account takes it. */
+let sessionXp = readNum(GUEST_KEY);
+
+/* Signed in: the guest XP on this device becomes the account's (once),
+   queued with the rest so a flaky network never loses it. */
+function claimGuestXp() {
+  if (accountXp() === null || isOwner()) return;
+  const guest = readNum(GUEST_KEY);
+  if (guest <= 0) return;
+  writeNum(PENDING_KEY, readNum(PENDING_KEY) + guest);
+  try { localStorage.removeItem(GUEST_KEY); } catch { /* private mode */ }
+  sessionXp = 0;
+  void syncXp();
+}
+window.addEventListener("trollrunner:auth-changed", () => claimGuestXp());
 
 // 2026-09-30: match XP cut to a tenth (user: "way too much xp"). Anything
 // still queued was earned at the old rates, so it goes up at the new ones.
@@ -104,8 +121,8 @@ export function isOwner() {
    trollrunner.net account level. Cap 69; Prestige 1-10, then 11 = Prestige
    Master. Stored in public.troll_forces_prestige, written only by the
    troll_forces_prestige_up() function, which re-checks level 69 itself
-   (assets/supabase/troll_forces_prestige.sql). Guests keep no XP between
-   visits, so they level for the session and never prestige. */
+   (assets/supabase/troll_forces_prestige.sql). Guests level from the XP
+   kept on this device and never prestige. */
 export const TF_MAX_LEVEL = 69;
 export const PRESTIGE_MASTER = 11;
 
@@ -153,7 +170,7 @@ export function getPrestige() {
   return isOwner() || accountXp() === null ? 0 : prestige.level;
 }
 
-/* Troll Forces XP: account XP since the last prestige (guests: this session). */
+/* Troll Forces XP: account XP since the last prestige (guests: what they've kept). */
 function tfXp(extra = 0) {
   const account = accountXp();
   if (account === null) return sessionXp + extra;
@@ -220,7 +237,7 @@ export function addXp(amount) {
   const gained = Math.max(0, Math.round(amount));
   const before = getLevel();
   if (isSignedIn()) writeNum(PENDING_KEY, readNum(PENDING_KEY) + gained);
-  else sessionXp += gained;          // a guest: this session only
+  else { sessionXp += gained; writeNum(GUEST_KEY, sessionXp); }   // a guest: kept for their sign-up
   const total = getXp();
   void syncXp();
   if (before === null) return { total, rank: null, rankedUp: false };   // the owner has no level

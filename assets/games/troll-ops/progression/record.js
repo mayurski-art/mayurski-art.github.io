@@ -8,9 +8,12 @@
 // sent by troll_forces_record_match() (assets/supabase/troll_forces_record.sql),
 // which adds it to public.troll_forces_record and refuses impossible numbers.
 // A failed send (offline, or the SQL not run yet) stays queued and retries
-// every 30s, so no match is lost. Guests keep nothing, like their XP.
+// every 30s, so no match is lost. A guest's matches wait on this device
+// (GUEST_KEY) for the account they sign up to (user, 2026-10-31), like
+// their XP: the first sign-in here takes them into the queue.
 
 const PENDING_KEY = "trollops:record-pending";
+const GUEST_KEY = "trollops:record-guest";
 const MAX_QUEUE = 25;
 
 function accounts() { return window.TrollrunnerAccounts; }
@@ -19,11 +22,19 @@ function myId() {
   return p?.id || p?.userId || null;
 }
 
-function readQueue() {
-  try { return JSON.parse(localStorage.getItem(PENDING_KEY)) || []; } catch { return []; }
+function readQueue(key = PENDING_KEY) {
+  try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; }
 }
-function writeQueue(q) {
-  try { localStorage.setItem(PENDING_KEY, JSON.stringify(q.slice(-MAX_QUEUE))); } catch { /* private mode */ }
+function writeQueue(q, key = PENDING_KEY) {
+  try { localStorage.setItem(key, JSON.stringify(q.slice(-MAX_QUEUE))); } catch { /* private mode */ }
+}
+/* Signed in: a guest's matches on this device join the account's queue. */
+function claimGuestRecord() {
+  if (!myId()) return;
+  const guest = readQueue(GUEST_KEY);
+  if (!guest.length) return;
+  writeQueue([...readQueue(), ...guest]);
+  try { localStorage.removeItem(GUEST_KEY); } catch { /* private mode */ }
 }
 
 let sending = null, retryTimer = 0;
@@ -52,9 +63,8 @@ export function flushRecord() {
   return sending;
 }
 
-/* A finished PvP match. Signed in only. */
+/* A finished PvP match: onto the account's queue, or a guest's. */
 export function recordMatch(m) {
-  if (!myId()) return;
   const match = {
     won: !!m.won,
     kills: m.kills | 0, deaths: m.deaths | 0, assists: m.assists | 0,
@@ -63,6 +73,7 @@ export function recordMatch(m) {
     shots_fired: m.shotsFired | 0, shots_hit: m.shotsHit | 0,
     weapon_kills: m.weaponKills || {},
   };
+  if (!myId()) { writeQueue([...readQueue(GUEST_KEY), match], GUEST_KEY); return; }
   writeQueue([...readQueue(), match]);
   void flushRecord();
 }
@@ -107,5 +118,5 @@ export function formatPlayed(seconds) {
   return h ? `${h}h ${m % 60}m` : `${m}m`;
 }
 
-window.addEventListener("trollrunner:auth-changed", () => { cache = null; void flushRecord(); });
+window.addEventListener("trollrunner:auth-changed", () => { cache = null; claimGuestRecord(); void flushRecord(); });
 void flushRecord();

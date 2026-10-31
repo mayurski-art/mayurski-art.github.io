@@ -10,10 +10,13 @@
 //     monthly;
 //   - the menu's Leaderboards (TrollLeaderboard provider, weekly or monthly);
 //   - a player's all-time Zombies line on their profile card.
-// Guests aren't filed (the server takes logged-in results only), so they're
-// on no board; they're told to log in.
+// The server takes logged-in results only, so a guest's wait on this device
+// (fileResult, GUEST_KEY) for the account they sign up to (user, 2026-10-31:
+// a guest who signs up keeps their stats), filed then, on this week's board.
 
 const GAME = "troll-ops";
+const GUEST_KEY = "trollops:results-guest";
+const GUEST_MAX = 50;
 const PAGE = 1000;       // rows per request
 const MAX_ROWS = 20000;  // a month of a busy game, and then some
 
@@ -48,6 +51,36 @@ export function periodLabel(period, date = new Date()) {
   const fmt = (d) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   return `Week of ${fmt(start)} – ${fmt(last)}`;
 }
+
+/* ------------------------------------------------------------ filing */
+
+/* A finished match or run onto the boards (modes/match-end.js): filed now
+   when signed in, else kept for the guest's sign-up. */
+export function fileResult(score, meta) {
+  const A = window.TrollrunnerAccounts;
+  if (A?.getCachedProfile?.()) { void A.reportGameResult?.(GAME, score, meta); return; }
+  try {
+    const q = JSON.parse(localStorage.getItem(GUEST_KEY) || "[]");
+    q.push({ score, meta });
+    localStorage.setItem(GUEST_KEY, JSON.stringify(q.slice(-GUEST_MAX)));
+  } catch { /* private mode */ }
+}
+/* Signed in: a guest's results on this device go up, oldest first (once:
+   the queue is cleared before they're sent, so a second auth event can't
+   file them twice). */
+let claiming = false;
+async function claimGuestResults() {
+  const A = window.TrollrunnerAccounts;
+  if (claiming || !A?.getCachedProfile?.()) return;
+  let q = [];
+  try { q = JSON.parse(localStorage.getItem(GUEST_KEY) || "[]"); } catch { return; }
+  if (!q.length) return;
+  claiming = true;
+  try { localStorage.removeItem(GUEST_KEY); } catch { /* private mode */ }
+  try { for (const r of q) await A.reportGameResult?.(GAME, r.score, r.meta); }
+  finally { claiming = false; }
+}
+window.addEventListener("trollrunner:auth-changed", () => void claimGuestResults());
 
 /* ------------------------------------------------------------ rows */
 

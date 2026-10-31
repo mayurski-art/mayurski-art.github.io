@@ -4,13 +4,15 @@
 // level is where attachments and camos will hang later.
 //
 // Saved in localStorage under KEY, which cloud-save.js syncs to the account;
-// a guest's lives in memory this visit only, like Zombies Credits. The match
+// a guest's is kept on this device under GUEST_KEY and added to the account
+// they sign up to (user, 2026-10-31), once its cloud copy has landed. The match
 // tally (what each gun earned this match, and where it stood when the match
 // began) is module state reset by startWeaponMatch() from beginMatch.
 
 import { game } from "../core/state.js?v=st1";
 
 const KEY = "trollops:wxp";
+const GUEST_KEY = "trollops:wxp-guest";
 
 export const WEAPON_MAX_LEVEL = 30;
 
@@ -37,7 +39,6 @@ export function weaponLevelForXp(xp) {
 
 /* ------------------------------------------------------------ the save */
 
-let guest = null;   // a guest's, this visit only
 
 const profile = () => window.TrollrunnerAccounts?.getCachedProfile?.() || null;
 const loggedIn = () => !!(profile()?.userId || profile()?.id);
@@ -52,15 +53,25 @@ function clean(s) {
   return out;
 }
 
-function read() {
-  if (!loggedIn()) return (guest ||= {});
-  try { return clean(JSON.parse(localStorage.getItem(KEY))); } catch { return {}; }
-}
+const load = (key) => { try { return clean(JSON.parse(localStorage.getItem(key))); } catch { return {}; } };
+function read() { return load(loggedIn() ? KEY : GUEST_KEY); }
 
 function write(s) {
-  if (!loggedIn()) guest = s;
-  else { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* private mode */ } }
+  try { localStorage.setItem(loggedIn() ? KEY : GUEST_KEY, JSON.stringify(s)); } catch { /* private mode */ }
 }
+
+/* Signed in, the account's copy settled on this device: a guest's gun XP
+   here is added to it, gun by gun (capped at level 30), and the guest copy
+   goes. */
+addEventListener("trollforces:cloud-settled", () => {
+  if (!loggedIn()) return;
+  const g = load(GUEST_KEY);
+  if (!Object.keys(g).length) return;
+  const s = load(KEY);
+  for (const [id, xp] of Object.entries(g)) s[id] = (s[id] | 0) + xp;
+  write(clean(s));
+  try { localStorage.removeItem(GUEST_KEY); } catch { /* private mode */ }
+});
 
 export function getWeaponXp(id) { return read()[id] | 0; }
 export function weaponLevel(id) { return weaponLevelForXp(getWeaponXp(id)); }
