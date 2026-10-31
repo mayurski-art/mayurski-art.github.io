@@ -70,6 +70,7 @@ function notify(item) {
     id: `tf-grant-${item}-${myId()}`,
     platform: "reward",
     summary: "You got the Pumpkin Head, free for playing Chapter One. It's yours to keep. Find it in the Locker, under Face.",
+    screen: "faces",   // (the inbox keeps the message: menu/inbox.js opens this screen from it)
     onCta: () => window.dispatchEvent(new CustomEvent("trollforces:open-screen", { detail: "faces" })),
   });
 }

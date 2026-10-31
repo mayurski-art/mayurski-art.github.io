@@ -10,10 +10,12 @@
    the menu to go places, it owns no game state. Everything it needs comes in
    through mountFnLobby(), so it imports nothing (no second copy of a module
    under another ?v= tag) but core/season.js, which holds no state: the
-   season's dates and Halloween, shared with the Zombies hub; and
-   new-here.js, I'M NEW HERE's sheet, which holds none either. */
+   season's dates and Halloween, shared with the Zombies hub;
+   new-here.js, I'M NEW HERE's sheet, which holds none either; and
+   progression/challenges.js, the daily, weekly and event challenges. */
 import { SEASON, seasonLeft, halloween } from "../core/season.js?v=zf1-wb1";
 import { mountNewHere } from "./new-here.js?v=nwh1-mb1-mb2";
+import { view as challengeView, timeLeft as challengeLeft } from "../progression/challenges.js?v=ch1-mg1-mg2";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -187,6 +189,8 @@ export function mountFnLobby(api) {
     </div>
     <div class="to-fn-glass to-fn-quests">
       <h2><button type="button" data-act="quests">Challenges</button></h2>
+      <div class="to-fn-qtabs" role="tablist" aria-label="Challenges"></div>
+      <p class="to-fn-qleft"></p>
       <ol class="to-fn-qlist"></ol>
     </div>
     <button type="button" class="to-fn-newhere" data-act="newhere" aria-haspopup="dialog"><kbd class="to-fn-padkey" aria-hidden="true">Y</kbd><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M9.3 9.4a2.8 2.8 0 1 1 3.9 2.6c-.8.4-1.2 1-1.2 1.8v.6"/><circle cx="12" cy="17.4" r=".4"/></svg><span>I'm new here</span></button>`;
@@ -311,7 +315,7 @@ export function mountFnLobby(api) {
   // signed in on another device: its mode card and Royale side come with it
   addEventListener("trollforces:cloud-restored", (e) => {
     if (e.detail?.includes(PL_KEY)) { try { const v = localStorage.getItem(PL_KEY); if (PLAYLISTS.some((p) => p.id === v)) playlist = v; } catch {} }
-    if (e.detail?.some((k) => k === PL_KEY || k === "trollops:royaleSide" || k === "trollops:achievements")) { renderPlay(); renderMe(); }
+    if (e.detail?.some((k) => k === PL_KEY || k === "trollops:royaleSide" || k === "trollops:achievements" || k === "trollops:challenges")) { renderPlay(); renderMe(); }
   });
   {
     const map = $(".to-fn-map", play), flip = () => { if (map.classList.contains("is-side")) switchRoyaleSide?.(); };
@@ -521,9 +525,6 @@ export function mountFnLobby(api) {
   new MutationObserver(tickSeason).observe(title, { attributes: true, attributeFilter: ["hidden"] });
 
   /* ── Rank, prestige, challenges ── */
-  function done() {
-    try { return new Set(JSON.parse(localStorage.getItem("trollops:achievements")) || []); } catch { return new Set(); }
-  }
   function renderMe() {
     const profile = window.TrollrunnerAccounts?.getCachedProfile?.();
     const lv = getLevel(), pres = getPrestige();
@@ -545,36 +546,61 @@ export function mountFnLobby(api) {
     $(".to-fn-pnum", left).textContent = pres >= PRESTIGE_MASTER ? "Master" : pres ? `P${pres}` : "None yet";
     $(".to-fn-medal", left).classList.toggle("is-none", !pres);
 
-    // Challenges: the achievements you haven't got yet first
-    const have = done();
-    const all = Object.values(ACHIEVEMENTS);
-    const list = [...all.filter((a) => !have.has(a.id)), ...all.filter((a) => have.has(a.id))].slice(0, 3);
-    $(".to-fn-qlist", left).innerHTML = list.map((a) => {
-      const ok = have.has(a.id);
-      return `<li class="${ok ? "is-done" : ""}" title="${esc(a.blurb)}"><span>${esc(a.name)}<small class="to-fn-sr">: ${esc(a.blurb)}</small></span><em>${ok ? "Done" : "To do"}</em>
-        <i aria-hidden="true"><b style="width:${ok ? 100 : 4}%"></b></i></li>`;
-    }).join("");
-    const left_ = all.filter((a) => !have.has(a.id)).length;
+    renderChallenges();
     lockerDot();
-    questDot();
-    $('[data-tab="quests"]', top).setAttribute("aria-label", left_ ? `Quests, ${left_} to do` : "Quests");
   }
 
-  /* The Quests tab's dot: something there you haven't looked at (a quest
-     done or a new one since you last opened Quests), not "anything left to
-     do", which is always (user, 2026-10-31: "the yellow circle in quest
-     isn't disappearing"). */
-  // (declarations, not consts: renderMe can run before this line has)
-  function questSig() { const have = done(); return Object.keys(ACHIEVEMENTS).map((id) => `${id}:${have.has(id) ? 1 : 0}`).sort().join(","); }
+  /* Challenges (progression/challenges.js): Daily, Weekly and the event's,
+     a chip each; each challenge its name, what to do, a bar, how far and
+     the XP it pays. The chip picked is remembered on this device. */
+  const QTAB_KEY = "tf-fn-qtab";
+  let qtab = "daily";
+  try { qtab = localStorage.getItem(QTAB_KEY) || "daily"; } catch {}
+  function renderChallenges() {
+    const groups = challengeView();
+    if (!groups.some((g) => g.id === qtab)) qtab = "daily";
+    const g = groups.find((x) => x.id === qtab);
+    $(".to-fn-qtabs", left).innerHTML = groups.map((x) => {
+      const n = x.list.filter((c) => !c.done).length;
+      return `<button type="button" role="tab" data-qtab="${x.id}" aria-selected="${x.id === qtab}">${esc(x.name)}<b>${n || "✓"}</b></button>`;
+    }).join("");
+    $(".to-fn-qleft", left).textContent = g.id === "event" ? `Event · ${challengeLeft(g.ends)}` : `New in ${challengeLeft(g.ends).replace(/ left$/, "")}`;
+    $(".to-fn-qlist", left).innerHTML = g.list.map((c) => {
+      const pct = Math.round((c.progress / c.goal) * 100);
+      return `<li class="${c.done ? "is-done" : ""}"><span>${esc(c.name)}</span><em>${c.done ? "Done" : `${c.progress.toLocaleString()}/${c.goal.toLocaleString()}`}</em>
+        <small>${esc(c.desc)}</small>
+        <i aria-hidden="true"><b style="width:${c.done ? 100 : Math.max(3, pct)}%"></b></i><strong>+${c.xp.toLocaleString()} XP</strong></li>`;
+    }).join("");
+    // the Quests tab's dot: something there not looked at yet (a challenge
+    // done, a new day's or week's), not "anything left to do", which is
+    // always (user, 2026-10-31: "the yellow circle in quest isn't
+    // disappearing"); opening Quests clears it (onScreen questsSeen)
+    const today = groups.find((x) => x.id === "daily").list.filter((c) => !c.done).length;
+    questSig = groups.flatMap((x) => x.list.map((c) => `${x.id}:${c.name}:${c.done ? 1 : 0}`)).join("|");
+    questDot();
+    $('[data-tab="quests"]', top).setAttribute("aria-label", today ? `Quests, ${today} daily challenges to do` : "Quests");
+  }
+  $(".to-fn-qtabs", left).addEventListener("click", (e) => {
+    const b = e.target.closest("[data-qtab]");
+    if (!b) return;
+    qtab = b.dataset.qtab;
+    try { localStorage.setItem(QTAB_KEY, qtab); } catch {}
+    renderChallenges();
+  });
+  // (a var, no value: renderChallenges may run before this line has)
+  var questSig;
   function questDot() {
     let seen = null;
     try { seen = localStorage.getItem("trollops:quests-seen"); } catch {}
-    $('[data-tab="quests"] .to-fn-dot', top).hidden = seen === questSig();
+    $('[data-tab="quests"] .to-fn-dot', top).hidden = !questSig || seen === questSig;
   }
   function questsSeen() {
-    try { localStorage.setItem("trollops:quests-seen", questSig()); } catch {}
+    try { localStorage.setItem("trollops:quests-seen", questSig); } catch {}
     questDot();
   }
+  addEventListener("trollforces:challenges", () => renderChallenges());
+  // (a new day or week while the menu is up)
+  setInterval(() => { if (!title.hidden) renderChallenges(); }, 60000);
 
   /* The Locker tab's dot: something new in it, not seen yet (an item the
      server gave: progression/grants.js keeps the list, per account, in

@@ -69,7 +69,7 @@ for (const [label, vp] of [["laptop", { width: 1280, height: 720 }], ["phone", {
 // ---- 2, 3, 4 (laptop)
 const { ctx, page } = await open({ width: 1280, height: 720 });
 const dot = () => page.evaluate(() => !document.querySelector('[data-tab="quests"] .to-fn-dot').hidden);
-await page.evaluate(() => { localStorage.removeItem("trollops:quests-seen"); window.dispatchEvent(new Event("trollforces:card-changed")); });
+await page.evaluate(() => { localStorage.removeItem("trollops:quests-seen"); window.dispatchEvent(new Event("trollforces:challenges")); });
 await sleep(200);
 check(await dot(), "the Quests dot shows for quests not yet looked at");
 await page.click('.to-fn-tab[data-tab="quests"]');
@@ -78,15 +78,13 @@ check(!(await dot()), "opening Quests clears the dot");
 await page.click('.to-fn-tab[data-tab="play"]');
 await sleep(300);
 check(!(await dot()), "the dot stays gone back on the Play page");
-await page.evaluate(async () => {
-  const { ACHIEVEMENTS } = await import(new URL("assets/games/troll-ops/progression/achievements.js", location.href).href);
-  const k = "trollops:achievements", have = new Set(JSON.parse(localStorage.getItem(k) || "[]"));
-  have.add(Object.values(ACHIEVEMENTS).find((a) => !have.has(a.id)).id);
-  localStorage.setItem(k, JSON.stringify([...have]));
-  window.dispatchEvent(new Event("trollforces:card-changed"));
+// the challenges move on (one done, a new day): what was seen no longer matches
+await page.evaluate(() => {
+  localStorage.setItem("trollops:quests-seen", localStorage.getItem("trollops:quests-seen") + "|changed");
+  window.dispatchEvent(new Event("trollforces:challenges"));
 });
 await sleep(300);
-check(await dot(), "a quest done brings the dot back");
+check(await dot(), "the challenges changing brings the dot back");
 
 // Friends: a signed-in account with two friends online (one in an open
 // private match, one in a closed one), one offline, and a stranger online.
