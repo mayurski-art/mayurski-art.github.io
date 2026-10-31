@@ -442,8 +442,14 @@ export function mountFnLobby(api) {
     else if (act) goTab(act);
   });
 
-  /* ── News: turns every 6s; a card opens its playlist ── */
-  let newsIdx = 0, newsTimer = 0;
+  /* ── News: turns by itself, slowly (user, 2026-10-31: "it should auto
+     loop slowly by itself. manual control can be done as well by clicking
+     on the four circles"): a crossfade every NEWS_MS, the lit circle
+     filling as it waits; held while the pointer or focus is on it. A card
+     opens its playlist. ── */
+  const NEWS_MS = 8000;
+  news.style.setProperty("--news-ms", `${NEWS_MS}ms`);
+  let newsIdx = 0, newsTimer = 0, newsHeld = false;
   const cards = $$(".to-fn-news-card", news), pips = $$(".to-fn-pips button", news);
   function showNews(i) {
     newsIdx = (i + NEWS.length) % NEWS.length;
@@ -487,10 +493,21 @@ export function mountFnLobby(api) {
       cards[newsIdx].focus();
     });
   }
+  // (one timer, restarted on every turn: a pick or a swipe gets its full wait)
   function restartNews() {
-    clearInterval(newsTimer);
-    newsTimer = setInterval(() => { if (!title.hidden && !document.body.classList.contains("tf-anim-off")) showNews(newsIdx + 1); }, 6000);
+    clearTimeout(newsTimer);
+    news.classList.toggle("is-held", newsHeld);
+    if (newsHeld) return;
+    newsTimer = setTimeout(() => {
+      if (!title.hidden && !document.hidden && !document.body.classList.contains("tf-anim-off")) showNews(newsIdx + 1);
+      restartNews();
+    }, NEWS_MS);
   }
+  const holdNews = (on) => { if (newsHeld !== on) { newsHeld = on; restartNews(); } };
+  news.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") holdNews(true); });
+  news.addEventListener("pointerleave", () => holdNews(news.contains(document.activeElement)));
+  news.addEventListener("focusin", () => holdNews(true));
+  news.addEventListener("focusout", (e) => { if (!news.contains(e.relatedTarget)) holdNews(news.matches(":hover")); });
   showNews(0);
   restartNews();
 
