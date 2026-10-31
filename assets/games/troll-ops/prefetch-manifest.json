@@ -1,5 +1,7 @@
 {
  "lobby": [
+  "assets/games/troll-ops/ui/boot/key-art-wide.webp",
+  "assets/games/troll-ops/ui/boot/key-art-tall.webp",
   "assets/images/wallpaper/trollface%20transparent.png",
   "assets/games/troll-ops/ui/trollface-sad.png",
   "assets/games/troll-ops/textures/dirt_color.jpg",
