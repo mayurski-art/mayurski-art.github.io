@@ -35,8 +35,8 @@ const check = (ok, what, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} $
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const errors = [];
 
-async function open(viewport) {
-  const ctx = await browser.newContext({ viewport });
+async function open(viewport, more = {}) {
+  const ctx = await browser.newContext({ viewport, ...more });
   await ctx.route(/supabase/, (r) => r.abort());
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(e.message));
@@ -47,21 +47,33 @@ async function open(viewport) {
 }
 
 // ---- 1
-for (const [label, vp] of [["laptop", { width: 1280, height: 720 }], ["phone", { width: 390, height: 844 }]]) {
-  const { ctx, page } = await open(vp);
+// every screen the menu meets, sideways phones too (user, 2026-10-31)
+for (const [label, vp, more] of [["laptop", { width: 1280, height: 720 }], ["laptop-1366", { width: 1366, height: 768 }],
+  ["phone", { width: 390, height: 844 }, { hasTouch: true, isMobile: true, deviceScaleFactor: 2 }], ["phone-se", { width: 375, height: 667 }, { hasTouch: true, isMobile: true, deviceScaleFactor: 2 }],
+  ["phone-side", { width: 844, height: 390 }, { hasTouch: true, isMobile: true, deviceScaleFactor: 2 }], ["phone-se-side", { width: 667, height: 375 }, { hasTouch: true, isMobile: true, deviceScaleFactor: 2 }]]) {
+  const { ctx, page } = await open(vp, more);
   const card = await page.evaluate(() => { window.__toBo2.fn.setPlaylist("public"); window.__toBo2.menu.go("main"); const m = document.querySelector(".to-fn-map"); return { hidden: !m || m.hidden || !m.offsetParent, text: m?.textContent.trim() }; });
   check(card.hidden && !/Map vote/.test(card.text || ""), `${label}: no "Map vote" card on the Play page for Public Match`, JSON.stringify(card));
   await page.evaluate(() => window.__toBo2.menu.go("public"));
+  await sleep(400);
+  // the news toast (menu/inbox.js) comes and goes on its own in 8 s: out of the way first
+  await page.evaluate(() => document.querySelectorAll(".tf-toast-x").forEach((x) => x.click()));
   await sleep(400);
   const r = await page.evaluate(() => {
     const rows = [...document.querySelectorAll(".to-bo2-menu [data-id], .to-bo2-menu .to-bo2-item")].filter((e) => e.offsetParent);
     const find = rows.find((e) => /Find Match|Join Match|Cancel/.test(e.textContent));
     if (!find) return { found: false, ids: rows.slice(0, 5).map((e) => e.textContent.trim().slice(0, 30)) };
     const b = find.getBoundingClientRect();
-    return { found: true, first: rows[0] === find || rows[0].contains(find) || find.contains(rows[0]), top: b.top, bottom: b.bottom, h: innerHeight };
+    // on screen, inside its scrolling list, and nothing over its middle
+    let box = { top: 0, bottom: innerHeight };
+    for (let p = find.parentElement; p; p = p.parentElement) { const o = getComputedStyle(p).overflowY; if (o === "auto" || o === "scroll" || o === "hidden") { const pr = p.getBoundingClientRect(); box = { top: Math.max(box.top, pr.top), bottom: Math.min(box.bottom, pr.bottom) }; } }
+    const hit = document.elementFromPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2);
+    return { found: true, first: rows[0] === find || rows[0].contains(find) || find.contains(rows[0]), top: Math.round(b.top), bottom: Math.round(b.bottom), h: innerHeight,
+      inList: b.top >= box.top - 1 && b.bottom <= box.bottom + 1, clickable: !!hit && (find.contains(hit) || hit.contains(find)),
+      over: hit && !(find.contains(hit) || hit.contains(find)) ? (hit.id ? "#" + hit.id : String(hit.className).slice(0, 40)) : null };
   });
   check(r.found && r.first, `${label}: Find Match is the first row`, JSON.stringify(r));
-  check(r.found && r.top >= 0 && r.bottom <= r.h, `${label}: Find Match is on screen without scrolling`, JSON.stringify(r));
+  check(r.found && r.top >= 0 && r.bottom <= r.h && r.inList && r.clickable, `${label}: Find Match is on screen and clickable without scrolling`, JSON.stringify(r));
   if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `public-${label}.png`) });
   await ctx.close();
 }
