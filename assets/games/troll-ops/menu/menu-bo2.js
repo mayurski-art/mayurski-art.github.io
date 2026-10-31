@@ -45,6 +45,7 @@ import { SQUAD_SIZES, squadSize, partySize, isRoyaleMode } from "../modes/royale
 import { pickRoyaleSize } from "./mode-picker.js?v=mp1-fu1b7b7d-wb1-ar1-ar2-cl1-bp1-fj1-zr9-zr10-zh1-zc1-zc2-nf1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-sam1-rl1-tfp4-tfp7-tfb8-rfx1-ret1-mrg1-ug1-ugm1-mrc1-hgb8-hgb9-tw1-ars1-p416-mt2-hb4-gc1";
 import { recordSupported, recordPref, setRecordPref } from "../modes/royale-record.js?v=rrc1-rfx1-rr2-ret1-mrg1-hd1";
 import { isNew, hasNew, markSeen } from "../progression/grants.js?v=pk1-mb1-mb2";
+import { nftScreens, nftInput, nftNote, wireNftInput, isOwnerSignedIn } from "./nft-access.js?v=nfh4";
 import { makeTrollOpsProvider } from "../progression/leaderboard-rows.js?v=lr1-zh1-or1-nd2-gc1";
 const lbProvider = makeTrollOpsProvider();
 import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perksInTier, perkUnlocked, perkIconSvg } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1";
@@ -897,8 +898,11 @@ const screens = {
     });
     s.enter = () => { bodyQuery = bodySearch.value = ""; };
     if (!s.groups[0].length) s.groups[0] = [{ id: "o-none", label: "No match", disabled: true, desc: `No TROLLS body matches "${bodyQuery.trim()}".` }];
+    // the owner hands the bodies out from here (nft-access.js)
+    if (isOwnerSignedIn()) s.groups.splice(1, 0, [{ id: "o-nft", label: "NFT access", desc: "Give a TROLLS body to an account, or take it back. Only you see this.", go: "nftAccess" }]);
     return s;
   },
+  ...nftScreens,
   /* The faces, and after them the Pumpkin Head (cosmetics.js HEADS: worn
      over the whole head, on any body; user, 2026-10-31: "add the pumpkin in
      faces"). It wears its "new" dot on this one visit, then it's seen
@@ -1211,6 +1215,9 @@ const menu = createBo2Menu(nav, {
     perkHost.hidden = s.perk == null;
     if (!bodySearch.isConnected) nav.insertBefore(bodySearch, $(".tr-menu-groups", nav));
     bodySearch.hidden = id !== "bodies";
+    if (!nftInput.isConnected) nav.insertBefore(nftInput, $(".tr-menu-groups", nav));
+    if (!nftNote.isConnected) nav.insertBefore(nftNote, $(".tr-menu-groups", nav));
+    nftInput.hidden = nftNote.hidden = id !== "nftGive";
     root.classList.toggle("has-perk", s.perk != null);
     if (s.perk != null) renderPerk(game.loadout.classPerks[s.perk], s.perk);
     classHost.hidden = s.cls == null;
@@ -1252,6 +1259,7 @@ const menu = createBo2Menu(nav, {
   },
 });
 $(".to-bo2-back", root).addEventListener("click", () => menu.back());
+wireNftInput(menu, nav);
 initExitLinks();
 
 /* Rename a class: a one-line form over the detail pane, like the clan tag. */
