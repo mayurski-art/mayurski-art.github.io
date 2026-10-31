@@ -15,12 +15,14 @@
 //
 // Earn-only for now (HANDOFF: the troll coin economy). Logged-in players
 // keep them in localStorage under KEY, which cloud-save.js syncs to the
-// account; guests keep them for this visit only. The owner, troll_runner,
-// owns every gun.
+// account; a guest's are kept on this device under GUEST_KEY and added to
+// the account they sign up to (user, 2026-10-31), once its cloud copy has
+// landed. The owner, troll_runner, owns every gun.
 
 import { WEAPON_DEFS } from "../../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
 
 const KEY = "trollops:zombies";
+const GUEST_KEY = "trollops:zombies-guest";
 
 export const CREDITS_PER_KILL = 1;
 export const CREDITS_PER_WAVE = 25;
@@ -83,7 +85,6 @@ const blank = () => ({
   kits: { rookie: { turret: 1, barricade: 1, barrel: 1 } },
 });
 
-let guest = null;           // a guest's, this visit only
 const listeners = new Set();
 
 const profile = () => window.TrollrunnerAccounts?.getCachedProfile?.() || null;
@@ -107,16 +108,31 @@ function clean(s) {
 }
 
 /* The player's Zombies save, as it stands. */
-export function zsave() {
-  if (!loggedIn()) return (guest ||= blank());
-  try { return clean(JSON.parse(localStorage.getItem(KEY))); } catch { return blank(); }
-}
+const load = (key) => { try { return clean(JSON.parse(localStorage.getItem(key))); } catch { return blank(); } };
+export function zsave() { return load(loggedIn() ? KEY : GUEST_KEY); }
 
 function write(s) {
-  if (!loggedIn()) guest = s;
-  else { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* private mode */ } }
+  try { localStorage.setItem(loggedIn() ? KEY : GUEST_KEY, JSON.stringify(s)); } catch { /* private mode */ }
   for (const f of listeners) { try { f(s); } catch (e) { console.warn("[zombies] credits listener", e); } }
 }
+
+/* Signed in, the account's copy settled on this device: a guest's Zombies
+   save here is added to it (Credits and earned summed, the best wave, gun
+   and kit levels the higher of the two), and the guest copy goes. */
+addEventListener("trollforces:cloud-settled", () => {
+  if (!loggedIn()) return;
+  let raw = null;
+  try { raw = localStorage.getItem(GUEST_KEY); } catch { return; }
+  if (!raw) return;
+  const g = load(GUEST_KEY), s = load(KEY);
+  s.credits += g.credits;
+  s.earned += g.earned;
+  s.best = Math.max(s.best, g.best);
+  for (const [id, lv] of Object.entries(g.guns)) s.guns[id] = Math.max(s.guns[id] || 0, lv);
+  for (const [d, lv] of Object.entries(g.kits.rookie)) s.kits.rookie[d] = Math.max(s.kits.rookie[d] || 1, lv);
+  try { localStorage.removeItem(GUEST_KEY); } catch { /* private mode */ }
+  write(clean(s));
+});
 
 /* f(save) after every change. Returns an unsubscribe. */
 export function onCreditsChange(f) { listeners.add(f); return () => listeners.delete(f); }

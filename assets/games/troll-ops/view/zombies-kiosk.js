@@ -132,7 +132,7 @@ function render() {
   else renderClasses(s);
   ui.foot.textContent = loggedIn()
     ? `Runs pay Credits: 1 a kill, 25 a wave, 200 for surviving. Your best wave: ${s.best}.`
-    : "Log in to keep your Credits and guns. As a guest they last until you leave.";
+    : "Log in or sign up to keep your Credits and guns on your account.";
   paintThumbs();
 }
 
