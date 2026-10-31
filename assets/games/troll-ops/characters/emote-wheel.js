@@ -15,7 +15,7 @@
 import { EMOTES } from "./emotes.js?v=hb4-em1-wst-soc1-ng1c2f1m1u-gt1-gt2-cw1-zr10-bf1-sr1-or1-nf2-em2-cf1-gs2-lh1-fg2-lp1-fg3-rc1-rc4-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-ht2-bx1-cg1-mg1-sp1-chg1-lu1-mb1-mb2-nft2531";
 
 export { EMOTES };
-import { mayEmoteToken, wornToken, username } from "./cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1-em2-nb2-pc2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-sf1-mg1-sp1-pk1-mb1-mb2-bt1-nft33-nfh1-nfh5-nft2531";
+import { mayEmoteToken, wornToken, username } from "./cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1-em2-nb2-pc2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-sf1-mg1-sp1-pk1-mb1-mb2-bt1-nft33-nfh1-nfh5-mg2-nft2531";
 
 // A little travel before a slice lights up, so a twitch on open doesn't pick.
 const DEADZONE = 22;

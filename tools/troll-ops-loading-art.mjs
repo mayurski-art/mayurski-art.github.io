@@ -477,7 +477,20 @@ await page.evaluate(async (S) => {
   // a harvest moon over the island: an orange disc with a soft halo
   if (S.moon) {
     const [x, y, z, r] = S.moon;
-    const disc = new THREE.Mesh(new THREE.SphereGeometry(r, 48, 24), new THREE.MeshBasicMaterial({ color: 0xffc27a, fog: false, toneMapped: false }));
+    // a flat disc that always faces the camera (a sphere near the edge of a
+    // wide frame smears into an oval): a soft-limbed harvest moon with a few
+    // darker seas, drawn on a canvas
+    const mc = document.createElement("canvas"); mc.width = mc.height = 512;
+    const mg = mc.getContext("2d");
+    const body = mg.createRadialGradient(230, 220, 40, 256, 256, 250);
+    body.addColorStop(0, "#ffe2a8"); body.addColorStop(0.7, "#ffc27a"); body.addColorStop(0.97, "#f2a35a"); body.addColorStop(1, "rgba(242,163,90,0)");
+    mg.fillStyle = body; mg.beginPath(); mg.arc(256, 256, 250, 0, Math.PI * 2); mg.fill();
+    mg.fillStyle = "rgba(196,120,60,0.22)";
+    for (const [cx, cy, cr] of [[200, 190, 58], [310, 250, 44], [240, 320, 36], [330, 170, 26], [170, 290, 22]]) { mg.beginPath(); mg.arc(cx, cy, cr, 0, Math.PI * 2); mg.fill(); }
+    const disc = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(mc), transparent: true, depthWrite: false, fog: false, toneMapped: false }));
+    disc.userData.r = r;
+    disc.renderOrder = 2;   // (over its own halo: both are sprites at one point)
+    disc.scale.setScalar(r * 2);
     disc.position.set(x, y, z); scene.add(disc);
     window.__moon = [disc];
     const c = document.createElement("canvas"); c.width = c.height = 256;
@@ -525,7 +538,7 @@ async function render(cam, w, h) {
         return { x: +((Q.x + 1) / 2).toFixed(4), y: +((1 - Q.y) / 2).toFixed(4), r: +(r / (d * tanH) / 2).toFixed(4) };
       };
       const anchors = { jacks: [] };
-      if (window.__moon?.[0]) anchors.moon = at(window.__moon[0], window.__moon[0].geometry.parameters.radius);
+      if (window.__moon?.[0]) anchors.moon = at(window.__moon[0], window.__moon[0].userData.r ?? window.__moon[0].geometry?.parameters?.radius ?? 0);
       for (const one of window.__slabJacks?.children || []) anchors.jacks.push(at(one, one.userData.r || 0.3));
       if (window.__planes?.[0]) { const b = new THREE.Box3().setFromObject(window.__planes[0]); anchors.plane = at(window.__planes[0], b.getSize(new THREE.Vector3()).length() / 2); }
       done({ url: R.domElement.toDataURL("image/png"), anchors });

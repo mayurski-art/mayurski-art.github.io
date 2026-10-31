@@ -112,7 +112,8 @@ await page.evaluate(() => window.__toBo2.menu.back());
 await hoverRows("gear-1", 4);
 await page.screenshot({ path: path.join(ROOT, ".claude/run/hover-throwable.png") });
 const thr = await page.evaluate(() => window.__shown.splice(0));
-await page.locator(".tr-menu-item:visible").last().hover();
+// off the list altogether (Back is in the footer now, not a row)
+await page.locator(".to-bo2-online").hover();
 await page.waitForTimeout(150);
 const after = await page.evaluate(() => window.__shown.splice(0));
 check(`hovering melee rows previews each (${melee.join(", ")})`, melee.filter((w) => w !== "<end>").length >= 2);

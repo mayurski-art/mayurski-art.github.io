@@ -59,7 +59,7 @@ await page.addInitScript(() => {
     getUser: async () => ({ data: { user: null }, error: null }),
     onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
   };
-  window.supabase = { createClient: () => ({ channel: () => channel, from: query, rpc: query, auth, removeChannel() {} }) };
+  window.supabase = { createClient: () => ({ channel: () => channel, from: query, rpc: query, auth, removeChannel: async () => "ok" }) };   // (supabase-js: a promise)
 });
 await page.goto(`http://localhost:${server.address().port}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded" });
 await page.waitForFunction(() => !!window.__toBo2 && !!document.querySelector(".to-bo2-party-others"), null, { timeout: 90000 });
@@ -88,7 +88,7 @@ const R = (i) => (i ? 0.42 : 0.5);   // (char-inspector.js buildPlinth radii)
 const clash = SLOTS.flatMap((a, i) => SLOTS.slice(i + 1).map((b, j) => [i, i + 1 + j, Math.hypot(a[0] - b[0], a[1] - b[1]) - R(i) - R(i + 1 + j)])).filter(([, , gap]) => gap < 0.1);
 check(!clash.length, "no two pads touch", JSON.stringify(clash));
 // the name tags and the "+": nothing of the menu over them
-const coveredAll = () => page.evaluate(() => [...document.querySelectorAll(".to-stage-tag:not([hidden]), .to-stage-add:not([hidden])")].filter((t) => { t.style.pointerEvents = "auto"; for (const c of t.children) c.style.pointerEvents = "auto"; const r = t.getBoundingClientRect(); const hit = [[r.left + 3, r.top + 3], [r.right - 3, r.top + 3], [r.left + 3, r.bottom - 3], [r.right - 3, r.bottom - 3]].some(([x, y]) => !t.contains(document.elementFromPoint(x, y))); t.style.pointerEvents = ""; for (const c of t.children) c.style.pointerEvents = ""; return hit; }).map((t) => `${t.className} ${t.dataset.slot}`));
+const coveredAll = () => page.evaluate(() => (document.querySelectorAll(".tf-toast").forEach((t) => t.remove()), [...document.querySelectorAll(".to-stage-tag:not([hidden]), .to-stage-add:not([hidden])")].filter((t) => { t.style.pointerEvents = "auto"; for (const c of t.children) c.style.pointerEvents = "auto"; const r = t.getBoundingClientRect(); const hit = [[r.left + 3, r.top + 3], [r.right - 3, r.top + 3], [r.left + 3, r.bottom - 3], [r.right - 3, r.bottom - 3]].some(([x, y]) => !t.contains(document.elementFromPoint(x, y))); t.style.pointerEvents = ""; for (const c of t.children) c.style.pointerEvents = ""; return hit; }).map((t) => `${t.className} ${t.dataset.slot}`)));
 // the pads as drawn (page px, each plinth's box projected): the squad's name
 // and arrows under them stay off them
 const padsClear = () => page.evaluate(() => {
@@ -141,7 +141,7 @@ await page.waitForTimeout(800);
 const tags = () => page.evaluate(() => [...document.querySelectorAll(".to-stage-tag")].map((t) => { const r = t.getBoundingClientRect(); return { slot: +t.dataset.slot, shown: !t.hidden, name: t.querySelector("b").textContent, l: r.left, r: r.right, t: r.top, b: r.bottom }; }));
 const apart = (list) => { const s = list.filter((x) => x.shown); for (let i = 0; i < s.length; i++) for (let j = i + 1; j < s.length; j++) { const a = s[i], b = s[j]; if (a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b) return false; } return true; };
 // (a name tag lets the pointer through: asked with it on, for the look)
-const covered = () => page.evaluate(() => [...document.querySelectorAll(".to-stage-tag:not([hidden])")].filter((t) => { t.style.pointerEvents = "auto"; for (const c of t.children) c.style.pointerEvents = "auto"; const r = t.getBoundingClientRect(); const hit = [[r.left + 3, r.top + 3], [r.right - 3, r.top + 3], [r.left + 3, r.bottom - 3], [r.right - 3, r.bottom - 3]].some(([x, y]) => !t.contains(document.elementFromPoint(x, y))); t.style.pointerEvents = ""; for (const c of t.children) c.style.pointerEvents = ""; return hit; }).map((t) => t.querySelector("b").textContent));
+const covered = () => page.evaluate(() => (document.querySelectorAll(".tf-toast").forEach((t) => t.remove()), [...document.querySelectorAll(".to-stage-tag:not([hidden])")].filter((t) => { t.style.pointerEvents = "auto"; for (const c of t.children) c.style.pointerEvents = "auto"; const r = t.getBoundingClientRect(); const hit = [[r.left + 3, r.top + 3], [r.right - 3, r.top + 3], [r.left + 3, r.bottom - 3], [r.right - 3, r.bottom - 3]].some(([x, y]) => !t.contains(document.elementFromPoint(x, y))); t.style.pointerEvents = ""; for (const c of t.children) c.style.pointerEvents = ""; return hit; }).map((t) => t.querySelector("b").textContent)));
 const onScreen = (list, w, h) => list.filter((x) => x.shown).every((x) => x.l >= 0 && x.r <= w && x.t >= 0 && x.b <= h);
 let t = await tags();
 console.log(JSON.stringify(t.map(({ slot, shown, name }) => ({ slot, shown, name }))));

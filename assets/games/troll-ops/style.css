@@ -4396,9 +4396,10 @@ body.to-vote-sheet #to-title:not([hidden]) ~ .to-radio { visibility: hidden; }
 .to-bo2-foot > button + button, .to-bo2-foot > button + .to-bo2-optcol { margin-left: -16px; }
 /* The public chat: a small chat icon standing on Options (user, 2026-10-22) */
 .to-bo2-optcol { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
-.to-bo2-quick.to-bo2-chat { justify-content: center; width: 40px; min-height: 40px; padding: 0; }
+.to-bo2-quick:is(.to-bo2-chat, .to-bo2-mail) { justify-content: center; width: 40px; min-height: 40px; padding: 0; }
 .to-bo2-chat svg { width: 20px; height: 20px; fill: currentColor; }
-.to-bo2-chat .to-pchat-badge { position: absolute; top: -7px; right: -7px; }
+.to-bo2-mail svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+:is(.to-bo2-chat, .to-bo2-mail) .to-pchat-badge { position: absolute; top: -7px; right: -7px; }
 /* the operator stands only in Cosmetics now, so its Emote pill shows there */
 .to-bo2:is([data-screen="cosmetics"], [data-screen="bodies"], [data-screen="faces"], [data-screen="wrists"]) .to-bo2-foot .to-char-emote:not([hidden]) { display: flex; }
 /* the Emote pill, moved into the row (menu-bo2.js): the same pill */
@@ -5040,7 +5041,7 @@ body.tf-anim-off .to-fn-pips button[aria-current="true"]::after { transform: non
 .to-bo2.is-fn .to-bo2-status, .to-bo2.is-fn .to-bo2-dl { font: 700 13px var(--fn-ui); text-shadow: 0 1px 6px rgba(0,0,0,.8); }
 .to-bo2.is-fn .to-bo2-foot .to-bo2-quick[data-go] { display: none; }
 .to-bo2.is-fn .to-bo2-foot .to-bo2-quick, .to-bo2.is-fn .to-bo2-foot .to-char-emote { border-color: var(--fn-line); border-radius: 10px; background: var(--fn-glass); color: #fff; font: 800 15px var(--fn-ui); letter-spacing: .05em; text-transform: uppercase; }
-.to-bo2.is-fn .to-bo2-foot .to-bo2-chat { display: flex; }
+.to-bo2.is-fn .to-bo2-foot :is(.to-bo2-chat, .to-bo2-mail) { display: flex; }
 .to-bo2.is-fn kbd { font: 700 11px var(--fn-ui); border-color: rgba(255,255,255,.5); background: rgba(0,0,0,.35); }
 /* the chat icon is the last thing on the right; with the mode card above it */
 .to-bo2.is-fn .to-bo2-optcol { flex-direction: row; }
@@ -5120,6 +5121,36 @@ body.tf-anim-off .to-fn-pips button[aria-current="true"]::after { transform: non
 .to-fn-qlist i { grid-column: 1; grid-row: 2; align-self: center; height: 8px; margin: 0; border-radius: 0; background: rgba(0,0,0,.55); }
 .to-fn-qlist i b { border-radius: 0; background: var(--fn-yellow); }
 .to-fn-qlist em { grid-column: 2; grid-row: 2; font: 700 14px var(--fn-ui); letter-spacing: .04em; color: #fff; }
+/* Daily / Weekly / Event (progression/challenges.js): a chip each, the reset
+   under them, then each challenge: its name and count, what to do, a bar and
+   the XP it pays */
+.to-fn-qtabs { display: flex; gap: 4px; padding: 8px 10px 0; }
+.to-fn-qtabs button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; padding: 0 8px; border: 1px solid rgba(170,200,255,.25); border-radius: 2px; background: rgba(255,255,255,.05); color: #c9d4ff; font: 800 12px var(--fn-ui); letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+.to-fn-qtabs button b { min-width: 18px; padding: 1px 4px; border-radius: 2px; background: rgba(255,255,255,.12); color: #fff; font-size: 11px; }
+.to-fn-qtabs button[aria-selected="true"] { border-color: var(--fn-yellow); background: var(--fn-yellow); color: #1b1400; }
+.to-fn-qtabs button[aria-selected="true"] b { background: rgba(0,0,0,.18); color: #1b1400; }
+.to-fn-qtabs button:focus-visible { outline: 2px solid var(--fn-yellow); outline-offset: 2px; }
+.to-fn-qleft { margin: 6px 14px 0; font: 700 11px var(--fn-ui); letter-spacing: .1em; text-transform: uppercase; color: #9fb2e4; }
+.to-fn-qlist li { grid-template-columns: 1fr auto; gap: 3px 12px; }
+.to-fn-qlist li span { grid-column: 1; grid-row: 1; font: 700 16px/1.2 var(--fn-ui); }
+.to-fn-qlist li em { grid-column: 2; grid-row: 1; align-self: center; font-size: 13px; color: #c4d1f3; }
+.to-fn-qlist li.is-done em { color: #4ee6a0; }
+.to-fn-qlist li small { grid-column: 1 / -1; grid-row: 2; font: 500 13px/1.3 var(--fn-ui); color: #aebbe0; }
+.to-fn-qlist li i { grid-column: 1; grid-row: 3; }
+.to-fn-qlist li strong { grid-column: 2; grid-row: 3; align-self: center; font: 800 12px var(--fn-ui); letter-spacing: .04em; color: var(--fn-yellow); }
+.to-fn-qlist li.is-done i b { background: #4ee6a0; }
+.to-fn-qlist li.is-done strong { color: #4ee6a0; }
+/* a row's line under its label (bo2-menu.js `sub`): the Quests tab's
+   challenge descriptions */
+.tr-menu-item .tr-menu-sub { display: block; flex-basis: 100%; margin-top: 3px; font: 500 13px/1.3 var(--fn-ui, sans-serif); font-style: normal; letter-spacing: 0; text-transform: none; color: #aebbe0; white-space: normal; }
+.tr-menu-item.is-hot .tr-menu-sub { color: #3b4a7d; }
+/* the Quests screen: one challenge a row, full width, its name, what to do,
+   then how far (never a tile the description spills out of) */
+.to-bo2.is-fn[data-screen="quests"] .tr-menu-group { grid-template-columns: minmax(0, 1fr) !important; }
+.to-bo2.is-fn[data-screen="quests"] .tr-menu-item { flex-direction: column; flex-wrap: nowrap; align-items: stretch; height: auto !important; min-height: 0; padding-top: 8px; padding-bottom: 8px; line-height: 1.2; }
+.to-bo2.is-fn[data-screen="quests"] .tr-menu-item > span:first-child { order: 0; }
+.to-bo2.is-fn[data-screen="quests"] .tr-menu-item > .tr-menu-sub { order: 1; }
+.to-bo2.is-fn[data-screen="quests"] .tr-menu-item > small { order: 2; margin-top: 6px; }
 .to-fn-qlist li.is-done em { color: #7cf07c; }
 /* the right: the news over a slate mode card, then PLAY */
 .to-fn-play { padding: 0; gap: 8px; border: 0; background: none; box-shadow: none; }
@@ -5160,8 +5191,8 @@ body.tf-anim-off .to-fn-pips button[aria-current="true"]::after { transform: non
 .to-fn-news img { -webkit-user-drag: none; pointer-events: none; }
 .to-fn-news-card { border-radius: 2px; }   /* (square, as every panel here) */
 /* the bottom row: plain hints on the band */
-.to-bo2.is-fn .to-bo2-online, .to-fn-allmodes, .to-bo2.is-fn .to-bo2-foot .to-char-emote, .to-bo2.is-fn .to-bo2-foot .to-bo2-chat { border: 0; border-radius: 2px; background: none; box-shadow: none; color: #e6ebf7; font: 600 17px var(--fn-ui); letter-spacing: .02em; text-transform: none; }
-.to-bo2.is-fn .to-bo2-online[role="button"]:hover, .to-fn-allmodes:hover, .to-bo2.is-fn .to-bo2-foot .to-char-emote:hover, .to-bo2.is-fn .to-bo2-foot .to-bo2-chat:hover { background: rgba(255,255,255,.1); color: var(--fn-yellow); text-decoration: none; }
+.to-bo2.is-fn .to-bo2-online, .to-fn-allmodes, .to-bo2.is-fn .to-bo2-foot .to-char-emote, .to-bo2.is-fn .to-bo2-foot :is(.to-bo2-chat, .to-bo2-mail) { border: 0; border-radius: 2px; background: none; box-shadow: none; color: #e6ebf7; font: 600 17px var(--fn-ui); letter-spacing: .02em; text-transform: none; }
+.to-bo2.is-fn .to-bo2-online[role="button"]:hover, .to-fn-allmodes:hover, .to-bo2.is-fn .to-bo2-foot .to-char-emote:hover, .to-bo2.is-fn .to-bo2-foot :is(.to-bo2-chat, .to-bo2-mail):hover { background: rgba(255,255,255,.1); color: var(--fn-yellow); text-decoration: none; }
 /* who's in the party: a square navy card */
 .to-bo2.is-fn[data-screen="main"] .to-bo2-party { border-radius: 2px; border: 0; background: rgba(14,20,44,.88); }
 .to-bo2.is-fn .to-bo2-party-row { border-radius: 0; }
@@ -5181,6 +5212,15 @@ body.tf-anim-off .to-fn-pips button[aria-current="true"]::after { transform: non
 .to-bo2.is-fn .tr-menu-title { font-style: normal; }
 /* the online list's Squad (up) beside Invite: outlined, Invite stays the yellow one */
 .to-bo2.is-fn .tf-btn--secondary.to-bo2-party-invite.is-squad { border: 1px solid var(--fn-line); background: rgba(8,12,34,.6); color: #fff; }
+/* Online now: the name and what they're doing get the row's full width,
+   Invite and Squad go on a line under it (user, 2026-10-31: on a sideways
+   phone the name was squashed to "G... I..." beside the two buttons) */
+.to-bo2.is-fn .to-bo2-party-others .to-bo2-party-item { flex-wrap: wrap; gap: 4px 6px; }
+.to-bo2.is-fn .to-bo2-party-others .to-bo2-party-item .to-bo2-party-row { flex: 1 1 100%; }
+.to-bo2.is-fn .to-bo2-party-others .to-bo2-party-invite:not(.is-squad) { margin-left: auto; }
+.to-bo2.is-fn .to-bo2-party-others .to-bo2-party-invite { min-height: 28px; padding: 0 12px; font-size: 12px; }
+.to-bo2.is-fn .to-bo2-party-others .to-bo2-party-row.is-other b { flex: 1 1 auto; }
+.to-bo2.is-fn .to-bo2-party-others .to-bo2-party-row.is-other small { flex: 0 1 auto; max-width: 45%; }
 /* two squads joined up (lobby.js): small white arrows either side of the
    squad's name, under the pads, and Together / Versus */
 .to-squad-nav { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); z-index: 2; display: flex; align-items: center; gap: 14px; pointer-events: auto; font-family: var(--fn-ui); }
@@ -5808,7 +5848,66 @@ body.tf-anim-off .to-fn-pips button[aria-current="true"]::after { transform: non
 
 /* The public chat (menu/public-chat.js): its footer pill's unread badge, the
    panel down the right (a sheet on a phone), the bell, the notification. */
-.to-bo2-chat { position: relative; }
+:is(.to-bo2-chat, .to-bo2-mail) { position: relative; }
+
+/* ── Notifications and the inbox (menu/inbox.js), in the lobby's look:
+   navy glass, square corners, the lobby's type, a yellow call to action
+   (user, 2026-10-31: the pixel toast with TV static was "very tacky") ── */
+.tf-toast {
+  position: absolute; z-index: 60; left: 50%; top: calc(var(--fn-top, 74px) + 10px); transform: translateX(-50%);
+  display: flex; align-items: flex-start; gap: 12px; width: min(440px, calc(100% - 32px)); box-sizing: border-box;
+  padding: 12px 12px 14px 12px; overflow: hidden;
+  border: 1px solid rgba(170,200,255,.28); border-left: 4px solid var(--fn-yellow, #ffe04d); border-radius: 2px;
+  background: #0e142c; box-shadow: 0 18px 44px rgba(0,0,0,.45);   /* (solid: nothing shows through) */
+  color: #fff; font-family: var(--fn-ui, "DM Sans", sans-serif);
+  animation: tf-toast-in .32s cubic-bezier(.2,.9,.3,1.2) both;
+}
+.tf-toast.is-out { animation: tf-toast-out .26s ease both; }
+@keyframes tf-toast-in { from { opacity: 0; transform: translate(-50%, -14px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes tf-toast-out { to { opacity: 0; transform: translate(-50%, -10px); } }
+.tf-toast-icon { flex: none; width: 46px; height: 46px; border-radius: 2px; background: #1d2c5e; object-fit: cover; }
+.tf-toast-text { flex: 1; min-width: 0; }
+.tf-toast-text small { display: block; font: 800 12px var(--fn-ui, sans-serif); letter-spacing: .1em; text-transform: uppercase; color: var(--fn-cyan, #4fd8ff); }
+.tf-toast-text p { margin: 4px 0 0; font: 600 15px/1.35 var(--fn-ui, sans-serif); color: #eef2ff; }
+.tf-toast-go, .tf-inbox-go { margin-top: 10px; padding: 7px 14px; border: 0; border-radius: 2px; background: var(--fn-yellow, #ffe04d); color: #1b1400; font: 800 13px var(--fn-ui, sans-serif); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.tf-toast-go:hover, .tf-inbox-go:hover { filter: brightness(1.08); }
+.tf-toast-x, .tf-inbox-x { flex: none; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 2px; background: rgba(255,255,255,.08); color: #fff; cursor: pointer; }
+.tf-toast-x svg, .tf-inbox-x svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+.tf-toast-x:hover, .tf-inbox-x:hover { background: rgba(255,255,255,.18); }
+:is(.tf-toast-go, .tf-toast-x, .tf-inbox-go, .tf-inbox-x, .tf-inbox-clear):focus-visible { outline: 2px solid var(--fn-yellow, #ffe04d); outline-offset: 2px; }
+.tf-toast-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--fn-yellow, #ffe04d); transform-origin: left; animation: tf-toast-bar linear both; }
+.tf-toast.is-held .tf-toast-bar { animation-play-state: paused; }
+@keyframes tf-toast-bar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.tf-inbox {
+  position: absolute; z-index: 61; right: var(--fn-pad, 48px); bottom: calc(var(--foot-h, 60px) + 24px + var(--fn-safe-b, 0px));
+  display: flex; flex-direction: column; width: min(400px, calc(100% - 32px)); max-height: min(560px, 70%); box-sizing: border-box;
+  border: 1px solid rgba(170,200,255,.28); border-radius: 2px; background: #0e142c; box-shadow: 0 18px 44px rgba(0,0,0,.45);
+  color: #fff; font-family: var(--fn-ui, "DM Sans", sans-serif);
+}
+.tf-inbox[hidden] { display: none; }
+.tf-inbox header { display: flex; align-items: center; gap: 8px; padding: 12px 12px 10px 16px; border-bottom: 1px solid rgba(170,200,255,.18); }
+.tf-inbox h2 { flex: 1; margin: 0; font: italic 400 26px/1 var(--fn-display, sans-serif); text-transform: uppercase; }
+.tf-inbox-clear { padding: 6px 10px; border: 1px solid rgba(170,200,255,.3); border-radius: 2px; background: none; color: #c9d4ff; font: 700 12px var(--fn-ui, sans-serif); letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+.tf-inbox-list { margin: 0; padding: 6px; list-style: none; overflow-y: auto; scrollbar-width: none; overscroll-behavior: contain; }
+.tf-inbox-list::-webkit-scrollbar { display: none; }
+.tf-inbox-item { display: flex; gap: 10px; padding: 10px; border-left: 3px solid transparent; }
+.tf-inbox-item + .tf-inbox-item { border-top: 1px solid rgba(170,200,255,.12); }
+.tf-inbox-item.is-unread { border-left-color: var(--fn-yellow, #ffe04d); background: rgba(255,224,77,.06); }
+.tf-inbox-item img { flex: none; width: 38px; height: 38px; border-radius: 2px; background: #1d2c5e; }
+.tf-inbox-item > div { min-width: 0; }
+.tf-inbox-item small { display: block; font: 800 11px var(--fn-ui, sans-serif); letter-spacing: .08em; text-transform: uppercase; color: var(--fn-cyan, #4fd8ff); }
+.tf-inbox-item p { margin: 3px 0 0; font: 600 14px/1.35 var(--fn-ui, sans-serif); color: #e6ebf7; }
+.tf-inbox-go { margin-top: 8px; padding: 6px 12px; font-size: 12px; }
+.tf-inbox-empty { padding: 22px 14px; font: 600 14px/1.4 var(--fn-ui, sans-serif); color: #9fb2e4; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .tf-toast, .tf-toast.is-out { animation: none; } .tf-toast-bar { animation: none; display: none; } }
+/* a sideways phone: a slimmer toast under the tab bar, the inbox over the footer */
+@container cab (min-aspect-ratio: 9/10) and ((max-height: 520px) or (max-width: 760px)) {
+  .tf-toast { top: calc(var(--fn-top, 60px) + 2px); width: min(400px, 60%); padding: 8px 10px 10px; gap: 10px; }
+  .tf-toast-icon { width: 36px; height: 36px; }
+  .tf-toast-text p { font-size: 13px; }
+  .tf-toast-go { margin-top: 6px; padding: 5px 10px; font-size: 12px; }
+  .tf-inbox { bottom: calc(54px + var(--fn-safe-b, 0px)); max-height: calc(100% - var(--fn-top, 60px) - 64px); }
+}
 .to-pchat-badge { min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 9px; background: #ff8a1f; color: #1a0904; font: 700 11px/18px "DM Mono", monospace; text-align: center; }
 .to-pchat-badge[hidden] { display: none; }
 .to-pchat {

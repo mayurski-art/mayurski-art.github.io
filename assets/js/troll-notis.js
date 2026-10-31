@@ -202,6 +202,12 @@
      actual remaining time instead of restarting the full countdown. ---- */
   function show(notif, ttlMs) {
     if (!notif) return;
+    // A page may draw alerts its own way and keep them (Trollnite: its
+    // lobby toast and inbox, assets/games/troll-ops/menu/inbox.js): it sets
+    // window.TrollNotisRender(notif) and returns anything but false.
+    if (typeof window.TrollNotisRender === 'function') {
+      try { if (window.TrollNotisRender(notif) !== false) return null; } catch (e) { /* fall back to the toast */ }
+    }
     injectStyles();
     const p = platform(notif.platform);
     const root = rootEl();
