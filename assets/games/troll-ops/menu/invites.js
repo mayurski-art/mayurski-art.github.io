@@ -135,7 +135,9 @@ const SQUAD_MODES = ["together", "versus"];
    waiting on and the rest of their squad), and a joined squad: their names
    and looks (lobby-fn.js, lobby.js). squad: { lead (we start), mode,
    people (theirs, their leader first) } or null. */
-const nameOf = (v) => presence?.nameOf(v)?.name || "";
+// (the last name seen holds through a blink off the roster, so the pads don't flicker)
+const lastName = new Map();
+const nameOf = (v) => { const n = presence?.nameOf(v)?.name; if (n) lastName.set(v, n); return n || lastName.get(v) || ""; };
 export function partyView() {
   const me = viewerId(), person = (x, host) => ({ viewerId: x.v, name: nameOf(x.v), look: x.look || null, host });
   let people, squad = null;
@@ -283,16 +285,27 @@ function dropMembers() {
 }
 /* Once our match is up, the party is told its room (and again if we move
    to another one); back in the menu, they wait for the next. */
+/* Gone: off the roster for GONE_MS straight, while we're connected. A blink
+   (their tab or ours reconnecting, site-presence.js) doesn't break the
+   party up. */
+const GONE_MS = 10000, missing = new Map();
+function gone(v) {
+  if (presence?.nameOf(v)) { missing.delete(v); return false; }
+  if (!presence?.live) return false;
+  const t = performance.now();
+  if (!missing.has(v)) missing.set(v, t);
+  return t - missing.get(v) > GONE_MS;
+}
 function partyTick() {
   if (game.net) game.net.preferTeam = myTeam();
   if (party.in) {
     // the host went offline: the party's over
-    if (!presence?.nameOf(party.in.host)) { party.in = null; party.looks.clear(); party.roster = null; party.team = null; renderParty(); }
+    if (gone(party.in.host)) { party.in = null; party.looks.clear(); party.roster = null; party.team = null; renderParty(); }
     return;
   }
-  for (const m of [...party.members]) if (!presence?.nameOf(m)) { party.members.delete(m); party.looks.delete(m); }
+  for (const m of [...party.members]) if (gone(m)) { party.members.delete(m); party.looks.delete(m); }
   // the other leader went offline: back to our own squad
-  if (party.link && !presence?.nameOf(party.link.leader)) { party.link = null; party.team = null; sentSig = ""; }
+  if (party.link && gone(party.link.leader)) { party.link = null; party.team = null; sentSig = ""; }
   sendRosters();
   if (!party.members.size && !party.link) { if (party.room && !party.invited.size) party.room = null; renderParty(); return; }
   const room = playing() && game.net?.connected ? game.net.room : null;
