@@ -22,6 +22,7 @@ import { peerPosers } from "../net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-
 import { localPosers } from "../view/third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-rm1-kzf1-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1";
 import { settings } from "../menu/settings.js?v=ms1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1";
 import { damp } from "../characters/anim-curves.js?v=or1";
+import { DOUBLE_VISION } from "../view/grade-pass.js?v=sr1-tm5-sp1";   // the same tag as game.js's: one instance
 
 export const DRUNK = {
   spellFrom: 3,                 // spells start here (TIPSY.cap passes you out)
@@ -31,6 +32,8 @@ export const DRUNK = {
   strMin: 0.3,                  // strength at spellFrom (1 at the cap), × 0.7..1
   roll: 0.22, pitch: 0.1, yawDrag: 0.35,   // the view: a lurch (rad), a dip, a slide (rad/s)
   blur: 2.5,                    // px on the picture at full strength (not on Low, not on phones)
+  ghost: 0.42, ghostShift: 0.028,  // double vision (view/grade-pass.js): the ghost's weight, and how far it drifts (screen widths). Everywhere, phones too
+  fovBreath: 0.05,              // the lens breathes ±5 % of the FOV setting (about ±4° at 78)
   vignette: 0.85,
   shove: 2.2, slow: 0.7,        // the walk: sideways (input units) and how much speed is left
   out: { slump: 1.4, fall: 0.8, black: 4, wake: 2.5 },
@@ -143,11 +146,23 @@ export function drunkHold(dt) {
 
 /* ------------------------------------------------------------- the frame */
 
+/* The double image and the breathing lens, 0..1 (`t` the phase's clock). */
+let lensOn = false;
+function lens(k, t) {
+  DOUBLE_VISION.k = k * DRUNK.ghost;
+  DOUBLE_VISION.x = DRUNK.ghostShift * k * (0.65 + 0.35 * Math.sin(t * 1.3));
+  DOUBLE_VISION.y = DRUNK.ghostShift * 0.35 * k * Math.sin(t * 0.9 + 0.7);
+  // through the FOV setting's own hook (game.js damps toward it); put back when it's over
+  if (k > 0) { game.baseFov = settings.fov * (1 + DRUNK.fovBreath * k * Math.sin(t * 2.2)); lensOn = true; }
+  else if (lensOn) { game.baseFov = settings.fov; lensOn = false; }
+}
+
 function reset() {
   drunk.phase = DZ.NONE; drunk.t = 0; drunk.spell = null; drunk.out = null; drunk.next = -1; drunk.spun = false;
   Object.assign(drunk.view, { roll: 0, pitch: 0, eyeDrop: 0, shove: 0, slow: 1 });
   if (drunk.el) paint(0, 0);
   game.drunkMuffle = 0;
+  lens(0, 0);
   if (game.net) game.net.dz = 0;
 }
 
@@ -159,7 +174,7 @@ export function updateDrunk(dt) {
   if (!game.isSocial() || !game.player.alive || game.localPauseOnly) { if (drunk.phase || drunk.next >= 0) reset(); return V; }
   drunk.grace = Math.max(0, drunk.grace - dt);
   drunk.t += dt;
-  let spellK = 0, blackK = 0;
+  let spellK = 0, blackK = 0, ghost = 0;
   V.roll = 0; V.pitch = 0; V.eyeDrop = 0; V.shove = 0; V.slow = 1;
 
   if (drunk.out) {
@@ -186,6 +201,7 @@ export function updateDrunk(dt) {
       V.roll = O.dir * DRUNK.fallRoll * (1 - up); V.pitch = 0.35 * (1 - up) - 0.25 * (1 - up) * up; V.eyeDrop = (O.eye - 0.3) * (1 - up);
       const blink = k < 0.45 ? 0.5 + 0.5 * Math.cos(k / 0.45 * Math.PI * 2) : 0;   // open, shut, open
       blackK = Math.max(blink, 1 - smooth(Math.min(1, k / 0.12)));
+      ghost = 0.9 * (1 - up);   // seeing double, coming round
       if (t >= T.wake) wakeUp();
     }
     game.drunkMuffle = Math.max(0.6, blackK);
@@ -200,7 +216,7 @@ export function updateDrunk(dt) {
       if (t >= S.len) { drunk.spell = null; drunk.phase = DZ.NONE; drunk.t = 0; }
       else {
         const e = envelope(t, S.len) * S.str;
-        spellK = e;
+        spellK = e; ghost = e;
         const wob = Math.sin(t * 4.1 + S.wob) * 0.35 + Math.sin(t * 1.7) * 0.65;
         V.roll = S.dir * DRUNK.roll * e * (0.6 + 0.4 * wob);
         V.pitch = -DRUNK.pitch * e * (0.5 + 0.5 * Math.sin(t * 2.3 + 1));
@@ -213,6 +229,7 @@ export function updateDrunk(dt) {
     if (bar.tipsy >= TIPSY.cap && drunk.grace <= 0) passOut();
   }
   paint(spellK, blackK);
+  lens(ghost, drunk.t);
   drunk.k = spellK;
   if (game.net) game.net.dz = drunk.phase;
   return V;
@@ -286,4 +303,4 @@ peerPosers.push((rp) => {
   rp.rig.body?.update?.();
 });
 
-window.__trollDrunk = { DRUNK, DZ, drunk, state: () => ({ phase: drunk.phase, t: drunk.t, next: drunk.next, spell: drunk.spell && { ...drunk.spell }, out: !!drunk.out, grace: drunk.grace, k: drunk.k, view: { ...drunk.view }, tipsy: bar.tipsy, filter: game.renderer?.domElement.style.filter || "", black: drunk.black?.style.opacity, vignette: drunk.el?.style.opacity }) };
+window.__trollDrunk = { DRUNK, DZ, drunk, state: () => ({ phase: drunk.phase, t: drunk.t, next: drunk.next, spell: drunk.spell && { ...drunk.spell }, out: !!drunk.out, grace: drunk.grace, k: drunk.k, view: { ...drunk.view }, tipsy: bar.tipsy, filter: game.renderer?.domElement.style.filter || "", black: drunk.black?.style.opacity, vignette: drunk.el?.style.opacity, ghost: DOUBLE_VISION.k, ghostX: DOUBLE_VISION.x, baseFov: game.baseFov, fovSetting: settings.fov, camFov: game.camera?.fov }) };

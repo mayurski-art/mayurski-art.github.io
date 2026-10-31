@@ -165,6 +165,8 @@ s = await until((ss) => ss[0].drunk.phase === 1 && ss[0].drunk.t > 0.35, 8000);
 const D = s[0].drunk;
 check("a spell: the view lurches", D.phase === 1 && Math.abs(D.view.roll) > 0.03 && D.view.shove !== 0 && D.view.slow < 1, JSON.stringify(D.view));
 check("the picture blurs, the edges close in", /blur\(/.test(D.filter) && +D.vignette > 0.2, `filter ${D.filter} vignette ${D.vignette}`);
+check("seeing double: the ghost frame mixed in, shifted", D.ghost > 0.1 && D.ghostX > 0.005, `ghost ${D.ghost} x ${D.ghostX}`);
+check("the lens breathes: the FOV moved off the setting", Math.abs(D.baseFov - D.fovSetting) > 0.05, `baseFov ${D.baseFov} setting ${D.fovSetting}`);
 await A.screenshot({ path: path.join(SHOTS, "3-dizzy.png") });
 s = await until((ss) => ss[1].peers.find((p) => p.id === idA)?.dz === 1, 4000);
 check("B reads A's dz 1", s[1].peers.find((p) => p.id === idA)?.dz === 1, JSON.stringify(s[1].peers));
@@ -193,6 +195,7 @@ check("coming round (dz 4)", s[0].drunk.phase === 4);
 s = await until((ss) => ss[0].drunk.phase === 0 && !ss[0].drunk.out, 20000);
 check("up: the meter at the wake level, a grace period, no spell pending yet", s[0].drunk.phase === 0 && Math.abs(s[0].bar.tipsy - 4.5) < 0.1 && s[0].drunk.grace > 20 && !/blur/.test(s[0].drunk.filter) && +s[0].drunk.black < 0.05,
   JSON.stringify({ tipsy: s[0].bar.tipsy, grace: s[0].drunk.grace, filter: s[0].drunk.filter, black: s[0].drunk.black }));
+check("awake: single vision, the FOV back on the setting", s[0].drunk.ghost === 0 && s[0].drunk.baseFov === s[0].drunk.fovSetting, `ghost ${s[0].drunk.ghost} baseFov ${s[0].drunk.baseFov} setting ${s[0].drunk.fovSetting}`);
 await A.screenshot({ path: path.join(SHOTS, "8-awake.png") });
 s = await until((ss) => ss[1].peers.find((p) => p.id === idA)?.dz === 0, 6000);
 check("B sees A up (dz 0, upright)", s[1].peers.find((p) => p.id === idA)?.dz === 0 && Math.abs(s[1].peers.find((p) => p.id === idA)?.rotZ) < 0.1, JSON.stringify(s[1].peers));

@@ -92,10 +92,14 @@ envelope (0.3 s in, hold, 0.8 s out). With `k = (level - 3) / 5`:
 During a spell, scaled by strength:
 
 - **Camera**: a roll lurch to one side (up to 0.22 rad) and a pitch dip,
-  a slow yaw drag (the view slides off what you're looking at).
-- **Blur and wobble**: a CSS `blur()` on the game canvas (up to 2.5 px) and
-  a dark vignette that closes in with the spell. On Low quality and on
-  phones the blur is skipped (the vignette stays).
+  a slow yaw drag (the view slides off what you're looking at), and the lens
+  breathes ±5 % of the FOV setting (through `game.baseFov`; put back after).
+- **Blur and wobble**: a CSS `blur()` on the game canvas (up to 2.5 px), a
+  dark vignette that closes in with the spell, and double vision: the last
+  render pass (`view/grade-pass.js` `DOUBLE_VISION`) mixes in a ghost of the
+  frame that drifts off to one side, also while coming round. On Low quality
+  and on phones the blur is skipped; the vignette and the double vision
+  stay (user, 2026-10-31).
 - **Staggered movement**: the walk input is shoved sideways (the stagger
   term x3) and slowed to 70 %; a strong spell can make you stumble a step
   on your own. Seated: just the body sway, you stay on the stool.
