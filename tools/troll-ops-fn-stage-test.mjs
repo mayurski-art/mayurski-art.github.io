@@ -3,11 +3,11 @@
 // Supabase is blocked: the page never joins the live public room, and
 // nothing here presses a go button.
 //   1. The Play page: the operator view shows between the columns, your name
-//      over you, an empty pad's "+" either side, the Emote button below.
+//      over you, a "+" on each of the three empty pads, the Emote button below.
 //   2. Someone online: their invite bubble over an empty pad; Invite asks
 //      invites.js (offline here, so it says why and stays unsent).
 //   3. A member joins with a look (invites.js's test hook): their name over
-//      the left pad, their operator drawn there, the "+" gone from it.
+//      the pad beside you, their operator drawn there, the "+" gone from it.
 //   4. Away from Play (Locker) the stage goes; Cosmetics has the operator
 //      without it; Play brings it back.
 //   5. Nothing on the stage overlaps the left column, the mode card or the
@@ -92,7 +92,7 @@ check(!!view && !!left && !!play && view.w >= 1279 && youX > left.r + 60 && youX
 check(await page.evaluate(() => { const z = (s) => +getComputedStyle(document.querySelector(s)).zIndex || 0; return z("#to-char-view") < Math.min(z(".to-fn-left"), z(".to-fn-play")); }), "the view under the panels (its podiums pass behind them)");
 const me = await page.evaluate(() => document.querySelector('.to-stage-tag[data-slot="0"]:not([hidden]) b')?.textContent);
 check(me === "Guest troll", "your name over your operator", me);
-check(await shown(page, ".to-stage-add") === 2, "an empty pad's + either side", String(await shown(page, ".to-stage-add")));
+check(await shown(page, ".to-stage-add") === 3, "a + on each of the three empty pads", String(await shown(page, ".to-stage-add")));
 check(await shown(page, "#to-char-emote") === 1, "the Emote button shows on the Play page");
 await holdReel(page);
 await sleep(300);
@@ -129,10 +129,10 @@ await sleep(900);
 await settle(page);
 const after = await grab(page, padBox);
 const t1 = await page.evaluate(() => document.querySelector('.to-stage-tag[data-slot="1"]:not([hidden]) b')?.textContent);
-check(t1 === "grinlord", "a member's name over the left pad", t1);
+check(t1 === "grinlord", "a member's name over the pad beside you", t1);
 const changed = await differ(page, before, after);
 check(changed > 0.03, "their operator is drawn on it (legs under where the + was)", changed.toFixed(3));
-check(await shown(page, ".to-stage-add") === 1, "the + is gone from their pad, still on the other");
+check(await shown(page, ".to-stage-add") === 2, "the + is gone from their pad, still on the others");
 const bub = await page.evaluate(() => [...document.querySelectorAll(".to-stage-bubble:not([hidden]) b")].map((b) => b.textContent));
 check(bub.join() === "lulzbot", "the other pad's bubble offers someone not in the party", bub.join());
 const lead = await page.evaluate(() => document.querySelector('.to-stage-tag[data-slot="0"] small')?.textContent);

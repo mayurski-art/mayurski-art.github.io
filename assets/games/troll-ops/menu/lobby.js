@@ -256,8 +256,8 @@ function renderStage() {
       tag.querySelector("small").textContent = p.host ? "Party leader" : "In your party";
     }
     // an empty pad: yours to fill (not in someone else's party: their host
-    // invites); the fourth only once the two either side of you are taken
-    const empty = !p && v.host && (slot < 3 || people.length >= 2);
+    // invites)
+    const empty = !p && v.host;
     stageEl.querySelector(`.to-stage-add[data-slot="${slot}"]`).hidden = !empty;
     const bubble = stageEl.querySelector(`.to-stage-bubble[data-slot="${slot}"]`), o = empty ? free[pick++] : null;
     bubble.hidden = !o;

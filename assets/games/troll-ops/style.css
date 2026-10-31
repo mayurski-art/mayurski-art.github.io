@@ -5078,8 +5078,9 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-bo2.is-fn .to-bo2-foot { bottom: calc(8px + var(--fn-safe-b)); }
   .to-bo2.is-fn .to-bo2-online { padding: 6px 10px; font-size: 14px; }
   /* the stage between the narrower columns, its names smaller; no bubbles
-     (no room: the "+" opens Who's Online) */
-  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: 0; right: 0; top: calc(var(--fn-top) + 34px); bottom: calc(54px + var(--fn-safe-b)); }
+     (no room: the "+" opens Who's Online); the pads lifted clear of the
+     squad's name under them (char-inspector.js --char-lift) */
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { left: 0; right: 0; top: calc(var(--fn-top) + 34px); bottom: calc(54px + var(--fn-safe-b)); --char-lift: 0.1; }
   .to-stage-tag { margin-top: -34px; }
   .to-stage-tag b { padding: 2px 8px; font-size: 13px; }
   .to-stage-tag small { font-size: 9px; }

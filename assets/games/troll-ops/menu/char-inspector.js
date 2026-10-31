@@ -38,11 +38,12 @@ const OPERATOR_MATERIAL = new THREE.MeshStandardMaterial({
 });
 
 /* The Play page's stage (user, 2026-10-27, the Fortnite lobby's phase 2):
-   you on a glowing pad in the middle, up to three of your party: one on
-   each side a step back, the fourth further out on the left, all turned a
-   little in (user, 2026-10-30: a party of 4). [x, z, yaw] in the
-   rig's space (its feet at y 0). The pads are stone plinths (lobby-stage.js). */
-const SLOTS = [[0, 0, 0], [-1.05, -0.55, 0.28], [1.05, -0.55, -0.28], [-2.05, -1.2, 0.5]];
+   you on the glowing pad, and a pad for each of the three more a party
+   holds (user, 2026-10-30: a party of 4), all four always up, a mirrored
+   arc: you and the first to join the inner pair, the other two a step back
+   on the outside, turned a little in. [x, z, yaw] in the rig's space (its
+   feet at y 0). The pads are stone plinths (lobby-stage.js). */
+export const SLOTS = [[-0.55, 0, 0], [0.55, 0, 0], [-1.65, -0.55, 0.28], [1.65, -0.55, -0.28]];
 const STAGE_MARGIN = 0.5;   // room (rig units) beside the outermost on the stage, for their name
 export class CharacterInspector {
   constructor(canvas) {
@@ -125,6 +126,8 @@ export class CharacterInspector {
     for (const m of this.party) m.humanoid.root.visible = this.stage;
     // (yours hides only while the stage shows the joined squad)
     this.humanoid.root.visible = !(this.stage && this.withoutMe);
+    // yours on your pad; off the stage (the Locker, Cosmetics) in the middle
+    this.humanoid.root.position.set(this.stage ? SLOTS[0][0] : 0, 0, this.stage ? SLOTS[0][1] : 0);
     this.width = 0;   // re-read the box's size and its CSS knobs next tick
     if (!this.stage) { this.yaw = REST_YAW; this.pitch = REST_PITCH; }
   }
@@ -296,7 +299,10 @@ export class CharacterInspector {
       // --stage-fit: the share of the box's half width the stage may fill
       // either side of its middle (the Play page: the columns over its edges)
       this.stageFit = parseFloat(css.getPropertyValue("--stage-fit")) || 1;
-      if (shift) this.camera.setViewOffset(w, h, -shift * w, 0, w, h);
+      // --char-lift: raise the picture by a share of the box's height (a
+      // phone on its side: the pads clear the squad's name under them)
+      const lift = parseFloat(css.getPropertyValue("--char-lift")) || 0;
+      if (shift || lift) this.camera.setViewOffset(w, h, -shift * w, lift * h, w, h);
       else this.camera.clearViewOffset();
       this.camera.updateProjectionMatrix();
     }
@@ -365,12 +371,9 @@ export class CharacterInspector {
 
     let dist = this.baseDist * (this.distMult || 1) * this.zoom;
     // the stage: its pads centred, and the camera back far enough that the
-    // outermost stays in frame (a party of four on a phone). The fourth pad
-    // shows once the two either side of you are taken (a joined squad: its
-    // fourth is on it).
+    // outermost stays in frame (a party of four on a phone)
     this.rig.position.x = 0;
     if (this.stage) {
-      this.pads[3].visible = this.party.length >= (this.withoutMe ? 4 : 2);
       const on = SLOTS.filter((s, i) => this.pads[i].visible);
       const xs = on.map(([x]) => x), off = -(Math.min(...xs) + Math.max(...xs)) / 2;
       this.rig.position.x = off;
