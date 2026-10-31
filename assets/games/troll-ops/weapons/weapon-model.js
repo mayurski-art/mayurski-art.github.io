@@ -10,14 +10,14 @@ import {
   OPTIC_BUILDERS, BARREL_BUILDERS, UNDER_BUILDERS,
   buildIronRear, buildIronFront, railSection,
 } from "./attachment-models.js?v=fg1-wst-or1-rt1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1-mrg3";
-import { build416 } from "./weapon-416.js?v=cg1-wst-wb1-or1-rt1-rb4-hp1-bx1-mg1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1-mrg3-p416";
+import { build416 } from "./weapon-416.js?v=cg1-wst-wb1-or1-rt1-rb4-hp1-bx1-mg1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1-mrg3-p416-sk1";
 import { buildRevolverPair } from "./revolvers.js?v=rv2-wst-or1";
 import { PISTOL_BUILDERS } from "./weapon-pistols.js?v=ps1-wb1-or1-rt1-rb4-hp1-bx1-mg1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1-mrg3-p416";
 import { SNIPER_BUILDERS } from "./weapon-snipers.js?v=sn2-wb1-or1-rt1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1-mrg3-p416";
 import { SMG_BUILDERS } from "./weapon-smgs.js?v=sm1-wb1-or1-rt1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1-mrg3-p416";
 import { AR_BUILDERS } from "./weapon-ars.js?v=ar1-ar2-or1-rt1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1-mrg3-p416";
-import { finishDef, skinDef, camoDef } from "../characters/skins.js?v=p5-wb1-or1";
-import { camoMaterial, camoAttributes, camoFlat } from "./camo.js?v=cm1";
+import { finishDef, skinDef, camoDef } from "../characters/skins.js?v=p5-wb1-or1-sk1";
+import { camoMaterial, camoAttributes, camoFlat } from "./camo.js?v=cm1-sk1";
 import { rigSoulBlazer, SB_INSPECT_KEYS } from "./soul-blazer.js?v=sb1-or1";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { shrinkTexture } from "../view/texture-budget.js?v=pm1";
@@ -114,7 +114,7 @@ const DETAILED = {
   // the MTAR on arsenal v2 (models/build_mtar.blender.py): baked kit, the
   // port above the mag, a see-through mag (gun-action.js sinks its rounds)
   kek: {
-    url: new URL("../models/mtar.glb?v=mt2", import.meta.url).href,
+    url: new URL("../models/mtar.glb?v=mt3", import.meta.url).href,
     kit: "mtar", p: "MT", device: "MT_Hider", rake: -0.37, railY: 0.043, adsDistance: null, glow: [], brass: "556",
   },
   lol: {
@@ -189,7 +189,7 @@ const detailedLod1 = new Map();
    moving parts (P_Carrier ...) carry their motion as extras (tf_part,
    tf_kind, tf_axis, tf_travel) for view/gun-action.js. */
 const kitUrl = (kit, file) => new URL(`../models/${kit}${file}?v=${KIT_VER[kit] ?? 1}`, import.meta.url).href;
-const KIT_VER = { problem416: "pf3", mtar: "mt2" };   // pf3: re-baked with the skin mask
+const KIT_VER = { problem416: "pf3", mtar: "mt3" };   // pf3 / mt3: re-baked with the skin mask
 function loadDetailed(id, cfg) {
   const lod0 = new GLTFLoader().loadAsync(cfg.url).then((gltf) => {
     detailedTemplates.set(id, prepDetailed(gltf.scene, cfg));
