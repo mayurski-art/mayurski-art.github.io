@@ -1,0 +1,176 @@
+{
+ "season": "halloween",
+ "suffix": "-halloween",
+ "float": {
+  "pumpkins": [
+   [
+    -26,
+    46,
+    2.2
+   ],
+   [
+    18,
+    52,
+    1.9
+   ],
+   [
+    -8,
+    62,
+    2.4
+   ],
+   [
+    34,
+    40,
+    1.8
+   ],
+   [
+    -40,
+    34,
+    2
+   ],
+   [
+    6,
+    38,
+    1.6
+   ]
+  ],
+  "c130": [
+   -70,
+   110,
+   -40,
+   1.2,
+   1
+  ],
+  "moon": [
+   150,
+   150,
+   -700,
+   24
+  ],
+  "slab": {
+   "w": 9.5,
+   "d": 2.8,
+   "depth": 1.5
+  }
+ },
+ "clear": null,
+ "grade": {
+  "sun": "#ff9a52",
+  "sunK": 0.55,
+  "fillK": 0.8,
+  "sky": "#8a7fd0",
+  "ground": "#3a2430",
+  "exposure": 1,
+  "post": {
+   "sat": 1.12,
+   "contrast": 1.08,
+   "shadows": "#2a1850",
+   "shadowsAmt": 0.18,
+   "highlights": "#ffb070",
+   "highlightsAmt": 0.12
+  }
+ },
+ "squad": [
+  {
+   "token": 0,
+   "side": -3.2,
+   "turn": true,
+   "pose": "port",
+   "gun": "problem416"
+  },
+  {
+   "token": 0,
+   "side": -1.6,
+   "turn": true,
+   "pose": "port",
+   "gun": "kek"
+  },
+  {
+   "token": 1272,
+   "side": 0,
+   "back": 0.3,
+   "turn": true,
+   "pose": "port",
+   "gun": "howl"
+  },
+  {
+   "token": 0,
+   "side": 1.6,
+   "turn": true,
+   "pose": "port",
+   "gun": "greencandle"
+  },
+  {
+   "token": 0,
+   "side": 3.2,
+   "turn": true,
+   "pose": "port",
+   "gun": "problem416"
+  }
+ ],
+ "frames": {
+  "wide": {
+   "size": [
+    1920,
+    1080
+   ],
+   "moon": [
+    270,
+    200,
+    -700
+   ],
+   "c130": [
+    -110,
+    66,
+    -120
+   ],
+   "cast": {
+    "dist": 7.5,
+    "feet": -5.8,
+    "spread": 1.2,
+    "slabScale": 1
+   },
+   "shots": [
+    [
+     150,
+     62,
+     22,
+     58,
+     16
+    ]
+   ]
+  },
+  "tall": {
+   "size": [
+    1080,
+    1920
+   ],
+   "moon": [
+    100,
+    150,
+    -700
+   ],
+   "c130": [
+    -45,
+    60,
+    -110
+   ],
+   "cast": {
+    "dist": 6,
+    "feet": -4.95,
+    "spread": 0.45,
+    "slabScale": 0.45
+   },
+   "shots": [
+    [
+     150,
+     62,
+     22,
+     68,
+     12
+    ]
+   ],
+   "ss": 1.6
+  }
+ }
+}

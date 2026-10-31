@@ -25,6 +25,33 @@ export function initBootScreen(root) {
   if (chapter) chapter.textContent = SEASON.name.toUpperCase();
   void word;
 
+  /* Two looks of the key art (user, 2026-10-31: "a normal version and then
+     a halloween version ... users can click a pumpkin button that changes
+     to halloween version"): normal unless the player picked the pumpkin;
+     remembered on this device. */
+  const ART = "assets/games/troll-ops/ui/boot", ART_V = "lk1", LOOK_KEY = "trollops:boot-look";
+  const look = root.querySelector(".to-boot-look");
+  const art = root.querySelector(".to-boot-art");
+  function setLook(spooky, save) {
+    const sfx = spooky ? "-halloween" : "";
+    const src = art?.querySelector("source"), img = art?.querySelector("img");
+    if (src) src.srcset = `${ART}/key-art-tall${sfx}.webp?v=${ART_V}`;
+    if (img) {
+      img.src = `${ART}/key-art-wide${sfx}.webp?v=${ART_V}`;
+      img.alt = `The squad on the Troll Peak facing you, Trollface Island behind them${spooky ? " on Halloween night" : ""}`;
+    }
+    root.classList.toggle("is-halloween", spooky);
+    look?.setAttribute("aria-pressed", String(spooky));
+    if (save) { try { localStorage.setItem(LOOK_KEY, spooky ? "halloween" : "normal"); } catch {} }
+  }
+  let spooky = false;
+  try { spooky = localStorage.getItem(LOOK_KEY) === "halloween"; } catch {}
+  if (spooky) setLook(true, false);
+  const flipLook = () => { spooky = !spooky; setLook(spooky, true); };
+  // (its click and press are its own: they never enter the menu)
+  look?.addEventListener("pointerdown", (e) => e.stopPropagation());
+  look?.addEventListener("click", (e) => { e.stopPropagation(); flipLook(); });
+
   const gate = /[?&]boot=1/.test(location.search) || !navigator.webdriver;
   const state = { ready: false, done: false, mode: "key", enteredBy: null };
 
@@ -59,6 +86,14 @@ export function initBootScreen(root) {
   // hears them); browser chords and the F keys pass
   const onKey = (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey || /^F\d+$/.test(e.key)) return;
+    // Tab reaches the pumpkin; Enter or Space on it flips the look
+    if (e.key === "Tab") return;
+    if (look && document.activeElement === look && (e.key === " " || e.key === "Enter")) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (!e.repeat) flipLook();
+      return;
+    }
     setMode("key");
     e.preventDefault();
     e.stopImmediatePropagation();

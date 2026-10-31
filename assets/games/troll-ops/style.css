@@ -2134,6 +2134,17 @@ body.to-touch-play .to-ws-guns span { pointer-events: auto; cursor: pointer; pad
   animation: to-boot-pulse 1.8s ease-in-out infinite;
 }
 .to-boot-prompt[hidden] { display: none; }
+/* the Halloween look (boot-screen.js): a pumpkin in the corner, lit when on */
+.to-boot-look { position: absolute; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); z-index: 2; display: grid; place-items: center; width: 48px; height: 48px; padding: 0; border: 1px solid rgba(255,255,255,.28); border-radius: 2px; background: rgba(10,14,34,.62); cursor: pointer; transition: background .2s, border-color .2s, transform .2s; }
+.to-boot-look svg { width: 28px; height: 28px; }
+.to-boot-look-body { fill: none; stroke: #e9ecff; stroke-width: 1.4; stroke-linejoin: round; }
+.to-boot-look-stem { fill: none; stroke: #9ed36a; stroke-width: 1.6; stroke-linecap: round; }
+.to-boot-look-face { fill: #e9ecff; opacity: .7; }
+.to-boot-look:hover { transform: translateY(-1px); border-color: rgba(255,255,255,.6); }
+.to-boot-look:focus-visible { outline: 2px solid #ffe04d; outline-offset: 3px; }
+.to-boot-look[aria-pressed="true"] { border-color: #ff9a2e; background: rgba(60,22,0,.7); box-shadow: 0 0 18px rgba(255,140,30,.55); }
+.to-boot-look[aria-pressed="true"] .to-boot-look-body { fill: #ff8a1e; stroke: #ffb35c; }
+.to-boot-look[aria-pressed="true"] .to-boot-look-face { fill: #ffe08a; opacity: 1; }
 .to-boot-prompt kbd {
   display: inline-block; vertical-align: baseline; margin: 0 .15em; padding: .18em .5em .22em;
   border-radius: .35em; border: 1.5px solid rgba(255,255,255,.75); border-bottom-width: 3px;

@@ -11,6 +11,11 @@
 //   assets/games/troll-ops/ui/boot/key-art-wide.webp   1920 x 1080 (desktop,
 //                                                      ultrawide, phone landscape)
 //   assets/games/troll-ops/ui/boot/key-art-tall.webp   1080 x 1920 (phone portrait)
+// Two looks (user, 2026-10-31: "a normal version and then a halloween
+// version"; the boot screen's pumpkin button swaps them): the scene file's
+// "season" ("off" | "halloween") and "suffix" ("" | "-halloween"):
+//   node tools/troll-ops-loading-art.mjs                                       normal
+//   SCENE=troll-ops-loading-art-halloween.json node tools/troll-ops-loading-art.mjs
 //
 // A private room code and no bots, Supabase blocked: never a public room.
 //
@@ -95,7 +100,7 @@ await ctx.route(/supabase/, (r) => r.abort());
 const page = await ctx.newPage();
 page.on("pageerror", (e) => console.log(`page: ${e.message}`));
 page.on("console", (m) => { if (m.text().startsWith("ART")) console.log(m.text()); });
-await page.goto(`${BASE}/troll-ops.html?tohooks=1&season=halloween`, { waitUntil: "domcontentloaded", timeout: 120000 });
+await page.goto(`${BASE}/troll-ops.html?tohooks=1&season=${SCENE.season || "halloween"}`, { waitUntil: "domcontentloaded", timeout: 120000 });
 await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 120000 });
 await page.evaluate(async () => {
   const T = window.__trollOps;
@@ -304,6 +309,9 @@ await page.evaluate(async (S) => {
       if (o.isAmbientLight) { o.intensity *= g.fillK; o.color.set(g.sky); }
     });
     if (g.exposure) T.renderer.toneMappingExposure *= g.exposure;
+    // the game's own colour grade (view/grade-pass.js): sat, contrast, and a
+    // split tone { shadows, shadowsAmt, highlights, highlightsAmt }
+    if (g.post) for (const p of T.composer.passes) if (p.setGrade) p.setGrade(g.post);
   }
   const black = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.7, metalness: 0.1 });
   const LOW_READY = 1.2, PORT_YAW = 1.15, PORT_ROLL = 0.5;
@@ -485,7 +493,7 @@ for (const [name, frame] of Object.entries(SCENE.frames)) {
     const scale = `scale=${frame.size[0]}:${frame.size[1]}:flags=lanczos`;
     execFileSync(process.env.FFMPEG || "ffmpeg", ["-loglevel", "error", "-y", "-i", file, "-vf", scale, path.join(TRYDIR, `${name}.png`)]);
     // light enough for phones: webp q 88 (ffmpeg's libwebp)
-    const webp = path.join(OUT, `key-art-${name}.webp`);
+    const webp = path.join(OUT, `key-art-${name}${SCENE.suffix || ""}.webp`);
     execFileSync(process.env.FFMPEG || "ffmpeg", ["-loglevel", "error", "-y", "-i", file, "-vf", scale, "-c:v", "libwebp", "-quality", "88", "-compression_level", "6", webp]);
     console.log("wrote", path.relative(ROOT, webp), Math.round(fs.statSync(webp).size / 1024), "KB");
   }

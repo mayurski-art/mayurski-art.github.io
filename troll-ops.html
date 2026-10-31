@@ -734,9 +734,13 @@
            for the device in hand. Up until the player enters the menu. -->
       <div class="to-loading" id="to-loading" role="dialog" aria-label="Trollnite">
         <picture class="to-boot-art">
-          <source media="(orientation: portrait)" srcset="assets/games/troll-ops/ui/boot/key-art-tall.webp?v=fc1">
-          <img src="assets/games/troll-ops/ui/boot/key-art-wide.webp?v=fc1" alt="The squad on the Troll Peak facing you, Trollface Island behind them on Halloween night" decoding="async" fetchpriority="high">
+          <source media="(orientation: portrait)" srcset="assets/games/troll-ops/ui/boot/key-art-tall.webp?v=lk1">
+          <img src="assets/games/troll-ops/ui/boot/key-art-wide.webp?v=lk1" alt="The squad on the Troll Peak facing you, Trollface Island behind them" decoding="async" fetchpriority="high">
         </picture>
+        <!-- the Halloween look (boot-screen.js): swaps the art, remembered -->
+        <button type="button" class="to-boot-look" aria-pressed="false" aria-label="Halloween look" title="Halloween look">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path class="to-boot-look-stem" d="M12 7c0-2 .8-3.4 2.6-4.2"/><path class="to-boot-look-body" d="M12 7c-1.2-.9-3-1.1-4.6-.6C4.6 7.3 3 9.9 3 13.2 3 17.4 5.6 21 9 21c1.2 0 2.2-.4 3-1 .8.6 1.8 1 3 1 3.4 0 6-3.6 6-7.8 0-3.3-1.6-5.9-4.4-6.8-1.6-.5-3.4-.3-4.6.6z"/><path class="to-boot-look-face" d="M7.6 12.2l1.6-1.6 1.6 1.6zM13.2 12.2l1.6-1.6 1.6 1.6zM7.5 15.4c1.3 1.4 2.8 2 4.5 2s3.2-.6 4.5-2c-1.1.4-1.9.5-2.6.3l-.9.9-.9-.8c-.4.1-.8.1-1.2 0l-.9.8-.9-.9c-.7.2-1.5.1-2.6-.3z"/></svg>
+        </button>
         <div class="to-boot-top">
           <b class="tn-word to-boot-word">TROLLNITE</b>
           <span class="to-boot-chapter">CHAPTER ONE</span>
