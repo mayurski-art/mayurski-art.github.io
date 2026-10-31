@@ -345,41 +345,87 @@ export function buildUnderShell(K, N, M, UM) {
   return seats;
 }
 
+/* A flat polygon's pieces outside the rect [x0, x1, z0, z1], each still a
+   convex polygon in the same winding. Points are { x, z, w } (w the weights
+   of the source triangle's three corners). */
+function clipHalf(poly, axis, val, less) {
+  const out = [], inside = (p) => (less ? p[axis] <= val : p[axis] >= val);
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length], ia = inside(a), ib = inside(b);
+    if (ia) out.push(a);
+    if (ia !== ib) {
+      const t = (val - a[axis]) / (b[axis] - a[axis]);
+      out.push({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t, w: a.w.map((w, k) => w + (b.w[k] - w) * t) });
+    }
+  }
+  return out.length >= 3 ? out : null;
+}
+function minusRect(poly, [x0, x1, z0, z1]) {
+  const out = [];
+  let rest = poly;
+  for (const [axis, val, less] of [["x", x0, true], ["x", x1, false], ["z", z0, true], ["z", z1, false]]) {
+    if (!rest) break;
+    const piece = clipHalf(rest, axis, val, less);
+    if (piece) out.push(piece);
+    rest = clipHalf(rest, axis, val, !less);
+  }
+  return out;
+}
+
 /* The old club's pieces in a Blender model (kb-shell, kb-props, kb-neon):
-   every triangle of a non-Grinjuku part that sits in the old hall is cut,
-   the rest of the mesh kept with all its attributes (the bake's uv1 too). */
+   every triangle of a non-Grinjuku part that sits in the old hall is cut;
+   in Grinjuku's part, the street's floor is cut along the stairs' wells
+   (its triangles are big: clipped, not dropped). The rest of each mesh is
+   kept with all its attributes (the bake's uv1 too). */
 export function cutOldClub(scene) {
   const partOf = (o) => { while (o.parent && o.parent !== scene) o = o.parent; return o; };
   const v = new THREE.Vector3();
   scene.updateMatrixWorld(true);
-  // Grinjuku's part keeps its street, but the wells are cut out of its floor
-  const inWell = (x, z, y) => Math.abs(y) < 0.35 && WELLS.some(([x0, x1, z0, z1]) => x > x0 && x < x1 && z > z0 && z < z1);
+  const overlaps = (lo, hi, [x0, x1, z0, z1]) => lo.x < x1 && hi.x > x0 && lo.z < z1 && hi.z > z0;
   scene.traverse((o) => {
     if (!o.isMesh) return;
-    const gone = /^gj/.test(partOf(o).name) ? inWell : inOldHall;
+    const gj = /^gj/.test(partOf(o).name);
     const g = o.geometry, P = g.attributes.position, idx = g.index;
     const n = idx ? idx.count : P.count;
-    const keep = [];
-    let dropped = 0;
+    // the output's corners: each a weighted mix of source vertices [[src, w], ...]
+    const verts = [];
+    let changed = false;
     for (let t = 0; t < n; t += 3) {
-      let cx = 0, cy = 0, cz = 0;
-      for (let k = 0; k < 3; k++) {
-        v.fromBufferAttribute(P, idx ? idx.getX(t + k) : t + k).applyMatrix4(o.matrixWorld);
-        cx += v.x / 3; cy += v.y / 3; cz += v.z / 3;
+      const src = [0, 1, 2].map((k) => (idx ? idx.getX(t + k) : t + k));
+      const p = src.map((s) => v.fromBufferAttribute(P, s).applyMatrix4(o.matrixWorld).clone());
+      const c = { x: (p[0].x + p[1].x + p[2].x) / 3, y: (p[0].y + p[1].y + p[2].y) / 3, z: (p[0].z + p[1].z + p[2].z) / 3 };
+      if (!gj) {
+        if (inOldHall(c.x, c.z, c.y)) { changed = true; continue; }
+        for (const s of src) verts.push([[s, 1]]);
+        continue;
       }
-      if (gone(cx, cz, cy)) { dropped++; continue; }
-      keep.push(t, t + 1, t + 2);
+      // a flat piece of street floor across a well: clipped round it
+      const flat = p.every((q) => Math.abs(q.y) < 0.35);
+      const lo = { x: Math.min(p[0].x, p[1].x, p[2].x), z: Math.min(p[0].z, p[1].z, p[2].z) };
+      const hi = { x: Math.max(p[0].x, p[1].x, p[2].x), z: Math.max(p[0].z, p[1].z, p[2].z) };
+      const hit = flat ? WELLS.filter((r) => overlaps(lo, hi, r)) : [];
+      if (!hit.length) { for (const s of src) verts.push([[s, 1]]); continue; }
+      changed = true;
+      let pieces = [p.map((q, k) => ({ x: q.x, z: q.z, w: [k === 0 ? 1 : 0, k === 1 ? 1 : 0, k === 2 ? 1 : 0] }))];
+      for (const r of hit) pieces = pieces.flatMap((poly) => minusRect(poly, r));
+      for (const poly of pieces) {
+        for (let k = 1; k < poly.length - 1; k++) {
+          for (const q of [poly[0], poly[k], poly[k + 1]]) verts.push(q.w.map((w, j) => [src[j], w]));
+        }
+      }
     }
-    if (!dropped) return;
-    if (keep.length === 0) { o.visible = false; o.geometry = new THREE.BufferGeometry(); return; }
+    if (!changed) return;
+    if (!verts.length) { o.visible = false; o.geometry = new THREE.BufferGeometry(); return; }
     // (the models' attributes are quantized and interleaved: read through
     // the accessor, which strides and denormalizes, into plain floats)
     const out = new THREE.BufferGeometry();
     for (const [name, attr] of Object.entries(g.attributes)) {
-      const size = attr.itemSize, arr = new Float32Array(keep.length * size);
-      for (let i = 0; i < keep.length; i++) {
-        const src = idx ? idx.getX(keep[i]) : keep[i];
-        for (let k = 0; k < size; k++) arr[i * size + k] = attr.getComponent(src, k);
+      const size = attr.itemSize, arr = new Float32Array(verts.length * size);
+      for (let i = 0; i < verts.length; i++) {
+        for (const [s, w] of verts[i]) {
+          if (!w) continue;
+          for (let k = 0; k < size; k++) arr[i * size + k] += w * attr.getComponent(s, k);
+        }
       }
       out.setAttribute(name, new THREE.BufferAttribute(arr, size));
     }
