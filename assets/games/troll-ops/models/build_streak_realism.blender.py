@@ -6,6 +6,7 @@ streak aircraft rebuilt on their real-world references (refs/streaks/<id>).
 
 Writes the .glb files next to this script, over the ones the game loads:
   recon-drone.glb    the UAV / Counter-UAV: an RQ-7B Shadow (phase 2)
+  hunter-drone.glb   the Hunter-Killer / Swarm drone (phase 3)
 
 Conventions as build_streaks.blender.py: metres, Blender +Y is the nose
 (the exporter's +Y-up makes that three.js -Z), models centred on the hull.
@@ -289,7 +290,52 @@ def build_shadow():
     export(body, "recon-drone.glb")
 
 
-BUILDS = {"uav": build_shadow}
+# ------------------------------------------------------- hunter-killer drone
+
+def build_hk():
+    """The Hunter-Killer (and the Swarm's drones): a small tube-bodied
+    aircraft (refs/streaks/drone) about 0.6 m long with a rounded nose, two
+    pairs of thin fold-out wings (a wide pair forward, a short pair aft) and
+    a two-blade pusher prop at the tail. The prop is the DroneRotor_0 node
+    the game spins (it turns about y, so the prop is built facing up and
+    the body tilted to match in the exporter's frame)."""
+    clear_scene()
+    olive = material("HkOlive", (0.33, 0.35, 0.28), rough=0.55, metal=0.2)
+    dark = material("HkDark", (0.1, 0.1, 0.1), rough=0.4, metal=0.4)
+    lens = material("HkLens", (0.05, 0.06, 0.08), rough=0.1, metal=0.5)
+    prop_mat = material("HkProp", (0.08, 0.08, 0.08), rough=0.35, metal=0.3)
+    nav = material("HkBeacon", (0.6, 0.05, 0.03), emit=(1.0, 0.1, 0.05), strength=5)
+
+    hull = []
+    hull.append(loft("tube", olive, [
+        (0.36, 0.0, 0.0, 0, 0), (0.33, 0.035, 0.035, 0, 0), (0.28, 0.05, 0.05, 0, 0),
+        (-0.2, 0.05, 0.05, 0, 0), (-0.3, 0.04, 0.04, 0, 0), (-0.34, 0.0, 0.0, 0, 0)]))
+    hull.append(cyl("eye", lens, 0.02, 0.02, (0, 0.34, -0.015), axis="y", verts=10))
+    # forward wings, a long thin pair high on the tube; the aft pair short, low
+    hull.append(wing("wing_f", olive, [(-0.62, 0.05, 0.012, 0.0, 0.045), (-0.1, 0.08, 0.018, 0.02, 0.045), (0.1, 0.08, 0.018, 0.02, 0.045), (0.62, 0.05, 0.012, 0.0, 0.045)], ring=12))
+    hull.append(wing("wing_a", olive, [(-0.46, 0.045, 0.01, -0.2, -0.04), (0.46, 0.045, 0.01, -0.2, -0.04)], ring=12))
+    # the tail fin, down from the tube ahead of the prop
+    hull.append(wing("fin", olive, [(-0.04, 0.09, 0.012, -0.2, 0), (-0.15, 0.07, 0.01, -0.25, 0)], axis="z", ring=10))
+    hull.append(cyl("motor", dark, 0.025, 0.05, (0, -0.33, 0), axis="y", verts=10))
+    body = join(hull, "Hk")
+    set_origin(body, (0, 0, 0))
+    b = sphere("Beacon", nav, 0.015, (0, 0.05, 0.06))
+    parent(b, body)
+    # the pusher prop: two blades joined, origin at the motor, turned about
+    # the body axis by the game as DroneRotor_0 (rotation.y after export)
+    # built flat like a rotor (spin about its own z), then the node is tipped
+    # to face along the tube: the game's rotation.y += then spins it about
+    # the body axis
+    prop_pos = (0, -0.37, 0)
+    blades = [box(f"blade_{i}", prop_mat, (0.24, 0.02, 0.006), (0, 0, 0), rot=(0, 0, math.radians(i * 90)), bevel=0.002) for i in range(2)]
+    prop = join(blades, "DroneRotor_0")
+    prop.rotation_euler = (math.radians(90), 0, 0)
+    prop.location = prop_pos
+    parent(prop, body)
+    export(body, "hunter-drone.glb")
+
+
+BUILDS = {"uav": build_shadow, "drone": build_hk}
 
 if __name__ == "__main__":
     args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []

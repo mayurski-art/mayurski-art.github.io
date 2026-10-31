@@ -79,7 +79,9 @@ size under budget), added to `tools/`.
 9. K9.
 10. Dragonfire + SAM Turret.
 11. Phone pass, streak icons re-rendered from the new models
-    (`render_streak_icons.blender.py`), cache tags, HANDOFF.
+    (`render_streak_icons.blender.py`), cache tags, HANDOFF. The .glb files
+    keep their names and carry no ?v= tag, so sw.js's CACHE name goes to
+    tf-assets-v3 here so every device fetches the new models once.
 
 One commit per streak (one system each), ?v= tags bumped per commit.
 
