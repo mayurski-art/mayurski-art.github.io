@@ -1,73 +1,110 @@
 # Howl Ballista: references (DESIGN-ARSENAL.md §4 step 0)
 
-The target look is the user's concept render (2026-10-30, ChatGPT), one
-sheet of three panels in this folder: `concept-sheet.webp` (the sheet as
-sent), split into `concept-1-34-mirrored.jpg` (the 3/4 view, the gun as a
-whole), `concept-2-bolt-closeup-mirrored.jpg` (the receiver: port, bolt
-body, handle and knob, wear) and `concept-3-right-side.jpg` (the clean
-side profile, muzzle left). `concept-4-port-round.png` is the user's crop
-of the port with the bolt body, the frame the visible-round animation
-should land on (the MTAR session's shared cocking animation covers it).
+**The target is Black Ops 2's Ballista itself** (user, 2026-10-30: "make
+the Ballista exactly like the Call of Duty Black Ops 2 one, not a reference
+to the Problem 416; no weapon should reference that"). The shared form
+language of §3 no longer applies to this gun: it copies the BO2 model, as
+the MTAR copies its own.
 
-Panels 1 and 2 are mirrored, as the 416's renders were: the muzzle points
-right with the bolt handle toward the camera, which a right-handed rifle
-only does from its left side. Panel 3 is a true right side (muzzle left,
-handle near). In game the handle, port and ejection stay on the right;
-every feature is matched front to back, not left to right.
+## The references
 
-Prompt they were made from: "Studio product render of a modern lightweight
-bolt-action precision rifle, about 1.2 m long, right side 3/4 view with the
-bolt handle facing the camera, on a plain neutral grey background.
-Olive-drab cerakote chassis shell over a black anodized aluminium core; the
-paint is worn at every edge, showing darker metal underneath. Crisp
-45-degree chamfered panels everywhere, no rounded blobs. A long octagonal
-front section with rows of M-LOK slots and vent slashes, a short top rail;
-a cut-away receiver side showing the polished steel bolt body inside; a
-bolt handle with a round knurled knob turned down on the right; a 20 MOA
-top rail carrying a large scope; a skeleton stock with an adjustable cheek
-riser and butt pad, both with visible adjustment lines and hex screws; a
-stippled black grip; a black polymer box magazine for .338 rounds; a
-slender fluted front section ending in a slotted muzzle device; a bipod
-folded flat under the front section. Hex screws and pins, no text, logos or
-markings." Follow-ups asked for the receiver close-up and the side profile;
-ChatGPT returned all three on one sheet.
+`bo2/`: Black Ops 2's own renders, from the Call of Duty wiki
+(callofduty.fandom.com/wiki/Ballista, CC-BY-SA): `Ballista_BOII.webp`
+(first person, the whole right side: receiver, port, scope, rail, handguard,
+bipod), `Ballista_Bolt_Cycling_BOII.webp` (the hand on the knob), `Ballista_Reloading_BOII.webp`
+(the gun rolled over: handguard slots, belly rail, the mag with a .338
+round), `Ballista_Iron_Sight_BOII.webp`, `Ballista_Upgraded_BO2.webp`
+(the Zombies Pack-a-Punch skin, colours only), `Ballista_Menu_Icon_BOII.webp`
+(the whole gun from the left-front: brake, barrel, folded bipod, stock),
+`user-fp-1.png` (the user's screenshot of the same first-person view).
 
-Where the panels disagree, the picks:
-- The barrel is plain in every panel, not fluted. Built plain, as rendered
-  (the design doc's "fluted barrel" is dropped: the render is the target).
-- Vent slashes were asked for and didn't come: the M-LOK rows carry the
-  handguard alone. None built.
-- Panel 1 shows three slot rows a side on the handguard, panel 3 two; two
-  long rows plus the short top-corner row of panel 1 it is.
-- The bolt knob is a knurled ball (panels 1 and 2), not the traced gun's
-  plain sphere.
+`real/`: the FN Ballista the game modelled (FN Herstal's entry to the US
+Army's Precision Sniper Rifle program, a Unique Alpine TPG design, .338
+Lapua Magnum, 8-round mag, 26 in barrel), from IMFDB: `fn-ballista-1.jpg`
+(left side) and `fn-ballista-2.jpg` (right side, large: the proportions
+come from this one). The game's gun is this rifle with a darker barrel and
+brake, a scuffed tan finish and its own scope.
 
-What the renders show, and where the builder takes it from
-(`models/build_ballista.blender.py`):
+`olive-concept/`: the first ChatGPT concept (an olive chassis in the §3
+language), superseded the same day; kept for the record, not a target.
 
-| Concept | Builder |
-|---|---|
-| Olive cerakote chassis, receiver, handguard, stock and cheek riser, worn through at the edges to dark metal | `cerakote` kit surface, olive greener and darker than the 416's grey OD |
-| Black core: barrel, brake, bolt shroud, screws, trigger, bipod | `anodized` / `parkerized` kit surfaces |
-| One continuous top rail from the receiver's rear to the handguard's nose, the scope rings on it over the receiver | `picatinny` on the body, scope at the traced optic z (-0.131) |
-| Receiver: a chamfered block with a stepped panel line, hex screws, the big cut-out on the right showing the bolt body (panel 2) | `receiver()`: `rrect_cut` port, screws, panel lines |
-| Polished bolt body with spiral flutes, a bolt shroud behind the receiver, the straight handle angled down, knurled ball knob | `HB_Bolt`: lathe + helical cut on the high pass, knob stippled; pivot on the bore at z -0.065 so lift and rake work on one node |
-| Octagonal M-LOK handguard, two long slot rows a side and a short row at the top corner, slots on the belly | `handguard()`: `rrect_cut` rows |
-| Bipod folded forward under the handguard, legs along the belly (panel 1 and 3) | `HB_BipodL` / `HB_BipodR`, hinge parts posed folded |
-| Plain slender barrel, box brake with three ports a side | `barrel()` lathe; `HB_Brake` own node (a barrel attachment replaces it) |
-| Short black polymer mag, 2 x 3 recessed window panels, ribbed base | `HB_Mag`, .338, 7 rounds |
-| Black stippled grip with a flared base, integral trigger guard, black trigger | `grip()`, `HB_Trigger` hinge |
-| Skeleton stock: a top beam, an angled lower strut, a big triangular window, hex screws at the joints | `stock()` section_body + `rrect_cut` through |
-| Cheek riser: an olive block on two posts with adjust slots | `riser()` |
-| Butt: black rubber pad on stacked spacer plates, hex screws, QD cups | `butt()` |
-| The round in the port (`concept-4`) | `HB_Round`: one .338 round in the chamber ahead of the bolt face, extras `tf_round: 1`; the shared cocking animation (claude/arms-mtar) shows it while the bolt is open and the mag has rounds |
+## What the BO2 Ballista is (what the builder copies)
 
-Node conventions agreed with the MTAR session (2026-10-30), which wires the
-runtime on claude/arms-mtar: `HB_Bolt` is one moving part (slide z, travel
-0.075) pivoted on the bore at the bolt's rest z, with `tf_lift` (the
-handle's lift in radians, positive rotation.z lifts the knob) so lift and
-rake run on the same node and gun-action's carrier curve leaves it alone;
-`HB_BoltKnob` is a point at the knob's centre ("BoltKnob" added to
-gunkit.POINTS and weapon-model.js gunPoints); `HB_Eject` at the port. The
-Ballista's own test checks the nodes, extras and that the LOD1 drops them;
-the cycle, round and brass are tested on the MTAR branch.
+- **Chassis**: FDE tan aluminium, scuffed and dirty (bare grey metal on the
+  edges, grime in the recesses), hard-edged machined panels. One long flat
+  top: the receiver's rail runs straight into the handguard's as a single
+  full-length rail.
+- **Receiver**: a tall tan block; a big open ejection port on the right,
+  the dark steel bolt body in it; the bolt handle sweeps back and down
+  with a round black knob; a black trigger in a cut trigger guard; a
+  cross-bolt and pins on the side; the tang behind the receiver drops to
+  the stock hinge.
+- **Handguard**: long tan octagonal section, full-length top rail; on
+  each side two long stadium slots (upper) and a row of short slots over a
+  side-rail strip (lower), plus a line of small round holes near the
+  receiver; a perforated tan accessory panel under the belly ahead of the
+  mag well; the bipod's mount on the belly rail near the nose.
+- **Bipod**: black, folded forward under the handguard, legs along the
+  belly (unusable in game).
+- **Barrel and brake**: in the game the barrel is dark grey steel (the real
+  one is tan), long and slender from the handguard's nose; a black
+  cylindrical brake with three rows of slots.
+- **Stock**: folding skeleton, tan, a hinge block right behind the tang; a
+  tan frame with a big open window, a black adjustable cheek piece on top
+  and a black vertical butt pad at the back with a monopod rail under it;
+  an open loop at the bottom rear.
+- **Grip**: tan, dimpled (the FN's ergonomic grip with its finger swell).
+- **Mag**: dark (black-brown) box, .338, straight sides, flat floorplate;
+  "Made by Hobo Commando MP, in Bavaria, Germany" on the side in the game
+  (not reproduced: no markings).
+- **Scope**: tan "Royce & Wesley" with black turrets and a black ring mount,
+  a spirit level on the rail. In game the scope is the attachment's
+  (scope8), so the builder leaves the rail bare.
+
+Panel note: the game's port and handle are on the right, as in all the BO2
+renders; `fn-ballista-1.jpg` is the left side.
+
+## Prompt (ChatGPT) for a concept sheet in the game's style
+
+"Studio product render of a modern bolt-action precision rifle in the
+style of Call of Duty: Black Ops 2's Ballista, right side 3/4 view with the
+bolt handle toward the camera, plain neutral grey background. Flat dark
+earth tan aluminium chassis, heavily scuffed and dirty, with bare grey metal
+showing on every edge; hard machined panels with crisp edges. A tall
+receiver block with a large open ejection port on the right showing the
+dark steel bolt body inside, a bolt handle swept back and down ending in a
+round black knob, a black trigger in a cut-out guard. One flat top rail
+running the full length from the receiver to the nose of a long octagonal
+tan front section; that section has two long stadium-shaped slots on each
+side, a row of short slots over a side rail strip below them, a line of
+small round holes near the receiver, and a perforated tan panel under its
+belly; a black bipod folded forward under it. A long slender dark grey
+steel front tube ending in a black cylindrical muzzle device with three
+rows of slots. A folding skeleton stock: a tan frame with a big open
+window, a black adjustable cheek piece on top, a black vertical recoil pad
+at the back with a short rail under it, a hinge block in front. A tan
+dimpled ergonomic grip. A dark box magazine for .338 rounds with straight
+sides. No scope, bare top rail. No text, logos or markings."
+
+Follow-up 1 (receiver): "Same rifle, same lighting and background.
+Close-up of the right side of the receiver: the open port with the dark
+steel bolt body and its lugs, the swept-back handle and round black knob,
+the trigger and guard, the top of the magazine, scuffed tan paint worn to
+grey metal around the port."
+
+Follow-up 2 (profile): "Same rifle, same lighting and background. Clean
+side-on profile of the right side, perfectly horizontal, muzzle pointing
+left, whole rifle in frame with space around it, no perspective."
+
+## Builder (`models/build_ballista.blender.py`)
+
+The first builder (commit e6333949) was built to the olive concept; it is
+rebuilt to the BO2 references above. Node conventions agreed with the MTAR
+session (2026-10-30) stand unchanged: `HB_Bolt` one moving part (slide z)
+pivoted on the bore at the bolt's rest z, with `tf_lift` (radians,
+positive rotation.z lifts the knob); `HB_BoltKnob` point ("BoltKnob" in
+gunkit.POINTS and weapon-model.js gunPoints); `HB_Round` (tf_round) in the
+chamber ahead of the raked bolt face; `HB_Eject` at the port; `HB_Trigger`,
+`HB_Mag`, `HB_BipodL` / `HB_BipodR` folded. Materials: the kit's cerakote in
+FDE tan worn to grey, parkerized dark steel for the barrel and bolt,
+polymer for the mag, rubber for the pad.
