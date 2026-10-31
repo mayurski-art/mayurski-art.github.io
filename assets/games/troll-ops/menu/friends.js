@@ -234,14 +234,17 @@ export function mountFriends(api) {
       say(msg, !ok);
     }, `Ask ${name}'s squad to join up with yours`);
   }
-  /* A public room they're in, that we can drop into from here. */
+  /* A room they're in, that we can drop into from here, mid-match: a public
+     one, or a friend's private one they leave open to friends (online.js
+     friendsCanJoin; off, its code never reaches us). */
   function joinBtn(o, name) {
     const a = o.activity;
-    if (!a?.pub || !a.room) return null;
-    const srv = serverList(getRoster()).find((s) => s.room === a.room);
+    if (!a?.room || !(a.pub || a.open)) return null;
+    const srv = a.pub ? serverList(getRoster()).find((s) => s.room === a.room) : { room: a.room, mode: a.mode, map: a.map };
     if (!srv) return null;
     return action("Join", "is-go", () => {
-      if (joinServer(srv)) { setStatus?.(`Joining ${name}…`); open(false); }
+      // (a private room stays off the public list)
+      if (joinServer(srv, { listed: !!a.pub })) { setStatus?.(`Joining ${name}…`); open(false); }
       else say(`Couldn't join ${name} right now.`, true);
     }, `Join ${name}'s match`);
   }

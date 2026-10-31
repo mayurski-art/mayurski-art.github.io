@@ -35,6 +35,19 @@ export function isPublicRoom(room) {
   return publicRuns.has(room);
 }
 
+/* Friends can join you mid-match (user, 2026-10-31: "make it so that
+   friends can join in the middle of their other friends matches. unless
+   they have their settings changed to not allow others to join"). On
+   unless turned off in Options, kept on the account (net/cloud-save.js).
+   Off, a private match's code stays off the wire altogether: it shows as
+   "(private)" and nobody gets a Join. A public room is open to all anyway. */
+const FRIENDS_JOIN_KEY = "trollops:friends-join";   // "off" when turned off
+export function friendsCanJoin() { try { return localStorage.getItem(FRIENDS_JOIN_KEY) !== "off"; } catch { return true; } }
+export function setFriendsCanJoin(on) {
+  try { localStorage.setItem(FRIENDS_JOIN_KEY, on ? "on" : "off"); } catch {}
+  tick();
+}
+
 /* What this tab is doing, for the presence channel. In the Public Match
    lobby, its vote and readiness (menu/map-vote.js, set by menu-bo2.js). */
 let lobbyActivity = () => null;
@@ -45,10 +58,11 @@ function activity() {
   const mode = game.currentMode();
   const room = game.net?.connected ? game.net.room : null;
   const map = game.loadedMapId || null;
+  const pub = isPublicRoom(room), open = !!room && (pub || friendsCanJoin());
   return {
     game: "tf", state: game.isZombies() ? "zombies" : "match",
     mode: game.modeId, modeName: mode.name, map, mapName: MAPS[map]?.name || map,
-    room, pub: isPublicRoom(room),
+    room: open ? room : null, pub, open, priv: !!room && !open,
     wave: game.isZombies() ? game.zdir?.round || 0 : 0,
   };
 }
@@ -103,7 +117,7 @@ export function describe(a, o = null) {
   if (a.state === "lobby") return `In the ${a.modeName || "Public Match"} lobby${a.ready ? " (ready)" : ""}`;
   const where = a.mapName ? ` on ${a.mapName}` : "";
   const wave = a.state === "zombies" && a.wave ? ` · round ${a.wave}` : "";
-  if (!a.room) return `Playing ${a.modeName || "solo"}${where}${wave} (solo)`;
+  if (!a.room) return `Playing ${a.modeName || "solo"}${where}${wave} (${a.priv ? "private" : "solo"})`;
   // (a private code stays off the wire; what they're playing doesn't)
   if (!a.pub) return `Playing ${a.modeName || "a match"}${where}${wave} (private)`;
   return `Playing ${a.modeName}${where}${wave}`;
