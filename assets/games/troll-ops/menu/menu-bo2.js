@@ -41,7 +41,7 @@ import { openKiosk } from "../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar
 import { credits } from "../modes/zombies/credits.js?v=zc1-zc2-zf1-wb1-mt2-hb4";
 import { TROLL_RETICLE_LEVEL, trollReticleUnlocked, trollReticleLabel, toggleTrollReticle } from "../view/troll-reticle.js?v=tr1-ret1-mrg1-hd1-mrc1-tw1-rt2-rd1-ars1-p416-wb1-mt2-hb4";
 import { sidePref, setSidePref, SIDE_NAMES } from "../modes/royale-side.js?v=rs1-tw1";
-import { SQUAD_SIZES, squadSize, partySize } from "../modes/royale-squads.js?v=sq1-wb1-mt2-hb4";
+import { SQUAD_SIZES, squadSize, partySize, isRoyaleMode } from "../modes/royale-squads.js?v=sq1-wb1-mt2-hb4";
 import { pickRoyaleSize } from "./mode-picker.js?v=mp1-fu1b7b7d-wb1-ar1-ar2-cl1-bp1-fj1-zr9-zr10-zh1-zc1-zc2-nf1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-sam1-rl1-tfp4-tfp7-tfb8-rfx1-ret1-mrg1-ug1-ugm1-mrc1-hgb8-hgb9-tw1-ars1-p416-mt2-hb4";
 import { recordSupported, recordPref, setRecordPref } from "../modes/royale-record.js?v=rrc1-rfx1-rr2-ret1-mrg1-hd1";
 import { isNew, hasNew, markSeen } from "../progression/grants.js?v=pk1-mb1-mb2";
@@ -110,7 +110,7 @@ root.innerHTML = `
   <nav class="to-bo2-menu" aria-label="Trollnite menu"></nav>
   <aside class="to-bo2-party" aria-label="Party">
     <span class="to-bo2-party-lbl"></span>
-    <button type="button" class="to-bo2-party-row"><i class="to-bo2-lv"></i><b class="to-bo2-name">Guest</b></button>
+    <div class="to-bo2-party-grid"><button type="button" class="to-bo2-party-row is-me"><span class="to-bo2-top"><i class="to-bo2-lv"></i><em class="to-bo2-clan" hidden></em></span><b class="to-bo2-name">Guest</b></button></div>
     <span class="to-bo2-xp"></span>
   </aside>
   <section class="to-bo2-detail" aria-live="polite">
@@ -943,6 +943,10 @@ const screens = {
       [
         { id: "anim", label: "Animations", value: () => (animOff ? "Off" : "On"), adjust: () => toggleAnim(),
           desc: "The menu's moving parts: the news cards turning, the glow. Off is easier on a slow laptop." },
+        // (view/ui-scale.js: the menu smaller on a small screen)
+        window.tfMenuScale && { id: "menuscale", label: "Menu size", value: () => `${Math.round(window.tfMenuScale.get() * 100)}%`,
+          adjust: (dir = 1) => { const s = window.tfMenuScale.sizes, i = s.indexOf(window.tfMenuScale.get()); window.tfMenuScale.set(s[(i + (dir < 0 ? -1 : 1) + s.length) % s.length]); },
+          desc: "Shrinks the menu so more fits on a small screen. Matches aren't changed." },
         { id: "hud", label: "HUD layout", desc: "Move the buttons and the HUD.", onSelect: () => $("#to-pfp-controls [data-hud-layout]")?.click() },
         // the ?diag=1 panel (core/diag.js) where a link can't carry ?diag=1:
         // an app on the home screen has its own storage and no address bar
@@ -950,7 +954,7 @@ const screens = {
           desc: "A panel that reports what loaded and what didn't. Turning it on or off reloads the page.",
           onSelect: () => { try { localStorage.setItem("tf-diag", diagOn() ? "0" : "1"); } catch {} location.reload(); } },
         back("Back to the main menu."),
-      ],
+      ].filter(Boolean),
     ],
   }),
   ...mapMode.screens,
@@ -1396,9 +1400,15 @@ function renderParty() {
   const n = renderPartyOthers();
   renderPartyHead();
   partyList.dataset.head = n > 1 ? "Online now" : "";
-  $(".to-bo2-name", root).textContent = p?.username ? withClan(p.username, getMyCard().clan) : "Guest troll";
+  // (the clan tag on the badge's line, so the name has the cell's width)
+  const me = $(".to-bo2-party-row.is-me", root), clan = p?.username ? getMyCard().clan : "";
+  $(".to-bo2-name", me).textContent = p?.username || "Guest troll";
+  const clanEl = $(".to-bo2-clan", me);
+  clanEl.hidden = !clan;
+  clanEl.textContent = clan ? `[${clan}]` : "";
+  me.setAttribute("aria-label", `${p?.username ? withClan(p.username, clan) : "Guest troll"}. ${p ? "Your Barracks" : "Sign in"}`);
   const rankEl = $("#to-lo-rank-label"), owner = !!rankEl?.classList.contains("is-owner");
-  const lv = $(".to-bo2-lv", root);
+  const lv = $(".to-bo2-lv", me);
   lv.textContent = owner ? "Owner" : (text(rankEl) || "Level 1").replace(/Level/i, "LV");
   // the rank or prestige icon in front, as in the loadout strip
   const icon = !owner && rankEl?.querySelector("svg");
@@ -1408,11 +1418,62 @@ function renderParty() {
   const xp = $(".to-bo2-xp", root);
   xp.textContent = p ? text($("#to-pf-xp")) : "Log in to keep your XP";
   xp.hidden = !xp.textContent;
+  renderSeats();
+}
+/* The party as a grid (user, 2026-10-31, an iPhone 13 Pro: the owner badge
+   and "[UMAD] troll_runner" wrapped and the box cut the second line off;
+   "could probably split the box into a grid"): you, then whoever joined,
+   two to a row, each a badge line over a name; then one "+ Invite" for the
+   next free seat (Troll Royale: only the seats Solo / Duo / Trio / Squad
+   has). */
+const partyGrid = $(".to-bo2-party-grid", root);
+function renderSeats() {
+  const v = partyView(), others = onlinePlayers(roster);
+  const seats = isRoyaleMode(game.modeId) ? squadSize() : PARTY_SIZE;
+  const cells = v.people.slice(0, PARTY_SIZE - 1).map((p) => {
+    const o = others.find((x) => x.viewerId === p.viewerId);
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "to-bo2-party-row to-bo2-seat";
+    const lv = document.createElement("i");
+    lv.className = "to-bo2-lv";
+    lv.textContent = p.host ? "Leader" : o ? (o.guest ? "Guest" : `LV ${o.level}`) : "In party";
+    const name = document.createElement("b");
+    name.className = "to-bo2-name";
+    name.textContent = p.name;
+    b.append(lv, name);
+    b.setAttribute("aria-label", `${p.name}, ${p.host ? "party leader" : "in your party"}`);
+    b.addEventListener("click", () => (o?.userId ? openProfileCard(o.userId, { name: p.name }) : openGuestCard({ viewerId: p.viewerId, name: p.name })));
+    return b;
+  });
+  if (v.host && 1 + v.people.length < seats) {
+    const add = document.createElement("button");
+    add.type = "button";
+    add.className = "to-bo2-party-row to-bo2-seat is-add";
+    add.innerHTML = `<i class="to-bo2-lv" aria-hidden="true">+</i><b>Invite</b>`;
+    add.setAttribute("aria-label", "Invite someone to your party");
+    add.addEventListener("click", () => dispatchEvent(new CustomEvent("trollforces:friends")));
+    cells.push(add);
+  }
+  for (const el of $$(".to-bo2-seat", partyGrid)) el.remove();
+  partyGrid.append(...cells);
+  fitNames();
+}
+addEventListener("trollforces:party", () => renderSeats());
+addEventListener("tf-royale-size", () => renderSeats());
+{ const ml = document.getElementById("to-lo-mode"); if (ml) new MutationObserver(() => renderSeats()).observe(ml, { subtree: true, attributes: true, attributeFilter: ["class"] }); }
+/* Each name on one line: a long one steps down to 11 px, then ellipsizes. */
+function fitNames() {
+  for (const b of $$(".to-bo2-name", partyGrid)) {
+    b.style.fontSize = "";
+    let px = parseFloat(getComputedStyle(b).fontSize) || 15;
+    while (b.scrollWidth > b.clientWidth + 1 && px > 11) b.style.fontSize = `${--px}px`;
+  }
 }
 // Your name: the Barracks (your card, calling card, clan tag, record) when
 // signed in, the sign-in when not.
-$(".to-bo2-party-row", root).title = "Your Barracks";
-$(".to-bo2-party-row", root).addEventListener("click", () => {
+$(".to-bo2-party-row.is-me", root).title = "Your Barracks";
+$(".to-bo2-party-row.is-me", root).addEventListener("click", () => {
   if (myUid()) openQuick("barracks");
   else $("#to-pf-profile")?.click();
 });

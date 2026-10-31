@@ -18,6 +18,7 @@ import { BOT_STREAK_KEY } from "../streaks/bot-streaks.js?v=sk1-si1-gj1-fu1b7b7d
 import { initCloudSave } from "../net/cloud-save.js?v=cs1b7-zc1-zc2-or1-jb5-sp1-ans1-sqd1-lmg1";
 import { makeRoomCode } from "../net/net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10-hr2-zp1-rs1-dj2-pl2-nf1-or1-bw2-bt1-dom1-jb3-jb4-sp1-gb4-gb6-gb8-gb9-tfb8-rfx3-tw1-sqd1-lmg1-wb1";
 import { game } from "../core/state.js?v=st1";
+import { squadSize, isRoyaleMode } from "../modes/royale-squads.js?v=sq1-wb1-mt2-hb4";
 import { setLookSource, partyLookChanged, partyView, invitePlayer, setSquadMode, setSquadName, leaveSquad, SQUAD_NAME_MAX } from "./invites.js?v=iv1-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-pty1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-rs1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2";
 import { wearBlocky, ownBody, prefetchBody, setReliefFace } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-hl1-mg1-sp1-rh1-ci6-pm1-mb1-mb2";
 
@@ -170,6 +171,9 @@ if (stageEl) {
   });
 }
 addEventListener("trollforces:online", (e) => { online = Array.isArray(e.detail) ? e.detail : []; renderStage(); });
+addEventListener("tf-royale-size", () => renderStage());
+// (a mode picked: Royale's seats, or back to four)
+{ const ml = document.getElementById("to-lo-mode"); if (ml) new MutationObserver(() => renderStage()).observe(ml, { subtree: true, attributes: true, attributeFilter: ["class"] }); }
 /* Under the pads: your squad's name (its leader renames it with the pencil:
    user, 2026-10-30). Two squads joined up: white arrows either side go
    between them, Together / Versus (the leader who asked picks; the rest see
@@ -248,6 +252,7 @@ function renderStage() {
   const inParty = new Set(people.map((p) => p.viewerId));
   const free = online.filter((o) => !inParty.has(o.viewerId));
   let pick = 0;
+  const seats = isRoyaleMode(game.modeId) ? squadSize() : 4;
   for (const slot of [1, 2, 3]) {
     const p = people[slot - 1], tag = tags[slot];
     tag.hidden = !p;
@@ -257,7 +262,9 @@ function renderStage() {
     }
     // an empty pad: yours to fill (not in someone else's party: their host
     // invites)
-    const empty = !p && v.host;
+    // (Troll Royale: only the seats Solo / Duo / Trio / Squad has; user,
+    // 2026-10-31: "include or exclude those dotted + boxes")
+    const empty = !p && v.host && slot < seats;
     stageEl.querySelector(`.to-stage-add[data-slot="${slot}"]`).hidden = !empty;
     const bubble = stageEl.querySelector(`.to-stage-bubble[data-slot="${slot}"]`), o = empty ? free[pick++] : null;
     bubble.hidden = !o;

@@ -15,4 +15,26 @@
   }
   apply();
   addEventListener("resize", apply);
+
+  // Menu size (Options, user 2026-10-31: "a settings option to lower the
+  // scale of the main menu", on an iPhone 13 Pro): the menu alone (#to-title,
+  // style.css --menu-z) at 100% down to 70%, on top of --ui-z. Per device,
+  // never synced: a phone and a monitor want different sizes.
+  var KEY = "trollops:menu-scale", SIZES = [1, 0.9, 0.8, 0.7];
+  function menu() {
+    var v = 1;
+    try { v = parseFloat(localStorage.getItem(KEY)) || 1; } catch (e) {}
+    return SIZES.indexOf(v) < 0 ? 1 : v;
+  }
+  function applyMenu() { root.style.setProperty("--menu-z", String(menu())); }
+  applyMenu();
+  window.tfMenuScale = {
+    sizes: SIZES,
+    get: menu,
+    set: function (v) {
+      try { localStorage.setItem(KEY, String(v)); } catch (e) {}
+      applyMenu();
+      dispatchEvent(new Event("resize"));   // (the menu's fits measure again)
+    },
+  };
 })();

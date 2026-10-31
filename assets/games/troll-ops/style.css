@@ -49,6 +49,13 @@ input, textarea, [contenteditable="true"] {
    cq units against the cabinet, which zoom doesn't inflate (vh/vw it does). */
 .to-cabinet > :not(canvas, .to-touch, .to-rotate),
 body > :is([class^="to-"], [class^="tf-"]) { zoom: var(--ui-z, 1); }
+/* the menu, times Options' Menu size (view/ui-scale.js --menu-z) */
+.to-cabinet > #to-title { zoom: calc(var(--ui-z, 1) * var(--menu-z, 1)); }
+/* ...but not the operator's stage: its names and "+"s sit on projected
+   points of its canvas; and the menu's buttons beside the tab bar shrink
+   with it, or they'd overlap the tabs */
+#to-title .to-char-view { zoom: calc(1 / var(--menu-z, 1)); }
+#to-title:not([hidden]) ~ :is(.to-radio, .to-x-link, .to-truths-link) { zoom: calc(var(--ui-z, 1) * var(--menu-z, 1)); }
 /* Layers placed at a world point by projecting it to screen px stay at the
    screen's own scale, or they'd land off their target. */
 .to-dmg-nums, .zh-bars, .to-hk-lock, .to-ws-marks, .to-scope, .to-team-marks { zoom: calc(1 / var(--ui-z, 1)); }
@@ -4921,6 +4928,22 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-bo2.is-fn .to-bo2-party-row.is-other b { color: #fff; font-size: 15px; }
 .to-bo2.is-fn .to-bo2-party-row small, .to-bo2.is-fn .to-bo2-lv, .to-bo2.is-fn .to-bo2-xp, .to-bo2.is-fn .to-bo2-party-more { font-family: var(--fn-ui); font-weight: 700; }
 .to-bo2.is-fn .to-bo2-lv { color: var(--fn-cyan); }
+/* the party grid (menu-bo2.js renderSeats): two to a row, a badge line
+   over a one-line name (fitNames shrinks a long one) */
+.to-bo2-party-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.to-bo2-party-grid > .to-bo2-party-row { flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; min-width: 0; min-height: 40px; padding: 3px 9px; box-sizing: border-box; }
+.to-bo2-party-grid .to-bo2-lv { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; font-size: 11px; line-height: 1.1; white-space: nowrap; }
+.to-bo2-party-grid .to-bo2-lv.is-owner { padding: 1px 7px 1px 1px; gap: 4px; font-size: 9.5px; letter-spacing: .12em; }
+.to-bo2-party-grid .to-bo2-lv.is-owner::before { width: 14px; height: 14px; }
+.to-bo2-party-grid .to-bo2-top { display: flex; align-items: center; gap: 5px; max-width: 100%; min-width: 0; }
+.to-bo2-party-grid .to-bo2-top .to-bo2-lv { flex: none; }
+.to-bo2-party-grid .to-bo2-clan { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 800 11px/1.1 var(--fn-ui, sans-serif); font-style: normal; letter-spacing: .04em; color: #c9d4ff; }
+.to-bo2-party-grid .to-bo2-name { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.to-bo2.is-fn .to-bo2-party-grid .to-bo2-party-row b { font-size: 15px; line-height: 1.1; }
+.to-bo2.is-fn .to-bo2-party-grid .to-bo2-seat b { color: #fff; }
+.to-bo2.is-fn .to-bo2-party-grid .to-bo2-seat.is-add { border-style: dashed; border-color: rgba(255,255,255,.55); background: rgba(8,12,34,.35); }
+.to-bo2.is-fn .to-bo2-party-grid .to-bo2-seat.is-add .to-bo2-lv { font: 800 16px/1 var(--fn-ui); color: #fff; }
+.to-bo2.is-fn .to-bo2-party-grid .to-bo2-seat.is-add b { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; }
 .to-bo2.is-fn .tf-btn--secondary.to-bo2-party-invite { border-radius: 8px; border: 0; background: var(--fn-yellow); color: #1b1400; font: 800 13px var(--fn-ui); letter-spacing: .04em; text-transform: uppercase; }
 .to-bo2.is-fn .to-party { margin: 0; padding: 4px 4px 4px 10px; border-color: var(--fn-line); border-radius: 0; background: rgba(79,216,255,.1); }
 /* one line in the lobby's party card (its full text on hover), so it never
@@ -5157,7 +5180,18 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   #to-title.is-bo2.is-fn .to-pf > .to-gun-view.is-hero { top: var(--fn-top); }
   .to-bo2.is-fn.has-gun .to-bo2-detail { top: calc(var(--fn-top) + 38cqh + 8px); max-height: calc(100% - var(--fn-top) - 38cqh - 8px - var(--foot-h, 36px) - 20px); }
   .to-bo2.is-fn .to-bo2-party { top: var(--fn-top); width: 250px; }
-  .to-bo2.is-fn[data-screen="main"] .to-bo2-party { bottom: calc(254px + var(--fn-safe-b)); max-height: calc(100% - var(--fn-top) - 254px - var(--fn-safe-b)); padding: 7px; }
+  /* (down to the mode card's real top: lobby-fn.js --fn-play-h) */
+  .to-bo2.is-fn[data-screen="main"] .to-bo2-party { bottom: auto; max-height: calc(100% - var(--fn-top) - 54px - var(--fn-safe-b) - var(--fn-play-h, 200px) - 8px); padding: 4px 6px 5px; overflow-y: auto; scrollbar-width: none; }
+  .to-bo2.is-fn[data-screen="main"] .to-bo2-party::-webkit-scrollbar { display: none; }
+  .to-bo2.is-fn .to-bo2-party-lbl { font-size: 12px; line-height: 14px; }
+  .to-bo2.is-fn .to-bo2-party { gap: 3px; }
+  .to-bo2.is-fn .to-bo2-party > :empty { display: none; }   /* (no gap for an empty row) */
+  .to-bo2-party-grid { gap: 3px; }
+  .to-bo2-party-grid > .to-bo2-party-row { min-height: 31px; padding: 2px 7px; gap: 1px; }
+  .to-bo2.is-fn .to-bo2-party-grid .to-bo2-party-row b { font-size: 13px; }
+  .to-bo2-party-grid .to-bo2-lv, .to-bo2-party-grid .to-bo2-clan { font-size: 9.5px; }
+  .to-bo2-party-grid .to-bo2-lv.is-owner { font-size: 8px; letter-spacing: .08em; padding-right: 5px; }
+  .to-bo2-party-grid .to-bo2-lv.is-owner::before { width: 11px; height: 11px; }
   .to-bo2.is-fn .to-bo2-foot { bottom: calc(8px + var(--fn-safe-b)); }
   .to-bo2.is-fn .to-bo2-online { padding: 6px 10px; font-size: 14px; }
   /* the stage between the narrower columns, its names smaller; no bubbles
@@ -5190,7 +5224,10 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
      bar names the page and takes you back, so no title or Back here */
   .to-bo2.is-fn[data-screen="locker"] .to-bo2-menu { bottom: calc(46px + var(--fn-safe-b)); }
   .to-bo2.is-fn[data-screen="locker"] .tr-menu-title, .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(3) { display: none; }
-  .to-bo2.is-fn[data-screen="locker"] .tr-menu-groups { grid-template-columns: minmax(0, 470px) 1fr 220px; gap: 8px 12px; }
+  /* (user, 2026-10-31, an iPhone 13 Pro: the class panel took the middle
+     and the operator was cut off behind the right one) the middle column is
+     the operator's, 160 px; the class panel takes the rest */
+  .to-bo2.is-fn[data-screen="locker"] .tr-menu-groups { grid-template-columns: minmax(0, 1fr) 160px 190px; gap: 8px 12px; }
   .to-bo2.is-fn[data-screen="locker"] .tr-menu-group { gap: 6px; padding: 7px; }
   .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(1) { grid-template-columns: repeat(3, 1fr); }
   .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item { min-height: 40px; padding: 4px 9px; gap: 2px; }
@@ -5198,7 +5235,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
   .to-bo2.is-fn[data-screen="locker"] .tr-menu-group:nth-child(-n+2) .tr-menu-item > small:not([aria-hidden]) { font-size: 14px; }
   .to-bo2.is-fn[data-screen="locker"] .tr-menu-item[data-id="classlist"] { min-height: 42px; }
   .to-bo2.is-fn[data-screen="locker"] .tr-menu-item[data-id="classlist"] > small:not([aria-hidden]) { font-size: 20px; }
-  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="locker"]) .to-char-view { left: calc(var(--fn-pad) + 482px); right: calc(var(--fn-pad) + 232px); bottom: calc(46px + var(--fn-safe-b)); }
+  #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="locker"]) .to-char-view { left: calc(100% - var(--fn-pad) - 190px - 12px - 160px); right: calc(var(--fn-pad) + 190px + 12px); bottom: calc(46px + var(--fn-safe-b)); }
   /* the item cards' pictures shorter, so more cards fit */
   .to-bo2.is-fn .tr-menu-item .tr-menu-pic { height: 44px; }
   .to-bo2.is-fn:is([data-screen]) .tr-menu-group:first-child .tr-menu-item:has(.tr-menu-pic) { min-height: 96px; }

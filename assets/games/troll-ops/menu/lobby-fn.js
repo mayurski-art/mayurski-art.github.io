@@ -218,6 +218,9 @@ export function mountFnLobby(api) {
     <button type="button" class="to-fn-go"><kbd class="to-fn-padkey" aria-hidden="true">A</kbd><span class="to-fn-go-text">Play</span></button>`;
   root.appendChild(play);
   play.append(news);   // (the event tile stands over the mode card)
+  // its height, for the party box over it (style.css: a sideways phone's
+  // party grid takes all the room down to it)
+  new ResizeObserver(() => root.style.setProperty("--fn-play-h", `${play.offsetHeight}px`)).observe(play);
   const picker = document.createElement("div");
   picker.className = "to-fn-glass to-fn-picker";
   picker.setAttribute("role", "dialog");
@@ -431,7 +434,7 @@ export function mountFnLobby(api) {
     const act = e.target.closest("[data-act]")?.dataset.act;
     if (act === "arcade") api.toArcade();
     else if (act === "career") goTab("career");
-    else if (act === "me") $(".to-bo2-party-row", root)?.click();   // Barracks, or sign in
+    else if (act === "me") $(".to-bo2-party-row.is-me", root)?.click();   // Barracks, or sign in
   });
   left.addEventListener("click", (e) => {
     const act = e.target.closest("[data-act]")?.dataset.act;
