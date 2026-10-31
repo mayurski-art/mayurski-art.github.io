@@ -83,7 +83,6 @@ export function initMenuButtons() {
     game.loadout.render();
     renderLobbyRoster();
     game.roomSkillSeen = null;
-    game.renderBotSkillNote();
     showLobbyPanel("deploy");
   });
 

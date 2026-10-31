@@ -43,7 +43,6 @@ await page.goto(`http://localhost:${server.address().port}/troll-ops.html?tohook
 await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 90000 });
 await page.evaluate(async () => {
   const T = window.__trollOps;
-  T.settings.botSkill = "veteran";
   T.bots.difficulty = "veteran";
   T.setMode("tdm");
   if (T.els.noBots) T.els.noBots.checked = false;

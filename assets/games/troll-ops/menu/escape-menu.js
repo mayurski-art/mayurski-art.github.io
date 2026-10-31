@@ -69,7 +69,6 @@ export function initEscapeMenu() {
   bindCheck("to-set-minimap-lobby", "minimap");
   bindCheck("to-set-fps-lobby", "fps");
   bindCheck("to-set-viewmode-lobby", "viewMode");
-  bindSelect("to-set-botskill", "botSkill");
   bindSelect("to-set-gfx", "gfx");
   bindSelect("to-set-gfx-lobby", "gfx");
 
