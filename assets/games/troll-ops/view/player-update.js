@@ -446,6 +446,8 @@ export function updatePlayer(dt) {
   // looser gate instead of inheriting the staging freeze from canAct.
   const canAds = !game.move.busy && game.player.alive && !throwing;
   w.adsMult = hasPerk("dexterity") ? 1 / PERK_TUNE.dexterityAds : 1;   // Dexterity: ADS twice as fast
+  // Mounted on its bipod (gun-action.js updateBipod), the gun kicks x0.4.
+  w.kickSteady = 1 - (game.activeWeaponMesh?.userData.bipodK || 0) * 0.6;
   w.update(dt, {
     moving: game.move.moving,
     sprinting: game.move.sprinting,

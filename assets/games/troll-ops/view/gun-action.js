@@ -7,6 +7,8 @@
 //    pulls; the bolt catch rises when it locks and goes down under the
 //    slap; the charging handle rides the hand back (ar-reload.js partState);
 //    the selector shows the fire mode.
+//  - The bipod (docs/PRONE.md): legs down while prone, still and aiming,
+//    folded otherwise (updateBipod; any gun exporting BipodL / BipodR).
 //  - The pistols' slides (pistol-action.js) and the bolt rifles' bolts
 //    (rifle-action.js), which keep their own timing.
 // Returns what the view plays: { release, boltBeat, eject }.
@@ -90,10 +92,28 @@ function setPart(p, k) {
   else p.node.position[p.axis] = p.pos[p.axis] + v;
 }
 
+/* The bipod's legs: down over BIPOD_DOWN s while `want` (prone, still,
+   aiming: weapon-view.js), folded over BIPOD_UP s otherwise. Sets
+   userData.bipodK (0..1, how far down: the mounted steadiness reads it)
+   and returns "down" on the frame the legs lock, for the click. */
+const BIPOD_DOWN = 0.25, BIPOD_UP = 0.2;
+export function updateBipod(mesh, want, dt) {
+  const u = mesh?.userData, P = u?.gunParts;
+  if (!P?.BipodL && !P?.BipodR) { if (u) u.bipodK = 0; return null; }
+  const t0 = u.bipodT ?? 0;
+  const t = want ? Math.min(1, t0 + dt / BIPOD_DOWN) : Math.max(0, t0 - dt / BIPOD_UP);
+  u.bipodT = t;
+  u.bipodK = smoothstep(t);
+  setPart(P.BipodL, u.bipodK);
+  setPart(P.BipodR, u.bipodK);
+  return t0 < 1 && t >= 1 ? "down" : null;
+}
+
 /* The mechanism back at rest (a new gun in hand, a test). */
 export function resetGunAction(mesh) {
   const u = mesh?.userData;
   if (!u?.gunParts) return;
   u.gunAction = null;
+  u.bipodT = u.bipodK = 0;
   for (const p of Object.values(u.gunParts)) setPart(p, 0);
 }

@@ -12,7 +12,9 @@
 // legs. Then in the game, offline (a private
 // local match, Supabase blocked, no bots): holding keyboard C, a pad's B
 // and the touch crouch button each lie you down, a pad tap only crouches,
-// another player sees you lying down (two tabs in a private room over
+// the Ballista's bipod comes down aiming prone and still (the legs swing
+// 1.5 rad, kick x0.4, sway x0.1) and folds on the move, off the sights or
+// standing, never standing; another player sees you lying down (two tabs in a private room over
 // BroadcastChannel, Supabase blocked) and a shot over you misses; and the
 // controls diagram's B callout ("Crouch · hold: prone · slide")
 // fits its column. Writes OUT/prone-*.png when OUT is set.
@@ -252,7 +254,7 @@ await page.close();
 // ---- in the game: keyboard, pad, touch; the diagram ----------------------
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const game = await chromium.launch({ args: ["--use-angle=d3d11", "--autoplay-policy=no-user-gesture-required"] });
-async function match(ctxOpts, withPad) {
+async function match(ctxOpts, withPad, weaponId = null) {
   const ctx = await game.newContext({ viewport: { width: 1280, height: 720 }, ...ctxOpts });
   await ctx.route(/supabase/, (r) => r.abort());
   // troll-ops.html loads these from the live site; serve this checkout's
@@ -271,13 +273,14 @@ async function match(ctxOpts, withPad) {
   p.on("pageerror", (e) => errs.push(e.message));
   await p.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 180000 });
   await p.waitForFunction(() => !!window.__trollOps, null, { timeout: 180000 });
-  await p.evaluate(async () => {
+  await p.evaluate(async (weaponId) => {
     const T = window.__trollOps;
     T.loadout.mapId = "trollcity";
+    if (weaponId) { T.loadout.weaponId = weaponId; T.loadout.attachmentsFor(weaponId).optic = null; T.loadout.attachmentsFor(weaponId).skin = null; }
     T.setMode("tdm");
     if (T.els.noBots) T.els.noBots.checked = true;
     await T.startGame();
-  });
+  }, weaponId);
   await p.waitForFunction(() => window.__trollOps.state() === "playing", null, { timeout: 180000 });
   await sleep(3000);
   await p.evaluate(() => {
@@ -295,18 +298,22 @@ const setB = (p, down) => p.evaluate((down) => { const b = window.__pad.buttons[
 async function holdTest(p, label, down, up) {
   await p.evaluate(() => { window.__trollOps.move.stance = "stand"; });
   await sleep(250);
+  // on the game's clock, not the wall's: a slow headless frame rate counts the
+  // hold slower (crouchHeldT is game time)
   await down();
-  await sleep(150);
-  const early = await p.evaluate(() => window.__trollOps.move.stance);
-  await sleep(500);
+  await p.waitForFunction(() => window.__trollOps.move.stance !== "stand", null, { timeout: 3000 }).catch(() => {});
+  const early = await p.evaluate(() => window.__trollOps.move.crouchHeldT < 0.3 ? window.__trollOps.move.stance : "late");
+  await p.waitForFunction(() => window.__trollOps.move.crouchHeldT >= 0.5 || window.__trollOps.move.stance === "prone", null, { timeout: 5000 }).catch(() => {});
+  await sleep(50);
   const late = await p.evaluate(() => window.__trollOps.move.stance);
+  const why = await p.evaluate(() => { const m = window.__trollOps.move; return { room: m.bodyRoom(), held: +m.crouchHeldT.toFixed(2), spent: m.crouchSpent, grounded: m.grounded, dive: m.diveT, yaw: +m.yaw.toFixed(2), at: [+m.pos.x.toFixed(1), +m.pos.y.toFixed(2), +m.pos.z.toFixed(1)] }; });
   await up();
   await sleep(250);
-  check(`${label}: held, a crouch then prone`, early === "crouch" && late === "prone", `${early} -> ${late}`);
+  check(`${label}: held, a crouch then prone`, early === "crouch" && late === "prone", `${early} -> ${late}${late === "prone" ? "" : " " + JSON.stringify(why)}`);
 }
 
 {
-  const { ctx, p, errs } = await match({}, true);
+  const { ctx, p, errs } = await match({}, true, "howl");
   await holdTest(p, "keyboard C", () => p.evaluate(() => window.__trollOps.keys.add("KeyC")), () => p.evaluate(() => window.__trollOps.keys.delete("KeyC")));
   if (OUT) await p.screenshot({ path: path.join(OUT, "prone-keyboard.png") });
   await holdTest(p, "pad B", () => setB(p, true), () => setB(p, false));
@@ -322,6 +329,80 @@ async function holdTest(p, label, down, up) {
   const lk = await p.evaluate(() => window.__trollOps.localRig.proneK);
   check("the local body lies down when prone", lk > 0.95, String(lk));
   await p.evaluate(() => { window.__trollOps.move.stance = "stand"; });
+
+  // ---- the Ballista's bipod
+  await p.evaluate(() => window.__trollOps.switchWeapon("primary"));
+  await sleep(800);
+  const bip = async () => p.evaluate(() => {
+    const T = window.__trollOps, m = T.activeWeaponMesh(), u = m.userData, L = u.gunParts?.BipodL;
+    return { id: T.currentWeapon().def.id, k: u.bipodK ?? 0, turn: L ? L.node.rotation[L.axis] - L.rot[L.axis] : null, travel: L?.travel, kick: T.currentWeapon().kickSteady ?? 1, stance: T.move.stance };
+  });
+  const lieDown = async () => { await p.evaluate(() => window.__trollOps.keys.add("KeyC")); await sleep(700); await p.evaluate(() => window.__trollOps.keys.delete("KeyC")); await sleep(500); };
+  // standing, aimed: the legs stay up
+  await p.evaluate(() => { window.__trollOps.move.stance = "stand"; window.__trollOps.setAds(true); });
+  await sleep(700);
+  const standing = await bip();
+  await p.evaluate(() => window.__trollOps.setAds(false));
+  await sleep(400);
+  check("the Ballista in hand has its bipod legs", standing.id === "howl" && Math.abs(standing.travel) > 1.2, JSON.stringify(standing));
+  check("standing and aimed, the bipod stays folded", standing.k < 0.01, JSON.stringify(standing));
+  // prone, still, aimed: down within ~0.3 s of the sights coming up
+  await lieDown();
+  await p.evaluate(() => window.__trollOps.setAds(true));
+  await sleep(650);
+  const down = await bip();
+  check("prone, still and aimed, the legs swing down", down.k > 0.98 && Math.abs(down.turn - down.travel) < 0.05, JSON.stringify(down));
+  check("mounted, the kick is x0.4", Math.abs(down.kick - 0.4) < 0.02, String(down.kick));
+  // crawl (the pad's stick: with a pad in, the keyboard doesn't walk): folded
+  await p.evaluate(() => { window.__pad.axes = [0, -1, 0, 0]; });
+  await sleep(450);
+  const crawl = await bip();
+  await p.evaluate(() => { window.__pad.axes = [0, 0, 0, 0]; });
+  check("crawling folds them", crawl.k < 0.02 && crawl.kick > 0.98, JSON.stringify(crawl));
+  // still again: down; off the sights: folded
+  await sleep(700);
+  const again = await bip();
+  await p.evaluate(() => window.__trollOps.setAds(false));
+  await sleep(600);
+  const off = await bip();
+  check("still again they come down, off the sights they fold", again.k > 0.98 && off.k < 0.02, JSON.stringify([again.k, off.k]));
+  // standing up folds them too
+  await p.evaluate(() => window.__trollOps.setAds(true));
+  await sleep(650);
+  await p.evaluate(() => { window.__trollOps.keys.add("Space"); });
+  await sleep(150);
+  await p.evaluate(() => { window.__trollOps.keys.delete("Space"); });
+  await sleep(500);
+  const up = await bip();
+  await p.evaluate(() => window.__trollOps.setAds(false));
+  check("standing up folds them", up.stance !== "prone" && up.k < 0.02, JSON.stringify(up));
+  // a copy of the gun, legs folded and down, from the side: the legs reach down
+  const look = await p.evaluate(async (WMU) => {
+    const THREE = await import("three");
+    const W = await import(WMU);
+    const T = window.__trollOps;
+    const GA = await import(WMU.replace(/weapons\/weapon-model\.js.*/, "view/gun-action.js"));
+    const gun = W.buildWeaponMesh(T.currentWeapon().def, {});
+    for (let i = 0; i < 100 && !gun.userData.gunParts?.BipodL; i++) await new Promise((r) => setTimeout(r, 100));
+    const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    r.setSize(900, 420);
+    const scene = new THREE.Scene(); scene.background = new THREE.Color(0x9fb4c8);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 2.5));
+    const sun = new THREE.DirectionalLight(0xffffff, 2); sun.position.set(3, 6, 4); scene.add(sun);
+    scene.add(gun);
+    const cam = new THREE.PerspectiveCamera(28, 900 / 420, 0.01, 50); cam.position.set(2.2, 0.0, -0.42); cam.lookAt(0, -0.06, -0.42);
+    const out = {};
+    for (const [n, want] of [["folded", false], ["down", true]]) {
+      for (let i = 0; i < 20; i++) GA.updateBipod(gun, want, 1 / 30);
+      gun.updateMatrixWorld(true);
+      const b = new THREE.Box3(); for (const k of ["BipodL", "BipodR"]) b.union(new THREE.Box3().setFromObject(gun.userData.gunParts[k].node));
+      r.render(scene, cam);
+      out[n] = { minY: b.min.y, img: r.domElement.toDataURL("image/png") };
+    }
+    return out;
+  }, urlOf("game.js", "weapon-model.js"));
+  if (OUT) for (const n of ["folded", "down"]) fs.writeFileSync(path.join(OUT, `prone-bipod-${n}.png`), Buffer.from(look[n].img.split(",")[1], "base64"));
+  check("down, the legs reach well below the gun", look.down.minY < look.folded.minY - 0.12, `${look.folded.minY.toFixed(3)} -> ${look.down.minY.toFixed(3)}`);
 
   // the controls diagram, built at full width: B's callout in its column
   const fit = await p.evaluate(async (CL) => {

@@ -766,7 +766,8 @@ export class WeaponState {
     }
     if (this.def.slideCycle) this.slideT = this.def.slideCycle;
     // Shouldering the weapon steadies it: aimed fire kicks less than hipfire.
-    const steady = (1 - this.adsT * 0.35) * kick;
+    // On a bipod, less again (kickSteady: view/player-update.js, PRONE.md).
+    const steady = (1 - this.adsT * 0.35) * kick * (this.kickSteady ?? 1);
     const yawKick = ((Math.random() * 2 - 1) * this.def.recoilKickYawRand + this.def.recoilKickYaw) * steady;
     // A scope's zoom magnifies the kick on screen; adsKick takes it back out.
     const cam = this.adsKick;
