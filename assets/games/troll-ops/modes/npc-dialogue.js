@@ -27,6 +27,7 @@ import { releaseHeldInputs } from "../menu/pause.js?v=pa1-mb1-if1-fu1b7b7dec1c2-
 import { game } from "../core/state.js?v=st1";
 import { padButtonName } from "../menu/controller-layout.js?v=cl7-pd1-or1-pd2-hb4-xb1-mb2";
 import * as THREE from "three";
+import NORTH from "./talk/north.js?v=nd1";
 
 const REACH = 2.8;          // m, eye to the NPC's feet (across a bar counter)
 const AIM_COS = Math.cos(0.42);   // look within ~24° of their head to get the prompt
@@ -43,6 +44,9 @@ const SCRIPTS = new Map();
 const SERVICES = new Map();
 export function registerTalk(script) { SCRIPTS.set(script.id, script); }
 export function registerTalkService(id, fn) { SERVICES.set(id, fn); }
+
+// the cast's scripts (a cast entry's `talk` names one)
+registerTalk(NORTH);
 
 /* ------------------------------------------------------------ flags */
 

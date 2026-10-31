@@ -184,7 +184,8 @@ export function kbNpcs({ DC, DANCE, deck }) {
     .forEach((i, k) => sit(i, "Clubgoer", k ? "phone" : "drink", bi === 1 ? { drink: "whiskey" } : {})));
   add("Shots McGee", "Bartender", "wipe", { x: -14.9, z: 10, y: 0, yaw: FACE_YAW["-x"] });
   add("Pourtia", "Bartender", "count", { x: -14.9, z: 14.4, y: 0, yaw: FACE_YAW["-x"] });
-  add("Neon Nina", "Bartender", "wipe", { x: -14.9, z: 12.2, y: 0, yaw: FACE_YAW["-x"] });
+  // North, the head bartender, talks (modes/npc-dialogue.js, modes/talk/north.js)
+  add("North", "Bartender", "wipe", { x: -14.9, z: 12.2, y: 0, yaw: FACE_YAW["-x"] }, { talk: "north" });
   seatsOf("stool", (s) => s.x < -16).forEach((i, k) => { if (k !== 2) sit(i, "Barfly", "drink", k % 3 ? {} : { drink: "whiskey" }); });
   for (const [x, z, yaw] of [[-30.2, 6.2, 2.4], [-29.4, 7.0, -0.8], [-17.6, 6.0, 0.6], [-16.8, 6.8, -2.6], [-17.3, 21.0, -0.3], [-25.0, 21.2, 0.2], [-30.4, 21.6, 2.8], [-29.6, 22.3, -0.4]]) {
     extra("Clubgoer", R() < 0.6 ? "drink" : "phone", { x, z, y: 0, yaw });
