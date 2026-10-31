@@ -152,9 +152,9 @@ Then one live check: two tabs in a **private** room, solo exit and a duo
 wheel.
 
 ## Decisions for the user
-1. "Walks slowly backwards while still facing forwards": I read it as
-   facing out of the door, backing up the ramp for a run-up, then dashing
-   out. Right?
+1. DECIDED (user, 2026-10-30: "yes"): "walks slowly backwards while still
+   facing forwards" = facing out of the door, backing up the ramp for a
+   run-up, then dashing out.
 2. Third person from the spin on (so you see your arms and hands), or stay
    first person through the whole jump?
 3. Break off with Space / pad A, auto-release at 120 m: OK?
