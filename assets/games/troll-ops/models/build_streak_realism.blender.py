@@ -600,6 +600,8 @@ def build_f35():
         (4.0 * k, 1.1 * k, 0.75 * k, 0, 0.0, 3.0), (2.4 * k, 1.8 * k, 0.85 * k, 0, 0.0, 3.5), (0.6 * k, 2.1 * k, 0.9 * k, 0, 0.0, 3.5),
         (-1.6 * k, 2.0 * k, 0.85 * k, 0, 0.0, 3.5), (-3.6 * k, 1.3 * k, 0.75 * k, 0, 0.0, 3.0), (-5.0 * k, 0.7 * k, 0.6 * k, 0, 0.0, 2.5),
         (-5.6 * k, 0.55 * k, 0.55 * k, 0, 0.0)]))
+    # the chines: a flat ledge each side of the forebody running back into the wing root
+    hull.append(loft("chine", grey, [(7.0 * k, 0.25 * k, 0.03 * k, 0, -0.02 * k), (5.6 * k, 0.9 * k, 0.05 * k, 0, -0.05 * k), (3.6 * k, 1.6 * k, 0.06 * k, 0, -0.08 * k), (2.2 * k, 2.3 * k, 0.07 * k, 0, -0.1 * k), (1.4 * k, 0.0, 0.0, 0, -0.1 * k)]))
     # the canopy, a bubble forward of the wing
     hull.append(loft("canopy", glass, [(5.4 * k, 0.0, 0.0, 0, 0.45 * k), (4.6 * k, 0.45 * k, 0.5 * k, 0, 0.55 * k), (3.0 * k, 0.5 * k, 0.6 * k, 0, 0.65 * k), (1.4 * k, 0.45 * k, 0.4 * k, 0, 0.65 * k), (0.4 * k, 0.0, 0.0, 0, 0.6 * k)]))
     # the intakes: angled boxes either side under the wing roots, lips open forward
