@@ -501,7 +501,8 @@ export const KABUKIGRIN = {
   playerSpawn: { x: PLAYER[0], z: PLAYER[2] },
   build: buildKabukigrin,
   dress: DRESS,
-  bombSites: SITES,
+  // A on the dance floor, down in the club (doc pick 1)
+  bombSites: SITES.map((s) => (s.id === "A" ? { ...s, x: DC.x, y: FL, z: DC.z } : s)),
   spawns: SPAWNS,
   // the koi tank and the office's mirror first, then the club's signs and bottles
   onShot: (p) => { if (!roomsShot(p)) CLUB.onShot(p); },
@@ -522,5 +523,5 @@ export const KABUKIGRIN = {
     // the pachinko parlour (modes/social-pachinko.js): its machines, who plays, its bounds
     pachinko: () => ({ machines: MACHINES, play: PLAY, minX: PARLOUR.minX }),
   },
-  debug: () => ({ ...CLUB.debug(), rooms: roomsDebug(), ropes: ROPES.map((r) => ({ ...r })), sites: SITES.map((s) => ({ ...s })), under: { FL, B1, CEIL, seats: SEATS.length } }),
+  debug: () => ({ ...CLUB.debug(), rooms: roomsDebug(), ropes: ROPES.map((r) => ({ ...r })), sites: KABUKIGRIN.bombSites.map((s) => ({ ...s })), under: { FL, B1, CEIL, seats: SEATS.length } }),
 };
