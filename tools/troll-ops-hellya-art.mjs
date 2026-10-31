@@ -32,6 +32,8 @@ const CLOSE = 12;      // px: the teeth's union closed up over the gaps and the 
 const SMOOTH = 14;     // px: the lips' edges averaged along the row
 const GROW = 7;        // px out past the teeth, under the lip's ink (no white seam)
 const TAPER = 34;      // px: the mouth closes to a corner at each end
+const INSET = 46;      // px: the teeth stop this short of each corner (a wedge of tooth
+                       // pinched in the closing lips read as a fang; user, 2026-10-31)
 const DROP = 22;       // px: the jaw drops this much further than the grin's inside (the NFT's mouth is taller)
 const UPPER = 0.40;    // the upper teeth's share of the mouth's height (its middle height: the
 const LOWER = 0.24;    // lower teeth's), the same depth all along the row, so no corner tooth
@@ -100,8 +102,10 @@ const xs = [];
 for (let x = L; x <= R; x += 3) xs.push(x);
 if (xs[xs.length - 1] !== R) xs.push(R);
 const f = (v) => v.toFixed(1);
-const edge = (fn) => xs.map((x) => `${f(x)} ${f(fn(x))}`).join(" L");
-const edgeBack = (fn) => [...xs].reverse().map((x) => `${f(x)} ${f(fn(x))}`).join(" L");
+// the teeth's own columns: in from the corners, with a square end each side
+const xsT = [L + INSET, ...xs.filter((x) => x > L + INSET && x < R - INSET), R - INSET];
+const edge = (fn, pts = xs) => pts.map((x) => `${f(x)} ${f(fn(x))}`).join(" L");
+const edgeBack = (fn, pts = xs) => [...pts].reverse().map((x) => `${f(x)} ${f(fn(x))}`).join(" L");
 // the mouth's outline: along the top lip left to right, back along the bottom
 const mouthPath = `M${edge(top)} L${edgeBack(bot)} Z`;
 // the upper teeth: a band of one depth under the top lip (the mouth's middle
@@ -112,14 +116,14 @@ const HMID = mid[mid.length >> 1];
 const depth = (x, share) => Math.min(HMID * share, (bot(x) - top(x)) * 0.5);
 const upperBottom = (x) => top(x) + depth(x, UPPER);
 const lowerTop = (x) => bot(x) - depth(x, LOWER);
-const upperPath = `M${edge(top)} L${edgeBack(upperBottom)} Z`;
-const lowerPath = `M${edge(lowerTop)} L${edgeBack(bot)} Z`;
+const upperPath = `M${edge(top, xsT)} L${edgeBack(upperBottom, xsT)} Z`;
+const lowerPath = `M${edge(lowerTop, xsT)} L${edgeBack(bot, xsT)} Z`;
 // the gaps between the new teeth: at each old upper tooth's left edge (the
 // art's separators; the upper row's teeth are the ones whose bottoms sit on
 // the bite line), the upper ones straight down, the lower ones up
 const bite = teeth.reduce((a, t) => a + t.y1, 0) / teeth.length;
 const upperRow = teeth.filter((t) => t.y0 < bite - 20);
-const seps = upperRow.slice(1).map((t, i) => (t.x0 + upperRow[i].x1) / 2);
+const seps = upperRow.slice(1).map((t, i) => (t.x0 + upperRow[i].x1) / 2).filter((x) => x > L + INSET + 12 && x < R - INSET - 12);
 const upperSeps = seps.map((x) => `M${f(x)} ${f(top(x))} L${f(x)} ${f(upperBottom(x))}`).join(" ");
 // the lower row has fewer, bigger teeth: every other gap
 const lowerSeps = seps.filter((_, i) => i % 2 === 1).map((x) => `M${f(x)} ${f(lowerTop(x))} L${f(x)} ${f(bot(x))}`).join(" ");
