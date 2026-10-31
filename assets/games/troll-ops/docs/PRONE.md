@@ -1,15 +1,17 @@
-# Prone, and bipods that deploy (draft, 2026-10-30)
+# Prone, and bipods that deploy (2026-10-30; phase 1 built)
 
 User, 2026-10-30: "add a feature where users can get prone, and it would
 be nice if the little stand on the rifle can be propped up if the user is
 trying to scope while proned. That would mean updating the controller
-diagram." This is the draft for buy-in; nothing is built yet.
+diagram." Phase 1 is built on claude/arms-ballista (the stance, the
+steadiness, the controls; tools/troll-ops-prone-test.mjs); phases 2 to 4
+are still the plan.
 
 ## 1. What exists today
 
 - **The stance is already there.** `core/movement.js` has `STANCE.PRONE`:
   eye 0.5 m, crawl at 22% speed. The only way in is the **dive**: Ctrl
-  (keyboard) or the touch dive input, from a sprint, which throws you
+  (keyboard) from a sprint, which throws you
   forward and lands you prone. Crouch from prone stands you straight up.
 - **No pad button reaches prone.** The pad's B is "Crouch · slide"
   (`input/gamepad.js`, `menu/controller-layout.js`); there is no dive on a
@@ -31,7 +33,10 @@ diagram." This is the draft for buy-in; nothing is built yet.
 - **Tap crouch** = crouch, as now. **Hold crouch (0.35 s)** = go prone,
   from standing or crouched. From prone: tap crouch = crouch, jump = stand.
   Same on every device: keyboard C, pad B, touch the crouch button held.
-- **The dive stays** (Ctrl from a sprint) as the fast way down.
+- **The dive stays** (Ctrl from a sprint) as the fast way down. From a
+  sprint, a tap of crouch slides as before; held through the slide, you
+  skid down into prone (built that way rather than a held crouch diving:
+  the slide has already started by the time the hold is known).
 - **Going down takes 0.45 s, getting up 0.40 s**, eased; you can't fire or
   aim in the first 0.25 s of either (BO2's commit). Getting up is refused
   under anything lower than standing height (a check above the head), and
@@ -103,8 +108,8 @@ branch to land, or is done on top of it.
 
 - Hold time to go prone? [0.35 s, BO2's feel]
 - Does going prone from a sprint keep the dive's throw, or should a held
-  crouch while sprinting slide, as now? [slide stays on a sprinting tap;
-  hold from a sprint dives]
+  crouch while sprinting slide, as now? [built: the tap slides, held
+  through the slide you skid down into prone; Ctrl still dives]
 - Bipod also on crouch behind cover (mounting on a ledge, as later CoDs)?
   [no: prone only, as asked]
 - Other players see the legs down? [no: folded on the LOD1]
