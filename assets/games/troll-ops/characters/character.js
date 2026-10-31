@@ -1332,7 +1332,10 @@ function inferGrip(mesh) {
    landing's force on the frame it lands (0.5 for a jump's, 1 for a big drop).
    `sprint`: 0..1 how far into the sprint clip, for a body whose top speed
    isn't a sprint's (a bot); left out, it follows the speed. */
-function _poseHumanoid(rig, { sprint = null, phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, forward = 1, speed = 1, mps = null, dt = 0.016, zombie = false, hasGun = false, hold = "gun", swing = null, recoil = 0, block = 0, ads = 0, air = false, vy = 0, land = 0 }) {
+/* `prone`: 0..1 lying down (docs/PRONE.md), eased by the caller: the body
+   flat behind the eye point, propped on the elbows, the legs out behind;
+   on the move, the crawl. */
+function _poseHumanoid(rig, { sprint = null, phase = 0, moving = false, pitch = 0, lower = 0, strafe = 0, forward = 1, speed = 1, mps = null, dt = 0.016, zombie = false, hasGun = false, hold = "gun", swing = null, recoil = 0, block = 0, ads = 0, air = false, vy = 0, land = 0, prone = 0 }) {
   const p = rig.parts;
   const s = rig.scale;
   const str = Math.max(-1, Math.min(1, strafe));
@@ -1567,6 +1570,9 @@ function _poseHumanoid(rig, { sprint = null, phase = 0, moving = false, pitch = 
   p.hips.position.z += F.bp * 0.06 * s;
   p.hips.position.y -= Math.max(0, F.bd) * 0.08 * s;
   const bob = p.hips.position.y - standY;
+  const lie = Math.max(0, Math.min(1, prone));
+  rig.proneK = lie;
+  if (lie > 0) _proneLegs(rig, feet, lie, cyc, blend);
   p.ballL.rotation.set(feet[0].flex, 0, 0);
   p.ballR.rotation.set(feet[1].flex, 0, 0);
   _solveLeg(rig, -1, p.legL, p.kneeL, p.ankleL, feet[0].target, feet[0].pitch, feet[0].yaw * (1 - airK));
@@ -1592,6 +1598,7 @@ function _poseHumanoid(rig, { sprint = null, phase = 0, moving = false, pitch = 
   p.chest.rotation.set(-(crouch * 0.07 + moveLean * 0.15), -p.hips.rotation.y * 0.85, str * -0.03 * blend);
   // (a body with its own gun hold runs upright behind the gun: rig.gunHold.lean)
   if (clipS) applyClip(rig, clipS, clipW * (gunClip ? rig.gunHold?.lean ?? 1 : 1), CLIP_SPINE);
+  if (lie > 0) _proneTorso(rig, lie, cyc, blend);
   const lean =p.torso.rotation.x + p.spine.rotation.x + p.chest.rotation.x;
 
   if (zombie) {
@@ -1688,11 +1695,68 @@ function _poseHumanoid(rig, { sprint = null, phase = 0, moving = false, pitch = 
   // The clip's arms only where a hand is free (a gun's hands are on the gun).
   if (clipS && !gripped) applyClip(rig, clipS, clipW, CLIP_ARM_L);
   if (clipS && hold === "none") applyClip(rig, clipS, clipW, CLIP_ARM_R);
+  // Lying down, a hand that isn't on a gun reaches out ahead along the
+  // ground on its forearm (hanging, it went through the floor).
+  if (lie > 0) {
+    if (!gripped) { p.armL.rotation.x += (1.25 - lean - p.armL.rotation.x) * lie; p.elbowL.rotation.x += (0.5 - p.elbowL.rotation.x) * lie; }
+    if (!(hold === "gun" && hasGun)) { p.armR.rotation.x += (1.25 - lean - p.armR.rotation.x) * lie; p.elbowR.rotation.x += (0.5 - p.elbowR.rotation.x) * lie; }
+  }
 
   // _poseNeckAndHead's `pitch` is + head down (the zombie's hang, the
   // dances' nods); the aim's is + up. Passed straight through, an aim up
   // tipped the head down (and an NPC reading looked at the sky).
   _poseNeckAndHead(rig, { pitch: -pitch, sway: 0, dt, lead: str * blend, lean, bob, run, phase, moving: blend > 0.3, busy: kick > 0.02 || !!swing, follow: g.hf || 0 });
+  // Lying down, the head comes up the rest of the way to look ahead (it
+  // takes back only about half the lean on its own).
+  if (lie > 0) {
+    p.neckPivot.rotation.x += PRONE_TIP * lie * 0.45 * 0.4;
+    p.headPivot.rotation.x += PRONE_TIP * lie * 0.45 * 0.6;
+  }
+}
+
+/* Prone (docs/PRONE.md). The torso tips forward from the hips by
+   PRONE_TIP, short of flat: the shoulders ride up on the elbows, so the
+   gun (levelled against the lean, _gripSupport) sits about a forearm off
+   the ground. The hips drop to the ground and move back, so the head ends
+   over the body's origin (the eye point; the legs run back from it, as
+   core/movement.js's bodyRoom has them), and the feet go out behind, toes
+   down, knees toward the ground. Crawling, the legs draw up in turn and
+   the shoulders roll with them. */
+const PRONE_TIP = Math.PI / 2 - 0.42;   // the torso's tip forward, lying
+const PRONE_HIP_Y = 0.15;               // hips off the ground (scaled)
+const PRONE_HIP_Z = 0.46;               // and back from the origin
+function _proneLegs(rig, feet, lie, cyc, blend) {
+  const p = rig.parts, s = rig.scale;
+  p.hips.position.y += (PRONE_HIP_Y * s - p.hips.position.y) * lie;
+  p.hips.position.z += (PRONE_HIP_Z * s - p.hips.position.z) * lie;
+  p.hips.position.x *= 1 - lie;
+  p.hips.rotation.x *= 1 - lie;
+  p.hips.rotation.z *= 1 - lie;
+  // the crawl's hip swing, side to side with the strokes
+  p.hips.rotation.y = p.hips.rotation.y * (1 - lie) + Math.sin(cyc) * 0.1 * blend * lie;
+  const reach = (rig.thigh + rig.shin) * 0.97;
+  for (const f of feet) {
+    // one leg draws up and out each stroke, the other pushes straight
+    const draw = Math.max(0, Math.sin(cyc + (f.side < 0 ? 0 : Math.PI))) * blend;
+    const back = reach * (1 - draw * 0.32);
+    const x = f.side * ((rig.hipHalf || 0.085) * s + 0.06 * s + draw * 0.18 * s);
+    const y = rig.limbRadius + 0.02 * s;
+    f.target.x += (x - f.target.x) * lie;
+    f.target.y += (y - f.target.y) * lie;
+    f.target.z += (p.hips.position.z + Math.sqrt(Math.max(0, back * back - (p.hips.position.y - y) ** 2 - (x - f.side * (rig.hipHalf || 0) * s) ** 2)) - f.target.z) * lie;
+    f.pitch += (1.35 - f.pitch) * lie;   // toes down, the sole up
+    f.flex *= 1 - lie;
+    f.yaw *= 1 - lie;
+  }
+}
+function _proneTorso(rig, lie, cyc, blend) {
+  const p = rig.parts;
+  p.torso.rotation.x += (-PRONE_TIP - p.torso.rotation.x) * lie;
+  p.torso.rotation.z = p.torso.rotation.z * (1 - lie) + Math.sin(cyc) * 0.07 * blend * lie;
+  p.spine.rotation.x *= 1 - lie;
+  p.chest.rotation.x *= 1 - lie;
+  // the shoulders roll against the hips as the elbows pull
+  p.chest.rotation.y += -Math.sin(cyc) * 0.08 * blend * lie;
 }
 
 /* Arm angles: positive x raises an arm FORWARD (see GUN_CARRY). These dances
@@ -1965,7 +2029,8 @@ function _gripSupport(rig, { pitch = 0, recoil = 0, ads = 0, fired = Infinity, r
   rig.fireK = (rig.fireK ?? 0) + (wantUp - (rig.fireK ?? 0)) * Math.min(1, dt * (wantUp ? 18 : 3.5));
   const rk = reload > 0 && reload < 1 ? reload : 0;
   const rl = reloadEnv(rk);
-  const up = Math.max(a, rig.fireK) * (1 - rl);
+  // Lying down (rig.proneK) the gun is always on the aim: no low ready on the ground.
+  const up = Math.max(a, rig.fireK, rig.proneK || 0) * (1 - rl);
   // A broad body blades into the gun (hold.blade, radians): the upper body
   // turns right-side back, half at the hips and half in the chest, and the
   // left shoulder rolls forward, so the left hand reaches the handguard from

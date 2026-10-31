@@ -5,10 +5,16 @@
 // eases down and up; the commit (stanceLocked) covers the first 0.25 s;
 // standing and crouching up are refused under a low ceiling, lying down
 // where a wall crosses the body; noProne (downed) never lies down; the crawl
-// speed; the stance's steadiness. Then in the game, offline (a private
+// speed; the stance's steadiness. The lying pose (character.js prone, on
+// the stick rig and a TROLLS body): its hit proxies stay low (a shot a
+// metre up passes over, one at the shoulders lands, side-on and head-on),
+// the head looks ahead, nothing sinks into the ground, the crawl moves the
+// legs. Then in the game, offline (a private
 // local match, Supabase blocked, no bots): holding keyboard C, a pad's B
 // and the touch crouch button each lie you down, a pad tap only crouches,
-// and the controls diagram's B callout ("Crouch · hold: prone · slide")
+// another player sees you lying down (two tabs in a private room over
+// BroadcastChannel, Supabase blocked) and a shot over you misses; and the
+// controls diagram's B callout ("Crouch · hold: prone · slide")
 // fits its column. Writes OUT/prone-*.png when OUT is set.
 //
 // Usage: NODE_PATH=<main checkout>/node_modules OUT=<dir> node tools/troll-ops-prone-test.mjs
@@ -181,6 +187,65 @@ check("a wall across the body refuses prone", r.wallBehind === "crouch", r.wallB
 check("lying along the wall fits", r.wallAlong === "prone", r.wallAlong);
 check("downed (noProne) only crouches", r.downed === "crouch", r.downed);
 check("a slide held lies you down", r.slide === "slide" && r.slideProne === "prone", `${r.slide} -> ${r.slideProne}`);
+// the lying pose and its hit proxies, on the stick rig and a TROLLS body (#1718)
+const lp = await page.evaluate(async ({ CH, BB }) => {
+  const THREE = await import("three");
+  const C = await import(CH);
+  const B = await import(BB);
+  const out = {};
+  for (const body of ["stick", "trolls"]) {
+    const rig = C.buildHumanoid(new THREE.MeshStandardMaterial());
+    if (body === "trolls") await B.wearBlocky(rig, 1718);
+    const pose = (prone, moving = false, phase = 0) => {
+      for (let i = 0; i < 40; i++) C.poseHumanoid(rig, { phase, moving, lower: prone ? 1 : 0, prone, mps: moving ? 1.14 : 0, speed: 0.3, dt: 1 / 60, hold: "none" });
+      rig.root.updateMatrixWorld(true);
+    };
+    const ray = new THREE.Raycaster();
+    // across the body (from its right) and down its line (from ahead), at height y
+    const hit = (y, from) => {
+      const o = from === "side" ? new THREE.Vector3(5, y, 0.1) : new THREE.Vector3(0, y, -5);
+      ray.set(o, from === "side" ? new THREE.Vector3(-1, 0, 0) : new THREE.Vector3(0, 0, 1));
+      ray.far = 10;
+      return ray.intersectObjects(rig.hitboxMeshes, false).length > 0;
+    };
+    const span = () => { const b = new THREE.Box3(); for (const m of rig.hitboxMeshes) b.union(new THREE.Box3().setFromObject(m)); return b; };
+    // the lowest joint (the hit proxies pad each limb, so they dip a little under it)
+    const low = () => { let m = Infinity; const v = new THREE.Vector3(); for (const k of ["elbowL", "elbowR", "wristL", "wristR", "kneeL", "kneeR", "ankleL", "ankleR", "toeL", "toeR", "hips", "chest"]) m = Math.min(m, rig.parts[k].getWorldPosition(v).y); return m; };
+    const feet = () => { const a = new THREE.Vector3(), b = new THREE.Vector3(); rig.parts.ankleL.getWorldPosition(a); rig.parts.ankleR.getWorldPosition(b); return [a, b]; };
+    const r = {};
+    pose(0);
+    r.standTop = span().max.y;
+    r.standHit = hit(1.1, "side") && hit(1.1, "front");
+    pose(1);
+    const b = span();
+    r.proneTop = b.max.y; r.proneBottom = low(); r.proneBack = b.max.z;
+    r.overSide = hit(1.05, "side"); r.overFront = hit(1.05, "front");
+    r.lowSide = hit(0.3, "side"); r.lowFront = hit(0.3, "front");
+    const head = new THREE.Vector3(); rig.parts.head.getWorldPosition(head);
+    r.headY = head.y; r.headZ = head.z;
+    // the face looks ahead: the board's normal (its +z, turned PI) points along -z, not down
+    const n = new THREE.Vector3(0, 0, 1).transformDirection(rig.parts.head.matrixWorld);
+    r.faceDown = n.y;
+    const a = feet().map((v) => v.toArray());
+    pose(1, true, Math.PI / 2);
+    const c = feet().map((v) => v.toArray());
+    r.crawlMove = Math.max(Math.hypot(a[0][0] - c[0][0], a[0][2] - c[0][2]), Math.hypot(a[1][0] - c[1][0], a[1][2] - c[1][2]));
+    r.crawlBottom = low();
+    out[body] = r;
+  }
+  return out;
+}, { CH: urlOf("game.js", "character.js"), BB: urlOf("net/remote-players.js", "blocky-body.js") });
+for (const [body, r] of Object.entries(lp)) {
+  const f2 = (v) => v.toFixed(2);
+  check(`${body}: lying, the hit proxies top out under 1 m (standing ${f2(r.standTop)})`, r.proneTop < 1.0 && r.standTop > 1.4, f2(r.proneTop));
+  check(`${body}: a shot at 1.05 m hits standing, passes over lying (side, front)`, r.standHit && !r.overSide && !r.overFront, JSON.stringify([r.standHit, r.overSide, r.overFront]));
+  check(`${body}: a shot at 0.3 m lands on the lying body (side, front)`, r.lowSide && r.lowFront, JSON.stringify([r.lowSide, r.lowFront]));
+  check(`${body}: lying along the ground behind the eye point`, r.proneBack > 1.0 && Math.abs(r.headZ) < 0.2, `back ${f2(r.proneBack)} head z ${f2(r.headZ)}`);
+  check(`${body}: the face looks ahead, not at the ground`, Math.abs(r.faceDown) < 0.45 && r.headY < 0.75, `n.y ${f2(r.faceDown)} head y ${f2(r.headY)}`);
+  check(`${body}: no joint goes through the ground (still, crawling)`, r.proneBottom > -0.01 && r.crawlBottom > -0.01, `${f2(r.proneBottom)} ${f2(r.crawlBottom)}`);
+  check(`${body}: the crawl moves the legs`, r.crawlMove > 0.08, f2(r.crawlMove));
+}
+
 check("no page errors", errors.length === 0, errors.join(" | "));
 await page.close();
 
@@ -251,6 +316,12 @@ async function holdTest(p, label, down, up) {
   await setB(p, true); await sleep(120); await setB(p, false); await sleep(500);
   const tapped = await p.evaluate(() => window.__trollOps.move.stance);
   check("pad B tapped only crouches", tapped === "crouch", tapped);
+  // and the local body lies down with it (third person, the killcam)
+  await p.evaluate(() => { window.__trollOps.move.stance = "prone"; });
+  await sleep(900);
+  const lk = await p.evaluate(() => window.__trollOps.localRig.proneK);
+  check("the local body lies down when prone", lk > 0.95, String(lk));
+  await p.evaluate(() => { window.__trollOps.move.stance = "stand"; });
 
   // the controls diagram, built at full width: B's callout in its column
   const fit = await p.evaluate(async (CL) => {
@@ -282,6 +353,77 @@ async function holdTest(p, label, down, up) {
   const aria = await p.evaluate(() => document.getElementById("to-touch-slide").getAttribute("aria-label"));
   check("the touch button says hold to go prone", /hold to go prone/.test(aria), aria);
   check("no page errors (touch)", errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
+// ---- another player sees you lie down: two tabs, a private room ----------
+{
+  const ctx = await game.newContext({ viewport: { width: 640, height: 360 } });
+  await ctx.route(/supabase/, (r) => r.abort());   // BroadcastChannel between the tabs
+  await ctx.route(/^https:\/\/mayurski-art\.github\.io\/assets\/js\//, (r) => {
+    const f = path.join(ROOT, "assets/js", path.basename(new URL(r.request().url()).pathname));
+    return fs.existsSync(f) ? r.fulfill({ path: f, contentType: "text/javascript" }) : r.abort();
+  });
+  const ROOM = "PRONE" + Math.floor(Math.random() * 90 + 10);
+  const errs = [];
+  const open = async (label) => {
+    const p = await ctx.newPage();
+    p.on("pageerror", (e) => errs.push(`${label}: ${e.message}`));
+    await p.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 180000 });
+    await p.waitForFunction(() => !!window.__trollOps, null, { timeout: 180000 });
+    await p.evaluate(async (room) => {
+      const T = window.__trollOps;
+      T.loadout.mapId = "trollcity";
+      T.setMode("tdm");
+      if (T.els.noBots) T.els.noBots.checked = true;
+      T.els.room.value = room;
+      T.els.room.dispatchEvent(new Event("input"));
+      await T.startGame();
+    }, ROOM);
+    return p;
+  };
+  const A = await open("A"), B = await open("B");
+  await Promise.all([A, B].map((p) => p.waitForFunction(() => { const T = window.__trollOps; return T.state() === "playing" && T.stageT() <= 0; }, null, { timeout: 180000 })));
+  const aId = await A.evaluate(() => window.__trollOps.net.id);
+  const linked = await B.waitForFunction((id) => !!window.__trollOps.remotes.byId.get(id), aId, { timeout: 30000 }).then(() => true, () => false);
+  check("two tabs in a private room see each other", linked);
+  // A lies down where it stands, face somewhere open
+  await A.evaluate(() => {
+    const T = window.__trollOps;
+    T.player.maxHp = T.player.hp = 1e9; T.player.spawnGuard = 999;
+    for (let i = 0; i < 16 && !T.move.bodyRoom(T.look.yaw); i++) T.look.yaw += Math.PI / 8;
+    T.keys.add("KeyC");
+  });
+  await sleep(700);
+  await A.evaluate(() => window.__trollOps.keys.delete("KeyC"));
+  await sleep(1500);
+  const seen = await B.evaluate(async (id) => {
+    const THREE = await import("three");
+    const T = window.__trollOps, rp = T.remotes.byId.get(id);
+    rp.rig.root.updateMatrixWorld(true);
+    const at = rp.rig.root.position;
+    const ray = new THREE.Raycaster();
+    const shot = (y) => {
+      ray.set(new THREE.Vector3(at.x + 6, at.y + y, at.z), new THREE.Vector3(-1, 0, 0));
+      ray.far = 12;
+      return ray.intersectObjects(rp.targets, false).length > 0 || (ray.set(new THREE.Vector3(at.x, at.y + y, at.z + 6), new THREE.Vector3(0, 0, -1)), ray.intersectObjects(rp.targets, false).length > 0);
+    };
+    const b = new THREE.Box3(); for (const m of rp.targets) b.union(new THREE.Box3().setFromObject(m));
+    return { stance: rp.stance, prone: rp.prone, k: rp.rig.proneK, top: b.max.y - at.y, over: shot(1.05), low: shot(0.3) };
+  }, aId);
+  check("the other player sees them lying down", seen.stance === "prone" && seen.prone > 0.9 && seen.k > 0.9, JSON.stringify(seen));
+  check("their hit proxies top out under 1 m", seen.top < 1.0, seen.top.toFixed(2));
+  check("a shot 1.05 m up passes over them, one at 0.3 m lands", !seen.over && seen.low, JSON.stringify([seen.over, seen.low]));
+  if (OUT) {
+    await B.evaluate((id) => {
+      const T = window.__trollOps, rp = T.remotes.byId.get(id), at = rp.rig.root.position;
+      T.move.pos.set(at.x + 3, at.y, at.z + 3);
+      T.look.yaw = Math.atan2(3, 3); T.look.pitch = -0.25;
+    }, aId);
+    await sleep(600);
+    await B.screenshot({ path: path.join(OUT, "prone-remote.png") });
+  }
+  check("no page errors (two tabs)", errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
 await game.close();

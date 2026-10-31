@@ -195,6 +195,7 @@ const _tpQ = new THREE.Quaternion(), _tpQ2 = new THREE.Quaternion(), _tpFrom = n
 export const localPosers = [];
 
 export let localLower = 0;
+let localProne = 0;   // 0..1 lying down (character.js prone)
 export function localReloadK() {
   const w = currentWeapon();
   return w?.reloading && w.reloadTime > 0 ? Math.min(0.999, Math.max(0.001, 1 - w.reloadT / w.reloadTime)) : 0;
@@ -334,6 +335,8 @@ export function updateLocalRig(dt) {
 
   const wantLower = rolling ? 1 : STANCE_LOWER[game.move.stance] ?? 0;
   localLower += (wantLower - localLower) * Math.min(1, dt * 8);
+  const wantProne = !rolling && game.move.stance === "prone" ? 1 : 0;
+  localProne += (wantProne - localProne) * Math.min(1, dt * (wantProne ? 7 : 8));
 
   // Signed forward/strafe relative to facing, same convention
   // remote-players.js derives from position deltas - here it's exact,
@@ -394,6 +397,7 @@ export function updateLocalRig(dt) {
     moving: game.move.moving && game.move.grounded,
     pitch: game.look.pitch,
     lower: localLower,
+    prone: localProne,
     strafe,
     forward,
     speed: gaitSpeed,

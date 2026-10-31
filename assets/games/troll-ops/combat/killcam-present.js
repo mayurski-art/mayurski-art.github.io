@@ -36,7 +36,7 @@ export function updateKillcam(dt) {
       if (rp.alive && !rp.rig.root.visible) continue;   // no snapshots yet
       const snaps = rp.peer.snaps;
       game.killcam.record(game.kcClock, rp.netId, {
-        x: rp.pos.x, y: rp.pos.y, z: rp.pos.z, yaw: rp.yaw, pitch: rp.pitch, lower: rp.lower,
+        x: rp.pos.x, y: rp.pos.y, z: rp.pos.z, yaw: rp.yaw, pitch: rp.pitch, lower: rp.lower, prone: rp.prone,
         alive: rp.alive, wid: rp.weaponId, moving: !!snaps?.[snaps.length - 1]?.moving, bot: !!rp.peer.isBot,
         ...rp.meleeSample(),
         ads: rp.meleeMesh?.visible ? 0 : rp.ads, th: rp.throwT > 0 ? 1 - rp.throwT / THROW_TIME : -1,
@@ -47,7 +47,7 @@ export function updateKillcam(dt) {
       const sword = !!pm && (game.player.holding === "melee" || pm.busy);
       game.killcam.record(game.kcClock, killcamSelfId(), {
         x: game.move.pos.x, y: game.move.pos.y, z: game.move.pos.z, yaw: game.look.yaw, pitch: game.look.pitch,
-        lower: game.localLower, alive: true, wid: game.currentWeapon()?.def?.id, moving: game.move.moving,
+        lower: game.localLower, prone: game.localRig.proneK || 0, alive: true, wid: game.currentWeapon()?.def?.id, moving: game.move.moving,
         mid: sword ? pm.def.id : null, sw: sword && pm.busy ? Math.min(1, pm.t / pm.total) : -1,
         si: pm ? pm.swingIndex & 1 : 0, bk: sword ? game.localBlockT : 0,
         ads: sword ? 0 : game.currentWeapon()?.adsT || 0,
@@ -98,7 +98,7 @@ function poseKillcamWorld(dt) {
       const sab = sword && game.localHeld.mesh?.userData.saber;
       if (sab) { sab.target = 1; sab.frac = Math.max(sab.frac, 0.999); }
       poseHumanoid(game.localRig, {
-        phase: kcLocalPhase, moving: me.moving, pitch: me.pitch, lower: me.lower, strafe: kcGait.strafe, forward: kcGait.forward,
+        phase: kcLocalPhase, moving: me.moving, pitch: me.pitch, lower: me.lower, prone: me.prone || 0, strafe: kcGait.strafe, forward: kcGait.forward,
         speed: me.moving ? Math.min(1, kcGait.speed / 4.2) : 0, mps: me.moving ? kcGait.speed : 0, dt, hasGun: !sword, hold: sword ? "melee" : "gun",
         swing: sword && me.sw >= 0 ? { t: me.sw, kind: me.si % 2 === 0 ? "swing" : "thrust" } : null,
         block: sword && me.sw < 0 ? me.bk : 0, ads: sword ? 0 : me.ads || 0,
