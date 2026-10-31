@@ -52,7 +52,9 @@ Streak GLBs total about 3.1 MB today (largest c130 is not a streak). Cap:
 each model 600 KB, all streak models 4 MB. Phone check per phase: a
 streak on screen must not drop an iPhone-class frame (tested at 4x CPU
 throttle headless, plus the user's phone at the end). Tris: aircraft
-≤ 15k, drones ≤ 4k (24 in the air for Swarm), pad ≤ 3k.
+≤ 15k, HK drone ≤ 4k (24 in the air for Swarm), pad ≤ 3k, dog ≤ 10k and
+Dragonfire ≤ 20k (where they are today). `tools/troll-ops-streak-sheet.mjs`
+checks all of it and is each phase's test.
 
 ## How each one is checked
 
