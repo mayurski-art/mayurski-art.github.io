@@ -310,7 +310,7 @@ function disposeLater(obj) {
   const geos = [], mats = [];
   obj.traverse((o) => {
     if (o.geometry && !o.geometry.userData.shared) geos.push(o.geometry);
-    if (o.material) mats.push(o.material);
+    if (o.material && !o.material.userData?.shared) mats.push(o.material);   // not the shared kit / camo ones
   });
   setTimeout(() => { for (const g of geos) g.dispose(); for (const m of mats) m.dispose?.(); }, 5000);
 }
