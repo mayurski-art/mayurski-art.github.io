@@ -1015,6 +1015,9 @@ function screenFor(t, id) {
    onHot fires before onScreen on a re-render, so onScreen re-applies it. */
 const UMB_BANNERS = ["umb-agents", "umb-highway"].map((n) => `assets/games/troll-ops/ui/${n}.jpg?v=umb1`);
 let lastHot = null, previewing = false, screenDetail = false, umbTimer = 0, umbIdx = 0;
+// The mouse leaving the list puts your pick back in the preview (it was the
+// Back row that did it, till Back moved to the footer, 2026-10-29)
+nav.addEventListener("mouseleave", () => { if (previewing) { previewing = false; window.dispatchEvent(new Event("trollforces:preview-end")); } });
 function umbBanner(it) {
   const on = it?.id === "mode-umb";
   const img = $("img", shot);

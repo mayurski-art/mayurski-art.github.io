@@ -5212,6 +5212,15 @@ body.tf-anim-off .to-fn-pips button[aria-current="true"]::after { transform: non
 .to-bo2.is-fn .tr-menu-title { font-style: normal; }
 /* the online list's Squad (up) beside Invite: outlined, Invite stays the yellow one */
 .to-bo2.is-fn .tf-btn--secondary.to-bo2-party-invite.is-squad { border: 1px solid var(--fn-line); background: rgba(8,12,34,.6); color: #fff; }
+/* Online now: the name and what they're doing get the row's full width,
+   Invite and Squad go on a line under it (user, 2026-10-31: on a sideways
+   phone the name was squashed to "G... I..." beside the two buttons) */
+.to-bo2.is-fn .to-bo2-party-others .to-bo2-party-item { flex-wrap: wrap; gap: 4px 6px; }
+.to-bo2.is-fn .to-bo2-party-others .to-bo2-party-item .to-bo2-party-row { flex: 1 1 100%; }
+.to-bo2.is-fn .to-bo2-party-others .to-bo2-party-invite:not(.is-squad) { margin-left: auto; }
+.to-bo2.is-fn .to-bo2-party-others .to-bo2-party-invite { min-height: 28px; padding: 0 12px; font-size: 12px; }
+.to-bo2.is-fn .to-bo2-party-others .to-bo2-party-row.is-other b { flex: 1 1 auto; }
+.to-bo2.is-fn .to-bo2-party-others .to-bo2-party-row.is-other small { flex: 0 1 auto; max-width: 45%; }
 /* two squads joined up (lobby.js): small white arrows either side of the
    squad's name, under the pads, and Together / Versus */
 .to-squad-nav { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); z-index: 2; display: flex; align-items: center; gap: 14px; pointer-events: auto; font-family: var(--fn-ui); }
