@@ -138,6 +138,8 @@ check("the port sits above the mag, behind the grip", info.ejectAt[2] > 0.08 && 
 check("a reflex sits on the rail", info.sight, JSON.stringify(info));
 await shot(page, "mtar-0-hip.png");
 
+const P_OK = (c) => Math.abs(c.seen.charge - c.ride) < 0.03 && Math.abs(c.home.charge) < 0.01;
+
 // 2. one shot: carrier back and home, trigger pulled and back, brass, one round gone from the stack
 const cyc = await page.evaluate(async (BR) => {
   const T = window.__trollOps, w = T.currentWeapon(), m = T.activeWeaponMesh(), P = m.userData.gunParts;
@@ -148,22 +150,24 @@ const cyc = await page.evaluate(async (BR) => {
   const rounds0 = r ? r.node.position.y - r.y : null;
   w.fireCooldown = 0;
   T.fireOnce();
-  const seen = { carrier: 0, trigger: 0, brass: 0 };
+  const seen = { carrier: 0, trigger: 0, brass: 0, charge: 0 };
   // hold the cycle at fixed times: frames are slow headless
   for (const t of [0.015, 0.03, 0.05]) {
     for (let i = 0; i < 2; i++) { a().hold = t; await new Promise((r) => requestAnimationFrame(r)); }
     seen.carrier = Math.max(seen.carrier, k(P.Carrier));
     seen.trigger = Math.max(seen.trigger, k(P.Trigger));
+    seen.charge = Math.max(seen.charge, k(P.Charge));
     seen.brass = Math.max(seen.brass, liveBrass());
   }
   a().hold = 0.5;
   for (let i = 0; i < 2; i++) await new Promise((r) => requestAnimationFrame(r));
-  const home = { carrier: k(P.Carrier), trigger: k(P.Trigger) };
+  const home = { carrier: k(P.Carrier), trigger: k(P.Trigger), charge: k(P.Charge) };
   a().hold = null;
-  return { seen, home, ammo: w.ammoInMag, rounds0, rounds1: r ? r.node.position.y - r.y : null, pitch: r?.pitch };
+  return { seen, home, ammo: w.ammoInMag, rounds0, rounds1: r ? r.node.position.y - r.y : null, pitch: r?.pitch, ride: P.Carrier.travel / P.Charge.travel };
 }, BR);
 check("a shot runs the carrier back and home", cyc.seen.carrier > 0.95 && Math.abs(cyc.home.carrier) < 0.01, JSON.stringify(cyc));
 check("a shot pulls the trigger and lets it go", cyc.seen.trigger > 0.95 && Math.abs(cyc.home.trigger) < 0.01, JSON.stringify(cyc));
+check("the handle rides back with the carrier on each shot and comes home", P_OK(cyc), JSON.stringify(cyc));
 check("a shot throws brass", cyc.seen.brass >= 1, JSON.stringify(cyc));
 check("a shot raises the brass stack one round", cyc.rounds0 === 0 && Math.abs(cyc.rounds1 - cyc.pitch) < 1e-4, JSON.stringify(cyc));
 
@@ -172,6 +176,7 @@ for (const [n, t] of [["a-rest", 1], ["b-back", 0.03], ["c-home", 0.05], ["d-don
   await page.evaluate((t) => { window.__trollOps.activeWeaponMesh().userData.gunAction.hold = t; }, t);
   await raf(3);
   await shot(page, `mtar-cycle-${n}.png`);
+  if (OUT) await page.screenshot({ path: path.join(OUT, `mtar-cycle-${n}-near.png`), clip: { x: 700, y: 400, width: 480, height: 320 } });
 }
 await page.evaluate(() => { window.__trollOps.activeWeaponMesh().userData.gunAction.hold = null; });
 
@@ -205,7 +210,7 @@ const lock = await page.evaluate(async () => {
   return { ammo: w.ammoInMag, rounds: +(r.node.position.y - r.y).toFixed(4), max: r.max };
 });
 const locked = await parts();
-check("the last round locks the carrier back with the catch up", lock.ammo === 0 && locked.Carrier > 0.99 && locked.Catch > 0.99, JSON.stringify({ lock, locked }));
+check("the last round locks the carrier back with the catch up", lock.ammo === 0 && locked.Carrier > 0.99 && locked.Catch > 0.99 && locked.Charge > 0.7, JSON.stringify({ lock, locked }));
 check("an empty mag's stack stops under the shell", Math.abs(lock.rounds - lock.max) < 1e-4, JSON.stringify(lock));
 await shot(page, "mtar-1-locked.png");
 
@@ -219,11 +224,12 @@ const rel = await page.evaluate(async () => {
   // draw: the handle's pull is the most seen over the frames)
   const at = async (f) => {
     let charge = 0;
-    for (let i = 0; i < 3; i++) { w.reloadT = w.reloadTime * (1 - f); await new Promise((res) => requestAnimationFrame(res)); charge = Math.max(charge, k(P.Charge)); }
+    for (let i = 0; i < 3; i++) { w.reloadTime = 1e4; w.reloadT = 1e4 * (1 - f); await new Promise((res) => requestAnimationFrame(res)); charge = Math.max(charge, k(P.Charge)); }
     m.updateMatrixWorld(true);
     return { carrier: +k(P.Carrier).toFixed(3), charge: +charge.toFixed(3), rounds: +(r.node.position.y - r.y).toFixed(4) };
   };
-  // (the hand is on the handle from work - 0.02 and has it back at work + 0.02: ar-reload.js build())
+  // (the hand draws the handle from work - 0.05, has it back at work + 0.01
+  // and lets go at work + 0.03: ar-reload.js build())
   const out = { empty: w.reloadWasEmpty, strip: await at(0.2), mid: await at(0.5), work: await at(0.785), after: await at(0.9) };
   w.reloadT = 0.001;
   await new Promise((res) => setTimeout(res, 400));
@@ -232,7 +238,7 @@ const rel = await page.evaluate(async () => {
   return out;
 });
 check("an empty reload holds the carrier back until the handle is let go",
-  rel.empty && rel.mid.carrier > 0.99 && rel.mid.charge < 0.05 && rel.work.charge > 0.9 && rel.after.carrier < 0.05 && rel.after.charge < 0.05, JSON.stringify(rel));
+  rel.empty && rel.mid.carrier > 0.99 && rel.mid.charge > 0.7 && rel.mid.charge < 0.75 && rel.work.charge > 0.9 && rel.after.carrier < 0.05 && rel.after.charge < 0.05, JSON.stringify(rel));
 check("the old mag goes out empty and the fresh one comes in full", rel.strip.rounds > 0.05 && rel.mid.rounds === 0 && rel.rounds2 === 0, JSON.stringify(rel));
 check("the empty reload fills the mag", rel.ammo === rel.size && !rel.reloading, JSON.stringify(rel));
 
@@ -250,7 +256,7 @@ const handAt = await page.evaluate(async (AR) => {
     const h = applyArReload(m, w, f);
     m.updateMatrixWorld(true);
     const pt = m.userData.gunPoints.charge.clone();
-    pt[ch.axis] += ch.travel * pulled;
+    pt[ch.axis] += pulled ? ch.travel : ch.node.position[ch.axis] - ch.pos[ch.axis];   // (it sits back with the locked carrier)
     m.localToWorld(pt);
     d[name] = { w: h?.w, d: h ? +h.pos.distanceTo(pt).toFixed(4) : null };
     w.reloadT = 0.001;
@@ -258,13 +264,13 @@ const handAt = await page.evaluate(async (AR) => {
   }
   return d;
 }, AR);
-check("the empty reload's hand reaches forward to the charging handle", handAt.reach.w > 0.99 && handAt.reach.d < 0.012, JSON.stringify(handAt));
+check("the empty reload's hand reaches to the charging handle", handAt.reach.w > 0.99 && handAt.reach.d < 0.012, JSON.stringify(handAt));
 check("and rides the handle back", handAt.work.w > 0.99 && handAt.work.d < 0.012, JSON.stringify(handAt));
 
 // the empty reload strip
 await page.evaluate(() => { const w = window.__trollOps.currentWeapon(); w.ammoInMag = 0; w.ammoReserve = 60; w.startReload(); });
-for (const [n, f] of [["a-strip", 0.2], ["b-fetch", 0.4], ["c-seat", 0.6], ["d-reach", 0.70], ["e-pull", 0.79], ["f-home", 0.9]]) {
-  await page.evaluate(async (f) => { const w = window.__trollOps.currentWeapon(); for (let i = 0; i < 3; i++) { w.reloadT = w.reloadTime * (1 - f); await new Promise((res) => requestAnimationFrame(res)); } }, f);
+for (const [n, f] of [["a-strip", 0.2], ["b-fetch", 0.4], ["c-seat", 0.6], ["d-reach", 0.70], ["e-pull", 0.79], ["f-let", 0.81], ["g-home", 0.9]]) {
+  await page.evaluate(async (f) => { const w = window.__trollOps.currentWeapon(); w.reloadTime = 1e4; for (let i = 0; i < 3; i++) { w.reloadT = 1e4 * (1 - f); await new Promise((res) => requestAnimationFrame(res)); } }, f);
   await shot(page, `mtar-reload-${n}.png`);
 }
 await page.evaluate(() => { window.__trollOps.currentWeapon().reloadT = 0.001; });
@@ -278,7 +284,7 @@ const tac = await page.evaluate(async () => {
   w.startReload();
   let most = 0, charge = 0;
   for (const f of [0.3, 0.6, 0.9]) {
-    for (let i = 0; i < 2; i++) { w.reloadT = w.reloadTime * (1 - f); await new Promise((res) => requestAnimationFrame(res)); }
+    for (let i = 0; i < 2; i++) { w.reloadTime = 1e4; w.reloadT = 1e4 * (1 - f); await new Promise((res) => requestAnimationFrame(res)); }
     most = Math.max(most, k(P.Carrier));
     charge = Math.max(charge, k(P.Charge));
   }

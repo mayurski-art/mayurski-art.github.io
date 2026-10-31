@@ -82,7 +82,8 @@ RAIL_Z = (0.125, -0.215)                 # short top rail, rear to front
 HW_F, HW_A, HW_B = 0.026, 0.029, 0.027   # half-widths: forend, action, butt block
 HW_GRIP, HW_MAG = 0.0145, 0.0115
 PORT = dict(z=0.145, y=0.004, len=0.075, h=0.020, depth=0.020)   # right, above the mag
-SLOT = dict(z=-0.145, y=0.018, len=0.125, h=0.0085)             # the handle's slot, left
+SLOT = dict(z=-0.145, y=0.018, len=0.125, h=0.0085)             # the handle's slots, both sides
+HX = HW_A                                                         # the hand's knob: the right (the left faces you at the hip)
 HANDLE_Z = -0.195
 MAG_PIVOT = (0.0, -0.057, 0.155)         # arkit's mag point (top centre), the reload's anchor
 AIM_Y = 0.062
@@ -249,9 +250,10 @@ def shell(P):
     # the belly seams across the forend join and the butt join
     seam(P, (-HW_A + 0.004, -0.0485, SEAM1 + 0.006), (HW_A - 0.004, -0.0485, SEAM1 + 0.006), (0, -1, 0))
     seam(P, (-HW_A + 0.004, -0.0905, 0.254), (HW_A - 0.004, -0.0905, 0.254), (0, -1, 0))
-    # the charging handle's slot, left, under the rail
-    rrect_cut(P, (-HW_A, SLOT["y"], SLOT["z"]), L, ZV, SLOT["len"] + 0.004, SLOT["h"] + 0.004, 0.0045, 0.0012, "shell")
-    rrect_cut(P, (-HW_A - 0.0012, SLOT["y"], SLOT["z"]), L, ZV, SLOT["len"], SLOT["h"], 0.004, 0.009, "core")
+    # the charging handle's slots under the rail, both sides (ambidextrous)
+    for n in (R, L):
+        rrect_cut(P, (n.x * HW_A, SLOT["y"], SLOT["z"]), n, ZV, SLOT["len"] + 0.004, SLOT["h"] + 0.004, 0.0045, 0.0012, "shell")
+        rrect_cut(P, (n.x * (HW_A + 0.0012), SLOT["y"], SLOT["z"]), n, ZV, SLOT["len"], SLOT["h"], 0.004, 0.009, "core")
     # the port, right: a chamfered surround, then the opening down to the carrier
     rrect_cut(P, (HW_A, PORT["y"], PORT["z"]), R, ZV, PORT["len"] + 0.004, PORT["h"] + 0.004, 0.004, 0.0012, "shell")
     rrect_cut(P, (HW_A - 0.0012, PORT["y"], PORT["z"]), R, ZV, PORT["len"], PORT["h"], 0.0025, PORT["depth"], "core")
@@ -339,12 +341,17 @@ def parts():
     chamfer_box(P, (cx + 0.0068, cy - 0.0005, 0.116), (0.0018, 0.004, 0.012), 0.0005, "core")          # extractor
     chamfer_box(P, (cx + 0.0080, cy - 0.003, 0.175), (0.002, 0.004, 0.034), 0.0006, "core")            # the flat
     fin(P)
-    # charging handle: a knob forward in the left slot, its stem inside
-    P = moving(PFX, "Charge", (-HW_A, SLOT["y"], HANDLE_Z), "slide", "z", 0.055)
-    chamfer_box(P, (-HW_A - 0.0050, SLOT["y"], HANDLE_Z), (0.0100, 0.0078, 0.024), 0.0022, "core")
-    chamfer_box(P, (-HW_A + 0.0020, SLOT["y"], HANDLE_Z), (0.0080, 0.0060, 0.010), 0.0008, "core")
-    for k in range(4):
-        chamfer_box(P, (-HW_A - 0.0102, SLOT["y"], HANDLE_Z - 0.0075 + 0.005 * k), (0.0008, 0.0062, 0.0016), 0.0003, "core")
+    # charging handle: ambidextrous, a knob forward in each slot on one
+    # stem, so the near one shows at the hip and while the hand racks the
+    # far one; it rides back with the carrier on every shot (tf_follow)
+    P = moving(PFX, "Charge", (HX, SLOT["y"], HANDLE_Z), "slide", "z", 0.055)
+    P.extras["tf_follow"] = "Carrier"
+    for sx in (1, -1):
+        x = sx * HW_A
+        chamfer_box(P, (x + sx * 0.0050, SLOT["y"], HANDLE_Z), (0.0100, 0.0078, 0.024), 0.0022, "core")
+        chamfer_box(P, (x - sx * 0.0020, SLOT["y"], HANDLE_Z), (0.0080, 0.0060, 0.010), 0.0008, "core")
+        for k in range(4):
+            chamfer_box(P, (x + sx * 0.0102, SLOT["y"], HANDLE_Z - 0.0075 + 0.005 * k), (0.0008, 0.0062, 0.0016), 0.0003, "core")
     fin(P)
     # trigger: a black curved blade hung from the top of the opening
     P = moving(PFX, "Trigger", (0, -0.041, -0.030), "hinge", "x", -0.30)
@@ -401,7 +408,7 @@ def points():
     hand = S["hand"]
     for name, p in (("Grip", tuple(REF.P(*S["gripAt"]))), ("Support", (0, 0.0, Z(hand[0]))), ("Muzzle", (0, 0.0, Z(min(S["muzzle"][:2])))),
                     ("Aim", (0, AIM_Y, 0.090)), ("Under", (0, -0.060, Z(hand[0]))), ("Rail", (0, RAIL_TOP, Z(S["opticX"]))),
-                    ("Eject", (HW_A + 0.004, PORT["y"] + 0.002, PORT["z"])), ("ChargeHand", (-HW_A - 0.012, SLOT["y"], HANDLE_Z)),
+                    ("Eject", (HW_A + 0.004, PORT["y"] + 0.002, PORT["z"])), ("ChargeHand", (HX + 0.012, SLOT["y"], HANDLE_Z)),
                     ("CatchHand", (-HW_A - 0.010, -0.040, 0.216))):
         empty(PFX + "_" + name, p)
 
