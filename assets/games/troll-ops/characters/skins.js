@@ -112,17 +112,40 @@ export const FINISHES = [
   { id: "darkmatter", name: "Dark Matter", finish: "darkmatter", prestige: 10, blurb: "Prestige 10. A slice of the void, still swirling." },
 ];
 
+/* Camos (docs/DESIGN-SKINS.md): paint on the shell of any gun, unlocked by
+   that gun's weapon level (progression/weapon-xp.js). tile: skins/tiles/
+   (tools/troll-ops-camo-tiles.mjs draws them; its palettes mirror these).
+   scale: metres a tile (0.22); value: the paint's brightness against its
+   swatch (0.72); wear: how hard the paint chips (1 = factory);
+   rough / metal: the paint's; sheen: the mastery sweep's colour. */
+export const CAMOS = [
+  { id: "grinwood", name: "Grinwood", camo: true, level: 4, tile: "grinwood", palette: [0x55633b, 0xa2906a, 0x6a553a, 0x1f2119], rough: 0.62, blurb: "Woodland. Blends in, grins out." },
+  { id: "dustlip", name: "Dust Lip", camo: true, level: 8, tile: "dustlip", palette: [0xc6b083, 0xd9d2bf, 0xa48c61, 0x86704f], rough: 0.66, blurb: "Desert digital. Sand in every pixel." },
+  { id: "concretejaw", name: "Concrete Jaw", camo: true, level: 12, tile: "concretejaw", palette: [0x8a8b86, 0xb4b5b0, 0x5c5e5a, 0x262726], rough: 0.6, blurb: "Urban grey. Built like a parking garage." },
+  { id: "tigertooth", name: "Tiger Tooth", camo: true, level: 16, tile: "tigertooth", palette: [0xb5642a, 0xcf8a47, 0x6b3d1b, 0x1a1411], rough: 0.55, value: 0.64, blurb: "Stripes earned, not bought." },
+  { id: "nightcap", name: "Nightcap", camo: true, level: 20, tile: "nightcap", palette: [0x141516, 0x2c2e31, 0x1d1f22, 0x3d4248], rough: 0.78, blurb: "Black on black. Lights out." },
+  { id: "hexgrin", name: "Hex Grin", camo: true, level: 24, tile: "hexgrin", palette: [0x1e3858, 0x3b6a9d, 0x27507c, 0x0b0e13], rough: 0.5, scale: 0.14, blurb: "Honeycomb blue. Sweet, then it stings." },
+  { id: "snowblind", name: "Snowblind", camo: true, level: 28, tile: "snowblind", palette: [0xeef0f1, 0xc5cbd0, 0xa7c6da, 0xdde4e8], rough: 0.6, wear: 1.4, value: 0.6, blurb: "Arctic white, chipped from the cold." },
+  { id: "grinwrap", name: "Grinwrap", camo: true, level: 30, tile: "grinwrap", palette: [0x0e0e10, 0xf3f3f0, 0x8a8a88, 0x0e0e10], rough: 0.45, scale: 0.32, sheen: 0x9fb4ff, blurb: "Mastery. Every grin you earned, wrapped round the gun." },
+];
+
 /* Guns that wear their own finish and nothing else (none right now; the
    Prestige 7 gold gun was retired). */
 export const OWN_FINISH = new Set();
 
-export const SKIN_BY_ID = Object.fromEntries([...SKINS, ...FINISHES].map((s) => [s.id, s]));
+export const SKIN_BY_ID = Object.fromEntries([...SKINS, ...FINISHES, ...CAMOS].map((s) => [s.id, s]));
 
 /* The banner skin a weapon should wear, or null for the factory finish (or a finish). */
 export function skinDef(skinId, weaponId) {
   if (!skinId || !SKINNABLE.has(weaponId)) return null;
   const s = SKIN_BY_ID[skinId];
-  return s && !s.finish ? s : null;
+  return s && !s.finish && !s.camo ? s : null;
+}
+
+/* The camo a weapon should wear (any weapon), or null. */
+export function camoDef(skinId) {
+  const s = skinId ? SKIN_BY_ID[skinId] : null;
+  return s?.camo ? s : null;
 }
 
 /* The finish a weapon should wear (any weapon), or null. */
@@ -133,7 +156,7 @@ export function finishDef(skinId) {
 
 export function skinsFor(weaponId) {
   if (OWN_FINISH.has(weaponId)) return [];
-  return [...(SKINNABLE.has(weaponId) ? SKINS : []), ...FINISHES];
+  return [...CAMOS, ...(SKINNABLE.has(weaponId) ? SKINS : []), ...FINISHES];
 }
 
 export const skinAtlasUrl = (id) => new URL(`../skins/${id}.jpg`, import.meta.url).href;

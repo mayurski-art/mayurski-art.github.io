@@ -42,7 +42,7 @@ export const CAMOS = [
     palette: ["#1e3858", "#3b6a9d", "#27507c", "#0b0e13"] },
   { id: "snowblind", name: "Snowblind", level: 28, pattern: "blotch", seed: 71, scale: 1.1,
     palette: ["#eef0f1", "#c5cbd0", "#a7c6da", "#dde4e8"] },
-  { id: "grinwrap", name: "Grinwrap", level: 30, pattern: "grin", seed: 83,
+  { id: "grinwrap", name: "Grinwrap", level: 30, pattern: "grin", seed: 83, size: 1024,
     palette: ["#0e0e10", "#f3f3f0", "#8a8a88", "#0e0e10"] },
 ];
 
@@ -50,7 +50,7 @@ export const CAMOS = [
 // returns the tile and a coloured swatch as data URLs.
 const PAGE = `<!doctype html><meta charset="utf-8"><canvas id="t" width="512" height="512"></canvas><canvas id="s"></canvas>
 <script>
-const N = 512;
+let N = 512;                                 // a camo may draw finer (size: 1024)
 // a lattice hash that wraps at period P
 function hash(ix, iy, seed, P) {
   ix = ((ix % P) + P) % P; iy = ((iy % P) + P) % P;
@@ -152,8 +152,10 @@ function hex(x, y, s) {
 }
 
 async function draw(camo) {
+  N = camo.size || 512;
   const s = camo.seed, scale = camo.scale || 1;
   const tc = document.getElementById("t"), tg = tc.getContext("2d");
+  tc.width = tc.height = N;
   const img = tg.createImageData(N, N), d = img.data;
   let grinMask = null;
   if (camo.pattern === "grin") {
@@ -164,7 +166,7 @@ async function draw(camo) {
     const g = c2.getContext("2d");
     const stamps = [];
     for (let i = 0; i < 14; i++) {
-      const size = i < 6 ? 128 : 86;
+      const size = (i < 6 ? 128 : 86) * N / 512;
       let p, tries = 0;
       do { p = [hash(i, 1, s, 997) * N, hash(i, 2, s, 997) * N]; tries++; }
       while (tries < 20 && stamps.some((q) => Math.hypot(((p[0] - q[0] + N * 1.5) % N) - N / 2, ((p[1] - q[1] + N * 1.5) % N) - N / 2) < (size + q[2]) * 0.42));
@@ -198,7 +200,7 @@ async function draw(camo) {
   const sg = sc.getContext("2d"), sw = sg.createImageData(S, S), e = sw.data;
   const pal = camo.palette.map((h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]);
   for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
-    const tx = Math.floor(x * 1.5) % N, ty = Math.floor(y * 1.5) % N;
+    const tx = Math.floor(x * 1.5 * N / 512) % N, ty = Math.floor(y * 1.5 * N / 512) % N;
     const i = (ty * N + tx) * 4, o = (y * S + x) * 4;
     const tone = Math.round(d[i] / 85), g = 0.92 + (d[i + 1] / 255 - 0.35) * 0.16;
     e[o] = pal[tone][0] * g; e[o + 1] = pal[tone][1] * g; e[o + 2] = pal[tone][2] * g; e[o + 3] = 255;
@@ -213,7 +215,7 @@ window.draw = draw;
 const only = process.env.ONLY?.split(",");
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
-await page.setContent(PAGE.replace("const N = 512;", `const GRIN = "${GRIN}";\nconst N = 512;`));
+await page.setContent(PAGE.replace("let N = 512;", `const GRIN = "${GRIN}";\nlet N = 512;`));
 const swatches = [];
 for (const camo of CAMOS) {
   if (only && !only.includes(camo.id)) continue;

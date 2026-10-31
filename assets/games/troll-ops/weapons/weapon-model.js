@@ -16,7 +16,8 @@ import { PISTOL_BUILDERS } from "./weapon-pistols.js?v=ps1-wb1-or1-rt1-rb4-hp1-b
 import { SNIPER_BUILDERS } from "./weapon-snipers.js?v=sn2-wb1-or1-rt1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1-mrg3-p416";
 import { SMG_BUILDERS } from "./weapon-smgs.js?v=sm1-wb1-or1-rt1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1-mrg3-p416";
 import { AR_BUILDERS } from "./weapon-ars.js?v=ar1-ar2-or1-rt1-rb4-hp1-bx1-mg1-sp1-lz1-ret1-ret2-mrg1-hd1-rt2-fd1-ars1-mrg3-p416";
-import { finishDef, skinDef } from "../characters/skins.js?v=p5-wb1-or1";
+import { finishDef, skinDef, camoDef } from "../characters/skins.js?v=p5-wb1-or1";
+import { camoMaterial, camoAttributes, camoFlat } from "./camo.js?v=cm1";
 import { rigSoulBlazer, SB_INSPECT_KEYS } from "./soul-blazer.js?v=sb1-or1";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { shrinkTexture } from "../view/texture-budget.js?v=pm1";
@@ -160,7 +161,7 @@ const DETAILED = {
   // bake_kit.bake_gun): kit maps, moving parts, LOD1. A banner skin still
   // wears the panelled weapon-416.js model (its atlas is drawn for it).
   problem416: {
-    url: new URL("../models/problem416.glb?v=pf2", import.meta.url).href,
+    url: new URL("../models/problem416.glb?v=pf3", import.meta.url).href,
     kit: "problem416", p: "PF", device: "PF_Hider", rake: -0.37, railY: 0.035, adsDistance: null,
     glow: [], brass: "556",
   },
@@ -187,7 +188,7 @@ const detailedLod1 = new Map();
    moving parts (P_Carrier ...) carry their motion as extras (tf_part,
    tf_kind, tf_axis, tf_travel) for view/gun-action.js. */
 const kitUrl = (kit, file) => new URL(`../models/${kit}${file}?v=${KIT_VER[kit] ?? 1}`, import.meta.url).href;
-const KIT_VER = { problem416: "pf2" };
+const KIT_VER = { problem416: "pf3" };   // pf3: re-baked with the skin mask
 function loadDetailed(id, cfg) {
   const lod0 = new GLTFLoader().loadAsync(cfg.url).then((gltf) => {
     detailedTemplates.set(id, prepDetailed(gltf.scene, cfg));
@@ -238,6 +239,19 @@ function kitMaterial(cfg, lod) {
   if (weaponEnvMap && m.envMap !== weaponEnvMap) { m.envMap = weaponEnvMap; m.envMapIntensity = 0.8; m.needsUpdate = true; }
   return m;
 }
+/* A kit gun in a camo (weapons/camo.js): the kit material plus the skin
+   mask, <id>-msk.webp (paint zone, wear, shade), one per kit, lod and camo. */
+const kitMasks = new Map();
+function kitCamoMaterial(cfg, lod, camo) {
+  const kit = kitMaterial(cfg, lod);
+  const mk = `${cfg.kit}:${lod}`;
+  if (!kitMasks.has(mk)) kitMasks.set(mk, kitTexture(cfg.kit, `${lod ? "-lod1" : ""}-msk.webp`, false, lod ? 256 : 512));
+  const m = camoMaterial(kit, kitMasks.get(mk), camo, `${mk}:${camo.id}`);
+  // metal paint reflects the metals' own studio (a dim map leaves it black)
+  const env = camo.metal >= 0.5 ? metalStudio() : kit.envMap;
+  if (m.envMap !== env) { m.envMap = env; m.envMapIntensity = camo.metal >= 0.5 ? 1.4 : kit.envMapIntensity; m.needsUpdate = true; }
+  return m;
+}
 
 function prepDetailed(scene, cfg) {
   scene.traverse((o) => {
@@ -251,7 +265,7 @@ function prepDetailed(scene, cfg) {
 }
 
 const V2_POINTS = ["Eject", "ChargeHand", "CatchHand"];
-function buildDetailed(def, cfg, template, lod = 0) {
+function buildDetailed(def, cfg, template, lod = 0, camo = null) {
   const P = cfg.p;
   const src = template.clone(true);
   const root = new THREE.Group();
@@ -270,7 +284,11 @@ function buildDetailed(def, cfg, template, lod = 0) {
   const kitName = `${P}_Kit`;
   root.traverse((o) => {
     if (!o.isMesh) return;
-    if (cfg.kit && o.material.name === kitName) { o.material = kitMaterial(cfg, lod); return; }
+    if (cfg.kit && o.material.name === kitName) {
+      o.material = camo ? kitCamoMaterial(cfg, lod, camo) : kitMaterial(cfg, lod);
+      if (o.material.userData.fxTick) o.onBeforeRender = o.material.userData.fxTick;
+      return;
+    }
     let m = clones.get(o.material);
     if (!m) {
       m = o.material.clone();
@@ -291,7 +309,10 @@ function buildDetailed(def, cfg, template, lod = 0) {
     };
   }
 
+  // the camo's gun-space coordinates, taken at rest before anything moves
+  if (camo && cfg.kit) camoAttributes(root);
   const u = root.userData;
+  if (camo && cfg.kit) u.camo = camo.id;
   const mag = root.getObjectByName(`${P}_Mag`);
   if (mag) {
     u.magMesh = mag;
@@ -1026,7 +1047,18 @@ export function stripLights(obj) {
 export function buildWeaponMesh(def, { skin, lod = 0 } = {}) {
   // A gun with its own finish (the Prestige 7 gold gun) always wears it.
   const fin = finishDef(def.ownFinish || (skin ?? def.attachments?.skin ?? null));
-  if (!fin) return buildBaseMesh(def, skin, lod);
+  if (!fin) {
+    const g = buildBaseMesh(def, skin, lod);
+    // a kit gun paints its camo with the bake; any other gun, flat
+    const camo = camoDef(skin ?? def.attachments?.skin ?? null);
+    return camo && !g.userData.camo ? camoFlat(g, camo) : g;
+  }
+  // on a kit gun a prestige finish goes on as paint (buildBaseMesh's camo)
+  if (finishCamo(fin) && DETAILED[def.id]?.kit && detailedTemplates.has(def.id)) {
+    const g = buildBaseMesh(def, fin.id, lod);
+    g.userData.finish = fin.id;
+    return g;
+  }
   // A finish goes over the factory gun ("" = no banner skin).
   return applyFinish(buildBaseMesh(def, "", lod), fin);
 }
@@ -1103,6 +1135,56 @@ function metalStudio() {
   return _metalStudio;
 }
 
+/* The finishes' moving light (emissive GLSL in object space: vFxPos, uFxTime,
+   fxStars), shared by the whole-gun finishes below and, on a kit gun, by
+   the camo shader (weapons/camo.js), which masks it to the paint. */
+const FINISH_FX = {
+  metal: `
+      float sheen = smoothstep(0.78, 1.0, sin(vFxPos.z * 7.0 + vFxPos.y * 11.0 - uFxTime * 0.9));
+      float lift = smoothstep(-0.04, 0.06, vFxPos.y);
+      totalEmissiveRadiance += diffuseColor.rgb * (0.16 + 0.12 * lift + 0.45 * sheen);
+    `,
+  diamond: `
+      vec3 p = vFxPos * 38.0;
+      float g = fxStars(p, 0.05, 0.42, 5.0) + fxStars(p * 0.55 + 7.3, 0.04, 0.4, 3.3);
+      float band = smoothstep(0.92, 1.0, sin(vFxPos.z * 9.0 + vFxPos.y * 6.0 - uFxTime * 1.6));
+      totalEmissiveRadiance += vec3(0.85, 0.95, 1.0) * g * 2.2 + vec3(0.35, 0.6, 0.8) * band * 0.5;
+    `,
+  darkmatter: `
+      vec3 p = vFxPos * 22.0;
+      float t = uFxTime * 0.35;
+      float n = sin(p.x * 1.3 + t * 2.0 + sin(p.y * 2.1 - t)) * sin(p.z * 1.1 - t * 1.4 + sin(p.x * 0.9 + t * 0.6));
+      n += 0.5 * sin(p.x * 3.1 - t * 1.2 + sin(p.z * 2.7 + t)) * sin(p.y * 2.9 + t * 0.8);
+      n = n * 0.33 + 0.5;
+      float wisp = smoothstep(0.58, 0.95, n);
+      vec3 neb = mix(vec3(0.03, 0.0, 0.07), vec3(0.42, 0.08, 0.85), wisp) * 0.55;
+      neb += vec3(0.05, 0.3, 0.9) * smoothstep(0.85, 1.0, n) * 0.35;
+      float s = fxStars(vFxPos * 60.0, 0.06, 0.38, 6.0) + fxStars(vFxPos * 110.0 + 3.1, 0.05, 0.4, 9.0) * 0.7;
+      totalEmissiveRadiance += neb + vec3(0.9, 0.85, 1.0) * s * 2.0;
+    `,
+};
+
+/* A prestige finish on a kit gun is paint like a camo (docs/DESIGN-SKINS.md
+   §3.5): the shell turns to the metal (or the crystal, or the void) and the
+   core, rubber and steel stay what they are, with the finish's own light on
+   top. Ghost Glass has none: it is a material, not paint. */
+const FINISH_CAMO = {
+  metal: (f) => ({ palette: [f.metal[0], f.metal[0], f.metal[0], f.metal[0]], metal: 0.92, rough: f.rough, value: 0.9, wear: 0.55 }),
+  diamond: () => ({ palette: [0xbfe6ff, 0xbfe6ff, 0xa9d8f5, 0xbfe6ff], metal: 0.35, rough: 0.08, value: 0.85, wear: 0.4 }),
+  darkmatter: () => ({ palette: [0x050208, 0x050208, 0x07030c, 0x050208], metal: 0.75, rough: 0.2, value: 1, wear: 0.5 }),
+};
+const finishCamos = new Map();
+function finishCamo(fin) {
+  if (!fin || !FINISH_CAMO[fin.finish]) return null;
+  let c = finishCamos.get(fin.id);
+  if (!c) {
+    // one tone: any tile will do (its detail channel still varies the shine)
+    c = { id: fin.id, tile: "concretejaw", ...FINISH_CAMO[fin.finish](fin), fx: { key: fin.finish, glsl: FINISH_FX[fin.finish] } };
+    finishCamos.set(fin.id, c);
+  }
+  return c;
+}
+
 function metalMats(fin) {
   const base = new THREE.Color(fin.metal[0]), shadow = new THREE.Color(fin.metal[1]);
   // The gun's flat panels each reflect one direction, so on top of the
@@ -1113,11 +1195,7 @@ function metalMats(fin) {
     return withFx(new THREE.MeshStandardMaterial({
       color: c, metalness: 0.9, roughness: fin.rough + (3 - i) * 0.04,
       envMap: metalStudio(), envMapIntensity: 1.4,
-    }), "tf-metal", `
-      float sheen = smoothstep(0.78, 1.0, sin(vFxPos.z * 7.0 + vFxPos.y * 11.0 - uFxTime * 0.9));
-      float lift = smoothstep(-0.04, 0.06, vFxPos.y);
-      totalEmissiveRadiance += diffuseColor.rgb * (0.16 + 0.12 * lift + 0.45 * sheen);
-    `);
+    }), "tf-metal", FINISH_FX.metal);
   });
 }
 
@@ -1157,12 +1235,7 @@ function diamondMats() {
       color: 0xbfe6ff, metalness: 0.35, roughness: 0.06, flatShading: true,
       clearcoat: 1, clearcoatRoughness: 0.02, iridescence: 1, iridescenceIOR: 1.9, iridescenceThicknessRange: [200, 900],
       emissive: 0x16384f, envMap: weaponEnvMap, envMapIntensity: 2.6,
-    }), "tf-diamond", `
-      vec3 p = vFxPos * 38.0;
-      float g = fxStars(p, 0.05, 0.42, 5.0) + fxStars(p * 0.55 + 7.3, 0.04, 0.4, 3.3);
-      float band = smoothstep(0.92, 1.0, sin(vFxPos.z * 9.0 + vFxPos.y * 6.0 - uFxTime * 1.6));
-      totalEmissiveRadiance += vec3(0.85, 0.95, 1.0) * g * 2.2 + vec3(0.35, 0.6, 0.8) * band * 0.5;
-    `),
+    }), "tf-diamond", FINISH_FX.diamond),
     edge: new THREE.LineBasicMaterial({ color: 0x3fb8ff, transparent: true, opacity: 0.85, depthWrite: false }),
   };
 }
@@ -1171,18 +1244,7 @@ function diamondMats() {
    moving through it, after BO2's. One shared clock for every gun wearing it,
    ticked by whichever of them draws first each frame. */
 function darkMatterMat() {
-  return withFx(new THREE.MeshStandardMaterial({ color: 0x050208, metalness: 0.75, roughness: 0.2, envMap: weaponEnvMap, envMapIntensity: 1.0 }), "tf-darkmatter", `
-      vec3 p = vFxPos * 22.0;
-      float t = uFxTime * 0.35;
-      float n = sin(p.x * 1.3 + t * 2.0 + sin(p.y * 2.1 - t)) * sin(p.z * 1.1 - t * 1.4 + sin(p.x * 0.9 + t * 0.6));
-      n += 0.5 * sin(p.x * 3.1 - t * 1.2 + sin(p.z * 2.7 + t)) * sin(p.y * 2.9 + t * 0.8);
-      n = n * 0.33 + 0.5;
-      float wisp = smoothstep(0.58, 0.95, n);
-      vec3 neb = mix(vec3(0.03, 0.0, 0.07), vec3(0.42, 0.08, 0.85), wisp) * 0.55;
-      neb += vec3(0.05, 0.3, 0.9) * smoothstep(0.85, 1.0, n) * 0.35;
-      float s = fxStars(vFxPos * 60.0, 0.06, 0.38, 6.0) + fxStars(vFxPos * 110.0 + 3.1, 0.05, 0.4, 9.0) * 0.7;
-      totalEmissiveRadiance += neb + vec3(0.9, 0.85, 1.0) * s * 2.0;
-  `);
+  return withFx(new THREE.MeshStandardMaterial({ color: 0x050208, metalness: 0.75, roughness: 0.2, envMap: weaponEnvMap, envMapIntensity: 1.0 }), "tf-darkmatter", FINISH_FX.darkmatter);
 }
 
 function applyFinish(root, fin) {
@@ -1224,7 +1286,7 @@ function buildBaseMesh(def, skin, lod = 0) {
   // older builder for the same id, unless it wears a banner skin
   if (DETAILED[def.id]?.kit && detailedTemplates.has(def.id) && !skinDef(skin ?? def.attachments?.skin ?? null, def.id)) {
     const l1 = lod === 1 && detailedLod1.get(def.id);
-    return buildDetailed(def, DETAILED[def.id], l1 || detailedTemplates.get(def.id), l1 ? 1 : 0);
+    return buildDetailed(def, DETAILED[def.id], l1 || detailedTemplates.get(def.id), l1 ? 1 : 0, camoDef(skin ?? def.attachments?.skin ?? null) ?? finishCamo(finishDef(skin ?? def.attachments?.skin ?? null)));
   }
   if (def.id === "problem416") return build416(def, skin ?? def.attachments?.skin ?? null);
   // a pair of revolvers, one per hand (revolvers.js)
