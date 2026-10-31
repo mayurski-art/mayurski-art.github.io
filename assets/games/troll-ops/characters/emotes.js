@@ -20,6 +20,7 @@
 import * as THREE from "three";
 import { DANCES, setHandPose, setFace, resetSecondaryJoints, reachHand, placeFoot, beginPose, endPose } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1";
 import { LeanKit, LEAN, LEAN_SECONDS, leanFp } from "../weapons/lean-cup.js?v=ng1-or1-lp1-ht1-bx1";
+import { HellfireFx } from "../weapons/soul-blazer.js?v=sb1-or1";
 
 const PI = Math.PI;
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -563,120 +564,328 @@ function poseGum(rig, t) {
   done(rig);
 }
 
-/* Cigar: TROLLS #1272's own emote (traits.js: its Cigar facial is the
-   emote, not worn; user, 2026-10-21: "1272 should not have a cigar in his
-   face just make it an exclusive emote"). The right hand fishes a cigar out
-   of the vest, puts it in the grin's corner and goes to the belt; two long
-   puffs (the tip glows), the hand takes it back out and holds it off to the
-   side, chin up, three smoke rings' worth of puffs drift up, then it's
-   tucked away. For whoever wears #1272, and the owner on any body
-   (cosmetics.js mayEmoteToken). Blocky like the body: boxes, inked. In the
-   mouth it hangs on the head board at the grin's corner (the NFT's art
-   right, flipped back on a mirrored head like the bubble); in the hand, on
-   the hand point, out of the front of the fist. */
-const CIGAR = { seconds: 6.2, len: 0.2, thick: 0.042, corner: [0.36, -0.42], smoke: [4.3, 5.7] };
-const CIGAR_COLOURS = { leaf: 0x6b3a1f, band: 0xb0302a, ash: 0x9a9a94, tip: 0xffb02e, ember: 0xa8321a };
-let cigarGeos = null;
-function makeCigar() {
-  if (!cigarGeos) {
-    const box = (l, t) => new THREE.BoxGeometry(l, t, t);
-    cigarGeos = { leaf: box(1, 1), ink: box(1, 1) };
-    for (const g of Object.values(cigarGeos)) g.userData.shared = true;
+/* Cigar and Blunt: TROLLS #1272's own emotes (traits.js: its Cigar facial
+   is the emote, not worn; user, 2026-10-21: "1272 should not have a cigar
+   in his face just make it an exclusive emote"; 2026-10-30: the one cigar
+   became these two, the same motion, only the smoke differs: the blunt is
+   weed rolled in white paper). The right hand fishes it out of the vest
+   and puts it between the teeth near the grin's corner, then
+   comes up in front of the chest and bursts into flame (the Soul Blazer's
+   hellfire); the burning hand goes to the tip, the head dips into it and
+   the tip lights: it glows and smoke curls off it. The hand shakes the fire
+   out, he takes a draw, takes it out of the mouth and holds it off to the
+   side, chin up, the smoke going up off the tip. For whoever wears #1272,
+   and the owner on any body (cosmetics.js mayEmoteToken). The flame and
+   the smoke are drawn from the emote clock alone (no state), so a frozen
+   moment, a remote and a replay all show the same thing. In the mouth it
+   hangs on the head board (the NFT's art right, flipped back on a mirrored
+   head like the bubble); in the hand, on the hand point, out of the front
+   of the fist. */
+const LIGHT = {
+  seconds: 6.6,
+  // where it goes into the mouth (head-board halves, measured on each
+  // face's art): in the dark between the top and bottom teeth, a couple of
+  // teeth in from the grin's corner (user, 2026-10-30, a mark on #1718's
+  // grin: "should appear to be in the mouth"). It goes in at the face's
+  // surface there (a TROLLS face stands out from the board in relief), with
+  // `bury` metres of it inside, so the teeth hold it
+  corner: { stick: [0.36, -0.14], blocky: [0.43, -0.2] }, bury: 0.03,
+  inMouth: [1.0, 5.05],                 // between these it's in the grin
+  fire: [1.65, 3.55, 3.75],             // bursts into flame, goes out over the last two
+  lights: [2.55, 2.95],                 // the tip catches
+  draw: [3.85, 4.4],                    // a draw: the tip glows hot
+  exhale: 4.45,                         // the smoke out of the grin
+  flame: 0.065,                         // how far above the fist's top the tip sits in the fire
+};
+/* The two props, along +x from the mouth end (0) to the lit end (len).
+   Rings: [from, to, radius at from, radius at to, colour key]. */
+const SMOKES = {
+  cigar: {
+    // (the band just clear of the lips: LIGHT.bury of it is in the mouth)
+    len: 0.2,
+    colours: { wrap: 0x3b2210, cap: 0x2f1a0c, band: 0xb0302a, gold: 0xd9a63a, ash: 0x8e8a84 },
+    rings: [[0, 0.012, 0.016, 0.0235, "cap"], [0.012, 0.042, 0.0235, 0.0235, "wrap"], [0.042, 0.062, 0.025, 0.025, "band"],
+      [0.062, 0.068, 0.0252, 0.0252, "gold"], [0.068, 0.188, 0.0235, 0.0235, "wrap"], [0.188, 0.194, 0.0225, 0.0225, "ash"]],
+    tip: 0.0225,
+  },
+  // weed rolled in white paper (user, 2026-10-30): a cone, the card crutch
+  // at the mouth end, the twist at the lit end, the weed showing there
+  blunt: {
+    len: 0.16,
+    colours: { crutch: 0xc9a46a, paper: 0xf4f1e8, seam: 0xdcd7ca, ash: 0x8f8b84 },
+    rings: [[0, 0.022, 0.0068, 0.0072, "crutch"], [0.022, 0.08, 0.0072, 0.0098, "paper"], [0.08, 0.084, 0.0099, 0.01, "seam"],
+      [0.084, 0.146, 0.01, 0.0126, "paper"], [0.146, 0.151, 0.0126, 0.0126, "ash"]],
+    tip: 0.0126, cold: 0x4f5a30,
+  },
+};
+const TIP_COLOURS = { cold: 0x3a2a1e, ember: 0xa8321a, lit: 0xffb02e };
+const _litGeos = {};
+function smokeProp(kind) {
+  const S = SMOKES[kind];
+  if (!_litGeos[kind]) {
+    // rounded sections: cylinders turned to lie along +x
+    const ring = (a, b, r0, r1) => {
+      const geo = new THREE.CylinderGeometry(r1, r0, b - a, 14, 1);
+      geo.rotateZ(-PI / 2).translate((a + b) / 2, 0, 0);
+      geo.userData.shared = true;
+      return geo;
+    };
+    const ink = (a, b, r0, r1) => ring(a - 0.004, b + 0.004, r0 + 0.004, r1 + 0.004);
+    const last = S.rings[S.rings.length - 1][1];
+    _litGeos[kind] = {
+      rings: S.rings.map(([a, b, r0, r1]) => ring(a, b, r0, r1)),
+      ink: ink(0, S.len, S.rings[0][2], S.tip),
+      tip: ring(last, S.len, S.tip, S.tip * 0.92),
+      mats: Object.fromEntries(Object.entries(S.colours).map(([k, c]) => {
+        const m = new THREE.MeshToonMaterial({ color: c });
+        m.userData.shared = true;
+        return [k, m];
+      })),
+    };
   }
-  const L = CIGAR.len, T = CIGAR.thick, g = new THREE.Group();
-  // [colour, from, to (along +x, the lit end out), thickness]
-  const part = (colour, a, b, t = T) => {
-    const m = new THREE.Mesh(cigarGeos.leaf, colour instanceof THREE.Material ? colour : new THREE.MeshToonMaterial({ color: colour }));
-    m.scale.set(b - a, t, t);
-    m.position.x = (a + b) / 2;
-    const ink = new THREE.Mesh(cigarGeos.ink, INK_MAT);
-    ink.scale.set(b - a + 0.008, t + 0.008, t + 0.008);
-    ink.position.x = m.position.x;
-    g.add(m, ink);
-    return m;
-  };
-  part(CIGAR_COLOURS.leaf, 0, L * 0.92);
-  part(CIGAR_COLOURS.band, L * 0.12, L * 0.24, T * 1.08);
-  part(CIGAR_COLOURS.ash, L * 0.92, L * 0.96);
-  // the ember: lit, so it glows in the dark too, brighter on a puff
-  g.userData.tip = part(new THREE.MeshBasicMaterial({ color: CIGAR_COLOURS.ember }), L * 0.96, L);
+  const G = _litGeos[kind], g = new THREE.Group();
+  S.rings.forEach((r, i) => g.add(new THREE.Mesh(G.rings[i], G.mats[r[4]])));
+  g.add(new THREE.Mesh(G.ink, INK_MAT));
+  // the lit end: cold until the flame gets to it, then an ember that glows
+  // in the dark too, brighter on the draw (its own colour, per rig)
+  const cold = new THREE.Color(S.cold ?? TIP_COLOURS.cold);
+  const tip = new THREE.Mesh(G.tip, new THREE.MeshBasicMaterial({ color: cold }));
+  g.add(tip);
+  g.userData.tip = tip;
+  g.userData.cold = cold;
+  g.userData.tipX = S.len;
   return g;
 }
-const _smokeGeo = new THREE.SphereGeometry(1, 12, 8);
-_smokeGeo.userData.shared = true;
-function cigarSmoke() {
+/* The light grey of the smoke: one soft puff, every wisp a sprite of it. */
+let _puffMat = null;
+function puffMaterial() {
+  if (_puffMat) return _puffMat;
+  const N = 64, c = document.createElement("canvas");
+  c.width = c.height = N;
+  const g = c.getContext("2d"), r = g.createRadialGradient(N / 2, N / 2, 0, N / 2, N / 2, N / 2);
+  r.addColorStop(0, "rgba(255,255,255,0.9)");
+  r.addColorStop(0.5, "rgba(255,255,255,0.35)");
+  r.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = r;
+  g.fillRect(0, 0, N, N);
+  const tex = new THREE.CanvasTexture(c);
+  tex.userData.shared = true;
+  _puffMat = { tex };
+  return _puffMat;
+}
+const TIP_WISPS = 7, MOUTH_PUFFS = 5, FLAMES = 12, EMBERS = 3;
+/* The flame on the hand and the smoke, hung on the root (upright, so the
+   fire and the smoke rise straight up whichever way the hand turns). */
+function lightFx() {
   const g = new THREE.Group();
-  for (let i = 0; i < 4; i++) g.add(new THREE.Mesh(_smokeGeo, new THREE.MeshBasicMaterial({ color: 0xd8d8d2, transparent: true, depthWrite: false })));
+  g.userData.fire = new HellfireFx(g, { max: FLAMES + EMBERS + 2, gain: 1.35, additive: false, hot: 0.85 });
+  const tex = puffMaterial().tex;
+  g.userData.wisps = [];
+  for (let i = 0; i < TIP_WISPS + MOUTH_PUFFS; i++) {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0xdedbd4, transparent: true, depthWrite: false }));
+    sp.renderOrder = 6;
+    g.add(sp);
+    g.userData.wisps.push(sp);
+  }
+  // the hellfire's particles, rebuilt from the clock every frame
+  g.userData.pool = Array.from({ length: FLAMES + EMBERS }, () => ({ vx: 0, vy: 0, vz: 0, drag: 0, grav: 0, spin: 0, inT: 0.02 }));
   return g;
 }
-const _cigT = new THREE.Vector3(), _cigBelt = new THREE.Vector3(), _cigOut = new THREE.Vector3();
-const _cigPole = new THREE.Vector3(1, -0.8, 0.2), _cigHipPole = new THREE.Vector3(-1, 0.1, 0.6), _cigHip = new THREE.Vector3();
-const _cigEmber = new THREE.Color(CIGAR_COLOURS.ember), _cigLit = new THREE.Color(CIGAR_COLOURS.tip);
-function poseCigar(rig, t) {
+const hash = (n) => { const x = Math.sin(n * 127.1 + 11.7) * 43758.5453; return x - Math.floor(x); };
+/* The burning hand: `amp` 0..1 (a burst over 1 as it catches), the fist's
+   top at `at` (root space). */
+function drawHandFire(fx, at, t, amp, s) {
+  const fire = fx.userData.fire, pool = fx.userData.pool, P = fire.fire.p;
+  P.length = 0;
+  if (amp > 0.01) {
+    for (let i = 0; i < FLAMES + EMBERS; i++) {
+      const q = pool[i], ember = i >= FLAMES;
+      const rate = ember ? 1.3 : 2.6, ph = t * rate + i / (ember ? EMBERS : FLAMES), cyc = Math.floor(ph), u = ph - cyc;
+      const seed = i * 31 + cyc, a = hash(seed) * PI * 2, r = (ember ? 0.03 : 0.022) * Math.sqrt(hash(seed + 7)) * s;
+      q.life = ember ? 0.8 : 0.38;
+      q.age = u * q.life;
+      q.x = at.x + Math.cos(a) * r * (1 - 0.4 * u);
+      q.z = at.z + Math.sin(a) * r * (1 - 0.4 * u);
+      q.y = at.y + (ember ? 0.24 : 0.12) * u * s * Math.min(1.3, amp);
+      q.rot = (hash(seed + 3) - 0.5) * 0.8;
+      if (ember) Object.assign(q, { s0: 0.012 * s, s1: 0.005 * s, f0: 15, f1: 15, a: 1, h0: 1.3, h1: 0.5, fade: 0.7 });
+      else Object.assign(q, { s0: 0.05 * s * amp, s1: (0.1 + 0.03 * hash(seed + 5)) * s * amp, f0: 0, f1: 10, a: Math.min(1, amp), h0: 1.25, h1: 0.35, fade: 1.6 });
+      P.push(q);
+    }
+  }
+  fire.update(0);   // draws them where they were put (no time passes)
+}
+/* Wisps off the lit tip (`tip`, root space; `amp` 0..1), and the cloud out
+   of the grin after the draw (`mouth`, root space; null: none). */
+function drawSmoke(fx, tip, mouth, t, amp, sinceExhale, s) {
+  const W = fx.userData.wisps;
+  for (let i = 0; i < TIP_WISPS; i++) {
+    const sp = W[i], ph = t * 0.55 + i / TIP_WISPS, u = ph - Math.floor(ph);
+    sp.visible = amp > 0.01;
+    if (!sp.visible) continue;
+    // a thin curl: it winds and drifts as it climbs, widening as it fades
+    const curl = u * 9 + i;
+    sp.position.set(tip.x + Math.sin(curl) * 0.025 * u * s, tip.y + (0.01 + 0.32 * u) * s, tip.z + Math.cos(curl * 0.7) * 0.02 * u * s);
+    sp.scale.setScalar((0.018 + 0.09 * u) * s);
+    sp.material.opacity = 0.5 * amp * Math.min(1, u * 8) * (1 - u);
+  }
+  for (let i = 0; i < MOUTH_PUFFS; i++) {
+    const sp = W[TIP_WISPS + i], u = (sinceExhale - i * 0.18) / 1.4;
+    sp.visible = !!mouth && u > 0 && u < 1;
+    if (!sp.visible) continue;
+    sp.position.set(mouth.x + Math.sin(i * 2.1 + u * 3) * 0.04 * s, mouth.y + (0.02 + 0.22 * u) * s, mouth.z);
+    sp.scale.setScalar((0.05 + 0.2 * u) * s);
+    sp.material.opacity = 0.6 * (1 - u);
+  }
+}
+/* The middle of the fist or the open hand that's showing (its box). */
+const _mitt = new THREE.Box3(), _mittPiece = new THREE.Box3();
+function mittCentre(rig, out) {
+  const h = rig.hands.R, shown = h.fist.visible ? h.fist : h.open;
+  _mitt.makeEmpty();
+  shown.updateWorldMatrix(true, true);
+  shown.traverse((o) => {
+    if (!o.isMesh || !o.visible || o.material === INK_MAT) return;
+    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+    _mitt.union(_mittPiece.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld));
+  });
+  if (_mitt.isEmpty()) return rig.parts.wristR.getWorldPosition(out);
+  return _mitt.getCenter(out);
+}
+const _lT = new THREE.Vector3(), _lW = new THREE.Vector3(), _lM = new THREE.Vector3(), _lTip = new THREE.Vector3(), _lErr = new THREE.Vector3();
+const _lFire = new THREE.Vector3(), _lMouth = new THREE.Vector3(), _lUp = new THREE.Vector3();
+const _lPole = new THREE.Vector3(1, -0.8, 0.2), _lHipPole = new THREE.Vector3(-1, 0.1, 0.6), _lHip = new THREE.Vector3(), _lK = new THREE.Vector3();
+/* How far the face stands out of the head board at a point of it (head
+   space): a TROLLS face is in relief, the stick's is the board. Measured
+   once per body (a ray in from the front; the emote's own pieces skipped). */
+const _faceRay = new THREE.Raycaster(), _faceO = new THREE.Vector3(), _faceN = new THREE.Vector3();
+function faceDepth(rig, x, y) {
+  const head = rig.parts.head, key = `${x},${y},${head.children.length},${rig.blocky ? 1 : 0}`;
+  if (rig.lightFace?.key === key) return rig.lightFace.z;
+  head.updateWorldMatrix(true, true);
+  head.localToWorld(_faceO.set(x, y, 0.4));
+  _faceN.set(0, 0, -1).transformDirection(head.matrixWorld);
+  _faceRay.set(_faceO, _faceN);
+  const bits = rig.emoteBits || [];
+  const hit = _faceRay.intersectObject(head, true).find((h) => {
+    for (let o = h.object; o && o !== head; o = o.parent) if (!o.visible || bits.includes(o)) return false;
+    return true;
+  });
+  const z = hit ? head.worldToLocal(hit.point).z : 0;
+  rig.lightFace = { key, z };
+  return z;
+}
+const _tipEmber = new THREE.Color(TIP_COLOURS.ember), _tipLit = new THREE.Color(TIP_COLOURS.lit);
+function poseLightUp(kind, rig, t) {
   const p = rig.parts, s = rig.scale, w = rig.blocky ? 1.35 : 1;
   base(rig);
-  const T = CIGAR.seconds;
-  // the right hand's stops: the vest pocket, the mouth, the belt, held out
-  const pocket = env(t, 0, 0.35, 0.55, 0.8);
-  const toMouth = Math.max(env(t, 0.55, 1.0, 1.25, 1.6), env(t, 3.3, 3.7, 3.95, 4.3));
-  const atBelt = env(t, 1.25, 1.7, 3.3, 3.6);
-  const out = env(t, 3.95, 4.4, 5.5, 5.95);
-  const inMouth = t >= 1.15 && t < 3.85;
-  const chinUp = env(t, 4.2, 4.6, 5.5, 5.9);
-  // two long draws, a glow each
-  const puff = Math.max(env(t, 1.9, 2.15, 2.35, 2.6), env(t, 2.75, 3.0, 3.15, 3.4));
-  head(rig, -0.08 * puff - 0.3 * chinUp, 0.06 * atBelt, 0.08 * atBelt);
-  p.torso.rotation.x = -0.05 * (atBelt + chinUp);
+  const T = LIGHT.seconds;
+  // the right hand's stops: the vest pocket, the mouth (in, then out),
+  // up in front burning, at the tip, the belt, held out
+  const pocket = env(t, 0, 0.35, 0.5, 0.75);
+  const toMouth = Math.max(env(t, 0.5, 0.92, 1.05, 1.35), env(t, 4.7, 5.0, 5.1, 5.4));
+  const burn = env(t, 1.3, 1.6, 3.5, 3.85);
+  const toTip = env(t, 2.0, 2.45, 3.25, 3.55);
+  const atBelt = env(t, 3.7, 4.05, 4.6, 4.85);
+  const out = env(t, 5.1, 5.45, 6.0, 6.4);
+  const inMouth = t >= LIGHT.inMouth[0] && t < LIGHT.inMouth[1];
+  const chinUp = env(t, 5.3, 5.6, 6.0, 6.35);
+  const draw = env(t, LIGHT.draw[0], LIGHT.draw[0] + 0.2, LIGHT.draw[1] - 0.15, LIGHT.draw[1]);
+  // the head leans into the flame, then the draw, then chin up
+  head(rig, 0.16 * toTip - 0.06 * draw - 0.3 * chinUp, -0.1 * toTip + 0.06 * atBelt, 0.06 * atBelt);
+  p.torso.rotation.x = 0.04 * toTip - 0.05 * (atBelt + chinUp);
   // the left hand on the hip, a cocky stance
-  const hip = env(t, 0.2, 0.7, 5.6, 6.1);
-  _cigHip.set(-0.3 * s, -0.62 * s, 0.02 * s).lerp(_cigOut.set(-0.2 * w * s, -0.5 * s, 0.03 * s), hip);
-  reachHand(rig, -1, _cigHip, _cigHipPole);
+  const hip = env(t, 0.2, 0.7, 6.0, 6.5);
+  _lHip.set(-0.3 * s, -0.62 * s, 0.02 * s).lerp(_lK.set(-0.2 * w * s, -0.5 * s, 0.03 * s), hip);
+  reachHand(rig, -1, _lHip, _lHipPole);
   setHandPose(rig, -1, hip > 0.5 ? "fist" : "open");
-  // right hand: blended from hanging through each stop (chest space)
-  _cigT.set(0.3 * s, -0.62 * s, 0.02 * s);
-  _cigT.lerp(_cigOut.set(-0.06 * w * s, -0.14 * s, -0.17 * s), pocket);
-  _cigT.lerp(_cigBelt.set(0.1 * w * s, -0.5 * s, -0.12 * s), atBelt);
-  _cigT.lerp(_cigOut.set(0.26 * w * s, -0.28 * s, -0.28 * s), out);
-  const side = p.headPivot.scale.x < 0 ? -1 : 1;
-  if (toMouth > 0) {
-    // the fist just off the grin's corner, on the cigar's side of the face
-    const m = facePoint(rig, CIGAR.corner[0] * side * 1.35, CIGAR.corner[1], 0.13 * s);
-    _cigT.lerp(m, toMouth);
-  }
-  reachHand(rig, 1, _cigT, _cigPole);
-  setHandPose(rig, 1, pocket + toMouth + atBelt + out > 0.3 ? "fist" : "open");
-  const shown = t >= 0.45 && t < T - 0.3;
-  // in the mouth: across the grin's corner, angled out, forward and a bit down
-  const mouth = emoteBit(rig, "cigarMouth", p.head, makeCigar);
+  const side = p.headPivot.scale.x < 0 ? -1 : 1, corner = rig.blocky ? LIGHT.corner.blocky : LIGHT.corner.stick;
+  const shown = t >= 0.4 && t < T - 0.3;
+  // in the mouth: out from between the teeth, mostly forward, angled out
+  // to the side and drooping a little, its end in behind the face
+  const mouth = emoteBit(rig, kind + "Mouth", p.head, () => smokeProp(kind));
   const g = p.head.geometry.parameters;
   mouth.visible = shown && inMouth;
-  mouth.position.set(CIGAR.corner[0] * side * g.width / 2, CIGAR.corner[1] * g.height / 2, 0.03 * s);
-  mouth.rotation.set(0, side * -0.45, -side * 0.2);
+  mouth.rotation.set(0, side * -1.0, -side * 0.2);
   mouth.scale.set(side * s, s, s);
+  const mx = corner[0] * side * g.width / 2, my = corner[1] * g.height / 2;
+  mouth.position.set(mx, my, faceDepth(rig, mx, my))
+    .add(_lK.set(-LIGHT.bury, 0, 0).multiply(mouth.scale).applyQuaternion(mouth.quaternion));
+  // right hand: blended from hanging through each stop (chest space)
+  _lT.set(0.3 * s, -0.62 * s, 0.02 * s);
+  _lT.lerp(_lK.set(-0.06 * w * s, -0.14 * s, -0.17 * s), pocket);
+  _lT.lerp(_lK.set(0.12 * w * s, -0.24 * s, -0.3 * s), burn);
+  _lT.lerp(_lK.set(0.1 * w * s, -0.5 * s, -0.12 * s), atBelt);
+  _lT.lerp(_lK.set(0.26 * w * s, -0.28 * s, -0.28 * s), out);
+  if (toMouth > 0) {
+    // the fist just off the grin's corner, on the prop's side of the face
+    _lT.lerp(facePoint(rig, corner[0] * side * 1.35, corner[1], 0.13 * s), toMouth);
+  }
+  setHandPose(rig, 1, burn > 0.3 && toMouth < 0.3 ? "open" : pocket + toMouth + atBelt + out > 0.3 ? "fist" : "open");
+  reachHand(rig, 1, _lT, _lPole);
+  rig.root.updateMatrixWorld(true);
+  // the tip, where the mouth holds it (world)
+  mouth.updateWorldMatrix(true, false);
+  mouth.localToWorld(_lTip.set(mouth.userData.tipX, 0, 0));
+  _lUp.set(0, 1, 0).transformDirection(rig.root.matrixWorld);
+  if (toTip > 0) {
+    // the hand's middle a flame's height under the tip: aim the hand point
+    // for that, see where the mitt lands, take the miss out (twice: the
+    // mitt sits off the hand point and turns with the arm)
+    const drop = (rig.blocky ? 0.085 : 0.06) + LIGHT.flame;
+    _lW.copy(_lTip).addScaledVector(_lUp, -drop * s);
+    const chest = p.chest;
+    chest.updateWorldMatrix(true, false);
+    chest.worldToLocal(_lW);
+    _lM.copy(_lT).lerp(_lW, toTip);
+    for (let k = 0; k < 2; k++) {
+      reachHand(rig, 1, _lM, _lPole);
+      rig.root.updateMatrixWorld(true);
+      // the miss, in chest space
+      chest.worldToLocal(mittCentre(rig, _lErr)).sub(_lW).multiplyScalar(toTip);
+      _lM.sub(_lErr);
+    }
+    reachHand(rig, 1, _lM, _lPole);
+    rig.root.updateMatrixWorld(true);
+  }
   // in the hand: out of the front of the fist
-  const handPt = p.wristR.parent;
-  const held = emoteBit(rig, "cigarHand", handPt, makeCigar);
+  const held = emoteBit(rig, kind + "Hand", p.wristR.parent, () => smokeProp(kind));
   held.visible = shown && !inMouth;
   held.position.set(0, 0, 0);
   held.rotation.set(0, PI / 2, 0);
   held.scale.setScalar(s);
-  const lit = Math.max(0.35, puff, 0.35 + 0.15 * Math.sin(t * 5));
-  for (const c of [mouth, held]) c.userData.tip.material.color.copy(_cigEmber).lerp(_cigLit, lit);
-  // the smoke: puffs out of the grin, rising and spreading as they fade
-  const smoke = emoteBit(rig, "cigarSmoke", p.head, cigarSmoke);
-  smoke.visible = t >= CIGAR.smoke[0] && t < CIGAR.smoke[1] + 0.8;
-  smoke.children.forEach((puffBall, i) => {
-    const u = (t - CIGAR.smoke[0] - i * 0.3) / 1.1;
-    puffBall.visible = u > 0 && u < 1;
-    if (!puffBall.visible) return;
-    const r = (0.035 + 0.08 * u) * s;
-    puffBall.scale.setScalar(r);
-    puffBall.position.set((CIGAR.corner[0] * 0.4 * side * g.width / 2) + Math.sin(i * 2.1 + u * 3) * 0.04 * s,
-      CIGAR.corner[1] * g.height / 2 + (0.02 + 0.16 * u) * s, (0.08 + 0.3 * u) * s);
-    puffBall.material.opacity = 0.75 * (1 - u);
-  });
+  // the tip: cold till the flame gets to it, then a glow that breathes,
+  // hot on the draw
+  const caught = ease((t - LIGHT.lights[0]) / (LIGHT.lights[1] - LIGHT.lights[0]));
+  const glow = Math.max(0.35 + 0.15 * Math.sin(t * 5), draw);
+  for (const c of [mouth, held]) {
+    c.userData.tip.material.color.copy(_tipEmber).lerp(_tipLit, glow).lerp(c.userData.cold, 1 - caught);
+  }
+  // the fire and the smoke, in root space
+  const fx = emoteBit(rig, kind + "Fx", rig.root, lightFx);
+  fx.visible = shown;
+  const [on, off0, off1] = LIGHT.fire;
+  const amp = t < on ? 0 : (1 + 0.6 * env(t, on, on + 0.05, on + 0.15, on + 0.4)) * (1 - ease((t - off0) / (off1 - off0)));
   done(rig);
+  rig.root.updateMatrixWorld(true);
+  mittCentre(rig, _lFire).addScaledVector(_lUp, (rig.blocky ? 0.06 : 0.035) * s);
+  drawHandFire(fx, rig.root.worldToLocal(_lFire), t, amp, s);
+  const lit = inMouth ? mouth : held;
+  lit.updateWorldMatrix(true, false);
+  lit.localToWorld(_lTip.set(lit.userData.tipX, 0, 0));
+  rig.root.worldToLocal(_lTip);
+  const exhaled = t >= LIGHT.exhale;
+  if (exhaled) rig.root.worldToLocal(p.chest.localToWorld(_lMouth.copy(facePoint(rig, corner[0] * 0.4 * side, corner[1], 0.1 * s))));
+  drawSmoke(fx, _lTip, exhaled ? _lMouth : null, t, caught * (shown ? 1 : 0), t - LIGHT.exhale, s);
 }
+/* The wheel's pictures of the two (emote-wheel.js draws an emote's `icon`). */
+const ICON_TIP = '<rect x="34" y="3.6" width="3" height="4.8" rx="1" fill="#ffb02e"/><path d="M36 2.6c1.6-1.2-.6-1.8.8-2.6" fill="none" stroke="#cfcac2" stroke-width=".8"/>';
+const CIGAR_ICON = '<svg viewBox="0 0 40 12" aria-hidden="true"><rect x="2" y="2.4" width="32" height="7.2" rx="3.4" fill="#4a2a14" stroke="#111"/><rect x="7" y="2.4" width="4" height="7.2" fill="#b0302a"/><rect x="11" y="2.4" width="1.2" height="7.2" fill="#d9a63a"/>' + ICON_TIP + "</svg>";
+const BLUNT_ICON = '<svg viewBox="0 0 40 12" aria-hidden="true"><path d="M8 4.6 34 3.4v5.2L8 7.4z" fill="#f4f1e8" stroke="#111" stroke-linejoin="round"/><path d="M2 4.7h6v2.6H2z" fill="#c9a46a" stroke="#111"/><path d="M20 4v4" stroke="#cfc9ba" stroke-width=".8"/>' + ICON_TIP + "</svg>";
+const poseCigar = (rig, t) => poseLightUp("cigar", rig, t);
+const poseBlunt = (rig, t) => poseLightUp("blunt", rig, t);
+const _smokeGeo = new THREE.SphereGeometry(1, 12, 8);   // the chug's foam
+_smokeGeo.userData.shared = true;
 
 /* Chug (user, 2026-10-22: "drinking a beer emote after drinking from the
    beer mug the character gets super excited ... and throws the mug"). A
@@ -685,7 +894,7 @@ function poseCigar(rig, t) {
    left hand wipes the mouth, then he goes off: both arms up, two hops, a
    fist pump, head shaking. A big overhand wind-up and the mug flies,
    tumbling, about 4 m ahead and smashes (glass and foam). For everyone, on
-   every body. Blocky and inked like the cigar. The flight is drawn in root
+   every body. Blocky and inked like the bubble. The flight is drawn in root
    space from the emote clock, so every client sees the same throw. */
 const CHUG = {
   seconds: 6.2, release: 4.72, land: 5.42,
@@ -1100,8 +1309,9 @@ export const EMOTES = [
   // and the owner, remotes play it only for them (cosmetics.js mayEmoteToken)
   { id: "gum", name: "Bubblegum", kind: "tp", pose: poseGum, seconds: GUM.seconds, token: 989 },
   { id: "crutches", name: "Crutches", kind: "tp", pose: poseCrutches, seconds: CRUTCH.seconds },
-  { id: "cigar", name: "Cigar", kind: "tp", pose: poseCigar, seconds: CIGAR.seconds, token: 1272 },
+  { id: "cigar", name: "Cigar", kind: "tp", pose: poseCigar, seconds: LIGHT.seconds, token: 1272, icon: CIGAR_ICON },
   { id: "chug", name: "Chug", kind: "tp", pose: poseChug, seconds: CHUG.seconds },
+  { id: "blunt", name: "Blunt", kind: "tp", pose: poseBlunt, seconds: LIGHT.seconds, token: 1272, icon: BLUNT_ICON },
 ];
 
 export const DEFAULT_EMOTE_SECONDS = 8;

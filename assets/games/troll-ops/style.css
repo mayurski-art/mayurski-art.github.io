@@ -3571,6 +3571,7 @@ body.to-touch-play .to-spawnguard { bottom: auto; top: 26%; }
   cursor: pointer; transition: background .1s, border-color .1s, transform .1s, opacity .1s;
 }
 .to-emote-slice i { font-style: normal; font-family: "DM Mono", monospace; font-size: 9px; letter-spacing: .08em; }
+.to-emote-slice svg { width: 34px; height: 10px; flex: none; }
 .to-emote-slice.is-tp i { color: #7cc8ff; }
 .to-emote-slice.is-fp i { color: #ffd84d; }
 .to-emote-slice.is-duo i { color: #8fe36a; }
