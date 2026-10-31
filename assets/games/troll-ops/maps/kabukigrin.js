@@ -43,6 +43,7 @@ import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-k
 import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9-tx1-ch1-sp1-kbt1-gb3-rh1-kb3-pm1-ss1-ss2-ss3-tfm2-rm1-ugb1-ug1-ugm1";
 import { buildStreet, lightParlour, parlourColliders, parlourWall, MACHINES, PARLOUR, PLAY, streetSound } from "./kabukigrin-street.js?v=kb10-kb11-kb12-tx1-ch1-sp1-kbt1-kb3-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 import { buildSigns } from "./kabukigrin-signs.js?v=ks1-kbs1";
+import { game } from "../core/state.js?v=st1";
 import { buildTrain, trainFrame } from "./kabukigrin-train.js?v=kb14-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 
 const URL_GLB = new URL("../models/", import.meta.url).href;
@@ -122,7 +123,8 @@ const PLAN = {
   STAGE: { x0: -31.7, x1: -28, z0: 10, z1: 20, top: 0.45 },
   BPM: 128, djFace: "+x", djWall: -31.65, deck: { x: -29.6, z: 15 }, speaker: [-29.6, 2.2, 15],
   orbitY: 5.2,
-  muffle: (p) => muffle(p),
+  // ...and dizzy or passed out (modes/drunk.js game.drunkMuffle 0..1), the booth sinks into a low hum
+  muffle: (p) => { const [hz, k] = muffle(p), m = game.drunkMuffle || 0; return m ? [Math.round(hz * (1 - 0.8 * m) + 180 * m), k * (1 - 0.35 * m)] : [hz, k]; },
 };
 const CLUB = clubEngine(PLAN);
 

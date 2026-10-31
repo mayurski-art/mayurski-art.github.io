@@ -6917,3 +6917,34 @@ body.to-aboard #to-touch-endstreak { display: none !important; }
   .to-fr-head { padding: 10px 12px 8px; }
   .to-fr-head-ico { display: none; }
 }
+
+/* Kabukigrin's bar (modes/kb-bar.js): the drinks card, over the pickup prompt */
+.to-kb-menu {
+  position: absolute; left: 50%; bottom: 22cqh; transform: translateX(-50%); z-index: 12; pointer-events: auto;
+  min-width: 34ch; padding: 10px 12px 8px; border-radius: 12px;
+  background: rgba(14, 8, 20, .86); border: 1px solid rgba(255, 80, 190, .45); box-shadow: 0 0 22px rgba(255, 60, 180, .25), inset 0 0 0 1px rgba(255, 255, 255, .04);
+  font-family: "DM Mono", monospace; color: #f4e9ff;
+}
+.to-kb-menu[hidden] { display: none; }
+.to-kb-menu-head { display: flex; justify-content: space-between; gap: 16px; margin: 0 2px 8px; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #ff5fc4; }
+.to-kb-menu-hint { color: #9a8aa8; letter-spacing: .04em; text-transform: none; }
+.to-kb-menu-row {
+  display: grid; grid-template-columns: 2.2ch 10ch 1fr; align-items: baseline; gap: 10px; width: 100%; margin: 0; padding: 7px 8px;
+  border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; font-size: 14px; text-align: left; cursor: pointer;
+}
+.to-kb-menu-row:hover, .to-kb-menu-row:focus-visible { background: rgba(255, 95, 196, .16); outline: none; }
+.to-kb-menu-key { color: #ff5fc4; font-weight: 700; }
+.to-kb-menu-name { font-weight: 600; }
+.to-kb-menu-note { color: #b9a9c9; font-size: 12px; }
+
+/* Drunk (modes/drunk.js): a dizzy spell closes the edges in; passing out is
+   the eyelids, black, then two blinks */
+.to-dizzy {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0; z-index: 1;
+  background: radial-gradient(ellipse at 50% 50%, rgba(0, 0, 0, 0) 38%, rgba(10, 2, 16, .9) 100%);
+}
+.to-dizzy-black {
+  position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; opacity: 0; z-index: 30; background: #000;
+  font-family: "DM Mono", monospace; font-size: 28px; color: #5a5060; letter-spacing: .3em;
+}
+.to-dizzy-black:not(.is-on) { visibility: hidden; }
