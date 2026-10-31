@@ -45,7 +45,7 @@ const BINDINGS = [
   { i: 7,  side: "R", action: "Fire" },
   { i: 5,  side: "R", action: "Lethal (hold to cook)" },
   { i: 3,  side: "R", action: "Switch weapon" },
-  { i: 1,  side: "R", action: "Crouch · slide" },
+  { i: 1,  side: "R", action: "Crouch · hold: prone · slide" },
   { i: 0,  side: "R", action: "Jump · vault" },
   { i: 2,  side: "R", action: "Reload · hold: use / pick up" },
   { i: 9,  side: "R", action: "Menu" },

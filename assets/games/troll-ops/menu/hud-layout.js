@@ -24,7 +24,7 @@ const TOUCH = [
   ["to-touch-ads", "Aim"],
   ["to-touch-jump", "Jump"],
   ["to-touch-reload", "Reload"],
-  ["to-touch-slide", "Crouch"],
+  ["to-touch-slide", "Crouch · prone"],
   ["to-touch-melee", "Melee"],
   ["to-touch-nade", "Lethal"],
   ["to-touch-tac", "Tactical"],

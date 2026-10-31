@@ -5,9 +5,13 @@
 // eases down and up; the commit (stanceLocked) covers the first 0.25 s;
 // standing and crouching up are refused under a low ceiling, lying down
 // where a wall crosses the body; noProne (downed) never lies down; the crawl
-// speed. Offline: no game page, no Supabase, no rooms.
+// speed; the stance's steadiness. Then in the game, offline (a private
+// local match, Supabase blocked, no bots): holding keyboard C, a pad's B
+// and the touch crouch button each lie you down, a pad tap only crouches,
+// and the controls diagram's B callout ("Crouch · hold: prone · slide")
+// fits its column. Writes OUT/prone-*.png when OUT is set.
 //
-// Usage: node tools/troll-ops-prone-test.mjs
+// Usage: NODE_PATH=<main checkout>/node_modules OUT=<dir> node tools/troll-ops-prone-test.mjs
 
 import http from "node:http";
 import fs from "node:fs";
@@ -18,17 +22,21 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
 
+const OUT = process.env.OUT || "";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const TF = path.join(ROOT, "assets/games/troll-ops");
 const PAGE = `<!doctype html><meta charset="utf-8"><script type="importmap">
 { "imports": { "three": "/assets/vendor/three.module.min.js", "three/addons/": "/assets/vendor/addons/" } }
 </script><body>prone test</body>`;
+const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json",
+  ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp", ".svg": "image/svg+xml", ".glb": "model/gltf-binary",
+  ".mp3": "audio/mpeg", ".ogg": "audio/ogg", ".wav": "audio/wav", ".woff2": "font/woff2", ".gif": "image/gif" };
 const server = http.createServer((req, res) => {
   const u = new URL(req.url, "http://x").pathname;
   if (u === "/__prone.html") { res.writeHead(200, { "content-type": "text/html" }); return res.end(PAGE); }
   const p = path.join(ROOT, decodeURIComponent(u));
   if (!p.startsWith(ROOT) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) { res.writeHead(404); return res.end(); }
-  res.writeHead(200, { "content-type": p.endsWith(".js") || p.endsWith(".mjs") ? "text/javascript" : "application/octet-stream" });
+  res.writeHead(200, { "content-type": TYPES[path.extname(p)] || "application/octet-stream" });
   fs.createReadStream(p).pipe(res);
 });
 await new Promise((r) => server.listen(0, r));
@@ -174,6 +182,109 @@ check("lying along the wall fits", r.wallAlong === "prone", r.wallAlong);
 check("downed (noProne) only crouches", r.downed === "crouch", r.downed);
 check("a slide held lies you down", r.slide === "slide" && r.slideProne === "prone", `${r.slide} -> ${r.slideProne}`);
 check("no page errors", errors.length === 0, errors.join(" | "));
+await page.close();
+
+// ---- in the game: keyboard, pad, touch; the diagram ----------------------
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const game = await chromium.launch({ args: ["--use-angle=d3d11", "--autoplay-policy=no-user-gesture-required"] });
+async function match(ctxOpts, withPad) {
+  const ctx = await game.newContext({ viewport: { width: 1280, height: 720 }, ...ctxOpts });
+  await ctx.route(/supabase/, (r) => r.abort());
+  // troll-ops.html loads these from the live site; serve this checkout's
+  await ctx.route(/^https:\/\/mayurski-art\.github\.io\/assets\/js\//, (r) => {
+    const f = path.join(ROOT, "assets/js", path.basename(new URL(r.request().url()).pathname));
+    return fs.existsSync(f) ? r.fulfill({ path: f, contentType: "text/javascript" }) : r.abort();
+  });
+  if (withPad) await ctx.addInitScript(() => {
+    const btns = () => Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0 }));
+    const pad = { id: "Xbox 360 Controller (STANDARD GAMEPAD)", index: 0, connected: true, mapping: "standard", axes: [0, 0, 0, 0], buttons: btns(), timestamp: 1 };
+    window.__pad = pad;
+    Object.defineProperty(navigator, "getGamepads", { configurable: true, value: () => { pad.timestamp++; return [pad]; } });
+  });
+  const p = await ctx.newPage();
+  const errs = [];
+  p.on("pageerror", (e) => errs.push(e.message));
+  await p.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 180000 });
+  await p.waitForFunction(() => !!window.__trollOps, null, { timeout: 180000 });
+  await p.evaluate(async () => {
+    const T = window.__trollOps;
+    T.loadout.mapId = "trollcity";
+    T.setMode("tdm");
+    if (T.els.noBots) T.els.noBots.checked = true;
+    await T.startGame();
+  });
+  await p.waitForFunction(() => window.__trollOps.state() === "playing", null, { timeout: 180000 });
+  await sleep(3000);
+  await p.evaluate(() => {
+    const T = window.__trollOps;
+    if (T.isStaging()) T.endStaging();
+    T.player.maxHp = T.player.hp = 1e9;
+    // face somewhere there's room to lie down
+    for (let i = 0; i < 16 && !T.move.bodyRoom(T.look.yaw); i++) T.look.yaw += Math.PI / 8;
+  });
+  await sleep(1500);   // a pad's rest calibration
+  return { ctx, p, errs };
+}
+const setB = (p, down) => p.evaluate((down) => { const b = window.__pad.buttons[1]; b.pressed = b.touched = down; b.value = down ? 1 : 0; }, down);
+// stand, hold, read the stance at 0.15 s and 0.65 s, release
+async function holdTest(p, label, down, up) {
+  await p.evaluate(() => { window.__trollOps.move.stance = "stand"; });
+  await sleep(250);
+  await down();
+  await sleep(150);
+  const early = await p.evaluate(() => window.__trollOps.move.stance);
+  await sleep(500);
+  const late = await p.evaluate(() => window.__trollOps.move.stance);
+  await up();
+  await sleep(250);
+  check(`${label}: held, a crouch then prone`, early === "crouch" && late === "prone", `${early} -> ${late}`);
+}
+
+{
+  const { ctx, p, errs } = await match({}, true);
+  await holdTest(p, "keyboard C", () => p.evaluate(() => window.__trollOps.keys.add("KeyC")), () => p.evaluate(() => window.__trollOps.keys.delete("KeyC")));
+  if (OUT) await p.screenshot({ path: path.join(OUT, "prone-keyboard.png") });
+  await holdTest(p, "pad B", () => setB(p, true), () => setB(p, false));
+  // a tap on the pad still only crouches
+  await p.evaluate(() => { window.__trollOps.move.stance = "stand"; });
+  await sleep(250);
+  await setB(p, true); await sleep(120); await setB(p, false); await sleep(500);
+  const tapped = await p.evaluate(() => window.__trollOps.move.stance);
+  check("pad B tapped only crouches", tapped === "crouch", tapped);
+
+  // the controls diagram, built at full width: B's callout in its column
+  const fit = await p.evaluate(async (CL) => {
+    const { ControllerLayout } = await import(CL);
+    const host = document.createElement("div");
+    host.id = "prone-pad";
+    host.style.cssText = "position:fixed;left:0;top:0;width:960px;z-index:99999;background:#111;";
+    document.body.appendChild(host);
+    const L = new ControllerLayout(host);
+    L.setFamily("xbox");
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const svg = host.querySelector("svg").getBoundingClientRect();
+    const rects = [...L.callouts].map(([i, c]) => ({ i, text: c.g.querySelector("text").textContent, r: c.g.querySelector("text").getBoundingClientRect() }));
+    const b = rects.find((x) => x.i === 1);
+    const hit = rects.filter((x) => x !== b && x.r.left < b.r.right && x.r.right > b.r.left && x.r.top < b.r.bottom && x.r.bottom > b.r.top).map((x) => x.text);
+    const pad = host.querySelector(".pad-shell").getBoundingClientRect();
+    return { text: b.text, inside: b.r.left >= svg.left && b.r.right <= svg.right + 0.5, clearOfPad: b.r.left >= pad.right - 2, hit, w: Math.round(b.r.width) };
+  }, urlOf("game.js", "controller-layout.js"));
+  check("the diagram's B reads \"Crouch · hold: prone · slide\"", /Crouch · hold: prone · slide/.test(fit.text), fit.text);
+  check("B's callout fits its column, clear of the pad and the other labels", fit.inside && fit.clearOfPad && fit.hit.length === 0, JSON.stringify(fit));
+  if (OUT) await p.locator("#prone-pad").screenshot({ path: path.join(OUT, "prone-diagram.png") });
+  check("no page errors (keyboard, pad)", errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+{
+  const { ctx, p, errs } = await match({ hasTouch: true });
+  const touch = (type) => () => p.evaluate((type) => document.getElementById("to-touch-slide").dispatchEvent(new Event(type, { cancelable: true, bubbles: true })), type);
+  await holdTest(p, "touch crouch button", touch("touchstart"), touch("touchend"));
+  const aria = await p.evaluate(() => document.getElementById("to-touch-slide").getAttribute("aria-label"));
+  check("the touch button says hold to go prone", /hold to go prone/.test(aria), aria);
+  check("no page errors (touch)", errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+await game.close();
 
 await browser.close();
 server.close();
