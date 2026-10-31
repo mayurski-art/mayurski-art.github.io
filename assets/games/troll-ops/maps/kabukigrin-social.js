@@ -164,10 +164,11 @@ export function kbNpcs({ DC, DANCE, deck }) {
     spots.push({ x, z });
   }
   const faceDeck = (p) => Math.atan2(p.x - deck.x, p.z - deck.z);
-  for (const s of spots.slice(0, 12)) {
+  // (six of them throw money on the drops: doc MONEY-RAIN.md 2, town-npcs.js)
+  spots.slice(0, 12).forEach((s, i) => {
     const to = R() < 0.7 ? { x: deck.x, z: deck.z } : { x: DC.x + (R() - 0.5) * 4, z: DC.z + (R() - 0.5) * 4 };
-    extra("Raver", "dance", { x: s.x, z: s.z, y: 0, yaw: Math.atan2(s.x - to.x, s.z - to.z) }, { dance: Math.floor(R() * 4) });
-  }
+    extra("Raver", "dance", { x: s.x, z: s.z, y: 0, yaw: Math.atan2(s.x - to.x, s.z - to.z) }, { dance: Math.floor(R() * 4), ...(i < 6 && { throws: true }) });
+  });
   // the floor's edge, clear of the booths, the stools and the standing crowd
   const RIM = [[-25.8, 8.5], [-23.2, 8.5], [-20.2, 8.5], [-27.2, 21.5], [-23.7, 21.5], [-19.6, 21.5]].map(([x, z]) => ({ x, z }));
   for (let i = 0; i < 6; i++) {
@@ -181,11 +182,11 @@ export function kbNpcs({ DC, DANCE, deck }) {
 
   /* ---- the booths (two of three places taken), the bar, the edges */
   KB_BOOTHS.forEach((b, bi) => seatsOf("bench", (s) => Math.abs(s.z - b.z) < 0.5 && Math.abs(s.x - b.x) < 1.3).slice(0, 2)
-    .forEach((i, k) => sit(i, "Clubgoer", k ? "phone" : "drink", bi === 1 ? { drink: "whiskey" } : {})));
+    .forEach((i, k) => sit(i, "Clubgoer", k ? "phone" : "drink", { throws: true, ...(bi === 1 && { drink: "whiskey" }) })));
   add("Shots McGee", "Bartender", "wipe", { x: -14.9, z: 10, y: 0, yaw: FACE_YAW["-x"] });
   add("Pourtia", "Bartender", "count", { x: -14.9, z: 14.4, y: 0, yaw: FACE_YAW["-x"] });
   add("Neon Nina", "Bartender", "wipe", { x: -14.9, z: 12.2, y: 0, yaw: FACE_YAW["-x"] });
-  seatsOf("stool", (s) => s.x < -16).forEach((i, k) => { if (k !== 2) sit(i, "Barfly", "drink", k % 3 ? {} : { drink: "whiskey" }); });
+  seatsOf("stool", (s) => s.x < -16).forEach((i, k) => { if (k !== 2) sit(i, "Barfly", "drink", { ...(k % 3 === 0 && { drink: "whiskey" }), ...(k % 3 === 1 && { throws: true }) }); });
   for (const [x, z, yaw] of [[-30.2, 6.2, 2.4], [-29.4, 7.0, -0.8], [-17.6, 6.0, 0.6], [-16.8, 6.8, -2.6], [-17.3, 21.0, -0.3], [-25.0, 21.2, 0.2], [-30.4, 21.6, 2.8], [-29.6, 22.3, -0.4]]) {
     extra("Clubgoer", R() < 0.6 ? "drink" : "phone", { x, z, y: 0, yaw });
   }
@@ -196,7 +197,7 @@ export function kbNpcs({ DC, DANCE, deck }) {
 
   /* ---- the mezzanine: on the glass over the floor, the sofa, the sound
      desk, a stroller */
-  for (const z of [6, 8.4, 12.2, 15.6]) extra("Clubgoer", "drink", { x: -13.35, z, y: MEZZ, yaw: FACE_YAW["-x"] });
+  for (const z of [6, 8.4, 12.2, 15.6]) extra("Clubgoer", "drink", { x: -13.35, z, y: MEZZ, yaw: FACE_YAW["-x"] }, { throws: true });   // their bills fall to the floor below
   seatsOf("bench", (s) => s.floor === MEZZ).slice(0, 2).forEach((i) => sit(i, "Clubgoer", "drink"));
   add("Fader", "Sound tech", "count", { x: -11.9, z: 15.2, y: MEZZ, yaw: 0 });
   extra("Clubgoer", "walk", { y: MEZZ, path: [[-12.7, 5.2], [-12.7, 12.6]], pace: true, at: 0.3 });
