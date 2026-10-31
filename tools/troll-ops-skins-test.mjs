@@ -63,22 +63,21 @@ const built = await page.evaluate(async ([wm, sk]) => {
   const { CAMOS } = await import(new URL(sk, location.href).href);
   const { resolveWeapon, defaultLoadoutFor } = await import(new URL("../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416", location.href).href);
   const out = [];
-  for (const c of CAMOS) for (const lod of [0, 1]) {
-    const def = resolveWeapon("problem416", { ...defaultLoadoutFor("problem416"), skin: c.id });
+  for (const [gun, kitName] of [["problem416", "PF_Kit"], ["kek", "MT_Kit"], ["howl", "HB_Kit"]]) for (const c of CAMOS) for (const lod of [0, 1]) {
+    const def = resolveWeapon(gun, { ...defaultLoadoutFor(gun), skin: c.id });
     const g = buildWeaponMesh(def, { lod });
     const kits = [];
-    g.traverse((o) => { if (o.isMesh && o.material.name === "PF_Kit") kits.push(o); });
+    g.traverse((o) => { if (o.isMesh && o.material.name === kitName) kits.push(o); });
     out.push({
-      id: c.id, lod, camo: g.userData.camo, kits: kits.length,
-      allCamo: kits.every((o) => o.material.userData.camo === c.id),
-      attrs: kits.every((o) => !!o.geometry.attributes.camoPos && !!o.geometry.attributes.camoNrm),
+      id: `${gun} ${c.id}`, cid: c.id, lod, camo: g.userData.camo, kits: kits.length,
+      allCamo: kits.every((o) => o.material.userData.camo === c.id),      attrs: kits.every((o) => !!o.geometry.attributes.camoPos && !!o.geometry.attributes.camoNrm),
       parts: !!g.userData.gunParts, lodTag: g.userData.lod,
     });
   }
   return out;
 }, [WM, SK]);
 for (const r of built) {
-  check(`${r.id} LOD${r.lod}: camo on every kit mesh, gun-space attributes`, r.camo === r.id && r.kits > 0 && r.allCamo && r.attrs, JSON.stringify(r));
+  check(`${r.id} LOD${r.lod}: camo on every kit mesh, gun-space attributes`, r.camo === r.cid &&r.kits > 0 && r.allCamo && r.attrs, JSON.stringify(r));
   if (r.lod === 0) check(`${r.id} LOD0 keeps the kit's moving parts`, r.parts, JSON.stringify(r));
   else check(`${r.id} LOD1 is the one-node model`, r.lodTag === 1 && r.kits === 1, JSON.stringify(r));
 }
@@ -129,7 +128,7 @@ const misc = await page.evaluate(async ([wm]) => {
     fin[f] = { finish: g.userData.finish, parts: !!g.userData.gunParts, kit, painted };
   }
   const flat = {};
-  for (const id of ["howl", "salt", "snubgrin"]) {
+  for (const id of ["ratio", "salt", "snubgrin"]) {
     const g = build(id, "grinwood");
     let camo = 0, steel = 0, steelKept = 0;
     g.traverse((o) => {
