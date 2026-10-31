@@ -2,38 +2,6 @@
  "season": "halloween",
  "suffix": "-halloween",
  "float": {
-  "pumpkins": [
-   [
-    -26,
-    46,
-    2.2
-   ],
-   [
-    18,
-    52,
-    1.9
-   ],
-   [
-    -8,
-    62,
-    2.4
-   ],
-   [
-    34,
-    40,
-    1.8
-   ],
-   [
-    -40,
-    34,
-    2
-   ],
-   [
-    6,
-    38,
-    1.6
-   ]
-  ],
   "c130": [
    -70,
    110,
@@ -45,29 +13,65 @@
    150,
    150,
    -700,
-   24
+   40
   ],
   "slab": {
    "w": 9.5,
    "d": 2.8,
-   "depth": 1.5
+   "depth": 1.5,
+   "jacks": [
+    [
+     -0.44,
+     0.2,
+     0.4,
+     11
+    ],
+    [
+     0.44,
+     -0.08,
+     0.36,
+     12
+    ],
+    [
+     0.1,
+     0.4,
+     0.3,
+     13
+    ],
+    [
+     -0.2,
+     0.42,
+     0.26,
+     14
+    ],
+    [
+     0.3,
+     0.38,
+     0.28,
+     15
+    ]
+   ]
   }
  },
  "clear": null,
  "grade": {
-  "sun": "#ff9a52",
+  "sun": "#9fb0ff",
   "sunK": 0.55,
-  "fillK": 0.8,
-  "sky": "#8a7fd0",
-  "ground": "#3a2430",
-  "exposure": 1,
+  "fillK": 0.35,
+  "sky": "#5a3a9a",
+  "ground": "#2a1030",
+  "exposure": 0.95,
+  "fog": {
+   "color": "#1b0a33",
+   "density": 0.0022
+  },
   "post": {
-   "sat": 1.12,
-   "contrast": 1.08,
-   "shadows": "#2a1850",
-   "shadowsAmt": 0.18,
-   "highlights": "#ffb070",
-   "highlightsAmt": 0.12
+   "sat": 1.08,
+   "contrast": 1.2,
+   "shadows": "#180838",
+   "shadowsAmt": 0.4,
+   "highlights": "#ff9a3c",
+   "highlightsAmt": 0.22
   }
  },
  "squad": [
@@ -76,7 +80,8 @@
    "side": -3.2,
    "turn": true,
    "pose": "port",
-   "gun": "problem416"
+   "gun": "problem416",
+   "head": "pumpkin"
   },
   {
    "token": 0,
@@ -105,7 +110,8 @@
    "side": 3.2,
    "turn": true,
    "pose": "port",
-   "gun": "problem416"
+   "gun": "problem416",
+   "head": "pumpkin"
   }
  ],
  "frames": {
@@ -138,6 +144,10 @@
      58,
      16
     ]
+   ],
+   "out": [
+    2560,
+    1440
    ]
   },
   "tall": {
@@ -170,7 +180,12 @@
      12
     ]
    ],
-   "ss": 1.6
+   "ss": 1.6,
+   "out": [
+    1440,
+    2560
+   ]
   }
- }
+ },
+ "pumpkinLight": 3
 }

@@ -8,9 +8,17 @@
 // reference, refs/loading-screen/NOTES.md; none of its art is used.
 //
 // Writes two framings of the same scene, so every screen crops safely:
-//   assets/games/troll-ops/ui/boot/key-art-wide.webp   1920 x 1080 (desktop,
+//   assets/games/troll-ops/ui/boot/key-art-wide.webp   2560 x 1440 (desktop,
 //                                                      ultrawide, phone landscape)
-//   assets/games/troll-ops/ui/boot/key-art-tall.webp   1080 x 1920 (phone portrait)
+//   assets/games/troll-ops/ui/boot/key-art-tall.webp   1440 x 2560 (phone portrait)
+// and, for the boot screen's moving layers (menu/boot-screen.js):
+//   ui/boot/key-art-anchors.json   the moon, each jack-o'-lantern and the
+//                                  plane, per look and frame, as shares of
+//                                  the picture's width and height
+//   ui/boot/plane[-halloween].webp the C-130 alone, on a clear background
+// The render is pushed past the game's High tier (user, 2026-10-31: ultra
+// "regardless if users have graphics low medium or high"): the picture is
+// the same file for everyone.
 // Two looks (user, 2026-10-31: "a normal version and then a halloween
 // version"; the boot screen's pumpkin button swaps them): the scene file's
 // "season" ("off" | "halloween") and "suffix" ("" | "-halloween"):
@@ -130,6 +138,28 @@ await page.evaluate((storm0) => {
   if (roy?.visual?.group && storm0) roy.visual.group.visible = false;
   for (const it of roy?.loot?.items?.values?.() || []) if (it.mesh) it.mesh.visible = false;
 }, process.env.STORM !== "1");
+
+// Ultra, whatever the player's Graphics option: 4096 soft shadows, GTAO at
+// 32 samples, the sky's clouds at full quality, every texture at the GPU's
+// top anisotropy
+await page.evaluate(async () => {
+  const T = window.__trollOps, THREE = T.THREE, R = T.renderer;
+  R.shadowMap.type = THREE.PCFSoftShadowMap;
+  const aniso = R.capabilities.getMaxAnisotropy();
+  T.scene.traverse((o) => {
+    if (o.isDirectionalLight && o.castShadow) { o.shadow.mapSize.set(4096, 4096); o.shadow.map?.dispose(); o.shadow.map = null; }
+    if (o.isMesh) for (const m of [].concat(o.material)) for (const k of ["map", "normalMap", "roughnessMap", "emissiveMap"]) {
+      const t = m?.[k];
+      if (t?.isTexture && t.anisotropy < aniso && t.generateMipmaps !== false) { t.anisotropy = aniso; t.needsUpdate = true; }
+    }
+  });
+  R.shadowMap.needsUpdate = true;
+  for (const p of T.composer.passes) if (p.constructor.name === "GTAOPass") { p.enabled = true; try { p.updateGtaoMaterial({ samples: 32 }); } catch {} }
+  try {
+    const u = performance.getEntriesByType("resource").map((e) => e.name).find((n) => n.includes("/view/sky.js"));
+    (await import(u || "/assets/games/troll-ops/view/sky.js")).setSkyCloudQuality?.(2);
+  } catch {}
+});
 
 // NEAR=x,z,r: every mesh standing within r of (x, z) that tops the peak's disc
 if (process.env.NEAR) {
@@ -298,17 +328,22 @@ await page.evaluate(async (S) => {
   }
   // dusk: the sun low and orange ahead of the squad (they read as
   // silhouettes with a warm rim), the fill cooled and dimmed
+  // (every key optional: the normal look grades only in post)
   if (S.grade) {
     const g = S.grade;
     scene.traverse((o) => {
       if (o.isDirectionalLight) {
-        o.color.set(g.sun); o.intensity *= g.sunK;
+        if (g.sun) o.color.set(g.sun);
+        if (g.sunK) o.intensity *= g.sunK;
         if (g.sunAt) { o.position.set(...g.sunAt); o.target.position.set(...g.sunTarget); o.target.updateMatrixWorld(); }
       }
-      if (o.isHemisphereLight) { o.intensity *= g.fillK; o.color.set(g.sky); o.groundColor.set(g.ground); }
-      if (o.isAmbientLight) { o.intensity *= g.fillK; o.color.set(g.sky); }
+      if (o.isHemisphereLight) { if (g.fillK) o.intensity *= g.fillK; if (g.sky) o.color.set(g.sky); if (g.ground) o.groundColor.set(g.ground); }
+      if (o.isAmbientLight) { if (g.fillK) o.intensity *= g.fillK; if (g.sky) o.color.set(g.sky); }
     });
     if (g.exposure) T.renderer.toneMappingExposure *= g.exposure;
+    // the island's fog (trollface-island.js: dark blue at the far edge):
+    // Halloween's is thicker and violet, the far city dissolving into it
+    if (g.fog && scene.fog) { if (g.fog.color) scene.fog.color.set(g.fog.color); if (g.fog.density) scene.fog.density = g.fog.density; }
     // the game's own colour grade (view/grade-pass.js): sat, contrast, and a
     // split tone { shadows, shadowsAmt, highlights, highlightsAmt }
     if (g.post) for (const p of T.composer.passes) if (p.setGrade) p.setGrade(g.post);
@@ -320,6 +355,10 @@ await page.evaluate(async (S) => {
     // a TROLLS body, else the stick rig with the NPCs' 3D trollface head
     // (the menu's own operator: menu/char-inspector.js)
     if (m.token) await B.wearBlocky(h, m.token); else await B.setReliefFace(h);
+    // a Pumpkin Head (characters/pumpkin-head.js, the Locker's cosmetic: a
+    // solid carved rind lit from inside) in place of the trollface
+    const PH = m.head === "pumpkin" ? await need("/characters/pumpkin-head.js") : null;
+    if (PH) h.face = "grin:og:::pumpkin";
     let held = null;
     if (m.gun && W.WEAPON_DEFS[m.gun]) {
       held = WM.buildWeaponMesh(W.WEAPON_DEFS[m.gun], { skin: m.skin ?? null });
@@ -345,6 +384,7 @@ await page.evaluate(async (S) => {
     // a stick operator's head is the flat trollface board, drawn both sides:
     // from behind it would read mirrored, so the board turns to read true
     h.root.traverse((o) => { if (o.userData?.trollface && S.trueFace) o.scale.x = -1; });
+    if (PH) PH.syncHeadwear(h);
     h.root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     if (S.float) { const g = new THREE.Group(); g.add(h.root); scene.add(g); (window.__cast ||= []).push({ g, m }); }
     else scene.add(h.root);
@@ -381,8 +421,10 @@ await page.evaluate(async (S) => {
     scene.add(g);
     window.__slab = g;
     const jg = new THREE.Group(); jg.name = "slab-jacks";
-    for (const [x, z, r, seed] of [[-w * 0.4, d * 0.22, 0.34, 11], [w * 0.41, -d * 0.1, 0.3, 12], [w * 0.08, d * 0.36, 0.26, 13]]) {
-      const one = new THREE.Group(); one.userData.at = [x, z]; jack(one, 0, 0, 0, r, 0, seed); jg.add(one);
+    // (slab.jacks: [[x share of w, z share of d, r, seed]]; none for the normal look)
+    const jacks = S.float.slab.jacks ?? [[-0.4, 0.22, 0.34, 11], [0.41, -0.1, 0.3, 12], [0.08, 0.36, 0.26, 13]];
+    for (const [kx, kz, r, seed] of jacks) {
+      const one = new THREE.Group(); one.userData.at = [w * kx, d * kz]; one.userData.r = r; jack(one, 0, 0, 0, r, 0, seed); jg.add(one);
     }
     scene.add(jg);
     window.__slabJacks = jg;
@@ -452,6 +494,7 @@ async function render(cam, w, h) {
   }, { v: cam, w, h });
 }
 const save = (file, data) => fs.writeFileSync(file, Buffer.from(data.split(",")[1], "base64"));
+const anchors = {};
 
 for (const [name, frame] of Object.entries(SCENE.frames)) {
   if (process.env.FRAMES && !process.env.FRAMES.split(",").includes(name)) continue;   // FRAMES=tall: just that one
@@ -490,13 +533,75 @@ for (const [name, frame] of Object.entries(SCENE.frames)) {
     save(file, url);
     console.log("wrote", file);
     if (TRY) continue;
-    const scale = `scale=${frame.size[0]}:${frame.size[1]}:flags=lanczos`;
+    // where the moving parts sit in this picture (boot-screen.js lays its
+    // glows, the plane and the bats on these): shares of width and height,
+    // a radius as a share of height
+    anchors[name] = await page.evaluate(() => {
+      const T = window.__trollOps, THREE = T.THREE, cam = T.camera;
+      const p = new THREE.Vector3(), q = new THREE.Vector3();
+      const tanH = Math.tan(cam.fov * Math.PI / 360);
+      const at = (o, r = 0) => {
+        o.getWorldPosition(p);
+        const d = p.distanceTo(cam.position);
+        q.copy(p).project(cam);
+        return { x: +((q.x + 1) / 2).toFixed(4), y: +((1 - q.y) / 2).toFixed(4), r: +(r / (d * tanH) / 2).toFixed(4) };
+      };
+      const out = { jacks: [] };
+      if (window.__moon?.[0]) out.moon = at(window.__moon[0], window.__moon[0].geometry.parameters.radius);
+      for (const one of window.__slabJacks?.children || []) out.jacks.push(at(one, one.userData.r || 0.3));
+      if (window.__planes?.[0]) { const b = new THREE.Box3().setFromObject(window.__planes[0]); out.plane = at(window.__planes[0], b.getSize(new THREE.Vector3()).length() / 2); }
+      return out;
+    });
+    const out = frame.out || frame.size;
+    const scale = `scale=${out[0]}:${out[1]}:flags=lanczos`;
     execFileSync(process.env.FFMPEG || "ffmpeg", ["-loglevel", "error", "-y", "-i", file, "-vf", scale, path.join(TRYDIR, `${name}.png`)]);
-    // light enough for phones: webp q 88 (ffmpeg's libwebp)
+    // webp q 92: sharp on a phone's screen, still a few hundred KB
     const webp = path.join(OUT, `key-art-${name}${SCENE.suffix || ""}.webp`);
-    execFileSync(process.env.FFMPEG || "ffmpeg", ["-loglevel", "error", "-y", "-i", file, "-vf", scale, "-c:v", "libwebp", "-quality", "88", "-compression_level", "6", webp]);
+    execFileSync(process.env.FFMPEG || "ffmpeg", ["-loglevel", "error", "-y", "-i", file, "-vf", scale, "-c:v", "libwebp", "-quality", "92", "-compression_level", "6", webp]);
     console.log("wrote", path.relative(ROOT, webp), Math.round(fs.statSync(webp).size / 1024), "KB");
   }
+}
+if (!TRY) {
+  // the plane alone, on a clear background: the boot screen flies it across
+  // the sky (one sprite per look: the light differs)
+  const sprite = await page.evaluate(async () => {
+    const T = window.__trollOps, THREE = T.THREE, R = T.renderer, cam = T.camera, scene = T.scene;
+    const plane = window.__planes?.[0];
+    if (!plane) return null;
+    const inPlane = new Set(); plane.traverse((o) => inPlane.add(o));
+    const hid = [];
+    scene.traverse((o) => { if (o !== scene && o.visible && !o.isLight && !inPlane.has(o) && o.parent === scene) { hid.push(o); o.visible = false; } });
+    // (the plane's own ancestors stay; anything else at the top level is hidden)
+    for (let a = plane.parent; a && a !== scene; a = a.parent) { a.visible = true; const i = hid.indexOf(a); if (i >= 0) hid.splice(i, 1); }
+    if (plane.parent !== scene) for (const o of plane.parent.children) if (!inPlane.has(o) && o.visible && !o.isLight) { hid.push(o); o.visible = false; }
+    const b = new THREE.Box3().setFromObject(plane), c = b.getCenter(new THREE.Vector3()), r = b.getSize(new THREE.Vector3()).length() / 2;
+    const d = cam.position.distanceTo(c);
+    cam.fov = 2 * Math.atan(r * 1.05 / d) * 180 / Math.PI; cam.aspect = 2; cam.updateProjectionMatrix();
+    cam.lookAt(c); cam.updateMatrixWorld(true);
+    const fog = scene.fog; scene.fog = null;
+    const bg = scene.background; scene.background = null;
+    R.setPixelRatio(1); R.setSize(1024, 512, false);
+    R.setClearColor(0x000000, 0); R.autoClear = true;
+    R.render(scene, cam);
+    const url = R.domElement.toDataURL("image/png");
+    scene.fog = fog; scene.background = bg;
+    for (const o of hid) o.visible = true;
+    return url;
+  });
+  if (sprite) {
+    const png = path.join(TRYDIR, `plane${SCENE.suffix || ""}.png`);
+    save(png, sprite);
+    const webp = path.join(OUT, `plane${SCENE.suffix || ""}.webp`);
+    execFileSync(process.env.FFMPEG || "ffmpeg", ["-loglevel", "error", "-y", "-i", png, "-c:v", "libwebp", "-quality", "90", "-exact", "1", webp]);
+    console.log("wrote", path.relative(ROOT, webp), Math.round(fs.statSync(webp).size / 1024), "KB");
+  }
+  // the anchors, this look's merged over the other's
+  const file = path.join(OUT, "key-art-anchors.json");
+  let all = {};
+  try { all = JSON.parse(fs.readFileSync(file, "utf8")); } catch {}
+  all[SCENE.suffix ? SCENE.suffix.slice(1) : "normal"] = anchors;
+  fs.writeFileSync(file, JSON.stringify(all) + "\n");
+  console.log("wrote", path.relative(ROOT, file));
 }
 await browser.close();
 server.close();

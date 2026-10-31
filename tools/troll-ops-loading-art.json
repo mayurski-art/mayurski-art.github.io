@@ -12,7 +12,8 @@
   "slab": {
    "w": 9.5,
    "d": 2.8,
-   "depth": 1.5
+   "depth": 1.5,
+   "jacks": []
   }
  },
  "clear": null,
@@ -79,6 +80,10 @@
      58,
      16
     ]
+   ],
+   "out": [
+    2560,
+    1440
    ]
   },
   "tall": {
@@ -106,7 +111,20 @@
      12
     ]
    ],
-   "ss": 1.6
+   "ss": 1.6,
+   "out": [
+    1440,
+    2560
+   ]
+  }
+ },
+ "grade": {
+  "post": {
+   "contrast": 1.06,
+   "shadows": "#0c1a4a",
+   "shadowsAmt": 0.15,
+   "highlights": "#ffe2b0",
+   "highlightsAmt": 0.08
   }
  }
 }
