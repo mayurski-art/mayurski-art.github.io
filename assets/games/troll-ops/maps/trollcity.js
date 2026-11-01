@@ -2403,7 +2403,10 @@ export const TROLLCITY = {
     windows: ZSPAWNS.map((w) => ({ ...w })),
     floorOf: tcFloorOf,
     floors: TC_FLOORS,
-    links: [{ from: "ground", to: "upper", a: movePoint({ x: STAIR.x, z: STAIR.zFoot + 0.9 }), b: movePoint({ x: STAIR.x, z: STAIR_HOLE.z0 - 0.9 }) },
+    // the saloon stair's foot is in a pocket just inside the front wall:
+    // zombies come at it from the bar side (`via`), never from the porch
+    links: [{ from: "ground", to: "upper", a: movePoint({ x: STAIR.x, z: STAIR.zFoot + 0.9 }), b: movePoint({ x: STAIR.x, z: STAIR_HOLE.z0 - 0.9 }),
+      via: movePoint({ x: STAIR.x + 1.5, z: STAIR.zFoot + 0.55 }) },
       ...(CHAPEL_STATE.stair ? [{ from: "ground", to: "upper", ...CHAPEL_STATE.stair }] : []),
       ...(HALL_STATE.stair ? [{ from: "ground", to: "upper", ...HALL_STATE.stair }] : [])],
     support: true,
