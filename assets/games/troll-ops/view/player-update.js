@@ -31,6 +31,8 @@ import { updateLeanTrip } from "./lean-trip.js?v=lt1-nb2-pc2-cf1-gs2-lh1-fg2-lp1
 import { TIPSY, tipsyFx } from "../maps/saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-mb1-mb2-nft2531";
 import { strikeTablet, throwMarker } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-fs1-ut1-gf1-tg1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ls4-gb4-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-wb1-mt2-hb4-lu1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-nft2531-nft2531h";
 import { updateJailbreak } from "../modes/social-jailbreak.js?v=jb2-jb3-jb4-jb5-jb6-sp1-hh1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-rm1-kzf1-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-tw1-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h";
+import { updateDrunk, drunkHolds, drunkHold, drunkOut } from "../modes/drunk.js?v=dk1";   // drunk: dizzy spells, passing out (Socialize)
+import { updateKbBar } from "../modes/kb-bar.js?v=kbb1";   // Kabukigrin's bar: ordering
 import { insidePolygon } from "../maps/edge.js?v=or1";
 import { INFECTION } from "../modes/modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-tfb8-ug1-ugm1-hgb8-hgb9-mt2-hb4";
 import { heroActive, hero } from "../modes/umb-heroes.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-fs1-ut1-gf1-tg1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ls4-gb4-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-wb1-mt2-hb4-lu1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-nft2531-nft2531h";
@@ -107,6 +109,8 @@ let aboardHud = false;   // body.to-aboard is on
 export function updatePlayer(dt) {
   const w = currentWeapon();
   const trip = updateLeanTrip(dt);   // the Pour up's after-effect (lean-trip.js)
+  const dz = updateDrunk(dt);        // drunk: a dizzy spell's lurch, passing out (modes/drunk.js)
+  updateKbBar(dt);
   updateLauncherLock(dt);
   updateSwapButton(dt);   // X / the touch SWAP outside the PvP pickup prompt
 
@@ -168,7 +172,10 @@ export function updatePlayer(dt) {
   game.dfIx = ix; game.dfIz = iz;   // the Dragonfire flies off the same stick
   // The saloon bar: a few drinks in, the walk wanders side to side.
   if (bar.tipsy > TIPSY.onset && game.isSocial() && (ix || iz)) ix = Math.max(-1, Math.min(1, ix + tipsyFx(bar.tipsy, performance.now() / 1000).stagger * 0.45));
-  const frozen = dropping || rolling || !game.player.alive || stageFrozen() || game.localPauseOnly || !!strikeTablet?.isOpen || warshipView() || dragonfireView();
+  // A dizzy spell: shoved sideways (a stumble, even standing still) and slowed.
+  // (not sat down: the seat reads any move as getting up, and a spell on a stool is just the sway)
+  if (dz.shove && !seated) { ix = Math.max(-1, Math.min(1, ix * dz.slow + dz.shove)); iz *= dz.slow; }
+  const frozen = dropping || rolling || !game.player.alive || stageFrozen() || game.localPauseOnly || !!strikeTablet?.isOpen || warshipView() || dragonfireView() || drunkOut();
   if (frozen) { ix = 0; iz = 0; }
   // The landing roll carries you forward along the glider's line.
   if (rolling) {
@@ -227,6 +234,7 @@ export function updatePlayer(dt) {
   else if (game.isSocial() && sheriffHolds()) sheriffHold(dt);   // cuffed on the leash, or the town's arrest
   else if (game.isSocial() && hoopsHolds()) hoopsHold(dt);   // up the lane for a dunk (modes/social-hoops.js)
   else if (game.isSocial() && awHolds()) awHold(dt, !frozen && ((game.isTouch && (touchState.jump || touchState.crouch)) || (gp && (game.gamepadState.jump || game.gamepadState.crouch)) || game.keys.has("Space") || game.keys.has("KeyC")));   // mid-bout at an arm-wrestling table
+  else if (game.isSocial() && drunkHolds()) drunkHold(dt);   // passed out: slumped on the stool, then on the floor (modes/drunk.js)
   else if (seated && game.isSocial()) holdSeat(dt, ix, iz, !frozen && ((game.isTouch && touchState.jump) || (gp && game.gamepadState.jump) || game.keys.has("Space") || game.keys.has("KeyC")));
   else game.move.update(dt, {
     forward: iz,
@@ -280,7 +288,7 @@ export function updatePlayer(dt) {
   updateEngineerMarks();
 
   game.move.eyePosition(game.player.pos);
-  if (game.isSocial()) game.player.pos.y -= clubEyeDrop(dt);   // sat on the curb after the club's kick-out
+  if (game.isSocial()) game.player.pos.y -= clubEyeDrop(dt) + dz.eyeDrop;   // sat on the curb after the club's kick-out; slumped or down drunk
 
   // While it's running, the kill cam owns camera.position/.quaternion in
   // full — skip both the eye-position copy and the aim/recoil composition
@@ -418,7 +426,7 @@ export function updatePlayer(dt) {
     const glance = kbRepair.active ? kbRepair.glance : 0;
     // Tipsy (the saloon bar): the room leans and bobs a little.
     const tip = bar.tipsy > TIPSY.onset && game.isSocial() ? tipsyFx(bar.tipsy, performance.now() / 1000) : null;
-    game._euler.set(viewPitch + rollPitch + downPitch + glance * KB_GLANCE.pitch + (tip?.pitch || 0) + trip.pitch, viewYaw + glance * KB_GLANCE.yaw, (Math.random() - 0.5) * shake * 0.6 + game.fireShake.r + slideRoll + downRoll + (tip?.roll || 0) + trip.roll);
+    game._euler.set(viewPitch + rollPitch + downPitch + glance * KB_GLANCE.pitch + (tip?.pitch || 0) + trip.pitch + dz.pitch, viewYaw + glance * KB_GLANCE.yaw, (Math.random() - 0.5) * shake * 0.6 + game.fireShake.r + slideRoll + downRoll + (tip?.roll || 0) + trip.roll + dz.roll);
     game.camera.quaternion.setFromEuler(game._euler);
     if (glance > 0 || game.weaponCamera.userData.glanced) {
       game.weaponCamera.quaternion.setFromEuler(game._euler.set(glance * KB_GLANCE.pitch, glance * KB_GLANCE.yaw, 0, "YXZ"));

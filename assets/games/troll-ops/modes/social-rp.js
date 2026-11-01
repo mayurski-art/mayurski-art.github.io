@@ -12,7 +12,7 @@
    Fire sips, G puts it down. Sips make you tipsy (saloon-bar.js tipsyFx).
    What's in your hand, a sip, and the role ride the state packet. */
 
-import { REACH, GRAB_TIME, BEER_SIPS, FILL_TIME_BARTENDER, FILL_TIME, APRON_TIME, POUR_TIME, OFFER_SECONDS, TIPSY, drinkMax, DRINK_KINDS, isLiquor, SIP_TIME, tipsyFx, BARTENDER_LEAVE_SECONDS, buildDrink, mountDrink, poseDrinkArm, placeDrinkInHand, PourFx } from "../maps/saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-mb1-mb2-nft2531";
+import { REACH, GRAB_TIME, BEER_SIPS, FILL_TIME_BARTENDER, FILL_TIME, APRON_TIME, POUR_TIME, OFFER_SECONDS, TIPSY, drinkMax, DRINK_KINDS, isLiquor, tipsyPerSip, glassGoesBack, SIP_TIME, tipsyFx, BARTENDER_LEAVE_SECONDS, buildDrink, mountDrink, poseDrinkArm, placeDrinkInHand, PourFx } from "../maps/saloon-bar.js?v=sb1b7-cup1-gt1-gt2-cw1-zr10-hr2-zp1-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-mb1-mb2-nft2531";
 import * as THREE from "three";
 import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-wb1-mt2-sk1-hb4-lu1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-nft2531-nft2531h";
 import { playerName } from "../menu/lobby.js?v=lb1-si1-gj1-if1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-rs1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h";
@@ -631,8 +631,10 @@ export function updateBar(dt) {
     if (!bar.sipDone && bar.sipT <= SIP_TIME / 2 && bar.drink) {
       bar.sipDone = true;
       bar.drink.sips = Math.max(0, bar.drink.sips - 1);
-      if (isLiquor(bar.drink.kind)) bar.tipsy = Math.min(TIPSY.max + 1, bar.tipsy + (bar.drink.kind === "whiskey" ? TIPSY.perShot : TIPSY.perBeerSip));
-      if (!bar.drink.sips && bar.drink.kind === "whiskey") bar.drink = null;   // the shot glass goes back
+      // what the sip does to you (saloon-bar.js TIPSY.perSip; green tea takes some off)
+      const per = tipsyPerSip(bar.drink.kind);
+      if (per) bar.tipsy = Math.max(0, Math.min(TIPSY.cap, bar.tipsy + per));
+      if (!bar.drink.sips && glassGoesBack(bar.drink.kind)) { if (bar.drink.kind === "tea") showWaveBanner("Steadier", 1200); bar.drink = null; }   // the glass goes back to the bar
       else if (!bar.drink.sips && bar.drink.kind === "apple") { bar.drink = null; showWaveBanner("Core and all", 1200); }
       else if (!bar.drink.sips && bar.drink.kind === "canteen") { bar.drink = null; showWaveBanner("The canteen's dry. Kek's has more", 1600); }
       else if (!bar.drink.sips) showWaveBanner("Empty. Fill it again at a tap", 1400);

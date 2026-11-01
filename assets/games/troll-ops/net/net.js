@@ -130,6 +130,7 @@ export class Net {
     this.club = { wb: 0, cq: 0, ce: null, fc: null };
     this.trainAt = null;   // riding the Grin Express (modes/social-train.js)
     this.boatAt = null;    // aboard Trollface Island's Boat (modes/royale-boat.js)
+    this.dz = 0;           // drunk (modes/drunk.js): 1 a dizzy spell, 2 slumping, 3 down, 4 getting up
     this.cuff = 0; this.jail = 0; this.wanted = null;   // Troll City's law (modes/social-sheriff.js)
     this.jailbreak = 0;   // the cell whose wall we blew out + 1 (modes/social-jailbreak.js)
     this.heat = 0;        // 1: escaped, on the run (modes/social-jail.js)
@@ -383,6 +384,7 @@ export class Net {
         p.throwCk = typeof m.ck === "string" ? m.ck.slice(0, 16) : null;   // a grenade in hand (combat/throw-anim.js)
         p.trainAt = typeof m.tc === "string" ? m.tc.slice(0, 24) : null;   // riding the Grin Express (modes/social-train.js)
         p.boatAt = typeof m.bt === "string" ? m.bt.slice(0, 16) : null;   // aboard the Boat (modes/royale-boat.js)
+        p.dz = Math.max(0, Math.min(4, m.dz | 0));   // drunk: a dizzy spell, slumping, down, getting up (modes/drunk.js)
         p.useAct = typeof m.ua === "string" ? m.ua.slice(0, 12) : null;   // Royale: plating up / Hopium (modes/royale-use.js)
         p.cuffed = Math.max(0, Math.min(2, m.cf | 0));   // Troll City's law (modes/social-sheriff.js)
         p.stetson = (m.mt | 0) === 1;   // a hat from Kek & Sons (modes/social-shop.js)
@@ -607,6 +609,7 @@ export class Net {
         ck: local.throwCk || undefined,   // throw phase:deciseconds:kind
         tc: this.trainAt || undefined,   // on the Grin Express: car:x:z, car-local (modes/social-train.js sets it)
         bt: this.boatAt || undefined,    // aboard the Boat: x:z, boat-local (modes/royale-boat.js sets it)
+        dz: this.dz || undefined,        // drunk phase (modes/drunk.js sets it)
         ua: this.useAct || undefined,    // Royale plate / Hopium: "p"|"h":percent:deciseconds (modes/royale.js sets it)
         // Troll City's law (modes/social-sheriff.js, social-jail.js): cuffed
         // (1, or 2 being arrested by the town), the cell we're in + 1, the

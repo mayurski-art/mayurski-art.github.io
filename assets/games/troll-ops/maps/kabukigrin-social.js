@@ -96,6 +96,8 @@ function seatAt(x, z, y, floor, yaw, kind, out = 0.75) {
   KB_SEATS.push({ x, z, y, floor, yaw, kind, stand: { x: x - Math.sin(yaw) * out, z: z - Math.cos(yaw) * out } });
 }
 for (const s of underSeats()) seatAt(s.x, s.z, s.y, s.floor, FACE_YAW[s.face], s.kind, s.out);
+// the main bar's stools: you can order here (modes/kb-bar.js)
+for (const s of KB_SEATS) if (s.kind === "stool" && s.floor === FL) s.bar = true;
 export const KB_SOFAS = [
   { x: -6.8, z: 15.5, len: 3, face: "-x", y: MEZZ },     // A Heaven's, facing the square
   { x: -8.5, z: 33.35, len: 3, face: "-z", y: 0 },       // the green room's
