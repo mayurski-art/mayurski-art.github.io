@@ -8,7 +8,7 @@
 // the materials (faceMaterial / setFace); this file is the picks and the
 // panel.
 
-import { FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-pk1-mb1-mb2-nft2531";
+import { FACE_COVERINGS, coveringCanvas } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-pk1-mb1-mb2-nft2531-fs1-fs2";
 import { WRISTWEAR, watchThumb } from "./wristwear.js?v=ww1c2m1-or1";
 import { HEADWEAR } from "./pumpkin-head.js?v=pk1-mb1-mb2";
 import { ownsItem } from "../progression/grants.js?v=pk1-mb1-mb2-mg2";
@@ -260,7 +260,8 @@ export class CosmeticsPanel {
       const name = document.createElement("span");
       name.textContent = cv.name;
       b.append(thumb, name);
-      b.addEventListener("click", () => { if (!this.body) this.set({ cover: cv.id }); });
+      // (under a head piece it wouldn't show: picking one takes the head off, as an expression does)
+      b.addEventListener("click", () => { if (!this.body) this.set({ cover: cv.id, head: "" }); });
       this.coverBox.appendChild(b);
     }
     this.wristBox = sec("Wrist", "Something on the left wrist. Shows in your own hands too.");
