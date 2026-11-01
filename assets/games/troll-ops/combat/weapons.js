@@ -141,9 +141,9 @@ export function fireOnce(shot = null) {
   }
 }
 
-/* An enemy Dragonfire's or SAM Turret's hit volume. */
+/* An enemy Dragonfire's, SAM Turret's or Sentry Gun's hit volume. */
 function resolveStreakKit(object) {
-  const e = object?.userData?.air || object?.userData?.sam;
+  const e = object?.userData?.air || object?.userData?.sam || object?.userData?.sentry;
   return e ? { isStreakKit: true, entity: e } : null;
 }
 

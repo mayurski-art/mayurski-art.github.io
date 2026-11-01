@@ -19,6 +19,7 @@ import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-
 import { K9Pack } from "../bots/k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d-sr1-fl1-or1-gf1-tg1-tcs1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-ugb1-ug1-ugm1-hgb6-hb4";
 import { damageDog, dogKilledBy } from "./k9.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-fs1-ut1-gf1-tg1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ls4-gb4-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-wb1-mt2-hb4-lu1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-nft2531-nft2531h";
 import { SamTurret } from "./sam-turret.js?v=sam1-fj1-or1-sr7-mb1-mb2";
+import { SentryGun, spawnSentry } from "./sentry-gun.js?v=sg1";
 import { applyRemoteAa } from "../combat/launcher.js?v=fj1-zr9-zr10-zc1-zc2-hr2-zp1-aa0-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-fs1-ut1-gf1-tg1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ls4-gb4-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-wb1-mt2-sk1-hb4-lu1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-nft2531-nft2531h";
 import { game } from "../core/state.js?v=st1";
 import { hasPerk, peerHas, PERK_TUNE } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1";
@@ -32,7 +33,7 @@ import { hasPerk, peerHas, PERK_TUNE } from "../progression/perks.js?v=pk1-cl1-b
 // (throw the marker, run to the crate, capture it) and the Lightning Strike
 // (three marks where the team last saw the most enemies), phase 3 the VTOL
 // Warship (the bot stands still and works the guns, botWarshipGunner).
-export const BOT_STREAK_POOL = ["uav", "counteruav", "vsat", "carepackage", "drone", "airstrike", "k9", "helicopter", "swarm", "samturret", "dragonfire", "warship"];
+export const BOT_STREAK_POOL = ["uav", "counteruav", "vsat", "carepackage", "drone", "airstrike", "k9", "helicopter", "swarm", "samturret", "sentrygun", "dragonfire", "warship"];
 const BOT_RADAR = new Set(["uav", "counteruav", "vsat"]);   // no sides to share in FFA
 const BOT_AIR = new Set(["drone", "helicopter", "swarm", "warship", "dragonfire"]);
 let botWarshipMatch = -1;   // one bot warship a match (design call), whoever's side
@@ -189,6 +190,15 @@ export function botFireStreak(b, id) {
       e.botId = b.id; e.botTeam = b.team;
       if (game.net.active) game.net.publishStreak({ kind: "sam", action: "spawn", eid, team: b.team, x: round2(at.x), y: round2(at.y), z: round2(at.z), yaw: round2(at.yaw) });
       callout("SAM TURRET");
+      break;
+    }
+    case "sentrygun": {
+      const eid = `streak-sentry-${tag}`;
+      const at = samDeployPoint(b.pos, b.yaw);
+      const e = spawnSentry({ id: eid, owned: true, team: b.team, botId: b.id, ...at });
+      e.botTeam = b.team;
+      if (game.net.active) game.net.publishStreak({ kind: "sentry", action: "spawn", eid, team: b.team, by: b.id, x: round2(at.x), y: round2(at.y), z: round2(at.z), yaw: round2(at.yaw) });
+      callout("SENTRY GUN");
       break;
     }
     case "dragonfire": {
@@ -635,6 +645,15 @@ export function applyRemoteStreak(m) {
           game.audio.explosion?.(0.1, sam.pos);
         } else if (m.action === "end") { sam.dispose(); streakEntities.delete(m.eid); }
       }
+      break;
+    }
+
+    case "sentry": {
+      const sg = streakEntities.get(m.eid);
+      if (m.action === "spawn" && !sg) {
+        spawnSentry({ id: m.eid, owned: false, team: m.team, ownerId: m.by || m.id || null, x: m.x, y: m.y, z: m.z, yaw: m.yaw || 0 });
+        if (game.currentMode().ffa || !game.net.team || m.team !== game.net.team) showWaveBanner("ENEMY SENTRY GUN DEPLOYED", 1800);
+      } else if (sg instanceof SentryGun && m.action === "end") { sg.dispose(); streakEntities.delete(m.eid); }
       break;
     }
 
