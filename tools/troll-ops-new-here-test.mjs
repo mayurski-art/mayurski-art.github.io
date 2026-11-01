@@ -73,8 +73,9 @@ const lobbyCheck = (page) => page.evaluate(() => {
   const label = b.querySelector("span");
   return {
     shown: !!shown(b), under, inSafe: r.left >= safe.left - 0.5 && r.right <= safe.right + 0.5 && r.top >= safe.top - 0.5 && r.bottom <= safe.bottom + 0.5,
-    textFits: label.scrollWidth <= label.clientWidth + 1 && label.getBoundingClientRect().right <= r.right + 0.5,
-    name: b.textContent.trim(), popup: b.getAttribute("aria-haspopup"), zoom: getComputedStyle(document.querySelector(".to-cab, #to-cab, body")).getPropertyValue("--ui-z") || getComputedStyle(document.documentElement).getPropertyValue("--ui-z"),
+    // (top right beside Menu size since 2026-10-31: an icon, named by its aria-label)
+    textFits: !label || label.scrollWidth <= label.clientWidth + 1 && label.getBoundingClientRect().right <= r.right + 0.5,
+    name: b.getAttribute("aria-label") || b.textContent.trim(), popup: b.getAttribute("aria-haspopup"), zoom: getComputedStyle(document.querySelector(".to-cab, #to-cab, body")).getPropertyValue("--ui-z") || getComputedStyle(document.documentElement).getPropertyValue("--ui-z"),
   };
 });
 

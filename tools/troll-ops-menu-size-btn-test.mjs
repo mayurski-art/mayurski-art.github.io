@@ -55,6 +55,9 @@ for (const [name, vp, more] of [["laptop", { width: 1365, height: 632 }, {}], ["
   const a = await look();
   check(a.shown && a.label === "100%", `${name}: the button is up in the top right, reading 100%`, JSON.stringify(a));
   check(a.onTop && !a.hits.length, `${name}: nothing overlaps it`, JSON.stringify(a.hits));
+  // the six tabs beside the top-right buttons (I'm new here, Menu size, Friends...) keep a tappable width (the bar is 44 px tall)
+  const tabs = await page.evaluate(() => [...document.querySelectorAll(".to-fn-tab")].map((t) => Math.round(t.getBoundingClientRect().width)));
+  check(tabs.length === 6 && tabs.every((w) => w >= 24), `${name}: the tabs keep their width (24 px or more)`, tabs.join(","));
   await scanText(page, (ok, what, extra) => check(ok, `${name} 100%: ${what}`, extra), `${name} 100`);
   if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `msz-${name}-100.png`) });
   const seen = [];

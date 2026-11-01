@@ -161,6 +161,9 @@ export function mountFnLobby(api) {
       <kbd class="to-fn-padkey" aria-hidden="true">RB</kbd>
     </nav>
     <div class="to-fn-me">
+      <!-- I'M NEW HERE, top right beside Menu size (user, 2026-10-31: "move the
+           im new here button to be next to the scale button") -->
+      <button type="button" class="to-fn-glass to-fn-ico to-fn-newhere" data-act="newhere" aria-haspopup="dialog" aria-label="I'm new here: how to play" title="I'm new here"><kbd class="to-fn-padkey" aria-hidden="true">Y</kbd><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M9.3 9.4a2.8 2.8 0 1 1 3.9 2.6c-.8.4-1.2 1-1.2 1.8v.6"/><circle cx="12" cy="17.4" r=".4"/></svg></button>
       <button type="button" class="to-fn-glass to-fn-ico to-fn-msz" data-act="menusize" title="Menu size">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><b></b>
       </button>
@@ -196,7 +199,7 @@ export function mountFnLobby(api) {
       <p class="to-fn-qleft"></p>
       <ol class="to-fn-qlist"></ol>
     </div>
-    <button type="button" class="to-fn-newhere" data-act="newhere" aria-haspopup="dialog"><kbd class="to-fn-padkey" aria-hidden="true">Y</kbd><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M9.3 9.4a2.8 2.8 0 1 1 3.9 2.6c-.8.4-1.2 1-1.2 1.8v.6"/><circle cx="12" cy="17.4" r=".4"/></svg><span>I'm new here</span></button>`;
+`;
   root.appendChild(left);
   /* I'M NEW HERE (menu/new-here.js): the tutorial, over everything */
   const help = mountNewHere(root);
@@ -529,7 +532,8 @@ export function mountFnLobby(api) {
   if (window.tfMenuScale) showMenuSize(); else msz.hidden = true;
   top.addEventListener("click", (e) => {
     const act = e.target.closest("[data-act]")?.dataset.act;
-    if (act === "menusize") {
+    if (act === "newhere") help.open();
+    else if (act === "menusize") {
       const s = window.tfMenuScale.sizes, i = s.indexOf(window.tfMenuScale.get());
       window.tfMenuScale.set(s[(i + 1) % s.length]);
       showMenuSize();

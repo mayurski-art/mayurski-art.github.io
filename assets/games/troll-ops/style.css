@@ -4707,6 +4707,10 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 /* Menu size, first in the row (Friends prepends itself later): the corners
    icon over the size it's at */
 .to-fn-msz { order: -1; position: relative; align-content: center; gap: 1px; }
+/* I'm new here, just before it: the cyan question mark, the pad's Y on its corner */
+.to-fn-top .to-fn-newhere { order: -2; position: relative; display: grid; place-items: center; margin: 0; padding: 0; min-height: 0; }
+.to-fn-top .to-fn-newhere svg { width: 22px; height: 22px; fill: none; stroke: var(--fn-cyan); stroke-width: 2; stroke-linecap: round; }
+.to-fn-top .to-fn-newhere .to-fn-padkey { position: absolute; right: -6px; bottom: -6px; min-width: 16px; height: 16px; font-size: 10px; line-height: 16px; border-radius: 50%; }
 .to-fn-msz svg { width: 16px; height: 16px; }
 .to-fn-msz b { font: 800 10px/1 var(--fn-ui, sans-serif); color: #fff; letter-spacing: .02em; }
 .to-fn-lvl { display: flex; align-items: center; gap: 8px; height: 100%; padding: 0 16px; cursor: pointer; white-space: nowrap; font: 800 18px var(--fn-ui); letter-spacing: .04em; }
@@ -5685,11 +5689,6 @@ body.tf-anim-off .to-fn-pips button[aria-current="true"]::after { transform: non
    column, and the tutorial's sheet over everything: four pages (modes,
    controls, the Locker, the rest), Back / Next along the bottom. Sizes in
    px (zoomed with the rest by --ui-z) and %, never vh. ── */
-.to-fn-newhere { flex: none; display: flex; align-items: center; gap: 10px; margin-top: 8px; min-height: 42px; padding: 0 14px; border: 0; border-left: 4px solid var(--fn-cyan); background: rgba(12,19,49,.92); color: #fff; cursor: pointer; text-align: left;
-  font: 700 16px/1.1 var(--fn-ui); letter-spacing: .08em; text-transform: uppercase; }
-.to-fn-newhere:hover { background: rgba(32,48,104,.95); }
-.to-fn-newhere svg { flex: none; width: 22px; height: 22px; fill: none; stroke: var(--fn-cyan); stroke-width: 2; stroke-linecap: round; }
-.to-bo2.is-fn.has-pad .to-fn-newhere .to-fn-padkey { flex: none; min-width: 22px; border-radius: 50%; }
 .to-nh { position: absolute; inset: 0; z-index: 30; display: grid; place-items: center; box-sizing: border-box;
   padding: calc(16px + env(safe-area-inset-top, 0px)) calc(var(--fn-safe-x) + 16px) calc(16px + var(--fn-safe-b));
   background: rgba(4,8,28,.74); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); color: #fff; font-family: var(--fn-ui); }
@@ -5753,8 +5752,6 @@ body.tf-anim-off .to-fn-pips button[aria-current="true"]::after { transform: non
 .to-nh-step.is-next { border: 0; background: linear-gradient(180deg, #ffe45c, #ffc400); color: #1b1400; box-shadow: inset 0 -3px 0 rgba(0,0,0,.15); }
 /* sideways phones: no subtitle, everything a size down */
 @container cab (min-aspect-ratio: 9/10) and ((max-height: 520px) or (max-width: 760px)) {
-  .to-fn-newhere { min-height: 34px; padding: 0 10px; gap: 8px; font-size: 13px; }
-  .to-fn-newhere svg { width: 18px; height: 18px; }
   .to-nh { padding: calc(8px + env(safe-area-inset-top, 0px)) calc(var(--fn-safe-x) + 10px) calc(8px + var(--fn-safe-b)); }
   .to-nh-card { height: 100%; }
   .to-nh-head { padding: 8px 12px 6px; align-items: center; }
@@ -5774,8 +5771,6 @@ body.tf-anim-off .to-fn-pips button[aria-current="true"]::after { transform: non
 /* upright phones: the button a slim row under the level cards (the stage
    below steps down by it), the sheet the whole screen */
 @container cab (max-aspect-ratio: 9/10) {
-  .to-fn-newhere { justify-content: center; min-height: 30px; margin-top: 0; font-size: 13px; gap: 8px; }
-  .to-fn-newhere svg { width: 17px; height: 17px; }
   /* ...and the picture up a share of the shorter box, so the four pads
      (lobby: a pad for every member) clear the squad's name under them */
   #to-title.is-bo2.is-fn:has(.to-bo2[data-screen="main"]) .to-char-view { top: calc(58px + env(safe-area-inset-top) + 36px + 8px + 56px + 8px + 30px + 50px); --char-lift: 0.1; }
@@ -7141,9 +7136,15 @@ body.to-aboard #to-touch-endstreak { display: none !important; }
 .to-fr-empty b { font: italic 400 26px/1 var(--fn-display); text-transform: uppercase; }
 .to-fr-empty p { margin: 0 0 6px; max-width: 28ch; color: #c4d1f3; font: 600 15px/1.35 var(--fn-ui); }
 
-/* the phone's top bar hides its other icon buttons; Friends and Menu size stay */
+/* the phone's top bar hides its other icon buttons; Friends, I'm new here and
+   Menu size stay, a little smaller so the six tabs keep their room */
 @container cab (max-aspect-ratio: 9/10) {
-  .to-fn-ico.to-fr-btn, .to-fn-ico.to-fn-msz { display: grid; width: 44px; height: 44px; }
+  .to-fn-ico.to-fr-btn, .to-fn-ico.to-fn-msz, .to-fn-ico.to-fn-newhere { display: grid; width: 36px; height: 36px; }
+  .to-fn-top .to-fn-me { gap: 4px; }
+  .to-fn-top .to-fn-avatar { width: 36px; height: 36px; }
+  .to-fn-top .to-fn-newhere svg { width: 18px; height: 18px; }
+  .to-fn-msz svg { width: 13px; height: 13px; }
+  .to-fn-msz b { font-size: 9px; }
   .to-fr-scrim { top: calc(56px + env(safe-area-inset-top)); }
   .to-fr { top: calc(58px + env(safe-area-inset-top)); right: 6px; bottom: calc(6px + env(safe-area-inset-bottom)); width: calc(100% - 12px); }
 }
