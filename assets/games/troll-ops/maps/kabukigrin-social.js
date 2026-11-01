@@ -10,7 +10,7 @@
 // is the street (the yard is open to the backs, so it's street too).
 
 import { rng } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
-import { MACHINES, PARLOUR } from "./kabukigrin-street.js?v=kb10-kb11-kb12-tx1-ch1-sp1-kbt1-kb3-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
+import { MACHINES, PARLOUR } from "./kabukigrin-street.js?v=kb10-kb11-kb12-tx1-ch1-sp1-kbt1-kb3-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-pqs1";
 import { pickOutfit } from "../characters/outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1-or1-gb3-rh1";
 import { FL, B1, HALL, TUNNEL, STAGE, WELLS, underSeats } from "./kabukigrin-under.js?v=kbu1-kbc1-kbc2-kbc3-zf1-zft1";
 

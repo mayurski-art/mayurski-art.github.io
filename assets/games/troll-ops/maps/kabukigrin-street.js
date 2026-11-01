@@ -5,8 +5,7 @@
 //   club: the machine floor through its glass (Blender's room, lit from
 //   inside, its screens running: lightParlour), the steady red and
 //   white sign on its box, the white spill on the pavement; its sound
-//   (streetSound), the balls' rattle and the machines' jingles out of the
-//   glass, fighting the club's bass across the line.
+//   (streetSound): only the machine you play rattles and jingles, no din.
 //   B side's street props: the ramen stall's noren, menu and warm light;
 //   a glazed tanuki by the koban's door; a capsule-toy rack beside B
 //   Main's vending machine. A band poster on A Main's vending machine.
@@ -494,12 +493,10 @@ function playing(sfx, now, dt) {
   }
 }
 
-const HEAR = 24;
 const DOORS = [];
-let nextBalls = 0, nextJingle = 0, nextMine = 0, lastT = 0;
+let nextMine = 0, lastT = 0;
 export function streetSound(sfx, live) {
   if (!live) return;
-  const P = PACHINKO, cam = U.uPlayer.value;
   const now = performance.now() / 1000, dt = Math.min(0.1, now - (lastT || now));
   lastT = now;
   // the doors: open in Socialize, sliding a leaf's width back behind the glass
@@ -508,17 +505,7 @@ export function streetSound(sfx, live) {
     d.g.position.z = d.z + d.k * d.slide * ((PARLOUR.door[1] - PARLOUR.door[0]) / 2 - 0.05);
     d.g.position.x = -31.66 - d.slide * 0.05;
   }
+  // Only the machine you're playing makes a sound (playing()): the parlour's
+  // ambient din of balls and jingles is gone (user, 2026-11-01).
   playing(sfx, now, dt);
-  if (!sfx) return;
-  const inside = cam.x < PARLOUR.front;
-  const z = Math.min(P.z1, Math.max(P.z0, cam.z)), d = inside ? 0 : Math.hypot(cam.x - P.x, cam.z - z);
-  if (d > HEAR) { nextBalls = nextJingle = now; return; }
-  // (inside, the din comes from the machines round you; outside, out of the glass)
-  const at = inside
-    ? () => { const m = MACHINES[Math.floor(Math.random() * MACHINES.length)]; return { x: m.x, y: 1.5, z: m.z }; }
-    : () => ({ x: P.x + 0.3, y: 1.1 + Math.random() * 0.8, z: P.z0 + Math.random() * (P.z1 - P.z0) });
-  // (a few at most after a stall, never a burst)
-  if (nextBalls < now - 0.5) nextBalls = now;
-  while (nextBalls < now) { sfx("balls", at()); nextBalls += 0.06 + Math.random() * 0.14; }
-  if (nextJingle < now) { sfx("jingle", at()); nextJingle = now + 3 + Math.random() * 5; }
 }
