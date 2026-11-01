@@ -17,7 +17,9 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 
 // 0.82 haloed every sunlit trollface; a map can override (map.bloom)
 const BLOOM_DEFAULT = { strength: 0.55, radius: 0.5, threshold: 1.2 };
-export const makeBloom = () => new UnrealBloomPass(new THREE.Vector2(1, 1), BLOOM_DEFAULT.strength, BLOOM_DEFAULT.radius, BLOOM_DEFAULT.threshold);
+/* The game's bloom pass, for an effect that turns it up for a while (view/stonks-fx.js). */
+export let bloomActive = null;
+export const makeBloom = () => (bloomActive = new UnrealBloomPass(new THREE.Vector2(1, 1), BLOOM_DEFAULT.strength, BLOOM_DEFAULT.radius, BLOOM_DEFAULT.threshold));
 
 const MAX = 6;
 

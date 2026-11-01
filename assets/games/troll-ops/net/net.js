@@ -377,6 +377,7 @@ export class Net {
         p.role = RP_ROLES[m.rr] || null;
         p.seat = m.se | 0;
         p.piano = m.pn | 0;
+        p.lineFx = m.ln | 0;   // Kabukigrin's candle lines: 1 the rush, 2 the rug pull (modes/social-lines.js)
         // Trolling Loud's door: band tier, line ticket (room clock ms), phase.
         p.wb = Math.max(0, Math.min(3, m.wb | 0));
         p.cq = Number.isFinite(+m.cq) ? +m.cq : 0;
@@ -605,6 +606,7 @@ export class Net {
         hr: local.hero || undefined,   // U Mad Bro? hero id (+ "!" while the Metamorph is the brute)
         dk: local.drink || undefined, ds: local.sip ? (local.sip === 2 ? 2 : 1) : undefined, rr: local.role || undefined,   // Socialize roleplay
         se: local.seat || undefined, pn: local.piano || undefined,
+        ln: this.lineFx || undefined,   // the candle lines' rush (view/stonks-fx.js sets it)
         wb: this.club.wb || undefined, cq: this.club.cq || undefined, ce: this.club.ce || undefined,   // the club door
         ck: local.throwCk || undefined,   // throw phase:deciseconds:kind
         tc: this.trainAt || undefined,   // on the Grin Express: car:x:z, car-local (modes/social-train.js sets it)

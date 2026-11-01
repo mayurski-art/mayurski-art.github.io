@@ -42,6 +42,7 @@ import { wetFloor, hangProbe } from "./wet-floor.js?v=wf1-ss1-ss2-ss3-tfm2";
 import { moneyRain } from "./club-money.js?v=mn1";
 import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5-tx1-ch1-sp1-kbt1-pm1-kco1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
+import { buildLines } from "./kabukigrin-lines.js?v=cl1";
 import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9-tx1-ch1-sp1-kbt1-gb3-rh1-kb3-pm1-ss1-ss2-ss3-tfm2-rm1-ugb1-ug1-ugm1-nd1";
 import { buildStreet, lightParlour, parlourColliders, parlourWall, MACHINES, PARLOUR, PLAY, streetSound } from "./kabukigrin-street.js?v=kb10-kb11-kb12-tx1-ch1-sp1-kbt1-kb3-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 import { buildSigns } from "./kabukigrin-signs.js?v=ks1-kbs1";
@@ -308,6 +309,8 @@ function buildClub(api) {
 
   // the borrowed rooms (doc 3.5 b, c, d): Studio's walls, these their insides
   buildRooms({ root, K, N, M, S, jpSign, sfx: CLUB.sfx });
+  // the tatami room's candle lines (docs/CANDLE-LINES.md): the trays on its tables
+  LINES = buildLines({ root });
   // and the street's (doc 3.5 a): the pachinko parlour across the line
   buildStreet({ root, N, M });
   // the shop signs, lettered in Japanese (the build cut Grinjuku's made-up glyphs)
@@ -477,6 +480,8 @@ const DRESS = (() => {
   return { ...d, decals, clutter: d.clutter.map(keep).filter(Boolean) };
 })();
 
+// the candle lines' props and states, from the last build (kabukigrin-lines.js)
+let LINES = null;
 // the crowd: the same every build (seeded), made once
 let CAST = null;
 const cast = () => (CAST ??= kbNpcs({ DC, DANCE, deck: DECK }));
@@ -532,6 +537,8 @@ export const KABUKIGRIN = {
     door: KB_DOOR,
     // the pachinko parlour (modes/social-pachinko.js): its machines, who plays, its bounds
     pachinko: () => ({ machines: MACHINES, play: PLAY, minX: PARLOUR.minX }),
+    // the candle lines (modes/social-lines.js): the tatami tables' trays and their states
+    lines: () => LINES,
   },
   // the obstruction test's additions to models/kabukigrin-faces.json (the dug club and its signs)
   facesMore: () => {
