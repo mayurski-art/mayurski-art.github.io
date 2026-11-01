@@ -390,6 +390,7 @@ export function buildNukeDevice() {
   group.add(group.userData.anchors.right, group.userData.anchors.left);
   group.userData.screen = { canvas, ctx: canvas.getContext("2d"), tex };
   group.userData.hinge = hinge;
+  group.userData.tabAt = new THREE.Vector3(0, tab.position.y, tab.position.z + 0.004);   // hinge space: the tab's face, where the hand pushes
   group.userData.key = key;
   group.userData.keyZ = key.position.z;
   group.userData.keys = keys;
@@ -422,6 +423,63 @@ export function nukeSlam(s) {
   if (s < 0) { const k = (s + 0.05) / 0.05; return { lift: 1 - k * k, press: 0, jolt: 0 }; }   // the strike
   const press = s < 0.28 ? 1 : Math.max(0, 1 - (s - 0.28) / 0.14);
   return { lift: 0, press, jolt: Math.exp(-s * 11) * Math.cos(s * 38) };
+}
+
+/* The typing hand (user, 2026-11-01: "just use the hand itself"): where the
+   right hand's tip goes, in device space, `t` seconds into the hold, and how
+   far it has left its grip (0 on the grip .. 1 on the face). It comes off
+   the grip, taps each digit of NUKE_CODE and ENT in step with workKeys,
+   pushes the guard's tab up as it flips at `coverAt`, winds up over the red
+   key and slams it at `armAt` (nukeSlam), then goes back to the grip.
+   view/streak-view.js (the first-person arm) and nuke-body.js (your body in
+   third person) both follow it. */
+const TIP_HOVER = 0.012;          // m off a key's top between taps
+const TIP_IN = 0.3, TIP_OUT = 0.3;  // seconds off the grip at the start, back at the end
+const _tipA = new THREE.Vector3(), _tipB = new THREE.Vector3();
+const tipEase = (k) => { k = Math.max(0, Math.min(1, k)); return k * k * (3 - 2 * k); };
+function keyTop(device, label, lift, out) {
+  const k = device.userData.keys[label];
+  return out.set(k.mesh.position.x, k.mesh.position.y, k.z + 0.00225 + lift);
+}
+function tabAt(device, cover, out) {
+  const hinge = device.userData.hinge;
+  return out.copy(device.userData.tabAt).applyAxisAngle(_xAxis, cover * 2.1).add(hinge.position);
+}
+const _xAxis = new THREE.Vector3(1, 0, 0);
+export function nukeHandTarget(device, t, coverAt, armAt, out) {
+  const C = NUKE_CODE, keys = [...C.digits, "ENT"];
+  const typedEnd = C.done + C.step;
+  const red = device.userData.key, redTop = device.userData.keyZ + 0.0035;
+  const s = t - armAt;
+  if (t < C.at - TIP_IN || s > 0.7 + TIP_OUT) return 0;
+  if (t < C.at) {
+    keyTop(device, keys[0], TIP_HOVER, out);
+    return tipEase((t - (C.at - TIP_IN)) / TIP_IN);
+  }
+  if (t < typedEnd) {
+    // On key i for the press (the first 60% of its step), then over to the next.
+    const i = Math.min(keys.length - 1, Math.floor((t - C.at) / C.step));
+    const f = (t - C.at) / C.step - i;
+    const dip = f < 0.6 ? Math.sin(f / 0.6 * Math.PI) : 0;
+    keyTop(device, keys[i], TIP_HOVER * (1 - dip), out);
+    if (f >= 0.6) {
+      const next = i + 1 < keys.length ? keyTop(device, keys[i + 1], TIP_HOVER, _tipA) : tabAt(device, 0, _tipA);
+      out.lerp(next, tipEase((f - 0.6) / 0.4));
+    }
+    return 1;
+  }
+  if (t < coverAt) { tabAt(device, 0, out); return 1; }
+  const flipEnd = coverAt + 0.28;
+  if (t < flipEnd) { tabAt(device, tipEase((t - coverAt) / 0.28), out); return 1; }
+  if (s < -SLAM_WIND) {
+    tabAt(device, 1, out);
+    out.lerp(_tipB.set(red.position.x, red.position.y, redTop + TIP_HOVER), tipEase((t - flipEnd) / Math.max(0.05, armAt - SLAM_WIND - flipEnd)));
+    return 1;
+  }
+  const slam = nukeSlam(s);
+  // Up and back for the wind-up, then down onto the key and with it as it bottoms out.
+  out.set(red.position.x, red.position.y, slam.press > 0 ? redTop - slam.press * 0.005 : redTop + TIP_HOVER + slam.lift * 0.05);
+  return s > 0.7 ? 1 - tipEase((s - 0.7) / TIP_OUT) : 1;
 }
 
 /* The keypad at `t`: the key of the digit going in now sinks and its top
