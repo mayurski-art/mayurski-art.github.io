@@ -2409,6 +2409,11 @@ export const TROLLCITY = {
       via: movePoint({ x: STAIR.x + 1.5, z: STAIR.zFoot + 0.55 }) },
       ...(CHAPEL_STATE.stair ? [{ from: "ground", to: "upper", ...CHAPEL_STATE.stair }] : []),
       ...(HALL_STATE.stair ? [{ from: "ground", to: "upper", ...HALL_STATE.stair }] : [])],
+    // the tall post by the saloon's side (a crate beside it is the only way
+    // up, and no climb gets a zombie from the crate onto it)
+    noStand: [{ x0: -31.65, x1: -30.35, z0: -25.05, z1: -23.75, y: 2.3 },
+      // the saloon's tall block by the back wall (up off the crate beside it)
+      { x0: -17.58, x1: -16.63, z0: -20.88, z1: -19.92, y: 1.8 }],
     support: true,
     preferDist: 16,
     navCell: 0.55,
