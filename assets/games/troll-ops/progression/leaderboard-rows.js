@@ -6,9 +6,10 @@
 // TrollrunnerAccounts.reportGameResult for logged-in players. Its meta says
 // what happened: mode, pvp, won, kills, deaths, assists, headshots, streak,
 // wave. A board is those rows over a window, added up per player:
-//   - the hub's Highest Wave / Total Kills (modes/zombies/hub.js), weekly and
-//     monthly;
-//   - the menu's Leaderboards (TrollLeaderboard provider, weekly or monthly);
+//   - the hub's Highest Wave / Total Kills (modes/zombies/hub.js), weekly,
+//     monthly and all-time in turn;
+//   - the menu's Leaderboards (TrollLeaderboard provider, weekly, monthly or
+//     all-time);
 //   - a player's all-time Zombies line on their profile card.
 // The server takes logged-in results only, so a guest's wait on this device
 // (fileResult, GUEST_KEY) for the account they sign up to (user, 2026-10-31:
@@ -36,15 +37,21 @@ export function monthWindow(date = new Date()) {
   const end = new Date(date.getFullYear(), date.getMonth() + 1, 1);
   return { start, end };
 }
-export const windowFor = (period, date = new Date()) => (period === "month" ? monthWindow(date) : weekWindow(date));
+/* All time: every row (the game has filed them since 7 Sep 2026). */
+export const BOARDS_SINCE = "Sep 2026";
+export const allWindow = () => ({ start: new Date(0), end: new Date(8.64e15) });
+export const windowFor = (period, date = new Date()) => (period === "all" ? allWindow() : period === "month" ? monthWindow(date) : weekWindow(date));
+export const PERIOD_NAME = { week: "Weekly", month: "Monthly", all: "All-time" };
 
-/* "5d 14h 2m" until the window turns over. */
+/* "5d 14h 2m" until the window turns over (all time never does). */
 export function timeLeft(period, date = new Date()) {
+  if (period === "all") return "Never";
   const ms = Math.max(0, windowFor(period, date).end - date);
   const d = Math.floor(ms / 86400000), h = Math.floor((ms % 86400000) / 3600000), m = Math.floor((ms % 3600000) / 60000);
   return d > 0 ? `${d}d ${h}h ${m}m` : `${h}h ${m}m`;
 }
 export function periodLabel(period, date = new Date()) {
+  if (period === "all") return `All time · since ${BOARDS_SINCE}`;
   if (period === "month") return date.toLocaleDateString(undefined, { month: "long", year: "numeric" });
   const { start, end } = weekWindow(date);
   const last = new Date(end); last.setDate(last.getDate() - 1);
@@ -162,25 +169,27 @@ export function tallyPlayers(rows) {
 
 /* ------------------------------------------------------------ the menu board */
 
-/* A TrollLeaderboard provider for troll-ops: this week's or this month's rows,
-   added up. Nothing is written through it (match-end.js files the rows). */
+/* A TrollLeaderboard provider for troll-ops: this week's, this month's or
+   every row, added up. Nothing is written through it (match-end.js files the rows). */
 export function makeTrollOpsProvider() {
   const state = { period: "week" };
   return {
     name: "troll-ops-rows",
     get period() { return state.period; },
-    setPeriod(p) { state.period = p === "month" ? "month" : "week"; },
+    setPeriod(p) { state.period = PERIOD_NAME[p] ? p : "week"; },
     async getBoard() {
       const period = state.period;
       const now = new Date();
       const { start, end } = windowFor(period, now);
       const myId = myUserId();
       const base = {
-        weekId: period === "month" ? "Monthly" : "Weekly",
+        weekId: PERIOD_NAME[period],
         weekLabel: periodLabel(period, now),
         resetsIn: timeLeft(period, now),
         countdown: () => timeLeft(period),
-        footNote: `Live — every logged-in player's matches this ${period}, added up. Resets ${period === "month" ? "on the 1st" : "every Monday"}.`,
+        footNote: period === "all"
+          ? `Live — every logged-in player's matches since ${BOARDS_SINCE}, added up. Never resets.`
+          : `Live — every logged-in player's matches this ${period}, added up. Resets ${period === "month" ? "on the 1st" : "every Monday"}.`,
         loggedIn: !!myId,
       };
       let rows;

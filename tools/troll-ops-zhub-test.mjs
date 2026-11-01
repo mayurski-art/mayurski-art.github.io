@@ -114,6 +114,15 @@ await R(a, () => window.__trollHub.setBoardRows([
 const tally = await R(a, () => window.__trollHub.boards());
 const monthly = await R(a, () => window.__trollHub.boards("month"));
 check(!JSON.stringify([tally, monthly]).includes("old_timer") && monthly.wave[0][0] === "pepe_enjoyer", "boards: last month's run is on neither", JSON.stringify(monthly));
+// all time: the old run tops it, and the boards cycle through all three
+const allTime = await R(a, () => window.__trollHub.boards("all"));
+check(allTime.wave[0][0] === "old_timer" && allTime.wave[0][1] === 99 && allTime.kills[0][1] === 999 && allTime.kills.length === 3, "boards: all-time has the old run", JSON.stringify(allTime));
+const cycle = await R(a, async () => { const H = window.__trollHub; H.setBoardPeriod(null); const seen = new Set(); const t0 = performance.now(); while (performance.now() - t0 < 26000 && seen.size < 3) { seen.add(H.boardPeriod()); await new Promise((r) => setTimeout(r, 400)); } return [...seen]; });
+check(cycle.length === 3 && cycle.includes("all"), "boards: Weekly, Monthly and All-time take turns", cycle.join(", "));
+await R(a, () => window.__trollHub.setBoardPeriod("all"));
+await R(a, () => { const T = window.__trollOps; T.move.pos.set(0, T.move.pos.y, -2); T.look.yaw = 0; T.look.pitch = 0.12; });
+await sleep(800);
+await a.screenshot({ path: path.join(SHOTS, `zhub-boards-all${TAG}.png`) });
 await R(a, () => window.__trollHub.setBoardPeriod("month"));
 check(tally.wave[0][0] === "pepe_enjoyer" && tally.wave[0][1] === 15 && tally.kills[0][0] === "grinlord" && tally.kills[0][1] === 230,
   "boards: best wave, kills summed", JSON.stringify(tally));
