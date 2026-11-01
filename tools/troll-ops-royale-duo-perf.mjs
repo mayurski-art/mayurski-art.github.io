@@ -48,6 +48,14 @@ async function join(mode, lead, code) {
     return me;
   }, { mode, drop: !!process.env.DROP, lead, code });
   await page.waitForFunction((drop) => window.__trollOps.state() === "playing" && (drop || !window.__trollOps.isStaging()), !!process.env.DROP, { timeout: 300000 });
+  // Who the room takes for the bot host, watched every frame: each change
+  // is a takeover (the old host drops its bots, the new one spawns a set).
+  await page.evaluate(async () => {
+    const { game } = await import("/assets/games/troll-ops/core/state.js?v=st1");
+    const W = window.__host = { flips: 0, slowFrames: 0, maxFrameMs: 0, botIds: new Set(), last: game.net.hostId() };
+    const tick = () => { const h = game.net.hostId(); if (h !== W.last) { W.flips++; W.last = h; } if (game.net.isSlow()) W.slowFrames++; W.maxFrameMs = Math.max(W.maxFrameMs, game.net._frameMs || 0); for (const b of window.__trollOps.bots.bots) W.botIds.add(b.id); requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  });
   return { page, id };
 }
 for (const mode of modes) {
@@ -55,8 +63,10 @@ for (const mode of modes) {
   const host = await join(mode, null, code);
   const pages = [host.page];
   if (HUMANS > 1) pages.push((await join(mode, host.id, code)).page);
+  // HITCH=1: the host freezes once for 3 s (a shader compile on landing).
+  if (process.env.HITCH) await host.page.evaluate(() => { const end = performance.now() + 3000; while (performance.now() < end) { /* busy */ } });
   // who runs bots, every 2 s while the guest settles in
-  for (let i = 0; i < (HUMANS > 1 ? +process.env.TICKS || 5 : 0); i++) { await new Promise((r) => setTimeout(r, 2000)); console.log("hosts", JSON.stringify(await Promise.all(pages.map((p) => p.evaluate(async () => { const T = window.__trollOps, { game, room } = await import("/assets/games/troll-ops/core/state.js?v=st1"); const W = window.__churn ??= { bots: new Set(), remotes: new Set() }; for (const b of T.bots.bots) W.bots.add(b.id); for (const id of T.remotes.byId.keys()) W.remotes.add(id); const mi = T.renderer.info; return { prog: mi.programs?.length, geo: mi.memory.geometries, tex: mi.memory.textures, bots: T.bots.bots.length, remotes: T.remotes.byId.size, botIdsEver: W.bots.size, remoteIdsEver: W.remotes.size, team: game.net.team, peerTeams: [...game.net.peers.values()].filter((q) => !game.isBotPeer(q)).map((q) => q.team), lead: room.partyLead?.() }; }))))); }
+  for (let i = 0; i < (HUMANS > 1 ? +process.env.TICKS || 5 : 0); i++) { await new Promise((r) => setTimeout(r, 2000)); console.log("hosts", JSON.stringify(await Promise.all(pages.map((p) => p.evaluate(async () => { const T = window.__trollOps, { game, room } = await import("/assets/games/troll-ops/core/state.js?v=st1"); const W = window.__churn ??= { bots: new Set(), remotes: new Set() }; for (const b of T.bots.bots) W.bots.add(b.id); for (const id of T.remotes.byId.keys()) W.remotes.add(id); const mi = T.renderer.info, H = window.__host; return { flips: H.flips, slowFrames: H.slowFrames, maxFrameMsAvg: Math.round(H.maxFrameMs), botsSpawned: H.botIds.size, prog: mi.programs?.length, geo: mi.memory.geometries, tex: mi.memory.textures, bots: T.bots.bots.length, remotes: T.remotes.byId.size, botIdsEver: W.bots.size, remoteIdsEver: W.remotes.size, team: game.net.team, peerTeams: [...game.net.peers.values()].filter((q) => !game.isBotPeer(q)).map((q) => q.team), lead: room.partyLead?.() }; }))))); }
   await new Promise((r) => setTimeout(r, +process.env.WAIT || 4000));
   const rs = await Promise.all(pages.map((p) => sample(p)));
   rs.forEach((r, k) => { r.tab = k ? "guest" : "host"; r.errors = pages[k].errors.slice(0, 5); console.log(JSON.stringify(r)); });
