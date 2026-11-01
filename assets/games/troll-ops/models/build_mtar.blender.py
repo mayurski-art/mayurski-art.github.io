@@ -305,27 +305,30 @@ def hider():
 
 
 def irons():
-    # MBUS-style flip-ups standing on the rail, one node (hidden together
-    # under an optic): the rear aperture and the front post's tip on AIM_Y
+    # MBUS Pro-style flip-ups standing on the rail, one node (hidden together
+    # under an optic): the rear aperture and the front post's tip on AIM_Y.
+    # The rear sits at the back end of the rail, by the cheek, with a wide
+    # ghost-ring aperture and ears, and the front's wings spread to frame the
+    # post (user, 2026-10-31: "make it wide and move it closer").
     P = Part(PFX + "_IronRear")
     base = RAIL_TOP + 0.004
-    rz = 0.090
-    chamfer_box(P, (0, base, rz + 0.004), (0.026, 0.008, 0.030), 0.002, "core")
-    screw(P, (0.013, base, rz + 0.011), R, 0.0018)
-    chamfer_box(P, (0, base + 0.0055, rz), (0.021, 0.006, 0.010), 0.0018, "core")
+    rz = 0.106
+    chamfer_box(P, (0, base, rz + 0.004), (0.031, 0.008, 0.030), 0.002, "core")
+    screw(P, (0.0155, base, rz + 0.011), R, 0.0018)
+    chamfer_box(P, (0, base + 0.0055, rz), (0.028, 0.006, 0.010), 0.0018, "core")
     for sx in (-1, 1):
-        chamfer_box(P, (sx * 0.0088, 0.0565, rz), (0.0042, 0.020, 0.012), 0.0014, "core")
-    chamfer_box(P, (0, 0.052, rz), (0.010, 0.010, 0.0045), 0.0012, "core")
-    chamfer_box(P, (0, AIM_Y, rz), (0.0135, 0.011, 0.0045), 0.0012, "core")
-    hole(P, (0, AIM_Y, rz + 0.0023), (0, 0, 1), 0.0022, 0.012, "dark", segs=10)
-    local_lathe(P, (0.0109, 0.053, rz), R, [(0, 0.0042), (0.0028, 0.0042), (0.0034, 0.0)], "core", segs=14)
-    chamfer_box(P, (0, base, FRONT_Z), (0.026, 0.008, 0.026), 0.002, "core")
-    screw(P, (0.013, base, FRONT_Z + 0.007), R, 0.0018)
+        chamfer_box(P, (sx * 0.0128, 0.0565, rz), (0.0044, 0.022, 0.012), 0.0014, "core")
+    chamfer_box(P, (0, 0.052, rz), (0.022, 0.010, 0.0045), 0.0012, "core")
+    chamfer_box(P, (0, AIM_Y, rz), (0.0215, 0.0150, 0.0045), 0.0016, "core")
+    hole(P, (0, AIM_Y, rz + 0.0023), (0, 0, 1), 0.0055, 0.012, "dark", segs=20)
+    local_lathe(P, (0.0150, 0.053, rz), R, [(0, 0.0042), (0.0028, 0.0042), (0.0034, 0.0)], "core", segs=14)
+    chamfer_box(P, (0, base, FRONT_Z), (0.029, 0.008, 0.026), 0.002, "core")
+    screw(P, (0.0145, base, FRONT_Z + 0.007), R, 0.0018)
     for sx in (-1, 1):
-        chamfer_box(P, (sx * 0.0088, 0.0555, FRONT_Z), (0.0042, 0.022, 0.012), 0.0014, "core")
-    chamfer_box(P, (0, 0.0505, FRONT_Z), (0.012, 0.008, 0.008), 0.0015, "core")
+        chamfer_box(P, (sx * 0.0122, 0.0560, FRONT_Z), (0.0042, 0.023, 0.012), 0.0014, "core")
+    chamfer_box(P, (0, 0.0505, FRONT_Z), (0.020, 0.008, 0.008), 0.0015, "core")
     chamfer_box(P, (0, 0.0555, FRONT_Z), (0.0028, 0.013, 0.0028), 0.0006, "steel")
-    local_lathe(P, (0.0109, 0.050, FRONT_Z), R, [(0, 0.0040), (0.0028, 0.0040), (0.0034, 0.0)], "core", segs=14)
+    local_lathe(P, (0.0143, 0.050, FRONT_Z), R, [(0, 0.0040), (0.0028, 0.0040), (0.0034, 0.0)], "core", segs=14)
     return fin(P)
 
 

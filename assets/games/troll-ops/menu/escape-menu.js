@@ -55,6 +55,7 @@ export function initEscapeMenu() {
   bindRange("to-set-volume", "volume", "to-set-volume-out");
   bindRange("to-set-ambience", "ambience", "to-set-ambience-out");
   bindRange("to-set-sens", "sens", "to-set-sens-out", "%");
+  bindRange("to-set-adssens", "adsSens", "to-set-adssens-out", "%");
   bindRange("to-set-fov", "fov", "to-set-fov-out", "°");
   bindRange("to-set-hudsize", "hudScale", "to-set-hudsize-out", "%");
   bindRange("to-set-hudsize-lobby", "hudScale", "to-set-hudsize-lobby-out", "%");
@@ -66,6 +67,7 @@ export function initEscapeMenu() {
   bindRange("to-set-volume-lobby", "volume", "to-set-volume-lobby-out");
   bindRange("to-set-ambience-lobby", "ambience", "to-set-ambience-lobby-out");
   bindRange("to-set-sens-lobby", "sens", "to-set-sens-lobby-out", "%");
+  bindRange("to-set-adssens-lobby", "adsSens", "to-set-adssens-lobby-out", "%");
   bindRange("to-set-fov-lobby", "fov", "to-set-fov-lobby-out", "°");
   bindCheck("to-set-invert-lobby", "invert");
   bindCheck("to-set-minimap-lobby", "minimap");

@@ -1323,7 +1323,7 @@ function enemyInSights() {
 
 /* Returns the trollface reticle shown (null / "idle" / "hit"), for the
    scope overlay too. */
-function fadeOpticGlass(mesh, adsT, w) {
+function fadeOpticGlass(mesh, adsT, w, dt) {
   let mats = mesh.userData.glassMats, marks = mesh.userData.reticles, hip = mesh.userData.hipParts;
   if (!mats) {
     mats = []; marks = []; hip = [];
@@ -1350,8 +1350,22 @@ function fadeOpticGlass(mesh, adsT, w) {
     o.visible = aimed && (kind === true || (kind === "classic" ? !skin : kind === `troll-${skin}`));
   }
   for (const o of hip) o.visible = !aimed;
+  // Walking aimed in, a red dot dims to RED_DOT_MOVING (user, 2026-10-31:
+  // "sort of to punish players for hardscoping"); stopped, it comes back.
+  if (!mesh.userData.reticleMats) {
+    mesh.userData.reticleMats = [];
+    for (const o of marks) o.traverse((c) => { if (c.material) mesh.userData.reticleMats.push(c.material); });
+  }
+  const dim = aimed && w?.def?.sight === "reddot" && game.move.moving;
+  redDotMoveT = damp(redDotMoveT, dim ? 1 : 0, dim ? RED_DOT_FADE_IN : RED_DOT_FADE_OUT, dt);
+  const op = 1 - (1 - RED_DOT_MOVING) * redDotMoveT;
+  for (const m of mesh.userData.reticleMats) m.opacity = op;
   return skin;
 }
+const IRON_ADS_DISTANCE = 0.3;                     // m from the eye to the irons' aim point (optics: 0.46 or their own)
+const RED_DOT_MOVING = 0.35;                       // the dot's opacity on the move
+const RED_DOT_FADE_IN = 5, RED_DOT_FADE_OUT = 9;   // damp rates: dims in ~0.4 s, back in ~0.25 s
+let redDotMoveT = 0;
 
 export function updateWeaponView(dt) {
   const w = currentWeapon();
@@ -1418,7 +1432,10 @@ export function updateWeaponView(dt) {
   const aimPoint = mesh.userData.aimPoint || new THREE.Vector3(0, 0, -0.4);
   // Where the sight sits in front of the weapon camera. Tube optics ask to
   // come closer so the eyepiece frames the view rather than a pinhole.
-  const adsViewDistance = -(mesh.userData.adsDistance ?? 0.46);
+  // Bare irons come in closer still (IRON_ADS_DISTANCE), so the posts and
+  // aperture read big instead of a pinhole down the receiver (user, 2026-10-31).
+  const irons = (w.def.attachments?.optic ?? w.def.sight) === "iron";
+  const adsViewDistance = -(mesh.userData.adsDistance ?? (irons ? IRON_ADS_DISTANCE : 0.46));
   const adsPos = new THREE.Vector3(-aimPoint.x, -aimPoint.y, adsViewDistance - aimPoint.z);
   const basePos = hipPos.clone().lerp(adsPos, adsSmoothT);
 
@@ -1529,7 +1546,7 @@ export function updateWeaponView(dt) {
   posePfArms(mesh, rl.magHold || 0, arHand, twirl?.spin != null);
 
   if (mesh.userData.sight) mesh.userData.sight.visible = true;
-  const skin = fadeOpticGlass(mesh, adsSmoothT, w);
+  const skin = fadeOpticGlass(mesh, adsSmoothT, w, dt);
   updateLaserBeam(mesh, w);
   // Scoped all the way in, a sniper scope takes the screen (sniper-scope.js).
   updateSniperScope(mesh, pfArms, w, game.player.holding === "gun",

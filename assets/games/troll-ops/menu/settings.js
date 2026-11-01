@@ -7,7 +7,7 @@ import { showFps } from "../core/fps-meter.js?v=fp1-zr10";
 
 export const SETTINGS_KEY = "trollops:settings";
 export const settings = {
-  volume: 50, ambience: 60, sens: 100, padSens: 3, fov: 78, invert: false, minimap: true, thirdPerson: false, hudScale: 100,
+  volume: 50, ambience: 60, sens: 100, adsSens: 100, padSens: 3, fov: 78, invert: false, minimap: true, thirdPerson: false, hudScale: 100,
   gfx: "auto", viewMode: false, invincible: false, fps: false,
   ...(() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch { return {}; } })(),
 };
@@ -38,6 +38,7 @@ export function applySettings() {
   set("to-set-volume", settings.volume, "to-set-volume-out");
   set("to-set-ambience", settings.ambience, "to-set-ambience-out");
   set("to-set-sens", settings.sens, "to-set-sens-out", "%");
+  set("to-set-adssens", settings.adsSens, "to-set-adssens-out", "%");
   set("to-set-padsens", settings.padSens);
   set("to-set-padsens-lobby", settings.padSens);
   set("to-set-fov",settings.fov, "to-set-fov-out", "°");
@@ -53,6 +54,7 @@ export function applySettings() {
   set("to-set-volume-lobby", settings.volume, "to-set-volume-lobby-out");
   set("to-set-ambience-lobby", settings.ambience, "to-set-ambience-lobby-out");
   set("to-set-sens-lobby", settings.sens, "to-set-sens-lobby-out", "%");
+  set("to-set-adssens-lobby", settings.adsSens, "to-set-adssens-lobby-out", "%");
   set("to-set-fov-lobby", settings.fov, "to-set-fov-lobby-out", "°");
   set("to-set-invert-lobby", settings.invert);
   set("to-set-minimap-lobby", settings.minimap);

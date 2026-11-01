@@ -20,6 +20,7 @@ import { renderScoreboard } from "../core/scoreboard.js?v=sb1-gj1-if1-fu1b7b7dc2
 import { game } from "../core/state.js?v=st1";
 import { freeLook } from "../view/free-look.js?v=nf1";
 import { requestRoll } from "../core/combat-roll.js?v=cr1-tn12";
+import { adsLookScale } from "./aim-sens.js?v=as1";
 
 // Look is composed by hand rather than by PointerLockControls: recoil and the
 // touch stick both need to write into the same orientation, and letting PLC
@@ -92,7 +93,7 @@ export function initKeyboardMouse() {
     game.mouseLookAt = performance.now();
     // No aim assist on a mouse, as in Phantom Forces (user, 2026-10-13):
     // the stick and the thumb get it (input/aim-assist.js), a cursor doesn't.
-    const sens = BASE_MOUSE_SENS * (settings.sens / 100) * lookSensScale();
+    const sens = BASE_MOUSE_SENS * (settings.sens / 100) * lookSensScale() * adsLookScale();
     look.yaw -= mx * sens;
     look.pitch += (settings.invert ? 1 : -1) * my * sens;
     look.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, look.pitch));

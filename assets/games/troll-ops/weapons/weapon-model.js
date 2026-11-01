@@ -109,8 +109,10 @@ const DETAILED = {
   // the MTAR on arsenal v2 (models/build_mtar.blender.py): baked kit, the
   // port above the mag, a see-through mag (gun-action.js sinks its rounds)
   kek: {
-    url: new URL("../models/mtar.glb?v=mt3", import.meta.url).href,
-    kit: "mtar", p: "MT", device: "MT_Hider", rake: -0.37, railY: 0.043, adsDistance: null, glow: [], brass: "556",
+    url: new URL("../models/mtar.glb?v=mt4", import.meta.url).href,
+    // a bullpup's cheek sits on the butt, so the eye rides close behind the
+    // rear aperture: the irons' aim point 0.2 m out (others 0.3, weapon-view.js)
+    kit: "mtar", p: "MT", device: "MT_Hider", rake: -0.37, railY: 0.043, adsDistance: 0.2, glow: [], brass: "556",
   },
   lol: {
     url: new URL("../models/ar-lol.glb?v=ar2", import.meta.url).href,
@@ -192,7 +194,7 @@ const detailedLod1 = new Map();
    moving parts (P_Carrier ...) carry their motion as extras (tf_part,
    tf_kind, tf_axis, tf_travel) for view/gun-action.js. */
 const kitUrl = (kit, file) => new URL(`../models/${kit}${file}?v=${KIT_VER[kit] ?? 1}`, import.meta.url).href;
-const KIT_VER = { problem416: "pf4", mtar: "mt3", ballista: "hb4" };   // mt3 / hb4: re-baked with the skin mask; pf4: reshaped round (rule 10)
+const KIT_VER = { problem416: "pf4", mtar: "mt4", ballista: "hb4" };   // mt3 / hb4: re-baked with the skin mask; pf4: reshaped round (rule 10); mt4: wide irons, rear by the cheek
 function loadDetailed(id, cfg) {
   const lod0 = new GLTFLoader().loadAsync(cfg.url).then((gltf) => {
     detailedTemplates.set(id, prepDetailed(gltf.scene, cfg));

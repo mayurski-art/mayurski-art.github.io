@@ -956,6 +956,7 @@ const screens = {
         rangeRow("to-set-volume-lobby", "Master volume", 10, "How loud everything is."),
         rangeRow("to-set-ambience-lobby", "Ambience", 10, "Each map's background sound. Goes quiet while the radio is playing."),
         rangeRow("to-set-sens-lobby", "Look sensitivity", 10, "Mouse and touch look speed."),
+        rangeRow("to-set-adssens-lobby", "ADS sensitivity", 10, "Look speed aimed down sights. 100% feels the same through every sight.", "%"),
         selectRow("to-set-padsens-lobby", "Stick sensitivity", "Controller look speed. 3 is the BO2 default."),
         rangeRow("to-set-fov-lobby", "Field of view", 2, "Wider sees more, narrower zooms in."),
         rangeRow("to-set-hudsize-lobby", "HUD size", 5, "Health, ammo, minimap, streaks and the killfeed, smaller or bigger.", "%"),
