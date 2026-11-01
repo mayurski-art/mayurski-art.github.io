@@ -3149,6 +3149,14 @@ body.tf-anim-off .to-radio-toggle .to-radio-ico rect { animation: none !importan
   letter-spacing: 0; text-transform: none; color: var(--pf-body);
 }
 .to-pf .to-lo-map.is-active .to-map-tag { color: var(--pf-body); }
+/* a map being rebuilt (Zombies' Pentagrin): greyed, caution tape for a schematic */
+.to-lo-map.is-closed { cursor: not-allowed; opacity: .62; }
+.to-pf .to-lo-map.is-closed:hover { border-color: rgba(234, 243, 228, .1); }
+.to-lo-map.is-closed .to-map-tag { color: #ffb347; }
+.to-map-shut {
+  display: block; width: 76px; height: 76px; border-radius: 8px;
+  background: repeating-linear-gradient(-45deg, #f2c230 0 9px, #1c1c1e 9px 18px);
+}
 .to-pf .to-lo-map::after {
   content: ""; grid-column: 3; grid-row: 1 / 3; width: 20px; height: 20px;
 }

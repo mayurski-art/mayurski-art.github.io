@@ -98,9 +98,15 @@ function liveClaims() {
     if (now - c.at > HUB_T.claimFresh || !game.net.peers.has(id)) { hub.claims.delete(id); continue; }
     if (c.pad) out.push({ id, ...c });
   }
-  if (hub.pad) out.push({ id: me(), pad: hub.pad, s: hub.since, py: myParty() });
+  if (hub.pad && !closedPad(hub.pad)) out.push({ id: me(), pad: hub.pad, s: hub.since, py: myParty() });
   return out;
 }
+
+/* A pad whose map is being rebuilt (hub-hall.js `closed`): you can stand on
+   it and read why, but it gathers no party and starts nothing. */
+const closedPad = (id) => !!padById(id)?.closed;
+const OPEN_MAP = "hollowgrin";   // where a run goes when the map it asked for is shut
+const openMap = (id) => (HUB.pads.some((p) => p.map === id && p.closed) ? OPEN_MAP : id);
 
 function myParty() { return hub.pad === HUB.private.id ? (hub.invite || (hub.privCode ||= makeRoomCode())) : null; }
 
@@ -134,7 +140,7 @@ function send(m) {
 }
 function sendClaim() {
   hub.sendT = SEND_EVERY;
-  send({ t: "zP", pad: hub.pad, s: hub.since, py: myParty(), inv: hub.pad === HUB.private.id && !!hub.invite ? 1 : 0 });
+  send({ t: "zP", pad: closedPad(hub.pad) ? null : hub.pad, s: hub.since, py: myParty(), inv: hub.pad === HUB.private.id && !!hub.invite ? 1 : 0 });
 }
 
 export function onHubMessage(p, m) {
@@ -145,7 +151,7 @@ export function onHubMessage(p, m) {
     const ids = Array.isArray(m.m) ? m.m : [];
     if (padById(m.pad)) hub.flash.set(m.pad, { text: "Lobby ready!", until: performance.now() + 4000 });
     for (const id of ids) hub.claims.delete(id);
-    if (ids.includes(me()) && hub.pad === m.pad && !hub.launched && MAPS[m.map]) launch(clean(m.code), m.map, m.pad);
+    if (ids.includes(me()) && hub.pad === m.pad && !hub.launched && MAPS[m.map]) launch(clean(m.code), openMap(m.map), m.pad);
   }
 }
 
@@ -155,7 +161,7 @@ function go(padId) {
   const party = partyOn(padId, padId === HUB.private.id ? myParty() : null);
   if (party.owner !== me() || hub.launched) return;
   const pad = padById(padId);
-  const map = pad.map || game.loadout.poolMapId || "pentagrin";
+  const map = openMap(pad.map || game.loadout.poolMapId || OPEN_MAP);
   const code = makeRoomCode();
   send({ t: "zG", pad: padId, code, map, m: party.members.map((c) => c.id) });
   launch(code, map, padId);
@@ -409,6 +415,7 @@ function updateSigns() {
     const flash = hub.flash.get(p.id);
     const party = partyOn(p.id);
     const name = p.event ? [[RUN_EVENTS[p.event].title, "#c58cff"]] : [[MAPS[p.map]?.name || p.map, "#f2cf7a"]];
+    if (p.closed) { drawSign(built.signs.get(p.id), [name, [[p.closed, "#ffb347"]], [["Coming back bigger"]]]); continue; }
     if (flash && flash.until > now && !party.members.length) { drawSign(built.signs.get(p.id), [name, [[flash.text, "#7dff4f"]]]); continue; }
     if (!party.members.length) { drawSign(built.signs.get(p.id), [name, p.event ? [[RUN_EVENTS[p.event].blurb, "#ffb347"]] : [["Step on to play"]], [["Players: "], ["0/4", "#7dff4f"]]]); continue; }
     const secs = Math.max(0, Math.ceil((party.ends - roomNow()) / 1000));
@@ -631,7 +638,13 @@ function updateUi(dt, party) {
   const pad = padById(hub.pad);
   const inParty = party.members.some((c) => c.id === me());
   const owner = party.owner === me();
-  if (hub.pad === HUB.private.id) {
+  if (pad?.closed) {
+    ui.padH.textContent = `${MAPS[pad.map]?.name || pad.map} · ${pad.closed}`;
+    ui.padS.textContent = "It's being rebuilt, bigger. Try Hollowgrin or Troll City.";
+    ui.hold.hidden = true;
+    ui.bar.style.width = "0%";
+    return;
+  } else if (hub.pad === HUB.private.id) {
     ui.padH.textContent = `Private lobby · ${party.members.length}/${PARTY_MAX}`;
     ui.padS.textContent = owner ? "Invite Friends sends them here. Start when you're all in." : "Waiting on the host to start.";
   } else if (!inParty) {
@@ -681,7 +694,7 @@ export function updateHub(dt) {
   if (kiosk && xDown && !hub.xWas) openKiosk(kiosk.id);
   hub.xWas = xDown;
 
-  const party = hub.pad ? partyOn(hub.pad, myParty()) : null;
+  const party = hub.pad && !closedPad(hub.pad) ? partyOn(hub.pad, myParty()) : null;
   if (party && party.owner === me() && !hub.launched) {
     const held = !game.localPauseOnly && (game.keys.has("KeyX") || (game.isTouch && game.touchState?.swap) || !!game.gamepadState?.pickup);
     // real seconds, not frame time: a slow frame (clamped to 50 ms) mustn't

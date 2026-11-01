@@ -147,7 +147,7 @@ export function renderModes() {
   // (Troll Royale: the side you picked, royale-side.js)
   const m = game.currentMode();
   game.loadout.setForcedMap(m.sides ? sidePref(m.sides) : m.forceMap || null);
-  game.loadout.setMapPool(game.currentMode().mapPool || null);
+  game.loadout.setMapPool(game.currentMode().mapPool || null, game.currentMode().closedMaps || null);
   game.loadout.setMapAllow(game.currentMode().maps || null);
   game.renderLobbyRoster();   // no-ops until the lobby is ready
   if (game.lobbyReady) game.refreshLobbyMap();

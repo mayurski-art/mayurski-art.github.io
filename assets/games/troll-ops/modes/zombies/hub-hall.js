@@ -31,9 +31,11 @@ const SPOOKY = halloween();
 /* Where things stand. hub.js reads this; the numbers here are the colliders
    and match build_zhub.blender.py. */
 export const HUB = {
-  // a pad's floor area: you're on it while your feet are inside
+  // a pad's floor area: you're on it while your feet are inside. `closed`:
+  // the map's being rebuilt; its pad says so and starts nothing (the
+  // Pentagrin, 2026-11-01: merging with the Depot, bigger)
   pads: [
-    { id: "p1", map: "pentagrin", x: -15, z: -6, w: 6, d: 5 },
+    { id: "p1", map: "pentagrin", closed: "Under construction", x: -15, z: -6, w: 6, d: 5 },
     { id: "p2", map: "hollowgrin", x: -8.4, z: -6, w: 6, d: 5 },
     { id: "p3", map: "trollcity", x: 8.4, z: -6, w: 6, d: 5 },
     // Chapter One only: the Halloween run (credits.js RUN_EVENTS)

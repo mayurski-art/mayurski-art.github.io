@@ -405,6 +405,28 @@ export class Loadout {
       });
       wrap.appendChild(b);
     }
+    // a pool's shut maps, greyed, saying why (Zombies: the Pentagrin)
+    for (const [id, why] of Object.entries(this.mapPool && this.mapClosed ? this.mapClosed : {})) {
+      if (!MAPS[id]) continue;
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "to-lo-map is-closed";
+      b.disabled = true;
+      // caution tape where its schematic would be
+      const shut = document.createElement("span");
+      shut.className = "to-map-thumb to-map-shut";
+      shut.setAttribute("aria-hidden", "true");
+      b.appendChild(shut);
+      const name = document.createElement("span");
+      name.className = "to-map-name";
+      name.textContent = MAPS[id].name;
+      const tag = document.createElement("span");
+      tag.className = "to-map-tag";
+      tag.textContent = why;
+      b.append(name, tag);
+      b.setAttribute("aria-label", `Map: ${MAPS[id].name}, ${why}`);
+      wrap.appendChild(b);
+    }
     this.thumbsDrawn = false;
     requestAnimationFrame(() => this.drawMapThumbs());
   }
@@ -413,7 +435,7 @@ export class Loadout {
      doesn't stall while five arenas are constructed and thrown away. */
   drawMapThumbs() {
     if (this.thumbsDrawn || !this.els.maps) return;
-    const cards = [...this.els.maps.querySelectorAll(".to-lo-map")];
+    const cards = [...this.els.maps.querySelectorAll(".to-lo-map:not(.is-closed)")];
     let i = 0;
     const step = () => {
       const card = cards[i];
@@ -434,12 +456,15 @@ export class Loadout {
   }
 
   /* A mode that picks from its own list (Zombies): the drawer shows only
-     those maps, and the pick is kept apart from the versus map. */
-  setMapPool(pool) {
-    const same = (pool || null) === this.mapPool
-      || (pool && this.mapPool && pool.join() === this.mapPool.join());
+     those maps, and the pick is kept apart from the versus map. `closed`:
+     { id: why } maps shown greyed after them, not pickable. */
+  setMapPool(pool, closed = null) {
+    const same = ((pool || null) === this.mapPool
+      || (pool && this.mapPool && pool.join() === this.mapPool.join()))
+      && JSON.stringify(closed || null) === JSON.stringify(this.mapClosed || null);
     if (same) return;
     this.mapPool = pool ? [...pool] : null;
+    this.mapClosed = closed ? { ...closed } : null;
     this.buildMaps();
     this.render();
   }
