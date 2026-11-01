@@ -18,7 +18,7 @@ export const DEPLOYABLES = {
     hp: 280,
     range: 16, fireRate: 6, damage: 18,   // ~108 DPS at level 1
     turn: 5.5,                       // rad/s the head slews
-    size: { w: 0.9, d: 0.9, h: 1.05 },
+    size: { w: 1.05, d: 1.05, h: 1.3 },   // the BO2-size sentry gun (models/build_zkit)
     levelUp: { damage: 0.1, hp: 0.1, range: 0.04 },
   },
   barricade: {

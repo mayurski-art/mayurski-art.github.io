@@ -40,6 +40,7 @@ const GRID = 1;               // metres, in grid mode
 const SPIKE_TICK = 0.25;      // seconds between spike bites
 const RETARGET = 0.25;        // seconds between a turret's target checks
 const AIM_OK = 0.12;          // radians off target a turret will still fire at
+const BARREL_SPIN = 28;       // rad/s, the rotary cluster at full spin
 /* Put down (P7): it unfolds up out of the ground with a little overshoot;
    a turret's head comes up and spins round onto the sweep before it may fire. */
 export const DEPLOY_TIME = 0.5;
@@ -426,6 +427,7 @@ class Turret extends Deployable {
     this.fireT = 0;
     this.headYaw = 0;          // relative to the base
     this.gunPitch = 0;
+    this.spinV = 0;            // rad/s the barrels turn
     this.kick = 0;
     this.armT = 0;             // the head coming up after the unfold
     this.headY = 0;
@@ -437,6 +439,7 @@ class Turret extends Deployable {
   onModel(m) {
     this.head = m.getObjectByName("turret_head");
     this.gun = m.getObjectByName("turret_gun");
+    this.barrels = m.getObjectByName("turret_barrels");   // the sentry's rotary cluster
     this.muzzleNode = m.getObjectByName("turret_muzzle");
     this.gunZ = this.gun?.position.z ?? 0;
     this.headY = this.head?.position.y ?? 0;
@@ -549,6 +552,11 @@ class Turret extends Deployable {
       this.gun.rotation.x = -this.gunPitch;
       this.gun.position.z = this.gunZ - this.kick * 0.05;   // recoil back along the barrels
     }
+    // the barrels spin up while it fires and wind down after (about their
+    // own axis, the model's Z once it's in)
+    const firing = this.target && this.fireT > 0;
+    this.spinV += ((firing ? BARREL_SPIN : 0) - this.spinV) * Math.min(1, dt * (firing ? 6 : 1.5));
+    if (this.barrels) this.barrels.rotation.z += this.spinV * dt;
   }
 
   fire() {
