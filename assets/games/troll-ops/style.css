@@ -2270,6 +2270,9 @@ body.tf-anim-off .to-boot-prompt { animation: none; }
 /* Nothing of the menu's floats shows while the boot screen is up (the radio
    used to: user, 2026-10-31). */
 body.tf-booting :is(.to-radio, .to-x-link, .to-truths-link, #to-anim-debug) { display: none !important; }
+/* The radio's button is the main menu's only (user, 2026-11-01): in a match
+   M still opens the radio (menu/radio.js), with no button on screen. */
+#to-title[hidden] ~ .to-radio .to-radio-toggle { display: none; }
 @keyframes to-spin { to { transform: rotate(360deg); } }
 
 /* ---------- Radio ---------- */
