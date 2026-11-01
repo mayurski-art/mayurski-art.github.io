@@ -19,7 +19,7 @@
 // packet without anything more on the wire.
 
 import * as THREE from "three";
-import { emitMoney, SPRAY_RATE, moneyTier } from "../maps/club-money.js?v=mn2-kbc1-mn3";
+import { emitMoney, SPRAY_RATE, moneyTier } from "../maps/club-money.js?v=mn2-kbc1-mn3-kbc2";
 
 export const MONEY_GUN = {
   seconds: 4.5,
