@@ -65,7 +65,9 @@ const baseColliders = await page.evaluate(() => {
   zd.breakLen = 9999;
   T.player.hp = 1e9;
   T.zrun().giveCash(20000);
-  return T.colliders.filter((c) => !c.deploy).length;
+  // the map's own: not deployables, nor the run's doors (doors.js `zdoor`),
+  // which the run puts up and takes down with itself
+  return T.colliders.filter((c) => !c.deploy && !c.zdoor).length;
 });
 await page.waitForFunction(() => window.__trollOps.zdir().state === "between", null, { timeout: 30000 });
 await page.evaluate(() => { const zd = window.__trollOps.zdir(); zd.zombies.forEach((z) => z.dispose(zd.scene)); zd.zombies = []; });
@@ -255,7 +257,7 @@ check(poor === false, "no cash, no turret");
 await page.evaluate(() => { const R = window.__trollOps.zrun(); R.econ.cash = 5000; R.spawn("turret", window.__trollOps.move.pos.x + 3, window.__trollOps.move.pos.y, window.__trollOps.move.pos.z, 0); });
 await page.evaluate(() => { const T = window.__trollOps; T.damagePlayer(1e12, null, null, false, null); T.zrun().run.bleedT = 0.05; });
 await page.waitForFunction(() => window.__trollOps.state() === "gameover", null, { timeout: 15000 }).catch(() => {});
-const end = await page.evaluate(() => ({ list: window.__trollOps.zrun().dep.list.length, deploy: window.__trollOps.colliders.filter((c) => c.deploy).length, base: window.__trollOps.colliders.filter((c) => !c.deploy).length }));
+const end = await page.evaluate(() => ({ list: window.__trollOps.zrun().dep.list.length, deploy: window.__trollOps.colliders.filter((c) => c.deploy).length, base: window.__trollOps.colliders.filter((c) => !c.deploy && !c.zdoor).length }));
 check(end.list === 0 && end.deploy === 0, "game over clears the deployables");
 check(end.base === baseColliders, "and leaves the map's colliders as they were", `${end.base}/${baseColliders}`);
 
