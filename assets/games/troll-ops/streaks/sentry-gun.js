@@ -2,7 +2,9 @@
 //
 // BO2's Sentry Gun: set it down and it guards the spot by itself, turning
 // onto any enemy it can see and cutting them down with its six-barrel
-// rotary gun. Blind Eye hides you from it; enemies can shoot it apart. It
+// rotary gun, a red targeting laser on whatever it's looking at (user,
+// 2026-11-01: "excellent aim bot. quick to detect, quick to kill"). Blind
+// Eye hides you from it; enemies can shoot it apart. It
 // is the same BO2-style sentry the zombies kit puts down (zk-turret.glb,
 // built by models/build_zkit.blender.py), at BO2 size. This file is the
 // model, the aim and the shooting; air.js steps it every frame and only
@@ -18,14 +20,16 @@ import { WEAPON_DEFS } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar
 
 export const SENTRY_DURATION = 90;     // seconds on the ground
 export const SENTRY_HP = 500;          // bullet damage it takes to kill it
-export const SENTRY_RANGE = 45;        // metres it will engage at
-export const SENTRY_TURN = 2.6;        // rad/s it slews
-export const SENTRY_RATE = 9;          // rounds a second
-export const SENTRY_DAMAGE = 12;       // a round; about a second on target kills
-export const SENTRY_REACT = 0.45;      // seconds on a new target before the first round
+export const SENTRY_RANGE = 55;        // metres it will engage at
+export const SENTRY_TURN = 7;          // rad/s it slews: snaps round onto you
+export const SENTRY_RATE = 11;         // rounds a second
+export const SENTRY_DAMAGE = 14;       // a round; 8 rounds (about 0.7 s) kill
+export const SENTRY_REACT = 0.12;      // seconds on a new target before the first round
+export const SENTRY_SPREAD = 0.003;    // radians: it doesn't miss
 const SENTRY_ARM = 1.2;                // unfolding, then the head swings onto the sweep
-const AIM_OK = 0.1;                    // radians off it will still fire at
-const RETARGET = 0.3;
+const AIM_OK = 0.05;                   // radians off it will still fire at
+const RETARGET = 0.1;
+const LASER_ON = 0xff1e1e, LASER_IDLE = 0xb01010;
 const BARREL_SPIN = 28;                // rad/s, the rotary cluster at full spin
 const FLASH_TIME = 0.045;
 const CHEST = 1.1;                     // feet to chest
@@ -47,7 +51,31 @@ function muzzleFlashMat() {
   return flashMat;
 }
 
-const _dir = new THREE.Vector3(), _p = new THREE.Vector3();
+const _dir = new THREE.Vector3(), _p = new THREE.Vector3(), _to = new THREE.Vector3();
+
+/* The targeting laser: a thin red beam out along +Z (scaled to length)
+   and a glowing dot where it lands. */
+let laserGeo = null, dotMat = null;
+function buildLaser() {
+  if (!laserGeo) {
+    laserGeo = new THREE.CylinderGeometry(0.006, 0.006, 1, 6, 1, true);
+    laserGeo.rotateX(Math.PI / 2);
+    laserGeo.translate(0, 0, 0.5);
+    const c = document.createElement("canvas");
+    c.width = c.height = 32;
+    const g = c.getContext("2d");
+    const grad = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+    grad.addColorStop(0, "rgba(255,230,230,1)"); grad.addColorStop(0.3, "rgba(255,40,40,.9)"); grad.addColorStop(1, "rgba(255,0,0,0)");
+    g.fillStyle = grad; g.fillRect(0, 0, 32, 32);
+    dotMat = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+  }
+  const beam = new THREE.Mesh(laserGeo, new THREE.MeshBasicMaterial({ color: LASER_IDLE, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+  beam.renderOrder = 4;
+  beam.frustumCulled = false;
+  const dot = new THREE.Sprite(dotMat);
+  dot.scale.setScalar(0.12);
+  return { beam, dot };
+}
 
 export class SentryGun {
   constructor({ id, owned, team, x, y, z, yaw = 0, duration = SENTRY_DURATION, botId = null, ownerId = null }) {
@@ -81,6 +109,8 @@ export class SentryGun {
     this.flash = new THREE.Sprite(muzzleFlashMat());
     this.flash.visible = false;
     this.flashT = 0;
+    this.laser = buildLaser();
+    this.laser.beam.visible = this.laser.dot.visible = false;
     this.hitbox = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.3, 1.0), new THREE.MeshBasicMaterial({ visible: false }));
     this.hitbox.position.y = 0.65;
     this.hitbox.userData.sentry = this;
@@ -204,6 +234,7 @@ export class SentryGun {
       this.gun.rotation.x = -this.gunPitch;
       this.gun.position.z = this.gunZ - this.kick * 0.05;
     }
+    this.aimLaser();
     const firing = this.target && this.fireT > 0;
     this.spinV += ((firing ? BARREL_SPIN : 0) - this.spinV) * Math.min(1, dt * (firing ? 6 : 1.5));
     if (this.barrels) this.barrels.rotation.z += this.spinV * dt;
@@ -216,8 +247,7 @@ export class SentryGun {
     this.shots++;
     this.kick = 1;
     const p = _p.copy(this.target.chest);
-    // a little spread, so a few go wide at range
-    const spread = 0.012 + p.distanceTo(this.muzzle) * 0.0006;
+    const spread = SENTRY_SPREAD;
     _dir.copy(p).sub(this.muzzle).normalize();
     _dir.x += (Math.random() - 0.5) * spread; _dir.y += (Math.random() - 0.5) * spread; _dir.z += (Math.random() - 0.5) * spread;
     _dir.normalize();
@@ -234,8 +264,33 @@ export class SentryGun {
     if (this.shots % 2 === 0) game.audio.shot?.(FX_DEF, 0.32, this.muzzle);
   }
 
+  /* The beam out of the muzzle along the gun's line, stopped by the first
+     wall or the target's chest; brighter when it's on someone. */
+  aimLaser() {
+    const { beam, dot } = this.laser;
+    const on = this.armed && this.alive;
+    beam.visible = dot.visible = on;
+    if (!on) return;
+    if (!beam.parent) this.root.parent?.add(beam, dot);
+    const yaw = this.yaw + this.headYaw, cp = Math.cos(this.gunPitch);
+    _dir.set(-Math.sin(yaw) * cp, Math.sin(this.gunPitch), -Math.cos(yaw) * cp);
+    let len = raycastWorld(game.colliders, this.muzzle, _dir, SENTRY_RANGE);
+    if (this.target) len = Math.min(len, this.target.chest.distanceTo(this.muzzle));
+    len = Math.max(0.05, Math.min(len, SENTRY_RANGE));
+    beam.position.copy(this.muzzle);
+    beam.lookAt(_to.copy(this.muzzle).add(_dir));
+    beam.scale.set(1, 1, len);
+    beam.material.color.setHex(this.target ? LASER_ON : LASER_IDLE);
+    beam.material.opacity = this.target ? 0.85 : 0.45;
+    dot.position.copy(this.muzzle).addScaledVector(_dir, len - 0.02);
+    dot.scale.setScalar(this.target ? 0.16 : 0.1);
+  }
+
   dispose() {
     this.dead = true;
+    this.laser.beam.parent?.remove(this.laser.beam);
+    this.laser.dot.parent?.remove(this.laser.dot);
+    this.laser.beam.material.dispose();
     this.flash.parent?.remove(this.flash);
     this.root.parent?.remove(this.root);
   }

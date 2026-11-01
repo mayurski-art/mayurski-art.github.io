@@ -129,15 +129,24 @@ const run = (pickEnemy, secs) => page.evaluate(([pickEnemy, secs]) => {
   const hp0 = b.hp;
   const targets = new Set();
   const shots0 = e.shots;
-  let spin = 0;
+  let spin = 0, firstShot = null, killedAt = null, laserOn = false;
+  // start it looking the other way: the worst case to turn round from
+  e.headYaw = Math.atan2(-(at.x - e.pos.x), -(at.z - e.pos.z)) - e.yaw + Math.PI;
   for (let i = 0; i < secs * 20; i++) {
     park();
     if (b.alive) { b.pos.set(at.x, at.y, at.z); rp.pos.set(at.x, at.y, at.z); }
     T.updateStreakEntities(0.05);
+    const t = (i + 1) * 0.05;
     if (e.target) targets.add(e.target.id);
+    if (firstShot == null && e.shots > shots0) firstShot = t;
+    if (killedAt == null && !b.alive) killedAt = t;
+    if (e.target && e.target.id === b.id && e.laser.beam.visible) {
+      const end = e.muzzle.clone().add(new e.pos.constructor(0, 0, 1).applyQuaternion(e.laser.beam.quaternion).multiplyScalar(e.laser.beam.scale.z));
+      if (end.distanceTo(new e.pos.constructor(at.x, at.y + 1.1, at.z)) < 0.6) laserOn = true;
+    }
     spin = Math.max(spin, e.spinV);
   }
-  return { id: b.id, team: b.team, at, hp0, hp: b.hp, alive: b.alive, targets: [...targets], shots: e.shots - shots0, spin: +spin.toFixed(1) };
+  return { id: b.id, team: b.team, at, hp0, hp: b.hp, alive: b.alive, targets: [...targets], shots: e.shots - shots0, spin: +spin.toFixed(1), firstShot, killedAt, laserOn };
 }, [pickEnemy, secs]);
 
 // a teammate in plain view: left alone
@@ -148,6 +157,8 @@ check("a teammate in plain view is never targeted", mate.id && mate.shots === 0 
 const foe = await run(true, 4);
 check("an enemy in plain view is turned onto and killed", foe.id && foe.targets.includes(foe.id) && foe.shots > 3 && (!foe.alive || foe.hp < foe.hp0), foe);
 check("the barrels spin while it fires", foe.spin > 10, foe);
+check("aimbot: from facing away, first round inside 0.8 s, dead inside 1.6 s", foe.firstShot != null && foe.firstShot <= 0.8 && foe.killedAt != null && foe.killedAt <= 1.6, { firstShot: foe.firstShot, killedAt: foe.killedAt });
+check("the red laser sits on the target while it's locked", foe.laserOn, { laserOn: foe.laserOn });
 
 // never through a wall: every round is fired along a clear line
 const walls = await page.evaluate(() => {
