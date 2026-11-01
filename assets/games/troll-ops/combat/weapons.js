@@ -466,7 +466,8 @@ export function updateSwapButton(dt) {
   if (game.isHub() || game.isSocial() || game.isView()) return;
   // Zombies: at a wall buy, the hold buys (modes/zombies/wallbuys.js); a revive comes first
   const revive = reviveInReach();
-  const buy = !revive && game.isZombies() ? match.zombieBuy?.near() || null : null;
+  const near = !revive && game.isZombies() ? match.zombieBuy?.near() || null : null;
+  const buy = near && !match.zombieBuy.offer(near).full ? near : null;   // a full Frags wall has nothing to hold for
   const held = !frozenPlayer() && !game.duoXClaimed && !streakControlActive() && ((game.isTouch && touchState.swap) || game.keys.has("KeyX") || (!!buy && !!game.gamepadState?.pickup));
   const action = game.swapHold.update(dt, held, revive || !!buy);
   if (action === "swap") cycleWeapon();
@@ -512,7 +513,7 @@ export function updateGearHud() {
   setGearChip(game.els.gearLethal, { slot: "lethal", id: lethal.id, name: lethal.name, count: game.player.gear.lethal });
   setGearChip(game.els.gearTactical, { slot: "tactical", id: tactical.id, name: tactical.name, count: game.player.gear.tactical });
   // One throwable slot: the kind you didn't bring has no chip and no button.
-  const offKind = game.loadout.throwKind === "lethal" ? "tactical" : "lethal";
+  const offKind = (match.throwKind || game.loadout.throwKind) === "lethal" ? "tactical" : "lethal";
   game.els.gearLethal.classList.toggle("is-uncarried", offKind === "lethal");
   game.els.gearTactical.classList.toggle("is-uncarried", offKind === "tactical");
   game.els.touchNade?.classList.toggle("is-uncarried", offKind === "lethal");

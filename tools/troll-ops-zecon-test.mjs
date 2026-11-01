@@ -11,7 +11,9 @@
 //            a head-on shot plus two angles of each); the Starter wall's gun
 //            is free once, a gun you carry sells ammo at half, a second gun
 //            fills the empty slot, a third replaces the one in your hands,
-//            no points no buy, ammo is finite, the gun tier carries over.
+//            no points no buy, ammo is finite, the gun tier carries over;
+//            no grenades to start, the Frags wall tops you up to 4 for 250
+//            ("full" at 4), and G throws a frag whatever the class carries.
 //
 //   Run it for each Zombies map: pentagrin, hollowgrin, trollcity.
 //
@@ -125,7 +127,8 @@ if (want("walls")) {
   const start = await R(() => {
     const T = window.__trollOps, p = T.player;
     T.switchWeapon("primary");
-    return { gunless: !!p.gunless, holding: p.holding, secondary: p.secondaryId, hint: document.querySelector(".zb-hint")?.textContent || "" };
+    return { gunless: !!p.gunless, holding: p.holding, secondary: p.secondaryId, hint: document.querySelector(".zb-hint")?.textContent || "",
+      gear: { lethal: p.gear.lethal, tactical: p.gear.tactical, chip: !T.els.gearLethal.classList.contains("is-uncarried") } };
   });
   check(start.gunless && start.holding === "melee" && !start.secondary, "no gun to start: the melee only, and 1 doesn't draw one", JSON.stringify(start));
   await sleep(300);
@@ -133,7 +136,8 @@ if (want("walls")) {
   check(/Starter wall/.test(hint), "the hint says where your gun is", hint);
 
   const walls = await R(() => window.__trollOps.zrun().walls.walls.map((w) => ({ gun: w.gunId, starter: w.starter, snapped: w.snapped, x: w.pos.x, y: w.spot.y, z: w.pos.z, nx: w.n.x, nz: w.n.z, face: w.spot.face })));
-  check(walls.length === 6, "six wall buys", String(walls.length));
+  check(walls.length === 7, "six wall guns and a Frags wall", walls.map((w) => w.gun).join(","));
+  check(walls.filter((w) => w.gun === "frags").length === 1, "one Frags wall");
   check(walls.every((w) => w.snapped), "each one found its wall", walls.filter((w) => !w.snapped).map((w) => w.gun).join(",") || "all");
 
   // rule 9: in front of each outline, nothing; behind it, solid wall
@@ -233,6 +237,32 @@ if (want("walls")) {
   check(third.paid === 750 && third.secondary === "true69" && third.primary === free.primary, "a third: 750, in place of the one in your hands", JSON.stringify(third));
   check(base == null || Math.abs(third.dmg / base - 1.25) < 0.2, "at the run's gun tier", `${third.dmg} vs ${base}`);
   await page.screenshot({ path: path.join(SHOTS, `zecon-walls-${map}-bought.png`) });
+
+  // Frags: none to start, whatever the class carries; the wall tops up to 4
+  const gear = () => R(() => {
+    const T = window.__trollOps, g = T.player.gear;
+    return { lethal: g.lethal, tactical: g.tactical, chip: !T.els.gearLethal.classList.contains("is-uncarried") };
+  });
+  const g0 = start.gear || await gear();
+  check(g0.lethal === 0 && g0.tactical === 0 && g0.chip, "no grenades to start, and the frag chip shows", JSON.stringify(g0));
+  await R(() => { window.__trollOps.zrun().econ.cash = 100; });
+  const fPoor = await holdAt("frags");
+  check(fPoor.prompt.poor && fPoor.paid === 0 && (await gear()).lethal === 0, "100 points: Frags red, none bought", fPoor.prompt.t);
+  await R(() => { window.__trollOps.zrun().econ.cash = 600; });
+  const f1 = await holdAt("frags");
+  const g1 = await gear();
+  check(f1.prompt.t === "Hold X · Frags · 250" && f1.paid === 250 && g1.lethal === 4, "Frags: 250 for four", `${f1.prompt.t} paid ${f1.paid}, ${g1.lethal}`);
+  const full = await holdAt("frags");
+  check(full.prompt.t === "Frags · full" && full.paid === 0, "four already: 'full', and nothing's charged", `${full.prompt.t} paid ${full.paid}`);
+  // G throws a frag even when the class carries a tactical
+  await R(() => { const T = window.__trollOps; T.loadout.throwKind = "tactical"; T.updateGearHud?.(); T.move.pos.x += T.zrun().walls.walls[0].n.x * 2; });
+  await page.keyboard.down("KeyG"); await sleep(250); await page.keyboard.up("KeyG");
+  await page.waitForFunction(() => window.__trollOps.player.gear.lethal < 4, null, { timeout: 4000, polling: 50 }).catch(() => {});
+  const g2 = await gear();
+  await R(() => { window.__trollOps.loadout.throwKind = "lethal"; });
+  check(g2.lethal === 3 && g2.tactical === 0, "G throws a frag (class carries a flashbang)", JSON.stringify(g2));
+  const f2 = await holdAt("frags");
+  check(f2.paid === 250 && (await gear()).lethal === 4, "three left: 250 tops it back to four", `paid ${f2.paid}`);
 }
 
 check(errors.length === 0, "no page errors", errors.slice(0, 4).join(" | "));

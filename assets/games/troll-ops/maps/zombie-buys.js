@@ -20,6 +20,7 @@ export const ZOMBIE_BUYS = {
       // the boardroom lobby (the decorative wall buys there step aside)
       { gun: "starter", x: -10.15, z: 13.62, y: 11, face: N },
       { gun: "sixtynine", x: 11.85, z: 13.62, y: 11, face: N },
+      { gun: "frags", x: -7.15, z: 6.17, y: 11, face: N },
       // the conference room's north wall, east of its screen
       { gun: "true69", x: 8.85, z: -14.17, y: 11, face: S },
       { gun: "kek", x: -15.03, z: -9.15, y: 5.5, face: W },
@@ -31,6 +32,7 @@ export const ZOMBIE_BUYS = {
     walls: [
       // the candy shop's east wall, south of its window
       { gun: "starter", x: -0.97, z: 22.25, y: 0, face: E },
+      { gun: "frags", x: -0.97, z: 25.75, y: 0, face: E },
       { gun: "sixtynine", x: 17.85, z: 29.03, y: 0, face: S },
       { gun: "kek", x: -12.57, z: -13.95, y: 0, face: E },
       { gun: "true69", x: 27.85, z: 19.97, y: 0, face: N },
@@ -41,6 +43,7 @@ export const ZOMBIE_BUYS = {
   "Troll City": {
     walls: [
       { gun: "starter", x: -37.67, z: -11.35, y: 0, face: E },
+      { gun: "frags", x: -39.97, z: -13.65, y: 0, face: E },
       { gun: "sixtynine", x: -37.97, z: 10.75, y: 0, face: E },
       { gun: "true69", x: -25.97, z: -15.95, y: 0, face: E },
       { gun: "kek", x: 16.45, z: -21.27, y: 0, face: S },
@@ -60,5 +63,9 @@ export const WALL_PRICES = {
   soulblazer: 1500,
 };
 export const STARTER_PRICE = 500;
+/* The Frags wall ({ gun: "frags" }): you start a run with none, and it tops
+   you up to FRAG_MAX. */
+export const FRAG_PRICE = 250;
+export const FRAG_MAX = 4;
 export const STARTER_AMMO = 250;
 export const ammoPrice = (gunId) => Math.round((WALL_PRICES[gunId] ?? STARTER_PRICE) / 2 / 5) * 5;

@@ -4,7 +4,8 @@
 // them. The Starter wall in the starting area sells your hub-kiosk gun
 // (credits.js), free the first time. Hold X at a gun you already carry and
 // it's ammo instead, for half the price. Two guns at once; a third takes the
-// place of the one in your hands.
+// place of the one in your hands. The Frags wall sells grenades: none at
+// the start, and it tops you up to four.
 //
 // Where they hang is maps/zombie-buys.js. The X hold is the swap button's
 // (combat/weapons.js updateSwapButton reads match.zombieBuy). Buys are
@@ -19,7 +20,8 @@ import { updateGearHud } from "../../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7
 import { spend } from "./economy.js?v=zr5-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-zd1-wb1-mt2-sk1-hb4-lu1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-nft2531-nft2531h";
 import { equippedGun, gunLevel, gunAtLevel, owns } from "./credits.js?v=zc1-zc2-zf1-wb1-mt2-hb4-gc1";
 import { upgradeState, tieredDef } from "./upgrades.js?v=zr5-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h";
-import { ZOMBIE_BUYS, WALL_PRICES, STARTER_PRICE, STARTER_AMMO, ammoPrice } from "../../maps/zombie-buys.js?v=zx2";
+import { buildThrowable } from "../../combat/throwable-models.js?v=tm1-th2";
+import { ZOMBIE_BUYS, WALL_PRICES, STARTER_PRICE, STARTER_AMMO, FRAG_PRICE, FRAG_MAX, ammoPrice } from "../../maps/zombie-buys.js?v=zx2";
 
 const REACH = 1.7;        // metres out from the wall you can buy from
 const FLOOR_GAP = 1.4;    // ...and how far above or below its floor
@@ -42,6 +44,7 @@ const carried = (gunId) => !game.player.gunless && !!game.player.weapons[gunId];
 
 /* What holding X here does, and its price. */
 export function offerFor(w) {
+  if (w.frags) return { kind: "frags", name: "Frags", price: FRAG_PRICE, full: (game.player.gear?.lethal | 0) >= FRAG_MAX };
   const gunId = w.gunId;
   if (carried(gunId)) {
     return { kind: "ammo", gunId, name: w.def.name, price: w.starter ? STARTER_AMMO : ammoPrice(gunId) };
@@ -110,8 +113,10 @@ export function refillGun(gunId) {
 export function buyAt(w) {
   if (!w || !game.player.alive || game.player.downed) return false;
   const o = offerFor(w);
+  if (o.full) return false;
   if (o.price > 0 && !spend(o.price)) { game.audio.zombieBuy?.(false); return false; }
-  if (o.kind === "ammo") refillGun(o.gunId);
+  if (o.kind === "frags") { game.player.gear.lethal = FRAG_MAX; updateGearHud(); }
+  else if (o.kind === "ammo") refillGun(o.gunId);
   else {
     if (w.starter && !st.freeUsed) st.freeUsed = true;
     giveGun(o.gunId, wallDef(o.gunId));
@@ -181,9 +186,12 @@ function chalkTexture(w) {
   g.font = "600 40px Oswald, 'Arial Narrow', sans-serif";
   g.fillText(w.def.name.toUpperCase(), 256, 32);
   g.font = "600 34px Oswald, 'Arial Narrow', sans-serif";
-  const price = w.starter ? "FREE" : (WALL_PRICES[w.gunId] ?? STARTER_PRICE).toLocaleString();
-  const ammo = w.starter ? STARTER_AMMO : ammoPrice(w.gunId);
-  g.fillText(`${price}   ·   AMMO ${ammo.toLocaleString()}`, 256, 262);
+  if (w.frags) g.fillText(`${FRAG_PRICE}   ·   UP TO ${FRAG_MAX}`, 256, 262);
+  else {
+    const price = w.starter ? "FREE" : (WALL_PRICES[w.gunId] ?? STARTER_PRICE).toLocaleString();
+    const ammo = w.starter ? STARTER_AMMO : ammoPrice(w.gunId);
+    g.fillText(`${price}   ·   AMMO ${ammo.toLocaleString()}`, 256, 262);
+  }
   // a little dust where the chalk was rubbed
   for (let i = 0; i < 260; i++) {
     g.globalAlpha = rnd() * 0.12;
@@ -196,12 +204,13 @@ function chalkTexture(w) {
 }
 
 function buildWall(spot) {
-  const starter = spot.gun === "starter";
+  const starter = spot.gun === "starter", frags = spot.gun === "frags";
   const gunId = starter ? equippedGun() : spot.gun;
   const n = new THREE.Vector3(Math.sin(spot.face), 0, Math.cos(spot.face));
   const at = snapToWall(spot.x, spot.y + CARD_Y, spot.z, n);
   const pos = new THREE.Vector3(at ? at.x : spot.x, spot.y, at ? at.z : spot.z).addScaledVector(n, OFF_WALL);
-  const w = { spot, starter, gunId, def: wallDef(gunId), pos, n, snapped: !!at, mesh: null };
+  const def = frags ? { name: "Frags" } : wallDef(gunId);
+  const w = { spot, starter, frags, gunId, def, pos, n, snapped: !!at, mesh: null };
 
   const g = new THREE.Group();
   g.position.copy(pos);
@@ -213,6 +222,20 @@ function buildWall(spot) {
   card.position.y = CARD_Y;
   card.renderOrder = 1;
   g.add(card);
+  if (frags) {
+    // three frags in a row, standing on the outline's floor, twice life size
+    for (let i = -1; i <= 1; i++) {
+      const f = buildThrowable("frag", { pin: true });
+      f.scale.setScalar(2);
+      f.position.set(i * 0.34, CARD_Y - 0.18, 0.07);
+      f.rotation.y = 0.4 + i * 0.5;
+      g.add(f);
+    }
+    g.userData.wallBuy = w;
+    game.scene.add(g);
+    w.mesh = g;
+    return w;
+  }
   // the gun itself, hung on two pegs inside the outline
   const gun = stripLights(buildWeaponMesh(w.def, { lod: 1 }));
   gun.traverse((o) => { if (o.userData.hand) o.visible = false; });   // no hands on a wall
@@ -245,6 +268,9 @@ export function startWallBuys() {
   game.builtMap?.root?.traverse((o) => { if (o.userData.wallBuyProp) o.visible = false; });
   for (const spot of ZOMBIE_BUYS[name]?.walls || []) walls.push(buildWall(spot));
   match.zombieBuy = { near: nearWall, buy: buyAt, offer: offerFor };
+  // frags only, and none till the Frags wall: whatever your class carries
+  match.throwKind = "lethal";
+  if (game.player.gear) game.player.gear.lethal = game.player.gear.tactical = 0;
   goGunless();
 }
 
@@ -259,6 +285,7 @@ export function clearWallBuys() {
   walls.length = 0;
   game.player && (game.player.gunless = false);
   match.zombieBuy = null;
+  match.throwKind = null;
 }
 
 /* The wall you're standing at, facing it or not: in front of it, within

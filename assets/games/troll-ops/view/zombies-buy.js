@@ -42,13 +42,16 @@ export function updateBuyPrompt() {
     const can = o.price === 0 || canAfford(o.price);
     const price = o.price === 0 ? "FREE" : o.price.toLocaleString();
     const what = o.kind === "ammo" ? `${o.name} ammo` : o.name;
-    const key = `${keyName()}|${what}|${price}|${can}`;
+    const key = `${keyName()}|${what}|${price}|${can}|${!!o.full}`;
     if (key !== shown.key) {
       shown.key = key;
       line.innerHTML = "";
-      const k = document.createElement("b"); k.textContent = `Hold ${keyName()}`;
-      const p = document.createElement("span"); p.className = can ? "zb-price" : "zb-price is-poor"; p.textContent = price;
-      line.append(k, ` · ${what} · `, p);
+      if (o.full) line.append(`${what} · full`);
+      else {
+        const k = document.createElement("b"); k.textContent = `Hold ${keyName()}`;
+        const p = document.createElement("span"); p.className = can ? "zb-price" : "zb-price is-poor"; p.textContent = price;
+        line.append(k, ` · ${what} · `, p);
+      }
     }
     box.hidden = false;
     bar.style.width = `${Math.round((game.swapHold?.active ? game.swapHold.progress : 0) * 100)}%`;
