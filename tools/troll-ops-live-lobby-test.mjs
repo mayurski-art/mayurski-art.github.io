@@ -61,7 +61,7 @@ for (const [label, vp, more] of [["laptop", { width: 1280, height: 720 }], ["lap
   await sleep(400);
   const r = await page.evaluate(() => {
     const rows = [...document.querySelectorAll(".to-bo2-menu [data-id], .to-bo2-menu .to-bo2-item")].filter((e) => e.offsetParent);
-    const find = rows.find((e) => /Find Match|Join Match|Cancel/.test(e.textContent));
+    const find = rows.find((e) => /Find Match|Drop in now|Join Match|Cancel/.test(e.textContent));
     if (!find) return { found: false, ids: rows.slice(0, 5).map((e) => e.textContent.trim().slice(0, 30)) };
     const b = find.getBoundingClientRect();
     // on screen, inside its scrolling list, and nothing over its middle

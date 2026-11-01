@@ -85,8 +85,11 @@ await sleep(200);
 check(await shown(page, ".to-fn-picker"), "Change mode opens the picker");
 await page.click('.to-fn-picker [data-pl="solo"]');
 await sleep(200);
+// (Solo Play opens its modes in the picker; one of them is the pick: fn-one-pick-test)
+await page.click('.to-fn-pick-modes [data-mode="ops"]');
+await sleep(200);
 const name = await page.evaluate(() => document.querySelector(".to-fn-mode-name").textContent);
-check(name === "Solo Play" && !(await shown(page, ".to-fn-picker")), "picking Solo Play names it on the card", name);
+check(name === "Solo Play" && !(await shown(page, ".to-fn-picker")), "picking a Solo Play mode names it on the card", name);
 await page.click(".to-fn-go");
 await sleep(300);
 check(await cur(page) === "solo" && await onTab(page) === "play", "PLAY opens Solo Play under the Play tab", `${await cur(page)} / ${await onTab(page)}`);

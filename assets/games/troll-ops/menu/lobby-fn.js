@@ -45,11 +45,11 @@ const tabOf = (id) => TAB_OF[id] || (/^(att|gear|perk)-\d+$/.test(id) ? "locker"
 /* The playlists the mode card offers: the BO2 main list's five. `group` is
    the lobby's mode group, so the card can name the mode picked in it. */
 const PLAYLISTS = [
-  { id: "public", label: "Public Match", group: "versus", sub: "Team Deathmatch", blurb: "A versus room with whoever is online. Bots fill the gaps." },
+  { id: "public", label: "Public Match", group: "versus", pick: "tdm", sub: "Team Deathmatch", blurb: "A versus room with whoever is online. Bots fill the gaps." },
   { id: "social", label: "Socialize", group: "social", sub: "Hang out", blurb: "Troll City, Kabukigrin, Troll Beach or Undergrin. No guns, just emotes and chat." },
-  { id: "solo", label: "Solo Play", group: "solo", sub: "Ops", blurb: "Ops, Zombies or the Test Range. Just you." },
+  { id: "solo", label: "Solo Play", group: "solo", pick: "ops", sub: "Ops", blurb: "Ops, Zombies or the Test Range. Just you." },
   { id: "zombies", label: "Zombies", group: "hub", sub: "The hub", blurb: "Step on a map's pad. Up to four of you go in against the horde." },
-  { id: "private", label: "Private Match", group: "versus", sub: "Room code", blurb: "Make a room code and send it to your friends." },
+  { id: "private", label: "Private Match", group: "versus", pick: "tdm", sub: "Room code", blurb: "Make a room code and send it to your friends." },
 ];
 const PL_KEY = "tf-fn-playlist";
 
@@ -256,8 +256,22 @@ export function mountFnLobby(api) {
   picker.setAttribute("role", "dialog");
   picker.setAttribute("aria-label", "Pick a mode");
   picker.hidden = true;
-  picker.innerHTML = `<h2>Pick a mode</h2>${PLAYLISTS.map((p) => `<button type="button" data-pl="${p.id}"><b>${esc(p.label)}</b><small>${esc(p.blurb)}</small></button>`).join("")}`;
   root.appendChild(picker);
+  /* One pick (user, 2026-10-31: "choosing game mode and map voting its
+     pretty redundantly built ... i have to choose twice"): the playlist, and
+     under the one you're on its modes (Team Deathmatch, Troll Royale...),
+     so the mode is picked here and nowhere else. */
+  function renderPicker() {
+    picker.innerHTML = `<h2>Pick a mode</h2>${PLAYLISTS.map((p) => {
+      const on = p.id === playlist;
+      const modes = on && p.pick ? modesOf(p.group) : [];
+      return `<button type="button" data-pl="${p.id}" aria-pressed="${on}"${modes.length ? ` aria-describedby="to-fn-pick-${p.id}"` : ""}><b>${esc(p.label)}</b><small>${esc(p.blurb)}</small></button>`
+        + (modes.length ? `<div class="to-fn-pick-modes" id="to-fn-pick-${p.id}" role="group" aria-label="${esc(p.label)} modes">${modes.map((m) => {
+          const lock = m.dataset.lock;
+          return `<button type="button" data-mode="${esc(m.dataset.mode)}" aria-pressed="${m.classList.contains("is-active")}"${m.disabled || lock ? " disabled" : ""} title="${esc(lock ? `Unlocks at ${lock}` : m.title || "")}">${esc(text($("span", m)))}</button>`;
+        }).join("")}</div>` : "");
+    }).join("")}`;
+  }
 
   /* ── Play tab, below: every mode as a tile (scroll down, or All modes) ── */
   const more = document.createElement("button");
@@ -284,6 +298,23 @@ export function mountFnLobby(api) {
   try { const v = localStorage.getItem(PL_KEY); if (PLAYLISTS.some((p) => p.id === v)) playlist = v; } catch {}
   let tab = "play";
 
+  // the lobby's mode buttons in a playlist's group (#to-lo-mode, by its headings)
+  function modesOf(group) {
+    let g = null; const out = [];
+    for (const el of $("#to-lo-mode")?.children || []) {
+      if (el.classList.contains("to-lo-modegroup")) g = text(el).toLowerCase();
+      else if (g === group && el.dataset.mode) out.push(el);
+    }
+    return out;
+  }
+  // a playlist's mode is one of its own: the last one picked, or its default
+  function ensureMode(p) {
+    if (!p?.pick) return;
+    const list = modesOf(p.group);
+    if (list.some((b) => b.classList.contains("is-active"))) return;
+    const b = list.find((x) => x.dataset.mode === p.pick && !x.disabled) || list.find((x) => !x.disabled);
+    b?.click();
+  }
   function modeIn(group) {
     // the picked mode's name, when it's in this playlist's group
     let g = null, hit = null;
@@ -296,7 +327,7 @@ export function mountFnLobby(api) {
   function renderPlay() {
     const p = PLAYLISTS.find((x) => x.id === playlist) || PLAYLISTS[0];
     $(".to-fn-mode-name", play).textContent = p.label;
-    $(".to-fn-mode-sub", play).textContent = (p.id === "public" || p.id === "solo" ? modeIn(p.group) : null) || p.sub;
+    $(".to-fn-mode-sub", play).textContent = (p.pick ? modeIn(p.group) : null) || p.sub;
     const map = $(".to-fn-map", play), img = $("img", map);
     let active = $("#to-lo-maps .to-lo-map.is-active");
     // Socialize plays only its own maps: a pick outside them gets its first
@@ -305,7 +336,10 @@ export function mountFnLobby(api) {
     let name = "", sub = "";
     // Troll Royale: the side you start on (royale-side.js), not a vote
     const side = p.id === "public" && $('#to-lo-mode [data-mode="royale"]')?.classList.contains("is-active") && royaleSide?.();
+    // U Mad Bro?: your hero, on the card (was a row in Public Match)
+    const hero = p.pick && p.group === "versus" && $('#to-lo-mode [data-mode="umb"]')?.classList.contains("is-active") && $("#to-lo-heroes .to-lo-hero.is-active");
     if (side) { name = side.name; sub = `${side.tag === "Default" ? "Default island" : side.tag} · change`; }
+    else if (hero) { name = text($("strong", hero)) || text(hero); sub = "Your hero · change"; }
     // (Public Match: no card. The vote is on the screen PLAY opens; a "Map
     // vote" card here said it twice, user 2026-10-31: "remove this")
     else if (p.id === "public") { /* no card */ }
@@ -320,6 +354,7 @@ export function mountFnLobby(api) {
     map.hidden = !name;
     // Royale: the card switches the side (the Island row in Public Match does too)
     map.classList.toggle("is-side", !!side);
+    map.classList.toggle("is-hero", !!hero && !side);
     // Royale: Solo / Duo / Trio / Squad (royale-squads.js); none smaller
     // than the party
     const size = $(".to-fn-size", play), rs = side && royaleSize?.();
@@ -331,10 +366,12 @@ export function mountFnLobby(api) {
       b.disabled = small;
       b.title = small ? `Your party is ${rs.min}` : `Troll Royale ${b.textContent}`;
     }
-    if (side) { map.setAttribute("role", "button"); map.tabIndex = 0; map.setAttribute("aria-label", `Island: ${side.name}, ${side.tag}. Switch side`); }
+    if (side || hero) { map.setAttribute("role", "button"); map.tabIndex = 0; map.setAttribute("aria-label", side ? `Island: ${side.name}, ${side.tag}. Switch side` : `Hero: ${name}. Change hero`); }
     else { map.removeAttribute("role"); map.removeAttribute("tabindex"); map.removeAttribute("aria-label"); }
   }
   window.addEventListener("tf-royale-side", () => renderPlay());
+  // a mode or hero picked anywhere (the picker, All modes, the heroes screen)
+  for (const id of ["to-lo-mode", "to-lo-heroes"]) document.getElementById(id)?.addEventListener("click", () => setTimeout(renderPlay));
   window.addEventListener("tf-royale-size", () => renderPlay());
   addEventListener("trollforces:party", () => renderPlay());
   $(".to-fn-size", play).addEventListener("click", (e) => { const b = e.target.closest("button"); if (b && !b.disabled) royaleSize?.().pick(+b.dataset.n); });
@@ -344,37 +381,55 @@ export function mountFnLobby(api) {
     if (e.detail?.some((k) => k === PL_KEY || k === "trollops:royaleSide" || k === "trollops:achievements" || k === "trollops:challenges")) { renderPlay(); renderMe(); }
   });
   {
-    const map = $(".to-fn-map", play), flip = () => { if (map.classList.contains("is-side")) switchRoyaleSide?.(); };
+    const map = $(".to-fn-map", play), flip = () => { if (map.classList.contains("is-side")) switchRoyaleSide?.(); else if (map.classList.contains("is-hero")) menu.go("heroes"); };
     map.addEventListener("click", flip);
     map.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } });
   }
   function setPlaylist(id) {
     playlist = id;
     try { localStorage.setItem(PL_KEY, id); } catch {}
+    ensureMode(PLAYLISTS.find((p) => p.id === id));
     renderPlay();
   }
 
-  function openPicker(on) {
+  function openPicker(on, focusMode = false) {
+    if (on) renderPicker();
     picker.hidden = !on;
     $(".to-fn-mode", play).setAttribute("aria-expanded", String(on));
-    if (on) ($(`[data-pl="${playlist}"]`, picker) || $("button", picker)).focus();
+    if (on) ((focusMode && $(".to-fn-pick-modes button[aria-pressed=true], .to-fn-pick-modes button:not(:disabled)", picker)) || $(`[data-pl="${playlist}"]`, picker) || $("button", picker)).focus();
   }
   $(".to-fn-mode", play).addEventListener("click", () => openPicker(picker.hidden));
   picker.addEventListener("click", (e) => {
+    const m = e.target.closest("[data-mode]");
+    if (m) {
+      if (m.disabled) return;
+      const btn = $(`#to-lo-mode [data-mode="${m.dataset.mode}"]`);
+      if (btn && !btn.disabled) btn.click();
+      renderPlay();
+      openPicker(false);
+      $(".to-fn-go", play).focus();
+      return;
+    }
     const b = e.target.closest("[data-pl]");
     if (!b) return;
-    setPlaylist(b.dataset.pl);
+    const p = PLAYLISTS.find((x) => x.id === b.dataset.pl);
+    setPlaylist(p.id);
+    // a playlist with modes opens them; the rest are picked
+    if (p.pick) { openPicker(true, true); return; }
     openPicker(false);
     $(".to-fn-go", play).focus();
   });
   document.addEventListener("click", (e) => {
-    if (!picker.hidden && !picker.contains(e.target) && !e.target.closest(".to-fn-mode")) openPicker(false);
+    // (composedPath: a click that redrew the picker has a target no longer in it)
+    if (!picker.hidden && !e.composedPath().includes(picker) && !e.target.closest(".to-fn-mode")) openPicker(false);
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !picker.hidden) { e.preventDefault(); e.stopPropagation(); openPicker(false); $(".to-fn-mode", play).focus(); }
   }, true);
-  // PLAY opens the playlist's own screen: its modes, map vote, and the go button
-  $(".to-fn-go", play).addEventListener("click", () => menu.go(playlist));
+  // PLAY: Public Match is Find Match itself (menu-bo2.js findMatch: in you
+  // go, or its map vote while others are queued); the rest open their screen
+  // (a room code, a map, the hub)
+  $(".to-fn-go", play).addEventListener("click", () => { if (playlist === "public" && api.findMatch) api.findMatch(); else menu.go(playlist); });
   /* In someone else's party, or the joined squad whose leader didn't ask:
      their leader starts the match (user, 2026-10-30), so PLAY waits for
      them instead of taking you off on your own. */
