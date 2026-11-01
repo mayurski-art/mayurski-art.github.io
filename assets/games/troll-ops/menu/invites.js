@@ -307,12 +307,24 @@ function partyTick() {
   // the other leader went offline: back to our own squad
   if (party.link && gone(party.link.leader)) { party.link = null; party.team = null; sentSig = ""; }
   sendRosters();
-  if (!party.members.size && !party.link) { if (party.room && !party.invited.size) party.room = null; renderParty(); return; }
+  if (!party.members.size && !party.link) { if (party.room && !party.invited.size) party.room = null; tickRender(); return; }
   const room = playing() && game.net?.connected ? game.net.room : null;
-  if (!room) { party.sentRoom = null; renderParty(); return; }
+  if (!room) { party.sentRoom = null; tickRender(); return; }
   if (room === party.sentRoom) return;
   party.sentRoom = room;
   for (const m of goMessages(room)) presence.send("party-go", m);
+  renderParty();
+}
+/* The tick's render, only when what the party panel says has changed:
+   every "trollforces:party" rebuilds the lobby's party grid, stage pads and
+   mode card, 6-8 ms a time, once a second all match long (user,
+   2026-10-31: lag in Royale). The real changes render on their own. */
+let tickSig = "";
+function tickRender() {
+  const sig = JSON.stringify([party.in?.host, [...party.members].map((m) => presence?.nameOf(m)?.name || m), party.link?.leader, party.link?.lead,
+    party.link && nameOf(party.link.leader), party.in && presence?.nameOf(party.in.host)?.name, party.room, party.invited.size, playing()]);
+  if (sig === tickSig) return;
+  tickSig = sig;
   renderParty();
 }
 /* Where our match is, for everyone who follows us into it: our members on
