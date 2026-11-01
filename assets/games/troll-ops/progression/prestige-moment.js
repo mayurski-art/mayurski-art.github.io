@@ -4,7 +4,7 @@
 // middle of the screen, "Prestige N", then it goes on its own. Prestige
 // Master (69) gets its own line. Never blocks a click (pointer-events off).
 
-import { prestigeIconSvg, prestigeName } from "./rank-icons.js?v=rk1-or1";
+import { prestigeIconSvg, prestigeName } from "./rank-icons.js?v=rk1-or1-tn13";
 
 let el = null, timer = 0;
 

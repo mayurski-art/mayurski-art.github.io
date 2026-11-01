@@ -4,7 +4,7 @@
 import { game } from "../core/state.js?v=st1";
 import { initFullscreen } from "./fullscreen.js?v=fs1";
 import { freeLook } from "../view/free-look.js?v=nf1";
-import { adsLookScale, zoomLookRatio } from "./aim-sens.js?v=as1";
+import { adsLookScale, zoomLookRatio } from "./aim-sens.js?v=as1-tn13";
 
 
 export const touchState = {

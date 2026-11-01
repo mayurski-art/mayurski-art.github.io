@@ -15,7 +15,7 @@
 // which cloud-save.js syncs to the account, so it follows the player between
 // devices; the lobby's Challenges card and the Quests tab draw from view().
 
-import { addXp } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1";
+import { addXp } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1-tn13";
 import { SEASON } from "../core/season.js?v=zf1-wb1";
 
 const KEY = "trollops:challenges";
