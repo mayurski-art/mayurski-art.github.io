@@ -194,10 +194,11 @@ export function kbNpcs({ DC, DANCE, deck }) {
     benches.slice(bi * 3, bi * 3 + 2).forEach((i, k) => sit(i, "Clubgoer", k ? "phone" : "drink", bi % 3 === 1 ? { drink: "whiskey" } : {}));
   }
   // behind the main bar under the east arm (the bottle wall at x -6.55); the
-  // third is North (npc-dialogue's bartender, Neon Nina's index)
+  // third is North, the head bartender, who talks (modes/npc-dialogue.js,
+  // modes/talk/north.js)
   add("Shots McGee", "Bartender", "wipe", { x: -7.1, z: 14.5, y: FL, yaw: FACE_YAW["-x"] });
   add("Pourtia", "Bartender", "count", { x: -7.1, z: 19.5, y: FL, yaw: FACE_YAW["-x"] });
-  add("Neon Nina", "Bartender", "wipe", { x: -7.1, z: 17, y: FL, yaw: FACE_YAW["-x"] });
+  add("North", "Bartender", "wipe", { x: -7.1, z: 17, y: FL, yaw: FACE_YAW["-x"] }, { talk: "north" });
   seatsOf("stool", (s) => s.floor === FL).forEach((i, k) => { if (k !== 2) sit(i, "Barfly", "drink", k % 3 ? {} : { drink: "whiskey" }); });
   for (const [x, z, yaw] of [[-29.5, 7.6, 2.4], [-28.7, 8.4, -0.8], [-14.2, 7.4, 0.6], [-13.4, 8.2, -2.6], [-14.6, 25.4, -0.3], [-21.6, 25.6, 0.2], [-27.8, 26.0, 2.8], [-27.0, 26.7, -0.4]]) {
     extra("Clubgoer", R() < 0.6 ? "drink" : "phone", { x, z, y: FL, yaw });
