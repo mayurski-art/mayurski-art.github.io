@@ -211,9 +211,9 @@ export function mountFnLobby(api) {
   news.setAttribute("aria-roledescription", "carousel");
   news.setAttribute("aria-label", "News");
   news.innerHTML = `
-      ${NEWS.map((n, i) => `<button type="button" class="to-fn-news-card" data-i="${i}" ${i ? "hidden" : ""} aria-label="${esc(`${n.title}: ${n.tag}`)}">
-        <img alt="" data-map="${n.map}"><em>News</em><b>${esc(n.title)}</b><small>${esc(n.tag)}</small></button>`).join("")}
-      <div class="to-fn-pips">${NEWS.map((n, i) => `<button type="button" data-i="${i}" aria-label="News ${i + 1}: ${esc(n.title)}"></button>`).join("")}</div>
+      ${NEWS.map((n, i) => `<div class="to-fn-news-card" data-i="${i}" ${i ? "hidden" : ""} role="group" aria-roledescription="slide" aria-label="${esc(`${n.title}: ${n.tag}`)}">
+        <img alt="" data-map="${n.map}"><em>News</em><b>${esc(n.title)}</b><small>${esc(n.tag)}</small></div>`).join("")}
+      <div class="to-fn-pips" aria-hidden="true">${NEWS.map((n, i) => `<i data-i="${i}"></i>`).join("")}</div>
       <button type="button" class="to-fn-news-go"></button>`;
 
   /* ── Play tab, right: the mode card and PLAY ── */
@@ -547,33 +547,27 @@ export function mountFnLobby(api) {
     else if (act) goTab(act);
   });
 
-  /* ── News: turns by itself, slowly (user, 2026-10-31: "it should auto
-     loop slowly by itself. manual control can be done as well by clicking
-     on the four circles"): a crossfade every NEWS_MS, the lit circle
-     filling as it waits; held while the pointer or focus is on it. A card
-     opens its playlist. ── */
+  /* ── News: a loop that turns by itself (user, 2026-10-31: "dont even make
+     the circles clickable really it should jsut be a continous loop that no
+     one has control of manipulating"): a crossfade every NEWS_MS, the lit
+     circle filling as it waits. No tapping, swiping, keys or hover hold;
+     the circles only show where it is. "Play this" is the one way from a
+     story to its mode, map and backdrop. ── */
   const NEWS_MS = 8000;
   news.style.setProperty("--news-ms", `${NEWS_MS}ms`);
-  let newsIdx = 0, newsTimer = 0, newsHeld = false;
-  const cards = $$(".to-fn-news-card", news), pips = $$(".to-fn-pips button", news);
+  let newsIdx = 0;
+  const cards = $$(".to-fn-news-card", news), pips = $$(".to-fn-pips i", news);
+  const newsGo = $(".to-fn-news-go", news);
+  newsGo.textContent = "Play this";
   function showNews(i) {
     newsIdx = (i + NEWS.length) % NEWS.length;
     cards.forEach((c, k) => { c.hidden = k !== newsIdx; });
-    pips.forEach((p, k) => p.setAttribute("aria-current", String(k === newsIdx)));
-    const go = $(".to-fn-news-go", news);
-    go.textContent = "Play this";
-    go.setAttribute("aria-label", `Play ${NEWS[newsIdx].title}: ${NEWS[newsIdx].tag}`);
+    pips.forEach((p, k) => p.classList.toggle("is-on", k === newsIdx));
+    newsGo.setAttribute("aria-label", `Play ${NEWS[newsIdx].title}: ${NEWS[newsIdx].tag}`);
   }
-  /* Tapping a card turns to the next one; only "Play this" switches the
-     mode, map and backdrop to the story's (user, 2026-10-31: "the
-     background and boxes changing when you keep clicking through the
-     news"). */
-  const newsGo = $(".to-fn-news-go", news);
   for (const c of cards) {
     const n = NEWS[+c.dataset.i];
     if (n.art) $("img", c).src = n.art; else setMapShot($("img", c), n.map, "320px");
-    c.setAttribute("aria-label", `${n.title}: ${n.tag}. Next story`);
-    c.addEventListener("click", () => { showNews(newsIdx + 1); restartNews(); });
   }
   newsGo.addEventListener("click", () => {
     const n = NEWS[newsIdx];
@@ -582,50 +576,9 @@ export function mountFnLobby(api) {
     setPlaylist(n.playlist);
     $(".to-fn-go", play).focus();
   });
-  for (const p of pips) p.addEventListener("click", () => { showNews(+p.dataset.i); restartNews(); });
-  // swipe (or drag) the card left / right for the next / last (user,
-  // 2026-10-30: "users should be able to swipe through the four news")
-  {
-    let x0 = null, y0 = 0, swiped = false;
-    news.addEventListener("pointerdown", (e) => { x0 = e.clientX; y0 = e.clientY; swiped = false; });
-    news.addEventListener("pointerup", (e) => {
-      if (x0 == null) return;
-      const dx = e.clientX - x0, dy = e.clientY - y0;
-      x0 = null;
-      if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
-      swiped = true;
-      showNews(newsIdx + (dx < 0 ? 1 : -1));
-      restartNews();
-    });
-    news.addEventListener("pointercancel", () => { x0 = null; });
-    // (a swipe isn't a tap: the card's click doesn't turn it again)
-    news.addEventListener("click", (e) => { if (swiped) { e.stopPropagation(); e.preventDefault(); swiped = false; } }, true);
-    // the arrow keys too, on a focused card
-    news.addEventListener("keydown", (e) => {
-      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-      e.preventDefault();
-      showNews(newsIdx + (e.key === "ArrowRight" ? 1 : -1));
-      restartNews();
-      cards[newsIdx].focus();
-    });
-  }
-  // (one timer, restarted on every turn: a pick or a swipe gets its full wait)
-  function restartNews() {
-    clearTimeout(newsTimer);
-    news.classList.toggle("is-held", newsHeld);
-    if (newsHeld) return;
-    newsTimer = setTimeout(() => {
-      if (!title.hidden && !document.hidden && !document.body.classList.contains("tf-anim-off")) showNews(newsIdx + 1);
-      restartNews();
-    }, NEWS_MS);
-  }
-  const holdNews = (on) => { if (newsHeld !== on) { newsHeld = on; restartNews(); } };
-  news.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") holdNews(true); });
-  news.addEventListener("pointerleave", () => holdNews(news.contains(document.activeElement)));
-  news.addEventListener("focusin", () => holdNews(true));
-  news.addEventListener("focusout", (e) => { if (!news.contains(e.relatedTarget)) holdNews(news.matches(":hover")); });
+  // one steady clock: the next story every NEWS_MS while the menu is up
+  setInterval(() => { if (!title.hidden && !document.hidden) showNews(newsIdx + 1); }, NEWS_MS);
   showNews(0);
-  restartNews();
 
   /* ── The season's countdown: each minute, while the menu is up ── */
   const seasonEl = $(".to-fn-season-left", left);

@@ -121,46 +121,36 @@ check(!bars.length, "no scrollbars drawn", bars.join(", "));
 await ctx.close();
 
 // ---- 5
+// The news is a loop nobody turns (user, 2026-10-31): a swipe or a tap
+// leaves it where it is, it turns by itself, and Play this is the one way to
+// a story's mode (the full check: tools/troll-ops-fn-news-loop-test.mjs).
 ({ ctx, page } = await open({ width: 1280, height: 720 }));
-await page.evaluate(() => { window.__toBo2.menu.backTo("main"); document.body.classList.add("tf-anim-off"); });
+await page.evaluate(() => window.__toBo2.menu.backTo("main"));
 await sleep(500);
 const newsNow = () => page.evaluate(() => document.querySelector(".to-fn-news-card:not([hidden]) b")?.textContent);
-const swipe = async (dx) => {
-  const r = await page.evaluate(() => { const b = document.querySelector(".to-fn-news").getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; });
-  await page.mouse.move(r.x, r.y); await page.mouse.down(); await page.mouse.move(r.x + dx / 2, r.y); await page.mouse.move(r.x + dx, r.y); await page.mouse.up();
-  await sleep(200);
-};
-const firstNews = await newsNow();
 const plBefore = await page.evaluate(() => window.__toBo2.fn.playlist());
-await swipe(-120);
-const second = await newsNow();
-await swipe(120);
-const back = await newsNow();
-const plAfter = await page.evaluate(() => window.__toBo2.fn.playlist());
-check(firstNews === "Halloween" && second === "Trollface Island" && back === "Halloween", "the news swipes: left the next, right the last", `${firstNews} -> ${second} -> ${back}`);
-check(plAfter === plBefore, "a swipe doesn't open the card's mode", `${plBefore} -> ${plAfter}`);
-// tapping through the news (user, 2026-10-31: "the background and boxes
-// changing when you keep clicking through the news"): each tap the next
-// story, the mode, side, backdrop and mode card left alone; Play this
-// is the one way to a story's mode
-const state = () => page.evaluate(() => ({ pl: window.__toBo2.fn.playlist(), mode: document.querySelector(".to-fn-mode-name")?.textContent,
-  sub: document.querySelector(".to-fn-mode-sub")?.textContent, bg: document.querySelector(".to-bo2-bg img, .to-bo2-bg")?.outerHTML.length }));
-const before = await state();
-const seen = [];
-for (let i = 0; i < 4; i++) { await page.click(".to-fn-news-card:not([hidden])"); await sleep(250); seen.push(await newsNow()); }
-const afterTaps = await state();
-check(seen.join(",") === "Trollface Island,Kabukigrin,Troll Beach,Halloween", "a tap on the news turns to the next story", seen.join(" -> "));
-check(afterTaps.pl === before.pl && afterTaps.mode === before.mode && afterTaps.sub === before.sub, "tapping through the news changes no mode, side or card", `${JSON.stringify(before)} -> ${JSON.stringify(afterTaps)}`);
+const firstNews = await newsNow();
+{
+  const r = await page.evaluate(() => { const b = document.querySelector(".to-fn-news").getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; });
+  await page.mouse.move(r.x, r.y); await page.mouse.down(); await page.mouse.move(r.x - 60, r.y); await page.mouse.move(r.x - 120, r.y); await page.mouse.up();
+  await page.mouse.click(r.x, r.y + 10);
+  await sleep(200);
+}
+const afterTouch = await newsNow();
+check(firstNews === "Halloween" && afterTouch === firstNews, "a swipe or a tap doesn't turn the news", `${firstNews} -> ${afterTouch}`);
+check(await page.evaluate(() => window.__toBo2.fn.playlist()) === plBefore, "nor opens the card's mode");
+// it turns by itself; when Kabukigrin comes round, Play this opens Socialize
+let story = afterTouch;
+for (let t = Date.now(); Date.now() - t < 30000 && story !== "Kabukigrin"; ) { await sleep(300); story = await newsNow(); }
+check(story === "Kabukigrin", "the news turns by itself (Halloween, Trollface Island, Kabukigrin)", story);
+await page.click(".to-fn-news-go"); await sleep(400);
+check(await page.evaluate(() => window.__toBo2.fn.playlist()) === "social", "Play this on Kabukigrin opens Socialize");
 const clash = await page.evaluate(() => {
   const go = document.querySelector(".to-fn-news-go").getBoundingClientRect();
   const card = document.querySelector(".to-fn-news-card:not([hidden])");
-  return [...card.querySelectorAll("b, small"), ...document.querySelectorAll(".to-fn-pips button")].filter((el) => { const r = el.getBoundingClientRect(); return r.width && r.left < go.right && r.right > go.left && r.top < go.bottom && r.bottom > go.top; }).map((el) => el.textContent || el.getAttribute("aria-label"));
+  return [...card.querySelectorAll("b, small"), ...document.querySelectorAll(".to-fn-pips > *")].filter((el) => { const r = el.getBoundingClientRect(); return r.width && r.left < go.right && r.right > go.left && r.top < go.bottom && r.bottom > go.top; }).map((el) => el.textContent || el.tagName);
 });
 check(!clash.length, "Play this sits clear of the story's text and the circles", clash.join(", "));
-await page.click(".to-fn-news-card:not([hidden])"); await sleep(150); await page.click(".to-fn-news-card:not([hidden])"); await sleep(150);   // Kabukigrin
-await page.click(".to-fn-news-go"); await sleep(400);
-const played = await state();
-check(played.pl === "social", "Play this on Kabukigrin opens Socialize", JSON.stringify(played));
 await ctx.close();
 
 check(!errors.length, "no page errors", errors.slice(0, 3).join(" | "));
