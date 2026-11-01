@@ -43,6 +43,13 @@ for (const [name, vp, more] of [["laptop", { width: 1920, height: 1080 }, {}], [
       bg: (shot?.currentSrc || shot?.src || "").replace(/^.*\/ui\//, "").replace(/-\d+\.webp.*$/, ""),
       boxes: [box(".to-bo2-party"), box(".to-fn-play"), box(".to-fn-news")].join(" ") };
   });
+  // The backdrop reel turns on its own every 7 s (lobby-fn.js SHOT_MS), which
+  // a spam window can straddle: once its first picture is up, hold it
+  // (Animations off holds the reel) while the clicks go in, so a change can
+  // only be one the clicks made. Let go before the loop's own turn is timed.
+  for (let t = Date.now(); Date.now() - t < 20000 && !(await state()).bg;) await sleep(250);
+  await page.evaluate(() => document.body.classList.add("tf-anim-off"));
+  await sleep(300);
   const before = await state();
   check(!!before.boxes && before.boxes.split(" ").every((b) => b !== "null"), `${name}: the news shows`, JSON.stringify(before));
   const story = () => page.evaluate(() => [...document.querySelectorAll(".to-fn-news-card")].findIndex((c) => !c.hidden));
@@ -64,6 +71,7 @@ for (const [name, vp, more] of [["laptop", { width: 1920, height: 1080 }, {}], [
   check(turns <= Math.ceil(spamMs / 8000), `${name}: spam-clicking the circles and the card, a swipe and the arrow key don't turn the news`, `${turns} turns in ${spamMs} ms (${s0} -> ${s1})`);
   check(st.pl === before.pl && st.mode === before.mode && st.map === before.map && st.bg === before.bg && st.boxes === before.boxes,
     `${name}: and change no backdrop, mode or box`, `${JSON.stringify(before)} -> ${JSON.stringify(st)}`);
+  await page.evaluate(() => document.body.classList.remove("tf-anim-off"));
   // the loop turns on its own, under the pointer too (no hover hold)
   await page.mouse.move(card.x, card.y);
   const t0 = Date.now(); let s2 = s1;

@@ -33,6 +33,11 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, r));
 const BASE = `http://localhost:${server.address().port}`;
+// The tags the game imports these under (the same URL is the same instance).
+const PU = fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/view/player-update.js"), "utf8");
+const coreUrl = (file) => "/assets/games/troll-ops/core/" + file + PU.slice(PU.indexOf(`/core/${file}?v=`) + `/core/${file}`.length).match(/^\?v=[^"]+/)[0];
+const ROLL_URL = coreUrl("combat-roll.js");
+const STATE_URL = coreUrl("state.js");
 
 let failures = 0;
 const check = (name, ok, detail = "") => { console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  (${detail})` : ""}`); if (!ok) failures++; };
@@ -61,9 +66,9 @@ await page.evaluate(async () => {
 for (let t = Date.now(); Date.now() - t < 120000 && await page.evaluate(() => window.__trollOps.isStaging?.() || window.__trollOps.state() !== "playing");) await sleep(400);
 
 // The module, under the tag every importer uses (so the same instance).
-await page.evaluate(async () => {
-  window.__roll = await import("/assets/games/troll-ops/core/combat-roll.js?v=cr1");
-});
+await page.evaluate(async (url) => {
+  window.__roll = await import(url);
+}, ROLL_URL);
 const read = () => page.evaluate(() => {
   const T = window.__trollOps;
   if (!document.getElementById("to-pause").hidden) T.closePauseMenu();
@@ -113,10 +118,10 @@ check("third person: the body tumbles", peakTilt > 1, `${peakTilt.toFixed(2)} ra
 await sleep(1200);
 await tapE();
 await sleep(150);
-wireRoll = await page.evaluate(async () => {
-  const { game } = await import("/assets/games/troll-ops/core/state.js?v=st1");
+wireRoll = await page.evaluate(async (url) => {
+  const { game } = await import(url);
   return game.combatRollK === window.__roll.combatRollK && game.combatRollYaw() != null ? game.combatRollK() : 0;
-});
+}, STATE_URL);
 check("the state packet's roll and heading are set mid-roll", wireRoll > 0, String(wireRoll));
 
 // ---- 2. cooldown
@@ -191,7 +196,7 @@ await hp.goto(`${BASE}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded
 await hp.waitForFunction(() => !!window.__trollOps, null, { timeout: 180000 });
 await hp.evaluate(async () => { const T = window.__trollOps; T.setMode("umb"); await T.startGame(); if (T.isStaging?.()) T.endStaging?.(); });
 for (let t = Date.now(); Date.now() - t < 120000 && await hp.evaluate(() => window.__trollOps.isStaging?.() || window.__trollOps.state() !== "playing");) await sleep(400);
-await hp.evaluate(async () => { window.__roll = await import("/assets/games/troll-ops/core/combat-roll.js?v=cr1"); });
+await hp.evaluate(async (url) => { window.__roll = await import(url); }, ROLL_URL);
 const hkey = (code, type) => hp.evaluate(([code, type]) => window.dispatchEvent(new KeyboardEvent(type, { code, bubbles: true })), [code, type]);
 const peak = async (ms) => { let k = 0; for (let t = 0; t < ms; t += 60) { await sleep(60); k = Math.max(k, await hp.evaluate(() => window.__roll.combatRollK())); } return k; };
 await sleep(1500);
