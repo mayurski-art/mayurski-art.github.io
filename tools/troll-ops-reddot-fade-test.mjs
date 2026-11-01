@@ -1,7 +1,8 @@
 // Troll Forces: a red dot dims while you walk aimed in and comes back when
 // you stop (user, 2026-10-31: "make the red dot transparent a little bit
 // while users are moving while aiming, sort of to punish players for
-// hardscoping"). Irons and the ACOG are left alone. Private TDM room, no bots.
+// hardscoping"), every optic with a reticle in its glass, the ACOG too (user,
+// 2026-11-01: "reflex sights acogs etc"). Private TDM room, no bots.
 //
 // Per gun:optic it aims in, reads the reticle's opacity standing, after
 // 1.2 s walking, and 0.8 s after stopping.
@@ -41,7 +42,7 @@ function check(name, ok, detail = "") {
 }
 
 const combos = (process.argv.slice(2).length ? process.argv.slice(2)
-  : ["problem416:reflex", "kek:coyote", "kek:acog"]).map((s) => s.split(":"));
+  : ["problem416:reflex", "kek:coyote", "kek:acog", "deadpan:acog"]).map((s) => s.split(":"));
 const browser = await chromium.launch({ args: ["--use-angle=d3d11", "--autoplay-policy=no-user-gesture-required"] });
 const errors = [];
 for (const [gun, optic] of combos) {
@@ -71,7 +72,14 @@ for (const [gun, optic] of combos) {
     T.look.pitch = 0.02;
     T.setAds(true);
   });
-  await sleep(1600);
+  // The first page of a run can take a while to build the gun: wait for the
+  // reticle itself rather than a fixed time.
+  await page.waitForFunction(() => {
+    let shown = false;
+    window.__trollOps.activeWeaponMesh()?.traverse((o) => { if (o.userData.reticle && o.visible) shown = true; });
+    return shown;
+  }, null, { timeout: 15000 }).catch(() => {});
+  await sleep(600);
   const opacity = () => page.evaluate(() => {
     const T = window.__trollOps;
     let op = null, shown = false;
@@ -94,13 +102,9 @@ for (const [gun, optic] of combos) {
   console.log(`${gun}:${optic} (${still.sight})  still ${still.op?.toFixed(2)}  walking ${walking.op?.toFixed(2)} (moving ${walking.moving})  stopped ${stopped.op?.toFixed(2)}`);
   check(`${gun}:${optic} reticle shown aimed in`, still.shown && still.op != null);
   check(`${gun}:${optic} it walked`, walking.moving);
-  if (still.sight === "reddot") {
-    check(`${gun}:${optic} full dot standing`, still.op > 0.97, still.op?.toFixed(2));
-    check(`${gun}:${optic} dimmed walking (0.3-0.5)`, walking.op >= 0.3 && walking.op <= 0.5, walking.op?.toFixed(2));
-    check(`${gun}:${optic} back after stopping`, stopped.op > 0.95, stopped.op?.toFixed(2));
-  } else {
-    check(`${gun}:${optic} not a red dot: never dims`, [still.op, walking.op, stopped.op].every((o) => o > 0.97));
-  }
+  check(`${gun}:${optic} full reticle standing`, still.op > 0.97, still.op?.toFixed(2));
+  check(`${gun}:${optic} dimmed walking (0.3-0.5)`, walking.op >= 0.3 && walking.op <= 0.5, walking.op?.toFixed(2));
+  check(`${gun}:${optic} back after stopping`, stopped.op > 0.95, stopped.op?.toFixed(2));
   await page.close();
 }
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
