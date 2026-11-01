@@ -150,7 +150,7 @@ const PAGES = [
   { id: "more", tab: "The rest", title: "Good to know",
     body: () => `
       <ul class="to-nh-list">
-        <li><b>Levels and prestige</b><span>Matches give XP. Hit level 69, then Prestige in the Career tab: back to level 1 with a new badge. Ten of those and you're Prestige Master. Some modes and finishes only open at a prestige.</span></li>
+        <li><b>Levels and prestige</b><span>Matches give XP. Hit level 69 and you prestige on the spot: back to level 1 with a new badge. Prestige 69 is Prestige Master. Some modes and finishes only open at a prestige.</span></li>
         <li><b>Scorestreaks</b><span>Pick three in your class. Kills, assists and objectives fill the meter; call one with 4 to 7, d-pad right, or its button. Royale and U Mad Bro? have none.</span></li>
         <li><b>Challenges</b><span>The Quests tab. Do them, flex them.</span></li>
         <li><b>Your party</b><span>The + pads beside you, or N Online at the bottom: invite people, then play together. Your leader presses PLAY.</span></li>

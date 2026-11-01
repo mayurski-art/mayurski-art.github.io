@@ -33,7 +33,7 @@ export const CARDS = [
   { id: "p8", name: "You Have a Problem", src: ART("p8.jpg"), prestige: 8, desc: "Prestige 8. Remind me later." },
   { id: "p9", name: "Genesis Block", src: ART("p9.jpg"), prestige: 9, desc: "Prestige 9. Chancellor on brink of getting trolled." },
   { id: "p10", name: "Troll Inc.", src: ART("p10.jpg"), prestige: 10, desc: "Prestige 10. Suit, tie, controlling stake." },
-  { id: "master", name: "Prestige Master", src: ART("master.jpg"), prestige: 11, desc: "Prestige Master. Nothing left to prove. Proves it anyway." },
+  { id: "master", name: "Prestige Master", src: ART("master.jpg"), prestige: 69, desc: "Prestige Master. Nothing left to prove. Proves it anyway." },
 ];
 export const DEFAULT_CARD = "hitman";
 

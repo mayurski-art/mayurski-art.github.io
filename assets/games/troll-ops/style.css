@@ -7016,3 +7016,26 @@ body.to-aboard #to-touch-endstreak { display: none !important; }
   .to-fr-head { padding: 10px 12px 8px; }
   .to-fr-head-ico { display: none; }
 }
+
+/* Prestige moment (progression/prestige-moment.js): prestige is automatic
+   at 69, so the new badge comes up in the middle of the screen, then goes. */
+.to-prestige-moment {
+  position: fixed; left: 50%; top: 22%; z-index: 9000; transform: translate(-50%, -8px) scale(.94);
+  width: min(420px, calc(100vw - 32px)); box-sizing: border-box; padding: 18px 20px 16px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+  background: rgba(10,12,20,.98); border: 1px solid rgba(255,207,77,.55); border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.6);
+  color: #f3efe6; pointer-events: none; opacity: 0; visibility: hidden;
+  transition: opacity .35s, transform .35s, visibility 0s .35s;
+}
+.to-prestige-moment.is-on { opacity: 1; visibility: visible; transform: translate(-50%, 0) scale(1); transition: opacity .35s, transform .35s cubic-bezier(.2,1.4,.4,1); }
+.to-prestige-moment .to-pm-badge { line-height: 0; filter: drop-shadow(0 4px 14px rgba(255,190,60,.45)); }
+.to-prestige-moment.is-on .to-pm-badge { animation: to-pm-pop .7s cubic-bezier(.2,1.6,.4,1); }
+.to-prestige-moment small { font: 600 12px/1 "DM Mono", monospace; letter-spacing: .14em; text-transform: uppercase; color: #ffcf4d; margin-top: 6px; }
+.to-prestige-moment strong { font: 700 34px/1.05 Oswald, sans-serif; letter-spacing: .02em; text-transform: uppercase; }
+.to-prestige-moment p { margin: 4px 0 0; font: 14px/1.4 "DM Sans", system-ui, sans-serif; color: #cfc8bb; }
+@keyframes to-pm-pop { from { transform: scale(.4) rotate(-12deg); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .to-prestige-moment, .to-prestige-moment.is-on { transition: opacity .2s; transform: translate(-50%, 0); }
+  .to-prestige-moment.is-on .to-pm-badge { animation: none; }
+}
