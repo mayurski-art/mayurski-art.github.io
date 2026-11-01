@@ -85,7 +85,8 @@ padHooks.zombies = {
   state: () => ({ on: pad.on, sel: pad.sel, id: padList()[pad.sel]?.id ?? null }),
 };
 
-const money = (n) => `$${Math.round(n).toLocaleString()}`;
+// the run's points (economy.js), CoD style: no currency sign
+const money = (n) => Math.round(n).toLocaleString();
 
 function el(tag, cls, html) {
   const e = document.createElement(tag);

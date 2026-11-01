@@ -13,7 +13,7 @@
 export const DEPLOYABLES = {
   turret: {
     id: "turret", name: "Auto Turret", short: "Turret", kind: "turret",
-    price: 120, priceGrowth: 1.35,   // each one you put down costs more
+    price: 1000, priceGrowth: 1.25,  // points; each one you put down costs more
     max: 3,                          // standing at once
     hp: 280,
     range: 16, fireRate: 6, damage: 18,   // ~108 DPS at level 1
@@ -23,7 +23,7 @@ export const DEPLOYABLES = {
   },
   barricade: {
     id: "barricade", name: "Barricade", short: "Barricade", kind: "barricade",
-    price: 150, priceGrowth: 1.2,
+    price: 750, priceGrowth: 1.15,
     max: 6,
     hp: 340,
     spikeDps: 30,                    // to a zombie pressed against it
@@ -32,7 +32,7 @@ export const DEPLOYABLES = {
   },
   barrel: {
     id: "barrel", name: "Explosive Barrel", short: "Barrel", kind: "barrel",
-    price: 90, priceGrowth: 1,       // a consumable: always the same
+    price: 500, priceGrowth: 1,      // a consumable: always the same
     max: 6,
     hp: 28,                          // two swings and it goes up
     damage: 750, minDamage: 150, radius: 5.4,

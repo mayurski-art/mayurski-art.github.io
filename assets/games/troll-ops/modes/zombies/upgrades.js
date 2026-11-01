@@ -19,26 +19,27 @@ import { canAfford, spend } from "./economy.js?v=zr5-zr9-zr10-zc1-zc2-hr2-zp1-dj
 import { resolveWeapon, defaultLoadoutFor } from "../../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
 import { equippedGun, gunLevel, gunAtLevel } from "./credits.js?v=zc1-zc2-zf1-wb1-mt2-hb4-gc1";
 
-/* +25 max health a buy, up to 250; each buy costs half again. */
+/* +25 max health a buy, up to 250; each buy costs 30% more. Prices are in
+   the run's points (economy.js: 10 a hit, 50 a kill). */
 const HP_STEP = 25;
 const HP_CAP = 250;
-const HP_PRICE = 100;
-const HP_PRICE_GROWTH = 1.5;
+const HP_PRICE = 1000;
+const HP_PRICE_GROWTH = 1.3;
 
 /* Tier n (1-based): its price and how hard the gun hits next to the start
    of the run. Mag +10% and reload x0.95 per tier ride on top. */
 export const GUN_TIERS = [
-  { price: 250, dmg: 1.25 },
-  { price: 500, dmg: 1.55 },
-  { price: 900, dmg: 1.9 },
-  { price: 1500, dmg: 2.3 },
-  { price: 2400, dmg: 2.8 },
+  { price: 1500, dmg: 1.25 },
+  { price: 2500, dmg: 1.55 },
+  { price: 3500, dmg: 1.9 },
+  { price: 5000, dmg: 2.3 },
+  { price: 6500, dmg: 2.8 },
 ];
 
 /* The melee you start with, then these in order. */
 export const MELEE_TIERS = [
-  { id: "bat", price: 75 },
-  { id: "shovel", price: 200 },
+  { id: "bat", price: 500 },
+  { id: "shovel", price: 1500 },
 ];
 
 const up = {

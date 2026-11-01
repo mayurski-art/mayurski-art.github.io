@@ -23,11 +23,16 @@ const CASH_LIFT = 0.75;  // metres
 export const waveBonus = (wave) => Math.min(500, 25 * wave);
 
 /* A hit pays HIT_PAY, for the first HIT_CAP hits on a zombie. A shotgun's
-   pellets are one hit: hits on the same zombie inside HIT_GAP seconds count
-   once. The kill shot is paid by the kill, not as a hit. */
+   pellets are one hit: a shot's pellets land in one go (fireOnce), so hits
+   on the same zombie in the same task count once. The kill shot is paid by
+   the kill, not as a hit. */
 export const HIT_PAY = 10;
 export const HIT_CAP = 6;
-const HIT_GAP = 0.06;
+let tick = 0, tickQueued = false;
+function shotTick() {
+  if (!tickQueued) { tickQueued = true; queueMicrotask(() => { tick++; tickQueued = false; }); }
+  return tick;
+}
 
 /* What a kill pays, by zombie type. A headshot kill pays HEAD_BONUS more, a
    melee kill MELEE_BONUS more (a walker: 50, 100, 130). */
@@ -44,9 +49,9 @@ export function killPoints(typeId, isHead = false, melee = false) {
 /* A hit that didn't kill: paid if it's one of the zombie's first HIT_CAP
    and not another pellet of the same shot. */
 export function payHit(zombie, point = null) {
-  const now = performance.now() / 1000;
-  if (now - (zombie.paidAt ?? -1) < HIT_GAP) return;
-  zombie.paidAt = now;
+  const t = shotTick();
+  if (zombie.paidTick === t) return;
+  zombie.paidTick = t;
   zombie.paidHits = (zombie.paidHits | 0) + 1;
   if (zombie.paidHits > HIT_CAP) return;
   earn(HIT_PAY, null, point);
@@ -60,8 +65,8 @@ export function resetCash(start = 0) {
   econ.feed.length = 0;
 }
 
-/* Pay `amount`. `label` goes to the cash feed ("+$15 ZOMBIE KILL");
-   `point` (world space) floats "+$15" over where it happened. */
+/* Pay `amount`. `label` goes to the feed ("+50 ZOMBIE KILL"); `point`
+   (world space) floats "+50" over where it happened. */
 export function earn(amount, label = null, point = null) {
   if (!(amount > 0)) return;
   amount = Math.round(amount * econ.mult);
@@ -71,7 +76,7 @@ export function earn(amount, label = null, point = null) {
   econ.gainT = GAIN_SHOW;
   if (label) econ.feed.push({ amount, label });
   // a head higher than the kill's own damage number, so the two don't stack
-  if (point) spawnDamageNumber(0, point.clone().setY(point.y + CASH_LIFT), false, `+$${amount}`);
+  if (point) spawnDamageNumber(0, point.clone().setY(point.y + CASH_LIFT), false, `+${amount}`);
 }
 
 export const canAfford = (amount) => econ.cash >= amount;

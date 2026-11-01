@@ -81,7 +81,7 @@ const hud = await page.evaluate(() => {
 check(hud.shown, "the zombies HUD is up");
 check(hud.wave === "Wave 1", "wave reads Wave 1", hud.wave);
 check(/Boss in 9 waves/.test(hud.left || ""), "the first boss is 9 waves off", hud.left);
-check(hud.cash === "$0", "cash starts at $0", hud.cash);
+check(hud.cash === "0", "points start at 0", hud.cash);
 check(hud.cards === 3, "three upgrade cards", String(hud.cards));
 check(hud.res === "∞", "reserve ammo reads ∞", hud.res);
 check(hud.stock === "hidden", "the stock points box is hidden", hud.stock);
@@ -97,10 +97,10 @@ const pay = await page.evaluate(() => ({
   floats: [...document.querySelectorAll(".to-dmg-num.is-word")].map((e) => e.textContent),
   kills: window.__trollOps.player.kills,
 }));
-const want = { walker: 15, runner: 22, leaper: 30 }[type];
-check(pay.cash - before === want, `a ${type} kill pays $${want}`, `${before} -> ${pay.cash}`);
-check(/\+\$\d+ ZOMBIE KILL/.test(pay.feed), "the feed reads +$N ZOMBIE KILL", pay.feed);
-check(pay.floats.some((t) => /^\+\$\d+$/.test(t)), "+$N floats over the kill", pay.floats.join(","));
+const want = { walker: 50, runner: 60, leaper: 70 }[type];
+check(pay.cash - before === want, `a ${type} kill pays ${want}`, `${before} -> ${pay.cash}`);
+check(/\+\d+ ZOMBIE KILL/.test(pay.feed), "the feed reads +N ZOMBIE KILL", pay.feed);
+check(pay.floats.some((t) => /^\+\d+$/.test(t)), "+N floats over the kill", pay.floats.join(","));
 check(pay.kills >= 1, "the kill counts");
 await page.screenshot({ path: path.join(SHOTS, `zrun-hud${process.env.PHONE ? "-phone" : ""}.png`) });
 
@@ -160,7 +160,7 @@ check(buys.hp && buys.maxHp === 125, "max health +25", String(buys.maxHp));
 check(buys.gun && Math.abs(buys.dmgK - 1.25) < 1e-6, "tier 1 hits 1.25x", buys.dmgK.toFixed(3));
 check(buys.reserve === Infinity, "the tiered gun keeps infinite reserve");
 check(buys.melee && buys.meleeId === "bat", "melee tier 1 is the bat", buys.meleeId);
-check(buys.cash === 10000 - 100 - 250 - 75, "the three buys cost $425", String(buys.cash));
+check(buys.cash === 10000 - 1000 - 1500 - 500, "the three buys cost 3,000", String(buys.cash));
 console.log("offers", buys.offers.join(" | "));
 await textClash("after three buys");
 await page.evaluate(() => { window.__trollOps.player.hp = 1e9; }); // tough, without a silly max on the card
