@@ -367,6 +367,15 @@ function hurtZombie(z, dmg, point, dir, by = null) {
   }
 }
 
+/* Where the people a turret guards stand (feet): us, and in co-op the
+   horde's other targets (zdir.targets). */
+function turretPeople() {
+  const t = game.zdir?.targets;
+  if (t?.length) return t.map((q) => ({ x: q.pos.x, y: q.feetY, z: q.pos.z }));
+  const m = game.move?.pos;
+  return m ? [{ x: m.x, y: m.y, z: m.z }] : [];
+}
+
 /* The map's own walls, for a turret's line of sight (deployables don't block it). */
 let mapWalls = null;
 let mapWallsLen = -1;
@@ -433,8 +442,13 @@ class Turret extends Deployable {
     this.headY = this.head?.position.y ?? 0;
   }
 
+  /* Where on it to shoot: the chest, the back of a crawler (low), or
+     the body in the air mid-leap. */
   aimPoint(z) {
-    return _v.set(z.mesh.position.x, z.groundY + z.type.height * 0.62, z.mesh.position.z);
+    const p = z.mesh.position;
+    if (z.crawling) return _v.set(p.x, z.groundY + 0.3, p.z);
+    if (z.leap) return _v.set(p.x, p.y + z.type.height * 0.5, p.z);
+    return _v.set(p.x, z.groundY + z.type.height * 0.62, p.z);
   }
 
   canSee(z) {
@@ -446,12 +460,41 @@ class Turret extends Deployable {
     return raycastWorld(walls(), this.muzzle, _dir, dist) >= dist - 0.3;
   }
 
+  /* The one to shoot (user, 2026-10-31: "turrets need to be smarter"):
+     the worst threat it can see, not just the nearest to itself. Close
+     to a player counts most, then mid-swing at someone, then the late
+     waves' specials (a leaper, a spitter; a bloater while it's still far
+     enough off to pop safely), then a hurt one it can finish. One a
+     teammate's turret is already finishing is left to it. The current
+     target is kept unless another is clearly worse (no flicking about). */
+  threat(z, people) {
+    const p = z.mesh.position;
+    let near = Infinity;
+    for (const q of people) near = Math.min(near, Math.hypot(q.x - p.x, q.z - p.z) + Math.abs(q.y - z.groundY) * 2);
+    let score = near + Math.hypot(p.x - this.pos.x, p.z - this.pos.z) * 0.3;
+    if (z.bite || z.attackT > 0) score -= 4;
+    const id = z.type.id;
+    if (id === "leaper" || id === "spitter") score -= 2.5;
+    if (id === "bloater") score += near > 5 ? -3 : 3;
+    if (z.type.boss) score -= 1;
+    score -= 2 * (1 - z.hp / Math.max(1, z.maxHp));
+    return score;
+  }
+
   pick() {
-    let best = null, bestD = Infinity;
+    const people = turretPeople();
+    let best = null, bestS = Infinity, curS = Infinity;
     for (const z of game.zdir?.zombies || []) {
       const d = Math.hypot(z.mesh.position.x - this.pos.x, z.mesh.position.z - this.pos.z);
-      if (d < bestD && d <= this.stats.range && this.canSee(z)) { best = z; bestD = d; }
+      if (d > this.stats.range + 1) continue;
+      // already dead on its feet from another turret's fire
+      if (z !== this.target && z.turretClaim > performance.now() && z.hp <= this.stats.damage * 2) continue;
+      if (!this.canSee(z)) continue;
+      const sc = this.threat(z, people);
+      if (z === this.target) curS = sc;
+      if (sc < bestS) { bestS = sc; best = z; }
     }
+    if (this.target && curS < Infinity && curS - bestS < 3) return this.target;
     return best;
   }
 
@@ -472,7 +515,8 @@ class Turret extends Deployable {
     this.retargetT -= dt;
     if (this.retargetT <= 0 || (this.target && (!this.target.alive || this.target.dying))) {
       this.retargetT = RETARGET;
-      if (!this.target || !this.canSee(this.target)) this.target = this.pick();
+      if (this.target && !this.canSee(this.target)) this.target = null;
+      this.target = this.pick();
     }
     this.fireT = Math.max(0, this.fireT - dt);
     this.kick = Math.max(0, this.kick - dt * 9);
@@ -489,7 +533,11 @@ class Turret extends Deployable {
       const pitch = Math.atan2(p.y - this.muzzle.y, flat);
       this.gunPitch += (pitch - this.gunPitch) * Math.min(1, dt * 10);
       off = Math.abs(Math.atan2(Math.sin(want - this.headYaw), Math.cos(want - this.headYaw)));
-      if (off < AIM_OK && this.fireT <= 0) this.fire();
+      // only with a clear line this instant: never a round into a wall
+      if (off < AIM_OK && this.fireT <= 0) {
+        if (this.canSee(this.target)) this.fire();
+        else { this.target = null; this.retargetT = 0; }
+      }
     } else {
       // nothing in sight: a slow sweep
       this.headYaw += dt * 0.6;
@@ -506,6 +554,8 @@ class Turret extends Deployable {
   fire() {
     const z = this.target;
     this.fireT = 1 / this.stats.fireRate;
+    z.turretClaim = performance.now() + 400;   // pick(): others leave the finish to us
+    this.shots++;
     this.kick = 1;
     const p = this.aimPoint(z).clone();
     const dir = p.clone().sub(this.muzzle).normalize();
@@ -525,7 +575,7 @@ class Turret extends Deployable {
     this.flashT = FLASH_TIME;
     this.flash.visible = true;
     game.spawnImpactBurst(this.muzzle, 0xffd166, 3);
-    if (++this.shots % 3 === 0) game.impactFx.puff(this.muzzle, dir, 0.7);
+    if (this.shots % 3 === 0) game.impactFx.puff(this.muzzle, dir, 0.7);
     game.audio.shot(TURRET_FX_DEF, 0.32, this.muzzle);
   }
 }
