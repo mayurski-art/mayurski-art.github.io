@@ -102,7 +102,8 @@ check("Make it rain is on the wheel, last (older codes unchanged)", MG >= 23 && 
 const aId = await A.evaluate(() => window.__trollOps.net.id);
 const mA0 = await money(A), mB0 = await money(B);
 await A.evaluate((i) => window.__trollOps.setEmote(i), MG);
-await wait(1600);
+// (the headless clock lags the wall clock: wait for the spray to have begun)
+for (let t = 0; t < 30; t++) { await wait(300); if ((await A.evaluate(() => window.__trollOps.emote()?.t ?? 0)) > 0.9) break; }
 const fp = await A.evaluate(() => {
   const T = window.__trollOps, e = T.emote();
   const gun = T.streakArms.getObjectByName("money-gun");
@@ -186,11 +187,16 @@ await wait(8000);
 await place(C, -21, 10, Math.PI, 0.1);
 await wait(800);
 await C.evaluate((i) => window.__trollOps.setEmote(i), MG);
-await wait(1600);
-const fp2 = await C.evaluate(() => {
-  const T = window.__trollOps, gun = T.streakArms.getObjectByName("money-gun");
-  return { idx: T.emote()?.idx, gun: !!gun?.visible, body: T.localRig.blocky?.token || 0 };
-});
+// (three tabs up: the headless clock lags, so wait for the gun to show)
+let fp2;
+for (let t = 0; t < 20; t++) {
+  await wait(400);
+  fp2 = await C.evaluate(() => {
+    const T = window.__trollOps, gun = T.streakArms.getObjectByName("money-gun");
+    return { idx: T.emote()?.idx, gun: !!gun?.visible, body: T.localRig.blocky?.token || 0 };
+  });
+  if (fp2.gun) break;
+}
 check("on a TROLLS body the gun's in the block fist", fp2.gun && fp2.body === 1718, JSON.stringify(fp2));
 await shot(C, "money-gun-fp-1718.png");
 

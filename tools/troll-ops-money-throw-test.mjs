@@ -83,6 +83,10 @@ await page.evaluate(({ x, z }) => {
 await page.evaluate(() => { const N = window.__trollOps.townNpcs(); N._sched = N.scheduleThrows; N._drop = N.dropThrow; N.scheduleThrows = () => {}; N.dropThrow = () => {}; });
 const startOne = async (i) => { for (let t = 0; t < 30; t++) { if (await page.evaluate((i) => window.__trollOps.townNpcs().startThrow(i), i)) return true; await wait(500); } return false; };
 const flicks = (i) => page.evaluate((i) => { const n = window.__trollOps.townNpcs().list[i]; return { flick: n.flick, bills: n.bills || 0, throwing: n.throwT != null, armR: +n.rig.parts.armR.rotation.x.toFixed(2) }; }, i);
+// and anyone still mid-throw from an earlier drop finishes first
+for (let t = 0; t < 30; t++) { if (!(await page.evaluate(() => window.__trollOps.townNpcs().list.some((n) => n.throwT != null)))) break; await wait(500); }
+for (let t = 0; t < 60; t++) { const m = await money(); if (!m.air) break; await wait(500); }
+m0 = await money();
 check("a thrower can be started", await startOne(bar.i));
 await wait(1800);
 const f1 = await flicks(bar.i);
