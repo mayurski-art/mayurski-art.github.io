@@ -101,7 +101,8 @@ export function buildClubSigns({ root, K, N, M, S, jpSign }) {
     K.box(M.blackGloss, x, 4.2, z, 0.7, 2.3, 0.14);
     for (const [dz, ry] of [[-0.075, Math.PI], [0.075, 0]]) word("地下クラブ", x, 4.2 + 1.15, z + dz, 1.9, ry, { vertical: true, color: "#ff3fb4", k: 1.3, beat: 0.1 });
     K.box(M.blackGloss, x - 0.3, 3.5, z, 2.1, 0.5, 0.12);
-    K.api.ghostBox(x, z, 0.7, 0.14, 2.3, { y: 4.2, pen: 4 });
+    // (down to the board's top, 4.0: one solid, not one floating over the other)
+    K.api.ghostBox(x, z, 0.7, 0.14, 2.5, { y: 4.0, pen: 4 });
     K.api.ghostBox(x - 0.3, z, 2.1, 0.12, 0.5, { y: 3.5, pen: 4 });
     word("TROLLING LOUD ↑", x - 0.3, 3.75, z - 0.065, 0.3, Math.PI, { color: "#ffffff" });
     word("TROLLING LOUD ↓", x - 0.3, 3.75, z + 0.065, 0.3, 0, { color: "#ffffff" });
