@@ -6491,6 +6491,21 @@ body.to-touch-play .zh.is-downed .zh-col { visibility: hidden; }
   .zh-revive-t { font-size: 15px; }
 }
 
+/* Zombies wall buys (view/zombies-buy.js): the hold prompt under the
+   crosshair, and the one-line hint (first gun, low ammo) a little lower. */
+.zb-prompt { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); text-align: center; width: min(420px, 80cqw); }
+.zb-prompt[hidden], .zb-hint[hidden] { display: none; }
+.zb-t { font-size: 19px; color: #f2f4ea; -webkit-text-stroke: 1px #10141a; paint-order: stroke fill; }
+.zb-t b { color: #fff; }
+.zb-price { color: #ffd166; }
+.zb-price.is-poor { color: #ff5a4d; }
+.zb-prompt .zh-down-bar i { background: linear-gradient(90deg, #ffd166, #fff1b8); }
+.zb-hint { position: absolute; left: 50%; top: 65%; transform: translateX(-50%); white-space: nowrap; font-size: 15px; color: #ffd166; -webkit-text-stroke: 1px #10141a; paint-order: stroke fill; }
+@media (max-width: 900px), (max-height: 520px) {
+  .zb-t { font-size: 14px; }
+  .zb-hint { font-size: 12px; }
+}
+
 /* A TROLLS body on: its own head, so the face and covering cards are locked. */
 .to-cos-faces.is-locked .to-cos-face { opacity: .4; cursor: not-allowed; }
 .to-cos-faces.is-locked .to-cos-face:hover { background: rgba(255,255,255,.04); }

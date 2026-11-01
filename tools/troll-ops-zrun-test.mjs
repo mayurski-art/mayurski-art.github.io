@@ -1,5 +1,6 @@
 // Troll Forces zombies run check (Zombie Rush P1): kills pay cash with a
-// feed line and a floating "+$N", reserve ammo reads ∞, the upgrade column
+// feed line and a floating "+N", no infinite reserve (ammo is bought at the
+// walls: troll-ops-zecon-test.mjs), the upgrade column
 // buys max health / a gun tier / a melee tier and refuses what you can't
 // afford, the break between waves can be skipped, going down is a last
 // stand (three kills to get up) that bleeds out to game over, and clearing
@@ -83,7 +84,7 @@ check(hud.wave === "Wave 1", "wave reads Wave 1", hud.wave);
 check(/Boss in 9 waves/.test(hud.left || ""), "the first boss is 9 waves off", hud.left);
 check(hud.cash === "0", "points start at 0", hud.cash);
 check(hud.cards === 3, "three upgrade cards", String(hud.cards));
-check(hud.res === "∞", "reserve ammo reads ∞", hud.res);
+check(hud.res !== "∞", "no infinite reserve", hud.res);
 check(hud.stock === "hidden", "the stock points box is hidden", hud.stock);
 
 // ---- a kill pays
@@ -158,7 +159,7 @@ const buys = await page.evaluate(() => {
 check(buys.poor === false, "no cash, no buy");
 check(buys.hp && buys.maxHp === 125, "max health +25", String(buys.maxHp));
 check(buys.gun && Math.abs(buys.dmgK - 1.25) < 1e-6, "tier 1 hits 1.25x", buys.dmgK.toFixed(3));
-check(buys.reserve === Infinity, "the tiered gun keeps infinite reserve");
+check(Number.isFinite(buys.reserve), "the tiered gun's reserve is finite", String(buys.reserve));
 check(buys.melee && buys.meleeId === "bat", "melee tier 1 is the bat", buys.meleeId);
 check(buys.cash === 10000 - 1000 - 1500 - 500, "the three buys cost 3,000", String(buys.cash));
 console.log("offers", buys.offers.join(" | "));

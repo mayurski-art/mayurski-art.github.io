@@ -19,7 +19,7 @@ import { packageCaptureTime } from "../streaks/fire.js?v=sk1-si1-gj1-fu1b7b7dc2-
 import { claimPackage, canReroll, rerollPackage } from "../streaks/air.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-hb4-tnt1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h";
 import { WeaponState } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
 import { CarePackage } from "../streaks/streak-entities.js?v=vsat2-hk1-sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6-sr2-sr4-sr5-sr6-mb1-mb2";
-import { game } from "../core/state.js?v=st1";
+import { game, match } from "../core/state.js?v=st1";
 import { padButtonName } from "../menu/controller-layout.js?v=cl7-pd1-or1-pd2-hb4-xb1-mb2";
 import { contextIcon } from "../view/touch-icons.js?v=ti1-zc2";
 import { setGearChip, setTouchItem } from "../view/gear-chips.js?v=gc1-rfx2-rfx3-hb4-mb2";
@@ -277,6 +277,8 @@ export const swapRaise = { t: 0 };   // counts down; view/weapon-view.js lifts t
 export function setHolding(what) {
   if (game.player.holding === what) return;
   if (game.socialUnarmed()) return;   // hands stay empty in the hangout
+  // Zombies before your first wall buy: the melee is all you have (modes/zombies/wallbuys.js)
+  if (what === "gun" && game.player.gunless) what = "melee";
   // Nothing in your hands inside the C-130 (user, 2026-10-18): no gun, no blade.
   if ((what === "gun" || what === "melee") && royaleAboard()) what = "none";   // (a streak hold ending hands back empty)
   // ...or down, in Royale in teams (modes/royale-down.js): nothing in your hands till you're up
@@ -307,6 +309,7 @@ export function switchWeapon(slot) {
   // Mid-streak the tablet/marker is in your hands; a swap would yank it away
   // and leave you on the other gun once the streak is done.
   if (game.player.holding === "streak") return;
+  if (game.player.gunless) return;   // Zombies: no gun yet (wallbuys.js)
   const id = slot === "secondary" ? game.player.secondaryId : game.player.weaponId;
   if (!id || !game.player.weapons[id]) return;
   // An energy blade powers down in the hand before the gun comes up.
@@ -461,8 +464,13 @@ export function updateSwapButton(dt) {
   swapTick++;
   if (promptTick >= swapTick - 1) return;
   if (game.isHub() || game.isSocial() || game.isView()) return;
-  const held = !frozenPlayer() && !game.duoXClaimed && !streakControlActive() && ((game.isTouch && touchState.swap) || game.keys.has("KeyX"));
-  if (game.swapHold.update(dt, held, reviveInReach()) === "swap") cycleWeapon();
+  // Zombies: at a wall buy, the hold buys (modes/zombies/wallbuys.js); a revive comes first
+  const revive = reviveInReach();
+  const buy = !revive && game.isZombies() ? match.zombieBuy?.near() || null : null;
+  const held = !frozenPlayer() && !game.duoXClaimed && !streakControlActive() && ((game.isTouch && touchState.swap) || game.keys.has("KeyX") || (!!buy && !!game.gamepadState?.pickup));
+  const action = game.swapHold.update(dt, held, revive || !!buy);
+  if (action === "swap") cycleWeapon();
+  else if (action === "pickup" && buy) match.zombieBuy.buy(buy);
 }
 
 export function setTouchContext(label) {

@@ -5,6 +5,15 @@
 //            pellets once; a kill pays by type (walker 50, headshot 100,
 //            melee 130); the HUD shows points with no $; the upgrade column
 //            is priced in points.
+//   walls    you start with the melee only; the map's six chalk walls hang
+//            on solid wall with nothing in front of them (CLAUDE.md rule 9:
+//            rays from a grid of eye points to a grid on each outline, and
+//            a head-on shot plus two angles of each); the Starter wall's gun
+//            is free once, a gun you carry sells ammo at half, a second gun
+//            fills the empty slot, a third replaces the one in your hands,
+//            no points no buy, ammo is finite, the gun tier carries over.
+//
+//   Run it for each Zombies map: pentagrin, hollowgrin, trollcity.
 //
 //   NODE_PATH=<checkout>/node_modules node tools/troll-ops-zecon-test.mjs [mapId]
 //   SHOTS_DIR=<dir>
@@ -108,6 +117,122 @@ if (want("points")) {
   check(hud.deploy.join() === "turret:1000,barricade:750,barrel:500", "deployables: 1,000 / 750 / 500", hud.deploy.join());
   check(!hud.prices.some((p) => p.includes("$")), "no $ on any card", hud.prices.join(" "));
   await page.screenshot({ path: path.join(SHOTS, "zecon-points.png") });
+}
+
+if (want("walls")) {
+  // no zombies in the way of the camera or the hold
+  await R(() => { const T = window.__trollOps; T.zdir().clear(); T.zdir().state = "between"; T.zdir().breakT = 1e6; T.player.hp = T.player.maxHp = 1e9; });
+  const start = await R(() => {
+    const T = window.__trollOps, p = T.player;
+    T.switchWeapon("primary");
+    return { gunless: !!p.gunless, holding: p.holding, secondary: p.secondaryId, hint: document.querySelector(".zb-hint")?.textContent || "" };
+  });
+  check(start.gunless && start.holding === "melee" && !start.secondary, "no gun to start: the melee only, and 1 doesn't draw one", JSON.stringify(start));
+  await sleep(300);
+  const hint = await R(() => document.querySelector(".zb-hint:not([hidden])")?.textContent || "");
+  check(/Starter wall/.test(hint), "the hint says where your gun is", hint);
+
+  const walls = await R(() => window.__trollOps.zrun().walls.walls.map((w) => ({ gun: w.gunId, starter: w.starter, snapped: w.snapped, x: w.pos.x, y: w.spot.y, z: w.pos.z, nx: w.n.x, nz: w.n.z, face: w.spot.face })));
+  check(walls.length === 6, "six wall buys", String(walls.length));
+  check(walls.every((w) => w.snapped), "each one found its wall", walls.filter((w) => !w.snapped).map((w) => w.gun).join(",") || "all");
+
+  // rule 9: in front of each outline, nothing; behind it, solid wall
+  const clear = await R(() => {
+    const T = window.__trollOps, THREE = T.THREE;
+    const rc = new THREE.Raycaster();
+    const root = T.builtMap().root;
+    const out = [];
+    for (const w of T.zrun().walls.walls) {
+      const n = w.n, side = new THREE.Vector3(n.z, 0, -n.x);
+      const faces = [];
+      for (const u of [-0.74, -0.37, 0, 0.37, 0.74]) for (const v of [1.04, 1.45, 1.86]) faces.push(w.pos.clone().addScaledVector(side, u).setY(w.spot.y + v));
+      let blocked = 0, holes = 0, rays = 0, worst = "";
+      const behind = [];
+      for (const f of faces) {
+        // behind the chalk: wall within 15 cm
+        rc.set(f.clone().addScaledVector(n, 0.2), n.clone().negate());
+        rc.far = 0.4;
+        const bh = rc.intersectObject(root, true).find((h) => h.object.visible);
+        if (!bh) { holes++; worst = `hole at ${f.x.toFixed(1)},${f.y.toFixed(1)},${f.z.toFixed(1)}`; } else behind.push(bh);
+        for (const d of [1.2, 2.2]) for (const s of [-1.2, 0, 1.2]) for (const eye of [1.0, 1.6]) {
+          const e = w.pos.clone().addScaledVector(n, d).addScaledVector(side, s).setY(w.spot.y + eye);
+          const dir = f.clone().sub(e); const len = dir.length(); dir.normalize();
+          rc.set(e, dir); rc.far = len - 0.06;
+          const hit = rc.intersectObject(root, true).find((h) => h.object.visible);
+          rays++;
+          if (hit) { blocked++; worst = `${hit.object.name || hit.object.type} at ${hit.distance.toFixed(2)} of ${len.toFixed(2)}`; }
+        }
+      }
+      // one flat surface under the whole outline: no poster, sign or frame
+      // under the chalk. One building's own boards (hg-barn_1, hg-barn_5:
+      // its siding) count as one wall; anything else under it doesn't.
+      const objs = new Set(behind.map((h) => h.object));
+      const owners = new Set([...objs].map((o) => (o.name ? o.name.split("_")[0] : `?${o.id}`)));
+      const depth = behind.length ? Math.max(...behind.map((h) => h.distance)) - Math.min(...behind.map((h) => h.distance)) : 0;
+      if (owners.size > 1 || depth > 0.06) { holes++; worst = `not flat: ${objs.size} objects (${[...objs].map((o) => o.name || o.type).join(",")}), ${depth.toFixed(3)} m deep`; }
+      out.push({ gun: w.gunId, blocked, holes, rays, worst });
+    }
+    return out;
+  });
+  for (const c of clear) check(c.blocked === 0 && c.holes === 0, `${c.gun}: nothing in front, solid behind`, `${c.blocked}/${c.rays} blocked, ${c.holes} bad behind ${c.worst}`);
+
+  // each one head-on and from two angles
+  for (const [i, w] of walls.entries()) {
+    for (const [tag, ang] of [["front", 0], ["left", 0.6], ["right", -0.6]]) {
+      await R(({ w, ang }) => {
+        const T = window.__trollOps;
+        const a = w.face + ang;
+        T.move.pos.set(w.x + Math.sin(a) * 2.6, w.y, w.z + Math.cos(a) * 2.6);
+        T.look.yaw = a; T.look.pitch = -0.04;
+      }, { w, ang });
+      await sleep(350);
+      await page.screenshot({ path: path.join(SHOTS, `zecon-wall-${map}-${i}-${w.gun}-${tag}.png`) });
+    }
+  }
+
+  /* Stand at wall `gun` and hold X; what the prompt said and what changed. */
+  const holdAt = async (gun) => {
+    const w = walls.find((q) => (gun === "starter" ? q.starter : q.gun === gun && !q.starter));
+    await page.bringToFront();
+    await R((w) => { const T = window.__trollOps; T.move.pos.set(w.x + w.nx * 1.0, w.y, w.z + w.nz * 1.0); T.look.yaw = w.face; T.look.pitch = 0; }, w);
+    await page.waitForFunction(() => !!document.querySelector(".zb-prompt:not([hidden]) .zb-t"), null, { timeout: 5000, polling: 100 }).catch(() => {});
+    const prompt = await R(() => ({ t: document.querySelector(".zb-prompt:not([hidden]) .zb-t")?.textContent || "", poor: !!document.querySelector(".zb-prompt .is-poor") }));
+    const c0 = await cash();
+    const n0 = await R(() => window.__trollOps.zrun().walls.st.buys);
+    // held till the buy lands (frames run slow with other tabs going), 3 s at most
+    await page.keyboard.down("KeyX");
+    await page.waitForFunction((n0) => window.__trollOps.zrun().walls.st.buys > n0, n0, { timeout: 3000, polling: 50 }).catch(() => {});
+    await page.keyboard.up("KeyX");
+    await sleep(150);
+    const after = await R(() => {
+      const T = window.__trollOps, p = T.player, cw = T.currentWeapon();
+      return { gunless: !!p.gunless, primary: p.weaponId, secondary: p.secondaryId, holding: p.holding, held: cw?.def.id, mag: cw?.ammoInMag, reserve: cw?.ammoReserve, full: cw ? cw.def.reserveMax - cw.def.magSize : null, dmg: cw?.def.damage };
+    });
+    return { prompt, paid: c0 - await cash(), ...after };
+  };
+
+  await R(() => { window.__trollOps.zrun().econ.cash = 0; });
+  const free = await holdAt("starter");
+  check(/^Hold X · .+ · FREE$/.test(free.prompt.t), "the Starter wall: Hold X · gun · FREE", free.prompt.t);
+  check(!free.gunless && free.holding === "gun" && free.paid === 0, "the first one's free, and in your hands", JSON.stringify(free));
+  check(free.reserve === free.full && Number.isFinite(free.reserve), "with a full, finite reserve", `${free.reserve} / ${free.full}`);
+  await R(() => { const w = window.__trollOps.currentWeapon(); w.ammoInMag = 0; w.ammoReserve = 0; window.__trollOps.zrun().econ.cash = 1000; });
+  const ammo = await holdAt("starter");
+  check(/ammo · 250$/.test(ammo.prompt.t) && ammo.paid === 250 && ammo.reserve === ammo.full && ammo.mag > 0, "again: ammo, 250, full", `${ammo.prompt.t} paid ${ammo.paid}, ${ammo.mag}+${ammo.reserve}`);
+
+  await R(() => { window.__trollOps.zrun().econ.cash = 100; });
+  const poor = await holdAt("sixtynine");
+  check(poor.prompt.poor && poor.paid === 0 && !poor.secondary, "100 points: the price is red and nothing's bought", JSON.stringify(poor));
+  await R(() => { window.__trollOps.zrun().econ.cash = 600; });
+  const second = await holdAt("sixtynine");
+  check(second.paid === 500 && second.secondary === "sixtynine" && second.held === "sixtynine", "a second gun: 500, into the empty slot", JSON.stringify(second));
+  // the gun tier carries over to the next wall gun
+  await R(() => { const R = window.__trollOps.zrun(); R.econ.cash = 1500; R.buy("gun"); R.econ.cash = 750; });
+  const third = await holdAt("true69");
+  const base = await R(() => { const T = window.__trollOps; return T.WEAPON_DEFS?.true69?.damage ?? null; });
+  check(third.paid === 750 && third.secondary === "true69" && third.primary === free.primary, "a third: 750, in place of the one in your hands", JSON.stringify(third));
+  check(base == null || Math.abs(third.dmg / base - 1.25) < 0.2, "at the run's gun tier", `${third.dmg} vs ${base}`);
+  await page.screenshot({ path: path.join(SHOTS, `zecon-walls-${map}-bought.png`) });
 }
 
 check(errors.length === 0, "no page errors", errors.slice(0, 4).join(" | "));
