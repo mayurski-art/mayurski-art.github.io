@@ -46,6 +46,13 @@ function store(touch, data) {
   try { localStorage.setItem(STORE_KEY(touch), JSON.stringify(data)); } catch { /* private mode */ }
 }
 
+/* A translate that moves a piece by on-screen px: a zoomed piece (--ui-z,
+   HUD size's --hud-z) moves by its own zoomed px, so divide them back out. */
+function shift(el, x, y) {
+  const z = el.currentCSSZoom || 1;
+  return `${Math.round(x / z)}px ${Math.round(y / z)}px`;
+}
+
 export class HudLayout {
   /* `stage`: the element the HUD fills (offsets are fractions of its size).
      `onOpen` / `onClose`: the game hides its menus and shows the HUD for
@@ -65,6 +72,7 @@ export class HudLayout {
     this.apply();
     window.addEventListener("resize", () => this.apply());
     window.addEventListener("orientationchange", () => this.apply());
+    window.addEventListener("trollops:hud-scale", () => this.apply());
   }
 
   size() {
@@ -84,7 +92,7 @@ export class HudLayout {
     const { w, h } = this.size();
     for (const it of this.items) {
       const o = this.offsets[it.id];
-      it.el.style.translate = o ? `${Math.round(o[0] * w)}px ${Math.round(o[1] * h)}px` : "";
+      it.el.style.translate = o ? shift(it.el, o[0] * w, o[1] * h) : "";
     }
   }
 
@@ -194,7 +202,7 @@ export class HudLayout {
     dy = Math.max(s.top - d.rect.top, Math.min(s.bottom - d.rect.bottom, dy));
     const { w, h } = this.size();
     this.offsets[d.it.id] = [(d.ox + dx) / w, (d.oy + dy) / h];
-    d.it.el.style.translate = `${Math.round(d.ox + dx)}px ${Math.round(d.oy + dy)}px`;
+    d.it.el.style.translate = shift(d.it.el, d.ox + dx, d.oy + dy);
   }
 
   pointerUp() {

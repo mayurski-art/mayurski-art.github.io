@@ -49,6 +49,10 @@ input, textarea, [contenteditable="true"] {
    cq units against the cabinet, which zoom doesn't inflate (vh/vw it does). */
 .to-cabinet > :not(canvas, .to-touch, .to-rotate),
 body > :is([class^="to-"], [class^="tf-"]) { zoom: var(--ui-z, 1); }
+/* Options' HUD size (menu/settings.js --hud-z, 70% to 130%): the readouts
+   round the edges, each staying in its own corner. Not the crosshair or
+   anything pinned to a point in the world. */
+.to-hud :is(.to-hud-top, #to-minimap, #to-ss-hud, #to-hud-gear, #hud-health, #hud-ammo, #to-killfeed) { zoom: var(--hud-z, 1); }
 /* the menu, times Options' Menu size (view/ui-scale.js --menu-z) */
 .to-cabinet > #to-title { zoom: calc(var(--ui-z, 1) * var(--menu-z, 1)); }
 /* ...but not the operator's stage: its names and "+"s sit on projected

@@ -7,7 +7,7 @@ import { showFps } from "../core/fps-meter.js?v=fp1-zr10";
 
 export const SETTINGS_KEY = "trollops:settings";
 export const settings = {
-  volume: 50, ambience: 60, sens: 100, padSens: 3, fov: 78, invert: false, minimap: true, thirdPerson: false,
+  volume: 50, ambience: 60, sens: 100, padSens: 3, fov: 78, invert: false, minimap: true, thirdPerson: false, hudScale: 100,
   gfx: "auto", viewMode: false, invincible: false, fps: false,
   ...(() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch { return {}; } })(),
 };
@@ -44,6 +44,11 @@ export function applySettings() {
   set("to-set-invert", settings.invert);
   set("to-set-minimap", settings.minimap);
   set("to-set-fps", settings.fps);
+  // HUD size (user, 2026-10-31): style.css --hud-z, the layout editor re-places its pieces
+  set("to-set-hudsize", settings.hudScale, "to-set-hudsize-out", "%");
+  set("to-set-hudsize-lobby", settings.hudScale, "to-set-hudsize-lobby-out", "%");
+  document.documentElement.style.setProperty("--hud-z", String(settings.hudScale / 100));
+  dispatchEvent(new Event("trollops:hud-scale"));
 
   set("to-set-volume-lobby", settings.volume, "to-set-volume-lobby-out");
   set("to-set-ambience-lobby", settings.ambience, "to-set-ambience-lobby-out");

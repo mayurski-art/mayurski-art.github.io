@@ -56,6 +56,8 @@ export function initEscapeMenu() {
   bindRange("to-set-ambience", "ambience", "to-set-ambience-out");
   bindRange("to-set-sens", "sens", "to-set-sens-out", "%");
   bindRange("to-set-fov", "fov", "to-set-fov-out", "°");
+  bindRange("to-set-hudsize", "hudScale", "to-set-hudsize-out", "%");
+  bindRange("to-set-hudsize-lobby", "hudScale", "to-set-hudsize-lobby-out", "%");
   bindCheck("to-set-invert", "invert");
   bindCheck("to-set-minimap", "minimap");
   bindCheck("to-set-fps", "fps");
