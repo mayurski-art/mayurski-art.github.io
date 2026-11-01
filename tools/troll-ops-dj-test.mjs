@@ -27,7 +27,8 @@ const MAP = process.env.MAP || "kabukigrin";
 // where A and B stand on the floor, at the booth (and facing it), and the
 // two shots' spots, each map's own
 const SPOT = {
-  kabukigrin: { a: [-21, 12], b: [-21, 18], booth: [-27.3, 15, Math.PI / 2], floor: [-19, 15, Math.PI / 2], deck: [-25.5, 15, Math.PI / 2] },
+  // (on the dug club's floor, y -7.5: docs/KB-CLUB-UNDERGROUND.md)
+  kabukigrin: { y: -7.5, a: [-22, 13], b: [-22, 20], booth: [-27.6, 12, Math.PI / 2], floor: [-19, 12, Math.PI / 2], deck: [-25.5, 12, Math.PI / 2] },
 }[MAP];
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
@@ -96,11 +97,11 @@ async function until(page, fn, ms, read = dj) {
   return v;
 }
 /* A spot in the club: the feet (move.pos), never player.pos. */
-const stand = (page, x, z, yaw = 0) => page.evaluate(([x, z, yaw]) => {
+const stand = (page, x, z, yaw = 0) => page.evaluate(([x, z, yaw, y]) => {
   const T = window.__trollOps;
-  T.move.pos.set(x, 0.3, z); T.move.velocity?.set?.(0, 0, 0);
+  T.move.pos.set(x, y + 0.3, z); T.move.velocity?.set?.(0, 0, 0);
   T.look.yaw = yaw; T.look.pitch = -0.05;
-}, [x, z, yaw]);
+}, [x, z, yaw, SPOT.y ?? 0]);
 
 const A = await open("A", "troll_runner");
 await joinClub(A);

@@ -44,8 +44,9 @@ const SPOT = {
   // on the street; lane0: the first lane's x)
   trollingloud: { vip: [-22, 0.3, 3], back: [0, 0.3, -20], street: [0, 0, 27], side: [24, 0.3, 17], lobby: [0, 0.3, 18],
     curb: (z) => z > 27, alley: (z) => z > 25, lane0: -3.3, mouth: [0, 23.4], across: "z" },
-  kabukigrin: { vip: [-28, 0.35, 27], back: [-22, 0.05, 32], street: [-27.6, 0, -4], side: [-8, 0.05, 10], lobby: [-27, 0.05, 7],
-    curb: (z) => z < -1.5, alley: (z) => z < 0, lane0: -29.9, mouth: [-27.6, 3], across: "x" },
+  // (the club is underground since docs/KB-CLUB-UNDERGROUND.md: the lobby is the front stair's third tread, the side way in the side stair's foot on the balcony)
+  kabukigrin: { vip: [-28, 0.35, 27], back: [-22, 0.05, 32], street: [-27.6, 0, -4], side: [-14, -3.55, 23], lobby: [-26, -0.55, 5.25],
+    curb: (z) => z < -1.5, alley: (z) => z < 0, lane0: -28.8, mouth: [-26, 3.9], across: "x" },
 }[MAP];
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css",
   ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp",
