@@ -42,7 +42,7 @@ export function updateBuyPrompt() {
     const can = o.price === 0 || canAfford(o.price);
     const price = o.price === 0 ? "FREE" : o.price.toLocaleString();
     const what = o.kind === "ammo" ? `${o.name} ammo` : o.name;
-    const key = `${keyName()}|${what}|${price}|${can}|${!!o.full}`;
+    const key = `${keyName()}|${what}|${price}|${can}|${!!o.full}|${o.was || 0}`;
     if (key !== shown.key) {
       shown.key = key;
       line.innerHTML = "";
@@ -50,7 +50,10 @@ export function updateBuyPrompt() {
       else {
         const k = document.createElement("b"); k.textContent = `Hold ${keyName()}`;
         const p = document.createElement("span"); p.className = can ? "zb-price" : "zb-price is-poor"; p.textContent = price;
-        line.append(k, ` · ${what} · `, p);
+        line.append(k, ` · ${what} · `);
+        // Fire Sale: the full price struck through, the half beside it
+        if (o.was) { const s = document.createElement("s"); s.className = "zb-was"; s.textContent = o.was.toLocaleString(); line.append(s, " "); }
+        line.append(p);
       }
     }
     box.hidden = false;

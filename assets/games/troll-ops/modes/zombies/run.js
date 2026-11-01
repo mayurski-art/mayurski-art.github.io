@@ -78,7 +78,7 @@ export function startZombieRun() {
   mountZombiesHud({ onBuy: buyUpgrade, onSkip: skipBreak, onDeploy: deploy, onPlace: placeDeployable, onCancel: cancelPlacing, isPlacing: () => !!dep.placing });
   showZombiesHud(true);
   startDrops({
-    banner: (text) => zombiesBanner(text),
+    banner: (text, sub) => zombiesBanner(text, false, sub),
     deployables: () => dep.list.filter((e) => e.alive),
     // Rebuild: everyone tops theirs up; the host's word goes out on the wire
     rebuild: (host) => { for (const e of dep.list) if (e.alive) { e.hp = e.maxHp; if (host) depWire.hp?.(e); } },

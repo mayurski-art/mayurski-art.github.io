@@ -199,6 +199,12 @@ if (want("walls")) {
     const w = walls.find((q) => (gun === "starter" ? q.starter : q.gun === gun && !q.starter));
     await page.bringToFront();
     await R((w) => { const T = window.__trollOps; T.move.pos.set(w.x + w.nx * 1.0, w.y, w.z + w.nz * 1.0); T.look.yaw = w.face; T.look.pitch = 0; }, w);
+    // this wall's prompt, not the last one's: the nearest wall is this one, and a frame has drawn it
+    await page.waitForFunction((w) => {
+      const n = window.__trollOps.zrun().walls.nearWall();
+      return !!n && Math.abs(n.pos.x - w.x) < 0.01 && Math.abs(n.pos.z - w.z) < 0.01;
+    }, w, { timeout: 5000, polling: 50 }).catch(() => {});
+    await sleep(120);
     await page.waitForFunction(() => !!document.querySelector(".zb-prompt:not([hidden]) .zb-t"), null, { timeout: 5000, polling: 100 }).catch(() => {});
     const prompt = await R(() => ({ t: document.querySelector(".zb-prompt:not([hidden]) .zb-t")?.textContent || "", poor: !!document.querySelector(".zb-prompt .is-poor") }));
     const c0 = await cash();
@@ -263,6 +269,27 @@ if (want("walls")) {
   check(g2.lethal === 3 && g2.tactical === 0, "G throws a frag (class carries a flashbang)", JSON.stringify(g2));
   const f2 = await holdAt("frags");
   check(f2.paid === 250 && (await gear()).lethal === 4, "three left: 250 tops it back to four", `paid ${f2.paid}`);
+
+  // Fire Sale: walls half price, the full one struck through; upgrades stay full
+  const up0 = await R(() => window.__trollOps.zrun().offers().map((o) => `${o.id}:${o.price}`).join());
+  await R(() => {
+    const T = window.__trollOps, p = T.move.pos;
+    T.player.gear.lethal = 0; T.zrun().econ.cash = 1000;
+    T.zrun().drops.spawn("firesale", p.x, p.y, p.z);
+  });
+  await page.waitForFunction(() => window.__trollOps.zrun().drops.dropFx.firesale > 0, null, { timeout: 5000, polling: 50 }).catch(() => {});
+  const fs1 = await holdAt("frags");
+  check(fs1.paid === 125 && (await gear()).lethal === 4, "Fire Sale: Frags 125", `${fs1.prompt.t} paid ${fs1.paid}`);
+  check(/Frags · 250 125$/.test(fs1.prompt.t), "the prompt strikes 250 through, 125 beside it", fs1.prompt.t);
+  const up1 = await R(() => window.__trollOps.zrun().offers().map((o) => `${o.id}:${o.price}`).join());
+  check(up1 === up0, "the upgrade column stays full price", `${up0} -> ${up1}`);
+  await R(() => { const w = window.__trollOps.currentWeapon(); w.ammoReserve = 0; window.__trollOps.zrun().econ.cash = 1000; });
+  const held = await R(() => window.__trollOps.currentWeapon().def.id);
+  const fs2 = await holdAt(held);
+  const m = fs2.prompt.t.match(/ammo · ([\d,]+) ([\d,]+)$/);
+  const [full2, half2] = m ? [Number(m[1].replace(/,/g, "")), Number(m[2].replace(/,/g, ""))] : [0, -1];
+  check(m && half2 === Math.round(full2 / 2 / 5) * 5 && fs2.paid === half2, `Fire Sale: ${held} ammo at half`, `${fs2.prompt.t} paid ${fs2.paid}`);
+  await page.screenshot({ path: path.join(SHOTS, `zecon-firesale-${map}.png`) });
 }
 
 check(errors.length === 0, "no page errors", errors.slice(0, 4).join(" | "));

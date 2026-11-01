@@ -6318,7 +6318,10 @@ body.to-zombies .to-dmg-num.is-word { color: #7dff4f; font-size: 17px; font-weig
   background: rgba(8, 10, 14, .72); border-left: 4px solid var(--fx); font-size: 17px; color: #fff; white-space: nowrap;
 }
 .zh-fx-n { color: var(--fx); }
+.zh-fx-w { font-size: 14px; opacity: .9; }
+.zh-fx-w:empty { display: none; }
 .zh-fx-t { font-size: 15px; opacity: .85; font-variant-numeric: tabular-nums; }
+.zh-dep.is-sale .zh-price { color: #ff9a2a; }
 .zh-fx-c i { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--fx); }
 .zh-feed {
   position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%);
@@ -6336,6 +6339,12 @@ body.to-zombies .to-dmg-num.is-word { color: #7dff4f; font-size: 17px; font-weig
 }
 .zh-banner.is-final { color: #ff4b3a; -webkit-text-stroke-color: #2a0400; }
 .zh-banner.is-on { animation: zh-banner 2.4s ease-out forwards; }
+/* a power-up's banner: what it does, under its name, and up long enough to read */
+.zh-banner.is-sub.is-on { animation-duration: 4s; }
+.zh-banner-s {
+  display: block; text-align: center; margin-top: 2px;
+  font-size: 22px; color: #fff; -webkit-text-stroke: 1.1px #10141a; letter-spacing: .02em;
+}
 @keyframes zh-banner {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(1.6); }
   12% { opacity: 1; transform: translate(-50%, -50%) scale(.96); }
@@ -6374,8 +6383,10 @@ body.to-zombies .to-dmg-num.is-word { color: #7dff4f; font-size: 17px; font-weig
   body.to-touch-play .zh-fx { left: 128px; bottom: 64px; }   /* (touch: no gear chips, the cash is up top) */
   .zh-fx-c { font-size: 13px; padding: 2px 7px 4px; }
   .zh-fx-t { font-size: 12px; }
+  .zh-fx-w { font-size: 11px; }
   .zh-feed { font-size: 15px; bottom: 96px; }
   .zh-banner { font-size: 40px; }
+  .zh-banner-s { font-size: 15px; -webkit-text-stroke-width: .8px; }
   .zh-down-t { font-size: 22px; }
   .zh-down-k { font-size: 14px; }
   .zh-skip { font-size: 16px; top: 6px; right: 10px; padding: 5px 10px; }
@@ -6462,6 +6473,7 @@ body.to-touch-play .zh-chip { top: auto; bottom: calc(var(--sb) + 54px); }
 /* touch: the card rows fill the middle band, so the big wave call goes up
    between the wave count and the rows */
 body.to-touch-play .zh-banner { top: calc(46px + 25px * var(--k)); font-size: calc(36px * var(--k)); }
+body.to-touch-play .zh-banner-s { font-size: calc(14px * var(--k)); }
 /* touch, down: nothing to buy or put down, and the bleed-out needs the room */
 body.to-touch-play .zh.is-downed .zh-col { visibility: hidden; }
 
@@ -6499,6 +6511,7 @@ body.to-touch-play .zh.is-downed .zh-col { visibility: hidden; }
 .zb-t b { color: #fff; }
 .zb-price { color: #ffd166; }
 .zb-price.is-poor { color: #ff5a4d; }
+.zb-was { opacity: .6; text-decoration-thickness: 2px; }
 .zb-prompt .zh-down-bar i { background: linear-gradient(90deg, #ffd166, #fff1b8); }
 .zb-hint { position: absolute; left: 50%; top: 65%; transform: translateX(-50%); white-space: nowrap; font-size: 15px; color: #ffd166; -webkit-text-stroke: 1px #10141a; paint-order: stroke fill; }
 @media (max-width: 900px), (max-height: 520px) {

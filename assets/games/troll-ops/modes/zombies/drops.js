@@ -3,12 +3,15 @@
 //
 // Now and then a kill leaves a glowing trollface on the floor; walk into it
 // and the whole team gets it:
-//   Kaboom       every zombie on the field drops (not a boss), +$400 each
-//   One Tap      20 s: any hit kills (not a boss)
-//   Double Cash  20 s: everything pays twice
-//   Rebuild      every deployable back to full health
-//   Fire Sale    30 s: deployables at half price
-//   Max Ammo     every gun's reserve full, and four frags
+//   Kaboom         every zombie on the field drops (not a boss), +400
+//   One Tap        20 s: any hit kills (not a boss)
+//   Double Points  20 s: everything pays twice
+//   Rebuild        every deployable back to full health
+//   Fire Sale      30 s: wall guns, ammo, frags and deployables half price
+//                  (doors and the upgrade column stay full price)
+//   Max Ammo       every gun's reserve full, and four frags
+// Each says what it does: a line under its banner as it's taken (`what`),
+// and the timed ones a short one on their chip (`chip`).
 // A boss always drops one. Otherwise a kill has DROP_ODDS of it, at most
 // 1 + wave / 6 a wave, so the early waves see one at most. A drop fades
 // after LIFE seconds, blinking for the last few.
@@ -30,12 +33,12 @@ import { FRAG_MAX } from "../../maps/zombie-buys.js?v=zx2";
 import { HORDE_FX } from "./horde.js?v=zr4c-sb2b7b7dc2f1m1u-gt1-gt2-zr5-zr6-zr7-zr8-zr9-zr10-zc2-zp1-bf1-sr1-fl1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-gf1-tg1-er1-cl1-rb4-rb6-hp1-ht1-bx1-sp1-tfb8-rfx1-zd1-ze1-wb1-hb4-mb1-mb2-nft2531";
 
 export const DROPS = {
-  kaboom: { name: "Kaboom", color: "#ff4a3a", weight: 1 },
-  onetap: { name: "One Tap", color: "#ffe14a", weight: 1.2, secs: 20 },
-  double: { name: "Double Cash", color: "#7dff4f", weight: 1.2, secs: 20 },
-  rebuild: { name: "Rebuild", color: "#4aa8ff", weight: 0.8 },
-  firesale: { name: "Fire Sale", color: "#ff9a2a", weight: 0.8, secs: 30 },
-  maxammo: { name: "Max Ammo", color: "#e8f1ff", weight: 1.4 },
+  kaboom: { name: "Kaboom", color: "#ff4a3a", weight: 1, what: "Every zombie drops · +400" },
+  onetap: { name: "One Tap", color: "#ffe14a", weight: 1.2, secs: 20, what: "Any hit kills for 20 s", chip: "Any hit kills" },
+  double: { name: "Double Points", color: "#7dff4f", weight: 1.2, secs: 20, what: "Every point pays double for 20 s", chip: "Points ×2" },
+  rebuild: { name: "Rebuild", color: "#4aa8ff", weight: 0.8, what: "Every deployable back to full" },
+  firesale: { name: "Fire Sale", color: "#ff9a2a", weight: 0.8, secs: 30, what: "Walls, ammo, frags and deployables half price for 30 s", chip: "Half price" },
+  maxammo: { name: "Max Ammo", color: "#e8f1ff", weight: 1.4, what: "Every gun's reserve full · four frags" },
 };
 export const DROP_ODDS = 0.035;
 const LIFE = 25;           // s on the floor
@@ -192,7 +195,7 @@ function take(n, kind, name, by) {
   const D = DROPS[kind];
   if (!D) return;
   const mine = !by || by === me();
-  state.hooks?.banner(net().connected && !mine && name ? `${D.name}! (${name})` : `${D.name}!`);
+  state.hooks?.banner(net().connected && !mine && name ? `${D.name}! (${name})` : `${D.name}!`, D.what);
   game.audio.tierUp();
   if (D.secs) dropFx[kind] = D.secs;
   if (kind === "kaboom") kaboom();
@@ -289,9 +292,9 @@ export function updateDrops(dt) {
   }
 }
 
-/* The HUD's timer chips: [{ id, name, color, t, max }]. */
+/* The HUD's timer chips: [{ id, name, chip, color, t, max }]. */
 export function dropChips() {
-  return Object.entries(dropFx).filter(([, t]) => t > 0).map(([id, t]) => ({ id, name: DROPS[id].name, color: DROPS[id].color, t, max: DROPS[id].secs }));
+  return Object.entries(dropFx).filter(([, t]) => t > 0).map(([id, t]) => ({ id, name: DROPS[id].name, chip: DROPS[id].chip || "", color: DROPS[id].color, t, max: DROPS[id].secs }));
 }
 
 /* Tests (__trollOps.zrun().drops). */

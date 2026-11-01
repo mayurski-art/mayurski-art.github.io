@@ -281,10 +281,18 @@ export function showZombiesHud(on) {
 }
 
 /* The big centre text: "Wave 7" as a wave starts (red for the last one),
-   and the run's other calls ("Back on your feet"). */
-export function zombiesBanner(text, red = false) {
+   and the run's other calls ("Back on your feet"). `sub`: a line under it
+   saying what just happened (a power-up's "Any hit kills for 20 s"), and
+   the banner stays up longer to be read. */
+export function zombiesBanner(text, red = false, sub = "") {
   if (!root) return;
   els.banner.textContent = text;
+  if (sub) {
+    const s = el("small", "zh-banner-s");
+    s.textContent = sub;
+    els.banner.append(s);
+  }
+  els.banner.classList.toggle("is-sub", !!sub);
   els.banner.classList.toggle("is-final", red);
   els.banner.classList.remove("is-on");
   void els.banner.offsetWidth;
@@ -305,8 +313,9 @@ function drawFx(list) {
     if (!c) {
       c = el("div", "zh-fx-c");
       c.style.setProperty("--fx", f.color);
-      c.innerHTML = '<span class="zh-fx-n"></span><span class="zh-fx-t"></span><i></i>';
+      c.innerHTML = '<span class="zh-fx-n"></span><span class="zh-fx-w"></span><span class="zh-fx-t"></span><i></i>';
       c.querySelector(".zh-fx-n").textContent = f.name;
+      c.querySelector(".zh-fx-w").textContent = f.chip || "";
       els.fx.append(c);
       fxChips.set(f.id, c);
     }
@@ -329,6 +338,8 @@ function feedLine(amount, label) {
 export function updateZombiesHud(dt, s) {
   if (!root || root.hidden) return;
   drawFx(s.fx || []);
+  // Fire Sale: the deployables' prices (already halved, kits.js) in its orange
+  els.dep.classList.toggle("is-sale", !!s.fx?.some((f) => f.id === "firesale"));
   setPad(!pad.kb && document.body.classList.contains("to-has-pad"));
   if (s.wave !== shown.wave) {
     shown.wave = s.wave;

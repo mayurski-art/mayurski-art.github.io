@@ -3,7 +3,7 @@
 //   1. A forced drop falls where a kill was, as a glowing trollface; walking
 //      into it takes it (banner, gone from the floor).
 //   2. Each of the six does its job: Kaboom drops every zombie on its feet
-//      and pays 400; One Tap makes a scratch kill; Double Cash doubles a
+//      and pays 400; One Tap makes a scratch kill; Double Points doubles a
 //      kill's pay; Rebuild tops a deployable up; Fire Sale halves the price;
 //      Max Ammo fills every gun's reserve (not the mag, not before you've a
 //      gun) and gives four frags.
@@ -103,20 +103,20 @@ check((await floor()).length === 1, "wave 1: no second drop (the cap)", JSON.str
 await R(() => { const T = window.__trollOps; const d = [...T.zrun().drops.drops.values()][0]; T.move.pos.set(d.mesh.position.x, T.move.pos.y, d.mesh.position.z); });
 check(await until(() => window.__trollOps.zrun().drops.drops.size === 0), "walking into it takes it");
 const banner = await R(() => document.querySelector(".zh-banner")?.textContent || "");
-check(/Double Cash/.test(banner), "its banner", banner);
+check(/Double Points/.test(banner) && /pays double for 20 s/.test(banner), "its banner, and what it does under it", banner);
 await R(() => window.__trollOps.zrun().drops.force(null, 0));
 
 // ---- 2. each one
-// Double Cash: a kill pays twice
+// Double Points: a kill pays twice
 await waitAlive(1);
 const c0 = await R(() => window.__trollOps.zrun().econ.cash);
 await killOne();
 await sleep(150);
 const c1 = await R(() => window.__trollOps.zrun().econ.cash);
-check(c1 - c0 > 0 && (c1 - c0) % 2 === 0 && c1 - c0 >= 2 * (await R(() => window.__trollOps.zrun().drops.state.base ?? 0)), "Double Cash: a kill pays double", `+${c1 - c0}`);
+check(c1 - c0 > 0 && (c1 - c0) % 2 === 0 && c1 - c0 >= 2 * (await R(() => window.__trollOps.zrun().drops.state.base ?? 0)), "Double Points: a kill pays double", `+${c1 - c0}`);
 // the chips, under the wave
 const chips = await R(() => [...document.querySelectorAll(".zh-fx-c")].map((c) => c.innerText.replace(/\s+/g, " ")));
-check(chips.length === 1 && /Double Cash/.test(chips[0]), "a chip for it under the wave", JSON.stringify(chips));
+check(chips.length === 1 && /Double Points/.test(chips[0]) && /Points ×2/.test(chips[0]), "a chip for it under the wave, saying what it does", JSON.stringify(chips));
 // One Tap: a scratch kills
 check(await take("onetap"), "One Tap taken");
 await waitAlive(1);
@@ -131,6 +131,11 @@ const full = await R(() => window.__trollOps.zrun().deployOffers().map((o) => o.
 check(await take("firesale"), "Fire Sale taken");
 const half = await R(() => window.__trollOps.zrun().deployOffers().map((o) => o.price));
 check(full.every((p, i) => Math.abs(half[i] - p / 2) <= 5), "Fire Sale: deployables half price", `${full} -> ${half}`);
+const sale = await R(() => ({ banner: document.querySelector(".zh-banner")?.textContent || "", chip: [...document.querySelectorAll(".zh-fx-c")].map((c) => c.innerText.replace(/s+/g, " ")).find((t) => /Fire Sale/.test(t)) || "", orange: document.querySelector(".zh-dep")?.classList.contains("is-sale") }));
+check(/Walls, ammo, frags and deployables half price for 30 s/.test(sale.banner), "Fire Sale banner says what's on sale", sale.banner);
+check(/Half price/.test(sale.chip) && sale.orange, "its chip reads Half price; the deployable prices go orange", JSON.stringify(sale));
+await sleep(1200);
+await page.screenshot({ path: path.join(SHOTS, `zdrops-firesale${TAG}.png`) });
 // Rebuild: a hurt deployable back to full
 await R(() => { const T = window.__trollOps, p = T.move.pos; const e = T.zrun().spawn("barricade", p.x + 5, p.y - 1.6, p.z, 0); e.hp = 20; });
 check(await take("rebuild"), "Rebuild taken");
@@ -161,7 +166,7 @@ check(before.up >= 3 && after.up === 0, "Kaboom: every zombie on its feet drops"
 // (clearing the field can clear the wave too: its bonus rides along)
 const mult = before.x2 ? 2 : 1, wave = await R(() => window.__trollOps.zdir().round);
 const got = after.cash - before.cash;
-check(got === 400 * mult || got === (400 + Math.min(500, 25 * wave)) * mult, "Kaboom pays 400 (doubled under Double Cash)", `+${got}`);
+check(got === 400 * mult || got === (400 + Math.min(500, 25 * wave)) * mult, "Kaboom pays 400 (doubled under Double Points)", `+${got}`);
 
 // ---- 3. timers, bosses, fading
 await R(() => { const fx = window.__trollOps.zrun().drops.dropFx; for (const k of Object.keys(fx)) if (fx[k] > 0) fx[k] = 0.2; });
@@ -216,9 +221,9 @@ await B.bringToFront();
 await Rp(B, (at) => { const T = window.__trollOps; T.move.pos.set(at[0] + 3, T.move.pos.y, at[2]); }, bAt);
 const gotB = await B.waitForFunction(() => window.__trollOps.zrun().drops.dropFx.double > 0, null, { timeout: 8000, polling: 100 }).then(() => true).catch(() => false);
 const gotA = await A.waitForFunction(() => window.__trollOps.zrun().drops.dropFx.double > 0 && window.__trollOps.zrun().drops.drops.size === 0, null, { timeout: 8000, polling: 100 }).then(() => true).catch(() => false);
-check(gotB && gotA, "co-op: B walks into it, both get Double Cash, it's gone on the host");
+check(gotB && gotA, "co-op: B walks into it, both get Double Points, it's gone on the host");
 const bannerB = await Rp(B, () => document.querySelector(".zh-banner")?.textContent || "");
-check(/Double Cash/.test(bannerB), "co-op: B's banner", bannerB);
+check(/Double Points/.test(bannerB), "co-op: B's banner", bannerB);
 // the host's Kaboom: B's mirrored horde goes down, B is paid
 await B.waitForFunction(() => window.__trollOps.zdir().zombies.filter((q) => q.alive && !q.dying).length >= 2, null, { timeout: 120000 }).catch(() => {});
 const cashB0 = await Rp(B, () => window.__trollOps.zrun().econ.cash);
