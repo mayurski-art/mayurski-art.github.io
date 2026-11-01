@@ -246,6 +246,8 @@ const heavyHit = (z, dmg, isHead) => !z.type.noStagger && (isHead || dmg >= z.ma
 const CLIMB_GIVE_UP = 9;      // seconds on a stair before re-thinking the route (more for a slow one: routeFor)
 const RUN_CLIP_FROM = 2.3;    // m/s: a walker this quick plays the run clip
 const SEP_RANGE = 1.1;        // m: neighbours closer than this push apart
+const SPAWN_NEAR = 8;         // m: no zombie comes in closer to the player than this
+const SPAWN_SEEN = 18;        // m: ...nor inside this in the player's sight
 // A zombie that gets under STUCK_NET metres from where it was STUCK_WINDOW
 // seconds ago (and isn't busy at its target) side-steps; STUCK_MOVE such
 // windows in a row where nobody can see it and it comes back in at an
@@ -1143,24 +1145,39 @@ export class ZombieDirector {
     if (this.state === "between") this.breakT = 0;
   }
 
-  /* Entry points on the player's floor — zombies come in where you are. */
+  /* Entry points on the player's floor — zombies come in where you are.
+     Out of sight and spread round (user, 2026-10-31: "where should
+     zombies be spawning"): never within SPAWN_NEAR of the player or
+     in their sight along a clear line inside SPAWN_SEEN; on a big open
+     map, about `preferDist` off; then any of those at random bar the last
+     few used, so it comes from all round the map, not the same window
+     twice running. Each point can carry an `area`: the map's
+     layout.areaOpen(area) (doors, later) keeps a shut area's points out. */
   spawnPointFor(feet) {
+    const open = this.layout.areaOpen;
+    const usable = open ? this.windows.filter((w) => w.area == null || open(w.area)) : this.windows;
     const floor = this.floorOf(feet.y, feet.x, feet.z);
-    const here = this.windows.filter((w) => this.floorOf(w.y + 0.2, w.x, w.z) === floor);
-    const pool = here.length ? here : this.windows;
+    const here = usable.filter((w) => this.floorOf(w.y + 0.2, w.x, w.z) === floor);
+    const pool = here.length ? here : usable.length ? usable : this.windows;
     if (!pool.length) return null;
-    // Prefer one that isn't right on top of the player; on a big open map,
-    // also not so far off that they take a minute to arrive.
     const ideal = this.layout.preferDist || 0;
-    let best = null, bestScore = -Infinity;
-    for (let i = 0; i < (ideal ? 6 : 4); i++) {
-      const w = pool[Math.floor(Math.random() * pool.length)];
-      const d = Math.hypot(w.x - feet.x, w.z - feet.z);
-      const score = ideal
-        ? (d < 7 ? d - 100 : -Math.abs(d - ideal))
-        : (d > 6 ? d : -d);
-      if (score > bestScore) { bestScore = score; best = w; }
-    }
+    const eye = { x: feet.x, z: feet.z };
+    const far = pool.map((w) => ({ w, d: Math.hypot(w.x - feet.x, w.z - feet.z) }));
+    const ok = far.filter(({ w, d }) => d >= SPAWN_NEAR && !(d < SPAWN_SEEN && lineClear(this.colliders, eye, w, Math.min(feet.y, w.y))));
+    let band = ideal ? ok.filter(({ d }) => d >= ideal * 0.6 && d <= ideal * 2.2) : ok;
+    // too few that far (the saloon's upstairs, 34 m from the nearest): the
+    // nearest few of the rest instead, so it still spreads
+    if (band.length < 4) band = ok.sort((a, b) => a.d - b.d).slice(0, 6);
+    // nothing fits: the farthest few
+    if (!band.length) band = far.sort((a, b) => b.d - a.d).slice(0, 3);
+    this.recentSpawns ??= [];
+    const keep = Math.min(3, band.length - 1);
+    const recent = this.recentSpawns.slice(-keep);
+    const fresh = keep > 0 ? band.filter(({ w }) => !recent.includes(w)) : band;
+    const from = fresh.length ? fresh : band;
+    const best = from[Math.floor(Math.random() * from.length)].w;
+    this.recentSpawns.push(best);
+    if (this.recentSpawns.length > 6) this.recentSpawns.shift();
     return best;
   }
 
