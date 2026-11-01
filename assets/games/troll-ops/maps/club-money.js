@@ -24,7 +24,7 @@
 // (onMoneyDrop).
 
 import * as THREE from "three";
-import { groundHeightAt } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1-hb4";
+import { groundHeightAt } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1-hb4-tn13";
 
 export const POOLS = { high: 160, medium: 96, low: 48 };   // notes in the air at most, per tier
 /* How many notes a second a money gun sprays, per tier (money-gun.js). */
