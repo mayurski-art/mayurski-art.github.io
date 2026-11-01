@@ -196,7 +196,7 @@ Every gun, every class:
 - [ ] Within budget (LOD0 and LOD1), checked by the arms sheet tool
 - [ ] Silhouette reads at hip and at 3/4; the moving part is visible
 - [ ] Grip, handguard and every hand target sized to the hand rig; hands close on geometry
-- [ ] ADS: the sight line on centre (existing check), irons fold under any optic, optics sit on the rail
+- [ ] ADS: the sight line on centre (existing check), irons fold under any optic, optics sit on the rail; the sights read big and the look speed matches (§6a)
 - [ ] Attachments: every optic, muzzle and underbarrel in its CLASS_FIT lines up
 - [ ] Fire: the moving part cycles each shot, the trigger pulls, brass where the gun ejects
 - [ ] Empty and tactical reloads, both with hands, ending on the gun's real finish (catch, handle, bolt, rack)
@@ -217,6 +217,38 @@ Per class, on top:
 - **Shotgun:** a real pump part with the hand on it (the Widemouth and Sawgrin have none today), red hulls ejected on the pump, shell-by-shell reload; the Saiga racks AK-style.
 - **Sidearm:** slide cycles and locks back (done); a case per shot; revolvers eject on the reload, never on a shot.
 - **Launcher:** missile slides in on the reload; the tube's rear opens.
+
+## 6a. Sights and aim: lessons (2026-10-31)
+
+From the user's playtest of the 416, MTAR and Ballista. Every new gun follows these.
+
+- **Look speed is the input code's job, never the gun's.** Aimed in, mouse, stick and
+  touch turn by `adsLookScale()` (`input/aim-sens.js`): tan(aimed fov / 2) over
+  tan(hip fov / 2), times the player's ADS sensitivity. A flick moves the picture the
+  same distance through every sight. Don't give a gun its own look multiplier, and
+  don't scale aim by `camera.fov` anywhere else. The old mouse path had no zoom term,
+  so the Ballista's 8x moved about 4.8x faster on screen than the MTAR's irons and
+  "felt like its own sensitivity". Check: `tools/troll-ops-ads-sens-test.mjs` with
+  the new gun's sights in the list.
+- **Irons must read big.** Bare irons sit 0.3 m from the eye by default
+  (`IRON_ADS_DISTANCE`, `view/weapon-view.js`; optics keep 0.46 or their own). Build
+  them wide: a ghost-ring rear aperture (a thin ring: hole radius ~5.5 mm in a ~21 mm block; at 3.4 mm the front post was a speck inside it),
+  ears and front wings spread to frame the post, the post itself kept thin. A small
+  MBUS block 0.3 m out reads as a pinhole.
+- **Rear sight at the back of the rail, eye where the cheek is.** On a bullpup the
+  cheek sits on the butt, so the eye rides close behind the rear aperture: the MTAR
+  sets `adsDistance: 0.2` in its `DETAILED` entry, and its rear sight stands at the
+  rail's rear end. Set the eye from where the cheek weld really is, per gun.
+- **The red dot dims on the move** (to 35 %, `view/weapon-view.js`). It keys on
+  `def.sight === "reddot"` and on reticle meshes marked by `sightMark()`, so a new
+  dot optic gets it for free. Never draw a dot outside `sightMark()`.
+- **Shoot every sight aimed in, before and after:** `tools/troll-ops-optic-shots.mjs
+  <gun>:iron <gun>:reflex <gun>:acog` (and `:scope8` for snipers), and run
+  `tools/troll-ops-iron-ads-test.mjs` with the gun's irons distance. Run a gun per
+  process: a second page in one browser sometimes stalls its first load.
+- **Moving the irons is a model change.** Edit the builder, then a FULL `bake`
+  (never mask-only), a `KIT_VER` bump, and the prefetch manifest lines
+  (the weapon camos lesson).
 
 ## 7. Where procedural generation hits a wall
 
