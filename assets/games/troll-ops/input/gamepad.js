@@ -7,6 +7,7 @@ import { padEmotePressed } from "../menu/controller-layout.js?v=cl7-pd1-or1-pd2-
 import { game } from "../core/state.js?v=st1";
 import { nuke, callNuke } from "../streaks/nuke.js?v=tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h";
 import { freeLook } from "../view/free-look.js?v=nf1";
+import { requestRoll } from "../core/combat-roll.js?v=cr1";
 
 
 /* Stick look, built like Black Ops 2's (user: "smooth like BO2"). The old
@@ -185,7 +186,7 @@ export function pollGamepad(dt) {
   // Black Ops 2's default Xbox 360 layout (user, 2026-10-14: "like we are
   // playing CODBO2 with a xbox360 controller ... reloading is x and weapon
   // swap is Y"): X reload (held: use / pick up), Y switch weapon, LB
-  // tactical, RB lethal, L3 sprint, R3 melee, d-pad right the scorestreak
+  // grenade, RB roll, L3 sprint, R3 melee, d-pad right the scorestreak
   // with up / down scrolling through the ones earned.
   if (!game.localPauseOnly) {
     // X / square: a tap reloads; held, it's use (pickup below). Not over the
@@ -201,11 +202,11 @@ export function pollGamepad(dt) {
     // (controller-layout.js padEmoteButton); by default it's d-pad left held.
     if (padEmotePressed(gp, pressedEdge)) game.emoteWheel.toggle(game.gameState === "playing" && game.player.alive);
     if (pressedEdge(3)) game.cycleWeapon();        // Y / triangle -> cycle primary/secondary/melee
-    // LB tactical, RB lethal. A loadout carries one of the two, so the other
-    // bumper has nothing to throw.
-    if (pressedEdge(4)) game.startCook("tactical");
-    if (pressedEdge(5)) game.startCook("lethal");
-    if ((game.gpPrev[4] && !btn(4)) || (game.gpPrev[5] && !btn(5))) game.releaseThrowKey();
+    // LB throws what you brought (a loadout carries a lethal OR a tactical,
+    // so one bumper for it is enough); RB rolls (user, 2026-11-01).
+    if (pressedEdge(4)) game.startCook(game.carriedThrowSlot());
+    if (game.gpPrev[4] && !btn(4)) game.releaseThrowKey();
+    if (pressedEdge(5)) requestRoll();
     // D-pad left: a tap admires the gun, a hold opens the emote wheel.
     if (pressedEdge(14)) dpadLeftT = 0;
     if (btn(14) && dpadLeftT >= 0) {

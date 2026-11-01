@@ -328,8 +328,9 @@ export function switchWeapon(slot) {
    Keyboard also has 1/2/3. Skips a slot that's empty (Gun Game, One in the
    Chamber, no sidearm picked up yet, no melee) rather than landing on a dead
    one: the swap used to only flip primary and secondary, so with no
-   secondary it did nothing at all (user, 2026-10-13). */
-export function cycleWeapon() {
+   secondary it did nothing at all (user, 2026-10-13). The mouse wheel goes
+   round both ways: `dir` -1 is the one before. */
+export function cycleWeapon(dir = 1) {
   if (game.socialUnarmed() || royaleAboard()) return;
   if (game.player.holding === "streak") return;   // same reason as switchWeapon
   if (throwBusy() || game.isInfected()) return;
@@ -337,7 +338,7 @@ export function cycleWeapon() {
   const order = ["primary", ...(p.secondaryId && p.weapons[p.secondaryId] ? ["secondary"] : []), ...(p.melee ? ["melee"] : [])];
   const current = game.player.holding === "melee" ? "melee" : game.currentWeaponSlot;
   const at = order.indexOf(current);
-  const next = order[(at + 1) % order.length];
+  const next = order[((at + dir) % order.length + order.length) % order.length];
   if (next === "melee") setHolding("melee");
   else switchWeapon(next);
 }
