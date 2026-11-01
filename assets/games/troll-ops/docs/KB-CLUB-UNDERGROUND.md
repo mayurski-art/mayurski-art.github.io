@@ -11,13 +11,14 @@ differs from this draft in four places, each found by a check:
   the west wall it crossed in front of the DJ's LED wall (rule 9). The
   balcony bar moved to the north arm's east end; the hall's two screens
   hang on the north and south walls under the arms, over the booths.
-- The DJ stair (S4) runs down the west wall from the south arm; the
-  stage is x -31.5 .. -28, z 8 .. 16.
+- The DJ's end (stage, booth, LED wall, arches) sits between the north
+  and south arms, z 12.6 .. 21.4, so the hall's full height rises over it
+  and no arm crosses the LED wall from the floor; the DJ stair (S4) runs
+  down a slot in the south arm's west end, landing behind the stage.
 - Brightness: every club view averages 8 to 34 (today's hall 77); the
   over-200 share is 0.1 to 4 % (target was 3 %): the lights are small in
-  a dark frame, and they read. One visibility spot is under 1.6: a player
-  on the north arm seen against the DJ's LED wall (head 1.17), a black
-  silhouette on the brightest thing in the room.
+  a dark frame, and they read. Every visibility spot (club-luma) is at
+  1.6 or better, with blacklight on the faces.
 
 The user's ask: the club is too bright with its lights on and sits
 awkwardly at the end of the street. Make it dark (the club's lights pop
