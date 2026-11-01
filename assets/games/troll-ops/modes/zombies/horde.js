@@ -24,12 +24,12 @@ import { SPECIALS, attachSpecial, specialDamage, maybeCrawl, specialStep, specia
 export const ZOMBIE_TYPES = {
   walker: {
     id: "walker", gait: "walk", color: 0x8f9a86,
-    hpMult: 1, speed: 1.5, height: 1.78, build: 1.0,
+    hpMult: 1, speed: 1.75, height: 1.78, build: 1.0,
     damage: 22, attackRange: 1.5, attackCd: 1.1,
   },
   runner: {
     id: "runner", gait: "run", color: 0x8f9a86,
-    hpMult: 0.8, speed: 2.4, height: 1.78, build: 1.0,
+    hpMult: 0.8, speed: 3.3, height: 1.78, build: 1.0,
     damage: 18, attackRange: 1.55, attackCd: 0.95,
   },
   // gaunt and long-armed, always in its own body: lopes in low and, from a
@@ -78,8 +78,10 @@ export const ZOMBIE_TYPES = {
   },
 };
 
-const RUNNERS_FROM = 5;       // round runners start showing up
-const RUNNER_SHARE = 0.25;
+// Runners from round 3, a few at first and more each round after (user,
+// 2026-10-31: "zombies appear to be moving too slow")
+const RUNNERS_FROM = 3;
+const runnerShare = (round) => Math.min(0.6, 0.12 + (round - RUNNERS_FROM) * 0.045);
 const LEAPERS_FROM = 8;
 const LEAPER_SHARE = 0.12;
 const MAX_LEAPERS = 2;        // alive at once
@@ -241,7 +243,17 @@ const HEAVY_SHOVE = 2.2;       // m/s back along the shot
 const HEAVY_EVERY = 1.2;       // s: at most this often, or an SMG's headshots would pin it
 const heavyHit = (z, dmg, isHead) => !z.type.noStagger && (isHead || dmg >= z.maxHp * 0.25)
   && performance.now() - (z.heavyAt || -Infinity) > HEAVY_EVERY * 1000;
-const CLIMB_GIVE_UP = 9;      // seconds on a stair before re-thinking the route
+const CLIMB_GIVE_UP = 9;      // seconds on a stair before re-thinking the route (more for a slow one: routeFor)
+const RUN_CLIP_FROM = 2.3;    // m/s: a walker this quick plays the run clip
+const SEP_RANGE = 1.1;        // m: neighbours closer than this push apart
+// A zombie that gets under STUCK_NET metres from where it was STUCK_WINDOW
+// seconds ago (and isn't busy at its target) side-steps; STUCK_MOVE such
+// windows in a row where nobody can see it and it comes back in at an
+// entry point, so a wave can't hang on one wedged beside a stair. Net
+// distance, not speed: shuffling on the spot moves, but gets nowhere.
+const STUCK_WINDOW = 5;
+const STUCK_NET = 1.5;
+const STUCK_MOVE = 4;
 const BLOCKER_REACH = 0.2;    // metres from a deployable's box it stops and swings (up against it: on the spikes)
 
 /* The horde's health: +75 a round to round 9, then x1.055 compounding
@@ -268,6 +280,44 @@ export function speedForRound(round, base) {
 }
 
 let idc = 0;
+/* Unit vector a -> b on the ground. */
+function unit(a, b) {
+  const dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1;
+  return { x: dx / l, z: dz / l, len: l };
+}
+
+/* Where p sits against the stair a -> b: metres `along` it from the foot
+   (negative before it) and `side`ways off its centre line. */
+function offStair(p, a, b) {
+  const u = unit(a, b);
+  const rx = p.x - a.x, rz = p.z - a.z;
+  return { along: rx * u.x + rz * u.z, side: Math.abs(rx * u.z - rz * u.x) };
+}
+
+/* The point a metre on up the stair's centre line from where p is: walking
+   at it pulls a climber onto the line and up, not up the side of the
+   stringer (Troll City's chapel stair: they walked beside it). */
+function alongStair(p, a, b, out) {
+  const u = unit(a, b);
+  const t = Math.max(0, Math.min(u.len, (p.x - a.x) * u.x + (p.z - a.z) * u.z + 1.0));
+  out.x = a.x + u.x * t;
+  out.z = a.z + u.z * t;
+  return out;
+}
+const _stairGoal = { x: 0, z: 0 };
+const _steer = new THREE.Vector3();
+const _steer2 = new THREE.Vector3();
+const _flank = new THREE.Vector3();
+
+/* A straight walk a body r wide can make: the centre line and both its
+   edges clear of `field`'s walls (no field: open ground, always clear). */
+function clearWide(field, x0, z0, x1, z1, r) {
+  if (!field) return true;
+  if (!field.lineClear(x0, z0, x1, z1)) return false;
+  const dx = x1 - x0, dz = z1 - z0, l = Math.hypot(dx, dz) || 1;
+  const ox = (-dz / l) * r, oz = (dx / l) * r;
+  return field.lineClear(x0 + ox, z0 + oz, x1 + ox, z1 + oz) && field.lineClear(x0 - ox, z0 - oz, x1 - ox, z1 - oz);
+}
 
 /* One Tap (drops.js): while it's on, any hit kills (a boss excepted). */
 export const HORDE_FX = { instakill: false };
@@ -283,7 +333,11 @@ export class Zombie {
     this.targetId = null;    // whose player it's after (null = the local player)
     this.maxHp = hp ?? Math.round(healthForRound(round) * this.type.hpMult);
     this.hp = this.maxHp;
-    this.speed = speedForRound(round, this.type.speed);
+    // no two the same pace, or the horde moves as one block
+    this.speed = speedForRound(round, this.type.speed) * (0.9 + Math.random() * 0.22);
+    // which side it comes round on, and how wide (Zombie.update's flank)
+    this.flank = (Math.random() < 0.5 ? -1 : 1) * (0.35 + Math.random() * 0.65);
+    this.sep = new THREE.Vector3();   // the push off its neighbours (ZombieDirector.update)
     this.alive = true;
     this.dying = false;
     this.dissolveT = 0;
@@ -452,7 +506,8 @@ export class Zombie {
       this.play("crawl", 0.25);
       this.anim.setEffectiveTimeScale(moving && speed > 0.05 ? Math.max(0.5, Math.min(2, speed / CLIP_SPEED.crawl)) : 0.3);
     } else if (moving && speed > 0.15) {
-      const g = this.type.gait;
+      // a walker pushed past a brisk walk breaks into the run clip
+      const g = this.type.gait === "walk" && speed > RUN_CLIP_FROM && this.body.actions.run ? "run" : this.type.gait;
       this.play(g, 0.3);
       this.anim.setEffectiveTimeScale(Math.max(0.45, Math.min(2.4, speed / CLIP_SPEED[g])));
     } else {
@@ -732,10 +787,29 @@ export class Zombie {
       // Indoors the field knows the way round the walls; close in, or when
       // this spot has no route, fall back to walking straight at them. Not
       // while still below or above them (a stair's top step, a rail between):
-      // straight at them is into the rail.
+      // straight at them is into the rail. With nothing in the way it goes
+      // straight (round on its flank); otherwise to the furthest point down
+      // the route it can see, so it cuts corners like a person instead of
+      // stepping cell to cell along the walls (user, 2026-10-31: "moving in
+      // a straight line ... make the zombies smarter").
+      const p = this.mesh.position;
       const level = Math.abs(feetY - this.groundY) < 0.25;
-      const steer = (field && (dist > 2.5 || !level)) ? field.steer(this.mesh.position.x, this.mesh.position.z) : null;
-      const dir = steer || to;
+      const r = this.radius;
+      const clear = (x0, z0, x1, z1) => clearWide(field, x0, z0, x1, z1, r);
+      let dir = to;
+      if (this.unstickT > 0) {
+        // pinned (ZombieDirector._unstick): a side-step out of it
+        this.unstickT -= dt;
+        dir = this.unstickDir;
+      } else if (field && (dist > 2.5 || !level)) {
+        if (level && clear(p.x, p.z, goal.x, goal.z)) dir = chase ? this._flankDir(to, dist, goal, clear) : to;
+        else dir = field.ahead(p.x, p.z, 6, _steer, clear) || to;
+      } else if (chase && level && dist > 2.5) dir = this._flankDir(to, dist, goal, null);
+      // shoulder room: a little off whoever is in front (not on a stair)
+      if (!this.climb && this.sep.lengthSq() > 1e-4) {
+        _steer2.copy(dir).addScaledVector(this.sep, 0.9);
+        if (_steer2.lengthSq() > 1e-4) dir = _steer2.normalize();
+      }
       this.velocity.x += (dir.x * this.speed - this.velocity.x) * Math.min(1, dt * 5);
       this.velocity.z += (dir.z * this.speed - this.velocity.z) * Math.min(1, dt * 5);
       this._face(Math.atan2(-dir.x, -dir.z), dt);
@@ -832,6 +906,19 @@ export class Zombie {
     this._animate(dt, { moving: this.proxySpeed > 0.15, speed: this.proxySpeed / (this.type.scale || 1) });
   }
 
+  /* Toward a point beside the target instead of the target itself, the
+     offset shrinking as it closes in: each one arcs in on its own side
+     and the horde wraps round you instead of filing up one line. Straight
+     at them if that point is behind a wall (`clear`), or close in. */
+  _flankDir(to, dist, goal, clear) {
+    if (dist < 3 || dist > 18) return to;
+    const off = this.flank * Math.min(3.2, (dist - 2.5) * 0.4);
+    const fx = goal.x + to.z * off, fz = goal.z - to.x * off;
+    const p = this.mesh.position;
+    if (clear && !clear(p.x, p.z, fx, fz)) return to;
+    return _flank.set(fx - p.x, 0, fz - p.z).normalize();
+  }
+
   /* A blocker it's pressed up against, between it and where it's going
      (or where it's trying to walk), or null. */
   _blockerAhead(blockers, to, dist) {
@@ -876,8 +963,9 @@ const _ql = new THREE.Quaternion();
 
 export class ZombieDirector {
   /* `layout`: { windows: [{ x, y, z, rise? }], floorOf(y, x, z) -> floor id,
-     floors: { id: y }, links?: [{ from, to, a: {x,z}, b: {x,z} }] (a on
-     `from`, b on `to`), support?: upper floors only open where there is
+     floors: { id: y }, links?: [{ from, to, a: {x,z}, b: {x,z}, via? }] (a on
+     `from`, b on `to`; via: where a walker comes at a's foot from),
+     support?: upper floors only open where there is
      floor under them, preferDist?: metres a spawn should ideally be from
      the player (big open maps), navCell/navPad/navStep: the flow field's
      grid size, wall margin and step height (nav.js defaults otherwise). */
@@ -968,44 +1056,72 @@ export class ZombieDirector {
   }
 
   /* Where one zombie should head. On the player's floor (or on a map with
-     no stair links): the player. Otherwise the nearest link off its floor,
-     then straight up (or down) the stair to the far end. */
+     no stair links): the player. Otherwise the best link off its floor,
+     then up (or down) the stair along its centre line to the far end.
+     Several buildings can share one floor id (Troll City's saloon, chapel
+     and hall are all "upper"), so a link is picked by how far it is to
+     its foot PLUS how far its top lands from the player, and a zombie on
+     the right floor but cut off from the player there (the wrong
+     building's upstairs) goes back down the nearest stair. */
   routeFor(z, playerPos, playerField, feetY, dt) {
+    const p = z.mesh.position;
     if (z.climb) {
-      const { exit, exitFloor } = z.climb;
+      const { entry, exit, exitFloor } = z.climb;
       z.climbT += dt;
-      const d = Math.hypot(exit.x - z.mesh.position.x, exit.z - z.mesh.position.z);
+      // from the `via` point: to the foot first, then up
+      if (z.climb.pre && Math.hypot(entry.x - p.x, entry.z - p.z) > 0.45 && z.climbT < CLIMB_GIVE_UP) return { field: null, goal: entry, chase: false };
+      z.climb.pre = false;
+      const d = Math.hypot(exit.x - p.x, exit.z - p.z);
       const level = Math.abs(z.groundY - (this.floors[exitFloor] ?? 0)) < 0.35;
-      if ((level && d < 1.2) || z.climbT > CLIMB_GIVE_UP) z.climb = null;
-      else return { field: null, goal: exit, chase: false };
+      // a slow one (a crawler) gets the time its pace needs
+      const giveUp = Math.max(CLIMB_GIVE_UP, (3 * Math.hypot(exit.x - entry.x, exit.z - entry.z)) / Math.max(0.2, z.speed));
+      if ((level && d < 1.2) || z.climbT > giveUp) z.climb = null;
+      else return { field: null, goal: alongStair(p, entry, exit, _stairGoal), chase: false };
     }
-    const here = this.floorOf(z.groundY + 0.2, z.mesh.position.x, z.mesh.position.z);
+    const here = this.floorOf(z.groundY + 0.2, p.x, p.z);
     const there = this.floorOf(feetY + 0.2, playerPos.x, playerPos.z);
-    if (!this.links.length || here === there) return { field: playerField, goal: playerPos, chase: true };
-    // With more than one stair, only take one that leads toward the
-    // player's floor (the next floor on the way, through the links).
-    const toward = this.nextFloor(here, there);
-    let best = null, bestD = Infinity;
+    if (!this.links.length) return { field: playerField, goal: playerPos, chase: true };
+    let toward = null, cutOff = false;
+    if (here === there) {
+      const i = playerField.openIndex(p.x, p.z);
+      cutOff = i >= 0 && playerField.targetIdx >= 0 && !playerField.dist[i];
+      if (!cutOff) return { field: playerField, goal: playerPos, chase: true };
+    } else {
+      // With more than one stair, only take one that leads toward the
+      // player's floor (the next floor on the way, through the links).
+      toward = this.nextFloor(here, there);
+    }
+    let best = null, bestScore = Infinity, bestD = Infinity;
     for (let i = 0; i < this.links.length; i++) {
       const link = this.links[i];
       let entry, exit, exitFloor, end;
-      if (link.from === here) { entry = link.a; exit = link.b; exitFloor = link.to; end = "a"; }
+      let via = null;
+      if (link.from === here) { entry = link.a; exit = link.b; exitFloor = link.to; end = "a"; via = link.via || null; }
       else if (link.to === here) { entry = link.b; exit = link.a; exitFloor = link.from; end = "b"; }
       else continue;
       if (toward && exitFloor !== toward) continue;
-      const d = Math.hypot(entry.x - z.mesh.position.x, entry.z - z.mesh.position.z);
-      if (d < bestD) { bestD = d; best = { i, entry, exit, exitFloor, end }; }
+      const d = Math.hypot((via || entry).x - p.x, (via || entry).z - p.z);
+      // the stair down out of a cut-off upstairs: just the nearest
+      const score = d + (!cutOff && exitFloor === there ? Math.hypot(exit.x - playerPos.x, exit.z - playerPos.z) : 0);
+      if (score < bestScore) { bestScore = score; bestD = d; best = { i, entry, exit, exitFloor, end, via }; }
     }
     if (!best) return { field: playerField, goal: playerPos, chase: true };
-    if (bestD < 1.3) {
-      z.climb = { exit: best.exit, exitFloor: best.exitFloor };
+    // At the foot, or square in front of it on the stair's line (the
+    // saloon's foot sits in a pocket the field stops 1.6 m short of): up
+    // it goes.
+    // Nothing chest-high between (a wall the stair is built against).
+    const off = offStair(p, best.entry, best.exit);
+    const near = best.via ? bestD < 1.0 : (bestD < 1.3 || (bestD < 1.9 && off.side < 0.6 && off.along > -1.9));
+    if (near && lineClear(this.colliders, p, best.via || best.entry, z.groundY)) {
+      z.climb = { entry: best.entry, exit: best.exit, exitFloor: best.exitFloor, pre: !!best.via };
       z.climbT = 0;
-      return { field: null, goal: best.exit, chase: false };
+      return { field: null, goal: alongStair(p, best.entry, best.exit, _stairGoal), chase: false };
     }
     // the stair doesn't move, so its field is swept once and kept
     const f = this.field(here, `link${best.i}${best.end}`);
-    if (f.targetIdx < 0) f.compute(best.entry.x, best.entry.z);
-    return { field: f, goal: best.entry, chase: false };
+    const at = best.via || best.entry;
+    if (f.targetIdx < 0) f.compute(at.x, at.z);
+    return { field: f, goal: at, chase: false };
   }
 
   get aliveCount() { return this.zombies.filter((z) => z.alive && !z.dying).length; }
@@ -1063,7 +1179,7 @@ export class ZombieDirector {
         && this.zombies.filter((z) => z.alive && !z.dying && z.type.id === "brute").length < MAX_BRUTES) {
       return "brute";
     }
-    return this.round >= RUNNERS_FROM && Math.random() < RUNNER_SHARE ? "runner" : "walker";
+    return this.round >= RUNNERS_FROM && Math.random() < runnerShare(this.round) ? "runner" : "walker";
   }
 
   /* A boss in now, at an entry point near the player (modes/zombies/boss.js),
@@ -1134,6 +1250,7 @@ export class ZombieDirector {
     };
     this.groanCd -= dt;
     this.snarlCd -= dt;
+    this._spread();
     for (const z of this.zombies) {
       if (!z.alive) continue;
       if (z.proxy) { this._voice(z); continue; }   // a mirrored one left over (coop drives those)
@@ -1141,6 +1258,7 @@ export class ZombieDirector {
       z.targetId = t.id;
       const route = z.dying ? null : this.routeFor(z, t.pos, fieldOf(t), t.feetY, dt);
       z.update(dt, t.pos, onAttack, this.arena, this.colliders, route, t.feetY, this.scene, this.blockers);
+      if (!z.dying) this._unstick(z, t, tg, dt);
       this._voice(z);
     }
 
@@ -1160,6 +1278,55 @@ export class ZombieDirector {
       if (this.breakT <= 0) return true;   // caller starts the next round
     }
     return false;
+  }
+
+  /* Each zombie's push off the ones crowding it (Zombie.sep): the closer,
+     the harder, so they fan out instead of walking in each other's steps.
+     Only ones on their feet, on about the same level. */
+  _unstick(z, t, tg, dt) {
+    const p = z.mesh.position;
+    z.stuckClock = (z.stuckClock ?? STUCK_WINDOW) - dt;
+    if (z.stuckClock > 0) return;
+    z.stuckClock = STUCK_WINDOW;
+    const busy = z.attackT > 0 || z.bite || z.leap || z.holdT > 0 || z.stunT > 0 || z.riseT > 0 || z.spitT > 0
+      || (Math.hypot(t.pos.x - p.x, t.pos.z - p.z) < z.type.attackRange + 0.6 && Math.abs(t.feetY - z.groundY) < 1.4);
+    const moved = z.stuckAt ? Math.hypot(p.x - z.stuckAt.x, p.z - z.stuckAt.z) + Math.abs(z.groundY - z.stuckAt.y) : Infinity;
+    z.stuckAt = { x: p.x, y: z.groundY, z: p.z };
+    if (busy || moved > STUCK_NET) { z.stuckS = 0; return; }
+    z.stuckS = (z.stuckS || 0) + 1;
+    // off at right angles to the way it faces, either side
+    const yaw = z.mesh.rotation.y + (Math.random() < 0.5 ? 1 : -1) * Math.PI / 2;
+    z.unstickDir = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+    z.unstickT = 1.2;
+    z.climb = null;
+    if (z.stuckS >= STUCK_MOVE && tg.every((q) => !lineClear(this.colliders, p, q.pos, z.groundY))) {
+      const w = this.spawnPointFor({ x: t.pos.x, y: t.feetY + 0.2, z: t.pos.z });
+      if (w) {
+        p.set(w.x, w.y, w.z);
+        z.groundY = w.y;
+        z.velocity.set(0, 0, 0);
+        z.stuckS = 0;
+        z.stuckAt = null;
+      }
+    }
+  }
+
+  _spread() {
+    const live = this.zombies.filter((z) => z.alive && !z.dying && !z.proxy && z.riseT <= 0);
+    for (const z of live) z.sep.set(0, 0, 0);
+    for (let i = 0; i < live.length; i++) {
+      const a = live[i], pa = a.mesh.position;
+      for (let j = i + 1; j < live.length; j++) {
+        const b = live[j], pb = b.mesh.position;
+        const dx = pa.x - pb.x, dz = pa.z - pb.z;
+        if (Math.abs(dx) > SEP_RANGE || Math.abs(dz) > SEP_RANGE || Math.abs(a.groundY - b.groundY) > 0.8) continue;
+        const d = Math.hypot(dx, dz);
+        if (d >= SEP_RANGE || d < 1e-4) continue;
+        const w = (SEP_RANGE - d) / SEP_RANGE / d;
+        a.sep.x += dx * w; a.sep.z += dz * w;
+        b.sep.x -= dx * w; b.sep.z -= dz * w;
+      }
+    }
   }
 
   /* Who `z` goes for: the nearest of `tg` (a floor apart counts as far),
